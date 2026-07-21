@@ -1,0 +1,39 @@
+import Link from "next/link";
+
+const ROLE_LABEL = {
+  principal: "원장",
+  instructor: "강사",
+  assistant: "조교",
+  student: "학생",
+  parent: "학부모",
+};
+
+export default function TopBar({ profile, active }) {
+  return (
+    <header className="topbar">
+      <div className="topbar-in">
+        <Link href="/" className="brand">
+          <span className="mark">클</span> 클로이영어
+        </Link>
+        <nav className="nav">
+          <Link href="/" className={active === "home" ? "on" : ""}>
+            대시보드
+          </Link>
+          <Link href="/students" className={active === "students" ? "on" : ""}>
+            학생
+          </Link>
+        </nav>
+        <div className="spacer" />
+        <span className="who">
+          <b>{profile?.name || "사용자"}</b>{" "}
+          {profile?.role ? `· ${ROLE_LABEL[profile.role] || profile.role}` : ""}
+        </span>
+        <form action="/logout" method="post">
+          <button className="btn btn-ghost" type="submit">
+            로그아웃
+          </button>
+        </form>
+      </div>
+    </header>
+  );
+}
