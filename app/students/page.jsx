@@ -4,6 +4,13 @@ import { addStudent } from "./actions";
 
 export const dynamic = "force-dynamic";
 
+const STATUS = {
+  prospect: { label: "예비", cls: "tag tag-sky" },
+  enrolled: { label: "재원", cls: "tag tag-mint" },
+  paused: { label: "휴원", cls: "tag tag-amber" },
+  withdrawn: { label: "퇴원", cls: "tag tag-muted" },
+};
+
 export default async function StudentsPage() {
   const supabase = createClient();
   const {
@@ -22,7 +29,9 @@ export default async function StudentsPage() {
 
   const { data: students, error } = await supabase
     .from("students")
-    .select("id, name, school, grade, parent_phone, status, created_at")
+    .select(
+      "id, name, school, grade, birth_year, student_phone, parent_phone, status, electives, note, login_id, created_at"
+    )
     .order("created_at", { ascending: false });
 
   return (
@@ -33,7 +42,8 @@ export default async function StudentsPage() {
           <p className="eyebrow">학생 관리</p>
           <h1 className="h1">재원생</h1>
           <p className="sub">
-            학생을 추가하면 실제 데이터베이스(Supabase)에 저장됩니다.
+            학생을 추가하면 실제 데이터베이스(Supabase)에 저장됩니다. 로그인
+            아이디는 전화 뒷자리로 자동 생성됩니다.
           </p>
         </div>
 
@@ -48,24 +58,70 @@ export default async function StudentsPage() {
                 <label className="label">이름 *</label>
                 <input className="input" name="name" required placeholder="홍길동" />
               </div>
+
               <div className="row">
                 <div className="field" style={{ flex: 1 }}>
-                  <label className="label">학교</label>
-                  <input className="input" name="school" placeholder="신정중" />
+                  <label className="label">학교 *</label>
+                  <input className="input" name="school" required placeholder="신정중" />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label className="label">학년</label>
-                  <input className="input" name="grade" placeholder="중2" />
+                  <label className="label">학년 *</label>
+                  <input className="input" name="grade" required placeholder="중2" />
                 </div>
               </div>
+
               <div className="field">
-                <label className="label">학부모 연락처</label>
-                <input className="input" name="parent_phone" placeholder="010-0000-0000" />
+                <label className="label">생년월일</label>
+                <input className="input" name="birth_year" type="date" />
+                <span className="hint">지금 몰라도 나중에 채울 수 있어요.</span>
               </div>
+
+              <div className="row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="label">학생 전화 *</label>
+                  <input
+                    className="input"
+                    name="student_phone"
+                    required
+                    placeholder="010-0000-0000"
+                  />
+                  <span className="hint">뒷자리 4개로 로그인 아이디를 만들어요.</span>
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="label">학부모 전화 *</label>
+                  <input
+                    className="input"
+                    name="parent_phone"
+                    required
+                    placeholder="010-0000-0000"
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label">재원 상태 *</label>
+                <select className="input" name="status" defaultValue="enrolled" required>
+                  <option value="prospect">예비</option>
+                  <option value="enrolled">재원</option>
+                  <option value="paused">휴원</option>
+                  <option value="withdrawn">퇴원</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label className="label">선택과목</label>
+                <input
+                  className="input"
+                  name="electives"
+                  placeholder="예: 고2 1학기 화작/기하"
+                />
+              </div>
+
               <div className="field">
                 <label className="label">특이사항</label>
                 <input className="input" name="note" placeholder="메모" />
               </div>
+
               <button className="btn btn-primary btn-block" type="submit">
                 저장
               </button>
@@ -87,26 +143,37 @@ export default async function StudentsPage() {
                 <div className="err">불러오기 실패: {error.message}</div>
               </div>
             ) : students && students.length > 0 ? (
-              <table className="tbl" style={{ marginTop: 12 }}>
-                <thead>
-                  <tr>
-                    <th>이름</th>
-                    <th>학교·학년</th>
-                    <th>학부모</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((s) => (
-                    <tr key={s.id}>
-                      <td style={{ fontWeight: 700 }}>{s.name}</td>
-                      <td className="muted">
-                        {[s.school, s.grade].filter(Boolean).join(" · ") || "—"}
-                      </td>
-                      <td className="muted">{s.parent_phone || "—"}</td>
+              <div style={{ overflowX: "auto" }}>
+                <table className="tbl" style={{ marginTop: 12 }}>
+                  <thead>
+                    <tr>
+                      <th>이름</th>
+                      <th>학교·학년</th>
+                      <th>상태</th>
+                      <th>학부모</th>
+                      <th>로그인 아이디</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {students.map((s) => {
+                      const st = STATUS[s.status] || STATUS.enrolled;
+                      return (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: 700 }}>{s.name}</td>
+                          <td className="muted">
+                            {[s.school, s.grade].filter(Boolean).join(" · ") || "—"}
+                          </td>
+                          <td>
+                            <span className={st.cls}>{st.label}</span>
+                          </td>
+                          <td className="muted">{s.parent_phone || "—"}</td>
+                          <td className="mono">{s.login_id || "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <div style={{ padding: 18 }}>
                 <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
