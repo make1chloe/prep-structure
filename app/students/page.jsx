@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { addStudent } from "./actions";
+import ExcelUpload from "./ExcelUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +46,7 @@ export default async function StudentsPage() {
             학생을 추가하면 실제 데이터베이스(Supabase)에 저장됩니다. 로그인
             아이디는 전화 뒷자리로 자동 생성됩니다.
           </p>
-          <div className="row" style={{ marginTop: 10 }}>
-            <Link href="/students/import" className="btn btn-ghost">
-              📋 엑셀 대량 업로드
-            </Link>
-          </div>
+          <ExcelUpload />
         </div>
 
         <div className="grid2" style={{ marginTop: 18, alignItems: "start" }}>
