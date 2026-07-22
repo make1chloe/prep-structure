@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { parseTable, FIELD_LABEL } from "@/lib/importParse";
+import { parseAoA, FIELD_LABEL, TEMPLATE_HEADERS } from "@/lib/importParse";
 import { bulkAddStudents } from "../actions";
 
 const STATUS_LABEL = {
@@ -12,17 +12,64 @@ const STATUS_LABEL = {
   withdrawn: "퇴원",
 };
 
-const SHOW = ["name", "school", "grade", "birth_year", "student_phone", "parent_phone", "status", "gender", "enrolled_on"];
+const SHOW = [
+  "name",
+  "school",
+  "grade",
+  "birth_year",
+  "student_phone",
+  "parent_phone",
+  "status",
+  "gender",
+  "enrolled_on",
+];
 
 export default function ImportClient() {
-  const [text, setText] = useState("");
   const [parsed, setParsed] = useState(null);
+  const [fileName, setFileName] = useState("");
   const [result, setResult] = useState(null);
   const [pending, startTransition] = useTransition();
+  const inputRef = useRef(null);
 
-  function handleParse() {
+  async function handleDownloadTemplate() {
+    const XLSX = await import("xlsx");
+    const example = [
+      "홍길동",
+      "신정중",
+      "중2",
+      "2011-03-15",
+      "010-1234-5678",
+      "010-9999-8888",
+      "재원",
+      "남",
+      "2024-03-02",
+      "고2 1학기 화작/기하",
+      "메모",
+    ];
+    const aoa = [TEMPLATE_HEADERS, example];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 14 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "재원생");
+    XLSX.writeFile(wb, "클로이영어_재원생_양식.xlsx");
+  }
+
+  async function handleFile(e) {
     setResult(null);
-    setParsed(parseTable(text));
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const XLSX = await import("xlsx");
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const aoa = XLSX.utils.sheet_to_json(ws, {
+      header: 1,
+      raw: false,
+      dateNF: "yyyy-mm-dd",
+      defval: "",
+    });
+    setParsed(parseAoA(aoa));
   }
 
   function handleSave() {
@@ -31,49 +78,67 @@ export default function ImportClient() {
       const res = await bulkAddStudents(parsed.rows);
       setResult(res);
       if (res.inserted > 0) {
-        setText("");
         setParsed(null);
+        setFileName("");
+        if (inputRef.current) inputRef.current.value = "";
       }
     });
   }
 
   const unknown = parsed
-    ? parsed.headers.filter((h, i) => parsed.fields[i] === null)
+    ? parsed.headers.filter((h, i) => parsed.fields[i] === null && h)
     : [];
 
   return (
     <div className="stack" style={{ gap: 18 }}>
+      {/* 1. 양식 내려받기 */}
       <div className="card">
         <h2 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 800 }}>
-          1. 붙여넣기
+          1. 양식 내려받기
         </h2>
         <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>
-          노션이나 엑셀에서 학생 표를 복사(Ctrl+C)해서 아래에 붙여넣으세요.
-          <b> 첫 줄은 열 이름(제목)</b>이어야 해요. 예: 이름 · 학교 · 학년 · 생년월일 ·
-          학생전화 · 학부모전화 · 상태 · 성별 · 등원시작일
+          아래 버튼으로 엑셀 양식을 받아, 열 이름은 그대로 두고 학생 정보만
+          채워주세요. (예시 줄은 지우고 입력)
         </p>
-        <textarea
+        <button className="btn btn-ghost" onClick={handleDownloadTemplate}>
+          ⬇️ 엑셀 양식 다운로드 (.xlsx)
+        </button>
+      </div>
+
+      {/* 2. 파일 업로드 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 800 }}>
+          2. 파일 업로드
+        </h2>
+        <p className="muted" style={{ margin: "0 0 12px", fontSize: 13 }}>
+          채운 엑셀 파일(.xlsx / .csv)을 선택하면 미리보기가 나와요.
+        </p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          onChange={handleFile}
           className="input"
-          style={{ minHeight: 160, fontFamily: "ui-monospace, monospace", fontSize: 12.5 }}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={"이름\t학교\t학년\t학생전화\n홍길동\t신정중\t중2\t010-1234-5678"}
+          style={{ padding: 10 }}
         />
+        {fileName && (
+          <p className="hint" style={{ marginTop: 8 }}>
+            선택된 파일: {fileName}
+          </p>
+        )}
         <div className="row" style={{ marginTop: 12 }}>
-          <button className="btn btn-primary" onClick={handleParse} disabled={!text.trim()}>
-            미리보기
-          </button>
           <Link href="/students" className="btn btn-ghost">
             학생 목록으로
           </Link>
         </div>
       </div>
 
+      {/* 3. 미리보기 */}
       {parsed && (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div style={{ padding: "16px 18px 0" }}>
             <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-              2. 미리보기{" "}
+              3. 미리보기{" "}
               <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
                 {parsed.rows.length}명 인식됨
               </span>
@@ -88,8 +153,8 @@ export default function ImportClient() {
           {parsed.rows.length === 0 ? (
             <div style={{ padding: 18 }}>
               <div className="err">
-                인식된 학생이 없어요. 첫 줄이 열 이름인지, 표를 통째로
-                복사했는지 확인해주세요.
+                인식된 학생이 없어요. 첫 줄이 열 이름(이름·학교…)인지, 양식대로
+                채웠는지 확인해주세요.
               </div>
             </div>
           ) : (
