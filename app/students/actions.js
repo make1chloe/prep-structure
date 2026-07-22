@@ -24,13 +24,17 @@ export async function addStudent(formData) {
 
   const supabase = createClient();
 
-  // 이미 쓰고 있는 로그인 아이디를 모아 충돌을 피한다
-  const { data: existing } = await supabase
-    .from("students")
-    .select("login_id")
-    .not("login_id", "is", null);
-  const taken = new Set((existing || []).map((r) => r.login_id));
-  const login_id = resolveLoginId(baseLoginId(student_phone, parent_phone), taken);
+  // 겹칠 수 있는 아이디만 좁게 조회한다 (base 로 시작하는 것만)
+  const base = baseLoginId(student_phone, parent_phone);
+  let login_id = base;
+  if (base) {
+    const { data: existing } = await supabase
+      .from("students")
+      .select("login_id")
+      .like("login_id", `${base}%`);
+    const taken = new Set((existing || []).map((r) => r.login_id));
+    login_id = resolveLoginId(base, taken);
+  }
 
   await supabase.from("students").insert({
     name,
