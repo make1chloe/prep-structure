@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { baseLoginId } from "@/lib/studentId";
+import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -17,10 +17,12 @@ export async function addStudent(formData) {
     name,
     school: clean(formData, "school"),
     grade: clean(formData, "grade"),
-    birth_year: clean(formData, "birth_year"), // YYYY-MM-DD or null
+    birth_year: clean(formData, "birth_year"),
+    gender: clean(formData, "gender"),
     student_phone: clean(formData, "student_phone"),
     parent_phone: clean(formData, "parent_phone"),
     status: clean(formData, "status") || "enrolled",
+    enrolled_on: clean(formData, "enrolled_on"),
     electives: clean(formData, "electives"),
     note: clean(formData, "note"),
   };
@@ -28,8 +30,6 @@ export async function addStudent(formData) {
   const supabase = createClient();
   const base = baseLoginId(row.student_phone, row.parent_phone);
 
-  // 로그인 아이디를 붙여 바로 저장(왕복 1번).
-  // 뒷자리가 겹쳐 중복(23505)이면 -2, -3 ... 으로만 재시도.
   let candidate = base || null;
   for (let attempt = 0; attempt < 25; attempt++) {
     const { error } = await supabase
@@ -40,8 +40,59 @@ export async function addStudent(formData) {
       candidate = `${base}-${attempt + 2}`;
       continue;
     }
-    break; // 그 외 에러는 재시도하지 않음
+    break;
   }
 
   revalidatePath("/students");
+}
+
+// 대량 업로드: 파싱된 행 배열을 한 번에 저장한다.
+export async function bulkAddStudents(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const supabase = createClient();
+
+  // 기존 로그인 아이디를 한 번만 불러와 배치 내에서 충돌을 피한다
+  const { data: existing } = await supabase
+    .from("students")
+    .select("login_id")
+    .not("login_id", "is", null);
+  const taken = new Set((existing || []).map((r) => r.login_id));
+
+  const payload = rows
+    .filter((r) => (r?.name || "").trim() !== "")
+    .map((r) => {
+      const student_phone = (r.student_phone || "").trim() || null;
+      const parent_phone = (r.parent_phone || "").trim() || null;
+      const base = baseLoginId(student_phone, parent_phone);
+      let login_id = null;
+      if (base) {
+        login_id = resolveLoginId(base, taken);
+        taken.add(login_id);
+      }
+      return {
+        name: r.name.trim(),
+        school: (r.school || "").trim() || null,
+        grade: (r.grade || "").trim() || null,
+        birth_year: r.birth_year || null,
+        gender: r.gender || null,
+        student_phone,
+        parent_phone,
+        status: r.status || "enrolled",
+        enrolled_on: r.enrolled_on || null,
+        electives: (r.electives || "").trim() || null,
+        note: (r.note || "").trim() || null,
+        login_id,
+      };
+    });
+
+  const { error } = await supabase.from("students").insert(payload);
+  revalidatePath("/students");
+
+  return {
+    inserted: error ? 0 : payload.length,
+    error: error ? error.message : null,
+  };
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { addStudent } from "./actions";
@@ -45,6 +46,11 @@ export default async function StudentsPage() {
             학생을 추가하면 실제 데이터베이스(Supabase)에 저장됩니다. 로그인
             아이디는 전화 뒷자리로 자동 생성됩니다.
           </p>
+          <div className="row" style={{ marginTop: 10 }}>
+            <Link href="/students/import" className="btn btn-ghost">
+              📋 엑셀 대량 업로드
+            </Link>
+          </div>
         </div>
 
         <div className="grid2" style={{ marginTop: 18, alignItems: "start" }}>
@@ -70,10 +76,19 @@ export default async function StudentsPage() {
                 </div>
               </div>
 
-              <div className="field">
-                <label className="label">생년월일</label>
-                <input className="input" name="birth_year" type="date" />
-                <span className="hint">지금 몰라도 나중에 채울 수 있어요.</span>
+              <div className="row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="label">생년월일</label>
+                  <input className="input" name="birth_year" type="date" />
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="label">성별</label>
+                  <select className="input" name="gender" defaultValue="">
+                    <option value="">선택</option>
+                    <option value="여">여</option>
+                    <option value="남">남</option>
+                  </select>
+                </div>
               </div>
 
               <div className="row">
@@ -98,14 +113,20 @@ export default async function StudentsPage() {
                 </div>
               </div>
 
-              <div className="field">
-                <label className="label">재원 상태 *</label>
-                <select className="input" name="status" defaultValue="enrolled" required>
-                  <option value="prospect">예비</option>
-                  <option value="enrolled">재원</option>
-                  <option value="paused">휴원</option>
-                  <option value="withdrawn">퇴원</option>
-                </select>
+              <div className="row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="label">재원 상태 *</label>
+                  <select className="input" name="status" defaultValue="enrolled" required>
+                    <option value="prospect">예비</option>
+                    <option value="enrolled">재원</option>
+                    <option value="paused">휴원</option>
+                    <option value="withdrawn">퇴원</option>
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label className="label">등원시작일</label>
+                  <input className="input" name="enrolled_on" type="date" />
+                </div>
               </div>
 
               <div className="field">
