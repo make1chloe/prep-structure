@@ -12,21 +12,46 @@ function num(formData, key) {
   return v ? parseInt(v, 10) : null;
 }
 
+// 새 컬럼(word_range/activity)이 아직 DB에 없으면 그 컬럼만 빼고 다시 저장한다.
+// -> Supabase 마이그레이션을 아직 안 돌렸어도 기본 저장은 되게 함.
+function isMissingColumn(error) {
+  if (!error) return false;
+  return error.code === "PGRST204" || error.code === "42703";
+}
+async function insertSafe(supabase, table, rows, optionalKeys = []) {
+  let { error } = await supabase.from(table).insert(rows);
+  if (isMissingColumn(error) && optionalKeys.length) {
+    const strip = (r) => {
+      const c = { ...r };
+      optionalKeys.forEach((k) => delete c[k]);
+      return c;
+    };
+    const trimmed = Array.isArray(rows) ? rows.map(strip) : strip(rows);
+    ({ error } = await supabase.from(table).insert(trimmed));
+  }
+  return error;
+}
+
 export async function addTextbook(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;
 
   const supabase = createClient();
-  await supabase.from("textbooks").insert({
-    name,
-    area: clean(formData, "area"),
-    target_grade: clean(formData, "target_grade"),
-    total_pages: num(formData, "total_pages"),
-    price: num(formData, "price"),
-    purchase_url: clean(formData, "purchase_url"),
-    word_range: num(formData, "word_range"),
-    feature: clean(formData, "feature"),
-  });
+  await insertSafe(
+    supabase,
+    "textbooks",
+    {
+      name,
+      area: clean(formData, "area"),
+      target_grade: clean(formData, "target_grade"),
+      total_pages: num(formData, "total_pages"),
+      price: num(formData, "price"),
+      purchase_url: clean(formData, "purchase_url"),
+      word_range: num(formData, "word_range"),
+      feature: clean(formData, "feature"),
+    },
+    ["word_range"]
+  );
   revalidatePath("/textbooks");
 }
 
@@ -52,7 +77,7 @@ export async function bulkAddTextbooks(rows) {
     }));
 
   const supabase = createClient();
-  const { error } = await supabase.from("textbooks").insert(payload);
+  const error = await insertSafe(supabase, "textbooks", payload, ["word_range"]);
   revalidatePath("/textbooks");
   return { inserted: error ? 0 : payload.length, error: error ? error.message : null };
 }
@@ -76,12 +101,12 @@ export async function addUnit(formData) {
     sort = (last?.[0]?.sort ?? 0) + 1;
   }
 
-  await supabase.from("textbook_units").insert({
-    textbook_id,
-    name,
-    sort,
-    activity: clean(formData, "activity"),
-  });
+  await insertSafe(
+    supabase,
+    "textbook_units",
+    { textbook_id, name, sort, activity: clean(formData, "activity") },
+    ["activity"]
+  );
   revalidatePath("/textbooks");
 }
 
