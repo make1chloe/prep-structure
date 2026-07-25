@@ -22,7 +22,10 @@ export default async function Home() {
     profile = data;
 
     const [s, c, t] = await Promise.all([
-      supabase.from("students").select("id", { count: "exact", head: true }),
+      supabase
+        .from("students")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "enrolled"),
       supabase.from("classes").select("id", { count: "exact", head: true }),
       supabase.from("textbooks").select("id", { count: "exact", head: true }),
     ]);
@@ -36,15 +39,13 @@ export default async function Home() {
   return (
     <>
       <TopBar profile={profile} active="home" />
-      <main className="wrap">
+      <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">대시보드</p>
           <h1 className="h1">
             안녕하세요, {profile?.name || "원장"}님
           </h1>
-          <p className="sub">
-            학습관리 시스템에 연결되었습니다. 아래는 현재 등록된 데이터 현황입니다.
-          </p>
+          <p className="sub">오늘 수업과 등록 현황이에요.</p>
         </div>
 
         <div className="stats">
@@ -70,9 +71,8 @@ export default async function Home() {
         )}
 
         <div className="row">
-          <Link href="/students" className="btn btn-primary">
-            학생 관리로 이동
-          </Link>
+          <Link href="/students" className="btn btn-primary">학생</Link>
+          <Link href="/textbooks" className="btn btn-ghost">교재 · 단원</Link>
         </div>
       </main>
     </>
