@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { parseAoA, FIELD_LABEL, TEMPLATE_HEADERS } from "@/lib/importParse";
 import { bulkAddStudents } from "./actions";
 
@@ -30,6 +31,7 @@ export default function ExcelUpload() {
   const [result, setResult] = useState(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef(null);
+  const router = useRouter();
 
   function reset() {
     setParsed(null);
@@ -75,6 +77,7 @@ export default function ExcelUpload() {
         setParsed(null);
         setFileName("");
         if (inputRef.current) inputRef.current.value = "";
+        router.refresh();
       }
     });
   }

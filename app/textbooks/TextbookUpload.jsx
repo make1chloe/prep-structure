@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { parseTextbookAoA, TB_FIELD_LABEL, TEXTBOOK_HEADERS } from "@/lib/importTextbook";
 import { bulkAddTextbooks } from "./actions";
 
@@ -13,6 +14,7 @@ export default function TextbookUpload() {
   const [result, setResult] = useState(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef(null);
+  const router = useRouter();
 
   function reset() {
     setParsed(null);
@@ -49,7 +51,10 @@ export default function TextbookUpload() {
     startTransition(async () => {
       const res = await bulkAddTextbooks(parsed.rows);
       setResult(res);
-      if (res.inserted > 0) reset();
+      if (res.inserted > 0) {
+        reset();
+        router.refresh();
+      }
     });
   }
 
