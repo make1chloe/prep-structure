@@ -22,6 +22,9 @@ export default function TopBar({ profile, active }) {
           <Link href="/students" className={active === "students" ? "on" : ""}>
             학생
           </Link>
+          <Link href="/textbooks" className={active === "textbooks" ? "on" : ""}>
+            교재
+          </Link>
         </nav>
         <div className="spacer" />
         <span className="who">
