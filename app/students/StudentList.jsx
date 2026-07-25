@@ -11,6 +11,30 @@ const STATUS = {
   withdrawn: { label: "퇴원", cls: "tag tag-muted" },
 };
 
+// 표에 실제로 펼칠 열 (전 속성)
+const COLS = [
+  { key: "name", label: "이름", w: 84, strong: true },
+  { key: "school", label: "학교", w: 84 },
+  { key: "grade", label: "학년", w: 56 },
+  { key: "birth_year", label: "생년월일", w: 118, type: "date" },
+  { key: "gender", label: "성별", w: 62, type: "select", options: ["", "여", "남"] },
+  { key: "student_phone", label: "학생 전화", w: 126 },
+  { key: "parent_phone", label: "학부모 전화", w: 126 },
+  { key: "status", label: "상태", w: 76, type: "status" },
+  { key: "enrolled_on", label: "등원시작일", w: 118, type: "date" },
+  { key: "electives", label: "선택과목", w: 130 },
+  { key: "note", label: "특이사항", w: 140 },
+  { key: "login_id", label: "아이디", w: 104, mono: true },
+];
+
+const STATUS_TABS = [
+  ["enrolled", "재원"],
+  ["all", "전체"],
+  ["prospect", "예비"],
+  ["paused", "휴원"],
+  ["withdrawn", "퇴원"],
+];
+
 export default function StudentList({ students = [] }) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
@@ -25,7 +49,7 @@ export default function StudentList({ students = [] }) {
   const shown = students.filter((s) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (!kw) return true;
-    return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id]
+    return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.note]
       .some((v) => norm(v).includes(kw));
   });
 
@@ -43,21 +67,16 @@ export default function StudentList({ students = [] }) {
 
   function startEdit(s) {
     setEditId(s.id);
-    setDraft({
-      name: s.name || "",
-      school: s.school || "",
-      grade: s.grade || "",
-      student_phone: s.student_phone || "",
-      parent_phone: s.parent_phone || "",
-      status: s.status || "enrolled",
-      login_id: s.login_id || "",
-    });
+    const d = {};
+    COLS.forEach(({ key }) => (d[key] = s[key] ?? ""));
+    setDraft(d);
   }
 
   function saveEdit() {
     const id = editId;
     startTransition(async () => {
-      await updateStudent(id, draft);
+      const res = await updateStudent(id, draft);
+      if (res?.error) alert(res.error);
       setEditId(null);
       router.refresh();
     });
@@ -86,28 +105,65 @@ export default function StudentList({ students = [] }) {
 
   if (students.length === 0) {
     return (
-      <div style={{ padding: 18 }}>
-        <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
-          아직 학생이 없습니다. 왼쪽에서 첫 학생을 추가해보세요.
-        </p>
-      </div>
+      <p className="muted" style={{ padding: 18, margin: 0, fontSize: 13.5 }}>
+        아직 학생이 없습니다. 위에서 학생을 추가하거나 엑셀로 올려보세요.
+      </p>
     );
   }
 
-  const STATUS_TABS = [
-    ["enrolled", "재원"],
-    ["all", "전체"],
-    ["prospect", "예비"],
-    ["paused", "휴원"],
-    ["withdrawn", "퇴원"],
-  ];
+  function cell(s, c) {
+    const v = s[c.key];
+    if (c.type === "status") {
+      const st = STATUS[v] || STATUS.enrolled;
+      return <span className={st.cls}>{st.label}</span>;
+    }
+    if (!v) return <span className="muted">—</span>;
+    return v;
+  }
+
+  function editor(c) {
+    if (c.type === "status") {
+      return (
+        <select
+          className="input input-sm"
+          value={draft.status || "enrolled"}
+          onChange={(e) => setDraft({ ...draft, status: e.target.value })}
+        >
+          {Object.entries(STATUS).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
+          ))}
+        </select>
+      );
+    }
+    if (c.type === "select") {
+      return (
+        <select
+          className="input input-sm"
+          value={draft[c.key] || ""}
+          onChange={(e) => setDraft({ ...draft, [c.key]: e.target.value })}
+        >
+          {c.options.map((o) => (
+            <option key={o} value={o}>{o || "—"}</option>
+          ))}
+        </select>
+      );
+    }
+    return (
+      <input
+        className="input input-sm"
+        type={c.type === "date" ? "date" : "text"}
+        value={draft[c.key] ?? ""}
+        onChange={(e) => setDraft({ ...draft, [c.key]: e.target.value })}
+      />
+    );
+  }
 
   return (
     <>
-      <div className="row" style={{ gap: 6, padding: "10px 18px 0", alignItems: "center" }}>
+      <div className="row" style={{ gap: 6, padding: "12px 16px 0", alignItems: "center" }}>
         <input
           className="input input-sm"
-          style={{ flex: 1, minWidth: 140 }}
+          style={{ width: 220 }}
           placeholder="이름 · 학교 · 연락처 검색"
           value={q}
           onChange={(e) => { setQ(e.target.value); setSel(new Set()); }}
@@ -125,41 +181,35 @@ export default function StudentList({ students = [] }) {
             </button>
           );
         })}
+        <span className="spacer" />
+        <span className="hint">{shown.length}명 표시</span>
       </div>
 
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}명 선택</b>
           <select
-            className="input"
-            style={{ width: 120, padding: "6px 8px" }}
+            className="input input-sm"
+            style={{ width: 120 }}
             defaultValue=""
-            onChange={(e) => {
-              runStatus(e.target.value);
-              e.target.value = "";
-            }}
+            onChange={(e) => { runStatus(e.target.value); e.target.value = ""; }}
             disabled={pending}
           >
             <option value="">상태 변경…</option>
-            <option value="prospect">예비</option>
-            <option value="enrolled">재원</option>
-            <option value="paused">휴원</option>
-            <option value="withdrawn">퇴원</option>
+            {Object.entries(STATUS).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
           </select>
-          <button className="btn btn-ghost btn-sm" onClick={runDelete} disabled={pending}>
-            삭제
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>
-            선택 해제
-          </button>
+          <button className="btn btn-ghost btn-sm" onClick={runDelete} disabled={pending}>삭제</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
         </div>
       )}
 
-      <div style={{ overflowX: "auto" }}>
-        <table className="tbl" style={{ marginTop: 12 }}>
+      <div className="tblwrap">
+        <table className="tbl tbl-tight">
           <thead>
             <tr>
-              <th style={{ width: 34 }}>
+              <th style={{ width: 32 }}>
                 <input
                   type="checkbox"
                   checked={allChecked}
@@ -167,111 +217,43 @@ export default function StudentList({ students = [] }) {
                   onChange={toggleAll}
                 />
               </th>
-              <th>이름</th>
-              <th>학교·학년</th>
-              <th>상태</th>
-              <th>학부모</th>
-              <th>로그인 아이디</th>
-              <th style={{ width: 60 }}></th>
+              {COLS.map((c) => (
+                <th key={c.key} style={{ minWidth: c.w }}>{c.label}</th>
+              ))}
+              <th style={{ width: 86 }}></th>
             </tr>
           </thead>
           <tbody>
             {shown.map((s) => {
-              const st = STATUS[s.status] || STATUS.enrolled;
               const editing = editId === s.id;
               return (
                 <tr key={s.id}>
                   <td>
-                    <input
-                      type="checkbox"
-                      checked={sel.has(s.id)}
-                      onChange={() => toggleOne(s.id)}
-                    />
+                    <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggleOne(s.id)} />
                   </td>
-                  {editing ? (
-                    <>
-                      <td>
-                        <input
-                          className="input input-sm"
-                          value={draft.name}
-                          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <div className="row" style={{ gap: 4 }}>
-                          <input
-                            className="input input-sm"
-                            style={{ width: 80 }}
-                            value={draft.school}
-                            onChange={(e) => setDraft({ ...draft, school: e.target.value })}
-                          />
-                          <input
-                            className="input input-sm"
-                            style={{ width: 52 }}
-                            value={draft.grade}
-                            onChange={(e) => setDraft({ ...draft, grade: e.target.value })}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <select
-                          className="input input-sm"
-                          value={draft.status}
-                          onChange={(e) => setDraft({ ...draft, status: e.target.value })}
-                        >
-                          <option value="prospect">예비</option>
-                          <option value="enrolled">재원</option>
-                          <option value="paused">휴원</option>
-                          <option value="withdrawn">퇴원</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          className="input input-sm"
-                          value={draft.parent_phone}
-                          onChange={(e) => setDraft({ ...draft, parent_phone: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="input input-sm"
-                          value={draft.login_id}
-                          onChange={(e) => setDraft({ ...draft, login_id: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <div className="row" style={{ gap: 4 }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={saveEdit}
-                            disabled={pending}
-                          >
-                            저장
-                          </button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>
-                            취소
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td style={{ fontWeight: 700 }}>{s.name}</td>
-                      <td className="muted">
-                        {[s.school, s.grade].filter(Boolean).join(" · ") || "—"}
-                      </td>
-                      <td>
-                        <span className={st.cls}>{st.label}</span>
-                      </td>
-                      <td className="muted">{s.parent_phone || "—"}</td>
-                      <td className="mono">{s.login_id || "—"}</td>
-                      <td>
-                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>
-                          수정
+                  {COLS.map((c) => (
+                    <td
+                      key={c.key}
+                      className={!editing && c.mono ? "mono" : undefined}
+                      style={!editing && c.strong ? { fontWeight: 700 } : undefined}
+                    >
+                      {editing ? editor(c) : cell(s, c)}
+                    </td>
+                  ))}
+                  <td>
+                    {editing ? (
+                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
+                        <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
+                          저장
                         </button>
-                      </td>
-                    </>
-                  )}
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>수정</button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
