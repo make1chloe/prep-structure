@@ -2,15 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { addStudent } from "./actions";
 import ExcelUpload from "./ExcelUpload";
+import StudentList from "./StudentList";
 
 export const dynamic = "force-dynamic";
-
-const STATUS = {
-  prospect: { label: "예비", cls: "tag tag-sky" },
-  enrolled: { label: "재원", cls: "tag tag-mint" },
-  paused: { label: "휴원", cls: "tag tag-amber" },
-  withdrawn: { label: "퇴원", cls: "tag tag-muted" },
-};
 
 export default async function StudentsPage() {
   const supabase = createClient();
@@ -159,44 +153,8 @@ export default async function StudentsPage() {
               <div style={{ padding: 18 }}>
                 <div className="err">불러오기 실패: {error.message}</div>
               </div>
-            ) : students && students.length > 0 ? (
-              <div style={{ overflowX: "auto" }}>
-                <table className="tbl" style={{ marginTop: 12 }}>
-                  <thead>
-                    <tr>
-                      <th>이름</th>
-                      <th>학교·학년</th>
-                      <th>상태</th>
-                      <th>학부모</th>
-                      <th>로그인 아이디</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map((s) => {
-                      const st = STATUS[s.status] || STATUS.enrolled;
-                      return (
-                        <tr key={s.id}>
-                          <td style={{ fontWeight: 700 }}>{s.name}</td>
-                          <td className="muted">
-                            {[s.school, s.grade].filter(Boolean).join(" · ") || "—"}
-                          </td>
-                          <td>
-                            <span className={st.cls}>{st.label}</span>
-                          </td>
-                          <td className="muted">{s.parent_phone || "—"}</td>
-                          <td className="mono">{s.login_id || "—"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
             ) : (
-              <div style={{ padding: 18 }}>
-                <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
-                  아직 학생이 없습니다. 왼쪽에서 첫 학생을 추가해보세요.
-                </p>
-              </div>
+              <StudentList students={students || []} />
             )}
           </div>
         </div>

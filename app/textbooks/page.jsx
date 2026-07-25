@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
-import { addTextbook, addUnit, deleteUnit } from "./actions";
+import { addTextbook, addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
+import TextbookList from "./TextbookList";
+import UnitList from "./UnitList";
 
 export const dynamic = "force-dynamic";
 
@@ -139,42 +141,8 @@ export default async function TextbooksPage({ searchParams }) {
                 <div style={{ padding: 18 }}>
                   <div className="err">불러오기 실패: {tbError.message}</div>
                 </div>
-              ) : textbooks && textbooks.length > 0 ? (
-                <table className="tbl" style={{ marginTop: 12 }}>
-                  <tbody>
-                    {textbooks.map((t) => (
-                      <tr
-                        key={t.id}
-                        style={
-                          t.id === selectedId
-                            ? { background: "var(--surface-2)" }
-                            : undefined
-                        }
-                      >
-                        <td>
-                          <Link
-                            href={`/textbooks?tb=${t.id}`}
-                            style={{ fontWeight: 700, textDecoration: "none", color: "inherit" }}
-                          >
-                            {t.name}
-                          </Link>
-                          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                            {[t.area, t.target_grade].filter(Boolean).join(" · ") || "—"}
-                          </div>
-                        </td>
-                        <td className="muted" style={{ textAlign: "right", fontSize: 12.5 }}>
-                          {t.total_pages ? `${t.total_pages}p` : ""}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               ) : (
-                <div style={{ padding: 18 }}>
-                  <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
-                    아직 교재가 없습니다. 위에서 첫 교재를 추가해보세요.
-                  </p>
-                </div>
+                <TextbookList textbooks={textbooks || []} selectedId={selectedId} />
               )}
             </div>
           </div>
@@ -214,43 +182,11 @@ export default async function TextbooksPage({ searchParams }) {
                   </button>
                 </form>
 
-                {units.length > 0 ? (
-                  <table className="tbl">
-                    <thead>
-                      <tr>
-                        <th style={{ width: 50 }}>순서</th>
-                        <th>단원명</th>
-                        <th style={{ width: 90 }}>활동</th>
-                        <th style={{ width: 40 }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {units.map((u) => (
-                        <tr key={u.id}>
-                          <td className="muted">{u.sort}</td>
-                          <td style={{ fontWeight: 600 }}>{u.name}</td>
-                          <td className="muted">{u.activity || "—"}</td>
-                          <td>
-                            <form action={deleteUnit}>
-                              <input type="hidden" name="id" value={u.id} />
-                              <button
-                                type="submit"
-                                className="btn btn-ghost"
-                                style={{ padding: "2px 8px", fontSize: 12 }}
-                              >
-                                삭제
-                              </button>
-                            </form>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="muted" style={{ fontSize: 13.5 }}>
-                    아직 단원이 없습니다. 위에서 단원을 추가해보세요.
-                  </p>
-                )}
+                <UnitList
+                  units={units}
+                  textbookId={selected.id}
+                  textbooks={textbooks || []}
+                />
               </>
             ) : (
               <p className="muted" style={{ fontSize: 13.5 }}>

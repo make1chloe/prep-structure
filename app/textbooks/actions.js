@@ -110,6 +110,137 @@ export async function addUnit(formData) {
   revalidatePath("/textbooks");
 }
 
+// ---------- 교재: 수정 / 삭제 ----------
+
+export async function updateTextbook(id, patch) {
+  if (!id) return { error: "id 없음" };
+  const allow = ["name", "area", "target_grade", "total_pages", "price", "purchase_url", "feature"];
+  const row = {};
+  allow.forEach((k) => {
+    if (k in (patch || {})) {
+      let v = patch[k];
+      if (k === "total_pages" || k === "price") {
+        const d = (v ?? "").toString().replace(/[^\d]/g, "");
+        v = d ? parseInt(d, 10) : null;
+      } else if (typeof v === "string") {
+        v = v.trim() || null;
+      }
+      row[k] = v ?? null;
+    }
+  });
+  if (Object.keys(row).length === 0) return { error: null };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("textbooks").update(row).eq("id", id);
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null };
+}
+
+export async function deleteTextbooks(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("textbooks").delete().in("id", ids);
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null };
+}
+
+export async function updateTextbooksArea(ids, area) {
+  if (!Array.isArray(ids) || ids.length === 0 || !area) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("textbooks").update({ area }).in("id", ids);
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null };
+}
+
+// ---------- 단원: 수정 / 삭제 / 이동 ----------
+
+export async function updateUnit(id, patch) {
+  if (!id) return { error: "id 없음" };
+  const row = {};
+  if ("name" in (patch || {})) row.name = (patch.name || "").trim() || null;
+  if ("sort" in (patch || {})) {
+    const d = (patch.sort ?? "").toString().replace(/[^\d]/g, "");
+    row.sort = d ? parseInt(d, 10) : 0;
+  }
+  if ("activity" in (patch || {})) row.activity = (patch.activity || "").trim() || null;
+
+  const supabase = createClient();
+  let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    const { activity, ...rest } = row;
+    ({ error } = await supabase.from("textbook_units").update(rest).eq("id", id));
+  }
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null };
+}
+
+export async function deleteUnits(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("textbook_units").delete().in("id", ids);
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null };
+}
+
+// 선택한 단원을 다른 교재로 옮기기
+export async function moveUnitsToTextbook(ids, textbookId) {
+  if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
+  const supabase = createClient();
+  const { data: last } = await supabase
+    .from("textbook_units")
+    .select("sort")
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: false })
+    .limit(1);
+  let next = (last?.[0]?.sort ?? 0) + 1;
+
+  for (const id of ids) {
+    const { error } = await supabase
+      .from("textbook_units")
+      .update({ textbook_id: textbookId, sort: next++ })
+      .eq("id", id);
+    if (error) {
+      revalidatePath("/textbooks");
+      return { error: error.message };
+    }
+  }
+  revalidatePath("/textbooks");
+  return { error: null };
+}
+
+// 선택한 단원을 위/아래로 한 칸 이동 (순서 교환)
+export async function moveUnits(ids, direction, textbookId) {
+  if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
+  const supabase = createClient();
+  const { data: all } = await supabase
+    .from("textbook_units")
+    .select("id, sort")
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: true });
+  if (!all || all.length === 0) return { error: null };
+
+  const list = [...all];
+  const idxs = list
+    .map((u, i) => (ids.includes(u.id) ? i : -1))
+    .filter((i) => i >= 0);
+  const ordered = direction === "up" ? idxs : [...idxs].reverse();
+
+  for (const i of ordered) {
+    const j = direction === "up" ? i - 1 : i + 1;
+    if (j < 0 || j >= list.length) continue;
+    if (ids.includes(list[j].id)) continue;
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].sort !== i + 1) {
+      await supabase.from("textbook_units").update({ sort: i + 1 }).eq("id", list[i].id);
+    }
+  }
+  revalidatePath("/textbooks");
+  return { error: null };
+}
+
 export async function deleteUnit(formData) {
   const id = (formData.get("id") || "").toString().trim();
   if (!id) return;

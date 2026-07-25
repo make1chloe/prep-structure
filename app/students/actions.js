@@ -46,6 +46,47 @@ export async function addStudent(formData) {
   revalidatePath("/students");
 }
 
+// 한 명 수정
+export async function updateStudent(id, patch) {
+  if (!id) return { error: "id 없음" };
+  const allow = [
+    "name", "school", "grade", "birth_year", "gender",
+    "student_phone", "parent_phone", "status", "enrolled_on",
+    "electives", "note", "login_id",
+  ];
+  const row = {};
+  allow.forEach((k) => {
+    if (k in (patch || {})) {
+      const v = patch[k];
+      row[k] = typeof v === "string" ? v.trim() || null : v ?? null;
+    }
+  });
+  if (Object.keys(row).length === 0) return { error: null };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("students").update(row).eq("id", id);
+  revalidatePath("/students");
+  return { error: error ? error.message : null };
+}
+
+// 선택한 학생 삭제
+export async function deleteStudents(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("students").delete().in("id", ids);
+  revalidatePath("/students");
+  return { error: error ? error.message : null };
+}
+
+// 선택한 학생 상태 일괄 변경
+export async function updateStudentsStatus(ids, status) {
+  if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("students").update({ status }).in("id", ids);
+  revalidatePath("/students");
+  return { error: error ? error.message : null };
+}
+
 // 대량 업로드: 파싱된 행 배열을 한 번에 저장한다.
 export async function bulkAddStudents(rows) {
   if (!Array.isArray(rows) || rows.length === 0) {
