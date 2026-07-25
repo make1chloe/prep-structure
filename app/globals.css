@@ -114,7 +114,19 @@ a { color: inherit; }
   font-family: inherit; font-size: 13.5px; color: var(--text); text-align: left;
 }
 .stuLine:hover { background: var(--surface-2); }
-.stuPanel { padding: 4px 16px 14px; background: var(--surface-2); }
+.stuPanel { padding: 8px 16px 14px; background: var(--surface-2); }
+.prow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 5px 0; }
+.plabel { width: 34px; flex: none; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.hwchip {
+  font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  padding: 4px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+}
+.hwchip:hover { border-color: var(--border-strong); }
+.hwchip b { font-weight: 800; margin-right: 1px; }
+.hw-done { background: var(--mint-soft); color: var(--mint); border-color: transparent; }
+.hw-weak { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+.hw-missing { background: var(--red-soft); color: var(--red); border-color: transparent; }
 
 .muted { color: var(--text-faint); }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }

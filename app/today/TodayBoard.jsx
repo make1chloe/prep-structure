@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setAttendance, clearAttendance } from "./actions";
+import StudentPanel from "./StudentPanel";
 
 const ATT = [
   { key: "present", label: "정시", cls: "tag-mint" },
@@ -19,7 +20,7 @@ function cut(t) {
   return t ? t.slice(0, 5) : "";
 }
 
-export default function TodayBoard({ date, groups = [] }) {
+export default function TodayBoard({ date, groups = [], items = [] }) {
   const [openId, setOpenId] = useState(null);
   const [openClass, setOpenClass] = useState(() => {
     // 지금 시간대 반을 자동으로 펼침, 없으면 첫 반
@@ -141,39 +142,26 @@ export default function TodayBoard({ date, groups = [] }) {
                             {r.status ? (
                               <span className={`tag ${CLS[r.status]}`}>{LABEL[r.status]}</span>
                             ) : (
-                              <span className="hint">미처리</span>
+                              <span
+                                className="btn btn-ghost btn-sm"
+                                onClick={(e) => { e.stopPropagation(); mark(r.student.id, "present"); }}
+                              >
+                                등원
+                              </span>
+                            )}
+                            {r.report?.report_written && (
+                              <span className="tag tag-sky">기록</span>
                             )}
                             <span className="muted" style={{ fontSize: 11 }}>{isOpen ? "▾" : "▸"}</span>
                           </button>
 
                           {isOpen && (
-                            <div className="stuPanel">
-                              <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                                <span className="label" style={{ width: 34 }}>출결</span>
-                                {ATT.map((a) => (
-                                  <button
-                                    key={a.key}
-                                    className={`btn btn-sm ${r.status === a.key ? "btn-primary" : "btn-ghost"}`}
-                                    onClick={() => mark(r.student.id, a.key)}
-                                    disabled={pending}
-                                  >
-                                    {a.label}
-                                  </button>
-                                ))}
-                                {r.status && (
-                                  <button
-                                    className="btn btn-ghost btn-sm"
-                                    onClick={() => undo(r.student.id)}
-                                    disabled={pending}
-                                  >
-                                    취소
-                                  </button>
-                                )}
-                              </div>
-                              <p className="hint" style={{ marginTop: 8 }}>
-                                테스트 점수 · 숙제 · 진도 입력은 다음 단계에서 이 자리에 들어갑니다.
-                              </p>
-                            </div>
+                            <StudentPanel
+                              row={r}
+                              date={date}
+                              items={items}
+                              onSaved={() => setOpenId(null)}
+                            />
                           )}
                         </div>
                       );
