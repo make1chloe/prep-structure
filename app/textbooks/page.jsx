@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { addTextbook, addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
 import TextbookList from "./TextbookList";
-import UnitList from "./UnitList";
+import UnitList, { flattenTree } from "./UnitList";
 
 export const dynamic = "force-dynamic";
 
@@ -44,20 +43,18 @@ export default async function TextbooksPage({ searchParams }) {
 
   let units = [];
   if (selectedId) {
-    let { data, error } = await supabase
+    const { data } = await supabase
       .from("textbook_units")
-      .select("id, name, sort, activity")
+      .select("id, name, sort, label, parent_id")
       .eq("textbook_id", selectedId)
       .order("sort", { ascending: true });
-    if (error) {
-      ({ data } = await supabase
-        .from("textbook_units")
-        .select("id, name, sort")
-        .eq("textbook_id", selectedId)
-        .order("sort", { ascending: true }));
-    }
     units = data || [];
   }
+
+  // 상위 단원 후보 (대·중단원까지만)
+  const unitOptions = flattenTree(units)
+    .filter((r) => r.depth < 2)
+    .map((r) => ({ id: r.unit.id, name: r.unit.name, depth: r.depth }));
 
   return (
     <>
@@ -155,14 +152,22 @@ export default async function TextbooksPage({ searchParams }) {
                   {selected.name} · 단원
                 </h2>
                 <p className="muted" style={{ margin: "0 0 14px", fontSize: 12.5 }}>
-                  순서를 비우면 맨 뒤에 자동으로 붙어요.
+                  상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
 
                 <form action={addUnit} className="row" style={{ alignItems: "flex-end", marginBottom: 16 }}>
                   <input type="hidden" name="textbook_id" value={selected.id} />
-                  <div className="field" style={{ width: 70 }}>
-                    <label className="label">순서</label>
-                    <input className="input" name="sort" inputMode="numeric" placeholder="자동" />
+                  <div className="field" style={{ width: 190 }}>
+                    <label className="label">상위 단원</label>
+                    <select className="input" name="parent_id" defaultValue="">
+                      <option value="">대단원 (최상위)</option>
+                      {unitOptions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {"— ".repeat(o.depth)}
+                          {o.name} 아래
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="field" style={{ flex: 1 }}>
                     <label className="label">단원명 *</label>

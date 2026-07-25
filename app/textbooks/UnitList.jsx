@@ -2,9 +2,37 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateUnit, deleteUnits, moveUnits, moveUnitsToTextbook } from "./actions";
+import {
+  updateUnit,
+  deleteUnits,
+  moveUnits,
+  moveUnitsToTextbook,
+  moveUnitsUnder,
+} from "./actions";
 
 const ACTIVITIES = ["설명", "실전모의고사", "워크북"];
+const LEVEL = ["대", "중", "소"];
+
+// parent_id 로 트리를 만들어 [{unit, depth}] 평면 목록으로 펼친다
+export function flattenTree(units) {
+  const byParent = new Map();
+  units.forEach((u) => {
+    const k = u.parent_id || "root";
+    if (!byParent.has(k)) byParent.set(k, []);
+    byParent.get(k).push(u);
+  });
+  byParent.forEach((list) => list.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)));
+
+  const out = [];
+  const walk = (key, depth) => {
+    (byParent.get(key) || []).forEach((u) => {
+      out.push({ unit: u, depth });
+      walk(u.id, depth + 1);
+    });
+  };
+  walk("root", 0);
+  return out;
+}
 
 export default function UnitList({ units = [], textbookId, textbooks = [] }) {
   const [sel, setSel] = useState(() => new Set());
@@ -13,11 +41,12 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const allChecked = units.length > 0 && sel.size === units.length;
+  const rows = flattenTree(units);
+  const allChecked = rows.length > 0 && sel.size === rows.length;
   const someChecked = sel.size > 0 && !allChecked;
 
   function toggleAll() {
-    setSel(allChecked ? new Set() : new Set(units.map((u) => u.id)));
+    setSel(allChecked ? new Set() : new Set(rows.map((r) => r.unit.id)));
   }
   function toggleOne(id) {
     const next = new Set(sel);
@@ -27,7 +56,7 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
 
   function startEdit(u) {
     setEditId(u.id);
-    setDraft({ name: u.name || "", sort: u.sort ?? "", activity: u.activity || "" });
+    setDraft({ name: u.name || "", sort: u.sort ?? "", activity: u.label || "" });
   }
 
   function saveEdit() {
@@ -41,7 +70,8 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
 
   function run(fn) {
     startTransition(async () => {
-      await fn();
+      const res = await fn();
+      if (res?.error) alert(res.error);
       router.refresh();
     });
   }
@@ -49,16 +79,19 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
   function runDelete() {
     const ids = [...sel];
     if (ids.length === 0) return;
-    if (!confirm(`선택한 단원 ${ids.length}개를 삭제할까요?`)) return;
+    if (!confirm(`선택한 단원 ${ids.length}개를 삭제할까요? 하위 단원도 함께 삭제됩니다.`)) return;
     run(async () => {
-      await deleteUnits(ids);
+      const r = await deleteUnits(ids);
       setSel(new Set());
+      return r;
     });
   }
 
   const others = textbooks.filter((t) => t.id !== textbookId);
+  // 상위로 지정 가능한 단원 = 선택되지 않은 것 (소단원 밑으로는 안 넣음)
+  const parentOptions = rows.filter((r) => r.depth < 2 && !sel.has(r.unit.id));
 
-  if (units.length === 0) {
+  if (rows.length === 0) {
     return (
       <p className="muted" style={{ fontSize: 13.5 }}>
         아직 단원이 없습니다. 위에서 단원을 추가해보세요.
@@ -69,7 +102,7 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
   return (
     <>
       {sel.size > 0 && (
-        <div className="bulkbar">
+        <div className="bulkbar" style={{ margin: "0 0 12px" }}>
           <b>{sel.size}개 선택</b>
           <button
             className="btn btn-ghost btn-sm"
@@ -85,6 +118,31 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
           >
             ↓ 아래로
           </button>
+          <select
+            className="input"
+            style={{ width: 160, padding: "6px 8px" }}
+            defaultValue=""
+            onChange={(e) => {
+              const v = e.target.value;
+              e.target.value = "";
+              if (!v) return;
+              run(async () => {
+                const r = await moveUnitsUnder([...sel], v === "root" ? null : v, textbookId);
+                setSel(new Set());
+                return r;
+              });
+            }}
+            disabled={pending}
+          >
+            <option value="">상위 단원 바꾸기…</option>
+            <option value="root">대단원으로 (최상위)</option>
+            {parentOptions.map((r) => (
+              <option key={r.unit.id} value={r.unit.id}>
+                {"— ".repeat(r.depth)}
+                {r.unit.name} 아래로
+              </option>
+            ))}
+          </select>
           {others.length > 0 && (
             <select
               className="input"
@@ -95,8 +153,9 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                 e.target.value = "";
                 if (!tb) return;
                 run(async () => {
-                  await moveUnitsToTextbook([...sel], tb);
+                  const r = await moveUnitsToTextbook([...sel], tb);
                   setSel(new Set());
+                  return r;
                 });
               }}
               disabled={pending}
@@ -123,30 +182,27 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                 onChange={toggleAll}
               />
             </th>
-            <th style={{ width: 46 }}>순서</th>
+            <th style={{ width: 40 }}>구분</th>
             <th>단원명</th>
             <th style={{ width: 90 }}>활동</th>
             <th style={{ width: 56 }}></th>
           </tr>
         </thead>
         <tbody>
-          {units.map((u) => {
+          {rows.map(({ unit: u, depth }) => {
             const editing = editId === u.id;
             return (
               <tr key={u.id}>
                 <td>
                   <input type="checkbox" checked={sel.has(u.id)} onChange={() => toggleOne(u.id)} />
                 </td>
+                <td>
+                  <span className={`tag ${depth === 0 ? "tag-lav" : depth === 1 ? "tag-sky" : "tag-muted"}`}>
+                    {LEVEL[Math.min(depth, 2)]}
+                  </span>
+                </td>
                 {editing ? (
                   <>
-                    <td>
-                      <input
-                        className="input input-sm"
-                        style={{ width: 42 }}
-                        value={draft.sort}
-                        onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
-                      />
-                    </td>
                     <td>
                       <input
                         className="input input-sm"
@@ -177,9 +233,10 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                   </>
                 ) : (
                   <>
-                    <td className="muted">{u.sort}</td>
-                    <td style={{ fontWeight: 600 }}>{u.name}</td>
-                    <td className="muted">{u.activity || "—"}</td>
+                    <td style={{ paddingLeft: 12 + depth * 20, fontWeight: depth === 0 ? 700 : 500 }}>
+                      {u.name}
+                    </td>
+                    <td className="muted">{u.label || "—"}</td>
                     <td>
                       <button className="btn btn-ghost btn-sm" onClick={() => startEdit(u)}>
                         수정

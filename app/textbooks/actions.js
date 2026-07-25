@@ -87,26 +87,28 @@ export async function addUnit(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!textbook_id || !name) return;
 
+  const parent_id = (formData.get("parent_id") || "").toString().trim() || null;
+  const activity = clean(formData, "activity"); // label 컬럼에 저장(활동)
+
   const supabase = createClient();
 
-  // 순서: 비어있으면 현재 최대+1 자동
+  // 순서: 비어있으면 같은 상위 안에서 최대+1 자동
   let sort = num(formData, "sort");
   if (sort === null) {
-    const { data: last } = await supabase
+    let q = supabase
       .from("textbook_units")
       .select("sort")
       .eq("textbook_id", textbook_id)
       .order("sort", { ascending: false })
       .limit(1);
+    q = parent_id ? q.eq("parent_id", parent_id) : q.is("parent_id", null);
+    const { data: last } = await q;
     sort = (last?.[0]?.sort ?? 0) + 1;
   }
 
-  await insertSafe(
-    supabase,
-    "textbook_units",
-    { textbook_id, name, sort, activity: clean(formData, "activity") },
-    ["activity"]
-  );
+  await supabase
+    .from("textbook_units")
+    .insert({ textbook_id, parent_id, name, sort, label: activity });
   revalidatePath("/textbooks");
 }
 
@@ -162,14 +164,11 @@ export async function updateUnit(id, patch) {
     const d = (patch.sort ?? "").toString().replace(/[^\d]/g, "");
     row.sort = d ? parseInt(d, 10) : 0;
   }
-  if ("activity" in (patch || {})) row.activity = (patch.activity || "").trim() || null;
+  if ("activity" in (patch || {})) row.label = (patch.activity || "").trim() || null;
+  if ("parent_id" in (patch || {})) row.parent_id = patch.parent_id || null;
 
   const supabase = createClient();
-  let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
-  if (error && (error.code === "PGRST204" || error.code === "42703")) {
-    const { activity, ...rest } = row;
-    ({ error } = await supabase.from("textbook_units").update(rest).eq("id", id));
-  }
+  const { error } = await supabase.from("textbook_units").update(row).eq("id", id);
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
 }
@@ -182,7 +181,7 @@ export async function deleteUnits(ids) {
   return { error: error ? error.message : null };
 }
 
-// 선택한 단원을 다른 교재로 옮기기
+// 선택한 단원을 다른 교재로 옮기기 (최상위=대단원으로 이동)
 export async function moveUnitsToTextbook(ids, textbookId) {
   if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
   const supabase = createClient();
@@ -190,6 +189,7 @@ export async function moveUnitsToTextbook(ids, textbookId) {
     .from("textbook_units")
     .select("sort")
     .eq("textbook_id", textbookId)
+    .is("parent_id", null)
     .order("sort", { ascending: false })
     .limit(1);
   let next = (last?.[0]?.sort ?? 0) + 1;
@@ -197,7 +197,7 @@ export async function moveUnitsToTextbook(ids, textbookId) {
   for (const id of ids) {
     const { error } = await supabase
       .from("textbook_units")
-      .update({ textbook_id: textbookId, sort: next++ })
+      .update({ textbook_id: textbookId, parent_id: null, sort: next++ })
       .eq("id", id);
     if (error) {
       revalidatePath("/textbooks");
@@ -208,33 +208,73 @@ export async function moveUnitsToTextbook(ids, textbookId) {
   return { error: null };
 }
 
-// 선택한 단원을 위/아래로 한 칸 이동 (순서 교환)
+// 선택한 단원을 다른 상위 단원 밑으로 옮기기 (parentId 가 null 이면 대단원으로)
+export async function moveUnitsUnder(ids, parentId, textbookId) {
+  if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
+  if (parentId && ids.includes(parentId)) {
+    return { error: "자기 자신 아래로는 옮길 수 없어요." };
+  }
+  const supabase = createClient();
+
+  let q = supabase
+    .from("textbook_units")
+    .select("sort")
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: false })
+    .limit(1);
+  q = parentId ? q.eq("parent_id", parentId) : q.is("parent_id", null);
+  const { data: last } = await q;
+  let next = (last?.[0]?.sort ?? 0) + 1;
+
+  for (const id of ids) {
+    const { error } = await supabase
+      .from("textbook_units")
+      .update({ parent_id: parentId || null, sort: next++ })
+      .eq("id", id);
+    if (error) {
+      revalidatePath("/textbooks");
+      return { error: error.message };
+    }
+  }
+  revalidatePath("/textbooks");
+  return { error: null };
+}
+
+// 선택한 단원을 같은 상위 안에서 위/아래로 한 칸 이동
 export async function moveUnits(ids, direction, textbookId) {
   if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
   const supabase = createClient();
   const { data: all } = await supabase
     .from("textbook_units")
-    .select("id, sort")
+    .select("id, sort, parent_id")
     .eq("textbook_id", textbookId)
     .order("sort", { ascending: true });
   if (!all || all.length === 0) return { error: null };
 
-  const list = [...all];
-  const idxs = list
-    .map((u, i) => (ids.includes(u.id) ? i : -1))
-    .filter((i) => i >= 0);
-  const ordered = direction === "up" ? idxs : [...idxs].reverse();
+  // 형제(같은 부모)끼리만 자리 교환
+  const groups = new Map();
+  all.forEach((u) => {
+    const k = u.parent_id || "root";
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(u);
+  });
 
-  for (const i of ordered) {
-    const j = direction === "up" ? i - 1 : i + 1;
-    if (j < 0 || j >= list.length) continue;
-    if (ids.includes(list[j].id)) continue;
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-
-  for (let i = 0; i < list.length; i++) {
-    if (list[i].sort !== i + 1) {
-      await supabase.from("textbook_units").update({ sort: i + 1 }).eq("id", list[i].id);
+  for (const list of groups.values()) {
+    const idxs = list
+      .map((u, i) => (ids.includes(u.id) ? i : -1))
+      .filter((i) => i >= 0);
+    if (idxs.length === 0) continue;
+    const ordered = direction === "up" ? idxs : [...idxs].reverse();
+    for (const i of ordered) {
+      const j = direction === "up" ? i - 1 : i + 1;
+      if (j < 0 || j >= list.length) continue;
+      if (ids.includes(list[j].id)) continue;
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].sort !== i + 1) {
+        await supabase.from("textbook_units").update({ sort: i + 1 }).eq("id", list[i].id);
+      }
     }
   }
   revalidatePath("/textbooks");
