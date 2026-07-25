@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
-import { addTextbook, addUnit } from "./actions";
+import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
+import AddTextbookForm from "./AddTextbookForm";
 import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
 import { flattenTree } from "@/lib/unitTree";
@@ -46,7 +47,7 @@ export default async function TextbooksPage({ searchParams }) {
   if (selectedId) {
     const { data } = await supabase
       .from("textbook_units")
-      .select("id, name, sort, label, parent_id")
+      .select("id, name, sort, label, parent_id, page_start, page_end")
       .eq("textbook_id", selectedId)
       .order("sort", { ascending: true });
     units = data || [];
@@ -60,72 +61,18 @@ export default async function TextbooksPage({ searchParams }) {
   return (
     <>
       <TopBar profile={profile} active="textbooks" />
-      <main className="wrap">
+      <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">교재 관리</p>
           <h1 className="h1">교재 · 단원</h1>
-          <p className="sub">
-            교재를 추가하고, 교재를 선택하면 오른쪽에서 단원(제목·순서)을
-            정리할 수 있어요.
-          </p>
-          <TextbookUpload />
+          <div className="row" style={{ marginTop: 10, gap: 8 }}>
+            <AddTextbookForm />
+            <TextbookUpload />
+          </div>
         </div>
 
-        <div className="grid2" style={{ marginTop: 18, alignItems: "start" }}>
-          {/* 왼쪽: 교재 추가 + 목록 */}
-          <div className="stack" style={{ gap: 14 }}>
-            <div className="card">
-              <h2 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800 }}>
-                교재 추가
-              </h2>
-              <form action={addTextbook} className="stack">
-                <div className="field">
-                  <label className="label">교재명 *</label>
-                  <input className="input" name="name" required placeholder="리딩튜터 입문" />
-                </div>
-                <div className="row">
-                  <div className="field" style={{ flex: 1 }}>
-                    <label className="label">영역</label>
-                    <select className="input" name="area" defaultValue="">
-                      <option value="">선택</option>
-                      {AREAS.map((a) => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="field" style={{ flex: 1 }}>
-                    <label className="label">레벨</label>
-                    <input className="input" name="target_grade" placeholder="중2 / 중1-중2" />
-                  </div>
-                </div>
-                <div className="row">
-                  <div className="field" style={{ flex: 1 }}>
-                    <label className="label">전체 페이지</label>
-                    <input className="input" name="total_pages" inputMode="numeric" placeholder="120" />
-                  </div>
-                  <div className="field" style={{ flex: 1 }}>
-                    <label className="label">교재비(원)</label>
-                    <input className="input" name="price" inputMode="numeric" placeholder="15000" />
-                  </div>
-                  <div className="field" style={{ flex: 1 }}>
-                    <label className="label">단어범위</label>
-                    <input className="input" name="word_range" inputMode="numeric" placeholder="800" />
-                  </div>
-                </div>
-                <div className="field">
-                  <label className="label">구매링크</label>
-                  <input className="input" name="purchase_url" placeholder="https://..." />
-                </div>
-                <div className="field">
-                  <label className="label">비고</label>
-                  <input className="input" name="feature" placeholder="교재 특징 메모" />
-                </div>
-                <button className="btn btn-primary btn-block" type="submit">
-                  저장
-                </button>
-              </form>
-            </div>
-
+        <div className="grid-side" style={{ marginTop: 14 }}>
+          {/* 왼쪽: 교재 목록 */}
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ padding: "16px 18px 0" }}>
                 <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
@@ -143,7 +90,6 @@ export default async function TextbooksPage({ searchParams }) {
                 <TextbookList textbooks={textbooks || []} selectedId={selectedId} />
               )}
             </div>
-          </div>
 
           {/* 오른쪽: 선택한 교재의 단원 */}
           <div className="card">
@@ -152,15 +98,15 @@ export default async function TextbooksPage({ searchParams }) {
                 <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
                   {selected.name} · 단원
                 </h2>
-                <p className="muted" style={{ margin: "0 0 14px", fontSize: 12.5 }}>
+                <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
 
-                <form action={addUnit} className="row" style={{ alignItems: "flex-end", marginBottom: 16 }}>
+                <form action={addUnit} className="row" style={{ alignItems: "flex-end", gap: 8, marginBottom: 12 }}>
                   <input type="hidden" name="textbook_id" value={selected.id} />
-                  <div className="field" style={{ width: 190 }}>
+                  <div className="field" style={{ width: 170 }}>
                     <label className="label">상위 단원</label>
-                    <select className="input" name="parent_id" defaultValue="">
+                    <select className="input input-sm" name="parent_id" defaultValue="">
                       <option value="">대단원 (최상위)</option>
                       {unitOptions.map((o) => (
                         <option key={o.id} value={o.id}>
@@ -170,20 +116,28 @@ export default async function TextbooksPage({ searchParams }) {
                       ))}
                     </select>
                   </div>
-                  <div className="field" style={{ flex: 1 }}>
+                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
                     <label className="label">단원명 *</label>
-                    <input className="input" name="name" required placeholder="Unit 1. 관계사" />
+                    <input className="input input-sm" name="name" required placeholder="Unit 1. 관계사" />
                   </div>
-                  <div className="field" style={{ width: 130 }}>
+                  <div className="field" style={{ width: 62 }}>
+                    <label className="label">시작p</label>
+                    <input className="input input-sm" name="page_start" inputMode="numeric" placeholder="8" />
+                  </div>
+                  <div className="field" style={{ width: 62 }}>
+                    <label className="label">끝p</label>
+                    <input className="input input-sm" name="page_end" inputMode="numeric" placeholder="15" />
+                  </div>
+                  <div className="field" style={{ width: 118 }}>
                     <label className="label">활동</label>
-                    <select className="input" name="activity" defaultValue="">
+                    <select className="input input-sm" name="activity" defaultValue="">
                       <option value="">없음</option>
                       {ACTIVITIES.map((a) => (
                         <option key={a} value={a}>{a}</option>
                       ))}
                     </select>
                   </div>
-                  <button className="btn btn-primary" type="submit" style={{ marginBottom: 2 }}>
+                  <button className="btn btn-primary btn-sm" type="submit" style={{ marginBottom: 1 }}>
                     추가
                   </button>
                 </form>

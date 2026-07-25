@@ -106,9 +106,15 @@ export async function addUnit(formData) {
     sort = (last?.[0]?.sort ?? 0) + 1;
   }
 
-  await supabase
-    .from("textbook_units")
-    .insert({ textbook_id, parent_id, name, sort, label: activity });
+  await supabase.from("textbook_units").insert({
+    textbook_id,
+    parent_id,
+    name,
+    sort,
+    label: activity,
+    page_start: num(formData, "page_start"),
+    page_end: num(formData, "page_end"),
+  });
   revalidatePath("/textbooks");
 }
 
@@ -116,12 +122,12 @@ export async function addUnit(formData) {
 
 export async function updateTextbook(id, patch) {
   if (!id) return { error: "id 없음" };
-  const allow = ["name", "area", "target_grade", "total_pages", "price", "purchase_url", "feature"];
+  const allow = ["name", "area", "target_grade", "total_pages", "price", "word_range", "purchase_url", "feature"];
   const row = {};
   allow.forEach((k) => {
     if (k in (patch || {})) {
       let v = patch[k];
-      if (k === "total_pages" || k === "price") {
+      if (k === "total_pages" || k === "price" || k === "word_range") {
         const d = (v ?? "").toString().replace(/[^\d]/g, "");
         v = d ? parseInt(d, 10) : null;
       } else if (typeof v === "string") {
@@ -133,7 +139,11 @@ export async function updateTextbook(id, patch) {
   if (Object.keys(row).length === 0) return { error: null };
 
   const supabase = createClient();
-  const { error } = await supabase.from("textbooks").update(row).eq("id", id);
+  let { error } = await supabase.from("textbooks").update(row).eq("id", id);
+  if (isMissingColumn(error)) {
+    const { word_range, ...rest } = row;
+    ({ error } = await supabase.from("textbooks").update(rest).eq("id", id));
+  }
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
 }
@@ -166,6 +176,12 @@ export async function updateUnit(id, patch) {
   }
   if ("activity" in (patch || {})) row.label = (patch.activity || "").trim() || null;
   if ("parent_id" in (patch || {})) row.parent_id = patch.parent_id || null;
+  ["page_start", "page_end"].forEach((k) => {
+    if (k in (patch || {})) {
+      const d = (patch[k] ?? "").toString().replace(/[^\d]/g, "");
+      row[k] = d ? parseInt(d, 10) : null;
+    }
+  });
 
   const supabase = createClient();
   const { error } = await supabase.from("textbook_units").update(row).eq("id", id);

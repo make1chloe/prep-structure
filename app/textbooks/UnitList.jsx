@@ -36,7 +36,13 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
 
   function startEdit(u) {
     setEditId(u.id);
-    setDraft({ name: u.name || "", sort: u.sort ?? "", activity: u.label || "" });
+    setDraft({
+      name: u.name || "",
+      sort: u.sort ?? "",
+      activity: u.label || "",
+      page_start: u.page_start ?? "",
+      page_end: u.page_end ?? "",
+    });
   }
 
   function saveEdit() {
@@ -164,8 +170,9 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
             </th>
             <th style={{ width: 40 }}>구분</th>
             <th>단원명</th>
-            <th style={{ width: 90 }}>활동</th>
-            <th style={{ width: 56 }}></th>
+            <th style={{ width: 78 }}>페이지</th>
+            <th style={{ width: 84 }}>활동</th>
+            <th style={{ width: 52 }}></th>
           </tr>
         </thead>
         <tbody>
@@ -191,6 +198,22 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                       />
                     </td>
                     <td>
+                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
+                        <input
+                          className="input input-sm"
+                          style={{ width: 34, padding: "5px 4px" }}
+                          value={draft.page_start}
+                          onChange={(e) => setDraft({ ...draft, page_start: e.target.value })}
+                        />
+                        <input
+                          className="input input-sm"
+                          style={{ width: 34, padding: "5px 4px" }}
+                          value={draft.page_end}
+                          onChange={(e) => setDraft({ ...draft, page_end: e.target.value })}
+                        />
+                      </div>
+                    </td>
+                    <td>
                       <select
                         className="input input-sm"
                         value={draft.activity}
@@ -201,11 +224,11 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                       </select>
                     </td>
                     <td>
-                      <div className="stack" style={{ gap: 4 }}>
-                        <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
+                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
+                        <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending} style={{ padding: "4px 7px" }}>
                           저장
                         </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)} style={{ padding: "4px 6px" }}>
                           취소
                         </button>
                       </div>
@@ -215,6 +238,11 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                   <>
                     <td style={{ paddingLeft: 12 + depth * 20, fontWeight: depth === 0 ? 700 : 500 }}>
                       {u.name}
+                    </td>
+                    <td className="muted" style={{ fontSize: 12 }}>
+                      {u.page_start
+                        ? `${u.page_start}${u.page_end ? `–${u.page_end}` : ""}p`
+                        : "—"}
                     </td>
                     <td className="muted">{u.label || "—"}</td>
                     <td>
