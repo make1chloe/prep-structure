@@ -9,30 +9,10 @@ import {
   moveUnitsToTextbook,
   moveUnitsUnder,
 } from "./actions";
+import { flattenTree } from "@/lib/unitTree";
 
 const ACTIVITIES = ["설명", "실전모의고사", "워크북"];
 const LEVEL = ["대", "중", "소"];
-
-// parent_id 로 트리를 만들어 [{unit, depth}] 평면 목록으로 펼친다
-export function flattenTree(units) {
-  const byParent = new Map();
-  units.forEach((u) => {
-    const k = u.parent_id || "root";
-    if (!byParent.has(k)) byParent.set(k, []);
-    byParent.get(k).push(u);
-  });
-  byParent.forEach((list) => list.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)));
-
-  const out = [];
-  const walk = (key, depth) => {
-    (byParent.get(key) || []).forEach((u) => {
-      out.push({ unit: u, depth });
-      walk(u.id, depth + 1);
-    });
-  };
-  walk("root", 0);
-  return out;
-}
 
 export default function UnitList({ units = [], textbookId, textbooks = [] }) {
   const [sel, setSel] = useState(() => new Set());

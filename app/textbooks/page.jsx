@@ -3,7 +3,8 @@ import TopBar from "@/components/TopBar";
 import { addTextbook, addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
 import TextbookList from "./TextbookList";
-import UnitList, { flattenTree } from "./UnitList";
+import UnitList from "./UnitList";
+import { flattenTree } from "@/lib/unitTree";
 
 export const dynamic = "force-dynamic";
 
