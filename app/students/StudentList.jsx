@@ -15,14 +15,25 @@ export default function StudentList({ students = [] }) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("enrolled");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const allChecked = students.length > 0 && sel.size === students.length;
+  const norm = (v) => (v || "").toString().toLowerCase();
+  const kw = norm(q).trim();
+  const shown = students.filter((s) => {
+    if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    if (!kw) return true;
+    return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id]
+      .some((v) => norm(v).includes(kw));
+  });
+
+  const allChecked = shown.length > 0 && sel.size === shown.length;
   const someChecked = sel.size > 0 && !allChecked;
 
   function toggleAll() {
-    setSel(allChecked ? new Set() : new Set(students.map((s) => s.id)));
+    setSel(allChecked ? new Set() : new Set(shown.map((s) => s.id)));
   }
   function toggleOne(id) {
     const next = new Set(sel);
@@ -83,8 +94,39 @@ export default function StudentList({ students = [] }) {
     );
   }
 
+  const STATUS_TABS = [
+    ["enrolled", "재원"],
+    ["all", "전체"],
+    ["prospect", "예비"],
+    ["paused", "휴원"],
+    ["withdrawn", "퇴원"],
+  ];
+
   return (
     <>
+      <div className="row" style={{ gap: 6, padding: "10px 18px 0", alignItems: "center" }}>
+        <input
+          className="input input-sm"
+          style={{ flex: 1, minWidth: 140 }}
+          placeholder="이름 · 학교 · 연락처 검색"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setSel(new Set()); }}
+        />
+        {STATUS_TABS.map(([k, label]) => {
+          const n = k === "all" ? students.length : students.filter((s) => s.status === k).length;
+          if (n === 0 && k !== "enrolled" && k !== "all") return null;
+          return (
+            <button
+              key={k}
+              className={`btn btn-sm ${statusFilter === k ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => { setStatusFilter(k); setSel(new Set()); }}
+            >
+              {label} {n}
+            </button>
+          );
+        })}
+      </div>
+
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}명 선택</b>
@@ -134,7 +176,7 @@ export default function StudentList({ students = [] }) {
             </tr>
           </thead>
           <tbody>
-            {students.map((s) => {
+            {shown.map((s) => {
               const st = STATUS[s.status] || STATUS.enrolled;
               const editing = editId === s.id;
               return (
@@ -235,6 +277,11 @@ export default function StudentList({ students = [] }) {
             })}
           </tbody>
         </table>
+        {shown.length === 0 && (
+          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+            조건에 맞는 학생이 없어요.
+          </p>
+        )}
       </div>
     </>
   );
