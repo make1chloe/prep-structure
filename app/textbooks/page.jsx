@@ -25,21 +25,35 @@ export default async function TextbooksPage({ searchParams }) {
     profile = data;
   }
 
-  const { data: textbooks } = await supabase
+  // word_range 컬럼이 아직 없는 DB에서도 목록이 보이도록, 실패하면 기본 컬럼만 다시 조회
+  let { data: textbooks, error: tbError } = await supabase
     .from("textbooks")
     .select("id, name, area, target_grade, total_pages, price, word_range, created_at")
     .order("created_at", { ascending: false });
+  if (tbError) {
+    ({ data: textbooks, error: tbError } = await supabase
+      .from("textbooks")
+      .select("id, name, area, target_grade, total_pages, price, created_at")
+      .order("created_at", { ascending: false }));
+  }
 
   const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
 
   let units = [];
   if (selectedId) {
-    const { data } = await supabase
+    let { data, error } = await supabase
       .from("textbook_units")
       .select("id, name, sort, activity")
       .eq("textbook_id", selectedId)
       .order("sort", { ascending: true });
+    if (error) {
+      ({ data } = await supabase
+        .from("textbook_units")
+        .select("id, name, sort")
+        .eq("textbook_id", selectedId)
+        .order("sort", { ascending: true }));
+    }
     units = data || [];
   }
 
@@ -121,7 +135,11 @@ export default async function TextbooksPage({ searchParams }) {
                   </span>
                 </h2>
               </div>
-              {textbooks && textbooks.length > 0 ? (
+              {tbError ? (
+                <div style={{ padding: 18 }}>
+                  <div className="err">불러오기 실패: {tbError.message}</div>
+                </div>
+              ) : textbooks && textbooks.length > 0 ? (
                 <table className="tbl" style={{ marginTop: 12 }}>
                   <tbody>
                     {textbooks.map((t) => (
