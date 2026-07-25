@@ -19,8 +19,14 @@ export default function TopBar({ profile, active }) {
           <Link href="/" className={active === "home" ? "on" : ""}>
             대시보드
           </Link>
+          <Link href="/today" className={active === "today" ? "on" : ""}>
+            오늘 수업
+          </Link>
           <Link href="/students" className={active === "students" ? "on" : ""}>
             학생
+          </Link>
+          <Link href="/classes" className={active === "classes" ? "on" : ""}>
+            반
           </Link>
           <Link href="/textbooks" className={active === "textbooks" ? "on" : ""}>
             교재
