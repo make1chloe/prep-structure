@@ -100,6 +100,7 @@ a { color: inherit; }
 .tblwrap { overflow-x: auto; }
 .tbl-tight th, .tbl-tight td { padding: 7px 9px; font-size: 13px; white-space: nowrap; }
 .tbl-tight .input-sm { min-width: 60px; }
+.sky { color: var(--sky); font-weight: 600; text-decoration: none; }
 
 /* 오늘 수업 */
 .grouphead {

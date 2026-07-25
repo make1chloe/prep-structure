@@ -31,12 +31,12 @@ export default async function TextbooksPage({ searchParams }) {
   // word_range 컬럼이 아직 없는 DB에서도 목록이 보이도록, 실패하면 기본 컬럼만 다시 조회
   let { data: textbooks, error: tbError } = await supabase
     .from("textbooks")
-    .select("id, name, area, target_grade, total_pages, price, word_range, created_at")
+    .select("id, name, area, target_grade, total_pages, price, word_range, status, purchase_url, feature, created_at")
     .order("created_at", { ascending: false });
   if (tbError) {
     ({ data: textbooks, error: tbError } = await supabase
       .from("textbooks")
-      .select("id, name, area, target_grade, total_pages, price, created_at")
+      .select("id, name, area, target_grade, total_pages, price, purchase_url, feature, created_at")
       .order("created_at", { ascending: false }));
   }
 
@@ -71,28 +71,19 @@ export default async function TextbooksPage({ searchParams }) {
           </div>
         </div>
 
-        <div className="grid-side" style={{ marginTop: 14 }}>
-          {/* 왼쪽: 교재 목록 */}
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "16px 18px 0" }}>
-                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-                  교재 목록{" "}
-                  <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
-                    {textbooks?.length || 0}권
-                  </span>
-                </h2>
-              </div>
-              {tbError ? (
-                <div style={{ padding: 18 }}>
-                  <div className="err">불러오기 실패: {tbError.message}</div>
-                </div>
-              ) : (
-                <TextbookList textbooks={textbooks || []} selectedId={selectedId} />
-              )}
+        {/* 교재 목록 (전체 폭) */}
+        <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+          {tbError ? (
+            <div style={{ padding: 18 }}>
+              <div className="err">불러오기 실패: {tbError.message}</div>
             </div>
+          ) : (
+            <TextbookList textbooks={textbooks || []} selectedId={selectedId} />
+          )}
+        </div>
 
-          {/* 오른쪽: 선택한 교재의 단원 */}
-          <div className="card">
+        {/* 선택한 교재의 단원 (아래, 전체 폭) */}
+        <div className="card" style={{ marginTop: 12 }}>
             {selected ? (
               <>
                 <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
@@ -153,7 +144,6 @@ export default async function TextbooksPage({ searchParams }) {
                 왼쪽에서 교재를 선택하면 단원을 정리할 수 있어요.
               </p>
             )}
-          </div>
         </div>
       </main>
     </>

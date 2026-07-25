@@ -49,8 +49,9 @@ export async function addTextbook(formData) {
       purchase_url: clean(formData, "purchase_url"),
       word_range: num(formData, "word_range"),
       feature: clean(formData, "feature"),
+      status: clean(formData, "status") || "active",
     },
-    ["word_range"]
+    ["word_range", "status"]
   );
   revalidatePath("/textbooks");
 }
@@ -122,7 +123,7 @@ export async function addUnit(formData) {
 
 export async function updateTextbook(id, patch) {
   if (!id) return { error: "id 없음" };
-  const allow = ["name", "area", "target_grade", "total_pages", "price", "word_range", "purchase_url", "feature"];
+  const allow = ["name", "area", "target_grade", "total_pages", "price", "word_range", "purchase_url", "feature", "status"];
   const row = {};
   allow.forEach((k) => {
     if (k in (patch || {})) {
@@ -141,7 +142,7 @@ export async function updateTextbook(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("textbooks").update(row).eq("id", id);
   if (isMissingColumn(error)) {
-    const { word_range, ...rest } = row;
+    const { word_range, status, ...rest } = row;
     ({ error } = await supabase.from("textbooks").update(rest).eq("id", id));
   }
   revalidatePath("/textbooks");
@@ -152,6 +153,14 @@ export async function deleteTextbooks(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
   const supabase = createClient();
   const { error } = await supabase.from("textbooks").delete().in("id", ids);
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null };
+}
+
+export async function updateTextbooksStatus(ids, status) {
+  if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("textbooks").update({ status }).in("id", ids);
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
 }
