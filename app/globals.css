@@ -98,6 +98,24 @@ a { color: inherit; }
 }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
 
+/* 오늘 수업 */
+.grouphead {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 12px 16px; background: var(--surface-2);
+  border: 0; border-bottom: 1px solid var(--border); cursor: pointer;
+  font-family: inherit; font-size: 13.5px; color: var(--text); text-align: left;
+}
+.grouphead:hover { background: var(--border); }
+.stuRow { border-bottom: 1px solid var(--border); }
+.stuRow:last-child { border-bottom: 0; }
+.stuLine {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 11px 16px; background: transparent; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; color: var(--text); text-align: left;
+}
+.stuLine:hover { background: var(--surface-2); }
+.stuPanel { padding: 4px 16px 14px; background: var(--surface-2); }
+
 .muted { color: var(--text-faint); }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }
 .err { background: var(--red-soft); color: var(--red); border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
