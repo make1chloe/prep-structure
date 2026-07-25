@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
+import UnitUpload from "./UnitUpload";
 import AddTextbookForm from "./AddTextbookForm";
 import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
@@ -68,6 +69,7 @@ export default async function TextbooksPage({ searchParams }) {
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <AddTextbookForm />
             <TextbookUpload />
+            <UnitUpload />
           </div>
         </div>
 

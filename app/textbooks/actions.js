@@ -313,3 +313,119 @@ export async function deleteUnit(formData) {
   await supabase.from("textbook_units").delete().eq("id", id);
   revalidatePath("/textbooks");
 }
+
+/**
+ * 단원 엑셀 대량 업로드.
+ * 각 줄의 교재명(+출판년도)으로 교재를 찾고(없으면 만들고),
+ * 대 → 중 → 소 계층을 만들어 가며 단원을 넣는다.
+ * 같은 위치에 같은 이름이 이미 있으면 다시 만들지 않고 재사용한다.
+ */
+export async function bulkAddUnits(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { inserted: 0, error: null, createdBooks: 0 };
+  }
+  const supabase = createClient();
+
+  // 1) 교재 찾아두기 (이름 기준)
+  const { data: books } = await supabase.from("textbooks").select("id, name");
+  const bookByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
+  let createdBooks = 0;
+
+  async function ensureBook(name, pubYear) {
+    const key = name.trim();
+    if (bookByName.has(key)) return bookByName.get(key);
+    const row = { name: key };
+    if (pubYear) row.pub_year = pubYear;
+    let { data, error } = await supabase.from("textbooks").insert(row).select("id").single();
+    if (error && isMissingColumn(error)) {
+      ({ data, error } = await supabase
+        .from("textbooks").insert({ name: key }).select("id").single());
+    }
+    if (error) throw new Error(`교재 '${key}' 생성 실패: ${error.message}`);
+    bookByName.set(key, data.id);
+    createdBooks += 1;
+    return data.id;
+  }
+
+  // 2) 기존 단원을 (교재, 부모, 이름) 으로 색인
+  const { data: existing } = await supabase
+    .from("textbook_units")
+    .select("id, textbook_id, parent_id, name, sort");
+  const unitKey = (tb, parent, name) => `${tb}|${parent || "root"}|${name}`;
+  const unitIndex = new Map(
+    (existing || []).map((u) => [unitKey(u.textbook_id, u.parent_id, u.name), u.id])
+  );
+  const maxSort = new Map();
+  (existing || []).forEach((u) => {
+    const k = `${u.textbook_id}|${u.parent_id || "root"}`;
+    maxSort.set(k, Math.max(maxSort.get(k) ?? 0, u.sort ?? 0));
+  });
+
+  async function ensureUnit(textbookId, parentId, name, extra = {}) {
+    const key = unitKey(textbookId, parentId, name);
+    if (unitIndex.has(key)) return unitIndex.get(key);
+    const sk = `${textbookId}|${parentId || "root"}`;
+    const sort = (maxSort.get(sk) ?? 0) + 1;
+    maxSort.set(sk, sort);
+
+    const row = {
+      textbook_id: textbookId,
+      parent_id: parentId,
+      name,
+      sort,
+      label: extra.activity || null,
+      page_start: extra.page_start ?? null,
+      page_end: extra.page_end ?? null,
+      total_pages: extra.total_pages ?? null,
+    };
+    let { data, error } = await supabase
+      .from("textbook_units").insert(row).select("id").single();
+    if (error && isMissingColumn(error)) {
+      const { total_pages, ...rest } = row;
+      ({ data, error } = await supabase
+        .from("textbook_units").insert(rest).select("id").single());
+    }
+    if (error) throw new Error(`단원 '${name}' 생성 실패: ${error.message}`);
+    unitIndex.set(key, data.id);
+    return data.id;
+  }
+
+  let inserted = 0;
+  try {
+    for (const r of rows) {
+      const bookId = await ensureBook(r.textbook, r.pub_year);
+
+      let parent = null;
+      // 상위 단계는 이름만 만들고, 페이지·활동은 마지막(가장 아래) 단계에만 붙인다
+      const levels = [r.big, r.mid, r.small].map((v) => (v || "").trim());
+      const lastIdx = levels.reduce((acc, v, i) => (v ? i : acc), -1);
+
+      for (let i = 0; i < levels.length; i++) {
+        if (!levels[i]) continue;
+        const isLast = i === lastIdx && !(r.name || "").trim();
+        parent = await ensureUnit(
+          bookId, parent, levels[i],
+          isLast ? { activity: r.activity, page_start: r.page_start, page_end: r.page_end, total_pages: r.total_pages } : {}
+        );
+      }
+
+      // 단원명이 따로 있으면 마지막 단계 아래에 실제 단원으로 넣는다
+      const leafName = (r.name || "").trim();
+      if (leafName) {
+        await ensureUnit(bookId, parent, leafName, {
+          activity: r.activity,
+          page_start: r.page_start,
+          page_end: r.page_end,
+          total_pages: r.total_pages,
+        });
+      }
+      inserted += 1;
+    }
+  } catch (e) {
+    revalidatePath("/textbooks");
+    return { inserted, error: e.message, createdBooks };
+  }
+
+  revalidatePath("/textbooks");
+  return { inserted, error: null, createdBooks };
+}

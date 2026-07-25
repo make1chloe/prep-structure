@@ -112,3 +112,33 @@ export async function setClassStudents(classId, studentIds) {
   revalidatePath("/today");
   return { error: null };
 }
+
+// 반 엑셀 대량 업로드
+export async function bulkAddClasses(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { inserted: 0, error: null };
+  }
+  const payload = rows
+    .filter((r) => (r?.name || "").trim() !== "")
+    .map((r) => ({
+      name: r.name.trim(),
+      days: Array.isArray(r.days) ? r.days : [],
+      start_time: r.start_time || null,
+      end_time: r.end_time || null,
+      category: (r.category || "정규반").trim(),
+      level: (r.level || "").trim() || null,
+      school_level: (r.school_level || "").trim() || null,
+      room: (r.room || "").trim() || null,
+      capacity: r.capacity ?? 5,
+    }));
+
+  const supabase = createClient();
+  let { error } = await supabase.from("classes").insert(payload);
+  if (isMissingColumn(error)) {
+    const trimmed = payload.map(({ school_level, ...rest }) => rest);
+    ({ error } = await supabase.from("classes").insert(trimmed));
+  }
+  revalidatePath("/classes");
+  revalidatePath("/today");
+  return { inserted: error ? 0 : payload.length, error: error ? error.message : null };
+}

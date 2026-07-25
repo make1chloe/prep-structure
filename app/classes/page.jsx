@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import AddClassForm from "./AddClassForm";
+import ClassUpload from "./ClassUpload";
 import ClassManager from "./ClassManager";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export default async function ClassesPage({ searchParams }) {
           <h1 className="h1">반 · 학생 배정</h1>
           <div className="row" style={{ marginTop: 10 }}>
             <AddClassForm />
+            <ClassUpload />
           </div>
         </div>
 
