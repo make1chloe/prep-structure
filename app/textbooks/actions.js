@@ -30,6 +30,33 @@ export async function addTextbook(formData) {
   revalidatePath("/textbooks");
 }
 
+export async function bulkAddTextbooks(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { inserted: 0, error: null };
+  }
+  const toInt = (v) => {
+    const d = (v || "").toString().replace(/[^\d]/g, "");
+    return d ? parseInt(d, 10) : null;
+  };
+  const payload = rows
+    .filter((r) => (r?.name || "").trim() !== "")
+    .map((r) => ({
+      name: r.name.trim(),
+      area: (r.area || "").trim() || null,
+      target_grade: (r.target_grade || "").trim() || null,
+      total_pages: toInt(r.total_pages),
+      price: toInt(r.price),
+      word_range: toInt(r.word_range),
+      purchase_url: (r.purchase_url || "").trim() || null,
+      feature: (r.feature || "").trim() || null,
+    }));
+
+  const supabase = createClient();
+  const { error } = await supabase.from("textbooks").insert(payload);
+  revalidatePath("/textbooks");
+  return { inserted: error ? 0 : payload.length, error: error ? error.message : null };
+}
+
 export async function addUnit(formData) {
   const textbook_id = (formData.get("textbook_id") || "").toString().trim();
   const name = (formData.get("name") || "").toString().trim();

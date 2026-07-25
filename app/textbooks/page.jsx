@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { addTextbook, addUnit, deleteUnit } from "./actions";
+import TextbookUpload from "./TextbookUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function TextbooksPage({ searchParams }) {
             교재를 추가하고, 교재를 선택하면 오른쪽에서 단원(제목·순서)을
             정리할 수 있어요.
           </p>
+          <TextbookUpload />
         </div>
 
         <div className="grid2" style={{ marginTop: 18, alignItems: "start" }}>
