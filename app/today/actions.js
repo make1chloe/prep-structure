@@ -2,6 +2,35 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { unitOptions } from "@/lib/unitTree";
+
+function isMissingColumn(error) {
+  if (!error) return false;
+  return error.code === "PGRST204" || error.code === "42703";
+}
+
+// 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
+export async function listUnitOptions(textbookId) {
+  if (!textbookId) return { options: [], error: null };
+  const supabase = createClient();
+
+  const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort";
+  let { data, error } = await supabase
+    .from("textbook_units")
+    .select(`${base}, total_pages`)
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: true });
+  if (error) {
+    // total_pages 컬럼이 아직 없는 DB
+    ({ data, error } = await supabase
+      .from("textbook_units")
+      .select(base)
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
+  if (error) return { options: [], error: error.message };
+  return { options: unitOptions(data || []), error: null };
+}
 
 // 출결만 빠르게 찍기
 export async function setAttendance(studentId, date, status, note) {
@@ -89,6 +118,8 @@ export async function saveStudentDay(studentId, date, form) {
     .eq("daily_report_id", report.id);
   if (delErr) return { error: delErr.message };
 
+  // 배정한 숙제에 붙은 단원/범위 { [homework_item_id]: { unitId, note } }
+  const units = form.nextUnits || {};
   const payload = [
     ...Object.entries(items)
       .filter(([, status]) => status)
@@ -97,15 +128,22 @@ export async function saveStudentDay(studentId, date, form) {
         homework_item_id,
         status,
       })),
-    // 다음 수업에 검사할 숙제 배정
+    // 다음 수업에 검사할 숙제 배정 (교재 단원과 함께)
     ...nextIds.map((homework_item_id) => ({
       daily_report_id: report.id,
       homework_item_id,
       status: "assigned",
+      textbook_unit_id: units[homework_item_id]?.unitId || null,
+      range_note: (units[homework_item_id]?.note || "").trim() || null,
     })),
   ];
   if (payload.length > 0) {
-    const { error } = await supabase.from("daily_report_items").insert(payload);
+    let { error } = await supabase.from("daily_report_items").insert(payload);
+    if (isMissingColumn(error)) {
+      // 0008 마이그레이션 전이면 단원 없이 저장
+      const trimmed = payload.map(({ textbook_unit_id, range_note, ...rest }) => rest);
+      ({ error } = await supabase.from("daily_report_items").insert(trimmed));
+    }
     if (error) return { error: error.message };
   }
 

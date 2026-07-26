@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -36,13 +37,15 @@ export async function addClass(formData) {
   };
 
   const supabase = createClient();
-  let { error } = await supabase.from("classes").insert(row);
+  let { data, error } = await supabase.from("classes").insert(row).select("id").single();
   if (isMissingColumn(error)) {
     const { school_level, ...rest } = row;
-    ({ error } = await supabase.from("classes").insert(rest));
+    ({ data, error } = await supabase.from("classes").insert(rest).select("id").single());
   }
   revalidatePath("/classes");
   revalidatePath("/today");
+  // 만든 반을 바로 열어 학생을 배정할 수 있게 한다
+  if (!error && data?.id) redirect(`/classes?c=${data.id}`);
 }
 
 export async function updateClass(id, patch) {

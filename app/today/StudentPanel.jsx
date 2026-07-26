@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveStudentDay } from "./actions";
+import { saveStudentDay, listUnitOptions } from "./actions";
+import { unitOptionText } from "@/lib/unitTree";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -31,7 +32,15 @@ const CYCLE = { "": "done", done: "weak", weak: "missing", missing: "" };
 const MARK = { done: "○", weak: "△", missing: "✕" };
 const MARK_CLS = { done: "hw-done", weak: "hw-weak", missing: "hw-missing" };
 
-export default function StudentPanel({ row, date, items = [], onSaved }) {
+export default function StudentPanel({
+  row,
+  date,
+  items = [],
+  textbooks = [],
+  classTextbookIds = [],
+  unitNames = {},
+  onSaved,
+}) {
   const r = row.report || {};
   const [form, setForm] = useState({
     attendance: row.status || "present",
@@ -45,6 +54,22 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
+  // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitId, note } }
+  const defaultBook = classTextbookIds[0] || "";
+  const [nextUnits, setNextUnits] = useState(() => {
+    const seed = {};
+    Object.entries(row.nextUnits || {}).forEach(([iid, v]) => {
+      seed[iid] = {
+        textbookId: (v.unitId && unitNames[v.unitId]?.textbookId) || "",
+        unitId: v.unitId || "",
+        note: v.note || "",
+      };
+    });
+    return seed;
+  });
+  const [unitsByBook, setUnitsByBook] = useState({});   // textbookId → options
+  const [loadingBook, setLoadingBook] = useState(null);
+
   const [cat, setCat] = useState("전체");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -53,6 +78,10 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
   const toCheckSet = new Set(toCheck);
   const unchecked = toCheck.filter((id) => !marks[id]);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
+  // 지난 수업에 낸 숙제의 교재 단원 (무엇을 검사해야 하는지 그대로 보여준다)
+  const checkUnitList = Object.entries(row.checkUnits || {}).filter(
+    ([, u]) => u.unitId || u.note
+  );
 
   const cats = ["전체", "자주", ...new Set(items.map((i) => i.category).filter(Boolean))];
   const COMMON = ["단어(교재)", "단어(온라인)", "독해", "워크북", "문법", "영작", "듣기", "오답노트"];
@@ -74,6 +103,32 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
     return [...m.entries()];
   }
 
+  // 교재 단원 목록은 고를 때 한 번만 불러와 캐시한다
+  async function loadBook(bookId) {
+    if (!bookId || unitsByBook[bookId]) return;
+    setLoadingBook(bookId);
+    const res = await listUnitOptions(bookId);
+    setUnitsByBook((m) => ({ ...m, [bookId]: res.options || [] }));
+    setLoadingBook(null);
+  }
+  // 이미 저장된 배정이 가리키는 교재는 열자마자 단원을 불러온다
+  useEffect(() => {
+    const ids = new Set(
+      Object.values(nextUnits).map((v) => v.textbookId).filter(Boolean)
+    );
+    if (defaultBook) ids.add(defaultBook);
+    ids.forEach((id) => loadBook(id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function setUnitField(itemId, patch) {
+    setNextUnits((m) => ({
+      ...m,
+      [itemId]: { textbookId: defaultBook, unitId: "", note: "", ...(m[itemId] || {}), ...patch },
+    }));
+  }
+  const bookName = (id) => textbooks.find((t) => t.id === id)?.name || "";
+
   function cycle(id) {
     setMarks((m) => ({ ...m, [id]: CYCLE[m[id] || ""] }));
   }
@@ -88,6 +143,15 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
         items: marks,
         toCheck,
         nextHomework: [...next],
+        nextUnits: Object.fromEntries(
+          [...next].map((iid) => [
+            iid,
+            {
+              unitId: nextUnits[iid]?.unitId || null,
+              note: nextUnits[iid]?.note || "",
+            },
+          ])
+        ),
       });
       if (res?.error) {
         alert(res.error);
@@ -154,6 +218,17 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
         <div style={{ flex: 1 }}>
+          {toCheck.length > 0 && checkUnitList.length > 0 && (
+            <div className="stack" style={{ gap: 2, margin: "0 0 6px" }}>
+              {checkUnitList.map(([iid, u]) => (
+                <div className="hint" key={iid}>
+                  <b style={{ color: "var(--text-muted)" }}>{nameOf(iid)}</b>{" "}
+                  {u.unitId ? unitNames[u.unitId]?.path || "단원" : ""}
+                  {u.note ? ` · ${u.note}` : ""}
+                </div>
+              ))}
+            </div>
+          )}
           {toCheck.length > 0 && (
             <p className="hint" style={{ margin: "0 0 6px" }}>
               지난 수업 숙제 {toCheck.length}개
@@ -224,7 +299,13 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
                       className={`hwchip ${next.has(i.id) ? "hw-next" : ""}`}
                       onClick={() => {
                         const n = new Set(next);
-                        n.has(i.id) ? n.delete(i.id) : n.add(i.id);
+                        if (n.has(i.id)) {
+                          n.delete(i.id);
+                        } else {
+                          n.add(i.id);
+                          setUnitField(i.id, {});
+                          loadBook(defaultBook);
+                        }
                         setNext(n);
                       }}
                     >
@@ -235,6 +316,82 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
               </div>
             ))}
           </div>
+
+          {/* 배정한 숙제별 교재 단원 — 교재DB의 단원명과 연동 */}
+          {next.size > 0 && (
+            <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+              {[...next].map((iid) => {
+                const u = nextUnits[iid] || { textbookId: defaultBook, unitId: "", note: "" };
+                const bookId = u.textbookId || defaultBook;
+                const opts = unitsByBook[bookId] || [];
+                const picked = opts.find((o) => o.id === u.unitId);
+                return (
+                  <div className="unitrow" key={iid}>
+                    <span className="tag tag-lav hwcat" style={{ width: "auto", minWidth: 42 }}>
+                      {nameOf(iid) || "숙제"}
+                    </span>
+                    <select
+                      className="input input-sm"
+                      style={{ width: 150 }}
+                      value={bookId}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setUnitField(iid, { textbookId: v, unitId: "" });
+                        loadBook(v);
+                      }}
+                    >
+                      <option value="">교재 선택</option>
+                      {textbooks.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="input input-sm"
+                      style={{ flex: 1, minWidth: 200 }}
+                      value={u.unitId || ""}
+                      onChange={(e) => setUnitField(iid, { unitId: e.target.value })}
+                      disabled={!bookId}
+                    >
+                      <option value="">
+                        {!bookId
+                          ? "교재를 먼저 고르세요"
+                          : loadingBook === bookId
+                          ? "단원 불러오는 중…"
+                          : opts.length === 0
+                          ? "이 교재에 등록된 단원이 없어요"
+                          : "단원 선택"}
+                      </option>
+                      {opts.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {"\u00a0".repeat(o.depth * 3)}
+                          {unitOptionText(o)}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className="input input-sm"
+                      style={{ width: 130 }}
+                      placeholder="범위 메모 (선택)"
+                      value={u.note || ""}
+                      onChange={(e) => setUnitField(iid, { note: e.target.value })}
+                    />
+                    {picked && (
+                      <span className="unitmeta">
+                        {[picked.big, picked.mid, picked.small].filter(Boolean).map((n, k) => (
+                          <span className={`tag ${["tag-sky", "tag-lav", "tag-mint"][k]}`} key={k}>
+                            {["대", "중", "소"][k]} {n}
+                          </span>
+                        ))}
+                        {picked.activity && <span className="tag tag-muted">{picked.activity}</span>}
+                        {picked.pages && <span className="hint">{picked.pages}</span>}
+                        {picked.amount && <span className="tag tag-amber">분량 {picked.amount}</span>}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

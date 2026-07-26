@@ -81,45 +81,132 @@ export default async function TodayPage({ searchParams }) {
     }
   });
 
+  // daily_report_items 조회 — 0008 마이그레이션 전 DB에서도 동작하도록 재시도
+  const DRI_BASE = "daily_report_id, homework_item_id, status";
+  async function loadItems(ids, onlyAssigned) {
+    if (!ids || ids.length === 0) return [];
+    const build = (cols) => {
+      let q = supabase.from("daily_report_items").select(cols).in("daily_report_id", ids);
+      if (onlyAssigned) q = q.eq("status", "assigned");
+      return q;
+    };
+    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`);
+    if (error) ({ data } = await build(DRI_BASE));
+    return data || [];
+  }
+
   // 리포트별 숙제 항목 상태
   const reportIds = (reports || []).map((r) => r.id);
-  let itemsByReport = new Map();
-  let nextByReport = new Map();
-  if (reportIds.length > 0) {
-    const { data: dri } = await supabase
-      .from("daily_report_items")
-      .select("daily_report_id, homework_item_id, status")
-      .in("daily_report_id", reportIds);
-    (dri || []).forEach((x) => {
-      if (x.status === "assigned") {
-        if (!nextByReport.has(x.daily_report_id)) nextByReport.set(x.daily_report_id, []);
-        nextByReport.get(x.daily_report_id).push(x.homework_item_id);
-        return;
-      }
-      if (!itemsByReport.has(x.daily_report_id)) itemsByReport.set(x.daily_report_id, {});
-      itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
-    });
-  }
+  const itemsByReport = new Map();
+  const nextByReport = new Map();
+  const unitIds = new Set();
+  const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
+
+  (await loadItems(reportIds)).forEach((x) => {
+    if (x.textbook_unit_id) unitIds.add(x.textbook_unit_id);
+    if (x.status === "assigned") {
+      if (!nextByReport.has(x.daily_report_id)) nextByReport.set(x.daily_report_id, []);
+      nextByReport.get(x.daily_report_id).push(x.homework_item_id);
+      unitOf.set(`${x.daily_report_id}|${x.homework_item_id}`, {
+        unitId: x.textbook_unit_id || null,
+        note: x.range_note || "",
+      });
+      return;
+    }
+    if (!itemsByReport.has(x.daily_report_id)) itemsByReport.set(x.daily_report_id, {});
+    itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
+  });
 
   // 지난 수업에서 '배정한' 숙제 = 오늘 검사해야 할 항목
   const prevIds = [...lastReportId.values()];
   const prevAssigned = new Map();
-  if (prevIds.length > 0) {
-    const { data: prevDri } = await supabase
-      .from("daily_report_items")
-      .select("daily_report_id, homework_item_id, status")
-      .in("daily_report_id", prevIds)
-      .eq("status", "assigned");
-    (prevDri || []).forEach((x) => {
-      if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
-      prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
+  const prevUnitOf = new Map(); // `${studentId}|${itemId}` → { unitId, note }
+  const prevReportStudent = new Map(
+    (prevReports || []).map((r) => [r.id, r.student_id])
+  );
+  (await loadItems(prevIds, true)).forEach((x) => {
+    if (x.textbook_unit_id) unitIds.add(x.textbook_unit_id);
+    if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
+    prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
+    const sid = prevReportStudent.get(x.daily_report_id);
+    if (sid) {
+      prevUnitOf.set(`${sid}|${x.homework_item_id}`, {
+        unitId: x.textbook_unit_id || null,
+        note: x.range_note || "",
+      });
+    }
+  });
+  const toCheckOf = (sid) => prevAssigned.get(lastReportId.get(sid)) || [];
+  const assignedUnitsOf = (sid) => {
+    const out = {};
+    toCheckOf(sid).forEach((iid) => {
+      const u = prevUnitOf.get(`${sid}|${iid}`);
+      if (u) out[iid] = u;
+    });
+    return out;
+  };
+  const nextUnitsOf = (rep) => {
+    if (!rep) return {};
+    const out = {};
+    (nextByReport.get(rep.id) || []).forEach((iid) => {
+      const u = unitOf.get(`${rep.id}|${iid}`);
+      if (u) out[iid] = u;
+    });
+    return out;
+  };
+
+  // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름
+  const { data: books } = await supabase
+    .from("textbooks")
+    .select("id, name, status")
+    .order("name", { ascending: true });
+  const textbooks = (books || [])
+    .filter((b) => !b.status || b.status === "active")
+    .map((b) => ({ id: b.id, name: b.name }));
+
+  const { data: classBooks } = await supabase
+    .from("class_textbooks")
+    .select("class_id, textbook_id");
+
+  const unitNames = {};
+  if (unitIds.size > 0) {
+    // 대/중/소단원 경로를 만들려면 같은 교재의 단원을 모두 가져와야 한다
+    const { data: picked } = await supabase
+      .from("textbook_units")
+      .select("id, textbook_id")
+      .in("id", [...unitIds]);
+    const bookIds = [...new Set((picked || []).map((u) => u.textbook_id))];
+    const { data: all } = bookIds.length
+      ? await supabase
+          .from("textbook_units")
+          .select("id, name, parent_id, textbook_id, page_start, page_end")
+          .in("textbook_id", bookIds)
+      : { data: [] };
+    const byId = new Map((all || []).map((u) => [u.id, u]));
+    (all || []).filter((u) => unitIds.has(u.id)).forEach((u) => {
+      const chain = [];
+      let cur = u;
+      const seen = new Set();
+      while (cur && !seen.has(cur.id)) {
+        seen.add(cur.id);
+        chain.unshift(cur.name);
+        cur = cur.parent_id ? byId.get(cur.parent_id) : null;
+      }
+      const pages =
+        u.page_start && u.page_end ? ` (${u.page_start}~${u.page_end}p)` : "";
+      unitNames[u.id] = { path: chain.join(" › ") + pages, textbookId: u.textbook_id };
     });
   }
-  const toCheckOf = (sid) => prevAssigned.get(lastReportId.get(sid)) || [];
 
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
   const memberIds = new Set();
+
+  const booksOfClass = new Map();
+  (classBooks || []).forEach((cb) => {
+    if (!booksOfClass.has(cb.class_id)) booksOfClass.set(cb.class_id, []);
+    booksOfClass.get(cb.class_id).push(cb.textbook_id);
+  });
 
   const groups = classes.map((klass) => {
     const ids = (members || [])
@@ -141,11 +228,13 @@ export default async function TodayPage({ searchParams }) {
           lastProgress: lastProgress.get(s.id) || null,
           toCheck: toCheckOf(s.id),
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
+          nextUnits: nextUnitsOf(rep),
+          checkUnits: assignedUnitsOf(s.id),
           reportWritten: !!rep?.report_written,
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
-    return { klass, rows };
+    return { klass, rows, textbookIds: booksOfClass.get(klass.id) || [] };
   });
 
   // 오늘 반에 속하지 않지만 보강으로 오는 학생
@@ -164,6 +253,8 @@ export default async function TodayPage({ searchParams }) {
         lastProgress: lastProgress.get(s.id) || null,
         toCheck: toCheckOf(s.id),
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
+        nextUnits: nextUnitsOf(rep),
+        checkUnits: assignedUnitsOf(s.id),
         reportWritten: !!rep?.report_written,
       };
     });
@@ -171,6 +262,7 @@ export default async function TodayPage({ searchParams }) {
     groups.push({
       klass: { id: "makeup", name: "보강", start_time: null, end_time: null },
       rows: extras,
+      textbookIds: [],
     });
   }
 
@@ -184,7 +276,13 @@ export default async function TodayPage({ searchParams }) {
           <p className="eyebrow">오늘 수업</p>
           <h1 className="h1">{label}</h1>
         </div>
-        <TodayBoard date={date} groups={groups} items={items || []} />
+        <TodayBoard
+          date={date}
+          groups={groups}
+          items={items || []}
+          textbooks={textbooks}
+          unitNames={unitNames}
+        />
       </main>
     </>
   );

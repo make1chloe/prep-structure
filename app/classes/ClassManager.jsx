@@ -16,6 +16,8 @@ export default function ClassManager({ classes = [], students = [], members = []
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
+  const [q, setQ] = useState("");
+  const [onlyPicked, setOnlyPicked] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -41,6 +43,10 @@ export default function ClassManager({ classes = [], students = [], members = []
     const next = new Set(sel);
     next.has(id) ? next.delete(id) : next.add(id);
     setSel(next);
+  }
+  const allClassesChecked = classes.length > 0 && classes.every((c) => sel.has(c.id));
+  function toggleAllClasses() {
+    setSel(allClassesChecked ? new Set() : new Set(classes.map((c) => c.id)));
   }
 
   function startEdit(c) {
@@ -98,12 +104,28 @@ export default function ClassManager({ classes = [], students = [], members = []
   const dirty =
     picked.size !== assigned.size || [...picked].some((id) => !assigned.has(id));
 
+  const kw = q.trim().toLowerCase();
+  const visibleStudents = students.filter((s) => {
+    if (onlyPicked && !picked.has(s.id)) return false;
+    if (!kw) return true;
+    return [s.name, s.school, s.grade]
+      .filter(Boolean)
+      .some((v) => v.toString().toLowerCase().includes(kw));
+  });
+
   return (
     <div className="grid-side" style={{ marginTop: 14 }}>
       {/* 반 목록 */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "14px 16px 0" }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={allClassesChecked}
+              ref={(el) => el && (el.indeterminate = sel.size > 0 && !allClassesChecked)}
+              onChange={toggleAllClasses}
+              title="전체 선택"
+            />
             반 목록{" "}
             <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
               {classes.length}개
@@ -298,10 +320,44 @@ export default function ClassManager({ classes = [], students = [], members = []
               체크한 학생이 이 반의 명단이 됩니다. 다른 반에 이미 있는 학생은 반 이름이 함께 표시돼요.
             </p>
 
+            <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 8 }}>
+              <input
+                className="input input-sm"
+                style={{ width: 150 }}
+                placeholder="학생 검색"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setPicked(new Set([...picked, ...visibleStudents.map((s) => s.id)]))}
+              >
+                보이는 학생 전체 선택
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const n = new Set(picked);
+                  visibleStudents.forEach((s) => n.delete(s.id));
+                  setPicked(n);
+                }}
+              >
+                전체 해제
+              </button>
+              <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={onlyPicked}
+                  onChange={(e) => setOnlyPicked(e.target.checked)}
+                />
+                배정된 학생만
+              </label>
+            </div>
+
             <div style={{ maxHeight: 460, overflowY: "auto" }}>
               <table className="tbl">
                 <tbody>
-                  {students.map((s) => {
+                  {visibleStudents.map((s) => {
                     const inOther = (classOf.get(s.id) || []).filter((cid) => cid !== selectedId);
                     const otherNames = inOther
                       .map((cid) => classes.find((c) => c.id === cid)?.name)

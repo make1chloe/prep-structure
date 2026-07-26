@@ -20,7 +20,13 @@ function cut(t) {
   return t ? t.slice(0, 5) : "";
 }
 
-export default function TodayBoard({ date, groups = [], items = [] }) {
+export default function TodayBoard({
+  date,
+  groups = [],
+  items = [],
+  textbooks = [],
+  unitNames = {},
+}) {
   const [openId, setOpenId] = useState(null);
   const [openClass, setOpenClass] = useState(() => {
     // 지금 시간대 반을 자동으로 펼침, 없으면 첫 반
@@ -97,7 +103,7 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
       </div>
 
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
-        {groups.map(({ klass, rows }) => {
+        {groups.map(({ klass, rows, textbookIds = [] }) => {
           const todo = rows.filter((r) => !isDone(r));
           const done = rows.filter(isDone);
           const visible =
@@ -177,6 +183,9 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
                               row={r}
                               date={date}
                               items={items}
+                              textbooks={textbooks}
+                              classTextbookIds={textbookIds}
+                              unitNames={unitNames}
                               onSaved={() => setOpenId(null)}
                             />
                           )}

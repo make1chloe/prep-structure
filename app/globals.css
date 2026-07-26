@@ -135,6 +135,12 @@ a { color: inherit; }
 .hwgroup { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px dashed var(--border); }
 .hwgroup:first-child { border-top: 0; }
 .hwcat { flex: none; margin-top: 3px; width: 42px; text-align: center; }
+.unitrow {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px 8px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.unitmeta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 
 .muted { color: var(--text-faint); }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }
