@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import MakeupInbox from "./MakeupInbox";
+import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -207,6 +208,57 @@ export default async function Home() {
     .is("sent_at", null);
   const unsent = sendQ.error ? [] : sendQ.data || [];
 
+  // ---------- 앞으로 3개월 스케줄 특이사항 ----------
+  const months3 = monthsFrom(today.slice(0, 7), 3);
+  const [ly, lm] = months3[2].split("-").map(Number);
+  const scheduleTo = `${months3[2]}-${String(new Date(ly, lm, 0).getDate()).padStart(2, "0")}`;
+
+  let { data: baseClasses } = await supabase
+    .from("classes")
+    .select("id, name, days, base_sessions")
+    .order("start_time", { ascending: true });
+  if (!baseClasses) baseClasses = allClasses || [];
+
+  const holAllQ = await supabase
+    .from("holidays")
+    .select("date, scope, class_id")
+    .gte("date", today)
+    .lte("date", scheduleTo);
+  const holAll = holAllQ.error ? [] : holAllQ.data || [];
+
+  const examQ2 = await supabase
+    .from("exam_periods")
+    .select("id, school, grade, name, from_date, to_date, english_on")
+    .gte("to_date", today)
+    .order("from_date", { ascending: true });
+  const exams = examQ2.error ? [] : examQ2.data || [];
+
+  const studentInfo = new Map((students || []).map((s) => [s.id, s]));
+  const scheduleAlerts = [];
+  (baseClasses || []).forEach((klass) => {
+    const roster = (members || [])
+      .filter((m) => m.class_id === klass.id)
+      .map((m) => studentInfo.get(m.student_id))
+      .filter(Boolean);
+    reviewClass(klass, months3, holAll, exams, roster).forEach((m) => {
+      m.alerts
+        .filter((a) => a.kind !== "off")
+        .forEach((a) => scheduleAlerts.push({ klass: klass.name, ym: m.ym, ...a }));
+    });
+  });
+
+  // 영어 시험 전날 (등원 필요) — 학교·학년 기준으로 한 번만
+  const engEves = exams
+    .filter((e) => e.english_on)
+    .map((e) => ({
+      date: addDaysISO(e.english_on, -1),
+      school: e.school,
+      grade: e.grade,
+      english_on: e.english_on,
+    }))
+    .filter((e) => e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   const makeupRows = (absences || [])
     .filter((a) => !doneMakeup.has(`${a.student_id}|${a.date}`))
     .map((a) => ({
@@ -242,6 +294,9 @@ export default async function Home() {
             <span className="btn" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
               학부모 알림 {requests.length}건
             </span>
+          )}
+          {scheduleAlerts.length > 0 && (
+            <Link className="btn" href="/schedule">스케줄 특이사항 {scheduleAlerts.length}건</Link>
           )}
           {makeupRows.length > 0 && (
             <span className="btn" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
@@ -337,7 +392,35 @@ export default async function Home() {
                     </div>
                   </div>
                 )}
-                {soonAbsent.length === 0 && watchList.length === 0 && holidays.length === 0 && (
+                {engEves.length > 0 && (
+                  <div>
+                    <b className="hint">영어 시험 전날 — 등원 필요</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      {engEves.map((e, i) => (
+                        <span className="tag tag-lav" key={i}>
+                          {dayLabel(e.date)} {e.school} {e.grade || ""} (시험 {e.english_on.slice(5)})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {scheduleAlerts.length > 0 && (
+                  <div>
+                    <b className="hint">앞으로 3개월 스케줄</b>
+                    <div className="stack" style={{ gap: 3, marginTop: 4 }}>
+                      {scheduleAlerts.slice(0, 8).map((a, i) => (
+                        <div className="hint" key={i}>
+                          <b>{a.klass}</b> {Number(a.ym.slice(5))}월 · {a.text}
+                        </div>
+                      ))}
+                    </div>
+                    <Link className="btn btn-ghost btn-sm" href="/schedule" style={{ marginTop: 6 }}>
+                      스케줄 보기
+                    </Link>
+                  </div>
+                )}
+                {soonAbsent.length === 0 && watchList.length === 0 && holidays.length === 0 &&
+                  scheduleAlerts.length === 0 && engEves.length === 0 && (
                   <p className="hint" style={{ margin: 0 }}>특별히 볼 것이 없습니다 👍</p>
                 )}
               </div>

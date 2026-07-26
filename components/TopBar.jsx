@@ -37,8 +37,9 @@ const GROUPS = [
   },
   {
     label: "일정 · 정산",
-    keys: ["tasks", "todo", "tuition"],
+    keys: ["schedule", "tasks", "todo", "tuition"],
     items: [
+      { href: "/schedule", key: "schedule", label: "수업 스케줄 · 시험" },
       { href: "/tasks", key: "tasks", label: "일정" },
       { href: "/todo", key: "todo", label: "할일" },
       { href: "/tuition", key: "tuition", label: "수강료" },
