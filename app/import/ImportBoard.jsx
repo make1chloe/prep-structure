@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { sheetToRows, parseReportRow, parseHomeworkRow } from "@/lib/importNotion";
-import { importReports, importHomework } from "./actions";
+import {
+  sheetToRows, parseReportRow, parseHomeworkRow, parseTaskRow, parseAbsenceRow,
+} from "@/lib/importNotion";
+import { importReports, importHomework, importTasks, importAbsences } from "./actions";
 
 const KINDS = [
   {
@@ -18,7 +20,36 @@ const KINDS = [
     db: "하원숙제DB",
     hint: "단어·독해·문법·노트·듣기·영작·테스트·내신·시험대비·특강 숙제와 발송 여부가 들어옵니다.",
   },
+  {
+    key: "task",
+    label: "일정 · 할일",
+    db: "학사일정DB",
+    hint:
+      "제목에 시험·방학·휴업·행사가 들어가면 일정으로, 나머지는 할일로 들어갑니다. " +
+      "직접 만든 엑셀도 됩니다 — 열 이름을 제목 / 종류 / 분류 / 날짜 / 끝날 / 메모 로 두세요.",
+  },
+  {
+    key: "absence",
+    label: "결석 · 보강",
+    db: "보강문자DB",
+    hint:
+      "결석은 결석으로, 보강날짜가 있으면 그 날에 보강으로 들어갑니다. " +
+      "재시험·추가학습처럼 결석이 아닌 것은 보강만 기록합니다.",
+  },
 ];
+
+const PARSE = {
+  report: parseReportRow,
+  homework: parseHomeworkRow,
+  task: parseTaskRow,
+  absence: parseAbsenceRow,
+};
+const SAVE = {
+  report: importReports,
+  homework: importHomework,
+  task: importTasks,
+  absence: importAbsences,
+};
 
 export default function ImportBoard() {
   const [kind, setKind] = useState("report");
@@ -45,20 +76,25 @@ export default function ImportBoard() {
     });
     const objs = sheetToRows(aoa);
     const y = parseInt(year, 10) || new Date().getFullYear();
-    setRows(objs.map((o) => (kind === "report" ? parseReportRow(o, y) : parseHomeworkRow(o, y))));
+    setRows(objs.map((o) => PARSE[kind](o, y)));
   }
 
   function save() {
     if (!rows || rows.length === 0) return;
     startTransition(async () => {
-      const res = kind === "report" ? await importReports(rows) : await importHomework(rows);
+      const res = await SAVE[kind](rows);
       setResult(res);
       if (!res.error) router.refresh();
     });
   }
 
-  const ok = (rows || []).filter((r) => r.name && r.date);
-  const bad = (rows || []).filter((r) => !r.name || !r.date);
+  // 옮길 수 있는 줄의 조건은 종류마다 다르다
+  const usable = (r) =>
+    kind === "task" ? !!(r.title && r.due_on)
+    : kind === "absence" ? !!(r.name && (r.absentOn || r.makeupOn))
+    : !!(r.name && r.date);
+  const ok = (rows || []).filter(usable);
+  const bad = (rows || []).filter((r) => !usable(r));
 
   return (
     <>
@@ -113,35 +149,94 @@ export default function ImportBoard() {
             <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
               <b style={{ fontSize: 13.5 }}>미리보기</b>
               <span className="tag tag-mint">옮길 수 있음 {ok.length}</span>
-              {bad.length > 0 && <span className="tag tag-amber">이름·날짜 못 읽음 {bad.length}</span>}
+              {bad.length > 0 && (
+                <span className="tag tag-amber">
+                  {kind === "task" ? "제목·날짜" : "이름·날짜"} 못 읽음 {bad.length}
+                </span>
+              )}
             </div>
 
             <div className="tblwrap" style={{ marginTop: 8 }}>
               <table className="tbl tbl-tight">
                 <thead>
                   <tr>
-                    <th>날짜</th>
-                    <th>학생</th>
-                    {kind === "report" ? (
+                    {kind === "task" ? (
                       <>
-                        <th>출결</th>
-                        <th>단어</th>
-                        <th>완료</th>
-                        <th>미흡</th>
-                        <th>미제출</th>
-                        <th>공지</th>
+                        <th>날짜</th>
+                        <th>제목</th>
+                        <th>종류</th>
+                        <th>분류</th>
+                        <th>메모</th>
+                      </>
+                    ) : kind === "absence" ? (
+                      <>
+                        <th>결석일</th>
+                        <th>학생</th>
+                        <th>보강일</th>
+                        <th>사유</th>
+                        <th>상태</th>
                       </>
                     ) : (
                       <>
-                        <th>숙제</th>
-                        <th>발송</th>
-                        <th>공지</th>
+                        <th>날짜</th>
+                        <th>학생</th>
+                        {kind === "report" ? (
+                          <>
+                            <th>출결</th>
+                            <th>단어</th>
+                            <th>완료</th>
+                            <th>미흡</th>
+                            <th>미제출</th>
+                            <th>공지</th>
+                          </>
+                        ) : (
+                          <>
+                            <th>숙제</th>
+                            <th>발송</th>
+                            <th>공지</th>
+                          </>
+                        )}
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {ok.slice(0, 25).map((r, i) => (
+                  {kind === "task" && ok.slice(0, 25).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.due_on}{r.end_on ? ` ~ ${r.end_on.slice(5)}` : ""}</td>
+                      <td style={{ fontWeight: 600 }}>{r.title}</td>
+                      <td>
+                        <span className={`tag ${r.kind === "todo" ? "tag-amber" : "tag-sky"}`}>
+                          {r.kind === "todo" ? "할일" : "일정"}
+                        </span>
+                      </td>
+                      <td className="muted">{r.category || "—"}</td>
+                      <td className="muted" style={{ maxWidth: 240, whiteSpace: "normal" }}>
+                        {(r.note || "").slice(0, 40) || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                  {kind === "absence" && ok.slice(0, 25).map((r, i) => (
+                    <tr key={i}>
+                      <td>
+                        {r.isAbsence ? r.absentOn || "—" : "—"}
+                        {r.isAbsence && r.absentGuessed && (
+                          <span className="tag tag-amber" style={{ marginLeft: 4 }}>추정</span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="muted">{r.makeupOn || "—"}</td>
+                      <td className="muted" style={{ maxWidth: 200, whiteSpace: "normal" }}>
+                        {r.reason || "—"}
+                      </td>
+                      <td>
+                        {r.none ? <span className="tag tag-muted">보강 없음</span>
+                          : r.done ? <span className="tag tag-mint">완료</span>
+                          : <span className="tag tag-amber">미완료</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {(kind === "report" || kind === "homework") && ok.slice(0, 25).map((r, i) => (
                     <tr key={i}>
                       <td>{r.date}</td>
                       <td style={{ fontWeight: 600 }}>{r.name}</td>
@@ -200,7 +295,10 @@ export default function ImportBoard() {
                 {result.skipped?.length > 0 && (
                   <>
                     <br />
-                    <b>건너뛴 {result.skipped.length}건</b> — 재원생 이름이 정확히 같아야 합니다.
+                    <b>건너뛴 {result.skipped.length}건</b>
+                    {kind === "task"
+                      ? " — 같은 날짜·같은 제목이 이미 있는 줄입니다."
+                      : " — 재원생 이름이 정확히 같아야 합니다."}
                     <div className="hint" style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
                       {result.skipped.slice(0, 15).join("\n")}
                       {result.skipped.length > 15 ? "\n…" : ""}

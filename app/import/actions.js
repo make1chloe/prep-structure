@@ -122,6 +122,123 @@ export async function importReports(rows) {
 }
 
 /**
+ * 일정 · 할일 이관
+ *   같은 제목·같은 날짜가 이미 있으면 건너뛴다 (여러 번 올려도 안 늘어나게)
+ */
+export async function importTasks(rows) {
+  const list = (rows || []).filter((r) => r.title && r.due_on);
+  if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
+
+  const supabase = createClient();
+  const dates = [...new Set(list.map((r) => r.due_on))].sort();
+  const { data: exist } = await supabase
+    .from("tasks")
+    .select("title, due_on")
+    .gte("due_on", dates[0])
+    .lte("due_on", dates[dates.length - 1]);
+  const seen = new Set((exist || []).map((t) => `${t.due_on}|${t.title.trim()}`));
+
+  const skipped = [];
+  const payload = [];
+  list.forEach((r) => {
+    const key = `${r.due_on}|${r.title}`;
+    if (seen.has(key)) {
+      skipped.push(`${r.due_on} ${r.title} (이미 있음)`);
+      return;
+    }
+    seen.add(key);
+    payload.push({
+      title: r.title,
+      kind: r.kind === "todo" ? "todo" : "schedule",
+      category: r.category || null,
+      due_on: r.due_on,
+      end_on: r.end_on || null,
+      note: r.note || null,
+      status: "open",
+    });
+  });
+  if (payload.length === 0) return { error: null, saved: 0, skipped };
+
+  let { error } = await supabase.from("tasks").insert(payload);
+  if (isMissingColumn(error)) {
+    // 0014 전이면 end_on 없이
+    ({ error } = await supabase
+      .from("tasks")
+      .insert(payload.map(({ end_on, ...rest }) => rest)));
+  }
+  if (error) return { error: error.message, saved: 0, skipped };
+
+  revalidatePath("/tasks");
+  revalidatePath("/todo");
+  return { error: null, saved: payload.length, skipped };
+}
+
+/**
+ * 결석 · 보강 이관
+ *   결석 → attendance(status='absent', reason=사유)
+ *   보강 → attendance(status='makeup', makeup_of=결석일)
+ * attendance 는 (학생, 날짜) 하나뿐이라 같은 날 여러 건이면 덮어쓴다.
+ */
+export async function importAbsences(rows) {
+  const list = (rows || []).filter((r) => r.name && (r.absentOn || r.makeupOn));
+  if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
+
+  const supabase = createClient();
+  const students = await studentMap(supabase);
+
+  const skipped = [];
+  const byKey = new Map();   // student|date → row (뒤에 온 것이 이긴다)
+  list.forEach((r) => {
+    const sid = students.get((r.name || "").trim());
+    if (!sid) {
+      skipped.push(`${r.absentOn || r.makeupOn} ${r.name || "(이름 없음)"} (재원생 목록에 없음)`);
+      return;
+    }
+    if (r.isAbsence && r.absentOn) {
+      byKey.set(`${sid}|${r.absentOn}`, {
+        student_id: sid,
+        date: r.absentOn,
+        status: "absent",
+        planned: true,
+        reason: r.reason,
+        note: r.absentGuessed ? "노션 이관 (결석일이 생성일 기준이라 다를 수 있음)" : "노션 이관",
+      });
+    }
+    if (r.makeupOn) {
+      byKey.set(`${sid}|${r.makeupOn}`, {
+        student_id: sid,
+        date: r.makeupOn,
+        status: "makeup",
+        makeup_of: r.isAbsence ? r.absentOn : null,
+        reason: r.reason,
+        note: r.none ? "보강 없음으로 처리됨" : "노션 이관",
+      });
+    }
+  });
+
+  const payload = [...byKey.values()];
+  if (payload.length === 0) return { error: null, saved: 0, skipped };
+
+  let { error } = await supabase
+    .from("attendance")
+    .upsert(payload, { onConflict: "student_id,date" });
+  if (isMissingColumn(error)) {
+    // 0017 전이면 planned/reason 없이
+    ({ error } = await supabase
+      .from("attendance")
+      .upsert(
+        payload.map(({ planned, reason, ...rest }) => rest),
+        { onConflict: "student_id,date" }
+      ));
+  }
+  if (error) return { error: error.message, saved: 0, skipped };
+
+  revalidatePath("/today");
+  revalidatePath("/tuition");
+  return { error: null, saved: payload.length, skipped };
+}
+
+/**
  * 하원숙제 이관 — 그 수업일에 '배정한' 숙제로 넣는다.
  * 노션의 자유 텍스트는 범위 메모(range_note)에 그대로 담는다.
  */
