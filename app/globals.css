@@ -205,7 +205,40 @@ a { color: inherit; }
 }
 .navmenu a:hover { background: var(--surface-2); color: var(--text); }
 .navmenu a.on { color: var(--navy); background: var(--surface-2); }
+/* 좁은 화면용 메뉴 — 기본은 숨김 */
+.navburger { display: none; position: relative; }
+.navburger > summary {
+  list-style: none; cursor: pointer; white-space: nowrap;
+  font-size: 14px; font-weight: 700; color: var(--text);
+  padding: 8px 12px; border-radius: 10px; background: var(--surface-2);
+}
+.navburger > summary::-webkit-details-marker { display: none; }
+.navsheet {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  width: 240px; max-height: 70vh; overflow-y: auto; padding: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.navsheet a {
+  font-size: 14px; font-weight: 600; color: var(--text-muted);
+  text-decoration: none; padding: 10px 10px; border-radius: 8px;
+}
+.navsheet a.on { color: var(--navy); background: var(--surface-2); }
+.navsheet-group { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+.navsheet-group b { font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 2px 10px; }
+
 @media (max-width: 900px) {
-  .topbar-in { gap: 8px; }
-  .nav { overflow-x: auto; }
+  /* 한 줄에 다 넣으면 글자가 세로로 쪼개진다. 브랜드·메뉴·계정만 남긴다 */
+  .topbar-in { gap: 10px; padding: 0 14px; }
+  .brand { flex: 0 0 auto; white-space: nowrap; font-size: 15px; }
+  .nav { display: none; }
+  .navburger { display: block; flex: 0 0 auto; }
+  .who { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
+  .topbar-in form { flex: 0 0 auto; }
+  .topbar-in form .btn { padding: 6px 10px; font-size: 12.5px; white-space: nowrap; }
+}
+@media (max-width: 480px) {
+  /* 더 좁으면 이름은 빼고 로그아웃만 */
+  .who { display: none; }
 }

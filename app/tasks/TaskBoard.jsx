@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } from "./actions";
 
 const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
@@ -30,7 +31,7 @@ function addDays(d, n) {
   return t.toISOString().slice(0, 10);
 }
 
-export default function TaskBoard({ tasks = [], classes = [], unavailable = false }) {
+export default function TaskBoard({ tasks = [], classes = [], unavailable = false, linked = [] }) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -113,6 +114,34 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
 
   return (
     <>
+      {linked.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+            다른 화면에서 온 일정
+          </h2>
+          <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+            시험 일정과 휴강은 <b>수업 스케줄 · 시험</b> 에서 관리합니다.
+            여기서는 같이 보이기만 하고, 고치는 건 그쪽에서 합니다.
+          </p>
+          <div className="stack" style={{ gap: 4 }}>
+            {linked.map((x) => (
+              <div className="unitrow" key={x.key}>
+                <span className={`tag ${x.source === "시험" ? "tag-amber" : "tag-muted"}`}>
+                  {x.source}
+                </span>
+                <span className="hint" style={{ minWidth: 96 }}>
+                  {x.from.slice(5)}
+                  {x.to !== x.from ? ` ~ ${x.to.slice(5)}` : ""}
+                </span>
+                <b style={{ fontSize: 12.5, flex: 1 }}>{x.title}</b>
+                <span className="hint">{x.extra}</span>
+                <Link className="btn btn-ghost btn-sm" href={x.href}>바로가기</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="row" style={{ gap: 4, marginTop: 12, alignItems: "center" }}>
         {[
           ["open", `할 것 ${counts.open}`],

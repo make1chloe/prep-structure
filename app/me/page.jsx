@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import HomeworkCards from "./HomeworkCards";
+import Comments from "@/app/comments/Comments";
 import RequestForm from "./RequestForm";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,12 @@ export default async function MePage() {
       student = s;
     }
   }
+
+  // 댓글에 붙일 내 역할 (학생 본인인지 학부모인지)
+  const myRole =
+    profile?.role === "student" ? "student"
+    : profile?.role === "parent" ? "parent"
+    : "staff";
 
   if (!student) {
     return (
@@ -203,6 +210,14 @@ export default async function MePage() {
             숙제를 누르면 <b>하는 법</b>이 나와요.
           </p>
           <HomeworkCards items={todo} />
+          {latest && (
+            <div style={{ marginTop: 10 }}>
+              <p className="hint" style={{ margin: "0 0 6px" }}>
+                숙제나 수업에 대해 궁금한 게 있으면 여기에 남겨주세요. 선생님이 확인합니다.
+              </p>
+              <Comments reportId={latest.id} studentId={student.id} me={myRole} />
+            </div>
+          )}
         </div>
 
         {latest && (latest.word_total || latest.sent_total || latest.own_progress) && (

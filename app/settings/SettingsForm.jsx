@@ -22,6 +22,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
     phone: view.message?.phone || "",
     address: view.message?.address || "",
   });
+  const [makeupDays, setMakeupDays] = useState(view.schedule?.makeupDays || []);
   const [testTo, setTestTo] = useState("");
   const [msg, setMsg] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -52,7 +53,14 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
       const w = await saveIntegration("webhook", { enabled: mode === "webhook", config: webhook });
       if (w.error) return w;
       // 문구는 비워두는 것도 뜻이 있으므로 통째로 저장한다
-      return saveIntegration("message", { enabled: true, config: msgCfg, replace: true });
+      const m = await saveIntegration("message", { enabled: true, config: msgCfg, replace: true });
+      if (m.error) return m;
+      // 요일을 하나도 안 고른 것도 뜻이 있으므로 통째로 저장한다
+      return saveIntegration("schedule", {
+        enabled: true,
+        config: { makeupDays },
+        replace: true,
+      });
     }, "설정을 저장했어요.");
   }
 
@@ -254,6 +262,38 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
             />
           </div>
         </div>
+      </div>
+
+      {/* 보강 전용 요일 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>보강만 하는 요일</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+          정규수업이 아니라 <b>보강·재시험·특강만</b> 하는 요일입니다.
+          여기 고른 요일은 <b>수강료 회차와 스케줄 알림에서 빠집니다.</b>
+          그날 보강을 잡는 것은 그대로 됩니다.
+        </p>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+          {["월", "화", "수", "목", "금", "토", "일"].map((d) => {
+            const on = makeupDays.includes(d);
+            return (
+              <button
+                key={d}
+                type="button"
+                className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                onClick={() =>
+                  setMakeupDays(on ? makeupDays.filter((x) => x !== d) : [...makeupDays, d])
+                }
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          {makeupDays.length === 0
+            ? "고른 요일이 없습니다. 모든 요일이 정규 회차로 계산됩니다."
+            : `${makeupDays.join("·")}요일은 회차에서 빠집니다.`}
+        </p>
       </div>
 
       {/* 앱 알림 */}

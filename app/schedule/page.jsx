@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ScheduleBoard from "./ScheduleBoard";
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
+import { holidayAlerts } from "@/lib/holidays";
+import { loadSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,9 @@ export default async function SchedulePage() {
     eveDate: e.english_on ? addDaysISO(e.english_on, -1) : null,
   }));
 
+  const settings = await loadSettings(supabase);
+  const makeupDays = settings.schedule?.makeupDays || [];
+
   const reviews = (classes || []).map((klass) => {
     const roster = (members || [])
       .filter((m) => m.class_id === klass.id)
@@ -69,9 +74,16 @@ export default async function SchedulePage() {
     return {
       klass,
       roster: roster.length,
-      months: reviewClass(klass, months, holidays || [], exams, roster),
+      months: reviewClass(klass, months, holidays || [], exams, roster, makeupDays),
     };
   });
+
+  // 공휴일 알림 — 수업이 잡혀 있는 날만
+  const classDates = new Set();
+  reviews.forEach((r) => r.months.forEach((m) => m.all.forEach((d) => classDates.add(d))));
+  const decided = new Set((holidays || []).map((h) => h.date));
+  const seoulToday = seoul.toISOString().slice(0, 10);
+  const holidayNotes = holidayAlerts(seoulToday, to, classDates, decided);
 
   const schools = [...new Set((students || []).map((s) => s.school).filter(Boolean))].sort();
   const grades = [...new Set((students || []).map((s) => s.grade).filter(Boolean))].sort();
@@ -97,6 +109,8 @@ export default async function SchedulePage() {
           grades={grades}
           classes={classes || []}
           unavailable={!ready}
+          holidayNotes={holidayNotes}
+          makeupDays={makeupDays}
         />
       </main>
     </>

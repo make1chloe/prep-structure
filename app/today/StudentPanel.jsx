@@ -6,6 +6,7 @@ import { saveStudentDay, listUnitOptions, setDelivered } from "./actions";
 import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
+import Comments from "@/app/comments/Comments";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -671,6 +672,21 @@ export default function StudentPanel({
           onChange={(e) => set("notice", e.target.value)}
         />
       </div>
+
+      {/* 학생·학부모가 남긴 댓글 */}
+      {r.id && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel">댓글</span>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <Comments
+              reportId={r.id}
+              studentId={row.student.id}
+              me="staff"
+              openBy={(row.unreadComments || 0) > 0}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
         <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TuitionBoard from "./TuitionBoard";
 import { classSessions, studentAmount, monthRange } from "@/lib/tuition";
+import { loadSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -54,11 +55,14 @@ export default async function TuitionPage({ searchParams }) {
   }
   const studentById = new Map((students || []).map((s) => [s.id, s]));
 
+  const settings = await loadSettings(supabase);
+  const makeupDays = settings.schedule?.makeupDays || [];
+
   let total = 0;
   let totalCredit = 0;
   let totalMakeup = 0;
   const groups = (classes || []).map((klass) => {
-    const { all, off, live } = classSessions(ym, klass, holidays || []);
+    const { all, off, live, makeupOnly } = classSessions(ym, klass, holidays || [], makeupDays);
     const base = klass.base_sessions || live.length;
     const ids = (members || [])
       .filter((m) => m.class_id === klass.id)
@@ -78,7 +82,7 @@ export default async function TuitionPage({ searchParams }) {
     total += sum;
     totalCredit += creditSum;
     totalMakeup += makeupSum;
-    return { klass, all, off, live, base, rows, sum, makeupSum, creditSum };
+    return { klass, all, off, live, base, rows, sum, makeupSum, creditSum, makeupOnly };
   });
 
   return (
@@ -100,6 +104,7 @@ export default async function TuitionPage({ searchParams }) {
           total={total}
           totalCredit={totalCredit}
           totalMakeup={totalMakeup}
+          makeupDays={makeupDays}
           unavailable={!ready}
         />
       </main>

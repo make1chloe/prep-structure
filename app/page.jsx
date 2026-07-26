@@ -4,6 +4,8 @@ import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import MakeupInbox from "./MakeupInbox";
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
+import { holidayAlerts } from "@/lib/holidays";
+import { loadSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -233,14 +235,19 @@ export default async function Home() {
     .order("from_date", { ascending: true });
   const exams = examQ2.error ? [] : examQ2.data || [];
 
+  const settings = await loadSettings(supabase);
+  const makeupDays = settings.schedule?.makeupDays || [];
+
   const studentInfo = new Map((students || []).map((s) => [s.id, s]));
   const scheduleAlerts = [];
+  const classDates = new Set();
   (baseClasses || []).forEach((klass) => {
     const roster = (members || [])
       .filter((m) => m.class_id === klass.id)
       .map((m) => studentInfo.get(m.student_id))
       .filter(Boolean);
-    reviewClass(klass, months3, holAll, exams, roster).forEach((m) => {
+    reviewClass(klass, months3, holAll, exams, roster, makeupDays).forEach((m) => {
+      m.all.forEach((d) => classDates.add(d));
       m.alerts
         .filter((a) => a.kind !== "off")
         // 회차 알림은 상쇄 구간의 첫 달에만 — 같은 말이 두 번 뜨지 않게
@@ -248,6 +255,27 @@ export default async function Home() {
         .forEach((a) => scheduleAlerts.push({ klass: klass.name, ym: m.ym, ...a }));
     });
   });
+
+  // 학생·학부모가 남긴 안 읽은 댓글 (0023 전이면 조용히 빈 목록)
+  const commentQ = await supabase
+    .from("report_comments")
+    .select("id, body, author_role, created_at, student_id, daily_report_id")
+    .is("read_at", null)
+    .neq("author_role", "staff")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const newComments = (commentQ.error ? [] : commentQ.data || []).map((c) => ({
+    ...c,
+    name: studentInfo.get(c.student_id)?.name || "학생",
+  }));
+
+  // 공휴일 · 대체공휴일 · 낀 날 — 자동으로 쉬지 않고, 정하라고 알리기만 한다
+  //   이미 휴강으로 지정했거나 일정에 넣어둔 날은 뺀다
+  const decided = new Set([
+    ...holAll.map((h) => h.date),
+    ...all.map((t) => t.due_on),
+  ]);
+  const holidayNotes = holidayAlerts(today, scheduleTo, classDates, decided);
 
   // 영어 시험 전날 (등원 필요) — 학교·학년 기준으로 한 번만
   const engEves = exams
@@ -406,6 +434,49 @@ export default async function Home() {
                     </div>
                   </div>
                 )}
+                {newComments.length > 0 && (
+                  <div>
+                    <b className="hint">학생 · 학부모가 남긴 댓글 {newComments.length}건</b>
+                    <div className="stack" style={{ gap: 4, marginTop: 4 }}>
+                      {newComments.map((c) => (
+                        <div className="hint" key={c.id}>
+                          <span className={`tag ${c.author_role === "parent" ? "tag-lav" : "tag-mint"}`}>
+                            {c.author_role === "parent" ? "학부모" : "학생"}
+                          </span>{" "}
+                          <b>{c.name}</b> — {c.body.slice(0, 60)}
+                          {c.body.length > 60 ? "…" : ""}
+                        </div>
+                      ))}
+                    </div>
+                    <Link className="btn btn-ghost btn-sm" href="/today" style={{ marginTop: 6 }}>
+                      오늘 수업에서 답하기
+                    </Link>
+                  </div>
+                )}
+                {holidayNotes.length > 0 && (
+                  <div>
+                    <b className="hint">공휴일 — 쉴지 정해주세요</b>
+                    <div className="stack" style={{ gap: 4, marginTop: 4 }}>
+                      {holidayNotes.map((h) => (
+                        <div className="hint" key={h.date}>
+                          <span
+                            className={`tag ${
+                              h.kind === "bridge" ? "tag-lav"
+                              : h.kind === "substitute" ? "tag-amber"
+                              : "tag-red"
+                            }`}
+                          >
+                            {dayLabel(h.date)} {h.name}
+                          </span>{" "}
+                          {h.why}
+                        </div>
+                      ))}
+                    </div>
+                    <Link className="btn btn-ghost btn-sm" href="/schedule" style={{ marginTop: 6 }}>
+                      휴강으로 지정하기
+                    </Link>
+                  </div>
+                )}
                 {scheduleAlerts.length > 0 && (
                   <div>
                     <b className="hint">앞으로 3개월 스케줄</b>
@@ -431,7 +502,8 @@ export default async function Home() {
                   </div>
                 )}
                 {soonAbsent.length === 0 && watchList.length === 0 && holidays.length === 0 &&
-                  scheduleAlerts.length === 0 && engEves.length === 0 && (
+                  scheduleAlerts.length === 0 && engEves.length === 0 &&
+                  holidayNotes.length === 0 && newComments.length === 0 && (
                   <p className="hint" style={{ margin: 0 }}>특별히 볼 것이 없습니다 👍</p>
                 )}
               </div>

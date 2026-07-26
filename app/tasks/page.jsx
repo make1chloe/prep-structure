@@ -39,6 +39,45 @@ export default async function TasksPage() {
 
   const rows = (tasks || []).map((t) => ({ ...t, deliveredOn: madeMap.get(t.id) || null }));
 
+  // 다른 화면에서 만든 일정도 여기서 같이 보여준다 (여기서 고치지는 않는다)
+  //   시험 일정 → exam_periods (수업 스케줄 · 시험)
+  //   휴강     → holidays      (수강료 · 수업 스케줄)
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+    .toISOString()
+    .slice(0, 10);
+
+  const examQ = await supabase
+    .from("exam_periods")
+    .select("id, school, grade, name, from_date, to_date, english_on")
+    .gte("to_date", today)
+    .order("from_date", { ascending: true });
+  const holQ = await supabase
+    .from("holidays")
+    .select("id, date, name, scope, class_id")
+    .gte("date", today)
+    .order("date", { ascending: true });
+
+  const linked = [
+    ...(examQ.error ? [] : examQ.data || []).map((e) => ({
+      key: `exam-${e.id}`,
+      from: e.from_date,
+      to: e.to_date,
+      title: `${e.school} ${e.grade || ""} ${e.name || "시험"}`.replace(/\s+/g, " ").trim(),
+      extra: e.english_on ? `영어 ${e.english_on.slice(5)}` : "영어 시험일 미정",
+      source: "시험",
+      href: "/schedule",
+    })),
+    ...(holQ.error ? [] : holQ.data || []).map((h) => ({
+      key: `hol-${h.id}`,
+      from: h.date,
+      to: h.date,
+      title: h.name || "휴강",
+      extra: h.scope === "all" ? "전체 휴강" : "반 휴강",
+      source: "휴강",
+      href: "/schedule",
+    })),
+  ].sort((a, b) => a.from.localeCompare(b.from));
+
   return (
     <>
       <TopBar profile={profile} active="tasks" />
@@ -56,7 +95,7 @@ export default async function TasksPage() {
           </div>
         </div>
 
-        <TaskBoard tasks={rows} classes={classes || []} unavailable={!!error} />
+        <TaskBoard tasks={rows} classes={classes || []} unavailable={!!error} linked={linked} />
       </main>
     </>
   );

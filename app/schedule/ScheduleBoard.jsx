@@ -46,6 +46,8 @@ export default function ScheduleBoard({
   grades = [],
   classes = [],
   unavailable = false,
+  holidayNotes = [],
+  makeupDays = [],
 }) {
   const [form, setForm] = useState({ school: "", grade: "", name: "", from: "", to: "" });
   const [eng, setEng] = useState({});
@@ -76,6 +78,61 @@ export default function ScheduleBoard({
 
   return (
     <>
+      {/* 공휴일 · 대체공휴일 · 낀 날 */}
+      {holidayNotes.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+            공휴일 — 쉴지 정해주세요
+          </h2>
+          <p className="muted" style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7 }}>
+            자동으로 휴강 처리하지 않습니다. 학원마다 다르고 낀 날은 더 그렇기 때문에,
+            <b> 수업이 잡혀 있는 공휴일만 골라서 알려드립니다.</b>
+          </p>
+          <div className="stack" style={{ gap: 4 }}>
+            {holidayNotes.map((h) => (
+              <div className="unitrow" key={h.date} style={{ alignItems: "flex-start" }}>
+                <span
+                  className={`tag ${
+                    h.kind === "bridge" ? "tag-lav"
+                    : h.kind === "substitute" ? "tag-amber"
+                    : "tag-red"
+                  }`}
+                >
+                  {h.kind === "bridge" ? "낀 날" : h.kind === "substitute" ? "대체공휴일" : "공휴일"}
+                </span>
+                <b style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>
+                  {dayShort(h.date)} {h.name}
+                </b>
+                <span className="muted" style={{ fontSize: 12, flex: 1, lineHeight: 1.6 }}>
+                  {h.why}
+                </span>
+                <select
+                  className="input input-sm"
+                  style={{ width: 170 }}
+                  defaultValue=""
+                  disabled={pending}
+                  onChange={(ev) => {
+                    const v = ev.target.value;
+                    ev.target.value = "";
+                    if (v === "all") {
+                      run(() => addClassHoliday(h.date, h.name, null), "전체 휴강으로 지정했어요.");
+                    } else if (v) {
+                      run(() => addClassHoliday(h.date, h.name, v), "휴강으로 지정했어요.");
+                    }
+                  }}
+                >
+                  <option value="">휴강으로 지정…</option>
+                  <option value="all">전체 휴강</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}만</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 시험 일정 */}
       <div className="card" style={{ marginTop: 12 }}>
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학교 시험 일정</h2>

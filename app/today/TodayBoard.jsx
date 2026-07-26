@@ -218,6 +218,11 @@ export default function TodayBoard({
                             ) : r.status ? (
                               <span className="tag tag-amber">기록 전</span>
                             ) : null}
+                            {r.unreadComments > 0 && (
+                              <span className="tag tag-red" title="학생·학부모가 남긴 댓글">
+                                💬 {r.unreadComments}
+                              </span>
+                            )}
                             <span className="muted" style={{ fontSize: 11 }}>{isOpen ? "▾" : "▸"}</span>
                           </button>
 

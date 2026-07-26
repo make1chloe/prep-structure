@@ -24,6 +24,7 @@ function dayShort(d) {
 export default function TuitionBoard({
   ym,
   groups = [],
+  makeupDays = [],
   holidays = [],
   total = 0,
   totalCredit = 0,
@@ -159,7 +160,7 @@ export default function TuitionBoard({
 
       {/* 반별 */}
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
-        {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum }) => {
+        {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum, makeupOnly = [] }) => {
           const opened = open.has(klass.id);
           const editing = editClass === klass.id;
           return (
@@ -169,6 +170,11 @@ export default function TuitionBoard({
                   {opened ? "▾" : "▸"} {klass.name}{" "}
                   <span className="muted" style={{ fontWeight: 600 }}>
                     {(klass.days || []).join("·")}
+                    {makeupOnly.length > 0 && (
+                      <span className="tag tag-muted" style={{ marginLeft: 6 }}>
+                        보강일 {makeupOnly.length}일 제외
+                      </span>
+                    )}
                   </span>
                 </span>
                 <span className="muted" style={{ fontSize: 12.5 }}>

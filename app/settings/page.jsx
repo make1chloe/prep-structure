@@ -41,6 +41,7 @@ export default async function SettingsPage() {
       url: s.webhook.url,
       maskedSecret: s.webhook.secret ? "••••••••" : "",
     },
+    schedule: s.schedule,
   };
 
   return (

@@ -64,6 +64,28 @@ export default function TopBar({ profile, active }) {
           <span className="mark">클</span> 클로이영어
         </Link>
 
+        {/* 좁은 화면 — 메뉴를 하나로 접는다 (가로 스크롤은 눌러도 잘려서 안 보임) */}
+        <details className="navburger">
+          <summary aria-label="메뉴">☰ 메뉴</summary>
+          <div className="navsheet">
+            {MAIN.map((m) => (
+              <Link key={m.key} href={m.href} className={active === m.key ? "on" : ""}>
+                {m.label}
+              </Link>
+            ))}
+            {GROUPS.map((g) => (
+              <div key={g.label} className="navsheet-group">
+                <b>{g.label}</b>
+                {g.items.map((it) => (
+                  <Link key={it.key} href={it.href} className={active === it.key ? "on" : ""}>
+                    {it.label}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
+        </details>
+
         <nav className="nav">
           {MAIN.map((m) => (
             <Link key={m.key} href={m.href} className={active === m.key ? "on" : ""}>

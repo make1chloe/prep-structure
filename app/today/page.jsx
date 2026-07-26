@@ -423,6 +423,19 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 학생·학부모가 남긴 안 읽은 댓글 (0023 전이면 그냥 없는 것으로 본다)
+  const unreadByReport = new Map();
+  {
+    const cq = await supabase
+      .from("report_comments")
+      .select("daily_report_id")
+      .is("read_at", null)
+      .neq("author_role", "staff");
+    (cq.data || []).forEach((c) => {
+      unreadByReport.set(c.daily_report_id, (unreadByReport.get(c.daily_report_id) || 0) + 1);
+    });
+  }
+
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
   const memberIds = new Set();
@@ -457,6 +470,7 @@ export default async function TodayPage({ searchParams }) {
           notices: noticesOfStudent.get(s.id) || [],
           books: progressOf(s.id, klass.id),
           reportWritten: !!rep?.report_written,
+          unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -485,6 +499,7 @@ export default async function TodayPage({ searchParams }) {
         notices: noticesOfStudent.get(s.id) || [],
         books: progressOf(s.id, null),
         reportWritten: !!rep?.report_written,
+        unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
       };
     });
   if (extras.length > 0) {
