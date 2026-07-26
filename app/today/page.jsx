@@ -48,10 +48,16 @@ export default async function TodayPage({ searchParams }) {
     .eq("status", "enrolled");
 
   // 오늘 출결 기록
-  const { data: att } = await supabase
+  let { data: att, error: attErr } = await supabase
     .from("attendance")
-    .select("student_id, status, makeup_of")
+    .select("student_id, status, makeup_of, planned, reason")
     .eq("date", date);
+  if (attErr) {
+    ({ data: att } = await supabase
+      .from("attendance")
+      .select("student_id, status, makeup_of")
+      .eq("date", date));
+  }
 
   // 오늘 리포트 + 숙제 항목 마스터 + 지난 진도
   let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
@@ -391,6 +397,8 @@ export default async function TodayPage({ searchParams }) {
           student: s,
           status: a?.status || null,
           isMakeup: a?.status === "makeup",
+          plannedAbsent: !!(a?.planned && a.status === "absent"),
+          absenceReason: a?.reason || "",
           report: rep,
           items: rep ? itemsByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,

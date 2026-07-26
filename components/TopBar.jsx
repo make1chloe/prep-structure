@@ -31,6 +31,12 @@ export default function TopBar({ profile, active }) {
           <Link href="/textbooks" className={active === "textbooks" ? "on" : ""}>
             교재
           </Link>
+          <Link href="/consult" className={active === "consult" ? "on" : ""}>
+            상담
+          </Link>
+          <Link href="/plan" className={active === "plan" ? "on" : ""}>
+            미리 작성
+          </Link>
           <Link href="/tasks" className={active === "tasks" ? "on" : ""}>
             일정
           </Link>

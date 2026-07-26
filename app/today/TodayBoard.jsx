@@ -64,7 +64,8 @@ export default function TodayBoard({
   }
 
   // 완료 = 기록 저장까지 끝난 학생. 출결만 찍은 건 아직 '남은'으로 본다.
-  const isDone = (r) => !!r.reportWritten;
+  // 완료 = 기록 저장까지 끝난 학생. 미리 연락받은 결석은 처리할 게 없으므로 완료로 본다.
+  const isDone = (r) => !!r.reportWritten || r.plannedAbsent;
   const all = groups.flatMap((g) => g.rows);
   const counts = {
     todo: all.filter((r) => !isDone(r)).length,
@@ -152,6 +153,11 @@ export default function TodayBoard({
                               {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
                             </span>
                             {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                            {r.plannedAbsent && (
+                              <span className="tag tag-amber">
+                                결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
+                              </span>
+                            )}
                             {(() => {
                               const d = (r.notices || []).filter((n) => n.kind === "deliver");
                               const left = d.filter((n) => !n.delivered).length;
