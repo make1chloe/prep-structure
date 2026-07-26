@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setAttendance, clearAttendance } from "./actions";
+import { setAttendance, clearAttendance, reopenReport } from "./actions";
 import StudentPanel from "./StudentPanel";
 
 const ATT = [
@@ -39,6 +39,13 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
   function mark(studentId, status) {
     startTransition(async () => {
       const res = await setAttendance(studentId, date, status);
+      if (res?.error) alert(res.error);
+      router.refresh();
+    });
+  }
+  function reopen(studentId) {
+    startTransition(async () => {
+      const res = await reopenReport(studentId, date);
       if (res?.error) alert(res.error);
       router.refresh();
     });
@@ -151,7 +158,14 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
                               </span>
                             )}
                             {r.reportWritten ? (
-                              <span className="tag tag-mint">완료</span>
+                              <span
+                                className="tag tag-mint"
+                                title="클릭하면 완료를 취소해요"
+                                onClick={(e) => { e.stopPropagation(); reopen(r.student.id); }}
+                                style={{ cursor: "pointer" }}
+                              >
+                                완료
+                              </span>
                             ) : r.status ? (
                               <span className="tag tag-amber">기록 전</span>
                             ) : null}
@@ -189,10 +203,17 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
                             <span className={`tag ${CLS[r.status]}`}>{LABEL[r.status]}</span>
                             <button
                               className="btn btn-ghost btn-sm"
+                              onClick={() => reopen(r.student.id)}
+                              disabled={pending}
+                            >
+                              완료 취소
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
                               onClick={() => undo(r.student.id)}
                               disabled={pending}
                             >
-                              취소
+                              출결 취소
                             </button>
                           </div>
                         ))}

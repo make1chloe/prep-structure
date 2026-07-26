@@ -84,31 +84,38 @@ export default async function TodayPage({ searchParams }) {
   // 리포트별 숙제 항목 상태
   const reportIds = (reports || []).map((r) => r.id);
   let itemsByReport = new Map();
+  let nextByReport = new Map();
   if (reportIds.length > 0) {
     const { data: dri } = await supabase
       .from("daily_report_items")
       .select("daily_report_id, homework_item_id, status")
       .in("daily_report_id", reportIds);
     (dri || []).forEach((x) => {
+      if (x.status === "assigned") {
+        if (!nextByReport.has(x.daily_report_id)) nextByReport.set(x.daily_report_id, []);
+        nextByReport.get(x.daily_report_id).push(x.homework_item_id);
+        return;
+      }
       if (!itemsByReport.has(x.daily_report_id)) itemsByReport.set(x.daily_report_id, {});
       itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
     });
   }
 
-  // 지난 수업에서 다룬 숙제 항목 = 오늘 검사해야 할 항목
+  // 지난 수업에서 '배정한' 숙제 = 오늘 검사해야 할 항목
   const prevIds = [...lastReportId.values()];
-  const prevItemsByReport = new Map();
+  const prevAssigned = new Map();
   if (prevIds.length > 0) {
     const { data: prevDri } = await supabase
       .from("daily_report_items")
-      .select("daily_report_id, homework_item_id")
-      .in("daily_report_id", prevIds);
+      .select("daily_report_id, homework_item_id, status")
+      .in("daily_report_id", prevIds)
+      .eq("status", "assigned");
     (prevDri || []).forEach((x) => {
-      if (!prevItemsByReport.has(x.daily_report_id)) prevItemsByReport.set(x.daily_report_id, []);
-      prevItemsByReport.get(x.daily_report_id).push(x.homework_item_id);
+      if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
+      prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
     });
   }
-  const assignedOf = (sid) => prevItemsByReport.get(lastReportId.get(sid)) || [];
+  const toCheckOf = (sid) => prevAssigned.get(lastReportId.get(sid)) || [];
 
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
@@ -132,7 +139,8 @@ export default async function TodayPage({ searchParams }) {
           report: rep,
           items: rep ? itemsByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
-          assigned: assignedOf(s.id),
+          toCheck: toCheckOf(s.id),
+          nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
           reportWritten: !!rep?.report_written,
         };
       })
@@ -154,7 +162,8 @@ export default async function TodayPage({ searchParams }) {
         report: rep,
         items: rep ? itemsByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
-        assigned: assignedOf(s.id),
+        toCheck: toCheckOf(s.id),
+        nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
         reportWritten: !!rep?.report_written,
       };
     });

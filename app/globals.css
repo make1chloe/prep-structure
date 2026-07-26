@@ -131,6 +131,7 @@ a { color: inherit; }
 .hw-done { background: var(--mint-soft); color: var(--mint); border-color: transparent; }
 .hw-weak { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
 .hw-missing { background: var(--red-soft); color: var(--red); border-color: transparent; }
+.hw-next { background: var(--lav-soft); color: var(--lav); border-color: transparent; }
 
 .muted { color: var(--text-faint); }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }

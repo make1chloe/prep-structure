@@ -39,13 +39,14 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
     notice: r.notice || "",
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
+  const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   const [cat, setCat] = useState("자주");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const assigned = row.assigned || [];
-  const assignedSet = new Set(assigned);
-  const unchecked = assigned.filter((id) => !marks[id]);
+  const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
+  const toCheckSet = new Set(toCheck);
+  const unchecked = toCheck.filter((id) => !marks[id]);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
 
   const cats = ["자주", ...new Set(items.map((i) => i.category).filter(Boolean)), "전체"];
@@ -54,7 +55,7 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
     cat === "전체"
       ? items
       : cat === "자주"
-      ? items.filter((i) => COMMON.includes(i.name) || marks[i.id] || assignedSet.has(i.id))
+      ? items.filter((i) => COMMON.includes(i.name) || marks[i.id] || toCheckSet.has(i.id) || next.has(i.id))
       : items.filter((i) => i.category === cat);
 
   function cycle(id) {
@@ -69,7 +70,8 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         items: marks,
-        assigned: row.assigned || [],
+        toCheck,
+        nextHomework: [...next],
       });
       if (res?.error) {
         alert(res.error);
@@ -136,9 +138,9 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
         <div style={{ flex: 1 }}>
-          {assigned.length > 0 && (
+          {toCheck.length > 0 && (
             <p className="hint" style={{ margin: "0 0 6px" }}>
-              지난 수업 숙제 {assigned.length}개
+              지난 수업 숙제 {toCheck.length}개
               {unchecked.length > 0 ? (
                 <b style={{ color: "var(--amber)" }}>
                   {" "}· 미검사 {unchecked.length}개 ({unchecked.map(nameOf).filter(Boolean).join(", ")})
@@ -168,14 +170,40 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
                   key={i.id}
                   className={`hwchip ${st ? MARK_CLS[st] : ""}`}
                   onClick={() => cycle(i.id)}
-                  title={assignedSet.has(i.id) ? "지난 수업 숙제 — 검사 필요" : "클릭: 완료 → 미흡 → 미제출 → 없음"}
-                  style={assignedSet.has(i.id) && !st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
+                  title={toCheckSet.has(i.id) ? "지난 수업 숙제 — 검사 필요" : "클릭: 완료 → 미흡 → 미제출 → 없음"}
+                  style={toCheckSet.has(i.id) && !st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
                 >
                   {st && <b>{MARK[st]}</b>} {i.name}
                 </button>
               );
             })}
             {shown.length === 0 && <span className="hint">항목이 없어요.</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* 다음 숙제 배정 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>다음</span>
+        <div style={{ flex: 1 }}>
+          <p className="hint" style={{ margin: "0 0 6px" }}>
+            다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
+            {next.size > 0 && <b> · {next.size}개 배정</b>}
+          </p>
+          <div className="row" style={{ gap: 4 }}>
+            {shown.map((i) => (
+              <button
+                key={i.id}
+                className={`hwchip ${next.has(i.id) ? "hw-next" : ""}`}
+                onClick={() => {
+                  const n = new Set(next);
+                  n.has(i.id) ? n.delete(i.id) : n.add(i.id);
+                  setNext(n);
+                }}
+              >
+                {next.has(i.id) && <b>＋</b>} {i.name}
+              </button>
+            ))}
           </div>
         </div>
       </div>

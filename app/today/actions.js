@@ -54,10 +54,10 @@ export async function saveStudentDay(studentId, date, form) {
   }
 
   // 2) 리포트 본체
-  //    지난 수업에 다룬 숙제 항목이 오늘 모두 검사됐을 때만 '완료'로 본다
-  const assigned = Array.isArray(form.assigned) ? form.assigned : [];
+  //    지난 수업에 '배정한' 숙제가 오늘 모두 검사됐을 때만 '완료'로 본다
+  const toCheck = Array.isArray(form.toCheck) ? form.toCheck : [];
   const checked = form.items || {};
-  const unchecked = assigned.filter((id) => !checked[id]);
+  const unchecked = toCheck.filter((id) => !checked[id]);
   const complete = unchecked.length === 0;
 
   const row = {
@@ -81,20 +81,29 @@ export async function saveStudentDay(studentId, date, form) {
   if (repErr) return { error: repErr.message };
 
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
-  const items = form.items || {}; // { homework_item_id: "done"|"weak"|"missing" }
+  const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
+  const nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
   const { error: delErr } = await supabase
     .from("daily_report_items")
     .delete()
     .eq("daily_report_id", report.id);
   if (delErr) return { error: delErr.message };
 
-  const payload = Object.entries(items)
-    .filter(([, status]) => status)
-    .map(([homework_item_id, status]) => ({
+  const payload = [
+    ...Object.entries(items)
+      .filter(([, status]) => status)
+      .map(([homework_item_id, status]) => ({
+        daily_report_id: report.id,
+        homework_item_id,
+        status,
+      })),
+    // 다음 수업에 검사할 숙제 배정
+    ...nextIds.map((homework_item_id) => ({
       daily_report_id: report.id,
       homework_item_id,
-      status,
-    }));
+      status: "assigned",
+    })),
+  ];
   if (payload.length > 0) {
     const { error } = await supabase.from("daily_report_items").insert(payload);
     if (error) return { error: error.message };
@@ -102,4 +111,17 @@ export async function saveStudentDay(studentId, date, form) {
 
   revalidatePath("/today");
   return { error: null, complete, unchecked: unchecked.length };
+}
+
+// 완료 취소: 기록을 '미완료'로 되돌린다 (입력값은 그대로 둠)
+export async function reopenReport(studentId, date) {
+  if (!studentId || !date) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("daily_reports")
+    .update({ report_written: false })
+    .eq("student_id", studentId)
+    .eq("date", date);
+  revalidatePath("/today");
+  return { error: error ? error.message : null };
 }
