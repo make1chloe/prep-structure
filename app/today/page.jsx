@@ -173,6 +173,29 @@ export default async function TodayPage({ searchParams }) {
     return out;
   };
 
+  // ---------- 교재 진도율 ----------
+  // 노션 방식과 동일: 진도페이지 ÷ 전체페이지수
+  // 진도페이지 = 이 학생에게 지금까지 배정된 단원 중 가장 뒤 페이지
+  const reportStudent = new Map([
+    ...(prevReports || []).map((r) => [r.id, r.student_id]),
+    ...(reports || []).map((r) => [r.student_id ? r.id : r.id, r.student_id]),
+  ]);
+  const historyIds = [
+    ...new Set([...(prevReports || []).map((r) => r.id), ...reportIds]),
+  ];
+  const unitsOfStudent = new Map(); // studentId → Set(unitId)
+  (await loadItems(historyIds)).forEach((x) => {
+    const sid = reportStudent.get(x.daily_report_id);
+    if (!sid) return;
+    const ids = idsOf(x);
+    if (ids.length === 0) return;
+    if (!unitsOfStudent.has(sid)) unitsOfStudent.set(sid, new Set());
+    ids.forEach((id) => {
+      unitsOfStudent.get(sid).add(id);
+      unitIds.add(id);
+    });
+  });
+
   // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름
   const { data: books } = await supabase
     .from("textbooks")
@@ -255,15 +278,61 @@ export default async function TodayPage({ searchParams }) {
     });
   });
 
+  // 단원 → 교재/끝페이지 (진도율 계산용)
+  const unitInfo = new Map();
+  if (unitIds.size > 0) {
+    const { data: ui } = await supabase
+      .from("textbook_units")
+      .select("id, textbook_id, page_end, page_start")
+      .in("id", [...unitIds]);
+    (ui || []).forEach((u) =>
+      unitInfo.set(u.id, {
+        textbookId: u.textbook_id,
+        page: u.page_end || u.page_start || 0,
+      })
+    );
+  }
+
+  // 교재별 전체 페이지 수 — 교재에 적힌 값이 없으면 단원 최대 페이지로 대신한다
+  const bookTotal = new Map();
+  (books || []).forEach((b) => {
+    if (b.total_pages) bookTotal.set(b.id, b.total_pages);
+  });
+  const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+
+  const booksOfClassEarly = new Map();
+  (classBooks || []).forEach((cb) => {
+    if (!booksOfClassEarly.has(cb.class_id)) booksOfClassEarly.set(cb.class_id, []);
+    booksOfClassEarly.get(cb.class_id).push(cb.textbook_id);
+  });
+
+  function progressOf(studentId, classId) {
+    const usedIds = new Set(booksOfClassEarly.get(classId) || []);
+    const maxPage = new Map();
+    (unitsOfStudent.get(studentId) || new Set()).forEach((uid) => {
+      const info = unitInfo.get(uid);
+      if (!info?.textbookId) return;
+      usedIds.add(info.textbookId);
+      maxPage.set(info.textbookId, Math.max(maxPage.get(info.textbookId) || 0, info.page));
+    });
+    return [...usedIds].map((tid) => {
+      const done = maxPage.get(tid) || 0;
+      const total = bookTotal.get(tid) || 0;
+      return {
+        id: tid,
+        name: bookNameOf.get(tid) || "교재",
+        done,
+        total,
+        percent: total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null,
+      };
+    });
+  }
+
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
   const memberIds = new Set();
 
-  const booksOfClass = new Map();
-  (classBooks || []).forEach((cb) => {
-    if (!booksOfClass.has(cb.class_id)) booksOfClass.set(cb.class_id, []);
-    booksOfClass.get(cb.class_id).push(cb.textbook_id);
-  });
+  const booksOfClass = booksOfClassEarly;
 
   const groups = classes.map((klass) => {
     const ids = (members || [])
@@ -288,6 +357,7 @@ export default async function TodayPage({ searchParams }) {
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
           notices: noticesOfStudent.get(s.id) || [],
+          books: progressOf(s.id, klass.id),
           reportWritten: !!rep?.report_written,
         };
       })
@@ -314,6 +384,7 @@ export default async function TodayPage({ searchParams }) {
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),
         notices: noticesOfStudent.get(s.id) || [],
+        books: progressOf(s.id, null),
         reportWritten: !!rep?.report_written,
       };
     });

@@ -158,3 +158,9 @@ a { color: inherit; }
 @media (prefers-color-scheme: dark) { .login-logo .mark { color: #0d1119; } }
 .divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: 12px; margin: 4px 0; }
 .divider::before, .divider::after { content: ""; height: 1px; background: var(--border); flex: 1; }
+.bookprog {
+  min-width: 190px; flex: 1; padding: 6px 9px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.bookprog .bar { height: 5px; margin-top: 5px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.bookprog .bar span { display: block; height: 100%; background: var(--sky); border-radius: 999px; }

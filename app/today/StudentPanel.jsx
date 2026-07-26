@@ -74,6 +74,8 @@ export default function StudentPanel({
 
   const [cat, setCat] = useState("전체");
   const [methodOf, setMethodOf] = useState(null);
+  // 검사 화면은 기본적으로 "검사해야 하는 것"만 보여준다
+  const [showAllItems, setShowAllItems] = useState(false);
   const [delivered, setDeliveredMap] = useState(() =>
     Object.fromEntries((row.notices || []).map((n) => [n.id, n.delivered]))
   );
@@ -332,7 +334,23 @@ export default function StudentPanel({
               )}
             </>
           )}
+          {!showAllItems ? (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginBottom: 6 }}
+              onClick={() => setShowAllItems(true)}
+            >
+              ＋ 다른 항목도 검사하기
+            </button>
+          ) : (
           <div className="row" style={{ gap: 3, marginBottom: 6 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: "3px 8px" }}
+              onClick={() => setShowAllItems(false)}
+            >
+              접기
+            </button>
             {cats.map((c) => (
               <button
                 key={c}
@@ -344,32 +362,67 @@ export default function StudentPanel({
               </button>
             ))}
           </div>
-          <div className="stack" style={{ gap: 6 }}>
-            {grouped(shown).map(([g, list]) => (
-              <div className="hwgroup" key={g}>
-                <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
-                <div className="row" style={{ gap: 4 }}>
-                  {list.map((i) => {
-                    const st = marks[i.id] || "";
-                    return (
-                      <button
-                        key={i.id}
-                        className={`hwchip ${st ? MARK_CLS[st] : ""}`}
-                        onClick={() => cycle(i.id)}
-                        title={toCheckSet.has(i.id) ? "지난 수업 숙제 — 검사 필요" : "클릭: 완료 → 미흡 → 미제출 → 없음"}
-                        style={toCheckSet.has(i.id) && !st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
-                      >
-                        {st && <b>{MARK[st]}</b>} {i.name}
-                      </button>
-                    );
-                  })}
+          )}
+          {showAllItems && (
+            <div className="stack" style={{ gap: 6 }}>
+              {grouped(shown.filter((i) => !toCheckSet.has(i.id))).map(([g, list]) => (
+                <div className="hwgroup" key={g}>
+                  <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                  <div className="row" style={{ gap: 4 }}>
+                    {list.map((i) => {
+                      const st = marks[i.id] || "";
+                      return (
+                        <button
+                          key={i.id}
+                          className={`hwchip ${st ? MARK_CLS[st] : ""}`}
+                          onClick={() => cycle(i.id)}
+                          title="클릭: 완료 → 미흡 → 미제출 → 없음"
+                        >
+                          {st && <b>{MARK[st]}</b>} {i.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {toCheck.length === 0 && !showAllItems && (
+            <span className="hint">지난 수업에 낸 숙제가 없어요.</span>
+          )}
+        </div>
+      </div>
+
+      {/* 사용중인 교재 · 진도율 */}
+      {(row.books || []).length > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 3 }}>교재</span>
+          <div className="row" style={{ gap: 6, flex: 1 }}>
+            {(row.books || []).map((b) => (
+              <div className="bookprog" key={b.id}>
+                <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "nowrap" }}>
+                  <b style={{ fontSize: 12.5 }}>{b.name}</b>
+                  <span className="hint">
+                    {b.total
+                      ? `${b.done || 0}/${b.total}p`
+                      : b.done
+                      ? `${b.done}p까지`
+                      : "진도 기록 없음"}
+                  </span>
+                  {b.percent !== null && (
+                    <span className={`tag ${b.percent >= 80 ? "tag-mint" : "tag-sky"}`}>
+                      {b.percent}%
+                    </span>
+                  )}
+                </div>
+                <div className="bar">
+                  <span style={{ width: `${b.percent ?? 0}%` }} />
                 </div>
               </div>
             ))}
-            {shown.length === 0 && <span className="hint">항목이 없어요.</span>}
           </div>
         </div>
-      </div>
+      )}
 
       {/* 다음 숙제 배정 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
