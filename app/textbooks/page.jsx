@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
 import UnitUpload from "./UnitUpload";
+import GenerateUnits from "./GenerateUnits";
 import AddTextbookForm from "./AddTextbookForm";
 import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
@@ -91,6 +92,13 @@ export default async function TextbooksPage({ searchParams }) {
                 <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
                   {selected.name} · 단원
                 </h2>
+                <div className="row" style={{ margin: "0 0 8px" }}>
+                  <GenerateUnits
+                    textbookId={selectedId}
+                    parents={unitOptions}
+                    totalPages={selected.total_pages}
+                  />
+                </div>
                 <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>

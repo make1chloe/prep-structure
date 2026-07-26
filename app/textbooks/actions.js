@@ -429,3 +429,68 @@ export async function bulkAddUnits(rows) {
   revalidatePath("/textbooks");
   return { inserted, error: null, createdBooks };
 }
+
+// ---------- 단원 빠르게 만들기 ----------
+// "Unit 1 ~ Unit 20"처럼 규칙적인 교재는 손으로 치지 않고 한 번에 만든다.
+// 페이지 범위를 넣으면 균등하게 나눠 배분한다 (나중에 개별 수정 가능).
+export async function generateUnits(input) {
+  const {
+    textbookId,
+    prefix = "Unit",
+    from = 1,
+    to = 10,
+    pageStart,
+    pageEnd,
+    parentId,
+    activity,
+  } = input || {};
+  if (!textbookId) return { error: "교재를 고르세요.", created: 0 };
+
+  const a = parseInt(from, 10) || 1;
+  const b = parseInt(to, 10) || a;
+  if (b < a) return { error: "끝 번호가 시작 번호보다 작아요.", created: 0 };
+  const count = b - a + 1;
+  if (count > 200) return { error: "한 번에 200개까지 만들 수 있어요.", created: 0 };
+
+  const supabase = createClient();
+
+  // 같은 위치의 마지막 순서 뒤에 붙인다
+  let q = supabase
+    .from("textbook_units")
+    .select("sort")
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: false })
+    .limit(1);
+  q = parentId ? q.eq("parent_id", parentId) : q.is("parent_id", null);
+  const { data: last } = await q;
+  let sort = (last?.[0]?.sort ?? 0) + 1;
+
+  const ps = parseInt(pageStart, 10);
+  const pe = parseInt(pageEnd, 10);
+  const evenSplit = Number.isFinite(ps) && Number.isFinite(pe) && pe >= ps;
+  const per = evenSplit ? Math.floor((pe - ps + 1) / count) : 0;
+
+  const rows = [];
+  for (let i = 0; i < count; i++) {
+    const start = evenSplit ? ps + per * i : null;
+    const end = evenSplit ? (i === count - 1 ? pe : start + per - 1) : null;
+    rows.push({
+      textbook_id: textbookId,
+      parent_id: parentId || null,
+      name: `${prefix} ${a + i}`.trim(),
+      sort: sort++,
+      label: activity || null,
+      page_start: start,
+      page_end: end,
+      total_pages: evenSplit ? end - start + 1 : null,
+    });
+  }
+
+  let { error } = await supabase.from("textbook_units").insert(rows);
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    const trimmed = rows.map(({ total_pages, ...rest }) => rest);
+    ({ error } = await supabase.from("textbook_units").insert(trimmed));
+  }
+  revalidatePath("/textbooks");
+  return { error: error ? error.message : null, created: error ? 0 : rows.length };
+}

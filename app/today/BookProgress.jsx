@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { listStudentUnits, setUnitProgress } from "@/app/progress/actions";
+import { listStudentUnits, setUnitProgress, setCurrentPage } from "@/app/progress/actions";
 
 // 교재 한 권의 진도 — 단원을 순서와 상관없이 눌러서 완료/미완료를 기록한다
 export default function BookProgress({ studentId, book }) {
   const [open, setOpen] = useState(false);
   const [units, setUnits] = useState(null);
   const [err, setErr] = useState(null);
+  const [page, setPage] = useState(book.curPage || "");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -60,6 +61,15 @@ export default function BookProgress({ studentId, book }) {
   const liveTotal = units ? leaves.length : book.totalUnits;
   const livePercent =
     liveTotal > 0 ? Math.round((liveDone / liveTotal) * 100) : book.percent;
+  const noUnits = units !== null && leaves.length === 0;
+
+  function savePage() {
+    startTransition(async () => {
+      const res = await setCurrentPage(studentId, book.id, page);
+      if (res?.error) alert(res.error);
+      router.refresh();
+    });
+  }
 
   return (
     <div className="bookprog">
@@ -74,7 +84,11 @@ export default function BookProgress({ studentId, book }) {
           <b style={{ fontSize: 12.5 }}>{book.name}</b>
           <span className="spacer" />
           <span className="hint">
-            {liveTotal > 0 ? `${liveDone}/${liveTotal}단원` : "단원 없음"}
+            {liveTotal > 0
+              ? `${liveDone}/${liveTotal}단원`
+              : book.bookPages
+              ? `${book.curPage || 0}/${book.bookPages}p`
+              : "진도 기록 전"}
           </span>
           {livePercent !== null && liveTotal > 0 && (
             <span className={`tag ${livePercent >= 80 ? "tag-mint" : "tag-sky"}`}>
@@ -91,10 +105,30 @@ export default function BookProgress({ studentId, book }) {
         <div style={{ marginTop: 8 }}>
           {err && <div className="err">{err}</div>}
           {units === null && <span className="hint">단원 불러오는 중…</span>}
-          {units !== null && leaves.length === 0 && (
-            <span className="hint">
-              등록된 단원이 없어요. 교재 페이지에서 단원을 올리면 여기서 체크할 수 있어요.
-            </span>
+          {noUnits && (
+            <div className="stack" style={{ gap: 6 }}>
+              <span className="hint">
+                이 교재는 아직 단원이 없어요. 단원을 만들기 전까지는 페이지로 진도를 적을 수 있어요.
+              </span>
+              <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                <span className="hint">지금</span>
+                <input
+                  className="input input-sm"
+                  style={{ width: 64, textAlign: "center" }}
+                  inputMode="numeric"
+                  value={page}
+                  onChange={(e) => setPage(e.target.value)}
+                  placeholder="0"
+                />
+                <span className="muted">/ {book.bookPages || "?"}p</span>
+                <button className="btn btn-primary btn-sm" onClick={savePage} disabled={pending}>
+                  저장
+                </button>
+                {!book.bookPages && (
+                  <span className="hint">교재 페이지에서 총 페이지를 넣으면 %가 나와요</span>
+                )}
+              </div>
+            </div>
           )}
           {leaves.length > 0 && (
             <>

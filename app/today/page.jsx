@@ -176,7 +176,7 @@ export default async function TodayPage({ searchParams }) {
   // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름
   const { data: books } = await supabase
     .from("textbooks")
-    .select("id, name, status")
+    .select("id, name, status, total_pages")
     .order("name", { ascending: true });
   const textbooks = (books || [])
     .filter((b) => !b.status || b.status === "active")
@@ -266,7 +266,7 @@ export default async function TodayPage({ searchParams }) {
   const { data: stBooks } = studentIds.length
     ? await supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id, status")
+        .select("student_id, textbook_id, status, current_page")
         .in("student_id", studentIds)
     : { data: [] };
   const { data: stProgress } = studentIds.length
@@ -277,10 +277,12 @@ export default async function TodayPage({ searchParams }) {
     : { data: [] };
 
   const booksOfStudent = new Map();
+  const pageOf = new Map(); // `${studentId}|${textbookId}` → 지금 페이지
   (stBooks || []).forEach((r) => {
     if (r.status === "dropped") return;
     if (!booksOfStudent.has(r.student_id)) booksOfStudent.set(r.student_id, new Set());
     booksOfStudent.get(r.student_id).add(r.textbook_id);
+    if (r.current_page) pageOf.set(`${r.student_id}|${r.textbook_id}`, r.current_page);
   });
   const doneUnitsOf = new Map();
   (stProgress || []).forEach((r) => {
@@ -319,6 +321,7 @@ export default async function TodayPage({ searchParams }) {
   }
 
   const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+  const bookPagesOf = new Map((books || []).map((b) => [b.id, b.total_pages || 0]));
 
   // 진도율 = 완료한 단원 ÷ 전체 단원 (분량이 있으면 분량 기준)
   // 순서와 상관없이 아무 단원이나 체크할 수 있으므로 "합계"로 센다
@@ -337,10 +340,15 @@ export default async function TodayPage({ searchParams }) {
         .filter((u) => done.has(u.id))
         .reduce((a, u) => a + (u.pages || 0), 0);
       const usePages = totalPages > 0;
+      // 단원이 없으면 "지금 몇 페이지까지"로 대신 계산한다
+      const curPage = pageOf.get(`${studentId}|${tid}`) || 0;
+      const bookPages = bookPagesOf.get(tid) || 0;
       const percent =
-        totalUnits === 0
-          ? null
-          : Math.round(((usePages ? donePages : doneUnits) / (usePages ? totalPages : totalUnits)) * 100);
+        totalUnits > 0
+          ? Math.round(((usePages ? donePages : doneUnits) / (usePages ? totalPages : totalUnits)) * 100)
+          : bookPages > 0
+          ? Math.min(100, Math.round((curPage / bookPages) * 100))
+          : null;
       return {
         id: tid,
         name: bookNameOf.get(tid) || "교재",
@@ -348,6 +356,8 @@ export default async function TodayPage({ searchParams }) {
         totalUnits,
         donePages,
         totalPages,
+        curPage,
+        bookPages,
         percent,
       };
     });

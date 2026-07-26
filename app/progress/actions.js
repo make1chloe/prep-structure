@@ -96,6 +96,19 @@ export async function setStudentTextbooks(studentId, textbookIds) {
   return { error: null };
 }
 
+// 단원을 아직 안 만든 교재는 "지금 몇 페이지까지"로 진도를 적는다
+export async function setCurrentPage(studentId, textbookId, page) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const d = (page ?? "").toString().replace(/[^\d]/g, "");
+  const supabase = createClient();
+  const { error } = await supabase.from("student_textbooks").upsert(
+    { student_id: studentId, textbook_id: textbookId, current_page: d ? parseInt(d, 10) : null },
+    { onConflict: "student_id,textbook_id" }
+  );
+  revalidatePath("/today");
+  return ok(error);
+}
+
 // ---------- 단원 진도 ----------
 
 // 한 학생의 교재 하나에 대한 단원 목록 + 완료 여부
