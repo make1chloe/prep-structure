@@ -132,6 +132,9 @@ a { color: inherit; }
 .hw-weak { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
 .hw-missing { background: var(--red-soft); color: var(--red); border-color: transparent; }
 .hw-next { background: var(--lav-soft); color: var(--lav); border-color: transparent; }
+.hwgroup { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px dashed var(--border); }
+.hwgroup:first-child { border-top: 0; }
+.hwcat { flex: none; margin-top: 3px; width: 42px; text-align: center; }
 
 .muted { color: var(--text-faint); }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }

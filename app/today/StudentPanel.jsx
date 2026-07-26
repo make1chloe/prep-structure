@@ -22,6 +22,11 @@ const ATTITUDE = [
 ];
 
 // 클릭할 때마다 순환: 없음 → 완료 → 미흡 → 미제출 → 없음
+const CAT_CLS = {
+  단어: "tag-amber", 독해: "tag-sky", 문법: "tag-lav",
+  노트: "tag-mint", 내신: "tag-muted", 기타: "tag-muted",
+};
+
 const CYCLE = { "": "done", done: "weak", weak: "missing", missing: "" };
 const MARK = { done: "○", weak: "△", missing: "✕" };
 const MARK_CLS = { done: "hw-done", weak: "hw-weak", missing: "hw-missing" };
@@ -40,7 +45,7 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
-  const [cat, setCat] = useState("자주");
+  const [cat, setCat] = useState("전체");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -49,7 +54,7 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
   const unchecked = toCheck.filter((id) => !marks[id]);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
 
-  const cats = ["자주", ...new Set(items.map((i) => i.category).filter(Boolean)), "전체"];
+  const cats = ["전체", "자주", ...new Set(items.map((i) => i.category).filter(Boolean))];
   const COMMON = ["단어(교재)", "단어(온라인)", "독해", "워크북", "문법", "영작", "듣기", "오답노트"];
   const shown =
     cat === "전체"
@@ -57,6 +62,17 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
       : cat === "자주"
       ? items.filter((i) => COMMON.includes(i.name) || marks[i.id] || toCheckSet.has(i.id) || next.has(i.id))
       : items.filter((i) => i.category === cat);
+
+  // 분류별로 묶어 줄을 나눈다
+  function grouped(list) {
+    const m = new Map();
+    list.forEach((i) => {
+      const k = i.category || "기타";
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(i);
+    });
+    return [...m.entries()];
+  }
 
   function cycle(id) {
     setMarks((m) => ({ ...m, [id]: CYCLE[m[id] || ""] }));
@@ -162,21 +178,28 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
               </button>
             ))}
           </div>
-          <div className="row" style={{ gap: 4 }}>
-            {shown.map((i) => {
-              const st = marks[i.id] || "";
-              return (
-                <button
-                  key={i.id}
-                  className={`hwchip ${st ? MARK_CLS[st] : ""}`}
-                  onClick={() => cycle(i.id)}
-                  title={toCheckSet.has(i.id) ? "지난 수업 숙제 — 검사 필요" : "클릭: 완료 → 미흡 → 미제출 → 없음"}
-                  style={toCheckSet.has(i.id) && !st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
-                >
-                  {st && <b>{MARK[st]}</b>} {i.name}
-                </button>
-              );
-            })}
+          <div className="stack" style={{ gap: 6 }}>
+            {grouped(shown).map(([g, list]) => (
+              <div className="hwgroup" key={g}>
+                <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                <div className="row" style={{ gap: 4 }}>
+                  {list.map((i) => {
+                    const st = marks[i.id] || "";
+                    return (
+                      <button
+                        key={i.id}
+                        className={`hwchip ${st ? MARK_CLS[st] : ""}`}
+                        onClick={() => cycle(i.id)}
+                        title={toCheckSet.has(i.id) ? "지난 수업 숙제 — 검사 필요" : "클릭: 완료 → 미흡 → 미제출 → 없음"}
+                        style={toCheckSet.has(i.id) && !st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
+                      >
+                        {st && <b>{MARK[st]}</b>} {i.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
             {shown.length === 0 && <span className="hint">항목이 없어요.</span>}
           </div>
         </div>
@@ -190,19 +213,26 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
             다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
             {next.size > 0 && <b> · {next.size}개 배정</b>}
           </p>
-          <div className="row" style={{ gap: 4 }}>
-            {shown.map((i) => (
-              <button
-                key={i.id}
-                className={`hwchip ${next.has(i.id) ? "hw-next" : ""}`}
-                onClick={() => {
-                  const n = new Set(next);
-                  n.has(i.id) ? n.delete(i.id) : n.add(i.id);
-                  setNext(n);
-                }}
-              >
-                {next.has(i.id) && <b>＋</b>} {i.name}
-              </button>
+          <div className="stack" style={{ gap: 6 }}>
+            {grouped(shown).map(([g, list]) => (
+              <div className="hwgroup" key={g}>
+                <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                <div className="row" style={{ gap: 4 }}>
+                  {list.map((i) => (
+                    <button
+                      key={i.id}
+                      className={`hwchip ${next.has(i.id) ? "hw-next" : ""}`}
+                      onClick={() => {
+                        const n = new Set(next);
+                        n.has(i.id) ? n.delete(i.id) : n.add(i.id);
+                        setNext(n);
+                      }}
+                    >
+                      {next.has(i.id) && <b>＋</b>} {i.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
