@@ -22,7 +22,7 @@ const KINDS = [
   { key: "report", label: "데일리리포트", hint: "수업 내용 전체가 담긴 문구예요." },
 ];
 
-export default function ResendBoard({ date, rows = [], ready = true }) {
+export default function ResendBoard({ date, rows = [], ready = true, mode = "copy" }) {
   const [kind, setKind] = useState("homework");
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
@@ -92,19 +92,30 @@ export default function ResendBoard({ date, rows = [], ready = true }) {
     );
   }
 
+  const sendsForReal = mode !== "copy";
+
   function doResend(list) {
     if (list.length === 0) return;
     const label = list.length === 1 ? `${list[0].name} 학생에게` : `${list.length}명에게`;
-    if (!confirm(`${label} ${isHw ? "숙제 문자" : "데일리리포트"}를 다시 보낸 것으로 기록할까요?`))
-      return;
+    const what = isHw ? "숙제 문자" : "데일리리포트";
+    const q = sendsForReal
+      ? `${label} ${what}를 지금 다시 보낼까요?`
+      : `${label} ${what}를 다시 보낸 것으로 기록할까요?`;
+    if (!confirm(q)) return;
     startTransition(async () => {
       const res = await resend(
-        list.map((r) => ({ id: r.id, body: textOf(r) })),
+        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: textOf(r) })),
         kind
       );
       if (res?.error) {
         alert(res.error);
         return;
+      }
+      if (res?.failed?.length) {
+        alert(
+          `${res.count}건 보냈고, ${res.failed.length}건 실패했어요.\n\n` +
+            res.failed.map((f) => `· ${f.name}: ${f.detail}`).join("\n")
+        );
       }
       setSel(new Set());
       router.refresh();
@@ -212,7 +223,7 @@ export default function ResendBoard({ date, rows = [], ready = true }) {
             onClick={() => doResend(rows.filter((r) => sel.has(r.id)))}
             disabled={pending}
           >
-            다시 보냄으로 기록
+            {sendsForReal ? "선택한 학생에게 다시 보내기" : "다시 보냄으로 기록"}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
         </div>
@@ -270,7 +281,7 @@ export default function ResendBoard({ date, rows = [], ready = true }) {
                     onClick={() => doResend([r])}
                     disabled={pending}
                   >
-                    다시 보냄
+                    {sendsForReal ? "다시 보내기" : "다시 보냄"}
                   </button>
                 </div>
 
@@ -330,8 +341,11 @@ export default function ResendBoard({ date, rows = [], ready = true }) {
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>
-        발송 API가 붙기 전까지는 <b>복사 → 문자 앱에서 붙여넣기 → 다시 보냄</b> 순서로 쓰시면 됩니다.
-        보낸 이력은 학생별 <b>이력</b> 버튼에서 볼 수 있어요.
+        {sendsForReal
+          ? "다시 보내기를 누르면 설정한 방식으로 바로 발송됩니다."
+          : "지금은 직접 발송 방식이에요. 복사 → 문자 앱에서 붙여넣기 → 다시 보냄 순서로 쓰시면 됩니다."}{" "}
+        보낸 이력은 학생별 <b>이력</b> 버튼에서 볼 수 있어요.{" "}
+        <a className="sky" href="/settings">설정 · 발송</a>
       </p>
     </>
   );

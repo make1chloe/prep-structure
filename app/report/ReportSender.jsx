@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveReportText, resetReportText, markSent } from "./actions";
+import { saveReportText, resetReportText, sendReports, unsend } from "./actions";
 
 function shiftDate(date, days) {
   const d = new Date(`${date}T00:00:00+09:00`);
@@ -10,7 +10,7 @@ function shiftDate(date, days) {
   return d.toISOString().slice(0, 10);
 }
 
-export default function ReportSender({ date, rows = [], sendReady = true }) {
+export default function ReportSender({ date, rows = [], sendReady = true, mode = "copy" }) {
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
@@ -67,14 +67,37 @@ export default function ReportSender({ date, rows = [], sendReady = true }) {
     copy(text, "bulk");
   }
 
-  function send(ids, on = true) {
-    if (ids.length === 0) return;
+  const sendsForReal = mode !== "copy";
+
+  function send(list) {
+    if (list.length === 0) return;
+    if (sendsForReal) {
+      const who = list.length === 1 ? `${list[0].name} 학생 학부모` : `${list.length}명`;
+      if (!confirm(`${who}에게 지금 문자를 보낼까요?`)) return;
+    }
     startTransition(async () => {
-      const res = await markSent(ids, on);
+      const res = await sendReports(
+        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: r.text }))
+      );
       if (res?.error) {
         alert(res.error);
         return;
       }
+      if (res?.failed?.length) {
+        alert(
+          `${res.count}건 보냈고, ${res.failed.length}건 실패했어요.\n\n` +
+            res.failed.map((f) => `· ${f.name}: ${f.detail}`).join("\n")
+        );
+      }
+      setSel(new Set());
+      router.refresh();
+    });
+  }
+
+  function cancelSend(ids) {
+    startTransition(async () => {
+      const res = await unsend(ids);
+      if (res?.error) alert(res.error);
       setSel(new Set());
       router.refresh();
     });
@@ -148,10 +171,14 @@ export default function ReportSender({ date, rows = [], sendReady = true }) {
           <button className="btn btn-primary btn-sm" onClick={copySelected} disabled={pending}>
             {copied === "bulk" ? "복사됨 ✓" : "문구 한 번에 복사"}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => send([...sel], true)} disabled={pending}>
-            보냄으로 표시
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => send(rows.filter((r) => sel.has(r.id)))}
+            disabled={pending}
+          >
+            {sendsForReal ? "선택한 학생에게 보내기" : "보냄으로 표시"}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => send([...sel], false)} disabled={pending}>
+          <button className="btn btn-ghost btn-sm" onClick={() => cancelSend([...sel])} disabled={pending}>
             발송 취소
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
@@ -204,10 +231,10 @@ export default function ReportSender({ date, rows = [], sendReady = true }) {
                   </button>
                   <button
                     className="btn btn-primary btn-sm"
-                    onClick={() => send([r.id], !r.sentAt)}
+                    onClick={() => (r.sentAt ? cancelSend([r.id]) : send([r]))}
                     disabled={pending}
                   >
-                    {r.sentAt ? "발송 취소" : "보냄"}
+                    {r.sentAt ? "발송 취소" : sendsForReal ? "보내기" : "보냄"}
                   </button>
                 </div>
 
@@ -247,8 +274,18 @@ export default function ReportSender({ date, rows = [], sendReady = true }) {
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>
-        아직 문자 발송 API가 연결되어 있지 않습니다. 지금은 <b>복사 → 문자 앱에서 붙여넣기</b> 로 보내고,
-        보낸 뒤 <b>보냄</b>을 눌러 기록해주세요. 솔라피·바티를 연결하면 이 버튼이 실제 발송으로 바뀝니다.
+        {sendsForReal ? (
+          <>
+            <b>보내기</b>를 누르면 설정한 방식으로 바로 발송됩니다. 방식은{" "}
+            <a className="sky" href="/settings">설정 · 발송</a> 에서 바꿀 수 있어요.
+          </>
+        ) : (
+          <>
+            지금은 <b>직접 발송</b> 방식이에요. <b>복사 → 문자 앱에서 붙여넣기</b> 로 보내고
+            <b> 보냄</b>을 눌러 기록해주세요.{" "}
+            <a className="sky" href="/settings">설정 · 발송</a> 에서 문자 자동 발송으로 바꿀 수 있습니다.
+          </>
+        )}
       </p>
     </>
   );

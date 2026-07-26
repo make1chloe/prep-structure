@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { resend } from "@/app/resend/actions";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -35,15 +36,23 @@ export async function resetReportText(reportId) {
   return { error: error ? error.message : null };
 }
 
-// 발송 처리 — 지금은 발송 API가 붙어 있지 않아 "보냄"으로 기록만 한다.
-// 문자는 복사해서 보내고, 나중에 솔라피/바티를 붙이면 이 자리에서 실제 발송한다.
-export async function markSent(reportIds, sent = true) {
+/**
+ * 발송 — 설정한 방식대로 실제로 보낸다.
+ *   직접 발송(copy) 이면 "보냄"으로 기록만 하고, 문자/웹훅이면 실제로 나간다.
+ * items: [{ id, phone, name, body }]
+ */
+export async function sendReports(items) {
+  return resend(items, "report");
+}
+
+// 발송 취소 (잘못 눌렀을 때)
+export async function unsend(reportIds) {
   const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
   if (ids.length === 0) return { error: null };
   const supabase = createClient();
   const { error } = await supabase
     .from("daily_reports")
-    .update({ sent_at: sent ? new Date().toISOString() : null })
+    .update({ sent_at: null })
     .in("id", ids);
   if (isMissingColumn(error)) {
     return { error: "0012 SQL을 먼저 실행해주세요 (sent_at 컬럼)." };

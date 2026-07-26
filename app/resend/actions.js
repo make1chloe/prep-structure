@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { loadSettings } from "@/lib/settings";
+import { deliver } from "@/lib/send";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -50,29 +52,68 @@ export async function resend(items, kind) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // 설정한 방식대로 실제 발송 (직접 발송이면 기록만)
+  const settings = await loadSettings(supabase);
+  const sendable = list.filter((x) => x.phone);
+  const { channel, results } = await deliver(
+    settings,
+    sendable.map((x) => ({ to: x.phone, text: x.body || "", ref: x.id })),
+    { kind: kind === "homework" ? "homework" : "report" }
+  );
+  const byRef = new Map(results.map((r) => [r.ref, r]));
+
+  // 번호가 없어 못 보낸 건은 실패로 남긴다
+  list.forEach((x) => {
+    if (!x.phone) byRef.set(x.id, { ref: x.id, ok: false, detail: "학부모 번호 없음" });
+  });
+
+  const sentIds = list.filter((x) => byRef.get(x.id)?.ok).map((x) => x.id);
   const now = new Date().toISOString();
   const col = kind === "homework" ? "homework_sent_at" : "sent_at";
 
-  const { error } = await supabase
-    .from("daily_reports")
-    .update({ [col]: now })
-    .in("id", list.map((x) => x.id));
-  if (isMissingColumn(error)) return { error: NEED_SQL, count: 0 };
-  if (error) return { error: error.message, count: 0 };
+  if (sentIds.length > 0) {
+    const { error } = await supabase
+      .from("daily_reports")
+      .update({ [col]: now })
+      .in("id", sentIds);
+    if (isMissingColumn(error)) return { error: NEED_SQL, count: 0 };
+    if (error) return { error: error.message, count: 0 };
+  }
 
   // 이력은 없으면 없는 대로 넘어간다 (기능이 막히지 않도록)
-  await supabase.from("report_sends").insert(
-    list.map((x) => ({
+  const rows = list.map((x) => {
+    const r = byRef.get(x.id) || {};
+    return {
       daily_report_id: x.id,
       kind: kind === "homework" ? "homework" : "report",
       body: x.body || "",
       sent_by: user?.id || null,
-    }))
-  );
+      channel,
+      ok: !!r.ok,
+      detail: r.detail || null,
+      to_phone: x.phone || null,
+    };
+  });
+  let { error: logErr } = await supabase.from("report_sends").insert(rows);
+  if (isMissingColumn(logErr)) {
+    await supabase.from("report_sends").insert(
+      rows.map(({ channel, ok, detail, to_phone, ...rest }) => rest)
+    );
+  }
 
+  const failed = list.filter((x) => !byRef.get(x.id)?.ok);
   revalidatePath("/resend");
   revalidatePath("/report");
-  return { error: null, count: list.length };
+  return {
+    error: null,
+    channel,
+    count: sentIds.length,
+    failed: failed.map((x) => ({
+      name: x.name || "",
+      detail: byRef.get(x.id)?.detail || "발송 실패",
+    })),
+  };
 }
 
 // 한 학생의 발송 이력 보기

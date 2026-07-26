@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ResendBoard from "./ResendBoard";
 import { loadReportRows } from "@/lib/reportData";
+import { loadSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,8 @@ export default async function ResendPage({ searchParams }) {
   const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const date = searchParams?.d || seoul.toISOString().slice(0, 10);
 
-  const { rows, resendReady } = await loadReportRows(supabase, date);
+  const settings = await loadSettings(supabase);
+  const { rows, resendReady } = await loadReportRows(supabase, date, settings.academy.name);
 
   return (
     <>
@@ -33,7 +35,7 @@ export default async function ResendPage({ searchParams }) {
             이미 보낸 문구를 고쳐서 다시 보내거나, 숙제만 따로 보낼 때 쓰는 화면이에요.
           </p>
         </div>
-        <ResendBoard date={date} rows={rows} ready={resendReady} />
+        <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} />
       </main>
     </>
   );

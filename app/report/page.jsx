@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ReportSender from "./ReportSender";
 import { loadReportRows } from "@/lib/reportData";
+import { loadSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,8 @@ export default async function ReportPage({ searchParams }) {
   const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const date = searchParams?.d || seoul.toISOString().slice(0, 10);
 
-  const { rows, sendReady } = await loadReportRows(supabase, date);
+  const settings = await loadSettings(supabase);
+  const { rows, sendReady } = await loadReportRows(supabase, date, settings.academy.name);
 
   return (
     <>
@@ -33,7 +35,7 @@ export default async function ReportPage({ searchParams }) {
             오늘 수업에서 입력한 내용으로 문구가 자동으로 만들어집니다. 확인하고 고친 뒤 보내세요.
           </p>
         </div>
-        <ReportSender date={date} rows={rows} sendReady={sendReady} />
+        <ReportSender date={date} rows={rows} sendReady={sendReady} mode={settings.mode} />
       </main>
     </>
   );

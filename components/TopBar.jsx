@@ -43,6 +43,9 @@ export default function TopBar({ profile, active }) {
           <Link href="/homework" className={active === "homework" ? "on" : ""}>
             학습 항목
           </Link>
+          <Link href="/settings" className={active === "settings" ? "on" : ""}>
+            설정
+          </Link>
         </nav>
         <div className="spacer" />
         <span className="who">
