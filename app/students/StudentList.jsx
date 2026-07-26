@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent, deleteStudents, updateStudentsStatus } from "./actions";
+import StudentHistoryPanel from "./StudentHistory";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -41,6 +42,7 @@ export default function StudentList({ students = [] }) {
   const [draft, setDraft] = useState({});
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("enrolled");
+  const [histId, setHistId] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -227,7 +229,8 @@ export default function StudentList({ students = [] }) {
             {shown.map((s) => {
               const editing = editId === s.id;
               return (
-                <tr key={s.id}>
+                <Fragment key={s.id}>
+                <tr>
                   <td>
                     <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggleOne(s.id)} />
                   </td>
@@ -251,10 +254,26 @@ export default function StudentList({ students = [] }) {
                         </button>
                       </div>
                     ) : (
-                      <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>수정</button>
+                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>수정</button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setHistId(histId === s.id ? null : s.id)}
+                        >
+                          {histId === s.id ? "기록 닫기" : "기록"}
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
+                {histId === s.id && (
+                  <tr>
+                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                      <StudentHistoryPanel studentId={s.id} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>

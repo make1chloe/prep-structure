@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  setPlannedAbsence,
-  clearPlannedAbsence,
+  setPlannedAbsenceRange,
+  clearPlannedAbsenceRange,
   assignHomeworkAhead,
   unassignHomeworkAhead,
 } from "./actions";
@@ -53,8 +53,10 @@ export default function PlanBoard({
   const [scope, setScope] = useState("all");
   const [classId, setClassId] = useState(groups[0]?.klass.id || "");
 
-  // 결석 예정
+  // 결석 예정 — 기간으로 넣는다
   const [reason, setReason] = useState("학교 행사");
+  const [absFrom, setAbsFrom] = useState(date);
+  const [absTo, setAbsTo] = useState(date);
 
   const allStudents = groups.flatMap((g) =>
     g.rows.map((r) => ({ ...r, className: g.klass.name, classId: g.klass.id }))
@@ -184,7 +186,8 @@ export default function PlanBoard({
           onChange={(e) => e.target.value && router.push(`/plan?d=${e.target.value}`)}
         />
         <a className="btn btn-ghost btn-sm" href={`/plan?d=${shiftDate(date, 1)}`}>▸</a>
-        <a className="btn btn-ghost btn-sm" href={`/plan?d=${shiftDate(date, 7)}`}>다음 주 ▸▸</a>
+        <a className="btn btn-ghost btn-sm" href={`/plan?d=${shiftDate(date, 7)}`}>+1주</a>
+        <a className="btn btn-ghost btn-sm" href={`/plan?d=${shiftDate(date, 14)}`}>+2주</a>
         <b style={{ fontSize: 14, marginLeft: 6 }}>{dayLabel(date)}</b>
         <span className="spacer" />
         {[
@@ -424,36 +427,42 @@ export default function PlanBoard({
                     onChange={(e) => setReason(e.target.value)}
                   />
                 </div>
+                <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 8 }}>
+                  <span className="hint">기간</span>
+                  <input className="input input-sm" type="date" style={{ width: 145 }}
+                    value={absFrom} onChange={(e) => setAbsFrom(e.target.value)} />
+                  <span className="hint">~</span>
+                  <input className="input input-sm" type="date" style={{ width: 145 }}
+                    value={absTo} onChange={(e) => setAbsTo(e.target.value)} />
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setAbsFrom(date); setAbsTo(date); }}>
+                    하루만
+                  </button>
+                  <span className="hint">수업 있는 날만 자동으로 들어갑니다</span>
+                </div>
                 <div className="row" style={{ gap: 6 }}>
                   <button
                     className="btn btn-primary btn-sm"
-                    disabled={pending || sel.size === 0}
+                    disabled={pending || sel.size === 0 || !absFrom}
                     onClick={() =>
-                      run(async () => {
-                        for (const id of sel) {
-                          const r = await setPlannedAbsence(id, date, reason);
-                          if (r.error) return r;
-                        }
-                        return { error: null };
-                      }, `${sel.size}명 결석 예정으로 남겼어요.`)
+                      run(
+                        () => setPlannedAbsenceRange([...sel], absFrom, absTo, reason),
+                        `${sel.size}명 결석 예정으로 남겼어요.`
+                      )
                     }
                   >
                     결석 예정으로 남기기
                   </button>
                   <button
                     className="btn btn-ghost btn-sm"
-                    disabled={pending || sel.size === 0}
+                    disabled={pending || sel.size === 0 || !absFrom}
                     onClick={() =>
-                      run(async () => {
-                        for (const id of sel) {
-                          const r = await clearPlannedAbsence(id, date);
-                          if (r.error) return r;
-                        }
-                        return { error: null };
-                      }, "취소했어요.")
+                      run(
+                        () => clearPlannedAbsenceRange([...sel], absFrom, absTo),
+                        "취소했어요."
+                      )
                     }
                   >
-                    결석 예정 취소
+                    이 기간 취소
                   </button>
                 </div>
 

@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { listStudentUnits, setUnitProgress, setCurrentPage } from "@/app/progress/actions";
+import {
+  listStudentUnits,
+  setUnitProgress,
+  setCurrentPage,
+  setStudentBookStatus,
+} from "@/app/progress/actions";
 
 // 교재 한 권의 진도 — 단원을 순서와 상관없이 눌러서 완료/미완료를 기록한다
 export default function BookProgress({ studentId, book }) {
@@ -135,6 +140,20 @@ export default function BookProgress({ studentId, book }) {
               <div className="row" style={{ gap: 4, marginBottom: 6 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => markAll(true)} disabled={pending}>
                   전체 완료
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    if (!confirm(`${book.name} 을 다 끝낸 교재로 처리할까요?\n숙제·진도 화면에서 빠지고 학생 기록에만 남습니다.`)) return;
+                    startTransition(async () => {
+                      const res = await setStudentBookStatus(studentId, book.id, "done");
+                      if (res?.error) alert(res.error);
+                      router.refresh();
+                    });
+                  }}
+                  disabled={pending}
+                >
+                  이 교재 끝냄
                 </button>
                 <button className="btn btn-ghost btn-sm" onClick={() => markAll(false)} disabled={pending}>
                   전체 해제

@@ -24,7 +24,7 @@ export default async function ReportPage({ searchParams }) {
   const date = searchParams?.d || seoul.toISOString().slice(0, 10);
 
   const settings = await loadSettings(supabase);
-  const { rows, sendReady } = await loadReportRows(supabase, date, settings.academy.name);
+  const { rows, sendReady } = await loadReportRows(supabase, date, settings.academy.name, settings.message);
 
   return (
     <>

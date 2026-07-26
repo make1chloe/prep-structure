@@ -277,7 +277,7 @@ export default async function TodayPage({ searchParams }) {
   const { data: stBooks } = studentIds.length
     ? await supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id, status, current_page")
+        .select("student_id, textbook_id, status, current_page, ended_on")
         .in("student_id", studentIds)
     : { data: [] };
   const { data: stProgress } = studentIds.length
@@ -290,7 +290,8 @@ export default async function TodayPage({ searchParams }) {
   const booksOfStudent = new Map();
   const pageOf = new Map(); // `${studentId}|${textbookId}` → 지금 페이지
   (stBooks || []).forEach((r) => {
-    if (r.status === "dropped") return;
+    // 완료·중단한 교재는 숙제 배정·진도 화면에서 빼고, 재원생 기록에만 남긴다
+    if (r.status && r.status !== "active") return;
     if (!booksOfStudent.has(r.student_id)) booksOfStudent.set(r.student_id, new Set());
     booksOfStudent.get(r.student_id).add(r.textbook_id);
     if (r.current_page) pageOf.set(`${r.student_id}|${r.textbook_id}`, r.current_page);

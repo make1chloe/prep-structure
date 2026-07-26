@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import HomeworkCards from "./HomeworkCards";
+import RequestForm from "./RequestForm";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +166,14 @@ export default async function MePage() {
     ? dri.filter((x) => x.daily_report_id === latest.id && x.status !== "assigned").map(toCard)
     : [];
 
+  // 내가 보낸 요청
+  const { data: myRequests } = await supabase
+    .from("requests")
+    .select("id, kind, from_date, to_date, body, status, reply")
+    .eq("student_id", student.id)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
   const notices = (reports || [])
     .filter((r) => r.notice)
     .slice(0, 3)
@@ -184,6 +193,7 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
+        <RequestForm studentId={student.id} mine={myRequests || []} />
 
         <div className="card">
           <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>

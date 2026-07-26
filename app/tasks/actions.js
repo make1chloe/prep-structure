@@ -32,6 +32,8 @@ export async function addTask(formData) {
     class_id: clean(formData, "class_id"),
     note: clean(formData, "note"),
     deliver_body: clean(formData, "deliver_body"),
+    notice_body: clean(formData, "notice_body"),
+    absence_reason: clean(formData, "absence_reason"),
     deliver_scope: clean(formData, "deliver_scope"),
     deliver_class_id: clean(formData, "deliver_class_id"),
     deliver_school: clean(formData, "deliver_school"),
@@ -48,7 +50,8 @@ export async function updateTask(id, patch) {
   const row = {};
   [
     "title", "kind", "category", "due_on", "end_on", "start_time",
-    "note", "deliver_body", "deliver_scope", "deliver_school", "deliver_grade",
+    "note", "deliver_body", "notice_body", "absence_reason",
+    "deliver_scope", "deliver_school", "deliver_grade",
   ].forEach((k) => {
     if (k in (patch || {})) row[k] = (patch[k] ?? "").toString().trim() || null;
   });
@@ -182,6 +185,125 @@ export async function applyTaskDelivery(taskId, date) {
   revalidatePath("/today");
   revalidatePath("/tasks");
   return { error: null, count: ids.length };
+}
+
+// 일정에 적어둔 학부모 공지를 그날 공지로 깐다
+export async function applyTaskNotice(taskId, date) {
+  if (!taskId) return { error: "일정이 없어요." };
+  const supabase = createClient();
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .select("id, due_on, notice_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade")
+    .eq("id", taskId)
+    .single();
+  if (error) return { error: error.message };
+  if (!task?.notice_body) return { error: "이 일정에는 학부모 공지 내용이 없어요." };
+
+  const on = date || task.due_on;
+  const { data: exist } = await supabase
+    .from("notices")
+    .select("id")
+    .eq("task_id", taskId)
+    .eq("date", on)
+    .eq("kind", "notice")
+    .limit(1);
+  if (exist?.length) return { error: null, skipped: true };
+
+  const roster = await rosterOf(supabase, on);
+  const ids = [...new Set(roster.map((m) => m.student_id))];
+  if (ids.length === 0) return { error: "그날 수업 오는 학생이 없어요." };
+
+  const { data: notice, error: nErr } = await supabase
+    .from("notices")
+    .insert({ date: on, kind: "notice", scope: "all", body: task.notice_body, task_id: taskId })
+    .select("id")
+    .single();
+  if (nErr) return { error: nErr.message };
+  await supabase
+    .from("notice_receipts")
+    .insert(ids.map((student_id) => ({ notice_id: notice.id, student_id })));
+
+  revalidatePath("/today");
+  revalidatePath("/tasks");
+  return { error: null, count: ids.length };
+}
+
+/**
+ * 일정 기간(due_on ~ end_on) 전체를 결석 예정으로 깐다.
+ * 가족여행처럼 여러 날 결석하는 경우를 한 번에 처리한다.
+ */
+export async function applyTaskAbsence(taskId) {
+  if (!taskId) return { error: "일정이 없어요." };
+  const supabase = createClient();
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .select("id, title, due_on, end_on, absence_student_ids, absence_reason")
+    .eq("id", taskId)
+    .single();
+  if (error) return { error: error.message };
+
+  const ids = task?.absence_student_ids || [];
+  if (ids.length === 0) return { error: "결석할 학생을 골라주세요." };
+
+  const from = task.due_on;
+  const to = task.end_on || task.due_on;
+  const reason = task.absence_reason || task.title;
+
+  // 기간 안에서 그 학생이 실제로 수업 있는 날만
+  const { data: classes } = await supabase.from("classes").select("id, days");
+  const { data: members } = await supabase
+    .from("class_students")
+    .select("class_id, student_id")
+    .in("student_id", ids);
+  const daysOf = new Map((classes || []).map((c) => [c.id, c.days || []]));
+
+  const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
+  const rows = [];
+  for (const sid of ids) {
+    const myDays = new Set(
+      (members || []).filter((m) => m.student_id === sid).flatMap((m) => daysOf.get(m.class_id) || [])
+    );
+    let d = new Date(`${from}T00:00:00+09:00`);
+    const end = new Date(`${to}T00:00:00+09:00`);
+    while (d <= end) {
+      const iso = d.toISOString().slice(0, 10);
+      if (myDays.has(DOWN[d.getUTCDay()])) {
+        rows.push({ student_id: sid, date: iso, status: "absent", planned: true, reason });
+      }
+      d = new Date(d.getTime() + 86400000);
+    }
+  }
+  if (rows.length === 0) return { error: "그 기간에 수업이 없어요." };
+
+  const { error: aErr } = await supabase
+    .from("attendance")
+    .upsert(rows, { onConflict: "student_id,date" });
+  if (aErr) return { error: aErr.message };
+
+  await supabase
+    .from("tasks")
+    .update({ applied_at: new Date().toISOString() })
+    .eq("id", taskId);
+
+  revalidatePath("/tasks");
+  revalidatePath("/today");
+  revalidatePath("/plan");
+  return { error: null, count: rows.length };
+}
+
+// 일정에 결석할 학생을 지정
+export async function setTaskAbsenceStudents(taskId, studentIds, reason) {
+  if (!taskId) return { error: "일정이 없어요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      absence_student_ids: studentIds || [],
+      absence_reason: (reason || "").trim() || null,
+    })
+    .eq("id", taskId);
+  revalidatePath("/tasks");
+  return ok(error);
 }
 
 // 여러 일정을 한 번에

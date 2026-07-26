@@ -30,6 +30,7 @@ export default async function SettingsPage() {
   const view = {
     mode: s.mode,
     academy: s.academy,
+    message: s.message,
     solapi: {
       sender: s.solapi.sender,
       saved: !!s.solapi.apiKey,

@@ -137,3 +137,86 @@ export async function bulkAddStudents(rows) {
     error: error ? error.message : null,
   };
 }
+
+// ---------- 수정하지 않는 기록 (상담 · 교재 사용) ----------
+export async function loadStudentHistory(studentId) {
+  if (!studentId) return { books: [], inquiries: [], note: "" };
+  const supabase = createClient();
+
+  const cols = "textbook_id, status, assigned_on, ended_on, current_page";
+  let { data: st, error } = await supabase
+    .from("student_textbooks")
+    .select(`${cols}, note`)
+    .eq("student_id", studentId);
+  if (error) {
+    ({ data: st } = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status")
+      .eq("student_id", studentId));
+  }
+
+  const ids = (st || []).map((x) => x.textbook_id);
+  const { data: books } = ids.length
+    ? await supabase.from("textbooks").select("id, name, area, total_pages").in("id", ids)
+    : { data: [] };
+  const bookById = new Map((books || []).map((b) => [b.id, b]));
+
+  // 단원 진도율
+  const { data: units } = ids.length
+    ? await supabase
+        .from("textbook_units")
+        .select("id, textbook_id, parent_id")
+        .in("textbook_id", ids)
+    : { data: [] };
+  const parents = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+  const leafByBook = new Map();
+  (units || []).forEach((u) => {
+    if (parents.has(u.id)) return;
+    if (!leafByBook.has(u.textbook_id)) leafByBook.set(u.textbook_id, []);
+    leafByBook.get(u.textbook_id).push(u.id);
+  });
+  const { data: prog } = await supabase
+    .from("student_unit_progress")
+    .select("textbook_unit_id")
+    .eq("student_id", studentId);
+  const doneSet = new Set((prog || []).map((p) => p.textbook_unit_id));
+
+  const bookRows = (st || [])
+    .map((x) => {
+      const b = bookById.get(x.textbook_id);
+      const leaves = leafByBook.get(x.textbook_id) || [];
+      const done = leaves.filter((id) => doneSet.has(id)).length;
+      const percent = leaves.length > 0 ? Math.round((done / leaves.length) * 100) : null;
+      return {
+        textbook_id: x.textbook_id,
+        name: b?.name || "교재",
+        area: b?.area || "",
+        status: x.status || "active",
+        assigned_on: x.assigned_on || null,
+        ended_on: x.ended_on || null,
+        percent,
+      };
+    })
+    .sort((a, b) => {
+      const rank = (s) => (s === "active" ? 0 : s === "done" ? 1 : 2);
+      return rank(a.status) - rank(b.status) || (b.assigned_on || "").localeCompare(a.assigned_on || "");
+    });
+
+  const inqQ = await supabase
+    .from("inquiries")
+    .select("id, status, source, memo, test_result, test_note, created_at")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+
+  const { data: s } = await supabase
+    .from("students")
+    .select("note")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  return {
+    books: bookRows,
+    inquiries: inqQ.error ? [] : inqQ.data || [],
+    note: s?.note || "",
+  };
+}

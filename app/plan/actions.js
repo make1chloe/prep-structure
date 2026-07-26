@@ -34,6 +34,76 @@ export async function setPlannedAbsence(studentId, date, reason) {
   return ok(error);
 }
 
+/**
+ * 기간 결석 예정 — 가족여행처럼 여러 날 빠질 때 한 번에.
+ * 그 학생이 실제로 수업 있는 날만 넣는다.
+ */
+export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
+  const sids = Array.isArray(studentIds) ? studentIds : [studentIds];
+  if (sids.length === 0 || !from) return { error: "학생과 날짜를 골라주세요.", count: 0 };
+  const end = to || from;
+
+  const supabase = createClient();
+  const { data: members } = await supabase
+    .from("class_students")
+    .select("class_id, student_id")
+    .in("student_id", sids);
+  const classIds = [...new Set((members || []).map((m) => m.class_id))];
+  const { data: classes } = classIds.length
+    ? await supabase.from("classes").select("id, days").in("id", classIds)
+    : { data: [] };
+  const daysOf = new Map((classes || []).map((c) => [c.id, c.days || []]));
+
+  const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
+  const rows = [];
+  for (const sid of sids) {
+    const myDays = new Set(
+      (members || []).filter((m) => m.student_id === sid).flatMap((m) => daysOf.get(m.class_id) || [])
+    );
+    let d = new Date(`${from}T00:00:00+09:00`);
+    const last = new Date(`${end}T00:00:00+09:00`);
+    while (d <= last) {
+      if (myDays.has(DOWN[d.getUTCDay()])) {
+        rows.push({
+          student_id: sid,
+          date: d.toISOString().slice(0, 10),
+          status: "absent",
+          planned: true,
+          reason: (reason || "").trim() || null,
+        });
+      }
+      d = new Date(d.getTime() + 86400000);
+    }
+  }
+  if (rows.length === 0) return { error: "그 기간에 수업이 없어요.", count: 0 };
+
+  let { error } = await supabase
+    .from("attendance")
+    .upsert(rows, { onConflict: "student_id,date" });
+  if (isMissingColumn(error)) {
+    return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼).", count: 0 };
+  }
+  revalidatePath("/plan");
+  revalidatePath("/today");
+  return { error: error ? error.message : null, count: rows.length };
+}
+
+// 기간 결석 예정 취소
+export async function clearPlannedAbsenceRange(studentIds, from, to) {
+  const sids = Array.isArray(studentIds) ? studentIds : [studentIds];
+  if (sids.length === 0 || !from) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("attendance")
+    .delete()
+    .in("student_id", sids)
+    .gte("date", from)
+    .lte("date", to || from);
+  revalidatePath("/plan");
+  revalidatePath("/today");
+  return ok(error);
+}
+
 export async function clearPlannedAbsence(studentId, date) {
   if (!studentId || !date) return { error: null };
   const supabase = createClient();

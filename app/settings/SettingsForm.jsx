@@ -16,6 +16,12 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
   const [academy, setAcademy] = useState(view.academy?.name || "클로이영어");
   const [solapi, setSolapi] = useState({ apiKey: "", apiSecret: "", sender: view.solapi?.sender || "" });
   const [webhook, setWebhook] = useState({ url: view.webhook?.url || "", secret: "" });
+  const [msgCfg, setMsgCfg] = useState({
+    greeting: view.message?.greeting || "",
+    closing: view.message?.closing || "",
+    phone: view.message?.phone || "",
+    address: view.message?.address || "",
+  });
   const [testTo, setTestTo] = useState("");
   const [msg, setMsg] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -43,7 +49,10 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
         config: solapi,
       });
       if (s.error) return s;
-      return saveIntegration("webhook", { enabled: mode === "webhook", config: webhook });
+      const w = await saveIntegration("webhook", { enabled: mode === "webhook", config: webhook });
+      if (w.error) return w;
+      // 문구는 비워두는 것도 뜻이 있으므로 통째로 저장한다
+      return saveIntegration("message", { enabled: true, config: msgCfg, replace: true });
     }, "설정을 저장했어요.");
   }
 
@@ -201,6 +210,51 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           </div>
         </div>
       )}
+
+      {/* 문자 문구 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>문자 문구</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+          데일리리포트·숙제 문자에 공통으로 들어가는 인삿말과 맺음말입니다. 비워두면 넣지 않습니다.
+          교재 안내 등 개별 문자의 본문은 <a className="sky" href="/report?t=notice">발송 → 안내 문자</a> 에서 고칩니다.
+        </p>
+        <div className="field">
+          <label className="label">인삿말 (제목 다음 줄)</label>
+          <input
+            className="input input-sm"
+            value={msgCfg.greeting}
+            placeholder="예: 안녕하세요, 오늘 수업 안내드립니다."
+            onChange={(e) => setMsgCfg({ ...msgCfg, greeting: e.target.value })}
+          />
+        </div>
+        <div className="field" style={{ marginTop: 8 }}>
+          <label className="label">맺음말 (맨 아래)</label>
+          <input
+            className="input input-sm"
+            value={msgCfg.closing}
+            placeholder="예: 궁금한 점은 언제든 연락 주세요. 감사합니다."
+            onChange={(e) => setMsgCfg({ ...msgCfg, closing: e.target.value })}
+          />
+        </div>
+        <div className="editgrid" style={{ marginTop: 8 }}>
+          <div className="field">
+            <label className="label">학원 전화</label>
+            <input
+              className="input input-sm"
+              value={msgCfg.phone}
+              onChange={(e) => setMsgCfg({ ...msgCfg, phone: e.target.value })}
+            />
+          </div>
+          <div className="field">
+            <label className="label">학원 주소</label>
+            <input
+              className="input input-sm"
+              value={msgCfg.address}
+              onChange={(e) => setMsgCfg({ ...msgCfg, address: e.target.value })}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* 앱 알림 */}
       <div className="card">

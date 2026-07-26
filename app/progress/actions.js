@@ -109,6 +109,26 @@ export async function setCurrentPage(studentId, textbookId, page) {
   return ok(error);
 }
 
+// 학생 차원의 교재 상태 — active(사용중) | done(완료) | dropped(중단)
+// 완료·중단이면 숙제 배정·진도 화면에서 빠지고, 재원생 기록에만 남는다.
+export async function setStudentBookStatus(studentId, textbookId, status, endedOn) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const { error } = await supabase.from("student_textbooks").upsert(
+    {
+      student_id: studentId,
+      textbook_id: textbookId,
+      status: status || "active",
+      ended_on: status === "active" ? null : endedOn || today,
+    },
+    { onConflict: "student_id,textbook_id" }
+  );
+  revalidatePath("/today");
+  revalidatePath("/students");
+  return ok(error);
+}
+
 // ---------- 단원 진도 ----------
 
 // 한 학생의 교재 하나에 대한 단원 목록 + 완료 여부

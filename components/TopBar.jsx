@@ -52,6 +52,9 @@ export default function TopBar({ profile, active }) {
           <Link href="/homework" className={active === "homework" ? "on" : ""}>
             학습 항목
           </Link>
+          <Link href="/import" className={active === "import" ? "on" : ""}>
+            이관
+          </Link>
           <Link href="/settings" className={active === "settings" ? "on" : ""}>
             설정
           </Link>
