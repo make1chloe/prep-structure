@@ -17,10 +17,17 @@ export default async function HomeworkPage() {
     profile = data;
   }
 
-  const { data: items, error } = await supabase
+  let { data: items, error } = await supabase
     .from("homework_items")
-    .select("id, name, category, sort, active")
+    .select("id, name, category, sort, active, method")
     .order("sort", { ascending: true });
+  if (error) {
+    // method 컬럼이 아직 없는 DB
+    ({ data: items, error } = await supabase
+      .from("homework_items")
+      .select("id, name, category, sort, active")
+      .order("sort", { ascending: true }));
+  }
 
   return (
     <>
@@ -31,6 +38,7 @@ export default async function HomeworkPage() {
           <h1 className="h1">기본 학습 목록</h1>
           <p className="sub">
             오늘 수업에서 숙제를 검사하고 배정할 때 쓰는 항목이에요.
+            <b>학습 방법</b>을 적어두면 학생 페이지에서 숙제를 눌렀을 때 그대로 보여줍니다.
             안 쓰는 항목은 삭제 대신 <b>숨기기</b>를 권합니다 (지난 기록이 보존돼요).
           </p>
           <div className="row" style={{ marginTop: 10 }}>

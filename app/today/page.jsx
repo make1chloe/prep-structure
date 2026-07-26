@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
+import TopNotices from "./TopNotices";
 
 export const dynamic = "force-dynamic";
 
@@ -53,14 +54,14 @@ export default async function TodayPage({ searchParams }) {
     .eq("date", date);
 
   // 오늘 리포트 + 숙제 항목 마스터 + 지난 진도
-  const [{ data: reports }, { data: items }, { data: prevReports }] = await Promise.all([
+  let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
     supabase
       .from("daily_reports")
       .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written")
       .eq("date", date),
     supabase
       .from("homework_items")
-      .select("id, name, category, sort")
+      .select("id, name, category, sort, method")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase
@@ -70,6 +71,15 @@ export default async function TodayPage({ searchParams }) {
       .order("date", { ascending: false })
       .limit(300),
   ]);
+
+  // method 컬럼이 아직 없는 DB에서도 동작하도록 재조회
+  if (itemsErr) {
+    ({ data: items } = await supabase
+      .from("homework_items")
+      .select("id, name, category, sort")
+      .eq("active", true)
+      .order("sort", { ascending: true }));
+  }
 
   const reportByStudent = new Map((reports || []).map((r) => [r.student_id, r]));
   const lastProgress = new Map();
@@ -90,7 +100,8 @@ export default async function TodayPage({ searchParams }) {
       if (onlyAssigned) q = q.eq("status", "assigned");
       return q;
     };
-    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`);
+    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`);
+    if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`));
     if (error) ({ data } = await build(DRI_BASE));
     return data || [];
   }
@@ -102,13 +113,20 @@ export default async function TodayPage({ searchParams }) {
   const unitIds = new Set();
   const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
 
+  const idsOf = (x) =>
+    (x.textbook_unit_ids && x.textbook_unit_ids.length
+      ? x.textbook_unit_ids
+      : x.textbook_unit_id
+      ? [x.textbook_unit_id]
+      : []);
+
   (await loadItems(reportIds)).forEach((x) => {
-    if (x.textbook_unit_id) unitIds.add(x.textbook_unit_id);
+    idsOf(x).forEach((id) => unitIds.add(id));
     if (x.status === "assigned") {
       if (!nextByReport.has(x.daily_report_id)) nextByReport.set(x.daily_report_id, []);
       nextByReport.get(x.daily_report_id).push(x.homework_item_id);
       unitOf.set(`${x.daily_report_id}|${x.homework_item_id}`, {
-        unitId: x.textbook_unit_id || null,
+        unitIds: idsOf(x),
         note: x.range_note || "",
       });
       return;
@@ -125,13 +143,13 @@ export default async function TodayPage({ searchParams }) {
     (prevReports || []).map((r) => [r.id, r.student_id])
   );
   (await loadItems(prevIds, true)).forEach((x) => {
-    if (x.textbook_unit_id) unitIds.add(x.textbook_unit_id);
+    idsOf(x).forEach((id) => unitIds.add(id));
     if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
     prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
     const sid = prevReportStudent.get(x.daily_report_id);
     if (sid) {
       prevUnitOf.set(`${sid}|${x.homework_item_id}`, {
-        unitId: x.textbook_unit_id || null,
+        unitIds: idsOf(x),
         note: x.range_note || "",
       });
     }
@@ -179,7 +197,7 @@ export default async function TodayPage({ searchParams }) {
     const { data: all } = bookIds.length
       ? await supabase
           .from("textbook_units")
-          .select("id, name, parent_id, textbook_id, page_start, page_end")
+          .select("id, name, parent_id, textbook_id, page_start, page_end, total_pages")
           .in("textbook_id", bookIds)
       : { data: [] };
     const byId = new Map((all || []).map((u) => [u.id, u]));
@@ -194,9 +212,48 @@ export default async function TodayPage({ searchParams }) {
       }
       const pages =
         u.page_start && u.page_end ? ` (${u.page_start}~${u.page_end}p)` : "";
-      unitNames[u.id] = { path: chain.join(" › ") + pages, textbookId: u.textbook_id };
+      const amount = u.total_pages
+        ? `${u.total_pages}p`
+        : u.page_start && u.page_end
+        ? `${u.page_end - u.page_start + 1}p`
+        : "";
+      unitNames[u.id] = { path: chain.join(" › ") + pages, amount, textbookId: u.textbook_id };
     });
   }
+
+  // 오늘의 공지 · 전달사항
+  const { data: noticeRows, error: noticeErr } = await supabase
+    .from("notices")
+    .select("id, kind, scope, class_id, school, grade, body, created_at")
+    .eq("date", date)
+    .order("created_at", { ascending: true });
+  const noticesAvailable = !noticeErr;
+  const noticeIds = (noticeRows || []).map((n) => n.id);
+  const { data: receipts } = noticeIds.length
+    ? await supabase
+        .from("notice_receipts")
+        .select("notice_id, student_id, delivered_at")
+        .in("notice_id", noticeIds)
+    : { data: [] };
+
+  const noticeById = new Map((noticeRows || []).map((n) => [n.id, n]));
+  const noticesOfStudent = new Map(); // studentId → [{ id, kind, body, delivered }]
+  const tally = new Map();            // noticeId → { total, done }
+  (receipts || []).forEach((r) => {
+    const n = noticeById.get(r.notice_id);
+    if (!n) return;
+    const t = tally.get(r.notice_id) || { total: 0, done: 0 };
+    t.total += 1;
+    if (r.delivered_at) t.done += 1;
+    tally.set(r.notice_id, t);
+    if (!noticesOfStudent.has(r.student_id)) noticesOfStudent.set(r.student_id, []);
+    noticesOfStudent.get(r.student_id).push({
+      id: n.id,
+      kind: n.kind,
+      body: n.body,
+      delivered: !!r.delivered_at,
+    });
+  });
 
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
@@ -230,6 +287,7 @@ export default async function TodayPage({ searchParams }) {
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
+          notices: noticesOfStudent.get(s.id) || [],
           reportWritten: !!rep?.report_written,
         };
       })
@@ -255,6 +313,7 @@ export default async function TodayPage({ searchParams }) {
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),
+        notices: noticesOfStudent.get(s.id) || [],
         reportWritten: !!rep?.report_written,
       };
     });
@@ -266,6 +325,42 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 공지 폼에 쓸 오늘 로스터 (반 정보 포함)
+  const rosterStudents = [];
+  const seenRoster = new Set();
+  groups.forEach(({ klass, rows }) => {
+    rows.forEach(({ student }) => {
+      if (seenRoster.has(student.id)) {
+        const found = rosterStudents.find((x) => x.id === student.id);
+        if (found) found.classIds.push(klass.id);
+        return;
+      }
+      seenRoster.add(student.id);
+      rosterStudents.push({
+        id: student.id,
+        name: student.name,
+        school: student.school,
+        grade: student.grade,
+        classIds: [klass.id],
+      });
+    });
+  });
+
+  const classNameOf = (id) =>
+    groups.find((g) => g.klass.id === id)?.klass.name || "반";
+  const noticeCards = (noticeRows || []).map((n) => {
+    const t = tally.get(n.id) || { total: 0, done: 0 };
+    const targetLabel =
+      n.scope === "class"
+        ? classNameOf(n.class_id)
+        : n.scope === "grade"
+        ? [n.school, n.grade].filter(Boolean).join(" ") || "학년"
+        : n.scope === "student"
+        ? `개인 ${t.total}명`
+        : "전체";
+    return { id: n.id, kind: n.kind, body: n.body, targetLabel, total: t.total, done: t.done };
+  });
+
   const label = `${target.getMonth() + 1}월 ${target.getDate()}일 (${dow})`;
 
   return (
@@ -276,6 +371,13 @@ export default async function TodayPage({ searchParams }) {
           <p className="eyebrow">오늘 수업</p>
           <h1 className="h1">{label}</h1>
         </div>
+        <TopNotices
+          date={date}
+          classes={groups.map((g) => ({ id: g.klass.id, name: g.klass.name }))}
+          students={rosterStudents}
+          notices={noticeCards}
+          unavailable={!noticesAvailable}
+        />
         <TodayBoard
           date={date}
           groups={groups}

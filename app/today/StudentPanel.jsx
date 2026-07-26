@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveStudentDay, listUnitOptions } from "./actions";
+import { saveStudentDay, listUnitOptions, setDelivered } from "./actions";
 import { unitOptionText } from "@/lib/unitTree";
 
 const ATT = [
@@ -54,14 +54,16 @@ export default function StudentPanel({
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
-  // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitId, note } }
-  const defaultBook = classTextbookIds[0] || "";
+  // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
+  //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
+  const defaultBook = classTextbookIds[0] || (textbooks.length === 1 ? textbooks[0].id : "");
   const [nextUnits, setNextUnits] = useState(() => {
     const seed = {};
     Object.entries(row.nextUnits || {}).forEach(([iid, v]) => {
+      const ids = v.unitIds && v.unitIds.length ? v.unitIds : v.unitId ? [v.unitId] : [];
       seed[iid] = {
-        textbookId: (v.unitId && unitNames[v.unitId]?.textbookId) || "",
-        unitId: v.unitId || "",
+        textbookId: (ids[0] && unitNames[ids[0]]?.textbookId) || "",
+        unitIds: ids,
         note: v.note || "",
       };
     });
@@ -71,6 +73,10 @@ export default function StudentPanel({
   const [loadingBook, setLoadingBook] = useState(null);
 
   const [cat, setCat] = useState("전체");
+  const [methodOf, setMethodOf] = useState(null);
+  const [delivered, setDeliveredMap] = useState(() =>
+    Object.fromEntries((row.notices || []).map((n) => [n.id, n.delivered]))
+  );
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -114,7 +120,17 @@ export default function StudentPanel({
   // 이미 저장된 배정이 가리키는 교재는 열자마자 단원을 불러온다
   useEffect(() => {
     const ids = new Set(
-      Object.values(nextUnits).map((v) => v.textbookId).filter(Boolean)
+      Object.values(nextUnits).flatMap((v) => [
+        v.textbookId,
+        ...(v.unitIds || []).map((uid) => unitNames[uid]?.textbookId),
+      ]).filter(Boolean)
+    );
+    // 검사 대상 숙제가 가리키는 교재도 함께
+    Object.values(row.checkUnits || {}).forEach((u) =>
+      (u.unitIds || []).forEach((uid) => {
+        const b = unitNames[uid]?.textbookId;
+        if (b) ids.add(b);
+      })
     );
     if (defaultBook) ids.add(defaultBook);
     ids.forEach((id) => loadBook(id));
@@ -124,10 +140,37 @@ export default function StudentPanel({
   function setUnitField(itemId, patch) {
     setNextUnits((m) => ({
       ...m,
-      [itemId]: { textbookId: defaultBook, unitId: "", note: "", ...(m[itemId] || {}), ...patch },
+      [itemId]: { textbookId: defaultBook, unitIds: [], note: "", ...(m[itemId] || {}), ...patch },
     }));
   }
+  function addUnit(itemId, unitId) {
+    if (!unitId) return;
+    const cur = nextUnits[itemId]?.unitIds || [];
+    if (cur.includes(unitId)) return;
+    setUnitField(itemId, { unitIds: [...cur, unitId] });
+  }
+  function removeUnit(itemId, unitId) {
+    const cur = nextUnits[itemId]?.unitIds || [];
+    setUnitField(itemId, { unitIds: cur.filter((x) => x !== unitId) });
+  }
   const bookName = (id) => textbooks.find((t) => t.id === id)?.name || "";
+
+  // 단원 한 개의 표시 정보 — 불러온 교재 목록에서 먼저, 없으면 서버가 준 이름으로
+  function unitMeta(unitId) {
+    for (const opts of Object.values(unitsByBook)) {
+      const hit = opts.find((o) => o.id === unitId);
+      if (hit) return hit;
+    }
+    const n = unitNames[unitId];
+    return n ? { id: unitId, big: n.path, mid: "", small: "", activity: "", pages: "", amount: n.amount || "" } : null;
+  }
+  function unitText(unitId) {
+    const m = unitMeta(unitId);
+    if (!m) return "단원";
+    const path = [m.big, m.mid, m.small].filter(Boolean).join(" › ");
+    const tail = [m.activity, m.pages, m.amount && `분량 ${m.amount}`].filter(Boolean).join(" · ");
+    return tail ? `${path} — ${tail}` : path;
+  }
 
   function cycle(id) {
     setMarks((m) => ({ ...m, [id]: CYCLE[m[id] || ""] }));
@@ -147,7 +190,7 @@ export default function StudentPanel({
           [...next].map((iid) => [
             iid,
             {
-              unitId: nextUnits[iid]?.unitId || null,
+              unitIds: nextUnits[iid]?.unitIds || [],
               note: nextUnits[iid]?.note || "",
             },
           ])
@@ -156,6 +199,12 @@ export default function StudentPanel({
       if (res?.error) {
         alert(res.error);
         return;
+      }
+      const notYet = (row.notices || []).filter(
+        (n) => n.kind === "deliver" && !delivered[n.id]
+      );
+      if (notYet.length > 0) {
+        alert(`아직 전달하지 않은 사항이 ${notYet.length}건 있어요.\n하원 전에 꼭 전달해주세요.`);
       }
       if (res && res.complete === false) {
         alert(`저장했지만 아직 완료가 아니에요.\n지난 수업 숙제 ${res.unchecked}개가 검사되지 않았습니다.`);
@@ -218,28 +267,70 @@ export default function StudentPanel({
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
         <div style={{ flex: 1 }}>
-          {toCheck.length > 0 && checkUnitList.length > 0 && (
-            <div className="stack" style={{ gap: 2, margin: "0 0 6px" }}>
-              {checkUnitList.map(([iid, u]) => (
-                <div className="hint" key={iid}>
-                  <b style={{ color: "var(--text-muted)" }}>{nameOf(iid)}</b>{" "}
-                  {u.unitId ? unitNames[u.unitId]?.path || "단원" : ""}
-                  {u.note ? ` · ${u.note}` : ""}
-                </div>
-              ))}
-            </div>
-          )}
           {toCheck.length > 0 && (
-            <p className="hint" style={{ margin: "0 0 6px" }}>
-              지난 수업 숙제 {toCheck.length}개
-              {unchecked.length > 0 ? (
-                <b style={{ color: "var(--amber)" }}>
-                  {" "}· 미검사 {unchecked.length}개 ({unchecked.map(nameOf).filter(Boolean).join(", ")})
-                </b>
-              ) : (
-                <b style={{ color: "var(--mint)" }}> · 모두 검사함</b>
+            <>
+              <p className="hint" style={{ margin: "0 0 6px" }}>
+                지난 수업에 낸 숙제 {toCheck.length}개
+                {unchecked.length > 0 ? (
+                  <b style={{ color: "var(--amber)" }}> · 미검사 {unchecked.length}개</b>
+                ) : (
+                  <b style={{ color: "var(--mint)" }}> · 모두 검사함</b>
+                )}
+              </p>
+              {/* 배정할 때 적어둔 단원과 분량 — 무엇을 검사할지 여기서 바로 본다 */}
+              <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
+                {toCheck.map((iid) => {
+                  const u = row.checkUnits?.[iid] || {};
+                  const uids = u.unitIds && u.unitIds.length ? u.unitIds : u.unitId ? [u.unitId] : [];
+                  const st = marks[iid] || "";
+                  const item = items.find((x) => x.id === iid);
+                  return (
+                    <div className="unitrow" key={iid}>
+                      <button
+                        className={`hwchip ${st ? MARK_CLS[st] : ""}`}
+                        onClick={() => cycle(iid)}
+                        style={!st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
+                        title="클릭: 완료 → 미흡 → 미제출 → 없음"
+                      >
+                        {st ? <b>{MARK[st]}</b> : <b>·</b>} {nameOf(iid) || "숙제"}
+                      </button>
+                      {item?.method && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setMethodOf(methodOf === iid ? null : iid)}
+                          title="학습 방법 보기"
+                        >
+                          방법
+                        </button>
+                      )}
+                      {uids.length === 0 && !u.note ? (
+                        <span className="hint">단원 지정 없음</span>
+                      ) : (
+                        <span className="unitmeta">
+                          {uids.map((uid) => {
+                            const m = unitMeta(uid);
+                            return (
+                              <span className="tag tag-sky" key={uid}>
+                                {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
+                                {m?.amount ? ` · ${m.amount}` : m?.pages ? ` · ${m.pages}` : ""}
+                              </span>
+                            );
+                          })}
+                          {u.note && <span className="tag tag-muted">{u.note}</span>}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {methodOf && (
+                <div className="notice" style={{ marginBottom: 8, whiteSpace: "pre-wrap" }}>
+                  <b>{nameOf(methodOf)} 학습 방법</b>
+                  {"\n"}
+                  {items.find((x) => x.id === methodOf)?.method}
+                </div>
               )}
-            </p>
+            </>
           )}
           <div className="row" style={{ gap: 3, marginBottom: 6 }}>
             {cats.map((c) => (
@@ -317,17 +408,17 @@ export default function StudentPanel({
             ))}
           </div>
 
-          {/* 배정한 숙제별 교재 단원 — 교재DB의 단원명과 연동 */}
+          {/* 배정한 숙제별 교재 단원 — 교재DB의 단원명과 연동, 여러 단원 가능 */}
           {next.size > 0 && (
             <div className="stack" style={{ gap: 6, marginTop: 8 }}>
               {[...next].map((iid) => {
-                const u = nextUnits[iid] || { textbookId: defaultBook, unitId: "", note: "" };
-                const bookId = u.textbookId || defaultBook;
+                const u = nextUnits[iid] || { textbookId: defaultBook, unitIds: [], note: "" };
+                const bookId = u.textbookId ?? defaultBook;
                 const opts = unitsByBook[bookId] || [];
-                const picked = opts.find((o) => o.id === u.unitId);
+                const chosen = u.unitIds || [];
                 return (
                   <div className="unitrow" key={iid}>
-                    <span className="tag tag-lav hwcat" style={{ width: "auto", minWidth: 42 }}>
+                    <span className="tag tag-lav" style={{ fontWeight: 800 }}>
                       {nameOf(iid) || "숙제"}
                     </span>
                     <select
@@ -336,9 +427,10 @@ export default function StudentPanel({
                       value={bookId}
                       onChange={(e) => {
                         const v = e.target.value;
-                        setUnitField(iid, { textbookId: v, unitId: "" });
+                        setUnitField(iid, { textbookId: v });
                         loadBook(v);
                       }}
+                      title="여기서 교재를 바꿔 다른 교재 단원도 이어서 추가할 수 있어요"
                     >
                       <option value="">교재 선택</option>
                       {textbooks.map((t) => (
@@ -348,8 +440,8 @@ export default function StudentPanel({
                     <select
                       className="input input-sm"
                       style={{ flex: 1, minWidth: 200 }}
-                      value={u.unitId || ""}
-                      onChange={(e) => setUnitField(iid, { unitId: e.target.value })}
+                      value=""
+                      onChange={(e) => { addUnit(iid, e.target.value); e.target.value = ""; }}
                       disabled={!bookId}
                     >
                       <option value="">
@@ -359,10 +451,10 @@ export default function StudentPanel({
                           ? "단원 불러오는 중…"
                           : opts.length === 0
                           ? "이 교재에 등록된 단원이 없어요"
-                          : "단원 선택"}
+                          : "단원 추가…"}
                       </option>
                       {opts.map((o) => (
-                        <option key={o.id} value={o.id}>
+                        <option key={o.id} value={o.id} disabled={chosen.includes(o.id)}>
                           {"\u00a0".repeat(o.depth * 3)}
                           {unitOptionText(o)}
                         </option>
@@ -370,21 +462,28 @@ export default function StudentPanel({
                     </select>
                     <input
                       className="input input-sm"
-                      style={{ width: 130 }}
-                      placeholder="범위 메모 (선택)"
+                      style={{ width: 120 }}
+                      placeholder="범위 메모"
                       value={u.note || ""}
                       onChange={(e) => setUnitField(iid, { note: e.target.value })}
                     />
-                    {picked && (
-                      <span className="unitmeta">
-                        {[picked.big, picked.mid, picked.small].filter(Boolean).map((n, k) => (
-                          <span className={`tag ${["tag-sky", "tag-lav", "tag-mint"][k]}`} key={k}>
-                            {["대", "중", "소"][k]} {n}
-                          </span>
-                        ))}
-                        {picked.activity && <span className="tag tag-muted">{picked.activity}</span>}
-                        {picked.pages && <span className="hint">{picked.pages}</span>}
-                        {picked.amount && <span className="tag tag-amber">분량 {picked.amount}</span>}
+                    {chosen.length > 0 && (
+                      <span className="unitmeta" style={{ flexBasis: "100%" }}>
+                        {chosen.map((uid) => {
+                          const m = unitMeta(uid);
+                          return (
+                            <button
+                              key={uid}
+                              className="hwchip hw-next"
+                              onClick={() => removeUnit(iid, uid)}
+                              title="클릭하면 뺍니다"
+                            >
+                              {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
+                              {m?.pages ? ` · ${m.pages}` : ""}
+                              {m?.amount ? ` · 분량 ${m.amount}` : ""} ✕
+                            </button>
+                          );
+                        })}
                       </span>
                     )}
                   </div>
@@ -394,6 +493,55 @@ export default function StudentPanel({
           )}
         </div>
       </div>
+
+      {/* 전달사항 — 하원 전에 전달했는지 확인 */}
+      {(row.notices || []).filter((n) => n.kind === "deliver").length > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>전달</span>
+          <div className="stack" style={{ gap: 4, flex: 1 }}>
+            {(row.notices || [])
+              .filter((n) => n.kind === "deliver")
+              .map((n) => (
+                <label
+                  className="unitrow"
+                  key={n.id}
+                  style={{ cursor: "pointer", gap: 8 }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!delivered[n.id]}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setDeliveredMap((m) => ({ ...m, [n.id]: v }));
+                      startTransition(async () => {
+                        const res = await setDelivered(n.id, row.student.id, v);
+                        if (res?.error) alert(res.error);
+                      });
+                    }}
+                  />
+                  <span style={{ fontSize: 13, flex: 1 }}>{n.body}</span>
+                  <span className={`tag ${delivered[n.id] ? "tag-mint" : "tag-amber"}`}>
+                    {delivered[n.id] ? "전달함" : "전달 전"}
+                  </span>
+                </label>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 전체 공지 (읽기용) */}
+      {(row.notices || []).filter((n) => n.kind === "notice").length > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 3 }}>공지</span>
+          <div className="stack" style={{ gap: 2, flex: 1 }}>
+            {(row.notices || [])
+              .filter((n) => n.kind === "notice")
+              .map((n) => (
+                <span className="hint" key={n.id}>· {n.body}</span>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* 진도 · 태도 */}
       <div className="prow">
@@ -433,7 +581,7 @@ export default function StudentPanel({
         <span className="plabel">공지</span>
         <input
           className="input input-sm" style={{ flex: 1, minWidth: 160 }}
-          placeholder="학부모에게 전할 말 (선택)"
+          placeholder="이 학생 학부모에게만 전할 말 (선택)"
           value={form.notice}
           onChange={(e) => set("notice", e.target.value)}
         />

@@ -65,7 +65,12 @@ export default function HomeworkList({ items = [] }) {
 
   function startEdit(i) {
     setEditId(i.id);
-    setDraft({ name: i.name, category: i.category || "", sort: i.sort ?? "" });
+    setDraft({
+      name: i.name,
+      category: i.category || "",
+      sort: i.sort ?? "",
+      method: i.method || "",
+    });
   }
   function saveEdit() {
     const id = editId;
@@ -186,6 +191,7 @@ export default function HomeworkList({ items = [] }) {
               <th style={{ width: 90 }}>분류</th>
               <th style={{ width: 70 }}>순서</th>
               <th style={{ width: 70 }}>사용</th>
+              <th style={{ minWidth: 220 }}>학습 방법 (학생에게 보여줄 설명)</th>
               <th style={{ width: 86 }}></th>
             </tr>
           </thead>
@@ -227,6 +233,16 @@ export default function HomeworkList({ items = [] }) {
                       </td>
                       <td />
                       <td>
+                        <textarea
+                          className="input input-sm"
+                          rows={3}
+                          style={{ minWidth: 260, whiteSpace: "pre-wrap" }}
+                          placeholder={"학생이 숙제를 눌렀을 때 볼 설명\n예) 1. 단어를 3번 쓰고 2. 뜻을 가리고 셀프테스트"}
+                          value={draft.method}
+                          onChange={(e) => setDraft({ ...draft, method: e.target.value })}
+                        />
+                      </td>
+                      <td>
                         <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                           <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
@@ -243,6 +259,15 @@ export default function HomeworkList({ items = [] }) {
                           <span className="tag tag-mint">사용</span>
                         ) : (
                           <span className="tag tag-muted">숨김</span>
+                        )}
+                      </td>
+                      <td style={{ whiteSpace: "normal", maxWidth: 420 }}>
+                        {i.method ? (
+                          <span className="muted" style={{ fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+                            {i.method}
+                          </span>
+                        ) : (
+                          <span className="hint">— 아직 없음</span>
                         )}
                       </td>
                       <td>

@@ -10,12 +10,18 @@ function clean(formData, key) {
   return v || null;
 }
 
+function isMissingColumn(error) {
+  if (!error) return false;
+  return error.code === "PGRST204" || error.code === "42703";
+}
+
 export async function addHomeworkItem(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;
 
   const supabase = createClient();
   const category = clean(formData, "category");
+  const method = clean(formData, "method");
 
   // 같은 분류 안에서 맨 뒤로
   const { data: last } = await supabase
@@ -25,7 +31,12 @@ export async function addHomeworkItem(formData) {
     .limit(1);
   const sort = (last?.[0]?.sort ?? 0) + 10;
 
-  await supabase.from("homework_items").insert({ name, category, sort, active: true });
+  const row = { name, category, sort, active: true, method };
+  let { error } = await supabase.from("homework_items").insert(row);
+  if (isMissingColumn(error)) {
+    const { method: _m, ...rest } = row;
+    await supabase.from("homework_items").insert(rest);
+  }
   revalidatePath("/homework");
   revalidatePath("/today");
 }
@@ -40,10 +51,15 @@ export async function updateHomeworkItem(id, patch) {
     row.sort = d ? parseInt(d, 10) : 0;
   }
   if ("active" in (patch || {})) row.active = !!patch.active;
+  if ("method" in (patch || {})) row.method = (patch.method || "").trim() || null;
   if (!row.name && "name" in row) return { error: "이름은 비울 수 없어요." };
 
   const supabase = createClient();
-  const { error } = await supabase.from("homework_items").update(row).eq("id", id);
+  let { error } = await supabase.from("homework_items").update(row).eq("id", id);
+  if (isMissingColumn(error)) {
+    const { method: _m, ...rest } = row;
+    ({ error } = await supabase.from("homework_items").update(rest).eq("id", id));
+  }
   revalidatePath("/homework");
   revalidatePath("/today");
   return { error: error ? error.message : null };

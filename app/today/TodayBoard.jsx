@@ -152,6 +152,16 @@ export default function TodayBoard({
                               {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
                             </span>
                             {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                            {(() => {
+                              const d = (r.notices || []).filter((n) => n.kind === "deliver");
+                              const left = d.filter((n) => !n.delivered).length;
+                              if (d.length === 0) return null;
+                              return (
+                                <span className={`tag ${left ? "tag-amber" : "tag-mint"}`}>
+                                  전달 {d.length - left}/{d.length}
+                                </span>
+                              );
+                            })()}
                             <span className="spacer" />
                             {r.status ? (
                               <span className={`tag ${CLS[r.status]}`}>{LABEL[r.status]}</span>
