@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered } from "./actions";
 import { unitOptionText } from "@/lib/unitTree";
+import BookProgress from "./BookProgress";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -393,32 +394,13 @@ export default function StudentPanel({
         </div>
       </div>
 
-      {/* 사용중인 교재 · 진도율 */}
+      {/* 사용중인 교재 · 단원 진도 (순서 무관 체크) */}
       {(row.books || []).length > 0 && (
         <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 3 }}>교재</span>
+          <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
           <div className="row" style={{ gap: 6, flex: 1 }}>
             {(row.books || []).map((b) => (
-              <div className="bookprog" key={b.id}>
-                <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "nowrap" }}>
-                  <b style={{ fontSize: 12.5 }}>{b.name}</b>
-                  <span className="hint">
-                    {b.total
-                      ? `${b.done || 0}/${b.total}p`
-                      : b.done
-                      ? `${b.done}p까지`
-                      : "진도 기록 없음"}
-                  </span>
-                  {b.percent !== null && (
-                    <span className={`tag ${b.percent >= 80 ? "tag-mint" : "tag-sky"}`}>
-                      {b.percent}%
-                    </span>
-                  )}
-                </div>
-                <div className="bar">
-                  <span style={{ width: `${b.percent ?? 0}%` }} />
-                </div>
-              </div>
+              <BookProgress key={b.id} studentId={row.student.id} book={b} />
             ))}
           </div>
         </div>
@@ -598,10 +580,10 @@ export default function StudentPanel({
 
       {/* 진도 · 태도 */}
       <div className="prow">
-        <span className="plabel">진도</span>
+        <span className="plabel">메모</span>
         <input
           className="input input-sm" style={{ flex: 1, minWidth: 160 }}
-          placeholder={row.lastProgress ? `지난 수업: ${row.lastProgress}` : "예: Unit 3 (12~19p)"}
+          placeholder={row.lastProgress ? `지난 수업: ${row.lastProgress}` : "진도 메모 (예: Unit 3 뒷부분만)"}
           value={form.own_progress}
           onChange={(e) => set("own_progress", e.target.value)}
         />

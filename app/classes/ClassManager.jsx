@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateClass, deleteClasses, setClassStudents } from "./actions";
+import { setClassTextbooks } from "@/app/progress/actions";
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -12,11 +13,28 @@ function timeLabel(s, e) {
   return `${cut(s)}${e ? `-${cut(e)}` : ""}`;
 }
 
-export default function ClassManager({ classes = [], students = [], members = [], selectedId }) {
+export default function ClassManager({
+  classes = [],
+  students = [],
+  members = [],
+  textbooks = [],
+  classBooks = [],
+  selectedId,
+}) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [q, setQ] = useState("");
+  const [bookQ, setBookQ] = useState("");
+  const assignedBooks = new Set(
+    classBooks.filter((cb) => cb.class_id === selectedId).map((cb) => cb.textbook_id)
+  );
+  const [pickedBooks, setPickedBooks] = useState(assignedBooks);
+  const [bookFor, setBookFor] = useState(selectedId);
+  if (bookFor !== selectedId) {
+    setBookFor(selectedId);
+    setPickedBooks(assignedBooks);
+  }
   const [onlyPicked, setOnlyPicked] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -85,6 +103,14 @@ export default function ClassManager({ classes = [], students = [], members = []
     });
   }
 
+  function saveBooks() {
+    startTransition(async () => {
+      const res = await setClassTextbooks(selectedId, [...pickedBooks]);
+      if (res?.error) alert(res.error);
+      router.refresh();
+    });
+  }
+
   function saveMembers() {
     startTransition(async () => {
       const res = await setClassStudents(selectedId, [...picked]);
@@ -103,6 +129,23 @@ export default function ClassManager({ classes = [], students = [], members = []
 
   const dirty =
     picked.size !== assigned.size || [...picked].some((id) => !assigned.has(id));
+
+  const booksDirty =
+    pickedBooks.size !== assignedBooks.size ||
+    [...pickedBooks].some((id) => !assignedBooks.has(id));
+  const bkw = bookQ.trim().toLowerCase();
+  const matchedBooks = bkw
+    ? textbooks.filter((b) =>
+        [b.name, b.area].filter(Boolean).some((v) => v.toLowerCase().includes(bkw))
+      )
+    : textbooks;
+  // 교재가 많으므로 검색 없이는 배정된 것 + 앞부분만 보여준다
+  const visibleBooks = bkw
+    ? matchedBooks.slice(0, 60)
+    : [
+        ...textbooks.filter((b) => pickedBooks.has(b.id)),
+        ...textbooks.filter((b) => !pickedBooks.has(b.id)).slice(0, 24),
+      ];
 
   const kw = q.trim().toLowerCase();
   const visibleStudents = students.filter((s) => {
@@ -397,6 +440,79 @@ export default function ClassManager({ classes = [], students = [], members = []
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
             왼쪽에서 반을 선택하면 학생을 배정할 수 있어요.
           </p>
+        )}
+
+        {/* 교재 배정 — 반에 붙이면 그 반 학생 전원에게 진도가 깔린다 */}
+        {selected && (
+          <div style={{ marginTop: 18, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+                교재 배정{" "}
+                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
+                  {pickedBooks.size}권
+                </span>
+              </h2>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={saveBooks}
+                disabled={pending || !booksDirty}
+              >
+                {booksDirty ? "교재 저장" : "저장됨"}
+              </button>
+            </div>
+            <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5 }}>
+              교재를 배정하면 이 반 학생 전원에게 그 교재의 단원이 진도로 깔립니다.
+              완료한 단원은 오늘 수업 화면에서 순서와 상관없이 체크할 수 있어요.
+            </p>
+            <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 8 }}>
+              <input
+                className="input input-sm"
+                style={{ width: 170 }}
+                placeholder="교재 검색"
+                value={bookQ}
+                onChange={(e) => setBookQ(e.target.value)}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setPickedBooks(new Set([...pickedBooks, ...visibleBooks.map((b) => b.id)]))}
+              >
+                보이는 교재 전체 선택
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const n = new Set(pickedBooks);
+                  visibleBooks.forEach((b) => n.delete(b.id));
+                  setPickedBooks(n);
+                }}
+              >
+                전체 해제
+              </button>
+            </div>
+            <div className="row" style={{ gap: 4, maxHeight: 220, overflowY: "auto" }}>
+              {visibleBooks.map((b) => (
+                <button
+                  key={b.id}
+                  className={`hwchip ${pickedBooks.has(b.id) ? "hw-next" : ""}`}
+                  onClick={() => {
+                    const n = new Set(pickedBooks);
+                    n.has(b.id) ? n.delete(b.id) : n.add(b.id);
+                    setPickedBooks(n);
+                  }}
+                >
+                  {pickedBooks.has(b.id) && <b>＋</b>} {b.name}
+                </button>
+              ))}
+              {visibleBooks.length === 0 && <span className="hint">맞는 교재가 없어요.</span>}
+            </div>
+            {!bkw && textbooks.length > visibleBooks.length && (
+              <p className="hint" style={{ marginTop: 6 }}>
+                교재 {textbooks.length}권 중 일부만 보여요. 위 검색창에 교재 이름을 치면 찾을 수 있어요.
+              </p>
+            )}
+            <div style={{ display: "none" }}>
+            </div>
+          </div>
         )}
       </div>
     </div>

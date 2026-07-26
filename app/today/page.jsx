@@ -173,29 +173,6 @@ export default async function TodayPage({ searchParams }) {
     return out;
   };
 
-  // ---------- 교재 진도율 ----------
-  // 노션 방식과 동일: 진도페이지 ÷ 전체페이지수
-  // 진도페이지 = 이 학생에게 지금까지 배정된 단원 중 가장 뒤 페이지
-  const reportStudent = new Map([
-    ...(prevReports || []).map((r) => [r.id, r.student_id]),
-    ...(reports || []).map((r) => [r.student_id ? r.id : r.id, r.student_id]),
-  ]);
-  const historyIds = [
-    ...new Set([...(prevReports || []).map((r) => r.id), ...reportIds]),
-  ];
-  const unitsOfStudent = new Map(); // studentId → Set(unitId)
-  (await loadItems(historyIds)).forEach((x) => {
-    const sid = reportStudent.get(x.daily_report_id);
-    if (!sid) return;
-    const ids = idsOf(x);
-    if (ids.length === 0) return;
-    if (!unitsOfStudent.has(sid)) unitsOfStudent.set(sid, new Set());
-    ids.forEach((id) => {
-      unitsOfStudent.get(sid).add(id);
-      unitIds.add(id);
-    });
-  });
-
   // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름
   const { data: books } = await supabase
     .from("textbooks")
@@ -278,52 +255,100 @@ export default async function TodayPage({ searchParams }) {
     });
   });
 
-  // 단원 → 교재/끝페이지 (진도율 계산용)
-  const unitInfo = new Map();
-  if (unitIds.size > 0) {
-    const { data: ui } = await supabase
-      .from("textbook_units")
-      .select("id, textbook_id, page_end, page_start")
-      .in("id", [...unitIds]);
-    (ui || []).forEach((u) =>
-      unitInfo.set(u.id, {
-        textbookId: u.textbook_id,
-        page: u.page_end || u.page_start || 0,
-      })
-    );
-  }
-
-  // 교재별 전체 페이지 수 — 교재에 적힌 값이 없으면 단원 최대 페이지로 대신한다
-  const bookTotal = new Map();
-  (books || []).forEach((b) => {
-    if (b.total_pages) bookTotal.set(b.id, b.total_pages);
-  });
-  const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
-
+  // ---------- 학생별 교재 배정 · 단원 진도 ----------
   const booksOfClassEarly = new Map();
   (classBooks || []).forEach((cb) => {
     if (!booksOfClassEarly.has(cb.class_id)) booksOfClassEarly.set(cb.class_id, []);
     booksOfClassEarly.get(cb.class_id).push(cb.textbook_id);
   });
 
-  function progressOf(studentId, classId) {
-    const usedIds = new Set(booksOfClassEarly.get(classId) || []);
-    const maxPage = new Map();
-    (unitsOfStudent.get(studentId) || new Set()).forEach((uid) => {
-      const info = unitInfo.get(uid);
-      if (!info?.textbookId) return;
-      usedIds.add(info.textbookId);
-      maxPage.set(info.textbookId, Math.max(maxPage.get(info.textbookId) || 0, info.page));
+  const studentIds = (students || []).map((s) => s.id);
+  const { data: stBooks } = studentIds.length
+    ? await supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status")
+        .in("student_id", studentIds)
+    : { data: [] };
+  const { data: stProgress } = studentIds.length
+    ? await supabase
+        .from("student_unit_progress")
+        .select("student_id, textbook_unit_id, status")
+        .in("student_id", studentIds)
+    : { data: [] };
+
+  const booksOfStudent = new Map();
+  (stBooks || []).forEach((r) => {
+    if (r.status === "dropped") return;
+    if (!booksOfStudent.has(r.student_id)) booksOfStudent.set(r.student_id, new Set());
+    booksOfStudent.get(r.student_id).add(r.textbook_id);
+  });
+  const doneUnitsOf = new Map();
+  (stProgress || []).forEach((r) => {
+    if (r.status !== "done") return;
+    if (!doneUnitsOf.has(r.student_id)) doneUnitsOf.set(r.student_id, new Set());
+    doneUnitsOf.get(r.student_id).add(r.textbook_unit_id);
+  });
+
+  // 화면에 나올 교재들의 단원을 한 번에 가져와 전체 분량을 센다
+  const shownBookIds = new Set();
+  booksOfClassEarly.forEach((ids) => ids.forEach((id) => shownBookIds.add(id)));
+  booksOfStudent.forEach((set) => set.forEach((id) => shownBookIds.add(id)));
+
+  const unitsOfBook = new Map(); // textbookId → [{ id, parent_id, pages }]
+  if (shownBookIds.size > 0) {
+    const cols = "id, textbook_id, parent_id, page_start, page_end";
+    let { data: bu, error: buErr } = await supabase
+      .from("textbook_units")
+      .select(`${cols}, total_pages`)
+      .in("textbook_id", [...shownBookIds]);
+    if (buErr) {
+      ({ data: bu } = await supabase
+        .from("textbook_units")
+        .select(cols)
+        .in("textbook_id", [...shownBookIds]));
+    }
+    const parents = new Set((bu || []).map((u) => u.parent_id).filter(Boolean));
+    (bu || []).forEach((u) => {
+      if (parents.has(u.id)) return; // 중간 단원은 세지 않는다 (소단원만)
+      const pages =
+        u.total_pages ||
+        (u.page_start && u.page_end ? u.page_end - u.page_start + 1 : 0);
+      if (!unitsOfBook.has(u.textbook_id)) unitsOfBook.set(u.textbook_id, []);
+      unitsOfBook.get(u.textbook_id).push({ id: u.id, pages });
     });
-    return [...usedIds].map((tid) => {
-      const done = maxPage.get(tid) || 0;
-      const total = bookTotal.get(tid) || 0;
+  }
+
+  const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+
+  // 진도율 = 완료한 단원 ÷ 전체 단원 (분량이 있으면 분량 기준)
+  // 순서와 상관없이 아무 단원이나 체크할 수 있으므로 "합계"로 센다
+  function progressOf(studentId, classId) {
+    const ids = new Set([
+      ...(booksOfClassEarly.get(classId) || []),
+      ...(booksOfStudent.get(studentId) || []),
+    ]);
+    const done = doneUnitsOf.get(studentId) || new Set();
+    return [...ids].map((tid) => {
+      const list = unitsOfBook.get(tid) || [];
+      const totalUnits = list.length;
+      const doneUnits = list.filter((u) => done.has(u.id)).length;
+      const totalPages = list.reduce((a, u) => a + (u.pages || 0), 0);
+      const donePages = list
+        .filter((u) => done.has(u.id))
+        .reduce((a, u) => a + (u.pages || 0), 0);
+      const usePages = totalPages > 0;
+      const percent =
+        totalUnits === 0
+          ? null
+          : Math.round(((usePages ? donePages : doneUnits) / (usePages ? totalPages : totalUnits)) * 100);
       return {
         id: tid,
         name: bookNameOf.get(tid) || "교재",
-        done,
-        total,
-        percent: total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null,
+        doneUnits,
+        totalUnits,
+        donePages,
+        totalPages,
+        percent,
       };
     });
   }
