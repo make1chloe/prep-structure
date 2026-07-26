@@ -1,0 +1,469 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  addTodo, updateTodo, setTodoStatus, moveTodos, deleteTodos,
+  addCategory, deleteCategory,
+} from "./actions";
+
+const COLORS = ["sky", "lav", "mint", "amber", "muted"];
+const PRIORITY = [
+  { v: 0, label: "보통", cls: "tag-muted" },
+  { v: 1, label: "중요", cls: "tag-sky" },
+  { v: 2, label: "급함", cls: "tag-amber" },
+];
+
+function today() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
+    .toISOString()
+    .slice(0, 10);
+}
+function addDays(d, n) {
+  const t = new Date(`${d}T00:00:00+09:00`);
+  t.setDate(t.getDate() + n);
+  return t.toISOString().slice(0, 10);
+}
+function dayLabel(d) {
+  const t = new Date(`${d}T00:00:00+09:00`);
+  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
+  return `${t.getMonth() + 1}/${t.getDate()} (${dow})`;
+}
+
+export default function TodoBoard({ todos = [], categories = [], unavailable = false }) {
+  const [sel, setSel] = useState(() => new Set());
+  const [filter, setFilter] = useState("open");
+  const [catId, setCatId] = useState("");
+  const [editId, setEditId] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [manageCat, setManageCat] = useState(false);
+  const [newCat, setNewCat] = useState({ name: "", parentId: "", color: "muted" });
+  const [form, setForm] = useState({
+    title: "", categoryId: "", dueOn: today(), dueTime: "", priority: 0, note: "", noDue: false,
+    parentId: "",
+  });
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const now = today();
+  const week = addDays(now, 7);
+
+  const shown = todos.filter((t) => {
+    if (catId && t.todo_category_id !== catId) return false;
+    if (filter === "open") return t.status === "open";
+    if (filter === "today") return t.status === "open" && !t.no_due && t.due_on <= now;
+    if (filter === "week") return t.status === "open" && !t.no_due && t.due_on > now && t.due_on <= week;
+    if (filter === "late") return t.status === "open" && !t.no_due && t.due_on < now;
+    if (filter === "nodue") return t.status === "open" && t.no_due;
+    if (filter === "done") return t.status === "done";
+    return true;
+  });
+
+  const counts = {
+    open: todos.filter((t) => t.status === "open").length,
+    today: todos.filter((t) => t.status === "open" && !t.no_due && t.due_on <= now).length,
+    late: todos.filter((t) => t.status === "open" && !t.no_due && t.due_on < now).length,
+    nodue: todos.filter((t) => t.status === "open" && t.no_due).length,
+    done: todos.filter((t) => t.status === "done").length,
+  };
+
+  const catById = new Map(categories.map((c) => [c.id, c]));
+  const roots = categories.filter((c) => !c.parent_id);
+  const childrenOf = (id) => categories.filter((c) => c.parent_id === id);
+  const countOf = (id) =>
+    todos.filter((t) => t.status === "open" && t.todo_category_id === id).length;
+
+  function run(fn) {
+    startTransition(async () => {
+      const res = await fn();
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+  function toggleOne(id) {
+    const n = new Set(sel);
+    n.has(id) ? n.delete(id) : n.add(id);
+    setSel(n);
+  }
+
+  if (unavailable) {
+    return (
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="notice">
+          할일을 쓰려면 Supabase에서 <b>0020 SQL</b>을 먼저 실행해주세요.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* 빠른 추가 */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="row" style={{ gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="field" style={{ flex: 1, minWidth: 200 }}>
+            <label className="label">할 일</label>
+            <input
+              className="input input-sm"
+              placeholder="예: 8월 특강 교재 주문"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && form.title.trim()) {
+                  run(async () => {
+                    const r = await addTodo(form);
+                    setForm({ ...form, title: "", note: "" });
+                    return r;
+                  });
+                }
+              }}
+            />
+          </div>
+          <div className="field" style={{ width: 150 }}>
+            <label className="label">분류</label>
+            <select
+              className="input input-sm"
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+            >
+              <option value="">—</option>
+              {roots.map((c) => (
+                <optgroup key={c.id} label={c.name}>
+                  <option value={c.id}>{c.name}</option>
+                  {childrenOf(c.id).map((s) => (
+                    <option key={s.id} value={s.id}>　{s.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div className="field" style={{ width: 110 }}>
+            <label className="label">중요도</label>
+            <select
+              className="input input-sm"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value, 10) })}
+            >
+              {PRIORITY.map((p) => <option key={p.v} value={p.v}>{p.label}</option>)}
+            </select>
+          </div>
+          <div className="field" style={{ width: 145 }}>
+            <label className="label">마감</label>
+            <input
+              className="input input-sm"
+              type="date"
+              value={form.dueOn}
+              disabled={form.noDue}
+              onChange={(e) => setForm({ ...form, dueOn: e.target.value })}
+            />
+          </div>
+          <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", paddingBottom: 6 }}>
+            <input
+              type="checkbox"
+              checked={form.noDue}
+              onChange={(e) => setForm({ ...form, noDue: e.target.checked })}
+            />
+            마감 없음
+          </label>
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginBottom: 1 }}
+            disabled={pending || !form.title.trim()}
+            onClick={() =>
+              run(async () => {
+                const r = await addTodo(form);
+                setForm({ ...form, title: "", note: "" });
+                return r;
+              })
+            }
+          >
+            추가
+          </button>
+        </div>
+      </div>
+
+      {/* 분류 */}
+      <div className="row" style={{ gap: 4, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <button
+          className={`btn btn-sm ${!catId ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setCatId("")}
+        >
+          전체
+        </button>
+        {roots.map((c) => (
+          <span key={c.id} className="row" style={{ gap: 2 }}>
+            <button
+              className={`btn btn-sm ${catId === c.id ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setCatId(c.id)}
+            >
+              {c.name} {countOf(c.id) > 0 && countOf(c.id)}
+            </button>
+            {childrenOf(c.id).map((s) => (
+              <button
+                key={s.id}
+                className={`btn btn-sm ${catId === s.id ? "btn-primary" : "btn-ghost"}`}
+                style={{ padding: "3px 8px", fontSize: 11.5 }}
+                onClick={() => setCatId(s.id)}
+              >
+                {s.name} {countOf(s.id) > 0 && countOf(s.id)}
+              </button>
+            ))}
+          </span>
+        ))}
+        <span className="spacer" />
+        <button className="btn btn-ghost btn-sm" onClick={() => setManageCat(!manageCat)}>
+          분류 관리
+        </button>
+      </div>
+
+      {manageCat && (
+        <div className="card card-tight" style={{ marginTop: 8 }}>
+          <div className="row" style={{ gap: 6, alignItems: "flex-end" }}>
+            <div className="field" style={{ width: 160 }}>
+              <label className="label">새 분류</label>
+              <input
+                className="input input-sm"
+                value={newCat.name}
+                onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
+              />
+            </div>
+            <div className="field" style={{ width: 160 }}>
+              <label className="label">상위 분류</label>
+              <select
+                className="input input-sm"
+                value={newCat.parentId}
+                onChange={(e) => setNewCat({ ...newCat, parentId: e.target.value })}
+              >
+                <option value="">없음 (큰 분류)</option>
+                {roots.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ width: 110 }}>
+              <label className="label">색</label>
+              <select
+                className="input input-sm"
+                value={newCat.color}
+                onChange={(e) => setNewCat({ ...newCat, color: e.target.value })}
+              >
+                {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ marginBottom: 1 }}
+              disabled={pending || !newCat.name.trim()}
+              onClick={() =>
+                run(async () => {
+                  const r = await addCategory(newCat.name, newCat.parentId, newCat.color);
+                  setNewCat({ name: "", parentId: "", color: "muted" });
+                  return r;
+                })
+              }
+            >
+              분류 추가
+            </button>
+          </div>
+          <div className="row" style={{ gap: 4, marginTop: 10 }}>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                className={`hwchip`}
+                onClick={() => {
+                  if (!confirm(`${c.name} 분류를 목록에서 숨길까요? (할일은 남습니다)`)) return;
+                  run(() => deleteCategory(c.id));
+                }}
+              >
+                {c.parent_id ? "└ " : ""}{c.name} ✕
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 상태 필터 */}
+      <div className="row" style={{ gap: 4, marginTop: 10 }}>
+        {[
+          ["open", `할 것 ${counts.open}`],
+          ["today", `오늘까지 ${counts.today}`],
+          ["late", `지남 ${counts.late}`],
+          ["week", "이번 주"],
+          ["nodue", `마감 없음 ${counts.nodue}`],
+          ["done", `끝냄 ${counts.done}`],
+          ["all", `전체 ${todos.length}`],
+        ].map(([k, label]) => (
+          <button
+            key={k}
+            className={`btn btn-sm ${filter === k ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setFilter(k)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {sel.size > 0 && (
+        <div className="bulkbar">
+          <b>{sel.size}개 선택</b>
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            onClick={() => run(async () => { const r = await setTodoStatus([...sel], "done"); setSel(new Set()); return r; })}>
+            끝냄
+          </button>
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            onClick={() => run(async () => { const r = await setTodoStatus([...sel], "open"); setSel(new Set()); return r; })}>
+            다시 할 것
+          </button>
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            onClick={() => run(async () => { const r = await moveTodos([...sel], now); setSel(new Set()); return r; })}>
+            오늘로
+          </button>
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            onClick={() => run(async () => { const r = await moveTodos([...sel], addDays(now, 1)); setSel(new Set()); return r; })}>
+            내일로
+          </button>
+          <input className="input input-sm" type="date" style={{ width: 140 }}
+            onChange={(e) => e.target.value && run(async () => {
+              const r = await moveTodos([...sel], e.target.value); setSel(new Set()); return r;
+            })} />
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            onClick={() => {
+              if (!confirm(`${sel.size}개를 삭제할까요?`)) return;
+              run(async () => { const r = await deleteTodos([...sel]); setSel(new Set()); return r; });
+            }}>
+            삭제
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
+        </div>
+      )}
+
+      <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+        {shown.length === 0 ? (
+          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+            해당하는 할 일이 없어요.
+          </p>
+        ) : (
+          shown.map((t) => {
+            const editing = editId === t.id;
+            const late = t.status === "open" && !t.no_due && t.due_on < now;
+            const cat = catById.get(t.todo_category_id);
+            const pr = PRIORITY.find((p) => p.v === t.priority) || PRIORITY[0];
+            return (
+              <div className="stuRow" key={t.id}>
+                <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
+                  <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleOne(t.id)} />
+                  <input
+                    type="checkbox"
+                    checked={t.status === "done"}
+                    title="끝냄"
+                    onChange={(e) => run(() => setTodoStatus([t.id], e.target.checked ? "done" : "open"))}
+                  />
+                  {t.no_due ? (
+                    <span className="tag tag-muted" style={{ minWidth: 66, textAlign: "center" }}>마감 없음</span>
+                  ) : (
+                    <span className={`tag ${late ? "tag-amber" : "tag-muted"}`} style={{ minWidth: 66, textAlign: "center" }}>
+                      {dayLabel(t.due_on)}
+                    </span>
+                  )}
+                  {t.due_time && <span className="hint">{t.due_time.slice(0, 5)}</span>}
+                  <b style={{
+                    fontSize: 13.5,
+                    textDecoration: t.status === "done" ? "line-through" : "none",
+                    opacity: t.status === "done" ? 0.6 : 1,
+                  }}>
+                    {t.title}
+                  </b>
+                  {cat && <span className={`tag tag-${cat.color || "muted"}`}>{cat.name}</span>}
+                  {t.priority > 0 && <span className={`tag ${pr.cls}`}>{pr.label}</span>}
+                  <span className="spacer" />
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      if (editing) return setEditId(null);
+                      setEditId(t.id);
+                      setDraft({
+                        title: t.title,
+                        todo_category_id: t.todo_category_id || "",
+                        priority: t.priority || 0,
+                        due_on: t.due_on || now,
+                        due_time: (t.due_time || "").slice(0, 5),
+                        no_due: !!t.no_due,
+                        note: t.note || "",
+                      });
+                    }}
+                  >
+                    {editing ? "닫기" : "수정"}
+                  </button>
+                </div>
+
+                {!editing && t.note && (
+                  <div className="hint" style={{ padding: "0 16px 10px 78px" }}>{t.note}</div>
+                )}
+
+                {editing && (
+                  <div className="stuPanel">
+                    <div className="editgrid">
+                      <div className="field" style={{ gridColumn: "span 2" }}>
+                        <label className="label">할 일</label>
+                        <input className="input input-sm" value={draft.title}
+                          onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">분류</label>
+                        <select className="input input-sm" value={draft.todo_category_id}
+                          onChange={(e) => setDraft({ ...draft, todo_category_id: e.target.value })}>
+                          <option value="">—</option>
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.parent_id ? "　" : ""}{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label className="label">중요도</label>
+                        <select className="input input-sm" value={draft.priority}
+                          onChange={(e) => setDraft({ ...draft, priority: parseInt(e.target.value, 10) })}>
+                          {PRIORITY.map((p) => <option key={p.v} value={p.v}>{p.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label className="label">마감</label>
+                        <input className="input input-sm" type="date" value={draft.due_on}
+                          disabled={draft.no_due}
+                          onChange={(e) => setDraft({ ...draft, due_on: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">시간</label>
+                        <input className="input input-sm" type="time" value={draft.due_time}
+                          onChange={(e) => setDraft({ ...draft, due_time: e.target.value })} />
+                      </div>
+                    </div>
+                    <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8, cursor: "pointer" }}>
+                      <input type="checkbox" checked={draft.no_due}
+                        onChange={(e) => setDraft({ ...draft, no_due: e.target.checked })} />
+                      마감 없음
+                    </label>
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">메모</label>
+                      <textarea className="input input-sm" rows={2} value={draft.note}
+                        onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+                    </div>
+                    <div className="row" style={{ gap: 6, marginTop: 10 }}>
+                      <button className="btn btn-primary btn-sm" disabled={pending}
+                        onClick={() => run(async () => {
+                          const r = await updateTodo(t.id, draft);
+                          setEditId(null);
+                          return r;
+                        })}>저장</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </>
+  );
+}

@@ -17,7 +17,7 @@ export default function AddTaskForm({ classes = [] }) {
   if (!open) {
     return (
       <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
-        ＋ 할일 · 일정 추가
+        ＋ 일정 추가
       </button>
     );
   }
@@ -25,7 +25,7 @@ export default function AddTaskForm({ classes = [] }) {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>할일 · 일정 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>일정 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
 
@@ -35,13 +35,7 @@ export default function AddTaskForm({ classes = [] }) {
             <label className="label">이름 *</label>
             <input className="input input-sm" name="title" required placeholder="예: 중간고사 대비 특강 안내" />
           </div>
-          <div className="field" style={{ width: 100 }}>
-            <label className="label">종류</label>
-            <select className="input input-sm" name="kind" defaultValue="todo">
-              <option value="todo">할일</option>
-              <option value="schedule">일정</option>
-            </select>
-          </div>
+          <input type="hidden" name="kind" value="schedule" />
           <div className="field" style={{ width: 120 }}>
             <label className="label">분류</label>
             <select className="input input-sm" name="category" defaultValue="기타">

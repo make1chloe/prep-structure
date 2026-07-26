@@ -74,19 +74,21 @@ export default async function Home() {
   // ---------- 일정 ----------
   const taskQ = await supabase
     .from("tasks")
-    .select("id, title, kind, category, due_on, end_on, start_time, status, deliver_body, notice_body")
+    .select("id, title, kind, category, due_on, end_on, start_time, status, deliver_body, notice_body, priority")
     .gte("due_on", today)
     .lte("due_on", monthEnd)
     .eq("status", "open")
     .order("due_on", { ascending: true });
-  const tasks = taskQ.error ? [] : taskQ.data || [];
+  const all = taskQ.error ? [] : taskQ.data || [];
+  const tasks = all.filter((t) => t.kind !== "todo");
+  const todos = all.filter((t) => t.kind === "todo");
   const tasksToday = tasks.filter((t) => t.due_on === today);
   const tasksWeek = tasks.filter((t) => t.due_on > today && t.due_on <= weekEnd);
   const tasksMonth = tasks.filter((t) => t.due_on > weekEnd);
 
   const overdueQ = await supabase
     .from("tasks")
-    .select("id, title, due_on")
+    .select("id, title, due_on, kind")
     .lt("due_on", today)
     .eq("status", "open")
     .order("due_on", { ascending: true })
@@ -198,7 +200,10 @@ export default async function Home() {
             <Link className="btn" href="/consult">진행중 상담 {inquiries.length}건</Link>
           )}
           {overdue.length > 0 && (
-            <Link className="btn" href="/tasks">지난 할일 {overdue.length}건</Link>
+            <Link className="btn" href="/todo">지난 할일 {overdue.length}건</Link>
+          )}
+          {todos.length > 0 && (
+            <Link className="btn" href="/todo">할일 {todos.length}건</Link>
           )}
         </div>
 

@@ -22,6 +22,7 @@ export default async function TasksPage() {
     .select(
       "id, title, kind, category, due_on, end_on, start_time, status, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade"
     )
+    .eq("kind", "schedule")
     .order("due_on", { ascending: true });
 
   const { data: classes } = await supabase
@@ -43,11 +44,12 @@ export default async function TasksPage() {
       <TopBar profile={profile} active="tasks" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">할일 · 일정</p>
+          <p className="eyebrow">일정</p>
           <h1 className="h1">학원 일정</h1>
           <p className="sub">
-            학사일정·행정 업무를 여기 적어두면, 학생에게 전할 내용은 그 날짜의 오늘 수업 화면에
-            전달사항으로 자동으로 깔립니다.
+            날짜가 정해진 것만 넣습니다 (학사일정·특강·시험·상담 예약).
+            학생에게 전할 내용을 함께 적으면 그날 전달사항으로 자동으로 깔립니다.
+            처리해야 하는 일은 <b>할일</b> 메뉴에 있습니다.
           </p>
           <div className="row" style={{ marginTop: 10 }}>
             <AddTaskForm classes={classes || []} />
