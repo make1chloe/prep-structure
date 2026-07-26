@@ -42,6 +42,24 @@ export default async function TuitionPage({ searchParams }) {
     .lte("date", last)
     .order("date", { ascending: true });
 
+  // 결석 · 보강 — 보강이 이미 잡힌 결석은 '보강 필요'에서 뺀다
+  const { data: attRows } = await supabase
+    .from("attendance")
+    .select("student_id, date, status, makeup_of")
+    .gte("date", first)
+    .lte("date", last);
+  const doneMakeup = new Set(
+    (attRows || [])
+      .filter((a) => a.status === "makeup" && a.makeup_of)
+      .map((a) => `${a.student_id}|${a.makeup_of}`)
+  );
+  const absentOf = new Map();
+  (attRows || [])
+    .filter((a) => a.status === "absent" && !doneMakeup.has(`${a.student_id}|${a.date}`))
+    .forEach((a) => {
+      absentOf.set(a.student_id, [...(absentOf.get(a.student_id) || []), a.date]);
+    });
+
   const { data: members } = await supabase
     .from("class_students")
     .select("class_id, student_id");
@@ -72,7 +90,7 @@ export default async function TuitionPage({ searchParams }) {
       .filter(Boolean)
       .map((s) => {
         const unit = s.tuition || klass.tuition || null;
-        const calc = studentAmount(live, base, unit, s, all);
+        const calc = studentAmount(live, base, unit, s, all, absentOf.get(s.id) || []);
         return { student: s, ...calc };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -84,6 +102,12 @@ export default async function TuitionPage({ searchParams }) {
     totalMakeup += makeupSum;
     return { klass, all, off, live, base, rows, sum, makeupSum, creditSum, makeupOnly };
   });
+
+  // 반에 안 들어간 재원생 — 위 목록에 아예 안 나와서 청구를 빠뜨리기 쉽다
+  const inClass = new Set((members || []).map((m) => m.student_id));
+  const noClass = (students || [])
+    .filter((s) => !inClass.has(s.id) && s.status === "enrolled")
+    .map((s) => s.name);
 
   return (
     <>
@@ -105,6 +129,7 @@ export default async function TuitionPage({ searchParams }) {
           totalCredit={totalCredit}
           totalMakeup={totalMakeup}
           makeupDays={makeupDays}
+          noClass={noClass}
           unavailable={!ready}
         />
       </main>

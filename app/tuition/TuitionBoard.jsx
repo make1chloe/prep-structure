@@ -25,6 +25,7 @@ export default function TuitionBoard({
   ym,
   groups = [],
   makeupDays = [],
+  noClass = [],
   holidays = [],
   total = 0,
   totalCredit = 0,
@@ -158,6 +159,17 @@ export default function TuitionBoard({
         )}
       </div>
 
+      {noClass.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="notice">
+            <b>반이 없는 재원생 {noClass.length}명</b> — {noClass.join(", ")}
+            <br />
+            아래 목록에 <b>안 나오고 합계에도 안 들어갑니다.</b>
+            {" "}<a className="sky" href="/classes">반 · 학생 배정</a> 에서 반에 넣어주세요.
+          </div>
+        </div>
+      )}
+
       {/* 반별 */}
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum, makeupOnly = [] }) => {
@@ -290,8 +302,16 @@ export default function TuitionBoard({
                               </td>
                               <td>
                                 {r.makeupNeeded > 0 ? (
-                                  <span className="tag tag-amber" title={`차액 ${won(r.credit)}`}>
-                                    {r.makeupNeeded}회 · {won(r.credit)}
+                                  <span
+                                    className="tag tag-amber"
+                                    title={
+                                      `휴강 ${r.offCount || 0}회 · 결석 ${r.absentCount || 0}회` +
+                                      ` (차액은 휴강분만 ${won(r.credit)})`
+                                    }
+                                  >
+                                    {r.makeupNeeded}회
+                                    {r.absentCount > 0 && ` (결석 ${r.absentCount})`}
+                                    {r.credit > 0 && ` · ${won(r.credit)}`}
                                   </span>
                                 ) : (
                                   <span className="hint">—</span>
@@ -352,6 +372,15 @@ export default function TuitionBoard({
                                   <td className="muted">{r.student.ended_on || "—"}</td>
                                   <td>
                                     <b>{won(r.amount)}</b>
+                                    {r.noPrice && (
+                                      <span
+                                        className="tag tag-red"
+                                        style={{ marginLeft: 4 }}
+                                        title="반에도 학생에도 수강료가 없어서 합계에서 빠집니다"
+                                      >
+                                        수강료 미입력
+                                      </span>
+                                    )}
                                     {r.student.tuition ? (
                                       <span className="tag tag-lav" style={{ marginLeft: 4 }}>개별</span>
                                     ) : null}

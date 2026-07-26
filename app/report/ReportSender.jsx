@@ -10,6 +10,16 @@ function shiftDate(date, days) {
   return d.toISOString().slice(0, 10);
 }
 
+// 문구에 '내용'이 몇 줄이나 있는지 — 제목·인삿말·맺음말은 빼고 센다
+// 출결 한 줄만 있는 문구를 그대로 보내면 학부모에게는 빈 문자처럼 보인다
+function contentLines(text = "") {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("[") && (l.startsWith("·") || l.startsWith("▶")))
+    .filter((l) => !/^· 출결:/.test(l)).length;
+}
+
 export default function ReportSender({ date, rows = [], sendReady = true, mode = "copy" }) {
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
@@ -71,6 +81,19 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
 
   function send(list) {
     if (list.length === 0) return;
+    // 출결 말고 적힌 게 없는 문구는 실수로 보내기 쉬우므로 한 번 더 물어본다
+    const empty = list.filter((r) => contentLines(r.text) === 0);
+    if (empty.length > 0) {
+      const who = empty.map((r) => r.name).join(", ");
+      if (
+        !confirm(
+          `${who} — 출결 말고 적힌 내용이 없어요.\n` +
+            "이대로 보내면 학부모가 거의 빈 문자를 받습니다.\n\n그래도 보낼까요?"
+        )
+      ) {
+        return;
+      }
+    }
     if (sendsForReal) {
       const who = list.length === 1 ? `${list[0].name} 학생 학부모` : `${list.length}명`;
       if (!confirm(`${who}에게 지금 문자를 보낼까요?`)) return;
@@ -212,6 +235,11 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                     <span className="tag tag-amber">학부모 번호 없음</span>
                   )}
                   {r.edited && <span className="tag tag-lav">수정함</span>}
+                  {!r.sentAt && contentLines(r.text) === 0 && (
+                    <span className="tag tag-red" title="출결 말고는 적힌 게 없어요. 이대로 보내면 학부모가 빈 문자로 받습니다">
+                      내용 없음
+                    </span>
+                  )}
                   <span className="spacer" />
                   {r.sentAt ? (
                     <span className="tag tag-mint">보냄</span>
