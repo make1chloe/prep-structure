@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveIntegration, clearIntegration, testSend } from "./actions";
+import { ensurePushKeys, testPush } from "@/app/push/actions";
 
 const MODES = [
   { key: "copy", label: "직접 발송", hint: "앱에서는 문구만 만들고, 복사해서 문자 앱으로 보냅니다. 준비할 게 없어요." },
@@ -10,7 +11,7 @@ const MODES = [
   { key: "webhook", label: "웹훅 (Make 등)", hint: "문구를 외부 자동화로 넘기고 발송은 거기서 합니다." },
 ];
 
-export default function SettingsForm({ view, unavailable = false, canEdit = true }) {
+export default function SettingsForm({ view, unavailable = false, canEdit = true, pushReady = false }) {
   const [mode, setMode] = useState(view.mode || "copy");
   const [academy, setAcademy] = useState(view.academy?.name || "클로이영어");
   const [solapi, setSolapi] = useState({ apiKey: "", apiSecret: "", sender: view.solapi?.sender || "" });
@@ -200,6 +201,39 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           </div>
         </div>
       )}
+
+      {/* 앱 알림 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>앱 알림 (무료)</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+          학생이 학생용 페이지에서 <b>알림 켜기</b>를 누르면, 숙제를 배정할 때 자동으로 알림이 갑니다.
+          문자와 달리 <b>건당 요금이 없어요.</b>
+        </p>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          {pushReady ? (
+            <span className="tag tag-mint">알림 준비됨</span>
+          ) : (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => run(() => ensurePushKeys(), "알림 키를 만들었어요. 이제 학생들이 알림을 켤 수 있어요.")}
+              disabled={pending}
+            >
+              알림 키 만들기
+            </button>
+          )}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => run(() => testPush(), "테스트 알림을 보냈어요.")}
+            disabled={pending || !pushReady}
+          >
+            내 기기로 테스트
+          </button>
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          아이폰은 사파리에서 <b>공유 → 홈 화면에 추가</b> 한 뒤 그 아이콘으로 열어야 알림이 켜집니다.
+          안드로이드는 크롬에서 바로 켤 수 있어요.
+        </p>
+      </div>
 
       <div className="row" style={{ gap: 8, alignItems: "center" }}>
         <button className="btn btn-primary" onClick={saveAll} disabled={pending}>

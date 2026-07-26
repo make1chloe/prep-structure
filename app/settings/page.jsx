@@ -19,6 +19,12 @@ export default async function SettingsPage() {
   const canEdit = profile?.role === "principal";
 
   const s = await loadSettings(supabase);
+  const { data: pushRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "push")
+    .maybeSingle();
+  const pushReady = !!pushRow?.config?.publicKey;
 
   // 비밀값은 가려서만 내려보낸다
   const view = {
@@ -47,7 +53,7 @@ export default async function SettingsPage() {
             문자 발송 방식과 키를 여기서 바꿉니다. 바꿔도 다시 배포할 필요가 없어요.
           </p>
         </div>
-        <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} />
+        <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} />
       </main>
     </>
   );

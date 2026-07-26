@@ -170,3 +170,14 @@ a { color: inherit; }
   font-family: var(--font); font-size: 13px; line-height: 1.65;
   white-space: pre-wrap; word-break: break-word; color: var(--text);
 }
+
+/* 학생용 화면 */
+.hwcard { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); }
+.hwcard-head {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: transparent; border: 0; cursor: pointer;
+  font-family: inherit; color: var(--text); text-align: left;
+}
+.hwcard-head:hover { background: var(--surface-2); }
+.hwcard-body { padding: 0 14px 14px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.tag-red { background: var(--red-soft); color: var(--red); border-color: transparent; }

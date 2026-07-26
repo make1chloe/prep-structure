@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
+import { pushToStudents } from "@/app/push/actions";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -153,6 +154,25 @@ export async function saveStudentDay(studentId, date, form) {
       }
     }
     if (error) return { error: error.message };
+  }
+
+  // 숙제가 배정됐으면 학생 앱으로 알림 (요금 없음, 실패해도 저장은 그대로)
+  if (nextIds.length > 0) {
+    try {
+      const { data: names } = await supabase
+        .from("homework_items")
+        .select("name")
+        .in("id", nextIds);
+      const list = (names || []).map((n) => n.name).filter(Boolean);
+      await pushToStudents([studentId], {
+        title: "오늘 숙제가 올라왔어요",
+        body: list.length ? list.join(", ") : "앱에서 확인해주세요",
+        url: "/me",
+        tag: "homework",
+      });
+    } catch {
+      // 알림 실패는 무시한다
+    }
   }
 
   revalidatePath("/today");
