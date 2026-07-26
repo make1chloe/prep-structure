@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
+import InstallHint from "./InstallHint";
 import HomeworkCards from "./HomeworkCards";
 
 export const dynamic = "force-dynamic";
@@ -181,6 +182,7 @@ export default async function MePage() {
       </div>
 
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
+        <InstallHint />
         <PushToggle />
 
         <div className="card">
