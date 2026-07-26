@@ -40,7 +40,6 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
     startTransition(async () => {
       const res = await setAttendance(studentId, date, status);
       if (res?.error) alert(res.error);
-      setOpenId(null);
       router.refresh();
     });
   }
@@ -51,10 +50,12 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
     });
   }
 
+  // 완료 = 기록 저장까지 끝난 학생. 출결만 찍은 건 아직 '남은'으로 본다.
+  const isDone = (r) => !!r.reportWritten;
   const all = groups.flatMap((g) => g.rows);
   const counts = {
-    todo: all.filter((r) => !r.status).length,
-    done: all.filter((r) => r.status).length,
+    todo: all.filter((r) => !isDone(r)).length,
+    done: all.filter(isDone).length,
     absent: all.filter((r) => r.status === "absent").length,
     makeup: all.filter((r) => r.isMakeup).length,
   };
@@ -90,8 +91,8 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
 
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {groups.map(({ klass, rows }) => {
-          const todo = rows.filter((r) => !r.status);
-          const done = rows.filter((r) => r.status);
+          const todo = rows.filter((r) => !isDone(r));
+          const done = rows.filter(isDone);
           const visible =
             filter === "todo"
               ? todo
@@ -122,7 +123,7 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
                 <div style={{ padding: "0 0 6px" }}>
                   {visible.length === 0 ? (
                     <p className="muted" style={{ margin: 0, padding: "10px 16px", fontSize: 13 }}>
-                      {filter === "todo" ? "이 반은 모두 처리했어요 👏" : "해당하는 학생이 없어요."}
+                      {filter === "todo" ? "이 반은 기록까지 모두 끝냈어요 👏" : "해당하는 학생이 없어요."}
                     </p>
                   ) : (
                     visible.map((r) => {
@@ -149,9 +150,11 @@ export default function TodayBoard({ date, groups = [], items = [] }) {
                                 등원
                               </span>
                             )}
-                            {r.report?.report_written && (
-                              <span className="tag tag-sky">기록</span>
-                            )}
+                            {r.reportWritten ? (
+                              <span className="tag tag-mint">완료</span>
+                            ) : r.status ? (
+                              <span className="tag tag-amber">기록 전</span>
+                            ) : null}
                             <span className="muted" style={{ fontSize: 11 }}>{isOpen ? "▾" : "▸"}</span>
                           </button>
 

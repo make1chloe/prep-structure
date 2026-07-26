@@ -65,17 +65,20 @@ export default async function TodayPage({ searchParams }) {
       .order("sort", { ascending: true }),
     supabase
       .from("daily_reports")
-      .select("student_id, own_progress, date")
+      .select("id, student_id, own_progress, date")
       .lt("date", date)
-      .not("own_progress", "is", null)
       .order("date", { ascending: false })
       .limit(300),
   ]);
 
   const reportByStudent = new Map((reports || []).map((r) => [r.student_id, r]));
   const lastProgress = new Map();
+  const lastReportId = new Map(); // 학생 → 가장 최근 수업의 리포트 id
   (prevReports || []).forEach((r) => {
-    if (!lastProgress.has(r.student_id)) lastProgress.set(r.student_id, r.own_progress);
+    if (!lastReportId.has(r.student_id)) lastReportId.set(r.student_id, r.id);
+    if (r.own_progress && !lastProgress.has(r.student_id)) {
+      lastProgress.set(r.student_id, r.own_progress);
+    }
   });
 
   // 리포트별 숙제 항목 상태
@@ -91,6 +94,21 @@ export default async function TodayPage({ searchParams }) {
       itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
     });
   }
+
+  // 지난 수업에서 다룬 숙제 항목 = 오늘 검사해야 할 항목
+  const prevIds = [...lastReportId.values()];
+  const prevItemsByReport = new Map();
+  if (prevIds.length > 0) {
+    const { data: prevDri } = await supabase
+      .from("daily_report_items")
+      .select("daily_report_id, homework_item_id")
+      .in("daily_report_id", prevIds);
+    (prevDri || []).forEach((x) => {
+      if (!prevItemsByReport.has(x.daily_report_id)) prevItemsByReport.set(x.daily_report_id, []);
+      prevItemsByReport.get(x.daily_report_id).push(x.homework_item_id);
+    });
+  }
+  const assignedOf = (sid) => prevItemsByReport.get(lastReportId.get(sid)) || [];
 
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
@@ -114,6 +132,8 @@ export default async function TodayPage({ searchParams }) {
           report: rep,
           items: rep ? itemsByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
+          assigned: assignedOf(s.id),
+          reportWritten: !!rep?.report_written,
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -134,6 +154,8 @@ export default async function TodayPage({ searchParams }) {
         report: rep,
         items: rep ? itemsByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
+        assigned: assignedOf(s.id),
+        reportWritten: !!rep?.report_written,
       };
     });
   if (extras.length > 0) {

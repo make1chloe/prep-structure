@@ -54,6 +54,12 @@ export async function saveStudentDay(studentId, date, form) {
   }
 
   // 2) 리포트 본체
+  //    지난 수업에 다룬 숙제 항목이 오늘 모두 검사됐을 때만 '완료'로 본다
+  const assigned = Array.isArray(form.assigned) ? form.assigned : [];
+  const checked = form.items || {};
+  const unchecked = assigned.filter((id) => !checked[id]);
+  const complete = unchecked.length === 0;
+
   const row = {
     student_id: studentId,
     date,
@@ -65,7 +71,7 @@ export async function saveStudentDay(studentId, date, form) {
     sent_total: toInt(form.sent_total),
     own_progress: (form.own_progress || "").trim() || null,
     notice: (form.notice || "").trim() || null,
-    report_written: true,
+    report_written: complete,
   };
   const { data: report, error: repErr } = await supabase
     .from("daily_reports")
@@ -95,5 +101,5 @@ export async function saveStudentDay(studentId, date, form) {
   }
 
   revalidatePath("/today");
-  return { error: null };
+  return { error: null, complete, unchecked: unchecked.length };
 }

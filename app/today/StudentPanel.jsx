@@ -43,13 +43,18 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  const assigned = row.assigned || [];
+  const assignedSet = new Set(assigned);
+  const unchecked = assigned.filter((id) => !marks[id]);
+  const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
+
   const cats = ["자주", ...new Set(items.map((i) => i.category).filter(Boolean)), "전체"];
   const COMMON = ["단어(교재)", "단어(온라인)", "독해", "워크북", "문법", "영작", "듣기", "오답노트"];
   const shown =
     cat === "전체"
       ? items
       : cat === "자주"
-      ? items.filter((i) => COMMON.includes(i.name) || marks[i.id])
+      ? items.filter((i) => COMMON.includes(i.name) || marks[i.id] || assignedSet.has(i.id))
       : items.filter((i) => i.category === cat);
 
   function cycle(id) {
@@ -61,10 +66,17 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
 
   function save() {
     startTransition(async () => {
-      const res = await saveStudentDay(row.student.id, date, { ...form, items: marks });
+      const res = await saveStudentDay(row.student.id, date, {
+        ...form,
+        items: marks,
+        assigned: row.assigned || [],
+      });
       if (res?.error) {
         alert(res.error);
         return;
+      }
+      if (res && res.complete === false) {
+        alert(`저장했지만 아직 완료가 아니에요.\n지난 수업 숙제 ${res.unchecked}개가 검사되지 않았습니다.`);
       }
       onSaved?.();
       router.refresh();
@@ -124,6 +136,18 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
         <div style={{ flex: 1 }}>
+          {assigned.length > 0 && (
+            <p className="hint" style={{ margin: "0 0 6px" }}>
+              지난 수업 숙제 {assigned.length}개
+              {unchecked.length > 0 ? (
+                <b style={{ color: "var(--amber)" }}>
+                  {" "}· 미검사 {unchecked.length}개 ({unchecked.map(nameOf).filter(Boolean).join(", ")})
+                </b>
+              ) : (
+                <b style={{ color: "var(--mint)" }}> · 모두 검사함</b>
+              )}
+            </p>
+          )}
           <div className="row" style={{ gap: 3, marginBottom: 6 }}>
             {cats.map((c) => (
               <button
@@ -144,7 +168,8 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
                   key={i.id}
                   className={`hwchip ${st ? MARK_CLS[st] : ""}`}
                   onClick={() => cycle(i.id)}
-                  title="클릭: 완료 → 미흡 → 미제출 → 없음"
+                  title={assignedSet.has(i.id) ? "지난 수업 숙제 — 검사 필요" : "클릭: 완료 → 미흡 → 미제출 → 없음"}
+                  style={assignedSet.has(i.id) && !st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
                 >
                   {st && <b>{MARK[st]}</b>} {i.name}
                 </button>
@@ -201,7 +226,7 @@ export default function StudentPanel({ row, date, items = [], onSaved }) {
 
       <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
         <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
-          {pending ? "저장 중…" : "저장"}
+          {pending ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
         </button>
       </div>
     </div>
