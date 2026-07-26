@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import AddInquiryForm from "./AddInquiryForm";
+import ApplyLink from "./ApplyLink";
 import ConsultBoard from "./ConsultBoard";
 
 export const dynamic = "force-dynamic";
@@ -38,11 +39,17 @@ export default async function ConsultPage() {
             문의 → 상담 → 레벨테스트 → 등록까지 한 줄로 따라갑니다.
             등록으로 전환하면 이름·연락처가 그대로 재원생으로 넘어가요.
           </p>
-          <div className="row" style={{ marginTop: 10 }}>
+          <div className="row" style={{ marginTop: 10, alignItems: "center", gap: 8 }}>
             <AddInquiryForm />
+            <ApplyLink />
           </div>
         </div>
-        <ConsultBoard rows={rows || []} classes={classes || []} unavailable={!!error} />
+        <ConsultBoard
+          rows={rows || []}
+          classes={classes || []}
+          unavailable={!!error}
+          formReady={(rows || []).length === 0 || "form_submitted_at" in ((rows || [])[0] || {})}
+        />
       </main>
     </>
   );

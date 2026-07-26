@@ -21,6 +21,24 @@ function clean(fd, key) {
   return v || null;
 }
 
+// 양식 링크용 토큰
+function makeToken() {
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6);
+}
+
+// 전화로 받은 건에 양식 링크를 만들어 준다 (엄마가 채워 넣도록)
+export async function ensureFormLink(id) {
+  if (!id) return { error: "id 없음" };
+  const supabase = createClient();
+  const { data } = await supabase.from("inquiries").select("token").eq("id", id).maybeSingle();
+  if (data?.token) return { error: null, token: data.token };
+  const token = makeToken();
+  const { error } = await supabase.from("inquiries").update({ token }).eq("id", id);
+  if (error) return { error: "0018 SQL을 먼저 실행해주세요." };
+  revalidatePath("/consult");
+  return { error: null, token };
+}
+
 export async function addInquiry(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;

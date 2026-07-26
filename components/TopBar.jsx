@@ -31,6 +31,9 @@ export default function TopBar({ profile, active }) {
           <Link href="/textbooks" className={active === "textbooks" ? "on" : ""}>
             교재
           </Link>
+          <Link href="/tuition" className={active === "tuition" ? "on" : ""}>
+            수강료
+          </Link>
           <Link href="/consult" className={active === "consult" ? "on" : ""}>
             상담
           </Link>

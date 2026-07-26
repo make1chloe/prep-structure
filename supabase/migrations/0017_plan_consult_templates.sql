@@ -87,7 +87,6 @@ insert into public.message_templates (name, kind, body, sort) values
 
 {{교재목록}}
 
-교재비: {{교재비}}
 구매: {{구매링크}}
 
 구매가 어려우시면 학원으로 말씀해주세요.', 10),

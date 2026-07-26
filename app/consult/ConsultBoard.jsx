@@ -7,6 +7,7 @@ import {
   setInquiryStatus,
   deleteInquiries,
   convertToStudent,
+  ensureFormLink,
   STATUS,
 } from "./actions";
 
@@ -21,7 +22,12 @@ function dayLabel(d) {
   return `${t.getMonth() + 1}/${t.getDate()} (${dow})`;
 }
 
-export default function ConsultBoard({ rows = [], classes = [], unavailable = false }) {
+export default function ConsultBoard({
+  rows = [],
+  classes = [],
+  unavailable = false,
+  formReady = true,
+}) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -55,6 +61,25 @@ export default function ConsultBoard({ rows = [], classes = [], unavailable = fa
     const n = new Set(sel);
     n.has(id) ? n.delete(id) : n.add(id);
     setSel(n);
+  }
+
+  const [copied, setCopied] = useState(null);
+
+  async function copyLink(r) {
+    const res = await ensureFormLink(r.id);
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    const url = `${window.location.origin}/apply?t=${res.token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(r.id);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      prompt("이 링크를 복사해서 보내주세요", url);
+    }
+    router.refresh();
   }
 
   function run(fn) {
@@ -199,6 +224,13 @@ export default function ConsultBoard({ rows = [], classes = [], unavailable = fa
                   </span>
                   {r.phone && <span className="hint mono">{r.phone}</span>}
                   {r.source && <span className="tag tag-muted">{r.source}</span>}
+                  {formReady && (
+                    r.form_submitted_at ? (
+                      <span className="tag tag-mint">양식 제출</span>
+                    ) : (
+                      <span className="tag tag-muted">양식 미제출</span>
+                    )
+                  )}
                   {r.consult_on && (
                     <span className="hint">
                       상담 {dayLabel(r.consult_on)}
@@ -225,6 +257,11 @@ export default function ConsultBoard({ rows = [], classes = [], unavailable = fa
                       등록으로 전환
                     </button>
                   )}
+                  {formReady && !r.form_submitted_at && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => copyLink(r)}>
+                      {copied === r.id ? "링크 복사됨 ✓" : "양식 링크"}
+                    </button>
+                  )}
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={() => (editing ? setEditId(null) : startEdit(r))}
@@ -233,8 +270,20 @@ export default function ConsultBoard({ rows = [], classes = [], unavailable = fa
                   </button>
                 </div>
 
-                {!editing && (r.memo || r.test_note) && (
+                {!editing && (r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal) && (
                   <div style={{ padding: "0 16px 10px 44px" }}>
+                    {(r.test_want_on || r.visit_on || r.want_days_text || r.want_time) && (
+                      <div className="hint">
+                        <b>학부모 희망:</b>
+                        {r.test_want_on && ` 테스트 ${dayLabel(r.test_want_on)}${r.test_want_at ? ` ${r.test_want_at.slice(0, 5)}` : ""}`}
+                        {r.visit_on && ` · 상담 ${dayLabel(r.visit_on)}${r.visit_at ? ` ${r.visit_at.slice(0, 5)}` : ""}`}
+                        {r.visit_alt && ` (${r.visit_alt})`}
+                        {r.want_days_text && ` · 수업 ${r.want_days_text}`}
+                        {r.want_time && ` ${r.want_time}`}
+                      </div>
+                    )}
+                    {r.prev_academy && <div className="hint"><b>학습 경험:</b> {r.prev_academy}</div>}
+                    {r.goal && <div className="hint"><b>바라는 점:</b> {r.goal}</div>}
                     {r.memo && <div className="hint">{r.memo}</div>}
                     {r.test_note && (
                       <div className="hint">
