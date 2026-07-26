@@ -25,6 +25,19 @@ function dayShort(d) {
   return `${t.getDate()}(${dow})`;
 }
 
+// 3개월을 합쳐서 보면 결국 몇 회를 더 하고 덜 하는지
+function Totals({ months }) {
+  const live = months.reduce((s, m) => s + m.live.length, 0);
+  const base = months.reduce((s, m) => s + (m.base || 0), 0);
+  const diff = live - base;
+  return (
+    <span className={`tag ${diff === 0 ? "tag-mint" : diff > 0 ? "tag-sky" : "tag-amber"}`}>
+      3개월 합계 {live}회 / 기준 {base}회
+      {diff === 0 ? " — 딱 맞음" : diff > 0 ? ` — ${diff}회 많음` : ` — ${-diff}회 부족`}
+    </span>
+  );
+}
+
 export default function ScheduleBoard({
   months = [],
   reviews = [],
@@ -211,6 +224,7 @@ export default function ScheduleBoard({
                   {klass.base_sessions ? ` · 기준 ${klass.base_sessions}회` : " · 기준 없음"}
                 </span>
               </h2>
+              {klass.base_sessions && <Totals months={ms} />}
             </div>
 
             <div className="stack" style={{ gap: 10, marginTop: 10 }}>
@@ -228,17 +242,34 @@ export default function ScheduleBoard({
                   {m.alerts.length > 0 && (
                     <div className="stack" style={{ gap: 4, marginTop: 6 }}>
                       {m.alerts.map((a, i) => (
-                        <div className="unitrow" key={i}>
-                          <span className={`tag ${ALERT_CLS[a.kind] || "tag-muted"}`}>
-                            {a.kind === "over" ? "회차 많음"
-                              : a.kind === "short" ? "회차 부족"
+                        <div className="unitrow" key={i} style={{ alignItems: "flex-start" }}>
+                          <span
+                            className={`tag ${
+                              a.settled ? "tag-mint" : ALERT_CLS[a.kind] || "tag-muted"
+                            }`}
+                          >
+                            {a.kind === "over" ? (a.settled ? "회차 맞음" : "회차 많음")
+                              : a.kind === "short" ? (a.settled ? "회차 맞음" : "회차 부족")
                               : a.kind === "off" ? "휴강"
                               : a.kind === "exam" ? "시험 기간"
                               : "영어 시험 전날"}
                           </span>
-                          <span style={{ fontSize: 12.5, flex: 1 }}>{a.text}</span>
+                          <span style={{ fontSize: 12.5, flex: 1 }}>
+                            {a.text}
+                            {a.advice && (
+                              <>
+                                <br />
+                                <span
+                                  className="muted"
+                                  style={{ fontSize: 12, lineHeight: 1.6 }}
+                                >
+                                  {a.advice}
+                                </span>
+                              </>
+                            )}
+                          </span>
 
-                          {a.kind === "over" && (
+                          {a.kind === "over" && !a.settled && (
                             <select
                               className="input input-sm"
                               style={{ width: 150 }}

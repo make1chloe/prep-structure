@@ -243,6 +243,8 @@ export default async function Home() {
     reviewClass(klass, months3, holAll, exams, roster).forEach((m) => {
       m.alerts
         .filter((a) => a.kind !== "off")
+        // 회차 알림은 상쇄 구간의 첫 달에만 — 같은 말이 두 번 뜨지 않게
+        .filter((a) => a.primary !== false)
         .forEach((a) => scheduleAlerts.push({ klass: klass.name, ym: m.ym, ...a }));
     });
   });
@@ -411,6 +413,15 @@ export default async function Home() {
                       {scheduleAlerts.slice(0, 8).map((a, i) => (
                         <div className="hint" key={i}>
                           <b>{a.klass}</b> {Number(a.ym.slice(5))}월 · {a.text}
+                          {a.advice && (
+                            <>
+                              <br />
+                              <span style={{ opacity: 0.8 }}>
+                                {a.settled ? "✓ " : "→ "}
+                                {a.advice}
+                              </span>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
