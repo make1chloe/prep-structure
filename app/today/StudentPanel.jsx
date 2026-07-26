@@ -296,7 +296,10 @@ export default function StudentPanel({
           {toCheck.length > 0 && (
             <>
               <p className="hint" style={{ margin: "0 0 6px" }}>
-                지난 수업에 낸 숙제 {toCheck.length}개
+                {row.assignedFrom
+                  ? `${row.assignedFrom.slice(5).replace("-", "/")} 수업에 낸 숙제 `
+                  : "지난 수업에 낸 숙제 "}
+                {toCheck.length}개
                 {unchecked.length > 0 ? (
                   <b style={{ color: "var(--amber)" }}> · 미검사 {unchecked.length}개</b>
                 ) : (

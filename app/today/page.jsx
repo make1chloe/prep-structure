@@ -142,7 +142,12 @@ export default async function TodayPage({ searchParams }) {
   });
 
   // 지난 수업에서 '배정한' 숙제 = 오늘 검사해야 할 항목
-  const prevIds = [...lastReportId.values()];
+  //
+  // 주의: "가장 최근 리포트" 하나만 보면 사슬이 끊긴다.
+  //   예) 8/3 숙제 냄 → 8/5 결석(출결만 저장, 숙제 없음) → 8/10 검사 대상 0개
+  // 그래서 학생별로 **배정이 있었던 가장 최근 리포트**를 찾고,
+  // 그 뒤에 검사된 적이 없으면 계속 검사 대상으로 남긴다.
+  const prevIds = [...new Set((prevReports || []).map((r) => r.id))];
   const prevAssigned = new Map();
   const prevUnitOf = new Map(); // `${studentId}|${itemId}` → { unitId, note }
   const prevReportStudent = new Map(
@@ -152,15 +157,56 @@ export default async function TodayPage({ searchParams }) {
     idsOf(x).forEach((id) => unitIds.add(id));
     if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
     prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
-    const sid = prevReportStudent.get(x.daily_report_id);
-    if (sid) {
-      prevUnitOf.set(`${sid}|${x.homework_item_id}`, {
-        unitIds: idsOf(x),
-        note: x.range_note || "",
-      });
-    }
   });
-  const toCheckOf = (sid) => prevAssigned.get(lastReportId.get(sid)) || [];
+
+  // 학생별: 배정이 있었던 가장 최근 리포트 (날짜 내림차순으로 첫 번째)
+  const lastAssignedReport = new Map();
+  const lastAssignedDate = new Map();
+  (prevReports || []).forEach((r) => {
+    if (lastAssignedReport.has(r.student_id)) return;      // 이미 더 최근 것을 잡았다
+    if (!(prevAssigned.get(r.id) || []).length) return;    // 이 리포트엔 배정이 없다 → 건너뛴다
+    lastAssignedReport.set(r.student_id, r.id);
+    lastAssignedDate.set(r.student_id, r.date);
+  });
+
+  // 그 배정이 이후 수업에서 이미 검사됐는지 확인 (검사됐으면 다시 안 물어본다)
+  const checkedAfter = new Map(); // studentId → Set(itemId)
+  (await loadItems(prevIds)).forEach((x) => {
+    if (x.status === "assigned") return;
+    const sid = prevReportStudent.get(x.daily_report_id);
+    if (!sid) return;
+    const rep = (prevReports || []).find((r) => r.id === x.daily_report_id);
+    const since = lastAssignedDate.get(sid);
+    if (!rep || !since || rep.date <= since) return;       // 배정보다 뒤에 검사한 것만
+    if (!checkedAfter.has(sid)) checkedAfter.set(sid, new Set());
+    checkedAfter.get(sid).add(x.homework_item_id);
+  });
+
+  (prevReports || []).forEach((r) => {
+    const rid = lastAssignedReport.get(r.student_id);
+    if (rid !== r.id) return;
+    (prevAssigned.get(r.id) || []).forEach((iid) => {
+      prevUnitOf.set(`${r.student_id}|${iid}`, prevUnitOf.get(`${r.student_id}|${iid}`) || {});
+    });
+  });
+
+  // 단원·범위 메모는 배정 줄에서 다시 읽는다
+  (await loadItems(prevIds, true)).forEach((x) => {
+    const sid = prevReportStudent.get(x.daily_report_id);
+    if (!sid || lastAssignedReport.get(sid) !== x.daily_report_id) return;
+    prevUnitOf.set(`${sid}|${x.homework_item_id}`, {
+      unitIds: idsOf(x),
+      note: x.range_note || "",
+    });
+  });
+
+  const toCheckOf = (sid) => {
+    const rid = lastAssignedReport.get(sid);
+    if (!rid) return [];
+    const done = checkedAfter.get(sid) || new Set();
+    return (prevAssigned.get(rid) || []).filter((iid) => !done.has(iid));
+  };
+  const assignedFromOf = (sid) => lastAssignedDate.get(sid) || null;
   const assignedUnitsOf = (sid) => {
     const out = {};
     toCheckOf(sid).forEach((iid) => {
@@ -404,6 +450,7 @@ export default async function TodayPage({ searchParams }) {
           items: rep ? itemsByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
           toCheck: toCheckOf(s.id),
+          assignedFrom: assignedFromOf(s.id),
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
@@ -431,6 +478,7 @@ export default async function TodayPage({ searchParams }) {
         items: rep ? itemsByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
         toCheck: toCheckOf(s.id),
+        assignedFrom: assignedFromOf(s.id),
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),

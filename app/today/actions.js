@@ -85,9 +85,11 @@ export async function saveStudentDay(studentId, date, form) {
 
   // 2) 리포트 본체
   //    지난 수업에 '배정한' 숙제가 오늘 모두 검사됐을 때만 '완료'로 본다
+  //    단, 결석이면 검사할 게 없으므로 완료로 본다 (숙제는 다음 수업에 검사한다)
   const toCheck = Array.isArray(form.toCheck) ? form.toCheck : [];
   const checked = form.items || {};
-  const unchecked = toCheck.filter((id) => !checked[id]);
+  const absent = form.attendance === "absent";
+  const unchecked = absent ? [] : toCheck.filter((id) => !checked[id]);
   const complete = unchecked.length === 0;
 
   const row = {

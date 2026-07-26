@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setAttendance, clearAttendance, reopenReport } from "./actions";
+import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
 
 const ATT = [
@@ -49,6 +49,21 @@ export default function TodayBoard({
       router.refresh();
     });
   }
+  // 결석 예정 학생의 리포트를 만들어 둔다 → 발송 목록에 '결석 안내'로 뜬다
+  function markAbsent(studentId, reason) {
+    startTransition(async () => {
+      const res = await saveStudentDay(studentId, date, {
+        attendance: "absent",
+        notice: reason ? `${reason}로 결석했습니다.` : "",
+        items: {},
+        toCheck: [],
+        nextHomework: [],
+      });
+      if (res?.error) alert(res.error);
+      router.refresh();
+    });
+  }
+
   function reopen(studentId) {
     startTransition(async () => {
       const res = await reopenReport(studentId, date);
@@ -156,6 +171,18 @@ export default function TodayBoard({
                             {r.plannedAbsent && (
                               <span className="tag tag-amber">
                                 결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
+                              </span>
+                            )}
+                            {r.plannedAbsent && !r.reportWritten && (
+                              <span
+                                className="btn btn-ghost btn-sm"
+                                title="결석 안내를 보낼 수 있도록 기록을 만들어 둡니다"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAbsent(r.student.id, r.absenceReason);
+                                }}
+                              >
+                                결석 기록
                               </span>
                             )}
                             {(() => {
