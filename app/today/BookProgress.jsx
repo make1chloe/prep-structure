@@ -162,6 +162,7 @@ export default function BookProgress({ studentId, book }) {
                             }
                           >
                             {done && <b>○</b>} {u.name}
+                            {u.activity ? <span className="hint"> · {u.activity}</span> : null}
                             {u.amount ? <span className="hint"> {u.amount}</span> : null}
                           </button>
                         );

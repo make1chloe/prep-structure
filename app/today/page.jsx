@@ -176,11 +176,11 @@ export default async function TodayPage({ searchParams }) {
   // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름
   const { data: books } = await supabase
     .from("textbooks")
-    .select("id, name, status, total_pages")
+    .select("id, name, status, total_pages, area")
     .order("name", { ascending: true });
   const textbooks = (books || [])
     .filter((b) => !b.status || b.status === "active")
-    .map((b) => ({ id: b.id, name: b.name }));
+    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
 
   const { data: classBooks } = await supabase
     .from("class_textbooks")
@@ -197,7 +197,7 @@ export default async function TodayPage({ searchParams }) {
     const { data: all } = bookIds.length
       ? await supabase
           .from("textbook_units")
-          .select("id, name, parent_id, textbook_id, page_start, page_end, total_pages")
+          .select("id, name, parent_id, textbook_id, page_start, page_end, total_pages, label")
           .in("textbook_id", bookIds)
       : { data: [] };
     const byId = new Map((all || []).map((u) => [u.id, u]));
@@ -217,7 +217,12 @@ export default async function TodayPage({ searchParams }) {
         : u.page_start && u.page_end
         ? `${u.page_end - u.page_start + 1}p`
         : "";
-      unitNames[u.id] = { path: chain.join(" › ") + pages, amount, textbookId: u.textbook_id };
+      unitNames[u.id] = {
+        path: chain.join(" › ") + pages,
+        amount,
+        activity: u.label || "",
+        textbookId: u.textbook_id,
+      };
     });
   }
 
@@ -321,6 +326,7 @@ export default async function TodayPage({ searchParams }) {
   }
 
   const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+  const bookAreaOf = new Map((books || []).map((b) => [b.id, b.area || ""]));
   const bookPagesOf = new Map((books || []).map((b) => [b.id, b.total_pages || 0]));
 
   // 진도율 = 완료한 단원 ÷ 전체 단원 (분량이 있으면 분량 기준)
@@ -352,6 +358,7 @@ export default async function TodayPage({ searchParams }) {
       return {
         id: tid,
         name: bookNameOf.get(tid) || "교재",
+        area: bookAreaOf.get(tid) || "",
         doneUnits,
         totalUnits,
         donePages,

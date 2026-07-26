@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered } from "./actions";
 import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
+import StudentBooks from "./StudentBooks";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -58,6 +59,23 @@ export default function StudentPanel({
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
   const defaultBook = classTextbookIds[0] || (textbooks.length === 1 ? textbooks[0].id : "");
+
+  // 숙제 분류와 교재 영역이 같으면 그 교재를 자동으로 고른다
+  //   독해 숙제 → 이 학생의 독해 교재 (예: 수능딥독3)
+  const AREA_OF = { 단어: "단어", 독해: "독해", 문법: "문법", 내신: "내신", 듣기: "듣기", 영작: "영작" };
+  const myBooks = row.books || [];
+  function bookFor(itemId) {
+    const item = items.find((i) => i.id === itemId);
+    const area = AREA_OF[item?.category] || "";
+    if (area) {
+      // 이 학생에게 배정된 교재 중 같은 영역 우선
+      const mine = myBooks.find((b) => b.area === area);
+      if (mine) return mine.id;
+      const any = textbooks.find((b) => b.area === area);
+      if (any) return any.id;
+    }
+    return myBooks[0]?.id || defaultBook;
+  }
   const [nextUnits, setNextUnits] = useState(() => {
     const seed = {};
     Object.entries(row.nextUnits || {}).forEach(([iid, v]) => {
@@ -165,7 +183,12 @@ export default function StudentPanel({
       if (hit) return hit;
     }
     const n = unitNames[unitId];
-    return n ? { id: unitId, big: n.path, mid: "", small: "", activity: "", pages: "", amount: n.amount || "" } : null;
+    return n
+      ? {
+          id: unitId, big: n.path, mid: "", small: "",
+          activity: n.activity || "", pages: "", amount: n.amount || "",
+        }
+      : null;
   }
   function unitText(unitId) {
     const m = unitMeta(unitId);
@@ -315,6 +338,7 @@ export default function StudentPanel({
                             return (
                               <span className="tag tag-sky" key={uid}>
                                 {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
+                                {m?.activity ? ` · ${m.activity}` : ""}
                                 {m?.amount ? ` · ${m.amount}` : m?.pages ? ` · ${m.pages}` : ""}
                               </span>
                             );
@@ -395,16 +419,24 @@ export default function StudentPanel({
       </div>
 
       {/* 사용중인 교재 · 단원 진도 (순서 무관 체크) */}
-      {(row.books || []).length > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
-          <div className="row" style={{ gap: 6, flex: 1 }}>
-            {(row.books || []).map((b) => (
-              <BookProgress key={b.id} studentId={row.student.id} book={b} />
-            ))}
-          </div>
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
+        <div className="row" style={{ gap: 6, flex: 1 }}>
+          {myBooks.map((b) => (
+            <BookProgress key={b.id} studentId={row.student.id} book={b} />
+          ))}
+          {myBooks.length === 0 && (
+            <span className="hint" style={{ alignSelf: "center" }}>
+              배정된 교재가 없어요.
+            </span>
+          )}
+          <StudentBooks
+            studentId={row.student.id}
+            myBooks={myBooks}
+            textbooks={textbooks}
+          />
         </div>
-      )}
+      </div>
 
       {/* 다음 숙제 배정 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
@@ -429,8 +461,9 @@ export default function StudentPanel({
                           n.delete(i.id);
                         } else {
                           n.add(i.id);
-                          setUnitField(i.id, {});
-                          loadBook(defaultBook);
+                          const b = bookFor(i.id);
+                          setUnitField(i.id, { textbookId: b });
+                          loadBook(b);
                         }
                         setNext(n);
                       }}
@@ -468,9 +501,22 @@ export default function StudentPanel({
                       title="여기서 교재를 바꿔 다른 교재 단원도 이어서 추가할 수 있어요"
                     >
                       <option value="">교재 선택</option>
-                      {textbooks.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
+                      {myBooks.length > 0 && (
+                        <optgroup label="이 학생 교재">
+                          {myBooks.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.area ? `[${t.area}] ` : ""}{t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="전체 교재">
+                        {textbooks.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.area ? `[${t.area}] ` : ""}{t.name}
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
                     <select
                       className="input input-sm"
@@ -514,6 +560,7 @@ export default function StudentPanel({
                               title="클릭하면 뺍니다"
                             >
                               {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
+                              {m?.activity ? ` · ${m.activity}` : ""}
                               {m?.pages ? ` · ${m.pages}` : ""}
                               {m?.amount ? ` · 분량 ${m.amount}` : ""} ✕
                             </button>
