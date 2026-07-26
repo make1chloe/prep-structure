@@ -164,3 +164,9 @@ a { color: inherit; }
 }
 .bookprog .bar { height: 5px; margin-top: 5px; border-radius: 999px; background: var(--border); overflow: hidden; }
 .bookprog .bar span { display: block; height: 100%; background: var(--sky); border-radius: 999px; }
+.reportbox {
+  margin: 0; padding: 10px 16px 14px 44px;
+  background: var(--surface-2); border-top: 1px solid var(--border);
+  font-family: var(--font); font-size: 13px; line-height: 1.65;
+  white-space: pre-wrap; word-break: break-word; color: var(--text);
+}
