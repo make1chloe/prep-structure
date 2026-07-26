@@ -431,6 +431,27 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 오늘 일정 — 전달사항으로 아직 안 깐 것
+  const { data: todayTasks } = await supabase
+    .from("tasks")
+    .select("id, title, due_on, start_time, category, deliver_body, kind")
+    .eq("due_on", date)
+    .order("start_time", { ascending: true });
+  const pendingTaskIds = (todayTasks || []).filter((t) => t.deliver_body).map((t) => t.id);
+  const { data: madeNotices } = pendingTaskIds.length
+    ? await supabase.from("notices").select("task_id").in("task_id", pendingTaskIds).eq("date", date)
+    : { data: [] };
+  const madeSet = new Set((madeNotices || []).map((n) => n.task_id));
+  const taskCards = (todayTasks || []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    time: t.start_time ? t.start_time.slice(0, 5) : "",
+    category: t.category || "",
+    kind: t.kind,
+    deliverBody: t.deliver_body || "",
+    applied: madeSet.has(t.id),
+  }));
+
   // 공지 폼에 쓸 오늘 로스터 (반 정보 포함)
   const rosterStudents = [];
   const seenRoster = new Set();
@@ -482,6 +503,7 @@ export default async function TodayPage({ searchParams }) {
           classes={groups.map((g) => ({ id: g.klass.id, name: g.klass.name }))}
           students={rosterStudents}
           notices={noticeCards}
+          tasks={taskCards}
           unavailable={!noticesAvailable}
         />
         <TodayBoard

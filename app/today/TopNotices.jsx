@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createNotice, deleteNotice } from "./actions";
+import { applyTasksDelivery } from "@/app/tasks/actions";
 
 const SCOPES = [
   { key: "all", label: "전체" },
@@ -29,6 +30,7 @@ export default function TopNotices({
   classes = [],
   students = [],
   notices = [],
+  tasks = [],
   unavailable = false,
 }) {
   const [open, setOpen] = useState(false);
@@ -90,6 +92,20 @@ export default function TopNotices({
     });
   }
 
+  const pendingTasks = tasks.filter((t) => t.deliverBody && !t.applied);
+
+  function applyTasks(ids) {
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      const res = await applyTasksDelivery(ids, date);
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   if (unavailable) {
     return (
       <div className="card" style={{ marginTop: 12 }}>
@@ -111,11 +127,52 @@ export default function TopNotices({
           {undone.length > 0 && (
             <b style={{ color: "var(--amber)" }}> · 아직 전달 안 한 항목 {undone.length}건</b>
           )}
+          {pendingTasks.length > 0 && (
+            <b style={{ color: "var(--lav)" }}> · 오늘 일정에서 만들 전달사항 {pendingTasks.length}건</b>
+          )}
         </span>
       </button>
 
       {open && (
         <div style={{ padding: "12px 16px 14px" }}>
+          {tasks.length > 0 && (
+            <div className="card card-tight" style={{ marginBottom: 12, background: "var(--surface-2)" }}>
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                <b style={{ fontSize: 13 }}>오늘 일정 {tasks.length}건</b>
+                {pendingTasks.length > 0 && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => applyTasks(pendingTasks.map((t) => t.id))}
+                    disabled={pending}
+                  >
+                    전달사항 {pendingTasks.length}건 한 번에 만들기
+                  </button>
+                )}
+              </div>
+              <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+                {tasks.map((t) => (
+                  <div className="unitrow" key={t.id}>
+                    {t.time && <span className="hint" style={{ minWidth: 38 }}>{t.time}</span>}
+                    <b style={{ fontSize: 12.5 }}>{t.title}</b>
+                    {t.category && <span className="tag tag-muted">{t.category}</span>}
+                    <span className="spacer" />
+                    {t.deliverBody &&
+                      (t.applied ? (
+                        <span className="tag tag-mint">전달사항 만듦</span>
+                      ) : (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => applyTasks([t.id])}
+                          disabled={pending}
+                        >
+                          전달사항 만들기
+                        </button>
+                      ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="row" style={{ gap: 4 }}>
             {KINDS.map((k) => (
               <button
