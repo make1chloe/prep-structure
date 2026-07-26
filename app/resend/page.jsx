@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
-import ReportSender from "./ReportSender";
+import ResendBoard from "./ResendBoard";
 import { loadReportRows } from "@/lib/reportData";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportPage({ searchParams }) {
+export default async function ResendPage({ searchParams }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -20,20 +20,20 @@ export default async function ReportPage({ searchParams }) {
   const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
   const date = searchParams?.d || seoul.toISOString().slice(0, 10);
 
-  const { rows, sendReady } = await loadReportRows(supabase, date);
+  const { rows, resendReady } = await loadReportRows(supabase, date);
 
   return (
     <>
-      <TopBar profile={profile} active="report" />
+      <TopBar profile={profile} active="resend" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">데일리리포트</p>
-          <h1 className="h1">학부모 발송</h1>
+          <p className="eyebrow">재발송</p>
+          <h1 className="h1">숙제 문자 · 리포트 다시 보내기</h1>
           <p className="sub">
-            오늘 수업에서 입력한 내용으로 문구가 자동으로 만들어집니다. 확인하고 고친 뒤 보내세요.
+            이미 보낸 문구를 고쳐서 다시 보내거나, 숙제만 따로 보낼 때 쓰는 화면이에요.
           </p>
         </div>
-        <ReportSender date={date} rows={rows} sendReady={sendReady} />
+        <ResendBoard date={date} rows={rows} ready={resendReady} />
       </main>
     </>
   );

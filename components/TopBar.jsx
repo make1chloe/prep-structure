@@ -34,6 +34,9 @@ export default function TopBar({ profile, active }) {
           <Link href="/report" className={active === "report" ? "on" : ""}>
             발송
           </Link>
+          <Link href="/resend" className={active === "resend" ? "on" : ""}>
+            재발송
+          </Link>
           <Link href="/homework" className={active === "homework" ? "on" : ""}>
             학습 항목
           </Link>
