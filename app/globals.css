@@ -181,3 +181,31 @@ a { color: inherit; }
 .hwcard-head:hover { background: var(--surface-2); }
 .hwcard-body { padding: 0 14px 14px; border-top: 1px dashed var(--border); padding-top: 12px; }
 .tag-red { background: var(--red-soft); color: var(--red); border-color: transparent; }
+
+/* 메뉴 묶음 */
+.navgroup { position: relative; }
+.navgroup > summary {
+  list-style: none; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--text-muted);
+  padding: 7px 12px; border-radius: 8px; white-space: nowrap;
+}
+.navgroup > summary::-webkit-details-marker { display: none; }
+.navgroup > summary:hover { background: var(--surface-2); color: var(--text); }
+.navgroup > summary.on { color: var(--navy); background: var(--surface-2); }
+.navmenu {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
+  min-width: 170px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.navmenu a {
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  text-decoration: none; padding: 8px 10px; border-radius: 8px; white-space: nowrap;
+}
+.navmenu a:hover { background: var(--surface-2); color: var(--text); }
+.navmenu a.on { color: var(--navy); background: var(--surface-2); }
+@media (max-width: 900px) {
+  .topbar-in { gap: 8px; }
+  .nav { overflow-x: auto; }
+}

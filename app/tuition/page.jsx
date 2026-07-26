@@ -55,6 +55,8 @@ export default async function TuitionPage({ searchParams }) {
   const studentById = new Map((students || []).map((s) => [s.id, s]));
 
   let total = 0;
+  let totalCredit = 0;
+  let totalMakeup = 0;
   const groups = (classes || []).map((klass) => {
     const { all, off, live } = classSessions(ym, klass, holidays || []);
     const base = klass.base_sessions || live.length;
@@ -66,13 +68,17 @@ export default async function TuitionPage({ searchParams }) {
       .filter(Boolean)
       .map((s) => {
         const unit = s.tuition || klass.tuition || null;
-        const calc = studentAmount(live, base, unit, s);
+        const calc = studentAmount(live, base, unit, s, all);
         return { student: s, ...calc };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
     const sum = rows.reduce((a, r) => a + (r.amount || 0), 0);
+    const makeupSum = rows.reduce((a, r) => a + (r.makeupNeeded || 0), 0);
+    const creditSum = rows.reduce((a, r) => a + (r.credit || 0), 0);
     total += sum;
-    return { klass, all, off, live, base, rows, sum };
+    totalCredit += creditSum;
+    totalMakeup += makeupSum;
+    return { klass, all, off, live, base, rows, sum, makeupSum, creditSum };
   });
 
   return (
@@ -83,7 +89,8 @@ export default async function TuitionPage({ searchParams }) {
           <p className="eyebrow">수강료</p>
           <h1 className="h1">이번 달 회차 · 수강료</h1>
           <p className="sub">
-            휴강을 넣으면 회차가 줄고 수강료가 자동으로 계산됩니다. 입금 관리는 하지 않고, 금액만 보여줍니다.
+            휴강이 있어도 <b>수강료는 깎지 않고 보강으로 채웁니다.</b>
+            보강을 못 해줄 경우 다음 달에 덜 받을 <b>차액</b>도 함께 계산해둡니다.
           </p>
         </div>
         <TuitionBoard
@@ -91,6 +98,8 @@ export default async function TuitionPage({ searchParams }) {
           groups={groups}
           holidays={holidays || []}
           total={total}
+          totalCredit={totalCredit}
+          totalMakeup={totalMakeup}
           unavailable={!ready}
         />
       </main>

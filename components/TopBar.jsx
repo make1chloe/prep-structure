@@ -8,6 +8,53 @@ const ROLE_LABEL = {
   parent: "학부모",
 };
 
+// 늘 보이는 것 — 매일 쓰는 화면만
+const MAIN = [
+  { href: "/", key: "home", label: "대시보드" },
+  { href: "/today", key: "today", label: "오늘 수업" },
+  { href: "/plan", key: "plan", label: "수업 준비" },
+  { href: "/report", key: "report", label: "발송" },
+];
+
+// 묶어서 넣는 것
+const GROUPS = [
+  {
+    label: "학생 · 반",
+    keys: ["students", "classes", "consult"],
+    items: [
+      { href: "/students", key: "students", label: "재원생" },
+      { href: "/classes", key: "classes", label: "반 · 학생 배정" },
+      { href: "/consult", key: "consult", label: "신규 상담" },
+    ],
+  },
+  {
+    label: "교재 · 숙제",
+    keys: ["textbooks", "homework"],
+    items: [
+      { href: "/textbooks", key: "textbooks", label: "교재 · 단원" },
+      { href: "/homework", key: "homework", label: "학습 항목" },
+    ],
+  },
+  {
+    label: "일정 · 정산",
+    keys: ["tasks", "todo", "tuition"],
+    items: [
+      { href: "/tasks", key: "tasks", label: "일정" },
+      { href: "/todo", key: "todo", label: "할일" },
+      { href: "/tuition", key: "tuition", label: "수강료" },
+    ],
+  },
+  {
+    label: "설정",
+    keys: ["resend", "import", "settings"],
+    items: [
+      { href: "/resend", key: "resend", label: "재발송" },
+      { href: "/import", key: "import", label: "노션 이관" },
+      { href: "/settings", key: "settings", label: "발송 · 연동 설정" },
+    ],
+  },
+];
+
 export default function TopBar({ profile, active }) {
   return (
     <header className="topbar">
@@ -15,53 +62,31 @@ export default function TopBar({ profile, active }) {
         <Link href="/" className="brand">
           <span className="mark">클</span> 클로이영어
         </Link>
+
         <nav className="nav">
-          <Link href="/" className={active === "home" ? "on" : ""}>
-            대시보드
-          </Link>
-          <Link href="/today" className={active === "today" ? "on" : ""}>
-            오늘 수업
-          </Link>
-          <Link href="/students" className={active === "students" ? "on" : ""}>
-            학생
-          </Link>
-          <Link href="/classes" className={active === "classes" ? "on" : ""}>
-            반
-          </Link>
-          <Link href="/textbooks" className={active === "textbooks" ? "on" : ""}>
-            교재
-          </Link>
-          <Link href="/tuition" className={active === "tuition" ? "on" : ""}>
-            수강료
-          </Link>
-          <Link href="/consult" className={active === "consult" ? "on" : ""}>
-            상담
-          </Link>
-          <Link href="/plan" className={active === "plan" ? "on" : ""}>
-            미리 작성
-          </Link>
-          <Link href="/tasks" className={active === "tasks" ? "on" : ""}>
-            일정
-          </Link>
-          <Link href="/todo" className={active === "todo" ? "on" : ""}>
-            할일
-          </Link>
-          <Link href="/report" className={active === "report" ? "on" : ""}>
-            발송
-          </Link>
-          <Link href="/resend" className={active === "resend" ? "on" : ""}>
-            재발송
-          </Link>
-          <Link href="/homework" className={active === "homework" ? "on" : ""}>
-            학습 항목
-          </Link>
-          <Link href="/import" className={active === "import" ? "on" : ""}>
-            이관
-          </Link>
-          <Link href="/settings" className={active === "settings" ? "on" : ""}>
-            설정
-          </Link>
+          {MAIN.map((m) => (
+            <Link key={m.key} href={m.href} className={active === m.key ? "on" : ""}>
+              {m.label}
+            </Link>
+          ))}
+
+          {GROUPS.map((g) => {
+            const on = g.keys.includes(active);
+            return (
+              <details key={g.label} className="navgroup">
+                <summary className={on ? "on" : ""}>{g.label} ▾</summary>
+                <div className="navmenu">
+                  {g.items.map((it) => (
+                    <Link key={it.key} href={it.href} className={active === it.key ? "on" : ""}>
+                      {it.label}
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            );
+          })}
         </nav>
+
         <div className="spacer" />
         <span className="who">
           <b>{profile?.name || "사용자"}</b>{" "}

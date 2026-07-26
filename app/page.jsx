@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
+import MakeupInbox from "./MakeupInbox";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +146,39 @@ export default async function Home() {
     .slice(0, 6)
     .map(([sid, n]) => ({ name: nameOf.get(sid) || "", count: n }));
 
+  // ---------- 보강 잡을 것 ----------
+  // 최근 한 달 결석 중, 그 날짜를 원 결석일로 하는 보강이 아직 없는 건
+  const monthAgo = iso(new Date(seoul.getTime() - 30 * 86400000));
+  let { data: absences } = await supabase
+    .from("attendance")
+    .select("student_id, date, status, planned, reason")
+    .eq("status", "absent")
+    .gte("date", monthAgo)
+    .lte("date", weekEnd);
+  if (!absences) {
+    ({ data: absences } = await supabase
+      .from("attendance")
+      .select("student_id, date, status")
+      .eq("status", "absent")
+      .gte("date", monthAgo)
+      .lte("date", weekEnd));
+  }
+  const { data: makeups } = await supabase
+    .from("attendance")
+    .select("student_id, makeup_of")
+    .eq("status", "makeup")
+    .not("makeup_of", "is", null);
+  const doneMakeup = new Set(
+    (makeups || []).map((m) => `${m.student_id}|${m.makeup_of}`)
+  );
+  const daysOfClass = new Map((allClasses || []).map((c) => [c.id, c.days || []]));
+  const daysOfStudent = new Map();
+  (members || []).forEach((m) => {
+    const cur = daysOfStudent.get(m.student_id) || new Set();
+    (daysOfClass.get(m.class_id) || []).forEach((d) => cur.add(d));
+    daysOfStudent.set(m.student_id, cur);
+  });
+
   // ---------- 새 소식 ----------
   const reqQ = await supabase
     .from("requests")
@@ -173,6 +207,19 @@ export default async function Home() {
     .is("sent_at", null);
   const unsent = sendQ.error ? [] : sendQ.data || [];
 
+  const makeupRows = (absences || [])
+    .filter((a) => !doneMakeup.has(`${a.student_id}|${a.date}`))
+    .map((a) => ({
+      studentId: a.student_id,
+      name: nameOf.get(a.student_id) || "",
+      date: a.date,
+      planned: !!a.planned,
+      reason: a.reason || "",
+      classDays: [...(daysOfStudent.get(a.student_id) || [])],
+    }))
+    .filter((a) => a.name)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   const label = `${seoul.getMonth() + 1}월 ${seoul.getDate()}일 (${dow})`;
 
   return (
@@ -196,6 +243,11 @@ export default async function Home() {
               학부모 알림 {requests.length}건
             </span>
           )}
+          {makeupRows.length > 0 && (
+            <span className="btn" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
+              보강 잡을 것 {makeupRows.length}건
+            </span>
+          )}
           {inquiries.length > 0 && (
             <Link className="btn" href="/consult">진행중 상담 {inquiries.length}건</Link>
           )}
@@ -211,6 +263,7 @@ export default async function Home() {
           {/* 새 소식 · 특이사항 */}
           <div className="stack" style={{ gap: 14 }}>
             <RequestInbox requests={requests} />
+            <MakeupInbox rows={makeupRows} />
 
             <div className="card">
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>

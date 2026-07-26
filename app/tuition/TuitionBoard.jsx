@@ -26,6 +26,8 @@ export default function TuitionBoard({
   groups = [],
   holidays = [],
   total = 0,
+  totalCredit = 0,
+  totalMakeup = 0,
   unavailable = false,
 }) {
   const [open, setOpen] = useState(() => new Set(groups.map((g) => g.klass.id)));
@@ -84,13 +86,19 @@ export default function TuitionBoard({
         <span className="tag tag-mint" style={{ fontSize: 13, padding: "5px 12px" }}>
           이번 달 합계 <b>{won(total)}</b>
         </span>
+        {totalMakeup > 0 && (
+          <span className="tag tag-amber" style={{ fontSize: 13, padding: "5px 12px" }}>
+            보강 필요 <b>{totalMakeup}회</b> · 차액 {won(totalCredit)}
+          </span>
+        )}
       </div>
 
       {/* 휴강일 */}
       <div className="card" style={{ marginTop: 12 }}>
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>휴강일</h2>
         <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
-          휴강으로 넣으면 그 날짜가 회차에서 빠지고, 수강료가 자동으로 줄어듭니다.
+          휴강으로 넣으면 그 날짜가 회차에서 빠집니다. <b>수강료는 그대로</b>이고,
+          대신 학생마다 <b>보강 필요 횟수</b>와 <b>차액</b>이 계산됩니다.
         </p>
         <div className="row" style={{ gap: 6, alignItems: "center" }}>
           <input
@@ -151,7 +159,7 @@ export default function TuitionBoard({
 
       {/* 반별 */}
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
-        {groups.map(({ klass, live, off, all, base, rows, sum }) => {
+        {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum }) => {
           const opened = open.has(klass.id);
           const editing = editClass === klass.id;
           return (
@@ -164,8 +172,11 @@ export default function TuitionBoard({
                   </span>
                 </span>
                 <span className="muted" style={{ fontSize: 12.5 }}>
-                  {live.length}회{off.length > 0 && ` (휴강 ${off.length}회 제외)`} · 기준 {base}회 ·{" "}
+                  {live.length}회{off.length > 0 && ` (휴강 ${off.length}회)`} · 기준 {base}회 ·{" "}
                   <b>{won(sum)}</b>
+                  {makeupSum > 0 && (
+                    <b style={{ color: "var(--amber)" }}> · 보강 {makeupSum}회</b>
+                  )}
                 </span>
               </button>
 
@@ -254,6 +265,7 @@ export default function TuitionBoard({
                         <tr>
                           <th style={{ minWidth: 90 }}>학생</th>
                           <th style={{ width: 70 }}>회차</th>
+                          <th style={{ width: 84 }}>보강 필요</th>
                           <th style={{ width: 100 }}>등원 시작</th>
                           <th style={{ width: 100 }}>퇴원</th>
                           <th style={{ width: 110 }}>금액</th>
@@ -268,7 +280,16 @@ export default function TuitionBoard({
                               <td style={{ fontWeight: 600 }}>{r.student.name}</td>
                               <td>
                                 {r.sessions}/{r.base}
-                                {!r.full && <span className="tag tag-amber" style={{ marginLeft: 4 }}>일부</span>}
+                                {!r.full && <span className="tag tag-muted" style={{ marginLeft: 4 }}>일부</span>}
+                              </td>
+                              <td>
+                                {r.makeupNeeded > 0 ? (
+                                  <span className="tag tag-amber" title={`차액 ${won(r.credit)}`}>
+                                    {r.makeupNeeded}회 · {won(r.credit)}
+                                  </span>
+                                ) : (
+                                  <span className="hint">—</span>
+                                )}
                               </td>
                               {se ? (
                                 <>
