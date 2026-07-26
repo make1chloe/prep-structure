@@ -42,6 +42,15 @@ export default async function TextbooksPage({ searchParams }) {
       .order("created_at", { ascending: false }));
   }
 
+  // 교재별 단원 개수 — 어느 교재를 아직 안 채웠는지 한눈에 보기 위해
+  const { data: allUnits } = await supabase
+    .from("textbook_units")
+    .select("textbook_id");
+  const unitCount = {};
+  (allUnits || []).forEach((u) => {
+    unitCount[u.textbook_id] = (unitCount[u.textbook_id] || 0) + 1;
+  });
+
   const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
 
@@ -81,7 +90,11 @@ export default async function TextbooksPage({ searchParams }) {
               <div className="err">불러오기 실패: {tbError.message}</div>
             </div>
           ) : (
-            <TextbookList textbooks={textbooks || []} selectedId={selectedId} />
+            <TextbookList
+              textbooks={textbooks || []}
+              unitCount={unitCount}
+              selectedId={selectedId}
+            />
           )}
         </div>
 

@@ -28,13 +28,14 @@ const COLS = [
   { key: "feature", label: "비고", w: 140 },
 ];
 
-export default function TextbookList({ textbooks = [], selectedId }) {
+export default function TextbookList({ textbooks = [], unitCount = {}, selectedId }) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [q, setQ] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
   const [showHidden, setShowHidden] = useState(false);
+  const [noUnitsOnly, setNoUnitsOnly] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -44,10 +45,14 @@ export default function TextbookList({ textbooks = [], selectedId }) {
     const st = t.status || "active";
     if (!showHidden && st !== "active") return false;
     if (areaFilter && t.area !== areaFilter) return false;
+    if (noUnitsOnly && (unitCount[t.id] || 0) > 0) return false;
     if (!kw) return true;
     return [t.name, t.area, t.target_grade, t.feature].some((v) => norm(v).includes(kw));
   });
   const hiddenCount = textbooks.filter((t) => (t.status || "active") !== "active").length;
+  const noUnitCount = textbooks.filter(
+    (t) => (t.status || "active") === "active" && !(unitCount[t.id] || 0)
+  ).length;
 
   const allChecked = shown.length > 0 && sel.size === shown.length;
   const someChecked = sel.size > 0 && !allChecked;
@@ -166,6 +171,14 @@ export default function TextbookList({ textbooks = [], selectedId }) {
         )}
         <span className="spacer" />
         <span className="hint">{shown.length}권</span>
+        <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={noUnitsOnly}
+            onChange={(e) => setNoUnitsOnly(e.target.checked)}
+          />
+          단원 없는 교재만 ({noUnitCount})
+        </label>
       </div>
 
       {sel.size > 0 && (
@@ -196,6 +209,7 @@ export default function TextbookList({ textbooks = [], selectedId }) {
                 <input type="checkbox" checked={allChecked}
                   ref={(el) => el && (el.indeterminate = someChecked)} onChange={toggleAll} />
               </th>
+              <th style={{ width: 62 }}>단원</th>
               {COLS.map((c) => <th key={c.key} style={{ minWidth: c.w }}>{c.label}</th>)}
               <th style={{ width: 86 }}></th>
             </tr>
@@ -211,6 +225,13 @@ export default function TextbookList({ textbooks = [], selectedId }) {
                 }}>
                   <td>
                     <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleOne(t.id)} />
+                  </td>
+                  <td>
+                    {unitCount[t.id] ? (
+                      <span className="tag tag-mint">{unitCount[t.id]}</span>
+                    ) : (
+                      <span className="tag tag-muted">없음</span>
+                    )}
                   </td>
                   {COLS.map((c) => (
                     <td key={c.key} style={!editing && c.strong ? { fontWeight: 700 } : undefined}>
