@@ -280,3 +280,83 @@ a { color: inherit; }
 
 /* 단어시험 방식이 아직 없을 때 — 눈에 띄게 */
 .btn-warn { color: var(--amber); border: 1px dashed var(--amber); background: var(--amber-soft); }
+
+/* 오늘 수업 — 출결 먼저 찍는 줄 (반을 열면 맨 위에 붙는다) */
+.attstrip {
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+
+/* 학생 화면 — 지금 할 것 하나만 크게 */
+.nowcard {
+  padding: 20px 18px;
+  border-radius: 16px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+}
+.nowlabel {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent, #8ea2ff);
+}
+.nowtitle {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 800;
+  word-break: keep-all;
+}
+.nowsub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted, #9aa3b2);
+}
+.nowmethod {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.nowtimer {
+  margin: 16px 0 4px;
+  font-size: 40px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.bigbtn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 18px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent, #6d7cff);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.bigbtn:disabled { opacity: 0.5; }
+
+/* 얼마나 왔나 */
+.progbar {
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.progbar > span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent, #6d7cff);
+  transition: width 0.3s;
+}

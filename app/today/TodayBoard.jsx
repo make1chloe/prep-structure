@@ -6,6 +6,7 @@ import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
+import CheckQueue from "./CheckQueue";
 
 const ATT = [
   { key: "present", label: "정시", cls: "tag-mint" },
@@ -127,7 +128,8 @@ export default function TodayBoard({
           const done = rows.filter(isDone);
           const visible =
             filter === "todo"
-              ? todo
+              // 출결을 찍은 학생만 펼친다 — 아직 안 온 아이는 위 출결 줄에 있다
+              ? todo.filter((r) => r.status)
               : filter === "absent"
               ? rows.filter((r) => r.status === "absent")
               : filter === "makeup"
@@ -153,6 +155,58 @@ export default function TodayBoard({
 
               {opened && (
                 <div style={{ padding: "0 0 6px" }}>
+                  {/* ① 출결 먼저 — 온 아이부터 아래에 펼쳐진다 */}
+                  {(() => {
+                    const notYet = rows.filter((r) => !r.status);
+                    if (notYet.length === 0) return null;
+                    return (
+                      <div className="attstrip">
+                        <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
+                          <b style={{ fontSize: 13 }}>출결 먼저</b>
+                          <span className="hint" style={{ flex: 1 }}>
+                            찍은 학생부터 아래에 펼쳐집니다 — {notYet.length}명 남음
+                          </span>
+                          <button
+                            className="btn btn-sm"
+                            disabled={pending}
+                            onClick={() => notYet.forEach((r) => mark(r.student.id, "present"))}
+                            title="온 학생을 한 번에 정시로"
+                          >
+                            전부 정시
+                          </button>
+                        </div>
+                        <div className="stack" style={{ gap: 4 }}>
+                          {notYet.map((r) => (
+                            <div className="unitrow" key={r.student.id}>
+                              <b style={{ fontSize: 13.5, flex: 1 }}>{r.student.name}</b>
+                              {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                              {r.plannedAbsent && (
+                                <span className="tag tag-amber">
+                                  결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
+                                </span>
+                              )}
+                              {ATT.slice(0, 3).map((a) => (
+                                <button
+                                  key={a.key}
+                                  className="btn btn-ghost btn-sm"
+                                  disabled={pending}
+                                  style={{ padding: "3px 10px" }}
+                                  onClick={() =>
+                                    a.key === "absent"
+                                      ? markAbsent(r.student.id, r.absenceReason)
+                                      : mark(r.student.id, a.key)
+                                  }
+                                >
+                                  {a.label}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {visible.length === 0 ? (
                     <p className="muted" style={{ margin: 0, padding: "10px 16px", fontSize: 13 }}>
                       {filter === "todo" ? "이 반은 기록까지 모두 끝냈어요 👏" : "해당하는 학생이 없어요."}

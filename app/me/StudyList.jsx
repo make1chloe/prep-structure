@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startStudy, stopStudy, finishStudy, undoFinish } from "./timerActions";
 
-/** 초 → "12분" · "1시간 5분" */
+/** 초 → "12분" */
 function human(sec) {
   const m = Math.floor((sec || 0) / 60);
   if (m < 1) return "1분 안";
@@ -12,7 +12,6 @@ function human(sec) {
   return `${Math.floor(m / 60)}시간 ${m % 60}분`;
 }
 
-/** 흘러가는 시간 (1초마다) */
 function useTick(on) {
   const [, set] = useState(0);
   useEffect(() => {
@@ -23,19 +22,19 @@ function useTick(on) {
 }
 
 /**
- * 오늘 할 것 — **순서대로**.
+ * 할 것 — **지금 하나만 크게.**
  *
- * 맨 위 하나가 크게 보인다. 무엇부터 할지 매번 묻지 않게 하려는 것이다.
- * 시작하려면 타이머를 눌러야 하고, 다 하면 **학습 완료**를 누른다.
+ * 집중이 잘 안 되는 아이도 화면을 열면 **무엇을 할지 한 눈에** 들어와야 한다.
+ * 그래서 목록을 늘어놓지 않는다.
+ *   지금 할 것   화면을 거의 다 쓴다. 큰 글씨, 큰 버튼, 하는 법까지 펼쳐서
+ *   다음         한 줄로 작게. "이거 끝나면 저거" 만 알면 된다
+ *   끝낸 것      접어둔다. 펴면 볼 수 있다
  *
- * 학생은 "검사 받을게요" 를 따로 누르지 않는다.
- * **학습 완료가 곧 검사 대기**이고, 선생님이 손이 빌 때 한꺼번에 본다.
- *
- * 학생에게는 **걸린 시간만** 보인다. 몇 시에 시작했는지는 안 보여준다 —
- * 시각까지 보이면 그때부터 눈치를 보게 된다.
+ * 고를 것이 많으면 아이는 고르다가 시간을 쓴다. 고를 게 없어야 시작한다.
  */
 export default function StudyList({ title, hint, tasks = [], running = null, ready = true, kind = "home" }) {
   const [pending, startTransition] = useTransition();
+  const [openDone, setOpenDone] = useState(false);
   const router = useRouter();
   useTick(!!running);
 
@@ -56,122 +55,134 @@ export default function StudyList({ title, hint, tasks = [], running = null, rea
 
   if (tasks.length === 0) return null;
 
-  const doneCount = tasks.filter((t) => t.doneAt).length;
-  const todo = tasks.filter((t) => !t.doneAt);
+  const left = tasks.filter((t) => !t.doneAt);
+  const done = tasks.filter((t) => t.doneAt);
+  const now = left[0] || null;
+  const rest = left.slice(1);
+  const isRunning = running && now && running.key === now.key;
 
   return (
-    <div className="card">
-      <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{title}</h2>
-        <span className="hint">{doneCount} / {tasks.length}</span>
-        <span className="spacer" />
-        {running && (
-          <button className="btn btn-sm" disabled={pending} onClick={() => run(() => stopStudy())}>
-            ⏸ 잠깐 멈춤 {human(runningSec)}
-          </button>
-        )}
+    <div className="stack" style={{ gap: 10 }}>
+      {/* 얼마나 왔나 — 숫자보다 막대가 빨리 읽힌다 */}
+      <div className="card card-tight">
+        <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
+          <b style={{ fontSize: 14 }}>{title}</b>
+          <span className="spacer" />
+          <span className="hint">
+            {done.length} / {tasks.length} 끝
+          </span>
+        </div>
+        <div className="progbar" style={{ marginTop: 6 }}>
+          <span style={{ width: `${Math.round((done.length / tasks.length) * 100)}%` }} />
+        </div>
       </div>
-      {hint && <p className="hint" style={{ margin: "4px 0 0" }}>{hint}</p>}
 
-      {!ready && (
-        <div className="notice" style={{ marginTop: 10, fontSize: 12.5 }}>
-          타이머를 쓰려면 선생님이 <b>SQL</b> 을 먼저 실행해야 해요.
+      {/* 지금 할 것 — 화면을 거의 다 쓴다 */}
+      {now ? (
+        <div className="nowcard">
+          <p className="nowlabel">지금 할 것</p>
+          <h3 className="nowtitle">{now.name}</h3>
+          {(now.units?.length > 0 || now.note) && (
+            <p className="nowsub">{[...(now.units || []), now.note].filter(Boolean).join(", ")}</p>
+          )}
+
+          {now.method && <p className="nowmethod">{now.method}</p>}
+
+          {isRunning ? (
+            <>
+              <div className="nowtimer">{human(runningSec)}</div>
+              <button
+                className="bigbtn"
+                disabled={pending}
+                onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind))}
+              >
+                다 했어요
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ width: "100%", marginTop: 6 }}
+                disabled={pending}
+                onClick={() => run(() => stopStudy())}
+              >
+                잠깐 멈추기
+              </button>
+            </>
+          ) : (
+            <>
+              {(now.seconds > 0 || now.usual > 0) && (
+                <p className="nowsub" style={{ marginTop: 10 }}>
+                  {now.seconds > 0 ? `여기까지 ${human(now.seconds)}` : `보통 ${human(now.usual)}`}
+                </p>
+              )}
+              <button
+                className="bigbtn"
+                disabled={pending || !ready}
+                onClick={() => run(() => startStudy(now.itemId, now.stayId, kind))}
+              >
+                {now.seconds > 0 ? "이어서 하기" : "시작하기"}
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="nowcard" style={{ textAlign: "center" }}>
+          <h3 className="nowtitle" style={{ marginBottom: 4 }}>다 했어요 👏</h3>
+          <p className="nowsub">{hint}</p>
         </div>
       )}
 
-      <div className="stack" style={{ gap: 8, marginTop: 12 }}>
-        {tasks.map((t, i) => {
-          const isRunning = running && running.key === t.key;
-          const first = !t.doneAt && todo[0]?.key === t.key;
-          return (
-            <div
-              key={t.key}
-              className="card card-tight"
-              style={{
-                background: "transparent",
-                borderLeft: first ? "3px solid var(--accent, #7c8cff)" : undefined,
-                opacity: t.doneAt ? 0.6 : 1,
-              }}
-            >
-              <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span
-                  className={`tag ${t.doneAt ? "tag-mint" : first ? "tag-sky" : "tag-muted"}`}
-                  style={{ minWidth: 26, textAlign: "center" }}
-                >
-                  {t.doneAt ? "✓" : i + 1}
+      {/* 다음 — 한 줄씩 작게 */}
+      {rest.length > 0 && (
+        <div className="card card-tight">
+          <p className="hint" style={{ margin: "0 0 6px" }}>다음</p>
+          <div className="stack" style={{ gap: 4 }}>
+            {rest.map((t, i) => (
+              <div className="unitrow" key={t.key}>
+                <span className="tag tag-muted" style={{ minWidth: 24, textAlign: "center" }}>
+                  {i + 2}
                 </span>
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <b
-                    style={{
-                      fontSize: first ? 17 : 14,
-                      lineHeight: 1.4,
-                      textDecoration: t.doneAt ? "line-through" : "none",
-                    }}
-                  >
-                    {t.name}
-                  </b>
-                  {(t.units?.length > 0 || t.note) && (
-                    <div className="hint" style={{ fontSize: first ? 13 : 12 }}>
-                      {[...(t.units || []), t.note].filter(Boolean).join(", ")}
-                    </div>
-                  )}
-                </div>
-
-                {t.seconds > 0 && <span className="tag tag-mint">{human(t.seconds)}</span>}
-                {t.usual > 0 && t.seconds === 0 && !t.doneAt && (
-                  <span className="hint" style={{ fontSize: 11.5 }} title="지난번들 평균이에요">
-                    보통 {human(t.usual)}
-                  </span>
-                )}
-
-                {t.doneAt ? (
-                  <>
-                    {t.needsCheck && !t.checked && (
-                      <span className="tag tag-amber" title="선생님이 부르시면 가져가세요">
-                        검사 기다리는 중
-                      </span>
-                    )}
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      disabled={pending}
-                      onClick={() => run(() => undoFinish(t.reportItemId))}
-                    >
-                      다시 하기
-                    </button>
-                  </>
-                ) : isRunning ? (
-                  <button
-                    className="btn btn-primary btn-sm"
-                    disabled={pending}
-                    onClick={() =>
-                      run(() => finishStudy(t.reportItemId, t.itemId, t.stayId, kind))
-                    }
-                  >
-                    ■ 학습 완료 {human(runningSec)}
-                  </button>
-                ) : (
-                  <button
-                    className={`btn btn-sm ${first ? "btn-primary" : "btn-ghost"}`}
-                    disabled={pending || !ready}
-                    onClick={() => run(() => startStudy(t.itemId, t.stayId, kind))}
-                  >
-                    ▶ {t.seconds > 0 ? "이어서" : "시작"}
-                  </button>
-                )}
+                <span style={{ fontSize: 13, flex: 1 }}>{t.name}</span>
+                {t.usual > 0 && <span className="hint" style={{ fontSize: 11.5 }}>보통 {human(t.usual)}</span>}
               </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-              {first && t.method && (
-                <p
-                  className="hint"
-                  style={{ margin: "8px 0 0", whiteSpace: "pre-wrap", fontSize: 12.5 }}
-                >
-                  {t.method}
-                </p>
-              )}
+      {/* 끝낸 것 — 접어둔다 */}
+      {done.length > 0 && (
+        <div className="card card-tight">
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ width: "100%" }}
+            onClick={() => setOpenDone(!openDone)}
+          >
+            {openDone ? "▾" : "▸"} 끝낸 것 {done.length}개
+            {done.some((t) => t.needsCheck) && "  · 검사 기다리는 중"}
+          </button>
+          {openDone && (
+            <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+              {done.map((t) => (
+                <div className="unitrow" key={t.key} style={{ opacity: 0.7 }}>
+                  <span className="tag tag-mint">✓</span>
+                  <span style={{ fontSize: 12.5, flex: 1, textDecoration: "line-through" }}>
+                    {t.name}
+                  </span>
+                  {t.seconds > 0 && <span className="hint">{human(t.seconds)}</span>}
+                  {t.needsCheck && <span className="tag tag-amber">검사 대기</span>}
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    onClick={() => run(() => undoFinish(t.reportItemId))}
+                  >
+                    다시
+                  </button>
+                </div>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
