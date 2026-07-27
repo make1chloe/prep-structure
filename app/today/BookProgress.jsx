@@ -8,6 +8,7 @@ import {
   setCurrentPage,
   setStudentBookStatus,
 } from "@/app/progress/actions";
+import WordTest from "./WordTest";
 
 // 교재 한 권의 진도 — 단원을 순서와 상관없이 눌러서 완료/미완료를 기록한다
 export default function BookProgress({ studentId, book }) {
@@ -105,6 +106,13 @@ export default function BookProgress({ studentId, book }) {
           <span style={{ width: `${livePercent ?? 0}%` }} />
         </div>
       </button>
+
+      {/* 단어 교재는 시험 방식과 회독을 라벨로 붙인다 — 수업 중 흘깃 보고 알게 */}
+      {book.wordTest !== undefined && (
+        <div style={{ marginTop: 4 }}>
+          <WordTest studentId={studentId} book={book} />
+        </div>
+      )}
 
       {open && (
         <div style={{ marginTop: 8 }}>

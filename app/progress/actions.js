@@ -203,3 +203,90 @@ export async function setUnitProgress(studentId, unitIds, status) {
   revalidatePath("/today");
   return ok(error);
 }
+
+// ============================================================
+// 단어시험 방식 (학생 · 교재 · 회독마다)
+// ============================================================
+
+/** 한 회독의 배분을 저장한다. 합이 100이 아니면 막는다 */
+export async function saveWordTest(studentId, textbookId, round, cfg) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const n = (v) => Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+  const row = {
+    student_id: studentId,
+    textbook_id: textbookId,
+    round: Math.max(1, parseInt(round, 10) || 1),
+    mc_meaning: n(cfg?.mc_meaning),
+    sa_meaning: n(cfg?.sa_meaning),
+    mc_word: n(cfg?.mc_word),
+    sa_word: n(cfg?.sa_word),
+    first_hint: !!cfg?.first_hint,
+    note: (cfg?.note || "").trim() || null,
+  };
+  const sum = row.mc_meaning + row.sa_meaning + row.mc_word + row.sa_word;
+  if (sum !== 100) return { error: `합이 100%가 되어야 해요. 지금 ${sum}%입니다.` };
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("word_test_settings")
+    .upsert({ ...row, created_by: user?.id || null }, {
+      onConflict: "student_id,textbook_id,round",
+    });
+  if (error) {
+    if (error.code === "42P01") return { error: "0025 SQL 을 먼저 실행해주세요." };
+    return { error: error.message };
+  }
+
+  revalidatePath("/today");
+  revalidatePath("/me");
+  return { error: null };
+}
+
+/**
+ * 한 회독을 끝내고 **한 번 더 돌린다.**
+ * 회독을 올리고, 새 회독의 시험 방식을 다시 정하게 한다.
+ * 진도(끝낸 단원)는 지운다 — 처음부터 다시 도는 것이므로.
+ */
+export async function nextRound(studentId, textbookId) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const supabase = createClient();
+
+  const { data: cur } = await supabase
+    .from("student_textbooks")
+    .select("round")
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId)
+    .maybeSingle();
+  const next = (cur?.round || 1) + 1;
+
+  const { error } = await supabase
+    .from("student_textbooks")
+    .update({ round: next })
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId);
+  if (error) {
+    if (error.code === "42703") return { error: "0025 SQL 을 먼저 실행해주세요." };
+    return { error: error.message };
+  }
+
+  // 이 교재의 끝낸 단원을 비운다 (다시 도니까)
+  const { data: units } = await supabase
+    .from("textbook_units")
+    .select("id")
+    .eq("textbook_id", textbookId);
+  const ids = (units || []).map((u) => u.id);
+  if (ids.length > 0) {
+    await supabase
+      .from("student_unit_progress")
+      .delete()
+      .eq("student_id", studentId)
+      .in("textbook_unit_id", ids);
+  }
+
+  revalidatePath("/today");
+  return { error: null, round: next };
+}

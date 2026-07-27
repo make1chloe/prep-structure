@@ -24,7 +24,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
   });
   const [makeupDays, setMakeupDays] = useState(view.schedule?.makeupDays || []);
   const [warn, setWarn] = useState(() => ({
-    reflectionAt: 3, wordPassPct: 80,
+    reflectionAt: 3, wordWrongPct: 10,
     countLate: true, countHomework: true, countWordTest: true,
     ...(view.warning || {}),
   }));
@@ -71,7 +71,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
         enabled: true,
         config: {
           reflectionAt: Number(warn.reflectionAt) || 3,
-          wordPassPct: Number(warn.wordPassPct) || 80,
+          wordWrongPct: Number(warn.wordWrongPct) || 80,
           countLate: !!warn.countLate,
           countHomework: !!warn.countHomework,
           countWordTest: !!warn.countWordTest,
@@ -347,16 +347,19 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
             />
           </div>
           <div className="field">
-            <label className="label">단어시험 통과선 (%)</label>
+            <label className="label">단어시험 오답 허용 (%)</label>
             <input
               className="input input-sm"
               inputMode="numeric"
-              value={warn.wordPassPct}
-              onChange={(e) => setWarn({ ...warn, wordPassPct: e.target.value })}
+              value={warn.wordWrongPct}
+              onChange={(e) => setWarn({ ...warn, wordWrongPct: e.target.value })}
             />
           </div>
         </div>
         <p className="hint" style={{ marginTop: 8 }}>
+          단어시험은 <b>오답이 {warn.wordWrongPct}% 이내면 통과</b>입니다
+          (맞은 비율이 아니라 틀린 비율). 20개 중 2개까지는 통과라는 뜻입니다.
+          <br />
           {warn.reflectionAt}회가 쌓이면 반성문 대상이 됩니다. 그때 <b>반성문 씀</b> 또는
           <b> 이번엔 넘어가기(유예)</b> 를 고를 수 있고, 둘 다 경고는 0으로 돌아갑니다.
           유예는 <b>봐준 이력이 남습니다.</b>

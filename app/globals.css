@@ -277,3 +277,6 @@ a { color: inherit; }
 /* 전달하고 체크하면 흐려진다 — 남은 것만 도드라지게 */
 .sayitem.done { opacity: .45; background: var(--surface-2); }
 .sayitem.done .saybody { font-weight: 500; text-decoration: line-through; }
+
+/* 단어시험 방식이 아직 없을 때 — 눈에 띄게 */
+.btn-warn { color: var(--amber); border: 1px dashed var(--amber); background: var(--amber-soft); }

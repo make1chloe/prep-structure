@@ -329,7 +329,7 @@ export default async function TodayPage({ searchParams }) {
   const { data: stBooks } = studentIds.length
     ? await supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id, status, current_page, ended_on")
+        .select("student_id, textbook_id, status, current_page, ended_on, round")
         .in("student_id", studentIds)
     : { data: [] };
   const { data: stProgress } = studentIds.length
@@ -348,6 +348,27 @@ export default async function TodayPage({ searchParams }) {
     booksOfStudent.get(r.student_id).add(r.textbook_id);
     if (r.current_page) pageOf.set(`${r.student_id}|${r.textbook_id}`, r.current_page);
   });
+  // 지금 몇 회독째인가 (`round` 컬럼이 아직 없으면 1회독으로 본다)
+  const roundOf = new Map();
+  (stBooks || []).forEach((r) => {
+    if (r.status && r.status !== "active") return;
+    roundOf.set(`${r.student_id}|${r.textbook_id}`, r.round || 1);
+  });
+
+  // 단어시험 방식 — (학생, 교재, 회독) 하나에 설정 한 줄
+  const wtOf = new Map();
+  {
+    const q = studentIds.length
+      ? await supabase
+          .from("word_test_settings")
+          .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+          .in("student_id", studentIds)
+      : { data: [] };
+    (q.error ? [] : q.data || []).forEach((w) => {
+      wtOf.set(`${w.student_id}|${w.textbook_id}|${w.round}`, w);
+    });
+  }
+
   const doneUnitsOf = new Map();
   (stProgress || []).forEach((r) => {
     if (r.status !== "done") return;
@@ -414,10 +435,16 @@ export default async function TodayPage({ searchParams }) {
           : bookPages > 0
           ? Math.min(100, Math.round((curPage / bookPages) * 100))
           : null;
+      const round = roundOf.get(`${studentId}|${tid}`) || 1;
       return {
         id: tid,
         name: bookNameOf.get(tid) || "교재",
         area: bookAreaOf.get(tid) || "",
+        round,
+        // 단어 교재만 시험 방식이 의미 있다
+        wordTest: (bookAreaOf.get(tid) || "") === "단어"
+          ? wtOf.get(`${studentId}|${tid}|${round}`) || null
+          : undefined,
         doneUnits,
         totalUnits,
         donePages,

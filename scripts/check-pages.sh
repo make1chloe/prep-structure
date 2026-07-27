@@ -44,7 +44,15 @@ else
 fi
 
 echo
-echo "== 3) 빌드 =="
+echo "== 3) 여러 줄 import 안에 끼어든 import =="
+# import { 
+#   import X from "..."   ← 이러면 빌드가 깨진다 (스크립트로 넣다 두 번 당했다)
+mid=$(grep -rn -B1 '^import .* from' app lib components --include=*.js --include=*.jsx 2>/dev/null \
+      | grep -A1 '^\S*-import {$' | grep ':import ' || true)
+if [ -n "$mid" ]; then echo "$mid"; fail=1; else echo "  없음"; fi
+
+echo
+echo "== 4) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
 else
