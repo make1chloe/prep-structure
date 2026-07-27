@@ -81,7 +81,7 @@ function ScoreInput({ label, total, correct, onTotal, onCorrect }) {
       />
       {Number.isFinite(t) && Number.isFinite(c) && (
         <span className={`tag ${wrong === 0 ? "tag-mint" : "tag-sky"}`}>
-          {wrong === 0 ? "다 맞음" : `${wrong}/${t} 틀림`}
+          {Math.round((c / t) * 100)}%
         </span>
       )}
     </span>

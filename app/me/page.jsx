@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import { score } from "@/lib/wordTest";
+import StudyList from "./StudyList";
 import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
-import { longLabel as fmtLong } from "@/lib/day";
+import { longLabel as fmtLong, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +101,12 @@ export default async function MePage() {
   // 숙제 항목 (학습 방법 포함)
   let { data: items, error: itemErr } = await supabase
     .from("homework_items")
-    .select("id, name, category, method");
+    .select("id, name, category, method, sort, no_timer");
+  if (itemErr) {
+    ({ data: items, error: itemErr } = await supabase
+      .from("homework_items")
+      .select("id, name, category, method, sort"));
+  }
   if (itemErr) {
     ({ data: items } = await supabase.from("homework_items").select("id, name, category"));
   }
@@ -154,6 +160,7 @@ export default async function MePage() {
     const item = itemById.get(x.homework_item_id);
     return {
       key: `${x.daily_report_id}-${x.homework_item_id}-${x.status}`,
+      itemId: x.homework_item_id,
       name: item?.name || "숙제",
       method: item?.method || "",
       units: idsOf(x).map((id) => unitLabel.get(id)).filter(Boolean),
@@ -191,6 +198,61 @@ export default async function MePage() {
     (t) => t.status === "todo" || t.status === "moved"
   );
 
+  // ── 오늘 할 것 (순서대로) ────────────────────────────────
+  // 배정된 숙제 + 늦귀가 과제를 학습 항목 순서로 늘어놓는다.
+  // 학생이 "뭐부터 하지?" 를 묻지 않아도 되게 하려는 것이다.
+  const today = todaySeoul();
+  let sessions = [];
+  let timerReady = true;
+  {
+    const q = await supabase
+      .from("study_sessions")
+      .select("id, homework_item_id, stay_task_id, started_at, ended_at, seconds")
+      .eq("student_id", student.id)
+      .eq("date", today);
+    if (q.error) timerReady = false;
+    else sessions = q.data || [];
+  }
+  const secOf = new Map();
+  let running = null;
+  sessions.forEach((x) => {
+    const key = x.stay_task_id ? `stay-${x.stay_task_id}` : `item-${x.homework_item_id}`;
+    secOf.set(key, (secOf.get(key) || 0) + (x.seconds || 0));
+    if (!x.ended_at) running = { key, started_at: x.started_at };
+  });
+
+  const studyTasks = [
+    ...todo.map((c) => {
+      const it = itemById.get(c.itemId);
+      return {
+        key: `item-${c.itemId}`,
+        itemId: c.itemId,
+        stayId: null,
+        name: c.name,
+        units: c.units,
+        note: c.note,
+        method: c.method,
+        noTimer: !!it?.no_timer,
+        sort: it?.sort ?? 500,
+        seconds: secOf.get(`item-${c.itemId}`) || 0,
+      };
+    }),
+    ...stay
+      .filter((t) => t.status === "todo")
+      .map((t) => ({
+        key: `stay-${t.id}`,
+        itemId: null,
+        stayId: t.id,
+        name: t.body,
+        units: [],
+        note: "늦귀가 과제",
+        method: "",
+        noTimer: false,
+        sort: 9000,
+        seconds: secOf.get(`stay-${t.id}`) || 0,
+      })),
+  ].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ko"));
+
   const notices = (reports || [])
     .filter((r) => r.notice)
     .slice(0, 3)
@@ -210,6 +272,8 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
+        <StudyList tasks={studyTasks} running={running} ready={timerReady} />
+
         <RequestForm studentId={student.id} mine={myRequests || []} />
 
         <div className="card">

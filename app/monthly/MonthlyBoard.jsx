@@ -142,7 +142,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                 </span>
               )}
               {r.sum.word.count > 0 && (
-                <span className="tag tag-muted">단어 오답 {r.sum.word.wrongPct}%</span>
+                <span className="tag tag-muted">단어 {r.sum.word.rate}%</span>
               )}
               {r.sum.exams.length > 0 && (
                 <span className="tag tag-lav">단원평가 {r.sum.exams.length}</span>

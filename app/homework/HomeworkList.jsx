@@ -71,6 +71,7 @@ export default function HomeworkList({ items = [] }) {
       sort: i.sort ?? "",
       method: i.method || "",
       prep_task: i.prep_task || "",
+      no_timer: !!i.no_timer,
     });
   }
   function saveEdit() {
@@ -194,6 +195,7 @@ export default function HomeworkList({ items = [] }) {
               <th style={{ width: 70 }}>사용</th>
               <th style={{ minWidth: 220 }}>학습 방법 (학생에게 보여줄 설명)</th>
               <th style={{ minWidth: 150 }} title="쓸 수 있는 자리: {학생} {단원} {교재} {숙제}">내 할일 자동 생성</th>
+              <th style={{ width: 96 }} title="선생님을 기다려야 하는 항목은 학생 화면에서 타이머를 안 띄웁니다">타이머</th>
               <th style={{ width: 86 }}></th>
             </tr>
           </thead>
@@ -255,6 +257,16 @@ export default function HomeworkList({ items = [] }) {
                         />
                       </td>
                       <td>
+                        <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={!draft.no_timer}
+                            onChange={(e) => setDraft({ ...draft, no_timer: !e.target.checked })}
+                          />
+                          <span style={{ fontSize: 12 }}>씀</span>
+                        </label>
+                      </td>
+                      <td>
                         <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                           <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
@@ -289,6 +301,15 @@ export default function HomeworkList({ items = [] }) {
                           </span>
                         ) : (
                           <span className="hint">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {i.no_timer ? (
+                          <span className="tag tag-muted" title="선생님을 기다려도 되는 항목">
+                            선생님과
+                          </span>
+                        ) : (
+                          <span className="tag tag-mint">씀</span>
                         )}
                       </td>
                       <td>
