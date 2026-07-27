@@ -228,6 +228,17 @@ export default function TodayBoard({
                             ) : r.status ? (
                               <span className="tag tag-amber">기록 전</span>
                             ) : null}
+                            {(() => {
+                              // 아직 말 안 한 전달사항 — 열지 않아도 보이게
+                              const left = (r.notices || []).filter(
+                                (n) => n.kind === "deliver" && !n.delivered
+                              ).length;
+                              return left > 0 ? (
+                                <span className="tag tag-amber" title="학생에게 말할 것">
+                                  말할 것 {left}
+                                </span>
+                              ) : null;
+                            })()}
                             {r.unreadComments > 0 && (
                               <span className="tag tag-red" title="학생·학부모가 남긴 댓글">
                                 💬 {r.unreadComments}

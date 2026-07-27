@@ -366,6 +366,46 @@ export default function StudentPanel({
         </div>
       </div>
 
+
+      {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
+      {(row.notices || []).filter((n) => n.kind === "deliver").length > 0 && (
+        <div className="sayblock">
+          <div className="sayhead">
+            학생에게 말할 것
+            <span className="hint" style={{ fontWeight: 600 }}>
+              {" "}· 말한 뒤 눌러주세요
+            </span>
+          </div>
+          <div className="stack" style={{ gap: 6 }}>
+            {(row.notices || [])
+              .filter((n) => n.kind === "deliver")
+              .map((n) => {
+                const done = !!delivered[n.id];
+                return (
+                  <label key={n.id} className={`sayitem ${done ? "done" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={done}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setDeliveredMap((m) => ({ ...m, [n.id]: v }));
+                        startTransition(async () => {
+                          const res = await setDelivered(n.id, row.student.id, v);
+                          if (res?.error) alert(res.error);
+                        });
+                      }}
+                    />
+                    <span className="saybody">{n.body}</span>
+                    <span className={`tag ${done ? "tag-muted" : "tag-amber"}`}>
+                      {done ? "전달함" : "전달 전"}
+                    </span>
+                  </label>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       {/* 테스트 점수 — 채점할 때 세는 건 '틀린 개수' 다.
           전체 개수는 지난번 것을 미리 채워두고, 틀린 개수만 치면 맞은 개수가 계산된다. */}
       <div className="prow">
@@ -701,41 +741,6 @@ export default function StudentPanel({
           )}
         </div>
       </div>
-
-      {/* 전달사항 — 하원 전에 전달했는지 확인 */}
-      {(row.notices || []).filter((n) => n.kind === "deliver").length > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 5 }}>전달</span>
-          <div className="stack" style={{ gap: 4, flex: 1 }}>
-            {(row.notices || [])
-              .filter((n) => n.kind === "deliver")
-              .map((n) => (
-                <label
-                  className="unitrow"
-                  key={n.id}
-                  style={{ cursor: "pointer", gap: 8 }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!delivered[n.id]}
-                    onChange={(e) => {
-                      const v = e.target.checked;
-                      setDeliveredMap((m) => ({ ...m, [n.id]: v }));
-                      startTransition(async () => {
-                        const res = await setDelivered(n.id, row.student.id, v);
-                        if (res?.error) alert(res.error);
-                      });
-                    }}
-                  />
-                  <span style={{ fontSize: 13, flex: 1 }}>{n.body}</span>
-                  <span className={`tag ${delivered[n.id] ? "tag-mint" : "tag-amber"}`}>
-                    {delivered[n.id] ? "전달함" : "전달 전"}
-                  </span>
-                </label>
-              ))}
-          </div>
-        </div>
-      )}
 
       {/* 전체 공지 (읽기용) */}
       {(row.notices || []).filter((n) => n.kind === "notice").length > 0 && (

@@ -253,3 +253,27 @@ a { color: inherit; }
 }
 .markbtn:hover { background: var(--surface-2); color: var(--text); }
 .markbtn.on { border-color: transparent; }
+
+/* 학생에게 말할 것 — 출결 바로 아래. 수업 중에 놓치지 않도록 눈에 띄게 */
+.sayblock {
+  margin: 10px 0 4px; padding: 12px 14px;
+  background: var(--amber-soft);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-sm);
+}
+.sayhead {
+  font-size: 12px; font-weight: 800; color: var(--amber);
+  letter-spacing: .02em; margin-bottom: 8px;
+}
+.sayitem {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 9px 11px; border-radius: 8px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border);
+  transition: opacity .15s, background .15s;
+}
+.sayitem:hover { border-color: var(--border-strong); }
+.sayitem input { margin-top: 2px; width: 17px; height: 17px; flex: 0 0 auto; }
+.saybody { flex: 1; font-size: 14px; font-weight: 700; line-height: 1.55; }
+/* 전달하고 체크하면 흐려진다 — 남은 것만 도드라지게 */
+.sayitem.done { opacity: .45; background: var(--surface-2); }
+.sayitem.done .saybody { font-weight: 500; text-decoration: line-through; }

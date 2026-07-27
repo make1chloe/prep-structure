@@ -15,13 +15,16 @@ const SCOPES = [
 const KINDS = [
   {
     key: "deliver",
-    label: "전달사항",
-    hint: "수업 중 학생에게 말로 전할 내용이에요. 하원 전에 전달했는지 체크합니다.",
+    label: "학생용 공지",
+    hint:
+      "수업 중 학생에게 말로 전하고, 하원 전에 전달했는지 체크합니다. " +
+      "같은 내용이 그 학생의 숙제 문자에도 함께 나갑니다.",
   },
   {
     key: "notice",
-    label: "공지",
-    hint: "학부모 리포트에 나갈 공지예요. 학생별 공지는 각 학생 칸에서 따로 적을 수 있어요.",
+    label: "학부모용 공지",
+    hint:
+      "데일리리포트에 함께 나갑니다. 학생 한 명에게만 할 말은 각 학생 칸의 '공지' 에 적으세요.",
   },
 ];
 
@@ -167,7 +170,7 @@ export default function TopNotices({
     <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
       <button className="grouphead" onClick={() => setOpen(!open)}>
         <span style={{ fontWeight: 800 }}>
-          {open ? "▾" : "▸"} 공지 · 전달사항
+          {open ? "▾" : "▸"} 공지 (학생용 · 학부모용)
         </span>
         <span className="muted" style={{ fontSize: 12.5 }}>
           오늘 {notices.length}건
@@ -308,8 +311,8 @@ export default function TopNotices({
               style={{ flex: 1, minWidth: 240 }}
               placeholder={
                 kind === "deliver"
-                  ? "예) 다음 주 월요일은 학교 행사로 6시 시작"
-                  : "예) 이번 주 단어 시험 범위는 Unit 5~6입니다"
+                  ? "학생에게 — 예) 다음 주 월요일은 학교 행사로 6시 시작"
+                  : "학부모님께 — 예) 이번 주 단어 시험 범위는 Unit 5~6입니다"
               }
               value={body}
               onChange={(e) => setBody(e.target.value)}
