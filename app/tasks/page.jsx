@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
+import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,7 @@ export default async function TasksPage() {
   // 다른 화면에서 만든 일정도 여기서 같이 보여준다 (여기서 고치지는 않는다)
   //   시험 일정 → exam_periods (수업 스케줄 · 시험)
   //   휴강     → holidays      (수강료 · 수업 스케줄)
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
-    .toISOString()
-    .slice(0, 10);
+  const today = todaySeoul();
 
   const examQ = await supabase
     .from("exam_periods")

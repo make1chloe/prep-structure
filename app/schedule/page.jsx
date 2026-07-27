@@ -4,6 +4,7 @@ import ScheduleBoard from "./ScheduleBoard";
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
+import { endOfMonth, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -19,12 +20,10 @@ export default async function SchedulePage() {
     profile = data;
   }
 
-  const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-  const startYM = seoul.toISOString().slice(0, 7);
+  const startYM = todaySeoul().slice(0, 7);
   const months = monthsFrom(startYM, 3);
   const from = `${months[0]}-01`;
-  const [ly, lm] = months[2].split("-").map(Number);
-  const to = `${months[2]}-${String(new Date(ly, lm, 0).getDate()).padStart(2, "0")}`;
+  const to = endOfMonth(months[2]);
 
   let { data: classes } = await supabase
     .from("classes")
@@ -82,7 +81,7 @@ export default async function SchedulePage() {
   const classDates = new Set();
   reviews.forEach((r) => r.months.forEach((m) => m.all.forEach((d) => classDates.add(d))));
   const decided = new Set((holidays || []).map((h) => h.date));
-  const seoulToday = seoul.toISOString().slice(0, 10);
+  const seoulToday = todaySeoul();
   const holidayNotes = holidayAlerts(seoulToday, to, classDates, decided);
 
   const schools = [...new Set((students || []).map((s) => s.school).filter(Boolean))].sort();

@@ -6,6 +6,7 @@ import {
   addTodo, updateTodo, setTodoStatus, moveTodos, deleteTodos,
   addCategory, deleteCategory,
 } from "./actions";
+import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 
 const COLORS = ["sky", "lav", "mint", "amber", "muted"];
 const PRIORITY = [
@@ -15,20 +16,10 @@ const PRIORITY = [
 ];
 
 function today() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
-    .toISOString()
-    .slice(0, 10);
+  return todaySeoul();
 }
-function addDays(d, n) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  t.setDate(t.getDate() + n);
-  return t.toISOString().slice(0, 10);
-}
-function dayLabel(d) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
-  return `${t.getMonth() + 1}/${t.getDate()} (${dow})`;
-}
+
+const dayLabel = fmtDay;
 
 export default function TodoBoard({ todos = [], categories = [], unavailable = false }) {
   const [sel, setSel] = useState(() => new Set());

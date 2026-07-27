@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { addTask } from "./actions";
+import { todaySeoul } from "@/lib/day";
 
 const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 
@@ -10,9 +11,7 @@ export default function AddTaskForm({ classes = [] }) {
   const [scope, setScope] = useState("all");
   const [hasDeliver, setHasDeliver] = useState(false);
 
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
-    .toISOString()
-    .slice(0, 10);
+  const today = todaySeoul();
 
   if (!open) {
     return (

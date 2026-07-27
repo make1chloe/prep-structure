@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { addDays, dowOf } from "@/lib/day";
 
 export const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 
@@ -102,7 +103,6 @@ export async function deleteTasks(ids) {
 
 // ---------- 일정 → 전달사항 ----------
 // 일정에 적어둔 전달 내용을 그 날짜의 학생 전달사항으로 깐다. (원칙3: 데이터가 흐르게)
-const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
 export async function applyTaskDelivery(taskId, date) {
   if (!taskId) return { error: "일정이 없어요." };
@@ -128,8 +128,7 @@ export async function applyTaskDelivery(taskId, date) {
   if (exist?.length) return { error: null, skipped: true };
 
   // 그날 수업 오는 학생 (오늘 수업 화면과 같은 기준)
-  const target = new Date(`${on}T00:00:00+09:00`);
-  const dow = DOW[target.getDay()];
+  const dow = dowOf(on);
   const { data: classes } = await supabase.from("classes").select("id, days");
   const classIds = (classes || []).filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
   const { data: members } = classIds.length
@@ -263,14 +262,13 @@ export async function applyTaskAbsence(taskId) {
     const myDays = new Set(
       (members || []).filter((m) => m.student_id === sid).flatMap((m) => daysOf.get(m.class_id) || [])
     );
-    let d = new Date(`${from}T00:00:00+09:00`);
-    const end = new Date(`${to}T00:00:00+09:00`);
+    let d = from;
+    const end = to;
     while (d <= end) {
-      const iso = d.toISOString().slice(0, 10);
-      if (myDays.has(DOWN[d.getUTCDay()])) {
-        rows.push({ student_id: sid, date: iso, status: "absent", planned: true, reason });
+      if (myDays.has(dowOf(d))) {
+        rows.push({ student_id: sid, date: d, status: "absent", planned: true, reason });
       }
-      d = new Date(d.getTime() + 86400000);
+      d = addDays(d, 1);
     }
   }
   if (rows.length === 0) return { error: "그 기간에 수업이 없어요." };

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { addDays } from "@/lib/day";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -60,19 +61,19 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
     const myDays = new Set(
       (members || []).filter((m) => m.student_id === sid).flatMap((m) => daysOf.get(m.class_id) || [])
     );
-    let d = new Date(`${from}T00:00:00+09:00`);
-    const last = new Date(`${end}T00:00:00+09:00`);
+    let d = from;
+    const last = end;
     while (d <= last) {
-      if (myDays.has(DOWN[d.getUTCDay()])) {
+      if (myDays.has(dowOf(d))) {
         rows.push({
           student_id: sid,
-          date: d.toISOString().slice(0, 10),
+          date: d,
           status: "absent",
           planned: true,
           reason: (reason || "").trim() || null,
         });
       }
-      d = new Date(d.getTime() + 86400000);
+      d = addDays(d, 1);
     }
   }
   if (rows.length === 0) return { error: "그 기간에 수업이 없어요.", count: 0 };

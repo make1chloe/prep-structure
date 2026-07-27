@@ -9,17 +9,14 @@ import {
   setStudentTuition,
 } from "./actions";
 import { won } from "@/lib/tuition";
+import { shortLabel } from "@/lib/day";
 
 function shiftMonth(ym, n) {
   const [y, m] = ym.split("-").map(Number);
   const d = new Date(Date.UTC(y, m - 1 + n, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
-function dayShort(d) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
-  return `${t.getDate()}(${dow})`;
-}
+const dayShort = shortLabel;
 
 export default function TuitionBoard({
   ym,

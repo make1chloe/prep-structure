@@ -6,21 +6,16 @@ import MakeupInbox from "./MakeupInbox";
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
+import {
+  todaySeoul, dowOf, dayLabel, longLabel, addDays, addMonths, endOfMonth,
+} from "@/lib/day";
 
 export const dynamic = "force-dynamic";
-
-const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function cut(t) {
   return t ? t.slice(0, 5) : "";
 }
-function iso(d) {
-  return d.toISOString().slice(0, 10);
-}
-function dayLabel(s) {
-  const t = new Date(`${s}T00:00:00+09:00`);
-  return `${t.getMonth() + 1}/${t.getDate()} (${DAYS[t.getDay()]})`;
-}
+
 
 export default async function Home() {
   const supabase = createClient();
@@ -34,11 +29,10 @@ export default async function Home() {
     profile = data;
   }
 
-  const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-  const today = iso(seoul);
-  const dow = DAYS[seoul.getDay()];
-  const weekEnd = iso(new Date(seoul.getTime() + 7 * 86400000));
-  const monthEnd = iso(new Date(seoul.getFullYear(), seoul.getMonth() + 2, 0));
+  const today = todaySeoul();
+  const dow = dowOf(today);
+  const weekEnd = addDays(today, 7);
+  const monthEnd = endOfMonth(addMonths(today.slice(0, 7), 1));
 
   // ---------- 오늘 수업 ----------
   const { data: allClasses } = await supabase
@@ -122,7 +116,7 @@ export default async function Home() {
     .eq("status", "enrolled");
   const nameOf = new Map((students || []).map((s) => [s.id, s.name]));
 
-  const twoWeeksAgo = iso(new Date(seoul.getTime() - 14 * 86400000));
+  const twoWeeksAgo = addDays(today, -14);
   const { data: recentReports } = await supabase
     .from("daily_reports")
     .select("id, student_id, date")
@@ -151,7 +145,7 @@ export default async function Home() {
 
   // ---------- 보강 잡을 것 ----------
   // 최근 한 달 결석 중, 그 날짜를 원 결석일로 하는 보강이 아직 없는 건
-  const monthAgo = iso(new Date(seoul.getTime() - 30 * 86400000));
+  const monthAgo = addDays(today, -30);
   let { data: absences } = await supabase
     .from("attendance")
     .select("student_id, date, status, planned, reason")
@@ -212,8 +206,7 @@ export default async function Home() {
 
   // ---------- 앞으로 3개월 스케줄 특이사항 ----------
   const months3 = monthsFrom(today.slice(0, 7), 3);
-  const [ly, lm] = months3[2].split("-").map(Number);
-  const scheduleTo = `${months3[2]}-${String(new Date(ly, lm, 0).getDate()).padStart(2, "0")}`;
+  const scheduleTo = endOfMonth(months3[2]);
 
   let { data: baseClasses } = await supabase
     .from("classes")
@@ -302,7 +295,7 @@ export default async function Home() {
     .filter((a) => a.name)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const label = `${seoul.getMonth() + 1}월 ${seoul.getDate()}일 (${dow})`;
+  const label = longLabel(today);
 
   return (
     <>

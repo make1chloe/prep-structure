@@ -6,6 +6,7 @@ import {
   addExam, setEnglishDate, updateExam, deleteExam,
   markExamAbsence, makeExamEveSession, addClassHoliday,
 } from "./actions";
+import { shortLabel } from "@/lib/day";
 
 const ALERT_CLS = {
   over: "tag-sky",
@@ -19,11 +20,7 @@ function ymLabel(ym) {
   const [y, m] = ym.split("-");
   return `${Number(m)}월`;
 }
-function dayShort(d) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
-  return `${t.getDate()}(${dow})`;
-}
+const dayShort = shortLabel;
 
 // 3개월을 합쳐서 보면 결국 몇 회를 더 하고 덜 하는지
 function Totals({ months }) {

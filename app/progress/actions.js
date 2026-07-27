@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
+import { todaySeoul } from "@/lib/day";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -114,7 +115,7 @@ export async function setCurrentPage(studentId, textbookId, page) {
 export async function setStudentBookStatus(studentId, textbookId, status, endedOn) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = createClient();
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const today = todaySeoul();
   const { error } = await supabase.from("student_textbooks").upsert(
     {
       student_id: studentId,
@@ -189,7 +190,7 @@ export async function setUnitProgress(studentId, unitIds, status) {
     return ok(error);
   }
 
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const today = todaySeoul();
   const { error } = await supabase.from("student_unit_progress").upsert(
     ids.map((textbook_unit_id) => ({
       student_id: studentId,

@@ -3,12 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveText, resetText, resend, listSends } from "./actions";
+import { addDays } from "@/lib/day";
 
-function shiftDate(date, days) {
-  const d = new Date(`${date}T00:00:00+09:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+const shiftDate = addDays;
 function timeLabel(iso) {
   if (!iso) return "";
   const d = new Date(iso);

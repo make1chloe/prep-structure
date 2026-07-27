@@ -9,10 +9,11 @@ import {
   deleteTemplate,
   sendNotices,
 } from "./noticeActions";
+import { longLabel, todaySeoul } from "@/lib/day";
 
 // {{변수}} 를 실제 값으로 바꾼다
 function fill(body, r, academy) {
-  const today = new Date().toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+  const today = longLabel(todaySeoul());
   const map = {
     학원명: academy,
     학생명: r.name || "",

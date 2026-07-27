@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { pushToStudents } from "@/app/push/actions";
+import { dowOf } from "@/lib/day";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -201,11 +202,9 @@ export async function reopenReport(studentId, date) {
 // 대상은 만들 때 확정해서 notice_receipts 에 한 줄씩 깔아둔다.
 // ============================================================
 
-const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
 async function rosterOf(supabase, date) {
-  const target = new Date(`${date}T00:00:00+09:00`);
-  const dow = DOW[target.getDay()];
+  const dow = dowOf(date);
   const { data: classes } = await supabase.from("classes").select("id, days");
   const ids = (classes || []).filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
   if (ids.length === 0) return [];

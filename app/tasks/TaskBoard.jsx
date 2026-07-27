@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } from "./actions";
+import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 
 const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 const CAT_CLS = {
@@ -16,20 +17,10 @@ const CAT_CLS = {
 };
 
 function today() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
-    .toISOString()
-    .slice(0, 10);
+  return todaySeoul();
 }
-function dayLabel(d) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
-  return `${t.getMonth() + 1}/${t.getDate()} (${dow})`;
-}
-function addDays(d, n) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  t.setDate(t.getDate() + n);
-  return t.toISOString().slice(0, 10);
-}
+const dayLabel = fmtDay;
+
 
 export default function TaskBoard({ tasks = [], classes = [], unavailable = false, linked = [] }) {
   const [sel, setSel] = useState(() => new Set());

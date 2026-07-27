@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import TuitionBoard from "./TuitionBoard";
 import { classSessions, studentAmount, monthRange } from "@/lib/tuition";
 import { loadSettings } from "@/lib/settings";
+import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,7 @@ export default async function TuitionPage({ searchParams }) {
     profile = data;
   }
 
-  const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-  const ym = searchParams?.m || seoul.toISOString().slice(0, 7);
+  const ym = searchParams?.m || todaySeoul().slice(0, 7);
   const { first, last } = monthRange(ym);
 
   // 반 (수강료 컬럼이 없으면 기본 조회)

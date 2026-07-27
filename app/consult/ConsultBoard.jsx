@@ -10,6 +10,7 @@ import {
   ensureFormLink,
   STATUS,
 } from "./actions";
+import { dowOf, parts } from "@/lib/day";
 
 const SOURCES = ["블로그", "소개", "전단", "검색", "방문", "기타"];
 const CLS = Object.fromEntries(STATUS.map((s) => [s.key, s.cls]));
@@ -17,8 +18,8 @@ const LABEL = Object.fromEntries(STATUS.map((s) => [s.key, s.label]));
 
 function dayLabel(d) {
   if (!d) return "";
-  const t = new Date(`${d}T00:00:00+09:00`);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
+  const dow = dowOf(d);
+  const t = { getMonth: () => parts(d).m - 1, getDate: () => parts(d).d };
   return `${t.getMonth() + 1}/${t.getDate()} (${dow})`;
 }
 

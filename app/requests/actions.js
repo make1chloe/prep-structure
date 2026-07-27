@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { addDays } from "@/lib/day";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -61,19 +62,19 @@ export async function handleRequest(id, accept, reply) {
 
     const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
     const rows = [];
-    let d = new Date(`${req.from_date}T00:00:00+09:00`);
-    const end = new Date(`${req.to_date || req.from_date}T00:00:00+09:00`);
+    let d = req.from_date;
+    const end = req.to_date || req.from_date;
     while (d <= end) {
-      if (myDays.has(DOWN[d.getUTCDay()])) {
+      if (myDays.has(dowOf(d))) {
         rows.push({
           student_id: req.student_id,
-          date: d.toISOString().slice(0, 10),
+          date: d,
           status: "absent",
           planned: true,
           reason: req.body || "학부모 사전 연락",
         });
       }
-      d = new Date(d.getTime() + 86400000);
+      d = addDays(d, 1);
     }
     if (rows.length > 0) {
       const { error: aErr } = await supabase

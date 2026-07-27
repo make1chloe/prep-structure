@@ -2,10 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
 import TopNotices from "./TopNotices";
+import { dowOf, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
-const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default async function TodayPage({ searchParams }) {
   const supabase = createClient();
@@ -24,12 +24,8 @@ export default async function TodayPage({ searchParams }) {
   }
 
   // 오늘(서울) 기준 날짜와 요일
-  const seoul = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" })
-  );
-  const date = searchParams?.d || seoul.toISOString().slice(0, 10);
-  const target = new Date(`${date}T00:00:00+09:00`);
-  const dow = DAYS[target.getDay()];
+  const date = searchParams?.d || todaySeoul();
+  const dow = dowOf(date);
 
   // 오늘 요일에 수업이 있는 반
   const { data: allClasses } = await supabase

@@ -3,12 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveReportText, resetReportText, sendReports, unsend } from "./actions";
+import { addDays } from "@/lib/day";
 
-function shiftDate(date, days) {
-  const d = new Date(`${date}T00:00:00+09:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+const shiftDate = addDays;
 
 // 문구에 '내용'이 몇 줄이나 있는지 — 제목·인삿말·맺음말은 빼고 센다
 // 출결 한 줄만 있는 문구를 그대로 보내면 학부모에게는 빈 문자처럼 보인다

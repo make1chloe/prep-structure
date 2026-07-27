@@ -5,14 +5,11 @@ import InstallHint from "./InstallHint";
 import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
 import RequestForm from "./RequestForm";
+import { longLabel as fmtLong } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
-function dayLabel(d) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][t.getDay()];
-  return `${t.getMonth() + 1}월 ${t.getDate()}일 (${dow})`;
-}
+const dayLabel = fmtLong;
 
 export default async function MePage() {
   const supabase = createClient();

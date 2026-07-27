@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import { createNotice, listUnitOptions } from "@/app/today/actions";
 import { unitOptionText } from "@/lib/unitTree";
+import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
 
 const REASONS = ["학교 행사", "시험 기간", "병원", "가족 일정", "여행", "기타"];
 const CAT_CLS = {
@@ -19,19 +20,12 @@ const CAT_CLS = {
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
 function todayISO() {
-  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }))
-    .toISOString()
-    .slice(0, 10);
+  return todaySeoul();
 }
-function addDays(d, n) {
-  const t = new Date(`${d}T00:00:00+09:00`);
-  t.setDate(t.getDate() + n);
-  return t.toISOString().slice(0, 10);
-}
+
 function dayLabel(d) {
   if (!d) return "";
-  const t = new Date(`${d}T00:00:00+09:00`);
-  return `${t.getMonth() + 1}/${t.getDate()} (${DOWN[t.getDay()]})`;
+  return fmtDay(d);
 }
 
 /**
@@ -80,7 +74,7 @@ export default function PlanBoard({
     let d = todayISO();
     for (let i = 0; i < 30 && out.length < count; i++) {
       d = addDays(d, 1);
-      const dow = DOWN[new Date(`${d}T00:00:00+09:00`).getDay()];
+      const dow = dowOf(d);
       if (selDays.size === 0 || selDays.has(dow)) out.push(d);
     }
     return out;

@@ -3,13 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setMakeup } from "./plan/actions";
+import { dayLabel as fmtDay } from "@/lib/day";
 
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
-function dayLabel(s) {
-  const t = new Date(`${s}T00:00:00+09:00`);
-  return `${t.getMonth() + 1}/${t.getDate()} (${DOWN[t.getDay()]})`;
-}
+const dayLabel = fmtDay;
 
 /**
  * 결석했는데 보강일이 안 잡힌 학생 목록.

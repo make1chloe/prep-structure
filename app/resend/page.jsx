@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import ResendBoard from "./ResendBoard";
 import { loadReportRows } from "@/lib/reportData";
 import { loadSettings } from "@/lib/settings";
+import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,7 @@ export default async function ResendPage({ searchParams }) {
     profile = data;
   }
 
-  const seoul = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-  const date = searchParams?.d || seoul.toISOString().slice(0, 10);
+  const date = searchParams?.d || todaySeoul();
 
   const settings = await loadSettings(supabase);
   const { rows, resendReady } = await loadReportRows(supabase, date, settings.academy.name, settings.message);
