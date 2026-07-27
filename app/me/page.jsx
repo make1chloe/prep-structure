@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
+import { score } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
@@ -236,13 +237,13 @@ export default async function MePage() {
               {latest.word_total ? (
                 <div className="row" style={{ gap: 8 }}>
                   <span className="plabel" style={{ width: 46 }}>단어</span>
-                  <b>{latest.word_correct ?? 0} / {latest.word_total}</b>
+                  <b>{score(latest.word_correct, latest.word_total)}</b>
                 </div>
               ) : null}
               {latest.sent_total ? (
                 <div className="row" style={{ gap: 8 }}>
                   <span className="plabel" style={{ width: 46 }}>문장</span>
-                  <b>{latest.sent_correct ?? 0} / {latest.sent_total}</b>
+                  <b>{score(latest.sent_correct, latest.sent_total)}</b>
                 </div>
               ) : null}
               {latest.own_progress ? (

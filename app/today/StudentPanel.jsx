@@ -79,7 +79,9 @@ function ScoreInput({ label, total, correct, onTotal, onCorrect }) {
         onChange={(e) => onTotal(e.target.value)}
       />
       {Number.isFinite(t) && Number.isFinite(c) && (
-        <span className="tag tag-mint">{c}/{t}</span>
+        <span className={`tag ${wrong === 0 ? "tag-mint" : "tag-sky"}`}>
+          {wrong === 0 ? "다 맞음" : `${wrong}/${t} 틀림`}
+        </span>
       )}
     </span>
   );
