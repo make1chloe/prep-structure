@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import { score } from "@/lib/wordTest";
-import StudyList from "./StudyList";
+import StudyTabs from "./StudyTabs";
 import { trend, avgSeconds } from "@/lib/trend";
 import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
@@ -339,22 +339,11 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
-        <StudyList
-          title="오늘 학원에서 할 것"
-          hint="위에서부터 하나씩 하면 돼요. 다 하면 학습 완료를 누르고, 선생님이 부르시면 가져가세요."
-          tasks={inClass}
+        <StudyTabs
+          inClass={inClass}
+          home={studyTasks}
           running={running}
           ready={timerReady}
-          kind="inclass"
-        />
-
-        <StudyList
-          title="집에서 할 숙제"
-          hint="집에서 할 때도 시작을 눌러주세요. 얼마나 걸렸는지가 남아요."
-          tasks={studyTasks}
-          running={running}
-          ready={timerReady}
-          kind="home"
         />
 
         <RequestForm studentId={student.id} mine={myRequests || []} />
