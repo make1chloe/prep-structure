@@ -9,7 +9,9 @@ import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
 import WarnBox from "./WarnBox";
+import LateBox from "./LateBox";
 import { STAY_LABEL } from "@/lib/reportText";
+import { lateReasons } from "@/lib/lateNotice";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -90,6 +92,7 @@ export default function StudentPanel({
   textbooks = [],
   classTextbookIds = [],
   unitNames = {},
+  rule = {},
   onSaved,
 }) {
   const r = row.report || {};
@@ -838,6 +841,29 @@ export default function StudentPanel({
                 why: marks[iid] === "missing" ? "미제출" : "미흡",
               };
             })}
+        />
+      </div>
+
+      {/* 늦은 귀가 안내 — 재시험·미완료 숙제가 있으면 사유가 자동으로 잡힌다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>하원 안내</span>
+        <LateBox
+          studentId={row.student.id}
+          date={date}
+          saved={row.late || {}}
+          reasons={lateReasons(
+            {
+              report: {
+                word_correct: form.word_correct === "" ? null : Number(form.word_correct),
+                word_total: form.word_total === "" ? 0 : Number(form.word_total),
+              },
+              checks: toCheck
+                .filter((iid) => marks[iid] === "weak" || marks[iid] === "missing")
+                .map((iid) => ({ name: nameOf(iid), status: marks[iid] })),
+              stay: row.stay || [],
+            },
+            rule
+          )}
         />
       </div>
 

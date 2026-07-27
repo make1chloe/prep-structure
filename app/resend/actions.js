@@ -11,10 +11,21 @@ function isMissingColumn(error) {
 }
 const NEED_SQL = "0013 SQL을 먼저 실행해주세요.";
 
-// 고친 문구 저장 — kind 에 따라 리포트/숙제 문자를 나눠 담는다
+// 문자 종류 → 어느 칸에 담기는가
+//   report   데일리리포트   report_text   / sent_at
+//   homework 숙제 문자      homework_text / homework_sent_at
+//   late     하원 안내      late_text     / late_sent_at
+const KINDS = {
+  report: { text: "report_text", sent: "sent_at" },
+  homework: { text: "homework_text", sent: "homework_sent_at" },
+  late: { text: "late_text", sent: "late_sent_at" },
+};
+const kindOf = (k) => KINDS[k] || KINDS.report;
+
+// 고친 문구 저장 — kind 에 따라 리포트/숙제/하원 문자를 나눠 담는다
 export async function saveText(reportId, kind, text) {
   if (!reportId) return { error: "리포트가 없어요." };
-  const col = kind === "homework" ? "homework_text" : "report_text";
+  const col = kindOf(kind).text;
   const supabase = createClient();
   const { error } = await supabase
     .from("daily_reports")
@@ -28,7 +39,7 @@ export async function saveText(reportId, kind, text) {
 
 export async function resetText(reportId, kind) {
   if (!reportId) return { error: null };
-  const col = kind === "homework" ? "homework_text" : "report_text";
+  const col = kindOf(kind).text;
   const supabase = createClient();
   const { error } = await supabase
     .from("daily_reports")
@@ -59,7 +70,7 @@ export async function resend(items, kind) {
   const { channel, results } = await deliver(
     settings,
     sendable.map((x) => ({ to: x.phone, text: x.body || "", ref: x.id })),
-    { kind: kind === "homework" ? "homework" : "report" }
+    { kind: KINDS[kind] ? kind : "report" }
   );
   const byRef = new Map(results.map((r) => [r.ref, r]));
 
@@ -70,7 +81,7 @@ export async function resend(items, kind) {
 
   const sentIds = list.filter((x) => byRef.get(x.id)?.ok).map((x) => x.id);
   const now = new Date().toISOString();
-  const col = kind === "homework" ? "homework_sent_at" : "sent_at";
+  const col = kindOf(kind).sent;
 
   if (sentIds.length > 0) {
     const { error } = await supabase
@@ -86,7 +97,7 @@ export async function resend(items, kind) {
     const r = byRef.get(x.id) || {};
     return {
       daily_report_id: x.id,
-      kind: kind === "homework" ? "homework" : "report",
+      kind: KINDS[kind] ? kind : "report",
       body: x.body || "",
       sent_by: user?.id || null,
       channel,

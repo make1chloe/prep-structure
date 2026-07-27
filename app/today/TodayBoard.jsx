@@ -27,6 +27,7 @@ export default function TodayBoard({
   items = [],
   textbooks = [],
   unitNames = {},
+  rule = {},
 }) {
   const [openId, setOpenId] = useState(null);
   const [openClass, setOpenClass] = useState(() => {
@@ -270,6 +271,7 @@ export default function TodayBoard({
                               textbooks={textbooks}
                               classTextbookIds={textbookIds}
                               unitNames={unitNames}
+                              rule={rule}
                               onSaved={() => setOpenId(null)}
                             />
                           )}

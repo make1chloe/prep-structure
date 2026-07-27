@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ReportSender from "./ReportSender";
 import NoticeSender from "./NoticeSender";
+import LateSender from "./LateSender";
 import SendTabs from "./SendTabs";
 import { loadReportRows } from "@/lib/reportData";
 import { loadSettings } from "@/lib/settings";
@@ -23,6 +24,9 @@ export default async function ReportPage({ searchParams }) {
 
   const date = searchParams?.d || todaySeoul();
 
+  const t = searchParams?.t;
+  const tab = t === "notice" ? "notice" : t === "late" ? "late" : "report";
+
   const settings = await loadSettings(supabase);
   const { rows, sendReady } = await loadReportRows(supabase, date, settings.academy.name, settings.message);
 
@@ -37,12 +41,11 @@ export default async function ReportPage({ searchParams }) {
             데일리리포트는 오늘 수업 입력 내용으로 자동 작성되고, 안내 문자는 미리 써둔 문구를 씁니다.
           </p>
         </div>
-        <SendTabs
-          tab={searchParams?.t === "notice" ? "notice" : "report"}
-          date={date}
-        />
-        {searchParams?.t === "notice" ? (
+        <SendTabs tab={tab} date={date} />
+        {tab === "notice" ? (
           <NoticeSender academy={settings.academy.name} mode={settings.mode} />
+        ) : tab === "late" ? (
+          <LateSender date={date} rows={rows} mode={settings.mode} />
         ) : (
           <ReportSender date={date} rows={rows} sendReady={sendReady} mode={settings.mode} />
         )}

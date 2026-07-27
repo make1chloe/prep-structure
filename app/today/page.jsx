@@ -61,7 +61,7 @@ export default async function TodayPage({ searchParams }) {
   let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
     supabase
       .from("daily_reports")
-      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written")
+      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written, late_until, late_reason, late_sent_at")
       .eq("date", date),
     supabase
       .from("homework_items")
@@ -76,6 +76,14 @@ export default async function TodayPage({ searchParams }) {
       .limit(300),
   ]);
 
+  // 0027 전이면 하원 안내 컬럼 없이 다시
+  if (!reports) {
+    ({ data: reports } = await supabase
+      .from("daily_reports")
+      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written")
+      .eq("date", date));
+  }
+
   // method 컬럼이 아직 없는 DB에서도 동작하도록 재조회
   if (itemsErr) {
     ({ data: items } = await supabase
@@ -86,6 +94,13 @@ export default async function TodayPage({ searchParams }) {
   }
 
   const reportByStudent = new Map((reports || []).map((r) => [r.student_id, r]));
+  // 늦은 귀가 안내 — 저장된 것(시간·직접 사유·보낸 시각). 사유 자체는 화면에서 계산한다
+  const lateOf = (rep) => ({
+    reportId: rep?.id || null,
+    until: rep?.late_until || "",
+    reason: rep?.late_reason || "",
+    sentAt: rep?.late_sent_at || null,
+  });
   const lastProgress = new Map();
   const lastTotals = new Map();   // 학생별 지난번 테스트 전체 개수
   const lastReportId = new Map(); // 학생 → 가장 최근 수업의 리포트 id
@@ -502,6 +517,7 @@ export default async function TodayPage({ searchParams }) {
   // 저장하지 않고 지난 석 달 리포트에서 매번 센다
   const warnOf = new Map();
   let warnActions = [];
+  let warnRule = DEFAULT_RULE;   // 하원 안내에서도 단어시험 통과선을 쓴다
   {
     const { data: ruleRow } = await supabase
       .from("integrations")
@@ -509,6 +525,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("id", "warning")
       .maybeSingle();
     const rule = { ...DEFAULT_RULE, ...(ruleRow?.config || {}) };
+    warnRule = rule;
 
     const wFrom = addDays(date, -100);
     const wq = await supabase
@@ -608,6 +625,7 @@ export default async function TodayPage({ searchParams }) {
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
           stay: stayOf.get(s.id) || [],
           warn: warnOf.get(s.id) || null,
+          late: lateOf(rep),
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -643,6 +661,7 @@ export default async function TodayPage({ searchParams }) {
         unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
         stay: stayOf.get(s.id) || [],
         warn: warnOf.get(s.id) || null,
+        late: lateOf(rep),
       };
     });
   if (extras.length > 0) {
@@ -767,6 +786,7 @@ export default async function TodayPage({ searchParams }) {
           items={items || []}
           textbooks={textbooks}
           unitNames={unitNames}
+          rule={warnRule}
         />
       </main>
     </>
