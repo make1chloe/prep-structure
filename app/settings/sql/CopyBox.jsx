@@ -10,11 +10,11 @@ export default function CopyBox({ sql, empty }) {
       <p className="hint">
         SQL 파일을 읽지 못했습니다. 깃허브에서 직접 여세요 →{" "}
         <a
-          href="https://github.com/make1chloe/prep-structure/blob/main/supabase/%ED%95%9C%EB%B2%88%EC%97%90_%EC%8B%A4%ED%96%89.sql"
+          href="https://github.com/make1chloe/prep-structure/blob/main/supabase/SETUP_ALL.sql"
           target="_blank"
           rel="noreferrer"
         >
-          supabase/한번에_실행.sql
+          supabase/SETUP_ALL.sql
         </a>
       </p>
     );

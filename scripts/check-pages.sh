@@ -52,7 +52,15 @@ mid=$(grep -rn -B1 '^import .* from' app lib components --include=*.js --include
 if [ -n "$mid" ]; then echo "$mid"; fail=1; else echo "  없음"; fi
 
 echo
-echo "== 4) 빌드 =="
+echo "== 4) SQL (진짜 Postgres 에 세 번 실행) =="
+if [ -x scripts/check-sql.sh ]; then
+  bash scripts/check-sql.sh || fail=1
+else
+  echo "  건너뜀"
+fi
+
+echo
+echo "== 5) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
 else

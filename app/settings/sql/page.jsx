@@ -27,10 +27,7 @@ export default async function SqlPage() {
 
   let sql = "";
   try {
-    sql = await fs.readFile(
-      path.join(process.cwd(), "supabase", "한번에_실행.sql"),
-      "utf8"
-    );
+    sql = await fs.readFile(path.join(process.cwd(), "supabase", "SETUP_ALL.sql"), "utf8");
   } catch {
     sql = "";
   }
@@ -63,12 +60,18 @@ export default async function SqlPage() {
               <b>Success</b> 가 뜨면 끝입니다. 여러 번 눌러도 안전하게 만들어 두었습니다.
             </li>
           </ol>
+          <p className="hint" style={{ margin: "10px 0 0", lineHeight: 1.8 }}>
+            <b>빨간 에러가 났다면</b> — 한 덩어리로 실행되기 때문에{" "}
+            <b>아무것도 반영되지 않습니다.</b> DB 가 망가진 게 아니니 그대로 두셔도 됩니다.
+            에러 문구를 알려주시면 봐드릴게요.
+          </p>
         </div>
 
         <div className="card" style={{ marginTop: 14 }}>
-          <b style={{ fontSize: 14 }}>한번에_실행.sql</b>
+          <b style={{ fontSize: 14 }}>SETUP_ALL.sql</b>
           <p className="hint" style={{ margin: "4px 0 10px" }}>
-            0008 부터 지금까지의 변경이 순서대로 다 들어 있습니다. 이미 있는 것은 건너뜁니다.
+            처음부터 지금까지가 순서대로 다 들어 있습니다. 이미 있는 것은 전부 건너뜁니다.
+            새 프로젝트든 쓰던 프로젝트든 <b>이 파일 하나면</b> 됩니다.
             아래 줄 수가 편집기에 붙여넣은 줄 수와 같아야 합니다.
           </p>
           <CopyBox sql={sql} empty={!sql} />

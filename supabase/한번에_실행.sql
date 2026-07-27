@@ -1,5 +1,12 @@
 -- ============================================================
--- 클로이영어 앱 — 이 파일 하나만 실행하면 됩니다
+-- ⚠ 이 파일은 **이미 0001~0007 이 깔려 있는 프로젝트**용입니다.
+--   헷갈리면 그냥 `SETUP_ALL.sql` 을 쓰세요. 그거 하나로 두 경우 다 됩니다.
+--   (앱의 설정 → Supabase SQL 은 SETUP_ALL.sql 을 보여줍니다)
+--
+--   "relation public.daily_report_items does not exist" 같은 에러가 났다면
+--   기초 테이블이 없다는 뜻이니 SETUP_ALL.sql 을 쓰셔야 합니다.
+--
+-- 클로이영어 앱 — 0008 부터의 변경만
 --
 -- 쓰는 법
 --   1. https://supabase.com/dashboard → 프로젝트 선택
@@ -16,7 +23,7 @@
 -- 어디까지 실행했는지 기억 안 나면 그냥 처음부터 다시 붙여넣고 Run 하면 됩니다.
 --
 -- ★ 이 파일은 **0008 ~ 0030** 을 하나로 합친 것입니다.
---   (2026-07-27 기준 · 시험 일정 · 2026 시험 21건 · 댓글 · 경고/반성문 · 오늘 마무리 ·
+--   (2026-07-27 기준 · 시험 일정 · 2026 시험 20건 · 댓글 · 경고/반성문 · 오늘 마무리 ·
 --    단어시험 방식 · 회독별 진도 기록 · 경고 월간 정리 · 하원 안내 ·
 --    숙제 배정 → 내 할일 자동 생성 · 문자 문구 종류별 관리 · 알림톡 연결까지)
 --
@@ -26,7 +33,7 @@
 --
 -- 제대로 됐는지 확인하는 법
 --   · 오늘 수업 맨 위에 "공지 · 전달사항" 입력칸이 보이면      → 0009 까지 OK
---   · 수업 스케줄 · 시험 화면에 시험 일정이 21건 보이면        → 0022 까지 OK
+--   · 수업 스케줄 · 시험 화면에 시험 일정이 20건 보이면        → 0022 까지 OK
 --   · 학생용 페이지 숙제 아래 💬 댓글 버튼이 보이면            → 0023 까지 OK
 --   · 오늘 수업 학생 칸에 '오늘 마무리' 줄이 보이면            → 0024 까지 OK
 --   · 단어 교재 진도 아래 '1회독 · 시험 방식 미설정' 이 보이면  → 0025 까지 OK
@@ -399,6 +406,15 @@ create table if not exists public.message_templates (
   created_at timestamptz not null default now()
 );
 
+-- 같은 이름이 두 번 들어가지 않게 한다.
+-- 이 파일을 여러 번 실행하면 아래 seed 가 매번 새로 꽂혀서
+-- '교재 구매 안내' 가 3개, 4개로 늘어나고 있었다. 있던 중복은 여기서 정리한다.
+delete from public.message_templates a
+ using public.message_templates b
+ where a.name = b.name and a.ctid > b.ctid;
+create unique index if not exists message_templates_name_idx
+  on public.message_templates (name) where active;
+
 insert into public.message_templates (name, kind, body, sort) values
   ('교재 구매 안내', 'book',
    '[{{학원명}}] {{학생명}} 학생 교재 안내
@@ -420,7 +436,7 @@ insert into public.message_templates (name, kind, body, sort) values
 {{테스트결과}}
 
 상담 일정은 따로 연락드리겠습니다. 감사합니다.', 30)
-on conflict do nothing;
+on conflict (name) where active do nothing;
 
 
 -- ------------------------------------------------------------
@@ -664,6 +680,13 @@ create table if not exists public.todo_categories (
 );
 create index if not exists todo_categories_parent_idx on public.todo_categories (parent_id);
 
+-- 같은 이름이 두 번 들어가지 않게 (여러 번 실행하면 아래 기본 분류가 계속 늘어났다)
+delete from public.todo_categories a
+ using public.todo_categories b
+ where a.name = b.name and a.parent_id is not distinct from b.parent_id and a.ctid > b.ctid;
+create unique index if not exists todo_categories_name_idx
+  on public.todo_categories (name) where active and parent_id is null;
+
 alter table public.tasks add column if not exists todo_category_id uuid
   references public.todo_categories(id) on delete set null;
 alter table public.tasks add column if not exists parent_id uuid
@@ -685,7 +708,7 @@ insert into public.todo_categories (name, color, sort) values
   ('홍보 · 블로그', 'lav', 60),
   ('시설 · 비품', 'muted', 70),
   ('기타', 'muted', 90)
-on conflict do nothing;
+on conflict (name) where active and parent_id is null do nothing;
 
 alter table public.todo_categories enable row level security;
 drop policy if exists staff_all on public.todo_categories;
@@ -1208,7 +1231,7 @@ insert into public.message_templates (name, kind, key, body, sort) values
   ('데일리리포트',      'auto', 'report',   '', 10),
   ('숙제 문자 (학생용)', 'auto', 'homework', '', 20),
   ('늦은 귀가 안내',     'auto', 'late',     '', 30)
-on conflict (key) do nothing;
+on conflict (key) where key is not null do nothing;   -- 부분 유니크 인덱스라 조건을 같이 적어야 한다
 
 -- 예전에 한 곳에 적어둔 인삿말·맺음말을 데일리리포트로 옮긴다 (한 번만)
 update public.message_templates t

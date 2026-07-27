@@ -17,6 +17,13 @@ create table if not exists public.todo_categories (
 );
 create index if not exists todo_categories_parent_idx on public.todo_categories (parent_id);
 
+-- 같은 이름이 두 번 들어가지 않게 (여러 번 실행하면 아래 기본 분류가 계속 늘어났다)
+delete from public.todo_categories a
+ using public.todo_categories b
+ where a.name = b.name and a.parent_id is not distinct from b.parent_id and a.ctid > b.ctid;
+create unique index if not exists todo_categories_name_idx
+  on public.todo_categories (name) where active and parent_id is null;
+
 alter table public.tasks add column if not exists todo_category_id uuid
   references public.todo_categories(id) on delete set null;
 alter table public.tasks add column if not exists parent_id uuid
@@ -38,7 +45,7 @@ insert into public.todo_categories (name, color, sort) values
   ('홍보 · 블로그', 'lav', 60),
   ('시설 · 비품', 'muted', 70),
   ('기타', 'muted', 90)
-on conflict do nothing;
+on conflict (name) where active and parent_id is null do nothing;
 
 alter table public.todo_categories enable row level security;
 drop policy if exists staff_all on public.todo_categories;

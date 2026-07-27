@@ -79,6 +79,15 @@ create table if not exists public.message_templates (
   created_at timestamptz not null default now()
 );
 
+-- 같은 이름이 두 번 들어가지 않게 한다.
+-- 이 파일을 여러 번 실행하면 아래 seed 가 매번 새로 꽂혀서
+-- '교재 구매 안내' 가 3개, 4개로 늘어나고 있었다. 있던 중복은 여기서 정리한다.
+delete from public.message_templates a
+ using public.message_templates b
+ where a.name = b.name and a.ctid > b.ctid;
+create unique index if not exists message_templates_name_idx
+  on public.message_templates (name) where active;
+
 insert into public.message_templates (name, kind, body, sort) values
   ('교재 구매 안내', 'book',
    '[{{학원명}}] {{학생명}} 학생 교재 안내
@@ -100,7 +109,7 @@ insert into public.message_templates (name, kind, body, sort) values
 {{테스트결과}}
 
 상담 일정은 따로 연락드리겠습니다. 감사합니다.', 30)
-on conflict do nothing;
+on conflict (name) where active do nothing;
 
 
 -- ------------------------------------------------------------

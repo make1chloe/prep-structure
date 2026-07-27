@@ -1,7 +1,33 @@
 -- ============================================================
--- 클로이영어 학습관리 — 전체 스키마 (한 번에 실행)
--- Supabase > SQL Editor 에 통째로 붙여넣고 Run 하세요.
--- 여러 번 실행해도 안전합니다.
+-- 클로이영어 학습관리 — 전체 스키마 (이 파일 하나만 실행하면 됩니다)
+--
+-- 쓰는 법
+--   1. https://supabase.com/dashboard → 프로젝트 선택
+--   2. 왼쪽 메뉴 SQL Editor → Untitled query 안을 클릭
+--   3. **Ctrl+A 로 전체 선택하고 지운 뒤** 이 파일 내용을 붙여넣기
+--      ★ 지난번 내용 아래에 덧붙이지 마세요. 통째로 갈아끼우는 것입니다.
+--      — 앱 안에서 바로 복사할 수 있습니다: 설정 → Supabase SQL
+--   4. 오른쪽 아래 Run (또는 Cmd/Ctrl + Enter)
+--   5. "Success" 가 나오면 끝
+--
+-- 0001 부터 지금까지가 순서대로 다 들어 있습니다.
+-- 여러 번 실행해도 안전합니다 — 이미 있는 것은 전부 건너뜁니다.
+-- 새 프로젝트든 쓰던 프로젝트든 이 파일 하나면 됩니다.
+--
+-- ※ 중간에 에러가 나면 **아무것도 반영되지 않습니다** (한 덩어리로 실행되기 때문).
+--   DB 가 망가진 게 아니니 원인만 고쳐서 다시 Run 하시면 됩니다.
+--
+-- 제대로 됐는지 확인하는 법
+--   · 오늘 수업 맨 위에 "공지 · 전달사항" 입력칸                → 0009 까지 OK
+--   · 수업 스케줄 · 시험 화면에 시험 일정 20건                  → 0022 까지 OK
+--   · 학생용 페이지 숙제 아래 💬 댓글 버튼                      → 0023 까지 OK
+--   · 오늘 수업 학생 칸에 '오늘 마무리' 줄                      → 0024 까지 OK
+--   · 단어 교재 진도 아래 '1회독 · 시험 방식 미설정'            → 0025 까지 OK
+--   · 학생 기록 오른쪽에 '경고 기록' 칸                         → 0026 까지 OK
+--   · 오늘 수업 학생 칸에 '하원 안내' 줄                        → 0027 까지 OK
+--   · 학습 항목 표에 '내 할일 자동 생성' 칸                     → 0028 까지 OK
+--   · 설정 → 문자 문구에 문자 9개                              → 0029 까지 OK
+--   · 문자 문구를 열었을 때 '알림톡' 칸                         → 0030 까지 OK
 -- ============================================================
 
 -- ─────────── 0001_core_schema.sql ───────────
@@ -952,6 +978,15 @@ create table if not exists public.message_templates (
   created_at timestamptz not null default now()
 );
 
+-- 같은 이름이 두 번 들어가지 않게 한다.
+-- 이 파일을 여러 번 실행하면 아래 seed 가 매번 새로 꽂혀서
+-- '교재 구매 안내' 가 3개, 4개로 늘어나고 있었다. 있던 중복은 여기서 정리한다.
+delete from public.message_templates a
+ using public.message_templates b
+ where a.name = b.name and a.ctid > b.ctid;
+create unique index if not exists message_templates_name_idx
+  on public.message_templates (name) where active;
+
 insert into public.message_templates (name, kind, body, sort) values
   ('교재 구매 안내', 'book',
    '[{{학원명}}] {{학생명}} 학생 교재 안내
@@ -973,7 +1008,7 @@ insert into public.message_templates (name, kind, body, sort) values
 {{테스트결과}}
 
 상담 일정은 따로 연락드리겠습니다. 감사합니다.', 30)
-on conflict do nothing;
+on conflict (name) where active do nothing;
 
 
 -- ------------------------------------------------------------
@@ -1217,6 +1252,13 @@ create table if not exists public.todo_categories (
 );
 create index if not exists todo_categories_parent_idx on public.todo_categories (parent_id);
 
+-- 같은 이름이 두 번 들어가지 않게 (여러 번 실행하면 아래 기본 분류가 계속 늘어났다)
+delete from public.todo_categories a
+ using public.todo_categories b
+ where a.name = b.name and a.parent_id is not distinct from b.parent_id and a.ctid > b.ctid;
+create unique index if not exists todo_categories_name_idx
+  on public.todo_categories (name) where active and parent_id is null;
+
 alter table public.tasks add column if not exists todo_category_id uuid
   references public.todo_categories(id) on delete set null;
 alter table public.tasks add column if not exists parent_id uuid
@@ -1238,7 +1280,7 @@ insert into public.todo_categories (name, color, sort) values
   ('홍보 · 블로그', 'lav', 60),
   ('시설 · 비품', 'muted', 70),
   ('기타', 'muted', 90)
-on conflict do nothing;
+on conflict (name) where active and parent_id is null do nothing;
 
 alter table public.todo_categories enable row level security;
 drop policy if exists staff_all on public.todo_categories;
@@ -1761,7 +1803,7 @@ insert into public.message_templates (name, kind, key, body, sort) values
   ('데일리리포트',      'auto', 'report',   '', 10),
   ('숙제 문자 (학생용)', 'auto', 'homework', '', 20),
   ('늦은 귀가 안내',     'auto', 'late',     '', 30)
-on conflict (key) do nothing;
+on conflict (key) where key is not null do nothing;   -- 부분 유니크 인덱스라 조건을 같이 적어야 한다
 
 -- 예전에 한 곳에 적어둔 인삿말·맺음말을 데일리리포트로 옮긴다 (한 번만)
 update public.message_templates t

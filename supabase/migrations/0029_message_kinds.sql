@@ -34,7 +34,7 @@ insert into public.message_templates (name, kind, key, body, sort) values
   ('데일리리포트',      'auto', 'report',   '', 10),
   ('숙제 문자 (학생용)', 'auto', 'homework', '', 20),
   ('늦은 귀가 안내',     'auto', 'late',     '', 30)
-on conflict (key) do nothing;
+on conflict (key) where key is not null do nothing;   -- 부분 유니크 인덱스라 조건을 같이 적어야 한다
 
 -- 예전에 한 곳에 적어둔 인삿말·맺음말을 데일리리포트로 옮긴다 (한 번만)
 update public.message_templates t
