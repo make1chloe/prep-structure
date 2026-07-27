@@ -28,26 +28,34 @@ const VARS = [
  *                      고칠 것은 인삿말·맺음말뿐이고, 지울 수 없다.
  *   내가 쓰는 문자   — 본문을 직접 쓴다. 얼마든지 추가·삭제할 수 있다.
  */
-export default function MessageList({ rows = [], unavailable, pfId = "" }) {
+export default function MessageList({ rows = [], level = "full", error = null, pfId = "" }) {
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  if (unavailable) {
+  // 아예 못 읽었을 때만 화면을 막는다. 그 외에는 되는 데까지 보여준다.
+  if (level === "none") {
     return (
       <div className="card" style={{ marginTop: 12 }}>
         <div className="notice">
-          문자 문구를 나누려면 <b>0029 SQL</b> 을 먼저 실행해주세요.{" "}
-          <a href="/settings/sql">여기서 복사</a>할 수 있습니다.
+          <b>문자 문구를 불러오지 못했습니다.</b>
+          <p style={{ margin: "6px 0 0", fontSize: 12.5 }}>{error}</p>
+          <p style={{ margin: "8px 0 0", fontSize: 12.5 }}>
+            <a href="/settings/sql">설정 → Supabase SQL</a> 에서 전체 복사해 한 번 실행해주세요.
+            (SQL Editor 안을 <b>Ctrl+A 로 지우고</b> 붙여넣어야 합니다)
+          </p>
         </div>
       </div>
     );
   }
 
-  const auto = rows.filter((r) => r.key);
-  const mine = rows.filter((r) => !r.key);
+  const hasKinds = level === "full" || level === "kinds";
+  const hasAlimtalk = level === "full";
+
+  const auto = hasKinds ? rows.filter((r) => r.key) : [];
+  const mine = hasKinds ? rows.filter((r) => !r.key) : rows;
 
   function run(fn, after) {
     startTransition(async () => {
@@ -234,7 +242,7 @@ export default function MessageList({ rows = [], unavailable, pfId = "" }) {
           </>
         )}
 
-        <Alimtalk />
+        {hasAlimtalk && <Alimtalk />}
 
         <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
           <button
@@ -278,11 +286,12 @@ export default function MessageList({ rows = [], unavailable, pfId = "" }) {
           {isAuto && !r.greeting && !r.closing && (
             <span className="hint" style={{ fontSize: 11.5 }}>인사말 없음</span>
           )}
-          {r.alimtalk_id ? (
-            <span className="tag tag-mint" title={`알림톡 템플릿 ${r.alimtalk_id}`}>알림톡</span>
-          ) : (
-            <span className="tag tag-muted" title="문자(SMS/LMS)로 나갑니다">문자</span>
-          )}
+          {hasAlimtalk &&
+            (r.alimtalk_id ? (
+              <span className="tag tag-mint" title={`알림톡 템플릿 ${r.alimtalk_id}`}>알림톡</span>
+            ) : (
+              <span className="tag tag-muted" title="문자(SMS/LMS)로 나갑니다">문자</span>
+            ))}
           <span className="spacer" />
           <button className="btn btn-ghost btn-sm" onClick={() => (isEditing ? setEditId(null) : start(r))}>
             {isEditing ? "접기" : "수정"}
@@ -317,6 +326,20 @@ export default function MessageList({ rows = [], unavailable, pfId = "" }) {
 
   return (
     <div className="stack" style={{ gap: 18, marginTop: 12 }}>
+      {!hasKinds && (
+        <div className="notice">
+          아직 <b>종류별 문구 나누기</b>가 안 켜져 있습니다 (0029). 지금은 목록만 보입니다.{" "}
+          <a href="/settings/sql">설정 → Supabase SQL</a> 을 한 번 실행해주세요.
+        </div>
+      )}
+      {hasKinds && !hasAlimtalk && (
+        <div className="notice">
+          문구는 나뉘었지만 <b>알림톡 연결</b>은 아직입니다 (0030).{" "}
+          <a href="/settings/sql">SQL</a> 을 한 번 더 실행하면 켜집니다.
+        </div>
+      )}
+
+      {hasKinds && (
       <div>
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>앱이 보내는 문자</h2>
         <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
@@ -326,6 +349,7 @@ export default function MessageList({ rows = [], unavailable, pfId = "" }) {
           <Card key={r.id} r={r} />
         ))}
       </div>
+      )}
 
       <div>
         <div className="row" style={{ alignItems: "baseline", marginBottom: 4 }}>

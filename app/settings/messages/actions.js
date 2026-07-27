@@ -9,16 +9,45 @@ function unavailable(error) {
   return error && (error.code === "42703" || error.code === "PGRST204" || error.code === "42P01");
 }
 
-/** 문자 문구 전부 (앱이 만드는 것 + 내가 쓰는 것) */
+/**
+ * 문자 문구 전부 (앱이 만드는 것 + 내가 쓰는 것)
+ *
+ * SQL 을 어디까지 실행했는지에 따라 있는 칸이 다르다.
+ * **없는 칸 때문에 화면 전체가 막히지 않게** 한 단계씩 물러나며 읽는다.
+ *   full  0030 까지 — 알림톡 연결까지 된다
+ *   kinds 0029 까지 — 종류별 인삿말까지 된다
+ *   base  0017 까지 — 문구 목록만 보인다
+ * 무엇이 모자란지는 화면에 그대로 알려준다.
+ */
 export async function listMessages() {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("message_templates")
-    .select("id, name, kind, key, body, greeting, closing, sort, active, alimtalk_id, alimtalk_vars")
-    .eq("active", true)
-    .order("sort", { ascending: true });
-  if (error) return { rows: [], error: unavailable(error) ? NEED : error.message };
-  return { rows: data || [], error: null };
+  const BASE = "id, name, kind, body, sort, active";
+
+  const tries = [
+    { level: "full", cols: `${BASE}, key, greeting, closing, alimtalk_id, alimtalk_vars` },
+    { level: "kinds", cols: `${BASE}, key, greeting, closing` },
+    { level: "base", cols: BASE },
+  ];
+
+  let last = null;
+  for (const t of tries) {
+    const { data, error } = await supabase
+      .from("message_templates")
+      .select(t.cols)
+      .eq("active", true)
+      .order("sort", { ascending: true });
+    if (!error) return { rows: data || [], level: t.level, error: null };
+    last = error;
+    // 칸이 없어서 실패한 게 아니면 더 물러나 봐야 소용없다
+    if (!unavailable(error)) break;
+  }
+
+  // 표 자체가 없다 / 권한이 없다 / 그 밖의 이유 — 있는 그대로 알린다
+  const why =
+    last?.code === "42P01"
+      ? "message_templates 표가 아직 없습니다. SQL 을 실행해주세요."
+      : `${last?.message || "알 수 없는 오류"}${last?.code ? ` (${last.code})` : ""}`;
+  return { rows: [], level: "none", error: why };
 }
 
 /**

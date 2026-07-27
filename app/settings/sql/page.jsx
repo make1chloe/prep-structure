@@ -3,6 +3,7 @@ import path from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import CopyBox from "./CopyBox";
+import { checkSchema } from "./status";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,9 @@ export default async function SqlPage() {
     profile = data;
   }
 
+  const checks = await checkSchema();
+  const done = checks.filter((c) => c.ok).length;
+
   let sql = "";
   try {
     sql = await fs.readFile(path.join(process.cwd(), "supabase", "SETUP_ALL.sql"), "utf8");
@@ -39,6 +43,37 @@ export default async function SqlPage() {
         <div className="page-head">
           <p className="eyebrow">설정</p>
           <h1 className="h1">Supabase SQL</h1>
+        </div>
+
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
+            <b style={{ fontSize: 14 }}>지금 DB 상태</b>
+            <span className={`tag ${done === checks.length ? "tag-mint" : "tag-amber"}`}>
+              {done} / {checks.length}
+            </span>
+            {done === checks.length && <span className="hint">다 들어가 있습니다</span>}
+          </div>
+          <div className="stack" style={{ gap: 3, marginTop: 8 }}>
+            {checks.map((c) => (
+              <div className="unitrow" key={c.id + c.col}>
+                <span className={`tag ${c.ok ? "tag-mint" : "tag-amber"}`}>{c.ok ? "OK" : "없음"}</span>
+                <span className="hint" style={{ minWidth: 44 }}>{c.id}</span>
+                <span style={{ fontSize: 12.5, flex: 1 }}>{c.label}</span>
+                {!c.ok && (
+                  <span className="hint" style={{ fontSize: 11, maxWidth: 320, textAlign: "right" }}>
+                    {c.why}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          {done < checks.length && (
+            <p className="hint" style={{ margin: "10px 0 0" }}>
+              <b>없음</b> 이 하나라도 있으면 아래 SQL 을 실행해주세요. 실행한 뒤 이 화면을 새로고침하면
+              바뀝니다. 실행했는데도 그대로면 <b>에러가 나서 아무것도 안 들어간 것</b>입니다 —
+              그 에러 문구를 알려주세요.
+            </p>
+          )}
         </div>
 
         <div className="card">
