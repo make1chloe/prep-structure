@@ -160,6 +160,13 @@ export default function StudentPanel({
   const toCheckSet = new Set(toCheck);
   const unchecked = toCheck.filter((id) => !marks[id]);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
+
+  // △·✕ 로 찍은 숙제 — **배정된 것뿐 아니라 지금 찍은 것 전부**를 본다.
+  // 예전에는 toCheck(지난 수업에 배정한 것)만 봐서, 배정 없이 그 자리에서 찍은
+  // 숙제는 늦귀가 과제로도, 하원 안내 사유로도 안 잡혔다.
+  const weakOrMissing = Object.entries(marks)
+    .filter(([, st]) => st === "weak" || st === "missing")
+    .map(([iid, st]) => ({ iid, st }));
   // 지난 수업에 낸 숙제의 교재 단원 (무엇을 검사해야 하는지 그대로 보여준다)
   const checkUnitList = Object.entries(row.checkUnits || {}).filter(
     ([, u]) => u.unitId || u.note
@@ -821,26 +828,25 @@ export default function StudentPanel({
         </div>
       )}
 
-      {/* 오늘 마무리 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
+      {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>{STAY_LABEL}</span>
         <StayBox
           studentId={row.student.id}
           date={date}
           rows={row.stay || []}
-          suggestions={toCheck
-            .filter((iid) => marks[iid] === "weak" || marks[iid] === "missing")
-            .map((iid) => {
-              const u = row.checkUnits?.[iid] || {};
-              const uids = u.unitIds?.length ? u.unitIds : u.unitId ? [u.unitId] : [];
-              const where = uids.map((x) => unitNames[x]?.path).filter(Boolean).join(", ");
-              const detail = [where, u.note].filter(Boolean).join(" ");
-              return {
-                itemId: iid,
-                body: detail ? `${nameOf(iid)} ${detail}` : nameOf(iid),
-                why: marks[iid] === "missing" ? "미제출" : "미흡",
-              };
-            })}
+          suggestions={weakOrMissing.map(({ iid, st }) => {
+            const u = row.checkUnits?.[iid] || {};
+            const uids = u.unitIds?.length ? u.unitIds : u.unitId ? [u.unitId] : [];
+            const where = uids.map((x) => unitNames[x]?.path).filter(Boolean).join(", ");
+            const detail = [where, u.note].filter(Boolean).join(" ");
+            const name = nameOf(iid) || "숙제";
+            return {
+              itemId: iid,
+              body: detail ? `${name} ${detail}` : name,
+              why: st === "missing" ? "미제출" : "미흡",
+            };
+          })}
         />
       </div>
 
@@ -857,9 +863,10 @@ export default function StudentPanel({
                 word_correct: form.word_correct === "" ? null : Number(form.word_correct),
                 word_total: form.word_total === "" ? 0 : Number(form.word_total),
               },
-              checks: toCheck
-                .filter((iid) => marks[iid] === "weak" || marks[iid] === "missing")
-                .map((iid) => ({ name: nameOf(iid), status: marks[iid] })),
+              checks: weakOrMissing.map(({ iid, st }) => ({
+                name: nameOf(iid) || "숙제",
+                status: st,
+              })),
               stay: row.stay || [],
             },
             rule

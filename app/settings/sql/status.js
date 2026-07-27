@@ -15,7 +15,7 @@ const CHECKS = [
   { id: "0020", label: "할일 분류", table: "todo_categories", col: "name" },
   { id: "0022", label: "2026 시험 일정", table: "exam_periods", col: "english_on" },
   { id: "0023", label: "리포트 댓글", table: "report_comments", col: "body" },
-  { id: "0024", label: "경고 · 오늘 마무리", table: "stay_tasks", col: "status" },
+  { id: "0024", label: "경고 · 늦귀가 과제", table: "stay_tasks", col: "status" },
   { id: "0025", label: "단어시험 방식", table: "word_test_settings", col: "first_hint" },
   { id: "0026", label: "회독별 진도", table: "student_unit_progress", col: "round" },
   { id: "0027", label: "하원 안내", table: "daily_reports", col: "late_until" },

@@ -32,7 +32,7 @@ async function ensureReport(supabase, studentId, date) {
 /**
  * 하원 예상 시간 · 직접 적은 사유를 저장한다.
  *
- * 자동으로 잡히는 사유(단어 재시험 · 오늘 마무리)는 저장하지 않는다.
+ * 자동으로 잡히는 사유(단어 재시험 · 늦귀가 과제)는 저장하지 않는다.
  * 이미 입력한 값에서 매번 계산하기 때문이다 — 리포트를 고치면 문구도 같이 맞는다.
  */
 export async function saveLate(studentId, date, { until, reason, text } = {}) {

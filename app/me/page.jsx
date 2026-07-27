@@ -179,7 +179,7 @@ export default async function MePage() {
     .order("created_at", { ascending: false })
     .limit(5);
 
-  // 오늘 마무리 — 아직 안 끝났거나 숙제로 넘어온 것
+  // 늦귀가 과제 — 아직 안 끝났거나 숙제로 넘어온 것
   const stayQ = await supabase
     .from("stay_tasks")
     .select("id, date, body, status")

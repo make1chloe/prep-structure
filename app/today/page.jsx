@@ -499,7 +499,7 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
-  // ── 오늘 마무리 (늦귀가과제) ─────────────────────────────
+  // ── 늦귀가 과제 ─────────────────────────────────────────
   const stayOf = new Map();
   {
     const q = await supabase
