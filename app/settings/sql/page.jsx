@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
 import { loadSteps } from "./steps";
+import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,16 @@ export default async function SqlPage() {
     profile = data;
   }
 
+  // 앱이 실제로 붙어 있는 프로젝트 — SQL 을 돌리는 곳과 같아야 한다
+  const host = (() => {
+    try {
+      return new URL(SUPABASE_URL).host;
+    } catch {
+      return SUPABASE_URL;
+    }
+  })();
+  const projectRef = host.split(".")[0];
+
   const checks = await checkSchema();
   const done = checks.filter((c) => c.ok).length;
   const steps = await loadSteps();
@@ -47,6 +58,23 @@ export default async function SqlPage() {
         <div className="page-head">
           <p className="eyebrow">설정</p>
           <h1 className="h1">Supabase SQL</h1>
+        </div>
+
+        <div className="card" style={{ marginBottom: 14 }}>
+          <b style={{ fontSize: 14 }}>앱이 보고 있는 프로젝트</b>
+          <p
+            className="mono"
+            style={{ margin: "6px 0 0", fontSize: 15, fontWeight: 700, letterSpacing: 0.3 }}
+          >
+            {projectRef}
+          </p>
+          <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.8 }}>
+            SQL 을 실행하신 Supabase 화면의 주소창을 보세요.
+            <br />
+            <code>supabase.com/dashboard/project/<b>{projectRef}</b></code> 이어야 합니다.
+            <br />
+            <b>다르면 다른 프로젝트에 SQL 을 넣고 계신 겁니다.</b> 아무리 Run 해도 앱은 안 바뀝니다.
+          </p>
         </div>
 
         <div className="card" style={{ marginBottom: 14 }}>
@@ -80,6 +108,15 @@ export default async function SqlPage() {
               <br />
               그럴 때는 맨 아래 <b>하나씩 실행하기</b> 에서 <b>안 들어간 것 중 맨 위 하나</b>만 따로
               Run 해보세요. 어느 구문이 문제인지 바로 나옵니다.
+              <br />
+              <br />
+              <b>Success 가 떴는데도 여기가 안 바뀐다면</b> 둘 중 하나입니다.
+              <br />
+              ① 위에 적힌 프로젝트가 아닌 <b>다른 프로젝트</b>에 넣었다
+              <br />
+              ② Supabase 가 바뀐 표를 아직 못 읽었다 — SQL Editor 에 아래 한 줄만 Run 해보세요
+              <br />
+              <code style={{ fontSize: 12 }}>notify pgrst, &apos;reload schema&apos;;</code>
             </div>
           )}
         </div>
