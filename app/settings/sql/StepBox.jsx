@@ -40,6 +40,9 @@ export default function StepBox({ steps = [], missing = [] }) {
         전체를 붙였는데도 위 상태가 그대로면, <b>안 들어간 것 중 맨 위 하나만</b> 복사해서
         따로 Run 해보세요. Supabase 가 <b>그 구문의 진짜 에러</b>를 알려줍니다.
         그 문구를 알려주시면 바로 고쳐드릴 수 있습니다.
+        <br />
+        <b>꼭 [이것만 복사] 단추를 쓰세요.</b> 화면 글자를 마우스로 긁으면 파일 이름까지 딸려가서
+        에러가 납니다.
       </p>
 
       <div className="stack" style={{ gap: 8 }}>

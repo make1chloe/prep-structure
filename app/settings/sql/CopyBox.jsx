@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 
+/** 마지막 진짜 줄 (빈 줄 빼고) — 제대로 붙었는지 눈으로 맞춰보는 용도 */
+function lastLine(sql = "") {
+  const lines = sql.split("\n").filter((l) => l.trim());
+  return lines[lines.length - 1] || "";
+}
+
 export default function CopyBox({ sql, empty }) {
   const [done, setDone] = useState(false);
 
@@ -41,6 +47,21 @@ export default function CopyBox({ sql, empty }) {
           {sql.split("\n").length.toLocaleString()}줄
         </span>
       </div>
+      <div
+        className="card card-tight"
+        style={{ background: "transparent", marginBottom: 8, fontSize: 12 }}
+      >
+        <b style={{ fontSize: 12.5 }}>붙여넣은 뒤 이것만 확인해주세요</b>
+        <div className="hint" style={{ marginTop: 5, lineHeight: 1.8 }}>
+          · Supabase 편집기의 마지막 줄 번호가 <b>{sql.split("\n").length.toLocaleString()}</b> 이어야
+          합니다
+          <br />
+          · 마지막 줄이 <code>{lastLine(sql)}</code> 이어야 합니다
+          <br />
+          · 그 아래에 <b>파일 이름 같은 게 딸려왔으면 지워주세요.</b> SQL 이 아니라서 에러가 납니다
+        </div>
+      </div>
+
       <textarea
         className="input"
         readOnly
