@@ -114,9 +114,8 @@ export default async function TodayPage({ searchParams }) {
       if (onlyAssigned) q = q.eq("status", "assigned");
       return q;
     };
-    // 0024(note) → 0009(단원 배열) → 0008(단원 1개) → 그 이전 순으로 물러난다
-    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note, note`);
-    if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`));
+    // 0009(단원 배열) → 0008(단원 1개) → 그 이전 순으로 물러난다
+    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`);
     if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`));
     if (error) ({ data } = await build(DRI_BASE));
     return data || [];
@@ -125,7 +124,6 @@ export default async function TodayPage({ searchParams }) {
   // 리포트별 숙제 항목 상태
   const reportIds = (reports || []).map((r) => r.id);
   const itemsByReport = new Map();
-  const noteByReport = new Map();          // 채점 피드백 { reportId: { itemId: note } }
   const nextByReport = new Map();
   const unitIds = new Set();
   const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
@@ -150,10 +148,6 @@ export default async function TodayPage({ searchParams }) {
     }
     if (!itemsByReport.has(x.daily_report_id)) itemsByReport.set(x.daily_report_id, {});
     itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
-    if (x.note) {
-      if (!noteByReport.has(x.daily_report_id)) noteByReport.set(x.daily_report_id, {});
-      noteByReport.get(x.daily_report_id)[x.homework_item_id] = x.note;
-    }
   });
 
   // 지난 수업에서 '배정한' 숙제 = 오늘 검사해야 할 항목
@@ -473,11 +467,11 @@ export default async function TodayPage({ searchParams }) {
           status: a?.status || null,
           isMakeup: a?.status === "makeup",
           makeupOf: a?.makeup_of || null,   // 언제 결석한 보강인가
+          makeupReason: a?.status === "makeup" ? a?.reason || "" : "",
           plannedAbsent: !!(a?.planned && a.status === "absent"),
           absenceReason: a?.reason || "",
           report: rep,
           items: rep ? itemsByReport.get(rep.id) || {} : {},
-          itemNotes: rep ? noteByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
           lastTotals: lastTotals.get(s.id) || null,
           toCheck: toCheckOf(s.id),
@@ -508,9 +502,9 @@ export default async function TodayPage({ searchParams }) {
         status: "makeup",
         isMakeup: true,
         makeupOf: a.makeup_of || null,
+        makeupReason: a.reason || "",
         report: rep,
         items: rep ? itemsByReport.get(rep.id) || {} : {},
-        itemNotes: rep ? noteByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
         lastTotals: lastTotals.get(s.id) || null,
         toCheck: toCheckOf(s.id),

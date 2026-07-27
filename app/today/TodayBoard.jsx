@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
 
@@ -169,7 +170,12 @@ export default function TodayBoard({
                             </span>
                             {r.isMakeup && (
                               <span className="tag tag-lav" title="보강으로 온 학생">
-                                보강{r.makeupOf ? ` · ${r.makeupOf.slice(5).replace("-", "/")} 결석분` : ""}
+                                보강
+                                {r.makeupReason
+                                  ? ` · ${r.makeupReason}`
+                                  : r.makeupOf
+                                  ? ` · ${r.makeupOf.slice(5).replace("-", "/")} 결석분`
+                                  : ""}
                               </span>
                             )}
                             {r.plannedAbsent && (
@@ -286,6 +292,28 @@ export default function TodayBoard({
           );
         })}
       </div>
+
+      {/* 다 찍고 나면 바로 발송으로 — 매번 메뉴를 다시 찾아 들어가지 않게 */}
+      {(() => {
+        const all = groups.flatMap((g) => g.rows);
+        const ready = all.filter((r) => r.reportWritten).length;
+        const left = all.filter((r) => r.status && !isDone(r)).length;
+        if (ready === 0) return null;
+        return (
+          <div className="card" style={{ marginTop: 12 }}>
+            <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <b style={{ fontSize: 14 }}>기록 끝난 학생 {ready}명</b>
+              {left > 0 && (
+                <span className="tag tag-amber">아직 기록 안 한 학생 {left}명</span>
+              )}
+              <span className="spacer" />
+              <Link className="btn btn-primary btn-sm" href={`/report?d=${date}`}>
+                학부모에게 발송하러 가기 →
+              </Link>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }

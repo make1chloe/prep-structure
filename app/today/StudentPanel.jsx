@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveStudentDay, listUnitOptions, setDelivered, copyHomeworkToClass } from "./actions";
+import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
@@ -102,8 +102,6 @@ export default function StudentPanel({
     notice: r.notice || "",
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
-  // 숙제 하나하나에 남기는 채점 피드백 ("3번 대명사 지칭 틀림")
-  const [itemNotes, setItemNotes] = useState(() => ({ ...(row.itemNotes || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
@@ -147,6 +145,8 @@ export default function StudentPanel({
   const [delivered, setDeliveredMap] = useState(() =>
     Object.fromEntries((row.notices || []).map((n) => [n.id, n.delivered]))
   );
+  // 검사하다 "그럼 목요일에 다시 보자" 가 되는 순간을 여기서 바로 처리한다
+  const [mk, setMk] = useState({ open: false, date: "", reason: "" });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -318,7 +318,6 @@ export default function StudentPanel({
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         items: marks,
-        itemNotes,
         toCheck,
         nextHomework: [...next],
         nextUnits: Object.fromEntries(
@@ -461,22 +460,6 @@ export default function StudentPanel({
                           })}
                           {u.note && <span className="tag tag-muted">{u.note}</span>}
                         </span>
-                      )}
-                      {/* 채점 피드백 — 미흡·미제출이면 자동으로 열린다 */}
-                      {(st === "weak" || st === "missing" || itemNotes[iid]) && (
-                        <input
-                          className="input input-sm"
-                          style={{ flexBasis: "100%", marginTop: 2 }}
-                          placeholder={
-                            st === "missing"
-                              ? "왜 못 했는지 · 언제까지 해올지 (학부모 문자에 같이 나갑니다)"
-                              : "어디가 부족했는지 (학부모 문자에 같이 나갑니다)"
-                          }
-                          value={itemNotes[iid] || ""}
-                          onChange={(e) =>
-                            setItemNotes((m) => ({ ...m, [iid]: e.target.value }))
-                          }
-                        />
                       )}
                     </div>
                   );
@@ -827,46 +810,77 @@ export default function StudentPanel({
         </div>
       )}
 
-      <div className="row" style={{ justifyContent: "flex-end", marginTop: 8, gap: 6 }}>
-        {/* 반 전체에 같은 숙제 — 한 명 만들어놓고 나머지에게 복사한다 */}
-        {row.classId && next.size > 0 && (
-          <button
-            className="btn btn-sm"
-            disabled={pending}
-            title="이미 숙제가 배정된 학생은 건드리지 않습니다"
-            onClick={() => {
-              if (!confirm("저장한 뒤, 이 숙제를 반 전체에 그대로 낼까요?\n(이미 숙제가 있는 학생은 그대로 둡니다)")) return;
-              startTransition(async () => {
-                const res = await saveStudentDay(row.student.id, date, {
-                  ...form,
-                  items: marks,
-                  itemNotes,
-                  toCheck,
-                  nextHomework: [...next],
-                  nextUnits: Object.fromEntries(
-                    [...next].map((iid) => [
-                      iid,
-                      {
-                        unitIds: nextUnits[iid]?.unitIds || [],
-                        note: nextUnits[iid]?.note || "",
-                      },
-                    ])
-                  ),
-                });
-                if (res?.error) { alert(res.error); return; }
-                const cp = await copyHomeworkToClass(row.student.id, row.classId, date);
-                if (cp?.error) { alert(cp.error); return; }
-                alert(
-                  `${cp.copied}명에게 같은 숙제를 냈어요.` +
-                  (cp.skipped ? `\n${cp.skipped}명은 이미 숙제가 있어 그대로 뒀습니다.` : "")
-                );
-                router.refresh();
-              });
-            }}
-          >
-            반 전체에 같은 숙제
-          </button>
-        )}
+      {/* 재시험 · 보강 — 검사하다 정해지는 것이라 여기서 바로 잡는다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>재시험 · 보강</span>
+        <div style={{ flex: 1 }}>
+          {!mk.open ? (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() =>
+                setMk({
+                  open: true,
+                  date: "",
+                  // 미제출·미흡이 있으면 무엇 때문인지 미리 적어둔다
+                  reason: unchecked.length === 0
+                    ? Object.entries(marks)
+                        .filter(([, v]) => v === "missing" || v === "weak")
+                        .map(([id]) => nameOf(id))
+                        .filter(Boolean)
+                        .join(", ")
+                    : "",
+                })
+              }
+            >
+              ＋ 날짜 잡기
+            </button>
+          ) : (
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+              <input
+                className="input input-sm"
+                type="date"
+                style={{ width: 150 }}
+                value={mk.date}
+                onChange={(e) => setMk({ ...mk, date: e.target.value })}
+              />
+              <input
+                className="input input-sm"
+                style={{ flex: 1, minWidth: 140 }}
+                placeholder="무엇 때문인지 (단어 재시험 / 결석 보강 …)"
+                value={mk.reason}
+                onChange={(e) => setMk({ ...mk, reason: e.target.value })}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={pending || !mk.date}
+                onClick={() =>
+                  startTransition(async () => {
+                    const res = await bookMakeup(
+                      row.student.id,
+                      mk.date,
+                      mk.reason,
+                      row.isMakeup ? row.makeupOf : null
+                    );
+                    if (res?.error) { alert(res.error); return; }
+                    setMk({ open: false, date: "", reason: "" });
+                    router.refresh();
+                  })
+                }
+              >
+                잡기
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", reason: "" })}>
+                취소
+              </button>
+            </div>
+          )}
+          <p className="hint" style={{ margin: "4px 0 0" }}>
+            그날 <b>오늘 수업</b> 화면에 이 학생이 보강으로 뜹니다. 일정 화면으로 안 나가도 돼요.
+          </p>
+        </div>
+      </div>
+
+      <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
         <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
           {pending ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
         </button>
