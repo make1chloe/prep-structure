@@ -14,6 +14,7 @@ const MAIN = [
   { href: "/today", key: "today", label: "오늘 수업" },
   { href: "/plan", key: "plan", label: "수업 준비" },
   { href: "/report", key: "report", label: "발송" },
+  { href: "/monthly", key: "monthly", label: "월말 리포트" },
 ];
 
 // 묶어서 넣는 것

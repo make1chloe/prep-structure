@@ -10,6 +10,7 @@ import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
+import ExamBox from "./ExamBox";
 import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 
@@ -829,6 +830,12 @@ export default function StudentPanel({
           </div>
         </div>
       )}
+
+      {/* 단원평가 — 본 날 그 자리에서. 월말 리포트에 그대로 들어간다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>단원평가</span>
+        <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} />
+      </div>
 
       {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>

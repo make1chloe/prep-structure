@@ -22,6 +22,7 @@ const CHECKS = [
   { id: "0028", label: "숙제 → 내 할일", table: "homework_items", col: "prep_task" },
   { id: "0029", label: "문자 문구 종류별", table: "message_templates", col: "key" },
   { id: "0030", label: "알림톡 연결", table: "message_templates", col: "alimtalk_id" },
+  { id: "0031", label: "월말 리포트 · 단원평가", table: "monthly_reports", col: "ym" },
 ];
 
 export async function checkSchema() {

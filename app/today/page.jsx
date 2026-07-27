@@ -499,6 +499,22 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 오늘 본 단원평가 (0031 전이면 없는 것으로 본다)
+  const examOf = new Map();
+  {
+    const q = studentIds.length
+      ? await supabase
+          .from("unit_exams")
+          .select("id, student_id, name, score, total")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : { data: [] };
+    (q.error ? [] : q.data || []).forEach((e) => {
+      if (!examOf.has(e.student_id)) examOf.set(e.student_id, []);
+      examOf.get(e.student_id).push(e);
+    });
+  }
+
   // ── 늦귀가 과제 ─────────────────────────────────────────
   const stayOf = new Map();
   {
@@ -626,6 +642,7 @@ export default async function TodayPage({ searchParams }) {
           stay: stayOf.get(s.id) || [],
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
+          exams: examOf.get(s.id) || [],
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -662,6 +679,7 @@ export default async function TodayPage({ searchParams }) {
         stay: stayOf.get(s.id) || [],
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
+        exams: examOf.get(s.id) || [],
       };
     });
   if (extras.length > 0) {

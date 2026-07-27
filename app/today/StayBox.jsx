@@ -11,6 +11,28 @@ const NEXT = {
   skipped: { label: "오늘은 넘어감", cls: "tag-muted" },
 };
 
+// 줄 생김새를 한 곳에서 맞춘다 — 제안이든 올라온 것이든 같은 자리에 같은 것이 온다
+//   [태그]  내용 ..............  [단추들]
+function Row({ tag, cls, body, dim, strike, children }) {
+  return (
+    <div className="unitrow" style={dim ? { opacity: 0.55 } : undefined}>
+      <span className={`tag ${cls}`} style={{ minWidth: 58, textAlign: "center" }}>
+        {tag}
+      </span>
+      <span
+        style={{
+          fontSize: 13,
+          flex: 1,
+          textDecoration: strike ? "line-through" : "none",
+        }}
+      >
+        {body}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 /**
  * 늦귀가 과제 한 학생 분.
  *
@@ -52,17 +74,15 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
       {fresh.length > 0 && (
         <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
           {fresh.map((s) => (
-            <div className="unitrow" key={s.body}>
-              <span className="tag tag-amber">{s.why}</span>
-              <span style={{ fontSize: 12.5, flex: 1 }}>{s.body}</span>
+            <Row key={s.body} tag={s.why} cls="tag-amber" body={s.body}>
               <button
                 className="btn btn-primary btn-sm"
                 disabled={pending}
                 onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true))}
               >
-                ＋ {STAY_LABEL}로
+                ＋ 올리기
               </button>
-            </div>
+            </Row>
           ))}
         </div>
       )}
@@ -73,32 +93,22 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
           {rows.map((t) => {
             const settled = t.status !== "todo";
             return (
-              <div
-                className="unitrow"
+              <Row
                 key={t.id}
-                style={settled ? { opacity: 0.55 } : undefined}
+                tag={settled ? NEXT[t.status].label : "남을 것"}
+                cls={settled ? NEXT[t.status].cls : "tag-sky"}
+                body={t.body}
+                dim={settled}
+                strike={t.status === "done"}
               >
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: settled ? 500 : 700,
-                    flex: 1,
-                    textDecoration: t.status === "done" ? "line-through" : "none",
-                  }}
-                >
-                  {t.body}
-                </span>
                 {settled ? (
-                  <>
-                    <span className={`tag ${NEXT[t.status].cls}`}>{NEXT[t.status].label}</span>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      disabled={pending}
-                      onClick={() => run(() => setStayStatus(t.id, "todo"))}
-                    >
-                      되돌리기
-                    </button>
-                  </>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    onClick={() => run(() => setStayStatus(t.id, "todo"))}
+                  >
+                    되돌리기
+                  </button>
                 ) : (
                   <>
                     <button
@@ -133,7 +143,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                     </button>
                   </>
                 )}
-              </div>
+              </Row>
             );
           })}
         </div>
