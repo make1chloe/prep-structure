@@ -10,8 +10,9 @@ import { saveAdminToken, clearAdminToken, applyMissing } from "./apply";
  * 복사·붙여넣기를 하다 보면 딴 글자가 섞여 들어가 실패한다.
  * Supabase 액세스 토큰을 한 번 넣어두면 앱이 알아서 넣는다.
  */
-export default function ApplyBox({ saved = false, projectRef = "", missingCount = 0 }) {
+export default function ApplyBox({ saved = false, projectRef = "", savedRef = "", missingCount = 0 }) {
   const [token, setToken] = useState("");
+  const [ref, setRef] = useState(savedRef || projectRef);
   const [open, setOpen] = useState(false);
   const [log, setLog] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -19,7 +20,7 @@ export default function ApplyBox({ saved = false, projectRef = "", missingCount 
 
   function save() {
     startTransition(async () => {
-      const res = await saveAdminToken(token);
+      const res = await saveAdminToken(token, ref);
       if (res?.error) {
         alert(res.error);
         return;
@@ -81,11 +82,26 @@ export default function ApplyBox({ saved = false, projectRef = "", missingCount 
             <br />
             ② <b>Generate new token</b> → 이름은 아무거나 (예: 클로이영어 앱)
             <br />
+            &nbsp;&nbsp;&nbsp;스코프를 고르라고 나오면 <b>All</b> (또는 이 프로젝트 전체)로 두세요
+            <br />
             ③ 나온 글자를 <b>여기에만</b> 붙여넣기 — 채팅이나 메모에 남기지 마세요
             <br />
             <br />
             이 토큰은 <b>{projectRef || "이 프로젝트"}</b> 에 SQL 을 넣는 데만 씁니다. 원장 계정만
             읽을 수 있게 저장되고 화면에도 다시 안 보입니다. 언제든 위 주소에서 폐기할 수 있습니다.
+          </div>
+          <div className="field">
+            <label className="label">프로젝트 이름</label>
+            <input
+              className="input input-sm"
+              value={ref}
+              onChange={(e) => setRef(e.target.value.trim())}
+              placeholder={projectRef}
+            />
+            <p className="hint" style={{ margin: "3px 0 0", fontSize: 11.5 }}>
+              Supabase 주소창의 <code>project/</code> 뒤 글자입니다. 앱 주소에서 뽑은 값은{" "}
+              <b>{projectRef}</b> 입니다.
+            </p>
           </div>
           <div className="row" style={{ gap: 6 }}>
             <input

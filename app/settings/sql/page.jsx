@@ -86,6 +86,7 @@ export default async function SqlPage() {
         <ApplyBox
           saved={!!adminRow?.config?.token}
           projectRef={projectRef}
+          savedRef={adminRow?.config?.ref || ""}
           missingCount={checks.length - done}
         />
 

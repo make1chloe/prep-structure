@@ -25,9 +25,38 @@ async function requirePrincipal(supabase) {
 }
 
 /** 이 앱이 붙어 있는 프로젝트 이름 (SQL 도 여기에 넣어야 한다) */
-function projectRef() {
+function urlRef() {
   try {
     return new URL(SUPABASE_URL).host.split(".")[0];
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 실제로 쓸 프로젝트 이름.
+ * 주소에서 뽑은 것이 기본이지만, 직접 넣어둔 값이 있으면 그것을 쓴다
+ * (자체 도메인을 쓰면 주소에서 못 뽑는다).
+ */
+async function projectRefOf(supabase) {
+  const { data } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "supabase_admin")
+    .maybeSingle();
+  return (data?.config?.ref || "").trim() || urlRef();
+}
+
+/** Supabase 가 뭐라고 했는지 그대로 옮긴다 — 짐작해서 뭉개지 않는다 */
+async function detailOf(res) {
+  try {
+    const t = await res.text();
+    try {
+      const j = JSON.parse(t);
+      return j.message || j.error || j.msg || t;
+    } catch {
+      return t;
+    }
   } catch {
     return "";
   }
@@ -44,41 +73,73 @@ function projectRef() {
  *   · 화면에는 가려서만 보여준다
  *   · 언제든 Supabase 계정 설정에서 폐기(revoke)할 수 있다
  */
-export async function saveAdminToken(token) {
+export async function saveAdminToken(token, ref) {
   const t = (token || "").trim();
   const supabase = createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
   if (!t) return { error: "토큰을 넣어주세요." };
 
-  // 진짜 되는 토큰인지 먼저 확인하고 저장한다
-  const probe = await fetch(`${API}/projects/${projectRef()}/database/query`, {
+  const useRef = (ref || "").trim() || urlRef();
+
+  // 토큰이 어떤 프로젝트를 볼 수 있는지 먼저 물어본다.
+  // 이러면 "권한이 없다" 대신 **무엇이 어긋났는지** 를 말해줄 수 있다.
+  const list = await fetch(`${API}/projects`, {
+    headers: { Authorization: `Bearer ${t}` },
+  }).catch((e) => ({ ok: false, status: 0, text: async () => e.message }));
+
+  if (!list.ok) {
+    const d = await detailOf(list);
+    if (list.status === 401) {
+      return { error: `토큰이 맞지 않습니다. (401) ${d.slice(0, 200)}` };
+    }
+    return { error: `Supabase 가 거절했습니다. (${list.status}) ${d.slice(0, 300)}` };
+  }
+
+  let projects = [];
+  try {
+    projects = await list.json();
+  } catch {
+    projects = [];
+  }
+  const refs = (projects || []).map((p) => p.id || p.ref).filter(Boolean);
+  if (refs.length > 0 && !refs.includes(useRef)) {
+    return {
+      error:
+        `이 토큰으로는 '${useRef}' 프로젝트를 못 봅니다.\n\n` +
+        `토큰이 볼 수 있는 프로젝트: ${refs.join(", ")}\n\n` +
+        `앱이 붙어 있는 프로젝트가 '${urlRef()}' 입니다. ` +
+        `둘이 다르면 프로젝트 이름 칸에 맞는 것을 넣어주세요.`,
+    };
+  }
+
+  // 실제로 SQL 이 되는지까지 확인하고 저장한다
+  const probe = await fetch(`${API}/projects/${useRef}/database/query`, {
     method: "POST",
     headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query: "select 1 as ok;" }),
   }).catch((e) => ({ ok: false, status: 0, text: async () => e.message }));
 
   if (!probe.ok) {
-    const detail = await probe.text?.().catch(() => "");
+    const d = await detailOf(probe);
     return {
       error:
-        probe.status === 401 || probe.status === 403
-          ? "토큰이 맞지 않거나 이 프로젝트에 권한이 없어요."
-          : `Supabase 가 거절했어요 (${probe.status}). ${detail?.slice(0, 200) || ""}`,
+        `SQL 을 실행해보니 거절당했습니다. (${probe.status})\n` +
+        `프로젝트: ${useRef}\n${d.slice(0, 300)}`,
     };
   }
 
   const { error } = await supabase.from("integrations").upsert({
     id: "supabase_admin",
     enabled: true,
-    config: { token: t },
+    config: { token: t, ref: useRef },
     updated_at: new Date().toISOString(),
     updated_by: guard.user.id,
   });
   if (error) return { error: error.message };
 
   revalidatePath("/settings/sql");
-  return { error: null };
+  return { error: null, ref: useRef };
 }
 
 export async function clearAdminToken() {
@@ -114,7 +175,7 @@ export async function applyMissing() {
   if (missing.size === 0) return { error: null, results: [], done: true };
 
   const steps = (await loadSteps()).filter((s) => missing.has(s.id));
-  const ref = projectRef();
+  const ref = await projectRefOf(supabase);
   const results = [];
 
   for (const s of steps) {
@@ -128,19 +189,12 @@ export async function applyMissing() {
       results.push({ name: s.name, ok: true });
       continue;
     }
-    let detail = "";
-    try {
-      const t = await res.text();
-      try {
-        const j = JSON.parse(t);
-        detail = j.message || j.error || t;
-      } catch {
-        detail = t;
-      }
-    } catch {
-      detail = `HTTP ${res.status}`;
-    }
-    results.push({ name: s.name, ok: false, detail: (detail || "").slice(0, 400) });
+    const detail = await detailOf(res);
+    results.push({
+      name: s.name,
+      ok: false,
+      detail: `(${res.status}) ${(detail || "").slice(0, 400)}`,
+    });
     break; // 순서가 있으니 여기서 멈춘다
   }
 
