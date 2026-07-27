@@ -43,7 +43,7 @@ export default async function ReportPage({ searchParams }) {
         </div>
         <SendTabs tab={tab} date={date} />
         {tab === "notice" ? (
-          <NoticeSender academy={settings.academy.name} mode={settings.mode} />
+          <NoticeSender academy={settings.academy.name} mode={settings.mode} msg={settings.message} />
         ) : tab === "late" ? (
           <LateSender date={date} rows={rows} mode={settings.mode} />
         ) : (

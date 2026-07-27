@@ -52,6 +52,7 @@ const GROUPS = [
       { href: "/resend", key: "resend", label: "재발송" },
       { href: "/import", key: "import", label: "노션 이관" },
       { href: "/settings", key: "settings", label: "발송 · 연동 설정" },
+      { href: "/settings/messages", key: "messages", label: "문자 문구" },
     ],
   },
 ];

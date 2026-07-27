@@ -21,6 +21,7 @@ export async function addHomeworkItem(formData) {
   const supabase = createClient();
   const category = clean(formData, "category");
   const method = clean(formData, "method");
+  const prep_task = clean(formData, "prep_task");
 
   // 같은 분류 안에서 맨 뒤로
   const { data: last } = await supabase
@@ -30,11 +31,16 @@ export async function addHomeworkItem(formData) {
     .limit(1);
   const sort = (last?.[0]?.sort ?? 0) + 10;
 
-  const row = { name, category, sort, active: true, method };
+  const row = { name, category, sort, active: true, method, prep_task };
   let { error } = await supabase.from("homework_items").insert(row);
   if (isMissingColumn(error)) {
-    const { method: _m, ...rest } = row;
-    await supabase.from("homework_items").insert(rest);
+    // 0028 전이면 prep_task 없이, 그래도 안 되면 method 도 빼고
+    const { prep_task: _p, ...noPrep } = row;
+    ({ error } = await supabase.from("homework_items").insert(noPrep));
+    if (isMissingColumn(error)) {
+      const { method: _m, ...rest } = noPrep;
+      await supabase.from("homework_items").insert(rest);
+    }
   }
   revalidatePath("/homework");
   revalidatePath("/today");

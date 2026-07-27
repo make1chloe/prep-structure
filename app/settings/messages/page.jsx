@@ -1,0 +1,37 @@
+import { createClient } from "@/lib/supabase/server";
+import TopBar from "@/components/TopBar";
+import MessageList from "./MessageList";
+import { listMessages } from "./actions";
+
+export const dynamic = "force-dynamic";
+
+export default async function MessagesPage() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let profile = null;
+  if (user) {
+    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    profile = data;
+  }
+
+  const { rows, error } = await listMessages();
+
+  return (
+    <>
+      <TopBar profile={profile} active="messages" />
+      <main className="wrap">
+        <div className="page-head">
+          <p className="eyebrow">설정</p>
+          <h1 className="h1">문자 문구</h1>
+          <p className="sub">
+            나가는 문자마다 문구를 따로 정합니다. 여기서 추가하고 고치고 지우면 됩니다.
+          </p>
+        </div>
+        <MessageList rows={rows} unavailable={!!error} />
+      </main>
+    </>
+  );
+}

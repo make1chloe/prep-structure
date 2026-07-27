@@ -14,10 +14,19 @@ export async function listTemplates() {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("message_templates")
-    .select("id, name, kind, body, sort, active")
+    .select("id, name, kind, body, sort, active, key")
     .eq("active", true)
     .order("sort", { ascending: true });
-  if (error) return { templates: [], error: "0017 SQL을 먼저 실행해주세요." };
+  if (error) {
+    // 0029 전이면 key 없이
+    const fb = await supabase
+      .from("message_templates")
+      .select("id, name, kind, body, sort, active")
+      .eq("active", true)
+      .order("sort", { ascending: true });
+    if (fb.error) return { templates: [], error: "0017 SQL을 먼저 실행해주세요." };
+    return { templates: fb.data || [], error: null };
+  }
   return { templates: data || [], error: null };
 }
 

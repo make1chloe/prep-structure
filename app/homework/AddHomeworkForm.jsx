@@ -44,6 +44,14 @@ export default function AddHomeworkForm() {
             placeholder={"예)\n1. 단어를 소리 내어 읽으며 3번 쓰기\n2. 뜻을 가리고 셀프테스트\n3. 틀린 단어만 단어노트에 정리"}
           />
         </div>
+        <div className="field">
+          <label className="label">내 할일 자동 생성 (이 숙제를 배정하면 할일이 생깁니다)</label>
+          <input
+            className="input input-sm"
+            name="prep_task"
+            placeholder="예: {학생} 단원평가 출제 — 비워두면 안 만듭니다"
+          />
+        </div>
         <button className="btn btn-primary btn-sm" type="submit" style={{ alignSelf: "flex-start" }}>추가</button>
       </form>
     </div>

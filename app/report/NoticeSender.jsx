@@ -11,23 +11,45 @@ import {
 } from "./noticeActions";
 import { longLabel, todaySeoul } from "@/lib/day";
 
-// {{변수}} 를 실제 값으로 바꾼다
-function fill(body, r, academy) {
+// 자동으로 채울 수 있는 변수 — 학생 정보에서 나온다
+function autoMap(r, academy, msg) {
   const today = longLabel(todaySeoul());
-  const map = {
+  return {
     학원명: academy,
     학생명: r.name || "",
     날짜: r.testOn || today,
-    시간: "",
     교재목록: (r.books || []).map((b) => `· ${b}`).join("\n") || "(배정된 교재 없음)",
     교재비: r.bookPrice ? `${r.bookPrice.toLocaleString()}원` : "(미정)",
     구매링크: (r.bookUrls || [])[0] || "(링크 없음)",
     테스트결과: r.testResult || "",
+    학원주소: msg?.address || "",
+    학원전화: msg?.phone || "",
   };
-  return body.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, k) => (k in map ? map[k] : `{{${k}}}`));
 }
 
-export default function NoticeSender({ academy = "클로이영어", mode = "copy" }) {
+/** 본문에서 자동으로 못 채우는 변수 이름들 — 보내기 전에 입력칸으로 뜬다 */
+export function askedVars(body, r, academy, msg) {
+  const auto = autoMap(r || {}, academy, msg);
+  const out = [];
+  (body || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, k) => {
+    const key = k.trim();
+    if (!(key in auto) && !out.includes(key)) out.push(key);
+    return "";
+  });
+  return out;
+}
+
+// {{변수}} 를 실제 값으로 바꾼다. extra 는 내가 직접 채운 값
+function fill(body, r, academy, msg, extra = {}) {
+  const map = { ...autoMap(r, academy, msg), ...extra };
+  return body.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, k) => {
+    const key = k.trim();
+    const v = map[key];
+    return v === undefined || v === "" ? `{{${key}}}` : v;
+  });
+}
+
+export default function NoticeSender({ academy = "클로이영어", mode = "copy", msg = {} }) {
   const [templates, setTemplates] = useState(null);
   const [tplId, setTplId] = useState("");
   const [body, setBody] = useState("");
@@ -39,6 +61,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
   const [err, setErr] = useState(null);
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [extra, setExtra] = useState({});   // 직접 채우는 변수
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -46,12 +69,14 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
     (async () => {
       const t = await listTemplates();
       if (t.error) setErr(t.error);
-      setTemplates(t.templates || []);
-      const first = (t.templates || [])[0];
+      // 데일리리포트처럼 앱이 본문을 만드는 문자는 여기서 보내지 않는다
+      const list = (t.templates || []).filter((x) => !x.key);
+      setTemplates(list);
+      const first = list[0];
       if (first) {
         setTplId(first.id);
         setBody(first.body);
-        setWho(first.kind === "book" ? "student" : "inquiry");
+        setWho(["book", "makeup", "exam", "late_in"].includes(first.kind) ? "student" : "inquiry");
       }
       const r = await listRecipients();
       if (r.error) setErr(r.error);
@@ -73,8 +98,9 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
     const t = (templates || []).find((x) => x.id === id);
     if (t) {
       setBody(t.body);
-      setWho(t.kind === "book" ? "student" : "inquiry");
+      setWho(["book", "makeup", "exam", "late_in"].includes(t.kind) ? "student" : "inquiry");
       setSel(new Set());
+      setExtra({});
     }
   }
 
@@ -101,9 +127,15 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
   }
 
   const sendsForReal = mode !== "copy";
+  // 자동으로 못 채우는 변수 — 보내기 전에 입력칸으로 띄운다
+  const ask = askedVars(body, picked[0], academy, msg);
+  const blank = ask.filter((k) => !(extra[k] || "").trim());
 
   function send() {
     if (picked.length === 0) return;
+    if (blank.length > 0) {
+      if (!confirm(`아직 안 채운 것이 있습니다: ${blank.join(", ")}\n그대로 보낼까요?`)) return;
+    }
     if (sendsForReal && !confirm(`${picked.length}명에게 지금 문자를 보낼까요?`)) return;
     startTransition(async () => {
       const res = await sendNotices(
@@ -111,7 +143,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
           id: r.id,
           name: r.name,
           phone: r.phone,
-          body: fill(body, r, academy),
+          body: fill(body, r, academy, msg, extra),
         })),
         (templates || []).find((t) => t.id === tplId)?.kind || "notice"
       );
@@ -163,7 +195,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
               const res = await saveTemplate(null, { name: "새 안내 문자", body: "[{{학원명}}] ", kind: "general" });
               if (res?.error) alert(res.error);
               const t = await listTemplates();
-              setTemplates(t.templates || []);
+              setTemplates((t.templates || []).filter((x) => !x.key));
             })
           }
           disabled={pending}
@@ -291,7 +323,11 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
           {editing ? (
             <>
               <p className="hint" style={{ margin: "8px 0" }}>
-                쓸 수 있는 변수: <b>{"{{학원명}} {{학생명}} {{날짜}} {{교재목록}} {{교재비}} {{구매링크}} {{테스트결과}}"}</b>
+                자동으로 채워지는 변수:{" "}
+                <b>{"{{학원명}} {{학생명}} {{날짜}} {{교재목록}} {{교재비}} {{구매링크}} {{테스트결과}} {{학원주소}} {{학원전화}}"}</b>
+                <br />
+                그 밖의 <b>{"{{이름}}"}</b> 은 무엇이든 쓸 수 있고, 보내기 전에 입력칸이 뜹니다
+                (예: {"{{시간}} {{내용}}"}).
               </p>
               <textarea
                 className="input"
@@ -308,8 +344,29 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                   ? `${picked[0].name} 학생에게 갈 내용 (선택한 ${picked.length}명 각각의 값으로 채워집니다)`
                   : "왼쪽에서 받는 사람을 고르면 실제 값이 채워진 문구가 보입니다."}
               </p>
+              {ask.length > 0 && (
+                <div className="card card-tight" style={{ marginBottom: 10 }}>
+                  <b style={{ fontSize: 13 }}>보내기 전에 채울 것</b>
+                  <p className="hint" style={{ margin: "3px 0 8px" }}>
+                    여기 넣은 값은 고른 사람 <b>모두에게 똑같이</b> 들어갑니다. 학생마다 달라야 하면
+                    한 명씩 보내주세요.
+                  </p>
+                  <div className="editgrid">
+                    {ask.map((k) => (
+                      <div className="field" key={k}>
+                        <label className="label">{k}</label>
+                        <input
+                          className="input input-sm"
+                          value={extra[k] || ""}
+                          onChange={(e) => setExtra({ ...extra, [k]: e.target.value })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <pre className="reportbox" style={{ borderRadius: 10, borderTop: 0 }}>
-                {picked.length > 0 ? fill(body, picked[0], academy) : body}
+                {picked.length > 0 ? fill(body, picked[0], academy, msg, extra) : body}
               </pre>
             </>
           )}

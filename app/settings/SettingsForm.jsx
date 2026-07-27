@@ -241,30 +241,20 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
 
       {/* 문자 문구 */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>문자 문구</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
-          데일리리포트·숙제 문자에 공통으로 들어가는 인삿말과 맺음말입니다. 비워두면 넣지 않습니다.
-          교재 안내 등 개별 문자의 본문은 <a className="sky" href="/report?t=notice">발송 → 안내 문자</a> 에서 고칩니다.
+        <div className="row" style={{ alignItems: "baseline" }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>문자 문구</h2>
+          <span className="spacer" />
+          <a className="btn btn-ghost btn-sm" href="/settings/messages">
+            문구 관리
+          </a>
+        </div>
+        <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+          데일리리포트·숙제 문자·하원 안내는 <b>종류마다 인삿말·맺음말을 따로</b> 정합니다.
+          교재 안내·지각 안내처럼 직접 쓰는 문자도 거기서 추가하고 지웁니다.
+          <br />
+          아래 전화·주소는 문구 안에서 <b>{"{{학원전화}} {{학원주소}}"}</b> 로 쓸 수 있습니다.
         </p>
-        <div className="field">
-          <label className="label">인삿말 (제목 다음 줄)</label>
-          <input
-            className="input input-sm"
-            value={msgCfg.greeting}
-            placeholder="예: 안녕하세요, 오늘 수업 안내드립니다."
-            onChange={(e) => setMsgCfg({ ...msgCfg, greeting: e.target.value })}
-          />
-        </div>
-        <div className="field" style={{ marginTop: 8 }}>
-          <label className="label">맺음말 (맨 아래)</label>
-          <input
-            className="input input-sm"
-            value={msgCfg.closing}
-            placeholder="예: 궁금한 점은 언제든 연락 주세요. 감사합니다."
-            onChange={(e) => setMsgCfg({ ...msgCfg, closing: e.target.value })}
-          />
-        </div>
-        <div className="editgrid" style={{ marginTop: 8 }}>
+        <div className="editgrid">
           <div className="field">
             <label className="label">학원 전화</label>
             <input
