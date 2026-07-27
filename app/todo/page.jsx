@@ -22,11 +22,20 @@ export default async function TodoPage() {
     .eq("active", true)
     .order("sort", { ascending: true });
 
-  const { data: todos, error } = await supabase
+  const TODO_COLS = "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id";
+  let { data: todos, error } = await supabase
     .from("tasks")
-    .select("id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id")
+    .select(`${TODO_COLS}, auto_key`)
     .eq("kind", "todo")
     .order("due_on", { ascending: true });
+  if (error) {
+    // 0028 전이면 auto_key 없이
+    ({ data: todos, error } = await supabase
+      .from("tasks")
+      .select(TODO_COLS)
+      .eq("kind", "todo")
+      .order("due_on", { ascending: true }));
+  }
 
   return (
     <>

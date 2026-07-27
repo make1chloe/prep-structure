@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { pushToStudents } from "@/app/push/actions";
 import { dowOf } from "@/lib/day";
+import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -158,6 +159,9 @@ export async function saveStudentDay(studentId, date, form) {
     }
     if (error) return { error: error.message };
   }
+
+  // 배정한 숙제 중 "내가 준비해야 하는 것" 은 내 할일로 올린다
+  await syncPrepTasks(supabase, studentId, date, nextIds);
 
   // 숙제가 배정됐으면 학생 앱으로 알림 (요금 없음, 실패해도 저장은 그대로)
   if (nextIds.length > 0) {
@@ -346,4 +350,90 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate) {
   revalidatePath("/today");
   revalidatePath("/plan");
   return { error: null };
+}
+
+
+/**
+ * 배정한 숙제에서 **내 할일**을 만든다.
+ *
+ * 단원평가 대비 복습을 내주면 다음 수업 전에 내가 문제를 내야 한다.
+ * 어떤 숙제가 그런지는 `homework_items.prep_task` 에 적혀 있다 (학습 항목 화면에서 관리).
+ *
+ * 배정을 취소하면 아직 안 한 할일은 같이 사라진다.
+ * 이미 끝낸 할일은 건드리지 않는다 — 한 일은 한 일이다.
+ */
+async function syncPrepTasks(supabase, studentId, date, nextIds = []) {
+  // 0028 전이면 조용히 넘어간다
+  const itemQ = nextIds.length
+    ? await supabase.from("homework_items").select("id, name, prep_task").in("id", nextIds)
+    : { data: [], error: null };
+  if (itemQ.error) return;
+
+  const need = (itemQ.data || []).filter((i) => (i.prep_task || "").trim());
+
+  // 이 학생·이 날짜로 만들어 둔 자동 할일
+  const prefix = `prep:${studentId}:`;
+  const curQ = await supabase
+    .from("tasks")
+    .select("id, auto_key, status")
+    .like("auto_key", `${prefix}%`)
+    .like("auto_key", `%:${date}`);
+  if (curQ.error) return;   // auto_key 컬럼이 아직 없다
+
+  const keep = new Set(need.map((i) => autoKey(studentId, i.id, date)));
+
+  // 배정을 뺐으면 아직 안 한 할일은 지운다
+  const stale = (curQ.data || [])
+    .filter((t) => !keep.has(t.auto_key) && t.status === "open")
+    .map((t) => t.id);
+  if (stale.length > 0) await supabase.from("tasks").delete().in("id", stale);
+
+  if (need.length === 0) return;
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("name")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  // 다음 수업일까지 준비돼 있어야 한다
+  const { data: mine } = await supabase
+    .from("class_students")
+    .select("class_id")
+    .eq("student_id", studentId);
+  const classIds = (mine || []).map((m) => m.class_id);
+  const { data: klasses } = classIds.length
+    ? await supabase.from("classes").select("id, days").in("id", classIds)
+    : { data: [] };
+  const days = [...new Set((klasses || []).flatMap((c) => c.days || []))];
+  const due = nextClassDate(date, days);
+
+  const { data: cat } = await supabase
+    .from("todo_categories")
+    .select("id")
+    .eq("name", "수업 준비")
+    .maybeSingle();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const rows = need.map((i) => ({
+    title: taskTitle(i.prep_task, student?.name),
+    kind: "todo",
+    due_on: due,
+    status: "open",
+    todo_category_id: cat?.id || null,
+    note: `${date} 수업에서 '${i.name}' 을 배정했습니다.`,
+    auto_key: autoKey(studentId, i.id, date),
+    created_by: user?.id || null,
+  }));
+
+  // 이미 있으면 그대로 둔다 (마감일을 옮겨놨을 수 있다)
+  await supabase.from("tasks").upsert(rows, {
+    onConflict: "auto_key",
+    ignoreDuplicates: true,
+  });
+
+  revalidatePath("/todo");
 }

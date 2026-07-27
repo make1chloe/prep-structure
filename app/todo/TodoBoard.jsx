@@ -367,6 +367,11 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                   </b>
                   {cat && <span className={`tag tag-${cat.color || "muted"}`}>{cat.name}</span>}
                   {t.priority > 0 && <span className={`tag ${pr.cls}`}>{pr.label}</span>}
+                  {t.auto_key && (
+                    <span className="tag tag-muted" title="숙제를 배정할 때 앱이 만든 할일입니다">
+                      자동
+                    </span>
+                  )}
                   <span className="spacer" />
                   <button
                     className="btn btn-ghost btn-sm"

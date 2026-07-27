@@ -49,7 +49,12 @@ export default async function SqlPage() {
           <ol className="hint" style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.9 }}>
             <li>아래 <b>전체 복사</b> 를 누릅니다.</li>
             <li>
-              Supabase → 왼쪽 <b>SQL Editor</b> → 가운데 빈 칸(Untitled query)에 붙여넣습니다.
+              Supabase → 왼쪽 <b>SQL Editor</b> → Untitled query 안을 클릭하고{" "}
+              <b>Ctrl+A 로 전체 선택 후 지웁니다.</b>
+            </li>
+            <li>
+              빈 칸에 붙여넣습니다. <b>지난번 내용 아래에 덧붙이지 마세요</b> — 통째로 갈아끼우는
+              것입니다.
             </li>
             <li>
               오른쪽 아래 <b>Run</b> (또는 Ctrl+Enter) 을 누릅니다.
@@ -64,6 +69,7 @@ export default async function SqlPage() {
           <b style={{ fontSize: 14 }}>한번에_실행.sql</b>
           <p className="hint" style={{ margin: "4px 0 10px" }}>
             0008 부터 지금까지의 변경이 순서대로 다 들어 있습니다. 이미 있는 것은 건너뜁니다.
+            아래 줄 수가 편집기에 붙여넣은 줄 수와 같아야 합니다.
           </p>
           <CopyBox sql={sql} empty={!sql} />
         </div>

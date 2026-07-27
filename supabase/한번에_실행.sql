@@ -5,17 +5,20 @@
 --   1. https://supabase.com/dashboard → 프로젝트 선택
 --   2. 왼쪽 메뉴 SQL Editor → + → Create a new snippet
 --      (이미 열려 있는 "Untitled query" 를 그냥 써도 됩니다)
---   3. 이 파일 내용을 전부 붙여넣기
---      — 앱 안에서 바로 복사할 수도 있습니다: 설정 → Supabase SQL
+--   3. 편집기 안을 **전체 선택(Ctrl+A) 하고 지운 뒤** 이 파일 내용을 붙여넣기
+--      ★ 지난번 내용 아래에 **덧붙이지 마세요.** 통째로 갈아끼우는 것입니다.
+--        (덧붙여도 사고는 안 나지만 같은 걸 두 번 실행하게 되고 줄 수만 늘어납니다)
+--      — 앱 안에서 바로 복사할 수 있습니다: 설정 → Supabase SQL
 --   4. 오른쪽 아래 Run (또는 Cmd/Ctrl + Enter)
 --   5. "Success. No rows returned" 이 나오면 끝
 --
 -- 여러 번 실행해도 안전합니다. 이미 있는 것은 건너뜁니다.
 -- 어디까지 실행했는지 기억 안 나면 그냥 처음부터 다시 붙여넣고 Run 하면 됩니다.
 --
--- ★ 이 파일은 **0008 ~ 0027** 을 하나로 합친 것입니다.
+-- ★ 이 파일은 **0008 ~ 0028** 을 하나로 합친 것입니다.
 --   (2026-07-27 기준 · 시험 일정 · 2026 시험 21건 · 댓글 · 경고/반성문 · 오늘 마무리 ·
---    단어시험 방식 · 회독별 진도 기록 · 경고 월간 정리 · 하원 안내까지)
+--    단어시험 방식 · 회독별 진도 기록 · 경고 월간 정리 · 하원 안내 ·
+--    숙제 배정 → 내 할일 자동 생성까지)
 --
 -- ※ 완전히 새 Supabase 프로젝트에 처음 까는 거라면 이 파일이 아니라
 --   `SETUP_ALL.sql` 을 쓰세요. 그건 0001 부터 전부 들어 있습니다.
@@ -29,6 +32,7 @@
 --   · 단어 교재 진도 아래 '1회독 · 시험 방식 미설정' 이 보이면  → 0025 까지 OK
 --   · 학생 기록 오른쪽에 '경고 기록' 칸이 보이면              → 0026 까지 OK
 --   · 오늘 수업 학생 칸에 '하원 안내' 줄이 보이면              → 0027 까지 OK
+--   · 학습 항목 표에 '내 할일 자동 생성' 칸이 보이면          → 0028 까지 OK
 -- ============================================================
 
 
@@ -1120,3 +1124,44 @@ comment on column public.daily_reports.late_until is
 -- report_sends.kind 는 자유 문자열이라 스키마는 그대로다.
 comment on column public.report_sends.kind is
   'report | homework | late — 어떤 문자였는지';
+
+-- ============================================================
+-- 0028
+-- ============================================================
+
+-- 0028: 숙제를 배정하면 **내 할일**이 자동으로 생긴다
+--
+-- 단원평가 대비 복습을 숙제로 내주면, 다음 수업 전에 **내가 문제를 출제해야 한다.**
+-- 지금까지는 그걸 따로 기억하고 있어야 했다.
+--
+-- 그래서 숙제 항목에 "이걸 배정하면 이런 할일이 생긴다" 를 적어둔다.
+-- 이름을 코드에 박지 않는다 — 나중에 다른 숙제에도 붙일 수 있어야 하기 때문이다.
+--   예) 단원평가 대비 복습  →  "{학생} 단원평가 출제"
+--       수행평가대비 워크북  →  "{학생} 수행평가 자료 준비"
+-- {학생} 자리에 학생 이름이 들어간다. 비워두면 할일을 만들지 않는다.
+
+alter table public.homework_items
+  add column if not exists prep_task text;
+
+comment on column public.homework_items.prep_task is
+  '이 숙제를 배정하면 만들 내 할일의 제목. {학생} 은 학생 이름으로 바뀐다. 비면 안 만든다';
+
+-- 같은 배정으로 할일이 두 번 생기지 않게 (리포트를 여러 번 저장해도 하나)
+alter table public.tasks
+  add column if not exists auto_key text;
+create unique index if not exists tasks_auto_key_idx
+  on public.tasks (auto_key) where auto_key is not null;
+
+comment on column public.tasks.auto_key is
+  '자동으로 만든 할일의 열쇠. 값이 있으면 앱이 만든 것이다 (사람이 만든 건 비어 있다)';
+
+-- 단원평가 대비 복습이 아직 없으면 만들어 둔다
+insert into public.homework_items (name, category, sort) values
+  ('단원평가 대비 복습', '내신', 590)
+on conflict (name) do nothing;
+
+-- 이름에 '단원평가' 가 들어간 항목은 출제 할일을 켜준다 (직접 껐으면 그대로 둔다)
+update public.homework_items
+   set prep_task = '{학생} 단원평가 출제'
+ where prep_task is null
+   and name like '%단원평가%';

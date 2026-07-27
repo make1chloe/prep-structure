@@ -70,6 +70,7 @@ export default function HomeworkList({ items = [] }) {
       category: i.category || "",
       sort: i.sort ?? "",
       method: i.method || "",
+      prep_task: i.prep_task || "",
     });
   }
   function saveEdit() {
@@ -192,6 +193,7 @@ export default function HomeworkList({ items = [] }) {
               <th style={{ width: 70 }}>순서</th>
               <th style={{ width: 70 }}>사용</th>
               <th style={{ minWidth: 220 }}>학습 방법 (학생에게 보여줄 설명)</th>
+              <th style={{ minWidth: 150 }}>내 할일 자동 생성</th>
               <th style={{ width: 86 }}></th>
             </tr>
           </thead>
@@ -243,6 +245,16 @@ export default function HomeworkList({ items = [] }) {
                         />
                       </td>
                       <td>
+                        <input
+                          className="input input-sm"
+                          style={{ minWidth: 150 }}
+                          placeholder="{학생} 단원평가 출제"
+                          title="이 숙제를 배정하면 이 제목으로 내 할일이 생깁니다. {학생} 은 이름으로 바뀝니다. 비우면 안 만듭니다"
+                          value={draft.prep_task}
+                          onChange={(e) => setDraft({ ...draft, prep_task: e.target.value })}
+                        />
+                      </td>
+                      <td>
                         <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                           <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
@@ -268,6 +280,15 @@ export default function HomeworkList({ items = [] }) {
                           </span>
                         ) : (
                           <span className="hint">— 아직 없음</span>
+                        )}
+                      </td>
+                      <td>
+                        {i.prep_task ? (
+                          <span className="tag tag-sky" title="배정하면 이 할일이 생깁니다">
+                            {i.prep_task}
+                          </span>
+                        ) : (
+                          <span className="hint">—</span>
                         )}
                       </td>
                       <td>
