@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { todaySeoul } from "@/lib/day";
 
 function unavailable(error) {
   return error && (error.code === "42P01" || /stay_tasks|warning_actions/.test(error.message || ""));
@@ -101,7 +102,7 @@ export async function waiveWarning(studentId, targetDate, note) {
   const { error } = await supabase.from("warning_actions").insert({
     student_id: studentId,
     kind: "waive",
-    on_date: new Date().toISOString().slice(0, 10),
+    on_date: todaySeoul(),
     target_date: targetDate,
     note: (note || "").trim() || null,
     created_by: user?.id || null,
@@ -122,7 +123,7 @@ export async function waiveWarning(studentId, targetDate, note) {
  */
 export async function settleWarnings(studentId, kind, onDate, note) {
   if (!studentId) return { error: "학생이 없어요." };
-  if (!["reflection", "defer"].includes(kind)) return { error: "알 수 없는 처리예요." };
+  if (!["reflection", "defer", "reset"].includes(kind)) return { error: "알 수 없는 처리예요." };
 
   const supabase = createClient();
   const {
@@ -132,7 +133,7 @@ export async function settleWarnings(studentId, kind, onDate, note) {
   const { error } = await supabase.from("warning_actions").insert({
     student_id: studentId,
     kind,
-    on_date: onDate || new Date().toISOString().slice(0, 10),
+    on_date: onDate || todaySeoul(),
     note: (note || "").trim() || null,
     created_by: user?.id || null,
   });
@@ -142,6 +143,62 @@ export async function settleWarnings(studentId, kind, onDate, note) {
   revalidatePath("/today");
   revalidatePath("/report");
   revalidatePath("/");
+  return { error: null };
+}
+
+/**
+ * 경고 월간 초기화 — 한 달에 한 번, 쌓인 경고를 한꺼번에 0으로 되돌린다.
+ *
+ * 지우는 게 아니다. 학생마다 'reset' 한 줄을 남기므로
+ * 몇 회까지 쌓였다가 언제 정리됐는지는 학생 기록에 그대로 보인다.
+ * 다음 달 카운트만 0에서 시작할 뿐이다.
+ *
+ * @param studentIds 지금 경고가 쌓여 있는 학생들 (0인 학생은 남길 필요가 없다)
+ */
+export async function resetMonthlyWarnings(studentIds, onDate, note) {
+  const ids = [...new Set((studentIds || []).filter(Boolean))];
+  if (ids.length === 0) return { error: null, count: 0 };
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const on = onDate || todaySeoul();
+
+  const { error } = await supabase.from("warning_actions").insert(
+    ids.map((student_id) => ({
+      student_id,
+      kind: "reset",
+      on_date: on,
+      note: (note || "").trim() || `${on.slice(0, 7)} 월간 정리`,
+      created_by: user?.id || null,
+    }))
+  );
+  if (unavailable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
+  if (error) return { error: error.message };
+
+  revalidatePath("/today");
+  revalidatePath("/students");
+  revalidatePath("/report");
+  return { error: null, count: ids.length };
+}
+
+/**
+ * "이번 달은 그냥 둘게요" — 초기화하지 않고 알림만 닫는다.
+ * 그 달을 기억해 두므로 다음 달이 되기 전에는 다시 뜨지 않는다.
+ */
+export async function skipMonthlyReset(ym) {
+  const month = ym || todaySeoul().slice(0, 7);
+  const supabase = createClient();
+
+  // 'warning' 설정과 따로 둔다 — 설정 화면에서 저장하면 그 줄은 통째로 덮어써지기 때문이다
+  const { error } = await supabase.from("integrations").upsert(
+    { id: "warning_reset", enabled: true, config: { skip: month } },
+    { onConflict: "id" }
+  );
+  if (error) return { error: error.message };
+
+  revalidatePath("/today");
   return { error: null };
 }
 

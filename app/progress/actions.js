@@ -133,9 +133,11 @@ export async function setStudentBookStatus(studentId, textbookId, status, endedO
 // ---------- 단원 진도 ----------
 
 // 한 학생의 교재 하나에 대한 단원 목록 + 완료 여부
-export async function listStudentUnits(studentId, textbookId) {
+// round 를 주지 않으면 **지금 회독**의 진도를 본다. 지난 회독 기록은 그대로 남아 있다.
+export async function listStudentUnits(studentId, textbookId, round) {
   if (!studentId || !textbookId) return { units: [], error: null };
   const supabase = createClient();
+  const r = round || (await currentRound(supabase, studentId, textbookId));
 
   const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort";
   let { data: units, error } = await supabase
@@ -153,13 +155,7 @@ export async function listStudentUnits(studentId, textbookId) {
   if (error) return { units: [], error: error.message };
 
   const ids = (units || []).map((u) => u.id);
-  const { data: prog } = ids.length
-    ? await supabase
-        .from("student_unit_progress")
-        .select("textbook_unit_id, status, done_on")
-        .eq("student_id", studentId)
-        .in("textbook_unit_id", ids)
-    : { data: [] };
+  const prog = ids.length ? await readProgress(supabase, studentId, ids, r) : [];
   const byUnit = new Map((prog || []).map((p) => [p.textbook_unit_id, p]));
 
   // 자식이 없는 단원(소단원)만 체크 대상으로 본다
@@ -170,7 +166,7 @@ export async function listStudentUnits(studentId, textbookId) {
     status: byUnit.get(o.id)?.status || "",
     doneOn: byUnit.get(o.id)?.done_on || null,
   }));
-  return { units: options, error: null };
+  return { units: options, round: r, error: null };
 }
 
 // 순서와 상관없이 아무 단원이나 완료/미완료로 바꾼다
@@ -179,27 +175,59 @@ export async function setUnitProgress(studentId, unitIds, status) {
   if (!studentId || ids.length === 0) return { error: null };
   const supabase = createClient();
 
+  // 이 단원들이 속한 교재의 **지금 회독**에 기록한다.
+  // 체크를 지워도 지난 회독 기록은 건드리지 않는다.
+  const { data: us } = await supabase
+    .from("textbook_units")
+    .select("id, textbook_id")
+    .in("id", ids);
+  const bookOfUnit = new Map((us || []).map((u) => [u.id, u.textbook_id]));
+  const roundCache = new Map();
+  async function roundFor(unitId) {
+    const tid = bookOfUnit.get(unitId);
+    if (!tid) return 1;
+    if (!roundCache.has(tid)) roundCache.set(tid, await currentRound(supabase, studentId, tid));
+    return roundCache.get(tid);
+  }
+
   if (!status) {
-    // 완료 취소 = 기록을 지운다 (기록이 없으면 = 아직 안 함)
-    const { error } = await supabase
-      .from("student_unit_progress")
-      .delete()
-      .eq("student_id", studentId)
-      .in("textbook_unit_id", ids);
+    // 완료 취소 = 이번 회독 기록만 지운다 (기록이 없으면 = 아직 안 함)
+    let error = null;
+    for (const id of ids) {
+      const q = supabase
+        .from("student_unit_progress")
+        .delete()
+        .eq("student_id", studentId)
+        .eq("textbook_unit_id", id);
+      const res = await withRound(q, await roundFor(id));
+      if (res.error) error = res.error;
+    }
     revalidatePath("/today");
     return ok(error);
   }
 
   const today = todaySeoul();
-  const { error } = await supabase.from("student_unit_progress").upsert(
-    ids.map((textbook_unit_id) => ({
+  const rows = [];
+  for (const textbook_unit_id of ids) {
+    rows.push({
       student_id: studentId,
       textbook_unit_id,
+      round: await roundFor(textbook_unit_id),
       status,
       done_on: status === "done" ? today : null,
-    })),
-    { onConflict: "student_id,textbook_unit_id" }
-  );
+    });
+  }
+
+  let { error } = await supabase
+    .from("student_unit_progress")
+    .upsert(rows, { onConflict: "student_id,textbook_unit_id,round" });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0026 전 — round 컬럼이 아직 없다
+    ({ error } = await supabase.from("student_unit_progress").upsert(
+      rows.map(({ round, ...r }) => r),
+      { onConflict: "student_id,textbook_unit_id" }
+    ));
+  }
   revalidatePath("/today");
   return ok(error);
 }
@@ -249,7 +277,10 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
 /**
  * 한 회독을 끝내고 **한 번 더 돌린다.**
  * 회독을 올리고, 새 회독의 시험 방식을 다시 정하게 한다.
- * 진도(끝낸 단원)는 지운다 — 처음부터 다시 도는 것이므로.
+ *
+ * 지난 회독의 진도는 **지우지 않는다.** 회독을 붙여서 쌓는다.
+ * 새 회독은 빈 상태로 시작하고, 1회독을 언제 어디까지 했는지는
+ * 학생 기록(교재 사용 기록)에 회독별로 남는다.
  */
 export async function nextRound(studentId, textbookId) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
@@ -273,20 +304,44 @@ export async function nextRound(studentId, textbookId) {
     return { error: error.message };
   }
 
-  // 이 교재의 끝낸 단원을 비운다 (다시 도니까)
-  const { data: units } = await supabase
-    .from("textbook_units")
-    .select("id")
-    .eq("textbook_id", textbookId);
-  const ids = (units || []).map((u) => u.id);
-  if (ids.length > 0) {
-    await supabase
-      .from("student_unit_progress")
-      .delete()
-      .eq("student_id", studentId)
-      .in("textbook_unit_id", ids);
-  }
-
   revalidatePath("/today");
+  revalidatePath("/students");
   return { error: null, round: next };
+}
+
+/** 지금 몇 회독째인가 (컬럼이 아직 없으면 1회독) */
+async function currentRound(supabase, studentId, textbookId) {
+  const { data, error } = await supabase
+    .from("student_textbooks")
+    .select("round")
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId)
+    .maybeSingle();
+  if (error) return 1;
+  return data?.round || 1;
+}
+
+/** round 컬럼이 아직 없는 DB 에서도 죽지 않게 */
+async function withRound(query, round) {
+  const res = await query.eq("round", round);
+  if (res.error && (res.error.code === "42703" || res.error.code === "PGRST204")) {
+    return { error: null };
+  }
+  return res;
+}
+
+/** 이번 회독의 진도만 읽는다 (0026 전이면 전부 읽는다) */
+async function readProgress(supabase, studentId, unitIds, round) {
+  const base = () =>
+    supabase
+      .from("student_unit_progress")
+      .select("textbook_unit_id, status, done_on")
+      .eq("student_id", studentId)
+      .in("textbook_unit_id", unitIds);
+  const res = await base().eq("round", round);
+  if (res.error && (res.error.code === "42703" || res.error.code === "PGRST204")) {
+    const fb = await base();
+    return fb.data || [];
+  }
+  return res.data || [];
 }

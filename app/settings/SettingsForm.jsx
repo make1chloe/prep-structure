@@ -71,7 +71,10 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
         enabled: true,
         config: {
           reflectionAt: Number(warn.reflectionAt) || 3,
-          wordWrongPct: Number(warn.wordWrongPct) || 80,
+          wordWrongPct:
+            warn.wordWrongPct === "" || warn.wordWrongPct === null
+              ? 10
+              : Math.max(0, Math.min(100, Number(warn.wordWrongPct) || 0)),
           countLate: !!warn.countLate,
           countHomework: !!warn.countHomework,
           countWordTest: !!warn.countWordTest,

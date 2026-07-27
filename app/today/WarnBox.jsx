@@ -13,7 +13,7 @@ import { waiveWarning, settleWarnings } from "./stayActions";
  *   · 반성문 씀        → 정산하고 새로 센다
  *   · 이번엔 넘어가기  → 정산은 하되 '유예' 로 기록에 남는다
  */
-export default function WarnBox({ studentId, warn }) {
+export default function WarnBox({ studentId, warn, date }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -34,7 +34,7 @@ export default function WarnBox({ studentId, warn }) {
   }
 
   const at = warn.rule?.reflectionAt || 3;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = date; // 화면에 열어둔 날짜 (서버가 한국 기준으로 준 값)
 
   return (
     <div style={{ flex: 1 }}>

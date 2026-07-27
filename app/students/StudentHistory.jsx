@@ -8,6 +8,12 @@ const BOOK_STATUS = {
   done: { label: "끝냄", cls: "tag-sky" },
   dropped: { label: "중단", cls: "tag-muted" },
 };
+const WARN_KIND = {
+  waive: { label: "경고 빼줌", cls: "tag-muted" },
+  reflection: { label: "반성문 씀", cls: "tag-red" },
+  defer: { label: "유예", cls: "tag-amber" },
+  reset: { label: "월간 정리", cls: "tag-muted" },
+};
 const INQ_STATUS = {
   new: "신규 문의",
   scheduled: "상담 예정",
@@ -55,6 +61,18 @@ export default function StudentHistoryPanel({ studentId }) {
                     {b.assigned_on || "?"} ~ {b.ended_on || (b.status === "active" ? "지금" : "?")}
                   </span>
                   {b.percent !== null && <span className="tag tag-sky">{b.percent}%</span>}
+                  {(b.rounds || []).length > 1 && (
+                    <div style={{ flexBasis: "100%", paddingLeft: 4, marginTop: 2 }}>
+                      {b.rounds.map((r) => (
+                        <div className="hint" key={r.round} style={{ fontSize: 11.5 }}>
+                          {r.round}회독 {r.percent === null ? "—" : `${r.percent}%`}
+                          {r.total > 0 ? ` (${r.done}/${r.total})` : ""}
+                          {r.first ? ` · ${r.first} ~ ${r.last || "지금"}` : ""}
+                          {r.current ? " · 진행중" : ""}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -63,6 +81,27 @@ export default function StudentHistoryPanel({ studentId }) {
       </div>
 
       <div>
+        <b style={{ fontSize: 13 }}>경고 기록</b>
+        {(data.warnings || []).length === 0 ? (
+          <p className="hint" style={{ margin: "6px 0 12px" }}>기록이 없습니다.</p>
+        ) : (
+          <div className="stack" style={{ gap: 4, margin: "6px 0 14px" }}>
+            {data.warnings.map((w) => {
+              const k = WARN_KIND[w.kind] || { label: w.kind, cls: "tag-muted" };
+              return (
+                <div className="unitrow" key={w.id}>
+                  <span className={`tag ${k.cls}`}>{k.label}</span>
+                  <span className="hint" style={{ minWidth: 74 }}>{w.on_date}</span>
+                  <span style={{ fontSize: 12.5, flex: 1 }}>
+                    {w.kind === "waive" && w.target_date ? `${w.target_date} 경고 제외` : ""}
+                    {w.note || ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <b style={{ fontSize: 13 }}>상담 기록</b>
         {data.inquiries.length === 0 ? (
           <p className="hint" style={{ margin: "6px 0 0" }}>기록이 없습니다.</p>

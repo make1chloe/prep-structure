@@ -2,8 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
 import TopNotices from "./TopNotices";
+import MonthlyReset from "./MonthlyReset";
 import { dowOf, longLabel, todaySeoul, addDays } from "@/lib/day";
-import { tally, DEFAULT_RULE } from "@/lib/warnings";
+import { tally, resetDoneIn, DEFAULT_RULE } from "@/lib/warnings";
 
 export const dynamic = "force-dynamic";
 
@@ -301,14 +302,14 @@ export default async function TodayPage({ searchParams }) {
 
   const noticeById = new Map((noticeRows || []).map((n) => [n.id, n]));
   const noticesOfStudent = new Map(); // studentId → [{ id, kind, body, delivered }]
-  const tally = new Map();            // noticeId → { total, done }
+  const noticeTally = new Map();      // noticeId → { total, done }
   (receipts || []).forEach((r) => {
     const n = noticeById.get(r.notice_id);
     if (!n) return;
-    const t = tally.get(r.notice_id) || { total: 0, done: 0 };
+    const t = noticeTally.get(r.notice_id) || { total: 0, done: 0 };
     t.total += 1;
     if (r.delivered_at) t.done += 1;
-    tally.set(r.notice_id, t);
+    noticeTally.set(r.notice_id, t);
     if (!noticesOfStudent.has(r.student_id)) noticesOfStudent.set(r.student_id, []);
     noticesOfStudent.get(r.student_id).push({
       id: n.id,
@@ -332,12 +333,23 @@ export default async function TodayPage({ searchParams }) {
         .select("student_id, textbook_id, status, current_page, ended_on, round")
         .in("student_id", studentIds)
     : { data: [] };
-  const { data: stProgress } = studentIds.length
-    ? await supabase
+  // 회독별로 쌓인다. `round` 가 아직 없는 DB 면 전부 1회독으로 본다.
+  let stProgress = [];
+  if (studentIds.length) {
+    const q = await supabase
+      .from("student_unit_progress")
+      .select("student_id, textbook_unit_id, status, round")
+      .in("student_id", studentIds);
+    if (q.error) {
+      const fb = await supabase
         .from("student_unit_progress")
         .select("student_id, textbook_unit_id, status")
-        .in("student_id", studentIds)
-    : { data: [] };
+        .in("student_id", studentIds);
+      stProgress = (fb.data || []).map((r) => ({ ...r, round: 1 }));
+    } else {
+      stProgress = q.data || [];
+    }
+  }
 
   const booksOfStudent = new Map();
   const pageOf = new Map(); // `${studentId}|${textbookId}` → 지금 페이지
@@ -369,11 +381,13 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // `${studentId}|${round}` → 그 회독에 끝낸 단원들
   const doneUnitsOf = new Map();
   (stProgress || []).forEach((r) => {
     if (r.status !== "done") return;
-    if (!doneUnitsOf.has(r.student_id)) doneUnitsOf.set(r.student_id, new Set());
-    doneUnitsOf.get(r.student_id).add(r.textbook_unit_id);
+    const key = `${r.student_id}|${r.round || 1}`;
+    if (!doneUnitsOf.has(key)) doneUnitsOf.set(key, new Set());
+    doneUnitsOf.get(key).add(r.textbook_unit_id);
   });
 
   // 화면에 나올 교재들의 단원을 한 번에 가져와 전체 분량을 센다
@@ -416,8 +430,10 @@ export default async function TodayPage({ searchParams }) {
       ...(booksOfClassEarly.get(classId) || []),
       ...(booksOfStudent.get(studentId) || []),
     ]);
-    const done = doneUnitsOf.get(studentId) || new Set();
     return [...ids].map((tid) => {
+      const round = roundOf.get(`${studentId}|${tid}`) || 1;
+      // 진도율은 **지금 회독** 기준이다. 지난 회독은 기록으로만 남는다.
+      const done = doneUnitsOf.get(`${studentId}|${round}`) || new Set();
       const list = unitsOfBook.get(tid) || [];
       const totalUnits = list.length;
       const doneUnits = list.filter((u) => done.has(u.id)).length;
@@ -435,7 +451,6 @@ export default async function TodayPage({ searchParams }) {
           : bookPages > 0
           ? Math.min(100, Math.round((curPage / bookPages) * 100))
           : null;
-      const round = roundOf.get(`${studentId}|${tid}`) || 1;
       return {
         id: tid,
         name: bookNameOf.get(tid) || "교재",
@@ -486,6 +501,7 @@ export default async function TodayPage({ searchParams }) {
   // ── 경고 · 반성문 ────────────────────────────────────────
   // 저장하지 않고 지난 석 달 리포트에서 매번 센다
   const warnOf = new Map();
+  let warnActions = [];
   {
     const { data: ruleRow } = await supabase
       .from("integrations")
@@ -519,8 +535,9 @@ export default async function TodayPage({ searchParams }) {
 
     const aq = await supabase
       .from("warning_actions")
-      .select("student_id, kind, on_date, target_date");
+      .select("student_id, kind, on_date, target_date, note");
     const wActions = aq.error ? [] : aq.data || [];
+    warnActions = wActions;
 
     [...new Set(wReports.map((r) => r.student_id))].forEach((sid) => {
       const mine = wReports
@@ -532,6 +549,23 @@ export default async function TodayPage({ searchParams }) {
       });
     });
   }
+
+  // ── 경고 월간 정리 ──────────────────────────────────────
+  // 달이 바뀌면 한 번 물어본다. 이미 정리했거나 "그냥 두기" 를 눌렀으면 안 뜬다.
+  const ym = date.slice(0, 7);
+  const { data: skipRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "warning_reset")
+    .maybeSingle();
+  const nameOfStudent = new Map((students || []).map((s) => [s.id, s.name]));
+  const resetTargets =
+    resetDoneIn(warnActions, ym) || skipRow?.config?.skip === ym
+      ? []
+      : [...warnOf.entries()]
+          .filter(([, w]) => w.count > 0)
+          .map(([id]) => ({ id, name: nameOfStudent.get(id) || "학생" }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
@@ -664,7 +698,7 @@ export default async function TodayPage({ searchParams }) {
   const classNameOf = (id) =>
     groups.find((g) => g.klass.id === id)?.klass.name || "반";
   const noticeCards = (noticeRows || []).map((n) => {
-    const t = tally.get(n.id) || { total: 0, done: 0 };
+    const t = noticeTally.get(n.id) || { total: 0, done: 0 };
     const targetLabel =
       n.scope === "class"
         ? classNameOf(n.class_id)
@@ -717,6 +751,7 @@ export default async function TodayPage({ searchParams }) {
           <p className="eyebrow">오늘 수업</p>
           <h1 className="h1">{label}</h1>
         </div>
+        <MonthlyReset ym={ym} targets={resetTargets} />
         <TopNotices
           date={date}
           classes={groups.map((g) => ({ id: g.klass.id, name: g.klass.name }))}

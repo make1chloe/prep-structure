@@ -146,8 +146,14 @@ export async function loadStudentHistory(studentId) {
   const cols = "textbook_id, status, assigned_on, ended_on, current_page";
   let { data: st, error } = await supabase
     .from("student_textbooks")
-    .select(`${cols}, note`)
+    .select(`${cols}, note, round`)
     .eq("student_id", studentId);
+  if (error) {
+    ({ data: st, error } = await supabase
+      .from("student_textbooks")
+      .select(`${cols}, note`)
+      .eq("student_id", studentId));
+  }
   if (error) {
     ({ data: st } = await supabase
       .from("student_textbooks")
@@ -175,18 +181,61 @@ export async function loadStudentHistory(studentId) {
     if (!leafByBook.has(u.textbook_id)) leafByBook.set(u.textbook_id, []);
     leafByBook.get(u.textbook_id).push(u.id);
   });
-  const { data: prog } = await supabase
-    .from("student_unit_progress")
-    .select("textbook_unit_id")
-    .eq("student_id", studentId);
-  const doneSet = new Set((prog || []).map((p) => p.textbook_unit_id));
+  // 진도는 **회독별로 쌓인다.** 2회독을 돌려도 1회독 기록이 남아 있다.
+  let prog = [];
+  {
+    const q = await supabase
+      .from("student_unit_progress")
+      .select("textbook_unit_id, round, done_on")
+      .eq("student_id", studentId);
+    if (q.error) {
+      const fb = await supabase
+        .from("student_unit_progress")
+        .select("textbook_unit_id")
+        .eq("student_id", studentId);
+      prog = (fb.data || []).map((p) => ({ ...p, round: 1, done_on: null }));
+    } else {
+      prog = q.data || [];
+    }
+  }
+  // unitId → textbookId
+  const bookOfUnit = new Map((units || []).map((u) => [u.id, u.textbook_id]));
+  // `${textbookId}|${round}` → { done, first, last }
+  const byRound = new Map();
+  prog.forEach((p) => {
+    const tid = bookOfUnit.get(p.textbook_unit_id);
+    if (!tid) return;
+    const key = `${tid}|${p.round || 1}`;
+    const cur = byRound.get(key) || { done: 0, first: null, last: null };
+    cur.done += 1;
+    if (p.done_on) {
+      if (!cur.first || p.done_on < cur.first) cur.first = p.done_on;
+      if (!cur.last || p.done_on > cur.last) cur.last = p.done_on;
+    }
+    byRound.set(key, cur);
+  });
 
   const bookRows = (st || [])
     .map((x) => {
       const b = bookById.get(x.textbook_id);
       const leaves = leafByBook.get(x.textbook_id) || [];
-      const done = leaves.filter((id) => doneSet.has(id)).length;
-      const percent = leaves.length > 0 ? Math.round((done / leaves.length) * 100) : null;
+      const cur = x.round || 1;
+
+      // 지금 회독을 포함해 지금까지 돈 모든 회독
+      const rounds = [];
+      for (let r = 1; r <= cur; r += 1) {
+        const hit = byRound.get(`${x.textbook_id}|${r}`) || { done: 0, first: null, last: null };
+        rounds.push({
+          round: r,
+          done: hit.done,
+          total: leaves.length,
+          percent: leaves.length > 0 ? Math.round((hit.done / leaves.length) * 100) : null,
+          first: hit.first,
+          last: hit.last,
+          current: r === cur,
+        });
+      }
+      const now = rounds[rounds.length - 1];
       return {
         textbook_id: x.textbook_id,
         name: b?.name || "교재",
@@ -194,7 +243,9 @@ export async function loadStudentHistory(studentId) {
         status: x.status || "active",
         assigned_on: x.assigned_on || null,
         ended_on: x.ended_on || null,
-        percent,
+        round: cur,
+        rounds,
+        percent: now?.percent ?? null,
       };
     })
     .sort((a, b) => {
@@ -214,8 +265,16 @@ export async function loadStudentHistory(studentId) {
     .eq("id", studentId)
     .maybeSingle();
 
+  // 경고 기록 — 지워지지 않는다. 월간 초기화를 해도 여기에는 남는다.
+  const wq = await supabase
+    .from("warning_actions")
+    .select("id, kind, on_date, target_date, note")
+    .eq("student_id", studentId)
+    .order("on_date", { ascending: false });
+
   return {
     books: bookRows,
+    warnings: wq.error ? [] : wq.data || [],
     inquiries: inqQ.error ? [] : inqQ.data || [],
     note: s?.note || "",
   };

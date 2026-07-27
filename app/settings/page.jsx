@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import TopBar from "@/components/TopBar";
 import SettingsForm from "./SettingsForm";
 import { loadSettings, maskSecret } from "@/lib/settings";
@@ -55,6 +56,17 @@ export default async function SettingsPage() {
           <p className="sub">
             문자 발송 방식과 키를 여기서 바꿉니다. 바꿔도 다시 배포할 필요가 없어요.
           </p>
+        </div>
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="row" style={{ gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 14 }}>Supabase SQL</b>
+            <span className="hint" style={{ flex: 1 }}>
+              새 기능을 넣으면 표를 한 번 만들어줘야 합니다. 여기서 복사해 Supabase 에 붙여넣으세요.
+            </span>
+            <Link className="btn btn-ghost btn-sm" href="/settings/sql">
+              SQL 열기
+            </Link>
+          </div>
         </div>
         <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} />
       </main>

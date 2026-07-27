@@ -845,7 +845,7 @@ export default function StudentPanel({
       {row.warn && row.warn.count > 0 && (
         <div className="prow" style={{ alignItems: "flex-start" }}>
           <span className="plabel" style={{ paddingTop: 5 }}>경고</span>
-          <WarnBox studentId={row.student.id} warn={row.warn} />
+          <WarnBox studentId={row.student.id} warn={row.warn} date={date} />
         </div>
       )}
 
