@@ -167,7 +167,11 @@ export default function TodayBoard({
                             <span className="muted" style={{ fontSize: 12 }}>
                               {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
                             </span>
-                            {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                            {r.isMakeup && (
+                              <span className="tag tag-lav" title="보강으로 온 학생">
+                                보강{r.makeupOf ? ` · ${r.makeupOf.slice(5).replace("-", "/")} 결석분` : ""}
+                              </span>
+                            )}
                             {r.plannedAbsent && (
                               <span className="tag tag-amber">
                                 결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}

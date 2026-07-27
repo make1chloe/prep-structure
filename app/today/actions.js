@@ -114,6 +114,7 @@ export async function saveStudentDay(studentId, date, form) {
 
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
   const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
+  const itemNotes = form.itemNotes || {}; // 채점 피드백 { id: "3번 대명사 지칭 틀림" }
   const nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
   const { error: delErr } = await supabase
     .from("daily_report_items")
@@ -130,6 +131,7 @@ export async function saveStudentDay(studentId, date, form) {
         daily_report_id: report.id,
         homework_item_id,
         status,
+        note: (itemNotes[homework_item_id] || "").trim() || null,
       })),
     // 다음 수업에 검사할 숙제 배정 (교재 단원과 함께)
     ...nextIds.map((homework_item_id) => ({
@@ -147,8 +149,12 @@ export async function saveStudentDay(studentId, date, form) {
   if (payload.length > 0) {
     let { error } = await supabase.from("daily_report_items").insert(payload);
     if (isMissingColumn(error)) {
-      // 0009 전이면 단원 1개만, 0008 전이면 단원 없이 저장
-      const noArray = payload.map(({ textbook_unit_ids, ...rest }) => rest);
+      // 0024 전이면 채점 메모 없이, 0009 전이면 단원 1개만, 0008 전이면 단원 없이 저장
+      const noNote = payload.map(({ note, ...rest }) => rest);
+      ({ error } = await supabase.from("daily_report_items").insert(noNote));
+    }
+    if (isMissingColumn(error)) {
+      const noArray = payload.map(({ note, textbook_unit_ids, ...rest }) => rest);
       ({ error } = await supabase.from("daily_report_items").insert(noArray));
       if (isMissingColumn(error)) {
         const bare = noArray.map(({ textbook_unit_id, range_note, ...rest }) => rest);
@@ -310,4 +316,117 @@ export async function setAllDelivered(studentId, noticeIds, delivered) {
     .in("notice_id", noticeIds);
   revalidatePath("/today");
   return { error: error ? error.message : null };
+}
+
+/**
+ * 이 학생에게 낸 숙제를 **반 전체에 그대로** 낸다.
+ *
+ * 반 10명에게 거의 같은 숙제를 내는 게 보통인데, 지금은 한 명씩 항목·교재·단원을
+ * 다시 골라야 한다. 여기서 탭이 제일 많이 든다.
+ * 그래서 한 명을 다 만든 뒤 한 번 눌러 나머지에게 복사한다.
+ *
+ * 이미 그 학생에게 배정된 숙제가 있으면 **덮어쓰지 않고 건너뛴다.**
+ * (개별로 다르게 낸 것을 지우면 안 되므로)
+ */
+export async function copyHomeworkToClass(studentId, classId, date) {
+  if (!studentId || !classId || !date) return { error: "값이 부족해요." };
+  const supabase = createClient();
+
+  // 1) 원본 학생의 오늘 배정
+  const { data: src } = await supabase
+    .from("daily_reports")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("date", date)
+    .maybeSingle();
+  if (!src) return { error: "먼저 저장해주세요." };
+
+  const cols = "homework_item_id, textbook_unit_id, textbook_unit_ids, range_note";
+  let { data: rows, error } = await supabase
+    .from("daily_report_items")
+    .select(cols)
+    .eq("daily_report_id", src.id)
+    .eq("status", "assigned");
+  if (isMissingColumn(error)) {
+    ({ data: rows } = await supabase
+      .from("daily_report_items")
+      .select("homework_item_id, textbook_unit_id, range_note")
+      .eq("daily_report_id", src.id)
+      .eq("status", "assigned"));
+  }
+  if (!rows || rows.length === 0) return { error: "복사할 숙제가 없어요." };
+
+  // 2) 같은 반 학생들 (본인 제외)
+  const { data: members } = await supabase
+    .from("class_students")
+    .select("student_id")
+    .eq("class_id", classId);
+  const others = (members || []).map((m) => m.student_id).filter((id) => id !== studentId);
+  if (others.length === 0) return { error: null, copied: 0, skipped: 0 };
+
+  // 3) 오늘 리포트를 만들어 두고(없으면), 이미 배정이 있는 학생은 건너뛴다
+  const { data: reps } = await supabase
+    .from("daily_reports")
+    .upsert(
+      others.map((student_id) => ({ student_id, date })),
+      { onConflict: "student_id,date" }
+    )
+    .select("id, student_id");
+
+  const repIds = (reps || []).map((r) => r.id);
+  const { data: existing } = await supabase
+    .from("daily_report_items")
+    .select("daily_report_id")
+    .in("daily_report_id", repIds.length ? repIds : ["00000000-0000-0000-0000-000000000000"])
+    .eq("status", "assigned");
+  const hasAssign = new Set((existing || []).map((x) => x.daily_report_id));
+
+  const targets = (reps || []).filter((r) => !hasAssign.has(r.id));
+  if (targets.length === 0) {
+    return { error: null, copied: 0, skipped: others.length };
+  }
+
+  const payload = targets.flatMap((r) =>
+    rows.map((x) => ({
+      daily_report_id: r.id,
+      homework_item_id: x.homework_item_id,
+      status: "assigned",
+      textbook_unit_id: x.textbook_unit_id || null,
+      textbook_unit_ids: x.textbook_unit_ids || null,
+      range_note: x.range_note || null,
+    }))
+  );
+
+  let { error: insErr } = await supabase.from("daily_report_items").insert(payload);
+  if (isMissingColumn(insErr)) {
+    const noArray = payload.map(({ textbook_unit_ids, ...rest }) => rest);
+    ({ error: insErr } = await supabase.from("daily_report_items").insert(noArray));
+    if (isMissingColumn(insErr)) {
+      const bare = noArray.map(({ textbook_unit_id, range_note, ...rest }) => rest);
+      ({ error: insErr } = await supabase.from("daily_report_items").insert(bare));
+    }
+  }
+  if (insErr) return { error: insErr.message };
+
+  // 알림은 실패해도 저장은 그대로 둔다
+  try {
+    const { data: names } = await supabase
+      .from("homework_items")
+      .select("name")
+      .in("id", rows.map((x) => x.homework_item_id));
+    await pushToStudents(
+      targets.map((r) => r.student_id),
+      {
+        title: "오늘 숙제가 올라왔어요",
+        body: (names || []).map((n) => n.name).filter(Boolean).join(", ") || "앱에서 확인해주세요",
+        url: "/me",
+        tag: "homework",
+      }
+    );
+  } catch {
+    // 무시
+  }
+
+  revalidatePath("/today");
+  return { error: null, copied: targets.length, skipped: others.length - targets.length };
 }

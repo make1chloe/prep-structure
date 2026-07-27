@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveStudentDay, listUnitOptions, setDelivered } from "./actions";
+import { saveStudentDay, listUnitOptions, setDelivered, copyHomeworkToClass } from "./actions";
 import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
@@ -35,6 +35,51 @@ const CYCLE = { "": "done", done: "weak", weak: "missing", missing: "" };
 const MARK = { done: "○", weak: "△", missing: "✕" };
 const MARK_CLS = { done: "hw-done", weak: "hw-weak", missing: "hw-missing" };
 
+/**
+ * 테스트 점수 한 칸.
+ *
+ * 채점할 때 실제로 세는 것은 **틀린 개수**다 (노션에서도 -단어T 로 적어왔다).
+ * 그래서 '틀린' 을 치면 맞은 개수를 계산해 넣는다.
+ * 전체 개수는 학생마다 거의 안 바뀌므로 지난번 값이 미리 들어와 있다.
+ */
+function ScoreInput({ label, total, correct, onTotal, onCorrect }) {
+  const t = parseInt(total, 10);
+  const c = parseInt(correct, 10);
+  const wrong = Number.isFinite(t) && Number.isFinite(c) ? Math.max(0, t - c) : "";
+
+  function setWrong(v) {
+    const w = parseInt(v.replace(/[^\d]/g, ""), 10);
+    if (!Number.isFinite(t)) return;           // 전체를 모르면 못 구한다
+    onCorrect(Number.isFinite(w) ? String(Math.max(0, t - w)) : "");
+  }
+
+  return (
+    <span className="row" style={{ gap: 5, alignItems: "center" }}>
+      <span className="hint">{label}</span>
+      <input
+        className="input input-sm"
+        style={{ width: 46, textAlign: "center" }}
+        inputMode="numeric"
+        placeholder="틀린"
+        title="틀린 개수를 적으면 맞은 개수가 계산됩니다"
+        value={wrong === "" ? "" : String(wrong)}
+        onChange={(e) => setWrong(e.target.value)}
+      />
+      <span className="hint">틀림 / 전체</span>
+      <input
+        className="input input-sm"
+        style={{ width: 46, textAlign: "center" }}
+        inputMode="numeric"
+        value={total}
+        onChange={(e) => onTotal(e.target.value)}
+      />
+      {Number.isFinite(t) && Number.isFinite(c) && (
+        <span className="tag tag-mint">{c}/{t}</span>
+      )}
+    </span>
+  );
+}
+
 export default function StudentPanel({
   row,
   date,
@@ -49,13 +94,16 @@ export default function StudentPanel({
     attendance: row.status || "present",
     attitude: r.attitude || "",
     word_correct: r.word_correct ?? "",
-    word_total: r.word_total ?? "",
+    // 전체 개수는 지난번 값을 미리 넣어둔다 (학생마다 거의 안 바뀐다)
+    word_total: r.word_total ?? row.lastTotals?.word_total ?? "",
     sent_correct: r.sent_correct ?? "",
-    sent_total: r.sent_total ?? "",
+    sent_total: r.sent_total ?? row.lastTotals?.sent_total ?? "",
     own_progress: r.own_progress || "",
     notice: r.notice || "",
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
+  // 숙제 하나하나에 남기는 채점 피드백 ("3번 대명사 지칭 틀림")
+  const [itemNotes, setItemNotes] = useState(() => ({ ...(row.itemNotes || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
@@ -202,6 +250,65 @@ export default function StudentPanel({
   function cycle(id) {
     setMarks((m) => ({ ...m, [id]: CYCLE[m[id] || ""] }));
   }
+
+  /**
+   * 지난번과 같게 — 다음 숙제를 지난번 배정 그대로 채운다.
+   *
+   * 대부분의 숙제는 "같은 교재의 다음 단원" 이다. 그런데 지금은 매번
+   * 항목·교재·단원을 처음부터 다시 골라야 해서 여기서 탭이 가장 많이 든다.
+   * 그래서 항목과 교재는 그대로 가져오고, 단원은 **지난번 다음 것**으로 옮겨준다.
+   * 틀리면 ✕ 눌러 빼면 되므로, 맞히려 하기보다 손을 덜 쓰게 하는 쪽이 낫다.
+   */
+  async function copyLast() {
+    const src = row.checkUnits || {};
+    const ids = toCheck.filter((iid) => src[iid]);
+    if (ids.length === 0) return;
+
+    // 필요한 교재를 먼저 다 불러온다 (단원을 한 칸 밀려면 목록이 있어야 한다)
+    const books = new Set();
+    ids.forEach((iid) => {
+      (src[iid].unitIds || []).forEach((uid) => {
+        const b = unitNames[uid]?.textbookId;
+        if (b) books.add(b);
+      });
+    });
+    const loaded = {};
+    for (const b of books) {
+      if (unitsByBook[b]) { loaded[b] = unitsByBook[b]; continue; }
+      const res = await listUnitOptions(b);
+      loaded[b] = res.options || [];
+    }
+    setUnitsByBook((m) => ({ ...m, ...loaded }));
+
+    const nextSet = new Set(next);
+    const patch = {};
+    ids.forEach((iid) => {
+      nextSet.add(iid);
+      const prevUnits = src[iid].unitIds || [];
+      const bookId = prevUnits.length ? unitNames[prevUnits[0]]?.textbookId : bookFor(iid);
+      const opts = (bookId && (loaded[bookId] || unitsByBook[bookId])) || [];
+
+      // 지난번 단원 중 가장 뒤엣것 다음 단원을 고른다
+      let picked = [];
+      if (prevUnits.length && opts.length) {
+        const lastIdx = Math.max(...prevUnits.map((u) => opts.findIndex((o) => o.id === u)));
+        if (lastIdx >= 0 && lastIdx + 1 < opts.length) {
+          picked = [opts[lastIdx + 1].id];
+        }
+      }
+      patch[iid] = {
+        textbookId: bookId || defaultBook,
+        unitIds: picked,
+        note: src[iid].note || "",
+      };
+    });
+    setNext(nextSet);
+    setNextUnits((m) => {
+      const out = { ...m };
+      Object.entries(patch).forEach(([iid, v]) => (out[iid] = { ...(out[iid] || {}), ...v }));
+      return out;
+    });
+  }
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
   }
@@ -211,6 +318,7 @@ export default function StudentPanel({
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         items: marks,
+        itemNotes,
         toCheck,
         nextHomework: [...next],
         nextUnits: Object.fromEntries(
@@ -259,33 +367,24 @@ export default function StudentPanel({
         </div>
       </div>
 
-      {/* 테스트 점수 */}
+      {/* 테스트 점수 — 채점할 때 세는 건 '틀린 개수' 다.
+          전체 개수는 지난번 것을 미리 채워두고, 틀린 개수만 치면 맞은 개수가 계산된다. */}
       <div className="prow">
         <span className="plabel">테스트</span>
-        <div className="row" style={{ gap: 10, alignItems: "center" }}>
-          <span className="hint">단어</span>
-          <input
-            className="input input-sm" style={{ width: 44, textAlign: "center" }}
-            inputMode="numeric" value={form.word_correct}
-            onChange={(e) => set("word_correct", e.target.value)}
+        <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <ScoreInput
+            label="단어"
+            total={form.word_total}
+            correct={form.word_correct}
+            onTotal={(v) => set("word_total", v)}
+            onCorrect={(v) => set("word_correct", v)}
           />
-          <span className="muted">/</span>
-          <input
-            className="input input-sm" style={{ width: 44, textAlign: "center" }}
-            inputMode="numeric" value={form.word_total}
-            onChange={(e) => set("word_total", e.target.value)}
-          />
-          <span className="hint" style={{ marginLeft: 8 }}>문장</span>
-          <input
-            className="input input-sm" style={{ width: 44, textAlign: "center" }}
-            inputMode="numeric" value={form.sent_correct}
-            onChange={(e) => set("sent_correct", e.target.value)}
-          />
-          <span className="muted">/</span>
-          <input
-            className="input input-sm" style={{ width: 44, textAlign: "center" }}
-            inputMode="numeric" value={form.sent_total}
-            onChange={(e) => set("sent_total", e.target.value)}
+          <ScoreInput
+            label="문장"
+            total={form.sent_total}
+            correct={form.sent_correct}
+            onTotal={(v) => set("sent_total", v)}
+            onCorrect={(v) => set("sent_correct", v)}
           />
         </div>
       </div>
@@ -316,14 +415,27 @@ export default function StudentPanel({
                   const item = items.find((x) => x.id === iid);
                   return (
                     <div className="unitrow" key={iid}>
-                      <button
+                      {/* 세 가지를 한 번에 — 예전엔 칩을 돌려야 해서 미제출이 3탭이었다 */}
+                      <span
                         className={`hwchip ${st ? MARK_CLS[st] : ""}`}
-                        onClick={() => cycle(iid)}
                         style={!st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
-                        title="클릭: 완료 → 미흡 → 미제출 → 없음"
                       >
                         {st ? <b>{MARK[st]}</b> : <b>·</b>} {nameOf(iid) || "숙제"}
-                      </button>
+                      </span>
+                      <span className="markset">
+                        {[["done", "○"], ["weak", "△"], ["missing", "✕"]].map(([k, sym]) => (
+                          <button
+                            key={k}
+                            className={`markbtn ${st === k ? `on ${MARK_CLS[k]}` : ""}`}
+                            title={k === "done" ? "완료" : k === "weak" ? "미흡" : "미제출"}
+                            onClick={() =>
+                              setMarks((m) => ({ ...m, [iid]: m[iid] === k ? "" : k }))
+                            }
+                          >
+                            {sym}
+                          </button>
+                        ))}
+                      </span>
                       {item?.method && (
                         <button
                           className="btn btn-ghost btn-sm"
@@ -349,6 +461,22 @@ export default function StudentPanel({
                           })}
                           {u.note && <span className="tag tag-muted">{u.note}</span>}
                         </span>
+                      )}
+                      {/* 채점 피드백 — 미흡·미제출이면 자동으로 열린다 */}
+                      {(st === "weak" || st === "missing" || itemNotes[iid]) && (
+                        <input
+                          className="input input-sm"
+                          style={{ flexBasis: "100%", marginTop: 2 }}
+                          placeholder={
+                            st === "missing"
+                              ? "왜 못 했는지 · 언제까지 해올지 (학부모 문자에 같이 나갑니다)"
+                              : "어디가 부족했는지 (학부모 문자에 같이 나갑니다)"
+                          }
+                          value={itemNotes[iid] || ""}
+                          onChange={(e) =>
+                            setItemNotes((m) => ({ ...m, [iid]: e.target.value }))
+                          }
+                        />
                       )}
                     </div>
                   );
@@ -446,10 +574,21 @@ export default function StudentPanel({
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>다음</span>
         <div style={{ flex: 1 }}>
-          <p className="hint" style={{ margin: "0 0 6px" }}>
-            다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
-            {next.size > 0 && <b> · {next.size}개 배정</b>}
-          </p>
+          <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <p className="hint" style={{ margin: 0, flex: 1 }}>
+              다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
+              {next.size > 0 && <b> · {next.size}개 배정</b>}
+            </p>
+            {toCheck.length > 0 && (
+              <button
+                className="btn btn-sm"
+                onClick={copyLast}
+                title="지난번에 낸 항목·교재를 그대로 가져오고, 단원만 다음 것으로 옮깁니다"
+              >
+                ⟳ 지난번과 같게 (단원은 다음 것)
+              </button>
+            )}
+          </div>
           <div className="stack" style={{ gap: 6 }}>
             {grouped(shown).map(([g, list]) => (
               <div className="hwgroup" key={g}>
@@ -688,7 +827,46 @@ export default function StudentPanel({
         </div>
       )}
 
-      <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
+      <div className="row" style={{ justifyContent: "flex-end", marginTop: 8, gap: 6 }}>
+        {/* 반 전체에 같은 숙제 — 한 명 만들어놓고 나머지에게 복사한다 */}
+        {row.classId && next.size > 0 && (
+          <button
+            className="btn btn-sm"
+            disabled={pending}
+            title="이미 숙제가 배정된 학생은 건드리지 않습니다"
+            onClick={() => {
+              if (!confirm("저장한 뒤, 이 숙제를 반 전체에 그대로 낼까요?\n(이미 숙제가 있는 학생은 그대로 둡니다)")) return;
+              startTransition(async () => {
+                const res = await saveStudentDay(row.student.id, date, {
+                  ...form,
+                  items: marks,
+                  itemNotes,
+                  toCheck,
+                  nextHomework: [...next],
+                  nextUnits: Object.fromEntries(
+                    [...next].map((iid) => [
+                      iid,
+                      {
+                        unitIds: nextUnits[iid]?.unitIds || [],
+                        note: nextUnits[iid]?.note || "",
+                      },
+                    ])
+                  ),
+                });
+                if (res?.error) { alert(res.error); return; }
+                const cp = await copyHomeworkToClass(row.student.id, row.classId, date);
+                if (cp?.error) { alert(cp.error); return; }
+                alert(
+                  `${cp.copied}명에게 같은 숙제를 냈어요.` +
+                  (cp.skipped ? `\n${cp.skipped}명은 이미 숙제가 있어 그대로 뒀습니다.` : "")
+                );
+                router.refresh();
+              });
+            }}
+          >
+            반 전체에 같은 숙제
+          </button>
+        )}
         <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
           {pending ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
         </button>

@@ -32,6 +32,7 @@ export default function TopNotices({
   notices = [],
   tasks = [],
   unavailable = false,
+  preClass = { comments: [], requests: [] },
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("deliver");
@@ -106,17 +107,63 @@ export default function TopNotices({
     });
   }
 
+  // 수업 전에 볼 것 — 오늘 오는 학생 것만 추려서 여기 띄운다
+  const pre = [
+    ...(preClass.comments || []).map((c) => ({
+      key: `c${c.id}`,
+      tag: c.author_role === "parent" ? "학부모" : "학생",
+      cls: c.author_role === "parent" ? "tag-lav" : "tag-mint",
+      name: c.name,
+      text: c.body,
+    })),
+    ...(preClass.requests || []).map((r) => ({
+      key: `r${r.id}`,
+      tag: r.kind === "absence" ? "결석 알림" : r.kind === "makeup" ? "보강 요청" : "문의",
+      cls: "tag-amber",
+      name: r.name,
+      text:
+        [r.from_date && `${r.from_date.slice(5)}${r.to_date && r.to_date !== r.from_date ? `~${r.to_date.slice(5)}` : ""}`, r.body]
+          .filter(Boolean)
+          .join(" · "),
+    })),
+  ];
+
+  const preBox = pre.length > 0 && (
+    <div className="card" style={{ marginTop: 12, borderColor: "var(--amber)" }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+        수업 전에 볼 것 {pre.length}건
+      </h2>
+      <p className="muted" style={{ margin: "0 0 8px", fontSize: 12.5 }}>
+        <b>오늘 오는 학생</b>이 남긴 것만 모았습니다. 대시보드까지 안 가도 됩니다.
+      </p>
+      <div className="stack" style={{ gap: 4 }}>
+        {pre.map((p) => (
+          <div className="unitrow" key={p.key}>
+            <span className={`tag ${p.cls}`}>{p.tag}</span>
+            <b style={{ fontSize: 12.5 }}>{p.name}</b>
+            <span style={{ fontSize: 12.5, flex: 1 }}>{p.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   if (unavailable) {
     return (
+      <>
+      {preBox}
       <div className="card" style={{ marginTop: 12 }}>
         <div className="notice">
           공지·전달사항을 쓰려면 Supabase에서 <b>0009_notices.sql</b> 을 한 번 실행해주세요.
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    {preBox}
     <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
       <button className="grouphead" onClick={() => setOpen(!open)}>
         <span style={{ fontWeight: 800 }}>
@@ -297,5 +344,6 @@ export default function TopNotices({
         </div>
       )}
     </div>
+    </>
   );
 }

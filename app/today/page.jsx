@@ -89,11 +89,19 @@ export default async function TodayPage({ searchParams }) {
 
   const reportByStudent = new Map((reports || []).map((r) => [r.student_id, r]));
   const lastProgress = new Map();
+  const lastTotals = new Map();   // 학생별 지난번 테스트 전체 개수
   const lastReportId = new Map(); // 학생 → 가장 최근 수업의 리포트 id
   (prevReports || []).forEach((r) => {
     if (!lastReportId.has(r.student_id)) lastReportId.set(r.student_id, r.id);
     if (r.own_progress && !lastProgress.has(r.student_id)) {
       lastProgress.set(r.student_id, r.own_progress);
+    }
+    // 테스트 전체 개수는 학생마다 거의 안 바뀐다 → 지난번 값을 미리 채워준다
+    if (!lastTotals.has(r.student_id) && (r.word_total || r.sent_total)) {
+      lastTotals.set(r.student_id, {
+        word_total: r.word_total || null,
+        sent_total: r.sent_total || null,
+      });
     }
   });
 
@@ -106,7 +114,9 @@ export default async function TodayPage({ searchParams }) {
       if (onlyAssigned) q = q.eq("status", "assigned");
       return q;
     };
-    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`);
+    // 0024(note) → 0009(단원 배열) → 0008(단원 1개) → 그 이전 순으로 물러난다
+    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note, note`);
+    if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`));
     if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`));
     if (error) ({ data } = await build(DRI_BASE));
     return data || [];
@@ -115,6 +125,7 @@ export default async function TodayPage({ searchParams }) {
   // 리포트별 숙제 항목 상태
   const reportIds = (reports || []).map((r) => r.id);
   const itemsByReport = new Map();
+  const noteByReport = new Map();          // 채점 피드백 { reportId: { itemId: note } }
   const nextByReport = new Map();
   const unitIds = new Set();
   const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
@@ -139,6 +150,10 @@ export default async function TodayPage({ searchParams }) {
     }
     if (!itemsByReport.has(x.daily_report_id)) itemsByReport.set(x.daily_report_id, {});
     itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
+    if (x.note) {
+      if (!noteByReport.has(x.daily_report_id)) noteByReport.set(x.daily_report_id, {});
+      noteByReport.get(x.daily_report_id)[x.homework_item_id] = x.note;
+    }
   });
 
   // 지난 수업에서 '배정한' 숙제 = 오늘 검사해야 할 항목
@@ -457,11 +472,14 @@ export default async function TodayPage({ searchParams }) {
           student: s,
           status: a?.status || null,
           isMakeup: a?.status === "makeup",
+          makeupOf: a?.makeup_of || null,   // 언제 결석한 보강인가
           plannedAbsent: !!(a?.planned && a.status === "absent"),
           absenceReason: a?.reason || "",
           report: rep,
           items: rep ? itemsByReport.get(rep.id) || {} : {},
+          itemNotes: rep ? noteByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
+          lastTotals: lastTotals.get(s.id) || null,
           toCheck: toCheckOf(s.id),
           assignedFrom: assignedFromOf(s.id),
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
@@ -469,6 +487,7 @@ export default async function TodayPage({ searchParams }) {
           checkUnits: assignedUnitsOf(s.id),
           notices: noticesOfStudent.get(s.id) || [],
           books: progressOf(s.id, klass.id),
+          classId: klass.id,
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
         };
@@ -488,9 +507,12 @@ export default async function TodayPage({ searchParams }) {
         student: s,
         status: "makeup",
         isMakeup: true,
+        makeupOf: a.makeup_of || null,
         report: rep,
         items: rep ? itemsByReport.get(rep.id) || {} : {},
+        itemNotes: rep ? noteByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
+        lastTotals: lastTotals.get(s.id) || null,
         toCheck: toCheckOf(s.id),
         assignedFrom: assignedFromOf(s.id),
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
@@ -567,6 +589,37 @@ export default async function TodayPage({ searchParams }) {
     return { id: n.id, kind: n.kind, body: n.body, targetLabel, total: t.total, done: t.done };
   });
 
+  // 수업 직전에 알아야 하는 것 — 지금까지는 대시보드에만 있어서 화면을 왔다갔다 해야 했다
+  const rosterIds = [...new Set(rosterStudents.map((s) => s.id))];
+  const preClass = { comments: [], requests: [] };
+  if (rosterIds.length > 0) {
+    const cq = await supabase
+      .from("report_comments")
+      .select("id, body, author_role, student_id, created_at")
+      .is("read_at", null)
+      .neq("author_role", "staff")
+      .in("student_id", rosterIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    const nameById = new Map(rosterStudents.map((s) => [s.id, s.name]));
+    preClass.comments = (cq.error ? [] : cq.data || []).map((c) => ({
+      ...c,
+      name: nameById.get(c.student_id) || "학생",
+    }));
+
+    const rq = await supabase
+      .from("requests")
+      .select("id, student_id, kind, from_date, to_date, body")
+      .eq("status", "new")
+      .in("student_id", rosterIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    preClass.requests = (rq.error ? [] : rq.data || []).map((r) => ({
+      ...r,
+      name: nameById.get(r.student_id) || "학생",
+    }));
+  }
+
   const label = `${target.getMonth() + 1}월 ${target.getDate()}일 (${dow})`;
 
   return (
@@ -584,6 +637,7 @@ export default async function TodayPage({ searchParams }) {
           notices={noticeCards}
           tasks={taskCards}
           unavailable={!noticesAvailable}
+          preClass={preClass}
         />
         <TodayBoard
           date={date}

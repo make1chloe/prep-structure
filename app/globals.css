@@ -242,3 +242,14 @@ a { color: inherit; }
   /* 더 좁으면 이름은 빼고 로그아웃만 */
   .who { display: none; }
 }
+
+/* 숙제 검사 — ○ △ ✕ 를 한 번에 (예전엔 칩을 돌려야 해서 미제출이 3탭이었다) */
+.markset { display: inline-flex; gap: 2px; }
+.markbtn {
+  width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--surface); color: var(--text-muted);
+  font-size: 13px; font-weight: 800; cursor: pointer; line-height: 1;
+}
+.markbtn:hover { background: var(--surface-2); color: var(--text); }
+.markbtn.on { border-color: transparent; }
