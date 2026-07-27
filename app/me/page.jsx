@@ -4,6 +4,8 @@ import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import { score } from "@/lib/wordTest";
 import StudyList from "./StudyList";
+import { trend, avgSeconds } from "@/lib/trend";
+import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
@@ -221,6 +223,42 @@ export default async function MePage() {
     if (!x.ended_at) running = { key, started_at: x.started_at };
   });
 
+  // 내 흐름 — 남과 견주지 않고 **내 지난 기록**과 견준다
+  const asc = [...(reports || [])].sort((a, b) => a.date.localeCompare(b.date));
+  const wordTrend = trend(
+    asc.filter((r) => r.word_total > 0).map((r) => pct(r.word_correct, r.word_total))
+  );
+  const sentTrend = trend(
+    asc.filter((r) => r.sent_total > 0).map((r) => pct(r.sent_correct, r.sent_total))
+  );
+
+  // 항목마다 내가 보통 얼마나 걸렸나 (오늘 것은 빼고 지난 것들로)
+  let pastSessions = [];
+  {
+    const q = await supabase
+      .from("study_sessions")
+      .select("homework_item_id, seconds, date")
+      .eq("student_id", student.id)
+      .lt("date", today)
+      .not("seconds", "is", null)
+      .order("date", { ascending: false })
+      .limit(300);
+    if (!q.error) pastSessions = q.data || [];
+  }
+  const perDay = new Map();   // `${item}|${date}` → 그날 합계
+  pastSessions.forEach((x) => {
+    if (!x.homework_item_id) return;
+    const k = `${x.homework_item_id}|${x.date}`;
+    perDay.set(k, (perDay.get(k) || 0) + (x.seconds || 0));
+  });
+  const byItem = new Map();
+  perDay.forEach((sec, k) => {
+    const id = k.split("|")[0];
+    if (!byItem.has(id)) byItem.set(id, []);
+    byItem.get(id).push(sec);
+  });
+  const usualOf = (id) => avgSeconds(byItem.get(id) || []);
+
   const studyTasks = [
     ...todo.map((c) => {
       const it = itemById.get(c.itemId);
@@ -235,6 +273,7 @@ export default async function MePage() {
         noTimer: !!it?.no_timer,
         sort: it?.sort ?? 500,
         seconds: secOf.get(`item-${c.itemId}`) || 0,
+        usual: usualOf(c.itemId),
       };
     }),
     ...stay
@@ -302,12 +341,28 @@ export default async function MePage() {
                 <div className="row" style={{ gap: 8 }}>
                   <span className="plabel" style={{ width: 46 }}>단어</span>
                   <b>{score(latest.word_correct, latest.word_total)}</b>
+                  {wordTrend && (
+                    <span
+                      className={`tag ${wordTrend.dir === "up" ? "tag-mint" : wordTrend.dir === "down" ? "tag-amber" : "tag-muted"}`}
+                      title={`최근 평균 ${wordTrend.now}% · 그 전 ${wordTrend.before}%`}
+                    >
+                      {wordTrend.arrow} {wordTrend.label}
+                    </span>
+                  )}
                 </div>
               ) : null}
               {latest.sent_total ? (
                 <div className="row" style={{ gap: 8 }}>
                   <span className="plabel" style={{ width: 46 }}>문장</span>
                   <b>{score(latest.sent_correct, latest.sent_total)}</b>
+                  {sentTrend && (
+                    <span
+                      className={`tag ${sentTrend.dir === "up" ? "tag-mint" : sentTrend.dir === "down" ? "tag-amber" : "tag-muted"}`}
+                      title={`최근 평균 ${sentTrend.now}% · 그 전 ${sentTrend.before}%`}
+                    >
+                      {sentTrend.arrow} {sentTrend.label}
+                    </span>
+                  )}
                 </div>
               ) : null}
               {latest.own_progress ? (

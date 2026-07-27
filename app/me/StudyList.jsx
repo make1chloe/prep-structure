@@ -110,8 +110,11 @@ export default function StudyList({ tasks = [], running = null, ready = true }) 
                   )}
                 </div>
 
-                {t.seconds > 0 && (
-                  <span className="tag tag-mint">{human(t.seconds)}</span>
+                {t.seconds > 0 && <span className="tag tag-mint">{human(t.seconds)}</span>}
+                {t.usual > 0 && t.seconds === 0 && (
+                  <span className="hint" style={{ fontSize: 11.5 }} title="지난번들 평균이에요">
+                    보통 {human(t.usual)}
+                  </span>
                 )}
 
                 {t.noTimer ? (

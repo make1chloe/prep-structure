@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
+import { waitingChecks } from "@/lib/checkQueue";
 
 const ATT = [
   { key: "present", label: "정시", cls: "tag-mint" },
@@ -240,6 +241,15 @@ export default function TodayBoard({
                                 </span>
                               ) : null;
                             })()}
+                            {waitingChecks(items, r.toCheck || [], r.items || {}, r.started || [])
+                              .length > 0 && (
+                              <span
+                                className="tag tag-amber"
+                                title="검사를 안 받고 다음 것을 하고 있습니다"
+                              >
+                                검사 대기
+                              </span>
+                            )}
                             {r.warn?.need && (
                               <span className="tag tag-red" title="경고가 쌓여 반성문 대상입니다">
                                 반성문

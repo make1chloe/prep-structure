@@ -65,7 +65,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
     supabase
       .from("homework_items")
-      .select("id, name, category, sort, method")
+      .select("id, name, category, sort, method, no_timer")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase
@@ -84,13 +84,20 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date));
   }
 
-  // method 컬럼이 아직 없는 DB에서도 동작하도록 재조회
+  // no_timer · method 가 아직 없는 DB에서도 동작하도록 한 단계씩 물러난다
   if (itemsErr) {
-    ({ data: items } = await supabase
+    const r2 = await supabase
       .from("homework_items")
-      .select("id, name, category, sort")
+      .select("id, name, category, sort, method")
       .eq("active", true)
-      .order("sort", { ascending: true }));
+      .order("sort", { ascending: true });
+    if (!r2.error) items = r2.data;
+    else
+      ({ data: items } = await supabase
+        .from("homework_items")
+        .select("id, name, category, sort")
+        .eq("active", true)
+        .order("sort", { ascending: true }));
   }
 
   const reportByStudent = new Map((reports || []).map((r) => [r.student_id, r]));
@@ -515,6 +522,23 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 오늘 학생들이 돌린 타이머 — 검사를 지나쳤는지 알아내는 데 쓴다
+  const startedOf = new Map();
+  {
+    const q = studentIds.length
+      ? await supabase
+          .from("study_sessions")
+          .select("student_id, homework_item_id, started_at")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : { data: [] };
+    (q.error ? [] : q.data || []).forEach((x) => {
+      if (!x.homework_item_id) return;
+      if (!startedOf.has(x.student_id)) startedOf.set(x.student_id, []);
+      startedOf.get(x.student_id).push(x);
+    });
+  }
+
   // ── 늦귀가 과제 ─────────────────────────────────────────
   const stayOf = new Map();
   {
@@ -643,6 +667,7 @@ export default async function TodayPage({ searchParams }) {
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
           exams: examOf.get(s.id) || [],
+          started: startedOf.get(s.id) || [],
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -680,6 +705,7 @@ export default async function TodayPage({ searchParams }) {
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
         exams: examOf.get(s.id) || [],
+        started: startedOf.get(s.id) || [],
       };
     });
   if (extras.length > 0) {

@@ -13,6 +13,7 @@ import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
 import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
+import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -167,6 +168,9 @@ export default function StudentPanel({
   // △·✕ 로 찍은 숙제 — **배정된 것뿐 아니라 지금 찍은 것 전부**를 본다.
   // 예전에는 toCheck(지난 수업에 배정한 것)만 봐서, 배정 없이 그 자리에서 찍은
   // 숙제는 늦귀가 과제로도, 하원 안내 사유로도 안 잡혔다.
+  // 검사를 지나쳐 간 것 — 학생은 아무것도 안 눌러도 여기 뜬다
+  const waiting = waitingChecks(items, toCheck, marks, row.started || []);
+
   const weakOrMissing = Object.entries(marks)
     .filter(([, st]) => st === "weak" || st === "missing")
     .map(([iid, st]) => ({ iid, st }));
@@ -448,6 +452,18 @@ export default function StudentPanel({
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
         <div style={{ flex: 1 }}>
+          {waiting.length > 0 && (
+            <div
+              className="notice"
+              style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.8 }}
+            >
+              <b>검사를 안 받고 진행 중입니다 — {waiting.length}건</b>
+              <br />
+              {waiting.map((w) => `${w.name} (${waitingFor(w.since)})`).join(" · ")}
+              <br />
+              바쁘시면 그냥 두셔도 됩니다. <b>검사 안 한 항목은 다음 수업으로 넘어갑니다.</b>
+            </div>
+          )}
           {toCheck.length > 0 && (
             <>
               <p className="hint" style={{ margin: "0 0 6px" }}>
