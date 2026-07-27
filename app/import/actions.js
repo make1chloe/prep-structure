@@ -8,6 +8,20 @@ function isMissingColumn(error) {
   return error.code === "PGRST204" || error.code === "42703";
 }
 
+/**
+ * 같은 (학생, 날짜)가 한 파일 안에 여러 번 나오면 **마지막 것만** 남긴다.
+ *
+ * 노션에서 내린 CSV 에는 같은 날 같은 학생 줄이 여러 개 있는 일이 흔하다.
+ * 그대로 upsert 하면 Postgres 가
+ *   "ON CONFLICT DO UPDATE command cannot affect row a second time"
+ * 로 통째로 거절한다 — 한 번의 명령이 같은 줄을 두 번 고칠 수 없기 때문이다.
+ */
+function dedupe(rows, keyOf) {
+  const m = new Map();
+  rows.forEach((r) => m.set(keyOf(r), r));
+  return { rows: [...m.values()], dropped: rows.length - m.size };
+}
+
 // 이름 → 학생 id
 async function studentMap(supabase) {
   const { data } = await supabase.from("students").select("id, name");
@@ -66,22 +80,26 @@ export async function importReports(rows) {
   });
   if (payload.length === 0) return { error: null, saved: 0, skipped };
 
+  // 같은 학생·같은 날이 여러 줄이면 마지막 것만 (그대로 넣으면 Postgres 가 거절한다)
+  const dd = dedupe(payload, (r) => `${r.student_id}|${r.date}`);
+  if (dd.dropped > 0) skipped.push(`같은 날 겹친 줄 ${dd.dropped}개는 마지막 것만 남겼어요.`);
+
   const { data: saved, error } = await supabase
     .from("daily_reports")
     .upsert(
-      payload.map(({ _row, ...rest }) => rest),
+      dd.rows.map(({ _row, ...rest }) => rest),
       { onConflict: "student_id,date" }
     )
     .select("id, student_id, date");
   if (error) return { error: error.message, saved: 0, skipped };
 
   // 숙제 검사 결과 (완료O / 미흡△ / 미제출X)
-  const names = payload.flatMap(({ _row }) => [..._row.done, ..._row.weak, ..._row.missing]);
+  const names = dd.rows.flatMap(({ _row }) => [..._row.done, ..._row.weak, ..._row.missing]);
   const items = await itemMap(supabase, names);
   const byKey = new Map((saved || []).map((r) => [`${r.student_id}|${r.date}`, r.id]));
 
   const driRows = [];
-  payload.forEach(({ student_id, date, _row }) => {
+  dd.rows.forEach(({ student_id, date, _row }) => {
     const rid = byKey.get(`${student_id}|${date}`);
     if (!rid) return;
     const add = (list2, status) =>
@@ -221,7 +239,9 @@ export async function importAbsences(rows) {
 
   let { error } = await supabase
     .from("attendance")
-    .upsert(payload, { onConflict: "student_id,date" });
+    .upsert(dedupe(payload, (r) => `${r.student_id}|${r.date}`).rows, {
+      onConflict: "student_id,date",
+    });
   if (isMissingColumn(error)) {
     // 0017 전이면 planned/reason 없이
     ({ error } = await supabase
@@ -262,12 +282,15 @@ export async function importHomework(rows) {
   });
   if (need.length === 0) return { error: null, saved: 0, skipped };
 
+  // 같은 학생·같은 날은 하나로 (겹친 채로 보내면 Postgres 가 거절한다)
+  const uniq = dedupe(
+    need.map(({ student_id, date }) => ({ student_id, date })),
+    (r) => `${r.student_id}|${r.date}`
+  );
+
   const { data: saved, error } = await supabase
     .from("daily_reports")
-    .upsert(
-      need.map(({ student_id, date }) => ({ student_id, date })),
-      { onConflict: "student_id,date" }
-    )
+    .upsert(uniq.rows, { onConflict: "student_id,date" })
     .select("id, student_id, date");
   if (error) return { error: error.message, saved: 0, skipped };
 

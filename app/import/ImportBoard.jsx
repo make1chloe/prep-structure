@@ -56,6 +56,9 @@ export default function ImportBoard() {
   const [rows, setRows] = useState(null);
   const [fileName, setFileName] = useState("");
   const [year, setYear] = useState(String(new Date().getFullYear()));
+  // 노션 CSV 에는 지난 해까지 다 들어 있다. 필요한 기간만 골라 옮긴다
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [result, setResult] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -80,9 +83,9 @@ export default function ImportBoard() {
   }
 
   function save() {
-    if (!rows || rows.length === 0) return;
+    if (ok.length === 0) return;
     startTransition(async () => {
-      const res = await SAVE[kind](rows);
+      const res = await SAVE[kind](ok);
       setResult(res);
       if (!res.error) router.refresh();
     });
@@ -93,7 +96,23 @@ export default function ImportBoard() {
     kind === "task" ? !!(r.title && r.due_on)
     : kind === "absence" ? !!(r.name && (r.absentOn || r.makeupOn))
     : !!(r.name && r.date);
-  const ok = (rows || []).filter(usable);
+
+  // 그 줄이 가리키는 날짜 (기간으로 거를 때 쓴다)
+  const dateOf = (r) =>
+    kind === "task" ? r.due_on
+    : kind === "absence" ? r.absentOn || r.makeupOn
+    : r.date;
+  const inRange = (r) => {
+    const d = dateOf(r);
+    if (!d) return true;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  };
+
+  const all = (rows || []).filter(usable);
+  const ok = all.filter(inRange);
+  const outOfRange = all.length - ok.length;
   const bad = (rows || []).filter((r) => !usable(r));
 
   return (
@@ -131,6 +150,35 @@ export default function ImportBoard() {
               onChange={(e) => setYear(e.target.value)}
             />
           </div>
+          <div className="field" style={{ width: 150 }}>
+            <label className="label">이 날짜부터</label>
+            <input
+              className="input input-sm"
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </div>
+          <div className="field" style={{ width: 150 }}>
+            <label className="label">이 날짜까지</label>
+            <input
+              className="input input-sm"
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ alignSelf: "flex-end" }}
+            onClick={() => {
+              const y = parseInt(year, 10) || new Date().getFullYear();
+              setFrom(`${y}-01-01`);
+              setTo(`${y}-12-31`);
+            }}
+          >
+            {year}년만
+          </button>
           <input
             type="file"
             accept=".csv,.xlsx,.xls"
@@ -139,6 +187,10 @@ export default function ImportBoard() {
             style={{ padding: 9, flex: 1, minWidth: 240 }}
           />
         </div>
+        <p className="hint" style={{ marginTop: 6 }}>
+          노션 CSV 에는 지난 해까지 다 들어 있습니다. <b>기간을 정하면 그 안의 줄만</b> 옮깁니다.
+          비워두면 전부 옮깁니다.
+        </p>
         <p className="hint" style={{ marginTop: 6 }}>
           노션 제목이 <b>07/20/월 김서은 DP</b> 형태라 날짜에 연도가 없습니다. 위 연도를 맞춰주세요.
         </p>
@@ -149,6 +201,11 @@ export default function ImportBoard() {
             <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
               <b style={{ fontSize: 13.5 }}>미리보기</b>
               <span className="tag tag-mint">옮길 수 있음 {ok.length}</span>
+              {outOfRange > 0 && (
+                <span className="tag tag-muted" title="정해둔 기간 밖이라 안 옮깁니다">
+                  기간 밖 {outOfRange}
+                </span>
+              )}
               {bad.length > 0 && (
                 <span className="tag tag-amber">
                   {kind === "task" ? "제목·날짜" : "이름·날짜"} 못 읽음 {bad.length}
