@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
+import { loadSteps } from "./steps";
+import StepBox from "./StepBox";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,8 @@ export default async function SqlPage() {
 
   const checks = await checkSchema();
   const done = checks.filter((c) => c.ok).length;
+  const steps = await loadSteps();
+  const missing = checks.filter((c) => !c.ok).map((c) => c.id);
 
   let sql = "";
   try {
@@ -68,11 +72,15 @@ export default async function SqlPage() {
             ))}
           </div>
           {done < checks.length && (
-            <p className="hint" style={{ margin: "10px 0 0" }}>
-              <b>없음</b> 이 하나라도 있으면 아래 SQL 을 실행해주세요. 실행한 뒤 이 화면을 새로고침하면
-              바뀝니다. 실행했는데도 그대로면 <b>에러가 나서 아무것도 안 들어간 것</b>입니다 —
-              그 에러 문구를 알려주세요.
-            </p>
+            <div className="hint" style={{ marginTop: 10, lineHeight: 1.9 }}>
+              <b>없음</b> 이 있으면 아래 SQL 을 실행해주세요. 실행하고 이 화면을 새로고침하면 바뀝니다.
+              <br />
+              <b>실행했는데도 숫자가 그대로라면 = 에러가 나서 아무것도 안 들어간 것입니다.</b>{" "}
+              (Supabase 는 한 덩어리로 실행해서, 하나라도 실패하면 전부 취소됩니다)
+              <br />
+              그럴 때는 맨 아래 <b>하나씩 실행하기</b> 에서 <b>안 들어간 것 중 맨 위 하나</b>만 따로
+              Run 해보세요. 어느 구문이 문제인지 바로 나옵니다.
+            </div>
           )}
         </div>
 
@@ -111,6 +119,8 @@ export default async function SqlPage() {
           </p>
           <CopyBox sql={sql} empty={!sql} />
         </div>
+
+        <StepBox steps={steps} missing={missing} />
       </main>
     </>
   );
