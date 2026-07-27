@@ -23,6 +23,11 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
     address: view.message?.address || "",
   });
   const [makeupDays, setMakeupDays] = useState(view.schedule?.makeupDays || []);
+  const [warn, setWarn] = useState(() => ({
+    reflectionAt: 3, wordPassPct: 80,
+    countLate: true, countHomework: true, countWordTest: true,
+    ...(view.warning || {}),
+  }));
   const [testTo, setTestTo] = useState("");
   const [msg, setMsg] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -56,9 +61,21 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
       const m = await saveIntegration("message", { enabled: true, config: msgCfg, replace: true });
       if (m.error) return m;
       // 요일을 하나도 안 고른 것도 뜻이 있으므로 통째로 저장한다
-      return saveIntegration("schedule", {
+      const sc = await saveIntegration("schedule", {
         enabled: true,
         config: { makeupDays },
+        replace: true,
+      });
+      if (sc.error) return sc;
+      return saveIntegration("warning", {
+        enabled: true,
+        config: {
+          reflectionAt: Number(warn.reflectionAt) || 3,
+          wordPassPct: Number(warn.wordPassPct) || 80,
+          countLate: !!warn.countLate,
+          countHomework: !!warn.countHomework,
+          countWordTest: !!warn.countWordTest,
+        },
         replace: true,
       });
     }, "설정을 저장했어요.");
@@ -293,6 +310,56 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           {makeupDays.length === 0
             ? "고른 요일이 없습니다. 모든 요일이 정규 회차로 계산됩니다."
             : `${makeupDays.join("·")}요일은 회차에서 빠집니다.`}
+        </p>
+      </div>
+
+      {/* 경고 규칙 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>경고 · 반성문 규칙</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+          아래에 해당하면 그날 <b>경고 1회</b>입니다. 하루에 여러 개가 겹쳐도 1회로 셉니다.
+          경고는 따로 저장하지 않고 <b>리포트에서 매번 계산</b>하므로, 리포트를 고치면 경고도 같이 맞습니다.
+        </p>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+          {[
+            ["countLate", "지각"],
+            ["countHomework", "숙제 미제출 · 미흡"],
+            ["countWordTest", "단어시험 미통과"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              className={`btn btn-sm ${warn[k] ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setWarn({ ...warn, [k]: !warn[k] })}
+            >
+              {warn[k] ? "✓ " : ""}{label}
+            </button>
+          ))}
+        </div>
+        <div className="editgrid">
+          <div className="field">
+            <label className="label">몇 회면 반성문</label>
+            <input
+              className="input input-sm"
+              inputMode="numeric"
+              value={warn.reflectionAt}
+              onChange={(e) => setWarn({ ...warn, reflectionAt: e.target.value })}
+            />
+          </div>
+          <div className="field">
+            <label className="label">단어시험 통과선 (%)</label>
+            <input
+              className="input input-sm"
+              inputMode="numeric"
+              value={warn.wordPassPct}
+              onChange={(e) => setWarn({ ...warn, wordPassPct: e.target.value })}
+            />
+          </div>
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          {warn.reflectionAt}회가 쌓이면 반성문 대상이 됩니다. 그때 <b>반성문 씀</b> 또는
+          <b> 이번엔 넘어가기(유예)</b> 를 고를 수 있고, 둘 다 경고는 0으로 돌아갑니다.
+          유예는 <b>봐준 이력이 남습니다.</b>
         </p>
       </div>
 

@@ -7,6 +7,9 @@ import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
+import StayBox from "./StayBox";
+import WarnBox from "./WarnBox";
+import { STAY_LABEL } from "@/lib/reportText";
 
 const ATT = [
   { key: "present", label: "정시" },
@@ -812,6 +815,37 @@ export default function StudentPanel({
               openBy={(row.unreadComments || 0) > 0}
             />
           </div>
+        </div>
+      )}
+
+      {/* 오늘 마무리 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>{STAY_LABEL}</span>
+        <StayBox
+          studentId={row.student.id}
+          date={date}
+          rows={row.stay || []}
+          suggestions={toCheck
+            .filter((iid) => marks[iid] === "weak" || marks[iid] === "missing")
+            .map((iid) => {
+              const u = row.checkUnits?.[iid] || {};
+              const uids = u.unitIds?.length ? u.unitIds : u.unitId ? [u.unitId] : [];
+              const where = uids.map((x) => unitNames[x]?.path).filter(Boolean).join(", ");
+              const detail = [where, u.note].filter(Boolean).join(" ");
+              return {
+                itemId: iid,
+                body: detail ? `${nameOf(iid)} ${detail}` : nameOf(iid),
+                why: marks[iid] === "missing" ? "미제출" : "미흡",
+              };
+            })}
+        />
+      </div>
+
+      {/* 경고 · 반성문 — 지난 리포트에서 계산된 것 */}
+      {row.warn && row.warn.count > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>경고</span>
+          <WarnBox studentId={row.student.id} warn={row.warn} />
         </div>
       )}
 

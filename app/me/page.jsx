@@ -4,6 +4,7 @@ import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
+import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
 import { longLabel as fmtLong } from "@/lib/day";
 
@@ -178,6 +179,17 @@ export default async function MePage() {
     .order("created_at", { ascending: false })
     .limit(5);
 
+  // 오늘 마무리 — 아직 안 끝났거나 숙제로 넘어온 것
+  const stayQ = await supabase
+    .from("stay_tasks")
+    .select("id, date, body, status")
+    .eq("student_id", student.id)
+    .order("date", { ascending: false })
+    .limit(20);
+  const stay = (stayQ.error ? [] : stayQ.data || []).filter(
+    (t) => t.status === "todo" || t.status === "moved"
+  );
+
   const notices = (reports || [])
     .filter((r) => r.notice)
     .slice(0, 3)
@@ -247,6 +259,30 @@ export default async function MePage() {
           <div className="card">
             <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>지난 숙제 검사</h2>
             <HomeworkCards items={checked} />
+          </div>
+        )}
+
+        {stay.length > 0 && (
+          <div className="card">
+            <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
+              {STAY_LABEL} <span className="tag tag-lav">{stay.length}</span>
+            </h2>
+            <p className="hint" style={{ margin: "0 0 10px" }}>
+              오늘 채우고 가기로 한 것이에요. 다 못 한 건 숙제로 넘어왔어요.
+            </p>
+            <div className="stack" style={{ gap: 6 }}>
+              {stay.map((t) => (
+                <div className="unitrow" key={t.id}>
+                  <span className="hint" style={{ minWidth: 46 }}>
+                    {t.date.slice(5).replace("-", "/")}
+                  </span>
+                  <span style={{ fontSize: 13.5, flex: 1 }}>{t.body}</span>
+                  <span className={`tag ${t.status === "moved" ? "tag-amber" : "tag-lav"}`}>
+                    {t.status === "moved" ? "숙제로" : "남아서"}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

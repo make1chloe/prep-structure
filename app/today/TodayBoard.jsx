@@ -239,6 +239,21 @@ export default function TodayBoard({
                                 </span>
                               ) : null;
                             })()}
+                            {r.warn?.need && (
+                              <span className="tag tag-red" title="경고가 쌓여 반성문 대상입니다">
+                                반성문
+                              </span>
+                            )}
+                            {!r.warn?.need && r.warn?.count > 0 && (
+                              <span className="tag tag-amber" title="쌓인 경고">
+                                경고 {r.warn.count}
+                              </span>
+                            )}
+                            {(r.stay || []).filter((t) => t.status === "todo").length > 0 && (
+                              <span className="tag tag-lav" title="남아서 할 것">
+                                마무리 {(r.stay || []).filter((t) => t.status === "todo").length}
+                              </span>
+                            )}
                             {r.unreadComments > 0 && (
                               <span className="tag tag-red" title="학생·학부모가 남긴 댓글">
                                 💬 {r.unreadComments}

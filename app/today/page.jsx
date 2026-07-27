@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
 import TopNotices from "./TopNotices";
-import { dowOf, longLabel, todaySeoul } from "@/lib/day";
+import { dowOf, longLabel, todaySeoul, addDays } from "@/lib/day";
+import { tally, DEFAULT_RULE } from "@/lib/warnings";
 
 export const dynamic = "force-dynamic";
 
@@ -441,6 +442,70 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // ── 오늘 마무리 (늦귀가과제) ─────────────────────────────
+  const stayOf = new Map();
+  {
+    const q = await supabase
+      .from("stay_tasks")
+      .select("id, student_id, body, status, auto")
+      .eq("date", date)
+      .order("created_at", { ascending: true });
+    (q.error ? [] : q.data || []).forEach((t) => {
+      if (!stayOf.has(t.student_id)) stayOf.set(t.student_id, []);
+      stayOf.get(t.student_id).push(t);
+    });
+  }
+
+  // ── 경고 · 반성문 ────────────────────────────────────────
+  // 저장하지 않고 지난 석 달 리포트에서 매번 센다
+  const warnOf = new Map();
+  {
+    const { data: ruleRow } = await supabase
+      .from("integrations")
+      .select("config")
+      .eq("id", "warning")
+      .maybeSingle();
+    const rule = { ...DEFAULT_RULE, ...(ruleRow?.config || {}) };
+
+    const wFrom = addDays(date, -100);
+    const wq = await supabase
+      .from("daily_reports")
+      .select("id, student_id, date, attendance_kind, word_correct, word_total")
+      .gte("date", wFrom)
+      .lte("date", date)
+      .order("date", { ascending: true });
+    const wReports = wq.error ? [] : wq.data || [];
+
+    const wIds = wReports.map((r) => r.id);
+    const { data: wItems } = wIds.length
+      ? await supabase
+          .from("daily_report_items")
+          .select("daily_report_id, status")
+          .in("daily_report_id", wIds)
+          .in("status", ["missing", "weak"])
+      : { data: [] };
+    const wItemsOf = new Map();
+    (wItems || []).forEach((x) => {
+      if (!wItemsOf.has(x.daily_report_id)) wItemsOf.set(x.daily_report_id, []);
+      wItemsOf.get(x.daily_report_id).push({ status: x.status });
+    });
+
+    const aq = await supabase
+      .from("warning_actions")
+      .select("student_id, kind, on_date, target_date");
+    const wActions = aq.error ? [] : aq.data || [];
+
+    [...new Set(wReports.map((r) => r.student_id))].forEach((sid) => {
+      const mine = wReports
+        .filter((r) => r.student_id === sid)
+        .map((r) => ({ ...r, items: wItemsOf.get(r.id) || [] }));
+      warnOf.set(sid, {
+        ...tally(mine, wActions.filter((a) => a.student_id === sid), rule),
+        rule,
+      });
+    });
+  }
+
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
   const memberIds = new Set();
@@ -480,6 +545,8 @@ export default async function TodayPage({ searchParams }) {
           classId: klass.id,
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
+          stay: stayOf.get(s.id) || [],
+          warn: warnOf.get(s.id) || null,
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -513,6 +580,8 @@ export default async function TodayPage({ searchParams }) {
         books: progressOf(s.id, null),
         reportWritten: !!rep?.report_written,
         unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
+        stay: stayOf.get(s.id) || [],
+        warn: warnOf.get(s.id) || null,
       };
     });
   if (extras.length > 0) {
