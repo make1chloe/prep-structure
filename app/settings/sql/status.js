@@ -25,6 +25,7 @@ const CHECKS = [
   { id: "0031", label: "월말 리포트 · 단원평가", table: "monthly_reports", col: "ym" },
   { id: "0033", label: "학생 타이머", table: "study_sessions", col: "seconds" },
   { id: "0034", label: "등원 학습 · 학습 완료", table: "study_sessions", col: "kind" },
+  { id: "0035", label: "학습 루틴", table: "routine_steps", col: "sort" },
 ];
 
 export async function checkSchema() {

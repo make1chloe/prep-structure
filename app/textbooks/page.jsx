@@ -7,6 +7,7 @@ import GenerateUnits from "./GenerateUnits";
 import AddTextbookForm from "./AddTextbookForm";
 import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
+import RoutineEditor from "./RoutineEditor";
 import { flattenTree } from "@/lib/unitTree";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,12 @@ export default async function TextbooksPage({ searchParams }) {
   (allUnits || []).forEach((u) => {
     unitCount[u.textbook_id] = (unitCount[u.textbook_id] || 0) + 1;
   });
+
+  const { data: hwItems } = await supabase
+    .from("homework_items")
+    .select("id, name, sort")
+    .eq("active", true)
+    .order("sort", { ascending: true });
 
   const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
@@ -115,6 +122,8 @@ export default async function TextbooksPage({ searchParams }) {
                 <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
+
+                <RoutineEditor textbookId={selectedId} items={hwItems} />
 
                 <form action={addUnit} className="row" style={{ alignItems: "flex-end", gap: 8, marginBottom: 12 }}>
                   <input type="hidden" name="textbook_id" value={selected.id} />

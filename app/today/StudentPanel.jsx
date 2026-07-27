@@ -11,6 +11,7 @@ import StayBox from "./StayBox";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
+import { nextRoutine, advanceRoutine, saveStudentDefaults } from "./routineActions";
 import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
@@ -160,6 +161,7 @@ export default function StudentPanel({
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고 타이머가 여기 붙는다
   const [inClass, setInClass] = useState(() => new Set(row.inClass || []));
   const [openInClass, setOpenInClass] = useState(false);
+  const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -357,6 +359,14 @@ export default function StudentPanel({
       if (res?.error) {
         alert(res.error);
         return;
+      }
+      // 루틴에서 가져왔으면 그 교재들의 단계를 하나 넘긴다
+      if (routine?.steps?.length) {
+        await advanceRoutine(
+          row.student.id,
+          routine.steps.map((x) => x.textbookId)
+        );
+        setRoutine(null);
       }
       const notYet = (row.notices || []).filter(
         (n) => n.kind === "deliver" && !delivered[n.id]
@@ -876,6 +886,31 @@ export default function StudentPanel({
               <span className="hint">아직 정하지 않았어요.</span>
             )}
             <span className="spacer" />
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              title="교재에 정해둔 루틴에서 이 학생 차례를 그대로 채웁니다"
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await nextRoutine(row.student.id);
+                  if (res?.error) {
+                    alert(res.error);
+                    return;
+                  }
+                  if (res.steps.length === 0) {
+                    alert("이 학생 교재에는 아직 루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
+                    return;
+                  }
+                  setRoutine(res);
+                  setInClass(new Set([...inClass, ...res.inclass]));
+                  const n = new Set(next);
+                  res.home.forEach((x) => n.add(x));
+                  setNext(n);
+                })
+              }
+            >
+              ⟳ 루틴 다음
+            </button>
             <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
               {openInClass ? "접기" : "고르기"}
             </button>
@@ -900,6 +935,15 @@ export default function StudentPanel({
                 );
               })}
             </div>
+          )}
+          {routine && (
+            <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+              루틴에서 가져왔습니다 —{" "}
+              {routine.steps
+                .map((s) => `${s.book} ${s.no}/${s.total}${s.label ? ` ${s.label}` : ""}`)
+                .join(" · ")}
+              . <b>저장하면 다음 단계로 넘어갑니다.</b>
+            </p>
           )}
           <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
             고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
