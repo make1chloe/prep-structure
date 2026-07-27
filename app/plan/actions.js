@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { addDays } from "@/lib/day";
+import { addDays, dowOf } from "@/lib/day";
 
 function ok(error) {
   return { error: error ? error.message : null };

@@ -150,3 +150,47 @@ export async function addClassHoliday(date, name, classId) {
   revalidatePath("/tuition");
   return ok(error);
 }
+
+// ---------- 공휴일인데 그냥 수업하기로 한 경우 ----------
+/**
+ * "쉴지 정해주세요" 알림에 대한 **또 하나의 답**이다.
+ *
+ * 지금까지는 휴강으로 지정하는 길밖에 없어서, 그냥 수업하기로 정해도
+ * 알림이 계속 떴다. 결정을 했는데 화면이 그걸 모르는 상태가 되어버린다.
+ *
+ * 휴강(holidays)으로 넣으면 안 된다 — 수강료 회차에서 빠져버린다.
+ * 그래서 **일정(tasks)에 한 줄** 남긴다.
+ *   · 알림은 사라진다 (결정했으니까)
+ *   · 일정 화면에 "어린이날 — 정상 수업" 으로 남아 나중에 왜 그랬는지 알 수 있다
+ *   · 회차·수강료는 건드리지 않는다
+ */
+export async function keepClassOn(date, name) {
+  if (!date) return { error: "날짜가 없어요." };
+  const supabase = createClient();
+
+  const title = `${(name || "공휴일").trim()} — 정상 수업`;
+
+  // 이미 같은 날 같은 결정이 있으면 또 만들지 않는다
+  const { data: exist } = await supabase
+    .from("tasks")
+    .select("id")
+    .eq("due_on", date)
+    .eq("title", title)
+    .limit(1);
+  if (exist?.length) return { error: null, already: true };
+
+  const { error } = await supabase.from("tasks").insert({
+    title,
+    kind: "schedule",
+    category: "학사일정",
+    due_on: date,
+    status: "open",
+    note: "공휴일이지만 쉬지 않기로 함 (수강료 회차는 그대로 셉니다)",
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/schedule");
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return { error: null };
+}

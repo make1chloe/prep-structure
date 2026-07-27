@@ -264,9 +264,16 @@ export default async function Home() {
 
   // 공휴일 · 대체공휴일 · 낀 날 — 자동으로 쉬지 않고, 정하라고 알리기만 한다
   //   이미 휴강으로 지정했거나 일정에 넣어둔 날은 뺀다
+  // 이미 결정한 날 — 휴강으로 잡았거나, 일정에 남겨둔 날
+  //   위의 `all` 은 이번 달까지·미완료만 보므로, 여기서는 3개월 전부를 상태 없이 다시 본다
+  const decidedQ = await supabase
+    .from("tasks")
+    .select("due_on")
+    .gte("due_on", today)
+    .lte("due_on", scheduleTo);
   const decided = new Set([
     ...holAll.map((h) => h.date),
-    ...all.map((t) => t.due_on),
+    ...(decidedQ.error ? [] : decidedQ.data || []).map((t) => t.due_on),
   ]);
   const holidayNotes = holidayAlerts(today, scheduleTo, classDates, decided);
 

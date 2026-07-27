@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
 import TopNotices from "./TopNotices";
-import { dowOf, todaySeoul } from "@/lib/day";
+import { dowOf, longLabel, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -489,9 +489,10 @@ export default async function TodayPage({ searchParams }) {
   // 오늘 반에 속하지 않지만 보강으로 오는 학생
   const extras = (att || [])
     .filter((a) => a.status === "makeup" && !memberIds.has(a.student_id))
-    .map((a) => studentById.get(a.student_id))
-    .filter(Boolean)
-    .map((s) => {
+    // 출결 행(a)을 학생과 함께 들고 간다 — 보강 사유·원 결석일이 여기 있다
+    .map((a) => ({ att: a, student: studentById.get(a.student_id) }))
+    .filter((x) => x.student)
+    .map(({ att: a, student: s }) => {
       const rep = reportByStudent.get(s.id) || null;
       return {
         student: s,
@@ -610,7 +611,7 @@ export default async function TodayPage({ searchParams }) {
     }));
   }
 
-  const label = `${target.getMonth() + 1}월 ${target.getDate()}일 (${dow})`;
+  const label = longLabel(date);
 
   return (
     <>

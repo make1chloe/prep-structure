@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf } from "@/lib/day";
 
-export const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -208,8 +207,14 @@ export async function applyTaskNotice(taskId, date) {
     .limit(1);
   if (exist?.length) return { error: null, skipped: true };
 
-  const roster = await rosterOf(supabase, on);
-  const ids = [...new Set(roster.map((m) => m.student_id))];
+  // 그날 수업 오는 학생 (위 전달사항 만들기와 같은 기준)
+  const dow = dowOf(on);
+  const { data: classes } = await supabase.from("classes").select("id, days");
+  const classIds = (classes || []).filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
+  const { data: members } = classIds.length
+    ? await supabase.from("class_students").select("student_id").in("class_id", classIds)
+    : { data: [] };
+  const ids = [...new Set((members || []).map((m) => m.student_id))];
   if (ids.length === 0) return { error: "그날 수업 오는 학생이 없어요." };
 
   const { data: notice, error: nErr } = await supabase

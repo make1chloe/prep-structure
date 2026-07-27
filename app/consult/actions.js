@@ -3,16 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export const STATUS = [
-  { key: "new", label: "신규 문의", cls: "tag-amber" },
-  { key: "scheduled", label: "상담 예정", cls: "tag-sky" },
-  { key: "consulted", label: "상담 완료", cls: "tag-lav" },
-  { key: "tested", label: "레벨테스트", cls: "tag-lav" },
-  { key: "enrolled", label: "등록", cls: "tag-mint" },
-  { key: "hold", label: "보류", cls: "tag-muted" },
-  { key: "declined", label: "미등록", cls: "tag-muted" },
-];
-
 function ok(error) {
   return { error: error ? error.message : null };
 }

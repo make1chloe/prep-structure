@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export const CATEGORIES = ["단어", "독해", "문법", "노트", "내신", "기타"];
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();

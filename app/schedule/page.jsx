@@ -80,7 +80,16 @@ export default async function SchedulePage() {
   // 공휴일 알림 — 수업이 잡혀 있는 날만
   const classDates = new Set();
   reviews.forEach((r) => r.months.forEach((m) => m.all.forEach((d) => classDates.add(d))));
-  const decided = new Set((holidays || []).map((h) => h.date));
+  // 이미 결정한 날 = 휴강으로 잡았거나, '그냥 수업함' 으로 일정에 남겨둔 날
+  const taskQ = await supabase
+    .from("tasks")
+    .select("due_on")
+    .gte("due_on", from)
+    .lte("due_on", to);
+  const decided = new Set([
+    ...(holidays || []).map((h) => h.date),
+    ...(taskQ.error ? [] : taskQ.data || []).map((t) => t.due_on),
+  ]);
   const seoulToday = todaySeoul();
   const holidayNotes = holidayAlerts(seoulToday, to, classDates, decided);
 

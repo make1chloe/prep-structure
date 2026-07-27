@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addExam, setEnglishDate, updateExam, deleteExam,
-  markExamAbsence, makeExamEveSession, addClassHoliday,
+  markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn,
 } from "./actions";
 import { shortLabel } from "@/lib/day";
 
@@ -84,6 +84,9 @@ export default function ScheduleBoard({
           <p className="muted" style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7 }}>
             자동으로 휴강 처리하지 않습니다. 학원마다 다르고 낀 날은 더 그렇기 때문에,
             <b> 수업이 잡혀 있는 공휴일만 골라서 알려드립니다.</b>
+            <br />
+            <b>그냥 수업함</b> 을 누르면 회차·수강료는 그대로 두고 일정에 기록만 남기고,
+            알림은 사라집니다. <b>쉬기</b> 를 고르면 휴강으로 잡혀 회차에서 빠집니다.
           </p>
           <div className="stack" style={{ gap: 4 }}>
             {holidayNotes.map((h) => (
@@ -103,9 +106,23 @@ export default function ScheduleBoard({
                 <span className="muted" style={{ fontSize: 12, flex: 1, lineHeight: 1.6 }}>
                   {h.why}
                 </span>
+                {/* 답이 두 개다 — 쉬거나, 그냥 수업하거나 */}
+                <button
+                  className="btn btn-sm"
+                  disabled={pending}
+                  title="회차·수강료는 그대로 두고, 일정에 '정상 수업' 으로 기록만 남깁니다"
+                  onClick={() =>
+                    run(
+                      () => keepClassOn(h.date, h.name),
+                      "그냥 수업하는 것으로 정했어요. 일정에 남겨뒀습니다."
+                    )
+                  }
+                >
+                  그냥 수업함
+                </button>
                 <select
                   className="input input-sm"
-                  style={{ width: 170 }}
+                  style={{ width: 150 }}
                   defaultValue=""
                   disabled={pending}
                   onChange={(ev) => {
@@ -118,7 +135,7 @@ export default function ScheduleBoard({
                     }
                   }}
                 >
-                  <option value="">휴강으로 지정…</option>
+                  <option value="">쉬기 (휴강 지정)…</option>
                   <option value="all">전체 휴강</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}만</option>

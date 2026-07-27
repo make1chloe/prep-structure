@@ -8,8 +8,8 @@ import {
   deleteInquiries,
   convertToStudent,
   ensureFormLink,
-  STATUS,
 } from "./actions";
+import { STATUS } from "./status";
 import { dowOf, parts } from "@/lib/day";
 
 const SOURCES = ["블로그", "소개", "전단", "검색", "방문", "기타"];
