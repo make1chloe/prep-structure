@@ -7,6 +7,7 @@ import { checkSchema } from "./status";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
+import ApplyBox from "./ApplyBox";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,11 @@ export default async function SqlPage() {
   const checks = await checkSchema();
   const done = checks.filter((c) => c.ok).length;
   const steps = await loadSteps();
+  const { data: adminRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "supabase_admin")
+    .maybeSingle();
   const missing = checks.filter((c) => !c.ok).map((c) => c.id);
 
   let sql = "";
@@ -76,6 +82,12 @@ export default async function SqlPage() {
             <b>다르면 다른 프로젝트에 SQL 을 넣고 계신 겁니다.</b> 아무리 Run 해도 앱은 안 바뀝니다.
           </p>
         </div>
+
+        <ApplyBox
+          saved={!!adminRow?.config?.token}
+          projectRef={projectRef}
+          missingCount={checks.length - done}
+        />
 
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
