@@ -157,6 +157,9 @@ export default function StudentPanel({
   );
   // 검사하다 "그럼 목요일에 다시 보자" 가 되는 순간을 여기서 바로 처리한다
   const [mk, setMk] = useState({ open: false, date: "", reason: "" });
+  // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고 타이머가 여기 붙는다
+  const [inClass, setInClass] = useState(() => new Set(row.inClass || []));
+  const [openInClass, setOpenInClass] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -169,7 +172,7 @@ export default function StudentPanel({
   // 예전에는 toCheck(지난 수업에 배정한 것)만 봐서, 배정 없이 그 자리에서 찍은
   // 숙제는 늦귀가 과제로도, 하원 안내 사유로도 안 잡혔다.
   // 검사를 지나쳐 간 것 — 학생은 아무것도 안 눌러도 여기 뜬다
-  const waiting = waitingChecks(items, toCheck, marks, row.started || []);
+  const waiting = waitingChecks(row.doneRows || [], items, marks);
 
   const weakOrMissing = Object.entries(marks)
     .filter(([, st]) => st === "weak" || st === "missing")
@@ -338,6 +341,7 @@ export default function StudentPanel({
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         items: marks,
+        inClass: [...inClass],
         toCheck,
         nextHomework: [...next],
         nextUnits: Object.fromEntries(
@@ -457,7 +461,7 @@ export default function StudentPanel({
               className="notice"
               style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.8 }}
             >
-              <b>검사를 안 받고 진행 중입니다 — {waiting.length}건</b>
+              <b>검사 기다리는 중 — {waiting.length}건</b>
               <br />
               {waiting.map((w) => `${w.name} (${waitingFor(w.since)})`).join(" · ")}
               <br />
@@ -846,6 +850,63 @@ export default function StudentPanel({
           </div>
         </div>
       )}
+
+      {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
+        <div style={{ flex: 1 }}>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {[...inClass].map((iid) => {
+              const sec = (row.secOf || {})[iid] || 0;
+              const doneAt = (row.doneRows || []).find(
+                (d) => d.homework_item_id === iid
+              )?.student_done_at;
+              return (
+                <span
+                  key={iid}
+                  className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
+                  title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
+                >
+                  {nameOf(iid) || "학습"}
+                  {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
+                </span>
+              );
+            })}
+            {inClass.size === 0 && (
+              <span className="hint">아직 정하지 않았어요.</span>
+            )}
+            <span className="spacer" />
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
+              {openInClass ? "접기" : "고르기"}
+            </button>
+          </div>
+
+          {openInClass && (
+            <div className="chips" style={{ marginTop: 8 }}>
+              {items.map((i) => {
+                const on = inClass.has(i.id);
+                return (
+                  <button
+                    key={i.id}
+                    className={`chip ${on ? "on" : ""}`}
+                    onClick={() => {
+                      const n = new Set(inClass);
+                      on ? n.delete(i.id) : n.add(i.id);
+                      setInClass(n);
+                    }}
+                  >
+                    {i.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+            고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
+            <b>학습 완료</b>를 누르면 여기 노랗게 바뀌고, 검사하시면 초록이 됩니다.
+          </p>
+        </div>
+      </div>
 
       {/* 단원평가 — 본 날 그 자리에서. 월말 리포트에 그대로 들어간다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>

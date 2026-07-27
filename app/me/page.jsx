@@ -89,11 +89,17 @@ export default async function MePage() {
 
   let dri = [];
   if (reportIds.length > 0) {
-    const BASE = "daily_report_id, homework_item_id, status";
+    const BASE = "id, daily_report_id, homework_item_id, status";
     let { data, error } = await supabase
       .from("daily_report_items")
-      .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note`)
+      .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at`)
       .in("daily_report_id", reportIds);
+    if (error) {
+      ({ data, error } = await supabase
+        .from("daily_report_items")
+        .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note`)
+        .in("daily_report_id", reportIds));
+    }
     if (error) {
       ({ data } = await supabase.from("daily_report_items").select(BASE).in("daily_report_id", reportIds));
     }
@@ -162,6 +168,8 @@ export default async function MePage() {
     const item = itemById.get(x.homework_item_id);
     return {
       key: `${x.daily_report_id}-${x.homework_item_id}-${x.status}`,
+      reportItemId: x.id,
+      doneAt: x.student_done_at || null,
       itemId: x.homework_item_id,
       name: item?.name || "숙제",
       method: item?.method || "",
@@ -259,36 +267,56 @@ export default async function MePage() {
   });
   const usualOf = (id) => avgSeconds(byItem.get(id) || []);
 
+  const toTask = (c, extra = {}) => {
+    const it = itemById.get(c.itemId);
+    return {
+      key: c.key,
+      reportItemId: c.reportItemId,
+      itemId: c.itemId,
+      stayId: null,
+      name: c.name,
+      units: c.units,
+      note: c.note,
+      method: c.method,
+      doneAt: c.doneAt,
+      needsCheck: !!it?.no_timer,
+      checked: false,
+      sort: it?.sort ?? 500,
+      seconds: secOf.get(`item-${c.itemId}`) || 0,
+      usual: usualOf(c.itemId),
+      ...extra,
+    };
+  };
+
+  // 오늘 학원에서 할 것 (선생님이 오늘 정해준 것)
+  const inClass = (latest && latest.date === today
+    ? dri.filter((x) => x.daily_report_id === latest.id && x.status === "inclass").map(toCard)
+    : []
+  )
+    .map((c) => toTask(c))
+    .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ko"));
+
   const studyTasks = [
     ...todo.map((c) => {
-      const it = itemById.get(c.itemId);
-      return {
-        key: `item-${c.itemId}`,
-        itemId: c.itemId,
-        stayId: null,
-        name: c.name,
-        units: c.units,
-        note: c.note,
-        method: c.method,
-        noTimer: !!it?.no_timer,
-        sort: it?.sort ?? 500,
-        seconds: secOf.get(`item-${c.itemId}`) || 0,
-        usual: usualOf(c.itemId),
-      };
+      return toTask(c);
     }),
     ...stay
       .filter((t) => t.status === "todo")
       .map((t) => ({
         key: `stay-${t.id}`,
+        reportItemId: null,
         itemId: null,
         stayId: t.id,
         name: t.body,
         units: [],
         note: "늦귀가 과제",
         method: "",
-        noTimer: false,
+        doneAt: null,
+        needsCheck: false,
+        checked: false,
         sort: 9000,
         seconds: secOf.get(`stay-${t.id}`) || 0,
+        usual: null,
       })),
   ].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ko"));
 
@@ -311,7 +339,23 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
-        <StudyList tasks={studyTasks} running={running} ready={timerReady} />
+        <StudyList
+          title="오늘 학원에서 할 것"
+          hint="위에서부터 하나씩 하면 돼요. 다 하면 학습 완료를 누르고, 선생님이 부르시면 가져가세요."
+          tasks={inClass}
+          running={running}
+          ready={timerReady}
+          kind="inclass"
+        />
+
+        <StudyList
+          title="집에서 할 숙제"
+          hint="집에서 할 때도 시작을 눌러주세요. 얼마나 걸렸는지가 남아요."
+          tasks={studyTasks}
+          running={running}
+          ready={timerReady}
+          kind="home"
+        />
 
         <RequestForm studentId={student.id} mine={myRequests || []} />
 

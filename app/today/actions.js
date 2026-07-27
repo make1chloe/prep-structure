@@ -117,6 +117,18 @@ export async function saveStudentDay(studentId, date, form) {
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
   const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
   const nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
+  // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고, 타이머가 여기 붙는다
+  const inClassIds = Array.isArray(form.inClass) ? form.inClass : [];
+  // 학생이 눌러둔 '학습 완료' 는 지우고 다시 넣어도 살려야 한다
+  const { data: keepDone } = await supabase
+    .from("daily_report_items")
+    .select("homework_item_id, status, student_done_at")
+    .eq("daily_report_id", report.id)
+    .not("student_done_at", "is", null);
+  const doneAt = new Map(
+    (keepDone || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.student_done_at])
+  );
+
   const { error: delErr } = await supabase
     .from("daily_report_items")
     .delete()
@@ -133,6 +145,12 @@ export async function saveStudentDay(studentId, date, form) {
         homework_item_id,
         status,
       })),
+    // 오늘 학원에서 할 것
+    ...inClassIds.map((homework_item_id) => ({
+      daily_report_id: report.id,
+      homework_item_id,
+      status: "inclass",
+    })),
     // 다음 수업에 검사할 숙제 배정 (교재 단원과 함께)
     ...nextIds.map((homework_item_id) => ({
       daily_report_id: report.id,
@@ -146,8 +164,19 @@ export async function saveStudentDay(studentId, date, form) {
       range_note: (units[homework_item_id]?.note || "").trim() || null,
     })),
   ];
+  payload.forEach((r) => {
+    const at = doneAt.get(`${r.homework_item_id}|${r.status}`);
+    if (at) r.student_done_at = at;
+  });
+
   if (payload.length > 0) {
     let { error } = await supabase.from("daily_report_items").insert(payload);
+    if (isMissingColumn(error)) {
+      // 0034 전이면 학생 완료 표시 없이
+      ({ error } = await supabase
+        .from("daily_report_items")
+        .insert(payload.map(({ student_done_at, ...rest }) => rest)));
+    }
     if (isMissingColumn(error)) {
       // 0009 전이면 단원 1개만, 0008 전이면 단원 없이 저장
       const noArray = payload.map(({ textbook_unit_ids, ...rest }) => rest);

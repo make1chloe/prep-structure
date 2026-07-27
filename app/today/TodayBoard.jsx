@@ -241,13 +241,13 @@ export default function TodayBoard({
                                 </span>
                               ) : null;
                             })()}
-                            {waitingChecks(items, r.toCheck || [], r.items || {}, r.started || [])
-                              .length > 0 && (
+                            {waitingChecks(r.doneRows || [], items, r.items || {}).length > 0 && (
                               <span
                                 className="tag tag-amber"
-                                title="검사를 안 받고 다음 것을 하고 있습니다"
+                                title="학생이 학습 완료를 눌렀습니다. 검사를 기다리는 중입니다"
                               >
-                                검사 대기
+                                검사 대기{" "}
+                                {waitingChecks(r.doneRows || [], items, r.items || {}).length}
                               </span>
                             )}
                             {r.warn?.need && (

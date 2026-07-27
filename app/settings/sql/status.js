@@ -24,6 +24,7 @@ const CHECKS = [
   { id: "0030", label: "알림톡 연결", table: "message_templates", col: "alimtalk_id" },
   { id: "0031", label: "월말 리포트 · 단원평가", table: "monthly_reports", col: "ym" },
   { id: "0033", label: "학생 타이머", table: "study_sessions", col: "seconds" },
+  { id: "0034", label: "등원 학습 · 학습 완료", table: "study_sessions", col: "kind" },
 ];
 
 export async function checkSchema() {

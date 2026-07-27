@@ -135,7 +135,11 @@ export default async function TodayPage({ searchParams }) {
       return q;
     };
     // 0009(단원 배열) → 0008(단원 1개) → 그 이전 순으로 물러난다
-    let { data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`);
+    let { data, error } = await build(
+      `${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at`
+    );
+    if (error)
+      ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`));
     if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`));
     if (error) ({ data } = await build(DRI_BASE));
     return data || [];
@@ -145,6 +149,8 @@ export default async function TodayPage({ searchParams }) {
   const reportIds = (reports || []).map((r) => r.id);
   const itemsByReport = new Map();
   const nextByReport = new Map();
+  const inClassByReport = new Map();   // 오늘 학원에서 할 것
+  const doneRowsByReport = new Map();  // 학생이 '학습 완료' 를 누른 줄
   const unitIds = new Set();
   const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
 
@@ -164,6 +170,13 @@ export default async function TodayPage({ searchParams }) {
         unitIds: idsOf(x),
         note: x.range_note || "",
       });
+      return;
+    }
+    if (x.status === "inclass") {
+      if (!inClassByReport.has(x.daily_report_id)) inClassByReport.set(x.daily_report_id, []);
+      inClassByReport.get(x.daily_report_id).push(x.homework_item_id);
+      if (!doneRowsByReport.has(x.daily_report_id)) doneRowsByReport.set(x.daily_report_id, []);
+      doneRowsByReport.get(x.daily_report_id).push(x);
       return;
     }
     if (!itemsByReport.has(x.daily_report_id)) itemsByReport.set(x.daily_report_id, {});
@@ -522,20 +535,20 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
-  // 오늘 학생들이 돌린 타이머 — 검사를 지나쳤는지 알아내는 데 쓴다
-  const startedOf = new Map();
+  // 오늘 학생들이 얼마나 공부했나 (항목별 합계)
+  const secOf = new Map();     // `${studentId}|${itemId}` → 초
   {
     const q = studentIds.length
       ? await supabase
           .from("study_sessions")
-          .select("student_id, homework_item_id, started_at")
+          .select("student_id, homework_item_id, seconds")
           .eq("date", date)
           .in("student_id", studentIds)
       : { data: [] };
     (q.error ? [] : q.data || []).forEach((x) => {
       if (!x.homework_item_id) return;
-      if (!startedOf.has(x.student_id)) startedOf.set(x.student_id, []);
-      startedOf.get(x.student_id).push(x);
+      const k = `${x.student_id}|${x.homework_item_id}`;
+      secOf.set(k, (secOf.get(k) || 0) + (x.seconds || 0));
     });
   }
 
@@ -667,7 +680,13 @@ export default async function TodayPage({ searchParams }) {
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
           exams: examOf.get(s.id) || [],
-          started: startedOf.get(s.id) || [],
+          inClass: rep ? inClassByReport.get(rep.id) || [] : [],
+          doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
+          secOf: Object.fromEntries(
+            [...secOf.entries()]
+              .filter(([k]) => k.startsWith(`${s.id}|`))
+              .map(([k, v]) => [k.split("|")[1], v])
+          ),
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
@@ -705,7 +724,13 @@ export default async function TodayPage({ searchParams }) {
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
         exams: examOf.get(s.id) || [],
-        started: startedOf.get(s.id) || [],
+        inClass: rep ? inClassByReport.get(rep.id) || [] : [],
+        doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
+        secOf: Object.fromEntries(
+          [...secOf.entries()]
+            .filter(([k]) => k.startsWith(`${s.id}|`))
+            .map(([k, v]) => [k.split("|")[1], v])
+        ),
       };
     });
   if (extras.length > 0) {
