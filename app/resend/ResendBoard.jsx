@@ -101,7 +101,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
     if (!confirm(q)) return;
     startTransition(async () => {
       const res = await resend(
-        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: textOf(r) })),
+        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: textOf(r), date })),
         kind
       );
       if (res?.error) {

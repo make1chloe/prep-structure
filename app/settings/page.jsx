@@ -34,6 +34,7 @@ export default async function SettingsPage() {
     message: s.message,
     solapi: {
       sender: s.solapi.sender,
+      pfId: s.solapi.pfId,
       saved: !!s.solapi.apiKey,
       maskedKey: maskSecret(s.solapi.apiKey),
       maskedSecret: s.solapi.apiSecret ? "••••••••" : "",

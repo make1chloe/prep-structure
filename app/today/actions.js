@@ -161,7 +161,7 @@ export async function saveStudentDay(studentId, date, form) {
   }
 
   // 배정한 숙제 중 "내가 준비해야 하는 것" 은 내 할일로 올린다
-  await syncPrepTasks(supabase, studentId, date, nextIds);
+  await syncPrepTasks(supabase, studentId, date, nextIds, units);
 
   // 숙제가 배정됐으면 학생 앱으로 알림 (요금 없음, 실패해도 저장은 그대로)
   if (nextIds.length > 0) {
@@ -362,7 +362,7 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate) {
  * 배정을 취소하면 아직 안 한 할일은 같이 사라진다.
  * 이미 끝낸 할일은 건드리지 않는다 — 한 일은 한 일이다.
  */
-async function syncPrepTasks(supabase, studentId, date, nextIds = []) {
+async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}) {
   // 0028 전이면 조용히 넘어간다
   const itemQ = nextIds.length
     ? await supabase.from("homework_items").select("id, name, prep_task").in("id", nextIds)
@@ -418,8 +418,44 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = []) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 그 숙제에 붙여준 단원 이름 (제목에 {단원} 을 쓸 수 있게)
+  const unitIds = [
+    ...new Set(need.flatMap((i) => units[i.id]?.unitIds || []).filter(Boolean)),
+  ];
+  const { data: unitRows } = unitIds.length
+    ? await supabase
+        .from("textbook_units")
+        .select("id, name, label, textbook_id")
+        .in("id", unitIds)
+    : { data: [] };
+  const unitById = new Map((unitRows || []).map((u) => [u.id, u]));
+  const bookIds = [...new Set((unitRows || []).map((u) => u.textbook_id).filter(Boolean))];
+  const { data: bookRows } = bookIds.length
+    ? await supabase.from("textbooks").select("id, name").in("id", bookIds)
+    : { data: [] };
+  const bookName = new Map((bookRows || []).map((b) => [b.id, b.name]));
+
+  const labelOf = (itemId) => {
+    const u = units[itemId] || {};
+    const names = (u.unitIds || [])
+      .map((id) => unitById.get(id))
+      .filter(Boolean)
+      .map((x) => [x.label, x.name].filter(Boolean).join(" ").trim())
+      .filter(Boolean);
+    // 단원을 안 골랐으면 직접 적은 범위를 쓴다
+    const unit = names.join(", ") || (u.note || "").trim();
+    const firstBook = (u.unitIds || [])
+      .map((id) => unitById.get(id)?.textbook_id)
+      .find(Boolean);
+    return { unit, book: firstBook ? bookName.get(firstBook) || "" : "" };
+  };
+
   const rows = need.map((i) => ({
-    title: taskTitle(i.prep_task, student?.name),
+    title: taskTitle(i.prep_task, {
+      student: student?.name,
+      item: i.name,
+      ...labelOf(i.id),
+    }),
     kind: "todo",
     due_on: due,
     status: "open",

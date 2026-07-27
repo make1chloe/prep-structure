@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveMessage, deleteMessage } from "./actions";
+import { SOURCES, slotsIn } from "@/lib/alimtalk";
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
 const VARS = [
@@ -27,7 +28,7 @@ const VARS = [
  *                      고칠 것은 인삿말·맺음말뿐이고, 지울 수 없다.
  *   내가 쓰는 문자   — 본문을 직접 쓴다. 얼마든지 추가·삭제할 수 있다.
  */
-export default function MessageList({ rows = [], unavailable }) {
+export default function MessageList({ rows = [], unavailable, pfId = "" }) {
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [adding, setAdding] = useState(false);
@@ -69,7 +70,98 @@ export default function MessageList({ rows = [], unavailable }) {
       closing: r.closing || "",
       body: r.body || "",
       sort: r.sort ?? "",
+      alimtalk_id: r.alimtalk_id || "",
+      alimtalk_body: "",                            // 심사받은 템플릿 원문 (붙여넣기용, 저장 안 함)
+      alimtalk_vars: { ...(r.alimtalk_vars || {}) },
     });
+  }
+
+  /**
+   * 알림톡 연결.
+   *
+   * 승인받은 템플릿 원문을 붙여넣으면 그 안의 #{변수} 를 찾아
+   * 앱의 어떤 값에 붙일지 고르는 칸이 만들어진다.
+   * 원문은 저장하지 않는다 — 붙이는 데만 쓴다.
+   */
+  function Alimtalk() {
+    const slots = [
+      ...slotsIn(draft.alimtalk_body || ""),
+      ...Object.keys(draft.alimtalk_vars || {}),
+    ].filter((v, i, a) => a.indexOf(v) === i);
+
+    return (
+      <div className="card card-tight" style={{ background: "transparent" }}>
+        <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
+          <b style={{ fontSize: 13 }}>알림톡</b>
+          {!pfId && (
+            <span className="hint" style={{ fontSize: 11.5 }}>
+              먼저 <a href="/settings">설정</a> 에 발신프로필 ID(pfId)를 넣어주세요
+            </span>
+          )}
+        </div>
+
+        <div className="field" style={{ marginTop: 6 }}>
+          <label className="label">승인받은 템플릿 코드</label>
+          <input
+            className="input input-sm"
+            placeholder="비우면 이 문자는 문자(SMS/LMS)로 나갑니다"
+            value={draft.alimtalk_id || ""}
+            onChange={(e) => setDraft({ ...draft, alimtalk_id: e.target.value })}
+          />
+        </div>
+
+        <div className="field" style={{ marginTop: 8 }}>
+          <label className="label">
+            템플릿 원문 붙여넣기 (변수를 찾아내는 데만 씁니다 · 저장 안 함)
+          </label>
+          <textarea
+            className="input input-sm"
+            rows={4}
+            placeholder={"[클로이영어] #{학생명} 학생 #{날짜} 수업 안내\n\n#{내용}"}
+            value={draft.alimtalk_body || ""}
+            onChange={(e) => setDraft({ ...draft, alimtalk_body: e.target.value })}
+          />
+        </div>
+
+        {slots.length > 0 ? (
+          <>
+            <p className="hint" style={{ margin: "10px 0 6px" }}>
+              템플릿의 변수를 앱의 값에 붙여주세요. 안 붙인 변수는 빈 채로 나갑니다.
+            </p>
+            <div className="stack" style={{ gap: 5 }}>
+              {slots.map((slot) => (
+                <div className="row" key={slot} style={{ gap: 6, alignItems: "center" }}>
+                  <span className="tag tag-lav" style={{ minWidth: 96 }}>{slot}</span>
+                  <span className="hint">←</span>
+                  <select
+                    className="input input-sm"
+                    style={{ flex: 1 }}
+                    value={draft.alimtalk_vars?.[slot] || ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        alimtalk_vars: { ...draft.alimtalk_vars, [slot]: e.target.value },
+                      })
+                    }
+                  >
+                    <option value="">— 붙이지 않음</option>
+                    {SOURCES.map(([v, why]) => (
+                      <option key={v} value={v}>
+                        {v} · {why}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="hint" style={{ margin: "8px 0 0" }}>
+            위에 템플릿 원문을 붙여넣으면 변수를 붙일 칸이 생깁니다.
+          </p>
+        )}
+      </div>
+    );
   }
 
   function Editor({ isAuto }) {
@@ -142,6 +234,8 @@ export default function MessageList({ rows = [], unavailable }) {
           </>
         )}
 
+        <Alimtalk />
+
         <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
           <button
             className="btn btn-ghost btn-sm"
@@ -183,6 +277,11 @@ export default function MessageList({ rows = [], unavailable }) {
           )}
           {isAuto && !r.greeting && !r.closing && (
             <span className="hint" style={{ fontSize: 11.5 }}>인사말 없음</span>
+          )}
+          {r.alimtalk_id ? (
+            <span className="tag tag-mint" title={`알림톡 템플릿 ${r.alimtalk_id}`}>알림톡</span>
+          ) : (
+            <span className="tag tag-muted" title="문자(SMS/LMS)로 나갑니다">문자</span>
           )}
           <span className="spacer" />
           <button className="btn btn-ghost btn-sm" onClick={() => (isEditing ? setEditId(null) : start(r))}>
@@ -237,7 +336,16 @@ export default function MessageList({ rows = [], unavailable }) {
             onClick={() => {
               setEditId(null);
               setAdding(true);
-              setDraft({ name: "", greeting: "", closing: "", body: "", sort: "" });
+              setDraft({
+                name: "",
+                greeting: "",
+                closing: "",
+                body: "",
+                sort: "",
+                alimtalk_id: "",
+                alimtalk_body: "",
+                alimtalk_vars: {},
+              });
             }}
           >
             + 문자 추가

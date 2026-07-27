@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import MessageList from "./MessageList";
 import { listMessages } from "./actions";
+import { loadSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function MessagesPage() {
   }
 
   const { rows, error } = await listMessages();
+  const settings = await loadSettings(supabase);
 
   return (
     <>
@@ -30,7 +32,7 @@ export default async function MessagesPage() {
             나가는 문자마다 문구를 따로 정합니다. 여기서 추가하고 고치고 지우면 됩니다.
           </p>
         </div>
-        <MessageList rows={rows} unavailable={!!error} />
+        <MessageList rows={rows} unavailable={!!error} pfId={settings.solapi?.pfId || ""} />
       </main>
     </>
   );

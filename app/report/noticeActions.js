@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { deliver } from "@/lib/send";
+import { autoValues, buildVariables } from "@/lib/alimtalk";
+import { longLabel, todaySeoul } from "@/lib/day";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -140,19 +142,53 @@ export async function listRecipients() {
 // ---------- 발송 ----------
 /**
  * 안내 문자 보내기 — 데일리리포트와 달리 리포트에 묶이지 않는다.
- * @param items [{ id, name, phone, body }]
+ * @param items    [{ id, name, phone, body }]
+ * @param label    문자 종류 (기록용)
+ * @param templateId 어떤 문구로 보냈는지 — 알림톡 템플릿을 찾는 데 쓴다
  */
-export async function sendNotices(items, label) {
+export async function sendNotices(items, label, templateId) {
   const list = Array.isArray(items) ? items.filter((x) => x?.body) : [];
   if (list.length === 0) return { error: null, count: 0 };
 
   const supabase = createClient();
   const settings = await loadSettings(supabase);
 
+  // 이 문구에 알림톡 템플릿이 붙어 있으면 알림톡으로 나간다
+  let tpl = null;
+  if (templateId) {
+    const q = await supabase
+      .from("message_templates")
+      .select("alimtalk_id, alimtalk_vars")
+      .eq("id", templateId)
+      .maybeSingle();
+    if (!q.error) tpl = q.data;
+  }
+  const today = longLabel(todaySeoul());
+
   const sendable = list.filter((x) => x.phone);
   const { channel, results } = await deliver(
     settings,
-    sendable.map((x) => ({ to: x.phone, text: x.body, ref: x.id })),
+    sendable.map((x) => {
+      const msg = { to: x.phone, text: x.body, ref: x.id };
+      if (tpl?.alimtalk_id) {
+        msg.kakao = {
+          templateId: tpl.alimtalk_id,
+          variables: buildVariables(tpl.alimtalk_vars, {
+            ...autoValues({
+              academy: settings.academy?.name,
+              name: x.name,
+              date: today,
+              body: x.body,
+              phone: settings.message?.phone,
+              address: settings.message?.address,
+            }),
+            // 이 문자에서 내가 채운 값들도 그대로 붙일 수 있다
+            ...(x.vars || {}),
+          }),
+        };
+      }
+      return msg;
+    }),
     { kind: label || "notice" }
   );
   const byRef = new Map(results.map((r) => [r.ref, r]));

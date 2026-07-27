@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { deliver } from "@/lib/send";
+import { autoValues, buildVariables } from "@/lib/alimtalk";
+import { dateLabel } from "@/lib/reportText";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -66,11 +68,43 @@ export async function resend(items, kind) {
 
   // 설정한 방식대로 실제 발송 (직접 발송이면 기록만)
   const settings = await loadSettings(supabase);
+  const k = KINDS[kind] ? kind : "report";
+
+  // 이 문자 종류에 알림톡 템플릿이 붙어 있으면 알림톡으로 나간다
+  let tpl = null;
+  {
+    const q = await supabase
+      .from("message_templates")
+      .select("alimtalk_id, alimtalk_vars")
+      .eq("key", k)
+      .maybeSingle();
+    if (!q.error) tpl = q.data;
+  }
+
   const sendable = list.filter((x) => x.phone);
   const { channel, results } = await deliver(
     settings,
-    sendable.map((x) => ({ to: x.phone, text: x.body || "", ref: x.id })),
-    { kind: KINDS[kind] ? kind : "report" }
+    sendable.map((x) => {
+      const msg = { to: x.phone, text: x.body || "", ref: x.id };
+      if (tpl?.alimtalk_id) {
+        msg.kakao = {
+          templateId: tpl.alimtalk_id,
+          variables: buildVariables(
+            tpl.alimtalk_vars,
+            autoValues({
+              academy: settings.academy?.name,
+              name: x.name,
+              date: x.date ? dateLabel(x.date) : "",
+              body: x.body || "",
+              phone: settings.message?.phone,
+              address: settings.message?.address,
+            })
+          ),
+        };
+      }
+      return msg;
+    }),
+    { kind: k }
   );
   const byRef = new Map(results.map((r) => [r.ref, r]));
 
@@ -81,7 +115,7 @@ export async function resend(items, kind) {
 
   const sentIds = list.filter((x) => byRef.get(x.id)?.ok).map((x) => x.id);
   const now = new Date().toISOString();
-  const col = kindOf(kind).sent;
+  const col = kindOf(k).sent;
 
   if (sentIds.length > 0) {
     const { error } = await supabase
@@ -97,7 +131,7 @@ export async function resend(items, kind) {
     const r = byRef.get(x.id) || {};
     return {
       daily_report_id: x.id,
-      kind: KINDS[kind] ? kind : "report",
+      kind: k,
       body: x.body || "",
       sent_by: user?.id || null,
       channel,

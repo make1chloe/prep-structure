@@ -97,7 +97,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
     }
     startTransition(async () => {
       const res = await sendReports(
-        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: r.text }))
+        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: r.text, date }))
       );
       if (res?.error) {
         alert(res.error);

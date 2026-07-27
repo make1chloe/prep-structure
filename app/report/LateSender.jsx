@@ -44,7 +44,7 @@ export default function LateSender({ date, rows = [], mode = "copy" }) {
 
     startTransition(async () => {
       const res = await resend(
-        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: r.lateText })),
+        list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: r.lateText, date })),
         "late"
       );
       if (res?.error) {

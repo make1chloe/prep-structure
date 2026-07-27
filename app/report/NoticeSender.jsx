@@ -144,8 +144,13 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
           name: r.name,
           phone: r.phone,
           body: fill(body, r, academy, msg, extra),
+          // 알림톡 변수 연결에서 쓸 수 있게, 내가 채운 값도 같이 넘긴다
+          vars: Object.fromEntries(
+            Object.entries(extra).map(([k, v]) => [`{{${k}}}`, v])
+          ),
         })),
-        (templates || []).find((t) => t.id === tplId)?.kind || "notice"
+        (templates || []).find((t) => t.id === tplId)?.kind || "notice",
+        tplId
       );
       if (res?.error) {
         alert(res.error);

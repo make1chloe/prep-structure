@@ -49,7 +49,7 @@ export default function AddHomeworkForm() {
           <input
             className="input input-sm"
             name="prep_task"
-            placeholder="예: {학생} 단원평가 출제 — 비워두면 안 만듭니다"
+            placeholder="예: {학생}-단원평가-{단원}  ·  쓸 수 있는 자리: {학생} {단원} {교재} {숙제}"
           />
         </div>
         <button className="btn btn-primary btn-sm" type="submit" style={{ alignSelf: "flex-start" }}>추가</button>

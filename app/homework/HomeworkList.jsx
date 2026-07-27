@@ -193,7 +193,7 @@ export default function HomeworkList({ items = [] }) {
               <th style={{ width: 70 }}>순서</th>
               <th style={{ width: 70 }}>사용</th>
               <th style={{ minWidth: 220 }}>학습 방법 (학생에게 보여줄 설명)</th>
-              <th style={{ minWidth: 150 }}>내 할일 자동 생성</th>
+              <th style={{ minWidth: 150 }} title="쓸 수 있는 자리: {학생} {단원} {교재} {숙제}">내 할일 자동 생성</th>
               <th style={{ width: 86 }}></th>
             </tr>
           </thead>
@@ -248,8 +248,8 @@ export default function HomeworkList({ items = [] }) {
                         <input
                           className="input input-sm"
                           style={{ minWidth: 150 }}
-                          placeholder="{학생} 단원평가 출제"
-                          title="이 숙제를 배정하면 이 제목으로 내 할일이 생깁니다. {학생} 은 이름으로 바뀝니다. 비우면 안 만듭니다"
+                          placeholder="{학생}-단원평가-{단원}"
+                          title="이 숙제를 배정하면 이 제목으로 내 할일이 생깁니다. 쓸 수 있는 자리: {학생} {단원} {교재} {숙제}. 비우면 안 만듭니다"
                           value={draft.prep_task}
                           onChange={(e) => setDraft({ ...draft, prep_task: e.target.value })}
                         />

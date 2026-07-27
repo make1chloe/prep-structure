@@ -86,7 +86,7 @@ export async function sendLateNow(studentId, date) {
   if (!row.phone) return { error: "학부모 번호가 없어요. 재원생에서 번호를 넣어주세요." };
 
   const res = await resend(
-    [{ id: row.id, phone: row.phone, name: row.name, body: row.lateText }],
+    [{ id: row.id, phone: row.phone, name: row.name, body: row.lateText, date }],
     "late"
   );
   revalidatePath("/today");

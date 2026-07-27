@@ -14,7 +14,12 @@ const MODES = [
 export default function SettingsForm({ view, unavailable = false, canEdit = true, pushReady = false }) {
   const [mode, setMode] = useState(view.mode || "copy");
   const [academy, setAcademy] = useState(view.academy?.name || "클로이영어");
-  const [solapi, setSolapi] = useState({ apiKey: "", apiSecret: "", sender: view.solapi?.sender || "" });
+  const [solapi, setSolapi] = useState({
+    apiKey: "",
+    apiSecret: "",
+    sender: view.solapi?.sender || "",
+    pfId: view.solapi?.pfId || "",
+  });
   const [webhook, setWebhook] = useState({ url: view.webhook?.url || "", secret: "" });
   const [msgCfg, setMsgCfg] = useState({
     greeting: view.message?.greeting || "",
@@ -178,7 +183,21 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
                 onChange={(e) => setSolapi({ ...solapi, sender: e.target.value })}
               />
             </div>
+            <div className="field">
+              <label className="label">알림톡 발신프로필 ID (pfId)</label>
+              <input
+                className="input input-sm"
+                value={solapi.pfId}
+                placeholder="비우면 전부 문자로 나갑니다"
+                onChange={(e) => setSolapi({ ...solapi, pfId: e.target.value })}
+              />
+            </div>
           </div>
+          <p className="hint" style={{ marginTop: 8 }}>
+            알림톡은 <b>문자 종류마다</b> 템플릿 코드를 붙여야 나갑니다 —{" "}
+            <a className="sky" href="/settings/messages">설정 → 문자 문구</a> 에서 붙입니다.
+            알림톡이 막힌 번호에는 <b>문자로 대신</b> 나갑니다.
+          </p>
           <p className="hint" style={{ marginTop: 8 }}>
             이미 저장된 값이 있으면 칸을 비워둔 채 저장해도 그대로 유지됩니다.
             {view.solapi?.saved && " 현재 저장됨 ✓"}

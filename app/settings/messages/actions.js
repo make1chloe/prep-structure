@@ -14,7 +14,7 @@ export async function listMessages() {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("message_templates")
-    .select("id, name, kind, key, body, greeting, closing, sort, active")
+    .select("id, name, kind, key, body, greeting, closing, sort, active, alimtalk_id, alimtalk_vars")
     .eq("active", true)
     .order("sort", { ascending: true });
   if (error) return { rows: [], error: unavailable(error) ? NEED : error.message };
@@ -34,6 +34,14 @@ export async function saveMessage(id, patch = {}) {
   if ("sort" in patch) {
     const d = (patch.sort ?? "").toString().replace(/[^\d]/g, "");
     row.sort = d ? parseInt(d, 10) : 0;
+  }
+  if ("alimtalk_id" in patch) row.alimtalk_id = (patch.alimtalk_id || "").trim() || null;
+  if ("alimtalk_vars" in patch) {
+    // 빈 연결은 저장하지 않는다
+    const v = patch.alimtalk_vars || {};
+    row.alimtalk_vars = Object.fromEntries(
+      Object.entries(v).filter(([k, val]) => k?.trim() && `${val || ""}`.trim())
+    );
   }
 
   if (id) {
