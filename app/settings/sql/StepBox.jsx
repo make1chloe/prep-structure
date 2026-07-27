@@ -17,15 +17,23 @@ export default function StepBox({ steps = [], missing = [] }) {
 
   if (steps.length === 0) return null;
 
-  async function copy(s) {
+  // 안 들어간 것만 이어붙인다 — 전체(1,900줄)보다 훨씬 짧아서 붙여넣다 사고 날 일이 적다
+  const onlyMissing = steps.filter((s) => need.has(s.id));
+  const missingSql = onlyMissing
+    .map((s) => `-- ===== ${s.name} =====\n${s.body}`)
+    .join("\n\n");
+  const missingLines = missingSql ? missingSql.split("\n").length : 0;
+
+  async function put(text, key) {
     try {
-      await navigator.clipboard.writeText(s.body);
-      setCopied(s.id);
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
       setTimeout(() => setCopied(null), 1800);
     } catch {
       alert("복사가 안 되면 아래 상자에서 전체 선택(Ctrl+A) 후 복사하세요.");
     }
   }
+  const copyStep = (s) => put(s.body, s.id);
 
   return (
     <div className="card" style={{ marginTop: 14 }}>
@@ -45,6 +53,26 @@ export default function StepBox({ steps = [], missing = [] }) {
         에러가 납니다.
       </p>
 
+      {onlyMissing.length > 0 && (
+        <div className="card card-tight" style={{ marginBottom: 12, background: "transparent" }}>
+          <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13 }}>안 들어간 것만 한 번에</b>
+            <span className="tag tag-amber">{onlyMissing.length}개 · {missingLines}줄</span>
+            <span className="spacer" />
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => put(missingSql, "__all")}
+            >
+              {copied === "__all" ? "복사됐어요 ✓" : "이것만 복사"}
+            </button>
+          </div>
+          <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.8 }}>
+            전체 SQL 대신 <b>모자란 것만</b> 담았습니다. 훨씬 짧아서 붙여넣다 딴 게 섞일 일이
+            적습니다. SQL Editor 를 <b>Ctrl+A 로 비우고</b> 이것만 붙여 Run 해보세요.
+          </p>
+        </div>
+      )}
+
       <div className="stack" style={{ gap: 8 }}>
         {show.map((s) => (
           <details key={s.name} className="card card-tight" style={{ background: "transparent" }}>
@@ -56,7 +84,7 @@ export default function StepBox({ steps = [], missing = [] }) {
               <span className="hint">{s.lines}줄</span>
             </summary>
             <div className="row" style={{ gap: 6, margin: "8px 0" }}>
-              <button className="btn btn-primary btn-sm" onClick={() => copy(s)}>
+              <button className="btn btn-primary btn-sm" onClick={() => copyStep(s)}>
                 {copied === s.id ? "복사됐어요 ✓" : "이것만 복사"}
               </button>
             </div>
