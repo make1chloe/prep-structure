@@ -24,7 +24,7 @@ const STEPS = [
   { kind: "homework", label: "숙제 냈어요", ask: "숙제를 선생님께 내고 눌러주세요" },
 ];
 
-export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = false }) {
+export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = false, asId = null }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -36,7 +36,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
 
   function tap(kind) {
     startTransition(async () => {
-      const res = await checkArrival(kind, true);
+      const res = await checkArrival(kind, true, asId);
       if (res?.error) {
         alert(res.error);
         return;
@@ -55,7 +55,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
         </span>
       </div>
 
-      {!atAcademy && !readOnly && (
+      {!atAcademy && !readOnly && !asId && (
         <div className="notice" style={{ margin: "10px 0 0", fontSize: 12.5 }}>
           <b>학원 와이파이에 연결해주세요.</b> 학원에 도착해야 누를 수 있어요.
         </div>
@@ -66,7 +66,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
       )}
       <button
         className="bigbtn"
-        disabled={pending || !atAcademy || readOnly}
+        disabled={pending || (!atAcademy && !asId) || readOnly}
         onClick={() => tap(now.kind)}
       >
         {now.label}

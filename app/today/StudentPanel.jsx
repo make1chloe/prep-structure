@@ -951,6 +951,16 @@ export default function StudentPanel({
           >
             학생 화면 보기
           </a>
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/me?s=${row.student.id}&try=1`}
+            target="_blank"
+            rel="noreferrer"
+            title="로그아웃하지 않고 이 학생인 척 직접 눌러봅니다. 누른 것은 진짜로 기록되고, 그 화면에서 지울 수 있습니다."
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+          >
+            체험
+          </a>
           <button
             className="btn btn-ghost btn-sm"
             disabled={pending}

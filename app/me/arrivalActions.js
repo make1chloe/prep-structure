@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { todaySeoul } from "@/lib/day";
 import { pickIp, sameNet } from "@/lib/clientIp";
+import { resolveStudent } from "@/lib/actAs";
 
 /**
  * 등원 체크 — **학생이 누른다.**
@@ -15,23 +16,18 @@ import { pickIp, sameNet } from "@/lib/clientIp";
  * 출석 자체는 외부 앱에서 한다. 여기서는 **했는지 짚어줄 뿐**이다 —
  * 아이들이 자꾸 잊어버리기 때문이다.
  */
-export async function checkArrival(kind, on) {
+export async function checkArrival(kind, on, asId = null) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-
-  const { data: me } = await supabase
-    .from("students")
-    .select("id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  if (!me?.id) return { error: "학생 계정으로 로그인해주세요." };
+  const { studentId, acting, error: whoErr } = await resolveStudent(supabase, asId);
+  if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
+  const me = { id: studentId };
 
   // 학원에서 누른 게 맞나 — 오는 길에 미리 누르는 것을 막는다.
   // 등록된 주소가 없으면 안 막는다 (원장님이 안 켰다는 뜻이다).
-  if (on) {
+  //
+  // 선생님이 체험 모드로 눌러보는 중이면 막지 않는다.
+  // 집에서 미리 눌러봐야 하는데 여기서 막히면 시험 자체를 못 한다.
+  if (on && !acting) {
     const nq = await supabase.from("academy_net").select("ip");
     const allowed = (nq.error ? [] : nq.data || []).map((x) => x.ip);
     if (allowed.length > 0 && !sameNet(pickIp(headers()), allowed)) {

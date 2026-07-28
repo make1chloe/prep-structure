@@ -3,33 +3,31 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
+import { resolveStudent } from "@/lib/actAs";
 
 function unavailable(error) {
   return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
 }
 const NEED = "0033 SQL 을 먼저 실행해주세요.";
 
-/** 지금 로그인한 학생 */
-async function meAs(supabase) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
-    .from("students")
-    .select("id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  return data?.id || null;
+/**
+ * 지금 눌러야 할 학생.
+ *
+ * asId 가 오면 선생님이 학생 화면을 직접 눌러보는 체험 모드다.
+ * (선생님이 아니면 무시되고 본인으로 돌아간다 — lib/actAs.js)
+ */
+async function meAs(supabase, asId) {
+  const { studentId } = await resolveStudent(supabase, asId);
+  return studentId;
 }
 
 /**
  * 시작 — 하던 게 있으면 먼저 멈춘다.
  * 한 번에 하나만 한다. 둘을 동시에 켜두면 시간이 두 배로 잡힌다.
  */
-export async function startStudy(homeworkItemId, stayTaskId, kind = "home") {
+export async function startStudy(homeworkItemId, stayTaskId, kind = "home", asId = null) {
   const supabase = createClient();
-  const sid = await meAs(supabase);
+  const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const date = todaySeoul();
 
@@ -63,9 +61,9 @@ export async function startStudy(homeworkItemId, stayTaskId, kind = "home") {
  * **검사가 필요한 항목이면 이게 곧 검사 대기다.** 학생이 따로 부르지 않아도
  * 선생님 화면 대기줄에 올라가고, 선생님은 손이 빌 때 한꺼번에 본다.
  */
-export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind = "home") {
+export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind = "home", asId = null) {
   const supabase = createClient();
-  const sid = await meAs(supabase);
+  const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
 
   const stop = await stopRunning(supabase, sid, todaySeoul());
@@ -88,10 +86,10 @@ export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind
 }
 
 /** 잘못 눌렀을 때 되돌린다 */
-export async function undoFinish(reportItemId) {
+export async function undoFinish(reportItemId, asId = null) {
   if (!reportItemId) return { error: null };
   const supabase = createClient();
-  const sid = await meAs(supabase);
+  const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const { error } = await supabase
     .from("daily_report_items")
@@ -124,9 +122,9 @@ async function stopRunning(supabase, sid, date) {
 }
 
 /** 멈춤 */
-export async function stopStudy() {
+export async function stopStudy(asId = null) {
   const supabase = createClient();
-  const sid = await meAs(supabase);
+  const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const res = await stopRunning(supabase, sid, todaySeoul());
   revalidatePath("/me");

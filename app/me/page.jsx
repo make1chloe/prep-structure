@@ -13,6 +13,7 @@ import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
+import TryoutBar from "./TryoutBar";
 import { longLabel as fmtLong, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,12 @@ export default async function MePage({ searchParams }) {
       .maybeSingle();
     if (s2) student = s2;
   }
-  const preview = !!(previewId && student);
+  // 보기만 할 것인가, 직접 눌러볼 것인가 (?s=학생id&try=1)
+  //   앱을 나눠주기 전에 원장님이 먼저 눌러봐야 한다. 타이머가 어떻게 도는지,
+  //   학습완료를 누르면 오늘 수업에 어떻게 뜨는지는 눌러봐야 안다.
+  const trying = !!(previewId && searchParams?.try);
+  const preview = !!(previewId && student) && !trying;
+  const acting = !!(previewId && student) && trying;
 
   if (!student) {
     const { data: link } = await supabase
@@ -400,7 +406,12 @@ export default async function MePage({ searchParams }) {
               {student.name} 학생에게 보이는 그대로입니다. <b>여기서는 누를 수 없습니다</b> —
               선생님이 대신 누르면 기록이 거짓이 됩니다.
             </p>
+            <p className="hint" style={{ margin: "6px 0 0" }}>
+              <a href={`/me?s=${student.id}&try=1`}>직접 눌러보기 →</a>
+            </p>
           </div>
+        ) : acting ? (
+          <TryoutBar studentId={student.id} name={student.name} />
         ) : (
           <>
             <InstallHint />
@@ -415,6 +426,7 @@ export default async function MePage({ searchParams }) {
           }}
           atAcademy={atAcademy}
           readOnly={preview}
+          asId={acting ? student.id : null}
         />
 
         <StudyTabs
@@ -423,9 +435,10 @@ export default async function MePage({ searchParams }) {
           running={running}
           ready={timerReady}
           readOnly={preview}
+          asId={acting ? student.id : null}
         />
 
-        {!preview && <RequestForm studentId={student.id} mine={myRequests || []} />}
+        {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} />}
 
         <div className="card">
           <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>

@@ -40,6 +40,7 @@ export default function StudyList({
   ready = true,
   kind = "home",
   readOnly = false,
+  asId = null,
 }) {
   const [pending, startTransition] = useTransition();
   const [openDone, setOpenDone] = useState(false);
@@ -102,7 +103,7 @@ export default function StudyList({
               <button
                 className="bigbtn"
                 disabled={pending || readOnly}
-                onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind))}
+                onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind, asId))}
               >
                 다 했어요
               </button>
@@ -110,7 +111,7 @@ export default function StudyList({
                 className="btn btn-ghost btn-sm"
                 style={{ width: "100%", marginTop: 6 }}
                 disabled={pending || readOnly}
-                onClick={() => run(() => stopStudy())}
+                onClick={() => run(() => stopStudy(asId))}
               >
                 잠깐 멈추기
               </button>
@@ -125,7 +126,7 @@ export default function StudyList({
               <button
                 className="bigbtn"
                 disabled={pending || !ready || readOnly}
-                onClick={() => run(() => startStudy(now.itemId, now.stayId, kind))}
+                onClick={() => run(() => startStudy(now.itemId, now.stayId, kind, asId))}
               >
                 {now.seconds > 0 ? "이어서 하기" : "시작하기"}
               </button>
@@ -181,7 +182,7 @@ export default function StudyList({
                   <button
                     className="btn btn-ghost btn-sm"
                     disabled={pending || readOnly}
-                    onClick={() => run(() => undoFinish(t.reportItemId))}
+                    onClick={() => run(() => undoFinish(t.reportItemId, asId))}
                   >
                     다시
                   </button>
