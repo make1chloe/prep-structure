@@ -165,8 +165,8 @@ export default function TodayBoard({
                         <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
                           <b style={{ fontSize: 13 }}>등원</b>
                           <span className="hint" style={{ flex: 1 }}>
-                            폰·출석·숙제는 <b>학생이 직접</b> 누릅니다. 출결을 찍으면 아래에 펼쳐집니다 —{" "}
-                            {notYet.length}명 남음
+                            폰·출석·숙제는 <b>학생이 직접</b> 누릅니다. 학생이 출석 체크를 누르면{" "}
+                            <b>등원으로 잡혀 아래에 펼쳐집니다</b> — {notYet.length}명 남음
                           </span>
                           <button
                             className="btn btn-sm"
@@ -288,7 +288,27 @@ export default function TodayBoard({
                             })()}
                             <span className="spacer" />
                             {r.status ? (
-                              <span className={`tag ${CLS[r.status]}`}>{LABEL[r.status]}</span>
+                              <span
+                                className={`tag ${CLS[r.status]}`}
+                                title={
+                                  r.attendAt
+                                    ? `학생이 ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
+                                        timeZone: "Asia/Seoul",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })} 에 출석 체크를 눌렀습니다`
+                                    : undefined
+                                }
+                              >
+                                {LABEL[r.status]}
+                                {r.attendAt
+                                  ? ` ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
+                                      timeZone: "Asia/Seoul",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}`
+                                  : ""}
+                              </span>
                             ) : (
                               <span
                                 className="btn btn-ghost btn-sm"

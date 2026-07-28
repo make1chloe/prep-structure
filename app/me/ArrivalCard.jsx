@@ -15,7 +15,12 @@ import { checkArrival } from "./arrivalActions";
  */
 const STEPS = [
   { kind: "phone", label: "핸드폰 냈어요", ask: "핸드폰을 선생님께 내고 눌러주세요" },
-  { kind: "attend", label: "출석 체크 했어요", ask: "출석 체크 앱에서 눌렀는지 확인해주세요" },
+  {
+    kind: "attend",
+    label: "출석 체크 했어요",
+    ask: "출석 체크 앱에서 눌렀는지 확인해주세요",
+    note: "누르면 선생님께 등원했다고 표시돼요",
+  },
   { kind: "homework", label: "숙제 냈어요", ask: "숙제를 선생님께 내고 눌러주세요" },
 ];
 
@@ -51,6 +56,9 @@ export default function ArrivalCard({ done = {} }) {
       </div>
 
       <p className="nowsub" style={{ margin: "10px 0 0" }}>{now.ask}</p>
+      {now.note && (
+        <p className="hint" style={{ margin: "4px 0 0", fontSize: 12 }}>{now.note}</p>
+      )}
       <button className="bigbtn" disabled={pending} onClick={() => tap(now.kind)}>
         {now.label}
       </button>
