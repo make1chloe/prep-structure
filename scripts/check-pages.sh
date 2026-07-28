@@ -60,7 +60,15 @@ else
 fi
 
 echo
-echo "== 5) 빌드 =="
+echo "== 5) 학생이 열 수 있는 화면 =="
+if out=$(node scripts/check-routes.mjs 2>/dev/null); then
+  echo "$out"
+else
+  echo "$out"; FAIL=1
+fi
+echo
+
+echo "== 6) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
 else

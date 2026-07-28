@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import AddStudentForm from "./AddStudentForm";
 import ExcelUpload from "./ExcelUpload";
+import BulkAccounts from "./BulkAccounts";
 import StudentList from "./StudentList";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,9 @@ export default async function StudentsPage() {
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <AddStudentForm />
             <ExcelUpload />
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <BulkAccounts />
           </div>
         </div>
 

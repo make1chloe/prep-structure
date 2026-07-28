@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import MakeupInbox from "./MakeupInbox";
@@ -28,6 +30,10 @@ export default async function Home() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     profile = data;
   }
+
+  // 선생님 화면이다. 학생·학부모는 자기 화면으로 보낸다.
+  // (미들웨어가 이미 막지만, 막는 곳이 하나뿐이면 그 하나가 뚫렸을 때 끝이다)
+  if (!isStaff(profile?.role)) redirect("/me");
 
   const today = todaySeoul();
   const dow = dowOf(today);

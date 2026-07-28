@@ -44,7 +44,8 @@ export default function LoginPage() {
       );
       return;
     }
-    router.push("/");
+    // 학생은 자기 화면으로 (선생님 화면은 미들웨어가 막지만, 헛걸음도 없게)
+    router.push("/me");
     router.refresh();
   }
 

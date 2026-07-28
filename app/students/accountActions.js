@@ -69,16 +69,39 @@ function keyMissing() {
   };
 }
 
-/** 아직 안 쓴 아이디를 만든다 — chloe + 네 자리 */
-async function freeLoginId(supabase) {
-  const { data } = await supabase
-    .from("students").select("login_id").not("login_id", "is", null);
-  const used = new Set((data || []).map((x) => (x.login_id || "").toLowerCase()));
+/**
+ * 아이디를 정한다 — chloe + 전화 뒷자리.
+ *
+ * 아이가 외우기 쉬워야 한다. 자기 번호 뒷자리면 잊어도 다시 떠올린다.
+ * 번호가 없거나 뒷자리가 겹치면 chloe0001 부터 차례로 준다.
+ */
+function idFromPhone(student = {}) {
+  const raw = student.student_phone || student.parent_phone || "";
+  const d = raw.replace(/[^\d]/g, "");
+  return d.length >= 4 ? `chloe${d.slice(-4)}` : "";
+}
+
+function pickId(student, used) {
+  const want = idFromPhone(student);
+  if (want && !used.has(want)) {
+    used.add(want);
+    return want;
+  }
   for (let n = 1; n < 10000; n += 1) {
     const id = `chloe${String(n).padStart(4, "0")}`;
-    if (!used.has(id)) return id;
+    if (!used.has(id)) {
+      used.add(id);
+      return id;
+    }
   }
   return `chloe${Date.now().toString().slice(-6)}`;
+}
+
+/** 지금 쓰고 있는 아이디 전부 */
+async function usedIds(supabase) {
+  const { data } = await supabase
+    .from("students").select("login_id").not("login_id", "is", null);
+  return new Set((data || []).map((x) => (x.login_id || "").toLowerCase()));
 }
 
 /**
@@ -95,11 +118,15 @@ export async function createStudentLogin(studentId, wantId) {
   if (!key) return keyMissing();
 
   const { data: s } = await supabase
-    .from("students").select("id, name, login_id, profile_id").eq("id", studentId).maybeSingle();
+    .from("students")
+    .select("id, name, login_id, profile_id, student_phone, parent_phone")
+    .eq("id", studentId)
+    .maybeSingle();
   if (!s) return { error: "학생을 찾을 수 없어요." };
   if (s.profile_id) return { error: "이미 계정이 있어요. 비밀번호 초기화를 쓰세요." };
 
-  const loginId = (wantId || "").trim().toLowerCase() || s.login_id || (await freeLoginId(supabase));
+  const loginId =
+    (wantId || "").trim().toLowerCase() || s.login_id || pickId(s, await usedIds(supabase));
   if (!/^[a-z0-9._-]{4,30}$/.test(loginId)) {
     return { error: "아이디는 영문·숫자로 4~30자여야 해요." };
   }
@@ -164,12 +191,92 @@ export async function resetStudentPassword(studentId) {
   return { error: null, loginId: s.login_id, password: INIT_PW };
 }
 
+/**
+ * 계정이 없는 재원생 전부에게 한 번에 만들어 준다.
+ *
+ * 한 명씩 만들면 스무 명이면 스무 번이다. 다만 **한 명이 실패해도
+ * 나머지는 계속 만든다** — 하나 때문에 전부 멈추면 어디까지 됐는지
+ * 알 수 없다. 끝나고 누가 됐고 누가 왜 안 됐는지 그대로 돌려준다.
+ *
+ * 이미 계정이 있는 학생은 건드리지 않는다 (비밀번호도 안 바꾼다).
+ */
+export async function createAllStudentLogins() {
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return { error: guard.error, made: [], failed: [] };
+
+  const key = await serviceKey(supabase);
+  if (!key) return { ...keyMissing(), made: [], failed: [] };
+
+  const { data: rows, error } = await supabase
+    .from("students")
+    .select("id, name, login_id, profile_id, student_phone, parent_phone")
+    .eq("status", "enrolled")
+    .order("name", { ascending: true });
+  if (error) {
+    if (error.code === "42703") return { error: "0045 SQL 을 먼저 실행해주세요.", made: [], failed: [] };
+    return { error: error.message, made: [], failed: [] };
+  }
+
+  const todo = (rows || []).filter((s) => !s.profile_id);
+  if (todo.length === 0) {
+    return { error: null, made: [], failed: [], already: (rows || []).length };
+  }
+
+  // 쓰고 있는 아이디를 미리 모아둔다 — 만들 때마다 다시 세면 겹칠 수 있다
+  const used = new Set(
+    (rows || []).map((x) => (x.login_id || "").toLowerCase()).filter(Boolean)
+  );
+
+  const made = [];
+  const failed = [];
+
+  for (const s of todo) {
+    const loginId = (s.login_id || "").toLowerCase() || pickId(s, used);
+
+    const res = await admin(key, "/users", "POST", {
+      email: emailOf(loginId),
+      password: INIT_PW,
+      email_confirm: true,
+      user_metadata: { name: s.name, login_id: loginId },
+    });
+    if (!res.ok) {
+      const msg = res.json?.msg || res.json?.message || `HTTP ${res.status}`;
+      failed.push({ name: s.name, why: msg });
+      continue;
+    }
+    const uid = res.json?.id;
+    if (!uid) {
+      failed.push({ name: s.name, why: "id 를 못 받았어요" });
+      continue;
+    }
+
+    await supabase.from("profiles").upsert(
+      { id: uid, name: s.name, role: "student", must_change_pw: true },
+      { onConflict: "id" }
+    );
+    const up = await supabase
+      .from("students").update({ login_id: loginId, profile_id: uid }).eq("id", s.id);
+    if (up.error) {
+      failed.push({ name: s.name, why: up.error.message });
+      continue;
+    }
+    made.push({ name: s.name, loginId });
+  }
+
+  revalidatePath("/students");
+  return { error: null, made, failed, password: INIT_PW };
+}
+
 /** 지금 상태 — 아이디가 있나, 계정이 붙어 있나 */
 export async function accountStatus(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
   const { data: s, error } = await supabase
-    .from("students").select("login_id, profile_id").eq("id", studentId).maybeSingle();
+    .from("students")
+    .select("login_id, profile_id, student_phone, parent_phone")
+    .eq("id", studentId)
+    .maybeSingle();
   if (error) {
     if (error.code === "42703" || error.code === "PGRST204") {
       return { error: "0045 SQL 을 먼저 실행해주세요." };
@@ -191,6 +298,6 @@ export async function accountStatus(studentId) {
     linked: !!s?.profile_id,
     mustChange,
     hasKey: !!key,
-    suggest: s?.login_id || (await freeLoginId(supabase)),
+    suggest: s?.login_id || pickId(s || {}, await usedIds(supabase)),
   };
 }
