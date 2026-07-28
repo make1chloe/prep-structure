@@ -25,6 +25,7 @@ export default function StudyTabs({
   asId = null,
   subs = {},
   atClass = false,
+  stayLeft = 0,
 }) {
   const inClassLeft = inClass.filter((t) => !t.doneAt).length;
   const homeLeft = home.filter((t) => !t.doneAt).length;
@@ -34,6 +35,11 @@ export default function StudyTabs({
   //   학습을 안 올렸으면, 등원해서 앉자마자 집 숙제가 펼쳐졌다.
   //   아이는 그걸 보고 학원에서 집 숙제를 하고 앉아 있는다.
   const [tab, setTab] = useState(atClass || inClassLeft > 0 ? "inclass" : "home");
+
+  // 남아서 채우고 갈 것이 있으면 아직 학원이다. 집 숙제를 붙잡고 있으면
+  // 정작 남아서 해야 할 것을 안 한다.
+  const stayNotice =
+    stayLeft > 0 ? `남아서 채우고 갈 것이 ${stayLeft}개 있어요. 그것부터 끝내고 가야 해요.` : "";
 
   if (inClass.length === 0 && home.length === 0) {
     return (
@@ -51,6 +57,12 @@ export default function StudyTabs({
 
   return (
     <div className="stack" style={{ gap: 10 }}>
+      {stayNotice && (
+        <div className="card card-tight" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
+          <b style={{ fontSize: 13.5 }}>{stayNotice}</b>
+        </div>
+      )}
+
       <div className="row" style={{ gap: 6 }}>
         {tabs.map(([k, label, left, total]) => (
           <button

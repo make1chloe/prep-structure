@@ -489,6 +489,59 @@ export default function TodayBoard({
         })}
       </div>
 
+      {/* 수업이 끝났는데 늦귀가 과제가 그대로 남아 있는 학생.
+          아이가 아직 안 갔거나, 원장님이 처리를 안 한 것이다.
+          둘 중 무엇이든 그냥 두면 안 된다 — 학생 화면도 계속 '학원' 으로 잡힌다. */}
+      {(() => {
+        const stuck = groups
+          .filter(({ klass }) => {
+            const end = cut(klass.end_time);
+            if (!end) return false;
+            const now = new Date();
+            const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(
+              now.getMinutes()
+            ).padStart(2, "0")}`;
+            return hhmm >= end;
+          })
+          .flatMap(({ rows }) => rows)
+          .filter((r) => (r.stay || []).some((t) => t.status === "todo"));
+        if (stuck.length === 0) return null;
+        return (
+          <div
+            className="card"
+            style={{ marginTop: 12, borderLeft: "3px solid var(--amber, #e0a33e)" }}
+          >
+            <b style={{ fontSize: 14 }}>수업이 끝났는데 늦귀가 과제가 남아 있어요</b>
+            <p className="hint" style={{ margin: "4px 0 8px" }}>
+              아직 안 갔거나, 처리를 못 하신 겁니다. <b>끝냈으면 완료로, 집에서 하게 하려면
+              숙제로 넘겨주세요.</b> 그래야 학생 화면도 하원으로 바뀝니다.
+            </p>
+            <div className="stack" style={{ gap: 3 }}>
+              {stuck.map((r) => (
+                <div className="unitrow" key={r.student.id}>
+                  <b style={{ fontSize: 13.5, minWidth: 62 }}>{r.student.name}</b>
+                  <span className="tag tag-amber">
+                    {(r.stay || []).filter((t) => t.status === "todo").length}개 남음
+                  </span>
+                  <span className="hint" style={{ flex: 1, fontSize: 12 }}>
+                    {(r.stay || [])
+                      .filter((t) => t.status === "todo")
+                      .map((t) => t.body)
+                      .join(", ")}
+                  </span>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setOpenId(r.student.id)}
+                  >
+                    열기
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 다 찍고 나면 바로 발송으로 — 매번 메뉴를 다시 찾아 들어가지 않게 */}
       {(() => {
         const all = groups.flatMap((g) => g.rows);

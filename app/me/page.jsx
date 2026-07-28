@@ -289,6 +289,8 @@ export default async function MePage({ searchParams }) {
   const stay = (stayQ.error ? [] : stayQ.data || []).filter(
     (t) => t.status === "todo" || t.status === "moved"
   );
+  // 아직 손 안 댄 늦귀가 과제 — 이게 남아 있으면 집에 간 게 아니다
+  const stayLeft = (stayQ.error ? [] : stayQ.data || []).filter((t) => t.status === "todo");
 
   // 오늘 등원 체크 — 학생이 직접 누른 것
   const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
@@ -311,8 +313,51 @@ export default async function MePage({ searchParams }) {
     .eq("date", todaySeoul())
     .maybeSingle();
   const attToday = attq.error ? null : attq.data?.status || null;
-  const atClass =
+  const cameToday =
     !!arrival.attend_at || ["present", "late", "makeup", "online"].includes(attToday);
+
+  // 오늘 이 학생 수업이 몇 시에 끝나나 — 하원했는지 판단하는 기준
+  const dowNow = ["일", "월", "화", "수", "목", "금", "토"][
+    new Date(`${todaySeoul()}T00:00:00Z`).getUTCDay()
+  ];
+  let classEnd = null;
+  {
+    const { data: mine } = await supabase
+      .from("class_students")
+      .select("class_id")
+      .eq("student_id", student.id);
+    const ids = (mine || []).map((m) => m.class_id);
+    if (ids.length) {
+      const { data: cls } = await supabase
+        .from("classes")
+        .select("days, end_time")
+        .in("id", ids);
+      (cls || [])
+        .filter((c) => (c.days || []).includes(dowNow) && c.end_time)
+        .forEach((c) => {
+          const t = c.end_time.slice(0, 5);
+          if (!classEnd || t > classEnd) classEnd = t;
+        });
+    }
+  }
+
+  /**
+   * 집에 갔는가.
+   *
+   * 두 가지가 **모두** 되어야 하원이다.
+   *   1. 수업 시간이 끝났고
+   *   2. 늦귀가 과제가 남아 있지 않다
+   *
+   * 남아서 채우고 갈 것이 있으면 수업이 끝나도 아직 학원이다.
+   * 그래서 하원 후 숙제를 펼치면 안 된다 — 그걸 붙잡고 있으면
+   * 정작 남아서 해야 할 것을 안 한다.
+   */
+  const nowHM = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit",
+  }).format(new Date());
+  const classOver = !classEnd || nowHM >= classEnd;
+  const wentHome = classOver && stayLeft.length === 0;
+  const atClass = cameToday && !wentHome;
 
   // 학원에서 열었나 — 아니면 등원 체크 버튼을 잠근다
   const nq = await supabase.from("academy_net").select("ip");
@@ -495,6 +540,7 @@ export default async function MePage({ searchParams }) {
           running={running}
           ready={timerReady}
           atClass={atClass}
+          stayLeft={stayLeft.length}
           readOnly={preview}
           asId={acting ? student.id : null}
           subs={subs}
