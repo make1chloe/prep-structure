@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
+import ServiceKeyBox from "./ServiceKeyBox";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
@@ -47,6 +48,11 @@ export default async function SqlPage() {
     .from("integrations")
     .select("config")
     .eq("id", "supabase_admin")
+    .maybeSingle();
+  const { data: svcRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "supabase_service")
     .maybeSingle();
   const missing = checks.filter((c) => !c.ok).map((c) => c.id);
 
@@ -169,6 +175,8 @@ export default async function SqlPage() {
           </p>
           <CopyBox sql={sql} empty={!sql} />
         </div>
+
+        <ServiceKeyBox saved={!!svcRow?.config?.key} />
 
         <StepBox steps={steps} missing={missing} />
       </main>

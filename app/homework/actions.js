@@ -57,6 +57,11 @@ export async function updateHomeworkItem(id, patch) {
   }
   if ("active" in (patch || {})) row.active = !!patch.active;
   if ("method" in (patch || {})) row.method = (patch.method || "").trim() || null;
+  // 체크리스트 — 한 줄에 하나. 비면 학생 화면에 버튼이 안 나온다
+  if ("checklist" in (patch || {})) {
+    row.checklist =
+      (patch.checklist || "").split("\n").map((t) => t.trim()).filter(Boolean).join("\n") || null;
+  }
   if ("prep_task" in (patch || {})) row.prep_task = (patch.prep_task || "").trim() || null;
   if ("no_timer" in (patch || {})) row.no_timer = !!patch.no_timer;
   if (!row.name && "name" in row) return { error: "이름은 비울 수 없어요." };
@@ -64,15 +69,19 @@ export async function updateHomeworkItem(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
   if (isMissingColumn(error)) {
-    // 0028 전이면 prep_task 없이, 그래도 안 되면 method 도 빼고
-    const { no_timer: _t, ...noTimer } = row;
+    // 0045 → 0033 → 0028 순으로 한 칸씩 물러난다
+    const { checklist: _c, ...noList } = row;
+    ({ error } = await supabase.from("homework_items").update(noList).eq("id", id));
+  }
+  if (isMissingColumn(error)) {
+    const { checklist: _c1, no_timer: _t, ...noTimer } = row;
     ({ error } = await supabase.from("homework_items").update(noTimer).eq("id", id));
     if (isMissingColumn(error)) {
       const { prep_task: _p, ...noPrep } = noTimer;
       ({ error } = await supabase.from("homework_items").update(noPrep).eq("id", id));
     }
     if (isMissingColumn(error)) {
-      const { method: _m, prep_task: _p2, ...rest } = noTimer;
+      const { method: _m, prep_task: _p2, checklist: _c2, ...rest } = noTimer;
       ({ error } = await supabase.from("homework_items").update(rest).eq("id", id));
     }
   }

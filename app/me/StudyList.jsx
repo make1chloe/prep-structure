@@ -143,6 +143,7 @@ export default function StudyList({
               asId={asId}
               readOnly={readOnly}
               mine={subs[now.reportItemId || now.itemId] || []}
+              checklist={now.checklist || []}
             />
           )}
         </div>

@@ -81,10 +81,16 @@ export async function submitFile(formData) {
   return { error: null };
 }
 
-/** 글로 낸다 */
-export async function submitText(itemId, reportItemId, body, asId = null) {
-  const text = (body || "").trim();
-  if (!text) return { error: "내용을 적어주세요." };
+/**
+ * 체크리스트로 낸다.
+ *
+ * 선생님이 숙제 항목마다 미리 적어둔 것을 아이가 하나씩 짚는다.
+ * 짚은 것만이 아니라 **안 짚은 것도 함께** 남긴다 — 뭘 못 했는지가
+ * 뭘 했는지만큼 중요하다.
+ */
+export async function submitChecklist(itemId, reportItemId, lines, asId = null) {
+  const list = (Array.isArray(lines) ? lines : []).filter((x) => x && x.text);
+  if (list.length === 0) return { error: "체크할 것이 없어요." };
 
   const supabase = createClient();
   const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
@@ -95,8 +101,8 @@ export async function submitText(itemId, reportItemId, body, asId = null) {
     date: todaySeoul(),
     homework_item_id: itemId || null,
     report_item_id: reportItemId || null,
-    kind: "text",
-    body: text,
+    kind: "checklist",
+    body: JSON.stringify(list),
   });
   if (needSql(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
   if (error) return { error: error.message };

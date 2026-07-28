@@ -19,13 +19,13 @@ export default async function HomeworkPage() {
 
   let { data: items, error } = await supabase
     .from("homework_items")
-    .select("id, name, category, sort, active, method, prep_task, no_timer")
+    .select("id, name, category, sort, active, method, prep_task, no_timer, checklist")
     .order("sort", { ascending: true });
   if (error) {
     // no_timer 컬럼이 아직 없는 DB (0033 전)
     ({ data: items, error } = await supabase
       .from("homework_items")
-      .select("id, name, category, sort, active, method, prep_task")
+      .select("id, name, category, sort, active, method, prep_task, no_timer")
       .order("sort", { ascending: true }));
   }
   if (error) {

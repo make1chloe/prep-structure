@@ -70,6 +70,7 @@ export default function HomeworkList({ items = [] }) {
       category: i.category || "",
       sort: i.sort ?? "",
       method: i.method || "",
+      checklist: i.checklist || "",
       prep_task: i.prep_task || "",
       no_timer: !!i.no_timer,
     });
@@ -244,6 +245,16 @@ export default function HomeworkList({ items = [] }) {
                           placeholder={"학생이 숙제를 눌렀을 때 볼 설명\n예) 1. 단어를 3번 쓰고 2. 뜻을 가리고 셀프테스트"}
                           value={draft.method}
                           onChange={(e) => setDraft({ ...draft, method: e.target.value })}
+                        />
+                        {/* 체크리스트 — 학생이 집에서 하나씩 짚고 낸다 */}
+                        <textarea
+                          className="input input-sm"
+                          rows={3}
+                          style={{ minWidth: 260, marginTop: 6, whiteSpace: "pre-wrap" }}
+                          placeholder={"체크리스트 (한 줄에 하나)\n예) 단어 3번 쓰기\n뜻 가리고 셀프테스트\n틀린 것 다시 쓰기"}
+                          title="비우면 학생 화면에 체크리스트 버튼이 안 나옵니다"
+                          value={draft.checklist}
+                          onChange={(e) => setDraft({ ...draft, checklist: e.target.value })}
                         />
                       </td>
                       <td>

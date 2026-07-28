@@ -2,27 +2,35 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { makeLinkCode, unlinkStudent, linkStatus } from "./linkActions";
+import { createStudentLogin, resetStudentPassword, accountStatus } from "./accountActions";
 
 /**
- * 학생에게 줄 연결 코드.
+ * 학생 아이디 · 비밀번호.
  *
- * 학생이 스스로 가입한 뒤 이 코드를 넣으면 그 계정이 이 학생에 붙는다.
- * 코드는 하루짜리고 한 번 쓰면 죽는다.
+ * 아이들은 이메일도 비밀번호도 잊어버린다. 그래서 학원이 준다.
+ *   아이디  chloe0001
+ *   비번    0000  → 처음 들어오면 학생이 바꾼다
+ * 또 잊으면 여기서 0000 으로 되돌린다.
  */
 export default function LinkBox({ studentId, name }) {
   const [st, setSt] = useState(null);
+  const [wantId, setWantId] = useState("");
+  const [made, setMade] = useState(null);      // 방금 만든 것 (한 번만 보여준다)
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => {
     let alive = true;
-    linkStatus(studentId).then((r) => alive && setSt(r));
+    accountStatus(studentId).then((r) => {
+      if (!alive) return;
+      setSt(r);
+      setWantId(r?.suggest || "");
+    });
     return () => { alive = false; };
   }, [studentId]);
 
   function reload() {
-    linkStatus(studentId).then(setSt);
+    accountStatus(studentId).then(setSt);
     router.refresh();
   }
 
@@ -33,66 +41,88 @@ export default function LinkBox({ studentId, name }) {
     <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <b style={{ fontSize: 13.5 }}>{name} 계정</b>
-        <span className={`tag ${st.linked ? "tag-mint" : "tag-muted"}`}>
-          {st.linked ? "연결됨" : "아직 없음"}
-        </span>
-        <span className="spacer" />
-        <button
-          className="btn btn-sm"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const r = await makeLinkCode(studentId);
-              if (r?.error) alert(r.error);
-              reload();
-            })
-          }
-        >
-          {st.code ? "코드 새로 뽑기" : "연결 코드 뽑기"}
-        </button>
-        {st.linked && (
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={pending}
-            onClick={() => {
-              if (!confirm(`${name} 학생의 계정 연결을 끊을까요?`)) return;
-              startTransition(async () => {
-                const r = await unlinkStudent(studentId);
-                if (r?.error) alert(r.error);
-                reload();
-              });
-            }}
-          >
-            연결 끊기
-          </button>
+        {st.linked ? (
+          <>
+            <span className="tag tag-mint">아이디 {st.loginId}</span>
+            {st.mustChange && (
+              <span className="tag tag-amber" title="학생이 처음 들어오면 비밀번호를 바꾸게 됩니다">
+                비번 0000
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="tag tag-muted">아직 없음</span>
         )}
       </div>
 
-      {st.code && (
-        <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
-          <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: 6, textAlign: "center" }}>
-            {st.code.code}
+      {!st.hasKey && (
+        <div className="notice" style={{ fontSize: 12.5 }}>
+          학생 계정을 만들려면 <b>설정 → Supabase SQL → 학생 계정 키</b> 에
+          service_role 키를 한 번 넣어주셔야 합니다.
+        </div>
+      )}
+
+      {!st.linked ? (
+        <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="hint" style={{ fontSize: 12 }}>아이디</span>
+          <input
+            className="input input-sm"
+            style={{ width: 160 }}
+            value={wantId}
+            onChange={(e) => setWantId(e.target.value.toLowerCase())}
+            placeholder="chloe0001"
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={pending || !st.hasKey}
+            onClick={() =>
+              startTransition(async () => {
+                const r = await createStudentLogin(studentId, wantId);
+                if (r?.error) { alert(r.error); return; }
+                setMade({ loginId: r.loginId, password: r.password });
+                reload();
+              })
+            }
+          >
+            계정 만들기
+          </button>
+        </div>
+      ) : (
+        <button
+          className="btn btn-sm"
+          style={{ alignSelf: "flex-start" }}
+          disabled={pending || !st.hasKey}
+          title="아이가 비밀번호를 잊었을 때"
+          onClick={() => {
+            if (!confirm(`${name} 학생의 비밀번호를 0000 으로 되돌릴까요?`)) return;
+            startTransition(async () => {
+              const r = await resetStudentPassword(studentId);
+              if (r?.error) { alert(r.error); return; }
+              setMade({ loginId: r.loginId, password: r.password });
+              reload();
+            });
+          }}
+        >
+          비밀번호 초기화 (0000)
+        </button>
+      )}
+
+      {made && (
+        <div className="card card-tight" style={{ background: "var(--surface-2)", textAlign: "center" }}>
+          <p className="hint" style={{ margin: 0, fontSize: 12 }}>학생에게 알려주세요</p>
+          <div style={{ fontSize: 19, fontWeight: 800, marginTop: 4 }}>
+            아이디 {made.loginId} · 비번 {made.password}
           </div>
-          <p className="hint" style={{ margin: "6px 0 0", textAlign: "center" }}>
-            {new Date(st.code.expires_at).toLocaleString("ko-KR", {
-              timeZone: "Asia/Seoul",
-              month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
-            })}{" "}
-            까지
+          <p className="hint" style={{ margin: "4px 0 0", fontSize: 12 }}>
+            처음 들어가면 비밀번호를 새로 정하게 됩니다.
           </p>
         </div>
       )}
 
-      <ol className="hint" style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, lineHeight: 1.7 }}>
-        <li>학생이 <b>/login</b> 에서 <b>처음이신가요? 가입하기</b> 로 이메일·비밀번호를 만든다</li>
-        <li>가입하면 코드 넣는 화면이 바로 나온다 — 위 6자리를 넣는다</li>
-        <li>넣는 순간 이 학생 화면으로 들어간다</li>
-      </ol>
-      {!st.linked && (
-        <p className="hint" style={{ margin: 0, fontSize: 12 }}>
-          로그인 없이 화면만 보시려면 <b>체험</b> 버튼을 쓰시면 됩니다 — 계정이 필요 없습니다.
-        </p>
-      )}
+      <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+        학생은 <b>/login</b> 에서 이 아이디와 비밀번호로 들어갑니다. 로그인 없이
+        화면만 보시려면 <b>체험</b> 버튼을 쓰시면 됩니다.
+      </p>
     </div>
   );
 }

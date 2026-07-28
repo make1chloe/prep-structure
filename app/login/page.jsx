@@ -12,7 +12,8 @@ export default function LoginPage() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  // 학생은 스스로 가입한 뒤, 선생님께 받은 연결 코드를 넣는다 (0043)
+  // 학생은 학원이 준 아이디로 들어온다 (chloe0001 · 처음엔 0000).
+  // 아이디에는 @ 가 없으므로 그것만 보고 갈라서 이메일로 바꿔준다.
   const [mode, setMode] = useState("in");   // in | up
 
   async function signIn(e) {
@@ -20,10 +21,27 @@ export default function LoginPage() {
     setErr("");
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    // 아이디로 들어왔으면 그 아이디의 이메일을 찾아 바꿔 넣는다
+    let id = email.trim();
+    if (id && !id.includes("@")) {
+      const { data } = await supabase.rpc("email_for_login_id", { p_login_id: id });
+      if (!data) {
+        setLoading(false);
+        setErr("아이디 또는 비밀번호가 맞지 않아요.");
+        return;
+      }
+      id = data;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email: id, password });
     setLoading(false);
     if (error) {
-      setErr(error.message || "로그인에 실패했습니다.");
+      setErr(
+        /invalid/i.test(error.message || "")
+          ? "아이디 또는 비밀번호가 맞지 않아요."
+          : error.message || "로그인에 실패했습니다."
+      );
       return;
     }
     router.push("/");
@@ -89,13 +107,15 @@ export default function LoginPage() {
 
         <form onSubmit={mode === "in" ? signIn : signUp} className="stack">
           <div className="field">
-            <label className="label">이메일</label>
+            <label className="label">{mode === "in" ? "아이디 또는 이메일" : "이메일"}</label>
             <input
               className="input"
-              type="email"
+              type={mode === "in" ? "text" : "email"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={mode === "in" ? "chloe0001" : "you@example.com"}
+              autoCapitalize="none"
+              autoCorrect="off"
               required
             />
           </div>
@@ -123,9 +143,14 @@ export default function LoginPage() {
         >
           {mode === "in" ? "처음이신가요? 가입하기" : "이미 계정이 있어요 · 로그인"}
         </button>
-        {mode === "up" && (
+        {mode === "in" ? (
           <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
-            가입한 뒤 <b>선생님께 받은 6자리 코드</b>를 넣으면 학생 화면으로 들어갑니다.
+            학생은 <b>선생님께 받은 아이디</b>로 들어오세요. 비밀번호를 잊었으면
+            선생님께 말씀드리면 됩니다.
+          </p>
+        ) : (
+          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+            선생님·학부모 계정용입니다. 학생은 가입하지 않아도 됩니다.
           </p>
         )}
 

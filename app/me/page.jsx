@@ -15,6 +15,7 @@ import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
+import ChangePw from "./ChangePw";
 import { longLabel as fmtLong, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
@@ -28,11 +29,16 @@ export default async function MePage({ searchParams }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
+  let { data: profile, error: profErr } = await supabase
     .from("profiles")
-    .select("id, name, role")
+    .select("id, name, role, must_change_pw")
     .eq("id", user.id)
     .single();
+  if (profErr) {
+    // 0045 전이면 비밀번호 깃발 없이
+    ({ data: profile } = await supabase
+      .from("profiles").select("id, name, role").eq("id", user.id).single());
+  }
 
   // 학생 본인 (학부모 계정이면 자녀 중 첫 명)
   let { data: student } = await supabase
@@ -83,6 +89,9 @@ export default async function MePage({ searchParams }) {
     profile?.role === "student" ? "student"
     : profile?.role === "parent" ? "parent"
     : "staff";
+
+  // 처음 들어왔거나 선생님이 되돌렸으면 비밀번호부터 정한다 (0000 인 채로 두면 안 된다)
+  if (profile?.must_change_pw && !isStaff) return <ChangePw name={student?.name} />;
 
   // 가입은 했는데 아직 어느 학생인지 모르는 계정 → 연결 코드를 받는다
   if (!student && !isStaff) return <LinkCode />;
@@ -160,7 +169,7 @@ export default async function MePage({ searchParams }) {
   // 숙제 항목 (학습 방법 포함)
   let { data: items, error: itemErr } = await supabase
     .from("homework_items")
-    .select("id, name, category, method, sort, no_timer, word_test");
+    .select("id, name, category, method, sort, no_timer, word_test, checklist");
   if (itemErr) {
     ({ data: items, error: itemErr } = await supabase
       .from("homework_items")
@@ -229,6 +238,8 @@ export default async function MePage({ searchParams }) {
       itemId: x.homework_item_id,
       name: item?.name || "숙제",
       method: item?.method || "",
+      checklist: (item?.checklist || "")
+        .split("\n").map((t) => t.trim()).filter(Boolean),
       units: idsOf(x).map((id) => unitLabel.get(id)).filter(Boolean),
       note: x.range_note || "",
       status: x.status,

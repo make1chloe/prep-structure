@@ -34,6 +34,8 @@ const CHECKS = [
   { id: "0042", label: "반별 출결 (특강)", table: "class_attendance", col: "status" },
   { id: "0043", label: "학생 계정 연결", table: "student_link_codes", col: "code" },
   { id: "0044", label: "숙제 제출", table: "homework_submissions", col: "kind" },
+  { id: "0045", label: "학생 아이디 로그인", table: "students", col: "login_id" },
+  { id: "0045", label: "체크리스트 숙제", table: "homework_items", col: "checklist" },
 ];
 
 export async function checkSchema() {

@@ -11,6 +11,16 @@ import { markSubmissionChecked } from "./submissionActions";
  * 버킷이 비공개라 주소만으로는 안 열린다. 누를 때 10분짜리 링크를
  * 새로 만들어 그 자리에서 연다.
  */
+/** 체크리스트는 글자로 담겨 온다 — 못 읽으면 조용히 빈 것으로 본다 */
+function parseList(body) {
+  try {
+    const v = JSON.parse(body || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function SubmissionList({ rows = [], items = [] }) {
   const [open, setOpen] = useState({});     // id → signed url
   const [pending, startTransition] = useTransition();
@@ -39,7 +49,7 @@ export default function SubmissionList({ rows = [], items = [] }) {
           <div key={r.id} className="stack" style={{ gap: 4 }}>
             <div className="unitrow">
               <span className={`tag ${r.checked_at ? "tag-muted" : "tag-amber"}`}>
-                {r.kind === "audio" ? "녹음" : r.kind === "text" ? "글" : "사진"}
+                {r.kind === "audio" ? "녹음" : r.kind === "checklist" ? "체크" : "사진"}
               </span>
               <b style={{ fontSize: 13 }}>{nameOf(r.homework_item_id)}</b>
               <span className="hint" style={{ fontSize: 11.5 }}>
@@ -50,7 +60,7 @@ export default function SubmissionList({ rows = [], items = [] }) {
                 })}
               </span>
               <span className="spacer" />
-              {r.kind !== "text" && (
+              {r.kind !== "checklist" && (
                 <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => show(r)}>
                   {open[r.id] ? "닫기" : r.kind === "audio" ? "들어보기" : "보기"}
                 </button>
@@ -72,10 +82,14 @@ export default function SubmissionList({ rows = [], items = [] }) {
               )}
             </div>
 
-            {r.kind === "text" && (
-              <p className="hint" style={{ margin: 0, fontSize: 12.5, whiteSpace: "pre-wrap" }}>
-                {r.body}
-              </p>
+            {r.kind === "checklist" && (
+              <div className="stack" style={{ gap: 2 }}>
+                {parseList(r.body).map((x, i) => (
+                  <span key={i} className="hint" style={{ fontSize: 12.5 }}>
+                    {x.done ? "☑" : "☐"} {x.text}
+                  </span>
+                ))}
+              </div>
             )}
             {open[r.id] && r.kind === "audio" && (
               <audio controls src={open[r.id]} style={{ width: "100%" }} />
