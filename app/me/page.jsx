@@ -6,6 +6,8 @@ import { score } from "@/lib/wordTest";
 import StudyTabs from "./StudyTabs";
 import ArrivalCard from "./ArrivalCard";
 import { trend, avgSeconds } from "@/lib/trend";
+import { headers } from "next/headers";
+import { pickIp, sameNet } from "@/lib/clientIp";
 import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
 import Comments from "@/app/comments/Comments";
@@ -234,6 +236,11 @@ export default async function MePage() {
     .eq("date", todaySeoul())
     .maybeSingle();
   const arrival = aq.error ? {} : aq.data || {};
+
+  // 학원에서 열었나 — 아니면 등원 체크 버튼을 잠근다
+  const nq = await supabase.from("academy_net").select("ip");
+  const allowedIps = (nq.error ? [] : nq.data || []).map((x) => x.ip);
+  const atAcademy = sameNet(pickIp(headers()), allowedIps);
   const wordWhen = todayRep?.word_when || student.word_when || "start";
 
   // ── 오늘 할 것 (순서대로) ────────────────────────────────
@@ -379,6 +386,7 @@ export default async function MePage() {
             attend: arrival.attend_at,
             homework: arrival.homework_at,
           }}
+          atAcademy={atAcademy}
         />
 
         <StudyTabs

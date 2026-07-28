@@ -29,6 +29,7 @@ const CHECKS = [
   { id: "0037", label: "단어시험 시점", table: "students", col: "word_when" },
   { id: "0038", label: "등원 체크 (학생이 누름)", table: "arrival_checks", col: "phone_at" },
   { id: "0039", label: "등원 체크 · 출석", table: "arrival_checks", col: "attend_at" },
+  { id: "0041", label: "학원에서만 등원 체크", table: "academy_net", col: "ip" },
 ];
 
 export async function checkSchema() {

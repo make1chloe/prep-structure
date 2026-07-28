@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import { todaySeoul } from "@/lib/day";
+import { pickIp, sameNet } from "@/lib/clientIp";
 
 /**
  * 등원 체크 — **학생이 누른다.**
@@ -26,6 +28,16 @@ export async function checkArrival(kind, on) {
     .eq("profile_id", user.id)
     .maybeSingle();
   if (!me?.id) return { error: "학생 계정으로 로그인해주세요." };
+
+  // 학원에서 누른 게 맞나 — 오는 길에 미리 누르는 것을 막는다.
+  // 등록된 주소가 없으면 안 막는다 (원장님이 안 켰다는 뜻이다).
+  if (on) {
+    const nq = await supabase.from("academy_net").select("ip");
+    const allowed = (nq.error ? [] : nq.data || []).map((x) => x.ip);
+    if (allowed.length > 0 && !sameNet(pickIp(headers()), allowed)) {
+      return { error: "학원에 도착해서 학원 와이파이에 연결한 뒤 눌러주세요." };
+    }
+  }
 
   const COLS = { phone: "phone_at", attend: "attend_at", homework: "homework_at" };
   const col = COLS[kind] || "phone_at";

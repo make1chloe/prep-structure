@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import TopBar from "@/components/TopBar";
 import SettingsForm from "./SettingsForm";
+import NetBox from "./NetBox";
 import { loadSettings, maskSecret } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,7 @@ export default async function SettingsPage() {
             </Link>
           </div>
         </div>
+        <NetBox />
         <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} />
       </main>
     </>

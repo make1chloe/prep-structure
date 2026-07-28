@@ -24,7 +24,7 @@ const STEPS = [
   { kind: "homework", label: "숙제 냈어요", ask: "숙제를 선생님께 내고 눌러주세요" },
 ];
 
-export default function ArrivalCard({ done = {} }) {
+export default function ArrivalCard({ done = {}, atAcademy = true }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -55,11 +55,16 @@ export default function ArrivalCard({ done = {} }) {
         </span>
       </div>
 
+      {!atAcademy && (
+        <div className="notice" style={{ margin: "10px 0 0", fontSize: 12.5 }}>
+          <b>학원 와이파이에 연결해주세요.</b> 학원에 도착해야 누를 수 있어요.
+        </div>
+      )}
       <p className="nowsub" style={{ margin: "10px 0 0" }}>{now.ask}</p>
       {now.note && (
         <p className="hint" style={{ margin: "4px 0 0", fontSize: 12 }}>{now.note}</p>
       )}
-      <button className="bigbtn" disabled={pending} onClick={() => tap(now.kind)}>
+      <button className="bigbtn" disabled={pending || !atAcademy} onClick={() => tap(now.kind)}>
         {now.label}
       </button>
 
