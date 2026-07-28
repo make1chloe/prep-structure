@@ -721,6 +721,11 @@ export default async function TodayPage({ searchParams }) {
           // 있으면 출결을 이 반에만 찍는다 (없으면 예전처럼 그날 출결)
           extraClassId: extra ? klass.id : null,
           className: klass.name,
+          // 특강 줄의 '완료' 는 그 반에서만 판단한다.
+          //   정규 리포트는 학생 하루에 한 장이라, 정규에서 기록을 끝내면
+          //   특강 줄까지 완료로 보여버린다 — 특강은 아직 아무것도 안 했는데도.
+          //   결석·보강이면 그 반에서 할 게 없으므로 완료로 본다.
+          rowDone: extra ? a?.status === "absent" || a?.status === "makeup" : null,
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
           stay: stayOf.get(s.id) || [],

@@ -100,7 +100,12 @@ export default function TodayBoard({
 
   // 완료 = 기록 저장까지 끝난 학생. 출결만 찍은 건 아직 '남은'으로 본다.
   // 완료 = 기록 저장까지 끝난 학생. 미리 연락받은 결석은 처리할 게 없으므로 완료로 본다.
-  const isDone = (r) => !!r.reportWritten || r.plannedAbsent;
+  // 특강 줄은 정규 리포트의 완료 표시를 따라가면 안 된다.
+  // 같은 학생이라도 정규에서 기록을 끝냈다고 특강까지 끝난 것은 아니다.
+  const isDone = (r) =>
+    r.rowDone !== null && r.rowDone !== undefined
+      ? r.rowDone
+      : !!r.reportWritten || r.plannedAbsent;
   const all = groups.flatMap((g) => g.rows);
   const counts = {
     todo: all.filter((r) => !isDone(r)).length,
@@ -245,6 +250,16 @@ export default function TodayBoard({
                                   {label}
                                 </button>
                               ))}
+                              <a
+                                className="btn btn-ghost btn-sm"
+                                href={`/me?s=${r.student.id}&try=1`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="이 학생인 척 학생 화면을 직접 눌러봅니다 (로그아웃 안 해도 됩니다)"
+                                style={{ padding: "3px 8px", fontSize: 11.5 }}
+                              >
+                                체험
+                              </a>
                               {ATT.slice(0, 3).map((a) => (
                                 <button
                                   key={a.key}
@@ -269,7 +284,12 @@ export default function TodayBoard({
 
                   {visible.length === 0 ? (
                     <p className="muted" style={{ margin: 0, padding: "10px 16px", fontSize: 13 }}>
-                      {filter === "todo" ? "이 반은 기록까지 모두 끝냈어요 👏" : "해당하는 학생이 없어요."}
+                      {filter !== "todo"
+                        ? "해당하는 학생이 없어요."
+                        : todo.length > 0
+                        // 아직 등원 체크를 안 했을 뿐이다. 끝난 게 아니다.
+                        ? `아직 등원 체크를 안 한 학생이 ${todo.length}명 있어요 — 위 등원 줄에서 찍어주세요.`
+                        : "이 반은 기록까지 모두 끝냈어요 👏"}
                     </p>
                   ) : (
                     visible.map((r) => {
