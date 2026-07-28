@@ -195,7 +195,7 @@ export default function HomeworkList({ items = [] }) {
               <th style={{ width: 70 }}>사용</th>
               <th style={{ minWidth: 220 }}>학습 방법 (학생에게 보여줄 설명)</th>
               <th style={{ minWidth: 150 }} title="쓸 수 있는 자리: {학생} {단원} {교재} {숙제}">내 할일 자동 생성</th>
-              <th style={{ width: 96 }} title="선생님을 기다려야 하는 항목은 학생 화면에서 타이머를 안 띄웁니다">타이머</th>
+              <th style={{ width: 96 }} title="선생님을 붙잡고 해야 하는 것(구두테스트·숙제 검사)만 끄세요. 혼자 하는 것은 켜 두면 시간이 쌓입니다">타이머</th>
               <th style={{ width: 86 }}></th>
             </tr>
           </thead>

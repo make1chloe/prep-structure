@@ -15,8 +15,10 @@ import { judge, tally, DEFAULT_RULE } from "../lib/warnings.js";
 import { score, passed } from "../lib/wordTest.js";
 import { summarize, buildMonthlyText } from "../lib/monthly.js";
 
+// 선생님을 기다려야 하는 것은 **구두테스트와 검사**뿐이다.
+// 단어시험은 학생이 혼자 본다 (0036 에서 바로잡음).
 const ITEMS = [
-  { id: "i1", name: "단어시험", sort: 100, no_timer: true },
+  { id: "i1", name: "단어시험", sort: 100, no_timer: false },
   { id: "i2", name: "숙제채점", sort: 150, no_timer: true },
   { id: "i3", name: "단원 설명 정독", sort: 200, no_timer: false },
   { id: "i4", name: "문답노트", sort: 250, no_timer: false },
@@ -174,13 +176,12 @@ if (avgWait > 15) {
   );
 }
 
-// 3) 검사 항목이 순서 맨 앞에 몰려 있나
-const firstTwo = ITEMS.slice(0, 2).filter((i) => i.no_timer).length;
-if (firstTwo === 2) {
+// 3) 선생님을 기다려야 하는 것이 순서 앞쪽에 몰려 있나
+const front = ITEMS.slice(0, 3).filter((i) => i.no_timer);
+if (front.length >= 2) {
   problems.push(
-    `순서 맨 앞 두 개(단어시험·숙제채점)가 모두 '선생님과 함께' 입니다.\n` +
-    `   → 등원하자마자 전원이 동시에 선생님을 기다립니다. 시작부터 병목입니다.\n` +
-    `   → 혼자 할 수 있는 것(단원 설명 정독)을 맨 앞에 두면 아이들이 흩어집니다.`
+    `순서 앞쪽 셋 중 ${front.length}개가 '선생님과 함께' 입니다 (${front.map((i) => i.name).join(", ")}).\n` +
+    `   → 등원 직후에 기다림이 몰립니다. 혼자 할 수 있는 것을 앞에 두면 흩어집니다.`
   );
 }
 

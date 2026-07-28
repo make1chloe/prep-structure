@@ -14,11 +14,12 @@ alter table public.homework_items
 comment on column public.homework_items.no_timer is
   '선생님 확인이 필요해 기다릴 수 있는 항목. 학생 화면에서 타이머를 안 띄운다';
 
--- 처음 쓰는 사람이 바로 쓸 수 있게, 기다리는 게 뻔한 것들은 켜 둔다
+-- 처음 쓰는 사람이 바로 쓸 수 있게, 기다리는 게 뻔한 것들은 켜 둔다.
+-- (단어시험은 학생이 혼자 보므로 뺀다 — 0036 에서 바로잡았다)
 update public.homework_items
    set no_timer = true
  where no_timer = false
-   and (name like '%시험%' or name like '%검사%' or name like '%채점%' or name like '%상담%');
+   and (name like '%구두%' or name like '%검사%' or name like '%채점%' or name like '%상담%');
 
 
 -- ------------------------------------------------------------
