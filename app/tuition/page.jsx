@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import TuitionBoard from "./TuitionBoard";
 import { classSessions, studentAmount, monthRange } from "@/lib/tuition";
 import { loadSettings } from "@/lib/settings";
+import { overlaps, isExtra } from "@/lib/classTerm";
 import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
@@ -23,17 +24,28 @@ export default async function TuitionPage({ searchParams }) {
   const { first, last } = monthRange(ym);
 
   // 반 (수강료 컬럼이 없으면 기본 조회)
+  const BASE = "id, name, days, start_time, category, tuition, base_sessions";
+  const TERM = "starts_on, ends_on, archived_at";
   let { data: classes, error: clsErr } = await supabase
     .from("classes")
-    .select("id, name, days, start_time, tuition, base_sessions")
+    .select(`${BASE}, ${TERM}`)
     .order("start_time", { ascending: true });
   const ready = !clsErr;
   if (clsErr) {
-    ({ data: classes } = await supabase
+    // 기간 칸이 없는 DB → 기간 없이, 그것도 안 되면 최소 칸만
+    ({ data: classes, error: clsErr } = await supabase
       .from("classes")
-      .select("id, name, days, start_time")
+      .select(BASE)
       .order("start_time", { ascending: true }));
+    if (clsErr) {
+      ({ data: classes } = await supabase
+        .from("classes")
+        .select("id, name, days, start_time")
+        .order("start_time", { ascending: true }));
+    }
   }
+  // 이 달에 하루도 안 굴러간 반은 청구할 것이 없다 (지난 특강 · 아직 개강 전)
+  classes = (classes || []).filter((c) => overlaps(c, first, last));
 
   const { data: holidays } = await supabase
     .from("holidays")
@@ -58,6 +70,30 @@ export default async function TuitionPage({ searchParams }) {
     .filter((a) => a.status === "absent" && !doneMakeup.has(`${a.student_id}|${a.date}`))
     .forEach((a) => {
       absentOf.set(a.student_id, [...(absentOf.get(a.student_id) || []), a.date]);
+    });
+
+  // 특강 결석은 반별 출결에서 센다.
+  //   정규는 왔는데 특강만 빠지는 날이 있고, 그 반의 보강·차액은 그 반에만
+  //   걸려야 한다. 예전처럼 하루 출결 하나로 세면 정규까지 같이 결석 처리된다.
+  const { data: clsAtt } = await supabase
+    .from("class_attendance")
+    .select("class_id, student_id, date, status, makeup_of")
+    .gte("date", first)
+    .lte("date", last);
+  const clsMakeup = new Set(
+    (clsAtt || [])
+      .filter((a) => a.status === "makeup" && a.makeup_of)
+      .map((a) => `${a.class_id}|${a.student_id}|${a.makeup_of}`)
+  );
+  const extraAbsentOf = new Map();
+  (clsAtt || [])
+    .filter(
+      (a) =>
+        a.status === "absent" && !clsMakeup.has(`${a.class_id}|${a.student_id}|${a.date}`)
+    )
+    .forEach((a) => {
+      const k = `${a.class_id}|${a.student_id}`;
+      extraAbsentOf.set(k, [...(extraAbsentOf.get(k) || []), a.date]);
     });
 
   const { data: members } = await supabase
@@ -90,7 +126,11 @@ export default async function TuitionPage({ searchParams }) {
       .filter(Boolean)
       .map((s) => {
         const unit = s.tuition || klass.tuition || null;
-        const calc = studentAmount(live, base, unit, s, all, absentOf.get(s.id) || []);
+        // 특강은 그 반 출결만, 정규반은 그날 출결을 본다
+        const absent = isExtra(klass)
+          ? extraAbsentOf.get(`${klass.id}|${s.id}`) || []
+          : absentOf.get(s.id) || [];
+        const calc = studentAmount(live, base, unit, s, all, absent);
         return { student: s, ...calc };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));

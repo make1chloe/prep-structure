@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
+import { setClassAttendance } from "./classAttendance";
 import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
@@ -342,8 +343,23 @@ export default function StudentPanel({
 
   function save() {
     startTransition(async () => {
+      // 특강이면 출결은 그 반에만 남긴다.
+      // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
+      if (row.extraClassId && form.attendance) {
+        const a = await setClassAttendance(
+          row.extraClassId,
+          row.student.id,
+          date,
+          form.attendance
+        );
+        if (a?.error) {
+          alert(a.error);
+          return;
+        }
+      }
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
+        attendance: row.extraClassId ? null : form.attendance,
         items: marks,
         inClass: [...inClass],
         toCheck,
@@ -389,7 +405,7 @@ export default function StudentPanel({
       {/* 출결 */}
       <div className="prow">
         <span className="plabel">출결</span>
-        <div className="row" style={{ gap: 4 }}>
+        <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
           {ATT.map((a) => (
             <button
               key={a.key}
@@ -399,6 +415,12 @@ export default function StudentPanel({
               {a.label}
             </button>
           ))}
+          {/* 특강은 이 반 것만 바뀐다 — 정규 출결은 그대로다 */}
+          {row.extraClassId && (
+            <span className="hint" style={{ fontSize: 12 }}>
+              {row.className} 출결만 바뀝니다 (정규 출결은 그대로)
+            </span>
+          )}
         </div>
       </div>
 

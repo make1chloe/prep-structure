@@ -34,12 +34,15 @@ export async function addClass(formData) {
     room: clean(formData, "room"),
     capacity: num(formData, "capacity") ?? 5,
     school_level: clean(formData, "school_level"),
+    starts_on: clean(formData, "starts_on"),
+    ends_on: clean(formData, "ends_on"),
   };
 
   const supabase = createClient();
   let { data, error } = await supabase.from("classes").insert(row).select("id").single();
   if (isMissingColumn(error)) {
-    const { school_level, ...rest } = row;
+    // 0042·초중고 전 DB 에서도 반은 만들어져야 한다
+    const { school_level, starts_on, ends_on, ...rest } = row;
     ({ data, error } = await supabase.from("classes").insert(rest).select("id").single());
   }
   revalidatePath("/classes");
@@ -51,7 +54,10 @@ export async function addClass(formData) {
 export async function updateClass(id, patch) {
   if (!id) return { error: "id 없음" };
   const row = {};
-  const strs = ["name", "start_time", "end_time", "level", "category", "room", "school_level"];
+  const strs = [
+    "name", "start_time", "end_time", "level", "category", "room", "school_level",
+    "starts_on", "ends_on",
+  ];
   strs.forEach((k) => {
     if (k in (patch || {})) row[k] = (patch[k] || "").toString().trim() || null;
   });
@@ -64,11 +70,34 @@ export async function updateClass(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("classes").update(row).eq("id", id);
   if (isMissingColumn(error)) {
-    const { school_level, ...rest } = row;
+    const { school_level, starts_on, ends_on, ...rest } = row;
     ({ error } = await supabase.from("classes").update(rest).eq("id", id));
   }
   revalidatePath("/classes");
   revalidatePath("/today");
+  return { error: error ? error.message : null };
+}
+
+/**
+ * 손으로 보관하거나 되살린다.
+ *
+ * 대개는 종강일만 넣어두면 알아서 내려가므로 이 버튼을 쓸 일은 없다.
+ * 기한 없이 흐지부지 끝난 반을 위한 길이다.
+ *
+ * 지우는 것이 **아니다.** 그 반의 리포트·출결·수강료 기록은 그대로 남고
+ * 화면에서만 내려간다.
+ */
+export async function archiveClass(id, on = true) {
+  if (!id) return { error: "반이 없어요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("classes")
+    .update({ archived_at: on ? new Date().toISOString() : null })
+    .eq("id", id);
+  if (isMissingColumn(error)) return { error: "0042 SQL 을 먼저 실행해주세요." };
+  revalidatePath("/classes");
+  revalidatePath("/today");
+  revalidatePath("/tuition");
   return { error: error ? error.message : null };
 }
 

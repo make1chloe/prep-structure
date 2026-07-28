@@ -5,6 +5,7 @@ import TopNotices from "./TopNotices";
 import MonthlyReset from "./MonthlyReset";
 import { dowOf, longLabel, todaySeoul, addDays } from "@/lib/day";
 import { tally, resetDoneIn, DEFAULT_RULE } from "@/lib/warnings";
+import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +31,15 @@ export default async function TodayPage({ searchParams }) {
   const dow = dowOf(date);
 
   // 오늘 요일에 수업이 있는 반
-  const { data: allClasses } = await supabase
-    .from("classes")
-    .select("id, name, days, start_time, end_time, room, level, category")
-    .order("start_time", { ascending: true });
-  const classes = (allClasses || []).filter((c) => (c.days || []).includes(dow));
+  // (끝난 특강은 여기서 이미 빠진다 — 종강일이 지나면 오늘 수업에 안 뜬다)
+  const allClasses = await loadRunningClasses(
+    supabase,
+    "id, name, days, start_time, end_time, room, level, category",
+    date
+  );
+  const classes = allClasses
+    .filter((c) => (c.days || []).includes(dow))
+    .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
   // 반 배정 + 학생
   const { data: members } = await supabase
@@ -63,6 +68,12 @@ export default async function TodayPage({ searchParams }) {
       .select("student_id, status, makeup_of")
       .eq("date", date));
   }
+
+  // 오늘 특강 출결 (0042 전이면 빈 배열 — 예전처럼 하루 출결만 쓴다)
+  const { data: clsAtt } = await supabase
+    .from("class_attendance")
+    .select("class_id, student_id, status, makeup_of, note")
+    .eq("date", date);
 
   // 오늘 리포트 + 숙제 항목 마스터 + 지난 진도
   let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
@@ -666,11 +677,17 @@ export default async function TodayPage({ searchParams }) {
 
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
+  // 특강 출결은 반별로 따로 (정규는 왔는데 특강만 빠지는 날이 있다)
+  const clsAttById = new Map(
+    (clsAtt || []).map((a) => [`${a.class_id}|${a.student_id}`, a])
+  );
   const memberIds = new Set();
 
   const booksOfClass = booksOfClassEarly;
 
   const groups = classes.map((klass) => {
+    // 특강은 그 반에 들어왔는지를 따로 찍는다 (결석·보강·수강료가 반마다 따로다)
+    const extra = isExtra(klass);
     const ids = (members || [])
       .filter((m) => m.class_id === klass.id)
       .map((m) => m.student_id);
@@ -679,7 +696,7 @@ export default async function TodayPage({ searchParams }) {
       .filter(Boolean)
       .map((s) => {
         memberIds.add(s.id);
-        const a = attById.get(s.id);
+        const a = extra ? clsAttById.get(`${klass.id}|${s.id}`) : attById.get(s.id);
         const rep = reportByStudent.get(s.id) || null;
         return {
           student: s,
@@ -701,6 +718,9 @@ export default async function TodayPage({ searchParams }) {
           notices: noticesOfStudent.get(s.id) || [],
           books: progressOf(s.id, klass.id),
           classId: klass.id,
+          // 있으면 출결을 이 반에만 찍는다 (없으면 예전처럼 그날 출결)
+          extraClassId: extra ? klass.id : null,
+          className: klass.name,
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
           stay: stayOf.get(s.id) || [],

@@ -7,6 +7,8 @@ const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 export default function AddClassForm() {
   const [open, setOpen] = useState(false);
+  // 특강은 끝나는 날이 있다. 정규반은 없다 — 그래서 분류에 따라 기간 칸을 낸다.
+  const [category, setCategory] = useState("정규반");
 
   if (!open) {
     return (
@@ -51,7 +53,12 @@ export default function AddClassForm() {
           </div>
           <div className="field">
             <label className="label">분류</label>
-            <select className="input input-sm" name="category" defaultValue="정규반">
+            <select
+              className="input input-sm"
+              name="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
               <option value="정규반">정규반</option>
               <option value="특강">특강</option>
             </select>
@@ -82,6 +89,25 @@ export default function AddClassForm() {
             <input className="input input-sm" name="capacity" inputMode="numeric" placeholder="5" />
           </div>
         </div>
+
+        {/* 특강 기간 — 종강일만 넣어두면 그날 지나서 알아서 내려간다 */}
+        {category !== "정규반" && (
+          <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div className="field">
+              <label className="label">개강일</label>
+              <input className="input input-sm" name="starts_on" type="date" />
+            </div>
+            <div className="field">
+              <label className="label">종강일</label>
+              <input className="input input-sm" name="ends_on" type="date" />
+            </div>
+            <p className="hint" style={{ fontSize: 12, margin: "0 0 6px" }}>
+              종강일이 지나면 반 목록·오늘 수업·수강료에서 자동으로 내려갑니다.
+              기록은 그대로 남습니다.
+            </p>
+          </div>
+        )}
+
         <button className="btn btn-primary btn-sm" type="submit" style={{ alignSelf: "flex-start" }}>
           저장
         </button>

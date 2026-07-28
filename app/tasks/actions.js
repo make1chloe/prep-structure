@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf } from "@/lib/day";
+import { loadRunningClasses } from "@/lib/classTerm";
 
 
 function ok(error) {
@@ -128,8 +129,8 @@ export async function applyTaskDelivery(taskId, date) {
 
   // 그날 수업 오는 학생 (오늘 수업 화면과 같은 기준)
   const dow = dowOf(on);
-  const { data: classes } = await supabase.from("classes").select("id, days");
-  const classIds = (classes || []).filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
+  const classes = await loadRunningClasses(supabase, "id, days", on);
+  const classIds = classes.filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
   const { data: members } = classIds.length
     ? await supabase.from("class_students").select("class_id, student_id").in("class_id", classIds)
     : { data: [] };
@@ -209,8 +210,8 @@ export async function applyTaskNotice(taskId, date) {
 
   // 그날 수업 오는 학생 (위 전달사항 만들기와 같은 기준)
   const dow = dowOf(on);
-  const { data: classes } = await supabase.from("classes").select("id, days");
-  const classIds = (classes || []).filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
+  const classes = await loadRunningClasses(supabase, "id, days", on);
+  const classIds = classes.filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
   const { data: members } = classIds.length
     ? await supabase.from("class_students").select("student_id").in("class_id", classIds)
     : { data: [] };
@@ -254,12 +255,12 @@ export async function applyTaskAbsence(taskId) {
   const reason = task.absence_reason || task.title;
 
   // 기간 안에서 그 학생이 실제로 수업 있는 날만
-  const { data: classes } = await supabase.from("classes").select("id, days");
+  const classes = await loadRunningClasses(supabase, "id, days", from);
   const { data: members } = await supabase
     .from("class_students")
     .select("class_id, student_id")
     .in("student_id", ids);
-  const daysOf = new Map((classes || []).map((c) => [c.id, c.days || []]));
+  const daysOf = new Map(classes.map((c) => [c.id, c.days || []]));
 
   const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
   const rows = [];

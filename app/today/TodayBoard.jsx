@@ -8,6 +8,7 @@ import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import CheckQueue from "./CheckQueue";
 import { setArrivalFor } from "./arrivalActions";
+import { setClassAttendance } from "./classAttendance";
 
 
 const ATT = [
@@ -48,15 +49,27 @@ export default function TodayBoard({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  function mark(studentId, status) {
+  // 특강이면 그 반 출결에만 찍는다. 정규는 예전 그대로 그날 출결에 찍는다.
+  function mark(studentId, status, extraClassId = null) {
     startTransition(async () => {
-      const res = await setAttendance(studentId, date, status);
+      const res = extraClassId
+        ? await setClassAttendance(extraClassId, studentId, date, status)
+        : await setAttendance(studentId, date, status);
       if (res?.error) alert(res.error);
       router.refresh();
     });
   }
   // 결석 예정 학생의 리포트를 만들어 둔다 → 발송 목록에 '결석 안내'로 뜬다
-  function markAbsent(studentId, reason) {
+  function markAbsent(studentId, reason, extraClassId = null) {
+    // 특강 결석은 그 반에만 남긴다 — 정규까지 결석 처리되면 수강료가 틀린다
+    if (extraClassId) {
+      startTransition(async () => {
+        const res = await setClassAttendance(extraClassId, studentId, date, "absent");
+        if (res?.error) alert(res.error);
+        router.refresh();
+      });
+      return;
+    }
     startTransition(async () => {
       const res = await saveStudentDay(studentId, date, {
         attendance: "absent",
@@ -77,9 +90,10 @@ export default function TodayBoard({
       router.refresh();
     });
   }
-  function undo(studentId) {
+  function undo(studentId, extraClassId = null) {
     startTransition(async () => {
-      await clearAttendance(studentId, date);
+      if (extraClassId) await setClassAttendance(extraClassId, studentId, date, null);
+      else await clearAttendance(studentId, date);
       router.refresh();
     });
   }
@@ -148,6 +162,15 @@ export default function TodayBoard({
                 <span style={{ fontWeight: 800 }}>
                   {opened ? "▾" : "▸"} {cut(klass.start_time)}
                   {klass.end_time ? `-${cut(klass.end_time)}` : ""} {klass.name}
+                  {klass.category && klass.category !== "정규반" && (
+                    <span
+                      className="tag tag-lav"
+                      style={{ marginLeft: 6, fontSize: 11 }}
+                      title="이 반의 출결은 따로 셉니다 — 정규 출결은 바뀌지 않습니다"
+                    >
+                      {klass.category}
+                    </span>
+                  )}
                 </span>
                 <span className="muted" style={{ fontSize: 12.5 }}>
                   {[klass.room, klass.level].filter(Boolean).join(" · ")}
@@ -172,7 +195,9 @@ export default function TodayBoard({
                           <button
                             className="btn btn-sm"
                             disabled={pending}
-                            onClick={() => notYet.forEach((r) => mark(r.student.id, "present"))}
+                            onClick={() =>
+                              notYet.forEach((r) => mark(r.student.id, "present", r.extraClassId))
+                            }
                             title="온 학생을 한 번에 정시로"
                           >
                             전부 정시
@@ -228,8 +253,8 @@ export default function TodayBoard({
                                   style={{ padding: "3px 10px" }}
                                   onClick={() =>
                                     a.key === "absent"
-                                      ? markAbsent(r.student.id, r.absenceReason)
-                                      : mark(r.student.id, a.key)
+                                      ? markAbsent(r.student.id, r.absenceReason, r.extraClassId)
+                                      : mark(r.student.id, a.key, r.extraClassId)
                                   }
                                 >
                                   {a.label}
@@ -280,7 +305,7 @@ export default function TodayBoard({
                                 title="결석 안내를 보낼 수 있도록 기록을 만들어 둡니다"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  markAbsent(r.student.id, r.absenceReason);
+                                  markAbsent(r.student.id, r.absenceReason, r.extraClassId);
                                 }}
                               >
                                 결석 기록
@@ -322,7 +347,7 @@ export default function TodayBoard({
                             ) : (
                               <span
                                 className="btn btn-ghost btn-sm"
-                                onClick={(e) => { e.stopPropagation(); mark(r.student.id, "present"); }}
+                                onClick={(e) => { e.stopPropagation(); mark(r.student.id, "present", r.extraClassId); }}
                               >
                                 등원
                               </span>
@@ -424,7 +449,7 @@ export default function TodayBoard({
                             </button>
                             <button
                               className="btn btn-ghost btn-sm"
-                              onClick={() => undo(r.student.id)}
+                              onClick={() => undo(r.student.id, r.extraClassId)}
                               disabled={pending}
                             >
                               출결 취소

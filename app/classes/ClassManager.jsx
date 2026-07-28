@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateClass, deleteClasses, setClassStudents } from "./actions";
+import { updateClass, deleteClasses, setClassStudents, archiveClass } from "./actions";
 import { setClassTextbooks } from "@/app/progress/actions";
+import { isArchived, termLabel } from "@/lib/classTerm";
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -20,7 +21,9 @@ export default function ClassManager({
   textbooks = [],
   classBooks = [],
   selectedId,
+  today,
 }) {
+  const [showPast, setShowPast] = useState(false);
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -62,9 +65,24 @@ export default function ClassManager({
     next.has(id) ? next.delete(id) : next.add(id);
     setSel(next);
   }
-  const allClassesChecked = classes.length > 0 && classes.every((c) => sel.has(c.id));
+  // 끝난 특강은 아래로 접는다. 지금 열어둔 반은 끝났어도 계속 보인다.
+  const pastList = classes.filter((c) => isArchived(c, today) && c.id !== selectedId);
+  const pastIds = new Set(pastList.map((c) => c.id));
+  const liveList = classes.filter((c) => !pastIds.has(c.id));
+  const shown = showPast ? [...liveList, ...pastList] : liveList;
+
+  const allClassesChecked = liveList.length > 0 && liveList.every((c) => sel.has(c.id));
   function toggleAllClasses() {
-    setSel(allClassesChecked ? new Set() : new Set(classes.map((c) => c.id)));
+    setSel(allClassesChecked ? new Set() : new Set(liveList.map((c) => c.id)));
+  }
+
+  function runArchive(c) {
+    const on = !c.archived_at;
+    startTransition(async () => {
+      const res = await archiveClass(c.id, on);
+      if (res?.error) alert(res.error);
+      router.refresh();
+    });
   }
 
   function startEdit(c) {
@@ -79,6 +97,8 @@ export default function ClassManager({
       school_level: c.school_level || "",
       room: c.room || "",
       capacity: c.capacity ?? 5,
+      starts_on: c.starts_on || "",
+      ends_on: c.ends_on || "",
     });
   }
 
@@ -171,7 +191,7 @@ export default function ClassManager({
             />
             반 목록{" "}
             <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
-              {classes.length}개
+              {liveList.length}개
             </span>
           </h2>
         </div>
@@ -195,7 +215,7 @@ export default function ClassManager({
         ) : (
           <table className="tbl" style={{ marginTop: 10 }}>
             <tbody>
-              {classes.map((c) => {
+              {shown.map((c) => {
                 const editing = editId === c.id;
                 const count = members.filter((m) => m.class_id === c.id).length;
                 if (editing) {
@@ -280,6 +300,28 @@ export default function ClassManager({
                               onChange={(e) => setDraft({ ...draft, capacity: e.target.value })}
                             />
                           </div>
+                          {/* 기간 — 종강일을 넣으면 그날 지나서 알아서 내려간다 */}
+                          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                            <span className="hint" style={{ fontSize: 12 }}>기간</span>
+                            <input
+                              className="input input-sm"
+                              type="date"
+                              style={{ width: 148 }}
+                              value={draft.starts_on || ""}
+                              onChange={(e) => setDraft({ ...draft, starts_on: e.target.value })}
+                            />
+                            <span className="muted" style={{ fontSize: 12 }}>~</span>
+                            <input
+                              className="input input-sm"
+                              type="date"
+                              style={{ width: 148 }}
+                              value={draft.ends_on || ""}
+                              onChange={(e) => setDraft({ ...draft, ends_on: e.target.value })}
+                            />
+                            <span className="hint" style={{ fontSize: 11.5 }}>
+                              정규반은 비워두세요 (무기한)
+                            </span>
+                          </div>
                           <div className="row" style={{ gap: 6 }}>
                             <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
                               저장
@@ -293,10 +335,15 @@ export default function ClassManager({
                     </tr>
                   );
                 }
+                const term = termLabel(c, today);
+                const done = isArchived(c, today);
                 return (
                   <tr
                     key={c.id}
-                    style={c.id === selectedId ? { background: "var(--surface-2)" } : undefined}
+                    style={{
+                      ...(c.id === selectedId ? { background: "var(--surface-2)" } : null),
+                      ...(done ? { opacity: 0.55 } : null),
+                    }}
                   >
                     <td style={{ width: 30 }}>
                       <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggleOne(c.id)} />
@@ -308,6 +355,14 @@ export default function ClassManager({
                       >
                         {c.name}
                       </a>
+                      {term && (
+                        <span
+                          className={`tag ${term.tone === "amber" ? "tag-amber" : ""}`}
+                          style={{ marginLeft: 6, fontSize: 11 }}
+                        >
+                          {term.text}
+                        </span>
+                      )}
                       <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
                         {[
                           (c.days || []).join("·"),
@@ -331,12 +386,34 @@ export default function ClassManager({
                       >
                         수정
                       </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ marginLeft: 2 }}
+                        disabled={pending}
+                        title={
+                          c.archived_at
+                            ? "다시 목록에 올립니다"
+                            : "목록에서만 내립니다. 기록은 그대로 남습니다."
+                        }
+                        onClick={() => runArchive(c)}
+                      >
+                        {c.archived_at ? "되살리기" : "보관"}
+                      </button>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        )}
+
+        {/* 끝난 특강 — 지우지 않고 접어둔다 */}
+        {pastList.length > 0 && (
+          <div style={{ padding: "8px 16px 14px" }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowPast(!showPast)}>
+              {showPast ? "지난 특강 접기" : `지난 특강 ${pastList.length}개 보기`}
+            </button>
+          </div>
         )}
       </div>
 

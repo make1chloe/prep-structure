@@ -30,6 +30,8 @@ const CHECKS = [
   { id: "0038", label: "등원 체크 (학생이 누름)", table: "arrival_checks", col: "phone_at" },
   { id: "0039", label: "등원 체크 · 출석", table: "arrival_checks", col: "attend_at" },
   { id: "0041", label: "학원에서만 등원 체크", table: "academy_net", col: "ip" },
+  { id: "0042", label: "특강 기한", table: "classes", col: "ends_on" },
+  { id: "0042", label: "반별 출결 (특강)", table: "class_attendance", col: "status" },
 ];
 
 export async function checkSchema() {
