@@ -555,7 +555,7 @@ export default async function TodayPage({ searchParams }) {
     const q = studentIds.length
       ? await supabase
           .from("arrival_checks")
-          .select("student_id, phone_at, homework_at")
+          .select("student_id, phone_at, attend_at, homework_at")
           .eq("date", date)
           .in("student_id", studentIds)
       : { data: [] };
@@ -707,6 +707,7 @@ export default async function TodayPage({ searchParams }) {
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
           phoneAt: arrivalOf.get(s.id)?.phone_at || null,
+          attendAt: arrivalOf.get(s.id)?.attend_at || null,
           homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
           wordWhen: rep?.word_when || s.word_when || "start",
           exams: examOf.get(s.id) || [],
@@ -754,6 +755,7 @@ export default async function TodayPage({ searchParams }) {
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
         phoneAt: arrivalOf.get(s.id)?.phone_at || null,
+        attendAt: arrivalOf.get(s.id)?.attend_at || null,
         homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
         wordWhen: rep?.word_when || s.word_when || "start",
         exams: examOf.get(s.id) || [],

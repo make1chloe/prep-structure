@@ -7,9 +7,11 @@ import { todaySeoul } from "@/lib/day";
 /**
  * 등원 체크 — **학생이 누른다.**
  *
- * 들어와서 폰 내고 숙제 내는 건 아이 몫이다.
- * 선생님은 오늘 수업 화면에서 다 냈는지 보기만 하면 된다.
- * (출석 체크는 외부 앱에서 하므로 여기서는 다루지 않는다)
+ * 들어와서 폰 내고, 출석 체크하고, 숙제 내는 건 아이 몫이다.
+ * 선생님은 오늘 수업 화면에서 다 했는지 보기만 하면 된다.
+ *
+ * 출석 자체는 외부 앱에서 한다. 여기서는 **했는지 짚어줄 뿐**이다 —
+ * 아이들이 자꾸 잊어버리기 때문이다.
  */
 export async function checkArrival(kind, on) {
   const supabase = createClient();
@@ -25,7 +27,8 @@ export async function checkArrival(kind, on) {
     .maybeSingle();
   if (!me?.id) return { error: "학생 계정으로 로그인해주세요." };
 
-  const col = kind === "homework" ? "homework_at" : "phone_at";
+  const COLS = { phone: "phone_at", attend: "attend_at", homework: "homework_at" };
+  const col = COLS[kind] || "phone_at";
   const { error } = await supabase.from("arrival_checks").upsert(
     {
       student_id: me.id,

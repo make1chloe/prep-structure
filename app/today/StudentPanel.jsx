@@ -869,6 +869,7 @@ export default function StudentPanel({
         <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
           {[
             ["핸드폰", row.phoneAt],
+            ["출석", row.attendAt],
             ["숙제", row.homeworkAt],
           ].map(([label, at]) => (
             <span key={label} className={`tag ${at ? "tag-mint" : "tag-muted"}`}>

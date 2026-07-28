@@ -165,7 +165,7 @@ export default function TodayBoard({
                         <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
                           <b style={{ fontSize: 13 }}>등원</b>
                           <span className="hint" style={{ flex: 1 }}>
-                            폰·숙제는 <b>학생이 직접</b> 누릅니다. 출결을 찍으면 아래에 펼쳐집니다 —{" "}
+                            폰·출석·숙제는 <b>학생이 직접</b> 누릅니다. 출결을 찍으면 아래에 펼쳐집니다 —{" "}
                             {notYet.length}명 남음
                           </span>
                           <button
@@ -190,6 +190,7 @@ export default function TodayBoard({
                               <span className="spacer" />
                               {[
                                 ["폰", r.phoneAt],
+                                ["출석", r.attendAt],
                                 ["숙제", r.homeworkAt],
                               ].map(([label, at]) => (
                                 <span

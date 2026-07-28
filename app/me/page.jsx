@@ -229,7 +229,7 @@ export default async function MePage() {
   const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
   const aq = await supabase
     .from("arrival_checks")
-    .select("phone_at, homework_at")
+    .select("phone_at, attend_at, homework_at")
     .eq("student_id", student.id)
     .eq("date", todaySeoul())
     .maybeSingle();
@@ -373,7 +373,13 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
-        <ArrivalCard phoneAt={arrival.phone_at} homeworkAt={arrival.homework_at} />
+        <ArrivalCard
+          done={{
+            phone: arrival.phone_at,
+            attend: arrival.attend_at,
+            homework: arrival.homework_at,
+          }}
+        />
 
         <StudyTabs
           inClass={inClass}
