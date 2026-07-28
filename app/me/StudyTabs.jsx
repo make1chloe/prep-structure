@@ -24,11 +24,16 @@ export default function StudyTabs({
   readOnly = false,
   asId = null,
   subs = {},
+  atClass = false,
 }) {
   const inClassLeft = inClass.filter((t) => !t.doneAt).length;
   const homeLeft = home.filter((t) => !t.doneAt).length;
 
-  const [tab, setTab] = useState(inClassLeft > 0 ? "inclass" : "home");
+  // **지금 학원에 있으면 등원 중 할 일부터** 펼친다.
+  //   예전에는 "학원에서 할 게 남았으면" 만 봤다. 그래서 선생님이 아직 등원
+  //   학습을 안 올렸으면, 등원해서 앉자마자 집 숙제가 펼쳐졌다.
+  //   아이는 그걸 보고 학원에서 집 숙제를 하고 앉아 있는다.
+  const [tab, setTab] = useState(atClass || inClassLeft > 0 ? "inclass" : "home");
 
   if (inClass.length === 0 && home.length === 0) {
     return (
@@ -68,8 +73,15 @@ export default function StudyTabs({
         (inClass.length === 0 ? (
           <div className="card">
             <p className="hint" style={{ margin: 0 }}>
-              오늘은 학원에서 할 것이 아직 안 올라왔어요.
+              오늘 학원에서 할 것이 아직 안 올라왔어요.{" "}
+              {atClass ? "선생님이 정해주실 때까지 기다려주세요." : ""}
             </p>
+            {atClass && homeLeft > 0 && (
+              <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
+                집에서 할 숙제는 <b>하원 후 숙제</b>에 있어요. 지금은 학원이니까
+                선생님께 먼저 여쭤보세요.
+              </p>
+            )}
           </div>
         ) : (
           <>

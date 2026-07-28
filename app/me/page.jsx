@@ -300,6 +300,20 @@ export default async function MePage({ searchParams }) {
     .maybeSingle();
   const arrival = aq.error ? {} : aq.data || {};
 
+  // 지금 등원 중인가.
+  //   등원 중이면 화면은 **등원 중 할 일**로 열려야 한다. 집 숙제를 먼저
+  //   펼쳐놓으면 아이가 학원에서 집 숙제를 하고 앉아 있는다.
+  //   출석 체크를 눌렀거나, 선생님이 오늘 출결을 찍었으면 등원으로 본다.
+  const attq = await supabase
+    .from("attendance")
+    .select("status")
+    .eq("student_id", student.id)
+    .eq("date", todaySeoul())
+    .maybeSingle();
+  const attToday = attq.error ? null : attq.data?.status || null;
+  const atClass =
+    !!arrival.attend_at || ["present", "late", "makeup", "online"].includes(attToday);
+
   // 학원에서 열었나 — 아니면 등원 체크 버튼을 잠근다
   const nq = await supabase.from("academy_net").select("ip");
   const allowedIps = (nq.error ? [] : nq.data || []).map((x) => x.ip);
@@ -480,6 +494,7 @@ export default async function MePage({ searchParams }) {
           home={studyTasks}
           running={running}
           ready={timerReady}
+          atClass={atClass}
           readOnly={preview}
           asId={acting ? student.id : null}
           subs={subs}
