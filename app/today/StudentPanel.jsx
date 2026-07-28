@@ -12,6 +12,7 @@ import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
 import { nextRoutine, advanceRoutine, saveStudentDefaults } from "./routineActions";
+import { setArrival, setWordWhenDefault } from "./arrivalActions";
 import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
@@ -162,6 +163,7 @@ export default function StudentPanel({
   const [inClass, setInClass] = useState(() => new Set(row.inClass || []));
   const [openInClass, setOpenInClass] = useState(false);
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
+  const [wordWhen, setWordWhen] = useState(row.wordWhen || "start");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -860,6 +862,74 @@ export default function StudentPanel({
           </div>
         </div>
       )}
+
+      {/* 등원 절차 · 단어시험 시점 — 등원 줄에서 놓쳤으면 여기서도 */}
+      <div className="prow" style={{ alignItems: "center" }}>
+        <span className="plabel">등원</span>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
+          {[
+            ["phone", "핸드폰 제출", row.phoneIn],
+            ["homework", "숙제 제출", row.homeworkIn],
+          ].map(([k, label, on]) => (
+            <button
+              key={k}
+              className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await setArrival(row.student.id, date, { [k]: !on });
+                  if (res?.error) alert(res.error);
+                  router.refresh();
+                })
+              }
+            >
+              {on ? "✓ " : ""}
+              {label}
+            </button>
+          ))}
+          <span className="spacer" />
+          <span className="hint" style={{ fontSize: 12 }}>단어시험</span>
+          {[
+            ["start", "수업 시작"],
+            ["end", "다 끝내고"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              className={`btn btn-sm ${wordWhen === k ? "btn-primary" : "btn-ghost"}`}
+              disabled={pending}
+              style={{ padding: "3px 10px" }}
+              onClick={() => {
+                setWordWhen(k);
+                startTransition(async () => {
+                  const res = await setArrival(row.student.id, date, { wordWhen: k });
+                  if (res?.error) alert(res.error);
+                  router.refresh();
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            title="이 학생은 앞으로 계속 이렇게 봅니다"
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+            onClick={() =>
+              startTransition(async () => {
+                const res = await setWordWhenDefault(row.student.id, wordWhen);
+                if (res?.error) {
+                  alert(res.error);
+                  return;
+                }
+                alert("이 학생 기본값으로 저장했어요.");
+              })
+            }
+          >
+            기본값으로
+          </button>
+        </div>
+      </div>
 
       {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>

@@ -4,6 +4,7 @@ import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
 import { score } from "@/lib/wordTest";
 import StudyTabs from "./StudyTabs";
+import ArrivalCard from "./ArrivalCard";
 import { trend, avgSeconds } from "@/lib/trend";
 import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
@@ -32,7 +33,7 @@ export default async function MePage() {
   // 학생 본인 (학부모 계정이면 자녀 중 첫 명)
   let { data: student } = await supabase
     .from("students")
-    .select("id, name, school, grade")
+    .select("id, name, school, grade, word_when")
     .eq("profile_id", user.id)
     .maybeSingle();
 
@@ -77,12 +78,23 @@ export default async function MePage() {
   }
 
   // 가장 최근 수업의 리포트 = 지금 해야 할 숙제가 담긴 곳
-  const { data: reports } = await supabase
+  const REP_BASE =
+    "id, date, own_progress, notice, word_correct, word_total, sent_correct, sent_total";
+  let { data: reports, error: repErr } = await supabase
     .from("daily_reports")
-    .select("id, date, own_progress, notice, word_correct, word_total, sent_correct, sent_total")
+    .select(`${REP_BASE}, phone_in, homework_in, word_when`)
     .eq("student_id", student.id)
     .order("date", { ascending: false })
     .limit(6);
+  if (repErr) {
+    // 0037 전이면 등원 절차 없이
+    ({ data: reports } = await supabase
+      .from("daily_reports")
+      .select(REP_BASE)
+      .eq("student_id", student.id)
+      .order("date", { ascending: false })
+      .limit(6));
+  }
 
   const latest = reports?.[0] || null;
   const reportIds = (reports || []).map((r) => r.id);
@@ -109,7 +121,12 @@ export default async function MePage() {
   // 숙제 항목 (학습 방법 포함)
   let { data: items, error: itemErr } = await supabase
     .from("homework_items")
-    .select("id, name, category, method, sort, no_timer");
+    .select("id, name, category, method, sort, no_timer, word_test");
+  if (itemErr) {
+    ({ data: items, error: itemErr } = await supabase
+      .from("homework_items")
+      .select("id, name, category, method, sort, no_timer"));
+  }
   if (itemErr) {
     ({ data: items, error: itemErr } = await supabase
       .from("homework_items")
@@ -208,6 +225,14 @@ export default async function MePage() {
     (t) => t.status === "todo" || t.status === "moved"
   );
 
+  // 오늘 등원 절차 · 단어시험 시점
+  const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
+  const arrival = {
+    phone: !!todayRep?.phone_in,
+    homework: !!todayRep?.homework_in,
+  };
+  const wordWhen = todayRep?.word_when || student.word_when || "start";
+
   // ── 오늘 할 것 (순서대로) ────────────────────────────────
   // 배정된 숙제 + 늦귀가 과제를 학습 항목 순서로 늘어놓는다.
   // 학생이 "뭐부터 하지?" 를 묻지 않아도 되게 하려는 것이다.
@@ -293,7 +318,13 @@ export default async function MePage() {
     ? dri.filter((x) => x.daily_report_id === latest.id && x.status === "inclass").map(toCard)
     : []
   )
-    .map((c) => toTask(c))
+    .map((c) => {
+      const t = toTask(c);
+      // 단어시험은 학생마다 보는 때가 다르다 — 맨 앞이거나 맨 뒤다
+      const it = itemById.get(c.itemId);
+      if (it?.word_test) t.sort = wordWhen === "end" ? 99000 : -1;
+      return t;
+    })
     .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ko"));
 
   const studyTasks = [
@@ -339,6 +370,13 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
+        <ArrivalCard
+          studentId={student.id}
+          date={today}
+          phone={arrival.phone}
+          homework={arrival.homework}
+        />
+
         <StudyTabs
           inClass={inClass}
           home={studyTasks}

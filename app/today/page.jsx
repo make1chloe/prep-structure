@@ -40,10 +40,17 @@ export default async function TodayPage({ searchParams }) {
   const { data: members } = await supabase
     .from("class_students")
     .select("class_id, student_id");
-  const { data: students } = await supabase
+  let { data: students, error: stuErr } = await supabase
     .from("students")
-    .select("id, name, school, grade, status")
+    .select("id, name, school, grade, status, word_when")
     .eq("status", "enrolled");
+  if (stuErr) {
+    // 0037 전이면 단어시험 시점 없이
+    ({ data: students } = await supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .eq("status", "enrolled"));
+  }
 
   // 오늘 출결 기록
   let { data: att, error: attErr } = await supabase
@@ -61,7 +68,7 @@ export default async function TodayPage({ searchParams }) {
   let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
     supabase
       .from("daily_reports")
-      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written, late_until, late_reason, late_sent_at")
+      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when")
       .eq("date", date),
     supabase
       .from("homework_items")
@@ -76,6 +83,13 @@ export default async function TodayPage({ searchParams }) {
       .limit(300),
   ]);
 
+  // 0037 전이면 등원 절차 컬럼 없이 다시
+  if (!reports) {
+    ({ data: reports } = await supabase
+      .from("daily_reports")
+      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written, late_until, late_reason, late_sent_at")
+      .eq("date", date));
+  }
   // 0027 전이면 하원 안내 컬럼 없이 다시
   if (!reports) {
     ({ data: reports } = await supabase
@@ -679,6 +693,9 @@ export default async function TodayPage({ searchParams }) {
           stay: stayOf.get(s.id) || [],
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
+          phoneIn: !!rep?.phone_in,
+          homeworkIn: !!rep?.homework_in,
+          wordWhen: rep?.word_when || s.word_when || "start",
           exams: examOf.get(s.id) || [],
           inClass: rep ? inClassByReport.get(rep.id) || [] : [],
           doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
@@ -723,6 +740,9 @@ export default async function TodayPage({ searchParams }) {
         stay: stayOf.get(s.id) || [],
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
+        phoneIn: !!rep?.phone_in,
+        homeworkIn: !!rep?.homework_in,
+        wordWhen: rep?.word_when || s.word_when || "start",
         exams: examOf.get(s.id) || [],
         inClass: rep ? inClassByReport.get(rep.id) || [] : [],
         doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],

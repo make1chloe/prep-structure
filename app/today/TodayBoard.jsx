@@ -7,6 +7,7 @@ import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./
 import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import CheckQueue from "./CheckQueue";
+import { setArrival } from "./arrivalActions";
 
 const ATT = [
   { key: "present", label: "정시", cls: "tag-mint" },
@@ -162,9 +163,9 @@ export default function TodayBoard({
                     return (
                       <div className="attstrip">
                         <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
-                          <b style={{ fontSize: 13 }}>출결 먼저</b>
+                          <b style={{ fontSize: 13 }}>등원 — 폰 → 출석 → 숙제</b>
                           <span className="hint" style={{ flex: 1 }}>
-                            찍은 학생부터 아래에 펼쳐집니다 — {notYet.length}명 남음
+                            출석을 찍으면 아래에 펼쳐집니다 — {notYet.length}명 남음
                           </span>
                           <button
                             className="btn btn-sm"
@@ -178,13 +179,36 @@ export default function TodayBoard({
                         <div className="stack" style={{ gap: 4 }}>
                           {notYet.map((r) => (
                             <div className="unitrow" key={r.student.id}>
-                              <b style={{ fontSize: 13.5, flex: 1 }}>{r.student.name}</b>
+                              <b style={{ fontSize: 13.5, minWidth: 62 }}>{r.student.name}</b>
                               {r.isMakeup && <span className="tag tag-lav">보강</span>}
                               {r.plannedAbsent && (
                                 <span className="tag tag-amber">
                                   결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
                                 </span>
                               )}
+                              <span className="spacer" />
+                              {[
+                                ["phone", "폰", r.phoneIn],
+                                ["homework", "숙제", r.homeworkIn],
+                              ].map(([k, label, on]) => (
+                                <button
+                                  key={k}
+                                  className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                                  disabled={pending}
+                                  style={{ padding: "3px 10px" }}
+                                  title={on ? "냈어요" : "아직 안 냈어요"}
+                                  onClick={() =>
+                                    startTransition(async () => {
+                                      const res = await setArrival(r.student.id, date, { [k]: !on });
+                                      if (res?.error) alert(res.error);
+                                      router.refresh();
+                                    })
+                                  }
+                                >
+                                  {on ? "✓ " : ""}
+                                  {label}
+                                </button>
+                              ))}
                               {ATT.slice(0, 3).map((a) => (
                                 <button
                                   key={a.key}
