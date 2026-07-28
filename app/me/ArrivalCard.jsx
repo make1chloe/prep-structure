@@ -1,44 +1,67 @@
 "use client";
 
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { checkArrival } from "./arrivalActions";
+
 /**
- * 등원해서 먼저 할 것 — 폰 · 숙제.
+ * 등원해서 먼저 할 것 — 핸드폰 · 숙제.
  *
- * 학생 화면에서는 **알려주기만** 한다. 냈다고 누르는 것은 선생님이다.
- * 아이가 스스로 체크하게 하면 안 내고도 눌러버린다.
+ * **학생이 직접 누른다.** 들어와서 내는 것은 아이 몫이고,
+ * 선생님은 오늘 수업 화면에서 다 냈는지 보기만 한다.
+ * (출석은 외부 앱에서 하므로 여기 없다)
  *
- * 둘 다 끝나면 조용히 사라진다. 학습 화면이 앞으로 나와야 하기 때문이다.
+ * 둘 다 끝나면 조용히 사라진다 — 학습 화면이 앞으로 나와야 한다.
  */
-export default function ArrivalCard({ phone = false, homework = false }) {
-  if (phone && homework) return null;
+export default function ArrivalCard({ phoneAt = null, homeworkAt = null }) {
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  if (phoneAt && homeworkAt) return null;
+
+  function tap(kind, on) {
+    startTransition(async () => {
+      const res = await checkArrival(kind, on);
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   const steps = [
-    ["핸드폰 내기", phone],
-    ["숙제 내기", homework],
+    ["phone", "핸드폰 내기", phoneAt],
+    ["homework", "숙제 내기", homeworkAt],
   ];
 
   return (
-    <div className="card card-tight" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
-      <b style={{ fontSize: 13.5 }}>먼저 할 것</b>
-      <div className="stack" style={{ gap: 4, marginTop: 6 }}>
-        {steps.map(([label, done]) => (
-          <div className="unitrow" key={label}>
-            <span className={`tag ${done ? "tag-mint" : "tag-amber"}`}>{done ? "✓" : "!"}</span>
-            <span
-              style={{
-                fontSize: 14,
-                flex: 1,
-                textDecoration: done ? "line-through" : "none",
-                opacity: done ? 0.6 : 1,
-              }}
-            >
-              {label}
-            </span>
-          </div>
+    <div className="card" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
+      <b style={{ fontSize: 15 }}>먼저 할 것</b>
+      <p className="hint" style={{ margin: "4px 0 10px" }}>
+        내고 나서 눌러주세요. 둘 다 하면 이 칸이 사라져요.
+      </p>
+      <div className="stack" style={{ gap: 8 }}>
+        {steps.map(([kind, label, at]) => (
+          <button
+            key={kind}
+            className={at ? "arrdone" : "arrbtn"}
+            disabled={pending}
+            onClick={() => tap(kind, !at)}
+          >
+            <span>{at ? "✓ " : ""}{label}</span>
+            {at && (
+              <span className="hint" style={{ fontSize: 12 }}>
+                {new Date(at).toLocaleTimeString("ko-KR", {
+                  timeZone: "Asia/Seoul",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </button>
         ))}
       </div>
-      <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
-        선생님께 내고 나면 여기가 사라져요.
-      </p>
     </div>
   );
 }

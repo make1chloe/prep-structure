@@ -7,7 +7,7 @@ import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./
 import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import CheckQueue from "./CheckQueue";
-import { setArrival } from "./arrivalActions";
+
 
 const ATT = [
   { key: "present", label: "정시", cls: "tag-mint" },
@@ -163,9 +163,10 @@ export default function TodayBoard({
                     return (
                       <div className="attstrip">
                         <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
-                          <b style={{ fontSize: 13 }}>등원 — 폰 → 출석 → 숙제</b>
+                          <b style={{ fontSize: 13 }}>등원</b>
                           <span className="hint" style={{ flex: 1 }}>
-                            출석을 찍으면 아래에 펼쳐집니다 — {notYet.length}명 남음
+                            폰·숙제는 <b>학생이 직접</b> 누릅니다. 출결을 찍으면 아래에 펼쳐집니다 —{" "}
+                            {notYet.length}명 남음
                           </span>
                           <button
                             className="btn btn-sm"
@@ -188,26 +189,25 @@ export default function TodayBoard({
                               )}
                               <span className="spacer" />
                               {[
-                                ["phone", "폰", r.phoneIn],
-                                ["homework", "숙제", r.homeworkIn],
-                              ].map(([k, label, on]) => (
-                                <button
-                                  key={k}
-                                  className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
-                                  disabled={pending}
-                                  style={{ padding: "3px 10px" }}
-                                  title={on ? "냈어요" : "아직 안 냈어요"}
-                                  onClick={() =>
-                                    startTransition(async () => {
-                                      const res = await setArrival(r.student.id, date, { [k]: !on });
-                                      if (res?.error) alert(res.error);
-                                      router.refresh();
-                                    })
+                                ["폰", r.phoneAt],
+                                ["숙제", r.homeworkAt],
+                              ].map(([label, at]) => (
+                                <span
+                                  key={label}
+                                  className={`tag ${at ? "tag-mint" : "tag-muted"}`}
+                                  title={
+                                    at
+                                      ? `${new Date(at).toLocaleTimeString("ko-KR", {
+                                          timeZone: "Asia/Seoul",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })} 냄`
+                                      : "아직 안 냈어요"
                                   }
                                 >
-                                  {on ? "✓ " : ""}
+                                  {at ? "✓ " : ""}
                                   {label}
-                                </button>
+                                </span>
                               ))}
                               {ATT.slice(0, 3).map((a) => (
                                 <button

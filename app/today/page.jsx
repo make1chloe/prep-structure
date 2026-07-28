@@ -549,6 +549,19 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 학생이 직접 누른 등원 체크 (폰·숙제)
+  const arrivalOf = new Map();
+  {
+    const q = studentIds.length
+      ? await supabase
+          .from("arrival_checks")
+          .select("student_id, phone_at, homework_at")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : { data: [] };
+    (q.error ? [] : q.data || []).forEach((a) => arrivalOf.set(a.student_id, a));
+  }
+
   // 오늘 학생들이 얼마나 공부했나 (항목별 합계)
   const secOf = new Map();     // `${studentId}|${itemId}` → 초
   {
@@ -693,8 +706,8 @@ export default async function TodayPage({ searchParams }) {
           stay: stayOf.get(s.id) || [],
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
-          phoneIn: !!rep?.phone_in,
-          homeworkIn: !!rep?.homework_in,
+          phoneAt: arrivalOf.get(s.id)?.phone_at || null,
+          homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
           wordWhen: rep?.word_when || s.word_when || "start",
           exams: examOf.get(s.id) || [],
           inClass: rep ? inClassByReport.get(rep.id) || [] : [],
@@ -740,8 +753,8 @@ export default async function TodayPage({ searchParams }) {
         stay: stayOf.get(s.id) || [],
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
-        phoneIn: !!rep?.phone_in,
-        homeworkIn: !!rep?.homework_in,
+        phoneAt: arrivalOf.get(s.id)?.phone_at || null,
+        homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
         wordWhen: rep?.word_when || s.word_when || "start",
         exams: examOf.get(s.id) || [],
         inClass: rep ? inClassByReport.get(rep.id) || [] : [],

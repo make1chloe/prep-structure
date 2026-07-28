@@ -863,29 +863,25 @@ export default function StudentPanel({
         </div>
       )}
 
-      {/* 등원 절차 · 단어시험 시점 — 등원 줄에서 놓쳤으면 여기서도 */}
+      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
       <div className="prow" style={{ alignItems: "center" }}>
         <span className="plabel">등원</span>
         <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
           {[
-            ["phone", "핸드폰 제출", row.phoneIn],
-            ["homework", "숙제 제출", row.homeworkIn],
-          ].map(([k, label, on]) => (
-            <button
-              key={k}
-              className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  const res = await setArrival(row.student.id, date, { [k]: !on });
-                  if (res?.error) alert(res.error);
-                  router.refresh();
-                })
-              }
-            >
-              {on ? "✓ " : ""}
+            ["핸드폰", row.phoneAt],
+            ["숙제", row.homeworkAt],
+          ].map(([label, at]) => (
+            <span key={label} className={`tag ${at ? "tag-mint" : "tag-muted"}`}>
+              {at ? "✓ " : ""}
               {label}
-            </button>
+              {at
+                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
+                : " 아직"}
+            </span>
           ))}
           <span className="spacer" />
           <span className="hint" style={{ fontSize: 12 }}>단어시험</span>

@@ -225,12 +225,15 @@ export default async function MePage() {
     (t) => t.status === "todo" || t.status === "moved"
   );
 
-  // 오늘 등원 절차 · 단어시험 시점
+  // 오늘 등원 체크 — 학생이 직접 누른 것
   const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
-  const arrival = {
-    phone: !!todayRep?.phone_in,
-    homework: !!todayRep?.homework_in,
-  };
+  const aq = await supabase
+    .from("arrival_checks")
+    .select("phone_at, homework_at")
+    .eq("student_id", student.id)
+    .eq("date", todaySeoul())
+    .maybeSingle();
+  const arrival = aq.error ? {} : aq.data || {};
   const wordWhen = todayRep?.word_when || student.word_when || "start";
 
   // ── 오늘 할 것 (순서대로) ────────────────────────────────
@@ -370,12 +373,7 @@ export default async function MePage() {
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
         <InstallHint />
         <PushToggle />
-        <ArrivalCard
-          studentId={student.id}
-          date={today}
-          phone={arrival.phone}
-          homework={arrival.homework}
-        />
+        <ArrivalCard phoneAt={arrival.phone_at} homeworkAt={arrival.homework_at} />
 
         <StudyTabs
           inClass={inClass}

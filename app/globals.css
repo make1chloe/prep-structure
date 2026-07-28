@@ -360,3 +360,28 @@ a { color: inherit; }
   background: var(--accent, #6d7cff);
   transition: width 0.3s;
 }
+
+/* 학생 등원 체크 — 손가락으로 누르기 좋게 크게 */
+.arrbtn, .arrdone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.arrbtn {
+  border: 2px solid var(--accent, #6d7cff);
+  background: transparent;
+  color: inherit;
+}
+.arrdone {
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  opacity: 0.6;
+  text-decoration: line-through;
+}
