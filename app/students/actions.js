@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
+import { autoCreateLogins } from "./accountActions";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -31,16 +32,33 @@ export async function addStudent(formData) {
   const base = baseLoginId(row.student_phone, row.parent_phone);
 
   let candidate = base || null;
+  let newId = null;
   for (let attempt = 0; attempt < 25; attempt++) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("students")
-      .insert({ ...row, login_id: candidate });
-    if (!error) break;
+      .insert({ ...row, login_id: candidate })
+      .select("id")
+      .single();
+    if (!error) {
+      newId = data?.id || null;
+      break;
+    }
     if (error.code === "23505" && base) {
       candidate = `${base}-${attempt + 2}`;
       continue;
     }
     break;
+  }
+
+  // 등록하면 로그인 계정도 같이 만든다 (비번 0000).
+  // 나중에 하기로 하면 그 나중이 안 온다. 실패해도 등록은 그대로 살아 있다 —
+  // 계정은 재원생 화면에서 다시 만들면 된다.
+  if (newId && row.status === "enrolled") {
+    try {
+      await autoCreateLogins([newId]);
+    } catch {
+      /* 계정 때문에 등록이 막히면 안 된다 */
+    }
   }
 
   revalidatePath("/students");
@@ -129,7 +147,17 @@ export async function bulkAddStudents(rows) {
       };
     });
 
-  const { error } = await supabase.from("students").insert(payload);
+  const { data: made, error } = await supabase.from("students").insert(payload).select("id, status");
+
+  // 새로 들어온 재원생에게 로그인 계정도 같이 만든다 (비번 0000)
+  if (!error && made?.length) {
+    try {
+      await autoCreateLogins(made.filter((r) => r.status === "enrolled").map((r) => r.id));
+    } catch {
+      /* 계정 때문에 업로드가 실패로 보이면 안 된다 */
+    }
+  }
+
   revalidatePath("/students");
 
   return {

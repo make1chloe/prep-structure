@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { SUPABASE_URL } from "@/lib/supabase/env";
+import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 
 /**
  * 학생 계정을 원장님이 직접 만들어 준다.
@@ -70,22 +71,17 @@ function keyMissing() {
 }
 
 /**
- * 아이디를 정한다 — chloe + 전화 뒷자리.
+ * 아이디를 정한다 — chloe + 전화 뒷자리 (lib/studentId.js 의 규칙 그대로).
  *
  * 아이가 외우기 쉬워야 한다. 자기 번호 뒷자리면 잊어도 다시 떠올린다.
- * 번호가 없거나 뒷자리가 겹치면 chloe0001 부터 차례로 준다.
+ * 겹치면 -2, -3 을 붙이고, 번호 자체가 없으면 chloe0001 부터 차례로 준다.
  */
-function idFromPhone(student = {}) {
-  const raw = student.student_phone || student.parent_phone || "";
-  const d = raw.replace(/[^\d]/g, "");
-  return d.length >= 4 ? `chloe${d.slice(-4)}` : "";
-}
-
-function pickId(student, used) {
-  const want = idFromPhone(student);
-  if (want && !used.has(want)) {
-    used.add(want);
-    return want;
+function pickId(student = {}, used) {
+  const base = baseLoginId(student.student_phone, student.parent_phone);
+  if (base) {
+    const id = resolveLoginId(base, used);
+    used.add(id);
+    return id;
   }
   for (let n = 1; n < 10000; n += 1) {
     const id = `chloe${String(n).padStart(4, "0")}`;
@@ -266,6 +262,58 @@ export async function createAllStudentLogins() {
 
   revalidatePath("/students");
   return { error: null, made, failed, password: INIT_PW };
+}
+
+/**
+ * 학생을 새로 넣을 때 계정도 같이 만든다.
+ *
+ * 등록해 놓고 계정 만드는 걸 나중에 하면, 그 나중이 안 온다.
+ * 다만 **여기서 실패해도 등록 자체는 살아 있어야 한다** — 계정은 나중에
+ * 재원생 화면에서 다시 만들면 되지만, 등록이 통째로 날아가면 곤란하다.
+ * 그래서 조용히 실패하고 결과만 돌려준다 (키가 없으면 아무 일도 안 한다).
+ */
+export async function autoCreateLogins(studentIds = []) {
+  if (!Array.isArray(studentIds) || studentIds.length === 0) return { made: 0 };
+  const supabase = createClient();
+
+  const key = await serviceKey(supabase);
+  if (!key) return { made: 0, skipped: "키 없음" };
+
+  const { data: rows } = await supabase
+    .from("students")
+    .select("id, name, login_id, profile_id, student_phone, parent_phone")
+    .in("id", studentIds);
+  const todo = (rows || []).filter((s) => !s.profile_id);
+  if (todo.length === 0) return { made: 0 };
+
+  const used = await usedIds(supabase);
+  let made = 0;
+
+  for (const s of todo) {
+    const loginId = (s.login_id || "").toLowerCase() || pickId(s, used);
+    used.add(loginId);
+
+    const res = await admin(key, "/users", "POST", {
+      email: emailOf(loginId),
+      password: INIT_PW,
+      email_confirm: true,
+      user_metadata: { name: s.name, login_id: loginId },
+    });
+    if (!res.ok || !res.json?.id) continue;
+
+    await supabase.from("profiles").upsert(
+      { id: res.json.id, name: s.name, role: "student", must_change_pw: true },
+      { onConflict: "id" }
+    );
+    await supabase
+      .from("students")
+      .update({ login_id: loginId, profile_id: res.json.id })
+      .eq("id", s.id);
+    made += 1;
+  }
+
+  revalidatePath("/students");
+  return { made };
 }
 
 /** 지금 상태 — 아이디가 있나, 계정이 붙어 있나 */

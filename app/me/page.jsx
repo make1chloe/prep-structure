@@ -246,9 +246,17 @@ export default async function MePage({ searchParams }) {
     };
   };
 
-  // 지금 해야 할 숙제 = 가장 최근 수업에서 배정한 것
-  const todo = latest
-    ? dri.filter((x) => x.daily_report_id === latest.id && x.status === "assigned").map(toCard)
+  // 지금 해야 할 숙제 = **가장 최근에 배정한 것**
+  //
+  // 예전에는 '가장 최근 리포트' 만 봤다. 그런데 등원해서 출결을 찍으면 그날
+  // 리포트가 새로 생기고, 그 순간 지난 수업에 낸 숙제가 통째로 사라졌다 —
+  // 아직 검사도 안 했는데. 그래서 **숙제가 붙어 있는 가장 최근 리포트**를
+  // 찾아서 그것을 보여준다.
+  const assignedFrom = (reports || []).find((r) =>
+    dri.some((x) => x.daily_report_id === r.id && x.status === "assigned")
+  );
+  const todo = assignedFrom
+    ? dri.filter((x) => x.daily_report_id === assignedFrom.id && x.status === "assigned").map(toCard)
     : [];
 
   // 지난 수업 검사 결과
@@ -476,6 +484,20 @@ export default async function MePage({ searchParams }) {
             숙제를 누르면 <b>하는 법</b>이 나와요.
           </p>
           <HomeworkCards items={todo} />
+
+          {/* 안 뜨면 왜 안 뜨는지 선생님께만 알려준다.
+              "왜 안 보이지" 를 앱 밖에서 알아내게 하면 안 된다. */}
+          {todo.length === 0 && (isStaff || preview || acting) && (
+            <div className="notice" style={{ fontSize: 12.5 }}>
+              <b>선생님께만 보이는 안내</b>
+              <br />
+              {(reports || []).length === 0
+                ? "이 학생의 수업 기록이 아직 하나도 없습니다. 오늘 수업에서 출결을 찍고 저장하면 생깁니다."
+                : dri.length === 0
+                ? `수업 기록은 ${reports.length}개 있는데 숙제 줄이 하나도 없습니다. 오늘 수업에서 '다음 숙제' 를 고른 뒤 저장을 눌렀는지 확인해주세요.`
+                : "숙제 줄은 있는데 '배정' 상태인 것이 없습니다. 검사(○△✕)만 하고 다음 숙제를 안 골랐을 때 이렇게 됩니다."}
+            </div>
+          )}
           {latest && (
             <div style={{ marginTop: 10 }}>
               <p className="hint" style={{ margin: "0 0 6px" }}>
