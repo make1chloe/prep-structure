@@ -10,7 +10,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  // 학생은 스스로 가입한 뒤, 선생님께 받은 연결 코드를 넣는다 (0043)
+  const [mode, setMode] = useState("in");   // in | up
 
   async function signIn(e) {
     e.preventDefault();
@@ -24,6 +27,28 @@ export default function LoginPage() {
       return;
     }
     router.push("/");
+    router.refresh();
+  }
+
+  async function signUp(e) {
+    e.preventDefault();
+    setErr("");
+    setMsg("");
+    setLoading(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    setLoading(false);
+    if (error) {
+      setErr(error.message || "가입에 실패했습니다.");
+      return;
+    }
+    // 메일 확인이 켜져 있으면 아직 로그인 상태가 아니다
+    if (!data?.session) {
+      setMsg("가입 메일을 보냈어요. 메일에서 확인한 뒤 다시 로그인해주세요.");
+      setMode("in");
+      return;
+    }
+    router.push("/me");
     router.refresh();
   }
 
@@ -60,8 +85,9 @@ export default function LoginPage() {
         )}
 
         {err && <div className="err">{err}</div>}
+        {msg && <div className="notice">{msg}</div>}
 
-        <form onSubmit={signIn} className="stack">
+        <form onSubmit={mode === "in" ? signIn : signUp} className="stack">
           <div className="field">
             <label className="label">이메일</label>
             <input
@@ -85,9 +111,23 @@ export default function LoginPage() {
             />
           </div>
           <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
-            {loading ? "로그인 중…" : "로그인"}
+            {loading ? "잠시만요…" : mode === "in" ? "로그인" : "가입하기"}
           </button>
         </form>
+
+        {/* 학생이 처음 들어올 때 — 가입하고 선생님께 받은 코드를 넣으면 된다 */}
+        <button
+          className="btn btn-ghost btn-block"
+          type="button"
+          onClick={() => { setMode(mode === "in" ? "up" : "in"); setErr(""); setMsg(""); }}
+        >
+          {mode === "in" ? "처음이신가요? 가입하기" : "이미 계정이 있어요 · 로그인"}
+        </button>
+        {mode === "up" && (
+          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+            가입한 뒤 <b>선생님께 받은 6자리 코드</b>를 넣으면 학생 화면으로 들어갑니다.
+          </p>
+        )}
 
         <div className="divider">또는</div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startStudy, stopStudy, finishStudy, undoFinish } from "./timerActions";
+import SubmitBox from "./SubmitBox";
 
 /** 초 → "12분" */
 function human(sec) {
@@ -41,6 +42,7 @@ export default function StudyList({
   kind = "home",
   readOnly = false,
   asId = null,
+  subs = {},
 }) {
   const [pending, startTransition] = useTransition();
   const [openDone, setOpenDone] = useState(false);
@@ -131,6 +133,17 @@ export default function StudyList({
                 {now.seconds > 0 ? "이어서 하기" : "시작하기"}
               </button>
             </>
+          )}
+
+          {/* 집에서 하는 숙제는 낼 수 있어야 한다 — 특히 녹음 구두테스트 */}
+          {kind === "home" && (
+            <SubmitBox
+              itemId={now.itemId}
+              reportItemId={now.reportItemId}
+              asId={asId}
+              readOnly={readOnly}
+              mine={subs[now.reportItemId || now.itemId] || []}
+            />
           )}
         </div>
       ) : (

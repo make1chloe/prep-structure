@@ -14,6 +14,7 @@ import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
+import LinkCode from "./LinkCode";
 import { longLabel as fmtLong, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +84,9 @@ export default async function MePage({ searchParams }) {
     : profile?.role === "parent" ? "parent"
     : "staff";
 
+  // 가입은 했는데 아직 어느 학생인지 모르는 계정 → 연결 코드를 받는다
+  if (!student && !isStaff) return <LinkCode />;
+
   if (!student) {
     return (
       <main className="wrap" style={{ maxWidth: 560 }}>
@@ -91,9 +95,7 @@ export default async function MePage({ searchParams }) {
         </div>
         <div className="card">
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
-            {profile?.role === "principal" || profile?.role === "instructor"
-              ? "이 화면은 학생용이에요. 선생님 화면은 위 메뉴에서 볼 수 있습니다."
-              : "학생 정보가 연결되지 않았어요. 선생님께 말씀해주세요."}
+            이 화면은 학생용이에요. 선생님 화면은 위 메뉴에서 볼 수 있습니다.
           </p>
         </div>
       </main>
@@ -118,6 +120,20 @@ export default async function MePage({ searchParams }) {
       .order("date", { ascending: false })
       .limit(6));
   }
+
+  // 내가 낸 숙제 (0044 전이면 빈 값 — 화면은 그대로 뜬다)
+  const { data: subRows } = await supabase
+    .from("homework_submissions")
+    .select("id, kind, path, body, seconds, checked_at, created_at, homework_item_id, report_item_id")
+    .eq("student_id", student.id)
+    .order("created_at", { ascending: false })
+    .limit(60);
+  const subs = {};
+  (subRows || []).forEach((x) => {
+    const k = x.report_item_id || x.homework_item_id;
+    if (!k) return;
+    (subs[k] = subs[k] || []).push(x);
+  });
 
   const latest = reports?.[0] || null;
   const reportIds = (reports || []).map((r) => r.id);
@@ -436,6 +452,7 @@ export default async function MePage({ searchParams }) {
           ready={timerReady}
           readOnly={preview}
           asId={acting ? student.id : null}
+          subs={subs}
         />
 
         {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} />}

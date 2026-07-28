@@ -23,6 +23,7 @@ export default function StudyTabs({
   ready = true,
   readOnly = false,
   asId = null,
+  subs = {},
 }) {
   const inClassLeft = inClass.filter((t) => !t.doneAt).length;
   const homeLeft = home.filter((t) => !t.doneAt).length;
@@ -81,6 +82,7 @@ export default function StudyTabs({
               kind="inclass"
               readOnly={readOnly}
               asId={asId}
+              subs={subs}
             />
             {inClassLeft === 0 && homeLeft > 0 && (
               <div className="card card-tight">
@@ -115,6 +117,7 @@ export default function StudyTabs({
             kind="home"
             readOnly={readOnly}
             asId={asId}
+            subs={subs}
           />
         ))}
     </div>

@@ -4,6 +4,7 @@ import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent, deleteStudents, updateStudentsStatus } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
+import LinkBox from "./LinkBox";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -43,6 +44,7 @@ export default function StudentList({ students = [] }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("enrolled");
   const [histId, setHistId] = useState(null);
+  const [linkId, setLinkId] = useState(null);   // 계정 연결 코드를 펼친 학생
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -262,6 +264,13 @@ export default function StudentList({ students = [] }) {
                         >
                           {histId === s.id ? "기록 닫기" : "기록"}
                         </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setLinkId(linkId === s.id ? null : s.id)}
+                          title="학생이 자기 계정으로 로그인할 수 있게 코드를 뽑습니다"
+                        >
+                          계정
+                        </button>
                         <a
                           className="btn btn-ghost btn-sm"
                           href={`/me?s=${s.id}`}
@@ -275,6 +284,13 @@ export default function StudentList({ students = [] }) {
                     )}
                   </td>
                 </tr>
+                {linkId === s.id && (
+                  <tr>
+                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                      <LinkBox studentId={s.id} name={s.name} />
+                    </td>
+                  </tr>
+                )}
                 {histId === s.id && (
                   <tr>
                     <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>

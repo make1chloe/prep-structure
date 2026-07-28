@@ -32,6 +32,8 @@ const CHECKS = [
   { id: "0041", label: "학원에서만 등원 체크", table: "academy_net", col: "ip" },
   { id: "0042", label: "특강 기한", table: "classes", col: "ends_on" },
   { id: "0042", label: "반별 출결 (특강)", table: "class_attendance", col: "status" },
+  { id: "0043", label: "학생 계정 연결", table: "student_link_codes", col: "code" },
+  { id: "0044", label: "숙제 제출", table: "homework_submissions", col: "kind" },
 ];
 
 export async function checkSchema() {

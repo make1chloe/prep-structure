@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { setClassAttendance } from "./classAttendance";
+import SubmissionList from "./SubmissionList";
 import { unitOptionText } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
@@ -424,6 +425,9 @@ export default function StudentPanel({
         </div>
       </div>
 
+
+      {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
+      <SubmissionList rows={row.subs || []} items={items} />
 
       {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
       {(row.notices || []).filter((n) => n.kind === "deliver").length > 0 && (

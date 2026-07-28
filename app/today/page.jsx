@@ -69,6 +69,15 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date));
   }
 
+  // 학생이 낸 숙제 (0044 전이면 빈 배열)
+  //   집에서 어제 냈을 수도 있으므로 지난 수업 이후치를 함께 본다
+  const { data: subRows } = await supabase
+    .from("homework_submissions")
+    .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id, report_item_id")
+    .gte("date", addDays(date, -7))
+    .lte("date", date)
+    .order("created_at", { ascending: false });
+
   // 오늘 특강 출결 (0042 전이면 빈 배열 — 예전처럼 하루 출결만 쓴다)
   const { data: clsAtt } = await supabase
     .from("class_attendance")
@@ -675,6 +684,11 @@ export default async function TodayPage({ searchParams }) {
           .map(([id]) => ({ id, name: nameOfStudent.get(id) || "학생" }))
           .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
+  const subsOf = new Map();
+  (subRows || []).forEach((x) => {
+    subsOf.set(x.student_id, [...(subsOf.get(x.student_id) || []), x]);
+  });
+
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
   // 특강 출결은 반별로 따로 (정규는 왔는데 특강만 빠지는 날이 있다)
@@ -726,6 +740,7 @@ export default async function TodayPage({ searchParams }) {
           //   특강 줄까지 완료로 보여버린다 — 특강은 아직 아무것도 안 했는데도.
           //   결석·보강이면 그 반에서 할 게 없으므로 완료로 본다.
           rowDone: extra ? a?.status === "absent" || a?.status === "makeup" : null,
+          subs: subsOf.get(s.id) || [],
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
           stay: stayOf.get(s.id) || [],
