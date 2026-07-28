@@ -54,9 +54,19 @@ export async function submitFile(formData) {
     .from("submissions")
     .upload(path, file, { contentType: file.type || undefined, upsert: false });
   if (up.error) {
+    // 어디서 막혔는지 그대로 말해준다 — "안 돼요" 만으로는 고칠 수가 없다
     const m = up.error.message || "";
-    if (/bucket/i.test(m)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
-    return { error: m };
+    if (/bucket|not found/i.test(m)) {
+      return { error: `파일 보관함이 아직 없어요. 선생님께 "0047 SQL 실행" 이라고 전해주세요. (${m})` };
+    }
+    if (/row-level security|policy|violates/i.test(m)) {
+      return {
+        error:
+          "파일을 올릴 권한이 없어요. 선생님께 " +
+          '"설정 → Supabase SQL 에서 0047 을 실행해주세요" 라고 전해주세요.',
+      };
+    }
+    return { error: `파일을 올리지 못했어요: ${m}` };
   }
 
   const { error } = await supabase.from("homework_submissions").insert({
@@ -69,11 +79,18 @@ export async function submitFile(formData) {
     bytes: file.size,
     seconds: Number.isFinite(seconds) ? seconds : null,
   });
-  if (needSql(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
   if (error) {
     // 표에 못 넣었으면 올린 파일도 치운다 (주인 없는 파일을 남기지 않는다)
     await supabase.storage.from("submissions").remove([path]);
-    return { error: error.message };
+    if (needSql(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
+    if (/row-level security|policy/i.test(error.message || "")) {
+      return {
+        error:
+          "파일은 올라갔는데 기록을 남기지 못했어요. 선생님께 " +
+          '"설정 → Supabase SQL 에서 0047 을 실행해주세요" 라고 전해주세요.',
+      };
+    }
+    return { error: `기록을 남기지 못했어요: ${error.message}` };
   }
 
   revalidatePath("/me");

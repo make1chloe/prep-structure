@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
 import ServiceKeyBox from "./ServiceKeyBox";
+import StorageBox from "./StorageBox";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
@@ -177,6 +178,8 @@ export default async function SqlPage() {
         </div>
 
         <ServiceKeyBox saved={!!svcRow?.config?.key} />
+
+        <StorageBox />
 
         <StepBox steps={steps} missing={missing} />
       </main>
