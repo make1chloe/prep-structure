@@ -13,6 +13,21 @@ function human(sec) {
   return `${Math.floor(m / 60)}시간 ${m % 60}분`;
 }
 
+/**
+ * 돌고 있는 타이머 — 분:초.
+ *
+ * 시작을 눌렀는데 화면이 그대로면 아이는 안 눌린 줄 알고 또 누른다.
+ * 그래서 **초가 움직이는 게 보여야** 한다.
+ */
+function clock(sec) {
+  const s = Math.max(0, sec || 0);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const two = (n) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${two(m)}:${two(ss)}` : `${m}:${two(ss)}`;
+}
+
 function useTick(on) {
   const [, set] = useState(0);
   useEffect(() => {
@@ -70,7 +85,12 @@ export default function StudyList({
   const done = tasks.filter((t) => t.doneAt);
   const now = left[0] || null;
   const rest = left.slice(1);
-  const isRunning = running && now && running.key === now.key;
+  // 지금 이 카드가 돌고 있나 — **무엇을 하고 있는지(id)** 로 본다.
+  // 화면 카드의 key 와 맞추면 안 된다 (모양이 다르다).
+  const isRunning =
+    !!running &&
+    !!now &&
+    (running.stayId ? running.stayId === now.stayId : running.itemId === now.itemId);
 
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -101,7 +121,7 @@ export default function StudyList({
 
           {isRunning ? (
             <>
-              <div className="nowtimer">{human(runningSec)}</div>
+              <div className="nowtimer">{clock(runningSec)}</div>
               <button
                 className="bigbtn"
                 disabled={pending || readOnly}

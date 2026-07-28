@@ -134,7 +134,7 @@ export default function StudyTabs({
         ) : (
           <StudyList
             title="하원 후 숙제"
-            hint="집에서 할 때도 시작을 눌러주세요. 얼마나 걸렸는지가 남아요."
+            hint="집에서 할 때도 시작을 눌러주세요. 얼마나 걸렸는지 볼 수 있어요."
             tasks={home}
             running={running}
             ready={ready}

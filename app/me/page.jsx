@@ -385,7 +385,18 @@ export default async function MePage({ searchParams }) {
   sessions.forEach((x) => {
     const key = x.stay_task_id ? `stay-${x.stay_task_id}` : `item-${x.homework_item_id}`;
     secOf.set(key, (secOf.get(key) || 0) + (x.seconds || 0));
-    if (!x.ended_at) running = { key, started_at: x.started_at };
+    // 어느 항목이 돌고 있나 — **id 로** 들고 간다.
+    //   예전에는 화면 카드의 key 와 맞춰봤는데, 카드 key 는
+    //   "리포트id-항목id-상태" 라서 절대 같아질 수가 없었다.
+    //   그래서 타이머가 돌아도 화면에 시간이 안 떴다.
+    if (!x.ended_at) {
+      running = {
+        key,
+        itemId: x.homework_item_id || null,
+        stayId: x.stay_task_id || null,
+        started_at: x.started_at,
+      };
+    }
   });
 
   // 내 흐름 — 남과 견주지 않고 **내 지난 기록**과 견준다
