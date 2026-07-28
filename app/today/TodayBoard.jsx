@@ -7,6 +7,7 @@ import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./
 import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import CheckQueue from "./CheckQueue";
+import { setArrivalFor } from "./arrivalActions";
 
 
 const ATT = [
@@ -165,8 +166,8 @@ export default function TodayBoard({
                         <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
                           <b style={{ fontSize: 13 }}>등원</b>
                           <span className="hint" style={{ flex: 1 }}>
-                            폰·출석·숙제는 <b>학생이 직접</b> 누릅니다. 학생이 출석 체크를 누르면{" "}
-                            <b>등원으로 잡혀 아래에 펼쳐집니다</b> — {notYet.length}명 남음
+                            폰·출석·숙제는 <b>학생이 자기 화면에서</b> 누릅니다. 아직 앱을 안 줬거나
+                            폰이 없으면 <b>여기서 대신 찍으셔도 됩니다</b> — {notYet.length}명 남음
                           </span>
                           <button
                             className="btn btn-sm"
@@ -189,26 +190,35 @@ export default function TodayBoard({
                               )}
                               <span className="spacer" />
                               {[
-                                ["폰", r.phoneAt],
-                                ["출석", r.attendAt],
-                                ["숙제", r.homeworkAt],
-                              ].map(([label, at]) => (
-                                <span
-                                  key={label}
-                                  className={`tag ${at ? "tag-mint" : "tag-muted"}`}
+                                ["phone", "폰", r.phoneAt],
+                                ["attend", "출석", r.attendAt],
+                                ["homework", "숙제", r.homeworkAt],
+                              ].map(([kind, label, at]) => (
+                                <button
+                                  key={kind}
+                                  className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
+                                  disabled={pending}
+                                  style={{ padding: "3px 9px", fontSize: 12 }}
                                   title={
                                     at
                                       ? `${new Date(at).toLocaleTimeString("ko-KR", {
                                           timeZone: "Asia/Seoul",
                                           hour: "2-digit",
                                           minute: "2-digit",
-                                        })} 냄`
-                                      : "아직 안 냈어요"
+                                        })} · 다시 누르면 취소`
+                                      : "대신 찍기"
+                                  }
+                                  onClick={() =>
+                                    startTransition(async () => {
+                                      const res = await setArrivalFor(r.student.id, date, kind, !at);
+                                      if (res?.error) alert(res.error);
+                                      router.refresh();
+                                    })
                                   }
                                 >
                                   {at ? "✓ " : ""}
                                   {label}
-                                </span>
+                                </button>
                               ))}
                               {ATT.slice(0, 3).map((a) => (
                                 <button

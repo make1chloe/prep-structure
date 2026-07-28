@@ -12,7 +12,7 @@ import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
 import { nextRoutine, advanceRoutine, saveStudentDefaults } from "./routineActions";
-import { setArrival, setWordWhenDefault } from "./arrivalActions";
+import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions";
 import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
@@ -868,11 +868,23 @@ export default function StudentPanel({
         <span className="plabel">등원</span>
         <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
           {[
-            ["핸드폰", row.phoneAt],
-            ["출석", row.attendAt],
-            ["숙제", row.homeworkAt],
-          ].map(([label, at]) => (
-            <span key={label} className={`tag ${at ? "tag-mint" : "tag-muted"}`}>
+            ["phone", "핸드폰", row.phoneAt],
+            ["attend", "출석", row.attendAt],
+            ["homework", "숙제", row.homeworkAt],
+          ].map(([kind, label, at]) => (
+            <button
+              key={kind}
+              className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
+              disabled={pending}
+              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await setArrivalFor(row.student.id, date, kind, !at);
+                  if (res?.error) alert(res.error);
+                  router.refresh();
+                })
+              }
+            >
               {at ? "✓ " : ""}
               {label}
               {at
@@ -881,8 +893,8 @@ export default function StudentPanel({
                     hour: "2-digit",
                     minute: "2-digit",
                   })}`
-                : " 아직"}
-            </span>
+                : ""}
+            </button>
           ))}
           <span className="spacer" />
           <span className="hint" style={{ fontSize: 12 }}>단어시험</span>
