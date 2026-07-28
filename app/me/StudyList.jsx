@@ -32,7 +32,15 @@ function useTick(on) {
  *
  * 고를 것이 많으면 아이는 고르다가 시간을 쓴다. 고를 게 없어야 시작한다.
  */
-export default function StudyList({ title, hint, tasks = [], running = null, ready = true, kind = "home" }) {
+export default function StudyList({
+  title,
+  hint,
+  tasks = [],
+  running = null,
+  ready = true,
+  kind = "home",
+  readOnly = false,
+}) {
   const [pending, startTransition] = useTransition();
   const [openDone, setOpenDone] = useState(false);
   const router = useRouter();
@@ -93,7 +101,7 @@ export default function StudyList({ title, hint, tasks = [], running = null, rea
               <div className="nowtimer">{human(runningSec)}</div>
               <button
                 className="bigbtn"
-                disabled={pending}
+                disabled={pending || readOnly}
                 onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind))}
               >
                 다 했어요
@@ -101,7 +109,7 @@ export default function StudyList({ title, hint, tasks = [], running = null, rea
               <button
                 className="btn btn-ghost btn-sm"
                 style={{ width: "100%", marginTop: 6 }}
-                disabled={pending}
+                disabled={pending || readOnly}
                 onClick={() => run(() => stopStudy())}
               >
                 잠깐 멈추기
@@ -116,7 +124,7 @@ export default function StudyList({ title, hint, tasks = [], running = null, rea
               )}
               <button
                 className="bigbtn"
-                disabled={pending || !ready}
+                disabled={pending || !ready || readOnly}
                 onClick={() => run(() => startStudy(now.itemId, now.stayId, kind))}
               >
                 {now.seconds > 0 ? "이어서 하기" : "시작하기"}
@@ -172,7 +180,7 @@ export default function StudyList({ title, hint, tasks = [], running = null, rea
                   {t.needsCheck && <span className="tag tag-amber">검사 대기</span>}
                   <button
                     className="btn btn-ghost btn-sm"
-                    disabled={pending}
+                    disabled={pending || readOnly}
                     onClick={() => run(() => undoFinish(t.reportItemId))}
                   >
                     다시

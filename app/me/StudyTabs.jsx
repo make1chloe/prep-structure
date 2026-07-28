@@ -16,7 +16,13 @@ import StudyList from "./StudyList";
  *
  * 물론 학생이 직접 눌러 왔다갔다 할 수 있다. 반대쪽에 남은 개수를 같이 띄운다.
  */
-export default function StudyTabs({ inClass = [], home = [], running = null, ready = true }) {
+export default function StudyTabs({
+  inClass = [],
+  home = [],
+  running = null,
+  ready = true,
+  readOnly = false,
+}) {
   const inClassLeft = inClass.filter((t) => !t.doneAt).length;
   const homeLeft = home.filter((t) => !t.doneAt).length;
 
@@ -72,6 +78,7 @@ export default function StudyTabs({ inClass = [], home = [], running = null, rea
               running={running}
               ready={ready}
               kind="inclass"
+              readOnly={readOnly}
             />
             {inClassLeft === 0 && homeLeft > 0 && (
               <div className="card card-tight">
@@ -104,6 +111,7 @@ export default function StudyTabs({ inClass = [], home = [], running = null, rea
             running={running}
             ready={ready}
             kind="home"
+            readOnly={readOnly}
           />
         ))}
     </div>

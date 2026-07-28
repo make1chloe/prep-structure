@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 const dayLabel = fmtLong;
 
-export default async function MePage() {
+export default async function MePage({ searchParams }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -38,6 +38,21 @@ export default async function MePage() {
     .select("id, name, school, grade, word_when")
     .eq("profile_id", user.id)
     .maybeSingle();
+
+  // 선생님이 학생 화면을 그대로 보는 미리보기 (?s=학생id)
+  //   아이가 무엇을 보는지 모르면 "저기 눌러" 라고 말해줄 수가 없다.
+  //   보기만 하고 누르지는 못한다 — 선생님이 대신 눌러버리면 기록이 거짓이 된다.
+  const isStaff = ["principal", "instructor", "assistant"].includes(profile?.role);
+  const previewId = isStaff ? searchParams?.s : null;
+  if (previewId) {
+    const { data: s2 } = await supabase
+      .from("students")
+      .select("id, name, school, grade, word_when")
+      .eq("id", previewId)
+      .maybeSingle();
+    if (s2) student = s2;
+  }
+  const preview = !!(previewId && student);
 
   if (!student) {
     const { data: link } = await supabase
@@ -378,8 +393,20 @@ export default async function MePage() {
       </div>
 
       <div className="stack" style={{ gap: 14, marginTop: 12 }}>
-        <InstallHint />
-        <PushToggle />
+        {preview ? (
+          <div className="card card-tight" style={{ borderLeft: "3px solid var(--accent, #6d7cff)" }}>
+            <b style={{ fontSize: 13.5 }}>학생 화면 미리보기</b>
+            <p className="hint" style={{ margin: "4px 0 0" }}>
+              {student.name} 학생에게 보이는 그대로입니다. <b>여기서는 누를 수 없습니다</b> —
+              선생님이 대신 누르면 기록이 거짓이 됩니다.
+            </p>
+          </div>
+        ) : (
+          <>
+            <InstallHint />
+            <PushToggle />
+          </>
+        )}
         <ArrivalCard
           done={{
             phone: arrival.phone_at,
@@ -387,6 +414,7 @@ export default async function MePage() {
             homework: arrival.homework_at,
           }}
           atAcademy={atAcademy}
+          readOnly={preview}
         />
 
         <StudyTabs
@@ -394,9 +422,10 @@ export default async function MePage() {
           home={studyTasks}
           running={running}
           ready={timerReady}
+          readOnly={preview}
         />
 
-        <RequestForm studentId={student.id} mine={myRequests || []} />
+        {!preview && <RequestForm studentId={student.id} mine={myRequests || []} />}
 
         <div className="card">
           <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>

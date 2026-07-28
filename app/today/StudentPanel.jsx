@@ -907,6 +907,16 @@ export default function StudentPanel({
               {label}
             </button>
           ))}
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/me?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생에게 보이는 화면을 그대로 봅니다"
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+          >
+            학생 화면 보기
+          </a>
           <button
             className="btn btn-ghost btn-sm"
             disabled={pending}

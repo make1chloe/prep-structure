@@ -262,6 +262,15 @@ export default function StudentList({ students = [] }) {
                         >
                           {histId === s.id ? "기록 닫기" : "기록"}
                         </button>
+                        <a
+                          className="btn btn-ghost btn-sm"
+                          href={`/me?s=${s.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="이 학생에게 보이는 화면을 그대로 봅니다"
+                        >
+                          학생 화면
+                        </a>
                       </div>
                     )}
                   </td>
