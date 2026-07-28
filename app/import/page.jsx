@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ImportBoard from "./ImportBoard";
 import CheckBox from "./CheckBox";
+import FixDatesBox from "./FixDatesBox";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function ImportPage() {
         </div>
         <ImportBoard />
         <CheckBox />
+        <FixDatesBox />
       </main>
     </>
   );

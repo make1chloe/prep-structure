@@ -114,10 +114,16 @@ export default async function MePage({ searchParams }) {
   // 가장 최근 수업의 리포트 = 지금 해야 할 숙제가 담긴 곳
   const REP_BASE =
     "id, date, own_progress, notice, word_correct, word_total, sent_correct, sent_total";
+  // 수업 기록은 미래일 수 없다.
+  //   노션에서 연도 없는 "12/30" 을 올해로 붙여 들여온 적이 있어서,
+  //   지난주에 수업하고도 "최근 수업 12월 30일" 이 떴다. 들여오기는 고쳤지만
+  //   이미 들어간 것이 있을 수 있으므로 읽을 때도 오늘까지만 본다.
+  const todayStr = todaySeoul();
   let { data: reports, error: repErr } = await supabase
     .from("daily_reports")
     .select(`${REP_BASE}, phone_in, homework_in, word_when`)
     .eq("student_id", student.id)
+    .lte("date", todayStr)
     .order("date", { ascending: false })
     .limit(6);
   if (repErr) {
@@ -126,6 +132,7 @@ export default async function MePage({ searchParams }) {
       .from("daily_reports")
       .select(REP_BASE)
       .eq("student_id", student.id)
+      .lte("date", todayStr)
       .order("date", { ascending: false })
       .limit(6));
   }
