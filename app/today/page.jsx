@@ -60,13 +60,20 @@ export default async function TodayPage({ searchParams }) {
   // 오늘 출결 기록
   let { data: att, error: attErr } = await supabase
     .from("attendance")
-    .select("student_id, status, makeup_of, planned, reason")
+    .select("student_id, status, makeup_of, planned, reason, makeup_time")
     .eq("date", date);
   if (attErr) {
-    ({ data: att } = await supabase
+    // 0046 전이면 시간 없이, 그래도 안 되면 최소 칸만
+    ({ data: att, error: attErr } = await supabase
       .from("attendance")
-      .select("student_id, status, makeup_of")
+      .select("student_id, status, makeup_of, planned, reason")
       .eq("date", date));
+    if (attErr) {
+      ({ data: att } = await supabase
+        .from("attendance")
+        .select("student_id, status, makeup_of")
+        .eq("date", date));
+    }
   }
 
   // 학생이 낸 숙제 (0044 전이면 빈 배열)
@@ -613,6 +620,18 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // 보강 요일 — 보강 날짜를 잡을 때 미리 넣어준다 (설정에서 정한다, 기본 금요일)
+  let makeupDays = ["금"];
+  {
+    const { data: schedRow } = await supabase
+      .from("integrations")
+      .select("config")
+      .eq("id", "schedule")
+      .maybeSingle();
+    const d = schedRow?.config?.makeupDays;
+    if (Array.isArray(d) && d.length) makeupDays = d;
+  }
+
   // ── 경고 · 반성문 ────────────────────────────────────────
   // 저장하지 않고 지난 석 달 리포트에서 매번 센다
   const warnOf = new Map();
@@ -718,6 +737,7 @@ export default async function TodayPage({ searchParams }) {
           isMakeup: a?.status === "makeup",
           makeupOf: a?.makeup_of || null,   // 언제 결석한 보강인가
           makeupReason: a?.status === "makeup" ? a?.reason || "" : "",
+          makeupTime: a?.makeup_time || null,
           plannedAbsent: !!(a?.planned && a.status === "absent"),
           absenceReason: a?.reason || "",
           report: rep,
@@ -778,6 +798,7 @@ export default async function TodayPage({ searchParams }) {
         isMakeup: true,
         makeupOf: a.makeup_of || null,
         makeupReason: a.reason || "",
+        makeupTime: a.makeup_time || null,
         report: rep,
         items: rep ? itemsByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
@@ -930,7 +951,7 @@ export default async function TodayPage({ searchParams }) {
           items={items || []}
           textbooks={textbooks}
           unitNames={unitNames}
-          rule={warnRule}
+          rule={{ ...warnRule, makeupDays }}
         />
       </main>
     </>

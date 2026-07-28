@@ -19,6 +19,26 @@ import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 
+// 보강에 자주 쓰는 시간 — 정규 수업이 비는 때
+const MAKEUP_TIMES = ["15:00", "16:00", "17:00", "18:00"];
+
+/**
+ * 다음 보강 요일.
+ *
+ * 보강은 대개 정해진 요일에 몰아서 한다 (설정에서 정한다. 기본 금요일).
+ * 그 날짜를 미리 넣어두면 달력을 뒤질 일이 없다.
+ */
+function nextMakeupDay(from, days) {
+  const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
+  const want = new Set(days && days.length ? days : ["금"]);
+  const t = new Date(`${from}T00:00:00Z`);
+  for (let i = 1; i <= 14; i += 1) {
+    t.setUTCDate(t.getUTCDate() + 1);
+    if (want.has(DOWN[t.getUTCDay()])) return t.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
 const ATT = [
   { key: "present", label: "정시" },
   { key: "late", label: "지각" },
@@ -160,7 +180,7 @@ export default function StudentPanel({
     Object.fromEntries((row.notices || []).map((n) => [n.id, n.delivered]))
   );
   // 검사하다 "그럼 목요일에 다시 보자" 가 되는 순간을 여기서 바로 처리한다
-  const [mk, setMk] = useState({ open: false, date: "", reason: "" });
+  const [mk, setMk] = useState({ open: false, date: "", time: "", reason: "" });
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고 타이머가 여기 붙는다
   const [inClass, setInClass] = useState(() => new Set(row.inClass || []));
   const [openInClass, setOpenInClass] = useState(false);
@@ -1147,7 +1167,8 @@ export default function StudentPanel({
               onClick={() =>
                 setMk({
                   open: true,
-                  date: "",
+                  date: nextMakeupDay(date, rule.makeupDays),
+                  time: "",
                   // 미제출·미흡이 있으면 무엇 때문인지 미리 적어둔다
                   reason: unchecked.length === 0
                     ? Object.entries(marks)
@@ -1170,6 +1191,27 @@ export default function StudentPanel({
                 value={mk.date}
                 onChange={(e) => setMk({ ...mk, date: e.target.value })}
               />
+              {/* 보강은 비는 시간에 끼워 넣는 것이라 몇 시인지가 날짜만큼 중요하다.
+                  학부모께도 "금요일에 오세요" 로는 안 되고 "금요일 5시" 라야 한다. */}
+              <input
+                className="input input-sm"
+                type="time"
+                style={{ width: 116 }}
+                title="보강 시각"
+                value={mk.time}
+                onChange={(e) => setMk({ ...mk, time: e.target.value })}
+              />
+              {MAKEUP_TIMES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`btn btn-sm ${mk.time === t ? "btn-primary" : "btn-ghost"}`}
+                  style={{ padding: "2px 8px", fontSize: 12 }}
+                  onClick={() => setMk({ ...mk, time: t })}
+                >
+                  {t}
+                </button>
+              ))}
               <input
                 className="input input-sm"
                 style={{ flex: 1, minWidth: 140 }}
@@ -1186,23 +1228,25 @@ export default function StudentPanel({
                       row.student.id,
                       mk.date,
                       mk.reason,
-                      row.isMakeup ? row.makeupOf : null
+                      row.isMakeup ? row.makeupOf : null,
+                      mk.time
                     );
                     if (res?.error) { alert(res.error); return; }
-                    setMk({ open: false, date: "", reason: "" });
+                    setMk({ open: false, date: "", time: "", reason: "" });
                     router.refresh();
                   })
                 }
               >
                 잡기
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", reason: "" })}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", time: "", reason: "" })}>
                 취소
               </button>
             </div>
           )}
           <p className="hint" style={{ margin: "4px 0 0" }}>
             그날 <b>오늘 수업</b> 화면에 이 학생이 보강으로 뜹니다. 일정 화면으로 안 나가도 돼요.
+            {" "}날짜는 <b>다음 보강 요일</b>이 미리 들어가 있습니다 — 바꾸셔도 됩니다.
           </p>
         </div>
       </div>

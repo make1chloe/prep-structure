@@ -353,7 +353,7 @@ export async function setAllDelivered(studentId, noticeIds, delivered) {
  * 보강도 재시험도 attendance 한 줄로 남는다 (status='makeup').
  *   reason 에 무엇 때문인지 적어두면 그날 화면에서 바로 보인다.
  */
-export async function bookMakeup(studentId, makeupDate, reason, absentDate) {
+export async function bookMakeup(studentId, makeupDate, reason, absentDate, makeupTime) {
   if (!studentId || !makeupDate) return { error: "날짜를 골라주세요." };
   const supabase = createClient();
 
@@ -363,13 +363,22 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate) {
     status: "makeup",
     makeup_of: absentDate || null,
     reason: (reason || "").trim() || null,
+    // 보강은 비는 시간에 끼워 넣는 것이라 몇 시인지가 날짜만큼 중요하다
+    makeup_time: (makeupTime || "").trim() || null,
   };
   let { error } = await supabase
     .from("attendance")
     .upsert(row, { onConflict: "student_id,date" });
   if (isMissingColumn(error)) {
-    // 0017 전이면 reason 없이
-    const { reason: _drop, ...bare } = row;
+    // 0046 전이면 시간 없이
+    const { makeup_time: _t, ...noTime } = row;
+    ({ error } = await supabase
+      .from("attendance")
+      .upsert(noTime, { onConflict: "student_id,date" }));
+  }
+  if (isMissingColumn(error)) {
+    // 0017 전이면 reason 도 없이
+    const { makeup_time: _t2, reason: _drop, ...bare } = row;
     ({ error } = await supabase
       .from("attendance")
       .upsert(bare, { onConflict: "student_id,date" }));

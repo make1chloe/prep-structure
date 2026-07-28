@@ -212,7 +212,11 @@ export default function TodayBoard({
                           {notYet.map((r) => (
                             <div className="unitrow" key={r.student.id}>
                               <b style={{ fontSize: 13.5, minWidth: 62 }}>{r.student.name}</b>
-                              {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                              {r.isMakeup && (
+                                <span className="tag tag-lav">
+                                  보강{r.makeupTime ? ` ${r.makeupTime.slice(0, 5)}` : ""}
+                                </span>
+                              )}
                               {r.plannedAbsent && (
                                 <span className="tag tag-amber">
                                   결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}

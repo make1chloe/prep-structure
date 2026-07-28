@@ -36,6 +36,7 @@ const CHECKS = [
   { id: "0044", label: "숙제 제출", table: "homework_submissions", col: "kind" },
   { id: "0045", label: "학생 아이디 로그인", table: "students", col: "login_id" },
   { id: "0045", label: "체크리스트 숙제", table: "homework_items", col: "checklist" },
+  { id: "0046", label: "보강 시간", table: "attendance", col: "makeup_time" },
 ];
 
 export async function checkSchema() {

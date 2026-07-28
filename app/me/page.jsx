@@ -424,7 +424,11 @@ export default async function MePage({ searchParams }) {
       })),
   ].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ko"));
 
-  const notices = (reports || [])
+  // 리포트의 '공지' 는 **학부모께 나가는 문장**이다.
+  //   "숙제를 안 해와서 남겨서 시켰습니다" 같은 말이 아이 화면에 그대로 뜨면 안 된다.
+  //   아이에게 할 말은 전달사항(notices 표) 으로 따로 있다.
+  //   그래서 학생·학부모 화면에서는 빼고, 선생님이 미리보기로 볼 때만 남긴다.
+  const notices = (isStaff ? reports || [] : [])
     .filter((r) => r.notice)
     .slice(0, 3)
     .map((r) => ({ date: r.date, body: r.notice }));
@@ -590,7 +594,15 @@ export default async function MePage({ searchParams }) {
 
         {notices.length > 0 && (
           <div className="card">
-            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>공지</h2>
+            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>
+              공지{" "}
+              <span className="tag tag-amber" style={{ fontSize: 11 }}>
+                선생님께만 보임
+              </span>
+            </h2>
+            <p className="hint" style={{ margin: "-6px 0 8px", fontSize: 12 }}>
+              학부모께 나가는 문장입니다. 학생 화면에는 나오지 않습니다.
+            </p>
             <div className="stack" style={{ gap: 6 }}>
               {notices.map((n) => (
                 <div key={n.date}>
