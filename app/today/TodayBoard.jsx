@@ -147,10 +147,14 @@ export default function TodayBoard({
         {groups.map(({ klass, rows, textbookIds = [] }) => {
           const todo = rows.filter((r) => !isDone(r));
           const done = rows.filter(isDone);
+          // 출결을 찍은 학생이 **위로** 온다. 안 찍었다고 감추지는 않는다 —
+          // 등원 전에 미리 숙제를 검사하거나 다음 숙제를 정해둘 수 있어야 한다.
+          const byArrived = (a, b) =>
+            (b.status ? 1 : 0) - (a.status ? 1 : 0) ||
+            a.student.name.localeCompare(b.student.name, "ko");
           const visible =
             filter === "todo"
-              // 출결을 찍은 학생만 펼친다 — 아직 안 온 아이는 위 출결 줄에 있다
-              ? todo.filter((r) => r.status)
+              ? [...todo].sort(byArrived)
               : filter === "absent"
               ? rows.filter((r) => r.status === "absent")
               : filter === "makeup"
@@ -288,12 +292,9 @@ export default function TodayBoard({
 
                   {visible.length === 0 ? (
                     <p className="muted" style={{ margin: 0, padding: "10px 16px", fontSize: 13 }}>
-                      {filter !== "todo"
-                        ? "해당하는 학생이 없어요."
-                        : todo.length > 0
-                        // 아직 등원 체크를 안 했을 뿐이다. 끝난 게 아니다.
-                        ? `아직 등원 체크를 안 한 학생이 ${todo.length}명 있어요 — 위 등원 줄에서 찍어주세요.`
-                        : "이 반은 기록까지 모두 끝냈어요 👏"}
+                      {filter === "todo"
+                        ? "이 반은 기록까지 모두 끝냈어요 👏"
+                        : "해당하는 학생이 없어요."}
                     </p>
                   ) : (
                     visible.map((r) => {
