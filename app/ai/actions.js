@@ -143,6 +143,9 @@ export async function draftComment(facts = {}) {
     "- **주어진 사실만** 씁니다. 점수·태도·분량을 지어내지 마세요.",
     "- 2~4문장. 인사말과 맺음말은 넣지 않습니다 (앞뒤는 따로 붙습니다).",
     "- 못한 것을 적을 때도 아이를 깎아내리지 않습니다. 다음에 어떻게 할지로 맺습니다.",
+    facts.emoji
+      ? "- 이모티콘을 한두 개만 자연스럽게 씁니다 (문장 끝에). 남발하지 마세요."
+      : "- 이모티콘·이모지를 **쓰지 마세요.**",
     "- 아래는 원장님이 예전에 직접 쓰신 문장입니다. **이 말투를 그대로 따라 쓰세요.**",
     "  베끼지 말고 어투·길이·호칭만 흉내 냅니다.",
     "",
@@ -158,10 +161,70 @@ export async function draftComment(facts = {}) {
     facts.homework?.length ? `숙제 검사: ${facts.homework.join(", ")}` : "",
     facts.inclass?.length ? `학원에서 한 것: ${facts.inclass.join(", ")}` : "",
     facts.keywords?.length ? `오늘 느낀 점(원장님 메모): ${facts.keywords.join(", ")}` : "",
+    // 원장님이 간단히 적어둔 말 — 이게 있으면 **이걸 중심으로** 쓴다
+    facts.hint ? `원장님이 꼭 넣고 싶은 말: ${facts.hint}` : "",
     facts.note ? `덧붙일 것: ${facts.note}` : "",
   ].filter(Boolean);
 
   return ask(supabase, system, lines.join("\n"), 500);
+}
+
+/**
+ * 전달사항 한 줄로 **학생공지와 부모님공지를 한 번에** 쓴다.
+ *
+ * 같은 일을 두 번 적게 하면 안 된다. 원장님은 "오늘 워크북 안 해와서 남겨서
+ * 시켰음" 한 줄만 적고, 나머지는 받는 사람에 맞게 앱이 고쳐 쓴다.
+ *   · 학생공지   — 아이가 읽는다. 짧고, 할 일이 분명하게.
+ *   · 부모님공지 — 학부모가 읽는다. 존댓말, 아이를 깎아내리지 않게.
+ */
+export async function draftNotices(facts = {}) {
+  const hint = (facts.hint || "").trim();
+  if (hint.length < 2) return { error: "전달할 말을 적어주세요." };
+
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const mine = await samples(supabase);
+  const system = [
+    "당신은 한국 영어학원 원장의 글을 대신 씁니다.",
+    "원장님이 적은 **전달사항 한 줄**을 받아, 받는 사람에 맞게 두 벌로 고쳐 씁니다.",
+    "",
+    "규칙",
+    "- **주어진 사실만** 씁니다. 점수·분량·태도를 지어내지 마세요.",
+    "- 학생공지: 아이가 읽습니다. 1~2문장, 쉬운 말, 할 일이 분명하게. 반말은 쓰지 않되 딱딱하지 않게.",
+    "- 부모님공지: 학부모가 읽습니다. 1~3문장, 존댓말.",
+    "  못한 것을 적을 때도 아이를 깎아내리지 않고, 다음에 어떻게 할지로 맺습니다.",
+    facts.emoji
+      ? "- 이모티콘을 한두 개만 자연스럽게 씁니다. 남발하지 마세요."
+      : "- 이모티콘·이모지를 **쓰지 마세요.**",
+    "- 인사말·맺음말은 넣지 않습니다 (앞뒤는 따로 붙습니다).",
+    "",
+    "아래는 원장님이 예전에 직접 쓰신 문장입니다. **이 말투를 따라 쓰세요.**",
+    mine.length ? mine.map((x) => `  ${x}`).join("\n") : "  (아직 본보기 문장이 없습니다)",
+    "",
+    "답은 아래 형식 그대로만 내놓습니다. 설명하지 마세요.",
+    "학생: <학생공지>",
+    "학부모: <부모님공지>",
+  ].join("\n");
+
+  const lines = [
+    `학생: ${facts.name || "학생"}`,
+    `전달사항: ${hint}`,
+    facts.attendance ? `출결: ${facts.attendance}` : "",
+    facts.word ? `단어시험: ${facts.word}` : "",
+    facts.homework?.length ? `숙제 검사: ${facts.homework.join(", ")}` : "",
+    facts.inclass?.length ? `학원에서 한 것: ${facts.inclass.join(", ")}` : "",
+  ].filter(Boolean);
+
+  const res = await ask(supabase, system, lines.join("\n"), 600);
+  if (res.error) return res;
+
+  // "학생: …" / "학부모: …" 를 갈라낸다. 못 가르면 통째로 부모님공지로 본다.
+  const t = res.text || "";
+  const m = t.match(/학생\s*:\s*([\s\S]*?)\n\s*학부모\s*:\s*([\s\S]*)$/);
+  if (!m) return { error: null, student: "", parent: t.trim() };
+  return { error: null, student: m[1].trim(), parent: m[2].trim() };
 }
 
 /** 키가 들어와 있는지 (키 자체는 절대 돌려주지 않는다) */

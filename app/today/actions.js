@@ -105,13 +105,23 @@ export async function saveStudentDay(studentId, date, form) {
     sent_total: toInt(form.sent_total),
     own_progress: (form.own_progress || "").trim() || null,
     notice: (form.notice || "").trim() || null,
+    notice_student: (form.notice_student || "").trim() || null,
     report_written: complete,
   };
-  const { data: report, error: repErr } = await supabase
+  let { data: report, error: repErr } = await supabase
     .from("daily_reports")
     .upsert(row, { onConflict: "student_id,date" })
     .select("id")
     .single();
+  if (isMissingColumn(repErr)) {
+    // 0050 전이면 학생공지 없이
+    const { notice_student: _ns, ...noSplit } = row;
+    ({ data: report, error: repErr } = await supabase
+      .from("daily_reports")
+      .upsert(noSplit, { onConflict: "student_id,date" })
+      .select("id")
+      .single());
+  }
   if (repErr) return { error: repErr.message };
 
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)

@@ -42,6 +42,7 @@ const CHECKS = [
   { id: "0048", label: "숙제로 낼 때 바뀌는 학습", table: "homework_items", col: "home_item_id" },
   { id: "0049", label: "상담일지", table: "student_notes", col: "raw" },
   { id: "0049", label: "본보기 문장", table: "comment_samples", col: "body" },
+  { id: "0050", label: "학생공지 · 부모님공지", table: "daily_reports", col: "notice_student" },
 ];
 
 export async function checkSchema() {

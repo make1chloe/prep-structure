@@ -18,6 +18,7 @@ import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions"
 import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
+import { draftNotices } from "@/app/ai/actions";
 
 // 보강에 자주 쓰는 시간 — 정규 수업이 비는 때
 const MAKEUP_TIMES = ["15:00", "16:00", "17:00", "18:00"];
@@ -134,6 +135,7 @@ export default function StudentPanel({
     sent_total: r.sent_total ?? row.lastTotals?.sent_total ?? "",
     own_progress: r.own_progress || "",
     notice: r.notice || "",
+    notice_student: r.notice_student || "",
   });
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
@@ -186,6 +188,10 @@ export default function StudentPanel({
   const [openInClass, setOpenInClass] = useState(false);
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
   const [wordWhen, setWordWhen] = useState(row.wordWhen || "start");
+  // 전달사항 한 줄 → 학생공지·부모님공지를 한 번에 (0050)
+  const [hint, setHint] = useState("");
+  const [emoji, setEmoji] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -884,14 +890,92 @@ export default function StudentPanel({
         </div>
       </div>
 
-      <div className="prow">
-        <span className="plabel">공지</span>
-        <input
-          className="input input-sm" style={{ flex: 1, minWidth: 160 }}
-          placeholder="이 학생 학부모에게만 전할 말 (선택)"
-          value={form.notice}
-          onChange={(e) => set("notice", e.target.value)}
-        />
+      {/* 공지 — 받는 사람이 다르면 글도 달라야 한다.
+          같은 일을 두 번 적지 않도록, 전달사항 한 줄로 둘 다 만든다. */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>공지</span>
+        <div className="stack" style={{ gap: 6, flex: 1 }}>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              className="input input-sm"
+              style={{ flex: 1, minWidth: 180 }}
+              placeholder="전달사항 — 간단히 적으세요 (예: 워크북 안 해와서 남겨서 시킴)"
+              value={hint}
+              onChange={(e) => setHint(e.target.value)}
+            />
+            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 12 }}>
+              <input
+                type="checkbox"
+                checked={emoji}
+                onChange={(e) => setEmoji(e.target.checked)}
+              />
+              이모티콘
+            </label>
+            <button
+              className="btn btn-sm"
+              disabled={drafting || hint.trim().length < 2}
+              title="적으신 말을 학생용·학부모용으로 각각 고쳐 씁니다"
+              onClick={() => {
+                setDrafting(true);
+                startTransition(async () => {
+                  const res = await draftNotices({
+                    hint,
+                    emoji,
+                    name: row.student.name,
+                    attendance: ATT.find((a) => a.key === form.attendance)?.label,
+                    word:
+                      form.word_total && form.word_correct !== ""
+                        ? `${form.word_total - form.word_correct}개 틀림 / ${form.word_total}`
+                        : "",
+                    homework: Object.entries(marks)
+                      .filter(([, v]) => v)
+                      .map(([id, v]) => `${nameOf(id)} ${MARK[v]}`),
+                    inclass: [...inClass].map(nameOf).filter(Boolean),
+                  });
+                  setDrafting(false);
+                  if (res?.error) { alert(res.error); return; }
+                  setForm((f) => ({
+                    ...f,
+                    notice_student: res.student || f.notice_student,
+                    notice: res.parent || f.notice,
+                  }));
+                });
+              }}
+            >
+              {drafting ? "쓰는 중…" : "✎ 초안 만들기"}
+            </button>
+          </div>
+
+          <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
+              학생공지
+            </span>
+            <textarea
+              className="input input-sm"
+              rows={2}
+              style={{ flex: 1, minWidth: 200 }}
+              placeholder="숙제문자 맨 위에 들어갑니다 (아이가 읽습니다)"
+              value={form.notice_student}
+              onChange={(e) => set("notice_student", e.target.value)}
+            />
+          </div>
+          <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
+              부모님공지
+            </span>
+            <textarea
+              className="input input-sm"
+              rows={2}
+              style={{ flex: 1, minWidth: 200 }}
+              placeholder="데일리리포트 맨 아래에 들어갑니다 (학부모가 읽습니다)"
+              value={form.notice}
+              onChange={(e) => set("notice", e.target.value)}
+            />
+          </div>
+          <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+            수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>에 있습니다.
+          </p>
+        </div>
       </div>
 
       {/* 학생·학부모가 남긴 댓글 */}

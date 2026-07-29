@@ -21,10 +21,11 @@ const MAIN = [
 const GROUPS = [
   {
     label: "학생 · 반",
-    keys: ["students", "classes", "consult"],
+    keys: ["students", "classes", "consult", "notes"],
     items: [
       { href: "/students", key: "students", label: "재원생" },
       { href: "/classes", key: "classes", label: "반 · 학생 배정" },
+      { href: "/notes", key: "notes", label: "상담일지" },
       { href: "/consult", key: "consult", label: "신규 상담" },
     ],
   },
