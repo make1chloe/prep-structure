@@ -17,7 +17,7 @@ export async function listUnitOptions(textbookId) {
   if (!textbookId) return { options: [], error: null };
   const supabase = createClient();
 
-  const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort";
+  const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort, question_no";
   let { data, error } = await supabase
     .from("textbook_units")
     .select(`${base}, total_pages`)
@@ -28,6 +28,14 @@ export async function listUnitOptions(textbookId) {
     ({ data, error } = await supabase
       .from("textbook_units")
       .select(base)
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
+  if (error) {
+    // 0051 전이면 문제번호 없이
+    ({ data, error } = await supabase
+      .from("textbook_units")
+      .select("id, textbook_id, parent_id, label, name, page_start, page_end, sort")
       .eq("textbook_id", textbookId)
       .order("sort", { ascending: true }));
   }

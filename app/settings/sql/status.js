@@ -43,6 +43,7 @@ const CHECKS = [
   { id: "0049", label: "상담일지", table: "student_notes", col: "raw" },
   { id: "0049", label: "본보기 문장", table: "comment_samples", col: "body" },
   { id: "0050", label: "학생공지 · 부모님공지", table: "daily_reports", col: "notice_student" },
+  { id: "0051", label: "문제번호 단원", table: "textbook_units", col: "question_no" },
 ];
 
 export async function checkSchema() {

@@ -377,13 +377,20 @@ export async function bulkAddUnits(rows) {
       page_start: extra.page_start ?? null,
       page_end: extra.page_end ?? null,
       total_pages: extra.total_pages ?? null,
+      question_no: extra.question_no ?? null,
     };
     let { data, error } = await supabase
       .from("textbook_units").insert(row).select("id").single();
     if (error && isMissingColumn(error)) {
-      const { total_pages, ...rest } = row;
+      // 0051 전이면 문제번호 없이, 그래도 안 되면 총분량도 빼고
+      const { question_no, ...noQ } = row;
       ({ data, error } = await supabase
-        .from("textbook_units").insert(rest).select("id").single());
+        .from("textbook_units").insert(noQ).select("id").single());
+      if (error && isMissingColumn(error)) {
+        const { total_pages, ...rest } = noQ;
+        ({ data, error } = await supabase
+          .from("textbook_units").insert(rest).select("id").single());
+      }
     }
     if (error) throw new Error(`단원 '${name}' 생성 실패: ${error.message}`);
     unitIndex.set(key, data.id);
@@ -411,13 +418,22 @@ export async function bulkAddUnits(rows) {
 
       // 단원명이 따로 있으면 마지막 단계 아래에 실제 단원으로 넣는다
       const leafName = (r.name || "").trim();
+      const qNo = (r.question_no || "").trim();
+      // 문제번호가 있으면 **한 겹 더 아래**에 문제로 넣는다.
+      //   모의고사처럼 단원이 없으면 중단원 바로 아래에 문제가 온다.
+      const leafExtra = {
+        activity: r.activity,
+        page_start: r.page_start,
+        page_end: r.page_end,
+        total_pages: r.total_pages,
+      };
       if (leafName) {
-        await ensureUnit(bookId, parent, leafName, {
-          activity: r.activity,
-          page_start: r.page_start,
-          page_end: r.page_end,
-          total_pages: r.total_pages,
-        });
+        const leafId = await ensureUnit(bookId, parent, leafName, qNo ? {} : leafExtra);
+        if (qNo) {
+          await ensureUnit(bookId, leafId, `${qNo}번`, { ...leafExtra, question_no: qNo });
+        }
+      } else if (qNo) {
+        await ensureUnit(bookId, parent, `${qNo}번`, { ...leafExtra, question_no: qNo });
       }
       inserted += 1;
     }

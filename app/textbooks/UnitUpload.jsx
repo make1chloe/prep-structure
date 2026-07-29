@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { parseUnitAoA, UNIT_HEADERS, UNIT_FIELD_LABEL } from "@/lib/importUnit";
 import { bulkAddUnits } from "./actions";
 
-const SHOW = ["textbook", "big", "mid", "small", "name", "activity", "page_start", "page_end", "total_pages"];
+const SHOW = ["textbook", "big", "mid", "small", "name", "question_no", "activity", "page_start", "page_end", "total_pages"];
 
 export default function UnitUpload() {
   const [open, setOpen] = useState(false);
