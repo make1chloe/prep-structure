@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateStudent, deleteStudents, updateStudentsStatus } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
+import NoteBox from "./NoteBox";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -45,6 +46,7 @@ export default function StudentList({ students = [] }) {
   const [statusFilter, setStatusFilter] = useState("enrolled");
   const [histId, setHistId] = useState(null);
   const [linkId, setLinkId] = useState(null);   // 계정 연결 코드를 펼친 학생
+  const [noteId, setNoteId] = useState(null);   // 상담일지를 펼친 학생
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -266,6 +268,13 @@ export default function StudentList({ students = [] }) {
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
+                          onClick={() => setNoteId(noteId === s.id ? null : s.id)}
+                          title="상담·통화 내용을 남깁니다 (받아쓰기 됩니다)"
+                        >
+                          상담
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
                           onClick={() => setLinkId(linkId === s.id ? null : s.id)}
                           title="학생이 자기 계정으로 로그인할 수 있게 코드를 뽑습니다"
                         >
@@ -284,6 +293,13 @@ export default function StudentList({ students = [] }) {
                     )}
                   </td>
                 </tr>
+                {noteId === s.id && (
+                  <tr>
+                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                      <NoteBox studentId={s.id} name={s.name} />
+                    </td>
+                  </tr>
+                )}
                 {linkId === s.id && (
                   <tr>
                     <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
