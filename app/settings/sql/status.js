@@ -39,6 +39,7 @@ const CHECKS = [
   { id: "0046", label: "보강 시간", table: "attendance", col: "makeup_time" },
   // 표·칸이 아니라 **함수**로 확인한다 (저장소 권한이 이 함수에 걸려 있다)
   { id: "0047", label: "숙제 파일 권한", rpc: "my_student_id" },
+  { id: "0048", label: "숙제로 낼 때 바뀌는 학습", table: "homework_items", col: "home_item_id" },
 ];
 
 export async function checkSchema() {

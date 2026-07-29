@@ -71,6 +71,7 @@ export default function HomeworkList({ items = [] }) {
       sort: i.sort ?? "",
       method: i.method || "",
       checklist: i.checklist || "",
+      home_item_id: i.home_item_id || "",
       prep_task: i.prep_task || "",
       no_timer: !!i.no_timer,
     });
@@ -256,6 +257,25 @@ export default function HomeworkList({ items = [] }) {
                           value={draft.checklist}
                           onChange={(e) => setDraft({ ...draft, checklist: e.target.value })}
                         />
+                        {/* 집에서는 못 하는 학습 — 숙제로 낼 때 대신 쓸 것
+                            (구두테스트 → 셀프녹음테스트) */}
+                        <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 6 }}>
+                          <span className="hint" style={{ fontSize: 12 }}>숙제로 낼 때</span>
+                          <select
+                            className="input input-sm"
+                            style={{ minWidth: 170 }}
+                            title="집에서는 못 하는 학습이면, 숙제로 낼 때 대신 나갈 것을 고르세요"
+                            value={draft.home_item_id}
+                            onChange={(e) => setDraft({ ...draft, home_item_id: e.target.value })}
+                          >
+                            <option value="">그대로</option>
+                            {items
+                              .filter((x) => x.id !== i.id)
+                              .map((x) => (
+                                <option key={x.id} value={x.id}>{x.name}</option>
+                              ))}
+                          </select>
+                        </div>
                       </td>
                       <td>
                         <input

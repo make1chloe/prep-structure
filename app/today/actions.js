@@ -116,7 +116,21 @@ export async function saveStudentDay(studentId, date, form) {
 
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
   const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
-  const nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
+  let nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
+
+  // 집에서는 못 하는 학습을 숙제로 낼 때 바꿔준다 (구두테스트 → 셀프녹음테스트).
+  // 루틴은 등원 기준 하나만 알면 되고, 숙제로 나갈 때 여기서 알아서 바뀐다.
+  if (nextIds.length > 0) {
+    const { data: twins } = await supabase
+      .from("homework_items")
+      .select("id, home_item_id")
+      .in("id", nextIds)
+      .not("home_item_id", "is", null);
+    if (twins?.length) {
+      const swap = new Map(twins.map((t) => [t.id, t.home_item_id]));
+      nextIds = [...new Set(nextIds.map((id) => swap.get(id) || id))];
+    }
+  }
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고, 타이머가 여기 붙는다
   const inClassIds = Array.isArray(form.inClass) ? form.inClass : [];
   // 학생이 눌러둔 '학습 완료' 는 지우고 다시 넣어도 살려야 한다
