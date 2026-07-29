@@ -46,6 +46,7 @@ const CHECKS = [
   { id: "0051", label: "문제번호 단원", table: "textbook_units", col: "question_no" },
   { id: "0052", label: "내신 자료 관리", table: "prep_materials", col: "need_card" },
   { id: "0053", label: "내신 자료 종류", table: "prep_material_types", col: "need_card" },
+  { id: "0054", label: "내신 자료 순서", table: "prep_assignments", col: "sort" },
 ];
 
 export async function checkSchema() {
