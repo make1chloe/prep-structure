@@ -8,17 +8,25 @@ const ROLE_LABEL = {
   parent: "학부모",
 };
 
-// 늘 보이는 것 — 매일 쓰는 화면만
-const MAIN = [
-  { href: "/", key: "home", label: "대시보드" },
-  { href: "/today", key: "today", label: "오늘 수업" },
-  { href: "/plan", key: "plan", label: "수업 준비" },
-  { href: "/report", key: "report", label: "발송" },
-  { href: "/monthly", key: "monthly", label: "월말 리포트" },
-];
+// 늘 보이는 것 — **오늘 수업 하나뿐**이다.
+//
+// 메뉴가 아홉 개 늘어서 있으니 매번 어디였는지 찾게 된다. 매일 여는 것은
+// 오늘 수업 하나이고, 나머지는 필요할 때만 찾는다. 그래서 앞에는 하나만
+// 두고 나머지는 [메뉴] 안에 묶는다.
+const MAIN = [{ href: "/today", key: "today", label: "오늘 수업" }];
 
-// 묶어서 넣는 것
+// 메뉴 안에 묶는 것
 const GROUPS = [
+  {
+    label: "매일 쓰는 것",
+    keys: ["home", "plan", "report", "monthly"],
+    items: [
+      { href: "/", key: "home", label: "대시보드" },
+      { href: "/plan", key: "plan", label: "수업 준비" },
+      { href: "/report", key: "report", label: "발송" },
+      { href: "/monthly", key: "monthly", label: "월말 리포트" },
+    ],
+  },
   {
     label: "학생 · 반",
     keys: ["students", "classes", "consult", "notes"],
@@ -96,21 +104,24 @@ export default function TopBar({ profile, active }) {
             </Link>
           ))}
 
-          {GROUPS.map((g) => {
-            const on = g.keys.includes(active);
-            return (
-              <details key={g.label} className="navgroup">
-                <summary className={on ? "on" : ""}>{g.label} ▾</summary>
-                <div className="navmenu">
+          {/* 나머지는 전부 여기 한 군데에 */}
+          <details className="navgroup">
+            <summary className={MAIN.every((m) => m.key !== active) ? "on" : ""}>
+              메뉴 ▾
+            </summary>
+            <div className="navmenu navmenu-wide">
+              {GROUPS.map((g) => (
+                <div key={g.label} className="navsheet-group">
+                  <b>{g.label}</b>
                   {g.items.map((it) => (
                     <Link key={it.key} href={it.href} className={active === it.key ? "on" : ""}>
                       {it.label}
                     </Link>
                   ))}
                 </div>
-              </details>
-            );
-          })}
+              ))}
+            </div>
+          </details>
         </nav>
 
         <div className="spacer" />

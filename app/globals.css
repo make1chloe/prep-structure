@@ -385,3 +385,14 @@ a { color: inherit; }
   opacity: 0.6;
   text-decoration: line-through;
 }
+
+/* 메뉴 하나에 전부 담을 때 — 묶음별로 칸을 나눠 세로로 길어지지 않게 */
+.navmenu-wide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 18px;
+  min-width: 460px;
+  max-width: 92vw;
+}
+.navmenu-wide .navsheet-group { display: flex; flex-direction: column; gap: 2px; }
+.navmenu-wide .navsheet-group b { font-size: 11.5px; opacity: .6; padding: 6px 8px 2px; }
