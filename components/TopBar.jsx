@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SECTIONS, sectionOf } from "@/lib/menu";
 
 const ROLE_LABEL = {
   principal: "원장",
@@ -8,66 +9,8 @@ const ROLE_LABEL = {
   parent: "학부모",
 };
 
-// 늘 보이는 것 — **오늘 수업 하나뿐**이다.
-//
-// 메뉴가 아홉 개 늘어서 있으니 매번 어디였는지 찾게 된다. 매일 여는 것은
-// 오늘 수업 하나이고, 나머지는 필요할 때만 찾는다. 그래서 앞에는 하나만
-// 두고 나머지는 [메뉴] 안에 묶는다.
-const MAIN = [{ href: "/today", key: "today", label: "오늘 수업" }];
-
-// 메뉴 안에 묶는 것
-const GROUPS = [
-  {
-    label: "매일 쓰는 것",
-    keys: ["home", "plan", "report", "monthly"],
-    items: [
-      { href: "/", key: "home", label: "대시보드" },
-      { href: "/plan", key: "plan", label: "수업 준비" },
-      { href: "/report", key: "report", label: "발송" },
-      { href: "/monthly", key: "monthly", label: "월말 리포트" },
-    ],
-  },
-  {
-    label: "학생 · 반",
-    keys: ["students", "classes", "consult", "notes"],
-    items: [
-      { href: "/students", key: "students", label: "재원생" },
-      { href: "/classes", key: "classes", label: "반 · 학생 배정" },
-      { href: "/notes", key: "notes", label: "상담일지" },
-      { href: "/consult", key: "consult", label: "신규 상담" },
-    ],
-  },
-  {
-    label: "교재 · 숙제",
-    keys: ["textbooks", "homework"],
-    items: [
-      { href: "/textbooks", key: "textbooks", label: "교재 · 단원" },
-      { href: "/homework", key: "homework", label: "학습 항목" },
-    ],
-  },
-  {
-    label: "일정 · 정산",
-    keys: ["schedule", "tasks", "todo", "tuition"],
-    items: [
-      { href: "/schedule", key: "schedule", label: "수업 스케줄 · 시험" },
-      { href: "/tasks", key: "tasks", label: "일정" },
-      { href: "/todo", key: "todo", label: "할일" },
-      { href: "/tuition", key: "tuition", label: "수강료" },
-    ],
-  },
-  {
-    label: "설정",
-    keys: ["resend", "import", "settings"],
-    items: [
-      { href: "/resend", key: "resend", label: "재발송" },
-      { href: "/import", key: "import", label: "노션 이관" },
-      { href: "/settings", key: "settings", label: "발송 · 연동 설정" },
-      { href: "/settings/messages", key: "messages", label: "문자 문구" },
-    ],
-  },
-];
-
 export default function TopBar({ profile, active }) {
+  const here = sectionOf(active) || active;
   return (
     <header className="topbar">
       <div className="topbar-in">
@@ -75,53 +18,32 @@ export default function TopBar({ profile, active }) {
           <span className="mark">클</span> 클로이영어
         </Link>
 
-        {/* 좁은 화면 — 메뉴를 하나로 접는다 (가로 스크롤은 눌러도 잘려서 안 보임) */}
+        {/* 좁은 화면 — 큰 이름만 접어둔다 */}
         <details className="navburger">
           <summary aria-label="메뉴">☰ 메뉴</summary>
           <div className="navsheet">
-            {MAIN.map((m) => (
-              <Link key={m.key} href={m.href} className={active === m.key ? "on" : ""}>
-                {m.label}
+            {SECTIONS.map((sec) => (
+              <Link
+                key={sec.key}
+                href={sec.href}
+                className={here === sec.key ? "on" : ""}
+              >
+                {sec.label}
               </Link>
-            ))}
-            {GROUPS.map((g) => (
-              <div key={g.label} className="navsheet-group">
-                <b>{g.label}</b>
-                {g.items.map((it) => (
-                  <Link key={it.key} href={it.href} className={active === it.key ? "on" : ""}>
-                    {it.label}
-                  </Link>
-                ))}
-              </div>
             ))}
           </div>
         </details>
 
         <nav className="nav">
-          {MAIN.map((m) => (
-            <Link key={m.key} href={m.href} className={active === m.key ? "on" : ""}>
-              {m.label}
+          {SECTIONS.map((sec) => (
+            <Link
+              key={sec.key}
+              href={sec.href}
+              className={here === sec.key ? "on" : ""}
+            >
+              {sec.label}
             </Link>
           ))}
-
-          {/* 나머지는 전부 여기 한 군데에 */}
-          <details className="navgroup">
-            <summary className={MAIN.every((m) => m.key !== active) ? "on" : ""}>
-              메뉴 ▾
-            </summary>
-            <div className="navmenu navmenu-wide">
-              {GROUPS.map((g) => (
-                <div key={g.label} className="navsheet-group">
-                  <b>{g.label}</b>
-                  {g.items.map((it) => (
-                    <Link key={it.key} href={it.href} className={active === it.key ? "on" : ""}>
-                      {it.label}
-                    </Link>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </details>
         </nav>
 
         <div className="spacer" />
