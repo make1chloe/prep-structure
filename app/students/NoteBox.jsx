@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { listNotes, saveNote, deleteNote } from "./noteActions";
-import { summarizeConsult } from "@/app/ai/actions";
+import { summarizeConsult, aiReady } from "@/app/ai/actions";
 
 const KINDS = [
   { key: "consult", label: "상담" },
@@ -24,12 +24,15 @@ export default function NoteBox({ studentId, name }) {
   const [draft, setDraft] = useState(null);      // 지금 쓰고 있는 것
   const [listening, setListening] = useState(false);
   const [canDictate, setCanDictate] = useState(false);
+  const [ai, setAi] = useState(null);      // AI 키가 들어와 있나
+  const [err, setErr] = useState("");      // 실패한 이유를 화면에 남긴다
   const [pending, startTransition] = useTransition();
   const recog = useRef(null);
   const baseRef = useRef("");
 
   useEffect(() => {
     listNotes(studentId).then(setRows);
+    aiReady().then(setAi);
     const SR = typeof window !== "undefined"
       ? window.SpeechRecognition || window.webkitSpeechRecognition
       : null;
@@ -137,20 +140,33 @@ export default function NoteBox({ studentId, name }) {
             <span className="spacer" />
             <button
               className="btn btn-sm"
-              disabled={pending || (draft.raw || "").trim().length < 10}
-              title="받아쓴 것을 읽을 수 있게 정리합니다"
+              disabled={pending || (draft.raw || "").trim().length < 10 || ai?.ready === false}
+              title={
+                ai?.ready === false
+                  ? "설정 → Supabase SQL → AI 초안 에서 키를 먼저 넣어주세요"
+                  : "받아쓴 것을 읽을 수 있게 정리합니다"
+              }
               onClick={() =>
                 startTransition(async () => {
+                  setErr("");
                   const r = await summarizeConsult(draft.raw, name);
-                  if (r?.error) { alert(r.error); return; }
+                  if (r?.error) { setErr(r.error); return; }
+                  if (!r?.text) { setErr("AI 가 빈 답을 보냈어요. 다시 눌러주세요."); return; }
                   setDraft((d) => ({ ...d, body: r.text }));
                 })
               }
             >
-              {pending ? "정리하는 중…" : "AI 로 정리"}
+              {pending ? "정리하는 중…" : ai?.ready === false ? "AI 키 없음" : "AI 로 정리"}
             </button>
           </div>
 
+          {err && <div className="err" style={{ fontSize: 12.5 }}>{err}</div>}
+          {ai?.ready === false && (
+            <div className="notice" style={{ fontSize: 12.5 }}>
+              AI 정리를 쓰려면 <b>설정 → Supabase SQL → AI 초안</b> 에서 키를 넣어주세요.
+              키가 없어도 <b>받아쓰기와 저장은 그대로 됩니다.</b>
+            </div>
+          )}
           <textarea
             className="input"
             rows={4}
