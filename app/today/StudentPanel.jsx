@@ -916,6 +916,12 @@ export default function StudentPanel({
               disabled={drafting || hint.trim().length < 2}
               title="적으신 말을 학생용·학부모용으로 각각 고쳐 씁니다"
               onClick={() => {
+                // 이미 적어두신 게 있으면 덮어쓰기 전에 묻는다.
+                // AI 는 **누를 때만** 돈다 — 저장하거나 화면을 열 때는 부르지 않는다.
+                if (
+                  (form.notice_student || form.notice) &&
+                  !confirm("이미 적어둔 공지가 있습니다. 새 초안으로 바꿀까요?")
+                ) return;
                 setDrafting(true);
                 startTransition(async () => {
                   const res = await draftNotices({
