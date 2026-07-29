@@ -6,6 +6,7 @@ import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
 import ServiceKeyBox from "./ServiceKeyBox";
 import StorageBox from "./StorageBox";
+import AiBox from "./AiBox";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
@@ -54,6 +55,11 @@ export default async function SqlPage() {
     .from("integrations")
     .select("config")
     .eq("id", "supabase_service")
+    .maybeSingle();
+  const { data: aiRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "anthropic")
     .maybeSingle();
   const missing = checks.filter((c) => !c.ok).map((c) => c.id);
 
@@ -180,6 +186,8 @@ export default async function SqlPage() {
         <ServiceKeyBox saved={!!svcRow?.config?.key} />
 
         <StorageBox />
+
+        <AiBox saved={!!aiRow?.config?.key} />
 
         <StepBox steps={steps} missing={missing} />
       </main>
