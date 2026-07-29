@@ -37,13 +37,18 @@ const CHECKS = [
   { id: "0045", label: "학생 아이디 로그인", table: "students", col: "login_id" },
   { id: "0045", label: "체크리스트 숙제", table: "homework_items", col: "checklist" },
   { id: "0046", label: "보강 시간", table: "attendance", col: "makeup_time" },
+  // 표·칸이 아니라 **함수**로 확인한다 (저장소 권한이 이 함수에 걸려 있다)
+  { id: "0047", label: "숙제 파일 권한", rpc: "my_student_id" },
 ];
 
 export async function checkSchema() {
   const supabase = createClient();
   const out = [];
   for (const c of CHECKS) {
-    const { error } = await supabase.from(c.table).select(c.col).limit(1);
+    // 함수로 확인하는 것과 표로 확인하는 것을 나눠 본다
+    const { error } = c.rpc
+      ? await supabase.rpc(c.rpc)
+      : await supabase.from(c.table).select(c.col).limit(1);
     out.push({
       ...c,
       ok: !error,

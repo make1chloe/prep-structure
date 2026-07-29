@@ -107,7 +107,7 @@ export default async function SqlPage() {
           </div>
           <div className="stack" style={{ gap: 3, marginTop: 8 }}>
             {checks.map((c) => (
-              <div className="unitrow" key={c.id + c.col}>
+              <div className="unitrow" key={c.id + (c.col || c.rpc || "")}>
                 <span className={`tag ${c.ok ? "tag-mint" : "tag-amber"}`}>{c.ok ? "OK" : "없음"}</span>
                 <span className="hint" style={{ minWidth: 44 }}>{c.id}</span>
                 <span style={{ fontSize: 12.5, flex: 1 }}>{c.label}</span>
