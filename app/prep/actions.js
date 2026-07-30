@@ -189,7 +189,7 @@ export async function updateMaterial(id, patch = {}) {
   const { error } = await supabase.from("prep_materials").update(row).eq("id", id);
   if (needSql(error)) return { error: SQL };
   revalidatePath("/prep");
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return { error: error ? error.message : null };
 }
 
@@ -213,7 +213,7 @@ export async function markStage(materialId, stage, on = true) {
     .eq("id", materialId);
   if (needSql(error)) return { error: SQL };
   revalidatePath("/prep");
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return { error: error ? error.message : null };
 }
 
@@ -258,6 +258,6 @@ export async function markAssign(assignId, stage, on = true, extra = {}) {
   const { error } = await supabase.from("prep_assignments").update(row).eq("id", assignId);
   if (needSql(error)) return { error: SQL };
   revalidatePath("/prep");
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return { error: error ? error.message : null };
 }

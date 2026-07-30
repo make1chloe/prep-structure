@@ -343,10 +343,10 @@ export default async function Home() {
             <Link className="btn" href="/consult">진행중 상담 {inquiries.length}건</Link>
           )}
           {overdue.length > 0 && (
-            <Link className="btn" href="/todo">지난 할일 {overdue.length}건</Link>
+            <Link className="btn" href="/tasks?view=todo">지난 할일 {overdue.length}건</Link>
           )}
           {todos.length > 0 && (
-            <Link className="btn" href="/todo">할일 {todos.length}건</Link>
+            <Link className="btn" href="/tasks?view=todo">할일 {todos.length}건</Link>
           )}
         </div>
 

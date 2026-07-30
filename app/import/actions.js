@@ -187,7 +187,6 @@ export async function importTasks(rows) {
   if (error) return { error: error.message, saved: 0, skipped };
 
   revalidatePath("/tasks");
-  revalidatePath("/todo");
   return { error: null, saved: payload.length, skipped };
 }
 
