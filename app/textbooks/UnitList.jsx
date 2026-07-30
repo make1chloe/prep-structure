@@ -10,11 +10,16 @@ import {
   moveUnitsUnder,
 } from "./actions";
 import { flattenTree } from "@/lib/unitTree";
+import { DEFAULT_ACTIVITIES } from "@/lib/activities";
 
-const ACTIVITIES = ["설명", "실전모의고사", "워크북"];
 const LEVEL = ["대", "중", "소"];
 
-export default function UnitList({ units = [], textbookId, textbooks = [] }) {
+export default function UnitList({
+  units = [],
+  textbookId,
+  textbooks = [],
+  activities = DEFAULT_ACTIVITIES,
+}) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -40,6 +45,7 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
       name: u.name || "",
       sort: u.sort ?? "",
       activity: u.label || "",
+      question_no: u.question_no || "",
       page_start: u.page_start ?? "",
       page_end: u.page_end ?? "",
     });
@@ -157,6 +163,12 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
         </div>
       )}
 
+      <datalist id="unit-activity-list">
+        {activities.map((a) => (
+          <option key={a} value={a} />
+        ))}
+      </datalist>
+
       <table className="tbl">
         <thead>
           <tr>
@@ -191,11 +203,22 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                 {editing ? (
                   <>
                     <td>
-                      <input
-                        className="input input-sm"
-                        value={draft.name}
-                        onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                      />
+                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
+                        <input
+                          className="input input-sm"
+                          style={{ flex: 1 }}
+                          value={draft.name}
+                          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                        />
+                        <input
+                          className="input input-sm"
+                          style={{ width: 52, padding: "5px 4px" }}
+                          placeholder="문제"
+                          title="문제번호 — 모의고사처럼 단원이 없을 때 씁니다"
+                          value={draft.question_no}
+                          onChange={(e) => setDraft({ ...draft, question_no: e.target.value })}
+                        />
+                      </div>
                     </td>
                     <td>
                       <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
@@ -214,14 +237,15 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                       </div>
                     </td>
                     <td>
-                      <select
+                      {/* 교재마다 활동이 다르다 — 골라도 되고 직접 적어도 된다 */}
+                      <input
                         className="input input-sm"
+                        list="unit-activity-list"
+                        placeholder="없음"
+                        title="목록에서 골라도 되고 직접 적어도 됩니다"
                         value={draft.activity}
                         onChange={(e) => setDraft({ ...draft, activity: e.target.value })}
-                      >
-                        <option value="">없음</option>
-                        {ACTIVITIES.map((a) => <option key={a} value={a}>{a}</option>)}
-                      </select>
+                      />
                     </td>
                     <td>
                       <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
@@ -238,6 +262,11 @@ export default function UnitList({ units = [], textbookId, textbooks = [] }) {
                   <>
                     <td style={{ paddingLeft: 12 + depth * 20, fontWeight: depth === 0 ? 700 : 500 }}>
                       {u.name}
+                      {u.question_no && (
+                        <span className="tag tag-muted" style={{ marginLeft: 6, fontSize: 11 }}>
+                          {u.question_no}번
+                        </span>
+                      )}
                     </td>
                     <td className="muted" style={{ fontSize: 12 }}>
                       {u.page_start

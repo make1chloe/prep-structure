@@ -107,7 +107,7 @@ export async function addUnit(formData) {
     sort = (last?.[0]?.sort ?? 0) + 1;
   }
 
-  await supabase.from("textbook_units").insert({
+  const row = {
     textbook_id,
     parent_id,
     name,
@@ -115,7 +115,16 @@ export async function addUnit(formData) {
     label: activity,
     page_start: num(formData, "page_start"),
     page_end: num(formData, "page_end"),
-  });
+  };
+  const question_no = clean(formData, "question_no");
+
+  let { error } = await supabase
+    .from("textbook_units")
+    .insert({ ...row, question_no });
+  if (isMissingColumn(error)) {
+    // 0051 전 — 문제번호 칸이 아직 없다
+    await supabase.from("textbook_units").insert(row);
+  }
   revalidatePath("/textbooks");
 }
 
@@ -185,6 +194,7 @@ export async function updateUnit(id, patch) {
   }
   if ("activity" in (patch || {})) row.label = (patch.activity || "").trim() || null;
   if ("parent_id" in (patch || {})) row.parent_id = patch.parent_id || null;
+  if ("question_no" in (patch || {})) row.question_no = (patch.question_no || "").trim() || null;
   ["page_start", "page_end"].forEach((k) => {
     if (k in (patch || {})) {
       const d = (patch[k] ?? "").toString().replace(/[^\d]/g, "");
@@ -193,7 +203,12 @@ export async function updateUnit(id, patch) {
   });
 
   const supabase = createClient();
-  const { error } = await supabase.from("textbook_units").update(row).eq("id", id);
+  let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
+  if (isMissingColumn(error)) {
+    // 0051 전 — 문제번호 칸만 빼고 나머지는 저장한다
+    const { question_no, ...rest } = row;
+    ({ error } = await supabase.from("textbook_units").update(rest).eq("id", id));
+  }
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
 }

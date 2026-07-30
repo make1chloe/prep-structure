@@ -9,11 +9,11 @@ import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
 import RoutineEditor from "./RoutineEditor";
 import { flattenTree } from "@/lib/unitTree";
+import { activityList } from "@/lib/activities";
 
 export const dynamic = "force-dynamic";
 
 const AREAS = ["독해", "듣기", "영작", "문법", "단어", "내신"];
-const ACTIVITIES = ["설명", "실전모의고사", "워크북"];
 
 export default async function TextbooksPage({ searchParams }) {
   const supabase = createClient();
@@ -44,13 +44,15 @@ export default async function TextbooksPage({ searchParams }) {
   }
 
   // 교재별 단원 개수 — 어느 교재를 아직 안 채웠는지 한눈에 보기 위해
+  // 활동 이름도 여기서 모은다 (한 번 적은 것은 다음부터 골라 쓸 수 있게)
   const { data: allUnits } = await supabase
     .from("textbook_units")
-    .select("textbook_id");
+    .select("textbook_id, label");
   const unitCount = {};
   (allUnits || []).forEach((u) => {
     unitCount[u.textbook_id] = (unitCount[u.textbook_id] || 0) + 1;
   });
+  const activities = activityList((allUnits || []).map((u) => u.label));
 
   const { data: hwItems } = await supabase
     .from("homework_items")
@@ -63,11 +65,20 @@ export default async function TextbooksPage({ searchParams }) {
 
   let units = [];
   if (selectedId) {
-    const { data } = await supabase
+    const base = "id, name, sort, label, parent_id, page_start, page_end";
+    let { data, error } = await supabase
       .from("textbook_units")
-      .select("id, name, sort, label, parent_id, page_start, page_end")
+      .select(`${base}, question_no`)
       .eq("textbook_id", selectedId)
       .order("sort", { ascending: true });
+    if (error) {
+      // 0051 전이면 문제번호 없이
+      ({ data } = await supabase
+        .from("textbook_units")
+        .select(base)
+        .eq("textbook_id", selectedId)
+        .order("sort", { ascending: true }));
+    }
     units = data || [];
   }
 
@@ -139,26 +150,42 @@ export default async function TextbooksPage({ searchParams }) {
                       ))}
                     </select>
                   </div>
-                  <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                  <div className="field" style={{ flex: 1, minWidth: 150 }}>
                     <label className="label">단원명 *</label>
                     <input className="input input-sm" name="name" required placeholder="Unit 1. 관계사" />
                   </div>
-                  <div className="field" style={{ width: 62 }}>
+                  <div className="field" style={{ width: 74 }}>
+                    <label className="label">문제번호</label>
+                    <input
+                      className="input input-sm"
+                      name="question_no"
+                      placeholder="29"
+                      title="모의고사처럼 단원이 없을 때 씁니다 (내신 범위를 여기서 골라 담습니다)"
+                    />
+                  </div>
+                  <div className="field" style={{ width: 58 }}>
                     <label className="label">시작p</label>
                     <input className="input input-sm" name="page_start" inputMode="numeric" placeholder="8" />
                   </div>
-                  <div className="field" style={{ width: 62 }}>
+                  <div className="field" style={{ width: 58 }}>
                     <label className="label">끝p</label>
                     <input className="input input-sm" name="page_end" inputMode="numeric" placeholder="15" />
                   </div>
                   <div className="field" style={{ width: 118 }}>
                     <label className="label">활동</label>
-                    <select className="input input-sm" name="activity" defaultValue="">
-                      <option value="">없음</option>
-                      {ACTIVITIES.map((a) => (
-                        <option key={a} value={a}>{a}</option>
+                    {/* 교재마다 다르니 골라도 되고 직접 적어도 된다 */}
+                    <input
+                      className="input input-sm"
+                      name="activity"
+                      list="activity-list"
+                      placeholder="설명 · 예습 …"
+                      title="목록에서 골라도 되고 직접 적어도 됩니다"
+                    />
+                    <datalist id="activity-list">
+                      {activities.map((a) => (
+                        <option key={a} value={a} />
                       ))}
-                    </select>
+                    </datalist>
                   </div>
                   <button className="btn btn-primary btn-sm" type="submit" style={{ marginBottom: 1 }}>
                     추가
@@ -169,6 +196,7 @@ export default async function TextbooksPage({ searchParams }) {
                   units={units}
                   textbookId={selected.id}
                   textbooks={textbooks || []}
+                  activities={activities}
                 />
               </>
             ) : (
