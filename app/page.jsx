@@ -5,12 +5,9 @@ import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import MakeupInbox from "./MakeupInbox";
-import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
-import { holidayAlerts } from "@/lib/holidays";
-import { loadSettings } from "@/lib/settings";
-import {
-  todaySeoul, dowOf, dayLabel, longLabel, addDays, addMonths, endOfMonth,
-} from "@/lib/day";
+import { loadDashboard } from "@/lib/dashboard";
+import { won } from "@/lib/tuition";
+import { dayLabel, longLabel } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +15,23 @@ function cut(t) {
   return t ? t.slice(0, 5) : "";
 }
 
+/**
+ * 위에 늘어놓는 배지.
+ *
+ * 전에는 '학부모 알림'·'보강 잡을 것' 두 개가 버튼처럼 생겼는데 눌리지 않았다.
+ * 눌러서 처리하러 갈 수 없으면 배지가 아니라 그냥 글자다. **전부 링크로 둔다.**
+ */
+function Badge({ href, children, tone }) {
+  const style =
+    tone === "warn" ? { borderColor: "var(--amber)", color: "var(--amber)" }
+    : tone === "bad" ? { borderColor: "var(--red)", color: "var(--red)" }
+    : undefined;
+  return (
+    <Link className="btn" href={href} style={style}>
+      {children}
+    </Link>
+  );
+}
 
 export default async function Home() {
   const supabase = createClient();
@@ -35,280 +49,14 @@ export default async function Home() {
   // (미들웨어가 이미 막지만, 막는 곳이 하나뿐이면 그 하나가 뚫렸을 때 끝이다)
   if (!isStaff(profile?.role)) redirect("/me");
 
-  const today = todaySeoul();
-  const dow = dowOf(today);
-  const weekEnd = addDays(today, 7);
-  const monthEnd = endOfMonth(addMonths(today.slice(0, 7), 1));
+  const d = await loadDashboard(supabase);
+  const { kpi, tasks } = d;
 
-  // ---------- 오늘 수업 ----------
-  const { data: allClasses } = await supabase
-    .from("classes")
-    .select("id, name, days, start_time, end_time, room")
-    .order("start_time", { ascending: true });
-  const todayClasses = (allClasses || []).filter((c) => (c.days || []).includes(dow));
-
-  const { data: members } = await supabase.from("class_students").select("class_id, student_id");
-  const todayIds = new Set(
-    (members || [])
-      .filter((m) => todayClasses.some((c) => c.id === m.class_id))
-      .map((m) => m.student_id)
-  );
-
-  let { data: att } = await supabase
-    .from("attendance")
-    .select("student_id, status, planned, reason")
-    .eq("date", today);
-  if (!att) {
-    ({ data: att } = await supabase
-      .from("attendance")
-      .select("student_id, status")
-      .eq("date", today));
-  }
-  const { data: reports } = await supabase
-    .from("daily_reports")
-    .select("student_id, report_written")
-    .eq("date", today);
-
-  const plannedOff = (att || []).filter((a) => a.planned && a.status === "absent").length;
-  const written = (reports || []).filter(
-    (r) => r.report_written && todayIds.has(r.student_id)
-  ).length;
-  const todayTotal = todayIds.size;
-
-  // ---------- 일정 ----------
-  const taskQ = await supabase
-    .from("tasks")
-    .select("id, title, kind, category, due_on, end_on, start_time, status, deliver_body, notice_body, priority")
-    .gte("due_on", today)
-    .lte("due_on", monthEnd)
-    .eq("status", "open")
-    .order("due_on", { ascending: true });
-  const all = taskQ.error ? [] : taskQ.data || [];
-  const tasks = all.filter((t) => t.kind !== "todo");
-  const todos = all.filter((t) => t.kind === "todo");
-  const tasksToday = tasks.filter((t) => t.due_on === today);
-  const tasksWeek = tasks.filter((t) => t.due_on > today && t.due_on <= weekEnd);
-  const tasksMonth = tasks.filter((t) => t.due_on > weekEnd);
-
-  const overdueQ = await supabase
-    .from("tasks")
-    .select("id, title, due_on, kind")
-    .lt("due_on", today)
-    .eq("status", "open")
-    .order("due_on", { ascending: true })
-    .limit(10);
-  const overdue = overdueQ.error ? [] : overdueQ.data || [];
-
-  const holQ = await supabase
-    .from("holidays")
-    .select("id, date, name, scope")
-    .gte("date", today)
-    .lte("date", monthEnd)
-    .order("date", { ascending: true });
-  const holidays = holQ.error ? [] : holQ.data || [];
-
-  // ---------- 특이사항 ----------
-  const absQ = await supabase
-    .from("attendance")
-    .select("student_id, date, status, planned, reason")
-    .gte("date", today)
-    .lte("date", weekEnd)
-    .eq("planned", true);
-  const soonAbsent = absQ.error ? [] : absQ.data || [];
-
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("status", "enrolled");
-  const nameOf = new Map((students || []).map((s) => [s.id, s.name]));
-
-  const twoWeeksAgo = addDays(today, -14);
-  const { data: recentReports } = await supabase
-    .from("daily_reports")
-    .select("id, student_id, date")
-    .gte("date", twoWeeksAgo)
-    .lte("date", today);
-  const repIds = (recentReports || []).map((r) => r.id);
-  const { data: dri } = repIds.length
-    ? await supabase
-        .from("daily_report_items")
-        .select("daily_report_id, status")
-        .in("daily_report_id", repIds)
-        .in("status", ["missing", "weak"])
-    : { data: [] };
-  const repStudent = new Map((recentReports || []).map((r) => [r.id, r.student_id]));
-  const missCount = new Map();
-  (dri || []).forEach((x) => {
-    const sid = repStudent.get(x.daily_report_id);
-    if (!sid) return;
-    missCount.set(sid, (missCount.get(sid) || 0) + 1);
-  });
-  const watchList = [...missCount.entries()]
-    .filter(([, n]) => n >= 3)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([sid, n]) => ({ name: nameOf.get(sid) || "", count: n }));
-
-  // ---------- 보강 잡을 것 ----------
-  // 최근 한 달 결석 중, 그 날짜를 원 결석일로 하는 보강이 아직 없는 건
-  const monthAgo = addDays(today, -30);
-  let { data: absences } = await supabase
-    .from("attendance")
-    .select("student_id, date, status, planned, reason")
-    .eq("status", "absent")
-    .gte("date", monthAgo)
-    .lte("date", weekEnd);
-  if (!absences) {
-    ({ data: absences } = await supabase
-      .from("attendance")
-      .select("student_id, date, status")
-      .eq("status", "absent")
-      .gte("date", monthAgo)
-      .lte("date", weekEnd));
-  }
-  const { data: makeups } = await supabase
-    .from("attendance")
-    .select("student_id, makeup_of")
-    .eq("status", "makeup")
-    .not("makeup_of", "is", null);
-  const doneMakeup = new Set(
-    (makeups || []).map((m) => `${m.student_id}|${m.makeup_of}`)
-  );
-  const daysOfClass = new Map((allClasses || []).map((c) => [c.id, c.days || []]));
-  const daysOfStudent = new Map();
-  (members || []).forEach((m) => {
-    const cur = daysOfStudent.get(m.student_id) || new Set();
-    (daysOfClass.get(m.class_id) || []).forEach((d) => cur.add(d));
-    daysOfStudent.set(m.student_id, cur);
-  });
-
-  // ---------- 새 소식 ----------
-  const reqQ = await supabase
-    .from("requests")
-    .select("id, student_id, kind, from_date, to_date, body, status, created_at")
-    .eq("status", "new")
-    .order("created_at", { ascending: false })
-    .limit(20);
-  const requests = (reqQ.error ? [] : reqQ.data || []).map((r) => ({
-    ...r,
-    studentName: nameOf.get(r.student_id) || "학생",
-  }));
-
-  const inqQ = await supabase
-    .from("inquiries")
-    .select("id, name, school, grade, status, form_submitted_at, test_want_on, visit_on, created_at")
-    .in("status", ["new", "scheduled"])
-    .order("created_at", { ascending: false })
-    .limit(10);
-  const inquiries = inqQ.error ? [] : inqQ.data || [];
-
-  const sendQ = await supabase
-    .from("daily_reports")
-    .select("id, student_id")
-    .eq("date", today)
-    .eq("report_written", true)
-    .is("sent_at", null);
-  const unsent = sendQ.error ? [] : sendQ.data || [];
-
-  // ---------- 앞으로 3개월 스케줄 특이사항 ----------
-  const months3 = monthsFrom(today.slice(0, 7), 3);
-  const scheduleTo = endOfMonth(months3[2]);
-
-  let { data: baseClasses } = await supabase
-    .from("classes")
-    .select("id, name, days, base_sessions")
-    .order("start_time", { ascending: true });
-  if (!baseClasses) baseClasses = allClasses || [];
-
-  const holAllQ = await supabase
-    .from("holidays")
-    .select("date, scope, class_id")
-    .gte("date", today)
-    .lte("date", scheduleTo);
-  const holAll = holAllQ.error ? [] : holAllQ.data || [];
-
-  const examQ2 = await supabase
-    .from("exam_periods")
-    .select("id, school, grade, name, from_date, to_date, english_on")
-    .gte("to_date", today)
-    .order("from_date", { ascending: true });
-  const exams = examQ2.error ? [] : examQ2.data || [];
-
-  const settings = await loadSettings(supabase);
-  const makeupDays = settings.schedule?.makeupDays || [];
-
-  const studentInfo = new Map((students || []).map((s) => [s.id, s]));
-  const scheduleAlerts = [];
-  const classDates = new Set();
-  (baseClasses || []).forEach((klass) => {
-    const roster = (members || [])
-      .filter((m) => m.class_id === klass.id)
-      .map((m) => studentInfo.get(m.student_id))
-      .filter(Boolean);
-    reviewClass(klass, months3, holAll, exams, roster, makeupDays).forEach((m) => {
-      m.all.forEach((d) => classDates.add(d));
-      m.alerts
-        .filter((a) => a.kind !== "off")
-        // 회차 알림은 상쇄 구간의 첫 달에만 — 같은 말이 두 번 뜨지 않게
-        .filter((a) => a.primary !== false)
-        .forEach((a) => scheduleAlerts.push({ klass: klass.name, ym: m.ym, ...a }));
-    });
-  });
-
-  // 학생·학부모가 남긴 안 읽은 댓글 (0023 전이면 조용히 빈 목록)
-  const commentQ = await supabase
-    .from("report_comments")
-    .select("id, body, author_role, created_at, student_id, daily_report_id")
-    .is("read_at", null)
-    .neq("author_role", "staff")
-    .order("created_at", { ascending: false })
-    .limit(10);
-  const newComments = (commentQ.error ? [] : commentQ.data || []).map((c) => ({
-    ...c,
-    name: studentInfo.get(c.student_id)?.name || "학생",
-  }));
-
-  // 공휴일 · 대체공휴일 · 낀 날 — 자동으로 쉬지 않고, 정하라고 알리기만 한다
-  //   이미 휴강으로 지정했거나 일정에 넣어둔 날은 뺀다
-  // 이미 결정한 날 — 휴강으로 잡았거나, 일정에 남겨둔 날
-  //   위의 `all` 은 이번 달까지·미완료만 보므로, 여기서는 3개월 전부를 상태 없이 다시 본다
-  const decidedQ = await supabase
-    .from("tasks")
-    .select("due_on")
-    .gte("due_on", today)
-    .lte("due_on", scheduleTo);
-  const decided = new Set([
-    ...holAll.map((h) => h.date),
-    ...(decidedQ.error ? [] : decidedQ.data || []).map((t) => t.due_on),
-  ]);
-  const holidayNotes = holidayAlerts(today, scheduleTo, classDates, decided);
-
-  // 영어 시험 전날 (등원 필요) — 학교·학년 기준으로 한 번만
-  const engEves = exams
-    .filter((e) => e.english_on)
-    .map((e) => ({
-      date: addDaysISO(e.english_on, -1),
-      school: e.school,
-      grade: e.grade,
-      english_on: e.english_on,
-    }))
-    .filter((e) => e.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const makeupRows = (absences || [])
-    .filter((a) => !doneMakeup.has(`${a.student_id}|${a.date}`))
-    .map((a) => ({
-      studentId: a.student_id,
-      name: nameOf.get(a.student_id) || "",
-      date: a.date,
-      planned: !!a.planned,
-      reason: a.reason || "",
-      classDays: [...(daysOfStudent.get(a.student_id) || [])],
-    }))
-    .filter((a) => a.name)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const label = longLabel(today);
+  // 특이사항 칸이 통째로 비었는지
+  const quiet =
+    d.soonAbsent.length === 0 && d.watchList.length === 0 && d.holidays.length === 0 &&
+    d.scheduleAlerts.length === 0 && d.engEves.length === 0 && d.holidayNotes.length === 0 &&
+    d.newComments.length === 0 && d.examSoon.length === 0 && d.todayMakeups.length === 0;
 
   return (
     <>
@@ -316,71 +64,149 @@ export default async function Home() {
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">대시보드</p>
-          <h1 className="h1">{label}</h1>
+          <h1 className="h1">{longLabel(d.today)}</h1>
+        </div>
+
+        {/* 학원이 지금 어떤 상태인가 — 목록을 읽기 전에 숫자로 한 줄 */}
+        <div className="row" style={{ gap: 14, marginTop: 10, flexWrap: "wrap" }}>
+          <span className="hint">재원 <b style={{ fontSize: 15 }}>{kpi.enrolled}</b>명</span>
+          {kpi.attRate !== null && (
+            <span className="hint">이달 출석률 <b style={{ fontSize: 15 }}>{kpi.attRate}%</b></span>
+          )}
+          {kpi.sentRate !== null && (
+            <span className="hint">
+              오늘 리포트 <b style={{ fontSize: 15 }}>{kpi.written}/{kpi.todayTotal}</b> ({kpi.sentRate}%)
+            </span>
+          )}
         </div>
 
         <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: "wrap" }}>
           <Link className="btn btn-primary" href="/today">
-            오늘 수업 · 남은 {Math.max(0, todayTotal - written - plannedOff)}명 / {todayTotal}명
+            오늘 수업 · 남은 {d.remaining}명 / {d.todayTotal}명
           </Link>
-          {unsent.length > 0 && (
-            <Link className="btn" href="/report">보낼 리포트 {unsent.length}건</Link>
+          {d.warnings.length > 0 && (
+            <Badge href="/today" tone="bad">반성문 대상 {d.warnings.length}명</Badge>
           )}
-          {requests.length > 0 && (
-            <span className="btn" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
-              학부모 알림 {requests.length}건
-            </span>
+          {d.sendFails.length > 0 && (
+            <Badge href="/report?t=resend" tone="bad">발송 실패 {d.sendFails.length}건</Badge>
           )}
-          {scheduleAlerts.length > 0 && (
-            <Link className="btn" href="/schedule">스케줄 특이사항 {scheduleAlerts.length}건</Link>
+          {d.unsentPast.length > 0 && (
+            <Badge href="/report" tone="warn">지난 미발송 {d.unsentPast.length}건</Badge>
           )}
-          {makeupRows.length > 0 && (
-            <span className="btn" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
-              보강 잡을 것 {makeupRows.length}건
-            </span>
+          {d.unsentToday.length > 0 && (
+            <Badge href="/report">보낼 리포트 {d.unsentToday.length}건</Badge>
           )}
-          {inquiries.length > 0 && (
-            <Link className="btn" href="/consult">진행중 상담 {inquiries.length}건</Link>
+          {d.requests.length > 0 && (
+            <Badge href="#requests" tone="warn">학부모 알림 {d.requests.length}건</Badge>
           )}
-          {overdue.length > 0 && (
-            <Link className="btn" href="/tasks?view=todo">지난 할일 {overdue.length}건</Link>
+          {d.makeupRows.length > 0 && (
+            <Badge href="#makeup" tone="warn">보강 잡을 것 {d.makeupRows.length}건</Badge>
           )}
-          {todos.length > 0 && (
-            <Link className="btn" href="/tasks?view=todo">할일 {todos.length}건</Link>
+          {d.makeupNeedTotal > 0 && (
+            <Badge href="/tuition">보강 필요 {d.makeupNeedTotal}회</Badge>
+          )}
+          {d.monthlyDue && (
+            <Badge href="/monthly" tone="warn">월말 리포트 {d.monthlyDue.count}명분</Badge>
+          )}
+          {d.examSoon.some((e) => e.noScope) && (
+            <Badge href="/prep" tone="bad">
+              시험범위 미등록 {d.examSoon.filter((e) => e.noScope).length}건
+            </Badge>
+          )}
+          {d.scheduleAlerts.length > 0 && (
+            <Badge href="/schedule">스케줄 특이사항 {d.scheduleAlerts.length}건</Badge>
+          )}
+          {d.inquiries.length > 0 && (
+            <Badge href="/consult">진행중 상담 {d.inquiries.length}건</Badge>
+          )}
+          {tasks.overdue.length > 0 && (
+            <Badge href="/tasks?view=todo" tone="warn">지난 할일 {tasks.overdue.length}건</Badge>
+          )}
+          {tasks.todos.length > 0 && (
+            <Badge href="/tasks?view=todo">할일 {tasks.todos.length}건</Badge>
           )}
         </div>
 
         <div className="grid-side" style={{ marginTop: 14 }}>
           {/* 새 소식 · 특이사항 */}
           <div className="stack" style={{ gap: 14 }}>
-            <RequestInbox requests={requests} />
-            <MakeupInbox rows={makeupRows} />
+            <div id="requests">
+              <RequestInbox requests={d.requests} />
+            </div>
+            <div id="makeup">
+              <MakeupInbox rows={d.makeupRows} />
+            </div>
+
+            {/* 보내야 하는데 안 나간 것 — 놓치면 학부모가 먼저 안다 */}
+            {(d.sendFails.length > 0 || d.unsentPast.length > 0) && (
+              <div className="card">
+                <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
+                  안 나간 문자 <span className="tag tag-red">{d.sendFails.length + d.unsentPast.length}</span>
+                </h2>
+                <div className="stack" style={{ gap: 4 }}>
+                  {d.sendFails.map((s) => (
+                    <div className="unitrow" key={s.id}>
+                      <span className="tag tag-red">실패</span>
+                      <b style={{ fontSize: 12.5 }}>{s.name}</b>
+                      <span className="hint">{s.detail || s.kind}</span>
+                    </div>
+                  ))}
+                  {d.unsentPast.map((r) => (
+                    <div className="unitrow" key={r.id}>
+                      <span className="tag tag-amber">미발송</span>
+                      <span className="hint" style={{ minWidth: 62 }}>{dayLabel(r.date)}</span>
+                      <b style={{ fontSize: 12.5 }}>{r.name}</b>
+                      <span className="hint">써두고 안 보냄</span>
+                    </div>
+                  ))}
+                </div>
+                <Link className="btn btn-ghost btn-sm" href="/report?t=resend" style={{ marginTop: 6 }}>
+                  다시 보내기
+                </Link>
+              </div>
+            )}
+
+            {/* 반성문 문턱 — 오늘 얼굴 보고 이야기해야 하는 것 */}
+            {d.warnings.length > 0 && (
+              <div className="card">
+                <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
+                  반성문 대상 <span className="tag tag-red">{d.warnings.length}</span>
+                </h2>
+                <div className="stack" style={{ gap: 4 }}>
+                  {d.warnings.map((w) => (
+                    <Link className="unitrow" key={w.id} href="/today" style={{ textDecoration: "none" }}>
+                      <b style={{ fontSize: 12.5 }}>{w.name}</b>
+                      <span className="tag tag-red">경고 {w.count}회</span>
+                      <span className="hint">
+                        {w.list.slice(-2).map((x) => x.reasons.join(" · ")).join(" / ")}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+                <p className="hint" style={{ margin: "6px 0 0" }}>
+                  쓰게 할지 · 넘어갈지는 오늘 수업 화면에서 정합니다.
+                </p>
+              </div>
+            )}
 
             <div className="card">
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
                 새 상담{" "}
-                {inquiries.length > 0 && <span className="tag tag-amber">{inquiries.length}</span>}
+                {d.inquiries.length > 0 && <span className="tag tag-amber">{d.inquiries.length}</span>}
               </h2>
-              {inquiries.length === 0 ? (
+              {d.inquiries.length === 0 ? (
                 <p className="hint" style={{ margin: 0 }}>새로 들어온 상담이 없습니다.</p>
               ) : (
                 <div className="stack" style={{ gap: 4 }}>
-                  {inquiries.map((q) => (
-                    <Link
-                      className="unitrow"
-                      key={q.id}
-                      href="/consult"
-                      style={{ textDecoration: "none" }}
-                    >
+                  {d.inquiries.map((q) => (
+                    <Link className="unitrow" key={q.id} href="/consult" style={{ textDecoration: "none" }}>
                       <b style={{ fontSize: 12.5 }}>{q.name}</b>
                       <span className="hint">{[q.school, q.grade].filter(Boolean).join(" ")}</span>
                       <span className={`tag ${q.form_submitted_at ? "tag-mint" : "tag-muted"}`}>
                         {q.form_submitted_at ? "양식 제출" : "양식 미제출"}
                       </span>
                       <span className="spacer" />
-                      {q.test_want_on && (
-                        <span className="hint">테스트 희망 {dayLabel(q.test_want_on)}</span>
-                      )}
+                      {q.test_want_on && <span className="hint">테스트 희망 {dayLabel(q.test_want_on)}</span>}
                       {q.visit_on && <span className="hint">· 상담 희망 {dayLabel(q.visit_on)}</span>}
                     </Link>
                   ))}
@@ -391,60 +217,104 @@ export default async function Home() {
             <div className="card">
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>특이사항</h2>
               <div className="stack" style={{ gap: 10 }}>
-                {soonAbsent.length > 0 && (
+                {d.todayMakeups.length > 0 && (
+                  <div>
+                    <b className="hint">오늘 보강 · 재시험</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      {d.todayMakeups.map((m) => (
+                        <Link className={`tag ${m.retest ? "tag-amber" : "tag-lav"}`} key={m.id} href="/today">
+                          {m.name}{m.reason ? ` · ${m.reason}` : ""}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {d.examSoon.length > 0 && (
+                  <div>
+                    <b className="hint">다가오는 내신 시험</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      {d.examSoon.map((e) => (
+                        <Link className={`tag ${e.noScope ? "tag-red" : "tag-mint"}`} key={e.id} href="/prep">
+                          D-{e.dday} {e.label}{e.noScope ? " · 범위 미등록" : ""}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {d.monthlyDue && (
+                  <div>
+                    <b className="hint">월말 리포트</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      <Link className="tag tag-amber" href="/monthly">
+                        {Number(d.monthlyDue.ym.slice(5))}월이 {d.monthlyDue.left === 0 ? "오늘" : `${d.monthlyDue.left}일 뒤`} 끝남 · {d.monthlyDue.count}명분
+                      </Link>
+                    </div>
+                  </div>
+                )}
+                {d.makeupNeedTotal > 0 && (
+                  <div>
+                    <b className="hint">보강 필요 (휴강·결석분)</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      <Link className="tag tag-lav" href="/tuition">
+                        모두 {d.makeupNeedTotal}회 · 차액 {won(d.creditTotal)}
+                      </Link>
+                    </div>
+                  </div>
+                )}
+                {d.soonAbsent.length > 0 && (
                   <div>
                     <b className="hint">이번 주 결석 예정</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
-                      {soonAbsent.map((a, i) => (
-                        <span className="tag tag-amber" key={i}>
-                          {dayLabel(a.date)} {nameOf.get(a.student_id) || ""}
+                      {d.soonAbsent.map((a, i) => (
+                        <Link className="tag tag-amber" key={i} href="/plan">
+                          {dayLabel(a.date)} {a.name}
                           {a.reason ? ` · ${a.reason}` : ""}
-                        </span>
+                        </Link>
                       ))}
                     </div>
                   </div>
                 )}
-                {watchList.length > 0 && (
+                {d.watchList.length > 0 && (
                   <div>
                     <b className="hint">최근 2주 숙제 미흡·미제출이 많은 학생</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
-                      {watchList.map((w) => (
-                        <span className="tag tag-muted" key={w.name}>
+                      {d.watchList.map((w) => (
+                        <Link className="tag tag-muted" key={w.id} href="/today">
                           {w.name} {w.count}건
-                        </span>
+                        </Link>
                       ))}
                     </div>
                   </div>
                 )}
-                {holidays.length > 0 && (
+                {d.holidays.length > 0 && (
                   <div>
                     <b className="hint">앞으로의 휴강</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
-                      {holidays.map((h) => (
-                        <span className="tag tag-muted" key={h.id}>
+                      {d.holidays.map((h) => (
+                        <Link className="tag tag-muted" key={h.id} href="/schedule">
                           {dayLabel(h.date)} {h.name || "휴강"}
-                        </span>
+                        </Link>
                       ))}
                     </div>
                   </div>
                 )}
-                {engEves.length > 0 && (
+                {d.engEves.length > 0 && (
                   <div>
                     <b className="hint">영어 시험 전날 — 등원 필요</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
-                      {engEves.map((e, i) => (
-                        <span className="tag tag-lav" key={i}>
+                      {d.engEves.map((e, i) => (
+                        <Link className="tag tag-lav" key={i} href="/schedule">
                           {dayLabel(e.date)} {e.school} {e.grade || ""} (시험 {e.english_on.slice(5)})
-                        </span>
+                        </Link>
                       ))}
                     </div>
                   </div>
                 )}
-                {newComments.length > 0 && (
+                {d.newComments.length > 0 && (
                   <div>
-                    <b className="hint">학생 · 학부모가 남긴 댓글 {newComments.length}건</b>
+                    <b className="hint">학생 · 학부모가 남긴 댓글 {d.newComments.length}건</b>
                     <div className="stack" style={{ gap: 4, marginTop: 4 }}>
-                      {newComments.map((c) => (
+                      {d.newComments.map((c) => (
                         <div className="hint" key={c.id}>
                           <span className={`tag ${c.author_role === "parent" ? "tag-lav" : "tag-mint"}`}>
                             {c.author_role === "parent" ? "학부모" : "학생"}
@@ -459,11 +329,11 @@ export default async function Home() {
                     </Link>
                   </div>
                 )}
-                {holidayNotes.length > 0 && (
+                {d.holidayNotes.length > 0 && (
                   <div>
                     <b className="hint">공휴일 — 쉴지 정해주세요</b>
                     <div className="stack" style={{ gap: 4, marginTop: 4 }}>
-                      {holidayNotes.map((h) => (
+                      {d.holidayNotes.map((h) => (
                         <div className="hint" key={h.date}>
                           <span
                             className={`tag ${
@@ -483,11 +353,11 @@ export default async function Home() {
                     </Link>
                   </div>
                 )}
-                {scheduleAlerts.length > 0 && (
+                {d.scheduleAlerts.length > 0 && (
                   <div>
                     <b className="hint">앞으로 3개월 스케줄</b>
                     <div className="stack" style={{ gap: 3, marginTop: 4 }}>
-                      {scheduleAlerts.slice(0, 8).map((a, i) => (
+                      {d.scheduleAlerts.slice(0, 8).map((a, i) => (
                         <div className="hint" key={i}>
                           <b>{a.klass}</b> {Number(a.ym.slice(5))}월 · {a.text}
                           {a.advice && (
@@ -507,11 +377,7 @@ export default async function Home() {
                     </Link>
                   </div>
                 )}
-                {soonAbsent.length === 0 && watchList.length === 0 && holidays.length === 0 &&
-                  scheduleAlerts.length === 0 && engEves.length === 0 &&
-                  holidayNotes.length === 0 && newComments.length === 0 && (
-                  <p className="hint" style={{ margin: 0 }}>특별히 볼 것이 없습니다 👍</p>
-                )}
+                {quiet && <p className="hint" style={{ margin: 0 }}>특별히 볼 것이 없습니다 👍</p>}
               </div>
             </div>
           </div>
@@ -521,7 +387,7 @@ export default async function Home() {
             <div className="card">
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>오늘</h2>
               <div className="stack" style={{ gap: 4 }}>
-                {todayClasses.map((c) => (
+                {d.todayClasses.map((c) => (
                   <div className="unitrow" key={c.id}>
                     <span className="hint" style={{ minWidth: 84 }}>
                       {cut(c.start_time)}-{cut(c.end_time)}
@@ -530,10 +396,10 @@ export default async function Home() {
                     {c.room && <span className="tag tag-muted">{c.room}</span>}
                   </div>
                 ))}
-                {todayClasses.length === 0 && (
+                {d.todayClasses.length === 0 && (
                   <p className="hint" style={{ margin: 0 }}>오늘은 수업이 없습니다.</p>
                 )}
-                {tasksToday.map((t) => (
+                {tasks.today.map((t) => (
                   <div className="unitrow" key={t.id}>
                     <span className="hint" style={{ minWidth: 84 }}>
                       {t.start_time ? cut(t.start_time) : "일정"}
@@ -550,14 +416,14 @@ export default async function Home() {
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
                 이번 주{" "}
                 <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
-                  {tasksWeek.length}건
+                  {tasks.week.length}건
                 </span>
               </h2>
-              {tasksWeek.length === 0 ? (
+              {tasks.week.length === 0 ? (
                 <p className="hint" style={{ margin: 0 }}>예정된 일정이 없습니다.</p>
               ) : (
                 <div className="stack" style={{ gap: 4 }}>
-                  {tasksWeek.map((t) => (
+                  {tasks.week.map((t) => (
                     <div className="unitrow" key={t.id}>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
                       <b style={{ fontSize: 12.5 }}>{t.title}</b>
@@ -572,14 +438,14 @@ export default async function Home() {
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
                 이번 달 남은 일정{" "}
                 <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
-                  {tasksMonth.length}건
+                  {tasks.month.length}건
                 </span>
               </h2>
-              {tasksMonth.length === 0 ? (
+              {tasks.month.length === 0 ? (
                 <p className="hint" style={{ margin: 0 }}>없습니다.</p>
               ) : (
                 <div className="stack" style={{ gap: 4 }}>
-                  {tasksMonth.map((t) => (
+                  {tasks.month.map((t) => (
                     <div className="unitrow" key={t.id}>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
                       <b style={{ fontSize: 12.5 }}>{t.title}</b>

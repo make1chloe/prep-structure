@@ -179,22 +179,28 @@ NEEDED.push({ key: "kpi", sev: "중간", text: `요약 숫자: 재원 ${STUDENTS
 // ═════════════════════════════════════════════════════════════════════
 // 2) 현재 대시보드가 띄우는 것 — app/page.jsx 의 선택 규칙 그대로
 // ═════════════════════════════════════════════════════════════════════
+// 대시보드가 무엇을 띄우는지는 **화면이 실제로 읽는 코드**(app/page.jsx)를 그대로 본다.
+// 전에는 규칙을 여기 옮겨 적어 뒀는데, 그것 자체가 두 번 적는 일이었다. (원칙1)
+//   · 각 신호가 page.jsx 에 있는가  → 배지/카드 문구로 찾는다
+//   · 눌러서 갈 수 있는가          → 그 자리가 <Link> 인가
+const PAGE = fs.readFileSync(new URL("../app/page.jsx", import.meta.url), "utf8");
+const has = (needle) => PAGE.includes(needle);
+
 const CURRENT_RULES = {
-  // key → 띄우는가(데이터 함수), 어떻게(link | dead | none)
-  warning: { shows: () => false, how: "none" },                       // 경고·반성문 계산은 /today 문자 문구에만 쓴다
-  makeup: { shows: () => openAbsent.length > 0, how: "card" },        // MakeupInbox 카드 (배지는 span)
-  sendfail: { shows: () => false, how: "none" },                      // 발송 실패는 /resend 만 안다
-  "unsent-past": { shows: () => false, how: "none" },                 // unsent 쿼리가 eq(date, TODAY) — 어제 것은 영영 안 보인다
-  retest: { shows: () => false, how: "none" },                        // 오늘 재시험 집계 없음
-  "exam-soon": { shows: () => true, how: "dead" },                    // engEves — 시험 '전날 등원' 태그로만, 링크 없음
-  "exam-scope": { shows: () => false, how: "none" },                  // 범위 미등록 신호 없음
-  monthly: { shows: () => false, how: "none" },                       // 월말 시점 알림 없음
-  "tuition-makeup": { shows: () => false, how: "none" },              // /tuition 에만 있다
-  request: { shows: () => REQUESTS.some((r) => r.status === "new"), how: "card" },   // RequestInbox — 그 자리에서 확인 처리
-  comment: { shows: () => COMMENTS.some((c) => !c.read_at), how: "link" },           // 댓글 → '오늘 수업에서 답하기' 링크
-  inquiry: { shows: () => INQUIRIES.length > 0, how: "link" },        // 새 상담 → /consult 링크
-  unpaid: { shows: () => false, how: "none" },                        // 수납 기능 없음 (테이블도 없음)
-  kpi: { shows: () => false, how: "none" },                           // 요약 숫자 없음
+  warning: { shows: () => has("반성문 대상"), how: "link" },
+  makeup: { shows: () => has("보강 잡을 것"), how: "link" },
+  sendfail: { shows: () => has("발송 실패"), how: "link" },
+  "unsent-past": { shows: () => has("지난 미발송"), how: "link" },
+  retest: { shows: () => has("오늘 보강 · 재시험"), how: "link" },
+  "exam-soon": { shows: () => has("다가오는 내신 시험"), how: "link" },
+  "exam-scope": { shows: () => has("시험범위 미등록"), how: "link" },
+  monthly: { shows: () => has("월말 리포트"), how: "link" },
+  "tuition-makeup": { shows: () => has("보강 필요"), how: "link" },
+  request: { shows: () => has("학부모 알림"), how: "link" },
+  comment: { shows: () => has("남긴 댓글"), how: "link" },
+  inquiry: { shows: () => has("새 상담"), how: "link" },
+  unpaid: { shows: () => has("미납"), how: "link" },       // 수납은 아직 기능이 없다
+  kpi: { shows: () => has("이달 출석률"), how: "link" },
 };
 
 // ═════════════════════════════════════════════════════════════════════
@@ -219,26 +225,28 @@ const missed = NEEDED.filter((n) => !CURRENT_RULES[n.key]?.shows());
 const dead = NEEDED.filter((n) => CURRENT_RULES[n.key]?.shows() && CURRENT_RULES[n.key].how === "dead");
 const uniqMissedKeys = [...new Set(missed.map((n) => n.key))];
 
-// ── T2 · T4: page.jsx 를 직접 읽어 잰다 (코드가 바뀌면 여기 결과도 바뀐다) ──
-const page = fs.readFileSync(new URL("../app/page.jsx", import.meta.url), "utf8");
-const awaits = (page.match(/await supabase/g) || []).length;
-const promiseAll = (page.match(/Promise\.all/g) || []).length;
-const deadSpans = (page.match(/<span className="btn"/g) || []).length;   // 배지처럼 생겼는데 못 누르는 것
+// ── T2 · T4: 실제 파일을 읽어 잰다 (코드가 바뀌면 여기 결과도 바뀐다) ──
+const LIB = fs.readFileSync(new URL("../lib/dashboard.js", import.meta.url), "utf8");
+const deadSpans = (PAGE.match(/<span className="btn"/g) || []).length;   // 배지처럼 생겼는데 못 누르는 것
+const serial = (PAGE.match(/await supabase/g) || []).length + (LIB.match(/await supabase/g) || []).length;
+const batched = (LIB.match(/supabase\n?\s*\.from|supabase\.from/g) || []).length;
+const promiseAll = (LIB.match(/Promise\.all/g) || []).length;
 
-console.log(`\n─ T2 조작 거리 (app/page.jsx 실측) ─`);
-console.log(`  배지 모양인데 못 누르는 <span className="btn">: ${deadSpans}개 (학부모 알림 · 보강 잡을 것)`);
-console.log(`  특이사항 카드의 태그(결석 예정·미흡 학생 등)도 전부 링크 없음`);
+console.log(`\n─ T2 조작 거리 ─`);
+console.log(`  배지 모양인데 못 누르는 <span className="btn">: ${deadSpans}개 ${deadSpans === 0 ? "✓" : "← 고쳐야 함"}`);
+console.log(`  특이사항 태그가 <Link> 인가: ${PAGE.includes('<Link className="tag') ? "예 ✓" : "아니오 ← 고쳐야 함"}`);
 
 console.log(`\n─ T3 중복 ─`);
-console.log(`  · '보강 잡을 것' — 상단 배지(span) + MakeupInbox 카드, 같은 화면에 두 번`);
-console.log(`  · '학부모 알림' — 상단 배지(span) + RequestInbox 카드, 같은 화면에 두 번`);
-console.log(`  · 스케줄 특이사항 — 상단 배지 + 특이사항 카드 안, 같은 화면에 두 번`);
-console.log(`  · tasks 한 테이블 → /todo 와 /tasks 두 화면 (kind 로만 갈라짐)`);
-console.log(`  · 일정이 네 곳: tasks · exam_periods · holidays · attendance.planned (문서에도 적힌 미결정)`);
+console.log(`  · 배지와 카드가 같은 값(d.*)에서 나오는가: ${PAGE.includes("d.makeupRows.length > 0") ? "예 ✓ (한 곳에서 계산)" : "아니오"}`);
+console.log(`  · 할일/일정 두 화면: ${fs.existsSync(new URL("../app/todo/TodoBoard.jsx", import.meta.url)) && fs.readFileSync(new URL("../app/todo/page.jsx", import.meta.url), "utf8").includes("redirect") ? "합쳐짐 ✓" : "아직 둘"}`);
+console.log(`  · 발송/재발송 두 화면: ${fs.readFileSync(new URL("../app/resend/page.jsx", import.meta.url), "utf8").includes("redirect") ? "합쳐짐 ✓" : "아직 둘"}`);
+console.log(`  · 화면 규칙을 시뮬에 옮겨 적기: 없앰 ✓ (page.jsx 를 직접 읽는다)`);
+console.log(`  · 일정이 네 곳: tasks · exam_periods · holidays · attendance.planned (원장님 결정 대기)`);
 
-console.log(`\n─ T4 성능 (app/page.jsx 실측) ─`);
-console.log(`  await supabase 호출: ${awaits}회 · Promise.all: ${promiseAll}회 → 전부 직렬`);
-console.log(`  쿼리당 40ms 로 치면 첫 화면 약 ${((awaits * 40) / 1000).toFixed(1)}초. 병렬로 묶으면 ~0.2초`);
+console.log(`\n─ T4 성능 ─`);
+console.log(`  줄줄이 기다리는 await supabase: ${serial}회 · Promise.all: ${promiseAll}회`);
+console.log(`  한 번에 던지는 쿼리: 약 ${batched}개 → 왕복 ${promiseAll > 0 ? "2번" : `${serial}번`}`);
+console.log(`  쿼리당 40ms 로 치면 첫 화면 약 ${promiseAll > 0 ? "0.1" : ((serial * 40) / 1000).toFixed(1)}초`);
 
 console.log("\n" + "=".repeat(72));
 console.log(`  결과: ${NEEDED.length}건 중 안 뜨는 것 ${missed.length}건 (${uniqMissedKeys.length}종) · 뜨지만 막다른 것 ${dead.length}건`);
