@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   sheetToRows, parseReportRow, parseHomeworkRow, parseTaskRow, parseAbsenceRow,
 } from "@/lib/importNotion";
-import { importReports, importHomework, importTasks, importAbsences } from "./actions";
+import { parsePaymentRow } from "@/lib/importPayment";
+import {
+  importReports, importHomework, importTasks, importAbsences, importPayments,
+} from "./actions";
 
 const KINDS = [
   {
@@ -36,6 +39,15 @@ const KINDS = [
       "결석은 결석으로, 보강날짜가 있으면 그 날에 보강으로 들어갑니다. " +
       "재시험·추가학습처럼 결석이 아닌 것은 보강만 기록합니다.",
   },
+  {
+    key: "payment",
+    label: "수납",
+    db: "결제선생 등",
+    hint:
+      "받았는지만 들어옵니다 (금액 계산은 앱이 이미 합니다). " +
+      "열 이름을 맞출 필요 없어요 — 학생명 · 결제일 · 상태 · 금액 비슷한 이름이면 알아서 읽습니다. " +
+      "미납·실패·취소로 적힌 줄은 '안 받음'으로 들어갑니다.",
+  },
 ];
 
 const PARSE = {
@@ -43,12 +55,14 @@ const PARSE = {
   homework: parseHomeworkRow,
   task: parseTaskRow,
   absence: parseAbsenceRow,
+  payment: parsePaymentRow,
 };
 const SAVE = {
   report: importReports,
   homework: importHomework,
   task: importTasks,
   absence: importAbsences,
+  payment: importPayments,
 };
 
 export default function ImportBoard() {
@@ -95,12 +109,14 @@ export default function ImportBoard() {
   const usable = (r) =>
     kind === "task" ? !!(r.title && r.due_on)
     : kind === "absence" ? !!(r.name && (r.absentOn || r.makeupOn))
+    : kind === "payment" ? !!(r.name && r.ym)
     : !!(r.name && r.date);
 
   // 그 줄이 가리키는 날짜 (기간으로 거를 때 쓴다)
   const dateOf = (r) =>
     kind === "task" ? r.due_on
     : kind === "absence" ? r.absentOn || r.makeupOn
+    : kind === "payment" ? r.paidOn        // 미납은 날짜가 없다 → 기간에 안 걸린다
     : r.date;
   const inRange = (r) => {
     const d = dateOf(r);
@@ -134,10 +150,20 @@ export default function ImportBoard() {
           {meta.label} 옮기기
         </h2>
         <p className="muted" style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.7 }}>
-          노션에서 <b>{meta.db}</b> 를 열고 → 오른쪽 위 <b>···</b> → <b>Export</b> →
-          형식 <b>CSV</b> → 내려받은 파일을 아래에 올리세요.
+          {kind === "payment" ? (
+            <>
+              <b>결제선생</b>(또는 쓰시는 수납 서비스)에서 <b>내보내기 · 엑셀 다운로드</b> 로
+              받은 파일을 그대로 올리세요.
+            </>
+          ) : (
+            <>
+              노션에서 <b>{meta.db}</b> 를 열고 → 오른쪽 위 <b>···</b> → <b>Export</b> →
+              형식 <b>CSV</b> → 내려받은 파일을 아래에 올리세요.
+            </>
+          )}
           <br />
-          {meta.hint} 같은 날짜·학생이 이미 있으면 덮어씁니다.
+          {meta.hint}{" "}
+          {kind === "payment" ? "같은 학생·달이 이미 있으면 덮어씁니다." : "같은 날짜·학생이 이미 있으면 덮어씁니다."}
         </p>
 
         <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -233,6 +259,15 @@ export default function ImportBoard() {
                         <th>사유</th>
                         <th>상태</th>
                       </>
+                    ) : kind === "payment" ? (
+                      <>
+                        <th>달</th>
+                        <th>학생</th>
+                        <th>금액</th>
+                        <th>받은 날</th>
+                        <th>수단</th>
+                        <th>상태</th>
+                      </>
                     ) : (
                       <>
                         <th>날짜</th>
@@ -290,6 +325,20 @@ export default function ImportBoard() {
                         {r.none ? <span className="tag tag-muted">보강 없음</span>
                           : r.done ? <span className="tag tag-mint">완료</span>
                           : <span className="tag tag-amber">미완료</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {kind === "payment" && ok.slice(0, 25).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.ym}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="muted">{r.amount === null ? "—" : r.amount.toLocaleString()}</td>
+                      <td className="muted">{r.paidOn || "—"}</td>
+                      <td className="muted">{r.method || "—"}</td>
+                      <td>
+                        {r.paid
+                          ? <span className="tag tag-mint">받음</span>
+                          : <span className="tag tag-red">{r.status || "안 받음"}</span>}
                       </td>
                     </tr>
                   ))}

@@ -355,3 +355,59 @@ export async function importHomework(rows) {
   revalidatePath("/today");
   return { error: null, saved: driRows.length, skipped };
 }
+
+/**
+ * 수납 엑셀 (결제선생 등) 옮기기.
+ *
+ * 금액을 앱이 다시 계산하지 않는다. **받았는지만** 남긴다. (원칙1)
+ * 같은 (학생, 달) 은 한 줄이라 여러 번 올려도 덮어쓴다.
+ */
+export async function importPayments(rows) {
+  const list = (rows || []).filter((r) => r.name && r.ym);
+  if (list.length === 0) {
+    return { error: "옮길 줄이 없어요. 학생 이름과 달이 있는지 봐주세요.", saved: 0, skipped: [] };
+  }
+
+  const supabase = createClient();
+  const students = await studentMap(supabase);
+
+  const skipped = [];
+  const byKey = new Map();   // student|ym → 줄 (뒤에 온 것이 이긴다)
+  list.forEach((r) => {
+    const sid = students.get((r.name || "").trim());
+    if (!sid) {
+      skipped.push(`${r.ym} ${r.name} (재원생 목록에 없음)`);
+      return;
+    }
+    byKey.set(`${sid}|${r.ym}`, {
+      student_id: sid,
+      ym: r.ym,
+      amount: r.amount,
+      paid_on: r.paidOn,
+      method: r.method,
+      source: "결제선생",
+      note: r.paid ? null : r.status,
+      updated_at: new Date().toISOString(),
+    });
+  });
+
+  const payload = [...byKey.values()];
+  if (payload.length === 0) {
+    return { error: null, saved: 0, skipped };
+  }
+
+  const { error } = await supabase
+    .from("payments")
+    .upsert(payload, { onConflict: "student_id,ym" });
+  if (error) {
+    return {
+      error: `${error.message} — supabase/migrations/0055_payments.sql 을 먼저 실행해주세요.`,
+      saved: 0,
+      skipped,
+    };
+  }
+
+  revalidatePath("/tuition");
+  revalidatePath("/");
+  return { error: null, saved: payload.length, skipped };
+}

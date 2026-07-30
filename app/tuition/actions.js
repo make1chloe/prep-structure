@@ -62,3 +62,34 @@ export async function setStudentTuition(studentId, patch) {
   revalidatePath("/tuition");
   return ok(error);
 }
+
+/**
+ * 받았다 / 안 받았다 뒤집기.
+ *
+ * 엑셀로 올린 것과 손으로 누른 것이 **같은 표**에 들어간다. 들어온 길만 다르다.
+ * 금액은 앱이 계산한 값을 그대로 적어둔다 — 나중에 반 금액이 바뀌어도
+ * 그때 얼마를 받았는지는 남아야 하기 때문이다.
+ */
+export async function setPaid(studentId, ym, paid, amount = null) {
+  if (!studentId || !ym) return { error: "학생과 달이 필요해요." };
+  const supabase = createClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { error } = await supabase.from("payments").upsert(
+    {
+      student_id: studentId,
+      ym,
+      amount: paid ? amount : null,
+      paid_on: paid ? today : null,
+      source: "manual",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "student_id,ym" }
+  );
+  if (error) {
+    return { error: `${error.message} — supabase/migrations/0055_payments.sql 을 실행해주세요.` };
+  }
+  revalidatePath("/tuition");
+  revalidatePath("/");
+  return { error: null };
+}

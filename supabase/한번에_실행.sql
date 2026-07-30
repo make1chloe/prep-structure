@@ -1,7 +1,6 @@
 -- ============================================================
 -- ⚠ 이 파일은 **이미 0001~0007 이 깔려 있는 프로젝트**용입니다.
 --   헷갈리면 그냥 `SETUP_ALL.sql` 을 쓰세요. 그거 하나로 두 경우 다 됩니다.
---   (앱의 설정 → Supabase SQL 은 SETUP_ALL.sql 을 보여줍니다)
 --
 --   "relation public.daily_report_items does not exist" 같은 에러가 났다면
 --   기초 테이블이 없다는 뜻이니 SETUP_ALL.sql 을 쓰셔야 합니다.
@@ -10,87 +9,67 @@
 --
 -- 쓰는 법
 --   1. https://supabase.com/dashboard → 프로젝트 선택
---   2. 왼쪽 메뉴 SQL Editor → + → Create a new snippet
---      (이미 열려 있는 "Untitled query" 를 그냥 써도 됩니다)
---   3. 편집기 안을 **전체 선택(Ctrl+A) 하고 지운 뒤** 이 파일 내용을 붙여넣기
---      ★ 지난번 내용 아래에 **덧붙이지 마세요.** 통째로 갈아끼우는 것입니다.
---        (덧붙여도 사고는 안 나지만 같은 걸 두 번 실행하게 되고 줄 수만 늘어납니다)
+--   2. 왼쪽 메뉴 SQL Editor → Untitled query 안을 클릭
+--   3. **Ctrl+A 로 전체 선택하고 지운 뒤** 이 파일 내용을 붙여넣기
+--      ★ 지난번 내용 아래에 덧붙이지 마세요. 통째로 갈아끼우는 것입니다.
 --      — 앱 안에서 바로 복사할 수 있습니다: 설정 → Supabase SQL
 --   4. 오른쪽 아래 Run (또는 Cmd/Ctrl + Enter)
---   5. "Success. No rows returned" 이 나오면 끝
+--   5. "Success" 가 나오면 끝
 --
--- 여러 번 실행해도 안전합니다. 이미 있는 것은 건너뜁니다.
--- 어디까지 실행했는지 기억 안 나면 그냥 처음부터 다시 붙여넣고 Run 하면 됩니다.
+-- 여러 번 실행해도 안전합니다 — 이미 있는 것은 전부 건너뜁니다.
 --
--- ★ 이 파일은 **0008 ~ 0030** 을 하나로 합친 것입니다.
---   (2026-07-27 기준 · 시험 일정 · 2026 시험 20건 · 댓글 · 경고/반성문 · 오늘 마무리 ·
---    단어시험 방식 · 회독별 진도 기록 · 경고 월간 정리 · 하원 안내 ·
---    숙제 배정 → 내 할일 자동 생성 · 문자 문구 종류별 관리 · 알림톡 연결까지)
+-- ※ 중간에 에러가 나면 **아무것도 반영되지 않습니다** (한 덩어리로 실행되기 때문).
+--   DB 가 망가진 게 아니니 원인만 고쳐서 다시 Run 하시면 됩니다.
+--   어디서 걸렸는지 모르겠으면 앱의 **설정 → Supabase SQL** 에서 한 개씩 돌려보세요.
 --
--- ※ 완전히 새 Supabase 프로젝트에 처음 까는 거라면 이 파일이 아니라
---   `SETUP_ALL.sql` 을 쓰세요. 그건 0001 부터 전부 들어 있습니다.
---   지금 쓰고 있는 프로젝트라면 이 파일이 맞습니다.
---
--- 제대로 됐는지 확인하는 법
---   · 오늘 수업 맨 위에 "공지 · 전달사항" 입력칸이 보이면      → 0009 까지 OK
---   · 수업 스케줄 · 시험 화면에 시험 일정이 20건 보이면        → 0022 까지 OK
---   · 학생용 페이지 숙제 아래 💬 댓글 버튼이 보이면            → 0023 까지 OK
---   · 오늘 수업 학생 칸에 '오늘 마무리' 줄이 보이면            → 0024 까지 OK
---   · 단어 교재 진도 아래 '1회독 · 시험 방식 미설정' 이 보이면  → 0025 까지 OK
---   · 학생 기록 오른쪽에 '경고 기록' 칸이 보이면              → 0026 까지 OK
---   · 오늘 수업 학생 칸에 '하원 안내' 줄이 보이면              → 0027 까지 OK
---   · 학습 항목 표에 '내 할일 자동 생성' 칸이 보이면          → 0028 까지 OK
---   · 설정 → 문자 문구에 문자 9개가 보이면                    → 0029 까지 OK
---   · 문자 문구를 열었을 때 '알림톡' 칸이 보이면              → 0030 까지 OK
+-- ⚠ 이 파일은 손으로 고치지 마세요.
+--   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
+--   (2026-07-30 · 0001~0055 · 55개)
 -- ============================================================
 
+-- ─────────── 0008_homework_unit.sql ───────────
+-- 0008: 숙제 배정에 교재 단원 연결
+--   daily_report_items.textbook_unit_id : 이 숙제가 가리키는 교재 단원 (교재DB의 단원명과 연동)
+--   daily_report_items.range_note       : 단원으로 딱 떨어지지 않는 범위 메모 (예: "12~19p, 짝수만")
+-- 안전하게 여러 번 실행 가능합니다.
 
--- ------------------------------------------------------------
--- 1. 교재 · 단원 기본 항목
--- ------------------------------------------------------------
-alter table public.textbooks     add column if not exists pub_year    int;
-alter table public.textbooks     add column if not exists status      text default 'active';
-alter table public.textbook_units add column if not exists total_pages int;
-
-
--- ------------------------------------------------------------
--- 2. 숙제 배정에 교재 단원 연결
---    숙제 하나에 단원 여러 개를 붙일 수 있다
--- ------------------------------------------------------------
 alter table public.daily_report_items
   add column if not exists textbook_unit_id uuid references public.textbook_units(id) on delete set null;
-alter table public.daily_report_items add column if not exists textbook_unit_ids uuid[];
-alter table public.daily_report_items add column if not exists range_note text;
+
+alter table public.daily_report_items
+  add column if not exists range_note text;
+
 create index if not exists daily_report_items_unit_idx
   on public.daily_report_items (textbook_unit_id);
 
+-- ─────────── 0009_notices.sql ───────────
+-- 0009: 숙제 다중 단원 배정 + 공지/전달사항 + 학습 방법
+-- 안전하게 여러 번 실행 가능합니다.
 
--- ------------------------------------------------------------
--- 3. 학습 항목별 학습 방법 (학생용 페이지에서 보여줄 설명)
--- ------------------------------------------------------------
-alter table public.homework_items add column if not exists method text;
+-- ---------- 1) 숙제 하나에 단원 여러 개 ----------
+alter table public.daily_report_items
+  add column if not exists textbook_unit_ids uuid[];
 
-
--- ------------------------------------------------------------
--- 4. 공지 · 전달사항
---    한 번 써서 전체 / 반별 / 학교·학년별 / 개인별로 뿌린다
--- ------------------------------------------------------------
+-- ---------- 2) 공지 · 전달사항 ----------
+-- 한 번 써서 전체/반/학교·학년/개인에게 뿌린다. (원칙1: 같은 값 두 번 입력하지 않기)
+--   kind = 'deliver' : 수업 중 학생에게 말로 전달할 사항 → 하원 전 전달 체크
+--   kind = 'notice'  : 학부모 리포트에 나갈 공지
 create table if not exists public.notices (
   id           uuid primary key default gen_random_uuid(),
   date         date not null,
-  kind         text not null default 'deliver',   -- deliver(수업 중 전달) | notice(학부모 공지)
-  scope        text not null default 'all',       -- all | class | grade | student
+  kind         text not null default 'deliver',
+  scope        text not null default 'all',   -- all | class | grade | student
   class_id     uuid references public.classes(id) on delete set null,
   school       text,
   grade        text,
   body         text not null,
-  task_id      uuid,
+  task_id      uuid,                          -- 나중에 할일/일정 DB와 연결할 자리
   created_by   uuid references public.profiles(id) on delete set null,
   created_at   timestamptz not null default now()
 );
 create index if not exists notices_date_idx on public.notices (date);
 
--- 대상 학생을 만들 때 확정해서 한 줄씩 깔아둔다
+-- 만들 때 대상 학생을 확정해서 한 줄씩 깔아둔다 → 오늘 수업 화면은 이 표만 읽으면 된다
 create table if not exists public.notice_receipts (
   notice_id    uuid not null references public.notices(id) on delete cascade,
   student_id   uuid not null references public.students(id) on delete cascade,
@@ -100,26 +79,48 @@ create table if not exists public.notice_receipts (
 create index if not exists notice_receipts_student_idx
   on public.notice_receipts (student_id);
 
+do $$
+declare t text;
+begin
+  foreach t in array array['notices','notice_receipts'] loop
+    execute format('alter table public.%I enable row level security;', t);
+    execute format($f$
+      drop policy if exists staff_all on public.%I;
+      create policy staff_all on public.%I
+        for all to authenticated
+        using (public.is_staff()) with check (public.is_staff());
+    $f$, t, t);
+  end loop;
+end $$;
 
--- ------------------------------------------------------------
--- 5. 학생별 교재 배정 · 단원 진도
---    끝낸 단원만 기록한다 → 순서와 상관없이 체크할 수 있다
--- ------------------------------------------------------------
+-- ---------- 3) 학습 항목별 학습 방법 (학생용 안내) ----------
+alter table public.homework_items add column if not exists method text;
+
+-- ─────────── 0010_student_progress.sql ───────────
+-- 0010: 학생별 교재 배정 · 단원 진도 (순서 무관 체크)
+-- 안전하게 여러 번 실행 가능합니다.
+--
+-- 설계 메모 (원칙1: 같은 값 두 번 입력하지 않기)
+--   교재 단원은 textbook_units 한 곳에만 있다. 학생별로 복사하지 않는다.
+--   학생이 "끝낸 단원"만 student_unit_progress 에 한 줄씩 쌓는다.
+--   줄이 없으면 = 아직 안 한 단원. 그래서 순서와 무관하게 아무 단원이나 체크할 수 있다.
+
+-- 학생 ← 교재 배정 (반에 교재를 붙이면 그 반 학생 전원에게 자동으로 깔린다)
 create table if not exists public.student_textbooks (
-  student_id   uuid not null references public.students(id) on delete cascade,
-  textbook_id  uuid not null references public.textbooks(id) on delete cascade,
-  assigned_on  date not null default current_date,
-  status       text not null default 'active',   -- active | done | dropped
-  current_page int,                               -- 단원이 없는 교재는 페이지로 진도 기록
+  student_id  uuid not null references public.students(id) on delete cascade,
+  textbook_id uuid not null references public.textbooks(id) on delete cascade,
+  assigned_on date not null default current_date,
+  status      text not null default 'active',   -- active | done | dropped
   primary key (student_id, textbook_id)
 );
 create index if not exists student_textbooks_book_idx
   on public.student_textbooks (textbook_id);
 
+-- 학생별 단원 진도 — 완료한(또는 진행중인) 단원만 기록
 create table if not exists public.student_unit_progress (
   student_id       uuid not null references public.students(id) on delete cascade,
   textbook_unit_id uuid not null references public.textbook_units(id) on delete cascade,
-  status           text not null default 'done',
+  status           text not null default 'done',   -- done | doing | skip
   done_on          date default current_date,
   note             text,
   primary key (student_id, textbook_unit_id)
@@ -127,45 +128,79 @@ create table if not exists public.student_unit_progress (
 create index if not exists student_unit_progress_unit_idx
   on public.student_unit_progress (textbook_unit_id);
 
--- 이미 만들어 둔 경우를 위해
-alter table public.student_textbooks add column if not exists current_page int;
+do $$
+declare t text;
+begin
+  foreach t in array array['student_textbooks','student_unit_progress'] loop
+    execute format('alter table public.%I enable row level security;', t);
+    execute format($f$
+      drop policy if exists staff_all on public.%I;
+      create policy staff_all on public.%I
+        for all to authenticated
+        using (public.is_staff()) with check (public.is_staff());
+    $f$, t, t);
+  end loop;
+end $$;
 
+-- ─────────── 0011_page_progress.sql ───────────
+-- 0011: 단원을 아직 안 만든 교재의 진도 (페이지로 기록)
+-- 단원 데이터를 다 만들기 전에도 "지금 몇 페이지까지"로 진도를 볼 수 있게 한다.
+alter table public.student_textbooks
+  add column if not exists current_page int;
 
--- ------------------------------------------------------------
--- 6. 데일리리포트 발송 · 재발송
--- ------------------------------------------------------------
-alter table public.daily_reports add column if not exists sent_at          timestamptz;
-alter table public.daily_reports add column if not exists report_text      text;  -- 고친 리포트 문구
-alter table public.daily_reports add column if not exists homework_text    text;  -- 고친 숙제 문자
-alter table public.daily_reports add column if not exists homework_sent_at timestamptz;
+-- ─────────── 0012_report_send.sql ───────────
+-- 0012: 데일리리포트 발송
+--   sent_at     : 학부모에게 보낸 시각 (없으면 아직 안 보냄)
+--   report_text : 실제로 보낸 문구. 비어 있으면 자동 생성 문구를 쓴다.
+--                 선생님이 고쳐서 보내면 여기에 저장되고, 재발송도 이걸 쓴다.
+alter table public.daily_reports add column if not exists sent_at timestamptz;
+alter table public.daily_reports add column if not exists report_text text;
 create index if not exists daily_reports_sent_idx on public.daily_reports (date, sent_at);
 
--- 보낸 이력 (몇 번, 언제, 무엇을, 성공했는지)
+-- ─────────── 0013_resend.sql ───────────
+-- 0013: 재발송 (숙제 문자 · 데일리리포트 다시 보내기)
+--   homework_text     : 고친 숙제 문자. 비어 있으면 자동 생성 문구를 쓴다.
+--   homework_sent_at  : 숙제 문자를 마지막으로 보낸 시각
+--   report_sends      : 보낸 이력. 몇 번 보냈는지, 그때 뭘 보냈는지 남는다.
+alter table public.daily_reports add column if not exists homework_text text;
+alter table public.daily_reports add column if not exists homework_sent_at timestamptz;
+
 create table if not exists public.report_sends (
   id              uuid primary key default gen_random_uuid(),
   daily_report_id uuid not null references public.daily_reports(id) on delete cascade,
   kind            text not null default 'report',   -- report | homework
   body            text not null,
   sent_at         timestamptz not null default now(),
-  sent_by         uuid references public.profiles(id) on delete set null,
-  channel         text,                             -- copy | sms | webhook
-  ok              boolean,
-  detail          text,
-  to_phone        text
+  sent_by         uuid references public.profiles(id) on delete set null
 );
 create index if not exists report_sends_report_idx
   on public.report_sends (daily_report_id, kind);
 
-alter table public.report_sends add column if not exists channel  text;
-alter table public.report_sends add column if not exists ok       boolean;
-alter table public.report_sends add column if not exists detail   text;
-alter table public.report_sends add column if not exists to_phone text;
+alter table public.report_sends enable row level security;
+drop policy if exists staff_all on public.report_sends;
+create policy staff_all on public.report_sends
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
 
+-- ─────────── 0014_tasks.sql ───────────
+-- 0014: 할일 · 일정 DB
+--
+-- 속성 정리 (원칙4-1: 만들기 전에 나열하고 불필요한 것 제거)
+--   title        할일/일정 이름                       필수
+--   kind         todo(할일) | schedule(일정)          필수 — 목록에서 나누는 기준
+--   category     학사일정/수업/행정/상담/교재/기타     분류
+--   due_on       할일 마감일 · 일정 날짜               필수
+--   end_on       여러 날짜에 걸치는 일정의 끝날        선택
+--   start_time   시간이 정해진 일정                    선택
+--   status       open | done | canceled               필수
+--   done_at      완료 시각                             자동
+--   class_id     특정 반과 관련된 일정                 선택
+--   assignee_id  담당자                                선택
+--   note         메모                                  선택
+--   deliver_*    이 일정에서 만들 "학생 전달사항"      선택 ← notices 와 연결
+--
+--   제외: 반복 규칙(아직 안 씀), 우선순위(날짜+상태로 충분), 태그(category로 충분), 첨부
 
--- ------------------------------------------------------------
--- 7. 할일 · 일정
---    일정에 "학생에게 전달할 내용"을 적어두면 그날 전달사항으로 깔린다
--- ------------------------------------------------------------
 create table if not exists public.tasks (
   id            uuid primary key default gen_random_uuid(),
   title         text not null,
@@ -179,42 +214,75 @@ create table if not exists public.tasks (
   class_id      uuid references public.classes(id) on delete set null,
   assignee_id   uuid references public.profiles(id) on delete set null,
   note          text,
+
+  -- 이 일정에서 학생에게 전달할 사항 (비어 있으면 만들지 않는다)
   deliver_body      text,
-  deliver_scope     text,
+  deliver_scope     text,                          -- all | class | grade | student
   deliver_class_id  uuid references public.classes(id) on delete set null,
   deliver_school    text,
   deliver_grade     text,
+
   created_by    uuid references public.profiles(id) on delete set null,
   created_at    timestamptz not null default now()
 );
 create index if not exists tasks_due_idx on public.tasks (due_on, status);
 
--- 만든 전달사항을 원래 일정과 연결
+alter table public.tasks enable row level security;
+drop policy if exists staff_all on public.tasks;
+create policy staff_all on public.tasks
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- 일정에서 만든 전달사항을 되짚을 수 있게 (0009 에서 자리만 만들어 둔 컬럼)
 alter table public.notices
   add column if not exists task_id uuid references public.tasks(id) on delete set null;
 create index if not exists notices_task_idx on public.notices (task_id);
 
+-- ─────────── 0015_integrations.sql ───────────
+-- 0015: 연동 설정 (문자 발송 · 웹훅 · 학원 정보)
+--
+-- 환경변수 대신 앱에서 바꾼다. 값이 바뀌어도 재배포가 필요 없다.
+--   id      solapi | webhook | academy
+--   enabled 이 연동을 쓸지
+--   config  jsonb — 키·번호·URL 등 (비밀값 포함, 화면에는 가려서 보여준다)
+--
+-- 보안: 원장만 읽고 쓸 수 있다. 비밀값은 서버에서만 읽고 화면으로 내려보내지 않는다.
 
--- ------------------------------------------------------------
--- 8. 연동 설정 (문자 발송 · 웹훅 · 알림 키)
---    환경변수 대신 앱 설정 화면에서 바꾼다. 원장만 접근할 수 있다.
--- ------------------------------------------------------------
 create table if not exists public.integrations (
-  id         text primary key,          -- academy | solapi | webhook | push
+  id         text primary key,
   enabled    boolean not null default false,
   config     jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
   updated_by uuid references public.profiles(id) on delete set null
 );
 
+alter table public.integrations enable row level security;
+drop policy if exists principal_all on public.integrations;
+create policy principal_all on public.integrations
+  for all to authenticated
+  using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'principal')
+  )
+  with check (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'principal')
+  );
+
+-- 발송 결과를 남긴다 (성공/실패 사유)
+alter table public.report_sends add column if not exists channel text;   -- copy | sms | webhook
+alter table public.report_sends add column if not exists ok boolean;
+alter table public.report_sends add column if not exists detail text;
+alter table public.report_sends add column if not exists to_phone text;
+
 insert into public.integrations (id, enabled, config) values
   ('academy', true, '{"name":"클로이영어"}'::jsonb)
 on conflict (id) do nothing;
 
+-- ─────────── 0016_push.sql ───────────
+-- 0016: 앱 알림 (웹 푸시) — 문자 비용 없이 학생·학부모에게 알림
+--
+--   push_subscriptions : 기기 하나당 한 줄. 알림 허용을 누르면 브라우저가 만들어 준다.
+--   보낼 때 필요한 키(VAPID)는 integrations 테이블의 'push' 에 저장한다.
 
--- ------------------------------------------------------------
--- 9. 앱 알림 (웹 푸시) — 요금 없는 알림
--- ------------------------------------------------------------
 create table if not exists public.push_subscriptions (
   id         uuid primary key default gen_random_uuid(),
   profile_id uuid references public.profiles(id) on delete cascade,
@@ -229,51 +297,16 @@ create table if not exists public.push_subscriptions (
 create index if not exists push_subscriptions_student_idx
   on public.push_subscriptions (student_id);
 
-
--- ------------------------------------------------------------
--- 10. 권한 (RLS)
--- ------------------------------------------------------------
-
--- 선생님(직원)은 전부 볼 수 있는 표
-do $$
-declare t text;
-begin
-  foreach t in array array[
-    'notices','notice_receipts',
-    'student_textbooks','student_unit_progress',
-    'report_sends','tasks'
-  ] loop
-    execute format('alter table public.%I enable row level security;', t);
-    execute format($f$
-      drop policy if exists staff_all on public.%I;
-      create policy staff_all on public.%I
-        for all to authenticated
-        using (public.is_staff()) with check (public.is_staff());
-    $f$, t, t);
-  end loop;
-end $$;
-
--- 연동 설정: 원장만
-alter table public.integrations enable row level security;
-drop policy if exists principal_all on public.integrations;
-create policy principal_all on public.integrations
-  for all to authenticated
-  using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'principal')
-  )
-  with check (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'principal')
-  );
-
--- 알림 기기: 본인 기기는 본인이, 선생님은 전체
 alter table public.push_subscriptions enable row level security;
+
+-- 본인 기기는 본인이 등록/삭제, 선생님은 전체 조회 가능
 drop policy if exists own_or_staff on public.push_subscriptions;
 create policy own_or_staff on public.push_subscriptions
   for all to authenticated
   using (profile_id = auth.uid() or public.is_staff())
   with check (profile_id = auth.uid() or public.is_staff());
 
--- 학생은 자기 기록만 볼 수 있다
+-- 학생이 자기 정보를 볼 수 있게 (학생용 페이지)
 drop policy if exists student_self on public.students;
 create policy student_self on public.students
   for select to authenticated
@@ -299,7 +332,7 @@ create policy student_self_items on public.daily_report_items
     )
   );
 
--- 숙제 항목 · 교재 · 단원은 학생도 읽을 수 있어야 한다 (학습 방법, 단원명)
+-- 숙제 항목·교재 단원은 학생도 읽을 수 있어야 한다 (학습 방법 · 단원명)
 drop policy if exists read_all_staff_or_student on public.homework_items;
 create policy read_all_staff_or_student on public.homework_items
   for select to authenticated using (true);
@@ -312,19 +345,7 @@ drop policy if exists read_all_staff_or_student on public.textbooks;
 create policy read_all_staff_or_student on public.textbooks
   for select to authenticated using (true);
 
-
--- ============================================================
--- 끝. 실행 후 앱에서 할 것
---   1) 설정 → 알림 키 만들기 (한 번만)
---   2) 반 → 반 선택 → 교재 배정
---   3) 학습 항목 → 학습 방법 채우기
--- ============================================================
-
-
--- ============================================================
--- 11. 결석 예정 · 신규 상담 · 안내 문자 템플릿 (0017)
--- ============================================================
-
+-- ─────────── 0017_plan_consult_templates.sql ───────────
 -- 0017: 결석 예정 · 신규 상담 · 안내 문자 템플릿
 -- 안전하게 여러 번 실행 가능합니다.
 
@@ -456,11 +477,7 @@ begin
   end loop;
 end $$;
 
-
--- ============================================================
--- 0018: 수강료 계산 · 학부모 신청 양식
--- ============================================================
-
+-- ─────────── 0018_tuition_apply.sql ───────────
 -- 0018: 수강료 계산 (회차 기준) · 학부모 신청 양식
 -- 안전하게 여러 번 실행 가능합니다.
 
@@ -554,11 +571,7 @@ set body = '[{{학원명}}] {{학생명}} 학생 교재 안내
 구매가 어려우시면 학원으로 말씀해주세요.'
 where kind = 'book' and body like '%교재비%';
 
-
--- ============================================================
--- 0019: 일정 연결 · 학생/학부모 요청 · 교재 사용 기록
--- ============================================================
-
+-- ─────────── 0019_requests_bookuse.sql ───────────
 -- 0019: 일정 ↔ 결석예정 연결 · 학생/학부모 요청 · 교재 사용 기록 · 문구 설정
 -- 안전하게 여러 번 실행 가능합니다. (테이블을 지우는 구문은 없습니다)
 
@@ -656,11 +669,7 @@ drop policy if exists read_class_students on public.class_students;
 create policy read_class_students on public.class_students
   for select to authenticated using (true);
 
-
--- ============================================================
--- 0020: 할일 / 일정 분리
--- ============================================================
-
+-- ─────────── 0020_todo_schedule.sql ───────────
 -- 0020: 할일과 일정을 나눈다 · 할일 분류를 직접 관리
 --
 -- 나누는 기준
@@ -716,11 +725,7 @@ create policy staff_all on public.todo_categories
   for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
-
--- ============================================================
--- 0021: 학교 시험 일정
--- ============================================================
-
+-- ─────────── 0021_exams.sql ───────────
 -- 0021: 학교 시험 일정
 --
 -- 입력이 두 단계로 들어온다
@@ -762,7 +767,7 @@ drop policy if exists read_exams on public.exam_periods;
 create policy read_exams on public.exam_periods
   for select to authenticated using (true);
 
-
+-- ─────────── 0022_exam_seed_2026.sql ───────────
 -- 0022: 2026년 학교 시험 일정 (노션 학사일정DB에서 옮김)
 --
 -- 노션에는 시험 기간과 영어 시험일이 **따로 적혀 있었다.**
@@ -809,7 +814,7 @@ insert into public.exam_periods (school, grade, name, from_date, to_date, englis
   ('신정중',   null, '2학기 기말고사', '2026-12-14', '2026-12-16', null, '노션 이관')
 on conflict do nothing;
 
-
+-- ─────────── 0023_report_comments.sql ───────────
 -- 0023: 숙제 · 데일리리포트에 댓글
 --
 -- 지금은 학부모가 문자를 받고 **답장할 데가 없다.** 전화나 카톡으로 오면
@@ -888,8 +893,7 @@ create policy own_parent_link on public.parent_student
   for select to authenticated
   using (parent_profile_id = auth.uid() or public.is_staff());
 
-
-
+-- ─────────── 0024_warnings_stay.sql ───────────
 -- 0024: 경고 · 반성문 · 오늘 마무리(늦귀가과제)
 --
 -- ── 경고 ────────────────────────────────────────────────────
@@ -996,7 +1000,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordPassPct":80,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
-
+-- ─────────── 0025_word_test.sql ───────────
 -- 0025: 단어시험 방식 (학생마다 · 교재마다 · 회독마다 다르다)
 --
 -- 단어시험은 학생마다 보는 방법이 다르다. 개수는 정해져 있지 않고,
@@ -1072,10 +1076,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordWrongPct":10,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
--- ============================================================
--- 0026
--- ============================================================
-
+-- ─────────── 0026_round_progress_reset.sql ───────────
 -- 0026: 회독별 진도 기록 + 경고 월간 초기화
 --
 -- ── 회독 진도를 지우지 않는다 ────────────────────────────────
@@ -1117,10 +1118,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordWrongPct":10,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
--- ============================================================
--- 0027
--- ============================================================
-
+-- ─────────── 0027_late_notice.sql ───────────
 -- 0027: 늦은 귀가 안내 (하원 안내 문자)
 --
 -- 남아서 단어 재시험을 보거나 숙제를 마저 하고 가면 평소보다 늦게 나간다.
@@ -1150,10 +1148,7 @@ comment on column public.daily_reports.late_until is
 comment on column public.report_sends.kind is
   'report | homework | late — 어떤 문자였는지';
 
--- ============================================================
--- 0028
--- ============================================================
-
+-- ─────────── 0028_prep_task.sql ───────────
 -- 0028: 숙제를 배정하면 **내 할일**이 자동으로 생긴다
 --
 -- 단원평가 대비 복습을 숙제로 내주면, 다음 수업 전에 **내가 문제를 출제해야 한다.**
@@ -1191,10 +1186,7 @@ update public.homework_items
  where prep_task is null
    and name like '%단원평가%';
 
--- ============================================================
--- 0029
--- ============================================================
-
+-- ─────────── 0029_message_kinds.sql ───────────
 -- 0029: 문자 문구를 종류별로 나눈다
 --
 -- 지금까지 인삿말·맺음말이 **하나뿐**이라 데일리리포트에도, 숙제 문자에도,
@@ -1289,10 +1281,7 @@ select v.name, v.kind, v.body, v.sort
    select 1 from public.message_templates m where m.name = v.name
  );
 
--- ============================================================
--- 0030
--- ============================================================
-
+-- ─────────── 0030_alimtalk.sql ───────────
 -- 0030: 알림톡 연결 · 할일 제목에 단원 넣기
 --
 -- ── 알림톡 ──────────────────────────────────────────────────
@@ -1327,10 +1316,7 @@ update public.homework_items
    set prep_task = '{학생}-단원평가-{단원}'
  where prep_task = '{학생} 단원평가 출제';
 
--- ============================================================
--- 0031
--- ============================================================
-
+-- ─────────── 0031_monthly_report.sql ───────────
 -- 0031: 월말 리포트 · 단원평가 결과
 --
 -- 하루치 리포트는 그날만 보여준다. 한 달을 모아 보면 다른 게 보인다 —
@@ -1417,10 +1403,7 @@ insert into public.message_templates (name, kind, key, body, sort) values
   ('월말 리포트', 'auto', 'monthly', '', 35)
 on conflict (key) where key is not null do nothing;
 
--- ============================================================
--- 0032
--- ============================================================
-
+-- ─────────── 0032_pass_pct.sql ───────────
 -- 0032: 점수 기준을 하나로 — **성취도 %**
 --
 -- 어떤 줄은 높아야 좋고(숙제 성취도) 어떤 줄은 낮아야 좋으면(오답률)
@@ -1444,10 +1427,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordPassPct":90,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
--- ============================================================
--- 0033
--- ============================================================
-
+-- ─────────── 0033_study_timer.sql ───────────
 -- 0033: 학생용 — 순서대로 · 시간을 재면서
 --
 -- 등원해서 무엇부터 할지 학생이 매번 묻지 않게 **순서대로** 보여준다.
@@ -1464,11 +1444,12 @@ alter table public.homework_items
 comment on column public.homework_items.no_timer is
   '선생님 확인이 필요해 기다릴 수 있는 항목. 학생 화면에서 타이머를 안 띄운다';
 
--- 처음 쓰는 사람이 바로 쓸 수 있게, 기다리는 게 뻔한 것들은 켜 둔다
+-- 처음 쓰는 사람이 바로 쓸 수 있게, 기다리는 게 뻔한 것들은 켜 둔다.
+-- (단어시험은 학생이 혼자 보므로 뺀다 — 0036 에서 바로잡았다)
 update public.homework_items
    set no_timer = true
  where no_timer = false
-   and (name like '%시험%' or name like '%검사%' or name like '%채점%' or name like '%상담%');
+   and (name like '%구두%' or name like '%검사%' or name like '%채점%' or name like '%상담%');
 
 
 -- ------------------------------------------------------------
@@ -1517,10 +1498,7 @@ create policy parent_read on public.study_sessions
               and ps.parent_profile_id = auth.uid())
   );
 
--- ============================================================
--- 0034
--- ============================================================
-
+-- ─────────── 0034_inclass_study.sql ───────────
 -- 0034: 등원 학습 · 학생이 누르는 '학습 완료'
 --
 -- 0033 에서 타이머를 **집에서 하는 숙제**에 붙였는데, 정작 필요한 것은
@@ -1551,10 +1529,7 @@ alter table public.study_sessions
 comment on column public.study_sessions.kind is
   'inclass(학원에서) | home(집에서). 나중에 습관을 볼 때 나눠 본다';
 
--- ============================================================
--- 0035
--- ============================================================
-
+-- ─────────── 0035_routine.sql ───────────
 -- 0035: 학습 루틴 — 진도를 따라 순서대로
 --
 -- 문법 교재는 단원마다 하는 일이 정해져 있다.
@@ -1603,10 +1578,7 @@ alter table public.students
 comment on column public.students.default_inclass is
   '등원 학습 기본값. 오늘 수업에서 [기본값] 을 누르면 이게 깔린다';
 
--- ============================================================
--- 0036
--- ============================================================
-
+-- ─────────── 0036_no_timer_fix.sql ───────────
 -- 0036: '선생님과 함께' 를 실제에 맞게 좁힌다
 --
 -- 0033 에서 이름에 시험·검사·채점·상담이 들어가면 타이머를 껐다.
@@ -1626,10 +1598,7 @@ update public.homework_items
      or name like '%상담%'
    );
 
--- ============================================================
--- 0037
--- ============================================================
-
+-- ─────────── 0037_arrival.sql ───────────
 -- 0037: 등원 절차 · 단어시험 시점
 --
 -- ── 등원 절차 ───────────────────────────────────────────────
@@ -1669,10 +1638,7 @@ update public.homework_items
    and name like '%단어%'
    and (name like '%시험%' or name like '%테스트%');
 
--- ============================================================
--- 0038
--- ============================================================
-
+-- ─────────── 0038_arrival_by_student.sql ───────────
 -- 0038: 등원 체크는 **학생이** 누른다
 --
 -- 0037 에서 폰·숙제 제출을 daily_reports 에 넣고 선생님이 찍게 했다.
@@ -1730,10 +1696,7 @@ comment on column public.daily_reports.phone_in is
 comment on column public.daily_reports.homework_in is
   '안 씀 (0038 부터 arrival_checks 로 옮김)';
 
--- ============================================================
--- 0039
--- ============================================================
-
+-- ─────────── 0039_arrival_attend.sql ───────────
 -- 0039: 등원 체크에 '출석 체크' 를 더한다
 --
 -- 출석은 외부 앱에서 한다. 그런데 **아이들이 잊어버린다.**
@@ -1750,10 +1713,7 @@ alter table public.arrival_checks
 comment on column public.arrival_checks.attend_at is
   '외부 앱에서 출석 체크를 했다고 학생이 확인한 시각';
 
--- ============================================================
--- 0040
--- ============================================================
-
+-- ─────────── 0040_attend_marks_present.sql ───────────
 -- 0040: 아이가 출석 체크를 하면 등원으로 잡는다
 --
 -- 출석은 외부 앱에서 하지만, 아이가 우리 화면에서 '출석 체크 했어요' 를 누르면
@@ -1795,10 +1755,7 @@ create policy own_read on public.attendance
     )
   );
 
--- ============================================================
--- 0041
--- ============================================================
-
+-- ─────────── 0041_academy_net.sql ───────────
 -- 0041: 학원에서만 등원 체크가 되게
 --
 -- 아이가 오는 길에 미리 눌러버리면 등원 체크가 아무 뜻이 없다.
@@ -1831,3 +1788,789 @@ create policy staff_all on public.academy_net
 drop policy if exists read_all on public.academy_net;
 create policy read_all on public.academy_net
   for select to authenticated using (true);
+
+-- ─────────── 0042_class_term.sql ───────────
+-- 0042: 특강 기한 · 반별 출결
+--
+-- 두 가지를 푼다.
+--
+-- 1) 특강은 끝난다. 끝난 특강이 수강반 목록·오늘 수업·수강료에 계속
+--    남아 있으면 매번 눈으로 걸러내야 한다.
+--    → 종료일을 넣어두면 그 날이 지나는 순간 알아서 내려간다.
+--      "보관 버튼을 누른다" 를 기억하지 않아도 되게.
+--
+-- 2) 정규는 왔는데 특강만 빠지는 날이 있다. 결석·보강·수강료가
+--    반마다 따로 계산되므로, 그날 출결 한 줄로는 표현이 안 된다.
+--    → 반별 출결을 따로 남긴다.
+--
+--    ※ 기존 attendance(하루 한 줄)는 **건드리지 않는다.**
+--      그 표는 30군데 넘는 화면이 "학생·날짜에 한 줄" 을 전제로 읽고 쓴다.
+--      수업 중에 쓰는 출결을 흔드는 것보다, 어쩌다 있는 특강 결석을
+--      옆 표에 따로 남기는 쪽이 안전하다.
+--      attendance = 그 학생이 그날 학원에 왔는가 (정규 기준)
+--      class_attendance = 그날 그 반에 들어왔는가 (특강 등)
+
+-- ------------------------------------------------------------
+-- 1. 반에 기간을 준다
+-- ------------------------------------------------------------
+alter table public.classes add column if not exists starts_on  date;
+alter table public.classes add column if not exists ends_on    date;
+-- 기한 없이 흐지부지 끝나는 반도 있어서, 손으로 내리는 길도 남긴다
+alter table public.classes add column if not exists archived_at timestamptz;
+
+comment on column public.classes.starts_on is '개강일 (정규반은 비워둠 = 무기한)';
+comment on column public.classes.ends_on   is '종강일 — 지나면 목록·오늘 수업·수강료에서 자동으로 내려간다';
+comment on column public.classes.archived_at is '손으로 보관한 시각 (되살리면 null)';
+
+create index if not exists classes_term_idx on public.classes (ends_on);
+
+
+-- ------------------------------------------------------------
+-- 2. 반별 출결
+--    정규 출결은 attendance 에 그대로 남고, 여기엔 특강처럼
+--    따로 세야 하는 반의 출결만 쌓인다.
+-- ------------------------------------------------------------
+create table if not exists public.class_attendance (
+  id         uuid primary key default gen_random_uuid(),
+  class_id   uuid not null references public.classes(id) on delete cascade,
+  student_id uuid not null references public.students(id) on delete cascade,
+  date       date not null default (now() at time zone 'Asia/Seoul')::date,
+  status     attendance_status not null,
+  makeup_of  date,                     -- 보강이면 원 결석일 (수강료가 여기 걸린다)
+  note       text,
+  created_at timestamptz not null default now(),
+  unique (class_id, student_id, date)
+);
+
+create index if not exists class_attendance_date_idx    on public.class_attendance (date);
+create index if not exists class_attendance_student_idx on public.class_attendance (student_id, date);
+
+alter table public.class_attendance enable row level security;
+
+drop policy if exists staff_all on public.class_attendance;
+create policy staff_all on public.class_attendance
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+drop policy if exists own_read on public.class_attendance;
+create policy own_read on public.class_attendance
+  for select to authenticated
+  using (
+    exists (select 1 from public.students s
+            where s.id = class_attendance.student_id and s.profile_id = auth.uid())
+    or exists (select 1 from public.parent_student ps
+               where ps.student_id = class_attendance.student_id
+                 and ps.parent_profile_id = auth.uid())
+  );
+
+-- ─────────── 0043_student_login.sql ───────────
+-- 0043: 학생 계정 연결
+--
+-- 학생용 화면(/me)은 만들어 뒀는데, **학생 계정을 만들 길이 없었다.**
+-- students.profile_id 는 읽기만 했지 어디서도 채우지 않았다.
+-- 그래서 원장님이 학생 아이디로 로그인해볼 수가 없다.
+--
+-- 계정을 원장님이 대신 만들어 주려면 Supabase 관리자 키가 필요한데,
+-- 그 키는 앱에 두면 안 된다. 그래서 반대로 간다.
+--
+--   1. 원장님이 학생마다 **연결 코드**를 뽑는다 (6자리, 하루짜리)
+--   2. 학생이 스스로 가입한다 (이메일 · 비밀번호)
+--   3. 학생이 코드를 넣으면 그 계정이 그 학생에 붙는다
+--
+-- 코드는 한 번 쓰면 죽고, 하루가 지나도 죽는다.
+
+create table if not exists public.student_link_codes (
+  code       text primary key,
+  student_id uuid not null references public.students(id) on delete cascade,
+  expires_at timestamptz not null,
+  used_at    timestamptz,
+  used_by    uuid references public.profiles(id) on delete set null,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists student_link_codes_student_idx
+  on public.student_link_codes (student_id);
+
+alter table public.student_link_codes enable row level security;
+
+-- 선생님만 뽑고 본다
+drop policy if exists staff_all on public.student_link_codes;
+create policy staff_all on public.student_link_codes
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- 학생은 코드를 읽지 못한다. 코드 확인·연결은 아래 함수가 대신한다
+-- (그래야 남의 코드를 뒤져볼 수 없다)
+
+
+-- ------------------------------------------------------------
+-- 코드를 써서 내 계정을 학생에 붙인다.
+--
+-- security definer 로 도는 함수 하나만 열어둔다. 학생은 이 함수 말고는
+-- 코드 표에 손댈 수 없다.
+-- ------------------------------------------------------------
+create or replace function public.link_student_by_code(p_code text)
+returns table (ok boolean, message text, student_id uuid)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.student_link_codes%rowtype;
+  v_taken uuid;
+begin
+  if auth.uid() is null then
+    return query select false, '로그인이 필요해요.'::text, null::uuid;
+    return;
+  end if;
+
+  select * into v_row from public.student_link_codes
+   where code = upper(btrim(p_code));
+
+  if not found then
+    return query select false, '코드가 맞지 않아요.'::text, null::uuid;
+    return;
+  end if;
+  if v_row.used_at is not null then
+    return query select false, '이미 사용한 코드예요.'::text, null::uuid;
+    return;
+  end if;
+  if v_row.expires_at < now() then
+    return query select false, '코드가 만료됐어요. 선생님께 새로 받아주세요.'::text, null::uuid;
+    return;
+  end if;
+
+  -- 이 학생에 이미 다른 계정이 붙어 있으면 덮어쓰지 않는다
+  select s.profile_id into v_taken from public.students s where s.id = v_row.student_id;
+  if v_taken is not null and v_taken <> auth.uid() then
+    return query select false, '이 학생에는 이미 다른 계정이 연결돼 있어요.'::text, null::uuid;
+    return;
+  end if;
+
+  update public.students set profile_id = auth.uid() where id = v_row.student_id;
+  update public.profiles set role = 'student' where id = auth.uid() and role is distinct from 'principal';
+  update public.student_link_codes
+     set used_at = now(), used_by = auth.uid()
+   where code = v_row.code;
+
+  return query select true, '연결됐어요.'::text, v_row.student_id;
+end $$;
+
+revoke all on function public.link_student_by_code(text) from public;
+grant execute on function public.link_student_by_code(text) to authenticated;
+
+
+-- ------------------------------------------------------------
+-- 학생 본인이 자기 students 행을 읽을 수 있어야 /me 가 뜬다.
+-- (이미 있을 수 있으므로 다시 만든다)
+-- ------------------------------------------------------------
+drop policy if exists own_read on public.students;
+create policy own_read on public.students
+  for select to authenticated
+  using (
+    profile_id = auth.uid()
+    or exists (select 1 from public.parent_student ps
+               where ps.student_id = students.id and ps.parent_profile_id = auth.uid())
+  );
+
+-- ─────────── 0044_submissions.sql ───────────
+-- 0044: 학생이 숙제를 제출한다
+--
+-- 지금은 "학습 완료" 를 누르는 것이 전부다. 정말 했는지는 등원해서
+-- 공책을 봐야 안다. 그런데 원장님 루틴에는 **녹음으로 내는 구두테스트**가
+-- 이미 있다 — 그건 종이로 받을 수가 없다.
+--
+--   · 사진  — 문제 푼 것, 워크북, 오답노트
+--   · 녹음  — 구두테스트 (집에서 하는 것)
+--   · 글    — 짧은 답이나 한마디
+--
+-- 파일은 Supabase Storage 의 비공개 버킷에 넣는다. 주소를 알아도 못 연다 —
+-- 볼 때마다 짧은 시간짜리 링크를 새로 만들어 연다.
+
+create table if not exists public.homework_submissions (
+  id               uuid primary key default gen_random_uuid(),
+  student_id       uuid not null references public.students(id) on delete cascade,
+  date             date not null default (now() at time zone 'Asia/Seoul')::date,
+  homework_item_id uuid references public.homework_items(id) on delete set null,
+  report_item_id   uuid references public.daily_report_items(id) on delete cascade,
+  kind             text not null default 'photo',   -- photo / audio / text
+  path             text,                            -- storage 안의 위치 (글이면 비어 있다)
+  body             text,                            -- 글로 낸 것
+  bytes            int,
+  seconds          int,                             -- 녹음 길이
+  checked_at       timestamptz,                     -- 선생님이 본 시각
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists submissions_student_idx on public.homework_submissions (student_id, date);
+create index if not exists submissions_date_idx    on public.homework_submissions (date);
+create index if not exists submissions_open_idx    on public.homework_submissions (date)
+  where checked_at is null;
+
+alter table public.homework_submissions enable row level security;
+
+drop policy if exists staff_all on public.homework_submissions;
+create policy staff_all on public.homework_submissions
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- 학생은 **자기 것만** 내고 본다
+drop policy if exists own_all on public.homework_submissions;
+create policy own_all on public.homework_submissions
+  for all to authenticated
+  using (
+    exists (select 1 from public.students s
+            where s.id = homework_submissions.student_id and s.profile_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from public.students s
+            where s.id = homework_submissions.student_id and s.profile_id = auth.uid())
+  );
+
+drop policy if exists parent_read on public.homework_submissions;
+create policy parent_read on public.homework_submissions
+  for select to authenticated
+  using (
+    exists (select 1 from public.parent_student ps
+            where ps.student_id = homework_submissions.student_id
+              and ps.parent_profile_id = auth.uid())
+  );
+
+
+-- ------------------------------------------------------------
+-- 저장 공간 — 비공개 버킷
+--   경로 규칙: submissions/<student_id>/<date>/<파일명>
+--   맨 앞 칸이 학생 id 라서, 그것만 보고 누구 것인지 가릴 수 있다.
+-- ------------------------------------------------------------
+do $$
+begin
+  if exists (select 1 from information_schema.tables
+              where table_schema = 'storage' and table_name = 'buckets') then
+
+    insert into storage.buckets (id, name, public, file_size_limit)
+    values ('submissions', 'submissions', false, 26214400)   -- 25MB
+    on conflict (id) do nothing;
+
+    -- 선생님은 전부 본다
+    execute $p$drop policy if exists submissions_staff on storage.objects$p$;
+    execute $p$
+      create policy submissions_staff on storage.objects
+        for all to authenticated
+        using (bucket_id = 'submissions' and public.is_staff())
+        with check (bucket_id = 'submissions' and public.is_staff())
+    $p$;
+
+    -- 학생은 자기 폴더에만 넣고, 자기 것만 본다
+    execute $p$drop policy if exists submissions_own on storage.objects$p$;
+    execute $p$
+      create policy submissions_own on storage.objects
+        for all to authenticated
+        using (
+          bucket_id = 'submissions'
+          and exists (select 1 from public.students s
+                       where s.profile_id = auth.uid()
+                         and s.id::text = (storage.foldername(name))[1])
+        )
+        with check (
+          bucket_id = 'submissions'
+          and exists (select 1 from public.students s
+                       where s.profile_id = auth.uid()
+                         and s.id::text = (storage.foldername(name))[1])
+        )
+    $p$;
+  end if;
+end $$;
+
+-- ─────────── 0045_student_id_login.sql ───────────
+-- 0045: 아이디 로그인 · 체크리스트 숙제
+--
+-- 1) 이메일로 로그인시키면 아이들이 못 들어온다.
+--    이메일 주소도 비밀번호도 잊어버린다. 그래서 학원이 아이디를 준다 —
+--    chloe0001 같은 것. 비밀번호는 0000 으로 시작하고, 처음 들어오면
+--    학생이 바꾼다. 또 잊으면 원장님이 0000 으로 되돌린다.
+--
+--    Supabase 로그인은 이메일만 받으므로, 아이디에 학원 도메인을 붙여
+--    속으로만 이메일을 만든다 (chloe0001 → chloe0001@…). 학생은 그런 게
+--    있는지도 모른다.
+--
+-- 2) 숙제 내는 방법을 사진 · 녹음 · 체크리스트 셋으로 한다.
+--    체크리스트는 숙제 항목마다 미리 적어둔다 (한 줄에 하나).
+
+alter table public.students add column if not exists login_id text;
+create unique index if not exists students_login_id_key
+  on public.students (lower(login_id)) where login_id is not null;
+comment on column public.students.login_id is '학생이 치는 아이디 (chloe0001). 속으로는 여기에 도메인을 붙여 이메일로 만든다';
+
+-- 처음 들어왔거나 원장님이 되돌렸으면 비밀번호부터 바꾸게 한다
+alter table public.profiles add column if not exists must_change_pw boolean not null default false;
+
+-- 체크리스트 — 숙제 항목마다 한 줄에 하나씩
+alter table public.homework_items add column if not exists checklist text;
+comment on column public.homework_items.checklist is '체크리스트 문항 (줄바꿈으로 구분). 비면 체크리스트 버튼이 안 나온다';
+
+
+-- ------------------------------------------------------------
+-- 내 비밀번호를 바꿨다고 표시한다.
+--   비밀번호 자체는 Supabase 가 바꾸고, 여기서는 깃발만 내린다.
+-- ------------------------------------------------------------
+create or replace function public.clear_must_change_pw()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.profiles set must_change_pw = false where id = auth.uid();
+$$;
+
+revoke all on function public.clear_must_change_pw() from public;
+grant execute on function public.clear_must_change_pw() to authenticated;
+
+
+-- ------------------------------------------------------------
+-- 아이디로 로그인하려면 그 아이디가 어느 이메일인지 알아야 한다.
+-- 로그인 화면은 아직 로그인 전이라 표를 못 읽으므로, 함수 하나만 열어둔다.
+--
+-- 아이디가 있는지 없는지 말고는 아무것도 알려주지 않는다
+-- (이름·학교 같은 것은 절대 돌려주지 않는다).
+-- ------------------------------------------------------------
+create or replace function public.email_for_login_id(p_login_id text)
+returns text
+language sql
+security definer
+set search_path = public, auth
+as $$
+  select u.email
+    from public.students s
+    join public.profiles p on p.id = s.profile_id
+    join auth.users u on u.id = p.id
+   where lower(s.login_id) = lower(btrim(p_login_id))
+   limit 1;
+$$;
+
+revoke all on function public.email_for_login_id(text) from public;
+grant execute on function public.email_for_login_id(text) to anon, authenticated;
+
+-- ─────────── 0046_makeup_time.sql ───────────
+-- 0046: 보강 시간
+--
+-- 보강을 잡을 때 날짜만 정하고 시간이 없었다. 그런데 보강은 정규 수업이
+-- 아니라 **그날 비는 시간에 끼워 넣는 것**이라, 몇 시인지가 날짜만큼 중요하다.
+-- 학부모께도 "금요일에 오세요" 로는 안 되고 "금요일 5시" 라야 한다.
+--
+-- 시간은 비워둘 수 있다 (아직 안 정했을 수 있으므로).
+
+alter table public.attendance add column if not exists makeup_time time;
+comment on column public.attendance.makeup_time is '보강 시각. 비면 아직 안 정한 것';
+
+alter table public.class_attendance add column if not exists makeup_time time;
+
+-- ─────────── 0047_storage_fix.sql ───────────
+-- 0047: 숙제 파일이 안 올라가던 것
+--
+-- 학생이 녹음을 내면 "new row violates row-level security policy" 가 났다.
+--
+-- 0044 의 저장소 규칙은 정책 안에서 public.students 를 직접 뒤졌다.
+--
+--   exists (select 1 from public.students s
+--            where s.profile_id = auth.uid()
+--              and s.id::text = (storage.foldername(name))[1])
+--
+-- 이 조회는 **부르는 사람 권한으로** 돈다. 그래서 students 의 잠금(RLS)에
+-- 한 번 더 걸리고, 그 안에서 또 다른 표를 보게 되면 조용히 거짓이 된다.
+-- 정책 안에서 다른 표를 뒤지는 것 자체가 약한 설계였다.
+--
+-- 그래서 **"지금 나는 어느 학생인가" 를 돌려주는 함수 하나**로 바꾼다.
+-- 이 함수는 security definer 라 잠금을 타지 않는다. 정책은 값 하나만 비교한다.
+
+create or replace function public.my_student_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select s.id from public.students s where s.profile_id = auth.uid() limit 1;
+$$;
+
+revoke all on function public.my_student_id() from public;
+grant execute on function public.my_student_id() to authenticated;
+
+
+-- ------------------------------------------------------------
+-- 숙제 제출 표 — 정책을 함수 하나로 단순화
+-- ------------------------------------------------------------
+drop policy if exists own_all on public.homework_submissions;
+create policy own_all on public.homework_submissions
+  for all to authenticated
+  using (student_id = public.my_student_id())
+  with check (student_id = public.my_student_id());
+
+
+-- ------------------------------------------------------------
+-- 저장소 — 경로 맨 앞이 내 학생 id 인 것만
+-- ------------------------------------------------------------
+do $$
+begin
+  if exists (select 1 from information_schema.tables
+              where table_schema = 'storage' and table_name = 'objects') then
+
+    execute $p$drop policy if exists submissions_own on storage.objects$p$;
+    execute $p$
+      create policy submissions_own on storage.objects
+        for all to authenticated
+        using (
+          bucket_id = 'submissions'
+          and (storage.foldername(name))[1] = public.my_student_id()::text
+        )
+        with check (
+          bucket_id = 'submissions'
+          and (storage.foldername(name))[1] = public.my_student_id()::text
+        )
+    $p$;
+
+    -- 선생님은 전부 (체험 모드로 대신 낼 때도 여기로 통과한다)
+    execute $p$drop policy if exists submissions_staff on storage.objects$p$;
+    execute $p$
+      create policy submissions_staff on storage.objects
+        for all to authenticated
+        using (bucket_id = 'submissions' and public.is_staff())
+        with check (bucket_id = 'submissions' and public.is_staff())
+    $p$;
+  end if;
+end $$;
+
+
+-- 버킷이 아직 없으면 만든다 (0044 에서 못 만들었을 수도 있다)
+do $$
+begin
+  if exists (select 1 from information_schema.tables
+              where table_schema = 'storage' and table_name = 'buckets') then
+    insert into storage.buckets (id, name, public, file_size_limit)
+    values ('submissions', 'submissions', false, 26214400)
+    on conflict (id) do nothing;
+  end if;
+end $$;
+
+-- ─────────── 0048_home_twin.sql ───────────
+-- 0048: 등원에서 할 것 · 집에서 할 것이 다른 학습
+--
+-- 구두테스트는 원장님이 앞에 있어야 한다. 집에서는 할 수가 없어서
+-- **셀프녹음테스트**로 낸다. 같은 단계인데 이름도 방법도 다르다.
+--
+-- 그래서 학습 항목에 "이걸 숙제로 낼 때는 대신 이것" 을 달아둔다.
+-- 루틴은 등원 기준 하나만 알면 되고, 숙제로 나갈 때 알아서 바뀐다.
+--   구두테스트 → (숙제로 낼 때) → 셀프녹음테스트
+--
+-- 대부분의 항목은 비어 있다 (집에서든 학원에서든 같은 것이므로).
+
+alter table public.homework_items
+  add column if not exists home_item_id uuid references public.homework_items(id) on delete set null;
+
+comment on column public.homework_items.home_item_id is
+  '이 학습을 숙제로 낼 때 대신 쓰는 항목. 비면 그대로 나간다';
+
+-- ─────────── 0049_consult_ai.sql ───────────
+-- 0049: 상담일지 · 학부모 코멘트 초안
+--
+-- 1) 재원생 상담일지를 적을 곳이 없었다. 신규 상담 '일정' 만 있었고,
+--    정작 무슨 얘기를 했는지 남길 데가 없었다.
+--    말한 것을 그대로 받아쓰고, 요약해서 남긴다.
+--
+-- 2) 학부모께 나가는 코멘트를 매번 직접 쓰느라 시간이 걸린다.
+--    조각을 이어 붙이면 붙여넣은 티가 난다. 그래서 **원장님이 예전에 쓰신
+--    문장들을 본보기로 주고** AI 가 그 말투로 초안을 쓴다. 원장님은 고친다.
+
+create table if not exists public.student_notes (
+  id         uuid primary key default gen_random_uuid(),
+  student_id uuid not null references public.students(id) on delete cascade,
+  date       date not null default (now() at time zone 'Asia/Seoul')::date,
+  kind       text not null default 'consult',   -- consult(상담) / observe(관찰) / call(통화)
+  title      text,
+  raw        text,                              -- 받아쓴 것 그대로
+  body       text,                              -- 정리한 것 (AI 초안 → 손으로 고침)
+  with_whom  text,                              -- 학부모 / 학생 / 둘 다
+  minutes    int,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists student_notes_student_idx on public.student_notes (student_id, date desc);
+
+alter table public.student_notes enable row level security;
+drop policy if exists staff_all on public.student_notes;
+create policy staff_all on public.student_notes
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+-- 학생·학부모는 못 본다. 상담일지는 선생님 기록이다.
+
+
+-- ------------------------------------------------------------
+-- 본보기 문장 — 원장님이 예전에 쓰신 코멘트를 모아둔다.
+-- AI 는 이 말투를 따라 쓴다. 많을수록 원장님 글에 가까워진다.
+-- ------------------------------------------------------------
+create table if not exists public.comment_samples (
+  id         uuid primary key default gen_random_uuid(),
+  body       text not null,
+  tag        text,                              -- 어떤 상황에 쓰는 문장인지 (선택)
+  created_at timestamptz not null default now()
+);
+
+alter table public.comment_samples enable row level security;
+drop policy if exists staff_all on public.comment_samples;
+create policy staff_all on public.comment_samples
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- ─────────── 0050_notice_split.sql ───────────
+-- 0050: 공지를 나눈다
+--
+-- 지금은 '공지' 칸이 하나뿐이라, 학생에게 할 말과 학부모께 드릴 말이
+-- 같은 데 들어간다. 그래서 학부모용 문장이 학생 화면에 뜨는 일도 있었다.
+--
+-- 세 갈래로 나눈다.
+--   1. 전달사항   — 수업 중에 학생에게 말할 것   (이미 notices 표에 있다)
+--   2. 학생공지   — 숙제문자 맨 위               ← 여기만 새로 만든다
+--   3. 부모님공지 — 데일리리포트 맨 아래         (기존 daily_reports.notice)
+
+alter table public.daily_reports
+  add column if not exists notice_student text;
+
+comment on column public.daily_reports.notice        is '부모님공지 — 데일리리포트 맨 아래';
+comment on column public.daily_reports.notice_student is '학생공지 — 숙제문자 맨 위';
+
+-- ─────────── 0051_question_unit.sql ───────────
+-- 0051: 단원 아래 문제번호
+--
+-- 내신 시험범위는 단원 단위가 아니라 **문제 단위**인 경우가 많다.
+--   옥련여고 기말 = 2406H1 모의고사 29·30·33·34·36·37번
+-- 모의고사는 단원 자체가 없어서 중단원 아래에 바로 문제가 온다.
+--
+-- 새 구조를 만들지 않는다. 교재 단원은 부모-자식으로 이어진 나무라 깊이
+-- 제한이 없다. **문제도 그냥 한 겹 더 내려간 단원**으로 넣으면 된다.
+-- 다만 화면에서 "이건 문제다" 를 알아야 하므로 번호만 따로 담아둔다.
+
+alter table public.textbook_units
+  add column if not exists question_no text;
+
+comment on column public.textbook_units.question_no is
+  '문제번호 (29, 30-1 …). 비면 보통 단원이다';
+
+create index if not exists textbook_units_question_idx
+  on public.textbook_units (textbook_id) where question_no is not null;
+
+-- ─────────── 0052_prep_materials.sql ───────────
+-- 0052: 내신 대비 자료 관리
+--
+-- 내신 교재를 따로 관리하지 않는다. 교재도 단원도 문제도 **기존 교재DB**에
+-- 그대로 들어간다 (0051 에서 문제번호까지 넣었다).
+-- 늘어나는 것은 **자료** 하나뿐이다.
+--
+--   시험   학교 + 학기 + 시험일          옥련여고 26' 1학기기말 · 7/8
+--   범위   그 시험에 나오는 단원·문제들   2406H1 › 어법 › 29,30,33번
+--   자료   그 범위에 쓸 자료 한 장        이그잼A (만들 것) · 백발백중 (구입)
+--   배정   자료 ↔ 학생                    이그잼A → 김서은, 노주하
+--
+-- 범위를 지우면 그 아래 자료와 배정도 같이 사라진다 (원장님 판단).
+-- 되돌릴 수 없으므로 화면에서 분명히 알린다.
+
+-- ------------------------------------------------------------
+-- 1. 시험
+-- ------------------------------------------------------------
+create table if not exists public.prep_exams (
+  id         uuid primary key default gen_random_uuid(),
+  school     text not null,
+  term       text not null,                     -- "26' 1학기기말"
+  grade      text,                              -- 고1 · 중2 (비면 학교 전체)
+  exam_date  date,                              -- 영어 시험일 — 급한 순서를 이걸로 잡는다
+  note       text,
+  created_at timestamptz not null default now()
+);
+create index if not exists prep_exams_date_idx on public.prep_exams (exam_date);
+
+-- ------------------------------------------------------------
+-- 2. 범위 — 교재 단원·문제를 골라 담는다
+-- ------------------------------------------------------------
+create table if not exists public.prep_scopes (
+  id         uuid primary key default gen_random_uuid(),
+  exam_id    uuid not null references public.prep_exams(id) on delete cascade,
+  name       text,                              -- 비면 담긴 단원으로 이름을 만든다
+  unit_ids   uuid[] not null default '{}',      -- textbook_units.id (단원이든 문제든)
+  note       text,
+  sort       int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists prep_scopes_exam_idx on public.prep_scopes (exam_id, sort);
+
+-- ------------------------------------------------------------
+-- 3. 자료
+--    단계는 자료마다 다르다. 필요한 것만 켠다.
+--    구입 자료는 파는 쪽 업로드가 늦어질 수 있어서 주문일을 따로 둔다.
+-- ------------------------------------------------------------
+create table if not exists public.prep_materials (
+  id          uuid primary key default gen_random_uuid(),
+  scope_id    uuid not null references public.prep_scopes(id) on delete cascade,
+  name        text not null,
+  source      text not null default 'make',     -- make(만든다) / buy(산다)
+  ordered_on  date,                             -- 산 것: 주문한 날 (며칠째 안 왔는지)
+  arrived_on  date,                             -- 산 것: 받은 날
+  -- 필요한 단계만 켠다
+  need_make   boolean not null default true,
+  need_print  boolean not null default true,
+  need_card   boolean not null default false,   -- 클래스카드 업로드
+  need_hand   boolean not null default true,    -- 배부
+  need_solve  boolean not null default true,    -- 풀이
+  need_grade  boolean not null default true,    -- 채점
+  -- 학생과 무관한 단계는 여기서 끝난다
+  made_at     timestamptz,
+  printed_at  timestamptz,
+  card_at     timestamptz,
+  note        text,
+  sort        int not null default 0,
+  created_at  timestamptz not null default now()
+);
+create index if not exists prep_materials_scope_idx on public.prep_materials (scope_id, sort);
+
+-- ------------------------------------------------------------
+-- 4. 학생 배정 — 자료는 범위로 만들지만 배정은 학생마다 다르다
+--    배부·풀이·채점은 학생마다 따로 간다.
+-- ------------------------------------------------------------
+create table if not exists public.prep_assignments (
+  id          uuid primary key default gen_random_uuid(),
+  material_id uuid not null references public.prep_materials(id) on delete cascade,
+  student_id  uuid not null references public.students(id) on delete cascade,
+  handed_at   timestamptz,                      -- 배부
+  solved_at   timestamptz,                      -- 풀이 완료
+  graded_at   timestamptz,                      -- 채점
+  result      text,                             -- done / weak / missing
+  score       text,                             -- "18/20" 같은 자유 표기
+  note        text,
+  created_at  timestamptz not null default now(),
+  unique (material_id, student_id)
+);
+create index if not exists prep_assign_student_idx on public.prep_assignments (student_id);
+
+-- ------------------------------------------------------------
+-- 잠금 — 선생님만. 학생은 자기 배정만 읽는다.
+-- ------------------------------------------------------------
+do $$
+declare t text;
+begin
+  foreach t in array array['prep_exams','prep_scopes','prep_materials','prep_assignments'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists staff_all on public.%I', t);
+    execute format(
+      'create policy staff_all on public.%I for all to authenticated
+         using (public.is_staff()) with check (public.is_staff())', t);
+  end loop;
+end $$;
+
+drop policy if exists own_read on public.prep_assignments;
+create policy own_read on public.prep_assignments
+  for select to authenticated
+  using (student_id = public.my_student_id());
+
+-- ─────────── 0053_material_types.sql ───────────
+-- 0053: 내신 자료 종류를 미리 등록한다
+--
+-- 자료 종류가 너무 다양하고, 한 종류 안에 또 갈래가 있다.
+--   이그잼   → 변형문제 · 분석지 · 워크북
+--   백발백중 → …
+-- 자료를 만들 때마다 이름을 손으로 치면 같은 것을 다르게 적게 되고,
+-- 나중에 묶어 볼 수가 없다. 그래서 **학습 항목처럼 미리 등록**해 둔다.
+--
+-- 두 겹이면 충분하다. 큰 것(이그잼) 아래 작은 것(변형문제)까지.
+--
+-- 그리고 구입·주문일·도착 대기는 뺀다. 파는 쪽 일정까지 여기서 좇으면
+-- 관리할 것만 늘고 정작 안 보게 된다.
+
+create table if not exists public.prep_material_types (
+  id         uuid primary key default gen_random_uuid(),
+  parent_id  uuid references public.prep_material_types(id) on delete cascade,
+  name       text not null,
+  sort       int  not null default 0,
+  active     boolean not null default true,
+  -- 이 종류로 자료를 만들면 단계가 이렇게 켜진 채로 시작한다
+  need_make  boolean not null default true,
+  need_print boolean not null default true,
+  need_card  boolean not null default false,
+  need_hand  boolean not null default true,
+  need_solve boolean not null default true,
+  need_grade boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists prep_types_parent_idx on public.prep_material_types (parent_id, sort);
+
+alter table public.prep_material_types enable row level security;
+drop policy if exists staff_all on public.prep_material_types;
+create policy staff_all on public.prep_material_types
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+
+-- 자료에 종류를 단다
+alter table public.prep_materials
+  add column if not exists type_id uuid references public.prep_material_types(id) on delete set null;
+
+-- 구입·도착 관련은 쓰지 않는다
+alter table public.prep_materials drop column if exists source;
+alter table public.prep_materials drop column if exists ordered_on;
+alter table public.prep_materials drop column if exists arrived_on;
+
+-- 이름은 종류에서 가져오므로 비어 있어도 된다
+alter table public.prep_materials alter column name drop not null;
+
+-- ─────────── 0054_prep_routine.sql ───────────
+-- 0054: 내신 자료도 순서대로
+--
+-- 교재에 루틴이 있듯 내신 자료에도 순서가 있다.
+--   이그잼 변형문제 → 분석지 → 워크북
+-- 그런데 학생마다 다르다. 어떤 아이는 분석지를 건너뛰고, 어떤 아이는
+-- 워크북을 먼저 한다.
+--
+-- 새 표를 만들지 않는다. 순서는 두 군데에만 있으면 된다.
+--   1. 종류에 매긴 순서  = 기본 루틴 (이미 prep_material_types.sort 에 있다)
+--   2. 학생 배정에 매긴 순서 = 그 학생만의 순서   ← 여기만 새로
+-- 배정에 순서가 없으면 기본 루틴을 따른다.
+
+alter table public.prep_assignments
+  add column if not exists sort int;
+
+comment on column public.prep_assignments.sort is
+  '이 학생에게 낼 순서. 비면 자료·종류에 매긴 기본 순서를 따른다';
+
+-- 지금 하고 있는 것 / 다음에 낼 것을 빨리 찾기 위해
+create index if not exists prep_assign_next_idx
+  on public.prep_assignments (student_id, sort) where graded_at is null;
+
+-- ─────────── 0055_payments.sql ───────────
+-- 수납
+--
+-- 앱은 **얼마를 받아야 하는지**를 이미 계산한다 (lib/tuition.js).
+-- 여기 저장하는 것은 **받았는가** 하나뿐이다. 금액을 두 곳에 두지 않는다. (원칙1)
+--
+-- 결제선생 같은 바깥 서비스에서 받은 엑셀을 올리면 이 표가 채워진다.
+-- 손으로 체크해도 같은 표에 들어간다 — 들어온 길만 `source` 로 남긴다.
+
+create table if not exists public.payments (
+  id          uuid primary key default gen_random_uuid(),
+  student_id  uuid not null references public.students(id) on delete cascade,
+  ym          text not null,                  -- "2026-09" — 무슨 달 수강료인가
+  amount      int,                            -- 실제로 받은 금액 (앱 계산과 다를 수 있다)
+  paid_on     date,                           -- 받은 날. 비어 있으면 아직 안 받음
+  method      text,                           -- 카드 · 이체 · 현금 …
+  source      text not null default 'manual', -- manual | 결제선생
+  note        text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- 한 학생의 한 달은 한 줄이다. 엑셀을 여러 번 올려도 덮어쓴다
+create unique index if not exists payments_student_ym_idx
+  on public.payments (student_id, ym);
+create index if not exists payments_ym_idx on public.payments (ym);
+
+alter table public.payments enable row level security;
+drop policy if exists staff_all on public.payments;
+create policy staff_all on public.payments
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());

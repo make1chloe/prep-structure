@@ -56,7 +56,8 @@ export default async function Home() {
   const quiet =
     d.soonAbsent.length === 0 && d.watchList.length === 0 && d.holidays.length === 0 &&
     d.scheduleAlerts.length === 0 && d.engEves.length === 0 && d.holidayNotes.length === 0 &&
-    d.newComments.length === 0 && d.examSoon.length === 0 && d.todayMakeups.length === 0;
+    d.newComments.length === 0 && d.examSoon.length === 0 && d.todayMakeups.length === 0 &&
+    d.unpaid.length === 0 && d.makeupNeedTotal === 0 && !d.monthlyDue;
 
   return (
     <>
@@ -101,6 +102,9 @@ export default async function Home() {
           )}
           {d.makeupRows.length > 0 && (
             <Badge href="#makeup" tone="warn">보강 잡을 것 {d.makeupRows.length}건</Badge>
+          )}
+          {d.unpaid.length > 0 && (
+            <Badge href="/tuition" tone="bad">미납 {d.unpaid.length}명</Badge>
           )}
           {d.makeupNeedTotal > 0 && (
             <Badge href="/tuition">보강 필요 {d.makeupNeedTotal}회</Badge>
@@ -248,6 +252,21 @@ export default async function Home() {
                       <Link className="tag tag-amber" href="/monthly">
                         {Number(d.monthlyDue.ym.slice(5))}월이 {d.monthlyDue.left === 0 ? "오늘" : `${d.monthlyDue.left}일 뒤`} 끝남 · {d.monthlyDue.count}명분
                       </Link>
+                    </div>
+                  </div>
+                )}
+                {d.unpaid.length > 0 && (
+                  <div>
+                    <b className="hint">이번 달 아직 안 받은 수강료 {d.unpaid.length}명</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      {d.unpaid.slice(0, 12).map((s) => (
+                        <Link className="tag tag-red" key={s.id} href="/tuition">{s.name}</Link>
+                      ))}
+                      {d.unpaid.length > 12 && (
+                        <Link className="tag tag-muted" href="/tuition">
+                          외 {d.unpaid.length - 12}명
+                        </Link>
+                      )}
                     </div>
                   </div>
                 )}
