@@ -351,7 +351,7 @@ export async function importHomework(rows) {
       .in("id", ids);
   }
 
-  revalidatePath("/resend");
+  revalidatePath("/report");
   revalidatePath("/today");
   return { error: null, saved: driRows.length, skipped };
 }

@@ -1,42 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
-import ResendBoard from "./ResendBoard";
-import { loadReportRows } from "@/lib/reportData";
-import { loadSettings } from "@/lib/settings";
-import { todaySeoul } from "@/lib/day";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function ResendPage({ searchParams }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
-
-  const date = searchParams?.d || todaySeoul();
-
-  const settings = await loadSettings(supabase);
-  const { rows, resendReady } = await loadReportRows(supabase, date, settings.academy.name, settings.message);
-
-  return (
-    <>
-      <TopBar profile={profile} active="resend" />
-      <main className="wrap-wide">
-        <div className="page-head">
-          <p className="eyebrow">재발송</p>
-          <h1 className="h1">숙제 문자 · 리포트 다시 보내기</h1>
-          <p className="sub">
-            이미 보낸 문구를 고쳐서 다시 보내거나, 숙제만 따로 보낼 때 쓰는 화면이에요.
-          </p>
-        </div>
-        <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} />
-      </main>
-    </>
-  );
+// 재발송은 발송 화면의 '다시 보내기' 탭으로 합쳤다.
+// 옛 주소·즐겨찾기가 안 깨지게 여기서 넘긴다 (보던 날짜도 그대로 들고 간다).
+export default function ResendPage({ searchParams }) {
+  const d = searchParams?.d;
+  redirect(d ? `/report?t=resend&d=${d}` : "/report?t=resend");
 }
