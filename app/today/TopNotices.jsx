@@ -127,7 +127,11 @@ export default function TopNotices({
     ...(preClass.requests || []).map((r) => ({
       photos: r.photos || [],
       key: `r${r.id}`,
-      tag: r.kind === "absence" ? "결석 알림" : r.kind === "makeup" ? "보강 요청" : "문의",
+      tag:
+        r.kind === "absence" ? "결석 알림"
+        : r.kind === "makeup" ? "보강 요청"
+        : r.kind === "info" ? "전달"
+        : "문의",
       cls: "tag-amber",
       name: r.name,
       text:

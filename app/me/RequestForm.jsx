@@ -41,8 +41,8 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
           <b style={{ fontSize: 14 }}>결석 · 문의 알리기</b>
           <p className="hint" style={{ margin: "4px 0 0" }}>
             결석할 날을 미리 알려주시면 보강을 잡아드립니다.
-            <b> 학교에서 받은 종이는 옮겨 적지 마시고 찍어서 붙여주세요</b> —
-            체험학습 신청서, 학교 시험 시간표, 가정통신문 모두요.
+            학교 시험 시간표나 가정통신문처럼 <b>날짜 없이 알려주실 것은 「전달」</b>로 보내주세요.
+            <b>글로 적어주셔도 되고, 종이는 찍어서 붙여주셔도 됩니다</b> — 둘 다 보내셔도 돼요.
           </p>
         </div>
         <button className="btn btn-sm btn-primary" onClick={() => setOpen(!open)}>
@@ -56,6 +56,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
             {[
               ["absence", "결석"],
               ["makeup", "보강 요청"],
+              ["info", "전달"],
               ["question", "문의"],
             ].map(([k, label]) => (
               <button
@@ -67,7 +68,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
               </button>
             ))}
           </div>
-          {kind !== "question" && (
+          {kind !== "question" && kind !== "info" && (
             <div className="row" style={{ gap: 6, alignItems: "center" }}>
               <input className="input input-sm" type="date" style={{ width: 150 }}
                 value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -80,7 +81,13 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
           <textarea
             className="input input-sm"
             rows={2}
-            placeholder={kind === "absence" ? "사유 (예: 가족 여행)" : "내용을 적어주세요"}
+            placeholder={
+              kind === "absence"
+                ? "사유 (예: 가족 여행)"
+                : kind === "info"
+                ? "무엇인지 적어주세요 (예: 2학기 중간고사 시간표)"
+                : "내용을 적어주세요"
+            }
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
@@ -88,8 +95,11 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
           <RequestPhotos paths={photos} onChange={setPhotos} asId={asId} readOnly={readOnly} />
 
           <button className="btn btn-primary btn-sm" onClick={submit}
-            disabled={pending || readOnly || (kind !== "question" && !from) ||
-                      (kind === "question" && !body.trim() && photos.length === 0)}>
+            disabled={
+              pending || readOnly ||
+              (kind !== "question" && kind !== "info" && !from) ||
+              ((kind === "question" || kind === "info") && !body.trim() && photos.length === 0)
+            }>
             {pending ? "보내는 중…" : photos.length ? `사진 ${photos.length}장과 보내기` : "보내기"}
           </button>
         </div>

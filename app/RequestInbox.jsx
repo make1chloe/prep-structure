@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { handleRequest } from "./requests/actions";
 import RequestPhotos from "@/components/RequestPhotos";
 
-const KIND = { absence: "결석", makeup: "보강 요청", question: "문의" };
+const KIND = { absence: "결석", makeup: "보강 요청", info: "전달", question: "문의" };
 
 // 학생·학부모가 보낸 알림을 확인하고, 결석은 바로 결석 예정으로 반영한다
 export default function RequestInbox({ requests = [] }) {
@@ -68,7 +68,8 @@ export default function RequestInbox({ requests = [] }) {
                 확인
               </button>
               <button className="btn btn-ghost btn-sm" onClick={() => act(r.id, false)} disabled={pending}>
-                반영 안 함
+                {/* 결석은 '반영' 이라는 말이 맞지만, 그냥 알려주신 것에는 안 맞는다 */}
+                {r.kind === "absence" ? "반영 안 함" : "봤어요"}
               </button>
             </div>
           ))}
