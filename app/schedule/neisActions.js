@@ -162,6 +162,7 @@ export async function importSchedule(from, to, schoolId = null) {
 
   let added = 0;
   let same = 0;
+  let examAdded = 0;
   const exams = [];
   const notes = [];
 
@@ -174,7 +175,13 @@ export async function importSchedule(from, to, schoolId = null) {
     }
 
     const tasks = res.rows.map((r) => toTask(r, school)).filter(Boolean);
-    exams.push(...examPeriods(tasks, school));
+    const found = examPeriods(tasks, school);
+    exams.push(...found);
+    // 시험 기간은 **묻지 않고 다 넣는다.** 필요 없는 것은 화면에서 숨기면 되고,
+    // 숨긴 것은 다시 받아와도 숨긴 채로 있다. 매번 고르게 하는 것이 더 일이다.
+    const madeExam = await addExamPeriods(found);
+    if (madeExam.error) return { error: `${school.name} — ${madeExam.error}` };
+    examAdded += madeExam.added || 0;
 
     for (const t of tasks) {
       const { neisKind, ...row } = t;
@@ -195,7 +202,7 @@ export async function importSchedule(from, to, schoolId = null) {
   revalidatePath("/schedule");
   revalidatePath("/tasks");
   revalidatePath("/");
-  return { error: null, added, same, exams, notes };
+  return { error: null, added, same, examAdded, exams, notes };
 }
 
 /**

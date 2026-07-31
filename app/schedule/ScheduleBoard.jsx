@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addExam, setEnglishDate, updateExam, deleteExam,
+  addExam, setEnglishDate, updateExam, deleteExam, hideExam,
   markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday,
 } from "./actions";
 import { shortLabel } from "@/lib/day";
@@ -50,6 +50,10 @@ export default function ScheduleBoard({
   const [form, setForm] = useState({ school: "", grade: "", name: "", from: "", to: "" });
   const [eng, setEng] = useState({});
   const [off, setOff] = useState({ date: "", name: "", classId: "" });
+  const [showHidden, setShowHidden] = useState(false);   // 숨긴 시험도 볼까
+  // 숨긴 시험은 기본으로 접어둔다 — 나이스에서 받으면 안 쓰는 것까지 다 들어온다
+  const hiddenExams = exams.filter((e) => e.hidden);
+  const shownExams = showHidden ? exams : exams.filter((e) => !e.hidden);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -312,10 +316,22 @@ export default function ScheduleBoard({
           </button>
         </div>
 
-        {exams.length > 0 && (
+        {hiddenExams.length > 0 && (
+          <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowHidden(!showHidden)}>
+              {showHidden ? "숨긴 것 접기" : `숨긴 시험 ${hiddenExams.length}건 보기`}
+            </button>
+            <span className="hint" style={{ fontSize: 11.5 }}>
+              숨긴 시험은 알림·결석 예상에서 빠집니다. 다시 받아와도 숨긴 채로 있습니다.
+            </span>
+          </div>
+        )}
+
+        {shownExams.length > 0 && (
           <div className="stack" style={{ gap: 4, marginTop: 12 }}>
-            {exams.map((e) => (
-              <div className="unitrow" key={e.id}>
+            {shownExams.map((e) => (
+              <div className="unitrow" key={e.id} style={e.hidden ? { opacity: 0.55 } : undefined}>
+                {e.hidden && <span className="tag tag-muted">숨김</span>}
                 <b style={{ fontSize: 12.5 }}>
                   {e.school} {e.grade || "전체"}
                 </b>
@@ -352,8 +368,20 @@ export default function ScheduleBoard({
                 )}
                 <button
                   className="btn btn-ghost btn-sm"
+                  disabled={pending}
+                  title={
+                    e.hidden
+                      ? "다시 쓰겠습니다"
+                      : "필요 없는 시험입니다. 알림·결석 예상에서 뺍니다 (기록은 남습니다)"
+                  }
+                  onClick={() => run(() => hideExam(e.id, !e.hidden))}
+                >
+                  {e.hidden ? "다시 쓰기" : "숨기기"}
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
                   onClick={() => {
-                    if (!confirm("이 시험 일정을 지울까요?")) return;
+                    if (!confirm("이 시험 일정을 지울까요?\n\n나이스에서 받아온 것이면 다시 받을 때 또 들어옵니다. 그럴 땐 「숨기기」 를 쓰세요.")) return;
                     run(() => deleteExam(e.id));
                   }}
                 >

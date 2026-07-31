@@ -5,6 +5,7 @@ import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
 import { todaySeoul } from "@/lib/day";
+import { hiddenExamIds } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,7 @@ export default async function TasksPage({ searchParams }) {
       .select("id, school, grade, name, from_date, to_date, english_on")
       .gte("to_date", today)
       .order("from_date", { ascending: true });
+    const hiddenExams = await hiddenExamIds(supabase);
     const holQ = await supabase
       .from("holidays")
       .select("id, date, name, scope, class_id")
@@ -78,7 +80,9 @@ export default async function TasksPage({ searchParams }) {
       .order("date", { ascending: true });
 
     linked = [
-      ...(examQ.error ? [] : examQ.data || []).map((e) => ({
+      ...(examQ.error ? [] : examQ.data || [])
+        .filter((e) => !hiddenExams.has(e.id))   // 숨긴 시험은 뺀다
+        .map((e) => ({
         key: `exam-${e.id}`,
         from: e.from_date,
         to: e.to_date,

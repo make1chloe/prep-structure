@@ -56,6 +56,28 @@ export async function updateExam(id, patch) {
   return ok(error);
 }
 
+/**
+ * 필요 없는 시험을 숨긴다.
+ *
+ * 지우면 다시 받아올 때 또 들어오고, 그때마다 다시 지워야 한다.
+ * 숨기면 기록이 남아서 **다시 받아도 숨긴 채로** 있다.
+ */
+export async function hideExam(id, on = true) {
+  if (!id) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("exam_periods")
+    .update({ hidden: !!on })
+    .eq("id", id);
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    return { error: "0060 SQL 을 먼저 실행해주세요." };
+  }
+  revalidatePath("/schedule");
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return ok(error);
+}
+
 export async function deleteExam(id) {
   if (!id) return { error: null };
   const supabase = createClient();

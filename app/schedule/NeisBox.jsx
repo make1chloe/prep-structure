@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   saveNeisKey, neisReady, searchSchools, addSchool, removeSchool, listSchools,
-  importSchedule, addExamPeriods, clearImported,
+  importSchedule, clearImported,
 } from "./neisActions";
 
 /**
@@ -28,7 +28,6 @@ export default function NeisBox({ months = [] }) {
     return { from: `${first}-01`, to: end.toISOString().slice(0, 10) };
   });
   const [done, setDone] = useState(null);      // 받아온 결과
-  const [pickExam, setPickExam] = useState(() => new Set());
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -193,10 +192,7 @@ export default function NeisBox({ months = [] }) {
               disabled={pending || !ready}
               title={ready ? undefined : "먼저 나이스 인증키를 넣어주세요"}
               onClick={() =>
-                run(() => importSchedule(range.from, range.to), (r) => {
-                  setDone(r);
-                  setPickExam(new Set((r.exams || []).map((_, i) => i)));
-                })
+                run(() => importSchedule(range.from, range.to), setDone)
               }
             >
               {pending ? "받는 중…" : "학사일정 받아오기"}
@@ -221,47 +217,13 @@ export default function NeisBox({ months = [] }) {
                 {done.notes?.length ? ` (${done.notes.join(" · ")})` : ""}
               </div>
 
-              {/* 시험은 따로 묻는다 — 자동으로 넣으면 아닌 것까지 들어간다 */}
-              {done.exams?.length > 0 && (
-                <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
-                  <b style={{ fontSize: 13 }}>시험 기간으로도 넣을까요?</b>
-                  <p className="hint" style={{ margin: "4px 0 8px", fontSize: 12 }}>
-                    학교가 &apos;고사&apos; 라고 적어둔 것을 모았습니다. 넣으면 그 기간 정규수업이
-                    <b> 타과목 시험 결석 예상</b>으로 잡힙니다. <b>영어 시험일은 따로 채우셔야 합니다.</b>
-                  </p>
-                  <div className="stack" style={{ gap: 3 }}>
-                    {done.exams.map((e, i) => (
-                      <label key={i} className="unitrow" style={{ cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={pickExam.has(i)}
-                          onChange={() => {
-                            const n = new Set(pickExam);
-                            n.has(i) ? n.delete(i) : n.add(i);
-                            setPickExam(n);
-                          }}
-                        />
-                        <b style={{ fontSize: 12.5 }}>{e.school}</b>
-                        <span style={{ fontSize: 12.5, flex: 1 }}>{e.name}</span>
-                        <span className="hint" style={{ fontSize: 11.5 }}>
-                          {e.from_date}{e.to_date !== e.from_date ? ` ~ ${e.to_date}` : ""}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  <button
-                    className="btn btn-sm"
-                    style={{ marginTop: 8 }}
-                    disabled={pending || pickExam.size === 0}
-                    onClick={() =>
-                      run(
-                        () => addExamPeriods([...pickExam].map((i) => done.exams[i])),
-                        (r) => { alert(`시험 기간 ${r.added}건을 넣었어요.`); setDone({ ...done, exams: [] }); }
-                      )
-                    }
-                  >
-                    고른 {pickExam.size}건 넣기
-                  </button>
+              {done.examAdded > 0 && (
+                <div className="notice" style={{ fontSize: 12.5 }}>
+                  시험 기간 <b>{done.examAdded}건</b> 도 함께 넣었습니다.
+                  필요 없는 것은 아래 <b>학교 시험 일정</b> 에서 <b>숨기기</b> 를 누르세요 —
+                  숨긴 것은 알림·결석 예상에서 빠지고, <b>다시 받아와도 숨긴 채로</b> 있습니다.
+                  <br />
+                  <b>영어 시험일은 나이스에 없어서</b> 아래에서 직접 채우셔야 합니다.
                 </div>
               )}
             </div>
