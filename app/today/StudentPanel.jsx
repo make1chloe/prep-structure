@@ -797,7 +797,7 @@ export default function StudentPanel({
                           : loadingBook === bookId
                           ? "단원 불러오는 중…"
                           : opts.length === 0
-                          ? "이 교재에 등록된 단원이 없어요"
+                          ? "이 교재에 단원이 없어요 — 교재 › 교재·단원 에서 올려주세요"
                           : "단원 추가…"}
                       </option>
                       {opts.map((o) => (
@@ -1033,15 +1033,18 @@ export default function StudentPanel({
             </button>
           ))}
           <span className="spacer" />
-          <span className="hint" style={{ fontSize: 12 }}>단어시험</span>
+          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
+              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
+          <span className="hint" style={{ fontSize: 12 }}>단어시험을 언제</span>
           {[
-            ["start", "수업 시작"],
+            ["start", "수업 시작에"],
             ["end", "다 끝내고"],
           ].map(([k, label]) => (
             <button
               key={k}
               className={`btn btn-sm ${wordWhen === k ? "btn-primary" : "btn-ghost"}`}
               disabled={pending}
+              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
               style={{ padding: "3px 10px" }}
               onClick={() => {
                 setWordWhen(k);
