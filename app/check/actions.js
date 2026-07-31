@@ -173,3 +173,47 @@ export async function autoAssign(studentId, date) {
   revalidatePath("/me");
   return { error: null, added: add.length, steps: routine.steps };
 }
+
+/**
+ * 안 낸 것을 한 번에 미제출(✕)로.
+ *
+ * 자동으로 찍지 않는 이유 — 워크북처럼 **공책으로 보는 숙제**는 앱에 낼 것이
+ * 없다. 안 냈다고 미제출로 몰면 성실히 해온 아이가 억울해진다.
+ * 그래서 화면에는 '안 냄' 으로 보여주기만 하고, 찍는 것은 원장님이 한 번 누른다.
+ */
+export async function markMissing(studentId, date, itemIds = []) {
+  const ids = (itemIds || []).filter(Boolean);
+  if (!studentId || !date || ids.length === 0) return { error: null, count: 0 };
+  const supabase = createClient();
+
+  const { data: rep } = await supabase
+    .from("daily_reports")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("date", date)
+    .maybeSingle();
+  if (!rep?.id) return { error: "이 날짜에 기록이 없어요. 먼저 출결을 찍어주세요." };
+
+  // 이미 찍힌 것은 건드리지 않는다 (○ 로 봐준 것을 ✕ 로 덮으면 안 된다)
+  const { data: had } = await supabase
+    .from("daily_report_items")
+    .select("homework_item_id")
+    .eq("daily_report_id", rep.id)
+    .in("status", ["done", "weak", "missing"]);
+  const done = new Set((had || []).map((x) => x.homework_item_id));
+  const add = ids.filter((id) => !done.has(id));
+  if (add.length === 0) return { error: null, count: 0 };
+
+  const { error } = await supabase.from("daily_report_items").insert(
+    add.map((homework_item_id) => ({
+      daily_report_id: rep.id,
+      homework_item_id,
+      status: "missing",
+    }))
+  );
+  if (error) return { error: error.message };
+
+  revalidatePath("/check");
+  revalidatePath("/today");
+  return { error: null, count: add.length };
+}

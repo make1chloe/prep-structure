@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { checkOne, seenSubmission, autoAssign } from "./actions";
+import { checkOne, seenSubmission, autoAssign, markMissing } from "./actions";
 import Link from "next/link";
 import { viewUrl } from "@/app/me/submitActions";
 import { addDays } from "@/lib/day";
@@ -166,6 +166,11 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                   <span className="spacer" />
                   {myLeft.length > 0 && <span className="tag tag-amber">검사 {myLeft.length}</span>}
                   {myUnseen.length > 0 && <span className="tag tag-sky">낸 것 {myUnseen.length}</span>}
+                  {myLeft.filter((c) => c.noSub).length > 0 && (
+                    <span className="tag tag-red" title="낸 것이 없는 숙제">
+                      안 냄 {myLeft.filter((c) => c.noSub).length}
+                    </span>
+                  )}
                   {myLeft.length === 0 && myUnseen.length === 0 && (
                     <span className="tag tag-mint">끝</span>
                   )}
@@ -273,6 +278,15 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                                     학생 완료
                                   </span>
                                 )}
+                                {/* 낸 것이 하나도 없다. 공책으로 보는 숙제일 수도 있으니 표시만 한다 */}
+                                {c.noSub && !r.marks[c.id] && (
+                                  <span
+                                    className="tag tag-red"
+                                    title="이 숙제로 낸 사진·녹음이 없습니다 (공책으로 보는 숙제면 그냥 찍으세요)"
+                                  >
+                                    안 냄
+                                  </span>
+                                )}
                                 <span className="spacer" />
                                 <span className="markset">
                                   {MARK.map((m) => (
@@ -307,6 +321,30 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                         })}
                       </div>
                     )}
+
+                    {/* 안 낸 것 한 번에 — 자동으로 찍지 않는 대신 한 번 누르면 끝난다 */}
+                    {(() => {
+                      const none = myLeft.filter((c) => c.noSub);
+                      if (none.length === 0) return null;
+                      return (
+                        <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
+                          <button
+                            className="btn btn-sm"
+                            disabled={pending || !r.hasReport}
+                            onClick={() => {
+                              const names = none.map((c) => nameOf(c.id)).join(", ");
+                              if (!confirm(`낸 것이 없는 숙제를 미제출(✕)로 찍을까요?\n\n${names}`)) return;
+                              run(() => markMissing(r.student.id, date, none.map((c) => c.id)));
+                            }}
+                          >
+                            안 낸 것 {none.length}개 미제출로
+                          </button>
+                          <span className="hint" style={{ fontSize: 11.5 }}>
+                            공책으로 보는 숙제는 빼고 눌러주세요
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* 다음 숙제는 루틴에 이미 정해져 있다 — 매번 고를 일이 아니다 */}
                     <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>

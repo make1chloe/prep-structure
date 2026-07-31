@@ -180,6 +180,10 @@ export default async function CheckPage({ searchParams }) {
         id: i.homework_item_id,
         range: i.range_note || "",
         on: i.on,                    // 언제 낸 숙제인가 (밀린 것을 알 수 있게)
+        // 이 숙제로 낸 것이 하나도 없나 — 화면에 '안 냄' 으로 알려준다.
+        // 다만 **자동으로 ✕ 를 찍지는 않는다.** 워크북처럼 공책으로 보는 숙제는
+        // 앱에 낼 것이 없어서, 안 냈다고 미제출로 몰면 성실한 아이가 억울해진다.
+        noSub: !(subsOf.get(s.id) || []).some((x) => x.homework_item_id === i.homework_item_id),
       })),
       subs: subsOf.get(s.id) || [],
     };
