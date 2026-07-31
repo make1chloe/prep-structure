@@ -44,14 +44,23 @@ export default async function TasksPage({ searchParams }) {
   let classes = [];
   let taskErr = false;
   if (wantSchedule) {
-    const { data: tasks, error } = await supabase
+    const COLS =
+      "id, title, kind, category, due_on, end_on, start_time, status, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
+    let { data: tasks, error } = await supabase
       .from("tasks")
-      .select(
-        "id, title, kind, category, due_on, end_on, start_time, status, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade"
-      )
+      .select(`${COLS}, private`)
       .eq("kind", "schedule")
       .gte("due_on", showPast ? "1900-01-01" : todaySeoul())
       .order("due_on", { ascending: true });
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0066 전이면 '나만 보기' 없이
+      ({ data: tasks, error } = await supabase
+        .from("tasks")
+        .select(COLS)
+        .eq("kind", "schedule")
+        .gte("due_on", showPast ? "1900-01-01" : todaySeoul())
+        .order("due_on", { ascending: true }));
+    }
     taskErr = !!error;
 
     const { data: cls } = await supabase

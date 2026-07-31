@@ -45,11 +45,21 @@ export async function addVideo(formData) {
   const title = (formData.get("title") || "").toString().trim();
 
   const supabase = createClient();
+
+  // 제목을 안 적었으면 유튜브에서 받아온다 (키가 있을 때만).
+  // 키가 없거나 실패해도 넣는 것은 넣는다 — 제목은 나중에 고칠 수 있다.
+  let name = title;
+  if (!name && provider === "youtube" && vid) {
+    const key = await ytKey(supabase);
+    if (key) {
+      const { titles } = await fetchTitles(key, [vid]);
+      name = titles.get(vid) || "";
+    }
+  }
+
   const { error } = await supabase.from("videos").insert({
     folder_id: (formData.get("folderId") || "").toString() || null,
-    // 제목을 안 적으면 주소를 그대로 둔다. 나중에 고칠 수 있다 —
-    // 유튜브 제목을 여기서 받아오려면 바깥으로 나가야 하는데, 그건 다음 일이다.
-    title: title || url,
+    title: name || url,
     url,
     provider,
     vid,
@@ -219,4 +229,108 @@ export async function undoFinishVideo(videoId, asId = null) {
     .eq("student_id", studentId);
   revalidatePath("/me");
   return ok(error);
+}
+
+// ---------- 유튜브 키 ----------
+//
+// 제목을 손으로 적으면, 유튜브에서 제목이 바뀌어도 여기는 옛날 제목 그대로다.
+// 키를 넣어두면 주소만 붙여넣어도 제목을 받아온다.
+//
+// 키는 integrations 에 담기고 **서버에서만** 읽는다. 코드에도 화면에도 없다
+// (나이스 키와 같은 규칙).
+
+async function requireStaff(supabase) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "로그인이 필요해요." };
+  const { data: p } = await supabase
+    .from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
+    return { error: "선생님만 쓸 수 있어요." };
+  }
+  return { error: null };
+}
+
+async function ytKey(supabase) {
+  const { data } = await supabase
+    .from("integrations").select("config").eq("id", "youtube").maybeSingle();
+  return (data?.config?.key || "").trim();
+}
+
+export async function saveYoutubeKey(key) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+  const { error } = await supabase
+    .from("integrations")
+    .upsert({ id: "youtube", enabled: true, config: { key: (key || "").trim() } }, { onConflict: "id" });
+  revalidatePath("/videos");
+  return { error: error ? error.message : null };
+}
+
+/** 키가 들어 있나 (키 자체는 절대 돌려주지 않는다) */
+export async function youtubeReady() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { ready: false };
+  return { ready: !!(await ytKey(supabase)) };
+}
+
+/** 영상 id 여러 개의 제목을 한 번에 받아온다 (한 번에 50개까지) */
+async function fetchTitles(key, ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 50) {
+    const part = ids.slice(i, i + 50);
+    const url =
+      "https://www.googleapis.com/youtube/v3/videos" +
+      `?part=snippet&id=${part.join(",")}&key=${encodeURIComponent(key)}`;
+    let json;
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      json = await res.json();
+    } catch (e) {
+      return { titles: out, error: `유튜브를 부르지 못했어요: ${e.message}` };
+    }
+    if (json?.error) {
+      // 왜 안 됐는지 그대로 말해준다 — "안 돼요" 로는 고칠 수가 없다
+      return { titles: out, error: `유튜브: ${json.error.message || "키를 확인해주세요."}` };
+    }
+    (json?.items || []).forEach((it) => {
+      if (it.id && it.snippet?.title) out.set(it.id, it.snippet.title);
+    });
+  }
+  return { titles: out, error: null };
+}
+
+/**
+ * 제목을 유튜브에서 다시 받아온다.
+ * ids 를 주면 그것만, 안 주면 유튜브 영상 전부.
+ */
+export async function syncTitles(ids = null) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const key = await ytKey(supabase);
+  if (!key) return { error: "유튜브 키를 먼저 넣어주세요." };
+
+  let q = supabase.from("videos").select("id, vid, title").eq("provider", "youtube");
+  if (Array.isArray(ids) && ids.length) q = q.in("id", ids);
+  const { data: rows, error: readErr } = await q;
+  if (readErr) return ok(readErr);
+
+  const list = (rows || []).filter((r) => r.vid);
+  if (list.length === 0) return { error: null, changed: 0 };
+
+  const { titles, error } = await fetchTitles(key, [...new Set(list.map((r) => r.vid))]);
+  if (error) return { error };
+
+  let changed = 0;
+  for (const r of list) {
+    const t = titles.get(r.vid);
+    if (!t || t === r.title) continue;
+    const { error: upErr } = await supabase.from("videos").update({ title: t }).eq("id", r.id);
+    if (!upErr) changed += 1;
+  }
+  revalidatePath("/videos");
+  return { error: null, changed, missing: list.length - titles.size };
 }

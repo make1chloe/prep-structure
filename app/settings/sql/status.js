@@ -57,6 +57,7 @@ const CHECKS = [
   { id: "0063", label: "직접검사 숙제", table: "homework_items", col: "in_person" },
   { id: "0064", label: "공지 사진", table: "notices", col: "photos" },
   { id: "0065", label: "영상 배정 · 본 기록", table: "videos", col: "id" },
+  { id: "0066", label: "달력 나누기", table: "tasks", col: "private" },
 ];
 
 export async function checkSchema() {

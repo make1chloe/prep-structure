@@ -59,12 +59,19 @@ export async function updateTask(id, patch) {
   ["class_id", "deliver_class_id", "assignee_id"].forEach((k) => {
     if (k in (patch || {})) row[k] = patch[k] || null;
   });
+  // 나만 보기 — 켜면 학생·학부모 달력에서 빠진다 (0066)
+  if ("private" in (patch || {})) row.private = !!patch.private;
   if (!row.due_on && "due_on" in row) delete row.due_on; // 날짜는 비울 수 없음
 
   const supabase = createClient();
-  const { error } = await supabase.from("tasks").update(row).eq("id", id);
+  let { error } = await supabase.from("tasks").update(row).eq("id", id);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const { private: _p, ...noPriv } = row;
+    ({ error } = await supabase.from("tasks").update(noPriv).eq("id", id));
+  }
   revalidatePath("/tasks");
   revalidatePath("/today");
+  revalidatePath("/me");
   return ok(error);
 }
 

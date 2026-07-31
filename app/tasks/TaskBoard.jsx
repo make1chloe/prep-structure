@@ -251,6 +251,22 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                     <span className={`tag ${CAT_CLS[t.category] || "tag-muted"}`}>{t.category}</span>
                   )}
                   {t.kind === "schedule" && <span className="tag tag-sky">일정</span>}
+                  {/* 일정은 학생·학부모 달력에 그대로 보인다. 나만 볼 것만 잠근다 (0066) */}
+                  {t.kind === "schedule" && (
+                    <button
+                      className={`tag ${t.private ? "tag-muted" : "tag-mint"}`}
+                      style={{ border: 0, cursor: "pointer" }}
+                      title={
+                        t.private
+                          ? "나만 보고 있어요. 누르면 학생·학부모 달력에 보입니다"
+                          : "학생·학부모 달력에 보이고 있어요. 누르면 나만 봅니다"
+                      }
+                      onClick={() => run(() => updateTask(t.id, { private: !t.private }))}
+                      disabled={pending}
+                    >
+                      {t.private ? "나만 보기" : "학생도 봄"}
+                    </button>
+                  )}
                   {t.class_id && <span className="tag tag-muted">{className(t.class_id)}</span>}
                   <span className="spacer" />
                   {t.deliver_body && (

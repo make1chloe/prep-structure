@@ -19,6 +19,7 @@ import ChangePw from "./ChangePw";
 import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
+import DashCalendar from "@/app/DashCalendar";
 
 export const dynamic = "force-dynamic";
 
@@ -573,6 +574,27 @@ export default async function MePage({ searchParams }) {
     }
   }
 
+  // 달력 — 학사일정 · 휴강 · 시험 기간 · 특강.
+  //   카톡으로 물어보게 하지 말고 그냥 보이게 한다.
+  //   할일은 나가지 않고, 원장님이 「나만 보기」로 잠근 일정도 빠진다 (0066).
+  let calendar = [];
+  {
+    const from = addDays(today, -40);
+    const to = addDays(today, 120);
+    const { data: rows } = await supabase
+      .from("tasks")
+      .select("id, title, kind, due_on, source, category")
+      .neq("kind", "todo")
+      .gte("due_on", from)
+      .lte("due_on", to)
+      .order("due_on", { ascending: true });
+    calendar = (rows || []).map((t) => ({
+      date: t.due_on,
+      title: t.title,
+      tone: t.source === "neis" ? "school" : "event",
+    }));
+  }
+
   return (
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       <div className="page-head">
@@ -732,6 +754,10 @@ export default async function MePage({ searchParams }) {
               ))}
             </div>
           </div>
+        )}
+
+        {calendar.length > 0 && (
+          <DashCalendar ym={today.slice(0, 7)} items={calendar} today={today} links={false} />
         )}
 
         <VideoList videos={myVideos} asId={acting ? student.id : null} readOnly={preview} />

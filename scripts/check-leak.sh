@@ -111,6 +111,12 @@ insert into public.videos (id, title, url, provider, vid) values
 insert into public.video_assignments (video_id, student_id) values
   ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001'),
   ('eeeeeeee-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+-- 달력 (0066) — 일정은 보이고, 할일과 '나만 보기' 는 안 보여야 한다
+insert into public.tasks (id, title, kind, due_on, private) values
+  ('ffffffff-0000-0000-0000-000000000001', '중간고사',   'schedule', current_date, false),
+  ('ffffffff-0000-0000-0000-000000000002', '나만 볼 상담', 'schedule', current_date, true),
+  ('ffffffff-0000-0000-0000-000000000003', '교재 주문',   'todo',     current_date, false);
+
 insert into public.video_views (video_id, student_id, opens, done_at) values
   ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 1, now()),
   ('eeeeeeee-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', 1, now());
@@ -142,6 +148,7 @@ select t || ': ' || n from (
   union all select 'videos(안 받은 영상)',  count(*) from public.videos               where id <> 'eeeeeeee-0000-0000-0000-000000000001'
   union all select 'video_assignments(남의 배정)', count(*) from public.video_assignments where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'video_views(남이 봤나)', count(*) from public.video_views         where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select 'tasks(할일·나만보기)',  count(*) from public.tasks                where id <> 'ffffffff-0000-0000-0000-000000000001'
 ) x where n > 0 order by 1;
 SQL
 )
@@ -158,6 +165,7 @@ select t || '=' || n from (
   union all select '내 공지',     count(*) from public.notices where id = 'dddddddd-0000-0000-0000-000000000001'
   union all select '내 영상',     count(*) from public.videos  where id = 'eeeeeeee-0000-0000-0000-000000000001'
   union all select '내가 본 기록', count(*) from public.video_views where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select '나눠준 일정', count(*) from public.tasks where id = 'ffffffff-0000-0000-0000-000000000001'
 ) x where n = 0 order by 1;
 SQL
 )

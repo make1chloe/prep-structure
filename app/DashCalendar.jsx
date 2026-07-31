@@ -20,7 +20,11 @@ const TONE = {
   todo: { cls: "cal-todo", label: "할일" },
 };
 
-export default function DashCalendar({ ym, items = [], today = "" }) {
+/**
+ * @param links  일정을 눌러 할일 화면으로 갈 수 있나.
+ *               학생·학부모 화면에서는 끈다 — 열 수 없는 곳으로 데려가면 안 된다.
+ */
+export default function DashCalendar({ ym, items = [], today = "", links = true }) {
   const [month, setMonth] = useState(ym);
   const cells = monthGrid(month, items, today);
   const mine = items.filter((i) => (i.date || "").startsWith(month));
@@ -68,32 +72,43 @@ export default function DashCalendar({ ym, items = [], today = "" }) {
                 {c.day}
               </span>
               {/* 제목은 두 개까지만 — 더 적으면 칸이 늘어나 한 달이 안 보인다 */}
-              {c.items.slice(0, 2).map((it, k) => (
-                <Link
-                  key={k}
-                  href={it.href || "/tasks"}
-                  className={`cal-item ${TONE[it.tone]?.cls || ""}`}
-                  title={it.title}
-                >
-                  {it.title}
-                </Link>
-              ))}
-              {c.items.length > 2 && (
-                <Link href="/tasks" className="cal-more">
-                  +{c.items.length - 2}
-                </Link>
+              {c.items.slice(0, 2).map((it, k) =>
+                links ? (
+                  <Link
+                    key={k}
+                    href={it.href || "/tasks"}
+                    className={`cal-item ${TONE[it.tone]?.cls || ""}`}
+                    title={it.title}
+                  >
+                    {it.title}
+                  </Link>
+                ) : (
+                  <span key={k} className={`cal-item ${TONE[it.tone]?.cls || ""}`} title={it.title}>
+                    {it.title}
+                  </span>
+                )
               )}
+              {c.items.length > 2 &&
+                (links ? (
+                  <Link href="/tasks" className="cal-more">
+                    +{c.items.length - 2}
+                  </Link>
+                ) : (
+                  <span className="cal-more">+{c.items.length - 2}</span>
+                ))}
             </div>
           )
         )}
       </div>
 
       <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: "wrap" }}>
-        {Object.entries(TONE).map(([k, v]) => (
-          <span key={k} className="hint" style={{ fontSize: 11.5 }}>
-            <i className={`cal-dot ${v.cls}`} /> {v.label}
-          </span>
-        ))}
+        {Object.entries(TONE)
+          .filter(([k]) => links || k !== "todo")   // 학생 화면에는 할일이 아예 안 간다
+          .map(([k, v]) => (
+            <span key={k} className="hint" style={{ fontSize: 11.5 }}>
+              <i className={`cal-dot ${v.cls}`} /> {v.label}
+            </span>
+          ))}
       </div>
     </div>
   );

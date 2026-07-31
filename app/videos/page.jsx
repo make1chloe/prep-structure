@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import VideoBoard from "./VideoBoard";
 import { rollup } from "@/lib/video";
+import YoutubeKeyBox from "./YoutubeKeyBox";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,14 @@ export default async function VideosPage() {
     .order("name", { ascending: true });
   const { data: roster } = await supabase.from("class_students").select("class_id, student_id");
 
+  // 유튜브 키는 넣어뒀는지만 본다 — 키 자체는 화면으로 안 내려간다
+  const { data: ytRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "youtube")
+    .maybeSingle();
+  const ytSaved = !!ytRow?.config?.key;
+
   const rows = rollup(videos || [], assignments || [], views || [], students || []);
   const needSql = !!fErr && (fErr.code === "42P01" || fErr.code === "PGRST205");
 
@@ -73,6 +82,10 @@ export default async function VideosPage() {
             </div>
           </div>
         ) : (
+          <>
+          <div style={{ marginTop: 12 }}>
+            <YoutubeKeyBox saved={ytSaved} />
+          </div>
           <VideoBoard
             folders={folders || []}
             videos={rows}
@@ -80,6 +93,7 @@ export default async function VideosPage() {
             classes={classes || []}
             roster={roster || []}
           />
+          </>
         )}
       </main>
     </>
