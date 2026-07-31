@@ -64,11 +64,20 @@ echo "== 5) 학생이 열 수 있는 화면 =="
 if out=$(node scripts/check-routes.mjs 2>/dev/null); then
   echo "$out"
 else
-  echo "$out"; FAIL=1
+  echo "$out"; fail=1     # 여기가 FAIL 로 잘못 적혀 있어서, 뚫려도 통과로 나왔다
+fi
+
+echo
+echo "== 6) 학생 계정에 남의 것이 보이나 (진짜 Postgres) =="
+# 화면을 막는 것과 데이터를 막는 것은 다른 이야기다. 5번은 화면, 여기는 데이터.
+if [ -f scripts/check-leak.sh ]; then
+  bash scripts/check-leak.sh || fail=1
+else
+  echo "  건너뜀"
 fi
 echo
 
-echo "== 6) 빌드 =="
+echo "== 7) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
 else

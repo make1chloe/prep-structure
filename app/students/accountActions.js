@@ -271,10 +271,18 @@ export async function createAllStudentLogins() {
  * 다만 **여기서 실패해도 등록 자체는 살아 있어야 한다** — 계정은 나중에
  * 재원생 화면에서 다시 만들면 되지만, 등록이 통째로 날아가면 곤란하다.
  * 그래서 조용히 실패하고 결과만 돌려준다 (키가 없으면 아무 일도 안 한다).
+ *
+ * 선생님인지 **여기서도 본다.** 이건 등록 화면에서만 불리는 함수지만,
+ * 서버 동작은 주소를 아는 사람이 직접 부를 수 있다. 그리고 이 함수는
+ * service_role 열쇠로 계정을 만든다 — 남이 부르면 남의 계정을 초기
+ * 비밀번호로 만들어 버릴 수 있다. 부르는 쪽을 믿으면 안 된다.
  */
 export async function autoCreateLogins(studentIds = []) {
   if (!Array.isArray(studentIds) || studentIds.length === 0) return { made: 0 };
   const supabase = createClient();
+
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return { made: 0, skipped: guard.error };
 
   const key = await serviceKey(supabase);
   if (!key) return { made: 0, skipped: "키 없음" };
@@ -320,6 +328,11 @@ export async function autoCreateLogins(studentIds = []) {
 export async function accountStatus(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
+
+  // 아이디·전화번호가 함께 나오므로 선생님만 본다 (표의 잠금이 이미 막지만 한 번 더)
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return guard;
+
   const { data: s, error } = await supabase
     .from("students")
     .select("login_id, profile_id, student_phone, parent_phone")

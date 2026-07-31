@@ -49,6 +49,7 @@ const CHECKS = [
   { id: "0054", label: "내신 자료 순서", table: "prep_assignments", col: "sort" },
   { id: "0055", label: "수납 (결제선생)", table: "payments", col: "paid_on" },
   { id: "0056", label: "오래된 제출물 정리", table: "homework_submissions", col: "purged_at" },
+  { id: "0057", label: "반 명단 잠그기 (보안)", rpc: "my_class_ids" },
 ];
 
 export async function checkSchema() {
