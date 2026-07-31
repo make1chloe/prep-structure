@@ -79,7 +79,7 @@ export default async function SqlPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="settings" />
+      <TopBar profile={profile} active="sql" />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">설정</p>
