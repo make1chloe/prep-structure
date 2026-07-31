@@ -65,13 +65,19 @@ export async function updateHomeworkItem(id, patch) {
   if ("prep_task" in (patch || {})) row.prep_task = (patch.prep_task || "").trim() || null;
   if ("home_item_id" in (patch || {})) row.home_item_id = patch.home_item_id || null;
   if ("no_timer" in (patch || {})) row.no_timer = !!patch.no_timer;
+  if ("in_person" in (patch || {})) row.in_person = !!patch.in_person;
   if (!row.name && "name" in row) return { error: "이름은 비울 수 없어요." };
 
   const supabase = createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
   if (isMissingColumn(error)) {
+    // 0063 전이면 '직접검사' 없이
+    const { in_person: _ip, ...noPerson } = row;
+    ({ error } = await supabase.from("homework_items").update(noPerson).eq("id", id));
+  }
+  if (isMissingColumn(error)) {
     // 0045 → 0033 → 0028 순으로 한 칸씩 물러난다
-    const { checklist: _c, home_item_id: _h, ...noList } = row;
+    const { in_person: _ip2, checklist: _c, home_item_id: _h, ...noList } = row;
     ({ error } = await supabase.from("homework_items").update(noList).eq("id", id));
   }
   if (isMissingColumn(error)) {

@@ -278,12 +278,15 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                                     학생 완료
                                   </span>
                                 )}
-                                {/* 낸 것이 하나도 없다. 공책으로 보는 숙제일 수도 있으니 표시만 한다 */}
+                                {/* 공책처럼 앱에 낼 것이 없는 숙제 */}
+                                {c.inPerson && (
+                                  <span className="tag tag-lav" title="공책 등 — 보시고 찍어주세요">
+                                    직접검사
+                                  </span>
+                                )}
+                                {/* 낼 숙제인데 안 냈다 */}
                                 {c.noSub && !r.marks[c.id] && (
-                                  <span
-                                    className="tag tag-red"
-                                    title="이 숙제로 낸 사진·녹음이 없습니다 (공책으로 보는 숙제면 그냥 찍으세요)"
-                                  >
+                                  <span className="tag tag-red" title="내야 하는 숙제인데 올라온 것이 없습니다">
                                     안 냄
                                   </span>
                                 )}
@@ -340,7 +343,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                             안 낸 것 {none.length}개 미제출로
                           </button>
                           <span className="hint" style={{ fontSize: 11.5 }}>
-                            공책으로 보는 숙제는 빼고 눌러주세요
+                            직접검사 숙제는 여기 안 들어갑니다
                           </span>
                         </div>
                       );

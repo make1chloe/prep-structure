@@ -38,10 +38,19 @@ export default async function CheckPage({ searchParams }) {
     supabase.from("class_students").select("class_id, student_id"),
     supabase
       .from("homework_items")
-      .select("id, name, sort")
+      .select("id, name, sort, in_person")
       .eq("active", true)
       .order("sort", { ascending: true }),
   ]);
+  // 0063 전이면 '직접검사' 없이 (그러면 전부 제출 대상으로 본다)
+  const itemList = items?.length
+    ? items
+    : ((await supabase
+        .from("homework_items")
+        .select("id, name, sort")
+        .eq("active", true)
+        .order("sort", { ascending: true })).data || []);
+  const inPerson = new Set(itemList.filter((i) => i.in_person).map((i) => i.id));
 
   const classes = await loadRunningClasses(supabase, "id, name, days, start_time", date);
 
@@ -180,10 +189,12 @@ export default async function CheckPage({ searchParams }) {
         id: i.homework_item_id,
         range: i.range_note || "",
         on: i.on,                    // 언제 낸 숙제인가 (밀린 것을 알 수 있게)
-        // 이 숙제로 낸 것이 하나도 없나 — 화면에 '안 냄' 으로 알려준다.
-        // 다만 **자동으로 ✕ 를 찍지는 않는다.** 워크북처럼 공책으로 보는 숙제는
-        // 앱에 낼 것이 없어서, 안 냈다고 미제출로 몰면 성실한 아이가 억울해진다.
-        noSub: !(subsOf.get(s.id) || []).some((x) => x.homework_item_id === i.homework_item_id),
+        // 공책처럼 앱에 낼 것이 없는 숙제 — '직접검사' 로 적고 미제출로 세지 않는다
+        inPerson: inPerson.has(i.homework_item_id),
+        // 낼 숙제인데 낸 것이 하나도 없다 = 안 낸 것
+        noSub:
+          !inPerson.has(i.homework_item_id) &&
+          !(subsOf.get(s.id) || []).some((x) => x.homework_item_id === i.homework_item_id),
       })),
       subs: subsOf.get(s.id) || [],
     };
@@ -201,7 +212,7 @@ export default async function CheckPage({ searchParams }) {
             찍으면 목록에서 빠지고, <b>리포트에 그대로 들어갑니다.</b>
           </p>
         </div>
-        <CheckBoard date={date} rows={rows} items={items || []} classes={classes} />
+        <CheckBoard date={date} rows={rows} items={itemList} classes={classes} />
       </main>
     </>
   );

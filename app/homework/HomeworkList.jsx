@@ -74,6 +74,7 @@ export default function HomeworkList({ items = [] }) {
       home_item_id: i.home_item_id || "",
       prep_task: i.prep_task || "",
       no_timer: !!i.no_timer,
+      in_person: !!i.in_person,
     });
   }
   function saveEdit() {
@@ -198,6 +199,7 @@ export default function HomeworkList({ items = [] }) {
               <th style={{ minWidth: 220 }}>학습 방법 (학생에게 보여줄 설명)</th>
               <th style={{ minWidth: 150 }} title="쓸 수 있는 자리: {학생} {단원} {교재} {숙제}">내 할일 자동 생성</th>
               <th style={{ width: 96 }} title="선생님을 붙잡고 해야 하는 것(구두테스트·숙제 검사)만 끄세요. 혼자 하는 것은 켜 두면 시간이 쌓입니다">타이머</th>
+              <th style={{ width: 92 }} title="공책처럼 앱에 낼 것이 없는 숙제만 켜세요. 켜면 '안 냈다'고 미제출로 세지 않습니다">검사 방법</th>
               <th style={{ width: 86 }}></th>
             </tr>
           </thead>
@@ -298,6 +300,17 @@ export default function HomeworkList({ items = [] }) {
                         </label>
                       </td>
                       <td>
+                        {/* 기본은 **내는 것**이다. 공책으로 보는 숙제만 켠다 */}
+                        <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!draft.in_person}
+                            onChange={(e) => setDraft({ ...draft, in_person: e.target.checked })}
+                          />
+                          <span style={{ fontSize: 12 }}>직접검사</span>
+                        </label>
+                      </td>
+                      <td>
                         <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                           <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
@@ -341,6 +354,17 @@ export default function HomeworkList({ items = [] }) {
                           </span>
                         ) : (
                           <span className="tag tag-mint">씀</span>
+                        )}
+                      </td>
+                      <td>
+                        {i.in_person ? (
+                          <span className="tag tag-lav" title="공책 등 — 앱에 낼 것이 없습니다">
+                            직접검사
+                          </span>
+                        ) : (
+                          <span className="tag tag-muted" title="사진·녹음을 올려야 합니다">
+                            제출
+                          </span>
                         )}
                       </td>
                       <td>

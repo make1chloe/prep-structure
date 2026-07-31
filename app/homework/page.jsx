@@ -19,8 +19,15 @@ export default async function HomeworkPage() {
 
   let { data: items, error } = await supabase
     .from("homework_items")
-    .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id")
+    .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id, in_person")
     .order("sort", { ascending: true });
+  if (error) {
+    // 0063 전이면 '직접검사' 없이
+    ({ data: items, error } = await supabase
+      .from("homework_items")
+      .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id")
+      .order("sort", { ascending: true }));
+  }
   if (error) {
     // no_timer 컬럼이 아직 없는 DB (0033 전)
     ({ data: items, error } = await supabase
