@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { BASIC_HOMEWORK, withSort } from "@/lib/basicHomework";
 
 
 function clean(formData, key) {
@@ -44,6 +45,69 @@ export async function addHomeworkItem(formData) {
   }
   revalidatePath("/homework");
   revalidatePath("/today");
+}
+
+/**
+ * 노션 「기본숙제」를 학습 항목으로 옮겨 넣는다.
+ *
+ * · 이름이 같은 항목이 이미 있으면 **건드리지 않는다**. 원장님이 고쳐둔
+ *   학습 방법을 덮어쓰면 안 되기 때문이다.
+ * · 없는 것만 새로 넣는다. 여러 번 눌러도 안전하다.
+ * · 마지막에 구두테스트 ↔ 셀프녹음테스트 같은 짝을 이어준다.
+ */
+export async function seedBasicHomework() {
+  const supabase = createClient();
+
+  const { data: exist, error: readErr } = await supabase
+    .from("homework_items")
+    .select("id, name, home_item_id");
+  if (readErr) return { error: readErr.message };
+
+  const byName = new Map((exist || []).map((r) => [r.name, r]));
+  const wanted = withSort(BASIC_HOMEWORK);
+  const missing = wanted.filter((i) => !byName.has(i.name));
+
+  let added = 0;
+  if (missing.length) {
+    const rows = missing.map((i) => ({
+      name: i.name,
+      category: i.category,
+      sort: i.sort,
+      active: true,
+      method: i.method || null,
+      in_person: !!i.inPerson,
+    }));
+    let { error } = await supabase.from("homework_items").insert(rows);
+    if (isMissingColumn(error)) {
+      // 0063 전이면 '직접검사' 없이 — 나중에 SQL 을 돌리고 다시 눌러도 된다
+      ({ error } = await supabase
+        .from("homework_items")
+        .insert(rows.map(({ in_person: _p, ...r }) => r)));
+    }
+    if (error) return { error: error.message };
+    added = rows.length;
+  }
+
+  // 짝 잇기 — 방금 넣은 것까지 포함해 다시 읽는다
+  const { data: all } = await supabase.from("homework_items").select("id, name, home_item_id");
+  const idOf = new Map((all || []).map((r) => [r.name, r.id]));
+  const now = new Map((all || []).map((r) => [r.name, r.home_item_id]));
+
+  let paired = 0;
+  for (const i of wanted) {
+    if (!i.pair) continue;
+    const from = idOf.get(i.name);
+    const to = idOf.get(i.pair);
+    if (!from || !to) continue;
+    if (now.get(i.name) === to) continue; // 이미 이어져 있다
+    if (now.get(i.name)) continue;        // 원장님이 다른 것으로 이어뒀으면 그대로 둔다
+    const { error } = await supabase.from("homework_items").update({ home_item_id: to }).eq("id", from);
+    if (!error) paired += 1;
+  }
+
+  revalidatePath("/homework");
+  revalidatePath("/today");
+  return { error: null, added, kept: wanted.length - missing.length, paired };
 }
 
 export async function updateHomeworkItem(id, patch) {

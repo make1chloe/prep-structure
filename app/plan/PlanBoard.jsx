@@ -11,12 +11,9 @@ import {
 import { createNotice, listUnitOptions } from "@/app/today/actions";
 import { unitOptionText } from "@/lib/unitTree";
 import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
+import { CAT_CLS } from "@/app/homework/categories";
 
 const REASONS = ["학교 행사", "시험 기간", "병원", "가족 일정", "여행", "기타"];
-const CAT_CLS = {
-  단어: "tag-amber", 독해: "tag-sky", 문법: "tag-lav",
-  노트: "tag-mint", 내신: "tag-muted", 기타: "tag-muted",
-};
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
 function todayISO() {

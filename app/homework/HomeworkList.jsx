@@ -9,15 +9,8 @@ import {
   deleteHomeworkItems,
 } from "./actions";
 
-const CATEGORIES = ["단어", "독해", "문법", "노트", "내신", "기타"];
-export const CAT_CLS = {
-  단어: "tag-amber",
-  독해: "tag-sky",
-  문법: "tag-lav",
-  노트: "tag-mint",
-  내신: "tag-muted",
-  기타: "tag-muted",
-};
+import { CATEGORIES, CAT_CLS } from "./categories";
+export { CAT_CLS };
 
 export default function HomeworkList({ items = [] }) {
   const [sel, setSel] = useState(() => new Set());

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { addHomeworkItem } from "./actions";
-
-const CATEGORIES = ["단어", "독해", "문법", "노트", "내신", "기타"];
+import { CATEGORIES } from "./categories";
 
 export default function AddHomeworkForm() {
   const [open, setOpen] = useState(false);

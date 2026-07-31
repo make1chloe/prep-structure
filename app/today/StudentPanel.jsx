@@ -10,6 +10,7 @@ import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
+import { CAT_CLS } from "@/app/homework/categories";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
@@ -58,10 +59,6 @@ const ATTITUDE = [
 ];
 
 // 클릭할 때마다 순환: 없음 → 완료 → 미흡 → 미제출 → 없음
-const CAT_CLS = {
-  단어: "tag-amber", 독해: "tag-sky", 문법: "tag-lav",
-  노트: "tag-mint", 내신: "tag-muted", 기타: "tag-muted",
-};
 
 const CYCLE = { "": "done", done: "weak", weak: "missing", missing: "" };
 const MARK = { done: "○", weak: "△", missing: "✕" };

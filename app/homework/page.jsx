@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import AddHomeworkForm from "./AddHomeworkForm";
 import HomeworkList from "./HomeworkList";
+import SeedBasicButton from "./SeedBasicButton";
 
 export const dynamic = "force-dynamic";
 
@@ -62,8 +63,9 @@ export default async function HomeworkPage() {
             <b>학습 방법</b>을 적어두면 학생 페이지에서 숙제를 눌렀을 때 그대로 보여줍니다.
             안 쓰는 항목은 삭제 대신 <b>숨기기</b>를 권합니다 (지난 기록이 보존돼요).
           </p>
-          <div className="row" style={{ marginTop: 10 }}>
+          <div className="row" style={{ marginTop: 10, gap: 6, flexWrap: "wrap" }}>
             <AddHomeworkForm />
+            <SeedBasicButton />
           </div>
         </div>
 
