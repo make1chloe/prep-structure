@@ -221,8 +221,10 @@ export async function saveStudentDay(studentId, date, form) {
     if (error) return { error: error.message };
   }
 
-  // 배정한 숙제 중 "내가 준비해야 하는 것" 은 내 할일로 올린다
-  await syncPrepTasks(supabase, studentId, date, nextIds, units);
+  // 배정한 숙제 중 "내가 준비해야 하는 것" 은 내 할일로 올린다.
+  // 여기서 실패해도 **오늘 기록은 살아 있어야 한다** — 할일은 다시 만들 수 있지만
+  // 수업 기록이 날아가면 곤란하다. 대신 조용히 넘기지 않고 같이 알려준다.
+  const prep = await syncPrepTasks(supabase, studentId, date, nextIds, units);
 
   // 숙제가 배정됐으면 학생 앱으로 알림 (요금 없음, 실패해도 저장은 그대로)
   if (nextIds.length > 0) {
@@ -244,7 +246,12 @@ export async function saveStudentDay(studentId, date, form) {
   }
 
   revalidatePath("/today");
-  return { error: null, complete, unchecked: unchecked.length };
+  return {
+    error: null,
+    complete,
+    unchecked: unchecked.length,
+    warn: prep?.error || null,   // 기록은 됐지만 할일은 못 만든 경우
+  };
 }
 
 // 완료 취소: 기록을 '미완료'로 되돌린다 (입력값은 그대로 둠)
@@ -437,7 +444,7 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
   const itemQ = nextIds.length
     ? await supabase.from("homework_items").select("id, name, prep_task").in("id", nextIds)
     : { data: [], error: null };
-  if (itemQ.error) return;
+  if (itemQ.error) return { error: null };   // 0028 전이면 조용히 넘어간다
 
   const need = (itemQ.data || []).filter((i) => (i.prep_task || "").trim());
 
@@ -448,7 +455,7 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
     .select("id, auto_key, status")
     .like("auto_key", `${prefix}%`)
     .like("auto_key", `%:${date}`);
-  if (curQ.error) return;   // auto_key 컬럼이 아직 없다
+  if (curQ.error) return { error: null };   // auto_key 칸이 아직 없다
 
   const keep = new Set(need.map((i) => autoKey(studentId, i.id, date)));
 
@@ -458,7 +465,7 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
     .map((t) => t.id);
   if (stale.length > 0) await supabase.from("tasks").delete().in("id", stale);
 
-  if (need.length === 0) return;
+  if (need.length === 0) return { error: null };
 
   const { data: student } = await supabase
     .from("students")
@@ -536,10 +543,17 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
   }));
 
   // 이미 있으면 그대로 둔다 (마감일을 옮겨놨을 수 있다)
-  await supabase.from("tasks").upsert(rows, {
+  const { error } = await supabase.from("tasks").upsert(rows, {
     onConflict: "auto_key",
     ignoreDuplicates: true,
   });
+  // 여기서 조용히 실패하면 **할일이 안 생긴 줄도 모른다.** 실제로 그랬다
+  // (0061 전에는 조건부 인덱스라 ON CONFLICT 가 걸리지 않았다).
+  if (error) {
+    console.error("숙제 → 내 할일 만들기 실패:", error.message);
+    return { error: `할일을 만들지 못했어요: ${error.message}` };
+  }
 
   revalidatePath("/tasks");
+  return { error: null };
 }
