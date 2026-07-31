@@ -24,7 +24,7 @@ export async function addCategory(name, parentId, color) {
     sort: (last?.[0]?.sort ?? 0) + 10,
   });
   if (error) return { error: "0020 SQL을 먼저 실행해주세요." };
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return { error: null };
 }
 
@@ -40,7 +40,7 @@ export async function updateCategory(id, patch) {
   if ("active" in patch) row.active = !!patch.active;
   const supabase = createClient();
   const { error } = await supabase.from("todo_categories").update(row).eq("id", id);
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return ok(error);
 }
 
@@ -48,7 +48,7 @@ export async function deleteCategory(id) {
   if (!id) return { error: null };
   const supabase = createClient();
   const { error } = await supabase.from("todo_categories").update({ active: false }).eq("id", id);
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return ok(error);
 }
 
@@ -77,7 +77,7 @@ export async function addTodo(input) {
   };
   const { error } = await supabase.from("tasks").insert(row);
   if (error) return { error: "0020 SQL을 먼저 실행해주세요." };
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   revalidatePath("/");
   return { error: null };
 }
@@ -95,7 +95,7 @@ export async function updateTodo(id, patch) {
 
   const supabase = createClient();
   const { error } = await supabase.from("tasks").update(row).eq("id", id);
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   revalidatePath("/");
   return ok(error);
 }
@@ -108,7 +108,7 @@ export async function setTodoStatus(ids, status) {
     .from("tasks")
     .update({ status, done_at: status === "done" ? new Date().toISOString() : null })
     .in("id", list);
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   revalidatePath("/");
   return ok(error);
 }
@@ -121,7 +121,7 @@ export async function moveTodos(ids, dueOn) {
     .from("tasks")
     .update({ due_on: dueOn, no_due: false })
     .in("id", list);
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return ok(error);
 }
 
@@ -130,6 +130,6 @@ export async function deleteTodos(ids) {
   if (list.length === 0) return { error: null };
   const supabase = createClient();
   const { error } = await supabase.from("tasks").delete().in("id", list);
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
   return ok(error);
 }

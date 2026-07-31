@@ -47,7 +47,8 @@ const CHECKS = [
   { id: "0052", label: "내신 자료 관리", table: "prep_materials", col: "need_card" },
   { id: "0053", label: "내신 자료 종류", table: "prep_material_types", col: "need_card" },
   { id: "0054", label: "내신 자료 순서", table: "prep_assignments", col: "sort" },
-  { id: "0055", label: "오래된 제출물 정리", table: "homework_submissions", col: "purged_at" },
+  { id: "0055", label: "수납 (결제선생)", table: "payments", col: "paid_on" },
+  { id: "0056", label: "오래된 제출물 정리", table: "homework_submissions", col: "purged_at" },
 ];
 
 export async function checkSchema() {

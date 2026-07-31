@@ -62,7 +62,6 @@ export async function saveIntegration(id, { enabled, config, replace } = {}) {
   );
   revalidatePath("/settings");
   revalidatePath("/report");
-  revalidatePath("/resend");
   return ok(error);
 }
 

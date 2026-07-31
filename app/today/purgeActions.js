@@ -25,7 +25,7 @@ export async function purgeOldSubmissions(days = KEEP_DAYS) {
     .is("purged_at", null)
     .not("path", "is", null)
     .limit(500);
-  // 0044·0055 전이거나 볼 권한이 없으면 그냥 아무것도 안 한다
+  // 0044·0056 전이거나 볼 권한이 없으면 그냥 아무것도 안 한다
   if (error) return { error: error.message, count: 0 };
   if (!rows || rows.length === 0) return { error: null, count: 0 };
 
