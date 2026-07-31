@@ -61,6 +61,7 @@ export default function StudyList({
 }) {
   const [pending, startTransition] = useTransition();
   const [openDone, setOpenDone] = useState(false);
+  const [openId, setOpenId] = useState(null);   // '다음' 중에서 지금 펼쳐 낸 것
   const router = useRouter();
   useTick(!!running);
 
@@ -174,20 +175,54 @@ export default function StudyList({
         </div>
       )}
 
-      {/* 다음 — 한 줄씩 작게 */}
+      {/* 다음 — 한 줄씩 작게.
+          순서는 **권하는 순서**일 뿐이다. 아이는 자기 사정대로 한다 —
+          문법이 오래 걸려서 단어부터 냈을 수도 있고, 오늘 그것만 했을 수도 있다.
+          순서를 못 지켰다고 낼 수가 없으면, 한 것도 안 낸 것이 된다.
+          그래서 여기서도 열어서 바로 낼 수 있게 한다. */}
       {rest.length > 0 && (
         <div className="card card-tight">
-          <p className="hint" style={{ margin: "0 0 6px" }}>다음</p>
+          <p className="hint" style={{ margin: "0 0 6px" }}>
+            다음 {kind === "home" && "· 순서와 상관없이 먼저 낼 수 있어요"}
+          </p>
           <div className="stack" style={{ gap: 4 }}>
-            {rest.map((t, i) => (
-              <div className="unitrow" key={t.key}>
-                <span className="tag tag-muted" style={{ minWidth: 24, textAlign: "center" }}>
-                  {i + 2}
-                </span>
-                <span style={{ fontSize: 13, flex: 1 }}>{t.name}</span>
-                {t.usual > 0 && <span className="hint" style={{ fontSize: 11.5 }}>보통 {human(t.usual)}</span>}
-              </div>
-            ))}
+            {rest.map((t, i) => {
+              const mine = subs[t.reportItemId || t.itemId] || [];
+              const isOpen = openId === t.key;
+              return (
+                <div key={t.key} className="stack" style={{ gap: 0 }}>
+                  <div className="unitrow">
+                    <span className="tag tag-muted" style={{ minWidth: 24, textAlign: "center" }}>
+                      {i + 2}
+                    </span>
+                    <span style={{ fontSize: 13, flex: 1 }}>{t.name}</span>
+                    {mine.length > 0 && <span className="tag tag-mint">낸 것 {mine.length}</span>}
+                    {t.usual > 0 && <span className="hint" style={{ fontSize: 11.5 }}>보통 {human(t.usual)}</span>}
+                    {kind === "home" && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setOpenId(isOpen ? null : t.key)}
+                      >
+                        {isOpen ? "닫기" : "먼저 내기"}
+                      </button>
+                    )}
+                  </div>
+                  {kind === "home" && isOpen && (
+                    <div style={{ padding: "6px 0 10px" }}>
+                      {t.method && <p className="hint" style={{ whiteSpace: "pre-wrap", marginBottom: 6 }}>{t.method}</p>}
+                      <SubmitBox
+                        itemId={t.itemId}
+                        reportItemId={t.reportItemId}
+                        asId={asId}
+                        readOnly={readOnly}
+                        mine={mine}
+                        checklist={t.checklist || []}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -205,23 +240,50 @@ export default function StudyList({
           </button>
           {openDone && (
             <div className="stack" style={{ gap: 4, marginTop: 8 }}>
-              {done.map((t) => (
-                <div className="unitrow" key={t.key} style={{ opacity: 0.7 }}>
-                  <span className="tag tag-mint">✓</span>
-                  <span style={{ fontSize: 12.5, flex: 1, textDecoration: "line-through" }}>
-                    {t.name}
-                  </span>
-                  {t.seconds > 0 && <span className="hint">{human(t.seconds)}</span>}
-                  {t.needsCheck && <span className="tag tag-amber">검사 대기</span>}
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    disabled={pending || readOnly}
-                    onClick={() => run(() => undoFinish(t.reportItemId, asId))}
-                  >
-                    다시
-                  </button>
-                </div>
-              ))}
+              {done.map((t) => {
+                const mine = subs[t.reportItemId || t.itemId] || [];
+                const isOpen = openId === t.key;
+                return (
+                  <div key={t.key} className="stack" style={{ gap: 0 }}>
+                    <div className="unitrow" style={{ opacity: 0.7 }}>
+                      <span className="tag tag-mint">✓</span>
+                      <span style={{ fontSize: 12.5, flex: 1, textDecoration: "line-through" }}>
+                        {t.name}
+                      </span>
+                      {t.seconds > 0 && <span className="hint">{human(t.seconds)}</span>}
+                      {t.needsCheck && <span className="tag tag-amber">검사 대기</span>}
+                      {/* 다 했다고 눌러놓고 내는 걸 잊었을 수 있다 */}
+                      {kind === "home" && (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setOpenId(isOpen ? null : t.key)}
+                        >
+                          {isOpen ? "닫기" : mine.length > 0 ? `낸 것 ${mine.length}` : "내기"}
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={pending || readOnly}
+                        onClick={() => run(() => undoFinish(t.reportItemId, asId))}
+                      >
+                        다시
+                      </button>
+                    </div>
+                    {kind === "home" && isOpen && (
+                      <div style={{ padding: "6px 0 10px" }}>
+                        <SubmitBox
+                          itemId={t.itemId}
+                          reportItemId={t.reportItemId}
+                          asId={asId}
+                          readOnly={readOnly}
+                          mine={mine}
+                          checklist={t.checklist || []}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

@@ -446,6 +446,7 @@ export default async function MePage({ searchParams }) {
       units: c.units,
       note: c.note,
       method: c.method,
+      checklist: c.checklist || [],   // 빠져 있어서 체크리스트가 학생 화면에 안 뜨고 있었다
       doneAt: c.doneAt,
       needsCheck: !!it?.no_timer,
       checked: false,
