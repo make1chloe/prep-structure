@@ -288,9 +288,12 @@ async function rosterOf(supabase, date) {
 }
 
 export async function createNotice(input) {
-  const { date, kind, scope, classId, school, grade, studentIds, body } = input || {};
+  const { date, kind, scope, classId, school, grade, studentIds, body, title } = input || {};
   const text = (body || "").trim();
-  if (!date || !text) return { error: "내용을 적어주세요." };
+  const head = (title || "").trim();
+  // 사진만 보내는 경우도 있다 — 학교에서 나눠준 종이를 찍어서.
+  // 그때는 제목만 있으면 된다.
+  if (!date || (!text && !head)) return { error: "내용을 적어주세요." };
 
   const supabase = createClient();
   const {
@@ -322,20 +325,23 @@ export async function createNotice(input) {
   }
   if (targets.length === 0) return { error: "대상 학생이 없어요." };
 
-  const { data: notice, error } = await supabase
-    .from("notices")
-    .insert({
-      date,
-      kind: kind === "notice" ? "notice" : "deliver",
-      scope: scope || "all",
-      class_id: scope === "class" ? classId : null,
-      school: scope === "grade" ? school || null : null,
-      grade: scope === "grade" ? grade || null : null,
-      body: text,
-      created_by: user?.id || null,
-    })
-    .select("id")
-    .single();
+  const row = {
+    date,
+    kind: kind === "notice" ? "notice" : "deliver",
+    scope: scope || "all",
+    class_id: scope === "class" ? classId : null,
+    school: scope === "grade" ? school || null : null,
+    grade: scope === "grade" ? grade || null : null,
+    body: text || head,
+    title: head || null,
+    created_by: user?.id || null,
+  };
+  let { data: notice, error } = await supabase.from("notices").insert(row).select("id").single();
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0064 전이면 제목 없이
+    const { title: _t, ...noTitle } = row;
+    ({ data: notice, error } = await supabase.from("notices").insert(noTitle).select("id").single());
+  }
   if (error) return { error: error.message };
 
   const { error: rErr } = await supabase
@@ -344,7 +350,8 @@ export async function createNotice(input) {
   if (rErr) return { error: rErr.message };
 
   revalidatePath("/today");
-  return { error: null, count: targets.length };
+  revalidatePath("/me");
+  return { error: null, count: targets.length, id: notice.id };
 }
 
 export async function deleteNotice(id) {

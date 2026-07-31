@@ -368,11 +368,19 @@ export default async function TodayPage({ searchParams }) {
   }
 
   // 오늘의 공지 · 전달사항
-  const { data: noticeRows, error: noticeErr } = await supabase
+  let { data: noticeRows, error: noticeErr } = await supabase
     .from("notices")
-    .select("id, kind, scope, class_id, school, grade, body, created_at")
+    .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at")
     .eq("date", date)
     .order("created_at", { ascending: true });
+  if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
+    // 0064 전이면 제목·사진 없이
+    ({ data: noticeRows, error: noticeErr } = await supabase
+      .from("notices")
+      .select("id, kind, scope, class_id, school, grade, body, created_at")
+      .eq("date", date)
+      .order("created_at", { ascending: true }));
+  }
   const noticesAvailable = !noticeErr;
   const noticeIds = (noticeRows || []).map((n) => n.id);
   const { data: receipts } = noticeIds.length
@@ -396,6 +404,8 @@ export default async function TodayPage({ searchParams }) {
     noticesOfStudent.get(r.student_id).push({
       id: n.id,
       kind: n.kind,
+      title: n.title || "",
+      photos: n.photos || [],
       body: n.body,
       delivered: !!r.delivered_at,
     });
@@ -885,7 +895,11 @@ export default async function TodayPage({ searchParams }) {
         : n.scope === "student"
         ? `개인 ${t.total}명`
         : "전체";
-    return { id: n.id, kind: n.kind, body: n.body, targetLabel, total: t.total, done: t.done };
+    return {
+      id: n.id, kind: n.kind, body: n.body,
+      title: n.title || "", photos: n.photos || [],
+      targetLabel, total: t.total, done: t.done,
+    };
   });
 
   // 수업 직전에 알아야 하는 것 — 지금까지는 대시보드에만 있어서 화면을 왔다갔다 해야 했다

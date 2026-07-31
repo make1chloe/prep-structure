@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createNotice, deleteNotice } from "./actions";
 import { applyTasksDelivery } from "@/app/tasks/actions";
+import NoticePhotos from "@/components/NoticePhotos";
 
 const SCOPES = [
   { key: "all", label: "전체" },
@@ -45,6 +46,7 @@ export default function TopNotices({
   const [grade, setGrade] = useState("");
   const [picked, setPicked] = useState(() => new Set());
   const [body, setBody] = useState("");
+  const [title, setTitle] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -65,7 +67,7 @@ export default function TopNotices({
       : picked.size;
 
   function submit() {
-    if (!body.trim()) return;
+    if (!body.trim() && !title.trim()) return;   // 사진만 보내는 경우엔 제목만 있어도 된다
     startTransition(async () => {
       const res = await createNotice({
         date,
@@ -76,12 +78,14 @@ export default function TopNotices({
         grade: grade || null,
         studentIds: [...picked],
         body,
+        title,
       });
       if (res?.error) {
         alert(res.error);
         return;
       }
       setBody("");
+      setTitle("");
       setPicked(new Set());
       router.refresh();
     });
@@ -304,7 +308,15 @@ export default function TopNotices({
             </div>
           )}
 
-          <div className="row" style={{ gap: 8, marginTop: 10, alignItems: "flex-start" }}>
+          <input
+            className="input input-sm"
+            style={{ width: "100%", marginTop: 10 }}
+            placeholder="제목 (선택) — 예) 2학기 중간고사 시간표"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+
+          <div className="row" style={{ gap: 8, marginTop: 8, alignItems: "flex-start" }}>
             <textarea
               className="input input-sm"
               rows={2}
@@ -320,26 +332,39 @@ export default function TopNotices({
             <button
               className="btn btn-primary btn-sm"
               onClick={submit}
-              disabled={pending || !body.trim() || targetCount === 0}
+              disabled={pending || (!body.trim() && !title.trim()) || targetCount === 0}
             >
               {pending ? "저장 중…" : "추가"}
             </button>
           </div>
+          <p className="hint" style={{ margin: "6px 0 0" }}>
+            학교에서 나눠준 종이(학사일정 · 시험 시간표 · 가정통신문)는 옮겨 적지 마시고,
+            <b> 먼저 추가한 뒤 아래 목록에서 📷 로 찍어 붙이세요.</b> 받는 사람 화면에 그대로 보입니다.
+          </p>
 
           {mine.length > 0 && (
             <div className="stack" style={{ gap: 4, marginTop: 12 }}>
               {mine.map((n) => (
-                <div className="unitrow" key={n.id}>
-                  <span className="tag tag-lav">{n.targetLabel}</span>
-                  <span style={{ flex: 1, minWidth: 160, fontSize: 13 }}>{n.body}</span>
-                  {n.kind === "deliver" && (
-                    <span className={`tag ${n.done >= n.total ? "tag-mint" : "tag-amber"}`}>
-                      전달 {n.done}/{n.total}
+                <div className="card card-tight" key={n.id}>
+                  <div className="unitrow">
+                    <span className="tag tag-lav">{n.targetLabel}</span>
+                    <span style={{ flex: 1, minWidth: 160, fontSize: 13 }}>
+                      {n.title && <b>{n.title}</b>}
+                      {n.title && n.body && n.body !== n.title ? " — " : ""}
+                      {n.body !== n.title ? n.body : ""}
                     </span>
-                  )}
-                  <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
-                    삭제
-                  </button>
+                    {n.kind === "deliver" && (
+                      <span className={`tag ${n.done >= n.total ? "tag-mint" : "tag-amber"}`}>
+                        전달 {n.done}/{n.total}
+                      </span>
+                    )}
+                    <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
+                      삭제
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    <NoticePhotos noticeId={n.id} photos={n.photos || []} />
+                  </div>
                 </div>
               ))}
             </div>

@@ -16,7 +16,8 @@ import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
-import { longLabel as fmtLong, todaySeoul } from "@/lib/day";
+import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
+import NoticePhotos from "@/components/NoticePhotos";
 
 export const dynamic = "force-dynamic";
 
@@ -504,6 +505,37 @@ export default async function MePage({ searchParams }) {
     .slice(0, 3)
     .map((r) => ({ date: r.date, body: r.notice }));
 
+  // 학원에서 온 공지 — 학교에서 나눠준 종이를 찍어 보내주신 것도 여기 온다.
+  // 2주치만. 지난 것까지 쌓여 있으면 오늘 볼 것이 안 보인다.
+  const since = addDays(today, -14);
+  let notice2 = [];
+  {
+    const { data: rec } = await supabase
+      .from("notice_receipts")
+      .select("notice_id")
+      .eq("student_id", student.id);
+    const ids = [...new Set((rec || []).map((r) => r.notice_id))];
+    if (ids.length) {
+      let { data: rows } = await supabase
+        .from("notices")
+        .select("id, date, kind, title, photos, body")
+        .in("id", ids)
+        .gte("date", since)
+        .order("date", { ascending: false });
+      if (!rows) {
+        // 0064 전이면 제목·사진 없이
+        ({ data: rows } = await supabase
+          .from("notices")
+          .select("id, date, kind, body")
+          .in("id", ids)
+          .gte("date", since)
+          .order("date", { ascending: false }));
+      }
+      // 학부모용 공지는 아이 화면에 띄우지 않는다 (0050 과 같은 이유)
+      notice2 = (rows || []).filter((n) => myRole === "parent" || n.kind !== "notice");
+    }
+  }
+
   return (
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       <div className="page-head">
@@ -659,6 +691,27 @@ export default async function MePage({ searchParams }) {
                   <span className={`tag ${t.status === "moved" ? "tag-amber" : "tag-lav"}`}>
                     {t.status === "moved" ? "숙제로" : "남아서"}
                   </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 학원에서 온 공지 — 학교 종이를 찍어 보내주신 것도 여기 온다 */}
+        {notice2.length > 0 && (
+          <div className="card">
+            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>공지사항</h2>
+            <div className="stack" style={{ gap: 12 }}>
+              {notice2.map((n) => (
+                <div key={n.id} className="stack" style={{ gap: 6 }}>
+                  <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
+                    <span className="hint">{dayLabel(n.date)}</span>
+                    {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
+                  </div>
+                  {n.body && n.body !== n.title && (
+                    <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
+                  )}
+                  <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
                 </div>
               ))}
             </div>
