@@ -119,7 +119,6 @@ export default function StudentPanel({
   date,
   items = [],
   textbooks = [],
-  classTextbookIds = [],
   unitNames = {},
   rule = {},
   onSaved,
@@ -141,12 +140,8 @@ export default function StudentPanel({
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
-  // 교재는 **학생별**이다. 이 학생에게 붙은 것 중 첫 번째를 기본으로 둔다.
-  // 반 교재를 먼저 보면, 그 학생이 안 쓰는 교재가 기본으로 잡힌다.
-  const defaultBook =
-    (row.books || [])[0]?.id ||
-    classTextbookIds[0] ||
-    (textbooks.length === 1 ? textbooks[0].id : "");
+  // 교재는 **학생별**이다 (반별 교재는 안 쓴다). 이 학생 것 중 첫 번째를 기본으로.
+  const defaultBook = (row.books || [])[0]?.id || (textbooks.length === 1 ? textbooks[0].id : "");
 
   // 숙제 분류와 교재 영역이 같으면 그 교재를 자동으로 고른다
   //   독해 숙제 → 이 학생의 독해 교재 (예: 수능딥독3)

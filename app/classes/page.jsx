@@ -48,25 +48,6 @@ export default async function ClassesPage({ searchParams }) {
     .from("class_students")
     .select("class_id, student_id");
 
-  // 교재 배정용 — 사용중인 교재만
-  let { data: books } = await supabase
-    .from("textbooks")
-    .select("id, name, area, status")
-    .order("name", { ascending: true });
-  if (!books) {
-    ({ data: books } = await supabase
-      .from("textbooks")
-      .select("id, name, area")
-      .order("name", { ascending: true }));
-  }
-  const textbooks = (books || [])
-    .filter((b) => !b.status || b.status === "active")
-    .map((b) => ({ id: b.id, name: b.name, area: b.area }));
-
-  const { data: classBooks } = await supabase
-    .from("class_textbooks")
-    .select("class_id, textbook_id");
-
   // 끝난 특강은 목록 아래로 접는다 — 고르고 있던 반이면 그대로 열어둔다
   const today = todaySeoul();
   const live = running(classes || [], today);
@@ -94,8 +75,6 @@ export default async function ClassesPage({ searchParams }) {
             classes={classes || []}
             students={students || []}
             members={members || []}
-            textbooks={textbooks}
-            classBooks={classBooks || []}
             selectedId={selectedId}
             today={today}
           />

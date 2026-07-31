@@ -136,17 +136,7 @@ export async function convertToStudent(id, classId) {
         { class_id: cid, student_id: student.id },
         { onConflict: "class_id,student_id", ignoreDuplicates: true }
       );
-    // 반 교재를 학생에게 배정
-    const { data: cb } = await supabase
-      .from("class_textbooks")
-      .select("textbook_id")
-      .eq("class_id", cid);
-    if (cb?.length) {
-      await supabase.from("student_textbooks").upsert(
-        cb.map((x) => ({ student_id: student.id, textbook_id: x.textbook_id })),
-        { onConflict: "student_id,textbook_id", ignoreDuplicates: true }
-      );
-    }
+    // 교재는 반이 아니라 **학생마다** 붙인다. 재원생 목록에서 그 학생에게 직접 넣는다.
   }
 
   const { error } = await supabase

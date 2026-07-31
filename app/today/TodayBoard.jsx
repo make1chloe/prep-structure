@@ -150,7 +150,7 @@ export default function TodayBoard({
       </div>
 
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
-        {groups.map(({ klass, rows, textbookIds = [] }) => {
+        {groups.map(({ klass, rows }) => {
           const todo = rows.filter((r) => !isDone(r));
           const done = rows.filter(isDone);
           // 출결을 찍은 학생이 **위로** 온다. 안 찍었다고 감추지는 않는다 —
@@ -451,7 +451,6 @@ export default function TodayBoard({
                               date={date}
                               items={items}
                               textbooks={textbooks}
-                              classTextbookIds={textbookIds}
                               unitNames={unitNames}
                               rule={rule}
                               onSaved={() => setOpenId(null)}

@@ -327,10 +327,6 @@ export default async function TodayPage({ searchParams }) {
     .filter((b) => !b.status || b.status === "active")
     .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
 
-  const { data: classBooks } = await supabase
-    .from("class_textbooks")
-    .select("class_id, textbook_id");
-
   const unitNames = {};
   if (unitIds.size > 0) {
     // 대/중/소단원 경로를 만들려면 같은 교재의 단원을 모두 가져와야 한다
@@ -406,12 +402,6 @@ export default async function TodayPage({ searchParams }) {
   });
 
   // ---------- 학생별 교재 배정 · 단원 진도 ----------
-  const booksOfClassEarly = new Map();
-  (classBooks || []).forEach((cb) => {
-    if (!booksOfClassEarly.has(cb.class_id)) booksOfClassEarly.set(cb.class_id, []);
-    booksOfClassEarly.get(cb.class_id).push(cb.textbook_id);
-  });
-
   const studentIds = (students || []).map((s) => s.id);
   const { data: stBooks } = studentIds.length
     ? await supabase
@@ -478,7 +468,6 @@ export default async function TodayPage({ searchParams }) {
 
   // 화면에 나올 교재들의 단원을 한 번에 가져와 전체 분량을 센다
   const shownBookIds = new Set();
-  booksOfClassEarly.forEach((ids) => ids.forEach((id) => shownBookIds.add(id)));
   booksOfStudent.forEach((set) => set.forEach((id) => shownBookIds.add(id)));
 
   const unitsOfBook = new Map(); // textbookId → [{ id, parent_id, pages }]
@@ -511,12 +500,7 @@ export default async function TodayPage({ searchParams }) {
 
   // 진도율 = 완료한 단원 ÷ 전체 단원 (분량이 있으면 분량 기준)
   // 순서와 상관없이 아무 단원이나 체크할 수 있으므로 "합계"로 센다
-  // 교재는 **학생별**이다 — 정규든 특강이든.
-  //
-  // 예전에는 반 교재와 학생 교재를 합쳐서 봤다. 그런데 반에 교재를 붙이면
-  // 그때 학생마다 복사되므로(setClassTextbooks), 합칠 이유가 없다.
-  // 오히려 합치면 **한 학생만 그 교재를 뺐을 때 다시 살아난다** — 같은 반이라는
-  // 이유로. 그래서 학생에게 붙은 것만 본다.
+  // 교재는 **학생별**이다 — 정규든 특강이든. 반별 교재라는 개념은 안 쓴다.
   function progressOf(studentId) {
     const ids = new Set(booksOfStudent.get(studentId) || []);
     return [...ids].map((tid) => {
@@ -729,8 +713,6 @@ export default async function TodayPage({ searchParams }) {
   );
   const memberIds = new Set();
 
-  const booksOfClass = booksOfClassEarly;
-
   const groups = classes.map((klass) => {
     // 특강은 그 반에 들어왔는지를 따로 찍는다 (결석·보강·수강료가 반마다 따로다)
     const extra = isExtra(klass);
@@ -794,7 +776,7 @@ export default async function TodayPage({ searchParams }) {
         };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
-    return { klass, rows, textbookIds: booksOfClass.get(klass.id) || [] };
+    return { klass, rows };
   });
 
   // 오늘 반에 속하지 않지만 보강으로 오는 학생
@@ -846,7 +828,6 @@ export default async function TodayPage({ searchParams }) {
     groups.push({
       klass: { id: "makeup", name: "보강", start_time: null, end_time: null },
       rows: extras,
-      textbookIds: [],
     });
   }
 
