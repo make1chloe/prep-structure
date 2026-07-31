@@ -58,6 +58,7 @@ const CHECKS = [
   { id: "0064", label: "공지 사진", table: "notices", col: "photos" },
   { id: "0065", label: "영상 배정 · 본 기록", table: "videos", col: "id" },
   { id: "0066", label: "달력 나누기", table: "tasks", col: "private" },
+  { id: "0067", label: "메뉴 고르기", table: "profiles", col: "menu_hidden" },
 ];
 
 export async function checkSchema() {

@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { ALL_ITEMS } from "@/lib/menu";
+import { menuFor } from "@/lib/menu";
 
 const ROLE_LABEL = {
   principal: "원장",
@@ -21,6 +21,7 @@ const ROLE_LABEL = {
  * 어디 있는지 바로 안다.
  */
 export default function TopBar({ profile, active }) {
+  const items = menuFor(profile);
   return (
     <header className="topbar">
       <div className="topbar-in">
@@ -41,10 +42,10 @@ export default function TopBar({ profile, active }) {
 
       <nav className="navgrid-wrap">
         <div className="navgrid">
-          {ALL_ITEMS.map((it, i) => (
+          {items.map((it, i) => (
             <Fragment key={it.key}>
               {/* 묶음이 바뀌는 자리에 옅은 금 하나. 줄이 여러 개라도 어디쯤인지 보인다 */}
-              {i > 0 && it.group !== ALL_ITEMS[i - 1].group && <span className="navsep" />}
+              {i > 0 && it.group !== items[i - 1].group && <span className="navsep" />}
               <Link
                 href={it.href}
                 className={active === it.key ? "on" : ""}
