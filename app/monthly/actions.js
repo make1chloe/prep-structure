@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings, loadMessageParts } from "@/lib/settings";
-import { summarize, buildMonthlyText, monthLabel } from "@/lib/monthly";
+import { summarize, buildMonthlyText, monthLabel, offScheduleAbsences } from "@/lib/monthly";
 import { deliver } from "@/lib/send";
 import { autoValues, buildVariables } from "@/lib/alimtalk";
 import { endOfMonth } from "@/lib/day";
@@ -76,6 +76,15 @@ export async function loadMonth(ym) {
     examsOf.get(e.student_id).push(e);
   });
 
+  // 학교 시험 일정 — 시험 때문에 빠진 것과 그 밖의 이유로 빠진 것을 가른다.
+  // 둘을 같이 세면 "시험이라 빠졌는데 왜 지적하냐" 가 되어 말에 힘이 없어진다.
+  const ep = await supabase
+    .from("exam_periods")
+    .select("school, grade, from_date, to_date")
+    .lte("from_date", to)
+    .gte("to_date", from);
+  const periods = ep.error ? [] : ep.data || [];
+
   // 이미 만들어 둔 것 (고친 문구 · 보낸 시각)
   const mq = await supabase
     .from("monthly_reports")
@@ -91,6 +100,13 @@ export async function loadMonth(ym) {
         .map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }))
         .sort((a, b) => a.date.localeCompare(b.date));
       const sum = summarize(mineReports, examsOf.get(s.id) || []);
+      // 이 학생 학교(학년)의 시험 기간만 본다
+      sum.offSchedule = offScheduleAbsences(
+        mineReports,
+        periods.filter(
+          (p) => p.school === s.school && (!p.grade || !s.grade || p.grade === s.grade)
+        )
+      );
 
       // 지난달 — 한 줄 평에서 견주기만 한다 (문구에 지난달 숫자를 늘어놓지는 않는다)
       const before = prevReports

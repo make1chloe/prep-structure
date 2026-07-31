@@ -191,6 +191,7 @@ export default function StudentPanel({
   // 전달사항 한 줄 → 학생공지·부모님공지를 한 번에 (0050)
   const [hint, setHint] = useState("");
   const [emoji, setEmoji] = useState(false);
+  const [ask, setAsk] = useState("");   // 이번 초안에만 부탁할 것
   const [drafting, setDrafting] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -903,6 +904,15 @@ export default function StudentPanel({
               value={hint}
               onChange={(e) => setHint(e.target.value)}
             />
+            {/* 이번에만 부탁할 것 — 늘 지킬 것은 설정 › AI 초안 에 적어둔다 */}
+            <input
+              className="input input-sm"
+              style={{ width: 170 }}
+              placeholder="이번만 요청 (예: 짧게)"
+              title="이 초안에만 적용됩니다. 매번 지킬 것은 설정 › AI 초안 에 적어두세요"
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+            />
             <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 12 }}>
               <input
                 type="checkbox"
@@ -927,6 +937,7 @@ export default function StudentPanel({
                   const res = await draftNotices({
                     hint,
                     emoji,
+                    ask,
                     name: row.student.name,
                     attendance: ATT.find((a) => a.key === form.attendance)?.label,
                     word:

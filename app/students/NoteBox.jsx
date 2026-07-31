@@ -26,6 +26,7 @@ export default function NoteBox({ studentId, name }) {
   const [canDictate, setCanDictate] = useState(false);
   const [ai, setAi] = useState(null);      // AI 키가 들어와 있나
   const [err, setErr] = useState("");      // 실패한 이유를 화면에 남긴다
+  const [ask, setAsk] = useState("");      // 이번 정리에만 부탁할 것
   const [pending, startTransition] = useTransition();
   const recog = useRef(null);
   const baseRef = useRef("");
@@ -138,6 +139,15 @@ export default function NoteBox({ studentId, name }) {
               </span>
             )}
             <span className="spacer" />
+            {/* 이번 정리에만 부탁할 것 — 늘 지킬 것은 설정 › AI 초안 에 적어둔다 */}
+            <input
+              className="input input-sm"
+              style={{ width: 160 }}
+              placeholder="이번만 요청"
+              title="이 정리에만 적용됩니다. 매번 지킬 것은 설정 › AI 초안 에 적어두세요"
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+            />
             <button
               className="btn btn-sm"
               disabled={pending || (draft.raw || "").trim().length < 10 || ai?.ready === false}
@@ -149,7 +159,7 @@ export default function NoteBox({ studentId, name }) {
               onClick={() =>
                 startTransition(async () => {
                   setErr("");
-                  const r = await summarizeConsult(draft.raw, name);
+                  const r = await summarizeConsult(draft.raw, name, { ask });
                   if (r?.error) { setErr(r.error); return; }
                   if (!r?.text) { setErr("AI 가 빈 답을 보냈어요. 다시 눌러주세요."); return; }
                   setDraft((d) => ({ ...d, body: r.text }));

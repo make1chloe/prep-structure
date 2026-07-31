@@ -28,6 +28,7 @@ const COLS = [
   { key: "electives", label: "선택과목", w: 130 },
   { key: "note", label: "특이사항", w: 140 },
   { key: "login_id", label: "아이디", w: 104, mono: true },
+  { key: "initPw", label: "비번", w: 76, type: "pw" },
 ];
 
 const STATUS_TABS = [
@@ -50,6 +51,7 @@ export default function StudentList({ students = [] }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  const cellPwStatic = <span className="muted">—</span>;
   const norm = (v) => (v || "").toString().toLowerCase();
   const kw = norm(q).trim();
   const shown = students.filter((s) => {
@@ -119,6 +121,17 @@ export default function StudentList({ students = [] }) {
 
   function cell(s, c) {
     const v = s[c.key];
+    // 아직 0000 그대로인 계정 — 아이디가 규칙적이라 남이 열 수 있다
+    if (c.type === "pw") {
+      if (!s.login_id) return <span className="muted">—</span>;
+      return v ? (
+        <span className="tag tag-amber" title="아직 0000 입니다. 학생이 로그인하면 바꾸게 됩니다">
+          0000
+        </span>
+      ) : (
+        <span className="tag tag-mint">바꿈</span>
+      );
+    }
     if (c.type === "status") {
       const st = STATUS[v] || STATUS.enrolled;
       return <span className={st.cls}>{st.label}</span>;
@@ -128,6 +141,7 @@ export default function StudentList({ students = [] }) {
   }
 
   function editor(c) {
+    if (c.type === "pw") return cellPwStatic;
     if (c.type === "status") {
       return (
         <select

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveIntegration, clearIntegration } from "@/app/settings/actions";
 import { previewFromReports, addSamples, listSamples, removeSample } from "@/app/ai/sampleActions";
+import { saveAiRules, getAiRules } from "@/app/ai/actions";
 
 /**
  * AI 키 · 본보기 문장.
@@ -19,10 +20,13 @@ export default function AiBox({ saved = false }) {
   const [chosen, setChosen] = useState(() => new Set());
   const [mine, setMine] = useState(null);
   const [typed, setTyped] = useState("");
+  const [rules, setRules] = useState("");        // AI 가 항상 지킬 것
+  const [savedRules, setSavedRules] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => { listSamples().then(setMine); }, []);
+  useEffect(() => { getAiRules().then((r) => setRules(r?.text || "")); }, []);
   const reload = () => listSamples().then(setMine);
 
   return (
@@ -92,6 +96,47 @@ export default function AiBox({ saved = false }) {
           </button>
         </div>
       )}
+
+      {/* ── 항상 지킬 것 ──────────────────────────── */}
+      <div style={{ marginTop: 14, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>
+        <b style={{ fontSize: 13.5 }}>AI 에게 항상 지키라고 할 것</b>
+        <p className="hint" style={{ margin: "4px 0 8px" }}>
+          여기 적어두면 <b>모든 초안</b>(공지·상담일지·코멘트)에 매번 같이 갑니다.
+          매번 다시 적지 않아도 됩니다. 한 줄에 하나씩 적으세요.
+          <br />
+          급할 때 <b>이번에만</b> 부탁할 것은 초안 만드는 자리에서 따로 적을 수 있습니다.
+        </p>
+        <textarea
+          className="input"
+          rows={4}
+          placeholder={
+            "학생 이름을 문장마다 부르지 말 것\n" +
+            "'~했습니다' 로 끝낼 것\n" +
+            "점수를 그대로 적지 말고 잘한 점을 먼저 쓸 것"
+          }
+          value={rules}
+          onChange={(e) => setRules(e.target.value)}
+        />
+        <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center" }}>
+          <button
+            className="btn btn-sm"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                const r = await saveAiRules(rules);
+                if (r?.error) { alert(r.error); return; }
+                setSavedRules(true);
+                setTimeout(() => setSavedRules(false), 1500);
+              })
+            }
+          >
+            {savedRules ? "저장됨 ✓" : "저장"}
+          </button>
+          <span className="hint" style={{ fontSize: 11.5 }}>
+            비워두면 아무 조건 없이 씁니다.
+          </span>
+        </div>
+      </div>
 
       {/* ── 본보기 문장 ───────────────────────────── */}
       <div style={{ marginTop: 14, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>

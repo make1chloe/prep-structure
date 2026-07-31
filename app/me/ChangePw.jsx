@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { pwChanged } from "./pwActions";
+import { pwChanged, setMyPassword } from "./pwActions";
 
 /**
  * 처음 들어왔을 때 · 선생님이 되돌렸을 때 — 비밀번호부터 정한다.
@@ -25,10 +25,17 @@ export default function ChangePw({ name }) {
     if (pw !== pw2) return setErr("두 번 넣은 것이 서로 달라요.");
 
     startTransition(async () => {
+      // 서버가 직접 바꾼다 — 진짜로 바뀌어야 이 화면을 지나간다
+      const res = await setMyPassword(pw);
+      if (res?.error) { setErr(res.error); return; }
+      if (res?.byServer) { router.refresh(); return; }
+
+      // 열쇠가 아직 없는 동안에는 예전 길로 (아이가 여기서 막히면 안 된다)
       const supabase = createClient();
       const { error } = await supabase.auth.updateUser({ password: pw });
       if (error) { setErr(error.message); return; }
-      await pwChanged();
+      const done = await pwChanged();
+      if (done?.error) { setErr(done.error); return; }
       router.refresh();
     });
   }

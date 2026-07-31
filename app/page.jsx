@@ -92,7 +92,9 @@ export default async function Home() {
             <Badge href="/report?t=resend" tone="bad">발송 실패 {d.sendFails.length}건</Badge>
           )}
           {d.unsentPast.length > 0 && (
-            <Badge href="/report" tone="warn">지난 미발송 {d.unsentPast.length}건</Badge>
+            <Badge href={`/report?d=${d.unsentPast[0].date}`} tone="warn">
+              지난 미발송 {d.unsentPast.length}건
+            </Badge>
           )}
           {d.unsentToday.length > 0 && (
             <Badge href="/report">보낼 리포트 {d.unsentToday.length}건</Badge>
@@ -148,20 +150,36 @@ export default async function Home() {
                   안 나간 문자 <span className="tag tag-red">{d.sendFails.length + d.unsentPast.length}</span>
                 </h2>
                 <div className="stack" style={{ gap: 4 }}>
+                  {/* 줄을 누르면 **그 날짜의 발송 화면**으로 바로 간다.
+                      보고 나서 어디로 가야 할지 다시 찾게 하면 안 된다. */}
                   {d.sendFails.map((s) => (
-                    <div className="unitrow" key={s.id}>
+                    <Link
+                      className="unitrow"
+                      key={s.id}
+                      href={`/report?t=resend${s.date ? `&d=${s.date}` : ""}`}
+                      style={{ textDecoration: "none" }}
+                    >
                       <span className="tag tag-red">실패</span>
                       <b style={{ fontSize: 12.5 }}>{s.name}</b>
                       <span className="hint">{s.detail || s.kind}</span>
-                    </div>
+                      <span className="spacer" />
+                      <span className="hint" style={{ fontSize: 11.5 }}>다시 보내기 ›</span>
+                    </Link>
                   ))}
                   {d.unsentPast.map((r) => (
-                    <div className="unitrow" key={r.id}>
+                    <Link
+                      className="unitrow"
+                      key={r.id}
+                      href={`/report?d=${r.date}`}
+                      style={{ textDecoration: "none" }}
+                    >
                       <span className="tag tag-amber">미발송</span>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(r.date)}</span>
                       <b style={{ fontSize: 12.5 }}>{r.name}</b>
                       <span className="hint">써두고 안 보냄</span>
-                    </div>
+                      <span className="spacer" />
+                      <span className="hint" style={{ fontSize: 11.5 }}>보내기 ›</span>
+                    </Link>
                   ))}
                 </div>
                 <Link className="btn btn-ghost btn-sm" href="/report?t=resend" style={{ marginTop: 6 }}>
@@ -407,26 +425,26 @@ export default async function Home() {
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>오늘</h2>
               <div className="stack" style={{ gap: 4 }}>
                 {d.todayClasses.map((c) => (
-                  <div className="unitrow" key={c.id}>
+                  <Link className="unitrow" key={c.id} href="/today" style={{ textDecoration: "none" }}>
                     <span className="hint" style={{ minWidth: 84 }}>
                       {cut(c.start_time)}-{cut(c.end_time)}
                     </span>
                     <b style={{ fontSize: 12.5 }}>{c.name}</b>
                     {c.room && <span className="tag tag-muted">{c.room}</span>}
-                  </div>
+                  </Link>
                 ))}
                 {d.todayClasses.length === 0 && (
                   <p className="hint" style={{ margin: 0 }}>오늘은 수업이 없습니다.</p>
                 )}
                 {tasks.today.map((t) => (
-                  <div className="unitrow" key={t.id}>
+                  <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
                     <span className="hint" style={{ minWidth: 84 }}>
                       {t.start_time ? cut(t.start_time) : "일정"}
                     </span>
                     <b style={{ fontSize: 12.5 }}>{t.title}</b>
                     {t.category && <span className="tag tag-sky">{t.category}</span>}
                     {t.deliver_body && <span className="tag tag-lav">전달사항</span>}
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -443,11 +461,11 @@ export default async function Home() {
               ) : (
                 <div className="stack" style={{ gap: 4 }}>
                   {tasks.week.map((t) => (
-                    <div className="unitrow" key={t.id}>
+                    <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
                       <b style={{ fontSize: 12.5 }}>{t.title}</b>
                       {t.category && <span className="tag tag-muted">{t.category}</span>}
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -465,11 +483,11 @@ export default async function Home() {
               ) : (
                 <div className="stack" style={{ gap: 4 }}>
                   {tasks.month.map((t) => (
-                    <div className="unitrow" key={t.id}>
+                    <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
                       <b style={{ fontSize: 12.5 }}>{t.title}</b>
                       {t.category && <span className="tag tag-muted">{t.category}</span>}
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}

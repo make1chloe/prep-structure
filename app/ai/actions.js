@@ -86,6 +86,66 @@ async function ask(supabase, system, user, maxTokens = 900) {
   return { error: null, text };
 }
 
+/**
+ * 원장님이 정해두신 조건 — **모든 초안에 그대로 붙는다.**
+ *
+ * 매번 "존댓말로", "이모티콘 빼고", "학생 이름은 부르지 말고" 를 다시 적을 수는
+ * 없다. 한 번 적어두면 AI 가 부를 때마다 함께 간다.
+ *
+ * 키(anthropic)와 따로 둔다 — 키를 다시 넣을 때 조건이 지워지면 안 되기 때문이다.
+ */
+async function rules(supabase) {
+  const { data } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "ai_rules")
+    .maybeSingle();
+  return (data?.config?.text || "").trim();
+}
+
+/** 조건을 지시문에 끼워 넣는다 (비어 있으면 아무것도 안 붙는다) */
+function withRules(lines, mine, ask) {
+  const out = [...lines];
+  if (mine) {
+    out.push(
+      "",
+      "아래는 원장님이 **항상 지켜달라고 하신 것**입니다. 위 규칙과 부딪히면 이쪽을 따르세요.",
+      mine.split("\n").map((x) => `  ${x}`).join("\n")
+    );
+  }
+  if (ask) {
+    out.push(
+      "",
+      "이번에만 따로 부탁하신 것입니다. 제일 우선합니다.",
+      `  ${ask}`
+    );
+  }
+  return out.join("\n");
+}
+
+/** 조건을 저장한다 */
+export async function saveAiRules(text) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const { error } = await supabase
+    .from("integrations")
+    .upsert(
+      { id: "ai_rules", enabled: true, config: { text: (text || "").trim() } },
+      { onConflict: "id" }
+    );
+  return { error: error ? error.message : null };
+}
+
+/** 저장해둔 조건 (화면에 다시 보여주기 위해) */
+export async function getAiRules() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { text: "", error: guard.error };
+  return { text: await rules(supabase), error: null };
+}
+
 /** 원장님이 예전에 쓰신 문장 — 말투 본보기 */
 async function samples(supabase, limit = 60) {
   const { data } = await supabase
@@ -99,7 +159,7 @@ async function samples(supabase, limit = 60) {
  * 받아쓴 상담 내용을 읽을 수 있게 정리한다.
  * 없는 말을 지어내지 않는 것이 제일 중요하다 — 상담 기록이기 때문이다.
  */
-export async function summarizeConsult(raw, studentName) {
+export async function summarizeConsult(raw, studentName, opts = {}) {
   const text = (raw || "").trim();
   if (text.length < 10) return { error: "받아쓴 내용이 너무 짧아요." };
 
@@ -107,9 +167,10 @@ export async function summarizeConsult(raw, studentName) {
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
+  const mine = await rules(supabase);
   return ask(
     supabase,
-    [
+    withRules([
       "당신은 한국 영어학원 원장의 상담 기록을 정리합니다.",
       "받아쓰기라 문장이 끊기고 같은 말이 반복됩니다. 읽을 수 있게 다듬으세요.",
       "",
@@ -120,7 +181,7 @@ export async function summarizeConsult(raw, studentName) {
       "  ■ 학부모 말씀 / ■ 학생 상태 / ■ 안내한 것 / ■ 이어서 할 일",
       "- 존댓말, 짧은 문장. 각 꼭지 아래 '· ' 로 항목을 답니다.",
       "- 설명이나 인사말 없이 정리된 내용만 내놓습니다.",
-    ].join("\n"),
+    ], mine, (opts.ask || "").trim()),
     `학생: ${studentName || "학생"}\n\n받아쓴 내용:\n${text}`
   );
 }
@@ -136,7 +197,8 @@ export async function draftComment(facts = {}) {
   if (guard.error) return guard;
 
   const mine = await samples(supabase);
-  const system = [
+  const myRules = await rules(supabase);
+  const system = withRules([
     "당신은 한국 영어학원 원장이 학부모에게 보내는 그날 수업 코멘트를 대신 씁니다.",
     "",
     "규칙",
@@ -157,7 +219,7 @@ export async function draftComment(facts = {}) {
     mine.length ? mine.map((s) => `  ${s}`).join("\n") : "  (아직 본보기 문장이 없습니다)",
     "",
     "코멘트 본문만 내놓습니다. 설명하지 마세요.",
-  ].join("\n");
+  ], myRules, (facts.ask || "").trim());
 
   const lines = [
     `학생: ${facts.name || "학생"}`,
@@ -191,7 +253,8 @@ export async function draftNotices(facts = {}) {
   if (guard.error) return guard;
 
   const mine = await samples(supabase);
-  const system = [
+  const myRules = await rules(supabase);
+  const system = withRules([
     "당신은 한국 영어학원 원장의 글을 대신 씁니다.",
     "원장님이 적은 **전달사항 한 줄**을 받아, 받는 사람에 맞게 두 벌로 고쳐 씁니다.",
     "",
@@ -217,7 +280,7 @@ export async function draftNotices(facts = {}) {
     "답은 아래 형식 그대로만 내놓습니다. 설명하지 마세요.",
     "학생: <학생공지>",
     "학부모: <부모님공지>",
-  ].join("\n");
+  ], myRules, (facts.ask || "").trim());
 
   const lines = [
     `학생: ${facts.name || "학생"}`,
