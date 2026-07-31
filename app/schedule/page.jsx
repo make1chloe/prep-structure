@@ -119,6 +119,7 @@ export default async function SchedulePage() {
           unavailable={!ready}
           holidayNotes={holidayNotes}
           makeupDays={makeupDays}
+          holidays={(holidays || []).sort((a, b) => a.date.localeCompare(b.date))}
         />
       </main>
     </>

@@ -8,6 +8,7 @@ import {
   setClassTuition,
   setStudentTuition,
   setPaid,
+  saveGradeTuition,
 } from "./actions";
 import { won } from "@/lib/tuition";
 import { shortLabel } from "@/lib/day";
@@ -31,6 +32,8 @@ export default function TuitionBoard({
   unavailable = false,
   totalUnpaid = 0,
   payReady = true,
+  byGrade = {},
+  grades = [],
 }) {
   const [open, setOpen] = useState(() => new Set(groups.map((g) => g.klass.id)));
   const [hDate, setHDate] = useState(`${ym}-01`);
@@ -40,6 +43,8 @@ export default function TuitionBoard({
   const [draft, setDraft] = useState({});
   const [editStudent, setEditStudent] = useState(null);
   const [sDraft, setSDraft] = useState({});
+  const [gDraft, setGDraft] = useState(() => ({ ...byGrade }));
+  const [gRow, setGRow] = useState({ grade: "", amount: "" });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -106,6 +111,80 @@ export default function TuitionBoard({
           결제선생 엑셀은 <a className="sky" href="/import">노션 이관 · 수납</a> 에서 올립니다.
         </p>
       )}
+
+
+      {/* 학년별 수강료 — 학년이 오르면 금액이 오른다 */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학년별 수강료</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+          한 반에 학년이 섞여 있어도 학생마다 손으로 고쳐 넣지 않아도 됩니다.
+          <br />
+          금액은 <b>좁은 것이 이깁니다</b> — 학생에게 따로 적은 금액 ▸ 학년별 금액 ▸ 반 금액 순입니다.
+          비워두면 &apos;안 적음&apos; 이라 합계에서 빠집니다 (0원과 다릅니다).
+        </p>
+
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {[...new Set([...grades, ...Object.keys(gDraft)])].sort().map((g) => (
+            <div className="field" key={g} style={{ width: 128 }}>
+              <label className="label">{g}</label>
+              <input
+                className="input input-sm"
+                inputMode="numeric"
+                placeholder="안 적음"
+                value={gDraft[g] ?? ""}
+                onChange={(e) => setGDraft({ ...gDraft, [g]: e.target.value })}
+              />
+            </div>
+          ))}
+          {[...new Set([...grades, ...Object.keys(gDraft)])].length === 0 && (
+            <p className="hint" style={{ margin: 0 }}>
+              재원생에 학년이 적혀 있으면 여기 자동으로 칸이 생깁니다.
+            </p>
+          )}
+        </div>
+
+        <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="field" style={{ width: 110 }}>
+            <label className="label">학년 추가</label>
+            <input
+              className="input input-sm"
+              placeholder="고1"
+              value={gRow.grade}
+              onChange={(e) => setGRow({ ...gRow, grade: e.target.value })}
+            />
+          </div>
+          <div className="field" style={{ width: 128 }}>
+            <label className="label">금액</label>
+            <input
+              className="input input-sm"
+              inputMode="numeric"
+              placeholder="250000"
+              value={gRow.amount}
+              onChange={(e) => setGRow({ ...gRow, amount: e.target.value })}
+            />
+          </div>
+          <button
+            className="btn btn-sm"
+            style={{ marginBottom: 1 }}
+            disabled={pending || !gRow.grade.trim()}
+            onClick={() => {
+              setGDraft({ ...gDraft, [gRow.grade.trim()]: gRow.amount });
+              setGRow({ grade: "", amount: "" });
+            }}
+          >
+            칸 만들기
+          </button>
+          <span className="spacer" />
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginBottom: 1 }}
+            disabled={pending}
+            onClick={() => run(() => saveGradeTuition(gDraft))}
+          >
+            학년별 수강료 저장
+          </button>
+        </div>
+      </div>
 
       {/* 휴강일 */}
       <div className="card" style={{ marginTop: 12 }}>

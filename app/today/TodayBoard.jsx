@@ -50,11 +50,17 @@ export default function TodayBoard({
   const router = useRouter();
 
   // 특강이면 그 반 출결에만 찍는다. 정규는 예전 그대로 그날 출결에 찍는다.
-  function mark(studentId, status, extraClassId = null) {
+  //
+  // **같은 것을 다시 누르면 취소된다.** 잘못 눌렀을 때 되돌릴 방법이 없으면
+  // 안 눌러보게 된다. 등원·지각·결석 다 똑같이 동작해야 헷갈리지 않는다.
+  function mark(studentId, status, extraClassId = null, now = null) {
+    const off = now === status;
     startTransition(async () => {
       const res = extraClassId
-        ? await setClassAttendance(extraClassId, studentId, date, status)
-        : await setAttendance(studentId, date, status);
+        ? await setClassAttendance(extraClassId, studentId, date, off ? null : status)
+        : off
+          ? await clearAttendance(studentId, date)
+          : await setAttendance(studentId, date, status);
       if (res?.error) alert(res.error);
       router.refresh();
     });
@@ -268,21 +274,26 @@ export default function TodayBoard({
                               >
                                 체험
                               </a>
-                              {ATT.slice(0, 3).map((a) => (
-                                <button
-                                  key={a.key}
-                                  className="btn btn-ghost btn-sm"
-                                  disabled={pending}
-                                  style={{ padding: "3px 10px" }}
-                                  onClick={() =>
-                                    a.key === "absent"
-                                      ? markAbsent(r.student.id, r.absenceReason, r.extraClassId)
-                                      : mark(r.student.id, a.key, r.extraClassId)
-                                  }
-                                >
-                                  {a.label}
-                                </button>
-                              ))}
+                              {ATT.slice(0, 3).map((a) => {
+                                const on = r.status === a.key;
+                                return (
+                                  <button
+                                    key={a.key}
+                                    className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                                    disabled={pending}
+                                    style={{ padding: "3px 10px" }}
+                                    title={on ? "다시 누르면 취소돼요" : undefined}
+                                    onClick={() =>
+                                      // 이미 찍힌 것을 또 누르면 취소 — 결석도 마찬가지
+                                      a.key === "absent" && !on
+                                        ? markAbsent(r.student.id, r.absenceReason, r.extraClassId)
+                                        : mark(r.student.id, a.key, r.extraClassId, r.status)
+                                    }
+                                  >
+                                    {on ? "✓ " : ""}{a.label}
+                                  </button>
+                                );
+                              })}
                             </div>
                           ))}
                         </div>
@@ -350,14 +361,16 @@ export default function TodayBoard({
                             {r.status ? (
                               <span
                                 className={`tag ${CLS[r.status]}`}
+                                style={{ cursor: "pointer" }}
+                                onClick={(e) => { e.stopPropagation(); undo(r.student.id, r.extraClassId); }}
                                 title={
                                   r.attendAt
                                     ? `학생이 ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
                                         timeZone: "Asia/Seoul",
                                         hour: "2-digit",
                                         minute: "2-digit",
-                                      })} 에 출석 체크를 눌렀습니다`
-                                    : undefined
+                                      })} 에 출석 체크를 눌렀습니다 · 누르면 출결이 취소돼요`
+                                    : "누르면 출결이 취소돼요"
                                 }
                               >
                                 {LABEL[r.status]}

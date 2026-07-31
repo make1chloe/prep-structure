@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveReportText, resetReportText, sendReports, unsend } from "./actions";
+import {
+  saveReportText, resetReportText, sendReports, unsend, skipSend, removeReports,
+} from "./actions";
 import { addDays } from "@/lib/day";
 
 const shiftDate = addDays;
@@ -26,16 +28,21 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 안 보내기로 한 것은 '보낼 것' 에서 빠진다 (처리하면 목록에서 사라진다)
+  const skipped = (r) => (r.skip || []).includes("report");
+
   const counts = {
-    todo: rows.filter((r) => r.written && !r.sentAt).length,
+    todo: rows.filter((r) => r.written && !r.sentAt && !skipped(r)).length,
     sent: rows.filter((r) => r.sentAt).length,
-    draft: rows.filter((r) => !r.written).length,
+    draft: rows.filter((r) => !r.written && !skipped(r)).length,
+    skip: rows.filter((r) => skipped(r) && !r.sentAt).length,
   };
 
   const shown = rows.filter((r) => {
-    if (filter === "todo") return r.written && !r.sentAt;
+    if (filter === "todo") return r.written && !r.sentAt && !skipped(r);
     if (filter === "sent") return !!r.sentAt;
-    if (filter === "draft") return !r.written;
+    if (filter === "draft") return !r.written && !skipped(r);
+    if (filter === "skip") return skipped(r) && !r.sentAt;
     return true;
   });
 
@@ -123,6 +130,35 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
     });
   }
 
+  function skip(ids, on) {
+    startTransition(async () => {
+      const res = await skipSend(ids, "report", on);
+      if (res?.error) { alert(res.error); return; }
+      setSel(new Set());
+      router.refresh();
+    });
+  }
+
+  /** 리포트를 아예 지운다 — 그날 수업 기록이 통째로 사라진다 */
+  function remove(list) {
+    if (list.length === 0) return;
+    const who = list.length === 1 ? list[0].name : `${list.length}명`;
+    if (
+      !confirm(
+        `${who} 의 오늘 리포트를 지울까요?\n\n` +
+          "문자만 안 나가는 게 아니라 그날 수업 기록이 통째로 사라집니다 — " +
+          "숙제 검사 결과와 학생이 낸 것도 함께 지워집니다. 되돌릴 수 없습니다.\n\n" +
+          "문자만 안 보내려면 「안 보내기」 를 쓰세요."
+      )
+    ) return;
+    startTransition(async () => {
+      const res = await removeReports(list.map((r) => r.id));
+      if (res?.error) { alert(res.error); return; }
+      setSel(new Set());
+      router.refresh();
+    });
+  }
+
   function startEdit(r) {
     setOpenId(r.id);
     setDraft(r.text);
@@ -164,6 +200,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
           ["todo", `보낼 것 ${counts.todo}`],
           ["sent", `보냄 ${counts.sent}`],
           ["draft", `기록 전 ${counts.draft}`],
+          ["skip", `안 보냄 ${counts.skip}`],
           ["all", `전체 ${rows.length}`],
         ].map(([k, label]) => (
           <button
@@ -200,6 +237,28 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => cancelSend([...sel])} disabled={pending}>
             발송 취소
+          </button>
+          {filter === "skip" ? (
+            <button className="btn btn-ghost btn-sm" onClick={() => skip([...sel], false)} disabled={pending}>
+              다시 보낼 것으로
+            </button>
+          ) : (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => skip([...sel], true)}
+              disabled={pending}
+              title="이 학생들에게는 오늘 리포트를 안 보냅니다. 기록으로 남고 되돌릴 수 있습니다"
+            >
+              안 보내기
+            </button>
+          )}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => remove(rows.filter((r) => sel.has(r.id)))}
+            disabled={pending}
+            title="그날 수업 기록까지 지웁니다"
+          >
+            삭제
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
         </div>
@@ -240,6 +299,8 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                   <span className="spacer" />
                   {r.sentAt ? (
                     <span className="tag tag-mint">보냄</span>
+                  ) : skipped(r) ? (
+                    <span className="tag tag-muted">안 보냄</span>
                   ) : r.written ? (
                     <span className="tag tag-sky">보낼 것</span>
                   ) : (
@@ -254,6 +315,20 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                   >
                     {editing ? "닫기" : "고치기"}
                   </button>
+                  {!r.sentAt && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => skip([r.id], !skipped(r))}
+                      disabled={pending}
+                      title={
+                        skipped(r)
+                          ? "다시 보낼 것으로 되돌립니다"
+                          : "오늘은 이 학생에게 안 보냅니다 (기록으로 남습니다)"
+                      }
+                    >
+                      {skipped(r) ? "되돌리기" : "안 보내기"}
+                    </button>
+                  )}
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => (r.sentAt ? cancelSend([r.id]) : send([r]))}

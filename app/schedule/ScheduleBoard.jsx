@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addExam, setEnglishDate, updateExam, deleteExam,
-  markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn,
+  markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday,
 } from "./actions";
 import { shortLabel } from "@/lib/day";
 
@@ -45,9 +45,11 @@ export default function ScheduleBoard({
   unavailable = false,
   holidayNotes = [],
   makeupDays = [],
+  holidays = [],
 }) {
   const [form, setForm] = useState({ school: "", grade: "", name: "", from: "", to: "" });
   const [eng, setEng] = useState({});
+  const [off, setOff] = useState({ date: "", name: "", classId: "" });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -75,6 +77,89 @@ export default function ScheduleBoard({
 
   return (
     <>
+      {/* 휴강 — 공휴일이 아닌 날도 쉰다 (원장님 사정, 학교 행사, 가족 일) */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>휴강</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+          공휴일이 아닌 날도 쉴 수 있습니다. 여기 넣으면 <b>그날은 회차에서 빠지고</b>,
+          수강료는 깎지 않고 보강으로 채우도록 계산됩니다.
+        </p>
+
+        <div className="row" style={{ gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="field" style={{ width: 160 }}>
+            <label className="label">날짜 *</label>
+            <input
+              className="input input-sm"
+              type="date"
+              value={off.date}
+              onChange={(e) => setOff({ ...off, date: e.target.value })}
+            />
+          </div>
+          <div className="field" style={{ width: 170 }}>
+            <label className="label">이유</label>
+            <input
+              className="input input-sm"
+              placeholder="원장 개인사정"
+              value={off.name}
+              onChange={(e) => setOff({ ...off, name: e.target.value })}
+            />
+          </div>
+          <div className="field" style={{ width: 170 }}>
+            <label className="label">어느 반</label>
+            <select
+              className="input input-sm"
+              value={off.classId}
+              onChange={(e) => setOff({ ...off, classId: e.target.value })}
+            >
+              <option value="">전체 휴강 (모든 반)</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}만</option>
+              ))}
+            </select>
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={pending || !off.date}
+            style={{ marginBottom: 1 }}
+            onClick={() =>
+              run(async () => {
+                const res = await addClassHoliday(off.date, off.name, off.classId || null);
+                if (!res?.error) setOff({ date: "", name: "", classId: "" });
+                return res;
+              }, "휴강으로 지정했어요.")
+            }
+          >
+            휴강 추가
+          </button>
+        </div>
+
+        {holidays.length > 0 ? (
+          <div className="stack" style={{ gap: 3, marginTop: 10 }}>
+            {holidays.map((h) => (
+              <div className="unitrow" key={h.id}>
+                <b style={{ fontSize: 12.5, minWidth: 96 }}>{dayShort(h.date)}</b>
+                <span className={`tag ${h.class_id ? "tag-sky" : "tag-muted"}`}>
+                  {h.class_id ? `${classes.find((c) => c.id === h.class_id)?.name || "반"}만` : "전체"}
+                </span>
+                <span style={{ fontSize: 12.5, flex: 1 }}>{h.name || "휴강"}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={pending}
+                  onClick={() => {
+                    if (!confirm(`${dayShort(h.date)} 휴강을 지울까요?\n회차와 수강료가 다시 계산됩니다.`)) return;
+                    run(() => removeHoliday(h.id));
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="hint" style={{ margin: "10px 0 0" }}>아직 지정한 휴강이 없습니다.</p>
+        )}
+      </div>
+
       {/* 공휴일 · 대체공휴일 · 낀 날 */}
       {holidayNotes.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>

@@ -58,13 +58,16 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
     });
   }
 
-  // 이미 올라온 것과 겹치지 않는 제안만
+  // 이미 올라온 것과 겹치지 않는 제안만.
+  // '삭제' 한 것도 자국이 남아 있으므로 여기서 다시 제안되면 안 된다.
   const have = new Set(rows.map((r) => r.body));
   const fresh = suggestions.filter((s) => !have.has(s.body));
+  // 뺀 것은 목록에도 안 보인다 (문자에도 안 나간다)
+  const live = rows.filter((t) => t.status !== "dropped");
 
   return (
     <div style={{ flex: 1 }}>
-      {rows.length === 0 && fresh.length === 0 && (
+      {live.length === 0 && fresh.length === 0 && (
         <p className="hint" style={{ margin: "0 0 6px" }}>
           남아서 채우고 갈 것이 있으면 적어주세요. 숙제를 △·✕ 로 찍으면 여기 자동으로 올라옵니다.
         </p>
@@ -73,14 +76,41 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
       {/* 미흡·미제출에서 온 제안 */}
       {fresh.length > 0 && (
         <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
+          {/* 제안은 대부분 '올렸다가 다시 누르는' 두 번이 필요 없다.
+              여기서 바로 정한다 — 남길지 · 숙제로 넘길지 · 넘어갈지 · 아예 뺄지 */}
           {fresh.map((s) => (
             <Row key={s.body} tag={s.why} cls="tag-amber" body={s.body}>
               <button
                 className="btn btn-primary btn-sm"
                 disabled={pending}
+                title="남아서 하고 갑니다"
                 onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true))}
               >
-                ＋ 올리기
+                남김
+              </button>
+              <button
+                className="btn btn-sm"
+                disabled={pending}
+                title="집에서 해옵니다. 숙제 문자에 함께 나갑니다"
+                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true, "moved"))}
+              >
+                숙제로
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={pending}
+                title="오늘은 그냥 보냅니다. 문자에는 안 나갑니다 (기록은 남습니다)"
+                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true, "skipped"))}
+              >
+                넘어가기
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={pending}
+                title="이건 남길 것이 아닙니다. 목록에서 뺍니다"
+                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true, "dropped"))}
+              >
+                삭제
               </button>
             </Row>
           ))}
@@ -88,9 +118,9 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
       )}
 
       {/* 올라온 것 */}
-      {rows.length > 0 && (
+      {live.length > 0 && (
         <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
-          {rows.map((t) => {
+          {live.map((t) => {
             const settled = t.status !== "todo";
             return (
               <Row
@@ -137,7 +167,12 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                     <button
                       className="btn btn-ghost btn-sm"
                       disabled={pending}
-                      onClick={() => run(() => deleteStay(t.id))}
+                      title={t.auto ? "목록에서 뺍니다 (다시 제안되지 않습니다)" : undefined}
+                      onClick={() =>
+                        // 자동으로 올라온 것은 지우면 △·✕ 자국에서 **다시 제안된다.**
+                        // 그래서 지우지 않고 '뺀 것' 으로 둔다.
+                        run(() => (t.auto ? setStayStatus(t.id, "dropped") : deleteStay(t.id)))
+                      }
                     >
                       삭제
                     </button>

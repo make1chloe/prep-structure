@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import TuitionBoard from "./TuitionBoard";
-import { classSessions, studentAmount, monthRange } from "@/lib/tuition";
+import { classSessions, studentAmount, monthRange, unitFor, unitSource } from "@/lib/tuition";
 import { loadSettings } from "@/lib/settings";
 import { overlaps, isExtra } from "@/lib/classTerm";
 import { todaySeoul } from "@/lib/day";
@@ -102,15 +102,24 @@ export default async function TuitionPage({ searchParams }) {
 
   let { data: students } = await supabase
     .from("students")
-    .select("id, name, status, tuition, started_on, ended_on")
+    .select("id, name, grade, status, tuition, started_on, ended_on")
     .in("status", ["enrolled", "paused"]);
   if (!students) {
-    ({ data: students } = await supabase.from("students").select("id, name, status"));
+    ({ data: students } = await supabase.from("students").select("id, name, grade, status"));
   }
   const studentById = new Map((students || []).map((s) => [s.id, s]));
 
   const settings = await loadSettings(supabase);
   const makeupDays = settings.schedule?.makeupDays || [];
+
+  // 학년별 수강료 — 학년이 오르면 금액이 오른다.
+  // 한 반에 학년이 섞여 있어도 학생마다 손으로 고쳐 넣지 않게 한다.
+  const { data: tuiRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "tuition")
+    .maybeSingle();
+  const byGrade = tuiRow?.config?.byGrade || {};
 
   // 받았는가 — 금액은 여기서 다시 계산하지 않는다. 저장하는 건 '받았다'뿐이다 (원칙1)
   const payQ = await supabase
@@ -134,7 +143,8 @@ export default async function TuitionPage({ searchParams }) {
       .map((id) => studentById.get(id))
       .filter(Boolean)
       .map((s) => {
-        const unit = s.tuition || klass.tuition || null;
+        const unit = unitFor(s, klass, byGrade);
+        const unitFrom = unitSource(s, klass, byGrade);
         // 특강은 그 반 출결만, 정규반은 그날 출결을 본다
         const absent = isExtra(klass)
           ? extraAbsentOf.get(`${klass.id}|${s.id}`) || []
@@ -144,7 +154,7 @@ export default async function TuitionPage({ searchParams }) {
         const paid = !!pay?.paid_on;
         // 안 받은 돈 — 금액이 안 적힌 학생은 셀 수 없으므로 뺀다
         if (!paid && calc.amount) totalUnpaid += calc.amount;
-        return { student: s, ...calc, pay, paid };
+        return { student: s, ...calc, unit, unitFrom, pay, paid };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
     const sum = rows.reduce((a, r) => a + (r.amount || 0), 0);
@@ -186,6 +196,8 @@ export default async function TuitionPage({ searchParams }) {
           unavailable={!ready}
           totalUnpaid={totalUnpaid}
           payReady={payReady}
+          byGrade={byGrade}
+          grades={[...new Set((students || []).map((s) => s.grade).filter(Boolean))].sort()}
         />
       </main>
     </>

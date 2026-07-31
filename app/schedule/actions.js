@@ -151,6 +151,19 @@ export async function addClassHoliday(date, name, classId) {
   return ok(error);
 }
 
+/**
+ * 휴강을 지운다 — 잘못 넣었거나 다시 수업하기로 한 경우.
+ * 회차와 수강료가 같이 바뀌므로 지울 수 있어야 한다.
+ */
+export async function removeHoliday(id) {
+  if (!id) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("holidays").delete().eq("id", id);
+  revalidatePath("/schedule");
+  revalidatePath("/tuition");
+  return ok(error);
+}
+
 // ---------- 공휴일인데 그냥 수업하기로 한 경우 ----------
 /**
  * "쉴지 정해주세요" 알림에 대한 **또 하나의 답**이다.

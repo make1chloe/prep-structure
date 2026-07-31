@@ -12,10 +12,19 @@ function unavailable(error) {
 // 늦귀가 과제
 // ============================================================
 
-/** 하나 추가 — 미흡·미제출을 찍으면 자동으로, 또는 직접 */
-export async function addStay(studentId, date, body, homeworkItemId, auto = false) {
+/**
+ * 하나 추가 — 미흡·미제출을 찍으면 자동으로, 또는 직접.
+ *
+ * @param status 넣자마자 정해진 상태로 둘 수 있다.
+ *   자동으로 올라온 제안은 대부분 '남길 것' 이 아니라 그 자리에서
+ *   숙제로 넘기거나 넘어간다. 올렸다가 다시 누르는 두 번을 없앤다.
+ */
+export async function addStay(studentId, date, body, homeworkItemId, auto = false, status = "todo") {
   const text = (body || "").trim();
   if (!studentId || !date || !text) return { error: "내용이 없어요." };
+  if (!["todo", "done", "moved", "skipped", "dropped"].includes(status)) {
+    return { error: "알 수 없는 상태예요." };
+  }
   const supabase = createClient();
   const {
     data: { user },
@@ -29,14 +38,18 @@ export async function addStay(studentId, date, body, homeworkItemId, auto = fals
     .eq("date", date)
     .eq("body", text)
     .limit(1);
-  if (exist?.length) return { error: null, already: true };
+  if (exist?.length) {
+    // 이미 있으면 상태만 맞춰준다 (제안에서 바로 '숙제로' 를 누른 경우)
+    if (status !== "todo") return setStayStatus(exist[0].id, status);
+    return { error: null, already: true };
+  }
 
   const { error } = await supabase.from("stay_tasks").insert({
     student_id: studentId,
     date,
     homework_item_id: homeworkItemId || null,
     body: text,
-    status: "todo",
+    status,
     auto: !!auto,
     created_by: user?.id || null,
   });
@@ -55,11 +68,13 @@ export async function addStay(studentId, date, body, homeworkItemId, auto = fals
  *   done    다 했다
  *   moved   다 못 해서 숙제로 넘긴다
  *   skipped 오늘은 넘어간다
+ *   dropped 이건 아예 아니다 — 목록에서도 문자에서도 빠진다.
+ *           지우지 않고 남기는 이유는, 지우면 △·✕ 자국에서 **다시 제안**되기 때문이다.
  *   todo    되돌리기
  */
 export async function setStayStatus(id, status) {
   if (!id) return { error: null };
-  const ok = ["todo", "done", "moved", "skipped"];
+  const ok = ["todo", "done", "moved", "skipped", "dropped"];
   if (!ok.includes(status)) return { error: "알 수 없는 상태예요." };
 
   const supabase = createClient();

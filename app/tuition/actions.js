@@ -93,3 +93,32 @@ export async function setPaid(studentId, ym, paid, amount = null) {
   revalidatePath("/");
   return { error: null };
 }
+
+/**
+ * 학년별 수강료를 저장한다.
+ *
+ * 반에 하나씩만 적을 수 있어서, 한 반에 중2와 중3이 섞이면 학생마다 손으로
+ * 고쳐 넣어야 했다. 학년이 오르면 금액이 오르는 것은 규칙이지 예외가 아니다.
+ *
+ * 표를 새로 만들지 않는다 — 학년 몇 줄이라 설정 한 줄이면 충분하다.
+ * 빈칸은 지운다 (0원과 '안 적음' 은 다르기 때문이다).
+ */
+export async function saveGradeTuition(map = {}) {
+  const clean = {};
+  Object.entries(map).forEach(([grade, v]) => {
+    const g = (grade || "").trim();
+    if (!g) return;
+    const digits = (v ?? "").toString().replace(/[^\d]/g, "");
+    if (digits === "") return;          // 안 적은 학년은 담지 않는다
+    clean[g] = parseInt(digits, 10);
+  });
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("integrations")
+    .upsert({ id: "tuition", enabled: true, config: { byGrade: clean } }, { onConflict: "id" });
+  if (error) return { error: error.message };
+
+  revalidatePath("/tuition");
+  return { error: null };
+}
