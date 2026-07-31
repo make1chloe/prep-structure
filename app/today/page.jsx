@@ -511,11 +511,14 @@ export default async function TodayPage({ searchParams }) {
 
   // 진도율 = 완료한 단원 ÷ 전체 단원 (분량이 있으면 분량 기준)
   // 순서와 상관없이 아무 단원이나 체크할 수 있으므로 "합계"로 센다
-  function progressOf(studentId, classId) {
-    const ids = new Set([
-      ...(booksOfClassEarly.get(classId) || []),
-      ...(booksOfStudent.get(studentId) || []),
-    ]);
+  // 교재는 **학생별**이다 — 정규든 특강이든.
+  //
+  // 예전에는 반 교재와 학생 교재를 합쳐서 봤다. 그런데 반에 교재를 붙이면
+  // 그때 학생마다 복사되므로(setClassTextbooks), 합칠 이유가 없다.
+  // 오히려 합치면 **한 학생만 그 교재를 뺐을 때 다시 살아난다** — 같은 반이라는
+  // 이유로. 그래서 학생에게 붙은 것만 본다.
+  function progressOf(studentId) {
+    const ids = new Set(booksOfStudent.get(studentId) || []);
     return [...ids].map((tid) => {
       const round = roundOf.get(`${studentId}|${tid}`) || 1;
       // 진도율은 **지금 회독** 기준이다. 지난 회독은 기록으로만 남는다.
@@ -760,7 +763,7 @@ export default async function TodayPage({ searchParams }) {
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
           notices: noticesOfStudent.get(s.id) || [],
-          books: progressOf(s.id, klass.id),
+          books: progressOf(s.id),
           classId: klass.id,
           // 있으면 출결을 이 반에만 찍는다 (없으면 예전처럼 그날 출결)
           extraClassId: extra ? klass.id : null,
@@ -819,7 +822,7 @@ export default async function TodayPage({ searchParams }) {
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),
         notices: noticesOfStudent.get(s.id) || [],
-        books: progressOf(s.id, null),
+        books: progressOf(s.id),
         reportWritten: !!rep?.report_written,
         unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
         stay: stayOf.get(s.id) || [],

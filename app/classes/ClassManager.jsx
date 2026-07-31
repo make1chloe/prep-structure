@@ -519,12 +519,12 @@ export default function ClassManager({
           </p>
         )}
 
-        {/* 교재 배정 — 반에 붙이면 그 반 학생 전원에게 진도가 깔린다 */}
+        {/* 교재는 **학생별**이다. 여기는 그 반 학생에게 한 번에 넣어주는 지름길일 뿐 */}
         {selected && (
           <div style={{ marginTop: 18, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
               <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-                교재 배정{" "}
+                교재 한 번에 넣기{" "}
                 <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
                   {pickedBooks.size}권
                 </span>
@@ -538,8 +538,11 @@ export default function ClassManager({
               </button>
             </div>
             <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5 }}>
-              교재를 배정하면 이 반 학생 전원에게 그 교재의 단원이 진도로 깔립니다.
-              완료한 단원은 오늘 수업 화면에서 순서와 상관없이 체크할 수 있어요.
+              <b>교재는 학생마다 따로 붙습니다</b> (정규든 특강이든). 여기서 고르면 지금 이 반
+              학생 전원에게 <b>한 번에 넣어줄 뿐</b>이고, 그다음부터는 학생별로 관리됩니다.
+              그래서 한 학생만 교재를 빼거나 바꿔도 다른 학생은 그대로입니다.
+              <br />
+              나중에 들어온 학생에게는 자동으로 안 붙으니, 그 학생 기록에서 직접 넣어주세요.
             </p>
             <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 8 }}>
               <input
