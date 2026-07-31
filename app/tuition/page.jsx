@@ -112,9 +112,18 @@ export default async function TuitionPage({ searchParams }) {
   const settings = await loadSettings(supabase);
   const makeupDays = settings.schedule?.makeupDays || [];
 
+  // 받았는가 — 금액은 여기서 다시 계산하지 않는다. 저장하는 건 '받았다'뿐이다 (원칙1)
+  const payQ = await supabase
+    .from("payments")
+    .select("student_id, ym, amount, paid_on, method, source, note")
+    .eq("ym", ym);
+  const payReady = !payQ.error;
+  const payOf = new Map((payQ.error ? [] : payQ.data || []).map((p) => [p.student_id, p]));
+
   let total = 0;
   let totalCredit = 0;
   let totalMakeup = 0;
+  let totalUnpaid = 0;
   const groups = (classes || []).map((klass) => {
     const { all, off, live, makeupOnly } = classSessions(ym, klass, holidays || [], makeupDays);
     const base = klass.base_sessions || live.length;
@@ -131,7 +140,11 @@ export default async function TuitionPage({ searchParams }) {
           ? extraAbsentOf.get(`${klass.id}|${s.id}`) || []
           : absentOf.get(s.id) || [];
         const calc = studentAmount(live, base, unit, s, all, absent);
-        return { student: s, ...calc };
+        const pay = payOf.get(s.id) || null;
+        const paid = !!pay?.paid_on;
+        // 안 받은 돈 — 금액이 안 적힌 학생은 셀 수 없으므로 뺀다
+        if (!paid && calc.amount) totalUnpaid += calc.amount;
+        return { student: s, ...calc, pay, paid };
       })
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
     const sum = rows.reduce((a, r) => a + (r.amount || 0), 0);
@@ -171,6 +184,8 @@ export default async function TuitionPage({ searchParams }) {
           makeupDays={makeupDays}
           noClass={noClass}
           unavailable={!ready}
+          totalUnpaid={totalUnpaid}
+          payReady={payReady}
         />
       </main>
     </>

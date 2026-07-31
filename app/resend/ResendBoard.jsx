@@ -6,6 +6,10 @@ import { saveText, resetText, resend, listSends } from "./actions";
 import { addDays } from "@/lib/day";
 
 const shiftDate = addDays;
+
+// 재발송은 발송 화면의 '다시 보내기' 탭이다 (따로 있던 /resend 를 합쳤다).
+// 날짜를 옮겨도 탭이 풀리지 않게 여기로 돌아온다.
+const HERE = "/report?t=resend";
 function timeLabel(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -158,15 +162,15 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
   return (
     <>
       <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 12 }}>
-        <a className="btn btn-ghost btn-sm" href={`/resend?d=${shiftDate(date, -1)}`}>◂ 어제</a>
+        <a className="btn btn-ghost btn-sm" href={`${HERE}&d=${shiftDate(date, -1)}`}>◂ 어제</a>
         <input
           className="input input-sm"
           type="date"
           style={{ width: 150 }}
           defaultValue={date}
-          onChange={(e) => e.target.value && router.push(`/resend?d=${e.target.value}`)}
+          onChange={(e) => e.target.value && router.push(`${HERE}&d=${e.target.value}`)}
         />
-        <a className="btn btn-ghost btn-sm" href={`/resend?d=${shiftDate(date, 1)}`}>내일 ▸</a>
+        <a className="btn btn-ghost btn-sm" href={`${HERE}&d=${shiftDate(date, 1)}`}>내일 ▸</a>
         <span className="spacer" />
         {KINDS.map((k) => (
           <button

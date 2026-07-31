@@ -541,5 +541,5 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
     ignoreDuplicates: true,
   });
 
-  revalidatePath("/todo");
+  revalidatePath("/tasks");
 }

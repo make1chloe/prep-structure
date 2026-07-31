@@ -10,25 +10,18 @@
 --   4. 오른쪽 아래 Run (또는 Cmd/Ctrl + Enter)
 --   5. "Success" 가 나오면 끝
 --
--- 0001 부터 지금까지가 순서대로 다 들어 있습니다.
 -- 여러 번 실행해도 안전합니다 — 이미 있는 것은 전부 건너뜁니다.
--- 새 프로젝트든 쓰던 프로젝트든 이 파일 하나면 됩니다.
 --
 -- ※ 중간에 에러가 나면 **아무것도 반영되지 않습니다** (한 덩어리로 실행되기 때문).
 --   DB 가 망가진 게 아니니 원인만 고쳐서 다시 Run 하시면 됩니다.
+--   어디서 걸렸는지 모르겠으면 앱의 **설정 → Supabase SQL** 에서 한 개씩 돌려보세요.
 --
--- 제대로 됐는지 확인하는 법
---   · 오늘 수업 맨 위에 "공지 · 전달사항" 입력칸                → 0009 까지 OK
---   · 수업 스케줄 · 시험 화면에 시험 일정 20건                  → 0022 까지 OK
---   · 학생용 페이지 숙제 아래 💬 댓글 버튼                      → 0023 까지 OK
---   · 오늘 수업 학생 칸에 '오늘 마무리' 줄                      → 0024 까지 OK
---   · 단어 교재 진도 아래 '1회독 · 시험 방식 미설정'            → 0025 까지 OK
---   · 학생 기록 오른쪽에 '경고 기록' 칸                         → 0026 까지 OK
---   · 오늘 수업 학생 칸에 '하원 안내' 줄                        → 0027 까지 OK
---   · 학습 항목 표에 '내 할일 자동 생성' 칸                     → 0028 까지 OK
---   · 설정 → 문자 문구에 문자 9개                              → 0029 까지 OK
---   · 문자 문구를 열었을 때 '알림톡' 칸                         → 0030 까지 OK
---   · 메뉴에 '월말 리포트' 가 보이고 열리면                    → 0031 까지 OK
+-- 0001 부터 지금까지가 순서대로 다 들어 있습니다.
+-- 새 프로젝트든 쓰던 프로젝트든 이 파일 하나면 됩니다.
+--
+-- ⚠ 이 파일은 손으로 고치지 마세요.
+--   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
+--   (2026-07-30 · 0001~0055 · 55개)
 -- ============================================================
 
 -- ─────────── 0001_core_schema.sql ───────────
@@ -538,12 +531,27 @@ insert into public.homework_items (name, category, sort) values
   ('쓰기숙제','기타',750), ('반성문','기타',760)
 on conflict (name) do nothing;
 
-
-
+-- ─────────── 0006_textbook_status.sql ───────────
 -- ============================================================
--- 0008: 숙제 배정에 교재 단원 연결
+-- 0006_textbook_status
+-- 교재 상태: 사용중 / 절판 / 중단  (기본 사용중)
+-- 절판·중단 교재는 목록에서 숨길 수 있게 한다.
 -- ============================================================
 
+alter table public.textbooks
+  add column if not exists status text not null default 'active';
+
+-- ─────────── 0007_textbook_year_units.sql ───────────
+-- ============================================================
+-- 0007_textbook_year_units
+--   textbooks.pub_year        : 출판년도 (같은 교재의 개정판 구분)
+--   textbook_units.total_pages: 단원 총 분량(페이지 수)
+-- ============================================================
+
+alter table public.textbooks      add column if not exists pub_year   int;
+alter table public.textbook_units add column if not exists total_pages int;
+
+-- ─────────── 0008_homework_unit.sql ───────────
 -- 0008: 숙제 배정에 교재 단원 연결
 --   daily_report_items.textbook_unit_id : 이 숙제가 가리키는 교재 단원 (교재DB의 단원명과 연동)
 --   daily_report_items.range_note       : 단원으로 딱 떨어지지 않는 범위 메모 (예: "12~19p, 짝수만")
@@ -558,12 +566,8 @@ alter table public.daily_report_items
 create index if not exists daily_report_items_unit_idx
   on public.daily_report_items (textbook_unit_id);
 
-
--- ============================================================
--- 0009: 숙제 다중 단원 + 공지/전달사항
--- ============================================================
-
--- 0009: 숙제 다중 단원 배정 + 공지/전달사항
+-- ─────────── 0009_notices.sql ───────────
+-- 0009: 숙제 다중 단원 배정 + 공지/전달사항 + 학습 방법
 -- 안전하게 여러 번 실행 가능합니다.
 
 -- ---------- 1) 숙제 하나에 단원 여러 개 ----------
@@ -616,11 +620,7 @@ end $$;
 -- ---------- 3) 학습 항목별 학습 방법 (학생용 안내) ----------
 alter table public.homework_items add column if not exists method text;
 
-
--- ============================================================
--- 0010: 학생별 교재 배정 · 단원 진도
--- ============================================================
-
+-- ─────────── 0010_student_progress.sql ───────────
 -- 0010: 학생별 교재 배정 · 단원 진도 (순서 무관 체크)
 -- 안전하게 여러 번 실행 가능합니다.
 --
@@ -666,21 +666,13 @@ begin
   end loop;
 end $$;
 
-
--- ============================================================
--- 0011: 페이지 기반 진도
--- ============================================================
-
+-- ─────────── 0011_page_progress.sql ───────────
 -- 0011: 단원을 아직 안 만든 교재의 진도 (페이지로 기록)
 -- 단원 데이터를 다 만들기 전에도 "지금 몇 페이지까지"로 진도를 볼 수 있게 한다.
 alter table public.student_textbooks
   add column if not exists current_page int;
 
-
--- ============================================================
--- 0012: 데일리리포트 발송
--- ============================================================
-
+-- ─────────── 0012_report_send.sql ───────────
 -- 0012: 데일리리포트 발송
 --   sent_at     : 학부모에게 보낸 시각 (없으면 아직 안 보냄)
 --   report_text : 실제로 보낸 문구. 비어 있으면 자동 생성 문구를 쓴다.
@@ -689,11 +681,7 @@ alter table public.daily_reports add column if not exists sent_at timestamptz;
 alter table public.daily_reports add column if not exists report_text text;
 create index if not exists daily_reports_sent_idx on public.daily_reports (date, sent_at);
 
-
--- ============================================================
--- 0013: 재발송
--- ============================================================
-
+-- ─────────── 0013_resend.sql ───────────
 -- 0013: 재발송 (숙제 문자 · 데일리리포트 다시 보내기)
 --   homework_text     : 고친 숙제 문자. 비어 있으면 자동 생성 문구를 쓴다.
 --   homework_sent_at  : 숙제 문자를 마지막으로 보낸 시각
@@ -718,11 +706,7 @@ create policy staff_all on public.report_sends
   for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
-
--- ============================================================
--- 0014: 할일 · 일정 DB
--- ============================================================
-
+-- ─────────── 0014_tasks.sql ───────────
 -- 0014: 할일 · 일정 DB
 --
 -- 속성 정리 (원칙4-1: 만들기 전에 나열하고 불필요한 것 제거)
@@ -778,11 +762,7 @@ alter table public.notices
   add column if not exists task_id uuid references public.tasks(id) on delete set null;
 create index if not exists notices_task_idx on public.notices (task_id);
 
-
--- ============================================================
--- 0015: 연동 설정 (문자 발송 · 웹훅)
--- ============================================================
-
+-- ─────────── 0015_integrations.sql ───────────
 -- 0015: 연동 설정 (문자 발송 · 웹훅 · 학원 정보)
 --
 -- 환경변수 대신 앱에서 바꾼다. 값이 바뀌어도 재배포가 필요 없다.
@@ -821,11 +801,7 @@ insert into public.integrations (id, enabled, config) values
   ('academy', true, '{"name":"클로이영어"}'::jsonb)
 on conflict (id) do nothing;
 
-
--- ============================================================
--- 0016: 앱 알림 (웹 푸시)
--- ============================================================
-
+-- ─────────── 0016_push.sql ───────────
 -- 0016: 앱 알림 (웹 푸시) — 문자 비용 없이 학생·학부모에게 알림
 --
 --   push_subscriptions : 기기 하나당 한 줄. 알림 허용을 누르면 브라우저가 만들어 준다.
@@ -893,11 +869,7 @@ drop policy if exists read_all_staff_or_student on public.textbooks;
 create policy read_all_staff_or_student on public.textbooks
   for select to authenticated using (true);
 
-
--- ============================================================
--- 0017: 결석 예정 · 신규 상담 · 안내 문자 템플릿
--- ============================================================
-
+-- ─────────── 0017_plan_consult_templates.sql ───────────
 -- 0017: 결석 예정 · 신규 상담 · 안내 문자 템플릿
 -- 안전하게 여러 번 실행 가능합니다.
 
@@ -1029,11 +1001,7 @@ begin
   end loop;
 end $$;
 
-
--- ============================================================
--- 0018: 수강료 계산 · 학부모 신청 양식
--- ============================================================
-
+-- ─────────── 0018_tuition_apply.sql ───────────
 -- 0018: 수강료 계산 (회차 기준) · 학부모 신청 양식
 -- 안전하게 여러 번 실행 가능합니다.
 
@@ -1127,11 +1095,7 @@ set body = '[{{학원명}}] {{학생명}} 학생 교재 안내
 구매가 어려우시면 학원으로 말씀해주세요.'
 where kind = 'book' and body like '%교재비%';
 
-
--- ============================================================
--- 0019: 일정 연결 · 학생/학부모 요청 · 교재 사용 기록
--- ============================================================
-
+-- ─────────── 0019_requests_bookuse.sql ───────────
 -- 0019: 일정 ↔ 결석예정 연결 · 학생/학부모 요청 · 교재 사용 기록 · 문구 설정
 -- 안전하게 여러 번 실행 가능합니다. (테이블을 지우는 구문은 없습니다)
 
@@ -1229,11 +1193,7 @@ drop policy if exists read_class_students on public.class_students;
 create policy read_class_students on public.class_students
   for select to authenticated using (true);
 
-
--- ============================================================
--- 0020: 할일 / 일정 분리
--- ============================================================
-
+-- ─────────── 0020_todo_schedule.sql ───────────
 -- 0020: 할일과 일정을 나눈다 · 할일 분류를 직접 관리
 --
 -- 나누는 기준
@@ -1289,11 +1249,7 @@ create policy staff_all on public.todo_categories
   for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
-
--- ============================================================
--- 0021: 학교 시험 일정
--- ============================================================
-
+-- ─────────── 0021_exams.sql ───────────
 -- 0021: 학교 시험 일정
 --
 -- 입력이 두 단계로 들어온다
@@ -1335,7 +1291,7 @@ drop policy if exists read_exams on public.exam_periods;
 create policy read_exams on public.exam_periods
   for select to authenticated using (true);
 
-
+-- ─────────── 0022_exam_seed_2026.sql ───────────
 -- 0022: 2026년 학교 시험 일정 (노션 학사일정DB에서 옮김)
 --
 -- 노션에는 시험 기간과 영어 시험일이 **따로 적혀 있었다.**
@@ -1382,7 +1338,7 @@ insert into public.exam_periods (school, grade, name, from_date, to_date, englis
   ('신정중',   null, '2학기 기말고사', '2026-12-14', '2026-12-16', null, '노션 이관')
 on conflict do nothing;
 
-
+-- ─────────── 0023_report_comments.sql ───────────
 -- 0023: 숙제 · 데일리리포트에 댓글
 --
 -- 지금은 학부모가 문자를 받고 **답장할 데가 없다.** 전화나 카톡으로 오면
@@ -1461,8 +1417,7 @@ create policy own_parent_link on public.parent_student
   for select to authenticated
   using (parent_profile_id = auth.uid() or public.is_staff());
 
-
-
+-- ─────────── 0024_warnings_stay.sql ───────────
 -- 0024: 경고 · 반성문 · 오늘 마무리(늦귀가과제)
 --
 -- ── 경고 ────────────────────────────────────────────────────
@@ -1569,7 +1524,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordPassPct":80,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
-
+-- ─────────── 0025_word_test.sql ───────────
 -- 0025: 단어시험 방식 (학생마다 · 교재마다 · 회독마다 다르다)
 --
 -- 단어시험은 학생마다 보는 방법이 다르다. 개수는 정해져 있지 않고,
@@ -1645,10 +1600,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordWrongPct":10,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
--- ============================================================
--- 0026
--- ============================================================
-
+-- ─────────── 0026_round_progress_reset.sql ───────────
 -- 0026: 회독별 진도 기록 + 경고 월간 초기화
 --
 -- ── 회독 진도를 지우지 않는다 ────────────────────────────────
@@ -1690,10 +1642,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordWrongPct":10,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
--- ============================================================
--- 0027
--- ============================================================
-
+-- ─────────── 0027_late_notice.sql ───────────
 -- 0027: 늦은 귀가 안내 (하원 안내 문자)
 --
 -- 남아서 단어 재시험을 보거나 숙제를 마저 하고 가면 평소보다 늦게 나간다.
@@ -1723,10 +1672,7 @@ comment on column public.daily_reports.late_until is
 comment on column public.report_sends.kind is
   'report | homework | late — 어떤 문자였는지';
 
--- ============================================================
--- 0028
--- ============================================================
-
+-- ─────────── 0028_prep_task.sql ───────────
 -- 0028: 숙제를 배정하면 **내 할일**이 자동으로 생긴다
 --
 -- 단원평가 대비 복습을 숙제로 내주면, 다음 수업 전에 **내가 문제를 출제해야 한다.**
@@ -1764,10 +1710,7 @@ update public.homework_items
  where prep_task is null
    and name like '%단원평가%';
 
--- ============================================================
--- 0029
--- ============================================================
-
+-- ─────────── 0029_message_kinds.sql ───────────
 -- 0029: 문자 문구를 종류별로 나눈다
 --
 -- 지금까지 인삿말·맺음말이 **하나뿐**이라 데일리리포트에도, 숙제 문자에도,
@@ -1862,10 +1805,7 @@ select v.name, v.kind, v.body, v.sort
    select 1 from public.message_templates m where m.name = v.name
  );
 
--- ============================================================
--- 0030
--- ============================================================
-
+-- ─────────── 0030_alimtalk.sql ───────────
 -- 0030: 알림톡 연결 · 할일 제목에 단원 넣기
 --
 -- ── 알림톡 ──────────────────────────────────────────────────
@@ -1900,10 +1840,7 @@ update public.homework_items
    set prep_task = '{학생}-단원평가-{단원}'
  where prep_task = '{학생} 단원평가 출제';
 
--- ============================================================
--- 0031
--- ============================================================
-
+-- ─────────── 0031_monthly_report.sql ───────────
 -- 0031: 월말 리포트 · 단원평가 결과
 --
 -- 하루치 리포트는 그날만 보여준다. 한 달을 모아 보면 다른 게 보인다 —
@@ -1990,10 +1927,7 @@ insert into public.message_templates (name, kind, key, body, sort) values
   ('월말 리포트', 'auto', 'monthly', '', 35)
 on conflict (key) where key is not null do nothing;
 
--- ============================================================
--- 0032
--- ============================================================
-
+-- ─────────── 0032_pass_pct.sql ───────────
 -- 0032: 점수 기준을 하나로 — **성취도 %**
 --
 -- 어떤 줄은 높아야 좋고(숙제 성취도) 어떤 줄은 낮아야 좋으면(오답률)
@@ -2017,10 +1951,7 @@ insert into public.integrations (id, enabled, config) values
   ('warning', true, '{"reflectionAt":3,"wordPassPct":90,"countLate":true,"countHomework":true,"countWordTest":true}'::jsonb)
 on conflict (id) do nothing;
 
--- ============================================================
--- 0033
--- ============================================================
-
+-- ─────────── 0033_study_timer.sql ───────────
 -- 0033: 학생용 — 순서대로 · 시간을 재면서
 --
 -- 등원해서 무엇부터 할지 학생이 매번 묻지 않게 **순서대로** 보여준다.
@@ -2037,11 +1968,12 @@ alter table public.homework_items
 comment on column public.homework_items.no_timer is
   '선생님 확인이 필요해 기다릴 수 있는 항목. 학생 화면에서 타이머를 안 띄운다';
 
--- 처음 쓰는 사람이 바로 쓸 수 있게, 기다리는 게 뻔한 것들은 켜 둔다
+-- 처음 쓰는 사람이 바로 쓸 수 있게, 기다리는 게 뻔한 것들은 켜 둔다.
+-- (단어시험은 학생이 혼자 보므로 뺀다 — 0036 에서 바로잡았다)
 update public.homework_items
    set no_timer = true
  where no_timer = false
-   and (name like '%시험%' or name like '%검사%' or name like '%채점%' or name like '%상담%');
+   and (name like '%구두%' or name like '%검사%' or name like '%채점%' or name like '%상담%');
 
 
 -- ------------------------------------------------------------
@@ -2090,10 +2022,7 @@ create policy parent_read on public.study_sessions
               and ps.parent_profile_id = auth.uid())
   );
 
--- ============================================================
--- 0034
--- ============================================================
-
+-- ─────────── 0034_inclass_study.sql ───────────
 -- 0034: 등원 학습 · 학생이 누르는 '학습 완료'
 --
 -- 0033 에서 타이머를 **집에서 하는 숙제**에 붙였는데, 정작 필요한 것은
@@ -2124,10 +2053,7 @@ alter table public.study_sessions
 comment on column public.study_sessions.kind is
   'inclass(학원에서) | home(집에서). 나중에 습관을 볼 때 나눠 본다';
 
--- ============================================================
--- 0035
--- ============================================================
-
+-- ─────────── 0035_routine.sql ───────────
 -- 0035: 학습 루틴 — 진도를 따라 순서대로
 --
 -- 문법 교재는 단원마다 하는 일이 정해져 있다.
@@ -2176,10 +2102,7 @@ alter table public.students
 comment on column public.students.default_inclass is
   '등원 학습 기본값. 오늘 수업에서 [기본값] 을 누르면 이게 깔린다';
 
--- ============================================================
--- 0036
--- ============================================================
-
+-- ─────────── 0036_no_timer_fix.sql ───────────
 -- 0036: '선생님과 함께' 를 실제에 맞게 좁힌다
 --
 -- 0033 에서 이름에 시험·검사·채점·상담이 들어가면 타이머를 껐다.
@@ -2199,10 +2122,7 @@ update public.homework_items
      or name like '%상담%'
    );
 
--- ============================================================
--- 0037
--- ============================================================
-
+-- ─────────── 0037_arrival.sql ───────────
 -- 0037: 등원 절차 · 단어시험 시점
 --
 -- ── 등원 절차 ───────────────────────────────────────────────
@@ -2242,10 +2162,7 @@ update public.homework_items
    and name like '%단어%'
    and (name like '%시험%' or name like '%테스트%');
 
--- ============================================================
--- 0038
--- ============================================================
-
+-- ─────────── 0038_arrival_by_student.sql ───────────
 -- 0038: 등원 체크는 **학생이** 누른다
 --
 -- 0037 에서 폰·숙제 제출을 daily_reports 에 넣고 선생님이 찍게 했다.
@@ -2303,10 +2220,7 @@ comment on column public.daily_reports.phone_in is
 comment on column public.daily_reports.homework_in is
   '안 씀 (0038 부터 arrival_checks 로 옮김)';
 
--- ============================================================
--- 0039
--- ============================================================
-
+-- ─────────── 0039_arrival_attend.sql ───────────
 -- 0039: 등원 체크에 '출석 체크' 를 더한다
 --
 -- 출석은 외부 앱에서 한다. 그런데 **아이들이 잊어버린다.**
@@ -2323,10 +2237,7 @@ alter table public.arrival_checks
 comment on column public.arrival_checks.attend_at is
   '외부 앱에서 출석 체크를 했다고 학생이 확인한 시각';
 
--- ============================================================
--- 0040
--- ============================================================
-
+-- ─────────── 0040_attend_marks_present.sql ───────────
 -- 0040: 아이가 출석 체크를 하면 등원으로 잡는다
 --
 -- 출석은 외부 앱에서 하지만, 아이가 우리 화면에서 '출석 체크 했어요' 를 누르면
@@ -2368,10 +2279,7 @@ create policy own_read on public.attendance
     )
   );
 
--- ============================================================
--- 0041
--- ============================================================
-
+-- ─────────── 0041_academy_net.sql ───────────
 -- 0041: 학원에서만 등원 체크가 되게
 --
 -- 아이가 오는 길에 미리 눌러버리면 등원 체크가 아무 뜻이 없다.
@@ -2405,10 +2313,7 @@ drop policy if exists read_all on public.academy_net;
 create policy read_all on public.academy_net
   for select to authenticated using (true);
 
--- ============================================================
--- 0042
--- ============================================================
-
+-- ─────────── 0042_class_term.sql ───────────
 -- 0042: 특강 기한 · 반별 출결
 --
 -- 두 가지를 푼다.
@@ -2482,10 +2387,7 @@ create policy own_read on public.class_attendance
                  and ps.parent_profile_id = auth.uid())
   );
 
--- ============================================================
--- 0043
--- ============================================================
-
+-- ─────────── 0043_student_login.sql ───────────
 -- 0043: 학생 계정 연결
 --
 -- 학생용 화면(/me)은 만들어 뒀는데, **학생 계정을 만들 길이 없었다.**
@@ -2595,10 +2497,7 @@ create policy own_read on public.students
                where ps.student_id = students.id and ps.parent_profile_id = auth.uid())
   );
 
--- ============================================================
--- 0044
--- ============================================================
-
+-- ─────────── 0044_submissions.sql ───────────
 -- 0044: 학생이 숙제를 제출한다
 --
 -- 지금은 "학습 완료" 를 누르는 것이 전부다. 정말 했는지는 등원해서
@@ -2706,10 +2605,7 @@ begin
   end if;
 end $$;
 
--- ============================================================
--- 0045
--- ============================================================
-
+-- ─────────── 0045_student_id_login.sql ───────────
 -- 0045: 아이디 로그인 · 체크리스트 숙제
 --
 -- 1) 이메일로 로그인시키면 아이들이 못 들어온다.
@@ -2778,10 +2674,7 @@ $$;
 revoke all on function public.email_for_login_id(text) from public;
 grant execute on function public.email_for_login_id(text) to anon, authenticated;
 
--- ============================================================
--- 0046
--- ============================================================
-
+-- ─────────── 0046_makeup_time.sql ───────────
 -- 0046: 보강 시간
 --
 -- 보강을 잡을 때 날짜만 정하고 시간이 없었다. 그런데 보강은 정규 수업이
@@ -2795,10 +2688,7 @@ comment on column public.attendance.makeup_time is '보강 시각. 비면 아직
 
 alter table public.class_attendance add column if not exists makeup_time time;
 
--- ============================================================
--- 0047
--- ============================================================
-
+-- ─────────── 0047_storage_fix.sql ───────────
 -- 0047: 숙제 파일이 안 올라가던 것
 --
 -- 학생이 녹음을 내면 "new row violates row-level security policy" 가 났다.
@@ -2885,10 +2775,7 @@ begin
   end if;
 end $$;
 
--- ============================================================
--- 0048
--- ============================================================
-
+-- ─────────── 0048_home_twin.sql ───────────
 -- 0048: 등원에서 할 것 · 집에서 할 것이 다른 학습
 --
 -- 구두테스트는 원장님이 앞에 있어야 한다. 집에서는 할 수가 없어서
@@ -2906,10 +2793,7 @@ alter table public.homework_items
 comment on column public.homework_items.home_item_id is
   '이 학습을 숙제로 낼 때 대신 쓰는 항목. 비면 그대로 나간다';
 
--- ============================================================
--- 0049
--- ============================================================
-
+-- ─────────── 0049_consult_ai.sql ───────────
 -- 0049: 상담일지 · 학부모 코멘트 초안
 --
 -- 1) 재원생 상담일지를 적을 곳이 없었다. 신규 상담 '일정' 만 있었고,
@@ -2961,10 +2845,7 @@ create policy staff_all on public.comment_samples
   for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
--- ============================================================
--- 0050
--- ============================================================
-
+-- ─────────── 0050_notice_split.sql ───────────
 -- 0050: 공지를 나눈다
 --
 -- 지금은 '공지' 칸이 하나뿐이라, 학생에게 할 말과 학부모께 드릴 말이
@@ -2981,10 +2862,7 @@ alter table public.daily_reports
 comment on column public.daily_reports.notice        is '부모님공지 — 데일리리포트 맨 아래';
 comment on column public.daily_reports.notice_student is '학생공지 — 숙제문자 맨 위';
 
--- ============================================================
--- 0051
--- ============================================================
-
+-- ─────────── 0051_question_unit.sql ───────────
 -- 0051: 단원 아래 문제번호
 --
 -- 내신 시험범위는 단원 단위가 아니라 **문제 단위**인 경우가 많다.
@@ -3004,10 +2882,7 @@ comment on column public.textbook_units.question_no is
 create index if not exists textbook_units_question_idx
   on public.textbook_units (textbook_id) where question_no is not null;
 
--- ============================================================
--- 0052
--- ============================================================
-
+-- ─────────── 0052_prep_materials.sql ───────────
 -- 0052: 내신 대비 자료 관리
 --
 -- 내신 교재를 따로 관리하지 않는다. 교재도 단원도 문제도 **기존 교재DB**에
@@ -3118,10 +2993,7 @@ create policy own_read on public.prep_assignments
   for select to authenticated
   using (student_id = public.my_student_id());
 
--- ============================================================
--- 0053
--- ============================================================
-
+-- ─────────── 0053_material_types.sql ───────────
 -- 0053: 내신 자료 종류를 미리 등록한다
 --
 -- 자료 종류가 너무 다양하고, 한 종류 안에 또 갈래가 있다.
@@ -3171,10 +3043,7 @@ alter table public.prep_materials drop column if exists arrived_on;
 -- 이름은 종류에서 가져오므로 비어 있어도 된다
 alter table public.prep_materials alter column name drop not null;
 
--- ============================================================
--- 0054
--- ============================================================
-
+-- ─────────── 0054_prep_routine.sql ───────────
 -- 0054: 내신 자료도 순서대로
 --
 -- 교재에 루틴이 있듯 내신 자료에도 순서가 있다.
@@ -3196,3 +3065,36 @@ comment on column public.prep_assignments.sort is
 -- 지금 하고 있는 것 / 다음에 낼 것을 빨리 찾기 위해
 create index if not exists prep_assign_next_idx
   on public.prep_assignments (student_id, sort) where graded_at is null;
+
+-- ─────────── 0055_payments.sql ───────────
+-- 수납
+--
+-- 앱은 **얼마를 받아야 하는지**를 이미 계산한다 (lib/tuition.js).
+-- 여기 저장하는 것은 **받았는가** 하나뿐이다. 금액을 두 곳에 두지 않는다. (원칙1)
+--
+-- 결제선생 같은 바깥 서비스에서 받은 엑셀을 올리면 이 표가 채워진다.
+-- 손으로 체크해도 같은 표에 들어간다 — 들어온 길만 `source` 로 남긴다.
+
+create table if not exists public.payments (
+  id          uuid primary key default gen_random_uuid(),
+  student_id  uuid not null references public.students(id) on delete cascade,
+  ym          text not null,                  -- "2026-09" — 무슨 달 수강료인가
+  amount      int,                            -- 실제로 받은 금액 (앱 계산과 다를 수 있다)
+  paid_on     date,                           -- 받은 날. 비어 있으면 아직 안 받음
+  method      text,                           -- 카드 · 이체 · 현금 …
+  source      text not null default 'manual', -- manual | 결제선생
+  note        text,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- 한 학생의 한 달은 한 줄이다. 엑셀을 여러 번 올려도 덮어쓴다
+create unique index if not exists payments_student_ym_idx
+  on public.payments (student_id, ym);
+create index if not exists payments_ym_idx on public.payments (ym);
+
+alter table public.payments enable row level security;
+drop policy if exists staff_all on public.payments;
+create policy staff_all on public.payments
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());

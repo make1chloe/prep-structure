@@ -7,6 +7,7 @@ import {
   deleteHoliday,
   setClassTuition,
   setStudentTuition,
+  setPaid,
 } from "./actions";
 import { won } from "@/lib/tuition";
 import { shortLabel } from "@/lib/day";
@@ -28,6 +29,8 @@ export default function TuitionBoard({
   totalCredit = 0,
   totalMakeup = 0,
   unavailable = false,
+  totalUnpaid = 0,
+  payReady = true,
 }) {
   const [open, setOpen] = useState(() => new Set(groups.map((g) => g.klass.id)));
   const [hDate, setHDate] = useState(`${ym}-01`);
@@ -85,12 +88,24 @@ export default function TuitionBoard({
         <span className="tag tag-mint" style={{ fontSize: 13, padding: "5px 12px" }}>
           이번 달 합계 <b>{won(total)}</b>
         </span>
+        {totalUnpaid > 0 && (
+          <span className="tag tag-red" style={{ fontSize: 13, padding: "5px 12px" }}>
+            아직 못 받음 <b>{won(totalUnpaid)}</b>
+          </span>
+        )}
         {totalMakeup > 0 && (
           <span className="tag tag-amber" style={{ fontSize: 13, padding: "5px 12px" }}>
             보강 필요 <b>{totalMakeup}회</b> · 차액 {won(totalCredit)}
           </span>
         )}
       </div>
+
+      {!payReady && (
+        <p className="hint" style={{ marginTop: 8 }}>
+          수납 칸을 쓰려면 <b>supabase/migrations/0055_payments.sql</b> 을 먼저 실행해주세요.
+          결제선생 엑셀은 <a className="sky" href="/import">노션 이관 · 수납</a> 에서 올립니다.
+        </p>
+      )}
 
       {/* 휴강일 */}
       <div className="card" style={{ marginTop: 12 }}>
@@ -284,6 +299,7 @@ export default function TuitionBoard({
                           <th style={{ width: 100 }}>등원 시작</th>
                           <th style={{ width: 100 }}>퇴원</th>
                           <th style={{ width: 110 }}>금액</th>
+                          <th style={{ width: 96 }}>수납</th>
                           <th style={{ width: 70 }}></th>
                         </tr>
                       </thead>
@@ -342,6 +358,7 @@ export default function TuitionBoard({
                                       onChange={(e) => setSDraft({ ...sDraft, tuition: e.target.value })}
                                     />
                                   </td>
+                                  <td className="muted">—</td>
                                   <td>
                                     <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                                       <button
@@ -381,6 +398,28 @@ export default function TuitionBoard({
                                     {r.student.tuition ? (
                                       <span className="tag tag-lav" style={{ marginLeft: 4 }}>개별</span>
                                     ) : null}
+                                  </td>
+                                  {/* 받았는가 — 한 번 눌러 뒤집는다. 엑셀로 올린 것도 여기 나온다 */}
+                                  <td>
+                                    <button
+                                      className={`btn btn-sm ${r.paid ? "btn-ghost" : ""}`}
+                                      style={
+                                        r.paid
+                                          ? { color: "var(--mint)", borderColor: "var(--mint)" }
+                                          : { color: "var(--red)", borderColor: "var(--red)" }
+                                      }
+                                      title={
+                                        r.paid
+                                          ? `${r.pay?.paid_on || ""} 받음${r.pay?.source === "결제선생" ? " (결제선생)" : ""}`
+                                          : r.pay?.note || "아직 안 받음 — 누르면 받음으로"
+                                      }
+                                      onClick={() =>
+                                        run(() => setPaid(r.student.id, ym, !r.paid, r.amount))
+                                      }
+                                      disabled={pending || !payReady}
+                                    >
+                                      {r.paid ? "받음" : "미납"}
+                                    </button>
                                   </td>
                                   <td>
                                     <button
