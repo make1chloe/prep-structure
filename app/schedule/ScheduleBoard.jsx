@@ -451,6 +451,20 @@ export default function ScheduleBoard({
                                 </span>
                               </>
                             )}
+                            {/* 누구 이야기인지 — 이름이 없으면 결국 명단을 다시 찾아본다.
+                                한 반에 학교가 섞여 있으면 반 전체가 아니라 그 학교 아이들만이다 */}
+                            {a.who?.length > 0 && (
+                              <>
+                                <br />
+                                <span style={{ fontSize: 12, lineHeight: 1.7 }}>
+                                  {a.school && (
+                                    <b>{[a.school, a.grade].filter(Boolean).join(" ")} — </b>
+                                  )}
+                                  {a.who.map((x) => x.name).join(", ")}{" "}
+                                  <span className="muted">({a.who.length}명)</span>
+                                </span>
+                              </>
+                            )}
                           </span>
 
                           {a.kind === "over" && !a.settled && (
@@ -482,11 +496,16 @@ export default function ScheduleBoard({
                               className="btn btn-ghost btn-sm"
                               disabled={pending}
                               onClick={() => {
+                                const names = (a.who || []).map((x) => x.name);
                                 if (
                                   !confirm(
-                                    `${klass.name} 학생 전체를 ${m.inExam.length}일(${m.inExam
+                                    `${klass.name} — ${m.inExam.length}일(${m.inExam
                                       .map(dayShort)
-                                      .join(", ")}) 결석 예정으로 넣을까요?`
+                                      .join(", ")}) 을 결석 예정으로 넣을까요?\n\n` +
+                                      (names.length
+                                        ? `시험 보는 학생: ${names.join(", ")} (${names.length}명)\n` +
+                                          "※ 지금은 반 전체에 찍힙니다. 다른 학교 학생이 섞여 있으면 그 아이들 것은 나중에 지워주세요.\n"
+                                        : "")
                                   )
                                 )
                                   return;
@@ -506,6 +525,16 @@ export default function ScheduleBoard({
                               disabled={pending}
                               onClick={() => {
                                 const e = m.engEve.find((x) => x.date === a.date);
+                                const names = (a.who || []).map((x) => x.name);
+                                if (
+                                  names.length &&
+                                  !confirm(
+                                    `${dayShort(a.date)} 등원 일정을 만들까요?\n\n` +
+                                      `${a.school || ""} ${a.grade || ""} — ${names.join(", ")} (${names.length}명)\n` +
+                                      "그날 전달사항으로 이 학생들에게 안내됩니다."
+                                  )
+                                )
+                                  return;
                                 run(
                                   () =>
                                     makeExamEveSession({
