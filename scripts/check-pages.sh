@@ -1,12 +1,13 @@
 #!/bin/bash
 # 화면이 열리는지 미리 잡아내는 검사
 #
-# `next build` 는 **문법과 import 만** 본다. 아래 두 가지는 빌드를 통과하고
+# `next build` 는 **문법과 import 만** 본다. 아래 것들은 빌드를 통과하고
 # 화면을 열었을 때 비로소 터진다. 실제로 두 번 다 이걸로 당했다.
 #
 #   1) 선언 안 된 이름  — 리팩터링하다 변수를 지웠는데 쓰는 곳이 남은 경우
 #                          (예: target 을 지웠는데 `target.getMonth()` 가 남음)
-#   2) "use server" 파일에서 async 함수가 아닌 것을 export
+#   2) 없는 함수를 불러다 쓰는 곳 — 빌드는 통과하고 그 버튼을 누를 때 터진다
+#   3) "use server" 파일에서 async 함수가 아닌 것을 export
 #                          → "A 'use server' file can only export async functions"
 #
 # 쓰는 법:  bash scripts/check-pages.sh
@@ -52,7 +53,12 @@ mid=$(grep -rn -B1 '^import .* from' app lib components --include=*.js --include
 if [ -n "$mid" ]; then echo "$mid"; fail=1; else echo "  없음"; fi
 
 echo
-echo "== 4) SQL (진짜 Postgres 에 세 번 실행) =="
+echo "== 4) 없는 함수를 불러다 쓰는 곳 =="
+# 빌드는 통과하고, 그 버튼을 누르는 순간 터진다. 실제로 「교재 배정」이 그랬다.
+if out=$(node scripts/check-imports.mjs 2>&1); then echo "$out"; else echo "$out"; fail=1; fi
+
+echo
+echo "== 5) SQL (진짜 Postgres 에 세 번 실행) =="
 if [ -x scripts/check-sql.sh ]; then
   bash scripts/check-sql.sh || fail=1
 else
@@ -60,7 +66,7 @@ else
 fi
 
 echo
-echo "== 5) 학생이 열 수 있는 화면 =="
+echo "== 6) 학생이 열 수 있는 화면 =="
 if out=$(node scripts/check-routes.mjs 2>/dev/null); then
   echo "$out"
 else
@@ -68,7 +74,7 @@ else
 fi
 
 echo
-echo "== 6) 학생 계정에 남의 것이 보이나 (진짜 Postgres) =="
+echo "== 7) 학생 계정에 남의 것이 보이나 (진짜 Postgres) =="
 # 화면을 막는 것과 데이터를 막는 것은 다른 이야기다. 5번은 화면, 여기는 데이터.
 if [ -f scripts/check-leak.sh ]; then
   bash scripts/check-leak.sh || fail=1
@@ -77,7 +83,7 @@ else
 fi
 echo
 
-echo "== 7) 빌드 =="
+echo "== 8) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
 else

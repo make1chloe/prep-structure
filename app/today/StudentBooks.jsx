@@ -60,7 +60,8 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }
         </div>
       </div>
       <p className="hint" style={{ margin: "6px 0 8px" }}>
-        반에 배정한 교재는 이미 들어와 있어요. 이 학생만 다르게 쓸 때 여기서 더하거나 뺍니다.
+        교재는 학생마다 따로 정합니다. 뺀 교재는 지워지지 않고 <b>중단</b>으로 남아,
+        지금까지 나간 진도가 그대로 보존돼요. 다시 넣으면 이어서 갑니다.
       </p>
       <input
         className="input input-sm"

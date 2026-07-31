@@ -14,6 +14,72 @@ function ok(error) {
 // 교재는 **학생별**이다 — 반별 교재라는 개념은 쓰지 않는다.
 // (같은 반이어도 학생마다 다른 교재를 쓴다. 반으로 묶으면 한 명만 바꿀 수가 없다)
 
+/**
+ * 이 학생이 지금 쓰는 교재를 **통째로** 정해준다 (재원생 · 오늘 수업의 교재 배정).
+ *
+ * 뺀 교재는 **지우지 않는다.** 지금까지 어디까지 나갔는지가 같이 사라지기
+ * 때문이다. '중단' 으로 돌려서 배정·진도 화면에서만 빠지게 하고,
+ * 학생 기록(교재 사용 기록)에는 그대로 남긴다. 다시 넣으면 이어서 간다.
+ */
+export async function setStudentTextbooks(studentId, bookIds) {
+  if (!studentId) return { error: "학생을 찾지 못했어요." };
+  const want = [...new Set((bookIds || []).filter(Boolean))];
+  const supabase = createClient();
+  const today = todaySeoul();
+
+  const { data: have, error: readErr } = await supabase
+    .from("student_textbooks")
+    .select("textbook_id, status")
+    .eq("student_id", studentId);
+  if (readErr) return { error: readErr.message };
+
+  const known = new Set((have || []).map((r) => r.textbook_id));
+  const active = new Set((have || []).filter((r) => !r.status || r.status === "active").map((r) => r.textbook_id));
+
+  // 넣을 것 — 처음이면 새로, 중단했던 것이면 다시 사용중으로
+  const add = want.filter((id) => !active.has(id));
+  if (add.length) {
+    const rows = add.map((id) =>
+      known.has(id)
+        ? { student_id: studentId, textbook_id: id, status: "active", ended_on: null }
+        : { student_id: studentId, textbook_id: id, status: "active", assigned_on: today, ended_on: null }
+    );
+    let { error } = await supabase
+      .from("student_textbooks")
+      .upsert(rows, { onConflict: "student_id,textbook_id" });
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // ended_on 이 아직 없는 DB
+      ({ error } = await supabase
+        .from("student_textbooks")
+        .upsert(rows.map(({ ended_on: _e, ...r }) => r), { onConflict: "student_id,textbook_id" }));
+    }
+    if (error) return { error: error.message };
+  }
+
+  // 뺄 것 — 지우지 않고 중단으로
+  const drop = [...active].filter((id) => !want.includes(id));
+  if (drop.length) {
+    let { error } = await supabase
+      .from("student_textbooks")
+      .update({ status: "dropped", ended_on: today })
+      .eq("student_id", studentId)
+      .in("textbook_id", drop);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      ({ error } = await supabase
+        .from("student_textbooks")
+        .update({ status: "dropped" })
+        .eq("student_id", studentId)
+        .in("textbook_id", drop));
+    }
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/students");
+  revalidatePath("/today");
+  revalidatePath("/plan");
+  return { error: null, added: add.length, dropped: drop.length };
+}
+
 // 단원을 아직 안 만든 교재는 "지금 몇 페이지까지"로 진도를 적는다
 export async function setCurrentPage(studentId, textbookId, page) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
