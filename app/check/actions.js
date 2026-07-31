@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { nextRoutine, advanceRoutine } from "@/app/today/routineActions";
 
 /**
  * 숙제 검사 — **한 자리에서 끝낸다.**
@@ -97,4 +98,78 @@ export async function seenSubmission(id, on = true) {
   revalidatePath("/check");
   revalidatePath("/me");
   return { error: error ? error.message : null };
+}
+
+/**
+ * 다음 숙제를 **자동으로** 배정한다.
+ *
+ * 교재마다 루틴이 정해져 있다 (문법은 설명→문제→본교재→워크북, 독해는
+ * 예습→테스트→복습). 그러니 다음에 낼 것은 이미 정해져 있다 — 매번 고를
+ * 일이 아니다. 단추 하나로 끝낸다.
+ *
+ *   1. 그 학생 교재들의 **지금 차례** 를 본다
+ *   2. 그 단계의 숙제를 오늘 리포트에 배정한다
+ *   3. 루틴을 한 칸 넘긴다 (다음에 누르면 그다음 것이 나온다)
+ *
+ * 집에서 못 하는 학습은 바꿔서 낸다 (구두테스트 → 셀프녹음테스트).
+ * 루틴은 등원 기준 하나만 알면 되고, 숙제로 나갈 때 여기서 알아서 바뀐다.
+ */
+export async function autoAssign(studentId, date) {
+  if (!studentId || !date) return { error: "값이 부족해요." };
+  const supabase = createClient();
+
+  const { data: rep } = await supabase
+    .from("daily_reports")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("date", date)
+    .maybeSingle();
+  if (!rep?.id) return { error: "이 날짜에 기록이 없어요. 먼저 출결을 찍어주세요." };
+
+  const routine = await nextRoutine(studentId);
+  if (routine.error) return { error: routine.error };
+  let ids = routine.home || [];
+  if (ids.length === 0) {
+    return { error: "이 학생 교재에 루틴이 없어요. 교재 › 교재·단원 에서 루틴을 먼저 짜주세요." };
+  }
+
+  // 집에서 못 하는 것은 숙제용으로 바꾼다
+  const { data: twins } = await supabase
+    .from("homework_items")
+    .select("id, home_item_id")
+    .in("id", ids)
+    .not("home_item_id", "is", null);
+  if (twins?.length) {
+    const swap = new Map(twins.map((t) => [t.id, t.home_item_id]));
+    ids = [...new Set(ids.map((id) => swap.get(id) || id))];
+  }
+
+  // 오늘 이미 배정한 것은 또 넣지 않는다
+  const { data: had } = await supabase
+    .from("daily_report_items")
+    .select("homework_item_id")
+    .eq("daily_report_id", rep.id)
+    .eq("status", "assigned");
+  const have = new Set((had || []).map((x) => x.homework_item_id));
+  const add = ids.filter((id) => !have.has(id));
+  if (add.length === 0) {
+    return { error: null, added: 0, already: true, steps: routine.steps };
+  }
+
+  const { error } = await supabase.from("daily_report_items").insert(
+    add.map((homework_item_id) => ({
+      daily_report_id: rep.id,
+      homework_item_id,
+      status: "assigned",
+    }))
+  );
+  if (error) return { error: error.message };
+
+  // 다음에 누르면 그다음 단계가 나오게
+  await advanceRoutine(studentId, (routine.steps || []).map((s) => s.textbookId));
+
+  revalidatePath("/check");
+  revalidatePath("/today");
+  revalidatePath("/me");
+  return { error: null, added: add.length, steps: routine.steps };
 }

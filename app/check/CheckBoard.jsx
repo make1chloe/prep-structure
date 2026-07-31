@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { checkOne, seenSubmission } from "./actions";
+import { checkOne, seenSubmission, autoAssign } from "./actions";
+import Link from "next/link";
 import { viewUrl } from "@/app/me/submitActions";
 import { addDays } from "@/lib/day";
 
@@ -239,7 +240,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                       </div>
                     )}
 
-                    {/* 검사 — 지난 수업에 배정한 것 */}
+                    {/* 검사 — 3주 안에 배정했는데 아직 안 본 것 */}
                     {r.toCheck.length === 0 ? (
                       <p className="hint" style={{ margin: 0 }}>
                         지난 수업에 배정한 숙제가 없어요.
@@ -248,7 +249,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                       <div className="stack" style={{ gap: 6 }}>
                         {r.assignedOn && (
                           <span className="hint" style={{ fontSize: 11.5 }}>
-                            {r.assignedOn.slice(5).replace("-", "/")} 에 낸 숙제입니다
+                            {r.assignedOn.slice(5).replace("-", "/")} 부터 아직 안 본 숙제입니다
                           </span>
                         )}
                         {r.toCheck.map((c) => {
@@ -258,6 +259,12 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                             <div className="stack" key={c.id} style={{ gap: 3 }}>
                               <div className="unitrow">
                                 <b style={{ fontSize: 13, minWidth: 110 }}>{nameOf(c.id)}</b>
+                                {/* 오래 밀린 것은 눈에 걸려야 한다 — 시험 기간에 넘어간 숙제가 여기 있다 */}
+                                {c.on && c.on !== r.assignedOn && (
+                                  <span className="tag tag-muted" style={{ fontSize: 10.5 }}>
+                                    {c.on.slice(5).replace("-", "/")}
+                                  </span>
+                                )}
                                 {c.range && (
                                   <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>{c.range}</span>
                                 )}
@@ -300,6 +307,40 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                         })}
                       </div>
                     )}
+
+                    {/* 다음 숙제는 루틴에 이미 정해져 있다 — 매번 고를 일이 아니다 */}
+                    <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
+                      <button
+                        className="btn btn-sm"
+                        disabled={pending || !r.hasReport}
+                        title={
+                          r.hasReport
+                            ? "교재 루틴의 다음 차례를 오늘 숙제로 냅니다"
+                            : "먼저 오늘 수업에서 출결을 찍어주세요"
+                        }
+                        onClick={() =>
+                          run(async () => {
+                            const res = await autoAssign(r.student.id, date);
+                            if (!res?.error) {
+                              alert(
+                                res.already
+                                  ? "오늘은 이미 배정돼 있어요."
+                                  : `다음 숙제 ${res.added}개를 냈어요.` +
+                                    (res.steps?.length
+                                      ? `\n${res.steps.map((x) => `${x.book} ${x.no}/${x.total}${x.label ? ` ${x.label}` : ""}`).join("\n")}`
+                                      : "")
+                              );
+                            }
+                            return res;
+                          })
+                        }
+                      >
+                        다음 숙제 자동배정
+                      </button>
+                      <span className="hint" style={{ fontSize: 11.5 }}>
+                        교재 루틴의 다음 차례가 나갑니다
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -307,6 +348,16 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
           })}
         </div>
       )}
+
+      {/* 검사가 끝나면 결국 오늘 수업으로 간다 — 맨 밑에 길을 둔다 */}
+      <div className="row" style={{ gap: 8, marginTop: 16, alignItems: "center" }}>
+        <Link className="btn btn-primary" href={`/today?d=${date}`}>
+          오늘 수업으로
+        </Link>
+        <span className="hint" style={{ fontSize: 12 }}>
+          출결 · 단어시험 · 공지는 오늘 수업 화면에서 합니다.
+        </span>
+      </div>
     </>
   );
 }

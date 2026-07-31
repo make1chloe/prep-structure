@@ -74,12 +74,13 @@ export default async function CheckPage({ searchParams }) {
     .lt("date", date)
     .order("date", { ascending: false });
   const prevIds = (prevReports || []).map((r) => r.id);
+  // 배정한 것과 **검사한 것을 함께** 읽는다. 배정만 보면 2주 전에 내주고
+  // 아직 못 본 숙제가 영영 안 뜬다 — 시험 기간에 밀린 것이 그렇게 사라진다.
   const { data: prevItems } = prevIds.length
     ? await supabase
         .from("daily_report_items")
         .select("daily_report_id, homework_item_id, status, range_note")
         .in("daily_report_id", prevIds)
-        .eq("status", "assigned")
     : { data: [] };
 
   // 학생이 낸 것 (사진 · 녹음 · 체크리스트)
@@ -98,12 +99,43 @@ export default async function CheckPage({ searchParams }) {
     itemsOfRep.get(i.daily_report_id).push(i);
   });
 
-  // 그 학생에게 마지막으로 배정된 숙제 (가까운 날 것이 이긴다)
+  // ── 아직 검사 안 한 숙제 ────────────────────────────
+  //
+  // "지난 수업에 낸 것" 만 보면 안 된다. 시험 기간에 못 끝낸 숙제, 결석해서
+  // 넘어간 숙제가 그대로 사라진다. **3주 안에 배정한 것 중 아직 안 본 것**을
+  // 전부 모은다.
+  //
+  // 안 본 것의 뜻: 배정한 날 **뒤에** 그 항목을 ○△✕ 로 찍은 기록이 없다.
+  // (오늘 찍은 것은 남겨둔다 — 방금 잘못 눌렀을 때 고칠 수 있어야 한다)
+  const dateOfRep = new Map((prevReports || []).map((r) => [r.id, r.date]));
+  const stuOfRep = new Map((prevReports || []).map((r) => [r.id, r.student_id]));
+
+  // 학생·항목별로 "언제 검사했나" (지난 리포트에서)
+  const checkedAt = new Map();
+  (prevItems || []).forEach((i) => {
+    if (!["done", "weak", "missing"].includes(i.status)) return;
+    const k = `${stuOfRep.get(i.daily_report_id)}:${i.homework_item_id}`;
+    const d = dateOfRep.get(i.daily_report_id);
+    if (!checkedAt.has(k) || d > checkedAt.get(k)) checkedAt.set(k, d);
+  });
+
   const assignedOf = new Map();
-  (prevReports || []).forEach((r) => {
-    if (assignedOf.has(r.student_id)) return;   // 이미 더 가까운 날 것을 담았다
-    const mine = (prevItems || []).filter((i) => i.daily_report_id === r.id);
-    if (mine.length) assignedOf.set(r.student_id, { date: r.date, items: mine });
+  (prevItems || []).forEach((i) => {
+    if (i.status !== "assigned") return;
+    const sid = stuOfRep.get(i.daily_report_id);
+    const on = dateOfRep.get(i.daily_report_id);
+    if (!sid || !on) return;
+
+    // 배정한 날 뒤에 검사한 적이 있으면 끝난 것이다
+    const seen = checkedAt.get(`${sid}:${i.homework_item_id}`);
+    if (seen && seen > on) return;
+
+    const cur = assignedOf.get(sid) || { date: on, items: new Map() };
+    // 같은 숙제를 여러 번 냈으면 **가장 최근 것**의 범위를 쓴다
+    const had = cur.items.get(i.homework_item_id);
+    if (!had || on > had.on) cur.items.set(i.homework_item_id, { ...i, on });
+    if (on < cur.date) cur.date = on;     // 제일 오래 밀린 날짜를 적어준다
+    assignedOf.set(sid, cur);
   });
 
   const subsOf = new Map();
@@ -143,10 +175,11 @@ export default async function CheckPage({ searchParams }) {
       notes,
       doneAt,
       assignedOn: assigned?.date || null,
-      // 검사할 것 = 지난 수업에 배정한 숙제
-      toCheck: (assigned?.items || []).map((i) => ({
+      // 검사할 것 = 3주 안에 배정했는데 아직 안 본 숙제
+      toCheck: [...(assigned?.items?.values() || [])].map((i) => ({
         id: i.homework_item_id,
         range: i.range_note || "",
+        on: i.on,                    // 언제 낸 숙제인가 (밀린 것을 알 수 있게)
       })),
       subs: subsOf.get(s.id) || [],
     };
