@@ -49,13 +49,33 @@ async function call(url, block) {
     return { rows: [], error: `나이스가 읽을 수 없는 답을 보냈어요 (HTTP ${res.status}).` };
   }
 
-  const { rows, code, message, empty } = readNeis(json, block);
+  const { rows, total, code, message, empty } = readNeis(json, block);
   if (rows.length === 0) {
     // "그 기간에 일정이 없다" 는 잘못이 아니다
     if (empty) return { rows: [], error: null, empty: true, note: whyFailed(code, message) };
     if (code && code !== "INFO-000") return { rows: [], error: whyFailed(code, message) };
   }
-  return { rows, error: null };
+  return { rows, total, error: null };
+}
+
+/**
+ * 한 해치를 받는다 — **한 번에 다 오지 않을 수 있다.**
+ *
+ * 나이스는 한 번에 주는 줄 수에 한계가 있다. 한 달치면 한 번으로 끝나지만
+ * 한 해치는 넘칠 수 있고, 그러면 **뒷부분이 조용히 빠진다.** 몇 건인지
+ * (list_total_count) 를 같이 주므로, 다 받을 때까지 이어서 부른다.
+ */
+async function callAll(key, school, from, to) {
+  const all = [];
+  for (let page = 1; page <= 20; page += 1) {
+    const res = await call(scheduleUrl(key, school, from, to, page), "SchoolSchedule");
+    if (res.error) return { rows: all, error: res.error };
+    if (res.empty) return { rows: all, error: null, empty: all.length === 0 };
+    all.push(...res.rows);
+    // 다 받았거나, 더 줄 게 없으면 그만
+    if (!res.total || all.length >= res.total || res.rows.length === 0) break;
+  }
+  return { rows: all, error: null, empty: all.length === 0 };
 }
 
 /** 키를 넣는다 */
@@ -161,13 +181,12 @@ export async function importSchedule(from, to, schoolId = null) {
   } = await supabase.auth.getUser();
 
   let added = 0;
-  let same = 0;
   let examAdded = 0;
   const exams = [];
   const notes = [];
 
   for (const school of targets) {
-    const res = await call(scheduleUrl(key, school, from, to), "SchoolSchedule");
+    const res = await callAll(key, school, from, to);
     if (res.error) return { error: `${school.name} — ${res.error}` };
     if (res.empty) {
       notes.push(`${school.name}: 그 기간에 일정이 없어요.`);
@@ -183,26 +202,27 @@ export async function importSchedule(from, to, schoolId = null) {
     if (madeExam.error) return { error: `${school.name} — ${madeExam.error}` };
     examAdded += madeExam.added || 0;
 
-    for (const t of tasks) {
-      const { neisKind, ...row } = t;
+    // **한 줄씩 넣지 않는다.** 한 해치면 학교 하나에 수백 줄이라, 한 줄에 한 번씩
+    // 오가면 화면이 기다리다 끊긴다. 한 번에 묶어 보낸다.
+    const rows = tasks.map(({ neisKind, ...row }) => ({
+      ...row,
+      created_by: user?.id || null,
+    }));
+    for (let i = 0; i < rows.length; i += 200) {
       const { error } = await supabase
         .from("tasks")
-        .upsert({ ...row, created_by: user?.id || null }, { onConflict: "source,source_id" });
+        .upsert(rows.slice(i, i + 200), { onConflict: "source,source_id" });
       if (needSql(error)) return { error: SQL };
-      if (error) {
-        // 이미 있는 줄이면 늘리지 않는다
-        if (/duplicate|unique/i.test(error.message || "")) { same += 1; continue; }
-        return { error: `${school.name} — ${error.message}` };
-      }
-      added += 1;
+      if (error) return { error: `${school.name} — ${error.message}` };
     }
+    added += rows.length;
     notes.push(`${school.name}: ${tasks.length}건`);
   }
 
   revalidatePath("/schedule");
   revalidatePath("/tasks");
   revalidatePath("/");
-  return { error: null, added, same, examAdded, exams, notes };
+  return { error: null, added, examAdded, exams, notes };
 }
 
 /**

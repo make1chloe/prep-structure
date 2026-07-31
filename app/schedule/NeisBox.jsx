@@ -6,6 +6,7 @@ import {
   saveNeisKey, neisReady, searchSchools, addSchool, removeSchool, listSchools,
   importSchedule, clearImported,
 } from "./neisActions";
+import { schoolYear } from "@/lib/neis";
 
 /**
  * 나이스 학사일정.
@@ -20,13 +21,10 @@ export default function NeisBox({ months = [] }) {
   const [mine, setMine] = useState([]);
   const [q, setQ] = useState("");
   const [found, setFound] = useState(null);
-  const [range, setRange] = useState(() => {
-    const first = months[0]?.ym || new Date().toISOString().slice(0, 7);
-    const last = months[months.length - 1]?.ym || first;
-    const [y, m] = last.split("-").map(Number);
-    const end = new Date(Date.UTC(y, m, 0));
-    return { from: `${first}-01`, to: end.toISOString().slice(0, 10) };
-  });
+  // 기본은 **올해 학사일정 전부** — 3월부터 다음 2월까지.
+  // 학교 일정은 한 해가 한 덩어리라, 몇 달만 받으면 어차피 또 받게 된다.
+  const year = schoolYear(months[0]?.ym ? `${months[0].ym}-01` : new Date().toISOString().slice(0, 10));
+  const [range, setRange] = useState({ from: year.from, to: year.to });
   const [done, setDone] = useState(null);      // 받아온 결과
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
@@ -187,6 +185,15 @@ export default function NeisBox({ months = [] }) {
               />
             </div>
             <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginBottom: 1 }}
+              disabled={pending}
+              title={`${year.from} ~ ${year.to}`}
+              onClick={() => setRange({ from: year.from, to: year.to })}
+            >
+              {year.year}학년도 전체
+            </button>
+            <button
               className="btn btn-primary btn-sm"
               style={{ marginBottom: 1 }}
               disabled={pending || !ready}
@@ -195,7 +202,7 @@ export default function NeisBox({ months = [] }) {
                 run(() => importSchedule(range.from, range.to), setDone)
               }
             >
-              {pending ? "받는 중…" : "학사일정 받아오기"}
+              {pending ? "받는 중… (한 해치는 조금 걸려요)" : "학사일정 받아오기"}
             </button>
             <button
               className="btn btn-ghost btn-sm"
@@ -213,7 +220,7 @@ export default function NeisBox({ months = [] }) {
           {done && (
             <div className="stack" style={{ gap: 6, marginTop: 10 }}>
               <div className="notice" style={{ fontSize: 12.5 }}>
-                <b>{done.added}건</b> 을 일정에 넣었습니다.
+                <b>{done.added}건</b> 을 일정에 반영했습니다.
                 {done.notes?.length ? ` (${done.notes.join(" · ")})` : ""}
               </div>
 
