@@ -57,6 +57,12 @@ export default async function SqlPage() {
     .select("config")
     .eq("id", "supabase_service")
     .maybeSingle();
+  const { data: neisRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "neis")
+    .maybeSingle();
+  const neisSaved = !!neisRow?.config?.key;
   const { data: aiRow } = await supabase
     .from("integrations")
     .select("config")
@@ -196,6 +202,24 @@ export default async function SqlPage() {
         <StorageBox />
 
         <AiBox saved={!!aiRow?.config?.key} />
+
+        {/* 나이스 키만 다른 화면에 있다. 키를 찾으러 여기 오시는 것이 당연하므로
+            여기서 길을 알려준다 (넣는 칸을 두 군데 두면 언젠가 한쪽만 고치게 된다) */}
+        <div className="card" style={{ marginTop: 14 }}>
+          <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>나이스 인증키</h2>
+            <span className={`tag ${neisSaved ? "tag-mint" : "tag-amber"}`}>
+              {neisSaved ? "키 넣어둠" : "키 없음"}
+            </span>
+            <span className="spacer" />
+            <a className="btn btn-sm" href="/schedule">넣으러 가기</a>
+          </div>
+          <p className="hint" style={{ margin: "6px 0 0" }}>
+            나이스 키는 <b>수업 → 수업 스케줄 · 시험</b> 화면 <b>맨 위</b> 의
+            「학교 학사일정 (나이스)」 상자에 있습니다. 학교를 고르고 바로 받아와야 해서
+            그 화면에 함께 두었습니다.
+          </p>
+        </div>
 
         <StepBox steps={steps} missing={missing} />
       </main>
