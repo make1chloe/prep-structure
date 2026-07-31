@@ -415,3 +415,45 @@ a { color: inherit; }
 .menucard:hover { background: var(--surface-2, #1e1e1e); }
 .menucard b { font-size: 15.5px; font-weight: 800; }
 .menucard span { font-size: 12.5px; opacity: .62; }
+
+/* 대시보드 달력 — 언제 몰려 있나를 한눈에 */
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-top: 10px;
+}
+.cal-dow {
+  font-size: 11px; opacity: .55; text-align: center; padding: 2px 0 4px;
+}
+.cal-dow.sun, .cal-day.sun { color: #e06b6b; }
+.cal-dow.sat, .cal-day.sat { color: #6b9ae0; }
+.cal-cell {
+  min-height: 62px;
+  border: 1px solid var(--line, #2a2a2a);
+  border-radius: 7px;
+  padding: 3px 3px 4px;
+  display: flex; flex-direction: column; gap: 2px;
+  overflow: hidden;
+}
+.cal-empty { border: 0; min-height: 0; }
+/* 지난 날은 흐리게 — 지웠다고 착각하면 안 되므로 남기되 눈에 덜 걸리게 */
+.cal-past { opacity: .42; }
+.cal-today { border-color: var(--accent, #7aa2f7); box-shadow: inset 0 0 0 1px var(--accent, #7aa2f7); }
+.cal-day { font-size: 11px; opacity: .7; padding-left: 2px; }
+.cal-item {
+  font-size: 10.5px; line-height: 1.25;
+  padding: 2px 4px; border-radius: 4px;
+  text-decoration: none; color: inherit;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-more { font-size: 10px; opacity: .6; padding-left: 4px; text-decoration: none; color: inherit; }
+.cal-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; vertical-align: -1px; }
+.cal-school { background: rgba(122, 162, 247, .22); }
+.cal-event  { background: rgba(158, 206, 106, .20); }
+.cal-todo   { background: rgba(224, 163, 62, .22); }
+
+@media (max-width: 560px) {
+  .cal-cell { min-height: 52px; }
+  .cal-item { font-size: 9.5px; }
+}

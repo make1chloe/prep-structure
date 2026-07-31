@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DashCalendar from "./DashCalendar";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
@@ -421,6 +422,8 @@ export default async function Home() {
 
           {/* 일정 */}
           <div className="stack" style={{ gap: 14 }}>
+            <DashCalendar ym={d.today.slice(0, 7)} items={d.calendar || []} today={d.today} />
+
             <div className="card">
               <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>오늘</h2>
               <div className="stack" style={{ gap: 4 }}>

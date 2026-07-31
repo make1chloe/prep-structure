@@ -22,6 +22,10 @@ export default async function TasksPage({ searchParams }) {
   const view = VIEWS.some((v) => v.key === searchParams?.view) ? searchParams.view : "all";
   const wantSchedule = view !== "todo";
   const wantTodo = view !== "schedule";
+  // 지난 일정은 기본으로 안 보인다.
+  // 나이스에서 한 해치를 받으면 지난 3~7월 학교 행사가 통째로 쌓여서,
+  // 앞으로 무슨 일이 있는지가 그 아래로 묻힌다. 필요하면 켜서 본다.
+  const showPast = searchParams?.past === "1";
 
   const supabase = createClient();
   const {
@@ -46,6 +50,7 @@ export default async function TasksPage({ searchParams }) {
         "id, title, kind, category, due_on, end_on, start_time, status, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade"
       )
       .eq("kind", "schedule")
+      .gte("due_on", showPast ? "1900-01-01" : todaySeoul())
       .order("due_on", { ascending: true });
     taskErr = !!error;
 
@@ -165,8 +170,19 @@ export default async function TasksPage({ searchParams }) {
             {view === "all" && (
               <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>일정</h2>
             )}
-            <div className="row" style={{ marginBottom: 10 }}>
+            <div className="row" style={{ marginBottom: 10, alignItems: "center", gap: 8 }}>
               <AddTaskForm classes={classes} />
+              <span className="spacer" />
+              <Link
+                className="btn btn-ghost btn-sm"
+                href={
+                  showPast
+                    ? `/tasks${view === "all" ? "" : `?view=${view}`}`
+                    : `/tasks?past=1${view === "all" ? "" : `&view=${view}`}`
+                }
+              >
+                {showPast ? "지난 일정 숨기기" : "지난 일정도 보기"}
+              </Link>
             </div>
             <TaskBoard tasks={rows} classes={classes} unavailable={taskErr} linked={linked} />
           </section>
