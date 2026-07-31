@@ -275,12 +275,22 @@ export default async function MePage({ searchParams }) {
     : [];
 
   // 내가 보낸 요청
-  const { data: myRequests } = await supabase
+  const REQ = "id, kind, from_date, to_date, body, status, reply";
+  let { data: myRequests, error: reqErr } = await supabase
     .from("requests")
-    .select("id, kind, from_date, to_date, body, status, reply")
+    .select(`${REQ}, photos`)
     .eq("student_id", student.id)
     .order("created_at", { ascending: false })
     .limit(5);
+  if (reqErr) {
+    // 0068 전이면 사진 없이
+    ({ data: myRequests } = await supabase
+      .from("requests")
+      .select(REQ)
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false })
+      .limit(5));
+  }
 
   // 늦귀가 과제 — 아직 안 끝났거나 숙제로 넘어온 것
   const stayQ = await supabase

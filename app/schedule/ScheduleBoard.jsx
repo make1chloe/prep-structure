@@ -531,7 +531,7 @@ export default function ScheduleBoard({
                                   !confirm(
                                     `${dayShort(a.date)} 등원 일정을 만들까요?\n\n` +
                                       `${a.school || ""} ${a.grade || ""} — ${names.join(", ")} (${names.length}명)\n` +
-                                      "그날 학생 공지로 이 학생들에게 안내됩니다."
+                                      "그날 전달사항으로 이 학생들에게 안내됩니다."
                                   )
                                 )
                                   return;
@@ -544,7 +544,7 @@ export default function ScheduleBoard({
                                       classId: klass.id,
                                       englishOn: e?.english_on,
                                     }),
-                                  "등원 일정을 만들었어요. 그날 학생 공지로 안내됩니다."
+                                  "등원 일정을 만들었어요. 그날 전달사항으로 학생에게 안내됩니다."
                                 );
                               }}
                             >

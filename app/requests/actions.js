@@ -10,7 +10,7 @@ function ok(error) {
 
 // 학생·학부모가 직접 넣는 요청 (결석 알림 등)
 export async function createRequest(input) {
-  const { studentId, kind, fromDate, toDate, body } = input || {};
+  const { studentId, kind, fromDate, toDate, body, photos } = input || {};
   if (!studentId) return { error: "학생 정보가 없어요." };
   if (kind === "absence" && !fromDate) return { error: "날짜를 골라주세요." };
 
@@ -19,14 +19,21 @@ export async function createRequest(input) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("requests").insert({
+  const row = {
     student_id: studentId,
     created_by: user?.id || null,
     kind: kind || "absence",
     from_date: fromDate || null,
     to_date: toDate || fromDate || null,
     body: (body || "").trim() || null,
-  });
+    photos: (photos || []).filter(Boolean),
+  };
+  let { error } = await supabase.from("requests").insert(row);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0068 전이면 사진 없이 — 글이라도 가야 한다
+    const { photos: _p, ...noPhotos } = row;
+    ({ error } = await supabase.from("requests").insert(noPhotos));
+  }
   if (error) return { error: "0019 SQL을 먼저 실행해주세요." };
   revalidatePath("/me");
   revalidatePath("/");

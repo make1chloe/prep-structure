@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { handleRequest } from "./requests/actions";
+import RequestPhotos from "@/components/RequestPhotos";
 
 const KIND = { absence: "결석", makeup: "보강 요청", question: "문의" };
 
@@ -31,6 +32,7 @@ export default function RequestInbox({ requests = [] }) {
       </h2>
       <p className="hint" style={{ margin: "0 0 10px" }}>
         결석 알림을 <b>확인</b>하면 그 기간이 자동으로 결석 예정으로 들어갑니다.
+        학교에서 받은 종이(체험학습 신청서 · 시험 시간표 · 가정통신문)를 찍어 보내면 여기 함께 옵니다.
       </p>
 
       {requests.length === 0 ? (
@@ -49,6 +51,11 @@ export default function RequestInbox({ requests = [] }) {
                   </span>
                 )}
                 {r.body && <div className="hint" style={{ marginTop: 2 }}>{r.body}</div>}
+                {(r.photos || []).length > 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <RequestPhotos paths={r.photos} readOnly small />
+                  </div>
+                )}
               </div>
               <input
                 className="input input-sm"

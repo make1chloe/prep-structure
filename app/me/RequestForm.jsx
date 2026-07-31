@@ -3,20 +3,24 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createRequest } from "@/app/requests/actions";
+import RequestPhotos from "@/components/RequestPhotos";
 
 // 학생·학부모가 결석을 미리 알리는 칸
-export default function RequestForm({ studentId, mine = [] }) {
+export default function RequestForm({ studentId, mine = [], asId = null, readOnly = false }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("absence");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [body, setBody] = useState("");
+  const [photos, setPhotos] = useState([]);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function submit() {
     startTransition(async () => {
-      const res = await createRequest({ studentId, kind, fromDate: from, toDate: to || from, body });
+      const res = await createRequest({
+        studentId, kind, fromDate: from, toDate: to || from, body, photos,
+      });
       if (res?.error) {
         alert(res.error);
         return;
@@ -25,6 +29,7 @@ export default function RequestForm({ studentId, mine = [] }) {
       setFrom("");
       setTo("");
       setBody("");
+      setPhotos([]);
       router.refresh();
     });
   }
@@ -36,6 +41,8 @@ export default function RequestForm({ studentId, mine = [] }) {
           <b style={{ fontSize: 14 }}>결석 · 문의 알리기</b>
           <p className="hint" style={{ margin: "4px 0 0" }}>
             결석할 날을 미리 알려주시면 보강을 잡아드립니다.
+            <b> 학교에서 받은 종이는 옮겨 적지 마시고 찍어서 붙여주세요</b> —
+            체험학습 신청서, 학교 시험 시간표, 가정통신문 모두요.
           </p>
         </div>
         <button className="btn btn-sm btn-primary" onClick={() => setOpen(!open)}>
@@ -77,9 +84,13 @@ export default function RequestForm({ studentId, mine = [] }) {
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
+          {/* 옮겨 적으면 틀린다. 틀리면 그게 더 큰일이다 — 찍어서 그대로 */}
+          <RequestPhotos paths={photos} onChange={setPhotos} asId={asId} readOnly={readOnly} />
+
           <button className="btn btn-primary btn-sm" onClick={submit}
-            disabled={pending || (kind !== "question" && !from)}>
-            {pending ? "보내는 중…" : "보내기"}
+            disabled={pending || readOnly || (kind !== "question" && !from) ||
+                      (kind === "question" && !body.trim() && photos.length === 0)}>
+            {pending ? "보내는 중…" : photos.length ? `사진 ${photos.length}장과 보내기` : "보내기"}
           </button>
         </div>
       )}
@@ -98,6 +109,9 @@ export default function RequestForm({ studentId, mine = [] }) {
                 {r.body || ""}
               </span>
               {r.reply && <span className="hint">{r.reply}</span>}
+              {(r.photos || []).length > 0 && (
+                <RequestPhotos paths={r.photos} readOnly small />
+              )}
             </div>
           ))}
         </div>

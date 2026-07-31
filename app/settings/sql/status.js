@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
  * 표/칸이 있는지만 보면 되므로 한 줄도 안 읽고 limit 0 으로 물어본다.
  */
 const CHECKS = [
-  { id: "0009", label: "공지", table: "notices", col: "id" },
+  { id: "0009", label: "공지 · 전달사항", table: "notices", col: "id" },
   { id: "0013", label: "숙제 문자 · 발송 이력", table: "report_sends", col: "kind" },
   { id: "0017", label: "문자 문구 · 신규 상담", table: "message_templates", col: "body" },
   { id: "0020", label: "할일 분류", table: "todo_categories", col: "name" },
@@ -59,6 +59,7 @@ const CHECKS = [
   { id: "0065", label: "영상 배정 · 본 기록", table: "videos", col: "id" },
   { id: "0066", label: "달력 나누기", table: "tasks", col: "private" },
   { id: "0067", label: "메뉴 고르기", table: "profiles", col: "menu_hidden" },
+  { id: "0068", label: "학부모가 보내는 사진", table: "requests", col: "photos" },
 ];
 
 export async function checkSchema() {

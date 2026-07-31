@@ -920,13 +920,24 @@ export default async function TodayPage({ searchParams }) {
       name: nameById.get(c.student_id) || "학생",
     }));
 
-    const rq = await supabase
+    const RQ = "id, student_id, kind, from_date, to_date, body";
+    let rq = await supabase
       .from("requests")
-      .select("id, student_id, kind, from_date, to_date, body")
+      .select(`${RQ}, photos`)
       .eq("status", "new")
       .in("student_id", rosterIds)
       .order("created_at", { ascending: false })
       .limit(10);
+    if (rq.error) {
+      // 0068 전이면 사진 없이 — 알림 자체가 안 보이면 안 된다
+      rq = await supabase
+        .from("requests")
+        .select(RQ)
+        .eq("status", "new")
+        .in("student_id", rosterIds)
+        .order("created_at", { ascending: false })
+        .limit(10);
+    }
     preClass.requests = (rq.error ? [] : rq.data || []).map((r) => ({
       ...r,
       name: nameById.get(r.student_id) || "학생",

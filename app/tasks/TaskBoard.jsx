@@ -272,7 +272,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   {t.deliver_body && (
                     <>
                       <span className={`tag ${t.deliveredOn ? "tag-mint" : "tag-lav"}`}>
-                        {t.deliveredOn ? "공지 만듦" : "안내 문구 있음"}
+                        {t.deliveredOn ? "전달사항 만듦" : "전달사항 있음"}
                       </span>
                       {!t.deliveredOn && (
                         <button
@@ -280,7 +280,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                           onClick={() => run(() => applyTaskDelivery(t.id, t.due_on))}
                           disabled={pending}
                         >
-공지 만들기
+                          전달사항 만들기
                         </button>
                       )}
                     </>

@@ -350,7 +350,7 @@ export default async function Home() {
                 )}
                 {d.newComments.length > 0 && (
                   <div>
-                    <b className="hint">전달사항 — 학생 · 학부모가 보낸 것 {d.newComments.length}건</b>
+                    <b className="hint">학생 · 학부모가 남긴 댓글 {d.newComments.length}건</b>
                     <div className="stack" style={{ gap: 4, marginTop: 4 }}>
                       {d.newComments.map((c) => (
                         <div className="hint" key={c.id}>
@@ -446,7 +446,7 @@ export default async function Home() {
                     </span>
                     <b style={{ fontSize: 12.5 }}>{t.title}</b>
                     {t.category && <span className="tag tag-sky">{t.category}</span>}
-                    {t.deliver_body && <span className="tag tag-lav">안내 문구</span>}
+                    {t.deliver_body && <span className="tag tag-lav">전달사항</span>}
                   </Link>
                 ))}
               </div>

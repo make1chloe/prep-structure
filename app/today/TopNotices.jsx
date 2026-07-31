@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createNotice, deleteNotice } from "./actions";
 import { applyTasksDelivery } from "@/app/tasks/actions";
 import NoticePhotos from "@/components/NoticePhotos";
+import RequestPhotos from "@/components/RequestPhotos";
 
 const SCOPES = [
   { key: "all", label: "전체" },
@@ -13,19 +14,17 @@ const SCOPES = [
   { key: "student", label: "개인별" },
 ];
 
-// **공지는 내가 보내는 것**이고, **전달사항은 학생·학부모가 나에게 보내는 것**이다.
-// 예전에는 나가는 것도 '전달사항' 이라 불러서 두 가지가 같은 이름이었다.
 const KINDS = [
   {
     key: "deliver",
-    label: "학생 공지",
+    label: "학생용 공지",
     hint:
-      "학생 화면 「공지사항」에 뜨고, 그 학생의 숙제 문자에도 함께 나갑니다. " +
-      "학교에서 나눠준 종이는 사진으로 붙이세요.",
+      "수업 중 학생에게 말로 전하고, 하원 전에 전달했는지 체크합니다. " +
+      "같은 내용이 그 학생의 숙제 문자에도 함께 나갑니다.",
   },
   {
     key: "notice",
-    label: "학부모 공지",
+    label: "학부모용 공지",
     hint:
       "데일리리포트에 함께 나갑니다. 학생 한 명에게만 할 말은 각 학생 칸의 '공지' 에 적으세요.",
   },
@@ -56,6 +55,7 @@ export default function TopNotices({
   const grades = [...new Set(students.map((s) => s.grade).filter(Boolean))].sort();
 
   const mine = notices.filter((n) => n.kind === kind);
+  const undone = notices.filter((n) => n.kind === "deliver" && n.done < n.total);
 
   // 지금 설정으로 몇 명에게 가는지 미리 보여준다
   const targetCount =
@@ -93,7 +93,7 @@ export default function TopNotices({
   }
 
   function remove(id) {
-    if (!confirm("이 공지를 지울까요? 붙인 사진도 함께 지워집니다.")) return;
+    if (!confirm("이 내용을 지울까요? 전달 체크 기록도 함께 지워집니다.")) return;
     startTransition(async () => {
       const res = await deleteNotice(id);
       if (res?.error) alert(res.error);
@@ -125,6 +125,7 @@ export default function TopNotices({
       text: c.body,
     })),
     ...(preClass.requests || []).map((r) => ({
+      photos: r.photos || [],
       key: `r${r.id}`,
       tag: r.kind === "absence" ? "결석 알림" : r.kind === "makeup" ? "보강 요청" : "문의",
       cls: "tag-amber",
@@ -139,17 +140,25 @@ export default function TopNotices({
   const preBox = pre.length > 0 && (
     <div className="card" style={{ marginTop: 12, borderColor: "var(--amber)" }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
-        전달사항 {pre.length}건
+        수업 전에 볼 것 {pre.length}건
       </h2>
       <p className="muted" style={{ margin: "0 0 8px", fontSize: 12.5 }}>
-        <b>학생·학부모가 보낸 것</b>입니다. 오늘 오는 학생 것만 모았어요.
+        <b>오늘 오는 학생</b>이 남긴 것만 모았습니다. 대시보드까지 안 가도 됩니다.
       </p>
       <div className="stack" style={{ gap: 4 }}>
         {pre.map((p) => (
-          <div className="unitrow" key={p.key}>
+          <div className="unitrow" key={p.key} style={{ alignItems: "flex-start" }}>
             <span className={`tag ${p.cls}`}>{p.tag}</span>
             <b style={{ fontSize: 12.5 }}>{p.name}</b>
-            <span style={{ fontSize: 12.5, flex: 1 }}>{p.text}</span>
+            <div style={{ fontSize: 12.5, flex: 1 }}>
+              {p.text}
+              {/* 학교에서 받은 종이를 찍어 보냈으면 여기 함께 온다 */}
+              {(p.photos || []).length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <RequestPhotos paths={p.photos} readOnly small />
+                </div>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -162,7 +171,7 @@ export default function TopNotices({
       {preBox}
       <div className="card" style={{ marginTop: 12 }}>
         <div className="notice">
-공지를 쓰려면 Supabase에서 <b>0009_notices.sql</b> 을 한 번 실행해주세요.
+          공지·전달사항을 쓰려면 Supabase에서 <b>0009_notices.sql</b> 을 한 번 실행해주세요.
         </div>
       </div>
       </>
@@ -175,12 +184,15 @@ export default function TopNotices({
     <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
       <button className="grouphead" onClick={() => setOpen(!open)}>
         <span style={{ fontWeight: 800 }}>
-          {open ? "▾" : "▸"} 공지 (내가 보내는 것)
+          {open ? "▾" : "▸"} 공지 (학생용 · 학부모용)
         </span>
         <span className="muted" style={{ fontSize: 12.5 }}>
           오늘 {notices.length}건
+          {undone.length > 0 && (
+            <b style={{ color: "var(--amber)" }}> · 아직 전달 안 한 항목 {undone.length}건</b>
+          )}
           {pendingTasks.length > 0 && (
-            <b style={{ color: "var(--lav)" }}> · 오늘 일정에서 만들 공지 {pendingTasks.length}건</b>
+            <b style={{ color: "var(--lav)" }}> · 오늘 일정에서 만들 전달사항 {pendingTasks.length}건</b>
           )}
         </span>
       </button>
@@ -197,7 +209,7 @@ export default function TopNotices({
                     onClick={() => applyTasks(pendingTasks.map((t) => t.id))}
                     disabled={pending}
                   >
-공지 {pendingTasks.length}건 한 번에 만들기
+                    전달사항 {pendingTasks.length}건 한 번에 만들기
                   </button>
                 )}
               </div>
@@ -210,14 +222,14 @@ export default function TopNotices({
                     <span className="spacer" />
                     {t.deliverBody &&
                       (t.applied ? (
-                        <span className="tag tag-mint">공지 만듦</span>
+                        <span className="tag tag-mint">전달사항 만듦</span>
                       ) : (
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => applyTasks([t.id])}
                           disabled={pending}
                         >
-공지 만들기
+                          전달사항 만들기
                         </button>
                       ))}
                   </div>
@@ -351,7 +363,11 @@ export default function TopNotices({
                       {n.title && n.body && n.body !== n.title ? " — " : ""}
                       {n.body !== n.title ? n.body : ""}
                     </span>
-                    <span className="tag tag-muted">{n.total}명</span>
+                    {n.kind === "deliver" && (
+                      <span className={`tag ${n.done >= n.total ? "tag-mint" : "tag-amber"}`}>
+                        전달 {n.done}/{n.total}
+                      </span>
+                    )}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
                       삭제
                     </button>

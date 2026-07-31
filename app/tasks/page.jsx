@@ -159,7 +159,7 @@ export default async function TasksPage({ searchParams }) {
           </h1>
           <p className="sub">
             <b>일정</b>은 날짜가 정해진 것 — 학사일정·특강·시험·상담 예약. 전할 내용을 적으면
-            그날 학생 공지로 깔립니다. <b>할일</b>은 처리해야 하는 일입니다.
+            그날 전달사항으로 깔립니다. <b>할일</b>은 처리해야 하는 일입니다.
           </p>
           <div className="row" style={{ gap: 6, marginTop: 10 }}>
             {VIEWS.map((v) => (
