@@ -53,6 +53,7 @@ const CHECKS = [
   { id: "0058", label: "안 보내기", table: "daily_reports", col: "skip_kinds" },
   { id: "0059", label: "나이스 학사일정", table: "neis_schools", col: "schul_code" },
   { id: "0060", label: "시험 일정 숨기기", table: "exam_periods", col: "hidden" },
+  { id: "0062", label: "검사 한 줄", table: "daily_report_items", col: "check_note" },
 ];
 
 export async function checkSchema() {
