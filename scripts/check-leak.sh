@@ -95,6 +95,25 @@ insert into public.classes (id, name, days) values
 insert into public.class_students (class_id, student_id) values
   ('cccccccc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001'),
   ('cccccccc-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+
+-- 공지 (0064) — '나' 앞으로만 간 것이 '가' 에게 보이면 안 된다
+insert into public.notices (id, date, kind, scope, body, title) values
+  ('dddddddd-0000-0000-0000-000000000001', current_date, 'deliver', 'student', '가 공지', '가'),
+  ('dddddddd-0000-0000-0000-000000000002', current_date, 'deliver', 'student', '나 공지', '나');
+insert into public.notice_receipts (notice_id, student_id) values
+  ('dddddddd-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001'),
+  ('dddddddd-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+
+-- 영상 (0065) — 배정받지 않은 영상은 아예 안 보여야 한다
+insert into public.videos (id, title, url, provider, vid) values
+  ('eeeeeeee-0000-0000-0000-000000000001', '가 영상', 'https://youtu.be/aaa', 'youtube', 'aaa'),
+  ('eeeeeeee-0000-0000-0000-000000000002', '나 영상', 'https://youtu.be/bbb', 'youtube', 'bbb');
+insert into public.video_assignments (video_id, student_id) values
+  ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001'),
+  ('eeeeeeee-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+insert into public.video_views (video_id, student_id, opens, done_at) values
+  ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 1, now()),
+  ('eeeeeeee-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', 1, now());
 SQL
 
 # ── 학생 '가' 로 앉는다 ──────────────────────────────
@@ -118,6 +137,11 @@ select t || ': ' || n from (
   union all select 'integrations(열쇠)',   count(*) from public.integrations
   union all select 'class_students(남의 반배정)', count(*) from public.class_students where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'classes(안 듣는 반)',  count(*) from public.classes             where id <> 'cccccccc-0000-0000-0000-000000000001'
+  union all select 'notices(남의 공지)',   count(*) from public.notices              where id <> 'dddddddd-0000-0000-0000-000000000001'
+  union all select 'notice_receipts(남에게 간 것)', count(*) from public.notice_receipts where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select 'videos(안 받은 영상)',  count(*) from public.videos               where id <> 'eeeeeeee-0000-0000-0000-000000000001'
+  union all select 'video_assignments(남의 배정)', count(*) from public.video_assignments where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select 'video_views(남이 봤나)', count(*) from public.video_views         where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n > 0 order by 1;
 SQL
 )
@@ -131,6 +155,9 @@ select t || '=' || n from (
   union all select '내 리포트',   count(*) from public.daily_reports where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select '내 제출물',   count(*) from public.homework_submissions where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select '내 반',       count(*) from public.classes where id = 'cccccccc-0000-0000-0000-000000000001'
+  union all select '내 공지',     count(*) from public.notices where id = 'dddddddd-0000-0000-0000-000000000001'
+  union all select '내 영상',     count(*) from public.videos  where id = 'eeeeeeee-0000-0000-0000-000000000001'
+  union all select '내가 본 기록', count(*) from public.video_views where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n = 0 order by 1;
 SQL
 )

@@ -18,6 +18,7 @@ import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
 import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
+import VideoList from "./VideoList";
 
 export const dynamic = "force-dynamic";
 
@@ -536,6 +537,41 @@ export default async function MePage({ searchParams }) {
     }
   }
 
+  // 볼 영상 — 나에게 배정된 것만 (0065 전이면 빈 값, 화면은 그대로 뜬다)
+  let myVideos = [];
+  {
+    const { data: asg } = await supabase
+      .from("video_assignments")
+      .select("video_id, due_on, assigned_on")
+      .eq("student_id", student.id);
+    const vids = [...new Set((asg || []).map((a) => a.video_id))];
+    if (vids.length) {
+      const { data: vrows } = await supabase
+        .from("videos")
+        .select("id, title, url, provider, vid, note, active")
+        .in("id", vids);
+      const { data: seen } = await supabase
+        .from("video_views")
+        .select("video_id, done_at, opened_at")
+        .eq("student_id", student.id);
+      const doneOf = new Map((seen || []).map((x) => [x.video_id, x]));
+      const dueOf = new Map((asg || []).map((a) => [a.video_id, a]));
+      myVideos = (vrows || [])
+        .filter((v) => v.active)
+        .map((v) => ({
+          ...v,
+          dueOn: dueOf.get(v.id)?.due_on || null,
+          assignedOn: dueOf.get(v.id)?.assigned_on || null,
+          doneAt: doneOf.get(v.id)?.done_at || null,
+        }))
+        // 기한이 있는 것부터, 그다음 늦게 낸 것부터
+        .sort((a, b) =>
+          (a.dueOn || "9999").localeCompare(b.dueOn || "9999") ||
+          (b.assignedOn || "").localeCompare(a.assignedOn || "")
+        );
+    }
+  }
+
   return (
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       <div className="page-head">
@@ -696,6 +732,8 @@ export default async function MePage({ searchParams }) {
             </div>
           </div>
         )}
+
+        <VideoList videos={myVideos} asId={acting ? student.id : null} readOnly={preview} />
 
         {/* 학원에서 온 공지 — 학교 종이를 찍어 보내주신 것도 여기 온다 */}
         {notice2.length > 0 && (
