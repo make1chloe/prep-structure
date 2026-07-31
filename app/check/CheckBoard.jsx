@@ -37,6 +37,8 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
   const [url, setUrl] = useState({});             // 낸 것 보기 링크
   const [note, setNote] = useState({});           // 아직 저장 안 한 한 줄
   const [showDone, setShowDone] = useState(false);
+  const [mode, setMode] = useState("student");   // student | item
+  const [pickItem, setPickItem] = useState("");   // 몰아 찍기에서 고른 숙제
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -132,12 +134,35 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
           onChange={(e) => setQ(e.target.value)}
         />
         <span className="spacer" />
+        {/* 클래스카드처럼 **한 항목을 반 전체가 세로로** 늘어선 화면이 필요할 때가 있다.
+            옆 탭에 띄워놓고 위에서 아래로 훑으며 탭만 하면 되게 */}
+        <button
+          className={`btn btn-sm ${mode === "item" ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setMode(mode === "item" ? "student" : "item")}
+          title="숙제 하나를 골라 반 전체를 한 줄씩 봅니다 (클래스카드 보면서 찍기 좋습니다)"
+        >
+          몰아 찍기
+        </button>
         <button className="btn btn-ghost btn-sm" onClick={() => setShowDone(!showDone)}>
           {showDone ? "끝낸 학생 숨기기" : "끝낸 학생도 보기"}
         </button>
       </div>
 
-      {shown.length === 0 ? (
+      {mode === "item" ? (
+        <ItemMode
+          date={date}
+          rows={rows}
+          items={items}
+          classes={classes}
+          klass={klass}
+          setKlass={setKlass}
+          pickItem={pickItem}
+          setPickItem={setPickItem}
+          nameOf={nameOf}
+          mark={mark}
+          pending={pending}
+        />
+      ) : shown.length === 0 ? (
         <div className="card" style={{ marginTop: 12 }}>
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
             {totalLeft === 0 && totalUnseen === 0
@@ -399,6 +424,115 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
           출결 · 단어시험 · 공지는 오늘 수업 화면에서 합니다.
         </span>
       </div>
+    </>
+  );
+}
+
+/**
+ * 몰아 찍기 — **한 숙제를 반 전체가 세로로.**
+ *
+ * 클래스카드는 한 세트를 반 학생이 세로로 늘어선 모양으로 보여준다. 그런데
+ * 학생별 칸을 하나씩 열어 찍으면 눈이 왔다 갔다 한다. 같은 모양으로 세워두면
+ * 옆 탭에 띄워놓고 위에서 아래로 훑으며 탭만 하면 된다.
+ *
+ * 순서는 **이름순** — 학생 목록이 이미 이름순으로 온다.
+ */
+function ItemMode({
+  date, rows, items, classes, klass, setKlass, pickItem, setPickItem,
+  nameOf, mark, pending,
+}) {
+  // 반을 안 고르면 첫 반으로 — 몰아 찍기는 한 반을 보는 화면이다
+  const cid = klass || classes[0]?.id || "";
+  const mine = rows.filter((r) => r.klass?.id === cid);
+
+  // 이 반에 배정돼 있는 숙제만 고르게 한다 (없는 숙제를 고르면 빈 화면이 된다)
+  const itemIds = [...new Set(mine.flatMap((r) => r.toCheck.map((c) => c.id)))];
+  const choices = items.filter((i) => itemIds.includes(i.id));
+  const item = pickItem && itemIds.includes(pickItem) ? pickItem : choices[0]?.id || "";
+
+  const left = mine.filter((r) => r.toCheck.some((c) => c.id === item) && !r.marks[item]).length;
+
+  return (
+    <>
+      <div className="row" style={{ gap: 6, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <select
+          className="input input-sm"
+          style={{ width: 150 }}
+          value={cid}
+          onChange={(e) => setKlass(e.target.value)}
+        >
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <select
+          className="input input-sm"
+          style={{ minWidth: 180 }}
+          value={item}
+          onChange={(e) => setPickItem(e.target.value)}
+        >
+          {choices.length === 0 && <option value="">배정된 숙제가 없어요</option>}
+          {choices.map((i) => (
+            <option key={i.id} value={i.id}>{i.name}</option>
+          ))}
+        </select>
+        <span className="spacer" />
+        <span className={`tag ${left ? "tag-amber" : "tag-mint"}`}>남은 {left}명</span>
+      </div>
+
+      {mine.length === 0 || !item ? (
+        <div className="card" style={{ marginTop: 12 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+            {mine.length === 0
+              ? "이 반에 검사할 학생이 없어요."
+              : "이 반에 배정된 숙제가 없어요. 먼저 숙제를 배정해주세요."}
+          </p>
+        </div>
+      ) : (
+        <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+          {mine.map((r) => {
+            const c = r.toCheck.find((x) => x.id === item);
+            const cur = r.marks[item] || null;
+            return (
+              <div className="unitrow" key={r.student.id} style={{ padding: "9px 14px" }}>
+                <b style={{ fontSize: 14, minWidth: 76 }}>{r.student.name}</b>
+                {c?.range && (
+                  <span className="hint" style={{ fontSize: 11.5 }}>{c.range}</span>
+                )}
+                {c && r.doneAt[item] && <span className="tag tag-sky">학생 완료</span>}
+                {c?.inPerson && <span className="tag tag-lav">직접검사</span>}
+                {c?.noSub && !cur && <span className="tag tag-red">안 냄</span>}
+                <span className="spacer" />
+                {!c ? (
+                  // 그 반이어도 이 숙제를 안 받은 학생이 있다. 빈칸으로 두지 않고 적어준다
+                  <span className="hint" style={{ fontSize: 11.5 }}>배정 안 됨</span>
+                ) : !r.hasReport ? (
+                  <span className="hint" style={{ fontSize: 11.5 }}>출결 먼저</span>
+                ) : (
+                  <span className="markset">
+                    {MARK.map((m) => (
+                      <button
+                        key={m.key}
+                        className={`markbtn ${cur === m.key ? `on ${m.cls}` : ""}`}
+                        disabled={pending}
+                        title={m.label}
+                        onClick={() => mark(r, item, cur === m.key ? null : m.key)}
+                      >
+                        {m.sym}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="hint" style={{ marginTop: 8, fontSize: 12 }}>
+        클래스카드를 옆 탭에 띄워놓고 위에서 아래로 훑으며 찍으시면 됩니다.
+        찍은 것은 <b>학생별 화면과 리포트에 그대로</b> 들어갑니다.
+      </p>
     </>
   );
 }
