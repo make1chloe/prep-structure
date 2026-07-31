@@ -6,6 +6,7 @@ import { updateStudent, deleteStudents, updateStudentsStatus } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
 import NoteBox from "./NoteBox";
+import StudentBooks from "@/app/today/StudentBooks";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -29,6 +30,7 @@ const COLS = [
   { key: "note", label: "특이사항", w: 140 },
   { key: "login_id", label: "아이디", w: 104, mono: true },
   { key: "initPw", label: "비번", w: 76, type: "pw" },
+  { key: "books", label: "교재", w: 130, type: "books" },
 ];
 
 const STATUS_TABS = [
@@ -39,7 +41,7 @@ const STATUS_TABS = [
   ["withdrawn", "퇴원"],
 ];
 
-export default function StudentList({ students = [] }) {
+export default function StudentList({ students = [], textbooks = [] }) {
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -48,6 +50,7 @@ export default function StudentList({ students = [] }) {
   const [histId, setHistId] = useState(null);
   const [linkId, setLinkId] = useState(null);   // 계정 연결 코드를 펼친 학생
   const [noteId, setNoteId] = useState(null);   // 상담일지를 펼친 학생
+  const [bookId, setBookId] = useState(null);   // 교재를 펼친 학생
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -122,6 +125,17 @@ export default function StudentList({ students = [] }) {
   function cell(s, c) {
     const v = s[c.key];
     // 아직 0000 그대로인 계정 — 아이디가 규칙적이라 남이 열 수 있다
+    // 같은 반이어도 교재는 학생마다 다르다 — 목록에서 바로 보이게
+    if (c.type === "books") {
+      const list = s.books || [];
+      if (list.length === 0) return <span className="hint">없음</span>;
+      return (
+        <span className="hint" style={{ fontSize: 11.5 }} title={list.map((b) => b.name).join(", ")}>
+          {list[0].name}
+          {list.length > 1 ? ` 외 ${list.length - 1}` : ""}
+        </span>
+      );
+    }
     if (c.type === "pw") {
       if (!s.login_id) return <span className="muted">—</span>;
       return v ? (
@@ -141,7 +155,7 @@ export default function StudentList({ students = [] }) {
   }
 
   function editor(c) {
-    if (c.type === "pw") return cellPwStatic;
+    if (c.type === "pw" || c.type === "books") return cellPwStatic;
     if (c.type === "status") {
       return (
         <select
@@ -289,6 +303,13 @@ export default function StudentList({ students = [] }) {
                         </button>
                         <button
                           className="btn btn-ghost btn-sm"
+                          onClick={() => setBookId(bookId === s.id ? null : s.id)}
+                          title="이 학생이 쓰는 교재 — 같은 반이어도 학생마다 다릅니다"
+                        >
+                          교재
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
                           onClick={() => setLinkId(linkId === s.id ? null : s.id)}
                           title="학생이 자기 계정으로 로그인할 수 있게 코드를 뽑습니다"
                         >
@@ -307,6 +328,23 @@ export default function StudentList({ students = [] }) {
                     )}
                   </td>
                 </tr>
+                {bookId === s.id && (
+                  <tr>
+                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                      <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <b style={{ fontSize: 13 }}>{s.name} 교재</b>
+                        <span className="hint" style={{ fontSize: 11.5 }}>
+                          같은 반이어도 학생마다 다릅니다. 여기서 바꾸면 숙제 배정·진도가 이 교재로 갑니다.
+                        </span>
+                      </div>
+                      <StudentBooks
+                        studentId={s.id}
+                        myBooks={s.books || []}
+                        textbooks={textbooks}
+                      />
+                    </td>
+                  </tr>
+                )}
                 {noteId === s.id && (
                   <tr>
                     <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>

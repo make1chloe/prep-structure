@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setStudentTextbooks } from "@/app/progress/actions";
 
-// 학생 한 명의 교재를 바꾼다 (반과 다른 교재를 쓰는 학생용)
+// 학생 한 명의 교재.
+//
+// 교재는 **학생마다 다르다** — 같은 반이어도 다르다. 반에 붙이는 것은 여러 명에게
+// 한 번에 넣어주는 지름길일 뿐이고, 진짜 배정은 여기다.
 export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -40,7 +43,7 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }
   if (!open) {
     return (
       <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
-        교재 바꾸기
+        {myBooks.length > 0 ? `교재 ${myBooks.length}권 바꾸기` : "교재 배정"}
       </button>
     );
   }

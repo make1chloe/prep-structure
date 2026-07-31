@@ -41,9 +41,38 @@ export default async function StudentsPage() {
       .in("id", pids);
     (profs || []).forEach((p) => p.must_change_pw && initPw.add(p.id));
   }
+  // 교재는 **학생마다 다르다** — 같은 반이어도 다르다. 그래서 재원생 목록에서
+  // 바로 바꿀 수 있어야 한다 (예전에는 오늘 수업 화면 안에만 있어서, 오늘 수업이
+  // 없는 학생은 손댈 수가 없었다).
+  const { data: allBooks } = await supabase
+    .from("textbooks")
+    .select("id, name, area, status")
+    .order("name", { ascending: true });
+  const textbooks = (allBooks || [])
+    .filter((b) => !b.status || b.status === "active")
+    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
+  const bookById = new Map(textbooks.map((b) => [b.id, b]));
+
+  const ids = (students || []).map((x) => x.id);
+  const { data: stBooks } = ids.length
+    ? await supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status")
+        .in("student_id", ids)
+    : { data: [] };
+  const booksOf = new Map();
+  (stBooks || []).forEach((r) => {
+    if (r.status && r.status !== "active") return;   // 끝냈거나 그만둔 교재는 뺀다
+    const b = bookById.get(r.textbook_id);
+    if (!b) return;
+    if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
+    booksOf.get(r.student_id).push(b);
+  });
+
   const rows = (students || []).map((s) => ({
     ...s,
     initPw: !!s.profile_id && initPw.has(s.profile_id),
+    books: booksOf.get(s.id) || [],
   }));
 
   return (
@@ -72,7 +101,7 @@ export default async function StudentsPage() {
               <div className="err">불러오기 실패: {error.message}</div>
             </div>
           ) : (
-            <StudentList students={rows} />
+            <StudentList students={rows} textbooks={textbooks} />
           )}
         </div>
       </main>
