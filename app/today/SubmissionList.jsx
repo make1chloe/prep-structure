@@ -60,7 +60,11 @@ export default function SubmissionList({ rows = [], items = [] }) {
                 })}
               </span>
               <span className="spacer" />
-              {r.kind !== "checklist" && (
+              {/* 보관 기간(1개월)이 지나 파일은 지웠다 — 낸 기록은 남는다 */}
+              {r.kind !== "checklist" && !r.path && (
+                <span className="hint" style={{ fontSize: 11.5 }}>보관 기간 지남</span>
+              )}
+              {r.kind !== "checklist" && r.path && (
                 <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => show(r)}>
                   {open[r.id] ? "닫기" : r.kind === "audio" ? "들어보기" : "보기"}
                 </button>

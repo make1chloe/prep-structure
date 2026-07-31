@@ -29,7 +29,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
   });
   const [makeupDays, setMakeupDays] = useState(view.schedule?.makeupDays || []);
   const [warn, setWarn] = useState(() => ({
-    reflectionAt: 3, wordPassPct: 90,
+    reflectionAt: 3, wordPassPct: 80, weakAt: 2,
     countLate: true, countHomework: true, countWordTest: true,
     ...(view.warning || {}),
   }));
@@ -78,8 +78,9 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           reflectionAt: Number(warn.reflectionAt) || 3,
           wordPassPct:
             warn.wordPassPct === "" || warn.wordPassPct === null
-              ? 90
+              ? 80
               : Math.max(0, Math.min(100, Number(warn.wordPassPct) || 0)),
+          weakAt: Math.max(1, Number(warn.weakAt) || 2),
           countLate: !!warn.countLate,
           countHomework: !!warn.countHomework,
           countWordTest: !!warn.countWordTest,
@@ -367,10 +368,22 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
               onChange={(e) => setWarn({ ...warn, wordPassPct: e.target.value })}
             />
           </div>
+          <div className="field">
+            <label className="label">숙제 미흡 몇 건부터</label>
+            <input
+              className="input input-sm"
+              inputMode="numeric"
+              value={warn.weakAt}
+              onChange={(e) => setWarn({ ...warn, weakAt: e.target.value })}
+            />
+          </div>
         </div>
         <p className="hint" style={{ marginTop: 8 }}>
+          숙제는 <b>안 해온 것(✕)은 한 건만 있어도</b> 경고이고,{" "}
+          <b>해왔는데 부족한 것(△)은 {warn.weakAt}건부터</b> 경고입니다.
+          성실한 아이도 하루에 한 항목쯤은 아쉬운 날이 있어서, 그것까지 세면 매일 경고가 뜹니다.
+          <br />
           단어시험은 <b>성취도 {warn.wordPassPct}% 이상이면 통과</b>입니다.
-          20개 중 2개까지 틀려도 통과라는 뜻입니다 (예전에 쓰시던 &quot;오답 10% 이내&quot; 와 같습니다).
           <br />
           점수는 앱 전체에서 <b>성취도 %</b> 하나로 말합니다 — 단어시험도, 단원평가도,
           숙제 성취도도 <b>높을수록 좋은</b> 숫자입니다.

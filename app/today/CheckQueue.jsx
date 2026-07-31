@@ -1,9 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { markCheck } from "./checkActions";
-import { waitingChecks, waitingFor } from "@/lib/checkQueue";
+import { waitingChecks, waitingFor, orderQueue } from "@/lib/checkQueue";
+
+// 한 번에 보여줄 줄 수 — 스무 줄이 깔리면 시작할 엄두가 안 난다
+const SHOW = 6;
 
 /**
  * 검사 대기줄 — 반 전체를 한 자리에서.
@@ -13,19 +16,23 @@ import { waitingChecks, waitingFor } from "@/lib/checkQueue";
  * 그래서 **오래 기다린 순으로 한 줄씩** 늘어놓고 그 자리에서 찍는다.
  */
 export default function CheckQueue({ date, rows = [], items = [] }) {
+  const [all, setAll] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const queue = rows
-    .flatMap((r) =>
+  const queue = orderQueue(
+    rows.flatMap((r) =>
       waitingChecks(r.doneRows || [], items, r.items || {}).map((w) => ({
         student: r.student,
         ...w,
       }))
     )
-    .sort((a, b) => a.since.localeCompare(b.since));
+  );
 
   if (queue.length === 0) return null;
+
+  const shown = all ? queue : queue.slice(0, SHOW);
+  const rest = queue.length - shown.length;
 
   function mark(studentId, itemId, status) {
     startTransition(async () => {
@@ -44,12 +51,12 @@ export default function CheckQueue({ date, rows = [], items = [] }) {
         <b style={{ fontSize: 14 }}>검사 기다리는 중</b>
         <span className="tag tag-amber">{queue.length}건</span>
         <span className="hint" style={{ flex: 1 }}>
-          오래 기다린 순입니다. 여기서 바로 찍으시면 됩니다.
+          오래 기다린 순입니다. 한 학생이 몰아서 끝냈어도 학생끼리 한 바퀴씩 돌아갑니다.
         </span>
       </div>
 
       <div className="stack" style={{ gap: 4 }}>
-        {queue.map((q) => (
+        {shown.map((q) => (
           <div className="unitrow" key={`${q.student.id}-${q.id}`}>
             <b style={{ fontSize: 13.5, minWidth: 62 }}>{q.student.name}</b>
             <span style={{ fontSize: 12.5, flex: 1 }}>{q.name}</span>
@@ -70,6 +77,16 @@ export default function CheckQueue({ date, rows = [], items = [] }) {
           </div>
         ))}
       </div>
+
+      {(rest > 0 || all) && (
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ marginTop: 6 }}
+          onClick={() => setAll(!all)}
+        >
+          {all ? "접기" : `더보기 (${rest}건)`}
+        </button>
+      )}
     </div>
   );
 }

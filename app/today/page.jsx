@@ -6,6 +6,7 @@ import MonthlyReset from "./MonthlyReset";
 import { dowOf, longLabel, todaySeoul, addDays } from "@/lib/day";
 import { tally, resetDoneIn, DEFAULT_RULE } from "@/lib/warnings";
 import { loadRunningClasses, isExtra } from "@/lib/classTerm";
+import { purgeOncePerDay } from "./purgeActions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,15 @@ export default async function TodayPage({ searchParams }) {
   // 오늘(서울) 기준 날짜와 요일
   const date = searchParams?.d || todaySeoul();
   const dow = dowOf(date);
+
+  // 한 달 지난 사진·녹음 치우기 — 하루 한 번, 조용히.
+  // 따로 도는 서버가 없으니 매일 여는 이 화면에 붙인다.
+  // 실패해도 수업 화면은 그냥 열려야 한다.
+  try {
+    await purgeOncePerDay();
+  } catch {
+    /* 정리가 안 됐다고 수업을 못 하면 안 된다 */
+  }
 
   // 오늘 요일에 수업이 있는 반
   // (끝난 특강은 여기서 이미 빠진다 — 종강일이 지나면 오늘 수업에 안 뜬다)

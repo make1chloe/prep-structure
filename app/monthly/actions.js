@@ -8,6 +8,13 @@ import { deliver } from "@/lib/send";
 import { autoValues, buildVariables } from "@/lib/alimtalk";
 import { endOfMonth } from "@/lib/day";
 
+/** "2026-07" → "2026-06" */
+function prevYm(ym) {
+  const y = Number(ym.slice(0, 4));
+  const m = Number(ym.slice(5, 7));
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+}
+
 const NEED = "0031 SQL 을 먼저 실행해주세요.";
 
 function unavailable(error) {
@@ -33,13 +40,17 @@ export async function loadMonth(ym) {
     .order("name", { ascending: true });
   const enrolled = (students || []).filter((s) => !s.status || s.status === "enrolled");
 
-  const { data: reports } = await supabase
+  // 지난달까지 같이 읽는다 — 한 줄 평은 **변화**를 말할 때 제일 와닿는다
+  const pym = prevYm(ym);
+  const { data: all } = await supabase
     .from("daily_reports")
     .select("id, student_id, date, attendance_kind, word_correct, word_total")
-    .gte("date", from)
+    .gte("date", `${pym}-01`)
     .lte("date", to);
+  const reports = (all || []).filter((r) => r.date >= from);
+  const prevReports = (all || []).filter((r) => r.date < from);
 
-  const ids = (reports || []).map((r) => r.id);
+  const ids = (all || []).map((r) => r.id);
   const { data: items } = ids.length
     ? await supabase
         .from("daily_report_items")
@@ -80,8 +91,15 @@ export async function loadMonth(ym) {
         .map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }))
         .sort((a, b) => a.date.localeCompare(b.date));
       const sum = summarize(mineReports, examsOf.get(s.id) || []);
+
+      // 지난달 — 한 줄 평에서 견주기만 한다 (문구에 지난달 숫자를 늘어놓지는 않는다)
+      const before = prevReports
+        .filter((r) => r.student_id === s.id)
+        .map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }));
+      const prev = before.length >= 3 ? summarize(before, []) : null;
+
       const saved = mine.get(s.id);
-      const data = { student: s, ym, sum, note: saved?.note || "" };
+      const data = { student: s, ym, sum, prev, note: saved?.note || "" };
       const auto = buildMonthlyText(data, settings.academy.name, msg);
       return {
         studentId: s.id,

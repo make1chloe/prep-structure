@@ -186,6 +186,10 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
               <div style={{ marginTop: 10 }}>
                 <div className="field">
                   <label className="label">이 학생에게 덧붙일 한마디 (선택)</label>
+                  <p className="hint" style={{ margin: "0 0 4px", fontSize: 11.5 }}>
+                    비워두면 그 달 숫자를 보고 <b>한 줄 평이 자동으로</b> 붙습니다.
+                    여기에 적으시면 적으신 말이 대신 나갑니다.
+                  </p>
                   <textarea
                     className="input input-sm"
                     rows={2}
