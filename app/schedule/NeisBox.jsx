@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   saveNeisKey, neisReady, searchSchools, addSchool, removeSchool, listSchools,
-  importSchedule, clearImported,
+  importSchedule, clearImported, importedSummary,
 } from "./neisActions";
 import { schoolYear } from "@/lib/neis";
 
@@ -25,14 +25,19 @@ export default function NeisBox({ months = [] }) {
   // 학교 일정은 한 해가 한 덩어리라, 몇 달만 받으면 어차피 또 받게 된다.
   const year = schoolYear(months[0]?.ym ? `${months[0].ym}-01` : new Date().toISOString().slice(0, 10));
   const [range, setRange] = useState({ from: year.from, to: year.to });
-  const [done, setDone] = useState(null);      // 받아온 결과
+  const [done, setDone] = useState(null);      // 방금 받아온 결과
+  const [have, setHave] = useState(null);      // 지금 들어와 있는 것
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => { neisReady().then((r) => setReady(!!r?.ready)); }, []);
   useEffect(() => { listSchools().then((r) => { setMine(r?.rows || []); if (r?.error) setErr(r.error); }); }, []);
-  const reload = () => listSchools().then((r) => setMine(r?.rows || []));
+  useEffect(() => { importedSummary().then(setHave); }, []);
+  const reload = () => {
+    listSchools().then((r) => setMine(r?.rows || []));
+    importedSummary().then(setHave);
+  };
 
   function run(fn, after) {
     setErr("");
@@ -63,6 +68,44 @@ export default function NeisBox({ months = [] }) {
       </p>
 
       {err && <div className="err" style={{ marginTop: 8 }}>{err}</div>}
+
+      {/* **지금 들어와 있는 것** — 받았는지를 기억에 맡기면 안 된다.
+          화면을 옮기면 결과 상자는 사라지고, 다시 눌러야 하나 망설이게 된다. */}
+      <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
+        <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+          <b style={{ fontSize: 13 }}>지금 들어와 있는 것</b>
+          {have === null ? (
+            <span className="hint">세는 중…</span>
+          ) : have.total > 0 ? (
+            <span className="tag tag-mint">{have.total}건</span>
+          ) : (
+            <span className="tag tag-amber">아직 없음</span>
+          )}
+        </div>
+        {have?.total > 0 ? (
+          <div className="stack" style={{ gap: 2, marginTop: 6 }}>
+            {have.rows.map((r) => (
+              <div className="unitrow" key={r.code}>
+                <b style={{ fontSize: 12.5, flex: 1 }}>{r.name}</b>
+                <span className="hint" style={{ fontSize: 11.5 }}>
+                  {r.from} ~ {r.to}
+                </span>
+                <span className="tag tag-muted">{r.count}건</span>
+              </div>
+            ))}
+            <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5 }}>
+              <b>받아오기가 된 것입니다.</b> 일정 화면과 대시보드 달력에서 보입니다.
+              다시 받아도 늘어나지 않으니 언제든 눌러도 됩니다.
+            </p>
+          </div>
+        ) : (
+          have !== null && (
+            <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
+              아직 받아온 학사일정이 없습니다. 아래 <b>학사일정 받아오기</b> 를 눌러주세요.
+            </p>
+          )
+        )}
+      </div>
 
       {openKey && (
         <div className="stack" style={{ gap: 8, marginTop: 10 }}>
@@ -199,7 +242,7 @@ export default function NeisBox({ months = [] }) {
               disabled={pending || !ready}
               title={ready ? undefined : "먼저 나이스 인증키를 넣어주세요"}
               onClick={() =>
-                run(() => importSchedule(range.from, range.to), setDone)
+                run(() => importSchedule(range.from, range.to), (r) => { setDone(r); importedSummary().then(setHave); })
               }
             >
               {pending ? "받는 중… (한 해치는 조금 걸려요)" : "학사일정 받아오기"}
@@ -210,7 +253,7 @@ export default function NeisBox({ months = [] }) {
               disabled={pending}
               onClick={() => {
                 if (!confirm("이 기간에 나이스에서 받아온 일정을 지울까요?\n손으로 적으신 일정은 그대로 남습니다.")) return;
-                run(() => clearImported(range.from, range.to), () => setDone(null));
+                run(() => clearImported(range.from, range.to), () => { setDone(null); importedSummary().then(setHave); });
               }}
             >
               받아온 것 지우기

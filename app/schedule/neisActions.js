@@ -293,3 +293,44 @@ export async function clearImported(from, to) {
   revalidatePath("/tasks");
   return { error: error ? error.message : null };
 }
+
+/**
+ * 지금 들어와 있는 것 — **학교별로 몇 건, 언제부터 언제까지.**
+ *
+ * "받아왔나?" 를 기억에 의존하게 하면 안 된다. 받고 나서 화면을 옮기면
+ * 결과 상자는 사라지고, 다시 눌러야 하나 망설이게 된다.
+ * 화면을 열 때마다 **지금 상태**가 그대로 보여야 한다.
+ */
+export async function importedSummary() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { rows: [], total: 0 };
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("source_id, due_on")
+    .eq("source", "neis")
+    .order("due_on", { ascending: true });
+  if (error) return { rows: [], total: 0, error: null };   // 0059 전이면 조용히 없음
+
+  const { rows: schools } = await listSchools();
+  const nameOf = new Map((schools || []).map((s) => [s.schul_code, s.name]));
+
+  // source_id 는 "학교코드:날짜:행사" 라 앞부분으로 학교를 가른다
+  const by = new Map();
+  (data || []).forEach((t) => {
+    const code = (t.source_id || "").split(":")[0];
+    const cur = by.get(code) || { code, count: 0, from: null, to: null };
+    cur.count += 1;
+    if (!cur.from || t.due_on < cur.from) cur.from = t.due_on;
+    if (!cur.to || t.due_on > cur.to) cur.to = t.due_on;
+    by.set(code, cur);
+  });
+
+  return {
+    total: (data || []).length,
+    rows: [...by.values()]
+      .map((r) => ({ ...r, name: nameOf.get(r.code) || r.code }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ko")),
+  };
+}
