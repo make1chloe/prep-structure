@@ -224,6 +224,17 @@ export default function NeisBox({ months = [] }) {
                 {done.notes?.length ? ` (${done.notes.join(" · ")})` : ""}
               </div>
 
+              {done.failed?.length > 0 && (
+                <div className="err" style={{ fontSize: 12.5 }}>
+                  <b>못 받은 학교도 있어요</b>
+                  <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                    {done.failed.map((f, i) => (
+                      <span key={i} style={{ fontSize: 12 }}>· {f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {done.examAdded > 0 && (
                 <div className="notice" style={{ fontSize: 12.5 }}>
                   시험 기간 <b>{done.examAdded}건</b> 도 함께 넣었습니다.

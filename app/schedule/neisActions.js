@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
-  schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods,
+  schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame,
 } from "@/lib/neis";
 
 /**
@@ -185,21 +185,25 @@ export async function importSchedule(from, to, schoolId = null) {
   const exams = [];
   const notes = [];
 
+  const failed = [];
   for (const school of targets) {
     const res = await callAll(key, school, from, to);
-    if (res.error) return { error: `${school.name} — ${res.error}` };
+    // 한 학교가 막혀도 **나머지는 받는다.** 아홉 곳 중 하나 때문에 전부 못 받으면
+    // 어디가 문제인지도 모르고 다시 눌러야 한다.
+    if (res.error) { failed.push(`${school.name} — ${res.error}`); continue; }
     if (res.empty) {
       notes.push(`${school.name}: 그 기간에 일정이 없어요.`);
       continue;
     }
 
-    const tasks = res.rows.map((r) => toTask(r, school)).filter(Boolean);
+    // 학교는 같은 날 같은 행사를 학년마다 한 줄씩 주기도 한다. 먼저 하나로 합친다
+    const tasks = mergeSame(res.rows.map((r) => toTask(r, school)).filter(Boolean));
     const found = examPeriods(tasks, school);
     exams.push(...found);
     // 시험 기간은 **묻지 않고 다 넣는다.** 필요 없는 것은 화면에서 숨기면 되고,
     // 숨긴 것은 다시 받아와도 숨긴 채로 있다. 매번 고르게 하는 것이 더 일이다.
     const madeExam = await addExamPeriods(found);
-    if (madeExam.error) return { error: `${school.name} — ${madeExam.error}` };
+    if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
 
     // **한 줄씩 넣지 않는다.** 한 해치면 학교 하나에 수백 줄이라, 한 줄에 한 번씩
@@ -208,13 +212,15 @@ export async function importSchedule(from, to, schoolId = null) {
       ...row,
       created_by: user?.id || null,
     }));
+    let bad = null;
     for (let i = 0; i < rows.length; i += 200) {
       const { error } = await supabase
         .from("tasks")
         .upsert(rows.slice(i, i + 200), { onConflict: "source,source_id" });
       if (needSql(error)) return { error: SQL };
-      if (error) return { error: `${school.name} — ${error.message}` };
+      if (error) { bad = error.message; break; }
     }
+    if (bad) { failed.push(`${school.name} — ${bad}`); continue; }
     added += rows.length;
     notes.push(`${school.name}: ${tasks.length}건`);
   }
@@ -222,7 +228,9 @@ export async function importSchedule(from, to, schoolId = null) {
   revalidatePath("/schedule");
   revalidatePath("/tasks");
   revalidatePath("/");
-  return { error: null, added, examAdded, exams, notes };
+  // 다 막혔으면 오류로, 일부만 막혔으면 받은 것은 살리고 막힌 것만 알려준다
+  if (failed.length && added === 0) return { error: failed.join("\n") };
+  return { error: null, added, examAdded, exams, notes, failed };
 }
 
 /**
