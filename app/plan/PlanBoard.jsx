@@ -265,7 +265,7 @@ export default function PlanBoard({
           {[
             ["homework", "숙제 내기"],
             ["absence", "결석 예정"],
-            ["notice", "공지 · 전달사항"],
+            ["notice", "공지"],
           ].map(([k, l]) => (
             <button
               key={k}
@@ -538,7 +538,7 @@ export default function PlanBoard({
             {datePicker(noticeDate, setNoticeDate, "날짜")}
             <div className="row" style={{ gap: 4, marginBottom: 8 }}>
               {[
-                ["deliver", "전달사항 (학생에게)"],
+                ["deliver", "학생 공지"],
                 ["notice", "공지 (학부모 리포트)"],
               ].map(([k, l]) => (
                 <button

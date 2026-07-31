@@ -347,16 +347,6 @@ export default function TodayBoard({
                                 결석 기록
                               </span>
                             )}
-                            {(() => {
-                              const d = (r.notices || []).filter((n) => n.kind === "deliver");
-                              const left = d.filter((n) => !n.delivered).length;
-                              if (d.length === 0) return null;
-                              return (
-                                <span className={`tag ${left ? "tag-amber" : "tag-mint"}`}>
-                                  전달 {d.length - left}/{d.length}
-                                </span>
-                              );
-                            })()}
                             <span className="spacer" />
                             {r.status ? (
                               <span
@@ -402,17 +392,6 @@ export default function TodayBoard({
                             ) : r.status ? (
                               <span className="tag tag-amber">기록 전</span>
                             ) : null}
-                            {(() => {
-                              // 아직 말 안 한 전달사항 — 열지 않아도 보이게
-                              const left = (r.notices || []).filter(
-                                (n) => n.kind === "deliver" && !n.delivered
-                              ).length;
-                              return left > 0 ? (
-                                <span className="tag tag-amber" title="학생에게 말할 것">
-                                  말할 것 {left}
-                                </span>
-                              ) : null;
-                            })()}
                             {waitingChecks(r.doneRows || [], items, r.items || {}).length > 0 && (
                               <span
                                 className="tag tag-amber"

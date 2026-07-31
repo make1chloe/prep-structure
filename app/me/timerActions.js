@@ -66,6 +66,15 @@ export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind
   const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
 
+  // **숙제는 내야 끝난 것이다.**
+  //   "다 했어요" 는 말일 뿐이고, 물어보면 다들 했다고 한다. 사진이든 녹음이든
+  //   낸 것이 있어야 끝난 것으로 친다.
+  //   낼 것이 없는 숙제(공책처럼 직접 보고 검사하는 것)만 그냥 넘어간다.
+  if (kind === "home" && homeworkItemId) {
+    const miss = await needsSubmission(supabase, sid, homeworkItemId, reportItemId);
+    if (miss) return { error: miss };
+  }
+
   const stop = await stopRunning(supabase, sid, todaySeoul());
   if (stop.error) return stop;
 
@@ -83,6 +92,34 @@ export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind
   revalidatePath("/me");
   revalidatePath("/today");
   return { error: null };
+}
+
+/**
+ * 낸 것이 없으면 왜 안 되는지 말해준다 (없으면 null).
+ *
+ * 0044·0063 이 아직 없는 DB 에서는 막지 않는다 — 못 내는 상태에서 막으면
+ * 아이가 아무것도 끝낼 수가 없다.
+ */
+async function needsSubmission(supabase, sid, homeworkItemId, reportItemId) {
+  const { data: item, error: itemErr } = await supabase
+    .from("homework_items")
+    .select("name, in_person")
+    .eq("id", homeworkItemId)
+    .maybeSingle();
+  if (itemErr && (itemErr.code === "42703" || itemErr.code === "PGRST204")) return null;
+  if (item?.in_person) return null;   // 직접검사 — 앱에 낼 것이 없다
+
+  let q = supabase
+    .from("homework_submissions")
+    .select("id")
+    .eq("student_id", sid)
+    .limit(1);
+  q = reportItemId ? q.eq("report_item_id", reportItemId) : q.eq("homework_item_id", homeworkItemId);
+  const { data: subs, error } = await q;
+  if (error) return null;             // 0044 전 — 낼 수가 없으니 막지 않는다
+  if ((subs || []).length > 0) return null;
+
+  return "아직 낸 것이 없어요. 사진이나 녹음으로 내야 끝나요.";
 }
 
 /** 잘못 눌렀을 때 되돌린다 */

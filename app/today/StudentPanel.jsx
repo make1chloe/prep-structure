@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
+import { saveStudentDay, listUnitOptions, bookMakeup } from "./actions";
 import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
 import { unitOptionText } from "@/lib/unitTree";
@@ -175,9 +175,6 @@ export default function StudentPanel({
   const [methodOf, setMethodOf] = useState(null);
   // 검사 화면은 기본적으로 "검사해야 하는 것"만 보여준다
   const [showAllItems, setShowAllItems] = useState(false);
-  const [delivered, setDeliveredMap] = useState(() =>
-    Object.fromEntries((row.notices || []).map((n) => [n.id, n.delivered]))
-  );
   // 검사하다 "그럼 목요일에 다시 보자" 가 되는 순간을 여기서 바로 처리한다
   const [mk, setMk] = useState({ open: false, date: "", time: "", reason: "" });
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고 타이머가 여기 붙는다
@@ -411,12 +408,6 @@ export default function StudentPanel({
         );
         setRoutine(null);
       }
-      const notYet = (row.notices || []).filter(
-        (n) => n.kind === "deliver" && !delivered[n.id]
-      );
-      if (notYet.length > 0) {
-        alert(`아직 전달하지 않은 사항이 ${notYet.length}건 있어요.\n하원 전에 꼭 전달해주세요.`);
-      }
       if (res && res.complete === false) {
         alert(`저장했지만 아직 완료가 아니에요.\n지난 수업 숙제 ${res.unchecked}개가 검사되지 않았습니다.`);
       }
@@ -453,41 +444,25 @@ export default function StudentPanel({
       {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
       <SubmissionList rows={row.subs || []} items={items} />
 
-      {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
+      {/* 이 학생에게 나간 공지 — 아이 화면에 그대로 떠 있다.
+          말로 전하고 하나씩 체크하던 것은 걷어냈다. 원장님이 안 쓰신다. */}
       {(row.notices || []).filter((n) => n.kind === "deliver").length > 0 && (
         <div className="sayblock">
           <div className="sayhead">
-            학생에게 말할 것
-            <span className="hint" style={{ fontWeight: 600 }}>
-              {" "}· 말한 뒤 눌러주세요
-            </span>
+            이 학생에게 나간 공지
+            <span className="hint" style={{ fontWeight: 600 }}> · 아이 화면에도 떠 있어요</span>
           </div>
           <div className="stack" style={{ gap: 6 }}>
             {(row.notices || [])
               .filter((n) => n.kind === "deliver")
-              .map((n) => {
-                const done = !!delivered[n.id];
-                return (
-                  <label key={n.id} className={`sayitem ${done ? "done" : ""}`}>
-                    <input
-                      type="checkbox"
-                      checked={done}
-                      onChange={(e) => {
-                        const v = e.target.checked;
-                        setDeliveredMap((m) => ({ ...m, [n.id]: v }));
-                        startTransition(async () => {
-                          const res = await setDelivered(n.id, row.student.id, v);
-                          if (res?.error) alert(res.error);
-                        });
-                      }}
-                    />
-                    <span className="saybody">{n.body}</span>
-                    <span className={`tag ${done ? "tag-muted" : "tag-amber"}`}>
-                      {done ? "전달함" : "전달 전"}
-                    </span>
-                  </label>
-                );
-              })}
+              .map((n) => (
+                <div key={n.id} className="sayitem">
+                  <span className="saybody">{n.title ? `${n.title} — ${n.body}` : n.body}</span>
+                  {(n.photos || []).length > 0 && (
+                    <span className="tag tag-sky">사진 {n.photos.length}</span>
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       )}

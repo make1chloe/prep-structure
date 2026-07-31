@@ -13,17 +13,19 @@ const SCOPES = [
   { key: "student", label: "개인별" },
 ];
 
+// **공지는 내가 보내는 것**이고, **전달사항은 학생·학부모가 나에게 보내는 것**이다.
+// 예전에는 나가는 것도 '전달사항' 이라 불러서 두 가지가 같은 이름이었다.
 const KINDS = [
   {
     key: "deliver",
-    label: "학생용 공지",
+    label: "학생 공지",
     hint:
-      "수업 중 학생에게 말로 전하고, 하원 전에 전달했는지 체크합니다. " +
-      "같은 내용이 그 학생의 숙제 문자에도 함께 나갑니다.",
+      "학생 화면 「공지사항」에 뜨고, 그 학생의 숙제 문자에도 함께 나갑니다. " +
+      "학교에서 나눠준 종이는 사진으로 붙이세요.",
   },
   {
     key: "notice",
-    label: "학부모용 공지",
+    label: "학부모 공지",
     hint:
       "데일리리포트에 함께 나갑니다. 학생 한 명에게만 할 말은 각 학생 칸의 '공지' 에 적으세요.",
   },
@@ -54,7 +56,6 @@ export default function TopNotices({
   const grades = [...new Set(students.map((s) => s.grade).filter(Boolean))].sort();
 
   const mine = notices.filter((n) => n.kind === kind);
-  const undone = notices.filter((n) => n.kind === "deliver" && n.done < n.total);
 
   // 지금 설정으로 몇 명에게 가는지 미리 보여준다
   const targetCount =
@@ -92,7 +93,7 @@ export default function TopNotices({
   }
 
   function remove(id) {
-    if (!confirm("이 내용을 지울까요? 전달 체크 기록도 함께 지워집니다.")) return;
+    if (!confirm("이 공지를 지울까요? 붙인 사진도 함께 지워집니다.")) return;
     startTransition(async () => {
       const res = await deleteNotice(id);
       if (res?.error) alert(res.error);
@@ -138,10 +139,10 @@ export default function TopNotices({
   const preBox = pre.length > 0 && (
     <div className="card" style={{ marginTop: 12, borderColor: "var(--amber)" }}>
       <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
-        수업 전에 볼 것 {pre.length}건
+        전달사항 {pre.length}건
       </h2>
       <p className="muted" style={{ margin: "0 0 8px", fontSize: 12.5 }}>
-        <b>오늘 오는 학생</b>이 남긴 것만 모았습니다. 대시보드까지 안 가도 됩니다.
+        <b>학생·학부모가 보낸 것</b>입니다. 오늘 오는 학생 것만 모았어요.
       </p>
       <div className="stack" style={{ gap: 4 }}>
         {pre.map((p) => (
@@ -161,7 +162,7 @@ export default function TopNotices({
       {preBox}
       <div className="card" style={{ marginTop: 12 }}>
         <div className="notice">
-          공지·전달사항을 쓰려면 Supabase에서 <b>0009_notices.sql</b> 을 한 번 실행해주세요.
+공지를 쓰려면 Supabase에서 <b>0009_notices.sql</b> 을 한 번 실행해주세요.
         </div>
       </div>
       </>
@@ -174,15 +175,12 @@ export default function TopNotices({
     <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
       <button className="grouphead" onClick={() => setOpen(!open)}>
         <span style={{ fontWeight: 800 }}>
-          {open ? "▾" : "▸"} 공지 (학생용 · 학부모용)
+          {open ? "▾" : "▸"} 공지 (내가 보내는 것)
         </span>
         <span className="muted" style={{ fontSize: 12.5 }}>
           오늘 {notices.length}건
-          {undone.length > 0 && (
-            <b style={{ color: "var(--amber)" }}> · 아직 전달 안 한 항목 {undone.length}건</b>
-          )}
           {pendingTasks.length > 0 && (
-            <b style={{ color: "var(--lav)" }}> · 오늘 일정에서 만들 전달사항 {pendingTasks.length}건</b>
+            <b style={{ color: "var(--lav)" }}> · 오늘 일정에서 만들 공지 {pendingTasks.length}건</b>
           )}
         </span>
       </button>
@@ -199,7 +197,7 @@ export default function TopNotices({
                     onClick={() => applyTasks(pendingTasks.map((t) => t.id))}
                     disabled={pending}
                   >
-                    전달사항 {pendingTasks.length}건 한 번에 만들기
+공지 {pendingTasks.length}건 한 번에 만들기
                   </button>
                 )}
               </div>
@@ -212,14 +210,14 @@ export default function TopNotices({
                     <span className="spacer" />
                     {t.deliverBody &&
                       (t.applied ? (
-                        <span className="tag tag-mint">전달사항 만듦</span>
+                        <span className="tag tag-mint">공지 만듦</span>
                       ) : (
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => applyTasks([t.id])}
                           disabled={pending}
                         >
-                          전달사항 만들기
+공지 만들기
                         </button>
                       ))}
                   </div>
@@ -353,11 +351,7 @@ export default function TopNotices({
                       {n.title && n.body && n.body !== n.title ? " — " : ""}
                       {n.body !== n.title ? n.body : ""}
                     </span>
-                    {n.kind === "deliver" && (
-                      <span className={`tag ${n.done >= n.total ? "tag-mint" : "tag-amber"}`}>
-                        전달 {n.done}/{n.total}
-                      </span>
-                    )}
+                    <span className="tag tag-muted">{n.total}명</span>
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
                       삭제
                     </button>

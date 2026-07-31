@@ -178,11 +178,11 @@ export default async function MePage({ searchParams }) {
   // 숙제 항목 (학습 방법 포함)
   let { data: items, error: itemErr } = await supabase
     .from("homework_items")
-    .select("id, name, category, method, sort, no_timer, word_test, checklist");
+    .select("id, name, category, method, sort, no_timer, word_test, checklist, in_person");
   if (itemErr) {
     ({ data: items, error: itemErr } = await supabase
       .from("homework_items")
-      .select("id, name, category, method, sort, no_timer"));
+      .select("id, name, category, method, sort, no_timer, word_test, checklist"));
   }
   if (itemErr) {
     ({ data: items, error: itemErr } = await supabase
@@ -449,6 +449,7 @@ export default async function MePage({ searchParams }) {
       note: c.note,
       method: c.method,
       checklist: c.checklist || [],   // 빠져 있어서 체크리스트가 학생 화면에 안 뜨고 있었다
+      inPerson: !!it?.in_person,      // 앱에 낼 것이 없는 숙제 — 안 내도 끝낼 수 있다
       doneAt: c.doneAt,
       needsCheck: !!it?.no_timer,
       checked: false,

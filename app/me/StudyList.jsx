@@ -93,6 +93,14 @@ export default function StudyList({
     !!now &&
     (running.stayId ? running.stayId === now.stayId : running.itemId === now.itemId);
 
+  // 아직 낸 것이 없는 숙제인가 (직접검사는 낼 것이 없으므로 그냥 끝낼 수 있다)
+  const needSubmit =
+    kind === "home" &&
+    !!now &&
+    !!now.itemId &&
+    !now.inPerson &&
+    (subs[now.reportItemId || now.itemId] || []).length === 0;
+
   return (
     <div className="stack" style={{ gap: 10 }}>
       {/* 얼마나 왔나 — 숫자보다 막대가 빨리 읽힌다 */}
@@ -123,9 +131,16 @@ export default function StudyList({
           {isRunning ? (
             <>
               <div className="nowtimer">{clock(runningSec)}</div>
+              {/* 숙제는 내야 끝난 것이다. 누른 뒤에 "안 돼요" 라고 하면 늦다 —
+                  누르기 전에 무엇이 남았는지 보여준다. */}
+              {needSubmit && (
+                <p className="nowsub" style={{ color: "var(--amber)", marginTop: 8 }}>
+                  아래에서 <b>사진이나 녹음으로 내야</b> 끝나요.
+                </p>
+              )}
               <button
                 className="bigbtn"
-                disabled={pending || readOnly}
+                disabled={pending || readOnly || needSubmit}
                 onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind, asId))}
               >
                 다 했어요

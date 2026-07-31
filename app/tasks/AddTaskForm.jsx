@@ -97,7 +97,7 @@ export default function AddTaskForm({ classes = [] }) {
               )}
             </div>
             <p className="hint" style={{ margin: "8px 0 0" }}>
-              그 날짜의 <b>오늘 수업</b> 화면에 전달사항으로 깔리고, 하원 전 전달 체크로 확인합니다.
+              그 날짜의 <b>오늘 수업</b> 화면에서 학생 공지로 깔 수 있고, 학생 화면에 그대로 뜹니다.
             </p>
           </div>
         )}
