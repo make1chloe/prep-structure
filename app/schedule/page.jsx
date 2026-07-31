@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ScheduleBoard from "./ScheduleBoard";
+import NeisBox from "./NeisBox";
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
@@ -109,6 +110,7 @@ export default async function SchedulePage() {
             알림에 같이 적어줍니다. 3개월을 다 합쳐도 남을 때만 서비스·휴강을 결정하면 됩니다.
           </p>
         </div>
+        <NeisBox months={months} />
         <ScheduleBoard
           months={months}
           reviews={reviews}
