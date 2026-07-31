@@ -6,6 +6,7 @@ import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
 import ServiceKeyBox from "./ServiceKeyBox";
 import StorageBox from "./StorageBox";
+import UpsertBox from "./UpsertBox";
 import AiBox from "./AiBox";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
@@ -109,8 +110,14 @@ export default async function SqlPage() {
             <span className={`tag ${done === checks.length ? "tag-mint" : "tag-amber"}`}>
               {done} / {checks.length}
             </span>
-            {done === checks.length && <span className="hint">다 들어가 있습니다</span>}
+            {done === checks.length && <span className="hint">표와 칸은 다 들어가 있습니다</span>}
           </div>
+          {/* 여기서 다 됐다고 나와도 안 되는 것이 있다. 그걸 숨기면 안 된다. */}
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.8 }}>
+            이 목록은 <b>표와 칸</b>만 봅니다. 인덱스처럼 밖에서 물어볼 수 없는 것은
+            여기 안 나옵니다 — <b>다 됐다고 보여도 나이스 받아오기나 숙제→할일이 막혀
+            있을 수 있습니다.</b> 아래 <b>「받아오기 · 할일 점검」</b> 에서 실제로 해보세요.
+          </p>
           <div className="stack" style={{ gap: 3, marginTop: 8 }}>
             {checks.map((c) => (
               <div className="unitrow" key={c.id + (c.col || c.rpc || "")}>
@@ -185,6 +192,7 @@ export default async function SqlPage() {
 
         <ServiceKeyBox saved={!!svcRow?.config?.key} />
 
+        <UpsertBox />
         <StorageBox />
 
         <AiBox saved={!!aiRow?.config?.key} />
