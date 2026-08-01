@@ -242,6 +242,10 @@ export async function importSchedule(from, to, schoolId = null) {
   let examAdded = 0;
   const exams = [];
   const notes = [];
+  // 수능·모의고사는 학교에 안 매인 한 줄로 들어간다 (source_id 가 common: 으로 시작).
+  // 어느 학교의 정리에도 안 걸리므로, 이번에 받은 것을 모아 두었다가 마지막에 본다.
+  const commonSeen = new Set();
+  let sawHigh = false;
 
   const failed = [];
   for (const school of targets) {
@@ -265,6 +269,8 @@ export async function importSchedule(from, to, schoolId = null) {
     const madeExam = await addExamPeriods(found);
     if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
+
+    tasks.forEach((t) => { if (t.nationwide) { commonSeen.add(t.source_id); sawHigh = true; } });
 
     // 이 학교의 이 기간에 지금 들어 있는 것 — 뒤에서 **없어진 것을 지우려고** 먼저 읽는다.
     // (하루씩 들어와 있던 옛 줄이 한 줄로 합쳐지면 나머지 날들은 사라져야 한다)
@@ -296,7 +302,9 @@ export async function importSchedule(from, to, schoolId = null) {
 
     // **한 줄씩 넣지 않는다.** 한 해치면 학교 하나에 수백 줄이라, 한 줄에 한 번씩
     // 오가면 화면이 기다리다 끊긴다. 한 번에 묶어 보낸다.
-    const rows = tasks.map(({ neisKind, ...row }) => ({
+    // neisKind · nationwide 는 우리끼리 쓰는 표시다. **표에 없는 칸이라 그대로
+    // 보내면 통째로 거절당한다.** 여기서 떼어낸다.
+    const rows = tasks.map(({ neisKind, nationwide, ...row }) => ({
       ...row,
       // 원장님이 「나만 보기」로 잠가둔 일정은 다시 받아와도 잠긴 채로 (0066)
       private: keepPrivate.has(row.source_id) ? true : undefined,
@@ -336,6 +344,22 @@ export async function importSchedule(from, to, schoolId = null) {
     }
     added += rows.length;
     notes.push(`${school.name}: ${tasks.length}건`);
+  }
+
+  // 전국 공통(수능·모의고사) 중 이번에 안 온 것 정리.
+  // 한 곳이라도 제대로 받아온 뒤에만 한다 — 다 실패했는데 지우면 멀쩡한 것이 사라진다.
+  if (sawHigh) {
+    const { data: old } = await supabase
+      .from("tasks")
+      .select("id, source_id")
+      .eq("source", "neis")
+      .like("source_id", "common:%")
+      .gte("due_on", from)
+      .lte("due_on", to);
+    const stale = (old || []).filter((r) => !commonSeen.has(r.source_id)).map((r) => r.id);
+    for (let i = 0; i < stale.length; i += 200) {
+      await supabase.from("tasks").delete().in("id", stale.slice(i, i + 200));
+    }
   }
 
   revalidatePath("/schedule");
@@ -443,7 +467,10 @@ export async function importedSummary() {
   return {
     total: (data || []).length,
     rows: [...by.values()]
-      .map((r) => ({ ...r, name: nameOf.get(r.code) || r.code }))
+      .map((r) => ({
+        ...r,
+        name: r.code === "common" ? "전국 공통 (수능 · 모의고사)" : nameOf.get(r.code) || r.code,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name, "ko")),
   };
 }
@@ -506,6 +533,20 @@ export async function diagnose() {
   const rows = [...groups.values()]
     .map((g) => {
       const s = byCode.get(g.code);
+      // 수능·모의고사는 학교에 안 매인 줄이다. '목록에 없는 학교' 로 보면 안 된다
+      if (g.code === "common") {
+        return {
+          code: g.code,
+          name: "전국 공통 (수능 · 모의고사)",
+          where: "교육청 · 평가원이 정하는 날이라 학교와 상관없이 한 줄입니다",
+          kind: null,
+          registered: true,
+          count: g.count,
+          from: g.from,
+          to: g.to,
+          sample: g.items.slice(0, 6).map((t) => `${t.due_on.slice(5)} ${t.title}`),
+        };
+      }
       return {
         code: g.code,
         name: s?.name || null,
