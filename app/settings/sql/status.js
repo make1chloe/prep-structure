@@ -60,6 +60,7 @@ const CHECKS = [
   { id: "0066", label: "달력 나누기", table: "tasks", col: "private" },
   { id: "0067", label: "메뉴 고르기", table: "profiles", col: "menu_hidden" },
   { id: "0068", label: "학부모가 보내는 사진", table: "requests", col: "photos" },
+  { id: "0069", label: "학교 지역·주소", table: "neis_schools", col: "address" },
 ];
 
 export async function checkSchema() {

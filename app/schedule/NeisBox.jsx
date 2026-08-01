@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   saveNeisKey, neisReady, searchSchools, addSchool, removeSchool, listSchools,
-  importSchedule, clearImported, importedSummary,
+  importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports,
 } from "./neisActions";
 import { schoolYear } from "@/lib/neis";
 
@@ -26,7 +26,8 @@ export default function NeisBox({ months = [] }) {
   const year = schoolYear(months[0]?.ym ? `${months[0].ym}-01` : new Date().toISOString().slice(0, 10));
   const [range, setRange] = useState({ from: year.from, to: year.to });
   const [done, setDone] = useState(null);      // 방금 받아온 결과
-  const [have, setHave] = useState(null);      // 지금 들어와 있는 것
+  const [have, setHave] = useState(null);   // 지금 들어와 있는 것
+  const [diag, setDiag] = useState(null);   // 무엇이 들어 있는지 그대로 보기
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -97,6 +98,17 @@ export default function NeisBox({ months = [] }) {
               <b>받아오기가 된 것입니다.</b> 일정 화면과 대시보드 달력에서 보입니다.
               다시 받아도 늘어나지 않으니 언제든 눌러도 됩니다.
             </p>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ alignSelf: "flex-start", marginTop: 4 }}
+              disabled={pending}
+              onClick={() => {
+                if (diag) { setDiag(null); return; }
+                run(() => diagnose(), setDiag);
+              }}
+            >
+              {diag ? "닫기" : "내용이 이상해요 · 무엇이 들어 있는지 보기"}
+            </button>
           </div>
         ) : (
           have !== null && (
@@ -106,6 +118,80 @@ export default function NeisBox({ months = [] }) {
           )
         )}
       </div>
+
+      {diag && (
+        <div className="card card-tight" style={{ marginTop: 8, background: "var(--surface-2)" }}>
+          <b style={{ fontSize: 13 }}>지금 들어 있는 것 그대로</b>
+          <p className="hint" style={{ margin: "4px 0 8px", fontSize: 11.5 }}>
+            내용이 틀리거나 중복이 많다면 대개 셋 중 하나예요.
+            ① 나이스 학교 찾기는 <b>부분 일치</b>라 '신송' 으로 찾으면 신송초·신송중·신송고가 같이 나옵니다 —
+            엉뚱한 학교를 넣었을 수 있어요.
+            ② 같은 학교를 <b>두 번</b> 넣으면 코드가 달라 같은 날 같은 행사가 두 줄이 됩니다.
+            ③ 학교를 뺐어도 <b>그 학교 일정은 남습니다.</b> 목록에 없는데 달력에는 있는 경우예요.
+          </p>
+
+          <div className="stack" style={{ gap: 6 }}>
+            {(diag.rows || []).map((r) => (
+              <div key={r.code} className="card card-tight" style={{ background: "var(--surface)" }}>
+                <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+                  {r.registered ? (
+                    <b style={{ fontSize: 13 }}>{r.name}</b>
+                  ) : (
+                    <b style={{ fontSize: 13, color: "var(--amber)" }}>
+                      ⚠ 목록에 없는 학교 ({r.code})
+                    </b>
+                  )}
+                  {r.where && <span className="hint" style={{ fontSize: 11.5 }}>{r.where}</span>}
+                  <span className="spacer" />
+                  <span className="tag tag-muted">{r.count}건</span>
+                  <span className="hint" style={{ fontSize: 11.5 }}>{r.from} ~ {r.to}</span>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    onClick={() => {
+                      if (!confirm(
+                        `${r.registered ? r.name : r.code} 에서 받아온 일정 ${r.count}건을 지울까요?\n` +
+                        `손으로 적은 일정은 건드리지 않습니다.`
+                      )) return;
+                      run(() => clearSchoolImports(r.code), (x) => {
+                        alert(`${x?.removed || 0}건을 지웠어요.`);
+                        setDiag(null);
+                        importedSummary().then(setHave);
+                      });
+                    }}
+                  >
+                    이 학교 것만 지우기
+                  </button>
+                </div>
+                {/* 무엇이 들어 있는지 몇 줄 — 남의 학교 것이면 여기서 바로 티가 난다 */}
+                <div className="hint" style={{ fontSize: 11.5, marginTop: 4 }}>
+                  {(r.sample || []).join("  ·  ")}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {(diag.dupes || []).length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <b style={{ fontSize: 13, color: "var(--amber)" }}>
+                같은 날 같은 행사가 두 줄 이상 — {diag.dupes.length}가지
+              </b>
+              <p className="hint" style={{ margin: "2px 0 6px", fontSize: 11.5 }}>
+                같은 학교를 <b>두 번 넣었을 때</b> 이렇게 됩니다. 위에서 잘못 넣은 쪽을 지우세요.
+              </p>
+              <div className="stack" style={{ gap: 2 }}>
+                {diag.dupes.map((d) => (
+                  <div className="unitrow" key={`${d.due_on}|${d.title}`}>
+                    <span className="hint" style={{ minWidth: 64 }}>{d.due_on}</span>
+                    <span style={{ fontSize: 12.5, flex: 1 }}>{d.title}</span>
+                    <span className="tag tag-amber">{d.n}줄</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {openKey && (
         <div className="stack" style={{ gap: 8, marginTop: 10 }}>
@@ -163,20 +249,41 @@ export default function NeisBox({ months = [] }) {
         {found && (
           <div className="stack" style={{ gap: 3, marginTop: 8, maxHeight: 240, overflowY: "auto" }}>
             {found.length === 0 && <p className="hint" style={{ margin: 0 }}>못 찾았어요.</p>}
-            {found.map((s) => (
-              <div className="unitrow" key={`${s.atpt_code}-${s.schul_code}`}>
-                <b style={{ fontSize: 13 }}>{s.name}</b>
-                <span className="tag tag-muted">{s.kind}</span>
-                <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>{s.address}</span>
-                <button
-                  className="btn btn-sm"
-                  disabled={pending}
-                  onClick={() => run(() => addSchool(s), () => { setFound(null); setQ(""); reload(); })}
-                >
-                  넣기
-                </button>
-              </div>
-            ))}
+            {found.map((s) => {
+              // 이미 넣은 학교인지, 같은 이름을 이미 넣었는지 미리 알려준다.
+              // 나이스 학교 찾기는 부분 일치라 비슷한 이름이 우르르 나온다 —
+              // 여기서 안 걸러주면 엉뚱한 학교나 같은 학교를 두 번 넣게 된다.
+              const already = mine.some((m) => m.schul_code === s.schul_code);
+              const sameName = !already && mine.some((m) => m.name === s.name);
+              return (
+                  <div className="unitrow" key={`${s.atpt_code}-${s.schul_code}`}>
+                    <b style={{ fontSize: 13 }}>{s.name}</b>
+                    <span className="tag tag-muted">{s.kind}</span>
+                    <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>
+                      {[s.atpt_name, s.address].filter(Boolean).join(" · ")}
+                    </span>
+                    {already ? (
+                      <span className="tag tag-mint">이미 넣음</span>
+                    ) : (
+                      <button
+                        className="btn btn-sm"
+                        disabled={pending}
+                        onClick={() => {
+                          if (sameName && !confirm(
+                            `'${s.name}' 은 이미 목록에 있어요. 학교 코드가 다릅니다.\n\n` +
+                            `같은 학교를 두 번 넣으면 같은 날 같은 행사가 두 줄씩 들어옵니다.\n` +
+                            `주소를 보고 다른 학교가 맞는지 확인해주세요.\n\n${s.address || ""}\n\n` +
+                            `그래도 넣을까요?`
+                          )) return;
+                          run(() => addSchool(s), () => { setFound(null); setQ(""); reload(); });
+                        }}
+                      >
+                        넣기
+                      </button>
+                    )}
+                  </div>
+              );
+            })}
           </div>
         )}
 
@@ -186,14 +293,26 @@ export default function NeisBox({ months = [] }) {
               <div className="unitrow" key={s.id}>
                 <b style={{ fontSize: 13 }}>{s.name}</b>
                 <span className="tag tag-muted">{s.kind || "학교"}</span>
+                {/* 어느 지역 학교인지 — 같은 이름이 여러 곳이라 이게 없으면 구분이 안 된다 */}
+                <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>
+                  {[s.atpt_name, s.address].filter(Boolean).join(" · ")}
+                </span>
                 <span className="hint mono" style={{ fontSize: 11 }}>{s.schul_code}</span>
-                <span className="spacer" />
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={pending}
                   onClick={() => {
-                    if (!confirm(`${s.name} 을 목록에서 뺄까요?\n이미 받아온 일정은 그대로 남습니다.`)) return;
-                    run(() => removeSchool(s.id), reload);
+                    // 학교만 빼면 그 학교 일정이 달력에 그대로 남는다. 여기서 같이 정리한다
+                    if (!confirm(`${s.name} 을 목록에서 뺄까요?`)) return;
+                    const also = confirm(
+                      `이 학교에서 받아온 일정도 같이 지울까요?\n\n` +
+                      `[확인] 일정까지 지웁니다 (잘못 넣은 학교라면 이쪽)\n` +
+                      `[취소] 목록에서만 뺍니다 — 일정은 달력에 그대로 남습니다`
+                    );
+                    run(() => removeSchool(s.id, also), (r) => {
+                      if (also) alert(`일정 ${r?.removed || 0}건을 지웠어요.`);
+                      reload();
+                    });
                   }}
                 >
                   ✕

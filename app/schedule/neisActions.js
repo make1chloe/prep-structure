@@ -121,37 +121,95 @@ export async function addSchool(s = {}) {
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
-  const { error } = await supabase.from("neis_schools").upsert(
-    {
-      name: s.name,
-      atpt_code: s.atpt_code,
-      schul_code: s.schul_code,
-      kind: s.kind || null,
-      active: true,
-    },
-    { onConflict: "atpt_code,schul_code" }
-  );
+  const row = {
+    name: s.name,
+    atpt_code: s.atpt_code,
+    schul_code: s.schul_code,
+    kind: s.kind || null,
+    atpt_name: s.atpt_name || null,
+    address: s.address || null,
+    active: true,
+  };
+  let { error } = await supabase
+    .from("neis_schools")
+    .upsert(row, { onConflict: "atpt_code,schul_code" });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0069 전이면 지역·주소 없이
+    const { atpt_name: _a, address: _b, ...bare } = row;
+    ({ error } = await supabase
+      .from("neis_schools")
+      .upsert(bare, { onConflict: "atpt_code,schul_code" }));
+  }
   if (needSql(error)) return { error: SQL };
   revalidatePath("/schedule");
   return { error: error ? error.message : null };
 }
 
-export async function removeSchool(id) {
+/**
+ * 학교를 목록에서 뺀다.
+ *
+ * **받아온 일정은 학교를 빼도 남는다.** 이게 조용한 함정이었다 —
+ * 엉뚱한 학교를 넣었다가 빼도, 그 학교 일정은 그대로 달력에 남아 있다.
+ * 그래서 같이 지울지 물어보고, 원하면 그 학교 것만 지운다.
+ */
+export async function removeSchool(id, alsoTasks = false) {
   if (!id) return { error: null };
   const supabase = createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
+
+  let removed = 0;
+  if (alsoTasks) {
+    const { data: s } = await supabase
+      .from("neis_schools").select("schul_code").eq("id", id).maybeSingle();
+    if (s?.schul_code) {
+      const r = await clearSchoolImports(s.schul_code);
+      if (r.error) return r;
+      removed = r.removed || 0;
+    }
+  }
+
   const { error } = await supabase.from("neis_schools").delete().eq("id", id);
   revalidatePath("/schedule");
-  return { error: error ? error.message : null };
+  revalidatePath("/tasks");
+  return { error: error ? error.message : null, removed };
+}
+
+/** 그 학교에서 받아온 일정만 지운다 (손으로 적은 일정은 건드리지 않는다) */
+export async function clearSchoolImports(schulCode) {
+  const code = (schulCode || "").trim();
+  if (!code) return { error: "학교 코드가 없어요." };
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  // source_id 는 "학교코드:날짜:행사" 라 앞부분으로 가른다
+  const { data, error } = await supabase
+    .from("tasks")
+    .delete()
+    .eq("source", "neis")
+    .like("source_id", `${code}:%`)
+    .select("id");
+  if (needSql(error)) return { error: SQL };
+  revalidatePath("/schedule");
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return { error: error ? error.message : null, removed: (data || []).length };
 }
 
 export async function listSchools() {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const COLS = "id, name, atpt_code, schul_code, kind, active";
+  let { data, error } = await supabase
     .from("neis_schools")
-    .select("id, name, atpt_code, schul_code, kind, active")
+    .select(`${COLS}, atpt_name, address`)
     .order("name", { ascending: true });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data, error } = await supabase
+      .from("neis_schools")
+      .select(COLS)
+      .order("name", { ascending: true }));
+  }
   if (needSql(error)) return { rows: [], error: SQL };
   return { rows: data || [], error: error ? error.message : null };
 }
@@ -333,4 +391,80 @@ export async function importedSummary() {
       .map((r) => ({ ...r, name: nameOf.get(r.code) || r.code }))
       .sort((a, b) => a.name.localeCompare(b.name, "ko")),
   };
+}
+
+/**
+ * **무엇이 실제로 들어 있나** — 틀렸다고 느낄 때 눈으로 확인하는 자리.
+ *
+ * "내용이 틀리고 중복이 많다" 는 말을 들었을 때, 코드를 다시 읽는 것보다
+ * **들어 있는 것을 그대로 보여주는 것**이 빠르다. 대개 원인은 셋 중 하나다.
+ *
+ *   1. 학교를 잘못 넣었다 — 나이스 학교 찾기는 **부분 일치**라, '신송' 으로
+ *      찾으면 신송초·신송중·신송고가 같이 나온다. 지역까지 다르면 남의 학교다
+ *   2. 같은 학교를 **두 번** 넣었다 (코드가 다르면 같은 날 같은 행사가 두 줄)
+ *   3. 학교를 뺐는데 **그 학교 일정이 남아 있다** — 목록에는 없고 달력에는 있다
+ *
+ * 셋 다 여기서 바로 보인다. 등록 안 된 코드는 ⚠ 로 뜬다.
+ */
+export async function diagnose() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { rows: [], error: guard.error };
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("id, title, due_on, source_id, note")
+    .eq("source", "neis")
+    .order("due_on", { ascending: true });
+  if (error) return { rows: [], error: needSql(error) ? SQL : error.message };
+
+  const { rows: schools } = await listSchools();
+  const byCode = new Map((schools || []).map((s) => [s.schul_code, s]));
+
+  const groups = new Map();
+  (data || []).forEach((t) => {
+    const code = (t.source_id || "").split(":")[0];
+    const g = groups.get(code) || { code, count: 0, from: null, to: null, items: [] };
+    g.count += 1;
+    if (!g.from || t.due_on < g.from) g.from = t.due_on;
+    if (!g.to || t.due_on > g.to) g.to = t.due_on;
+    g.items.push(t);
+    groups.set(code, g);
+  });
+
+  // 같은 날 · 같은 제목인데 줄이 둘 이상 — 학교를 두 번 넣었을 때 이렇게 난다.
+  // (source_id 가 같은 것은 DB 가 막으므로, 여기 걸리면 **코드가 다른 것**이다)
+  const seen = new Map();
+  (data || []).forEach((t) => {
+    const k = `${t.due_on}|${t.title}`;
+    seen.set(k, (seen.get(k) || 0) + 1);
+  });
+  const dupes = [...seen.entries()]
+    .filter(([, n]) => n > 1)
+    .map(([k, n]) => {
+      const [due_on, title] = k.split("|");
+      return { due_on, title, n };
+    })
+    .sort((a, b) => b.n - a.n || a.due_on.localeCompare(b.due_on))
+    .slice(0, 30);
+
+  const rows = [...groups.values()]
+    .map((g) => {
+      const s = byCode.get(g.code);
+      return {
+        code: g.code,
+        name: s?.name || null,
+        where: [s?.atpt_name, s?.address].filter(Boolean).join(" · "),
+        kind: s?.kind || null,
+        registered: !!s,
+        count: g.count,
+        from: g.from,
+        to: g.to,
+        // 무엇이 들어 있는지 몇 줄만 — 남의 학교 것이면 여기서 바로 티가 난다
+        sample: g.items.slice(0, 6).map((t) => `${t.due_on.slice(5)} ${t.title}`),
+      };
+    })
+    .sort((a, b) => Number(a.registered) - Number(b.registered) || b.count - a.count);
+
+  return { rows, dupes, total: (data || []).length, error: null };
 }
