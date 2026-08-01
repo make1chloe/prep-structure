@@ -189,6 +189,23 @@ export default function LateSender({ date, rows = [], mode = "copy" }) {
         <>
           <div className="row" style={{ gap: 8, alignItems: "center", marginBottom: 8 }}>
             <b style={{ fontSize: 14 }}>보낼 것 {todo.length}</b>
+            {/* 하나씩 누르지 않아도 되게 — 대개는 전부 보낸다 */}
+            <label className="row" style={{ gap: 6, alignItems: "center", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={todo.length > 0 && todo.every((r) => sel.has(r.id))}
+                ref={(el) => {
+                  if (el) el.indeterminate = sel.size > 0 && !todo.every((r) => sel.has(r.id));
+                }}
+                onChange={() => {
+                  const allOn = todo.every((r) => sel.has(r.id));
+                  const n = new Set(sel);
+                  todo.forEach((r) => (allOn ? n.delete(r.id) : n.add(r.id)));
+                  setSel(n);
+                }}
+              />
+              <span style={{ fontSize: 12.5, fontWeight: 700 }}>전체</span>
+            </label>
             <span className="spacer" />
             <button
               className="btn btn-primary btn-sm"

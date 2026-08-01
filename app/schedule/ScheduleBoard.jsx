@@ -4,9 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addExam, setEnglishDate, updateExam, deleteExam, hideExam,
-  markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday,
+  markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday, removeHolidays,
 } from "./actions";
 import { shortLabel } from "@/lib/day";
+import { useBulk, BulkBar } from "@/components/Bulk";
 
 const ALERT_CLS = {
   over: "tag-sky",
@@ -47,6 +48,7 @@ export default function ScheduleBoard({
   makeupDays = [],
   holidays = [],
 }) {
+  const hBulk = useBulk(holidays);
   const [form, setForm] = useState({ school: "", grade: "", name: "", from: "", to: "" });
   const [eng, setEng] = useState({});
   const [off, setOff] = useState({ date: "", name: "", classId: "" });
@@ -139,8 +141,22 @@ export default function ScheduleBoard({
 
         {holidays.length > 0 ? (
           <div className="stack" style={{ gap: 3, marginTop: 10 }}>
+            {/* 시험 기간 휴강을 통째로 걷을 때 하나씩 누르는 것이 일이다 */}
+            <BulkBar bulk={hBulk} label="휴강">
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={pending}
+                onClick={() => {
+                  if (!confirm(`고른 휴강 ${hBulk.count}건을 지울까요?\n회차와 수강료가 다시 계산됩니다.`)) return;
+                  run(() => hBulk.run((ids) => removeHolidays(ids)));
+                }}
+              >
+                삭제
+              </button>
+            </BulkBar>
             {holidays.map((h) => (
               <div className="unitrow" key={h.id}>
+                <input type="checkbox" checked={hBulk.has(h.id)} onChange={() => hBulk.toggle(h.id)} />
                 <b style={{ fontSize: 12.5, minWidth: 96 }}>{dayShort(h.date)}</b>
                 <span className={`tag ${h.class_id ? "tag-sky" : "tag-muted"}`}>
                   {h.class_id ? `${classes.find((c) => c.id === h.class_id)?.name || "반"}만` : "전체"}

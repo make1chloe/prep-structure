@@ -9,7 +9,12 @@ import {
   updateVideo,
   removeVideo,
   setVideoStudents,
+  setVideosActive,
+  setVideosFolder,
+  removeVideos,
+  assignVideosTo,
 } from "./actions";
+import { useBulk, BulkBar } from "@/components/Bulk";
 import { thumbUrl, VIEW_LABEL, VIEW_CLS } from "@/lib/video";
 
 function when(iso) {
@@ -29,6 +34,9 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
   const [due, setDue] = useState("");
   const [folderId, setFolderId] = useState("");
   const [q, setQ] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);   // 골라서 한꺼번에 배정하는 칸
+  const [bulkPick, setBulkPick] = useState(() => new Set());
+  const [bulkDue, setBulkDue] = useState("");
   const router = useRouter();
 
   const inClass = new Map();
@@ -63,6 +71,8 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
     if (kw && !v.title.toLowerCase().includes(kw)) return false;
     return true;
   });
+  // 「전체」는 지금 화면에 보이는 것만이다 (걸러놓고 눌러도 안전하다)
+  const bulk = useBulk(shown);
 
   return (
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
@@ -148,6 +158,123 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
         ))}
       </div>
 
+      {/* 골라서 한 번에 — 폴더를 새로 만들면 스무 개를 옮겨야 한다 */}
+      <div className="card card-tight">
+        <BulkBar bulk={bulk} label="영상">
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={pending}
+            onClick={() => setBulkOpen(!bulkOpen)}
+          >
+            {bulkOpen ? "닫기" : `${bulk.count}개 배정`}
+          </button>
+          <select
+            className="input input-sm"
+            style={{ width: 140 }}
+            defaultValue=""
+            disabled={pending}
+            onChange={(e) => {
+              const v = e.target.value;
+              e.target.value = "";
+              if (v === "") return;
+              run(() => bulk.run((ids) => setVideosFolder(ids, v === "none" ? null : v)));
+            }}
+          >
+            <option value="">폴더 옮기기…</option>
+            <option value="none">폴더 없음</option>
+            {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            onClick={() => run(() => bulk.run((ids) => setVideosActive(ids, false)))}
+          >
+            숨기기
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            onClick={() => run(() => bulk.run((ids) => setVideosActive(ids, true)))}
+          >
+            보이기
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            onClick={() => {
+              if (!confirm(`고른 영상 ${bulk.count}개를 지울까요?\n누가 봤는지 기록도 함께 지워집니다.`)) return;
+              run(() => bulk.run((ids) => removeVideos(ids)));
+            }}
+          >
+            삭제
+          </button>
+        </BulkBar>
+
+        {bulkOpen && bulk.count > 0 && (
+          <div className="card card-tight" style={{ background: "var(--surface-2)", marginTop: 6 }}>
+            <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <b style={{ fontSize: 13 }}>영상 {bulk.count}개 → 학생 {bulkPick.size}명</b>
+              <span className="spacer" />
+              <span className="hint">언제까지</span>
+              <input
+                type="date"
+                className="input input-sm"
+                style={{ width: 150 }}
+                value={bulkDue}
+                onChange={(e) => setBulkDue(e.target.value)}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={pending || bulkPick.size === 0}
+                onClick={() =>
+                  run(async () => {
+                    const r = await assignVideosTo(bulk.ids, [...bulkPick], bulkDue || null);
+                    if (!r?.error) {
+                      alert(`${r.added || 0}건을 냈어요. (이미 받은 학생은 그대로 둡니다)`);
+                      setBulkOpen(false);
+                      setBulkPick(new Set());
+                      bulk.clear();
+                    }
+                    return r;
+                  })
+                }
+              >
+                한 번에 내기
+              </button>
+            </div>
+            <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+              {classes.map((c) => (
+                <button
+                  key={c.id}
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setBulkPick(new Set([...bulkPick, ...(inClass.get(c.id) || [])]))}
+                >
+                  ＋ {c.name} 전체
+                </button>
+              ))}
+              <button className="btn btn-ghost btn-sm" onClick={() => setBulkPick(new Set())}>
+                전체 해제
+              </button>
+            </div>
+            <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+              {students.map((s) => (
+                <button
+                  key={s.id}
+                  className={`hwchip ${bulkPick.has(s.id) ? "hw-next" : ""}`}
+                  onClick={() => {
+                    const n = new Set(bulkPick);
+                    n.has(s.id) ? n.delete(s.id) : n.add(s.id);
+                    setBulkPick(n);
+                  }}
+                >
+                  {bulkPick.has(s.id) && <b>＋</b>} {s.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {shown.length === 0 && (
         <div className="card">
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>영상이 없어요.</p>
@@ -161,6 +288,12 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
         return (
           <div className="card" key={v.id} style={{ opacity: v.active ? 1 : 0.55 }}>
             <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
+              <input
+                type="checkbox"
+                checked={bulk.has(v.id)}
+                onChange={() => bulk.toggle(v.id)}
+                style={{ marginTop: 4 }}
+              />
               {thumb && (
                 <a href={v.url} target="_blank" rel="noreferrer">
                   <img

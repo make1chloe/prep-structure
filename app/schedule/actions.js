@@ -178,11 +178,18 @@ export async function addClassHoliday(date, name, classId) {
  * 회차와 수강료가 같이 바뀌므로 지울 수 있어야 한다.
  */
 export async function removeHoliday(id) {
-  if (!id) return { error: null };
+  return removeHolidays([id]);
+}
+
+/** 골라서 한 번에 — 시험 기간 휴강을 통째로 걷을 때 하나씩 누르는 것이 일이다 */
+export async function removeHolidays(ids) {
+  const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+  if (list.length === 0) return { error: null };
   const supabase = createClient();
-  const { error } = await supabase.from("holidays").delete().eq("id", id);
+  const { error } = await supabase.from("holidays").delete().in("id", list);
   revalidatePath("/schedule");
   revalidatePath("/tuition");
+  revalidatePath("/");
   return ok(error);
 }
 

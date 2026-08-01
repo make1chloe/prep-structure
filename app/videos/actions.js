@@ -334,3 +334,66 @@ export async function syncTitles(ids = null) {
   revalidatePath("/videos");
   return { error: null, changed, missing: list.length - titles.size };
 }
+
+// ---------- 골라서 한 번에 ----------
+//
+// 영상이 쌓이면 하나씩 누르는 것이 일이다. 폴더를 새로 만들면 스무 개를
+// 옮겨야 하고, 학기가 끝나면 열 개를 한꺼번에 접는다.
+
+export async function setVideosActive(ids, active) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("videos").update({ active: !!active }).in("id", ids);
+  revalidatePath("/videos");
+  return ok(error);
+}
+
+export async function setVideosFolder(ids, folderId) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("videos")
+    .update({ folder_id: folderId || null })
+    .in("id", ids);
+  revalidatePath("/videos");
+  return ok(error);
+}
+
+export async function removeVideos(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("videos").delete().in("id", ids);
+  revalidatePath("/videos");
+  return ok(error);
+}
+
+/** 고른 영상들을 고른 학생들에게 **한꺼번에** 낸다 (이미 받은 학생은 그대로 둔다) */
+export async function assignVideosTo(videoIds, studentIds, dueOn) {
+  const vids = [...new Set((videoIds || []).filter(Boolean))];
+  const sids = [...new Set((studentIds || []).filter(Boolean))];
+  if (vids.length === 0 || sids.length === 0) return { error: "영상과 학생을 골라주세요." };
+
+  const supabase = createClient();
+  const { data: have, error: readErr } = await supabase
+    .from("video_assignments")
+    .select("video_id, student_id")
+    .in("video_id", vids);
+  if (readErr) return ok(readErr);
+
+  const had = new Set((have || []).map((r) => `${r.video_id}|${r.student_id}`));
+  const rows = [];
+  vids.forEach((v) => sids.forEach((s) => {
+    if (!had.has(`${v}|${s}`)) {
+      rows.push({ video_id: v, student_id: s, assigned_on: todaySeoul(), due_on: dueOn || null });
+    }
+  }));
+  if (rows.length === 0) return { error: null, added: 0 };
+
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase.from("video_assignments").insert(rows.slice(i, i + 200));
+    if (error) return ok(error);
+  }
+  revalidatePath("/videos");
+  revalidatePath("/me");
+  return { error: null, added: rows.length };
+}

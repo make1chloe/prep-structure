@@ -295,6 +295,33 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         ))}
       </div>
 
+      {/* 골라서 한 번에 — 전체 선택은 **지금 보이는 것**만이다.
+          걸러놓고 전체를 눌렀는데 안 보이던 것까지 처리되면 안 된다. */}
+      <div className="bulkbar" style={{ marginTop: 10 }}>
+        <label className="row" style={{ gap: 6, alignItems: "center", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={shown.length > 0 && shown.every((t) => sel.has(t.id))}
+            ref={(el) => {
+              if (el) el.indeterminate = sel.size > 0 && !shown.every((t) => sel.has(t.id));
+            }}
+            disabled={shown.length === 0}
+            onChange={() => {
+              const allOn = shown.length > 0 && shown.every((t) => sel.has(t.id));
+              const n = new Set(sel);
+              shown.forEach((t) => (allOn ? n.delete(t.id) : n.add(t.id)));
+              setSel(n);
+            }}
+          />
+          <span style={{ fontSize: 12.5, fontWeight: 700 }}>보이는 {shown.length}개 전체</span>
+        </label>
+        {sel.size === 0 && (
+          <span className="hint" style={{ fontSize: 11.5 }}>
+            왼쪽 칸을 눌러 고르면 한 번에 처리할 수 있어요.
+          </span>
+        )}
+      </div>
+
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}개 선택</b>

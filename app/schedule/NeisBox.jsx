@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useBulk, BulkBar } from "@/components/Bulk";
 import {
   saveNeisKey, neisReady, searchSchools, addSchool, removeSchool, listSchools,
   importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports,
@@ -28,6 +29,7 @@ export default function NeisBox({ months = [] }) {
   const [done, setDone] = useState(null);      // 방금 받아온 결과
   const [have, setHave] = useState(null);   // 지금 들어와 있는 것
   const [diag, setDiag] = useState(null);   // 무엇이 들어 있는지 그대로 보기
+  const sBulk = useBulk(mine);
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -289,8 +291,35 @@ export default function NeisBox({ months = [] }) {
 
         {mine.length > 0 && (
           <div className="stack" style={{ gap: 3, marginTop: 8 }}>
+            <BulkBar bulk={sBulk} label="학교">
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={pending}
+                onClick={() => {
+                  if (!confirm(`고른 학교 ${sBulk.count}곳을 목록에서 뺄까요?`)) return;
+                  const also = confirm(
+                    `그 학교들에서 받아온 일정도 같이 지울까요?\n\n` +
+                    `[확인] 일정까지 지웁니다\n[취소] 목록에서만 뺍니다`
+                  );
+                  run(async () => {
+                    let removed = 0;
+                    for (const id of sBulk.ids) {
+                      const r = await removeSchool(id, also);
+                      if (r?.error) return r;
+                      removed += r?.removed || 0;
+                    }
+                    if (also) alert(`일정 ${removed}건을 지웠어요.`);
+                    sBulk.clear();
+                    return { error: null };
+                  }, reload);
+                }}
+              >
+                빼기
+              </button>
+            </BulkBar>
             {mine.map((s) => (
               <div className="unitrow" key={s.id}>
+                <input type="checkbox" checked={sBulk.has(s.id)} onChange={() => sBulk.toggle(s.id)} />
                 <b style={{ fontSize: 13 }}>{s.name}</b>
                 <span className="tag tag-muted">{s.kind || "학교"}</span>
                 {/* 어느 지역 학교인지 — 같은 이름이 여러 곳이라 이게 없으면 구분이 안 된다 */}
