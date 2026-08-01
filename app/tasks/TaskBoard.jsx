@@ -237,6 +237,12 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   <span className={`tag ${late ? "tag-amber" : "tag-muted"}`} style={{ minWidth: 66, textAlign: "center" }}>
                     {dayLabel(t.due_on)}
                   </span>
+                  {/* 방학·시험기간처럼 여러 날 이어지는 것은 한 줄이다. 언제까지인지 같이 적는다 */}
+                  {t.end_on && t.end_on !== t.due_on && (
+                    <span className="tag tag-sky" style={{ minWidth: 66, textAlign: "center" }}>
+                      ~ {dayLabel(t.end_on)}
+                    </span>
+                  )}
                   {t.start_time && <span className="hint">{t.start_time.slice(0, 5)}</span>}
                   <b
                     style={{

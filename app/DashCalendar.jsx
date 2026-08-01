@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { monthGrid, DOW } from "@/lib/calendar";
+import { monthGrid, DOW, expandRanges } from "@/lib/calendar";
 import { addMonths } from "@/lib/day";
 
 /**
@@ -26,8 +26,10 @@ const TONE = {
  */
 export default function DashCalendar({ ym, items = [], today = "", links = true }) {
   const [month, setMonth] = useState(ym);
-  const cells = monthGrid(month, items, today);
-  const mine = items.filter((i) => (i.date || "").startsWith(month));
+  // 방학·시험기간은 한 줄로 저장하고 달력에서만 날마다 펼친다
+  const spread = expandRanges(items);
+  const cells = monthGrid(month, spread, today);
+  const mine = spread.filter((i) => (i.date || "").startsWith(month));
   const n = (t) => mine.filter((i) => i.tone === t).length;
 
   return (

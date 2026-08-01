@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
-  schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame,
+  schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns,
 } from "@/lib/neis";
 
 /**
@@ -254,8 +254,10 @@ export async function importSchedule(from, to, schoolId = null) {
       continue;
     }
 
-    // 학교는 같은 날 같은 행사를 학년마다 한 줄씩 주기도 한다. 먼저 하나로 합친다
-    const tasks = mergeSame(res.rows.map((r) => toTask(r, school)).filter(Boolean));
+    // 학교는 같은 날 같은 행사를 학년마다 한 줄씩 주기도 한다. 먼저 하나로 합친다.
+    // 그리고 방학처럼 **여러 날 이어지는 것은 한 줄로 잇는다** — 나이스는 하루에
+    // 한 줄씩 주므로, 그대로 넣으면 여름방학 하나가 30줄이 된다.
+    const tasks = mergeRuns(mergeSame(res.rows.map((r) => toTask(r, school)).filter(Boolean)));
     const found = examPeriods(tasks, school);
     exams.push(...found);
     // 시험 기간은 **묻지 않고 다 넣는다.** 필요 없는 것은 화면에서 숨기면 되고,
@@ -264,21 +266,74 @@ export async function importSchedule(from, to, schoolId = null) {
     if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
 
+    // 이 학교의 이 기간에 지금 들어 있는 것 — 뒤에서 **없어진 것을 지우려고** 먼저 읽는다.
+    // (하루씩 들어와 있던 옛 줄이 한 줄로 합쳐지면 나머지 날들은 사라져야 한다)
+    let keepPrivate = new Map();
+    let oldIds = new Map();
+    {
+      let q = await supabase
+        .from("tasks")
+        .select("id, source_id, private")
+        .eq("source", "neis")
+        .like("source_id", `${school.schul_code}:%`)
+        .gte("due_on", from)
+        .lte("due_on", to);
+      if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+        // 0066 전이면 '나만 보기' 없이
+        q = await supabase
+          .from("tasks")
+          .select("id, source_id")
+          .eq("source", "neis")
+          .like("source_id", `${school.schul_code}:%`)
+          .gte("due_on", from)
+          .lte("due_on", to);
+      }
+      (q.data || []).forEach((r) => {
+        oldIds.set(r.source_id, r.id);
+        if (r.private) keepPrivate.set(r.source_id, true);
+      });
+    }
+
     // **한 줄씩 넣지 않는다.** 한 해치면 학교 하나에 수백 줄이라, 한 줄에 한 번씩
     // 오가면 화면이 기다리다 끊긴다. 한 번에 묶어 보낸다.
     const rows = tasks.map(({ neisKind, ...row }) => ({
       ...row,
+      // 원장님이 「나만 보기」로 잠가둔 일정은 다시 받아와도 잠긴 채로 (0066)
+      private: keepPrivate.has(row.source_id) ? true : undefined,
       created_by: user?.id || null,
     }));
     let bad = null;
     for (let i = 0; i < rows.length; i += 200) {
-      const { error } = await supabase
+      const chunk = rows.slice(i, i + 200).map((r) => {
+        if (r.private === undefined) { const { private: _p, ...rest } = r; return rest; }
+        return r;
+      });
+      let { error } = await supabase
         .from("tasks")
-        .upsert(rows.slice(i, i + 200), { onConflict: "source,source_id" });
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        // 0066 전이면 '나만 보기' 없이
+        ({ error } = await supabase
+          .from("tasks")
+          .upsert(chunk.map(({ private: _p, ...r }) => r), { onConflict: "source,source_id" }));
+      }
       if (needSql(error)) return { error: SQL };
       if (error) { bad = error.message; break; }
     }
     if (bad) { failed.push(`${school.name} — ${bad}`); continue; }
+
+    // 이번에 안 온 옛 줄은 지운다.
+    //   · 하루씩 들어와 있던 방학이 한 줄로 합쳐지면 나머지 날들
+    //   · 학교가 취소한 행사
+    // 손으로 적은 일정은 source 가 비어 있어 여기 걸리지 않는다.
+    {
+      const now = new Set(tasks.map((t) => t.source_id));
+      const stale = [...oldIds.entries()].filter(([sid]) => !now.has(sid)).map(([, id]) => id);
+      for (let i = 0; i < stale.length; i += 200) {
+        await supabase.from("tasks").delete().in("id", stale.slice(i, i + 200));
+      }
+      if (stale.length) notes.push(`${school.name}: 옛 줄 ${stale.length}건 정리`);
+    }
     added += rows.length;
     notes.push(`${school.name}: ${tasks.length}건`);
   }

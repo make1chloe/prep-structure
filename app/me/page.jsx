@@ -593,13 +593,14 @@ export default async function MePage({ searchParams }) {
     const to = addDays(today, 120);
     const { data: rows } = await supabase
       .from("tasks")
-      .select("id, title, kind, due_on, source, category")
+      .select("id, title, kind, due_on, end_on, source, category")
       .neq("kind", "todo")
       .gte("due_on", from)
       .lte("due_on", to)
       .order("due_on", { ascending: true });
     calendar = (rows || []).map((t) => ({
       date: t.due_on,
+      endDate: t.end_on || null,
       title: t.title,
       tone: t.source === "neis" ? "school" : "event",
     }));
