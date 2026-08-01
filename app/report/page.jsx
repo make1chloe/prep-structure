@@ -5,6 +5,7 @@ import NoticeSender from "./NoticeSender";
 import LateSender from "./LateSender";
 import SendTabs from "./SendTabs";
 import ResendBoard from "../resend/ResendBoard";
+import TestSender from "./TestSender";
 import { loadReportRows } from "@/lib/reportData";
 import { loadSettings } from "@/lib/settings";
 import { todaySeoul } from "@/lib/day";
@@ -27,7 +28,30 @@ export default async function ReportPage({ searchParams }) {
 
   const t = searchParams?.t;
   const tab =
-    t === "notice" ? "notice" : t === "late" ? "late" : t === "resend" ? "resend" : "report";
+    t === "notice" ? "notice"
+    : t === "late" ? "late"
+    : t === "resend" ? "resend"
+    : t === "test" ? "test"
+    : "report";
+
+  // 테스트 발송 탭 — 학생 전체와, 알림톡이 붙은 문구
+  let testStudents = [];
+  let testTemplates = [];
+  if (tab === "test") {
+    // 상태로 거르지 않는다. 테스트용 학생은 **'예비' 로 만들어 두는 게 낫다** —
+    // 재원으로 만들면 오늘 수업·월말 리포트·수강료에 계속 끼어든다.
+    const { data: ss } = await supabase
+      .from("students")
+      .select("id, name, parent_phone, student_phone, status")
+      .order("name", { ascending: true });
+    testStudents = ss || [];
+    const { data: tt } = await supabase
+      .from("message_templates")
+      .select("id, name, alimtalk_id")
+      .eq("active", true)
+      .order("sort", { ascending: true });
+    testTemplates = tt || [];
+  }
 
   const settings = await loadSettings(supabase);
   const { rows, sendReady, resendReady } = await loadReportRows(
@@ -40,6 +64,7 @@ export default async function ReportPage({ searchParams }) {
     late: "늦게 가는 학생의 사유는 수업 기록에서 자동으로 잡힙니다.",
     notice: "안내 문자는 미리 써둔 문구를 씁니다.",
     resend: "이미 보낸 문구를 고쳐서 다시 보내거나, 숙제만 따로 보낼 때 씁니다.",
+    test: "진짜로 나가기 전에 받아봅니다. 보낸 것으로 표시되지 않고 이력에도 안 남습니다.",
   };
 
   return (
@@ -52,7 +77,14 @@ export default async function ReportPage({ searchParams }) {
           <p className="sub">{SUB[tab]}</p>
         </div>
         <SendTabs tab={tab} date={date} />
-        {tab === "notice" ? (
+        {tab === "test" ? (
+          <TestSender
+            students={testStudents}
+            templates={testTemplates}
+            mode={settings.mode}
+            date={date}
+          />
+        ) : tab === "notice" ? (
           <NoticeSender academy={settings.academy.name} mode={settings.mode} msg={settings.message} />
         ) : tab === "late" ? (
           <LateSender date={date} rows={rows} mode={settings.mode} />
