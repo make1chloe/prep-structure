@@ -244,8 +244,23 @@ export async function importSchedule(from, to, schoolId = null) {
   const notes = [];
   // 수능·모의고사는 학교에 안 매인 한 줄로 들어간다 (source_id 가 common: 으로 시작).
   // 어느 학교의 정리에도 안 걸리므로, 이번에 받은 것을 모아 두었다가 마지막에 본다.
-  const commonSeen = new Set();
-  let sawHigh = false;
+  //   대체공휴일은 **안 쉬는 학교가 가끔 있다.** 그래서 어느 학교가 적어냈는지
+  //   모아두었다가, 전부가 아니면 설명에 적어준다 ("9곳 중 3곳").
+  const commonRows = new Map();   // source_id → { row, schools:Set }
+  let okSchools = 0;
+
+  // 전국 공통 줄 중 원장님이 「나만 보기」로 잠가둔 것 — 다시 받아와도 잠긴 채로 (0066)
+  const keepCommonPrivate = new Set();
+  {
+    let q = await supabase
+      .from("tasks")
+      .select("source_id, private")
+      .eq("source", "neis")
+      .like("source_id", "common:%")
+      .gte("due_on", from)
+      .lte("due_on", to);
+    if (!q.error) (q.data || []).forEach((r) => { if (r.private) keepCommonPrivate.add(r.source_id); });
+  }
 
   const failed = [];
   for (const school of targets) {
@@ -270,7 +285,16 @@ export async function importSchedule(from, to, schoolId = null) {
     if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
 
-    tasks.forEach((t) => { if (t.nationwide) { commonSeen.add(t.source_id); sawHigh = true; } });
+    // 전국 공통 줄은 여기서 넣지 않는다. 학교마다 한 번씩 넣으면 설명이
+    // 마지막 학교 것으로 덮인다. 다 모은 뒤 마지막에 한 번에 넣는다.
+    const mine = [];
+    tasks.forEach((t) => {
+      if (!t.nationwide) { mine.push(t); return; }
+      const had = commonRows.get(t.source_id);
+      if (had) { had.schools.add(t.schoolName || school.name); return; }
+      commonRows.set(t.source_id, { row: t, schools: new Set([t.schoolName || school.name]) });
+    });
+    okSchools += 1;
 
     // 이 학교의 이 기간에 지금 들어 있는 것 — 뒤에서 **없어진 것을 지우려고** 먼저 읽는다.
     // (하루씩 들어와 있던 옛 줄이 한 줄로 합쳐지면 나머지 날들은 사라져야 한다)
@@ -304,7 +328,7 @@ export async function importSchedule(from, to, schoolId = null) {
     // 오가면 화면이 기다리다 끊긴다. 한 번에 묶어 보낸다.
     // neisKind · nationwide 는 우리끼리 쓰는 표시다. **표에 없는 칸이라 그대로
     // 보내면 통째로 거절당한다.** 여기서 떼어낸다.
-    const rows = tasks.map(({ neisKind, nationwide, ...row }) => ({
+    const rows = mine.map(({ neisKind, nationwide, mayDiffer, schoolName, ...row }) => ({
       ...row,
       // 원장님이 「나만 보기」로 잠가둔 일정은 다시 받아와도 잠긴 채로 (0066)
       private: keepPrivate.has(row.source_id) ? true : undefined,
@@ -335,7 +359,7 @@ export async function importSchedule(from, to, schoolId = null) {
     //   · 학교가 취소한 행사
     // 손으로 적은 일정은 source 가 비어 있어 여기 걸리지 않는다.
     {
-      const now = new Set(tasks.map((t) => t.source_id));
+      const now = new Set(mine.map((t) => t.source_id));
       const stale = [...oldIds.entries()].filter(([sid]) => !now.has(sid)).map(([, id]) => id);
       for (let i = 0; i < stale.length; i += 200) {
         await supabase.from("tasks").delete().in("id", stale.slice(i, i + 200));
@@ -343,12 +367,47 @@ export async function importSchedule(from, to, schoolId = null) {
       if (stale.length) notes.push(`${school.name}: 옛 줄 ${stale.length}건 정리`);
     }
     added += rows.length;
-    notes.push(`${school.name}: ${tasks.length}건`);
+    notes.push(`${school.name}: ${mine.length}건`);
+  }
+
+  // ---- 전국 공통 (수능 · 모의고사 · 공휴일) — 한 번에 한 줄씩 ----
+  if (commonRows.size > 0) {
+    const rows = [...commonRows.values()].map(({ row, schools }) => {
+      const { neisKind, nationwide, mayDiffer: differs, schoolName, ...rest } = row;
+      // 대체공휴일처럼 학교마다 다를 수 있는 것 — 전부가 아니면 어디가 쉬는지 적는다
+      let note = rest.note;
+      if (differs && okSchools > 1 && schools.size < okSchools) {
+        note = `쉬는 학교 ${schools.size}/${okSchools}곳 — ${[...schools].join(", ")}`;
+      }
+      return {
+        ...rest,
+        note,
+        private: keepCommonPrivate.has(rest.source_id) ? true : undefined,
+        created_by: user?.id || null,
+      };
+    });
+    for (let i = 0; i < rows.length; i += 200) {
+      const chunk = rows.slice(i, i + 200).map((r) => {
+        if (r.private === undefined) { const { private: _p, ...x } = r; return x; }
+        return r;
+      });
+      let { error } = await supabase
+        .from("tasks")
+        .upsert(chunk, { onConflict: "source,source_id" });
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        ({ error } = await supabase
+          .from("tasks")
+          .upsert(chunk.map(({ private: _p, ...x }) => x), { onConflict: "source,source_id" }));
+      }
+      if (error) failed.push(`전국 공통 — ${error.message}`);
+    }
+    added += rows.length;
+    notes.push(`전국 공통(수능 · 모의고사 · 공휴일): ${rows.length}건`);
   }
 
   // 전국 공통(수능·모의고사) 중 이번에 안 온 것 정리.
   // 한 곳이라도 제대로 받아온 뒤에만 한다 — 다 실패했는데 지우면 멀쩡한 것이 사라진다.
-  if (sawHigh) {
+  if (okSchools > 0) {
     const { data: old } = await supabase
       .from("tasks")
       .select("id, source_id")
@@ -356,7 +415,7 @@ export async function importSchedule(from, to, schoolId = null) {
       .like("source_id", "common:%")
       .gte("due_on", from)
       .lte("due_on", to);
-    const stale = (old || []).filter((r) => !commonSeen.has(r.source_id)).map((r) => r.id);
+    const stale = (old || []).filter((r) => !commonRows.has(r.source_id)).map((r) => r.id);
     for (let i = 0; i < stale.length; i += 200) {
       await supabase.from("tasks").delete().in("id", stale.slice(i, i + 200));
     }
