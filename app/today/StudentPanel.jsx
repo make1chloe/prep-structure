@@ -1198,7 +1198,7 @@ export default function StudentPanel({
         </div>
       </div>
 
-      {/* 단원평가 — 본 날 그 자리에서. 월말 리포트에 그대로 들어간다 */}
+      {/* 단원평가 — 본 날 그 자리에서. 월간리포트에 그대로 들어간다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>단원평가</span>
         <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} />

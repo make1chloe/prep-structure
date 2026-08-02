@@ -83,7 +83,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
           <span className="hint" style={{ flex: 1, minWidth: 220 }}>
             재원생에 <b>테스트 학생</b>을 하나 만들어 두고, 학부모 번호에 원장님 번호를
             넣어두시면 편합니다. 상태는 <b>재원 말고 '예비'</b>로 두세요 — 재원으로 두면
-            오늘 수업·월말 리포트·수강료에 계속 끼어듭니다. 여기서는 상태와 상관없이 고를 수 있어요.
+            오늘 수업·월간리포트·수강료에 계속 끼어듭니다. 여기서는 상태와 상관없이 고를 수 있어요.
             <b>보낸 것으로 표시되지 않고</b> 발송 이력에도 안 남습니다.
           </span>
         </div>

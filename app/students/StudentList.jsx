@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateStudent, deleteStudents, updateStudentsStatus } from "./actions";
+import { updateStudent, deleteStudents, updateStudentsStatus, linkSiblings, unlinkSibling } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
 import NoteBox from "./NoteBox";
@@ -37,6 +37,7 @@ const COLS = [
   { key: "initPw", label: "비번", w: 76, type: "pw" },
   { key: "books", label: "교재", w: 130, type: "books" },
   { key: "wordTest", label: "단어시험", w: 130, type: "wordTest" },
+  { key: "family", label: "형제", w: 96, type: "family" },
 ];
 
 const STATUS_TABS = [
@@ -133,6 +134,14 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     });
   }
 
+  function run(fn) {
+    startTransition(async () => {
+      const res = await fn();
+      if (res?.error) alert(res.error);
+      router.refresh();
+    });
+  }
+
   function runStatus(status) {
     const ids = [...sel];
     if (ids.length === 0 || !status) return;
@@ -166,6 +175,20 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
             <span key={b.id} className="tag tag-muted" style={{ fontSize: 10.5 }}>
               {b.name}
             </span>
+          ))}
+        </span>
+      );
+    }
+
+    // 형제자매 — 같은 집이면 이름을 보여준다
+    if (c.type === "family") {
+      if (!s.family_id) return <span className="muted">—</span>;
+      const kin = students.filter((x) => x.family_id === s.family_id && x.id !== s.id);
+      if (kin.length === 0) return <span className="muted">—</span>;
+      return (
+        <span className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+          {kin.map((x) => (
+            <span key={x.id} className="tag tag-lav" style={{ fontSize: 10.5 }}>{x.name}</span>
           ))}
         </span>
       );
@@ -205,7 +228,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   }
 
   function editor(c) {
-    if (c.type === "pw" || c.type === "books" || c.type === "wordTest") return cellPwStatic;
+    if (c.type === "pw" || c.type === "books" || c.type === "wordTest" || c.type === "family") return cellPwStatic;
     if (c.type === "status") {
       return (
         <select
@@ -305,6 +328,24 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}명 선택</b>
+          {/* 형제가 둘 다 다니면 학부모는 계정 하나로 둘 다 봐야 한다 */}
+          {sel.size >= 2 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={pending}
+              onClick={() => {
+                const names = students.filter((s) => sel.has(s.id)).map((s) => s.name).join(", ");
+                if (!confirm(`${names}\n\n이 학생들을 형제자매로 묶을까요?`)) return;
+                run(async () => {
+                  const r = await linkSiblings([...sel]);
+                  if (!r?.error) setSel(new Set());
+                  return r;
+                });
+              }}
+            >
+              형제로 묶기
+            </button>
+          )}
           <select
             className="input input-sm"
             style={{ width: 120 }}
@@ -406,6 +447,15 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                           title="이 학생에게 보이는 화면을 그대로 봅니다"
                         >
                           학생 화면
+                        </a>
+                        <a
+                          className="btn btn-ghost btn-sm"
+                          href={`/parent?s=${s.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="이 학생 학부모님께 보이는 화면을 그대로 봅니다"
+                        >
+                          학부모 화면
                         </a>
                       </div>
                     )}

@@ -27,10 +27,17 @@ export default async function StudentsPage() {
     "id, name, school, grade, birth_year, gender, student_phone, parent_phone, status, enrolled_on, electives, note, login_id, profile_id, created_at";
   let { data: students, error } = await supabase
     .from("students")
-    .select(`${SCOLS}, word_when, word_test_count, word_cut_pct`)
+    .select(`${SCOLS}, word_when, word_test_count, word_cut_pct, family_id`)
     .order("created_at", { ascending: false });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    // 0070 전이면 단어시험 칸 없이
+    // 0071 전이면 형제 묶음 없이
+    ({ data: students, error } = await supabase
+      .from("students")
+      .select(`${SCOLS}, word_when, word_test_count, word_cut_pct`)
+      .order("created_at", { ascending: false }));
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0070 전이면 단어시험 칸도 없이
     ({ data: students, error } = await supabase
       .from("students")
       .select(SCOLS)

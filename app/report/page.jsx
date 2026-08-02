@@ -39,7 +39,7 @@ export default async function ReportPage({ searchParams }) {
   let testTemplates = [];
   if (tab === "test") {
     // 상태로 거르지 않는다. 테스트용 학생은 **'예비' 로 만들어 두는 게 낫다** —
-    // 재원으로 만들면 오늘 수업·월말 리포트·수강료에 계속 끼어든다.
+    // 재원으로 만들면 오늘 수업·월간리포트·수강료에 계속 끼어든다.
     const { data: ss } = await supabase
       .from("students")
       .select("id, name, parent_phone, student_phone, status")

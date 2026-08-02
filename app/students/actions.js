@@ -318,3 +318,53 @@ export async function loadStudentHistory(studentId) {
     note: s?.note || "",
   };
 }
+
+// ---------- 형제자매 ----------
+//
+// 형제가 둘 다 다니면 학부모는 계정 하나로 둘 다 봐야 한다. 등록할 때는 아직
+// 학부모 계정이 없으므로 **학생끼리** 묶는다 (0071).
+
+/** 두 학생을 한 집으로 묶는다 (이미 묶인 쪽이 있으면 그 집에 합친다) */
+export async function linkSiblings(ids) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  if (list.length < 2) return { error: "두 명 이상 골라주세요." };
+
+  const supabase = createClient();
+  const { data: rows, error: readErr } = await supabase
+    .from("students")
+    .select("id, family_id")
+    .in("id", list);
+  if (readErr) {
+    if (readErr.code === "42703" || readErr.code === "PGRST204") {
+      return { error: "설정 → Supabase SQL 에서 0071 을 먼저 실행해주세요." };
+    }
+    return { error: readErr.message };
+  }
+
+  // 이미 묶인 집이 있으면 **그 집으로 합친다.** 새 집을 만들면 형이 쓰던 묶음이
+  // 깨져서, 형에게 연결된 다른 형제가 떨어져 나간다.
+  const existing = [...new Set((rows || []).map((r) => r.family_id).filter(Boolean))];
+  const family = existing[0] || crypto.randomUUID();
+
+  // 여러 집이 섞여 있으면 전부 한 집으로 (한 집인 게 맞으니 고른 것이다)
+  const also = existing.length > 1
+    ? (await supabase.from("students").select("id").in("family_id", existing)).data || []
+    : [];
+  const targets = [...new Set([...list, ...also.map((r) => r.id)])];
+
+  const { error } = await supabase
+    .from("students")
+    .update({ family_id: family })
+    .in("id", targets);
+  revalidatePath("/students");
+  return { error: error ? error.message : null, count: targets.length };
+}
+
+/** 이 학생만 집에서 뺀다 (나머지 형제는 그대로 묶여 있다) */
+export async function unlinkSibling(id) {
+  if (!id) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("students").update({ family_id: null }).eq("id", id);
+  revalidatePath("/students");
+  return { error: error ? error.message : null };
+}

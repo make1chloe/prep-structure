@@ -22,7 +22,7 @@ const CHECKS = [
   { id: "0028", label: "숙제 → 내 할일", table: "homework_items", col: "prep_task" },
   { id: "0029", label: "문자 문구 종류별", table: "message_templates", col: "key" },
   { id: "0030", label: "알림톡 연결", table: "message_templates", col: "alimtalk_id" },
-  { id: "0031", label: "월말 리포트 · 단원평가", table: "monthly_reports", col: "ym" },
+  { id: "0031", label: "월간리포트 · 단원평가", table: "monthly_reports", col: "ym" },
   { id: "0033", label: "학생 타이머", table: "study_sessions", col: "seconds" },
   { id: "0034", label: "등원 학습 · 학습 완료", table: "study_sessions", col: "kind" },
   { id: "0035", label: "학습 루틴", table: "routine_steps", col: "sort" },
@@ -62,6 +62,8 @@ const CHECKS = [
   { id: "0068", label: "학부모가 보내는 사진", table: "requests", col: "photos" },
   { id: "0069", label: "학교 지역·주소", table: "neis_schools", col: "address" },
   { id: "0070", label: "단어 개수 · 단어시험 설정", table: "students", col: "word_cut_pct" },
+  { id: "0071", label: "형제자매 묶기", table: "students", col: "family_id" },
+  { id: "0072", label: "성적 (내신 · 모의고사)", table: "scores", col: "cuts" },
 ];
 
 export async function checkSchema() {

@@ -115,6 +115,10 @@ insert into public.video_assignments (video_id, student_id) values
 insert into public.requests (student_id, kind, from_date, body, photos)
   select id, 'absence', current_date, '가족 일정', array[id::text || '/paper.jpg'] from public.students;
 
+-- 성적 (0072) — '나' 성적이 '가' 에게 보이면 안 된다
+insert into public.scores (student_id, kind, taken_on, term, raw_score, full_score, grade)
+  select id, 'school', current_date, '1학기 중간고사', 88, 100, 2 from public.students;
+
 -- 달력 (0066) — 일정은 보이고, 할일과 '나만 보기' 는 안 보여야 한다
 insert into public.tasks (id, title, kind, due_on, private) values
   ('ffffffff-0000-0000-0000-000000000001', '중간고사',   'schedule', current_date, false),
@@ -154,6 +158,7 @@ select t || ': ' || n from (
   union all select 'video_views(남이 봤나)', count(*) from public.video_views         where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'tasks(할일·나만보기)',  count(*) from public.tasks                where id <> 'ffffffff-0000-0000-0000-000000000001'
   union all select 'requests(남의 알림)',   count(*) from public.requests             where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select 'scores(남의 성적)',     count(*) from public.scores               where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n > 0 order by 1;
 SQL
 )
@@ -172,6 +177,7 @@ select t || '=' || n from (
   union all select '내가 본 기록', count(*) from public.video_views where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select '나눠준 일정', count(*) from public.tasks where id = 'ffffffff-0000-0000-0000-000000000001'
   union all select '내가 보낸 알림', count(*) from public.requests where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select '내 성적', count(*) from public.scores where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n = 0 order by 1;
 SQL
 )

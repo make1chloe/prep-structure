@@ -8,7 +8,7 @@ import { score } from "@/lib/wordTest";
 /**
  * 단원평가 결과 한 학생 분.
  *
- * 본 날 그 자리에서 적는다. 월말 리포트에 그대로 들어간다.
+ * 본 날 그 자리에서 적는다. 월간리포트에 그대로 들어간다.
  * 점수는 **틀린 개수**로 받는다 — 채점할 때 세는 것이 그쪽이다.
  */
 export default function ExamBox({ studentId, date, rows = [] }) {

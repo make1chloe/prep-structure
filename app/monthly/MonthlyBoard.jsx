@@ -6,7 +6,7 @@ import { saveMonthly, sendMonthly, unsendMonthly } from "./actions";
 import { addMonths } from "@/lib/day";
 
 /**
- * 월말 리포트.
+ * 월간리포트.
  *
  * 그 달 데일리리포트를 다시 세서 만든다. 새로 입력할 것은 없다.
  * 학생마다 한마디를 덧붙일 수 있고, 문구 자체를 고칠 수도 있다.
@@ -33,7 +33,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
 
   function send(list) {
     if (list.length === 0) return;
-    if (mode !== "copy" && !confirm(`${list.length}명에게 월말 리포트를 보낼까요?`)) return;
+    if (mode !== "copy" && !confirm(`${list.length}명에게 월간리포트를 보낼까요?`)) return;
     startTransition(async () => {
       const res = await sendMonthly(
         list.map((r) => ({ studentId: r.studentId, name: r.name, phone: r.phone, body: r.text })),
@@ -80,7 +80,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
       {!ready && (
         <div className="card" style={{ marginTop: 12 }}>
           <div className="notice">
-            월말 리포트를 저장하려면 <b>0031 SQL</b> 을 먼저 실행해주세요.{" "}
+            월간리포트를 저장하려면 <b>0031 SQL</b> 을 먼저 실행해주세요.{" "}
             <a href="/settings/sql">설정 → Supabase SQL</a>
           </div>
         </div>

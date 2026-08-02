@@ -113,7 +113,7 @@ export default async function Home() {
             <Badge href="/tuition">보강 필요 {d.makeupNeedTotal}회</Badge>
           )}
           {d.monthlyDue && (
-            <Badge href="/monthly" tone="warn">월말 리포트 {d.monthlyDue.count}명분</Badge>
+            <Badge href="/monthly" tone="warn">월간리포트 {d.monthlyDue.count}명분</Badge>
           )}
           {d.examSoon.some((e) => e.noScope) && (
             <Badge href="/prep" tone="bad">
@@ -266,7 +266,7 @@ export default async function Home() {
                 )}
                 {d.monthlyDue && (
                   <div>
-                    <b className="hint">월말 리포트</b>
+                    <b className="hint">월간리포트</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
                       <Link className="tag tag-amber" href="/monthly">
                         {Number(d.monthlyDue.ym.slice(5))}월이 {d.monthlyDue.left === 0 ? "오늘" : `${d.monthlyDue.left}일 뒤`} 끝남 · {d.monthlyDue.count}명분
