@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { bookKey, pickKeeper } from "@/lib/bookName";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -37,6 +39,20 @@ export async function addTextbook(formData) {
   if (!name) return;
 
   const supabase = createClient();
+
+  // 이미 **같은 교재**가 있으면 하나 더 만들지 않는다.
+  // 「그래머존」 과 「그래머존 개정판」 은 사람 눈에는 같은 책인데, 이름이
+  // 다르다는 이유로 둘이 되면 배정은 이쪽에 단원은 저쪽에 붙는다.
+  const { data: has } = await supabase.from("textbooks").select("id, name");
+  const key = bookKey(name);
+  // 조용히 넘어가면 "저장을 눌렀는데 아무 일도 안 났다" 가 된다.
+  // 이미 있는 그 교재로 **데려다 준다** — 왜 안 만들어졌는지가 바로 보인다.
+  const twin = (has || []).find((b) => bookKey(b.name) === key);
+  if (twin) {
+    revalidatePath("/textbooks");
+    redirect(`/textbooks?tb=${twin.id}&same=${encodeURIComponent(name)}`);
+  }
+
   await insertSafe(
     supabase,
     "textbooks",
@@ -64,8 +80,22 @@ export async function bulkAddTextbooks(rows) {
     const d = (v || "").toString().replace(/[^\d]/g, "");
     return d ? parseInt(d, 10) : null;
   };
+  const supabase = createClient();
+
+  // 이미 있는 교재는 다시 만들지 않는다. 띄어쓰기·「2025 개정」만 다른 것도
+  // 같은 교재로 본다 (lib/bookName) — 그래야 진도가 둘로 갈리지 않는다.
+  const { data: had } = await supabase.from("textbooks").select("name");
+  const known = new Set((had || []).map((b) => bookKey(b.name)));
+  let skipped = 0;
+
   const payload = rows
     .filter((r) => (r?.name || "").trim() !== "")
+    .filter((r) => {
+      const k = bookKey(r.name);
+      if (known.has(k)) { skipped += 1; return false; }
+      known.add(k);          // 엑셀 안에서 같은 이름이 두 번 나와도 한 번만
+      return true;
+    })
     .map((r) => ({
       name: r.name.trim(),
       area: (r.area || "").trim() || null,
@@ -77,10 +107,104 @@ export async function bulkAddTextbooks(rows) {
       feature: (r.feature || "").trim() || null,
     }));
 
-  const supabase = createClient();
+  if (payload.length === 0) {
+    revalidatePath("/textbooks");
+    return { inserted: 0, skipped, error: null };
+  }
   const error = await insertSafe(supabase, "textbooks", payload, ["word_range"]);
   revalidatePath("/textbooks");
-  return { inserted: error ? 0 : payload.length, error: error ? error.message : null };
+  return {
+    inserted: error ? 0 : payload.length,
+    skipped,
+    error: error ? error.message : null,
+  };
+}
+
+/**
+ * 같은 교재 둘을 **하나로 합친다.**
+ *
+ * 엑셀 이름이 조금 달라서 갈라진 것을 되돌리는 일이다. 무엇이 어디로 가는지
+ * 적어두면
+ *   · 단원은 남길 교재로 옮긴다 — 단원 id 는 그대로라 **진도·숙제 기록이 살아 있다**
+ *   · 학생 배정 · 반 배정은 이미 남길 교재에 있으면 버리고, 없으면 옮긴다
+ *   · 단어시험 방식 · 루틴 · 수업진도 · 단원평가도 같이 옮긴다
+ *   · 마지막에 없앨 교재만 지운다
+ *
+ * 지우는 것은 **껍데기뿐**이다. 안에 있던 것은 전부 남길 교재로 갔다.
+ */
+export async function mergeTextbooks(keepId, dropIds) {
+  const drops = (Array.isArray(dropIds) ? dropIds : [dropIds]).filter(
+    (id) => id && id !== keepId
+  );
+  if (!keepId || drops.length === 0) return { error: null, moved: 0 };
+  const supabase = createClient();
+  let moved = 0;
+
+  // 그냥 옮기면 되는 것들 (겹칠 일이 없다)
+  for (const table of ["textbook_units", "class_progress", "routine_steps", "unit_exams"]) {
+    const { error } = await supabase
+      .from(table)
+      .update({ textbook_id: keepId })
+      .in("textbook_id", drops);
+    // 아직 없는 표는 넘어간다 (마이그레이션을 다 안 돌렸을 수 있다)
+    if (error && error.code !== "42P01" && error.code !== "PGRST205") {
+      return { error: `${table}: ${error.message}` };
+    }
+    if (!error) moved += 1;
+  }
+
+  // 같은 짝이 이미 있으면 옮길 수 없다 — 이미 있는 쪽을 두고 버린다
+  const pairs = [
+    { table: "student_textbooks", who: "student_id" },
+    { table: "class_textbooks", who: "class_id" },
+    { table: "word_test_settings", who: "student_id" },
+  ];
+  for (const { table, who } of pairs) {
+    const { data: mine, error: e1 } = await supabase
+      .from(table)
+      .select(who)
+      .eq("textbook_id", keepId);
+    if (e1 && (e1.code === "42P01" || e1.code === "PGRST205")) continue;
+    const already = new Set((mine || []).map((r) => r[who]));
+
+    const { data: theirs } = await supabase
+      .from(table)
+      .select(who)
+      .in("textbook_id", drops);
+    const dupWho = [...new Set((theirs || []).map((r) => r[who]))].filter((w) => already.has(w));
+
+    if (dupWho.length > 0) {
+      await supabase.from(table).delete().in("textbook_id", drops).in(who, dupWho);
+    }
+    await supabase.from(table).update({ textbook_id: keepId }).in("textbook_id", drops);
+  }
+
+  const { error } = await supabase.from("textbooks").delete().in("id", drops);
+  revalidatePath("/textbooks");
+  revalidatePath("/students");
+  revalidatePath("/today");
+  return { error: error ? error.message : null, moved };
+}
+
+/**
+ * 같은 교재로 보이는 묶음을 그대로 다 합친다.
+ * 남길 것은 **쓰고 있는 학생이 가장 많은 쪽**으로 고른다 (lib/bookName).
+ */
+export async function mergeDuplicateBooks(groups) {
+  if (!Array.isArray(groups) || groups.length === 0) return { error: null, merged: 0 };
+  let merged = 0;
+  for (const books of groups) {
+    if (!Array.isArray(books) || books.length < 2) continue;
+    const keep = pickKeeper(books);
+    if (!keep) continue;
+    const res = await mergeTextbooks(
+      keep.id,
+      books.filter((b) => b.id !== keep.id).map((b) => b.id)
+    );
+    if (res?.error) return { error: res.error, merged };
+    merged += 1;
+  }
+  return { error: null, merged };
 }
 
 export async function addUnit(formData) {
@@ -358,22 +482,27 @@ export async function bulkAddUnits(rows) {
   }
   const supabase = createClient();
 
-  // 1) 교재 찾아두기 (이름 기준)
+  // 1) 교재 찾아두기.
+  //
+  //    **이름 그대로 맞춰보면 안 된다.** 엑셀에 「그래머존 2025 개정」 이라고
+  //    적혀 있고 앱에는 「그래머존」 이 있으면, 예전에는 교재가 하나 더 생겼다.
+  //    그러면 배정은 옛 교재에 · 단원은 새 교재에 붙어서 진도가 둘로 갈린다.
+  //    그래서 띄어쓰기·판 표시를 뺀 **열쇠**로 맞춰본다 (lib/bookName).
   const { data: books } = await supabase.from("textbooks").select("id, name");
-  const bookByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
+  const bookByName = new Map((books || []).map((b) => [bookKey(b.name), b.id]));
   let createdBooks = 0;
 
   async function ensureBook(name, pubYear) {
-    const key = name.trim();
+    const key = bookKey(name);
     if (bookByName.has(key)) return bookByName.get(key);
-    const row = { name: key };
+    const row = { name: name.trim() };
     if (pubYear) row.pub_year = pubYear;
     let { data, error } = await supabase.from("textbooks").insert(row).select("id").single();
     if (error && isMissingColumn(error)) {
       ({ data, error } = await supabase
-        .from("textbooks").insert({ name: key }).select("id").single());
+        .from("textbooks").insert({ name: name.trim() }).select("id").single());
     }
-    if (error) throw new Error(`교재 '${key}' 생성 실패: ${error.message}`);
+    if (error) throw new Error(`교재 '${name.trim()}' 생성 실패: ${error.message}`);
     bookByName.set(key, data.id);
     createdBooks += 1;
     return data.id;

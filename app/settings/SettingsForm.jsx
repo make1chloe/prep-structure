@@ -111,7 +111,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
   }
 
   return (
-    <div className="stack" style={{ gap: 14, marginTop: 12 }}>
+    <div className="stack" style={{ marginTop: 10 }}>
       {/* 발송 방식 */}
       <div className="card">
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>발송 방식</h2>

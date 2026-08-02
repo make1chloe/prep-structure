@@ -325,7 +325,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
   }
 
   return (
-    <div className="stack" style={{ gap: 18, marginTop: 12 }}>
+    <div className="stack" style={{ marginTop: 10 }}>
       {!hasKinds && (
         <div className="notice">
           아직 <b>종류별 문구 나누기</b>가 안 켜져 있습니다 (0029). 지금은 목록만 보입니다.{" "}

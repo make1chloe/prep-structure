@@ -9,8 +9,10 @@ import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
 import WordRangeBox from "./WordRangeBox";
 import RoutineEditor from "./RoutineEditor";
+import DupBooks from "./DupBooks";
 import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
+import { dupGroups, pickKeeper } from "@/lib/bookName";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,25 @@ export default async function TextbooksPage({ searchParams }) {
     unitCount[u.textbook_id] = (unitCount[u.textbook_id] || 0) + 1;
   });
   const activities = activityList((allUnits || []).map((u) => u.label));
+
+  // 같은 교재로 보이는 것 — 엑셀 이름이 조금 달라서 갈라진 것들.
+  // 어느 쪽을 남길지 정하려면 **쓰는 학생 수**를 알아야 한다.
+  const { data: assigned } = await supabase
+    .from("student_textbooks")
+    .select("textbook_id")
+    .neq("status", "dropped");
+  const useCount = {};
+  (assigned || []).forEach((r) => {
+    useCount[r.textbook_id] = (useCount[r.textbook_id] || 0) + 1;
+  });
+  const dups = dupGroups(textbooks || []).map(({ key, books }) => {
+    const withCounts = books.map((b) => ({
+      id: b.id, name: b.name, area: b.area, created_at: b.created_at,
+      students: useCount[b.id] || 0,
+      units: unitCount[b.id] || 0,
+    }));
+    return { key, books: withCounts, keepId: pickKeeper(withCounts)?.id || withCounts[0].id };
+  });
 
   const { data: hwItems } = await supabase
     .from("homework_items")
@@ -117,10 +138,21 @@ export default async function TextbooksPage({ searchParams }) {
           </div>
         </div>
 
+        {/* 「저장했는데 안 생겼다」 의 답 — 이미 같은 교재가 있어서 그리로 왔다 */}
+        {searchParams?.same && (
+          <div className="notice" style={{ marginTop: 12 }}>
+            <b>「{searchParams.same}」 는 이미 있는 교재예요.</b> 아래 교재가 그것입니다.
+            띄어쓰기나 「2025 개정」 같은 표기만 달라도 같은 교재로 봅니다 —
+            둘로 만들면 진도가 갈리기 때문이에요.
+          </div>
+        )}
+
+        <DupBooks groups={dups} />
+
         {/* 교재 목록 (전체 폭) */}
         <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
           {tbError ? (
-            <div style={{ padding: 18 }}>
+            <div style={{ padding: 14 }}>
               <div className="err">불러오기 실패: {tbError.message}</div>
             </div>
           ) : (

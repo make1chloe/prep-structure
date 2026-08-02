@@ -130,7 +130,7 @@ export default function ExcelUpload() {
       {fileName && <p className="hint" style={{ marginTop: 8 }}>선택된 파일: {fileName}</p>}
 
       {parsed && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
             <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
               미리보기{" "}

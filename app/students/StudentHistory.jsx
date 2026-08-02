@@ -42,7 +42,7 @@ export default function StudentHistoryPanel({ studentId }) {
   if (data === null) return <span className="hint">불러오는 중…</span>;
 
   return (
-    <div className="grid2" style={{ gap: 14 }}>
+    <div className="grid2" style={{ gap: 10 }}>
       <div>
         <b style={{ fontSize: 13 }}>교재 사용 기록</b>
         {data.books.length === 0 ? (

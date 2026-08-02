@@ -104,7 +104,7 @@ export default function TextbookUpload() {
       {fileName && <p className="hint" style={{ marginTop: 8 }}>선택된 파일: {fileName}</p>}
 
       {parsed && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
             <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
               미리보기 <span className="muted" style={{ fontWeight: 600 }}>{parsed.rows.length}권</span>
@@ -155,7 +155,16 @@ export default function TextbookUpload() {
           {result.error ? (
             <div className="err">저장 실패: {result.error}</div>
           ) : (
-            <div className="notice">✅ {result.inserted}권 저장 완료!</div>
+            <div className="notice">
+              ✅ {result.inserted}권 저장 완료!
+              {result.skipped > 0 && (
+                <>
+                  <br />
+                  {result.skipped}권은 <b>이미 있는 교재</b>라 넘어갔어요 — 띄어쓰기나
+                  「2025 개정」 같은 표기만 다른 것도 같은 교재로 봅니다.
+                </>
+              )}
+            </div>
           )}
         </div>
       )}

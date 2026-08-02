@@ -40,6 +40,21 @@ const COLS = [
   { key: "family", label: "형제", w: 96, type: "family" },
 ];
 
+// 한 판에서 고칠 수 있는 것 — 표에 안 켜둔 칸도 여기서는 전부 고친다.
+// (표는 "훑어보는 곳", 한 판은 "고치는 곳" 으로 나눈다)
+const ALL_FIELDS = COLS.filter(
+  (c) => !["books", "wordTest", "family", "pw"].includes(c.type || c.key)
+);
+
+const TABS = [
+  ["info", "정보"],
+  ["books", "교재"],
+  ["word", "단어시험"],
+  ["note", "상담일지"],
+  ["account", "계정"],
+  ["history", "기록"],
+];
+
 const STATUS_TABS = [
   ["enrolled", "재원"],
   ["all", "전체"],
@@ -54,7 +69,6 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
   const [on, setOn] = useState(() => new Set(DEFAULT_ON));
   const [colBox, setColBox] = useState(false);
-  const [wordId, setWordId] = useState(null);   // 단어시험 설정을 연 학생
 
   useEffect(() => {
     try {
@@ -73,16 +87,25 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     try { localStorage.setItem(COL_KEY, JSON.stringify([...n])); } catch { /* 사파리 비공개 */ }
   }
   const [sel, setSel] = useState(() => new Set());
-  const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("enrolled");
-  const [histId, setHistId] = useState(null);
-  const [linkId, setLinkId] = useState(null);   // 계정 연결 코드를 펼친 학생
-  const [noteId, setNoteId] = useState(null);   // 상담일지를 펼친 학생
-  const [bookId, setBookId] = useState(null);   // 교재를 펼친 학생
+  // 한 학생을 열면 **한 판**이 펼쳐진다. 예전에는 수정·기록·상담·교재·계정이
+  // 각각 다른 버튼이었고, 누를 때마다 다른 줄이 열렸다. 무엇이 열려 있는지
+  // 눈으로 세야 했고, 정보 하나 고치려면 표를 가로로 밀어야 했다.
+  const [openId, setOpenId] = useState(null);
+  const [tab, setTab] = useState("info");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  function open(s, which = "info") {
+    if (openId === s.id && tab === which) { setOpenId(null); return; }
+    setOpenId(s.id);
+    setTab(which);
+    const d = {};
+    ALL_FIELDS.forEach(({ key }) => (d[key] = s[key] ?? ""));
+    setDraft(d);
+  }
 
   const cellPwStatic = <span className="muted">—</span>;
   const norm = (v) => (v || "").toString().toLowerCase();
@@ -106,19 +129,11 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     setSel(next);
   }
 
-  function startEdit(s) {
-    setEditId(s.id);
-    const d = {};
-    COLS.forEach(({ key }) => (d[key] = s[key] ?? ""));
-    setDraft(d);
-  }
-
   function saveEdit() {
-    const id = editId;
+    const id = openId;
     startTransition(async () => {
       const res = await updateStudent(id, draft);
       if (res?.error) alert(res.error);
-      setEditId(null);
       router.refresh();
     });
   }
@@ -154,7 +169,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
 
   if (students.length === 0) {
     return (
-      <p className="muted" style={{ padding: 18, margin: 0, fontSize: 13.5 }}>
+      <p className="muted" style={{ padding: 14, margin: 0, fontSize: 13.5 }}>
         아직 학생이 없습니다. 위에서 학생을 추가하거나 엑셀로 올려보세요.
       </p>
     );
@@ -202,7 +217,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         <button
           className="btn btn-ghost btn-sm"
           style={{ fontSize: 11, padding: "2px 6px" }}
-          onClick={() => setWordId(wordId === s.id ? null : s.id)}
+          onClick={() => open(s, "word")}
         >
           {n ? `${n}개` : "범위대로"} · {cut ? `${cut}%` : "기본"} ·{" "}
           {s.word_when === "end" ? "끝" : "시작"}
@@ -382,133 +397,124 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
             </tr>
           </thead>
           <tbody>
-            {shown.map((s) => {
-              const editing = editId === s.id;
-              return (
-                <Fragment key={s.id}>
-                <tr>
+            {shown.map((s) => (
+              <Fragment key={s.id}>
+                <tr className={openId === s.id ? "rowopen" : undefined}>
                   <td>
                     <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggleOne(s.id)} />
                   </td>
                   {cols.map((c) => (
                     <td
                       key={c.key}
-                      className={!editing && c.mono ? "mono" : undefined}
-                      style={!editing && c.strong ? { fontWeight: 700 } : undefined}
+                      className={c.mono ? "mono" : undefined}
+                      style={c.strong ? { fontWeight: 700 } : undefined}
                     >
-                      {editing ? editor(c) : cell(s, c)}
+                      {/* 이름을 누르면 그 학생 한 판이 열린다 — 버튼을 찾을 일이 없다 */}
+                      {c.key === "name" ? (
+                        <button className="namebtn" onClick={() => open(s)}>{s.name}</button>
+                      ) : (
+                        cell(s, c)
+                      )}
                     </td>
                   ))}
                   <td>
-                    {editing ? (
-                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
-                        <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
-                          저장
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>
-                          취소
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>수정</button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setHistId(histId === s.id ? null : s.id)}
-                        >
-                          {histId === s.id ? "기록 닫기" : "기록"}
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setNoteId(noteId === s.id ? null : s.id)}
-                          title="상담·통화 내용을 남깁니다 (받아쓰기 됩니다)"
-                        >
-                          상담
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setBookId(bookId === s.id ? null : s.id)}
-                          title="이 학생이 쓰는 교재 — 같은 반이어도 학생마다 다릅니다"
-                        >
-                          교재
-                        </button>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setLinkId(linkId === s.id ? null : s.id)}
-                          title="학생이 자기 계정으로 로그인할 수 있게 코드를 뽑습니다"
-                        >
-                          계정
-                        </button>
-                        <a
-                          className="btn btn-ghost btn-sm"
-                          href={`/me?s=${s.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="이 학생에게 보이는 화면을 그대로 봅니다"
-                        >
-                          학생 화면
-                        </a>
-                        <a
-                          className="btn btn-ghost btn-sm"
-                          href={`/parent?s=${s.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="이 학생 학부모님께 보이는 화면을 그대로 봅니다"
-                        >
-                          학부모 화면
-                        </a>
-                      </div>
-                    )}
+                    <button className="btn btn-ghost btn-sm" onClick={() => open(s)}>
+                      {openId === s.id ? "닫기" : "열기"}
+                    </button>
                   </td>
                 </tr>
-                {bookId === s.id && (
+
+                {openId === s.id && (
                   <tr>
-                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
-                      <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        <b style={{ fontSize: 13 }}>{s.name} 교재</b>
-                        <span className="hint" style={{ fontSize: 11.5 }}>
-                          같은 반이어도 학생마다 다릅니다. 여기서 바꾸면 숙제 배정·진도가 이 교재로 갑니다.
+                    <td colSpan={cols.length + 2} className="stupanel">
+                      <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                        <b style={{ fontSize: 14 }}>{s.name}</b>
+                        <span className="hint">
+                          {[s.school, s.grade].filter(Boolean).join(" ")}
                         </span>
+                        <span className="spacer" />
+                        <a className="btn btn-ghost btn-sm" href={`/me?s=${s.id}`} target="_blank" rel="noreferrer">
+                          학생 화면 ↗
+                        </a>
+                        <a className="btn btn-ghost btn-sm" href={`/parent?s=${s.id}`} target="_blank" rel="noreferrer">
+                          학부모 화면 ↗
+                        </a>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
                       </div>
-                      <StudentBooks
-                        studentId={s.id}
-                        myBooks={s.books || []}
-                        textbooks={textbooks}
-                      />
+
+                      <div className="row" style={{ gap: 3, margin: "8px 0 10px" }}>
+                        {TABS.map(([k, label]) => (
+                          <button
+                            key={k}
+                            className={`hwchip ${tab === k ? "hw-next" : ""}`}
+                            onClick={() => setTab(k)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* 정보 — 표에 안 켜둔 칸도 여기서는 전부 고친다 */}
+                      {tab === "info" && (
+                        <>
+                          <div className="editgrid">
+                            {ALL_FIELDS.map((c) => (
+                              <div className="field" key={c.key}>
+                                <label className="label">{c.label}</label>
+                                {editor(c)}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
+                            <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
+                              {pending ? "저장 중…" : "저장"}
+                            </button>
+                            <span className="hint">고친 뒤 저장을 눌러주세요.</span>
+                            <span className="spacer" />
+                            {/* 형제 묶기는 목록에서 여럿 골라 하고, 푸는 것은 여기서 한 명씩 */}
+                            {s.family_id && (
+                              <>
+                                <span className="hint">
+                                  형제{" "}
+                                  {students
+                                    .filter((x) => x.family_id === s.family_id && x.id !== s.id)
+                                    .map((x) => x.name)
+                                    .join(", ") || "—"}
+                                </span>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  disabled={pending}
+                                  onClick={() => {
+                                    if (!confirm(`${s.name} 학생만 형제 묶음에서 뺄까요?`)) return;
+                                    run(() => unlinkSibling(s.id));
+                                  }}
+                                >
+                                  형제 풀기
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {tab === "books" && (
+                        <>
+                          <p className="hint" style={{ margin: "0 0 6px" }}>
+                            교재는 <b>학생마다 다릅니다</b> — 같은 반이어도요. 여기서 바꾸면
+                            숙제 배정·진도가 이 교재로 갑니다.
+                          </p>
+                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} />
+                        </>
+                      )}
+                      {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
+                      {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
+                      {tab === "account" && <LinkBox studentId={s.id} name={s.name} />}
+                      {tab === "history" && <StudentHistoryPanel studentId={s.id} />}
                     </td>
                   </tr>
                 )}
-                {wordId === s.id && (
-                  <tr>
-                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
-                      <WordTestBox student={s} defaultPass={defaultPass} />
-                    </td>
-                  </tr>
-                )}
-                {noteId === s.id && (
-                  <tr>
-                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
-                      <NoteBox studentId={s.id} name={s.name} />
-                    </td>
-                  </tr>
-                )}
-                {linkId === s.id && (
-                  <tr>
-                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
-                      <LinkBox studentId={s.id} name={s.name} />
-                    </td>
-                  </tr>
-                )}
-                {histId === s.id && (
-                  <tr>
-                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
-                      <StudentHistoryPanel studentId={s.id} />
-                    </td>
-                  </tr>
-                )}
-                </Fragment>
-              );
-            })}
+              </Fragment>
+            ))}
           </tbody>
         </table>
         {shown.length === 0 && (

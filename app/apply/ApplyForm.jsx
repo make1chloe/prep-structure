@@ -26,7 +26,7 @@ export default function ApplyForm({ token = "", prefill = {} }) {
   return (
     <form
       className="stack"
-      style={{ gap: 14 }}
+      style={{ gap: 10 }}
       action={(fd) =>
         startTransition(async () => {
           setErr(null);
@@ -42,7 +42,7 @@ export default function ApplyForm({ token = "", prefill = {} }) {
       <input type="hidden" name="token" value={token} />
 
       <div className="card">
-        <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>학생 정보</h2>
+        <h2 className="secthead">학생 정보</h2>
         <div className="grid2">
           <div className="field">
             <label className="label">학생 이름 *</label>
@@ -114,7 +114,7 @@ export default function ApplyForm({ token = "", prefill = {} }) {
       </div>
 
       <div className="card">
-        <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>수업 관련</h2>
+        <h2 className="secthead">수업 관련</h2>
         <div className="field">
           <label className="label">희망 요일</label>
           <input className="input" name="want_days_text" placeholder="예: 월·수 또는 화·목" />

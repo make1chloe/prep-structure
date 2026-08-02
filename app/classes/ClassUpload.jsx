@@ -92,7 +92,7 @@ export default function ClassUpload() {
       {fileName && <p className="hint" style={{ marginTop: 8 }}>선택된 파일: {fileName}</p>}
 
       {parsed && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
             <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
               미리보기 <span className="muted" style={{ fontWeight: 600 }}>{parsed.rows.length}개</span>

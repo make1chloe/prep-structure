@@ -4,7 +4,7 @@
   --mint: #0fa877; --mint-soft: #e7f7f0; --sky: #0284c7; --sky-soft: #e4f4fd; --lav: #6d5ce8; --lav-soft: #eeecfe;
   --amber: #d98207; --amber-soft: #fdf1db; --red: #dc3d3d; --red-soft: #fdeaea;
   --shadow: 0 1px 2px rgba(16,26,54,.04), 0 4px 16px rgba(16,26,54,.06);
-  --radius: 16px; --radius-sm: 10px;
+  --radius: 13px; --radius-sm: 9px;
   --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
@@ -23,11 +23,11 @@ body {
   -webkit-font-smoothing: antialiased; min-height: 100vh;
 }
 a { color: inherit; }
-.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
-.wrap-wide { max-width: 1480px; margin: 0 auto; padding: 0 20px; }
-.grid-side { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 14px; align-items: start; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+.wrap-wide { max-width: 1480px; margin: 0 auto; padding: 0 16px; }
+.grid-side { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 10px; align-items: start; }
 @media (max-width: 900px) { .grid-side { grid-template-columns: 1fr; } }
-.card-tight { padding: 14px; }
+.card-tight { padding: 12px; }
 .editgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 
 /* Top bar */
@@ -79,19 +79,19 @@ a { color: inherit; }
 .input:focus, select.input:focus { outline: 2px solid var(--navy); outline-offset: 1px; }
 
 /* Cards / layout */
-.page-head { padding: 18px 0 4px; }
-.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--navy); margin: 0 0 6px; }
-.h1 { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin: 0; }
-.sub { color: var(--text-muted); font-size: 13.5px; margin: 7px 0 0; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.page-head { padding: 12px 0 2px; }
+.eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--navy); margin: 0 0 3px; }
+.h1 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; margin: 0; }
+.sub { color: var(--text-muted); font-size: 13px; margin: 5px 0 0; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 15px 16px; box-shadow: var(--shadow); }
 .stat .k { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
 .stat .v { font-size: 26px; font-weight: 800; margin-top: 4px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 
 /* Table */
 .tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.tbl th, .tbl td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--border); }
+.tbl th, .tbl td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 .tbl th { font-size: 11.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl tbody tr:hover { background: var(--surface-2); }
@@ -164,10 +164,50 @@ a { color: inherit; }
 .muted { color: var(--text-faint); }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }
 .err { background: var(--red-soft); color: var(--red); border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
-.stack { display: flex; flex-direction: column; gap: 14px; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 640px) { .stats { grid-template-columns: 1fr; } .grid2 { grid-template-columns: 1fr; } }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ─────────────────────────────────────────────────────────────
+   영역 나누기.
+
+   기능이 줄줄이 늘어서 있으면 어디까지가 한 덩어리인지 알 수가 없다.
+   그렇다고 「발송」「일정」 같은 라벨을 다 붙이면 글자만 늘어난다.
+   **왼쪽에 얇은 색 띠 하나**로 나눈다 — 눈에 띄지 않지만 경계는 보인다.
+   색은 성격만 말한다: 급한 것(빨강) · 봐야 할 것(주황) · 그냥 정보(파랑).
+   ───────────────────────────────────────────────────────────── */
+.sect { border-left: 3px solid var(--border-strong); }
+.sect-bad  { border-left-color: var(--red); }
+.sect-warn { border-left-color: var(--amber); }
+.sect-info { border-left-color: var(--sky); }
+.sect-calm { border-left-color: var(--mint); }
+/* 카드 제목 — 화면마다 인라인으로 적던 것을 한 군데로 모은다 */
+.secthead {
+  margin: 0 0 8px; font-size: 14.5px; font-weight: 800;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+
+/* 재원생 — 이름을 누르면 그 학생 한 판이 열린다 */
+.namebtn {
+  all: unset; cursor: pointer; font-weight: 700; color: var(--navy);
+  border-bottom: 1px dashed var(--border-strong);
+}
+.namebtn:hover { border-bottom-color: var(--navy); }
+.rowopen > td { background: var(--surface-2); }
+.stupanel { background: var(--surface-2); padding: 12px !important; }
+
+@media (max-width: 640px) {
+  .stats { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; }
+  /* 폰에서는 가장자리 여백이 곧 읽을 수 있는 폭이다 — 최대한 좁힌다 */
+  .wrap, .wrap-wide { padding: 0 10px; }
+  .card { padding: 11px; }
+  .card-tight, .stupanel { padding: 10px !important; }
+  .page-head { padding: 10px 0 2px; }
+  .h1 { font-size: 19px; }
+  .stack { gap: 8px; }
+  .grid-side { gap: 8px; }
+}
 
 /* Login */
 .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }

@@ -20,6 +20,7 @@ import { STAY_LABEL } from "@/lib/reportText";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
+import { cutOf, verdict } from "@/lib/wordTest";
 
 // 보강에 자주 쓰는 시간 — 정규 수업이 비는 때
 const MAKEUP_TIMES = ["15:00", "16:00", "17:00", "18:00"];
@@ -71,10 +72,21 @@ const MARK_CLS = { done: "hw-done", weak: "hw-weak", missing: "hw-missing" };
  * 그래서 '틀린' 을 치면 맞은 개수를 계산해 넣는다.
  * 전체 개수는 학생마다 거의 안 바뀌므로 지난번 값이 미리 들어와 있다.
  */
-function ScoreInput({ label, total, correct, onTotal, onCorrect }) {
+/**
+ * 점수 한 칸.
+ *
+ * `cut` 을 주면 **통과·미통과를 자동으로 붙인다.** 원장님이 매번 "10%면 두 개까지지"
+ * 하고 암산하지 않아도 되게, 채점하는 자리에서 바로 답이 나와야 한다.
+ * 아직 안 적었을 때는 "몇 개까지 통과" 를 미리 알려준다.
+ */
+function ScoreInput({ label, total, correct, onTotal, onCorrect, cut = null }) {
   const t = parseInt(total, 10);
   const c = parseInt(correct, 10);
   const wrong = Number.isFinite(t) && Number.isFinite(c) ? Math.max(0, t - c) : "";
+  const v = cut ? verdict(c, t, cut) : null;
+  // 아직 안 적었어도 "몇 개까지 통과" 는 미리 보여준다
+  const allowed =
+    cut && Number.isFinite(t) && t > 0 ? Math.floor((t * (100 - cut)) / 100) : null;
 
   function setWrong(v) {
     const w = parseInt(v.replace(/[^\d]/g, ""), 10);
@@ -107,6 +119,17 @@ function ScoreInput({ label, total, correct, onTotal, onCorrect }) {
           {Math.round((c / t) * 100)}%
         </span>
       )}
+      {/* 통과선이 있으면 자동으로 판정한다 — 암산할 일이 없다 */}
+      {v && (
+        <span className={`tag ${v.pass ? "tag-mint" : "tag-red"}`} title={`통과선 ${cut}%`}>
+          {v.label}
+        </span>
+      )}
+      {!v && allowed !== null && (
+        <span className="hint" title={`통과선 ${cut}%`}>
+          {allowed}개까지 통과
+        </span>
+      )}
     </span>
   );
 }
@@ -125,8 +148,10 @@ export default function StudentPanel({
     attendance: row.status || "present",
     attitude: r.attitude || "",
     word_correct: r.word_correct ?? "",
-    // 전체 개수는 지난번 값을 미리 넣어둔다 (학생마다 거의 안 바뀐다)
-    word_total: r.word_total ?? row.lastTotals?.word_total ?? "",
+    // 전체 개수는 미리 채워둔다 — 재원생에 적어둔 개수가 있으면 그것,
+    // 없으면 지난번 값 (학생마다 거의 안 바뀐다)
+    word_total:
+      r.word_total ?? row.student?.word_test_count ?? row.lastTotals?.word_total ?? "",
     sent_correct: r.sent_correct ?? "",
     sent_total: r.sent_total ?? row.lastTotals?.sent_total ?? "",
     own_progress: r.own_progress || "",
@@ -503,6 +528,7 @@ export default function StudentPanel({
             correct={form.word_correct}
             onTotal={(v) => set("word_total", v)}
             onCorrect={(v) => set("word_correct", v)}
+            cut={cutOf(row.student, Number(rule.wordPassPct) || 90)}
           />
           <ScoreInput
             label="문장"

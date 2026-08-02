@@ -32,7 +32,7 @@ export default function MakeupInbox({ rows = [] }) {
   }
 
   return (
-    <div className="card">
+    <div className="card sect sect-warn">
       <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
         보강 잡을 것{" "}
         {rows.length > 0 && <span className="tag tag-amber">{rows.length}</span>}

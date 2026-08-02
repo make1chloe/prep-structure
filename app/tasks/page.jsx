@@ -198,7 +198,7 @@ export default async function TasksPage({ searchParams }) {
         )}
 
         {wantTodo && (
-          <section style={view === "all" ? { marginTop: 22 } : undefined}>
+          <section style={view === "all" ? { marginTop: 14 } : undefined}>
             {view === "all" && (
               <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>할일</h2>
             )}

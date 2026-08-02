@@ -11,19 +11,30 @@ import { setStudentTextbooks } from "@/app/progress/actions";
 export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [area, setArea] = useState("");     // 영역으로 걸러보기
   const [picked, setPicked] = useState(() => new Set(myBooks.map((b) => b.id)));
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 교재는 이름을 다 외우고 있지 않다. **영역부터 좁히면** 몇 권 안 남는다.
+  // 실제로 있는 영역만 버튼으로 만든다 — 없는 영역을 눌러보게 하면 안 된다.
+  const areas = [...new Set(textbooks.map((b) => b.area).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "ko")
+  );
+
   const kw = q.trim().toLowerCase();
-  const shown = kw
-    ? textbooks
-        .filter((b) => [b.name, b.area].filter(Boolean).some((v) => v.toLowerCase().includes(kw)))
-        .slice(0, 40)
-    : [
-        ...textbooks.filter((b) => picked.has(b.id)),
-        ...textbooks.filter((b) => !picked.has(b.id)).slice(0, 12),
-      ];
+  const pool = area ? textbooks.filter((b) => b.area === area) : textbooks;
+  const shown =
+    kw || area
+      ? pool
+          .filter(
+            (b) => !kw || [b.name, b.area].filter(Boolean).some((v) => v.toLowerCase().includes(kw))
+          )
+          .slice(0, 60)
+      : [
+          ...textbooks.filter((b) => picked.has(b.id)),
+          ...textbooks.filter((b) => !picked.has(b.id)).slice(0, 12),
+        ];
 
   const dirty =
     picked.size !== myBooks.length || myBooks.some((b) => !picked.has(b.id));
@@ -63,13 +74,38 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }
         교재는 학생마다 따로 정합니다. 뺀 교재는 지워지지 않고 <b>중단</b>으로 남아,
         지금까지 나간 진도가 그대로 보존돼요. 다시 넣으면 이어서 갑니다.
       </p>
-      <input
-        className="input input-sm"
-        style={{ width: 180, marginBottom: 8 }}
-        placeholder="교재 검색"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+      <div className="row" style={{ gap: 4, alignItems: "center", marginBottom: 8 }}>
+        <input
+          className="input input-sm"
+          style={{ width: 160 }}
+          placeholder="교재 이름"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        {/* 영역부터 좁히기 — 이름을 다 외우고 있지 않아도 찾을 수 있다 */}
+        {areas.length > 0 && (
+          <>
+            <button
+              className={`hwchip ${area === "" ? "hw-next" : ""}`}
+              onClick={() => setArea("")}
+            >
+              전체
+            </button>
+            {areas.map((a) => {
+              const n = textbooks.filter((b) => b.area === a).length;
+              return (
+                <button
+                  key={a}
+                  className={`hwchip ${area === a ? "hw-next" : ""}`}
+                  onClick={() => setArea(area === a ? "" : a)}
+                >
+                  {a} {n}
+                </button>
+              );
+            })}
+          </>
+        )}
+      </div>
       <div className="row" style={{ gap: 4, maxHeight: 200, overflowY: "auto" }}>
         {shown.map((b) => (
           <button
@@ -87,7 +123,7 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }
         ))}
         {shown.length === 0 && <span className="hint">맞는 교재가 없어요.</span>}
       </div>
-      {!kw && textbooks.length > shown.length && (
+      {!kw && !area && textbooks.length > shown.length && (
         <p className="hint" style={{ marginTop: 6 }}>
           일부만 보여요. 검색창에 교재 이름을 치면 찾을 수 있어요.
         </p>

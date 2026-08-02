@@ -5,6 +5,7 @@ import { addDays, longLabel, todaySeoul } from "@/lib/day";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
 import { byKind, summary as scoreSummary, KIND_LABEL } from "@/lib/scores";
+import { cutOf, passCount } from "@/lib/wordTest";
 import Comments from "@/app/comments/Comments";
 import RequestForm from "@/app/me/RequestForm";
 import NoticePhotos from "@/components/NoticePhotos";
@@ -106,7 +107,14 @@ export default async function ParentPage({ searchParams }) {
   });
   const withItems = (reps || []).map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }));
   const sum = summarize(withItems, []);
-  const lines = threeLines(sum);
+  // 통과선은 이 학생 것 → 없으면 설정의 기본값.
+  // 0070 전이면 학생별 통과선 칸이 없다 — 그때는 기본값만 쓴다.
+  const { data: warnRow } = await supabase
+    .from("settings").select("config").eq("key", "warning").maybeSingle();
+  const { data: cutRow } = await supabase
+    .from("students").select("word_cut_pct").eq("id", pickId).maybeSingle();
+  const cut = cutOf(cutRow, Number(warnRow?.config?.wordPassPct) || 90);
+  const lines = threeLines(sum, passCount(reps || [], cut));
 
   // ── 월간리포트 (지난달까지 나간 것) ──
   const { data: monthly } = await supabase
@@ -195,7 +203,7 @@ export default async function ParentPage({ searchParams }) {
 
       {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
 
-      <div className="stack" style={{ gap: 14, marginTop: 12 }}>
+      <div className="stack" style={{ marginTop: 10 }}>
         {/* ── 이번 달 — 달이 끝나기 전에도 지금까지를 보여준다 ── */}
         <div className="card">
           <div className="row" style={{ gap: 8, alignItems: "baseline" }}>

@@ -617,7 +617,7 @@ export default async function MePage({ searchParams }) {
         </p>
       </div>
 
-      <div className="stack" style={{ gap: 14, marginTop: 12 }}>
+      <div className="stack" style={{ marginTop: 10 }}>
         {preview ? (
           <div className="card card-tight" style={{ borderLeft: "3px solid var(--accent, #6d7cff)" }}>
             <b style={{ fontSize: 13.5 }}>학생 화면 미리보기</b>

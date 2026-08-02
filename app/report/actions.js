@@ -75,6 +75,25 @@ export async function skipSend(reportIds, kind = "report", on = true) {
 }
 
 /**
+ * 실패 기록을 목록에서 **치운다.**
+ *
+ * 「발송 설정이 비어 있어요」 처럼 이미 지나간 실패가 대시보드에 계속 남아 있으면,
+ * 진짜 오늘 실패한 것이 그 사이에 묻힌다. 지우는 것은 **발송 기록**이지
+ * 리포트가 아니다 — 그 날 수업 기록은 그대로 있다.
+ */
+export async function dismissSendFails(sendIds) {
+  const ids = Array.isArray(sendIds) ? sendIds : [sendIds];
+  if (ids.length === 0) return { error: null };
+  const supabase = createClient();
+  // 성공한 발송은 절대 지우지 않는다 (보낸 기록은 남아야 한다)
+  const { error } = await supabase
+    .from("report_sends").delete().in("id", ids).eq("ok", false);
+  revalidatePath("/");
+  revalidatePath("/report");
+  return { error: error ? error.message : null };
+}
+
+/**
  * 리포트를 아예 지운다.
  *
  * **그날 수업 기록이 통째로 사라진다** — 숙제 검사 결과와 낸 것까지 함께다.

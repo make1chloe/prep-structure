@@ -87,7 +87,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
       )}
 
       {rows.length === 0 && (
-        <p className="hint" style={{ marginTop: 16 }}>
+        <p className="hint" style={{ marginTop: 10 }}>
           이 달에는 수업 기록이 없습니다.
         </p>
       )}

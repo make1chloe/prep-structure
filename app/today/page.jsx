@@ -55,12 +55,21 @@ export default async function TodayPage({ searchParams }) {
   const { data: members } = await supabase
     .from("class_students")
     .select("class_id, student_id");
+  // 단어시험 설정(개수·통과선)까지 같이 들고 온다 — 채점 자리에서 바로
+  // 통과·미통과가 나와야 하기 때문이다 (0070)
   let { data: students, error: stuErr } = await supabase
     .from("students")
-    .select("id, name, school, grade, status, word_when")
+    .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct")
     .eq("status", "enrolled");
   if (stuErr) {
-    // 0037 전이면 단어시험 시점 없이
+    // 0070 전이면 개수·통과선 없이
+    ({ data: students, error: stuErr } = await supabase
+      .from("students")
+      .select("id, name, school, grade, status, word_when")
+      .eq("status", "enrolled"));
+  }
+  if (stuErr) {
+    // 0037 전이면 단어시험 시점도 없이
     ({ data: students } = await supabase
       .from("students")
       .select("id, name, school, grade, status")

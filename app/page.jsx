@@ -6,6 +6,7 @@ import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import MakeupInbox from "./MakeupInbox";
+import UnsentBox from "./UnsentBox";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
@@ -134,9 +135,9 @@ export default async function Home() {
           )}
         </div>
 
-        <div className="grid-side" style={{ marginTop: 14 }}>
+        <div className="grid-side" style={{ marginTop: 10 }}>
           {/* 새 소식 · 특이사항 */}
-          <div className="stack" style={{ gap: 14 }}>
+          <div className="stack">
             <div id="requests">
               <RequestInbox requests={d.requests} />
             </div>
@@ -144,55 +145,14 @@ export default async function Home() {
               <MakeupInbox rows={d.makeupRows} />
             </div>
 
-            {/* 보내야 하는데 안 나간 것 — 놓치면 학부모가 먼저 안다 */}
-            {(d.sendFails.length > 0 || d.unsentPast.length > 0) && (
-              <div className="card">
-                <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
-                  안 나간 문자 <span className="tag tag-red">{d.sendFails.length + d.unsentPast.length}</span>
-                </h2>
-                <div className="stack" style={{ gap: 4 }}>
-                  {/* 줄을 누르면 **그 날짜의 발송 화면**으로 바로 간다.
-                      보고 나서 어디로 가야 할지 다시 찾게 하면 안 된다. */}
-                  {d.sendFails.map((s) => (
-                    <Link
-                      className="unitrow"
-                      key={s.id}
-                      href={`/report?t=resend${s.date ? `&d=${s.date}` : ""}`}
-                      style={{ textDecoration: "none" }}
-                    >
-                      <span className="tag tag-red">실패</span>
-                      <b style={{ fontSize: 12.5 }}>{s.name}</b>
-                      <span className="hint">{s.detail || s.kind}</span>
-                      <span className="spacer" />
-                      <span className="hint" style={{ fontSize: 11.5 }}>다시 보내기 ›</span>
-                    </Link>
-                  ))}
-                  {d.unsentPast.map((r) => (
-                    <Link
-                      className="unitrow"
-                      key={r.id}
-                      href={`/report?d=${r.date}`}
-                      style={{ textDecoration: "none" }}
-                    >
-                      <span className="tag tag-amber">미발송</span>
-                      <span className="hint" style={{ minWidth: 62 }}>{dayLabel(r.date)}</span>
-                      <b style={{ fontSize: 12.5 }}>{r.name}</b>
-                      <span className="hint">써두고 안 보냄</span>
-                      <span className="spacer" />
-                      <span className="hint" style={{ fontSize: 11.5 }}>보내기 ›</span>
-                    </Link>
-                  ))}
-                </div>
-                <Link className="btn btn-ghost btn-sm" href="/report?t=resend" style={{ marginTop: 6 }}>
-                  다시 보내기
-                </Link>
-              </div>
-            )}
+            {/* 보내야 하는데 안 나간 것 — 놓치면 학부모가 먼저 안다.
+                필요 없는 것은 골라서 「안 보내기」로 치울 수 있다 */}
+            <UnsentBox fails={d.sendFails} past={d.unsentPast} />
 
             {/* 반성문 문턱 — 오늘 얼굴 보고 이야기해야 하는 것 */}
             {d.warnings.length > 0 && (
-              <div className="card">
-                <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
+              <div className="card sect sect-bad">
+                <h2 className="secthead">
                   반성문 대상 <span className="tag tag-red">{d.warnings.length}</span>
                 </h2>
                 <div className="stack" style={{ gap: 4 }}>
@@ -212,8 +172,8 @@ export default async function Home() {
               </div>
             )}
 
-            <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
+            <div className="card sect sect-warn">
+              <h2 className="secthead">
                 새 상담{" "}
                 {d.inquiries.length > 0 && <span className="tag tag-amber">{d.inquiries.length}</span>}
               </h2>
@@ -237,8 +197,8 @@ export default async function Home() {
               )}
             </div>
 
-            <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>특이사항</h2>
+            <div className="card sect sect-info">
+              <h2 className="secthead">특이사항</h2>
               <div className="stack" style={{ gap: 10 }}>
                 {d.todayMakeups.length > 0 && (
                   <div>
@@ -421,11 +381,11 @@ export default async function Home() {
           </div>
 
           {/* 일정 */}
-          <div className="stack" style={{ gap: 14 }}>
+          <div className="stack">
             {/* 단원이 없으면 숙제 범위를 고를 수가 없다. 그런데 그건 오늘 수업
                 화면에서는 "범위가 안 나온다" 로만 보여서, 원인을 여기서 알려준다 */}
             {(d.needUnits || []).length > 0 && (
-              <div className="card" style={{ borderColor: "var(--amber)" }}>
+              <div className="card sect sect-warn">
                 <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
                   단원을 넣어야 하는 교재 {d.needUnits.length}권
                 </h2>
@@ -457,8 +417,8 @@ export default async function Home() {
 
             <DashCalendar ym={d.today.slice(0, 7)} items={d.calendar || []} today={d.today} />
 
-            <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>오늘</h2>
+            <div className="card sect sect-calm">
+              <h2 className="secthead">오늘</h2>
               <div className="stack" style={{ gap: 4 }}>
                 {d.todayClasses.map((c) => (
                   <Link className="unitrow" key={c.id} href="/today" style={{ textDecoration: "none" }}>
@@ -485,8 +445,8 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
+            <div className="card sect sect-calm">
+              <h2 className="secthead">
                 이번 주{" "}
                 <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
                   {tasks.week.length}건
@@ -507,8 +467,8 @@ export default async function Home() {
               )}
             </div>
 
-            <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 800 }}>
+            <div className="card sect sect-calm">
+              <h2 className="secthead">
                 이번 달 남은 일정{" "}
                 <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
                   {tasks.month.length}건

@@ -25,7 +25,7 @@ export default function RequestInbox({ requests = [] }) {
   }
 
   return (
-    <div className="card">
+    <div className="card sect sect-warn">
       <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
         학부모 · 학생 알림{" "}
         {requests.length > 0 && <span className="tag tag-amber">{requests.length}</span>}

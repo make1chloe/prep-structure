@@ -116,7 +116,7 @@ export default async function StudentsPage() {
 
         <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
           {error ? (
-            <div style={{ padding: 18 }}>
+            <div style={{ padding: 14 }}>
               <div className="err">불러오기 실패: {error.message}</div>
             </div>
           ) : (
