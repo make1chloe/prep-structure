@@ -2,7 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
-import { score } from "@/lib/wordTest";
+import { score, cutOf, passCount } from "@/lib/wordTest";
+import { summarize } from "@/lib/monthly";
+import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
 import StudyTabs from "./StudyTabs";
 import ArrivalCard from "./ArrivalCard";
 import { trend, avgSeconds } from "@/lib/trend";
@@ -412,6 +414,46 @@ export default async function MePage({ searchParams }) {
     }
   });
 
+  // ── 이번 달 누적 ──────────────────────────────────────────────
+  //
+  // 학부모 화면과 **같은 숫자**를 보여준다 (lib/monthly 의 summarize).
+  // 집에서 "이번 달 어땠어?" 를 물으면 아이와 부모가 같은 화면을 보게 된다.
+  // 다른 숫자가 나오면 그 자리에서 다투게 된다.
+  //
+  // 세 줄(출결·숙제·단어)은 **그대로** 쓴다. 말을 따로 지어내면 그것이 곧
+  // 두 번째 진실이 되어, 어느 쪽이 맞는지 아무도 모르게 된다.
+  // 다른 것은 제목뿐이다 — 학부모에게는 "이번 달", 아이에게는 "이번 달 나".
+  const { ym: myYm, from: myFrom } = monthRange(todayStr);
+  const { data: monthReps } = await supabase
+    .from("daily_reports")
+    .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total")
+    .eq("student_id", student.id)
+    .gte("date", myFrom)
+    .lte("date", todayStr);
+  const mIds = (monthReps || []).map((r) => r.id);
+  const { data: mItems } = mIds.length
+    ? await supabase
+        .from("daily_report_items")
+        .select("daily_report_id, status")
+        .in("daily_report_id", mIds)
+    : { data: [] };
+  const mItemsOf = new Map();
+  (mItems || []).forEach((i) => {
+    if (!mItemsOf.has(i.daily_report_id)) mItemsOf.set(i.daily_report_id, []);
+    mItemsOf.get(i.daily_report_id).push(i);
+  });
+  const monthSum = summarize(
+    (monthReps || []).map((r) => ({ ...r, items: mItemsOf.get(r.id) || [] })),
+    []
+  );
+  // 통과선은 이 학생 것 → 없으면 설정 기본값 (0070 전이면 기본값만)
+  const { data: myWarn } = await supabase
+    .from("settings").select("config").eq("key", "warning").maybeSingle();
+  const { data: myCutRow } = await supabase
+    .from("students").select("word_cut_pct").eq("id", student.id).maybeSingle();
+  const myCut = cutOf(myCutRow, Number(myWarn?.config?.wordPassPct) || 90);
+  const monthLines = threeLines(monthSum, passCount(monthReps || [], myCut));
+
   // 내 흐름 — 남과 견주지 않고 **내 지난 기록**과 견준다
   const asc = [...(reports || [])].sort((a, b) => a.date.localeCompare(b.date));
   const wordTrend = trend(
@@ -693,6 +735,27 @@ export default async function MePage({ searchParams }) {
             </div>
           )}
         </div>
+
+        {/* 이번 달 나 — 학부모 화면과 **같은 숫자**다.
+            집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다 */}
+        {monthLines.length > 0 && (
+          <div className="card sect sect-calm">
+            <h2 className="secthead">
+              이번 달 나
+              <span className="hint" style={{ fontWeight: 600 }}>
+                {Number(myYm.slice(5))}월 1일부터 오늘까지
+              </span>
+            </h2>
+            <div className="stack" style={{ gap: 5 }}>
+              {monthLines.map((l) => (
+                <div className="row" key={l.key} style={{ gap: 8, alignItems: "center" }}>
+                  <span className="plabel" style={{ width: 52 }}>{l.label}</span>
+                  <span className={`tag ${TONE_CLS[l.tone] || "tag-muted"}`}>{l.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {latest && (latest.word_total || latest.sent_total || latest.own_progress) && (
           <div className="card">
