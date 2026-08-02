@@ -23,12 +23,24 @@ export default async function StudentsPage() {
     profile = data;
   }
 
-  const { data: students, error } = await supabase
+  const SCOLS =
+    "id, name, school, grade, birth_year, gender, student_phone, parent_phone, status, enrolled_on, electives, note, login_id, profile_id, created_at";
+  let { data: students, error } = await supabase
     .from("students")
-    .select(
-      "id, name, school, grade, birth_year, student_phone, parent_phone, status, electives, note, login_id, profile_id, created_at"
-    )
+    .select(`${SCOLS}, word_when, word_test_count, word_cut_pct`)
     .order("created_at", { ascending: false });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0070 전이면 단어시험 칸 없이
+    ({ data: students, error } = await supabase
+      .from("students")
+      .select(SCOLS)
+      .order("created_at", { ascending: false }));
+  }
+
+  // 통과선 기본값 — 학생마다 정하지 않았으면 이걸 쓴다
+  const { data: warnRow } = await supabase
+    .from("integrations").select("config").eq("id", "warning").maybeSingle();
+  const defaultPass = Number(warnRow?.config?.wordPassPct) || 90;
 
   // 아직 초기 비밀번호(0000) 그대로인 학생.
   // 아이디가 규칙적이라, 한 번도 안 들어온 계정은 남이 열 수 있다. 챙겨야 한다.
@@ -101,7 +113,7 @@ export default async function StudentsPage() {
               <div className="err">불러오기 실패: {error.message}</div>
             </div>
           ) : (
-            <StudentList students={rows} textbooks={textbooks} />
+            <StudentList students={rows} textbooks={textbooks} defaultPass={defaultPass} />
           )}
         </div>
       </main>

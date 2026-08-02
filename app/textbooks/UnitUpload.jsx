@@ -155,10 +155,40 @@ export default function UnitUpload() {
           {result.error ? (
             <div className="err">저장 실패: {result.error}</div>
           ) : (
-            <div className="notice">
-              ✅ {result.inserted}줄 저장 완료!
-              {result.createdBooks > 0 && ` 새 교재 ${result.createdBooks}권도 함께 만들었어요.`}
-            </div>
+            <>
+              <div className="notice">
+                ✅ {result.inserted}줄 저장 완료!
+                {result.updated > 0 && ` 이미 있던 단원 ${result.updated}개는 파일 내용으로 고쳤어요.`}
+                {result.createdBooks > 0 && ` 새 교재 ${result.createdBooks}권도 함께 만들었어요.`}
+              </div>
+
+              {/* 엑셀에서 지웠거나 이름을 바꾼 단원 — 자동으로 지우지 않는다.
+                  학생 진도가 단원에 걸려 있어서, 지우면 그 기록도 함께 사라진다. */}
+              {(result.leftover || []).length > 0 && (
+                <div className="card card-tight" style={{ marginTop: 8, borderColor: "var(--amber)" }}>
+                  <b style={{ fontSize: 13 }}>
+                    파일에 없는 단원 {result.leftover.length}개
+                  </b>
+                  <p className="hint" style={{ margin: "4px 0 6px", fontSize: 11.5 }}>
+                    엑셀에서 <b>지웠거나 이름을 바꾼</b> 단원이에요.
+                    <b> 저절로 지우지 않았습니다</b> — 학생 진도가 단원에 걸려 있어서
+                    지우면 그 기록도 함께 사라지거든요.
+                    이름만 바꾸신 거라면, 교재 화면에서 <b>이름을 고치는 편</b>이 낫습니다
+                    (진도가 그대로 따라옵니다).
+                  </p>
+                  <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                    {result.leftover.slice(0, 40).map((u) => (
+                      <span key={u.id} className="tag tag-muted" style={{ fontSize: 10.5 }}>
+                        {u.book ? `${u.book} · ` : ""}{u.name}
+                      </span>
+                    ))}
+                    {result.leftover.length > 40 && (
+                      <span className="hint">외 {result.leftover.length - 40}개</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

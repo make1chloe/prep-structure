@@ -61,6 +61,7 @@ const CHECKS = [
   { id: "0067", label: "메뉴 고르기", table: "profiles", col: "menu_hidden" },
   { id: "0068", label: "학부모가 보내는 사진", table: "requests", col: "photos" },
   { id: "0069", label: "학교 지역·주소", table: "neis_schools", col: "address" },
+  { id: "0070", label: "단어 개수 · 단어시험 설정", table: "students", col: "word_cut_pct" },
 ];
 
 export async function checkSchema() {

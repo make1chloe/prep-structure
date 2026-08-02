@@ -422,6 +422,39 @@ export default async function Home() {
 
           {/* 일정 */}
           <div className="stack" style={{ gap: 14 }}>
+            {/* 단원이 없으면 숙제 범위를 고를 수가 없다. 그런데 그건 오늘 수업
+                화면에서는 "범위가 안 나온다" 로만 보여서, 원인을 여기서 알려준다 */}
+            {(d.needUnits || []).length > 0 && (
+              <div className="card" style={{ borderColor: "var(--amber)" }}>
+                <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+                  단원을 넣어야 하는 교재 {d.needUnits.length}권
+                </h2>
+                <p className="hint" style={{ margin: "0 0 8px", fontSize: 12 }}>
+                  학생이 쓰고 있는데 <b>단원이 하나도 없는 교재</b>예요.
+                  단원이 없으면 오늘 수업에서 <b>숙제 범위를 고를 수가 없습니다.</b>
+                </p>
+                <div className="stack" style={{ gap: 3 }}>
+                  {d.needUnits.slice(0, 8).map((b) => (
+                    <Link
+                      className="unitrow"
+                      key={b.id}
+                      href={`/textbooks?tb=${b.id}`}
+                      style={{ textDecoration: "none" }}
+                    >
+                      <b style={{ fontSize: 12.5, flex: 1 }}>{b.name}</b>
+                      {b.area && <span className="tag tag-muted">{b.area}</span>}
+                      <span className="tag tag-amber">{b.students}명</span>
+                    </Link>
+                  ))}
+                  {d.needUnits.length > 8 && (
+                    <Link className="hint" href="/textbooks">
+                      외 {d.needUnits.length - 8}권 더 보기
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+
             <DashCalendar ym={d.today.slice(0, 7)} items={d.calendar || []} today={d.today} />
 
             <div className="card">

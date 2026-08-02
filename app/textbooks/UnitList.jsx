@@ -19,7 +19,10 @@ export default function UnitList({
   textbookId,
   textbooks = [],
   activities = DEFAULT_ACTIVITIES,
+  book = null,
 }) {
+  // 단어 교재만 단어 개수를 묻는다. 문법 교재에 단어 칸이 있으면 헷갈린다.
+  const isWord = book?.area === "단어";
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -46,6 +49,7 @@ export default function UnitList({
       sort: u.sort ?? "",
       activity: u.label || "",
       question_no: u.question_no || "",
+      word_count: u.word_count ?? "",
       page_start: u.page_start ?? "",
       page_end: u.page_end ?? "",
     });
@@ -184,6 +188,7 @@ export default function UnitList({
             <th>단원명</th>
             <th style={{ width: 78 }}>페이지</th>
             <th style={{ width: 84 }}>활동</th>
+            {isWord && <th style={{ width: 64 }}>단어</th>}
             <th style={{ width: 52 }}></th>
           </tr>
         </thead>
@@ -247,6 +252,19 @@ export default function UnitList({
                         onChange={(e) => setDraft({ ...draft, activity: e.target.value })}
                       />
                     </td>
+                    {isWord && (
+                      <td>
+                        <input
+                          className="input input-sm"
+                          style={{ width: 52, padding: "5px 4px" }}
+                          inputMode="numeric"
+                          placeholder={book?.word_range || "개수"}
+                          title="이 소단원의 단어 개수. 비우면 교재 기본값을 씁니다"
+                          value={draft.word_count}
+                          onChange={(e) => setDraft({ ...draft, word_count: e.target.value })}
+                        />
+                      </td>
+                    )}
                     <td>
                       <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                         <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending} style={{ padding: "4px 7px" }}>
@@ -274,6 +292,15 @@ export default function UnitList({
                         : "—"}
                     </td>
                     <td className="muted">{u.label || "—"}</td>
+                    {isWord && (
+                      <td className="muted" style={{ fontSize: 12 }}>
+                        {u.word_count
+                          ? `${u.word_count}개`
+                          : book?.word_range && !book?.words_irregular
+                          ? <span className="hint">{book.word_range}개</span>
+                          : "—"}
+                      </td>
+                    )}
                     <td>
                       <button className="btn btn-ghost btn-sm" onClick={() => startEdit(u)}>
                         수정

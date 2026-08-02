@@ -132,7 +132,7 @@ export async function addUnit(formData) {
 
 export async function updateTextbook(id, patch) {
   if (!id) return { error: "id 없음" };
-  const allow = ["name", "area", "target_grade", "total_pages", "price", "word_range", "purchase_url", "feature", "status"];
+  const allow = ["name", "area", "target_grade", "total_pages", "price", "word_range", "words_irregular", "purchase_url", "feature", "status"];
   const row = {};
   allow.forEach((k) => {
     if (k in (patch || {})) {
@@ -140,6 +140,8 @@ export async function updateTextbook(id, patch) {
       if (k === "total_pages" || k === "price" || k === "word_range") {
         const d = (v ?? "").toString().replace(/[^\d]/g, "");
         v = d ? parseInt(d, 10) : null;
+      } else if (k === "words_irregular") {
+        v = !!v;
       } else if (typeof v === "string") {
         v = v.trim() || null;
       }
@@ -151,7 +153,12 @@ export async function updateTextbook(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("textbooks").update(row).eq("id", id);
   if (isMissingColumn(error)) {
-    const { word_range, status, ...rest } = row;
+    // 0070 전이면 '불규칙' 없이
+    const { words_irregular: _wi, ...noIrr } = row;
+    ({ error } = await supabase.from("textbooks").update(noIrr).eq("id", id));
+  }
+  if (isMissingColumn(error)) {
+    const { word_range, words_irregular: _wi2, status, ...rest } = row;
     ({ error } = await supabase.from("textbooks").update(rest).eq("id", id));
   }
   revalidatePath("/textbooks");
@@ -195,6 +202,11 @@ export async function updateUnit(id, patch) {
   if ("activity" in (patch || {})) row.label = (patch.activity || "").trim() || null;
   if ("parent_id" in (patch || {})) row.parent_id = patch.parent_id || null;
   if ("question_no" in (patch || {})) row.question_no = (patch.question_no || "").trim() || null;
+  // 단어 교재 — 이 소단원의 단어 개수 (0070)
+  if ("word_count" in (patch || {})) {
+    const d = (patch.word_count ?? "").toString().replace(/[^\d]/g, "");
+    row.word_count = d ? parseInt(d, 10) : null;
+  }
   ["page_start", "page_end"].forEach((k) => {
     if (k in (patch || {})) {
       const d = (patch[k] ?? "").toString().replace(/[^\d]/g, "");
@@ -205,8 +217,13 @@ export async function updateUnit(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
   if (isMissingColumn(error)) {
+    // 0070 전 — 단어 개수만 빼고 나머지는 저장한다
+    const { word_count: _w, ...noWords } = row;
+    ({ error } = await supabase.from("textbook_units").update(noWords).eq("id", id));
+  }
+  if (isMissingColumn(error)) {
     // 0051 전 — 문제번호 칸만 빼고 나머지는 저장한다
-    const { question_no, ...rest } = row;
+    const { question_no, word_count: _w2, ...rest } = row;
     ({ error } = await supabase.from("textbook_units").update(rest).eq("id", id));
   }
   revalidatePath("/textbooks");
@@ -376,9 +393,34 @@ export async function bulkAddUnits(rows) {
     maxSort.set(k, Math.max(maxSort.get(k) ?? 0, u.sort ?? 0));
   });
 
+  // 엑셀을 고쳐서 다시 올렸을 때 **고친 것이 반영되어야 한다.**
+  //   예전에는 이름이 같으면 그냥 넘어가서, 페이지를 고치고 다시 올려도 그대로였다.
+  //   무엇을 건드렸는지 알 수 있게 센다.
+  let updated = 0;
+  const touched = new Set();
+
   async function ensureUnit(textbookId, parentId, name, extra = {}) {
     const key = unitKey(textbookId, parentId, name);
-    if (unitIndex.has(key)) return unitIndex.get(key);
+    if (unitIndex.has(key)) {
+      const id = unitIndex.get(key);
+      touched.add(id);
+      // 파일에 값이 있는 것만 덮어쓴다. 비어 있는 칸으로 지우면
+      // 앱에서 손으로 고쳐둔 것이 날아간다.
+      const patch = {};
+      if (extra.activity) patch.label = extra.activity;
+      if (extra.page_start != null && extra.page_start !== "") patch.page_start = extra.page_start;
+      if (extra.page_end != null && extra.page_end !== "") patch.page_end = extra.page_end;
+      if (extra.question_no) patch.question_no = extra.question_no;
+      if (Object.keys(patch).length > 0) {
+        let { error } = await supabase.from("textbook_units").update(patch).eq("id", id);
+        if (error && isMissingColumn(error)) {
+          const { question_no: _q, ...noQ } = patch;
+          ({ error } = await supabase.from("textbook_units").update(noQ).eq("id", id));
+        }
+        if (!error) updated += 1;
+      }
+      return id;
+    }
     const sk = `${textbookId}|${parentId || "root"}`;
     const sort = (maxSort.get(sk) ?? 0) + 1;
     maxSort.set(sk, sort);
@@ -409,6 +451,7 @@ export async function bulkAddUnits(rows) {
     }
     if (error) throw new Error(`단원 '${name}' 생성 실패: ${error.message}`);
     unitIndex.set(key, data.id);
+    touched.add(data.id);
     return data.id;
   }
 
@@ -454,11 +497,28 @@ export async function bulkAddUnits(rows) {
     }
   } catch (e) {
     revalidatePath("/textbooks");
-    return { inserted, error: e.message, createdBooks };
+    return { inserted, error: e.message, createdBooks, updated };
+  }
+
+  // **파일에 없는데 앱에는 있는 단원** — 엑셀에서 지웠거나 이름을 바꾼 것이다.
+  // 자동으로 지우지 않는다. 학생 진도가 단원에 걸려 있어서, 지우면 그 기록도
+  // 함께 사라진다. 무엇이 남았는지만 알려주고 지울지는 원장님이 정한다.
+  const bookIds = [...new Set(rows.map((r) => bookByName.get((r.textbook || "").trim())).filter(Boolean))];
+  let leftover = [];
+  if (bookIds.length) {
+    const { data: after } = await supabase
+      .from("textbook_units")
+      .select("id, name, textbook_id")
+      .in("textbook_id", bookIds);
+    const bookName = new Map();
+    bookByName.forEach((id, name) => bookName.set(id, name));
+    leftover = (after || [])
+      .filter((u) => !touched.has(u.id))
+      .map((u) => ({ id: u.id, name: u.name, book: bookName.get(u.textbook_id) || "" }));
   }
 
   revalidatePath("/textbooks");
-  return { inserted, error: null, createdBooks };
+  return { inserted, error: null, createdBooks, updated, leftover };
 }
 
 // ---------- 단원 빠르게 만들기 ----------

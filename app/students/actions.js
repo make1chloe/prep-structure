@@ -71,6 +71,8 @@ export async function updateStudent(id, patch) {
     "name", "school", "grade", "birth_year", "gender",
     "student_phone", "parent_phone", "status", "enrolled_on",
     "electives", "note", "login_id",
+    // 단어시험 — 학생마다 한 번 정하면 잘 안 바뀌는 것들 (0070)
+    "word_test_count", "word_cut_pct", "word_when",
   ];
   const row = {};
   allow.forEach((k) => {
@@ -82,8 +84,17 @@ export async function updateStudent(id, patch) {
   if (Object.keys(row).length === 0) return { error: null };
 
   const supabase = createClient();
-  const { error } = await supabase.from("students").update(row).eq("id", id);
+  let { error } = await supabase.from("students").update(row).eq("id", id);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0070 전이면 단어시험 칸 없이 — 나머지는 그대로 저장된다
+    const { word_test_count: _a, word_cut_pct: _b, ...rest } = row;
+    if (Object.keys(rest).length === 0) {
+      return { error: "설정 → Supabase SQL 에서 0070 을 먼저 실행해주세요." };
+    }
+    ({ error } = await supabase.from("students").update(rest).eq("id", id));
+  }
   revalidatePath("/students");
+  revalidatePath("/today");
   return { error: error ? error.message : null };
 }
 

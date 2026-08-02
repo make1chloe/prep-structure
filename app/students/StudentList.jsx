@@ -1,12 +1,13 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent, deleteStudents, updateStudentsStatus } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
 import NoteBox from "./NoteBox";
 import StudentBooks from "@/app/today/StudentBooks";
+import WordTestBox from "./WordTestBox";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -15,7 +16,11 @@ const STATUS = {
   withdrawn: { label: "퇴원", cls: "tag tag-muted" },
 };
 
-// 표에 실제로 펼칠 열 (전 속성)
+// 표에 펼칠 수 있는 열 — **전부 켜면 가로로 1400px 이 넘는다.**
+// 그래서 기본으로는 매일 보는 것만 켜두고, 나머지는 「열 고르기」로 켠다.
+// 켠 목록은 이 브라우저에 남는다 (계정마다 다른 게 아니라 화면 습관이다).
+const DEFAULT_ON = ["name", "school", "grade", "status", "parent_phone", "books", "wordTest"];
+
 const COLS = [
   { key: "name", label: "이름", w: 84, strong: true },
   { key: "school", label: "학교", w: 84 },
@@ -31,6 +36,7 @@ const COLS = [
   { key: "login_id", label: "아이디", w: 104, mono: true },
   { key: "initPw", label: "비번", w: 76, type: "pw" },
   { key: "books", label: "교재", w: 130, type: "books" },
+  { key: "wordTest", label: "단어시험", w: 130, type: "wordTest" },
 ];
 
 const STATUS_TABS = [
@@ -41,7 +47,30 @@ const STATUS_TABS = [
   ["withdrawn", "퇴원"],
 ];
 
-export default function StudentList({ students = [], textbooks = [] }) {
+const COL_KEY = "chloe.students.cols";
+
+export default function StudentList({ students = [], textbooks = [], defaultPass = 90 }) {
+  // 어떤 열을 볼지 — 기본은 매일 보는 것만
+  const [on, setOn] = useState(() => new Set(DEFAULT_ON));
+  const [colBox, setColBox] = useState(false);
+  const [wordId, setWordId] = useState(null);   // 단어시험 설정을 연 학생
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(COL_KEY) || "null");
+      if (Array.isArray(saved) && saved.length) setOn(new Set(saved));
+    } catch { /* 저장된 게 깨졌으면 기본값 그대로 */ }
+  }, []);
+
+  const cols = COLS.filter((c) => on.has(c.key));
+
+  function toggleCol(k) {
+    const n = new Set(on);
+    n.has(k) ? n.delete(k) : n.add(k);
+    if (n.size === 0) return;          // 전부 끄면 표가 사라진다
+    setOn(n);
+    try { localStorage.setItem(COL_KEY, JSON.stringify([...n])); } catch { /* 사파리 비공개 */ }
+  }
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -126,14 +155,35 @@ export default function StudentList({ students = [], textbooks = [] }) {
     const v = s[c.key];
     // 아직 0000 그대로인 계정 — 아이디가 규칙적이라 남이 열 수 있다
     // 같은 반이어도 교재는 학생마다 다르다 — 목록에서 바로 보이게
+    // 교재는 **전부 보여준다.** "외 3" 이라고 줄여두면 무엇을 쓰는지 알려고
+    // 매번 펼쳐야 한다. 어차피 학생마다 다른 것이라 그게 이 열의 쓸모다.
     if (c.type === "books") {
       const list = s.books || [];
       if (list.length === 0) return <span className="hint">없음</span>;
       return (
-        <span className="hint" style={{ fontSize: 11.5 }} title={list.map((b) => b.name).join(", ")}>
-          {list[0].name}
-          {list.length > 1 ? ` 외 ${list.length - 1}` : ""}
+        <span className="row" style={{ gap: 3, flexWrap: "wrap" }}>
+          {list.map((b) => (
+            <span key={b.id} className="tag tag-muted" style={{ fontSize: 10.5 }}>
+              {b.name}
+            </span>
+          ))}
         </span>
+      );
+    }
+
+    // 단어시험 — 몇 개씩 · 몇 % 통과 · 언제
+    if (c.type === "wordTest") {
+      const n = s.word_test_count;
+      const cut = s.word_cut_pct;
+      return (
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ fontSize: 11, padding: "2px 6px" }}
+          onClick={() => setWordId(wordId === s.id ? null : s.id)}
+        >
+          {n ? `${n}개` : "범위대로"} · {cut ? `${cut}%` : "기본"} ·{" "}
+          {s.word_when === "end" ? "끝" : "시작"}
+        </button>
       );
     }
     if (c.type === "pw") {
@@ -155,7 +205,7 @@ export default function StudentList({ students = [], textbooks = [] }) {
   }
 
   function editor(c) {
-    if (c.type === "pw" || c.type === "books") return cellPwStatic;
+    if (c.type === "pw" || c.type === "books" || c.type === "wordTest") return cellPwStatic;
     if (c.type === "status") {
       return (
         <select
@@ -217,7 +267,40 @@ export default function StudentList({ students = [], textbooks = [] }) {
         })}
         <span className="spacer" />
         <span className="hint">{shown.length}명 표시</span>
+        {/* 전부 켜면 가로로 1400px 이 넘는다. 매일 보는 것만 켜두고 나머지는 여기서 */}
+        <button className="btn btn-ghost btn-sm" onClick={() => setColBox(!colBox)}>
+          열 고르기 {cols.length}/{COLS.length}
+        </button>
       </div>
+
+      {colBox && (
+        <div className="card card-tight" style={{ marginTop: 8 }}>
+          <p className="hint" style={{ margin: "0 0 8px" }}>
+            볼 것만 켜두세요. <b>이 브라우저에 기억됩니다.</b>
+            끈 것도 학생 줄을 펼치면 「수정」에서 그대로 고칠 수 있어요.
+          </p>
+          <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+            {COLS.map((c) => (
+              <button
+                key={c.key}
+                className={`hwchip ${on.has(c.key) ? "hw-next" : ""}`}
+                onClick={() => toggleCol(c.key)}
+              >
+                {on.has(c.key) && <b>＋</b>} {c.label}
+              </button>
+            ))}
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setOn(new Set(DEFAULT_ON));
+                try { localStorage.setItem(COL_KEY, JSON.stringify(DEFAULT_ON)); } catch { /* 무시 */ }
+              }}
+            >
+              처음 상태로
+            </button>
+          </div>
+        </div>
+      )}
 
       {sel.size > 0 && (
         <div className="bulkbar">
@@ -251,7 +334,7 @@ export default function StudentList({ students = [], textbooks = [] }) {
                   onChange={toggleAll}
                 />
               </th>
-              {COLS.map((c) => (
+              {cols.map((c) => (
                 <th key={c.key} style={{ minWidth: c.w }}>{c.label}</th>
               ))}
               <th style={{ width: 86 }}></th>
@@ -266,7 +349,7 @@ export default function StudentList({ students = [], textbooks = [] }) {
                   <td>
                     <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggleOne(s.id)} />
                   </td>
-                  {COLS.map((c) => (
+                  {cols.map((c) => (
                     <td
                       key={c.key}
                       className={!editing && c.mono ? "mono" : undefined}
@@ -330,7 +413,7 @@ export default function StudentList({ students = [], textbooks = [] }) {
                 </tr>
                 {bookId === s.id && (
                   <tr>
-                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
                       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                         <b style={{ fontSize: 13 }}>{s.name} 교재</b>
                         <span className="hint" style={{ fontSize: 11.5 }}>
@@ -345,23 +428,30 @@ export default function StudentList({ students = [], textbooks = [] }) {
                     </td>
                   </tr>
                 )}
+                {wordId === s.id && (
+                  <tr>
+                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
+                      <WordTestBox student={s} defaultPass={defaultPass} />
+                    </td>
+                  </tr>
+                )}
                 {noteId === s.id && (
                   <tr>
-                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
                       <NoteBox studentId={s.id} name={s.name} />
                     </td>
                   </tr>
                 )}
                 {linkId === s.id && (
                   <tr>
-                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
                       <LinkBox studentId={s.id} name={s.name} />
                     </td>
                   </tr>
                 )}
                 {histId === s.id && (
                   <tr>
-                    <td colSpan={COLS.length + 2} style={{ background: "var(--surface-2)" }}>
+                    <td colSpan={cols.length + 2} style={{ background: "var(--surface-2)" }}>
                       <StudentHistoryPanel studentId={s.id} />
                     </td>
                   </tr>

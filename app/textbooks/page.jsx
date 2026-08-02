@@ -7,6 +7,7 @@ import GenerateUnits from "./GenerateUnits";
 import AddTextbookForm from "./AddTextbookForm";
 import TextbookList from "./TextbookList";
 import UnitList from "./UnitList";
+import WordRangeBox from "./WordRangeBox";
 import RoutineEditor from "./RoutineEditor";
 import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
@@ -34,8 +35,15 @@ export default async function TextbooksPage({ searchParams }) {
   // word_range 컬럼이 아직 없는 DB에서도 목록이 보이도록, 실패하면 기본 컬럼만 다시 조회
   let { data: textbooks, error: tbError } = await supabase
     .from("textbooks")
-    .select("id, name, area, target_grade, total_pages, price, word_range, status, purchase_url, feature, created_at")
+    .select("id, name, area, target_grade, total_pages, price, word_range, words_irregular, status, purchase_url, feature, created_at")
     .order("created_at", { ascending: false });
+  if (tbError) {
+    // 0070 전이면 '불규칙' 없이
+    ({ data: textbooks, error: tbError } = await supabase
+      .from("textbooks")
+      .select("id, name, area, target_grade, total_pages, price, word_range, status, purchase_url, feature, created_at")
+      .order("created_at", { ascending: false }));
+  }
   if (tbError) {
     ({ data: textbooks, error: tbError } = await supabase
       .from("textbooks")
@@ -68,11 +76,19 @@ export default async function TextbooksPage({ searchParams }) {
     const base = "id, name, sort, label, parent_id, page_start, page_end";
     let { data, error } = await supabase
       .from("textbook_units")
-      .select(`${base}, question_no`)
+      .select(`${base}, question_no, word_count`)
       .eq("textbook_id", selectedId)
       .order("sort", { ascending: true });
     if (error) {
-      // 0051 전이면 문제번호 없이
+      // 0070 전이면 단어 개수 없이
+      ({ data, error } = await supabase
+        .from("textbook_units")
+        .select(`${base}, question_no`)
+        .eq("textbook_id", selectedId)
+        .order("sort", { ascending: true }));
+    }
+    if (error) {
+      // 0051 전이면 문제번호도 없이
       ({ data } = await supabase
         .from("textbook_units")
         .select(base)
@@ -133,6 +149,9 @@ export default async function TextbooksPage({ searchParams }) {
                 <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
+
+                {/* 단어 교재만 — 단어시험 개수의 근거가 되는 숫자다 */}
+                {selected.area === "단어" && <WordRangeBox book={selected} />}
 
                 <RoutineEditor textbookId={selectedId} items={hwItems} />
 
@@ -197,6 +216,7 @@ export default async function TextbooksPage({ searchParams }) {
                   textbookId={selected.id}
                   textbooks={textbooks || []}
                   activities={activities}
+                  book={selected}
                 />
               </>
             ) : (
