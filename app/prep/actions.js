@@ -261,3 +261,45 @@ export async function markAssign(assignId, stage, on = true, extra = {}) {
   revalidatePath("/tasks");
   return { error: error ? error.message : null };
 }
+
+// ── 골라서 한 번에 ─────────────────────────────────────
+//
+// 시험 하나에 범위가 여럿이고, 범위마다 자료가 여럿이다. 인쇄를 몰아서 하고
+// 나면 열댓 개를 하나씩 눌러 '인쇄함' 으로 바꿔야 했다.
+//
+// **두 층 모두에서 고를 수 있게 한다.**
+//   위층(범위)  고른 범위들의 자료 전부에 한꺼번에
+//   아래층(자료) 그 범위 안에서 자료만 골라서
+
+export async function markStages(materialIds, stage, on = true) {
+  const COL = { make: "made_at", print: "printed_at", card: "card_at" };
+  const col = COL[stage];
+  const ids = (materialIds || []).filter(Boolean);
+  if (ids.length === 0 || !col) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("prep_materials")
+    .update({ [col]: on ? new Date().toISOString() : null })
+    .in("id", ids);
+  if (needSql(error)) return { error: SQL };
+  revalidatePath("/prep");
+  return { error: error ? error.message : null };
+}
+
+export async function removeMaterials(materialIds) {
+  const ids = (materialIds || []).filter(Boolean);
+  if (ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("prep_materials").delete().in("id", ids);
+  revalidatePath("/prep");
+  return { error: error ? error.message : null };
+}
+
+export async function removeScopes(scopeIds) {
+  const ids = (scopeIds || []).filter(Boolean);
+  if (ids.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase.from("prep_scopes").delete().in("id", ids);
+  revalidatePath("/prep");
+  return { error: error ? error.message : null };
+}

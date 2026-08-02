@@ -6,7 +6,9 @@ import {
   saveExam, removeExam, saveScope, removeScope,
   addMaterial, updateMaterial, removeMaterial, markStage,
   setAssignees, markAssign,
+  markStages, removeMaterials, removeScopes,
 } from "./actions";
+import { useBulk, BulkBar } from "@/components/Bulk";
 import TypeBox from "./TypeBox";
 import ScopePicker from "./ScopePicker";
 import { stageOf } from "@/lib/prepRoutine";
@@ -62,6 +64,15 @@ export default function PrepBoard({
   const exam = exams.find((e) => e.id === sel) || null;
   const myScopes = scopes.filter((s) => s.exam_id === sel);
   const matsOf = (scopeId) => materials.filter((m) => m.scope_id === scopeId);
+
+  // 두 층 모두에서 고른다.
+  //   위층  범위를 골라 그 안의 자료 전부에 한꺼번에
+  //   아래층 그 범위 안에서 자료만 골라서
+  // 층마다 「전체」가 따로 있어야 한다 — 위층 전체가 아래층까지 다 켜버리면
+  // 자료 하나만 빼고 싶을 때 다시 스무 개를 눌러야 한다.
+  const scopeBulk = useBulk(myScopes);
+  const matBulk = useBulk(materials.filter((m) => myScopes.some((s) => s.id === m.scope_id)));
+  const scopeMatIds = scopeBulk.ids.flatMap((id) => matsOf(id).map((m) => m.id));
   const assignsOf = (matId) => assigns.filter((a) => a.material_id === matId);
 
   // ── 지금 할 것 — 숫자가 아니라 줄로 ──────────────────
@@ -216,9 +227,72 @@ export default function PrepBoard({
                 </p>
               )}
 
+              {myScopes.length > 0 && (
+                <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
+                  {/* 위층 — 범위를 골라 그 안의 자료 전부에 한꺼번에 */}
+                  <BulkBar bulk={scopeBulk} label="범위">
+                    <span className="hint" style={{ fontSize: 11.5 }}>
+                      자료 {scopeMatIds.length}개
+                    </span>
+                    {STAGES.map((st) => (
+                      <button
+                        key={st.key}
+                        className="btn btn-ghost btn-sm"
+                        disabled={pending || scopeMatIds.length === 0}
+                        onClick={() => run(() => markStages(scopeMatIds, st.key, true))}
+                      >
+                        ✓ {st.label}
+                      </button>
+                    ))}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={pending}
+                      onClick={() => {
+                        if (!confirm(
+                          `고른 범위 ${scopeBulk.count}개를 지울까요?\n\n` +
+                          `그 범위의 자료 ${scopeMatIds.length}개와 학생 배정이 모두 사라집니다. 되돌릴 수 없습니다.`
+                        )) return;
+                        run(() => scopeBulk.run((ids) => removeScopes(ids)));
+                      }}
+                    >
+                      범위 삭제
+                    </button>
+                  </BulkBar>
+
+                  {/* 아래층 — 범위와 상관없이 자료만 골라서 */}
+                  <BulkBar bulk={matBulk} label="자료" style={{ borderTop: "1px dashed var(--border)" }}>
+                    {STAGES.map((st) => (
+                      <button
+                        key={st.key}
+                        className="btn btn-ghost btn-sm"
+                        disabled={pending}
+                        onClick={() => run(() => matBulk.run((ids) => markStages(ids, st.key, true)))}
+                      >
+                        ✓ {st.label}
+                      </button>
+                    ))}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={pending}
+                      onClick={() => {
+                        if (!confirm(`고른 자료 ${matBulk.count}개를 지울까요?`)) return;
+                        run(() => matBulk.run((ids) => removeMaterials(ids)));
+                      }}
+                    >
+                      자료 삭제
+                    </button>
+                  </BulkBar>
+                </div>
+              )}
+
               {myScopes.map((sc) => (
                 <div className="card card-tight" key={sc.id}>
                   <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                    <input
+                      type="checkbox"
+                      checked={scopeBulk.has(sc.id)}
+                      onChange={() => scopeBulk.toggle(sc.id)}
+                    />
                     <b style={{ fontSize: 13.5 }}>
                       {sc.name || (sc.unit_ids || []).map((u) => unitLabel[u]).filter(Boolean)[0] || "범위"}
                     </b>
@@ -247,6 +321,11 @@ export default function PrepBoard({
                       return (
                         <div key={m.id} className="stack" style={{ gap: 3 }}>
                           <div className="unitrow">
+                            <input
+                              type="checkbox"
+                              checked={matBulk.has(m.id)}
+                              onChange={() => matBulk.toggle(m.id)}
+                            />
                             <b style={{ fontSize: 13, minWidth: 120 }}>
                               {typeName(m.type_id) || m.name || "자료"}
                             </b>

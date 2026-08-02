@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveText, resetText, resend } from "@/app/resend/actions";
 import { unsendLate } from "@/app/today/lateActions";
+import { clearLate } from "./actions";
 
 /**
  * 하원 안내 모아보기.
@@ -207,6 +208,26 @@ export default function LateSender({ date, rows = [], mode = "copy" }) {
               <span style={{ fontSize: 12.5, fontWeight: 700 }}>전체</span>
             </label>
             <span className="spacer" />
+            {/* 늦게 갈 것 같아 사유가 잡혔는데 제때 간 학생 — 목록에서 뺀다.
+                안 보내기만 하면 목록에 그대로 남아 다음에 또 확인하게 된다. */}
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={pending || sel.size === 0}
+              onClick={() => {
+                if (!confirm(
+                  `고른 ${sel.size}명을 하원 안내 목록에서 뺄까요?\n` +
+                  `하원 시간·사유·문구만 지웁니다. 수업 기록은 그대로예요.`
+                )) return;
+                startTransition(async () => {
+                  const r = await clearLate([...sel].filter((id) => todo.some((t) => t.id === id)));
+                  if (r?.error) alert(r.error);
+                  setSel(new Set());
+                  router.refresh();
+                });
+              }}
+            >
+              고른 {sel.size}건 빼기
+            </button>
             <button
               className="btn btn-primary btn-sm"
               disabled={pending || sel.size === 0}

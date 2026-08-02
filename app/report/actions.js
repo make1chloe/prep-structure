@@ -114,3 +114,31 @@ export async function unsend(reportIds) {
   revalidatePath("/report");
   return { error: error ? error.message : null };
 }
+
+/**
+ * 하원 안내 목록에서 **뺀다.**
+ *
+ * 늦게 갈 것 같아 사유가 잡혔는데 정작 제때 간 학생이 있다. 안 보내기만 하면
+ * 목록에는 그대로 남아, 다음에 볼 때 또 "얘는 왜 안 보냈지" 를 확인하게 된다.
+ * 하원 안내 값(시간 · 사유 · 문구)만 지운다 — **수업 기록은 건드리지 않는다.**
+ */
+export async function clearLate(reportIds) {
+  const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
+  if (ids.length === 0) return { error: null };
+  const supabase = createClient();
+
+  const row = { late_until: null, late_reason: null, late_text: null, late_sent_at: null };
+  let { error } = await supabase.from("daily_reports").update(row).in("id", ids);
+  if (isMissingColumn(error) || error?.code === "42703") {
+    return { error: "0027 SQL 을 먼저 실행해주세요." };
+  }
+  if (error) return { error: error.message };
+
+  // 사유가 '자동으로' 잡히는 것은 수업 기록에서 온다 (단어 재시험 · 숙제 마무리).
+  // 그것까지 지우면 수업 기록이 바뀌므로, 여기서는 '안 보내기' 로 눌러둔다.
+  await skipSend(ids, "late", true);
+
+  revalidatePath("/report");
+  revalidatePath("/today");
+  return { error: null };
+}
