@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
-import { sendSolapi, sendWebhook, normalizePhone } from "@/lib/send";
+import { sendSolapi, sendWebhook, normalizePhone, checkSolapi } from "@/lib/send";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -63,6 +63,19 @@ export async function saveIntegration(id, { enabled, config, replace } = {}) {
   revalidatePath("/settings");
   revalidatePath("/report");
   return ok(error);
+}
+
+/**
+ * 솔라피 연결 점검 — 한 통도 안 보내고 무엇이 막혔는지 알아본다.
+ * 「저장이 안 된다」 가 앱 문제인지 솔라피 쪽 문제인지 갈라준다.
+ */
+export async function checkSolapiNow() {
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return { error: guard.error };
+  const settings = await loadSettings(supabase);
+  const res = await checkSolapi(settings.solapi);
+  return { error: null, ...res };
 }
 
 // 저장된 키를 지운다

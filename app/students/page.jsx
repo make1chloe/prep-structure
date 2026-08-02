@@ -7,7 +7,7 @@ import StudentList from "./StudentList";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudentsPage() {
+export default async function StudentsPage({ searchParams }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -120,7 +120,12 @@ export default async function StudentsPage() {
               <div className="err">불러오기 실패: {error.message}</div>
             </div>
           ) : (
-            <StudentList students={rows} textbooks={textbooks} defaultPass={defaultPass} />
+            <StudentList
+              students={rows}
+              textbooks={textbooks}
+              defaultPass={defaultPass}
+              openStudent={searchParams?.s || null}
+            />
           )}
         </div>
       </main>

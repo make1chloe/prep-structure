@@ -65,7 +65,7 @@ const STATUS_TABS = [
 
 const COL_KEY = "chloe.students.cols";
 
-export default function StudentList({ students = [], textbooks = [], defaultPass = 90 }) {
+export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null }) {
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
   const [on, setOn] = useState(() => new Set(DEFAULT_ON));
   const [colBox, setColBox] = useState(false);
@@ -87,13 +87,24 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     try { localStorage.setItem(COL_KEY, JSON.stringify([...n])); } catch { /* 사파리 비공개 */ }
   }
   const [sel, setSel] = useState(() => new Set());
-  const [draft, setDraft] = useState({});
+  // 넘어오자마자 고칠 수 있게, 열린 학생의 값을 미리 채워둔다
+  const [draft, setDraft] = useState(() => {
+    const s = students.find((x) => x.id === openStudent);
+    if (!s) return {};
+    const d = {};
+    ALL_FIELDS.forEach(({ key }) => (d[key] = s[key] ?? ""));
+    return d;
+  });
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("enrolled");
+  const [statusFilter, setStatusFilter] = useState(
+    () => students.find((s) => s.id === openStudent)?.status || "enrolled"
+  );
   // 한 학생을 열면 **한 판**이 펼쳐진다. 예전에는 수정·기록·상담·교재·계정이
   // 각각 다른 버튼이었고, 누를 때마다 다른 줄이 열렸다. 무엇이 열려 있는지
   // 눈으로 세야 했고, 정보 하나 고치려면 표를 가로로 밀어야 했다.
-  const [openId, setOpenId] = useState(null);
+  // 오늘 수업에서 「재원생 정보」로 넘어오면 그 학생이 **열린 채로** 뜬다.
+  // 넘어와서 다시 이름을 찾게 하면 넘어온 뜻이 없다.
+  const [openId, setOpenId] = useState(openStudent);
   const [tab, setTab] = useState("info");
   const [pending, startTransition] = useTransition();
   const router = useRouter();

@@ -1092,6 +1092,18 @@ export default function StudentPanel({
               {label}
             </button>
           ))}
+          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
+              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/students?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+          >
+            재원생 정보
+          </a>
           <a
             className="btn btn-ghost btn-sm"
             href={`/me?s=${row.student.id}`}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveIntegration, clearIntegration, testSend } from "./actions";
+import { saveIntegration, clearIntegration, testSend, checkSolapiNow } from "./actions";
 import { ensurePushKeys, testPush } from "@/app/push/actions";
 
 const MODES = [
@@ -34,6 +34,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
     ...(view.warning || {}),
   }));
   const [testTo, setTestTo] = useState("");
+  const [check, setCheck] = useState(null);   // 연결 점검 결과
   const [msg, setMsg] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -148,13 +149,22 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
         />
       </div>
 
-      {/* 솔라피 */}
-      {mode === "sms" && (
-        <div className="card">
-          <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>솔라피 연결</h2>
-          <p className="muted" style={{ margin: "0 0 12px", fontSize: 12.5 }}>
+      {/* 솔라피 — **발송 방식과 상관없이 늘 보인다.**
+          전에는 「문자」를 고른 뒤에만 나와서, 아직 안 고른 상태에서는
+          발신번호를 적을 칸 자체가 없었다. 적어둘 수는 있어야 한다. */}
+      <div className="card sect sect-info">
+          <h2 className="secthead">솔라피 연결 (문자 · 알림톡)</h2>
+          <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
             솔라피 사이트에서 API Key·Secret을 발급받고, 발신번호를 <b>사전등록</b>해야 보낼 수 있어요.
+            <b>알림톡도 여기를 거쳐 나갑니다.</b>
           </p>
+          {mode !== "sms" && (
+            <div className="notice" style={{ margin: "0 0 10px" }}>
+              지금 발송 방식은 <b>{MODES.find((m) => m.key === mode)?.label}</b> 입니다.
+              여기에 적어두어도 <b>실제로 나가지는 않아요</b> — 위에서 <b>「문자 (솔라피)」</b>를
+              골라야 보내집니다. 적어두는 것은 지금 해두셔도 됩니다.
+            </div>
+          )}
           <div className="editgrid">
             <div className="field">
               <label className="label">API Key</label>
@@ -179,10 +189,18 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
               <label className="label">발신번호</label>
               <input
                 className="input input-sm"
+                inputMode="numeric"
                 value={solapi.sender}
                 placeholder="0311234567"
-                onChange={(e) => setSolapi({ ...solapi, sender: e.target.value })}
+                // 숫자만 남긴다 — 「031-123-4567」 처럼 적어도 솔라피에
+                // 등록된 번호와 같은 것으로 알아본다
+                onChange={(e) =>
+                  setSolapi({ ...solapi, sender: e.target.value.replace(/[^\d]/g, "") })
+                }
               />
+              {view.solapi?.sender && (
+                <span className="hint">저장된 번호 {view.solapi.sender}</span>
+              )}
             </div>
             <div className="field">
               <label className="label">알림톡 발신프로필 ID (pfId)</label>
@@ -203,6 +221,54 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
             이미 저장된 값이 있으면 칸을 비워둔 채 저장해도 그대로 유지됩니다.
             {view.solapi?.saved && " 현재 저장됨 ✓"}
           </p>
+
+          {/* 「저장이 안 된다」 를 갈라준다 — 앱에 안 들어간 건지,
+              솔라피 쪽에 발신번호 등록이 안 된 건지. 한 통도 안 보낸다. */}
+          <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center" }}>
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              onClick={() => {
+                setMsg(null);
+                setCheck(null);
+                startTransition(async () => {
+                  const r = await checkSolapiNow();
+                  if (r?.error) { setMsg({ bad: true, text: r.error }); return; }
+                  setCheck(r);
+                });
+              }}
+            >
+              연결 점검
+            </button>
+            <span className="hint">
+              문자는 안 나갑니다. 솔라피에 <b>등록된 발신번호</b>가 무엇인지 물어봅니다.
+            </span>
+          </div>
+
+          {check && (
+            <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+              {check.steps.map((s) => (
+                <div className="unitrow" key={s.key}>
+                  <span
+                    className={`tag ${s.ok === true ? "tag-mint" : s.ok === false ? "tag-red" : "tag-muted"}`}
+                  >
+                    {s.ok === true ? "됨" : s.ok === false ? "안 됨" : "없음"}
+                  </span>
+                  <b style={{ fontSize: 12.5 }}>{s.label}</b>
+                  <span className="hint">{s.detail}</span>
+                </div>
+              ))}
+              {check.steps.some((s) => s.key === "registered" && s.ok === false) && (
+                <p className="hint" style={{ margin: "2px 0 0", lineHeight: 1.6 }}>
+                  발신번호는 <b>솔라피 사이트에서 따로 등록</b>해야 합니다 (본인 확인이 필요해요).
+                  여기에 적는 것만으로는 등록되지 않아요 —{" "}
+                  <a className="sky" href="https://console.solapi.com/sender-id" target="_blank" rel="noreferrer">
+                    솔라피 발신번호 등록 →
+                  </a>
+                </p>
+              )}
+            </div>
+          )}
           {view.solapi?.saved && (
             <button
               className="btn btn-ghost btn-sm"
@@ -216,8 +282,7 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
               저장된 키 지우기
             </button>
           )}
-        </div>
-      )}
+      </div>
 
       {/* 웹훅 */}
       {mode === "webhook" && (
