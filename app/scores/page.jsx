@@ -30,6 +30,21 @@ export default async function ScoresPage({ searchParams }) {
     )
     .order("taken_on", { ascending: false });
 
+  // 시험 회차 — **등급컷이 사는 곳**이다 (0073).
+  // 컷은 학생 것이 아니라 그 학교 그 회차 것이라, 성적 줄마다 적지 않고
+  // 회차에 한 번 적어두고 여기서 끌어다 쓴다.
+  let { data: exams } = await supabase
+    .from("exam_periods")
+    .select("id, school, grade, name, from_date, to_date, cuts")
+    .order("from_date", { ascending: false });
+  if (!exams) {
+    // 0073 전이면 컷 칸 없이 (회차는 보이되 컷은 성적 줄의 것을 쓴다)
+    ({ data: exams } = await supabase
+      .from("exam_periods")
+      .select("id, school, grade, name, from_date, to_date")
+      .order("from_date", { ascending: false }));
+  }
+
   // 학생이 직접 내는 설문지 주소
   const { data: formRow } = await supabase
     .from("integrations").select("config").eq("id", "score_form").maybeSingle();
@@ -60,6 +75,7 @@ export default async function ScoresPage({ searchParams }) {
           <ScoreBoard
             students={students || []}
             scores={scores || []}
+            exams={exams || []}
             pick={pick}
             forms={formRow?.config || {}}
             canEdit={profile?.role === "principal"}

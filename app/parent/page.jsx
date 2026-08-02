@@ -4,7 +4,7 @@ import Link from "next/link";
 import { addDays, longLabel, todaySeoul } from "@/lib/day";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
-import { byKind, summary as scoreSummary, KIND_LABEL } from "@/lib/scores";
+import { byKind, summary as scoreSummary, KIND_LABEL, findExam } from "@/lib/scores";
 import { cutOf, passCount } from "@/lib/wordTest";
 import Comments from "@/app/comments/Comments";
 import RequestForm from "@/app/me/RequestForm";
@@ -127,11 +127,20 @@ export default async function ParentPage({ searchParams }) {
   // ── 성적 ──
   const { data: scores } = await supabase
     .from("scores")
-    .select("id, kind, taken_on, term, raw_score, full_score, grade, percentile, rank_in, rank_of, cuts")
+    .select("id, kind, taken_on, term, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts")
     .eq("student_id", pickId)
     .order("taken_on", { ascending: false })
     .limit(30);
   const scoreGroups = byKind(scores || []);
+  // 등급컷은 **회차** 것이다 (0073). 선생님 화면과 같은 컷을 봐야
+  // "앱에서는 2등급이라던데요" 가 안 생긴다.
+  let { data: exams } = await supabase
+    .from("exam_periods")
+    .select("id, school, grade, name, from_date, to_date, cuts");
+  if (!exams) {
+    ({ data: exams } = await supabase
+      .from("exam_periods").select("id, school, grade, name, from_date, to_date"));
+  }
 
   // ── 공지 ──
   const { data: rec } = await supabase
@@ -250,7 +259,9 @@ export default async function ParentPage({ searchParams }) {
                             {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
                           </span>
                           <b style={{ fontSize: 12.5, minWidth: 110 }}>{s.term || ""}</b>
-                          <span style={{ fontSize: 12.5, flex: 1 }}>{scoreSummary(s)}</span>
+                          <span style={{ fontSize: 12.5, flex: 1 }}>
+                            {scoreSummary(s, findExam(s, exams || [], child))}
+                          </span>
                         </div>
                       ))}
                     </div>

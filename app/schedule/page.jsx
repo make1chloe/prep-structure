@@ -54,11 +54,19 @@ export default async function SchedulePage() {
 
   // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
   const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
+  // 0073 전이면 등급컷 칸이 없다 — 한 단계씩 물러난다
   let examQ = await supabase
     .from("exam_periods")
-    .select(`${EXAM}, hidden`)
+    .select(`${EXAM}, hidden, cuts`)
     .gte("to_date", from)
     .order("from_date", { ascending: true });
+  if (examQ.error) {
+    examQ = await supabase
+      .from("exam_periods")
+      .select(`${EXAM}, hidden`)
+      .gte("to_date", from)
+      .order("from_date", { ascending: true });
+  }
   if (examQ.error) {
     examQ = await supabase
       .from("exam_periods")

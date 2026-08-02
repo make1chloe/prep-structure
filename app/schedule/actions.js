@@ -57,6 +57,44 @@ export async function updateExam(id, patch) {
 }
 
 /**
+ * 이 회차의 **등급컷**을 적는다.
+ *
+ * 컷은 학생 것이 아니라 **이 학교 이 회차 시험** 것이다. 여기 한 번 적으면
+ * 이 시험을 본 학생 전부의 등급이 같은 기준으로 매겨진다. 성적 줄마다 적으면
+ * 신송중 학생 셋이 같은 값을 세 번 적게 되고, 하나만 잘못 쳐도 그 학생만
+ * 등급이 다르게 나온다 — 어느 것이 맞는지 알 수가 없다.
+ *
+ * @param text "90, 84, 77, 70" 처럼 1등급컷부터 순서대로
+ */
+export async function setExamCuts(id, text) {
+  if (!id) return { error: "id 없음" };
+  const nums = (text || "")
+    .toString()
+    .split(/[,\s/·]+/)
+    .map((v) => Number(v.replace(/[^\d.]/g, "")))
+    .filter((v) => Number.isFinite(v) && v > 0);
+
+  // 1등급컷이 2등급컷보다 낮으면 순서를 거꾸로 적으신 것이다.
+  // 조용히 뒤집으면 다음에 또 그렇게 적으시게 되므로 알려드린다.
+  const desc = nums.every((v, i) => i === 0 || nums[i - 1] >= v);
+  if (nums.length > 1 && !desc) {
+    return { error: "1등급컷부터 높은 순서로 적어주세요. 예) 90, 84, 77, 70" };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("exam_periods")
+    .update({ cuts: nums.length ? nums : null })
+    .eq("id", id);
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    return { error: "0073 SQL 을 먼저 실행해주세요." };
+  }
+  revalidatePath("/schedule");
+  revalidatePath("/scores");
+  return ok(error);
+}
+
+/**
  * 필요 없는 시험을 숨긴다.
  *
  * 지우면 다시 받아올 때 또 들어오고, 그때마다 다시 지워야 한다.

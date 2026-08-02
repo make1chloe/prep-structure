@@ -64,6 +64,7 @@ const CHECKS = [
   { id: "0070", label: "단어 개수 · 단어시험 설정", table: "students", col: "word_cut_pct" },
   { id: "0071", label: "형제자매 묶기", table: "students", col: "family_id" },
   { id: "0072", label: "성적 (내신 · 모의고사)", table: "scores", col: "cuts" },
+  { id: "0073", label: "시험 회차별 등급컷", table: "exam_periods", col: "cuts" },
 ];
 
 export async function checkSchema() {

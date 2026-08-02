@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveScore, removeScores, addWrong, removeWrongs, listWrongs, saveFormLinks } from "./actions";
-import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts } from "@/lib/scores";
+import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts, findExam, cutsFor } from "@/lib/scores";
 import { useBulk, BulkBar } from "@/components/Bulk";
 
 const EMPTY = {
@@ -22,7 +22,7 @@ const EMPTY = {
   note: "",
 };
 
-export default function ScoreBoard({ students = [], scores = [], pick = null, forms = {}, canEdit = false }) {
+export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, forms = {}, canEdit = false }) {
   const [sel, setSel] = useState(pick || students[0]?.id || "");
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
@@ -97,9 +97,16 @@ export default function ScoreBoard({ students = [], scores = [], pick = null, fo
     listWrongs(s.id).then((r) => setWrongs(r?.rows || []));
   }
 
-  // 컷을 적어두면 지금 점수가 몇 등급인지 바로 보인다
+  // 지금 적고 있는 성적은 **어느 회차**인가 — 컷은 거기서 온다
+  const formExam = findExam(
+    { kind: form.kind, taken_on: form.taken_on, school: form.school },
+    exams,
+    student
+  );
+  // 그 컷이면 지금 점수가 몇 등급인지 바로 보인다
   const cutPreview = (() => {
-    const g = gradeByCuts(form.raw_score, (form.cuts || "").split(/[,\s/·]+/));
+    const { cuts } = cutsFor({ cuts: (form.cuts || "").split(/[,\s/·]+/) }, formExam);
+    const g = gradeByCuts(form.raw_score, cuts);
     return g ? `이 컷이면 ${g}등급` : null;
   })();
 
@@ -285,16 +292,49 @@ export default function ScoreBoard({ students = [], scores = [], pick = null, fo
                   onChange={(e) => setForm({ ...form, school: e.target.value })}
                 />
               </div>
-              <div className="field" style={{ flex: 1, minWidth: 220 }}>
-                <label className="label">등급컷 (1등급부터 순서대로)</label>
-                <input
-                  className="input input-sm"
-                  placeholder="90, 84, 77, 70"
-                  value={form.cuts}
-                  onChange={(e) => setForm({ ...form, cuts: e.target.value })}
-                />
-              </div>
-              {cutPreview && <span className="tag tag-sky">{cutPreview}</span>}
+            </div>
+          )}
+
+          {/* 등급컷은 **회차** 것이다 — 여기서 적지 않는다.
+              같은 시험을 본 학생이 셋이면 같은 값을 세 번 적게 되고,
+              하나만 잘못 치면 그 학생만 등급이 다르게 나온다. */}
+          {form.kind !== "unit" && (
+            <div className="unitrow" style={{ marginTop: 8 }}>
+              {formExam ? (
+                <>
+                  <span className="tag tag-muted">{formExam.school} {formExam.name || "시험"}</span>
+                  {(formExam.cuts || []).length ? (
+                    <>
+                      <span className="hint">등급컷 {formExam.cuts.join(" · ")}</span>
+                      {cutPreview && <span className="tag tag-sky">{cutPreview}</span>}
+                    </>
+                  ) : (
+                    <span className="tag tag-amber">등급컷 아직 없음</span>
+                  )}
+                  <span className="spacer" />
+                  <a className="hint sky" href="/schedule" target="_blank" rel="noreferrer">
+                    {(formExam.cuts || []).length ? "컷 고치기" : "컷 적기"} — 학사일정 ›
+                  </a>
+                </>
+              ) : (
+                <>
+                  <span className="tag tag-amber">이 시험 회차를 못 찾았어요</span>
+                  <span className="hint">
+                    학사일정에 <b>{form.kind === "mock" ? "전국" : form.school || student.school || "학교"}</b>{" "}
+                    시험 기간이 있어야 등급컷을 이어붙일 수 있어요.
+                  </span>
+                  <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                    <label className="label">등급컷 (이 성적에만)</label>
+                    <input
+                      className="input input-sm"
+                      placeholder="90, 84, 77, 70"
+                      value={form.cuts}
+                      onChange={(e) => setForm({ ...form, cuts: e.target.value })}
+                    />
+                  </div>
+                  {cutPreview && <span className="tag tag-sky">{cutPreview}</span>}
+                </>
+              )}
             </div>
           )}
 
@@ -319,8 +359,9 @@ export default function ScoreBoard({ students = [], scores = [], pick = null, fo
 
           {form.kind === "school" && (
             <p className="hint" style={{ margin: "8px 0 0" }}>
-              등급컷은 학교가 시험마다 발표하는 숫자예요. 적어두면 <b>다음 시험에 몇 점이면
-              몇 등급인지</b> 가늠할 수 있고, 학생 화면에도 "1등급까지 3점" 으로 보입니다.
+              등급컷은 학교가 시험마다 발표하는 숫자예요. <b>학사일정의 시험 회차</b>에
+              한 번만 적어두면 그 시험을 본 학생 전부에게 쓰입니다 — 학생마다 따로 적으면
+              같은 시험인데 등급이 달라질 수 있어요. 적어두면 "1등급까지 3점" 이 보입니다.
             </p>
           )}
         </div>
@@ -371,7 +412,7 @@ export default function ScoreBoard({ students = [], scores = [], pick = null, fo
                           {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : "날짜 없음"}
                         </span>
                         <b style={{ fontSize: 12.5, minWidth: 120 }}>{s.term || KIND_LABEL[s.kind]}</b>
-                        <span style={{ fontSize: 12.5, flex: 1 }}>{summary(s)}</span>
+                        <span style={{ fontSize: 12.5, flex: 1 }}>{summary(s, findExam(s, exams, student))}</span>
                         {s.source === "form" && <span className="tag tag-sky">학생이 냄</span>}
                         <button className="btn btn-ghost btn-sm" onClick={() => openWrongs(s)}>
                           {openId === s.id ? "닫기" : "틀린 문제"}

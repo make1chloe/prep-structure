@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addExam, setEnglishDate, updateExam, deleteExam, hideExam,
+  addExam, setEnglishDate, updateExam, deleteExam, hideExam, setExamCuts,
   markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday, removeHolidays,
 } from "./actions";
 import { shortLabel } from "@/lib/day";
@@ -51,6 +51,8 @@ export default function ScheduleBoard({
   const hBulk = useBulk(holidays);
   const [form, setForm] = useState({ school: "", grade: "", name: "", from: "", to: "" });
   const [eng, setEng] = useState({});
+  const [cutOpen, setCutOpen] = useState(null);   // 등급컷을 적는 중인 회차
+  const [cuts, setCuts] = useState({});
   const [off, setOff] = useState({ date: "", name: "", classId: "" });
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 시험도 볼까
   // 숨긴 시험은 기본으로 접어둔다 — 나이스에서 받으면 안 쓰는 것까지 다 들어온다
@@ -381,6 +383,47 @@ export default function ScheduleBoard({
                       영어 시험일 저장
                     </button>
                   </>
+                )}
+                {/* 등급컷은 **이 회차** 것이다. 여기 한 번 적으면 이 시험을 본
+                    학생 전부의 등급이 같은 기준으로 매겨진다. */}
+                {cutOpen === e.id ? (
+                  <>
+                    <input
+                      className="input input-sm"
+                      style={{ width: 170 }}
+                      placeholder="90, 84, 77, 70"
+                      title="1등급컷부터 높은 순서로"
+                      value={cuts[e.id] ?? (e.cuts || []).join(", ")}
+                      onChange={(ev) => setCuts({ ...cuts, [e.id]: ev.target.value })}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={pending}
+                      onClick={() =>
+                        run(async () => {
+                          const r = await setExamCuts(
+                            e.id,
+                            cuts[e.id] ?? (e.cuts || []).join(", ")
+                          );
+                          if (!r?.error) setCutOpen(null);
+                          return r;
+                        })
+                      }
+                    >
+                      컷 저장
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setCutOpen(null)}>
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className={`btn btn-ghost btn-sm ${(e.cuts || []).length ? "" : "muted"}`}
+                    onClick={() => setCutOpen(e.id)}
+                    title="이 시험의 등급컷 — 이 시험을 본 학생 모두에게 쓰입니다"
+                  >
+                    {(e.cuts || []).length ? `등급컷 ${e.cuts.join("·")}` : "등급컷 적기"}
+                  </button>
                 )}
                 <button
                   className="btn btn-ghost btn-sm"
