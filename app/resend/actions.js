@@ -98,6 +98,8 @@ export async function resend(items, kind) {
               body: x.body || "",
               phone: settings.message?.phone,
               address: settings.message?.address,
+              parts: x.parts,          // 템플릿이 나뉘어 있을 때 붙일 조각들
+
             })
           ),
         };

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveMessage, deleteMessage, listApprovedTemplates } from "./actions";
-import { SOURCES, slotsIn } from "@/lib/alimtalk";
+import { SOURCE_GROUPS, describeSource, slotsIn } from "@/lib/alimtalk";
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
 const VARS = [
@@ -203,31 +203,69 @@ export default function MessageList({ rows = [], level = "full", error = null, p
             <p className="hint" style={{ margin: "10px 0 6px" }}>
               템플릿의 변수를 앱의 값에 붙여주세요. 안 붙인 변수는 빈 채로 나갑니다.
             </p>
-            <div className="stack" style={{ gap: 5 }}>
-              {slots.map((slot) => (
-                <div className="row" key={slot} style={{ gap: 6, alignItems: "center" }}>
-                  <span className="tag tag-lav" style={{ minWidth: 96 }}>{slot}</span>
-                  <span className="hint">←</span>
-                  <select
-                    className="input input-sm"
-                    style={{ flex: 1 }}
-                    value={draft.alimtalk_vars?.[slot] || ""}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        alimtalk_vars: { ...draft.alimtalk_vars, [slot]: e.target.value },
-                      })
-                    }
-                  >
-                    <option value="">— 붙이지 않음</option>
-                    {SOURCES.map(([v, why]) => (
-                      <option key={v} value={v}>
-                        {v} · {why}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+            <div className="stack" style={{ gap: 8 }}>
+              {slots.map((slot) => {
+                const cur = draft.alimtalk_vars?.[slot] || "";
+                const info = describeSource(cur);
+                // 골라둔 것이 목록에 없으면 **직접 적은 고정 문구**다
+                const fixed = cur && !info;
+                return (
+                  <div key={slot}>
+                    <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                      <span className="tag tag-lav" style={{ minWidth: 96 }}>{slot}</span>
+                      <span className="hint">←</span>
+                      <select
+                        className="input input-sm"
+                        style={{ flex: 1, minWidth: 180 }}
+                        value={fixed ? "__fixed" : cur}
+                        onChange={(e) => {
+                          const v = e.target.value === "__fixed" ? " " : e.target.value;
+                          setDraft({
+                            ...draft,
+                            alimtalk_vars: { ...draft.alimtalk_vars, [slot]: v },
+                          });
+                        }}
+                      >
+                        <option value="">— 붙이지 않음 (빈 채로 나감)</option>
+                        {/* 성격이 다른 것은 갈라 놓는다. 한 줄로 늘어놓으면
+                            {{본문}} 과 {{본문내용}} 이 나란히 붙어 구별이 안 된다 */}
+                        {SOURCE_GROUPS.map((g) => (
+                          <optgroup key={g.label} label={g.hint ? `${g.label} — ${g.hint}` : g.label}>
+                            {g.items.map(([v, why]) => (
+                              <option key={v} value={v}>{v} · {why}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                        <optgroup label="직접 적기">
+                          <option value="__fixed">항상 같은 문구를 넣기…</option>
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    {/* 고른 것이 **무엇으로 채워지는지** 예시로 보여준다.
+                        이름만 봐서는 {{본문}} 과 {{본문내용}} 을 구별할 수 없다 */}
+                    {info?.example && (
+                      <p className="hint" style={{ margin: "3px 0 0 104px", whiteSpace: "pre-wrap" }}>
+                        보내면 이렇게 → <b>{info.example}</b>
+                      </p>
+                    )}
+                    {fixed && (
+                      <input
+                        className="input input-sm"
+                        style={{ margin: "4px 0 0 104px", width: "calc(100% - 104px)" }}
+                        placeholder="여기 적은 글이 그대로 들어갑니다"
+                        value={cur.trim() === "" ? "" : cur}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            alimtalk_vars: { ...draft.alimtalk_vars, [slot]: e.target.value || " " },
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         ) : (
