@@ -59,7 +59,7 @@ export default async function ReportPage({ searchParams }) {
   // 이 화면에서 나가는 것이 **알림톡인지 문자인지** 보내기 전에 알아야 한다.
   // 다 보내고 나서 "이거 문자로 나갔네" 를 알면 늦다.
   const { data: tplRows } = await supabase
-    .from("message_templates").select("key, alimtalk_id").not("key", "is", null);
+    .from("message_templates").select("id, name, key, alimtalk_id, active").not("key", "is", null);
   // 함수는 화면(클라이언트)으로 못 넘긴다 — **값으로** 넘긴다.
   //   { report: "alimtalk", homework: "sms", … }
   const chans = Object.fromEntries(

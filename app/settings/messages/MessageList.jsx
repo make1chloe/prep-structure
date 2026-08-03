@@ -97,7 +97,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
    */
   function Alimtalk({ msgKey }) {
     // 이 문자가 채울 수 있는 것만 고르게 한다 (늦은 귀가에 단어시험은 없다)
-    const groups = sourcesFor(msgKey);
+    const groups = sourcesFor(msgKey, draft.body || "");
     const slots = [
       ...slotsIn(draft.alimtalk_body || ""),
       ...Object.keys(draft.alimtalk_vars || {}),
@@ -209,8 +209,11 @@ export default function MessageList({ rows = [], level = "full", error = null, p
               {slots.map((slot) => {
                 const cur = draft.alimtalk_vars?.[slot] || "";
                 const info = describeSource(cur);
-                // 골라둔 것이 목록에 없으면 **직접 적은 고정 문구**다
-                const fixed = cur && !info;
+                // 지금 고를 수 있는 목록에 있으면 앱의 값이다.
+                // (「이 문자의 값」 은 본문에서 뽑아낸 것이라 describeSource 가
+                //  모른다 — 그것까지 고정 문구로 몰면 안 된다)
+                const listed = groups.some((g) => g.items.some(([k]) => k === cur));
+                const fixed = cur && !listed;
                 return (
                   <div key={slot}>
                     <div className="row" style={{ gap: 6, alignItems: "center" }}>
