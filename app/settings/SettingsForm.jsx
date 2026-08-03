@@ -154,9 +154,14 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           발신번호를 적을 칸 자체가 없었다. 적어둘 수는 있어야 한다. */}
       <div className="card sect sect-info">
           <h2 className="secthead">솔라피 연결 (문자 · 알림톡)</h2>
-          <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+          <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
             솔라피 사이트에서 API Key·Secret을 발급받고, 발신번호를 <b>사전등록</b>해야 보낼 수 있어요.
             <b>알림톡도 여기를 거쳐 나갑니다.</b>
+            <br />
+            {/* 셋을 헷갈리기 쉽다 — 한 줄로 구분해둔다 */}
+            <b>로그인 아이디(이메일)는 여기 넣는 것이 아닙니다.</b>{" "}
+            <span className="mono">API Key</span> 는 솔라피 → 개발/연동 → API Key 관리 에서 따로 발급받고,{" "}
+            <span className="mono">pfId</span> 는 카카오 채널에서 받는 <span className="mono">KA01PF…</span> 입니다.
           </p>
           {mode !== "sms" && (
             <div className="notice" style={{ margin: "0 0 10px" }}>
@@ -171,9 +176,17 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
               <input
                 className="input input-sm"
                 value={solapi.apiKey}
-                placeholder={view.solapi?.maskedKey || "발급받은 API Key"}
+                placeholder={view.solapi?.maskedKey || "발급받은 API Key (NCS… 로 시작)"}
                 onChange={(e) => setSolapi({ ...solapi, apiKey: e.target.value })}
               />
+              {/* 제일 흔한 잘못 — 로그인 이메일을 여기 넣는 것.
+                  솔라피는 「회원 ID가 유효하지 않습니다」 라고만 답해서
+                  무엇을 고쳐야 하는지 알 수가 없다. 여기서 미리 말해준다. */}
+              {/@/.test(solapi.apiKey || view.solapi?.maskedKey || "") && (
+                <span className="tag tag-red" style={{ marginTop: 4 }}>
+                  이메일이 들어 있어요 — 로그인 아이디가 아니라 API Key 입니다
+                </span>
+              )}
             </div>
             <div className="field">
               <label className="label">API Secret</label>
