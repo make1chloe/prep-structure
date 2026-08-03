@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveMessage, deleteMessage, listApprovedTemplates } from "./actions";
-import { sourcesFor, describeSource, slotsIn } from "@/lib/alimtalk";
+import { sourcesFor, slotsIn, fillTemplate, EXAMPLE } from "@/lib/alimtalk";
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
 const VARS = [
@@ -205,69 +205,95 @@ export default function MessageList({ rows = [], level = "full", error = null, p
             <p className="hint" style={{ margin: "10px 0 6px" }}>
               템플릿의 변수를 앱의 값에 붙여주세요. 안 붙인 변수는 빈 채로 나갑니다.
             </p>
-            <div className="stack" style={{ gap: 8 }}>
+            <div className="stack" style={{ gap: 10 }}>
               {slots.map((slot) => {
                 const cur = draft.alimtalk_vars?.[slot] || "";
-                const info = describeSource(cur);
-                // 지금 고를 수 있는 목록에 있으면 앱의 값이다.
-                // (「이 문자의 값」 은 본문에서 뽑아낸 것이라 describeSource 가
-                //  모른다 — 그것까지 고정 문구로 몰면 안 된다)
-                const listed = groups.some((g) => g.items.some(([k]) => k === cur));
-                const fixed = cur && !listed;
+                const set = (v) =>
+                  setDraft({ ...draft, alimtalk_vars: { ...draft.alimtalk_vars, [slot]: v } });
+                // 지금 이 칸에 들어 있는 값들 (여럿일 수 있다)
+                const picked = new Set(cur.match(/\{\{[^}]*\}\}/g) || []);
+                const sep = draft._sep?.[slot] ?? " · ";
+                const preview = fillTemplate(cur, EXAMPLE);
+
                 return (
-                  <div key={slot}>
+                  <div className="card card-tight" key={slot} style={{ background: "var(--surface-2)" }}>
                     <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                      <span className="tag tag-lav" style={{ minWidth: 96 }}>{slot}</span>
-                      <span className="hint">←</span>
+                      <span className="tag tag-lav">{slot}</span>
+                      <span className="hint">에 넣을 것 — 여러 개 고르면 이어붙습니다</span>
+                      <span className="spacer" />
+                      <span className="hint">사이에</span>
                       <select
                         className="input input-sm"
-                        style={{ flex: 1, minWidth: 180 }}
-                        value={fixed ? "__fixed" : cur}
+                        style={{ width: 96 }}
+                        value={sep}
                         onChange={(e) => {
-                          const v = e.target.value === "__fixed" ? " " : e.target.value;
+                          const next = e.target.value;
                           setDraft({
                             ...draft,
-                            alimtalk_vars: { ...draft.alimtalk_vars, [slot]: v },
+                            _sep: { ...(draft._sep || {}), [slot]: next },
+                            // 이미 고른 것들을 새 구분자로 다시 잇는다
+                            alimtalk_vars: {
+                              ...draft.alimtalk_vars,
+                              [slot]: [...picked].join(next),
+                            },
                           });
                         }}
                       >
-                        <option value="">— 붙이지 않음 (빈 채로 나감)</option>
-                        {/* 성격이 다른 것은 갈라 놓는다. 한 줄로 늘어놓으면
-                            {{본문}} 과 {{본문내용}} 이 나란히 붙어 구별이 안 된다 */}
-                        {groups.map((g) => (
-                          <optgroup key={g.label} label={g.hint ? `${g.label} — ${g.hint}` : g.label}>
-                            {g.items.map(([v, why]) => (
-                              <option key={v} value={v}>{v} · {why}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                        <optgroup label="직접 적기">
-                          <option value="__fixed">항상 같은 문구를 넣기…</option>
-                        </optgroup>
+                        <option value=" · ">가운뎃점</option>
+                        <option value=" ">공백</option>
+                        <option value={"\n"}>줄바꿈</option>
+                        <option value=", ">쉼표</option>
                       </select>
                     </div>
 
-                    {/* 고른 것이 **무엇으로 채워지는지** 예시로 보여준다.
-                        이름만 봐서는 {{본문}} 과 {{본문내용}} 을 구별할 수 없다 */}
-                    {info?.example && (
-                      <p className="hint" style={{ margin: "3px 0 0 104px", whiteSpace: "pre-wrap" }}>
-                        보내면 이렇게 → <b>{info.example}</b>
-                      </p>
-                    )}
-                    {fixed && (
-                      <input
+                    {/* **체크박스.** 노션에서 수식으로 여러 값을 합쳐 쓰시던 것과
+                        같게, 한 칸에 여럿을 넣을 수 있어야 한다 */}
+                    {groups.map((g) => (
+                      <div key={g.label} style={{ marginTop: 6 }}>
+                        <span className="hint" style={{ fontWeight: 700 }}>
+                          {g.label}
+                          {g.hint ? ` — ${g.hint}` : ""}
+                        </span>
+                        <div className="row" style={{ gap: 4, marginTop: 3 }}>
+                          {g.items.map(([v, why, ex]) => (
+                            <button
+                              key={v}
+                              className={`hwchip ${picked.has(v) ? "hw-next" : ""}`}
+                              title={ex ? `${why} — 예: ${ex}` : why}
+                              onClick={() => {
+                                const next = new Set(picked);
+                                next.has(v) ? next.delete(v) : next.add(v);
+                                set([...next].join(sep));
+                              }}
+                            >
+                              {picked.has(v) && <b>＋</b>} {v.replace(/[{}]/g, "")}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* 고정 문구를 섞고 싶을 때는 여기서 직접 손본다.
+                        체크박스로 고른 것도 이 칸에 그대로 보인다 */}
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">
+                        이 칸에 들어갈 글 (고정 문구를 섞어도 됩니다)
+                      </label>
+                      <textarea
                         className="input input-sm"
-                        style={{ margin: "4px 0 0 104px", width: "calc(100% - 104px)" }}
-                        placeholder="여기 적은 글이 그대로 들어갑니다"
-                        value={cur.trim() === "" ? "" : cur}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            alimtalk_vars: { ...draft.alimtalk_vars, [slot]: e.target.value || " " },
-                          })
-                        }
+                        rows={2}
+                        placeholder="비우면 이 변수는 빈 채로 나갑니다"
+                        value={cur}
+                        onChange={(e) => set(e.target.value)}
                       />
-                    )}
+                    </div>
+
+                    {/* **보내면 이렇게 나갑니다** — 이름만 봐서는 알 수 없다 */}
+                    <p className="hint" style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>
+                      {preview
+                        ? <>보내면 이렇게 → <b>{preview}</b></>
+                        : "아직 아무것도 안 골랐어요 (이 변수는 빈 채로 나갑니다)"}
+                    </p>
                   </div>
                 );
               })}

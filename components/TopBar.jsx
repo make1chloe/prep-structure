@@ -1,6 +1,15 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { menuFor } from "@/lib/menu";
+import { menuFor, findSection } from "@/lib/menu";
+
+/** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
+function groupLabel(key) {
+  return findSection(key)?.label || "";
+}
+function groupHref(key) {
+  const sec = findSection(key);
+  return sec?.items?.length ? sec.href : sec?.href || "/";
+}
 
 const ROLE_LABEL = {
   principal: "원장",
@@ -44,8 +53,18 @@ export default function TopBar({ profile, active }) {
         <div className="navgrid">
           {items.map((it, i) => (
             <Fragment key={it.key}>
-              {/* 묶음이 바뀌는 자리에 옅은 금 하나. 줄이 여러 개라도 어디쯤인지 보인다 */}
-              {i > 0 && it.group !== items[i - 1].group && <span className="navsep" />}
+              {/* **묶음 이름을 보여준다.** 예전에는 옅은 금 하나뿐이라
+                  「학교」「발송」 같은 묶음이 있다는 것 자체가 안 보였다.
+                  누르면 그 묶음이 펼쳐진다. */}
+              {it.group !== items[i - 1]?.group && (
+                <Link
+                  href={groupHref(it.group)}
+                  className="navgroup-tag"
+                  title={`${groupLabel(it.group)} 묶음`}
+                >
+                  {groupLabel(it.group)}
+                </Link>
+              )}
               <Link
                 href={it.href}
                 className={active === it.key ? "on" : ""}

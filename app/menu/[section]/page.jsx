@@ -31,8 +31,9 @@ export default async function MenuSection({ params }) {
       <TopBar profile={profile} active={section.key} />
       <main className="wrap">
         <div className="page-head">
-          <p className="eyebrow">메뉴</p>
+          <p className="eyebrow">묶음</p>
           <h1 className="h1">{section.label}</h1>
+          <p className="sub">이 묶음 안의 화면 {section.items.length}개입니다.</p>
         </div>
         <div className="menugrid">
           {section.items.map((it) => (
