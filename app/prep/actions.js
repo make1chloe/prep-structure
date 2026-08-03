@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { toTeachers } from "@/lib/exams";
 
 /**
  * 내신 대비 자료.
@@ -102,7 +103,7 @@ export async function saveExam(e = {}) {
     name: term,
     grade: (e.grade || "").trim() || null,
     english_on: day,
-    teacher: (e.teacher || "").trim() || null,
+    teachers: toTeachers(e.teachers ?? e.teacher),
     note: (e.note || "").trim() || null,
   };
   if (!e.id) {
@@ -116,7 +117,7 @@ export async function saveExam(e = {}) {
     : await supabase.from("exam_periods").insert(row);
   // 0074 전이면 출제 선생님 칸이 없다
   if (q.error && (q.error.code === "PGRST204" || q.error.code === "42703")) {
-    const { teacher: _t, source: _s, ...noNew } = row;
+    const { teachers: _t, source: _s, ...noNew } = row;
     q = e.id
       ? await supabase.from("exam_periods").update(noNew).eq("id", e.id)
       : await supabase.from("exam_periods").insert(noNew);

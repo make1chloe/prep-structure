@@ -19,6 +19,20 @@ function needSql(error) {
 }
 const SQL = "0059 SQL 을 먼저 실행해주세요.";
 
+/**
+ * 0076 에서 neis_schools 를 schools 로 넓혔다 (나이스에 없는 학교도 담기게).
+ * 아직 0076 을 안 돌린 DB 가 있을 수 있어, 없으면 옛 이름으로 물러난다.
+ *
+ * 모듈에 담아두지 않는다 — 서버 하나가 여러 사람의 요청을 받으므로,
+ * 한 번 물러난 값이 다른 사람 요청에까지 남으면 안 된다.
+ */
+async function schoolTable(supabase) {
+  const { error } = await supabase.from("schools").select("id").limit(1);
+  return error && (error.code === "42P01" || error.code === "PGRST205")
+    ? "neis_schools"
+    : "schools";
+}
+
 async function requireStaff(supabase) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "로그인이 필요해요." };
@@ -132,13 +146,13 @@ export async function addSchool(s = {}) {
     active: true,
   };
   let { error } = await supabase
-    .from("neis_schools")
+    .from(await schoolTable(supabase))
     .upsert(row, { onConflict: "atpt_code,schul_code" });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0069 전이면 지역·주소 없이
     const { atpt_name: _a, address: _b, ...bare } = row;
     ({ error } = await supabase
-      .from("neis_schools")
+      .from(await schoolTable(supabase))
       .upsert(bare, { onConflict: "atpt_code,schul_code" }));
   }
   if (needSql(error)) return { error: SQL };
@@ -162,7 +176,7 @@ export async function removeSchool(id, alsoTasks = false) {
   let removed = 0;
   if (alsoTasks) {
     const { data: s } = await supabase
-      .from("neis_schools").select("schul_code").eq("id", id).maybeSingle();
+      .from(await schoolTable(supabase)).select("schul_code").eq("id", id).maybeSingle();
     if (s?.schul_code) {
       const r = await clearSchoolImports(s.schul_code);
       if (r.error) return r;
@@ -170,7 +184,7 @@ export async function removeSchool(id, alsoTasks = false) {
     }
   }
 
-  const { error } = await supabase.from("neis_schools").delete().eq("id", id);
+  const { error } = await supabase.from(await schoolTable(supabase)).delete().eq("id", id);
   revalidatePath("/schedule");
   revalidatePath("/tasks");
   return { error: error ? error.message : null, removed };
@@ -202,12 +216,12 @@ export async function listSchools() {
   const supabase = createClient();
   const COLS = "id, name, atpt_code, schul_code, kind, active";
   let { data, error } = await supabase
-    .from("neis_schools")
+    .from(await schoolTable(supabase))
     .select(`${COLS}, atpt_name, address`)
     .order("name", { ascending: true });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data, error } = await supabase
-      .from("neis_schools")
+      .from(await schoolTable(supabase))
       .select(COLS)
       .order("name", { ascending: true }));
   }

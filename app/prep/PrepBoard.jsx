@@ -8,6 +8,7 @@ import {
   setAssignees, markAssign,
   markStages, removeMaterials, removeScopes,
 } from "./actions";
+import { teacherText } from "@/lib/exams";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import TypeBox from "./TypeBox";
 import ScopePicker from "./ScopePicker";
@@ -127,7 +128,7 @@ export default function PrepBoard({
       )}
 
       <div className="row" style={{ gap: 6, marginTop: 14, flexWrap: "wrap" }}>
-        <button className="btn btn-sm" onClick={() => setNewExam({ school: "", term: "", grade: "", exam_date: "", teacher: "", note: "" })}>
+        <button className="btn btn-sm" onClick={() => setNewExam({ school: "", term: "", grade: "", exam_date: "", teachers: "", note: "" })}>
           ＋ 시험 추가
         </button>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpenTypes(!openTypes)}>
@@ -149,9 +150,9 @@ export default function PrepBoard({
             <input className="input input-sm" type="date" style={{ width: 150 }}
               title="영어 시험일 — 급한 순서를 이걸로 잡습니다"
               value={newExam.exam_date} onChange={(e) => setNewExam({ ...newExam, exam_date: e.target.value })} />
-            <input className="input input-sm" style={{ width: 110 }} placeholder="출제 선생님"
-              title="누가 내는지에 따라 대비가 달라집니다"
-              value={newExam.teacher} onChange={(e) => setNewExam({ ...newExam, teacher: e.target.value })} />
+            <input className="input input-sm" style={{ width: 110 }} placeholder="출제 선생님 (여럿이면 쉼표)"
+              title="누가 내는지에 따라 대비가 달라집니다. 학년별로 나눠 내면 「김선생, 박선생」 처럼"
+              value={newExam.teachers} onChange={(e) => setNewExam({ ...newExam, teachers: e.target.value })} />
             <input className="input input-sm" style={{ flex: 1, minWidth: 160 }} placeholder="특이사항 (서술형 비중, 범위 밖 출제 …)"
               value={newExam.note} onChange={(e) => setNewExam({ ...newExam, note: e.target.value })} />
             <button className="btn btn-primary btn-sm" disabled={pending}
@@ -205,7 +206,7 @@ export default function PrepBoard({
               <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
                 <b style={{ fontSize: 15 }}>{exam.school} {exam.term}</b>
                 {exam.exam_date && <span className="hint">영어 {exam.exam_date}</span>}
-                {exam.teacher && <span className="tag tag-lav">{exam.teacher} 선생님</span>}
+                {teacherText(exam) && <span className="tag tag-lav">{teacherText(exam)}</span>}
                 {(exam.cuts || []).length > 0 && (
                   <span className="tag tag-sky">등급컷 {exam.cuts.join("·")}</span>
                 )}

@@ -111,6 +111,47 @@ moved=$($Q -d chloe -tAc "select from_date||'|'||name||'|'||array_to_string(cuts
 dupe=$($Q -d chloe -tAc "update exam_periods set neis_source_id='C100:20260701:1회고사' where school='테스트고';" 2>&1 | grep -c "duplicate key")
 [ "$dupe" != "0" ] || { say "✗ 같은 학교 일정이 두 시험에 붙습니다"; fail=1; }
 
+# ── 0076: 학교가 한 곳으로 모이나 · 출제샘 여러 명 ──────────
+# 「신송중」과 「신송중학교」는 같은 학교여야 한다.
+$Q -d chloe -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+insert into students (name, school, status) values
+  ('가학생', '테스트중학교', 'enrolled'),
+  ('나학생', '테스트중',     'enrolled'),
+  ('다학생', '테스트여자고등학교', 'enrolled');
+SQL
+err=$($Q -d chloe -v ON_ERROR_STOP=1 -f supabase/migrations/0076_schools.sql 2>&1 | grep -iE "^psql.*ERROR")
+if [ -n "$err" ]; then say "✗ 0076 실패: $(echo "$err" | head -2)"; fail=1; fi
+
+# 「테스트중학교」와 「테스트중」이 한 줄로
+n=$($Q -d chloe -tAc "select count(*) from schools where school_key(name)='테스트중';")
+[ "$n" = "1" ] || { say "✗ 테스트중/테스트중학교가 $n 개 학교가 됐습니다"; fail=1; }
+
+# 둘 다 그 한 학교를 가리키나
+same=$($Q -d chloe -tAc "select count(distinct school_id) from students where name in ('가학생','나학생');")
+[ "$same" = "1" ] || { say "✗ 두 학생이 서로 다른 학교를 가리킵니다"; fail=1; }
+
+# 시험도 같은 학교를 가리키나 (시험은 '테스트중' 으로 적혀 있었다)
+tied=$($Q -d chloe -tAc "select count(*) from exam_periods e join students t on t.school_id=e.school_id where t.name='가학생' and e.school='테스트중';")
+[ "$tied" = "1" ] || { say "✗ 재원생 학교와 시험 학교가 안 이어집니다 ($tied)"; fail=1; }
+
+# 이름을 긴 쪽으로 남겼나
+kept_name=$($Q -d chloe -tAc "select name from schools where school_key(name)='테스트중';")
+[ "$kept_name" = "테스트중학교" ] || { say "✗ 학교 이름이 긴 쪽으로 안 남았습니다 ($kept_name)"; fail=1; }
+
+# 학교 이름을 고치면 학생·시험이 따라오나
+$Q -d chloe -c "update schools set name='테스트중앙중학교' where school_key(name)='테스트중';" >/dev/null 2>&1
+follow=$($Q -d chloe -tAc "select school from students where name='나학생';")
+[ "$follow" = "테스트중앙중학교" ] || { say "✗ 학교 이름을 고쳤는데 학생이 안 따라옵니다 ($follow)"; fail=1; }
+
+# 같은 학교를 두 번 못 넣게 막나
+dupe2=$($Q -d chloe -tAc "insert into schools (name) values ('테스트여고');" 2>&1 | grep -c "duplicate key")
+[ "$dupe2" != "0" ] || { say "✗ 테스트여자고등학교/테스트여고가 두 학교로 들어갑니다"; fail=1; }
+
+# 출제 선생님 여러 명
+$Q -d chloe -c "update exam_periods set teachers=array['김선생','박선생'] where school='테스트중앙중학교';" >/dev/null 2>&1
+many=$($Q -d chloe -tAc "select array_length(teachers,1) from exam_periods where school='테스트중앙중학교';")
+[ "$many" = "2" ] || { say "✗ 출제 선생님을 여러 명 못 넣습니다 ($many)"; fail=1; }
+
 # 두 번 돌려도 같은가
 $Q -d chloe -v ON_ERROR_STOP=1 -f supabase/migrations/0074_exams_merged.sql >/dev/null 2>&1
 again=$($Q -d chloe -tAc "select count(*) from exam_periods where school like '테스트%';")

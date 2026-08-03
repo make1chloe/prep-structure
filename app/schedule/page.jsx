@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ScheduleBoard from "./ScheduleBoard";
 import NeisBox from "./NeisBox";
+import SchoolBox from "./SchoolBox";
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
@@ -57,7 +58,7 @@ export default async function SchedulePage() {
   // 0073 전이면 등급컷 칸이 없다 — 한 단계씩 물러난다
   let examQ = await supabase
     .from("exam_periods")
-    .select(`${EXAM}, hidden, cuts, teacher, source, neis_source_id, neis_from, neis_to, neis_name`)
+    .select(`${EXAM}, hidden, cuts, teacher, teachers, source, neis_source_id, neis_from, neis_to, neis_name`)
     .gte("to_date", from)
     .order("from_date", { ascending: true });
   if (examQ.error) {
@@ -128,6 +129,9 @@ export default async function SchedulePage() {
           </p>
         </div>
         <NeisBox months={months} />
+        <div className="row" style={{ marginTop: 8 }}>
+          <SchoolBox />
+        </div>
         <ScheduleBoard
           months={months}
           reviews={reviews}

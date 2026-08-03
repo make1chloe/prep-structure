@@ -51,7 +51,7 @@ const CHECKS = [
   { id: "0056", label: "오래된 제출물 정리", table: "homework_submissions", col: "purged_at" },
   { id: "0057", label: "반 명단 잠그기 (보안)", rpc: "my_class_ids" },
   { id: "0058", label: "안 보내기", table: "daily_reports", col: "skip_kinds" },
-  { id: "0059", label: "나이스 학사일정", table: "neis_schools", col: "schul_code" },
+  { id: "0059", label: "나이스 학사일정", table: "schools", col: "schul_code" },
   { id: "0060", label: "시험 일정 숨기기", table: "exam_periods", col: "hidden" },
   { id: "0062", label: "검사 한 줄", table: "daily_report_items", col: "check_note" },
   { id: "0063", label: "직접검사 숙제", table: "homework_items", col: "in_person" },
@@ -60,13 +60,14 @@ const CHECKS = [
   { id: "0066", label: "달력 나누기", table: "tasks", col: "private" },
   { id: "0067", label: "메뉴 고르기", table: "profiles", col: "menu_hidden" },
   { id: "0068", label: "학부모가 보내는 사진", table: "requests", col: "photos" },
-  { id: "0069", label: "학교 지역·주소", table: "neis_schools", col: "address" },
+  { id: "0069", label: "학교 지역·주소", table: "schools", col: "address" },
   { id: "0070", label: "단어 개수 · 단어시험 설정", table: "students", col: "word_cut_pct" },
   { id: "0071", label: "형제자매 묶기", table: "students", col: "family_id" },
   { id: "0072", label: "성적 (내신 · 모의고사)", table: "scores", col: "cuts" },
   { id: "0073", label: "시험 회차별 등급컷", table: "exam_periods", col: "cuts" },
   { id: "0074", label: "시험 한 줄로 합치기 (범위·자료·출제샘)", table: "exam_periods", col: "teacher" },
   { id: "0075", label: "내 시험에 나이스 붙이기", table: "exam_periods", col: "neis_source_id" },
+  { id: "0076", label: "학교 한 곳으로 · 출제샘 여러 명", table: "exam_periods", col: "teachers" },
 ];
 
 export async function checkSchema() {

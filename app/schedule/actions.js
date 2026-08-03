@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { toTeachers } from "@/lib/exams";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -46,6 +47,8 @@ export async function updateExam(id, patch) {
   ["school", "grade", "name", "note"].forEach((k) => {
     if (k in (patch || {})) row[k] = (patch[k] ?? "").toString().trim() || null;
   });
+  if ("teachers" in (patch || {})) row.teachers = toTeachers(patch.teachers);
+  if ("school_id" in (patch || {})) row.school_id = patch.school_id || null;
   ["from_date", "to_date", "english_on"].forEach((k) => {
     if (k in (patch || {})) row[k] = patch[k] || null;
   });

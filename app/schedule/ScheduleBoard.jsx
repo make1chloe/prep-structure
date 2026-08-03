@@ -9,7 +9,7 @@ import {
 } from "./actions";
 import { shortLabel } from "@/lib/day";
 import { useBulk, BulkBar } from "@/components/Bulk";
-import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS } from "@/lib/exams";
+import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 
 const ALERT_CLS = {
   over: "tag-sky",
@@ -382,7 +382,7 @@ export default function ScheduleBoard({
                   {e.school} {e.grade || "전체"}
                 </b>
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
-                {e.teacher && <span className="tag tag-lav">{e.teacher} 선생님</span>}
+                {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
                 {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075) */}
                 <span className={`tag ${STATE_CLS[examState(e)]}`} title={
                   examState(e) === "mine"

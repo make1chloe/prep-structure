@@ -30,7 +30,7 @@ export default async function PrepPage({ searchParams }) {
     // 있어서, 같은 신송중 1학기 기말이 학사일정에도 있고 여기에도 있었다.
     supabase
       .from("exam_periods")
-      .select("id, school, grade, name, from_date, to_date, english_on, teacher, note, cuts, hidden")
+      .select("id, school, grade, name, from_date, to_date, english_on, teacher, teachers, note, cuts, hidden")
       .order("english_on", { ascending: true, nullsFirst: false }),
     supabase.from("prep_scopes").select("id, exam_id, name, unit_ids, note, sort").order("sort", { ascending: true }),
     supabase.from("prep_materials").select("id, scope_id, type_id, name, sort, note, need_make, need_print, need_card, need_hand, need_solve, need_grade, made_at, printed_at, card_at").order("sort", { ascending: true }),
@@ -55,7 +55,7 @@ export default async function PrepPage({ searchParams }) {
       exam_date: e.english_on || null,
       from_date: e.from_date,
       to_date: e.to_date,
-      teacher: e.teacher || "",
+      teachers: e.teachers || (e.teacher ? [e.teacher] : []),
       note: e.note || "",
       cuts: e.cuts || [],
     }));
