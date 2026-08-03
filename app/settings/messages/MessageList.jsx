@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveMessage, deleteMessage } from "./actions";
+import { saveMessage, deleteMessage, listApprovedTemplates } from "./actions";
 import { SOURCES, slotsIn } from "@/lib/alimtalk";
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
@@ -32,6 +32,8 @@ export default function MessageList({ rows = [], level = "full", error = null, p
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [adding, setAdding] = useState(false);
+  const [tplRows, setTplRows] = useState(null);   // 솔라피에서 불러온 템플릿 목록
+  const [tplErr, setTplErr] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -72,6 +74,8 @@ export default function MessageList({ rows = [], level = "full", error = null, p
   function start(r) {
     setAdding(false);
     setEditId(r.id);
+    setTplRows(null);
+    setTplErr(null);
     setDraft({
       name: r.name || "",
       greeting: r.greeting || "",
@@ -108,7 +112,70 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           )}
         </div>
 
-        <div className="field" style={{ marginTop: 6 }}>
+        {/* **골라서 붙인다.** 코드를 손으로 옮겨 적으면 오타가 나고,
+            오타가 나도 저장은 되고 보낼 때가 되어서야 실패한다. */}
+        <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 6 }}>
+          <button
+            className="btn btn-sm"
+            disabled={pending || !pfId}
+            title={pfId ? "솔라피에 승인받아 둔 템플릿을 불러옵니다" : "먼저 pfId 를 넣어주세요"}
+            onClick={() => {
+              setTplErr(null);
+              setTplRows("loading");
+              startTransition(async () => {
+                const r = await listApprovedTemplates();
+                if (r?.error) { setTplErr(r.error); setTplRows(null); return; }
+                setTplRows(r.rows || []);
+              });
+            }}
+          >
+            승인받은 템플릿에서 고르기
+          </button>
+          {draft.alimtalk_id && <span className="tag tag-mint">붙어 있음</span>}
+        </div>
+
+        {tplErr && <div className="err" style={{ marginTop: 6 }}>{tplErr}</div>}
+
+        {tplRows === "loading" && (
+          <p className="hint" style={{ margin: "6px 0 0" }}>불러오는 중…</p>
+        )}
+
+        {Array.isArray(tplRows) && (
+          <div className="stack" style={{ gap: 3, marginTop: 6, maxHeight: 220, overflowY: "auto" }}>
+            {tplRows.length === 0 && (
+              <p className="hint" style={{ margin: 0 }}>
+                이 발신프로필에 템플릿이 없어요. 카카오에서 먼저 승인받아주세요.
+              </p>
+            )}
+            {tplRows.map((t) => (
+              <button
+                key={t.templateId}
+                className="unitrow"
+                disabled={!t.approved}
+                style={{
+                  textAlign: "left", cursor: t.approved ? "pointer" : "not-allowed",
+                  opacity: t.approved ? 1 : 0.5, font: "inherit",
+                }}
+                onClick={() => {
+                  // 코드와 **본문을 같이** 가져온다 — 본문이 있어야 #{변수} 를
+                  // 찾아 연결 칸을 만들 수 있다. 붙여넣기 단계가 없어진다.
+                  setDraft({ ...draft, alimtalk_id: t.templateId, alimtalk_body: t.content || "" });
+                  setTplRows(null);
+                }}
+              >
+                <span className={`tag ${t.approved ? "tag-mint" : "tag-amber"}`}>
+                  {t.approved ? "승인" : t.status || "심사중"}
+                </span>
+                <b style={{ fontSize: 12.5 }}>{t.name}</b>
+                <span className="hint mono" style={{ fontSize: 11 }}>{t.templateId}</span>
+                <span className="spacer" />
+                {draft.alimtalk_id === t.templateId && <span className="tag tag-sky">지금 이것</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="field" style={{ marginTop: 8 }}>
           <label className="label">승인받은 템플릿 코드</label>
           <input
             className="input input-sm"

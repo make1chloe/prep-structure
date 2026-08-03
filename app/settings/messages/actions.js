@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { loadSettings } from "@/lib/settings";
+import { listAlimtalkTemplates } from "@/lib/send";
 
 const NEED = "0029 SQL 을 먼저 실행해주세요.";
 
@@ -130,4 +132,25 @@ export async function deleteMessage(id) {
   revalidatePath("/settings/messages");
   revalidatePath("/report");
   return { error: error ? error.message : null };
+}
+
+/**
+ * 승인받은 알림톡 템플릿 목록 — **골라서 붙이게** 한다.
+ *
+ * 코드를 손으로 옮겨 적으면 오타가 나고, 오타가 나도 저장은 되고
+ * 보낼 때가 되어서야 실패한다. 이미 승인받아 두신 것에서 고르면 그 일이 없다.
+ */
+export async function listApprovedTemplates() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { rows: [], error: "로그인이 필요해요." };
+  const { data: p } = await supabase
+    .from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (p?.role !== "principal") {
+    return { rows: [], error: "이건 원장 계정에서만 볼 수 있어요." };
+  }
+  const settings = await loadSettings(supabase);
+  return listAlimtalkTemplates(settings.solapi);
 }
