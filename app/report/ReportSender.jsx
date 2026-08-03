@@ -19,7 +19,7 @@ function contentLines(text = "") {
     .filter((l) => !/^· 출결:/.test(l)).length;
 }
 
-export default function ReportSender({ date, rows = [], sendReady = true, mode = "copy" }) {
+export default function ReportSender({ date, rows = [], sendReady = true, mode = "copy", chans = {} }) {
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
@@ -82,6 +82,8 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
   }
 
   const sendsForReal = mode !== "copy";
+  // 이 화면에서 나가는 것이 알림톡인지 문자인지 — **보내기 전에** 보여준다
+  const talk = mode === "sms" && chans.report === "alimtalk";
 
   function send(list) {
     if (list.length === 0) return;
@@ -225,6 +227,14 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}명 선택</b>
+          {sendsForReal && (
+            <span className={`tag ${talk ? "tag-mint" : "tag-muted"}`}
+              title={talk
+                ? "알림톡으로 나갑니다. 막힌 번호에는 문자로 대신 나가요"
+                : "문자로 나갑니다. 알림톡으로 바꾸려면 설정 → 문자 문구에서 템플릿 코드를 붙이세요"}>
+              {talk ? "알림톡" : "문자"}로 나감
+            </span>
+          )}
           <button className="btn btn-primary btn-sm" onClick={copySelected} disabled={pending}>
             {copied === "bulk" ? "복사됨 ✓" : "문구 한 번에 복사"}
           </button>

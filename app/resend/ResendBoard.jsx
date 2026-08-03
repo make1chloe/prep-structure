@@ -23,7 +23,7 @@ const KINDS = [
   { key: "report", label: "데일리리포트", hint: "수업 내용 전체가 담긴 문구예요." },
 ];
 
-export default function ResendBoard({ date, rows = [], ready = true, mode = "copy" }) {
+export default function ResendBoard({ date, rows = [], ready = true, mode = "copy", chans = {} }) {
   const [kind, setKind] = useState("homework");
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
@@ -184,6 +184,13 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
       </div>
       <p className="hint" style={{ margin: "6px 0 0" }}>
         {KINDS.find((k) => k.key === kind)?.hint} 고친 문구는 저장되어 다음에도 그대로 쓰입니다.
+        {/* 종류마다 나가는 길이 다르다 — 고른 종류의 것을 바로 옆에 */}
+        {mode === "sms" && (
+          <>
+            {" "}이 문자는{" "}
+            <b>{chans[kind] === "alimtalk" ? "알림톡" : "문자"}</b>로 나갑니다.
+          </>
+        )}
       </p>
 
       {!ready && (

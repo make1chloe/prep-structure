@@ -8,6 +8,7 @@ import ResendBoard from "../resend/ResendBoard";
 import TestSender from "./TestSender";
 import { loadReportRows } from "@/lib/reportData";
 import { loadSettings } from "@/lib/settings";
+import { channelPlan } from "@/lib/alimtalk";
 import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,18 @@ export default async function ReportPage({ searchParams }) {
   }
 
   const settings = await loadSettings(supabase);
+
+  // 이 화면에서 나가는 것이 **알림톡인지 문자인지** 보내기 전에 알아야 한다.
+  // 다 보내고 나서 "이거 문자로 나갔네" 를 알면 늦다.
+  const { data: tplRows } = await supabase
+    .from("message_templates").select("key, alimtalk_id").not("key", "is", null);
+  // 함수는 화면(클라이언트)으로 못 넘긴다 — **값으로** 넘긴다.
+  //   { report: "alimtalk", homework: "sms", … }
+  const chans = Object.fromEntries(
+    channelPlan(tplRows || [], settings.solapi?.pfId || "")
+      .filter((p) => p.key)
+      .map((p) => [p.key, p.channel])
+  );
   const { rows, sendReady, resendReady } = await loadReportRows(
     supabase, date, settings.academy.name, settings.message
   );
@@ -89,9 +102,9 @@ export default async function ReportPage({ searchParams }) {
         ) : tab === "late" ? (
           <LateSender date={date} rows={rows} mode={settings.mode} />
         ) : tab === "resend" ? (
-          <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} />
+          <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} chans={chans} />
         ) : (
-          <ReportSender date={date} rows={rows} sendReady={sendReady} mode={settings.mode} />
+          <ReportSender date={date} rows={rows} sendReady={sendReady} mode={settings.mode} chans={chans} />
         )}
       </main>
     </>

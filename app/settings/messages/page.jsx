@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import MessageList from "./MessageList";
+import ChannelPlan from "./ChannelPlan";
 import { listMessages } from "./actions";
 import { loadSettings } from "@/lib/settings";
+import { channelPlan } from "@/lib/alimtalk";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,9 @@ export default async function MessagesPage() {
             나가는 문자마다 문구를 따로 정합니다. 여기서 추가하고 고치고 지우면 됩니다.
           </p>
         </div>
+        {/* 보내기 전에 **무엇이 어디로 나갈지** 알아야 한다 */}
+        <ChannelPlan plan={channelPlan(rows, settings.solapi?.pfId || "")} pfId={settings.solapi?.pfId || ""} />
+
         <MessageList
           rows={rows}
           level={level}
