@@ -61,25 +61,35 @@ a { color: inherit; }
 .navsep { width: 1px; align-self: stretch; margin: 4px 5px; background: var(--border); }
 
 /* 묶음 이름 — **화면 이름과 다르게 생겨야 한다.**
-   같은 모양이면 「학교」 가 묶음인지 화면인지 알 수가 없다.
-   작고 · 옅고 · 대문자처럼 자간을 벌려서 **머리글**로 읽히게 한다. */
+   처음에는 글씨를 작게 줄여서 구별했는데, 한 줄 안에 크기가 두 가지가 되니
+   오히려 더 헷갈렸다. 글자 크기는 화면 이름과 **똑같이 두고**,
+   모양으로만 가른다 — 둥근 알약 · 진한 글씨 · 앞의 세로줄. */
 .navgroup-tag {
   align-self: center;
-  margin-left: 10px;
-  padding: 3px 6px !important;
-  font-size: 10.5px !important;
+  margin-left: 12px;
+  padding: 7px 13px !important;
   font-weight: 800 !important;
-  letter-spacing: .06em;
-  color: var(--text-faint) !important;
+  color: var(--text) !important;
   background: var(--surface-2);
-  border-radius: 6px;
-  border: 1px solid var(--border);
+  border-radius: 999px !important;
+  border: 1px solid var(--border-strong);
   white-space: nowrap;
+  position: relative;
+}
+/* 묶음이 바뀌는 자리에 세로줄 하나 — 여기서부터 다른 묶음이라는 표시 */
+.navgroup-tag::before {
+  content: "";
+  position: absolute;
+  left: -7px; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 18px;
+  background: var(--border);
 }
 .navgrid a.navgroup-tag:hover { color: var(--navy) !important; background: var(--surface); }
 .navgrid a.navgroup-tag:first-child { margin-left: 0; }
+.navgrid a.navgroup-tag:first-child::before { display: none; }
 @media (max-width: 900px) {
-  .navgroup-tag { margin-left: 6px; padding: 2px 5px !important; font-size: 10px !important; }
+  .navgroup-tag { margin-left: 9px; padding: 7px 11px !important; }
+  .navgroup-tag::before { left: -5px; height: 16px; }
 }
 .spacer { flex: 1; }
 .who { font-size: 12.5px; color: var(--text-muted); }
