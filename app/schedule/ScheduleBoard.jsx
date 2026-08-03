@@ -49,6 +49,7 @@ export default function ScheduleBoard({
   holidayNotes = [],
   makeupDays = [],
   holidays = [],
+  show = "schedule",        // schedule(휴강·회차) | exams(학교 시험)
 }) {
   const hBulk = useBulk(holidays);
   const [form, setForm] = useState({ school: "", grade: "", name: "", from: "", to: "" });
@@ -87,6 +88,8 @@ export default function ScheduleBoard({
 
   return (
     <>
+      {show === "schedule" && (
+      <>
       {/* 휴강 — 공휴일이 아닌 날도 쉰다 (원장님 사정, 학교 행사, 가족 일) */}
       <div className="card" style={{ marginTop: 12 }}>
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>휴강</h2>
@@ -256,6 +259,14 @@ export default function ScheduleBoard({
         </div>
       )}
 
+      </>
+      )}
+
+      {/* 시험 일정 — **학교 화면**에서만 보여준다 (show="exams").
+          휴강·회차와 성격이 달라서 한 화면에 다 있으면 무엇을 보러 왔는지
+          잊게 된다. 같은 코드를 두 번 적지 않으려고 prop 하나로 가른다. */}
+      {show === "exams" && (
+      <>
       {/* 시험 일정 */}
       <div className="card" style={{ marginTop: 12 }}>
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학교 시험 일정</h2>
@@ -492,8 +503,10 @@ export default function ScheduleBoard({
           <p className="hint" style={{ marginTop: 8 }}>등록된 시험 일정이 없습니다.</p>
         )}
       </div>
+      </>
+      )}
 
-      {/* 3개월 회차 */}
+      {show === "schedule" && (
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {reviews.map(({ klass, roster, months: ms }) => (
           <div className="card" key={klass.id}>
@@ -695,6 +708,7 @@ export default function ScheduleBoard({
           </div>
         )}
       </div>
+      )}
     </>
   );
 }

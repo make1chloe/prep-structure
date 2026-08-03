@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
-import ScheduleBoard from "./ScheduleBoard";
+import ScheduleBoard from "@/app/schedule/ScheduleBoard";
+import NeisBox from "@/app/schedule/NeisBox";
+import SchoolBox from "@/app/schedule/SchoolBox";
 
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { holidayAlerts } from "@/lib/holidays";
@@ -9,7 +11,7 @@ import { endOfMonth, todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
-export default async function SchedulePage() {
+export default async function SchoolsPage() {
   const supabase = createClient();
   const {
     data: { user },
@@ -116,19 +118,23 @@ export default async function SchedulePage() {
 
   return (
     <>
-      <TopBar profile={profile} active="schedule" />
+      <TopBar profile={profile} active="schools" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">수업 스케줄</p>
-          <h1 className="h1">앞으로 3개월</h1>
+          <p className="eyebrow">학교</p>
+          <h1 className="h1">학교 · 시험</h1>
           <p className="sub">
-            회차는 <b>한 달만 따로 보지 않습니다.</b> 이번 달이 7회여도 다음 달이 9회면
-            보강·휴강 없이 그대로 수업하면 맞으므로, 3개월을 누적해서 언제 딱 맞아떨어지는지
-            알림에 같이 적어줍니다. 3개월을 다 합쳐도 남을 때만 서비스·휴강을 결정하면 됩니다.
+            학교는 <b>여기 한 곳</b>에만 있습니다. 재원생과 시험이 이 명단을 가리켜요.
+            시험 회차에 <b>등급컷 · 출제 선생님 · 특이사항</b>을 적어두면 성적·내신 자료가
+            그 회차를 함께 봅니다.
           </p>
         </div>
+        <NeisBox months={months} />
+        <div className="row" style={{ marginTop: 8 }}>
+          <SchoolBox />
+        </div>
         <ScheduleBoard
-          show="schedule"
+          show="exams"
           months={months}
           reviews={reviews}
           exams={exams}
