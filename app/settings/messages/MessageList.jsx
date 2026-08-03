@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveMessage, deleteMessage, listApprovedTemplates } from "./actions";
-import { SOURCE_GROUPS, describeSource, slotsIn } from "@/lib/alimtalk";
+import { sourcesFor, describeSource, slotsIn } from "@/lib/alimtalk";
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
 const VARS = [
@@ -95,7 +95,9 @@ export default function MessageList({ rows = [], level = "full", error = null, p
    * 앱의 어떤 값에 붙일지 고르는 칸이 만들어진다.
    * 원문은 저장하지 않는다 — 붙이는 데만 쓴다.
    */
-  function Alimtalk() {
+  function Alimtalk({ msgKey }) {
+    // 이 문자가 채울 수 있는 것만 고르게 한다 (늦은 귀가에 단어시험은 없다)
+    const groups = sourcesFor(msgKey);
     const slots = [
       ...slotsIn(draft.alimtalk_body || ""),
       ...Object.keys(draft.alimtalk_vars || {}),
@@ -229,7 +231,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
                         <option value="">— 붙이지 않음 (빈 채로 나감)</option>
                         {/* 성격이 다른 것은 갈라 놓는다. 한 줄로 늘어놓으면
                             {{본문}} 과 {{본문내용}} 이 나란히 붙어 구별이 안 된다 */}
-                        {SOURCE_GROUPS.map((g) => (
+                        {groups.map((g) => (
                           <optgroup key={g.label} label={g.hint ? `${g.label} — ${g.hint}` : g.label}>
                             {g.items.map(([v, why]) => (
                               <option key={v} value={v}>{v} · {why}</option>
@@ -277,7 +279,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
     );
   }
 
-  function Editor({ isAuto }) {
+  function Editor({ isAuto, msgKey = null }) {
     return (
       <div className="stack" style={{ gap: 8, marginTop: 10 }}>
         <div className="field">
@@ -347,7 +349,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           </>
         )}
 
-        {hasAlimtalk && <Alimtalk />}
+        {hasAlimtalk && <Alimtalk msgKey={msgKey} />}
 
         <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
           <button
@@ -424,7 +426,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           </p>
         )}
 
-        {isEditing && <Editor isAuto={isAuto} />}
+        {isEditing && <Editor isAuto={isAuto} msgKey={r.key || null} />}
       </div>
     );
   }
