@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# 0074 가 **진짜로 옮기는지** 본다.
+#
+# SETUP_ALL 을 통째로 돌리면 prep_exams 는 만들어지자마자 비어 있는 채로
+# 없어진다. 그래서는 "옮기는 부분" 이 한 번도 안 돌아본 채 배포된다.
+#
+# 여기서는 0073 까지 돌려 **prep_exams 에 진짜 줄을 넣어두고**, 그 다음 0074 만
+# 돌려서 범위·자료가 새 시험에 그대로 붙었는지 센다.
+set -u
+PG=/usr/lib/postgresql/16/bin
+export PATH="$PG:$PATH"
+D=/var/tmp/pgmerge
+PORT=55435
+
+command -v initdb >/dev/null || { echo "  postgres 가 없어 건너뜁니다"; exit 0; }
+
+cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
+trap cleanup EXIT
+
+rm -rf "$D"; mkdir -p "$D"; chown postgres "$D"; chmod 700 "$D"
+su postgres -c "PATH=$PG:\$PATH initdb -D $D -U postgres -A trust" >/dev/null 2>&1
+su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D -o '-p $PORT -k /var/tmp' -l $D/log start" >/dev/null 2>&1
+sleep 2
+
+Q="psql -h /var/tmp -p $PORT -U postgres -q"
+$Q -c "create database chloe;" >/dev/null 2>&1
+$Q -c "create role anon; create role authenticated; create role service_role;" >/dev/null 2>&1
+$Q -d chloe -c "
+create schema if not exists auth;
+create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
+create or replace function auth.uid() returns uuid language sql stable as \$\$ select null::uuid \$\$;" >/dev/null 2>&1
+
+# 0074 **전까지만** 돌린다
+for f in $(ls supabase/migrations/*.sql | sort); do
+  case "$f" in *0074_*) break;; esac
+  $Q -d chloe -v ON_ERROR_STOP=1 -f "$f" >/dev/null 2>&1 || { echo "  $f 실패"; exit 1; }
+done
+
+# 진짜처럼 넣어둔다
+#   1) 학사일정에 이미 있는 시험 (짝이 있는 경우)
+#   2) 학사일정에 없는 시험 (짝이 없어 새로 만들어야 하는 경우)
+$Q -d chloe -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+insert into exam_periods (school, grade, name, from_date, to_date, english_on)
+values ('테스트중', '중2', '1학기 기말', '2026-07-01', '2026-07-03', '2026-07-02');
+
+insert into prep_exams (id, school, term, grade, exam_date, note) values
+  ('11111111-1111-1111-1111-111111111111', '테스트중', '1학기기말', '중2', '2026-07-02', '서술형 많음'),
+  ('22222222-2222-2222-2222-222222222222', '테스트고', '1학기기말', '고1', '2026-07-08', null);
+
+insert into prep_scopes (exam_id, name, sort) values
+  ('11111111-1111-1111-1111-111111111111', '본문 1~3과', 1),
+  ('22222222-2222-2222-2222-222222222222', 'Unit 5~8', 1);
+SQL
+
+err=$($Q -d chloe -v ON_ERROR_STOP=1 -f supabase/migrations/0074_exams_merged.sql 2>&1 | grep -iE "^psql.*ERROR")
+if [ -n "$err" ]; then echo "  0074 실패:"; echo "$err" | head -5; exit 1; fi
+
+fail=0
+say() { echo "  $1"; }
+
+# prep_exams 는 없어졌나
+gone=$($Q -d chloe -tAc "select count(*) from information_schema.tables where table_name='prep_exams';")
+[ "$gone" = "0" ] || { say "✗ prep_exams 가 아직 남아 있습니다"; fail=1; }
+
+# 범위 둘 다 살아 있고, 둘 다 진짜 시험에 붙어 있나
+orphan=$($Q -d chloe -tAc "select count(*) from prep_scopes s where not exists (select 1 from exam_periods e where e.id = s.exam_id);")
+[ "$orphan" = "0" ] || { say "✗ 시험에 못 붙은 범위 $orphan 건"; fail=1; }
+scopes=$($Q -d chloe -tAc "select count(*) from prep_scopes;")
+[ "$scopes" = "2" ] || { say "✗ 범위가 2건이어야 하는데 $scopes 건"; fail=1; }
+
+# 짝이 있던 것은 **새로 만들지 않고** 원래 줄에 붙었나
+sin=$($Q -d chloe -tAc "select count(*) from exam_periods where school='테스트중';")
+[ "$sin" = "1" ] || { say "✗ 테스트중 시험이 1건이어야 하는데 $sin 건 (짝을 못 찾아 새로 만들었습니다)"; fail=1; }
+
+# 짝이 없던 것은 새로 만들어졌나
+yeon=$($Q -d chloe -tAc "select count(*) from exam_periods where school='테스트고' and source='manual';")
+[ "$yeon" = "1" ] || { say "✗ 테스트고 시험이 안 만들어졌습니다 ($yeon)"; fail=1; }
+
+# 내신 자료 쪽에서만 알던 특이사항이 따라왔나
+note=$($Q -d chloe -tAc "select coalesce(note,'') from exam_periods where school='테스트중';")
+[ "$note" = "서술형 많음" ] || { say "✗ 특이사항이 안 따라왔습니다 ('$note')"; fail=1; }
+
+# 학사일정에 이미 있던 기간을 덮어쓰지 않았나
+from=$($Q -d chloe -tAc "select from_date from exam_periods where school='테스트중';")
+[ "$from" = "2026-07-01" ] || { say "✗ 원래 시험 기간을 덮어썼습니다 ($from)"; fail=1; }
+
+# 두 번 돌려도 같은가
+$Q -d chloe -v ON_ERROR_STOP=1 -f supabase/migrations/0074_exams_merged.sql >/dev/null 2>&1
+again=$($Q -d chloe -tAc "select count(*) from exam_periods where school like '테스트%';")
+[ "$again" = "2" ] || { say "✗ 다시 돌리니 시험이 $again 건으로 늘었습니다"; fail=1; }
+
+[ $fail -eq 0 ] && say "범위·자료가 그대로 따라왔고, 짝이 있는 시험은 새로 만들지 않았습니다"
+exit $fail

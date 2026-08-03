@@ -127,7 +127,7 @@ export default function PrepBoard({
       )}
 
       <div className="row" style={{ gap: 6, marginTop: 14, flexWrap: "wrap" }}>
-        <button className="btn btn-sm" onClick={() => setNewExam({ school: "", term: "", grade: "", exam_date: "" })}>
+        <button className="btn btn-sm" onClick={() => setNewExam({ school: "", term: "", grade: "", exam_date: "", teacher: "", note: "" })}>
           ＋ 시험 추가
         </button>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpenTypes(!openTypes)}>
@@ -149,6 +149,11 @@ export default function PrepBoard({
             <input className="input input-sm" type="date" style={{ width: 150 }}
               title="영어 시험일 — 급한 순서를 이걸로 잡습니다"
               value={newExam.exam_date} onChange={(e) => setNewExam({ ...newExam, exam_date: e.target.value })} />
+            <input className="input input-sm" style={{ width: 110 }} placeholder="출제 선생님"
+              title="누가 내는지에 따라 대비가 달라집니다"
+              value={newExam.teacher} onChange={(e) => setNewExam({ ...newExam, teacher: e.target.value })} />
+            <input className="input input-sm" style={{ flex: 1, minWidth: 160 }} placeholder="특이사항 (서술형 비중, 범위 밖 출제 …)"
+              value={newExam.note} onChange={(e) => setNewExam({ ...newExam, note: e.target.value })} />
             <button className="btn btn-primary btn-sm" disabled={pending}
               onClick={() => run(async () => { const r = await saveExam(newExam); if (!r?.error) setNewExam(null); return r; })}>
               저장
@@ -199,7 +204,11 @@ export default function PrepBoard({
             <div className="stack" style={{ gap: 10 }}>
               <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
                 <b style={{ fontSize: 15 }}>{exam.school} {exam.term}</b>
-                {exam.exam_date && <span className="hint">{exam.exam_date}</span>}
+                {exam.exam_date && <span className="hint">영어 {exam.exam_date}</span>}
+                {exam.teacher && <span className="tag tag-lav">{exam.teacher} 선생님</span>}
+                {(exam.cuts || []).length > 0 && (
+                  <span className="tag tag-sky">등급컷 {exam.cuts.join("·")}</span>
+                )}
                 <span className="spacer" />
                 <button className="btn btn-sm" onClick={() => setScopeFor({ exam_id: exam.id, unit_ids: [], name: "" })}>
                   ＋ 범위 추가
@@ -211,6 +220,18 @@ export default function PrepBoard({
                   }}>
                   시험 삭제
                 </button>
+              </div>
+
+              {/* 시험 하나에 딸린 것을 한자리에 — 학사일정과 **같은 시험**이다 */}
+              <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                {exam.note && <span className="notice" style={{ flex: 1, fontSize: 12.5 }}>{exam.note}</span>}
+                <span className="spacer" />
+                <a className="hint sky" href="/schedule" target="_blank" rel="noreferrer">
+                  기간 · 등급컷 고치기 — 학사일정 ›
+                </a>
+                <a className="hint sky" href={`/scores`} target="_blank" rel="noreferrer">
+                  성적 보기 ›
+                </a>
               </div>
 
               {scopeFor && (

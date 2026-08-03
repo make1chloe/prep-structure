@@ -354,6 +354,7 @@ export default function ScheduleBoard({
                   {e.school} {e.grade || "전체"}
                 </b>
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
+                {e.teacher && <span className="tag tag-lav">{e.teacher} 선생님</span>}
                 <span className="hint">
                   {dayShort(e.from_date)} ~ {dayShort(e.to_date)}
                 </span>

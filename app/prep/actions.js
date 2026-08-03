@@ -79,30 +79,61 @@ export async function removeType(id) {
 }
 
 // ── 시험 ───────────────────────────────────────────────
+/**
+ * 시험 한 줄 — **학사일정과 같은 표**다 (0074).
+ *
+ * 예전에는 내신 자료용 시험(prep_exams)이 따로 있어서, 같은 신송중 1학기 기말이
+ * 두 줄로 살고 서로를 몰랐다. 날짜가 바뀌면 두 군데를 고쳐야 했고, 등급컷은
+ * 이쪽에만 · 범위는 저쪽에만 있었다.
+ *
+ * 여기서 만든 시험은 학사일정에도 그대로 뜬다 (그게 맞다 — 같은 시험이다).
+ */
 export async function saveExam(e = {}) {
   const school = (e.school || "").trim();
   const term = (e.term || "").trim();
   if (!school || !term) return { error: "학교와 학기를 넣어주세요." };
   const supabase = createClient();
+
+  // 시험 기간을 모르면 영어 시험일 하루짜리로 둔다 — 아는 것이 그것뿐이다.
+  // 학사일정에서 나이스로 받아오면 진짜 기간으로 채워진다.
+  const day = (e.exam_date || "").trim() || null;
   const row = {
-    school, term,
+    school,
+    name: term,
     grade: (e.grade || "").trim() || null,
-    exam_date: (e.exam_date || "").trim() || null,
+    english_on: day,
+    teacher: (e.teacher || "").trim() || null,
     note: (e.note || "").trim() || null,
   };
-  const q = e.id
-    ? await supabase.from("prep_exams").update(row).eq("id", e.id)
-    : await supabase.from("prep_exams").insert(row);
+  if (!e.id) {
+    row.from_date = day || new Date().toISOString().slice(0, 10);
+    row.to_date = row.from_date;
+    row.source = "manual";
+  }
+
+  let q = e.id
+    ? await supabase.from("exam_periods").update(row).eq("id", e.id)
+    : await supabase.from("exam_periods").insert(row);
+  // 0074 전이면 출제 선생님 칸이 없다
+  if (q.error && (q.error.code === "PGRST204" || q.error.code === "42703")) {
+    const { teacher: _t, source: _s, ...noNew } = row;
+    q = e.id
+      ? await supabase.from("exam_periods").update(noNew).eq("id", e.id)
+      : await supabase.from("exam_periods").insert(noNew);
+  }
   if (needSql(q.error)) return { error: SQL };
   revalidatePath("/prep");
+  revalidatePath("/schedule");
   return { error: q.error ? q.error.message : null };
 }
 
 export async function removeExam(id) {
   if (!id) return { error: null };
   const supabase = createClient();
-  const { error } = await supabase.from("prep_exams").delete().eq("id", id);
+  // 시험을 지우면 범위·자료도 같이 간다. 학사일정에서도 사라진다 — 같은 시험이다.
+  const { error } = await supabase.from("exam_periods").delete().eq("id", id);
   revalidatePath("/prep");
+  revalidatePath("/schedule");
   return { error: error ? error.message : null };
 }
 
