@@ -57,7 +57,7 @@ export default async function SchedulePage() {
   // 0073 전이면 등급컷 칸이 없다 — 한 단계씩 물러난다
   let examQ = await supabase
     .from("exam_periods")
-    .select(`${EXAM}, hidden, cuts, teacher, source`)
+    .select(`${EXAM}, hidden, cuts, teacher, source, neis_source_id, neis_from, neis_to, neis_name`)
     .gte("to_date", from)
     .order("from_date", { ascending: true });
   if (examQ.error) {

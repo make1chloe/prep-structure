@@ -84,10 +84,37 @@ note=$($Q -d chloe -tAc "select coalesce(note,'') from exam_periods where school
 from=$($Q -d chloe -tAc "select from_date from exam_periods where school='테스트중';")
 [ "$from" = "2026-07-01" ] || { say "✗ 원래 시험 기간을 덮어썼습니다 ($from)"; fail=1; }
 
+# ── 0075: 내 것이 주인인가 ────────────────────────────────
+# 나이스가 붙어 있어도 **내 기간·이름·등급컷은 내가 누르기 전엔 안 바뀐다.**
+$Q -d chloe -v ON_ERROR_STOP=1 -f supabase/migrations/0075_exam_owns_neis.sql >/dev/null 2>&1
+$Q -d chloe -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<'SQL'
+update exam_periods
+   set name = '1학기 중간', cuts = array[90,84,77]::numeric[], teacher = '김선생',
+       neis_source_id = 'C100:20260701:1회고사',
+       neis_from = '2026-07-01', neis_to = '2026-07-03', neis_name = '1회고사'
+ where school = '테스트중';
+SQL
+# 학교가 날짜를 옮겼다 (다시 받아온 상황을 흉내낸다)
+$Q -d chloe -c "update exam_periods set neis_from='2026-07-02', neis_to='2026-07-04' where school='테스트중';" >/dev/null 2>&1
+
+kept=$($Q -d chloe -tAc "select from_date||'|'||to_date||'|'||name||'|'||array_to_string(cuts,',')||'|'||coalesce(teacher,'') from exam_periods where school='테스트중';")
+[ "$kept" = "2026-07-01|2026-07-03|1학기 중간|90,84,77|김선생" ] \
+  || { say "✗ 학교 일정이 바뀌자 내 것까지 바뀌었습니다 ($kept)"; fail=1; }
+
+# 「반영」을 누른 것처럼 옮기면 그때 바뀐다
+$Q -d chloe -c "update exam_periods set from_date=neis_from, to_date=neis_to where school='테스트중';" >/dev/null 2>&1
+moved=$($Q -d chloe -tAc "select from_date||'|'||name||'|'||array_to_string(cuts,',') from exam_periods where school='테스트중';")
+[ "$moved" = "2026-07-02|1학기 중간|90,84,77" ] \
+  || { say "✗ 반영했더니 내 이름·등급컷까지 없어졌습니다 ($moved)"; fail=1; }
+
+# 같은 나이스 일정이 두 시험에 붙지 못하는가
+dupe=$($Q -d chloe -tAc "update exam_periods set neis_source_id='C100:20260701:1회고사' where school='테스트고';" 2>&1 | grep -c "duplicate key")
+[ "$dupe" != "0" ] || { say "✗ 같은 학교 일정이 두 시험에 붙습니다"; fail=1; }
+
 # 두 번 돌려도 같은가
 $Q -d chloe -v ON_ERROR_STOP=1 -f supabase/migrations/0074_exams_merged.sql >/dev/null 2>&1
 again=$($Q -d chloe -tAc "select count(*) from exam_periods where school like '테스트%';")
 [ "$again" = "2" ] || { say "✗ 다시 돌리니 시험이 $again 건으로 늘었습니다"; fail=1; }
 
-[ $fail -eq 0 ] && say "범위·자료가 그대로 따라왔고, 짝이 있는 시험은 새로 만들지 않았습니다"
+[ $fail -eq 0 ] && say "범위·자료가 따라왔고, 학교 일정이 바뀌어도 내 것은 그대로입니다"
 exit $fail

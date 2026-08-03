@@ -66,6 +66,7 @@ const CHECKS = [
   { id: "0072", label: "성적 (내신 · 모의고사)", table: "scores", col: "cuts" },
   { id: "0073", label: "시험 회차별 등급컷", table: "exam_periods", col: "cuts" },
   { id: "0074", label: "시험 한 줄로 합치기 (범위·자료·출제샘)", table: "exam_periods", col: "teacher" },
+  { id: "0075", label: "내 시험에 나이스 붙이기", table: "exam_periods", col: "neis_source_id" },
 ];
 
 export async function checkSchema() {

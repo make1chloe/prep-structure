@@ -4,10 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addExam, setEnglishDate, updateExam, deleteExam, hideExam, setExamCuts,
+  applyNeis, detachNeis,
   markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday, removeHolidays,
 } from "./actions";
 import { shortLabel } from "@/lib/day";
 import { useBulk, BulkBar } from "@/components/Bulk";
+import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS } from "@/lib/exams";
 
 const ALERT_CLS = {
   over: "tag-sky",
@@ -348,13 +350,47 @@ export default function ScheduleBoard({
         {shownExams.length > 0 && (
           <div className="stack" style={{ gap: 4, marginTop: 12 }}>
             {shownExams.map((e) => (
-              <div className="unitrow" key={e.id} style={e.hidden ? { opacity: 0.55 } : undefined}>
+              <div key={e.id} className="stack" style={{ gap: 0 }}>
+              {/* 학교가 날짜를 바꿨을 때 — **조용히 안 바꾼다.** 알려주고 누르게 한다.
+                  자료 만드는 일정이 이 날짜에 매달려 있어서, 모르게 바뀌면
+                  시험 사흘 전에 어긋나 있어도 모른다. */}
+              {neisDiff(e)?.any && (
+                <div className="unitrow" style={{ borderColor: "var(--amber)", borderBottom: 0, borderRadius: "9px 9px 0 0" }}>
+                  <span className="tag tag-amber">학교 일정 바뀜</span>
+                  <span className="hint" style={{ flex: 1 }}>{diffText(neisDiff(e))}</span>
+                  <button
+                    className="btn btn-sm"
+                    disabled={pending}
+                    title="내 시험 기간을 학교 일정에 맞춥니다"
+                    onClick={() => run(() => applyNeis(e.id), "학교 일정에 맞췄어요.")}
+                  >
+                    내 것에 반영
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    title="학교 일정을 떼어냅니다. 내 시험은 그대로 남아요"
+                    onClick={() => run(() => detachNeis(e.id))}
+                  >
+                    떼기
+                  </button>
+                </div>
+              )}
+              <div className="unitrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
                 {e.hidden && <span className="tag tag-muted">숨김</span>}
                 <b style={{ fontSize: 12.5 }}>
                   {e.school} {e.grade || "전체"}
                 </b>
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
                 {e.teacher && <span className="tag tag-lav">{e.teacher} 선생님</span>}
+                {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075) */}
+                <span className={`tag ${STATE_CLS[examState(e)]}`} title={
+                  examState(e) === "mine"
+                    ? "내가 적은 시험이에요. 학교 일정을 붙이면 바뀔 때 알려드립니다"
+                    : STATE_LABEL[examState(e)]
+                }>
+                  {STATE_LABEL[examState(e)]}
+                </span>
                 <span className="hint">
                   {dayShort(e.from_date)} ~ {dayShort(e.to_date)}
                 </span>
@@ -447,6 +483,7 @@ export default function ScheduleBoard({
                 >
                   삭제
                 </button>
+              </div>
               </div>
             ))}
           </div>

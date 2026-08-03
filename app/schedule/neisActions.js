@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns,
 } from "@/lib/neis";
+import { matchExam } from "@/lib/exams";
 
 /**
  * 나이스에서 학사일정을 받아온다.
@@ -366,6 +367,35 @@ export async function importSchedule(from, to, schoolId = null) {
       }
       if (stale.length) notes.push(`${school.name}: 옛 줄 ${stale.length}건 정리`);
     }
+    // 붙여둔 시험이 있으면 **학교가 지금 뭐라고 하는지**만 새로 적어둔다 (0075).
+    //   내 기간·이름·영어시험일·등급컷은 손대지 않는다. 달라졌으면 화면이
+    //   "학교 일정이 바뀌었어요 [반영]" 으로 알려주고, 누르는 것은 원장님이다.
+    //   여기서 조용히 고쳐버리면 시험 사흘 전에 자료 일정이 어긋나 있어도 모른다.
+    {
+      const bySid = new Map(mine.map((t) => [t.source_id, t]));
+      const { data: linked } = await supabase
+        .from("exam_periods")
+        .select("id, neis_source_id, neis_from, neis_to, neis_name")
+        .in("neis_source_id", [...bySid.keys()].slice(0, 300));
+      let moved = 0;
+      for (const ex of linked || []) {
+        const t = bySid.get(ex.neis_source_id);
+        if (!t) continue;
+        const from = t.due_on || null;
+        const to = t.end_on || t.due_on || null;
+        if (ex.neis_from === from && ex.neis_to === to && ex.neis_name === t.title) continue;
+        await supabase
+          .from("exam_periods")
+          .update({
+            neis_from: from, neis_to: to, neis_name: t.title,
+            neis_seen_at: new Date().toISOString(),
+          })
+          .eq("id", ex.id);
+        moved += 1;
+      }
+      if (moved) notes.push(`${school.name}: 학교 시험 일정 ${moved}건이 바뀌었어요 — 학사일정에서 확인해주세요`);
+    }
+
     added += rows.length;
     notes.push(`${school.name}: ${mine.length}건`);
   }
@@ -430,7 +460,13 @@ export async function importSchedule(from, to, schoolId = null) {
 }
 
 /**
- * 받아온 시험 일정을 우리 시험 기간으로 넣는다.
+ * 받아온 시험 일정으로 **내 시험을 만들거나, 이미 있는 내 시험에 붙인다** (0075).
+ *
+ * 방향이 중요하다. 나이스 일정이 주인이 아니라 **내 시험이 주인**이고,
+ * 학교 일정은 거기 붙는 참고다. 그래서
+ *   · 겹치는 내 시험이 이미 있으면 → **새로 만들지 않고 붙이기만** 한다.
+ *     내가 적어둔 이름·영어 시험일·등급컷·출제 선생님이 그대로 남는다.
+ *   · 없으면 → 내 시험을 새로 만들고, 거기에 학교 일정을 붙인다.
  *
  * 자동으로 넣지 않고 **원장님이 고른 것만** 넣는다. 영어 시험일은 나이스에
  * 없어서 어차피 직접 채우셔야 하고, 학교가 '고사' 라고만 적어둔 것이
@@ -438,7 +474,7 @@ export async function importSchedule(from, to, schoolId = null) {
  */
 export async function addExamPeriods(list = []) {
   const rows = (list || []).filter((e) => e?.school && e?.from_date && e?.to_date);
-  if (rows.length === 0) return { error: null, added: 0 };
+  if (rows.length === 0) return { error: null, added: 0, linked: 0 };
 
   const supabase = createClient();
   const guard = await requireStaff(supabase);
@@ -448,30 +484,64 @@ export async function addExamPeriods(list = []) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let added = 0;
-  for (const e of rows) {
-    // 같은 학교·같은 기간이 이미 있으면 또 만들지 않는다
-    const { data: exist } = await supabase
-      .from("exam_periods")
-      .select("id")
-      .eq("school", e.school)
-      .eq("from_date", e.from_date)
-      .limit(1);
-    if (exist?.length) continue;
+  // 내가 이미 들고 있는 시험들 — 겹치면 여기에 붙인다
+  let { data: existing } = await supabase
+    .from("exam_periods")
+    .select("id, school, from_date, to_date, neis_source_id");
+  // 0075 전이면 붙일 칸이 없다 — 예전처럼 만들기만 한다
+  let canLink = true;
+  if (!existing) {
+    canLink = false;
+    ({ data: existing } = await supabase
+      .from("exam_periods").select("id, school, from_date, to_date"));
+  }
+  const pool = existing || [];
 
-    const { error } = await supabase.from("exam_periods").insert({
+  const neisPatch = (e) => ({
+    neis_source_id: e.source_id || null,
+    neis_from: e.from_date,
+    neis_to: e.to_date,
+    neis_name: e.name || null,
+    neis_seen_at: new Date().toISOString(),
+  });
+
+  let added = 0;
+  let linked = 0;
+  for (const e of rows) {
+    const hit = canLink ? matchExam(e, pool) : null;
+
+    if (hit) {
+      // **내 것은 안 바꾼다.** 학교가 뭐라고 하는지만 옆에 적어둔다.
+      // 날짜가 다르면 화면에서 "학교 일정이 바뀌었어요" 로 뜬다.
+      const { error } = await supabase
+        .from("exam_periods").update(neisPatch(e)).eq("id", hit.id);
+      if (error && error.code !== "23505") return { error: error.message, added, linked };
+      if (!error) { linked += 1; hit.neis_source_id = e.source_id || null; }
+      continue;
+    }
+
+    const row = {
       school: e.school,
       name: e.name || "시험",
       from_date: e.from_date,
       to_date: e.to_date,
+      source: "neis",
       created_by: user?.id || null,
-    });
-    if (error) return { error: error.message, added };
+    };
+    let { data: made, error } = await supabase
+      .from("exam_periods").insert(canLink ? { ...row, ...neisPatch(e) } : row).select("id").single();
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      ({ data: made, error } = await supabase
+        .from("exam_periods").insert(row).select("id").single());
+    }
+    if (error) return { error: error.message, added, linked };
     added += 1;
+    pool.push({ id: made.id, ...row, neis_source_id: e.source_id || null });
   }
 
   revalidatePath("/schedule");
-  return { error: null, added };
+  revalidatePath("/prep");
+  return { error: null, added, linked };
 }
 
 /** 받아온 일정만 지운다 (손으로 적은 것은 남는다) */

@@ -57,6 +57,82 @@ export async function updateExam(id, patch) {
 }
 
 /**
+ * 나이스 일정을 **내 시험에 붙인다** (0075).
+ *
+ * 붙인다고 내 것이 바뀌지는 않는다. 학교가 뭐라고 하는지를 옆에 적어둘 뿐이다.
+ * 내 기간과 다르면 화면에서 "학교 일정이 바뀌었어요" 라고 알려주고,
+ * **반영할지는 원장님이 누른다.** 조용히 바뀌면 시험 사흘 전에 자료 일정이
+ * 어긋나 있어도 모른다.
+ */
+export async function attachNeis(examId, neis = {}) {
+  if (!examId || !neis?.source_id) return { error: "붙일 일정이 없어요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("exam_periods")
+    .update({
+      neis_source_id: neis.source_id,
+      neis_from: neis.from_date || null,
+      neis_to: neis.to_date || neis.from_date || null,
+      neis_name: neis.name || null,
+      neis_seen_at: new Date().toISOString(),
+    })
+    .eq("id", examId);
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    return { error: "0075 SQL 을 먼저 실행해주세요." };
+  }
+  // 같은 일정이 다른 시험에 이미 붙어 있다
+  if (error?.code === "23505") {
+    return { error: "이 학교 일정은 다른 시험에 이미 붙어 있어요." };
+  }
+  revalidatePath("/schedule");
+  revalidatePath("/prep");
+  return ok(error);
+}
+
+/** 잘못 붙였을 때 — 내 시험은 그대로 남는다 */
+export async function detachNeis(examId) {
+  if (!examId) return { error: "id 없음" };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("exam_periods")
+    .update({
+      neis_source_id: null, neis_from: null, neis_to: null,
+      neis_name: null, neis_seen_at: null,
+    })
+    .eq("id", examId);
+  revalidatePath("/schedule");
+  return ok(error);
+}
+
+/**
+ * 학교가 바꾼 날짜를 **내 것에 반영한다.**
+ * 누를 때만 바뀐다 — 그게 이 설계의 전부다.
+ */
+export async function applyNeis(examId) {
+  if (!examId) return { error: "id 없음" };
+  const supabase = createClient();
+  const { data: e, error: readErr } = await supabase
+    .from("exam_periods")
+    .select("id, from_date, to_date, english_on, neis_from, neis_to")
+    .eq("id", examId)
+    .maybeSingle();
+  if (readErr) return ok(readErr);
+  if (!e?.neis_from) return { error: "붙여둔 학교 일정이 없어요." };
+
+  const row = { from_date: e.neis_from, to_date: e.neis_to || e.neis_from };
+  // 영어 시험일이 새 기간 밖으로 밀려나면 비운다 — 틀린 날짜를 들고 있느니
+  // 비어 있는 편이 낫다 (화면이 "영어 시험일 미정" 이라고 알려준다)
+  if (e.english_on && (e.english_on < row.from_date || e.english_on > row.to_date)) {
+    row.english_on = null;
+  }
+  const { error } = await supabase.from("exam_periods").update(row).eq("id", examId);
+  revalidatePath("/schedule");
+  revalidatePath("/prep");
+  revalidatePath("/");
+  return ok(error);
+}
+
+/**
  * 이 회차의 **등급컷**을 적는다.
  *
  * 컷은 학생 것이 아니라 **이 학교 이 회차 시험** 것이다. 여기 한 번 적으면
