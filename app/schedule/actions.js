@@ -54,8 +54,21 @@ export async function updateExam(id, patch) {
   });
   if (!row.school && "school" in row) return { error: "학교는 비울 수 없어요." };
   const supabase = createClient();
-  const { error } = await supabase.from("exam_periods").update(row).eq("id", id);
+  let { error } = await supabase.from("exam_periods").update(row).eq("id", id);
+
+  // 0076 전이면 선생님이 **한 명 칸**밖에 없다 — 한 줄로 이어 붙여 넣는다.
+  // 0074 전이면 그 칸도 없다. 그때만 SQL 을 알려드린다.
+  if (error && (error.code === "PGRST204" || error.code === "42703") && "teachers" in row) {
+    const { teachers, ...rest } = row;
+    const one = { ...rest, teacher: (teachers || []).join(", ") || null };
+    ({ error } = await supabase.from("exam_periods").update(one).eq("id", id));
+    if (error && (error.code === "PGRST204" || error.code === "42703")) {
+      return { error: "0074 · 0076 SQL 을 먼저 실행해주세요." };
+    }
+  }
   revalidatePath("/schedule");
+  revalidatePath("/schools");
+  revalidatePath("/prep");
   return ok(error);
 }
 

@@ -56,6 +56,9 @@ export default function ScheduleBoard({
   const [eng, setEng] = useState({});
   const [cutOpen, setCutOpen] = useState(null);   // 등급컷을 적는 중인 회차
   const [cuts, setCuts] = useState({});
+  const [infoOpen, setInfoOpen] = useState(null); // 선생님·특이사항을 적는 중인 회차
+  const [teach, setTeach] = useState({});
+  const [memo, setMemo] = useState({});
   const [off, setOff] = useState({ date: "", name: "", classId: "" });
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 시험도 볼까
   // 숨긴 시험은 기본으로 접어둔다 — 나이스에서 받으면 안 쓰는 것까지 다 들어온다
@@ -394,6 +397,7 @@ export default function ScheduleBoard({
                 </b>
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
                 {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
+                {e.note && <span className="hint" title={e.note}>{e.note}</span>}
                 {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075) */}
                 <span className={`tag ${STATE_CLS[examState(e)]}`} title={
                   examState(e) === "mine"
@@ -471,6 +475,54 @@ export default function ScheduleBoard({
                     title="이 시험의 등급컷 — 이 시험을 본 학생 모두에게 쓰입니다"
                   >
                     {(e.cuts || []).length ? `등급컷 ${e.cuts.join("·")}` : "등급컷 적기"}
+                  </button>
+                )}
+                {/* 출제 선생님 · 특이사항 — **이 회차** 것이다.
+                    같은 학교라도 회차마다 출제 선생님이 바뀐다. */}
+                {infoOpen === e.id ? (
+                  <>
+                    <input
+                      className="input input-sm"
+                      style={{ width: 150 }}
+                      placeholder="김선생, 박선생"
+                      title="여러 명이면 쉼표로 나눠 적으세요"
+                      value={teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || "")}
+                      onChange={(ev) => setTeach({ ...teach, [e.id]: ev.target.value })}
+                    />
+                    <input
+                      className="input input-sm"
+                      style={{ width: 190 }}
+                      placeholder="특이사항 (서술형 비중 등)"
+                      value={memo[e.id] ?? (e.note || "")}
+                      onChange={(ev) => setMemo({ ...memo, [e.id]: ev.target.value })}
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={pending}
+                      onClick={() =>
+                        run(async () => {
+                          const r = await updateExam(e.id, {
+                            teachers: teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || ""),
+                            note: memo[e.id] ?? (e.note || ""),
+                          });
+                          if (!r?.error) setInfoOpen(null);
+                          return r;
+                        })
+                      }
+                    >
+                      저장
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setInfoOpen(null)}>
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className={`btn btn-ghost btn-sm ${teacherText(e) || e.note ? "" : "muted"}`}
+                    onClick={() => setInfoOpen(e.id)}
+                    title="이 회차의 출제 선생님과 특이사항"
+                  >
+                    {teacherText(e) || e.note ? "선생님 · 특이사항 고치기" : "선생님 · 특이사항 적기"}
                   </button>
                 )}
                 <button
