@@ -638,3 +638,76 @@ a { color: inherit; }
   margin: 0 -14px 0; padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
 }
+
+/* ── 수업 스케줄 달력 ────────────────────────────────────────
+   날짜를 글자로 죽 늘어놓으면 폰에서는 읽을 수가 없다. 자리로 알게 한다.
+   칸은 손가락으로 누를 수 있어야 하므로 최소 34px 을 준다. */
+.calgrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.calhead {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+.calhead-wk { color: var(--red); opacity: 0.75; }
+.calday {
+  position: relative;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.calday:hover { border-color: var(--sky); }
+.calday-on { outline: 2px solid var(--sky); outline-offset: -1px; }
+.calnum { font-size: 12px; line-height: 1; }
+/* 수업이 없는 날은 흐리게 — 이 반과 상관없는 날이다 */
+.calday:not([class*="calday-"]) .calnum,
+.calday.calday-on:not(.calday-class):not(.calday-off):not(.calday-exam):not(.calday-eve):not(.calday-abs) .calnum {
+  opacity: 0.35;
+}
+.calday-class { background: color-mix(in srgb, var(--sky) 14%, transparent); border-color: color-mix(in srgb, var(--sky) 35%, var(--border)); }
+.calday-off   { background: color-mix(in srgb, var(--text-muted) 16%, transparent); }
+.calday-off .calnum { text-decoration: line-through; opacity: 0.6; }
+.calday-exam  { background: color-mix(in srgb, var(--amber) 20%, transparent); border-color: color-mix(in srgb, var(--amber) 45%, var(--border)); }
+.calday-eve   { background: color-mix(in srgb, var(--lav) 22%, transparent); border-color: color-mix(in srgb, var(--lav) 45%, var(--border)); }
+.calday-abs   { background: color-mix(in srgb, var(--red) 16%, transparent); border-color: color-mix(in srgb, var(--red) 42%, var(--border)); }
+/* 결석한 사람 수 — 칸 안에 이름은 못 들어간다 */
+.calbadge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--red);
+}
+.callegend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.caldot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  display: inline-block;
+}
+.caldot-class { background: color-mix(in srgb, var(--sky) 40%, transparent); }
+.caldot-off   { background: color-mix(in srgb, var(--text-muted) 40%, transparent); }
+.caldot-exam  { background: color-mix(in srgb, var(--amber) 50%, transparent); }
+.caldot-eve   { background: color-mix(in srgb, var(--lav) 50%, transparent); }
+.caldot-abs   { background: color-mix(in srgb, var(--red) 45%, transparent); }

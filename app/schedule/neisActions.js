@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns,
+  isNationwide,
 } from "@/lib/neis";
 import { matchExam } from "@/lib/exams";
 import { schoolKey, looseKey } from "@/lib/schoolName";
@@ -523,6 +524,34 @@ export async function importSchedule(from, to, schoolId = null) {
     const stale = (old || []).filter((r) => !commonRows.has(r.source_id)).map((r) => r.id);
     for (let i = 0; i < stale.length; i += 200) {
       await supabase.from("tasks").delete().in("id", stale.slice(i, i + 200));
+    }
+  }
+
+  // ── 학교별로 남아 있던 전국 공통 일정을 걷어낸다 ──────────────
+  //
+  // 전국연합학력평가 · 수능 · 모의고사는 **전국이 같은 날**이라 학교마다
+  // 표시하지 않기로 했다. 지금은 받아올 때 한 줄로 합쳐 넣지만, 그 규칙이
+  // 생기기 **전에** 받아온 줄들은 학교 이름을 달고 그대로 남아 있다.
+  //
+  // 학교별 정리는 그 학교를 다시 받아와야만 도는데, 원장님은 「반영이 안 됐다」
+  // 는 것만 보이지 어느 학교를 다시 받아와야 하는지는 알 수가 없다.
+  // 그래서 **받아올 때마다 전부 훑어서** 걷어낸다.
+  if (okSchools > 0) {
+    const { data: leftover } = await supabase
+      .from("tasks")
+      .select("id, title, source_id")
+      .eq("source", "neis")
+      .not("source_id", "like", "common:%")
+      .gte("due_on", from)
+      .lte("due_on", to);
+    const drop = (leftover || [])
+      .filter((r) => isNationwide(r.title || ""))
+      .map((r) => r.id);
+    for (let i = 0; i < drop.length; i += 200) {
+      await supabase.from("tasks").delete().in("id", drop.slice(i, i + 200));
+    }
+    if (drop.length) {
+      notes.push(`학교별로 남아 있던 전국 공통 일정 ${drop.length}건을 정리했어요`);
     }
   }
 

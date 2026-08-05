@@ -373,12 +373,15 @@ export default function TuitionBoard({
                       <thead>
                         <tr>
                           <th style={{ minWidth: 90 }}>학생</th>
+                          {/* **수납이 두 번째다.** 전에는 여덟째 칸이라, 폰에서는
+                              가로로 한참 밀어야 나왔다 — 「납부 버튼이 없다」 는
+                              말이 여기서 나왔다. 이 표에서 매일 누르는 것은 이것 하나다 */}
+                          <th style={{ width: 96 }}>수납</th>
                           <th style={{ width: 70 }}>회차</th>
                           <th style={{ width: 84 }}>보강 필요</th>
                           <th style={{ width: 100 }}>등원 시작</th>
                           <th style={{ width: 100 }}>퇴원</th>
                           <th style={{ width: 110 }}>금액</th>
-                          <th style={{ width: 96 }}>수납</th>
                           <th style={{ width: 70 }}></th>
                         </tr>
                       </thead>
@@ -388,6 +391,28 @@ export default function TuitionBoard({
                           return (
                             <tr key={r.student.id}>
                               <td style={{ fontWeight: 600 }}>{r.student.name}</td>
+                              {/* 받았는가 — 한 번 눌러 뒤집는다. 엑셀로 올린 것도 여기 나온다 */}
+                              <td>
+                                <button
+                                  className={`btn btn-sm ${r.paid ? "btn-ghost" : ""}`}
+                                  style={
+                                    r.paid
+                                      ? { color: "var(--mint)", borderColor: "var(--mint)" }
+                                      : { color: "var(--red)", borderColor: "var(--red)" }
+                                  }
+                                  title={
+                                    r.paid
+                                      ? `${r.pay?.paid_on || ""} 받음${r.pay?.source === "결제선생" ? " (결제선생)" : ""}`
+                                      : r.pay?.note || "아직 안 받음 — 누르면 받음으로"
+                                  }
+                                  onClick={() =>
+                                    run(() => setPaid(r.student.id, ym, !r.paid, r.amount))
+                                  }
+                                  disabled={pending || !payReady}
+                                >
+                                  {r.paid ? "받음" : "미납"}
+                                </button>
+                              </td>
                               <td>
                                 {r.sessions}/{r.base}
                                 {!r.full && <span className="tag tag-muted" style={{ marginLeft: 4 }}>일부</span>}
@@ -437,7 +462,6 @@ export default function TuitionBoard({
                                       onChange={(e) => setSDraft({ ...sDraft, tuition: e.target.value })}
                                     />
                                   </td>
-                                  <td className="muted">—</td>
                                   <td>
                                     <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
                                       <button
@@ -477,28 +501,6 @@ export default function TuitionBoard({
                                     {r.student.tuition ? (
                                       <span className="tag tag-lav" style={{ marginLeft: 4 }}>개별</span>
                                     ) : null}
-                                  </td>
-                                  {/* 받았는가 — 한 번 눌러 뒤집는다. 엑셀로 올린 것도 여기 나온다 */}
-                                  <td>
-                                    <button
-                                      className={`btn btn-sm ${r.paid ? "btn-ghost" : ""}`}
-                                      style={
-                                        r.paid
-                                          ? { color: "var(--mint)", borderColor: "var(--mint)" }
-                                          : { color: "var(--red)", borderColor: "var(--red)" }
-                                      }
-                                      title={
-                                        r.paid
-                                          ? `${r.pay?.paid_on || ""} 받음${r.pay?.source === "결제선생" ? " (결제선생)" : ""}`
-                                          : r.pay?.note || "아직 안 받음 — 누르면 받음으로"
-                                      }
-                                      onClick={() =>
-                                        run(() => setPaid(r.student.id, ym, !r.paid, r.amount))
-                                      }
-                                      disabled={pending || !payReady}
-                                    >
-                                      {r.paid ? "받음" : "미납"}
-                                    </button>
                                   </td>
                                   <td>
                                     <button

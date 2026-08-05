@@ -8,6 +8,7 @@ import {
   markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday, removeHolidays,
 } from "./actions";
 import { shortLabel, monthDay } from "@/lib/day";
+import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 
@@ -561,7 +562,7 @@ export default function ScheduleBoard({
 
       {show === "schedule" && (
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
-        {reviews.map(({ klass, roster, months: ms }) => (
+        {reviews.map(({ klass, roster, months: ms, absents = [] }) => (
           <div className="card" key={klass.id}>
             <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
               <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
@@ -727,35 +728,13 @@ export default function ScheduleBoard({
                     </div>
                   )}
 
-                  <div className="row" style={{ gap: 4, marginTop: 6 }}>
-                    {m.all.map((d) => {
-                      const isOff = m.off.includes(d);
-                      const isExam = m.inExam.includes(d);
-                      const isEve = m.engEve.some((x) => x.date === d);
-                      return (
-                        <span
-                          key={d}
-                          className={`tag ${
-                            isOff ? "tag-muted" : isEve ? "tag-lav" : isExam ? "tag-amber" : "tag-sky"
-                          }`}
-                          style={isOff ? { textDecoration: "line-through" } : undefined}
-                          title={
-                            isOff ? "휴강" : isEve ? "영어 시험 전날" : isExam ? "시험 기간" : "수업"
-                          }
-                        >
-                          {dayShort(d)}
-                        </span>
-                      );
-                    })}
-                    {/* 정규수업일이 아닌 영어 시험 전날도 보여준다 */}
-                    {m.engEve
-                      .filter((x) => !x.isClassDay)
-                      .map((x) => (
-                        <span key={x.date} className="tag tag-lav" title="정규수업 아님 · 등원 필요">
-                          ＋{dayShort(x.date)}
-                        </span>
-                      ))}
-                  </div>
+                  {/* 날짜를 글자로 늘어놓지 않는다 — **달력으로** 본다.
+                      휴강·시험 기간·결석이 어느 자리인지 눈으로 바로 잡히고,
+                      누르면 누가 빠지는지 아래에 적힌다 (폰에는 올릴 마우스가 없다) */}
+                  <MonthGrid
+                    month={m}
+                    absents={absents.filter((a) => a.date.startsWith(m.ym))}
+                  />
                 </div>
               ))}
             </div>

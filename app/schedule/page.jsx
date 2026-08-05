@@ -83,14 +83,42 @@ export default async function SchedulePage() {
   const settings = await loadSettings(supabase);
   const makeupDays = settings.schedule?.makeupDays || [];
 
+  // 결석 — 달력에 **누가** 빠지는지 적으려면 이름이 있어야 한다.
+  // (전에는 「결석 예정」 이라고만 떠서, 누구 이야기인지 알려면 다른 화면을
+  //  열어야 했다. 폰에서는 마우스를 올릴 수도 없다)
+  let attQ = await supabase
+    .from("attendance")
+    .select("student_id, date, status, reason, planned")
+    .eq("status", "absent")
+    .gte("date", from)
+    .lte("date", to);
+  if (attQ.error) {
+    attQ = await supabase
+      .from("attendance")
+      .select("student_id, date, status")
+      .eq("status", "absent")
+      .gte("date", from)
+      .lte("date", to);
+  }
+  const absOf = new Map();          // student_id → [{ date, reason, planned }]
+  (attQ.error ? [] : attQ.data || []).forEach((a) => {
+    if (!absOf.has(a.student_id)) absOf.set(a.student_id, []);
+    absOf.get(a.student_id).push({ date: a.date, reason: a.reason || "", planned: !!a.planned });
+  });
+
   const reviews = (classes || []).map((klass) => {
     const roster = (members || [])
       .filter((m) => m.class_id === klass.id)
       .map((m) => studentById.get(m.student_id))
       .filter(Boolean);
+    // 이 반 아이들의 결석만 (달력은 반마다 하나씩 그린다)
+    const absents = roster.flatMap((s) =>
+      (absOf.get(s.id) || []).map((a) => ({ ...a, name: s.name }))
+    );
     return {
       klass,
       roster: roster.length,
+      absents,
       // 숨긴 시험은 **결석 예상·알림에서 뺀다.** 「숨기기」 를 눌러도 계산에는
       // 그대로 남아 있어서, 안 보는 시험 때문에 결석 예정이 뜨고 있었다.
       months: reviewClass(
