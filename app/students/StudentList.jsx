@@ -423,7 +423,9 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     if (!s) return null;
     return (
       <aside className={`card split-panel ${folded ? "split-folded" : ""}`}>
-        <div className="row" style={{ gap: 6, alignItems: "center" }}>
+        {/* 판이 화면보다 길면 안쪽이 스크롤된다. 그때 **이름과 닫기가 사라지면**
+            지금 누구를 보고 있는지 알 수 없다. 머리줄은 붙여둔다. */}
+        <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
           <button
             className="btn btn-ghost btn-sm split-fold"
             onClick={() => setFolded(!folded)}

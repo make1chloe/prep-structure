@@ -6,6 +6,7 @@ import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns,
 } from "@/lib/neis";
 import { matchExam } from "@/lib/exams";
+import { schoolKey } from "@/lib/schoolName";
 
 /**
  * 나이스에서 학사일정을 받아온다.
@@ -157,20 +158,35 @@ export async function addSchool(s = {}) {
   // school_key 유일 인덱스) **그 줄에 코드를 붙여준다** — 손으로 넣어둔
   // 학교에 나이스 코드가 생기는 것이라, 새 줄을 만드는 것보다 낫다.
   const T = await schoolTable(supabase);
+  let attachedTo = null;   // 이미 있던 줄에 코드를 붙였으면 그 이름
+
   const put = async (r) => {
+    // 1) 같은 코드가 이미 있으면 그 줄을 고친다
     const found = await supabase
       .from(T).select("id")
       .eq("atpt_code", r.atpt_code).eq("schul_code", r.schul_code).maybeSingle();
-    if (found.data?.id) {
-      return supabase.from(T).update(r).eq("id", found.data.id);
-    }
+    if (found.data?.id) return supabase.from(T).update(r).eq("id", found.data.id);
+
     const ins = await supabase.from(T).insert(r);
-    if (ins.error?.code === "23505") {
-      // 같은 이름이 이미 있다 — 그 줄에 코드를 붙인다
-      const same = await supabase.from(T).select("id").eq("name", r.name).maybeSingle();
-      if (same.data?.id) return supabase.from(T).update(r).eq("id", same.data.id);
-    }
-    return ins;
+    if (ins.error?.code !== "23505") return ins;
+
+    // 2) **이름이 겹쳐서 막힌 것이다** (0076 의 school_key 유일 인덱스).
+    //
+    //    「박문중」 을 손으로 넣어두고 나이스에서 「박문중학교」 를 넣으면
+    //    열쇠가 둘 다 `박문중` 이라 막힌다. 이름은 다르니 이름으로 찾으면 못 찾는다 —
+    //    그래서 **열쇠로** 찾아 그 줄에 코드를 붙인다.
+    //
+    //    이름은 원장님이 쓰시던 것을 그대로 둔다. 이름을 바꾸는 것은 학생·시험까지
+    //    따라 바뀌는 일이라, 넣기 한 번에 조용히 일어나면 안 된다.
+    const all = await supabase.from(T).select("id, name");
+    if (all.error) return ins;
+    const key = schoolKey(r.name);
+    const hit = (all.data || []).find((x) => schoolKey(x.name) === key);
+    if (!hit) return ins;
+
+    attachedTo = hit.name;
+    const { name: _drop, ...codes } = r;      // 이름은 건드리지 않는다
+    return supabase.from(T).update(codes).eq("id", hit.id);
   };
 
   let { error } = await put(row);
@@ -181,7 +197,8 @@ export async function addSchool(s = {}) {
   }
   if (needSql(error)) return { error: SQL };
   revalidatePath("/schedule");
-  return { error: error ? error.message : null };
+  revalidatePath("/schools");
+  return { error: error ? error.message : null, attachedTo, name: row.name };
 }
 
 /**

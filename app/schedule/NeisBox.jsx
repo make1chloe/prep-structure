@@ -293,7 +293,15 @@ export default function NeisBox({ months = [] }) {
                             `주소를 보고 다른 학교가 맞는지 확인해주세요.\n\n${s.address || ""}\n\n` +
                             `그래도 넣을까요?`
                           )) return;
-                          run(() => addSchool(s), () => { setFound(null); setQ(""); reload(); });
+                          run(() => addSchool(s), (r) => {
+                            if (r?.attachedTo) {
+                              alert(
+                                `이미 있던 「${r.attachedTo}」 에 나이스 코드를 붙였습니다.\n\n` +
+                                `같은 학교라 새로 만들지 않았어요 — 이제 그 학교로 학사일정을 받아올 수 있습니다.`
+                              );
+                            }
+                            setFound(null); setQ(""); reload();
+                          }, true);
                         }}
                       >
                         넣기

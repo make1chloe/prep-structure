@@ -628,3 +628,13 @@ a { color: inherit; }
 /* 재원생 표 — 바깥에 overflow:hidden 을 걸면 오른쪽 판의 sticky 가 죽는다.
    그래서 모서리 다듬기는 표를 감싼 안쪽에서 한다. */
 .splitview > .tblwrap { border-radius: var(--radius); overflow: hidden; }
+
+/* 오른쪽 판의 머리줄 — 판이 화면보다 길어 안쪽이 스크롤될 때도
+   이름과 「닫기」 는 남아 있어야 한다. 누구를 보고 있는지가 사라지면 안 된다. */
+.split-panel { padding-top: 0; }
+.split-head {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface);
+  margin: 0 -14px 0; padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
