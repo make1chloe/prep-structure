@@ -575,6 +575,7 @@ a { color: inherit; }
 .cal-amber { background: var(--amber-soft); color: var(--amber); }
 .cal-mint { background: var(--mint-soft); color: var(--mint); }
 .cal-muted { background: var(--surface-2); color: var(--text-muted); }
+.cal-red { background: var(--red-soft); color: var(--red); }
 @media (max-width: 700px) {
   /* 좁으면 칸이 손톱만 해진다. 글자를 줄이고 높이를 낮춘다 */
   .cal-cell, .cal-blank { min-height: 62px; padding: 3px 3px 4px; }

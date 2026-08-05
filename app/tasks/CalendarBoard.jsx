@@ -21,6 +21,20 @@ const CAT_CLS = {
   기타: "cal-muted",
 };
 
+/**
+ * 다른 화면에서 온 것들 — 각자 다른 표에 있지만 원장님 하루에는 같이 있다.
+ * 글자만으로는 한 칸 안에서 구별이 안 되므로 **그림 하나씩** 붙인다.
+ */
+const SOURCE = {
+  시험: { icon: "📕", cls: "cal-amber" },
+  휴강: { icon: "🚫", cls: "cal-muted" },
+  상담: { icon: "🤝", cls: "cal-mint" },
+  레테: { icon: "📝", cls: "cal-mint" },
+  보강: { icon: "🔁", cls: "cal-sky" },
+  결석: { icon: "🏠", cls: "cal-red" },
+  기타: { icon: "•", cls: "cal-muted" },
+};
+
 function daysOf(ym) {
   const [y, m] = ym.split("-").map(Number);
   const first = new Date(Date.UTC(y, m - 1, 1));
@@ -85,12 +99,13 @@ export default function CalendarBoard({
     );
 
   linked.forEach((l) => {
+    const mark = SOURCE[l.source] || SOURCE.기타;
     let d = l.from;
     while (d <= l.to) {
       put(d, {
         key: `${l.key}-${d}`,
-        label: `${l.source === "시험" ? "📕" : "🚫"} ${l.title}`,
-        cls: l.source === "시험" ? "cal-amber" : "cal-muted",
+        label: `${mark.icon} ${l.title}`,
+        cls: mark.cls,
         href: l.href,
       });
       const n = new Date(`${d}T00:00:00Z`);
@@ -112,6 +127,16 @@ export default function CalendarBoard({
         )}
         <span className="spacer" />
         <span className="hint">눌러서 고치는 것은 목록에서 합니다</span>
+      </div>
+
+      {/* 그림이 무슨 뜻인지 — 한 칸이 좁아 글자로는 다 못 적는다 */}
+      <div className="row" style={{ gap: 8, margin: "0 0 8px", flexWrap: "wrap" }}>
+        {[
+          ["📕", "시험"], ["🚫", "휴강"], ["🤝", "방문상담"], ["📝", "레벨테스트"],
+          ["🔁", "보강"], ["🏠", "결석"], ["☑", "할일"],
+        ].map(([i, l]) => (
+          <span className="hint" key={l} style={{ fontSize: 11.5 }}>{i} {l}</span>
+        ))}
       </div>
 
       <div className="cal">

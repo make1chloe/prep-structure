@@ -200,6 +200,73 @@ export default async function TasksPage({ searchParams }) {
     if (isCal) holSel = holSel.lte("date", mTo);
     const holQ = await holSel.order("date", { ascending: true });
 
+    // ── 달력에만 더 붙이는 것 ─────────────────────────────
+    // 방문상담 · 레벨테스트 · 보강 · 결석은 각자 다른 표에 있다. 그래도
+    // 원장님 하루에는 같이 들어 있으므로 달력에서는 같이 보여야 한다.
+    // (목록에서는 안 붙인다 — 거기서 고칠 수 있는 것이 아니라 시끄러워진다)
+    let extra = [];
+    if (isCal) {
+      const inqQ = await supabase
+        .from("inquiries")
+        .select("id, name, status, consult_on, consult_at, test_on, test_at")
+        .or(`and(consult_on.gte.${mFrom},consult_on.lte.${mTo}),and(test_on.gte.${mFrom},test_on.lte.${mTo})`);
+      (inqQ.error ? [] : inqQ.data || []).forEach((q) => {
+        if (q.consult_on >= mFrom && q.consult_on <= mTo) {
+          extra.push({
+            key: `inq-c-${q.id}`,
+            from: q.consult_on,
+            to: q.consult_on,
+            title: `${q.consult_at ? `${q.consult_at.slice(0, 5)} ` : ""}${q.name} 방문상담`,
+            source: "상담",
+            href: "/consult",
+          });
+        }
+        if (q.test_on && q.test_on >= mFrom && q.test_on <= mTo) {
+          extra.push({
+            key: `inq-t-${q.id}`,
+            from: q.test_on,
+            to: q.test_on,
+            title: `${q.test_at ? `${q.test_at.slice(0, 5)} ` : ""}${q.name} 레벨테스트`,
+            source: "레테",
+            href: "/consult",
+          });
+        }
+      });
+
+      // 보강 · 결석 — 학생 이름이 붙어야 쓸모가 있다
+      let attQ = await supabase
+        .from("attendance")
+        .select("id, student_id, date, status, reason, makeup_time, planned")
+        .in("status", ["makeup", "absent"])
+        .gte("date", mFrom)
+        .lte("date", mTo);
+      if (attQ.error) {
+        attQ = await supabase
+          .from("attendance")
+          .select("id, student_id, date, status")
+          .in("status", ["makeup", "absent"])
+          .gte("date", mFrom)
+          .lte("date", mTo);
+      }
+      const nameOf = new Map((students || []).map((x) => [x.id, x.name]));
+      (attQ.error ? [] : attQ.data || []).forEach((a) => {
+        const who = nameOf.get(a.student_id);
+        if (!who) return;                      // 퇴원생 기록은 달력에 안 띄운다
+        const t = a.makeup_time ? `${a.makeup_time.slice(0, 5)} ` : "";
+        extra.push({
+          key: `att-${a.id || `${a.student_id}-${a.date}`}`,
+          from: a.date,
+          to: a.date,
+          title:
+            a.status === "makeup"
+              ? `${t}${who} 보강`
+              : `${who} 결석${a.planned ? " 예정" : ""}${a.reason ? ` (${a.reason})` : ""}`,
+          source: a.status === "makeup" ? "보강" : "결석",
+          href: `/today?d=${a.date}&open=${a.student_id}`,
+        });
+      });
+    }
+
     linked = [
       ...(examQ.error ? [] : examQ.data || [])
         .filter((e) => !hiddenExams.has(e.id))   // 숨긴 시험은 뺀다
@@ -221,6 +288,7 @@ export default async function TasksPage({ searchParams }) {
         source: "휴강",
         href: "/schedule",
       })),
+      ...extra,
     ].sort((a, b) => a.from.localeCompare(b.from));
   }
 
