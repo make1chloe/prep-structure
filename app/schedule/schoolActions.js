@@ -105,9 +105,15 @@ export async function mergeSchools(keepId, dropId) {
   if (!drop) return { error: "없앨 학교를 못 찾았어요." };
 
   // 학생·시험을 먼저 옮긴다. 방아쇠가 school 글자 칸도 같이 고쳐준다.
+  //
+  // **몇 개를 옮겼는지 세어서 돌려준다.** 예전에는 아무것도 안 돌려줘서,
+  // 실패해도 성공해도 화면이 똑같아 보였다 — 「눌러도 아무 일이 없다」 가 그것이다.
+  const moved = {};
   for (const t of ["students", "exam_periods"]) {
-    const { error } = await supabase.from(t).update({ school_id: keepId }).eq("school_id", dropId);
-    if (error) return { error: `${t}: ${error.message}` };
+    const { data, error } = await supabase
+      .from(t).update({ school_id: keepId }).eq("school_id", dropId).select("id");
+    if (error) return { error: `${t} 를 옮기지 못했어요: ${error.message}` };
+    moved[t] = (data || []).length;
   }
 
   const { data: keep } = await supabase
@@ -115,11 +121,30 @@ export async function mergeSchools(keepId, dropId) {
   const aliases = [...new Set([...(keep?.aliases || []), ...(drop.aliases || []), drop.name])];
   await supabase.from("schools").update({ aliases }).eq("id", keepId);
 
-  const { error } = await supabase.from("schools").delete().eq("id", dropId);
+  // 지운 줄을 **되돌려받아서** 진짜 지워졌는지 본다. RLS 에 막히면 오류 없이
+  // 0줄이 지워진다 — 그게 「눌러도 그대로」 의 가장 흔한 모습이다.
+  const { data: gone, error } = await supabase
+    .from("schools").delete().eq("id", dropId).select("id");
+  if (error) return { error: `학교를 지우지 못했어요: ${error.message}` };
+  if (!gone || gone.length === 0) {
+    return {
+      error:
+        `「${drop.name}」 를 지우지 못했어요 (막혔습니다). ` +
+        `학생 ${moved.students || 0}명 · 시험 ${moved.exam_periods || 0}건은 옮겼습니다. ` +
+        `새로고침 뒤 다시 눌러보시고, 그래도 그대로면 알려주세요.`,
+    };
+  }
+
   revalidatePath("/schedule");
+  revalidatePath("/schools");
   revalidatePath("/students");
   revalidatePath("/prep");
-  return ok(error);
+  return {
+    error: null,
+    students: moved.students || 0,
+    exams: moved.exam_periods || 0,
+    name: drop.name,
+  };
 }
 
 /** 학교를 손으로 넣는다 — 나이스에 없는 학교도 있다 (전학 오기 전 학교) */

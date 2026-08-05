@@ -41,6 +41,9 @@ export default function NeisBox({ months = [] }) {
 
   // 같은 학교로 보이는 것 — 지역 이름(인천)까지 떼고 견준다
   const dups = schoolAlike(mine.map((s) => s.name));
+  // 손으로 고르는 합치기 — 짐작이 빗나간 짝도 합칠 수 있어야 한다
+  const [mergeId, setMergeId] = useState(null);
+  const [pick, setPick] = useState({});
   const twinsOf = (s) =>
     mine.filter((x) => x.id !== s.id && looseKey(x.name) === looseKey(s.name));
   useEffect(() => { importedSummary().then(setHave); }, []);
@@ -49,11 +52,17 @@ export default function NeisBox({ months = [] }) {
     importedSummary().then(setHave);
   };
 
-  function run(fn, after) {
+  function run(fn, after, loud = false) {
     setErr("");
     startTransition(async () => {
       const res = await fn();
-      if (res?.error) { setErr(res.error); return; }
+      if (res?.error) {
+        setErr(res.error);
+        // 목록이 길어서 카드 맨 위의 빨간 글씨는 **화면 밖**에 있을 때가 많다.
+        // 눌렀는데 아무 일도 없는 것처럼 보이던 이유가 그것이다.
+        if (loud) alert(res.error);
+        return;
+      }
       after?.(res);
       router.refresh();
     });
@@ -352,7 +361,58 @@ export default function NeisBox({ months = [] }) {
                   {[s.atpt_name, s.address].filter(Boolean).join(" · ")}
                 </span>
                 <span className="hint mono" style={{ fontSize: 11 }}>{s.schul_code}</span>
-                {twinsOf(s).map((t) => (
+                {/* 짐작이 맞은 짝은 단추로 바로. 아니면 아래 「합치기」 로 골라서 */}
+                {mergeId === s.id ? (
+                  <>
+                    <select
+                      className="input input-sm"
+                      style={{ width: 190 }}
+                      value={pick[s.id] || ""}
+                      onChange={(e) => setPick({ ...pick, [s.id]: e.target.value })}
+                    >
+                      <option value="">이 학교에 합칠 학교…</option>
+                      {mine
+                        .filter((x) => x.id !== s.id)
+                        .map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name}
+                            {looseKey(o.name) === looseKey(s.name) ? " — 같은 학교로 보임" : ""}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={pending || !pick[s.id]}
+                      onClick={() => {
+                        const t = mine.find((x) => x.id === pick[s.id]);
+                        if (!t) return;
+                        if (!confirm(
+                          `「${t.name}」 를 「${s.name}」 에 합칩니다.\n\n` +
+                          `학생·시험·일정이 「${s.name}」 으로 옮겨가고,\n` +
+                          `「${t.name}」 는 별칭으로 남습니다.\n\n합칠까요?`
+                        )) return;
+                        setMergeId(null);
+                        run(() => mergeSchools(s.id, t.id), (r) => {
+                          alert(`합쳤습니다.\n\n학생 ${r?.students || 0}명 · 시험 ${r?.exams || 0}건이 「${s.name}」 으로 옮겨갔어요.`);
+                          reload();
+                        }, true);
+                      }}
+                    >
+                      합치기
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setMergeId(null)}>취소</button>
+                  </>
+                ) : (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending || mine.length < 2}
+                    title="다른 학교의 학생·시험·일정을 이 학교로 모읍니다"
+                    onClick={() => setMergeId(s.id)}
+                  >
+                    합치기…
+                  </button>
+                )}
+                {mergeId !== s.id && twinsOf(s).map((t) => (
                   <button
                     key={t.id}
                     className="btn btn-sm"
@@ -364,7 +424,10 @@ export default function NeisBox({ months = [] }) {
                         `학생·시험·일정이 「${s.name}」 으로 옮겨가고,\n` +
                         `「${t.name}」 는 별칭으로 남습니다 (옛 이름으로도 찾을 수 있어요).\n\n합칠까요?`
                       )) return;
-                      run(() => mergeSchools(s.id, t.id), reload);
+                      run(() => mergeSchools(s.id, t.id), (r) => {
+                        alert(`합쳤습니다.\n\n학생 ${r?.students || 0}명 · 시험 ${r?.exams || 0}건이 「${s.name}」 으로 옮겨갔어요.`);
+                        reload();
+                      }, true);
                     }}
                   >
                     {t.name} 합치기
