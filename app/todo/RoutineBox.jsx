@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveRoutine, deleteRoutine } from "./routineActions";
-import { KINDS, describe } from "@/lib/todoRoutine";
+import { KINDS, describe, byDate } from "@/lib/todoRoutine";
 
 /**
  * **되풀이되는 할일** — 학습 항목(기본 학습 목록)과 같은 자리다.
@@ -19,7 +19,8 @@ import { KINDS, describe } from "@/lib/todoRoutine";
 const DOW = ["월", "화", "수", "목", "금", "토", "일"];
 const BLANK = {
   title: "", repeat_kind: "monthly", dows: [], day_of_month: "",
-  month: "", lead_days: 0, todo_category_id: "", priority: 0, note: "", active: true,
+  month: "", lead_days: 0, lead_units: 2, book_area: "",
+  todo_category_id: "", priority: 0, note: "", active: true,
 };
 
 export default function RoutineBox({ rows = [], categories = [], error = null }) {
@@ -43,6 +44,8 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
       day_of_month: r.day_of_month ?? "",
       month: r.month ?? "",
       lead_days: r.lead_days ?? 0,
+      lead_units: r.lead_units ?? 2,
+      book_area: r.book_area || "",
       todo_category_id: r.todo_category_id || "",
       priority: r.priority ?? 0,
       note: r.note || "",
@@ -61,6 +64,8 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
 
   const weekly = draft.repeat_kind === "weekly";
   const yearly = draft.repeat_kind === "yearly";
+  const onDate = byDate(draft.repeat_kind);
+  const bookEnd = draft.repeat_kind === "book_end";
 
   return (
     <div className="card" style={{ marginTop: 12 }}>
@@ -83,8 +88,13 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
 
           {rows.length === 0 && !error && editId === null && (
             <p className="hint" style={{ margin: "8px 0 0" }}>
-              아직 없습니다. 예를 들면 — <b>매달 25일 수강료 안내</b>,{" "}
-              <b>매주 월요일 교재 재고 확인</b>, <b>매년 3월 학사일정 받아오기</b>.
+              아직 없습니다. 예를 들면 —
+              <br />
+              <b>매달 25일</b> 수강료 안내 · <b>매주 월요일</b> 교재 재고 확인
+              <br />
+              <b>신규 학생</b> 교재 안내 보내기 · 반 배정 · 계정 만들기
+              <br />
+              <b>단어 교재가 2단원 남으면</b> 시험지 인쇄 · 클래스카드 플래너 설정
             </p>
           )}
 
@@ -119,19 +129,42 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                   />
                 </div>
 
-                <div className="row" style={{ gap: 4 }}>
-                  {KINDS.map((k) => (
-                    <button
-                      key={k.key}
-                      className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-primary" : "btn-ghost"}`}
-                      onClick={() => setDraft({ ...draft, repeat_kind: k.key })}
-                    >
-                      {k.label}
-                    </button>
-                  ))}
+                {/* **언제 생기나.** 날짜로 되풀이하는 것과, 사건이 일어났을 때
+                    생기는 것을 갈라 놓는다 — 같은 줄에 두면 「매주」 옆에
+                    「신규 학생」 이 붙어서 무엇을 고르는 자리인지 흐려진다 */}
+                <div className="stack" style={{ gap: 4 }}>
+                  <div className="row" style={{ gap: 4, alignItems: "center" }}>
+                    <span className="hint" style={{ minWidth: 40 }}>날짜</span>
+                    {KINDS.filter((k) => k.when === "date").map((k) => (
+                      <button
+                        key={k.key}
+                        className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                        onClick={() => setDraft({ ...draft, repeat_kind: k.key })}
+                      >
+                        {k.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="row" style={{ gap: 4, alignItems: "center" }}>
+                    <span className="hint" style={{ minWidth: 40 }}>사건</span>
+                    {KINDS.filter((k) => k.when === "event").map((k) => (
+                      <button
+                        key={k.key}
+                        className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                        title={k.hint}
+                        onClick={() => setDraft({ ...draft, repeat_kind: k.key })}
+                      >
+                        {k.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+                    {KINDS.find((k) => k.key === draft.repeat_kind)?.hint ||
+                      "정한 날짜마다 할일이 생깁니다."}
+                  </p>
                 </div>
 
-                {weekly ? (
+                {!onDate ? null : weekly ? (
                   <div className="row" style={{ gap: 3 }}>
                     {DOW.map((d) => (
                       <button
@@ -183,16 +216,43 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                   </div>
                 )}
 
+                {bookEnd && (
+                  <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <span className="hint">몇 단원 남았을 때</span>
+                    <input
+                      className="input input-sm"
+                      style={{ width: 60, textAlign: "center" }}
+                      inputMode="numeric"
+                      value={draft.lead_units}
+                      onChange={(e) => setDraft({ ...draft, lead_units: e.target.value.replace(/[^\d]/g, "") })}
+                    />
+                    <span className="hint">단원 (0이면 다 끝난 뒤)</span>
+                    <span className="hint">· 교재 영역</span>
+                    <input
+                      className="input input-sm"
+                      style={{ width: 96 }}
+                      placeholder="단어"
+                      value={draft.book_area}
+                      onChange={(e) => setDraft({ ...draft, book_area: e.target.value })}
+                    />
+                    <span className="hint" style={{ fontSize: 11.5 }}>비우면 모든 교재</span>
+                  </div>
+                )}
+
                 <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <span className="hint">며칠 전부터 띄울까</span>
-                  <input
-                    className="input input-sm"
-                    style={{ width: 60, textAlign: "center" }}
-                    inputMode="numeric"
-                    value={draft.lead_days}
-                    onChange={(e) => setDraft({ ...draft, lead_days: e.target.value.replace(/[^\d]/g, "") })}
-                  />
-                  <span className="hint">일 전 (0이면 그날)</span>
+                  {onDate && <span className="hint">며칠 전부터 띄울까</span>}
+                  {onDate && (
+                    <>
+                      <input
+                        className="input input-sm"
+                        style={{ width: 60, textAlign: "center" }}
+                        inputMode="numeric"
+                        value={draft.lead_days}
+                        onChange={(e) => setDraft({ ...draft, lead_days: e.target.value.replace(/[^\d]/g, "") })}
+                      />
+                      <span className="hint">일 전 (0이면 그날)</span>
+                    </>
+                  )}
                   {categories.length > 0 && (
                     <select
                       className="input input-sm"

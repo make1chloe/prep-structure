@@ -59,7 +59,7 @@ export default async function Home() {
     d.soonAbsent.length === 0 && d.watchList.length === 0 && d.holidays.length === 0 &&
     d.scheduleAlerts.length === 0 && d.engEves.length === 0 && d.holidayNotes.length === 0 &&
     d.newComments.length === 0 && d.examSoon.length === 0 && d.todayMakeups.length === 0 &&
-    d.makeupNeedTotal === 0 && !d.monthlyDue;
+    d.makeupNeedTotal === 0 && !d.monthlyDue && (d.bookEnding?.length || 0) === 0;
 
   return (
     <>
@@ -228,6 +228,25 @@ export default async function Home() {
                       <Link className="tag tag-amber" href="/monthly">
                         {Number(d.monthlyDue.ym.slice(5))}월이 {d.monthlyDue.left === 0 ? "오늘" : `${d.monthlyDue.left}일 뒤`} 끝남 · {d.monthlyDue.count}명분
                       </Link>
+                    </div>
+                  </div>
+                )}
+                {/* 곧 끝나는 교재 — 시험지·플래너를 미리 챙기시라고 */}
+                {d.bookEnding?.length > 0 && (
+                  <div>
+                    <b className="hint">곧 끝나는 교재 (시험지 · 플래너 챙길 것)</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      {d.bookEnding.slice(0, 12).map((b) => (
+                        <Link className="tag tag-lav" key={b.id} href="/progress">
+                          {b.name} · {b.book}
+                          {b.left === 0 ? " 끝" : ` ${b.left}단원`}
+                        </Link>
+                      ))}
+                      {d.bookEnding.length > 12 && (
+                        <Link className="tag tag-muted" href="/progress">
+                          외 {d.bookEnding.length - 12}건
+                        </Link>
+                      )}
                     </div>
                   </div>
                 )}
