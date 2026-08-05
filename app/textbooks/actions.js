@@ -714,3 +714,84 @@ export async function generateUnits(input) {
   revalidatePath("/textbooks");
   return { error: error ? error.message : null, created: error ? 0 : rows.length };
 }
+
+/**
+ * 지금 들어 있는 단원을 **엑셀로 내보낸다.**
+ *
+ * 원장님 말씀 (2026-08-05) — 대량 작업은 AI 도움을 받아야 해서 결국 엑셀이 편하다.
+ * 그런데 지금은 **빈 양식에서 시작**해야 했다. 이미 200줄을 넣어둔 교재의 층을
+ * 바꾸려면 그 200줄을 처음부터 다시 쳐야 한다는 뜻이다.
+ *
+ * 그래서 들어 있는 것을 그대로 내어준다. 고쳐서 다시 올리면
+ * `bulkAddUnits` 가 **이름이 같은 것은 고치고 없는 것은 만든다.**
+ * (파일에서 지운 것은 자동으로 안 지운다 — 학생 진도가 거기 걸려 있다)
+ *
+ * 층은 **깊이 그대로** 적는다 — 1층 대단원 · 2층 중단원 · 3층 소단원 · 4층 단원명.
+ * 다시 올리면 같은 모양으로 다시 쌓인다.
+ */
+export async function exportUnits(bookIds = null) {
+  const supabase = createClient();
+
+  let bq = supabase.from("textbooks").select("id, name, pub_year, status").order("name");
+  if (Array.isArray(bookIds) && bookIds.length) bq = bq.in("id", bookIds);
+  let books = await bq;
+  if (books.error) {
+    books = await supabase.from("textbooks").select("id, name, status").order("name");
+  }
+  if (books.error) return { rows: [], error: books.error.message };
+  const bookList = (books.data || []).filter((b) => !b.status || b.status === "active");
+  if (bookList.length === 0) return { rows: [], error: null };
+
+  const ids = bookList.map((b) => b.id);
+  const COLS = "id, textbook_id, parent_id, name, label, page_start, page_end, total_pages, sort";
+  let uq = await supabase
+    .from("textbook_units")
+    .select(`${COLS}, question_no`)
+    .in("textbook_id", ids)
+    .order("sort", { ascending: true });
+  if (uq.error) {
+    uq = await supabase
+      .from("textbook_units")
+      .select(COLS)
+      .in("textbook_id", ids)
+      .order("sort", { ascending: true });
+  }
+  if (uq.error) return { rows: [], error: uq.error.message };
+
+  const units = uq.data || [];
+  const byId = new Map(units.map((u) => [u.id, u]));
+  const hasChild = new Set(units.map((u) => u.parent_id).filter(Boolean));
+  const bookById = new Map(bookList.map((b) => [b.id, b]));
+
+  // 맨 아래 단원 하나가 엑셀 한 줄이다 — 위층은 그 줄의 왼쪽 칸으로 적힌다
+  const rows = [];
+  for (const u of units) {
+    if (hasChild.has(u.id)) continue;
+    const chain = [];
+    let cur = u;
+    const seen = new Set();
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      chain.unshift(cur);
+      cur = cur.parent_id ? byId.get(cur.parent_id) : null;
+    }
+    const book = bookById.get(u.textbook_id);
+    const q = (u.question_no || "").toString().trim();
+    // 문제번호로 만든 줄은 그 자체가 한 층이라 이름 칸에서 뺀다
+    const names = (q ? chain.slice(0, -1) : chain).map((x) => x.name || "");
+    rows.push([
+      book?.name || "",
+      book?.pub_year || "",
+      names[0] || "",
+      names[1] || "",
+      names[2] || "",
+      names[3] || "",
+      q,
+      u.label || "",
+      u.page_start ?? "",
+      u.page_end ?? "",
+      u.total_pages ?? "",
+    ]);
+  }
+  return { rows, error: null };
+}

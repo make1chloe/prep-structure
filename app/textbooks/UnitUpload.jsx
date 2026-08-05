@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { parseUnitAoA, UNIT_HEADERS, UNIT_FIELD_LABEL } from "@/lib/importUnit";
-import { bulkAddUnits } from "./actions";
+import { bulkAddUnits, exportUnits } from "./actions";
 
 const SHOW = ["textbook", "big", "mid", "small", "name", "question_no", "activity", "page_start", "page_end", "total_pages"];
 
@@ -13,6 +13,7 @@ export default function UnitUpload() {
   const [fileName, setFileName] = useState("");
   const [result, setResult] = useState(null);
   const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
   const inputRef = useRef(null);
   const router = useRouter();
 
@@ -34,6 +35,27 @@ export default function UnitUpload() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "단원");
     XLSX.writeFile(wb, "클로이영어_단원_양식.xlsx");
+  }
+
+  /**
+   * **지금 들어 있는 단원을 내려받는다.**
+   *
+   * 빈 양식에서 시작하면, 이미 200줄을 넣어둔 교재의 층을 바꾸려고 할 때
+   * 그 200줄을 처음부터 다시 쳐야 한다. 내려받아 고쳐서 다시 올리면
+   * **이름이 같은 것은 고쳐지고** 없는 것만 새로 생긴다.
+   */
+  async function downloadCurrent() {
+    setBusy(true);
+    const res = await exportUnits();
+    setBusy(false);
+    if (res?.error) { alert(res.error); return; }
+    if (!res.rows?.length) { alert("아직 들어 있는 단원이 없어요."); return; }
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([UNIT_HEADERS, ...res.rows]);
+    ws["!cols"] = UNIT_HEADERS.map((h) => ({ wch: h === "교재명" ? 24 : 12 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "단원");
+    XLSX.writeFile(wb, `클로이영어_단원_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   async function handleFile(e) {
@@ -87,9 +109,17 @@ export default function UnitUpload() {
         같은 대단원은 한 번만 생성됩니다. 교재명이 없는 교재는 <b>자동으로 새로 만들어져요.</b>
         총분량을 비우면 시작·끝 페이지로 계산합니다.
       </p>
+      <p className="hint" style={{ margin: "0 0 12px", lineHeight: 1.7 }}>
+        <b>이미 넣어둔 단원을 고칠 때</b>는 「지금 단원 내려받기」 로 받아서 고친 뒤 다시 올리세요.
+        빈 양식에서 다시 치지 않아도 됩니다 — 이름이 같은 단원은 <b>덮어써지고</b>,
+        파일에서 지운 단원은 <b>자동으로 안 지웁니다</b> (학생 진도가 거기 걸려 있어요).
+      </p>
 
       <div className="row" style={{ alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <button className="btn btn-ghost" onClick={downloadTemplate}>⬇️ 양식 다운로드</button>
+        <button className="btn btn-ghost" onClick={downloadTemplate}>⬇️ 빈 양식</button>
+        <button className="btn" disabled={busy} onClick={downloadCurrent}>
+          {busy ? "모으는 중…" : "⬇️ 지금 단원 내려받기"}
+        </button>
         <input
           ref={inputRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleFile} className="input"
