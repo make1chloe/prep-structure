@@ -5,6 +5,8 @@
   --amber: #d98207; --amber-soft: #fdf1db; --red: #dc3d3d; --red-soft: #fdeaea;
   --shadow: 0 1px 2px rgba(16,26,54,.04), 0 4px 16px rgba(16,26,54,.06);
   --radius: 13px; --radius-sm: 9px;
+  /* 맨 위 묶음 이름 알약 — 바탕을 채워서 화면 이름과 갈라 놓는다 */
+  --chip-bg: var(--navy); --chip-fg: #fff;
   --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", Roboto, sans-serif;
 }
 /* 화면 테마 — **시스템에 맞추기가 기본**이고, 설정에서 라이트·다크로 고정할 수 있다.
@@ -17,6 +19,8 @@
     --mint: #34d399; --mint-soft: #123027; --sky: #38bdf8; --sky-soft: #0e2c3d; --lav: #a394f7; --lav-soft: #241f42;
     --amber: #fbbf24; --amber-soft: #2f2510; --red: #f87171; --red-soft: #331919;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.35);
+    /* 다크에서 --navy 는 밝은 파랑이다. 흰 글씨를 얹으면 안 읽힌다 */
+    --chip-fg: #0d1119;
   }
 }
 :root[data-theme="dark"] {
@@ -25,6 +29,8 @@
     --mint: #34d399; --mint-soft: #123027; --sky: #38bdf8; --sky-soft: #0e2c3d; --lav: #a394f7; --lav-soft: #241f42;
     --amber: #fbbf24; --amber-soft: #2f2510; --red: #f87171; --red-soft: #331919;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.35);
+    /* 다크에서 --navy 는 밝은 파랑이다. 흰 글씨를 얹으면 안 읽힌다 */
+    --chip-fg: #0d1119;
 }
 /* 브라우저에게도 알려준다 — 스크롤바·기본 위젯 색이 따라온다 */
 :root[data-theme="dark"] { color-scheme: dark; }
@@ -76,18 +82,23 @@ a { color: inherit; }
 .navsep { width: 1px; align-self: stretch; margin: 4px 5px; background: var(--border); }
 
 /* 묶음 이름 — **화면 이름과 다르게 생겨야 한다.**
-   처음에는 글씨를 작게 줄여서 구별했는데, 한 줄 안에 크기가 두 가지가 되니
-   오히려 더 헷갈렸다. 글자 크기는 화면 이름과 **똑같이 두고**,
-   모양으로만 가른다 — 둥근 알약 · 진한 글씨 · 앞의 세로줄. */
+   두 번 고쳤다.
+     1) 글씨를 작게 줄였더니 한 줄에 크기가 두 가지가 되어 더 헷갈렸다.
+     2) 그래서 크기는 그대로 두고 알약 모양 · 진한 글씨 · 세로줄로 갈랐는데,
+        여전히 「눈에 더 잘 띄지가 않아」 였다. 옅은 바탕에 진한 글씨는
+        옆의 화면 이름과 결국 같은 무게로 보인다.
+   이번에는 **바탕을 채운다.** 화면 이름은 글자만 있고 묶음 이름은 색이
+   꽉 찬 알약이라, 훑을 때 묶음이 먼저 잡힌다. 크기는 여전히 같다. */
 .navgroup-tag {
   align-self: center;
-  margin-left: 12px;
-  padding: 7px 13px !important;
+  margin-left: 14px;
+  padding: 7px 14px !important;
   font-weight: 800 !important;
-  color: var(--text) !important;
-  background: var(--surface-2);
+  letter-spacing: -0.2px;
+  color: var(--chip-fg) !important;
+  background: var(--chip-bg) !important;
   border-radius: 999px !important;
-  border: 1px solid var(--border-strong);
+  border: 1px solid transparent !important;
   white-space: nowrap;
   position: relative;
 }
@@ -95,16 +106,20 @@ a { color: inherit; }
 .navgroup-tag::before {
   content: "";
   position: absolute;
-  left: -7px; top: 50%; transform: translateY(-50%);
-  width: 1px; height: 18px;
+  left: -8px; top: 50%; transform: translateY(-50%);
+  width: 1px; height: 20px;
   background: var(--border);
 }
-.navgrid a.navgroup-tag:hover { color: var(--navy) !important; background: var(--surface); }
+.navgrid a.navgroup-tag:hover {
+  color: var(--chip-fg) !important;
+  background: var(--chip-bg) !important;
+  filter: brightness(1.15);
+}
 .navgrid a.navgroup-tag:first-child { margin-left: 0; }
 .navgrid a.navgroup-tag:first-child::before { display: none; }
 @media (max-width: 900px) {
-  .navgroup-tag { margin-left: 9px; padding: 7px 11px !important; }
-  .navgroup-tag::before { left: -5px; height: 16px; }
+  .navgroup-tag { margin-left: 10px; padding: 7px 12px !important; }
+  .navgroup-tag::before { left: -6px; height: 17px; }
 }
 .spacer { flex: 1; }
 .who { font-size: 12.5px; color: var(--text-muted); }
