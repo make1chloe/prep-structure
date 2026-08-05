@@ -93,7 +93,10 @@ export default async function SchoolsPage() {
     return {
       klass,
       roster: roster.length,
-      months: reviewClass(klass, months, holidays || [], exams, roster, makeupDays),
+      // 숨긴 시험은 결석 예상·알림에서 뺀다 (schedule/page.jsx 와 같다)
+      months: reviewClass(
+        klass, months, holidays || [], exams.filter((e) => !e.hidden), roster, makeupDays
+      ),
     };
   });
 

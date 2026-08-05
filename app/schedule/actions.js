@@ -217,28 +217,30 @@ export async function deleteExam(id) {
 }
 
 // ---------- 시험 기간 → 결석 예정 일괄 ----------
-export async function markExamAbsence(classId, dates, reason) {
-  if (!classId || !dates?.length) return { error: "날짜가 없어요.", count: 0 };
+/**
+ * 시험 기간 결석을 **그 시험을 보는 아이에게만, 그 아이의 시험 날짜에만** 넣는다.
+ *
+ * 예전에는 반과 날짜만 받아서 **반 전체 × 모든 날**에 찍었다. 한 반에 신송중과
+ * 연수여고가 섞여 있으면 신송중 시험 기간에 연수여고 아이도 결석으로 남았고,
+ * 그걸 하나씩 찾아 지워야 했다. 화면에는 이미 「누가 시험을 보는지」가
+ * 계산돼 있었는데(lib/schedule 의 alert.who) 넣을 때 그걸 안 썼다.
+ *
+ * @param pairs [{ student_id, date }] — 누가 어느 날 결석하는지
+ */
+export async function markExamAbsence(pairs, reason) {
+  const list = (pairs || []).filter((p) => p?.student_id && p?.date);
+  if (list.length === 0) {
+    return { error: "시험 기간에 걸리는 학생이 없어요.", count: 0 };
+  }
   const supabase = createClient();
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("student_id")
-    .eq("class_id", classId);
-  const ids = (members || []).map((m) => m.student_id);
-  if (ids.length === 0) return { error: "이 반에 학생이 없어요.", count: 0 };
 
-  const rows = [];
-  ids.forEach((sid) =>
-    dates.forEach((d) =>
-      rows.push({
-        student_id: sid,
-        date: d,
-        status: "absent",
-        planned: true,
-        reason: reason || "시험 기간",
-      })
-    )
-  );
+  const rows = list.map((p) => ({
+    student_id: p.student_id,
+    date: p.date,
+    status: "absent",
+    planned: true,
+    reason: reason || "시험 기간",
+  }));
   const { error } = await supabase
     .from("attendance")
     .upsert(rows, { onConflict: "student_id,date" });

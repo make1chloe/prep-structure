@@ -656,24 +656,32 @@ export default function ScheduleBoard({
                           {a.kind === "exam" && (
                             <button
                               className="btn btn-ghost btn-sm"
-                              disabled={pending}
+                              disabled={pending || !(a.pairs || []).length}
                               onClick={() => {
-                                const names = (a.who || []).map((x) => x.name);
+                                // **시험을 보는 아이에게, 그 아이 시험 날짜에만** 넣는다.
+                                // 한 반에 학교가 섞여 있어도 나머지 아이는 안 건드린다.
+                                const pairs = a.pairs || [];
+                                if (pairs.length === 0) return;
+                                const byName = new Map();
+                                pairs.forEach((p) => {
+                                  if (!byName.has(p.name)) byName.set(p.name, []);
+                                  byName.get(p.name).push(p.date);
+                                });
+                                const lines = [...byName.entries()].map(
+                                  ([n, ds]) => `· ${n} — ${ds.map(dayShort).join(", ")}`
+                                );
                                 if (
                                   !confirm(
-                                    `${klass.name} — ${m.inExam.length}일(${m.inExam
-                                      .map(dayShort)
-                                      .join(", ")}) 을 결석 예정으로 넣을까요?\n\n` +
-                                      (names.length
-                                        ? `시험 보는 학생: ${names.join(", ")} (${names.length}명)\n` +
-                                          "※ 지금은 반 전체에 찍힙니다. 다른 학교 학생이 섞여 있으면 그 아이들 것은 나중에 지워주세요.\n"
-                                        : "")
+                                    `시험을 보는 학생만 결석 예정으로 넣습니다.\n\n` +
+                                      `${lines.join("\n")}\n\n` +
+                                      `학생 ${byName.size}명 · 모두 ${pairs.length}건\n` +
+                                      `${klass.name} 의 나머지 학생은 건드리지 않습니다.`
                                   )
                                 )
                                   return;
                                 run(
-                                  () => markExamAbsence(klass.id, m.inExam, "시험 기간"),
-                                  "결석 예정으로 넣었어요."
+                                  () => markExamAbsence(pairs, "시험 기간"),
+                                  `결석 예정 ${pairs.length}건을 넣었어요.`
                                 );
                               }}
                             >

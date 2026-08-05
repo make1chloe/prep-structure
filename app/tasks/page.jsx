@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
+import PrepTodo from "./PrepTodo";
 import { todaySeoul } from "@/lib/day";
 import { hiddenExamIds } from "@/lib/schedule";
 
@@ -17,6 +18,74 @@ const VIEWS = [
   { key: "schedule", label: "일정만" },
   { key: "todo", label: "할일만" },
 ];
+
+/**
+ * 아직 안 만든 **내신 자료** — 이것도 할일이다 (0052~0054).
+ *
+ * 내신 대비 화면에 「만들기 · 인쇄 · 카드」 가 있는데, 여기 할일 화면에서는
+ * 안 보였다. 그래서 시험이 코앞인데 자료가 몇 개 남았는지를 알려면 화면을
+ * 따로 열어봐야 했다.
+ *
+ * **여기서 체크하지는 않는다.** 자료의 진짜 상태는 내신 대비 화면에 있고,
+ * 두 군데에서 체크하게 만들면 어느 쪽이 맞는지 알 수 없게 된다. 여기서는
+ * 「무엇이 언제까지 남았는지」만 보여주고 누르면 그 화면으로 간다.
+ *
+ * 마감은 **영어 시험일**이다. 없으면 시험 시작일 — 그 전에는 자료가 나와야 한다.
+ */
+async function pendingPrep(supabase) {
+  const today = todaySeoul();
+  const exQ = await supabase
+    .from("exam_periods")
+    .select("id, school, grade, name, from_date, to_date, english_on")
+    .gte("to_date", today)
+    .order("from_date", { ascending: true });
+  if (exQ.error) return [];                       // 0022 전이면 조용히 넘어간다
+
+  const hidden = await hiddenExamIds(supabase);
+  const exams = (exQ.data || []).filter((e) => !hidden.has(e.id));
+  if (exams.length === 0) return [];
+  const examById = new Map(exams.map((e) => [e.id, e]));
+
+  const scQ = await supabase
+    .from("prep_scopes")
+    .select("id, exam_id, name")
+    .in("exam_id", [...examById.keys()]);
+  if (scQ.error || !(scQ.data || []).length) return [];   // 0052 전이거나 범위가 없다
+  const scopeById = new Map(scQ.data.map((s) => [s.id, s]));
+
+  const mQ = await supabase
+    .from("prep_materials")
+    .select("id, scope_id, name, need_make, need_print, need_card, made_at, printed_at, card_at")
+    .in("scope_id", [...scopeById.keys()])
+    .order("sort", { ascending: true });
+  if (mQ.error) return [];
+
+  const STAGES = [
+    ["need_make", "made_at", "만들기"],
+    ["need_print", "printed_at", "인쇄"],
+    ["need_card", "card_at", "카드"],
+  ];
+
+  return (mQ.data || [])
+    .map((m) => {
+      const left = STAGES.filter(([need, done]) => m[need] && !m[done]).map(([, , label]) => label);
+      if (left.length === 0) return null;          // 다 된 자료는 할일이 아니다
+      const scope = scopeById.get(m.scope_id);
+      const exam = examById.get(scope?.exam_id);
+      if (!exam) return null;
+      return {
+        id: m.id,
+        name: m.name,
+        left,
+        scope: scope?.name || "",
+        exam: `${exam.school} ${exam.grade || ""} ${exam.name || "시험"}`.replace(/\s+/g, " ").trim(),
+        due: exam.english_on || exam.from_date,
+        byEnglish: !!exam.english_on,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.due.localeCompare(b.due) || a.exam.localeCompare(b.exam));
+}
 
 export default async function TasksPage({ searchParams }) {
   const view = VIEWS.some((v) => v.key === searchParams?.view) ? searchParams.view : "all";
@@ -121,6 +190,7 @@ export default async function TasksPage({ searchParams }) {
   let todos = [];
   let cats = [];
   let todoErr = false;
+  let prep = [];
   if (wantTodo) {
     const catQ = await supabase
       .from("todo_categories")
@@ -146,6 +216,8 @@ export default async function TasksPage({ searchParams }) {
     }
     todos = data || [];
     todoErr = !!error || !!catQ.error;
+
+    prep = await pendingPrep(supabase);
   }
 
   return (
@@ -202,6 +274,7 @@ export default async function TasksPage({ searchParams }) {
             {view === "all" && (
               <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>할일</h2>
             )}
+            <PrepTodo rows={prep} />
             <TodoBoard todos={todos} categories={cats} unavailable={todoErr} />
           </section>
         )}

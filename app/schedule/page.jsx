@@ -91,7 +91,11 @@ export default async function SchedulePage() {
     return {
       klass,
       roster: roster.length,
-      months: reviewClass(klass, months, holidays || [], exams, roster, makeupDays),
+      // 숨긴 시험은 **결석 예상·알림에서 뺀다.** 「숨기기」 를 눌러도 계산에는
+      // 그대로 남아 있어서, 안 보는 시험 때문에 결석 예정이 뜨고 있었다.
+      months: reviewClass(
+        klass, months, holidays || [], exams.filter((e) => !e.hidden), roster, makeupDays
+      ),
     };
   });
 
