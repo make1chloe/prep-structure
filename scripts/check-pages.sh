@@ -81,6 +81,14 @@ else
   echo "$out"; fail=1     # 여기가 FAIL 로 잘못 적혀 있어서, 뚫려도 통과로 나왔다
 fi
 
+
+echo "  기계가 부르는 주소 (로고 · 달력 · manifest)"
+if out=$(node scripts/check-public.mjs 2>/dev/null); then
+  echo "$out"
+else
+  echo "$out"; fail=1
+fi
+
 echo
 echo "== 8) 학생 계정에 남의 것이 보이나 (진짜 Postgres) =="
 # 화면을 막는 것과 데이터를 막는 것은 다른 이야기다. 5번은 화면, 여기는 데이터.
