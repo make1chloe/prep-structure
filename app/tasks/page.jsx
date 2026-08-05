@@ -5,6 +5,7 @@ import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
 import PrepTodo from "./PrepTodo";
+import CalendarBoard from "./CalendarBoard";
 import { todaySeoul } from "@/lib/day";
 import { hiddenExamIds } from "@/lib/schedule";
 
@@ -15,9 +16,22 @@ export const dynamic = "force-dynamic";
 //   /todo 는 이 화면의 ?view=todo 로 온다 (옛 주소·즐겨찾기가 안 깨지게)
 const VIEWS = [
   { key: "all", label: "통합" },
+  { key: "calendar", label: "달력" },
   { key: "schedule", label: "일정만" },
   { key: "todo", label: "할일만" },
 ];
+
+/** 그 달의 첫날·끝날 */
+function monthRange(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return [`${ym}-01`, `${ym}-${String(last).padStart(2, "0")}`];
+}
+function shiftMonth(ym, by) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + by, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
 
 /**
  * 아직 안 만든 **내신 자료** — 이것도 할일이다 (0052~0054).
@@ -89,6 +103,12 @@ async function pendingPrep(supabase) {
 
 export default async function TasksPage({ searchParams }) {
   const view = VIEWS.some((v) => v.key === searchParams?.view) ? searchParams.view : "all";
+  // 달력은 **그 달 전체**를 본다 — 지난 날도 같이 봐야 달력이다
+  const isCal = view === "calendar";
+  const ym = /^\d{4}-\d{2}$/.test(searchParams?.m || "")
+    ? searchParams.m
+    : todaySeoul().slice(0, 7);
+  const [mFrom, mTo] = monthRange(ym);
   const wantSchedule = view !== "todo";
   const wantTodo = view !== "schedule";
   // 지난 일정은 기본으로 안 보인다.
@@ -111,24 +131,26 @@ export default async function TasksPage({ searchParams }) {
   let rows = [];
   let linked = [];
   let classes = [];
+  let schools = [];
+  let students = [];
+  let grades = [];
   let taskErr = false;
   if (wantSchedule) {
     const COLS =
       "id, title, kind, category, due_on, end_on, start_time, status, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
-    let { data: tasks, error } = await supabase
-      .from("tasks")
-      .select(`${COLS}, private`)
-      .eq("kind", "schedule")
-      .gte("due_on", showPast ? "1900-01-01" : todaySeoul())
-      .order("due_on", { ascending: true });
+    // 달력이면 그 달만, 아니면 오늘부터 (지난 것은 켜야 보인다)
+    const range = (q) =>
+      isCal
+        ? q.gte("due_on", mFrom).lte("due_on", mTo)
+        : q.gte("due_on", showPast ? "1900-01-01" : todaySeoul());
+    let { data: tasks, error } = await range(
+      supabase.from("tasks").select(`${COLS}, private`).eq("kind", "schedule")
+    ).order("due_on", { ascending: true });
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0066 전이면 '나만 보기' 없이
-      ({ data: tasks, error } = await supabase
-        .from("tasks")
-        .select(COLS)
-        .eq("kind", "schedule")
-        .gte("due_on", showPast ? "1900-01-01" : todaySeoul())
-        .order("due_on", { ascending: true }));
+      ({ data: tasks, error } = await range(
+        supabase.from("tasks").select(COLS).eq("kind", "schedule")
+      ).order("due_on", { ascending: true }));
     }
     taskErr = !!error;
 
@@ -137,6 +159,18 @@ export default async function TasksPage({ searchParams }) {
       .select("id, name")
       .order("start_time", { ascending: true });
     classes = cls || [];
+
+    // 일정을 **누구에게** 보낼지 고를 거리 (0077).
+    // 학교는 표에서 고른다 — 글자로 치면 「신송중」과 「신송중학교」가 갈린다.
+    const schQ = await supabase.from("schools").select("id, name").order("name");
+    schools = schQ.error ? [] : schQ.data || [];
+    const stuQ = await supabase
+      .from("students")
+      .select("id, name, school, grade")
+      .eq("status", "enrolled")
+      .order("name");
+    students = stuQ.error ? [] : stuQ.data || [];
+    grades = [...new Set(students.map((s) => s.grade).filter(Boolean))].sort();
 
     // 이미 전달사항을 만든 일정 표시
     const taskIds = (tasks || []).filter((t) => t.deliver_body).map((t) => t.id);
@@ -150,17 +184,20 @@ export default async function TasksPage({ searchParams }) {
     //   시험 일정 → exam_periods (수업 스케줄 · 시험)
     //   휴강     → holidays      (수강료 · 수업 스케줄)
     const today = todaySeoul();
-    const examQ = await supabase
+    // 달력이면 그 달에 걸치는 것, 아니면 오늘 이후 것
+    let examSel = supabase
       .from("exam_periods")
       .select("id, school, grade, name, from_date, to_date, english_on")
-      .gte("to_date", today)
-      .order("from_date", { ascending: true });
+      .gte("to_date", isCal ? mFrom : today);
+    if (isCal) examSel = examSel.lte("from_date", mTo);
+    const examQ = await examSel.order("from_date", { ascending: true });
     const hiddenExams = await hiddenExamIds(supabase);
-    const holQ = await supabase
+    let holSel = supabase
       .from("holidays")
       .select("id, date, name, scope, class_id")
-      .gte("date", today)
-      .order("date", { ascending: true });
+      .gte("date", isCal ? mFrom : today);
+    if (isCal) holSel = holSel.lte("date", mTo);
+    const holQ = await holSel.order("date", { ascending: true });
 
     linked = [
       ...(examQ.error ? [] : examQ.data || [])
@@ -246,13 +283,40 @@ export default async function TasksPage({ searchParams }) {
           </div>
         </div>
 
-        {wantSchedule && (
+        {isCal && (
+          <div className="row" style={{ marginBottom: 10, alignItems: "center", gap: 8 }}>
+            <AddTaskForm
+              classes={classes}
+              schools={schools}
+              grades={grades}
+              students={students}
+            />
+          </div>
+        )}
+        {isCal && (
+          <CalendarBoard
+            ym={ym}
+            tasks={rows}
+            todos={todos}
+            linked={linked}
+            prev={shiftMonth(ym, -1)}
+            next={shiftMonth(ym, 1)}
+            thisMonth={todaySeoul().slice(0, 7)}
+          />
+        )}
+
+        {wantSchedule && !isCal && (
           <section>
             {view === "all" && (
               <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>일정</h2>
             )}
             <div className="row" style={{ marginBottom: 10, alignItems: "center", gap: 8 }}>
-              <AddTaskForm classes={classes} />
+              <AddTaskForm
+                classes={classes}
+                schools={schools}
+                grades={grades}
+                students={students}
+              />
               <span className="spacer" />
               <Link
                 className="btn btn-ghost btn-sm"
@@ -269,7 +333,7 @@ export default async function TasksPage({ searchParams }) {
           </section>
         )}
 
-        {wantTodo && (
+        {wantTodo && !isCal && (
           <section style={view === "all" ? { marginTop: 14 } : undefined}>
             {view === "all" && (
               <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>할일</h2>

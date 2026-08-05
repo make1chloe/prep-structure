@@ -68,6 +68,7 @@ const CHECKS = [
   { id: "0074", label: "시험 한 줄로 합치기 (범위·자료·출제샘)", table: "exam_periods", col: "teacher" },
   { id: "0075", label: "내 시험에 나이스 붙이기", table: "exam_periods", col: "neis_source_id" },
   { id: "0076", label: "학교 한 곳으로 · 출제샘 여러 명", table: "exam_periods", col: "teachers" },
+  { id: "0077", label: "일정을 학생·학교에 배정", table: "tasks", col: "deliver_student_ids" },
 ];
 
 export async function checkSchema() {

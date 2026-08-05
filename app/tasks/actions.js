@@ -41,7 +41,20 @@ export async function addTask(formData) {
     deliver_grade: clean(formData, "deliver_grade"),
     created_by: user?.id || null,
   };
-  await supabase.from("tasks").insert(row);
+  // 학생 지목 · 학교 연결 (0077). 칸이 없는 DB 면 그것만 빼고 넣는다.
+  const picked = (formData.get("deliver_student_ids") || "")
+    .toString()
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const extra = {
+    deliver_student_ids: picked,
+    deliver_school_id: clean(formData, "deliver_school_id"),
+  };
+  let { error } = await supabase.from("tasks").insert({ ...row, ...extra });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    await supabase.from("tasks").insert(row);
+  }
   revalidatePath("/tasks");
   revalidatePath("/today");
 }
@@ -115,11 +128,21 @@ export async function applyTaskDelivery(taskId, date) {
   if (!taskId) return { error: "일정이 없어요." };
   const supabase = createClient();
 
-  const { data: task, error: tErr } = await supabase
+  const BASE =
+    "id, title, due_on, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
+  // 0077 전이면 학생 지목·학교 연결 칸이 없다
+  let { data: task, error: tErr } = await supabase
     .from("tasks")
-    .select("id, title, due_on, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade")
+    .select(`${BASE}, deliver_student_ids, deliver_school_id`)
     .eq("id", taskId)
     .single();
+  if (tErr) {
+    ({ data: task, error: tErr } = await supabase
+      .from("tasks")
+      .select(BASE)
+      .eq("id", taskId)
+      .single());
+  }
   if (tErr) return { error: tErr.message };
   if (!task?.deliver_body) return { error: "이 일정에는 전달할 내용이 없어요." };
 
@@ -153,16 +176,27 @@ export async function applyTaskDelivery(taskId, date) {
       ),
     ];
   }
-  if (scope === "grade" && (task.deliver_school || task.deliver_grade)) {
-    const { data: ss } = ids.length
-      ? await supabase.from("students").select("id, school, grade").in("id", ids)
+  // 학생을 직접 고른 경우 — 그날 수업 오는 아이 중에서 고른 아이만 (0077)
+  if (scope === "student") {
+    const picked = new Set(task.deliver_student_ids || []);
+    if (picked.size === 0) return { error: "받을 학생을 고르지 않았어요." };
+    ids = ids.filter((id) => picked.has(id));
+  }
+  if (scope === "grade" && (task.deliver_school_id || task.deliver_school || task.deliver_grade)) {
+    // 학교는 **표를 가리키는 것**이 먼저다 (0077). 「신송중」과 「신송중학교」가
+    // 갈려서 아무에게도 안 가던 일이 여기서 생겼다. 옛 글자만 있으면 그것으로 맞춘다.
+    const cols = task.deliver_school_id ? "id, school, grade, school_id" : "id, school, grade";
+    let ss = ids.length
+      ? await supabase.from("students").select(cols).in("id", ids)
       : { data: [] };
-    ids = (ss || [])
-      .filter(
-        (s) =>
-          (!task.deliver_school || s.school === task.deliver_school) &&
-          (!task.deliver_grade || s.grade === task.deliver_grade)
-      )
+    if (ss.error) ss = await supabase.from("students").select("id, school, grade").in("id", ids);
+    ids = (ss.data || [])
+      .filter((s) => {
+        const schoolOk = task.deliver_school_id
+          ? s.school_id === task.deliver_school_id
+          : !task.deliver_school || s.school === task.deliver_school;
+        return schoolOk && (!task.deliver_grade || s.grade === task.deliver_grade);
+      })
       .map((s) => s.id);
   }
   if (ids.length === 0) return { error: "그날 수업 오는 대상 학생이 없어요." };

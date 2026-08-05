@@ -6,12 +6,17 @@ import { todaySeoul } from "@/lib/day";
 
 const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 
-export default function AddTaskForm({ classes = [] }) {
+export default function AddTaskForm({ classes = [], schools = [], grades = [], students = [] }) {
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState("all");
   const [hasDeliver, setHasDeliver] = useState(false);
+  const [picked, setPicked] = useState(() => new Set());
+  const [find, setFind] = useState("");
 
   const today = todaySeoul();
+  const shown = students.filter(
+    (s) => !find.trim() || `${s.name} ${s.school || ""} ${s.grade || ""}`.includes(find.trim())
+  );
 
   if (!open) {
     return (
@@ -82,6 +87,7 @@ export default function AddTaskForm({ classes = [] }) {
                 <option value="all">전체</option>
                 <option value="class">반별</option>
                 <option value="grade">학교·학년별</option>
+                <option value="student">학생 고르기</option>
               </select>
               {scope === "class" && (
                 <select className="input input-sm" style={{ width: 170 }} name="deliver_class_id" defaultValue="">
@@ -89,13 +95,64 @@ export default function AddTaskForm({ classes = [] }) {
                   {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               )}
+              {/* 학교·학년은 **고르는 것**이다 (0077).
+                  글자로 치면 「신송중」과 「신송중학교」가 갈려서 아무에게도 안 갔다.
+                  그것도 조용히 — 화면에는 저장됐다고 떴다. */}
               {scope === "grade" && (
                 <>
-                  <input className="input input-sm" style={{ width: 140 }} name="deliver_school" placeholder="학교 (비우면 전체)" />
-                  <input className="input input-sm" style={{ width: 100 }} name="deliver_grade" placeholder="학년" />
+                  <select className="input input-sm" style={{ width: 160 }} name="deliver_school_id" defaultValue="">
+                    <option value="">학교 (비우면 전체)</option>
+                    {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <select className="input input-sm" style={{ width: 110 }} name="deliver_grade" defaultValue="">
+                    <option value="">학년 전체</option>
+                    {grades.map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
                 </>
               )}
             </div>
+
+            {scope === "student" && (
+              <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+                <input type="hidden" name="deliver_student_ids" value={[...picked].join(",")} />
+                <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                  <input
+                    className="input input-sm"
+                    style={{ width: 150 }}
+                    placeholder="이름 · 학교로 찾기"
+                    value={find}
+                    onChange={(e) => setFind(e.target.value)}
+                  />
+                  <span className="hint">{picked.size}명 골랐어요</span>
+                  {picked.size > 0 && (
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => setPicked(new Set())}>
+                      비우기
+                    </button>
+                  )}
+                </div>
+                <div className="chips" style={{ maxHeight: 150, overflowY: "auto" }}>
+                  {shown.map((s) => {
+                    const on = picked.has(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`chip ${on ? "on" : ""}`}
+                        onClick={() => {
+                          const n = new Set(picked);
+                          on ? n.delete(s.id) : n.add(s.id);
+                          setPicked(n);
+                        }}
+                      >
+                        {s.name}
+                        {s.grade ? ` ${s.grade}` : ""}
+                      </button>
+                    );
+                  })}
+                  {shown.length === 0 && <span className="hint">찾는 학생이 없어요.</span>}
+                </div>
+              </div>
+            )}
             <p className="hint" style={{ margin: "8px 0 0" }}>
               그 날짜의 <b>오늘 수업</b> 화면에 전달사항으로 깔리고, 하원 전 전달 체크로 확인합니다.
             </p>
