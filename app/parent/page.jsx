@@ -5,7 +5,7 @@ import { addDays, longLabel, todaySeoul } from "@/lib/day";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
 import { byKind, summary as scoreSummary, KIND_LABEL, findExam } from "@/lib/scores";
-import { cutOf, passCount } from "@/lib/wordTest";
+import { cutOf, passSummary } from "@/lib/wordTest";
 import Comments from "@/app/comments/Comments";
 import RequestForm from "@/app/me/RequestForm";
 import NoticePhotos from "@/components/NoticePhotos";
@@ -114,7 +114,9 @@ export default async function ParentPage({ searchParams }) {
   const { data: cutRow } = await supabase
     .from("students").select("word_cut_pct").eq("id", pickId).maybeSingle();
   const cut = cutOf(cutRow, Number(warnRow?.config?.wordPassPct) || 90);
-  const lines = threeLines(sum, passCount(reps || [], cut));
+  // 몇 번째에 통과했는지를 세려면 **날짜 오름차순**이어야 한다 (reps 는 내림차순)
+  const repsAsc = [...(reps || [])].sort((a, b) => a.date.localeCompare(b.date));
+  const lines = threeLines(sum, passSummary(repsAsc, cut));
 
   // ── 월간리포트 (지난달까지 나간 것) ──
   const { data: monthly } = await supabase

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
 import InstallHint from "./InstallHint";
-import { score, cutOf, passCount } from "@/lib/wordTest";
+import { score, cutOf, passSummary } from "@/lib/wordTest";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
 import StudyTabs from "./StudyTabs";
@@ -452,7 +452,10 @@ export default async function MePage({ searchParams }) {
   const { data: myCutRow } = await supabase
     .from("students").select("word_cut_pct").eq("id", student.id).maybeSingle();
   const myCut = cutOf(myCutRow, Number(myWarn?.config?.wordPassPct) || 90);
-  const monthLines = threeLines(monthSum, passCount(monthReps || [], myCut));
+  const monthLines = threeLines(
+    monthSum,
+    passSummary([...(monthReps || [])].sort((a, b) => a.date.localeCompare(b.date)), myCut)
+  );
 
   // 내 흐름 — 남과 견주지 않고 **내 지난 기록**과 견준다
   const asc = [...(reports || [])].sort((a, b) => a.date.localeCompare(b.date));
