@@ -145,15 +145,39 @@ export async function addSchool(s = {}) {
     address: s.address || null,
     active: true,
   };
-  let { error } = await supabase
-    .from(await schoolTable(supabase))
-    .upsert(row, { onConflict: "atpt_code,schul_code" });
+  // ── upsert 를 쓰지 않는다 ────────────────────────────────
+  //
+  // 0076 에서 (지역코드, 학교코드) 유일 인덱스가 **부분 인덱스**가 됐다
+  // (코드가 둘 다 있을 때만 겹치지 않게 — 손으로 넣은 학교는 코드가 없으니까).
+  // 부분 인덱스는 ON CONFLICT 가 못 가리킨다. 그래서 upsert 가
+  // `there is no unique or exclusion constraint matching the ON CONFLICT
+  // specification` 로 터졌다. 실제로 그랬다.
+  //
+  // 찾아보고 있으면 고치고, 없으면 넣는다. 이름이 겹쳐서 막히면(0076 의
+  // school_key 유일 인덱스) **그 줄에 코드를 붙여준다** — 손으로 넣어둔
+  // 학교에 나이스 코드가 생기는 것이라, 새 줄을 만드는 것보다 낫다.
+  const T = await schoolTable(supabase);
+  const put = async (r) => {
+    const found = await supabase
+      .from(T).select("id")
+      .eq("atpt_code", r.atpt_code).eq("schul_code", r.schul_code).maybeSingle();
+    if (found.data?.id) {
+      return supabase.from(T).update(r).eq("id", found.data.id);
+    }
+    const ins = await supabase.from(T).insert(r);
+    if (ins.error?.code === "23505") {
+      // 같은 이름이 이미 있다 — 그 줄에 코드를 붙인다
+      const same = await supabase.from(T).select("id").eq("name", r.name).maybeSingle();
+      if (same.data?.id) return supabase.from(T).update(r).eq("id", same.data.id);
+    }
+    return ins;
+  };
+
+  let { error } = await put(row);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0069 전이면 지역·주소 없이
     const { atpt_name: _a, address: _b, ...bare } = row;
-    ({ error } = await supabase
-      .from(await schoolTable(supabase))
-      .upsert(bare, { onConflict: "atpt_code,schul_code" }));
+    ({ error } = await put(bare));
   }
   if (needSql(error)) return { error: SQL };
   revalidatePath("/schedule");

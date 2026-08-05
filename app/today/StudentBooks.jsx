@@ -8,8 +8,12 @@ import { setStudentTextbooks } from "@/app/progress/actions";
 //
 // 교재는 **학생마다 다르다** — 같은 반이어도 다르다. 반에 붙이는 것은 여러 명에게
 // 한 번에 넣어주는 지름길일 뿐이고, 진짜 배정은 여기다.
-export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }) {
-  const [open, setOpen] = useState(false);
+/**
+ * @param alwaysOpen 재원생 화면의 「교재」 탭처럼 **이미 교재를 보러 들어온 자리**
+ *   에서는 접어둘 이유가 없다. 한 번 더 누르게 하면 그만큼 늦어진다.
+ */
+export default function StudentBooks({ studentId, myBooks = [], textbooks = [], alwaysOpen = false }) {
+  const [open, setOpen] = useState(alwaysOpen);
   const [q, setQ] = useState("");
   const [area, setArea] = useState("");     // 영역으로 걸러보기
   const [picked, setPicked] = useState(() => new Set(myBooks.map((b) => b.id)));
@@ -51,7 +55,7 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [] }
     });
   }
 
-  if (!open) {
+  if (!open && !alwaysOpen) {
     return (
       <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
         {myBooks.length > 0 ? `교재 ${myBooks.length}권 바꾸기` : "교재 배정"}

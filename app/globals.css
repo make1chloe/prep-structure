@@ -624,3 +624,7 @@ a { color: inherit; }
    자리가 흔들리지 않게 한다. */
 .brandmark { background: transparent !important; padding: 0; overflow: hidden; }
 .brandmark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* 재원생 표 — 바깥에 overflow:hidden 을 걸면 오른쪽 판의 sticky 가 죽는다.
+   그래서 모서리 다듬기는 표를 감싼 안쪽에서 한다. */
+.splitview > .tblwrap { border-radius: var(--radius); overflow: hidden; }

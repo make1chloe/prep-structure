@@ -136,7 +136,10 @@ export default async function StudentsPage({ searchParams }) {
           </div>
         </div>
 
-        <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+        {/* overflow:hidden 을 걸면 **오른쪽 판이 스크롤을 안 따라온다** (sticky 가
+            죽는다). 목록을 내려가면 판만 위에 남아서, 학생을 누를 때마다
+            위로 올라가야 했다. 모서리는 안쪽에서 다듬는다. */}
+        <div className="card" style={{ marginTop: 12, padding: 0 }}>
           {error ? (
             <div style={{ padding: 14 }}>
               <div className="err">불러오기 실패: {error.message}</div>

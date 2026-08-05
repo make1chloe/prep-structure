@@ -65,6 +65,18 @@ const STATUS_TABS = [
 ];
 
 const COL_KEY = "chloe.students.cols";
+// 보기 설정(정렬 · 묶음 · 상태) — **저장을 눌러야 남는다.**
+// 열 고르기는 누르는 즉시 남는 것과 다르다. 정렬·묶음은 그때그때 바꿔보는 것이라
+// 자동으로 남기면 다음에 열었을 때 왜 이렇게 보이는지 알 수 없다.
+const VIEW_KEY = "chloe.students.view";
+
+const SORTS = [
+  ["name", "이름순"],
+  ["school", "학교순"],
+  ["grade", "학년순"],
+  ["enrolled_on", "등원시작일순"],
+  ["created_at", "최근 추가순"],
+];
 
 export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null, classList = [] }) {
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
@@ -75,6 +87,16 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     try {
       const saved = JSON.parse(localStorage.getItem(COL_KEY) || "null");
       if (Array.isArray(saved) && saved.length) setOn(new Set(saved));
+    } catch { /* 저장된 게 깨졌으면 기본값 그대로 */ }
+    try {
+      const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "null");
+      if (v && typeof v === "object") {
+        setSavedView(v);
+        if (v.sortBy) setSortBy(v.sortBy);
+        if (v.groupBy) setGroupBy(v.groupBy);
+        // 상태는 오늘 수업에서 넘어온 학생이 있으면 그쪽이 먼저다
+        if (v.statusFilter && !openStudent) setStatusFilter(v.statusFilter);
+      }
     } catch { /* 저장된 게 깨졌으면 기본값 그대로 */ }
   }, []);
 
@@ -99,6 +121,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const [q, setQ] = useState("");
   // 목록을 무엇으로 묶어 볼지 — 반 · 요일 · 학교 · 학년
   const [groupBy, setGroupBy] = useState("none");
+  const [sortBy, setSortBy] = useState("name");
+  const [savedView, setSavedView] = useState(null);   // 저장해둔 보기
   const [statusFilter, setStatusFilter] = useState(
     () => students.find((s) => s.id === openStudent)?.status || "enrolled"
   );
@@ -133,6 +157,19 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.note]
       .some((v) => norm(v).includes(kw));
   });
+
+  // 정렬 — 빈 값은 **언제나 뒤로.** 학교를 아직 안 적은 아이가 맨 위에 오면
+  // 목록이 이상해 보인다.
+  const cmp = (a, b) => {
+    if (sortBy === "created_at") return (b.created_at || "").localeCompare(a.created_at || "");
+    const va = (a[sortBy] || "").toString().trim();
+    const vb = (b[sortBy] || "").toString().trim();
+    if (!va && !vb) return a.name.localeCompare(b.name, "ko");
+    if (!va) return 1;
+    if (!vb) return -1;
+    return va.localeCompare(vb, "ko") || a.name.localeCompare(b.name, "ko");
+  };
+  shown.sort(cmp);
 
   /**
    * 목록을 **묶어 본다** — 반 · 요일 · 학교 · 학년.
@@ -189,6 +226,25 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         return a.title.localeCompare(b.title, "ko");
       });
   })();
+
+  const view = { sortBy, groupBy, statusFilter };
+  const viewDirty = JSON.stringify(view) !== JSON.stringify(savedView || {});
+
+  function saveView() {
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch { /* 사파리 비공개 */ }
+    setSavedView(view);
+  }
+  function resetView() {
+    if (savedView) {
+      setSortBy(savedView.sortBy || "name");
+      setGroupBy(savedView.groupBy || "none");
+      setStatusFilter(savedView.statusFilter || "enrolled");
+      return;
+    }
+    setSortBy("name");
+    setGroupBy("none");
+    setStatusFilter("enrolled");
+  }
 
   const allChecked = shown.length > 0 && sel.size === shown.length;
   const someChecked = sel.size > 0 && !allChecked;
@@ -449,7 +505,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                             교재는 <b>학생마다 다릅니다</b> — 같은 반이어도요. 여기서 바꾸면
                             숙제 배정·진도가 이 교재로 갑니다.
                           </p>
-                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} />
+                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} alwaysOpen />
                         </>
                       )}
                       {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
@@ -491,6 +547,15 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
           <option value="school">학교별</option>
           <option value="grade">학년별</option>
         </select>
+        <select
+          className="input input-sm"
+          style={{ width: 128 }}
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          title="목록 정렬"
+        >
+          {SORTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
         {STATUS_TABS.map(([k, label]) => {
           const n = k === "all" ? students.length : students.filter((s) => s.status === k).length;
           if (n === 0 && k !== "enrolled" && k !== "all") return null;
@@ -506,6 +571,18 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         })}
         <span className="spacer" />
         <span className="hint">{shown.length}명 표시</span>
+        {/* 정렬·묶음·상태는 **저장을 눌러야 남는다.** 그때그때 바꿔보는 것이라
+            자동으로 남기면 다음에 열었을 때 왜 이렇게 보이는지 알 수 없다. */}
+        {viewDirty && (
+          <button className="btn btn-sm" onClick={saveView} title="지금 보기를 이 브라우저에 기억시킵니다">
+            이 보기 저장
+          </button>
+        )}
+        {(viewDirty || savedView) && (
+          <button className="btn btn-ghost btn-sm" onClick={resetView}>
+            {savedView ? "저장한 보기로" : "처음 보기로"}
+          </button>
+        )}
         {/* 전부 켜면 가로로 1400px 이 넘는다. 매일 보는 것만 켜두고 나머지는 여기서 */}
         <button className="btn btn-ghost btn-sm" onClick={() => setColBox(!colBox)}>
           열 고르기 {cols.length}/{COLS.length}
