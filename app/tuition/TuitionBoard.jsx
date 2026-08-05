@@ -8,6 +8,7 @@ import {
   setClassTuition,
   setStudentTuition,
   setPaid,
+  setPaidMany,
   saveGradeTuition,
 } from "./actions";
 import { won } from "@/lib/tuition";
@@ -36,6 +37,9 @@ export default function TuitionBoard({
   grades = [],
 }) {
   const [open, setOpen] = useState(() => new Set(groups.map((g) => g.klass.id)));
+  // 수납 일괄 처리 — 반 하나가 다 들어오는 날이면 열댓 번을 눌러야 했다
+  const [payPick, setPayPick] = useState(() => new Set());
+  const [payOn, setPayOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [hDate, setHDate] = useState(`${ym}-01`);
   const [hName, setHName] = useState("");
   const [hClass, setHClass] = useState("");
@@ -47,6 +51,10 @@ export default function TuitionBoard({
   const [gRow, setGRow] = useState({ grade: "", amount: "" });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  // 반을 가로질러 고를 수 있어야 한다 — 반 하나가 다 들어오는 날도 있고,
+  // 여기저기서 한 명씩 들어오는 날도 있다
+  const allRows = groups.flatMap((g) => g.rows || []);
 
   function run(fn) {
     startTransition(async () => {
@@ -261,6 +269,64 @@ export default function TuitionBoard({
         </div>
       )}
 
+      {/* **고른 사람을 한 번에 수납 처리한다.**
+          받은 날을 고를 수 있어야 한다 — 계좌를 며칠 만에 확인하시는 일이
+          흔해서, 오늘로 찍어버리면 실제 받은 날과 어긋난다. */}
+      {payPick.size > 0 && (
+        <div className="bulkbar">
+          <b>{payPick.size}명 선택</b>
+          <span className="hint">받은 날</span>
+          <input
+            className="input input-sm"
+            type="date"
+            style={{ width: 148 }}
+            value={payOn}
+            onChange={(e) => setPayOn(e.target.value)}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={pending || !payReady}
+            onClick={() => {
+              const picked = allRows.filter((r) => payPick.has(r.student.id));
+              if (picked.length === 0) return;
+              if (!confirm(`${picked.length}명을 ${payOn} 에 받은 것으로 처리할까요?`)) return;
+              run(async () => {
+                const res = await setPaidMany(
+                  picked.map((r) => ({ studentId: r.student.id, amount: r.amount })),
+                  ym, true, payOn
+                );
+                if (!res?.error) setPayPick(new Set());
+                return res;
+              });
+            }}
+          >
+            받음으로 처리
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending || !payReady}
+            onClick={() => {
+              const picked = allRows.filter((r) => payPick.has(r.student.id));
+              if (picked.length === 0) return;
+              if (!confirm(`${picked.length}명을 미납으로 되돌릴까요?`)) return;
+              run(async () => {
+                const res = await setPaidMany(
+                  picked.map((r) => ({ studentId: r.student.id })),
+                  ym, false
+                );
+                if (!res?.error) setPayPick(new Set());
+                return res;
+              });
+            }}
+          >
+            미납으로 되돌리기
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPayPick(new Set())}>
+            선택 해제
+          </button>
+        </div>
+      )}
+
       {/* 반별 */}
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum, makeupOnly = [] }) => {
@@ -368,10 +434,38 @@ export default function TuitionBoard({
                   </div>
 
                   {/* 학생별 */}
+                  <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={!payReady}
+                      onClick={() => {
+                        const ids = rows.map((r) => r.student.id);
+                        const every = ids.length > 0 && ids.every((id) => payPick.has(id));
+                        const n = new Set(payPick);
+                        ids.forEach((id) => (every ? n.delete(id) : n.add(id)));
+                        setPayPick(n);
+                      }}
+                    >
+                      이 반 전체 고르기
+                    </button>
+                    {/* 안 받은 사람만 고르는 것이 실제로 제일 잦다 */}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={!payReady}
+                      onClick={() => {
+                        const n = new Set(payPick);
+                        rows.filter((r) => !r.paid).forEach((r) => n.add(r.student.id));
+                        setPayPick(n);
+                      }}
+                    >
+                      안 받은 사람만
+                    </button>
+                  </div>
                   <div className="tblwrap">
                     <table className="tbl tbl-tight">
                       <thead>
                         <tr>
+                          <th style={{ width: 28 }}></th>
                           <th style={{ minWidth: 90 }}>학생</th>
                           {/* **수납이 두 번째다.** 전에는 여덟째 칸이라, 폰에서는
                               가로로 한참 밀어야 나왔다 — 「납부 버튼이 없다」 는
@@ -390,6 +484,18 @@ export default function TuitionBoard({
                           const se = editStudent === r.student.id;
                           return (
                             <tr key={r.student.id}>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={payPick.has(r.student.id)}
+                                  onChange={() => {
+                                    const n = new Set(payPick);
+                                    n.has(r.student.id) ? n.delete(r.student.id) : n.add(r.student.id);
+                                    setPayPick(n);
+                                  }}
+                                  disabled={!payReady}
+                                />
+                              </td>
                               <td style={{ fontWeight: 600 }}>{r.student.name}</td>
                               {/* 받았는가 — 한 번 눌러 뒤집는다. 엑셀로 올린 것도 여기 나온다 */}
                               <td>

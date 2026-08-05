@@ -70,17 +70,21 @@ export async function setStudentTuition(studentId, patch) {
  * 금액은 앱이 계산한 값을 그대로 적어둔다 — 나중에 반 금액이 바뀌어도
  * 그때 얼마를 받았는지는 남아야 하기 때문이다.
  */
-export async function setPaid(studentId, ym, paid, amount = null) {
+export async function setPaid(studentId, ym, paid, amount = null, paidOn = null) {
   if (!studentId || !ym) return { error: "학생과 달이 필요해요." };
   const supabase = createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  // 받은 날은 **고를 수 있다.** 계좌를 며칠 만에 확인하시는 일이 흔해서,
+  // 오늘로 찍어버리면 실제 받은 날과 어긋난다.
+  const on = /^\d{4}-\d{2}-\d{2}$/.test(paidOn || "")
+    ? paidOn
+    : new Date().toISOString().slice(0, 10);
 
   const { error } = await supabase.from("payments").upsert(
     {
       student_id: studentId,
       ym,
       amount: paid ? amount : null,
-      paid_on: paid ? today : null,
+      paid_on: paid ? on : null,
       source: "manual",
       updated_at: new Date().toISOString(),
     },
@@ -121,4 +125,50 @@ export async function saveGradeTuition(map = {}) {
 
   revalidatePath("/tuition");
   return { error: null };
+}
+
+
+/**
+ * **여러 명을 한 번에 수납 처리한다.**
+ *
+ * 반 하나가 다 들어오는 날이면 열댓 번을 눌러야 했다. 고른 사람만,
+ * 고른 날짜로 한 번에 찍는다.
+ *
+ * 금액은 화면이 계산해 둔 것을 그대로 받는다 (원칙1 — 여기서 다시 세지 않는다).
+ *
+ * @param items  [{ studentId, amount }]
+ * @param ym     "2026-08"
+ * @param paidOn "2026-08-05" (안 주면 오늘)
+ */
+export async function setPaidMany(items = [], ym, paid = true, paidOn = null) {
+  const list = (items || []).filter((x) => x?.studentId);
+  if (list.length === 0) return { error: null, count: 0 };
+  if (!ym) return { error: "달이 필요해요." };
+  const supabase = createClient();
+  const on = /^\d{4}-\d{2}-\d{2}$/.test(paidOn || "")
+    ? paidOn
+    : new Date().toISOString().slice(0, 10);
+  const now = new Date().toISOString();
+
+  const rows = list.map((x) => ({
+    student_id: x.studentId,
+    ym,
+    amount: paid ? (Number(x.amount) || null) : null,
+    paid_on: paid ? on : null,
+    source: "manual",
+    updated_at: now,
+  }));
+
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase
+      .from("payments")
+      .upsert(rows.slice(i, i + 200), { onConflict: "student_id,ym" });
+    if (error) {
+      return { error: `${error.message} — supabase/migrations/0055_payments.sql 을 실행해주세요.` };
+    }
+  }
+
+  revalidatePath("/tuition");
+  revalidatePath("/");
+  return { error: null, count: rows.length, paidOn: on };
 }

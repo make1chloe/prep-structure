@@ -7,7 +7,7 @@ import {
   applyNeis, detachNeis,
   markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday, removeHolidays,
 } from "./actions";
-import { shortLabel, monthDay } from "@/lib/day";
+import { shortLabel, monthDay, todaySeoul } from "@/lib/day";
 import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
@@ -78,6 +78,220 @@ export default function ScheduleBoard({
       if (msg) alert(msg);
       router.refresh();
     });
+  }
+
+  const [showPast, setShowPast] = useState(false);
+  const [openDay, setOpenDay] = useState(null);
+
+  // 지나간 달과 앞으로의 달을 가른다 (지난 달은 아래로 접어 둔다)
+  const nowYM = todaySeoul().slice(0, 7);
+  const monthList = months.filter((ym) => ym >= nowYM);
+  const pastList = months.filter((ym) => ym < nowYM);
+
+  /** 그 달에 이 반이 어떤가 — reviews 안에서 찾아온다 */
+  function monthOf(review, ym) {
+    return (review.months || []).find((m) => m.ym === ym) || null;
+  }
+
+  function AlertRow({ klass, m, a, i }) {
+    return (
+      <div className="unitrow" key={i} style={{ alignItems: "flex-start" }}>
+        <span
+          className={`tag ${
+            a.settled ? "tag-mint" : ALERT_CLS[a.kind] || "tag-muted"
+          }`}
+        >
+          {a.kind === "over" ? (a.settled ? "회차 맞음" : "회차 많음")
+            : a.kind === "short" ? (a.settled ? "회차 맞음" : "회차 부족")
+            : a.kind === "off" ? "휴강"
+            : a.kind === "exam" ? "시험 기간"
+            : "영어 시험 전날"}
+        </span>
+        <span style={{ fontSize: 12.5, flex: 1 }}>
+          {a.text}
+          {a.advice && (
+            <>
+              <br />
+              <span
+                className="muted"
+                style={{ fontSize: 12, lineHeight: 1.6 }}
+              >
+                {a.advice}
+              </span>
+            </>
+          )}
+          {/* 누구 이야기인지 — 이름이 없으면 결국 명단을 다시 찾아본다.
+              한 반에 학교가 섞여 있으면 반 전체가 아니라 그 학교 아이들만이다 */}
+          {a.who?.length > 0 && (
+            <>
+              <br />
+              <span style={{ fontSize: 12, lineHeight: 1.7 }}>
+                {a.school && (
+                  <b>{[a.school, a.grade].filter(Boolean).join(" ")} — </b>
+                )}
+                {a.who.map((x) => x.name).join(", ")}{" "}
+                <span className="muted">({a.who.length}명)</span>
+              </span>
+            </>
+          )}
+        </span>
+
+        {a.kind === "over" && !a.settled && (
+          <select
+            className="input input-sm"
+            style={{ width: 150 }}
+            defaultValue=""
+            onChange={(ev) => {
+              const d = ev.target.value;
+              ev.target.value = "";
+              if (!d) return;
+              if (!confirm(`${dayShort(d)} 을 휴강으로 지정할까요?`)) return;
+              run(
+                () => addClassHoliday(d, "회차 조정 휴강", klass.id),
+                "휴강으로 지정했어요."
+              );
+            }}
+            disabled={pending}
+          >
+            <option value="">휴강으로 지정…</option>
+            {m.live.map((d) => (
+              <option key={d} value={d}>{dayShort(d)}</option>
+            ))}
+          </select>
+        )}
+
+        {a.kind === "exam" && (
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending || !(a.pairs || []).length}
+            onClick={() => {
+              // **시험을 보는 아이에게, 그 아이 시험 날짜에만** 넣는다.
+              // 한 반에 학교가 섞여 있어도 나머지 아이는 안 건드린다.
+              const pairs = a.pairs || [];
+              if (pairs.length === 0) return;
+              const byName = new Map();
+              pairs.forEach((p) => {
+                if (!byName.has(p.name)) byName.set(p.name, []);
+                byName.get(p.name).push(p.date);
+              });
+              const lines = [...byName.entries()].map(
+                ([n, ds]) => `· ${n} — ${ds.map(dayShort).join(", ")}`
+              );
+              if (
+                !confirm(
+                  `시험을 보는 학생만 결석 예정으로 넣습니다.\n\n` +
+                    `${lines.join("\n")}\n\n` +
+                    `학생 ${byName.size}명 · 모두 ${pairs.length}건\n` +
+                    `${klass.name} 의 나머지 학생은 건드리지 않습니다.`
+                )
+              )
+                return;
+              run(
+                () => markExamAbsence(pairs, "시험 기간"),
+                `결석 예정 ${pairs.length}건을 넣었어요.`
+              );
+            }}
+          >
+            결석 예정 일괄 등록
+          </button>
+        )}
+
+        {a.kind === "engEve" && (
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={pending}
+            onClick={() => {
+              const e = m.engEve.find((x) => x.date === a.date);
+              const names = (a.who || []).map((x) => x.name);
+              if (
+                names.length &&
+                !confirm(
+                  `${dayShort(a.date)} 등원 일정을 만들까요?\n\n` +
+                    `${a.school || ""} ${a.grade || ""} — ${names.join(", ")} (${names.length}명)\n` +
+                    "그날 전달사항으로 이 학생들에게 안내됩니다."
+                )
+              )
+                return;
+              run(
+                () =>
+                  makeExamEveSession({
+                    date: a.date,
+                    school: e?.school,
+                    grade: e?.grade,
+                    classId: klass.id,
+                    englishOn: e?.english_on,
+                  }),
+                "등원 일정을 만들었어요. 그날 전달사항으로 학생에게 안내됩니다."
+              );
+            }}
+          >
+            등원 일정 만들기
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  /**
+   * 한 달 — **달력 하나**와, 그 아래 반별 설명.
+   *
+   * 반마다 달력을 놓으면 같은 달이 반 수만큼 되풀이된다. 원장님이 보고 싶은
+   * 것은 「9월에 무슨 일이 있나」 이지 「월수반의 9월」 이 아니다.
+   */
+  function MonthCard({ ym, past = false }) {
+    // 이 달에 수업이 있는 반만
+    const mine = reviews
+      .map((r) => ({ ...r, m: monthOf(r, ym) }))
+      .filter((r) => r.m && (r.m.all || []).length > 0);
+    const alertCount = mine.reduce((n, r) => n + (r.m.alerts || []).length, 0);
+
+    return (
+      <div className="card" style={past ? { opacity: 0.9 } : undefined}>
+        <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>{ymLabel(ym)}</h2>
+          <span className="hint">반 {mine.length}</span>
+          {alertCount === 0
+            ? <span className="tag tag-mint">특이사항 없음</span>
+            : <span className="tag tag-amber">챙길 것 {alertCount}</span>}
+        </div>
+
+        <MonthGrid
+          ym={ym}
+          classes={mine.map((r) => ({
+            id: r.klass.id,
+            name: r.klass.name,
+            month: r.m,
+            absents: (r.absents || []).filter((a) => a.date.startsWith(ym)),
+          }))}
+          openDay={openDay}
+          onPick={(d) => setOpenDay(openDay === d ? null : d)}
+        />
+
+        {/* 반별 설명 — 회차와 챙길 것 */}
+        <div className="stack" style={{ gap: 10, marginTop: 12 }}>
+          {mine.map((r) => (
+            <div key={r.klass.id} style={{ borderTop: "1px dashed var(--border)", paddingTop: 8 }}>
+              <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
+                <b style={{ fontSize: 13.5 }}>{r.klass.name}</b>
+                <span className="hint">
+                  {(r.klass.days || []).join("·")} · 수업 {r.m.live.length}회
+                  {r.m.off.length > 0 && ` (휴강 ${r.m.off.length}회 제외)`}
+                  {r.klass.base_sessions ? ` · 기준 ${r.klass.base_sessions}회` : ""}
+                </span>
+                {r.m.alerts.length === 0 && <span className="tag tag-mint">특이사항 없음</span>}
+              </div>
+              {r.m.alerts.length > 0 && (
+                <div className="stack" style={{ gap: 4, marginTop: 6 }}>
+                  {r.m.alerts.map((a, i) => (
+                    <AlertRow key={i} klass={r.klass} m={r.m} a={a} i={i} />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (unavailable) {
@@ -562,190 +776,41 @@ export default function ScheduleBoard({
 
       {show === "schedule" && (
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
-        {reviews.map(({ klass, roster, months: ms, absents = [] }) => (
-          <div className="card" key={klass.id}>
-            <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-                {klass.name}{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
-                  {(klass.days || []).join("·")} · {roster}명
-                  {klass.base_sessions ? ` · 기준 ${klass.base_sessions}회` : " · 기준 없음"}
-                </span>
-              </h2>
-              {klass.base_sessions && <Totals months={ms} />}
-            </div>
-
-            <div className="stack" style={{ gap: 10, marginTop: 10 }}>
-              {ms.map((m) => (
-                <div key={m.ym} style={{ borderTop: "1px dashed var(--border)", paddingTop: 10 }}>
-                  <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-                    <b style={{ fontSize: 14 }}>{ymLabel(m.ym)}</b>
-                    <span className="hint">
-                      수업 {m.live.length}회
-                      {m.off.length > 0 && ` (휴강 ${m.off.length}회 제외)`}
-                    </span>
-                    {m.alerts.length === 0 && <span className="tag tag-mint">특이사항 없음</span>}
-                  </div>
-
-                  {m.alerts.length > 0 && (
-                    <div className="stack" style={{ gap: 4, marginTop: 6 }}>
-                      {m.alerts.map((a, i) => (
-                        <div className="unitrow" key={i} style={{ alignItems: "flex-start" }}>
-                          <span
-                            className={`tag ${
-                              a.settled ? "tag-mint" : ALERT_CLS[a.kind] || "tag-muted"
-                            }`}
-                          >
-                            {a.kind === "over" ? (a.settled ? "회차 맞음" : "회차 많음")
-                              : a.kind === "short" ? (a.settled ? "회차 맞음" : "회차 부족")
-                              : a.kind === "off" ? "휴강"
-                              : a.kind === "exam" ? "시험 기간"
-                              : "영어 시험 전날"}
-                          </span>
-                          <span style={{ fontSize: 12.5, flex: 1 }}>
-                            {a.text}
-                            {a.advice && (
-                              <>
-                                <br />
-                                <span
-                                  className="muted"
-                                  style={{ fontSize: 12, lineHeight: 1.6 }}
-                                >
-                                  {a.advice}
-                                </span>
-                              </>
-                            )}
-                            {/* 누구 이야기인지 — 이름이 없으면 결국 명단을 다시 찾아본다.
-                                한 반에 학교가 섞여 있으면 반 전체가 아니라 그 학교 아이들만이다 */}
-                            {a.who?.length > 0 && (
-                              <>
-                                <br />
-                                <span style={{ fontSize: 12, lineHeight: 1.7 }}>
-                                  {a.school && (
-                                    <b>{[a.school, a.grade].filter(Boolean).join(" ")} — </b>
-                                  )}
-                                  {a.who.map((x) => x.name).join(", ")}{" "}
-                                  <span className="muted">({a.who.length}명)</span>
-                                </span>
-                              </>
-                            )}
-                          </span>
-
-                          {a.kind === "over" && !a.settled && (
-                            <select
-                              className="input input-sm"
-                              style={{ width: 150 }}
-                              defaultValue=""
-                              onChange={(ev) => {
-                                const d = ev.target.value;
-                                ev.target.value = "";
-                                if (!d) return;
-                                if (!confirm(`${dayShort(d)} 을 휴강으로 지정할까요?`)) return;
-                                run(
-                                  () => addClassHoliday(d, "회차 조정 휴강", klass.id),
-                                  "휴강으로 지정했어요."
-                                );
-                              }}
-                              disabled={pending}
-                            >
-                              <option value="">휴강으로 지정…</option>
-                              {m.live.map((d) => (
-                                <option key={d} value={d}>{dayShort(d)}</option>
-                              ))}
-                            </select>
-                          )}
-
-                          {a.kind === "exam" && (
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              disabled={pending || !(a.pairs || []).length}
-                              onClick={() => {
-                                // **시험을 보는 아이에게, 그 아이 시험 날짜에만** 넣는다.
-                                // 한 반에 학교가 섞여 있어도 나머지 아이는 안 건드린다.
-                                const pairs = a.pairs || [];
-                                if (pairs.length === 0) return;
-                                const byName = new Map();
-                                pairs.forEach((p) => {
-                                  if (!byName.has(p.name)) byName.set(p.name, []);
-                                  byName.get(p.name).push(p.date);
-                                });
-                                const lines = [...byName.entries()].map(
-                                  ([n, ds]) => `· ${n} — ${ds.map(dayShort).join(", ")}`
-                                );
-                                if (
-                                  !confirm(
-                                    `시험을 보는 학생만 결석 예정으로 넣습니다.\n\n` +
-                                      `${lines.join("\n")}\n\n` +
-                                      `학생 ${byName.size}명 · 모두 ${pairs.length}건\n` +
-                                      `${klass.name} 의 나머지 학생은 건드리지 않습니다.`
-                                  )
-                                )
-                                  return;
-                                run(
-                                  () => markExamAbsence(pairs, "시험 기간"),
-                                  `결석 예정 ${pairs.length}건을 넣었어요.`
-                                );
-                              }}
-                            >
-                              결석 예정 일괄 등록
-                            </button>
-                          )}
-
-                          {a.kind === "engEve" && (
-                            <button
-                              className="btn btn-primary btn-sm"
-                              disabled={pending}
-                              onClick={() => {
-                                const e = m.engEve.find((x) => x.date === a.date);
-                                const names = (a.who || []).map((x) => x.name);
-                                if (
-                                  names.length &&
-                                  !confirm(
-                                    `${dayShort(a.date)} 등원 일정을 만들까요?\n\n` +
-                                      `${a.school || ""} ${a.grade || ""} — ${names.join(", ")} (${names.length}명)\n` +
-                                      "그날 전달사항으로 이 학생들에게 안내됩니다."
-                                  )
-                                )
-                                  return;
-                                run(
-                                  () =>
-                                    makeExamEveSession({
-                                      date: a.date,
-                                      school: e?.school,
-                                      grade: e?.grade,
-                                      classId: klass.id,
-                                      englishOn: e?.english_on,
-                                    }),
-                                  "등원 일정을 만들었어요. 그날 전달사항으로 학생에게 안내됩니다."
-                                );
-                              }}
-                            >
-                              등원 일정 만들기
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 날짜를 글자로 늘어놓지 않는다 — **달력으로** 본다.
-                      휴강·시험 기간·결석이 어느 자리인지 눈으로 바로 잡히고,
-                      누르면 누가 빠지는지 아래에 적힌다 (폰에는 올릴 마우스가 없다) */}
-                  <MonthGrid
-                    month={m}
-                    absents={absents.filter((a) => a.date.startsWith(m.ym))}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-        {reviews.length === 0 && (
+        {/* **달력은 달마다 하나.** 반마다 따로 놓으니 같은 달이 반 수만큼
+            되풀이됐고, 「9월에 무슨 일이 있나」 를 보려면 여섯 판을 훑어야 했다.
+            달력 하나에 모아 칠하고, 무슨 일인지는 **아래에 반별로** 적는다. */}
+        {reviews.length === 0 ? (
           <div className="card">
             <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
               반이 없습니다. <b>반</b> 메뉴에서 먼저 만들어주세요.
             </p>
           </div>
+        ) : (
+          <>
+            {monthList.map((ym) => (
+              <MonthCard key={ym} ym={ym} />
+            ))}
+
+            {/* 지나간 달은 **아래로 내린다.** 지워버리면 「지난달 회차가 몇이었지」
+                를 볼 데가 없고, 위에 두면 매번 지나쳐 내려와야 한다 */}
+            {pastList.length > 0 && (
+              <div className="card">
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setShowPast(!showPast)}
+                >
+                  {showPast ? "지난 달 접기" : `지난 달 보기 (${pastList.length}개월)`}
+                </button>
+                {showPast && (
+                  <div className="stack" style={{ gap: 12, marginTop: 10 }}>
+                    {pastList.map((ym) => (
+                      <MonthCard key={ym} ym={ym} past />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
       )}

@@ -701,7 +701,11 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
 
       <div className="splitview">
       <div className="tblwrap">
-        <table className="tbl tbl-tight">
+        {/* 폰에서는 열을 다 보여줄 수가 없다 (기본만 켜도 가로 600px 이 넘는다).
+            **이름과 상태만 남기고** 나머지는 접는다 — 어차피 이름을 누르면
+            한 판이 열려서 거기서 다 보고 고친다. 가로로 미는 것보다 낫다.
+            (열 고르기로 켠 것은 넓은 화면에서 그대로 나온다) */}
+        <table className="tbl tbl-tight stutbl">
           <thead>
             <tr>
               <th style={{ width: 32 }}>
@@ -713,7 +717,13 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                 />
               </th>
               {cols.map((c) => (
-                <th key={c.key} style={{ minWidth: c.w }}>{c.label}</th>
+                <th
+                  key={c.key}
+                  className={c.key === "name" || c.key === "status" ? "stu-keep" : "stu-drop"}
+                  style={{ minWidth: c.w }}
+                >
+                  {c.label}
+                </th>
               ))}
               <th style={{ width: 86 }}></th>
             </tr>
@@ -752,7 +762,10 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                   {cols.map((c) => (
                     <td
                       key={c.key}
-                      className={c.mono ? "mono" : undefined}
+                      className={[
+                        c.mono ? "mono" : "",
+                        c.key === "name" || c.key === "status" ? "stu-keep" : "stu-drop",
+                      ].filter(Boolean).join(" ")}
                       style={c.strong ? { fontWeight: 700 } : undefined}
                     >
                       {/* 이름을 누르면 그 학생 한 판이 열린다 — 버튼을 찾을 일이 없다 */}

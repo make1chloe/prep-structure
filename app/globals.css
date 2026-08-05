@@ -709,3 +709,13 @@ a { color: inherit; }
 .caldot-exam  { background: color-mix(in srgb, var(--amber) 50%, transparent); }
 .caldot-eve   { background: color-mix(in srgb, var(--lav) 50%, transparent); }
 .caldot-abs   { background: color-mix(in srgb, var(--red) 45%, transparent); }
+
+/* ── 재원생 목록 — 폰에서는 이름과 상태만 ──────────────────────
+   기본 열만 켜도 가로 600px 이 넘어서, 폰에서는 표를 계속 옆으로 밀어야 했다.
+   이름을 누르면 한 판이 열려서 거기서 다 보고 고치므로, 표에는 **찾는 데
+   필요한 것**만 남긴다. 넓은 화면에서는 켜둔 열이 그대로 나온다. */
+@media (max-width: 640px) {
+  .stutbl .stu-drop { display: none; }
+  .stutbl td, .stutbl th { padding-left: 6px; padding-right: 6px; }
+  .stutbl .namebtn { font-size: 14px; }
+}
