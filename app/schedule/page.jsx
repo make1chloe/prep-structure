@@ -155,8 +155,8 @@ export default async function SchedulePage() {
       <TopBar profile={profile} active="schedule" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">회차 관리</p>
-          <h1 className="h1">{year}년</h1>
+          <p className="eyebrow">{year}년</p>
+          <h1 className="h1">회차 관리</h1>
           <p className="sub">
             달력은 <b>달마다 하나</b>입니다. 휴강·시험 기간·결석만 칠하고, 무슨 일인지는
             달력 아래에 <b>반별로</b> 적습니다. 여느 때대로 수업하는 날은 표시하지 않습니다.

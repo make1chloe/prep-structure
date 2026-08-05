@@ -243,16 +243,18 @@ export default function ScheduleBoard({
     const mine = reviews
       .map((r) => ({ ...r, m: monthOf(r, ym) }))
       .filter((r) => r.m && (r.m.all || []).length > 0);
-    const alertCount = mine.reduce((n, r) => n + (r.m.alerts || []).length, 0);
+    // **챙길 것이 있는 반만 적는다** (원장님, 2026-08-05).
+    //   「특이사항 없음」 을 반마다 한 줄씩 적으면, 한 해 열두 달에 반이 여섯이면
+    //   아무 일도 없다는 말이 일흔 번 나온다. 없는 것은 안 적는 것이 없다는 뜻이다.
+    const noted = mine.filter((r) => (r.m.alerts || []).length > 0);
+    const alertCount = noted.reduce((n, r) => n + r.m.alerts.length, 0);
 
     return (
       <div className="card" style={past ? { opacity: 0.9 } : undefined}>
         <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>{ymLabel(ym)}</h2>
           <span className="hint">반 {mine.length}</span>
-          {alertCount === 0
-            ? <span className="tag tag-mint">특이사항 없음</span>
-            : <span className="tag tag-amber">챙길 것 {alertCount}</span>}
+          {alertCount > 0 && <span className="tag tag-amber">챙길 것 {alertCount}</span>}
         </div>
 
         <MonthGrid
@@ -267,29 +269,28 @@ export default function ScheduleBoard({
           onPick={(d) => setOpenDay(openDay === d ? null : d)}
         />
 
-        {/* 반별 설명 — 회차와 챙길 것 */}
-        <div className="stack" style={{ gap: 10, marginTop: 12 }}>
-          {mine.map((r) => (
-            <div key={r.klass.id} style={{ borderTop: "1px dashed var(--border)", paddingTop: 8 }}>
-              <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-                <b style={{ fontSize: 13.5 }}>{r.klass.name}</b>
-                <span className="hint">
-                  {(r.klass.days || []).join("·")} · 수업 {r.m.live.length}회
-                  {r.m.off.length > 0 && ` (휴강 ${r.m.off.length}회 제외)`}
-                  {r.klass.base_sessions ? ` · 기준 ${r.klass.base_sessions}회` : ""}
-                </span>
-                {r.m.alerts.length === 0 && <span className="tag tag-mint">특이사항 없음</span>}
-              </div>
-              {r.m.alerts.length > 0 && (
+        {/* 챙길 것이 있는 반만 — 아무 일도 없는 반은 아예 안 적는다 */}
+        {noted.length > 0 && (
+          <div className="stack" style={{ gap: 10, marginTop: 12 }}>
+            {noted.map((r) => (
+              <div key={r.klass.id} style={{ borderTop: "1px dashed var(--border)", paddingTop: 8 }}>
+                <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
+                  <b style={{ fontSize: 13.5 }}>{r.klass.name}</b>
+                  <span className="hint">
+                    {(r.klass.days || []).join("·")} · 수업 {r.m.live.length}회
+                    {r.m.off.length > 0 && ` (휴강 ${r.m.off.length}회 제외)`}
+                    {r.klass.base_sessions ? ` · 기준 ${r.klass.base_sessions}회` : ""}
+                  </span>
+                </div>
                 <div className="stack" style={{ gap: 4, marginTop: 6 }}>
                   {r.m.alerts.map((a, i) => (
                     <AlertRow key={i} klass={r.klass} m={r.m} a={a} i={i} />
                   ))}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

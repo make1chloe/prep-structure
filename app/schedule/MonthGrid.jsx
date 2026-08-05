@@ -68,9 +68,8 @@ function whatHappens(c, d) {
       text: abs.map((a) => `${a.name}${a.reason ? ` (${a.reason})` : ""}`).join(", "),
     });
   }
-  if (out.length === 0) {
-    out.push({ tag: "수업", cls: "tag-muted", text: "여느 때대로 수업합니다 — 챙길 것 없습니다." });
-  }
+  // **아무 일도 없으면 아무것도 안 적는다.** 「여느 때대로 수업합니다」 를
+  // 반마다 적으면 챙길 것이 그 사이에 묻힌다.
   return out;
 }
 
@@ -158,7 +157,7 @@ export default function MonthGrid({ ym, classes = [], openDay = null, onPick }) 
           </b>
           {picked.length === 0 ? (
             <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
-              이 날은 수업이 없습니다.
+              챙길 것이 없습니다.
             </p>
           ) : (
             <div className="stack" style={{ gap: 8, marginTop: 6 }}>
