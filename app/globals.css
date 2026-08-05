@@ -7,8 +7,11 @@
   --radius: 13px; --radius-sm: 9px;
   --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Segoe UI", Roboto, sans-serif;
 }
+/* 화면 테마 — **시스템에 맞추기가 기본**이고, 설정에서 라이트·다크로 고정할 수 있다.
+   시스템 다크(@media)와 손으로 고른 다크(:root[data-theme]) 가 **같은 값**이어야
+   한다. 한쪽만 고치면 「설정에서 다크로 했는데 어떤 색만 밝다」 가 생긴다. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --navy: #8aa4ff; --bg: #0d1119; --surface: #161c28; --surface-2: #1b2231;
     --border: #263048; --border-strong: #34405c; --text: #eef1f8; --text-muted: #a6b0ca; --text-faint: #7b86a3;
     --mint: #34d399; --mint-soft: #123027; --sky: #38bdf8; --sky-soft: #0e2c3d; --lav: #a394f7; --lav-soft: #241f42;
@@ -16,6 +19,17 @@
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.35);
   }
 }
+:root[data-theme="dark"] {
+    --navy: #8aa4ff; --bg: #0d1119; --surface: #161c28; --surface-2: #1b2231;
+    --border: #263048; --border-strong: #34405c; --text: #eef1f8; --text-muted: #a6b0ca; --text-faint: #7b86a3;
+    --mint: #34d399; --mint-soft: #123027; --sky: #38bdf8; --sky-soft: #0e2c3d; --lav: #a394f7; --lav-soft: #241f42;
+    --amber: #fbbf24; --amber-soft: #2f2510; --red: #f87171; --red-soft: #331919;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.35);
+}
+/* 브라우저에게도 알려준다 — 스크롤바·기본 위젯 색이 따라온다 */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -35,7 +49,8 @@ a { color: inherit; }
 .topbar-in { display: flex; align-items: center; gap: 16px; height: 56px; max-width: 1480px; margin: 0 auto; padding: 0 20px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 16px; letter-spacing: -.02em; text-decoration: none; }
 .brand .mark { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
-@media (prefers-color-scheme: dark) { .brand .mark { color: #0d1119; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand .mark { color: #0d1119; } }
+:root[data-theme="dark"] .brand .mark { color: #0d1119; }
 .nav { display: flex; gap: 2px; }
 .nav a { font-size: 13.5px; font-weight: 600; color: var(--text-muted); text-decoration: none; padding: 7px 12px; border-radius: 8px; }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
@@ -99,7 +114,8 @@ a { color: inherit; }
 .btn { font-family: inherit; font-size: 13.5px; font-weight: 700; border-radius: 10px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); display: inline-flex; align-items: center; gap: 7px; text-decoration: none; transition: .15s; }
 .btn:hover { border-color: var(--border-strong); }
 .btn-primary { background: var(--navy); color: #fff; border-color: var(--navy); }
-@media (prefers-color-scheme: dark) { .btn-primary { color: #0d1119; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn-primary { color: #0d1119; } }
+:root[data-theme="dark"] .btn-primary { color: #0d1119; }
 .btn-primary:hover { opacity: .92; }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
 .btn-block { width: 100%; justify-content: center; }
@@ -139,7 +155,8 @@ a { color: inherit; }
 .daychip input { position: absolute; opacity: 0; width: 0; height: 0; }
 .daychip span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); font-size: 12.5px; font-weight: 700; color: var(--text-muted); cursor: pointer; }
 .daychip input:checked + span { background: var(--navy); border-color: var(--navy); color: #fff; }
-@media (prefers-color-scheme: dark) { .daychip input:checked + span { color: #0d1119; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .daychip input:checked + span { color: #0d1119; } }
+:root[data-theme="dark"] .daychip input:checked + span { color: #0d1119; }
 .input-sm { padding: 5px 8px; font-size: 12.5px; height: auto; }
 .bulkbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -246,7 +263,8 @@ a { color: inherit; }
 .login-card { width: 100%; max-width: 380px; }
 .login-logo { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 6px; }
 .login-logo .mark { width: 34px; height: 34px; border-radius: 10px; background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 16px; font-weight: 800; }
-@media (prefers-color-scheme: dark) { .login-logo .mark { color: #0d1119; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .login-logo .mark { color: #0d1119; } }
+:root[data-theme="dark"] .login-logo .mark { color: #0d1119; }
 .divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: 12px; margin: 4px 0; }
 .divider::before, .divider::after { content: ""; height: 1px; background: var(--border); flex: 1; }
 .bookprog {
@@ -596,3 +614,7 @@ a { color: inherit; }
   .split-panel { position: static; order: -1; max-height: none; overflow: visible; }
   .split-fold { display: inline-flex; }
 }
+
+/* 재원생을 묶어 볼 때의 머리줄 (반별 · 요일별 · 학교별 · 학년별) */
+.grouprow td { background: var(--surface-2); padding: 6px 10px !important; }
+.grouprow td b { color: var(--text); }

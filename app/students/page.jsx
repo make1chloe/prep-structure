@@ -88,11 +88,33 @@ export default async function StudentsPage({ searchParams }) {
     booksOf.get(r.student_id).push(b);
   });
 
-  const rows = (students || []).map((s) => ({
-    ...s,
-    initPw: !!s.profile_id && initPw.has(s.profile_id),
-    books: booksOf.get(s.id) || [],
-  }));
+  // 반과 수업 요일 — 목록을 **반별 · 요일별**로 묶어 보기 위해서다
+  const { data: klasses } = await supabase
+    .from("classes")
+    .select("id, name, days, start_time")
+    .order("start_time", { ascending: true });
+  const klassById = new Map((klasses || []).map((c) => [c.id, c]));
+  const { data: members } = ids.length
+    ? await supabase.from("class_students").select("class_id, student_id").in("student_id", ids)
+    : { data: [] };
+  const classesOf = new Map();
+  (members || []).forEach((m) => {
+    const c = klassById.get(m.class_id);
+    if (!c) return;
+    if (!classesOf.has(m.student_id)) classesOf.set(m.student_id, []);
+    classesOf.get(m.student_id).push({ id: c.id, name: c.name, days: c.days || [] });
+  });
+
+  const rows = (students || []).map((s) => {
+    const cls = classesOf.get(s.id) || [];
+    return {
+      ...s,
+      initPw: !!s.profile_id && initPw.has(s.profile_id),
+      books: booksOf.get(s.id) || [],
+      classes: cls,
+      days: [...new Set(cls.flatMap((c) => c.days))],
+    };
+  });
 
   return (
     <>
@@ -125,6 +147,7 @@ export default async function StudentsPage({ searchParams }) {
               textbooks={textbooks}
               defaultPass={defaultPass}
               openStudent={searchParams?.s || null}
+              classList={(klasses || []).map((c) => ({ id: c.id, name: c.name }))}
             />
           )}
         </div>

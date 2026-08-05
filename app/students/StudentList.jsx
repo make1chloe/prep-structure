@@ -66,7 +66,7 @@ const STATUS_TABS = [
 
 const COL_KEY = "chloe.students.cols";
 
-export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null }) {
+export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null, classList = [] }) {
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
   const [on, setOn] = useState(() => new Set(DEFAULT_ON));
   const [colBox, setColBox] = useState(false);
@@ -97,6 +97,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     return d;
   });
   const [q, setQ] = useState("");
+  // 목록을 무엇으로 묶어 볼지 — 반 · 요일 · 학교 · 학년
+  const [groupBy, setGroupBy] = useState("none");
   const [statusFilter, setStatusFilter] = useState(
     () => students.find((s) => s.id === openStudent)?.status || "enrolled"
   );
@@ -131,6 +133,62 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.note]
       .some((v) => norm(v).includes(kw));
   });
+
+  /**
+   * 목록을 **묶어 본다** — 반 · 요일 · 학교 · 학년.
+   *
+   * 「학교별로 한 번 훑기」 는 실제로 자주 하는 일이다 (내신 자료를 만들 때,
+   * 시험 기간 결석을 넣을 때). 검색으로는 한 학교씩 쳐야 하고, 몇 명인지도
+   * 세어야 한다.
+   *
+   * 반·요일은 한 아이가 **여러 묶음에 들어갈 수 있다** (주 2회 수업이면 월·수 둘 다).
+   * 그럴 때는 양쪽에 다 보여준다 — 빼면 「월요일반 명단」 이 틀린 명단이 된다.
+   *
+   * 비어 있는 것도 한 묶음으로 둔다. 안 보여주면 학교를 아직 안 적은 아이가
+   * 목록에서 사라진 것처럼 보인다.
+   */
+  const DOW = ["월", "화", "수", "목", "금", "토", "일"];
+  const groups = (() => {
+    if (groupBy === "none") return [{ key: "all", title: null, rows: shown }];
+
+    const bucket = new Map();
+    const put = (key, title, row) => {
+      if (!bucket.has(key)) bucket.set(key, { key, title, rows: [] });
+      bucket.get(key).rows.push(row);
+    };
+
+    if (groupBy === "class") {
+      classList.forEach((c) => bucket.set(c.id, { key: c.id, title: c.name, rows: [] }));
+      shown.forEach((s) => {
+        const mine = s.classes || [];
+        if (mine.length === 0) put("_none", "반 없음", s);
+        else mine.forEach((c) => put(c.id, c.name, s));
+      });
+    } else if (groupBy === "day") {
+      DOW.forEach((d) => bucket.set(d, { key: d, title: `${d}요일`, rows: [] }));
+      shown.forEach((s) => {
+        const mine = s.days || [];
+        if (mine.length === 0) put("_none", "수업 요일 없음", s);
+        else mine.forEach((d) => put(d, `${d}요일`, s));
+      });
+    } else {
+      const field = groupBy === "school" ? "school" : "grade";
+      const empty = groupBy === "school" ? "학교 미입력" : "학년 미입력";
+      shown.forEach((s) => {
+        const v = (s[field] || "").trim();
+        put(v || "_none", v || empty, s);
+      });
+    }
+
+    return [...bucket.values()]
+      .filter((g) => g.rows.length > 0)
+      .sort((a, b) => {
+        if (a.key === "_none") return 1;
+        if (b.key === "_none") return -1;
+        if (groupBy === "class" || groupBy === "day") return 0;   // 정해둔 순서 그대로
+        return a.title.localeCompare(b.title, "ko");
+      });
+  })();
 
   const allChecked = shown.length > 0 && sel.size === shown.length;
   const someChecked = sel.size > 0 && !allChecked;
@@ -419,6 +477,20 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
           value={q}
           onChange={(e) => { setQ(e.target.value); setSel(new Set()); }}
         />
+        {/* 묶어 보기 — 「학교별로 한 번 훑기」 는 실제로 자주 하는 일이다 */}
+        <select
+          className="input input-sm"
+          style={{ width: 118 }}
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value)}
+          title="목록을 묶어서 봅니다"
+        >
+          <option value="none">묶지 않기</option>
+          <option value="class">반별</option>
+          <option value="day">요일별</option>
+          <option value="school">학교별</option>
+          <option value="grade">학년별</option>
+        </select>
         {STATUS_TABS.map(([k, label]) => {
           const n = k === "all" ? students.length : students.filter((s) => s.status === k).length;
           if (n === 0 && k !== "enrolled" && k !== "all") return null;
@@ -527,7 +599,31 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
             </tr>
           </thead>
           <tbody>
-            {shown.map((s) => (
+            {groups.map((g) => (
+              <Fragment key={g.key}>
+                {/* 묶어 볼 때만 나오는 머리줄. 「학교 미입력」 처럼 **빈 것도 한 묶음**이다 —
+                    안 보여주면 그 아이들이 목록에서 사라진 것처럼 보인다 */}
+                {g.title && (
+                  <tr className="grouprow">
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={g.rows.every((x) => sel.has(x.id))}
+                        onChange={() => {
+                          const n = new Set(sel);
+                          const every = g.rows.every((x) => n.has(x.id));
+                          g.rows.forEach((x) => (every ? n.delete(x.id) : n.add(x.id)));
+                          setSel(n);
+                        }}
+                      />
+                    </td>
+                    <td colSpan={cols.length + 1}>
+                      <b style={{ fontSize: 12.5 }}>{g.title}</b>{" "}
+                      <span className="hint">{g.rows.length}명</span>
+                    </td>
+                  </tr>
+                )}
+                {g.rows.map((s) => (
               <Fragment key={s.id}>
                 <tr className={openId === s.id ? "rowopen" : undefined}>
                   <td>
@@ -554,6 +650,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                   </td>
                 </tr>
 
+              </Fragment>
+            ))}
               </Fragment>
             ))}
           </tbody>

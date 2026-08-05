@@ -4,7 +4,6 @@ import TopBar from "@/components/TopBar";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
-import MenuBox from "./MenuBox";
 import { loadSettings, maskSecret } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -76,9 +75,6 @@ export default async function SettingsPage() {
               SQL 열기
             </Link>
           </div>
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <MenuBox profile={profile} />
         </div>
         <NetBox />
         <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} />

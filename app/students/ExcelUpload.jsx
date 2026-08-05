@@ -89,7 +89,7 @@ export default function ExcelUpload() {
   if (!open) {
     return (
       <div className="row" style={{ marginTop: 10 }}>
-        <button className="btn btn-ghost" onClick={() => setOpen(true)}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
           ＋ 엑셀로 추가
         </button>
       </div>
