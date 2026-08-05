@@ -109,12 +109,83 @@ export async function mergeSchools(keepId, dropId) {
   // **몇 개를 옮겼는지 세어서 돌려준다.** 예전에는 아무것도 안 돌려줘서,
   // 실패해도 성공해도 화면이 똑같아 보였다 — 「눌러도 아무 일이 없다」 가 그것이다.
   const moved = {};
-  for (const t of ["students", "exam_periods"]) {
+
+  // 학생은 그냥 옮기면 된다
+  {
     const { data, error } = await supabase
-      .from(t).update({ school_id: keepId }).eq("school_id", dropId).select("id");
-    if (error) return { error: `${t} 를 옮기지 못했어요: ${error.message}` };
-    moved[t] = (data || []).length;
+      .from("students").update({ school_id: keepId }).eq("school_id", dropId).select("id");
+    if (error) return { error: `학생을 옮기지 못했어요: ${error.message}` };
+    moved.students = (data || []).length;
   }
+
+  // ── 시험은 그냥 못 옮긴다 ────────────────────────────────
+  //
+  // 시험은 (학교 · 학년 · 시작일) 이 같으면 한 줄이어야 한다 (0022 의 exam_periods_uniq).
+  // 그런데 합칠 두 학교가 **같은 시험을 각자 들고 있는** 경우가 흔하다 —
+  // 손으로 적어둔 「신정중 1학기 기말」 과 나이스로 받은 「인천신정중학교 1학기 기말」.
+  //
+  // 그대로 school_id 만 바꾸면 학교 이름이 같아지면서 두 줄이 충돌한다.
+  // 실제로 그랬다: `duplicate key value violates unique constraint "exam_periods_uniq"`
+  //
+  // 그래서 **겹치는 시험은 옮기지 않고 합친다.** 남는 줄에 빈 칸만 채워 넣고,
+  // 딸린 시험범위·자료를 남는 줄로 옮긴 뒤, 옮겨온 줄을 지운다.
+  const EX = "id, grade, name, from_date, to_date, english_on, note, source";
+  const wide = `${EX}, cuts, teacher, teachers, neis_source_id, neis_from, neis_to, neis_name`;
+  const loadExams = async (schoolId) => {
+    let q = await supabase.from("exam_periods").select(wide).eq("school_id", schoolId);
+    if (q.error) q = await supabase.from("exam_periods").select(EX).eq("school_id", schoolId);
+    return q.error ? [] : q.data || [];
+  };
+  const slot = (e) => `${e.grade || ""}|${(e.from_date || "").slice(0, 10)}`;
+
+  const dropExams = await loadExams(dropId);
+  const keepExams = await loadExams(keepId);
+  const keepBySlot = new Map(keepExams.map((e) => [slot(e), e]));
+
+  let movedExams = 0;
+  let mergedExams = 0;
+  for (const e of dropExams) {
+    const twin = keepBySlot.get(slot(e));
+    if (!twin) {
+      const { error } = await supabase
+        .from("exam_periods").update({ school_id: keepId }).eq("id", e.id);
+      if (error) return { error: `시험을 옮기지 못했어요: ${error.message}` };
+      movedExams += 1;
+      keepBySlot.set(slot(e), e);       // 옮긴 것도 이제 남는 쪽 자리를 차지한다
+      continue;
+    }
+
+    // 남는 줄의 **빈 칸만** 채운다. 이미 적어둔 것을 덮어쓰지 않는다
+    const patch = {};
+    for (const k of ["name", "to_date", "english_on", "note", "cuts", "teacher", "teachers",
+                     "neis_source_id", "neis_from", "neis_to", "neis_name"]) {
+      const mine = twin[k];
+      const his = e[k];
+      const empty = mine === null || mine === undefined || mine === "" ||
+        (Array.isArray(mine) && mine.length === 0);
+      if (empty && his !== null && his !== undefined && his !== "") patch[k] = his;
+    }
+    if (Object.keys(patch).length) {
+      const up = await supabase.from("exam_periods").update(patch).eq("id", twin.id);
+      if (up.error) {
+        // 0073~0076 전이면 없는 칸이 섞여 있을 수 있다 — 이름·끝날만 다시
+        const { name, to_date, english_on, note } = patch;
+        await supabase.from("exam_periods")
+          .update({ name, to_date, english_on, note }).eq("id", twin.id);
+      }
+    }
+
+    // 딸린 시험범위·자료를 남는 줄로 옮긴다. 안 옮기면 시험을 지울 때
+    // 딸려서 같이 지워진다 (prep_scopes 는 on delete cascade · 0074)
+    const sc = await supabase
+      .from("prep_scopes").update({ exam_id: twin.id }).eq("exam_id", e.id);
+    if (sc.error) return { error: `시험범위를 옮기지 못했어요: ${sc.error.message}` };
+
+    const del = await supabase.from("exam_periods").delete().eq("id", e.id);
+    if (del.error) return { error: `겹친 시험을 정리하지 못했어요: ${del.error.message}` };
+    mergedExams += 1;
+  }
+  moved.exam_periods = movedExams + mergedExams;
 
   const { data: keep } = await supabase
     .from("schools").select("aliases").eq("id", keepId).maybeSingle();
@@ -143,6 +214,7 @@ export async function mergeSchools(keepId, dropId) {
     error: null,
     students: moved.students || 0,
     exams: moved.exam_periods || 0,
+    mergedExams,
     name: drop.name,
   };
 }

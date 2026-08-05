@@ -393,7 +393,11 @@ export default function NeisBox({ months = [] }) {
                         )) return;
                         setMergeId(null);
                         run(() => mergeSchools(s.id, t.id), (r) => {
-                          alert(`합쳤습니다.\n\n학생 ${r?.students || 0}명 · 시험 ${r?.exams || 0}건이 「${s.name}」 으로 옮겨갔어요.`);
+                          alert(
+                            `합쳤습니다.\n\n` +
+                            `학생 ${r?.students || 0}명 · 시험 ${r?.exams || 0}건이 「${s.name}」 으로 옮겨갔어요.` +
+                            (r?.mergedExams ? `\n(그중 ${r.mergedExams}건은 같은 시험이라 한 줄로 합쳤습니다)` : "")
+                          );
                           reload();
                         }, true);
                       }}
@@ -425,7 +429,11 @@ export default function NeisBox({ months = [] }) {
                         `「${t.name}」 는 별칭으로 남습니다 (옛 이름으로도 찾을 수 있어요).\n\n합칠까요?`
                       )) return;
                       run(() => mergeSchools(s.id, t.id), (r) => {
-                        alert(`합쳤습니다.\n\n학생 ${r?.students || 0}명 · 시험 ${r?.exams || 0}건이 「${s.name}」 으로 옮겨갔어요.`);
+                        alert(
+                            `합쳤습니다.\n\n` +
+                            `학생 ${r?.students || 0}명 · 시험 ${r?.exams || 0}건이 「${s.name}」 으로 옮겨갔어요.` +
+                            (r?.mergedExams ? `\n(그중 ${r.mergedExams}건은 같은 시험이라 한 줄로 합쳤습니다)` : "")
+                          );
                         reload();
                       }, true);
                     }}

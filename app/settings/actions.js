@@ -50,6 +50,28 @@ export async function saveIntegration(id, { enabled, config, replace } = {}) {
 
   const nextConfig = replace ? config || {} : merge(prev?.config || {}, config || {});
 
+  // ── API Key 와 Secret 은 **짝이다** ─────────────────────────
+  //
+  // 비밀값은 비워두면 그대로 두는 것이 규칙이다 (가려진 값을 실수로 지우지 않으려고).
+  // 그런데 솔라피 키를 새로 발급받아 **Key 만** 바꿔 넣으면, 옛 Secret 이 그대로
+  // 남아서 **짝이 어긋난다.** 그러면 저장은 되는데 발송할 때마다
+  // 「생성한 signature 를 확인하세요」 가 뜬다 — 왜 그런지 알 길이 없다.
+  //
+  // 그래서 Key 가 바뀌면 Secret 도 같이 받는다.
+  if (id === "solapi") {
+    const oldKey = (prev?.config?.apiKey || "").trim();
+    const newKey = (config?.apiKey || "").toString().trim();
+    const newSecret = (config?.apiSecret || "").toString().trim();
+    if (newKey && oldKey && newKey !== oldKey && !newSecret) {
+      return {
+        error:
+          "API Key 를 새로 넣으셨는데 API Secret 이 비어 있어요.\n" +
+          "둘은 짝이라, Key 만 바꾸면 발송할 때 「서명이 맞지 않다」 는 오류가 납니다.\n" +
+          "솔라피에서 받은 Secret 도 같이 넣어주세요.",
+      };
+    }
+  }
+
   const { error } = await supabase.from("integrations").upsert(
     {
       id,
