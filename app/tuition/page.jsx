@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import PrincipalOnly from "@/components/PrincipalOnly";
 import TuitionBoard from "./TuitionBoard";
 import { classSessions, studentAmount, monthRange, unitFor, unitSource } from "@/lib/tuition";
 import { loadSettings } from "@/lib/settings";
@@ -18,6 +19,11 @@ export default async function TuitionPage({ searchParams }) {
   if (user) {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     profile = data;
+  }
+
+  // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
+  if (profile?.role !== "principal") {
+    return <PrincipalOnly profile={profile} what="수강료 화면" />;
   }
 
   const ym = searchParams?.m || todaySeoul().slice(0, 7);

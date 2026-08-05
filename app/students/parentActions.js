@@ -1,0 +1,251 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { SUPABASE_URL } from "@/lib/supabase/env";
+
+/**
+ * 학부모 계정.
+ *
+ * 학생 계정과 **같은 방식**이다 — 학원이 아이디를 주고, 비번은 0000 으로
+ * 시작해서 처음 들어오면 바꾸게 한다. 학부모님은 이메일을 만들 필요가 없다.
+ *
+ * 다만 학생 계정과 다른 것이 하나 있다. **형제자매는 계정 하나로 둘 다 본다.**
+ * 형제를 묶어두신 이유가 그것이다 (0071). 그래서
+ *   · 계정을 만들 때 형제 전부를 한 번에 연결하고
+ *   · 형제 중 누구에게 이미 학부모 계정이 있으면 **새로 만들지 않고 거기에 붙인다**
+ *
+ * 안 그러면 아이가 둘인 집은 로그인을 두 번 해야 하고, 원장님은 같은 학부모에게
+ * 아이디를 두 개 알려드려야 한다.
+ */
+
+const DOMAIN = "chloe-eng.internal";     // 실제로 메일이 가는 곳이 아니다
+const INIT_PW = "0000";
+
+function emailOf(loginId) {
+  return `${(loginId || "").trim().toLowerCase()}@${DOMAIN}`;
+}
+
+async function requirePrincipal(supabase) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "로그인이 필요해요." };
+  const { data: p } = await supabase
+    .from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (!["principal", "instructor"].includes(p?.role)) {
+    return { error: "선생님 계정에서만 할 수 있어요." };
+  }
+  return { error: null };
+}
+
+async function serviceKey(supabase) {
+  const { data } = await supabase
+    .from("integrations").select("config").eq("id", "supabase_service").maybeSingle();
+  return (data?.config?.key || "").trim();
+}
+
+function keyMissing() {
+  return {
+    error:
+      "학부모 계정을 만들려면 설정 → Supabase · AI 키 에서 service_role 키를 한 번 넣어주셔야 해요.",
+  };
+}
+
+async function admin(key, path, method, body) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin${path}`, {
+    method,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  let json = null;
+  try { json = await res.json(); } catch { /* 본문이 없을 수도 있다 */ }
+  return { ok: res.ok, status: res.status, json };
+}
+
+/** 이 아이와 **한 집인 아이들** — 형제로 묶여 있으면 전부 (0071) */
+async function familyOf(supabase, studentId) {
+  const { data: me } = await supabase
+    .from("students")
+    .select("id, name, family_id, login_id")
+    .eq("id", studentId)
+    .maybeSingle();
+  if (!me) return { me: null, siblings: [] };
+  if (!me.family_id) return { me, siblings: [me] };
+  const { data: fam } = await supabase
+    .from("students")
+    .select("id, name, family_id, login_id")
+    .eq("family_id", me.family_id);
+  return { me, siblings: (fam || []).length ? fam : [me] };
+}
+
+/** 지금 이 아이의 학부모 계정은 어떤 상태인가 */
+export async function parentStatus(studentId) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return { error: guard.error };
+
+  const { me, siblings } = await familyOf(supabase, studentId);
+  if (!me) return { error: "학생을 찾을 수 없어요." };
+
+  const ids = siblings.map((s) => s.id);
+  const { data: links } = await supabase
+    .from("parent_student")
+    .select("parent_profile_id, student_id")
+    .in("student_id", ids);
+
+  const mine = (links || []).filter((l) => l.student_id === studentId);
+  const anyLink = (links || [])[0] || null;
+
+  let profile = null;
+  const pid = mine[0]?.parent_profile_id || anyLink?.parent_profile_id || null;
+  if (pid) {
+    const { data } = await supabase
+      .from("profiles").select("id, name, login_id, must_change_pw").eq("id", pid).maybeSingle();
+    profile = data || null;
+  }
+
+  // 이 학부모 계정이 지금 보고 있는 아이들
+  const childIds = new Set(
+    (links || []).filter((l) => l.parent_profile_id === pid).map((l) => l.student_id)
+  );
+
+  return {
+    error: null,
+    hasKey: !!(await serviceKey(supabase)),
+    linked: mine.length > 0,
+    // 형제에게만 계정이 있는 경우 — 새로 만들지 말고 여기 붙이면 된다
+    siblingOnly: mine.length === 0 && !!pid,
+    loginId: profile?.login_id || "",
+    mustChange: !!profile?.must_change_pw,
+    children: siblings.filter((s) => childIds.has(s.id)).map((s) => s.name),
+    siblings: siblings.map((s) => ({ id: s.id, name: s.name })),
+    suggest: `${(me.login_id || "chloe").toLowerCase()}p`,
+  };
+}
+
+/**
+ * 학부모 계정을 만든다 — 형제가 있으면 **전부 한 계정에** 연결한다.
+ * 형제 중에 이미 학부모 계정이 있으면 **새로 만들지 않고** 거기에 이 아이를 붙인다.
+ */
+export async function createParentLogin(studentId, wantId) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return guard;
+
+  const { me, siblings } = await familyOf(supabase, studentId);
+  if (!me) return { error: "학생을 찾을 수 없어요." };
+  const ids = siblings.map((s) => s.id);
+
+  // 이미 있는 계정 — 형제 것이라도 그것을 쓴다
+  const { data: links } = await supabase
+    .from("parent_student").select("parent_profile_id, student_id").in("student_id", ids);
+  const existing = (links || [])[0]?.parent_profile_id || null;
+
+  if (existing) {
+    const rows = ids.map((student_id) => ({ parent_profile_id: existing, student_id }));
+    const { error } = await supabase
+      .from("parent_student").upsert(rows, { onConflict: "parent_profile_id,student_id" });
+    if (error) return { error: error.message };
+    const { data: p } = await supabase
+      .from("profiles").select("login_id").eq("id", existing).maybeSingle();
+    revalidatePath("/students");
+    return {
+      error: null,
+      loginId: p?.login_id || "",
+      password: null,          // 비번은 이미 정하신 것이 있다
+      joined: true,
+      count: ids.length,
+    };
+  }
+
+  const key = await serviceKey(supabase);
+  if (!key) return keyMissing();
+
+  const loginId = (wantId || "").trim().toLowerCase() || `${(me.login_id || "chloe").toLowerCase()}p`;
+  if (!/^[a-z0-9._-]{4,30}$/.test(loginId)) {
+    return { error: "아이디는 영문·숫자로 4~30자여야 해요." };
+  }
+
+  const made = await admin(key, "/users", "POST", {
+    email: emailOf(loginId),
+    password: INIT_PW,
+    email_confirm: true,
+    user_metadata: { name: `${me.name} 학부모`, login_id: loginId },
+  });
+  if (!made.ok) {
+    const msg = made.json?.msg || made.json?.message || `HTTP ${made.status}`;
+    if (made.status === 401 || made.status === 403) {
+      return { error: `키가 맞지 않아요 (${msg}). 설정에서 service_role 키를 다시 넣어주세요.` };
+    }
+    if (/already|registered|exists/i.test(msg)) {
+      return { error: `이미 쓰고 있는 아이디예요 (${loginId}). 다른 아이디로 해주세요.` };
+    }
+    return { error: `계정을 만들지 못했어요: ${msg}` };
+  }
+  const uid = made.json?.id;
+  if (!uid) return { error: "계정은 만들어졌는데 id 를 못 받았어요." };
+
+  await supabase.from("profiles").upsert(
+    { id: uid, name: `${me.name} 학부모`, role: "parent", login_id: loginId, must_change_pw: true },
+    { onConflict: "id" }
+  );
+  const { error } = await supabase
+    .from("parent_student")
+    .upsert(ids.map((student_id) => ({ parent_profile_id: uid, student_id })), {
+      onConflict: "parent_profile_id,student_id",
+    });
+  if (error) return { error: error.message };
+
+  revalidatePath("/students");
+  return { error: null, loginId, password: INIT_PW, count: ids.length };
+}
+
+/** 비밀번호를 0000 으로 되돌린다 (학부모님이 잊었을 때) */
+export async function resetParentPassword(studentId) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return guard;
+
+  const key = await serviceKey(supabase);
+  if (!key) return keyMissing();
+
+  const { data: link } = await supabase
+    .from("parent_student").select("parent_profile_id").eq("student_id", studentId).maybeSingle();
+  if (!link) return { error: "아직 학부모 계정이 없어요." };
+
+  const res = await admin(key, `/users/${link.parent_profile_id}`, "PUT", { password: INIT_PW });
+  if (!res.ok) {
+    const msg = res.json?.msg || res.json?.message || `HTTP ${res.status}`;
+    return { error: `비밀번호를 바꾸지 못했어요: ${msg}` };
+  }
+  await supabase
+    .from("profiles").update({ must_change_pw: true }).eq("id", link.parent_profile_id);
+
+  const { data: p } = await supabase
+    .from("profiles").select("login_id").eq("id", link.parent_profile_id).maybeSingle();
+  revalidatePath("/students");
+  return { error: null, loginId: p?.login_id || "", password: INIT_PW };
+}
+
+/**
+ * 이 아이만 학부모 계정에서 뗀다.
+ *
+ * 계정 자체는 안 지운다 — 형제가 아직 붙어 있을 수 있고, 지우면 되돌릴 수 없다.
+ */
+export async function unlinkParent(studentId) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return guard;
+  const { error } = await supabase
+    .from("parent_student").delete().eq("student_id", studentId);
+  revalidatePath("/students");
+  return { error: error ? error.message : null };
+}

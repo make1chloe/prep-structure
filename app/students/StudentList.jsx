@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateStudent, deleteStudents, updateStudentsStatus, linkSiblings, unlinkSibling } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
+import ParentBox from "./ParentBox";
 import NoteBox from "./NoteBox";
 import StudentBooks from "@/app/today/StudentBooks";
 import WordTestBox from "./WordTestBox";
@@ -395,7 +396,12 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                       )}
                       {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
                       {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
-                      {tab === "account" && <LinkBox studentId={s.id} name={s.name} />}
+                      {tab === "account" && (
+              <>
+                <LinkBox studentId={s.id} name={s.name} />
+                <ParentBox studentId={s.id} name={s.name} />
+              </>
+            )}
                       {tab === "history" && <StudentHistoryPanel studentId={s.id} />}
           </div>
         )}

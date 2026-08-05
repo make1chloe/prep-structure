@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import TopBar from "@/components/TopBar";
+import PrincipalOnly from "@/components/PrincipalOnly";
 import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
 import MenuBox from "./MenuBox";
@@ -18,6 +19,11 @@ export default async function SettingsPage() {
   if (user) {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     profile = data;
+  }
+
+  // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
+  if (profile?.role !== "principal") {
+    return <PrincipalOnly profile={profile} what="발송 · 연동 설정" />;
   }
   const canEdit = profile?.role === "principal";
 

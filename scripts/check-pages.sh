@@ -91,7 +91,16 @@ else
 fi
 echo
 
-echo "== 9) 빌드 =="
+echo "== 9) 조교가 수강료를 볼 수 있나 (진짜 Postgres) =="
+# 메뉴에서 감추는 것과 데이터를 막는 것은 다른 이야기다 (0079)
+if [ -f scripts/check-roles.sh ]; then
+  bash scripts/check-roles.sh || fail=1
+else
+  echo "  건너뜀"
+fi
+
+echo
+echo "== 10) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
 else

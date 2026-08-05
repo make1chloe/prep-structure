@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import PrincipalOnly from "@/components/PrincipalOnly";
 import CopyBox from "./CopyBox";
 import { checkSchema } from "./status";
 import ServiceKeyBox from "./ServiceKeyBox";
@@ -32,6 +33,11 @@ export default async function SqlPage() {
   if (user) {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     profile = data;
+  }
+
+  // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
+  if (profile?.role !== "principal") {
+    return <PrincipalOnly profile={profile} what="Supabase · AI 키 화면" />;
   }
 
   // 앱이 실제로 붙어 있는 프로젝트 — SQL 을 돌리는 곳과 같아야 한다
