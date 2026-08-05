@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ThemePicker from "@/components/ThemePicker";
 import MenuBox from "../MenuBox";
+import IconBox from "./IconBox";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function ScreenSettingsPage() {
         <div className="stack" style={{ gap: 12 }}>
           <MenuBox profile={profile} />
           <ThemePicker />
+          {profile?.role === "principal" && <IconBox />}
         </div>
       </main>
     </>

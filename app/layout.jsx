@@ -3,12 +3,14 @@ import "./globals.css";
 export const metadata = {
   title: "클로이영어 학습관리",
   description: "학생·선생님·학부모 학습관리 시스템",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   // 아이폰은 manifest 보다 **apple-touch-icon** 을 먼저 본다. 이게 없으면
   // 홈 화면에 화면을 찍은 그림이 들어간다.
+  // 아이콘은 원장님이 설정에서 바꿀 수 있다 (0080). 그래서 고정 파일이 아니라
+  // 주소를 가리킨다 — 안 올리셨으면 그 주소가 기본 그림을 내어준다.
   icons: {
-    icon: [{ url: "/favicon.png", sizes: "64x64", type: "image/png" }],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    icon: [{ url: "/api/icon/favicon", sizes: "64x64", type: "image/png" }],
+    apple: [{ url: "/api/icon/apple", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: { capable: true, title: "클로이영어", statusBarStyle: "default" },
 };

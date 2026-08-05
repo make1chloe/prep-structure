@@ -70,6 +70,8 @@ const CHECKS = [
   { id: "0076", label: "학교 한 곳으로 · 출제샘 여러 명", table: "exam_periods", col: "teachers" },
   { id: "0077", label: "일정을 학생·학교에 배정", table: "tasks", col: "deliver_student_ids" },
   { id: "0078", label: "구글 캘린더 구독", table: "calendar_tokens", col: "token" },
+  { id: "0079", label: "학부모 계정 · 선생님 권한", table: "profiles", col: "login_id" },
+  { id: "0080", label: "로고 올리기", table: "app_assets", col: "data" },
 ];
 
 export async function checkSchema() {
