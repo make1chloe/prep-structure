@@ -62,7 +62,26 @@ export async function saveIntegration(id, { enabled, config, replace } = {}) {
     const oldKey = (prev?.config?.apiKey || "").trim();
     const newKey = (config?.apiKey || "").toString().trim();
     const newSecret = (config?.apiSecret || "").toString().trim();
-    if (newKey && oldKey && newKey !== oldKey && !newSecret) {
+
+    // **이메일은 절대 API Key 가 아니다.**
+    //
+    // 옆 칸이 비밀번호 칸이라 크롬이 이 화면을 로그인 폼으로 보고 저장해둔
+    // 이메일을 API Key 칸에 채워 넣는다. 그대로 저장되면 멀쩡히 되던 발송이
+    // 갑자기 「회원 ID가 유효하지 않습니다」 로 죽는다. 화면에서도 막고
+    // 여기서도 막는다 — 자동완성은 사람이 안 눌러도 값을 넣기 때문이다.
+    if (newKey.includes("@")) {
+      return {
+        error:
+          "API Key 칸에 이메일이 들어왔어요. 저장하지 않았습니다.\n" +
+          "브라우저가 자동으로 채워 넣은 것일 수 있습니다 — 칸을 비우고 " +
+          "솔라피 → 개발/연동 → API Key 관리 의 값을 붙여넣어주세요.",
+      };
+    }
+
+    // 옛 값이 이미 이메일이면(예전에 잘못 저장된 것) 지금 고치시는 중이다.
+    // 그때까지 Secret 을 요구해 막으면 되돌릴 방법이 없다.
+    const oldLooksReal = oldKey && !oldKey.includes("@");
+    if (newKey && oldLooksReal && newKey !== oldKey && !newSecret) {
       return {
         error:
           "API Key 를 새로 넣으셨는데 API Secret 이 비어 있어요.\n" +

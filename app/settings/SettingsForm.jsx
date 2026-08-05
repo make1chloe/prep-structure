@@ -173,8 +173,15 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           <div className="editgrid">
             <div className="field">
               <label className="label">API Key</label>
+              {/* **브라우저 자동완성을 막는다.**
+                  옆 칸이 비밀번호 칸이라 크롬이 이걸 로그인 폼으로 보고
+                  저장해둔 이메일을 여기 채워 넣는다. 그대로 저장하면 API Key 가
+                  이메일로 덮어써진다 — 「됐다가 또 메일로 바뀌어 있다」 가 그것이었다. */}
               <input
                 className="input input-sm"
+                name="solapi-key"
+                autoComplete="off"
+                data-lpignore="true"
                 value={solapi.apiKey}
                 placeholder={view.solapi?.maskedKey || "발급받은 API Key (NCS… 로 시작)"}
                 onChange={(e) => setSolapi({ ...solapi, apiKey: e.target.value })}
@@ -192,6 +199,9 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
               <label className="label">API Secret</label>
               <input
                 className="input input-sm"
+                name="solapi-secret"
+                autoComplete="new-password"
+                data-lpignore="true"
                 type="password"
                 value={solapi.apiSecret}
                 placeholder={view.solapi?.maskedSecret || "발급받은 API Secret"}

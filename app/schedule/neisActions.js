@@ -6,7 +6,7 @@ import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns,
 } from "@/lib/neis";
 import { matchExam } from "@/lib/exams";
-import { schoolKey } from "@/lib/schoolName";
+import { schoolKey, looseKey } from "@/lib/schoolName";
 
 /**
  * 나이스에서 학사일정을 받아온다.
@@ -180,9 +180,29 @@ export async function addSchool(s = {}) {
     //    따라 바뀌는 일이라, 넣기 한 번에 조용히 일어나면 안 된다.
     const all = await supabase.from(T).select("id, name");
     if (all.error) return ins;
-    const key = schoolKey(r.name);
-    const hit = (all.data || []).find((x) => schoolKey(x.name) === key);
-    if (!hit) return ins;
+    const rows = all.data || [];
+    // 엄격한 열쇠로 먼저, 없으면 지역 이름까지 뗀 열쇠로 (인천박문초 ↔ 박문초)
+    const hit =
+      rows.find((x) => schoolKey(x.name) === schoolKey(r.name)) ||
+      rows.find((x) => looseKey(x.name) === looseKey(r.name));
+
+    if (!hit) {
+      // 막혔는데 누가 막았는지 못 찾았다. **그냥 오류를 던지면 손쓸 방법이 없다** —
+      // 비슷해 보이는 것을 짚어드리고, 목록에서 이름을 고치시게 한다.
+      const near = rows
+        .filter((x) => looseKey(x.name).includes(looseKey(r.name).slice(0, 2)))
+        .map((x) => x.name);
+      return {
+        error: {
+          message:
+            `「${r.name}」 는 이미 있는 학교와 겹칩니다.\n` +
+            (near.length
+              ? `목록의 이것들 중 하나일 거예요: ${near.join(", ")}\n`
+              : "") +
+            "그 줄의 이름을 고치시거나, 그 줄을 지우고 다시 넣어주세요.",
+        },
+      };
+    }
 
     attachedTo = hit.name;
     const { name: _drop, ...codes } = r;      // 이름은 건드리지 않는다
