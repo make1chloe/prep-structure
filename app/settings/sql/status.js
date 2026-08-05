@@ -72,6 +72,9 @@ const CHECKS = [
   { id: "0078", label: "구글 캘린더 구독", table: "calendar_tokens", col: "token" },
   { id: "0079", label: "학부모 계정 · 선생님 권한", table: "profiles", col: "login_id" },
   { id: "0080", label: "로고 올리기", table: "app_assets", col: "data" },
+  // 0081 은 권한(GRANT)이라 표·칸으로는 확인이 안 된다.
+  // 「안 바뀌면 눌러보세요」 (설정 → 화면) 가 대신 확인해준다
+
 ];
 
 export async function checkSchema() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { iconStatus, saveIcons, clearIcons } from "./iconActions";
+import { iconStatus, saveIcons, clearIcons, checkIcons } from "./iconActions";
 
 /**
  * 홈 화면 아이콘 — **로고 파일을 올리면 끝.**
@@ -67,6 +67,7 @@ export default function IconBox() {
   // 주소 뒤에 붙이는 시각. 이게 없으면 **브라우저가 옛 그림을 계속 들고 있어서**
   // 올렸는데도 안 바뀐 것처럼 보인다. 실제로 그랬다.
   const bust = st?.updatedAt || "";
+  const [why, setWhy] = useState(null);   // 「왜 안 바뀌지」 점검 결과
 
   useEffect(() => { iconStatus().then(setSt); }, []);
 
@@ -160,6 +161,21 @@ export default function IconBox() {
             {pending ? "올리는 중…" : "이걸로 하기"}
           </button>
         )}
+        {!preview && (
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            title="올렸는데 안 바뀔 때 어디서 막혔는지 알려줍니다"
+            onClick={() =>
+              startTransition(async () => {
+                const r = await checkIcons();
+                setWhy(r?.error ? { ok: false, lines: [r.error] } : r);
+              })
+            }
+          >
+            안 바뀌면 눌러보세요
+          </button>
+        )}
         {st?.uploaded && !preview && (
           <button
             className="btn btn-ghost btn-sm"
@@ -177,6 +193,12 @@ export default function IconBox() {
         )}
       </div>
       {name && <p className="hint" style={{ margin: "6px 0 0" }}>고른 파일: {name}</p>}
+
+      {why && (
+        <div className={`notice ${why.ok ? "" : "err"}`} style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.9 }}>
+          {why.lines.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      )}
 
       {/* 올리기 전에 **잘리는 모습까지** 보여준다 — 올리고 나서 폰에서 확인하면 늦다 */}
       {!preview && st && !st.uploaded && !st.error && (

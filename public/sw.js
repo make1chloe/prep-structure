@@ -9,8 +9,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "클로이영어";
   const options = {
     body: data.body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/api/icon/192",
+    badge: "/api/icon/192",
     tag: data.tag || "chloe",
     data: { url: data.url || "/me" },
   };
