@@ -75,7 +75,7 @@ export default function MonthGrid({ month, absents = [] }) {
       });
     }
     if (out.length === 0 && isClass.has(d)) {
-      out.push({ tag: "수업", cls: "tag-sky", text: "여느 때대로 수업합니다." });
+      out.push({ tag: "수업", cls: "tag-muted", text: "여느 때대로 수업합니다 — 챙길 것 없습니다." });
     }
     return out;
   }
@@ -97,14 +97,19 @@ export default function MonthGrid({ month, absents = [] }) {
           const offDay = isOff.has(d);
           const eve = eveOf.get(d);
           const abs = absOf.get(d) || [];
+          // **여느 때대로 수업하는 날은 아무 표시도 안 한다.**
+          //   달력을 보는 까닭은 「무슨 일이 있는 날이 언제인가」 이지
+          //   「수업하는 날이 언제인가」 가 아니다. 정상 수업까지 칠해두면
+          //   특이사항이 그 안에 묻힌다.
+          //   대신 수업이 아예 없는 날은 흐리게 둔다 — 그건 구별돼야 한다.
           // 색은 하나만 — 여러 개면 **더 챙겨야 하는 쪽**을 쓴다
           const mark =
             offDay ? "off"
             : abs.length ? "abs"
             : eve ? "eve"
             : isExam.has(d) ? "exam"
-            : cls ? "class"
-            : null;
+            : cls ? "plain"
+            : "none";
           return (
             <button
               key={d}
@@ -123,7 +128,6 @@ export default function MonthGrid({ month, absents = [] }) {
       {/* 뜻풀이 — 마우스를 올릴 수 없는 화면에서도 색을 읽을 수 있게 */}
       <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         {[
-          ["class", "수업"],
           ["off", "휴강"],
           ["exam", "시험 기간"],
           ["eve", "영어 시험 전날"],
