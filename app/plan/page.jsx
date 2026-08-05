@@ -1,11 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import PlanBoard from "./PlanBoard";
+import { inUseOn } from "@/lib/bookUse";
+import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlanPage() {
   const supabase = createClient();
+  const date = todaySeoul();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -41,10 +44,11 @@ export default async function PlanPage() {
 
   const { data: stBooks } = await supabase
     .from("student_textbooks")
-    .select("student_id, textbook_id, status");
+    .select("student_id, textbook_id, status, assigned_on, ended_on");
   const booksOf = new Map();
   (stBooks || []).forEach((r) => {
-    if (r.status && r.status !== "active") return;
+    // 사용 예정일이 아직 안 온 교재는 준비할 것이 없다 (책이 없으니까)
+    if (!inUseOn(r, date)) return;
     if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
     booksOf.get(r.student_id).push(r.textbook_id);
   });

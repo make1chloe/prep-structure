@@ -78,15 +78,26 @@ export async function listRecipients() {
     .eq("status", "enrolled")
     .order("name", { ascending: true });
 
-  // 학생별 배정 교재 → 이름·가격·구매링크
+  // **교재 안내는 아직 안 산 책을 사달라고 보내는 문자다.**
+  //   그래서 고르는 목록은 「이 학생에게 배정된 교재」가 아니라 **학원 교재 전체**다.
+  //   배정된 것을 고르게 하면 이미 갖고 있는 책을 또 사라고 보내게 된다.
+  //   대신 이미 갖고 있는 것은 화면에서 「이미 있음」 으로 알려준다.
+  const { data: catalogRaw } = await supabase
+    .from("textbooks")
+    .select("id, name, area, price, purchase_url, status")
+    .order("name", { ascending: true });
+  const catalog = (catalogRaw || [])
+    .filter((b) => !b.status || b.status === "active")
+    .map((b) => ({
+      id: b.id, name: b.name, area: b.area || "",
+      price: b.price || 0, url: b.purchase_url || "",
+    }));
+
+  // 이미 갖고 있는 교재 (그만둔 것은 뺀다) — 다시 사라고 보내지 않으려고
   const { data: st } = await supabase
     .from("student_textbooks")
     .select("student_id, textbook_id, status");
-  const bookIds = [...new Set((st || []).map((x) => x.textbook_id))];
-  const { data: books } = bookIds.length
-    ? await supabase.from("textbooks").select("id, name, price, purchase_url").in("id", bookIds)
-    : { data: [] };
-  const bookById = new Map((books || []).map((b) => [b.id, b]));
+  const bookById = new Map(catalog.map((b) => [b.id, b]));
 
   const booksOf = new Map();
   (st || []).forEach((x) => {
@@ -105,15 +116,10 @@ export async function listRecipients() {
       name: s.name,
       who: [s.school, s.grade].filter(Boolean).join(" "),
       phone: s.parent_phone || "",
+      // **이미 갖고 있는 교재.** 안내에 넣으라는 뜻이 아니라, 또 사라고
+      // 보내지 않으려고 화면에서 「이미 있음」 으로 표시하는 데 쓴다.
       books: list.map((b) => b.name),
-      // **교재를 골라서 보낼 수 있어야 한다.** 배정된 것을 통째로 넣으면
-      // 이번에 사실 책만 안내할 수가 없다. 그래서 이름만이 아니라 한 권씩
-      // 값(가격·링크)을 다 들고 간다 — 고른 것만으로 다시 셈한다.
-      bookList: list.map((b) => ({
-        id: b.id, name: b.name, price: b.price || 0, url: b.purchase_url || "",
-      })),
-      bookPrice: list.reduce((a, b) => a + (b.price || 0), 0),
-      bookUrls: list.map((b) => b.purchase_url).filter(Boolean),
+      has: list.map((b) => b.id),
       testResult: "",
     };
   });
@@ -132,9 +138,7 @@ export async function listRecipients() {
     who: [q.school, q.grade].filter(Boolean).join(" "),
     phone: q.phone || "",
     books: [],
-    bookList: [],
-    bookPrice: 0,
-    bookUrls: [],
+    has: [],
     testOn: q.test_on || "",
     testResult: [q.test_result, q.test_note].filter(Boolean).join(" · "),
   }));
@@ -142,6 +146,7 @@ export async function listRecipients() {
   return {
     students: studentRows,
     inquiries: inquiryRows,
+    catalog,
     error: inqErr ? "0017 SQL을 먼저 실행해주세요." : null,
   };
 }
@@ -210,4 +215,64 @@ export async function sendNotices(items, label, templateId) {
     count: list.length - failed.length,
     failed: failed.map((x) => ({ name: x.name, detail: byRef.get(x.id)?.detail || "발송 실패" })),
   };
+}
+
+/**
+ * 안내한 교재를 **재원생 정보에 배정한다** — 다만 「사용 예정일」부터.
+ *
+ * 교재 안내는 아직 안 산 책을 사달라고 보내는 문자다. 보내는 순간 배정해
+ * 버리면 아직 책이 없는데 오늘 수업 진도·숙제 범위에 그 교재가 뜬다.
+ * 그렇다고 안 해두면 책이 온 날 다시 들어와서 손으로 배정해야 한다 —
+ * 그러면 빠뜨린다.
+ *
+ * 그래서 **지금 꽂아두고 날짜로 연다.** assigned_on 이 오면 저절로 보인다.
+ * (거르는 규칙은 lib/bookUse 의 inUseOn 한 곳에 있다)
+ *
+ * 이미 갖고 있는 교재는 **건드리지 않는다.** 다시 배정하면 그 교재의 진도·
+ * 회독이 시작일부터 다시 열리는 것처럼 보인다.
+ *
+ * @param ids     화면이 쓰는 id ("s:uuid" — 상담자 "q:" 는 배정할 데가 없어 건너뛴다)
+ * @param bookIds 안내한 교재
+ * @param startOn "YYYY-MM-DD" 사용 예정일
+ */
+export async function assignAnnouncedBooks(ids, bookIds, startOn) {
+  const students = (ids || [])
+    .filter((x) => typeof x === "string" && x.startsWith("s:"))
+    .map((x) => x.slice(2));
+  const books = [...new Set((bookIds || []).filter(Boolean))];
+  if (students.length === 0 || books.length === 0) return { error: null, added: 0 };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startOn || "")) {
+    return { error: "사용 예정일을 날짜로 적어주세요." };
+  }
+
+  const supabase = createClient();
+
+  // 이미 있는 줄은 그대로 둔다
+  const { data: have, error: readErr } = await supabase
+    .from("student_textbooks")
+    .select("student_id, textbook_id")
+    .in("student_id", students)
+    .in("textbook_id", books);
+  if (readErr) return { error: readErr.message };
+  const known = new Set((have || []).map((r) => `${r.student_id}|${r.textbook_id}`));
+
+  const rows = [];
+  students.forEach((sid) =>
+    books.forEach((bid) => {
+      if (known.has(`${sid}|${bid}`)) return;
+      rows.push({
+        student_id: sid, textbook_id: bid,
+        status: "active", assigned_on: startOn, ended_on: null,
+      });
+    })
+  );
+  if (rows.length === 0) return { error: null, added: 0, skipped: students.length * books.length };
+
+  const { error } = await supabase.from("student_textbooks").insert(rows);
+  if (error) return { error: error.message };
+
+  revalidatePath("/students");
+  revalidatePath("/today");
+  revalidatePath("/plan");
+  return { error: null, added: rows.length, skipped: students.length * books.length - rows.length };
 }

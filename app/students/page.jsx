@@ -4,11 +4,14 @@ import AddStudentForm from "./AddStudentForm";
 import ExcelUpload from "./ExcelUpload";
 import BulkAccounts from "./BulkAccounts";
 import StudentList from "./StudentList";
+import { notYet } from "@/lib/bookUse";
+import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentsPage({ searchParams }) {
   const supabase = createClient();
+  const today = todaySeoul();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -76,7 +79,7 @@ export default async function StudentsPage({ searchParams }) {
   const { data: stBooks } = ids.length
     ? await supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id, status")
+        .select("student_id, textbook_id, status, assigned_on, ended_on")
         .in("student_id", ids)
     : { data: [] };
   const booksOf = new Map();
@@ -85,7 +88,10 @@ export default async function StudentsPage({ searchParams }) {
     const b = bookById.get(r.textbook_id);
     if (!b) return;
     if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
-    booksOf.get(r.student_id).push(b);
+    // **여기서는 아직 안 시작한 교재도 보여준다.** 교재 안내를 보내고 나면
+    // 「보냈나 안 보냈나」 를 여기서 확인하시게 된다 — 안 보이면 확인할 데가
+    // 없다. 대신 언제부터인지를 붙여서, 지금 쓰는 것과 구별되게 한다.
+    booksOf.get(r.student_id).push({ ...b, from: notYet(r, today) ? r.assigned_on : null });
   });
 
   // 반과 수업 요일 — 목록을 **반별 · 요일별**로 묶어 보기 위해서다

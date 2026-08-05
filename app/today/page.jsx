@@ -7,6 +7,7 @@ import { dowOf, longLabel, todaySeoul, addDays } from "@/lib/day";
 import { tally, resetDoneIn, DEFAULT_RULE } from "@/lib/warnings";
 import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
+import { inUseOn } from "@/lib/bookUse";
 
 export const dynamic = "force-dynamic";
 
@@ -487,7 +488,7 @@ export default async function TodayPage({ searchParams }) {
   const { data: stBooks } = studentIds.length
     ? await supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id, status, current_page, ended_on, round")
+        .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
         .in("student_id", studentIds)
     : { data: [] };
   // 회독별로 쌓인다. `round` 가 아직 없는 DB 면 전부 1회독으로 본다.
@@ -511,8 +512,9 @@ export default async function TodayPage({ searchParams }) {
   const booksOfStudent = new Map();
   const pageOf = new Map(); // `${studentId}|${textbookId}` → 지금 페이지
   (stBooks || []).forEach((r) => {
-    // 완료·중단한 교재는 숙제 배정·진도 화면에서 빼고, 재원생 기록에만 남긴다
-    if (r.status && r.status !== "active") return;
+    // 완료·중단한 교재는 숙제 배정·진도 화면에서 빼고, 재원생 기록에만 남긴다.
+    // 사용 예정일이 아직 안 온 교재도 뺀다 — 학생 손에 책이 없다.
+    if (!inUseOn(r, date)) return;
     if (!booksOfStudent.has(r.student_id)) booksOfStudent.set(r.student_id, new Set());
     booksOfStudent.get(r.student_id).add(r.textbook_id);
     if (r.current_page) pageOf.set(`${r.student_id}|${r.textbook_id}`, r.current_page);
@@ -520,7 +522,7 @@ export default async function TodayPage({ searchParams }) {
   // 지금 몇 회독째인가 (`round` 컬럼이 아직 없으면 1회독으로 본다)
   const roundOf = new Map();
   (stBooks || []).forEach((r) => {
-    if (r.status && r.status !== "active") return;
+    if (!inUseOn(r, date)) return;
     roundOf.set(`${r.student_id}|${r.textbook_id}`, r.round || 1);
   });
 

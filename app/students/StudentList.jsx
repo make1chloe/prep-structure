@@ -9,6 +9,7 @@ import ParentBox from "./ParentBox";
 import NoteBox from "./NoteBox";
 import StudentBooks from "@/app/today/StudentBooks";
 import WordTestBox from "./WordTestBox";
+import { fromLabel } from "@/lib/bookUse";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -316,8 +317,16 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
       return (
         <span className="row" style={{ gap: 3, flexWrap: "wrap" }}>
           {list.map((b) => (
-            <span key={b.id} className="tag tag-muted" style={{ fontSize: 10.5 }}>
+            // 아직 안 시작한 교재(교재 안내만 보낸 것)는 **언제부터인지** 붙인다.
+            // 안 그러면 지금 쓰는 책과 구별이 안 된다
+            <span
+              key={b.id}
+              className={`tag ${b.from ? "tag-amber" : "tag-muted"}`}
+              style={{ fontSize: 10.5 }}
+              title={b.from ? `${fromLabel(b.from)} 사용 예정` : undefined}
+            >
               {b.name}
+              {b.from ? ` · ${fromLabel(b.from)}` : ""}
             </span>
           ))}
         </span>

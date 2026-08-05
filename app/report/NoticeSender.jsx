@@ -8,25 +8,20 @@ import {
   saveTemplate,
   deleteTemplate,
   sendNotices,
+  assignAnnouncedBooks,
 } from "./noticeActions";
 import { longLabel, todaySeoul } from "@/lib/day";
-
-/**
- * 이 학생에게 이번에 안내할 교재.
- *
- * 배정된 교재를 통째로 넣으면 **이번에 살 책만** 안내할 수가 없다. 그래서
- * 뺀 교재(off)를 빼고 남은 것으로 목록·교재비·링크를 **다시 셈한다.**
- * 셋이 따로 놀면 안 된다 — 세 권 적어놓고 값은 다섯 권 값이면 사고다.
- */
-function pickedBooks(r, off) {
-  const list = r?.bookList || (r?.books || []).map((n) => ({ id: n, name: n, price: 0, url: "" }));
-  return list.filter((b) => !off?.has(b.id));
-}
+import { fromLabel } from "@/lib/bookUse";
 
 // 자동으로 채울 수 있는 변수 — 학생 정보에서 나온다
-function autoMap(r, academy, msg, off) {
+//
+// **교재는 학생에게 배정된 것이 아니라 「이번에 안내할 것」이다.**
+// 교재 안내는 아직 안 산 책을 사달라고 보내는 문자라, 이미 배정된 것을
+// 넣으면 갖고 있는 책을 또 사라고 보내게 된다. 그래서 위에서 고른 책
+// (books) 을 그대로 받아서 목록·교재비·링크를 **한 곳에서 셈한다.**
+// 셋이 따로 놀면 안 된다 — 세 권 적어놓고 값은 다섯 권 값이면 사고다.
+function autoMap(r, academy, msg, books = []) {
   const today = longLabel(todaySeoul());
-  const books = pickedBooks(r, off);
   const price = books.reduce((a, b) => a + (Number(b.price) || 0), 0);
   return {
     학원명: academy,
@@ -43,7 +38,7 @@ function autoMap(r, academy, msg, off) {
 
 /** 본문에서 자동으로 못 채우는 변수 이름들 — 보내기 전에 입력칸으로 뜬다 */
 export function askedVars(body, r, academy, msg) {
-  const auto = autoMap(r || {}, academy, msg);
+  const auto = autoMap(r || {}, academy, msg, []);
   const out = [];
   (body || "").replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, k) => {
     const key = k.trim();
@@ -54,8 +49,8 @@ export function askedVars(body, r, academy, msg) {
 }
 
 // {{변수}} 를 실제 값으로 바꾼다. extra 는 내가 직접 채운 값
-function fill(body, r, academy, msg, extra = {}, off) {
-  const map = { ...autoMap(r, academy, msg, off), ...extra };
+function fill(body, r, academy, msg, extra = {}, books = []) {
+  const map = { ...autoMap(r, academy, msg, books), ...extra };
   return body.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, k) => {
     const key = k.trim();
     const v = map[key];
@@ -76,7 +71,12 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(false);
   const [extra, setExtra] = useState({});   // 직접 채우는 변수
-  const [off, setOff] = useState(() => new Set());   // 이번 안내에서 뺄 교재
+  // 이번에 **안내할** 교재 (학원 교재 전체에서 고른다) · 언제부터 쓸 것인가
+  const [catalog, setCatalog] = useState([]);
+  const [pickBooks, setPickBooks] = useState(() => new Set());
+  const [bookQ, setBookQ] = useState("");
+  const [startOn, setStartOn] = useState(todaySeoul());
+  const [assign, setAssign] = useState(true);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -97,6 +97,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       if (r.error) setErr(r.error);
       setStudents(r.students || []);
       setInquiries(r.inquiries || []);
+      setCatalog(r.catalog || []);
     })();
   }, []);
 
@@ -116,7 +117,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       setWho(["book", "makeup", "exam", "late_in"].includes(t.kind) ? "student" : "inquiry");
       setSel(new Set());
       setExtra({});
-      setOff(new Set());
+      setPickBooks(new Set());
     }
   }
 
@@ -144,23 +145,20 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
 
   const sendsForReal = mode !== "copy";
 
-  // 교재를 말하는 문구인가 — 그러면 **어느 책을 넣을지 고르게 한다.**
+  // 교재를 말하는 문구인가 — 그러면 **어느 책을 안내할지 고르게 한다.**
   const usesBooks = /\{\{\s*교재(목록|비)\s*\}\}/.test(body || "");
-  // 고른 학생들의 교재를 모아 한 줄씩 보여준다 (같은 책은 한 번만).
-  // 여기서 뺀 책은 고른 학생 **모두에게서** 빠진다.
-  const bookRows = [];
-  const seenBook = new Set();
-  picked.forEach((r) =>
-    (r.bookList || []).forEach((b) => {
-      if (seenBook.has(b.id)) return;
-      seenBook.add(b.id);
-      bookRows.push({ ...b, who: picked.filter((x) => (x.bookList || []).some((y) => y.id === b.id)).length });
-    })
+  const bookKw = bookQ.trim().toLowerCase();
+  const bookRows = catalog.filter(
+    (b) => !bookKw || `${b.name} ${b.area}`.toLowerCase().includes(bookKw)
   );
+  // 고른 책 — 문구의 {{교재목록}}·{{교재비}}·{{구매링크}} 가 전부 여기서 나온다
+  const chosen = catalog.filter((b) => pickBooks.has(b.id));
+  // 이미 갖고 있는 사람이 있으면 알려준다 (또 사라고 보내면 안 된다)
+  const alreadyOf = (id) => picked.filter((r) => (r.has || []).includes(id)).length;
   function toggleBook(id) {
-    const n = new Set(off);
+    const n = new Set(pickBooks);
     n.has(id) ? n.delete(id) : n.add(id);
-    setOff(n);
+    setPickBooks(n);
   }
 
   // 자동으로 못 채우는 변수 — 보내기 전에 입력칸으로 띄운다
@@ -172,6 +170,11 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
     if (blank.length > 0) {
       if (!confirm(`아직 안 채운 것이 있습니다: ${blank.join(", ")}\n그대로 보낼까요?`)) return;
     }
+    // 교재를 말하는 문구인데 한 권도 안 골랐으면 빈 목록이 나간다 — 먼저 잡는다
+    if (usesBooks && chosen.length === 0) {
+      alert("안내할 교재를 한 권 이상 골라주세요.");
+      return;
+    }
     if (sendsForReal && !confirm(`${picked.length}명에게 지금 문자를 보낼까요?`)) return;
     startTransition(async () => {
       const res = await sendNotices(
@@ -179,7 +182,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
           id: r.id,
           name: r.name,
           phone: r.phone,
-          body: fill(body, r, academy, msg, extra, off),
+          body: fill(body, r, academy, msg, extra, chosen),
           // 알림톡 변수 연결에서 쓸 수 있게, 내가 채운 값도 같이 넘긴다
           vars: Object.fromEntries(
             Object.entries(extra).map(([k, v]) => [`{{${k}}}`, v])
@@ -192,14 +195,30 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
         alert(res.error);
         return;
       }
-      const msg = sendsForReal
+      // 이 이름을 `msg` 로 두면 안 된다 — 바깥의 msg(문구 설정) 를 가려서,
+      // 위 fill() 이 아직 만들어지지도 않은 이것을 보게 된다 (TDZ 오류).
+      let done = sendsForReal
         ? `${res.count}명에게 보냈어요.`
         : `${res.count}명 처리했어요. (직접 발송 방식이라 실제 발송은 안 됩니다)`;
+
+      // 안내한 교재를 **사용 예정일부터** 재원생 정보에 꽂아둔다.
+      // 보낸 뒤에 한다 — 문자가 안 나갔는데 배정만 되어 있으면 안 된다.
+      if (usesBooks && assign && chosen.length > 0) {
+        const a = await assignAnnouncedBooks(
+          picked.map((r) => r.id),
+          chosen.map((b) => b.id),
+          startOn
+        );
+        if (a?.error) done += `\n\n교재 배정은 실패했어요: ${a.error}`;
+        else if (a.added > 0) done += `\n교재 ${a.added}건을 ${startOn} 부터 쓰는 것으로 배정했어요.`;
+        else done += "\n고른 교재는 이미 다 배정되어 있어서 그대로 뒀어요.";
+      }
+
       alert(
         res.failed?.length
-          ? `${msg}\n\n실패 ${res.failed.length}건\n` +
+          ? `${done}\n\n실패 ${res.failed.length}건\n` +
               res.failed.map((f) => `· ${f.name}: ${f.detail}`).join("\n")
-          : msg
+          : done
       );
       setSel(new Set());
       router.refresh();
@@ -385,49 +404,103 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                   ? `${picked[0].name} 학생에게 갈 내용 (선택한 ${picked.length}명 각각의 값으로 채워집니다)`
                   : "왼쪽에서 받는 사람을 고르면 실제 값이 채워진 문구가 보입니다."}
               </p>
-              {usesBooks && picked.length > 0 && (
+              {usesBooks && (
                 <div className="card card-tight" style={{ marginBottom: 10 }}>
                   <div className="row" style={{ alignItems: "center", gap: 6 }}>
                     <b style={{ fontSize: 13 }}>이번에 안내할 교재</b>
+                    <span className="tag tag-sky">{pickBooks.size}권</span>
                     <span className="spacer" />
-                    <button className="btn btn-ghost btn-sm" onClick={() => setOff(new Set())}>
-                      전부 넣기
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setOff(new Set(bookRows.map((b) => b.id)))}
-                    >
-                      전부 빼기
-                    </button>
+                    <input
+                      className="input input-sm"
+                      style={{ width: 130 }}
+                      placeholder="교재 검색"
+                      value={bookQ}
+                      onChange={(e) => setBookQ(e.target.value)}
+                    />
+                    {pickBooks.size > 0 && (
+                      <button className="btn btn-ghost btn-sm" onClick={() => setPickBooks(new Set())}>
+                        고른 것 지우기
+                      </button>
+                    )}
                   </div>
                   <p className="hint" style={{ margin: "3px 0 8px" }}>
-                    뺀 교재는 <b>교재목록·교재비·구매링크에서 함께</b> 빠집니다. 학생마다 달라야 하면
-                    한 명씩 보내주세요.
+                    <b>아직 안 산 책</b>을 고르는 자리입니다 (학원 교재 전체에서 고릅니다).
+                    고른 책으로 <b>교재목록·교재비·구매링크</b>가 함께 채워집니다.
                   </p>
-                  {bookRows.length === 0 ? (
+
+                  {catalog.length === 0 ? (
                     <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                      고른 학생에게 배정된 교재가 없어요. <a className="sky" href="/textbooks">교재</a> 에서
-                      먼저 배정해주세요.
+                      등록된 교재가 없어요. <a className="sky" href="/textbooks">교재</a> 에서 먼저 넣어주세요.
                     </p>
                   ) : (
-                    <table className="tbl tbl-tight">
-                      <tbody>
-                        {bookRows.map((b) => (
-                          <tr key={b.id} style={off.has(b.id) ? { opacity: 0.45 } : undefined}>
-                            <td style={{ width: 30 }}>
-                              <input
-                                type="checkbox"
-                                checked={!off.has(b.id)}
-                                onChange={() => toggleBook(b.id)}
-                              />
-                            </td>
-                            <td style={{ fontWeight: 600 }}>{b.name}</td>
-                            <td className="muted">{b.price ? `${b.price.toLocaleString()}원` : "가격 없음"}</td>
-                            <td className="hint">{picked.length > 1 ? `${b.who}명` : ""}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                      <table className="tbl tbl-tight">
+                        <tbody>
+                          {bookRows.map((b) => {
+                            const dup = alreadyOf(b.id);
+                            return (
+                              <tr key={b.id}>
+                                <td style={{ width: 30 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={pickBooks.has(b.id)}
+                                    onChange={() => toggleBook(b.id)}
+                                  />
+                                </td>
+                                <td style={{ fontWeight: 600 }}>{b.name}</td>
+                                <td className="muted">{b.area}</td>
+                                <td className="muted">
+                                  {b.price ? `${b.price.toLocaleString()}원` : "가격 없음"}
+                                </td>
+                                <td>
+                                  {/* 이미 갖고 있는 책을 또 사라고 보내면 안 된다 */}
+                                  {dup > 0 && (
+                                    <span className="tag tag-amber" style={{ fontSize: 10.5 }}>
+                                      {picked.length > 1 ? `${dup}명 이미 있음` : "이미 있음"}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      {bookRows.length === 0 && (
+                        <p className="muted" style={{ padding: "8px 0 0", margin: 0, fontSize: 13 }}>
+                          찾는 교재가 없어요.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* **사용 예정일.** 보내는 순간 배정하면 책도 없는데 오늘 수업
+                      진도에 뜬다. 그렇다고 안 해두면 책 온 날 손으로 배정해야 하고,
+                      그러면 빠뜨린다. 그래서 지금 꽂아두고 날짜로 연다. */}
+                  <div className="row" style={{ gap: 8, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+                    <label className="row" style={{ gap: 6, alignItems: "center", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={assign}
+                        onChange={(e) => setAssign(e.target.checked)}
+                      />
+                      <span style={{ fontSize: 13 }}>재원생 정보에 배정하기</span>
+                    </label>
+                    <span className="hint">사용 예정일</span>
+                    <input
+                      className="input input-sm"
+                      type="date"
+                      style={{ width: 150 }}
+                      value={startOn}
+                      disabled={!assign}
+                      onChange={(e) => setStartOn(e.target.value)}
+                    />
+                  </div>
+                  {assign && (
+                    <p className="hint" style={{ margin: "6px 0 0" }}>
+                      이 날부터 오늘 수업 · 수업준비 · 진도에 나옵니다. 그 전까지는 재원생
+                      정보에만 <b>「{fromLabel(startOn) || "사용 예정"}」</b> 으로 보입니다.
+                      이미 갖고 있는 교재는 건드리지 않습니다.
+                    </p>
                   )}
                 </div>
               )}
@@ -454,7 +527,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                 </div>
               )}
               <pre className="reportbox" style={{ borderRadius: 10, borderTop: 0 }}>
-                {picked.length > 0 ? fill(body, picked[0], academy, msg, extra, off) : body}
+                {picked.length > 0 ? fill(body, picked[0], academy, msg, extra, chosen) : body}
               </pre>
             </>
           )}
@@ -473,7 +546,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
               onClick={() =>
                 copy(
                   picked
-                    .map((r) => `${r.phone ? `[${r.phone}] ` : ""}${r.name}\n${fill(body, r, academy, msg, extra, off)}`)
+                    .map((r) => `${r.phone ? `[${r.phone}] ` : ""}${r.name}\n${fill(body, r, academy, msg, extra, chosen)}`)
                     .join("\n\n──────────\n\n"),
                   "bulk"
                 )
