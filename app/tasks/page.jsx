@@ -5,9 +5,11 @@ import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
 import PrepTodo from "./PrepTodo";
+import MakeupTodo from "./MakeupTodo";
 import CalendarBoard from "./CalendarBoard";
 import GoogleSync from "./GoogleSync";
-import { todaySeoul } from "@/lib/day";
+import { todaySeoul, addDays } from "@/lib/day";
+import { makeupNeeded } from "@/lib/makeupTask";
 import { hiddenExamIds } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,51 @@ function shiftMonth(ym, by) {
  *
  * 마감은 **영어 시험일**이다. 없으면 시험 시작일 — 그 전에는 자료가 나와야 한다.
  */
+/**
+ * **결석해서 늘어난 내 수업** — 아직 보강이 안 잡힌 것.
+ *
+ * 결석은 일정이고 보강은 할 일이다 (원장님, 2026-08-05). 결석은 달력의
+ * 일정 쪽에 그대로 두고, 거기서 생긴 보강만 여기서 뽑아 할 일로 보여준다.
+ *
+ * 새 표를 만들지 않는다 — 결석도 보강도 이미 attendance 에 있다.
+ * 지난 것만 본다. 앞으로의 결석 예정은 아직 「해야 할 일」이 아니다.
+ */
+async function pendingMakeups(supabase) {
+  const today = todaySeoul();
+  const from = addDays(today, -60);              // 두 달이면 충분하다
+  let q = await supabase
+    .from("attendance")
+    .select("student_id, date, status, reason")
+    .in("status", ["absent", "makeup"])
+    .gte("date", from)
+    .lte("date", today);
+  if (q.error) {
+    q = await supabase
+      .from("attendance")
+      .select("student_id, date, status")
+      .in("status", ["absent", "makeup"])
+      .gte("date", from)
+      .lte("date", today);
+  }
+  if (q.error) return [];
+  const all = q.data || [];
+  const rows = makeupNeeded(
+    all.filter((a) => a.status === "absent"),
+    all.filter((a) => a.status === "makeup")
+  );
+  if (rows.length === 0) return [];
+
+  const { data: ss } = await supabase
+    .from("students")
+    .select("id, name, status")
+    .in("id", rows.map((r) => r.student_id));
+  const byId = new Map((ss || []).map((s) => [s.id, s]));
+  return rows
+    // 퇴원생 보강은 잡을 것이 없다
+    .filter((r) => byId.get(r.student_id)?.status === "enrolled")
+    .map((r) => ({ ...r, name: byId.get(r.student_id).name }));
+}
+
 async function pendingPrep(supabase) {
   const today = todaySeoul();
   const exQ = await supabase
@@ -182,8 +229,8 @@ export default async function TasksPage({ searchParams }) {
     rows = (tasks || []).map((t) => ({ ...t, deliveredOn: madeMap.get(t.id) || null }));
 
     // 다른 화면에서 만든 일정도 여기서 같이 보여준다 (여기서 고치지는 않는다)
-    //   시험 일정 → exam_periods (수업 스케줄 · 시험)
-    //   휴강     → holidays      (수강료 · 수업 스케줄)
+    //   시험 일정 → exam_periods (회차 관리 · 시험)
+    //   휴강     → holidays      (수강료 · 회차 관리)
     const today = todaySeoul();
     // 달력이면 그 달에 걸치는 것, 아니면 오늘 이후 것
     let examSel = supabase
@@ -297,6 +344,7 @@ export default async function TasksPage({ searchParams }) {
   let cats = [];
   let todoErr = false;
   let prep = [];
+  let makeups = [];
   if (wantTodo) {
     const catQ = await supabase
       .from("todo_categories")
@@ -324,6 +372,7 @@ export default async function TasksPage({ searchParams }) {
     todoErr = !!error || !!catQ.error;
 
     prep = await pendingPrep(supabase);
+    makeups = await pendingMakeups(supabase);
   }
 
   return (
@@ -336,8 +385,13 @@ export default async function TasksPage({ searchParams }) {
             {view === "todo" ? "내가 할 일" : view === "schedule" ? "학원 일정" : "할일 · 일정"}
           </h1>
           <p className="sub">
-            <b>일정</b>은 날짜가 정해진 것 — 학사일정·특강·시험·상담 예약. 전할 내용을 적으면
-            그날 전달사항으로 깔립니다. <b>할일</b>은 처리해야 하는 일입니다.
+            {/* 둘이 헷갈리면 「오늘 뭘 해야 하나」 를 볼 때마다 걸러내야 한다.
+                가르는 자리는 「그날 그런 일이 있다」 인가, 「내가 뭘 해야 한다」 인가다 */}
+            <b>일정</b>은 <b>그날 그런 일이 있다</b>는 것입니다 — 학교 일정 · 시험 ·
+            학생 결석 · 상담 예약. 전할 내용을 적으면 그날 전달사항으로 깔립니다.
+            <br />
+            <b>할일</b>은 <b>내가 처리해야 하는 것</b>입니다 — 결석해서 늘어난 보강,
+            시험 대비 자료 만들기처럼요.
           </p>
           <div className="row" style={{ gap: 6, marginTop: 10 }}>
             {VIEWS.map((v) => (
@@ -410,6 +464,7 @@ export default async function TasksPage({ searchParams }) {
               <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>할일</h2>
             )}
             <PrepTodo rows={prep} />
+            <MakeupTodo rows={makeups} />
             <TodoBoard todos={todos} categories={cats} unavailable={todoErr} />
           </section>
         )}

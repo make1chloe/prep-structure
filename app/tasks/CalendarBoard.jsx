@@ -129,14 +129,25 @@ export default function CalendarBoard({
         <span className="hint">눌러서 고치는 것은 목록에서 합니다</span>
       </div>
 
-      {/* 그림이 무슨 뜻인지 — 한 칸이 좁아 글자로는 다 못 적는다 */}
-      <div className="row" style={{ gap: 8, margin: "0 0 8px", flexWrap: "wrap" }}>
-        {[
-          ["📕", "시험"], ["🚫", "휴강"], ["🤝", "방문상담"], ["📝", "레벨테스트"],
-          ["🔁", "보강"], ["🏠", "결석"], ["☑", "할일"],
-        ].map(([i, l]) => (
-          <span className="hint" key={l} style={{ fontSize: 11.5 }}>{i} {l}</span>
-        ))}
+      {/* 그림이 무슨 뜻인지 — 한 칸이 좁아 글자로는 다 못 적는다.
+          **일정과 할 일을 갈라 놓는다.** (원장님, 2026-08-05)
+            일정 = 그날 그런 일이 있다는 사실 (학교 일정 · 학생 결석 · 시험)
+            할일 = 내가 처리해야 하는 것 (보강처럼 내 수업이 늘어나는 것)
+          섞어두면 「오늘 뭘 해야 하나」 를 볼 때마다 눈으로 걸러내야 한다. */}
+      <div className="stack" style={{ gap: 3, margin: "0 0 8px" }}>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span className="tag tag-sky" style={{ fontSize: 10.5 }}>일정</span>
+          {[["📕", "시험"], ["🚫", "휴강"], ["🤝", "방문상담"], ["📝", "레벨테스트"], ["🏠", "학생 결석"]]
+            .map(([i, l]) => (
+              <span className="hint" key={l} style={{ fontSize: 11.5 }}>{i} {l}</span>
+            ))}
+        </div>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span className="tag tag-amber" style={{ fontSize: 10.5 }}>할일</span>
+          {[["🔁", "보강 (내 수업이 늘어난 것)"], ["☑", "할일"]].map(([i, l]) => (
+            <span className="hint" key={l} style={{ fontSize: 11.5 }}>{i} {l}</span>
+          ))}
+        </div>
       </div>
 
       <div className="cal">

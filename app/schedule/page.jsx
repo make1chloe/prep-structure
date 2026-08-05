@@ -151,7 +151,7 @@ export default async function SchedulePage() {
       <TopBar profile={profile} active="schedule" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">수업 스케줄</p>
+          <p className="eyebrow">회차 관리</p>
           <h1 className="h1">앞으로 3개월</h1>
           <p className="sub">
             회차는 <b>한 달만 따로 보지 않습니다.</b> 이번 달이 7회여도 다음 달이 9회면

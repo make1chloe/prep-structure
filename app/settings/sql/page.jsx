@@ -221,7 +221,7 @@ export default async function SqlPage() {
             <a className="btn btn-sm" href="/schedule">넣으러 가기</a>
           </div>
           <p className="hint" style={{ margin: "6px 0 0" }}>
-            나이스 키는 <b>수업 → 수업 스케줄 · 시험</b> 화면 <b>맨 위</b> 의
+            나이스 키는 <b>수업 → 회차 관리 · 시험</b> 화면 <b>맨 위</b> 의
             「학교 학사일정 (나이스)」 상자에 있습니다. 학교를 고르고 바로 받아와야 해서
             그 화면에 함께 두었습니다.
           </p>
