@@ -7,6 +7,7 @@ import {
   addCategory, deleteCategory,
 } from "./actions";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
+import { moveKind } from "@/app/tasks/actions";
 
 const COLORS = ["sky", "lav", "mint", "amber", "muted"];
 const PRIORITY = [
@@ -22,6 +23,13 @@ function today() {
 const dayLabel = fmtDay;
 
 export default function TodoBoard({ todos = [], categories = [], unavailable = false }) {
+  // **여기 있으면 안 되는 것.**
+  //   노션에서 옮겨올 때 학사일정 몇 줄이 할일로 들어왔다. 학사일정은
+  //   「내가 처리할 것」 이 아니라 「그날 그런 일이 있다」 라서 일정이 맞다.
+  //   지우고 새로 만들면 메모가 날아가니, 갈래만 바꿔서 옮긴다.
+  const misplaced = todos.filter(
+    (t) => t.status === "open" && (t.category === "학사일정" || t.category === "휴강")
+  );
   const [sel, setSel] = useState(() => new Set());
   const [filter, setFilter] = useState("open");
   const [catId, setCatId] = useState("");
@@ -29,6 +37,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   const [draft, setDraft] = useState({});
   const [manageCat, setManageCat] = useState(false);
   const [newCat, setNewCat] = useState({ name: "", parentId: "", color: "muted" });
+  const [movePending, startMove] = useTransition();
   const [form, setForm] = useState({
     title: "", categoryId: "", dueOn: today(), dueTime: "", priority: 0, note: "", noDue: false,
     parentId: "",
@@ -92,6 +101,35 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
 
   return (
     <>
+      {misplaced.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="notice">
+            <b>학사일정 {misplaced.length}건이 할일에 들어와 있어요.</b>{" "}
+            학사일정은 「그날 그런 일이 있다」 이지 「내가 처리할 것」 이 아니라 일정이 맞습니다.
+            <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={movePending}
+                onClick={() => {
+                  if (!confirm(`${misplaced.length}건을 일정으로 옮길까요?\n적어두신 메모는 그대로 남습니다.`)) return;
+                  startMove(async () => {
+                    const res = await moveKind(misplaced.map((t) => t.id), "schedule");
+                    if (res?.error) alert(res.error);
+                    router.refresh();
+                  });
+                }}
+              >
+                일정으로 옮기기
+              </button>
+              <span className="hint" style={{ alignSelf: "center" }}>
+                {misplaced.slice(0, 4).map((t) => t.title).join(" · ")}
+                {misplaced.length > 4 && ` 외 ${misplaced.length - 4}건`}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 빠른 추가 */}
       <div className="card" style={{ marginTop: 12 }}>
         <div className="row" style={{ gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>

@@ -362,3 +362,24 @@ export async function applyTasksDelivery(taskIds, date) {
   }
   return { error: null, made };
 }
+
+/**
+ * 할일을 **일정으로 옮긴다** (또는 그 반대).
+ *
+ * 원장님 (2026-08-05) — 「학사일정 할일에 있어」.
+ * 노션에서 옮겨올 때 학사일정 몇 줄이 할일로 들어갔다. 학사일정은 「내가
+ * 처리할 것」 이 아니라 「그날 그런 일이 있다」 이므로 일정이 맞다.
+ *
+ * 지우고 새로 만들지 않는다 — 같은 줄이라 kind 만 바꾸면 된다.
+ * 그래야 달아둔 메모·전달사항이 그대로 남는다.
+ */
+export async function moveKind(ids, kind = "schedule") {
+  const list = Array.isArray(ids) ? ids : [ids];
+  if (list.length === 0) return { error: null };
+  if (!["schedule", "todo"].includes(kind)) return { error: "알 수 없는 갈래예요." };
+  const supabase = createClient();
+  const { error } = await supabase.from("tasks").update({ kind }).in("id", list);
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return ok(error);
+}

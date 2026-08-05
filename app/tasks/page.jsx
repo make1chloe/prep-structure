@@ -19,11 +19,19 @@ export const dynamic = "force-dynamic";
 // 일정과 할일은 같은 테이블(tasks)이다. 화면도 하나로 합치고,
 // 위의 버튼으로 [통합] [일정만] [할일만] 을 오간다.
 //   /todo 는 이 화면의 ?view=todo 로 온다 (옛 주소·즐겨찾기가 안 깨지게)
+/**
+ * **달력이 기본이다** (원장님, 2026-08-05).
+ *
+ * 「통합」 화면은 일정 목록과 할일 목록을 위아래로 붙여놓은 것이라, 무엇이
+ * 어디서 왔는지도 왜 있는지도 알 수가 없었다. 달력 하나를 바탕에 놓고
+ * **걸러서** 본다 — 반별로, 학생별로, 일정만/할일만.
+ *
+ * 목록은 남겨둔다. 여러 개를 한꺼번에 고치거나 지울 때는 목록이 낫다.
+ */
 const VIEWS = [
-  { key: "all", label: "통합" },
   { key: "calendar", label: "달력" },
-  { key: "schedule", label: "일정만" },
-  { key: "todo", label: "할일만" },
+  { key: "schedule", label: "일정 목록" },
+  { key: "todo", label: "할일 목록" },
 ];
 
 /** 그 달의 첫날·끝날 */
@@ -152,7 +160,7 @@ async function pendingPrep(supabase) {
 }
 
 export default async function TasksPage({ searchParams }) {
-  const view = VIEWS.some((v) => v.key === searchParams?.view) ? searchParams.view : "all";
+  const view = VIEWS.some((v) => v.key === searchParams?.view) ? searchParams.view : "calendar";
   // 달력은 **그 달 전체**를 본다 — 지난 날도 같이 봐야 달력이다
   const isCal = view === "calendar";
   const ym = /^\d{4}-\d{2}$/.test(searchParams?.m || "")
@@ -267,6 +275,8 @@ export default async function TasksPage({ searchParams }) {
             to: q.consult_on,
             title: `${q.consult_at ? `${q.consult_at.slice(0, 5)} ` : ""}${q.name} 방문상담`,
             source: "상담",
+            from_where: "신규 상담",
+            why: "상담 오시기로 한 날입니다.",
             href: "/consult",
           });
         }
@@ -277,6 +287,8 @@ export default async function TasksPage({ searchParams }) {
             to: q.test_on,
             title: `${q.test_at ? `${q.test_at.slice(0, 5)} ` : ""}${q.name} 레벨테스트`,
             source: "레테",
+            from_where: "신규 상담",
+            why: "레벨테스트 보기로 한 날입니다.",
             href: "/consult",
           });
         }
@@ -311,6 +323,11 @@ export default async function TasksPage({ searchParams }) {
               ? `${t}${who} 보강`
               : `${who} 결석${a.planned ? " 예정" : ""}${a.reason ? ` (${a.reason})` : ""}`,
           source: a.status === "makeup" ? "보강" : "결석",
+          studentId: a.student_id,
+          from_where: a.status === "makeup" ? "오늘 수업 · 보강" : "오늘 수업 · 출결",
+          why: a.status === "makeup"
+            ? "결석분을 채우려고 잡아둔 보강입니다."
+            : "이 학생이 이 날 안 옵니다.",
           href: `/today?d=${a.date}&open=${a.student_id}`,
         });
       });
@@ -326,6 +343,9 @@ export default async function TasksPage({ searchParams }) {
         title: `${e.school} ${e.grade || ""} ${e.name || "시험"}`.replace(/\s+/g, " ").trim(),
         extra: e.english_on ? `영어 ${e.english_on.slice(5)}` : "영어 시험일 미정",
         source: "시험",
+        school: e.school,
+        from_where: "회차 관리 · 학교 시험",
+        why: "이 학교 시험 기간입니다 — 결석이 있을 수 있습니다.",
         href: "/schedule",
       })),
       ...(holQ.error ? [] : holQ.data || []).map((h) => ({
@@ -335,6 +355,9 @@ export default async function TasksPage({ searchParams }) {
         title: h.name || "휴강",
         extra: h.scope === "all" ? "전체 휴강" : "반 휴강",
         source: "휴강",
+        classId: h.class_id || null,
+        from_where: "회차 관리 · 휴강",
+        why: h.scope === "all" ? "이 날은 전체 휴강입니다." : "이 반은 이 날 수업하지 않습니다.",
         href: "/schedule",
       })),
       ...extra,
@@ -366,7 +389,7 @@ export default async function TasksPage({ searchParams }) {
     routineErr = rq.error;
 
     const TODO_COLS =
-      "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id";
+      "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id, category";
     let { data, error } = await supabase
       .from("tasks")
       .select(`${TODO_COLS}, auto_key`)
@@ -399,11 +422,11 @@ export default async function TasksPage({ searchParams }) {
           <p className="sub">
             {/* 둘이 헷갈리면 「오늘 뭘 해야 하나」 를 볼 때마다 걸러내야 한다.
                 가르는 자리는 「그날 그런 일이 있다」 인가, 「내가 뭘 해야 한다」 인가다 */}
-            <b>일정</b>은 <b>그날 그런 일이 있다</b>는 것입니다 — 학교 일정 · 시험 ·
-            학생 결석 · 상담 예약. 전할 내용을 적으면 그날 전달사항으로 깔립니다.
+            <b>달력 하나</b>로 봅니다. 위에서 <b>일정만 / 할일만</b>, <b>반</b>, <b>학생</b>으로
+            좁혀 보세요. 날짜를 누르면 그날 무엇이 <b>어디서 왔고 왜 있는지</b> 아래에 적힙니다.
             <br />
-            <b>할일</b>은 <b>내가 처리해야 하는 것</b>입니다 — 결석해서 늘어난 보강,
-            시험 대비 자료 만들기처럼요.
+            <b>일정</b>은 그날 그런 일이 있다는 것 — 학교 일정 · 시험 · 학생 결석 · 상담 예약.
+            <b>할일</b>은 내가 처리해야 하는 것 — 보강 잡기 · 시험 대비 자료 만들기.
           </p>
           <div className="row" style={{ gap: 6, marginTop: 10 }}>
             {VIEWS.map((v) => (
@@ -430,12 +453,15 @@ export default async function TasksPage({ searchParams }) {
             <GoogleSync />
           </div>
         )}
+        {isCal && <RoutineBox rows={routines} categories={cats} error={routineErr} />}
         {isCal && (
           <CalendarBoard
             ym={ym}
             tasks={rows}
             todos={todos}
             linked={linked}
+            classes={classes}
+            students={students}
             prev={shiftMonth(ym, -1)}
             next={shiftMonth(ym, 1)}
             thisMonth={todaySeoul().slice(0, 7)}
