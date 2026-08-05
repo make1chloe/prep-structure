@@ -132,6 +132,9 @@ export default async function SchoolsPage() {
             그 회차를 함께 봅니다.
           </p>
         </div>
+        {/* 학교 목록은 **하나뿐이다.** 예전에는 나이스 목록과 「학교 명단」 이
+            같은 표를 두 번 보여줘서, 합치기를 어느 쪽에서 하는지 알 수 없었다.
+            이름 고치기·직접 추가는 그 목록 안에 접어두었다. */}
         <NeisBox months={months} />
         <div className="row" style={{ marginTop: 8 }}>
           <SchoolBox />

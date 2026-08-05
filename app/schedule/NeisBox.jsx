@@ -8,6 +8,8 @@ import {
   importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports,
 } from "./neisActions";
 import { schoolYear } from "@/lib/neis";
+import { schoolAlike, looseKey } from "@/lib/schoolName";
+import { mergeSchools } from "./schoolActions";
 
 /**
  * 나이스 학사일정.
@@ -36,6 +38,11 @@ export default function NeisBox({ months = [] }) {
 
   useEffect(() => { neisReady().then((r) => setReady(!!r?.ready)); }, []);
   useEffect(() => { listSchools().then((r) => { setMine(r?.rows || []); if (r?.error) setErr(r.error); }); }, []);
+
+  // 같은 학교로 보이는 것 — 지역 이름(인천)까지 떼고 견준다
+  const dups = schoolAlike(mine.map((s) => s.name));
+  const twinsOf = (s) =>
+    mine.filter((x) => x.id !== s.id && looseKey(x.name) === looseKey(s.name));
   useEffect(() => { importedSummary().then(setHave); }, []);
   const reload = () => {
     listSchools().then((r) => setMine(r?.rows || []));
@@ -317,16 +324,52 @@ export default function NeisBox({ months = [] }) {
                 빼기
               </button>
             </BulkBar>
+            {/* 같은 학교가 두 줄로 들어와 있으면 여기서 바로 합친다.
+                예전에는 아래 「학교 명단」 이라는 **다른 목록**에만 합치기가 있어서,
+                이 목록을 보고 계신 원장님은 찾을 수가 없었다. */}
+            {dups.length > 0 && (
+              <div className="notice" style={{ margin: "8px 0" }}>
+                <b>같은 학교로 보이는 것이 있어요.</b> 합치면 학생·시험·일정이 한쪽으로 모입니다.
+                {dups.map((g) => (
+                  <div key={g.key} style={{ marginTop: 4 }}>· {g.names.join(" / ")}</div>
+                ))}
+              </div>
+            )}
             {mine.map((s) => (
               <div className="unitrow" key={s.id}>
                 <input type="checkbox" checked={sBulk.has(s.id)} onChange={() => sBulk.toggle(s.id)} />
                 <b style={{ fontSize: 13 }}>{s.name}</b>
                 <span className="tag tag-muted">{s.kind || "학교"}</span>
+                {/* 코드가 없으면 **나이스에서 못 받아온다** — 손으로 넣은 학교다.
+                    이게 안 보이면 「받아오기를 눌렀는데 왜 이 학교만 안 오지」 가 된다 */}
+                {!s.schul_code && (
+                  <span className="tag tag-amber" title="위에서 학교 이름으로 찾아 넣으면 코드가 붙습니다">
+                    나이스 코드 없음
+                  </span>
+                )}
                 {/* 어느 지역 학교인지 — 같은 이름이 여러 곳이라 이게 없으면 구분이 안 된다 */}
                 <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>
                   {[s.atpt_name, s.address].filter(Boolean).join(" · ")}
                 </span>
                 <span className="hint mono" style={{ fontSize: 11 }}>{s.schul_code}</span>
+                {twinsOf(s).map((t) => (
+                  <button
+                    key={t.id}
+                    className="btn btn-sm"
+                    disabled={pending}
+                    title={`${t.name} 의 학생·시험·일정을 ${s.name} 으로 옮깁니다`}
+                    onClick={() => {
+                      if (!confirm(
+                        `「${t.name}」 를 「${s.name}」 에 합칩니다.\n\n` +
+                        `학생·시험·일정이 「${s.name}」 으로 옮겨가고,\n` +
+                        `「${t.name}」 는 별칭으로 남습니다 (옛 이름으로도 찾을 수 있어요).\n\n합칠까요?`
+                      )) return;
+                      run(() => mergeSchools(s.id, t.id), reload);
+                    }}
+                  >
+                    {t.name} 합치기
+                  </button>
+                ))}
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={pending}
