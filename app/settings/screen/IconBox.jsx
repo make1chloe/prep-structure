@@ -60,6 +60,9 @@ export default function IconBox() {
   const [name, setName] = useState("");
   const [pending, startTransition] = useTransition();
   const fileRef = useRef(null);
+  // 주소 뒤에 붙이는 시각. 이게 없으면 **브라우저가 옛 그림을 계속 들고 있어서**
+  // 올렸는데도 안 바뀐 것처럼 보인다. 실제로 그랬다.
+  const bust = st?.updatedAt || "";
 
   useEffect(() => { iconStatus().then(setSt); }, []);
 
@@ -69,9 +72,24 @@ export default function IconBox() {
     setName(file.name);
     const img = new Image();
     img.src = URL.createObjectURL(file);
-    await img.decode();
+    try {
+      await img.decode();
+    } catch {
+      alert("이 그림 파일을 읽지 못했어요. PNG 로 저장해서 다시 올려주세요.");
+      return;
+    }
+    // SVG 는 크기가 안 적혀 있으면 브라우저가 0 이나 300x150 으로 준다.
+    // 그대로 그리면 **빈 아이콘**이 만들어진다.
+    if (!img.naturalWidth || !img.naturalHeight) {
+      alert("그림 크기를 알 수 없어요. PNG 로 저장해서 다시 올려주세요.");
+      return;
+    }
 
     const { c, x0, y0, w, h } = trim(img);
+    if (w < 8 || h < 8) {
+      alert("그림에서 로고를 못 찾았어요 (거의 비어 있습니다). 다른 파일로 해주세요.");
+      return;
+    }
     const made = {};
     for (const [key, size, inner] of SIZES) {
       const out = document.createElement("canvas");
@@ -154,16 +172,23 @@ export default function IconBox() {
       {name && <p className="hint" style={{ margin: "6px 0 0" }}>고른 파일: {name}</p>}
 
       {/* 올리기 전에 **잘리는 모습까지** 보여준다 — 올리고 나서 폰에서 확인하면 늦다 */}
+      {!preview && st && !st.uploaded && !st.error && (
+        <p className="hint" style={{ margin: "12px 0 0", lineHeight: 1.7 }}>
+          아직 로고를 안 올리셨습니다. <b>기본 그림은 없습니다</b> — 올리기 전까지
+          폰은 화면을 찍은 그림이나 빈 네모를 씁니다.
+        </p>
+      )}
+
       <div className="row" style={{ gap: 14, marginTop: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
         {[
           ["icon-512", "512", "안드로이드 · 크롬", "12px"],
           ["icon-512m", "512m", "동그랗게 잘릴 때", "50%"],
           ["icon-apple", "apple", "아이폰", "22%"],
-        ].map(([key, api, label, radius]) => (
+        ].filter(() => preview || st?.uploaded).map(([key, api, label, radius]) => (
           <div key={key} style={{ textAlign: "center" }}>
             <img
               alt={label}
-              src={preview ? preview[key] : `/api/icon/${api}`}
+              src={preview ? preview[key] : st?.uploaded ? `/api/icon/${api}?v=${bust}` : ""}
               width={72}
               height={72}
               style={{
