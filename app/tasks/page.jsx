@@ -6,6 +6,8 @@ import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
 import PrepTodo from "./PrepTodo";
 import MakeupTodo from "./MakeupTodo";
+import RoutineBox from "../todo/RoutineBox";
+import { syncRoutines, listRoutines } from "../todo/routineActions";
 import CalendarBoard from "./CalendarBoard";
 import GoogleSync from "./GoogleSync";
 import { todaySeoul, addDays } from "@/lib/day";
@@ -345,6 +347,8 @@ export default async function TasksPage({ searchParams }) {
   let todoErr = false;
   let prep = [];
   let makeups = [];
+  let routines = [];
+  let routineErr = null;
   if (wantTodo) {
     const catQ = await supabase
       .from("todo_categories")
@@ -352,6 +356,14 @@ export default async function TasksPage({ searchParams }) {
       .eq("active", true)
       .order("sort", { ascending: true });
     cats = catQ.error ? [] : catQ.data || [];
+
+    // 되풀이 할일 — 때가 된 것을 **먼저** 만들어 둔다 (auto_key 가 막아줘서
+    // 몇 번을 열어도 하나만 생긴다). 목록을 읽기 전에 해야 이번에 생긴 것이
+    // 바로 보인다. 밤에 따로 도는 것을 두면 그게 멈춘 것을 아무도 모른다.
+    await syncRoutines();
+    const rq = await listRoutines();
+    routines = rq.rows;
+    routineErr = rq.error;
 
     const TODO_COLS =
       "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id";
@@ -465,6 +477,7 @@ export default async function TasksPage({ searchParams }) {
             )}
             <PrepTodo rows={prep} />
             <MakeupTodo rows={makeups} />
+            <RoutineBox rows={routines} categories={cats} error={routineErr} />
             <TodoBoard todos={todos} categories={cats} unavailable={todoErr} />
           </section>
         )}

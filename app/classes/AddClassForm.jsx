@@ -7,8 +7,11 @@ const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 export default function AddClassForm() {
   const [open, setOpen] = useState(false);
-  // 특강은 끝나는 날이 있다. 정규반은 없다 — 그래서 분류에 따라 기간 칸을 낸다.
   const [category, setCategory] = useState("정규반");
+  const [name, setName] = useState("");
+  // 이름에는 특강이라고 적어놓고 분류는 정규반으로 두면, 나중에 「왜 이 반만
+  // 특강 표시가 안 되지」 가 된다. 적는 자리에서 짚어준다.
+  const mismatched = /특강|캠프|단기/.test(name) && category === "정규반";
 
   if (!open) {
     return (
@@ -28,7 +31,14 @@ export default function AddClassForm() {
         <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
           <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <label className="label">반 이름 *</label>
-            <input className="input input-sm" name="name" required placeholder="월수 7:30" />
+            <input
+              className="input input-sm"
+              name="name"
+              required
+              placeholder="월수 7:30"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
           <div className="field">
             <label className="label">요일</label>
@@ -90,8 +100,19 @@ export default function AddClassForm() {
           </div>
         </div>
 
-        {/* 특강 기간 — 종강일만 넣어두면 그날 지나서 알아서 내려간다 */}
-        {category !== "정규반" && (
+        {/* 기간 — 종강일만 넣어두면 그날 지나서 알아서 내려간다.
+            **분류로 감추지 않는다.** 전에는 「정규반」 이면 이 칸이 아예 안 나왔다.
+            그런데 「화목1 특강」 처럼 이름에는 특강이라고 적고 분류는 정규반으로
+            둔 반이 생기고, 그러면 기간을 넣을 데가 사라진다 — 왜 어떤 반은
+            되고 어떤 반은 안 되는지 화면만 봐서는 알 수가 없다.
+            비워두면 무기한이니, 늘 내놓고 설명만 붙인다. */}
+        {mismatched && (
+          <p className="hint" style={{ margin: 0, color: "var(--amber)" }}>
+            이름은 <b>특강</b>인데 분류가 <b>정규반</b>이에요. 분류를 특강으로 두시면
+            종강일이 지났을 때 알아서 내려갑니다.
+          </p>
+        )}
+        {(
           <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
             <div className="field">
               <label className="label">개강일</label>
@@ -102,8 +123,8 @@ export default function AddClassForm() {
               <input className="input input-sm" name="ends_on" type="date" />
             </div>
             <p className="hint" style={{ fontSize: 12, margin: "0 0 6px" }}>
-              종강일이 지나면 반 목록·오늘 수업·수강료에서 자동으로 내려갑니다.
-              기록은 그대로 남습니다.
+              <b>비워두면 무기한</b>입니다 (정규반). 종강일을 넣으면 그날이 지나서
+              반 목록·오늘 수업·수강료에서 자동으로 내려갑니다. 기록은 그대로 남습니다.
             </p>
           </div>
         )}
