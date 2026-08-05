@@ -103,6 +103,30 @@ export default function MessageList({ rows = [], level = "full", error = null, p
       ...Object.keys(draft.alimtalk_vars || {}),
     ].filter((v, i, a) => a.indexOf(v) === i);
 
+    // ── 붙이기를 잘못한 것 잡아내기 ─────────────────────────────
+    // 같은 값을 두 칸에 붙이면 그 글이 문자에 두 번 실린다.
+    const usedIn = new Map();          // {{값}} → [#{칸}, …]
+    slots.forEach((slot) => {
+      const cur = draft.alimtalk_vars?.[slot] || "";
+      new Set(cur.match(/\{\{[^}]*\}\}/g) || []).forEach((v) => {
+        if (!usedIn.has(v)) usedIn.set(v, []);
+        usedIn.get(v).push(slot);
+      });
+    });
+    const dupWarn = [...usedIn.entries()]
+      .filter(([, ss]) => ss.length > 1)
+      .map(([src, ss]) => ({ src, slots: ss }));
+    // 칸이 둘 이상인데 통짜 문구를 넣으면 템플릿 제목과 겹친다
+    const wholeWarn =
+      slots.length > 1
+        ? slots.filter((slot) => /\{\{본문\}\}/.test(draft.alimtalk_vars?.[slot] || ""))
+        : [];
+    // **보내면 이렇게 나갑니다** — 칸별 미리보기만으로는 두 번 실린 것이 안 보인다
+    const wholePreview = (draft.alimtalk_body || "").replace(
+      /#\{\s*([^}]+?)\s*\}/g,
+      (_, k) => fillTemplate(draft.alimtalk_vars?.[`#{${k.trim()}}`] || "", EXAMPLE)
+    );
+
     return (
       <div className="card card-tight" style={{ background: "transparent" }}>
         <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
@@ -205,6 +229,33 @@ export default function MessageList({ rows = [], level = "full", error = null, p
             <p className="hint" style={{ margin: "10px 0 6px" }}>
               템플릿의 변수를 앱의 값에 붙여주세요. 안 붙인 변수는 빈 채로 나갑니다.
             </p>
+
+            {/* **한 번에 두 군데 붙이면 같은 글이 두 번 나간다.**
+                실제로 하원 안내가 이렇게 나갔다 — #{사유} 와 #{시각} 에 둘 다
+                {{본문}} 을 붙여서, 문구 전체가 제목까지 포함해 두 번 실렸다.
+                아래 「보내면 이렇게 나갑니다」 로도 보이지만, 먼저 짚어준다. */}
+            {dupWarn.length > 0 && (
+              <div className="notice" style={{ marginBottom: 8 }}>
+                <b>같은 값을 여러 칸에 붙이셨어요.</b> 그러면 그 글이 문자에 그만큼 되풀이됩니다.
+                <br />
+                {dupWarn.map((w) => (
+                  <span key={w.src}>
+                    {w.src} → {w.slots.join(" · ")}
+                    <br />
+                  </span>
+                ))}
+                칸마다 <b>다른 값</b>을 넣어주세요 (하원 안내라면 사유 칸에는{" "}
+                <b>{"{{하원사유}}"}</b>, 시각 칸에는 <b>{"{{하원시각}}"}</b>).
+              </div>
+            )}
+            {wholeWarn.length > 0 && (
+              <div className="notice" style={{ marginBottom: 8 }}>
+                <b>{wholeWarn.join(" · ")}</b> 에 <b>문구 통째로</b>({"{{본문}}"})가 들어 있어요.
+                이 템플릿은 칸이 {slots.length}개라, 통짜 문구를 넣으면 템플릿이 만들어 둔
+                제목·인사말과 겹쳐서 같은 말이 두 번 나갑니다. 「문구 통째로」는
+                <b> 큰 칸 하나뿐인 템플릿</b>에만 쓰세요.
+              </div>
+            )}
             <div className="stack" style={{ gap: 10 }}>
               {slots.map((slot) => {
                 const cur = draft.alimtalk_vars?.[slot] || "";
@@ -297,6 +348,16 @@ export default function MessageList({ rows = [], level = "full", error = null, p
                   </div>
                 );
               })}
+            </div>
+
+            {/* **문자 한 통을 통째로** 보여준다.
+                칸별 미리보기만 보고는 같은 글이 두 번 실린 것을 알 수가 없다.
+                실제로 하원 안내가 제목까지 두 번 실린 채로 나갔다. */}
+            <div className="field" style={{ marginTop: 12 }}>
+              <label className="label">보내면 이렇게 나갑니다 (예시값)</label>
+              <pre className="reportbox" style={{ borderRadius: 10, fontSize: 12.5 }}>
+                {wholePreview || "템플릿 원문을 붙여넣으면 여기에 보입니다."}
+              </pre>
             </div>
           </>
         ) : (
