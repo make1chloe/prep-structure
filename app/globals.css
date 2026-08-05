@@ -581,3 +581,17 @@ a { color: inherit; }
   .cal-item { font-size: 10px; padding: 1px 3px; }
   .cal-dow { padding: 4px 2px; font-size: 11px; }
 }
+
+/* 재원생 — **고르는 곳과 고치는 곳을 나란히** (좌우 2분할)
+   예전에는 이름을 누르면 표 사이가 벌어지면서 판이 끼어들어, 아래 학생들이
+   화면 밖으로 밀려났다. 다른 아이를 보려면 닫고 다시 찾아 내려가야 했다. */
+.splitview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 440px); gap: 10px; align-items: start; }
+.split-panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.split-body { margin-top: 8px; }
+.split-fold { display: none; padding: 4px 8px; }
+@media (max-width: 1100px) {
+  /* 좁으면 위아래가 된다 — 판이 위, 목록이 아래. 판은 접을 수 있다 */
+  .splitview { grid-template-columns: 1fr; }
+  .split-panel { position: static; order: -1; max-height: none; overflow: visible; }
+  .split-fold { display: inline-flex; }
+}

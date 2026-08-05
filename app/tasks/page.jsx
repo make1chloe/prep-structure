@@ -6,6 +6,7 @@ import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
 import PrepTodo from "./PrepTodo";
 import CalendarBoard from "./CalendarBoard";
+import GoogleSync from "./GoogleSync";
 import { todaySeoul } from "@/lib/day";
 import { hiddenExamIds } from "@/lib/schedule";
 
@@ -284,13 +285,15 @@ export default async function TasksPage({ searchParams }) {
         </div>
 
         {isCal && (
-          <div className="row" style={{ marginBottom: 10, alignItems: "center", gap: 8 }}>
+          <div className="row" style={{ marginBottom: 10, alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <AddTaskForm
               classes={classes}
               schools={schools}
               grades={grades}
               students={students}
             />
+            <span className="spacer" />
+            <GoogleSync />
           </div>
         )}
         {isCal && (

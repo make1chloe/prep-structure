@@ -105,6 +105,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   // 오늘 수업에서 「재원생 정보」로 넘어오면 그 학생이 **열린 채로** 뜬다.
   // 넘어와서 다시 이름을 찾게 하면 넘어온 뜻이 없다.
   const [openId, setOpenId] = useState(openStudent);
+  // 좁은 화면에서는 판이 위로 올라온다. 목록을 보려면 접을 수 있어야 한다.
+  const [folded, setFolded] = useState(false);
   const [tab, setTab] = useState("info");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -113,6 +115,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     if (openId === s.id && tab === which) { setOpenId(null); return; }
     setOpenId(s.id);
     setTab(which);
+    setFolded(false);   // 접어둔 채로 다른 학생을 누르면 아무 일도 안 난 것처럼 보인다
     const d = {};
     ALL_FIELDS.forEach(({ key }) => (d[key] = s[key] ?? ""));
     setDraft(d);
@@ -291,6 +294,115 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     );
   }
 
+
+  /**
+   * 오른쪽 칸 — **고르는 곳(왼쪽 표)과 고치는 곳(오른쪽 판)을 나란히.**
+   *
+   * 예전에는 이름을 누르면 표 **사이가 벌어지면서** 판이 끼어들었다. 그러면
+   * 아래 학생들이 화면 밖으로 밀려나서, 다른 아이를 보려면 판을 닫고 다시
+   * 찾아 내려가야 했다. 이제 왼쪽 목록은 그 자리에 그대로 있고 오른쪽만 바뀐다.
+   *
+   * 좁은 화면에서는 위아래가 된다 — 판이 위, 목록이 아래. 판은 접을 수 있다.
+   */
+  function panelFor(s) {
+    if (!s) return null;
+    return (
+      <aside className={`card split-panel ${folded ? "split-folded" : ""}`}>
+        <div className="row" style={{ gap: 6, alignItems: "center" }}>
+          <button
+            className="btn btn-ghost btn-sm split-fold"
+            onClick={() => setFolded(!folded)}
+            title={folded ? "펴기" : "접기"}
+          >
+            {folded ? "▾" : "▴"}
+          </button>
+          <b style={{ fontSize: 14 }}>{s.name}</b>
+          <span className="hint">{[s.school, s.grade].filter(Boolean).join(" ")}</span>
+          <span className="spacer" />
+          <a className="btn btn-ghost btn-sm" href={`/me?s=${s.id}`} target="_blank" rel="noreferrer">
+            학생 화면 ↗
+          </a>
+          <a className="btn btn-ghost btn-sm" href={`/parent?s=${s.id}`} target="_blank" rel="noreferrer">
+            학부모 화면 ↗
+          </a>
+          <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
+        </div>
+        {!folded && (
+          <div className="split-body">
+<div className="row" style={{ gap: 3, margin: "8px 0 10px" }}>
+                        {TABS.map(([k, label]) => (
+                          <button
+                            key={k}
+                            className={`hwchip ${tab === k ? "hw-next" : ""}`}
+                            onClick={() => setTab(k)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* 정보 — 표에 안 켜둔 칸도 여기서는 전부 고친다 */}
+                      {tab === "info" && (
+                        <>
+                          <div className="editgrid">
+                            {ALL_FIELDS.map((c) => (
+                              <div className="field" key={c.key}>
+                                <label className="label">{c.label}</label>
+                                {editor(c)}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
+                            <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
+                              {pending ? "저장 중…" : "저장"}
+                            </button>
+                            <span className="hint">고친 뒤 저장을 눌러주세요.</span>
+                            <span className="spacer" />
+                            {/* 형제 묶기는 목록에서 여럿 골라 하고, 푸는 것은 여기서 한 명씩 */}
+                            {s.family_id && (
+                              <>
+                                <span className="hint">
+                                  형제{" "}
+                                  {students
+                                    .filter((x) => x.family_id === s.family_id && x.id !== s.id)
+                                    .map((x) => x.name)
+                                    .join(", ") || "—"}
+                                </span>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  disabled={pending}
+                                  onClick={() => {
+                                    if (!confirm(`${s.name} 학생만 형제 묶음에서 뺄까요?`)) return;
+                                    run(() => unlinkSibling(s.id));
+                                  }}
+                                >
+                                  형제 풀기
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {tab === "books" && (
+                        <>
+                          <p className="hint" style={{ margin: "0 0 6px" }}>
+                            교재는 <b>학생마다 다릅니다</b> — 같은 반이어도요. 여기서 바꾸면
+                            숙제 배정·진도가 이 교재로 갑니다.
+                          </p>
+                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} />
+                        </>
+                      )}
+                      {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
+                      {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
+                      {tab === "account" && <LinkBox studentId={s.id} name={s.name} />}
+                      {tab === "history" && <StudentHistoryPanel studentId={s.id} />}
+          </div>
+        )}
+      </aside>
+    );
+  }
+
   return (
     <>
       <div className="row" style={{ gap: 6, padding: "12px 16px 0", alignItems: "center" }}>
@@ -389,6 +501,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         </div>
       )}
 
+      <div className="splitview">
       <div className="tblwrap">
         <table className="tbl tbl-tight">
           <thead>
@@ -435,95 +548,6 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                   </td>
                 </tr>
 
-                {openId === s.id && (
-                  <tr>
-                    <td colSpan={cols.length + 2} className="stupanel">
-                      <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                        <b style={{ fontSize: 14 }}>{s.name}</b>
-                        <span className="hint">
-                          {[s.school, s.grade].filter(Boolean).join(" ")}
-                        </span>
-                        <span className="spacer" />
-                        <a className="btn btn-ghost btn-sm" href={`/me?s=${s.id}`} target="_blank" rel="noreferrer">
-                          학생 화면 ↗
-                        </a>
-                        <a className="btn btn-ghost btn-sm" href={`/parent?s=${s.id}`} target="_blank" rel="noreferrer">
-                          학부모 화면 ↗
-                        </a>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
-                      </div>
-
-                      <div className="row" style={{ gap: 3, margin: "8px 0 10px" }}>
-                        {TABS.map(([k, label]) => (
-                          <button
-                            key={k}
-                            className={`hwchip ${tab === k ? "hw-next" : ""}`}
-                            onClick={() => setTab(k)}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* 정보 — 표에 안 켜둔 칸도 여기서는 전부 고친다 */}
-                      {tab === "info" && (
-                        <>
-                          <div className="editgrid">
-                            {ALL_FIELDS.map((c) => (
-                              <div className="field" key={c.key}>
-                                <label className="label">{c.label}</label>
-                                {editor(c)}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
-                            <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
-                              {pending ? "저장 중…" : "저장"}
-                            </button>
-                            <span className="hint">고친 뒤 저장을 눌러주세요.</span>
-                            <span className="spacer" />
-                            {/* 형제 묶기는 목록에서 여럿 골라 하고, 푸는 것은 여기서 한 명씩 */}
-                            {s.family_id && (
-                              <>
-                                <span className="hint">
-                                  형제{" "}
-                                  {students
-                                    .filter((x) => x.family_id === s.family_id && x.id !== s.id)
-                                    .map((x) => x.name)
-                                    .join(", ") || "—"}
-                                </span>
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    if (!confirm(`${s.name} 학생만 형제 묶음에서 뺄까요?`)) return;
-                                    run(() => unlinkSibling(s.id));
-                                  }}
-                                >
-                                  형제 풀기
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </>
-                      )}
-
-                      {tab === "books" && (
-                        <>
-                          <p className="hint" style={{ margin: "0 0 6px" }}>
-                            교재는 <b>학생마다 다릅니다</b> — 같은 반이어도요. 여기서 바꾸면
-                            숙제 배정·진도가 이 교재로 갑니다.
-                          </p>
-                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} />
-                        </>
-                      )}
-                      {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
-                      {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
-                      {tab === "account" && <LinkBox studentId={s.id} name={s.name} />}
-                      {tab === "history" && <StudentHistoryPanel studentId={s.id} />}
-                    </td>
-                  </tr>
-                )}
               </Fragment>
             ))}
           </tbody>
@@ -533,6 +557,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
             조건에 맞는 학생이 없어요.
           </p>
         )}
+      </div>
+      {panelFor(students.find((x) => x.id === openId))}
       </div>
     </>
   );
