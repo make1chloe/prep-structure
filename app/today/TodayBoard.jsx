@@ -33,9 +33,16 @@ export default function TodayBoard({
   textbooks = [],
   unitNames = {},
   rule = {},
+  openStudent = null,
 }) {
-  const [openId, setOpenId] = useState(null);
+  // 수업 준비에서 「고치기」 로 넘어오면 그 학생 판을 **열어둔 채로** 시작한다.
+  // 날짜만 맞춰놓고 다시 찾아 누르게 하면 두 번 일하는 것이다.
+  const [openId, setOpenId] = useState(openStudent || null);
   const [openClass, setOpenClass] = useState(() => {
+    if (openStudent) {
+      const g = groups.find((x) => (x.rows || []).some((r) => r.student.id === openStudent));
+      if (g) return g.klass.id;
+    }
     // 지금 시간대 반을 자동으로 펼침, 없으면 첫 반
     const now = new Date();
     const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;

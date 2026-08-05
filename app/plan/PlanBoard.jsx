@@ -7,6 +7,7 @@ import {
   clearPlannedAbsenceRange,
   assignHomeworkAhead,
   unassignHomeworkAhead,
+  recentClasses,
 } from "./actions";
 import { createNotice, listUnitOptions } from "@/app/today/actions";
 import { unitOptionText } from "@/lib/unitTree";
@@ -14,6 +15,9 @@ import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
 import { CAT_CLS } from "@/app/homework/categories";
 
 const REASONS = ["학교 행사", "시험 기간", "병원", "가족 일정", "여행", "기타"];
+const ATT_LABEL = {
+  present: "등원", late: "지각", absent: "결석", makeup: "보강", online: "온라인",
+};
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
 function todayISO() {
@@ -55,6 +59,9 @@ export default function PlanBoard({
   const [kind, setKind] = useState("deliver");
   const [body, setBody] = useState("");
   const [noticeDate, setNoticeDate] = useState("");
+
+  // 지난 수업 목록 — null 이면 아직 안 불러온 것
+  const [past, setPast] = useState(null);
 
   const kw = q.trim().toLowerCase();
   const shown = students.filter(
@@ -266,6 +273,7 @@ export default function PlanBoard({
             ["homework", "숙제 내기"],
             ["absence", "결석 예정"],
             ["notice", "공지 · 전달사항"],
+            ["fix", "지난 수업 고치기"],
           ].map(([k, l]) => (
             <button
               key={k}
@@ -582,6 +590,69 @@ export default function PlanBoard({
             >
               저장
             </button>
+          </>
+        )}
+
+        {/* 지난 수업 고치기 — 검사를 빠뜨렸거나 리포트를 고쳐야 할 때.
+            고치는 곳은 오늘 수업 화면의 학생 판 하나다. 여기서는 데려다만 준다 —
+            같은 것을 두 군데 만들면 언젠가 한쪽만 고치게 된다. */}
+        {tab === "fix" && (
+          <>
+            <p className="hint" style={{ margin: "0 0 8px", lineHeight: 1.7 }}>
+              고른 학생의 <b>최근 두 달 수업</b>입니다. 「고치기」 를 누르면 그 날짜의
+              오늘 수업 화면이 <b>그 학생 판이 열린 채로</b> 뜹니다 — 거기서 숙제 검사 ·
+              숙제 수정 · 리포트 · 등원 학습을 다 고칠 수 있어요.
+            </p>
+            <div className="row" style={{ gap: 6, marginBottom: 8, alignItems: "center" }}>
+              <button
+                className="btn btn-sm"
+                disabled={pending || sel.size === 0}
+                onClick={() =>
+                  startTransition(async () => {
+                    const res = await recentClasses([...sel]);
+                    if (res?.error) {
+                      alert(res.error);
+                      return;
+                    }
+                    setPast(res.rows || []);
+                  })
+                }
+              >
+                {past === null ? "불러오기" : "다시 불러오기"}
+              </button>
+              <span className="tag tag-sky">고른 학생 {sel.size}명</span>
+            </div>
+
+            {past !== null && past.length === 0 && (
+              <p className="hint" style={{ margin: 0 }}>최근 두 달에 기록이 없어요.</p>
+            )}
+            {past !== null && past.length > 0 && (
+              <div className="stack" style={{ gap: 2 }}>
+                {past.map((p) => {
+                  const s = students.find((x) => x.id === p.studentId);
+                  return (
+                    <div className="unitrow" key={p.id}>
+                      <b style={{ fontSize: 12.5, minWidth: 64 }}>{s?.name || "학생"}</b>
+                      <span className="hint" style={{ minWidth: 96 }}>{dayLabel(p.date)}</span>
+                      {p.attendance && (
+                        <span className="tag tag-muted">{ATT_LABEL[p.attendance] || p.attendance}</span>
+                      )}
+                      {p.word && <span className="tag tag-sky">단어 {p.word}</span>}
+                      {p.checked > 0 && <span className="tag tag-mint">검사 {p.checked}</span>}
+                      {p.gave > 0 && <span className="tag tag-lav">내준 숙제 {p.gave}</span>}
+                      {!p.written && <span className="tag tag-amber">리포트 미작성</span>}
+                      <span className="spacer" />
+                      <a
+                        className="btn btn-sm"
+                        href={`/today?d=${p.date}&open=${p.studentId}`}
+                      >
+                        고치기 ›
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

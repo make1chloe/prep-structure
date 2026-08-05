@@ -219,3 +219,77 @@ export async function unassignHomeworkAhead(studentIds, date, homeworkItemId) {
   revalidatePath("/today");
   return ok(error);
 }
+
+// ---------- 지난 수업 고치기 ----------
+/**
+ * 고른 학생들의 **최근 수업**을 모아 준다.
+ *
+ * 검사를 빠뜨렸거나 리포트를 고쳐야 할 때, 지금까지는 날짜를 손으로 바꿔가며
+ * 오늘 수업 화면을 뒤져야 했다. 여기서 날짜가 보이면 바로 그 판으로 들어간다.
+ *
+ * **고치는 곳은 여기가 아니다.** 오늘 수업 화면의 학생 판 하나가 검사·숙제·
+ * 리포트·등원 학습을 다 갖고 있다. 같은 것을 두 군데에 만들면 언젠가 한쪽만
+ * 고치게 된다 — 여기서는 **데려다만 준다.**
+ */
+export async function recentClasses(studentIds = [], days = 60) {
+  const ids = (studentIds || []).filter(Boolean);
+  if (ids.length === 0) return { rows: [], error: null };
+  const supabase = createClient();
+  const from = addDays(new Date().toISOString().slice(0, 10), -days);
+
+  const BASE = "id, student_id, date, word_total, word_correct, notice";
+  let { data: reps, error } = await supabase
+    .from("daily_reports")
+    .select(`${BASE}, report_written`)
+    .in("student_id", ids)
+    .gte("date", from)
+    .order("date", { ascending: false });
+  if (error) {
+    ({ data: reps, error } = await supabase
+      .from("daily_reports")
+      .select(BASE)
+      .in("student_id", ids)
+      .gte("date", from)
+      .order("date", { ascending: false }));
+  }
+  if (error) return { rows: [], error: error.message };
+
+  const repIds = (reps || []).map((r) => r.id);
+  const { data: its } = repIds.length
+    ? await supabase
+        .from("daily_report_items")
+        .select("daily_report_id, status")
+        .in("daily_report_id", repIds)
+    : { data: [] };
+  const gave = new Map();     // 그날 내준 숙제
+  const checked = new Map();  // 그날 검사한 숙제
+  (its || []).forEach((x) => {
+    const m = x.status === "assigned" ? gave : checked;
+    if (x.status === "inclass") return;
+    m.set(x.daily_report_id, (m.get(x.daily_report_id) || 0) + 1);
+  });
+
+  const dates = [...new Set((reps || []).map((r) => r.date))];
+  const { data: att } = dates.length
+    ? await supabase
+        .from("attendance")
+        .select("student_id, date, status")
+        .in("student_id", ids)
+        .in("date", dates)
+    : { data: [] };
+  const attOf = new Map((att || []).map((a) => [`${a.student_id}|${a.date}`, a.status]));
+
+  return {
+    rows: (reps || []).map((r) => ({
+      id: r.id,
+      studentId: r.student_id,
+      date: r.date,
+      attendance: attOf.get(`${r.student_id}|${r.date}`) || null,
+      word: r.word_total ? `${r.word_correct ?? 0}/${r.word_total}` : "",
+      written: !!r.report_written,
+      gave: gave.get(r.id) || 0,
+      checked: checked.get(r.id) || 0,
+    })),
+    error: null,
+  };
+}

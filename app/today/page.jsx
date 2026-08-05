@@ -1044,6 +1044,7 @@ export default async function TodayPage({ searchParams }) {
           textbooks={textbooks}
           unitNames={unitNames}
           rule={{ ...warnRule, makeupDays }}
+          openStudent={searchParams?.open || null}
         />
       </main>
     </>
