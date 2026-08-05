@@ -106,6 +106,12 @@ export async function listRecipients() {
       who: [s.school, s.grade].filter(Boolean).join(" "),
       phone: s.parent_phone || "",
       books: list.map((b) => b.name),
+      // **교재를 골라서 보낼 수 있어야 한다.** 배정된 것을 통째로 넣으면
+      // 이번에 사실 책만 안내할 수가 없다. 그래서 이름만이 아니라 한 권씩
+      // 값(가격·링크)을 다 들고 간다 — 고른 것만으로 다시 셈한다.
+      bookList: list.map((b) => ({
+        id: b.id, name: b.name, price: b.price || 0, url: b.purchase_url || "",
+      })),
       bookPrice: list.reduce((a, b) => a + (b.price || 0), 0),
       bookUrls: list.map((b) => b.purchase_url).filter(Boolean),
       testResult: "",
@@ -126,6 +132,7 @@ export async function listRecipients() {
     who: [q.school, q.grade].filter(Boolean).join(" "),
     phone: q.phone || "",
     books: [],
+    bookList: [],
     bookPrice: 0,
     bookUrls: [],
     testOn: q.test_on || "",

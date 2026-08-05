@@ -30,6 +30,7 @@ export default async function ReportPage({ searchParams }) {
   const t = searchParams?.t;
   const tab =
     t === "notice" ? "notice"
+    : t === "hw" ? "hw"
     : t === "late" ? "late"
     : t === "resend" ? "resend"
     : t === "test" ? "test"
@@ -74,6 +75,7 @@ export default async function ReportPage({ searchParams }) {
   // 탭마다 부제가 다르다 — 지금 무엇을 하는 화면인지 위에서 바로 읽히게
   const SUB = {
     report: "데일리리포트는 오늘 수업 입력 내용으로 자동 작성됩니다.",
+    hw: "다음 수업 숙제만 담은 짧은 문자입니다. 학생에게 갑니다.",
     late: "늦게 가는 학생의 사유는 수업 기록에서 자동으로 잡힙니다.",
     notice: "안내 문자는 미리 써둔 문구를 씁니다.",
     resend: "이미 보낸 문구를 고쳐서 다시 보내거나, 숙제만 따로 보낼 때 씁니다.",
@@ -99,8 +101,13 @@ export default async function ReportPage({ searchParams }) {
           />
         ) : tab === "notice" ? (
           <NoticeSender academy={settings.academy.name} mode={settings.mode} msg={settings.message} />
+        ) : tab === "hw" ? (
+          <ResendBoard
+            date={date} rows={rows} ready={resendReady}
+            mode={settings.mode} chans={chans} only="homework"
+          />
         ) : tab === "late" ? (
-          <LateSender date={date} rows={rows} mode={settings.mode} />
+          <LateSender date={date} rows={rows} mode={settings.mode} chans={chans} />
         ) : tab === "resend" ? (
           <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} chans={chans} />
         ) : (

@@ -12,7 +12,7 @@ import { clearLate } from "./actions";
  * 보통은 오늘 수업에서 그 자리에서 보낸다 (데리러 오시니까 미룰 수 없다).
  * 여기는 **누가 남았는지 한눈에 보고 빠뜨린 것을 챙기는** 자리다.
  */
-export default function LateSender({ date, rows = [], mode = "copy" }) {
+export default function LateSender({ date, rows = [], mode = "copy", chans = {} }) {
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
@@ -180,6 +180,19 @@ export default function LateSender({ date, rows = [], mode = "copy" }) {
           <b>오늘 수업</b> 학생 칸에서 넣으시면 됩니다. 여기는 빠뜨린 학생을 챙기는 자리입니다.
           {mode === "copy" && " (지금은 직접 발송 모드라 기록만 남습니다)"}
         </p>
+        {/* 나가고 나서 「어 이거 문자로 갔네」 를 알면 늦다. 보내기 전에 여기서 말해준다. */}
+        {mode === "sms" && (
+          <p className="hint" style={{ margin: "8px 0 0" }}>
+            이 안내는 <b>{chans.late === "alimtalk" ? "알림톡" : "문자"}</b>로 나갑니다.
+            {chans.late !== "alimtalk" && (
+              <>
+                {" "}알림톡으로 보내시려면{" "}
+                <a className="sky" href="/settings/messages">설정 · 문자 문구</a> 에서
+                「하원 안내」에 <b>승인받은 알림톡 템플릿을 붙여</b>주세요. 붙이기 전까지는 문자로 나갑니다.
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       {targets.length === 0 && (

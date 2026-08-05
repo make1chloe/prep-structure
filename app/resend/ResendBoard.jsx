@@ -9,7 +9,6 @@ const shiftDate = addDays;
 
 // 재발송은 발송 화면의 '다시 보내기' 탭이다 (따로 있던 /resend 를 합쳤다).
 // 날짜를 옮겨도 탭이 풀리지 않게 여기로 돌아온다.
-const HERE = "/report?t=resend";
 function timeLabel(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -23,8 +22,13 @@ const KINDS = [
   { key: "report", label: "데일리리포트", hint: "수업 내용 전체가 담긴 문구예요." },
 ];
 
-export default function ResendBoard({ date, rows = [], ready = true, mode = "copy", chans = {} }) {
-  const [kind, setKind] = useState("homework");
+/**
+ * @param only "homework" 처럼 한 종류만 다루는 화면으로 쓸 때. 종류 고르는 단추를
+ *             숨기고 「다시 보내기」 대신 그냥 「보내기」 로 말한다.
+ */
+export default function ResendBoard({ date, rows = [], ready = true, mode = "copy", chans = {}, only = null }) {
+  const [kind, setKind] = useState(only || "homework");
+  const HERE = `/report?t=${only === "homework" ? "hw" : "resend"}`;
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
@@ -99,9 +103,10 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
     if (list.length === 0) return;
     const label = list.length === 1 ? `${list[0].name} 학생에게` : `${list.length}명에게`;
     const what = isHw ? "숙제 문자" : "데일리리포트";
+    const again = only ? "" : "다시 ";
     const q = sendsForReal
-      ? `${label} ${what}를 지금 다시 보낼까요?`
-      : `${label} ${what}를 다시 보낸 것으로 기록할까요?`;
+      ? `${label} ${what}를 지금 ${again}보낼까요?`
+      : `${label} ${what}를 ${again}보낸 것으로 기록할까요?`;
     if (!confirm(q)) return;
     startTransition(async () => {
       const res = await resend(
@@ -172,15 +177,16 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
         />
         <a className="btn btn-ghost btn-sm" href={`${HERE}&d=${shiftDate(date, 1)}`}>내일 ▸</a>
         <span className="spacer" />
-        {KINDS.map((k) => (
-          <button
-            key={k.key}
-            className={`btn btn-sm ${kind === k.key ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => { setKind(k.key); setOpenId(null); setSel(new Set()); }}
-          >
-            {k.label}
-          </button>
-        ))}
+        {!only &&
+          KINDS.map((k) => (
+            <button
+              key={k.key}
+              className={`btn btn-sm ${kind === k.key ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => { setKind(k.key); setOpenId(null); setSel(new Set()); }}
+            >
+              {k.label}
+            </button>
+          ))}
       </div>
       <p className="hint" style={{ margin: "6px 0 0" }}>
         {KINDS.find((k) => k.key === kind)?.hint} 고친 문구는 저장되어 다음에도 그대로 쓰입니다.
@@ -231,7 +237,9 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
             onClick={() => doResend(rows.filter((r) => sel.has(r.id)))}
             disabled={pending}
           >
-            {sendsForReal ? "선택한 학생에게 다시 보내기" : "다시 보냄으로 기록"}
+            {sendsForReal
+              ? `선택한 학생에게 ${only ? "" : "다시 "}보내기`
+              : `${only ? "" : "다시 "}보냄으로 기록`}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
         </div>
@@ -245,7 +253,9 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
 
         {shown.length === 0 ? (
           <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13.5 }}>
-            이 날짜에 해당하는 학생이 없어요.
+            {rows.length === 0
+              ? "이 날짜에 수업 기록이 없어요. 숙제 문자는 오늘 수업에 적은 내용으로 만들어지니, 먼저 오늘 수업에서 기록을 저장해주세요."
+              : "고른 조건에 맞는 학생이 없어요. 위에서 「전체」를 눌러보세요."}
           </p>
         ) : (
           shown.map((r) => {
