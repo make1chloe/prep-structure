@@ -15,21 +15,42 @@ export const dynamic = "force-dynamic";
  * **로그인 없이 열린다.** 브라우저가 manifest 를 읽을 때는 로그인 정보가
  * 없을 수 있고, 담기는 것은 학원 로고뿐이라 감출 것이 없다.
  */
-const KEYS = new Set(["192", "512", "192m", "512m", "apple", "favicon", "mark"]);
+/**
+ * 판이 없으면 **비슷한 것으로 대신한다.**
+ *
+ * 판은 나중에 늘어난다 (왼쪽 위 로고용 `mark` 가 그랬다). 그때마다 원장님이
+ * 파일을 다시 올려야 한다면, 늘릴 때마다 「안 떠요」 가 한 번씩 온다.
+ * 그래서 없으면 **이미 있는 판으로 대신 내어준다.** 조금 덜 예쁠 뿐,
+ * 로고 자리가 비지는 않는다.
+ */
+const CHAIN = {
+  "192": ["icon-192", "icon-512", "icon-favicon"],
+  "512": ["icon-512", "icon-192"],
+  "192m": ["icon-192m", "icon-192", "icon-512"],
+  "512m": ["icon-512m", "icon-512", "icon-192"],
+  apple: ["icon-apple", "icon-512", "icon-192"],
+  favicon: ["icon-favicon", "icon-192", "icon-512"],
+  // 바탕 없는 판이 없으면 흰 바탕 것이라도 쓴다 — 「클」 글자보다는 낫다
+  mark: ["icon-mark", "icon-favicon", "icon-192", "icon-512"],
+};
 
 export async function GET(_req, { params }) {
   const key = (params?.key || "").replace(/[^a-z0-9]/gi, "");
-  if (!KEYS.has(key)) return new Response("없는 아이콘", { status: 404 });
+  const chain = CHAIN[key];
+  if (!chain) return new Response("없는 아이콘", { status: 404 });
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false },
     });
-    const { data } = await supabase
+    const { data: rows } = await supabase
       .from("app_assets")
-      .select("mime, data, updated_at")
-      .eq("key", `icon-${key}`)
-      .maybeSingle();
+      .select("key, mime, data, updated_at")
+      .in("key", chain);
+
+    // 목록에서 **앞에 적힌 것부터** 고른다 (in 은 순서를 안 지켜준다)
+    const byKey = new Map((rows || []).map((r) => [r.key, r]));
+    const data = chain.map((k) => byKey.get(k)).find((r) => r?.data);
 
     if (!data?.data) {
       return new Response("아직 로고를 안 올렸어요", {
