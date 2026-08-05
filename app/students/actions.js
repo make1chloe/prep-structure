@@ -368,3 +368,58 @@ export async function unlinkSibling(id) {
   revalidatePath("/students");
   return { error: error ? error.message : null };
 }
+
+/**
+ * 이 학생이 **어느 반에 들어가는지** 여기서 바꾼다.
+ *
+ * 예전에는 반 화면에서 「반을 고르고 → 학생을 체크」 하는 길뿐이었다.
+ * 한 학생의 반을 옮기려면 옛 반에서 빼고 새 반에서 넣는 두 번이었고,
+ * 재원생 화면에서는 아예 손댈 수가 없었다.
+ *
+ * 반은 **여러 개일 수 있다** (정규반 + 특강). 그래서 하나를 고르는 것이 아니라
+ * 켜고 끄는 것으로 둔다.
+ */
+async function requireStaff(supabase) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "로그인이 필요해요." };
+  const { data: p } = await supabase
+    .from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
+    return { error: "선생님만 쓸 수 있어요." };
+  }
+  return { error: null };
+}
+
+export async function setStudentClasses(studentId, classIds = []) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const want = [...new Set((classIds || []).filter(Boolean))];
+  const { data: now, error: readErr } = await supabase
+    .from("class_students").select("class_id").eq("student_id", studentId);
+  if (readErr) return { error: readErr.message };
+
+  const have = new Set((now || []).map((r) => r.class_id));
+  const add = want.filter((id) => !have.has(id));
+  const drop = [...have].filter((id) => !want.includes(id));
+
+  if (add.length) {
+    const { error } = await supabase
+      .from("class_students")
+      .insert(add.map((class_id) => ({ class_id, student_id: studentId })));
+    if (error) return { error: `반에 넣지 못했어요: ${error.message}` };
+  }
+  if (drop.length) {
+    const { error } = await supabase
+      .from("class_students")
+      .delete().eq("student_id", studentId).in("class_id", drop);
+    if (error) return { error: `반에서 빼지 못했어요: ${error.message}` };
+  }
+
+  revalidatePath("/students");
+  revalidatePath("/classes");
+  revalidatePath("/today");
+  return { error: null, added: add.length, removed: drop.length };
+}

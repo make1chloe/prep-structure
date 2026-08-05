@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addUnitExam, deleteUnitExam } from "./examActions";
-import { score } from "@/lib/wordTest";
+import { scoreRaw } from "@/lib/wordTest";
 
 /**
  * 단원평가 결과 한 학생 분.
@@ -38,7 +38,7 @@ export default function ExamBox({ studentId, date, rows = [] }) {
             <div className="unitrow" key={e.id}>
               <span className="tag tag-lav">단원평가</span>
               <span style={{ fontSize: 12.5, flex: 1 }}>{e.name}</span>
-              {e.total ? <span className="hint">{score(e.score, e.total)}</span> : null}
+              {e.total ? <span className="hint">{scoreRaw(e.score, e.total)}</span> : null}
               <button
                 className="btn btn-ghost btn-sm"
                 disabled={pending}

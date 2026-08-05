@@ -668,6 +668,17 @@ export async function importedSummary() {
     by.set(code, cur);
   });
 
+  // **받아온 것이 0건인 학교도 보여준다.**
+  //
+  // 예전에는 일정이 들어온 학교만 나왔다. 그러면 「박문중을 넣었는데 목록에
+  // 박문중이 없다」 가 되고, 안 넣어진 건지 · 일정이 없는 건지 · 못 받은 건지
+  // 구별할 방법이 없다. 0건도 한 줄로 보여야 그다음을 판단할 수 있다.
+  (schools || []).forEach((s) => {
+    if (!s.schul_code) return;              // 코드가 없으면 애초에 못 받는다
+    if (by.has(s.schul_code)) return;
+    by.set(s.schul_code, { code: s.schul_code, count: 0, from: null, to: null });
+  });
+
   return {
     total: (data || []).length,
     rows: [...by.values()]

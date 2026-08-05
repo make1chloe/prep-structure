@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateStudent, deleteStudents, updateStudentsStatus, linkSiblings, unlinkSibling } from "./actions";
+import { updateStudent, deleteStudents, updateStudentsStatus, linkSiblings, unlinkSibling, setStudentClasses } from "./actions";
 import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
 import ParentBox from "./ParentBox";
@@ -469,6 +469,38 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                               </div>
                             ))}
                           </div>
+                          {/* 반 배정 — 여기서 못 바꾸면 반 화면으로 나가서
+                              옛 반에서 빼고 새 반에서 넣는 두 번 일이 된다.
+                              반은 여러 개일 수 있다 (정규반 + 특강). */}
+                          {classList.length > 0 && (
+                            <div style={{ marginTop: 12 }}>
+                              <label className="label">반</label>
+                              <div className="chips" style={{ marginTop: 4 }}>
+                                {classList.map((c) => {
+                                  const on = (s.classes || []).some((x) => x.id === c.id);
+                                  return (
+                                    <button
+                                      key={c.id}
+                                      className={`chip ${on ? "on" : ""}`}
+                                      disabled={pending}
+                                      onClick={() => {
+                                        const now = (s.classes || []).map((x) => x.id);
+                                        const next = on ? now.filter((x) => x !== c.id) : [...now, c.id];
+                                        run(() => setStudentClasses(s.id, next));
+                                      }}
+                                    >
+                                      {c.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <p className="hint" style={{ margin: "4px 0 0" }}>
+                                누르면 <b>바로 바뀝니다</b> (아래 저장과 별개예요).
+                                {(s.classes || []).length === 0 && " 지금은 어느 반에도 없습니다."}
+                              </p>
+                            </div>
+                          )}
+
                           <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
                             <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
                               {pending ? "저장 중…" : "저장"}

@@ -106,10 +106,19 @@ export default function NeisBox({ months = [] }) {
             {have.rows.map((r) => (
               <div className="unitrow" key={r.code}>
                 <b style={{ fontSize: 12.5, flex: 1 }}>{r.name}</b>
-                <span className="hint" style={{ fontSize: 11.5 }}>
-                  {r.from} ~ {r.to}
-                </span>
-                <span className="tag tag-muted">{r.count}건</span>
+                {r.count > 0 ? (
+                  <>
+                    <span className="hint" style={{ fontSize: 11.5 }}>
+                      {r.from} ~ {r.to}
+                    </span>
+                    <span className="tag tag-muted">{r.count}건</span>
+                  </>
+                ) : (
+                  // 0건도 보여준다 — 안 보여주면 「넣었는데 목록에 없다」 가 된다
+                  <span className="tag tag-amber" title="받아오기를 눌렀는데 이 학교 일정이 안 왔거나, 아직 안 눌렀습니다">
+                    받아온 것 없음
+                  </span>
+                )}
               </div>
             ))}
             <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5 }}>

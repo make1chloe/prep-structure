@@ -7,7 +7,7 @@ import {
   applyNeis, detachNeis,
   markExamAbsence, makeExamEveSession, addClassHoliday, keepClassOn, removeHoliday, removeHolidays,
 } from "./actions";
-import { shortLabel } from "@/lib/day";
+import { shortLabel, monthDay } from "@/lib/day";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 
@@ -406,15 +406,16 @@ export default function ScheduleBoard({
                 }>
                   {STATE_LABEL[examState(e)]}
                 </span>
+                {/* 시험 목록은 석 달치가 섞여 나온다 — 달이 없으면 몇 월인지 모른다 */}
                 <span className="hint">
-                  {dayShort(e.from_date)} ~ {dayShort(e.to_date)}
+                  {monthDay(e.from_date)} ~ {monthDay(e.to_date)}
                 </span>
                 <span className="spacer" />
                 {e.english_on ? (
                   <>
-                    <span className="tag tag-lav">영어 {dayShort(e.english_on)}</span>
+                    <span className="tag tag-lav">영어 {monthDay(e.english_on)}</span>
                     <span className="tag tag-sky">
-                      전날 등원 {dayShort(e.eveDate)}
+                      전날 등원 {monthDay(e.eveDate)}
                     </span>
                   </>
                 ) : (

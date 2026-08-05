@@ -417,6 +417,48 @@ export default function StudentPanel({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
+  // ── 적다 만 것을 잃지 않는다 ─────────────────────────────
+  //
+  // 수업 중에 적다가 다른 학생을 누르거나 화면을 옮기면, 저장을 안 눌렀을 때
+  // 적은 것이 통째로 날아갔다. 수업 중에는 그럴 일이 자주 생긴다.
+  //
+  // **이 브라우저에만** 임시로 담아둔다 — 서버에 보내면 「저장했다」 와
+  // 구별이 안 되고, 반쯤 적은 기록이 리포트로 나갈 수 있다.
+  // 저장을 누르면 지운다. 남은 것이 있으면 열 때 알려주고, 되살릴지 물어본다.
+  const draftKey = `chloe.today.${date}.${row.student.id}`;
+  const [draft, setDraft] = useState(null);      // 되살릴 것이 있으면 여기
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) setDraft(JSON.parse(raw));
+    } catch { /* 깨졌으면 없는 것으로 */ }
+  }, [draftKey]);
+
+  useEffect(() => {
+    // 처음 그린 그대로면 담지 않는다 — 안 건드린 것까지 「적다 만 것」 이 되면
+    // 열 때마다 되살릴지 물어보게 된다
+    const touched =
+      form.attitude || form.word_correct !== "" || form.sent_correct !== "" ||
+      form.own_progress || form.notice || form.notice_student ||
+      Object.keys(marks).length > 0 || next.size > 0 || inClass.size > 0;
+    if (!touched) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          at: new Date().toISOString(),
+          form, marks, next: [...next], inClass: [...inClass],
+        }));
+      } catch { /* 사파리 비공개 */ }
+    }, 800);   // 한 글자마다 쓰지 않는다
+    return () => clearTimeout(t);
+  }, [draftKey, form, marks, next, inClass]);
+
+  function dropDraft() {
+    try { localStorage.removeItem(draftKey); } catch { /* 무시 */ }
+    setDraft(null);
+  }
+
   function save() {
     startTransition(async () => {
       // 특강이면 출결은 그 반에만 남긴다.
@@ -454,6 +496,8 @@ export default function StudentPanel({
         alert(res.error);
         return;
       }
+      dropDraft();   // 진짜로 저장됐으니 임시본은 필요 없다
+
       // 루틴에서 가져왔으면 그 교재들의 단계를 하나 넘긴다
       if (routine?.steps?.length) {
         await advanceRoutine(
@@ -539,6 +583,31 @@ export default function StudentPanel({
                   </label>
                 );
               })}
+          </div>
+        </div>
+      )}
+
+      {/* 적다 만 것이 남아 있으면 알려준다. 저장을 안 누른 채 화면을 옮기면
+          예전에는 통째로 날아갔다 — 수업 중에는 자주 있는 일이다. */}
+      {draft && (
+        <div className="notice" style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.8 }}>
+          <b>적다 만 것이 남아 있어요.</b>{" "}
+          {new Date(draft.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          에 적으신 것입니다 — 저장은 안 눌리셨어요.
+          <div className="row" style={{ gap: 6, marginTop: 6 }}>
+            <button
+              className="btn btn-sm"
+              onClick={() => {
+                setForm(draft.form);
+                setMarks(draft.marks || {});
+                setNext(new Set(draft.next || []));
+                setInClass(new Set(draft.inClass || []));
+                setDraft(null);
+              }}
+            >
+              되살리기
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={dropDraft}>버리기</button>
           </div>
         </div>
       )}
