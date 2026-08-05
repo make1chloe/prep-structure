@@ -28,7 +28,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   //   「내가 처리할 것」 이 아니라 「그날 그런 일이 있다」 라서 일정이 맞다.
   //   지우고 새로 만들면 메모가 날아가니, 갈래만 바꿔서 옮긴다.
   const misplaced = todos.filter(
-    (t) => t.status === "open" && (t.category === "학사일정" || t.category === "휴강")
+    (t) => t.status === "open" && /학사일정|학교행사|휴강/.test(t.category || "")
   );
   const [sel, setSel] = useState(() => new Set());
   const [filter, setFilter] = useState("open");
@@ -121,8 +121,14 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
               >
                 일정으로 옮기기
               </button>
+              {/* **어디서 온 것인지 그대로 보여준다.**
+                  제가 「노션에서 온 것」 이라고 단정했다가 원장님이 「그럼
+                  나이스 자료가 아니야?」 라고 물으셨다. 짐작을 말하지 말고
+                  줄에 적힌 것을 보여드리는 것이 맞다. */}
               <span className="hint" style={{ alignSelf: "center" }}>
-                {misplaced.slice(0, 4).map((t) => t.title).join(" · ")}
+                {misplaced.slice(0, 4).map((t) =>
+                  `${t.title}${t.source ? ` (${t.source})` : ""}`
+                ).join(" · ")}
                 {misplaced.length > 4 && ` 외 ${misplaced.length - 4}건`}
               </span>
             </div>
