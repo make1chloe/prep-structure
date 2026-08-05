@@ -336,6 +336,21 @@ export default async function TodayPage({ searchParams }) {
     .filter((b) => !b.status || b.status === "active")
     .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
 
+  // 단어가 몇 개인가 — 교재 기본값과 단원별 개수 (0070).
+  // 0070 전이면 칸이 없으니 빈 채로 두고, 개수는 손으로 적는다.
+  const wordCfg = new Map();
+  {
+    const { data } = await supabase
+      .from("textbooks")
+      .select("id, word_range, words_irregular");
+    (data || []).forEach((b) =>
+      wordCfg.set(b.id, {
+        range: Number(b.word_range) || 0,
+        irregular: !!b.words_irregular,
+      })
+    );
+  }
+
   const unitNames = {};
   if (unitIds.size > 0) {
     // 대/중/소단원 경로를 만들려면 같은 교재의 단원을 모두 가져와야 한다
@@ -344,12 +359,19 @@ export default async function TodayPage({ searchParams }) {
       .select("id, textbook_id")
       .in("id", [...unitIds]);
     const bookIds = [...new Set((picked || []).map((u) => u.textbook_id))];
-    const { data: all } = bookIds.length
-      ? await supabase
-          .from("textbook_units")
-          .select("id, name, parent_id, textbook_id, page_start, page_end, total_pages, label")
-          .in("textbook_id", bookIds)
-      : { data: [] };
+    const UNIT_COLS = "id, name, parent_id, textbook_id, page_start, page_end, total_pages, label";
+    let all = [];
+    if (bookIds.length) {
+      let q = await supabase
+        .from("textbook_units")
+        .select(`${UNIT_COLS}, word_count`)
+        .in("textbook_id", bookIds);
+      if (q.error) {
+        // 0070 전이면 단어 개수 칸이 없다
+        q = await supabase.from("textbook_units").select(UNIT_COLS).in("textbook_id", bookIds);
+      }
+      all = q.data || [];
+    }
     const byId = new Map((all || []).map((u) => [u.id, u]));
     (all || []).filter((u) => unitIds.has(u.id)).forEach((u) => {
       const chain = [];
@@ -367,13 +389,53 @@ export default async function TodayPage({ searchParams }) {
         : u.page_start && u.page_end
         ? `${u.page_end - u.page_start + 1}p`
         : "";
+      // 이 단원의 단어 개수 — 단원에 적어둔 것이 먼저, 없으면 교재 기본값.
+      // 「단원마다 개수가 다르다」 고 켜둔 교재는 기본값을 안 쓴다 (0070)
+      const cfg = wordCfg.get(u.textbook_id);
+      const words =
+        Number(u.word_count) || (cfg && !cfg.irregular ? cfg.range : 0) || 0;
       unitNames[u.id] = {
         path: chain.join(" › ") + pages,
         amount,
         activity: u.label || "",
         textbookId: u.textbook_id,
+        words,
       };
     });
+  }
+
+  /**
+   * 오늘 단어시험은 **몇 개짜리인가.**
+   *
+   * 지난 수업에서 내준 **단어 숙제의 범위 단원**을 더한다. 0070 으로 단원마다
+   * 단어 개수가 들어왔는데, 오늘 수업 화면과는 안 이어져 있어서 원장님이
+   * 매번 세어 넣고 계셨다.
+   *
+   * 개수가 안 적힌 단원이 섞여 있으면 **그것도 같이 알려준다.** 그냥 더해서
+   * 보여주면 30개짜리 두 단원이 30개로 뜬다 — 그게 더 나쁘다.
+   */
+  const wordItemIds = new Set(
+    (items || []).filter((i) => (i.category || "") === "단어").map((i) => i.id)
+  );
+  function plannedWordsOf(sid) {
+    const assigned = assignedUnitsOf(sid);
+    const ids = new Set();
+    Object.entries(assigned).forEach(([iid, v]) => {
+      if (!wordItemIds.has(iid)) return;
+      (v.unitIds || []).forEach((x) => ids.add(x));
+    });
+    if (ids.size === 0) return null;
+    let sum = 0;
+    let counted = 0;
+    ids.forEach((id) => {
+      const w = unitNames[id]?.words || 0;
+      if (w > 0) {
+        sum += w;
+        counted += 1;
+      }
+    });
+    if (sum === 0) return null;
+    return { total: sum, units: ids.size, counted };
   }
 
   // 오늘의 공지 · 전달사항
@@ -763,6 +825,7 @@ export default async function TodayPage({ searchParams }) {
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
+          plannedWords: plannedWordsOf(s.id),
           notices: noticesOfStudent.get(s.id) || [],
           books: progressOf(s.id),
           classId: klass.id,
@@ -822,6 +885,7 @@ export default async function TodayPage({ searchParams }) {
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),
+        plannedWords: plannedWordsOf(s.id),
         notices: noticesOfStudent.get(s.id) || [],
         books: progressOf(s.id),
         reportWritten: !!rep?.report_written,

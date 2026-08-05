@@ -79,7 +79,7 @@ const MARK_CLS = { done: "hw-done", weak: "hw-weak", missing: "hw-missing" };
  * 하고 암산하지 않아도 되게, 채점하는 자리에서 바로 답이 나와야 한다.
  * 아직 안 적었을 때는 "몇 개까지 통과" 를 미리 알려준다.
  */
-function ScoreInput({ label, total, correct, onTotal, onCorrect, cut = null }) {
+function ScoreInput({ label, total, correct, onTotal, onCorrect, cut = null, source = "" }) {
   const t = parseInt(total, 10);
   const c = parseInt(correct, 10);
   const wrong = Number.isFinite(t) && Number.isFinite(c) ? Math.max(0, t - c) : "";
@@ -130,6 +130,9 @@ function ScoreInput({ label, total, correct, onTotal, onCorrect, cut = null }) {
           {allowed}개까지 통과
         </span>
       )}
+      {/* 전체 개수를 어디서 가져왔는지 밝힌다 — 틀린 숫자가 미리 들어와 있으면
+          그게 어디서 온 것인지 알아야 고칠 수 있다 */}
+      {source && <span className="hint">{source}</span>}
     </span>
   );
 }
@@ -148,16 +151,39 @@ export default function StudentPanel({
     attendance: row.status || "present",
     attitude: r.attitude || "",
     word_correct: r.word_correct ?? "",
-    // 전체 개수는 미리 채워둔다 — 재원생에 적어둔 개수가 있으면 그것,
-    // 없으면 지난번 값 (학생마다 거의 안 바뀐다)
+    // 전체 개수는 미리 채워둔다.
+    //   1) 재원생에 적어둔 개수  2) 지난 수업에 내준 범위 단원의 단어 수
+    //   3) 지난번 값 (학생마다 거의 안 바뀐다)
+    // 2) 는 0070 으로 단원마다 개수가 들어왔는데 여기와 안 이어져 있어서,
+    // 원장님이 교재를 펴놓고 매번 세어 넣고 계셨다.
     word_total:
-      r.word_total ?? row.student?.word_test_count ?? row.lastTotals?.word_total ?? "",
+      r.word_total ??
+      row.student?.word_test_count ??
+      row.plannedWords?.total ??
+      row.lastTotals?.word_total ??
+      "",
     sent_correct: r.sent_correct ?? "",
     sent_total: r.sent_total ?? row.lastTotals?.sent_total ?? "",
     own_progress: r.own_progress || "",
     notice: r.notice || "",
     notice_student: r.notice_student || "",
   });
+  // 미리 채워둔 전체 개수가 **어디서 온 것인지** 한 마디로 밝힌다.
+  // 이미 저장된 값이면 아무 말도 안 한다 — 그건 원장님이 적으신 것이다.
+  const pw = row.plannedWords;
+  const wordSource =
+    r.word_total != null
+      ? ""
+      : row.student?.word_test_count
+      ? "재원생에 적어둔 개수"
+      : pw?.total
+      ? pw.counted < pw.units
+        ? `범위 ${pw.units}단원 중 ${pw.counted}개만 셌어요 — 확인해주세요`
+        : `범위 ${pw.units}단원 합계`
+      : row.lastTotals?.word_total
+      ? "지난번과 같은 개수"
+      : "";
+
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
@@ -529,6 +555,7 @@ export default function StudentPanel({
             onTotal={(v) => set("word_total", v)}
             onCorrect={(v) => set("word_correct", v)}
             cut={cutOf(row.student, Number(rule.wordPassPct) || 90)}
+            source={wordSource}
           />
           <ScoreInput
             label="문장"
