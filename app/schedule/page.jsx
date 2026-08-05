@@ -30,10 +30,18 @@ export default async function SchedulePage() {
   const from = `${year}-01-01`;
   const to = endOfMonth(months[11]);
 
+  // **특강은 끝난다.** 개강·종강일을 같이 읽어야 그 기간 밖의 달에
+  // 수업이 잡히지 않는다 — 「화목1 특강」 이 종강 뒤에도 계속 나왔다.
   let { data: classes } = await supabase
     .from("classes")
-    .select("id, name, days, start_time, base_sessions")
+    .select("id, name, days, start_time, base_sessions, starts_on, ends_on, archived_at")
     .order("start_time", { ascending: true });
+  if (!classes) {
+    ({ data: classes } = await supabase
+      .from("classes")
+      .select("id, name, days, start_time, starts_on, ends_on")
+      .order("start_time", { ascending: true }));
+  }
   if (!classes) {
     ({ data: classes } = await supabase
       .from("classes")

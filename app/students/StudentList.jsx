@@ -10,6 +10,7 @@ import NoteBox from "./NoteBox";
 import StudentBooks from "@/app/today/StudentBooks";
 import WordTestBox from "./WordTestBox";
 import { fromLabel } from "@/lib/bookUse";
+import { shortName } from "@/lib/schoolName";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -307,6 +308,12 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
 
   function cell(s, c) {
     const v = s[c.key];
+    // 학교는 **짧게 보여준다.** 저장된 이름은 「인천신정중학교」 그대로 두고
+    // (나이스와 대조하려면 진짜 이름이 있어야 한다) 표에는 「신정중」 으로 적는다.
+    // 마우스를 올리면 원래 이름이 나온다.
+    if (c.key === "school" && v) {
+      return <span title={v}>{shortName(v)}</span>;
+    }
     // 아직 0000 그대로인 계정 — 아이디가 규칙적이라 남이 열 수 있다
     // 같은 반이어도 교재는 학생마다 다르다 — 목록에서 바로 보이게
     // 교재는 **전부 보여준다.** "외 3" 이라고 줄여두면 무엇을 쓰는지 알려고

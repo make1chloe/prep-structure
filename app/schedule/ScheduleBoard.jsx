@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
+import { shortName } from "@/lib/schoolName";
 import { useRouter } from "next/navigation";
 import {
   addExam, setEnglishDate, updateExam, deleteExam, hideExam, setExamCuts,
@@ -82,6 +83,8 @@ export default function ScheduleBoard({
 
   const [showPast, setShowPast] = useState(false);
   const [openDay, setOpenDay] = useState(null);
+  const [pickAbs, setPickAbs] = useState(null);      // 결석을 골라 넣는 중인 (반:달)
+  const [absSel, setAbsSel] = useState(() => new Set());
 
   // 지나간 달과 앞으로의 달을 가른다 (지난 달은 아래로 접어 둔다)
   const nowYM = todaySeoul().slice(0, 7);
@@ -196,6 +199,24 @@ export default function ScheduleBoard({
           </button>
         )}
 
+        {/* **학생을 골라서** 넣을 수도 있어야 한다.
+            일괄은 「시험 보는 아이 × 시험 있는 날」 을 통째로 찍는다. 대개는
+            그게 맞지만, 그중 하루는 오기로 한 아이가 있다. 넣고 나서 하나씩
+            지우는 것보다 넣기 전에 빼는 편이 낫다. 일괄은 그대로 둔다. */}
+        {a.kind === "exam" && (a.pairs || []).length > 0 && (
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            onClick={() => {
+              const key = `${klass.id}:${m.ym}`;
+              setPickAbs(pickAbs === key ? null : key);
+              setAbsSel(new Set((a.pairs || []).map((p) => `${p.student_id}|${p.date}`)));
+            }}
+          >
+            {pickAbs === `${klass.id}:${m.ym}` ? "닫기" : "학생 골라서 넣기"}
+          </button>
+        )}
+
         {a.kind === "engEve" && (
           <button
             className="btn btn-primary btn-sm"
@@ -228,6 +249,89 @@ export default function ScheduleBoard({
             등원 일정 만들기
           </button>
         )}
+      </div>
+    );
+  }
+
+  /**
+   * 시험 기간 결석을 **한 사람씩 골라서** 넣는 판.
+   *
+   * 처음에는 일괄 등록과 같은 것(시험 보는 아이 × 시험 있는 날)이 다 켜져
+   * 있고, 안 넣을 것을 눌러서 뺀다. 대개는 그대로가 맞기 때문이다.
+   */
+  function AbsPicker({ klass, m, pairs }) {
+    if (pickAbs !== `${klass.id}:${m.ym}`) return null;
+    const byName = new Map();
+    pairs.forEach((p) => {
+      if (!byName.has(p.name)) byName.set(p.name, []);
+      byName.get(p.name).push(p);
+    });
+    const toggle = (k) => {
+      const n = new Set(absSel);
+      n.has(k) ? n.delete(k) : n.add(k);
+      setAbsSel(n);
+    };
+    const chosen = pairs.filter((p) => absSel.has(`${p.student_id}|${p.date}`));
+
+    return (
+      <div className="card card-tight" style={{ marginTop: 6, background: "var(--surface-2)" }}>
+        <div className="row" style={{ gap: 6, alignItems: "center" }}>
+          <b style={{ fontSize: 12.5 }}>넣을 것 고르기</b>
+          <span className="hint">눌러서 빼거나 다시 넣습니다</span>
+          <span className="spacer" />
+          <span className="tag tag-sky">{chosen.length}건</span>
+        </div>
+        <div className="stack" style={{ gap: 4, marginTop: 6 }}>
+          {[...byName.entries()].map(([name, ps]) => (
+            <div className="row" key={name} style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+              <b style={{ fontSize: 12.5, minWidth: 56 }}>{name}</b>
+              {ps.map((p) => {
+                const k = `${p.student_id}|${p.date}`;
+                const on = absSel.has(k);
+                return (
+                  <button
+                    key={k}
+                    className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                    style={{ padding: "3px 7px", fontSize: 11.5 }}
+                    onClick={() => toggle(k)}
+                  >
+                    {dayShort(p.date)}
+                  </button>
+                );
+              })}
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ padding: "3px 7px", fontSize: 11.5 }}
+                onClick={() => {
+                  const ks = ps.map((p) => `${p.student_id}|${p.date}`);
+                  const every = ks.every((k) => absSel.has(k));
+                  const n = new Set(absSel);
+                  ks.forEach((k) => (every ? n.delete(k) : n.add(k)));
+                  setAbsSel(n);
+                }}
+              >
+                {ps.every((p) => absSel.has(`${p.student_id}|${p.date}`)) ? "이 학생 빼기" : "이 학생 전부"}
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="row" style={{ gap: 6, marginTop: 8 }}>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={pending || chosen.length === 0}
+            onClick={() => {
+              if (!confirm(`고른 ${chosen.length}건을 결석 예정으로 넣을까요?`)) return;
+              run(
+                () => markExamAbsence(chosen, "시험 기간"),
+                `결석 예정 ${chosen.length}건을 넣었어요.`
+              );
+              setPickAbs(null);
+            }}
+          >
+            고른 것만 넣기
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPickAbs(null)}>닫기</button>
+        </div>
       </div>
     );
   }
@@ -284,7 +388,12 @@ export default function ScheduleBoard({
                 </div>
                 <div className="stack" style={{ gap: 4, marginTop: 6 }}>
                   {r.m.alerts.map((a, i) => (
-                    <AlertRow key={i} klass={r.klass} m={r.m} a={a} i={i} />
+                    <Fragment key={i}>
+                      <AlertRow klass={r.klass} m={r.m} a={a} i={i} />
+                      {a.kind === "exam" && (
+                        <AbsPicker klass={r.klass} m={r.m} pairs={a.pairs || []} />
+                      )}
+                    </Fragment>
                   ))}
                 </div>
               </div>
@@ -609,7 +718,7 @@ export default function ScheduleBoard({
               <div className="unitrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
                 {e.hidden && <span className="tag tag-muted">숨김</span>}
                 <b style={{ fontSize: 12.5 }}>
-                  {e.school} {e.grade || "전체"}
+                  <span title={e.school}>{shortName(e.school)}</span> {e.grade || "전체"}
                 </b>
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
                 {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}

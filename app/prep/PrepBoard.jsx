@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { shortName } from "@/lib/schoolName";
 import { useRouter } from "next/navigation";
 import {
   saveExam, removeExam, saveScope, removeScope,
@@ -176,7 +177,7 @@ export default function PrepBoard({
                     <td>
                       <button className="btn btn-ghost btn-sm" style={{ width: "100%", textAlign: "left" }}
                         onClick={() => setSel(e.id)}>
-                        <b>{e.school}</b>{" "}
+                        <b title={e.school}>{shortName(e.school)}</b>{" "}
                         <span className="hint" style={{ fontSize: 11.5 }}>
                           {[e.grade, e.term].filter(Boolean).join(" · ")}
                         </span>
@@ -204,7 +205,7 @@ export default function PrepBoard({
           ) : (
             <div className="stack" style={{ gap: 10 }}>
               <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                <b style={{ fontSize: 15 }}>{exam.school} {exam.term}</b>
+                <b style={{ fontSize: 15 }} title={exam.school}>{shortName(exam.school)} {exam.term}</b>
                 {exam.exam_date && <span className="hint">영어 {exam.exam_date}</span>}
                 {teacherText(exam) && <span className="tag tag-lav">{teacherText(exam)}</span>}
                 {(exam.cuts || []).length > 0 && (
