@@ -1217,6 +1217,21 @@ export default function StudentPanel({
                   const n = new Set(next);
                   res.home.forEach((x) => n.add(x));
                   setNext(n);
+                  // 루틴이 **범위까지** 채운다. 항목만 채워주면 매번
+                  // 「그래서 몇 과였더라」 를 다시 찾아야 했다.
+                  // 이미 범위를 고른 숙제는 건드리지 않는다 — 손으로 정한 것이 먼저다.
+                  const u = res.itemUnits || {};
+                  if (Object.keys(u).length) {
+                    setNextUnits((cur) => {
+                      const m = { ...cur };
+                      Object.entries(u).forEach(([iid, v]) => {
+                        if ((m[iid]?.unitIds || []).length) return;
+                        m[iid] = { ...v, note: m[iid]?.note || "" };
+                      });
+                      return m;
+                    });
+                    Object.values(u).forEach((v) => loadBook(v.textbookId));
+                  }
                 })
               }
             >
@@ -1251,9 +1266,19 @@ export default function StudentPanel({
             <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
               루틴에서 가져왔습니다 —{" "}
               {routine.steps
-                .map((s) => `${s.book} ${s.no}/${s.total}${s.label ? ` ${s.label}` : ""}`)
+                .map(
+                  (s) =>
+                    `${s.book} ${s.no}/${s.total}${s.label ? ` ${s.label}` : ""}` +
+                    (s.unit ? ` · ${s.unit}` : s.unitDone ? " · 단원을 다 했어요" : "")
+                )
                 .join(" · ")}
               . <b>저장하면 다음 단계로 넘어갑니다.</b>
+              {routine.steps.some((s) => s.unitDone) && (
+                <>
+                  {" "}
+                  <b>단원이 다 끝난 교재</b>가 있어요 — 회독을 넘기거나 다음 교재로 바꿔주세요.
+                </>
+              )}
             </p>
           )}
           <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
