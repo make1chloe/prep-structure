@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import BrandMark from "@/components/BrandMark";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -86,7 +87,7 @@ export default function LoginPage() {
       <div className="login-card card stack">
         <div>
           <div className="login-logo">
-            <span className="mark">클</span>
+            <BrandMark />
             <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-.02em" }}>
               클로이영어
             </span>

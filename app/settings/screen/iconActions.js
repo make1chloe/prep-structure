@@ -11,7 +11,10 @@ import { createClient } from "@/lib/supabase/server";
  * 여기서는 받은 것을 담고, 이상한 것이 오면 거절한다.
  */
 
-const KEYS = ["icon-192", "icon-512", "icon-192m", "icon-512m", "icon-apple", "icon-favicon"];
+const KEYS = [
+  "icon-192", "icon-512", "icon-192m", "icon-512m", "icon-apple", "icon-favicon",
+  "icon-mark",   // 화면 안 왼쪽 위 로고 (바탕 없음)
+];
 const MAX = 400 * 1024;   // 한 장 400KB — 아이콘이 이보다 크면 뭔가 잘못된 것이다
 
 async function requirePrincipal(supabase) {

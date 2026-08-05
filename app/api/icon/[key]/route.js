@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * **로그인 없이 열린다.** 브라우저가 manifest 를 읽을 때는 로그인 정보가
  * 없을 수 있고, 담기는 것은 학원 로고뿐이라 감출 것이 없다.
  */
-const KEYS = new Set(["192", "512", "192m", "512m", "apple", "favicon"]);
+const KEYS = new Set(["192", "512", "192m", "512m", "apple", "favicon", "mark"]);
 
 export async function GET(_req, { params }) {
   const key = (params?.key || "").replace(/[^a-z0-9]/gi, "");

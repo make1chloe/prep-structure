@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { menuFor, findSection } from "@/lib/menu";
+import BrandMark from "./BrandMark";
 
 /** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
 function groupLabel(key) {
@@ -35,7 +36,7 @@ export default function TopBar({ profile, active }) {
     <header className="topbar">
       <div className="topbar-in">
         <Link href="/" className="brand">
-          <span className="mark">클</span> 클로이영어
+          <BrandMark /> 클로이영어
         </Link>
         <div className="spacer" />
         <span className="who">

@@ -618,3 +618,9 @@ a { color: inherit; }
 /* 재원생을 묶어 볼 때의 머리줄 (반별 · 요일별 · 학교별 · 학년별) */
 .grouprow td { background: var(--surface-2); padding: 6px 10px !important; }
 .grouprow td b { color: var(--text); }
+
+/* 왼쪽 위 로고 — 올린 그림이 있으면 글자 대신 그림이 들어간다 (0080).
+   네모 칸은 그대로 두고 안에 그림만 넣어, 로고가 없을 때(「클」)와
+   자리가 흔들리지 않게 한다. */
+.brandmark { background: transparent !important; padding: 0; overflow: hidden; }
+.brandmark img { width: 100%; height: 100%; object-fit: contain; display: block; }

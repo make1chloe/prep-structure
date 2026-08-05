@@ -25,7 +25,11 @@ const SIZES = [
   ["icon-512m", 512, 0.62],
   ["icon-apple", 180, 0.84],
   ["icon-favicon", 64, 0.9],
+  // 화면 안(왼쪽 위 로고)에서 쓰는 판 — **바탕을 안 칠한다.**
+  // 흰 바탕으로 구우면 어두운 화면에서 흰 타일이 하나 떠 있게 된다.
+  ["icon-mark", 128, 1.0],
 ];
+const TRANSPARENT = new Set(["icon-mark"]);
 
 /** 그림에서 **실제로 그려진 부분**만 잘라낸다 (파일에 투명 여백이 있을 수 있다) */
 function trim(img) {
@@ -96,9 +100,12 @@ export default function IconBox() {
       out.width = size;
       out.height = size;
       const g = out.getContext("2d");
-      // 아이폰은 투명을 검게 칠한다 — 모든 판을 흰 바탕으로 굽는다
-      g.fillStyle = "#ffffff";
-      g.fillRect(0, 0, size, size);
+      // 아이폰은 투명을 검게 칠한다 — 홈 화면에 쓰는 판은 흰 바탕으로 굽는다.
+      // 화면 안에서 쓰는 판만 그대로 둔다.
+      if (!TRANSPARENT.has(key)) {
+        g.fillStyle = "#ffffff";
+        g.fillRect(0, 0, size, size);
+      }
       const box = size * inner;
       const scale = Math.min(box / w, box / h);
       const dw = w * scale;

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import BrandMark from "@/components/BrandMark";
 import ApplyForm from "./ApplyForm";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function ApplyPage({ searchParams }) {
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       <div className="page-head">
         <div className="login-logo" style={{ justifyContent: "flex-start", marginBottom: 10 }}>
-          <span className="mark">클</span>
+          <BrandMark />
           <b style={{ fontSize: 17 }}>클로이영어</b>
         </div>
         <h1 className="h1">상담 신청</h1>
