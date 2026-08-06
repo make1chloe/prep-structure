@@ -10,6 +10,7 @@ import {
   ensureFormLink,
 } from "./actions";
 import { STATUS } from "./status";
+import { slotText } from "@/lib/applySlots";
 import { dowOf, parts } from "@/lib/day";
 
 const SOURCES = ["블로그", "소개", "전단", "검색", "방문", "기타"];
@@ -271,8 +272,27 @@ export default function ConsultBoard({
                   </button>
                 </div>
 
-                {!editing && (r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal) && (
+                {!editing && (r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal
+                  || r.test_want_text || r.visit_want_text || r.want_slots?.length) && (
                   <div style={{ padding: "0 16px 10px 44px" }}>
+                    {/* **고르신 시간표가 제일 위다** (2026-08-06). 어느 반에 넣을지가
+                        상담 전에 정해지는 일이 많아서, 이것부터 보여야 한다 */}
+                    {r.want_slots?.length > 0 && (
+                      <div className="row" style={{ gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
+                        {r.want_slots.map((k) => (
+                          <span className="tag tag-mint" key={k} style={{ fontSize: 11 }}>
+                            {slotText([k])}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* 글로 적어주신 희망 시간 — 날짜 칸으로는 못 받던 것 */}
+                    {r.test_want_text && (
+                      <div className="hint"><b>테스트 가능:</b> {r.test_want_text}</div>
+                    )}
+                    {r.visit_want_text && (
+                      <div className="hint"><b>상담 가능:</b> {r.visit_want_text}</div>
+                    )}
                     {(r.test_want_on || r.visit_on || r.want_days_text || r.want_time) && (
                       <div className="hint">
                         <b>학부모 희망:</b>
