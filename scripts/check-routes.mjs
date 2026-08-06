@@ -9,7 +9,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 // 학생·학부모가 열어도 되는 것 — 여기 없는 것이 열리면 실패다
-const ALLOWED = ["/me", "/parent", "/logout", "/auth", "/login", "/apply", "/push", "/manifest", "/icons"];
+// 학생·학부모도 열 수 있어야 하는 화면.
+// /install 은 앱을 담는 안내라 **로그인 전에도** 열려야 한다 — 담고 나서 로그인한다.
+const ALLOWED = ["/me", "/parent", "/logout", "/auth", "/login", "/apply", "/push", "/manifest", "/icons", "/install"];
 
 const bad = [];
 

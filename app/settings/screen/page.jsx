@@ -44,7 +44,18 @@ export default async function ScreenSettingsPage() {
           <ThemePicker />
           {profile?.role === "principal" && <IconBox />}
         </div>
-      </main>
+              {/* **세 개로 나눠 담기.** 원장 · 학부모 · 학생 앱을 따로 담아
+            각각 로그인해서 확인하실 때 쓰는 자리다. */}
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="row" style={{ alignItems: "center", gap: 8 }}>
+            <b style={{ fontSize: 14 }}>홈 화면에 세 개로 담기</b>
+            <span className="hint">원장 · 학부모 · 학생 앱을 따로</span>
+            <span className="spacer" />
+            <a className="btn btn-ghost btn-sm" href="/install">담으러 가기 ›</a>
+          </div>
+        </div>
+
+</main>
     </>
   );
 }
