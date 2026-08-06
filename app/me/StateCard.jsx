@@ -5,16 +5,16 @@ import { setMyState } from "./stateActions";
 import { STATES, STUDENT_PICKABLE, stateOf } from "@/lib/activity";
 
 /**
- * **지금 뭐 하고 있는지 내가 누른다.**
+ * **선생님 부르기.**
  *
- * 원장님 (2026-08-05) — 「학생 페이지에서 체크하면 그 내용이 현황판에 반영되게」
+ * 원장님 (2026-08-05) — 「시험 볼 때 얘기하려고 했더니, 다른 학생 설명 중일 때
+ * 끼어들어서 말해」
  *
- * 지금 뭘 하고 있는지 제일 잘 아는 것은 그 아이 자신이고, 선생님은 다른 아이
- * 설명하는 중이라 눌러줄 손이 없다.
+ * 말로 끼어드는 대신 이걸 누른다. 선생님 화면 맨 위로 올라가서, 설명이 끝나는
+ * 대로 오신다. 손 들고 기다리지 않아도 된다.
  *
- * **「도움이 필요해요」 가 여기 있는 진짜 까닭.**
- *   말로 끼어드는 대신 이걸 누르면 된다. 선생님 화면에서 제일 앞으로 올라가서,
- *   설명이 끝나는 대로 오신다. 손 들고 기다리지 않아도 된다.
+ * **여기에 「다 했어요」 를 또 두지 않는다.** 그건 학습 목록에 이미 있고,
+ * 누르면 현황판에 그대로 뜬다. 같은 것을 두 군데 두면 반드시 어긋난다.
  */
 export default function StateCard({ mine = null, unavailable = false }) {
   const [state, setState] = useState(mine?.state || "");
@@ -39,14 +39,17 @@ export default function StateCard({ mine = null, unavailable = false }) {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>지금 뭐 하고 있어요?</b>
+        <b style={{ fontSize: 14 }}>선생님 부르기</b>
         {cur && <span className={`tag ${cur.cls}`}>{cur.label}</span>}
         <span className="spacer" />
         {saved && <span className="hint" style={{ color: "var(--mint)" }}>선생님께 전달됐어요 ✓</span>}
       </div>
       <p className="hint" style={{ margin: "4px 0 8px" }}>
-        누르면 선생님 화면에 바로 뜹니다. <b>도움이 필요하면</b> 말로 부르지 말고
-        아래 단추를 눌러주세요 — 선생님이 하던 설명을 마치고 오십니다.
+        모르는 것이 있으면 <b>말로 부르지 말고</b> 눌러주세요. 선생님 화면 맨 위에
+        뜨고, 하시던 설명을 마치는 대로 오십니다.
+        <br />
+        무엇을 하고 있고 어디까지 했는지는 <b>따로 누르지 않아도</b> 선생님께
+        보입니다 — 학습을 시작하고 「다 했어요」 를 누르는 것으로 충분해요.
       </p>
       <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
         {STUDENT_PICKABLE.map((k) => {

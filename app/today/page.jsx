@@ -1022,24 +1022,84 @@ export default async function TodayPage({ searchParams }) {
 
   const label = longLabel(date);
 
-  // 지금 뭐 하는 중 — 첫 그림을 서버에서 채워둔다.
-  // 안 채우면 화면이 뜨고 나서야 상태가 붙어서 한 번 깜빡인다.
+  // ── 현황판 ────────────────────────────────────────────────
+  //
+  // 원장님 (2026-08-05) — 「내가 바꾸는 게 아니고, 학생이 자기가 뭘 다 했는지
+  // 누르면 나한테 보이는 걸 원하는 거야」
+  //
+  // 그래서 **아이가 이미 누르고 있는 것**을 센다.
+  //   · 학습을 시작하면 타이머가 돈다   (study_sessions, ended_at 이 비어 있음)
+  //   · 다 하면 「다 했어요」 를 누른다  (daily_report_items.student_done_at)
+  // 손으로 상태를 골라 넣게 하면 그것부터 일이 된다.
   let activity = [];
   let activityOff = false;
+  let calls = [];
   {
-    let q = await supabase
+    const ids = [...new Set(rosterStudents.map((s) => s.id))];
+    const itemName = new Map((items || []).map((x) => [x.id, x.name]));
+    // 오늘 이 아이들의 리포트 줄 (등원 학습 항목)
+    const repIds = (reports || []).filter((r) => ids.includes(r.student_id)).map((r) => r.id);
+    let itemQ = repIds.length
+      ? await supabase
+          .from("daily_report_items")
+          .select("id, daily_report_id, homework_item_id, kind, student_done_at")
+          .in("daily_report_id", repIds)
+      : { data: [] };
+    if (itemQ.error) {
+      itemQ = repIds.length
+        ? await supabase
+            .from("daily_report_items")
+            .select("id, daily_report_id, homework_item_id, kind")
+            .in("daily_report_id", repIds)
+        : { data: [] };
+      activityOff = true;               // 0034 전이면 「다 했어요」 가 없다
+    }
+    const repOwner = new Map((reports || []).map((r) => [r.id, r.student_id]));
+    const tally = new Map();            // student_id → { total, done }
+    (itemQ.data || []).forEach((x) => {
+      // 등원 학습만 센다 — 집 숙제는 오늘 이 자리에서 하는 일이 아니다
+      if (x.kind && x.kind !== "class") return;
+      const sid = repOwner.get(x.daily_report_id);
+      if (!sid) return;
+      if (!tally.has(sid)) tally.set(sid, { total: 0, done: 0 });
+      const t = tally.get(sid);
+      t.total += 1;
+      if (x.student_done_at) t.done += 1;
+    });
+
+    // 지금 타이머가 돌고 있는 것 = 지금 하고 있는 것
+    const ssQ = ids.length
+      ? await supabase
+          .from("study_sessions")
+          .select("student_id, homework_item_id, started_at, ended_at")
+          .eq("date", date)
+          .is("ended_at", null)
+          .in("student_id", ids)
+      : { data: [] };
+    const doing = new Map();
+    (ssQ.error ? [] : ssQ.data || []).forEach((x) => {
+      doing.set(x.student_id, { item: itemName.get(x.homework_item_id) || "", at: x.started_at });
+    });
+
+    // 아이가 부른 것 (0085) — 이것만은 손으로 누르는 것이 맞다
+    let actQ = await supabase
       .from("student_activity")
-      .select("student_id, state, note, updated_at, date, by_student")
+      .select("student_id, state, updated_at, by_student")
       .eq("date", date);
-    // 0085 전이면 by_student 칸이 없다. 그것 때문에 판이 통째로 사라지면 안 된다
-    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
-      q = await supabase
+    if (actQ.error && (actQ.error.code === "42703" || actQ.error.code === "PGRST204")) {
+      actQ = await supabase
         .from("student_activity")
-        .select("student_id, state, note, updated_at, date")
+        .select("student_id, state, updated_at")
         .eq("date", date);
     }
-    if (q.error) activityOff = true;
-    else activity = q.data || [];
+    calls = actQ.error ? [] : actQ.data || [];
+
+    activity = rosterStudents.map((s) => ({
+      id: s.id,
+      name: s.name,
+      ...(tally.get(s.id) || { total: 0, done: 0 }),
+      doing: doing.get(s.id) || null,
+    }));
   }
 
   return (
@@ -1062,12 +1122,7 @@ export default async function TodayPage({ searchParams }) {
         />
         {/* **말 걸기 전에 한 번 본다.** 한 반에 여럿이 각자 다른 것을 하고
             있어서, 지금 누가 시험 중인지 눈으로 세고 있어야 했다. */}
-        <ActivityBoard
-          date={date}
-          students={rosterStudents}
-          initial={activity}
-          unavailable={activityOff}
-        />
+        <ActivityBoard rows={activity} calls={calls} unavailable={activityOff} />
         <TodayBoard
           date={date}
           groups={groups}
