@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ScoreBoard from "./ScoreBoard";
+import ScoreUpload from "./ScoreUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +73,20 @@ export default async function ScoresPage({ searchParams }) {
             </div>
           </div>
         ) : (
-          <ScoreBoard
-            students={students || []}
-            scores={scores || []}
-            exams={exams || []}
-            pick={pick}
-            forms={formRow?.config || {}}
-            canEdit={profile?.role === "principal"}
-          />
+          <>
+            {/* **셋을 한 장으로** (원장님, 2026-08-06 — 「내신, 문법단원평가,
+                모의고사 한번에 정리하고 싶은데 가능할까」). 앱 안에서 원래
+                한 표에 들어가므로 섞어 올리셔도 된다 */}
+            <ScoreUpload />
+            <ScoreBoard
+              students={students || []}
+              scores={scores || []}
+              exams={exams || []}
+              pick={pick}
+              forms={formRow?.config || {}}
+              canEdit={profile?.role === "principal"}
+            />
+          </>
         )}
       </main>
     </>
