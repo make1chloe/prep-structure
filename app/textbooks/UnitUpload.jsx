@@ -26,12 +26,35 @@ export default function UnitUpload() {
 
   async function downloadTemplate() {
     const XLSX = await import("xlsx");
+    /**
+     * **원장님이 실제로 쓰시는 교재 세 권을 그대로 예시로 넣는다.**
+     *
+     * 「리딩튜터 입문 / Part 1 / Chapter 1」 같은 지어낸 예시는 보고 나서도
+     * 내 교재를 어떻게 적을지 모른다. 올려주신 세 권이 **분량을 말하는
+     * 방식이 서로 다르므로**, 그 셋을 다 보여드리면 어느 교재든 대응된다.
+     *
+     *   1) 중2 문법 워크북 — 한 쪽인데 문제가 25개 (**문항수가 분량**)
+     *   2) 그 단원을 나눠 내는 줄 (**문항범위**만 적으면 개수는 앱이 센다)
+     *   3) 수능 어법 교재 — 네 쪽짜리 (**쪽수가 분량**)
+     *   4) 교과서 워크북 — Practice 4문항
+     *   5) 단어책 — **단어수가 분량**
+     */
     const examples = [
-      ["리딩튜터 입문", "2025", "Part 1", "Chapter 1", "", "Unit 1. 관계사", "설명", "8", "15", "8"],
-      ["리딩튜터 입문", "2025", "Part 1", "Chapter 1", "Lesson 1", "", "워크북", "16", "19", "4"],
+      ["중2 문법 워크북", "2026", "A 문장의 형식과 종류", "", "", "Unit 02 1형식·2형식",
+       "", "", "3", "3", "1", "25", "1-25", "", "보어 자리에 형용사가 오는지 부사가 오는지 고르기", "25"],
+      ["중2 문법 워크북", "2026", "A 문장의 형식과 종류", "", "", "Unit 02 1형식·2형식",
+       "", "어휘 복습", "3", "3", "1", "", "16-25", "", "핵심 어휘 영↔한", ""],
+      ["어법끝", "2025", "Part 1 Structure & Verbals", "UNIT 01 문장 구조", "",
+       "Testing Point 01 동사 자리인가, 준동사 자리인가", "", "", "14", "17", "4", "", "", "",
+       "본동사와 준동사를 가려내기", ""],
+      ["Grammar Build Up 중2 동아(이병민)", "2026", "Lesson 5", "", "", "가주어 it",
+       "", "Practice", "", "", "1", "4", "1-4", "", "It ~ to부정사 배열하기", "10"],
+      ["워드마스터 중등실력", "2025", "", "", "", "DAY 01", "", "", "10", "13", "4", "", "", "40",
+       "", ""],
     ];
     const ws = XLSX.utils.aoa_to_sheet([UNIT_HEADERS, ...examples]);
-    ws["!cols"] = UNIT_HEADERS.map((h) => ({ wch: h === "교재명" ? 24 : 12 }));
+    ws["!cols"] = UNIT_HEADERS.map((h) =>
+      ({ wch: h === "교재명" ? 26 : h === "단원명" ? 26 : h === "핵심내용" ? 34 : 11 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "단원");
     XLSX.writeFile(wb, "클로이영어_단원_양식.xlsx");
@@ -52,7 +75,8 @@ export default function UnitUpload() {
     if (!res.rows?.length) { alert("아직 들어 있는 단원이 없어요."); return; }
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([UNIT_HEADERS, ...res.rows]);
-    ws["!cols"] = UNIT_HEADERS.map((h) => ({ wch: h === "교재명" ? 24 : 12 }));
+    ws["!cols"] = UNIT_HEADERS.map((h) =>
+      ({ wch: h === "교재명" ? 26 : h === "단원명" ? 26 : h === "핵심내용" ? 34 : 11 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "단원");
     XLSX.writeFile(wb, `클로이영어_단원_${new Date().toISOString().slice(0, 10)}.xlsx`);

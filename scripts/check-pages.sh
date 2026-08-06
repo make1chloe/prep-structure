@@ -86,6 +86,16 @@ else
 fi
 
 echo
+echo "== 5-4) 단원 엑셀 (분량 · 내용) =="
+# 교재마다 「분량」 을 말하는 방식이 다르다 — 하나를 놓치면 그 교재는
+# 화면에서 분량을 알 수 없게 되고, 숙제를 얼마나 낼지 못 정하신다
+if out=$(node scripts/check-unit.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 6) 옛 자료가 새 모양으로 옮겨지나 (진짜 Postgres) =="
 if [ -f scripts/check-exam-merge.sh ]; then
   bash scripts/check-exam-merge.sh || fail=1

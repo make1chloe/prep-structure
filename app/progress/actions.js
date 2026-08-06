@@ -122,18 +122,22 @@ export async function listStudentUnits(studentId, textbookId, round) {
   const supabase = createClient();
   const r = round || (await currentRound(supabase, studentId, textbookId));
 
+  // 분량·내용(0100)까지. 없는 DB 는 아래로 한 칸씩 내려가며 다시 본다
   const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort";
-  let { data: units, error } = await supabase
-    .from("textbook_units")
-    .select(`${base}, total_pages`)
-    .eq("textbook_id", textbookId)
-    .order("sort", { ascending: true });
-  if (error) {
+  const LADDER = [
+    `${base}, total_pages, question_count, question_range, word_count, summary, minutes`,
+    `${base}, total_pages`,
+    base,
+  ];
+  let units = null;
+  let error = null;
+  for (const cols of LADDER) {
     ({ data: units, error } = await supabase
       .from("textbook_units")
-      .select(base)
+      .select(cols)
       .eq("textbook_id", textbookId)
       .order("sort", { ascending: true }));
+    if (!error) break;
   }
   if (error) return { units: [], error: error.message };
 

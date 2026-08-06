@@ -540,11 +540,23 @@ export async function bulkAddUnits(rows) {
       if (extra.page_start != null && extra.page_start !== "") patch.page_start = extra.page_start;
       if (extra.page_end != null && extra.page_end !== "") patch.page_end = extra.page_end;
       if (extra.question_no) patch.question_no = extra.question_no;
+      // 분량과 내용 (0100) — 오늘 수업에서 보시는 것들
+      if (extra.question_count != null && extra.question_count !== "") patch.question_count = extra.question_count;
+      if (extra.question_range) patch.question_range = extra.question_range;
+      if (extra.word_count != null && extra.word_count !== "") patch.word_count = extra.word_count;
+      if (extra.summary) patch.summary = extra.summary;
+      if (extra.minutes != null && extra.minutes !== "") patch.minutes = extra.minutes;
       if (Object.keys(patch).length > 0) {
         let { error } = await supabase.from("textbook_units").update(patch).eq("id", id);
         if (error && isMissingColumn(error)) {
-          const { question_no: _q, ...noQ } = patch;
-          ({ error } = await supabase.from("textbook_units").update(noQ).eq("id", id));
+          // 0100 전이면 분량·내용 칸 없이
+          const { question_count: _c, question_range: _r, summary: _s, minutes: _m, ...noVol } = patch;
+          ({ error } = await supabase.from("textbook_units").update(noVol).eq("id", id));
+          if (error && isMissingColumn(error)) {
+            // 0070 전이면 단어 개수도 없이
+            const { word_count: _w, question_no: _q, ...noQ } = noVol;
+            ({ error } = await supabase.from("textbook_units").update(noQ).eq("id", id));
+          }
         }
         if (!error) updated += 1;
       }
@@ -564,18 +576,35 @@ export async function bulkAddUnits(rows) {
       page_end: extra.page_end ?? null,
       total_pages: extra.total_pages ?? null,
       question_no: extra.question_no ?? null,
+      // 분량과 내용 (0100)
+      question_count: extra.question_count ?? null,
+      question_range: extra.question_range || null,
+      word_count: extra.word_count ?? null,
+      summary: extra.summary || null,
+      minutes: extra.minutes ?? null,
     };
     let { data, error } = await supabase
       .from("textbook_units").insert(row).select("id").single();
     if (error && isMissingColumn(error)) {
-      // 0051 전이면 문제번호 없이, 그래도 안 되면 총분량도 빼고
-      const { question_no, ...noQ } = row;
+      // 0100 전이면 분량·내용 없이 → 0070 전이면 단어수도 없이 →
+      // 0051 전이면 문제번호 없이 → 그래도 안 되면 총분량도 빼고
+      const { question_count: _c, question_range: _r, summary: _s, minutes: _m, ...noVol } = row;
       ({ data, error } = await supabase
-        .from("textbook_units").insert(noQ).select("id").single());
+        .from("textbook_units").insert(noVol).select("id").single());
       if (error && isMissingColumn(error)) {
-        const { total_pages, ...rest } = noQ;
+        const { word_count: _w, ...noWords } = noVol;
         ({ data, error } = await supabase
-          .from("textbook_units").insert(rest).select("id").single());
+          .from("textbook_units").insert(noWords).select("id").single());
+        if (error && isMissingColumn(error)) {
+          const { question_no, ...noQ } = noWords;
+          ({ data, error } = await supabase
+            .from("textbook_units").insert(noQ).select("id").single());
+          if (error && isMissingColumn(error)) {
+            const { total_pages, ...rest } = noQ;
+            ({ data, error } = await supabase
+              .from("textbook_units").insert(rest).select("id").single());
+          }
+        }
       }
     }
     if (error) throw new Error(`단원 '${name}' 생성 실패: ${error.message}`);
@@ -599,7 +628,14 @@ export async function bulkAddUnits(rows) {
         const isLast = i === lastIdx && !(r.name || "").trim();
         parent = await ensureUnit(
           bookId, parent, levels[i],
-          isLast ? { activity: r.activity, page_start: r.page_start, page_end: r.page_end, total_pages: r.total_pages } : {}
+          isLast
+            ? {
+                activity: r.activity, page_start: r.page_start, page_end: r.page_end,
+                total_pages: r.total_pages, question_count: r.question_count,
+                question_range: r.question_range, word_count: r.word_count,
+                summary: r.summary, minutes: r.minutes,
+              }
+            : {}
         );
       }
 
@@ -613,6 +649,11 @@ export async function bulkAddUnits(rows) {
         page_start: r.page_start,
         page_end: r.page_end,
         total_pages: r.total_pages,
+        question_count: r.question_count,
+        question_range: r.question_range,
+        word_count: r.word_count,
+        summary: r.summary,
+        minutes: r.minutes,
       };
       if (leafName) {
         const leafId = await ensureUnit(bookId, parent, leafName, qNo ? {} : leafExtra);
@@ -744,11 +785,20 @@ export async function exportUnits(bookIds = null) {
 
   const ids = bookList.map((b) => b.id);
   const COLS = "id, textbook_id, parent_id, name, label, page_start, page_end, total_pages, sort";
+  // 분량·내용(0100)까지 내려받아야 **고쳐서 다시 올릴 때 안 날아간다**
+  const VOL = "question_count, question_range, word_count, summary, minutes";
   let uq = await supabase
     .from("textbook_units")
-    .select(`${COLS}, question_no`)
+    .select(`${COLS}, question_no, ${VOL}`)
     .in("textbook_id", ids)
     .order("sort", { ascending: true });
+  if (uq.error) {
+    uq = await supabase
+      .from("textbook_units")
+      .select(`${COLS}, question_no`)
+      .in("textbook_id", ids)
+      .order("sort", { ascending: true });
+  }
   if (uq.error) {
     uq = await supabase
       .from("textbook_units")
@@ -791,6 +841,11 @@ export async function exportUnits(bookIds = null) {
       u.page_start ?? "",
       u.page_end ?? "",
       u.total_pages ?? "",
+      u.question_count ?? "",
+      u.question_range || "",
+      u.word_count ?? "",
+      u.summary || "",
+      u.minutes ?? "",
     ]);
   }
   return { rows, error: null };

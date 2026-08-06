@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
-import { unitOptionText } from "@/lib/unitTree";
+import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
@@ -321,6 +321,33 @@ export default function StudentPanel({
       [itemId]: { textbookId: defaultBook, unitIds: [], note: "", ...(m[itemId] || {}), ...patch },
     }));
   }
+  /**
+   * **고른 단원을 다 해서 얼마나 되나.**
+   *
+   * 단원마다 「25문항」 을 보여줘도, 넷을 고르면 100문항이라는 것은 따로
+   * 세어야 안다. 그러면 안 센다 — 그래서 합쳐서 적어준다.
+   * 시간은 짐작이 섞이므로 「약」 을 붙인다.
+   */
+  function totalOf(unitIds = []) {
+    let q = 0;
+    let w = 0;
+    let m = 0;
+    let guessed = false;
+    unitIds.forEach((uid) => {
+      const o = unitMeta(uid);
+      if (!o) return;
+      q += Number(o.questionCount) || 0;
+      w += Number(o.wordCount) || 0;
+      const g = guessMinutes(o);
+      if (g.minutes) { m += g.minutes; if (g.guessed) guessed = true; }
+    });
+    const bits = [];
+    if (q) bits.push(`${q}문항`);
+    if (w) bits.push(`단어 ${w}`);
+    if (m) bits.push(`${guessed ? "약 " : ""}${m}분`);
+    return { text: bits.join(" · "), minutes: m };
+  }
+
   function addUnit(itemId, unitId) {
     if (!unitId) return;
     const cur = nextUnits[itemId]?.unitIds || [];
@@ -995,11 +1022,28 @@ export default function StudentPanel({
                             >
                               {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
                               {m?.activity ? ` · ${m.activity}` : ""}
-                              {m?.pages ? ` · ${m.pages}` : ""}
-                              {m?.amount ? ` · 분량 ${m.amount}` : ""} ✕
+                              {/* **분량이 칩에 붙어야 한다** (0100). 고르고 나서
+                                  「이거 몇 문항이었지」 를 다시 찾으면 안 낸다 */}
+                              {m && volumeLabel(m) ? ` · ${volumeLabel(m)}` : ""} ✕
                             </button>
                           );
                         })}
+                        {/* **오늘 낸 숙제가 다 해서 얼마나 되나** (0100).
+                            원장님: 「단원의 실제 내용과 분량을 오늘 수업에서
+                            확인하고 숙제를 주고 싶은 거야」 —
+                            단원마다 따로 보면 합쳐서 두 시간짜리를 내고도 모른다 */}
+                        {(() => {
+                          const tot = totalOf(chosen);
+                          if (!tot.text) return null;
+                          return (
+                            <span
+                              className="hint"
+                              style={{ marginLeft: 4, fontSize: 11.5, whiteSpace: "nowrap" }}
+                            >
+                              합계 {tot.text}
+                            </span>
+                          );
+                        })()}
                       </span>
                     )}
                   </div>

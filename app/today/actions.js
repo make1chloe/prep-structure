@@ -17,27 +17,24 @@ export async function listUnitOptions(textbookId) {
   if (!textbookId) return { options: [], error: null };
   const supabase = createClient();
 
+  // 분량·내용(0100)까지 실어와야 고르는 순간에 「이게 25문항이구나」 를 안다.
+  // 없는 DB 도 있으므로 아래로 한 칸씩 내려가며 다시 본다
   const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort, question_no";
-  let { data, error } = await supabase
-    .from("textbook_units")
-    .select(`${base}, total_pages`)
-    .eq("textbook_id", textbookId)
-    .order("sort", { ascending: true });
-  if (error) {
-    // total_pages 컬럼이 아직 없는 DB
+  const LADDER = [
+    `${base}, total_pages, question_count, question_range, word_count, summary, minutes`,
+    `${base}, total_pages`,
+    base,
+    "id, textbook_id, parent_id, label, name, page_start, page_end, sort",
+  ];
+  let data = null;
+  let error = null;
+  for (const cols of LADDER) {
     ({ data, error } = await supabase
       .from("textbook_units")
-      .select(base)
+      .select(cols)
       .eq("textbook_id", textbookId)
       .order("sort", { ascending: true }));
-  }
-  if (error) {
-    // 0051 전이면 문제번호 없이
-    ({ data, error } = await supabase
-      .from("textbook_units")
-      .select("id, textbook_id, parent_id, label, name, page_start, page_end, sort")
-      .eq("textbook_id", textbookId)
-      .order("sort", { ascending: true }));
+    if (!error) break;
   }
   if (error) return { options: [], error: error.message };
   return { options: unitOptions(data || []), error: null };

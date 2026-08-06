@@ -7,6 +7,7 @@ import StudentHistoryPanel from "./StudentHistory";
 import LinkBox from "./LinkBox";
 import ParentBox from "./ParentBox";
 import NoteBox from "./NoteBox";
+import ScoreBox from "./ScoreBox";
 import StudentBooks from "@/app/today/StudentBooks";
 import WordTestBox from "./WordTestBox";
 import ScheduleBox from "./ScheduleBox";
@@ -57,6 +58,9 @@ const TABS = [
   // 이 아이에게만 해당하는 일정 (보강 · 상담 · 학교 행사).
   // 할일 화면으로 나갔다 오면 흐름이 끊기고, 끊기면 나중에 하게 된다 (2026-08-06)
   ["schedule", "일정"],
+  // 성적은 **여기서 읽기만** 한다. 넣는 곳은 /scores 한 곳이다 —
+  // 두 군데서 넣으면 두 군데가 어긋난다 (원장님, 2026-08-06)
+  ["score", "성적"],
   ["note", "상담일지"],
   ["account", "계정"],
   ["history", "기록"],
@@ -564,6 +568,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                       )}
                       {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
                       {tab === "schedule" && <ScheduleBox studentId={s.id} name={s.name} />}
+                      {tab === "score" && <ScoreBox studentId={s.id} name={s.name} />}
                       {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
                       {tab === "account" && (
               <>
