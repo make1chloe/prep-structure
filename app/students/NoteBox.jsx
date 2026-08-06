@@ -222,6 +222,12 @@ export default function NoteBox({ studentId, name }) {
                 {KINDS.find((k) => k.key === n.kind)?.label || n.kind}
               </span>
               <b style={{ fontSize: 13 }}>{n.date}</b>
+              {n.title && <span className="hint" style={{ fontSize: 12 }}>{n.title}</span>}
+              {!n.body && n.raw && (
+                <span className="tag tag-muted" title="옮겨온 글 그대로예요. 고치기에서 다듬으면 됩니다">
+                  안 다듬음
+                </span>
+              )}
               <span className="hint" style={{ fontSize: 12 }}>
                 {[n.with_whom, n.minutes ? `${n.minutes}분` : ""].filter(Boolean).join(" · ")}
               </span>
@@ -246,8 +252,15 @@ export default function NoteBox({ studentId, name }) {
                 지우기
               </button>
             </div>
-            {n.body && (
-              <p style={{ margin: "6px 0 0", fontSize: 13, whiteSpace: "pre-wrap" }}>{n.body}</p>
+            {/* **적힌 것을 그대로 보여준다.**
+                옮겨온 상담일지는 raw 에만 들어 있다 (정리한 글 body 는 원장님
+                자리라 비워둔다). 그런데 화면이 body 만 보고 있어서, 옮기고 나면
+                **200건이 전부 내용 없이** 보였다. 있는 것을 안 보여주는 것은
+                없는 것보다 나쁘다 — 있는 줄 알고 찾다가 못 찾는다. */}
+            {(n.body || n.raw) && (
+              <p style={{ margin: "6px 0 0", fontSize: 13, whiteSpace: "pre-wrap" }}>
+                {n.body || n.raw}
+              </p>
             )}
           </div>
         ))}

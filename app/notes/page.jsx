@@ -32,7 +32,9 @@ export default async function NotesPage({ searchParams }) {
     .from("student_notes")
     .select("id, student_id, date, kind, title, raw, body, with_whom, minutes")
     .order("date", { ascending: false })
-    .limit(300);
+    // 옮겨온 것만 217건이다. 300 에서 자르면 지난해 것이 조용히 안 보이게 된다 —
+    // 「한눈에 보이게」 를 만들면서 정작 오래된 것을 잘라내면 앞뒤가 안 맞는다
+    .limit(2000);
 
   return (
     <>

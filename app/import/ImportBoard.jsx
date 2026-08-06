@@ -51,7 +51,9 @@ const KINDS = [
       "날짜는 내용 머리에 「10/1)」 처럼 적어두신 것이 있으면 그것을 쓰고(있었던 날), " +
       "없으면 상담일을 씁니다(적어둔 날). " +
       "한 줄에 형제가 같이 걸린 상담은 학생별로 나눠서 들어갑니다. " +
-      "같은 학생·날짜·제목은 한 건이라 다시 올리셔도 안 늘어납니다.",
+      "같은 학생·날짜·제목은 한 건이라 다시 올리셔도 안 늘어납니다. " +
+      "재원생 목록에 없는 이름은 「퇴원」 으로 새로 만들어서 그 학생 앞으로 넣습니다 — " +
+      "그만둔 아이의 상담 이력이 제일 아깝기 때문입니다.",
     // 이 탭만 **한 장을 통째로** 읽는다 (형제 상담을 나누려면 줄 하나가
     // 여러 줄이 되어야 하는데, 줄 단위 파서로는 그것을 못 한다)
     whole: true,
@@ -462,6 +464,19 @@ export default function ImportBoard() {
             ) : (
               <div className="notice">
                 ✅ {result.saved}건 옮겼어요.
+                {result.updated > 0 && ` (이미 있던 ${result.updated}건은 덮어썼어요)`}
+                {/* **새로 만든 학생은 반드시 보여준다.** 이름 오타도 그대로
+                    학생이 되기 때문이다 — 조용히 만들면 유령 학생이 쌓인다 */}
+                {result.made?.length > 0 && (
+                  <div className="notice" style={{ marginTop: 8, fontSize: 12.5 }}>
+                    <b>재원생 목록에 없던 {result.made.length}명을 「퇴원」 으로 새로 만들었어요.</b>
+                    <br />
+                    {result.made.join(" · ")}
+                    <br />
+                    이름이 잘못 적힌 것이 있으면 <a className="sky" href="/students?status=withdrawn">재원생 → 퇴원</a>
+                    {" "}에서 고치거나 지워주세요.
+                  </div>
+                )}
                 {result.skipped?.length > 0 && (
                   <>
                     <br />

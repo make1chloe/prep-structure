@@ -15,11 +15,42 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
 
   const nameOf = (id) => students.find((s) => s.id === id)?.name || "—";
   const kw = q.trim().toLowerCase();
+
+  /**
+   * **적힌 글은 raw 에 있을 수도 body 에 있을 수도 있다.**
+   * 옮겨온 상담일지는 raw 에만 들어 있다 (정리한 글 body 는 원장님 자리라
+   * 비워둔다). 화면이 body 만 보고 있어서 옮기고 나면 **200건이 전부 내용
+   * 없이** 보였다. 있는 것을 안 보여주는 것은 없는 것보다 나쁘다.
+   */
+  const textOf = (n) => n.body || n.raw || "";
+
+  // 학생마다 몇 건 · 마지막이 언제 (notes 는 날짜 내림차순으로 온다)
+  const mineOf = (id) => notes.filter((n) => n.student_id === id);
+  const lastOf = (id) => mineOf(id)[0]?.date || "";
+
+  // **내용까지 찾는다.** 「퇴원」 「수술」 처럼 기억나는 말 한마디로 찾게 된다 —
+  // 이름을 기억하면 애초에 목록에서 고르지 검색을 안 한다
+  const hitsBody = (id) =>
+    mineOf(id).some((n) => `${n.title || ""} ${textOf(n)}`.toLowerCase().includes(kw));
+
   const shown = students.filter((s) => {
     if (!kw) return s.status === "enrolled" || notes.some((n) => n.student_id === s.id);
-    return [s.name, s.school, s.grade].some((v) => (v || "").toLowerCase().includes(kw));
+    return (
+      [s.name, s.school, s.grade].some((v) => (v || "").toLowerCase().includes(kw)) ||
+      hitsBody(s.id)
+    );
   });
-  const countOf = (id) => notes.filter((n) => n.student_id === id).length;
+  const countOf = (id) => mineOf(id).length;
+
+  // 전체 목록도 내용으로 거른다
+  const flow = kw
+    ? notes.filter(
+        (n) =>
+          `${n.title || ""} ${textOf(n)}`.toLowerCase().includes(kw) ||
+          (nameOf(n.student_id) || "").toLowerCase().includes(kw)
+      )
+    : notes;
+  const [more, setMore] = useState(40);
 
   return (
     <div className="grid-side" style={{ marginTop: 14 }}>
@@ -28,7 +59,7 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
           <input
             className="input input-sm"
             style={{ width: "100%" }}
-            placeholder="이름으로 찾기"
+            placeholder="이름 · 상담 내용으로 찾기"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -55,9 +86,16 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
                     onClick={() => setSel(s.id)}
                   >
                     {s.name}
+                    {s.status !== "enrolled" && (
+                      <span className="tag tag-muted" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                        {s.status === "withdrawn" ? "퇴원" : s.status === "paused" ? "휴원" : "예비"}
+                      </span>
+                    )}
                     <span className="hint" style={{ marginLeft: 6, fontSize: 11.5 }}>
                       {[s.school, s.grade].filter(Boolean).join(" ")}
-                      {countOf(s.id) > 0 ? ` · ${countOf(s.id)}건` : ""}
+                      {/* **마지막이 언제였나** — 「누구를 오래 안 봤지」 가 이 화면을
+                          여는 이유 중 하나다. 건수만으로는 그걸 알 수 없다 */}
+                      {countOf(s.id) > 0 ? ` · ${countOf(s.id)}건 · ${lastOf(s.id).slice(2)}` : ""}
                     </span>
                   </button>
                 </td>
@@ -72,15 +110,21 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
           <NoteBox studentId={sel} name={nameOf(sel)} />
         ) : (
           <div className="stack" style={{ gap: 6 }}>
-            <b style={{ fontSize: 14 }}>최근 상담 {notes.length}건</b>
-            <p className="hint" style={{ margin: "0 0 6px" }}>
-              왼쪽에서 학생을 고르면 새로 쓰거나 고칠 수 있습니다.
-            </p>
-            {notes.slice(0, 40).map((n) => (
+            <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+              <b style={{ fontSize: 14 }}>
+                {kw ? `「${q.trim()}」 이 들어간 상담 ${flow.length}건` : `최근 상담 ${flow.length}건`}
+              </b>
+              <span className="spacer" />
+              <span className="hint" style={{ fontSize: 11.5 }}>
+                왼쪽에서 학생을 고르면 그 학생 것만 죽 보입니다
+              </span>
+            </div>
+            {flow.slice(0, more).map((n) => (
               <div className="card card-tight" key={n.id}>
                 <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
                   <span className="tag tag-sky">{KIND[n.kind] || n.kind}</span>
                   <b style={{ fontSize: 13 }}>{nameOf(n.student_id)}</b>
+                  {n.title && <span className="hint" style={{ fontSize: 11.5 }}>{n.title}</span>}
                   <span className="hint" style={{ fontSize: 12 }}>
                     {[n.date, n.with_whom, n.minutes ? `${n.minutes}분` : ""]
                       .filter(Boolean)
@@ -94,15 +138,22 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
                     열기
                   </button>
                 </div>
-                {n.body && (
+                {textOf(n) && (
                   <p style={{ margin: "6px 0 0", fontSize: 12.5, whiteSpace: "pre-wrap" }}>
-                    {n.body.length > 220 ? `${n.body.slice(0, 220)}…` : n.body}
+                    {textOf(n).length > 260 ? `${textOf(n).slice(0, 260)}…` : textOf(n)}
                   </p>
                 )}
               </div>
             ))}
-            {notes.length === 0 && (
-              <p className="hint" style={{ margin: 0 }}>아직 상담일지가 없습니다.</p>
+            {flow.length > more && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setMore(more + 60)}>
+                더 보기 ({flow.length - more}건 남음)
+              </button>
+            )}
+            {flow.length === 0 && (
+              <p className="hint" style={{ margin: 0 }}>
+                {kw ? "그 말이 들어간 상담이 없어요." : "아직 상담일지가 없습니다."}
+              </p>
             )}
           </div>
         )}

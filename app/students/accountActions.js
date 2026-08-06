@@ -394,8 +394,10 @@ export async function accountStatus(studentId) {
  *   · 학생은 chloe 로 시작하고 이것은 숫자뿐이라 절대 안 겹친다.
  *   · 설명이 필요 없다 — 「아이디는 어머니 전화번호예요」 로 끝난다.
  *     chloe 를 앞에 붙이면 「010 은 빼고」 를 매번 설명해야 한다.
- *   · **어머니 한 분에 계정 하나.** 형제자매가 있어도 번호가 같으니 저절로
- *     하나로 묶이고, 한 번 로그인해서 두 아이를 다 보신다.
+ *   · **형제로 묶어두신 아이들만 한 계정이다** (0071 의 family_id).
+ *     번호가 같다는 이유로 묶지 않는다 — 번호를 잘못 적은 것, 사촌, 한 분이
+ *     남의 아이까지 등록해주신 것이 전부 형제가 되어버렸다. 형제가 되면
+ *     **한 계정으로 남의 아이 성적·상담이 다 보인다** (원장님, 2026-08-06).
  *
  * 비밀번호·첫 로그인 비번 바꾸기는 **학생과 똑같다** (0000 · must_change_pw).
  * 규칙을 둘로 두면 「학부모는 어떻게 하더라」 를 매번 다시 떠올려야 한다.
@@ -410,24 +412,64 @@ export async function createAllParentLogins() {
   const key = await serviceKey(supabase);
   if (!key) return { ...keyMissing(), made: [], failed: [] };
 
-  const { data: rows, error } = await supabase
+  let { data: rows, error } = await supabase
     .from("students")
-    .select("id, name, parent_phone, status")
+    .select("id, name, parent_phone, status, family_id")
     .eq("status", "enrolled")
     .order("name", { ascending: true });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0071 전이면 형제 묶기 칸이 없다 — 그때는 아무도 형제가 아니다
+    ({ data: rows, error } = await supabase
+      .from("students")
+      .select("id, name, parent_phone, status")
+      .eq("status", "enrolled")
+      .order("name", { ascending: true }));
+  }
   if (error) return { error: error.message, made: [], failed: [] };
 
-  // **번호로 묶는다.** 형제자매면 한 계정이다 (어머니가 두 번 로그인하실 일 없게)
-  const byPhone = new Map();
+  /**
+   * **형제로 묶어두신 것만 한 계정이다** (원장님, 2026-08-06).
+   *
+   *   「형제 아닌 애들이 형제 처리되어 있어. 애초에 대시보드에서 형제로
+   *    묶지 않으면 형제 인식 안 되게 해줘」
+   *
+   * 전에는 **전화번호가 같으면 형제**로 봤다. 어머니 번호로 아이디를 만드니
+   * 자연스러워 보였지만 틀렸다 — 번호를 잘못 적은 것, 사촌, 한 분이 남의
+   * 아이까지 등록해주신 것이 전부 형제가 됐다. 그리고 형제가 되면 **한
+   * 계정으로 남의 아이 성적·상담이 다 보인다.** 짐작으로 열어주면 안 된다.
+   *
+   * 이제 묶는 기준은 `family_id`(0071) 하나뿐이다. 안 묶으셨으면 남남이다.
+   */
+  const groups = new Map();          // 묶음키 → { kids }
   const noPhone = [];
   (rows || []).forEach((s) => {
-    const id = parentLoginId(s.parent_phone);
-    if (!id) { noPhone.push(s.name); return; }
-    if (!byPhone.has(id)) byPhone.set(id, { loginId: id, phone: s.parent_phone, kids: [] });
-    byPhone.get(id).kids.push(s);
+    if (!parentLoginId(s.parent_phone)) { noPhone.push(s.name); return; }
+    const key = s.family_id ? `fam:${s.family_id}` : `one:${s.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+
+  /**
+   * 아이디는 어머니 번호다. 그래서 **형제로 안 묶였는데 번호가 같으면**
+   * 아이디가 겹친다. 그때는 앞엣것만 만들고 **나머지는 알려드린다** —
+   * 조용히 합쳐버리면 우리가 방금 고친 그 문제로 되돌아간다.
+   */
+  const byPhone = new Map();
+  const clash = [];
+  [...groups.values()].forEach((kids) => {
+    const id = parentLoginId(kids[0].parent_phone);
+    if (byPhone.has(id)) {
+      clash.push({
+        name: kids.map((k) => k.name).join(", "),
+        why: `${byPhone.get(id).kids.map((k) => k.name).join(", ")} 와 번호가 같은데 형제로 안 묶여 있어요. ` +
+             "형제면 재원생 목록에서 묶어주시고, 아니면 번호를 확인해주세요.",
+      });
+      return;
+    }
+    byPhone.set(id, { loginId: id, phone: kids[0].parent_phone, kids });
   });
   if (byPhone.size === 0) {
-    return { error: null, made: [], failed: [], noPhone };
+    return { error: null, made: [], failed: clash, noPhone };
   }
 
   // 이미 있는 학부모 계정 — 다시 만들지 않는다
@@ -439,7 +481,7 @@ export async function createAllParentLogins() {
   const have = new Map((haveProf || []).map((p) => [p.login_id, p.id]));
 
   const made = [];
-  const failed = [];
+  const failed = [...clash];
   const already = [];
 
   for (const g of byPhone.values()) {

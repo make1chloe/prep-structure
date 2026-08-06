@@ -25,7 +25,10 @@ export async function listNotes(studentId) {
     .select("id, date, kind, title, raw, body, with_whom, minutes, created_at")
     .eq("student_id", studentId)
     .order("date", { ascending: false })
-    .limit(50);
+    // 한 학생에게 스무 건 넘게 쌓인 아이가 이미 있다 (옮겨온 것만 21건).
+    // 50 에서 자르면 오래된 것이 조용히 안 보인다 — 상담일지는 **지난 것을
+    // 보려고** 여는 화면이라, 그게 잘리면 화면을 여는 이유가 없어진다
+    .limit(500);
   if (needSql(error)) return { rows: [], error: "0049 SQL 을 먼저 실행해주세요." };
   return { rows: data || [], error: error ? error.message : null };
 }

@@ -439,18 +439,45 @@ export async function importNotes(rows) {
   } = await supabase.auth.getUser();
   const students = await studentMap(supabase);
 
+  /**
+   * **없는 이름은 퇴원생으로 만든다** (원장님, 2026-08-06 — 「퇴원생 기록도
+   * 남겨두고 싶어. 재원생에 없는 이름은 퇴원생으로 올리고」).
+   *
+   * 그만둔 아이의 상담 이력이 제일 아깝다. 왜 그만뒀는지, 무슨 말이 오갔는지는
+   * 다음 아이에게 쓰이는 것이라 버릴 것이 아니다.
+   *
+   * 다만 **이름 오타도 그대로 학생이 된다.** 그래서 새로 만든 이름은 결과에
+   * 그대로 돌려준다 — 「이런 이름으로 만들었습니다」 를 보시고 아니면 바로
+   * 지우실 수 있게. 조용히 만들면 유령 학생이 쌓인다.
+   */
   const skipped = [];
+  const made = [];
+  const need = [...new Set(list.map((r) => r.name).filter((n) => !students.get(n)))];
+  if (need.length > 0) {
+    const { data: rows, error } = await supabase
+      .from("students")
+      .insert(need.map((name) => ({ name, status: "withdrawn" })))
+      .select("id, name");
+    if (error) {
+      skipped.push(`퇴원생으로 만들지 못했어요: ${error.message}`);
+    } else {
+      (rows || []).forEach((s) => {
+        students.set(s.name.trim(), s.id);
+        made.push(s.name);
+      });
+    }
+  }
+
   const ready = [];
   list.forEach((r) => {
     const sid = students.get(r.name);
     if (!sid) {
-      // 퇴원생은 재원생 목록에 남아 있으면 붙는다. 아예 없으면 붙일 데가 없다
-      skipped.push(`${r.date} ${r.name} (재원생 목록에 없음)`);
+      skipped.push(`${r.date} ${r.name} (학생을 못 만들었어요)`);
       return;
     }
     ready.push({ ...r, student_id: sid });
   });
-  if (ready.length === 0) return { error: null, saved: 0, updated: 0, skipped };
+  if (ready.length === 0) return { error: null, saved: 0, updated: 0, skipped, made };
 
   // 이미 있는 것 — 같은 학생·날짜·제목
   const ids = [...new Set(ready.map((r) => r.student_id))];
@@ -458,8 +485,8 @@ export async function importNotes(rows) {
     .from("student_notes")
     .select("id, student_id, date, title")
     .in("student_id", ids);
-  if (needSql(readErr)) return { error: "0049 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
-  if (readErr) return { error: readErr.message, saved: 0, skipped };
+  if (needSql(readErr)) return { error: "0049 SQL 을 먼저 실행해주세요.", saved: 0, skipped, made };
+  if (readErr) return { error: readErr.message, saved: 0, skipped, made };
   const keyOf = (x) => `${x.student_id}|${x.date}|${(x.title || "").trim()}`;
   const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
 
@@ -489,5 +516,5 @@ export async function importNotes(rows) {
 
   revalidatePath("/notes");
   revalidatePath("/students");
-  return { error: null, saved, updated, skipped };
+  return { error: null, saved, updated, skipped, made };
 }
