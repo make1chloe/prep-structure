@@ -96,6 +96,16 @@ else
 fi
 
 echo
+echo "== 5-2-3) 연도 점검 (24·25·26 혼용) =="
+# 노션은 「12/30」 처럼 연도 없이 적힌 것이 많아 지난 해 자료가 올해로
+# 들어간다 — 오류가 안 난다. 여기서 잘못 세면 멀쩡한 자료를 1년 되돌리게 된다
+if out=$(node scripts/check-yearaudit.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 5-3) 성적 옮기기 · 리포트 계산 =="
 # 리포트는 상담 중에 펴놓고 학부모께 설명하시는 화면이다 — 숫자가 틀리면
 # 그 자리에서 곤란해지신다. 실제 자료에서 부딪힌 것을 못 박아 둔다

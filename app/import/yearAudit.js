@@ -1,0 +1,71 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { todaySeoul } from "@/lib/day";
+import { auditRows, summarize } from "@/lib/yearAudit";
+
+/**
+ * **이미 들어간 자료의 연도를 훑는다** (아무것도 안 바꾼다).
+ *
+ * 원장님 (2026-08-06) — 「노션자료에서 24,25,26년이 서로 구별되지 않게
+ * 적혀서 혼용된 거 없나 싹 확인해줘」
+ *
+ * ── 왜 필요한가 ──────────────────────────────────────────
+ *
+ * 노션 자료에는 「12/30」 처럼 **연도 없이** 적힌 날짜가 많다. 옮길 때 그런
+ * 줄에는 화면의 연도 칸 값을 붙이는데, 그 기본값이 올해다. 그러니까 지난 해
+ * 자료를 그냥 올리면 **작년 수업이 통째로 올해가 된다** — 오류도 안 나고
+ * 「141줄 옮겼습니다」 라고 멀쩡히 뜬다.
+ *
+ * 들어간 뒤에는 「이 줄은 짐작이었다」 는 표시가 없다. 그래서 **모양**으로
+ * 찾는다 (`lib/yearAudit`). 판단과 고치기는 사람이 한다 — 어느 해가 맞는지는
+ * 원장님만 아신다. 고치는 도구는 바로 아래 「연도 되돌리기」 에 있다.
+ */
+
+/** 표마다 무엇을 날짜로 볼까 · 미래에 있어도 되는가 */
+const TARGETS = [
+  { table: "daily_reports", label: "수업 기록", date: "date" },
+  { table: "attendance", label: "출결 · 보강", date: "date" },
+  { table: "class_attendance", label: "특강 출결", date: "date" },
+  { table: "student_notes", label: "상담일지", date: "date" },
+  { table: "scores", label: "성장 (내신 · 모의 · 단원)", date: "taken_on" },
+  { table: "payments", label: "수납", date: "paid_on" },
+  // 일정·할일은 **앞으로 잡아둔 것이 맞다** — 미래를 문제로 보지 않는다
+  { table: "tasks", label: "일정 · 할일", date: "due_on", key: "id", future: false },
+];
+
+export async function auditYears() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "로그인이 필요해요.", audits: [] };
+  const { data: p } = await supabase
+    .from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (p?.role !== "principal") return { error: "원장님만 볼 수 있어요.", audits: [] };
+
+  const today = todaySeoul();
+  const audits = [];
+
+  for (const t of TARGETS) {
+    const cols = [t.date, t.key || "student_id"].join(", ");
+    // 아직 없는 표(마이그레이션 전)는 조용히 건너뛴다 — 여기서 멈추면
+    // 나머지 표도 못 본다
+    const { data, error } = await supabase
+      .from(t.table)
+      .select(cols)
+      .not(t.date, "is", null)
+      .limit(20000);
+    if (error) continue;
+
+    audits.push(
+      auditRows(t.label, data || [], today, {
+        dateOf: (r) => r[t.date],
+        keyOf: (r) => r[t.key || "student_id"],
+        future: t.future,
+      })
+    );
+  }
+
+  return { error: null, today, audits, sum: summarize(audits) };
+}

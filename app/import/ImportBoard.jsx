@@ -237,6 +237,27 @@ export default function ImportBoard() {
   const outOfRange = all.length - ok.length;
   const bad = (rows || []).filter((r) => !usable(r));
 
+  /**
+   * **연도를 짐작한 줄** (원장님, 2026-08-06 — 「24,25,26년이 서로 구별되지
+   * 않게 적혀서 혼용된 거 없나 싹 확인해줘」).
+   *
+   * 노션은 날짜를 「12/30」 처럼 연도 없이 적어둔 것이 많다 — 특히 제목이
+   * 그렇다. 그런 줄은 위 **연도 칸**의 값을 붙인다. 그러니까 2024년 자료를
+   * 올리면서 연도 칸이 2026 이면 **2024년 수업이 통째로 2026년이 된다.**
+   * 오류도 안 나고, 화면에는 「옮길 수 있음 141줄」 이라고 멀쩡히 뜬다.
+   *
+   * 그래서 **몇 줄이 짐작인지 세어서 보여준다.** 짐작을 없앨 수는 없다 —
+   * 파일에 없는 것을 만들어낼 수는 없으니까. 대신 원장님이 아셔야 한다.
+   */
+  const guessedRows = ok.filter((r) => r.yearGuessed);
+  const guessedYears = [...new Set(
+    guessedRows.map((r) => (dateOf(r) || "").slice(0, 4)).filter(Boolean)
+  )];
+  // 옮길 줄에 **연도가 여럿 섞여 있나** — 한 파일에 24·25·26년이 다 들어 있는 일이 흔하다
+  const yearsInFile = [...new Set(
+    ok.map((r) => (dateOf(r) || "").slice(0, 4)).filter(Boolean)
+  )].sort();
+
   return (
     <>
       <div className="row" style={{ gap: 4, marginTop: 12 }}>
@@ -353,7 +374,30 @@ export default function ImportBoard() {
                     : `${kind === "task" ? "제목·날짜" : "이름·날짜"} 못 읽음 ${bad.length}`}
                 </span>
               )}
+              {yearsInFile.length > 1 && (
+                <span className="tag tag-sky" title="한 파일에 여러 해가 섞여 있습니다">
+                  {yearsInFile.join(" · ")}년
+                </span>
+              )}
             </div>
+
+            {/* **연도를 짐작한 줄** — 오류가 안 나서 짚어주지 않으면 아무도 모른다.
+                2024년 수업이 2026년으로 통째로 들어가도 화면은 멀쩡하다 */}
+            {guessedRows.length > 0 && (
+              <div className="err" style={{ marginTop: 10, lineHeight: 1.7 }}>
+                <b>연도를 짐작한 줄이 {guessedRows.length}줄 있어요
+                  {guessedYears.length > 0 ? ` (${guessedYears.join(" · ")}년으로 붙였습니다)` : ""}.</b>
+                <br />
+                파일에 <b>「12/30」 처럼 연도 없이</b> 적힌 날짜라, 위의 <b>연도 칸</b>
+                값을 붙였습니다. <b>지난 해 자료를 올리시는 거라면 연도 칸을 그 해로
+                고치고 파일을 다시 골라주세요</b> — 안 그러면 그 수업이 {year}년 것으로 들어갑니다.
+                <br />
+                <span className="hint">
+                  연도가 적힌 줄은 파일에 적힌 그대로 들어갑니다. 한 파일에 여러 해가
+                  섞여 있으면 <b>「이 날짜부터·까지」 로 한 해씩 나눠 올리시는 편</b>이 안전합니다.
+                </span>
+              </div>
+            )}
 
             <div className="tblwrap" style={{ marginTop: 8 }}>
               <table className="tbl tbl-tight">

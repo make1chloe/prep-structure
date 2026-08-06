@@ -4,6 +4,7 @@ import PrincipalOnly from "@/components/PrincipalOnly";
 import ImportBoard from "./ImportBoard";
 import CheckBox from "./CheckBox";
 import FixDatesBox from "./FixDatesBox";
+import YearAuditBox from "./YearAuditBox";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,8 @@ export default async function ImportPage() {
         </div>
         <ImportBoard />
         <CheckBox />
+        {/* 진단이 먼저, 고치기가 다음 — 무엇이 잘못됐는지 모르고 옮기면 더 어려워진다 */}
+        <YearAuditBox />
         <FixDatesBox />
       </main>
     </>
