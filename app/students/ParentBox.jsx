@@ -9,7 +9,7 @@ import {
 /**
  * 학부모 계정.
  *
- * 학생 계정과 같은 방식이다 — 학원이 아이디를 주고 비번은 0000 으로 시작한다.
+ * 학생 계정과 같은 방식이다 — 학원이 아이디를 주고, 첫 비번은 계정마다 다른 네 자리다.
  * 다른 것이 하나 있다: **형제자매는 계정 하나로 둘 다 본다.** 형제를 묶어두신
  * 이유가 그것이라, 여기서 만들면 형제가 자동으로 같이 붙는다.
  */
@@ -48,7 +48,7 @@ export default function ParentBox({ studentId, name }) {
         {st.linked ? (
           <>
             <span className="tag tag-mint">아이디 {st.loginId}</span>
-            {st.mustChange && <span className="tag tag-amber">비번 0000</span>}
+            {st.mustChange && <span className="tag tag-amber">첫 비번 그대로</span>}
             {st.children.length > 1 && (
               <span className="tag tag-lav">{st.children.join(" · ")} 함께 봄</span>
             )}

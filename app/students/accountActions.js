@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomInt } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { parentLoginId } from "@/lib/studentId";
 import { SUPABASE_URL } from "@/lib/supabase/env";
@@ -11,8 +12,8 @@ import { baseLoginId, resolveLoginId } from "@/lib/studentId";
  *
  * 아이들은 이메일 주소도 비밀번호도 잊어버린다. 그래서 학원이 아이디를 준다.
  *   아이디  chloe0001  (재원생 목록에서 뽑는다)
- *   비번    0000       (처음 들어오면 학생이 바꾼다)
- * 또 잊으면 원장님이 0000 으로 되돌린다.
+ *   비번    계정마다 다른 네 자리 (처음 들어오면 학생이 바꾼다)
+ * 또 잊으면 원장님이 새로 만들어 준다.
  *
  * Supabase 로그인은 이메일만 받으므로 아이디에 도메인을 붙여 속으로만
  * 이메일을 만든다. 학생은 그런 게 있는지도 모른다.
@@ -23,7 +24,32 @@ import { baseLoginId, resolveLoginId } from "@/lib/studentId";
  */
 
 const DOMAIN = "chloe-eng.internal";     // 실제로 메일이 가는 곳이 아니다
-const INIT_PW = "0000";
+/**
+ * **첫 비밀번호는 계정마다 다르게** (원장님, 2026-08-05).
+ *
+ * 전에는 모두 0000 이었다. 아이디는 규칙으로 만들어서 남이 짐작할 수 있는데
+ * (학부모는 전화번호 그대로다) 비번까지 모두가 아는 0000 이면, 번호만 알면
+ * 남의 계정에 들어갈 수 있다. **아이디가 짐작되는 만큼 비번은 달라야 한다.**
+ *
+ * 네 자리로 둔다. 한 번 쓰고 바로 바꾸는 것이라 외울 일이 없고, 전화로
+ * 불러드리기도 짧다.
+ *
+ * 0000·1111 처럼 같은 숫자만 있거나 1234·4321 처럼 이어지는 것은 뺀다 —
+ * 그런 것이 나오면 「이거 임시 비번인가?」 하고 안 바꾸시는 일이 생긴다.
+ */
+function makePw() {
+  for (let i = 0; i < 50; i += 1) {
+    const n = randomInt(0, 10000);
+    const p = String(n).padStart(4, "0");
+    if (/^(\d)\1{3}$/.test(p)) continue;                    // 0000 · 7777
+    const d = [...p].map(Number);
+    const up = d.every((x, j) => j === 0 || x === d[j - 1] + 1);
+    const down = d.every((x, j) => j === 0 || x === d[j - 1] - 1);
+    if (up || down) continue;                                // 1234 · 4321
+    return p;
+  }
+  return String(randomInt(1000, 10000));
+}
 
 function emailOf(loginId) {
   return `${(loginId || "").trim().toLowerCase()}@${DOMAIN}`;
@@ -103,7 +129,7 @@ async function usedIds(supabase) {
 
 /**
  * 계정을 만든다.
- * 이미 아이디가 있으면 그대로 두고 비밀번호만 0000 으로 되돌린다.
+ * 이미 아이디가 있으면 그대로 두고 비밀번호만 새로 만든다.
  */
 export async function createStudentLogin(studentId, wantId) {
   if (!studentId) return { error: "학생이 없어요." };
@@ -128,9 +154,10 @@ export async function createStudentLogin(studentId, wantId) {
     return { error: "아이디는 영문·숫자로 4~30자여야 해요." };
   }
 
+  const pw = makePw();
   const made = await admin(key, "/users", "POST", {
     email: emailOf(loginId),
-    password: INIT_PW,
+    password: pw,
     email_confirm: true,
     user_metadata: { name: s.name, login_id: loginId },
   });
@@ -158,10 +185,10 @@ export async function createStudentLogin(studentId, wantId) {
   if (error) return { error: error.message };
 
   revalidatePath("/students");
-  return { error: null, loginId, password: INIT_PW };
+  return { error: null, loginId, password: pw };
 }
 
-/** 비밀번호를 0000 으로 되돌린다 (아이가 잊었을 때) */
+/** 비밀번호를 새로 만든다 (아이가 잊었을 때). 계정마다 다른 네 자리가 나온다 */
 export async function resetStudentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
@@ -175,7 +202,8 @@ export async function resetStudentPassword(studentId) {
     .from("students").select("profile_id, login_id").eq("id", studentId).maybeSingle();
   if (!s?.profile_id) return { error: "아직 계정이 없어요." };
 
-  const res = await admin(key, `/users/${s.profile_id}`, "PUT", { password: INIT_PW });
+  const pw = makePw();
+  const res = await admin(key, `/users/${s.profile_id}`, "PUT", { password: pw });
   if (!res.ok) {
     const msg = res.json?.msg || res.json?.message || `HTTP ${res.status}`;
     return { error: `비밀번호를 바꾸지 못했어요: ${msg}` };
@@ -185,7 +213,7 @@ export async function resetStudentPassword(studentId) {
   await supabase.from("profiles").update({ must_change_pw: true }).eq("id", s.profile_id);
 
   revalidatePath("/students");
-  return { error: null, loginId: s.login_id, password: INIT_PW };
+  return { error: null, loginId: s.login_id, password: pw };
 }
 
 /**
@@ -231,9 +259,10 @@ export async function createAllStudentLogins() {
   for (const s of todo) {
     const loginId = (s.login_id || "").toLowerCase() || pickId(s, used);
 
+    const pw = makePw();
     const res = await admin(key, "/users", "POST", {
       email: emailOf(loginId),
-      password: INIT_PW,
+      password: pw,
       email_confirm: true,
       user_metadata: { name: s.name, login_id: loginId },
     });
@@ -258,11 +287,11 @@ export async function createAllStudentLogins() {
       failed.push({ name: s.name, why: up.error.message });
       continue;
     }
-    made.push({ name: s.name, loginId });
+    made.push({ name: s.name, loginId, password: pw });
   }
 
   revalidatePath("/students");
-  return { error: null, made, failed, password: INIT_PW };
+  return { error: null, made, failed };
 }
 
 /**
@@ -302,9 +331,10 @@ export async function autoCreateLogins(studentIds = []) {
     const loginId = (s.login_id || "").toLowerCase() || pickId(s, used);
     used.add(loginId);
 
+    const pw = makePw();
     const res = await admin(key, "/users", "POST", {
       email: emailOf(loginId),
-      password: INIT_PW,
+      password: pw,
       email_confirm: true,
       user_metadata: { name: s.name, login_id: loginId },
     });
@@ -403,7 +433,7 @@ export async function createAllParentLogins() {
     byPhone.get(id).kids.push(s);
   });
   if (byPhone.size === 0) {
-    return { error: null, made: [], failed: [], noPhone, password: INIT_PW };
+    return { error: null, made: [], failed: [], noPhone };
   }
 
   // 이미 있는 학부모 계정 — 다시 만들지 않는다
@@ -423,9 +453,10 @@ export async function createAllParentLogins() {
 
     if (!uid) {
       const label = g.kids.map((k) => k.name).join("·");
+      const pw = makePw();
       const res = await admin(key, "/users", "POST", {
         email: emailOf(g.loginId),
-        password: INIT_PW,
+        password: pw,
         email_confirm: true,
         user_metadata: { name: `${label} 학부모`, login_id: g.loginId },
       });
@@ -444,7 +475,7 @@ export async function createAllParentLogins() {
         { onConflict: "id" }
       );
       if (pErr) { failed.push({ name: g.kids[0].name, why: pErr.message }); continue; }
-      made.push({ name: label, loginId: g.loginId, kids: g.kids.length });
+      made.push({ name: label, loginId: g.loginId, kids: g.kids.length, password: pw });
     } else {
       already.push(g.loginId);
     }
@@ -457,5 +488,5 @@ export async function createAllParentLogins() {
     if (lErr) failed.push({ name: g.kids[0].name, why: `연결 실패: ${lErr.message}` });
   }
 
-  return { error: null, made, failed, already, noPhone, password: INIT_PW };
+  return { error: null, made, failed, already, noPhone };
 }
