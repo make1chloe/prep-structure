@@ -106,6 +106,64 @@ export async function pushToStudents(studentIds, payload) {
   return { sent: res.sent, error: res.error };
 }
 
+/**
+ * **한 집으로 알림** — 아이 폰과 어머니 폰.
+ *
+ * 원장님 (2026-08-06) — 알림톡으로 알리던 것을 전부 앱 안에서 해결하기로 했다.
+ * 알림톡은 어머니 폰으로 갔다. 그러니 앱 알림도 어머니께 닿아야 한다. 아이
+ * 폰에만 보내면 「앱에 올렸습니다」 가 어머니께는 안 간 것과 같다.
+ *
+ * **누구에게 보낼지는 그 글이 누구에게 보이는지로 정한다.**
+ *   who="all"     아이도 어머니도 보는 것 (일정 · 전달사항 · 숙제)
+ *   who="parent"  어머니만 보는 것 (교재 · 보강 · 늦은 귀가 · 수업/월간 리포트)
+ *
+ * 보이지도 않는 것을 알리면 안 된다. 아이가 알림을 눌렀는데 아무것도 없으면
+ * 그다음부터 알림을 안 누른다 — 정작 자기 숙제 알림까지 같이 죽는다.
+ *
+ * 알림을 안 켠 기기는 그냥 없는 것이다 — 조용히 넘어간다.
+ */
+export async function pushToFamilies(studentIds, payload, who = "all") {
+  const ids = [...new Set((studentIds || []).filter(Boolean))];
+  if (ids.length === 0) return { sent: 0, error: null };
+
+  const supabase = createClient();
+  const keys = await keysOf(supabase);
+  if (!keys?.privateKey) return { sent: 0, error: null };   // 알림을 안 쓰면 조용히
+
+  // 아이 기기
+  const { data: mine } = who === "parent"
+    ? { data: [] }
+    : await supabase
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .in("student_id", ids);
+
+  // 그 아이의 학부모 기기 (학부모 계정은 student_id 가 안 붙는다 — profile_id 로 찾는다)
+  const { data: links } = await supabase
+    .from("parent_student")
+    .select("parent_profile_id")
+    .in("student_id", ids);
+  const parents = [...new Set((links || []).map((l) => l.parent_profile_id).filter(Boolean))];
+  const { data: theirs } = parents.length
+    ? await supabase
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .in("profile_id", parents)
+    : { data: [] };
+
+  // 한 기기에 두 번 보내지 않는다 (아이 폰에 어머니가 로그인해 두신 집이 있다)
+  const byId = new Map();
+  [...(mine || []), ...(theirs || [])].forEach((s) => byId.set(s.id, s));
+  const subs = [...byId.values()];
+  if (subs.length === 0) return { sent: 0, error: null };
+
+  const res = await pushToAll(keys, subs, payload);
+  if (res.gone.length > 0) {
+    await supabase.from("push_subscriptions").delete().in("id", res.gone);
+  }
+  return { sent: res.sent, error: res.error };
+}
+
 // 선생님이 직접 보내는 테스트 알림
 export async function testPush() {
   const supabase = createClient();

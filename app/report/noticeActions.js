@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { deliver } from "@/lib/send";
 import { autoValues, buildVariables } from "@/lib/alimtalk";
+import { INQUIRY, IN_APP_DETAIL, noticeKindOf, noticeLabel, postAppNotices } from "@/lib/notify";
+import { pushToFamilies } from "@/app/push/actions";
 import { longLabel, todaySeoul } from "@/lib/day";
 
 function ok(error) {
@@ -153,9 +155,17 @@ export async function listRecipients() {
 
 // ---------- 발송 ----------
 /**
- * 안내 문자 보내기 — 데일리리포트와 달리 리포트에 묶이지 않는다.
+ * 안내 보내기 — 데일리리포트와 달리 리포트에 묶이지 않는다.
+ *
+ * **받는 사람에 따라 가는 길이 다르다** (원장님, 2026-08-06).
+ *   재원생·학부모 → **앱 안 공지 + 알림.** 문자는 한 통도 안 나간다.
+ *   신규 상담     → 문자 · 알림톡. 아직 계정이 없어서 앱에 올려봐야 볼 수가 없다.
+ *
+ * 화면에서 「재원생 / 상담·테스트」 를 이미 갈라 고르시므로, 여기서는 id 앞자리로
+ * 그대로 가른다 (s: 재원생, q: 상담).
+ *
  * @param items    [{ id, name, phone, body }]
- * @param label    문자 종류 (기록용)
+ * @param label    안내 종류 (교재 book · 보강 makeup …)
  * @param templateId 어떤 문구로 보냈는지 — 알림톡 템플릿을 찾는 데 쓴다
  */
 export async function sendNotices(items, label, templateId) {
@@ -164,57 +174,121 @@ export async function sendNotices(items, label, templateId) {
 
   const supabase = createClient();
   const settings = await loadSettings(supabase);
+  const { data: { user } } = await supabase.auth.getUser();
+  const kind = label || "notice";
+  const today = todaySeoul();
 
-  // 이 문구에 알림톡 템플릿이 붙어 있으면 알림톡으로 나간다
-  let tpl = null;
-  if (templateId) {
-    const q = await supabase
-      .from("message_templates")
-      .select("alimtalk_id, alimtalk_vars")
-      .eq("id", templateId)
-      .maybeSingle();
-    if (!q.error) tpl = q.data;
-  }
-  const today = longLabel(todaySeoul());
+  const students = list.filter((x) => `${x.id}`.startsWith("s:"));
+  const inquiries = list.filter((x) => !`${x.id}`.startsWith("s:"));
 
-  const sendable = list.filter((x) => x.phone);
-  const { channel, results } = await deliver(
-    settings,
-    sendable.map((x) => {
-      const msg = { to: x.phone, text: x.body, ref: x.id };
-      if (tpl?.alimtalk_id) {
-        msg.kakao = {
-          templateId: tpl.alimtalk_id,
-          variables: buildVariables(tpl.alimtalk_vars, {
-            ...autoValues({
-              academy: settings.academy?.name,
-              name: x.name,
-              date: today,
-              body: x.body,
-              phone: settings.message?.phone,
-              address: settings.message?.address,
-            }),
-            // 이 문자에서 내가 채운 값들도 그대로 붙일 수 있다
-            ...(x.vars || {}),
-          }),
-        };
+  const byRef = new Map();
+
+  // ── 1) 재원생 · 학부모 — 앱 안으로 ────────────────────────────
+  if (students.length > 0) {
+    const title = noticeLabel(kind);
+    const { ok, failed } = await postAppNotices(
+      supabase,
+      students.map((x) => ({ studentId: x.id.slice(2), title, body: x.body })),
+      { date: today, kind, createdBy: user?.id || null }
+    );
+    const okSet = new Set(ok);
+    const whyOf = new Map(failed.map((f) => [f.studentId, f.detail]));
+    students.forEach((x) => {
+      const sid = x.id.slice(2);
+      byRef.set(x.id, okSet.has(sid)
+        ? { ok: true, detail: IN_APP_DETAIL }
+        : { ok: false, detail: whyOf.get(sid) || "앱에 올리지 못했어요." });
+    });
+
+    // 올린 다음에 알린다. 알림이 먼저 가면 눌렀을 때 아무것도 없다.
+    // 알림이 실패해도 공지는 이미 올라가 있다 — 앱을 열면 보인다.
+    //
+    // **한 명씩 보낸다.** 문구에 {{학생명}} 이 채워져 있어서 사람마다 본문이
+    // 다르다. 한 사람 것으로 묶어 보내면 남의 이름이 적힌 알림이 간다.
+    const toParent = noticeKindOf(kind) === "notice";
+    for (const x of students) {
+      const sid = x.id.slice(2);
+      if (!okSet.has(sid)) continue;
+      try {
+        await pushToFamilies(
+          [sid],
+          {
+            title,
+            body: firstLine(x.body),
+            // 어머니만 보는 안내는 어머니 화면으로 보낸다 — 아이가 눌렀을 때
+            // 아무것도 없으면 그다음부터 알림을 안 누른다
+            url: toParent ? "/parent" : "/me",
+            tag: `notice-${kind}`,
+          },
+          toParent ? "parent" : "all"
+        );
+      } catch {
+        /* 알림 실패는 무시한다 — 공지는 이미 올라갔다 */
       }
-      return msg;
-    }),
-    { kind: label || "notice" }
-  );
-  const byRef = new Map(results.map((r) => [r.ref, r]));
-  list.forEach((x) => {
-    if (!x.phone) byRef.set(x.id, { ref: x.id, ok: false, detail: "번호 없음" });
-  });
+    }
+  }
+
+  // ── 2) 신규 상담 — 밖으로 (문자 · 알림톡) ─────────────────────
+  let channel = students.length > 0 ? "app" : null;
+  if (inquiries.length > 0) {
+    let tpl = null;
+    if (templateId) {
+      const q = await supabase
+        .from("message_templates")
+        .select("alimtalk_id, alimtalk_vars")
+        .eq("id", templateId)
+        .maybeSingle();
+      if (!q.error) tpl = q.data;
+    }
+    const dateLabel = longLabel(today);
+    const sendable = inquiries.filter((x) => x.phone);
+    const out = await deliver(
+      settings,
+      sendable.map((x) => {
+        const msg = { to: x.phone, text: x.body, ref: x.id };
+        if (tpl?.alimtalk_id) {
+          msg.kakao = {
+            templateId: tpl.alimtalk_id,
+            variables: buildVariables(tpl.alimtalk_vars, {
+              ...autoValues({
+                academy: settings.academy?.name,
+                name: x.name,
+                date: dateLabel,
+                body: x.body,
+                phone: settings.message?.phone,
+                address: settings.message?.address,
+              }),
+              // 이 문자에서 내가 채운 값들도 그대로 붙일 수 있다
+              ...(x.vars || {}),
+            }),
+          };
+        }
+        return msg;
+      }),
+      { kind, audience: INQUIRY }
+    );
+    out.results.forEach((r) => byRef.set(r.ref, r));
+    inquiries.forEach((x) => {
+      if (!x.phone) byRef.set(x.id, { ok: false, detail: "번호 없음" });
+    });
+    channel = students.length > 0 ? "app+sms" : out.channel;
+  }
 
   const failed = list.filter((x) => !byRef.get(x.id)?.ok);
   return {
     error: null,
     channel,
+    inApp: students.length,
     count: list.length - failed.length,
     failed: failed.map((x) => ({ name: x.name, detail: byRef.get(x.id)?.detail || "발송 실패" })),
   };
+}
+
+/** 알림 본문 — 제목 줄([학원명] …)을 빼고 첫 줄만. 폰 알림에는 한 줄만 보인다 */
+function firstLine(body = "") {
+  const lines = `${body}`.split("\n").map((s) => s.trim()).filter(Boolean);
+  const rest = lines[0]?.startsWith("[") ? lines.slice(1) : lines;
+  return (rest[0] || lines[0] || "앱에서 확인해주세요").slice(0, 80);
 }
 
 /**

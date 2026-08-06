@@ -9,8 +9,8 @@ import { createStudentLogin, resetStudentPassword, accountStatus } from "./accou
  *
  * 아이들은 이메일도 비밀번호도 잊어버린다. 그래서 학원이 준다.
  *   아이디  chloe0001
- *   비번    계정마다 다른 네 자리 → 처음 들어오면 학생이 바꾼다
- * 또 잊으면 여기서 되돌린다 (새 비번이 나온다).
+ *   비번    0000 → 처음 들어오면 학생이 바꾼다 (바꾸기 전에는 못 지나간다)
+ * 또 잊으면 여기서 되돌린다 (다시 0000 이 된다).
  */
 export default function LinkBox({ studentId, name }) {
   const [st, setSt] = useState(null);
@@ -94,7 +94,7 @@ export default function LinkBox({ studentId, name }) {
           disabled={pending || !st.hasKey}
           title="아이가 비밀번호를 잊었을 때"
           onClick={() => {
-            if (!confirm(`${name} 학생의 비밀번호를 새로 만들까요?\n네 자리가 새로 나옵니다.`)) return;
+            if (!confirm(`${name} 학생의 비밀번호를 0000 으로 되돌릴까요?\n다음에 들어오면 바로 새로 정하게 됩니다.`)) return;
             startTransition(async () => {
               const r = await resetStudentPassword(studentId);
               if (r?.error) { alert(r.error); return; }
@@ -103,7 +103,7 @@ export default function LinkBox({ studentId, name }) {
             });
           }}
         >
-          비밀번호 새로 만들기
+          비밀번호 초기화 (0000)
         </button>
       )}
 

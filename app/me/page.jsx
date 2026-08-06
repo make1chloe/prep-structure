@@ -20,7 +20,7 @@ import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
-import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
+import { addDays, dowOf, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
@@ -342,6 +342,8 @@ export default async function MePage({ searchParams }) {
     new Date(`${todaySeoul()}T00:00:00Z`).getUTCDay()
   ];
   let classEnd = null;
+  // 내 반 — 하원 시각을 재는 데도 쓰고, 아래 달력에 **수업일**을 찍는 데도 쓴다
+  let myClasses = [];
   {
     const { data: mine } = await supabase
       .from("class_students")
@@ -351,9 +353,10 @@ export default async function MePage({ searchParams }) {
     if (ids.length) {
       const { data: cls } = await supabase
         .from("classes")
-        .select("days, end_time")
+        .select("id, name, days, start_time, end_time")
         .in("id", ids);
-      (cls || [])
+      myClasses = cls || [];
+      myClasses
         .filter((c) => (c.days || []).includes(dowNow) && c.end_time)
         .forEach((c) => {
           const t = c.end_time.slice(0, 5);
@@ -635,19 +638,27 @@ export default async function MePage({ searchParams }) {
     }
   }
 
-  // 달력 — 학사일정 · 휴강 · 시험 기간 · 특강.
-  //   카톡으로 물어보게 하지 말고 그냥 보이게 한다.
-  //   할일은 나가지 않고, 원장님이 「나만 보기」로 잠근 일정도 빠진다 (0066).
+  /**
+   * **학생용 달력** — 수업일 · 시험 · 결석 (원장님, 2026-08-06).
+   *
+   * 「이번 주에 나 언제 와요?」 를 카톡으로 물어보게 하지 말고 그냥 보이게 한다.
+   * 학사일정·특강은 이미 넣고 있었고, 여기에 **자기 것 세 가지**를 더한다.
+   *   수업일  내 반 요일에서 찍는다 (달마다 손으로 넣을 것이 아니다)
+   *   시험    우리 학교 · 우리 학년 시험 기간
+   *   결석·보강  이미 지나간 것도 남긴다 — 보강을 언제 채웠는지가 보여야 한다
+   *
+   * 할일은 나가지 않고, 원장님이 「나만 보기」로 잠근 일정도 빠진다 (0066).
+   */
+  const calFrom = addDays(today, -40);
+  const calTo = addDays(today, 120);
   let calendar = [];
   {
-    const from = addDays(today, -40);
-    const to = addDays(today, 120);
     const { data: rows } = await supabase
       .from("tasks")
       .select("id, title, kind, due_on, end_on, source, category")
       .neq("kind", "todo")
-      .gte("due_on", from)
-      .lte("due_on", to)
+      .gte("due_on", calFrom)
+      .lte("due_on", calTo)
       .order("due_on", { ascending: true });
     calendar = (rows || []).map((t) => ({
       date: t.due_on,
@@ -655,6 +666,86 @@ export default async function MePage({ searchParams }) {
       title: t.title,
       tone: t.source === "neis" ? "school" : "event",
     }));
+  }
+
+  // 내 수업일 — 반 요일로 찍는다.
+  //   한 칸에 두 개까지만 보이므로 **수업이 먼저 오게** 앞에 붙인다.
+  //   휴강까지 빼지는 않는다 — 휴강은 학원 일정으로 같은 칸에 뜨고,
+  //   빼버리면 「그날 수업이 원래 있었다」 는 것 자체가 안 보인다.
+  const classDays = [];
+  if (myClasses.length > 0) {
+    const label = (c) =>
+      c.start_time ? `수업 ${c.start_time.slice(0, 5)}` : `수업${c.name ? ` ${c.name}` : ""}`;
+    for (let d = calFrom; d <= calTo; d = addDays(d, 1)) {
+      const dow = dowOf(d);
+      myClasses
+        .filter((c) => (c.days || []).includes(dow))
+        .forEach((c) => classDays.push({ date: d, title: label(c), tone: "klass" }));
+    }
+  }
+
+  // 우리 학교 · 우리 학년 시험 기간
+  const examDays = [];
+  {
+    const q = await supabase
+      .from("exam_periods")
+      .select("id, school, grade, name, from_date, to_date")
+      .lte("from_date", calTo)
+      .gte("to_date", calFrom);
+    (q.error ? [] : q.data || [])
+      // 학교·학년이 비어 있는 것은 「전체」 로 본다 — 빼면 아무것도 안 보인다
+      .filter((e) => (!e.school || e.school === student.school))
+      .filter((e) => (!e.grade || e.grade === student.grade))
+      .forEach((e) =>
+        examDays.push({
+          date: e.from_date,
+          endDate: e.to_date || null,
+          title: e.name || "시험",
+          tone: "exam",
+        })
+      );
+  }
+
+  // 내 결석 · 보강 — 지나간 것도 남긴다 (보강으로 채운 날이 보여야 한다)
+  const attDays = [];
+  {
+    const q = await supabase
+      .from("attendance")
+      .select("date, status")
+      .eq("student_id", student.id)
+      .gte("date", calFrom)
+      .lte("date", calTo);
+    const LABEL = { absent: "결석", makeup: "보강", late: "지각", online: "온라인" };
+    (q.error ? [] : q.data || [])
+      .filter((a) => LABEL[a.status])
+      .forEach((a) => attDays.push({ date: a.date, title: LABEL[a.status], tone: "absent" }));
+  }
+
+  // 내 것(수업·시험·결석)을 앞에 둔다 — 한 칸에 두 개까지만 보인다
+  calendar = [...attDays, ...examDays, ...classDays, ...calendar];
+
+  /**
+   * **일정 및 전달사항** — 한 덩어리로 (원장님, 2026-08-06).
+   *
+   * 공지는 아래쪽에 흩어져 있었고 일정은 달력을 열어야 알 수 있었다.
+   * 아이가 알아야 할 것은 「오늘부터 앞으로 무슨 일이 있나」 하나다.
+   * 다가오는 것만, 몇 개만 — 지난 것까지 쌓이면 오늘 볼 것이 안 보인다.
+   */
+  const upcoming = [...examDays, ...calendar.filter((c) => c.tone === "school" || c.tone === "event")]
+    .filter((c) => (c.endDate || c.date) >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 6);
+
+  // 수업 가이드 링크 (0089) — 설정에서 넣은 것이 그대로 뜬다.
+  //   표가 아직 없어도 화면은 그대로 열려야 한다 (SQL 이 밀려 있을 수 있다).
+  let guides = [];
+  {
+    const q = await supabase
+      .from("class_guides")
+      .select("id, title, url, note")
+      .eq("active", true)
+      .order("sort", { ascending: true });
+    guides = q.error ? [] : q.data || [];
   }
 
   // 지금 뭐 하고 있다고 눌러뒀나 (0084) — 첫 그림에 채워둔다
@@ -701,76 +792,14 @@ export default async function MePage({ searchParams }) {
             <PushToggle />
           </>
         )}
-        <ArrivalCard
-          done={{
-            phone: arrival.phone_at,
-            attend: arrival.attend_at,
-            homework: arrival.homework_at,
-          }}
-          atAcademy={atAcademy}
-          readOnly={preview}
-          asId={acting ? student.id : null}
-        />
-
-        {/* **말로 끼어드는 대신 누른다.** 선생님 현황판에 바로 뜬다 (0084·0085).
-            선생님 대신 눌러주는 미리보기(acting)에서는 안 낸다 — 그 아이가
-            누른 것으로 잘못 남는다. */}
-        {!preview && !acting && (
-          <StateCard mine={myState} unavailable={stateOff} />
-        )}
-
-        <StudyTabs
-          inClass={inClass}
-          home={studyTasks}
-          running={running}
-          ready={timerReady}
-          atClass={atClass}
-          stayLeft={stayLeft.length}
-          readOnly={preview}
-          asId={acting ? student.id : null}
-          subs={subs}
-        />
-
-        {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} />}
-
-        <div className="card">
-          <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
-            해야 할 숙제 {todo.length > 0 && <span className="tag tag-lav">{todo.length}</span>}
-          </h2>
-          <p className="hint" style={{ margin: "0 0 12px" }}>
-            숙제를 누르면 <b>하는 법</b>이 나와요.
-          </p>
-          <HomeworkCards items={todo} />
-
-          {/* 안 뜨면 왜 안 뜨는지 선생님께만 알려준다.
-              "왜 안 보이지" 를 앱 밖에서 알아내게 하면 안 된다. */}
-          {todo.length === 0 && (isStaff || preview || acting) && (
-            <div className="notice" style={{ fontSize: 12.5 }}>
-              <b>선생님께만 보이는 안내</b>
-              <br />
-              {(reports || []).length === 0
-                ? "이 학생의 수업 기록이 아직 하나도 없습니다. 오늘 수업에서 출결을 찍고 저장하면 생깁니다."
-                : dri.length === 0
-                ? `수업 기록은 ${reports.length}개 있는데 숙제 줄이 하나도 없습니다. 오늘 수업에서 '다음 숙제' 를 고른 뒤 저장을 눌렀는지 확인해주세요.`
-                : "숙제 줄은 있는데 '배정' 상태인 것이 없습니다. 검사(○△✕)만 하고 다음 숙제를 안 골랐을 때 이렇게 됩니다."}
-            </div>
-          )}
-          {latest && (
-            <div style={{ marginTop: 10 }}>
-              <p className="hint" style={{ margin: "0 0 6px" }}>
-                숙제나 수업에 대해 궁금한 게 있으면 여기에 남겨주세요. 선생님이 확인합니다.
-              </p>
-              <Comments reportId={latest.id} studentId={student.id} me={myRole} />
-            </div>
-          )}
-        </div>
-
-        {/* 이번 달 나 — 학부모 화면과 **같은 숫자**다.
-            집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다 */}
+        {/* ── 1. 이번 달 현황 ─────────────────────────────────────
+            학부모 화면과 **같은 숫자**다 (lib/monthly 의 summarize).
+            집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다.
+            출결 · 숙제 · 단어 · 문법 — 원장님이 보시는 네 가지 그대로. */}
         {monthLines.length > 0 && (
           <div className="card sect sect-calm">
             <h2 className="secthead">
-              이번 달 나
+              이번 달 현황
               <span className="hint" style={{ fontWeight: 600 }}>
                 {Number(myYm.slice(5))}월 1일부터 오늘까지
               </span>
@@ -785,6 +814,129 @@ export default async function MePage({ searchParams }) {
             </div>
           </div>
         )}
+
+        {/* ── 2. 일정 및 전달사항 — **한 덩어리로** ────────────────
+            전에는 공지가 화면 아래쪽에 흩어져 있고 일정은 달력을 열어야
+            알 수 있었다. 아이가 알아야 할 것은 「앞으로 무슨 일이 있나」
+            하나다. 다가오는 것만, 몇 개만 — 지난 것까지 쌓이면 오늘 볼 것이
+            안 보인다 (원장님, 2026-08-06). */}
+        {(upcoming.length > 0 || notice2.length > 0 || notices.length > 0) && (
+          <div className="card">
+            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>
+              일정 및 전달사항
+            </h2>
+
+            {upcoming.length > 0 && (
+              <div className="stack" style={{ gap: 4, marginBottom: notice2.length ? 14 : 0 }}>
+                {upcoming.map((c, i) => (
+                  <div className="unitrow" key={`${c.date}-${i}`}>
+                    <span className="hint" style={{ minWidth: 74 }}>
+                      {dayLabel(c.date)}
+                      {c.endDate && c.endDate !== c.date ? " ~" : ""}
+                    </span>
+                    <span style={{ fontSize: 13.5, flex: 1 }}>{c.title}</span>
+                    {c.tone === "exam" && <span className="tag tag-red">시험</span>}
+                    {c.tone === "school" && <span className="tag tag-sky">학교</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 학원에서 온 전달사항 — 학교 종이를 찍어 보내주신 것도 여기 온다 */}
+            {notice2.length > 0 && (
+              <div className="stack" style={{ gap: 12 }}>
+                {notice2.map((n) => (
+                  <div key={n.id} className="stack" style={{ gap: 6 }}>
+                    <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
+                      <span className="hint">{dayLabel(n.date)}</span>
+                      {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
+                    </div>
+                    {n.body && n.body !== n.title && (
+                      <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
+                    )}
+                    <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {upcoming.length === 0 && notice2.length === 0 && (
+              <p className="hint" style={{ margin: 0 }}>앞으로 잡힌 일정이 없어요.</p>
+            )}
+
+            {/* 리포트의 '공지' 는 학부모께 나가는 문장이라 아이에게는 안 보인다.
+                선생님이 미리보기로 볼 때만 여기 붙는다. */}
+            {notices.length > 0 && (
+              <div className="notice" style={{ marginTop: 12, fontSize: 12.5 }}>
+                <b>선생님께만 보임 — 학부모께 나가는 문장</b>
+                <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+                  {notices.map((n) => (
+                    <div key={n.date}>
+                      <span className="hint">{dayLabel(n.date)}</span>
+                      <div style={{ fontSize: 13 }}>{n.body}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 3~4. 하원 숙제 · 등원 학습 ───────────────────────────
+            등원 절차(폰·출석·숙제 제출)를 먼저 둔다 — 학원에 들어와서
+            제일 먼저 누르는 것이라 학습보다 위에 있어야 한다. */}
+        <ArrivalCard
+          done={{
+            phone: arrival.phone_at,
+            attend: arrival.attend_at,
+            homework: arrival.homework_at,
+          }}
+          atAcademy={atAcademy}
+          readOnly={preview}
+          asId={acting ? student.id : null}
+        />
+
+        <StudyTabs
+          inClass={inClass}
+          home={studyTasks}
+          running={running}
+          ready={timerReady}
+          atClass={atClass}
+          stayLeft={stayLeft.length}
+          readOnly={preview}
+          asId={acting ? student.id : null}
+          subs={subs}
+        />
+
+        {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.
+            "왜 안 보이지" 를 앱 밖에서 알아내게 하면 안 된다. */}
+        {todo.length === 0 && (isStaff || preview || acting) && (
+          <div className="notice" style={{ fontSize: 12.5 }}>
+            <b>선생님께만 보이는 안내</b>
+            <br />
+            {(reports || []).length === 0
+              ? "이 학생의 수업 기록이 아직 하나도 없습니다. 오늘 수업에서 출결을 찍고 저장하면 생깁니다."
+              : dri.length === 0
+              ? `수업 기록은 ${reports.length}개 있는데 숙제 줄이 하나도 없습니다. 오늘 수업에서 '다음 숙제' 를 고른 뒤 저장을 눌렀는지 확인해주세요.`
+              : "숙제 줄은 있는데 '배정' 상태인 것이 없습니다. 검사(○△✕)만 하고 다음 숙제를 안 골랐을 때 이렇게 됩니다."}
+          </div>
+        )}
+
+        {/* **전체 목록 — 하원 숙제 · 등원 학습 둘 다.**
+            위는 하나씩 순서대로 하는 자리(타이머·체크)고, 여기는 한 번에 다
+            보이는 자리다. 집에서 폰을 못 쓰는 아이가 찍어 가거나 적어 간다.
+            (전에는 화면 맨 아래에 있었다. 자기 숙제와 멀리 떨어져 있으면
+             거기까지 안 내려간다 — 그래서 각자 제 자리로 올렸다.) */}
+        <HomeworkSheet
+          title="하원 숙제 전체"
+          items={todo}
+          dateLabel={assignedFrom ? dayLabel(assignedFrom.date) : ""}
+        />
+        <HomeworkSheet
+          title="등원 학습 전체"
+          items={inClass}
+          dateLabel={latest?.date ? dayLabel(latest.date) : ""}
+        />
 
         {latest && (latest.word_total || latest.sent_total || latest.own_progress) && (
           <div className="card">
@@ -859,76 +1011,65 @@ export default async function MePage({ searchParams }) {
           </div>
         )}
 
-        {calendar.length > 0 && (
-          <DashCalendar ym={today.slice(0, 7)} items={calendar} today={today} links={false} />
-        )}
-
         <VideoList videos={myVideos} asId={acting ? student.id : null} readOnly={preview} />
 
-        {/* 학원에서 온 공지 — 학교 종이를 찍어 보내주신 것도 여기 온다 */}
-        {notice2.length > 0 && (
+        {/* ── 5. 선생님 도움 · 쉬는 시간 ───────────────────────────
+            **말로 끼어드는 대신 누른다.** 선생님 현황판에 바로 뜬다 (0084·0085).
+            선생님 대신 눌러주는 미리보기(acting)에서는 안 낸다 — 그 아이가
+            누른 것으로 잘못 남는다.
+            도움을 청하는 세 가지(지금 상태 · 보내는 글 · 질문)를 한자리에 모은다.
+            급할 때 화면을 뒤지게 하면 안 된다. */}
+        {!preview && !acting && (
+          <StateCard mine={myState} unavailable={stateOff} />
+        )}
+
+        {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} />}
+
+        {latest && (
           <div className="card">
-            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>공지사항</h2>
-            <div className="stack" style={{ gap: 12 }}>
-              {notice2.map((n) => (
-                <div key={n.id} className="stack" style={{ gap: 6 }}>
-                  <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                    <span className="hint">{dayLabel(n.date)}</span>
-                    {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
-                  </div>
-                  {n.body && n.body !== n.title && (
-                    <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
-                  )}
-                  <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
-                </div>
+            <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>선생님께 질문</h2>
+            <p className="hint" style={{ margin: "0 0 8px" }}>
+              숙제나 수업에 대해 궁금한 게 있으면 여기에 남겨주세요. 선생님이 확인합니다.
+            </p>
+            <Comments reportId={latest.id} studentId={student.id} me={myRole} />
+          </div>
+        )}
+
+        {/* ── 6. 수업 가이드 ──────────────────────────────────────
+            카톡으로 보내주시던 안내(단어 외우는 법 · 수업 규칙 · 교재 사는 곳).
+            카톡은 하루 만에 밀려 올라가고 새로 온 아이에게는 아예 안 간다.
+            여기 붙여두면 **언제든 그 자리에 있다** (설정 → 수업 가이드 링크). */}
+        {guides.length > 0 && (
+          <div className="card">
+            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>수업 가이드</h2>
+            <div className="stack" style={{ gap: 6 }}>
+              {guides.map((g) => (
+                <a
+                  key={g.id}
+                  className="unitrow"
+                  href={g.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <span style={{ fontSize: 13.5, fontWeight: 700, flex: 1 }}>{g.title}</span>
+                  {g.note && <span className="hint">{g.note}</span>}
+                  <span className="tag tag-sky">열기 →</span>
+                </a>
               ))}
             </div>
           </div>
         )}
 
-        {notices.length > 0 && (
-          <div className="card">
-            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>
-              공지{" "}
-              <span className="tag tag-amber" style={{ fontSize: 11 }}>
-                선생님께만 보임
-              </span>
-            </h2>
-            <p className="hint" style={{ margin: "-6px 0 8px", fontSize: 12 }}>
-              학부모께 나가는 문장입니다. 학생 화면에는 나오지 않습니다.
-            </p>
-            <div className="stack" style={{ gap: 6 }}>
-              {notices.map((n) => (
-                <div key={n.date}>
-                  <span className="hint">{dayLabel(n.date)}</span>
-                  <div style={{ fontSize: 13.5 }}>{n.body}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* ── 7. 달력 — 수업일 · 시험 · 결석 ─────────────────────── */}
+        {calendar.length > 0 && (
+          <DashCalendar ym={today.slice(0, 7)} items={calendar} today={today} links={false} />
         )}
 
         <form action="/logout" method="post">
           <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>
         </form>
       </div>
-      {/* **맨 아래에 전체 목록.** 집에서 폰을 못 쓰는 아이가 찍어 가거나
-          종이에 옮겨 적을 수 있게. 위쪽은 하나씩 순서대로 하는 자리고,
-          여기는 한 번에 다 보이는 자리다 — 쓰임이 다르니 둘 다 둔다. */}
-      {/* **전체 목록 — 하원숙제 · 등원학습 둘 다.**
-          위쪽은 하나씩 순서대로 하는 자리(타이머·체크)고, 여기는 한 번에 다
-          보이는 자리다. 집에서 폰을 못 쓰는 아이가 찍어 가거나 적어 간다. */}
-      <HomeworkSheet
-        title="하원 숙제 전체"
-        items={todo}
-        dateLabel={assignedFrom ? dayLabel(assignedFrom.date) : ""}
-      />
-      <HomeworkSheet
-        title="등원 학습 전체"
-        items={inClass}
-        dateLabel={latest?.date ? dayLabel(latest.date) : ""}
-      />
-
     </main>
   );
 }

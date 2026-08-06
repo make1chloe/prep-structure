@@ -50,9 +50,12 @@ export default function StudyTabs({
     );
   }
 
+  // 원장님이 주신 순서 그대로 — 하원 숙제가 먼저다 (2026-08-06).
+  // 어느 쪽을 **펼쳐줄지**는 위에서 상황을 보고 정한다. 순서와 별개다:
+  // 학원에 있으면 등원 중 할 일이 열리고, 집이면 숙제가 열린다.
   const tabs = [
-    ["inclass", "등원 중 할 일", inClassLeft, inClass.length],
     ["home", "하원 후 숙제", homeLeft, home.length],
+    ["inclass", "등원 중 할 일", inClassLeft, inClass.length],
   ];
 
   return (

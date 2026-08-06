@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { randomInt } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { parentLoginId } from "@/lib/studentId";
 import { SUPABASE_URL } from "@/lib/supabase/env";
@@ -12,7 +11,7 @@ import { baseLoginId, resolveLoginId } from "@/lib/studentId";
  *
  * 아이들은 이메일 주소도 비밀번호도 잊어버린다. 그래서 학원이 아이디를 준다.
  *   아이디  chloe0001  (재원생 목록에서 뽑는다)
- *   비번    계정마다 다른 네 자리 (처음 들어오면 학생이 바꾼다)
+ *   비번    0000 — 처음 들어오면 **반드시** 자기 것으로 바꾼다
  * 또 잊으면 원장님이 새로 만들어 준다.
  *
  * Supabase 로그인은 이메일만 받으므로 아이디에 도메인을 붙여 속으로만
@@ -25,30 +24,23 @@ import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 
 const DOMAIN = "chloe-eng.internal";     // 실제로 메일이 가는 곳이 아니다
 /**
- * **첫 비밀번호는 계정마다 다르게** (원장님, 2026-08-05).
+ * **첫 비밀번호는 학생·학부모 모두 0000** (원장님, 2026-08-06).
  *
- * 전에는 모두 0000 이었다. 아이디는 규칙으로 만들어서 남이 짐작할 수 있는데
- * (학부모는 전화번호 그대로다) 비번까지 모두가 아는 0000 이면, 번호만 알면
- * 남의 계정에 들어갈 수 있다. **아이디가 짐작되는 만큼 비번은 달라야 한다.**
+ * 하루는 계정마다 다른 네 자리를 뽑아 준 적이 있다. 아이디가 규칙으로
+ * 만들어지니 비번이라도 달라야 한다는 생각이었는데, 나눠주는 자리에서
+ * 무너졌다 — 스무 명에게 스무 개의 번호를 각각 불러드려야 하고, 잘못
+ * 적어 가면 그 아이는 아예 못 들어온다. 결국 원장님이 종이에 적어
+ * 들고 다니시게 된다. **적어 다니는 비번은 안 바뀐 비번보다 위험하다.**
  *
- * 네 자리로 둔다. 한 번 쓰고 바로 바꾸는 것이라 외울 일이 없고, 전화로
- * 불러드리기도 짧다.
- *
- * 0000·1111 처럼 같은 숫자만 있거나 1234·4321 처럼 이어지는 것은 뺀다 —
- * 그런 것이 나오면 「이거 임시 비번인가?」 하고 안 바꾸시는 일이 생긴다.
+ * 그래서 0000 하나로 통일한다. 대신 **0000 으로는 아무것도 못 한다** —
+ * 로그인하면 곧바로 비밀번호 정하는 화면이 뜨고, 자기 것을 정하기 전에는
+ * 그 화면을 지나갈 수 없다 (must_change_pw · app/me/ChangePw).
+ * 안전은 「첫 비번이 무엇인가」가 아니라 「0000 인 채로 쓸 수 있는가」로 지킨다.
  */
+const INIT_PW = "0000";
+
 function makePw() {
-  for (let i = 0; i < 50; i += 1) {
-    const n = randomInt(0, 10000);
-    const p = String(n).padStart(4, "0");
-    if (/^(\d)\1{3}$/.test(p)) continue;                    // 0000 · 7777
-    const d = [...p].map(Number);
-    const up = d.every((x, j) => j === 0 || x === d[j - 1] + 1);
-    const down = d.every((x, j) => j === 0 || x === d[j - 1] - 1);
-    if (up || down) continue;                                // 1234 · 4321
-    return p;
-  }
-  return String(randomInt(1000, 10000));
+  return INIT_PW;
 }
 
 function emailOf(loginId) {
@@ -188,7 +180,7 @@ export async function createStudentLogin(studentId, wantId) {
   return { error: null, loginId, password: pw };
 }
 
-/** 비밀번호를 새로 만든다 (아이가 잊었을 때). 계정마다 다른 네 자리가 나온다 */
+/** 비밀번호를 새로 만든다 (아이가 잊었을 때). 다시 0000 이 되고, 들어오면 바로 바꾼다 */
 export async function resetStudentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
@@ -407,6 +399,8 @@ export async function accountStatus(studentId) {
  *
  * 비밀번호·첫 로그인 비번 바꾸기는 **학생과 똑같다** (0000 · must_change_pw).
  * 규칙을 둘로 두면 「학부모는 어떻게 하더라」 를 매번 다시 떠올려야 한다.
+ * 어머니께 드릴 말씀도 한 줄로 끝난다 — 「아이디는 어머니 번호, 비번은 0000,
+ * 들어가시면 바꾸라고 나옵니다」.
  */
 export async function createAllParentLogins() {
   const supabase = createClient();

@@ -33,7 +33,8 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
 
   function send(list) {
     if (list.length === 0) return;
-    if (mode !== "copy" && !confirm(`${list.length}명에게 월간리포트를 보낼까요?`)) return;
+    // 앱으로 나간다 (2026-08-06) — 발송 방식과 상관없이 언제나 실제로 나간다
+    if (!confirm(`${list.length}명에게 월간리포트를 앱으로 보낼까요?\n학부모 화면에 올라가고 폰으로 알림이 갑니다.`)) return;
     startTransition(async () => {
       const res = await sendMonthly(
         list.map((r) => ({ studentId: r.studentId, name: r.name, phone: r.phone, body: r.text })),

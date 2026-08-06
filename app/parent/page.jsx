@@ -11,6 +11,7 @@ import RequestForm from "@/app/me/RequestForm";
 import NoticePhotos from "@/components/NoticePhotos";
 import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
+import ChangePw from "@/app/me/ChangePw";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +37,27 @@ export default async function ParentPage({ searchParams }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles").select("id, name, role").eq("id", user.id).maybeSingle();
+  let { data: profile, error: profErr } = await supabase
+    .from("profiles").select("id, name, role, must_change_pw").eq("id", user.id).maybeSingle();
+  if (profErr) {
+    // 0045 전이면 비밀번호 깃발 없이
+    ({ data: profile } = await supabase
+      .from("profiles").select("id, name, role").eq("id", user.id).maybeSingle());
+  }
   const isStaff = STAFF.includes(profile?.role);
+
+  /**
+   * **0000 인 채로는 아무것도 못 본다** (원장님, 2026-08-06).
+   *
+   * 첫 비번은 학생·학부모 모두 0000 이다. 학부모 아이디는 전화번호 그대로라
+   * 남이 짐작하기 쉬운 만큼, 0000 을 지나칠 수 있으면 그 순간 남의 아이
+   * 성적·출결이 열린다. 그래서 학생 화면(/me)과 **똑같이** 여기서도 막는다 —
+   * 한쪽만 막으면 막힌 쪽에서 다른 쪽 주소를 치면 그만이다.
+   */
+  if (profile?.must_change_pw && !isStaff) {
+    // 계정 이름은 「서은·지호 학부모」 로 지어둔다 — 그대로 부르면 「학부모 학부모님」 이 된다
+    return <ChangePw name={(profile?.name || "").replace(/\s*학부모$/, "")} who="parent" />;
+  }
 
   // 내 아이들 (형제자매가 있으면 여럿)
   let children = [];

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
-import { pushToStudents } from "@/app/push/actions";
+import { pushToFamilies, pushToStudents } from "@/app/push/actions";
 import { dowOf } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 
@@ -392,8 +392,35 @@ export async function createNotice(input) {
     .insert(targets.map((student_id) => ({ notice_id: notice.id, student_id })));
   if (rErr) return { error: rErr.message };
 
+  /**
+   * **올렸으면 알린다** (원장님, 2026-08-06).
+   *
+   * 「일정 관련 안내가 나갈 때」 는 학생에게 알림이 가야 한다. 올려두기만 하면
+   * 앱을 열어야 알고, 앱을 여는 것은 대개 숙제할 때다 — 그때는 이미 늦다.
+   *
+   * 학부모 공지(kind='notice')는 아이 화면에 안 뜨므로 **어머니 폰으로만**
+   * 보낸다. 안 보이는 것을 알리면 아이는 그다음부터 알림을 안 누른다.
+   * 알림이 실패해도 공지는 이미 올라가 있다.
+   */
+  try {
+    const toParent = row.kind === "notice";
+    await pushToFamilies(
+      targets,
+      {
+        title: head || (toParent ? "학원 안내" : "전달사항"),
+        body: (text || head || "").split("\n")[0].slice(0, 80) || "앱에서 확인해주세요",
+        url: toParent ? "/parent" : "/me",
+        tag: `notice-${notice.id}`,
+      },
+      toParent ? "parent" : "all"
+    );
+  } catch {
+    /* 알림 실패는 무시한다 */
+  }
+
   revalidatePath("/today");
   revalidatePath("/me");
+  revalidatePath("/parent");
   return { error: null, count: targets.length, id: notice.id };
 }
 

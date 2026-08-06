@@ -81,9 +81,15 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
     copy(text, "bulk");
   }
 
-  const sendsForReal = mode !== "copy";
-  // 이 화면에서 나가는 것이 알림톡인지 문자인지 — **보내기 전에** 보여준다
-  const talk = mode === "sms" && chans.report === "alimtalk";
+  /**
+   * **데일리리포트는 앱으로 나간다** (원장님, 2026-08-06).
+   *
+   * 재원생 학부모께 가던 것이라 문자·알림톡을 쓰지 않는다. 내용은 이미
+   * 학부모 화면의 「최근 수업」에 그대로 있고, 보내기를 누르면 그 집 폰으로
+   * 알림이 간다. 그래서 발송 방식(mode)과 상관없이 **언제나 실제로 나간다** —
+   * 「직접 발송이라 기록만」 이 없다.
+   */
+  const sendsForReal = true;
 
   function send(list) {
     if (list.length === 0) return;
@@ -102,7 +108,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
     }
     if (sendsForReal) {
       const who = list.length === 1 ? `${list[0].name} 학생 학부모` : `${list.length}명`;
-      if (!confirm(`${who}에게 지금 문자를 보낼까요?`)) return;
+      if (!confirm(`${who}에게 앱으로 보낼까요?\n학부모 화면에 올라가고 폰으로 알림이 갑니다.`)) return;
     }
     startTransition(async () => {
       const res = await sendReports(
@@ -227,14 +233,9 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}명 선택</b>
-          {sendsForReal && (
-            <span className={`tag ${talk ? "tag-mint" : "tag-muted"}`}
-              title={talk
-                ? "알림톡으로 나갑니다. 막힌 번호에는 문자로 대신 나가요"
-                : "문자로 나갑니다. 알림톡으로 바꾸려면 설정 → 문자 문구에서 템플릿 코드를 붙이세요"}>
-              {talk ? "알림톡" : "문자"}로 나감
-            </span>
-          )}
+          <span className="tag tag-mint" title="학부모 화면에 올라가고, 그 집 폰으로 알림이 갑니다. 문자는 나가지 않습니다">
+            앱으로 나감
+          </span>
           <button className="btn btn-primary btn-sm" onClick={copySelected} disabled={pending}>
             {copied === "bulk" ? "복사됨 ✓" : "문구 한 번에 복사"}
           </button>
@@ -243,7 +244,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
             onClick={() => send(rows.filter((r) => sel.has(r.id)))}
             disabled={pending}
           >
-            {sendsForReal ? "선택한 학생에게 보내기" : "보냄으로 표시"}
+            선택한 학생에게 보내기
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => cancelSend([...sel])} disabled={pending}>
             발송 취소
@@ -344,7 +345,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                     onClick={() => (r.sentAt ? cancelSend([r.id]) : send([r]))}
                     disabled={pending}
                   >
-                    {r.sentAt ? "발송 취소" : sendsForReal ? "보내기" : "보냄"}
+                    {r.sentAt ? "발송 취소" : "보내기"}
                   </button>
                 </div>
 
@@ -384,18 +385,11 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>
-        {sendsForReal ? (
-          <>
-            <b>보내기</b>를 누르면 설정한 방식으로 바로 발송됩니다. 방식은{" "}
-            <a className="sky" href="/settings">설정 · 발송</a> 에서 바꿀 수 있어요.
-          </>
-        ) : (
-          <>
-            지금은 <b>직접 발송</b> 방식이에요. <b>복사 → 문자 앱에서 붙여넣기</b> 로 보내고
-            <b> 보냄</b>을 눌러 기록해주세요.{" "}
-            <a className="sky" href="/settings">설정 · 발송</a> 에서 문자 자동 발송으로 바꿀 수 있습니다.
-          </>
-        )}
+        <>
+          <b>보내기</b>를 누르면 <b>학부모 화면</b>에 올라가고 그 집 폰으로 알림이 갑니다.
+          문자·알림톡은 나가지 않습니다 — 밖으로 나가는 것은 아직 계정이 없는
+          <b> 신규 상담</b>뿐이에요.
+        </>
       </p>
     </>
   );

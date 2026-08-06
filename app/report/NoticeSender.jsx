@@ -144,6 +144,16 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
   }
 
   const sendsForReal = mode !== "copy";
+  /**
+   * **재원생에게는 앱으로 간다** (원장님, 2026-08-06).
+   *
+   * 교재 · 보강 · 늦은 귀가 … 알림톡으로 보내던 것을 전부 앱 안에서 해결하기로
+   * 했다. 그래서 재원생 쪽은 발송 방식(문자/직접)과 상관없이 **언제나 실제로
+   * 나간다** — 앱 공지로 올라가고 집으로 알림이 간다. 문자는 한 통도 안 나간다.
+   * 밖으로 나가는 것은 **아직 계정이 없는 신규 상담**뿐이다.
+   */
+  const toApp = who === "student";
+  const realSend = toApp || sendsForReal;
 
   // 교재를 말하는 문구인가 — 그러면 **어느 책을 안내할지 고르게 한다.**
   const usesBooks = /\{\{\s*교재(목록|비)\s*\}\}/.test(body || "");
@@ -175,7 +185,14 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       alert("안내할 교재를 한 권 이상 골라주세요.");
       return;
     }
-    if (sendsForReal && !confirm(`${picked.length}명에게 지금 문자를 보낼까요?`)) return;
+    if (
+      realSend &&
+      !confirm(
+        toApp
+          ? `${picked.length}명에게 앱으로 안내를 보낼까요?\n앱 공지에 올라가고 아이·어머니 폰으로 알림이 갑니다. 문자는 나가지 않습니다.`
+          : `${picked.length}명에게 지금 문자를 보낼까요?`
+      )
+    ) return;
     startTransition(async () => {
       const res = await sendNotices(
         picked.map((r) => ({
@@ -197,7 +214,9 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       }
       // 이 이름을 `msg` 로 두면 안 된다 — 바깥의 msg(문구 설정) 를 가려서,
       // 위 fill() 이 아직 만들어지지도 않은 이것을 보게 된다 (TDZ 오류).
-      let done = sendsForReal
+      let done = toApp
+        ? `${res.count}명에게 앱으로 보냈어요. 앱 공지에 올라가고 알림이 갑니다.`
+        : sendsForReal
         ? `${res.count}명에게 보냈어요.`
         : `${res.count}명 처리했어요. (직접 발송 방식이라 실제 발송은 안 됩니다)`;
 
@@ -536,6 +555,8 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
             <button className="btn btn-primary" onClick={send} disabled={pending || picked.length === 0}>
               {pending
                 ? "처리 중…"
+                : toApp
+                ? `${picked.length}명에게 앱으로 보내기`
                 : sendsForReal
                 ? `${picked.length}명에게 보내기`
                 : `${picked.length}명 문구 만들기`}
@@ -555,11 +576,19 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
               {copied === "bulk" ? "복사됨 ✓" : "문구 한 번에 복사"}
             </button>
           </div>
-          {!sendsForReal && (
+          {toApp ? (
             <p className="hint" style={{ marginTop: 8 }}>
-              지금은 <b>직접 발송</b> 방식이에요. 복사해서 문자 앱으로 보내시면 됩니다.{" "}
-              <a className="sky" href="/settings">설정 · 발송</a> 에서 자동 발송으로 바꿀 수 있어요.
+              재원생·학부모께는 <b>앱 안 공지</b>로 나갑니다 — 문자·알림톡은 쓰지 않습니다.
+              어머니 폰에는 앱 알림으로 뜹니다 (앱을 홈 화면에 담고 알림 받기를 켜두셔야 합니다).
+              문자로 나가는 것은 <b>아직 계정이 없는 신규 상담</b>뿐이에요.
             </p>
+          ) : (
+            !sendsForReal && (
+              <p className="hint" style={{ marginTop: 8 }}>
+                지금은 <b>직접 발송</b> 방식이에요. 복사해서 문자 앱으로 보내시면 됩니다.{" "}
+                <a className="sky" href="/settings">설정 · 발송</a> 에서 자동 발송으로 바꿀 수 있어요.
+              </p>
+            )
           )}
         </div>
       </div>

@@ -44,6 +44,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
       return;
 
     startTransition(async () => {
+      if (!confirm(`${list.length}건을 앱으로 보낼까요?\n학부모 화면 공지에 올라가고 폰으로 알림이 갑니다.`)) return;
       const res = await resend(
         list.map((r) => ({ id: r.id, phone: r.phone, name: r.name, body: r.lateText, date })),
         "late"
@@ -178,21 +179,13 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
         <p className="hint" style={{ margin: 0 }}>
           단어 재시험·숙제 마무리가 있으면 <b>사유가 자동으로</b> 잡힙니다. 하원 시간은{" "}
           <b>오늘 수업</b> 학생 칸에서 넣으시면 됩니다. 여기는 빠뜨린 학생을 챙기는 자리입니다.
-          {mode === "copy" && " (지금은 직접 발송 모드라 기록만 남습니다)"}
         </p>
         {/* 나가고 나서 「어 이거 문자로 갔네」 를 알면 늦다. 보내기 전에 여기서 말해준다. */}
-        {mode === "sms" && (
-          <p className="hint" style={{ margin: "8px 0 0" }}>
-            이 안내는 <b>{chans.late === "alimtalk" ? "알림톡" : "문자"}</b>로 나갑니다.
-            {chans.late !== "alimtalk" && (
-              <>
-                {" "}알림톡으로 보내시려면{" "}
-                <a className="sky" href="/settings/messages">설정 · 문자 문구</a> 에서
-                「하원 안내」에 <b>승인받은 알림톡 템플릿을 붙여</b>주세요. 붙이기 전까지는 문자로 나갑니다.
-              </>
-            )}
-          </p>
-        )}
+        <p className="hint" style={{ margin: "8px 0 0" }}>
+          이 안내는 <b>앱</b>으로 나갑니다 — 학부모 화면 공지에 올라가고, 그 집 폰으로
+          알림이 갑니다. 문자·알림톡은 쓰지 않습니다 (원장님, 2026-08-06).
+          어머니께 알림이 뜨려면 <b>앱을 홈 화면에 담고 알림 받기를 켜두셔야</b> 합니다.
+        </p>
       </div>
 
       {targets.length === 0 && (

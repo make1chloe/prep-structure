@@ -24,7 +24,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-05 · 0001~0081 · 81개)
+--   (2026-08-06 · 0001~0089 · 89개)
 -- ============================================================
 
 -- ─────────── 0008_homework_unit.sql ───────────
@@ -4057,3 +4057,387 @@ grant select on public.app_assets to anon, authenticated;
 
 -- 바꾸는 것은 여전히 원장님만이다 (0080 의 정책이 그대로 판단한다).
 grant insert, update, delete on public.app_assets to authenticated;
+
+-- ─────────── 0082_todo_routines.sql ───────────
+-- 0082: 주기적으로 되풀이되는 할일
+--
+-- 원장님 (2026-08-05) — 「주기적으로 할일을 관리하고 싶어, 기본 학습 목록처럼」
+--
+-- 학습 항목(homework_items)이 「무엇을 내줄 수 있나」 를 한 곳에 모아둔 것처럼,
+-- **되풀이되는 할일도 한 곳에** 적어둔다. 매달 수강료 안내, 매주 월요일 교재
+-- 점검, 매년 3월 학사일정 받아오기 — 이런 것들이다.
+--
+-- 설계 (원칙1: 같은 값 두 번 적지 않기)
+--   · 되풀이 **규칙**만 여기 적는다. 실제 할일은 tasks 에 그대로 만들어진다.
+--   · 만들어진 할일은 auto_key = 'routine:<루틴id>:<날짜>' 를 달고 있어서,
+--     화면을 몇 번 열어도 **한 번만** 생긴다 (0028·0061 의 유일 인덱스).
+--   · 그래서 체크·미루기·메모는 여느 할일과 똑같이 하면 된다.
+--     여기에 「이번 달 했나」 를 따로 적어두지 않는다 — 두 군데가 되면 어긋난다.
+
+create table if not exists public.todo_routines (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null,
+  -- 어떤 주기인가
+  --   weekly  : dows 에 적은 요일마다        (예: 월·금)
+  --   monthly : 매달 day_of_month 일          (말일은 31 로 적으면 그 달 말일)
+  --   yearly  : 매년 month 월 day_of_month 일
+  repeat_kind text not null default 'monthly',
+  dows        text[] not null default '{}',   -- ['월','금']
+  day_of_month int,
+  month        int,
+  -- 며칠 전부터 할일로 띄울까. 0 이면 그날 아침에 뜬다.
+  -- (수강료 안내처럼 미리 준비할 것이 있으면 3~5일 앞이 낫다)
+  lead_days   int not null default 0,
+  todo_category_id uuid references public.todo_categories(id) on delete set null,
+  priority    int not null default 0,
+  note        text,
+  active      boolean not null default true,
+  sort        int not null default 0,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists todo_routines_active_idx on public.todo_routines (active, sort);
+
+comment on table public.todo_routines is
+  '되풀이되는 할일의 규칙. 실제 할일은 tasks 에 auto_key=routine:<id>:<날짜> 로 만들어진다.';
+
+-- ------------------------------------------------------------
+-- 권한 — 선생님만 본다. 학생·학부모에게 보일 것이 아니다.
+-- (정책만 걸고 GRANT 를 빠뜨리면 조용히 막힌다 — 0081 에서 겪었다)
+-- ------------------------------------------------------------
+alter table public.todo_routines enable row level security;
+
+drop policy if exists todo_routines_staff on public.todo_routines;
+create policy todo_routines_staff on public.todo_routines
+  for all
+  using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('principal', 'instructor', 'assistant')
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid()
+        and p.role in ('principal', 'instructor', 'assistant')
+    )
+  );
+
+grant select, insert, update, delete on public.todo_routines to authenticated;
+
+-- ─────────── 0083_todo_routine_events.sql ───────────
+-- 0083: 되풀이 할일에 **사건**을 더한다
+--
+-- 원장님 (2026-08-05)
+--   「되풀이 할일이 신규 등록 시 할일이면 어떻게 해?」
+--   「단어 교재 진도 끝나면 시험지 인쇄랑 클래스카드 플래너 설정 해야 하는데」
+--
+-- 둘 다 「때가 되면 늘 하는 일」 이다. 다만 그 **때**가 날짜가 아니다.
+--   · 신규 학생이 들어오면  → 교재 안내 · 반 배정 · 계정 만들기 …
+--   · 교재 진도가 끝나가면  → 시험지 인쇄 · 클래스카드 플래너 설정 …
+--
+-- 표를 새로 만들지 않는다. 0082 의 todo_routines 가 이미 「규칙을 적어두면
+-- 때가 왔을 때 할일이 생긴다」 는 일을 한다. 여기에 **계기**만 늘린다.
+-- 그래야 적는 자리도 하나, 고치는 자리도 하나다.
+--
+-- repeat_kind 에 두 가지가 늘어난다
+--   student   신규 학생이 들어오면 그 학생마다 한 번
+--   book_end  배정한 교재의 남은 단원이 lead_units 개 이하가 되면 한 번
+--
+-- 열쇠(tasks.auto_key)
+--   routine:<id>:<날짜>                       — 날짜로 되풀이하는 것 (0082)
+--   routine:<id>:s:<학생id>                   — 신규 학생
+--   routine:<id>:b:<학생id>:<교재id>:<회독>   — 교재 끝나감
+-- 회독이 열쇠에 들어간다. 2회독을 돌면 시험지도 다시 뽑아야 하기 때문이다.
+
+-- 교재가 **몇 단원 남았을 때** 띄울까. 0 이면 다 끝난 뒤.
+alter table public.todo_routines add column if not exists lead_units int not null default 2;
+
+-- 어떤 교재에만 걸까. 비우면 배정된 교재 전부.
+--   area  : 교재 영역 (단어 · 독해 · 문법 …) — 「단어 교재만」 이 실제 쓰임새다
+alter table public.todo_routines add column if not exists book_area text;
+
+comment on column public.todo_routines.lead_units is
+  'book_end 일 때 — 남은 단원이 이 수 이하가 되면 할일을 만든다. 0이면 다 끝난 뒤.';
+comment on column public.todo_routines.book_area is
+  'book_end 일 때 — 이 영역의 교재에만 건다. 비우면 배정된 교재 전부.';
+
+-- ─────────── 0084_student_activity.sql ───────────
+-- 0084: 지금 이 아이가 **뭘 하고 있나** — 새로고침 없이 바로 보이게
+--
+-- 원장님 (2026-08-05)
+--   「학생들한테 시험 볼 때 얘기하려고 했더니, 다른 학생 설명 중일 때
+--    끼어들어서 말해. 시험 중 / 채점 중 / 문제 푸는 중 등 뭘 하고 있는지
+--    새로고침 안 해도 실시간으로 반영되는 거 가능할까?」
+--
+-- 한 반에 여럿이 각자 다른 것을 한다. 지금 누가 시험 중인지 눈으로 세고
+-- 있으면 설명하다 말고 고개를 들어야 하고, 그 사이에 아이가 끼어든다.
+--
+-- 설계
+--   · 학생 한 명당 **한 줄**이다. 기록이 아니라 **지금 상태**라서 쌓지 않는다.
+--     (몇 시에 무엇을 했는지는 오늘 수업 기록이 따로 남긴다)
+--   · 날짜를 같이 둔다. 어제 「시험 중」 이 오늘 아침까지 떠 있으면 안 된다.
+--   · 실시간은 Postgres 의 변경 알림(realtime)을 그대로 쓴다. 우리가 몇 초마다
+--     물어보는 방식은 쓰지 않는다 — 수업 중에 배터리와 통신을 계속 먹는다.
+
+create table if not exists public.student_activity (
+  student_id uuid primary key references public.students(id) on delete cascade,
+  date       date not null default current_date,
+  -- idle(없음) · test(시험 중) · grading(채점 중) · solving(문제 푸는 중)
+  -- · lesson(설명 듣는 중) · break(쉬는 중) · done(끝)
+  -- 무엇이 있는지는 앱(lib/activity)에 적어둔다. 여기서는 글자로 받는다 —
+  -- 상태 하나 늘릴 때마다 SQL 을 돌리게 하면 안 된다.
+  state      text not null default 'idle',
+  note       text,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references auth.users(id) on delete set null
+);
+
+create index if not exists student_activity_date_idx on public.student_activity (date);
+
+comment on table public.student_activity is
+  '지금 이 학생이 뭘 하고 있나. 기록이 아니라 현재 상태라 학생당 한 줄만 둔다.';
+
+-- ------------------------------------------------------------
+-- 권한 — 선생님만. 학생·학부모에게 보일 것이 아니다.
+-- (정책만 걸고 GRANT 를 빠뜨리면 조용히 막힌다 — 0081 에서 겪었다)
+-- ------------------------------------------------------------
+alter table public.student_activity enable row level security;
+
+drop policy if exists student_activity_staff on public.student_activity;
+create policy student_activity_staff on public.student_activity
+  for all
+  using (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role in ('principal', 'instructor', 'assistant')
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role in ('principal', 'instructor', 'assistant')
+    )
+  );
+
+grant select, insert, update, delete on public.student_activity to authenticated;
+
+-- ------------------------------------------------------------
+-- 실시간 — 이 표의 변경을 브라우저로 흘려보낸다.
+--
+-- **이게 없으면 조용히 안 온다.** 화면에서는 「안 바뀐다」 로만 보이고,
+-- 어디가 막혔는지 알 방법이 없다 (로고가 404 로 떨어지던 것과 같은 종류다).
+-- 그래서 여기서 못 박아 둔다.
+-- ------------------------------------------------------------
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'student_activity'
+  ) then
+    -- 발행이 아직 없는 프로젝트면 만들지 않는다 (수파베이스가 만들어 둔다)
+    if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+      alter publication supabase_realtime add table public.student_activity;
+    end if;
+  end if;
+end $$;
+
+-- 지운 줄까지 알려면 이전 값이 필요하다 (기본은 열쇠만 온다)
+alter table public.student_activity replica identity full;
+
+-- ─────────── 0085_activity_student.sql ───────────
+-- 0085: 학생도 **자기 상태만** 바꿀 수 있게
+--
+-- 원장님 (2026-08-05) — 「학생 페이지에서 체크하면 그 내용이 현황판에 반영되게」
+--
+-- 0084 는 선생님만 쓸 수 있었다. 그런데 지금 뭘 하고 있는지 제일 잘 아는 것은
+-- 그 아이 자신이고, 선생님은 설명하는 중이라 눌러줄 손이 없다.
+--
+-- **자기 줄만** 이다. 남의 상태를 바꿀 수 있으면 장난이 사고가 된다.
+-- my_student_id() 는 지금 로그인한 사람의 학생 id 를 돌려준다 (0047).
+--
+-- 읽기도 자기 것만이다. 학생이 반 전체가 뭘 하는지 볼 까닭은 없고,
+-- 「누가 시험 중인지」 는 학생끼리 알 일이 아니다.
+
+drop policy if exists student_activity_mine on public.student_activity;
+create policy student_activity_mine on public.student_activity
+  for all
+  using (student_id = public.my_student_id())
+  with check (student_id = public.my_student_id());
+
+-- 학생이 무엇으로 바꿨는지 선생님이 알아야 한다.
+-- 「선생님이 눌렀나 아이가 눌렀나」 는 판단이 달라진다 —
+-- 아이가 「도움 필요」 를 누른 것은 지금 가보셔야 한다는 뜻이다.
+alter table public.student_activity add column if not exists by_student boolean not null default false;
+
+comment on column public.student_activity.by_student is
+  '학생이 자기 화면에서 누른 것인가. 선생님이 눌러둔 것과 구별해서 보여준다.';
+
+-- ─────────── 0086_activity_realtime.sql ───────────
+-- 0086: 학생이 **이미 누르고 있는 것**을 실시간으로 흘려보낸다
+--
+-- 원장님 (2026-08-05)
+--   「내가 바꾸는 게 아니고, 학생이 자기가 뭘 다 했는지 누르면 나한테 보이는 걸 원하는 거야」
+--
+-- 맞다. 상태를 손으로 골라 넣게 하면 그것부터 일이 된다. 아이는 이미 누르고
+-- 있다 — 학습을 시작하면 타이머가 돌고(study_sessions), 다 하면 「다 했어요」
+-- 를 눌러 student_done_at 이 찍힌다(daily_report_items).
+--
+-- **새 표를 만들지 않는다.** 그 두 표의 변경을 실시간으로 받기만 하면 된다.
+-- 무엇을 몇 개 했는지는 서버가 늘 세던 대로 세고, 알림이 오면 다시 센다.
+--
+-- 이게 없으면 조용히 안 온다. 화면에서는 「안 바뀐다」 로만 보이고 어디가
+-- 막혔는지 알 방법이 없다 (0084 에서 같은 것을 못 박아 뒀다).
+
+do $$
+declare t text;
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    return;                       -- 수파베이스가 만들어 두는 것이라, 없으면 건너뛴다
+  end if;
+  foreach t in array array['daily_report_items', 'study_sessions'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- ─────────── 0087_homework_changed.sql ───────────
+-- 0087: 숙제가 **바뀐 것**을 학생이 알아볼 수 있게
+--
+-- 원장님 (2026-08-05)
+--   「선생님이 숙제를 추가하거나 변경하면 변경된 부분은 따로 표시해주고
+--    학생에게 알림이 가게 해줘」
+--
+-- 지금은 저장할 때마다 그 날 항목을 통째로 지우고 다시 넣는다. 그래서 아이
+-- 화면에서는 **무엇이 새로 생겼는지 알 방법이 없다** — 목록이 통째로 새것이다.
+--
+-- 그래서 「언제 바뀌었나」 를 줄마다 적어둔다.
+--   · 처음 저장할 때는 **비워 둔다.** 그날 처음 받은 숙제는 「바뀐 것」이 아니다.
+--   · 나중에 고쳐서 새로 생기거나 범위가 달라진 줄에만 시각을 찍는다.
+-- 그러면 아이 화면에서 「비어 있지 않은 것 = 바뀐 것」 으로 그냥 읽힌다.
+-- 며칠이 지났는지 따로 셈하지 않아도 된다.
+
+alter table public.daily_report_items
+  add column if not exists changed_at timestamptz;
+
+comment on column public.daily_report_items.changed_at is
+  '처음 준 숙제가 아니라 나중에 더하거나 고친 것. 학생 화면에서 「바뀜」 으로 표시한다.';
+
+-- ─────────── 0088_parent_login_id.sql ───────────
+-- 0088: **학부모도 아이디로 로그인되게**
+--
+-- 0079 에서 profiles.login_id 를 만들었는데, 로그인할 때 아이디를 이메일로
+-- 바꿔주는 함수(0045)는 **students 표만** 보고 있었다. 학부모는 students 에
+-- 줄이 없다. 그래서 학부모 계정을 아무리 만들어도 **로그인이 안 된다.**
+--
+-- 화면에는 「아이디 또는 비밀번호가 맞지 않아요」 로만 뜬다 — 아이디가 틀린
+-- 것도 비번이 틀린 것도 아니고 찾을 데를 안 본 것인데, 그걸 알 방법이 없다.
+--
+-- 그리고 **전화번호를 아이디로 쓴다** (원장님, 2026-08-05).
+-- 어머니는 010-1234-5678 처럼 하이픈을 넣어 치실 수 있다. 그때 「맞지 않아요」
+-- 가 뜨면 무엇이 틀렸는지 알 수가 없다. 숫자만 남겨서 한 번 더 찾아본다.
+
+create or replace function public.email_for_login_id(p_login_id text)
+returns text
+language sql
+security definer
+set search_path = public, auth
+as $$
+  with q as (
+    select lower(btrim(p_login_id)) as raw,
+           regexp_replace(btrim(p_login_id), '\D', '', 'g') as digits
+  )
+  select u.email from q, public.students s
+    join public.profiles p on p.id = s.profile_id
+    join auth.users u on u.id = p.id
+   where lower(s.login_id) = q.raw
+  union all
+  -- 학부모·선생님 — students 에 줄이 없다
+  select u.email from q, public.profiles p
+    join auth.users u on u.id = p.id
+   where lower(p.login_id) = q.raw
+  union all
+  -- 하이픈을 넣어 치셨을 때 (010-1234-5678 → 01012345678)
+  select u.email from q, public.profiles p
+    join auth.users u on u.id = p.id
+   where q.digits <> '' and p.login_id = q.digits
+  limit 1;
+$$;
+
+revoke all on function public.email_for_login_id(text) from public;
+grant execute on function public.email_for_login_id(text) to anon, authenticated;
+
+-- **이 SQL 이 돌았는지 알 수 있어야 한다.**
+--
+-- 이건 표도 칸도 안 만들고 **함수의 속만** 고친다. 그래서 「무엇이 있나」 를
+-- 찔러보는 검사로는 옛것과 새것을 가릴 수가 없고, 검사에 안 걸리면
+-- 설정 화면의 「한 번에 실행」 이 이 파일을 아예 건너뛴다.
+-- (0081 에서 똑같은 일을 겪었다 — 확인할 방법이 없는 SQL 은 없는 것과 같다)
+--
+-- 그래서 **표시 하나**를 같이 둔다. 하는 일은 없고, 있는지 없는지가 곧
+-- 이 파일이 돌았는지다.
+create or replace function public.login_lookup_v2()
+returns boolean language sql immutable as $$ select true $$;
+
+grant execute on function public.login_lookup_v2() to anon, authenticated;
+
+-- ─────────── 0089_class_guides.sql ───────────
+-- 0089: 수업 가이드 링크
+--
+-- 원장님 (2026-08-06) — 「수업 가이드 링크를 설정에서 넣고 학생 화면에 띄워줘」
+--
+-- 무엇인가 — 학원 밖에 있는 안내다. 단어 외우는 방법 영상, 노션에 적어둔
+-- 수업 규칙, 교재 사는 곳, 발음 연습 사이트 … 지금은 그걸 카톡으로 보내신다.
+-- 카톡으로 보내면 그 링크는 **하루 만에 없어진다** — 대화가 밀려 올라가고,
+-- 새로 온 아이에게는 아예 안 간다.
+--
+-- 왜 integrations 가 아닌가 (여기서 한 번 막혔다)
+--   설정값은 원래 integrations 에 담는다. 그런데 그 표는 **원장님만 읽을 수 있다**
+--   (0015). 학생 화면은 학생 자기 계정으로 읽으므로, 거기 넣으면 학생에게는
+--   빈 목록만 보인다 — 아무 오류도 없이. 그래서 표를 따로 둔다.
+--   비밀값이 아니라 **일부러 보여주려고 넣는 것**이라 갈라놓아도 잃는 것이 없다.
+--
+-- 규칙
+--   · 원장님·강사가 넣고 고친다
+--   · 학생·학부모는 **켜둔 것만 읽는다** (지운 것 · 꺼둔 것은 안 보인다)
+--   · sort 로 순서를 잡는다. 아이가 제일 먼저 봐야 할 것이 위로 온다
+
+create table if not exists public.class_guides (
+  id         uuid primary key default gen_random_uuid(),
+  title      text not null,
+  url        text not null,
+  note       text,                                   -- 한 줄 설명 (없어도 된다)
+  sort       integer not null default 100,
+  active     boolean not null default true,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists class_guides_sort_idx on public.class_guides (sort, created_at);
+
+alter table public.class_guides enable row level security;
+
+-- 넣고 고치는 것은 선생님만
+drop policy if exists guide_staff on public.class_guides;
+create policy guide_staff on public.class_guides
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- 학생·학부모는 켜둔 것만 읽는다.
+--   is_staff() 를 또 붙이지 않는다 — 위 정책이 이미 선생님을 열어준다.
+drop policy if exists guide_read on public.class_guides;
+create policy guide_read on public.class_guides
+  for select to authenticated
+  using (active);
+
+comment on table public.class_guides is
+  '수업 가이드 링크. 설정에서 넣고 학생·학부모 화면에 띄운다 (0089).';

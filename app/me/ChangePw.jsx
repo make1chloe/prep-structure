@@ -8,10 +8,18 @@ import { pwChanged, setMyPassword } from "./pwActions";
 /**
  * 처음 들어왔을 때 · 선생님이 되돌렸을 때 — 비밀번호부터 정한다.
  *
- * 0000 인 채로 두면 다른 아이가 들어갈 수 있다.
+ * **첫 비번은 학생·학부모 모두 0000 이다** (2026-08-06). 아이디는 규칙으로
+ * 만들어지니 (학부모는 전화번호 그대로다) 0000 인 채로 두면 번호만 아는 사람이
+ * 남의 계정에 들어갈 수 있다. 그래서 안전은 이 화면 하나가 지킨다 —
+ * **자기 비번을 정하기 전에는 여기서 한 발짝도 못 나간다.**
+ * 학생 화면도 학부모 화면도 이 화면을 먼저 지나야 열린다.
+ *
  * 아이들이 쓰는 화면이라 조건은 **네 자리 이상** 하나뿐이다.
+ *
+ * @param who "student" | "parent" — 인사말만 다르다
  */
-export default function ChangePw({ name }) {
+export default function ChangePw({ name, who = "student" }) {
+  const parent = who === "parent";
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [err, setErr] = useState("");
@@ -43,8 +51,17 @@ export default function ChangePw({ name }) {
   return (
     <main className="wrap" style={{ maxWidth: 460 }}>
       <div className="page-head">
-        <h1 className="h1">{name ? `${name} 학생, 반가워요` : "클로이영어"}</h1>
-        <p className="sub">쓸 비밀번호를 정해주세요. 다음부터 이걸로 들어옵니다.</p>
+        <h1 className="h1">
+          {name
+            ? parent
+              ? `${name} 학부모님, 반갑습니다`
+              : `${name} 학생, 반가워요`
+            : "클로이영어"}
+        </h1>
+        <p className="sub">
+          쓰실 비밀번호를 정해주세요. 다음부터 이걸로 들어옵니다.
+          {parent ? " 정하시기 전에는 아이 화면이 열리지 않습니다." : ""}
+        </p>
       </div>
       <div className="card stack" style={{ gap: 10 }}>
         {err && <div className="err">{err}</div>}
@@ -72,7 +89,8 @@ export default function ChangePw({ name }) {
           {pending ? "저장 중…" : "정하기"}
         </button>
         <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
-          잊어버리면 선생님께 말씀드리면 다시 <b>0000</b> 으로 만들어 주세요.
+          잊어버리면 선생님께 말씀해주세요. 다시 <b>0000</b> 으로 돌려드리고,
+          들어오시면 여기서 새로 정하시면 됩니다.
         </p>
       </div>
     </main>

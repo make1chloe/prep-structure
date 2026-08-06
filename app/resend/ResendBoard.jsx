@@ -97,16 +97,20 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
     );
   }
 
-  const sendsForReal = mode !== "copy";
+  /**
+   * **앱으로 나간다** (원장님, 2026-08-06). 데일리리포트·숙제 안내는 재원생
+   * 학부모께 가던 것이라 문자·알림톡을 쓰지 않는다. 발송 방식과 상관없이
+   * 언제나 실제로 나간다 — 앱에 올라가고 그 집 폰으로 알림이 간다.
+   */
+  const sendsForReal = true;
 
   function doResend(list) {
     if (list.length === 0) return;
     const label = list.length === 1 ? `${list[0].name} 학생에게` : `${list.length}명에게`;
-    const what = isHw ? "숙제 문자" : "데일리리포트";
+    const what = isHw ? "숙제 안내" : "데일리리포트";
     const again = only ? "" : "다시 ";
-    const q = sendsForReal
-      ? `${label} ${what}를 지금 ${again}보낼까요?`
-      : `${label} ${what}를 ${again}보낸 것으로 기록할까요?`;
+    // 재원생·학부모께는 **앱으로** 간다 (2026-08-06). 발송 방식과 상관없다
+    const q = `${label} ${what}를 ${again}앱으로 보낼까요?\n앱에 올라가고 폰으로 알림이 갑니다. 문자는 나가지 않습니다.`;
     if (!confirm(q)) return;
     startTransition(async () => {
       const res = await resend(
@@ -190,13 +194,8 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
       </div>
       <p className="hint" style={{ margin: "6px 0 0" }}>
         {KINDS.find((k) => k.key === kind)?.hint} 고친 문구는 저장되어 다음에도 그대로 쓰입니다.
-        {/* 종류마다 나가는 길이 다르다 — 고른 종류의 것을 바로 옆에 */}
-        {mode === "sms" && (
-          <>
-            {" "}이 문자는{" "}
-            <b>{chans[kind] === "alimtalk" ? "알림톡" : "문자"}</b>로 나갑니다.
-          </>
-        )}
+        {/* 어디로 나가는지 — 헷갈릴 자리라 바로 옆에 적어둔다 */}
+        {" "}이것은 <b>앱</b>으로 나갑니다 (문자·알림톡 아님).
       </p>
 
       {!ready && (
@@ -237,9 +236,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
             onClick={() => doResend(rows.filter((r) => sel.has(r.id)))}
             disabled={pending}
           >
-            {sendsForReal
-              ? `선택한 학생에게 ${only ? "" : "다시 "}보내기`
-              : `${only ? "" : "다시 "}보냄으로 기록`}
+            {`선택한 학생에게 ${only ? "" : "다시 "}앱으로 보내기`}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
         </div>
@@ -299,7 +296,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                     onClick={() => doResend([r])}
                     disabled={pending}
                   >
-                    {sendsForReal ? "다시 보내기" : "다시 보냄"}
+                    다시 보내기
                   </button>
                 </div>
 
@@ -359,11 +356,8 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>
-        {sendsForReal
-          ? "다시 보내기를 누르면 설정한 방식으로 바로 발송됩니다."
-          : "지금은 직접 발송 방식이에요. 복사 → 문자 앱에서 붙여넣기 → 다시 보냄 순서로 쓰시면 됩니다."}{" "}
-        보낸 이력은 학생별 <b>이력</b> 버튼에서 볼 수 있어요.{" "}
-        <a className="sky" href="/settings">설정 · 발송</a>
+        보내기를 누르면 <b>앱에 올라가고</b> 그 집 폰으로 알림이 갑니다 — 문자는 나가지 않습니다.{" "}
+        보낸 이력은 학생별 <b>이력</b> 버튼에서 볼 수 있어요.
       </p>
     </>
   );

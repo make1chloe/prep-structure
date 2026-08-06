@@ -11,13 +11,21 @@ import { addMonths } from "@/lib/day";
  * 목록은 "무엇이 있나" 만 보여준다. 시험 주간에 일정이 세 개 겹치는 것,
  * 다음 주가 통째로 비는 것은 **달력으로 봐야** 보인다.
  *
- * 색은 세 가지만 쓴다. 더 늘리면 무슨 색인지 다시 확인하게 된다.
- *   학사일정(학교)  ·  우리 일정  ·  할일
+ * 색은 **한 화면에 세 가지까지만** 쓴다. 더 늘리면 무슨 색인지 다시 확인하게 된다.
+ * 그래서 보는 사람에 따라 쓰는 색이 다르다.
+ *   선생님 화면  학사일정 · 학원 일정 · 할일
+ *   학생 화면    수업일 · 시험 · 결석 (+ 학사일정 · 학원 일정)
+ * 학생 화면에 할일이 안 가고, 선생님 화면에 수업일이 안 가므로 실제로 한 번에
+ * 보이는 것은 세 가지 안팎이다. 안 쓰인 색은 아래 설명에도 안 나온다.
  */
 const TONE = {
   school: { cls: "cal-school", label: "학사일정" },
   event: { cls: "cal-event", label: "학원 일정" },
   todo: { cls: "cal-todo", label: "할일" },
+  // 학생 달력 (0089 이후) — 「내 수업이 언제인가」 가 제일 먼저 궁금하다
+  klass: { cls: "cal-mint", label: "수업" },
+  exam: { cls: "cal-red", label: "시험" },
+  absent: { cls: "cal-amber", label: "결석·보강" },
 };
 
 /**
@@ -105,7 +113,9 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
 
       <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: "wrap" }}>
         {Object.entries(TONE)
-          .filter(([k]) => links || k !== "todo")   // 학생 화면에는 할일이 아예 안 간다
+          // **안 쓰인 색은 설명하지 않는다.** 이 달에 하나도 없는 색을 아래에
+          // 늘어놓으면 「내 수업은 왜 안 떴지?」 하고 찾게 된다.
+          .filter(([k]) => n(k) > 0)
           .map(([k, v]) => (
             <span key={k} className="hint" style={{ fontSize: 11.5 }}>
               <i className={`cal-dot ${v.cls}`} /> {v.label}

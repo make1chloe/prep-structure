@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
+import GuideBox from "./GuideBox";
 import { loadSettings, maskSecret } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export default async function SettingsPage() {
           </div>
         </div>
         <NetBox />
+        <GuideBox />
         <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} />
       </main>
     </>

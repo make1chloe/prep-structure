@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings, loadMessageParts } from "@/lib/settings";
 import { summarize, buildMonthlyText, monthLabel, offScheduleAbsences } from "@/lib/monthly";
-import { deliver } from "@/lib/send";
-import { autoValues, buildVariables } from "@/lib/alimtalk";
+import { IN_APP_DETAIL } from "@/lib/notify";
+import { pushToFamilies } from "@/app/push/actions";
 import { endOfMonth } from "@/lib/day";
 
 /** "2026-07" → "2026-06" */
@@ -157,52 +157,49 @@ export async function saveMonthly(studentId, ym, patch = {}) {
   return { error: null };
 }
 
-/** 보낸다 */
+/**
+ * 보낸다 — **앱으로 나간다** (원장님, 2026-08-06).
+ *
+ * 월간리포트는 재원생 학부모께 가던 것이라 문자·알림톡을 쓰지 않는다.
+ * 글이 이미 학부모 화면의 「월간리포트」에 그대로 떠 있으니, 여기서 할 일은
+ * **보냈다고 남기고 집으로 알리는 것**뿐이다.
+ */
 export async function sendMonthly(items, ym) {
   const list = (items || []).filter((x) => x?.studentId);
   if (list.length === 0) return { error: null, count: 0 };
 
   const supabase = createClient();
-  const settings = await loadSettings(supabase);
+  const channel = "app";
 
-  const tq = await supabase
-    .from("message_templates")
-    .select("alimtalk_id, alimtalk_vars")
-    .eq("key", "monthly")
-    .maybeSingle();
-  const tpl = tq.error ? null : tq.data;
-
-  const sendable = list.filter((x) => x.phone);
-  const { channel, results } = await deliver(
-    settings,
-    sendable.map((x) => {
-      const m = { to: x.phone, text: x.body || "", ref: x.studentId };
-      if (tpl?.alimtalk_id) {
-        m.kakao = {
-          templateId: tpl.alimtalk_id,
-          variables: buildVariables(
-            tpl.alimtalk_vars,
-            autoValues({
-              academy: settings.academy?.name,
-              name: x.name,
-              date: monthLabel(ym),
-              body: x.body || "",
-              phone: settings.message?.phone,
-              address: settings.message?.address,
-            })
-          ),
-        };
-      }
-      return m;
-    }),
-    { kind: "monthly" }
+  // 글이 비어 있으면 보낸 것이 아니다 — 열어봐야 아무것도 없다
+  const byRef = new Map(
+    list.map((x) => [
+      x.studentId,
+      (x.body || "").trim()
+        ? { ok: true, detail: IN_APP_DETAIL }
+        : { ok: false, detail: "리포트 글이 비어 있어요." },
+    ])
   );
-  const byRef = new Map(results.map((r) => [r.ref, r]));
-  list.forEach((x) => {
-    if (!x.phone) byRef.set(x.studentId, { ok: false, detail: "학부모 번호 없음" });
-  });
 
   const okIds = list.filter((x) => byRef.get(x.studentId)?.ok).map((x) => x.studentId);
+
+  if (okIds.length > 0) {
+    try {
+      // 월간리포트는 **학부모 화면에만** 뜬다 — 어머니 폰으로만 알린다
+      await pushToFamilies(
+        okIds,
+        {
+          title: `${monthLabel(ym)} 학습 리포트`,
+          body: "한 달 학습 리포트가 올라왔어요. 앱에서 확인해주세요.",
+          url: "/parent",
+          tag: `monthly-${ym}`,
+        },
+        "parent"
+      );
+    } catch {
+      /* 알림이 안 가도 리포트는 앱에 그대로 있다 */
+    }
+  }
   if (okIds.length > 0) {
     const now = new Date().toISOString();
     const { error } = await supabase.from("monthly_reports").upsert(

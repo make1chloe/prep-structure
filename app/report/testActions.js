@@ -6,6 +6,7 @@ import { deliver, normalizePhone } from "@/lib/send";
 import { buildReportText, buildHomeworkText } from "@/lib/reportText";
 import { buildLateText } from "@/lib/lateNotice";
 import { autoValues, buildVariables } from "@/lib/alimtalk";
+import { TEST } from "@/lib/notify";
 import { pushToAll } from "@/lib/push";
 import { sampleRow } from "@/lib/sampleReport";
 import { longLabel, todaySeoul } from "@/lib/day";
@@ -156,7 +157,10 @@ export async function sendTest(studentId, kind, date, to) {
   const { channel, results } = await deliver(
     settings,
     [{ to: phone, text: pre.text, ref: "test" }],
-    { kind: `test-${kind}` }   // 이력에 남지 않지만, 웹훅 쪽에서는 시험인 걸 알아야 한다
+    // 이력에 남지 않지만, 웹훅 쪽에서는 시험인 걸 알아야 한다.
+    // audience 를 test 로 둔다 — 원장님이 적은 번호로 한 통 보내보는 것이라
+    // 「재원생에게는 문자 안 보냄」 규칙과 상관이 없다 (lib/notify)
+    { kind: `test-${kind}`, audience: TEST }
   );
   const r = results?.[0] || { ok: false, detail: "결과가 없어요." };
 
@@ -222,7 +226,7 @@ export async function sendTestAlimtalk(studentId, templateId, to) {
         },
       },
     ],
-    { kind: "test-alimtalk" }
+    { kind: "test-alimtalk", audience: TEST }
   );
   const r = results?.[0] || { ok: false, detail: "결과가 없어요." };
   return { error: null, channel, ok: !!r.ok, detail: r.detail || "보냈어요.", to: phone };

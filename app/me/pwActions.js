@@ -64,6 +64,7 @@ export async function setMyPassword(newPw) {
     return { error: "선생님이 0045 SQL 을 먼저 실행해야 해요." };
   }
   revalidatePath("/me");
+  revalidatePath("/parent");     // 학부모도 이 화면을 지나야 아이 화면이 열린다
   return { error: error ? error.message : null, byServer: true };
 }
 
@@ -78,5 +79,6 @@ export async function pwChanged() {
     return { error: "선생님이 0045 SQL 을 먼저 실행해야 해요." };
   }
   revalidatePath("/me");
+  revalidatePath("/parent");
   return { error: error ? error.message : null };
 }
