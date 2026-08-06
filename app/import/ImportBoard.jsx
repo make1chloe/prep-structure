@@ -8,15 +8,33 @@ import {
 import { parsePaymentRow } from "@/lib/importPayment";
 import { parseNoteAoA } from "@/lib/importNote";
 import { parseInquiryAoA } from "@/lib/importInquiry";
+import { parseUnitAoA, parseWrongAoA } from "@/lib/importExam";
 import { readSheet } from "@/lib/readSheet";
+import { MOCK_SPEC, byTopic } from "@/lib/examSpec";
 import { STATUS } from "@/app/consult/status";
 import {
   importReports, importHomework, importTasks, importAbsences, importPayments, importNotes,
-  importInquiries,
+  importInquiries, importUnitScores, importWrongAnswers,
 } from "./actions";
 
 const INQ_LABEL = Object.fromEntries(STATUS.map((s) => [s.key, s.label]));
 const INQ_CLS = Object.fromEntries(STATUS.map((s) => [s.key, s.cls]));
+
+/** 미리보기에 몇 줄까지 보여줄까 — 자료가 짧으면 다 보여드리는 편이 낫다 */
+const SHOW = { inquiry: 60, unit: 40, wrong: 40 };
+const showOf = (k) => SHOW[k] || 25;
+
+/**
+ * 틀린 번호만 보고 **어느 영역이 약한지** 미리 알려준다.
+ * 넣기 전에 「이 아이는 빈칸추론이구나」 가 보이면, 잘못 올렸을 때 바로 안다.
+ */
+function weakOf(nos = []) {
+  const t = byTopic(MOCK_SPEC, nos)
+    .filter((x) => x.wrong > 0)
+    .sort((a, b) => b.wrong / b.total - a.wrong / a.total);
+  if (t.length === 0) return "—";
+  return t.slice(0, 3).map((x) => `${x.topic} ${x.wrong}/${x.total}`).join(" · ");
+}
 
 const KINDS = [
   {
@@ -83,6 +101,29 @@ const KINDS = [
     whole: true,
   },
   {
+    key: "unit",
+    label: "단원평가",
+    db: "3단원평가DB",
+    hint:
+      "문법 단원평가가 성적으로 들어옵니다 — 단원명 · 통과/재시험 · 점수. " +
+      "같은 학생·같은 단원이 여러 번 있는 것은 중복이 아니라 기록입니다 (재시험 → 통과). " +
+      "그래서 날짜까지 같아야 한 건으로 봅니다 — 몇 번 만에 통과했는지가 그대로 남습니다. " +
+      "날짜 칸이 빈 줄은 적어두신 날(생성 일시)로 넣습니다.",
+    whole: true,
+  },
+  {
+    key: "wrong",
+    label: "모의고사 오답",
+    db: "모의고사 오답분석DB",
+    hint:
+      "점수뿐 아니라 문항별 오답까지 들어옵니다 — 몇 번을 틀렸고 왜 틀렸는지. " +
+      "모의고사 45문항의 유형은 앱이 알고 있어서(듣기 1~17 · 어법 29 · 빈칸추론 31~34 …) " +
+      "틀린 번호만 있으면 영역별 정답률이 계산됩니다. " +
+      "틀린 번호 칸이 비어 있어도 「N번 틀린 이유」 가 적혀 있으면 그 번호도 틀린 것으로 봅니다. " +
+      "아이가 적어 낸 점수와 실제 점수가 다르면 실제 점수를 쓰고 메모에 남깁니다.",
+    whole: true,
+  },
+  {
     key: "payment",
     label: "수납",
     db: "결제선생 등",
@@ -104,6 +145,8 @@ const PARSE = {
 const WHOLE = {
   note: parseNoteAoA,
   inquiry: parseInquiryAoA,
+  unit: parseUnitAoA,
+  wrong: parseWrongAoA,
 };
 const SAVE = {
   report: importReports,
@@ -113,6 +156,8 @@ const SAVE = {
   payment: importPayments,
   note: importNotes,
   inquiry: importInquiries,
+  unit: importUnitScores,
+  wrong: importWrongAnswers,
 };
 
 export default function ImportBoard() {
@@ -168,6 +213,8 @@ export default function ImportBoard() {
     // 신규 문의는 **날짜가 없어도 옮긴다.** 아직 방문 약속을 안 잡은 문의가
     // 절반이고, 그것이야말로 챙겨야 할 줄이다
     : kind === "inquiry" ? !!(r.name && !r.skip)
+    : kind === "unit" ? !!(r.name && r.date && r.unit)
+    : kind === "wrong" ? !!(r.name && r.date)
     : !!(r.name && r.date);
 
   // 그 줄이 가리키는 날짜 (기간으로 거를 때 쓴다)
@@ -346,6 +393,24 @@ export default function ImportBoard() {
                         <th>연락처</th>
                         <th>메모</th>
                       </>
+                    ) : kind === "unit" ? (
+                      <>
+                        <th>날짜</th>
+                        <th>학생</th>
+                        <th>단원</th>
+                        <th>결과</th>
+                        <th>점수</th>
+                        <th>틀린 개수</th>
+                      </>
+                    ) : kind === "wrong" ? (
+                      <>
+                        <th>날짜</th>
+                        <th>학생</th>
+                        <th>시험</th>
+                        <th>점수</th>
+                        <th>틀린 문항</th>
+                        <th>영역별로 본 약점</th>
+                      </>
                     ) : kind === "payment" ? (
                       <>
                         <th>달</th>
@@ -440,7 +505,7 @@ export default function ImportBoard() {
                       </td>
                     </tr>
                   ))}
-                  {kind === "inquiry" && ok.slice(0, 60).map((r, i) => (
+                  {kind === "inquiry" && ok.slice(0, showOf('inquiry')).map((r, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 600 }}>
                         {r.noName ? <span className="muted">{r.name}</span> : r.name}
@@ -495,6 +560,62 @@ export default function ImportBoard() {
                       </td>
                     </tr>
                   ))}
+                  {kind === "unit" && ok.slice(0, 40).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.date}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td>{r.unit}</td>
+                      <td>
+                        <span className={`tag ${r.passed ? "tag-mint" : "tag-amber"}`}>
+                          {r.state || "—"}
+                        </span>
+                      </td>
+                      <td className="muted">{r.point == null ? "—" : `${r.point}점`}</td>
+                      <td className="muted">
+                        {r.wrongCount == null ? "—" : `${r.wrongCount}${r.total ? ` / ${r.total}` : ""}`}
+                      </td>
+                    </tr>
+                  ))}
+                  {kind === "wrong" && ok.slice(0, 40).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.date}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="muted">{r.term}</td>
+                      <td>
+                        {r.point == null ? "—" : `${r.point}점`}
+                        {/* 아이가 적어 낸 점수와 다른 줄 — 실제 점수를 쓴다 */}
+                        {r.mismatch && (
+                          <span className="tag tag-amber" style={{ marginLeft: 4 }}>
+                            적어 낸 건 {r.said}
+                          </span>
+                        )}
+                      </td>
+                      <td className="muted">
+                        {r.nos.length}문항
+                        {/* 번호 칸이 비었는데 「N번 틀린 이유」 로 알아낸 줄 */}
+                        {r.fromReasons && (
+                          <span className="tag tag-sky" style={{ marginLeft: 4 }}>이유에서 찾음</span>
+                        )}
+                        {/* **아이가 이유를 옆 칸에 적은 줄.** 번호 칸을 쓰되
+                            어긋났다는 것은 알려드린다 — 물어보실 수 있게 */}
+                        {r.orphan?.length > 0 && (
+                          <span
+                            className="tag tag-amber"
+                            style={{ marginLeft: 4 }}
+                            title={`이유는 ${r.orphan.join(",")}번에 적혀 있는데 틀린 번호에는 없어요`}
+                          >
+                            이유 어긋남 {r.orphan.join(",")}
+                          </span>
+                        )}
+                        <span className="hint" style={{ marginLeft: 6, fontSize: 11 }}>
+                          {r.nos.slice(0, 10).join(",")}{r.nos.length > 10 ? "…" : ""}
+                        </span>
+                      </td>
+                      <td className="muted" style={{ maxWidth: 220, whiteSpace: "normal" }}>
+                        {weakOf(r.nos)}
+                      </td>
+                    </tr>
+                  ))}
                   {kind === "payment" && ok.slice(0, 25).map((r, i) => (
                     <tr key={i}>
                       <td>{r.ym}</td>
@@ -543,10 +664,8 @@ export default function ImportBoard() {
                 </tbody>
               </table>
             </div>
-            {ok.length > (kind === "inquiry" ? 60 : 25) && (
-              <p className="hint" style={{ marginTop: 6 }}>
-                앞 {kind === "inquiry" ? 60 : 25}줄만 보여줍니다.
-              </p>
+            {ok.length > showOf(kind) && (
+              <p className="hint" style={{ marginTop: 6 }}>앞 {showOf(kind)}줄만 보여줍니다.</p>
             )}
 
             {/* **안 옮기는 줄을 감추지 않는다.** 「56줄인데 왜 52줄이지」 를
@@ -582,6 +701,12 @@ export default function ImportBoard() {
               <div className="notice">
                 ✅ {result.saved}건 옮겼어요.
                 {result.updated > 0 && ` (이미 있던 ${result.updated}건은 덮어썼어요)`}
+                {kind === "wrong" && (result.items || 0) > 0 && (
+                  <div className="hint" style={{ marginTop: 6 }}>
+                    문항별 오답 {result.items}개까지 같이 들어갔어요 —{" "}
+                    <a className="sky" href="/scores">성적 화면</a> 에서 영역별 정답률로 보입니다.
+                  </div>
+                )}
                 {kind === "inquiry" && (
                   <div className="hint" style={{ marginTop: 6 }}>
                     반을 찾아 이어준 것 {result.linkedClass || 0}건 ·

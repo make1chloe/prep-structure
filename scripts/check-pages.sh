@@ -76,6 +76,16 @@ else
 fi
 
 echo
+echo "== 5-3) 성적 옮기기 · 리포트 계산 =="
+# 리포트는 상담 중에 펴놓고 학부모께 설명하시는 화면이다 — 숫자가 틀리면
+# 그 자리에서 곤란해지신다. 실제 자료에서 부딪힌 것을 못 박아 둔다
+if out=$(node scripts/check-report.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 6) 옛 자료가 새 모양으로 옮겨지나 (진짜 Postgres) =="
 if [ -f scripts/check-exam-merge.sh ]; then
   bash scripts/check-exam-merge.sh || fail=1

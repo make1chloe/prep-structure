@@ -616,3 +616,163 @@ export async function importInquiries(rows) {
   revalidatePath("/consult");
   return { error: null, saved, updated, skipped, linkedClass, linkedStudent };
 }
+
+/**
+ * **단원평가 이관** — 노션 3단원평가DB (원장님, 2026-08-06).
+ *
+ * 같은 학생·같은 단원이 여러 번 나오는 것은 **중복이 아니라 기록**이다
+ * (재시험 → 통과). 그래서 **날짜까지 같아야** 한 건으로 본다.
+ */
+export async function importUnitScores(rows) {
+  const list = (rows || []).filter((r) => r?.name && r?.date && r?.unit);
+  if (list.length === 0) {
+    return { error: "옮길 줄이 없어요. 학생·날짜·단원명이 있는지 봐주세요.", saved: 0, skipped: [] };
+  }
+
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const students = await studentMap(supabase);
+
+  const skipped = [];
+  const ready = [];
+  list.forEach((r) => {
+    const sid = students.get(r.name);
+    if (!sid) { skipped.push(`${r.date} ${r.name} — 재원생 목록에 없어요`); return; }
+    ready.push({ ...r, student_id: sid });
+  });
+  if (ready.length === 0) return { error: null, saved: 0, updated: 0, skipped };
+
+  const ids = [...new Set(ready.map((r) => r.student_id))];
+  const { data: have, error: readErr } = await supabase
+    .from("scores")
+    .select("id, student_id, kind, term, taken_on")
+    .eq("kind", "unit")
+    .in("student_id", ids);
+  if (needSql(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
+  if (readErr) return { error: readErr.message, saved: 0, skipped };
+  const keyOf = (x) => `${x.student_id}|${(x.term || "").trim()}|${x.taken_on}`;
+  const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
+
+  let saved = 0;
+  let updated = 0;
+  for (const r of ready) {
+    const row = {
+      student_id: r.student_id,
+      kind: "unit",
+      term: r.unit,
+      taken_on: r.date,
+      raw_score: r.point,
+      full_score: r.point == null ? null : 100,
+      // 통과인지 재시험인지가 단원평가의 핵심이다 — 점수보다 이것을 보신다
+      note: [r.state, r.total ? `${r.total}문제 중 ${r.wrongCount ?? "?"}개 틀림` : ""]
+        .filter(Boolean).join(" · ") || null,
+      source: "notion",
+    };
+    const at = known.get(keyOf(row));
+    const { error } = at
+      ? await supabase.from("scores").update(row).eq("id", at)
+      : await supabase.from("scores").insert({ ...row, created_by: user?.id || null });
+    if (error) { skipped.push(`${r.date} ${r.name} — ${error.message}`); continue; }
+    at ? (updated += 1) : (saved += 1);
+  }
+
+  revalidatePath("/scores");
+  revalidatePath("/students");
+  return { error: null, saved, updated, skipped };
+}
+
+/**
+ * **모의고사 오답 이관** — 노션 오답분석DB (원장님, 2026-08-06).
+ *
+ * 성적 한 줄(scores)과 **문항별 오답**(score_items)을 같이 넣는다.
+ * 문항이 성적의 자식이라 성적을 먼저 만들고 그 id 로 문항을 넣는다.
+ */
+export async function importWrongAnswers(rows) {
+  const list = (rows || []).filter((r) => r?.name && r?.date);
+  if (list.length === 0) {
+    return { error: "옮길 줄이 없어요. 이름과 시험 본 날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
+  }
+
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const students = await studentMap(supabase);
+
+  const skipped = [];
+  const ready = [];
+  list.forEach((r) => {
+    const sid = students.get(r.name);
+    if (!sid) { skipped.push(`${r.date} ${r.name} — 재원생 목록에 없어요`); return; }
+    ready.push({ ...r, student_id: sid });
+  });
+  if (ready.length === 0) return { error: null, saved: 0, updated: 0, items: 0, skipped };
+
+  const ids = [...new Set(ready.map((r) => r.student_id))];
+  const { data: have, error: readErr } = await supabase
+    .from("scores")
+    .select("id, student_id, kind, term, taken_on")
+    .eq("kind", "mock")
+    .in("student_id", ids);
+  if (needSql(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
+  if (readErr) return { error: readErr.message, saved: 0, skipped };
+  const keyOf = (x) => `${x.student_id}|${(x.term || "").trim()}|${x.taken_on}`;
+  const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
+
+  let saved = 0;
+  let updated = 0;
+  let items = 0;
+  for (const r of ready) {
+    const row = {
+      student_id: r.student_id,
+      kind: "mock",
+      term: r.term,
+      taken_on: r.date,
+      raw_score: r.point,
+      full_score: 100,
+      self_note: r.self,
+      // 아이가 적어 낸 점수와 어긋난 줄은 남겨둔다 — 나중에 「왜 다르지」 가 된다
+      note: r.mismatch ? `아이가 적어 낸 점수는 ${r.said}점이었습니다` : null,
+      source: "form",
+    };
+    const at = known.get(keyOf(row));
+    let scoreId = at;
+    if (at) {
+      const { error } = await supabase.from("scores").update(row).eq("id", at);
+      if (error) { skipped.push(`${r.date} ${r.name} — ${error.message}`); continue; }
+      updated += 1;
+    } else {
+      const { data, error } = await supabase
+        .from("scores")
+        .insert({ ...row, created_by: user?.id || null })
+        .select("id")
+        .single();
+      if (error) {
+        // self_note 는 0097 에서 생긴 칸이다 — 아직 안 돌리셨으면 여기서 걸린다
+        skipped.push(`${r.date} ${r.name} — ${error.message}`);
+        continue;
+      }
+      scoreId = data.id;
+      saved += 1;
+    }
+    if (!scoreId || !r.items?.length) continue;
+
+    // 다시 올리셔도 안 늘어나게 — 그 회차 문항을 지우고 새로 넣는다
+    await supabase.from("score_items").delete().eq("score_id", scoreId);
+    const { error: itemErr } = await supabase.from("score_items").insert(
+      r.items.map((it) => ({
+        score_id: scoreId,
+        no: it.no,
+        wrong: true,
+        reason: it.reason,
+      }))
+    );
+    if (itemErr) {
+      skipped.push(`${r.date} ${r.name} 문항 — 0097 SQL 을 먼저 실행해주세요 (${itemErr.message})`);
+      continue;
+    }
+    items += r.items.length;
+  }
+
+  revalidatePath("/scores");
+  revalidatePath("/students");
+  return { error: null, saved, updated, items, skipped };
+}
