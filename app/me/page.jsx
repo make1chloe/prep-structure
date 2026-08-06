@@ -26,6 +26,8 @@ import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
 import Refresh from "@/components/Refresh";
 import { tasksForStudent } from "@/lib/taskAudience";
+import { loadNotes, noteOr } from "@/lib/screenNotes";
+import ScreenNote from "@/components/ScreenNote";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
 } from "@/lib/homeworkView";
@@ -642,6 +644,10 @@ export default async function MePage({ searchParams }) {
     guides = q.error ? [] : q.data || [];
   }
 
+  // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
+  const notes = await loadNotes(supabase);
+  const N = (key, fallback = "") => noteOr(notes, key, fallback);
+
   // 지금 뭐 하고 있다고 눌러뒀나 (0084) — 첫 그림에 채워둔다
   let myState = null;
   let stateOff = false;
@@ -693,6 +699,8 @@ export default async function MePage({ searchParams }) {
             <Refresh />
           </div>
         )}
+        <ScreenNote text={N("me.top")} tone="card" />
+
         {/* ── 1. 이번 달 현황 ─────────────────────────────────────
             학부모 화면과 **같은 숫자**다 (lib/monthly 의 summarize).
             집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다.
@@ -705,6 +713,7 @@ export default async function MePage({ searchParams }) {
                 {Number(myYm.slice(5))}월 1일부터 오늘까지
               </span>
             </h2>
+            <ScreenNote text={N("me.month")} />
             <div className="stack" style={{ gap: 5 }}>
               {monthLines.map((l) => (
                 <div className="row" key={l.key} style={{ gap: 8, alignItems: "center" }}>
@@ -726,6 +735,7 @@ export default async function MePage({ searchParams }) {
             <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>
               일정 및 전달사항
             </h2>
+            <ScreenNote text={N("me.schedule")} />
 
             {upcoming.length > 0 && (
               <div className="stack" style={{ gap: 4, marginBottom: notice2.length ? 14 : 0 }}>
@@ -797,6 +807,8 @@ export default async function MePage({ searchParams }) {
           asId={acting ? student.id : null}
         />
 
+        <ScreenNote text={N("me.study")} tone="card" />
+
         <StudyTabs
           inClass={inClass}
           home={studyTasks}
@@ -828,6 +840,7 @@ export default async function MePage({ searchParams }) {
             보이는 자리다. 집에서 폰을 못 쓰는 아이가 찍어 가거나 적어 간다.
             (전에는 화면 맨 아래에 있었다. 자기 숙제와 멀리 떨어져 있으면
              거기까지 안 내려간다 — 그래서 각자 제 자리로 올렸다.) */}
+        <ScreenNote text={N("me.sheet")} tone="card" />
         <HomeworkSheet
           title="하원 숙제 전체"
           items={todo}
@@ -943,6 +956,7 @@ export default async function MePage({ searchParams }) {
         {guides.length > 0 && (
           <div className="card">
             <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>수업 가이드</h2>
+            <ScreenNote text={N("me.guide")} />
             <div className="stack" style={{ gap: 6 }}>
               {guides.map((g) => (
                 <a
@@ -964,7 +978,10 @@ export default async function MePage({ searchParams }) {
 
         {/* ── 7. 달력 — 수업일 · 시험 · 결석 ─────────────────────── */}
         {calendar.length > 0 && (
-          <DashCalendar ym={today.slice(0, 7)} items={calendar} today={today} links={false} />
+          <>
+            <ScreenNote text={N("me.calendar")} tone="card" />
+            <DashCalendar ym={today.slice(0, 7)} items={calendar} today={today} links={false} />
+          </>
         )}
 
         <form action="/logout" method="post">

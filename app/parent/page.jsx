@@ -18,6 +18,8 @@ import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
 import Refresh from "@/components/Refresh";
 import { tasksForStudent } from "@/lib/taskAudience";
+import { loadNotes, noteOr } from "@/lib/screenNotes";
+import ScreenNote from "@/components/ScreenNote";
 
 export const dynamic = "force-dynamic";
 
@@ -377,6 +379,10 @@ export default async function ParentPage({ searchParams }) {
   const latest = withItems[0] || null;
   const hasToday = !!nextClass && nextClass.date === today;
 
+  // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
+  const notes = await loadNotes(supabase);
+  const N = (key, fallback = "") => noteOr(notes, key, fallback);
+
   return (
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       {preview && (
@@ -407,12 +413,14 @@ export default async function ParentPage({ searchParams }) {
       {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
 
       <div className="stack" style={{ marginTop: 10 }}>
+        <ScreenNote text={N("parent.top")} tone="card" />
         {/* ── 1. 오늘 ────────────────────────────────────────────
             어머니가 전화로 물으시던 것들이다 — 다음 수업이 언제인지,
             오늘 갔는지, 늦게 오는지. 물어보지 않아도 되게 맨 위에 둔다. */}
         {(nextClass || attToday || stayLeft.length > 0) && (
           <div className="card sect sect-info">
             <h2 className="secthead">오늘</h2>
+            <ScreenNote text={N("parent.today")} />
             <div className="stack" style={{ gap: 6 }}>
               {hasToday ? (
                 <div className="row" style={{ gap: 8, alignItems: "center" }}>
@@ -475,10 +483,14 @@ export default async function ParentPage({ searchParams }) {
             </h2>
             <span className="hint">수업 {withItems.length}회</span>
           </div>
-          <p className="hint" style={{ margin: "2px 0 10px", fontSize: 11.5 }}>
-            달이 끝나기 전에도 <b>지금까지</b>를 그대로 세어 보여드립니다.
-            아이 화면에도 <b>같은 숫자</b>가 보입니다.
-          </p>
+          {notes.has("parent.month") ? (
+            <ScreenNote text={N("parent.month")} style={{ margin: "2px 0 10px" }} />
+          ) : (
+            <p className="hint" style={{ margin: "2px 0 10px", fontSize: 11.5 }}>
+              달이 끝나기 전에도 <b>지금까지</b>를 그대로 세어 보여드립니다.
+              아이 화면에도 <b>같은 숫자</b>가 보입니다.
+            </p>
+          )}
 
           {withItems.length === 0 ? (
             <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
@@ -502,6 +514,7 @@ export default async function ParentPage({ searchParams }) {
         {(upcoming.length > 0 || notices.length > 0) && (
           <div className="card">
             <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>일정 및 전달사항</h2>
+            <ScreenNote text={N("parent.schedule")} />
 
             {upcoming.length > 0 && (
               <div className="stack" style={{ gap: 4, marginBottom: notices.length ? 14 : 0 }}>
@@ -584,6 +597,7 @@ export default async function ParentPage({ searchParams }) {
                   </div>
                 ))}
               </div>
+              <ScreenNote text={N("parent.homework")} style={{ margin: "10px 0 0" }} />
               <p className="hint" style={{ margin: "10px 0 0", lineHeight: 1.7 }}>
                 아이 화면에 뜨는 것과 <b>같은 목록</b>입니다.
                 <b> 완료 표시</b>는 아이가 직접 누른 것이고, 실제 검사는 다음 수업에서 합니다.
@@ -602,6 +616,7 @@ export default async function ParentPage({ searchParams }) {
         {lessons.length > 0 && (
           <div className="card">
             <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>최근 수업</h2>
+            <ScreenNote text={N("parent.lessons")} />
             <div className="stack" style={{ gap: 14 }}>
               {lessons.map((r) => (
                 <div key={r.id} className="stack" style={{ gap: 6 }}>
@@ -670,6 +685,7 @@ export default async function ParentPage({ searchParams }) {
         {(scores || []).length > 0 && (
           <div className="card">
             <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>성적</h2>
+            <ScreenNote text={N("parent.scores")} />
             <div className="stack" style={{ gap: 10 }}>
               {["school", "mock", "unit"].map((k) => {
                 const list = scoreGroups[k] || [];
@@ -703,6 +719,7 @@ export default async function ParentPage({ searchParams }) {
         {monthlyRows.length > 0 && (
           <div className="card">
             <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>월간리포트</h2>
+            <ScreenNote text={N("parent.monthly")} />
             <div className="stack" style={{ gap: 12 }}>
               {monthlyRows.map((m, i) => (
                 <details key={m.ym} open={i === 0}>
@@ -718,7 +735,10 @@ export default async function ParentPage({ searchParams }) {
 
         {/* ── 8. 달력 ── */}
         {calendar.length > 0 && (
-          <DashCalendar ym={ym} items={calendar} today={today} links={false} />
+          <>
+            <ScreenNote text={N("parent.calendar")} tone="card" />
+            <DashCalendar ym={ym} items={calendar} today={today} links={false} />
+          </>
         )}
 
         {/* ── 9. 보내기 · 남기실 말씀 ────────────────────────────
@@ -727,10 +747,14 @@ export default async function ParentPage({ searchParams }) {
         {!preview && (
           <>
             <RequestForm studentId={pickId} mine={myReqs || []} />
-            <p className="hint" style={{ margin: "-4px 2px 0", lineHeight: 1.7 }}>
-              결석 · 보강 · 그 밖의 말씀은 여기로 보내주시면 선생님이 확인합니다.
-              전화 주셔도 되지만, 여기로 보내주시면 <b>기록이 남아</b> 빠뜨리지 않습니다.
-            </p>
+            {notes.has("parent.request") ? (
+              <ScreenNote text={N("parent.request")} style={{ margin: "-4px 2px 0" }} />
+            ) : (
+              <p className="hint" style={{ margin: "-4px 2px 0", lineHeight: 1.7 }}>
+                결석 · 보강 · 그 밖의 말씀은 여기로 보내주시면 선생님이 확인합니다.
+                전화 주셔도 되지만, 여기로 보내주시면 <b>기록이 남아</b> 빠뜨리지 않습니다.
+              </p>
+            )}
           </>
         )}
 

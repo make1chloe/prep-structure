@@ -126,11 +126,12 @@ export default function ScheduleBox({ studentId, name }) {
               onChange={(e) => setNote(e.target.value)} placeholder="어머니께도 보입니다" />
           </div>
 
-          {/* 상담 약속처럼 아이가 몰라도 되는 것 — 켜면 아이·어머니 달력에서 빠진다 */}
+          {/* 상담 약속처럼 아이가 몰라도 되는 것. **비공개가 곧 나만 보기다** —
+              이름을 둘로 두면 「그 둘이 뭐가 다르지」 를 매번 떠올려야 한다 */}
           <label className="row" style={{ gap: 6, alignItems: "center", cursor: "pointer" }}>
             <input type="checkbox" checked={priv} onChange={(e) => setPriv(e.target.checked)} />
             <span style={{ fontSize: 13 }}>
-              나만 보기 <span className="hint">(아이·어머니 달력에 안 뜹니다)</span>
+              비공개 <span className="hint">(선생님만 봅니다 — 아이·어머니 달력에 안 뜹니다)</span>
             </span>
           </label>
 
@@ -157,7 +158,7 @@ export default function ScheduleBox({ studentId, name }) {
                 {t.note && <span className="hint"> · {t.note}</span>}
               </span>
               {t.due_on < today && <span className="tag tag-muted">지남</span>}
-              {t.private && <span className="tag tag-amber">나만</span>}
+              {t.private && <span className="tag tag-muted">비공개</span>}
               {/* 여럿이 걸린 일정이면 이 아이만 빠진다 — 남의 아이 일정까지
                   사라지면 지운 사람이 그것을 모른다 */}
               {(t.deliver_student_ids || []).length > 1 && (

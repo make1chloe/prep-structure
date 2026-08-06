@@ -88,6 +88,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
       note: t.note || "",
       deliver_body: t.deliver_body || "",
       deliver_scope: t.deliver_scope || "",
+      private: !!t.private,
       deliver_class_id: t.deliver_class_id || "",
     });
   }
@@ -261,45 +262,35 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   {/* **누가 보나** — 규칙이 뒤집혀서(안 적으면 안 보임) 이것이
                       한눈에 보여야 한다. 안 그러면 「올렸는데 왜 모르지」 가 된다.
                       나만 보기(0066)는 그 위에 덮는 자물쇠다 — 켜면 무조건 안 보인다. */}
+                  {/* **누가 보나** — 규칙이 뒤집혀서(안 고르면 안 보임) 이것이
+                      한눈에 보여야 한다. 비공개도 여기 같이 뜬다 — 자물쇠를
+                      따로 두지 않는다 (원장님: 「비공개는 따로 만들지마」).
+                      누르면 전체 ↔ 비공개 로 바로 바뀐다. 그 둘이 제일 잦다. */}
                   {t.kind === "schedule" && (() => {
                     const a = audienceLabel(t);
+                    const hidden = a.text === "비공개";
                     return (
-                      <span
-                        className={`tag ${t.private ? "tag-muted" : a.tone}`}
+                      <button
+                        className={`tag ${a.tone}`}
+                        style={{ border: 0, cursor: "pointer" }}
                         title={
-                          t.private
-                            ? "나만 보기가 켜져 있어 아무에게도 안 보입니다"
-                            : a.text === "선생님만"
-                            ? "대상을 안 골라서 학생·학부모 달력에 안 뜹니다. 고치기에서 「누가 보나」 를 골라주세요"
-                            : `${a.text} 의 달력에 뜹니다`
+                          hidden
+                            ? "비공개입니다 — 선생님만 봅니다. 누르면 전체에 보입니다"
+                            : `${a.text} 의 달력에 뜹니다. 누르면 비공개로 바뀝니다`
+                        }
+                        disabled={pending}
+                        onClick={() =>
+                          run(() =>
+                            hidden
+                              ? updateTask(t.id, { private: false, deliver_scope: "all" })
+                              : updateTask(t.id, { private: true, deliver_scope: "" })
+                          )
                         }
                       >
-                        {t.private ? "나만 보기" : a.text}
-                      </span>
+                        {a.text}
+                      </button>
                     );
                   })()}
-                  {t.kind === "schedule" && !t.private && (
-                    <button
-                      className="tag tag-muted"
-                      style={{ border: 0, cursor: "pointer" }}
-                      title="누르면 나만 보기로 잠급니다 (아무에게도 안 보입니다)"
-                      onClick={() => run(() => updateTask(t.id, { private: true }))}
-                      disabled={pending}
-                    >
-                      잠그기
-                    </button>
-                  )}
-                  {t.kind === "schedule" && t.private && (
-                    <button
-                      className="tag tag-muted"
-                      style={{ border: 0, cursor: "pointer" }}
-                      title="잠금을 풉니다. 그래도 「누가 보나」 를 골라야 학생에게 보입니다"
-                      onClick={() => run(() => updateTask(t.id, { private: false }))}
-                      disabled={pending}
-                    >
-                      잠금 풀기
-                    </button>
-                  )}
                   {t.class_id && <span className="tag tag-muted">{className(t.class_id)}</span>}
                   <span className="spacer" />
                   {t.deliver_body && (
@@ -388,9 +379,17 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                         달력에 보일지와 전달사항을 보낼지가 뒤엉켜 있었다. */}
                     <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
                         <b style={{ fontSize: 12.5 }}>누가 보나</b>
-                        <select className="input input-sm" style={{ width: 150 }} value={draft.deliver_scope}
-                          onChange={(e) => setDraft({ ...draft, deliver_scope: e.target.value })}>
-                          <option value="">선생님만 (안 보임)</option>
+                        <select className="input input-sm" style={{ width: 170 }}
+                          value={draft.private ? "" : draft.deliver_scope}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              deliver_scope: e.target.value,
+                              // 비공개를 고르면 자물쇠가 켜진다 — 따로 누를 것이 없다
+                              private: e.target.value === "",
+                            })
+                          }>
+                          <option value="">비공개 — 나만 봄</option>
                           <option value="all">전체 — 재원생·학부모 모두</option>
                           <option value="class">반별</option>
                           <option value="grade">학교·학년별</option>
@@ -404,9 +403,9 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                           </select>
                         )}
                         <span className="hint">
-                          {draft.deliver_scope
-                            ? "고른 사람의 달력에 뜹니다"
-                            : "학생·학부모 달력에 안 뜹니다"}
+                          {draft.private || !draft.deliver_scope
+                            ? "선생님만 봅니다"
+                            : "고른 사람의 달력에 뜹니다"}
                         </span>
                         {draft.deliver_scope === "student" && (
                           <span className="hint">

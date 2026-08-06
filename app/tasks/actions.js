@@ -35,7 +35,10 @@ export async function addTask(formData) {
     deliver_body: clean(formData, "deliver_body"),
     notice_body: clean(formData, "notice_body"),
     absence_reason: clean(formData, "absence_reason"),
+    // **비공개 = 나만 보기** (0066 의 private). 「누가 보나」 에서 비공개를
+    // 고르면 대상이 비고 private 이 켜진다 — 자물쇠를 따로 두지 않는다
     deliver_scope: clean(formData, "deliver_scope"),
+    private: !!clean(formData, "private"),
     deliver_class_id: clean(formData, "deliver_class_id"),
     deliver_school: clean(formData, "deliver_school"),
     deliver_grade: clean(formData, "deliver_grade"),
@@ -54,6 +57,11 @@ export async function addTask(formData) {
   let { error } = await supabase.from("tasks").insert({ ...row, ...extra });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     await supabase.from("tasks").insert(row);
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0066 전이면 비공개 칸이 없다
+    const { private: _p, ...bare } = row;
+    await supabase.from("tasks").insert(bare);
   }
   revalidatePath("/tasks");
   revalidatePath("/today");

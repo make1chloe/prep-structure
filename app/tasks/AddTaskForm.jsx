@@ -8,7 +8,9 @@ const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기
 
 export default function AddTaskForm({ classes = [], schools = [], grades = [], students = [] }) {
   const [open, setOpen] = useState(false);
-  const [scope, setScope] = useState("all");
+  // **비공개로 시작한다** (원장님, 2026-08-06). 「누가 보나」 를 생각 안 하고
+  // 적었다면 그건 아직 안 정한 것이지 「모두」 가 아니다 — 모를 때 열어주는 쪽이 사고다
+  const [scope, setScope] = useState("");
   const [hasDeliver, setHasDeliver] = useState(false);
   const [picked, setPicked] = useState(() => new Set());
   const [find, setFind] = useState("");
@@ -72,19 +74,24 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
         <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <b style={{ fontSize: 13 }}>누가 보나</b>
+            {/* **비공개가 곧 나만 보기다** (원장님, 2026-08-06).
+                「비공개는 따로 만들지마」 — 그래서 자물쇠 단추를 따로 두지 않고
+                여기 한 줄에 같이 넣는다. 고를 것이 한 군데면 어긋날 일이 없다. */}
             <select
               className="input input-sm"
-              style={{ width: 150 }}
+              style={{ width: 170 }}
               name="deliver_scope"
               value={scope}
               onChange={(e) => setScope(e.target.value)}
             >
-              <option value="">선생님만 (안 보임)</option>
+              <option value="">비공개 — 나만 봄</option>
               <option value="all">전체 — 재원생·학부모 모두</option>
               <option value="class">반별</option>
               <option value="grade">학교·학년별</option>
               <option value="student">학생 고르기</option>
             </select>
+            {/* 비공개는 tasks.private 로 저장된다 (0066) — 칸을 새로 만들지 않는다 */}
+            <input type="hidden" name="private" value={scope === "" ? "1" : ""} />
               {scope === "class" && (
                 <select className="input input-sm" style={{ width: 170 }} name="deliver_class_id" defaultValue="">
                   <option value="">반 선택</option>
@@ -151,7 +158,7 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
             )}
           <p className="hint" style={{ margin: "8px 0 0", lineHeight: 1.7 }}>
             {scope === ""
-              ? "지금은 학생·학부모 달력에 안 뜹니다. 보이게 하시려면 위에서 골라주세요."
+              ? "비공개입니다 — 선생님만 봅니다. 아이·어머니 달력에는 안 뜹니다."
               : scope === "all"
               ? "재원생과 학부모 모두의 달력에 뜹니다."
               : "고른 사람의 달력에만 뜹니다. 나머지 학생에게는 안 보입니다."}
