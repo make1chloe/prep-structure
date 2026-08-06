@@ -12,6 +12,7 @@ import AiBox from "./AiBox";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
+import SchemaList from "./SchemaList";
 import ApplyBox from "./ApplyBox";
 
 export const dynamic = "force-dynamic";
@@ -130,20 +131,9 @@ export default async function SqlPage() {
             여기 안 나옵니다 — <b>다 됐다고 보여도 나이스 받아오기나 숙제→할일이 막혀
             있을 수 있습니다.</b> 아래 <b>「받아오기 · 할일 점검」</b> 에서 실제로 해보세요.
           </p>
-          <div className="stack" style={{ gap: 3, marginTop: 8 }}>
-            {checks.map((c) => (
-              <div className="unitrow" key={c.id + (c.col || c.rpc || "")}>
-                <span className={`tag ${c.ok ? "tag-mint" : "tag-amber"}`}>{c.ok ? "OK" : "없음"}</span>
-                <span className="hint" style={{ minWidth: 44 }}>{c.id}</span>
-                <span style={{ fontSize: 12.5, flex: 1 }}>{c.label}</span>
-                {!c.ok && (
-                  <span className="hint" style={{ fontSize: 11, maxWidth: 320, textAlign: "right" }}>
-                    {c.why}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* 잘 들어간 것은 안 보여준다 — 여든 줄의 「OK」 사이에 「없음」 두 줄이 묻힌다 */}
+          <SchemaList checks={checks} />
+
           {done < checks.length && (
             <div className="hint" style={{ marginTop: 10, lineHeight: 1.9 }}>
               <b>없음</b> 이 있으면 아래 SQL 을 실행해주세요. 실행하고 이 화면을 새로고침하면 바뀝니다.
