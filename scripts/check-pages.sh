@@ -96,6 +96,16 @@ else
 fi
 
 echo
+echo "== 5-5) 출제분석 =="
+# 「교과서에서 60% 나왔다」 가 틀리면 한 학기 공부 방향이 틀어진다.
+# 「몇 명 중 몇 명」 은 사람 수를 잘못 세면 곧바로 거짓말이 된다
+if out=$(node scripts/check-analysis.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 6) 옛 자료가 새 모양으로 옮겨지나 (진짜 Postgres) =="
 if [ -f scripts/check-exam-merge.sh ]; then
   bash scripts/check-exam-merge.sh || fail=1

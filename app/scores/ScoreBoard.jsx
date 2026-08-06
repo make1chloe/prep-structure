@@ -141,6 +141,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             {/* **리포트로 가는 문.** 이 화면은 넣는 곳이고, 보는 곳은 따로다 —
                 상담 중에 펴놓으실 화면이라 넣기 칸이 섞여 있으면 안 된다 */}
             <a className="btn btn-ghost btn-sm" href="/scores/spec">문항표</a>
+            <a className="btn btn-ghost btn-sm" href="/scores/analysis">출제분석</a>
             <a className="btn btn-primary btn-sm" href={`/scores/${student.id}`}>
               {student.name} 리포트 보기
             </a>

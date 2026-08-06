@@ -56,6 +56,8 @@ export default async function SpecPage() {
         <div className="page-head">
           <p className="eyebrow">
             <Link className="sky" href="/scores">성적</Link>
+            {" · "}
+            <Link className="sky" href="/scores/analysis">출제분석</Link>
           </p>
           <h1 className="h1">문항표</h1>
           <p className="sub">
@@ -64,6 +66,10 @@ export default async function SpecPage() {
             <br />
             모의고사는 <b>이미 채워져 있습니다</b> — 45문항 구성이 학년·회차와 거의
             같아서 앱이 갖고 있습니다. <b>바뀐 해에는 여기서 고치시면 됩니다.</b>
+            <br />
+            <b>내신은 회차를 골라</b> 문항마다 <b>단원</b>과 <b>출처</b>를 적어주세요 —
+            그러면 <Link className="sky" href="/scores/analysis">출제분석</Link> 에
+            「교과서에서 몇 %」 와 「어느 단원에서 우리 애들이 몰려 틀렸나」 가 나옵니다.
           </p>
         </div>
 
