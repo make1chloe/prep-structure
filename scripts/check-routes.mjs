@@ -4,7 +4,7 @@
 // 하지만 누군가 lib/roles.js 의 목록에 무심코 한 줄을 더하면 그날로 뚫린다.
 // 그래서 **목록 자체를 못 박아 둔다.** 늘리려면 이 파일도 같이 고쳐야 한다.
 
-import { canOpen, isStaff } from "../lib/roles.js";
+import { canOpen, isStaff, homeFor } from "../lib/roles.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -42,6 +42,18 @@ for (const r of ["/today", "/students", "/tuition", "/settings", "/report", "/cl
   if (canOpen("parent", r)) bad.push(`학부모에게 열려 있음: ${r}`);
   if (canOpen(null, r)) bad.push(`역할을 모르는 사람에게 열려 있음: ${r}`);
   if (!canOpen("principal", r)) bad.push(`원장이 못 여는 곳: ${r}`);
+}
+
+// 2-1) **그 사람이 가야 할 첫 화면**을 그 사람이 열 수 있나.
+//   홈 화면 앱의 시작 주소가 /me 로 박혀 있어서, 원장님이 담았는데 학생
+//   화면이 떴다. 이제 「/」 로 들여보내고 길목에서 갈라 주는데, 갈라 보낸
+//   곳을 정작 못 열면 무한히 돌게 된다.
+for (const r of ["principal", "instructor", "assistant", "student", "parent"]) {
+  const home = homeFor(r);
+  if (!canOpen(r, home)) bad.push(`${r} 의 첫 화면을 ${r} 이(가) 못 엽니다: ${home}`);
+}
+if (homeFor("student") === homeFor("parent")) {
+  bad.push("학생과 학부모의 첫 화면이 같습니다 — 보는 것이 다릅니다");
 }
 
 // 3) 역할 판정

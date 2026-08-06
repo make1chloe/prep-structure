@@ -10,7 +10,12 @@ export default function manifest() {
   return {
     name: "클로이영어",
     short_name: "클로이영어",
-    start_url: "/me",
+    // **누가 담느냐에 따라 첫 화면이 다르다.**
+    //   여기에 /me 를 박아놨더니, 원장님이 홈 화면에 담았는데 학생 화면이
+    //   떴다. 앱은 하나인데 시작 주소를 한 쪽에 맞춰 놓은 것이 잘못이다.
+    //   「/」 로 들여보내면 지나는 길목(middleware)이 역할을 보고 갈라 준다 —
+    //   선생님은 대시보드, 학생은 /me, 학부모는 /parent.
+    start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#00175c",

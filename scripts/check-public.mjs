@@ -50,8 +50,19 @@ for (const p of ["/api/icon", "/api/calendar", "/manifest"]) {
   }
 }
 
+// ── 3) 홈 화면 앱이 어디서 시작하나 ─────────────────────────
+//   여기에 /me 를 박아뒀더니 원장님이 홈 화면에 담았는데 학생 화면이 떴다.
+//   앱은 하나인데 시작 주소를 한 쪽에 맞춰 놓으면 반드시 누군가는 엉뚱한
+//   화면을 본다. 「/」 로 들여보내고 길목이 역할을 보고 갈라 준다.
+const mani = readFileSync("app/manifest.js", "utf8");
+const st = mani.match(/start_url:\s*"([^"]*)"/);
+if (!st) bad.push("app/manifest.js 의 start_url 을 못 읽었습니다");
+else if (st[1] !== "/") {
+  bad.push(`홈 화면 앱이 ${st[1]} 에서 시작합니다 — 「/」 로 두고 역할에 맡겨야 합니다`);
+}
+
 if (bad.length) {
   console.log(bad.map((b) => `  ${b}`).join("\n"));
   process.exit(1);
 }
-console.log("  로고 · 달력 · manifest 는 로그인 없이 열립니다");
+console.log("  로고 · 달력 · manifest 는 로그인 없이 열리고, 홈 화면 앱은 「/」 에서 시작합니다");
