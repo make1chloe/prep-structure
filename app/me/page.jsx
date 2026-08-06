@@ -32,6 +32,7 @@ import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
+import { loadClassesWithTerm } from "@/lib/classTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
@@ -238,11 +239,12 @@ export default async function MePage({ searchParams }) {
       .eq("student_id", student.id);
     const ids = (mine || []).map((m) => m.class_id);
     if (ids.length) {
-      const { data: cls } = await supabase
-        .from("classes")
-        .select("id, name, days, start_time, end_time")
-        .in("id", ids);
-      myClasses = cls || [];
+      // **기간 칸을 꼭 같이 읽는다.** 안 읽으면 종강한 특강의 회차가
+      // 내 달력에 영원히 찍힌다 (2026-08-06 — 「화목1특강이 8월 11일까지인데
+      // 일정에 8월 이후에도 계속 수업이 있는 걸로 나와」)
+      myClasses = await loadClassesWithTerm(
+        supabase, "id, name, days, start_time, end_time", ids
+      );
       myClasses
         .filter((c) => (c.days || []).includes(dowNow) && c.end_time)
         .forEach((c) => {

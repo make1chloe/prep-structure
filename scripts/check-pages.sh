@@ -106,6 +106,16 @@ else
 fi
 
 echo
+echo "== 5-5-2) 특강 기한이 달력까지 닿나 =="
+# 계산은 진작 맞았는데 **자료가 안 와서** 종강한 특강이 계속 수업하고 있었다.
+# 계산만 보는 검사로는 영원히 못 잡는다 — 화면이 기간 칸을 읽는지도 같이 본다
+if out=$(node scripts/check-classterm.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 5-6) 한 달 살아보기 (진짜 Postgres · 원장·학생·학부모 셋의 눈) =="
 # 계산만 돌리는 시뮬레이션으로는 못 잡는 것이 있다 — 읽기 규칙 때문에 화면이
 # 통째로 비는 것, 한 달 치가 쌓여야 보이는 것. 오래 걸려서 마지막 줄만 남긴다

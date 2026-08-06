@@ -5,6 +5,7 @@ import NeisBox from "@/app/schedule/NeisBox";
 import SchoolBox from "@/app/schedule/SchoolBox";
 
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
+import { loadClassesWithTerm } from "@/lib/classTerm";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
 import { endOfMonth, todaySeoul } from "@/lib/day";
@@ -28,16 +29,13 @@ export default async function SchoolsPage() {
   const from = `${months[0]}-01`;
   const to = endOfMonth(months[2]);
 
-  let { data: classes } = await supabase
-    .from("classes")
-    .select("id, name, days, start_time, base_sessions")
-    .order("start_time", { ascending: true });
-  if (!classes) {
-    ({ data: classes } = await supabase
-      .from("classes")
-      .select("id, name, days, start_time")
-      .order("start_time", { ascending: true }));
+  // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강이 여기서도
+  // 계속 수업하는 반으로 잡힌다 (2026-08-06). /schedule 만 고쳐두었었다
+  let classes = await loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions");
+  if (classes.length === 0) {
+    classes = await loadClassesWithTerm(supabase, "id, name, days, start_time");
   }
+  classes = [...classes].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
   const { data: holidays } = await supabase
     .from("holidays")

@@ -22,6 +22,7 @@ import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
+import { loadClassesWithTerm } from "@/lib/classTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
@@ -204,9 +205,11 @@ export default async function ParentPage({ searchParams }) {
       .from("class_students").select("class_id").eq("student_id", pickId);
     const ids = (mine || []).map((m) => m.class_id);
     if (ids.length) {
-      const { data } = await supabase
-        .from("classes").select("id, name, days, start_time, end_time").in("id", ids);
-      myClasses = data || [];
+      // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강의 회차가
+      // 우리 아이 달력에 영원히 찍힌다 (2026-08-06)
+      myClasses = await loadClassesWithTerm(
+        supabase, "id, name, days, start_time, end_time", ids
+      );
     }
   }
   /**

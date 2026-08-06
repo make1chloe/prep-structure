@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import ScheduleBoard from "./ScheduleBoard";
 
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
+import { loadClassesWithTerm } from "@/lib/classTerm";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
 import { endOfMonth, todaySeoul } from "@/lib/day";
@@ -32,22 +33,12 @@ export default async function SchedulePage() {
 
   // **특강은 끝난다.** 개강·종강일을 같이 읽어야 그 기간 밖의 달에
   // 수업이 잡히지 않는다 — 「화목1 특강」 이 종강 뒤에도 계속 나왔다.
-  let { data: classes } = await supabase
-    .from("classes")
-    .select("id, name, days, start_time, base_sessions, starts_on, ends_on, archived_at")
-    .order("start_time", { ascending: true });
-  if (!classes) {
-    ({ data: classes } = await supabase
-      .from("classes")
-      .select("id, name, days, start_time, starts_on, ends_on")
-      .order("start_time", { ascending: true }));
+  // 기간 칸을 챙기는 일은 `loadClassesWithTerm` 한 군데에 있다 (0042 되돌리기 포함)
+  let classes = await loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions");
+  if (classes.length === 0) {
+    classes = await loadClassesWithTerm(supabase, "id, name, days, start_time");
   }
-  if (!classes) {
-    ({ data: classes } = await supabase
-      .from("classes")
-      .select("id, name, days, start_time")
-      .order("start_time", { ascending: true }));
-  }
+  classes = [...classes].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
   const { data: holidays } = await supabase
     .from("holidays")
