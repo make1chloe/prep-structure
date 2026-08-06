@@ -734,3 +734,27 @@ a { color: inherit; }
   .stutbl td, .stutbl th { padding-left: 6px; padding-right: 6px; }
   .stutbl .namebtn { font-size: 14px; }
 }
+
+/* ── 새 버전이 나왔을 때 뜨는 띠 ─────────────────────────────
+   홈 화면에 담은 앱에는 주소창이 없어서 새로고침할 방법이 없다. 그래서
+   앱이 스스로 알아채고 **맨 위에 띠를 하나 붙인다** — 누르면 다시 받는다.
+
+   화면 위에 고정해서 띄운다. 흐름 안에 두면 스크롤을 내린 상태에서는
+   있는 줄도 모르고, 그러면 없는 것과 같다. */
+.newver {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: 60;
+  border: 0;
+  border-bottom: 1px solid var(--amber);
+  background: var(--amber-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 14px;
+  text-align: center;
+  cursor: pointer;
+  font-family: inherit;
+}
+.newver b { color: var(--amber); }
+.newver:disabled { opacity: 0.6; }

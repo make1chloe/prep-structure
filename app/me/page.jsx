@@ -24,6 +24,7 @@ import { addDays, dowOf, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
+import Refresh from "@/components/Refresh";
 
 export const dynamic = "force-dynamic";
 
@@ -791,6 +792,13 @@ export default async function MePage({ searchParams }) {
             <InstallHint />
             <PushToggle />
           </>
+        )}
+        {/* 홈 화면에 담은 앱에는 주소창이 없다 — 여기 없으면 새로고침할 방법이 없다.
+            아이 화면이라 오른쪽 끝에 작게 둔다 (누를 일이 자주 있으면 안 된다) */}
+        {!preview && (
+          <div className="row" style={{ justifyContent: "flex-end", marginTop: -4 }}>
+            <Refresh />
+          </div>
         )}
         {/* ── 1. 이번 달 현황 ─────────────────────────────────────
             학부모 화면과 **같은 숫자**다 (lib/monthly 의 summarize).

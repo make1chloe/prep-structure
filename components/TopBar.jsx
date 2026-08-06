@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { menuFor, findSection } from "@/lib/menu";
 import BrandMark from "./BrandMark";
+import Refresh from "./Refresh";
 
 /** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
 function groupLabel(key) {
@@ -43,6 +44,8 @@ export default function TopBar({ profile, active }) {
           <b>{profile?.name || "사용자"}</b>{" "}
           {profile?.role ? `· ${ROLE_LABEL[profile.role] || profile.role}` : ""}
         </span>
+        {/* 홈 화면에 담은 앱에는 주소창이 없다 — 새로고침이 여기 없으면 방법이 없다 */}
+        <Refresh />
         <form action="/logout" method="post">
           <button className="btn btn-ghost" type="submit">
             로그아웃

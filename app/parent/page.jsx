@@ -12,6 +12,7 @@ import NoticePhotos from "@/components/NoticePhotos";
 import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
+import Refresh from "@/components/Refresh";
 
 export const dynamic = "force-dynamic";
 
@@ -230,6 +231,13 @@ export default async function ParentPage({ searchParams }) {
           {latest ? ` · 최근 수업 ${longLabel(latest.date)}` : ""}
         </p>
       </div>
+
+      {/* 홈 화면에 담은 앱에는 주소창이 없다 — 여기 없으면 새로고침할 방법이 없다 */}
+      {!preview && (
+        <div className="row" style={{ justifyContent: "flex-end" }}>
+          <Refresh />
+        </div>
+      )}
 
       {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
 
