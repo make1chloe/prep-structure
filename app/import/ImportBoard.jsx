@@ -7,6 +7,7 @@ import {
 } from "@/lib/importNotion";
 import { parsePaymentRow } from "@/lib/importPayment";
 import { parseNoteAoA } from "@/lib/importNote";
+import { readSheet } from "@/lib/readSheet";
 import {
   importReports, importHomework, importTasks, importAbsences, importPayments, importNotes,
 } from "./actions";
@@ -105,13 +106,12 @@ export default function ImportBoard() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    const XLSX = await import("xlsx");
-    const wb = XLSX.read(await file.arrayBuffer(), { cellDates: false, codepage: 65001 });
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
-      header: 1,
-      raw: false,
-      defval: "",
-    });
+    // 파일은 **적힌 그대로** 읽는다 (lib/readSheet).
+    //   전에는 여기서 codepage 를 억지로 지정하고 raw:false 로 읽었는데,
+    //   그러면 라이브러리가 「2025/03/14」 를 날짜로 알아보고 「3/14/25」 로
+    //   고쳐 쓴다. 그 줄들은 「날짜 없음」 이 되어 **조용히 사라졌다** —
+    //   상담일지 193줄 중 52줄이 그렇게 없어졌고 오류도 안 났다.
+    const aoa = await readSheet(file);
     const y = parseInt(year, 10) || new Date().getFullYear();
     // 상담일지는 **한 장을 통째로** 읽는다 — 형제가 같이 걸린 상담 한 줄이
     // 학생 수만큼의 줄이 되어야 해서, 줄 단위 파서로는 안 된다

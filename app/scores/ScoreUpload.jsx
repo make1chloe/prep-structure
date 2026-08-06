@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { parseScoreAoA } from "@/lib/importScore";
 import { KIND_LABEL } from "@/lib/scores";
 import { importScores } from "./importActions";
+import { readSheet } from "@/lib/readSheet";
 
 /**
  * **성적 한 번에 올리기** — 내신 · 문법 단원평가 · 모의고사를 한 장으로.
@@ -65,11 +66,9 @@ export default function ScoreUpload() {
     setBusy(true);
     setResult(null);
     try {
-      const XLSX = await import("xlsx");
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+      // 적힌 그대로 읽는다 — 라이브러리가 날짜를 고쳐 쓰면 「2026-04-28」 이
+      // 「4/28/26」 이 되어 엉뚱한 날로 들어간다 (lib/readSheet)
+      const aoa = await readSheet(file);
       setParsed(parseScoreAoA(aoa, year));
       setFileName(file.name);
     } catch (err) {
