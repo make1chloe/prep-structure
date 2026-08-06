@@ -139,6 +139,8 @@ export default async function StudentsPage({ searchParams }) {
           </div>
           <div style={{ marginTop: 4 }}>
             <BulkAccounts />
+            {/* 학부모도 같은 자리에서. 규칙도 비밀번호도 학생과 같다 */}
+            <BulkAccounts who="parent" />
           </div>
         </div>
 

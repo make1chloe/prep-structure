@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { parentLoginId } from "@/lib/studentId";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 
@@ -361,4 +362,99 @@ export async function accountStatus(studentId) {
     hasKey: !!key,
     suggest: s?.login_id || pickId(s || {}, await usedIds(supabase)),
   };
+}
+
+/**
+ * **학부모 계정을 한 번에 만든다.**
+ *
+ * 원장님과 정한 것 (2026-08-05)
+ *   아이디 = chloe + 어머니 번호 8자리 (010 뺀 나머지). lib/studentId 의 규칙 그대로.
+ *   · 학생은 4자리라 자릿수가 달라서 절대 안 겹친다.
+ *   · 「어머니들이 영어를 잘 몰라」 뒤에 p 를 붙이지 않는다.
+ *   · **어머니 한 분에 계정 하나.** 형제자매가 있어도 번호가 같으니 저절로
+ *     하나로 묶이고, 한 번 로그인해서 두 아이를 다 보신다.
+ *
+ * 비밀번호·첫 로그인 비번 바꾸기는 **학생과 똑같다** (0000 · must_change_pw).
+ * 규칙을 둘로 두면 「학부모는 어떻게 하더라」 를 매번 다시 떠올려야 한다.
+ */
+export async function createAllParentLogins() {
+  const supabase = createClient();
+  const guard = await requirePrincipal(supabase);
+  if (guard.error) return { error: guard.error, made: [], failed: [] };
+
+  const key = await serviceKey(supabase);
+  if (!key) return { ...keyMissing(), made: [], failed: [] };
+
+  const { data: rows, error } = await supabase
+    .from("students")
+    .select("id, name, parent_phone, status")
+    .eq("status", "enrolled")
+    .order("name", { ascending: true });
+  if (error) return { error: error.message, made: [], failed: [] };
+
+  // **번호로 묶는다.** 형제자매면 한 계정이다 (어머니가 두 번 로그인하실 일 없게)
+  const byPhone = new Map();
+  const noPhone = [];
+  (rows || []).forEach((s) => {
+    const id = parentLoginId(s.parent_phone);
+    if (!id) { noPhone.push(s.name); return; }
+    if (!byPhone.has(id)) byPhone.set(id, { loginId: id, phone: s.parent_phone, kids: [] });
+    byPhone.get(id).kids.push(s);
+  });
+  if (byPhone.size === 0) {
+    return { error: null, made: [], failed: [], noPhone, password: INIT_PW };
+  }
+
+  // 이미 있는 학부모 계정 — 다시 만들지 않는다
+  const wanted = [...byPhone.keys()];
+  const { data: haveProf } = await supabase
+    .from("profiles")
+    .select("id, login_id")
+    .in("login_id", wanted);
+  const have = new Map((haveProf || []).map((p) => [p.login_id, p.id]));
+
+  const made = [];
+  const failed = [];
+  const already = [];
+
+  for (const g of byPhone.values()) {
+    let uid = have.get(g.loginId) || null;
+
+    if (!uid) {
+      const label = g.kids.map((k) => k.name).join("·");
+      const res = await admin(key, "/users", "POST", {
+        email: emailOf(g.loginId),
+        password: INIT_PW,
+        email_confirm: true,
+        user_metadata: { name: `${label} 학부모`, login_id: g.loginId },
+      });
+      if (!res.ok) {
+        failed.push({
+          name: g.kids.map((k) => k.name).join(", "),
+          why: res.json?.msg || res.json?.message || `HTTP ${res.status}`,
+        });
+        continue;
+      }
+      uid = res.json?.id || res.json?.user?.id;
+      if (!uid) { failed.push({ name: g.kids[0].name, why: "계정 id 를 못 받았어요." }); continue; }
+
+      const { error: pErr } = await supabase.from("profiles").upsert(
+        { id: uid, name: `${label} 학부모`, role: "parent", must_change_pw: true, login_id: g.loginId },
+        { onConflict: "id" }
+      );
+      if (pErr) { failed.push({ name: g.kids[0].name, why: pErr.message }); continue; }
+      made.push({ name: label, loginId: g.loginId, kids: g.kids.length });
+    } else {
+      already.push(g.loginId);
+    }
+
+    // **아이와 이어준다.** 계정이 이미 있어도 새로 들어온 동생은 이어줘야 한다
+    const links = g.kids.map((k) => ({ parent_profile_id: uid, student_id: k.id }));
+    const { error: lErr } = await supabase
+      .from("parent_student")
+      .upsert(links, { onConflict: "parent_profile_id,student_id" });
+    if (lErr) failed.push({ name: g.kids[0].name, why: `연결 실패: ${lErr.message}` });
+  }
+
+  return { error: null, made, failed, already, noPhone, password: INIT_PW };
 }
