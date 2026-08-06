@@ -578,7 +578,8 @@ export async function importInquiries(rows) {
     const class_id = r.classStart ? classAt.get(ckey) || null : null;
     if (class_id) linkedClass += 1;
     // 등록까지 간 문의만 재원생과 잇는다 (원칙1: 이름을 다시 안 적는다)
-    const student_id = r.status === "enrolled" ? studentAt.get(r.name) || null : null;
+    // 「이민재A」 로는 재원생을 못 찾는다 — 원래 이름으로 잇는다
+    const student_id = r.status === "enrolled" ? studentAt.get(r.baseName || r.name) || null : null;
     if (student_id) linkedStudent += 1;
 
     const row = {

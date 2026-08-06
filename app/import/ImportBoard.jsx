@@ -74,7 +74,11 @@ const KINDS = [
       "메이크용으로 겹쳐 적힌 칸은 안 옮깁니다 — 그 일은 이제 앱이 합니다. " +
       "등원시작일 · 수강료 · 생일 · 주소 · 교재는 따로 칸이 없어서 메모 밑에 한 줄로 붙습니다. " +
       "「입학결정」 은 등록으로, 「방문취소」 와 문의종료된 줄은 미등록으로 들어갑니다. " +
-      "번호가 같은 줄은 한 사람으로 합칩니다 — 이름만 같고 번호가 다르면 남남으로 둡니다. " +
+      "레벨테스트와 방문상담은 따로 진행하시는 다른 약속이라 날짜도 따로 들어갑니다. " +
+      "번호가 같은 줄은 한 사람으로 합치고, 이름만 같고 번호가 다르면 " +
+      "「이민재A · 이민재B」 로 나눠 적습니다 — 목록에 같은 이름이 둘이면 어느 쪽에 " +
+      "적는 것인지 알 수 없기 때문입니다. " +
+      "이름을 못 여쭌 문의는 「이름 없음」 으로 두고 적혀 있던 글자는 메모에 남깁니다. " +
       "같은 이름·번호가 이미 있으면 덮어쓰니 다시 올리셔도 안 늘어납니다.",
     whole: true,
   },
@@ -439,18 +443,27 @@ export default function ImportBoard() {
                   {kind === "inquiry" && ok.slice(0, 60).map((r, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 600 }}>
-                        {r.name}
+                        {r.noName ? <span className="muted">{r.name}</span> : r.name}
                         {/* 두 줄이 한 사람이라 합친 것 — 줄 수가 줄어든 까닭 */}
                         {r.merged > 1 && (
                           <span className="tag tag-lav" style={{ marginLeft: 4 }}>{r.merged}줄 합침</span>
                         )}
+                        {/* 이름은 같은데 남남이라 A·B 로 나눠 적은 것 */}
+                        {r.sameName && (
+                          <span className="tag tag-sky" style={{ marginLeft: 4 }}>동명이인</span>
+                        )}
+                        {r.noName && (
+                          <span className="tag tag-amber" style={{ marginLeft: 4 }}>이름 못 여쭘</span>
+                        )}
                       </td>
                       <td className="muted">
                         {[r.school, r.grade].filter(Boolean).join(" ") || "—"}
-                        {/* **학교와 학년이 서로 다른 줄.** 어느 쪽이 맞는지는
-                            원장님만 아신다 — 조용히 고르지 않는다 */}
+                        {/* 학년 칸과 어긋나서 **학교 칸을 쓴** 줄 */}
                         {r.gradeConflict && (
-                          <span className="tag tag-amber" style={{ marginLeft: 4 }}>학년 어긋남</span>
+                          <span className="tag tag-muted" style={{ marginLeft: 4 }}>학교 칸을 씀</span>
+                        )}
+                        {r.fixed && (
+                          <span className="tag tag-mint" style={{ marginLeft: 4 }}>정정</span>
                         )}
                       </td>
                       <td>
