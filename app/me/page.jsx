@@ -25,6 +25,9 @@ import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
 import Refresh from "@/components/Refresh";
+import {
+  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
+} from "@/lib/homeworkView";
 
 export const dynamic = "force-dynamic";
 
@@ -119,31 +122,11 @@ export default async function MePage({ searchParams }) {
     );
   }
 
-  // 가장 최근 수업의 리포트 = 지금 해야 할 숙제가 담긴 곳
-  const REP_BASE =
-    "id, date, own_progress, notice, word_correct, word_total, sent_correct, sent_total";
-  // 수업 기록은 미래일 수 없다.
-  //   노션에서 연도 없는 "12/30" 을 올해로 붙여 들여온 적이 있어서,
-  //   지난주에 수업하고도 "최근 수업 12월 30일" 이 떴다. 들여오기는 고쳤지만
-  //   이미 들어간 것이 있을 수 있으므로 읽을 때도 오늘까지만 본다.
+  // 가장 최근 수업의 리포트 = 지금 해야 할 숙제가 담긴 곳.
+  //   읽는 코드는 lib/homeworkView 한 곳에 있다 — 학부모 화면이 같은 숙제를
+  //   보여줘야 하기 때문이다. 두 군데서 읽으면 두 화면이 어긋난다.
   const todayStr = todaySeoul();
-  let { data: reports, error: repErr } = await supabase
-    .from("daily_reports")
-    .select(`${REP_BASE}, phone_in, homework_in, word_when`)
-    .eq("student_id", student.id)
-    .lte("date", todayStr)
-    .order("date", { ascending: false })
-    .limit(6);
-  if (repErr) {
-    // 0037 전이면 등원 절차 없이
-    ({ data: reports } = await supabase
-      .from("daily_reports")
-      .select(REP_BASE)
-      .eq("student_id", student.id)
-      .lte("date", todayStr)
-      .order("date", { ascending: false })
-      .limit(6));
-  }
+  const reports = await loadReports(supabase, student.id, todayStr, 6);
 
   // 내가 낸 숙제 (0044 전이면 빈 값 — 화면은 그대로 뜬다)
   const { data: subRows } = await supabase
@@ -162,121 +145,14 @@ export default async function MePage({ searchParams }) {
   const latest = reports?.[0] || null;
   const reportIds = (reports || []).map((r) => r.id);
 
-  let dri = [];
-  if (reportIds.length > 0) {
-    const BASE = "id, daily_report_id, homework_item_id, status";
-    let { data, error } = await supabase
-      .from("daily_report_items")
-      .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at, changed_at`)
-      .in("daily_report_id", reportIds);
-    if (error) {
-      ({ data, error } = await supabase
-        .from("daily_report_items")
-        .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note`)
-        .in("daily_report_id", reportIds));
-    }
-    if (error) {
-      ({ data } = await supabase.from("daily_report_items").select(BASE).in("daily_report_id", reportIds));
-    }
-    dri = data || [];
-  }
+  const dri = await loadReportItems(supabase, reportIds);
+  const itemById = await loadHomeworkItems(supabase);
+  const unitLabel = await loadUnitLabels(supabase, dri);
+  const toCard = makeCard(itemById, unitLabel);
 
-  // 숙제 항목 (학습 방법 포함)
-  let { data: items, error: itemErr } = await supabase
-    .from("homework_items")
-    .select("id, name, category, method, sort, no_timer, word_test, checklist, in_person");
-  if (itemErr) {
-    ({ data: items, error: itemErr } = await supabase
-      .from("homework_items")
-      .select("id, name, category, method, sort, no_timer, word_test, checklist"));
-  }
-  if (itemErr) {
-    ({ data: items, error: itemErr } = await supabase
-      .from("homework_items")
-      .select("id, name, category, method, sort"));
-  }
-  if (itemErr) {
-    ({ data: items } = await supabase.from("homework_items").select("id, name, category"));
-  }
-  const itemById = new Map((items || []).map((i) => [i.id, i]));
-
-  // 단원 이름
-  const idsOf = (x) =>
-    x.textbook_unit_ids && x.textbook_unit_ids.length
-      ? x.textbook_unit_ids
-      : x.textbook_unit_id
-      ? [x.textbook_unit_id]
-      : [];
-  const unitIds = new Set();
-  dri.forEach((x) => idsOf(x).forEach((id) => unitIds.add(id)));
-
-  const unitLabel = new Map();
-  if (unitIds.size > 0) {
-    const { data: picked } = await supabase
-      .from("textbook_units")
-      .select("id, textbook_id")
-      .in("id", [...unitIds]);
-    const bookIds = [...new Set((picked || []).map((u) => u.textbook_id))];
-    const { data: all } = bookIds.length
-      ? await supabase
-          .from("textbook_units")
-          .select("id, name, parent_id, textbook_id, page_start, page_end")
-          .in("textbook_id", bookIds)
-      : { data: [] };
-    const { data: bookRows } = bookIds.length
-      ? await supabase.from("textbooks").select("id, name").in("id", bookIds)
-      : { data: [] };
-    const bookName = new Map((bookRows || []).map((b) => [b.id, b.name]));
-    const byId = new Map((all || []).map((u) => [u.id, u]));
-    (all || [])
-      .filter((u) => unitIds.has(u.id))
-      .forEach((u) => {
-        const chain = [];
-        let cur = u;
-        const seen = new Set();
-        while (cur && !seen.has(cur.id)) {
-          seen.add(cur.id);
-          chain.unshift(cur.name);
-          cur = cur.parent_id ? byId.get(cur.parent_id) : null;
-        }
-        const pages = u.page_start && u.page_end ? ` ${u.page_start}~${u.page_end}p` : "";
-        unitLabel.set(u.id, `${bookName.get(u.textbook_id) || ""} ${chain.join(" ")}${pages}`.trim());
-      });
-  }
-
-  const toCard = (x) => {
-    const item = itemById.get(x.homework_item_id);
-    return {
-      key: `${x.daily_report_id}-${x.homework_item_id}-${x.status}`,
-      reportItemId: x.id,
-      doneAt: x.student_done_at || null,
-      itemId: x.homework_item_id,
-      name: item?.name || "숙제",
-      method: item?.method || "",
-      checklist: (item?.checklist || "")
-        .split("\n").map((t) => t.trim()).filter(Boolean),
-      units: idsOf(x).map((id) => unitLabel.get(id)).filter(Boolean),
-      note: x.range_note || "",
-      status: x.status,
-      // 처음 받은 숙제가 아니라 **나중에 더하거나 고친 것** (0087).
-      // 비어 있으면 그날 원래 받은 것이라 표시하지 않는다.
-      changedAt: x.changed_at || null,
-      area: item?.category || "",
-    };
-  };
-
-  // 지금 해야 할 숙제 = **가장 최근에 배정한 것**
-  //
-  // 예전에는 '가장 최근 리포트' 만 봤다. 그런데 등원해서 출결을 찍으면 그날
-  // 리포트가 새로 생기고, 그 순간 지난 수업에 낸 숙제가 통째로 사라졌다 —
-  // 아직 검사도 안 했는데. 그래서 **숙제가 붙어 있는 가장 최근 리포트**를
-  // 찾아서 그것을 보여준다.
-  const assignedFrom = (reports || []).find((r) =>
-    dri.some((x) => x.daily_report_id === r.id && x.status === "assigned")
-  );
-  const todo = assignedFrom
-    ? dri.filter((x) => x.daily_report_id === assignedFrom.id && x.status === "assigned").map(toCard)
-    : [];
+  // 지금 해야 할 숙제 = **가장 최근에 배정한 것** (까닭은 lib/homeworkView 에)
+  const { from: assignedFrom, rows: assignedRows } = pickAssigned(reports, dri);
+  const todo = assignedRows.map(toCard);
 
   // 지난 수업 검사 결과
   const checked = latest

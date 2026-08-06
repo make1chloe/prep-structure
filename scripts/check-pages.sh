@@ -99,6 +99,18 @@ else
 fi
 echo
 
+echo "== 8-2) 학부모에게 자기 아이 것이 보이나 (진짜 Postgres) =="
+# check-leak 는 「남의 것이 보이면 실패」 만 본다 — 그것만 보면 **아무것도 안
+# 보이는 것이 만점**이다. 실제로 학부모 화면이 몇 주 동안 통째로 비어 있었고
+# (0016 의 읽기 규칙이 학생 본인만이었다), 원장님 미리보기는 선생님 권한이라
+# 다 보여서 아무도 몰랐다. 그래서 **보여야 하는 것이 보이는지**도 본다.
+if [ -f scripts/check-parent.sh ]; then
+  bash scripts/check-parent.sh || fail=1
+else
+  echo "  건너뜀"
+fi
+echo
+
 echo "== 9) 조교가 수강료를 볼 수 있나 (진짜 Postgres) =="
 # 메뉴에서 감추는 것과 데이터를 막는 것은 다른 이야기다 (0079)
 if [ -f scripts/check-roles.sh ]; then
