@@ -23,6 +23,7 @@ import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
 import MyScoreForm from "./MyScoreForm";
 import GrowthCard from "@/components/GrowthCard";
+import UnitCard from "@/components/UnitCard";
 import { oneRound, stack } from "@/lib/report";
 import { KIND_LABEL as SCORE_KIND } from "@/lib/scores";
 import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
@@ -578,7 +579,7 @@ export default async function MePage({ searchParams }) {
       .from("scores")
       .select("id, kind, term, taken_on, raw_score, source")
       .eq("student_id", student.id)
-      .in("kind", ["mock", "school"])
+      .in("kind", ["mock", "school", "unit"])
       .order("taken_on", { ascending: false })
       .limit(30);
     myScores = q.data || [];
@@ -902,7 +903,11 @@ export default async function MePage({ searchParams }) {
         {["mock", "school"].map((k) =>
           growth[k] ? <GrowthCard key={k} st={growth[k]} kindLabel={SCORE_KIND[k]} /> : null
         )}
-        <MyScoreForm mine={myScores} base={specBase} canWrite={!preview && !trying} />
+        {/* **단원평가는 흐름으로 본다** (2026-08-06, 한 달 살아보기에서).
+            한 달에 66건이 쌓이는데 날짜순 66줄로는 「관계사에서 세 번 막혔다」
+            를 못 읽는다 */}
+        <UnitCard scores={myScores} />
+        <MyScoreForm mine={myScores.filter((s) => s.kind !== "unit")} base={specBase} canWrite={!preview && !trying} />
       </>
     ),
     videos: (

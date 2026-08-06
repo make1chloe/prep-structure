@@ -108,6 +108,22 @@ const CHECKS = [
   //   그건 checkSchema 가 원장님 세션으로 도는 한 어쩔 수 없다.
   //   실제 확인은 scripts/check-parent.sh 가 진짜 Postgres 에서 한다.
   { id: "0096", label: "휴강 · 회차를 학생도 읽기", rpc: "holidays_visible" },
+  // ── 성적을 문항까지 (2026-08-06) ────────────────────────────
+  //
+  //   **여기에 안 적으면 화면이 거짓말을 한다.** 실제로 0097~0101 을 안 적어둬서
+  //   「75/75 · 넣을 것이 없습니다」 가 떴다 — 아직 하나도 안 돌렸는데도.
+  //   새 SQL 을 만들면 **반드시** 이 목록에 한 줄 적는다.
+  { id: "0097", label: "문항별 오답 · 문항표", table: "score_items", col: "no" },
+  { id: "0097-2", label: "시험지 문항 (출제분석)", table: "exam_questions", col: "unit" },
+  { id: "0097-3", label: "학원 기본 문항표", table: "exam_spec_rows", col: "topic" },
+  { id: "0097-4", label: "성적에 시험 회차 · 아이가 적은 것", table: "scores", col: "self_note" },
+  // 0098 은 표를 옮기고 읽기 규칙을 고친다 — 새로 생긴 칸으로 본다.
+  //   이게 없으면 **성적 화면의 「틀린 문제」 가 안 열린다** (표를 옮겼기 때문).
+  { id: "0098", label: "틀린 문제 한 표로 · 아이가 직접 적기", table: "score_items", col: "label" },
+  { id: "0099", label: "단원평가를 오늘 수업에서", table: "daily_reports", col: "sent_unit" },
+  { id: "0100", label: "단원의 분량 · 내용", table: "textbook_units", col: "question_count" },
+  { id: "0101", label: "성적 공개 대상", table: "students", col: "score_share" },
+
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.
 ];

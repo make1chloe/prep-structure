@@ -90,6 +90,11 @@ export default async function Home() {
           {d.warnings.length > 0 && (
             <Badge href="/today" tone="bad">반성문 대상 {d.warnings.length}명</Badge>
           )}
+          {d.unitStuck?.people?.length > 0 && (
+            <Badge href="/scores" tone="warn">
+              단원평가 막힘 {d.unitStuck.people.length}명
+            </Badge>
+          )}
           {d.sendFails.length > 0 && (
             <Badge href="/report?t=resend" tone="bad">발송 실패 {d.sendFails.length}건</Badge>
           )}
@@ -166,6 +171,45 @@ export default async function Home() {
                 <p className="hint" style={{ margin: "6px 0 0" }}>
                   쓰게 할지 · 넘어갈지는 오늘 수업 화면에서 정합니다.
                 </p>
+              </div>
+            )}
+
+            {/* **단원평가에 막힌 아이** (2026-08-06, 한 달 살아보기에서).
+                한 달에 재시험이 열두 번 나오는데 알려주는 자리가 없어서,
+                「관계사에서 세 번째」 를 한 달 지나서야 아시게 됐다.
+                두 번은 흔하니 **세 번째부터** 올린다 */}
+            {(d.unitStuck?.people?.length > 0 || d.unitStuck?.units?.length > 0) && (
+              <div className="card sect sect-warn">
+                <h2 className="secthead">
+                  단원평가에 막힘{" "}
+                  {d.unitStuck.people.length > 0 && (
+                    <span className="tag tag-amber">{d.unitStuck.people.length}명</span>
+                  )}
+                </h2>
+
+                {/* **셋이 같은 단원에서 막혔으면 그 단원을 다시 가르쳐야 한다.**
+                    한 아이가 못 넘는 것과는 다른 이야기라 위에 놓는다 */}
+                {d.unitStuck.units.map((u) => (
+                  <div className="notice" key={u.unit} style={{ fontSize: 12.5, marginBottom: 6 }}>
+                    <b>{u.unit}</b> 에서 <b>{u.n}명</b>이 막혀 있어요 — {u.names.join(" · ")}.
+                    {" "}한 아이가 못 넘는 것과 다릅니다. <b>수업에서 다시 짚어주세요.</b>
+                  </div>
+                ))}
+
+                <div className="stack" style={{ gap: 4 }}>
+                  {d.unitStuck.people.map((p, i) => (
+                    <Link
+                      className="unitrow"
+                      key={`${p.student?.id}-${p.unit}-${i}`}
+                      href={`/scores/${p.student?.id}`}
+                      style={{ textDecoration: "none" }}
+                    >
+                      <b style={{ fontSize: 12.5 }}>{p.student?.name}</b>
+                      <span className="tag tag-amber">{p.unit} {p.tries}번째</span>
+                      {p.last != null && <span className="hint">마지막 {p.last}점</span>}
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
 

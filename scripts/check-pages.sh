@@ -106,6 +106,17 @@ else
 fi
 
 echo
+echo "== 5-6) 한 달 살아보기 (진짜 Postgres · 원장·학생·학부모 셋의 눈) =="
+# 계산만 돌리는 시뮬레이션으로는 못 잡는 것이 있다 — 읽기 규칙 때문에 화면이
+# 통째로 비는 것, 한 달 치가 쌓여야 보이는 것. 오래 걸려서 마지막 줄만 남긴다
+if out=$(node scripts/live-month.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | grep -E "걸린 곳|걸리는 곳" | tail -1
+  echo "$out" | grep -A2 "^[0-9]\+\. \[" | head -20
+else
+  echo "$out" | tail -20; fail=1
+fi
+
+echo
 echo "== 6) 옛 자료가 새 모양으로 옮겨지나 (진짜 Postgres) =="
 if [ -f scripts/check-exam-merge.sh ]; then
   bash scripts/check-exam-merge.sh || fail=1

@@ -8,6 +8,7 @@ import { threeLines, TONE_CLS, monthRange, ATT_LABEL } from "@/lib/parentView";
 import { byKind, summary as scoreSummary, KIND_LABEL, findExam } from "@/lib/scores";
 import { oneRound, stack } from "@/lib/report";
 import GrowthCard from "@/components/GrowthCard";
+import UnitCard from "@/components/UnitCard";
 import { cutOf, passSummary, score } from "@/lib/wordTest";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels,
@@ -650,6 +651,8 @@ export default async function ParentPage({ searchParams }) {
               <GrowthCard key={k} st={growth[k]} kindLabel={KIND_LABEL[k]} />
             ) : null
           )}
+          {/* 단원평가 흐름 — 아이 화면과 **같은 것**을 보신다 */}
+          <UnitCard scores={scores || []} forParent />
 
           {/* ── 6. 성적 ── */}
           {(scores || []).length > 0 && (
