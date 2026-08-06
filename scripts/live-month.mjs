@@ -508,6 +508,20 @@ function check() {
   if (up.total === 0) problem("학생 화면 · 단원평가", "아이가 자기 단원평가를 못 읽는다", "");
   if (up.stuck.length) console.log(`  막힌 단원 — ${up.stuck.map((u) => `${u.unit} ${u.tries}번`).join(" · ")}`);
 
+  // **어머니 쪽도 따로 본다.** 같은 카드(components/UnitCard)를 /me 와 /parent
+  // 두 군데에 걸어두었는데, 아이 것만 확인하고 어머니 것은 안 본 채로 넘어갔었다.
+  // 읽기 규칙이 다르므로(아이는 profile_id, 어머니는 parent_student) 아이가
+  // 보인다고 어머니도 보이는 것이 아니다 — 실제로 학부모 화면이 통째로 비어
+  // 있던 적이 있다
+  const momUnit = seeAs(momP, `select * from public.scores where student_id = ${q(kid.id)} and kind='unit'`);
+  const mp = unitProgress(momUnit);
+  console.log(`  어머니가 보시는 것 — 단원 ${mp.total}개 · 통과 ${mp.passed} · 재시험 ${mp.retests}번`);
+  if (mp.total === 0) problem("학부모 화면 · 단원평가", "어머니께 아이 단원평가 카드가 안 뜬다", "카드가 통째로 사라집니다.");
+  else if (mp.total !== up.total || mp.passed !== up.passed) {
+    problem("학부모 화면 · 단원평가", "아이가 보는 것과 어머니가 보시는 것이 다르다",
+      `아이 ${up.total}개/통과 ${up.passed} · 어머니 ${mp.total}개/통과 ${mp.passed}`);
+  }
+
   console.log("\n== 8) 한 달 뒤 ==");
   asWho(BOSS);
   const unitTotal = Number(one(`select count(*) from public.scores where kind='unit';`));
