@@ -193,7 +193,6 @@ export default function ApplyForm({ token = "", prefill = {} }) {
             </div>
           ))}
         </div>
-        <p className="hint" style={{ marginTop: 8 }}>{PRIVACY.child}</p>
         <label
           className="card card-tight"
           style={{
