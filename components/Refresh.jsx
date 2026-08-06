@@ -70,13 +70,16 @@ export default function Refresh({ label = "새로고침" }) {
           <b>새 버전이 나왔어요.</b> 눌러서 받아주세요
         </button>
       )}
+      {/* **눈에 띄어야 한다.** 처음에는 btn-ghost(투명·흐린 글씨)로 뒀는데
+          「버튼 안 생겼어 아무데도」 라는 말을 들었다. 있어도 안 보이면 없는
+          것이다 — 테두리를 주고 ↻ 를 붙여 단추처럼 보이게 한다. */}
       <button
-        className="btn btn-ghost"
+        className="btn btn-refresh"
         onClick={reload}
         disabled={busy}
         title="홈 화면 앱에는 주소창이 없어서 여기서 새로고침합니다"
       >
-        {busy ? "받는 중…" : label}
+        {busy ? "받는 중…" : `↻ ${label}`}
       </button>
     </>
   );

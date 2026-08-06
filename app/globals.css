@@ -365,6 +365,8 @@ a { color: inherit; }
   .who { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
   .topbar-in form { flex: 0 0 auto; }
   .topbar-in form .btn { padding: 6px 10px; font-size: 12.5px; white-space: nowrap; }
+  /* 새로고침 단추도 같이 줄인다 — 안 줄이면 로그아웃을 화면 밖으로 밀어낸다 */
+  .topbar-in .btn-refresh { padding: 6px 10px; font-size: 12px; }
 }
 @media (max-width: 480px) {
   /* 더 좁으면 이름은 빼고 로그아웃만 */
@@ -758,3 +760,41 @@ a { color: inherit; }
 }
 .newver b { color: var(--amber); }
 .newver:disabled { opacity: 0.6; }
+
+/* ── 당겨서 새로고침 ─────────────────────────────────────────
+   홈 화면 앱에는 주소창이 없다. 단추도 달아뒀지만 단추는 **찾아야** 하고,
+   당기는 것은 찾을 것이 없다 — 폰을 쓰는 사람이면 손이 이미 안다.
+   손가락을 따라 내려오되, 누를 것은 아니므로 pointer-events 를 끈다. */
+.ptr {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.ptr-in {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-muted);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.ptr-on { color: var(--accent, #6d7cff); border-color: var(--accent, #6d7cff); }
+
+/* 새로고침 단추 — 홈 화면 앱에서는 이것 말고 새로고침할 길이 없다.
+   처음에는 btn-ghost(투명·흐린 글씨)로 뒀다가 「버튼 안 생겼어」 를 들었다.
+   **있어도 안 보이면 없는 것이다.** 테두리를 주고 항상 같은 자리에 둔다. */
+.btn-refresh {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  white-space: nowrap;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.btn-refresh:disabled { opacity: 0.6; }

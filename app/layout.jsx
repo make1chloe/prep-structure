@@ -1,4 +1,5 @@
 import "./globals.css";
+import PullToRefresh from "@/components/PullToRefresh";
 
 export const metadata = {
   title: "클로이영어 학습관리",
@@ -41,7 +42,13 @@ export default function RootLayout({ children }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* **당겨서 새로고침** — 홈 화면 앱에는 주소창이 없다.
+            화면마다 붙이면 언젠가 한 화면을 빠뜨리고, 빠뜨린 그 화면에서
+            「여기선 안 되네」 가 된다. 그래서 뿌리에 한 번만 둔다. */}
+        <PullToRefresh />
+        {children}
+      </body>
     </html>
   );
 }
