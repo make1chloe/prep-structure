@@ -61,34 +61,30 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
           <input className="input input-sm" name="note" placeholder="선생님만 보는 메모" />
         </div>
 
-        <label className="hint" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-          <input type="checkbox" checked={hasDeliver} onChange={(e) => setHasDeliver(e.target.checked)} />
-          이 일정에서 학생에게 전달할 내용이 있어요
-        </label>
+        {/* ── 누가 보나 ─────────────────────────────────────────
+            **안 고르면 아무에게도 안 보인다** (원장님, 2026-08-06).
+            「누가 보나」 를 생각 안 하고 적었다면 그건 아직 안 정한 것이지
+            「모두」 가 아니다. 모를 때 열어주는 쪽이 사고다.
 
-        {hasDeliver && (
-          <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
-            <div className="field">
-              <label className="label">학생에게 전달할 내용</label>
-              <input
-                className="input input-sm"
-                name="deliver_body"
-                placeholder="예) 다음 주 월요일은 학교 행사로 6시에 시작합니다"
-              />
-            </div>
-            <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center" }}>
-              <select
-                className="input input-sm"
-                style={{ width: 130 }}
-                name="deliver_scope"
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
-              >
-                <option value="all">전체</option>
-                <option value="class">반별</option>
-                <option value="grade">학교·학년별</option>
-                <option value="student">학생 고르기</option>
-              </select>
+            전에는 이 칸이 「전달할 내용이 있어요」 를 켜야만 나왔다. 그래서
+            달력에 보일지와 전달사항을 보낼지가 뒤엉켜 있었다 — 이제 이것은
+            **일정 자체의 속성**이고, 전달사항은 거기에 얹는 것이다. */}
+        <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13 }}>누가 보나</b>
+            <select
+              className="input input-sm"
+              style={{ width: 150 }}
+              name="deliver_scope"
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+            >
+              <option value="">선생님만 (안 보임)</option>
+              <option value="all">전체 — 재원생·학부모 모두</option>
+              <option value="class">반별</option>
+              <option value="grade">학교·학년별</option>
+              <option value="student">학생 고르기</option>
+            </select>
               {scope === "class" && (
                 <select className="input input-sm" style={{ width: 170 }} name="deliver_class_id" defaultValue="">
                   <option value="">반 선택</option>
@@ -153,11 +149,36 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
                 </div>
               </div>
             )}
-            <p className="hint" style={{ margin: "8px 0 0" }}>
-              그 날짜의 <b>오늘 수업</b> 화면에 전달사항으로 깔리고, 하원 전 전달 체크로 확인합니다.
-            </p>
-          </div>
-        )}
+          <p className="hint" style={{ margin: "8px 0 0", lineHeight: 1.7 }}>
+            {scope === ""
+              ? "지금은 학생·학부모 달력에 안 뜹니다. 보이게 하시려면 위에서 골라주세요."
+              : scope === "all"
+              ? "재원생과 학부모 모두의 달력에 뜹니다."
+              : "고른 사람의 달력에만 뜹니다. 나머지 학생에게는 안 보입니다."}
+          </p>
+
+          {/* 전달사항은 **달력에 보이는 것과 다른 일**이다.
+              달력은 「그날 그런 일이 있다」 고, 전달사항은 「말로 전해야 한다」 다.
+              그래서 얹는 것으로 두고, 받는 사람은 위에서 고른 그대로 쓴다 */}
+          <label className="hint" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", marginTop: 10 }}>
+            <input type="checkbox" checked={hasDeliver} onChange={(e) => setHasDeliver(e.target.checked)} />
+            수업 중에 <b>말로 전할 내용</b>도 있어요
+          </label>
+          {hasDeliver && (
+            <>
+              <div className="field" style={{ marginTop: 6 }}>
+                <input
+                  className="input input-sm"
+                  name="deliver_body"
+                  placeholder="예) 다음 주 월요일은 학교 행사로 6시에 시작합니다"
+                />
+              </div>
+              <p className="hint" style={{ margin: "6px 0 0" }}>
+                그 날짜의 <b>오늘 수업</b> 화면에 전달사항으로 깔리고, 하원 전 전달 체크로 확인합니다.
+              </p>
+            </>
+          )}
+        </div>
 
         <button className="btn btn-primary btn-sm" type="submit" style={{ alignSelf: "flex-start" }}>
           저장

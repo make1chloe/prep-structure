@@ -201,9 +201,19 @@ export default async function TasksPage({ searchParams }) {
       isCal
         ? q.gte("due_on", mFrom).lte("due_on", mTo)
         : q.gte("due_on", showPast ? "1900-01-01" : todaySeoul());
+    // deliver_student_ids · deliver_school_id 는 「누가 보나」 를 적어주는 데 쓴다 (0092)
     let { data: tasks, error } = await range(
-      supabase.from("tasks").select(`${COLS}, private`).eq("kind", "schedule")
+      supabase
+        .from("tasks")
+        .select(`${COLS}, private, deliver_student_ids, deliver_school_id`)
+        .eq("kind", "schedule")
     ).order("due_on", { ascending: true });
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0077 전이면 학생 지목 칸이 없다
+      ({ data: tasks, error } = await range(
+        supabase.from("tasks").select(`${COLS}, private`).eq("kind", "schedule")
+      ).order("due_on", { ascending: true }));
+    }
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0066 전이면 '나만 보기' 없이
       ({ data: tasks, error } = await range(

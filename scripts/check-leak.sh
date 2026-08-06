@@ -120,10 +120,13 @@ insert into public.scores (student_id, kind, taken_on, term, raw_score, full_sco
   select id, 'school', current_date, '1학기 중간고사', 88, 100, 2 from public.students;
 
 -- 달력 (0066) — 일정은 보이고, 할일과 '나만 보기' 는 안 보여야 한다
-insert into public.tasks (id, title, kind, due_on, private) values
-  ('ffffffff-0000-0000-0000-000000000001', '중간고사',   'schedule', current_date, false),
-  ('ffffffff-0000-0000-0000-000000000002', '나만 볼 상담', 'schedule', current_date, true),
-  ('ffffffff-0000-0000-0000-000000000003', '교재 주문',   'todo',     current_date, false);
+-- 일정은 **고른 대상에게만** 간다 (0092). 「전체」 를 골라야 전체에 보인다 —
+-- 대상을 안 적은 것은 선생님만 보는 일정이다
+insert into public.tasks (id, title, kind, due_on, private, deliver_scope) values
+  ('ffffffff-0000-0000-0000-000000000001', '중간고사',      'schedule', current_date, false, 'all'),
+  ('ffffffff-0000-0000-0000-000000000002', '나만 볼 상담',   'schedule', current_date, true,  'all'),
+  ('ffffffff-0000-0000-0000-000000000003', '교재 주문',      'todo',     current_date, false, 'all'),
+  ('ffffffff-0000-0000-0000-000000000004', '대상 안 적음',   'schedule', current_date, false, null);
 
 insert into public.video_views (video_id, student_id, opens, done_at) values
   ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 1, now()),
@@ -156,7 +159,7 @@ select t || ': ' || n from (
   union all select 'videos(안 받은 영상)',  count(*) from public.videos               where id <> 'eeeeeeee-0000-0000-0000-000000000001'
   union all select 'video_assignments(남의 배정)', count(*) from public.video_assignments where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'video_views(남이 봤나)', count(*) from public.video_views         where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
-  union all select 'tasks(할일·나만보기)',  count(*) from public.tasks                where id <> 'ffffffff-0000-0000-0000-000000000001'
+  union all select 'tasks(할일·나만보기·대상없음)', count(*) from public.tasks           where id <> 'ffffffff-0000-0000-0000-000000000001'
   union all select 'requests(남의 알림)',   count(*) from public.requests             where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'scores(남의 성적)',     count(*) from public.scores               where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n > 0 order by 1;

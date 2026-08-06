@@ -116,8 +116,8 @@ insert into public.tasks (id, title, kind, due_on, private,
                           deliver_scope, deliver_student_ids, deliver_school_id, deliver_grade, deliver_class_id)
 values
   -- 보여야 한다
-  ('70000000-0000-0000-0000-000000000001', '학원 전체 휴강', 'schedule', current_date, false,
-   null, '{}', null, null, null),
+  ('70000000-0000-0000-0000-000000000001', '전체 공지 휴강', 'schedule', current_date, false,
+   'all', '{}', null, null, null),
   ('70000000-0000-0000-0000-000000000002', '우리 학교 시험', 'schedule', current_date, false,
    'grade', '{}', '50000000-0000-0000-0000-000000000001', null, null),
   ('70000000-0000-0000-0000-000000000003', '우리 아이 보강', 'schedule', current_date, false,
@@ -125,6 +125,10 @@ values
   ('70000000-0000-0000-0000-000000000004', '우리 반 특강', 'schedule', current_date, false,
    'class', '{}', null, null, 'cc110000-0000-0000-0000-000000000001'),
   -- 안 보여야 한다
+  -- **대상을 안 적은 것** — 「전체」 를 골라야 전체에 간다 (원장님, 2026-08-06).
+  --   안 정한 것을 「모두」 로 읽으면 안 된다
+  ('70000000-0000-0000-0000-000000000010', '대상 안 적은 일정', 'schedule', current_date, false,
+   null, '{}', null, null, null),
   ('70000000-0000-0000-0000-000000000011', '남의 학교 시험', 'schedule', current_date, false,
    'grade', '{}', '50000000-0000-0000-0000-000000000002', null, null),
   ('70000000-0000-0000-0000-000000000012', '남의 아이 보강', 'schedule', current_date, false,
@@ -209,9 +213,9 @@ set role authenticated;
 select string_agg(title, ' / ' order by title) from public.tasks;
 SQL
 )
-WANT='우리 반 특강 / 우리 아이 보강 / 우리 학교 시험 / 학원 전체 휴강'
+WANT='우리 반 특강 / 우리 아이 보강 / 우리 학교 시험 / 전체 공지 휴강'
 if [ "$SEEN" = "$WANT" ]; then
-  echo "  일정은 우리 아이 것만 보입니다 (남의 학교·남의 아이·나만보기·할일 안 보임)"
+  echo "  일정은 우리 아이 것만 보입니다 (대상 안 적은 것·남의 학교·남의 아이·나만보기·할일 안 보임)"
 else
   echo "  ❌ 일정 노출이 규칙과 다릅니다"
   echo "     보여야 할 것: $WANT"

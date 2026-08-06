@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } from "./actions";
+import { audienceLabel } from "@/lib/taskAudience";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 
 const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
@@ -86,7 +87,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
       end_on: t.end_on || "",
       note: t.note || "",
       deliver_body: t.deliver_body || "",
-      deliver_scope: t.deliver_scope || "all",
+      deliver_scope: t.deliver_scope || "",
       deliver_class_id: t.deliver_class_id || "",
     });
   }
@@ -257,20 +258,46 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                     <span className={`tag ${CAT_CLS[t.category] || "tag-muted"}`}>{t.category}</span>
                   )}
                   {t.kind === "schedule" && <span className="tag tag-sky">일정</span>}
-                  {/* 일정은 학생·학부모 달력에 그대로 보인다. 나만 볼 것만 잠근다 (0066) */}
-                  {t.kind === "schedule" && (
+                  {/* **누가 보나** — 규칙이 뒤집혀서(안 적으면 안 보임) 이것이
+                      한눈에 보여야 한다. 안 그러면 「올렸는데 왜 모르지」 가 된다.
+                      나만 보기(0066)는 그 위에 덮는 자물쇠다 — 켜면 무조건 안 보인다. */}
+                  {t.kind === "schedule" && (() => {
+                    const a = audienceLabel(t);
+                    return (
+                      <span
+                        className={`tag ${t.private ? "tag-muted" : a.tone}`}
+                        title={
+                          t.private
+                            ? "나만 보기가 켜져 있어 아무에게도 안 보입니다"
+                            : a.text === "선생님만"
+                            ? "대상을 안 골라서 학생·학부모 달력에 안 뜹니다. 고치기에서 「누가 보나」 를 골라주세요"
+                            : `${a.text} 의 달력에 뜹니다`
+                        }
+                      >
+                        {t.private ? "나만 보기" : a.text}
+                      </span>
+                    );
+                  })()}
+                  {t.kind === "schedule" && !t.private && (
                     <button
-                      className={`tag ${t.private ? "tag-muted" : "tag-mint"}`}
+                      className="tag tag-muted"
                       style={{ border: 0, cursor: "pointer" }}
-                      title={
-                        t.private
-                          ? "나만 보고 있어요. 누르면 학생·학부모 달력에 보입니다"
-                          : "학생·학부모 달력에 보이고 있어요. 누르면 나만 봅니다"
-                      }
-                      onClick={() => run(() => updateTask(t.id, { private: !t.private }))}
+                      title="누르면 나만 보기로 잠급니다 (아무에게도 안 보입니다)"
+                      onClick={() => run(() => updateTask(t.id, { private: true }))}
                       disabled={pending}
                     >
-                      {t.private ? "나만 보기" : "학생도 봄"}
+                      잠그기
+                    </button>
+                  )}
+                  {t.kind === "schedule" && t.private && (
+                    <button
+                      className="tag tag-muted"
+                      style={{ border: 0, cursor: "pointer" }}
+                      title="잠금을 풉니다. 그래도 「누가 보나」 를 골라야 학생에게 보입니다"
+                      onClick={() => run(() => updateTask(t.id, { private: false }))}
+                      disabled={pending}
+                    >
+                      잠금 풀기
                     </button>
                   )}
                   {t.class_id && <span className="tag tag-muted">{className(t.class_id)}</span>}
@@ -356,13 +383,18 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                         placeholder="예) 다음 주 월요일은 학교 행사로 6시 시작"
                         onChange={(e) => setDraft({ ...draft, deliver_body: e.target.value })} />
                     </div>
-                    {draft.deliver_body && (
-                      <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center" }}>
-                        <select className="input input-sm" style={{ width: 130 }} value={draft.deliver_scope}
+                    {/* **누가 보나** — 안 고르면 아무에게도 안 보인다 (2026-08-06).
+                        전에는 전달할 내용을 적어야만 이 칸이 나왔다. 그래서
+                        달력에 보일지와 전달사항을 보낼지가 뒤엉켜 있었다. */}
+                    <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <b style={{ fontSize: 12.5 }}>누가 보나</b>
+                        <select className="input input-sm" style={{ width: 150 }} value={draft.deliver_scope}
                           onChange={(e) => setDraft({ ...draft, deliver_scope: e.target.value })}>
-                          <option value="all">전체</option>
+                          <option value="">선생님만 (안 보임)</option>
+                          <option value="all">전체 — 재원생·학부모 모두</option>
                           <option value="class">반별</option>
                           <option value="grade">학교·학년별</option>
+                          <option value="student">학생 고르기</option>
                         </select>
                         {draft.deliver_scope === "class" && (
                           <select className="input input-sm" style={{ width: 170 }} value={draft.deliver_class_id}
@@ -371,9 +403,17 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                             {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
                         )}
-                        <span className="hint">그 날짜의 오늘 수업 화면에 전달 체크로 나타납니다</span>
+                        <span className="hint">
+                          {draft.deliver_scope
+                            ? "고른 사람의 달력에 뜹니다"
+                            : "학생·학부모 달력에 안 뜹니다"}
+                        </span>
+                        {draft.deliver_scope === "student" && (
+                          <span className="hint">
+                            학생 고르기는 <b>재원생 정보 → 일정</b> 에서 합니다
+                          </span>
+                        )}
                       </div>
-                    )}
                     <div className="row" style={{ gap: 6, marginTop: 10 }}>
                       <button className="btn btn-primary btn-sm" disabled={pending}
                         onClick={() => run(async () => {
