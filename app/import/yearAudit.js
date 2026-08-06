@@ -24,7 +24,7 @@ import { auditRows, summarize } from "@/lib/yearAudit";
 
 /** 표마다 무엇을 날짜로 볼까 · 미래에 있어도 되는가 */
 const TARGETS = [
-  { table: "daily_reports", label: "수업 기록", date: "date" },
+  { table: "daily_reports", label: "수업 기록", date: "date", dow: true },
   { table: "attendance", label: "출결 · 보강", date: "date" },
   { table: "class_attendance", label: "특강 출결", date: "date" },
   { table: "student_notes", label: "상담일지", date: "date" },
@@ -45,6 +45,25 @@ export async function auditYears() {
   if (p?.role !== "principal") return { error: "원장님만 볼 수 있어요.", audits: [] };
 
   const today = todaySeoul();
+
+  /**
+   * **학생별 수업 요일** — 요일 검사에 쓴다.
+   *
+   * 한 해가 밀리면 요일이 정확히 하루 밀린다 (365일 = 52주 + 1일). 그래서
+   * 월·수반 기록이 화·목에 놓인다. 눈으로는 안 보이지만 셈으로는 뚜렷하다.
+   */
+  const daysOf = new Map();
+  {
+    const { data: cls } = await supabase.from("classes").select("id, days");
+    const dayOfClass = new Map((cls || []).map((c) => [c.id, c.days || []]));
+    const { data: mem } = await supabase.from("class_students").select("class_id, student_id");
+    (mem || []).forEach((m) => {
+      const cur = daysOf.get(m.student_id) || [];
+      (dayOfClass.get(m.class_id) || []).forEach((d) => { if (!cur.includes(d)) cur.push(d); });
+      daysOf.set(m.student_id, cur);
+    });
+  }
+
   const audits = [];
 
   for (const t of TARGETS) {
@@ -63,6 +82,8 @@ export async function auditYears() {
         dateOf: (r) => r[t.date],
         keyOf: (r) => r[t.key || "student_id"],
         future: t.future,
+        // 요일은 **수업 기록에만** 견준다. 보강·상담·수납은 수업 요일이 아니다
+        daysOf: t.dow ? daysOf : null,
       })
     );
   }
