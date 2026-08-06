@@ -46,10 +46,6 @@ export default async function ScoresPage({ searchParams }) {
       .order("from_date", { ascending: false }));
   }
 
-  // 학생이 직접 내는 설문지 주소
-  const { data: formRow } = await supabase
-    .from("integrations").select("config").eq("id", "score_form").maybeSingle();
-
   const needSql = !!error && (error.code === "42P01" || error.code === "PGRST205");
 
   return (
@@ -83,7 +79,6 @@ export default async function ScoresPage({ searchParams }) {
               scores={scores || []}
               exams={exams || []}
               pick={pick}
-              forms={formRow?.config || {}}
               canEdit={profile?.role === "principal"}
             />
           </>

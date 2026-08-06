@@ -150,35 +150,18 @@ export async function listWrongs(scoreId) {
 }
 
 /**
- * 학생이 직접 내는 설문지 주소.
+ * **`saveFormLinks` 가 여기 있었다 — 지웠다** (2026-08-06).
  *
- * 앱에서 폼을 새로 만들지 않는다 — 원장님이 이미 노션을 쓰시고, 문항을 바꾸는
- * 일이 잦다. 주소만 걸어두면 문항은 노션에서 고치면 된다.
+ * 노션 설문지 주소 세 개를 저장하던 함수다. 0097·0098 로 앱 안에 입력 화면
+ * (`app/me/MyScoreForm`)을 만들면서 학생 화면이 그 주소를 안 읽게 되었는데,
+ * 저장 칸만 화면에 남아 있었다 — 넣어도 아무 일이 안 일어나는 칸이었다.
+ *
+ * 원장님 (2026-08-06) — 「그러면 또 노션에서 받아오기 해야 하는 거잖아.
+ * 그냥 학생 앱 자체에서 입력시킨다는 거 아니었어?」
+ *
+ * 노션을 거치면 아이가 적은 것이 **노션 → 내려받기 → 올리기** 를 지나야
+ * 성적이 되고, 그 사이에 성적표와 따로 논다. 앱에서 적으면 곧바로 리포트다.
+ *
+ * `integrations` 의 `score_form` 줄은 **지우지 않는다** — 옛 자료를 지우는
+ * 마이그레이션은 되돌릴 수가 없다. 안 읽으면 그만이다.
  */
-export async function saveFormLinks(links) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 바꿀 수 있어요." };
-  }
-
-  const clean = (v) => (v || "").toString().trim() || "";
-  const { error } = await supabase.from("integrations").upsert(
-    {
-      id: "score_form",
-      enabled: true,
-      config: {
-        school: clean(links?.school),
-        mock: clean(links?.mock),
-        unit: clean(links?.unit),
-      },
-    },
-    { onConflict: "id" }
-  );
-  revalidatePath("/scores");
-  revalidatePath("/me");
-  return ok(error);
-}

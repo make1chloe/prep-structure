@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveScore, removeScores, addWrong, removeWrongs, listWrongs, saveFormLinks } from "./actions";
+import { saveScore, removeScores, addWrong, removeWrongs, listWrongs } from "./actions";
 import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts, findExam, cutsFor } from "@/lib/scores";
 import { useBulk, BulkBar } from "@/components/Bulk";
 
@@ -22,19 +22,13 @@ const EMPTY = {
   note: "",
 };
 
-export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, forms = {}, canEdit = false }) {
+export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, canEdit = false }) {
   const [sel, setSel] = useState(pick || students[0]?.id || "");
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
   const [openId, setOpenId] = useState(null);      // 틀린 문제를 연 성적
   const [wrongs, setWrongs] = useState([]);
   const [w, setW] = useState({ question: "", topic: "", reason: "" });
-  const [linkBox, setLinkBox] = useState(false);
-  const [links, setLinks] = useState({
-    school: forms.school || "",
-    mock: forms.mock || "",
-    unit: forms.unit || "",
-  });
   const [q, setQ] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -43,6 +37,12 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
   const mine = scores.filter((s) => s.student_id === sel);
   const groups = byKind(mine);
   const bulk = useBulk(mine);
+
+  // 아이가 앱에서 직접 낸 것 — source='form' 이 그 표시다 (0097·0098).
+  // 선생님이 매긴 것(class·upload)과 갈라 두어야 「몇 명이 실제로 내고 있나」 를 안다
+  const nameOf = new Map(students.map((s) => [s.id, s.name]));
+  const selfMade = scores.filter((s) => s.source === "form");
+  const selfPeople = new Set(selfMade.map((s) => s.student_id)).size;
 
   const kw = q.trim().toLowerCase();
   const shownStudents = kw
@@ -149,42 +149,44 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
         )}
       </div>
 
-      {/* ---- 학생이 직접 내는 설문지 ---- */}
+      {/* ---- 아이들이 앱에서 직접 낸 것 ----
+          **노션 설문지 주소 칸이 여기 있었다.** 지웠다 (2026-08-06, 원장님 —
+          「그러면 또 노션에서 받아오기 해야 하는 거잖아. 그냥 학생 앱 자체에서
+          입력시킨다는 거 아니었어?」).
+
+          맞는 말씀이다. 그리고 그 칸은 이미 **거짓말**이 되어 있었다 —
+          「학생 화면에 버튼으로 뜹니다」 라고 적혀 있는데, 0097·0098 로 앱 안에
+          입력 화면(`app/me/MyScoreForm`)을 만든 뒤로 학생 화면은 그 주소를
+          아무 데서도 안 읽는다. 남겨두면 원장님이 주소를 넣으시고 아무 일도
+          안 일어난다.
+
+          노션을 거치면 **아이가 적은 것 → 노션 → 내려받기 → 올리기** 네 걸음이고,
+          그동안 성적표와 따로 논다 (실제로 문항별 오답 152개가 성적과 안 이어진
+          채 노션에 남아 있었다). 앱에서 적으면 **곧바로 리포트가 된다.**
+          그래서 여기서는 「몇 명이 냈나」 만 보여드린다. */}
       <div className="card card-tight">
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13 }}>학생이 직접 내는 설문지</b>
-          <span className="hint" style={{ flex: 1, minWidth: 220 }}>
-            노션 설문지 주소를 걸어두면 <b>학생 화면에 버튼</b>으로 뜹니다.
-            문항은 노션에서 고치세요 — 앱에서 폼을 다시 만들 필요가 없어요.
-          </span>
-          {canEdit && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setLinkBox(!linkBox)}>
-              {linkBox ? "닫기" : "주소 넣기"}
-            </button>
+          <b style={{ fontSize: 13 }}>아이들이 직접 낸 것</b>
+          <span className="tag tag-mint">{selfMade.length}건</span>
+          {selfMade.length > 0 && (
+            <span className="tag tag-muted">{selfPeople}명</span>
           )}
+          <span className="hint" style={{ flex: 1, minWidth: 200 }}>
+            아이들은 <b>학생 화면 → 시험 결과 적기</b>에서 냅니다. 노션 설문지를
+            따로 돌리지 않아도 되고, 낸 순간 그대로 리포트·출제분석에 들어갑니다.
+          </span>
         </div>
-        {linkBox && (
-          <div className="stack" style={{ gap: 6, marginTop: 8 }}>
-            {KINDS.map((k) => (
-              <div className="row" style={{ gap: 6, alignItems: "center" }} key={k.key}>
-                <span className="hint" style={{ minWidth: 62 }}>{k.label}</span>
-                <input
-                  className="input input-sm"
-                  style={{ flex: 1 }}
-                  placeholder="https://notion.so/… (설문지 주소)"
-                  value={links[k.key]}
-                  onChange={(e) => setLinks({ ...links, [k.key]: e.target.value })}
-                />
-              </div>
+        {selfMade.length > 0 && (
+          <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+            {selfMade.slice(0, 6).map((s) => (
+              <span className="tag tag-muted" key={s.id} style={{ fontSize: 11 }}>
+                {nameOf.get(s.student_id) || "—"} · {s.term || KIND_LABEL[s.kind] || ""}
+                {s.raw_score != null ? ` ${s.raw_score}점` : ""}
+              </span>
             ))}
-            <button
-              className="btn btn-primary btn-sm"
-              style={{ alignSelf: "flex-start" }}
-              disabled={pending}
-              onClick={() => run(() => saveFormLinks(links), () => setLinkBox(false))}
-            >
-              저장
-            </button>
+            {selfMade.length > 6 && (
+              <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {selfMade.length - 6}건</span>
+            )}
           </div>
         )}
       </div>
