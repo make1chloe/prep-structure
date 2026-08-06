@@ -88,6 +88,7 @@ const CHECKS = [
   { id: "0083", label: "신규 학생 · 교재 끝나감 할일", table: "todo_routines", col: "lead_units" },
   { id: "0084", label: "지금 뭐 하는 중 (실시간)", table: "student_activity", col: "state" },
   { id: "0085", label: "학생이 자기 상태 누르기", table: "student_activity", col: "by_student" },
+  { id: "0087", label: "바뀐 숙제 표시", table: "daily_report_items", col: "changed_at" },
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.
 ];

@@ -161,6 +161,20 @@ export async function saveStudentDay(studentId, date, form) {
     (keepDone || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.student_done_at])
   );
 
+  // **무엇이 바뀌었는지 알려면 무엇이 있었는지 먼저 봐야 한다.**
+  //   저장할 때마다 통째로 지우고 다시 넣기 때문에, 지우기 전에 적어둔다.
+  //   그래야 「이 줄은 원래 있던 것」 과 「이번에 새로 생긴 것」 을 가를 수 있다.
+  const { data: before } = await supabase
+    .from("daily_report_items")
+    .select("homework_item_id, status, textbook_unit_ids, range_note, changed_at")
+    .eq("daily_report_id", report.id);
+  const had = new Map(
+    (before || []).map((x) => [`${x.homework_item_id}|${x.status}`, x])
+  );
+  // 이 리포트에 숙제가 한 번이라도 들어간 적이 있나.
+  // 처음 주는 숙제는 「바뀐 것」 이 아니다 — 그날 원래 받은 것이다.
+  const hadAny = (before || []).some((x) => x.status === "assigned");
+
   const { error: delErr } = await supabase
     .from("daily_report_items")
     .delete()
@@ -196,13 +210,36 @@ export async function saveStudentDay(studentId, date, form) {
       range_note: (units[homework_item_id]?.note || "").trim() || null,
     })),
   ];
+  // 새로 생겼거나 범위가 달라진 줄에만 「바뀐 시각」 을 찍는다.
+  // 안 바뀐 줄은 **원래 있던 시각을 그대로** 들고 간다 — 그러지 않으면
+  // 저장을 한 번 더 누르는 것만으로 목록 전체가 「바뀜」 이 된다.
+  const changedNames = [];
   payload.forEach((r) => {
     const at = doneAt.get(`${r.homework_item_id}|${r.status}`);
     if (at) r.student_done_at = at;
+    if (r.status !== "assigned") return;
+    const old = had.get(`${r.homework_item_id}|assigned`);
+    const same =
+      old &&
+      (old.range_note || "") === (r.range_note || "") &&
+      JSON.stringify(old.textbook_unit_ids || []) === JSON.stringify(r.textbook_unit_ids || []);
+    if (same) {
+      r.changed_at = old.changed_at || null;
+      return;
+    }
+    if (!hadAny) return;                    // 그날 처음 주는 숙제
+    r.changed_at = new Date().toISOString();
+    changedNames.push(r.homework_item_id);
   });
 
   if (payload.length > 0) {
     let { error } = await supabase.from("daily_report_items").insert(payload);
+    if (isMissingColumn(error)) {
+      // 0087 전이면 「바뀐 시각」 칸이 없다
+      ({ error } = await supabase
+        .from("daily_report_items")
+        .insert(payload.map(({ changed_at, ...rest }) => rest)));
+    }
     if (isMissingColumn(error)) {
       // 0034 전이면 학생 완료 표시 없이
       ({ error } = await supabase
@@ -231,12 +268,18 @@ export async function saveStudentDay(studentId, date, form) {
     try {
       const { data: names } = await supabase
         .from("homework_items")
-        .select("name")
+        .select("id, name")
         .in("id", nextIds);
+      const nameById = new Map((names || []).map((n) => [n.id, n.name]));
+      const changed = changedNames.map((id) => nameById.get(id)).filter(Boolean);
       const list = (names || []).map((n) => n.name).filter(Boolean);
+      // **바뀐 것이 있으면 그것부터 말한다.** 「숙제가 올라왔어요」 만 오면
+      // 아까 본 것과 무엇이 다른지 아이가 알 수가 없다
       await pushToStudents([studentId], {
-        title: "오늘 숙제가 올라왔어요",
-        body: list.length ? list.join(", ") : "앱에서 확인해주세요",
+        title: changed.length ? "숙제가 바뀌었어요" : "오늘 숙제가 올라왔어요",
+        body: changed.length
+          ? `${changed.join(", ")} — 앱에서 확인해주세요`
+          : (list.length ? list.join(", ") : "앱에서 확인해주세요"),
         url: "/me",
         tag: "homework",
       });

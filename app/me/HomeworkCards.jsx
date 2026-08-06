@@ -25,6 +25,11 @@ export default function HomeworkCards({ items = [] }) {
             <button className="hwcard-head" onClick={() => setOpenId(open ? null : h.key)}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <b style={{ fontSize: 14.5 }}>{h.name}</b>
+                {/* **나중에 더하거나 고치신 것** (0087).
+                    아까 적어 간 것과 다를 수 있으니 눈에 띄어야 한다 */}
+                {h.changedAt && (
+                  <span className="tag tag-amber" style={{ marginLeft: 5, fontSize: 10.5 }}>바뀜</span>
+                )}
                 {h.units.length > 0 && (
                   <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>
                     {h.units.join(" · ")}

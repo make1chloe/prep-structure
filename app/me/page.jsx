@@ -13,6 +13,7 @@ import { headers } from "next/headers";
 import { pickIp, sameNet } from "@/lib/clientIp";
 import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
+import HomeworkSheet from "./HomeworkSheet";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
@@ -165,7 +166,7 @@ export default async function MePage({ searchParams }) {
     const BASE = "id, daily_report_id, homework_item_id, status";
     let { data, error } = await supabase
       .from("daily_report_items")
-      .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at`)
+      .select(`${BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at, changed_at`)
       .in("daily_report_id", reportIds);
     if (error) {
       ({ data, error } = await supabase
@@ -256,6 +257,10 @@ export default async function MePage({ searchParams }) {
       units: idsOf(x).map((id) => unitLabel.get(id)).filter(Boolean),
       note: x.range_note || "",
       status: x.status,
+      // 처음 받은 숙제가 아니라 **나중에 더하거나 고친 것** (0087).
+      // 비어 있으면 그날 원래 받은 것이라 표시하지 않는다.
+      changedAt: x.changed_at || null,
+      area: item?.category || "",
     };
   };
 
@@ -907,6 +912,11 @@ export default async function MePage({ searchParams }) {
           <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>
         </form>
       </div>
+      {/* **맨 아래에 전체 목록.** 집에서 폰을 못 쓰는 아이가 찍어 가거나
+          종이에 옮겨 적을 수 있게. 위쪽은 하나씩 순서대로 하는 자리고,
+          여기는 한 번에 다 보이는 자리다 — 쓰임이 다르니 둘 다 둔다. */}
+      <HomeworkSheet items={todo} dateLabel={assignedFrom ? dayLabel(assignedFrom.date) : ""} />
+
     </main>
   );
 }
