@@ -1027,10 +1027,17 @@ export default async function TodayPage({ searchParams }) {
   let activity = [];
   let activityOff = false;
   {
-    const q = await supabase
+    let q = await supabase
       .from("student_activity")
-      .select("student_id, state, note, updated_at, date")
+      .select("student_id, state, note, updated_at, date, by_student")
       .eq("date", date);
+    // 0085 전이면 by_student 칸이 없다. 그것 때문에 판이 통째로 사라지면 안 된다
+    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+      q = await supabase
+        .from("student_activity")
+        .select("student_id, state, note, updated_at, date")
+        .eq("date", date);
+    }
     if (q.error) activityOff = true;
     else activity = q.data || [];
   }

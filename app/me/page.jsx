@@ -7,6 +7,7 @@ import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
 import StudyTabs from "./StudyTabs";
 import ArrivalCard from "./ArrivalCard";
+import StateCard from "./StateCard";
 import { trend, avgSeconds } from "@/lib/trend";
 import { headers } from "next/headers";
 import { pickIp, sameNet } from "@/lib/clientIp";
@@ -651,6 +652,19 @@ export default async function MePage({ searchParams }) {
     }));
   }
 
+  // 지금 뭐 하고 있다고 눌러뒀나 (0084) — 첫 그림에 채워둔다
+  let myState = null;
+  let stateOff = false;
+  {
+    const q = await supabase
+      .from("student_activity")
+      .select("state, updated_at")
+      .eq("student_id", student.id)
+      .maybeSingle();
+    if (q.error) stateOff = true;
+    else myState = q.data;
+  }
+
   return (
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       <div className="page-head">
@@ -692,6 +706,13 @@ export default async function MePage({ searchParams }) {
           readOnly={preview}
           asId={acting ? student.id : null}
         />
+
+        {/* **말로 끼어드는 대신 누른다.** 선생님 현황판에 바로 뜬다 (0084·0085).
+            선생님 대신 눌러주는 미리보기(acting)에서는 안 낸다 — 그 아이가
+            누른 것으로 잘못 남는다. */}
+        {!preview && !acting && (
+          <StateCard mine={myState} unavailable={stateOff} />
+        )}
 
         <StudyTabs
           inClass={inClass}

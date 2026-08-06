@@ -87,6 +87,7 @@ const CHECKS = [
   { id: "0082", label: "되풀이 할일", table: "todo_routines", col: "repeat_kind" },
   { id: "0083", label: "신규 학생 · 교재 끝나감 할일", table: "todo_routines", col: "lead_units" },
   { id: "0084", label: "지금 뭐 하는 중 (실시간)", table: "student_activity", col: "state" },
+  { id: "0085", label: "학생이 자기 상태 누르기", table: "student_activity", col: "by_student" },
 ];
 
 export async function checkSchema() {

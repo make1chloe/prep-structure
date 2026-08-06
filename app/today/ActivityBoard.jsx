@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { STATES, PICKABLE, stateOf, canTalk, agoLabel, isStale } from "@/lib/activity";
+import { STATES, PICKABLE, stateOf, canTalk, isCalling, agoLabel, isStale } from "@/lib/activity";
 
 /**
  * **지금 누가 뭘 하고 있나** — 새로고침 없이 바로 바뀐다.
@@ -82,18 +82,32 @@ export default function ActivityBoard({ students = [], initial = [], date, unava
 
   if (students.length === 0) return null;
 
-  // 말 걸어도 되는 아이를 앞에 — 지금 궁금한 것은 그것이다
   const list = students.map((s) => {
     const r = rows.get(s.id);
     const st = stateOf(r?.state);
-    return { ...s, row: r, st, ok: canTalk(r?.state), stale: isStale(r?.updated_at, 40, now) };
+    return {
+      ...s, row: r, st,
+      ok: canTalk(r?.state),
+      calling: isCalling(r?.state),
+      stale: isStale(r?.updated_at, 40, now),
+    };
   });
   const busy = list.filter((x) => !x.ok && !x.stale);
+  // **부른 아이가 맨 앞이다.** 지금 가봐야 하는 것이 그것이라, 이름 순서대로
+  // 두면 스무 명 사이에서 찾아야 한다. 오래 기다린 아이가 먼저다.
+  const calling = list
+    .filter((x) => x.calling)
+    .sort((a, b) => (a.row?.updated_at || "").localeCompare(b.row?.updated_at || ""));
 
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
         <b style={{ fontSize: 14 }}>지금 뭐 하는 중</b>
+        {calling.length > 0 && (
+          <span className="tag tag-red" style={{ fontWeight: 800 }}>
+            🙋 부르는 중 {calling.length}명
+          </span>
+        )}
         {busy.length > 0
           ? <span className="tag tag-amber">말 걸지 말 것 {busy.length}명</span>
           : <span className="tag tag-mint">지금은 다 괜찮아요</span>}
@@ -108,7 +122,32 @@ export default function ActivityBoard({ students = [], initial = [], date, unava
       </div>
       <p className="hint" style={{ margin: "4px 0 8px" }}>
         누르면 바꿉니다. 다른 기기에서도 <b>새로고침 없이</b> 같이 바뀝니다.
+        학생이 자기 화면에서 누른 것은 <b>🙋 표</b>가 붙습니다.
       </p>
+
+      {/* 부른 아이는 위에 따로 — 스무 명 사이에서 찾게 하면 안 된다 */}
+      {calling.length > 0 && (
+        <div className="notice" style={{ marginBottom: 8 }}>
+          <b>도움이 필요하대요 — </b>
+          {calling.map((x, i) => (
+            <span key={x.id}>
+              {i > 0 && " · "}
+              <b>{x.name}</b> <span className="muted">({agoLabel(x.row?.updated_at, now)})</span>
+            </span>
+          ))}
+          <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+            {calling.map((x) => (
+              <button
+                key={x.id}
+                className="btn btn-ghost btn-sm"
+                onClick={() => setState(x.id, "idle")}
+              >
+                {x.name} 갔다옴
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
         {list.map((x) => (
@@ -123,6 +162,7 @@ export default function ActivityBoard({ students = [], initial = [], date, unava
               onClick={() => setPick(pick === x.id ? null : x.id)}
               disabled={unavailable}
             >
+              {x.row?.by_student && "🙋 "}
               {x.name}
               {x.row && (
                 <>
