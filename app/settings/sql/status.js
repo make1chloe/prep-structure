@@ -86,6 +86,7 @@ const CHECKS = [
   { id: "0081", label: "아이콘을 로그인 없이 받기", anonTable: "app_assets", col: "key" },
   { id: "0082", label: "되풀이 할일", table: "todo_routines", col: "repeat_kind" },
   { id: "0083", label: "신규 학생 · 교재 끝나감 할일", table: "todo_routines", col: "lead_units" },
+  { id: "0084", label: "지금 뭐 하는 중 (실시간)", table: "student_activity", col: "state" },
 ];
 
 export async function checkSchema() {

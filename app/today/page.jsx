@@ -8,6 +8,7 @@ import { tally, resetDoneIn, DEFAULT_RULE } from "@/lib/warnings";
 import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
+import ActivityBoard from "./ActivityBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -1021,6 +1022,19 @@ export default async function TodayPage({ searchParams }) {
 
   const label = longLabel(date);
 
+  // 지금 뭐 하는 중 — 첫 그림을 서버에서 채워둔다.
+  // 안 채우면 화면이 뜨고 나서야 상태가 붙어서 한 번 깜빡인다.
+  let activity = [];
+  let activityOff = false;
+  {
+    const q = await supabase
+      .from("student_activity")
+      .select("student_id, state, note, updated_at, date")
+      .eq("date", date);
+    if (q.error) activityOff = true;
+    else activity = q.data || [];
+  }
+
   return (
     <>
       <TopBar profile={profile} active="today" />
@@ -1038,6 +1052,14 @@ export default async function TodayPage({ searchParams }) {
           tasks={taskCards}
           unavailable={!noticesAvailable}
           preClass={preClass}
+        />
+        {/* **말 걸기 전에 한 번 본다.** 한 반에 여럿이 각자 다른 것을 하고
+            있어서, 지금 누가 시험 중인지 눈으로 세고 있어야 했다. */}
+        <ActivityBoard
+          date={date}
+          students={rosterStudents}
+          initial={activity}
+          unavailable={activityOff}
         />
         <TodayBoard
           date={date}
