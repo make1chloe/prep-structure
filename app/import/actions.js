@@ -411,3 +411,83 @@ export async function importPayments(rows) {
   revalidatePath("/");
   return { error: null, saved: payload.length, skipped };
 }
+
+
+/**
+ * 상담일지 이관 — 노션 재원생상담일지DB (원장님, 2026-08-06).
+ *
+ * rows: parseNoteAoA 결과 (이미 학생별로 나뉘어 있다)
+ *
+ * **같은 (학생 · 날짜 · 제목) 은 한 건**으로 본다. 노션에서 다시 내려받아
+ * 올리는 일이 흔한데, 그때마다 늘어나면 상담 이력이 못 쓰게 된다.
+ * upsert 를 못 쓰는 이유 — student_notes 에는 그 세 칸의 유일 인덱스가 없고,
+ * 여기 하나 때문에 표에 제약을 새로 거는 것은 과하다. 그래서 먼저 읽어보고 고른다.
+ */
+function needSql(error) {
+  return error && (error.code === "42P01" || error.code === "PGRST205");
+}
+
+export async function importNotes(rows) {
+  const list = (rows || []).filter((r) => r?.name && r?.date);
+  if (list.length === 0) {
+    return { error: "옮길 줄이 없어요. 학생 이름과 날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
+  }
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const students = await studentMap(supabase);
+
+  const skipped = [];
+  const ready = [];
+  list.forEach((r) => {
+    const sid = students.get(r.name);
+    if (!sid) {
+      // 퇴원생은 재원생 목록에 남아 있으면 붙는다. 아예 없으면 붙일 데가 없다
+      skipped.push(`${r.date} ${r.name} (재원생 목록에 없음)`);
+      return;
+    }
+    ready.push({ ...r, student_id: sid });
+  });
+  if (ready.length === 0) return { error: null, saved: 0, updated: 0, skipped };
+
+  // 이미 있는 것 — 같은 학생·날짜·제목
+  const ids = [...new Set(ready.map((r) => r.student_id))];
+  const { data: have, error: readErr } = await supabase
+    .from("student_notes")
+    .select("id, student_id, date, title")
+    .in("student_id", ids);
+  if (needSql(readErr)) return { error: "0049 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
+  if (readErr) return { error: readErr.message, saved: 0, skipped };
+  const keyOf = (x) => `${x.student_id}|${x.date}|${(x.title || "").trim()}`;
+  const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
+
+  let saved = 0;
+  let updated = 0;
+  for (const r of ready) {
+    const row = {
+      student_id: r.student_id,
+      date: r.date,
+      kind: "consult",
+      title: r.title,
+      // 노션에 적으신 글을 **그대로** 둔다 (raw). 정리한 글(body)은 원장님이
+      // 나중에 손보시는 자리라, 옮기면서 우리가 채우면 안 된다
+      raw: r.body,
+      with_whom: r.how ? `학부모 (${r.how})` : "학부모",
+    };
+    const at = known.get(keyOf(row));
+    const { error } = at
+      ? await supabase.from("student_notes").update(row).eq("id", at)
+      : await supabase.from("student_notes").insert({ ...row, created_by: user?.id || null });
+    if (error) {
+      skipped.push(`${r.date} ${r.name} — ${error.message}`);
+      continue;
+    }
+    at ? (updated += 1) : (saved += 1);
+  }
+
+  revalidatePath("/notes");
+  revalidatePath("/students");
+  return { error: null, saved, updated, skipped };
+}

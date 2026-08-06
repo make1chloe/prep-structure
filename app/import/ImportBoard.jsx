@@ -6,8 +6,9 @@ import {
   sheetToRows, parseReportRow, parseHomeworkRow, parseTaskRow, parseAbsenceRow,
 } from "@/lib/importNotion";
 import { parsePaymentRow } from "@/lib/importPayment";
+import { parseNoteAoA } from "@/lib/importNote";
 import {
-  importReports, importHomework, importTasks, importAbsences, importPayments,
+  importReports, importHomework, importTasks, importAbsences, importPayments, importNotes,
 } from "./actions";
 
 const KINDS = [
@@ -40,6 +41,20 @@ const KINDS = [
       "재시험·추가학습처럼 결석이 아닌 것은 보강만 기록합니다.",
   },
   {
+    key: "note",
+    label: "상담일지",
+    db: "재원생상담일지DB",
+    hint:
+      "노션에서 내린 CSV 를 그대로 올리시면 됩니다. " +
+      "날짜는 내용 머리에 「10/1)」 처럼 적어두신 것이 있으면 그것을 쓰고(있었던 날), " +
+      "없으면 상담일을 씁니다(적어둔 날). " +
+      "한 줄에 형제가 같이 걸린 상담은 학생별로 나눠서 들어갑니다. " +
+      "같은 학생·날짜·제목은 한 건이라 다시 올리셔도 안 늘어납니다.",
+    // 이 탭만 **한 장을 통째로** 읽는다 (형제 상담을 나누려면 줄 하나가
+    // 여러 줄이 되어야 하는데, 줄 단위 파서로는 그것을 못 한다)
+    whole: true,
+  },
+  {
     key: "payment",
     label: "수납",
     db: "결제선생 등",
@@ -57,12 +72,17 @@ const PARSE = {
   absence: parseAbsenceRow,
   payment: parsePaymentRow,
 };
+/** 한 장을 통째로 읽는 것 — 줄 하나가 여러 줄이 될 수 있다 */
+const WHOLE = {
+  note: parseNoteAoA,
+};
 const SAVE = {
   report: importReports,
   homework: importHomework,
   task: importTasks,
   absence: importAbsences,
   payment: importPayments,
+  note: importNotes,
 };
 
 export default function ImportBoard() {
@@ -91,8 +111,14 @@ export default function ImportBoard() {
       raw: false,
       defval: "",
     });
-    const objs = sheetToRows(aoa);
     const y = parseInt(year, 10) || new Date().getFullYear();
+    // 상담일지는 **한 장을 통째로** 읽는다 — 형제가 같이 걸린 상담 한 줄이
+    // 학생 수만큼의 줄이 되어야 해서, 줄 단위 파서로는 안 된다
+    if (WHOLE[kind]) {
+      setRows(WHOLE[kind](aoa).rows);
+      return;
+    }
+    const objs = sheetToRows(aoa);
     setRows(objs.map((o) => PARSE[kind](o, y)));
   }
 
@@ -163,7 +189,11 @@ export default function ImportBoard() {
           )}
           <br />
           {meta.hint}{" "}
-          {kind === "payment" ? "같은 학생·달이 이미 있으면 덮어씁니다." : "같은 날짜·학생이 이미 있으면 덮어씁니다."}
+          {kind === "payment"
+            ? "같은 학생·달이 이미 있으면 덮어씁니다."
+            : kind === "note"
+            ? ""
+            : "같은 날짜·학생이 이미 있으면 덮어씁니다."}
         </p>
 
         <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -259,6 +289,14 @@ export default function ImportBoard() {
                         <th>사유</th>
                         <th>상태</th>
                       </>
+                    ) : kind === "note" ? (
+                      <>
+                        <th>날짜</th>
+                        <th>학생</th>
+                        <th>제목</th>
+                        <th>상담 내용</th>
+                        <th></th>
+                      </>
                     ) : kind === "payment" ? (
                       <>
                         <th>달</th>
@@ -325,6 +363,31 @@ export default function ImportBoard() {
                         {r.none ? <span className="tag tag-muted">보강 없음</span>
                           : r.done ? <span className="tag tag-mint">완료</span>
                           : <span className="tag tag-amber">미완료</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {kind === "note" && ok.slice(0, 25).map((r, i) => (
+                    <tr key={i}>
+                      <td>
+                        {r.date}
+                        {/* 내용 머리에 적어두신 날짜를 쓴 줄 — 상담일과 다르다.
+                            어느 쪽을 썼는지 안 보이면 「날짜가 왜 다르지」 가 된다 */}
+                        {r.dateFrom === "body" && (
+                          <span className="tag tag-sky" style={{ marginLeft: 4 }}>내용 날짜</span>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>
+                        {r.name}
+                        {r.split && (
+                          <span className="tag tag-lav" style={{ marginLeft: 4 }}>형제 나눔</span>
+                        )}
+                      </td>
+                      <td className="muted">{r.title || "—"}</td>
+                      <td className="muted" style={{ maxWidth: 380, whiteSpace: "normal" }}>
+                        {(r.body || "").slice(0, 90) || "—"}
+                      </td>
+                      <td>
+                        {!r.body && <span className="tag tag-muted">내용 없음</span>}
                       </td>
                     </tr>
                   ))}
