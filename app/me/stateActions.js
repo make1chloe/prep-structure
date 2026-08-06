@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
-import { STATES } from "@/lib/activity";
+import { STATES, isCalling } from "@/lib/activity";
+import { pushToStaff } from "@/app/push/actions";
 
 const SQL = "supabase/migrations/0085_activity_student.sql 을 먼저 실행해주세요.";
 
@@ -47,6 +48,19 @@ export async function setMyState(state) {
       .upsert(noFlag, { onConflict: "student_id" }));
   }
   if (error) return { error: SQL };
+
+  // **부르면 알린다.** 이건 지금 가보셔야 하는 일이라, 화면을 보고 계실
+  // 때만 알면 늦다. 폰에 뜨면 워치에도 그대로 뜬다.
+  // (다른 상태는 안 보낸다 — 「쉬는 중」 까지 울리면 알림을 꺼버리시게 된다)
+  if (isCalling(state)) {
+    const { data: me } = await supabase
+      .from("students").select("name").eq("id", sid).maybeSingle();
+    await pushToStaff({
+      title: "🙋 도움이 필요하대요",
+      body: `${me?.name || "학생"} 학생이 부릅니다.`,
+      url: "/today",
+    });
+  }
 
   // **revalidatePath 를 안 부른다.**
   //   선생님 화면은 실시간으로 받는다 (0084). 여기서 캐시를 털어봐야 학생

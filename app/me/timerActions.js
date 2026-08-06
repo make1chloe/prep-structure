@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { pushToStaff } from "@/app/push/actions";
 import { todaySeoul } from "@/lib/day";
 import { resolveStudent } from "@/lib/actAs";
 
@@ -89,9 +90,59 @@ export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind
     if (error) return { error: error.message };
   }
 
+  // ── 선생님께 알린다 ────────────────────────────────────────
+  //
+  // 원장님 (2026-08-05) — 「아이 상태가 바뀌면 알림 오게 해줘. 워치랑 연동하게.
+  // **숙제는 제외하고 수업 중에만**」
+  //
+  // 그래서 등원 학습(class)만 보낸다. 숙제(home)는 집에서 하는 것이라 밤에
+  // 울린다 — 그러면 알림을 통째로 꺼버리시게 되고, 정작 부르는 것도 못 받는다.
+  //
+  // 알림이 실패해도 「다 했어요」 는 이미 저장됐다. 여기서 오류를 내면 아이는
+  // 자기가 안 눌린 줄 알고 다시 누른다.
+  if (kind === "class") {
+    try {
+      await notifyDone(supabase, sid, homeworkItemId);
+    } catch { /* 알림은 곁다리다 — 실패해도 기록은 남는다 */ }
+  }
+
   revalidatePath("/me");
   revalidatePath("/today");
   return { error: null };
+}
+
+/**
+ * **몇 개 중 몇 개째인지까지 적어 보낸다.**
+ *
+ * 「김서은 다 했어요」 만 오면 그래서 지금 가봐야 하는지 알 수가 없다.
+ * 「3/5」 면 아직 하는 중이고 「5/5」 면 손이 비었다는 뜻이다.
+ */
+async function notifyDone(supabase, sid, homeworkItemId) {
+  const today = todaySeoul();
+  const [{ data: stu }, { data: rep }, { data: item }] = await Promise.all([
+    supabase.from("students").select("name").eq("id", sid).maybeSingle(),
+    supabase.from("daily_reports").select("id").eq("student_id", sid).eq("date", today).maybeSingle(),
+    homeworkItemId
+      ? supabase.from("homework_items").select("name").eq("id", homeworkItemId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (!rep?.id) return;
+
+  const { data: rows } = await supabase
+    .from("daily_report_items")
+    .select("kind, student_done_at")
+    .eq("daily_report_id", rep.id);
+  const mine = (rows || []).filter((r) => !r.kind || r.kind === "class");
+  const total = mine.length;
+  const done = mine.filter((r) => r.student_done_at).length;
+
+  await pushToStaff({
+    title: total > 0 && done >= total
+      ? `✅ ${stu?.name || "학생"} 다 끝냈어요`
+      : `${stu?.name || "학생"} ${item?.name || "학습"} 완료`,
+    body: total > 0 ? `등원 학습 ${done}/${total}` : "등원 학습을 마쳤습니다.",
+    url: "/today",
+  });
 }
 
 /**

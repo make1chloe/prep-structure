@@ -130,3 +130,42 @@ export async function testPush() {
   });
   return { error: res.error, sent: res.sent };
 }
+
+/**
+ * **선생님 폰(그리고 워치)으로 알림.**
+ *
+ * 원장님 (2026-08-05) — 「아이 상태가 바뀌면 알림 오게 해줘. 워치랑 연동하게.
+ * 숙제는 제외하고 수업 중에만」
+ *
+ * 워치는 따로 붙이는 것이 없다. 폰에 온 알림을 워치가 그대로 보여준다
+ * (아이폰+애플워치, 안드로이드+갤럭시워치 둘 다). 그래서 폰에 알림이 오게
+ * 하는 것이 전부다 — **홈 화면에 담아둔 앱**에서 알림 받기를 켜두셔야 한다.
+ *
+ * **숙제는 안 보낸다.** 집에서 하는 것이라 밤에 알림이 울린다. 수업 중에
+ * 등원 학습을 끝냈을 때만 보낸다 (부르는 계산은 부르는 쪽에서 한다).
+ */
+export async function pushToStaff(payload) {
+  const supabase = createClient();
+  const keys = await keysOf(supabase);
+  if (!keys?.privateKey) return { sent: 0, error: null };   // 알림을 안 쓰면 조용히
+
+  // 선생님 계정에 붙어 있는 기기들
+  const { data: staff } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .in("role", ["principal", "instructor", "assistant"]);
+  const ids = (staff || []).map((p) => p.id);
+  if (ids.length === 0) return { sent: 0, error: null };
+
+  const { data: subs } = await supabase
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .in("profile_id", ids);
+  if (!subs?.length) return { sent: 0, error: null };
+
+  const res = await pushToAll(keys, subs, payload);
+  if (res.gone.length > 0) {
+    await supabase.from("push_subscriptions").delete().in("id", res.gone);
+  }
+  return { sent: res.sent, error: res.error };
+}

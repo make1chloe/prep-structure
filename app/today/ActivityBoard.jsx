@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { agoLabel, isCalling } from "@/lib/activity";
+import PushToggle from "@/app/me/PushToggle";
 
 /**
  * **지금 누가 어디까지 했나** — 새로고침 없이 바로 바뀐다.
@@ -87,6 +88,25 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
         학생이 자기 화면에서 <b>「다 했어요」</b>를 누르면 여기 바로 반영됩니다.
         선생님이 따로 누르실 것은 없습니다.
       </p>
+
+      {/* **알림 받기 — 워치까지 가려면 여기서 켜야 한다.**
+          워치는 따로 붙이는 것이 없다. 폰에 온 알림을 워치가 그대로 보여준다.
+          그래서 폰(홈 화면에 담아둔 앱)에서 이걸 켜두는 것이 전부다.
+          이 자리에 두는 까닭 — 알림을 켜고 싶어지는 순간이 바로 여기다. */}
+      <details style={{ marginBottom: 8 }}>
+        <summary className="hint" style={{ cursor: "pointer", fontSize: 12 }}>
+          이 기기로 알림 받기 (워치에도 같이 뜹니다)
+        </summary>
+        <div style={{ marginTop: 6 }}>
+          <PushToggle />
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+            아이가 <b>부르면</b>, 그리고 <b>등원 학습을 끝내면</b> 알립니다.
+            <b> 숙제는 안 보냅니다</b> — 집에서 하는 것이라 밤에 울립니다.
+            <br />
+            아이폰은 <b>홈 화면에 담아둔 앱</b>에서 켜야 알림이 옵니다 (사파리 탭에서는 안 옵니다).
+          </p>
+        </div>
+      </details>
 
       {/* 부른 아이는 위에 따로 — 스무 명 사이에서 찾게 하면 안 된다 */}
       {calling.length > 0 && (
