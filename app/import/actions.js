@@ -2,6 +2,32 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isRealDate } from "@/lib/importNotion";
+
+/**
+ * **한 줄이 전체를 죽이지 않게** (2026-08-06).
+ *
+ * 보강 171줄을 올리는데 통째로 실패했다 —
+ * `date/time field value out of range: "2026-25-08"`. 날짜를 「일/월」 순으로
+ * 적은 줄이 하나 섞여 있었고, Postgres 는 한 덩어리로 받으므로 **그 한 줄
+ * 때문에 171줄이 다 안 들어갔다.**
+ *
+ * 읽는 쪽(`parseDate`)도 고쳤지만, 여기서 한 번 더 막는다. 자료는 늘 예상
+ * 밖으로 들어오고, **170줄이 들어가고 한 줄이 빠지는 것**이 0줄보다 낫다.
+ * 빠진 줄은 조용히 버리지 않고 「못 넣은 줄」 에 적어 돌려드린다.
+ */
+function dropBadDates(rows, fields, skipped) {
+  return rows.filter((r) => {
+    for (const f of fields) {
+      const v = r?.[f];
+      if (v && !isRealDate(v)) {
+        skipped.push(`${r.name || "(이름 없음)"} — 날짜를 못 읽었어요 「${v}」`);
+        return false;
+      }
+    }
+    return true;
+  });
+}
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -50,13 +76,14 @@ async function itemMap(supabase, names) {
  * rows: parseReportRow 결과 배열
  */
 export async function importReports(rows) {
-  const list = (rows || []).filter((r) => r.name && r.date);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r.name && r.date), ["date"], badDates);
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
   const supabase = createClient();
   const students = await studentMap(supabase);
 
-  const skipped = [];
+  const skipped = [...badDates];
   const payload = [];
   list.forEach((r) => {
     const sid = students.get(r.name);
@@ -144,7 +171,8 @@ export async function importReports(rows) {
  *   같은 제목·같은 날짜가 이미 있으면 건너뛴다 (여러 번 올려도 안 늘어나게)
  */
 export async function importTasks(rows) {
-  const list = (rows || []).filter((r) => r.title && r.due_on);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r.title && r.due_on), ["due_on", "end_on"], badDates);
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
   const supabase = createClient();
@@ -156,7 +184,7 @@ export async function importTasks(rows) {
     .lte("due_on", dates[dates.length - 1]);
   const seen = new Set((exist || []).map((t) => `${t.due_on}|${t.title.trim()}`));
 
-  const skipped = [];
+  const skipped = [...badDates];
   const payload = [];
   list.forEach((r) => {
     const key = `${r.due_on}|${r.title}`;
@@ -204,8 +232,11 @@ export async function importAbsences(rows) {
   const students = await studentMap(supabase);
 
   const skipped = [];
+  // 날짜가 이상한 줄은 여기서 뺀다 — 하나가 DB 에서 터지면 전부가 안 들어간다
+  const clean = dropBadDates(list, ["absentOn", "makeupOn"], skipped);
+
   const byKey = new Map();   // student|date → row (뒤에 온 것이 이긴다)
-  list.forEach((r) => {
+  clean.forEach((r) => {
     const sid = students.get((r.name || "").trim());
     if (!sid) {
       skipped.push(`${r.absentOn || r.makeupOn} ${r.name || "(이름 없음)"} (재원생 목록에 없음)`);
@@ -262,14 +293,15 @@ export async function importAbsences(rows) {
  * 노션의 자유 텍스트는 범위 메모(range_note)에 그대로 담는다.
  */
 export async function importHomework(rows) {
-  const list = (rows || []).filter((r) => r.name && r.date && r.items.length > 0);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r.name && r.date && r.items.length > 0), ["date"], badDates);
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
   const supabase = createClient();
   const students = await studentMap(supabase);
   const items = await itemMap(supabase, list.flatMap((r) => r.items.map((i) => i.name)));
 
-  const skipped = [];
+  const skipped = [...badDates];
   const need = [];
   list.forEach((r) => {
     const sid = students.get(r.name);
@@ -363,7 +395,8 @@ export async function importHomework(rows) {
  * 같은 (학생, 달) 은 한 줄이라 여러 번 올려도 덮어쓴다.
  */
 export async function importPayments(rows) {
-  const list = (rows || []).filter((r) => r.name && r.ym);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r.name && r.ym), ["paidOn"], badDates);
   if (list.length === 0) {
     return { error: "옮길 줄이 없어요. 학생 이름과 달이 있는지 봐주세요.", saved: 0, skipped: [] };
   }
@@ -371,7 +404,7 @@ export async function importPayments(rows) {
   const supabase = createClient();
   const students = await studentMap(supabase);
 
-  const skipped = [];
+  const skipped = [...badDates];
   const byKey = new Map();   // student|ym → 줄 (뒤에 온 것이 이긴다)
   list.forEach((r) => {
     const sid = students.get((r.name || "").trim());
@@ -428,7 +461,8 @@ function needSql(error) {
 }
 
 export async function importNotes(rows) {
-  const list = (rows || []).filter((r) => r?.name && r?.date);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r?.name && r?.date), ["date"], badDates);
   if (list.length === 0) {
     return { error: "옮길 줄이 없어요. 학생 이름과 날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
   }
@@ -450,7 +484,7 @@ export async function importNotes(rows) {
    * 그대로 돌려준다 — 「이런 이름으로 만들었습니다」 를 보시고 아니면 바로
    * 지우실 수 있게. 조용히 만들면 유령 학생이 쌓인다.
    */
-  const skipped = [];
+  const skipped = [...badDates];
   const made = [];
   const need = [...new Set(list.map((r) => r.name).filter((n) => !students.get(n)))];
   if (need.length > 0) {
@@ -531,7 +565,8 @@ export async function importNotes(rows) {
  *      동명이인이면 안 잇는다.
  */
 export async function importInquiries(rows) {
-  const list = (rows || []).filter((r) => r?.name && !r.skip);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r?.name && !r.skip), ["consult_on", "test_on"], badDates);
   if (list.length === 0) {
     return { error: "옮길 줄이 없어요. 학생 이름이 있는지 봐주세요.", saved: 0, skipped: [] };
   }
@@ -567,7 +602,7 @@ export async function importInquiries(rows) {
   const keyOf = (x) => `${(x.name || "").trim()}|${x.phone || ""}`;
   const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
 
-  const skipped = [];
+  const skipped = [...badDates];
   let saved = 0;
   let updated = 0;
   let linkedClass = 0;
@@ -624,7 +659,8 @@ export async function importInquiries(rows) {
  * (재시험 → 통과). 그래서 **날짜까지 같아야** 한 건으로 본다.
  */
 export async function importUnitScores(rows) {
-  const list = (rows || []).filter((r) => r?.name && r?.date && r?.unit);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r?.name && r?.date && r?.unit), ["date"], badDates);
   if (list.length === 0) {
     return { error: "옮길 줄이 없어요. 학생·날짜·단원명이 있는지 봐주세요.", saved: 0, skipped: [] };
   }
@@ -633,7 +669,7 @@ export async function importUnitScores(rows) {
   const { data: { user } } = await supabase.auth.getUser();
   const students = await studentMap(supabase);
 
-  const skipped = [];
+  const skipped = [...badDates];
   const ready = [];
   list.forEach((r) => {
     const sid = students.get(r.name);
@@ -688,7 +724,8 @@ export async function importUnitScores(rows) {
  * 문항이 성적의 자식이라 성적을 먼저 만들고 그 id 로 문항을 넣는다.
  */
 export async function importWrongAnswers(rows) {
-  const list = (rows || []).filter((r) => r?.name && r?.date);
+  const badDates = [];
+  const list = dropBadDates((rows || []).filter((r) => r?.name && r?.date), ["date"], badDates);
   if (list.length === 0) {
     return { error: "옮길 줄이 없어요. 이름과 시험 본 날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
   }
@@ -697,7 +734,7 @@ export async function importWrongAnswers(rows) {
   const { data: { user } } = await supabase.auth.getUser();
   const students = await studentMap(supabase);
 
-  const skipped = [];
+  const skipped = [...badDates];
   const ready = [];
   list.forEach((r) => {
     const sid = students.get(r.name);

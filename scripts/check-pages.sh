@@ -76,6 +76,16 @@ else
 fi
 
 echo
+echo "== 5-2-2) 날짜 읽기 =="
+# 날짜는 자료가 예상 밖으로 들어오는 대표적인 자리다. 「25/08」 하나 때문에
+# 보강 171줄이 통째로 안 들어간 적이 있다 (2026-08-06)
+if out=$(node scripts/check-date.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 5-3) 성적 옮기기 · 리포트 계산 =="
 # 리포트는 상담 중에 펴놓고 학부모께 설명하시는 화면이다 — 숫자가 틀리면
 # 그 자리에서 곤란해지신다. 실제 자료에서 부딪힌 것을 못 박아 둔다
