@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setMakeup } from "./plan/actions";
+import { setMakeup, waiveMakeup } from "./plan/actions";
 import { dayLabel as fmtDay } from "@/lib/day";
 
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
@@ -17,6 +17,23 @@ export default function MakeupInbox({ rows = [] }) {
   const [pick, setPick] = useState({});
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  /**
+   * **보강 없음** (2026-08-06, 0103).
+   *
+   * 원장님 — 「아직 결석 안 했고 사전연락 없는데 뭐지. 보강 없음 버튼도 만들어줘」
+   *
+   * 결석 줄이 있는데 보강 줄이 없으면 여기 뜬다. 그래서 보강을 안 하기로 한
+   * 결석은 **영원히 남았다** — 치우려면 없는 보강을 억지로 잡아야 했고,
+   * 그러면 출결 기록이 거짓이 된다. 결석은 그대로 두고 목록에서만 내린다.
+   */
+  function waive(r) {
+    startTransition(async () => {
+      const res = await waiveMakeup(r.studentId, r.date, true);
+      if (res?.error) { alert(res.error); return; }
+      router.refresh();
+    });
+  }
 
   function schedule(r) {
     const d = pick[`${r.studentId}|${r.date}`];
@@ -37,8 +54,14 @@ export default function MakeupInbox({ rows = [] }) {
         보강 잡을 것{" "}
         {rows.length > 0 && <span className="tag tag-amber">{rows.length}</span>}
       </h2>
-      <p className="hint" style={{ margin: "0 0 10px" }}>
+      {/* **어디서 온 결석인지 몰라 당황하시는 일이 있었다** (2026-08-06).
+          원장님이 직접 넣으신 것만 여기 오는 게 아니다 */}
+      <p className="hint" style={{ margin: "0 0 10px", lineHeight: 1.7 }}>
         결석했는데 보강일이 아직 없는 학생입니다. 날짜를 고르면 그날 <b>보강</b>으로 들어갑니다.
+        <br />
+        시험 기간 결석 예정을 반 단위로 넣으셨거나, 학부모 요청을 받아주셨거나,
+        노션에서 옮겨온 옛 결석도 여기 옵니다. <b>보강할 것이 아니면 「보강 없음」</b>
+        을 누르세요 — 결석 기록은 그대로 남고 이 목록에서만 내려갑니다.
       </p>
 
       {rows.length === 0 ? (
@@ -49,12 +72,16 @@ export default function MakeupInbox({ rows = [] }) {
             const key = `${r.studentId}|${r.date}`;
             return (
               <div className="unitrow" key={key}>
-                <span className={`tag ${r.planned ? "tag-amber" : "tag-muted"}`}>
-                  {r.planned ? "사전 연락" : "결석"}
+                {/* **아직 오지 않은 날은 「결석」 이 아니라 「예정」 이다.**
+                    「아직 결석 안 했는데」 가 여기서 갈린다 */}
+                <span className={`tag ${r.future ? "tag-muted" : r.planned ? "tag-amber" : "tag-muted"}`}>
+                  {r.future ? "결석 예정" : r.planned ? "사전 연락" : "결석"}
                 </span>
                 <b style={{ fontSize: 12.5 }}>{r.name}</b>
-                <span className="hint">{dayLabel(r.date)} 결석</span>
+                <span className="hint">{dayLabel(r.date)}{r.future ? "" : " 결석"}</span>
                 {r.reason && <span className="hint">· {r.reason}</span>}
+                {/* 어디서 들어온 것인지 (노션 이관 등) */}
+                {r.note && <span className="hint">· {r.note}</span>}
                 {r.classDays?.length > 0 && (
                   <span className="hint">· 수업 {r.classDays.join("·")}</span>
                 )}
@@ -72,6 +99,14 @@ export default function MakeupInbox({ rows = [] }) {
                   disabled={pending || !pick[key]}
                 >
                   보강 잡기
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => waive(r)}
+                  disabled={pending}
+                  title="결석 기록은 남기고 이 목록에서만 내립니다"
+                >
+                  보강 없음
                 </button>
               </div>
             );

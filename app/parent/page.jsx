@@ -660,7 +660,7 @@ export default async function ParentPage({ searchParams }) {
           {/* ── 6. 성적 ── */}
           {(scores || []).length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>성적</h2>
+              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>성장</h2>
               <ScreenNote text={N("parent.scores")} />
               <div className="stack" style={{ gap: 10 }}>
                 {["school", "mock", "unit"].map((k) => {

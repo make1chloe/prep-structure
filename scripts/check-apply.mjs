@@ -78,8 +78,10 @@ eq(PRIVACY.rows[3].body.length > 10, true, "거부하면 어떻게 되는지도 
  */
 eq(PRIVACY.label.includes("보호자"), true, "체크 문구가 보호자의 동의임을 밝힌다");
 // 기간은 끝나는 시점을 셀 수 있게 적어야 한다 — 「필요한 기간」 은 안 적은 것과 같다
-eq(PRIVACY.rows[2].body.includes("퇴원일로부터"), true, "재원 뒤 언제까지인지");
+eq(PRIVACY.rows[2].body.includes("그 뒤 1년"), true, "다니신 뒤 언제까지인지");
 eq(PRIVACY.rows[2].body.includes("상담일로부터"), true, "등록 안 하신 경우도");
+// 상담받으러 오신 분께 첫 화면에서 「퇴원」 을 말할 이유가 없다 (원장님)
+eq(PRIVACY.rows[2].body.includes("퇴원"), false, "「퇴원」 이라는 말을 안 쓴다");
 // 실제로 받는 항목이 「수집 항목」 에 적혀 있어야 한다
 ["이름", "학년", "학교", "연락처"].forEach((w) => {
   eq(PRIVACY.rows[1].body.includes(w), true, `수집 항목에 「${w}」`);

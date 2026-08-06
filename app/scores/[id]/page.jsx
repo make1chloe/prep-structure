@@ -131,7 +131,7 @@ export default async function ReportPage({ params, searchParams }) {
             {" · "}
             {[student.school, student.grade].filter(Boolean).join(" ")}
           </p>
-          <h1 className="h1">{student.name} 성적 리포트</h1>
+          <h1 className="h1">{student.name} 성장 리포트</h1>
           <p className="sub">
             {KIND_LABEL[kind] || kind} {st.n}회
             {st.n >= 2 && st.trend.key !== "none" && ` · 흐름 ${st.trend.label}`}

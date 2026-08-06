@@ -116,6 +116,16 @@ else
 fi
 
 echo
+echo "== 5-4-1) 시험 목록 (전국연합 가르기 · 연도·학기) =="
+# 전국연합을 잘못 가리면 둘이 동시에 망가진다 — 내신 범위를 못 담게 되거나,
+# 「범위 미등록」 재촉이 영영 안 꺼진다
+if out=$(node scripts/check-examlist.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 5-4-2) 교재 정렬 =="
 # 정렬은 틀려도 오류가 안 난다 — 차례가 이상할 뿐이라 「원래 이런가 보다」 로
 # 넘어간다. 학년을 글자로 견주는 것 · 빈칸을 0 으로 치는 것을 못 박아 둔다

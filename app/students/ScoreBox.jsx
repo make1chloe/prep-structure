@@ -53,7 +53,7 @@ export default function ScoreBox({ studentId, name }) {
   return (
     <div className="stack" style={{ gap: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{name} 성적</b>
+        <b style={{ fontSize: 13.5 }}>{name} 성장</b>
         <span className="hint" style={{ fontSize: 11.5 }}>{rows.length}건</span>
         <span className="spacer" />
         {/* 넣고 고치는 것은 저쪽에서. 여기서 또 넣게 하면 두 군데가 어긋난다 */}

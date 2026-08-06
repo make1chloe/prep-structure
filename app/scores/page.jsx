@@ -54,7 +54,7 @@ export default async function ScoresPage({ searchParams }) {
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">학생</p>
-          <h1 className="h1">성적</h1>
+          <h1 className="h1">성장</h1>
           <p className="sub">
             학교 내신 · 모의고사 · 단원평가를 한자리에 모읍니다.
             <b> 등급컷을 같이 적어두면</b> 다음 시험에 몇 점이면 몇 등급인지 보입니다.

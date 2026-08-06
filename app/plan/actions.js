@@ -131,6 +131,35 @@ export async function setMakeup(studentId, makeupDate, absentDate) {
   return ok(error);
 }
 
+/**
+ * **보강 없음** — 이 결석은 보강을 안 한다 (0103).
+ *
+ * 원장님 (2026-08-06) — 「대시보드에서 보강 없음 버튼도 만들어줘」
+ *
+ * 「보강 잡을 것」 은 결석 줄이 있는데 보강 줄이 없으면 뜬다. 그래서 보강을
+ * 안 하기로 한 결석은 **영원히 목록에 남았다.** 치우는 길이 「없는 보강을
+ * 억지로 잡기」 밖에 없었고, 그러면 출결 기록이 거짓이 된다.
+ *
+ * **결석은 지우지 않는다** — 회차·수강료가 그 결석을 세고 있다.
+ * 목록에서만 내린다. 되돌릴 수 있게 `on` 을 받는다.
+ */
+export async function waiveMakeup(studentId, absentDate, on = true) {
+  if (!studentId || !absentDate) return { error: "어느 결석인지 모르겠어요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("attendance")
+    .update({ makeup_waived: !!on })
+    .eq("student_id", studentId)
+    .eq("date", absentDate);
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    return { error: "설정 → Supabase 에서 0103 을 한 번 실행해주세요." };
+  }
+  revalidatePath("/");
+  revalidatePath("/plan");
+  revalidatePath("/today");
+  return ok(error);
+}
+
 // ---------- 숙제 미리 배정 ----------
 /**
  * 여러 학생에게 같은 숙제를 그 날짜로 배정한다.

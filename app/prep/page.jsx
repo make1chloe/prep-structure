@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { needsScope } from "@/lib/examList";
 import TopBar from "@/components/TopBar";
 import PrepBoard from "./PrepBoard";
 import { todaySeoul } from "@/lib/day";
@@ -45,8 +46,17 @@ export default async function PrepPage({ searchParams }) {
   // 화면 안쪽까지 다 고칠 일은 아니고, 여기 한 줄이면 된다.
   //   name → term (「1학기 기말」),  english_on → exam_date (영어 보는 날)
   // 숨긴 시험은 학사일정에서 이미 뺀 것이라 여기서도 뺀다.
+  /**
+   * **전국연합학력평가는 여기 안 온다** (원장님, 2026-08-06 —
+   * 「대비하는 시험이 아니라서 일정만 확인하면 되고 시험범위자료는 필요없어」).
+   *
+   * 이 화면은 **범위를 담고 자료를 만드는 곳**이다. 모의고사는 범위가 없다 —
+   * 그동안 배운 전부가 범위다. 목록에 섞여 있으면 고를 때마다 지나쳐야 하고,
+   * 「범위 미등록」 으로 계속 재촉당한다. 일정은 회차 관리에 그대로 있다.
+   */
   const examRows = (exams.data || [])
     .filter((e) => !e.hidden)
+    .filter(needsScope)
     .map((e) => ({
       id: e.id,
       school: e.school,

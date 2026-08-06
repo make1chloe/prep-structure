@@ -12,6 +12,10 @@ import { shortLabel, monthDay, todaySeoul } from "@/lib/day";
 import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
+import {
+  sortExams, filterExams, facetsOf, termLabel, isMockExam,
+  EXAM_SORTS, EXAM_SORT_DEFAULT,
+} from "@/lib/examList";
 
 const ALERT_CLS = {
   over: "tag-sky",
@@ -63,9 +67,22 @@ export default function ScheduleBoard({
   const [memo, setMemo] = useState({});
   const [off, setOff] = useState({ date: "", name: "", classId: "" });
   const [showHidden, setShowHidden] = useState(false);   // 숨긴 시험도 볼까
+  /**
+   * **시험 목록 정돈** (원장님, 2026-08-06 — 「이름별 정렬, 학교별 필터 등」).
+   *
+   * 나이스에서 받으면 학교 × 학년 × 회차만큼 쏟아지는데 날짜순 한 줄이라
+   * 학교를 찾으려면 눈으로 훑어야 했다. 거르는 칸과 차례를 붙인다.
+   */
+  const [eFilter, setEFilter] = useState({ school: "", year: "", kind: "all", q: "" });
+  const [eSort, setESort] = useState(EXAM_SORT_DEFAULT);
+
   // 숨긴 시험은 기본으로 접어둔다 — 나이스에서 받으면 안 쓰는 것까지 다 들어온다
   const hiddenExams = exams.filter((e) => e.hidden);
-  const shownExams = showHidden ? exams : exams.filter((e) => !e.hidden);
+  const examFacets = facetsOf(exams);
+  const shownExams = sortExams(
+    filterExams(showHidden ? exams : exams.filter((e) => !e.hidden), eFilter),
+    eSort
+  );
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -686,6 +703,55 @@ export default function ScheduleBoard({
           </div>
         )}
 
+        {/* ---- 거르기 · 차례 (2026-08-06) ----
+            나이스에서 받으면 학교 × 학년 × 회차만큼 쏟아진다. 날짜순 한 줄로는
+            「우리 신송중 2학년 것」 을 눈으로 훑어 찾아야 했다 */}
+        {exams.length > 3 && (
+          <div className="row" style={{ gap: 6, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              className="input input-sm" style={{ width: 140 }} placeholder="시험 검색"
+              value={eFilter.q} onChange={(ev) => setEFilter({ ...eFilter, q: ev.target.value })}
+            />
+            <select
+              className="input input-sm" style={{ width: 120 }} value={eFilter.school}
+              onChange={(ev) => setEFilter({ ...eFilter, school: ev.target.value })}
+            >
+              <option value="">전체 학교</option>
+              {examFacets.schools.map((x) => <option key={x} value={x}>{shortName(x)}</option>)}
+            </select>
+            <select
+              className="input input-sm" style={{ width: 92 }} value={eFilter.year}
+              onChange={(ev) => setEFilter({ ...eFilter, year: ev.target.value })}
+            >
+              <option value="">전체 연도</option>
+              {examFacets.years.map((y) => <option key={y} value={y}>{y}년</option>)}
+            </select>
+            {/* 전국연합은 대비하는 시험이 아니라 성격이 아예 다르다 — 갈라 본다 */}
+            <select
+              className="input input-sm" style={{ width: 110 }} value={eFilter.kind}
+              onChange={(ev) => setEFilter({ ...eFilter, kind: ev.target.value })}
+            >
+              <option value="all">내신 · 모의</option>
+              <option value="school">학교 내신만</option>
+              <option value="mock">전국연합만</option>
+            </select>
+            <select
+              className="input input-sm" style={{ width: 118 }} value={eSort.key}
+              onChange={(ev) => setESort({ key: ev.target.value, dir: "asc" })}
+            >
+              {EXAM_SORTS.map((x) => <option key={x.key} value={x.key}>{x.label}순</option>)}
+            </select>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setESort({ ...eSort, dir: eSort.dir === "asc" ? "desc" : "asc" })}
+            >
+              {eSort.dir === "asc" ? "▲" : "▼"}
+            </button>
+            <span className="spacer" />
+            <span className="hint">{shownExams.length}건</span>
+          </div>
+        )}
+
         {shownExams.length > 0 && (
           <div className="stack" style={{ gap: 4, marginTop: 12 }}>
             {shownExams.map((e) => (
@@ -720,6 +786,11 @@ export default function ScheduleBoard({
                 <b style={{ fontSize: 12.5 }}>
                   <span title={e.school}>{shortName(e.school)}</span> {e.grade || "전체"}
                 </b>
+                {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
+                    작년 2학기와 올해 2학기가 같은 얼굴이었다 */}
+                {termLabel(e) && <span className="tag tag-sky">{termLabel(e)}</span>}
+                {/* 전국연합은 대비하는 시험이 아니다 — 범위를 안 물어본다 */}
+                {isMockExam(e) && <span className="tag tag-lav">일정만</span>}
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
                 {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
                 {e.note && <span className="hint" title={e.note}>{e.note}</span>}
