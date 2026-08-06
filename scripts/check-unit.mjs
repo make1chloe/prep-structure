@@ -7,6 +7,7 @@
 // 쓰는 법:  node scripts/check-unit.mjs
 
 import { parseUnitAoA, UNIT_HEADERS, countRange, minutesOf, volumeText } from "../lib/importUnit.js";
+import { UNIT_PROMPT } from "../lib/unitPrompt.js";
 let fail=0; const eq=(g,w,t)=>{const a=JSON.stringify(g),b=JSON.stringify(w);
   if(a!==b){console.log(`  ✗ ${t}\n     나온 것: ${a}\n     바란 것: ${b}`);fail=1;}};
 
@@ -67,6 +68,24 @@ const o = parseUnitAoA(old);
 eq(o.rows.length, 1, "옛 양식도 읽힌다");
 eq(o.rows[0].total_pages, 8, "옛 양식 총분량");
 eq(o.rows[0].question_count, null, "옛 양식에는 문항수가 없다");
+
+/**
+ * **AI 프롬프트가 파서와 어긋나지 않았나** (2026-08-06).
+ *
+ * `lib/unitPrompt` 는 파서의 규칙을 사람 말로 옮긴 글이다. 열이 하나 늘었는데
+ * 프롬프트에 안 적히면, AI 는 그 칸을 영영 안 채운다 — 그리고 **아무도 모른다.**
+ * 표는 멀쩡히 올라가고 그 칸만 늘 비어 있을 뿐이라, 화면에서는 「원장님이
+ * 아직 안 채우셨나 보다」 로 보인다.
+ *
+ * 그래서 **열 이름 열여섯 개가 프롬프트 안에 다 있는지**만 못 박아 둔다.
+ */
+console.log("\n== AI 프롬프트가 열을 다 말하고 있나 ==");
+const missing = UNIT_HEADERS.filter((h) => !UNIT_PROMPT.includes(h));
+eq(missing, [], "프롬프트에 빠진 열");
+// 숫자 칸에 범위를 적으면 125문항이 된다 — 이 경고는 반드시 남아 있어야 한다
+eq(UNIT_PROMPT.includes("125"), true, "「문항수에 1-25 를 적으면 125」 경고");
+eq(UNIT_PROMPT.includes("병합"), true, "「셀을 병합하지 마라」");
+eq(UNIT_PROMPT.includes("지어내지 마라"), true, "「모르면 비워라 · 지어내지 마라」");
 
 if (fail) { console.log("\n❌ 단원 엑셀에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 단원 엑셀 통과");

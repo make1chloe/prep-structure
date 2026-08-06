@@ -3,6 +3,7 @@
 import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { parseUnitAoA, UNIT_HEADERS, UNIT_FIELD_LABEL } from "@/lib/importUnit";
+import { UNIT_PROMPT } from "@/lib/unitPrompt";
 import { bulkAddUnits, exportUnits } from "./actions";
 
 const SHOW = ["textbook", "big", "mid", "small", "name", "question_no", "activity", "page_start", "page_end", "total_pages"];
@@ -14,8 +15,29 @@ export default function UnitUpload() {
   const [result, setResult] = useState(null);
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef(null);
   const router = useRouter();
+
+  /**
+   * **교재를 통째로 옮기는 가장 빠른 길** (2026-08-06).
+   *
+   * 30단원짜리 교재를 손으로 치면 한 권에 한 시간이 넘는다. 교재 PDF 를
+   * 챗GPT·클로드에 올리고 이 글을 같이 붙이면 표가 나온다.
+   *
+   * 프롬프트 글은 `lib/unitPrompt` 에 있다 — **파서 옆**이다. 열 이름이나
+   * 숫자 읽는 방식이 바뀌면 같이 고쳐야 하는 글이라, 문서 폴더에 두면 어긋난다.
+   */
+  async function copyPrompt() {
+    try {
+      await navigator.clipboard.writeText(UNIT_PROMPT);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // 클립보드를 막아둔 브라우저 — 창에 띄워서 직접 고르시게 한다
+      window.prompt("아래 글을 복사해서 교재 PDF 와 함께 붙여넣으세요", UNIT_PROMPT);
+    }
+  }
 
   function reset() {
     setParsed(null);
@@ -139,7 +161,17 @@ export default function UnitUpload() {
         파일에서 지운 단원은 <b>자동으로 안 지웁니다</b> (학생 진도가 거기 걸려 있어요).
       </p>
 
+      {/* **손으로 치지 않는 길.** 30단원짜리 교재는 한 권에 한 시간이 넘는다 */}
+      <p className="hint" style={{ margin: "0 0 12px", lineHeight: 1.7 }}>
+        <b>교재 PDF 가 있으시면</b> 「AI 프롬프트 복사」 를 눌러 챗GPT·클로드에
+        교재와 함께 붙여넣으세요. 이 표 모양 그대로, <b>이 앱의 규칙에 맞게</b>
+        채워줍니다 (문항 범위·핵심내용·분량까지). 나온 표를 엑셀로 저장해 올리시면 됩니다.
+      </p>
+
       <div className="row" style={{ alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <button className="btn btn-ghost" onClick={copyPrompt}>
+          {copied ? "✅ 복사됐어요" : "📋 AI 프롬프트 복사"}
+        </button>
         <button className="btn btn-ghost" onClick={downloadTemplate}>⬇️ 빈 양식</button>
         <button className="btn" disabled={busy} onClick={downloadCurrent}>
           {busy ? "모으는 중…" : "⬇️ 지금 단원 내려받기"}
