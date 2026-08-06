@@ -9,6 +9,7 @@ import ParentBox from "./ParentBox";
 import NoteBox from "./NoteBox";
 import StudentBooks from "@/app/today/StudentBooks";
 import WordTestBox from "./WordTestBox";
+import ScheduleBox from "./ScheduleBox";
 import { fromLabel } from "@/lib/bookUse";
 import { shortName } from "@/lib/schoolName";
 
@@ -53,6 +54,9 @@ const TABS = [
   ["info", "정보"],
   ["books", "교재"],
   ["word", "단어시험"],
+  // 이 아이에게만 해당하는 일정 (보강 · 상담 · 학교 행사).
+  // 할일 화면으로 나갔다 오면 흐름이 끊기고, 끊기면 나중에 하게 된다 (2026-08-06)
+  ["schedule", "일정"],
   ["note", "상담일지"],
   ["account", "계정"],
   ["history", "기록"],
@@ -559,6 +563,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                         </>
                       )}
                       {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
+                      {tab === "schedule" && <ScheduleBox studentId={s.id} name={s.name} />}
                       {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
                       {tab === "account" && (
               <>

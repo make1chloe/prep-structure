@@ -407,6 +407,10 @@ export async function importSchedule(from, to, schoolId = null) {
     // 보내면 통째로 거절당한다.** 여기서 떼어낸다.
     const rows = mine.map(({ neisKind, nationwide, mayDiffer, schoolName, ...row }) => ({
       ...row,
+      // **이 일정은 이 학교 아이들 것이다** (0091). 안 붙여두면 신송중
+      // 학사일정이 다른 학교 아이 달력에도 뜬다 — 달력이 남의 일로 차면
+      // 자기 것도 안 보게 된다. 전국 공통 줄(mine 에 없다)은 안 붙인다.
+      deliver_school_id: school.id || null,
       // 원장님이 「나만 보기」로 잠가둔 일정은 다시 받아와도 잠긴 채로 (0066)
       private: keepPrivate.has(row.source_id) ? true : undefined,
       created_by: user?.id || null,
@@ -421,10 +425,16 @@ export async function importSchedule(from, to, schoolId = null) {
         .from("tasks")
         .upsert(chunk, { onConflict: "source,source_id" });
       if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        // 0077 전이면 '어느 학교 것인가' 칸이 없다
+        ({ error } = await supabase
+          .from("tasks")
+          .upsert(chunk.map(({ deliver_school_id: _s, ...r }) => r), { onConflict: "source,source_id" }));
+      }
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
         // 0066 전이면 '나만 보기' 없이
         ({ error } = await supabase
           .from("tasks")
-          .upsert(chunk.map(({ private: _p, ...r }) => r), { onConflict: "source,source_id" }));
+          .upsert(chunk.map(({ private: _p, deliver_school_id: _s, ...r }) => r), { onConflict: "source,source_id" }));
       }
       if (needSql(error)) return { error: SQL };
       if (error) { bad = error.message; break; }

@@ -17,6 +17,7 @@ import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
 import Refresh from "@/components/Refresh";
+import { tasksForStudent } from "@/lib/taskAudience";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +86,7 @@ export default async function ParentPage({ searchParams }) {
   let children = [];
   if (isStaff && searchParams?.s) {
     const { data } = await supabase
-      .from("students").select("id, name, school, grade").eq("id", searchParams.s).maybeSingle();
+      .from("students").select("id, name, school, grade, school_id").eq("id", searchParams.s).maybeSingle();
     if (data) children = [data];
   } else {
     const { data: links } = await supabase
@@ -93,7 +94,7 @@ export default async function ParentPage({ searchParams }) {
     const ids = (links || []).map((l) => l.student_id);
     if (ids.length) {
       const { data } = await supabase
-        .from("students").select("id, name, school, grade").in("id", ids).order("name");
+        .from("students").select("id, name, school, grade, school_id").in("id", ids).order("name");
       children = data || [];
     }
   }
@@ -276,14 +277,30 @@ export default async function ParentPage({ searchParams }) {
   const calFrom = addDays(today, -40);
   const calTo = addDays(today, 120);
 
-  const { data: cal } = await supabase
+  const TASK_COLS = "id, title, kind, due_on, end_on, source";
+  let { data: cal, error: calErr } = await supabase
     .from("tasks")
-    .select("id, title, kind, due_on, end_on, source")
+    .select(`${TASK_COLS}, deliver_student_ids, deliver_school_id, deliver_school, deliver_grade, deliver_class_id`)
     .neq("kind", "todo")
     .gte("due_on", calFrom)
     .lte("due_on", calTo)
     .order("due_on", { ascending: true });
-  let calendar = (cal || []).map((t) => ({
+  if (calErr) {
+    // 0077 전이면 대상 칸이 없다 — 그때는 다 보인다 (예전 그대로)
+    ({ data: cal } = await supabase
+      .from("tasks").select(TASK_COLS).neq("kind", "todo")
+      .gte("due_on", calFrom).lte("due_on", calTo)
+      .order("due_on", { ascending: true }));
+  }
+  // **우리 아이 것만** (0091). DB 도 같은 규칙으로 막지만, 원장님이 미리보기로
+  // 보실 때는 선생님 권한이라 전부 통과한다 — 그러면 미리보기가 거짓말을 한다
+  let calendar = tasksForStudent(cal || [], {
+    id: pickId,
+    schoolId: child.school_id || null,
+    school: child.school || "",
+    grade: child.grade || "",
+    classIds: myClasses.map((c) => c.id),
+  }).map((t) => ({
     date: t.due_on,
     endDate: t.end_on || null,
     title: t.title,

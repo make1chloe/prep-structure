@@ -25,6 +25,7 @@ import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
 import Refresh from "@/components/Refresh";
+import { tasksForStudent } from "@/lib/taskAudience";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
 } from "@/lib/homeworkView";
@@ -54,7 +55,7 @@ export default async function MePage({ searchParams }) {
   // 학생 본인 (학부모 계정이면 자녀 중 첫 명)
   let { data: student } = await supabase
     .from("students")
-    .select("id, name, school, grade, word_when")
+    .select("id, name, school, grade, school_id, word_when")
     .eq("profile_id", user.id)
     .maybeSingle();
 
@@ -66,7 +67,7 @@ export default async function MePage({ searchParams }) {
   if (previewId) {
     const { data: s2 } = await supabase
       .from("students")
-      .select("id, name, school, grade, word_when")
+      .select("id, name, school, grade, school_id, word_when")
       .eq("id", previewId)
       .maybeSingle();
     if (s2) student = s2;
@@ -88,7 +89,7 @@ export default async function MePage({ searchParams }) {
     if (link) {
       const { data: s } = await supabase
         .from("students")
-        .select("id, name, school, grade")
+        .select("id, name, school, grade, school_id")
         .eq("id", link.student_id)
         .maybeSingle();
       student = s;
@@ -530,14 +531,30 @@ export default async function MePage({ searchParams }) {
   const calTo = addDays(today, 120);
   let calendar = [];
   {
-    const { data: rows } = await supabase
+    const COLS = "id, title, kind, due_on, end_on, source, category";
+    let { data: rows, error } = await supabase
       .from("tasks")
-      .select("id, title, kind, due_on, end_on, source, category")
+      .select(`${COLS}, deliver_student_ids, deliver_school_id, deliver_school, deliver_grade, deliver_class_id`)
       .neq("kind", "todo")
       .gte("due_on", calFrom)
       .lte("due_on", calTo)
       .order("due_on", { ascending: true });
-    calendar = (rows || []).map((t) => ({
+    if (error) {
+      // 0077 전이면 대상 칸이 없다 — 그때는 다 보인다 (예전 그대로)
+      ({ data: rows } = await supabase
+        .from("tasks").select(COLS).neq("kind", "todo")
+        .gte("due_on", calFrom).lte("due_on", calTo)
+        .order("due_on", { ascending: true }));
+    }
+    // **자기 것만** (0091). DB 도 같은 규칙으로 막지만, 선생님이 미리보기로
+    // 볼 때는 선생님 권한이라 전부 통과한다 — 그러면 미리보기가 거짓말을 한다
+    calendar = tasksForStudent(rows || [], {
+      id: student.id,
+      schoolId: student.school_id || null,
+      school: student.school || "",
+      grade: student.grade || "",
+      classIds: myClasses.map((c) => c.id),
+    }).map((t) => ({
       date: t.due_on,
       endDate: t.end_on || null,
       title: t.title,
