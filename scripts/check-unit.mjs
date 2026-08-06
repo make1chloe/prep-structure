@@ -6,7 +6,7 @@
 //
 // 쓰는 법:  node scripts/check-unit.mjs
 
-import { parseUnitAoA, UNIT_HEADERS, countRange, minutesOf, volumeText } from "../lib/importUnit.js";
+import { parseUnitAoA, UNIT_HEADERS, countRange, minutesOf, volumeText, rangeMangled } from "../lib/importUnit.js";
 import { UNIT_PROMPT } from "../lib/unitPrompt.js";
 let fail=0; const eq=(g,w,t)=>{const a=JSON.stringify(g),b=JSON.stringify(w);
   if(a!==b){console.log(`  ✗ ${t}\n     나온 것: ${a}\n     바란 것: ${b}`);fail=1;}};
@@ -68,6 +68,19 @@ const o = parseUnitAoA(old);
 eq(o.rows.length, 1, "옛 양식도 읽힌다");
 eq(o.rows[0].total_pages, 8, "옛 양식 총분량");
 eq(o.rows[0].question_count, null, "옛 양식에는 문항수가 없다");
+
+/**
+ * **엑셀이 문항범위를 날짜로 바꿔놓은 것** (2026-08-06).
+ *
+ * 「1-25」 를 엑셀에서 열면 1월 25일로 알아듣고 고쳐 쓴다. 오류가 안 나므로
+ * 짚어주지 않으면 그 단원의 분량이 영영 틀린 채로 남는다.
+ */
+console.log("\n== 문항범위가 날짜로 바뀐 것 ==");
+[["2026-01-25", true], ["1/25/2026", true], ["45678", true],
+ ["1-25", false], ["16-25", false], ["1~25", false], ["3,5,7", false],
+ ["001-040", false], ["", false]].forEach(([v, want]) => {
+  eq(rangeMangled(v), want, `rangeMangled("${v}")`);
+});
 
 /**
  * **AI 프롬프트가 파서와 어긋나지 않았나** (2026-08-06).

@@ -2,8 +2,9 @@
 
 import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { parseUnitAoA, UNIT_HEADERS, UNIT_FIELD_LABEL } from "@/lib/importUnit";
+import { parseUnitAoA, UNIT_HEADERS, UNIT_FIELD_LABEL, rangeMangled } from "@/lib/importUnit";
 import { UNIT_PROMPT } from "@/lib/unitPrompt";
+import { readSheet } from "@/lib/readSheet";
 import { bulkAddUnits, exportUnits } from "./actions";
 
 const SHOW = ["textbook", "big", "mid", "small", "name", "question_no", "activity", "page_start", "page_end", "total_pages"];
@@ -109,12 +110,11 @@ export default function UnitUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    const XLSX = await import("xlsx");
-    const wb = XLSX.read(await file.arrayBuffer(), { cellDates: false });
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {
-      header: 1, raw: false, defval: "",
-    });
-    setParsed(parseUnitAoA(aoa));
+    // **적힌 그대로 읽는다** (`lib/readSheet`). 예전에는 raw:false 로 읽어서
+    // 엑셀 라이브러리가 「보기 좋게」 고친 값을 받았다 — 상담일지 193줄 중
+    // 52줄이 그렇게 조용히 사라진 적이 있다. 단원 엑셀에서는 「1-25」 같은
+    // 문항범위가 특히 위험하다
+    setParsed(parseUnitAoA(await readSheet(file)));
   }
 
   function save() {
@@ -135,6 +135,10 @@ export default function UnitUpload() {
   const bookCount = parsed
     ? new Set(parsed.rows.map((r) => r.textbook)).size
     : 0;
+  // 엑셀이 「1-25」 를 1월 25일로 고쳐놓은 줄 — 오류가 안 나서 안 짚어주면 모른다
+  const mangled = parsed
+    ? parsed.rows.filter((r) => rangeMangled(r.question_range))
+    : [];
 
   if (!open) {
     return (
@@ -195,6 +199,24 @@ export default function UnitUpload() {
             </h3>
             {unknown.length > 0 && <span className="hint">무시된 열: {unknown.join(", ")}</span>}
           </div>
+
+          {/* **엑셀이 「1-25」 를 1월 25일로 고쳐놓은 것.** 오류가 안 나므로
+              짚어주지 않으면 그 단원의 분량이 영영 틀린 채로 남는다 */}
+          {mangled.length > 0 && (
+            <div className="err" style={{ marginTop: 10, lineHeight: 1.7 }}>
+              <b>문항범위 {mangled.length}줄이 날짜로 바뀌어 있어요.</b>
+              {" "}엑셀은 「1-25」 를 <b>1월 25일</b>로 알아듣고 고쳐 씁니다 — 오류가 안 나서
+              그냥 두면 그 단원의 분량이 계속 틀립니다.
+              <br />
+              엑셀에서 <b>그 칸을 「텍스트」 서식으로 바꾸고</b> 다시 적어주세요.
+              (또는 앞에 작은따옴표를 붙여 <code>&apos;1-25</code> 로 적으셔도 됩니다.)
+              <br />
+              <span className="hint">
+                {mangled.slice(0, 4).map((r) => `${r.name || r.small || r.mid || r.big} → ${r.question_range}`).join(" · ")}
+                {mangled.length > 4 ? ` … 그 밖 ${mangled.length - 4}줄` : ""}
+              </span>
+            </div>
+          )}
 
           {parsed.rows.length === 0 ? (
             <div className="err" style={{ marginTop: 10 }}>

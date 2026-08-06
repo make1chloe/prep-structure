@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { readSheet } from "@/lib/readSheet";
 import { useRouter } from "next/navigation";
 import { parseTextbookAoA, TB_FIELD_LABEL, TEXTBOOK_HEADERS } from "@/lib/importTextbook";
 import { bulkAddTextbooks } from "./actions";
@@ -38,12 +39,8 @@ export default function TextbookUpload() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    const XLSX = await import("xlsx");
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { cellDates: false });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
-    setParsed(parseTextbookAoA(aoa));
+    // 적힌 그대로 읽는다 (`lib/readSheet`) — 단원 올리기와 같은 규칙
+    setParsed(parseTextbookAoA(await readSheet(file)));
   }
 
   function handleSave() {
