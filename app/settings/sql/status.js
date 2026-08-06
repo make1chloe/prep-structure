@@ -102,6 +102,7 @@ const CHECKS = [
   //   0092 가 0091 을 덮어쓰므로 표식도 0092 것만 남는다 (0091 은 따로 안 센다).
   { id: "0092", label: "일정은 고른 대상에게만 (안 고르면 안 보임)", rpc: "task_audience_on" },
   { id: "0093", label: "화면 안내 문구 (직접 적기)", table: "screen_notes", col: "body" },
+  { id: "0095", label: "화면 구성 순서 (직접 정하기)", table: "screen_layouts", col: "order_keys" },
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.
 ];

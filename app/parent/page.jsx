@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -19,6 +20,7 @@ import ChangePw from "@/app/me/ChangePw";
 import Refresh from "@/components/Refresh";
 import { tasksForStudent } from "@/lib/taskAudience";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
+import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
 
 export const dynamic = "force-dynamic";
@@ -383,6 +385,407 @@ export default async function ParentPage({ searchParams }) {
   const notes = await loadNotes(supabase);
   const N = (key, fallback = "") => noteOr(notes, key, fallback);
 
+  // 원장님이 정하신 덩어리 차례 (0095). 안 정하셨으면 아래 적힌 차례 그대로
+  const layouts = await loadLayouts(supabase);
+  const blockOrder = arrange("parent", layouts);
+
+  /**
+   * ── 화면 덩어리 ─────────────────────────────────────────────
+   *
+   * 차례는 **원장님이 정하신다** (0095 · 설정 → 화면 → 화면 구성 순서).
+   * 그래서 여기서는 덩어리를 이름표에 담아두기만 하고, 그리는 차례는
+   * blockOrder 가 정한다. 안 정하셨으면 아래 적힌 차례 그대로 나온다.
+   *
+   * **비어 있는 덩어리는 원래도 안 그려진다** — 조건이 그대로 붙어 있어서,
+   * 순서를 올린다고 없던 것이 생기지는 않는다.
+   */
+  const BLOCKS = {
+    today: (
+      <>
+          {/* ── 1. 오늘 ────────────────────────────────────────────
+              어머니가 전화로 물으시던 것들이다 — 다음 수업이 언제인지,
+              오늘 갔는지, 늦게 오는지. 물어보지 않아도 되게 맨 위에 둔다. */}
+          {(nextClass || attToday || stayLeft.length > 0) && (
+            <div className="card sect sect-info">
+              <h2 className="secthead">오늘</h2>
+              <ScreenNote text={N("parent.today")} />
+              <div className="stack" style={{ gap: 6 }}>
+                {hasToday ? (
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    <span className="plabel" style={{ width: 62 }}>오늘 수업</span>
+                    <span style={{ fontSize: 13.5 }}>
+                      {nextClass.at ? `${nextClass.at} 시작` : "수업일"}
+                    </span>
+                    {attToday ? (
+                      <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
+                        {ATT_LABEL[attToday.status] || attToday.status}
+                      </span>
+                    ) : (
+                      <span className="tag tag-muted">아직 출결 전</span>
+                    )}
+                  </div>
+                ) : nextClass ? (
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    <span className="plabel" style={{ width: 62 }}>다음 수업</span>
+                    <span style={{ fontSize: 13.5 }}>
+                      {longLabel(nextClass.date)}
+                      {nextClass.at ? ` ${nextClass.at}` : ""}
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* 오늘 수업일이 아닌데 출결이 찍혔으면 보강이다 — 그것도 알려드린다 */}
+                {!hasToday && attToday && (
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    <span className="plabel" style={{ width: 62 }}>오늘</span>
+                    <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
+                      {ATT_LABEL[attToday.status] || attToday.status}
+                    </span>
+                    {attToday.reason && (
+                      <span className="hint" style={{ fontSize: 12.5 }}>{attToday.reason}</span>
+                    )}
+                  </div>
+                )}
+
+                {stayLeft.length > 0 && (
+                  <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
+                    <span className="plabel" style={{ width: 62 }}>하원</span>
+                    <span style={{ fontSize: 13.5, flex: 1 }}>
+                      오늘은 <b>남아서 채우고</b> 갑니다 — {stayLeft.map((t) => t.body).join(" · ")}
+                      <br />
+                      <span className="hint">평소보다 늦게 갈 수 있어요.</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+      </>
+    ),
+    month: (
+      <>
+          {/* ── 2. 이번 달 현황 ────────────────────────────────────
+              학생 화면과 **같은 숫자**다 (lib/monthly 의 summarize).
+              집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다. */}
+          <div className="card">
+            <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+                이번 달 현황 ({Number(ym.slice(5, 7))}월)
+              </h2>
+              <span className="hint">수업 {withItems.length}회</span>
+            </div>
+            {notes.has("parent.month") ? (
+              <ScreenNote text={N("parent.month")} style={{ margin: "2px 0 10px" }} />
+            ) : (
+              <p className="hint" style={{ margin: "2px 0 10px", fontSize: 11.5 }}>
+                달이 끝나기 전에도 <b>지금까지</b>를 그대로 세어 보여드립니다.
+                아이 화면에도 <b>같은 숫자</b>가 보입니다.
+              </p>
+            )}
+
+            {withItems.length === 0 ? (
+              <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+                이번 달은 아직 수업 기록이 없어요.
+              </p>
+            ) : (
+              <div className="stack" style={{ gap: 8 }}>
+                {lines.map((l) => (
+                  <div className="row" key={l.key} style={{ gap: 8, alignItems: "baseline" }}>
+                    <b style={{ fontSize: 13, minWidth: 62 }}>{l.label}</b>
+                    <span className={`tag ${TONE_CLS[l.tone]}`}>{l.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+      </>
+    ),
+    schedule: (
+      <>
+          {/* ── 3. 일정 및 전달사항 — 한 덩어리로 ──────────────────
+              전에는 공지가 화면 아래쪽에 있었다. 알림톡을 끊었으니 이제
+              이 자리가 학원에서 오는 말이 닿는 유일한 곳이다 — 위로 올린다. */}
+          {(upcoming.length > 0 || notices.length > 0) && (
+            <div className="card">
+              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>일정 및 전달사항</h2>
+              <ScreenNote text={N("parent.schedule")} />
+
+              {upcoming.length > 0 && (
+                <div className="stack" style={{ gap: 4, marginBottom: notices.length ? 14 : 0 }}>
+                  {upcoming.map((c, i) => (
+                    <div className="unitrow" key={`${c.date}-${i}`}>
+                      <span className="hint" style={{ minWidth: 74 }}>
+                        {shortLabel(c.date)}
+                        {c.endDate && c.endDate !== c.date ? " ~" : ""}
+                      </span>
+                      <span style={{ fontSize: 13.5, flex: 1 }}>{c.title}</span>
+                      {c.tone === "exam" && <span className="tag tag-red">시험</span>}
+                      {c.tone === "school" && <span className="tag tag-sky">학교</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {notices.length > 0 && (
+                <div className="stack" style={{ gap: 12 }}>
+                  {notices.map((n) => (
+                    <div key={n.id} className="stack" style={{ gap: 6 }}>
+                      <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
+                        <span className="hint">{shortLabel(n.date)}</span>
+                        {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
+                      </div>
+                      {n.body && n.body !== n.title && (
+                        <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
+                      )}
+                      <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {upcoming.length === 0 && (
+                <p className="hint" style={{ margin: 0 }}>앞으로 잡힌 일정이 없어요.</p>
+              )}
+            </div>
+          )}
+      </>
+    ),
+    homework: (
+      <>
+          {/* ── 4. 지금 나간 숙제 ──────────────────────────────────
+              「오늘 숙제 뭐야」 는 집에서 매일 나오는 말이다. 전에는 아이
+              화면에만 있어서 어머니는 아이 말을 믿는 수밖에 없었다.
+
+              **여기서는 누를 것이 없다.** 체크도 타이머도 아이 화면 것이다 —
+              두 군데서 체크하면 두 군데가 반드시 어긋난다. */}
+          <div className="card">
+            <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+                지금 나간 숙제 {homework.length > 0 && <span className="tag tag-lav">{homework.length}</span>}
+              </h2>
+              {assignedFrom && <span className="hint">{shortLabel(assignedFrom.date)} 수업에서</span>}
+            </div>
+
+            {homework.length === 0 ? (
+              <p className="muted" style={{ margin: "8px 0 0", fontSize: 13.5 }}>
+                지금 나간 숙제가 없어요. 수업에서 다음 숙제를 정하면 여기에 뜹니다.
+              </p>
+            ) : (
+              <>
+                <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+                  {homework.map((c) => (
+                    <div key={c.key} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                      <span style={{ fontSize: 13, lineHeight: 1.6 }}>☐</span>
+                      <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
+                        {c.name}
+                        {c.units.length > 0 && <> — {c.units.join(", ")}</>}
+                        {c.note && <> {c.note}</>}
+                        {c.changedAt && (
+                          <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                            바뀜
+                          </span>
+                        )}
+                        {c.doneAt && (
+                          <span className="tag tag-mint" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                            아이가 완료 표시
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <ScreenNote text={N("parent.homework")} style={{ margin: "10px 0 0" }} />
+                <p className="hint" style={{ margin: "10px 0 0", lineHeight: 1.7 }}>
+                  아이 화면에 뜨는 것과 <b>같은 목록</b>입니다.
+                  <b> 완료 표시</b>는 아이가 직접 누른 것이고, 실제 검사는 다음 수업에서 합니다.
+                  {homework.some((c) => c.changedAt) && (
+                    <> <b>바뀜</b> 은 선생님이 나중에 더하거나 고치신 것이에요.</>
+                  )}
+                </p>
+              </>
+            )}
+          </div>
+      </>
+    ),
+    lessons: (
+      <>
+          {/* ── 5. 최근 수업 ───────────────────────────────────────
+              전에는 문자로 보내려고 만든 글을 통째로 띄웠다. 앱에서는
+              출결·점수·진도를 나눠 보여주는 편이 훨씬 빨리 읽힌다.
+              원장님이 쓰신 글 전문은 접어두고, 보고 싶으실 때 펴신다. */}
+          {lessons.length > 0 && (
+            <div className="card">
+              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>최근 수업</h2>
+              <ScreenNote text={N("parent.lessons")} />
+              <div className="stack" style={{ gap: 14 }}>
+                {lessons.map((r) => (
+                  <div key={r.id} className="stack" style={{ gap: 6 }}>
+                    <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+                      <b style={{ fontSize: 13.5 }}>{longLabel(r.date)}</b>
+                      {r.attendance && (
+                        <span className={`tag ${r.attendance === "absent" ? "tag-red" : "tag-mint"}`}>
+                          {ATT_LABEL[r.attendance] || r.attendance}
+                        </span>
+                      )}
+                      {r.checked > 0 && (
+                        <span className="hint" style={{ fontSize: 12 }}>
+                          숙제 검사 {[
+                            r.check.done ? `완료 ${r.check.done}` : null,
+                            r.check.weak ? `보충 ${r.check.weak}` : null,
+                            r.check.missing ? `미완료 ${r.check.missing}` : null,
+                          ].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="stack" style={{ gap: 3 }}>
+                      {r.word_total ? (
+                        <div className="row" style={{ gap: 8 }}>
+                          <span className="plabel" style={{ width: 46 }}>단어</span>
+                          <span style={{ fontSize: 13 }}>{score(r.word_correct, r.word_total)}</span>
+                        </div>
+                      ) : null}
+                      {r.sent_total ? (
+                        <div className="row" style={{ gap: 8 }}>
+                          <span className="plabel" style={{ width: 46 }}>문법</span>
+                          <span style={{ fontSize: 13 }}>{score(r.sent_correct, r.sent_total)}</span>
+                        </div>
+                      ) : null}
+                      {r.own_progress ? (
+                        <div className="row" style={{ gap: 8 }}>
+                          <span className="plabel" style={{ width: 46 }}>진도</span>
+                          <span style={{ fontSize: 13 }}>{r.own_progress}</span>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* 선생님이 그날 학부모께 적으신 말 — 있으면 그게 제일 중요하다 */}
+                    {r.notice && (
+                      <div className="notice" style={{ fontSize: 13 }}>{r.notice}</div>
+                    )}
+
+                    {/* 원장님이 쓰신 리포트 전문. 길어서 접어둔다 */}
+                    {r.reportText && (
+                      <details>
+                        <summary className="hint" style={{ cursor: "pointer", fontSize: 12.5 }}>
+                          이 날 리포트 전문 보기
+                        </summary>
+                        <div style={{ fontSize: 13, whiteSpace: "pre-wrap", marginTop: 6 }}>
+                          {r.reportText}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+      </>
+    ),
+    scores: (
+      <>
+          {/* ── 6. 성적 ── */}
+          {(scores || []).length > 0 && (
+            <div className="card">
+              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>성적</h2>
+              <ScreenNote text={N("parent.scores")} />
+              <div className="stack" style={{ gap: 10 }}>
+                {["school", "mock", "unit"].map((k) => {
+                  const list = scoreGroups[k] || [];
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={k}>
+                      <b style={{ fontSize: 13 }}>{KIND_LABEL[k]}</b>
+                      <div className="stack" style={{ gap: 3, marginTop: 4 }}>
+                        {list.slice(0, 4).map((s) => (
+                          <div className="unitrow" key={s.id}>
+                            <span className="hint" style={{ minWidth: 68 }}>
+                              {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
+                            </span>
+                            <b style={{ fontSize: 12.5, minWidth: 110 }}>{s.term || ""}</b>
+                            <span style={{ fontSize: 12.5, flex: 1 }}>
+                              {scoreSummary(s, findExam(s, exams || [], child))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+      </>
+    ),
+    monthly: (
+      <>
+          {/* ── 7. 월간리포트 — 최근 것만 펴둔다 ────────────────────
+              세 달치를 다 펼쳐놓으니 스크롤이 끝없이 길었다. 지난달 것은
+              다시 읽으실 일이 드물다 — 접어두고 필요할 때 펴신다. */}
+          {monthlyRows.length > 0 && (
+            <div className="card">
+              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>월간리포트</h2>
+              <ScreenNote text={N("parent.monthly")} />
+              <div className="stack" style={{ gap: 12 }}>
+                {monthlyRows.map((m, i) => (
+                  <details key={m.ym} open={i === 0}>
+                    <summary style={{ cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>
+                      {m.ym.replace("-", "년 ")}월
+                    </summary>
+                    <div style={{ fontSize: 13, whiteSpace: "pre-wrap", marginTop: 6 }}>{m.text}</div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
+      </>
+    ),
+    calendar: (
+      <>
+          {/* ── 8. 달력 ── */}
+          {calendar.length > 0 && (
+            <>
+              <ScreenNote text={N("parent.calendar")} tone="card" />
+              <DashCalendar ym={ym} items={calendar} today={today} links={false} />
+            </>
+          )}
+      </>
+    ),
+    request: (
+      <>
+          {/* ── 9. 보내기 · 남기실 말씀 ────────────────────────────
+              알림톡을 끊었으니 **여기가 학원에 말을 거는 자리**다.
+              아래쪽에 두되, 무엇을 하는 자리인지 한 줄 적어둔다. */}
+          {!preview && (
+            <>
+              <RequestForm studentId={pickId} mine={myReqs || []} />
+              {notes.has("parent.request") ? (
+                <ScreenNote text={N("parent.request")} style={{ margin: "-4px 2px 0" }} />
+              ) : (
+                <p className="hint" style={{ margin: "-4px 2px 0", lineHeight: 1.7 }}>
+                  결석 · 보강 · 그 밖의 말씀은 여기로 보내주시면 선생님이 확인합니다.
+                  전화 주셔도 되지만, 여기로 보내주시면 <b>기록이 남아</b> 빠뜨리지 않습니다.
+                </p>
+              )}
+            </>
+          )}
+      </>
+    ),
+    comments: (
+      <>
+          {latest && (
+            <div className="card">
+              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>남기실 말씀</h2>
+              <p className="hint" style={{ margin: "0 0 8px" }}>
+                최근 수업({longLabel(latest.date)})에 대해 궁금한 것을 남기시면 선생님이 답합니다.
+              </p>
+              <Comments reportId={latest.id} studentId={pickId} me={preview ? "staff" : "parent"} />
+            </div>
+          )}
+      </>
+    ),
+  };
+
   return (
     <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
       {preview && (
@@ -414,359 +817,9 @@ export default async function ParentPage({ searchParams }) {
 
       <div className="stack" style={{ marginTop: 10 }}>
         <ScreenNote text={N("parent.top")} tone="card" />
-        {/* ── 1. 오늘 ────────────────────────────────────────────
-            어머니가 전화로 물으시던 것들이다 — 다음 수업이 언제인지,
-            오늘 갔는지, 늦게 오는지. 물어보지 않아도 되게 맨 위에 둔다. */}
-        {(nextClass || attToday || stayLeft.length > 0) && (
-          <div className="card sect sect-info">
-            <h2 className="secthead">오늘</h2>
-            <ScreenNote text={N("parent.today")} />
-            <div className="stack" style={{ gap: 6 }}>
-              {hasToday ? (
-                <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                  <span className="plabel" style={{ width: 62 }}>오늘 수업</span>
-                  <span style={{ fontSize: 13.5 }}>
-                    {nextClass.at ? `${nextClass.at} 시작` : "수업일"}
-                  </span>
-                  {attToday ? (
-                    <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
-                      {ATT_LABEL[attToday.status] || attToday.status}
-                    </span>
-                  ) : (
-                    <span className="tag tag-muted">아직 출결 전</span>
-                  )}
-                </div>
-              ) : nextClass ? (
-                <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                  <span className="plabel" style={{ width: 62 }}>다음 수업</span>
-                  <span style={{ fontSize: 13.5 }}>
-                    {longLabel(nextClass.date)}
-                    {nextClass.at ? ` ${nextClass.at}` : ""}
-                  </span>
-                </div>
-              ) : null}
-
-              {/* 오늘 수업일이 아닌데 출결이 찍혔으면 보강이다 — 그것도 알려드린다 */}
-              {!hasToday && attToday && (
-                <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                  <span className="plabel" style={{ width: 62 }}>오늘</span>
-                  <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
-                    {ATT_LABEL[attToday.status] || attToday.status}
-                  </span>
-                  {attToday.reason && (
-                    <span className="hint" style={{ fontSize: 12.5 }}>{attToday.reason}</span>
-                  )}
-                </div>
-              )}
-
-              {stayLeft.length > 0 && (
-                <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
-                  <span className="plabel" style={{ width: 62 }}>하원</span>
-                  <span style={{ fontSize: 13.5, flex: 1 }}>
-                    오늘은 <b>남아서 채우고</b> 갑니다 — {stayLeft.map((t) => t.body).join(" · ")}
-                    <br />
-                    <span className="hint">평소보다 늦게 갈 수 있어요.</span>
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── 2. 이번 달 현황 ────────────────────────────────────
-            학생 화면과 **같은 숫자**다 (lib/monthly 의 summarize).
-            집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다. */}
-        <div className="card">
-          <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
-              이번 달 현황 ({Number(ym.slice(5, 7))}월)
-            </h2>
-            <span className="hint">수업 {withItems.length}회</span>
-          </div>
-          {notes.has("parent.month") ? (
-            <ScreenNote text={N("parent.month")} style={{ margin: "2px 0 10px" }} />
-          ) : (
-            <p className="hint" style={{ margin: "2px 0 10px", fontSize: 11.5 }}>
-              달이 끝나기 전에도 <b>지금까지</b>를 그대로 세어 보여드립니다.
-              아이 화면에도 <b>같은 숫자</b>가 보입니다.
-            </p>
-          )}
-
-          {withItems.length === 0 ? (
-            <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
-              이번 달은 아직 수업 기록이 없어요.
-            </p>
-          ) : (
-            <div className="stack" style={{ gap: 8 }}>
-              {lines.map((l) => (
-                <div className="row" key={l.key} style={{ gap: 8, alignItems: "baseline" }}>
-                  <b style={{ fontSize: 13, minWidth: 62 }}>{l.label}</b>
-                  <span className={`tag ${TONE_CLS[l.tone]}`}>{l.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── 3. 일정 및 전달사항 — 한 덩어리로 ──────────────────
-            전에는 공지가 화면 아래쪽에 있었다. 알림톡을 끊었으니 이제
-            이 자리가 학원에서 오는 말이 닿는 유일한 곳이다 — 위로 올린다. */}
-        {(upcoming.length > 0 || notices.length > 0) && (
-          <div className="card">
-            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>일정 및 전달사항</h2>
-            <ScreenNote text={N("parent.schedule")} />
-
-            {upcoming.length > 0 && (
-              <div className="stack" style={{ gap: 4, marginBottom: notices.length ? 14 : 0 }}>
-                {upcoming.map((c, i) => (
-                  <div className="unitrow" key={`${c.date}-${i}`}>
-                    <span className="hint" style={{ minWidth: 74 }}>
-                      {shortLabel(c.date)}
-                      {c.endDate && c.endDate !== c.date ? " ~" : ""}
-                    </span>
-                    <span style={{ fontSize: 13.5, flex: 1 }}>{c.title}</span>
-                    {c.tone === "exam" && <span className="tag tag-red">시험</span>}
-                    {c.tone === "school" && <span className="tag tag-sky">학교</span>}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {notices.length > 0 && (
-              <div className="stack" style={{ gap: 12 }}>
-                {notices.map((n) => (
-                  <div key={n.id} className="stack" style={{ gap: 6 }}>
-                    <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                      <span className="hint">{shortLabel(n.date)}</span>
-                      {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
-                    </div>
-                    {n.body && n.body !== n.title && (
-                      <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
-                    )}
-                    <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {upcoming.length === 0 && (
-              <p className="hint" style={{ margin: 0 }}>앞으로 잡힌 일정이 없어요.</p>
-            )}
-          </div>
-        )}
-
-        {/* ── 4. 지금 나간 숙제 ──────────────────────────────────
-            「오늘 숙제 뭐야」 는 집에서 매일 나오는 말이다. 전에는 아이
-            화면에만 있어서 어머니는 아이 말을 믿는 수밖에 없었다.
-
-            **여기서는 누를 것이 없다.** 체크도 타이머도 아이 화면 것이다 —
-            두 군데서 체크하면 두 군데가 반드시 어긋난다. */}
-        <div className="card">
-          <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
-              지금 나간 숙제 {homework.length > 0 && <span className="tag tag-lav">{homework.length}</span>}
-            </h2>
-            {assignedFrom && <span className="hint">{shortLabel(assignedFrom.date)} 수업에서</span>}
-          </div>
-
-          {homework.length === 0 ? (
-            <p className="muted" style={{ margin: "8px 0 0", fontSize: 13.5 }}>
-              지금 나간 숙제가 없어요. 수업에서 다음 숙제를 정하면 여기에 뜹니다.
-            </p>
-          ) : (
-            <>
-              <div className="stack" style={{ gap: 6, marginTop: 8 }}>
-                {homework.map((c) => (
-                  <div key={c.key} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                    <span style={{ fontSize: 13, lineHeight: 1.6 }}>☐</span>
-                    <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
-                      {c.name}
-                      {c.units.length > 0 && <> — {c.units.join(", ")}</>}
-                      {c.note && <> {c.note}</>}
-                      {c.changedAt && (
-                        <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 10.5 }}>
-                          바뀜
-                        </span>
-                      )}
-                      {c.doneAt && (
-                        <span className="tag tag-mint" style={{ marginLeft: 4, fontSize: 10.5 }}>
-                          아이가 완료 표시
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <ScreenNote text={N("parent.homework")} style={{ margin: "10px 0 0" }} />
-              <p className="hint" style={{ margin: "10px 0 0", lineHeight: 1.7 }}>
-                아이 화면에 뜨는 것과 <b>같은 목록</b>입니다.
-                <b> 완료 표시</b>는 아이가 직접 누른 것이고, 실제 검사는 다음 수업에서 합니다.
-                {homework.some((c) => c.changedAt) && (
-                  <> <b>바뀜</b> 은 선생님이 나중에 더하거나 고치신 것이에요.</>
-                )}
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* ── 5. 최근 수업 ───────────────────────────────────────
-            전에는 문자로 보내려고 만든 글을 통째로 띄웠다. 앱에서는
-            출결·점수·진도를 나눠 보여주는 편이 훨씬 빨리 읽힌다.
-            원장님이 쓰신 글 전문은 접어두고, 보고 싶으실 때 펴신다. */}
-        {lessons.length > 0 && (
-          <div className="card">
-            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>최근 수업</h2>
-            <ScreenNote text={N("parent.lessons")} />
-            <div className="stack" style={{ gap: 14 }}>
-              {lessons.map((r) => (
-                <div key={r.id} className="stack" style={{ gap: 6 }}>
-                  <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-                    <b style={{ fontSize: 13.5 }}>{longLabel(r.date)}</b>
-                    {r.attendance && (
-                      <span className={`tag ${r.attendance === "absent" ? "tag-red" : "tag-mint"}`}>
-                        {ATT_LABEL[r.attendance] || r.attendance}
-                      </span>
-                    )}
-                    {r.checked > 0 && (
-                      <span className="hint" style={{ fontSize: 12 }}>
-                        숙제 검사 {[
-                          r.check.done ? `완료 ${r.check.done}` : null,
-                          r.check.weak ? `보충 ${r.check.weak}` : null,
-                          r.check.missing ? `미완료 ${r.check.missing}` : null,
-                        ].filter(Boolean).join(" · ")}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="stack" style={{ gap: 3 }}>
-                    {r.word_total ? (
-                      <div className="row" style={{ gap: 8 }}>
-                        <span className="plabel" style={{ width: 46 }}>단어</span>
-                        <span style={{ fontSize: 13 }}>{score(r.word_correct, r.word_total)}</span>
-                      </div>
-                    ) : null}
-                    {r.sent_total ? (
-                      <div className="row" style={{ gap: 8 }}>
-                        <span className="plabel" style={{ width: 46 }}>문법</span>
-                        <span style={{ fontSize: 13 }}>{score(r.sent_correct, r.sent_total)}</span>
-                      </div>
-                    ) : null}
-                    {r.own_progress ? (
-                      <div className="row" style={{ gap: 8 }}>
-                        <span className="plabel" style={{ width: 46 }}>진도</span>
-                        <span style={{ fontSize: 13 }}>{r.own_progress}</span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* 선생님이 그날 학부모께 적으신 말 — 있으면 그게 제일 중요하다 */}
-                  {r.notice && (
-                    <div className="notice" style={{ fontSize: 13 }}>{r.notice}</div>
-                  )}
-
-                  {/* 원장님이 쓰신 리포트 전문. 길어서 접어둔다 */}
-                  {r.reportText && (
-                    <details>
-                      <summary className="hint" style={{ cursor: "pointer", fontSize: 12.5 }}>
-                        이 날 리포트 전문 보기
-                      </summary>
-                      <div style={{ fontSize: 13, whiteSpace: "pre-wrap", marginTop: 6 }}>
-                        {r.reportText}
-                      </div>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 6. 성적 ── */}
-        {(scores || []).length > 0 && (
-          <div className="card">
-            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>성적</h2>
-            <ScreenNote text={N("parent.scores")} />
-            <div className="stack" style={{ gap: 10 }}>
-              {["school", "mock", "unit"].map((k) => {
-                const list = scoreGroups[k] || [];
-                if (list.length === 0) return null;
-                return (
-                  <div key={k}>
-                    <b style={{ fontSize: 13 }}>{KIND_LABEL[k]}</b>
-                    <div className="stack" style={{ gap: 3, marginTop: 4 }}>
-                      {list.slice(0, 4).map((s) => (
-                        <div className="unitrow" key={s.id}>
-                          <span className="hint" style={{ minWidth: 68 }}>
-                            {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
-                          </span>
-                          <b style={{ fontSize: 12.5, minWidth: 110 }}>{s.term || ""}</b>
-                          <span style={{ fontSize: 12.5, flex: 1 }}>
-                            {scoreSummary(s, findExam(s, exams || [], child))}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── 7. 월간리포트 — 최근 것만 펴둔다 ────────────────────
-            세 달치를 다 펼쳐놓으니 스크롤이 끝없이 길었다. 지난달 것은
-            다시 읽으실 일이 드물다 — 접어두고 필요할 때 펴신다. */}
-        {monthlyRows.length > 0 && (
-          <div className="card">
-            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>월간리포트</h2>
-            <ScreenNote text={N("parent.monthly")} />
-            <div className="stack" style={{ gap: 12 }}>
-              {monthlyRows.map((m, i) => (
-                <details key={m.ym} open={i === 0}>
-                  <summary style={{ cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>
-                    {m.ym.replace("-", "년 ")}월
-                  </summary>
-                  <div style={{ fontSize: 13, whiteSpace: "pre-wrap", marginTop: 6 }}>{m.text}</div>
-                </details>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── 8. 달력 ── */}
-        {calendar.length > 0 && (
-          <>
-            <ScreenNote text={N("parent.calendar")} tone="card" />
-            <DashCalendar ym={ym} items={calendar} today={today} links={false} />
-          </>
-        )}
-
-        {/* ── 9. 보내기 · 남기실 말씀 ────────────────────────────
-            알림톡을 끊었으니 **여기가 학원에 말을 거는 자리**다.
-            아래쪽에 두되, 무엇을 하는 자리인지 한 줄 적어둔다. */}
-        {!preview && (
-          <>
-            <RequestForm studentId={pickId} mine={myReqs || []} />
-            {notes.has("parent.request") ? (
-              <ScreenNote text={N("parent.request")} style={{ margin: "-4px 2px 0" }} />
-            ) : (
-              <p className="hint" style={{ margin: "-4px 2px 0", lineHeight: 1.7 }}>
-                결석 · 보강 · 그 밖의 말씀은 여기로 보내주시면 선생님이 확인합니다.
-                전화 주셔도 되지만, 여기로 보내주시면 <b>기록이 남아</b> 빠뜨리지 않습니다.
-              </p>
-            )}
-          </>
-        )}
-
-        {latest && (
-          <div className="card">
-            <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>남기실 말씀</h2>
-            <p className="hint" style={{ margin: "0 0 8px" }}>
-              최근 수업({longLabel(latest.date)})에 대해 궁금한 것을 남기시면 선생님이 답합니다.
-            </p>
-            <Comments reportId={latest.id} studentId={pickId} me={preview ? "staff" : "parent"} />
-          </div>
-        )}
+        {blockOrder.map((k) => (
+          <Fragment key={k}>{BLOCKS[k]}</Fragment>
+        ))}
 
         {preview ? (
           <Link className="btn btn-ghost btn-block" href="/students">재원생으로 돌아가기</Link>

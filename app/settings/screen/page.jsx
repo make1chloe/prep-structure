@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import ThemePicker from "@/components/ThemePicker";
 import MenuBox from "../MenuBox";
 import IconBox from "./IconBox";
+import LayoutBox from "./LayoutBox";
 
 export const dynamic = "force-dynamic";
 
@@ -34,13 +35,18 @@ export default async function ScreenSettingsPage() {
           <p className="eyebrow">설정</p>
           <h1 className="h1">화면</h1>
           <p className="sub">
-            맨 위 메뉴에 무엇을 어떤 순서로 놓을지, 그리고 밝게 볼지 어둡게 볼지 정합니다.
+            맨 위 메뉴에 무엇을 어떤 순서로 놓을지, <b>화면 안의 덩어리를 어떤 차례로</b>
+            보여줄지(학생·학부모 화면 포함), 그리고 밝게 볼지 어둡게 볼지 정합니다.
             <b> 이 브라우저에만</b> 적용되는 것과 <b>계정에 남는 것</b>이 섞여 있어 각 칸에 적어뒀어요.
           </p>
         </div>
 
         <div className="stack" style={{ gap: 12 }}>
           <MenuBox profile={profile} />
+          {/* 화면 안의 덩어리 차례 (0095). 메뉴 순서와는 다른 이야기라 따로 둔다 —
+              메뉴는 「어디로 가나」 고, 이것은 「가서 무엇을 먼저 보나」 다.
+              강사·조교는 자기 메뉴만 정하고, 이건 모두에게 같이 적용되므로 원장·강사만 */}
+          {["principal", "instructor"].includes(profile?.role) && <LayoutBox />}
           <ThemePicker />
           {profile?.role === "principal" && <IconBox />}
         </div>
