@@ -5,6 +5,7 @@ import ImportBoard from "./ImportBoard";
 import CheckBox from "./CheckBox";
 import FixDatesBox from "./FixDatesBox";
 import YearAuditBox from "./YearAuditBox";
+import YearFixBox from "./YearFixBox";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,8 @@ export default async function ImportPage() {
         <CheckBox />
         {/* 진단이 먼저, 고치기가 다음 — 무엇이 잘못됐는지 모르고 옮기면 더 어려워진다 */}
         <YearAuditBox />
+        {/* 줄마다 따져서 고치는 것이 먼저. 범위를 통째로 미는 것은 마지막 수단 */}
+        <YearFixBox />
         <FixDatesBox />
       </main>
     </>
