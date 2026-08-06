@@ -121,9 +121,16 @@ export default function NeisBox({ months = [] }) {
                 )}
               </div>
             ))}
-            <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5 }}>
+            <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.8 }}>
               <b>받아오기가 된 것입니다.</b> 일정 화면과 대시보드 달력에서 보입니다.
               다시 받아도 늘어나지 않으니 언제든 눌러도 됩니다.
+              <br />
+              학교별 학사일정은 <b>그 학교 아이·어머니 달력에</b> 뜹니다.
+              {" "}
+              <b>[전국] 이 붙은 것(수능·모의고사·공휴일)은 비공개</b>로 들어옵니다 — 수십 줄이
+              달력을 채우면 정작 봐야 할 우리 학교 시험이 묻히기 때문입니다.
+              알려야 할 것이 있으면 <b>할일 · 달력</b> 에서 그 줄만 「전체」 로 열어주세요
+              (한 번 열면 다시 받아와도 열린 채로 있습니다).
             </p>
             <button
               className="btn btn-ghost btn-sm"

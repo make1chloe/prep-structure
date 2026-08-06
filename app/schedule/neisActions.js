@@ -326,17 +326,44 @@ export async function importSchedule(from, to, schoolId = null) {
   const commonRows = new Map();   // source_id → { row, schools:Set }
   let okSchools = 0;
 
-  // 전국 공통 줄 중 원장님이 「나만 보기」로 잠가둔 것 — 다시 받아와도 잠긴 채로 (0066)
-  const keepCommonPrivate = new Set();
+  /**
+   * **전국 공통은 비공개로 들어온다** (원장님, 2026-08-06).
+   *
+   *   「전국공통은 오히려 나만보기야. 안 그러면 학생 학부모가 중요한 일정을
+   *    인식을 못 해」
+   *
+   * 수능일 · 모의고사 · 공휴일은 아홉 학교에 다 걸리니 한 해에 수십 줄이다.
+   * 그런데 중2 아이에게 수능일은 아무 상관이 없다. 그것들이 달력을 채우면
+   * **정작 봐야 할 우리 학교 시험이 그 사이에 묻힌다.** 많이 보여주는 것과
+   * 알게 하는 것은 다른 일이다.
+   *
+   * 그래서 기본은 비공개다. 원장님이 **일부러 「전체」 로 열어둔 것**만
+   * 다시 받아와도 열린 채로 남는다 (고3 수능일처럼 정말 알려야 하는 것).
+   */
+  const keepCommonOpen = new Set();
   {
     let q = await supabase
       .from("tasks")
-      .select("source_id, private")
+      .select("source_id, private, deliver_scope")
       .eq("source", "neis")
       .like("source_id", "common:%")
       .gte("due_on", from)
       .lte("due_on", to);
-    if (!q.error) (q.data || []).forEach((r) => { if (r.private) keepCommonPrivate.add(r.source_id); });
+    if (q.error) {
+      // 0092 전이면 「누가 보나」 칸이 없다 — 그때는 잠가둔 것만 지킨다
+      q = await supabase
+        .from("tasks")
+        .select("source_id, private")
+        .eq("source", "neis")
+        .like("source_id", "common:%")
+        .gte("due_on", from)
+        .lte("due_on", to);
+    }
+    if (!q.error) {
+      (q.data || []).forEach((r) => {
+        if (r.private === false && r.deliver_scope === "all") keepCommonOpen.add(r.source_id);
+      });
+    }
   }
 
   const failed = [];
@@ -495,25 +522,32 @@ export async function importSchedule(from, to, schoolId = null) {
       if (differs && okSchools > 1 && schools.size < okSchools) {
         note = `쉬는 학교 ${schools.size}/${okSchools}곳 — ${[...schools].join(", ")}`;
       }
+      const open = keepCommonOpen.has(rest.source_id);
       return {
         ...rest,
         note,
-        private: keepCommonPrivate.has(rest.source_id) ? true : undefined,
+        // 기본은 비공개. 원장님이 일부러 「전체」 로 열어둔 것만 열린 채로
+        private: !open,
+        deliver_scope: open ? "all" : null,
         created_by: user?.id || null,
       };
     });
     for (let i = 0; i < rows.length; i += 200) {
-      const chunk = rows.slice(i, i + 200).map((r) => {
-        if (r.private === undefined) { const { private: _p, ...x } = r; return x; }
-        return r;
-      });
+      const chunk = rows.slice(i, i + 200);
       let { error } = await supabase
         .from("tasks")
         .upsert(chunk, { onConflict: "source,source_id" });
       if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        // 0092 전이면 「누가 보나」 칸이 없다
         ({ error } = await supabase
           .from("tasks")
-          .upsert(chunk.map(({ private: _p, ...x }) => x), { onConflict: "source,source_id" }));
+          .upsert(chunk.map(({ deliver_scope: _s, ...x }) => x), { onConflict: "source,source_id" }));
+      }
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        // 0066 전이면 비공개 칸도 없다
+        ({ error } = await supabase
+          .from("tasks")
+          .upsert(chunk.map(({ deliver_scope: _s, private: _p, ...x }) => x), { onConflict: "source,source_id" }));
       }
       if (error) failed.push(`전국 공통 — ${error.message}`);
     }

@@ -141,6 +141,17 @@ values
    null, '{}', null, null, null),
   ('70000000-0000-0000-0000-000000000016', '우리 학교 중3만', 'schedule', current_date, false,
    'grade', '{}', '50000000-0000-0000-0000-000000000001', '중3', null);
+
+-- 나이스 **전국 공통** — 비공개로 들어온다 (원장님: 「전국공통은 오히려 나만보기야.
+-- 안 그러면 학생 학부모가 중요한 일정을 인식을 못 해」).
+-- 수십 줄이 달력을 채우면 정작 봐야 할 우리 학교 시험이 그 사이에 묻힌다
+insert into public.tasks (id, title, kind, due_on, private, deliver_scope, source, source_id)
+values
+  ('80000000-0000-0000-0000-000000000001', '[전국] 수능', 'schedule', current_date, true,
+   null, 'neis', 'common:20261119:수능'),
+  -- 원장님이 일부러 연 것은 보여야 한다
+  ('80000000-0000-0000-0000-000000000002', '[전국] 열어둔 모의고사', 'schedule', current_date, false,
+   'all', 'neis', 'common:20260901:모의고사');
 insert into public.class_students (class_id, student_id) values
   ('cc110000-0000-0000-0000-000000000001', '11110000-0000-0000-0000-000000000001'),
   ('cc220000-0000-0000-0000-000000000002', '22220000-0000-0000-0000-000000000002');
@@ -213,9 +224,9 @@ set role authenticated;
 select string_agg(title, ' / ' order by title) from public.tasks;
 SQL
 )
-WANT='우리 반 특강 / 우리 아이 보강 / 우리 학교 시험 / 전체 공지 휴강'
+WANT='[전국] 열어둔 모의고사 / 우리 반 특강 / 우리 아이 보강 / 우리 학교 시험 / 전체 공지 휴강'
 if [ "$SEEN" = "$WANT" ]; then
-  echo "  일정은 우리 아이 것만 보입니다 (대상 안 적은 것·남의 학교·남의 아이·나만보기·할일 안 보임)"
+  echo "  일정은 우리 아이 것만 보입니다 (전국공통·대상 안 적은 것·남의 학교·남의 아이·할일 안 보임)"
 else
   echo "  ❌ 일정 노출이 규칙과 다릅니다"
   echo "     보여야 할 것: $WANT"
