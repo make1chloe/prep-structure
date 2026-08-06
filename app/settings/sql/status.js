@@ -89,6 +89,9 @@ const CHECKS = [
   { id: "0084", label: "지금 뭐 하는 중 (실시간)", table: "student_activity", col: "state" },
   { id: "0085", label: "학생이 자기 상태 누르기", table: "student_activity", col: "by_student" },
   { id: "0087", label: "바뀐 숙제 표시", table: "daily_report_items", col: "changed_at" },
+  // 0088 은 로그인 함수를 고친다 — 표·칸이 아니라 함수라 rpc 로 확인한다.
+  //   학부모 계정을 만들어도 로그인이 안 되던 것을 고친 것이다.
+  { id: "0088", label: "학부모도 아이디로 로그인", rpc: "login_lookup_v2" },
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.
 ];
