@@ -26,6 +26,8 @@ const TONE = {
   klass: { cls: "cal-mint", label: "수업" },
   exam: { cls: "cal-red", label: "시험" },
   absent: { cls: "cal-amber", label: "결석·보강" },
+  // 휴강은 **제일 알려야 하는 것**이다 — 그날 헛걸음하지 않으시라고 (0096)
+  off: { cls: "cal-off", label: "휴강" },
 };
 
 /**
@@ -34,9 +36,23 @@ const TONE = {
  */
 export default function DashCalendar({ ym, items = [], today = "", links = true }) {
   const [month, setMonth] = useState(ym);
+  /**
+   * **눌러서 그날을 펼친다** (원장님, 2026-08-06 — 「학생 학부모는 달력에
+   * 뭐가 있어도 눌러서 확인이 안 돼」).
+   *
+   * 칸에는 두 개까지만 보인다. 세 개째부터는 「+2」 로 접히는데, 선생님은
+   * 눌러서 할일 화면으로 갈 수 있지만 아이·어머니는 갈 데가 없었다.
+   * 제목이 길면 잘리기까지 해서 **뭐가 있는지는 아는데 뭔지는 모르는** 상태가 됐다.
+   *
+   * 그래서 날짜를 누르면 그 아래에 그날 것이 통째로 펼쳐진다.
+   * 갈 데가 없는 쪽(links=false)에서만 켠다 — 선생님은 원래 가던 길이 있다.
+   */
+  const [pick, setPick] = useState(null);
   // 방학·시험기간은 한 줄로 저장하고 달력에서만 날마다 펼친다
   const spread = expandRanges(items);
   const cells = monthGrid(month, spread, today);
+  const openDay = !links;
+  const dayItems = pick ? spread.filter((i) => i.date === pick) : [];
   const mine = spread.filter((i) => (i.date || "").startsWith(month));
   const n = (t) => mine.filter((i) => i.tone === t).length;
 
@@ -76,7 +92,18 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
           ) : (
             <div
               key={c.date}
-              className={`cal-cell${c.today ? " cal-today" : ""}${c.past ? " cal-past" : ""}`}
+              className={
+                `cal-cell${c.today ? " cal-today" : ""}${c.past ? " cal-past" : ""}` +
+                (openDay && c.items.length > 0 ? " cal-tap" : "") +
+                (pick === c.date ? " cal-picked" : "")
+              }
+              role={openDay && c.items.length > 0 ? "button" : undefined}
+              tabIndex={openDay && c.items.length > 0 ? 0 : undefined}
+              onClick={
+                openDay && c.items.length > 0
+                  ? () => setPick(pick === c.date ? null : c.date)
+                  : undefined
+              }
             >
               <span className={`cal-day ${c.dow === "일" ? "sun" : c.dow === "토" ? "sat" : ""}`}>
                 {c.day}
@@ -111,7 +138,40 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
         )}
       </div>
 
+      {/* 누른 날 — 그날 것을 통째로. 칸에서 접힌 것도 여기서는 다 보인다 */}
+      {pick && dayItems.length > 0 && (
+        <div className="card card-tight" style={{ marginTop: 8 }}>
+          <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
+            <b style={{ fontSize: 13.5 }}>
+              {Number(pick.slice(5, 7))}월 {Number(pick.slice(8, 10))}일
+            </b>
+            <span className="hint">{dayItems.length}개</span>
+            <span className="spacer" />
+            <button className="btn btn-ghost btn-sm" onClick={() => setPick(null)}>닫기</button>
+          </div>
+          <div className="stack" style={{ gap: 4, marginTop: 6 }}>
+            {dayItems.map((it, i) => (
+              <div className="unitrow" key={`${it.title}-${i}`}>
+                <i className={`cal-dot ${TONE[it.tone]?.cls || ""}`} />
+                <span style={{ fontSize: 13.5, flex: 1 }}>
+                  {it.title}
+                  {it.note && <span className="hint"> · {it.note}</span>}
+                </span>
+                <span className="hint" style={{ fontSize: 11.5 }}>
+                  {TONE[it.tone]?.label || ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+        {openDay && (
+          <span className="hint" style={{ fontSize: 11.5, width: "100%" }}>
+            <b>날짜를 누르면</b> 그날 무엇이 있는지 다 보여요.
+          </span>
+        )}
         {Object.entries(TONE)
           // **안 쓰인 색은 설명하지 않는다.** 이 달에 하나도 없는 색을 아래에
           // 늘어놓으면 「내 수업은 왜 안 떴지?」 하고 찾게 된다.

@@ -103,6 +103,11 @@ const CHECKS = [
   { id: "0092", label: "일정은 고른 대상에게만 (안 고르면 안 보임)", rpc: "task_audience_on" },
   { id: "0093", label: "화면 안내 문구 (직접 적기)", table: "screen_notes", col: "body" },
   { id: "0095", label: "화면 구성 순서 (직접 정하기)", table: "screen_layouts", col: "order_keys" },
+  // 0096 은 읽기 규칙이라 표·칸으로는 못 본다 — **로그인한 학생 눈으로** 물어본다.
+  //   원장님 계정으로는 원래 읽히니 이 검사가 통과해도 학생이 못 읽을 수 있는데,
+  //   그건 checkSchema 가 원장님 세션으로 도는 한 어쩔 수 없다.
+  //   실제 확인은 scripts/check-parent.sh 가 진짜 Postgres 에서 한다.
+  { id: "0096", label: "휴강 · 회차를 학생도 읽기", rpc: "holidays_visible" },
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.
 ];

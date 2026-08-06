@@ -21,12 +21,12 @@ import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
-import { addDays, dowOf, longLabel as fmtLong, todaySeoul } from "@/lib/day";
+import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
 import Refresh from "@/components/Refresh";
-import { tasksForStudent } from "@/lib/taskAudience";
+import { loadStudentCalendar } from "@/lib/studentCalendar";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
@@ -531,108 +531,14 @@ export default async function MePage({ searchParams }) {
    *
    * 할일은 나가지 않고, 원장님이 「나만 보기」로 잠근 일정도 빠진다 (0066).
    */
-  const calFrom = addDays(today, -40);
-  const calTo = addDays(today, 120);
-  let calendar = [];
-  {
-    const COLS = "id, title, kind, due_on, end_on, source, category";
-    let { data: rows, error } = await supabase
-      .from("tasks")
-      .select(`${COLS}, deliver_student_ids, deliver_school_id, deliver_school, deliver_grade, deliver_class_id`)
-      .neq("kind", "todo")
-      .gte("due_on", calFrom)
-      .lte("due_on", calTo)
-      .order("due_on", { ascending: true });
-    if (error) {
-      // 0077 전이면 대상 칸이 없다 — 그때는 다 보인다 (예전 그대로)
-      ({ data: rows } = await supabase
-        .from("tasks").select(COLS).neq("kind", "todo")
-        .gte("due_on", calFrom).lte("due_on", calTo)
-        .order("due_on", { ascending: true }));
-    }
-    // **자기 것만** (0091). DB 도 같은 규칙으로 막지만, 선생님이 미리보기로
-    // 볼 때는 선생님 권한이라 전부 통과한다 — 그러면 미리보기가 거짓말을 한다
-    calendar = tasksForStudent(rows || [], {
-      id: student.id,
-      schoolId: student.school_id || null,
-      school: student.school || "",
-      grade: student.grade || "",
-      classIds: myClasses.map((c) => c.id),
-    }).map((t) => ({
-      date: t.due_on,
-      endDate: t.end_on || null,
-      title: t.title,
-      tone: t.source === "neis" ? "school" : "event",
-    }));
-  }
-
-  // 내 수업일 — 반 요일로 찍는다.
-  //   한 칸에 두 개까지만 보이므로 **수업이 먼저 오게** 앞에 붙인다.
-  //   휴강까지 빼지는 않는다 — 휴강은 학원 일정으로 같은 칸에 뜨고,
-  //   빼버리면 「그날 수업이 원래 있었다」 는 것 자체가 안 보인다.
-  const classDays = [];
-  if (myClasses.length > 0) {
-    const label = (c) =>
-      c.start_time ? `수업 ${c.start_time.slice(0, 5)}` : `수업${c.name ? ` ${c.name}` : ""}`;
-    for (let d = calFrom; d <= calTo; d = addDays(d, 1)) {
-      const dow = dowOf(d);
-      myClasses
-        .filter((c) => (c.days || []).includes(dow))
-        .forEach((c) => classDays.push({ date: d, title: label(c), tone: "klass" }));
-    }
-  }
-
-  // 우리 학교 · 우리 학년 시험 기간
-  const examDays = [];
-  {
-    const q = await supabase
-      .from("exam_periods")
-      .select("id, school, grade, name, from_date, to_date")
-      .lte("from_date", calTo)
-      .gte("to_date", calFrom);
-    (q.error ? [] : q.data || [])
-      // 학교·학년이 비어 있는 것은 「전체」 로 본다 — 빼면 아무것도 안 보인다
-      .filter((e) => (!e.school || e.school === student.school))
-      .filter((e) => (!e.grade || e.grade === student.grade))
-      .forEach((e) =>
-        examDays.push({
-          date: e.from_date,
-          endDate: e.to_date || null,
-          title: e.name || "시험",
-          tone: "exam",
-        })
-      );
-  }
-
-  // 내 결석 · 보강 — 지나간 것도 남긴다 (보강으로 채운 날이 보여야 한다)
-  const attDays = [];
-  {
-    const q = await supabase
-      .from("attendance")
-      .select("date, status")
-      .eq("student_id", student.id)
-      .gte("date", calFrom)
-      .lte("date", calTo);
-    const LABEL = { absent: "결석", makeup: "보강", late: "지각", online: "온라인" };
-    (q.error ? [] : q.data || [])
-      .filter((a) => LABEL[a.status])
-      .forEach((a) => attDays.push({ date: a.date, title: LABEL[a.status], tone: "absent" }));
-  }
-
-  // 내 것(수업·시험·결석)을 앞에 둔다 — 한 칸에 두 개까지만 보인다
-  calendar = [...attDays, ...examDays, ...classDays, ...calendar];
-
   /**
-   * **일정 및 전달사항** — 한 덩어리로 (원장님, 2026-08-06).
-   *
-   * 공지는 아래쪽에 흩어져 있었고 일정은 달력을 열어야 알 수 있었다.
-   * 아이가 알아야 할 것은 「오늘부터 앞으로 무슨 일이 있나」 하나다.
-   * 다가오는 것만, 몇 개만 — 지난 것까지 쌓이면 오늘 볼 것이 안 보인다.
+   * 달력에 담을 것 — **한 곳에서 만든다** (lib/studentCalendar).
+   * 학부모 화면과 같은 달력이어야 한다. 집에서 두 화면을 나란히 놓고
+   * 보시는 일이 흔한데, 거기서 다르면 그 자리에서 다투게 된다.
    */
-  const upcoming = [...examDays, ...calendar.filter((c) => c.tone === "school" || c.tone === "event")]
-    .filter((c) => (c.endDate || c.date) >= today)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 6);
+  const { items: calendar, upcoming } = await loadStudentCalendar(
+    supabase, student, myClasses, today
+  );
 
   // 수업 가이드 링크 (0089) — 설정에서 넣은 것이 그대로 뜬다.
   //   표가 아직 없어도 화면은 그대로 열려야 한다 (SQL 이 밀려 있을 수 있다).

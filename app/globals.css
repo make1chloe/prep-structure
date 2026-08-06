@@ -798,3 +798,13 @@ a { color: inherit; }
   font-weight: 700;
 }
 .btn-refresh:disabled { opacity: 0.6; }
+
+/* 달력 — 눌러서 그날을 펼치는 칸 (학생·학부모).
+   칸에는 두 개까지만 보인다. 선생님은 눌러서 할일 화면으로 가지만 아이·어머니는
+   갈 데가 없어서, 「뭐가 있는지는 아는데 뭔지는 모르는」 상태가 됐다. */
+.cal-cell.cal-tap { cursor: pointer; }
+.cal-cell.cal-tap:active { background: var(--surface-2); }
+.cal-cell.cal-picked { outline: 2px solid var(--accent, #6d7cff); outline-offset: -2px; }
+/* 휴강 — 쉬는 날이라 눈에 걸려야 한다 */
+.cal-off { background: var(--red-soft); color: var(--red); }
+.cal-dot.cal-off { background: var(--red); }

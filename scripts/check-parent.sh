@@ -100,6 +100,15 @@ insert into public.classes (id, name, days) values
   ('cc110000-0000-0000-0000-000000000001', '가반', array['월']),
   ('cc220000-0000-0000-0000-000000000002', '나반', array['화']);
 
+-- 휴강과 보강 요일 — 회차를 세는 데 쓴다 (0096). 못 읽으면 회차가 안 뜬다
+insert into public.holidays (date, name, scope) values (current_date, '휴강', 'all');
+insert into public.integrations (id, enabled, config)
+  values ('schedule', true, '{"makeupDays":["금"]}'::jsonb)
+  on conflict (id) do update set config = excluded.config;
+insert into public.integrations (id, enabled, config)
+  values ('solapi', true, '{"apiKey":"비밀"}'::jsonb)
+  on conflict (id) do update set config = excluded.config;
+
 -- 학교 둘 — 우리 학교 것만 보여야 한다 (0091)
 insert into public.schools (id, name, schul_code) values
   ('50000000-0000-0000-0000-000000000001', '가중학교', 'C0001'),
@@ -204,7 +213,9 @@ select t || '=' || n from (
   union all select 'stay_tasks',              count(*) from public.stay_tasks              where student_id <> '$MINE'
   union all select 'class_students',          count(*) from public.class_students          where student_id <> '$MINE'
   union all select 'payments',                count(*) from public.payments
-  union all select 'integrations',            count(*) from public.integrations
+  -- 'schedule'(보강만 하는 요일) 한 줄은 **일부러 열어둔 것**이다 (0096).
+  --   회차를 세는 데 필요하고 비밀이 없다. 나머지(발송 열쇠)는 잠겨 있어야 한다
+  union all select 'integrations',            count(*) from public.integrations where id <> 'schedule'
 ) x order by t;
 SQL
 )
@@ -231,6 +242,35 @@ else
   echo "  ❌ 일정 노출이 규칙과 다릅니다"
   echo "     보여야 할 것: $WANT"
   echo "     실제로 보임 : $SEEN"
+  fail=1
+fi
+
+# 3-2) 휴강과 「보강만 하는 요일」 이 읽혀야 회차를 셀 수 있다 (0096)
+#      못 읽으면 화면은 회차를 아예 안 적는다 — **틀린 회차는 없는 것보다 나쁘다**
+CNT=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select (select count(*) from public.holidays)::text
+       || '/' ||
+       (select count(*) from public.integrations where id = 'schedule')::text;
+SQL
+)
+if [ "$CNT" = "1/1" ]; then
+  echo "  휴강과 보강요일 설정이 읽힙니다 (회차를 셀 수 있습니다)"
+else
+  echo "  ❌ 휴강·보강요일을 못 읽습니다 — 달력에 회차가 안 뜹니다 ($CNT)"
+  fail=1
+fi
+
+# 3-3) 그렇다고 **발송 열쇠까지** 열리면 안 된다
+KEY=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.integrations where id <> 'schedule';
+SQL
+)
+if [ "$KEY" = "0" ]; then
+  echo "  발송 열쇠(integrations)는 그대로 잠겨 있습니다"
+else
+  echo "  ❌ 발송 열쇠가 학부모에게 보입니다 ($KEY 줄)"
   fail=1
 fi
 

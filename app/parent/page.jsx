@@ -18,7 +18,7 @@ import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
 import Refresh from "@/components/Refresh";
-import { tasksForStudent } from "@/lib/taskAudience";
+import { loadStudentCalendar } from "@/lib/studentCalendar";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
@@ -275,97 +275,14 @@ export default async function ParentPage({ searchParams }) {
     notices = data || [];
   }
 
-  // ── 달력 — **우리 아이 것**을 넣는다 ────────────────────────────
-  //   전에는 학원 일정만 떴다. 수업일도 시험도 결석도 없으니 어머니 입장에서는
-  //   남의 달력이었다. 학생 화면과 같은 것을 담는다 (수업일 · 시험 · 결석).
-  const calFrom = addDays(today, -40);
-  const calTo = addDays(today, 120);
-
-  const TASK_COLS = "id, title, kind, due_on, end_on, source";
-  let { data: cal, error: calErr } = await supabase
-    .from("tasks")
-    .select(`${TASK_COLS}, deliver_student_ids, deliver_school_id, deliver_school, deliver_grade, deliver_class_id`)
-    .neq("kind", "todo")
-    .gte("due_on", calFrom)
-    .lte("due_on", calTo)
-    .order("due_on", { ascending: true });
-  if (calErr) {
-    // 0077 전이면 대상 칸이 없다 — 그때는 다 보인다 (예전 그대로)
-    ({ data: cal } = await supabase
-      .from("tasks").select(TASK_COLS).neq("kind", "todo")
-      .gte("due_on", calFrom).lte("due_on", calTo)
-      .order("due_on", { ascending: true }));
-  }
-  // **우리 아이 것만** (0091). DB 도 같은 규칙으로 막지만, 원장님이 미리보기로
-  // 보실 때는 선생님 권한이라 전부 통과한다 — 그러면 미리보기가 거짓말을 한다
-  let calendar = tasksForStudent(cal || [], {
-    id: pickId,
-    schoolId: child.school_id || null,
-    school: child.school || "",
-    grade: child.grade || "",
-    classIds: myClasses.map((c) => c.id),
-  }).map((t) => ({
-    date: t.due_on,
-    endDate: t.end_on || null,
-    title: t.title,
-    tone: t.source === "neis" ? "school" : "event",
-  }));
-
-  // 우리 학교 · 우리 학년 시험 기간
-  const examDays = [];
-  {
-    const q = await supabase
-      .from("exam_periods")
-      .select("id, school, grade, name, from_date, to_date")
-      .lte("from_date", calTo)
-      .gte("to_date", calFrom);
-    (q.error ? [] : q.data || [])
-      // 학교·학년이 비어 있는 것은 「전체」 로 본다 — 빼면 아무것도 안 보인다
-      .filter((e) => (!e.school || e.school === child.school))
-      .filter((e) => (!e.grade || e.grade === child.grade))
-      .forEach((e) =>
-        examDays.push({
-          date: e.from_date, endDate: e.to_date || null,
-          title: e.name || "시험", tone: "exam",
-        })
-      );
-  }
-
-  // 수업일 — 반 요일로 찍는다
-  const classDays = [];
-  if (myClasses.length > 0) {
-    const label = (c) =>
-      c.start_time ? `수업 ${c.start_time.slice(0, 5)}` : `수업${c.name ? ` ${c.name}` : ""}`;
-    for (let d = calFrom; d <= calTo; d = addDays(d, 1)) {
-      const dow = dowOf(d);
-      myClasses.filter((c) => (c.days || []).includes(dow))
-        .forEach((c) => classDays.push({ date: d, title: label(c), tone: "klass" }));
-    }
-  }
-
-  // 결석 · 보강 — 지나간 것도 남긴다 (보강으로 채운 날이 보여야 한다)
-  const attDays = [];
-  {
-    const q = await supabase
-      .from("attendance").select("date, status")
-      .eq("student_id", pickId).gte("date", calFrom).lte("date", calTo);
-    const LABEL = { absent: "결석", makeup: "보강", late: "지각", online: "온라인" };
-    (q.error ? [] : q.data || [])
-      .filter((a) => LABEL[a.status])
-      .forEach((a) => attDays.push({ date: a.date, title: LABEL[a.status], tone: "absent" }));
-  }
-  // 내 것을 앞에 둔다 — 달력 한 칸에 두 개까지만 보인다
-  calendar = [...attDays, ...examDays, ...classDays, ...calendar];
-
   /**
-   * ── 일정 및 전달사항 — 한 덩어리로 ────────────────────────────
-   * 학생 화면과 같은 방식이다. 다가오는 것만, 몇 개만.
-   * 지난 것까지 쌓이면 오늘 알아야 할 것이 안 보인다.
+   * 달력에 담을 것 — **학생 화면과 같은 코드로** 만든다 (lib/studentCalendar).
+   * 집에서 아이 화면과 나란히 놓고 보시는 일이 흔하다. 거기서 다르면
+   * 그 자리에서 다투게 된다.
    */
-  const upcoming = [...examDays, ...calendar.filter((c) => c.tone === "school" || c.tone === "event")]
-    .filter((c) => (c.endDate || c.date) >= today)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 6);
+  const { items: calendar, upcoming } = await loadStudentCalendar(
+    supabase, child, myClasses, today
+  );
 
   // 내가 보낸 것
   const REQ = "id, kind, from_date, to_date, body, status, reply";

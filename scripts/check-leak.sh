@@ -151,7 +151,8 @@ select t || ': ' || n from (
   union all select 'monthly_reports',      count(*) from public.monthly_reports      where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'payments(수강료)',     count(*) from public.payments             where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'profiles(다른 사람)',  count(*) from public.profiles             where id <> '11111111-1111-1111-1111-111111111111'
-  union all select 'integrations(열쇠)',   count(*) from public.integrations
+  -- 'schedule' 한 줄만 열려 있다 (0096 · 회차 세기). 열쇠는 그대로 잠겨야 한다
+  union all select 'integrations(열쇠)',   count(*) from public.integrations where id <> 'schedule'
   union all select 'class_students(남의 반배정)', count(*) from public.class_students where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'classes(안 듣는 반)',  count(*) from public.classes             where id <> 'cccccccc-0000-0000-0000-000000000001'
   union all select 'notices(남의 공지)',   count(*) from public.notices              where id <> 'dddddddd-0000-0000-0000-000000000001'
