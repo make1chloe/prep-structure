@@ -49,6 +49,9 @@ eq(slotText(["없는열쇠"]), "없는열쇠", "모르는 열쇠는 그대로");
 
 console.log("\n== 고르기 전에 알려야 하는 것 ==");
 const notes = SLOT_NOTES.join(" ");
+// 「개별 진도」 를 「개별 시간표」 로 오해하시는 일이 잦다 — 한 문장에 같이 적어 가른다
+eq(SLOT_NOTES[0].includes("개별 진도"), true, "개별 진도로 수업한다는 것이 맨 위");
+eq(SLOT_NOTES[0].includes("개별 시간표"), true, "개별 시간표는 안 된다는 것도 같은 줄에");
 eq(notes.includes("금요일"), true, "보강은 금요일");
 eq(notes.includes("당일"), true, "당일 결석은 보강 안 됨");
 eq(notes.includes("시험"), true, "시험 기간에는 시간이 더 필요할 수 있음");
