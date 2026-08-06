@@ -28,7 +28,7 @@ function group(items = []) {
   return out;
 }
 
-export default function HomeworkSheet({ items = [], dateLabel = "" }) {
+export default function HomeworkSheet({ items = [], dateLabel = "", title = "오늘 숙제 전체" }) {
   if (items.length === 0) return null;
   const groups = group(items);
   const changed = items.filter((c) => c.changedAt);
@@ -36,7 +36,7 @@ export default function HomeworkSheet({ items = [], dateLabel = "" }) {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 15 }}>오늘 숙제 전체</b>
+        <b style={{ fontSize: 15 }}>{title}</b>
         {dateLabel && <span className="hint">{dateLabel}</span>}
         {changed.length > 0 && (
           <span className="tag tag-amber">바뀐 것 {changed.length}</span>

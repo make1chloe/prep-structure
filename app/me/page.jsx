@@ -915,7 +915,19 @@ export default async function MePage({ searchParams }) {
       {/* **맨 아래에 전체 목록.** 집에서 폰을 못 쓰는 아이가 찍어 가거나
           종이에 옮겨 적을 수 있게. 위쪽은 하나씩 순서대로 하는 자리고,
           여기는 한 번에 다 보이는 자리다 — 쓰임이 다르니 둘 다 둔다. */}
-      <HomeworkSheet items={todo} dateLabel={assignedFrom ? dayLabel(assignedFrom.date) : ""} />
+      {/* **전체 목록 — 하원숙제 · 등원학습 둘 다.**
+          위쪽은 하나씩 순서대로 하는 자리(타이머·체크)고, 여기는 한 번에 다
+          보이는 자리다. 집에서 폰을 못 쓰는 아이가 찍어 가거나 적어 간다. */}
+      <HomeworkSheet
+        title="하원 숙제 전체"
+        items={todo}
+        dateLabel={assignedFrom ? dayLabel(assignedFrom.date) : ""}
+      />
+      <HomeworkSheet
+        title="등원 학습 전체"
+        items={inClass}
+        dateLabel={latest?.date ? dayLabel(latest.date) : ""}
+      />
 
     </main>
   );
