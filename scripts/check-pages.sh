@@ -96,6 +96,16 @@ else
 fi
 
 echo
+echo "== 5-4-2) 교재 정렬 =="
+# 정렬은 틀려도 오류가 안 난다 — 차례가 이상할 뿐이라 「원래 이런가 보다」 로
+# 넘어간다. 학년을 글자로 견주는 것 · 빈칸을 0 으로 치는 것을 못 박아 둔다
+if out=$(node scripts/check-booksort.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 5-5) 출제분석 =="
 # 「교과서에서 60% 나왔다」 가 틀리면 한 학기 공부 방향이 틀어진다.
 # 「몇 명 중 몇 명」 은 사람 수를 잘못 세면 곧바로 거짓말이 된다
