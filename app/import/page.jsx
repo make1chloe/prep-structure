@@ -6,6 +6,7 @@ import CheckBox from "./CheckBox";
 import FixDatesBox from "./FixDatesBox";
 import YearAuditBox from "./YearAuditBox";
 import YearFixBox from "./YearFixBox";
+import WipeBox from "./WipeBox";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,8 @@ export default async function ImportPage() {
         <YearAuditBox />
         {/* 줄마다 따져서 고치는 것이 먼저. 범위를 통째로 미는 것은 마지막 수단 */}
         <YearFixBox />
+        {/* 다시 올리기 전에 지우는 자리 — 제일 위험하므로 맨 아래에 둔다 */}
+        <WipeBox />
         <FixDatesBox />
       </main>
     </>
