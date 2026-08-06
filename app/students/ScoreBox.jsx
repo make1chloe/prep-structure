@@ -57,7 +57,11 @@ export default function ScoreBox({ studentId, name }) {
         <span className="hint" style={{ fontSize: 11.5 }}>{rows.length}건</span>
         <span className="spacer" />
         {/* 넣고 고치는 것은 저쪽에서. 여기서 또 넣게 하면 두 군데가 어긋난다 */}
-        <a className="btn btn-primary btn-sm" href={`/scores/${studentId}`}>리포트 보기</a>
+        {/* 공개 대상은 **리포트 화면 맨 위**에 있다. 여기에 또 두면 두 군데가
+            어긋나고, 어느 쪽이 지금 값인지 모르게 된다 */}
+        <a className="btn btn-primary btn-sm" href={`/scores/${studentId}`}>
+          리포트 · 공개 대상
+        </a>
         <a className="btn btn-ghost btn-sm" href={`/scores?s=${studentId}`}>성적 넣기</a>
       </div>
 

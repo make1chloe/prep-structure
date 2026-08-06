@@ -403,4 +403,79 @@ else
   fail=1
 fi
 
+
+# ── 6) 성적 공개 대상 (0101) ──────────────────────────────
+echo
+echo "  == 성적 공개 대상 (0101) =="
+
+# 아직 어머니로 앉아 있는지 확실히 한다
+$Q -d chloe -c "delete from public._who; insert into public._who values ('a0000000-0000-0000-0000-000000000001');" >/dev/null 2>&1
+
+seen() {  # $1 = 보는 사람 uuid → 그 아이 성적이 몇 줄 보이나
+  $Q -d chloe -c "delete from public._who; insert into public._who values ('$1');" >/dev/null 2>&1
+  $Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.scores where student_id = '$MINE';
+SQL
+}
+share() { $Q -d chloe -c "update public.students set score_share='$1' where id='$MINE';" >/dev/null 2>&1; }
+
+PARENT='a0000000-0000-0000-0000-000000000001'
+KID='d0000000-0000-0000-0000-000000000004'
+
+# 기본 both — **지금까지의 동작이 그대로여야 한다.** SQL 을 실행하는 순간
+# 누군가의 화면에서 자료가 사라지면 안 된다
+share both
+P=$(seen $PARENT); K=$(seen $KID)
+if [ "$P" -gt 0 ] && [ "$K" -gt 0 ]; then
+  echo "  둘 다 — 학생·학부모 모두 보입니다 (기본값)"
+else
+  echo "  ❌ 「둘 다」 인데 안 보입니다 (학부모 $P · 학생 $K)"; fail=1
+fi
+
+# 학부모만 — 아이 화면에서는 사라져야 한다.
+# 다만 **아이가 스스로 낸 것(source='form')은 늘 보인다**
+share parent
+P=$(seen $PARENT); K=$(seen $KID)
+if [ "$P" -gt 0 ] && [ "$K" = "1" ]; then
+  echo "  학부모만 — 어머니께만 보이고, 아이에게는 자기가 낸 것만 남습니다"
+else
+  echo "  ❌ 「학부모만」 이 안 맞습니다 (학부모 $P · 학생 $K, 학생은 자기가 낸 1건만 보여야 함)"; fail=1
+fi
+
+# 학생만 — 어머니 화면에서 통째로 사라져야 한다
+share student
+P=$(seen $PARENT); K=$(seen $KID)
+if [ "$P" = "0" ] && [ "$K" -gt 0 ]; then
+  echo "  학생만 — 아이에게만 보이고 어머니께는 안 보입니다"
+else
+  echo "  ❌ 「학생만」 이 안 맞습니다 (학부모 $P · 학생 $K)"; fail=1
+fi
+
+# 비공개 — 아무에게도. 아이가 낸 것만 아이에게 남는다
+share none
+P=$(seen $PARENT); K=$(seen $KID)
+if [ "$P" = "0" ] && [ "$K" = "1" ]; then
+  echo "  비공개 — 아무에게도 안 보입니다 (아이가 낸 것만 아이에게)"
+else
+  echo "  ❌ 「비공개」 가 안 맞습니다 (학부모 $P · 학생 $K)"; fail=1
+fi
+
+# **문항별 오답도 같이 막혀야 한다.** 성적은 감췄는데 오답이 보이면 감춘 것이 아니다
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$PARENT');" >/dev/null 2>&1
+IT=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.score_items
+ where score_id in (select id from public.scores where student_id = '$MINE');
+SQL
+)
+if [ "$IT" = "0" ]; then
+  echo "  감추면 문항별 오답도 같이 막힙니다"
+else
+  echo "  ❌ 성적은 감췄는데 오답이 보입니다 ($IT 줄)"; fail=1
+fi
+
+# 되돌려 둔다 (뒤에 검사가 더 붙어도 기본값에서 시작하게)
+share both
+
 exit $fail

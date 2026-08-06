@@ -22,6 +22,9 @@ import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
 import MyScoreForm from "./MyScoreForm";
+import GrowthCard from "@/components/GrowthCard";
+import { oneRound, stack } from "@/lib/report";
+import { KIND_LABEL as SCORE_KIND } from "@/lib/scores";
 import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
@@ -569,6 +572,7 @@ export default async function MePage({ searchParams }) {
    */
   let myScores = [];
   let specBase = [];
+  let allSpecBase = [];
   {
     const q = await supabase
       .from("scores")
@@ -591,9 +595,38 @@ export default async function MePage({ searchParams }) {
     const { data: b } = await supabase
       .from("exam_spec_rows")
       .select("kind, no, area, topic, detail")
-      .eq("kind", "mock")
       .order("no", { ascending: true });
-    specBase = b || [];
+    specBase = (b || []).filter((x) => x.kind === "mock");
+    allSpecBase = b || [];
+  }
+
+  /**
+   * **성장 카드** — 학부모 화면과 **같은 것**을 본다.
+   *
+   * 집에서 나란히 놓고 보시는 일이 흔하다. 다르면 「엄마 폰에는 다르게
+   * 나오는데」 가 되고, 그때부터 둘 다 못 믿게 된다.
+   *
+   * 원장님이 「학부모만」 으로 두셨으면 여기 자료가 아예 안 온다 (0101) —
+   * 다만 아이가 스스로 낸 것은 늘 보인다.
+   */
+  const growth = {};
+  if (myScores.length > 0) {
+    const { data: its } = await supabase
+      .from("score_items")
+      .select("score_id, no, wrong, reason")
+      .in("score_id", myScores.map((x) => x.id));
+    const items = its || [];
+    ["mock", "school"].forEach((k) => {
+      const mine = myScores
+        .filter((x) => x.kind === k)
+        .slice()
+        .sort((a, b) => (a.taken_on || "").localeCompare(b.taken_on || ""));
+      if (mine.length === 0) return;
+      const rounds = mine.map((sc) =>
+        oneRound(sc, items.filter((x) => x.score_id === sc.id), [], allSpecBase.filter((b) => b.kind === k))
+      );
+      growth[k] = stack(rounds);
+    });
   }
 
   // 지금 뭐 하고 있다고 눌러뒀나 (0084) — 첫 그림에 채워둔다
@@ -863,7 +896,14 @@ export default async function MePage({ searchParams }) {
       </>
     ),
     myscore: (
-      <MyScoreForm mine={myScores} base={specBase} canWrite={!preview && !trying} />
+      <>
+        {/* **성장이 먼저, 적는 것이 다음.** 자기 그래프를 보고 나서 적으면
+            「왜 적는지」 를 안다 — 적기부터 시키면 숙제가 된다 */}
+        {["mock", "school"].map((k) =>
+          growth[k] ? <GrowthCard key={k} st={growth[k]} kindLabel={SCORE_KIND[k]} /> : null
+        )}
+        <MyScoreForm mine={myScores} base={specBase} canWrite={!preview && !trying} />
+      </>
     ),
     videos: (
       <>

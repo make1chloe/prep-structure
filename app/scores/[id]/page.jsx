@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import { oneRound, stack, points } from "@/lib/report";
 import { KIND_LABEL } from "@/lib/scores";
 import ReportView from "./ReportView";
+import ShareBar from "./ShareBar";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +28,25 @@ export default async function ReportPage({ params, searchParams }) {
     profile = data;
   }
 
-  const { data: student } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("id", params.id)
-    .maybeSingle();
+  // 공개 대상(0101)까지 — 없는 DB 면 「둘 다」 로 본다 (지금까지의 동작)
+  let student = null;
+  let shareBlocked = false;
+  {
+    const q = await supabase
+      .from("students")
+      .select("id, name, school, grade, status, score_share")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (q.error) {
+      shareBlocked = true;
+      const q2 = await supabase
+        .from("students")
+        .select("id, name, school, grade, status")
+        .eq("id", params.id)
+        .maybeSingle();
+      student = q2.data || null;
+    } else student = q.data || null;
+  }
 
   if (!student) {
     return (
@@ -143,6 +158,16 @@ export default async function ReportPage({ params, searchParams }) {
             총점만 보입니다 — 영역별 정답률은 문항이 있어야 나옵니다.
           </div>
         )}
+
+        <ShareBar
+          studentId={student.id}
+          name={student.name}
+          share={student.score_share || "both"}
+          st={st}
+          notes={notes}
+          kindLabel={KIND_LABEL[kind] || kind}
+          blocked={shareBlocked}
+        />
 
         <ReportView
           name={student.name}

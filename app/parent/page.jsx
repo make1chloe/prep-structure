@@ -6,6 +6,8 @@ import { addDays, dowOf, longLabel, shortLabel, todaySeoul } from "@/lib/day";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange, ATT_LABEL } from "@/lib/parentView";
 import { byKind, summary as scoreSummary, KIND_LABEL, findExam } from "@/lib/scores";
+import { oneRound, stack } from "@/lib/report";
+import GrowthCard from "@/components/GrowthCard";
 import { cutOf, passSummary, score } from "@/lib/wordTest";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels,
@@ -238,13 +240,53 @@ export default async function ParentPage({ searchParams }) {
   const monthlyRows = (monthly || []).filter((m) => m.text);
 
   // ── 성적 ──
+  //
+  //   **0101 부터는 원장님이 「비공개」 로 두신 아이의 성적이 아예 안 온다.**
+  //   화면에서 감추는 것이 아니라 읽기 규칙에서 막힌다 — 그래서 여기서
+  //   따로 거를 것이 없다. 없으면 블록이 통째로 안 그려진다.
   const { data: scores } = await supabase
     .from("scores")
-    .select("id, kind, taken_on, term, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts")
+    .select("id, kind, taken_on, term, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, source, exam_id")
     .eq("student_id", pickId)
     .order("taken_on", { ascending: false })
     .limit(30);
   const scoreGroups = byKind(scores || []);
+
+  /**
+   * **성장 카드** — 학생 화면과 **같은 것**을 보여준다.
+   *
+   * 집에서 나란히 놓고 보시는 일이 흔하다. 다르면 「엄마 폰에는 다르게
+   * 나오는데」 가 되고, 그때부터 둘 다 못 믿게 된다.
+   *
+   * 문항별 오답을 못 읽어도(0097 전) 총점만으로 카드가 뜬다 — 영역별
+   * 막대만 빠진다.
+   */
+  const growth = {};
+  if ((scores || []).length > 0) {
+    let items = [];
+    const { data: its } = await supabase
+      .from("score_items")
+      .select("score_id, no, wrong, reason")
+      .in("score_id", (scores || []).map((x) => x.id));
+    items = its || [];
+
+    const { data: specBase } = await supabase
+      .from("exam_spec_rows")
+      .select("kind, no, area, topic, detail")
+      .order("no", { ascending: true });
+
+    ["mock", "school"].forEach((k) => {
+      const mine = (scores || [])
+        .filter((x) => x.kind === k)
+        .slice()
+        .sort((a, b) => (a.taken_on || "").localeCompare(b.taken_on || ""));
+      if (mine.length === 0) return;
+      const rounds = mine.map((sc) =>
+        oneRound(sc, items.filter((x) => x.score_id === sc.id), [], (specBase || []).filter((b) => b.kind === k))
+      );
+      growth[k] = stack(rounds);
+    });
+  }
   // 등급컷은 **회차** 것이다 (0073). 선생님 화면과 같은 컷을 봐야
   // "앱에서는 2등급이라던데요" 가 안 생긴다.
   let { data: exams } = await supabase
@@ -601,6 +643,14 @@ export default async function ParentPage({ searchParams }) {
     ),
     scores: (
       <>
+          {/* **성장 카드가 먼저다.** 「무슨 시험을 몇 점 받았다」 보다
+              「올라가고 있나, 어디가 약한가」 를 먼저 보신다 (0101) */}
+          {["mock", "school"].map((k) =>
+            growth[k] ? (
+              <GrowthCard key={k} st={growth[k]} kindLabel={KIND_LABEL[k]} />
+            ) : null
+          )}
+
           {/* ── 6. 성적 ── */}
           {(scores || []).length > 0 && (
             <div className="card">
