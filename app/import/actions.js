@@ -518,3 +518,100 @@ export async function importNotes(rows) {
   revalidatePath("/students");
   return { error: null, saved, updated, skipped, made };
 }
+
+/**
+ * **신규 문의 이관** — 노션 방문상담목록DB (원장님, 2026-08-06).
+ *
+ * rows: parseInquiryAoA 결과. 여기서는 세 가지를 더 한다 —
+ *   1. **같은 사람이 이미 있으면 덮어쓴다** (이름+번호). 고쳐서 다시 올리셔도
+ *      안 늘어난다.
+ *   2. **반을 찾아 연결한다** — 「화목 5:00~7:30」 을 요일·시작시각으로 맞춘다.
+ *      못 찾으면 글자만 남긴다 (엉뚱한 반에 붙이는 것보다 낫다).
+ *   3. **등록까지 간 문의는 재원생과 잇는다** — 이름이 딱 하나일 때만.
+ *      동명이인이면 안 잇는다.
+ */
+export async function importInquiries(rows) {
+  const list = (rows || []).filter((r) => r?.name && !r.skip);
+  if (list.length === 0) {
+    return { error: "옮길 줄이 없어요. 학생 이름이 있는지 봐주세요.", saved: 0, skipped: [] };
+  }
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // 반 — 요일 묶음 + 시작시각으로 찾는다 (이름은 「월수1」 이라 안 맞는다)
+  const { data: classes } = await supabase.from("classes").select("id, name, days, start_time");
+  const classAt = new Map();
+  (classes || []).forEach((c) => {
+    const key = `${[...(c.days || [])].sort().join("")}|${(c.start_time || "").slice(0, 5)}`;
+    // 같은 시각에 반이 둘이면 어느 쪽인지 모른다 → 안 잇는다
+    classAt.set(key, classAt.has(key) ? null : c.id);
+  });
+
+  // 재원생 — 동명이인은 잇지 않는다
+  const { data: studs } = await supabase.from("students").select("id, name");
+  const nameCount = new Map();
+  (studs || []).forEach((x) => nameCount.set(x.name.trim(), (nameCount.get(x.name.trim()) || 0) + 1));
+  const studentAt = new Map();
+  (studs || []).forEach((x) => {
+    if (nameCount.get(x.name.trim()) === 1) studentAt.set(x.name.trim(), x.id);
+  });
+
+  // 이미 있는 문의
+  const { data: have, error: readErr } = await supabase
+    .from("inquiries")
+    .select("id, name, phone");
+  if (readErr) return { error: readErr.message, saved: 0, skipped: [] };
+  const keyOf = (x) => `${(x.name || "").trim()}|${x.phone || ""}`;
+  const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
+
+  const skipped = [];
+  let saved = 0;
+  let updated = 0;
+  let linkedClass = 0;
+  let linkedStudent = 0;
+
+  for (const r of list) {
+    const ckey = `${[...(r.classDays || [])].sort().join("")}|${r.classStart || ""}`;
+    const class_id = r.classStart ? classAt.get(ckey) || null : null;
+    if (class_id) linkedClass += 1;
+    // 등록까지 간 문의만 재원생과 잇는다 (원칙1: 이름을 다시 안 적는다)
+    const student_id = r.status === "enrolled" ? studentAt.get(r.name) || null : null;
+    if (student_id) linkedStudent += 1;
+
+    const row = {
+      name: r.name,
+      phone: r.phone || null,
+      student_phone: r.student_phone || null,
+      school: r.school || null,
+      grade: r.grade || null,
+      source: r.source || null,
+      status: r.status || "new",
+      consult_on: r.consult_on || null,
+      consult_at: r.consult_at || null,
+      test_on: r.test_on || null,
+      test_at: r.test_at || null,
+      want_days: r.want_days?.length ? r.want_days : null,
+      want_time: r.want_time || null,
+      class_id,
+      student_id,
+      memo: r.memo || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const at = known.get(keyOf(row));
+    const { error } = at
+      ? await supabase.from("inquiries").update(row).eq("id", at)
+      : await supabase.from("inquiries").insert({ ...row, created_by: user?.id || null });
+    if (error) {
+      skipped.push(`${r.name} — ${error.message}`);
+      continue;
+    }
+    at ? (updated += 1) : (saved += 1);
+  }
+
+  revalidatePath("/consult");
+  return { error: null, saved, updated, skipped, linkedClass, linkedStudent };
+}

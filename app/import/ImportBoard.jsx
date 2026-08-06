@@ -7,10 +7,16 @@ import {
 } from "@/lib/importNotion";
 import { parsePaymentRow } from "@/lib/importPayment";
 import { parseNoteAoA } from "@/lib/importNote";
+import { parseInquiryAoA } from "@/lib/importInquiry";
 import { readSheet } from "@/lib/readSheet";
+import { STATUS } from "@/app/consult/status";
 import {
   importReports, importHomework, importTasks, importAbsences, importPayments, importNotes,
+  importInquiries,
 } from "./actions";
+
+const INQ_LABEL = Object.fromEntries(STATUS.map((s) => [s.key, s.label]));
+const INQ_CLS = Object.fromEntries(STATUS.map((s) => [s.key, s.cls]));
 
 const KINDS = [
   {
@@ -59,6 +65,20 @@ const KINDS = [
     whole: true,
   },
   {
+    key: "inquiry",
+    label: "신규 문의",
+    db: "방문상담목록DB",
+    hint:
+      "문의 → 방문상담 → 레벨테스트 → 등록까지가 「신규 상담」 화면으로 들어옵니다. " +
+      "노션의 자동화 칸(등록작성 · 예약안내완료 · 티오연락 · 응답자)과 " +
+      "메이크용으로 겹쳐 적힌 칸은 안 옮깁니다 — 그 일은 이제 앱이 합니다. " +
+      "등원시작일 · 수강료 · 생일 · 주소 · 교재는 따로 칸이 없어서 메모 밑에 한 줄로 붙습니다. " +
+      "「입학결정」 은 등록으로, 「방문취소」 와 문의종료된 줄은 미등록으로 들어갑니다. " +
+      "번호가 같은 줄은 한 사람으로 합칩니다 — 이름만 같고 번호가 다르면 남남으로 둡니다. " +
+      "같은 이름·번호가 이미 있으면 덮어쓰니 다시 올리셔도 안 늘어납니다.",
+    whole: true,
+  },
+  {
     key: "payment",
     label: "수납",
     db: "결제선생 등",
@@ -79,6 +99,7 @@ const PARSE = {
 /** 한 장을 통째로 읽는 것 — 줄 하나가 여러 줄이 될 수 있다 */
 const WHOLE = {
   note: parseNoteAoA,
+  inquiry: parseInquiryAoA,
 };
 const SAVE = {
   report: importReports,
@@ -87,6 +108,7 @@ const SAVE = {
   absence: importAbsences,
   payment: importPayments,
   note: importNotes,
+  inquiry: importInquiries,
 };
 
 export default function ImportBoard() {
@@ -139,6 +161,9 @@ export default function ImportBoard() {
     kind === "task" ? !!(r.title && r.due_on)
     : kind === "absence" ? !!(r.name && (r.absentOn || r.makeupOn))
     : kind === "payment" ? !!(r.name && r.ym)
+    // 신규 문의는 **날짜가 없어도 옮긴다.** 아직 방문 약속을 안 잡은 문의가
+    // 절반이고, 그것이야말로 챙겨야 할 줄이다
+    : kind === "inquiry" ? !!(r.name && !r.skip)
     : !!(r.name && r.date);
 
   // 그 줄이 가리키는 날짜 (기간으로 거를 때 쓴다)
@@ -146,6 +171,7 @@ export default function ImportBoard() {
     kind === "task" ? r.due_on
     : kind === "absence" ? r.absentOn || r.makeupOn
     : kind === "payment" ? r.paidOn        // 미납은 날짜가 없다 → 기간에 안 걸린다
+    : kind === "inquiry" ? r.consult_on || r.test_on
     : r.date;
   const inRange = (r) => {
     const d = dateOf(r);
@@ -250,9 +276,13 @@ export default function ImportBoard() {
           노션 CSV 에는 지난 해까지 다 들어 있습니다. <b>기간을 정하면 그 안의 줄만</b> 옮깁니다.
           비워두면 전부 옮깁니다.
         </p>
-        <p className="hint" style={{ marginTop: 6 }}>
-          노션 제목이 <b>07/20/월 김서은 DP</b> 형태라 날짜에 연도가 없습니다. 위 연도를 맞춰주세요.
-        </p>
+        {/* 이 표들만 제목에서 날짜를 뽑는다. 신규 문의·상담일지·수납은 날짜에
+            연도가 적혀 있어서 위 「연도」 를 안 본다 */}
+        {["report", "homework", "task", "absence"].includes(kind) && (
+          <p className="hint" style={{ marginTop: 6 }}>
+            노션 제목이 <b>07/20/월 김서은 DP</b> 형태라 날짜에 연도가 없습니다. 위 연도를 맞춰주세요.
+          </p>
+        )}
         {fileName && <p className="hint">선택된 파일: {fileName}</p>}
 
         {rows && (
@@ -267,7 +297,9 @@ export default function ImportBoard() {
               )}
               {bad.length > 0 && (
                 <span className="tag tag-amber">
-                  {kind === "task" ? "제목·날짜" : "이름·날짜"} 못 읽음 {bad.length}
+                  {kind === "inquiry"
+                    ? `안 옮기는 줄 ${bad.length}`
+                    : `${kind === "task" ? "제목·날짜" : "이름·날짜"} 못 읽음 ${bad.length}`}
                 </span>
               )}
             </div>
@@ -299,6 +331,16 @@ export default function ImportBoard() {
                         <th>제목</th>
                         <th>상담 내용</th>
                         <th></th>
+                      </>
+                    ) : kind === "inquiry" ? (
+                      <>
+                        <th>학생</th>
+                        <th>학교 · 학년</th>
+                        <th>단계</th>
+                        <th>방문상담</th>
+                        <th>레벨테스트</th>
+                        <th>연락처</th>
+                        <th>메모</th>
                       </>
                     ) : kind === "payment" ? (
                       <>
@@ -394,6 +436,52 @@ export default function ImportBoard() {
                       </td>
                     </tr>
                   ))}
+                  {kind === "inquiry" && ok.slice(0, 60).map((r, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 600 }}>
+                        {r.name}
+                        {/* 두 줄이 한 사람이라 합친 것 — 줄 수가 줄어든 까닭 */}
+                        {r.merged > 1 && (
+                          <span className="tag tag-lav" style={{ marginLeft: 4 }}>{r.merged}줄 합침</span>
+                        )}
+                      </td>
+                      <td className="muted">
+                        {[r.school, r.grade].filter(Boolean).join(" ") || "—"}
+                        {/* **학교와 학년이 서로 다른 줄.** 어느 쪽이 맞는지는
+                            원장님만 아신다 — 조용히 고르지 않는다 */}
+                        {r.gradeConflict && (
+                          <span className="tag tag-amber" style={{ marginLeft: 4 }}>학년 어긋남</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`tag ${INQ_CLS[r.status] || "tag-muted"}`}>
+                          {INQ_LABEL[r.status] || r.status}
+                        </span>
+                        {r.stage && r.stage !== "방문전" && (
+                          <span className="hint" style={{ marginLeft: 4, fontSize: 11 }}>{r.stage}</span>
+                        )}
+                      </td>
+                      <td className="muted">
+                        {r.consult_on ? `${r.consult_on.slice(5)} ${r.consult_at || ""}` : "—"}
+                        {/* 시간을 옮긴 줄은 뒤엣것을 썼다 */}
+                        {r.consultMoved && (
+                          <span className="tag tag-sky" style={{ marginLeft: 4 }}>변경</span>
+                        )}
+                      </td>
+                      <td className="muted">
+                        {r.test_on ? `${r.test_on.slice(5)} ${r.test_at || ""}` : "—"}
+                      </td>
+                      <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                        {r.phone || "—"}
+                        {r.badPhone && (
+                          <span className="tag tag-amber" style={{ marginLeft: 4 }}>학생번호 이상</span>
+                        )}
+                      </td>
+                      <td className="muted" style={{ maxWidth: 300, whiteSpace: "normal" }}>
+                        {(r.memo || "").slice(0, 70) || "—"}
+                      </td>
+                    </tr>
+                  ))}
                   {kind === "payment" && ok.slice(0, 25).map((r, i) => (
                     <tr key={i}>
                       <td>{r.ym}</td>
@@ -442,8 +530,24 @@ export default function ImportBoard() {
                 </tbody>
               </table>
             </div>
-            {ok.length > 25 && (
-              <p className="hint" style={{ marginTop: 6 }}>앞 25줄만 보여줍니다.</p>
+            {ok.length > (kind === "inquiry" ? 60 : 25) && (
+              <p className="hint" style={{ marginTop: 6 }}>
+                앞 {kind === "inquiry" ? 60 : 25}줄만 보여줍니다.
+              </p>
+            )}
+
+            {/* **안 옮기는 줄을 감추지 않는다.** 「56줄인데 왜 52줄이지」 를
+                혼자 알아내시게 두면 안 된다 */}
+            {kind === "inquiry" && bad.length > 0 && (
+              <div className="notice" style={{ marginTop: 8, fontSize: 12.5 }}>
+                <b>안 옮기는 줄 {bad.length}개</b>
+                <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                  {bad.slice(0, 10).map((r, i) => (
+                    <div key={i}>· {r.name || "(이름 없음)"} — {r.skipWhy || "이름이 없어요"}</div>
+                  ))}
+                  {bad.length > 10 && <div>· … 그 밖 {bad.length - 10}개</div>}
+                </div>
+              </div>
             )}
 
             <button
@@ -465,6 +569,13 @@ export default function ImportBoard() {
               <div className="notice">
                 ✅ {result.saved}건 옮겼어요.
                 {result.updated > 0 && ` (이미 있던 ${result.updated}건은 덮어썼어요)`}
+                {kind === "inquiry" && (
+                  <div className="hint" style={{ marginTop: 6 }}>
+                    반을 찾아 이어준 것 {result.linkedClass || 0}건 ·
+                    {" "}재원생과 이어준 것 {result.linkedStudent || 0}건.{" "}
+                    <a className="sky" href="/consult">신규 상담 화면</a> 에서 보실 수 있어요.
+                  </div>
+                )}
                 {/* **새로 만든 학생은 반드시 보여준다.** 이름 오타도 그대로
                     학생이 되기 때문이다 — 조용히 만들면 유령 학생이 쌓인다 */}
                 {result.made?.length > 0 && (

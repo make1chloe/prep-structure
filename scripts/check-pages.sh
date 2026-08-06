@@ -66,6 +66,16 @@ else
 fi
 
 echo
+echo "== 5-2) 신규 문의 옮기기 파서 =="
+# 노션 방문상담목록DB 는 **한 번만 옮긴다.** 틀리면 다음 기회가 없어서
+# (원장님이 노션을 지우시면 원본이 사라진다) 실제 파일의 모양을 못 박아 둔다
+if out=$(node scripts/check-inquiry.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
+  echo "$out" | tail -1
+else
+  echo "$out"; fail=1
+fi
+
+echo
 echo "== 6) 옛 자료가 새 모양으로 옮겨지나 (진짜 Postgres) =="
 if [ -f scripts/check-exam-merge.sh ]; then
   bash scripts/check-exam-merge.sh || fail=1
