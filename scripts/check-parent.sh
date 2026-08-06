@@ -65,9 +65,14 @@ insert into public.profiles (id, role, name) values
   ('a0000000-0000-0000-0000-000000000001', 'parent',    '가 학부모'),
   ('b0000000-0000-0000-0000-000000000002', 'parent',    '나 학부모'),
   ('c0000000-0000-0000-0000-000000000003', 'principal', '원장');
-insert into public.students (id, name, parent_phone, status) values
-  ('11110000-0000-0000-0000-000000000001', '가학생', '010-1111-1111', 'enrolled'),
-  ('22220000-0000-0000-0000-000000000002', '나학생', '010-2222-2222', 'enrolled');
+-- 아이 본인 계정 — 오답 적기(0098) 규칙을 보려면 아이로도 앉아봐야 한다
+insert into auth.users (id) values ('d0000000-0000-0000-0000-000000000004');
+insert into public.profiles (id, role, name) values
+  ('d0000000-0000-0000-0000-000000000004', 'student', '가학생');
+insert into public.students (id, name, parent_phone, status, profile_id) values
+  ('11110000-0000-0000-0000-000000000001', '가학생', '010-1111-1111', 'enrolled',
+   'd0000000-0000-0000-0000-000000000004'),
+  ('22220000-0000-0000-0000-000000000002', '나학생', '010-2222-2222', 'enrolled', null);
 insert into public.parent_student (parent_profile_id, student_id) values
   ('a0000000-0000-0000-0000-000000000001', '11110000-0000-0000-0000-000000000001'),
   ('b0000000-0000-0000-0000-000000000002', '22220000-0000-0000-0000-000000000002');
@@ -94,6 +99,16 @@ insert into public.monthly_reports (student_id, ym, text)
   select id, to_char(current_date,'YYYY-MM'), '월말' from public.students;
 insert into public.scores (student_id, kind, taken_on, term, raw_score, full_score, grade)
   select id, 'school', current_date, '1학기 중간고사', 88, 100, 2 from public.students;
+-- 아이가 스스로 낸 것 하나 (source='form') — 이것만 아이가 고칠 수 있어야 한다
+insert into public.scores (id, student_id, kind, taken_on, term, raw_score, full_score, source)
+values ('55550000-0000-0000-0000-000000000001',
+        '11110000-0000-0000-0000-000000000001', 'mock', current_date, '3월 학평', 75, 100, 'form');
+insert into public.score_items (score_id, no, wrong, reason) values
+  ('55550000-0000-0000-0000-000000000001', 21, true, '해석을 못했어요');
+-- 남의 아이 것 (아이가 여기에 못 써야 한다)
+insert into public.scores (id, student_id, kind, taken_on, term, raw_score, full_score, source)
+values ('55550000-0000-0000-0000-000000000002',
+        '22220000-0000-0000-0000-000000000002', 'mock', current_date, '3월 학평', 60, 100, 'form');
 insert into public.stay_tasks (student_id, date, body, status)
   select id, current_date, '남은 과제', 'todo' from public.students;
 insert into public.classes (id, name, days) values
@@ -284,6 +299,107 @@ if echo "$W" | grep -qi "policy\|permission\|denied"; then
   echo "  학부모가 수업 기록을 써넣지는 못합니다"
 else
   echo "  ❌ 학부모가 수업 기록을 써넣을 수 있습니다 — 기록이 거짓이 됩니다"
+  fail=1
+fi
+
+
+# ── 5) 오답 적기 — **아이만 적는다** (0097 · 0098) ──────────
+echo
+echo "  == 시험 결과 적기 (0098) =="
+
+# 5-1) 어머니가 대신 적으면 안 된다. 기록이 아이 것이 아니게 된다
+PW=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+insert into public.score_items (score_id, no, wrong, reason)
+values ('55550000-0000-0000-0000-000000000001', 33, true, '실수했어요');
+SQL
+)
+if echo "$PW" | grep -qi "policy\|permission\|denied"; then
+  echo "  학부모는 아이 대신 오답을 못 적습니다"
+else
+  echo "  ❌ 학부모가 아이 대신 오답을 적을 수 있습니다 — 기록이 거짓이 됩니다"
+  fail=1
+fi
+
+# 5-2) 어머니는 **읽을 수는** 있어야 한다 (상담 때 같이 보신다)
+PR=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.score_items
+ where score_id = '55550000-0000-0000-0000-000000000001';
+SQL
+)
+if [ "$PR" = "1" ]; then
+  echo "  학부모에게 우리 아이 오답은 보입니다"
+else
+  echo "  ❌ 학부모에게 우리 아이 오답이 안 보입니다 ($PR)"
+  fail=1
+fi
+
+# ── 아이로 앉는다 ──────────────────────────────────
+$Q -d chloe -c "delete from public._who; insert into public._who values ('d0000000-0000-0000-0000-000000000004');" >/dev/null 2>&1
+
+# 5-3) 아이는 자기 오답을 적을 수 있어야 한다 (못 적으면 화면이 아무 소용 없다)
+SW=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+insert into public.score_items (score_id, no, wrong, reason)
+values ('55550000-0000-0000-0000-000000000001', 34, true, '단어를 몰랐어요');
+select 'ok';
+SQL
+)
+if echo "$SW" | grep -q "^ok$"; then
+  echo "  아이는 자기 오답을 적을 수 있습니다"
+else
+  echo "  ❌ 아이가 자기 오답을 못 적습니다 — 오답 화면이 안 돕니다"
+  echo "$SW" | sed 's/^/     /'
+  fail=1
+fi
+
+# 5-4) 아이가 **자기가 낸 성적**은 고칠 수 있다
+SU=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+update public.scores set raw_score = 80
+ where id = '55550000-0000-0000-0000-000000000001';
+select count(*) from public.scores
+ where id = '55550000-0000-0000-0000-000000000001' and raw_score = 80;
+SQL
+)
+if [ "$(echo "$SU" | tail -1)" = "1" ]; then
+  echo "  아이는 자기가 낸 것을 고칠 수 있습니다"
+else
+  echo "  ❌ 아이가 자기가 낸 것을 못 고칩니다 — 잘못 적으면 두 줄이 됩니다"
+  fail=1
+fi
+
+# 5-5) **선생님이 매긴 성적은 못 건드린다.** 아이가 자기 점수를 고칠 수
+#      있으면 그 기록은 더 이상 성적이 아니다
+ST=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+update public.scores set raw_score = 100
+ where student_id = '11110000-0000-0000-0000-000000000001' and kind = 'school';
+select count(*) from public.scores
+ where student_id = '11110000-0000-0000-0000-000000000001' and kind = 'school' and raw_score = 88;
+SQL
+)
+if [ "$(echo "$ST" | tail -1)" = "1" ]; then
+  echo "  선생님이 매긴 성적은 아이가 못 고칩니다"
+else
+  echo "  ❌ 아이가 선생님이 매긴 성적을 고칠 수 있습니다"
+  fail=1
+fi
+
+# 5-6) 남의 아이 성적에는 못 쓴다
+# **id 를 콕 집어서 넣어본다.** select 로 고르면 RLS 가 그 줄을 안 보여줘서
+# 0줄이 들어가고, 「막혔다」 와 「넣을 것이 없었다」 를 구분 못 한다
+SO=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+insert into public.score_items (score_id, no, wrong)
+values ('55550000-0000-0000-0000-000000000002', 1, true);
+SQL
+)
+if echo "$SO" | grep -qi "policy\|permission\|denied"; then
+  echo "  남의 아이 오답에는 못 씁니다"
+else
+  echo "  ❌ 아이가 남의 아이 오답을 적을 수 있습니다"
   fail=1
 fi
 

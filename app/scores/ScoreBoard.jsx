@@ -436,6 +436,8 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                               <p className="hint" style={{ margin: 0 }}>
                                 아직 적어둔 것이 없어요. 무엇을 왜 틀렸는지 남겨두면
                                 다음 시험 전에 그것만 다시 봅니다.
+                                {" "}<b>번호로 적으시면</b> 리포트에서 영역별 정답률로 계산됩니다
+                                (아이가 스스로 적은 것과 같은 자리입니다).
                               </p>
                             )}
                             {wrongs.map((x) => (
@@ -463,13 +465,14 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                               className="input input-sm"
                               style={{ width: 70 }}
                               placeholder="12번"
+                              title="번호를 적으면 영역별 정답률에 들어갑니다"
                               value={w.question}
                               onChange={(e) => setW({ ...w, question: e.target.value })}
                             />
                             <input
                               className="input input-sm"
                               style={{ width: 150 }}
-                              placeholder="무엇 (빈칸추론)"
+                              placeholder="메모 (선택)"
                               value={w.topic}
                               onChange={(e) => setW({ ...w, topic: e.target.value })}
                             />

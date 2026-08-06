@@ -111,6 +111,9 @@ export async function saveStudentDay(studentId, date, form) {
     word_total: toInt(form.word_total),
     sent_correct: toInt(form.sent_correct),
     sent_total: toInt(form.sent_total),
+    // 단원평가 — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑 같은 거야」
+    sent_unit: (form.sent_unit || "").trim() || null,
+    sent_passed: form.sent_passed === "" || form.sent_passed == null ? null : !!form.sent_passed,
     own_progress: (form.own_progress || "").trim() || null,
     notice: (form.notice || "").trim() || null,
     notice_student: (form.notice_student || "").trim() || null,
@@ -122,8 +125,17 @@ export async function saveStudentDay(studentId, date, form) {
     .select("id")
     .single();
   if (isMissingColumn(repErr)) {
-    // 0050 전이면 학생공지 없이
-    const { notice_student: _ns, ...noSplit } = row;
+    // 0099 전이면 단원평가 두 칸 없이
+    const { sent_unit: _su, sent_passed: _sp, ...noUnit } = row;
+    ({ data: report, error: repErr } = await supabase
+      .from("daily_reports")
+      .upsert(noUnit, { onConflict: "student_id,date" })
+      .select("id")
+      .single());
+  }
+  if (isMissingColumn(repErr)) {
+    // 0050 전이면 학생공지도 없이
+    const { sent_unit: _su2, sent_passed: _sp2, notice_student: _ns, ...noSplit } = row;
     ({ data: report, error: repErr } = await supabase
       .from("daily_reports")
       .upsert(noSplit, { onConflict: "student_id,date" })
@@ -131,6 +143,26 @@ export async function saveStudentDay(studentId, date, form) {
       .single());
   }
   if (repErr) return { error: repErr.message };
+
+  // 2-2) **단원평가는 성적으로도 흘려보낸다** (0099)
+  //
+  //   원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑 같은 거야」
+  //
+  //   리포트(scores, kind='unit')는 노션에서 옮겨온 122줄이 사는 곳이다.
+  //   여기서 적은 것이 거기로 안 가면, 옛 기록과 앞으로 쌓일 기록이 갈라진다.
+  //   **daily_reports 가 원본이고 scores 는 사본이다** — (학생·날짜)를 열쇠로
+  //   덮어쓰므로 사본이 스스로 달라질 길이 없다.
+  //
+  //   단원명을 적으신 것만 보낸다. 그냥 문장 테스트는 성적이 아니라
+  //   그날의 확인이라, 성적표에 줄이 서면 오히려 지저분해진다.
+  await mirrorUnitScore(supabase, {
+    studentId,
+    date,
+    unit: (form.sent_unit || "").trim(),
+    correct: toInt(form.sent_correct),
+    total: toInt(form.sent_total),
+    passed: form.sent_passed === "" || form.sent_passed == null ? null : !!form.sent_passed,
+  });
 
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
   const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
@@ -633,4 +665,67 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
 
   revalidatePath("/tasks");
   return { error: null };
+}
+
+/**
+ * **단원평가를 성적으로 옮겨 적는다** (0099).
+ *
+ * 원장님 (2026-08-06) — 「단원평가는 현재 오늘 수업에서 적는 그거랑 같은 거야」
+ *
+ * 오늘 수업에서 적으신 문법 테스트에 **단원명**이 붙어 있으면 그것이
+ * 단원평가다. 노션에서 옮겨온 122줄과 같은 자리(`scores`, kind='unit')에
+ * 넣어야 리포트에서 한 줄기로 보인다.
+ *
+ * **(학생·날짜·kind)를 열쇠로 덮어쓴다.** 같은 날 두 번 저장해도 한 줄이고,
+ * 점수를 고치면 사본도 따라 고쳐진다. 사본이 스스로 달라질 길이 없다.
+ *
+ * **단원명을 지우면 사본도 지운다.** 잘못 적으신 것을 고치셨는데 성적표에는
+ * 남아 있으면, 없는 시험이 영영 남는다.
+ *
+ * 실패해도 수업 기록 저장을 막지 않는다 — 0097·0099 를 아직 안 돌리셨을 수
+ * 있고, 그것 때문에 오늘 수업이 저장이 안 되면 훨씬 큰일이다.
+ */
+async function mirrorUnitScore(supabase, { studentId, date, unit, correct, total, passed }) {
+  try {
+    const { data: have } = await supabase
+      .from("scores")
+      .select("id, source")
+      .eq("student_id", studentId)
+      .eq("kind", "unit")
+      .eq("taken_on", date)
+      .maybeSingle();
+
+    if (!unit) {
+      // 단원명을 지우셨다 — 이 화면이 만든 사본만 거둔다.
+      // 원장님이 성적 화면에서 손으로 넣으신 것(source 가 class 가 아닌 것)은
+      // 건드리지 않는다
+      if (have?.id && have.source === "class") {
+        await supabase.from("scores").delete().eq("id", have.id);
+      }
+      return;
+    }
+
+    const row = {
+      student_id: studentId,
+      kind: "unit",
+      term: unit,
+      taken_on: date,
+      // 점수는 「맞은 개수 / 전체」 를 100점으로 환산해서 넣는다.
+      // 노션에서 옮겨온 줄도 100점 만점이라 나란히 놓고 볼 수 있다
+      raw_score: total > 0 && correct != null ? Math.round((correct / total) * 100) : null,
+      full_score: total > 0 ? 100 : null,
+      note: [
+        passed == null ? "" : passed ? "통과" : "재시험",
+        total > 0 ? `${total}문제 중 ${total - (correct ?? 0)}개 틀림` : "",
+      ].filter(Boolean).join(" · ") || null,
+      source: "class",
+    };
+
+    if (have?.id) await supabase.from("scores").update(row).eq("id", have.id);
+    else await supabase.from("scores").insert(row);
+
+    revalidatePath("/scores");
+  } catch {
+    // 조용히 넘어간다 — 수업 기록이 저장되는 것이 먼저다
+  }
 }

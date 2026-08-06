@@ -84,25 +84,35 @@ export async function removeScores(ids) {
 /**
  * 틀린 문제 — **점수만 남기면 "몇 점이었다" 로 끝난다.**
  * 무엇을 틀렸는지가 남아야 다음에 무엇을 다시 볼지 정할 수 있다.
+ *
+ * **표를 옮겼다** (0098). 전에는 `score_wrongs` 에 「12번」 이라는 **글자**로
+ * 적었는데, 글자로는 영역별 정답률을 못 센다. 이제 `score_items` 에 숫자로
+ * 넣는다 — 아이가 오답 화면에서 적는 것과 **같은 자리**다.
+ *
+ * 번호로 못 적는 것(「서술형 2」)은 `label` 에 그대로 둔다. 버리면 안 되고,
+ * 없는 번호를 지어내면 45문항이 46문항이 된다.
  */
 export async function addWrong(scoreId, input) {
   if (!scoreId) return { error: "성적을 먼저 저장해주세요." };
   const supabase = createClient();
-  const { data: last } = await supabase
-    .from("score_wrongs")
-    .select("sort")
-    .eq("score_id", scoreId)
-    .order("sort", { ascending: false })
-    .limit(1);
 
-  const { error } = await supabase.from("score_wrongs").insert({
+  const raw = (input?.question || "").trim();
+  const m = raw.match(/^\s*(\d+)/);
+  const no = m ? Number(m[1]) : null;
+
+  const { error } = await supabase.from("score_items").insert({
     score_id: scoreId,
-    question: (input?.question || "").trim() || null,
-    topic: (input?.topic || "").trim() || null,
+    no,
+    wrong: true,
     reason: (input?.reason || "").trim() || null,
-    note: (input?.note || "").trim() || null,
-    sort: (last?.[0]?.sort ?? 0) + 1,
+    // 번호로 안 읽히는 것만 남긴다 (「12번」 은 no 로 충분하다)
+    label: no == null ? raw || null : null,
+    // 유형은 문항표(exam_questions)가 갖는 자리다. 손으로 적으신 것은 메모로
+    note: (input?.topic || "").trim() || null,
   });
+  if (error?.code === "42P01" || error?.code === "PGRST205") {
+    return { error: "0097 · 0098 SQL 을 먼저 실행해주세요." };
+  }
   revalidatePath("/scores");
   return ok(error);
 }
@@ -111,7 +121,7 @@ export async function removeWrongs(ids) {
   const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
   if (list.length === 0) return { error: null };
   const supabase = createClient();
-  const { error } = await supabase.from("score_wrongs").delete().in("id", list);
+  const { error } = await supabase.from("score_items").delete().in("id", list);
   revalidatePath("/scores");
   return ok(error);
 }
@@ -121,12 +131,22 @@ export async function listWrongs(scoreId) {
   if (!scoreId) return { rows: [] };
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("score_wrongs")
-    .select("id, question, topic, reason, note, sort")
+    .from("score_items")
+    .select("id, no, label, reason, note")
     .eq("score_id", scoreId)
-    .order("sort", { ascending: true });
+    .eq("wrong", true)
+    // 번호 없는 것(서술형 등)은 뒤로 보낸다
+    .order("no", { ascending: true, nullsFirst: false });
   if (error) return { rows: [], error: ok(error).error };
-  return { rows: data || [], error: null };
+  return {
+    rows: (data || []).map((x) => ({
+      id: x.id,
+      question: x.no != null ? `${x.no}번` : x.label || "",
+      topic: x.note || "",
+      reason: x.reason || "",
+    })),
+    error: null,
+  };
 }
 
 /**

@@ -21,7 +21,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-06 · 0001~0097 · 96개)
+--   (2026-08-06 · 0001~0099 · 98개)
 -- ============================================================
 
 -- ─────────── 0001_core_schema.sql ───────────
@@ -5775,4 +5775,227 @@ create policy mine_update on public.score_items
 -- 5) 이 파일이 실행됐는지 화면이 알 수 있게 (설정 → DB 상태)
 -- ------------------------------------------------------------
 create or replace function public.exam_questions_on()
+returns boolean language sql immutable as $$ select true $$;
+
+-- ─────────── 0098_score_items_merged.sql ───────────
+-- 0098: 틀린 문제를 **한 표로** 합치고, 아이가 직접 적게 한다
+--
+-- 원장님 (2026-08-06)
+--   「학생용 화면에서 자기 시험 결과를 입력하게 해줘 — 문법, 내신, 모의고사 전부」
+--
+-- ── 1) 같은 것이 두 표에 있었다 ──────────────────────────
+--
+--   score_wrongs (0072)  선생님이 손으로 적던 자리. question 이 「12번」 이라는
+--                        **글자**이고 topic·reason 도 자유 입력이다
+--   score_items  (0097)  방금 만든 자리. no 가 **숫자**라 영역별 정답률이 계산된다
+--
+-- 둘 다 「무엇을 틀렸나」 다. 두 군데에 두면 반드시 어긋난다 — 선생님이
+-- score_wrongs 에 적은 오답은 리포트에 안 잡히고, 아이가 적은 것은 성적
+-- 화면에 안 뜬다. 같은 화면을 보면서 서로 「왜 없지」 를 하게 된다.
+-- (0074 에서 시험 회차를 합칠 때와 같은 이야기다.)
+--
+-- score_items 로 합친다. 숫자로 세는 쪽만이 리포트를 만들 수 있다.
+--
+-- **다만 번호를 모르는 오답이 있다.** 「서술형 2」 처럼 적어두신 것,
+-- 번호 없이 「관계대명사」 만 적어두신 것. 버리면 안 되므로 `no` 를 비울 수
+-- 있게 하고, 번호가 없는 것은 목록에는 보이되 **영역별 셈에서는 빠진다.**
+-- 없는 번호를 지어내면 45문항이 46문항이 된다.
+--
+-- ── 2) 학부모는 대신 못 적는다 ───────────────────────────
+--
+-- 0097 의 쓰기 규칙이 `my_student_ids()` 였는데, 그것은 **학부모도 통과한다**
+-- (0079 에서 어머니가 아이 것을 읽으라고 만든 함수다). 성적(scores)은 이미
+-- 「학생 본인만 낸다」 로 막혀 있었는데(0072) 문항만 뚫려 있었다.
+--
+-- 어머니가 대신 적어주시면 **기록이 거짓이 된다** — 「해석을 못했어요」 를
+-- 고른 것이 아이가 아니게 되고, 그 위에 세운 분석이 전부 어긋난다.
+-- 같은 규칙으로 맞춘다.
+--
+-- ── 3) 아이가 자기가 적은 것을 고칠 수 있어야 한다 ────────
+--
+-- 넣기만 되고 고치기가 안 되면, 잘못 적은 아이는 두 줄을 만든다.
+-- **자기가 낸 것(source='form')만** 고친다 — 선생님이 매긴 성적은 못 건드린다.
+
+-- ------------------------------------------------------------
+-- 1) 번호를 모르는 오답도 담을 수 있게
+-- ------------------------------------------------------------
+alter table public.score_items alter column no drop not null;
+
+-- unique (score_id, no) 는 no 가 null 이면 여러 줄을 허용한다 (Postgres 기본).
+-- 그대로 두면 「번호 없는 오답」 을 여러 개 적을 수 있어서 오히려 맞다.
+
+alter table public.score_items add column if not exists label text;
+comment on column public.score_items.label is
+  '번호로 못 적는 것 — 「서술형 2」 · 「듣기 마지막」. no 가 비었을 때 화면에 이것을 보여준다';
+
+-- ------------------------------------------------------------
+-- 2) score_wrongs 를 옮긴다
+--
+--    「12번」 → 12,  「서술형 2」 → no 는 비우고 label 에 그대로.
+--    같은 번호가 두 번 적혀 있으면 앞엣것만 (unique 에 걸린다).
+-- ------------------------------------------------------------
+do $$
+begin
+  if to_regclass('public.score_wrongs') is not null then
+    insert into public.score_items (score_id, no, wrong, reason, label, note)
+    select distinct on (w.score_id, nullif(substring(w.question from '^\s*(\d+)'), '')::int)
+           w.score_id,
+           nullif(substring(w.question from '^\s*(\d+)'), '')::int,
+           true,
+           w.reason,
+           -- 번호로 안 읽히는 것만 label 에 남긴다 (「12번」 은 no 로 충분하다)
+           case when w.question ~ '^\s*\d+' then null else nullif(trim(w.question), '') end,
+           -- topic 은 문항표가 갖는 자리다. 손으로 적어두신 것은 메모로 남긴다
+           nullif(concat_ws(' · ', nullif(trim(w.topic), ''), nullif(trim(w.note), '')), '')
+      from public.score_wrongs w
+     where not exists (
+       select 1 from public.score_items i
+        where i.score_id = w.score_id
+          and i.no is not distinct from nullif(substring(w.question from '^\s*(\d+)'), '')::int
+     )
+     order by w.score_id,
+              nullif(substring(w.question from '^\s*(\d+)'), '')::int,
+              w.sort;
+
+    drop table public.score_wrongs;
+  end if;
+end $$;
+
+-- ------------------------------------------------------------
+-- 3) 누가 쓰나 — **학생 본인만.** 학부모는 읽기만
+-- ------------------------------------------------------------
+-- SETUP_ALL 은 여러 번 실행된다 — 새 이름도 먼저 지운다
+drop policy if exists mine_write  on public.score_items;
+drop policy if exists mine_update on public.score_items;
+drop policy if exists own_insert  on public.score_items;
+drop policy if exists own_update  on public.score_items;
+drop policy if exists own_delete  on public.score_items;
+
+create policy own_insert on public.score_items
+  for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.scores s
+        join public.students st on st.id = s.student_id
+       where s.id = score_items.score_id
+         and st.profile_id = auth.uid()
+    )
+  );
+
+create policy own_update on public.score_items
+  for update to authenticated
+  using (
+    exists (
+      select 1 from public.scores s
+        join public.students st on st.id = s.student_id
+       where s.id = score_items.score_id
+         and st.profile_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.scores s
+        join public.students st on st.id = s.student_id
+       where s.id = score_items.score_id
+         and st.profile_id = auth.uid()
+    )
+  );
+
+-- 잘못 적은 것을 지울 수 있어야 한다 — 못 지우면 틀린 오답이 영영 남는다
+create policy own_delete on public.score_items
+  for delete to authenticated
+  using (
+    exists (
+      select 1 from public.scores s
+        join public.students st on st.id = s.student_id
+       where s.id = score_items.score_id
+         and st.profile_id = auth.uid()
+    )
+  );
+
+-- ------------------------------------------------------------
+-- 4) 아이가 **자기가 낸 성적만** 고친다
+--
+--    선생님이 매긴 성적(source 가 form 이 아닌 것)은 못 건드린다.
+--    아이가 자기 점수를 고칠 수 있으면 그 기록은 더 이상 성적이 아니다.
+-- ------------------------------------------------------------
+drop policy if exists score_own_update on public.scores;
+create policy score_own_update on public.scores
+  for update to authenticated
+  using (
+    scores.source = 'form'
+    and exists (select 1 from public.students s
+                 where s.id = scores.student_id and s.profile_id = auth.uid())
+  )
+  with check (
+    scores.source = 'form'
+    and exists (select 1 from public.students s
+                 where s.id = scores.student_id and s.profile_id = auth.uid())
+  );
+
+-- 잘못 낸 것을 물릴 수 있게 (자기가 낸 것만)
+drop policy if exists score_own_delete on public.scores;
+create policy score_own_delete on public.scores
+  for delete to authenticated
+  using (
+    scores.source = 'form'
+    and exists (select 1 from public.students s
+                 where s.id = scores.student_id and s.profile_id = auth.uid())
+  );
+
+-- ------------------------------------------------------------
+-- 5) 화면이 이 파일이 돌았는지 알 수 있게
+-- ------------------------------------------------------------
+create or replace function public.score_items_merged()
+returns boolean language sql immutable as $$ select true $$;
+
+-- ─────────── 0099_unit_test_in_class.sql ───────────
+-- 0099: 단원평가는 **오늘 수업에서 적는 그것**이다
+--
+-- 원장님 (2026-08-06)
+--   「단원평가는 현재 오늘 수업에서 적는 그거랑 같은 걸 말하는 거야」
+--
+-- 학생용 화면에 「문법 단원평가」 칸을 만들려다 멈췄다. **이미 적고 계신다** —
+-- 오늘 수업 → 테스트 → 「문장」 이 그것이다 (daily_reports.sent_correct/total).
+-- 아이에게 또 적게 하면 같은 시험이 두 줄이 되고, 숫자가 다르면 어느 쪽이
+-- 맞는지 아무도 모른다.
+--
+-- 그래서 **학생 화면에서는 뺐고**, 대신 이미 적고 계신 곳을 성적과 잇는다.
+--
+-- ── 지금 빠져 있는 것 둘 ─────────────────────────────────
+--
+-- 노션 단원평가DB 에는 있는데 오늘 수업에는 없는 것이 둘이다.
+--
+--   **단원명**       「관계대명사」 · 「문장의 형식」
+--   **통과/재시험**  이것이 핵심이다. 원장님이 보시는 것은 점수가 아니라
+--                    **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을
+--                    다섯 번 봤다)
+--
+-- 이 둘을 daily_reports 에 붙인다. 새 표를 만들지 않는다 — 선생님은 수업
+-- 중에 한 화면에서만 치셔야 한다.
+--
+-- ── 그리고 성적으로 흘려보낸다 ───────────────────────────
+--
+-- 리포트(scores, kind='unit')는 노션에서 옮겨온 122줄이 사는 곳이다.
+-- 오늘 수업에서 적은 것이 거기로 안 가면, 이관한 옛 기록과 앞으로 쌓일
+-- 기록이 갈라진다.
+--
+-- **daily_reports 가 원본이고 scores 는 사본이다.** 오늘 수업을 저장할 때마다
+-- (학생·날짜) 를 열쇠로 덮어쓴다 — 같은 날 두 번 저장해도 한 줄이고,
+-- 점수를 고치면 사본도 따라 고쳐진다. 사본이 스스로 달라질 길이 없다.
+--
+-- (원본을 scores 로 옮기고 daily_reports 에서 빼는 쪽이 더 깨끗하지만,
+--  이번 달 현황·학부모 화면·월간 리포트가 전부 sent_* 를 읽고 있다.
+--  그것을 한꺼번에 갈아엎는 것은 지금 할 일이 아니다.)
+
+alter table public.daily_reports add column if not exists sent_unit   text;
+alter table public.daily_reports add column if not exists sent_passed boolean;
+
+comment on column public.daily_reports.sent_unit is
+  '단원평가 단원명 — 관계대명사 · 문장의 형식. 비어 있으면 그냥 문장 테스트';
+comment on column public.daily_reports.sent_passed is
+  '통과했나 — 원장님이 보시는 것은 점수가 아니라 몇 번 만에 통과했나다';
+
+-- 화면이 이 파일이 돌았는지 알 수 있게
+create or replace function public.unit_test_in_class()
 returns boolean language sql immutable as $$ select true $$;

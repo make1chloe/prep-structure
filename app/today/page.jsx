@@ -116,7 +116,7 @@ export default async function TodayPage({ searchParams }) {
   let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
     supabase
       .from("daily_reports")
-      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, own_progress, notice, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when")
+      .select("id, student_id, attitude, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, notice, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when")
       .eq("date", date),
     supabase
       .from("homework_items")

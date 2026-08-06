@@ -21,6 +21,7 @@ import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
+import MyScoreForm from "./MyScoreForm";
 import { addDays, longLabel as fmtLong, todaySeoul } from "@/lib/day";
 import NoticePhotos from "@/components/NoticePhotos";
 import VideoList from "./VideoList";
@@ -560,6 +561,41 @@ export default async function MePage({ searchParams }) {
   const layouts = await loadLayouts(supabase);
   const blockOrder = arrange("me", layouts);
 
+  /**
+   * **아이가 낸 시험 결과** (0097·0098) — 「시험 결과 적기」 덩어리에 쓴다.
+   *
+   * 문법 단원평가는 여기 없다. 원장님: 「단원평가는 현재 오늘 수업에서 적는
+   * 그거랑 같은 거야」 — 선생님이 수업에서 적으신 것이 성적으로 간다 (0099).
+   */
+  let myScores = [];
+  let specBase = [];
+  {
+    const q = await supabase
+      .from("scores")
+      .select("id, kind, term, taken_on, raw_score, source")
+      .eq("student_id", student.id)
+      .in("kind", ["mock", "school"])
+      .order("taken_on", { ascending: false })
+      .limit(30);
+    myScores = q.data || [];
+    if (myScores.length > 0) {
+      const { data: its } = await supabase
+        .from("score_items")
+        .select("score_id")
+        .in("score_id", myScores.map((x) => x.id));
+      const n = new Map();
+      (its || []).forEach((x) => n.set(x.score_id, (n.get(x.score_id) || 0) + 1));
+      myScores = myScores.map((x) => ({ ...x, wrongCount: n.get(x.id) || 0 }));
+    }
+    // 학원 기본 문항표 — 아이가 번호를 적는 동안 영역별로 바로 보여준다
+    const { data: b } = await supabase
+      .from("exam_spec_rows")
+      .select("kind, no, area, topic, detail")
+      .eq("kind", "mock")
+      .order("no", { ascending: true });
+    specBase = b || [];
+  }
+
   // 지금 뭐 하고 있다고 눌러뒀나 (0084) — 첫 그림에 채워둔다
   let myState = null;
   let stateOff = false;
@@ -825,6 +861,9 @@ export default async function MePage({ searchParams }) {
             </div>
           )}
       </>
+    ),
+    myscore: (
+      <MyScoreForm mine={myScores} base={specBase} canWrite={!preview && !trying} />
     ),
     videos: (
       <>

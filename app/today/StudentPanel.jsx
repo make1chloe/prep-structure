@@ -164,6 +164,10 @@ export default function StudentPanel({
       "",
     sent_correct: r.sent_correct ?? "",
     sent_total: r.sent_total ?? row.lastTotals?.sent_total ?? "",
+    // 단원평가 — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑 같은 거야」.
+    // 단원명을 적으신 것만 성적으로 올라간다 (0099)
+    sent_unit: r.sent_unit || "",
+    sent_passed: r.sent_passed == null ? "" : r.sent_passed,
     own_progress: r.own_progress || "",
     notice: r.notice || "",
     notice_student: r.notice_student || "",
@@ -440,6 +444,7 @@ export default function StudentPanel({
     // 열 때마다 되살릴지 물어보게 된다
     const touched =
       form.attitude || form.word_correct !== "" || form.sent_correct !== "" ||
+      form.sent_unit || form.sent_passed !== "" ||
       form.own_progress || form.notice || form.notice_student ||
       Object.keys(marks).length > 0 || next.size > 0 || inClass.size > 0;
     if (!touched) return;
@@ -627,7 +632,7 @@ export default function StudentPanel({
             source={wordSource}
           />
           <ScoreInput
-            label="문장"
+            label="문법"
             total={form.sent_total}
             correct={form.sent_correct}
             onTotal={(v) => set("sent_total", v)}
@@ -635,6 +640,49 @@ export default function StudentPanel({
           />
         </div>
       </div>
+
+      {/* **단원평가** — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑
+          같은 거야」. 그래서 학생 화면에 따로 만들지 않고 여기에 붙였다.
+          **단원명을 적으신 것만** 성적으로 올라간다 — 그냥 문장 확인은
+          성적표에 줄이 서면 오히려 지저분해진다.
+          통과/재시험이 핵심이다. 원장님이 보시는 것은 점수가 아니라
+          **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을 다섯 번 봤다). */}
+      {(form.sent_total !== "" || form.sent_unit) && (
+        <div className="prow">
+          <span className="plabel">단원평가</span>
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              className="input input-sm"
+              style={{ width: 150 }}
+              placeholder="단원명 (관계대명사)"
+              title="단원명을 적으면 성적에 단원평가로 쌓입니다"
+              value={form.sent_unit}
+              onChange={(e) => set("sent_unit", e.target.value)}
+            />
+            <button
+              type="button"
+              className={`btn btn-sm ${form.sent_passed === true ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => set("sent_passed", form.sent_passed === true ? "" : true)}
+            >
+              통과
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${form.sent_passed === false ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => set("sent_passed", form.sent_passed === false ? "" : false)}
+            >
+              재시험
+            </button>
+            {form.sent_unit ? (
+              <span className="hint" style={{ fontSize: 11 }}>성적에 쌓입니다</span>
+            ) : (
+              <span className="hint" style={{ fontSize: 11 }}>
+                단원명을 적으면 성적에 쌓여요 (안 적으면 그날 확인으로만 남습니다)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 숙제 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
