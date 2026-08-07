@@ -185,5 +185,34 @@ console.log("\n== 1000줄에서 안 잘리나 ==");
   eq([none.length, !!error], [0, true], "오류는 그대로 돌려준다");
 }
 
+
+/**
+ * **관계 열에 붙는 주소** (lib/importNotion 의 relName).
+ *
+ * 원장님 화면 (2026-08-06) — 보강 474줄 중 **473줄이 「재원생 목록에 없음」**
+ * 으로 건너뛰었다. 노션이 관계(relation) 열을 CSV 로 내보낼 때 이름 뒤에
+ * 페이지 주소를 괄호로 붙인다 —
+ *
+ *     서한결 (https://app.notion.com/p/1cce8b8e...?pvs=21)
+ *
+ * 그 통짜 글자로 학생을 찾으니 하나도 못 찾았다. **오류는 안 난다** —
+ * 「이 학생이 없습니다」 라고 얌전히 건너뛸 뿐이라 눈으로는 못 찾는다.
+ */
+console.log("\n== 관계 열에서 이름만 뽑나 ==");
+{
+  const { relName } = await import("../lib/importNotion.js");
+  eq(relName("서한결 (https://app.notion.com/p/1cce8b8e40f7801b8d1bca68aee6b364?pvs=21)"),
+     "서한결", "이름 뒤 주소를 뗀다");
+  eq(relName("김규빈"), "김규빈", "주소가 없으면 그대로");
+  eq(relName("문가은 (https://a.b/c), 최민서 (https://d/e)"), "문가은", "여럿이면 첫 번째");
+  eq(relName(""), "", "빈 칸");
+  eq(relName(null), "", "없는 값");
+  // 이름에 괄호가 들어간 경우는 건드리지 않는다 (주소가 아니면 그대로 둔다)
+  eq(relName("김서은(중2)"), "김서은(중2)", "주소가 아닌 괄호는 안 뗀다");
+
+  const { nameOf } = await import("../lib/importExam.js");
+  eq(nameOf("서한결 (https://a.b/c)"), "서한결", "성적 옮기기도 같은 규칙");
+}
+
 if (fail) { console.log("\n❌ 연도 맞추기에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("✅ 연도 맞추기 통과");
