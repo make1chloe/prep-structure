@@ -1001,7 +1001,7 @@ export default async function MePage({ searchParams }) {
           올려도 알림이 갈 곳이 없었다. **아직 안 켠 아이에게만** 위에 보인다
           (아래 칸은 그대로 둔다 — 껐다 켜는 것은 거기서 한다) */}
       {!preview && !acting && (
-        <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff /></div>
+        <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff warn /></div>
       )}
 
       <div className="stack" style={{ marginTop: 10 }}>

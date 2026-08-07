@@ -9,6 +9,7 @@ import MakeupInbox from "./MakeupInbox";
 import UnsentBox from "./UnsentBox";
 import WarningInbox from "./WarningInbox";
 import InquiryInbox from "./InquiryInbox";
+import PushSeen from "./PushSeen";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
@@ -189,6 +190,9 @@ export default async function Home() {
             )}
 
             <InquiryInbox rows={d.inquiries} />
+
+            {/* 보낸 알림이 어디까지 갔나 — 선생님 화면에만 있다 (0105) */}
+            <PushSeen />
 
             <div className="card sect sect-info">
               <h2 className="secthead">특이사항</h2>

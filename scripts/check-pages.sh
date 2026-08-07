@@ -15,6 +15,32 @@ set -u
 cd "$(dirname "$0")/.."
 fail=0
 
+
+# ── 검사 하나 돌리기 ────────────────────────────────────────
+#
+# **파이프가 실패를 삼키고 있었다** (2026-08-07).
+#
+#   if out=$(node scripts/check-date.mjs 2>&1 | grep -v "…"); then
+#
+# 파이프의 성패는 **마지막 명령(grep)** 의 것이다. node 가 1 로 죽어도
+# grep 이 0 으로 끝나면 if 는 참이 된다. 그래서 「❌ 날짜 읽기에 어긋난
+# 것이 있습니다」 를 화면에 찍어놓고도 **맨 끝은 「✅ 전부 통과」** 였다.
+# 실제로 그렇게 하루를 지나갔다.
+#
+# 검사를 믿을 수 없으면 검사가 없는 것보다 나쁘다 — 있다고 여기게 되니까.
+# node 를 먼저 돌려 성패를 받아두고, 걸러내기는 그다음에 한다.
+runjs() {
+  local out rc
+  out=$(node "$1" 2>&1); rc=$?
+  out=$(printf '%s\n' "$out" | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings")
+  if [ $rc -eq 0 ]; then
+    printf '%s\n' "$out" | tail -1
+  else
+    printf '%s\n' "$out"
+    fail=1
+  fi
+}
+
 echo "== 1) 선언 안 된 이름 =="
 cat > /tmp/.pagecheck-eslintrc.json <<'JSON'
 {
@@ -69,101 +95,68 @@ echo
 echo "== 5-2) 신규 문의 옮기기 파서 =="
 # 노션 방문상담목록DB 는 **한 번만 옮긴다.** 틀리면 다음 기회가 없어서
 # (원장님이 노션을 지우시면 원본이 사라진다) 실제 파일의 모양을 못 박아 둔다
-if out=$(node scripts/check-inquiry.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-inquiry.mjs
 
 echo
 echo "== 5-2-1) 신규 상담 양식 (로그인 없이 여는 곳) =="
 # 처음 오시는 학부모가 폰에서 **한 번** 채우는 양식이다. 여기서 잘못되면
 # 그 문의는 그냥 사라진다 — 다시 채워달라고 할 수가 없다
-if out=$(node scripts/check-apply.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-apply.mjs
 
 echo
 echo "== 5-2-2) 날짜 읽기 =="
 # 날짜는 자료가 예상 밖으로 들어오는 대표적인 자리다. 「25/08」 하나 때문에
 # 보강 171줄이 통째로 안 들어간 적이 있다 (2026-08-06)
-if out=$(node scripts/check-date.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-date.mjs
 
 echo
 echo "== 5-2-3) 연도 점검 (24·25·26 혼용) =="
 # 노션은 「12/30」 처럼 연도 없이 적힌 것이 많아 지난 해 자료가 올해로
 # 들어간다 — 오류가 안 난다. 여기서 잘못 세면 멀쩡한 자료를 1년 되돌리게 된다
-if out=$(node scripts/check-yearaudit.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-yearaudit.mjs
 
 echo
 echo "== 5-3) 성적 옮기기 · 리포트 계산 =="
 # 리포트는 상담 중에 펴놓고 학부모께 설명하시는 화면이다 — 숫자가 틀리면
 # 그 자리에서 곤란해지신다. 실제 자료에서 부딪힌 것을 못 박아 둔다
-if out=$(node scripts/check-report.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-report.mjs
 
 echo
 echo "== 5-4) 단원 엑셀 (분량 · 내용) =="
 # 교재마다 「분량」 을 말하는 방식이 다르다 — 하나를 놓치면 그 교재는
 # 화면에서 분량을 알 수 없게 되고, 숙제를 얼마나 낼지 못 정하신다
-if out=$(node scripts/check-unit.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-unit.mjs
 
 echo
 echo "== 5-4-1) 시험 목록 (전국연합 가르기 · 연도·학기) =="
 # 전국연합을 잘못 가리면 둘이 동시에 망가진다 — 내신 범위를 못 담게 되거나,
 # 「범위 미등록」 재촉이 영영 안 꺼진다
-if out=$(node scripts/check-examlist.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-examlist.mjs
 
 echo
 echo "== 5-4-2) 교재 정렬 =="
 # 정렬은 틀려도 오류가 안 난다 — 차례가 이상할 뿐이라 「원래 이런가 보다」 로
 # 넘어간다. 학년을 글자로 견주는 것 · 빈칸을 0 으로 치는 것을 못 박아 둔다
-if out=$(node scripts/check-booksort.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-booksort.mjs
+
+echo
+echo "== 5-4-3) 방해금지 시간 =="
+# 여기서 틀리면 **밤새 울리거나 하루 종일 안 울린다.** 둘 다 조용히 일어나고
+# 알아채는 것은 학부모다. 특히 「안 정했으면 안 막는다」 가 무너지면 그 집
+# 알림이 통째로 끊긴다
+runjs scripts/check-quiet.mjs
 
 echo
 echo "== 5-5) 출제분석 =="
 # 「교과서에서 60% 나왔다」 가 틀리면 한 학기 공부 방향이 틀어진다.
 # 「몇 명 중 몇 명」 은 사람 수를 잘못 세면 곧바로 거짓말이 된다
-if out=$(node scripts/check-analysis.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-analysis.mjs
 
 echo
 echo "== 5-5-2) 특강 기한이 달력까지 닿나 =="
 # 계산은 진작 맞았는데 **자료가 안 와서** 종강한 특강이 계속 수업하고 있었다.
 # 계산만 보는 검사로는 영원히 못 잡는다 — 화면이 기간 칸을 읽는지도 같이 본다
-if out=$(node scripts/check-classterm.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | tail -1
-else
-  echo "$out"; fail=1
-fi
+runjs scripts/check-classterm.mjs
 
 echo
 echo "== 5-6) 한 달 살아보기 (진짜 Postgres · 원장·학생·학부모 셋의 눈) =="
