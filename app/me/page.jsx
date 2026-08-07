@@ -996,6 +996,14 @@ export default async function MePage({ searchParams }) {
         </p>
       </div>
 
+      {/* **켜는 버튼이 화면 맨 아래에만 있었다** (2026-08-07). 거기까지
+          내려가 보는 아이가 없으니 아무도 안 켜져 있었고, 숙제나 전달사항을
+          올려도 알림이 갈 곳이 없었다. **아직 안 켠 아이에게만** 위에 보인다
+          (아래 칸은 그대로 둔다 — 껐다 켜는 것은 거기서 한다) */}
+      {!preview && !acting && (
+        <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff /></div>
+      )}
+
       <div className="stack" style={{ marginTop: 10 }}>
         {preview ? (
           <div className="card card-tight" style={{ borderLeft: "3px solid var(--accent, #6d7cff)" }}>

@@ -9,7 +9,19 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-export default function PushToggle() {
+/**
+ * @param onlyWhenOff  이미 켜져 있으면 **아무것도 안 그린다**.
+ *
+ * 원장님 (2026-08-07) — 「학생 학부모 어플에서 전달사항은 알림이 안 와」
+ *
+ * 켜는 버튼이 화면 **맨 아래**에 있었다 (학부모 화면에는 아예 없었다).
+ * 거기까지 내려가 보시는 분이 없으니, 아무도 안 켜져 있었고, 그래서
+ * 공지를 올려도 알림이 갈 곳이 없었다.
+ *
+ * 그렇다고 맨 위에 늘 두면 이미 켜신 분께는 매일 걸리적거리는 칸이 된다.
+ * **안 켠 사람에게만** 위에 보이게 한다.
+ */
+export default function PushToggle({ onlyWhenOff = false }) {
   const [state, setState] = useState("checking"); // checking | off | on | unsupported | denied
   const [msg, setMsg] = useState("");
   const [pending, startTransition] = useTransition();
@@ -86,6 +98,8 @@ export default function PushToggle() {
   }
 
   if (state === "checking") return null;
+  // 이미 켜져 있으면 위쪽 자리에서는 조용히 사라진다
+  if (onlyWhenOff && state === "on") return null;
 
   if (state === "unsupported") {
     return (

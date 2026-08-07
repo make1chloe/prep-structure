@@ -182,6 +182,7 @@ export async function sendNotices(items, label, templateId) {
   const inquiries = list.filter((x) => !`${x.id}`.startsWith("s:"));
 
   const byRef = new Map();
+  let pushed = 0;                 // 실제로 폰에 간 알림 수 (0 이면 아무도 안 켠 것이다)
 
   // ── 1) 재원생 · 학부모 — 앱 안으로 ────────────────────────────
   if (students.length > 0) {
@@ -200,6 +201,14 @@ export async function sendNotices(items, label, templateId) {
         : { ok: false, detail: whyOf.get(sid) || "앱에 올리지 못했어요." });
     });
 
+    /**
+     * **몇 대에 갔는지 세어 둔다** (원장님, 2026-08-07 — 「학생 학부모
+     * 어플에서 전달사항은 알림이 안 와」).
+     *
+     * 지금까지는 알림 결과를 아무도 안 봤다. 그래서 **켠 기기가 하나도
+     * 없어도** 화면에는 「올렸어요」 만 나왔고, 안 갔다는 것을 알 길이
+     * 없었다. 공지가 올라간 것과 알림이 간 것은 다른 이야기다.
+     */
     // 올린 다음에 알린다. 알림이 먼저 가면 눌렀을 때 아무것도 없다.
     // 알림이 실패해도 공지는 이미 올라가 있다 — 앱을 열면 보인다.
     //
@@ -210,7 +219,7 @@ export async function sendNotices(items, label, templateId) {
       const sid = x.id.slice(2);
       if (!okSet.has(sid)) continue;
       try {
-        await pushToFamilies(
+        const r = await pushToFamilies(
           [sid],
           {
             title,
@@ -222,6 +231,7 @@ export async function sendNotices(items, label, templateId) {
           },
           toParent ? "parent" : "all"
         );
+        pushed += r?.sent || 0;
       } catch {
         /* 알림 실패는 무시한다 — 공지는 이미 올라갔다 */
       }
@@ -279,6 +289,7 @@ export async function sendNotices(items, label, templateId) {
     error: null,
     channel,
     inApp: students.length,
+    pushed,
     count: list.length - failed.length,
     failed: failed.map((x) => ({ name: x.name, detail: byRef.get(x.id)?.detail || "발송 실패" })),
   };

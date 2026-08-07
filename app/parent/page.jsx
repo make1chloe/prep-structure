@@ -20,6 +20,7 @@ import NoticePhotos from "@/components/NoticePhotos";
 import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
+import PushToggle from "@/app/me/PushToggle";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
 import { loadClassesWithTerm } from "@/lib/classTerm";
@@ -787,6 +788,11 @@ export default async function ParentPage({ searchParams }) {
       )}
 
       {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
+
+      {/* **학부모 화면에는 알림 켜는 버튼이 아예 없었다** (2026-08-07).
+          알림톡을 끊었으니 전달사항이 닿는 길은 이 앱 알림뿐인데, 켤 방법이
+          없으니 아무리 올려도 안 갔다. 아직 안 켜신 분께만 보인다 */}
+      {!preview && <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff /></div>}
 
       <div className="stack" style={{ marginTop: 10 }}>
         <ScreenNote text={N("parent.top")} tone="card" />
