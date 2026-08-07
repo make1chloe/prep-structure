@@ -158,30 +158,33 @@ export default function ApplyForm({ token = "", prefill = {} }) {
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
           레벨테스트 · 부모님 방문상담
         </h2>
-        {/* **언제가 안 되는지를 먼저 말씀드린다** (원장님, 2026-08-07).
-            월~목 오후는 수업이 이어져 있어 부모님을 뵐 수가 없다. 이걸 안
-            적으면 그 시간을 적어 보내시고, 우리는 다시 여쭤야 한다 —
-            양식을 받은 보람이 없어진다. */}
+        {/* **둘이 되는 때가 다르다** (원장님, 2026-08-07).
+            수업 중에도 아이는 테스트를 볼 수 있지만, 부모님을 마주 앉아
+            뵐 수는 없다. 「월~목 오후는 안 됩니다」 로만 적으면 테스트까지
+            안 되는 줄 아시고 주말만 적어 보내신다. 한 문장에 갈라 적는다. */}
         <p className="hint" style={{ margin: "0 0 10px", lineHeight: 1.7 }}>
-          학생은 학원에 와서 <b>40~60분 정도 테스트</b>를 보고, 부모님과는 그 결과를 놓고
+          학생은 학원에 와서 <b>테스트</b>를 보고, 부모님과는 그 결과를 놓고
           <b> 따로 상담</b>해드립니다. 수업이 이어져 있어 두 가지를 연달아 하기 어려워
           날을 나눠 잡습니다.
           <br />
-          <b>월~목 오후 2시~10시에는 부모님 방문상담이 어렵습니다.</b> 편하신 때를
-          넉넉하게 적어주세요.
+          <b>월~목 오후 2시~10시에는 레벨테스트는 가능하고, 부모님 방문상담은 어렵습니다.</b>{" "}
+          편하신 때를 넉넉하게 적어주세요.
         </p>
+        {/* **얼마나 걸리는지를 칸 이름에 적는다.** 안내문에 적어두면 아래로
+            내려와 적으실 때쯤 잊으신다 — 20분이면 짧게 낼 수 있는 시간도
+            적어주시게 된다 */}
         <div className="field">
-          <label className="label">레벨테스트 가능한 때</label>
+          <label className="label">레벨테스트 가능한 요일과 시간 (월~금, 40~60분 가량 소요)</label>
           <textarea
             className="input" name="test_want_text" rows={2}
-            placeholder="예: 평일 오후 4시 이후면 아무때나 / 토요일 오전"
+            placeholder="예: 월수 4시-6시, 화목 7:30 이후"
           />
         </div>
         <div className="field" style={{ marginTop: 10 }}>
-          <label className="label">부모님 방문상담 가능한 때</label>
+          <label className="label">부모님 방문상담 가능한 요일과 시간 (월~금, 20분가량 소요)</label>
           <textarea
             className="input" name="visit_want_text" rows={2}
-            placeholder="예: 금요일 오전이면 언제든 / 토요일 낮"
+            placeholder="예: 월, 수 2시 이전, 금 5시 이후"
           />
         </div>
       </div>
