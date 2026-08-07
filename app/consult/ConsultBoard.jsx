@@ -7,6 +7,8 @@ import {
   setInquiryStatus,
   deleteInquiries,
   convertToStudent,
+  sendApplyLink,
+  sendVisitInfo,
   ensureFormLink,
 } from "./actions";
 import { STATUS } from "./status";
@@ -66,6 +68,89 @@ export default function ConsultBoard({
   }
 
   const [copied, setCopied] = useState(null);
+  const [note, setNote] = useState(null);   // 방금 보낸 결과 (줄마다 한 줄)
+  const [busy, setBusy] = useState(null);   // 지금 문자를 보내는 중인 줄
+
+  /**
+   * 문자 한 통.
+   *
+   * **발송 방식이 「직접 발송」 이면 안 나간다.** 그때는 만든 글을 그대로
+   * 보여드리고 문자앱을 열어드린다 — 안 나갔는데 「보냈어요」 라고 하면
+   * 그 집은 아무 연락도 못 받은 채로 지나간다.
+   */
+  /**
+   * 문자 한 통.
+   *
+   * **`startTransition` 안에서 결과를 그리지 않는다.** 이 화면의 다른
+   * 단추들은 누르면 `router.refresh()` 로 화면을 통째로 다시 그리는데,
+   * 여기는 화면을 안 옮기고 **그 줄에만 한 줄을 붙인다.** 그 상태 바꾸기가
+   * 전환 안에서는 그려지지 않았다 — 서버는 답을 줬는데 화면은 그대로라,
+   * 「눌렀는데 아무 일도 안 일어난다」 가 됐다 (크롬 검사에서 잡혔다).
+   *
+   * 그냥 async 로 부르고, 누른 줄만 잠근다.
+   */
+  async function sms(r, fn, what) {
+    setNote(null);
+    setBusy(r.id);
+    try {
+      let res;
+      try {
+        res = await fn(r.id);
+      } catch (e) {
+        setNote({ id: r.id, bad: true, text: `보내지 못했어요: ${e?.message || e}` });
+        return;
+      }
+      if (res?.error && !res.text) {
+        setNote({ id: r.id, bad: true, text: res.error });
+        return;
+      }
+      if (res?.sent) {
+        setNote({ id: r.id, bad: false, text: `${what}를 보냈어요.` });
+        router.refresh();
+        return;
+      }
+
+      /**
+       * **안 나갔다.** 발송 방식이 「직접 발송」 이거나 솔라피가 막혔을 때다.
+       *
+       * 글을 그 자리에 펴놓고, 문자앱은 **누르고 싶으면 누르시게** 둔다.
+       * 앞 판은 곧바로 문자앱으로 화면을 옮겼는데, 컴퓨터에서는 아무 일도
+       * 안 일어나서 안 나간 줄도 모르고 지나가게 된다.
+       */
+      const body = res?.text || "";
+      setNote({
+        id: r.id,
+        bad: false,
+        text: res?.error
+          ? `아직 안 나갔어요 — ${res.error}`
+          : "아래 글로 보내주세요 (복사해뒀습니다).",
+        body,
+        to: r.phone || "",
+      });
+      copyText(body);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
+   * **복사는 안 될 수 있다 — 그리고 그때 멈춰 있을 수도 있다.**
+   *
+   * 브라우저에 따라 `clipboard.writeText` 가 거절도 안 하고 그냥 끝나지
+   * 않는다. 그러면 그 뒤 줄이 영영 안 돌아서, 눌러도 아무 일이 안
+   * 일어난 것처럼 보인다. 1초만 기다리고 안 되면 안 된 것으로 친다.
+   */
+  async function copyText(text) {
+    try {
+      await Promise.race([
+        navigator.clipboard.writeText(text),
+        new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 1000)),
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   async function copyLink(r) {
     const res = await ensureFormLink(r.id);
@@ -74,11 +159,10 @@ export default function ConsultBoard({
       return;
     }
     const url = `${window.location.origin}/apply?t=${res.token}`;
-    try {
-      await navigator.clipboard.writeText(url);
+    if (await copyText(url)) {
       setCopied(r.id);
       setTimeout(() => setCopied(null), 2000);
-    } catch {
+    } else {
       prompt("이 링크를 복사해서 보내주세요", url);
     }
     router.refresh();
@@ -259,9 +343,40 @@ export default function ConsultBoard({
                       등록으로 전환
                     </button>
                   )}
+                  {/**
+                    * **전화 끊고 바로 나가야 한다** (원장님, 2026-08-07 —
+                    * 「1. 전화옴 2. 문자로 설문지 제출할 링크 보내줌
+                    *  3. 레시간, 상담시간 및 오는 길 안내 문자」).
+                    *
+                    * 전에는 「양식 링크」 가 복사만 했다. 복사 → 문자앱 →
+                    * 번호 찾기 → 붙여넣기 → 인사말. 다섯 걸음이라 그 사이에
+                    * 다른 전화가 오면 그 집은 링크를 못 받는다.
+                    */}
                   {formReady && !r.form_submitted_at && (
-                    <button className="btn btn-ghost btn-sm" onClick={() => copyLink(r)}>
-                      {copied === r.id ? "링크 복사됨 ✓" : "양식 링크"}
+                    <button
+                      className={`btn btn-sm ${r.link_sent_at ? "btn-ghost" : ""}`}
+                      disabled={busy === r.id}
+                      title={r.phone ? "설문지 링크를 문자로 보냅니다" : "전화번호를 먼저 적어주세요"}
+                      onClick={() => sms(r, sendApplyLink, "설문지 링크")}
+                    >
+                      {r.link_sent_at ? "링크 다시" : "① 설문지 링크"}
+                    </button>
+                  )}
+                  {/* 일정이 잡혀야 보낼 것이 생긴다 — 없으면 눌러도 할 말이 없다 */}
+                  {(r.test_on || r.consult_on || r.visit_on) && (
+                    <button
+                      className={`btn btn-sm ${r.guide_sent_at ? "btn-ghost" : ""}`}
+                      disabled={busy === r.id}
+                      title="레벨테스트·상담 시간과 오시는 길을 문자로 보냅니다"
+                      onClick={() => sms(r, sendVisitInfo, "일정 안내")}
+                    >
+                      {r.guide_sent_at ? "일정 다시" : "② 일정 · 오시는 길"}
+                    </button>
+                  )}
+                  {formReady && !r.form_submitted_at && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => copyLink(r)}
+                            title="문자 말고 카톡 등으로 보내실 때">
+                      {copied === r.id ? "복사됨 ✓" : "링크만 복사"}
                     </button>
                   )}
                   <button
@@ -271,6 +386,39 @@ export default function ConsultBoard({
                     {editing ? "닫기" : "수정"}
                   </button>
                 </div>
+
+                {/* **보낸 결과는 그 줄에서 보인다.** 화면 맨 아래에 두면
+                    목록이 길 때 화면 밖에 있고, 그러면 눌러도 아무 일이
+                    안 일어난 것처럼 보인다 */}
+                {note?.id === r.id && (
+                  <div style={{ padding: "0 16px 8px 44px" }}>
+                    <p className={note.bad ? "err" : "hint"} style={{ margin: 0 }}>
+                      {note.text}
+                    </p>
+                    {/* 안 나갔을 때 — 나갈 뻔한 글을 그대로 펴놓는다 */}
+                    {note.body && (
+                      <>
+                        <textarea
+                          className="input input-sm"
+                          rows={6}
+                          readOnly
+                          value={note.body}
+                          style={{ marginTop: 6 }}
+                          onFocus={(e) => e.target.select()}
+                        />
+                        {note.to && (
+                          <a
+                            className="btn btn-sm"
+                            style={{ marginTop: 6, display: "inline-block" }}
+                            href={`sms:${note.to.replace(/[^0-9+]/g, "")}?body=${encodeURIComponent(note.body)}`}
+                          >
+                            문자앱으로 열기
+                          </a>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {!editing && (r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal
                   || r.test_want_text || r.visit_want_text || r.want_slots?.length) && (

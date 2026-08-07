@@ -65,8 +65,8 @@ function watch(page) {
      * 주소를 보고 가린다. 여기서는 **코드가 터진 것만** 센다.
      */
     if (/Failed to load resource/i.test(t)) return;
-    // dev 서버는 sw.js 를 다른 데로 넘겨서 등록이 안 된다 — 배포판에서는 된다
-    if (/script resource is behind a redirect|Service ?Worker|ServiceWorker|Notification|manifest|permissions policy|Download the React DevTools/i.test(t)) return;
+    // 알림·홈화면 담기는 이 판에 없다 (VAPID 열쇠도 진짜 권한도 없다)
+    if (/Service ?Worker|ServiceWorker|Notification|manifest|permissions policy/i.test(t)) return;
     errs.push(`콘솔: ${t.slice(0, 200)}`);
   });
   page.on("response", (r) => {
@@ -161,6 +161,23 @@ try {
     { at: "/check", label: "다음 수업 숙제 · 공지 미리 넣기", then: async (p) => p.locator("text=숙제 내기").first().isVisible() },
     { at: "/settings", label: "운영 규칙", then: async (p) => p.locator("text=경고 · 반성문 규칙").first().isVisible() },
     { at: "/settings", label: "연동 · 키", then: async (p) => p.locator("text=발송 방식").first().isVisible() },
+    /**
+     * **전화 끊고 바로 나가는 두 통** (2026-08-07). 발송 방식이 「직접 발송」
+     * 이면 문자로 안 나가고 글만 만들어 돌려준다 — 그때 화면에 한 줄이
+     * 떠야 한다. 아무 말도 없으면 「눌렀는데 아무 일도 안 일어난다」 다.
+     */
+    {
+      at: "/consult", label: "① 설문지 링크",
+      then: async (p) => (await p.locator("textarea").count()) > 0
+        || (await p.locator("text=보냈어요").count()) > 0
+        || (await p.locator(".err").count()) > 0,
+    },
+    {
+      at: "/consult", label: "② 일정 · 오시는 길",
+      then: async (p) => (await p.locator("textarea").count()) > 0
+        || (await p.locator("text=보냈어요").count()) > 0
+        || (await p.locator(".err").count()) > 0,
+    },
   ];
 
   for (const c of CLICKS) {
@@ -307,8 +324,13 @@ async function roundTrip() {
     await p2.locator('input[type="date"]').last().fill(today);
     await p2.locator("textarea").first().fill(note);
     p2.on("dialog", (d) => d.accept());
-    await p2.getByRole("button", { name: "저장", exact: true }).first().click();
-    await p2.waitForTimeout(2500);
+    const save = p2.getByRole("button", { name: "저장", exact: true }).first();
+    // 눌리는 상태가 될 때까지 — 학생·날짜·본문이 다 차야 열린다
+    await save.waitFor({ state: "visible", timeout: 10000 });
+    for (let i = 0; i < 20 && (await save.isDisabled()); i += 1) await p2.waitForTimeout(300);
+    if (await save.isDisabled()) throw new Error("「저장」 이 잠겨 있습니다 (학생·날짜·본문 중 하나가 안 찼습니다)");
+    await save.click();
+    await p2.waitForTimeout(3000);
     made = true;
   } catch (e) {
     bad("원장이 전달사항 넣기", e.message.split("\n")[0]);

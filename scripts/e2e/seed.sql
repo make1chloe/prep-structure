@@ -73,3 +73,19 @@ on conflict (student_id, date) do nothing;
 insert into public.exam_periods (school, grade, name, from_date, to_date)
 values ('해송고등학교', null, '2학기 중간', current_date + 20, current_date + 23)
 on conflict do nothing;
+
+-- ── 신규 문의 (전화로 받은 것) ───────────────────────────
+--
+-- 원장님이 전화를 받고 바로 두 통을 보내신다 — 설문지 링크, 그리고
+-- 일정·오시는 길. 일정이 잡혀 있어야 ② 단추가 뜬다.
+insert into public.inquiries (id, name, phone, school, grade, source, status, test_on, test_at, consult_on, consult_at)
+values ('ccccccc1-0000-0000-0000-000000000001',
+        '최다인', '010-0000-0009', '연수여자고등학교', '고1', '전화', 'new',
+        current_date + 4, '17:00', current_date + 6, '14:00')
+on conflict (id) do nothing;
+
+-- 학원 주소·전화 — 「오시는 길」 문자가 이걸 쓴다
+insert into public.integrations (id, enabled, config) values
+  ('academy', true, '{"name":"검사학원"}'::jsonb),
+  ('message', true, '{"phone":"032-000-0000","address":"인천 연수구 검사로 1"}'::jsonb)
+on conflict (id) do update set config = excluded.config, enabled = true;

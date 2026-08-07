@@ -83,7 +83,10 @@ $Q -d chloe -v ON_ERROR_STOP=1 -f scripts/e2e/seed.sql 2>&1 | grep -E "^psql.*(E
 echo "  됐습니다"
 
 echo "== PostgREST =="
+# **완전히 죽기를 기다린다.** 바로 이어서 띄우면 앞 판이 아직 포트를 쥐고
+# 있어서 「Address in use」 로 조용히 안 뜬다
 pkill -f "postgrest" 2>/dev/null
+sleep 2
 cat > /var/tmp/e2e-pgrst.conf <<CONF
 db-uri = "postgres://postgres@/postgres?host=/var/tmp&port=$PORT&dbname=chloe"
 db-schemas = "public"
@@ -99,6 +102,7 @@ echo "  떴습니다 :$PGRST_PORT"
 
 echo "== 인증 흉내 + 앞단 =="
 pkill -f "e2e/auth.mjs" 2>/dev/null
+sleep 1
 E2E_PG_PORT=$PORT E2E_PGRST=$PGRST_PORT E2E_PORT=$API_PORT \
   node scripts/e2e/auth.mjs >/var/tmp/e2e-auth.log 2>&1 &
 sleep 2

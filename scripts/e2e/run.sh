@@ -12,20 +12,44 @@ cd "$(dirname "$0")/../.."
 APP_PORT=${E2E_APP_PORT:-3300}
 API_PORT=55442
 
-down() {
-  pkill -f "next dev -p $APP_PORT" 2>/dev/null
-  pkill -f "e2e/auth.mjs" 2>/dev/null
-  pkill -f "postgrest" 2>/dev/null
-  su postgres -c "PATH=/usr/lib/postgresql/16/bin:\$PATH pg_ctl -D /var/tmp/e2e-pg -m immediate stop" >/dev/null 2>&1
+# **포트로 죽인다.** `next start` 는 뜨고 나면 이름이 `next-server` 로
+# 바뀌어서, 명령줄로 찾으면 안 잡힌다. 안 죽은 앞 판이 옛 화면을 그대로
+# 내주면 새로 만든 조각과 짝이 안 맞아 400 이 난다 — 실제로 그렇게 걸렸다.
+killport() {
+  # `next start` 는 뜨고 나면 이름이 `next-server` 로 바뀐다 — 명령줄에서
+  # 「next start -p 3300」 을 찾으면 안 잡힌다. 둘 다 찾는다.
+  # (pkill 은 자기 자신은 안 죽인다)
+  pkill -9 -f "next-server" 2>/dev/null
+  pkill -9 -f "next start -p $1" 2>/dev/null
+  pkill -9 -f "next dev -p $1" 2>/dev/null
+  sleep 2
 }
-trap down EXIT
+
+# **끝났다고 내리지 않는다.**
+#
+# 처음에는 EXIT 에서 Postgres·PostgREST 를 내렸다. 그런데 앞서 죽은 판의
+# 뒷정리가 늦게 돌면서 **이번에 막 띄운 Postgres 를 내려버리는** 일이
+# 생겼다 — 그러면 PostgREST 가 못 붙고, 앱 잘못이 아닌 것으로 검사가
+# 빨개진다. 검사를 못 믿게 되면 검사가 없는 것보다 나쁘다.
+#
+# 뒷정리는 up.sh 가 **시작할 때** 한다 (그때는 무엇을 내리는지 분명하다).
+# 다 끝내고 치우시려면: bash scripts/e2e/down.sh
 
 bash scripts/e2e/fetch.sh || exit 1
 bash scripts/e2e/up.sh || exit 1
 
 echo
 echo "== 앱 띄우기 =="
-pkill -f "next dev -p $APP_PORT" 2>/dev/null
+killport "$APP_PORT"
+
+# **개발 모드로 띄운다.**
+#
+# 배포판(`next build && next start`)으로도 해봤는데, 앞 판이 안 죽고 남아
+# 옛 화면을 내주면 새로 만든 조각과 짝이 안 맞아 **400 + ChunkLoadError** 가
+# 났다. 검사가 앱 잘못이 아닌 것으로 빨개지면 아무도 안 믿게 된다.
+#
+# 개발 모드는 조각 이름을 안 박아두므로 그 일이 없다. 대신 개발 모드에만
+# 나는 소리가 섞이는데, 그건 click.mjs 에서 이름을 적어 걸러낸다.
 NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:$API_PORT" \
 NEXT_PUBLIC_SUPABASE_ANON_KEY="$(node scripts/e2e/token.mjs anon)" \
   npx next dev -p "$APP_PORT" > /var/tmp/e2e-next.log 2>&1 &
