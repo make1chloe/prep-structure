@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { agoLabel, isCalling } from "@/lib/activity";
 import PushToggle from "@/app/me/PushToggle";
+import { resolveCall, resolveAllCalls } from "./callActions";
 
 /**
  * **지금 누가 어디까지 했나** — 새로고침 없이 바로 바뀐다.
@@ -25,8 +26,20 @@ import PushToggle from "@/app/me/PushToggle";
 export default function ActivityBoard({ rows = [], calls = [], unavailable = false }) {
   const [now, setNow] = useState(() => Date.now());
   const [live, setLive] = useState(unavailable ? "off" : "…");
+  const [busy, setBusy] = useState("");
   const router = useRouter();
   const timer = useRef(null);
+
+  /** 가봤다 — 부르는 중을 지운다. 하나든 여럿이든 */
+  async function done(idOrIds) {
+    const many = Array.isArray(idOrIds);
+    setBusy(many ? "all" : idOrIds);
+    const res = many ? await resolveAllCalls(idOrIds) : await resolveCall(idOrIds);
+    setBusy("");
+    if (res?.error) { alert(res.error); return; }
+    // 실시간 알림도 오지만, 안 오는 자리(끊김)에서도 바로 사라져야 한다
+    router.refresh();
+  }
 
   // 「3분 전」 이 저절로 늘어나게 — 화면을 안 건드려도 시간은 간다
   useEffect(() => {
@@ -108,16 +121,44 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
         </div>
       </details>
 
-      {/* 부른 아이는 위에 따로 — 스무 명 사이에서 찾게 하면 안 된다 */}
+      {/**
+        * 부른 아이는 위에 따로 — 스무 명 사이에서 찾게 하면 안 된다.
+        *
+        * **가봤으면 지운다** (원장님, 2026-08-07 — 「부르는 중을 해결했을 때
+        * 완료 처리해서 없애고 싶어」). 아이는 선생님이 오시면 그걸로 끝난
+        * 것이라 폰을 다시 안 본다. 그러면 다음에 정말 부른 아이가 그 사이에
+        * 묻히고, 기다리는 사람 수도 거짓말이 된다.
+        *
+        * 이름 옆에 바로 둔다 — 누구 것을 지우는지 헷갈릴 자리가 없다.
+        */}
       {calling.length > 0 && (
         <div className="notice" style={{ marginBottom: 8 }}>
-          <b>도움이 필요하대요 — </b>
-          {calling.map((x, i) => (
-            <span key={x.id}>
-              {i > 0 && " · "}
-              <b>{x.name}</b> <span className="muted">({agoLabel(x.at, now)})</span>
-            </span>
-          ))}
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <b>도움이 필요하대요</b>
+            {calling.map((x) => (
+              <span key={x.id} className="row" style={{ gap: 4, alignItems: "center" }}>
+                <b>{x.name}</b>
+                <span className="muted">({agoLabel(x.at, now)})</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => done(x.id)}
+                  disabled={busy === x.id}
+                  title={`${x.name} 학생 — 가봤으면 누르세요`}
+                >
+                  {busy === x.id ? "…" : "완료"}
+                </button>
+              </span>
+            ))}
+            {calling.length > 1 && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => done(calling.map((x) => x.id))}
+                disabled={busy === "all"}
+              >
+                {busy === "all" ? "…" : "전부 완료"}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

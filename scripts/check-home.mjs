@@ -38,10 +38,29 @@ eq(/router\.push\("\/me"\);\s*\n\s*router\.refresh\(\);/.test(login), false,
 eq(read("app/page.jsx").includes('if (profile?.role === "parent") redirect("/parent")'), true,
    "대시보드에 온 학부모는 학부모 화면으로");
 
-console.log("\n== 「대시보드 대시보드」 ==");
-// 묶음 안에 화면이 없으면 묶음 이름과 화면 이름이 같아져 두 번 나왔다
-eq(read("components/TopBar.jsx").includes("groupLabel(it.group) !== it.label"), true,
-   "묶음 이름과 화면 이름이 같으면 묶음 이름을 안 그린다");
+console.log("\n== 메뉴 — 묶음마다 한 줄, 이름은 맨 왼쪽 ==");
+/**
+ * 원장님 (2026-08-07) — 「메뉴 정렬해줘. 대메뉴 라벨을 줄바꿔서 맨 왼쪽에」
+ *
+ * 예전에는 열여덟 개가 한 줄로 흘러가다 화면 너비에 따라 아무 데서나
+ * 접혔다. 그래서 **묶음이 줄 중간에서 갈라졌다** — 넓이가 바뀔 때마다
+ * 자리가 달라지니 「그건 저기쯤」 이라는 감이 안 생긴다.
+ */
+const bar = read("components/TopBar.jsx");
+eq(/rows\.push\(\{ group: it\.group/.test(bar), true, "묶음별로 줄을 접는다");
+eq(bar.includes('className="navrow"'), true, "묶음 화면들이 한 칸에 모여 있다");
+// 「대시보드 대시보드」 — 묶음 안에 화면이 없으면 이름이 두 번 나왔다.
+// 이제 이름 칸이 곧 그 화면이다
+eq(/r\.items\[0\]\.label === r\.label/.test(bar), true,
+   "하위가 없는 묶음은 이름 칸이 곧 그 화면");
+eq(bar.includes("row.solo ? row.solo.href"), true, "그 이름을 누르면 그 화면으로");
+
+const css = read("app/globals.css");
+const grid = css.slice(css.indexOf(".navgrid {"), css.indexOf(".navgrid {") + 400);
+eq(/display: grid/.test(grid), true, "두 칸짜리 격자다");
+eq(/grid-template-columns: max-content/.test(grid), true, "왼쪽 이름 칸 폭이 서로 맞는다");
+// 격자의 첫 칸이라 들여쓸 이유가 없다 — 왼쪽 여백이 남아 있으면 안 맞는다
+eq(/margin-left: 14px/.test(css), false, "이름을 들여쓰던 여백이 남아 있다");
 
 console.log("\n== 대시보드에서 바로 처리 ==");
 const q = read("app/QuickBar.jsx");

@@ -258,7 +258,12 @@ echo "== 5-4-22) 수업 전달사항은 메모다 (알림이 가면 안 된다) 
 runjs scripts/check-notice.mjs
 
 echo
-echo "== 5-4-23) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="
+echo "== 5-4-23) 부르는 중을 가봤으면 지운다 =="
+# 남아 있으면 다음에 정말 부른 아이가 그 사이에 묻힌다
+runjs scripts/check-call.mjs
+
+echo
+echo "== 5-4-24) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="
 # `withAcademy(supabase, …)` 를 `const supabase` 위에 두었는데 next build 가
 # 통과했다. 학부모 알림을 보내실 때까지 안 보이는 종류다
 runjs scripts/check-tdz.mjs

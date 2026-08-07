@@ -67,6 +67,16 @@ function watch(page) {
     if (/Failed to load resource/i.test(t)) return;
     // 알림·홈화면 담기는 이 판에 없다 (VAPID 열쇠도 진짜 권한도 없다)
     if (/Service ?Worker|ServiceWorker|Notification|manifest|permissions policy/i.test(t)) return;
+    /**
+     * **실시간(웹소켓)도 이 판에 없다.** 이 검사판은 Postgres + PostgREST
+     * 만 세운다 — 실시간을 나르는 서버(realtime)는 안 띄운다.
+     *
+     * 그래서 「● 실시간」 을 쓰는 화면(오늘 수업 · 숙제 검사)은 여기서
+     * 반드시 연결에 실패한다. 그건 앱이 깨진 것이 아니라 **판에 그 서버가
+     * 없는 것**이다. 안 걸러두면 이 검사가 아무 때나 빨개져서, 진짜 오류가
+     * 났을 때 「또 그거겠지」 로 넘어가게 된다.
+     */
+    if (/WebSocket|realtime\/v1/i.test(t)) return;
     errs.push(`콘솔: ${t.slice(0, 200)}`);
   });
   page.on("response", (r) => {

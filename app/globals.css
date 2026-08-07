@@ -51,7 +51,11 @@ a { color: inherit; }
 .editgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 
 /* Top bar */
-.topbar { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; }
+/* **메뉴는 위에 붙여두지 않는다** (2026-08-07, 묶음별 줄로 바꾸면서).
+   묶음마다 한 줄이면 줄이 여덟이다 — 붙여두면 노트북 화면의 3분의 1이
+   늘 메뉴가 된다. 화면을 바꾸는 일보다 한 화면 안에서 훑는 일이 훨씬
+   잦으니, 훑을 자리를 넓히는 쪽이 낫다. 좁은 화면에서는 원래 이랬다. */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); position: static; z-index: 20; }
 .topbar-in { display: flex; align-items: center; gap: 16px; height: 56px; max-width: 1480px; margin: 0 auto; padding: 0 20px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 16px; letter-spacing: -.02em; text-decoration: none; }
 .brand .mark { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
@@ -65,13 +69,25 @@ a { color: inherit; }
 /* 메뉴는 항상 펴져 있다 — 눌러 들어갔다 나오지 않는다.
    지금 화면만 하얗게 떠 있어서 어디 있는지 바로 보인다. */
 .navgrid-wrap { border-top: 1px solid var(--border); background: var(--surface); }
+/* **묶음마다 한 줄, 이름은 맨 왼쪽** (원장님, 2026-08-07).
+
+   예전에는 열여덟 개가 한 줄로 흘러가다 화면 너비에 따라 아무 데서나
+   접혔다. 그래서 묶음이 줄 중간에서 갈라졌다 — 넓이가 바뀔 때마다 자리가
+   달라지니 「그건 저기쯤」 이라는 감이 안 생긴다.
+
+   두 칸짜리 격자다. 왼쪽은 이름들이 폭을 맞춰 세로로 나란히 서고
+   (max-content 라 가장 긴 이름에 맞는다), 오른쪽에서만 접힌다. */
 .navgrid {
-  max-width: 1480px; margin: 0 auto; padding: 8px 20px 10px;
-  display: flex; flex-wrap: wrap; gap: 4px;
+  max-width: 1480px; margin: 0 auto; padding: 6px 20px 8px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 10px; row-gap: 1px;
+  align-items: center;
 }
+.navrow { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .navgrid a {
   font-size: 13.5px; font-weight: 700; color: var(--text-muted);
-  text-decoration: none; padding: 7px 12px; border-radius: 9px;
+  text-decoration: none; padding: 5px 11px; border-radius: 9px;
   border: 1px solid transparent; white-space: nowrap;
 }
 .navgrid a:hover { background: var(--surface-2); color: var(--text); }
@@ -91,8 +107,12 @@ a { color: inherit; }
    꽉 찬 알약이라, 훑을 때 묶음이 먼저 잡힌다. 크기는 여전히 같다. */
 .navgroup-tag {
   align-self: center;
-  margin-left: 14px;
-  padding: 7px 14px !important;
+  /* 격자의 첫 칸이라 **줄마다 왼쪽 끝에서 시작한다** — 들여쓸 이유가 없다.
+     (예전에는 한 줄 안에서 앞뒤를 갈라야 해서 왼쪽 여백과 세로줄이 필요했다) */
+  justify-self: start;
+  text-align: center;
+  min-width: 100%;
+  padding: 5px 13px !important;
   font-weight: 800 !important;
   letter-spacing: -0.2px;
   color: var(--chip-fg) !important;
@@ -102,24 +122,21 @@ a { color: inherit; }
   white-space: nowrap;
   position: relative;
 }
-/* 묶음이 바뀌는 자리에 세로줄 하나 — 여기서부터 다른 묶음이라는 표시 */
-.navgroup-tag::before {
-  content: "";
-  position: absolute;
-  left: -8px; top: 50%; transform: translateY(-50%);
-  width: 1px; height: 20px;
-  background: var(--border);
-}
 .navgrid a.navgroup-tag:hover {
   color: var(--chip-fg) !important;
   background: var(--chip-bg) !important;
   filter: brightness(1.15);
 }
-.navgrid a.navgroup-tag:first-child { margin-left: 0; }
-.navgrid a.navgroup-tag:first-child::before { display: none; }
+/* 하위가 없는 묶음(대시보드)은 이름 칸이 곧 그 화면이다 — 지금 그 화면에
+   있으면 다른 화면 이름과 똑같이 하얗게 떠야 한다 */
+.navgrid a.navgroup-tag.on {
+  color: var(--navy) !important;
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,.07);
+}
 @media (max-width: 900px) {
-  .navgroup-tag { margin-left: 10px; padding: 7px 12px !important; }
-  .navgroup-tag::before { left: -6px; height: 17px; }
+  .navgroup-tag { padding: 7px 10px !important; font-size: 12.5px; }
 }
 .spacer { flex: 1; }
 .who { font-size: 12.5px; color: var(--text-muted); }
@@ -385,9 +402,8 @@ a { color: inherit; }
 @media (max-width: 900px) {
   /* 좁으면 메뉴가 서너 줄이 된다. 그게 화면 위에 붙어 있으면 볼 것이 없어지므로,
      여기서는 위에 붙이지 않고 **같이 밀려 올라가게** 한다. */
-  .topbar { position: static; }
-  .navgrid { padding: 8px 14px 10px; gap: 3px; }
-  .navgrid a { font-size: 13px; padding: 7px 10px; }
+  .navgrid { padding: 8px 14px 10px; column-gap: 7px; row-gap: 3px; }
+  .navgrid a { font-size: 13px; padding: 7px 8px; }
   .topbar-in { gap: 10px; padding: 0 14px; }
   .brand { flex: 0 0 auto; white-space: nowrap; font-size: 15px; }
   .nav { display: none; }
