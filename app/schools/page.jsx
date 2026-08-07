@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import ScheduleBoard from "@/app/schedule/ScheduleBoard";
 import NeisBox from "@/app/schedule/NeisBox";
 import SchoolBox from "@/app/schedule/SchoolBox";
@@ -124,11 +125,13 @@ export default async function SchoolsPage() {
         <div className="page-head">
           <p className="eyebrow">학교</p>
           <h1 className="h1">학교 · 시험</h1>
-          <p className="sub">
-            학교는 <b>여기 한 곳</b>에만 있습니다. 재원생과 시험이 이 명단을 가리켜요.
-            시험 회차에 <b>등급컷 · 출제 선생님 · 특이사항</b>을 적어두면 성적·내신 자료가
-            그 회차를 함께 봅니다.
-          </p>
+          <Help>
+            <p className="sub">
+              학교는 <b>여기 한 곳</b>에만 있습니다. 재원생과 시험이 이 명단을 가리켜요.
+              시험 회차에 <b>등급컷 · 출제 선생님 · 특이사항</b>을 적어두면 성적·내신 자료가
+              그 회차를 함께 봅니다.
+            </p>
+          </Help>
         </div>
         {/* 학교 목록은 **하나뿐이다.** 예전에는 나이스 목록과 「학교 명단」 이
             같은 표를 두 번 보여줘서, 합치기를 어느 쪽에서 하는지 알 수 없었다.

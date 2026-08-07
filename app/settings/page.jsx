@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
@@ -66,9 +67,11 @@ export default async function SettingsPage() {
         <div className="page-head">
           <p className="eyebrow">설정</p>
           <h1 className="h1">발송 · 연동</h1>
-          <p className="sub">
-            문자 발송 방식과 키를 여기서 바꿉니다. 바꿔도 다시 배포할 필요가 없어요.
-          </p>
+          <Help>
+            <p className="sub">
+              문자 발송 방식과 키를 여기서 바꿉니다. 바꿔도 다시 배포할 필요가 없어요.
+            </p>
+          </Help>
         </div>
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="row" style={{ gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>

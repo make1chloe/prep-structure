@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import ScoreBoard from "./ScoreBoard";
 import ScoreUpload from "./ScoreUpload";
 
@@ -55,11 +56,13 @@ export default async function ScoresPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">학생</p>
           <h1 className="h1">성장</h1>
-          <p className="sub">
-            학교 내신 · 모의고사 · 단원평가를 한자리에 모읍니다.
-            <b> 등급컷을 같이 적어두면</b> 다음 시험에 몇 점이면 몇 등급인지 보입니다.
-            <b> 틀린 문제까지</b> 남겨야 다음에 무엇을 다시 볼지 정할 수 있어요.
-          </p>
+          <Help>
+            <p className="sub">
+              학교 내신 · 모의고사 · 단원평가를 한자리에 모읍니다.
+              <b> 등급컷을 같이 적어두면</b> 다음 시험에 몇 점이면 몇 등급인지 보입니다.
+              <b> 틀린 문제까지</b> 남겨야 다음에 무엇을 다시 볼지 정할 수 있어요.
+            </p>
+          </Help>
         </div>
 
         {needSql ? (

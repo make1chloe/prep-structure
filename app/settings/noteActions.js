@@ -65,7 +65,7 @@ export async function saveNote(key, body) {
   // 적으신 글이 바로 보여야 한다 — 어느 화면에 뜨는지 여기서 다 되살린다
   revalidatePath("/me");
   revalidatePath("/parent");
-  revalidatePath("/settings/notes");
+  revalidatePath("/settings/messages");
   ["today", "students", "books", "calendar", "send", "manage", "settings"].forEach((k) =>
     revalidatePath(`/menu/${k}`)
   );

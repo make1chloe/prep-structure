@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import NotesBoard from "./NotesBoard";
 
 export const dynamic = "force-dynamic";
@@ -43,9 +44,11 @@ export default async function NotesPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">기록</p>
           <h1 className="h1">상담일지</h1>
-          <p className="sub">
-            상담·통화 내용을 남깁니다. <b>말씀하시면 받아쓰고</b>, 끝나고 한 번 다듬으면 됩니다.
-          </p>
+          <Help>
+            <p className="sub">
+              상담·통화 내용을 남깁니다. <b>말씀하시면 받아쓰고</b>, 끝나고 한 번 다듬으면 됩니다.
+            </p>
+          </Help>
         </div>
         {error ? (
           <div className="card" style={{ marginTop: 14 }}>

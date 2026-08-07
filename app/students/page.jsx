@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import AddStudentForm from "./AddStudentForm";
 import ExcelUpload from "./ExcelUpload";
 import BulkAccounts from "./BulkAccounts";
@@ -153,10 +154,12 @@ export default async function StudentsPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">학생 관리</p>
           <h1 className="h1">재원생</h1>
-          <p className="sub">
-            학생을 추가하면 실제 데이터베이스(Supabase)에 저장됩니다. 로그인
-            아이디는 전화 뒷자리로 자동 생성됩니다.
-          </p>
+          <Help>
+            <p className="sub">
+              학생을 추가하면 실제 데이터베이스(Supabase)에 저장됩니다. 로그인
+              아이디는 전화 뒷자리로 자동 생성됩니다.
+            </p>
+          </Help>
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <AddStudentForm />
             <ExcelUpload />

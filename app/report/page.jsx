@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import ReportSender from "./ReportSender";
 import NoticeSender from "./NoticeSender";
 import LateSender from "./LateSender";
@@ -89,7 +90,7 @@ export default async function ReportPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">발송</p>
           <h1 className="h1">학부모 발송</h1>
-          <p className="sub">{SUB[tab]}</p>
+          <Help><p className="sub">{SUB[tab]}</p></Help>
         </div>
         <SendTabs tab={tab} date={date} />
         {tab === "test" ? (

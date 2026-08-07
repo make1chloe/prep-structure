@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
 import TodoBoard from "../todo/TodoBoard";
@@ -429,15 +430,17 @@ export default async function TasksPage({ searchParams }) {
           <h1 className="h1">
             {view === "todo" ? "내가 할 일" : view === "schedule" ? "학원 일정" : "할일 · 일정"}
           </h1>
-          <p className="sub">
-            {/* 둘이 헷갈리면 「오늘 뭘 해야 하나」 를 볼 때마다 걸러내야 한다.
-                가르는 자리는 「그날 그런 일이 있다」 인가, 「내가 뭘 해야 한다」 인가다 */}
-            <b>달력 하나</b>로 봅니다. 위에서 <b>일정만 / 할일만</b>, <b>반</b>, <b>학생</b>으로
-            좁혀 보세요. 날짜를 누르면 그날 무엇이 <b>어디서 왔고 왜 있는지</b> 아래에 적힙니다.
-            <br />
-            <b>일정</b>은 그날 그런 일이 있다는 것 — 학교 일정 · 시험 · 학생 결석 · 상담 예약.
-            <b>할일</b>은 내가 처리해야 하는 것 — 보강 잡기 · 시험 대비 자료 만들기.
-          </p>
+          <Help>
+            <p className="sub">
+              {/* 둘이 헷갈리면 「오늘 뭘 해야 하나」 를 볼 때마다 걸러내야 한다.
+                  가르는 자리는 「그날 그런 일이 있다」 인가, 「내가 뭘 해야 한다」 인가다 */}
+              <b>달력 하나</b>로 봅니다. 위에서 <b>일정만 / 할일만</b>, <b>반</b>, <b>학생</b>으로
+              좁혀 보세요. 날짜를 누르면 그날 무엇이 <b>어디서 왔고 왜 있는지</b> 아래에 적힙니다.
+              <br />
+              <b>일정</b>은 그날 그런 일이 있다는 것 — 학교 일정 · 시험 · 학생 결석 · 상담 예약.
+              <b>할일</b>은 내가 처리해야 하는 것 — 보강 잡기 · 시험 대비 자료 만들기.
+            </p>
+          </Help>
           <div className="row" style={{ gap: 6, marginTop: 10 }}>
             {VIEWS.map((v) => (
               <Link

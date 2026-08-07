@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import AddInquiryForm from "./AddInquiryForm";
 import ApplyLink from "./ApplyLink";
 import ConsultBoard from "./ConsultBoard";
@@ -35,10 +36,12 @@ export default async function ConsultPage() {
         <div className="page-head">
           <p className="eyebrow">신규 상담</p>
           <h1 className="h1">문의 · 상담 · 레벨테스트</h1>
-          <p className="sub">
-            문의 → 상담 → 레벨테스트 → 등록까지 한 줄로 따라갑니다.
-            등록으로 전환하면 이름·연락처가 그대로 재원생으로 넘어가요.
-          </p>
+          <Help>
+            <p className="sub">
+              문의 → 상담 → 레벨테스트 → 등록까지 한 줄로 따라갑니다.
+              등록으로 전환하면 이름·연락처가 그대로 재원생으로 넘어가요.
+            </p>
+          </Help>
           <div className="row" style={{ marginTop: 10, alignItems: "center", gap: 8 }}>
             <AddInquiryForm />
             <ApplyLink />

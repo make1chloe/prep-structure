@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import CheckBoard from "./CheckBoard";
 import AheadBoard from "./AheadBoard";
 import { inUseOn } from "@/lib/bookUse";
@@ -268,10 +269,12 @@ export default async function CheckPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">숙제 검사</p>
           <h1 className="h1">낸 것 보고 바로 찍기</h1>
-          <p className="sub">
-            사진·녹음을 <b>여기서 열어보고</b> 그 자리에서 ○△✕ 와 한 줄을 남깁니다.
-            찍으면 목록에서 빠지고, <b>리포트에 그대로 들어갑니다.</b>
-          </p>
+          <Help>
+            <p className="sub">
+              사진·녹음을 <b>여기서 열어보고</b> 그 자리에서 ○△✕ 와 한 줄을 남깁니다.
+              찍으면 목록에서 빠지고, <b>리포트에 그대로 들어갑니다.</b>
+            </p>
+          </Help>
         </div>
         <CheckBoard date={date} rows={rows} items={itemList} classes={classes} />
 

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import VideoBoard from "./VideoBoard";
 import { rollup } from "@/lib/video";
 import YoutubeKeyBox from "./YoutubeKeyBox";
@@ -68,11 +69,13 @@ export default async function VideosPage() {
         <div className="page-head">
           <p className="eyebrow">교재</p>
           <h1 className="h1">영상</h1>
-          <p className="sub">
-            유튜브 주소를 붙여넣고 학생에게 냅니다. 학생 화면에서 영상을 열면{" "}
-            <b>연 시각이 저절로 적혀요</b> — 물어보지 않아도 누가 안 봤는지 보입니다.
-            <b> 안 봄 · 열어만 봄 · 다 봄</b> 세 가지로 나눠서 보여줍니다.
-          </p>
+          <Help>
+            <p className="sub">
+              유튜브 주소를 붙여넣고 학생에게 냅니다. 학생 화면에서 영상을 열면{" "}
+              <b>연 시각이 저절로 적혀요</b> — 물어보지 않아도 누가 안 봤는지 보입니다.
+              <b> 안 봄 · 열어만 봄 · 다 봄</b> 세 가지로 나눠서 보여줍니다.
+            </p>
+          </Help>
         </div>
 
         {needSql ? (

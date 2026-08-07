@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import MonthlyBoard from "./MonthlyBoard";
 import { loadMonth } from "./actions";
 import { todaySeoul } from "@/lib/day";
@@ -31,9 +32,11 @@ export default async function MonthlyPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">월간리포트</p>
           <h1 className="h1">한 달 학습 안내</h1>
-          <p className="sub">
-            그 달 수업 기록으로 자동으로 만듭니다. 숙제 성취도·출결·단원평가가 함께 나갑니다.
-          </p>
+          <Help>
+            <p className="sub">
+              그 달 수업 기록으로 자동으로 만듭니다. 숙제 성취도·출결·단원평가가 함께 나갑니다.
+            </p>
+          </Help>
         </div>
         <MonthlyBoard ym={ym} rows={rows} ready={ready} mode={mode} />
       </main>

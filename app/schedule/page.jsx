@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import ScheduleBoard from "./ScheduleBoard";
 
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
@@ -156,13 +157,15 @@ export default async function SchedulePage() {
         <div className="page-head">
           <p className="eyebrow">{year}년</p>
           <h1 className="h1">회차 관리</h1>
-          <p className="sub">
-            달력은 <b>달마다 하나</b>입니다. 휴강·시험 기간·결석만 칠하고, 무슨 일인지는
-            달력 아래에 <b>반별로</b> 적습니다. 여느 때대로 수업하는 날은 표시하지 않습니다.
-            <br />
-            회차는 <b>한 달만 따로 보지 않습니다.</b> 이번 달이 7회여도 다음 달이 9회면
-            그대로 수업하면 맞으므로, 몇 달을 누적해서 언제 딱 맞아떨어지는지 알림에 적어줍니다.
-          </p>
+          <Help>
+            <p className="sub">
+              달력은 <b>달마다 하나</b>입니다. 휴강·시험 기간·결석만 칠하고, 무슨 일인지는
+              달력 아래에 <b>반별로</b> 적습니다. 여느 때대로 수업하는 날은 표시하지 않습니다.
+              <br />
+              회차는 <b>한 달만 따로 보지 않습니다.</b> 이번 달이 7회여도 다음 달이 9회면
+              그대로 수업하면 맞으므로, 몇 달을 누적해서 언제 딱 맞아떨어지는지 알림에 적어줍니다.
+            </p>
+          </Help>
         </div>
         <ScheduleBoard
           show="schedule"

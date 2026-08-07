@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import AddHomeworkForm from "./AddHomeworkForm";
 import HomeworkList from "./HomeworkList";
 import SeedBasicButton from "./SeedBasicButton";
@@ -58,11 +59,13 @@ export default async function HomeworkPage() {
         <div className="page-head">
           <p className="eyebrow">학습 항목</p>
           <h1 className="h1">기본 학습 목록</h1>
-          <p className="sub">
-            오늘 수업에서 숙제를 검사하고 배정할 때 쓰는 항목이에요.
-            <b>학습 방법</b>을 적어두면 학생 페이지에서 숙제를 눌렀을 때 그대로 보여줍니다.
-            안 쓰는 항목은 삭제 대신 <b>숨기기</b>를 권합니다 (지난 기록이 보존돼요).
-          </p>
+          <Help>
+            <p className="sub">
+              오늘 수업에서 숙제를 검사하고 배정할 때 쓰는 항목이에요.
+              <b>학습 방법</b>을 적어두면 학생 페이지에서 숙제를 눌렀을 때 그대로 보여줍니다.
+              안 쓰는 항목은 삭제 대신 <b>숨기기</b>를 권합니다 (지난 기록이 보존돼요).
+            </p>
+          </Help>
           <div className="row" style={{ marginTop: 10, gap: 6, flexWrap: "wrap" }}>
             <AddHomeworkForm />
             <SeedBasicButton />

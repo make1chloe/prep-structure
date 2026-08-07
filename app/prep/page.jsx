@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { needsScope } from "@/lib/examList";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import PrepBoard from "./PrepBoard";
 import { todaySeoul } from "@/lib/day";
 
@@ -110,10 +111,12 @@ export default async function PrepPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">내신 대비</p>
           <h1 className="h1">시험 · 범위 · 자료</h1>
-          <p className="sub">
-            시험범위는 <b>교재DB에서 단원·문제를 골라</b> 담습니다. 자료는 범위마다
-            만들고, <b>배정은 학생마다 다르게</b> 합니다.
-          </p>
+          <Help>
+            <p className="sub">
+              시험범위는 <b>교재DB에서 단원·문제를 골라</b> 담습니다. 자료는 범위마다
+              만들고, <b>배정은 학생마다 다르게</b> 합니다.
+            </p>
+          </Help>
         </div>
 
         {missing ? (

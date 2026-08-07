@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import TuitionBoard from "./TuitionBoard";
 import { classSessions, studentAmount, monthRange, unitFor, unitSource } from "@/lib/tuition";
@@ -185,10 +186,12 @@ export default async function TuitionPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">수강료</p>
           <h1 className="h1">이번 달 회차 · 수강료</h1>
-          <p className="sub">
-            휴강이 있어도 <b>수강료는 깎지 않고 보강으로 채웁니다.</b>
-            보강을 못 해줄 경우 다음 달에 덜 받을 <b>차액</b>도 함께 계산해둡니다.
-          </p>
+          <Help>
+            <p className="sub">
+              휴강이 있어도 <b>수강료는 깎지 않고 보강으로 채웁니다.</b>
+              보강을 못 해줄 경우 다음 달에 덜 받을 <b>차액</b>도 함께 계산해둡니다.
+            </p>
+          </Help>
         </div>
         <TuitionBoard
           ym={ym}
