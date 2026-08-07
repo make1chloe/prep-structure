@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { todaySeoul } from "@/lib/day";
+import { dedupeSameDay } from "@/lib/calendar";
 
 /**
  * 한 달 달력.
@@ -239,7 +240,22 @@ export default function CalendarBoard({
         ))}
         {cells.map((d, i) => {
           if (!d) return <div className="cal-cell cal-blank" key={`b${i}`} />;
-          const items = byDay.get(d) || [];
+          /**
+           * **같은 날 같은 것을 하나로** (원장님, 2026-08-07 — 「중복이 있어」).
+           *
+           * 8월 17일에 셋이 있었다 — 「광복절 대체공휴일 — 정상 수업」(원장님이
+           * 정하신 것) · 「[전국] 대체공휴일」(나이스) · 「🚫 대체공휴일」(휴강 표).
+           * 각자 다른 표에서 왔으니 코드가 보기에는 다른 줄이지만, 달력을 보는
+           * 사람에게는 **한 가지 일**이다. 세 줄이 차지하면 그날 정말 봐야 할
+           * 보강·상담이 「+2」 뒤로 밀린다.
+           *
+           * 더 많이 말해주는 것을 남긴다 — 휴강(그날 수업이 없다는 뜻까지) >
+           * 원장님이 정하신 일정 > 학교가 준 학사일정.
+           */
+          const items = dedupeSameDay(
+            (byDay.get(d) || []).map((x) => ({ ...x, date: d, title: x.label })),
+            (x) => (x.source === "휴강" ? 3 : x.where?.includes("여기") ? 2 : 1)
+          );
           const dow = i % 7;
           return (
             <div className={`cal-cell ${d === today ? "cal-today" : ""}`} key={d}>

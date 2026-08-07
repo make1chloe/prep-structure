@@ -601,17 +601,29 @@ a { color: inherit; }
 .cal-past { opacity: .42; }
 .cal-today { border-color: var(--accent, #7aa2f7); box-shadow: inset 0 0 0 1px var(--accent, #7aa2f7); }
 .cal-day { font-size: 11px; opacity: .7; padding-left: 2px; }
+/* 색칠한 상자 대신 옆에 색 막대 (2026-08-07 — 아래 .cal-item 과 같은 까닭) */
 .cal-item {
-  font-size: 10.5px; line-height: 1.25;
-  padding: 2px 4px; border-radius: 4px;
+  display: block; text-align: left;
+  font-size: 10.5px; line-height: 1.35;
+  padding: 1px 4px 1px 8px; border-radius: 4px;
   text-decoration: none; color: inherit;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: transparent; position: relative;
 }
-.cal-more { font-size: 10px; opacity: .6; padding-left: 4px; text-decoration: none; color: inherit; }
+.cal-item::before {
+  content: ""; position: absolute; left: 2px; top: 2px; bottom: 2px;
+  width: 3px; border-radius: 2px; background: var(--bar, var(--text-faint));
+}
+.cal-item:hover { background: var(--surface-2); }
+.cal-more { font-size: 10px; opacity: .6; padding-left: 8px; text-decoration: none; color: inherit; }
 .cal-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; vertical-align: -1px; }
-.cal-school { background: rgba(122, 162, 247, .22); }
-.cal-event  { background: rgba(158, 206, 106, .20); }
-.cal-todo   { background: rgba(224, 163, 62, .22); }
+.cal-school { --bar: #7aa2f7; }
+.cal-event  { --bar: #9ece6a; }
+.cal-todo   { --bar: #e0a33e; }
+/* 요약 줄의 동그라미는 색이 있어야 한다 — 거기는 색이 곧 뜻이다 */
+.cal-dot.cal-school { background: rgba(122, 162, 247, .55); }
+.cal-dot.cal-event  { background: rgba(158, 206, 106, .55); }
+.cal-dot.cal-todo   { background: rgba(224, 163, 62, .55); }
 
 @media (max-width: 560px) {
   .cal-cell { min-height: 52px; }
@@ -628,19 +640,35 @@ a { color: inherit; }
 .cal-num { font-size: 11.5px; font-weight: 800; color: var(--text-muted); }
 .cal-sun { color: var(--red); }
 .cal-sat { color: var(--sky); }
+/* 달력 한 줄 — **색칠한 상자가 아니라 옆에 색 막대** (원장님, 2026-08-07 —
+   「텍스트는 왼쪽정렬해주고, 그 박스표시가 너무 옛날디자인같아」).
+
+   상자를 칠하면 한 칸에 다섯 줄이 들어갔을 때 색덩어리 다섯 개가 된다.
+   무엇이 적혔는지보다 **색이 먼저 보이고**, 그래서 정작 이름을 못 읽는다.
+   글씨는 그냥 글씨로 두고, 종류는 왼쪽 3px 막대로만 말한다.
+
+   가운데 정렬은 **길이가 제각각인 글자에 제일 안 맞는 정렬**이다 —
+   줄마다 시작점이 달라서 눈이 매번 첫 글자를 찾아야 한다. */
 .cal-item {
-  display: block; font-size: 11px; line-height: 1.35; font-weight: 600;
-  padding: 2px 5px; border-radius: 6px; text-decoration: none;
+  display: block; text-align: left;
+  font-size: 11px; line-height: 1.45; font-weight: 600;
+  padding: 1px 4px 1px 9px; border-radius: 4px; text-decoration: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: transparent; color: var(--text);
+  position: relative;
 }
-.cal-item:hover { filter: brightness(.97); }
+.cal-item::before {
+  content: ""; position: absolute; left: 2px; top: 3px; bottom: 3px;
+  width: 3px; border-radius: 2px; background: var(--bar, var(--text-faint));
+}
+.cal-item:hover { background: var(--surface-2); }
 .cal-done { opacity: .5; text-decoration: line-through; }
-.cal-sky { background: var(--sky-soft); color: var(--sky); }
-.cal-lav { background: var(--lav-soft); color: var(--lav); }
-.cal-amber { background: var(--amber-soft); color: var(--amber); }
-.cal-mint { background: var(--mint-soft); color: var(--mint); }
-.cal-muted { background: var(--surface-2); color: var(--text-muted); }
-.cal-red { background: var(--red-soft); color: var(--red); }
+.cal-sky { --bar: var(--sky); }
+.cal-lav { --bar: var(--lav); }
+.cal-amber { --bar: var(--amber); }
+.cal-mint { --bar: var(--mint); }
+.cal-muted { --bar: var(--text-faint); color: var(--text-muted); }
+.cal-red { --bar: var(--red); color: var(--red); }
 @media (max-width: 700px) {
   /* 좁으면 칸이 손톱만 해진다. 글자를 줄이고 높이를 낮춘다 */
   .cal-cell, .cal-blank { min-height: 62px; padding: 3px 3px 4px; }
