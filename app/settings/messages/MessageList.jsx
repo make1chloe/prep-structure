@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveMessage, deleteMessage, listApprovedTemplates } from "./actions";
-import { sourcesFor, slotsIn, fillTemplate, EXAMPLE } from "@/lib/alimtalk";
+import { sourcesFor, slotsIn, fillTemplate, EXAMPLE, TO_STUDENT_KINDS } from "@/lib/alimtalk";
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
 const VARS = [
@@ -369,7 +369,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
     );
   }
 
-  function Editor({ isAuto, msgKey = null }) {
+  function Editor({ isAuto, msgKey = null, goesOut = false }) {
     return (
       <div className="stack" style={{ gap: 8, marginTop: 10 }}>
         <div className="field">
@@ -439,7 +439,18 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           </>
         )}
 
-        {hasAlimtalk && <Alimtalk msgKey={msgKey} />}
+        {/**
+          * **알림톡 칸은 밖으로 나가는 문구에만** (원장님, 2026-08-07 —
+          * 「문구설정이 너무 복잡해서 뭘 어떻게 설정하고 고치는지 모르겠어」).
+          *
+          * 재원생·학부모께는 **앱으로만** 나간다 — 문자도 알림톡도 한 통 안
+          * 나간다. 그런데 문구를 열 때마다 알림톡 템플릿 코드·칸 붙이기·
+          * 미리보기가 같이 펴져서, 화면의 절반이 **쓰이지 않는 설정**이었다.
+          *
+          * 밖으로 나가는 것은 아직 계정이 없는 **신규 상담**뿐이다.
+          * 거기서만 편다.
+          */}
+        {hasAlimtalk && goesOut && <Alimtalk msgKey={msgKey} />}
 
         <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
           <button
@@ -468,6 +479,14 @@ export default function MessageList({ rows = [], level = "full", error = null, p
     );
   }
 
+  /**
+   * **밖으로 나가나** — 문자·알림톡을 탈 문구인가.
+   *
+   * 규칙은 lib/alimtalk.js 한 곳에 있다 (channelPlan 이 쓰는 것과 같은 것).
+   * 여기서 따로 세면 언젠가 두 화면이 다른 말을 하게 된다.
+   */
+  const outward = (r) => !r.key && !TO_STUDENT_KINDS.includes(r.kind);
+
   function Card({ r }) {
     const isEditing = editId === r.id;
     const isAuto = !!r.key;
@@ -475,20 +494,22 @@ export default function MessageList({ rows = [], level = "full", error = null, p
       <div className="card card-tight" style={{ marginBottom: 8 }}>
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <b style={{ fontSize: 13.5 }}>{r.name}</b>
-          {isAuto ? (
-            <span className="tag tag-sky" title="본문을 앱이 만듭니다">자동</span>
+          {/* **어디로 나가나가 먼저다.** 그걸 알아야 무엇을 고칠지 정해진다 —
+              앱으로 가는 것에는 알림톡 설정이 아예 필요 없다 (2026-08-07) */}
+          {outward(r) ? (
+            r.alimtalk_id ? (
+              <span className="tag tag-mint" title={`알림톡 템플릿 ${r.alimtalk_id}`}>알림톡으로</span>
+            ) : (
+              <span className="tag tag-amber" title="문자(SMS/LMS)로 나갑니다">문자로</span>
+            )
           ) : (
-            <span className="tag tag-lav" title="본문을 직접 씁니다">직접</span>
+            <span className="tag tag-lav" title="재원생·그 학부모께는 앱 공지와 알림으로만 나갑니다">
+              앱으로
+            </span>
           )}
           {isAuto && !r.greeting && !r.closing && (
             <span className="hint" style={{ fontSize: 11.5 }}>인사말 없음</span>
           )}
-          {hasAlimtalk &&
-            (r.alimtalk_id ? (
-              <span className="tag tag-mint" title={`알림톡 템플릿 ${r.alimtalk_id}`}>알림톡</span>
-            ) : (
-              <span className="tag tag-muted" title="문자(SMS/LMS)로 나갑니다">문자</span>
-            ))}
           <span className="spacer" />
           <button className="btn btn-ghost btn-sm" onClick={() => (isEditing ? setEditId(null) : start(r))}>
             {isEditing ? "접기" : "수정"}
@@ -516,7 +537,9 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           </p>
         )}
 
-        {isEditing && <Editor isAuto={isAuto} msgKey={r.key || null} />}
+        {isEditing && (
+          <Editor isAuto={isAuto} msgKey={r.key || null} goesOut={outward(r)} />
+        )}
       </div>
     );
   }

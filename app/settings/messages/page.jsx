@@ -82,10 +82,16 @@ export default async function MessagesPage({ searchParams }) {
         {tab === "send" ? (
           <>
             {/* 보내기 전에 **무엇이 어디로 나갈지** 알아야 한다 */}
-            <ChannelPlan
-              plan={channelPlan(rows, settings.solapi?.pfId || "")}
-              pfId={settings.solapi?.pfId || ""}
-            />
+            {/* **한 번 읽으면 되는 글이다** (원장님, 2026-08-07 —
+                「문구설정이 너무 복잡해서 뭘 어떻게 설정하고 고치는지
+                 모르겠어」). 규칙은 이제 문구마다 뱃지로 붙는다 —
+                「앱으로」 · 「문자로」 · 「알림톡으로」 */}
+            <Help>
+              <ChannelPlan
+                plan={channelPlan(rows, settings.solapi?.pfId || "")}
+                pfId={settings.solapi?.pfId || ""}
+              />
+            </Help>
             <MessageList
               rows={rows}
               level={level}

@@ -198,6 +198,24 @@ try {
     page.removeAllListeners();
   }
 
+  // ── 3-2) 기계가 부르는 주소 ────────────────────────────────
+  //
+  // **홈 화면에 담을 때 폰이 먼저 읽는 것**이다. 여기가 깨지면 아이콘이
+  // 안 담기거나 이름이 엉뚱하게 뜨는데, 화면에는 아무 표시가 없다 —
+  // 실제로 이 파일에서 목록 하나가 통째로 빠진 채 빌드를 통과했다.
+  console.log("\n== 홈 화면에 담을 때 폰이 읽는 것 ==");
+  for (const who of ["principal", "parent", "student"]) {
+    try {
+      const r = await page.request.get(`${APP}/manifest/${who}`);
+      if (!r.ok()) { bad(`/manifest/${who}`, `HTTP ${r.status()}`); continue; }
+      const j = await r.json();
+      if (!j.short_name || !j.start_url) { bad(`/manifest/${who}`, "이름이나 시작 주소가 없습니다"); continue; }
+      console.log(`  /manifest/${who} — ${j.short_name}`);
+    } catch (e) {
+      bad(`/manifest/${who}`, e.message.split("\n")[0]);
+    }
+  }
+
   // ── 4) 남의 화면은 안 열린다 ───────────────────────────────
   console.log("\n== 남의 화면 ==");
   const sctx = await browser.newContext();

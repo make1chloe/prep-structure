@@ -140,6 +140,35 @@ async function subsOf(supabase, studentIds) {
 }
 
 /** 학생 여러 명에게 알림 */
+/**
+ * **알림 제목 앞에 학원 이름을 붙인다** (원장님, 2026-08-07 —
+ * 「받는 사람이 학부모인데 왜 from 학부모야. 그냥 다 빼.
+ *  [클로이영어] 공지사항 이거면 됐지」).
+ *
+ * 아이폰이 붙이는 「from ○○」 는 **우리가 지울 수 있는 것이 아니다** —
+ * 홈 화면에 담은 앱의 이름을 폰이 알아서 적는다. 그래서 두 가지를 한다.
+ *
+ *   1. 제목을 「[클로이영어] 공지사항」 으로 — 한 줄만 읽어도 어디서 온
+ *      무슨 알림인지 안다
+ *   2. 앱 이름을 「클로이영어」 로 (manifest) — 그러면 폰이 붙이는 말도
+ *      「from 클로이영어」 가 되어 거슬리지 않는다
+ *
+ * 이미 「[클로이영어]」 로 시작하는 제목에는 다시 안 붙인다.
+ */
+async function withAcademy(supabase, payload) {
+  let name = "";
+  try {
+    const { data } = await supabase
+      .from("integrations").select("config").eq("id", "academy").maybeSingle();
+    name = (data?.config?.name || "").trim();
+  } catch {
+    // 학원 이름을 못 읽어도 알림은 가야 한다
+  }
+  const title = (payload?.title || "").trim();
+  if (!name || title.startsWith(`[${name}]`)) return payload;
+  return { ...payload, title: `[${name}] ${title}`.trim() };
+}
+
 export async function pushToStudents(studentIds, payload) {
   const supabase = createClient();
   const keys = await keysOf(supabase);
@@ -151,7 +180,7 @@ export async function pushToStudents(studentIds, payload) {
   subs = await awake(supabase, subs);
   if (subs.length === 0) return { sent: 0, error: null, quiet: true };
   // 아이 폰도 잠금화면에는 내용을 안 띄운다 (2026-08-07)
-  const safe = { ...payload, body: OPEN_TO_SEE };
+  const safe = { ...(await withAcademy(supabase, payload)), body: OPEN_TO_SEE };
   subs = await withReceipts(supabase, subs, safe);
 
   const res = await pushToAll(keys, subs, safe);
@@ -197,7 +226,7 @@ export async function pushToFamilies(studentIds, payload, who = "all") {
    * 선생님께 가는 알림(pushToStaff)은 그대로 둔다 — 그건 원장님 폰이고,
    * 무슨 일인지 바로 보여야 답을 하실 수 있다.
    */
-  const safe = { ...payload, body: OPEN_TO_SEE };
+  const safe = { ...(await withAcademy(supabase, payload)), body: OPEN_TO_SEE };
 
   const supabase = createClient();
   const keys = await keysOf(supabase);

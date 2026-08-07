@@ -30,10 +30,18 @@ const push = read("app/push/actions.js");
  * **한 군데에서 지운다.** 부르는 곳이 여덟 군데라 각자 조심하게 하면
  * 언젠가 한 곳이 빠지고, 그 한 곳이 사고가 된다.
  */
-eq(/pushToFamilies[\s\S]*?const safe = \{ \.\.\.payload, body: OPEN_TO_SEE \};/.test(push), true,
+eq(/pushToFamilies[\s\S]*?body: OPEN_TO_SEE/.test(push), true,
    "학부모·학생 알림은 본문을 지운다");
-eq(/pushToStudents[\s\S]*?const safe = \{ \.\.\.payload, body: OPEN_TO_SEE \};/.test(push), true,
+eq(/pushToStudents[\s\S]*?body: OPEN_TO_SEE/.test(push), true,
    "아이 폰도 마찬가지");
+/**
+ * 원장님 (2026-08-07) — 「[클로이영어] 공지사항 이거면 됐지」
+ *
+ * 아이폰이 붙이는 「from ○○」 는 지울 수가 없다. 그러면 **제목 한 줄로**
+ * 어디서 온 무슨 알림인지 알 수 있어야 한다.
+ */
+eq(push.includes("async function withAcademy"), true, "제목 앞에 학원 이름을 붙인다");
+eq(/withAcademy\(supabase, payload\)/.test(push), true, "두 문에서 다 붙인다");
 // 자취(누가 봤나)에도 지운 본문이 실려야 한다 — 안 그러면 거기서 샌다
 eq(push.includes("withReceipts(supabase, subs, safe"), true, "자취에도 지운 것이 실린다");
 
@@ -77,14 +85,23 @@ console.log("\n== 「from 학부모」 ==");
  * 어머니가 보내신 것처럼. 어디서 온 알림인지가 거꾸로였다.
  */
 const mani = read("app/manifest/[role]/route.js");
-eq(/short: "클로이 학부모용"/.test(mani), true, "학원 이름이 앞에 오고 「용」 이 붙는다");
+/**
+ * 학부모·학생은 **자기 앱 하나만** 담는다 — 이름이 겹칠 일이 없다.
+ * 그래서 그냥 「클로이영어」 다. 폰이 붙이는 말도 「from 클로이영어」 가 되어
+ * 거슬리지 않는다. 원장님만 셋을 담으시니 원장용에만 「원장」 을 붙인다.
+ */
+eq(/parent: \{ name: "클로이영어", short: "클로이영어"/.test(mani), true,
+   "학부모 앱 이름은 학원 이름 그대로");
+eq(/student: \{ name: "클로이영어", short: "클로이영어"/.test(mani), true,
+   "학생 앱도 마찬가지");
 /**
  * 「from 클로이 학부모」 는 여전히 「학부모가 보낸 것」 으로 읽힌다 —
  * 실제로 원장님이 그렇게 읽으셨다. 「…용」 이 붙어야 「학부모용 앱이
  * 받았다」 가 된다. 아이폰이 붙이는 이 말은 **누가 보냈나가 아니라
  * 어느 앱이 받았나**다.
  */
-eq(/short: "(클로이 )?학부모"/.test(mani), false, "「용」 이 없으면 보낸 사람으로 읽힌다");
+// 「from 학부모」 는 「학부모가 보낸 것」 으로 읽힌다 — 실제로 그렇게 읽으셨다
+eq(/short: "(클로이 )?학부모(용)?"/.test(mani), false, "받는 사람 이름이 남아 있으면 안 된다");
 
 console.log("\n== 제출한 것은 원장님께만 ==");
 /**
