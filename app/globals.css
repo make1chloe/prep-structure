@@ -243,6 +243,15 @@ a { color: inherit; }
 
    `grid` 를 쓰되 각 칸의 높이는 제 내용만큼만 (align-items: start).
    안 그러면 짧은 칸이 옆의 긴 칸만큼 늘어나서 빈 칸이 더 커진다. */
+/* 메뉴에 붙는 빨간 숫자 — 카톡의 그것과 같은 뜻이다 (2026-08-07).
+   글자 옆에 붙되 메뉴 높이는 안 늘어나게 (line-height 를 안 건드린다). */
+.navbadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; padding: 0 5px; margin-left: 5px;
+  border-radius: 9px; background: var(--red, #e05555); color: #fff;
+  font-size: 10.5px; font-weight: 800; line-height: 1; vertical-align: middle;
+}
+
 .blockgrid { display: grid; gap: 10px; grid-template-columns: 1fr; align-items: start; }
 @media (min-width: 860px)  { .blockgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1320px) { .blockgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

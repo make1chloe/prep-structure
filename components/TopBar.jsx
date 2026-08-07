@@ -4,6 +4,9 @@ import { menuFor, findSection } from "@/lib/menu";
 import BrandMark from "./BrandMark";
 import Refresh from "./Refresh";
 import TopBarHeight from "./TopBarHeight";
+import { createClient } from "@/lib/supabase/server";
+import { isStaff } from "@/lib/roles";
+import { unreadForStaff, badgeText } from "@/lib/inbox";
 
 /** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
 function groupLabel(key) {
@@ -32,8 +35,24 @@ const ROLE_LABEL = {
  * 그래서 전부 위에 늘어놓는다. 지금 보고 있는 화면은 하얗게 떠 있어서
  * 어디 있는지 바로 안다.
  */
-export default function TopBar({ profile, active }) {
+export default async function TopBar({ profile, active }) {
   const items = menuFor(profile);
+
+  /**
+   * **안 본 것이 있으면 「대시보드」 옆에 숫자** (원장님, 2026-08-07 —
+   * 「확인 안 한 알람이 있으면 카톡처럼 대시보드 메뉴에 배지로」).
+   *
+   * 결석 알림이나 댓글은 대시보드 안에만 쌓인다. 다른 화면에서 일하고
+   * 계시면 온 줄도 모르고 지나간다 — 폰 알림이 가더라도 컴퓨터 앞에서는
+   * 그 알림을 못 보신다.
+   *
+   * 선생님 계정에서만 센다. 학생·학부모 메뉴에는 대시보드가 없다.
+   */
+  const unread = isStaff(profile?.role)
+    ? await unreadForStaff(createClient())
+    : { total: 0 };
+  const badge = badgeText(unread.total);
+
   return (
     <header className="topbar">
       {/* 붙어 있는 이 메뉴의 높이를 CSS 에 알려준다 — 아래 판이 그만큼 내려가야
@@ -76,9 +95,14 @@ export default function TopBar({ profile, active }) {
               <Link
                 href={it.href}
                 className={active === it.key ? "on" : ""}
-                title={it.desc || it.label}
+                title={
+                  it.key === "home" && badge
+                    ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
+                    : it.desc || it.label
+                }
               >
                 {it.label}
+                {it.key === "home" && badge && <span className="navbadge">{badge}</span>}
               </Link>
             </Fragment>
           ))}

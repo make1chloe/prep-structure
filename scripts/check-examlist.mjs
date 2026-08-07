@@ -14,6 +14,7 @@
  * 쓰는 법:  node scripts/check-examlist.mjs
  */
 
+import { commonName } from "../lib/neis.js";
 import {
   isMockExam, needsScope, termOf, termLabel, sortExams, filterExams, facetsOf,
 } from "../lib/examList.js";
@@ -84,6 +85,33 @@ console.log("\n== 거르기 칸을 채울 것 ==");
 const f = facetsOf(EXAMS);
 eq(f.schools, ["박문여고", "신송중", "연송중"], "학교 (가나다순)");
 eq(f.years, [2026], "연도 (최근부터)");
+
+console.log("\n== 전국연합 = 모의평가 = 모의고사 ==");
+/**
+ * 원장님 (2026-08-07) — 「전국연합학력평가 = 모의평가 = 모의고사」
+ *
+ * 교육청이 내는 것을 「전국연합학력평가」, 평가원이 내는 6·9월 것을
+ * 「모의평가」 라고 학교가 나눠 적을 뿐, 원장님과 학부모에게는 다 모의고사다.
+ * 따로 두면 **같은 날 같은 시험이 두 이름으로** 달력에 앉는다 —
+ * 열쇠(source_id)에 이름이 들어가기 때문이다.
+ */
+[
+  "전국연합학력평가",
+  "3월 전국연합학력평가",
+  "고1·2 전국연합학력평가 실시",
+  "전국연합 학력평가",
+  "전국연합학력평가(1,2학년)",
+  "모의평가",
+  "6월 모의평가",
+  "모의고사",
+].forEach((t) => eq(commonName(t), "모의고사", `「${t}」`));
+
+// **수능만 따로 둔다.** 그건 정말 다른 날이다
+eq(commonName("대학수학능력시험"), "대학수학능력시험", "수능은 따로");
+eq(commonName("수능 예비소집"), "대학수학능력시험", "수능 관련도 수능으로");
+// 아는 것이 아니면 손대지 않는다 — 함부로 바꾸면 멀쩡한 일정이 뭉개진다
+eq(commonName("개학식"), "개학식", "모르는 것은 그대로");
+eq(commonName(""), "", "빈 값");
 
 if (fail) { console.log("\n❌ 시험 목록에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 시험 목록 통과");
