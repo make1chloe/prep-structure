@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveIntegration, clearIntegration, testSend, checkSolapiNow } from "./actions";
 import { ensurePushKeys, testPush } from "@/app/push/actions";
+import PushToggle from "@/app/me/PushToggle";
 
 const MODES = [
   { key: "copy", label: "직접 발송", hint: "앱에서는 문구만 만들고, 복사해서 문자 앱으로 보냅니다. 준비할 게 없어요." },
@@ -12,7 +13,8 @@ const MODES = [
 ];
 
 export default function SettingsForm({
-  view, unavailable = false, canEdit = true, pushReady = false, inquiryAlert = false,
+  view, unavailable = false, canEdit = true, pushReady = false,
+  inquiryAlert = false, inquiryAlertVar = null,
 }) {
   const [mode, setMode] = useState(view.mode || "copy");
   const [academy, setAcademy] = useState(view.academy?.name || "클로이영어");
@@ -167,6 +169,21 @@ export default function SettingsForm({
             내 기기로 테스트
           </button>
         </div>
+        {/* **누른 결과가 여기서 보여야 한다** (원장님, 2026-08-07 —
+            「내 기기로 테스트 눌러도 뭐가 되진 않음」).
+            결과 줄이 화면 맨 아래에 있어서, 이 칸이 위로 올라오고 나니
+            눌러도 아무 일도 안 일어난 것처럼 보였다 */}
+        {msg && (
+          <div className={msg.bad ? "err" : "notice"} style={{ marginTop: 8 }}>{msg.text}</div>
+        )}
+
+        {/* **이 기기를 먼저 등록해야 테스트가 간다.**
+            그 버튼이 「오늘 수업」 화면에만 있어서, 여기서 테스트를 눌러도
+            보낼 곳이 없었다. 켜는 것과 시험해보는 것은 같은 자리에 있어야 한다 */}
+        <div style={{ marginTop: 10 }}>
+          <PushToggle />
+        </div>
+
         <p className="hint" style={{ marginTop: 8 }}>
           아이폰은 사파리에서 <b>공유 → 홈 화면에 추가</b> 한 뒤 그 아이콘으로 열어야 알림이 켜집니다.
           안드로이드는 크롬에서 바로 켤 수 있어요.
@@ -179,15 +196,22 @@ export default function SettingsForm({
         <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7 }}>
           <b>신규 상담 접수 알림</b>{" "}
           {inquiryAlert ? (
-            <span className="tag tag-mint">켜짐</span>
+            <>
+              <span className="tag tag-mint">켜짐</span>{" "}
+              <span className="hint">({inquiryAlertVar})</span>
+            </>
           ) : (
             <>
               <span className="tag">꺼짐</span>
               <br />
               상담 신청서는 로그인 없이 여는 화면이라 서버 열쇠가 있어야 알림이 나갑니다.
               Vercel → 프로젝트 → Settings → Environment Variables 에{" "}
-              <b>SUPABASE_SERVICE_ROLE_KEY</b> 를 넣고 다시 배포해주세요
+              <b>SUPABASE_SERVICE_ROLE_KEY</b> 를 넣고 <b>다시 배포</b>해주세요
               (Supabase → Project Settings → API → service_role 값).
+              <br />
+              넣으셨는데도 꺼짐이면 두 가지를 봐주세요 —
+              <b> Production 에도 체크</b>가 되어 있는지, 그리고 <b>넣은 뒤에 새로
+              배포</b>했는지. 환경변수는 이미 올라간 배포에는 안 들어갑니다.
               <b> 대화창에는 절대 붙여넣지 마세요.</b>
             </>
           )}

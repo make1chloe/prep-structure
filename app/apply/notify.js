@@ -29,11 +29,38 @@ import { SUPABASE_URL } from "@/lib/supabase/env";
 import { pushToAll } from "@/lib/push";
 import { slotText } from "@/lib/applySlots";
 
-const KEY = () => (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+/**
+ * 이름을 **몇 가지 받아준다.**
+ *
+ * Vercel 에 넣으실 때 이름을 조금 다르게 적으시면 앱은 그냥 「없다」 고 본다.
+ * 값이 틀린 것과 이름이 틀린 것은 고치는 법이 다른데, 화면에는 똑같이
+ * 「꺼짐」 으로만 보여서 어느 쪽인지 알 수가 없다. 흔한 이름을 다 받는다.
+ */
+const NAMES = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_SERVICE_KEY",
+  "SERVICE_ROLE_KEY",
+];
 
-/** 설정 화면이 「켜져 있나」 를 물어볼 때 */
+const KEY = () => {
+  for (const n of NAMES) {
+    const v = (process.env[n] || "").trim();
+    if (v) return v;
+  }
+  return "";
+};
+
+/** 설정 화면이 「켜져 있나」 를 물어볼 때 — 값은 절대 안 내보낸다 */
 export function inquiryAlertReady() {
   return Boolean(KEY());
+}
+
+/**
+ * 어느 이름으로 들어와 있나 (설정 화면이 보여준다).
+ * **값이 아니라 이름만** 돌려준다. 값은 서버 밖으로 나가면 안 된다.
+ */
+export function inquiryAlertName() {
+  return NAMES.find((n) => (process.env[n] || "").trim()) || null;
 }
 
 async function rest(path) {

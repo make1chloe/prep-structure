@@ -6,7 +6,7 @@ import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
 import GuideBox from "./GuideBox";
 import { loadSettings, maskSecret } from "@/lib/settings";
-import { inquiryAlertReady } from "@/app/apply/notify";
+import { inquiryAlertReady, inquiryAlertName } from "@/app/apply/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +37,7 @@ export default async function SettingsPage() {
   const pushReady = !!pushRow?.config?.publicKey;
   // 신규 상담 접수 알림은 서버 열쇠가 있어야 나간다 (로그인 없는 화면이라)
   const inquiryAlert = inquiryAlertReady();
+  const inquiryAlertVar = inquiryAlertName();
 
   // 비밀값은 가려서만 내려보낸다
   const view = {
@@ -82,7 +83,7 @@ export default async function SettingsPage() {
         </div>
         <NetBox />
         <GuideBox />
-        <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} inquiryAlert={inquiryAlert} />
+        <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} inquiryAlert={inquiryAlert} inquiryAlertVar={inquiryAlertVar} />
       </main>
     </>
   );
