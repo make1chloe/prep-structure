@@ -334,10 +334,12 @@ async function roundTrip() {
     await p2.getByRole("button", { name: /미리 넣기/ }).first().click();
     await p2.waitForTimeout(600);
     await p2.getByRole("button", { name: "보이는 학생 전체", exact: true }).first().click();
-    // 바깥 칸(숙제 내기 / 수업 전달사항 · 공지) 을 먼저, 그다음 안쪽에서 고른다
-    await p2.getByRole("button", { name: "수업 전달사항 · 공지", exact: true }).first().click();
+    // 바깥 칸(숙제 내기 / 공지 · 메모) 을 먼저, 그다음 안쪽에서 갈래를 고른다
+    await p2.getByRole("button", { name: "공지 · 메모", exact: true }).first().click();
     await p2.waitForTimeout(400);
-    await p2.getByRole("button", { name: "수업 전달사항", exact: true }).first().click();
+    // **「숙제 공지」 여야 한다.** 「수업 메모」 는 아이 화면에 안 뜬다 —
+    // 교실에서 말하려고 적어둔 것이라 그렇게 정했다 (lib/notices)
+    await p2.getByRole("button", { name: "숙제 공지", exact: true }).first().click();
     await p2.waitForTimeout(400);
     // 날짜는 오늘로 — 학생 화면이 오늘 것을 보여준다
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);

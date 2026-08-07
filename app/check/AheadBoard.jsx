@@ -7,6 +7,14 @@ import { createNotice, listUnitOptions } from "@/app/today/actions";
 import { unitOptionText } from "@/lib/unitTree";
 import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
 import { CAT_CLS } from "@/app/homework/categories";
+import { NOTICE_KINDS } from "@/lib/notices";
+
+/** 미리 적는 자리라 「지금 울리는」 갈래는 없다 — 예도 그에 맞춘다 */
+const AHEAD_PLACEHOLDER = {
+  homework: "학생에게 (숙제 안내에 실림) — 예) 다음 주 월요일은 학교 행사로 6시 시작",
+  notice: "학부모님께 (리포트에 실림) — 예) 이번 주 단어 시험 범위는 Unit 5~6입니다",
+  memo: "교실에서 말할 것 — 예) 지난주 결석분 보강 언제 할지 물어보기",
+};
 
 const dayLabel = (d) => (d ? fmtDay(d) : "");
 
@@ -41,7 +49,7 @@ export default function AheadBoard({
   const [loadingBook, setLoadingBook] = useState(null);
   const [cat, setCat] = useState("전체");
 
-  const [kind, setKind] = useState("deliver");
+  const [kind, setKind] = useState("homework");
   const [body, setBody] = useState("");
   const [noticeDate, setNoticeDate] = useState("");
 
@@ -248,7 +256,7 @@ export default function AheadBoard({
         <div className="row" style={{ gap: 4, marginBottom: 10 }}>
           {[
             ["homework", "숙제 내기"],
-            ["notice", "수업 전달사항 · 공지"],
+            ["notice", "공지 · 메모"],
           ].map(([k, l]) => (
             <button
               key={k}
@@ -428,11 +436,13 @@ export default function AheadBoard({
           <>
             {datePicker(noticeDate, setNoticeDate, "날짜")}
             <div className="row" style={{ gap: 4, marginBottom: 8 }}>
-              {[
-                // 알림은 안 간다 — 어차피 나가는 글에 실려서 닿는다 (2026-08-07)
-                ["deliver", "수업 전달사항"],
-                ["notice", "공지 (학부모 리포트)"],
-              ].map(([k, l]) => (
+              {/**
+                * **여기는 미리 적어두는 자리라 「알림」 갈래가 없다**
+                * (2026-08-07). 다음 주 수업 것을 적는데 지금 폰이 울리면
+                * 아무도 무슨 소린지 모른다. 지금 울려야 하는 것은
+                * 오늘 수업 화면에서 보내신다.
+                */}
+              {NOTICE_KINDS.filter((k) => !k.push).map((k) => [k.key, k.label]).map(([k, l]) => (
                 <button
                   key={k}
                   className={`btn btn-sm ${kind === k ? "btn-primary" : "btn-ghost"}`}
@@ -448,11 +458,7 @@ export default function AheadBoard({
               rows={3}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder={
-                kind === "deliver"
-                  ? "예) 다음 주 월요일은 학교 행사로 6시 시작"
-                  : "예) 이번 주 단어 시험 범위는 Unit 5~6입니다"
-              }
+              placeholder={AHEAD_PLACEHOLDER[kind] || ""}
             />
             <button
               className="btn btn-primary btn-sm"

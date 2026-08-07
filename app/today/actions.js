@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
-import { pushToStudents } from "@/app/push/actions";
+import { pushToStudents, pushToFamilies } from "@/app/push/actions";
+import { safeKind, isAlert } from "@/lib/notices";
 import { dowOf } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 
@@ -399,7 +400,7 @@ export async function createNotice(input) {
 
   const row = {
     date,
-    kind: kind === "notice" ? "notice" : "deliver",
+    kind: safeKind(kind),
     scope: scope || "all",
     class_id: scope === "class" ? classId : null,
     school: scope === "grade" ? school || null : null,
@@ -438,18 +439,35 @@ export async function createNotice(input) {
    *
    * ── 그럼 어떻게 닿나 ────────────────────────────────────
    *
-   *   수업 전달사항(deliver)   교실에서 말로 + 그날 숙제 안내에 함께
-   *   공지(notice)             데일리리포트에 함께
+   *   숙제 공지(homework)     그날 숙제 안내에 함께
+   *   리포트 공지(notice)      데일리리포트에 함께
+   *   수업 메모(memo)          교실에서 말로 — 아무 데도 안 나감
    *
-   * 둘 다 **어차피 나가는 글에 실려서** 간다. 따로 울릴 이유가 없다.
-   * 정말 지금 알려야 하는 것은 발송 화면의 「안내」 로 보내신다 —
-   * 그건 보내려고 여는 자리라 울리는 것이 맞다.
+   * 셋 다 **어차피 나가는 글에 실려서** 가거나, 아예 안 나간다.
+   * 따로 울릴 이유가 없다.
+   *
+   * ── 그런데 지금 당장 알려야 하는 일이 있다 (2026-08-07) ──
+   *
+   * 오늘 휴원, 지금 오지 마세요, 앞 수업이 늦어집니다 — 이건 리포트에
+   * 실어 보낼 수가 없다. 적을 자리가 없어서 발송 화면으로 건너가
+   * 따로 보내셨고, 그래서 수업 중 동선이 꼬였다.
+   *
+   * **울리는 갈래를 두 개 따로 냈다** — 「학생 알림」 · 「학부모 알림」.
+   * 이름에 「알림」 이 붙은 것만 울린다. 그러면 실수로 울릴 일이 없다.
    */
+  let sent = 0;
+  if (isAlert(row.kind)) {
+    const title = row.kind === "alert_student" ? "학생 알림" : "학부모 알림";
+    const res = row.kind === "alert_student"
+      ? await pushToStudents(targets, { title, body: text || head, url: "/me" })
+      : await pushToFamilies(targets, { title, body: text || head, url: "/parent" }, "parent");
+    sent = res?.sent || 0;
+  }
 
   revalidatePath("/today");
   revalidatePath("/me");
   revalidatePath("/parent");
-  return { error: null, count: targets.length, id: notice.id };
+  return { error: null, count: targets.length, id: notice.id, sent, kind: row.kind };
 }
 
 export async function deleteNotice(id) {

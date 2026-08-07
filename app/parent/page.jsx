@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { showsTo } from "@/lib/notices";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { addDays, dowOf, longLabel, shortLabel, todaySeoul } from "@/lib/day";
@@ -322,7 +323,8 @@ export default async function ParentPage({ searchParams }) {
         .from("notices").select("id, date, kind, body").in("id", nIds)
         .gte("date", addDays(today, -21)).order("date", { ascending: false }));
     }
-    notices = data || [];
+    // 「수업 메모」 는 원장님이 교실에서 말하려고 적어둔 것이라 안 띄운다
+    notices = (data || []).filter((n) => showsTo(n.kind, "parent"));
   }
 
   /**

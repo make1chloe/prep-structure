@@ -214,7 +214,7 @@ export async function sendNotices(items, label, templateId) {
     //
     // **한 명씩 보낸다.** 문구에 {{학생명}} 이 채워져 있어서 사람마다 본문이
     // 다르다. 한 사람 것으로 묶어 보내면 남의 이름이 적힌 알림이 간다.
-    const toParent = noticeKindOf(kind) === "notice";
+    const toParent = noticeKindOf(kind) === "alert_parent";
     for (const x of students) {
       const sid = x.id.slice(2);
       if (!okSet.has(sid)) continue;

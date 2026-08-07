@@ -22,31 +22,74 @@ const eq = (got, want, what) => {
 };
 const read = (p) => readFileSync(p, "utf8");
 
-console.log("== 적어도 안 울린다 ==");
+console.log("== 울리는 갈래와 안 울리는 갈래 ==");
 const act = read("app/today/actions.js");
 const make = act.slice(act.indexOf("export async function createNotice"));
 const nextFn = make.indexOf("\nexport async function", 10);
 const body = nextFn > 0 ? make.slice(0, nextFn) : make;
 /**
- * 공지·전달사항은 **어차피 나가는 글에 실려서** 닿는다 —
- *   수업 전달사항 → 교실에서 말로 + 그날 숙제 안내에 함께
- *   공지          → 데일리리포트에 함께
- * 따로 울릴 이유가 없다.
+ * 다섯 갈래 중 **「알림」 으로 끝나는 둘만** 울린다 (2026-08-07).
+ *   숙제 공지   → 숙제 안내에 실려서 닿는다
+ *   리포트 공지 → 데일리리포트에 실려서 닿는다
+ *   수업 메모   → 아무 데도 안 나간다 (교실에서 말로)
+ * 이 셋이 울리면 원장님이 아직 아무 말도 안 하신 채 아이 폰이 울린다.
  */
-eq(/pushTo/.test(body), false, "공지를 만들 때 알림을 안 보낸다");
+eq(/isAlert\(row\.kind\)/.test(body), true, "울리는 갈래인지 먼저 본다");
+eq(/if \(isAlert\(row\.kind\)\) \{[\s\S]*?pushTo/.test(body), true,
+   "알림 갈래일 때만 보낸다");
+// isAlert 밖에서 부르는 곳이 있으면 안 울려야 할 것이 울린다
+const beforeIf = body.slice(0, body.indexOf("isAlert(row.kind)"));
+eq(/pushTo/.test(beforeIf), false, "그 앞에서는 아무것도 안 보낸다");
+
+const nk = read("lib/notices.js");
+eq(/isAlert[\s\S]*alert_student[\s\S]*alert_parent/.test(nk), true,
+   "울리는 갈래는 두 개뿐");
+// 「공지」 로 끝나는 것과 「메모」 는 push:false 여야 한다
+for (const k of ["homework", "notice", "memo"]) {
+  const seg = nk.slice(nk.indexOf(`key: "${k}"`), nk.indexOf(`key: "${k}"`) + 300);
+  eq(/push: false/.test(seg), true, `${k} 는 안 울린다`);
+}
+
 // 진짜 지금 알려야 하는 것은 발송 화면의 「안내」 로 보내신다 — 거기는 그대로
 eq(read("app/report/noticeActions.js").includes("pushToFamilies"), true,
    "발송 화면의 안내는 그대로 알린다 (보내려고 여는 자리다)");
 // 숙제가 올라올 때는 여전히 알린다 — 그건 아이가 집에서 알아야 하는 일이다
 eq(act.includes("pushToStudents"), true, "숙제 알림은 그대로");
 
-console.log("\n== 이름 ==");
+console.log("\n== 다섯 갈래 이름 (원장님이 고르신 것) ==");
+for (const [k, label] of [
+  ["homework", "숙제 공지"],
+  ["alert_student", "학생 알림"],
+  ["notice", "리포트 공지"],
+  ["alert_parent", "학부모 알림"],
+  ["memo", "수업 메모"],
+]) {
+  eq(nk.includes(`label: "${label}"`), true, `${k} = ${label}`);
+}
 const top = read("app/today/TopNotices.jsx");
-eq(top.includes('label: "수업 전달사항"'), true, "오늘 수업 화면");
-eq(top.includes('label: "학생용 공지"'), false, "옛 이름이 남아 있다");
-eq(read("app/check/AheadBoard.jsx").includes('"수업 전달사항"'), true, "숙제 검사 화면");
-// 「알림은 가지 않는다」 를 화면에도 적어둔다 — 안 적으면 또 보내는 글로 읽는다
-eq(/알림은 가지 않고/.test(top), true, "안 울린다는 것을 화면에 적는다");
+eq(top.includes("NOTICE_KINDS"), true, "오늘 수업 화면이 한 곳에서 가져다 쓴다");
+eq(read("app/check/AheadBoard.jsx").includes("NOTICE_KINDS.filter((k) => !k.push)"), true,
+   "미리 넣기에는 울리는 갈래가 없다 (다음 주 것을 적는데 지금 울리면 안 된다)");
+// 되돌릴 수 없는 것은 한 번 더 여쭙는다
+eq(/isAlert\(kind\)[\s\S]{0,300}confirm\(/.test(top), true, "울리기 전에 한 번 물어본다");
+
+console.log("\n== 실려 나가는 것 / 이미 나간 것 ==");
+const rd = read("lib/reportData.js");
+// 「알림」 갈래는 적는 순간 이미 나갔다 — 리포트에 또 실으면 두 번 받으신다
+eq(/\.in\("kind", \["notice", "homework", LEGACY\]\)/.test(rd), true,
+   "리포트·숙제 문자에는 「공지」 갈래만 싣는다");
+eq(/alert_/.test(rd), false, "알림 갈래는 안 싣는다 (이미 나갔다)");
+// 발송 화면의 안내도 「알림」 으로 적힌다 — 예전에는 deliver 라서 숙제 문자에
+// 한 번 더 실려 나갔다
+eq(read("lib/notify.js").includes('"alert_parent" : "alert_student"'), true,
+   "발송 화면의 안내는 알림 갈래로 남는다");
+
+console.log("\n== 수업 메모는 아이·어머니 화면에 안 뜬다 ==");
+// 교실에서 말하려고 적어둔 것이라, 아이가 앱에서 먼저 읽으면 그 말을 할
+// 이유가 없어진다
+eq(/kind === "memo"\) return false/.test(nk), true, "메모는 아무에게도 안 보인다");
+eq(read("app/me/page.jsx").includes("showsTo(n.kind"), true, "학생 화면이 걸러낸다");
+eq(read("app/parent/page.jsx").includes('showsTo(n.kind, "parent")'), true, "학부모 화면도");
 
 console.log("\n== 맨 위 공지와 학생별 공지가 한자리에 ==");
 /**
@@ -61,14 +104,14 @@ console.log("\n== 맨 위 공지와 학생별 공지가 한자리에 ==");
 const panel = read("app/today/StudentPanel.jsx");
 eq(panel.includes('{/* 전체 공지 (읽기용) */}'), false, "맨 위에 따로 떠 있던 칸을 뺐다");
 // 학생공지 옆에는 전체 「수업 전달사항」, 부모님공지 옆에는 전체 「공지」
-eq(/Row\("학생공지", "deliver"/.test(panel), true, "학생공지 옆에 전체 전달사항");
-eq(/Row\("부모님공지", "notice"/.test(panel), true, "부모님공지 옆에 전체 공지");
+eq(/Row\("숙제 공지", "homework"/.test(panel), true, "숙제 공지 옆에 전체 숙제 공지");
+eq(/Row\("리포트 공지", "notice"/.test(panel), true, "리포트 공지 옆에 전체 리포트 공지");
 // **여기서 고치면 반 전체가 바뀐다** — 그래서 읽기만 된다
 eq(/전체 것은 여기서 못 고친다/.test(panel), true, "전체 것은 읽기만 (고칠 자리를 알려준다)");
 
 console.log("\n== 공지에 제목은 없다 ==");
 // 한 줄짜리 말에 제목을 또 다는 것은 같은 말을 두 번 적는 일이었다
-const top2 = read("app/today/TopNotices.jsx");
+const top2 = top;
 eq(/placeholder="제목/.test(top2), false, "제목 칸을 뺐다");
 eq(/const \[title, setTitle\]/.test(top2), false, "제목 상태도 뺐다");
 // 본문이 없으면 저장할 것이 없다 (예전에는 제목만으로도 저장됐다)

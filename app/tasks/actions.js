@@ -213,7 +213,7 @@ export async function applyTaskDelivery(taskId, date) {
     .from("notices")
     .insert({
       date: on,
-      kind: "deliver",
+      kind: "memo",
       scope,
       class_id: scope === "class" ? task.deliver_class_id : null,
       school: scope === "grade" ? task.deliver_school : null,

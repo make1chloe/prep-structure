@@ -18,6 +18,7 @@ import ExamBox from "./ExamBox";
 import { nextRoutine, advanceRoutine, saveStudentDefaults } from "./routineActions";
 import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions";
 import { STAY_LABEL } from "@/lib/reportText";
+import { isMemo, inHomework } from "@/lib/notices";
 import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
@@ -540,7 +541,7 @@ export default function StudentPanel({
         setRoutine(null);
       }
       const notYet = (row.notices || []).filter(
-        (n) => n.kind === "deliver" && !delivered[n.id]
+        (n) => isMemo(n.kind) && !delivered[n.id]
       );
       if (notYet.length > 0) {
         alert(`아직 전달하지 않은 사항이 ${notYet.length}건 있어요.\n하원 전에 꼭 전달해주세요.`);
@@ -595,7 +596,7 @@ export default function StudentPanel({
       <SubmissionList rows={row.subs || []} items={items} />
 
       {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
-      {(row.notices || []).filter((n) => n.kind === "deliver").length > 0 && (
+      {(row.notices || []).filter((n) => isMemo(n.kind)).length > 0 && (
         <div className="sayblock">
           <div className="sayhead">
             학생에게 말할 것
@@ -605,7 +606,7 @@ export default function StudentPanel({
           </div>
           <div className="stack" style={{ gap: 6 }}>
             {(row.notices || [])
-              .filter((n) => n.kind === "deliver")
+              .filter((n) => isMemo(n.kind))
               .map((n) => {
                 const done = !!delivered[n.id];
                 return (
@@ -1189,7 +1190,9 @@ export default function StudentPanel({
             */}
           {(() => {
             const all = row.notices || [];
-            const line = (kind) => all.filter((n) => n.kind === kind && n.body);
+            // 옛 「전달사항」(deliver) 은 숙제 안내에도 실렸다 — 숙제 공지 옆에 같이 보인다
+            const line = (kind) =>
+              all.filter((n) => n.body && (kind === "homework" ? inHomework(n.kind) : n.kind === kind));
             const Row = (label, kind, hint, value, key) => (
               <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
                 <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
@@ -1214,10 +1217,10 @@ export default function StudentPanel({
             );
             return (
               <>
-                {Row("학생공지", "deliver",
+                {Row("숙제 공지", "homework",
                      "이 아이에게만 — 숙제 안내 맨 위에 들어갑니다",
                      form.notice_student, "notice_student")}
-                {Row("부모님공지", "notice",
+                {Row("리포트 공지", "notice",
                      "이 아이에게만 — 데일리리포트 맨 아래에 들어갑니다",
                      form.notice, "notice")}
               </>
@@ -1225,9 +1228,9 @@ export default function StudentPanel({
           })()}
           <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
             <span className="tag tag-muted" style={{ fontSize: 10.5 }}>전체</span> 로 적힌 줄은
-            맨 위 <b>공지</b> 칸에서 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
+            맨 위 <b>공지</b> 칸에서 반 전체에 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
             <br />
-            수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>에 있습니다.
+            수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>(수업 메모)에 있습니다.
           </p>
         </div>
       </div>

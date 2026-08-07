@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { showsTo } from "@/lib/notices";
 import { redirect } from "next/navigation";
 import AlertGate from "./AlertGate";
 import AlertBox from "@/components/AlertBox";
@@ -516,8 +517,10 @@ export default async function MePage({ searchParams }) {
           .gte("date", since)
           .order("date", { ascending: false }));
       }
-      // 학부모용 공지는 아이 화면에 띄우지 않는다 (0050 과 같은 이유)
-      notice2 = (rows || []).filter((n) => myRole === "parent" || n.kind !== "notice");
+      // 학부모용 공지는 아이 화면에 안 띄운다 (0050 과 같은 이유),
+      // 「수업 메모」 도 안 띄운다 — 교실에서 말하려고 적어둔 것이라
+      // 아이가 먼저 읽으면 그 말을 할 이유가 없어진다 (lib/notices)
+      notice2 = (rows || []).filter((n) => showsTo(n.kind, myRole === "parent" ? "parent" : "student"));
     }
   }
 

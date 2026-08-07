@@ -6,6 +6,7 @@ import { createNotice, deleteNotice } from "./actions";
 import { applyTasksDelivery } from "@/app/tasks/actions";
 import NoticePhotos from "@/components/NoticePhotos";
 import RequestPhotos from "@/components/RequestPhotos";
+import { NOTICE_KINDS, isMemo, isAlert } from "@/lib/notices";
 
 const SCOPES = [
   { key: "all", label: "전체" },
@@ -15,32 +16,22 @@ const SCOPES = [
 ];
 
 /**
- * **여기 적는 것은 보내는 글이 아니라 메모다** (원장님, 2026-08-07 —
- * 「수업 중에 얼굴 보고 말할 거를 잊지 않게 메모하는 용도인 거라
- *  알림이 가면 안 돼」).
+ * **다섯 갈래** (원장님, 2026-08-07 — 「공지를 다시 세분화할게」).
+ * 이름과 성질은 lib/notices.js 한 곳에만 적는다.
  *
- * 그래서 이름을 「수업 전달사항」 으로 바꿨다. 「학생용 공지」 라고 하면
- * 보내는 글처럼 읽히고, 실제로 적는 순간 아이 폰이 울렸다 —
- * 아직 아무 말도 안 했는데.
- *
- * 둘 다 **어차피 나가는 글에 실려서** 닿는다. 따로 울리지 않는다.
+ * 「공지」 로 끝나면 나가는 글에 실리고, 「알림」 으로 끝나면 지금 울리고,
+ * 「메모」 는 안 나간다. 이름만 읽으면 알 수 있게 지었다.
  */
-const KINDS = [
-  {
-    key: "deliver",
-    label: "수업 전달사항",
-    hint:
-      "수업 중 학생에게 말로 전하고, 하원 전에 전달했는지 체크합니다. " +
-      "알림은 가지 않고, 같은 내용이 그 학생의 숙제 안내에 함께 나갑니다.",
-  },
-  {
-    key: "notice",
-    label: "공지 (학부모)",
-    hint:
-      "알림은 가지 않고 데일리리포트에 함께 나갑니다. " +
-      "학생 한 명에게만 할 말은 각 학생 칸의 '공지' 에 적으세요.",
-  },
-];
+const KINDS = NOTICE_KINDS;
+
+/** 갈래마다 **다른 예**를 든다 — 예가 같으면 무엇이 다른지 알 수가 없다 */
+const PLACEHOLDER = {
+  homework: "학생에게 (숙제 안내에 실림) — 예) 다음 주 월요일은 학교 행사로 6시 시작",
+  alert_student: "학생에게 지금 바로 — 예) 오늘 눈이 많이 와서 휴원합니다",
+  notice: "학부모님께 (리포트에 실림) — 예) 이번 주 단어 시험 범위는 Unit 5~6입니다",
+  alert_parent: "학부모님께 지금 바로 — 예) 오늘 눈이 많이 와서 휴원합니다",
+  memo: "교실에서 말할 것 — 예) 지난주 결석분 보강 언제 할지 물어보기",
+};
 
 export default function TopNotices({
   date,
@@ -52,21 +43,23 @@ export default function TopNotices({
   preClass = { comments: [], requests: [] },
 }) {
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState("deliver");
+  const [kind, setKind] = useState("memo");
   const [scope, setScope] = useState("all");
   const [classId, setClassId] = useState(classes[0]?.id || "");
   const [school, setSchool] = useState("");
   const [grade, setGrade] = useState("");
   const [picked, setPicked] = useState(() => new Set());
   const [body, setBody] = useState("");
+  const [sent, setSent] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   const schools = [...new Set(students.map((s) => s.school).filter(Boolean))].sort();
   const grades = [...new Set(students.map((s) => s.grade).filter(Boolean))].sort();
 
-  const mine = notices.filter((n) => n.kind === kind);
-  const undone = notices.filter((n) => n.kind === "deliver" && n.done < n.total);
+  // 옛 「전달사항」(deliver) 은 수업 메모 자리에서 같이 보인다 — 겸하고 있었다
+  const mine = notices.filter((n) => (kind === "memo" ? isMemo(n.kind) : n.kind === kind));
+  const undone = notices.filter((n) => isMemo(n.kind) && n.done < n.total);
 
   // 지금 설정으로 몇 명에게 가는지 미리 보여준다
   const targetCount =
@@ -80,6 +73,17 @@ export default function TopNotices({
 
   function submit() {
     if (!body.trim()) return;
+    /**
+     * **울리는 것은 한 번 더 여쭙는다** (2026-08-07).
+     *
+     * 「학생 알림」 · 「학부모 알림」 은 누르는 순간 폰이 울린다.
+     * 갈래를 잘못 고른 채 적으면 **되돌릴 수가 없다** — 이미 울렸다.
+     * 안 울리는 갈래는 그냥 저장된다 (매번 물으면 잔소리가 된다).
+     */
+    if (isAlert(kind)) {
+      const who = kind === "alert_student" ? "학생" : "학부모님";
+      if (!confirm(`지금 바로 ${who} ${targetCount}명 폰에 알림이 울립니다. 보낼까요?`)) return;
+    }
     startTransition(async () => {
       const res = await createNotice({
         date,
@@ -97,6 +101,14 @@ export default function TopNotices({
       }
       setBody("");
       setPicked(new Set());
+      // **몇 대에 울렸는지 말한다.** 「보냈어요」 만으로는 안 갔을 때
+      // 알 길이 없다. 0대면 알림을 켠 사람이 없다는 뜻이다
+      if (isAlert(kind)) {
+        setSent(res?.sent > 0
+          ? `${res.sent}대에 울렸어요.`
+          : "적어두었지만 울린 폰은 없어요 — 아직 알림을 켠 분이 없습니다.");
+        setTimeout(() => setSent(""), 6000);
+      }
       router.refresh();
     });
   }
@@ -340,22 +352,21 @@ export default function TopNotices({
               className="input input-sm"
               rows={2}
               style={{ flex: 1, minWidth: 240 }}
-              placeholder={
-                kind === "deliver"
-                  ? "학생에게 — 예) 다음 주 월요일은 학교 행사로 6시 시작"
-                  : "학부모님께 — 예) 이번 주 단어 시험 범위는 Unit 5~6입니다"
-              }
+              placeholder={PLACEHOLDER[kind] || ""}
               value={body}
               onChange={(e) => setBody(e.target.value)}
             />
             <button
-              className="btn btn-primary btn-sm"
+              className={`btn btn-sm ${isAlert(kind) ? "btn-danger" : "btn-primary"}`}
               onClick={submit}
               disabled={pending || !body.trim() || targetCount === 0}
             >
-              {pending ? "저장 중…" : "추가"}
+              {/* **울리는 단추는 다른 말을 쓴다.** 「추가」 로 두면 적어두는
+                  줄 알고 눌렀다가 폰이 울린다 — 되돌릴 수가 없다 */}
+              {pending ? (isAlert(kind) ? "보내는 중…" : "저장 중…") : isAlert(kind) ? "지금 보내기" : "추가"}
             </button>
           </div>
+          {sent && <p className="hint" style={{ margin: "6px 0 0" }}>{sent}</p>}
           <p className="hint" style={{ margin: "6px 0 0" }}>
             학교에서 나눠준 종이(학사일정 · 시험 시간표 · 가정통신문)는 옮겨 적지 마시고,
             <b> 먼저 추가한 뒤 아래 목록에서 📷 로 찍어 붙이세요.</b> 받는 사람 화면에 그대로 보입니다.
@@ -370,11 +381,14 @@ export default function TopNotices({
                     <span style={{ flex: 1, minWidth: 160, fontSize: 13 }}>
                       {n.body || n.title}
                     </span>
-                    {n.kind === "deliver" && (
+                    {isMemo(n.kind) && (
                       <span className={`tag ${n.done >= n.total ? "tag-mint" : "tag-amber"}`}>
                         전달 {n.done}/{n.total}
                       </span>
                     )}
+                    {/* 옛 줄은 숙제 안내에도 실린다 — 안 적어두면 왜 문자에
+                        나오는지 모르신다 */}
+                    {n.kind === "deliver" && <span className="tag tag-muted">옛 전달사항</span>}
                     <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
                       삭제
                     </button>

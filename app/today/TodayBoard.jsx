@@ -6,6 +6,7 @@ import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
+import { isMemo } from "@/lib/notices";
 import CheckQueue from "./CheckQueue";
 import { setArrivalFor } from "./arrivalActions";
 import { setClassAttendance } from "./classAttendance";
@@ -355,7 +356,7 @@ export default function TodayBoard({
                               </span>
                             )}
                             {(() => {
-                              const d = (r.notices || []).filter((n) => n.kind === "deliver");
+                              const d = (r.notices || []).filter((n) => isMemo(n.kind));
                               const left = d.filter((n) => !n.delivered).length;
                               if (d.length === 0) return null;
                               return (
@@ -412,7 +413,7 @@ export default function TodayBoard({
                             {(() => {
                               // 아직 말 안 한 전달사항 — 열지 않아도 보이게
                               const left = (r.notices || []).filter(
-                                (n) => n.kind === "deliver" && !n.delivered
+                                (n) => isMemo(n.kind) && !n.delivered
                               ).length;
                               return left > 0 ? (
                                 <span className="tag tag-amber" title="학생에게 말할 것">
