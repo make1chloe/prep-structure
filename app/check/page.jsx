@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
 import CheckBoard from "./CheckBoard";
 import { todaySeoul, addDays } from "@/lib/day";
@@ -38,7 +39,7 @@ export default async function CheckPage({ searchParams }) {
     supabase.from("class_students").select("class_id, student_id"),
     supabase
       .from("homework_items")
-      .select("id, name, sort, in_person, unit_test")
+      .select("id, name, sort, in_person, unit_test, category")
       .eq("active", true)
       .order("sort", { ascending: true }),
   ]);
@@ -47,7 +48,9 @@ export default async function CheckPage({ searchParams }) {
     ? items
     : ((await supabase
         .from("homework_items")
-        .select("id, name, sort")
+        // 0106 전이면 unit_test 가 없다. 분류는 처음부터 있으니 챙긴다 —
+        // 이걸 빠뜨리면 「공지」 가 다시 검사 대상이 된다
+        .select("id, name, sort, category")
         .eq("active", true)
         .order("sort", { ascending: true })).data || []);
   const inPerson = new Set(itemList.filter((i) => i.in_person).map((i) => i.id));
@@ -58,8 +61,11 @@ export default async function CheckPage({ searchParams }) {
    * 아이가 결과를 내는 것이라 ○△✕ 로 매길 것이 없다. 그런데 검사 목록에
    * 남아 있으면 매일 「안 낸 숙제」 로 뜨고, 그것이 경고가 되고, 세 번이면
    * 반성문이 된다 — 안 한 적도 없는 아이가.
+   *
+   * 분류가 「공지」·「다음테스트」 인 것도 같다 (2026-08-07). 규칙은
+   * app/homework/categories.js 의 isNoCheck 한 곳에 있다.
    */
-  const unitTest = new Set(itemList.filter((i) => i.unit_test).map((i) => i.id));
+  const unitTest = new Set(itemList.filter(isNoCheck).map((i) => i.id));
 
   const classes = await loadRunningClasses(supabase, "id, name, days, start_time", date);
 

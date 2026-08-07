@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
 import TopNotices from "./TopNotices";
@@ -323,8 +324,12 @@ export default async function TodayPage({ searchParams }) {
    *   · 매일 「미완료」 로 뜬다 (아무도 매기지 않으니까)
    *   · 그것이 경고 1회가 되고, 세 번이면 반성문이 된다
    * 안 한 적도 없는 아이가 반성문 대상이 되는 것이다.
+   *
+   * **분류가 「공지」·「다음테스트」 인 것도 같다** (2026-08-07). 「교재
+   * 가져오기」 나 「다음 시간에 볼 것」 은 알리는 것이지 검사할 것이 아니다.
+   * 규칙은 app/homework/categories.js 의 isNoCheck 한 곳에 있다.
    */
-  const unitTestIds = new Set((items || []).filter((i) => i.unit_test).map((i) => i.id));
+  const unitTestIds = new Set((items || []).filter(isNoCheck).map((i) => i.id));
 
   const toCheckOf = (sid) => {
     const rid = lastAssignedReport.get(sid);

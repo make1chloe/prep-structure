@@ -159,7 +159,7 @@ echo "== 5-4-5) 쉬는 시간 알림 규칙 =="
 runjs scripts/check-breaks.mjs
 
 echo
-echo "== 5-4-6) 단원평가는 검사 대상이 아니다 =="
+echo "== 5-4-6) 검사 안 하는 항목 (공지 · 다음테스트 · 단원평가) =="
 # 여기가 무너지면 조용히 나쁜 일이 벌어진다 — 매일 「안 낸 숙제」 로 떠서
 # 경고가 쌓이고, 안 한 적도 없는 아이가 반성문 대상이 된다
 runjs scripts/check-unittest.mjs

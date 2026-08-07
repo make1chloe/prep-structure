@@ -19,9 +19,35 @@ const eq = (got, want, what) => {
 };
 const read = (p) => readFileSync(p, "utf8");
 
-console.log("== 검사 목록에서 빠지나 ==");
+console.log("== 검사 안 하는 분류 ==");
+/**
+ * 원장님 (2026-08-07) — 「학습항목 분류에 공지, 다음테스트를 넣어줘.
+ * 그래서 이 두가지는 숙제검사 항목에서 빼줘」
+ *
+ * 「교재 가져오기」 나 「다음 시간에 볼 것」 은 **알리는 것**이지 검사할
+ * 것이 아니다. 규칙을 화면마다 적으면 한 곳을 빠뜨리고, 빠뜨린 그 화면에서
+ * 경고가 쌓인다 — 한 곳에서만 정한다.
+ */
+const { CATEGORIES, NO_CHECK_CATEGORIES, isNoCheck } =
+  await import("../app/homework/categories.js");
+eq(CATEGORIES.includes("공지"), true, "분류에 「공지」");
+eq(CATEGORIES.includes("다음테스트"), true, "분류에 「다음테스트」");
+eq(CATEGORIES[CATEGORIES.length - 1], "기타", "「기타」 는 맨 끝에 그대로");
+eq(NO_CHECK_CATEGORIES, ["공지", "다음테스트"], "검사 안 하는 분류 둘");
+
+eq(isNoCheck({ category: "공지" }), true, "공지 — 검사 안 함");
+eq(isNoCheck({ category: "다음테스트" }), true, "다음테스트 — 검사 안 함");
+eq(isNoCheck({ unit_test: true, category: "문법" }), true, "단원평가 — 분류와 상관없이");
+eq(isNoCheck({ category: "문법" }), false, "문법 — 검사한다");
+eq(isNoCheck({}), false, "분류를 안 정한 것은 검사한다");
+eq(isNoCheck(null), false, "없는 값");
+
+console.log("\n== 검사 목록에서 빠지나 ==");
 const today = read("app/today/page.jsx");
 eq(today.includes("unitTestIds"), true, "오늘 수업 — 단원평가를 가려낸다");
+// 화면마다 따로 적으면 한 곳을 빠뜨린다 — 두 화면이 같은 함수를 봐야 한다
+eq(today.includes("isNoCheck"), true, "오늘 수업 — 같은 규칙을 쓴다");
+eq(read("app/check/page.jsx").includes("isNoCheck"), true, "숙제 검사 — 같은 규칙을 쓴다");
 eq(/!unitTestIds\.has\(iid\)/.test(today), true, "오늘 수업 — 검사 대상에서 뺀다");
 
 const check = read("app/check/page.jsx");
