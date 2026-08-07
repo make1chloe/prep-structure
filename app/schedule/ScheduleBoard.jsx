@@ -12,6 +12,7 @@ import { shortLabel, monthDay, todaySeoul } from "@/lib/day";
 import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
+import { mergeMockExams } from "./actions";
 import {
   sortExams, filterExams, facetsOf, termLabel, isMockExam,
   EXAM_SORTS, EXAM_SORT_DEFAULT,
@@ -622,6 +623,31 @@ export default function ScheduleBoard({
           <b>2차</b> — 영어 시험일이 확정되면 채워 넣습니다.
           그 <b>전날</b>은 정규수업이 아니어도 등원해야 하므로 알림이 뜹니다.
         </p>
+
+        {/* **모의고사는 전국이 같은 날이다 — 한 줄이면 된다** (원장님, 2026-08-07).
+            학교마다 한 줄씩 있으면 아홉 줄이 같은 시험이고, 시험 목록을 열면
+            그것만으로 화면이 찬다. 내신은 학교마다 날짜가 다르니 그대로 둔다 */}
+        {exams.some((e) => isMockExam(e) && e.school !== "전국") && (
+          <div className="notice" style={{ marginBottom: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+            <b>모의고사가 학교마다 한 줄씩 있습니다.</b> 전국이 같은 날이라 한 줄이면
+            됩니다 — 합치면 목록이 훨씬 짧아집니다.
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ marginLeft: 8 }}
+              disabled={pending}
+              onClick={() => {
+                if (!confirm("모의고사를 날짜별로 「전국」 한 줄씩으로 합칠까요?\n\n범위 자료가 붙어 있는 것은 그대로 둡니다.")) return;
+                startTransition(async () => {
+                  const r = await mergeMockExams();
+                  alert(r?.error ? r.error : r.note || "합쳤어요.");
+                  router.refresh();
+                });
+              }}
+            >
+              하나로 합치기
+            </button>
+          </div>
+        )}
 
         <div className="row" style={{ gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div className="field" style={{ width: 150 }}>

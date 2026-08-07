@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isMockExam } from "@/lib/examList";
 import { createClient } from "@/lib/supabase/server";
 import { toTeachers } from "@/lib/exams";
 
@@ -367,4 +368,93 @@ export async function keepClassOn(date, name) {
   revalidatePath("/tasks");
   revalidatePath("/");
   return { error: null };
+}
+
+/**
+ * **모의고사는 전국이 같은 날이다 — 한 줄이면 된다** (원장님, 2026-08-07 —
+ * 「모의고사 학교별 전체 아니라, 그냥 단일한 하나의 일정으로는 안돼?
+ *  2026년 9월 모의고사는 딱 1개의 데이터로만」).
+ *
+ * 지금은 학교마다 한 줄씩 있다. 연수여고 · 옥련여고 · 해송고 … 아홉 줄이
+ * 같은 날 같은 시험이다. 시험 목록을 열면 그것만으로 화면이 찬다.
+ *
+ * 내신은 학교마다 날짜가 다르니 나눠야 하지만, 모의고사는 **전국이 같은 날**
+ * 이다 (lib/scores.js 도 모의고사의 학교를 「전국」 으로 본다).
+ *
+ * ── 지우기 전에 확인한다 ────────────────────────────────
+ *
+ * 붙어 있는 것이 하나라도 있으면 안 지운다 — 범위(prep_scopes)나 나이스
+ * 일정이 붙은 줄을 지우면 그쪽이 통째로 사라진다. 모의고사에는 범위를
+ * 안 넣으시니 대개 걸릴 것이 없지만, **확인하지 않고 지우는 것이 사고다.**
+ *
+ * @param dates 합칠 날짜들 (안 주면 앞으로의 것 전부)
+ */
+export async function mergeMockExams(dates = null) {
+  const supabase = createClient();
+  const { data: all, error } = await supabase
+    .from("exam_periods")
+    .select("id, school, grade, name, from_date, to_date, english_on, neis_source_id, hidden");
+  if (error) return { error: error.message, merged: 0 };
+
+  const mock = (all || []).filter((e) => isMockExam(e));
+  if (mock.length === 0) return { error: null, merged: 0, note: "합칠 모의고사가 없어요." };
+
+  // 같은 날 = 같은 시험
+  const byDate = new Map();
+  mock.forEach((e) => {
+    if (dates && !dates.includes(e.from_date)) return;
+    if (!byDate.has(e.from_date)) byDate.set(e.from_date, []);
+    byDate.get(e.from_date).push(e);
+  });
+
+  // 범위가 붙은 줄은 건드리지 않는다
+  const { data: scopes } = await supabase.from("prep_scopes").select("exam_id");
+  const hasScope = new Set((scopes || []).map((s) => s.exam_id));
+
+  let merged = 0;
+  let kept = 0;
+  const skipped = [];
+
+  for (const [date, list] of byDate) {
+    if (list.length < 2) continue;
+    // 남길 것 — 나이스가 붙어 있는 줄을 먼저, 없으면 아무거나
+    const keep = list.find((e) => e.neis_source_id) || list[0];
+    const drop = list.filter((e) => e.id !== keep.id && !hasScope.has(e.id));
+    const stuck = list.filter((e) => e.id !== keep.id && hasScope.has(e.id));
+    if (stuck.length) skipped.push(`${date} ${stuck.length}건 (범위가 붙어 있음)`);
+
+    // 남는 줄을 **전국 한 줄**로
+    const { error: uErr } = await supabase
+      .from("exam_periods")
+      .update({
+        school: "전국",
+        grade: null,
+        name: keep.name || "모의고사",
+      })
+      .eq("id", keep.id);
+    if (uErr) return { error: uErr.message, merged };
+    kept += 1;
+
+    if (drop.length) {
+      const { error: dErr } = await supabase
+        .from("exam_periods")
+        .delete()
+        .in("id", drop.map((e) => e.id));
+      if (dErr) return { error: dErr.message, merged };
+      merged += drop.length;
+    }
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/prep");
+  return {
+    error: null,
+    merged,
+    kept,
+    note:
+      merged === 0
+        ? "합칠 것이 없었어요 (이미 한 줄씩입니다)."
+        : `${kept}개 시험을 「전국」 한 줄로 합쳤어요 (${merged}줄 정리).` +
+          (skipped.length ? ` 범위가 붙은 것은 그대로 뒀습니다 — ${skipped.join(", ")}` : ""),
+  };
 }
