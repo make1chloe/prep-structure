@@ -25,13 +25,18 @@ export const dynamic = "force-dynamic";
  * 짧은 이름이 「학부모」 라서 **「전달사항 from 학부모」** 로 읽혔다 —
  * 어머니가 보내신 것처럼 보인다. 어디서 온 알림인지가 거꾸로 된 것이다.
  *
- * 학원 이름이 앞에 와야 한다. 아이콘 밑에도 이 이름이 적히므로 길면
- * 잘린다 — 「클로이 학부모」 정도가 둘 다 된다.
+ * 학원 이름이 앞에 와야 한다. 그리고 **「…용」** 을 붙인다 —
+ * 「from 클로이 학부모」 는 여전히 「학부모가 보낸 것」 으로 읽히지만,
+ * 「from 클로이 학부모용」 은 **학부모용 앱이 받았다** 로 읽힌다.
+ *
+ * 아이폰이 붙이는 이 말은 **누가 보냈나가 아니라 어느 앱이 받았나**다.
+ * 없앨 수는 없으므로, 오해가 덜 생기게 적는다.
+ * (아이콘 밑에도 이 이름이 적히므로 길면 잘린다 — 이 정도가 둘 다 된다)
  */
 const ROLES = {
-  principal: { name: "클로이영어 원장", short: "클로이 원장", role: "principal" },
-  parent: { name: "클로이영어 학부모", short: "클로이 학부모", role: "parent" },
-  student: { name: "클로이영어 학생", short: "클로이 학생", role: "student" },
+  principal: { name: "클로이영어 원장용", short: "클로이 원장용", role: "principal" },
+  parent: { name: "클로이영어 학부모용", short: "클로이 학부모용", role: "parent" },
+  student: { name: "클로이영어 학생용", short: "클로이 학생용", role: "student" },
 };
 
 export async function GET(_req, { params }) {

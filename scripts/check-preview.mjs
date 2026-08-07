@@ -77,8 +77,32 @@ console.log("\n== 「from 학부모」 ==");
  * 어머니가 보내신 것처럼. 어디서 온 알림인지가 거꾸로였다.
  */
 const mani = read("app/manifest/[role]/route.js");
-eq(/short: "클로이 학부모"/.test(mani), true, "학원 이름이 앞에 온다");
-eq(/short: "학부모"/.test(mani), false, "옛 이름이 남아 있다");
+eq(/short: "클로이 학부모용"/.test(mani), true, "학원 이름이 앞에 오고 「용」 이 붙는다");
+/**
+ * 「from 클로이 학부모」 는 여전히 「학부모가 보낸 것」 으로 읽힌다 —
+ * 실제로 원장님이 그렇게 읽으셨다. 「…용」 이 붙어야 「학부모용 앱이
+ * 받았다」 가 된다. 아이폰이 붙이는 이 말은 **누가 보냈나가 아니라
+ * 어느 앱이 받았나**다.
+ */
+eq(/short: "(클로이 )?학부모"/.test(mani), false, "「용」 이 없으면 보낸 사람으로 읽힌다");
+
+console.log("\n== 제출한 것은 원장님께만 ==");
+/**
+ * 원장님 (2026-08-07) — 「학생·학부모가 제출하면 원장 어플에 떠야지,
+ * 그게 왜 학생·학부모한테 떠」
+ *
+ * 실제로는 그렇게 돌고 있었다 — 「from ○○」 를 보낸 사람으로 읽으신 것이다.
+ * 그래도 **그렇게 도는지**는 못 박아 둔다. 여기가 뒤집히면 어머니 폰에
+ * 어머니가 보낸 글이 다시 오게 된다.
+ */
+const req = read("app/requests/actions.js");
+const create = req.slice(req.indexOf("export async function createRequest"),
+                         req.indexOf("export async function handleRequest"));
+eq(/pushToStaff\(/.test(create), true, "제출하면 선생님께 간다");
+eq(/pushToFamilies\(/.test(create), false, "제출한 집으로는 안 간다");
+// 답장은 반대로 — 그건 집으로 가야 한다
+const handle = req.slice(req.indexOf("export async function handleRequest"));
+eq(/pushToFamilies\(/.test(handle), true, "선생님 답장은 집으로 간다");
 
 console.log("\n== 학부모 화면은 한 줄 ==");
 // 왜 켜야 하는지·요금 이야기는 다 맞는 말이지만 첫 화면에서 읽으실 글이 아니다

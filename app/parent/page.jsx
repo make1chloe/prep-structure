@@ -914,7 +914,8 @@ export default async function ParentPage({ searchParams }) {
         {/* **알림 — 켜고 · 끄고 · 밤에는 안 울리게** (원장님, 2026-08-07).
             학부모 화면에는 켜는 버튼이 아예 없었다. 알림톡을 끊었으니
             전달사항이 닿는 길은 이 앱 알림뿐인데 켤 방법이 없었다. */}
-        {!preview && <AlertBox />}
+        {/* 어머니 화면도 짧게 (2026-08-07) — 켜기·끄기와 방해금지 시간만 */}
+        {!preview && <AlertBox brief />}
 
         {preview ? (
           <Link className="btn btn-ghost btn-block" href="/students">재원생으로 돌아가기</Link>
