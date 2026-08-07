@@ -50,12 +50,18 @@ console.log("\n== 제목으로도 안 샌다 ==");
  * 본문을 감춰도 **제목으로 새면** 감춘 것이 아니다. 공지 알림의 제목은
  * 원장님이 쓰신 첫 줄(`head`) 그대로였다.
  */
-const today = read("app/today/actions.js");
-eq(today.includes('title: toParent ? "공지사항" : "전달사항"'), true, "제목은 종류만");
-// 앱 안에 저장하는 제목(notices.title)은 그대로 둔다 — 그건 안 새는 자리다.
-// 새던 것은 **알림에 실리는 제목**이었다
-const payloadPart = today.slice(today.indexOf("await pushToFamilies("));
-eq(/title: head/.test(payloadPart), false, "공지 첫 줄을 알림 제목에 쓰던 것이 남아 있다");
+/**
+ * 오늘 수업의 공지·전달사항은 2026-08-07 에 **알림 자체를 끊었다**
+ * (수업 중 얼굴 보고 말할 메모라서). 그래서 여기서 샐 제목도 없어졌다 —
+ * 그것을 scripts/check-notice.mjs 가 지킨다.
+ *
+ * 남아서 알리는 것들의 제목은 **종류 이름**이어야 한다. 본문을 감춰도
+ * 제목으로 새면 감춘 것이 아니다.
+ */
+const resend = read("app/resend/actions.js");
+eq(/title: noticeLabel\(k\)/.test(resend), true, "재발송 알림 제목은 종류 이름");
+const notices = read("app/report/noticeActions.js");
+eq(/const title = noticeLabel\(kind\)/.test(notices), true, "안내 알림 제목도 종류 이름");
 
 console.log("\n== 뭐라고 적히나 ==");
 eq(OPEN_TO_SEE, "앱에서 확인해주세요.", "미리보기에 적히는 한 줄");

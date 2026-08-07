@@ -162,7 +162,7 @@ export default function AheadBoard({
         style={{ marginTop: 12 }}
         onClick={() => setOpen(true)}
       >
-        다음 수업 숙제 · 공지 미리 넣기
+        다음 수업 숙제 · 전달사항 미리 넣기
       </button>
     );
   }
@@ -248,7 +248,7 @@ export default function AheadBoard({
         <div className="row" style={{ gap: 4, marginBottom: 10 }}>
           {[
             ["homework", "숙제 내기"],
-            ["notice", "공지 · 전달사항"],
+            ["notice", "수업 전달사항 · 공지"],
           ].map(([k, l]) => (
             <button
               key={k}
@@ -429,7 +429,8 @@ export default function AheadBoard({
             {datePicker(noticeDate, setNoticeDate, "날짜")}
             <div className="row" style={{ gap: 4, marginBottom: 8 }}>
               {[
-                ["deliver", "전달사항 (학생에게)"],
+                // 알림은 안 간다 — 어차피 나가는 글에 실려서 닿는다 (2026-08-07)
+                ["deliver", "수업 전달사항"],
                 ["notice", "공지 (학부모 리포트)"],
               ].map(([k, l]) => (
                 <button

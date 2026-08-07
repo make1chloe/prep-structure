@@ -87,7 +87,9 @@ eq(gate.includes("선생님께 말해주세요"), false, "강제로 뜨는 안�
 console.log("\n== 방해금지는 학생도 쓸 수 있어야 한다 ==");
 // 안 열어두면 아이는 폰 설정에서 알림을 통째로 꺼버린다 — 그러면 우리는
 // 알 수조차 없다
-eq(me.includes("<AlertBox />"), true, "학생 화면에 알림 칸(방해금지 포함)이 있다");
+// 2026-08-07 에 **맨 아래로** 내렸다 (원장님 — 「알림 켜면 끄기랑 방해금지
+// 모드 설정만 남기고 페이지 맨밑으로」). 어디에 있든 **있기는 해야 한다**
+eq(/<AlertBox\b/.test(me), true, "학생 화면에 알림 칸(방해금지 포함)이 있다");
 eq(readFileSync("app/parent/page.jsx", "utf8").includes("<AlertBox />"), true,
    "학부모 화면에도 같은 칸");
 

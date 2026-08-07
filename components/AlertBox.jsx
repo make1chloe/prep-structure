@@ -19,7 +19,15 @@ import { quietLabel } from "@/lib/quiet";
  * 대부분은 **밤에 안 울리기를** 바라시는 것이다. 끄는 것 말고 **시간만
  * 비켜가는** 길이 있으면 켜둔 채로 지내신다 — 그게 서로에게 낫다.
  */
-export default function AlertBox() {
+/**
+ * @param brief  **켜기·끄기와 방해금지 시간만** (원장님, 2026-08-07 —
+ *   「알림 켜면 끄기랑 방해금지 모드 설정만 남기고 페이지 맨 밑으로
+ *    내려줘」).
+ *
+ *   아이 화면 맨 위가 설명으로 시작하면, 정작 「지금 할 것」 이 한 화면
+ *   아래로 밀린다. 한 번 켜고 나면 다시 볼 일이 없는 칸이다.
+ */
+export default function AlertBox({ brief = false }) {
   const [q, setQ] = useState(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -53,7 +61,7 @@ export default function AlertBox() {
     <div className="card">
       <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>알림</h2>
 
-      <PushToggle />
+      <PushToggle brief={brief} />
 
       {q?.ready === false ? (
         <p className="hint" style={{ margin: "10px 0 0" }}>
@@ -67,11 +75,21 @@ export default function AlertBox() {
               그걸 그대로 두면 잠결에 울리는 폰 때문에 알림을 **통째로**
               꺼버리시고, 그러면 우리는 아무것도 못 알린다 */}
           <p className="hint" style={{ margin: "4px 0 8px", lineHeight: 1.7 }}>
-            이 시간에는 알림이 오지 않습니다. 밤 시간처럼 <b>날을 넘겨</b> 정하셔도 됩니다.
-            {now && <> 지금은 <b>{now}</b> 입니다.</>}
-            {q?.isDefault && <span className="tag tag-muted" style={{ marginLeft: 6 }}>기본값</span>}
-            <br />
-            <b>늦은 시간에 알림이 발송될 수 있으니 켜 놓는 것을 권장드립니다.</b>
+            {brief ? (
+              <>
+                이 시간에는 알림이 오지 않습니다.
+                {now && <> 지금은 <b>{now}</b>.</>}
+                {q?.isDefault && <span className="tag tag-muted" style={{ marginLeft: 6 }}>기본값</span>}
+              </>
+            ) : (
+              <>
+                이 시간에는 알림이 오지 않습니다. 밤 시간처럼 <b>날을 넘겨</b> 정하셔도 됩니다.
+                {now && <> 지금은 <b>{now}</b> 입니다.</>}
+                {q?.isDefault && <span className="tag tag-muted" style={{ marginLeft: 6 }}>기본값</span>}
+                <br />
+                <b>늦은 시간에 알림이 발송될 수 있으니 켜 놓는 것을 권장드립니다.</b>
+              </>
+            )}
           </p>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
-import { pushToFamilies, pushToStudents } from "@/app/push/actions";
+import { pushToStudents } from "@/app/push/actions";
 import { dowOf } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 
@@ -422,38 +422,29 @@ export async function createNotice(input) {
   if (rErr) return { error: rErr.message };
 
   /**
-   * **올렸으면 알린다** (원장님, 2026-08-06).
+   * **여기서는 알림을 안 보낸다** (원장님, 2026-08-07 —
+   * 「수업 중에 얼굴 보고 말할 거를 잊지 않게 메모하는 용도인 거라
+   *  알림이 가면 안 돼」 · 「공지는 알림 없이 숙제에 포함되었으면」).
    *
-   * 「일정 관련 안내가 나갈 때」 는 학생에게 알림이 가야 한다. 올려두기만 하면
-   * 앱을 열어야 알고, 앱을 여는 것은 대개 숙제할 때다 — 그때는 이미 늦다.
+   * ── 무엇을 잘못 알고 있었나 ─────────────────────────────
    *
-   * 학부모 공지(kind='notice')는 아이 화면에 안 뜨므로 **어머니 폰으로만**
-   * 보낸다. 안 보이는 것을 알리면 아이는 그다음부터 알림을 안 누른다.
-   * 알림이 실패해도 공지는 이미 올라가 있다.
+   * 예전에는 「올렸으면 알린다」 였다. 올려두기만 하면 앱을 열어야 아는데
+   * 앱은 대개 숙제할 때 여니까 늦다는 생각이었다.
+   *
+   * 그런데 이 화면의 공지는 **보내는 글이 아니라 원장님의 메모**다.
+   * 수업 중에 얼굴 보고 말할 것을 잊지 않으려고 적어두는 자리다 —
+   * 말은 교실에서 하고, 여기 체크는 「말했다」 는 표시일 뿐이다.
+   * 그런데 적는 순간 아이 폰이 울렸다. 아직 아무 말도 안 했는데.
+   *
+   * ── 그럼 어떻게 닿나 ────────────────────────────────────
+   *
+   *   수업 전달사항(deliver)   교실에서 말로 + 그날 숙제 안내에 함께
+   *   공지(notice)             데일리리포트에 함께
+   *
+   * 둘 다 **어차피 나가는 글에 실려서** 간다. 따로 울릴 이유가 없다.
+   * 정말 지금 알려야 하는 것은 발송 화면의 「안내」 로 보내신다 —
+   * 그건 보내려고 여는 자리라 울리는 것이 맞다.
    */
-  try {
-    const toParent = row.kind === "notice";
-    await pushToFamilies(
-      targets,
-      {
-        /**
-         * **제목에도 내용을 안 넣는다** (원장님, 2026-08-07 —
-         * 「미리보기에서 내용 알 수 없게 해줘. 그냥 공지사항 전달사항」).
-         *
-         * 여기 `head` 는 공지의 첫 줄, 곧 **원장님이 쓰신 말 그대로**였다.
-         * 본문을 감춰도 제목으로 새면 감춘 것이 아니다.
-         *
-         * 본문은 pushToFamilies 가 한 번 더 지운다 — 여기서는 제목만 본다.
-         */
-        title: toParent ? "공지사항" : "전달사항",
-        url: toParent ? "/parent" : "/me",
-        tag: `notice-${notice.id}`,
-      },
-      toParent ? "parent" : "all"
-    );
-  } catch {
-    /* 알림 실패는 무시한다 */
-  }
 
   revalidatePath("/today");
   revalidatePath("/me");

@@ -158,7 +158,7 @@ try {
     { at: "/", label: "＋ 할일", then: async (p) => p.locator('input[placeholder*="예)"]').first().isVisible() },
     { at: "/plan", label: "보강", then: async (p) => (await p.locator("text=잡아둔 보강, text=보강 잡을 것").count()) >= 0 },
     { at: "/plan", label: "지난 수업 고치기", then: async (p) => p.locator('text=불러오기').first().isVisible() },
-    { at: "/check", label: "다음 수업 숙제 · 공지 미리 넣기", then: async (p) => p.locator("text=숙제 내기").first().isVisible() },
+    { at: "/check", label: "다음 수업 숙제 · 전달사항 미리 넣기", then: async (p) => p.locator("text=숙제 내기").first().isVisible() },
     { at: "/settings", label: "운영 규칙", then: async (p) => p.locator("text=경고 · 반성문 규칙").first().isVisible() },
     { at: "/settings", label: "연동 · 키", then: async (p) => p.locator("text=발송 방식").first().isVisible() },
     /**
@@ -316,7 +316,10 @@ async function roundTrip() {
     await p2.getByRole("button", { name: /미리 넣기/ }).first().click();
     await p2.waitForTimeout(600);
     await p2.getByRole("button", { name: "보이는 학생 전체", exact: true }).first().click();
-    await p2.getByRole("button", { name: /전달사항/ }).first().click();
+    // 바깥 칸(숙제 내기 / 수업 전달사항 · 공지) 을 먼저, 그다음 안쪽에서 고른다
+    await p2.getByRole("button", { name: "수업 전달사항 · 공지", exact: true }).first().click();
+    await p2.waitForTimeout(400);
+    await p2.getByRole("button", { name: "수업 전달사항", exact: true }).first().click();
     await p2.waitForTimeout(400);
     // 날짜는 오늘로 — 학생 화면이 오늘 것을 보여준다
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);

@@ -1048,13 +1048,7 @@ export default async function MePage({ searchParams }) {
         ) : acting ? (
           <TryoutBar studentId={student.id} name={student.name} />
         ) : (
-          <>
-            <InstallHint />
-            {/* 켜기·끄기와 **방해금지 시간**을 한 칸에. 방해금지를 안 열어두면
-                아이는 폰 설정에서 알림을 통째로 꺼버린다 — 그러면 우리는
-                알 수조차 없다 (원장님, 2026-08-07) */}
-            <AlertBox />
-          </>
+          <InstallHint />
         )}
         {/* 홈 화면에 담은 앱에는 주소창이 없다 — 여기 없으면 새로고침할 방법이 없다.
             아이 화면이라 오른쪽 끝에 작게 둔다 (누를 일이 자주 있으면 안 된다) */}
@@ -1094,6 +1088,17 @@ export default async function MePage({ searchParams }) {
           );
           return preview || acting ? inner : <AlertGate>{inner}</AlertGate>;
         })()}
+
+        {/**
+          * **알림 설정은 맨 아래** (원장님, 2026-08-07 — 「알림 켜면 끄기랑
+          * 방해금지 모드 설정만 남기고 페이지 맨 밑으로 내려줘」).
+          *
+          * 맨 위에 있으면 아이가 앱을 열 때마다 설명부터 읽게 되고, 정작
+          * 「지금 할 것」 이 한 화면 아래로 밀린다. **한 번 켜고 나면 다시
+          * 볼 일이 없는 칸**이다 — 꺼져 있을 때는 어차피 AlertGate 가
+          * 화면 앞에서 막아선다.
+          */}
+        {!preview && !acting && <AlertBox brief />}
 
         <form action="/logout" method="post">
           <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>

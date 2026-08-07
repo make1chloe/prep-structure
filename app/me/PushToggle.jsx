@@ -52,7 +52,7 @@ export default function PushToggle({ onlyWhenOff = false, warn = false, brief = 
         return;
       }
       setState("on");
-      setMsg("이제 숙제가 올라오면 알림이 옵니다.");
+      setMsg("켜졌어요.");
     });
   }
 
