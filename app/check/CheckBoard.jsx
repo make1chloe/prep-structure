@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { checkOne, seenSubmission, autoAssign, markMissing } from "./actions";
 import Link from "next/link";
 import { viewUrl } from "@/app/me/submitActions";
+import PhotoView from "@/components/PhotoView";
 import { addDays } from "@/lib/day";
 
 // 색은 오늘 수업 화면과 같은 것을 쓴다 — 같은 뜻이 화면마다 다른 색이면 안 된다
@@ -35,6 +36,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
   const [q, setQ] = useState("");                 // 학생 이름 찾기
   const [open, setOpen] = useState({});           // 펼친 학생
   const [url, setUrl] = useState({});             // 낸 것 보기 링크
+  const [save, setSave] = useState({});           // 받기 링크 (여는 것과 다르다)
   const [note, setNote] = useState({});           // 아직 저장 안 한 한 줄
   const [showDone, setShowDone] = useState(false);
   const [mode, setMode] = useState("student");   // student | item
@@ -71,12 +73,18 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
     });
   }
 
+  /**
+   * 볼 주소와 **받을 주소는 다르다** (2026-08-07). 같은 파일이지만 받는
+   * 쪽은 브라우저에게 「열지 말고 받아라」 를 같이 일러줘야 한다.
+   */
   function show(s) {
     if (url[s.id]) { setUrl((u) => ({ ...u, [s.id]: null })); return; }
     startTransition(async () => {
       const res = await viewUrl(s.path);
       if (res?.error) { alert(res.error); return; }
       setUrl((u) => ({ ...u, [s.id]: res.url }));
+      const dl = await viewUrl(s.path, true);
+      if (dl?.url) setSave((m) => ({ ...m, [s.id]: dl.url }));
     });
   }
 
@@ -209,10 +217,20 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                       </div>
                     )}
 
-                    {/* 낸 것 — 열어보고 찍는다 */}
-                    {r.subs.length > 0 && (
+                    {/**
+                      * **어느 숙제에도 안 붙는 것만 위에 남긴다** (2026-08-07).
+                      *
+                      * 숙제에 붙는 것은 그 숙제 줄에서 본다. 그런데 배정이
+                      * 지워졌거나 항목 없이 올린 것은 **어디에도 안 붙는다** —
+                      * 그것까지 감추면 아이가 낸 것이 조용히 사라진다.
+                      */}
+                    {(() => {
+                      const inRow = new Set(r.toCheck.map((c) => c.id));
+                      const loose = (r.subs || []).filter((s) => !inRow.has(s.homework_item_id));
+                      if (loose.length === 0) return null;
+                      return (
                       <div className="stack" style={{ gap: 6, marginBottom: 10 }}>
-                        {r.subs.map((s) => (
+                        {loose.map((s) => (
                           <div key={s.id} className="stack" style={{ gap: 4 }}>
                             <div className="unitrow">
                               <span className={`tag ${s.checked_at ? "tag-muted" : "tag-amber"}`}>
@@ -256,19 +274,16 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                             {url[s.id] && s.kind === "audio" && (
                               <audio controls src={url[s.id]} style={{ width: "100%" }} />
                             )}
+                            {/* 아이들은 공책을 아무 방향으로나 찍는다 —
+                                돌리고 키우고 받는 것을 여기서 한다 (2026-08-07) */}
                             {url[s.id] && s.kind === "photo" && (
-                              <a href={url[s.id]} target="_blank" rel="noreferrer">
-                                <img
-                                  src={url[s.id]}
-                                  alt=""
-                                  style={{ maxWidth: "100%", borderRadius: 8, display: "block" }}
-                                />
-                              </a>
+                              <PhotoView url={url[s.id]} save={save[s.id]} alt="낸 숙제" />
                             )}
                           </div>
                         ))}
                       </div>
-                    )}
+                      );
+                    })()}
 
                     {/* 검사 — 3주 안에 배정했는데 아직 안 본 것 */}
                     {r.toCheck.length === 0 ? (
@@ -285,6 +300,9 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                         {r.toCheck.map((c) => {
                           const key = `${r.student.id}:${c.id}`;
                           const cur = r.marks[c.id] || null;
+                          // 이 숙제로 낸 것 (사진·녹음) — 위 목록과 같은 것이지만
+                          // 여기 붙여야 눈이 위아래로 안 오간다
+                          const mine = (r.subs || []).filter((x) => x.homework_item_id === c.id);
                           return (
                             <div className="stack" key={c.id} style={{ gap: 3 }}>
                               <div className="unitrow">
@@ -330,6 +348,47 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                                   ))}
                                 </span>
                               </div>
+                              {/**
+                                * **낸 것을 이 줄에서 바로 본다** (원장님,
+                                * 2026-08-07 — 「그 사진을 보면서 숙제 체크할
+                                * 수 있어?」).
+                                *
+                                * 위쪽에 「낸 것」 목록이 따로 있어서, **이
+                                * 사진이 어느 숙제 것인지 이름으로 눈을
+                                * 맞춰야** 했다. 항목이 다섯이면 다섯 번 위아래를
+                                * 오간다. 낸 것은 그 숙제에 딸린 것이니 그 줄에 붙인다.
+                                */}
+                              {mine.length > 0 && (
+                                <div className="stack" style={{ gap: 4, marginLeft: 8 }}>
+                                  {mine.map((s) => (
+                                    <div key={s.id} className="stack" style={{ gap: 4 }}>
+                                      <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                                        <span className="tag tag-sky" style={{ fontSize: 10.5 }}>
+                                          {KIND[s.kind] || "사진"}
+                                        </span>
+                                        {s.path ? (
+                                          <button
+                                            className="btn btn-ghost btn-sm"
+                                            style={{ padding: "2px 8px" }}
+                                            disabled={pending}
+                                            onClick={() => show(s)}
+                                          >
+                                            {url[s.id] ? "닫기" : s.kind === "audio" ? "들어보기" : "보기"}
+                                          </button>
+                                        ) : (
+                                          <span className="hint" style={{ fontSize: 11 }}>보관 기간 지남</span>
+                                        )}
+                                      </div>
+                                      {url[s.id] && s.kind === "audio" && (
+                                        <audio controls src={url[s.id]} style={{ width: "100%" }} />
+                                      )}
+                                      {url[s.id] && s.kind === "photo" && (
+                                        <PhotoView url={url[s.id]} save={save[s.id]} alt="낸 숙제" max={320} />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                               {/* 한 줄 — ○△✕ 만으로는 나중에 아무것도 기억나지 않는다 */}
                               <input
                                 className="input input-sm"

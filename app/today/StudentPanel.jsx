@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
+import MakeupHere from "./MakeupHere";
 import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
 import BookProgress from "./BookProgress";
 import StudentBooks from "./StudentBooks";
@@ -575,6 +576,19 @@ export default function StudentPanel({
           )}
         </div>
       </div>
+
+      {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
+          순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
+          옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
+          나중에 하기로 하면 나중은 오지 않는다 */}
+      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
+        <MakeupHere
+          studentId={row.student.id}
+          date={date}
+          name={row.student.name}
+          already={row.makeupOn || null}
+        />
+      )}
 
 
       {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}

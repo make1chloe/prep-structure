@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { uploadRequestPhoto, dropRequestPhoto, requestPhotoUrls } from "@/app/requests/photoActions";
+import PhotoView from "./PhotoView";
 
 /**
  * 알림에 붙는 사진 (0068).
@@ -19,6 +20,8 @@ export default function RequestPhotos({
   small = false,
 }) {
   const [urls, setUrls] = useState({});
+  const [saves, setSaves] = useState({});   // 받기 링크 (여는 것과 다르다)
+  const [open, setOpen] = useState(null);   // 크게 열어둔 사진
   const [pending, startTransition] = useTransition();
   const fileRef = useRef(null);
 
@@ -30,7 +33,9 @@ export default function RequestPhotos({
       return () => {};
     }
     requestPhotoUrls(paths).then((r) => {
-      if (alive) setUrls(r?.urls || {});
+      if (!alive) return;
+      setUrls(r?.urls || {});
+      setSaves(r?.saves || {});
     });
     return () => {
       alive = false;
@@ -78,27 +83,31 @@ export default function RequestPhotos({
             const isPdf = p.toLowerCase().endsWith(".pdf");
             return (
               <div key={p} style={{ position: "relative" }}>
-                <a
-                  href={url || "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => !url && e.preventDefault()}
-                >
-                  {isPdf || !url ? (
+                {/**
+                  * **누르면 그 자리에서 열린다** (2026-08-07 — 「사진방향을
+                  * 돌리거나 확대가능할까」). 새 창으로 나가면 읽던 자리를
+                  * 잃는다 — 돌아와서 어디까지 봤는지 다시 찾아야 한다.
+                  * PDF 는 브라우저가 여는 것이 낫다.
+                  */}
+                {isPdf || !url ? (
+                  <a href={url || "#"} target="_blank" rel="noreferrer"
+                     onClick={(e) => !url && e.preventDefault()}>
                     <span className="tag tag-sky" style={{ display: "inline-block", padding: "8px 10px" }}>
                       {isPdf ? "PDF" : "…"}
                     </span>
-                  ) : (
-                    <img
-                      src={url}
-                      alt="붙인 사진"
-                      style={{
-                        width: size, height: size, objectFit: "cover",
-                        borderRadius: 8, border: "1px solid var(--border)",
-                      }}
-                    />
-                  )}
-                </a>
+                  </a>
+                ) : (
+                  <img
+                    src={url}
+                    alt="붙인 사진"
+                    onClick={() => setOpen(open === p ? null : p)}
+                    style={{
+                      width: size, height: size, objectFit: "cover",
+                      borderRadius: 8, border: "1px solid var(--border)",
+                      cursor: "pointer",
+                    }}
+                  />
+                )}
                 {!readOnly && (
                   <button
                     className="btn btn-ghost btn-sm"
@@ -113,6 +122,10 @@ export default function RequestPhotos({
             );
           })}
         </div>
+      )}
+
+      {open && urls[open] && (
+        <PhotoView url={urls[open]} save={saves[open]} alt="붙인 사진" />
       )}
 
       {!readOnly && (

@@ -6,11 +6,28 @@ import PrincipalOnly from "@/components/PrincipalOnly";
 import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
 import GuideBox from "./GuideBox";
+import NeisKeyBox from "./NeisKeyBox";
+import AiBox from "./sql/AiBox";
 import { loadSettings, maskSecret } from "@/lib/settings";
 import { inquiryAlertReady, inquiryAlertName } from "@/app/apply/notify";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * **넣는 것은 여기 한 곳** (원장님, 2026-08-07 — 「api, 솔라피, 등등
+ * 입력값이 필요한걸 한페이지에 모아야하지 않을까?」).
+ *
+ * 열쇠가 네 군데로 흩어져 있었다 —
+ *   솔라피 · 앱 알림   설정 (여기)
+ *   나이스 인증키      학교 · 시험 화면 안
+ *   AI 키              설정 → Supabase · AI 키
+ *
+ * 각각은 그 자리에 있을 이유가 있었다 (나이스는 학사일정을 받는 자리니까).
+ * 그런데 **열쇠를 넣으려는 사람은 「어느 화면이었더라」 부터 떠올려야 했다.**
+ * 쓰는 자리와 넣는 자리는 다르다. 넣는 것은 한 번이고, 쓰는 것은 매일이다.
+ *
+ * 노션 이관·SQL 처럼 **다 만들고 나면 안 여는 것**은 「관리자」 로 뺐다.
+ */
 export default async function SettingsPage() {
   const supabase = createClient();
   const {
@@ -25,7 +42,7 @@ export default async function SettingsPage() {
 
   // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
   if (profile?.role !== "principal") {
-    return <PrincipalOnly profile={profile} what="발송 · 연동 설정" />;
+    return <PrincipalOnly profile={profile} what="연동 · 설정" />;
   }
   const canEdit = profile?.role === "principal";
 
@@ -36,6 +53,11 @@ export default async function SettingsPage() {
     .eq("id", "push")
     .maybeSingle();
   const pushReady = !!pushRow?.config?.publicKey;
+  const { data: aiRow } = await supabase
+    .from("integrations")
+    .select("config")
+    .eq("id", "anthropic")
+    .maybeSingle();
   // 신규 상담 접수 알림은 서버 열쇠가 있어야 나간다 (로그인 없는 화면이라)
   const inquiryAlert = inquiryAlertReady();
   const inquiryAlertVar = inquiryAlertName();
@@ -66,27 +88,43 @@ export default async function SettingsPage() {
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">설정</p>
-          <h1 className="h1">발송 · 연동</h1>
+          <h1 className="h1">연동 · 설정</h1>
           <Help>
             <p className="sub">
-              문자 발송 방식과 키를 여기서 바꿉니다. 바꿔도 다시 배포할 필요가 없어요.
+              키와 발송 방식은 <b>연동 · 키</b>, 반성문·단어 통과선 같은 것은 <b>운영 규칙</b> 에 있습니다.
+              바꿔도 다시 배포할 필요가 없어요.
             </p>
           </Help>
         </div>
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="row" style={{ gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 14 }}>Supabase SQL</b>
-            <span className="hint" style={{ flex: 1 }}>
-              새 기능을 넣으면 표를 한 번 만들어줘야 합니다. 여기서 복사해 Supabase 에 붙여넣으세요.
-            </span>
-            <Link className="btn btn-ghost btn-sm" href="/settings/sql">
-              SQL 열기
-            </Link>
-          </div>
-        </div>
         <NetBox />
         <GuideBox />
-        <SettingsForm view={view} unavailable={!s.available} canEdit={canEdit} pushReady={pushReady} inquiryAlert={inquiryAlert} inquiryAlertVar={inquiryAlertVar} />
+        <SettingsForm
+          view={view}
+          unavailable={!s.available}
+          canEdit={canEdit}
+          pushReady={pushReady}
+          inquiryAlert={inquiryAlert}
+          inquiryAlertVar={inquiryAlertVar}
+          extras={
+            <>
+              <NeisKeyBox />
+              <AiBox saved={!!aiRow?.config?.key} />
+            </>
+          }
+        />
+
+        {/* **다 만들고 나면 안 여는 것들** (원장님, 2026-08-07 — 「노션이관과
+            sql db등 웹앱 자체가 완성되고 나면 안쓰는 기능들은 따로 모아줘」).
+            매일 쓰는 것과 같은 줄에 있으면 눈으로 걸러야 한다 */}
+        <div className="card" style={{ marginTop: 14, opacity: 0.85 }}>
+          <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13.5 }}>관리자</b>
+            <span className="hint" style={{ flex: 1 }}>
+              처음 한 번 하고 거의 안 여는 것 — 표 만들기 · 옛 자료 옮기기 · 아이콘
+            </span>
+            <Link className="btn btn-ghost btn-sm" href="/settings/admin">열기 ›</Link>
+          </div>
+        </div>
       </main>
     </>
   );

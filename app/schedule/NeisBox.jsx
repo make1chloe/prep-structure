@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import {
-  saveNeisKey, neisReady, searchSchools, addSchool, removeSchool, listSchools,
+  neisReady, searchSchools, addSchool, removeSchool, listSchools,
   importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports,
 } from "./neisActions";
 import { schoolYear } from "@/lib/neis";
@@ -19,8 +19,6 @@ import { mergeSchools } from "./schoolActions";
  */
 export default function NeisBox({ months = [] }) {
   const [ready, setReady] = useState(null);
-  const [key, setKey] = useState("");
-  const [openKey, setOpenKey] = useState(false);
   const [mine, setMine] = useState([]);
   const [q, setQ] = useState("");
   const [found, setFound] = useState(null);
@@ -78,9 +76,11 @@ export default function NeisBox({ months = [] }) {
         </span>
         <span className="tag tag-muted">학교 {mine.length}곳</span>
         <span className="spacer" />
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpenKey(!openKey)}>
-          {openKey ? "닫기" : ready ? "키 바꾸기" : "키 넣기"}
-        </button>
+        {/* **열쇠는 열쇠끼리** (2026-08-07). 넣는 자리는 설정 한 곳이다 —
+            솔라피는 설정, 나이스는 여기, AI 는 또 다른 데였다 */}
+        <a className="btn btn-ghost btn-sm" href="/settings">
+          {ready ? "키 바꾸기 ›" : "키 넣기 ›"}
+        </a>
       </div>
       <p className="muted" style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.7 }}>
         학교 시험·방학·행사 날짜를 나이스에서 받아 <b>일정 화면에 넣습니다.</b>
@@ -274,34 +274,6 @@ export default function NeisBox({ months = [] }) {
         </div>
       )}
 
-      {openKey && (
-        <div className="stack" style={{ gap: 8, marginTop: 10 }}>
-          <input
-            className="input"
-            type="password"
-            placeholder="나이스 인증키"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-          />
-          <div className="notice" style={{ fontSize: 12.5 }}>
-            <b>open.neis.go.kr</b> 에서 회원가입 → 인증키 신청 → 받은 키를 여기에만 넣으세요.
-            무료이고, 키는 저장한 뒤 화면에 다시 나오지 않습니다.
-            메신저·메모·대화창에는 붙여넣지 마세요.
-          </div>
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ alignSelf: "flex-start" }}
-            disabled={pending || key.trim().length < 10}
-            onClick={() =>
-              run(() => saveNeisKey(key), () => {
-                setKey(""); setOpenKey(false); setReady(true);
-              })
-            }
-          >
-            저장
-          </button>
-        </div>
-      )}
 
       {/* 학교 등록 */}
       <div style={{ marginTop: 12, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>

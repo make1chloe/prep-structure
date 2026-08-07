@@ -156,12 +156,21 @@ export async function removeSubmission(id) {
  * 버킷이 비공개라 주소만으로는 안 열린다. 볼 때마다 10분짜리 링크를
  * 새로 만든다 — 링크가 돌아다녀도 금방 죽는다.
  */
-export async function viewUrl(path) {
+export async function viewUrl(path, download = false) {
   if (!path) return { error: "없어요.", url: null };
   const supabase = createClient();
+  /**
+   * **받아둘 수 있어야 한다** (원장님, 2026-08-07 — 「내가 다운받을 수
+   * 있냐는거」). 사진은 30일이 지나면 지워진다. 남겨야 할 것이 있으면
+   * 그 전에 받아두실 수 있어야 하는데, 링크를 새 창에 여는 것뿐이었다.
+   *
+   * `download` 를 주면 브라우저가 **열지 않고 받는다.** 파일 이름은
+   * 보관함 경로의 마지막 조각을 쓴다 (날짜와 학생이 들어 있다).
+   */
+  const name = download ? path.split("/").pop() || "숙제" : undefined;
   const { data, error } = await supabase.storage
     .from("submissions")
-    .createSignedUrl(path, 600);
+    .createSignedUrl(path, 600, name ? { download: name } : undefined);
   if (error) return { error: error.message, url: null };
   return { error: null, url: data?.signedUrl || null };
 }

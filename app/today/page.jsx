@@ -98,6 +98,20 @@ export default async function TodayPage({ searchParams }) {
     }
   }
 
+  /**
+   * **이 결석의 보강이 이미 잡혀 있나** (2026-08-07).
+   *
+   * 오늘 수업에서 결석을 찍으면 그 자리에서 보강을 잡을 수 있게 했는데,
+   * 이미 잡아둔 것이 있으면 **또 잡을 수 있으면 안 된다** — 그날 오지도
+   * 않을 아이가 「오늘 수업」 에 두 번 뜬다.
+   */
+  const { data: mkRows } = await supabase
+    .from("attendance")
+    .select("student_id, date, makeup_of")
+    .eq("status", "makeup")
+    .eq("makeup_of", date);
+  const makeupOnOf = new Map((mkRows || []).map((m) => [m.student_id, m.date]));
+
   // 학생이 낸 숙제 (0044 전이면 빈 배열)
   //   집에서 어제 냈을 수도 있으므로 지난 수업 이후치를 함께 본다
   const { data: subRows } = await supabase
@@ -843,6 +857,8 @@ export default async function TodayPage({ searchParams }) {
           status: a?.status || null,
           isMakeup: a?.status === "makeup",
           makeupOf: a?.makeup_of || null,   // 언제 결석한 보강인가
+          // 오늘 결석의 보강이 이미 잡혀 있으면 그 날짜 (그 자리에서 또 잡지 않게)
+          makeupOn: makeupOnOf.get(s.id) || null,
           makeupReason: a?.status === "makeup" ? a?.reason || "" : "",
           makeupTime: a?.makeup_time || null,
           plannedAbsent: !!(a?.planned && a.status === "absent"),

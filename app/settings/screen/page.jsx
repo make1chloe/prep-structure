@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import ThemePicker from "@/components/ThemePicker";
 import MenuBox from "../MenuBox";
-import IconBox from "./IconBox";
 import LayoutBox from "./LayoutBox";
 import HelpBox from "../HelpBox";
 import Help, { helpOn } from "@/components/Help";
@@ -52,7 +51,6 @@ export default async function ScreenSettingsPage() {
               강사·조교는 자기 메뉴만 정하고, 이건 모두에게 같이 적용되므로 원장·강사만 */}
           {["principal", "instructor"].includes(profile?.role) && <LayoutBox />}
           <ThemePicker />
-          {profile?.role === "principal" && <IconBox />}
         </div>
               {/* **세 개로 나눠 담기.** 원장 · 학부모 · 학생 앱을 따로 담아
             각각 로그인해서 확인하실 때 쓰는 자리다. */}

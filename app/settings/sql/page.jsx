@@ -8,7 +8,6 @@ import { checkSchema } from "./status";
 import ServiceKeyBox from "./ServiceKeyBox";
 import StorageBox from "./StorageBox";
 import UpsertBox from "./UpsertBox";
-import AiBox from "./AiBox";
 import { loadSteps } from "./steps";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
@@ -38,7 +37,7 @@ export default async function SqlPage() {
 
   // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
   if (profile?.role !== "principal") {
-    return <PrincipalOnly profile={profile} what="Supabase · AI 키 화면" />;
+    return <PrincipalOnly profile={profile} what="Supabase SQL 화면" />;
   }
 
   // 앱이 실제로 붙어 있는 프로젝트 — SQL 을 돌리는 곳과 같아야 한다
@@ -70,11 +69,6 @@ export default async function SqlPage() {
     .eq("id", "neis")
     .maybeSingle();
   const neisSaved = !!neisRow?.config?.key;
-  const { data: aiRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "anthropic")
-    .maybeSingle();
   const missing = checks.filter((c) => !c.ok).map((c) => c.id);
 
   let sql = "";
@@ -197,7 +191,6 @@ export default async function SqlPage() {
         <UpsertBox />
         <StorageBox />
 
-        <AiBox saved={!!aiRow?.config?.key} />
 
         {/* 나이스 키만 다른 화면에 있다. 키를 찾으러 여기 오시는 것이 당연하므로
             여기서 길을 알려준다 (넣는 칸을 두 군데 두면 언젠가 한쪽만 고치게 된다) */}

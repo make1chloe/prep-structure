@@ -12,10 +12,28 @@ const MODES = [
   { key: "webhook", label: "웹훅 (Make 등)", hint: "문구를 외부 자동화로 넘기고 발송은 거기서 합니다." },
 ];
 
+/**
+ * **넣는 것과 정하는 것을 나눈다** (원장님, 2026-08-07 — 「api, 솔라피,
+ * 등등 입력값이 필요한걸 한페이지에 모아야하지 않을까?」).
+ *
+ * 한 화면에 발송방식·앱알림·학원이름·솔라피·웹훅·문구·보강요일·반성문규칙이
+ * 다 있었다. 스크롤이 길어서 아래쪽 규칙은 있는 줄도 모르셨다.
+ *
+ * 성격이 다르다 —
+ *   **연동 · 키**   한 번 넣고 끝. 폰을 바꾸거나 키가 만료될 때만 다시 연다
+ *   **운영 규칙**   학원을 굴리면서 바꾸는 것 (반성문 몇 회, 단어 통과선)
+ *
+ * 저장은 하나다. 칸을 나눈 것이지 화면을 나눈 것이 아니라, 어느 쪽을 고쳐도
+ * 「설정 저장」 한 번이면 된다 — 두 번 저장하게 만들면 한 번은 잊는다.
+ *
+ * @param extras  이 화면에 같이 놓을 다른 열쇠들 (나이스 · AI). 서버에서
+ *                읽어야 하는 것이라 만들어서 넘겨받는다
+ */
 export default function SettingsForm({
   view, unavailable = false, canEdit = true, pushReady = false,
-  inquiryAlert = false, inquiryAlertVar = null,
+  inquiryAlert = false, inquiryAlertVar = null, extras = null,
 }) {
+  const [tab, setTab] = useState("keys");
   const [mode, setMode] = useState(view.mode || "copy");
   const [academy, setAcademy] = useState(view.academy?.name || "클로이영어");
   const [solapi, setSolapi] = useState({
@@ -116,8 +134,26 @@ export default function SettingsForm({
     );
   }
 
+  const isKeys = tab === "keys";
+
   return (
     <div className="stack" style={{ marginTop: 10 }}>
+      <div className="row" style={{ gap: 4 }}>
+        <button
+          className={`btn btn-sm ${isKeys ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setTab("keys")}
+        >
+          연동 · 키
+        </button>
+        <button
+          className={`btn btn-sm ${!isKeys ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setTab("rules")}
+        >
+          운영 규칙
+        </button>
+      </div>
+
+      {isKeys && (<>
       {/* 발송 방식 */}
       <div className="card">
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>발송 방식</h2>
@@ -219,20 +255,6 @@ export default function SettingsForm({
         </div>
       </div>
 
-
-      {/* 학원 정보 */}
-      <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학원 이름</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
-          문자 맨 앞에 <b>[{academy || "학원이름"}]</b> 으로 붙습니다.
-        </p>
-        <input
-          className="input input-sm"
-          style={{ maxWidth: 260 }}
-          value={academy}
-          onChange={(e) => setAcademy(e.target.value)}
-        />
-      </div>
 
       {/* 솔라피 — **발송 방식과 상관없이 늘 보인다.**
           전에는 「문자」를 고른 뒤에만 나와서, 아직 안 고른 상태에서는
@@ -432,6 +454,26 @@ export default function SettingsForm({
         </div>
       )}
 
+      {/* **나이스 · AI 열쇠도 여기.** 전에는 나이스 키가 「학교 · 시험」
+          화면 안에, AI 키가 「Supabase · AI 키」 화면에 따로 있었다 —
+          열쇠를 넣으려는데 어느 화면인지부터 떠올려야 했다 */}
+      {extras}
+      </>)}
+
+      {!isKeys && (<>
+      {/* 학원 정보 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학원 이름</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+          문자 맨 앞에 <b>[{academy || "학원이름"}]</b> 으로 붙습니다.
+        </p>
+        <input
+          className="input input-sm"
+          style={{ maxWidth: 260 }}
+          value={academy}
+          onChange={(e) => setAcademy(e.target.value)}
+        />
+      </div>
       {/* 문자 문구 */}
       <div className="card">
         <div className="row" style={{ alignItems: "baseline" }}>
@@ -566,6 +608,8 @@ export default function SettingsForm({
           유예는 <b>봐준 이력이 남습니다.</b>
         </p>
       </div>
+
+      </>)}
 
       <div className="row" style={{ gap: 8, alignItems: "center" }}>
         <button className="btn btn-primary" onClick={saveAll} disabled={pending}>

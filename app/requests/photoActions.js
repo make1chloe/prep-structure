@@ -65,9 +65,15 @@ export async function requestPhotoUrls(paths) {
 
   const supabase = createClient();
   const urls = {};
+  const saves = {};
   for (const p of list) {
     const { data } = await supabase.storage.from("requests").createSignedUrl(p, 600);
     if (data?.signedUrl) urls[p] = data.signedUrl;
+    // **받아둘 수 있게** (2026-08-07) — 여는 링크와 받는 링크는 다르다
+    const dl = await supabase.storage
+      .from("requests")
+      .createSignedUrl(p, 600, { download: p.split("/").pop() || "사진" });
+    if (dl.data?.signedUrl) saves[p] = dl.data.signedUrl;
   }
-  return { urls, error: null };
+  return { urls, saves, error: null };
 }
