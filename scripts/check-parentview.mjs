@@ -78,5 +78,44 @@ eq(/cancelMakeup[\s\S]*?\.eq\("status", "makeup"\)/.test(pl), true,
 // 어머니는 그날 아이를 보내실 참이었다 — 조용히 지우면 헛걸음을 하신다
 eq(/cancelMakeup[\s\S]*?pushToFamilies/.test(pl), true, "취소하면 알린다");
 
+console.log("\n== 전달사항 — 답장 여러 번 · 보낸 쪽 취소 ==");
+/**
+ * 원장님 (2026-08-07)
+ *   「답장을 반복적으로 할 수 있게. 학생에게는 확인완료·조정필요,
+ *    학부모님께는 확인하였습니다 뭐 그런 문구를 OX 상황에 맞게」
+ *   「학부모, 학생 화면에서 전달 취소가 가능하게. 제출 후에 나한테는 다 보이게」
+ */
+const { QUICK, quickFor } = await import("../app/requests/quick.js");
+// 아이에게 「확인하였습니다」 는 어색하고, 어머니께 「확인완료」 는 무뚝뚝하다
+eq(quickFor("student", true), "확인완료", "학생 · O");
+eq(quickFor("student", false), "조정필요", "학생 · X");
+eq(quickFor("parent", true), QUICK.parent.ok, "학부모 · O");
+eq(/확인하였습니다/.test(quickFor("parent", true)), true, "학부모께는 「확인하였습니다」");
+eq(/조정/.test(quickFor("parent", false)), true, "학부모 · X 에도 조정 이야기");
+// 모르는 역할은 학생 말투로 (모를 때 존댓말이 지나치면 오히려 어색하다)
+eq(quickFor(undefined, true), "확인완료", "역할을 모르면 학생 쪽으로");
+
+const inbox = read("app/RequestInbox.jsx");
+// **처리한 것이 사라지면 무슨 말을 했는지 다시 볼 수 없다**
+eq(inbox.includes("지난 것"), true, "처리한 것도 볼 수 있다");
+eq(inbox.includes("한 번 더 답장하기"), true, "처리한 뒤에도 답장할 수 있다");
+eq(inbox.includes("quickFor"), true, "빠른 문구를 쓴다");
+// 예전에는 status='new' 만 받아서 「확인」 을 누르는 순간 사라졌다
+eq(read("lib/dashboard.js").includes('.from("requests").select("id, student_id, kind, from_date, to_date, body, status, reply, thread'),
+   true, "대시보드가 처리한 것까지 받아온다");
+
+const ra = read("app/requests/actions.js");
+// 답장을 덮어쓰면 앞의 말이 사라진다
+eq(ra.includes("nextThread"), true, "답장을 쌓는다 (덮어쓰지 않는다)");
+eq(ra.includes("export async function cancelRequest"), true, "보낸 쪽에서 무를 수 있다");
+// 이미 처리한 것을 무르면, 왜 깔렸는지 모르는 결석이 남는다
+eq(read("supabase/migrations/0108_request_thread.sql").includes("return 'handled'"), true,
+   "이미 확인한 것은 못 무른다");
+// 취소해도 지우지 않는다 — 「이 얘기가 왜 사라졌지」 가 없어야 한다
+eq(inbox.includes("보낸 쪽에서 취소"), true, "취소한 것도 원장님께는 보인다");
+
+const rfCancel = read("app/me/RequestForm.jsx");
+eq(rfCancel.includes("cancelRequest"), true, "학생·학부모 화면에 취소 버튼");
+
 if (fail) { console.log("\n❌ 학부모 화면에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 학부모 화면 통과");

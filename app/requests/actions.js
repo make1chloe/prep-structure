@@ -11,6 +11,7 @@ function ok(error) {
 
 const KIND = { absence: "결석", makeup: "보강가능시간", info: "전달", question: "질문" };
 
+
 // 학생·학부모가 직접 넣는 요청 (결석 알림 등)
 export async function createRequest(input) {
   const { studentId, kind, fromDate, toDate, body, photos } = input || {};
@@ -22,6 +23,11 @@ export async function createRequest(input) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: whoAmI } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const authorRole = whoAmI?.role === "parent" ? "parent" : "student";
+
   const row = {
     student_id: studentId,
     created_by: user?.id || null,
@@ -30,12 +36,19 @@ export async function createRequest(input) {
     to_date: toDate || fromDate || null,
     body: (body || "").trim() || null,
     photos: (photos || []).filter(Boolean),
+    // **누가 보냈나** — 답장 말투를 학생용·학부모용으로 가르는 데 쓴다 (0108)
+    author_role: authorRole,
   };
   let { error } = await supabase.from("requests").insert(row);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    // 0068 전이면 사진 없이 — 글이라도 가야 한다
-    const { photos: _p, ...noPhotos } = row;
-    ({ error } = await supabase.from("requests").insert(noPhotos));
+    // 0108 전이면 보낸 사람 칸이 없다
+    const { author_role: _a, ...noRole } = row;
+    ({ error } = await supabase.from("requests").insert(noRole));
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0068 전이면 사진도 없이 — 글이라도 가야 한다
+      const { photos: _p, ...noPhotos } = noRole;
+      ({ error } = await supabase.from("requests").insert(noPhotos));
+    }
   }
   if (error) return { error: "0019 SQL을 먼저 실행해주세요." };
 
@@ -86,11 +99,16 @@ export async function handleRequest(id, accept, reply, makeup) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: req, error } = await supabase
+  // 0108 전 DB 에서도 돌아야 한다 — 새 칸이 없으면 그것만 빼고 다시 묻는다
+  const BASE = "id, student_id, kind, from_date, to_date, body, reply";
+  let { data: req, error } = await supabase
     .from("requests")
-    .select("id, student_id, kind, from_date, to_date, body")
+    .select(`${BASE}, thread, author_role`)
     .eq("id", id)
     .single();
+  if (error) {
+    ({ data: req, error } = await supabase.from("requests").select(BASE).eq("id", id).single());
+  }
   if (error) return { error: error.message };
 
   if (accept && req.kind === "absence" && req.from_date) {
@@ -156,15 +174,31 @@ export async function handleRequest(id, accept, reply, makeup) {
     }
   }
 
-  const { error: uErr } = await supabase
-    .from("requests")
-    .update({
-      status: accept ? "accepted" : "declined",
-      reply: (reply || "").trim() || null,
-      handled_by: user?.id || null,
-      handled_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  /**
+   * **답장을 덮어쓰지 않는다** (0108, 원장님 — 「답장을 반복적으로 할 수
+   * 있게」). 예전에는 `reply` 한 칸에 덮어써서, 「금요일 5시에 오세요」 뒤에
+   * 「아 그날 시험이네요, 월요일로」 를 적으면 **앞의 말이 사라졌다.**
+   * 어머니 화면에도 마지막 한 줄만 남아 무슨 이야기가 오갔는지 몰랐다.
+   */
+  const text = (reply || "").trim();
+  const line = text
+    ? { at: new Date().toISOString(), role: "staff", text }
+    : null;
+  const nextThread = line ? [...(req.thread || []), line] : req.thread || [];
+
+  const patch = {
+    status: accept ? "accepted" : "declined",
+    reply: text || req.reply || null,          // 마지막 말 (옛 화면이 이걸 본다)
+    thread: nextThread,
+    handled_by: user?.id || null,
+    handled_at: new Date().toISOString(),
+  };
+  let { error: uErr } = await supabase.from("requests").update(patch).eq("id", id);
+  if (uErr && (uErr.code === "42703" || uErr.code === "PGRST204")) {
+    // 0108 전이면 오간 말 칸이 없다 — 마지막 말이라도 남긴다
+    const { thread: _t, ...noThread } = patch;
+    ({ error: uErr } = await supabase.from("requests").update(noThread).eq("id", id));
+  }
 
   // **답을 드렸으면 알려야 한다.** 어머니는 이 화면을 다시 안 여신다 —
   // 알림이 안 가면 「알렸는데 답이 없네」 로 끝난다 (2026-08-06)
@@ -186,4 +220,35 @@ export async function handleRequest(id, accept, reply, makeup) {
   revalidatePath("/today");
   revalidatePath("/plan");
   return ok(uErr);
+}
+
+/**
+ * **보낸 쪽에서 무른다** (0108).
+ *
+ * 원장님 (2026-08-07) — 「학부모, 학생 화면에서 전달 취소가 가능하게 해줘.
+ * 제출 후에 나한테는 다 보이게 해줘」
+ *
+ * 날짜를 잘못 골라 보내신 결석 알림이 그대로 남으면, 원장님이 그걸 받아
+ * 결석 예정을 깔게 된다. 어머니는 다시 문자를 보내시고, 그러면 두 군데에
+ * 말이 남는다.
+ *
+ * **지우지는 않는다.** 취소한 것도 원장님께는 보인다 — 「이 얘기가 왜
+ * 사라졌지」 가 없어야 한다. 이미 처리하신 것은 못 무른다 (결석 예정이
+ * 깔렸는데 요청만 사라지면, 왜 깔렸는지 아무도 모르는 결석이 남는다).
+ */
+export async function cancelRequest(id) {
+  if (!id) return { error: "어느 것인지 모르겠어요." };
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("cancel_request", { p_id: id });
+  if (error) return { error: "설정 → Supabase 에서 0108 을 먼저 실행해주세요." };
+  if (data === "handled") {
+    return { error: "선생님이 이미 확인하셨어요. 바꾸실 것이 있으면 새로 보내주세요." };
+  }
+  if (data === "not_mine" || data === "not_found") {
+    return { error: "취소할 수 없는 항목이에요." };
+  }
+  revalidatePath("/me");
+  revalidatePath("/parent");
+  revalidatePath("/");
+  return { error: null };
 }

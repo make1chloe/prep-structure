@@ -28,7 +28,25 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true })
     );
     if (why === null) return;                  // 취소 버튼을 누르신 것
     startTransition(async () => {
-      const res = await cancelMakeup(r.student_id, r.date, why);
+      const res = await cancelMakeup(r.student_id, r.date, why, true);
+      if (res?.error) { alert(res.error); return; }
+      router.refresh();
+    });
+  }
+
+  /**
+   * **알리지 않고 지운다** (원장님, 2026-08-07 — 「보강 자체를 취소할 수도
+   * 있게해줘. 이 경우 어머니 알림 없이」).
+   *
+   * 잘못 눌러 생긴 줄이나 아직 아무에게도 말하지 않은 보강은 알릴 것이 없다.
+   * 그런데 알림이 나가면 **없던 일을 있었던 일로 만든다** — 어머니가
+   * 「무슨 보강이요?」 하고 전화를 주시게 된다.
+   */
+  function dropQuiet(r) {
+    const who = nameOf[r.student_id] || "학생";
+    if (!confirm(`${who} ${dayLabel(r.date)} 보강을 지울까요?\n\n어머니께 알림이 가지 않습니다. 이미 안내하신 보강이면 [보강 취소] 를 쓰세요.`)) return;
+    startTransition(async () => {
+      const res = await cancelMakeup(r.student_id, r.date, null, false);
       if (res?.error) { alert(res.error); return; }
       router.refresh();
     });
@@ -65,6 +83,15 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true })
         title="보강 날짜만 무릅니다. 결석 기록은 그대로 남고 「보강 잡을 것」 으로 돌아갑니다"
       >
         보강 취소
+      </button>
+      <button
+        className="btn btn-ghost btn-sm"
+        onClick={() => dropQuiet(r)}
+        disabled={pending}
+        title="알림 없이 그냥 지웁니다 (잘못 잡았거나 아직 안 알린 보강)"
+        style={{ opacity: 0.75 }}
+      >
+        조용히 지우기
       </button>
     </div>
   );

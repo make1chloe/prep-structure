@@ -183,7 +183,10 @@ export default async function MePage({ searchParams }) {
     : [];
 
   // 내가 보낸 요청
-  const REQ = "id, kind, from_date, to_date, body, status, reply";
+  // 오간 말·취소는 0108 에서 붙는다. 없으면 그 아래에서 한 칸씩 물러난다 —
+  // 한 칸 때문에 「보낸 것」 목록이 통째로 안 보이면 안 된다
+  const REQ = "id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at";
+  const REQ0 = "id, kind, from_date, to_date, body, status, reply";
   let { data: myRequests, error: reqErr } = await supabase
     .from("requests")
     .select(`${REQ}, photos`)
@@ -191,10 +194,19 @@ export default async function MePage({ searchParams }) {
     .order("created_at", { ascending: false })
     .limit(5);
   if (reqErr) {
-    // 0068 전이면 사진 없이
+    // 0108 전이면 오간 말 칸이 없다
+    ({ data: myRequests, error: reqErr } = await supabase
+      .from("requests")
+      .select(`${REQ0}, photos`)
+      .eq("student_id", student.id)
+      .order("created_at", { ascending: false })
+      .limit(5));
+  }
+  if (reqErr) {
+    // 0068 전이면 사진도 없이
     ({ data: myRequests } = await supabase
       .from("requests")
-      .select(REQ)
+      .select(REQ0)
       .eq("student_id", student.id)
       .order("created_at", { ascending: false })
       .limit(5));

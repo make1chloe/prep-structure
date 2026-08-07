@@ -166,7 +166,7 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
  * **알려야 한다.** 어머니는 그날 아이를 보내실 참이었다. 조용히 지우면
  * 헛걸음을 하시게 된다.
  */
-export async function cancelMakeup(studentId, date, why) {
+export async function cancelMakeup(studentId, date, why, notify = true) {
   if (!studentId || !date) return { error: "어느 보강인지 모르겠어요." };
   const supabase = createClient();
 
@@ -177,6 +177,21 @@ export async function cancelMakeup(studentId, date, why) {
     .eq("date", date)
     .eq("status", "makeup");        // 결석·출석 줄은 안 건드린다
   if (error) return ok(error);
+
+  /**
+   * **알리지 않고 무르는 길도 있다** (원장님, 2026-08-07 —
+   * 「보강 자체를 취소할 수도 있게 해줘. 이 경우 어머니 알림 없이」).
+   *
+   * 잘못 눌러서 생긴 줄이나, 아직 아무에게도 말하지 않은 보강은 알릴 것이
+   * 없다. 그런데도 알림이 나가면 **없던 일을 있었던 일로 만든다** —
+   * 어머니는 「무슨 보강이요?」 하고 전화를 주시게 된다.
+   */
+  if (!notify) {
+    revalidatePath("/");
+    revalidatePath("/plan");
+    revalidatePath("/today");
+    return { error: null, quiet: true };
+  }
 
   try {
     const { data: me } = await supabase

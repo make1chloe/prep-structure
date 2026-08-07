@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createRequest } from "@/app/requests/actions";
+import { createRequest, cancelRequest } from "@/app/requests/actions";
 import RequestPhotos from "@/components/RequestPhotos";
 
 // 학생·학부모가 결석을 미리 알리는 칸
@@ -15,6 +15,24 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
   const [photos, setPhotos] = useState([]);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  /**
+   * **잘못 보낸 것을 무른다** (0108, 원장님 — 「학부모, 학생 화면에서
+   * 전달 취소가 가능하게 해줘」).
+   *
+   * 날짜를 잘못 골라 보내면 선생님이 그걸 받아 결석 예정을 깔게 된다.
+   * 그러면 다시 연락을 드려야 하고, 두 군데에 말이 남는다.
+   *
+   * 이미 확인하신 것은 못 무른다 — 그때는 새로 보내주시는 편이 맞다.
+   */
+  function drop(r) {
+    if (!confirm("보낸 것을 취소할까요?")) return;
+    startTransition(async () => {
+      const res = await cancelRequest(r.id);
+      if (res?.error) { alert(res.error); return; }
+      router.refresh();
+    });
+  }
 
   function submit() {
     startTransition(async () => {
@@ -133,16 +151,41 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                 * 답을 드릴 것은 **답장이 온다** (아래 r.reply, 그리고 폰 알림).
                 * 그러니 여기서는 「잘 들어갔습니다」 만 말하면 된다.
                 */}
-              <span className="tag tag-mint">제출 완료</span>
+              {r.canceled_at ? (
+                <span className="tag tag-muted">취소함</span>
+              ) : (
+                <span className="tag tag-mint">제출 완료</span>
+              )}
               <span style={{ fontSize: 12.5, flex: 1 }}>
                 {r.from_date
                   ? `${r.from_date.slice(5)}${r.to_date && r.to_date !== r.from_date ? `~${r.to_date.slice(5)}` : ""} `
                   : ""}
                 {r.body || ""}
               </span>
-              {r.reply && <span className="hint">{r.reply}</span>}
+              {/* 오간 말 — 선생님이 여러 번 답하실 수 있다 (0108) */}
+              {Array.isArray(r.thread) && r.thread.length > 0 ? (
+                <span className="hint" style={{ flexBasis: "100%" }}>
+                  {r.thread.map((t, i) => (
+                    <span key={i} style={{ display: "block" }}>선생님 — {t.text}</span>
+                  ))}
+                </span>
+              ) : r.reply ? (
+                <span className="hint">선생님 — {r.reply}</span>
+              ) : null}
               {(r.photos || []).length > 0 && (
                 <RequestPhotos paths={r.photos} readOnly small />
+              )}
+              {/* **아직 답이 오기 전이면 무를 수 있다.** 확인하신 뒤에는
+                  새로 보내주시는 편이 맞다 — 이미 결석 예정이 깔렸을 수 있다 */}
+              {!readOnly && !r.canceled_at && !r.handled_at && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => drop(r)}
+                  disabled={pending}
+                  style={{ fontSize: 11, padding: "2px 8px" }}
+                >
+                  취소
+                </button>
               )}
             </div>
           ))}
