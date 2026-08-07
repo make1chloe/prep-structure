@@ -38,7 +38,7 @@ export default async function CheckPage({ searchParams }) {
     supabase.from("class_students").select("class_id, student_id"),
     supabase
       .from("homework_items")
-      .select("id, name, sort, in_person")
+      .select("id, name, sort, in_person, unit_test")
       .eq("active", true)
       .order("sort", { ascending: true }),
   ]);
@@ -51,6 +51,15 @@ export default async function CheckPage({ searchParams }) {
         .eq("active", true)
         .order("sort", { ascending: true })).data || []);
   const inPerson = new Set(itemList.filter((i) => i.in_person).map((i) => i.id));
+  /**
+   * **단원평가는 검사 대상이 아니다** (원장님, 2026-08-07 — 「숙제에 체크하면
+   * 검사할 대상이 아니라 공지의 개념으로 잡혀야 해서 완료·미완료·미흡 체크 안 함」).
+   *
+   * 아이가 결과를 내는 것이라 ○△✕ 로 매길 것이 없다. 그런데 검사 목록에
+   * 남아 있으면 매일 「안 낸 숙제」 로 뜨고, 그것이 경고가 되고, 세 번이면
+   * 반성문이 된다 — 안 한 적도 없는 아이가.
+   */
+  const unitTest = new Set(itemList.filter((i) => i.unit_test).map((i) => i.id));
 
   const classes = await loadRunningClasses(supabase, "id, name, days, start_time", date);
 
@@ -185,7 +194,9 @@ export default async function CheckPage({ searchParams }) {
       doneAt,
       assignedOn: assigned?.date || null,
       // 검사할 것 = 3주 안에 배정했는데 아직 안 본 숙제
-      toCheck: [...(assigned?.items?.values() || [])].map((i) => ({
+      toCheck: [...(assigned?.items?.values() || [])]
+        .filter((i) => !unitTest.has(i.homework_item_id))
+        .map((i) => ({
         id: i.homework_item_id,
         range: i.range_note || "",
         on: i.on,                    // 언제 낸 숙제인가 (밀린 것을 알 수 있게)

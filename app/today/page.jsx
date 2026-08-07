@@ -120,7 +120,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
     supabase
       .from("homework_items")
-      .select("id, name, category, sort, method, no_timer")
+      .select("id, name, category, sort, method, no_timer, unit_test")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase
@@ -146,8 +146,16 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date));
   }
 
-  // no_timer · method 가 아직 없는 DB에서도 동작하도록 한 단계씩 물러난다
+  // unit_test · no_timer · method 가 아직 없는 DB에서도 동작하도록 한 단계씩 물러난다
   if (itemsErr) {
+    const r0 = await supabase
+      .from("homework_items")
+      .select("id, name, category, sort, method, no_timer")
+      .eq("active", true)
+      .order("sort", { ascending: true });
+    if (!r0.error) items = r0.data;
+  }
+  if (itemsErr && !items) {
     const r2 = await supabase
       .from("homework_items")
       .select("id, name, category, sort, method")
@@ -304,11 +312,26 @@ export default async function TodayPage({ searchParams }) {
     });
   });
 
+  /**
+   * **단원평가는 검사 대상이 아니다** (원장님, 2026-08-07).
+   *
+   * 「숙제에 체크하면 검사할 대상이 아니라 **공지의 개념**으로 잡혀야 해서
+   * 완료·미완료·미흡 체크 안 함」
+   *
+   * 맞는 말씀이다. 단원평가는 **아이가 결과를 내는 것**이라 ○△✕ 로 매길
+   * 것이 없다. 그런데 검사 목록에 남아 있으면 —
+   *   · 매일 「미완료」 로 뜬다 (아무도 매기지 않으니까)
+   *   · 그것이 경고 1회가 되고, 세 번이면 반성문이 된다
+   * 안 한 적도 없는 아이가 반성문 대상이 되는 것이다.
+   */
+  const unitTestIds = new Set((items || []).filter((i) => i.unit_test).map((i) => i.id));
+
   const toCheckOf = (sid) => {
     const rid = lastAssignedReport.get(sid);
     if (!rid) return [];
     const done = checkedAfter.get(sid) || new Set();
-    return (prevAssigned.get(rid) || []).filter((iid) => !done.has(iid));
+    return (prevAssigned.get(rid) || [])
+      .filter((iid) => !done.has(iid) && !unitTestIds.has(iid));
   };
   const assignedFromOf = (sid) => lastAssignedDate.get(sid) || null;
   const assignedUnitsOf = (sid) => {
