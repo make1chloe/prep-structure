@@ -130,10 +130,17 @@ export async function updateHomeworkItem(id, patch) {
   if ("home_item_id" in (patch || {})) row.home_item_id = patch.home_item_id || null;
   if ("no_timer" in (patch || {})) row.no_timer = !!patch.no_timer;
   if ("in_person" in (patch || {})) row.in_person = !!patch.in_person;
+  // 단원평가 — 이 표시가 붙은 항목으로 배정하면 아이 화면에 「결과 내기」 가 열린다 (0106)
+  if ("unit_test" in (patch || {})) row.unit_test = !!patch.unit_test;
   if (!row.name && "name" in row) return { error: "이름은 비울 수 없어요." };
 
   const supabase = createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
+  if (isMissingColumn(error)) {
+    // 0106 전이면 '단원평가' 표시 없이
+    const { unit_test: _ut, ...noUnit } = row;
+    ({ error } = await supabase.from("homework_items").update(noUnit).eq("id", id));
+  }
   if (isMissingColumn(error)) {
     // 0063 전이면 '직접검사' 없이
     const { in_person: _ip, ...noPerson } = row;

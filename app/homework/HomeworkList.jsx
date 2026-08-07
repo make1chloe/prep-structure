@@ -68,6 +68,7 @@ export default function HomeworkList({ items = [] }) {
       prep_task: i.prep_task || "",
       no_timer: !!i.no_timer,
       in_person: !!i.in_person,
+      unit_test: !!i.unit_test,
     });
   }
   function saveEdit() {
@@ -302,6 +303,18 @@ export default function HomeworkList({ items = [] }) {
                           />
                           <span style={{ fontSize: 12 }}>직접검사</span>
                         </label>
+                        {/* **단원평가** (0106) — 이 표시가 붙은 항목으로
+                            배정하면, 아이가 다음 시간에 와서 맞은 개수만
+                            적어 낸다. 단원 이름은 배정에 붙어 있으니 아이가
+                            적을 일이 없다 (원장님, 2026-08-07) */}
+                        <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer", marginTop: 4 }}>
+                          <input
+                            type="checkbox"
+                            checked={!!draft.unit_test}
+                            onChange={(e) => setDraft({ ...draft, unit_test: e.target.checked })}
+                          />
+                          <span style={{ fontSize: 12 }}>단원평가</span>
+                        </label>
                       </td>
                       <td>
                         <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
@@ -350,6 +363,9 @@ export default function HomeworkList({ items = [] }) {
                         )}
                       </td>
                       <td>
+                        {i.unit_test ? (
+                          <span className="tag tag-lav" style={{ marginRight: 4 }}>단원평가</span>
+                        ) : null}
                         {i.in_person ? (
                           <span className="tag tag-lav" title="공책 등 — 앱에 낼 것이 없습니다">
                             직접검사

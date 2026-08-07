@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startStudy, stopStudy, finishStudy, undoFinish } from "./timerActions";
 import SubmitBox from "./SubmitBox";
+import UnitTestBox from "./UnitTestBox";
 
 /** 초 → "12분" */
 function human(sec) {
@@ -171,8 +172,16 @@ export default function StudyList({
             </>
           )}
 
+          {/* **단원평가는 「다 했어요」 가 아니라 결과를 낸다** (0106).
+              원장님이 미리 배정하시고, 아이는 다음 시간에 와서 맞은 개수만
+              적는다. 내면 이 숙제도 같이 끝난 것이 된다 — 두 번 누르게 하면
+              하나는 빠뜨린다 */}
+          {now.unitTest && (
+            <UnitTestBox task={now} readOnly={readOnly} asId={asId} />
+          )}
+
           {/* 집에서 하는 숙제는 낼 수 있어야 한다 — 특히 녹음 구두테스트 */}
-          {kind === "home" && (
+          {kind === "home" && !now.unitTest && (
             <SubmitBox
               itemId={now.itemId}
               reportItemId={now.reportItemId}

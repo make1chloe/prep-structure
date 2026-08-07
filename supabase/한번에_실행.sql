@@ -6026,17 +6026,23 @@ create policy breaks_staff on public.study_breaks
   for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
--- 어머니도 우리 아이 것은 보신다 (문제가 됐을 때 이야기가 되려면 근거가 있어야 한다)
+/**
+ * **어머니께는 안 보인다** (원장님, 2026-08-07 — 「학부모페이지에 쉬는시간은
+ * 넣지마. 오히려 넣으면 문제의 소지를 만드는거야」).
+ *
+ * 처음에는 「근거가 있어야 이야기가 된다」 고 열어뒀는데, 그건 이쪽 사정이다.
+ * 어머니 화면에 「오늘 3번 · 24분」 이 뜨면 그 숫자가 **혼자 걸어다닌다** —
+ * 다른 집 아이와 견주게 되고, 화장실 두 번 간 날이 성실성 문제가 된다.
+ * 정작 우리가 보려던 것(수업 중에 자꾸 사라지는 아이)과는 상관없는 일로
+ * 번진다.
+ *
+ * 필요한 이야기는 선생님이 **말로** 하시면 된다. 숫자를 그대로 내보이는
+ * 것과 필요할 때 짚어드리는 것은 다르다.
+ *
+ * (한 번 열었다가 닫는 것이라 drop 을 남겨둔다 — 먼저 돌리신 분의 DB 에
+ *  이미 들어가 있을 수 있다)
+ */
 drop policy if exists breaks_parent on public.study_breaks;
-create policy breaks_parent on public.study_breaks
-  for select to authenticated
-  using (
-    exists (
-      select 1 from public.parent_student ps
-       where ps.student_id = study_breaks.student_id
-         and ps.parent_profile_id = auth.uid()
-    )
-  );
 
 
 -- ── 단원평가로 쓰는 학습 항목 ────────────────────────────

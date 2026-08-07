@@ -416,6 +416,10 @@ export default async function MePage({ searchParams }) {
       method: c.method,
       checklist: c.checklist || [],   // 빠져 있어서 체크리스트가 학생 화면에 안 뜨고 있었다
       inPerson: !!it?.in_person,      // 앱에 낼 것이 없는 숙제 — 안 내도 끝낼 수 있다
+      // **단원평가는 결과를 낸다** (0106). 원장님이 미리 배정하시고,
+      // 아이는 다음 시간에 와서 맞은 개수만 적는다 — 단원 이름은 배정에
+      // 이미 붙어 있으니 아이가 적을 일이 없다
+      unitTest: !!it?.unit_test,
       doneAt: c.doneAt,
       needsCheck: !!it?.no_timer,
       checked: false,
