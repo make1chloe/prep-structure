@@ -304,7 +304,7 @@ export default function ConsultBoard({
                       </div>
                     )}
                     {r.prev_academy && <div className="hint"><b>학습 경험:</b> {r.prev_academy}</div>}
-                    {r.goal && <div className="hint"><b>바라는 점:</b> {r.goal}</div>}
+                    {r.goal && <div className="hint"><b>개선하고 싶은 점:</b> {r.goal}</div>}
                     {r.memo && <div className="hint">{r.memo}</div>}
                     {r.test_note && (
                       <div className="hint">

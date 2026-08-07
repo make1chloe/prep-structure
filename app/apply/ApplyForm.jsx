@@ -189,14 +189,26 @@ export default function ApplyForm({ token = "", prefill = {} }) {
         </div>
       </div>
 
+      {/* **두루뭉술한 칸 이름은 빈 채로 온다** (원장님, 2026-08-07).
+          「더 알려주실 것」 이라고만 두면 안 적어도 되는 칸으로 읽힌다.
+          무엇을 적어야 하는지 이름에 그대로 적으면 적으신다 — 교재와
+          반 이름을 알면 상담 자리에서 되묻지 않아도 되고, 그만큼
+          이야기가 깊어진다 */}
       <div className="card">
-        <h2 className="secthead">더 알려주실 것</h2>
+        <h2 className="secthead">학습 경험</h2>
         <div className="field">
-          <label className="label">지금까지의 영어 학습</label>
-          <input className="input" name="prev_academy" placeholder="예: OO학원 2년, 지금은 쉬는 중" />
+          <label className="label">
+            사용했던 교재(영역별), 학원경력
+            <br />
+            <span className="hint">학원명, 반까지 적어주시면 더 자세히 상담 가능합니다</span>
+          </label>
+          <textarea
+            className="input" name="prev_academy" rows={3}
+            placeholder="예: 문법 그래머인유즈 / 독해 리딩튜터, OO학원 2년(중등 심화반)"
+          />
         </div>
         <div className="field" style={{ marginTop: 10 }}>
-          <label className="label">바라는 점 · 궁금한 점</label>
+          <label className="label">개선하고 싶은 점과 궁금한 점을 적어주세요.</label>
           <textarea className="input" name="goal" rows={3} />
         </div>
       </div>
