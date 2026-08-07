@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { auditRows, summarize } from "@/lib/yearAudit";
+import { pageAll } from "@/lib/pageAll";
 
 /**
  * **이미 들어간 자료의 연도를 훑는다** (아무것도 안 바꾼다).
@@ -70,11 +71,13 @@ export async function auditYears() {
     const cols = [t.date, t.key || "student_id"].join(", ");
     // 아직 없는 표(마이그레이션 전)는 조용히 건너뛴다 — 여기서 멈추면
     // 나머지 표도 못 본다
-    const { data, error } = await supabase
-      .from(t.table)
-      .select(cols)
-      .not(t.date, "is", null)
-      .limit(20000);
+    // **1000줄에서 잘리면 안 된다** — Supabase 는 한 번에 1000줄까지만 준다.
+    // 그러면 「2026년 한 해에 몰려 있습니다」 같은 판단이 앞의 1000줄만 보고
+    // 나온 거짓말이 된다 (2026-08-06 원장님 화면에서 실제로 그랬다)
+    const { rows: data, error } = await pageAll((from, to) =>
+      supabase.from(t.table).select(cols).not(t.date, "is", null)
+        .order(t.date, { ascending: true }).range(from, to)
+    );
     if (error) continue;
 
     audits.push(

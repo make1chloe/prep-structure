@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { pageAll } from "@/lib/pageAll";
 
 /**
  * **노션에서 옮긴 것만 골라 지운다.**
@@ -51,10 +52,11 @@ export async function countImported() {
 
   const tables = [];
   for (const [table, meta] of Object.entries(TABLES)) {
-    const { data, error } = await supabase
-      .from(table)
-      .select(`id, ${meta.date}, created_at`)
-      .limit(20000);
+    // 1000줄에서 잘리면 「이관한 날」 건수가 실제보다 적게 나온다
+    const { rows: data, error } = await pageAll((from, to) =>
+      supabase.from(table).select(`id, ${meta.date}, created_at`)
+        .order("created_at", { ascending: true }).range(from, to)
+    );
     if (error) continue;
 
     const bag = new Map();
@@ -75,7 +77,7 @@ export async function countImported() {
     tables.push({
       table,
       label: meta.label,
-      total: (data || []).length,
+      total: data.length,
       days: [...bag.values()].sort((a, b) => b.day.localeCompare(a.day)),
     });
   }
@@ -96,12 +98,13 @@ export async function wipeImported(table, day, keepSameDay = true) {
   const meta = TABLES[table];
   if (!meta || !day) return { error: "무엇을 지울지 모르겠어요.", removed: 0 };
 
-  const { data, error } = await supabase
-    .from(table)
-    .select(`id, ${meta.date}, created_at`)
-    .gte("created_at", `${day}T00:00:00Z`)
-    .lt("created_at", `${day}T23:59:59.999Z`)
-    .limit(20000);
+  // 1000줄씩 잘리면 한 번 눌러서 1000건만 지워진다 — 끝까지 읽는다
+  const { rows: data, error } = await pageAll((from, to) =>
+    supabase.from(table).select(`id, ${meta.date}, created_at`)
+      .gte("created_at", `${day}T00:00:00Z`)
+      .lt("created_at", `${day}T23:59:59.999Z`)
+      .order("created_at", { ascending: true }).range(from, to)
+  );
   if (error) return { error: error.message, removed: 0 };
 
   const ids = (data || [])

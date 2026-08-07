@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { plan } from "@/lib/yearFix";
+import { pageAll } from "@/lib/pageAll";
 
 /**
  * **연도 다시 맞추기** — 줄마다 따져서, 하나로 좁혀진 것만.
@@ -63,10 +64,11 @@ export async function planYearFix() {
   const tables = [];
 
   for (const [table, meta] of Object.entries(TABLES)) {
-    const { data, error } = await supabase
-      .from(table)
-      .select(`id, ${meta.date}, student_id`)
-      .limit(20000);
+    // 1000줄에서 잘리면 뒤쪽 자료는 아예 안 보고 「고칠 것 없음」 이 된다
+    const { rows: data, error } = await pageAll((from, to) =>
+      supabase.from(table).select(`id, ${meta.date}, student_id`)
+        .order(meta.date, { ascending: true }).range(from, to)
+    );
     if (error) continue;
 
     const rows = (data || [])

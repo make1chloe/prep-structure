@@ -56,6 +56,27 @@ eq(dowMismatch([{ student_id: "없는아이", date: "2026-08-15" }], daysOf).len
 
 const c = auditRows("수업 기록", [{ student_id: "a", date: "2026-08-14" }], "2026-08-06", { daysOf });
 eq(c.shifted, 1, "점검 결과에 실린다");
+/**
+ * **요일만으로는 확정하지 않는다** (2026-08-06 원장님 화면에서 배운 것).
+ *
+ * 자료를 제대로 올리신 뒤 306건이 요일로 걸렸는데, 원본에 2024년 자료가
+ * 없으니 밀린 것이 아니었다 — **반이 바뀐 아이들**이었다. 반 요일은 지금
+ * 것만 알 수 있어서, 작년에 월·수였다가 지금 화·목인 아이의 옛 기록이
+ * 전부 걸린다. 확정을 남발하면 정작 진짜일 때 안 믿게 된다.
+ */
+{
+  // 미래가 함께 있으면 강한 증거 (빨강)
+  const withFuture = auditRows("수업 기록",
+    [{ student_id: "a", date: "2026-12-30" }, { student_id: "a", date: "2026-08-14" }],
+    "2026-08-06", { daysOf });
+  eq(withFuture.notes.some((n) => n.tone === "bad" && n.text.includes("요일")), true,
+     "미래가 함께면 빨강");
+  // 미래가 없으면 「반이 바뀌었을 수 있다」 (회색)
+  const noFuture = auditRows("수업 기록",
+    [{ student_id: "a", date: "2025-07-02" }], "2026-08-06", { daysOf });
+  eq(noFuture.notes.some((n) => n.tone === "bad"), false, "미래가 없으면 확정하지 않는다");
+  eq(noFuture.notes.some((n) => n.text.includes("반이 바뀐")), true, "왜 그럴 수 있는지 적어준다");
+}
 
 /**
  * **다시는 미래로 안 들어가게** (lib/importNotion).
@@ -106,6 +127,14 @@ console.log("== 후보 지우기 ==");
   eq(d.verdict, "keep", "지금 것이 맞을 수 있으면 그대로");
 }
 {
+  /**
+   * **요일로 「지금 것」 을 지우지 않는다.** 반이 바뀐 아이의 옛 기록은
+   * 요일이 안 맞는 것이 당연하다 — 그걸로 옮기면 멀쩡한 기록이 망가진다.
+   */
+  const d = decide("2025-07-02", { today: "2026-08-06", classDays: ["화", "목"] });
+  eq(d.verdict, "keep", "과거인데 요일만 안 맞으면 그대로 둔다");
+}
+{
   // 등록 전이면 그 해가 아니다
   const d = decide("2026-08-14", {
     today: "2026-08-06", classDays: ["화", "목"], startedOn: "2026-01-01",
@@ -130,6 +159,31 @@ console.log("== 여러 줄 ==");
 }
 // 2월 29일이 없는 해는 후보에서 빠진다
 eq(candidates("2026-02-28", { today: "2026-08-06" }).length, 3, "평범한 날은 세 해 다");
+
+
+/**
+ * **1000줄에서 잘리지 않나** (lib/pageAll).
+ *
+ * Supabase 는 한 번에 1000줄까지만 준다 — `.limit(20000)` 을 걸어도 그렇다.
+ * 오류도 안 난다. 그래서 점검 화면이 앞의 1000줄만 보고 「2026년 한 해에
+ * 몰려 있습니다」 라는 거짓 답을 냈다 (2026-08-06 원장님 화면).
+ * 세는 것이 틀리면 그다음 결정이 전부 틀어진다.
+ */
+console.log("\n== 1000줄에서 안 잘리나 ==");
+{
+  const { pageAll } = await import("../lib/pageAll.js");
+  const ALL = Array.from({ length: 2130 }, (_, i) => ({ i }));
+  // 서버가 1000줄에서 자르는 것을 흉내낸다
+  const { rows } = await pageAll(async (from, to) =>
+    ({ data: ALL.slice(from, Math.min(to + 1, from + 1000)), error: null }));
+  eq(rows.length, 2130, "2130줄을 다 읽는다");
+
+  const { rows: few } = await pageAll(async () => ({ data: [{ i: 1 }], error: null }));
+  eq(few.length, 1, "적게 오면 거기서 멈춘다 (무한 반복 안 한다)");
+
+  const { rows: none, error } = await pageAll(async () => ({ data: null, error: { message: "x" } }));
+  eq([none.length, !!error], [0, true], "오류는 그대로 돌려준다");
+}
 
 if (fail) { console.log("\n❌ 연도 맞추기에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("✅ 연도 맞추기 통과");
