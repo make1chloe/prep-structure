@@ -191,10 +191,29 @@ export async function createParentLogin(studentId, wantId) {
   const uid = made.json?.id;
   if (!uid) return { error: "계정은 만들어졌는데 id 를 못 받았어요." };
 
-  await supabase.from("profiles").upsert(
+  /**
+   * **역할을 못 박는 것이 이 줄의 본론이다** (2026-08-07).
+   *
+   * 계정을 만들면 방아쇠(on_auth_user_created)가 profiles 를 먼저 만든다 —
+   * 그때 역할은 **기본값(학생)** 이다. 여기서 'parent' 로 덮어야 학부모
+   * 화면으로 간다. 이 한 줄이 실패하면 계정은 멀쩡히 만들어지고, 어머니는
+   * 로그인해서 **학생 화면을 보시게 된다.**
+   *
+   * 그런데 결과를 안 보고 넘어가고 있었다. 실패하는 길이 실제로 있다 —
+   * 부르신 분의 역할이 어긋나 있으면 `is_staff()` 가 거짓이라 남의
+   * profiles 를 못 고친다. 그러면 **아무 말 없이** 학생으로 남는다.
+   */
+  const { error: roleErr } = await supabase.from("profiles").upsert(
     { id: uid, name: `${me.name} 학부모`, role: "parent", login_id: loginId, must_change_pw: true },
     { onConflict: "id" }
   );
+  if (roleErr) {
+    return {
+      error:
+        `계정은 만들었는데 학부모로 표시하지 못했어요 (${roleErr.message}). ` +
+        "이대로 두면 로그인하셔도 학생 화면이 나옵니다. 원장님 계정의 역할부터 확인해주세요.",
+    };
+  }
   const { error } = await supabase
     .from("parent_student")
     .upsert(ids.map((student_id) => ({ parent_profile_id: uid, student_id })), {
