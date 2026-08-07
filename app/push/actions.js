@@ -72,13 +72,26 @@ export async function removeSubscription(endpoint) {
 
 // ---------- 보내기 ----------
 
+/**
+ * 보낼 때 쓸 열쇠.
+ *
+ * `integrations` 는 **원장님만** 읽는다 (0015). 그래서 강사·조교가 리포트를
+ * 올리거나 댓글을 다시면 여기가 **빈 값**으로 와서 조용히 안 보내졌다 —
+ * 학생 알림이 안 왔던 것과 똑같은 병이다. 0104 의 `push_keys()` 가
+ * 표 주인 자격으로 꺼내 준다 (선생님에게만 답한다).
+ */
 async function keysOf(supabase) {
   const { data } = await supabase
     .from("integrations")
     .select("config")
     .eq("id", "push")
     .maybeSingle();
-  return data?.config || null;
+  if (data?.config?.privateKey) return data.config;
+
+  const { data: rows, error } = await supabase.rpc("push_keys");
+  if (error || !rows?.length) return data?.config || null;   // 0104 전이면 예전 그대로
+  const k = rows[0];
+  return { publicKey: k.public_key, privateKey: k.private_key, contact: k.contact };
 }
 
 async function subsOf(supabase, studentIds) {
@@ -202,12 +215,49 @@ export async function testPush() {
  * **숙제는 안 보낸다.** 집에서 하는 것이라 밤에 알림이 울린다. 수업 중에
  * 등원 학습을 끝냈을 때만 보낸다 (부르는 계산은 부르는 쪽에서 한다).
  */
+/**
+ * ── 왜 안 왔나 (2026-08-06, 원장님 — 「학생이 도움을 요청해도 알림이 안 와」) ──
+ *
+ * 코드는 멀쩡했다. 학생이 부르면 이 함수가 불렸다. 그런데 이 함수가
+ * **학생의 자격으로** DB 를 읽는다 (서버에서 도는 코드라도 로그인한 사람의
+ * 권한으로 읽는다). 그래서 —
+ *
+ *   · 알림 열쇠(`integrations`) → **원장님만** 읽을 수 있다 (0015)
+ *   · 선생님들의 기기(`push_subscriptions`) → 본인 것이나 선생님만 (0016)
+ *
+ * 둘 다 학생에게는 **빈 값**으로 온다. 오류가 아니라 **없는 것처럼** 온다.
+ * 그러면 아래 두 줄이 「알림을 안 쓰시는구나」 하고 조용히 넘어갔다.
+ *
+ * 이 앱에서 여러 번 겪은 그 모양이다 — 읽기 규칙은 막을 때 오류를 안 내고,
+ * 그래서 화면도 로그도 멀쩡해 보인다.
+ *
+ * 0104 의 `staff_push_targets()` 가 **표 주인 자격으로** 대상을 찾아준다.
+ * 0104 를 아직 안 돌리셨으면 예전 길로 돌아간다 (원장님이 부르실 때는 된다).
+ */
 export async function pushToStaff(payload) {
   const supabase = createClient();
-  const keys = await keysOf(supabase);
-  if (!keys?.privateKey) return { sent: 0, error: null };   // 알림을 안 쓰면 조용히
 
-  // 선생님 계정에 붙어 있는 기기들
+  // 0104 — 학생·학부모가 불러도 대상을 찾을 수 있는 길
+  const { data: targets, error: rpcErr } = await supabase.rpc("staff_push_targets");
+  if (!rpcErr && Array.isArray(targets)) {
+    if (targets.length === 0) return { sent: 0, error: null };   // 아무도 알림을 안 켰다
+    const keys = {
+      publicKey: targets[0].public_key,
+      privateKey: targets[0].private_key,
+      contact: targets[0].contact,
+    };
+    const subs = targets.map((t, i) => ({
+      id: `${i}`, endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth,
+    }));
+    const res = await pushToAll(keys, subs, payload);
+    // 사라진 기기는 여기서 못 지운다 (id 가 없다) — 다음에 선생님이 여실 때 정리된다
+    return { sent: res.sent, error: res.error };
+  }
+
+  // 0104 전이면 예전 길 (선생님 자격으로 부를 때만 된다)
+  const keys = await keysOf(supabase);
+  if (!keys?.privateKey) return { sent: 0, error: null };
+
   const { data: staff } = await supabase
     .from("profiles")
     .select("id, role")

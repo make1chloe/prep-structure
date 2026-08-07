@@ -61,14 +61,20 @@ insert into auth.users (id) values
   ('a0000000-0000-0000-0000-000000000001'),   -- 어머니
   ('b0000000-0000-0000-0000-000000000002'),   -- 남의 어머니
   ('c0000000-0000-0000-0000-000000000003');   -- 원장
+-- **덮어써야 한다.** auth.users 에 넣으면 방아쇠(on_auth_user_created)가
+-- profiles 를 먼저 만든다 (역할은 기본값 'student'). 그냥 insert 하면 열쇠가
+-- 부딪혀 조용히 실패하고, **원장이 학생 역할로 남는다** — 실제로 그랬다.
+-- 그 바람에 is_staff() 가 어디서도 참이 아니었고, 검사가 그만큼 헐거웠다.
 insert into public.profiles (id, role, name) values
   ('a0000000-0000-0000-0000-000000000001', 'parent',    '가 학부모'),
   ('b0000000-0000-0000-0000-000000000002', 'parent',    '나 학부모'),
-  ('c0000000-0000-0000-0000-000000000003', 'principal', '원장');
+  ('c0000000-0000-0000-0000-000000000003', 'principal', '원장')
+on conflict (id) do update set role = excluded.role, name = excluded.name;
 -- 아이 본인 계정 — 오답 적기(0098) 규칙을 보려면 아이로도 앉아봐야 한다
 insert into auth.users (id) values ('d0000000-0000-0000-0000-000000000004');
 insert into public.profiles (id, role, name) values
-  ('d0000000-0000-0000-0000-000000000004', 'student', '가학생');
+  ('d0000000-0000-0000-0000-000000000004', 'student', '가학생')
+on conflict (id) do update set role = excluded.role, name = excluded.name;
 insert into public.students (id, name, parent_phone, status, profile_id) values
   ('11110000-0000-0000-0000-000000000001', '가학생', '010-1111-1111', 'enrolled',
    'd0000000-0000-0000-0000-000000000004'),
@@ -477,5 +483,109 @@ fi
 
 # 되돌려 둔다 (뒤에 검사가 더 붙어도 기본값에서 시작하게)
 share both
+
+# ── 6) 학생이 부르면 선생님 폰에 알림이 갈 수 있나 (0104) ──────
+#
+# 원장님 (2026-08-06) — 「학생이 도움을 요청해도 알림이 안 와」
+#
+# 코드는 멀쩡했는데 **읽기 규칙**에 막혀 있었다. `pushToStaff` 가 학생의
+# 자격으로 DB 를 읽는데, 알림 열쇠(integrations)는 원장님만, 선생님 기기
+# (push_subscriptions)는 선생님만 읽을 수 있다. 둘 다 학생에게는 **빈 값**
+# 으로 오고, 그러면 「알림을 안 쓰시는구나」 하고 조용히 넘어간다.
+#
+# 오류가 안 나는 실패라 눈으로는 못 찾는다. 여기서 못 박아 둔다.
+echo
+echo "  == 학생이 부르면 선생님께 알림 (0104) =="
+
+# 알림 열쇠와 선생님 기기를 심는다
+$Q -d chloe -c "
+insert into public.integrations (id, enabled, config) values
+  ('push', true, '{\"publicKey\":\"pub\",\"privateKey\":\"priv\",\"contact\":\"mailto:a@b\"}'::jsonb)
+on conflict (id) do update set config = excluded.config;
+insert into public.push_subscriptions (profile_id, endpoint, p256dh, auth)
+  values ('c0000000-0000-0000-0000-000000000003', 'https://push.example/boss', 'p', 'a')
+on conflict (endpoint) do nothing;" >/dev/null 2>&1
+
+# **학생 자격으로** 대상을 찾을 수 있나
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$KID');" >/dev/null 2>&1
+N=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.staff_push_targets();
+SQL
+)
+if [ "$N" = "1" ]; then
+  echo "  학생이 불러도 보낼 곳을 찾습니다"
+else
+  echo "  ❌ 학생이 부르면 보낼 곳을 못 찾습니다 ($N)"; fail=1
+fi
+
+# **예전 길로는 못 찾는다** — 이것이 안 됐던 까닭이다 (고쳤다는 증거)
+K=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.integrations where id = 'push';
+SQL
+)
+if [ "$K" = "0" ]; then
+  echo "  알림 열쇠 자체는 학생에게 그대로 잠겨 있습니다"
+else
+  echo "  ❌ 학생이 알림 열쇠를 직접 읽습니다 ($K 줄)"; fail=1
+fi
+
+# **학원 밖 사람은 못 부른다**
+$Q -d chloe -c "
+insert into auth.users (id) values ('99999999-0000-0000-0000-000000000000') on conflict do nothing;
+insert into public.profiles (id, role, name) values ('99999999-0000-0000-0000-000000000000','student','남')
+on conflict (id) do update set role = 'student';
+delete from public._who; insert into public._who values ('99999999-0000-0000-0000-000000000000');" >/dev/null 2>&1
+O=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.staff_push_targets();
+SQL
+)
+if [ "$O" = "0" ]; then
+  echo "  학원과 상관없는 계정은 보낼 곳을 못 얻습니다"
+else
+  echo "  ❌ 학원 밖 계정이 알림 열쇠를 얻습니다 ($O)"; fail=1
+fi
+
+# ── 선생님이 보내실 때도 같은 병이 있었다 (0104, push_keys) ──
+#
+# 알림 열쇠는 **원장님만** 읽는다 (0015). 강사·조교가 리포트를 올리거나
+# 댓글을 달면 열쇠가 빈 값으로 와서 **조용히 안 보내진다.** 지금은 원장님
+# 혼자 쓰셔서 안 드러날 뿐이다 — 선생님이 한 분 늘면 바로 터진다.
+$Q -d chloe -c "
+insert into auth.users (id) values ('e0000000-0000-0000-0000-000000000005') on conflict do nothing;
+insert into public.profiles (id, role, name) values
+  ('e0000000-0000-0000-0000-000000000005', 'instructor', '강사')
+on conflict (id) do update set role = excluded.role, name = excluded.name;
+delete from public._who; insert into public._who values ('e0000000-0000-0000-0000-000000000005');" >/dev/null 2>&1
+T=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.push_keys();
+SQL
+)
+R=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.integrations where id = 'push';
+SQL
+)
+if [ "$T" = "1" ] && [ "$R" = "0" ]; then
+  echo "  강사도 알림을 보낼 수 있습니다 (표는 여전히 원장님만)"
+else
+  echo "  ❌ 강사가 알림 열쇠를 못 얻습니다 (열쇠 $T · 표 $R)"; fail=1
+fi
+
+# 학생은 이 길로는 못 얻는다 (학생은 staff_push_targets 로만 닿는다)
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$KID');" >/dev/null 2>&1
+S=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.push_keys();
+SQL
+)
+if [ "$S" = "0" ]; then
+  echo "  학생은 이 길로 열쇠를 못 얻습니다"
+else
+  echo "  ❌ 학생이 push_keys 로 열쇠를 얻습니다 ($S)"; fail=1
+fi
 
 exit $fail

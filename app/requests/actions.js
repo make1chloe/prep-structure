@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf } from "@/lib/day";
+import { pushToStaff, pushToFamilies } from "@/app/push/actions";
 
 function ok(error) {
   return { error: error ? error.message : null };
 }
+
+const KIND = { absence: "결석", makeup: "보강 요청", info: "전달", question: "문의" };
 
 // 학생·학부모가 직접 넣는 요청 (결석 알림 등)
 export async function createRequest(input) {
@@ -35,6 +38,32 @@ export async function createRequest(input) {
     ({ error } = await supabase.from("requests").insert(noPhotos));
   }
   if (error) return { error: "0019 SQL을 먼저 실행해주세요." };
+
+  /**
+   * **보냈으면 알려야 한다** (2026-08-06, 알림 전체 점검).
+   *
+   * 여기가 제일 컸다. 결석·문의는 **화면을 안 보고 계실 때** 들어온다.
+   * 대시보드에만 쌓이면 그날 저녁에야 보시게 되고, 결석은 이미 지나 있다.
+   *
+   * 보내기가 안 되더라도 요청 자체는 이미 들어갔다 — 그러니 여기서 나는
+   * 문제로 학부모께 오류를 보이지 않는다 (알림은 덤이지 본 일이 아니다).
+   */
+  try {
+    const { data: who } = await supabase
+      .from("students").select("name").eq("id", studentId).maybeSingle();
+    const name = who?.name || "학생";
+    const when = row.from_date
+      ? ` (${row.from_date}${row.to_date && row.to_date !== row.from_date ? `~${row.to_date}` : ""})`
+      : "";
+    await pushToStaff({
+      title: `📩 ${KIND[row.kind] || "알림"} — ${name}`,
+      body: `${(row.body || "").slice(0, 60) || "확인해주세요."}${when}`,
+      url: "/",
+    });
+  } catch {
+    // 알림이 안 가도 요청은 들어갔다
+  }
+
   revalidatePath("/me");
   revalidatePath("/");
   return { error: null };
@@ -100,6 +129,22 @@ export async function handleRequest(id, accept, reply) {
       handled_at: new Date().toISOString(),
     })
     .eq("id", id);
+
+  // **답을 드렸으면 알려야 한다.** 어머니는 이 화면을 다시 안 여신다 —
+  // 알림이 안 가면 「알렸는데 답이 없네」 로 끝난다 (2026-08-06)
+  if (!uErr) {
+    try {
+      await pushToFamilies([req.student_id], {
+        title: accept ? "✅ 확인했습니다" : "확인했습니다",
+        body:
+          (reply || "").trim().slice(0, 60) ||
+          `${KIND[req.kind] || "알림"} 확인했습니다.`,
+        url: "/me",
+      }, "all");
+    } catch {
+      // 알림이 안 가도 답은 남았다
+    }
+  }
 
   revalidatePath("/");
   revalidatePath("/today");

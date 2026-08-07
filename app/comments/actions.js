@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { pushToStaff, pushToFamilies } from "@/app/push/actions";
 
 function unavailable(error) {
   // 0023 SQL 전이면 테이블이 없다
@@ -69,6 +70,38 @@ export async function addComment(reportId, studentId, body) {
     return { error: "댓글을 쓰려면 Supabase에서 0023 SQL을 먼저 실행해주세요." };
   }
   if (error) return { error: error.message };
+
+  /**
+   * **댓글은 대화다** — 한쪽만 알면 대화가 안 된다 (2026-08-06, 알림 점검).
+   *
+   * 리포트에 달리는 댓글은 그동안 **아무에게도 안 알렸다.** 어머니가 남기신
+   * 질문은 선생님이 그 리포트를 다시 열어야 보였고, 선생님 답은 어머니가
+   * 다시 들어와야 보였다. 양쪽 다 「답이 없네」 로 끝난다.
+   *
+   * 알림이 안 가도 댓글은 이미 달렸다 — 오류로 보이지 않는다.
+   */
+  try {
+    if (author_role === "staff") {
+      const { data: who } = await supabase
+        .from("students").select("name").eq("id", studentId).maybeSingle();
+      await pushToFamilies([studentId], {
+        title: "💬 선생님 댓글",
+        body: `${who?.name ? `${who.name} · ` : ""}${text.slice(0, 60)}`,
+        url: "/me",
+      }, "all");
+    } else {
+      const { data: who } = await supabase
+        .from("students").select("name").eq("id", studentId).maybeSingle();
+      const from = author_role === "parent" ? "학부모님" : "학생";
+      await pushToStaff({
+        title: `💬 ${who?.name || "학생"} ${from} 댓글`,
+        body: text.slice(0, 60),
+        url: "/today",
+      });
+    }
+  } catch {
+    // 알림이 안 가도 댓글은 달렸다
+  }
 
   revalidatePath("/me");
   revalidatePath("/today");

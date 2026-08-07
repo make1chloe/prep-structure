@@ -125,6 +125,7 @@ const CHECKS = [
   { id: "0101", label: "성적 공개 대상", table: "students", col: "score_share" },
   { id: "0102", label: "신규 상담 양식 (희망 시간표 · 개인정보 동의)", table: "inquiries", col: "want_slots" },
   { id: "0103", label: "보강 없음", table: "attendance", col: "makeup_waived" },
+  { id: "0104", label: "학생이 부르면 선생님 폰에 알림", rpc: "staff_push_on" },
 
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.
