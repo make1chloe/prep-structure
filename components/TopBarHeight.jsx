@@ -3,33 +3,43 @@
 import { useEffect } from "react";
 
 /**
- * 위 메뉴의 **실제 높이**를 CSS 에 알려준다 (`--topbar-h`).
+ * 위 메뉴의 **높이 두 가지**를 CSS 에 알려준다.
  *
- * 원장님 (2026-08-07) — 「재원생에서 학생이름이 밑에 있을때 맨위 페이지까지
- * 올리지 않으면 재원생 이름이 잘려」
+ *   --topbar-full  펴졌을 때의 높이 → 문서 맨 위에 잡아둘 빈자리(body 패딩)
+ *   --topbar-h     대메뉴 한 줄 높이 → 옆판이 붙을 자리(.split-panel top)
  *
- * 오른쪽 판은 `position: sticky; top: 12px` 로 붙어 있었다. 그런데 위 메뉴도
- * 같이 붙어 있고(z-index 가 더 높다), 메뉴가 **두 줄**이라 120px 넘게 차지한다.
- * 그래서 판이 화면 맨 위에 붙는 순간 **메뉴 뒤로 들어가서** 이름 줄이 잘렸다.
+ * ── 왜 재야 하나 ────────────────────────────────────────
  *
- * 높이를 숫자로 박아둘 수가 없다 — 메뉴 줄 수는 역할(원장·강사)과 화면 너비에
- * 따라 달라진다. 그래서 **재보고 알려준다.** 창 크기가 바뀌면 다시 잰다.
+ * 원장님 (2026-08-07) — 「재원생에서 학생 이름이 밑에 있을 때 맨 위
+ * 페이지까지 올리지 않으면 재원생 이름이 잘려」
  *
- * 2026-08-07 에 메뉴를 묶음별 줄로 바꾸면서 위 메뉴는 **안 붙이기로** 했다
- * (줄이 여덟이라 붙여두면 화면의 3분의 1이 메뉴가 된다). 그래서 지금은
- * 늘 0 이 된다 — 남겨두는 까닭은 다시 붙이게 되었을 때 이 계산이 없으면
- * 같은 잘림이 그대로 돌아오기 때문이다.
+ * 오른쪽 판이 `position: sticky` 로 붙는데, 위 메뉴도 붙어 있고 z-index 가
+ * 더 높다. 그래서 판이 화면 맨 위에 닿는 순간 **메뉴 뒤로 들어가서** 이름
+ * 줄이 잘렸다.
+ *
+ * 높이를 숫자로 박아둘 수가 없다 — 메뉴 줄 수는 역할(원장·강사)과 화면
+ * 너비에 따라 달라진다. 그래서 재보고 알려준다. 창 크기가 바뀌면 다시 잰다.
+ *
+ * **펴진 높이는 펴져 있을 때만 잰다.** 접힌 상태에서 재서 넣으면, 맨 위로
+ * 올라왔을 때 빈자리가 모자라 메뉴가 글을 덮는다.
  */
 export default function TopBarHeight() {
   useEffect(() => {
     const bar = document.querySelector(".topbar");
     if (!bar) return;
+    const root = document.documentElement;
+
     const apply = () => {
-      const h = Math.round(bar.getBoundingClientRect().height);
-      // 좁은 화면에서는 메뉴가 안 붙어 있다 (position: static) — 0 으로 둔다
-      const stuck = getComputedStyle(bar).position === "sticky";
-      document.documentElement.style.setProperty("--topbar-h", `${stuck ? h : 0}px`);
+      const nav = bar.querySelector(".navmain");
+      if (nav) {
+        root.style.setProperty("--topbar-h", `${Math.round(nav.getBoundingClientRect().height)}px`);
+      }
+      if (root.dataset.nav !== "compact") {
+        const h = Math.round(bar.getBoundingClientRect().height);
+        if (h > 0) root.style.setProperty("--topbar-full", `${h}px`);
+      }
     };
+
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(bar);

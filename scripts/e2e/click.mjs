@@ -226,6 +226,53 @@ try {
     }
   }
 
+  /**
+   * ── 3-2) 굴리면 메뉴가 접히나 ─────────────────────────────
+   *
+   * 원장님 (2026-08-07) — 「아래로 스크롤하면 대메뉴만 나오고 많이
+   * 올라가면 소메뉴 나오고」
+   *
+   * 코드를 읽는 검사로는 못 잡는다. **어느 쪽으로 굴리는지**에 따라
+   * 달라지는 일이라 진짜로 굴려봐야 안다.
+   *
+   * 같이 보는 것이 하나 더 있다 — **문서 길이가 안 변해야 한다.**
+   * 접으면서 문서가 짧아지면 읽던 자리가 위로 훅 튄다. 손가락은 가만히
+   * 있는데 글이 움직이니 그 자체로 고장처럼 느껴진다.
+   */
+  console.log("\n== 굴리면 메뉴가 접히나 ==");
+  try {
+    await page.goto(`${APP}/students`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    // 검사판에는 자료가 적어 화면이 안 굴러간다 — 굴릴 자리를 만들어 준다
+    await page.evaluate(() => {
+      const d = document.createElement("div");
+      d.style.height = "2400px";
+      document.querySelector("main")?.appendChild(d);
+    });
+    const nav = () => page.evaluate(() => document.documentElement.dataset.nav || "(없음)");
+    const docH = () => page.evaluate(() => document.documentElement.scrollHeight);
+    const to = async (y) => { await page.evaluate((v) => window.scrollTo(0, v), y); await page.waitForTimeout(400); };
+
+    await to(0);
+    const h0 = await docH();
+    if ((await nav()) !== "full") bad("맨 위에서 메뉴", `펴져 있어야 하는데 ${await nav()}`);
+    else console.log("  맨 위 — 대메뉴 + 소메뉴");
+
+    await to(700); await to(1100);
+    if ((await nav()) !== "compact") bad("내려갈 때 메뉴", `접혀야 하는데 ${await nav()}`);
+    else console.log("  내려가면 — 대메뉴만");
+
+    const h1 = await docH();
+    if (h0 !== h1) bad("접을 때 글이 튄다", `문서 길이가 ${h0} → ${h1} 로 바뀌었습니다`);
+    else console.log("  접어도 글이 안 튑니다 (문서 길이 그대로)");
+
+    await to(0); await to(1400); await to(1150);
+    if ((await nav()) !== "full") bad("올라올 때 메뉴", `펴져야 하는데 ${await nav()}`);
+    else console.log("  많이 올라오면 — 소메뉴가 돌아옵니다");
+  } catch (e) {
+    bad("메뉴 접기", e.message.split("\n")[0]);
+  }
+
   // ── 4) 남의 화면은 안 열린다 ───────────────────────────────
   console.log("\n== 남의 화면 ==");
   const sctx = await browser.newContext();

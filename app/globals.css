@@ -51,11 +51,35 @@ a { color: inherit; }
 .editgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 
 /* Top bar */
-/* **메뉴는 위에 붙여두지 않는다** (2026-08-07, 묶음별 줄로 바꾸면서).
-   묶음마다 한 줄이면 줄이 여덟이다 — 붙여두면 노트북 화면의 3분의 1이
-   늘 메뉴가 된다. 화면을 바꾸는 일보다 한 화면 안에서 훑는 일이 훨씬
-   잦으니, 훑을 자리를 넓히는 쪽이 낫다. 좁은 화면에서는 원래 이랬다. */
-.topbar { background: var(--surface); border-bottom: 1px solid var(--border); position: static; z-index: 20; }
+/* **다시 붙인다 — 접히니까** (원장님, 2026-08-07 — 「아래로 스크롤하면
+   대메뉴만 나오고 많이 올라가면 소메뉴 나오고」).
+
+   묶음마다 한 줄이던 때는 줄이 여덟이라 붙여둘 수가 없었다(화면의 3분의 1).
+   그래서 안 붙였더니, 이번에는 화면을 바꾸려면 매번 맨 위로 올라가야 했다.
+   내려가면 대메뉴 한 줄(40px)만 남으므로 이제 붙여둘 수 있다.
+
+   ── 왜 sticky 가 아니라 fixed 인가 ────────────────────────
+
+   sticky 는 **자리를 차지한 채** 붙는다. 그래서 굴리는 도중에 머리말을
+   접으면 문서가 그만큼 짧아지고, **읽던 자리가 위로 훅 튄다.** 손가락은
+   가만히 있는데 글이 움직이는 것이라 그 자체로 고장처럼 느껴진다.
+
+   fixed 로 띄우고, 문서 맨 위에 **펴진 높이만큼 빈자리**(--topbar-full)를
+   미리 잡아둔다. 접히든 펴지든 문서 길이가 안 변하니 튀지 않는다.
+   높이는 재서 알려준다 (components/TopBarHeight.jsx) — 메뉴 줄 수가
+   역할과 화면 너비에 따라 달라져서 숫자로 박을 수가 없다. */
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+}
+body { padding-top: var(--topbar-full, 120px); }
+/* 내려가는 중에는 이름줄(로고·로그아웃)과 소메뉴를 접는다 — 대메뉴만 남는다.
+   표시는 <html> 에 붙는다 (components/NavScroll.jsx — 머리말이 다시 그려질 때
+   표시가 날아가지 않게) */
+:root[data-nav="compact"] .topbar-in,
+:root[data-nav="compact"] .navsub { display: none; }
+:root[data-nav="compact"] .navgrid-wrap { border-top: none; }
+:root[data-nav="compact"] .topbar { box-shadow: 0 2px 8px rgba(16,26,54,.07); }
 .topbar-in { display: flex; align-items: center; gap: 16px; height: 56px; max-width: 1480px; margin: 0 auto; padding: 0 20px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 16px; letter-spacing: -.02em; text-decoration: none; }
 .brand .mark { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
@@ -69,29 +93,36 @@ a { color: inherit; }
 /* 메뉴는 항상 펴져 있다 — 눌러 들어갔다 나오지 않는다.
    지금 화면만 하얗게 떠 있어서 어디 있는지 바로 보인다. */
 .navgrid-wrap { border-top: 1px solid var(--border); background: var(--surface); }
-/* **묶음마다 한 줄, 이름은 맨 왼쪽** (원장님, 2026-08-07).
+/* **가로 두 줄** (원장님, 2026-08-07 — 「메뉴를 가로로 배치하는 건 어때?」)
 
-   예전에는 열여덟 개가 한 줄로 흘러가다 화면 너비에 따라 아무 데서나
-   접혔다. 그래서 묶음이 줄 중간에서 갈라졌다 — 넓이가 바뀔 때마다 자리가
-   달라지니 「그건 저기쯤」 이라는 감이 안 생긴다.
+   위: 대메뉴 (묶음 이름 여덟)   — 내려가도 남는다
+   아래: 소메뉴 (화면 열여덟)     — 맨 위에 있을 때만
 
-   두 칸짜리 격자다. 왼쪽은 이름들이 폭을 맞춰 세로로 나란히 서고
-   (max-content 라 가장 긴 이름에 맞는다), 오른쪽에서만 접힌다. */
-.navgrid {
-  max-width: 1480px; margin: 0 auto; padding: 6px 20px 8px;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  column-gap: 10px; row-gap: 4px;
-  align-items: center;
+   묶음이 줄 중간에서 갈라지던 문제는 **묶음 하나를 한 덩어리(.navgroup)로**
+   두어 막는다. 접히더라도 덩어리 사이에서만 접힌다. */
+.navmain, .navsub {
+  max-width: 1480px; margin: 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center;
 }
-.navrow { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
-.navgrid a {
+.navmain { padding: 6px 20px 0; gap: 4px; }
+.navsub { padding: 4px 20px 8px; gap: 4px 14px; }
+/* 묶음 하나 — **안에서는 안 접힌다.** 「일정」 셋이 윗줄 둘 아랫줄 하나로
+   갈라지던 것이 이것으로 막힌다 */
+.navgroup { display: inline-flex; flex-wrap: nowrap; gap: 2px; align-items: center; }
+/* 묶음 사이에 옅은 세로줄 — 어디까지가 한 묶음인지 */
+.navgroup + .navgroup::before {
+  content: ""; align-self: center;
+  width: 1px; height: 14px; margin-right: 12px;
+  background: var(--border);
+}
+.navmain a, .navsub a {
   font-size: 13.5px; font-weight: 700; color: var(--text-muted);
   text-decoration: none; padding: 5px 11px; border-radius: 9px;
   border: 1px solid transparent; white-space: nowrap;
 }
-.navgrid a:hover { background: var(--surface-2); color: var(--text); }
-.navgrid a.on {
+.navsub a { font-size: 13px; font-weight: 600; padding: 4px 8px; }
+.navmain a:hover, .navsub a:hover { background: var(--surface-2); color: var(--text); }
+.navmain a.on, .navsub a.on {
   color: var(--navy); background: var(--surface);
   border-color: var(--border); box-shadow: 0 1px 3px rgba(0,0,0,.07);
 }
@@ -107,18 +138,9 @@ a { color: inherit; }
    꽉 찬 알약이라, 훑을 때 묶음이 먼저 잡힌다. 크기는 여전히 같다. */
 .navgroup-tag {
   align-self: center;
-  /* 격자의 첫 칸이라 **줄마다 왼쪽 끝에서 시작한다** — 들여쓸 이유가 없다.
-     (예전에는 한 줄 안에서 앞뒤를 갈라야 해서 왼쪽 여백과 세로줄이 필요했다) */
-  justify-self: start;
-  text-align: center;
-  min-width: 100%;
-  /* **알약을 화면 이름보다 낮게** (원장님, 2026-08-07 — 「대메뉴 라벨의
-     박스 높이를 변경하면 안 돼?」). 줄 사이가 1px 이던 때는 색이 찬
-     알약 여덟 개가 세로로 이어 붙어 통짜 기둥처럼 보였다. 높이를 낮추고
-     줄 사이를 벌리니 하나씩 떨어져 읽힌다.
-     **폭은 그대로 맞춘다**(min-width:100%) — 폭까지 제각각이면 왼쪽 줄이
-     들쭉날쭉해져서 세로로 훑을 수가 없다. */
-  padding: 2px 13px !important;
+  /* **폭은 글자대로.** 세로로 쌓을 때는 폭을 맞춰야 줄이 안 들쭉날쭉했지만,
+     가로 한 줄에서는 맞출 이유가 없다 — 오히려 자리만 먹는다 */
+  padding: 4px 13px !important;
   font-size: 12.5px;
   font-weight: 800 !important;
   letter-spacing: -0.2px;
@@ -129,22 +151,21 @@ a { color: inherit; }
   white-space: nowrap;
   position: relative;
 }
-.navgrid a.navgroup-tag:hover {
+.navmain a.navgroup-tag:hover {
   color: var(--chip-fg) !important;
   background: var(--chip-bg) !important;
   filter: brightness(1.15);
 }
 /* 하위가 없는 묶음(대시보드)은 이름 칸이 곧 그 화면이다 — 지금 그 화면에
    있으면 다른 화면 이름과 똑같이 하얗게 떠야 한다 */
-.navgrid a.navgroup-tag.on {
+.navmain a.navgroup-tag.on {
   color: var(--navy) !important;
   background: var(--surface) !important;
   border-color: var(--border) !important;
   box-shadow: 0 1px 3px rgba(0,0,0,.07);
 }
 @media (max-width: 900px) {
-  /* 폰에서도 같은 높이로 — 여기만 7px 로 두면 폰에서만 통짜 기둥이 된다 */
-  .navgroup-tag { padding: 2px 10px !important; font-size: 12px; }
+  .navgroup-tag { padding: 3px 10px !important; font-size: 12px; }
 }
 .spacer { flex: 1; }
 .who { font-size: 12.5px; color: var(--text-muted); }
@@ -408,10 +429,14 @@ a { color: inherit; }
 .navsheet-group b { font-size: 11.5px; font-weight: 700; color: var(--text-muted); padding: 2px 10px; }
 
 @media (max-width: 900px) {
-  /* 좁으면 메뉴가 서너 줄이 된다. 그게 화면 위에 붙어 있으면 볼 것이 없어지므로,
-     여기서는 위에 붙이지 않고 **같이 밀려 올라가게** 한다. */
-  .navgrid { padding: 8px 14px 10px; column-gap: 7px; row-gap: 3px; }
-  .navgrid a { font-size: 13px; padding: 7px 8px; }
+  /* 폰에서는 소메뉴가 서너 줄이 된다. 그래도 **내려가면 대메뉴 한 줄만**
+     남으니(NavScroll) 붙여둘 수 있다 — 오히려 폰에서 더 값지다. 화면을
+     바꾸려고 긴 목록을 맨 위까지 되감을 일이 없어진다 */
+  .navmain { padding: 6px 14px 0; gap: 3px; }
+  .navsub { padding: 4px 14px 8px; gap: 3px 10px; }
+  .navmain a, .navsub a { font-size: 12.5px; padding: 4px 8px; }
+  .navsub a { font-size: 12px; padding: 3px 6px; }
+  .navgroup + .navgroup::before { margin-right: 8px; }
   .topbar-in { gap: 10px; padding: 0 14px; }
   .brand { flex: 0 0 auto; white-space: nowrap; font-size: 15px; }
   .nav { display: none; }

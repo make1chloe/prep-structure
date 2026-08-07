@@ -38,29 +38,48 @@ eq(/router\.push\("\/me"\);\s*\n\s*router\.refresh\(\);/.test(login), false,
 eq(read("app/page.jsx").includes('if (profile?.role === "parent") redirect("/parent")'), true,
    "대시보드에 온 학부모는 학부모 화면으로");
 
-console.log("\n== 메뉴 — 묶음마다 한 줄, 이름은 맨 왼쪽 ==");
+console.log("\n== 메뉴 — 가로 두 줄, 내려가면 대메뉴만 ==");
 /**
- * 원장님 (2026-08-07) — 「메뉴 정렬해줘. 대메뉴 라벨을 줄바꿔서 맨 왼쪽에」
+ * 원장님 (2026-08-07) — 「메뉴를 가로로 배치하는 건 어때? 아래로
+ * 스크롤하면 대메뉴만 나오고 많이 올라가면 소메뉴 나오고」
  *
- * 예전에는 열여덟 개가 한 줄로 흘러가다 화면 너비에 따라 아무 데서나
- * 접혔다. 그래서 **묶음이 줄 중간에서 갈라졌다** — 넓이가 바뀔 때마다
- * 자리가 달라지니 「그건 저기쯤」 이라는 감이 안 생긴다.
+ * 세 번째 모양이다. 앞의 둘이 왜 안 됐는지를 같이 못 박아둔다 —
+ *   1) 한 줄로 흘리기  → 화면 너비에 따라 **묶음이 줄 중간에서 갈라졌다**
+ *   2) 묶음마다 한 줄  → 갈라지진 않는데 **줄이 여덟**이라 붙여둘 수가 없었다
  */
 const bar = read("components/TopBar.jsx");
-eq(/rows\.push\(\{ group: it\.group/.test(bar), true, "묶음별로 줄을 접는다");
-eq(bar.includes('className="navrow"'), true, "묶음 화면들이 한 칸에 모여 있다");
-// 「대시보드 대시보드」 — 묶음 안에 화면이 없으면 이름이 두 번 나왔다.
-// 이제 이름 칸이 곧 그 화면이다
+eq(bar.includes('className="navmain"'), true, "대메뉴 줄이 있다");
+eq(bar.includes('className="navsub"'), true, "소메뉴 줄이 있다");
+eq(bar.includes('className="navgroup"'), true, "소메뉴에서 묶음이 한 덩어리다");
+// 「대시보드 대시보드」 — 묶음 안에 화면이 없으면 이름이 두 번 나왔다
 eq(/r\.items\[0\]\.label === r\.label/.test(bar), true,
    "하위가 없는 묶음은 이름 칸이 곧 그 화면");
 eq(bar.includes("row.solo ? row.solo.href"), true, "그 이름을 누르면 그 화면으로");
+// 지금 어느 묶음에 있는지 대메뉴에서 보여야 한다 (소메뉴가 접혀 있을 때 특히)
+eq(bar.includes("sectionOf(active) === row.group"), true, "지금 묶음이 대메뉴에 표시된다");
 
 const css = read("app/globals.css");
-const grid = css.slice(css.indexOf(".navgrid {"), css.indexOf(".navgrid {") + 400);
-eq(/display: grid/.test(grid), true, "두 칸짜리 격자다");
-eq(/grid-template-columns: max-content/.test(grid), true, "왼쪽 이름 칸 폭이 서로 맞는다");
-// 격자의 첫 칸이라 들여쓸 이유가 없다 — 왼쪽 여백이 남아 있으면 안 맞는다
-eq(/margin-left: 14px/.test(css), false, "이름을 들여쓰던 여백이 남아 있다");
+// **묶음은 안에서 안 접힌다** — 1) 이 무너진 자리다
+const grp = css.slice(css.indexOf(".navgroup {"), css.indexOf(".navgroup {") + 200);
+eq(/flex-wrap: nowrap/.test(grp), true, "묶음 하나는 갈라지지 않는다");
+// 접는 것은 <html> 표시로 — 머리말이 다시 그려져도 안 날아가야 한다
+eq(css.includes(':root[data-nav="compact"] .navsub'), true, "접히면 소메뉴가 숨는다");
+eq(read("components/NavScroll.jsx").includes("root.dataset.nav"), true,
+   "표시를 <html> 에 붙인다 (다시 그려도 안 날아간다)");
+/**
+ * **접을 때 글이 튀면 안 된다.**
+ *
+ * sticky 는 자리를 차지한 채 붙는다 — 굴리는 도중에 머리말을 접으면 문서가
+ * 짧아지고 읽던 자리가 위로 훅 튄다. 손가락은 가만히 있는데 글이 움직이니
+ * 그 자체로 고장처럼 느껴진다. fixed 로 띄우고 빈자리를 미리 잡아둔다.
+ */
+eq(/\.topbar \{[^}]*position: fixed/.test(css), true, "머리말은 띄워둔다 (fixed)");
+eq(/body \{ padding-top: var\(--topbar-full/.test(css), true, "그만큼 빈자리를 잡아둔다");
+eq(read("components/TopBarHeight.jsx").includes("--topbar-full"), true,
+   "펴진 높이를 재서 알려준다");
+// 접힌 채로 재면 맨 위에서 메뉴가 글을 덮는다
+eq(read("components/TopBarHeight.jsx").includes('root.dataset.nav !== "compact"'), true,
+   "펴져 있을 때만 잰다");
 
 console.log("\n== 대시보드에서 바로 처리 ==");
 const q = read("app/QuickBar.jsx");

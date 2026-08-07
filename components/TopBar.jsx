@@ -1,9 +1,9 @@
-import { Fragment } from "react";
 import Link from "next/link";
-import { menuFor, findSection } from "@/lib/menu";
+import { menuFor, findSection, sectionOf } from "@/lib/menu";
 import BrandMark from "./BrandMark";
 import Refresh from "./Refresh";
 import TopBarHeight from "./TopBarHeight";
+import NavScroll from "./NavScroll";
 import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
 import { unreadForStaff, badgeText } from "@/lib/inbox";
@@ -97,56 +97,68 @@ export default async function TopBar({ profile, active }) {
       </div>
 
       {/**
-        * **묶음마다 한 줄, 이름은 맨 왼쪽** (원장님, 2026-08-07 —
-        * 「메뉴 정렬해줘. 대메뉴 라벨을 줄바꿔서 맨 왼쪽에 놓는 게 어때」).
+        * **가로 두 줄 — 내려가면 대메뉴만 남는다** (원장님, 2026-08-07 —
+        * 「메뉴를 가로로 배치하는 건 어때? 아래로 스크롤하면 대메뉴만
+        * 나오고 많이 올라가면 소메뉴 나오고」).
         *
-        * 예전에는 열여덟 개가 한 줄로 흘러가다 화면 너비에 따라 아무 데서나
-        * 접혔다. 그래서 **묶음이 줄 중간에서 갈라졌다** — 「일정」 세 개 중
-        * 둘은 윗줄, 하나는 아랫줄. 넓이가 바뀔 때마다 자리가 달라지니
-        * 「그건 저기쯤」 이라는 감이 안 생긴다.
+        * ── 여기까지 온 길 ──────────────────────────────────
         *
-        * 이제 왼쪽 칸에 묶음 이름, 오른쪽 칸에 그 묶음 화면들이다.
-        * 줄이 곧 묶음이라 눈이 세로로 훑는다. 화면이 좁아져도 묶음은
-        * 안 갈라진다 — 그 묶음 안에서만 접힌다.
+        * 처음에는 열여덟 개가 한 줄로 흘렀다. 화면 너비에 따라 아무 데서나
+        * 접혀서 **묶음이 줄 중간에서 갈라졌다.**
+        *
+        * 그래서 묶음마다 한 줄로 세웠다. 갈라지지는 않는데 **줄이 여덟**이라
+        * 붙여둘 수가 없었고(화면의 3분의 1), 안 붙이니 화면을 바꾸려면
+        * 매번 맨 위로 올라가야 했다.
+        *
+        * 이 방식은 둘 다 푼다 —
+        *   맨 위에서   대메뉴 한 줄 + 소메뉴 한 줄  (두 번 안 누른다)
+        *   내려가면    대메뉴 한 줄만, 위에 붙어서   (40px)
+        *   올려 오면   소메뉴가 다시 나온다
+        *
+        * 묶음이 갈라지는 문제는 소메뉴 줄에서 **묶음 하나를 통째로 한
+        * 덩어리**로 두어 막는다 (.navgroup 은 안에서 안 접힌다).
         */}
+      <NavScroll />
       <nav className="navgrid-wrap">
-        <div className="navgrid">
+        {/* 대메뉴 — 내려가도 이 줄만은 남는다 */}
+        <div className="navmain">
           {rows.map((row) => (
-            <Fragment key={row.group}>
-              {/**
-                * 묶음 이름을 누르면 그 묶음 화면으로 간다.
-                *
-                * **하위가 없는 묶음은 이름 자리에 그대로 놓는다** (원장님,
-                * 2026-08-07 — 「대시보드 메뉴가 두 개인 것도 하나만 살리고」).
-                * 대시보드는 묶음 안에 화면이 없어서 「대시보드 대시보드」 로
-                * 나왔었다.
-                */}
-              <Link
-                href={row.solo ? row.solo.href : groupHref(row.group)}
-                className={`navgroup-tag ${row.solo && active === row.solo.key ? "on" : ""}`}
-                title={
-                  row.solo?.key === "home" && badge
-                    ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
-                    : `${row.label} 묶음`
-                }
-              >
-                {row.label}
-                {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
-              </Link>
-              <div className="navrow">
+            <Link
+              key={row.group}
+              href={row.solo ? row.solo.href : groupHref(row.group)}
+              className={`navgroup-tag ${
+                row.solo ? (active === row.solo.key ? "on" : "") : sectionOf(active) === row.group ? "on" : ""
+              }`}
+              title={
+                row.solo?.key === "home" && badge
+                  ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
+                  : `${row.label} 묶음`
+              }
+            >
+              {row.label}
+              {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
+            </Link>
+          ))}
+        </div>
+
+        {/* 소메뉴 — 맨 위에 있을 때만. 묶음 하나는 한 덩어리로 안 갈라진다 */}
+        <div className="navsub">
+          {rows.map((row) =>
+            row.items.length === 0 ? null : (
+              <span className="navgroup" key={row.group}>
                 {row.items.map((it) => (
                   <Link
                     key={it.key}
                     href={it.href}
                     className={active === it.key ? "on" : ""}
-                    title={it.desc || it.label}
+                    title={it.desc ? `${row.label} · ${it.desc}` : `${row.label} · ${it.label}`}
                   >
                     {it.label}
                   </Link>
                 ))}
-              </div>
-            </Fragment>
-          ))}
+              </span>
+            )
+          )}
         </div>
       </nav>
     </header>
