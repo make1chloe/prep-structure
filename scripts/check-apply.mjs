@@ -15,7 +15,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { SLOTS, slotText, slotLabel, SLOT_NOTES, PRIVACY } from "../lib/applySlots.js";
+import { SLOTS, slotText, slotLabel, SLOT_NOTES, PRIVACY, SOURCES, sourceText } from "../lib/applySlots.js";
 
 let fail = 0;
 const eq = (got, want, what) => {
@@ -35,14 +35,21 @@ eq(SLOTS.map((s) => s.key),
 eq(SLOTS.map(slotLabel), [
   "초등 월·수 2:50~4:50",
   "초등 화·목 2:50~4:50",
-  "중등 월·수 5:00~7:30",
-  "중등 화·목 5:00~7:30",
-  "중2~고등 월·수 7:30~10:00",
-  "중2~고등 화·목 7:30~10:00",
+  "중1~중3 월·수 5:00~7:30",
+  "중1~중3 화·목 5:00~7:30",
+  "중2~고3 월·수 7:30~10:00",
+  "중2~고3 화·목 7:30~10:00",
 ], "원장님이 주신 여섯 가지 그대로");
+/**
+ * **「중등」·「고등」 은 학년을 못 짚는다** (원장님, 2026-08-07).
+ * 중2 학부모가 「중등」 과 「중2~고등」 사이에서 헤매신다 — 실제로 둘 다
+ * 해당된다. 학년을 그대로 적어 그 자리에서 아시게 한다.
+ */
+eq(SLOTS.some((s) => s.group === "중등" || s.group === "중2~고등"), false,
+   "「중등」·「중2~고등」 이라는 말이 남아 있다");
 
 console.log("\n== 고른 것을 다시 글로 ==");
-eq(slotText(["mid-mw", "high-tt"]), "중등 월·수 5:00~7:30 · 중2~고등 화·목 7:30~10:00", "두 개");
+eq(slotText(["mid-mw", "high-tt"]), "중1~중3 월·수 5:00~7:30 · 중2~고3 화·목 7:30~10:00", "두 개");
 eq(slotText([]), "", "안 고른 것");
 // 옛 접수에 모르는 열쇠가 있어도 화면이 비면 안 된다 — 그대로라도 보여준다
 eq(slotText(["없는열쇠"]), "없는열쇠", "모르는 열쇠는 그대로");
@@ -52,9 +59,14 @@ const notes = SLOT_NOTES.join(" ");
 // 「개별 진도」 를 「개별 시간표」 로 오해하시는 일이 잦다 — 한 문장에 같이 적어 가른다
 eq(SLOT_NOTES[0].includes("개별 진도"), true, "개별 진도로 수업한다는 것이 맨 위");
 eq(SLOT_NOTES[0].includes("개별 시간표"), true, "개별 시간표는 안 된다는 것도 같은 줄에");
-eq(notes.includes("금요일"), true, "보강은 금요일");
-eq(notes.includes("당일"), true, "당일 결석은 보강 안 됨");
-eq(notes.includes("시험"), true, "시험 기간에는 시간이 더 필요할 수 있음");
+/**
+ * **아직 오시지도 않은 분께 규칙부터 읽히지 않는다** (원장님, 2026-08-07 —
+ * 「보강 언급 지워줘 · 시험기간 언급 지워줘」). 신청서에서 「당일 결석은
+ * 보강이 안 됩니다」 를 읽으면 시작도 전에 까다로운 학원이 된다.
+ * 그 이야기는 등록하실 때 한다.
+ */
+eq(notes.includes("보강"), false, "보강 이야기가 남아 있다");
+eq(notes.includes("시험"), false, "시험 기간 이야기가 남아 있다");
 
 /**
  * **개인정보 보호법 제15조 제2항** — 동의를 받을 때 반드시 알려야 하는 넷.
@@ -107,6 +119,49 @@ const act = readFileSync("app/apply/actions.js", "utf8");
 eq(act.includes("privacy_agree"), true, "동의 안 하면 막는다");
 // 학생 연락처를 왜 받는지 화면에 적혀 있어야 비워두지 않으신다
 eq(form.includes("레벨테스트 아이디 생성"), true, "학생 연락처를 왜 받는지");
+
+console.log("\n== 어떻게 알게 되셨나 ==");
+/**
+ * **재원생 소개는 이름이 붙어야 쓸모가 있다** (원장님, 2026-08-07).
+ * 누가 소개했는지 알아야 그 댁에 인사를 드린다. 「지인 소개」 로
+ * 뭉뚱그리면 그게 사라진다. 다만 **안 적으셔도 접수는 된다.**
+ */
+eq(SOURCES.some((x) => x.key === "재원생 소개" && x.why), true, "재원생 소개 — 이름을 적을 수 있다");
+eq(SOURCES.some((x) => x.key === "기타" && x.why), true, "기타 — 사유를 적을 수 있다");
+eq(SOURCES.some((x) => x.key === "전단"), false, "안 하는 것(전단)이 남아 있다");
+eq(sourceText("재원생 소개", "김하늘"), "재원생 소개 (김하늘)", "이름을 적으면 같이 남는다");
+eq(sourceText("재원생 소개", ""), "재원생 소개", "안 적어도 그대로 남는다");
+eq(sourceText("", "김하늘"), null, "안 고르면 아무것도 안 남는다");
+eq(form.includes("클로이영어를 어떻게 알게 되셨나요"), true, "학원 이름으로 묻는다");
+
+console.log("\n== 레벨테스트 · 부모님 방문상담 ==");
+/**
+ * **언제가 안 되는지를 먼저 말씀드린다** (원장님, 2026-08-07).
+ * 월~목 오후는 수업이 이어져 있어 부모님을 뵐 수가 없다. 이걸 안 적으면
+ * 그 시간을 적어 보내시고, 우리는 다시 여쭤야 한다 — 양식을 받은 보람이 없다.
+ */
+eq(form.includes("40~60분"), true, "레벨테스트가 얼마나 걸리는지");
+eq(form.includes("부모님 방문상담"), true, "「학부모 상담」 이 아니라 「부모님 방문상담」");
+eq(form.includes("학부모 상담"), false, "「학부모 상담」 이 남아 있다");
+eq(/월~목[^<]*방문상담이 어렵습니다/.test(form), true, "월~목 오후는 안 된다는 것");
+// 「여러 개 고르실수록 …」 — 원장님이 빼라고 하셨다
+eq(form.includes("고르실수록"), false, "빼라고 하신 문장이 남아 있다");
+
+console.log("\n== 접수되면 선생님께 알림 ==");
+/**
+ * 이 화면만 **로그인이 없다.** 그래서 0104 처럼 「학원 사람인지 확인하고
+ * 보낼 곳을 알려주는 함수」 를 쓸 수 없다 — 인터넷의 누구나 그 함수를 불러
+ * 알림 열쇠를 가져가게 된다. 서버만 아는 열쇠로 보내고, 그 값이 없으면
+ * **설정 화면에 「꺼짐」 이 보여야 한다** (조용히 안 가는 것이 제일 무섭다).
+ */
+const notify = readFileSync("app/apply/notify.js", "utf8");
+eq(act.includes("pushNewInquiry"), true, "접수하면 알림을 부른다");
+eq(notify.includes("SUPABASE_SERVICE_ROLE_KEY"), true, "서버만 아는 열쇠로 보낸다");
+eq(readFileSync("app/settings/SettingsForm.jsx", "utf8").includes("신규 상담 접수 알림"),
+   true, "켜졌는지 설정 화면에서 보인다");
+// 알림이 안 가도 접수는 되어야 한다 — 접수를 놓치는 것이 제일 나쁘다
+eq(/catch\s*\{[^}]*\}\s*\n\}/.test(act.slice(act.indexOf("async function notifyStaff"))),
+   true, "알림이 실패해도 접수는 그대로");
 
 console.log("\n== 희망 시간은 글로 받는다 ==");
 // 날짜 칸으로 받으면 하루를 찍게 되고, 그 하루에 못 맞추면 다시 전화하게 된다

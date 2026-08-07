@@ -291,7 +291,7 @@ export default function ConsultBoard({
                       <div className="hint"><b>테스트 가능:</b> {r.test_want_text}</div>
                     )}
                     {r.visit_want_text && (
-                      <div className="hint"><b>상담 가능:</b> {r.visit_want_text}</div>
+                      <div className="hint"><b>방문상담 가능:</b> {r.visit_want_text}</div>
                     )}
                     {(r.test_want_on || r.visit_on || r.want_days_text || r.want_time) && (
                       <div className="hint">

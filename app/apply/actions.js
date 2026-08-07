@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { SLOTS } from "@/lib/applySlots";
+import { SLOTS, SOURCES, sourceText } from "@/lib/applySlots";
+import { pushNewInquiry } from "./notify";
 
 /**
  * 학부모가 **로그인 없이** 제출하는 상담 신청.
@@ -51,13 +52,22 @@ export async function submitApply(formData) {
 
   const token = (formData.get("token") || "").toString().trim();
 
+  /**
+   * **어떻게 아셨나** — 고른 것과 적어주신 것을 한 줄로 합친다.
+   * 화면 밖에서 아무 글자나 보낼 수 있으니 **아는 것만** 받는다
+   * (덧붙이는 글은 사람이 읽는 것이라 그대로 두되 길이만 자른다).
+   */
+  const picked = val("source");
+  const src = SOURCES.find((s) => s.key === picked) || null;
+  const why = src?.why ? (val("source_why") || "").slice(0, 60) : null;
+
   const row = {
     name,
     phone,
     student_phone: studentPhone,
     school,
     grade,
-    source: val("source"),
+    source: sourceText(src?.key, why),
     prev_academy: val("prev_academy"),
     goal: val("goal"),
     want_slots: wantSlots,
@@ -86,7 +96,7 @@ export async function submitApply(formData) {
           }).join(" · ")}`
         : "",
       test_want_text ? `레벨테스트 가능한 때: ${test_want_text}` : "",
-      visit_want_text ? `상담 가능한 때: ${visit_want_text}` : "",
+      visit_want_text ? `부모님 방문상담 가능한 때: ${visit_want_text}` : "",
       `개인정보 동의 ${new Date().toISOString().slice(0, 10)}`,
     ].filter(Boolean);
     return { ...rest, memo: [rest.memo, ...extra].filter(Boolean).join("\n") };
@@ -103,7 +113,10 @@ export async function submitApply(formData) {
         .update(legacyOf(patch))
         .eq("token", token));
     }
-    if (!error) return { error: null };
+    if (!error) {
+      await notifyStaff(row);
+      return { error: null };
+    }
     // 링크가 이미 처리됐거나 없으면 새로 접수
   }
 
@@ -112,5 +125,23 @@ export async function submitApply(formData) {
     ({ error } = await supabase.from("inquiries").insert({ ...legacyOf(row), status: "new" }));
   }
   if (error) return { error: "접수에 실패했어요. 학원으로 전화 주시면 도와드리겠습니다." };
+  await notifyStaff(row);
   return { error: null };
+}
+
+/**
+ * **접수됐으면 알린다** (원장님, 2026-08-07 — 「접수알림도 해줘」).
+ *
+ * 상담 신청은 원장님이 화면을 안 보고 계실 때 들어온다. 상담 목록에만
+ * 쌓이면 며칠 지나서 보시게 되고, 그 사이 다른 학원에 가신다.
+ *
+ * **알림이 안 가도 접수는 이미 됐다.** 그러니 여기서 나는 문제로 학부모께
+ * 「접수 실패」 를 보이지 않는다 — 알림은 덤이지 본 일이 아니다.
+ */
+async function notifyStaff(row) {
+  try {
+    await pushNewInquiry(row);
+  } catch {
+    /* 알림이 안 가도 접수는 들어갔다 */
+  }
 }

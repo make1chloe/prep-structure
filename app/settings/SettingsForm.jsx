@@ -11,7 +11,9 @@ const MODES = [
   { key: "webhook", label: "웹훅 (Make 등)", hint: "문구를 외부 자동화로 넘기고 발송은 거기서 합니다." },
 ];
 
-export default function SettingsForm({ view, unavailable = false, canEdit = true, pushReady = false }) {
+export default function SettingsForm({
+  view, unavailable = false, canEdit = true, pushReady = false, inquiryAlert = false,
+}) {
   const [mode, setMode] = useState(view.mode || "copy");
   const [academy, setAcademy] = useState(view.academy?.name || "클로이영어");
   const [solapi, setSolapi] = useState({
@@ -513,6 +515,27 @@ export default function SettingsForm({ view, unavailable = false, canEdit = true
           아이폰은 사파리에서 <b>공유 → 홈 화면에 추가</b> 한 뒤 그 아이콘으로 열어야 알림이 켜집니다.
           안드로이드는 크롬에서 바로 켤 수 있어요.
         </p>
+
+        {/* **조용히 안 가는 것이 제일 무섭다.** 신규 상담 양식은 로그인 없이
+            여는 화면이라, 다른 알림과 같은 방법을 쓸 수 없다 (아무나 알림
+            열쇠를 가져가게 된다). 서버만 아는 열쇠가 있어야 나가므로, 그게
+            없으면 여기서 보이게 한다 */}
+        <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+          <b>신규 상담 접수 알림</b>{" "}
+          {inquiryAlert ? (
+            <span className="tag tag-mint">켜짐</span>
+          ) : (
+            <>
+              <span className="tag">꺼짐</span>
+              <br />
+              상담 신청서는 로그인 없이 여는 화면이라 서버 열쇠가 있어야 알림이 나갑니다.
+              Vercel → 프로젝트 → Settings → Environment Variables 에{" "}
+              <b>SUPABASE_SERVICE_ROLE_KEY</b> 를 넣고 다시 배포해주세요
+              (Supabase → Project Settings → API → service_role 값).
+              <b> 대화창에는 절대 붙여넣지 마세요.</b>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="row" style={{ gap: 8, alignItems: "center" }}>
