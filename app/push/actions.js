@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { OPEN_TO_SEE } from "@/lib/notify";
 import { generateKeys, pushToAll } from "@/lib/push";
 import { inQuiet, nowMinsSeoul, DEFAULT_QUIET } from "@/lib/quiet";
 import { randomUUID } from "node:crypto";
@@ -149,9 +150,11 @@ export async function pushToStudents(studentIds, payload) {
   // 방해금지 시간과 자취 남기기는 학생 알림에도 똑같이 (0105)
   subs = await awake(supabase, subs);
   if (subs.length === 0) return { sent: 0, error: null, quiet: true };
-  subs = await withReceipts(supabase, subs, payload);
+  // 아이 폰도 잠금화면에는 내용을 안 띄운다 (2026-08-07)
+  const safe = { ...payload, body: OPEN_TO_SEE };
+  subs = await withReceipts(supabase, subs, safe);
 
-  const res = await pushToAll(keys, subs, payload);
+  const res = await pushToAll(keys, subs, safe);
   if (res.gone.length > 0) {
     await supabase.from("push_subscriptions").delete().in("id", res.gone);
   }
@@ -177,6 +180,24 @@ export async function pushToStudents(studentIds, payload) {
 export async function pushToFamilies(studentIds, payload, who = "all") {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0) return { sent: 0, error: null };
+
+  /**
+   * **잠금화면에 내용을 안 띄운다** (원장님, 2026-08-07 —
+   * 「미리보기에서 내용 알 수 없게 해줘. 그냥 공지사항 전달사항. 눌러서
+   * 어플 들어와야 알 수 있게」).
+   *
+   * 알림 미리보기는 **폰을 안 열어도 보인다.** 옆 사람에게도 보이고,
+   * 형제 폰에 어머니가 로그인해 두신 집에서는 아이가 보게 된다. 거기
+   * 「단어 6/20」 이나 「오늘 태도가…」 가 적히면 그건 우리가 흘린 것이다.
+   *
+   * 그래서 **무엇이 왔는지만** 말한다 — 내용은 앱을 열어야 보인다.
+   * 여기 한 군데에서 지운다: 부르는 곳이 여덟 군데라 각자 조심하게 하면
+   * 언젠가 한 곳이 빠지고, 그 한 곳이 사고가 된다.
+   *
+   * 선생님께 가는 알림(pushToStaff)은 그대로 둔다 — 그건 원장님 폰이고,
+   * 무슨 일인지 바로 보여야 답을 하실 수 있다.
+   */
+  const safe = { ...payload, body: OPEN_TO_SEE };
 
   const supabase = createClient();
   const keys = await keysOf(supabase);
@@ -217,9 +238,9 @@ export async function pushToFamilies(studentIds, payload, who = "all") {
   (links || []).forEach((l) => {
     if (!childOf.has(l.parent_profile_id)) childOf.set(l.parent_profile_id, l.student_id);
   });
-  subs = await withReceipts(supabase, subs, payload, childOf);
+  subs = await withReceipts(supabase, subs, safe, childOf);
 
-  const res = await pushToAll(keys, subs, payload);
+  const res = await pushToAll(keys, subs, safe);
   await markFailed(supabase, subs, res.fails);
   if (res.gone.length > 0) {
     await supabase.from("push_subscriptions").delete().in("id", res.gone);

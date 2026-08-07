@@ -17,7 +17,15 @@ import { pushState, enablePush, whyUnsupported } from "@/lib/pushClient";
  * 그렇다고 맨 위에 늘 두면 이미 켜신 분께는 매일 걸리적거리는 칸이 된다.
  * **안 켠 사람에게만** 위에 보이게 한다.
  */
-export default function PushToggle({ onlyWhenOff = false, warn = false }) {
+/**
+ * @param brief  **한 줄만** (원장님, 2026-08-07 — 「학부모페이지 알림에 대한
+ *   것, 켜놓는 걸 권장한다면 써줘. 다 지워」).
+ *
+ *   어머니 화면에서는 설명이 길 이유가 없다. 왜 켜야 하는지·요금이
+ *   안 든다는 것·기기마다 켜야 한다는 것 — 다 맞는 말이지만 첫 화면에서
+ *   읽으실 글은 아니다. **켜두시라는 말 한 줄과 단추**면 된다.
+ */
+export default function PushToggle({ onlyWhenOff = false, warn = false, brief = false }) {
   const [state, setState] = useState("checking"); // checking | off | on | unsupported | denied
   const [msg, setMsg] = useState("");
   const [pending, startTransition] = useTransition();
@@ -100,10 +108,15 @@ export default function PushToggle({ onlyWhenOff = false, warn = false }) {
             {warn && state !== "on" ? "⚠️ 알림이 꺼져 있어요" : "알림 받기"}
           </b>
           <p className="hint" style={{ margin: "4px 0 0" }}>
-            {state === "on"
-              ? "숙제가 올라오면 알림이 옵니다."
-              : state === "denied"
+            {state === "denied"
+              // 차단은 앱에서 못 푼다 — 이 한 줄이 없으면 켤 방법이 없다
               ? "알림이 차단되어 있어요. 브라우저 설정에서 이 사이트의 알림을 허용해주세요."
+              : brief
+              ? state === "on"
+                ? "켜져 있습니다."
+                : "켜두시길 권합니다."
+              : state === "on"
+              ? "숙제가 올라오면 알림이 옵니다."
               : warn
               ? "숙제 · 시험 · 전달사항이 올라와도 모르고 지나갑니다. 한 번만 켜두면 됩니다."
               : "켜두면 숙제가 올라올 때 바로 알려드려요. 문자와 달리 요금이 들지 않습니다."}

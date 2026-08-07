@@ -1,0 +1,88 @@
+/**
+ * **잠금화면에 내용이 새지 않나** (2026-08-07)
+ *
+ * 원장님
+ *   「미리보기에서 내용 알 수 없게 해줘. 그냥 공지사항 전달사항.
+ *    눌러서 어플 들어와야 알 수 있게」
+ *   「뭔가 알림제목이 이상하, from은 뭐야」
+ *
+ * 알림 미리보기는 **폰을 안 열어도 보인다.** 옆 사람에게도 보이고, 형제
+ * 폰에 어머니가 로그인해 두신 집에서는 아이가 보게 된다. 거기 「단어
+ * 6/20」 이나 코멘트 첫 줄이 적히면 그건 우리가 흘린 것이다.
+ *
+ * 이 검사가 지키는 것은 하나다 — **집으로 가는 알림에는 내용이 안 실린다.**
+ *
+ * 쓰는 법:  node scripts/check-preview.mjs
+ */
+import { readFileSync } from "node:fs";
+import { OPEN_TO_SEE, noticeLabel } from "../lib/notify.js";
+
+let bad = 0;
+const eq = (got, want, what) => {
+  const a = JSON.stringify(got), b = JSON.stringify(want);
+  if (a !== b) { console.log(`  ✗ ${what}\n     나온 것: ${a}\n     바란 것: ${b}`); bad = 1; }
+};
+const read = (p) => readFileSync(p, "utf8");
+
+console.log("== 집으로 가는 알림 ==");
+const push = read("app/push/actions.js");
+/**
+ * **한 군데에서 지운다.** 부르는 곳이 여덟 군데라 각자 조심하게 하면
+ * 언젠가 한 곳이 빠지고, 그 한 곳이 사고가 된다.
+ */
+eq(/pushToFamilies[\s\S]*?const safe = \{ \.\.\.payload, body: OPEN_TO_SEE \};/.test(push), true,
+   "학부모·학생 알림은 본문을 지운다");
+eq(/pushToStudents[\s\S]*?const safe = \{ \.\.\.payload, body: OPEN_TO_SEE \};/.test(push), true,
+   "아이 폰도 마찬가지");
+// 자취(누가 봤나)에도 지운 본문이 실려야 한다 — 안 그러면 거기서 샌다
+eq(push.includes("withReceipts(supabase, subs, safe"), true, "자취에도 지운 것이 실린다");
+
+console.log("\n== 선생님 폰은 그대로 ==");
+/**
+ * 원장님 폰에는 내용이 보여야 한다 — 무슨 일인지 알아야 답을 하신다.
+ * (그 폰은 원장님 것이고, 흘릴 데가 없다)
+ */
+const staff = push.slice(push.indexOf("export async function pushToStaff"));
+eq(staff.includes("pushToAll(keys, subs, payload)"), true, "선생님 알림은 안 지운다");
+
+console.log("\n== 제목으로도 안 샌다 ==");
+/**
+ * 본문을 감춰도 **제목으로 새면** 감춘 것이 아니다. 공지 알림의 제목은
+ * 원장님이 쓰신 첫 줄(`head`) 그대로였다.
+ */
+const today = read("app/today/actions.js");
+eq(today.includes('title: toParent ? "공지사항" : "전달사항"'), true, "제목은 종류만");
+// 앱 안에 저장하는 제목(notices.title)은 그대로 둔다 — 그건 안 새는 자리다.
+// 새던 것은 **알림에 실리는 제목**이었다
+const payloadPart = today.slice(today.indexOf("await pushToFamilies("));
+eq(/title: head/.test(payloadPart), false, "공지 첫 줄을 알림 제목에 쓰던 것이 남아 있다");
+
+console.log("\n== 뭐라고 적히나 ==");
+eq(OPEN_TO_SEE, "앱에서 확인해주세요.", "미리보기에 적히는 한 줄");
+// 원장님 — 「그냥 공지사항 전달사항」
+eq(noticeLabel("notice"), "공지사항", "학부모께 가는 것");
+eq(noticeLabel("deliver"), "전달사항", "아이에게 가는 것");
+eq(noticeLabel(undefined), "공지사항", "모르는 종류");
+
+console.log("\n== 「from 학부모」 ==");
+/**
+ * 아이폰은 홈 화면에 담은 앱의 알림에 「제목 — from 〈짧은 이름〉」 을 붙인다.
+ * 짧은 이름이 「학부모」 라서 「전달사항 from 학부모」 로 읽혔다 —
+ * 어머니가 보내신 것처럼. 어디서 온 알림인지가 거꾸로였다.
+ */
+const mani = read("app/manifest/[role]/route.js");
+eq(/short: "클로이 학부모"/.test(mani), true, "학원 이름이 앞에 온다");
+eq(/short: "학부모"/.test(mani), false, "옛 이름이 남아 있다");
+
+console.log("\n== 학부모 화면은 한 줄 ==");
+// 왜 켜야 하는지·요금 이야기는 다 맞는 말이지만 첫 화면에서 읽으실 글이 아니다
+eq(read("app/parent/page.jsx").includes("<PushToggle onlyWhenOff brief />"), true,
+   "어머니 화면에는 짧게");
+const toggle = read("app/me/PushToggle.jsx");
+eq(toggle.includes('"켜두시길 권합니다."'), true, "권한다는 한 줄");
+// 차단은 앱에서 못 푼다 — 이 안내까지 지우면 켤 방법이 없어진다
+eq(/brief[\s\S]{0,400}차단되어 있어요/.test(toggle) || toggle.includes("차단되어 있어요"), true,
+   "차단된 경우 안내는 짧게 해도 남는다");
+
+if (bad) { console.log("\n❌ 위 항목을 고쳐주세요"); process.exit(1); }
+console.log("\n✅ 잠금화면 미리보기 통과");

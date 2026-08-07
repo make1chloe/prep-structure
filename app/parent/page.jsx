@@ -886,7 +886,9 @@ export default async function ParentPage({ searchParams }) {
 
       {/* **안 켜신 분께는 위에서 한 번 더.** 알림 칸은 아래에 있는데,
           안 켜져 있으면 아래까지 내려가 보실 일이 없다. 켜면 사라진다 */}
-      {!preview && <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff /></div>}
+      {/* 어머니 화면에서는 **한 줄만** (2026-08-07). 왜 켜야 하는지·요금
+          이야기는 다 맞는 말이지만 첫 화면에서 읽으실 글이 아니다 */}
+      {!preview && <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff brief /></div>}
 
       {/* **답을 안 하신 보강은 첫 화면에** (원장님, 2026-08-07).
           답을 주셔야 그 시간을 비워두거나 다른 날로 옮길 수 있다.

@@ -436,8 +436,16 @@ export async function createNotice(input) {
     await pushToFamilies(
       targets,
       {
-        title: head || (toParent ? "학원 안내" : "전달사항"),
-        body: (text || head || "").split("\n")[0].slice(0, 80) || "앱에서 확인해주세요",
+        /**
+         * **제목에도 내용을 안 넣는다** (원장님, 2026-08-07 —
+         * 「미리보기에서 내용 알 수 없게 해줘. 그냥 공지사항 전달사항」).
+         *
+         * 여기 `head` 는 공지의 첫 줄, 곧 **원장님이 쓰신 말 그대로**였다.
+         * 본문을 감춰도 제목으로 새면 감춘 것이 아니다.
+         *
+         * 본문은 pushToFamilies 가 한 번 더 지운다 — 여기서는 제목만 본다.
+         */
+        title: toParent ? "공지사항" : "전달사항",
         url: toParent ? "/parent" : "/me",
         tag: `notice-${notice.id}`,
       },

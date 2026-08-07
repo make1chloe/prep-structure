@@ -17,10 +17,21 @@ export const dynamic = "force-dynamic";
  * /install 화면에서 **직접 확인하는 방법**을 알려드린다. 되는지 안 되는지를
  * 제가 단정해서 말씀드리면, 안 될 때 원장님이 헤매시게 된다.
  */
+/**
+ * **짧은 이름이 알림에도 쓰인다** (원장님, 2026-08-07 —
+ * 「뭔가 알림제목이 이상하, from은 뭐야」).
+ *
+ * 아이폰은 홈 화면에 담은 앱의 알림에 「제목 — from 〈짧은 이름〉」 을 붙인다.
+ * 짧은 이름이 「학부모」 라서 **「전달사항 from 학부모」** 로 읽혔다 —
+ * 어머니가 보내신 것처럼 보인다. 어디서 온 알림인지가 거꾸로 된 것이다.
+ *
+ * 학원 이름이 앞에 와야 한다. 아이콘 밑에도 이 이름이 적히므로 길면
+ * 잘린다 — 「클로이 학부모」 정도가 둘 다 된다.
+ */
 const ROLES = {
-  principal: { name: "클로이영어 원장", short: "원장", role: "principal" },
-  parent: { name: "클로이영어 학부모", short: "학부모", role: "parent" },
-  student: { name: "클로이영어 학생", short: "학생", role: "student" },
+  principal: { name: "클로이영어 원장", short: "클로이 원장", role: "principal" },
+  parent: { name: "클로이영어 학부모", short: "클로이 학부모", role: "parent" },
+  student: { name: "클로이영어 학생", short: "클로이 학생", role: "student" },
 };
 
 export async function GET(_req, { params }) {
