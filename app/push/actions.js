@@ -199,7 +199,20 @@ export async function testPush() {
     body: "알림 연결 테스트입니다. 이 알림이 보이면 설정이 끝났어요.",
     url: "/me",
   });
-  return { error: res.error, sent: res.sent };
+  if (res.error) return { error: res.error, sent: 0 };
+
+  /**
+   * **몇 대에 보냈는지 말한다** (2026-08-07).
+   *
+   * 「보냈어요」 만으로는 폰에 안 왔을 때 어디를 봐야 할지 알 수 없다.
+   * 「1대에 보냈어요」 까지 나오면, 그래도 안 뜬 것은 **폰 쪽 설정**이라는
+   * 뜻이 된다 (아이폰 설정 → 알림에서 이 앱이 꺼져 있는 경우).
+   */
+  const gone = res.gone.length ? ` (옛 기기 ${res.gone.length}대는 정리했어요)` : "";
+  if (res.gone.length > 0) {
+    await supabase.from("push_subscriptions").delete().in("id", res.gone);
+  }
+  return { error: null, sent: res.sent, note: `${res.sent}대에 보냈어요.${gone}` };
 }
 
 /**

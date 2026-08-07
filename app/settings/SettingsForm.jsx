@@ -51,7 +51,8 @@ export default function SettingsForm({
         setMsg({ bad: true, text: res.error });
         return;
       }
-      setMsg({ bad: false, text: okText || "저장했어요." });
+      // 부르는 쪽이 더 정확히 말해주면 그 말을 쓴다 (「1대에 보냈어요」)
+      setMsg({ bad: false, text: res?.note || okText || "저장했어요." });
       router.refresh();
     });
   }
