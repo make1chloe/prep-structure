@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import StudyList from "./StudyList";
+import BreakCard from "./BreakCard";
 
 /**
  * 학생 화면은 두 상태를 **번갈아** 오간다.
@@ -43,9 +44,13 @@ export default function StudyTabs({
 
   if (inClass.length === 0 && home.length === 0) {
     return (
-      <div className="card">
-        <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>등원학습</h2>
-        <p className="hint" style={{ margin: 0 }}>오늘은 올라온 것이 없어요.</p>
+      <div className="stack" style={{ gap: 10 }}>
+        <div className="card">
+          <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>등원학습</h2>
+          <p className="hint" style={{ margin: 0 }}>오늘은 올라온 것이 없어요.</p>
+        </div>
+        {/* 할 것이 안 올라온 날에도 쉬러는 간다 — 여기서도 눌릴 수 있어야 한다 */}
+        {!readOnly && <BreakCard />}
       </div>
     );
   }
@@ -147,6 +152,12 @@ export default function StudyTabs({
             subs={subs}
           />
         ))}
+
+      {/* **등원학습 아래에 쉬는 시간** (원장님, 2026-08-07).
+          개별 진도라 쉬는 때가 아이마다 다르다. 지금은 자리를 비워도
+          아무 데도 안 남아서, 5분 다녀온 것과 20분 사라진 것이 똑같아 보였다.
+          선생님이 대신 눌러주는 자리(readOnly)에서는 안 낸다 */}
+      {!readOnly && <BreakCard />}
     </div>
   );
 }
