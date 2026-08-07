@@ -33,21 +33,43 @@ const when = (t) =>
  */
 export default function RequestInbox({ requests = [] }) {
   const [reply, setReply] = useState({});
+  const [typing, setTyping] = useState({});   // 직접 쓰기를 편 줄
   const [mk, setMk] = useState({});      // { [id]: { on, at } } — 보강일
   const [seen, setSeen] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const router = useRouter();
 
+  const [busy, setBusy] = useState(null);   // 지금 누른 줄
+  const [msg, setMsg] = useState({});        // 줄마다 결과 한 줄
+
+  /**
+   * **눌렀는데 아무 일도 안 일어나면 안 된다** (원장님, 2026-08-07 — 「안눌려」).
+   *
+   * 예전에는 서버에서 던진 오류를 아무도 안 받았다. `startTransition` 안에서
+   * 터지면 그냥 사라진다 — 화면은 그대로고, 왜 안 되는지 알 길이 없다.
+   * 이 앱에서 몇 번이나 겪은 그 모양이다.
+   *
+   * 이제 **눌렀다는 것부터** 보여주고, 잘못되면 그 자리에 이유를 적는다.
+   */
   function act(id, accept, text) {
+    setMsg({ ...msg, [id]: null });
+    setBusy(id);
     startTransition(async () => {
-      const m = mk[id];
-      const res = await handleRequest(id, accept, text ?? reply[id], accept ? m : null);
-      if (res?.error) {
-        alert(res.error);
-        return;
+      try {
+        const m = mk[id];
+        const res = await handleRequest(id, accept, text ?? reply[id], accept ? m : null);
+        if (res?.error) {
+          setMsg({ ...msg, [id]: { bad: true, text: res.error } });
+          return;
+        }
+        setReply({ ...reply, [id]: "" });
+        setMsg({ ...msg, [id]: { bad: false, text: "답장을 보냈어요." } });
+        router.refresh();
+      } catch (e) {
+        setMsg({ ...msg, [id]: { bad: true, text: `보내지 못했어요: ${e?.message || e}` } });
+      } finally {
+        setBusy(null);
       }
-      setReply({ ...reply, [id]: "" });
-      router.refresh();
     });
   }
 
@@ -122,32 +144,62 @@ export default function RequestInbox({ requests = [] }) {
               </div>
             )}
 
-            <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-              <input
-                className="input input-sm"
-                style={{ flex: 1, minWidth: 140 }}
-                placeholder={done ? "한 번 더 답장하기" : "답장"}
-                value={reply[r.id] || ""}
-                onChange={(e) => setReply({ ...reply, [r.id]: e.target.value })}
-              />
-              {/* **빨리 누르는 문구** — 받는 사람에 따라 말투가 다르다 */}
+            {/**
+              * **버튼만 누르면 답장이 나간다** (원장님, 2026-08-07 —
+              * 「여기서 답장을 수동으로 안 쓰고 자동으로 쓰고 싶단 얘긴데」).
+              *
+              * 원래도 그렇게 돌았는데, **빈 답장 칸이 먼저 보여서** 꼭 써야
+              * 하는 것처럼 보였다. 손이 가는 순서대로 놓는다 —
+              * 버튼이 먼저, 직접 쓰는 것은 접어둔다.
+              *
+              * 눌렀을 때 나가는 말을 **버튼에 그대로 적는다.** 「확인」 이라고만
+              * 쓰면 어머니께 무슨 말이 갔는지 여기서는 알 수가 없다.
+              */}
+            <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              {/* **누른 줄만 잠근다.** 예전에는 pending 하나로 스무 줄이
+                  통째로 잠겨서, 다른 줄을 눌러도 아무 일이 안 일어났다 */}
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => act(r.id, true, reply[r.id]?.trim() || quickFor(role, true))}
-                disabled={pending}
-                title={quickFor(role, true)}
+                disabled={busy === r.id}
               >
-                {quickFor(role, true).slice(0, 8)}
+                {busy === r.id ? "보내는 중…" : quickFor(role, true)}
               </button>
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => act(r.id, false, reply[r.id]?.trim() || quickFor(role, false))}
-                disabled={pending}
+                disabled={busy === r.id}
                 title={quickFor(role, false)}
               >
-                조정필요
+                {role === "parent" ? "조정 필요하다고 답장" : "조정필요"}
+              </button>
+              <span className="spacer" />
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: 11, padding: "2px 8px", opacity: 0.8 }}
+                onClick={() => setTyping({ ...typing, [r.id]: !typing[r.id] })}
+              >
+                {typing[r.id] ? "접기" : "직접 쓰기"}
               </button>
             </div>
+
+            {msg[r.id] && (
+              <p className={msg[r.id].bad ? "err" : "hint"} style={{ marginTop: 6 }}>
+                {msg[r.id].text}
+              </p>
+            )}
+
+            {typing[r.id] && (
+              <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                <input
+                  className="input input-sm"
+                  style={{ flex: 1, minWidth: 160 }}
+                  placeholder="적으신 말이 위 버튼 대신 나갑니다"
+                  value={reply[r.id] || ""}
+                  onChange={(e) => setReply({ ...reply, [r.id]: e.target.value })}
+                />
+              </div>
+            )}
           </>
         )}
       </div>
