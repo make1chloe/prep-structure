@@ -5,60 +5,44 @@ import { useRouter } from "next/navigation";
 import {
   setPlannedAbsenceRange,
   clearPlannedAbsenceRange,
-  assignHomeworkAhead,
-  unassignHomeworkAhead,
   recentClasses,
 } from "./actions";
-import { createNotice, listUnitOptions } from "@/app/today/actions";
-import { unitOptionText } from "@/lib/unitTree";
-import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
-import { CAT_CLS } from "@/app/homework/categories";
+import AbsenceRows from "./AbsenceRows";
+import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 
 const REASONS = ["학교 행사", "시험 기간", "병원", "가족 일정", "여행", "기타"];
 const ATT_LABEL = {
   present: "등원", late: "지각", absent: "결석", makeup: "보강", online: "온라인",
 };
-const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
-function todayISO() {
-  return todaySeoul();
-}
-
-function dayLabel(d) {
-  if (!d) return "";
-  return fmtDay(d);
-}
+const dayLabel = (d) => (d ? fmtDay(d) : "");
 
 /**
- * 반·학생을 먼저 고르고, 할 일을 고른 다음 날짜를 정한다.
- * (날짜를 먼저 정하면 그날 수업 있는 반만 보여서 오히려 불편했다)
+ * **출결 한 화면** — 결석 예정 · 보강 · 지난 수업.
+ *
+ * 넣는 자리와 무르는 자리를 붙여 놓는다. 예전에는 결석 예정을 넣는 칸만
+ * 있고 **들어가 있는 것이 무엇인지는 어디에도 없었다** — 무르려면 학생과
+ * 날짜를 기억해서 다시 골라야 했다.
  */
 export default function PlanBoard({
   classes = [],
   students = [],
-  items = [],
-  textbooks = [],
   planReady = true,
+  absences = [],
+  makeupOn = {},
+  nameOf = {},
+  makeupInbox = null,
+  makeupAnswers = null,
 }) {
-  const [tab, setTab] = useState("homework");
+  const [tab, setTab] = useState("absence");
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const [hwDate, setHwDate] = useState("");
-  const [picked, setPicked] = useState(() => new Map());
-  const [unitsByBook, setUnitsByBook] = useState({});
-  const [loadingBook, setLoadingBook] = useState(null);
-  const [cat, setCat] = useState("전체");
-
   const [reason, setReason] = useState("학교 행사");
   const [absFrom, setAbsFrom] = useState("");
   const [absTo, setAbsTo] = useState("");
-
-  const [kind, setKind] = useState("deliver");
-  const [body, setBody] = useState("");
-  const [noticeDate, setNoticeDate] = useState("");
 
   // 지난 수업 목록 — null 이면 아직 안 불러온 것
   const [past, setPast] = useState(null);
@@ -69,21 +53,6 @@ export default function PlanBoard({
       !kw ||
       [s.name, s.school, s.grade].filter(Boolean).some((v) => v.toLowerCase().includes(kw))
   );
-
-  const selStudents = students.filter((s) => sel.has(s.id));
-  const selDays = new Set(selStudents.flatMap((s) => s.days || []));
-
-  function nextDates(count = 6) {
-    const out = [];
-    let d = todayISO();
-    for (let i = 0; i < 30 && out.length < count; i++) {
-      d = addDays(d, 1);
-      const dow = dowOf(d);
-      if (selDays.size === 0 || selDays.has(dow)) out.push(d);
-    }
-    return out;
-  }
-  const suggested = nextDates();
 
   function toggleStudent(id) {
     const n = new Set(sel);
@@ -101,561 +70,290 @@ export default function PlanBoard({
   function run(fn, okMsg) {
     startTransition(async () => {
       const res = await fn();
-      if (res?.error) {
-        alert(res.error);
-        return;
-      }
+      if (res?.error) { alert(res.error); return; }
       if (okMsg) alert(okMsg);
       router.refresh();
     });
   }
 
-  async function loadBook(bookId) {
-    if (!bookId || unitsByBook[bookId]) return;
-    setLoadingBook(bookId);
-    const res = await listUnitOptions(bookId);
-    setUnitsByBook((m) => ({ ...m, [bookId]: res.options || [] }));
-    setLoadingBook(null);
-  }
-
-  const AREA_OF = { 단어: "단어", 독해: "독해", 문법: "문법", 내신: "내신", 듣기: "듣기", 영작: "영작" };
-  function bookFor(itemId) {
-    const item = items.find((i) => i.id === itemId);
-    const area = AREA_OF[item?.category] || "";
-    const mine = selStudents.flatMap((s) => s.bookIds || []);
-    const hit = textbooks.find((b) => b.area === area && mine.includes(b.id));
-    return hit?.id || textbooks.find((b) => b.area === area)?.id || "";
-  }
-
-  function toggleItem(id) {
-    const m = new Map(picked);
-    if (m.has(id)) m.delete(id);
-    else {
-      const b = bookFor(id);
-      m.set(id, { textbookId: b, unitIds: [], note: "" });
-      loadBook(b);
-    }
-    setPicked(m);
-  }
-  function patchItem(id, patch) {
-    const m = new Map(picked);
-    m.set(id, { ...(m.get(id) || { textbookId: "", unitIds: [], note: "" }), ...patch });
-    setPicked(m);
-  }
-  function unitMeta(unitId) {
-    for (const opts of Object.values(unitsByBook)) {
-      const hit = opts.find((o) => o.id === unitId);
-      if (hit) return hit;
-    }
-    return null;
-  }
-
-  const cats = ["전체", ...new Set(items.map((i) => i.category).filter(Boolean))];
-  const shownItems = cat === "전체" ? items : items.filter((i) => i.category === cat);
-
   if (!planReady) {
     return (
       <div className="card" style={{ marginTop: 12 }}>
         <div className="notice">
-          미리 작성을 쓰려면 Supabase에서 <b>0017 SQL</b>을 먼저 실행해주세요.
+          출결을 쓰려면 Supabase에서 <b>0017 SQL</b>을 먼저 실행해주세요.
         </div>
       </div>
     );
   }
 
-  const datePicker = (value, onChange, label) => (
-    <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-      <span className="hint" style={{ minWidth: 34 }}>{label}</span>
-      <input
-        className="input input-sm"
-        type="date"
-        style={{ width: 150 }}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {suggested.map((d) => (
-        <button
-          key={d}
-          className={`btn btn-sm ${value === d ? "btn-primary" : "btn-ghost"}`}
-          style={{ padding: "3px 8px" }}
-          onClick={() => onChange(d)}
-        >
-          {dayLabel(d)}
-        </button>
-      ))}
-      {selDays.size > 0 && <span className="hint">고른 학생 수업일</span>}
-    </div>
-  );
+  const TABS = [
+    ["absence", "결석 예정"],
+    ["makeup", "보강"],
+    ["fix", "지난 수업 고치기"],
+  ];
 
   return (
-    <div className="grid-side" style={{ marginTop: 12 }}>
-      {/* 1. 누구에게 */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 0" }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-            1. 누구에게{" "}
-            <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>{sel.size}명</span>
-          </h2>
-          <div className="row" style={{ gap: 6, margin: "8px 0", alignItems: "center" }}>
-            <input
-              className="input input-sm"
-              style={{ width: 150 }}
-              placeholder="학생 검색"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setSel(new Set(shown.map((s) => s.id)))}
-            >
-              보이는 학생 전체
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>해제</button>
-          </div>
-        </div>
-
-        {classes.map((c) => {
-          const list = shown.filter((s) => (s.classIds || []).includes(c.id));
-          if (list.length === 0) return null;
-          return (
-            <div key={c.id}>
-              <button className="grouphead" onClick={() => selectClass(c.id)}>
-                <span style={{ fontWeight: 800 }}>
-                  {c.name}{" "}
-                  <span className="muted" style={{ fontWeight: 600 }}>
-                    {(c.days || []).join("·")} · {list.length}명
-                  </span>
-                </span>
-                <span className="hint">반 전체 선택</span>
-              </button>
-              <div className="row" style={{ gap: 4, padding: "8px 16px" }}>
-                {list.map((s) => (
-                  <button
-                    key={s.id}
-                    className={`hwchip ${sel.has(s.id) ? "hw-next" : ""}`}
-                    onClick={() => toggleStudent(s.id)}
-                  >
-                    {sel.has(s.id) && <b>＋</b>} {s.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-
-        {shown.filter((s) => (s.classIds || []).length === 0).length > 0 && (
-          <div>
-            <div className="grouphead" style={{ cursor: "default" }}>
-              <span style={{ fontWeight: 800 }}>반 미배정</span>
-            </div>
-            <div className="row" style={{ gap: 4, padding: "8px 16px" }}>
-              {shown
-                .filter((s) => (s.classIds || []).length === 0)
-                .map((s) => (
-                  <button
-                    key={s.id}
-                    className={`hwchip ${sel.has(s.id) ? "hw-next" : ""}`}
-                    onClick={() => toggleStudent(s.id)}
-                  >
-                    {sel.has(s.id) && <b>＋</b>} {s.name}
-                  </button>
-                ))}
-            </div>
-          </div>
-        )}
+    <div className="stack" style={{ gap: 10, marginTop: 12 }}>
+      <div className="row" style={{ gap: 4 }}>
+        {TABS.map(([k, l]) => (
+          <button
+            key={k}
+            className={`btn btn-sm ${tab === k ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setTab(k)}
+          >
+            {l}
+          </button>
+        ))}
       </div>
 
-      {/* 2. 무엇을 */}
-      <div className="card">
-        <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>2. 무엇을</h2>
-        <div className="row" style={{ gap: 4, marginBottom: 10 }}>
-          {[
-            ["homework", "숙제 내기"],
-            ["absence", "결석 예정"],
-            ["notice", "공지 · 전달사항"],
-            ["fix", "지난 수업 고치기"],
-          ].map(([k, l]) => (
-            <button
-              key={k}
-              className={`btn btn-sm ${tab === k ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setTab(k)}
-            >
-              {l}
-            </button>
-          ))}
+      {/* **보강은 학생을 고를 일이 없다.** 이미 결석이 있는 아이들 목록이라,
+          왼쪽 고르기 칸을 띄우면 안 쓰는 칸이 화면 절반을 차지한다 */}
+      {tab === "makeup" && (
+        <div className="stack" style={{ gap: 10 }}>
+          {makeupInbox}
+          {makeupAnswers}
         </div>
+      )}
 
-        {sel.size === 0 && (
-          <div className="notice" style={{ marginBottom: 10 }}>
-            왼쪽에서 <b>반 이름</b>을 누르면 반 전체가, 학생 이름을 누르면 그 학생만 선택됩니다.
-          </div>
-        )}
-
-        {tab === "homework" && (
-          <>
-            {datePicker(hwDate, setHwDate, "수업일")}
-            <p className="hint" style={{ margin: "0 0 8px" }}>
-              고른 날짜의 숙제로 들어가고, 그 <b>다음 수업</b>에 검사 대상이 됩니다.
-            </p>
-
-            <div className="row" style={{ gap: 3, marginBottom: 6 }}>
-              {cats.map((c) => (
-                <button
-                  key={c}
-                  className={`btn btn-sm ${cat === c ? "btn-primary" : "btn-ghost"}`}
-                  style={{ padding: "3px 8px" }}
-                  onClick={() => setCat(c)}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-            <div className="row" style={{ gap: 4, marginBottom: 10 }}>
-              {shownItems.map((i) => (
-                <button
-                  key={i.id}
-                  className={`hwchip ${picked.has(i.id) ? "hw-next" : ""}`}
-                  onClick={() => toggleItem(i.id)}
-                >
-                  {picked.has(i.id) && <b>＋</b>} {i.name}
-                </button>
-              ))}
-            </div>
-
-            {picked.size > 0 && (
-              <div className="stack" style={{ gap: 6 }}>
-                {[...picked.entries()].map(([iid, v]) => {
-                  const opts = unitsByBook[v.textbookId] || [];
-                  const item = items.find((x) => x.id === iid);
-                  return (
-                    <div className="unitrow" key={iid}>
-                      <span className={`tag ${CAT_CLS[item?.category] || "tag-muted"}`}>
-                        {item?.name}
-                      </span>
-                      <select
-                        className="input input-sm"
-                        style={{ width: 150 }}
-                        value={v.textbookId}
-                        onChange={(e) => {
-                          patchItem(iid, { textbookId: e.target.value, unitIds: [] });
-                          loadBook(e.target.value);
-                        }}
-                      >
-                        <option value="">교재 선택</option>
-                        {textbooks.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.area ? `[${t.area}] ` : ""}{t.name}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        className="input input-sm"
-                        style={{ flex: 1, minWidth: 180 }}
-                        value=""
-                        onChange={(e) => {
-                          const uid = e.target.value;
-                          e.target.value = "";
-                          if (uid && !v.unitIds.includes(uid)) {
-                            patchItem(iid, { unitIds: [...v.unitIds, uid] });
-                          }
-                        }}
-                        disabled={!v.textbookId}
-                      >
-                        <option value="">
-                          {!v.textbookId
-                            ? "교재를 먼저 고르세요"
-                            : loadingBook === v.textbookId
-                            ? "단원 불러오는 중…"
-                            : opts.length === 0
-                            ? "등록된 단원이 없어요"
-                            : "단원 추가…"}
-                        </option>
-                        {opts.map((o) => (
-                          <option key={o.id} value={o.id} disabled={v.unitIds.includes(o.id)}>
-                            {" ".repeat(o.depth * 3)}
-                            {unitOptionText(o)}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        className="input input-sm"
-                        style={{ width: 110 }}
-                        placeholder="범위 메모"
-                        value={v.note}
-                        onChange={(e) => patchItem(iid, { note: e.target.value })}
-                      />
-                      {v.unitIds.length > 0 && (
-                        <span className="unitmeta" style={{ flexBasis: "100%" }}>
-                          {v.unitIds.map((uid) => {
-                            const m = unitMeta(uid);
-                            return (
-                              <button
-                                key={uid}
-                                className="hwchip hw-next"
-                                onClick={() =>
-                                  patchItem(iid, { unitIds: v.unitIds.filter((x) => x !== uid) })
-                                }
-                              >
-                                {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
-                                {m?.activity ? ` · ${m.activity}` : ""}
-                                {m?.amount ? ` · ${m.amount}` : ""} ✕
-                              </button>
-                            );
-                          })}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="row" style={{ gap: 6, marginTop: 12 }}>
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={pending || sel.size === 0 || picked.size === 0 || !hwDate}
-                onClick={() =>
-                  run(
-                    () =>
-                      assignHomeworkAhead(
-                        [...sel],
-                        hwDate,
-                        [...picked.entries()].map(([homeworkItemId, v]) => ({
-                          homeworkItemId,
-                          unitIds: v.unitIds,
-                          note: v.note,
-                        }))
-                      ),
-                    `${sel.size}명에게 ${dayLabel(hwDate)} 숙제를 넣었어요.`
-                  )
-                }
-              >
-                {pending ? "저장 중…" : `${sel.size}명에게 숙제 내기`}
-              </button>
-              {picked.size === 1 && (
+      {tab !== "makeup" && (
+        <div className="grid-side">
+          {/* 누구에게 */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px 0" }}>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+                누구{" "}
+                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>{sel.size}명</span>
+              </h2>
+              <div className="row" style={{ gap: 6, margin: "8px 0", alignItems: "center" }}>
+                <input
+                  className="input input-sm"
+                  style={{ width: 150 }}
+                  placeholder="학생 검색"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                />
                 <button
                   className="btn btn-ghost btn-sm"
-                  disabled={pending || sel.size === 0 || !hwDate}
-                  onClick={() =>
-                    run(
-                      () => unassignHomeworkAhead([...sel], hwDate, [...picked.keys()][0]),
-                      "배정을 취소했어요."
-                    )
-                  }
+                  onClick={() => setSel(new Set(shown.map((s) => s.id)))}
                 >
-                  이 숙제 취소
+                  보이는 학생 전체
                 </button>
-              )}
-              {!hwDate && (
-                <span className="hint" style={{ alignSelf: "center" }}>수업일을 골라주세요</span>
-              )}
-            </div>
-          </>
-        )}
-
-        {tab === "absence" && (
-          <>
-            <div
-              className="row"
-              style={{ gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}
-            >
-              <span className="hint" style={{ minWidth: 34 }}>기간</span>
-              <input
-                className="input input-sm"
-                type="date"
-                style={{ width: 150 }}
-                value={absFrom}
-                onChange={(e) => {
-                  setAbsFrom(e.target.value);
-                  if (!absTo) setAbsTo(e.target.value);
-                }}
-              />
-              <span className="hint">~</span>
-              <input
-                className="input input-sm"
-                type="date"
-                style={{ width: 150 }}
-                value={absTo}
-                onChange={(e) => setAbsTo(e.target.value)}
-              />
-              <button className="btn btn-ghost btn-sm" onClick={() => setAbsTo(absFrom)}>
-                하루만
-              </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setAbsFrom(addDays(todayISO(), 1));
-                  setAbsTo(addDays(todayISO(), 7));
-                }}
-              >
-                다음 한 주
-              </button>
-            </div>
-            <p className="hint" style={{ margin: "0 0 10px" }}>
-              기간 안에서 그 학생이 <b>실제로 수업 있는 날만</b> 들어갑니다.
-              시험 기간·여행처럼 여러 날 빠질 때 한 번에 넣으세요.
-            </p>
-            <div className="row" style={{ gap: 4, marginBottom: 10 }}>
-              {REASONS.map((r) => (
-                <button
-                  key={r}
-                  className={`btn btn-sm ${reason === r ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => setReason(r)}
-                >
-                  {r}
-                </button>
-              ))}
-              <input
-                className="input input-sm"
-                style={{ width: 150 }}
-                placeholder="직접 입력"
-                onChange={(e) => setReason(e.target.value)}
-              />
-            </div>
-            <div className="row" style={{ gap: 6 }}>
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={pending || sel.size === 0 || !absFrom}
-                onClick={() =>
-                  run(
-                    () => setPlannedAbsenceRange([...sel], absFrom, absTo || absFrom, reason),
-                    `${sel.size}명 결석 예정으로 남겼어요.`
-                  )
-                }
-              >
-                결석 예정으로 남기기
-              </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                disabled={pending || sel.size === 0 || !absFrom}
-                onClick={() =>
-                  run(
-                    () => clearPlannedAbsenceRange([...sel], absFrom, absTo || absFrom),
-                    "취소했어요."
-                  )
-                }
-              >
-                이 기간 취소
-              </button>
-            </div>
-          </>
-        )}
-
-        {tab === "notice" && (
-          <>
-            {datePicker(noticeDate, setNoticeDate, "날짜")}
-            <div className="row" style={{ gap: 4, marginBottom: 8 }}>
-              {[
-                ["deliver", "전달사항 (학생에게)"],
-                ["notice", "공지 (학부모 리포트)"],
-              ].map(([k, l]) => (
-                <button
-                  key={k}
-                  className={`btn btn-sm ${kind === k ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => setKind(k)}
-                >
-                  {l}
-                </button>
-              ))}
-              <span className="tag tag-sky">고른 학생 {sel.size}명</span>
-            </div>
-            <textarea
-              className="input input-sm"
-              rows={3}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={
-                kind === "deliver"
-                  ? "예) 다음 주 월요일은 학교 행사로 6시 시작"
-                  : "예) 이번 주 단어 시험 범위는 Unit 5~6입니다"
-              }
-            />
-            <button
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: 8 }}
-              disabled={pending || !body.trim() || sel.size === 0 || !noticeDate}
-              onClick={() =>
-                run(async () => {
-                  const res = await createNotice({
-                    date: noticeDate,
-                    kind,
-                    scope: "student",
-                    studentIds: [...sel],
-                    body,
-                  });
-                  if (!res?.error) setBody("");
-                  return res;
-                }, "저장했어요. 그날 오늘 수업 화면에 나타납니다.")
-              }
-            >
-              저장
-            </button>
-          </>
-        )}
-
-        {/* 지난 수업 고치기 — 검사를 빠뜨렸거나 리포트를 고쳐야 할 때.
-            고치는 곳은 오늘 수업 화면의 학생 판 하나다. 여기서는 데려다만 준다 —
-            같은 것을 두 군데 만들면 언젠가 한쪽만 고치게 된다. */}
-        {tab === "fix" && (
-          <>
-            <p className="hint" style={{ margin: "0 0 8px", lineHeight: 1.7 }}>
-              고른 학생의 <b>최근 두 달 수업</b>입니다. 「고치기」 를 누르면 그 날짜의
-              오늘 수업 화면이 <b>그 학생 판이 열린 채로</b> 뜹니다 — 거기서 숙제 검사 ·
-              숙제 수정 · 리포트 · 등원 학습을 다 고칠 수 있어요.
-            </p>
-            <div className="row" style={{ gap: 6, marginBottom: 8, alignItems: "center" }}>
-              <button
-                className="btn btn-sm"
-                disabled={pending || sel.size === 0}
-                onClick={() =>
-                  startTransition(async () => {
-                    const res = await recentClasses([...sel]);
-                    if (res?.error) {
-                      alert(res.error);
-                      return;
-                    }
-                    setPast(res.rows || []);
-                  })
-                }
-              >
-                {past === null ? "불러오기" : "다시 불러오기"}
-              </button>
-              <span className="tag tag-sky">고른 학생 {sel.size}명</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>해제</button>
+              </div>
             </div>
 
-            {past !== null && past.length === 0 && (
-              <p className="hint" style={{ margin: 0 }}>최근 두 달에 기록이 없어요.</p>
-            )}
-            {past !== null && past.length > 0 && (
-              <div className="stack" style={{ gap: 2 }}>
-                {past.map((p) => {
-                  const s = students.find((x) => x.id === p.studentId);
-                  return (
-                    <div className="unitrow" key={p.id}>
-                      <b style={{ fontSize: 12.5, minWidth: 64 }}>{s?.name || "학생"}</b>
-                      <span className="hint" style={{ minWidth: 96 }}>{dayLabel(p.date)}</span>
-                      {p.attendance && (
-                        <span className="tag tag-muted">{ATT_LABEL[p.attendance] || p.attendance}</span>
-                      )}
-                      {p.word && <span className="tag tag-sky">단어 {p.word}</span>}
-                      {p.checked > 0 && <span className="tag tag-mint">검사 {p.checked}</span>}
-                      {p.gave > 0 && <span className="tag tag-lav">내준 숙제 {p.gave}</span>}
-                      {!p.written && <span className="tag tag-amber">리포트 미작성</span>}
-                      <span className="spacer" />
-                      <a
-                        className="btn btn-sm"
-                        href={`/today?d=${p.date}&open=${p.studentId}`}
+            {classes.map((c) => {
+              const list = shown.filter((s) => (s.classIds || []).includes(c.id));
+              if (list.length === 0) return null;
+              return (
+                <div key={c.id}>
+                  <button className="grouphead" onClick={() => selectClass(c.id)}>
+                    <span style={{ fontWeight: 800 }}>
+                      {c.name}{" "}
+                      <span className="muted" style={{ fontWeight: 600 }}>
+                        {(c.days || []).join("·")} · {list.length}명
+                      </span>
+                    </span>
+                    <span className="hint">반 전체 선택</span>
+                  </button>
+                  <div className="row" style={{ gap: 4, padding: "8px 16px" }}>
+                    {list.map((s) => (
+                      <button
+                        key={s.id}
+                        className={`hwchip ${sel.has(s.id) ? "hw-next" : ""}`}
+                        onClick={() => toggleStudent(s.id)}
                       >
-                        고치기 ›
-                      </a>
-                    </div>
-                  );
-                })}
+                        {sel.has(s.id) && <b>＋</b>} {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {shown.filter((s) => (s.classIds || []).length === 0).length > 0 && (
+              <div>
+                <div className="grouphead" style={{ cursor: "default" }}>
+                  <span style={{ fontWeight: 800 }}>반 미배정</span>
+                </div>
+                <div className="row" style={{ gap: 4, padding: "8px 16px" }}>
+                  {shown
+                    .filter((s) => (s.classIds || []).length === 0)
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        className={`hwchip ${sel.has(s.id) ? "hw-next" : ""}`}
+                        onClick={() => toggleStudent(s.id)}
+                      >
+                        {sel.has(s.id) && <b>＋</b>} {s.name}
+                      </button>
+                    ))}
+                </div>
               </div>
             )}
-          </>
-        )}
-      </div>
+          </div>
+
+          <div className="card">
+            {tab === "absence" && (
+              <>
+                <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>결석 예정 넣기</h2>
+                <div
+                  className="row"
+                  style={{ gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}
+                >
+                  <span className="hint" style={{ minWidth: 34 }}>기간</span>
+                  <input
+                    className="input input-sm"
+                    type="date"
+                    style={{ width: 150 }}
+                    value={absFrom}
+                    onChange={(e) => {
+                      setAbsFrom(e.target.value);
+                      if (!absTo) setAbsTo(e.target.value);
+                    }}
+                  />
+                  <span className="hint">~</span>
+                  <input
+                    className="input input-sm"
+                    type="date"
+                    style={{ width: 150 }}
+                    value={absTo}
+                    onChange={(e) => setAbsTo(e.target.value)}
+                  />
+                  <button className="btn btn-ghost btn-sm" onClick={() => setAbsTo(absFrom)}>
+                    하루만
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setAbsFrom(addDays(todaySeoul(), 1));
+                      setAbsTo(addDays(todaySeoul(), 7));
+                    }}
+                  >
+                    다음 한 주
+                  </button>
+                </div>
+                <p className="hint" style={{ margin: "0 0 10px" }}>
+                  기간 안에서 그 학생이 <b>실제로 수업 있는 날만</b> 들어갑니다.
+                </p>
+                <div className="row" style={{ gap: 4, marginBottom: 10 }}>
+                  {REASONS.map((r) => (
+                    <button
+                      key={r}
+                      className={`btn btn-sm ${reason === r ? "btn-primary" : "btn-ghost"}`}
+                      onClick={() => setReason(r)}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                  <input
+                    className="input input-sm"
+                    style={{ width: 150 }}
+                    placeholder="직접 입력"
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                </div>
+                <div className="row" style={{ gap: 6 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={pending || sel.size === 0 || !absFrom}
+                    onClick={() =>
+                      run(
+                        () => setPlannedAbsenceRange([...sel], absFrom, absTo || absFrom, reason),
+                        `${sel.size}명 결석 예정으로 남겼어요.`
+                      )
+                    }
+                  >
+                    결석 예정으로 남기기
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending || sel.size === 0 || !absFrom}
+                    title="고른 학생의 이 기간 결석 예정을 한 번에 지웁니다"
+                    onClick={() =>
+                      run(
+                        () => clearPlannedAbsenceRange([...sel], absFrom, absTo || absFrom),
+                        "취소했어요."
+                      )
+                    }
+                  >
+                    이 기간 한꺼번에 취소
+                  </button>
+                </div>
+
+                {/* **들어가 있는 것** — 무르는 자리를 넣는 자리 바로 밑에 둔다 */}
+                <h2 style={{ margin: "16px 0 0", fontSize: 15, fontWeight: 800 }}>
+                  앞으로 잡혀 있는 결석{" "}
+                  {absences.length > 0 && <span className="tag tag-amber">{absences.length}건</span>}
+                </h2>
+                <AbsenceRows rows={absences} nameOf={nameOf} makeupOn={makeupOn} />
+              </>
+            )}
+
+            {/* 지난 수업 고치기 — 검사를 빠뜨렸거나 리포트를 고쳐야 할 때.
+                고치는 곳은 오늘 수업 화면의 학생 판 하나다. 여기서는 데려다만 준다 —
+                같은 것을 두 군데 만들면 언젠가 한쪽만 고치게 된다. */}
+            {tab === "fix" && (
+              <>
+                <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>지난 수업 고치기</h2>
+                <p className="hint" style={{ margin: "0 0 8px", lineHeight: 1.7 }}>
+                  「고치기」 를 누르면 그 날짜의 오늘 수업 화면이 <b>그 학생 판이 열린 채로</b> 뜹니다 —
+                  출결 · 숙제 검사 · 리포트를 거기서 고칩니다.
+                </p>
+                <div className="row" style={{ gap: 6, marginBottom: 8, alignItems: "center" }}>
+                  <button
+                    className="btn btn-sm"
+                    disabled={pending || sel.size === 0}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const res = await recentClasses([...sel]);
+                        if (res?.error) { alert(res.error); return; }
+                        setPast(res.rows || []);
+                      })
+                    }
+                  >
+                    {past === null ? "불러오기" : "다시 불러오기"}
+                  </button>
+                  <span className="tag tag-sky">고른 학생 {sel.size}명</span>
+                </div>
+
+                {past !== null && past.length === 0 && (
+                  <p className="hint" style={{ margin: 0 }}>최근 두 달에 기록이 없어요.</p>
+                )}
+                {past !== null && past.length > 0 && (
+                  <div className="stack" style={{ gap: 2 }}>
+                    {past.map((p) => {
+                      const s = students.find((x) => x.id === p.studentId);
+                      return (
+                        <div className="unitrow" key={p.id}>
+                          <b style={{ fontSize: 12.5, minWidth: 64 }}>{s?.name || "학생"}</b>
+                          <span className="hint" style={{ minWidth: 96 }}>{dayLabel(p.date)}</span>
+                          {p.attendance && (
+                            <span className="tag tag-muted">{ATT_LABEL[p.attendance] || p.attendance}</span>
+                          )}
+                          {p.word && <span className="tag tag-sky">단어 {p.word}</span>}
+                          {p.checked > 0 && <span className="tag tag-mint">검사 {p.checked}</span>}
+                          {!p.written && <span className="tag tag-amber">리포트 미작성</span>}
+                          <span className="spacer" />
+                          <a className="btn btn-sm" href={`/today?d=${p.date}&open=${p.studentId}`}>
+                            고치기 ›
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {sel.size === 0 && (
+              <div className="notice" style={{ marginTop: 10 }}>
+                왼쪽에서 <b>반 이름</b>을 누르면 반 전체가, 학생 이름을 누르면 그 학생만 선택됩니다.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

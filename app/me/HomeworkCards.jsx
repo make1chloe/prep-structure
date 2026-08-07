@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cleanNote } from "@/lib/note";
 
 const MARK = {
   done: { label: "완료", cls: "tag-mint" },
@@ -35,8 +36,8 @@ export default function HomeworkCards({ items = [] }) {
                     {h.units.join(" · ")}
                   </div>
                 )}
-                {h.note && (
-                  <div className="hint" style={{ marginTop: 2 }}>{h.note}</div>
+                {cleanNote(h.note) && (
+                  <div className="hint" style={{ marginTop: 2 }}>{cleanNote(h.note)}</div>
                 )}
               </div>
               {h.status && MARK[h.status] && (

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } from "./actions";
 import { audienceLabel } from "@/lib/taskAudience";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
+import { cleanNote, cleanTitle } from "@/lib/note";
 
 const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 const CAT_CLS = {
@@ -126,7 +127,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   {x.from.slice(5)}
                   {x.to !== x.from ? ` ~ ${x.to.slice(5)}` : ""}
                 </span>
-                <b style={{ fontSize: 12.5, flex: 1 }}>{x.title}</b>
+                <b style={{ fontSize: 12.5, flex: 1 }}>{cleanTitle(x.title)}</b>
                 <span className="hint">{x.extra}</span>
                 <Link className="btn btn-ghost btn-sm" href={x.href}>바로가기</Link>
               </div>
@@ -253,7 +254,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                       opacity: t.status === "done" ? 0.6 : 1,
                     }}
                   >
-                    {t.title}
+                    {cleanTitle(t.title)}
                   </b>
                   {t.category && (
                     <span className={`tag ${CAT_CLS[t.category] || "tag-muted"}`}>{t.category}</span>
@@ -317,9 +318,9 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   </button>
                 </div>
 
-                {!editing && (t.note || t.deliver_body) && (
+                {!editing && (cleanNote(t.note) || t.deliver_body) && (
                   <div style={{ padding: "0 16px 10px 62px" }}>
-                    {t.note && <div className="hint">{t.note}</div>}
+                    {cleanNote(t.note) && <div className="hint">{cleanNote(t.note)}</div>}
                     {t.deliver_body && (
                       <div className="hint">
                         <b>학생 전달:</b> {t.deliver_body}

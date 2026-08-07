@@ -5,13 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
-import MakeupInbox from "./MakeupInbox";
 import UnsentBox from "./UnsentBox";
 import WarningInbox from "./WarningInbox";
 import InquiryInbox from "./InquiryInbox";
 import PushSeen from "./PushSeen";
 import BreakWatch from "./BreakWatch";
-import MakeupAnswers from "./MakeupAnswers";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
@@ -115,7 +113,7 @@ export default async function Home() {
             <Badge href="#requests" tone="warn">학부모 알림 {d.requests.length}건</Badge>
           )}
           {d.makeupRows.length > 0 && (
-            <Badge href="#makeup" tone="warn">보강 잡을 것 {d.makeupRows.length}건</Badge>
+            <Badge href="/plan" tone="warn">보강 잡을 것 {d.makeupRows.length}건</Badge>
           )}
           {d.makeupNeedTotal > 0 && (
             <Badge href="/tuition">보강 필요 {d.makeupNeedTotal}회</Badge>
@@ -148,13 +146,6 @@ export default async function Home() {
             <div id="requests">
               <RequestInbox requests={d.requests} />
             </div>
-            <div id="makeup">
-              <MakeupInbox rows={d.makeupRows} />
-            </div>
-
-            {/* 잡아둔 보강에 어머니가 답하셨나 (0107) — 변경 요청이 먼저다 */}
-            <MakeupAnswers />
-
             <UnsentBox fails={d.sendFails} past={d.unsentPast} />
 
             {/* 반성문 문턱 — 여기서 바로 정리한다 (유예 · 초기화) */}

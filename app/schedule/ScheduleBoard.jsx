@@ -12,6 +12,7 @@ import { shortLabel, monthDay, todaySeoul } from "@/lib/day";
 import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
+import { cleanNote } from "@/lib/note";
 import { mergeMockExams } from "./actions";
 import {
   sortExams, filterExams, facetsOf, termLabel, isMockExam,
@@ -809,8 +810,13 @@ export default function ScheduleBoard({
               )}
               <div className="unitrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
                 {e.hidden && <span className="tag tag-muted">숨김</span>}
+                {/* **「전체」 를 안 적는다** (원장님, 2026-08-07 — 「학년별로
+                    다른 일정이 있어서 그런거면 학년이 다를 때만 그 학년을
+                    표시하고 전체를 빼」). 학년이 안 적혀 있으면 그 학교 전부라는
+                    뜻이고, 그건 대부분이다 — 대부분에 붙는 말은 알려주는 것이 없다 */}
                 <b style={{ fontSize: 12.5 }}>
-                  <span title={e.school}>{shortName(e.school)}</span> {e.grade || "전체"}
+                  <span title={e.school}>{shortName(e.school)}</span>
+                  {e.grade ? ` ${e.grade}` : ""}
                 </b>
                 {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
                     작년 2학기와 올해 2학기가 같은 얼굴이었다 */}
@@ -819,15 +825,16 @@ export default function ScheduleBoard({
                 {isMockExam(e) && <span className="tag tag-lav">일정만</span>}
                 {e.name && <span className="tag tag-muted">{e.name}</span>}
                 {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
-                {e.note && <span className="hint" title={e.note}>{e.note}</span>}
-                {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075) */}
-                <span className={`tag ${STATE_CLS[examState(e)]}`} title={
-                  examState(e) === "mine"
-                    ? "내가 적은 시험이에요. 학교 일정을 붙이면 바뀔 때 알려드립니다"
-                    : STATE_LABEL[examState(e)]
-                }>
-                  {STATE_LABEL[examState(e)]}
-                </span>
+                {cleanNote(e.note) && (
+                  <span className="hint" title={cleanNote(e.note)}>{cleanNote(e.note)}</span>
+                )}
+                {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075).
+                    내가 적은 것에는 아무것도 안 붙인다 — 목록의 거의 전부가 그것이다 */}
+                {STATE_LABEL[examState(e)] && (
+                  <span className={`tag ${STATE_CLS[examState(e)]}`}>
+                    {STATE_LABEL[examState(e)]}
+                  </span>
+                )}
                 {/* 시험 목록은 석 달치가 섞여 나온다 — 달이 없으면 몇 월인지 모른다 */}
                 <span className="hint">
                   {monthDay(e.from_date)} ~ {monthDay(e.to_date)}

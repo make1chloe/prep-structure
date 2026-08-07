@@ -14,6 +14,8 @@
  * 아래 두 군데서 체크하게 되고, 두 군데는 반드시 어긋난다.
  */
 
+import { cleanNote } from "@/lib/note";
+
 /** 영역이 없는 것은 맨 뒤 「그 밖」 으로 — 안 보여주면 그 숙제가 사라진다 */
 function group(items = []) {
   const by = new Map();
@@ -62,7 +64,7 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
                     {c.units?.length > 0 && (
                       <> — {c.units.join(", ")}</>
                     )}
-                    {c.note && <> {c.note}</>}
+                    {cleanNote(c.note) && <> {cleanNote(c.note)}</>}
                     {c.changedAt && (
                       <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 10.5 }}>
                         바뀜

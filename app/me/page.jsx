@@ -37,6 +37,7 @@ import { loadClassesWithTerm } from "@/lib/classTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
+import { cleanNote, cleanTitle } from "@/lib/note";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
 } from "@/lib/homeworkView";
@@ -733,7 +734,7 @@ export default async function MePage({ searchParams }) {
                         {dayLabel(c.date)}
                         {c.endDate && c.endDate !== c.date ? " ~" : ""}
                       </span>
-                      <span style={{ fontSize: 13.5, flex: 1 }}>{c.title}</span>
+                      <span style={{ fontSize: 13.5, flex: 1 }}>{cleanTitle(c.title)}</span>
                       {c.tone === "exam" && <span className="tag tag-red">시험</span>}
                       {c.tone === "school" && <span className="tag tag-sky">학교</span>}
                     </div>
@@ -990,7 +991,7 @@ export default async function MePage({ searchParams }) {
                     rel="noreferrer"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
-                    <span style={{ fontSize: 13.5, fontWeight: 700, flex: 1 }}>{g.title}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, flex: 1 }}>{cleanTitle(g.title)}</span>
                     {g.note && <span className="hint">{g.note}</span>}
                     <span className="tag tag-sky">열기 →</span>
                   </a>

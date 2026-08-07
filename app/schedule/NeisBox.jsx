@@ -31,6 +31,7 @@ export default function NeisBox({ months = [] }) {
   const [done, setDone] = useState(null);      // 방금 받아온 결과
   const [have, setHave] = useState(null);   // 지금 들어와 있는 것
   const [diag, setDiag] = useState(null);   // 무엇이 들어 있는지 그대로 보기
+  const [one, setOne] = useState({});       // 학교 하나만 다시 받았을 때 나이스가 한 말
   const sBulk = useBulk(mine);
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
@@ -103,7 +104,9 @@ export default function NeisBox({ months = [] }) {
         </div>
         {have?.total > 0 ? (
           <div className="stack" style={{ gap: 2, marginTop: 6 }}>
-            {have.rows.map((r) => (
+            {have.rows.map((r) => {
+              const school = mine.find((m) => m.schul_code === r.code);
+              return (
               <div className="unitrow" key={r.code}>
                 <b style={{ fontSize: 12.5, flex: 1 }}>{r.name}</b>
                 {r.count > 0 ? (
@@ -115,22 +118,66 @@ export default function NeisBox({ months = [] }) {
                   </>
                 ) : (
                   // 0건도 보여준다 — 안 보여주면 「넣었는데 목록에 없다」 가 된다
-                  <span className="tag tag-amber" title="받아오기를 눌렀는데 이 학교 일정이 안 왔거나, 아직 안 눌렀습니다">
-                    받아온 것 없음
+                  <>
+                    <span className="tag tag-amber">받아온 것 없음</span>
+                    {/**
+                      * **왜 없는지 여기서 물어볼 수 있어야 한다** (원장님,
+                      * 2026-08-07 — 「신정초중은 왜 안 받아와지지」).
+                      *
+                      * 「받아오기」 는 학교 아홉 곳을 한 번에 돈다. 한 곳이 못
+                      * 받아도 결과 상자에 한 줄 섞여 있을 뿐이고, 화면을 옮기면
+                      * 그 상자마저 사라진다. 그러면 남는 것은 「받아온 것 없음」
+                      * 이라는 말뿐이라 — 아직 안 눌렀는지 · 그 기간에 일정이
+                      * 없는 건지 · 나이스가 거절한 건지 알 길이 없다.
+                      *
+                      * 이 학교 하나만 다시 부르고, **나이스가 뭐라고 했는지를
+                      * 그 자리에 적는다.**
+                      */}
+                    {school && school.schul_code && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={pending || !ready}
+                        title={ready ? `${range.from} ~ ${range.to} 를 이 학교만 다시 받아옵니다` : "먼저 나이스 인증키를 넣어주세요"}
+                        onClick={() =>
+                          run(() => importSchedule(range.from, range.to, school.id), (x) => {
+                            setOne({
+                              ...one,
+                              [r.code]:
+                                x?.failed?.length ? x.failed.join(" · ")
+                                : x?.added ? `${x.added}건을 받았어요.`
+                                : (x?.notes || []).join(" · ") || "나이스가 이 기간에 줄 일정이 없다고 합니다.",
+                            });
+                            importedSummary().then(setHave);
+                          })
+                        }
+                      >
+                        이 학교만 받아오기
+                      </button>
+                    )}
+                    {school && !school.schul_code && (
+                      <span className="hint" style={{ fontSize: 11.5 }}>
+                        나이스 코드가 없어 못 받아옵니다 — 위에서 이름으로 찾아 넣어주세요
+                      </span>
+                    )}
+                  </>
+                )}
+                {one[r.code] && (
+                  <span className="hint" style={{ fontSize: 11.5, flexBasis: "100%" }}>
+                    {one[r.code]}
                   </span>
                 )}
               </div>
-            ))}
+            );
+            })}
             <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.8 }}>
               <b>받아오기가 된 것입니다.</b> 일정 화면과 대시보드 달력에서 보입니다.
               다시 받아도 늘어나지 않으니 언제든 눌러도 됩니다.
               <br />
               학교별 학사일정은 <b>그 학교 아이·어머니 달력에</b> 뜹니다.
               {" "}
-              <b>[전국] 이 붙은 것(수능·모의고사·공휴일)은 비공개</b>로 들어옵니다 — 수십 줄이
+              <b>수능·모의고사·공휴일은 비공개</b>로 들어옵니다 — 수십 줄이
               달력을 채우면 정작 봐야 할 우리 학교 시험이 묻히기 때문입니다.
-              알려야 할 것이 있으면 <b>할일 · 달력</b> 에서 그 줄만 「전체」 로 열어주세요
-              (한 번 열면 다시 받아와도 열린 채로 있습니다).
+              알려야 할 것이 있으면 <b>할일 · 달력</b> 에서 그 줄만 「전체」 로 열어주세요.
             </p>
             <button
               className="btn btn-ghost btn-sm"

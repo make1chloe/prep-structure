@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
 import CheckBoard from "./CheckBoard";
+import AheadBoard from "./AheadBoard";
+import { inUseOn } from "@/lib/bookUse";
 import { todaySeoul, addDays } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
 
@@ -174,6 +176,48 @@ export default async function CheckPage({ searchParams }) {
     if (c) classOf.set(m.student_id, c);
   });
 
+  /**
+   * **미리 내기**가 쓰는 것 — 반·수업요일·쓰고 있는 교재.
+   *
+   * 검사 목록은 「오늘 검사할 아이」 만인데, 숙제는 **다음 수업 아무 반**에
+   * 낼 수 있어야 한다. 그래서 명단을 따로 만든다. `classes` 는 오늘 도는
+   * 반만이라, 여기서는 전부를 다시 읽는다.
+   */
+  const [{ data: allClasses }, { data: stBooks }] = await Promise.all([
+    supabase.from("classes").select("id, name, days, start_time").order("start_time", { ascending: true }),
+    supabase.from("student_textbooks").select("student_id, textbook_id, status, assigned_on, ended_on"),
+  ]);
+  const daysOfClass = new Map((allClasses || []).map((c) => [c.id, c.days || []]));
+  const cidsOf = new Map();
+  (members || []).forEach((m) => {
+    if (!cidsOf.has(m.student_id)) cidsOf.set(m.student_id, []);
+    cidsOf.get(m.student_id).push(m.class_id);
+  });
+  const booksOf = new Map();
+  (stBooks || []).forEach((r) => {
+    // 사용 예정일이 아직 안 온 교재는 낼 것이 없다 (책이 없으니까)
+    if (!inUseOn(r, date)) return;
+    if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
+    booksOf.get(r.student_id).push(r.textbook_id);
+  });
+  const aheadStudents = (students || []).map((s) => {
+    const cids = cidsOf.get(s.id) || [];
+    return {
+      id: s.id, name: s.name, school: s.school, grade: s.grade,
+      classIds: cids,
+      days: [...new Set(cids.flatMap((cid) => daysOfClass.get(cid) || []))],
+      bookIds: booksOf.get(s.id) || [],
+    };
+  });
+
+  const { data: books } = await supabase
+    .from("textbooks")
+    .select("id, name, area, status")
+    .order("name", { ascending: true });
+  const textbooks = (books || [])
+    .filter((b) => !b.status || b.status === "active")
+    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
+
   const rows = (students || []).map((s) => {
     const rep = repOf.get(s.id) || null;
     const mine = rep ? itemsOfRep.get(rep.id) || [] : [];
@@ -230,6 +274,16 @@ export default async function CheckPage({ searchParams }) {
           </p>
         </div>
         <CheckBoard date={date} rows={rows} items={itemList} classes={classes} />
+
+        {/* **다음 수업 숙제는 검사하면서 정한다** (원장님, 2026-08-07 —
+            「수업준비페이지가 필요없나 싶어」). 따로 있던 「수업 준비」 화면을
+            여기로 접어 넣었다 — 접혀 있으므로 검사만 하실 때는 없는 것과 같다 */}
+        <AheadBoard
+          classes={allClasses || []}
+          students={aheadStudents}
+          items={itemList}
+          textbooks={textbooks}
+        />
       </main>
     </>
   );

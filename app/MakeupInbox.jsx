@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setMakeup, waiveMakeup, cancelAbsence } from "./plan/actions";
 import { dayLabel as fmtDay } from "@/lib/day";
+import { cleanNote } from "@/lib/note";
 
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -90,8 +91,7 @@ export default function MakeupInbox({ rows = [] }) {
                 <b style={{ fontSize: 12.5 }}>{r.name}</b>
                 <span className="hint">{dayLabel(r.date)}{r.future ? "" : " 결석"}</span>
                 {r.reason && <span className="hint">· {r.reason}</span>}
-                {/* 어디서 들어온 것인지 (노션 이관 등) */}
-                {r.note && <span className="hint">· {r.note}</span>}
+                {cleanNote(r.note) && <span className="hint">· {cleanNote(r.note)}</span>}
                 {r.classDays?.length > 0 && (
                   <span className="hint">· 수업 {r.classDays.join("·")}</span>
                 )}

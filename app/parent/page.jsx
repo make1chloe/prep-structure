@@ -29,6 +29,7 @@ import { loadClassesWithTerm } from "@/lib/classTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
+import { cleanNote, cleanTitle } from "@/lib/note";
 
 export const dynamic = "force-dynamic";
 
@@ -494,7 +495,7 @@ export default async function ParentPage({ searchParams }) {
                         {shortLabel(c.date)}
                         {c.endDate && c.endDate !== c.date ? " ~" : ""}
                       </span>
-                      <span style={{ fontSize: 13.5, flex: 1 }}>{c.title}</span>
+                      <span style={{ fontSize: 13.5, flex: 1 }}>{cleanTitle(c.title)}</span>
                       {c.tone === "exam" && <span className="tag tag-red">시험</span>}
                       {c.tone === "school" && <span className="tag tag-sky">학교</span>}
                     </div>
@@ -555,7 +556,7 @@ export default async function ParentPage({ searchParams }) {
                       <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
                         {c.name}
                         {c.units.length > 0 && <> — {c.units.join(", ")}</>}
-                        {c.note && <> {c.note}</>}
+                        {cleanNote(c.note) && <> {cleanNote(c.note)}</>}
                         {c.changedAt && (
                           <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 10.5 }}>
                             바뀜

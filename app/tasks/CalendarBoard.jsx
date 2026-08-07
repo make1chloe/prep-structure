@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { todaySeoul } from "@/lib/day";
 import { dedupeSameDay } from "@/lib/calendar";
+import { cleanNote, cleanTitle } from "@/lib/note";
 
 /**
  * 한 달 달력.
@@ -100,14 +101,14 @@ export default function CalendarBoard({
     while (d <= to) {
       put(d, {
         key: `t-${t.id}-${d}`,
-        label: `${t.start_time ? `${t.start_time.slice(0, 5)} ` : ""}${t.title}`,
+        label: `${t.start_time ? `${t.start_time.slice(0, 5)} ` : ""}${cleanTitle(t.title)}`,
         cls: CAT_CLS[t.category || "기타"] || "cal-muted",
         href: "/tasks?view=schedule",
         done: t.status === "done",
         band: "schedule",
         source: t.category || "일정",
         where: "여기(일정)에서 적은 것",
-        why: t.note || "",
+        why: cleanNote(t.note),
         classId: t.class_id || null,
         studentIds: t.deliver_student_ids || null,
       });
@@ -122,7 +123,7 @@ export default function CalendarBoard({
     .forEach((t) =>
       put(t.due_on, {
         key: `d-${t.id}`,
-        label: `☑ ${t.title}`,
+        label: `☑ ${cleanTitle(t.title)}`,
         cls: "cal-muted",
         href: "/tasks?view=todo",
         band: "todo",
@@ -130,7 +131,7 @@ export default function CalendarBoard({
         where: t.auto_key
           ? (t.auto_key.startsWith("routine:") ? "되풀이 할일 규칙이 만든 것" : "다른 화면이 만든 것")
           : "여기(할일)에서 적은 것",
-        why: t.note || "",
+        why: cleanNote(t.note),
       })
     );
 
@@ -140,7 +141,7 @@ export default function CalendarBoard({
     while (d <= l.to) {
       put(d, {
         key: `${l.key}-${d}`,
-        label: `${mark.icon} ${l.title}`,
+        label: `${mark.icon} ${cleanTitle(l.title)}`,
         cls: mark.cls,
         href: l.href,
         // **어디서 왔고 왜 있는지.** 「다른 화면에서 온 일정이 뭔지 왜 있는지
