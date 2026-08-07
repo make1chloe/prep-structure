@@ -48,6 +48,32 @@ eq(read("app/check/AheadBoard.jsx").includes('"수업 전달사항"'), true, "�
 // 「알림은 가지 않는다」 를 화면에도 적어둔다 — 안 적으면 또 보내는 글로 읽는다
 eq(/알림은 가지 않고/.test(top), true, "안 울린다는 것을 화면에 적는다");
 
+console.log("\n== 맨 위 공지와 학생별 공지가 한자리에 ==");
+/**
+ * 원장님 (2026-08-07) — 「오늘 수업 맨위 공지랑 학생별 검사 밑에 공지랑
+ * 내용이 연동되어야 해」
+ *
+ * 둘 다 **같은 글에 실려 나간다** — 반 전체에 한 말과 이 아이에게만 하는
+ * 말이 어머니께는 한 통으로 간다. 그런데 화면에서는 하나가 판 맨 위에,
+ * 하나가 맨 아래에 떨어져 있어서 같이 읽어볼 수가 없었다. 그러면 같은
+ * 말을 두 번 적거나, 앞에 적은 것을 잊는다.
+ */
+const panel = read("app/today/StudentPanel.jsx");
+eq(panel.includes('{/* 전체 공지 (읽기용) */}'), false, "맨 위에 따로 떠 있던 칸을 뺐다");
+// 학생공지 옆에는 전체 「수업 전달사항」, 부모님공지 옆에는 전체 「공지」
+eq(/Row\("학생공지", "deliver"/.test(panel), true, "학생공지 옆에 전체 전달사항");
+eq(/Row\("부모님공지", "notice"/.test(panel), true, "부모님공지 옆에 전체 공지");
+// **여기서 고치면 반 전체가 바뀐다** — 그래서 읽기만 된다
+eq(/전체 것은 여기서 못 고친다/.test(panel), true, "전체 것은 읽기만 (고칠 자리를 알려준다)");
+
+console.log("\n== 공지에 제목은 없다 ==");
+// 한 줄짜리 말에 제목을 또 다는 것은 같은 말을 두 번 적는 일이었다
+const top2 = read("app/today/TopNotices.jsx");
+eq(/placeholder="제목/.test(top2), false, "제목 칸을 뺐다");
+eq(/const \[title, setTitle\]/.test(top2), false, "제목 상태도 뺐다");
+// 본문이 없으면 저장할 것이 없다 (예전에는 제목만으로도 저장됐다)
+eq(top2.includes("if (!body.trim()) return;"), true, "본문이 있어야 저장된다");
+
 console.log("\n== 어디에 실려 나가나 ==");
 const rt = read("lib/reportText.js");
 // 수업 전달사항(학생용) → 숙제 안내에

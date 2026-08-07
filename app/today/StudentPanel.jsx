@@ -1068,20 +1068,6 @@ export default function StudentPanel({
         </div>
       </div>
 
-      {/* 전체 공지 (읽기용) */}
-      {(row.notices || []).filter((n) => n.kind === "notice").length > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 3 }}>공지</span>
-          <div className="stack" style={{ gap: 2, flex: 1 }}>
-            {(row.notices || [])
-              .filter((n) => n.kind === "notice")
-              .map((n) => (
-                <span className="hint" key={n.id}>· {n.body}</span>
-              ))}
-          </div>
-        </div>
-      )}
-
       {/* 진도 · 태도 */}
       <div className="prow">
         <span className="plabel">메모</span>
@@ -1188,33 +1174,59 @@ export default function StudentPanel({
             </button>
           </div>
 
-          <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
-              학생공지
-            </span>
-            <textarea
-              className="input input-sm"
-              rows={2}
-              style={{ flex: 1, minWidth: 200 }}
-              placeholder="숙제문자 맨 위에 들어갑니다 (아이가 읽습니다)"
-              value={form.notice_student}
-              onChange={(e) => set("notice_student", e.target.value)}
-            />
-          </div>
-          <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
-              부모님공지
-            </span>
-            <textarea
-              className="input input-sm"
-              rows={2}
-              style={{ flex: 1, minWidth: 200 }}
-              placeholder="데일리리포트 맨 아래에 들어갑니다 (학부모가 읽습니다)"
-              value={form.notice}
-              onChange={(e) => set("notice", e.target.value)}
-            />
-          </div>
+          {/**
+            * **맨 위에서 적은 것이 여기 같이 보인다** (원장님, 2026-08-07 —
+            * 「오늘 수업 맨위 공지랑 학생별 검사 밑에 공지랑 내용이 연동
+            *  되어야 해」).
+            *
+            * 둘 다 **같은 글에 실려 나간다** — 반 전체에 한 말과 이 아이에게만
+            * 하는 말이 어머니께는 한 통으로 간다. 그런데 화면에서는 하나가
+            * 판 맨 위에, 하나가 맨 아래에 떨어져 있어서 **같이 읽어볼 수가
+            * 없었다.** 그러면 같은 말을 두 번 적거나, 앞에 적은 것을 잊는다.
+            *
+            * 전체 것은 여기서 못 고친다 — 고치면 그 반 모두의 글이 바뀐다.
+            * 맨 위 칸에서 고치시라고 자리만 알려준다.
+            */}
+          {(() => {
+            const all = row.notices || [];
+            const line = (kind) => all.filter((n) => n.kind === kind && n.body);
+            const Row = (label, kind, hint, value, key) => (
+              <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
+                  {label}
+                </span>
+                <div className="stack" style={{ gap: 4, flex: 1, minWidth: 200 }}>
+                  {line(kind).map((n) => (
+                    <span className="hint" key={n.id} style={{ fontSize: 11.5 }}>
+                      <span className="tag tag-muted" style={{ fontSize: 10.5 }}>전체</span>{" "}
+                      {n.body}
+                    </span>
+                  ))}
+                  <textarea
+                    className="input input-sm"
+                    rows={2}
+                    placeholder={hint}
+                    value={value}
+                    onChange={(e) => set(key, e.target.value)}
+                  />
+                </div>
+              </div>
+            );
+            return (
+              <>
+                {Row("학생공지", "deliver",
+                     "이 아이에게만 — 숙제 안내 맨 위에 들어갑니다",
+                     form.notice_student, "notice_student")}
+                {Row("부모님공지", "notice",
+                     "이 아이에게만 — 데일리리포트 맨 아래에 들어갑니다",
+                     form.notice, "notice")}
+              </>
+            );
+          })()}
           <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+            <span className="tag tag-muted" style={{ fontSize: 10.5 }}>전체</span> 로 적힌 줄은
+            맨 위 <b>공지</b> 칸에서 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
+            <br />
             수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>에 있습니다.
           </p>
         </div>
