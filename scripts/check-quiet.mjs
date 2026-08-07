@@ -8,7 +8,7 @@
  *
  * 쓰는 법:  node scripts/check-quiet.mjs
  */
-import { inQuiet, minsOf, quietLabel } from "../lib/quiet.js";
+import { inQuiet, minsOf, quietLabel, DEFAULT_QUIET } from "../lib/quiet.js";
 
 let fail = 0;
 const eq = (got, want, what) => {
@@ -49,6 +49,21 @@ console.log("\n== 화면에 보여줄 글자 ==");
 eq(quietLabel("22:00:00", "07:00:00"), "22:00 ~ 07:00", "초는 떼고");
 eq(quietLabel(null, null), null, "없으면 안 그린다");
 eq(quietLabel("22:00", "22:00"), null, "같으면 없는 것");
+
+console.log("\n== 아무것도 안 정하셨을 때 (기본값) ==");
+/**
+ * 원장님 (2026-08-07) — 「학부모 어플에 방해금지 모드는 오후 11시부터
+ * 오전 9시까지로 기본설정해줘」
+ *
+ * 알림은 선생님이 수업을 마치고 정리하시다가 나가는 일이 많아 밤늦게 갈 수
+ * 있다. 기본을 「없음」 으로 두면 아무도 안 정하시고, 잠결에 울리는 폰 때문에
+ * **알림을 통째로 꺼버리신다** — 그러면 우리는 아무것도 못 알린다.
+ */
+eq(DEFAULT_QUIET, { from: "23:00", to: "09:00" }, "밤 11시 ~ 아침 9시");
+eq(inQuiet("23:30", DEFAULT_QUIET.from, DEFAULT_QUIET.to), true, "밤 11시 반 — 안 울린다");
+eq(inQuiet("07:00", DEFAULT_QUIET.from, DEFAULT_QUIET.to), true, "아침 7시 — 아직 안 울린다");
+eq(inQuiet("09:00", DEFAULT_QUIET.from, DEFAULT_QUIET.to), false, "아침 9시 — 이제 울린다");
+eq(inQuiet("21:00", DEFAULT_QUIET.from, DEFAULT_QUIET.to), false, "밤 9시 — 수업이 끝나는 때라 울려야 한다");
 
 if (fail) { console.log("\n❌ 방해금지 시간 계산에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 방해금지 시간 통과");

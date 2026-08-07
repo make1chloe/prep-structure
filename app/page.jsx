@@ -11,6 +11,7 @@ import WarningInbox from "./WarningInbox";
 import InquiryInbox from "./InquiryInbox";
 import PushSeen from "./PushSeen";
 import BreakWatch from "./BreakWatch";
+import MakeupAnswers from "./MakeupAnswers";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
@@ -150,6 +151,9 @@ export default async function Home() {
             <div id="makeup">
               <MakeupInbox rows={d.makeupRows} />
             </div>
+
+            {/* 잡아둔 보강에 어머니가 답하셨나 (0107) — 변경 요청이 먼저다 */}
+            <MakeupAnswers />
 
             <UnsentBox fails={d.sendFails} past={d.unsentPast} />
 

@@ -62,9 +62,16 @@ export default function AlertBox() {
       ) : (
         <div style={{ marginTop: 10 }}>
           <b style={{ fontSize: 13.5 }}>방해금지 시간</b>
-          <p className="hint" style={{ margin: "4px 0 8px" }}>
+          {/* **켜두시기를 권한다** (원장님, 2026-08-07). 알림은 선생님이
+              수업을 마치고 정리하시다가 나가는 일이 많아 밤늦게 갈 수 있다.
+              그걸 그대로 두면 잠결에 울리는 폰 때문에 알림을 **통째로**
+              꺼버리시고, 그러면 우리는 아무것도 못 알린다 */}
+          <p className="hint" style={{ margin: "4px 0 8px", lineHeight: 1.7 }}>
             이 시간에는 알림이 오지 않습니다. 밤 시간처럼 <b>날을 넘겨</b> 정하셔도 됩니다.
             {now && <> 지금은 <b>{now}</b> 입니다.</>}
+            {q?.isDefault && <span className="tag tag-muted" style={{ marginLeft: 6 }}>기본값</span>}
+            <br />
+            <b>늦은 시간에 알림이 발송될 수 있으니 켜 놓는 것을 권장드립니다.</b>
           </p>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input

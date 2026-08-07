@@ -177,6 +177,11 @@ echo "== 5-4-8) 안 본 알림 배지 =="
 runjs scripts/check-inbox.mjs
 
 echo
+echo "== 5-4-9) 학부모 화면 (예민한 것들) =="
+# 여기서 무너지면 사람 사이가 상한다 — 오류가 아니라서 아무도 못 잡는다
+runjs scripts/check-parentview.mjs
+
+echo
 echo "== 5-5) 출제분석 =="
 # 「교과서에서 60% 나왔다」 가 틀리면 한 학기 공부 방향이 틀어진다.
 # 「몇 명 중 몇 명」 은 사람 수를 잘못 세면 곧바로 거짓말이 된다

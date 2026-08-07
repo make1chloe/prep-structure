@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { generateKeys, pushToAll } from "@/lib/push";
-import { inQuiet, nowMinsSeoul } from "@/lib/quiet";
+import { inQuiet, nowMinsSeoul, DEFAULT_QUIET } from "@/lib/quiet";
 import { randomUUID } from "node:crypto";
 
 // 알림 키 — 설정 화면에서 한 번 만들면 계속 쓴다
@@ -233,10 +233,24 @@ async function awake(supabase, subs) {
     .in("profile_id", pids);
   if (error) return subs;                       // 0105 전이면 그대로 보낸다
   const now = nowMinsSeoul();
+
+  /**
+   * **안 정하신 분은 기본값(밤 11시~아침 9시)을 쓴다** (2026-08-07).
+   *
+   * 기본을 「없음」 으로 두면 아무도 안 정하시고, 그러면 밤에 울리는 폰
+   * 때문에 알림을 통째로 꺼버리시게 된다 — 그게 제일 나쁘다.
+   *
+   * 「지우기」 를 누르신 분은 빈 값이 **저장되어** 있으므로 여기서 기본값을
+   * 안 쓴다. 안 정한 것과 안 받겠다고 정한 것은 다르다.
+   */
+  const set = new Map((data || []).map((p) => [p.profile_id, p]));
   const quiet = new Set(
-    (data || [])
-      .filter((p) => inQuiet(now, p.quiet_from, p.quiet_to))
-      .map((p) => p.profile_id)
+    pids.filter((id) => {
+      const p = set.get(id);
+      return p
+        ? inQuiet(now, p.quiet_from, p.quiet_to)
+        : inQuiet(now, DEFAULT_QUIET.from, DEFAULT_QUIET.to);
+    })
   );
   if (quiet.size === 0) return subs;
   return subs.filter((s) => !quiet.has(s.profile_id));
@@ -417,10 +431,15 @@ export async function getQuietHours() {
     .maybeSingle();
   // 0105 전이면 표가 없다 — 화면에서 「아직 못 쓴다」 고 말할 수 있게 알린다
   if (error) return { from: "", to: "", ready: false };
+  // 아직 아무것도 안 정하신 분께는 **기본값을 그대로 보여드린다** —
+  // 화면에는 빈 칸인데 실제로는 안 울리면 「왜 안 오지」 가 된다
+  if (!data) {
+    return { ready: true, from: DEFAULT_QUIET.from, to: DEFAULT_QUIET.to, isDefault: true };
+  }
   return {
     ready: true,
-    from: (data?.quiet_from || "").slice(0, 5),
-    to: (data?.quiet_to || "").slice(0, 5),
+    from: (data.quiet_from || "").slice(0, 5),
+    to: (data.quiet_to || "").slice(0, 5),
   };
 }
 

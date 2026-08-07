@@ -121,9 +121,19 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
         <div className="stack" style={{ gap: 4, marginTop: 12 }}>
           {mine.map((r) => (
             <div className="unitrow" key={r.id}>
-              <span className={`tag ${r.status === "accepted" ? "tag-mint" : r.status === "declined" ? "tag-muted" : "tag-amber"}`}>
-                {r.status === "accepted" ? "확인됨" : r.status === "declined" ? "확인" : "전달됨"}
-              </span>
+              {/**
+                * **「제출 완료」 만 보여드린다** (원장님, 2026-08-07 —
+                * 「제출을 했을 때는 정상적으로 제출 됐다는 의미로 제출 완료만
+                * 표시 하고, 그걸 내가 확인 했는지 안했는지까지는 노출시키지 마」).
+                *
+                * 「전달됨」 이 며칠 그대로 있으면 「왜 안 보시지」 가 된다.
+                * 수업 중에는 화면을 못 여시는 것이 당연한데, 그 사정은
+                * 어머니께 안 보인다 — 보이는 것은 안 읽힌 표시뿐이다.
+                *
+                * 답을 드릴 것은 **답장이 온다** (아래 r.reply, 그리고 폰 알림).
+                * 그러니 여기서는 「잘 들어갔습니다」 만 말하면 된다.
+                */}
+              <span className="tag tag-mint">제출 완료</span>
               <span style={{ fontSize: 12.5, flex: 1 }}>
                 {r.from_date
                   ? `${r.from_date.slice(5)}${r.to_date && r.to_date !== r.from_date ? `~${r.to_date.slice(5)}` : ""} `

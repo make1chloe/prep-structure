@@ -21,6 +21,7 @@ import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
 import AlertBox from "@/components/AlertBox";
+import MakeupConfirm from "./MakeupConfirm";
 import PushToggle from "@/app/me/PushToggle";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
@@ -582,8 +583,21 @@ export default async function ParentPage({ searchParams }) {
             <div className="card">
               <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>최근 수업</h2>
               <ScreenNote text={N("parent.lessons")} />
+              {/**
+                * **가장 최근 것 하나만 펴둔다** (원장님, 2026-08-07 —
+                * 「데일리리포트의 코멘트, 성장은 예민한 부분이야. 가장 최근의
+                * 것 1개를 보여주고, 나머지는 필요시 확인할 수 있게 해줘」).
+                *
+                * 지난 수업 넉 줄이 나란히 있으면 어머니는 **줄을 세로로 읽으며
+                * 견주신다** — 「지난주는 90점인데 이번주는 70점」. 한 회차의
+                * 점수는 그날 컨디션인데, 늘어놓으면 흐름처럼 읽힌다.
+                * 흐름은 성장 카드가 따로 보여드리는 것이고, 이 칸은
+                * **오늘 무슨 일이 있었나**를 말하는 자리다.
+                *
+                * 지운 것이 아니다 — 아래 접힌 곳에 그대로 있다.
+                */}
               <div className="stack" style={{ gap: 14 }}>
-                {lessons.map((r) => (
+                {lessons.slice(0, 1).map((r) => (
                   <div key={r.id} className="stack" style={{ gap: 6 }}>
                     <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
                       <b style={{ fontSize: 13.5 }}>{longLabel(r.date)}</b>
@@ -643,6 +657,51 @@ export default async function ParentPage({ searchParams }) {
                   </div>
                 ))}
               </div>
+
+              {/* 나머지는 접어둔다 — 지운 것이 아니라 **필요하실 때** 여신다 */}
+              {lessons.length > 1 && (
+                <details style={{ marginTop: 12 }}>
+                  <summary className="hint" style={{ cursor: "pointer", fontSize: 12.5 }}>
+                    지난 수업 {lessons.length - 1}회 더 보기
+                  </summary>
+                  <div className="stack" style={{ gap: 12, marginTop: 10 }}>
+                    {lessons.slice(1).map((r) => (
+                      <div key={r.id} className="stack" style={{ gap: 4 }}>
+                        <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+                          <b style={{ fontSize: 13 }}>{longLabel(r.date)}</b>
+                          {r.attendance && (
+                            <span className={`tag ${r.attendance === "absent" ? "tag-red" : "tag-mint"}`}>
+                              {ATT_LABEL[r.attendance] || r.attendance}
+                            </span>
+                          )}
+                          {r.word_total ? (
+                            <span className="hint">단어 {score(r.word_correct, r.word_total)}</span>
+                          ) : null}
+                          {r.sent_total ? (
+                            <span className="hint">문법 {score(r.sent_correct, r.sent_total)}</span>
+                          ) : null}
+                        </div>
+                        {r.own_progress && (
+                          <div className="hint" style={{ fontSize: 12.5 }}>{r.own_progress}</div>
+                        )}
+                        {r.notice && (
+                          <div className="notice" style={{ fontSize: 12.5 }}>{r.notice}</div>
+                        )}
+                        {r.reportText && (
+                          <details>
+                            <summary className="hint" style={{ cursor: "pointer", fontSize: 12 }}>
+                              이 날 리포트 전문 보기
+                            </summary>
+                            <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", marginTop: 6 }}>
+                              {r.reportText}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
       </>
@@ -671,8 +730,11 @@ export default async function ParentPage({ searchParams }) {
                   return (
                     <div key={k}>
                       <b style={{ fontSize: 13 }}>{KIND_LABEL[k]}</b>
+                      {/* **가장 최근 것 하나만.** 점수를 넉 줄 늘어놓으면
+                          세로로 읽으며 견주시게 된다 — 흐름은 위 성장 카드가
+                          보여드리는 몫이다 (원장님, 2026-08-07) */}
                       <div className="stack" style={{ gap: 3, marginTop: 4 }}>
-                        {list.slice(0, 4).map((s) => (
+                        {list.slice(0, 1).map((s) => (
                           <div className="unitrow" key={s.id}>
                             <span className="hint" style={{ minWidth: 68 }}>
                               {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
@@ -684,6 +746,26 @@ export default async function ParentPage({ searchParams }) {
                           </div>
                         ))}
                       </div>
+                      {list.length > 1 && (
+                        <details style={{ marginTop: 4 }}>
+                          <summary className="hint" style={{ cursor: "pointer", fontSize: 12 }}>
+                            지난 {KIND_LABEL[k]} {list.length - 1}건 더 보기
+                          </summary>
+                          <div className="stack" style={{ gap: 3, marginTop: 6 }}>
+                            {list.slice(1, 8).map((s) => (
+                              <div className="unitrow" key={s.id}>
+                                <span className="hint" style={{ minWidth: 68 }}>
+                                  {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
+                                </span>
+                                <b style={{ fontSize: 12.5, minWidth: 110 }}>{s.term || ""}</b>
+                                <span style={{ fontSize: 12.5, flex: 1 }}>
+                                  {scoreSummary(s, findExam(s, exams || [], child))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                     </div>
                   );
                 })}
@@ -794,6 +876,13 @@ export default async function ParentPage({ searchParams }) {
       {/* **안 켜신 분께는 위에서 한 번 더.** 알림 칸은 아래에 있는데,
           안 켜져 있으면 아래까지 내려가 보실 일이 없다. 켜면 사라진다 */}
       {!preview && <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff /></div>}
+
+      {/* **답을 안 하신 보강은 첫 화면에** (원장님, 2026-08-07).
+          답을 주셔야 그 시간을 비워두거나 다른 날로 옮길 수 있다.
+          답하시면 사라진다 — 그래서 잔소리로 남지 않는다.
+          형제가 있으면 **둘 다** 본다 (아이를 고른 것과 상관없이 —
+          다른 아이 보강을 못 보고 지나가면 안 된다) */}
+      {!preview && <MakeupConfirm studentIds={children.map((c) => c.id)} />}
 
 
 
