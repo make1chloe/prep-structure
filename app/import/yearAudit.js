@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
-import { auditRows, summarize } from "@/lib/yearAudit";
+import { auditRows, summarize, attendanceAhead } from "@/lib/yearAudit";
 import { pageAll } from "@/lib/pageAll";
 
 /**
@@ -26,7 +26,8 @@ import { pageAll } from "@/lib/pageAll";
 /** 표마다 무엇을 날짜로 볼까 · 미래에 있어도 되는가 */
 const TARGETS = [
   { table: "daily_reports", label: "수업 기록", date: "date", dow: true },
-  { table: "attendance", label: "출결 · 보강", date: "date" },
+  // 보강 예정일·사전 연락 결석은 **앞으로의 날짜가 맞다** — 그것까지 읽는다
+  { table: "attendance", label: "출결 · 보강", date: "date", extra: "status, planned", ahead: true },
   { table: "class_attendance", label: "특강 출결", date: "date" },
   { table: "student_notes", label: "상담일지", date: "date" },
   { table: "scores", label: "성장 (내신 · 모의 · 단원)", date: "taken_on" },
@@ -68,7 +69,7 @@ export async function auditYears() {
   const audits = [];
 
   for (const t of TARGETS) {
-    const cols = [t.date, t.key || "student_id"].join(", ");
+    const cols = [t.date, t.key || "student_id", t.extra].filter(Boolean).join(", ");
     // 아직 없는 표(마이그레이션 전)는 조용히 건너뛴다 — 여기서 멈추면
     // 나머지 표도 못 본다
     // **1000줄에서 잘리면 안 된다** — Supabase 는 한 번에 1000줄까지만 준다.
@@ -87,6 +88,7 @@ export async function auditYears() {
         future: t.future,
         // 요일은 **수업 기록에만** 견준다. 보강·상담·수납은 수업 요일이 아니다
         daysOf: t.dow ? daysOf : null,
+        okAhead: t.ahead ? attendanceAhead : null,
       })
     );
   }

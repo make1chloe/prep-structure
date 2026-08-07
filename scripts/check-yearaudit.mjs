@@ -24,6 +24,23 @@ eq(byYear([{date:"2024-03-01"},{date:"2026-03-01"},{date:"2026-04-01"},{date:""}
    {"2024":1,"2026":2},"빈 것은 안 센다");
 console.log("== 미래에 있는 것 ==");
 eq(futureRows([{date:"2026-12-30"},{date:"2026-08-06"},{date:"2025-12-30"}],T).length,1,"오늘은 미래가 아니다");
+/**
+ * **앞으로 잡아둔 것은 이상하지 않다** (2026-08-06).
+ *
+ * 원장님 화면에서 보강 4건이 빨갛게 떴다 — 앞으로 잡아둔 보강 예정일이었다.
+ * 보강은 원래 미래에 잡고, 시험 기간 결석도 미리 넣는다. 그것을
+ * 「연도가 잘못됐다」 고 하면 멀쩡한 것을 고치게 만든다.
+ */
+{
+  const { attendanceAhead } = await import("../lib/yearAudit.js");
+  const rows = [
+    { date: "2026-08-14", status: "makeup" },              // 보강 예정 — 정상
+    { date: "2026-08-20", status: "absent", planned: true },// 사전 연락 — 정상
+    { date: "2026-08-25", status: "present" },             // 지나간 출석이 미래에 — 이상
+  ];
+  eq(futureRows(rows, T, (r) => r.date, attendanceAhead).length, 1, "보강·사전연락은 빼고 센다");
+  eq(futureRows(rows, T).length, 3, "규칙을 안 주면 다 센다 (다른 표는 그대로)");
+}
 console.log("== 같은 월일이 여러 해에 ==");
 eq(sameDayAcrossYears([{student_id:"a",date:"2025-03-04"},{student_id:"a",date:"2026-03-04"},
                        {student_id:"b",date:"2026-03-04"}]).length,1,"a 만 걸린다");
