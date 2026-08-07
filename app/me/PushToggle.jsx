@@ -2,12 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { getPushPublicKey, saveSubscription, removeSubscription } from "@/app/push/actions";
-
-function urlBase64ToUint8Array(base64) {
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-}
+// 켜는 절차는 lib/pushClient 한 곳에만 둔다 — 두 군데면 한쪽만 고치게 된다
+import { pushState, enablePush } from "@/lib/pushClient";
 
 /**
  * @param onlyWhenOff  이미 켜져 있으면 **아무것도 안 그린다**.
@@ -30,55 +26,26 @@ export default function PushToggle({ onlyWhenOff = false, warn = false }) {
     let alive = true;
     (async () => {
       if (typeof window === "undefined") return;
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        if (alive) setState("unsupported");
-        return;
-      }
-      try {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        const sub = await reg.pushManager.getSubscription();
-        if (!alive) return;
-        if (Notification.permission === "denied") setState("denied");
-        else setState(sub ? "on" : "off");
-      } catch {
-        if (alive) setState("unsupported");
-      }
+      const s = await pushState();
+      if (alive) setState(s);
     })();
     return () => {
       alive = false;
     };
   }, []);
 
-  async function turnOn() {
+  function turnOn() {
     setMsg("");
-    const perm = await Notification.requestPermission();
-    if (perm !== "granted") {
-      setState("denied");
-      return;
-    }
-    const { publicKey, error } = await getPushPublicKey();
-    if (error || !publicKey) {
-      setMsg(error || "알림 준비가 아직 안 됐어요. 선생님께 말씀해주세요.");
-      return;
-    }
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
-      startTransition(async () => {
-        const res = await saveSubscription(sub.toJSON(), navigator.userAgent);
-        if (res?.error) {
-          setMsg(res.error);
-          return;
-        }
-        setState("on");
-        setMsg("이제 숙제가 올라오면 알림이 옵니다.");
-      });
-    } catch (e) {
-      setMsg(`알림을 켜지 못했어요: ${e.message}`);
-    }
+    startTransition(async () => {
+      const r = await enablePush(getPushPublicKey, saveSubscription);
+      if (!r.ok) {
+        setMsg(r.error);
+        if (r.denied) setState("denied");
+        return;
+      }
+      setState("on");
+      setMsg("이제 숙제가 올라오면 알림이 옵니다.");
+    });
   }
 
   async function turnOff() {

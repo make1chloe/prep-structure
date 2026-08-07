@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PushToggle from "./PushToggle";
+import AlertGate from "./AlertGate";
 import InstallHint from "./InstallHint";
 import { score, cutOf, passSummary } from "@/lib/wordTest";
 import { summarize } from "@/lib/monthly";
@@ -996,14 +997,6 @@ export default async function MePage({ searchParams }) {
         </p>
       </div>
 
-      {/* **켜는 버튼이 화면 맨 아래에만 있었다** (2026-08-07). 거기까지
-          내려가 보는 아이가 없으니 아무도 안 켜져 있었고, 숙제나 전달사항을
-          올려도 알림이 갈 곳이 없었다. **아직 안 켠 아이에게만** 위에 보인다
-          (아래 칸은 그대로 둔다 — 껐다 켜는 것은 거기서 한다) */}
-      {!preview && !acting && (
-        <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff warn /></div>
-      )}
-
       <div className="stack" style={{ marginTop: 10 }}>
         {preview ? (
           <div className="card card-tight" style={{ borderLeft: "3px solid var(--accent, #6d7cff)" }}>
@@ -1031,11 +1024,32 @@ export default async function MePage({ searchParams }) {
             <Refresh />
           </div>
         )}
-        <ScreenNote text={N("me.top")} tone="card" />
-
-        {blockOrder.map((k) => (
-          <Fragment key={k}>{BLOCKS[k]}</Fragment>
-        ))}
+        {/**
+          * **알림이 꺼져 있으면 아래를 안 연다** (원장님, 2026-08-07 —
+          * 「학생 어플은 절대 알림이 꺼지면 안 돼 … 정상 작동이 안 되도록」).
+          *
+          * 이 앱이 알림톡을 대신한다. 숙제도 시험도 전달사항도 여기로만
+          * 간다. 알림이 꺼진 아이는 **아무 소식도 못 받는 채로** 앱을 쓰고
+          * 있게 되고, 정작 문제는 숙제를 안 해온 날 드러난다.
+          *
+          * 미리보기(선생님)와 눌러보기는 그대로 연다 — 거기서 막으면
+          * 원장님이 아이 화면을 못 보시게 된다.
+          */}
+        {preview || acting ? (
+          <>
+            <ScreenNote text={N("me.top")} tone="card" />
+            {blockOrder.map((k) => (
+              <Fragment key={k}>{BLOCKS[k]}</Fragment>
+            ))}
+          </>
+        ) : (
+          <AlertGate>
+            <ScreenNote text={N("me.top")} tone="card" />
+            {blockOrder.map((k) => (
+              <Fragment key={k}>{BLOCKS[k]}</Fragment>
+            ))}
+          </AlertGate>
+        )}
 
         <form action="/logout" method="post">
           <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>
