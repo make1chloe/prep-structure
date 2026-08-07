@@ -62,8 +62,21 @@ eq(ma.includes("confirm_makeup"), true, "표는 잠가두고 문으로만 적는
 console.log("\n== 선생님 쪽에 답이 모이나 ==");
 const ans = read("app/MakeupAnswers.jsx");
 eq(read("app/page.jsx").includes("<MakeupAnswers"), true, "대시보드에 있다");
-eq(ans.includes("변경 요청"), true, "변경 요청이 먼저 보인다");
-eq(ans.includes("아직 답 없음"), true, "답 없는 것도 보인다");
+const rowsFile = read("app/MakeupRows.jsx");
+eq(rowsFile.includes("변경 요청"), true, "변경 요청이 먼저 보인다");
+eq(rowsFile.includes("답 없음"), true, "답 없는 것도 보인다");
+
+console.log("\n== 잡았다가 무를 수 있나 ==");
+// 잡는 길만 있고 무르는 길이 없었다 — 잘못 잡으면 그날 오지도 않을 아이가
+// 「오늘 수업」 에 뜬다 (원장님, 2026-08-07)
+eq(rowsFile.includes("cancelMakeup"), true, "보강 취소 버튼이 있다");
+const pl = read("app/plan/actions.js");
+eq(pl.includes("export async function cancelMakeup"), true, "취소하는 길이 있다");
+// **결석은 그대로 둔다.** 지우면 회차와 수강료가 어긋난다
+eq(/cancelMakeup[\s\S]*?\.eq\("status", "makeup"\)/.test(pl), true,
+   "보강 줄만 지운다 (결석은 그대로)");
+// 어머니는 그날 아이를 보내실 참이었다 — 조용히 지우면 헛걸음을 하신다
+eq(/cancelMakeup[\s\S]*?pushToFamilies/.test(pl), true, "취소하면 알린다");
 
 if (fail) { console.log("\n❌ 학부모 화면에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 학부모 화면 통과");

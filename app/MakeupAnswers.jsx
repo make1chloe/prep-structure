@@ -1,66 +1,52 @@
 import { createClient } from "@/lib/supabase/server";
-import { todaySeoul, dayLabel } from "@/lib/day";
+import { todaySeoul } from "@/lib/day";
+import MakeupRows from "./MakeupRows";
 
 /**
- * **잡아둔 보강에 답이 왔나** (0107).
+ * **잡아둔 보강** — 답이 왔나, 그리고 무를 수 있게 (0107).
  *
- * 원장님 (2026-08-07) — 어머니가 「확정」 이나 「일정 변경 요청」 을 누르시게
- * 했다. 그러면 그 답이 **여기 모여야** 뜻이 있다.
+ * 원장님 (2026-08-07)
+ *   어머니가 「확정」 · 「일정 변경 요청」 을 누르시게 했다 → 그 답이 여기 모인다
+ *   「보강일정 잡았다가 취소하려면 어떻게 해야해?」 → **길이 없었다.**
  *
- *   변경 요청   지금 손봐야 하는 일이다 — 맨 위, 빨갛게
- *   아직 답 없음 그날 안 오실 수 있다 — 미리 아는 것이 전부다
- *   확정        보여드릴 것이 없다. 안 그린다
+ * 잡는 길만 있고 무르는 길이 없었다. 잘못 잡으면 그 줄이 그대로 남아서,
+ * 그날 「오늘 수업」 에 오지도 않을 아이가 뜬다.
  *
- * 확정된 것까지 늘어놓으면 이 칸이 길어지고, 길어지면 안 보시게 된다.
+ * 그래서 **앞으로의 보강을 전부** 보여준다. 답이 급한 순서로 —
+ *   변경 요청    지금 손봐야 하는 일이다
+ *   답 없음      그날 안 오실 수 있다
+ *   확정         한 줄로 작게. 취소는 여기서도 된다
  */
 export default async function MakeupAnswers() {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("attendance")
-    .select("student_id, date, makeup_time, makeup_confirmed_at, makeup_change_req, makeup_req_at")
+    .select("student_id, date, makeup_time, reason, makeup_of, makeup_confirmed_at, makeup_change_req")
     .eq("status", "makeup")
     .gte("date", todaySeoul())
     .order("date", { ascending: true })
     .limit(60);
 
-  // 0107 전이면 칸이 없다 — 조용히 넘어간다
-  if (error || !data?.length) return null;
+  if (error) {
+    // 0107 전이면 확정 칸이 없다 — 그래도 **취소는 되어야 한다**
+    const { data: bare } = await supabase
+      .from("attendance")
+      .select("student_id, date, makeup_time, reason, makeup_of")
+      .eq("status", "makeup")
+      .gte("date", todaySeoul())
+      .order("date", { ascending: true })
+      .limit(60);
+    return render(supabase, bare || [], false);
+  }
+  return render(supabase, data || [], true);
+}
 
-  const wait = data.filter((r) => !r.makeup_confirmed_at && !r.makeup_change_req);
-  const changed = data.filter((r) => r.makeup_change_req);
-  if (wait.length === 0 && changed.length === 0) return null;
+async function render(supabase, rows, hasAnswer) {
+  if (rows.length === 0) return null;
 
-  const ids = [...new Set([...wait, ...changed].map((r) => r.student_id))];
+  const ids = [...new Set(rows.map((r) => r.student_id))];
   const { data: st } = await supabase.from("students").select("id, name").in("id", ids);
-  const nameOf = new Map((st || []).map((s) => [s.id, s.name]));
+  const nameOf = Object.fromEntries((st || []).map((s) => [s.id, s.name]));
 
-  return (
-    <div className={`card sect ${changed.length ? "sect-bad" : "sect-warn"}`}>
-      <h2 className="secthead">
-        보강 확인{" "}
-        {changed.length > 0 && <span className="tag tag-red">변경 요청 {changed.length}</span>}{" "}
-        {wait.length > 0 && <span className="tag tag-muted">답 없음 {wait.length}</span>}
-      </h2>
-
-      <div className="stack" style={{ gap: 3 }}>
-        {changed.map((r) => (
-          <div className="unitrow" key={`c-${r.student_id}-${r.date}`}>
-            <b style={{ fontSize: 12.5, minWidth: 72 }}>{nameOf.get(r.student_id) || "학생"}</b>
-            <span className="hint">{dayLabel(r.date)}</span>
-            {r.makeup_time && <span className="hint">{r.makeup_time.slice(0, 5)}</span>}
-            <span className="tag tag-red">변경 요청</span>
-            <span className="hint" style={{ flex: 1 }}>{r.makeup_change_req}</span>
-          </div>
-        ))}
-        {wait.map((r) => (
-          <div className="unitrow" key={`w-${r.student_id}-${r.date}`}>
-            <b style={{ fontSize: 12.5, minWidth: 72 }}>{nameOf.get(r.student_id) || "학생"}</b>
-            <span className="hint">{dayLabel(r.date)}</span>
-            {r.makeup_time && <span className="hint">{r.makeup_time.slice(0, 5)}</span>}
-            <span className="tag tag-muted">아직 답 없음</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <MakeupRows rows={rows} nameOf={nameOf} hasAnswer={hasAnswer} />;
 }

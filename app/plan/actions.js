@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf } from "@/lib/day";
+import { pushToFamilies } from "@/app/push/actions";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -149,6 +150,51 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
   revalidatePath("/plan");
   revalidatePath("/today");
   return ok(error);
+}
+
+/**
+ * **보강 취소** — 잡았다가 무르는 길 (원장님, 2026-08-07 —
+ * 「보강일정 잡았다가 취소하려면 어떻게 해야해?」).
+ *
+ * 없었다. 잡는 길만 있고 무르는 길이 없었다 — 잘못 잡으면 그 줄이 그대로
+ * 남아서, 그날 「오늘 수업」 에 오지도 않을 아이가 뜬다.
+ *
+ * 보강 줄만 지운다. **원래 결석은 그대로 둔다** — 결석이 없던 일이 된 것이
+ * 아니므로, 지우면 회차와 수강료가 어긋난다. 결석은 다시 「보강 잡을 것」
+ * 목록으로 돌아간다 (그게 맞다 — 아직 보강을 못 해드린 상태니까).
+ *
+ * **알려야 한다.** 어머니는 그날 아이를 보내실 참이었다. 조용히 지우면
+ * 헛걸음을 하시게 된다.
+ */
+export async function cancelMakeup(studentId, date, why) {
+  if (!studentId || !date) return { error: "어느 보강인지 모르겠어요." };
+  const supabase = createClient();
+
+  const { error } = await supabase
+    .from("attendance")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("date", date)
+    .eq("status", "makeup");        // 결석·출석 줄은 안 건드린다
+  if (error) return ok(error);
+
+  try {
+    const { data: me } = await supabase
+      .from("students").select("name").eq("id", studentId).maybeSingle();
+    await pushToFamilies([studentId], {
+      title: "보강 일정이 취소되었습니다",
+      body: `${date} 보강이 취소되었어요.${(why || "").trim() ? ` ${why.trim()}` : " 다시 잡아서 알려드리겠습니다."}`,
+      url: "/parent",
+      tag: "makeup-cancel",
+    }, "all");
+  } catch {
+    /* 알림이 안 가도 취소는 됐다 — 다만 전화를 한 번 드리는 편이 낫다 */
+  }
+
+  revalidatePath("/");
+  revalidatePath("/plan");
+  revalidatePath("/today");
+  return { error: null };
 }
 
 /**
