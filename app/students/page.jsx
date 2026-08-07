@@ -111,11 +111,35 @@ export default async function StudentsPage({ searchParams }) {
     classesOf.get(m.student_id).push({ id: c.id, name: c.name, days: c.days || [] });
   });
 
+  /**
+   * **엄마 아이디** (원장님, 2026-08-07 — 「재원생 정보에 엄마아이디 필요해」).
+   *
+   * 학부모 계정 칸이 판 맨 아래에 있어서, 어머니가 「아이디가 뭐였죠」 하고
+   * 물어오시면 한참 내려야 했다. 표에 한 칸으로 두면 검색으로도 찾힌다.
+   *
+   * 형제는 계정 하나를 같이 쓰므로 두 아이 줄에 같은 아이디가 나온다 —
+   * 그게 맞다.
+   */
+  const { data: plinks } = ids.length
+    ? await supabase.from("parent_student").select("student_id, parent_profile_id").in("student_id", ids)
+    : { data: [] };
+  const ppids = [...new Set((plinks || []).map((l) => l.parent_profile_id).filter(Boolean))];
+  const { data: pprofs } = ppids.length
+    ? await supabase.from("profiles").select("id, login_id").in("id", ppids)
+    : { data: [] };
+  const loginOf = new Map((pprofs || []).map((p) => [p.id, p.login_id]));
+  const parentIdOf = new Map();
+  (plinks || []).forEach((l) => {
+    const v = loginOf.get(l.parent_profile_id);
+    if (v) parentIdOf.set(l.student_id, v);
+  });
+
   const rows = (students || []).map((s) => {
     const cls = classesOf.get(s.id) || [];
     return {
       ...s,
       initPw: !!s.profile_id && initPw.has(s.profile_id),
+      parent_login_id: parentIdOf.get(s.id) || null,
       books: booksOf.get(s.id) || [],
       classes: cls,
       days: [...new Set(cls.flatMap((c) => c.days))],

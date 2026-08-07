@@ -39,6 +39,9 @@ const COLS = [
   { key: "electives", label: "선택과목", w: 130 },
   { key: "note", label: "특이사항", w: 140 },
   { key: "login_id", label: "아이디", w: 104, mono: true },
+  // **엄마 아이디** — 물어오시면 바로 답할 수 있게 (원장님, 2026-08-07).
+  // 고치는 칸이 아니다 (학부모 계정 칸에서 만들고 바꾼다)
+  { key: "parent_login_id", label: "엄마 아이디", w: 110, mono: true, readOnly: true },
   { key: "initPw", label: "비번", w: 76, type: "pw" },
   { key: "books", label: "교재", w: 130, type: "books" },
   { key: "wordTest", label: "단어시험", w: 130, type: "wordTest" },
@@ -47,8 +50,10 @@ const COLS = [
 
 // 한 판에서 고칠 수 있는 것 — 표에 안 켜둔 칸도 여기서는 전부 고친다.
 // (표는 "훑어보는 곳", 한 판은 "고치는 곳" 으로 나눈다)
+// 「엄마 아이디」 는 students 표의 칸이 아니라 학부모 계정에서 온 것이라
+// 여기서 고칠 수 없다 — 고치는 시늉만 하다가 저장이 조용히 실패한다
 const ALL_FIELDS = COLS.filter(
-  (c) => !["books", "wordTest", "family", "pw"].includes(c.type || c.key)
+  (c) => !c.readOnly && !["books", "wordTest", "family", "pw"].includes(c.type || c.key)
 );
 
 const TABS = [
@@ -164,7 +169,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const shown = students.filter((s) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (!kw) return true;
-    return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.note]
+    return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.parent_login_id, s.note]
       .some((v) => norm(v).includes(kw));
   });
 
@@ -492,6 +497,19 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                                 {editor(c)}
                               </div>
                             ))}
+                            {/* **엄마 아이디** — 여기서 고치는 것이 아니라
+                                「아이디가 뭐였죠」 에 바로 답하기 위한 것이다.
+                                만들고 바꾸는 것은 아래 계정 칸에서 한다 */}
+                            <div className="field">
+                              <label className="label">엄마 아이디</label>
+                              <input
+                                className="input input-sm"
+                                value={s.parent_login_id || ""}
+                                readOnly
+                                placeholder="아직 없음"
+                                style={{ opacity: s.parent_login_id ? 1 : 0.6 }}
+                              />
+                            </div>
                           </div>
                           {/* 반 배정 — 여기서 못 바꾸면 반 화면으로 나가서
                               옛 반에서 빼고 새 반에서 넣는 두 번 일이 된다.

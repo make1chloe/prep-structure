@@ -3,6 +3,7 @@ import Link from "next/link";
 import { menuFor, findSection } from "@/lib/menu";
 import BrandMark from "./BrandMark";
 import Refresh from "./Refresh";
+import TopBarHeight from "./TopBarHeight";
 
 /** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
 function groupLabel(key) {
@@ -35,6 +36,9 @@ export default function TopBar({ profile, active }) {
   const items = menuFor(profile);
   return (
     <header className="topbar">
+      {/* 붙어 있는 이 메뉴의 높이를 CSS 에 알려준다 — 아래 판이 그만큼 내려가야
+          메뉴 뒤로 들어가지 않는다 */}
+      <TopBarHeight />
       <div className="topbar-in">
         <Link href="/" className="brand">
           <BrandMark /> 클로이영어

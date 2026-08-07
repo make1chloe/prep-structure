@@ -69,8 +69,17 @@ export async function createRequest(input) {
   return { error: null };
 }
 
-// 선생님이 확인 — 결석 알림을 받아들이면 그 기간을 결석 예정으로 깐다
-export async function handleRequest(id, accept, reply) {
+/**
+ * 선생님이 확인 — 결석 알림을 받아들이면 그 기간을 결석 예정으로 깐다.
+ *
+ * **보강까지 여기서 잡는다** (원장님, 2026-08-07 — 「결석알림이 오면
+ * 보강을 바로 잡을 수 있게 해줘」). 지금까지는 확인 → 아래 「보강 잡을 것」
+ * 에 다시 나타남 → 거기서 또 날짜 고르기, 이렇게 두 번 손이 갔다.
+ * 어차피 답장에 「금요일 5시에 오세요」 를 적으시게 되므로 한 번에 끝낸다.
+ *
+ * @param makeup { on, at } — 없으면 예전 그대로 (결석만 깐다)
+ */
+export async function handleRequest(id, accept, reply, makeup) {
   if (!id) return { error: "id 없음" };
   const supabase = createClient();
   const {
@@ -117,6 +126,33 @@ export async function handleRequest(id, accept, reply) {
         .from("attendance")
         .upsert(rows, { onConflict: "student_id,date" });
       if (aErr) return { error: aErr.message };
+    }
+
+    /**
+     * **보강도 그 자리에서.** 원 결석일은 **첫날**로 단다 — 여러 날을
+     * 빠져도 보강은 보통 한 번이고, 어느 결석의 보강인지는 하나만 달 수 있다.
+     * (보강을 여러 번 잡으실 것이면 아래 「보강 잡을 것」 에서 하시면 된다)
+     */
+    const on = (makeup?.on || "").trim();
+    if (on) {
+      const mrow = {
+        student_id: req.student_id,
+        date: on,
+        status: "makeup",
+        makeup_of: rows[0]?.date || req.from_date,
+        makeup_time: (makeup.at || "").trim() || null,
+      };
+      let { error: mErr } = await supabase
+        .from("attendance")
+        .upsert(mrow, { onConflict: "student_id,date" });
+      if (mErr && (mErr.code === "PGRST204" || mErr.code === "42703")) {
+        // 0046 전이면 시간 칸이 없다 — 날짜라도 잡힌다
+        const { makeup_time: _t, ...noTime } = mrow;
+        ({ error: mErr } = await supabase
+          .from("attendance")
+          .upsert(noTime, { onConflict: "student_id,date" }));
+      }
+      if (mErr) return { error: `결석은 반영했는데 보강을 못 잡았어요: ${mErr.message}` };
     }
   }
 

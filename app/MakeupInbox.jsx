@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setMakeup, waiveMakeup } from "./plan/actions";
+import { setMakeup, waiveMakeup, cancelAbsence } from "./plan/actions";
 import { dayLabel as fmtDay } from "@/lib/day";
 
 const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
@@ -15,6 +15,7 @@ const dayLabel = fmtDay;
  */
 export default function MakeupInbox({ rows = [] }) {
   const [pick, setPick] = useState({});
+  const [at, setAt] = useState({});
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -36,14 +37,32 @@ export default function MakeupInbox({ rows = [] }) {
   }
 
   function schedule(r) {
-    const d = pick[`${r.studentId}|${r.date}`];
+    const key = `${r.studentId}|${r.date}`;
+    const d = pick[key];
     if (!d) return;
     startTransition(async () => {
-      const res = await setMakeup(r.studentId, d, r.date);
+      const res = await setMakeup(r.studentId, d, r.date, at[key]);
       if (res?.error) {
         alert(res.error);
         return;
       }
+      router.refresh();
+    });
+  }
+
+  /**
+   * **결석 취소** (원장님, 2026-08-07).
+   *
+   * 「보강 없음」 과 다르다 — 그쪽은 결석은 있었고 보강만 안 하는 것이다.
+   * 이쪽은 **그 결석이 없던 일**이 됐을 때다 (미리 못 온다고 하셨다가
+   * 그냥 오시는 경우). 줄을 그대로 두면 회차와 수강료가 오지도 않은
+   * 결석을 계속 센다.
+   */
+  function cancel(r) {
+    if (!confirm(`${r.name} ${dayLabel(r.date)} 결석을 없던 것으로 할까요?`)) return;
+    startTransition(async () => {
+      const res = await cancelAbsence(r.studentId, r.date);
+      if (res?.error) { alert(res.error); return; }
       router.refresh();
     });
   }
@@ -54,15 +73,6 @@ export default function MakeupInbox({ rows = [] }) {
         보강 잡을 것{" "}
         {rows.length > 0 && <span className="tag tag-amber">{rows.length}</span>}
       </h2>
-      {/* **어디서 온 결석인지 몰라 당황하시는 일이 있었다** (2026-08-06).
-          원장님이 직접 넣으신 것만 여기 오는 게 아니다 */}
-      <p className="hint" style={{ margin: "0 0 10px", lineHeight: 1.7 }}>
-        결석했는데 보강일이 아직 없는 학생입니다. 날짜를 고르면 그날 <b>보강</b>으로 들어갑니다.
-        <br />
-        시험 기간 결석 예정을 반 단위로 넣으셨거나, 학부모 요청을 받아주셨거나,
-        노션에서 옮겨온 옛 결석도 여기 옵니다. <b>보강할 것이 아니면 「보강 없음」</b>
-        을 누르세요 — 결석 기록은 그대로 남고 이 목록에서만 내려갑니다.
-      </p>
 
       {rows.length === 0 ? (
         <p className="hint" style={{ margin: 0 }}>보강 잡을 학생이 없습니다 👍</p>
@@ -89,9 +99,18 @@ export default function MakeupInbox({ rows = [] }) {
                 <input
                   className="input input-sm"
                   type="date"
-                  style={{ width: 145 }}
+                  style={{ width: 140 }}
                   value={pick[key] || ""}
                   onChange={(e) => setPick({ ...pick, [key]: e.target.value })}
+                />
+                {/* **몇 시인지가 날짜만큼 중요하다** — 보강은 비는 틈에
+                    끼워 넣는 것이다 (원장님, 2026-08-07) */}
+                <input
+                  className="input input-sm"
+                  type="time"
+                  style={{ width: 105 }}
+                  value={at[key] || ""}
+                  onChange={(e) => setAt({ ...at, [key]: e.target.value })}
                 />
                 <button
                   className="btn btn-primary btn-sm"
@@ -107,6 +126,14 @@ export default function MakeupInbox({ rows = [] }) {
                   title="결석 기록은 남기고 이 목록에서만 내립니다"
                 >
                   보강 없음
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => cancel(r)}
+                  disabled={pending}
+                  title="결석 자체를 없던 것으로 합니다 (회차·수강료에서도 빠집니다)"
+                >
+                  결석 취소
                 </button>
               </div>
             );

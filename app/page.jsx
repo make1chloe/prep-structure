@@ -7,6 +7,8 @@ import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import MakeupInbox from "./MakeupInbox";
 import UnsentBox from "./UnsentBox";
+import WarningInbox from "./WarningInbox";
+import InquiryInbox from "./InquiryInbox";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
@@ -147,37 +149,12 @@ export default async function Home() {
               <MakeupInbox rows={d.makeupRows} />
             </div>
 
-            {/* 보내야 하는데 안 나간 것 — 놓치면 학부모가 먼저 안다.
-                필요 없는 것은 골라서 「안 보내기」로 치울 수 있다 */}
             <UnsentBox fails={d.sendFails} past={d.unsentPast} />
 
-            {/* 반성문 문턱 — 오늘 얼굴 보고 이야기해야 하는 것 */}
-            {d.warnings.length > 0 && (
-              <div className="card sect sect-bad">
-                <h2 className="secthead">
-                  반성문 대상 <span className="tag tag-red">{d.warnings.length}</span>
-                </h2>
-                <div className="stack" style={{ gap: 4 }}>
-                  {d.warnings.map((w) => (
-                    <Link className="unitrow" key={w.id} href="/today" style={{ textDecoration: "none" }}>
-                      <b style={{ fontSize: 12.5 }}>{w.name}</b>
-                      <span className="tag tag-red">경고 {w.count}회</span>
-                      <span className="hint">
-                        {w.list.slice(-2).map((x) => x.reasons.join(" · ")).join(" / ")}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-                <p className="hint" style={{ margin: "6px 0 0" }}>
-                  쓰게 할지 · 넘어갈지는 오늘 수업 화면에서 정합니다.
-                </p>
-              </div>
-            )}
+            {/* 반성문 문턱 — 여기서 바로 정리한다 (유예 · 초기화) */}
+            <WarningInbox rows={d.warnings} />
 
-            {/* **단원평가에 막힌 아이** (2026-08-06, 한 달 살아보기에서).
-                한 달에 재시험이 열두 번 나오는데 알려주는 자리가 없어서,
-                「관계사에서 세 번째」 를 한 달 지나서야 아시게 됐다.
-                두 번은 흔하니 **세 번째부터** 올린다 */}
+            {/* 단원평가 세 번째부터 올린다 (두 번은 흔하다) */}
             {(d.unitStuck?.people?.length > 0 || d.unitStuck?.units?.length > 0) && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">
@@ -187,12 +164,10 @@ export default async function Home() {
                   )}
                 </h2>
 
-                {/* **셋이 같은 단원에서 막혔으면 그 단원을 다시 가르쳐야 한다.**
-                    한 아이가 못 넘는 것과는 다른 이야기라 위에 놓는다 */}
+                {/* 같은 단원에서 여럿이 막혔으면 수업에서 다시 짚을 일이다 */}
                 {d.unitStuck.units.map((u) => (
                   <div className="notice" key={u.unit} style={{ fontSize: 12.5, marginBottom: 6 }}>
-                    <b>{u.unit}</b> 에서 <b>{u.n}명</b>이 막혀 있어요 — {u.names.join(" · ")}.
-                    {" "}한 아이가 못 넘는 것과 다릅니다. <b>수업에서 다시 짚어주세요.</b>
+                    <b>{u.unit}</b> · <b>{u.n}명</b> — {u.names.join(" · ")}
                   </div>
                 ))}
 
@@ -213,30 +188,7 @@ export default async function Home() {
               </div>
             )}
 
-            <div className="card sect sect-warn">
-              <h2 className="secthead">
-                새 상담{" "}
-                {d.inquiries.length > 0 && <span className="tag tag-amber">{d.inquiries.length}</span>}
-              </h2>
-              {d.inquiries.length === 0 ? (
-                <p className="hint" style={{ margin: 0 }}>새로 들어온 상담이 없습니다.</p>
-              ) : (
-                <div className="stack" style={{ gap: 4 }}>
-                  {d.inquiries.map((q) => (
-                    <Link className="unitrow" key={q.id} href="/consult" style={{ textDecoration: "none" }}>
-                      <b style={{ fontSize: 12.5 }}>{q.name}</b>
-                      <span className="hint">{[q.school, q.grade].filter(Boolean).join(" ")}</span>
-                      <span className={`tag ${q.form_submitted_at ? "tag-mint" : "tag-muted"}`}>
-                        {q.form_submitted_at ? "양식 제출" : "양식 미제출"}
-                      </span>
-                      <span className="spacer" />
-                      {q.test_want_on && <span className="hint">테스트 희망 {dayLabel(q.test_want_on)}</span>}
-                      {q.visit_on && <span className="hint">· 상담 희망 {dayLabel(q.visit_on)}</span>}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            <InquiryInbox rows={d.inquiries} />
 
             <div className="card sect sect-info">
               <h2 className="secthead">특이사항</h2>
@@ -278,7 +230,7 @@ export default async function Home() {
                 {/* 곧 끝나는 교재 — 시험지·플래너를 미리 챙기시라고 */}
                 {d.bookEnding?.length > 0 && (
                   <div>
-                    <b className="hint">곧 끝나는 교재 (시험지 · 플래너 챙길 것)</b>
+                    <b className="hint">곧 끝나는 교재</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
                       {d.bookEnding.slice(0, 12).map((b) => (
                         <Link className="tag tag-lav" key={b.id} href="/progress">
@@ -296,7 +248,7 @@ export default async function Home() {
                 )}
                 {d.makeupNeedTotal > 0 && (
                   <div>
-                    <b className="hint">보강 필요 (휴강·결석분)</b>
+                    <b className="hint">보강 필요</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
                       <Link className="tag tag-lav" href="/tuition">
                         모두 {d.makeupNeedTotal}회 · 차액 {won(d.creditTotal)}
@@ -319,7 +271,7 @@ export default async function Home() {
                 )}
                 {d.watchList.length > 0 && (
                   <div>
-                    <b className="hint">최근 2주 숙제 미흡·미제출이 많은 학생</b>
+                    <b className="hint">숙제가 밀리는 학생 (2주)</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
                       {d.watchList.map((w) => (
                         <Link className="tag tag-muted" key={w.id} href="/today">
@@ -343,7 +295,7 @@ export default async function Home() {
                 )}
                 {d.engEves.length > 0 && (
                   <div>
-                    <b className="hint">영어 시험 전날 — 등원 필요</b>
+                    <b className="hint">영어 시험 전날</b>
                     <div className="row" style={{ gap: 4, marginTop: 4 }}>
                       {d.engEves.map((e, i) => (
                         <Link className="tag tag-lav" key={i} href="/schedule">
@@ -374,7 +326,7 @@ export default async function Home() {
                 )}
                 {d.holidayNotes.length > 0 && (
                   <div>
-                    <b className="hint">공휴일 — 쉴지 정해주세요</b>
+                    <b className="hint">공휴일</b>
                     <div className="stack" style={{ gap: 4, marginTop: 4 }}>
                       {d.holidayNotes.map((h) => (
                         <div className="hint" key={h.date}>
@@ -427,17 +379,12 @@ export default async function Home() {
 
           {/* 일정 */}
           <div className="stack">
-            {/* 단원이 없으면 숙제 범위를 고를 수가 없다. 그런데 그건 오늘 수업
-                화면에서는 "범위가 안 나온다" 로만 보여서, 원인을 여기서 알려준다 */}
+            {/* 단원이 없으면 오늘 수업에서 숙제 범위를 고를 수가 없다 */}
             {(d.needUnits || []).length > 0 && (
               <div className="card sect sect-warn">
                 <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
                   단원을 넣어야 하는 교재 {d.needUnits.length}권
                 </h2>
-                <p className="hint" style={{ margin: "0 0 8px", fontSize: 12 }}>
-                  학생이 쓰고 있는데 <b>단원이 하나도 없는 교재</b>예요.
-                  단원이 없으면 오늘 수업에서 <b>숙제 범위를 고를 수가 없습니다.</b>
-                </p>
                 <div className="stack" style={{ gap: 3 }}>
                   {d.needUnits.slice(0, 8).map((b) => (
                     <Link

@@ -622,7 +622,16 @@ a { color: inherit; }
    예전에는 이름을 누르면 표 사이가 벌어지면서 판이 끼어들어, 아래 학생들이
    화면 밖으로 밀려났다. 다른 아이를 보려면 닫고 다시 찾아 내려가야 했다. */
 .splitview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 440px); gap: 10px; align-items: start; }
-.split-panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+/* 붙는 자리는 **메뉴 아래**여야 한다. 메뉴도 같이 붙어 있고 z-index 가 더
+   높아서, 12px 로 두면 판의 이름 줄이 메뉴 뒤로 들어가 잘렸다 (2026-08-07).
+   메뉴 높이는 역할·화면 너비에 따라 달라져서 숫자로 못 박을 수가 없다 —
+   components/TopBarHeight.jsx 가 재서 --topbar-h 로 알려준다. */
+.split-panel {
+  position: sticky;
+  top: calc(var(--topbar-h, 56px) + 12px);
+  max-height: calc(100vh - var(--topbar-h, 56px) - 24px);
+  overflow: auto;
+}
 .split-body { margin-top: 8px; }
 .split-fold { display: none; padding: 4px 8px; }
 @media (max-width: 1100px) {

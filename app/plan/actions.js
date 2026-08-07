@@ -118,14 +118,62 @@ export async function clearPlannedAbsence(studentId, date) {
   return ok(error);
 }
 
-// 보강일을 잡으면 그 날짜에 보강으로 넣는다 (원 결석일을 함께 남김)
-export async function setMakeup(studentId, makeupDate, absentDate) {
+/**
+ * 보강일을 잡으면 그 날짜에 보강으로 넣는다 (원 결석일을 함께 남김).
+ *
+ * **시간까지 받는다** (원장님, 2026-08-07 — 「보강잡을 때 시간을 못써」).
+ * 보강은 비어 있는 틈에 끼워 넣는 것이라 **몇 시인지가 날짜만큼 중요하다.**
+ * 날짜만 잡아두면 그날 아침에 「몇 시에 오라고 했더라」 를 다시 찾으시게 된다.
+ */
+export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
   if (!studentId || !makeupDate) return { error: "값이 부족해요." };
   const supabase = createClient();
-  const { error } = await supabase.from("attendance").upsert(
-    { student_id: studentId, date: makeupDate, status: "makeup", makeup_of: absentDate || null },
-    { onConflict: "student_id,date" }
-  );
+  const row = {
+    student_id: studentId,
+    date: makeupDate,
+    status: "makeup",
+    makeup_of: absentDate || null,
+    makeup_time: (makeupTime || "").trim() || null,
+  };
+  let { error } = await supabase
+    .from("attendance")
+    .upsert(row, { onConflict: "student_id,date" });
+  if (isMissingColumn(error)) {
+    // 0046 전이면 시간 칸이 없다 — 날짜라도 잡힌다
+    const { makeup_time: _t, ...noTime } = row;
+    ({ error } = await supabase
+      .from("attendance")
+      .upsert(noTime, { onConflict: "student_id,date" }));
+  }
+  revalidatePath("/");
+  revalidatePath("/plan");
+  revalidatePath("/today");
+  return ok(error);
+}
+
+/**
+ * **결석 취소** — 그 결석이 없던 일이 됐을 때 (원장님, 2026-08-07).
+ *
+ * 사전 연락을 받아 결석 예정으로 깔아뒀는데 「그냥 갈게요」 가 되는 일이
+ * 흔하다. 지금까지는 되돌리는 길이 없어서 그 줄이 그대로 남았고,
+ * **회차와 수강료가 오지도 않은 결석을 계속 세고 있었다.**
+ *
+ * 「보강 없음」 과는 다르다 — 그쪽은 결석은 있었고 보강만 안 하는 것이라
+ * 기록을 남긴다. 이쪽은 **결석 자체가 없던 일**이라 줄을 지운다.
+ *
+ * 지우는 것은 결석 줄뿐이다. 이미 잡아둔 보강이 있으면 그건 그대로 둔다 —
+ * 아이에게 이미 「그날 와라」 라고 말한 뒤일 수 있다.
+ */
+export async function cancelAbsence(studentId, date) {
+  if (!studentId || !date) return { error: "어느 결석인지 모르겠어요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("attendance")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("date", date)
+    .eq("status", "absent");       // 보강·출석 줄은 건드리지 않는다
+  revalidatePath("/");
   revalidatePath("/plan");
   revalidatePath("/today");
   return ok(error);
