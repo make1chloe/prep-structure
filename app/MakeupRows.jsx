@@ -16,7 +16,7 @@ import { dayLabel } from "@/lib/day";
  * **어머니께 알림이 간다.** 그날 아이를 보내실 참이셨다. 조용히 지우면
  * 헛걸음을 하시게 된다.
  */
-export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true }) {
+export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, onlyChanged = false }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -99,10 +99,13 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true })
   return (
     <div className={`card sect ${changed.length ? "sect-bad" : "sect-calm"}`}>
       <h2 className="secthead">
-        잡아둔 보강{" "}
-        {changed.length > 0 && <span className="tag tag-red">변경 요청 {changed.length}</span>}{" "}
-        {hasAnswer && wait.length > 0 && (
+        {onlyChanged ? "보강 일정 변경 요청" : "잡아둔 보강"}{" "}
+        {changed.length > 0 && <span className="tag tag-red">{changed.length}</span>}{" "}
+        {!onlyChanged && hasAnswer && wait.length > 0 && (
           <span className="tag tag-muted">답 없음 {wait.length}</span>
+        )}
+        {onlyChanged && (
+          <a className="hint" href="/plan" style={{ marginLeft: 6 }}>출결에서 전부 보기 ›</a>
         )}
       </h2>
       <div className="stack" style={{ gap: 3 }}>{sorted.map(Row)}</div>

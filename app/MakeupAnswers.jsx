@@ -17,7 +17,15 @@ import MakeupRows from "./MakeupRows";
  *   답 없음      그날 안 오실 수 있다
  *   확정         한 줄로 작게. 취소는 여기서도 된다
  */
-export default async function MakeupAnswers() {
+/**
+ * @param only  "changed" 면 **어머니가 무언가를 요구하신 것만.**
+ *
+ * 대시보드는 「답할 것」 만 모으는 자리다 (원장님, 2026-08-07 —
+ * 「대시보드는 미확인 요청이 모두 보여야돼, 일종의 알림센터 기능」).
+ * 앞으로의 보강을 전부 늘어놓으면 답할 것 한 줄이 확정된 열 줄에 묻힌다.
+ * 전부 보는 자리는 출결 화면이다.
+ */
+export default async function MakeupAnswers({ only = null }) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("attendance")
@@ -36,17 +44,18 @@ export default async function MakeupAnswers() {
       .gte("date", todaySeoul())
       .order("date", { ascending: true })
       .limit(60);
-    return render(supabase, bare || [], false);
+    return render(supabase, bare || [], false, only);
   }
-  return render(supabase, data || [], true);
+  return render(supabase, data || [], true, only);
 }
 
-async function render(supabase, rows, hasAnswer) {
+async function render(supabase, all, hasAnswer, only) {
+  const rows = only === "changed" ? all.filter((r) => r.makeup_change_req) : all;
   if (rows.length === 0) return null;
 
   const ids = [...new Set(rows.map((r) => r.student_id))];
   const { data: st } = await supabase.from("students").select("id, name").in("id", ids);
   const nameOf = Object.fromEntries((st || []).map((s) => [s.id, s.name]));
 
-  return <MakeupRows rows={rows} nameOf={nameOf} hasAnswer={hasAnswer} />;
+  return <MakeupRows rows={rows} nameOf={nameOf} hasAnswer={hasAnswer} onlyChanged={only === "changed"} />;
 }

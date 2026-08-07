@@ -6,6 +6,36 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
+/**
+ * 이 사람이 첫 화면으로 가야 할 곳.
+ *
+ * 역할을 못 읽으면 `/me` 로 보낸다 — 학생·학부모가 훨씬 많고, 선생님이면
+ * 거기서 대시보드로 가는 단추가 있다 (막다른 곳이 아니다).
+ */
+const HOME = {
+  principal: "/",
+  instructor: "/",
+  assistant: "/",
+  parent: "/parent",
+  student: "/me",
+};
+
+async function goHome(supabase, router) {
+  let to = "/me";
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from("profiles").select("role").eq("id", user.id).maybeSingle();
+      to = HOME[data?.role] || "/me";
+    }
+  } catch {
+    // 역할을 못 읽어도 로그인은 됐다 — 들여보내고 화면에서 갈린다
+  }
+  router.push(to);
+  router.refresh();
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -45,9 +75,16 @@ export default function LoginPage() {
       );
       return;
     }
-    // 학생은 자기 화면으로 (선생님 화면은 미들웨어가 막지만, 헛걸음도 없게)
-    router.push("/me");
-    router.refresh();
+    /**
+     * **들어가면 자기 자리로** (원장님, 2026-08-07 — 「로그인시 원장 첫화면은
+     * 대시보드로 고정하고」).
+     *
+     * 지금까지는 누구든 `/me` 로 보냈다. 학생 화면이라 원장님은 거기서
+     * 「학생이 없습니다」 를 보시고 다시 대시보드로 옮겨 가셔야 했다.
+     * 전에 「원장 로그인하면 학생 화면이 나와」 라고 하셨을 때 나는 계정의
+     * 역할만 고쳤는데, **로그인 자체가 자리를 하나로 박아두고 있었다.**
+     */
+    await goHome(supabase, router);
   }
 
   async function signUp(e) {
@@ -68,8 +105,7 @@ export default function LoginPage() {
       setMode("in");
       return;
     }
-    router.push("/me");
-    router.refresh();
+    await goHome(supabase, router);
   }
 
   async function signInGoogle() {

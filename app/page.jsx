@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
+import QuickBar from "./QuickBar";
+import MakeupAnswers from "./MakeupAnswers";
 import UnsentBox from "./UnsentBox";
 import WarningInbox from "./WarningInbox";
 import InquiryInbox from "./InquiryInbox";
@@ -52,6 +54,10 @@ export default async function Home() {
 
   // 선생님 화면이다. 학생·학부모는 자기 화면으로 보낸다.
   // (미들웨어가 이미 막지만, 막는 곳이 하나뿐이면 그 하나가 뚫렸을 때 끝이다)
+  //
+  // **어머니는 학부모 화면으로.** 학생 화면으로 보내면 「내 화면이 왜 이래」 가
+  // 된다 — 거기서 자녀를 고르는 칸까지 한 번 더 거쳐야 한다
+  if (profile?.role === "parent") redirect("/parent");
   if (!isStaff(profile?.role)) redirect("/me");
 
   const d = await loadDashboard(supabase);
@@ -140,12 +146,22 @@ export default async function Home() {
           )}
         </div>
 
+        {/* **읽은 자리에서 바로** (2026-08-07). 대시보드를 읽다가 「이 아이
+            보강 잡아야겠다」 가 떠오르면 여기서 끝낸다 — 화면을 옮기는 사이에
+            방금 읽은 것이 흐려진다 */}
+        <QuickBar students={d.roster || []} />
+
         <div className="grid-side" style={{ marginTop: 10 }}>
           {/* 새 소식 · 특이사항 */}
           <div className="stack">
             <div id="requests">
               <RequestInbox requests={d.requests} />
             </div>
+
+            {/* **어머니가 답을 요구하신 것** — 보강 일정 변경 요청.
+                보강을 잡고 무르는 일은 출결 화면이지만, 「그날 안 돼요」 는
+                답할 일이라 여기 있어야 한다 (2026-08-07) */}
+            <MakeupAnswers only="changed" />
             <UnsentBox fails={d.sendFails} past={d.unsentPast} />
 
             {/* 반성문 문턱 — 여기서 바로 정리한다 (유예 · 초기화) */}

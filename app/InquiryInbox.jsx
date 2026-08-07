@@ -28,16 +28,22 @@ export default function InquiryInbox({ rows = [] }) {
     });
   }
 
+  /**
+   * **없으면 아예 안 그린다** (원장님, 2026-08-07 — 「대시보드는 미확인
+   * 요청이 모두 보여야돼, 일종의 알림센터 기능을 포함해 화면 효율적으로」).
+   *
+   * 「새로 들어온 상담이 없습니다」 는 한 줄이지만 제목·테두리까지 하면
+   * 카드 하나다. 그런 카드가 대여섯이면, 정작 온 것 하나를 보려고 화면을
+   * 한참 내려야 한다. 없는 것은 없는 것이다.
+   */
+  if (rows.length === 0) return null;
+
   return (
     <div className="card sect sect-warn">
       <h2 className="secthead">
-        신규 상담{" "}
-        {rows.length > 0 && <span className="tag tag-amber">{rows.length}</span>}
+        신규 상담 <span className="tag tag-amber">{rows.length}</span>
       </h2>
-      {rows.length === 0 ? (
-        <p className="hint" style={{ margin: 0 }}>새로 들어온 상담이 없습니다.</p>
-      ) : (
-        <div className="stack" style={{ gap: 4 }}>
+      <div className="stack" style={{ gap: 4 }}>
           {rows.map((q) => (
             <div className="unitrow" key={q.id}>
               <Link href="/consult" style={{ textDecoration: "none" }}>
@@ -68,9 +74,8 @@ export default function InquiryInbox({ rows = [] }) {
                 상담 취소
               </button>
             </div>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

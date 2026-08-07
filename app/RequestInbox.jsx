@@ -206,16 +206,24 @@ export default function RequestInbox({ requests = [] }) {
     );
   }
 
+  /**
+   * **아무것도 없으면 카드째 안 그린다** (원장님, 2026-08-07 —
+   * 「알림센터 기능을 포함해 화면 효율적으로」). 「새로 온 알림이 없습니다」
+   * 는 제목·테두리까지 하면 카드 하나를 먹는다.
+   *
+   * 지난 것이 있으면 접힌 단추 한 줄만 남긴다 — 오간 말을 다시 볼 길이
+   * 아주 없어지면 안 된다.
+   */
+  if (live.length === 0 && past.length === 0) return null;
+
   return (
-    <div className="card sect sect-warn">
+    <div className={`card sect ${live.length ? "sect-warn" : "sect-calm"}`}>
       <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>
         학부모 · 학생 알림{" "}
         {live.length > 0 && <span className="tag tag-amber">{live.length}</span>}
       </h2>
 
-      {live.length === 0 ? (
-        <p className="hint" style={{ margin: 0 }}>새로 온 알림이 없습니다.</p>
-      ) : (
+      {live.length > 0 && (
         <div className="stack" style={{ gap: 6 }}>{live.map((r) => Row(r, false))}</div>
       )}
 
@@ -225,7 +233,7 @@ export default function RequestInbox({ requests = [] }) {
         <>
           <button
             className="btn btn-ghost btn-sm"
-            style={{ marginTop: 8 }}
+            style={{ marginTop: live.length ? 8 : 0 }}
             onClick={() => setSeen(!seen)}
           >
             {seen ? "지난 것 접기" : `지난 것 ${past.length}건 보기`}

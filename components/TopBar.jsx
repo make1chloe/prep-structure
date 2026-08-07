@@ -82,8 +82,13 @@ export default async function TopBar({ profile, active }) {
             <Fragment key={it.key}>
               {/* **묶음 이름을 보여준다.** 예전에는 옅은 금 하나뿐이라
                   「학교」「발송」 같은 묶음이 있다는 것 자체가 안 보였다.
-                  누르면 그 묶음이 펼쳐진다. */}
-              {it.group !== items[i - 1]?.group && (
+                  누르면 그 묶음이 펼쳐진다.
+
+                  **묶음 이름과 화면 이름이 같으면 안 그린다** (원장님,
+                  2026-08-07 — 「대시보드 메뉴가 두개인것도 하나만 살리고」).
+                  대시보드는 묶음 안에 화면이 없어서 「대시보드 대시보드」 로
+                  나왔다. 같은 말을 두 번 하면 두 번째 것을 누를 이유를 찾게 된다 */}
+              {it.group !== items[i - 1]?.group && groupLabel(it.group) !== it.label && (
                 <Link
                   href={groupHref(it.group)}
                   className="navgroup-tag"
