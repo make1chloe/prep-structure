@@ -9,7 +9,7 @@ function ok(error) {
   return { error: error ? error.message : null };
 }
 
-const KIND = { absence: "결석", makeup: "보강 요청", info: "전달", question: "문의" };
+const KIND = { absence: "결석", makeup: "보강가능시간", info: "전달", question: "질문" };
 
 // 학생·학부모가 직접 넣는 요청 (결석 알림 등)
 export async function createRequest(input) {

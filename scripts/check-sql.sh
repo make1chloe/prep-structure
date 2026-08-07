@@ -30,9 +30,12 @@ create schema if not exists auth;
 create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
 create or replace function auth.uid() returns uuid language sql stable as \$\$ select null::uuid \$\$;" >/dev/null 2>&1
 
+# **「error」 라는 낱말이 들어간 NOTICE 를 오류로 세고 있었다** (2026-08-07).
+#   -i 로 찾으니 `NOTICE: column "error" ... already exists` 가 걸렸다.
+#   psql 이 진짜 오류를 낼 때는 대문자 `ERROR:` 로 적는다 — 그것만 본다.
 fail=0
 for i in 1 2 3; do
-  out=$($Q -d chloe -v ON_ERROR_STOP=1 -f supabase/SETUP_ALL.sql 2>&1 | grep -iE "^psql.*ERROR")
+  out=$($Q -d chloe -v ON_ERROR_STOP=1 -f supabase/SETUP_ALL.sql 2>&1 | grep -E "^psql.*(ERROR|치명적):")
   if [ -n "$out" ]; then echo "  ${i}회차 실패:"; echo "$out" | head -5; fail=1; fi
 done
 [ $fail -eq 0 ] && echo "  세 번 다 통과"

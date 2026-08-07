@@ -44,7 +44,7 @@ export default function StudyTabs({
   if (inClass.length === 0 && home.length === 0) {
     return (
       <div className="card">
-        <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>할 것</h2>
+        <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>등원학습</h2>
         <p className="hint" style={{ margin: 0 }}>오늘은 올라온 것이 없어요.</p>
       </div>
     );

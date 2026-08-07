@@ -38,7 +38,11 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
     <div className="card">
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <b style={{ fontSize: 14 }}>결석 · 문의 알리기</b>
+          {/* **이름에 무엇을 보내는 곳인지 다 적는다** (원장님, 2026-08-07).
+              「결석 · 문의」 로는 학교 유인물이나 수행평가 안내를 여기로
+              보내면 된다는 것을 알 수가 없다. 「문의」 는 뺐다 —
+              물어보시는 것은 「선생님께 질문」 한 곳으로 모은다 */}
+          <b style={{ fontSize: 14 }}>결석 · 학교공지 · 수행평가 · 학교유인물 전달</b>
           <p className="hint" style={{ margin: "4px 0 0" }}>
             결석할 날을 미리 알려주시면 보강을 잡아드립니다.
             <br />
@@ -48,7 +52,8 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                 이걸 안 적어두면 나중에 「왜 보강이 안 되냐」 가 된다. */}
             <b>당일 결석</b>은 <b>약봉투나 처방전 사진</b>을 같이 올려주셔야
             보강을 잡아드릴 수 있습니다.
-            학교 시험 시간표나 가정통신문처럼 <b>날짜 없이 알려주실 것은 「전달」</b>로 보내주세요.
+            학교 시험 시간표 · 가정통신문 · 수행평가 안내처럼 <b>날짜 없이 알려주실 것은
+            「전달」</b>로 보내주세요. <b>물어보실 것은 「선생님께 질문」</b>에서 보내주세요.
             <b>글로 적어주셔도 되고, 종이는 찍어서 붙여주셔도 됩니다</b> — 둘 다 보내셔도 돼요.
           </p>
         </div>
@@ -62,9 +67,9 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
           <div className="row" style={{ gap: 4 }}>
             {[
               ["absence", "결석"],
-              ["makeup", "보강 요청"],
+              // 「보강 요청」 → 어느 때가 되는지를 적어주시는 칸이다
+              ["makeup", "보강가능시간"],
               ["info", "전달"],
-              ["question", "문의"],
             ].map(([k, label]) => (
               <button
                 key={k}
@@ -93,7 +98,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                 ? "사유 (예: 가족 여행)"
                 : kind === "info"
                 ? "무엇인지 적어주세요 (예: 2학기 중간고사 시간표)"
-                : "내용을 적어주세요"
+                : "언제가 되는지 적어주세요 (예: 금요일 5시 이후)"
             }
             value={body}
             onChange={(e) => setBody(e.target.value)}

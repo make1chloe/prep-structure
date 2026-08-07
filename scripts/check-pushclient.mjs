@@ -67,13 +67,29 @@ as(IOS, { standalone: true });
 eq(isStandalone(), true, "담아서 연 것을 알아본다");
 eq(howTo().can, true, "담고 열면 켤 수 있다");
 
-console.log("\n== 화면을 막는 문이 실제로 걸려 있나 ==");
+console.log("\n== 알림이 꺼졌을 때 성가시게 하는 것이 걸려 있나 ==");
 // 파일에 있기만 하고 안 감싸두면 아무 일도 안 일어난다 — 그걸 못 잡으면
 // 이 검사는 있으나 마나다
 const me = readFileSync("app/me/page.jsx", "utf8");
-eq(me.includes("<AlertGate>"), true, "학생 화면이 문으로 감싸여 있다");
+eq(me.includes("<AlertGate>"), true, "학생 화면이 감싸여 있다");
 // 선생님 미리보기까지 막으면 원장님이 아이 화면을 못 보신다
 eq(/preview \|\| acting \?/.test(me), true, "미리보기·눌러보기는 그대로 열린다");
+
+const gate = readFileSync("app/me/AlertGate.jsx", "utf8");
+// **누를 때마다** 떠야 한다 — 빨간 칸만으로는 아무도 안 켠다 (원장님)
+eq(/addEventListener\("click", grab, true\)/.test(gate), true, "무엇을 누르든 한 번 가로챈다");
+eq(gate.includes("preventDefault"), true, "누른 것이 그대로 실행되면 창이 뜬 뜻이 없다");
+// **막지는 않는다.** 못 켜는 아이가 숙제를 못 보는 쪽이 더 큰 손해다
+eq(gate.includes("{children}"), true, "화면 자체는 다 보인다");
+// 20초 뒤 「선생님께 말해주세요」 는 원장님이 빼라고 하셨다 (어차피 물어본다)
+eq(gate.includes("선생님께 말해주세요"), false, "강제로 뜨는 안내가 남아 있다");
+
+console.log("\n== 방해금지는 학생도 쓸 수 있어야 한다 ==");
+// 안 열어두면 아이는 폰 설정에서 알림을 통째로 꺼버린다 — 그러면 우리는
+// 알 수조차 없다
+eq(me.includes("<AlertBox />"), true, "학생 화면에 알림 칸(방해금지 포함)이 있다");
+eq(readFileSync("app/parent/page.jsx", "utf8").includes("<AlertBox />"), true,
+   "학부모 화면에도 같은 칸");
 
 if (fail) { console.log("\n❌ 알림 켜기 안내에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 알림 켜기 안내 통과");

@@ -1,8 +1,8 @@
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import PushToggle from "./PushToggle";
 import AlertGate from "./AlertGate";
+import AlertBox from "@/components/AlertBox";
 import InstallHint from "./InstallHint";
 import { score, cutOf, passSummary } from "@/lib/wordTest";
 import { summarize } from "@/lib/monthly";
@@ -129,6 +129,17 @@ export default async function MePage({ searchParams }) {
           <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
             이 화면은 학생용이에요. 선생님 화면은 위 메뉴에서 볼 수 있습니다.
           </p>
+        </div>
+        {/* **여기서 나갈 길이 없었다** (원장님, 2026-08-07 — 「원장아이디로
+            학생용페이지 접속했을때 로그아웃 가능하게해줘」).
+            이 화면에는 위 메뉴가 없다. 학생 계정이 안 붙은 채로 들어오면
+            주소를 직접 고치는 것 말고는 나갈 방법이 없었다 —
+            홈 화면에 담아 여신 경우에는 주소창조차 없다. */}
+        <div className="row" style={{ gap: 8, marginTop: 10 }}>
+          <a className="btn btn-ghost" href="/">대시보드로</a>
+          <form action="/logout" method="post">
+            <button className="btn btn-ghost" type="submit">로그아웃</button>
+          </form>
         </div>
       </main>
     );
@@ -821,7 +832,7 @@ export default async function MePage({ searchParams }) {
       <>
           {latest && (latest.word_total || latest.sent_total || latest.own_progress) && (
             <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>지난 수업</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>성장 기록</h2>
               <div className="stack" style={{ gap: 6 }}>
                 {latest.word_total ? (
                   <div className="row" style={{ gap: 8 }}>
@@ -1014,7 +1025,10 @@ export default async function MePage({ searchParams }) {
         ) : (
           <>
             <InstallHint />
-            <PushToggle />
+            {/* 켜기·끄기와 **방해금지 시간**을 한 칸에. 방해금지를 안 열어두면
+                아이는 폰 설정에서 알림을 통째로 꺼버린다 — 그러면 우리는
+                알 수조차 없다 (원장님, 2026-08-07) */}
+            <AlertBox />
           </>
         )}
         {/* 홈 화면에 담은 앱에는 주소창이 없다 — 여기 없으면 새로고침할 방법이 없다.

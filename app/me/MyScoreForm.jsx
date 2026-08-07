@@ -215,7 +215,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
                 <label className="label">틀린 문제 번호</label>
                 <input
                   className="input input-sm"
-                  placeholder="14,21,24,32  (쉼표나 띄어쓰기 아무렇게나)"
+                  placeholder="14,21,24,32"
                   value={nosText}
                   onChange={(e) => setNosText(e.target.value)}
                 />

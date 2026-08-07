@@ -20,7 +20,7 @@ import NoticePhotos from "@/components/NoticePhotos";
 import DashCalendar from "@/app/DashCalendar";
 import ChildPicker from "./ChildPicker";
 import ChangePw from "@/app/me/ChangePw";
-import AlertBox from "./AlertBox";
+import AlertBox from "@/components/AlertBox";
 import PushToggle from "@/app/me/PushToggle";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";

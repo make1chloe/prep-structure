@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
-import { STATES, isCalling } from "@/lib/activity";
+import { STATES, isCalling, stateOf } from "@/lib/activity";
 import { pushToStaff } from "@/app/push/actions";
 
 const SQL = "supabase/migrations/0085_activity_student.sql 을 먼저 실행해주세요.";
@@ -55,8 +55,11 @@ export async function setMyState(state) {
   if (isCalling(state)) {
     const { data: me } = await supabase
       .from("students").select("name").eq("id", sid).maybeSingle();
+    // **무슨 일로 부르는지까지 알림에 적는다** (2026-08-07). 질문인지
+    // 채점 오류인지에 따라 들고 갈 것이 다르다
+    const s = stateOf(state);
     await pushToStaff({
-      title: "🙋 도움이 필요하대요",
+      title: `🙋 ${s.label}`,
       body: `${me?.name || "학생"} 학생이 부릅니다.`,
       url: "/today",
     });

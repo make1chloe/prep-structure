@@ -187,10 +187,30 @@ export async function pushToFamilies(studentIds, payload, who = "all") {
   subs = await withReceipts(supabase, subs, payload, childOf);
 
   const res = await pushToAll(keys, subs, payload);
+  await markFailed(supabase, subs, res.fails);
   if (res.gone.length > 0) {
     await supabase.from("push_subscriptions").delete().in("id", res.gone);
   }
   return { sent: res.sent, error: res.error };
+}
+
+/**
+ * **못 간 통에 표시를 남긴다** (0105).
+ *
+ * 이걸 안 하면 거절당한 통이 「미확인」 으로 남는다 — 안 본 것과 아예 못
+ * 간 것은 다음에 할 일이 다른데, 화면에는 똑같이 보인다.
+ */
+async function markFailed(supabase, subs, fails = []) {
+  if (!fails?.length) return;
+  const ids = subs.map((s) => s.payload?.r).filter(Boolean);
+  if (ids.length === 0) return;
+  // 어느 통이 어느 기기였는지까지는 pushToAll 이 안 알려준다.
+  // **다 실패했을 때만** 표시한다 — 반만 갔는데 전부 오류로 적으면 더 나쁘다
+  if (fails.length < subs.length) return;
+  await supabase
+    .from("push_receipts")
+    .update({ failed_at: new Date().toISOString(), fail_why: `${fails[0].who}: ${fails[0].code || "?"}` })
+    .in("id", ids);
 }
 
 /**

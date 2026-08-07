@@ -48,7 +48,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
   return (
     <div className="card" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <b style={{ fontSize: 15 }}>먼저 할 것</b>
+        <b style={{ fontSize: 15 }}>등원시 이것부터!</b>
         <span className="spacer" />
         <span className="hint">
           {STEPS.length - left.length} / {STEPS.length}

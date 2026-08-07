@@ -113,6 +113,19 @@ comment on function public.mark_push_seen(uuid, boolean) is
 revoke all on function public.mark_push_seen(uuid, boolean) from public, anon;
 grant execute on function public.mark_push_seen(uuid, boolean) to authenticated;
 
+/**
+ * **못 보낸 것도 남긴다** (원장님, 2026-08-07 — 「전송이 아예 안 된 경우
+ * 오류 표시 하고 안보내졌다는 게 대시보드에 뜨게 해 줘」).
+ *
+ * 보내기 전에 줄을 만들어 두므로, 보내다 거절당한 통은 **아무 표시 없이**
+ * 「미확인」 으로 남았다. 안 본 것과 아예 못 간 것은 다음에 할 일이 다르다.
+ *
+ * (표를 만들 때부터 이 칸이 있게 두면 좋지만, 이미 돌리신 분도 있을 수
+ *  있어 따로 붙인다 — 두 번 돌려도 탈 없다)
+ */
+alter table public.push_receipts add column if not exists failed_at timestamptz;
+alter table public.push_receipts add column if not exists fail_why text;
+
 -- 화면이 이 파일이 돌았는지 알 수 있게
 create or replace function public.push_prefs_on()
 returns boolean language sql immutable as $$ select true $$;

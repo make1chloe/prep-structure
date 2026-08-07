@@ -27,7 +27,7 @@ export default async function PushSeen() {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("push_receipts")
-    .select("id, profile_id, student_id, title, kind, sent_at, delivered_at, opened_at")
+    .select("id, profile_id, student_id, title, kind, sent_at, delivered_at, opened_at, failed_at, fail_why")
     .order("sent_at", { ascending: false })
     .limit(40);
 
@@ -47,14 +47,23 @@ export default async function PushSeen() {
   const nameOf = new Map((st || []).map((s) => [s.id, s.name]));
   const who = new Map((pf || []).map((p) => [p.id, p]));
 
-  const unseen = data.filter((r) => !r.opened_at).length;
+  const bad = data.filter((r) => r.failed_at).length;
+  const unseen = data.filter((r) => !r.opened_at && !r.failed_at).length;
 
   return (
     <div className="card sect sect-calm">
       <h2 className="secthead">
         보낸 알림{" "}
-        {unseen > 0 && <span className="tag tag-muted">안 본 것 {unseen}</span>}
+        {/* **못 간 것이 먼저다.** 안 본 것은 기다리면 되지만, 못 간 것은
+            그 댁 설정을 봐드려야 한다 (원장님, 2026-08-07) */}
+        {bad > 0 && <span className="tag tag-red">안 보내짐 {bad}</span>}{" "}
+        {unseen > 0 && <span className="tag tag-muted">미확인 {unseen}</span>}
       </h2>
+      {bad > 0 && (
+        <div className="notice" style={{ marginBottom: 8, fontSize: 12.5 }}>
+          <b>{bad}건이 폰까지 못 갔습니다.</b> 그 집은 알림이 꺼져 있거나 앱을 지운 상태예요.
+        </div>
+      )}
       <div className="stack" style={{ gap: 3 }}>
         {data.slice(0, 20).map((r) => {
           const p = who.get(r.profile_id);
@@ -69,14 +78,19 @@ export default async function PushSeen() {
                 {r.title || "알림"}
               </span>
               <span className="hint">{fmt(r.sent_at)}</span>
-              {r.opened_at ? (
-                <span className="tag tag-mint">{fmt(r.opened_at)} 확인</span>
-              ) : r.delivered_at ? (
-                // 폰까지는 갔는데 안 누르신 것 — 설정 문제가 아니라 못 보신 것이다
-                <span className="tag tag-amber">폰에 도착 · 아직 안 봄</span>
+              {/**
+                * 원장님 (2026-08-07) — 「확인한 경우 시간만, 확인 하지 않은
+                * 경우 미확인, 전송이 아예 안 된 경우 오류 표시」
+                *
+                * 「폰에 도착 · 아직 안 봄」 처럼 길게 적으면 스무 줄이
+                * 늘어섰을 때 눈이 못 따라간다. 세 가지로만.
+                */}
+              {r.failed_at ? (
+                <span className="tag tag-red" title={r.fail_why || ""}>오류</span>
+              ) : r.opened_at ? (
+                <span className="tag tag-mint">{fmt(r.opened_at)}</span>
               ) : (
-                // 폰에 닿았다는 소식조차 없다 — 알림이 꺼져 있을 수 있다
-                <span className="tag tag-muted">도착 확인 안 됨</span>
+                <span className="tag tag-muted">미확인</span>
               )}
             </div>
           );

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { handleRequest } from "./requests/actions";
 import RequestPhotos from "@/components/RequestPhotos";
 
-const KIND = { absence: "결석", makeup: "보강 요청", info: "전달", question: "문의" };
+const KIND = { absence: "결석", makeup: "보강가능시간", info: "전달", question: "질문" };
 
 // 학생·학부모가 보낸 알림을 확인하고, 결석은 바로 결석 예정으로 반영한다
 export default function RequestInbox({ requests = [] }) {

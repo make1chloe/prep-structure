@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { getPushPublicKey, saveSubscription, removeSubscription } from "@/app/push/actions";
 // 켜는 절차는 lib/pushClient 한 곳에만 둔다 — 두 군데면 한쪽만 고치게 된다
-import { pushState, enablePush } from "@/lib/pushClient";
+import { pushState, enablePush, whyUnsupported } from "@/lib/pushClient";
 
 /**
  * @param onlyWhenOff  이미 켜져 있으면 **아무것도 안 그린다**.
@@ -81,9 +81,12 @@ export default function PushToggle({ onlyWhenOff = false, warn = false }) {
     return (
       <div className={box}>
         <b style={{ fontSize: 13.5 }}>알림 받기</b>
-        <p className="hint" style={{ margin: "6px 0 0" }}>
-          이 브라우저에서는 알림을 쓸 수 없어요. 아이폰은 <b>공유 → 홈 화면에 추가</b> 한 뒤
-          그 아이콘으로 열면 알림을 켤 수 있습니다.
+        <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
+          {/* 「이 브라우저에서는 쓸 수 없어요」 한 줄만 나와서, 홈 화면에
+              담고 또 담게 되는 일이 있었다 (원장님, 2026-08-07) */}
+          {whyUnsupported()?.why || "이 브라우저에서는 알림을 쓸 수 없어요."}
+          <br />
+          {whyUnsupported()?.fix}
         </p>
       </div>
     );
