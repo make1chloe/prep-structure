@@ -137,6 +137,64 @@ export default function SettingsForm({
         </p>
       </div>
 
+      {/* **앱 알림을 맨 위에** (원장님, 2026-08-07 — 「내 기기로 테스트 어딨어?」).
+          이 화면에서 제일 자주 찾으시는 것이 이것이다. 아래에 두면 솔라피
+          설정을 다 지나쳐야 나온다 — 문자는 한 번 맞춰두고 안 여는 것이고,
+          알림은 폰을 바꾸거나 주소가 바뀔 때마다 다시 오시게 된다 */}
+      <div className="card">
+        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>앱 알림 (무료)</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+          학생이 학생용 페이지에서 <b>알림 켜기</b>를 누르면, 숙제를 배정할 때 자동으로 알림이 갑니다.
+          문자와 달리 <b>건당 요금이 없어요.</b>
+        </p>
+        <div className="row" style={{ gap: 8, alignItems: "center" }}>
+          {pushReady ? (
+            <span className="tag tag-mint">알림 준비됨</span>
+          ) : (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => run(() => ensurePushKeys(), "알림 키를 만들었어요. 이제 학생들이 알림을 켤 수 있어요.")}
+              disabled={pending}
+            >
+              알림 키 만들기
+            </button>
+          )}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => run(() => testPush(), "테스트 알림을 보냈어요.")}
+            disabled={pending || !pushReady}
+          >
+            내 기기로 테스트
+          </button>
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          아이폰은 사파리에서 <b>공유 → 홈 화면에 추가</b> 한 뒤 그 아이콘으로 열어야 알림이 켜집니다.
+          안드로이드는 크롬에서 바로 켤 수 있어요.
+        </p>
+
+        {/* **조용히 안 가는 것이 제일 무섭다.** 신규 상담 양식은 로그인 없이
+            여는 화면이라, 다른 알림과 같은 방법을 쓸 수 없다 (아무나 알림
+            열쇠를 가져가게 된다). 서버만 아는 열쇠가 있어야 나가므로, 그게
+            없으면 여기서 보이게 한다 */}
+        <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+          <b>신규 상담 접수 알림</b>{" "}
+          {inquiryAlert ? (
+            <span className="tag tag-mint">켜짐</span>
+          ) : (
+            <>
+              <span className="tag">꺼짐</span>
+              <br />
+              상담 신청서는 로그인 없이 여는 화면이라 서버 열쇠가 있어야 알림이 나갑니다.
+              Vercel → 프로젝트 → Settings → Environment Variables 에{" "}
+              <b>SUPABASE_SERVICE_ROLE_KEY</b> 를 넣고 다시 배포해주세요
+              (Supabase → Project Settings → API → service_role 값).
+              <b> 대화창에는 절대 붙여넣지 마세요.</b>
+            </>
+          )}
+        </div>
+      </div>
+
+
       {/* 학원 정보 */}
       <div className="card">
         <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학원 이름</h2>
@@ -482,60 +540,6 @@ export default function SettingsForm({
           <b> 이번엔 넘어가기(유예)</b> 를 고를 수 있고, 둘 다 경고는 0으로 돌아갑니다.
           유예는 <b>봐준 이력이 남습니다.</b>
         </p>
-      </div>
-
-      {/* 앱 알림 */}
-      <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>앱 알림 (무료)</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
-          학생이 학생용 페이지에서 <b>알림 켜기</b>를 누르면, 숙제를 배정할 때 자동으로 알림이 갑니다.
-          문자와 달리 <b>건당 요금이 없어요.</b>
-        </p>
-        <div className="row" style={{ gap: 8, alignItems: "center" }}>
-          {pushReady ? (
-            <span className="tag tag-mint">알림 준비됨</span>
-          ) : (
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => run(() => ensurePushKeys(), "알림 키를 만들었어요. 이제 학생들이 알림을 켤 수 있어요.")}
-              disabled={pending}
-            >
-              알림 키 만들기
-            </button>
-          )}
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => run(() => testPush(), "테스트 알림을 보냈어요.")}
-            disabled={pending || !pushReady}
-          >
-            내 기기로 테스트
-          </button>
-        </div>
-        <p className="hint" style={{ marginTop: 8 }}>
-          아이폰은 사파리에서 <b>공유 → 홈 화면에 추가</b> 한 뒤 그 아이콘으로 열어야 알림이 켜집니다.
-          안드로이드는 크롬에서 바로 켤 수 있어요.
-        </p>
-
-        {/* **조용히 안 가는 것이 제일 무섭다.** 신규 상담 양식은 로그인 없이
-            여는 화면이라, 다른 알림과 같은 방법을 쓸 수 없다 (아무나 알림
-            열쇠를 가져가게 된다). 서버만 아는 열쇠가 있어야 나가므로, 그게
-            없으면 여기서 보이게 한다 */}
-        <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7 }}>
-          <b>신규 상담 접수 알림</b>{" "}
-          {inquiryAlert ? (
-            <span className="tag tag-mint">켜짐</span>
-          ) : (
-            <>
-              <span className="tag">꺼짐</span>
-              <br />
-              상담 신청서는 로그인 없이 여는 화면이라 서버 열쇠가 있어야 알림이 나갑니다.
-              Vercel → 프로젝트 → Settings → Environment Variables 에{" "}
-              <b>SUPABASE_SERVICE_ROLE_KEY</b> 를 넣고 다시 배포해주세요
-              (Supabase → Project Settings → API → service_role 값).
-              <b> 대화창에는 절대 붙여넣지 마세요.</b>
-            </>
-          )}
-        </div>
       </div>
 
       <div className="row" style={{ gap: 8, alignItems: "center" }}>

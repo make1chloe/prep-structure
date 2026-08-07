@@ -36,7 +36,7 @@ export default async function NotesPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="notes" />
+      <TopBar profile={profile} active="guide" />
       <main className="wrap" style={{ maxWidth: 760 }}>
         <div className="page-head">
           <p className="eyebrow">설정 · 화면</p>
