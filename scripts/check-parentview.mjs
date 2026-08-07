@@ -98,7 +98,9 @@ eq(quickFor(undefined, true), "확인완료", "역할을 모르면 학생 쪽으
 const inbox = read("app/RequestInbox.jsx");
 // **처리한 것이 사라지면 무슨 말을 했는지 다시 볼 수 없다**
 eq(inbox.includes("지난 것"), true, "처리한 것도 볼 수 있다");
-eq(inbox.includes("한 번 더 답장하기"), true, "처리한 뒤에도 답장할 수 있다");
+// 처리한 줄도 답장 버튼이 살아 있어야 한다 (「지난 것」 을 펴면 그 자리에서)
+eq(/quickFor\(role, true\)/.test(inbox) && inbox.includes("Row(r, true)"), true,
+   "처리한 뒤에도 답장할 수 있다");
 eq(inbox.includes("quickFor"), true, "빠른 문구를 쓴다");
 // 예전에는 status='new' 만 받아서 「확인」 을 누르는 순간 사라졌다
 eq(read("lib/dashboard.js").includes('.from("requests").select("id, student_id, kind, from_date, to_date, body, status, reply, thread'),
