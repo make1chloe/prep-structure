@@ -242,23 +242,42 @@ export async function importAbsences(rows) {
       skipped.push(`${r.absentOn || r.makeupOn} ${r.name || "(이름 없음)"} (재원생 목록에 없음)`);
       return;
     }
+    /**
+     * **두 줄이 똑같은 칸을 갖게 만든다** (2026-08-06).
+     *
+     * 원장님 화면에서 이렇게 터졌다 —
+     *   `null value in column "planned" of relation "attendance"
+     *    violates not-null constraint`
+     *
+     * `planned` 는 `not null default false` 다. 그런데 결석 줄에만 그 칸을
+     * 넣고 보강 줄에는 안 넣었더니, **한 덩어리로 보낼 때** 보강 줄의
+     * planned 가 빈 값으로 채워져서 거절당했다. 여러 줄을 한 번에 넣으면
+     * 칸을 **합집합**으로 맞추기 때문에 **기본값이 안 먹는다.**
+     *
+     * 줄마다 칸이 다르면 언젠가 또 이런다. 바탕을 하나 만들고 거기서 고친다.
+     */
+    const base = {
+      student_id: sid,
+      planned: false,
+      reason: r.reason,
+      makeup_of: null,
+      note: "노션 이관",
+    };
     if (r.isAbsence && r.absentOn) {
       byKey.set(`${sid}|${r.absentOn}`, {
-        student_id: sid,
+        ...base,
         date: r.absentOn,
         status: "absent",
         planned: true,
-        reason: r.reason,
         note: r.absentGuessed ? "노션 이관 (결석일이 생성일 기준이라 다를 수 있음)" : "노션 이관",
       });
     }
     if (r.makeupOn) {
       byKey.set(`${sid}|${r.makeupOn}`, {
-        student_id: sid,
+        ...base,
         date: r.makeupOn,
         status: "makeup",
         makeup_of: r.isAbsence ? r.absentOn : null,
-        reason: r.reason,
         note: r.none ? "보강 없음으로 처리됨" : "노션 이관",
       });
     }
