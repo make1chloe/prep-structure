@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import PushToggle from "@/app/me/PushToggle";
+import PushDiag from "@/components/PushDiag";
 import { getQuietHours, saveQuietHours } from "@/app/push/actions";
 import { quietLabel } from "@/lib/quiet";
 
@@ -122,6 +123,16 @@ export default function AlertBox({ brief = false }) {
           )}
         </div>
       )}
+
+      {/**
+        * **안 되는 그 폰에서 눌러볼 것** (원장님, 2026-08-07 — 「안드로이드폰에서
+        * 알림이 안 켜져」 · 「학생이 부르는 중 눌러도 알림이 안 와」).
+        *
+        * 접어둔다 — 잘 되는 분께는 볼 일이 없는 칸이다. 대신 **학생 ·
+        * 학부모 · 선생님 화면 어디에나** 있다. 안 되는 계정으로 열어야
+        * 뜻이 있기 때문이다.
+        */}
+      <PushDiag />
     </div>
   );
 }

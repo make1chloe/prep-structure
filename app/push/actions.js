@@ -383,7 +383,18 @@ async function withReceipts(supabase, subs, payload, childOf = new Map()) {
   });
 }
 
-// 선생님이 직접 보내는 테스트 알림
+/**
+ * **내 폰에 테스트 알림** — 선생님만이 아니라 **누구나**.
+ *
+ * 원장님 (2026-08-07) — 「안드로이드폰에서 알림이 안 켜져」
+ *
+ * 예전에는 선생님만 쓸 수 있었다. 보낼 열쇠(`integrations`)를 원장님만
+ * 읽기 때문이다 (0015). 그래서 **정작 안 되는 사람**(학생 · 안드로이드
+ * 어머니)이 확인할 길이 없었고, 「됐어요?」 「아니요」 만 오갔다.
+ *
+ * 0111 의 `self_push_targets()` 가 **자기 기기에 한해서** 열쇠와 보낼 곳을
+ * 함께 내준다. 남의 폰으로는 못 보낸다 — 돌려주는 줄이 본인 것뿐이다.
+ */
 export async function testPush() {
   const supabase = createClient();
   const {
@@ -391,13 +402,35 @@ export async function testPush() {
   } = await supabase.auth.getUser();
   if (!user) return { error: "로그인이 필요해요." };
 
-  const keys = await keysOf(supabase);
-  if (!keys?.privateKey) return { error: "먼저 알림 키를 만들어주세요." };
+  let keys = await keysOf(supabase);
+  let subs = null;
 
-  const { data: subs } = await supabase
-    .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .eq("profile_id", user.id);
+  if (!keys?.privateKey) {
+    // 0111 — 학생·학부모는 이 문으로만 열쇠에 닿는다
+    const { data: t, error } = await supabase.rpc("self_push_targets");
+    if (error) {
+      return { error: "설정 → 관리자 → Supabase SQL 에서 0111 을 실행해주세요." };
+    }
+    if (!t?.length) {
+      // 열쇠가 없는 것인지 기기가 없는 것인지 가른다 — 안 가르면 또 헤맨다
+      const { data: ready } = await supabase.rpc("push_keys_ready");
+      return {
+        error: ready === false
+          ? "아직 알림 키를 안 만들었어요. 선생님께 말씀해주세요."
+          : "이 기기에서 먼저 알림 받기를 켜주세요.",
+      };
+    }
+    keys = { publicKey: t[0].public_key, privateKey: t[0].private_key, contact: t[0].contact };
+    // 표 번호가 없어 사라진 기기 정리는 못 한다 — 대신 아래에서 안 지운다
+    subs = t.map((r, i) => ({ id: `${i}`, endpoint: r.endpoint, p256dh: r.p256dh, auth: r.auth }));
+  }
+
+  if (!subs) {
+    ({ data: subs } = await supabase
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("profile_id", user.id));
+  }
   if (!subs?.length) return { error: "이 기기에서 먼저 알림 받기를 켜주세요." };
 
   const res = await pushToAll(keys, subs, {
@@ -414,9 +447,12 @@ export async function testPush() {
    * 「1대에 보냈어요」 까지 나오면, 그래도 안 뜬 것은 **폰 쪽 설정**이라는
    * 뜻이 된다 (아이폰 설정 → 알림에서 이 앱이 꺼져 있는 경우).
    */
-  const gone = res.gone.length ? ` (옛 기기 ${res.gone.length}대는 정리했어요)` : "";
-  if (res.gone.length > 0) {
-    await supabase.from("push_subscriptions").delete().in("id", res.gone);
+  // 0111 길로 온 것은 표 번호가 없다 (0,1,2…). 그걸 지우러 가면 오류가 난다 —
+  // 어차피 다음에 그 사람이 화면을 열 때 정리된다
+  const real = res.gone.filter((id) => /^[0-9a-f-]{36}$/i.test(String(id)));
+  const gone = real.length ? ` (옛 기기 ${real.length}대는 정리했어요)` : "";
+  if (real.length > 0) {
+    await supabase.from("push_subscriptions").delete().in("id", real);
   }
   return { error: null, sent: res.sent, note: `${res.sent}대에 보냈어요.${gone}` };
 }

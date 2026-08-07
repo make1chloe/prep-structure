@@ -635,4 +635,61 @@ else
   echo "  ❌ 학부모가 공개키를 못 받습니다 ($PM)"; fail=1
 fi
 
+echo
+echo "  == 내 폰에 테스트 알림을 보낼 수 있나 (0111) =="
+#
+# 원장님 (2026-08-07) — 「안드로이드폰에서 알림이 안 켜져」
+#
+# 안 되는 폰에서 **직접 눌러봐야** 어디서 막혔는지 안다. 그런데 테스트
+# 단추가 선생님 전용이었다 — 보낼 열쇠를 원장님만 읽기 때문이다. 정작
+# 안 되는 사람이 확인할 길이 없었다.
+#
+# 0111 은 **자기 기기에 한해서만** 문을 연다. 여기서 두 가지를 못 박는다 —
+#   · 내 폰은 나온다
+#   · 남의 폰은 안 나온다   ← 이게 깨지면 아무나 남에게 알림을 보낸다
+$Q -d chloe -c "
+insert into public.push_subscriptions (profile_id, endpoint, p256dh, auth)
+  values ('$KID', 'https://push.example/kid', 'p', 'a')
+on conflict (endpoint) do nothing;" >/dev/null 2>&1
+
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$KID');" >/dev/null 2>&1
+SELF=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) || '/' || coalesce(max(endpoint), '-') from public.self_push_targets();
+SQL
+)
+if [ "$SELF" = "1/https://push.example/kid" ]; then
+  echo "  학생이 자기 폰으로 테스트 알림을 보낼 수 있습니다"
+else
+  echo "  ❌ 학생이 자기 폰을 못 찾습니다 ($SELF)"; fail=1
+fi
+
+# 원장님 폰(boss)까지 딸려 나오면 안 된다 — 위 결과가 1줄이라는 것으로
+# 이미 확인되지만, 어느 줄인지까지 봐야 진짜다 (endpoint 를 같이 본다)
+
+# 열쇠가 아예 없을 때는 **없다고 말할 수 있어야** 한다.
+# 「기기가 없다」 와 「열쇠가 없다」 를 못 가르면 또 헤맨다
+R=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select public.push_keys_ready();
+SQL
+)
+if [ "$R" = "t" ]; then
+  echo "  열쇠가 있는지 없는지를 학생도 물어볼 수 있습니다"
+else
+  echo "  ❌ push_keys_ready 가 t 가 아닙니다 ($R)"; fail=1
+fi
+
+# 그래도 **열쇠 표 자체는** 여전히 안 읽혀야 한다
+Z=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.integrations where id = 'push';
+SQL
+)
+if [ "$Z" = "0" ]; then
+  echo "  열쇠 표는 그대로 잠겨 있습니다"
+else
+  echo "  ❌ 학생이 열쇠 표를 읽습니다 ($Z 줄)"; fail=1
+fi
+
 exit $fail
