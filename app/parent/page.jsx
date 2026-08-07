@@ -762,7 +762,8 @@ export default async function ParentPage({ searchParams }) {
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
+    // 넓은 화면에서는 나란히 (학생 화면과 같은 까닭 — 2026-08-07)
+    <main className="wrap" style={{ maxWidth: 1180, paddingBottom: 40 }}>
       {preview && (
         <div className="card card-tight" style={{ marginBottom: 10, borderLeft: "3px solid var(--amber)" }}>
           <b style={{ fontSize: 13 }}>미리보기</b>
@@ -798,9 +799,15 @@ export default async function ParentPage({ searchParams }) {
 
       <div className="stack" style={{ marginTop: 10 }}>
         <ScreenNote text={N("parent.top")} tone="card" />
-        {blockOrder.map((k) => (
-          <Fragment key={k}>{BLOCKS[k]}</Fragment>
-        ))}
+        {/* 「오늘」 은 폭을 다 쓴다 — 어머니가 제일 먼저 보시는 것이라
+            반쪽으로 접히면 안 된다 */}
+        <div className="blockgrid">
+          {blockOrder.map((k) => (
+            <div key={k} className={k === "today" ? "fullrow" : undefined}>
+              {BLOCKS[k]}
+            </div>
+          ))}
+        </div>
 
         {/* **알림 — 켜고 · 끄고 · 밤에는 안 울리게** (원장님, 2026-08-07).
             학부모 화면에는 켜는 버튼이 아예 없었다. 알림톡을 끊었으니

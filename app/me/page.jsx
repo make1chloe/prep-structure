@@ -1002,7 +1002,15 @@ export default async function MePage({ searchParams }) {
   };
 
   return (
-    <main className="wrap" style={{ maxWidth: 560, paddingBottom: 40 }}>
+    /**
+     * **넓은 화면에서는 나란히** (원장님, 2026-08-07 — 「여백이 너무 많아…
+     * 병렬로 나열해야할듯」).
+     *
+     * 폰에 맞춰 560px 한 줄로 짜여 있었다. 폰에서는 그게 맞지만 컴퓨터로
+     * 열면 양옆이 통째로 비어서 화면의 3분의 2가 논다 — 원장님은 컴퓨터로
+     * 아이 화면을 확인하신다. 폭만 열어두고 배치는 아래 blockgrid 가 한다.
+     */
+    <main className="wrap" style={{ maxWidth: 1180, paddingBottom: 40 }}>
       <div className="page-head">
         <p className="eyebrow">클로이영어</p>
         <h1 className="h1">{student.name} 학생</h1>
@@ -1053,21 +1061,26 @@ export default async function MePage({ searchParams }) {
           * 미리보기(선생님)와 눌러보기는 그대로 연다 — 거기서 막으면
           * 원장님이 아이 화면을 못 보시게 된다.
           */}
-        {preview || acting ? (
-          <>
-            <ScreenNote text={N("me.top")} tone="card" />
-            {blockOrder.map((k) => (
-              <Fragment key={k}>{BLOCKS[k]}</Fragment>
-            ))}
-          </>
-        ) : (
-          <AlertGate>
-            <ScreenNote text={N("me.top")} tone="card" />
-            {blockOrder.map((k) => (
-              <Fragment key={k}>{BLOCKS[k]}</Fragment>
-            ))}
-          </AlertGate>
-        )}
+        {(() => {
+          /**
+           * **「지금 할 것」 은 폭을 다 쓴다.** 큰 글씨와 큰 버튼으로
+           * 「지금 이거 하나」 를 보여주는 칸이라, 반쪽으로 접히면 그 뜻이
+           * 사라진다. 나머지는 두 줄·세 줄로 자리를 채운다.
+           */
+          const inner = (
+            <>
+              <ScreenNote text={N("me.top")} tone="card" />
+              <div className="blockgrid">
+                {blockOrder.map((k) => (
+                  <div key={k} className={k === "study" ? "fullrow" : undefined}>
+                    {BLOCKS[k]}
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+          return preview || acting ? inner : <AlertGate>{inner}</AlertGate>;
+        })()}
 
         <form action="/logout" method="post">
           <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>

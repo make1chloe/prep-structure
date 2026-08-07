@@ -229,6 +229,26 @@ a { color: inherit; }
 .notice { background: var(--amber-soft); color: var(--text); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; line-height: 1.5; }
 .err { background: var(--red-soft); color: var(--red); border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── 넓은 화면에서는 나란히 (2026-08-07) ──────────────────────
+   원장님 — 「여백이 너무 많아. 반응형을 유지하면서도, 여백없는 레이아웃
+   가능하게 해줘. 병렬로 나열해야할듯」
+
+   학생·학부모 화면은 폰에 맞춰 560px 한 줄로 짜여 있다. 폰에서는 그게
+   맞지만, 컴퓨터로 열면 **양옆이 통째로 비어** 화면의 3분의 2가 논다.
+   원장님은 컴퓨터로 아이 화면을 확인하신다.
+
+   폰은 그대로 한 줄, 넓어지면 두 줄·세 줄로 **자리만 채운다.**
+   칸 안의 것은 하나도 안 바뀐다 — 글씨도 버튼도 그대로다.
+
+   `grid` 를 쓰되 각 칸의 높이는 제 내용만큼만 (align-items: start).
+   안 그러면 짧은 칸이 옆의 긴 칸만큼 늘어나서 빈 칸이 더 커진다. */
+.blockgrid { display: grid; gap: 10px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 860px)  { .blockgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1320px) { .blockgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 폭 전체를 쓰는 칸 — 「지금 할 것」 처럼 가로로 넓어야 하는 것 */
+.blockgrid .fullrow { grid-column: 1 / -1; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -271,6 +291,7 @@ a { color: inherit; }
   .h1 { font-size: 19px; }
   .stack { gap: 8px; }
   .grid-side { gap: 8px; }
+  .blockgrid { gap: 8px; }
 }
 
 /* Login */
