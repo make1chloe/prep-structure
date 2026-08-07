@@ -24,16 +24,49 @@ export async function ensurePushKeys() {
   return { publicKey: keys.publicKey, error: null };
 }
 
-// 화면에서 알림을 켤 때 필요한 공개키
+/**
+ * 화면에서 알림을 켤 때 필요한 공개키.
+ *
+ * **표에서 바로 읽으면 학생·학부모는 못 읽는다** (원장님, 2026-08-07 —
+ * 「허용 눌렀는데 이래」). `integrations` 는 원장님만 읽게 잠겨 있다 (0015,
+ * 솔라피 비밀키가 같이 들어 있어서). 그래서 —
+ *
+ *   원장님 폰    읽힌다 → 알림 켜짐
+ *   학생·학부모   RLS 가 막는다 → null → 「알림 준비가 아직 안 됐어요」
+ *
+ * **오류가 안 난다.** 표는 그냥 「없다」 고 답하고, 화면은 그것을 「아직
+ * 키를 안 만드셨다」 로 읽었다. 원장님은 설정에서 「알림 준비됨」 을
+ * 보시면서도 아이들은 못 켜는 상태가 이어졌다.
+ *
+ * 0110 이 낸 문으로 **공개키 한 칸만** 받아온다. 공개키는 감출 것이 아니다 —
+ * 이것만으로는 아무에게도 알림을 못 보낸다 (보내려면 비밀키가 있어야 하고,
+ * 그건 여전히 선생님만 읽는다).
+ */
 export async function getPushPublicKey() {
   const supabase = createClient();
+
+  const rpc = await supabase.rpc("push_public_key");
+  if (!rpc.error) {
+    return {
+      publicKey: rpc.data || null,
+      error: rpc.data ? null : "아직 알림 키를 안 만들었어요. 원장님께 말씀해주세요.",
+    };
+  }
+
+  // 0110 전이면 옛 길로 — 원장님 화면에서는 그대로 된다
   const { data, error } = await supabase
     .from("integrations")
     .select("config")
     .eq("id", "push")
     .maybeSingle();
   if (error) return { publicKey: null, error: "0016 SQL을 먼저 실행해주세요." };
-  return { publicKey: data?.config?.publicKey || null, error: null };
+  const key = data?.config?.publicKey || null;
+  return {
+    publicKey: key,
+    // **못 읽은 것과 없는 것을 가른다.** 예전에는 둘 다 「준비가 안 됐어요」
+    // 였고, 그래서 진짜 원인(권한)이 몇 주 동안 안 보였다
+    error: key ? null : "설정 → 관리자 → Supabase SQL 에서 0110 을 실행해주세요.",
+  };
 }
 
 // 기기 등록 / 해제

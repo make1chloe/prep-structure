@@ -588,4 +588,51 @@ else
   echo "  ❌ 학생이 push_keys 로 열쇠를 얻습니다 ($S)"; fail=1
 fi
 
+echo
+echo "  == 학생·학부모가 알림을 켤 수 있나 (0110) =="
+#
+# **알림을 켜려면 공개키가 있어야 한다.** 그 키는 integrations 에 있고
+# 그 표는 원장님만 읽는다 (0015) — 그래서 학생·학부모 폰은 「알림 준비가
+# 아직 안 됐어요」 만 보고 영영 못 켰다. 원장님 폰은 읽히니까 켜졌고,
+# 설정 화면에도 「알림 준비됨」 이라고 떠서 **몇 주 동안 안 보였다.**
+#
+# 공개키는 감출 것이 아니다 — 이것만으로는 아무에게도 못 보낸다.
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$KID');" >/dev/null 2>&1
+P=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select coalesce(public.push_public_key(), '(없음)');
+SQL
+)
+if [ "$P" = "pub" ]; then
+  echo "  학생이 공개키를 받습니다 (알림을 켤 수 있습니다)"
+else
+  echo "  ❌ 학생이 공개키를 못 받습니다 ($P)"; fail=1
+fi
+
+# **비밀키는 여전히 막혀 있어야 한다** — 그것까지 새면 아무나 학생 폰에
+# 알림을 보낼 수 있게 된다
+V=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select count(*) from public.integrations where id = 'push';
+SQL
+)
+if [ "$V" = "0" ]; then
+  echo "  비밀키가 든 표는 그대로 잠겨 있습니다"
+else
+  echo "  ❌ 학생이 알림 열쇠 표를 읽습니다 ($V 줄)"; fail=1
+fi
+
+# 학부모도 마찬가지다 — 어머니 폰에도 알림이 가야 한다
+$Q -d chloe -c "delete from public._who; insert into public._who values ('a0000000-0000-0000-0000-000000000001');" >/dev/null 2>&1
+PM=$($Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+select coalesce(public.push_public_key(), '(없음)');
+SQL
+)
+if [ "$PM" = "pub" ]; then
+  echo "  학부모도 공개키를 받습니다"
+else
+  echo "  ❌ 학부모가 공개키를 못 받습니다 ($PM)"; fail=1
+fi
+
 exit $fail
