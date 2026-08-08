@@ -668,6 +668,19 @@ export async function importSchedule(from, to, schoolId = null) {
   // 학교별 정리는 그 학교를 다시 받아와야만 도는데, 원장님은 「반영이 안 됐다」
   // 는 것만 보이지 어느 학교를 다시 받아와야 하는지는 알 수가 없다.
   // 그래서 **받아올 때마다 전부 훑어서** 걷어낸다.
+  //
+  // ── 여기서 신정초·신정중이 통째로 지워지고 있었다 (2026-08-08) ──
+  //
+  // 제목으로 봤다. 그런데 제목은 **「인천신정중학교 개교기념일」** 처럼
+  // 학교 이름이 앞에 붙는다. 공휴일 목록에 「신정(新正, 1월 1일)」 이
+  // 들어 있어서, **학교 이름에 「신정」 이 들어간다는 이유만으로** 그 학교
+  // 일정이 전부 「전국 공통이 학교별로 남은 것」 으로 몰려 지워졌다.
+  //
+  // 원장님이 「신정초중은 왜 안 받아와지지」 라고 하신 지 하루 만에 다시
+  // 나온 그 일이다. 받아오면 33건이 들어오고, 새로고침하면 0건이었다.
+  //
+  // 이름이 아니라 **행사 이름만** 본다. source_id 는 「학교코드:날짜:행사」 라
+  // 세 번째 조각이 학교가 적어낸 행사 이름 그대로다.
   if (okSchools > 0) {
     const { data: leftover } = await supabase
       .from("tasks")
@@ -676,8 +689,9 @@ export async function importSchedule(from, to, schoolId = null) {
       .not("source_id", "like", "common:%")
       .gte("due_on", from)
       .lte("due_on", to);
+    const eventOf = (sid) => (sid || "").split(":").slice(2).join(":");
     const drop = (leftover || [])
-      .filter((r) => isNationwide(r.title || ""))
+      .filter((r) => isNationwide(eventOf(r.source_id)))
       .map((r) => r.id);
     for (let i = 0; i < drop.length; i += 200) {
       await supabase.from("tasks").delete().in("id", drop.slice(i, i + 200));

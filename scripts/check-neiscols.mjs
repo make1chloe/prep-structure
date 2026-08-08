@@ -14,10 +14,15 @@
  * 쓰는 법:  node scripts/check-neiscols.mjs
  */
 import { readFileSync } from "node:fs";
-import { toTask } from "../lib/neis.js";
+import { toTask, isNationwide } from "../lib/neis.js";
 
 let bad = 0;
 const say = (m) => { console.log(`  ✗ ${m}`); bad = 1; };
+const eq = (got, want, what) => {
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    say(`${what}\n     나온 것: ${JSON.stringify(got)}  바란 것: ${JSON.stringify(want)}`);
+  }
+};
 
 /** tasks 표에 진짜로 있는 칸 (0001 + 뒤에 붙은 것들) */
 const TASK_COLS = new Set([
@@ -81,6 +86,28 @@ for (const k of ["grades", "level", "mock", "neisKind", "nationwide", "schoolNam
   if (!stripped.has(k)) say(`「${k}」 를 아무 데서도 안 뗍니다`);
   else if (n < 2) say(`「${k}」 를 한 군데에서만 뗍니다 (학교별 · 전국 공통 둘 다 필요)`);
 }
+
+console.log("\n== 학교 이름이 공휴일로 읽히지 않나 ==");
+/**
+ * **신정초·신정중이 받아올 때마다 통째로 지워지고 있었다** (2026-08-08).
+ *
+ * 받아온 뒤, 「전국 공통인데 학교별로 남은 줄」 을 걷어내는 정리가 돈다.
+ * 그 판단을 **제목**으로 했다. 그런데 제목은 「인천신정중학교 개교기념일」
+ * 처럼 학교 이름이 앞에 붙고, 공휴일 목록에는 「신정(1월 1일)」 이 있다.
+ * 그래서 **학교 이름에 「신정」 이 들어간다는 이유만으로** 그 학교 일정이
+ * 전부 지워졌다 — 받아오면 33건, 새로고침하면 0건.
+ *
+ * 오류가 안 난다. 「받았어요」 까지 뜨고 나서 조용히 사라진다.
+ */
+eq(isNationwide("인천신정중학교 개교기념일"), true,
+   "제목으로 보면 학교 이름이 걸린다 (그래서 제목으로 보면 안 된다)");
+eq(isNationwide("개교기념일"), false, "행사 이름만 보면 안 걸린다");
+eq(isNationwide("신정"), true, "진짜 공휴일은 그대로 걸린다");
+// 정리하는 자리가 **행사 이름만** 보는지
+const clean = src.slice(src.indexOf("학교별로 남아 있던 전국 공통"));
+eq(/isNationwide\(eventOf\(r\.source_id\)\)/.test(clean), true,
+   "제목이 아니라 source_id 의 행사 이름으로 가른다");
+eq(/isNationwide\(r\.title/.test(clean), false, "제목으로 보던 것이 남아 있다");
 
 if (bad) { console.log("\n❌ 받아오기가 그 학교에서 통째로 실패합니다"); process.exit(1); }
 console.log("\n✅ 나이스 → 일정 칸 통과");

@@ -815,7 +815,7 @@ export default function ScheduleBoard({
                     표시하고 전체를 빼」). 학년이 안 적혀 있으면 그 학교 전부라는
                     뜻이고, 그건 대부분이다 — 대부분에 붙는 말은 알려주는 것이 없다 */}
                 <b style={{ fontSize: 12.5 }}>
-                  <span title={e.school}>{shortName(e.school)}</span>
+                  <span title={`${e.school}${e.name ? ` · 학교 표기: ${e.name}` : ""}`}>{shortName(e.school)}</span>
                   {e.grade ? ` ${e.grade}` : ""}
                 </b>
                 {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
@@ -823,7 +823,20 @@ export default function ScheduleBoard({
                 {termLabel(e) && <span className="tag tag-sky">{termLabel(e)}</span>}
                 {/* 전국연합은 대비하는 시험이 아니다 — 범위를 안 물어본다 */}
                 {isMockExam(e) && <span className="tag tag-lav">일정만</span>}
-                {e.name && <span className="tag tag-muted">{e.name}</span>}
+                {/**
+                  * **원래 이름은 안 적는다** (원장님, 2026-08-08 —
+                  * 「파란 라벨 26년 2학기 기말 이거 하나면 끝나는데 뒤에
+                  *  기말고사 붙고」).
+                  *
+                  * 파란 뱃지가 이미 「26년 2학기 기말」 이다. 옆에 「기말고사」
+                  * 를 또 붙이면 같은 말이 두 번이고, 학교마다 「2차시험」
+                  * 「제2차 지필평가」 로 달라서 목록이 들쭉날쭉해 보인다.
+                  *
+                  * 학교가 뭐라고 적었는지는 마우스를 올리면 나온다.
+                  */}
+                {!termLabel(e) && e.name && (
+                  <span className="tag tag-muted">{e.name}</span>
+                )}
                 {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
                 {cleanNote(e.note) && (
                   <span className="hint" title={cleanNote(e.note)}>{cleanNote(e.note)}</span>

@@ -399,12 +399,28 @@ export async function mergeMockExams(dates = null) {
   const mock = (all || []).filter((e) => isMockExam(e));
   if (mock.length === 0) return { error: null, merged: 0, note: "합칠 모의고사가 없어요." };
 
-  // 같은 날 = 같은 시험
+  /**
+   * **같은 날이라도 학년이 다르면 다른 시험이다** (2026-08-08).
+   *
+   * 예전에는 날짜만 보고 한 줄로 합치면서 학년을 지웠다(grade = null).
+   * 그런데 이제 모의고사는 **학년마다 한 회차**다 — 고1과 고2는 같은 날
+   * 보지만 시험지가 다르고, 성적도 범위도 따로 붙는다.
+   *
+   * 그대로 두면 두 가지가 한꺼번에 망가진다 —
+   *   · 학년이 지워져 「2026년 3월 고1 모의고사」 가 뒤섞이고
+   *   · (전국, 학년없음, 그날) 이 이미 있으면 **열쇠가 부딪혀 터진다**
+   *     (duplicate key value violates unique constraint "exam_periods_uniq")
+   *
+   * 그래서 **날짜 + 학년**으로 묶는다. 학교별로 흩어진 옛 줄만 「전국」 으로
+   * 모이고, 학년은 그대로 남는다.
+   */
+  const key = (e) => `${e.from_date}|${(e.grade || "").replace(/\s/g, "")}`;
   const byDate = new Map();
   mock.forEach((e) => {
     if (dates && !dates.includes(e.from_date)) return;
-    if (!byDate.has(e.from_date)) byDate.set(e.from_date, []);
-    byDate.get(e.from_date).push(e);
+    const k = key(e);
+    if (!byDate.has(k)) byDate.set(k, []);
+    byDate.get(k).push(e);
   });
 
   // 범위가 붙은 줄은 건드리지 않는다
@@ -415,24 +431,32 @@ export async function mergeMockExams(dates = null) {
   let kept = 0;
   const skipped = [];
 
-  for (const [date, list] of byDate) {
+  for (const [k, list] of byDate) {
+    const date = k.split("|")[0];
     if (list.length < 2) continue;
-    // 남길 것 — 나이스가 붙어 있는 줄을 먼저, 없으면 아무거나
-    const keep = list.find((e) => e.neis_source_id) || list[0];
+    /**
+     * 남길 것 — **이미 「전국」 인 줄이 먼저다.** 학사일정에서 만들어진
+     * 회차(「2026년 3월 고1 모의고사」)가 그것이고, 성적·범위가 붙을 자리다.
+     * 없으면 나이스가 붙은 줄, 그것도 없으면 아무거나.
+     */
+    const keep =
+      list.find((e) => e.school === "전국") ||
+      list.find((e) => e.neis_source_id) ||
+      list[0];
     const drop = list.filter((e) => e.id !== keep.id && !hasScope.has(e.id));
     const stuck = list.filter((e) => e.id !== keep.id && hasScope.has(e.id));
     if (stuck.length) skipped.push(`${date} ${stuck.length}건 (범위가 붙어 있음)`);
 
-    // 남는 줄을 **전국 한 줄**로
-    const { error: uErr } = await supabase
-      .from("exam_periods")
-      .update({
-        school: "전국",
-        grade: null,
-        name: keep.name || "모의고사",
-      })
-      .eq("id", keep.id);
-    if (uErr) return { error: uErr.message, merged };
+    // 남는 줄을 **전국**으로. **학년은 안 건드린다** — 학년이 곧 시험이다
+    if (keep.school !== "전국") {
+      const { error: uErr } = await supabase
+        .from("exam_periods")
+        .update({ school: "전국", name: keep.name || "모의고사" })
+        .eq("id", keep.id);
+      // 이미 같은 (전국, 학년, 날짜) 줄이 있으면 부딪힌다 — 그러면 이 줄은
+      // 그쪽으로 흡수될 것이므로 조용히 넘어간다 (지우는 것은 아래에서)
+      if (uErr && uErr.code !== "23505") return { error: uErr.message, merged };
+    }
     kept += 1;
 
     if (drop.length) {
