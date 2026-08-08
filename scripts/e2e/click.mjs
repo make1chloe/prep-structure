@@ -275,10 +275,10 @@ try {
      * 그리로 가면 소메뉴 나오게」). 굴려서 펴는 것은 손가락 이야기다.
      */
     await to(0); await to(900); await to(1300);
-    const sub = page.locator(".navsub");
+    const sub = page.locator(".navitems").first();
     if (await sub.isVisible()) bad("접힌 상태", "소메뉴가 아직 보입니다");
     else {
-      await page.locator(".navmain").hover();
+      await page.locator(".navgroup-tag").first().hover();
       await page.waitForTimeout(300);
       if (!(await sub.isVisible())) bad("마우스를 갖다 대면", "소메뉴가 안 나옵니다");
       else console.log("  마우스를 갖다 대면 — 소메뉴가 나옵니다");

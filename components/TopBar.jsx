@@ -97,68 +97,69 @@ export default async function TopBar({ profile, active }) {
       </div>
 
       {/**
-        * **가로 두 줄 — 내려가면 대메뉴만 남는다** (원장님, 2026-08-07 —
-        * 「메뉴를 가로로 배치하는 건 어때? 아래로 스크롤하면 대메뉴만
-        * 나오고 많이 올라가면 소메뉴 나오고」).
+        * **대메뉴는 가로, 소메뉴는 그 아래로 세로** (원장님, 2026-08-07 —
+        * 「이 부분을 세로로 배열하고, 대메뉴는 스크롤해도 보이게,
+        *  소메뉴는 스크롤하면 사라짐」).
         *
         * ── 여기까지 온 길 ──────────────────────────────────
         *
-        * 처음에는 열여덟 개가 한 줄로 흘렀다. 화면 너비에 따라 아무 데서나
-        * 접혀서 **묶음이 줄 중간에서 갈라졌다.**
+        *  1) 열여덟 개를 한 줄로 흘렸다 → 화면 너비에 따라 아무 데서나
+        *     접혀서 **묶음이 줄 중간에서 갈라졌다.**
+        *  2) 묶음마다 가로 한 줄씩 → 안 갈라지는데 **줄이 여덟**이라
+        *     붙여둘 수가 없었다 (화면의 3분의 1).
+        *  3) 대메뉴 한 줄 + 소메뉴 한 줄 → 소메뉴가 다시 한 줄로 흘러서,
+        *     어느 화면이 어느 묶음인지는 세로줄로만 짐작해야 했다.
         *
-        * 그래서 묶음마다 한 줄로 세웠다. 갈라지지는 않는데 **줄이 여덟**이라
-        * 붙여둘 수가 없었고(화면의 3분의 1), 안 붙이니 화면을 바꾸려면
-        * 매번 맨 위로 올라가야 했다.
+        * 이제 **묶음 하나가 세로 한 칸**이다. 이름이 맨 위에 있고 그
+        * 아래로 그 묶음 화면들이 줄줄이 선다 — 어디 것인지 눈으로 바로
+        * 안다. 갈라질 일도 없다 (칸 자체가 안 쪼개진다).
         *
-        * 이 방식은 둘 다 푼다 —
-        *   맨 위에서   대메뉴 한 줄 + 소메뉴 한 줄  (두 번 안 누른다)
-        *   내려가면    대메뉴 한 줄만, 위에 붙어서   (40px)
-        *   올려 오면   소메뉴가 다시 나온다
-        *
-        * 묶음이 갈라지는 문제는 소메뉴 줄에서 **묶음 하나를 통째로 한
-        * 덩어리**로 두어 막는다 (.navgroup 은 안에서 안 접힌다).
+        * 굴려 내려가면 **각 칸의 아랫부분만** 접힌다. 그러면 남는 것이
+        * 이름 여덟 개, 곧 대메뉴 한 줄이다.
         */}
       <NavScroll />
       <nav className="navgrid-wrap">
-        {/* 대메뉴 — 내려가도 이 줄만은 남는다 */}
-        <div className="navmain">
+        <div className="navgrid">
           {rows.map((row) => (
-            <Link
-              key={row.group}
-              href={row.solo ? row.solo.href : groupHref(row.group)}
-              className={`navgroup-tag ${
-                row.solo ? (active === row.solo.key ? "on" : "") : sectionOf(active) === row.group ? "on" : ""
-              }`}
-              title={
-                row.solo?.key === "home" && badge
-                  ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
-                  : `${row.label} 묶음`
-              }
-            >
-              {row.label}
-              {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
-            </Link>
-          ))}
-        </div>
+            <div className="navcol" key={row.group}>
+              {/**
+                * 대메뉴 — **굴려도 이 줄만은 남는다.**
+                * 하위가 없는 묶음(대시보드)은 이 이름이 곧 그 화면이다.
+                */}
+              <Link
+                href={row.solo ? row.solo.href : groupHref(row.group)}
+                className={`navgroup-tag ${
+                  row.solo
+                    ? active === row.solo.key ? "on" : ""
+                    : sectionOf(active) === row.group ? "on" : ""
+                }`}
+                title={
+                  row.solo?.key === "home" && badge
+                    ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
+                    : `${row.label} 묶음`
+                }
+              >
+                {row.label}
+                {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
+              </Link>
 
-        {/* 소메뉴 — 맨 위에 있을 때만. 묶음 하나는 한 덩어리로 안 갈라진다 */}
-        <div className="navsub">
-          {rows.map((row) =>
-            row.items.length === 0 ? null : (
-              <span className="navgroup" key={row.group}>
-                {row.items.map((it) => (
-                  <Link
-                    key={it.key}
-                    href={it.href}
-                    className={active === it.key ? "on" : ""}
-                    title={it.desc ? `${row.label} · ${it.desc}` : `${row.label} · ${it.label}`}
-                  >
-                    {it.label}
-                  </Link>
-                ))}
-              </span>
-            )
-          )}
+              {/* 소메뉴 — 그 이름 **바로 아래로** 세로로. 굴리면 사라진다 */}
+              {row.items.length > 0 && (
+                <div className="navitems">
+                  {row.items.map((it) => (
+                    <Link
+                      key={it.key}
+                      href={it.href}
+                      className={active === it.key ? "on" : ""}
+                      title={it.desc ? `${row.label} · ${it.desc}` : `${row.label} · ${it.label}`}
+                    >
+                      {it.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </nav>
     </header>

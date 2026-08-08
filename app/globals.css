@@ -77,7 +77,7 @@ body { padding-top: var(--topbar-full, 120px); }
    표시는 <html> 에 붙는다 (components/NavScroll.jsx — 머리말이 다시 그려질 때
    표시가 날아가지 않게) */
 :root[data-nav="compact"] .topbar-in,
-:root[data-nav="compact"] .navsub { display: none; }
+:root[data-nav="compact"] .navitems { display: none; }
 :root[data-nav="compact"] .navgrid-wrap { border-top: none; }
 :root[data-nav="compact"] .topbar { box-shadow: 0 2px 8px rgba(16,26,54,.07); }
 /**
@@ -92,7 +92,7 @@ body { padding-top: var(--topbar-full, 120px); }
  * 굴려서 접는 뜻이 없어진다.
  */
 @media (hover: hover) and (pointer: fine) {
-  :root[data-nav="compact"] .topbar:hover .navsub { display: flex; }
+  :root[data-nav="compact"] .topbar:hover .navitems { display: flex; }
   /* 맨 위 34px 만 노리게 하면 조금만 내려와도 다시 접힌다 — 아래로
      10px 만큼 보이지 않는 자리를 더 둬서 깜빡이지 않게 한다 */
   :root[data-nav="compact"] .topbar::after {
@@ -112,38 +112,37 @@ body { padding-top: var(--topbar-full, 120px); }
 /* 메뉴는 항상 펴져 있다 — 눌러 들어갔다 나오지 않는다.
    지금 화면만 하얗게 떠 있어서 어디 있는지 바로 보인다. */
 .navgrid-wrap { border-top: 1px solid var(--border); background: var(--surface); }
-/* **가로 두 줄** (원장님, 2026-08-07 — 「메뉴를 가로로 배치하는 건 어때?」)
+/* **묶음 하나가 세로 한 칸** (원장님, 2026-08-07 — 「이 부분을 세로로
+   배열하고, 대메뉴는 스크롤해도 보이게, 소메뉴는 스크롤하면 사라짐」)
 
-   위: 대메뉴 (묶음 이름 여덟)   — 내려가도 남는다
-   아래: 소메뉴 (화면 열여덟)     — 맨 위에 있을 때만
+     [대시보드] [오늘]      [학생]       [교재]      …
+                오늘 수업   재원생       교재 · 단원
+                숙제 검사   성장         학습 항목
+                출결        반 · 학생 배정 내신 대비
+                                        영상
 
-   묶음이 줄 중간에서 갈라지던 문제는 **묶음 하나를 한 덩어리(.navgroup)로**
-   두어 막는다. 접히더라도 덩어리 사이에서만 접힌다. */
-.navmain, .navsub {
-  max-width: 1480px; margin: 0 auto;
-  display: flex; flex-wrap: wrap; align-items: center;
+   이름이 맨 위에 있고 그 아래로 그 묶음 화면들이 선다 — 어느 묶음 것인지
+   눈으로 바로 안다. **칸 자체는 안 쪼개지므로** 화면이 좁아져도 묶음이
+   갈라질 일이 없다 (앞선 두 모양이 무너진 자리가 거기였다).
+
+   굴려 내려가면 각 칸의 아랫부분(.navitems)만 접힌다 — 남는 것이 이름
+   여덟 개, 곧 대메뉴 한 줄이다. */
+.navgrid {
+  max-width: 1480px; margin: 0 auto; padding: 6px 20px 8px;
+  display: flex; flex-wrap: wrap; align-items: flex-start;
+  gap: 6px 16px;
 }
-.navmain { padding: 6px 20px 0; gap: 4px; }
-.navsub { padding: 4px 20px 8px; gap: 4px 14px; }
-/* 묶음 하나 — **안에서는 안 접힌다.** 「일정」 셋이 윗줄 둘 아랫줄 하나로
-   갈라지던 것이 이것으로 막힌다 */
-.navgroup { display: inline-flex; flex-wrap: nowrap; gap: 2px; align-items: center; }
-/* 묶음 사이에 옅은 세로줄 — 어디까지가 한 묶음인지 */
-.navgroup + .navgroup::before {
-  content: ""; align-self: center;
-  width: 1px; height: 14px; margin-right: 12px;
-  background: var(--border);
-}
-.navmain a, .navsub a {
-  font-size: 13.5px; font-weight: 700; color: var(--text-muted);
-  text-decoration: none; padding: 5px 11px; border-radius: 9px;
+.navcol { display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
+.navitems { display: flex; flex-direction: column; gap: 1px; padding: 4px 0 0 2px; }
+.navgrid a {
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  text-decoration: none; padding: 4px 9px; border-radius: 8px;
   border: 1px solid transparent; white-space: nowrap;
 }
-.navsub a { font-size: 13px; font-weight: 600; padding: 4px 8px; }
-.navmain a:hover, .navsub a:hover { background: var(--surface-2); color: var(--text); }
-.navmain a.on, .navsub a.on {
-  color: var(--navy); background: var(--surface);
-  border-color: var(--border); box-shadow: 0 1px 3px rgba(0,0,0,.07);
+.navgrid a:hover { background: var(--surface-2); color: var(--text); }
+.navgrid a.on {
+  color: var(--navy); background: var(--surface-2);
+  border-color: var(--border);
 }
 .navsep { width: 1px; align-self: stretch; margin: 4px 5px; background: var(--border); }
 
@@ -156,10 +155,9 @@ body { padding-top: var(--topbar-full, 120px); }
    이번에는 **바탕을 채운다.** 화면 이름은 글자만 있고 묶음 이름은 색이
    꽉 찬 알약이라, 훑을 때 묶음이 먼저 잡힌다. 크기는 여전히 같다. */
 .navgroup-tag {
-  align-self: center;
-  /* **폭은 글자대로.** 세로로 쌓을 때는 폭을 맞춰야 줄이 안 들쭉날쭉했지만,
-     가로 한 줄에서는 맞출 이유가 없다 — 오히려 자리만 먹는다 */
-  padding: 4px 13px !important;
+  /* 칸의 **머리**다. 칸 폭을 채워야 아래 목록과 왼쪽 끝이 맞는다 */
+  text-align: center;
+  padding: 4px 12px !important;
   font-size: 12.5px;
   font-weight: 800 !important;
   letter-spacing: -0.2px;
@@ -170,21 +168,18 @@ body { padding-top: var(--topbar-full, 120px); }
   white-space: nowrap;
   position: relative;
 }
-.navmain a.navgroup-tag:hover {
+.navgrid a.navgroup-tag:hover {
   color: var(--chip-fg) !important;
   background: var(--chip-bg) !important;
   filter: brightness(1.15);
 }
 /* 하위가 없는 묶음(대시보드)은 이름 칸이 곧 그 화면이다 — 지금 그 화면에
    있으면 다른 화면 이름과 똑같이 하얗게 떠야 한다 */
-.navmain a.navgroup-tag.on {
+.navgrid a.navgroup-tag.on {
   color: var(--navy) !important;
   background: var(--surface) !important;
   border-color: var(--border) !important;
   box-shadow: 0 1px 3px rgba(0,0,0,.07);
-}
-@media (max-width: 900px) {
-  .navgroup-tag { padding: 3px 10px !important; font-size: 12px; }
 }
 .spacer { flex: 1; }
 .who { font-size: 12.5px; color: var(--text-muted); }
@@ -451,11 +446,9 @@ body { padding-top: var(--topbar-full, 120px); }
   /* 폰에서는 소메뉴가 서너 줄이 된다. 그래도 **내려가면 대메뉴 한 줄만**
      남으니(NavScroll) 붙여둘 수 있다 — 오히려 폰에서 더 값지다. 화면을
      바꾸려고 긴 목록을 맨 위까지 되감을 일이 없어진다 */
-  .navmain { padding: 6px 14px 0; gap: 3px; }
-  .navsub { padding: 4px 14px 8px; gap: 3px 10px; }
-  .navmain a, .navsub a { font-size: 12.5px; padding: 4px 8px; }
-  .navsub a { font-size: 12px; padding: 3px 6px; }
-  .navgroup + .navgroup::before { margin-right: 8px; }
+  .navgrid { padding: 6px 12px 8px; gap: 5px 10px; }
+  .navgrid a { font-size: 12px; padding: 3px 7px; }
+  .navgroup-tag { padding: 3px 9px !important; font-size: 11.5px; }
   .topbar-in { gap: 10px; padding: 0 14px; }
   .brand { flex: 0 0 auto; white-space: nowrap; font-size: 15px; }
   .nav { display: none; }

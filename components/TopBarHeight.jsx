@@ -6,7 +6,7 @@ import { useEffect } from "react";
  * 위 메뉴의 **높이 두 가지**를 CSS 에 알려준다.
  *
  *   --topbar-full  펴졌을 때의 높이 → 문서 맨 위에 잡아둘 빈자리(body 패딩)
- *   --topbar-h     대메뉴 한 줄 높이 → 옆판이 붙을 자리(.split-panel top)
+ *   --topbar-h     접혔을 때의 높이 → 옆판이 붙을 자리(.split-panel top)
  *
  * ── 왜 재야 하나 ────────────────────────────────────────
  *
@@ -29,15 +29,15 @@ export default function TopBarHeight() {
     if (!bar) return;
     const root = document.documentElement;
 
+    /**
+     * 접혔을 때와 펴졌을 때가 서로 다른 값이라, **그때그때 그 값을** 넣는다.
+     * 접히면 머리말 높이 자체가 달라지므로 ResizeObserver 가 알아서 부른다.
+     */
     const apply = () => {
-      const nav = bar.querySelector(".navmain");
-      if (nav) {
-        root.style.setProperty("--topbar-h", `${Math.round(nav.getBoundingClientRect().height)}px`);
-      }
-      if (root.dataset.nav !== "compact") {
-        const h = Math.round(bar.getBoundingClientRect().height);
-        if (h > 0) root.style.setProperty("--topbar-full", `${h}px`);
-      }
+      const h = Math.round(bar.getBoundingClientRect().height);
+      if (h <= 0) return;
+      if (root.dataset.nav === "compact") root.style.setProperty("--topbar-h", `${h}px`);
+      else root.style.setProperty("--topbar-full", `${h}px`);
     };
 
     apply();

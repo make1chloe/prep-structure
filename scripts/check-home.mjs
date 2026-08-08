@@ -48,9 +48,8 @@ console.log("\n== 메뉴 — 가로 두 줄, 내려가면 대메뉴만 ==");
  *   2) 묶음마다 한 줄  → 갈라지진 않는데 **줄이 여덟**이라 붙여둘 수가 없었다
  */
 const bar = read("components/TopBar.jsx");
-eq(bar.includes('className="navmain"'), true, "대메뉴 줄이 있다");
-eq(bar.includes('className="navsub"'), true, "소메뉴 줄이 있다");
-eq(bar.includes('className="navgroup"'), true, "소메뉴에서 묶음이 한 덩어리다");
+eq(bar.includes('className="navcol"'), true, "묶음 하나가 한 칸이다");
+eq(bar.includes('className="navitems"'), true, "그 칸 안에 소메뉴가 세로로 선다");
 // 「대시보드 대시보드」 — 묶음 안에 화면이 없으면 이름이 두 번 나왔다
 eq(/r\.items\[0\]\.label === r\.label/.test(bar), true,
    "하위가 없는 묶음은 이름 칸이 곧 그 화면");
@@ -59,11 +58,12 @@ eq(bar.includes("row.solo ? row.solo.href"), true, "그 이름을 누르면 그 
 eq(bar.includes("sectionOf(active) === row.group"), true, "지금 묶음이 대메뉴에 표시된다");
 
 const css = read("app/globals.css");
-// **묶음은 안에서 안 접힌다** — 1) 이 무너진 자리다
-const grp = css.slice(css.indexOf(".navgroup {"), css.indexOf(".navgroup {") + 200);
-eq(/flex-wrap: nowrap/.test(grp), true, "묶음 하나는 갈라지지 않는다");
+// **소메뉴는 세로로 선다** — 가로로 흘리면 어느 묶음 것인지 알 수가 없었다
+eq(/^\.navitems \{[^}]*flex-direction: column/m.test(css), true, "소메뉴가 세로로 선다");
+// 칸 자체는 안 쪼개진다 — 앞선 두 모양이 무너진 자리다
+eq(/^\.navcol \{[^}]*flex-direction: column/m.test(css), true, "묶음 한 칸은 안 갈라진다");
 // 접는 것은 <html> 표시로 — 머리말이 다시 그려져도 안 날아가야 한다
-eq(css.includes(':root[data-nav="compact"] .navsub'), true, "접히면 소메뉴가 숨는다");
+eq(css.includes(':root[data-nav="compact"] .navitems'), true, "접히면 소메뉴가 숨는다");
 eq(read("components/NavScroll.jsx").includes("root.dataset.nav"), true,
    "표시를 <html> 에 붙인다 (다시 그려도 안 날아간다)");
 /**
@@ -78,8 +78,8 @@ eq(/body \{ padding-top: var\(--topbar-full/.test(css), true, "그만큼 빈자�
 eq(read("components/TopBarHeight.jsx").includes("--topbar-full"), true,
    "펴진 높이를 재서 알려준다");
 // 접힌 채로 재면 맨 위에서 메뉴가 글을 덮는다
-eq(read("components/TopBarHeight.jsx").includes('root.dataset.nav !== "compact"'), true,
-   "펴져 있을 때만 잰다");
+eq(read("components/TopBarHeight.jsx").includes('root.dataset.nav === "compact"'), true,
+   "접혔을 때와 펴졌을 때를 따로 잰다");
 /**
  * **컴퓨터에서는 가리키기만 해도 나온다** (원장님, 2026-08-07 —
  * 「PC에서는 마우스가 그리로 가면 소메뉴 나오게」).
@@ -90,7 +90,7 @@ eq(read("components/TopBarHeight.jsx").includes('root.dataset.nav !== "compact"'
  */
 eq(/@media \(hover: hover\) and \(pointer: fine\)/.test(css), true,
    "마우스가 있는 기기에서만 (폰에서 :hover 는 눌린 채로 남는다)");
-eq(/:root\[data-nav="compact"\] \.topbar:hover \.navsub \{ display: flex/.test(css), true,
+eq(/:root\[data-nav="compact"\] \.topbar:hover \.navitems \{ display: flex/.test(css), true,
    "갖다 대면 소메뉴가 나온다");
 
 console.log("\n== 대시보드에서 바로 처리 ==");
