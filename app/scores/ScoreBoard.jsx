@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { saveScore, removeScores, addWrong, removeWrongs, listWrongs } from "./actions";
 import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts, findExam, cutsFor } from "@/lib/scores";
 import { useBulk, BulkBar } from "@/components/Bulk";
+import { shortName } from "@/lib/schoolName";
 
 const EMPTY = {
   kind: "school",
@@ -386,7 +387,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             <div className="unitrow" style={{ marginTop: 8 }}>
               {formExam ? (
                 <>
-                  <span className="tag tag-muted">{formExam.school} {formExam.name || "시험"}</span>
+                  <span className="tag tag-muted">{shortName(formExam.school)} {formExam.name || "시험"}</span>
                   {(formExam.cuts || []).length ? (
                     <>
                       <span className="hint">등급컷 {formExam.cuts.join(" · ")}</span>

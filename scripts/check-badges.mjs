@@ -211,6 +211,29 @@ const dash = read("lib/dashboard.js");
 eq(/const engEves = exams\s*\n\s*\.filter\(\(e\) => e\.english_on && needsScope\(e\)\)/.test(dash), true,
    "전날 등원은 대비하는 시험(내신)만");
 
+console.log("\n== 학교 이름은 줄여서 ==");
+/**
+ * 원장님 (2026-08-08) — 「학교 이름 박문중처럼 줄여서 써줘」
+ *
+ * 「인천신정중학교」 는 목록에서 자리만 차지한다. 원장님이 부르시는 이름은
+ * 「신정중」 이다. 줄이는 규칙은 lib/schoolName 한 곳에 있다 —
+ * 지역을 떼고(인천), 「중학교 → 중」 처럼 편다.
+ *
+ * **한 군데만은 원래 이름 그대로다** — 나이스에서 골라 넣는 자리.
+ * 거기서는 나이스가 뭐라고 부르는지가 보여야 「인천신정중학교」 와
+ * 「신정중학교」 를 가릴 수 있다.
+ */
+for (const f of [
+  "app/schedule/NeisBox.jsx", "app/schedule/SchoolBox.jsx",
+  "app/students/StudentList.jsx", "app/schedule/ScheduleBoard.jsx",
+  "app/prep/PrepBoard.jsx", "app/scores/ScoreBoard.jsx",
+]) {
+  eq(read(f).includes("shortName"), true, `${f} — 줄여서 적는다`);
+}
+// 나이스 검색 결과만 예외
+const nb = read("app/schedule/NeisBox.jsx");
+eq(/여기만 원래 이름 그대로다/.test(nb), true, "나이스에서 고르는 자리는 원래 이름");
+
 console.log("\n== 배지 글자 ==");
 eq(badgeText(0), null, "0 은 안 그린다");
 eq(badgeText(3), "3", "3");

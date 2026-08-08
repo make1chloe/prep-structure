@@ -8,7 +8,7 @@ import {
   importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports,
 } from "./neisActions";
 import { schoolYear } from "@/lib/neis";
-import { schoolAlike, looseKey } from "@/lib/schoolName";
+import { schoolAlike, looseKey, shortName } from "@/lib/schoolName";
 import { mergeSchools } from "./schoolActions";
 
 /**
@@ -108,7 +108,11 @@ export default function NeisBox({ months = [] }) {
               const school = mine.find((m) => m.schul_code === r.code);
               return (
               <div className="unitrow" key={r.code}>
-                <b style={{ fontSize: 12.5, flex: 1 }}>{r.name}</b>
+                {/* **학교 이름은 줄여서** (원장님, 2026-08-08 — 「학교 이름
+                    박문중처럼 줄여서 써줘」). 「인천신정중학교」 는 목록에서
+                    자리만 차지하고, 원장님이 부르시는 이름은 「신정중」 이다.
+                    나이스가 준 원래 이름은 마우스를 올리면 나온다 */}
+                <b style={{ fontSize: 12.5, flex: 1 }} title={r.name}>{shortName(r.name)}</b>
                 {r.count > 0 ? (
                   <>
                     <span className="hint" style={{ fontSize: 11.5 }}>
@@ -216,7 +220,7 @@ export default function NeisBox({ months = [] }) {
               <div key={r.code} className="card card-tight" style={{ background: "var(--surface)" }}>
                 <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
                   {r.registered ? (
-                    <b style={{ fontSize: 13 }}>{r.name}</b>
+                    <b style={{ fontSize: 13 }} title={r.name}>{shortName(r.name)}</b>
                   ) : (
                     <b style={{ fontSize: 13, color: "var(--amber)" }}>
                       ⚠ 목록에 없는 학교 ({r.code})
@@ -310,6 +314,9 @@ export default function NeisBox({ months = [] }) {
               const sameName = !already && mine.some((m) => m.name === s.name);
               return (
                   <div className="unitrow" key={`${s.atpt_code}-${s.schul_code}`}>
+                    {/* **여기만 원래 이름 그대로다.** 나이스에서 골라 넣는
+                        자리라, 나이스가 뭐라고 부르는지가 그대로 보여야
+                        「인천신정중학교」 와 「신정중학교」 를 가릴 수 있다 */}
                     <b style={{ fontSize: 13 }}>{s.name}</b>
                     <span className="tag tag-muted">{s.kind}</span>
                     <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>
@@ -390,7 +397,7 @@ export default function NeisBox({ months = [] }) {
             {mine.map((s) => (
               <div className="unitrow" key={s.id}>
                 <input type="checkbox" checked={sBulk.has(s.id)} onChange={() => sBulk.toggle(s.id)} />
-                <b style={{ fontSize: 13 }}>{s.name}</b>
+                <b style={{ fontSize: 13 }} title={s.name}>{shortName(s.name)}</b>
                 <span className="tag tag-muted">{s.kind || "학교"}</span>
                 {/* 코드가 없으면 **나이스에서 못 받아온다** — 손으로 넣은 학교다.
                     이게 안 보이면 「받아오기를 눌렀는데 왜 이 학교만 안 오지」 가 된다 */}
@@ -481,7 +488,7 @@ export default function NeisBox({ months = [] }) {
                       }, true);
                     }}
                   >
-                    {t.name} 합치기
+                    {shortName(t.name)} 합치기
                   </button>
                 ))}
                 <button

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_SPEC, TOPICS } from "@/lib/examSpec";
 import { saveSpec, resetSpec, saveExamQuestions } from "./actions";
+import { shortName } from "@/lib/schoolName";
 
 /**
  * **문항표 고치기** (원장님, 2026-08-06 —
@@ -106,7 +107,7 @@ export default function SpecEditor({ base = [], exams = [], examRows = {}, block
             <option value="base">학원 기본 문항표 (모의고사) — 앞으로 계속</option>
             {exams.map((e) => (
               <option key={e.id} value={e.id}>
-                이 회차만 · {e.school} {e.grade || ""} {e.name || ""} ({e.from_date})
+                이 회차만 · {shortName(e.school)} {e.grade || ""} {e.name || ""} ({e.from_date})
                 {(examRows[e.id] || []).length > 0 ? " ✓" : ""}
               </option>
             ))}

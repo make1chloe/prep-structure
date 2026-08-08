@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { listAllSchools, renameSchool, mergeSchools, addSchoolByName } from "./schoolActions";
-import { schoolAlike, looseKey } from "@/lib/schoolName";
+import { schoolAlike, looseKey, shortName } from "@/lib/schoolName";
 
 /**
  * 학교 명단 — **한 곳에 모아둔 학교들** (0076).
@@ -142,7 +142,9 @@ export default function SchoolBox() {
                   </>
                 ) : (
                   <>
-                    <b style={{ fontSize: 12.5, minWidth: 130 }}>{s.name}</b>
+                    {/* 줄여서 보여주고, **고칠 때는 원래 이름 그대로** 담긴다
+                        (이름 고치기 칸은 s.name 을 쓴다) */}
+                    <b style={{ fontSize: 12.5, minWidth: 130 }} title={s.name}>{shortName(s.name)}</b>
                     <span className={`tag ${s.linked ? "tag-mint" : "tag-muted"}`}>
                       {s.linked ? "나이스 연결됨" : "손으로 넣음"}
                     </span>
@@ -163,7 +165,7 @@ export default function SchoolBox() {
                           <option value="">고르세요</option>
                           {others.map((o) => (
                             <option key={o.id} value={o.id}>
-                              {o.name}
+                              {shortName(o.name)}
                               {looseKey(o.name) === looseKey(s.name) ? " — 같은 학교로 보임" : ""}
                               {o.students || o.exams ? ` (학생 ${o.students} · 시험 ${o.exams})` : ""}
                             </option>
@@ -204,7 +206,7 @@ export default function SchoolBox() {
                           setPick({ ...pick, [s.id]: pick[s.id] || likely[0]?.id || "" });
                         }}
                       >
-                        {likely.length ? `합치기 (${likely[0].name}?)` : "합치기"}
+                        {likely.length ? `합치기 (${shortName(likely[0].name)}?)` : "합치기"}
                       </button>
                     )}
                     <button
