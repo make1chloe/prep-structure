@@ -181,6 +181,48 @@ eq(/navbadge todo/.test(bar), true, "남은 일은 다른 색으로");
 eq(/\.navbadge\.todo \{ background: var\(--amber/.test(read("app/globals.css")), true,
    "남은 일은 호박색 (빨강은 사람이 기다리는 것에만)");
 
+console.log("\n== 숫자가 무엇인지 화면에 적히나 ==");
+/**
+ * 원장님 (2026-08-08) — 「지금 알림이 발송과 학생에 있는데 왜 뜬 건지
+ * 모르겠어」
+ *
+ * 배지는 「무언가 남았다」 까지만 말한다. 무엇인지는 마우스를 올려야
+ * 나오는데 폰에는 올릴 마우스가 없다. 그러면 배지는 화면마다 눌러보게
+ * 만드는 물건이 된다 — 없느니만 못하다.
+ */
+const tb = read("app/TodoBar.jsx");
+eq(tb.includes("menuTodos"), true, "메뉴와 **같은 셈**을 쓴다");
+eq(tb.includes("TODO_LABEL"), true, "무엇이 남았는지 문장으로 적는다");
+eq(read("app/page.jsx").includes("<TodoBar />"), true, "대시보드에 있다");
+/**
+ * **두 벌로 세면 안 된다.** 대시보드가 따로 세던 것들을 뺐다 — 두 숫자가
+ * 달라지는 날 둘 다 못 믿게 된다.
+ */
+const home = read("app/page.jsx");
+/**
+ * **말이 아니라 코드로 본다.** 「월간리포트」 같은 낱말은 설명 주석과
+ * 아래 본문에도 나와서, 낱말로 찾으면 뺐는데도 남은 것처럼 보인다.
+ */
+for (const [gone, what] of [
+  ["d.unsentPast.length > 0 &&", "지난 미발송"],
+  ["d.unsentToday.length > 0 &&", "보낼 리포트"],
+  ["d.makeupRows.length > 0 &&", "보강 잡을 것"],
+  ['<Badge href="/monthly"', "월간리포트"],
+  ["d.examSoon.some((e) => e.noScope)", "시험범위 미등록"],
+  ["d.inquiries.length > 0 &&", "진행중 상담"],
+  ["tasks.overdue.length > 0 &&", "지난 할일"],
+]) {
+  eq(home.includes(gone), false, `대시보드가 따로 세던 「${what}」 을 뺐다`);
+}
+// 여기서 안 세는 것은 그대로 남아 있어야 한다
+for (const [stay, what] of [
+  ["d.warnings.length > 0 &&", "반성문 대상"],
+  ["d.sendFails.length > 0 &&", "발송 실패"],
+  ["d.scheduleAlerts.length > 0 &&", "스케줄 특이사항"],
+]) {
+  eq(home.includes(stay), true, `「${what}」 은 메뉴가 안 세므로 그대로`);
+}
+
 console.log("\n== 한꺼번에 묻나 ==");
 // 이 셈은 **모든 화면**의 위 메뉴에서 돈다. 줄줄이 기다리면 앱 전체가 느려진다
 eq(/await Promise\.all\(\[unreadForStaff\(db\), menuTodos\(db\)\]\)/.test(bar), true,

@@ -6,6 +6,7 @@ import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import QuickBar from "./QuickBar";
+import TodoBar from "./TodoBar";
 import MakeupAnswers from "./MakeupAnswers";
 import UnsentBox from "./UnsentBox";
 import WarningInbox from "./WarningInbox";
@@ -107,44 +108,33 @@ export default async function Home() {
           {d.sendFails.length > 0 && (
             <Badge href="/report?t=resend" tone="bad">발송 실패 {d.sendFails.length}건</Badge>
           )}
-          {d.unsentPast.length > 0 && (
-            <Badge href={`/report?d=${d.unsentPast[0].date}`} tone="warn">
-              지난 미발송 {d.unsentPast.length}건
-            </Badge>
-          )}
-          {d.unsentToday.length > 0 && (
-            <Badge href="/report">보낼 리포트 {d.unsentToday.length}건</Badge>
-          )}
           {d.requests.length > 0 && (
             <Badge href="#requests" tone="warn">학부모 알림 {d.requests.length}건</Badge>
-          )}
-          {d.makeupRows.length > 0 && (
-            <Badge href="/plan" tone="warn">보강 잡을 것 {d.makeupRows.length}건</Badge>
           )}
           {d.makeupNeedTotal > 0 && (
             <Badge href="/tuition">보강 필요 {d.makeupNeedTotal}회</Badge>
           )}
-          {d.monthlyDue && (
-            <Badge href="/monthly" tone="warn">월간리포트 {d.monthlyDue.count}명분</Badge>
-          )}
-          {d.examSoon.some((e) => e.noScope) && (
-            <Badge href="/prep" tone="bad">
-              시험범위 미등록 {d.examSoon.filter((e) => e.noScope).length}건
-            </Badge>
-          )}
           {d.scheduleAlerts.length > 0 && (
             <Badge href="/schedule">스케줄 특이사항 {d.scheduleAlerts.length}건</Badge>
-          )}
-          {d.inquiries.length > 0 && (
-            <Badge href="/consult">진행중 상담 {d.inquiries.length}건</Badge>
-          )}
-          {tasks.overdue.length > 0 && (
-            <Badge href="/tasks?view=todo" tone="warn">지난 할일 {tasks.overdue.length}건</Badge>
           )}
           {tasks.todos.length > 0 && (
             <Badge href="/tasks?view=todo">할일 {tasks.todos.length}건</Badge>
           )}
         </div>
+
+        {/**
+          * **메뉴에 뜬 숫자가 무엇인지 여기 적는다** (원장님, 2026-08-08 —
+          * 「지금 알림이 발송과 학생에 있는데 왜 뜬 건지 모르겠어」).
+          *
+          * 위 배지 줄에서 **겹치던 것들을 뺐다** — 미발송 · 보강 잡을 것 ·
+          * 월간리포트 · 시험범위 · 진행중 상담 · 지난 할일. 같은 것을 두
+          * 벌로 세고 있었고, 두 벌은 언젠가 서로 다른 말을 한다.
+          * 이제 그것들은 아래 「남은 일」 이 **메뉴와 같은 셈**으로 말한다.
+          *
+          * 위에 남은 것은 여기서 안 세는 것들이다 — 반성문 · 단원평가 막힘 ·
+          * 발송 실패 · 학부모 알림 · 보강 필요 회차 · 스케줄 특이사항.
+          */}
+        <TodoBar />
 
         {/* **읽은 자리에서 바로** (2026-08-07). 대시보드를 읽다가 「이 아이
             보강 잡아야겠다」 가 떠오르면 여기서 끝낸다 — 화면을 옮기는 사이에
