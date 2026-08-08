@@ -20,6 +20,7 @@ const EMPTY = {
   school: "",
   cuts: "",
   note: "",
+  exam_id: "",
 };
 
 export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, canEdit = false }) {
@@ -84,6 +85,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
       school: s.school || "",
       cuts: (s.cuts || []).join(", "),
       note: s.note || "",
+      exam_id: s.exam_id || "",
     });
   }
 
@@ -97,12 +99,52 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
     listWrongs(s.id).then((r) => setWrongs(r?.rows || []));
   }
 
-  // 지금 적고 있는 성적은 **어느 회차**인가 — 컷은 거기서 온다
-  const formExam = findExam(
-    { kind: form.kind, taken_on: form.taken_on, school: form.school },
-    exams,
-    student
-  );
+  /**
+   * **이 아이가 봤을 만한 회차** (원장님, 2026-08-08).
+   *
+   * 그동안은 「무슨 시험」 을 손으로 적고, 회차는 날짜·학교로 **짐작**했다
+   * (lib/scores 의 findExam). 등급컷은 짐작해도 크게 안 틀리지만,
+   * 성적표를 며칠 늦게 받아 적으면 엉뚱한 회차에 붙는다.
+   *
+   * 이제 고른다. 아무거나 다 늘어놓으면 못 고르므로 —
+   *   모의고사  전국 회차 중 이 아이 학년 것
+   *   내신      이 아이 학교 회차 중 이 아이 학년 것
+   * 로 좁힌다. 학년이 안 적힌 회차는 전 학년 공통으로 본다.
+   */
+  const examChoices = (() => {
+    if (form.kind === "unit") return [];
+    const norm = (v) => (v || "").toString().replace(/\s/g, "");
+    const want = form.kind === "mock" ? "전국" : norm(form.school || student?.school || "");
+    if (!want) return [];
+    const g = norm(student?.grade || "");
+    return exams
+      .filter((e) => norm(e.school) === norm(want))
+      .filter((e) => !e.grade || !g || norm(e.grade) === g)
+      .slice(0, 40);
+  })();
+
+  // 지금 적고 있는 성적은 **어느 회차**인가 — 컷은 거기서 온다.
+  // **고른 것이 있으면 그것이 이긴다** — 짐작보다 적어둔 것이 늘 정확하다
+  const formExam =
+    exams.find((e) => e.id === form.exam_id) ||
+    findExam(
+      { kind: form.kind, taken_on: form.taken_on, school: form.school },
+      exams,
+      student
+    );
+
+  /** 회차를 고르면 날짜·이름·학교가 따라 채워진다 — 두 번 적을 이유가 없다 */
+  function pickExam(id) {
+    const e = exams.find((x) => x.id === id);
+    if (!e) { setForm({ ...form, exam_id: "" }); return; }
+    setForm({
+      ...form,
+      exam_id: e.id,
+      term: e.name || form.term,
+      school: e.school === "전국" ? form.school : e.school || form.school,
+      taken_on: form.taken_on || e.english_on || e.from_date || "",
+    });
+  }
   // 그 컷이면 지금 점수가 몇 등급인지 바로 보인다
   const cutPreview = (() => {
     const { cuts } = cutsFor({ cuts: (form.cuts || "").split(/[,\s/·]+/) }, formExam);
@@ -221,15 +263,45 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                 onChange={(e) => setForm({ ...form, taken_on: e.target.value })}
               />
             </div>
-            <div className="field" style={{ width: 170 }}>
-              <label className="label">무슨 시험</label>
-              <input
-                className="input input-sm"
-                placeholder={form.kind === "mock" ? "3월 학력평가" : "1학기 중간고사"}
-                value={form.term}
-                onChange={(e) => setForm({ ...form, term: e.target.value })}
-              />
-            </div>
+            {/**
+              * **어느 시험인지 고른다** (원장님, 2026-08-08).
+              *
+              * 손으로 적으면 「3월 학평」 「3월 학력평가」 「3월 모의」 가 다
+              * 다른 시험이 된다. 고르면 회차가 못 박히고, 등급컷 · 문항별
+              * 분석이 그 시험지에 정확히 붙는다.
+              *
+              * 회차가 하나도 없으면(학사일정을 아직 안 받아왔거나) 예전처럼
+              * 손으로 적는 칸이 나온다 — 막아두면 성적을 아예 못 넣는다.
+              */}
+            {examChoices.length > 0 ? (
+              <div className="field" style={{ width: 230 }}>
+                <label className="label">어느 시험</label>
+                <select
+                  className="input input-sm"
+                  value={form.exam_id}
+                  onChange={(e) => pickExam(e.target.value)}
+                >
+                  <option value="">— 고르세요 (직접 적으려면 비워두세요) —</option>
+                  {examChoices.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name || "시험"}
+                      {e.english_on ? ` · ${e.english_on.slice(5)}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+            {!form.exam_id && (
+              <div className="field" style={{ width: 170 }}>
+                <label className="label">무슨 시험{examChoices.length > 0 ? " (직접)" : ""}</label>
+                <input
+                  className="input input-sm"
+                  placeholder={form.kind === "mock" ? "2026년 3월 고1 모의고사" : "1학기 중간고사"}
+                  value={form.term}
+                  onChange={(e) => setForm({ ...form, term: e.target.value })}
+                />
+              </div>
+            )}
             <div className="field" style={{ width: 100 }}>
               <label className="label">점수</label>
               <input

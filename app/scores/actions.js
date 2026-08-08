@@ -47,6 +47,14 @@ export async function saveScore(input) {
     school: (input.school || "").trim() || null,
     cuts: toCuts(input.cuts),
     note: (input.note || "").trim() || null,
+    /**
+     * **어느 회차인가** (0097 의 자리, 2026-08-08 에 비로소 채운다).
+     *
+     * 그동안은 비워두고 날짜·학교로 짐작했다(lib/scores 의 findExam).
+     * 등급컷은 짐작해도 크게 안 틀리지만, 성적표를 며칠 늦게 받아 적으면
+     * 엉뚱한 회차에 붙고, 문항별 분석이 통째로 어긋난다.
+     */
+    exam_id: input.exam_id || null,
   };
 
   const supabase = createClient();
@@ -54,18 +62,30 @@ export async function saveScore(input) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 0097 전이면 exam_id 칸이 없다 — 그것만 빼고 넣는다
+  const { exam_id: _e, ...noExam } = row;
+  const retry = (error) => error && (error.code === "42703" || error.code === "PGRST204");
+
   if (id) {
-    const { error } = await supabase.from("scores").update(row).eq("id", id);
+    let { error } = await supabase.from("scores").update(row).eq("id", id);
+    if (retry(error)) ({ error } = await supabase.from("scores").update(noExam).eq("id", id));
     revalidatePath("/scores");
     revalidatePath("/me");
     return ok(error);
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("scores")
     .insert({ ...row, created_by: user?.id || null })
     .select("id")
     .single();
+  if (retry(error)) {
+    ({ data, error } = await supabase
+      .from("scores")
+      .insert({ ...noExam, created_by: user?.id || null })
+      .select("id")
+      .single());
+  }
   revalidatePath("/scores");
   revalidatePath("/me");
   return { ...ok(error), id: data?.id || null };

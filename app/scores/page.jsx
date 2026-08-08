@@ -28,7 +28,7 @@ export default async function ScoresPage({ searchParams }) {
   const { data: scores, error } = await supabase
     .from("scores")
     .select(
-      "id, student_id, kind, taken_on, year, term, subject, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, note, source"
+      "id, student_id, kind, taken_on, year, term, subject, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, note, source, exam_id"
     )
     .order("taken_on", { ascending: false });
 
@@ -37,13 +37,13 @@ export default async function ScoresPage({ searchParams }) {
   // 회차에 한 번 적어두고 여기서 끌어다 쓴다.
   let { data: exams } = await supabase
     .from("exam_periods")
-    .select("id, school, grade, name, from_date, to_date, cuts")
+    .select("id, school, grade, name, from_date, to_date, english_on, cuts")
     .order("from_date", { ascending: false });
   if (!exams) {
     // 0073 전이면 컷 칸 없이 (회차는 보이되 컷은 성적 줄의 것을 쓴다)
     ({ data: exams } = await supabase
       .from("exam_periods")
-      .select("id, school, grade, name, from_date, to_date")
+      .select("id, school, grade, name, from_date, to_date, english_on")
       .order("from_date", { ascending: false }));
   }
 

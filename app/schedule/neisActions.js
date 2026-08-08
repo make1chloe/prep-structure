@@ -451,9 +451,13 @@ export async function importSchedule(from, to, schoolId = null) {
 
     // **한 줄씩 넣지 않는다.** 한 해치면 학교 하나에 수백 줄이라, 한 줄에 한 번씩
     // 오가면 화면이 기다리다 끊긴다. 한 번에 묶어 보낸다.
-    // neisKind · nationwide 는 우리끼리 쓰는 표시다. **표에 없는 칸이라 그대로
-    // 보내면 통째로 거절당한다.** 여기서 떼어낸다.
-    const rows = mine.map(({ neisKind, nationwide, mayDiffer, schoolName, ...row }) => ({
+    // neisKind · nationwide · grades · level · mock 은 **우리끼리 쓰는
+    // 표시**다. 표에 없는 칸이라 그대로 보내면 그 학교가 통째로 거절당한다
+    // (2026-08-08 에 grades 를 떼는 것을 빠뜨려 열한 학교가 다 실패했다 —
+    //  "Could not find the 'grades' column of 'tasks'").
+    const rows = mine.map(({
+      neisKind, nationwide, mayDiffer, schoolName, grades, level, mock, ...row
+    }) => ({
       ...row,
       // **이 일정은 이 학교 아이들 것이다** (0091). 안 붙여두면 신송중
       // 학사일정이 다른 학교 아이 달력에도 뜬다 — 달력이 남의 일로 차면
@@ -537,7 +541,9 @@ export async function importSchedule(from, to, schoolId = null) {
   // ---- 전국 공통 (수능 · 모의고사 · 공휴일) — 한 번에 한 줄씩 ----
   if (commonRows.size > 0) {
     const rows = [...commonRows.values()].map(({ row, schools }) => {
-      const { neisKind, nationwide, mayDiffer: differs, schoolName, ...rest } = row;
+      const {
+        neisKind, nationwide, mayDiffer: differs, schoolName, grades, level, mock, ...rest
+      } = row;
       // 대체공휴일처럼 학교마다 다를 수 있는 것 — 전부가 아니면 어디가 쉬는지 적는다
       let note = rest.note;
       if (differs && okSchools > 1 && schools.size < okSchools) {
