@@ -80,6 +80,18 @@ eq(read("components/TopBarHeight.jsx").includes("--topbar-full"), true,
 // 접힌 채로 재면 맨 위에서 메뉴가 글을 덮는다
 eq(read("components/TopBarHeight.jsx").includes('root.dataset.nav !== "compact"'), true,
    "펴져 있을 때만 잰다");
+/**
+ * **컴퓨터에서는 가리키기만 해도 나온다** (원장님, 2026-08-07 —
+ * 「PC에서는 마우스가 그리로 가면 소메뉴 나오게」).
+ *
+ * `hover: hover` 로 가르는 것이 중요하다. 폰에서 :hover 는 **누른 뒤에
+ * 남는다** — 한 번 누르면 메뉴가 펴진 채로 안 접히고, 다른 데를 눌러야
+ * 없어진다. 그러면 굴려서 접는 뜻이 없어진다.
+ */
+eq(/@media \(hover: hover\) and \(pointer: fine\)/.test(css), true,
+   "마우스가 있는 기기에서만 (폰에서 :hover 는 눌린 채로 남는다)");
+eq(/:root\[data-nav="compact"\] \.topbar:hover \.navsub \{ display: flex/.test(css), true,
+   "갖다 대면 소메뉴가 나온다");
 
 console.log("\n== 대시보드에서 바로 처리 ==");
 const q = read("app/QuickBar.jsx");

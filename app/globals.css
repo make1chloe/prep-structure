@@ -80,6 +80,25 @@ body { padding-top: var(--topbar-full, 120px); }
 :root[data-nav="compact"] .navsub { display: none; }
 :root[data-nav="compact"] .navgrid-wrap { border-top: none; }
 :root[data-nav="compact"] .topbar { box-shadow: 0 2px 8px rgba(16,26,54,.07); }
+/**
+ * **컴퓨터에서는 마우스만 갖다 대면 소메뉴가 나온다** (원장님, 2026-08-07 —
+ * 「PC에서는 마우스가 그리로 가면 소메뉴 나오게」).
+ *
+ * 굴려서 펴는 것은 손가락으로 쓸 때 이야기다. 마우스가 있으면 굴리는
+ * 대신 **가리키면 된다** — 화면 맨 위로 올리는 동작 하나로 끝난다.
+ *
+ * `hover: hover` 로 가른다. 폰에서 :hover 는 **누른 뒤에 남는다** — 한 번
+ * 누르면 메뉴가 펴진 채로 안 접히고, 다른 데를 눌러야 없어진다. 그러면
+ * 굴려서 접는 뜻이 없어진다.
+ */
+@media (hover: hover) and (pointer: fine) {
+  :root[data-nav="compact"] .topbar:hover .navsub { display: flex; }
+  /* 맨 위 34px 만 노리게 하면 조금만 내려와도 다시 접힌다 — 아래로
+     10px 만큼 보이지 않는 자리를 더 둬서 깜빡이지 않게 한다 */
+  :root[data-nav="compact"] .topbar::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 10px;
+  }
+}
 .topbar-in { display: flex; align-items: center; gap: 16px; height: 56px; max-width: 1480px; margin: 0 auto; padding: 0 20px; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 16px; letter-spacing: -.02em; text-decoration: none; }
 .brand .mark { width: 26px; height: 26px; border-radius: 8px; background: var(--navy); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 800; }

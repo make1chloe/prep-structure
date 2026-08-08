@@ -269,6 +269,20 @@ try {
     await to(0); await to(1400); await to(1150);
     if ((await nav()) !== "full") bad("올라올 때 메뉴", `펴져야 하는데 ${await nav()}`);
     else console.log("  많이 올라오면 — 소메뉴가 돌아옵니다");
+
+    /**
+     * **컴퓨터에서는 가리키기만 해도** (원장님 — 「PC에서는 마우스가
+     * 그리로 가면 소메뉴 나오게」). 굴려서 펴는 것은 손가락 이야기다.
+     */
+    await to(0); await to(900); await to(1300);
+    const sub = page.locator(".navsub");
+    if (await sub.isVisible()) bad("접힌 상태", "소메뉴가 아직 보입니다");
+    else {
+      await page.locator(".navmain").hover();
+      await page.waitForTimeout(300);
+      if (!(await sub.isVisible())) bad("마우스를 갖다 대면", "소메뉴가 안 나옵니다");
+      else console.log("  마우스를 갖다 대면 — 소메뉴가 나옵니다");
+    }
   } catch (e) {
     bad("메뉴 접기", e.message.split("\n")[0]);
   }
