@@ -6,6 +6,7 @@ import { saveScore, removeScores, addWrong, removeWrongs, listWrongs } from "./a
 import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts, findExam, cutsFor } from "@/lib/scores";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { shortName } from "@/lib/schoolName";
+import { examTitle } from "@/lib/examList";
 
 const EMPTY = {
   kind: "school",
@@ -285,7 +286,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                   <option value="">— 고르세요 (직접 적으려면 비워두세요) —</option>
                   {examChoices.map((e) => (
                     <option key={e.id} value={e.id}>
-                      {e.name || "시험"}
+                      {examTitle(e)}
                       {e.english_on ? ` · ${e.english_on.slice(5)}` : ""}
                     </option>
                   ))}
@@ -387,7 +388,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             <div className="unitrow" style={{ marginTop: 8 }}>
               {formExam ? (
                 <>
-                  <span className="tag tag-muted">{shortName(formExam.school)} {formExam.name || "시험"}</span>
+                  <span className="tag tag-muted">{shortName(formExam.school)} {examTitle(formExam)}</span>
                   {(formExam.cuts || []).length ? (
                     <>
                       <span className="hint">등급컷 {formExam.cuts.join(" · ")}</span>

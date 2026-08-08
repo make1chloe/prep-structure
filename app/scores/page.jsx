@@ -101,7 +101,9 @@ export default async function ScoresPage({ searchParams }) {
             {missing.length > 0 && (
               <div className="card sect sect-warn" style={{ marginBottom: 10 }}>
                 <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                  <b style={{ fontSize: 14 }}>성적이 아직 안 들어온 것</b>
+                  {/* **제목은 명사로** (원장님, 2026-08-08 — 「제목은 명사화해줘,
+                      성적미입력」). 긴 서술문은 한 줄에서 눈이 한 번 더 멈춘다 */}
+                  <b style={{ fontSize: 14 }}>성적 미입력</b>
                   <span className="tag tag-amber">{missing.length}건</span>
                   <span className="hint" style={{ fontSize: 11.5 }}>
                     누르면 그 학생이 골라집니다 — 아래에서 <b>어느 시험</b>을 고르고 점수를 적으세요.
@@ -128,7 +130,19 @@ export default async function ScoresPage({ searchParams }) {
             )}
 
             <ScoreUpload />
+            {/**
+              * **누르면 진짜로 바뀌어야 한다** (원장님, 2026-08-08 —
+              * 「성적 안 들어온 거 클릭이 안 돼」).
+              *
+              * 위 목록은 `/scores?s=…` 로 간다. 그런데 같은 화면 안에서
+              * 주소만 바뀌는 것이라 React 는 **이미 있는 판을 그대로 둔다.**
+              * 고른 학생은 판이 처음 뜰 때 한 번만 정해지므로(useState 의
+              * 첫 값), 눌러도 아무 일이 안 일어난 것처럼 보였다.
+              *
+              * `key` 가 바뀌면 판을 새로 만든다 — 그래야 고른 학생이 바뀐다.
+              */}
             <ScoreBoard
+              key={pick || "none"}
               students={students || []}
               scores={scores || []}
               exams={exams || []}

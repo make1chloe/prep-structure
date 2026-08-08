@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { needsScope } from "@/lib/examList";
+import { examTitle, needsScope } from "@/lib/examList";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrepBoard from "./PrepBoard";
@@ -62,7 +62,7 @@ export default async function PrepPage({ searchParams }) {
       id: e.id,
       school: e.school,
       grade: e.grade,
-      term: e.name || "",
+      term: examTitle(e),
       exam_date: e.english_on || null,
       from_date: e.from_date,
       to_date: e.to_date,

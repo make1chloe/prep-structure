@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { shortName } from "@/lib/schoolName";
+import { examTitle } from "@/lib/examList";
 
 /**
  * **출제분석 화면.**
@@ -57,7 +58,7 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
   const router = useRouter();
 
   const label = (e) =>
-    `${shortName(e.school)} ${e.grade || ""} ${e.name || ""} (${e.from_date})${qCount[e.id] ? ` · 문항표 ${qCount[e.id]}` : ""}`;
+    `${shortName(e.school)} ${e.grade || ""} ${examTitle(e)} (${e.from_date})${qCount[e.id] ? ` · 문항표 ${qCount[e.id]}` : ""}`;
 
   const rows = a?.rows || [];
   const shown = sort === "wrong"

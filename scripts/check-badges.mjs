@@ -193,7 +193,8 @@ const miss = missingScores({
   scores: [{ student_id: "a", taken_on: "2026-07-12" }],
   today: T,
 });
-eq(miss.map((m) => [m.name, m.examName]), [["박지호", "1학기 기말고사"]],
+// **시험 이름은 한 모양으로** 적힌다 (examTitle) — 학교가 뭐라고 적었든
+eq(miss.map((m) => [m.name, m.examName]), [["박지호", "26년 1학기 기말"]],
    "누구의 어느 시험인지까지 (모의고사는 뺀다)");
 const sp = read("app/scores/page.jsx");
 eq(sp.includes("missingScores"), true, "성장 화면이 **같은 함수**를 쓴다");
@@ -233,6 +234,22 @@ for (const f of [
 // 나이스 검색 결과만 예외
 const nb = read("app/schedule/NeisBox.jsx");
 eq(/여기만 원래 이름 그대로다/.test(nb), true, "나이스에서 고르는 자리는 원래 이름");
+
+console.log("\n== 제목은 명사로 ==");
+/**
+ * 원장님 (2026-08-08) — 「제목은 명사화해줘. 성적미입력」
+ *
+ * 서술문은 맞는 말이어도 한 줄이 길어서 눈이 멈춘다. 대시보드에 열 줄이
+ * 나란히 서면 더 그렇다. 명사로 끊으면 훑어진다.
+ */
+eq(TODO_LABEL.scores(3), "성적 미입력 3명", "성적 미입력");
+eq(TODO_LABEL.report(2), "리포트 미발송 2건", "리포트 미발송");
+eq(TODO_LABEL.plan(1), "보강 미배정 1건", "보강 미배정");
+for (const [k, f] of Object.entries(TODO_LABEL)) {
+  // 「아직」 「안 」 같은 서술 표현이 남아 있으면 명사가 아니다
+  eq(/아직|했는데|하지 않|입니다/.test(f(1)), false, `${k} — 서술문이 남아 있다`);
+}
+eq(read("app/scores/page.jsx").includes("성적 미입력"), true, "성장 화면 제목도 명사로");
 
 console.log("\n== 배지 글자 ==");
 eq(badgeText(0), null, "0 은 안 그린다");
