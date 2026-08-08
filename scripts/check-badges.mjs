@@ -199,9 +199,54 @@ eq(miss.map((m) => [m.name, m.examName]), [["박지호", "26년 1학기 기말"]
 const sp = read("app/scores/page.jsx");
 eq(sp.includes("missingScores"), true, "성장 화면이 **같은 함수**를 쓴다");
 // 학생만이 아니라 **그 시험까지** 붙여서 간다 — 누른 티가 나야 한다
-eq(/scores\?s=\$\{m\.studentId\}&e=\$\{m\.examId\}/.test(sp), true,
+eq(/scores\?s=\$\{m\.studentId\}&e=\$\{m\.examId\}/.test(read("app/scores/MissingBox.jsx")), true,
    "누르면 그 아이 · 그 시험이 채워진다");
 eq(read("app/scores/ScoreBoard.jsx").includes("scrollIntoView"), true, "넣는 칸으로 내려준다");
+
+console.log("\n== 안 본 시험은 재촉하지 않는다 (0112) ==");
+/**
+ * 원장님 (2026-08-08)
+ *   「시험없음 체크박스도 추가해줘. 없을 때가 있어」
+ *   「중1학년 1학기는 시험이 없고 중3학년 2학기도 시험 한 번밖에 안 봐. 고3도」
+ *
+ * 「성적 미입력」 은 **그 학교 · 그 학년 아이는 봤을 것**이라는 짐작으로 센다.
+ * 안 본 아이는 성적이 영영 안 들어오고, 그러면 배지가 **영영 안 꺼진다.**
+ * 안 꺼지는 배지는 며칠 안에 배경이 되고, 그때부터는 진짜 빠진 성적도 안 보인다.
+ * 재촉은 끌 수 있어야 재촉이다.
+ */
+const both = {
+  exams: [{ id: "e1", school: "신정중", grade: "", name: "1학기 기말고사", english_on: "2026-07-10" }],
+  students: [
+    { id: "a", name: "김서은", school: "신정중", grade: "중1" },
+    { id: "b", name: "박지호", school: "신정중", grade: "중1" },
+    { id: "c", name: "이하람", school: "신정중", grade: "중3" },
+  ],
+  scores: [],
+  today: T,
+};
+eq(missingScores(both).length, 3, "적어두기 전에는 셋 다 재촉한다");
+eq(missingScores({ ...both, skips: new Set(["a|e1"]) }).map((m) => m.name), ["박지호", "이하람"],
+   "안 봤다고 적어둔 아이는 빠진다");
+
+/**
+ * **학년은 아이 것으로 적힌다.** 회차의 학년(e.grade)은 비어 있는 때가 많다 —
+ * 나이스의 「1학기 중간고사」 는 학년 구분 없이 한 줄로 온다. 그런데 시험을
+ * 안 보는 것은 **학년 단위**라(중1 1학기 · 중3 2학기 · 고3), 묶어서 한 번에
+ * 치우려면 아이의 학년이 있어야 한다. 여기가 비면 화면이 못 묶는다.
+ */
+eq([...new Set(missingScores(both).map((m) => m.studentGrade))].sort(), ["중1", "중3"],
+   "회차에 학년이 없어도 아이의 학년으로 묶을 수 있다");
+
+const mb = read("app/scores/MissingBox.jsx");
+// 학년 통째로 — 열댓 번 눌러야 하는 단추는 안 눌린다
+eq(/markNoExamMany/.test(mb), true, "그 학년 전부를 한 번에 치우는 길이 있다");
+eq(/m\.studentGrade/.test(mb), true, "묶는 기준이 아이의 학년이다");
+eq(read("app/scores/page.jsx").includes("exam_skips"), true, "성장 화면이 적어둔 것을 읽는다");
+// **배지와 화면이 같은 것을 보아야 한다** — 한쪽만 빼면 배지가 안 꺼진다
+eq(/exam_skips/.test(src), true, "메뉴 배지도 같은 것을 읽는다");
+// 0점으로 치우면 평균과 리포트가 망가진다 — 따로 적어둔다
+eq(/scores.*insert.*0/.test(read("app/scores/actions.js").slice(-2500)), false,
+   "0점짜리 성적을 넣어 치우지 않는다");
 
 console.log("\n== 모의고사는 전날 등원이 없다 ==");
 /**

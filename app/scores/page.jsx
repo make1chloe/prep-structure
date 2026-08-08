@@ -3,7 +3,7 @@ import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ScoreBoard from "./ScoreBoard";
 import ScoreUpload from "./ScoreUpload";
-import Link from "next/link";
+import MissingBox from "./MissingBox";
 import { missingScores } from "@/lib/menuBadges";
 import { hiddenExamIds } from "@/lib/schedule";
 
@@ -64,11 +64,17 @@ export default async function ScoresPage({ searchParams }) {
    * 배지와 목록이 다른 말을 한다.
    */
   const hidden = await hiddenExamIds(supabase).catch(() => new Set());
+  // **안 봤다고 적어둔 것** (0112) — 0112 전이면 빈 손으로 (오류가 아니라 없는 것)
+  const { data: skipRows } = await supabase
+    .from("exam_skips")
+    .select("student_id, exam_id");
+  const skips = new Set((skipRows || []).map((r) => `${r.student_id}|${r.exam_id}`));
   const missing = missingScores({
     exams: exams || [],
     students: (students || []).filter((x) => x.status === "enrolled"),
     scores: (scores || []).filter((x) => x.kind === "school"),
     hidden,
+    skips,
   });
 
   return (
@@ -99,37 +105,9 @@ export default async function ScoresPage({ searchParams }) {
                 모의고사 한번에 정리하고 싶은데 가능할까」). 앱 안에서 원래
                 한 표에 들어가므로 섞어 올리셔도 된다 */}
             {/* **배지를 눌러 들어온 자리다** — 무엇을 넣어야 하는지가
-                바로 보여야 한다. 누르면 그 아이가 골라진다 */}
-            {missing.length > 0 && (
-              <div className="card sect sect-warn" style={{ marginBottom: 10 }}>
-                <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                  {/* **제목은 명사로** (원장님, 2026-08-08 — 「제목은 명사화해줘,
-                      성적미입력」). 긴 서술문은 한 줄에서 눈이 한 번 더 멈춘다 */}
-                  <b style={{ fontSize: 14 }}>성적 미입력</b>
-                  <span className="tag tag-amber">{missing.length}건</span>
-                  <span className="hint" style={{ fontSize: 11.5 }}>
-                    누르면 <b>그 학생 · 그 시험</b>이 채워진 채로 입력칸이 열립니다 — 점수만 적으시면 됩니다.
-                  </span>
-                </div>
-                <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                  {missing.slice(0, 30).map((m) => (
-                    <Link
-                      key={`${m.studentId}|${m.examId}`}
-                      href={`/scores?s=${m.studentId}&e=${m.examId}`}
-                      className="btn btn-sm"
-                      style={{ borderColor: "var(--amber)" }}
-                      title={`${m.school} ${m.grade} · ${m.on}`}
-                    >
-                      <b style={{ fontSize: 12.5 }}>{m.name}</b>
-                      <span className="hint" style={{ fontSize: 11 }}>{m.examName}</span>
-                    </Link>
-                  ))}
-                  {missing.length > 30 && (
-                    <span className="hint">외 {missing.length - 30}건</span>
-                  )}
-                </div>
-              </div>
-            )}
+                바로 보여야 한다. 누르면 그 아이가 골라지고, 안 본 시험은
+                거기서 바로 치운다 (0112) */}
+            <MissingBox rows={missing} />
 
             <ScoreUpload />
             {/**
