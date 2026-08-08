@@ -7,6 +7,7 @@ import NavScroll from "./NavScroll";
 import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
 import { unreadForStaff, badgeText } from "@/lib/inbox";
+import { menuTodos, TODO_LABEL } from "@/lib/menuBadges";
 
 /** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
 function groupLabel(key) {
@@ -68,10 +69,26 @@ export default async function TopBar({ profile, active }) {
    *
    * 선생님 계정에서만 센다. 학생·학부모 메뉴에는 대시보드가 없다.
    */
-  const unread = isStaff(profile?.role)
-    ? await unreadForStaff(createClient())
-    : { total: 0 };
+  /**
+   * **메뉴마다 남은 일 숫자** (원장님, 2026-08-08 — 「해야 할 일이 남은
+   * 경우 메뉴마다 알림 배지를 다 추가해줘」).
+   *
+   * 대시보드가 세는 것은 **저쪽이 말을 걸어온 것**뿐이다(결석 요청 ·
+   * 댓글). 내가 해야 하는 일은 그 화면에 들어가 봐야만 알았다.
+   * 무엇을 세는지는 lib/menuBadges 한 곳에 있다.
+   *
+   * 둘을 한꺼번에 묻는다 — 줄줄이 기다리면 **모든 화면**이 그만큼 느려진다.
+   */
+  const staff = isStaff(profile?.role);
+  const db = staff ? createClient() : null;
+  const [unread, todos] = staff
+    ? await Promise.all([unreadForStaff(db), menuTodos(db)])
+    : [{ total: 0 }, {}];
   const badge = badgeText(unread.total);
+
+  /** 그 묶음 안에 남은 일이 몇인가 — 접혔을 때는 이것만 보인다 */
+  const groupTodo = (row) =>
+    (row.solo ? [row.solo] : row.items).reduce((sum, it) => sum + (todos[it.key] || 0), 0);
 
   return (
     <header className="topbar">
@@ -140,7 +157,20 @@ export default async function TopBar({ profile, active }) {
                 }
               >
                 {row.label}
+                {/**
+                  * 대시보드는 **저쪽이 걸어온 말**의 수(안 본 알림),
+                  * 나머지 묶음은 **그 안에 남은 일**의 합이다.
+                  *
+                  * 접히면 소메뉴가 안 보이므로, 여기 합계가 없으면 어느
+                  * 묶음에 일이 밀렸는지 알 수가 없다 — 배지를 붙이는 뜻이
+                  * 절반 사라진다.
+                  */}
                 {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
+                {!row.solo && badgeText(groupTodo(row)) && (
+                  <span className="navbadge todo" title={`${row.label} — 남은 일 ${groupTodo(row)}건`}>
+                    {badgeText(groupTodo(row))}
+                  </span>
+                )}
               </Link>
 
               {/**
@@ -159,9 +189,19 @@ export default async function TopBar({ profile, active }) {
                     key={it.key}
                     href={it.href}
                     className={active === it.key ? "on" : ""}
-                    title={it.desc ? `${row.label} · ${it.desc}` : `${row.label} · ${it.label}`}
+                    title={
+                      todos[it.key]
+                        // **숫자만 있으면 「3이 뭐지」 하고 눌러봐야 안다**
+                        ? TODO_LABEL[it.key]?.(todos[it.key]) || `남은 일 ${todos[it.key]}건`
+                        : it.desc
+                        ? `${row.label} · ${it.desc}`
+                        : `${row.label} · ${it.label}`
+                    }
                   >
                     {it.label}
+                    {badgeText(todos[it.key]) && (
+                      <span className="navbadge todo">{badgeText(todos[it.key])}</span>
+                    )}
                   </Link>
                 ))}
               </div>

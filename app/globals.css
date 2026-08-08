@@ -368,6 +368,19 @@ body { padding-top: var(--topbar-full, 120px); }
   border-radius: 9px; background: var(--red, #e05555); color: #fff;
   font-size: 10.5px; font-weight: 800; line-height: 1; vertical-align: middle;
 }
+/**
+ * **빨강은 하나만.** (2026-08-08, 메뉴마다 배지를 붙이면서)
+ *
+ * 빨간 점은 「저쪽이 기다린다」 는 뜻으로 써 왔다 — 결석 요청, 댓글.
+ * 그런데 남은 일까지 다 빨갛게 하면 메뉴 전체가 빨개져서, 정작 사람이
+ * 기다리는 것이 그 속에 묻힌다. 그러면 빨강이 아무 뜻도 없어진다.
+ *
+ * 내가 해야 하는 일은 **호박색**이다. 눈에는 들어오되 재촉하지는 않는다.
+ */
+.navbadge.todo { background: var(--amber, #d98207); }
+/* 남색 알약 위에 얹히는 것 — 글씨가 흰색이라 그대로 읽힌다 */
+.navgroup-tag .navbadge { margin-left: 6px; }
+.navitems .navbadge { min-width: 15px; height: 15px; font-size: 10px; }
 
 .blockgrid { display: grid; gap: 10px; grid-template-columns: 1fr; align-items: start; }
 @media (min-width: 860px)  { .blockgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
