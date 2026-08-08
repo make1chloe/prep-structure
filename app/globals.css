@@ -134,6 +134,63 @@ body { padding-top: var(--topbar-full, 120px); }
 }
 .navcol { display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
 .navitems { display: flex; flex-direction: column; gap: 1px; padding: 4px 0 0 2px; }
+
+/**
+ * **컴퓨터에서는 이름과 소메뉴를 나란히, 여러 묶음을 한 줄에**
+ * (원장님, 2026-08-07 — 「PC는 생각보다 여백이 많은데 모바일은 그냥 두고,
+ *  PC는 가로로 병렬 배치 가능하냐 … 원래랑 비슷한데 정렬이 안 된 느낌이었어서」)
+ *
+ *   [오늘] 오늘수업 숙제검사 출결    [학생] 재원생 …    [교재] 교재·단원 …
+ *   [일정] 할일·달력 회차관리 …      [발송] 발송 …      [운영] 수강료 …
+ *
+ * 세로로만 세우니 넓은 화면에서 오른쪽 절반이 통째로 비었다. 그렇다고
+ * 예전처럼 그냥 흘리면 **정렬이 안 맞는다** — 원장님이 걸리신 자리가
+ * 거기였다.
+ *
+ * 격자에 앉힌다. 한 묶음이 두 칸을 쓴다(이름 · 소메뉴). 이름 칸은
+ * max-content 라 **같은 자리의 이름들끼리 폭이 맞고**, 줄도 딱 맞는다.
+ * `.navcol { display: contents }` 로 칸 껍데기를 없애야 그 안의 둘이
+ * 격자에 직접 앉는다.
+ *
+ * 폰은 그대로 세로다 (원장님 — 「모바일은 지금이 좋아」).
+ */
+@media (min-width: 901px) {
+  .navgrid {
+    display: grid;
+    /* 소메뉴 칸은 `auto` — **내용만큼만** 쓴다. 1fr 로 똑같이 나누면
+       두 개짜리 묶음 옆이 휑하고, 네 개짜리는 줄이 넘어간다 */
+    grid-template-columns: repeat(2, max-content auto);
+    column-gap: 10px; row-gap: 3px;
+    align-items: center;
+  }
+  .navcol { display: contents; }
+  .navitems { flex-direction: row; flex-wrap: wrap; gap: 2px; padding: 0; }
+  .navgroup-tag { justify-self: stretch; }
+  /* 하위가 없는 묶음(대시보드)은 **두 칸을 차지한다.** 한 칸만 쓰면 그
+     옆에 다른 묶음 몫의 넓은 빈자리가 남아 혼자 뚝 떨어져 보인다 */
+  .navcol.solo .navgroup-tag { grid-column: span 2; justify-self: start; }
+
+  /* 접히면 이름만 남는다 — 그때는 격자로 벌려둘 이유가 없다.
+     빈 칸이 그대로 있으면 이름 여덟 개가 세 줄에 흩어진다 */
+  :root[data-nav="compact"] .navgrid { display: flex; flex-wrap: wrap; gap: 4px; }
+  /* 갖다 대면 다시 격자로 (그래야 정렬이 그대로다) */
+  :root[data-nav="compact"] .topbar:hover .navgrid {
+    display: grid; column-gap: 10px; row-gap: 3px;
+  }
+}
+/**
+ * 넓어지는 대로 한 줄에 더 많이 — 두 · 세 · 네 묶음.
+ *
+ * 칸 수를 하나로 박아두면 좁은 쪽에서는 소메뉴가 줄을 넘어가고(「영상」 이
+ * 혼자 아랫줄로 떨어졌다) 넓은 쪽에서는 오른쪽이 통째로 빈다. 둘 다
+ * **정렬이 안 맞아 보이는** 모양이라, 원장님이 걸리셨던 그 느낌으로 돌아간다.
+ */
+@media (min-width: 1150px) {
+  .navgrid { grid-template-columns: repeat(3, max-content auto); }
+}
+@media (min-width: 1400px) {
+  .navgrid { grid-template-columns: repeat(4, max-content auto); }
+}
 .navgrid a {
   font-size: 13px; font-weight: 600; color: var(--text-muted);
   text-decoration: none; padding: 4px 9px; border-radius: 8px;

@@ -48,8 +48,8 @@ console.log("\n== 메뉴 — 가로 두 줄, 내려가면 대메뉴만 ==");
  *   2) 묶음마다 한 줄  → 갈라지진 않는데 **줄이 여덟**이라 붙여둘 수가 없었다
  */
 const bar = read("components/TopBar.jsx");
-eq(bar.includes('className="navcol"'), true, "묶음 하나가 한 칸이다");
-eq(bar.includes('className="navitems"'), true, "그 칸 안에 소메뉴가 세로로 선다");
+eq(/className=\{`navcol \$\{row\.solo \? "solo" : ""\}`\}/.test(bar), true, "묶음 하나가 한 칸이다");
+eq(bar.includes('className="navitems"'), true, "그 칸 안에 소메뉴가 들어간다");
 // 「대시보드 대시보드」 — 묶음 안에 화면이 없으면 이름이 두 번 나왔다
 eq(/r\.items\[0\]\.label === r\.label/.test(bar), true,
    "하위가 없는 묶음은 이름 칸이 곧 그 화면");
@@ -59,9 +59,33 @@ eq(bar.includes("sectionOf(active) === row.group"), true, "지금 묶음이 대�
 
 const css = read("app/globals.css");
 // **소메뉴는 세로로 선다** — 가로로 흘리면 어느 묶음 것인지 알 수가 없었다
-eq(/^\.navitems \{[^}]*flex-direction: column/m.test(css), true, "소메뉴가 세로로 선다");
-// 칸 자체는 안 쪼개진다 — 앞선 두 모양이 무너진 자리다
+// 폰 — 이름 아래로 세로 (원장님, 2026-08-07 — 「모바일은 지금이 좋아」)
+eq(/^\.navitems \{[^}]*flex-direction: column/m.test(css), true, "폰에서는 소메뉴가 세로로 선다");
 eq(/^\.navcol \{[^}]*flex-direction: column/m.test(css), true, "묶음 한 칸은 안 갈라진다");
+/**
+ * 컴퓨터 — 이름과 소메뉴를 **나란히**, 여러 묶음을 한 줄에 (원장님,
+ * 2026-08-07 — 「PC는 생각보다 여백이 많은데 … 원래랑 비슷한데 정렬이
+ * 안 된 느낌이었어서」).
+ *
+ * 격자여야 **정렬이 맞는다.** 그냥 흘리면 폭이 제각각이라 줄이 어긋나
+ * 보이고, 그게 원장님이 걸리셨던 바로 그 느낌이다.
+ */
+eq(/@media \(min-width: 901px\)[\s\S]{0,400}display: grid/.test(css), true,
+   "컴퓨터에서는 격자로 앉힌다");
+eq(/\.navcol \{ display: contents; \}/.test(css), true,
+   "칸 껍데기를 없애야 이름과 소메뉴가 격자에 직접 앉는다");
+// 넓이에 따라 한 줄에 두 · 세 · 네 묶음 — 하나로 박으면 좁은 쪽은 넘치고
+// 넓은 쪽은 오른쪽이 통째로 빈다
+for (const [w, n] of [["901px", 2], ["1150px", 3], ["1400px", 4]]) {
+  eq(new RegExp(`min-width: ${w}\\)[\\s\\S]{0,400}repeat\\(${n}, max-content auto\\)`).test(css), true,
+     `${w} 부터 한 줄에 ${n}묶음`);
+}
+// 하위가 없는 묶음(대시보드)이 한 칸만 쓰면 그 옆에 넓은 빈자리가 남는다
+eq(/\.navcol\.solo \.navgroup-tag \{ grid-column: span 2/.test(css), true,
+   "대시보드는 두 칸을 차지한다");
+// 접히면 이름만 남는다 — 격자 빈 칸이 그대로면 여덟 개가 세 줄로 흩어진다
+eq(/:root\[data-nav="compact"\] \.navgrid \{ display: flex/.test(css), true,
+   "접히면 이름만 한 줄로 모인다");
 // 접는 것은 <html> 표시로 — 머리말이 다시 그려져도 안 날아가야 한다
 eq(css.includes(':root[data-nav="compact"] .navitems'), true, "접히면 소메뉴가 숨는다");
 eq(read("components/NavScroll.jsx").includes("root.dataset.nav"), true,

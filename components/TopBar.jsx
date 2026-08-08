@@ -121,7 +121,7 @@ export default async function TopBar({ profile, active }) {
       <nav className="navgrid-wrap">
         <div className="navgrid">
           {rows.map((row) => (
-            <div className="navcol" key={row.group}>
+            <div className={`navcol ${row.solo ? "solo" : ""}`} key={row.group}>
               {/**
                 * 대메뉴 — **굴려도 이 줄만은 남는다.**
                 * 하위가 없는 묶음(대시보드)은 이 이름이 곧 그 화면이다.
@@ -143,20 +143,28 @@ export default async function TopBar({ profile, active }) {
                 {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
               </Link>
 
-              {/* 소메뉴 — 그 이름 **바로 아래로** 세로로. 굴리면 사라진다 */}
+              {/**
+                * 소메뉴. 굴리면 사라진다.
+                *   폰      이름 **바로 아래로** 세로로
+                *   컴퓨터  이름 **오른쪽으로** 가로로 (칸을 격자에 앉힌다)
+                *
+                * 하위가 없는 묶음(대시보드)은 아예 안 그린다 — 대신 이름이
+                * **두 칸을 차지한다**(.navcol.solo). 빈 칸으로 두면 그 자리에
+                * 다른 묶음 몫의 넓은 여백이 생겨서 혼자 뚝 떨어져 보인다.
+                */}
               {row.items.length > 0 && (
-                <div className="navitems">
-                  {row.items.map((it) => (
-                    <Link
-                      key={it.key}
-                      href={it.href}
-                      className={active === it.key ? "on" : ""}
-                      title={it.desc ? `${row.label} · ${it.desc}` : `${row.label} · ${it.label}`}
-                    >
-                      {it.label}
-                    </Link>
-                  ))}
-                </div>
+              <div className="navitems">
+                {row.items.map((it) => (
+                  <Link
+                    key={it.key}
+                    href={it.href}
+                    className={active === it.key ? "on" : ""}
+                    title={it.desc ? `${row.label} · ${it.desc}` : `${row.label} · ${it.label}`}
+                  >
+                    {it.label}
+                  </Link>
+                ))}
+              </div>
               )}
             </div>
           ))}
