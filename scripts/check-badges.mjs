@@ -198,7 +198,10 @@ eq(miss.map((m) => [m.name, m.examName]), [["박지호", "26년 1학기 기말"]
    "누구의 어느 시험인지까지 (모의고사는 뺀다)");
 const sp = read("app/scores/page.jsx");
 eq(sp.includes("missingScores"), true, "성장 화면이 **같은 함수**를 쓴다");
-eq(/href={`\/scores\?s=\$\{m\.studentId\}`}/.test(sp), true, "누르면 그 아이가 골라진다");
+// 학생만이 아니라 **그 시험까지** 붙여서 간다 — 누른 티가 나야 한다
+eq(/scores\?s=\$\{m\.studentId\}&e=\$\{m\.examId\}/.test(sp), true,
+   "누르면 그 아이 · 그 시험이 채워진다");
+eq(read("app/scores/ScoreBoard.jsx").includes("scrollIntoView"), true, "넣는 칸으로 내려준다");
 
 console.log("\n== 모의고사는 전날 등원이 없다 ==");
 /**
@@ -250,6 +253,48 @@ for (const [k, f] of Object.entries(TODO_LABEL)) {
   eq(/아직|했는데|하지 않|입니다/.test(f(1)), false, `${k} — 서술문이 남아 있다`);
 }
 eq(read("app/scores/page.jsx").includes("성적 미입력"), true, "성장 화면 제목도 명사로");
+
+console.log("\n== 화면 제목은 명사로 ==");
+/**
+ * 원장님 (2026-08-08) — 「제목 명사화 전 페이지 확인해」
+ *
+ * 화면마다 눈썹(작은 글씨) + 제목(큰 글씨) 두 줄이 있다. 대부분은
+ * **눈썹 = 묶음, 제목 = 메뉴 이름(명사)** 인데, 일곱 화면만 거꾸로였다 —
+ * 눈썹에 메뉴 이름, 제목에 서술 문구(「낸 것 보고 바로 찍기」).
+ * 메뉴에서 「숙제 검사」 를 눌렀는데 제목이 다르면 「여기 맞나」 가 된다.
+ */
+import { readdirSync } from "node:fs";
+const pageFiles = [];
+(function walk(dir) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name.startsWith(".") || e.name === "node_modules") continue;
+    const full = `${dir}/${e.name}`;
+    if (e.isDirectory()) walk(full);
+    else if (e.name === "page.jsx") pageFiles.push(full);
+  }
+})("app");
+
+const VERBY = /(하기|찍기|보기|넣기|만들기|보내기|고치기)\s*<\/h1>/;
+for (const f of pageFiles) {
+  const t = read(f);
+  for (const m of t.matchAll(/<h1 className="h1">([^<]*)<\/h1>/g)) {
+    const title = m[1].trim();
+    if (!title || title.startsWith("{")) continue;      // 이름·날짜가 들어가는 자리
+    eq(/(습니다|해요|하세요|였다|이에요)$/.test(title), false, `${f} — 「${title}」 은 문장이다`);
+  }
+  eq(VERBY.test(t) && !f.includes("/import/"), false, `${f} — 제목이 「…하기」 로 끝난다`);
+}
+// 메뉴 이름과 제목이 같아야 하는 것들 (묶음은 눈썹으로 간다)
+for (const [f, want] of [
+  ["app/check/page.jsx", "숙제 검사"],
+  ["app/homework/page.jsx", "학습 항목"],
+  ["app/prep/page.jsx", "내신 대비"],
+  ["app/monthly/page.jsx", "월간리포트"],
+  ["app/tuition/page.jsx", "수강료"],
+  ["app/consult/page.jsx", "신규 상담"],
+]) {
+  eq(read(f).includes(`<h1 className="h1">${want}</h1>`), true, `${f} — 제목이 메뉴 이름과 같다`);
+}
 
 console.log("\n== 배지 글자 ==");
 eq(badgeText(0), null, "0 은 안 그린다");

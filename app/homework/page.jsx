@@ -57,8 +57,8 @@ export default async function HomeworkPage() {
       <TopBar profile={profile} active="homework" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">학습 항목</p>
-          <h1 className="h1">기본 학습 목록</h1>
+          <p className="eyebrow">교재</p>
+          <h1 className="h1">학습 항목</h1>
           <Help>
             <p className="sub">
               오늘 수업에서 숙제를 검사하고 배정할 때 쓰는 항목이에요.

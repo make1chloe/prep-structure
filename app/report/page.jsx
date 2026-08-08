@@ -89,7 +89,7 @@ export default async function ReportPage({ searchParams }) {
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">발송</p>
-          <h1 className="h1">학부모 발송</h1>
+          <h1 className="h1">데일리리포트 · 하원 · 안내</h1>
           <Help><p className="sub">{SUB[tab]}</p></Help>
         </div>
         <SendTabs tab={tab} date={date} />

@@ -27,6 +27,8 @@ export default async function ScoresPage({ searchParams }) {
     .order("name", { ascending: true });
 
   const pick = searchParams?.s || null;
+  // 어느 시험을 넣으려고 들어왔는가 — 「성적 미입력」 에서 누르면 붙는다
+  const pickExam = searchParams?.e || null;
 
   const { data: scores, error } = await supabase
     .from("scores")
@@ -106,14 +108,14 @@ export default async function ScoresPage({ searchParams }) {
                   <b style={{ fontSize: 14 }}>성적 미입력</b>
                   <span className="tag tag-amber">{missing.length}건</span>
                   <span className="hint" style={{ fontSize: 11.5 }}>
-                    누르면 그 학생이 골라집니다 — 아래에서 <b>어느 시험</b>을 고르고 점수를 적으세요.
+                    누르면 <b>그 학생 · 그 시험</b>이 채워진 채로 입력칸이 열립니다 — 점수만 적으시면 됩니다.
                   </span>
                 </div>
                 <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                   {missing.slice(0, 30).map((m) => (
                     <Link
                       key={`${m.studentId}|${m.examId}`}
-                      href={`/scores?s=${m.studentId}`}
+                      href={`/scores?s=${m.studentId}&e=${m.examId}`}
                       className="btn btn-sm"
                       style={{ borderColor: "var(--amber)" }}
                       title={`${m.school} ${m.grade} · ${m.on}`}
@@ -142,8 +144,9 @@ export default async function ScoresPage({ searchParams }) {
               * `key` 가 바뀌면 판을 새로 만든다 — 그래야 고른 학생이 바뀐다.
               */}
             <ScoreBoard
-              key={pick || "none"}
+              key={`${pick || "none"}|${pickExam || ""}`}
               students={students || []}
+              pickExam={pickExam}
               scores={scores || []}
               exams={exams || []}
               pick={pick}

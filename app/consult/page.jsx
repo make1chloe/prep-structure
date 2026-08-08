@@ -34,8 +34,8 @@ export default async function ConsultPage() {
       <TopBar profile={profile} active="consult" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">신규 상담</p>
-          <h1 className="h1">문의 · 상담 · 레벨테스트</h1>
+          <p className="eyebrow">운영</p>
+          <h1 className="h1">신규 상담</h1>
           <Help>
             <p className="sub">
               문의 → 상담 → 레벨테스트 → 등록까지 한 줄로 따라갑니다.

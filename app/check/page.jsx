@@ -267,8 +267,8 @@ export default async function CheckPage({ searchParams }) {
       <TopBar profile={profile} active="check" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">숙제 검사</p>
-          <h1 className="h1">낸 것 보고 바로 찍기</h1>
+          <p className="eyebrow">오늘</p>
+          <h1 className="h1">숙제 검사</h1>
           <Help>
             <p className="sub">
               사진·녹음을 <b>여기서 열어보고</b> 그 자리에서 ○△✕ 와 한 줄을 남깁니다.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveScore, removeScores, addWrong, removeWrongs, listWrongs } from "./actions";
 import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts, findExam, cutsFor } from "@/lib/scores";
@@ -25,9 +25,31 @@ const EMPTY = {
   exam_id: "",
 };
 
-export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, canEdit = false }) {
+export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, pickExam = null, canEdit = false }) {
   const [sel, setSel] = useState(pick || students[0]?.id || "");
-  const [form, setForm] = useState(EMPTY);
+  /**
+   * **누르고 들어왔으면 채워져 있어야 한다** (원장님, 2026-08-08 —
+   * 「아직 성적 미입력자 클릭 안 돼」).
+   *
+   * 눌러도 아무 일이 안 일어나는 것처럼 보였다. 실제로는 학생이 골라지고
+   * 있었는데, **목록은 화면 맨 위이고 넣는 칸은 한참 아래**라 바뀐 것이
+   * 눈에 안 들어왔다. 이미 그 학생이 골라져 있던 때는 더 그랬다.
+   *
+   * 그래서 학생만 고르지 않고 **그 시험까지 채워** 두고, 넣는 칸으로
+   * 화면을 내려준다. 그러면 누른 뒤 할 일이 「점수 적기」 하나만 남는다.
+   */
+  const [form, setForm] = useState(() => {
+    const e = pickExam ? exams.find((x) => x.id === pickExam) : null;
+    if (!e) return EMPTY;
+    return {
+      ...EMPTY,
+      kind: "school",
+      exam_id: e.id,
+      term: e.name || "",
+      school: e.school === "전국" ? "" : e.school || "",
+      taken_on: e.english_on || e.from_date || "",
+    };
+  });
   const [editId, setEditId] = useState(null);
   const [openId, setOpenId] = useState(null);      // 틀린 문제를 연 성적
   const [wrongs, setWrongs] = useState([]);
@@ -37,15 +59,18 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
   const router = useRouter();
 
   const student = students.find((s) => s.id === sel) || null;
+
+  // 누르고 들어왔으면 넣는 칸까지 내려준다 — 안 그러면 바뀐 줄을 모른다
+  const formRef = useRef(null);
+  useEffect(() => {
+    if (!pickExam || !formRef.current) return;
+    formRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [pickExam]);
   const mine = scores.filter((s) => s.student_id === sel);
   const groups = byKind(mine);
   const bulk = useBulk(mine);
 
-  // 아이가 앱에서 직접 낸 것 — source='form' 이 그 표시다 (0097·0098).
-  // 선생님이 매긴 것(class·upload)과 갈라 두어야 「몇 명이 실제로 내고 있나」 를 안다
   const nameOf = new Map(students.map((s) => [s.id, s.name]));
-  const selfMade = scores.filter((s) => s.source === "form");
-  const selfPeople = new Set(selfMade.map((s) => s.student_id)).size;
 
   const kw = q.trim().toLowerCase();
   const shownStudents = kw
@@ -136,7 +161,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
     );
 
   /** 회차를 고르면 날짜·이름·학교가 따라 채워진다 — 두 번 적을 이유가 없다 */
-  function pickExam(id) {
+  function chooseExam(id) {
     const e = exams.find((x) => x.id === id);
     if (!e) { setForm({ ...form, exam_id: "" }); return; }
     setForm({
@@ -193,47 +218,17 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
         )}
       </div>
 
-      {/* ---- 아이들이 앱에서 직접 낸 것 ----
-          **노션 설문지 주소 칸이 여기 있었다.** 지웠다 (2026-08-06, 원장님 —
-          「그러면 또 노션에서 받아오기 해야 하는 거잖아. 그냥 학생 앱 자체에서
-          입력시킨다는 거 아니었어?」).
-
-          맞는 말씀이다. 그리고 그 칸은 이미 **거짓말**이 되어 있었다 —
-          「학생 화면에 버튼으로 뜹니다」 라고 적혀 있는데, 0097·0098 로 앱 안에
-          입력 화면(`app/me/MyScoreForm`)을 만든 뒤로 학생 화면은 그 주소를
-          아무 데서도 안 읽는다. 남겨두면 원장님이 주소를 넣으시고 아무 일도
-          안 일어난다.
-
-          노션을 거치면 **아이가 적은 것 → 노션 → 내려받기 → 올리기** 네 걸음이고,
-          그동안 성적표와 따로 논다 (실제로 문항별 오답 152개가 성적과 안 이어진
-          채 노션에 남아 있었다). 앱에서 적으면 **곧바로 리포트가 된다.**
-          그래서 여기서는 「몇 명이 냈나」 만 보여드린다. */}
-      <div className="card card-tight">
-        <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13 }}>아이들이 직접 낸 것</b>
-          <span className="tag tag-mint">{selfMade.length}건</span>
-          {selfMade.length > 0 && (
-            <span className="tag tag-muted">{selfPeople}명</span>
-          )}
-          <span className="hint" style={{ flex: 1, minWidth: 200 }}>
-            아이들은 <b>학생 화면 → 시험 결과 적기</b>에서 냅니다. 노션 설문지를
-            따로 돌리지 않아도 되고, 낸 순간 그대로 리포트·출제분석에 들어갑니다.
-          </span>
-        </div>
-        {selfMade.length > 0 && (
-          <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-            {selfMade.slice(0, 6).map((s) => (
-              <span className="tag tag-muted" key={s.id} style={{ fontSize: 11 }}>
-                {nameOf.get(s.student_id) || "—"} · {s.term || KIND_LABEL[s.kind] || ""}
-                {s.raw_score != null ? ` ${s.raw_score}점` : ""}
-              </span>
-            ))}
-            {selfMade.length > 6 && (
-              <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {selfMade.length - 6}건</span>
-            )}
-          </div>
-        )}
-      </div>
+      {/**
+        * **「아이들이 직접 낸 것」 칸을 뺐다** (원장님, 2026-08-08 —
+        * 「성적 아이들이 직접 낸 것도 아예 필요없어」).
+        *
+        * 아이가 앱에서 성적을 내는 길을 열어두었는데, 실제로는 원장님이
+        * 성적표를 보고 직접 적으신다. 안 쓰는 칸이 **상담 중에 펴놓는
+        * 화면 맨 위**를 차지하고 있었다.
+        *
+        * 이미 아이가 낸 줄이 있으면 목록에는 그대로 남는다 — 자료를
+        * 지우지는 않는다. 따로 세어 보여주지 않을 뿐이다.
+        */}
 
       {/* ---- 넣기 ---- */}
       {student && (
@@ -281,7 +276,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                 <select
                   className="input input-sm"
                   value={form.exam_id}
-                  onChange={(e) => pickExam(e.target.value)}
+                  onChange={(e) => chooseExam(e.target.value)}
                 >
                   <option value="">— 고르세요 (직접 적으려면 비워두세요) —</option>
                   {examChoices.map((e) => (

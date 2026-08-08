@@ -184,8 +184,8 @@ export default async function TuitionPage({ searchParams }) {
       <TopBar profile={profile} active="tuition" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">수강료</p>
-          <h1 className="h1">이번 달 회차 · 수강료</h1>
+          <p className="eyebrow">운영</p>
+          <h1 className="h1">수강료</h1>
           <Help>
             <p className="sub">
               휴강이 있어도 <b>수강료는 깎지 않고 보강으로 채웁니다.</b>

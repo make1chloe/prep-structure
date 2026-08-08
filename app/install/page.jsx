@@ -22,7 +22,7 @@ export default function InstallPage() {
     <main className="wrap" style={{ maxWidth: 620, paddingBottom: 40 }}>
       <div className="page-head">
         <p className="eyebrow">앱 담기</p>
-        <h1 className="h1">홈 화면에 세 개로</h1>
+        <h1 className="h1">홈 화면 앱</h1>
         <p className="sub">
           원장 · 학부모 · 학생 앱을 <b>따로</b> 담습니다. 아이콘이 세 개 생기고,
           각각 열면 그 사람이 볼 화면으로 바로 갑니다.

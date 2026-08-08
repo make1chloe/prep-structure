@@ -109,8 +109,8 @@ export default async function PrepPage({ searchParams }) {
       <TopBar profile={profile} active="prep" />
       <main className="wrap-wide">
         <div className="page-head">
-          <p className="eyebrow">내신 대비</p>
-          <h1 className="h1">시험 · 범위 · 자료</h1>
+          <p className="eyebrow">교재</p>
+          <h1 className="h1">내신 대비</h1>
           <Help>
             <p className="sub">
               시험범위는 <b>교재DB에서 단원·문제를 골라</b> 담습니다. 자료는 범위마다
