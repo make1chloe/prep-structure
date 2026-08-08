@@ -15,7 +15,7 @@
  */
 import { readFileSync } from "node:fs";
 import { ALL_ITEMS } from "../lib/menu.js";
-import { menuTodos, badgeText, TODO_LABEL } from "../lib/menuBadges.js";
+import { menuTodos, badgeText, TODO_LABEL, missingScores } from "../lib/menuBadges.js";
 
 let bad = 0;
 const eq = (got, want, what) => {
@@ -154,6 +154,62 @@ function fake(tables) {
   // 앞으로 볼 시험의 범위는 따로 센다 — 지난 시험까지 세면 영영 안 꺼진다
   eq(t.prep, 1, "범위 미등록은 앞으로 볼 시험만");
 }
+
+console.log("\n== 「안 보내기」 로 치운 것은 안 센다 ==");
+/**
+ * 원장님 (2026-08-08) — 「안 보낸 게 없는데 발송에 알림 밀렸어」
+ *
+ * 결석해서 보낼 것이 없는 날 등을 원장님이 「안 보냄」 으로 치워두신다.
+ * 그것까지 세면 **발송 화면 목록은 비어 있는데 배지만 남는다** — 끌
+ * 방법이 없는 숫자가 된다. 발송 화면과 같은 기준이어야 한다.
+ */
+{
+  const t = await menuTodos(fake({
+    daily_reports: [
+      { id: "a", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: [] },
+      { id: "b", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: ["report"] },
+    ],
+  }), T);
+  eq(t.report, 1, "「안 보내기」 로 치운 것은 빼고 센다");
+}
+
+console.log("\n== 무엇이 비었는지 목록으로 ==");
+/**
+ * 원장님 (2026-08-08) — 「알림 있는 거 성적 어디서 입력해야 하는지」
+ *
+ * 「3명」 만으로는 성장 화면에 들어가서 아이를 하나씩 눌러 찾아야 한다.
+ * 그건 배지가 일을 늘린 것이다. **같은 함수**가 목록도 내주고, 성장
+ * 화면이 그것을 펴 놓는다.
+ */
+const miss = missingScores({
+  exams: [
+    { id: "e1", school: "해송고", grade: "고1", name: "1학기 기말고사", english_on: "2026-07-10" },
+    { id: "e2", school: "해송고", grade: "고1", name: "9월 전국연합학력평가", english_on: "2026-07-11" },
+  ],
+  students: [
+    { id: "a", name: "김서은", school: "해송고", grade: "고1" },
+    { id: "b", name: "박지호", school: "해송고", grade: "고1" },
+  ],
+  scores: [{ student_id: "a", taken_on: "2026-07-12" }],
+  today: T,
+});
+eq(miss.map((m) => [m.name, m.examName]), [["박지호", "1학기 기말고사"]],
+   "누구의 어느 시험인지까지 (모의고사는 뺀다)");
+const sp = read("app/scores/page.jsx");
+eq(sp.includes("missingScores"), true, "성장 화면이 **같은 함수**를 쓴다");
+eq(/href={`\/scores\?s=\$\{m\.studentId\}`}/.test(sp), true, "누르면 그 아이가 골라진다");
+
+console.log("\n== 모의고사는 전날 등원이 없다 ==");
+/**
+ * 원장님 (2026-08-08) — 「모의고사는 전날 등원 안 해 학교 시험만 그래」
+ *
+ * 모의고사는 전국이 같은 날 보고 범위도 그동안 배운 전부라, 전날 따로
+ * 부르지 않는다. 그런데 학사일정에서 모의고사 회차를 만들면서(같은 날)
+ * 영어 시험일이 붙어 전날 등원 안내에까지 끼어들었다.
+ */
+const dash = read("lib/dashboard.js");
+eq(/const engEves = exams\s*\n\s*\.filter\(\(e\) => e\.english_on && needsScope\(e\)\)/.test(dash), true,
+   "전날 등원은 대비하는 시험(내신)만");
 
 console.log("\n== 배지 글자 ==");
 eq(badgeText(0), null, "0 은 안 그린다");

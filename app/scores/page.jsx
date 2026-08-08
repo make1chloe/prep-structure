@@ -3,6 +3,9 @@ import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ScoreBoard from "./ScoreBoard";
 import ScoreUpload from "./ScoreUpload";
+import Link from "next/link";
+import { missingScores } from "@/lib/menuBadges";
+import { hiddenExamIds } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +52,23 @@ export default async function ScoresPage({ searchParams }) {
 
   const needSql = !!error && (error.code === "42P01" || error.code === "PGRST205");
 
+  /**
+   * **누구의 어느 시험 성적이 비었나** (원장님, 2026-08-08 —
+   * 「알림 있는 거 성적 어디서 입력해야 하는지」).
+   *
+   * 메뉴에 「성장 3명」 이 떠도, 들어와서 아이를 하나씩 눌러 찾아야 했다.
+   * 배지가 일을 늘린 셈이다. **메뉴와 같은 함수**로 목록을 만들어 여기
+   * 펴 놓는다 (lib/menuBadges 의 missingScores) — 두 벌로 세면 언젠가
+   * 배지와 목록이 다른 말을 한다.
+   */
+  const hidden = await hiddenExamIds(supabase).catch(() => new Set());
+  const missing = missingScores({
+    exams: exams || [],
+    students: (students || []).filter((x) => x.status === "enrolled"),
+    scores: (scores || []).filter((x) => x.kind === "school"),
+    hidden,
+  });
+
   return (
     <>
       <TopBar profile={profile} active="scores" />
@@ -76,6 +96,37 @@ export default async function ScoresPage({ searchParams }) {
             {/* **셋을 한 장으로** (원장님, 2026-08-06 — 「내신, 문법단원평가,
                 모의고사 한번에 정리하고 싶은데 가능할까」). 앱 안에서 원래
                 한 표에 들어가므로 섞어 올리셔도 된다 */}
+            {/* **배지를 눌러 들어온 자리다** — 무엇을 넣어야 하는지가
+                바로 보여야 한다. 누르면 그 아이가 골라진다 */}
+            {missing.length > 0 && (
+              <div className="card sect sect-warn" style={{ marginBottom: 10 }}>
+                <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <b style={{ fontSize: 14 }}>성적이 아직 안 들어온 것</b>
+                  <span className="tag tag-amber">{missing.length}건</span>
+                  <span className="hint" style={{ fontSize: 11.5 }}>
+                    누르면 그 학생이 골라집니다 — 아래에서 <b>어느 시험</b>을 고르고 점수를 적으세요.
+                  </span>
+                </div>
+                <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                  {missing.slice(0, 30).map((m) => (
+                    <Link
+                      key={`${m.studentId}|${m.examId}`}
+                      href={`/scores?s=${m.studentId}`}
+                      className="btn btn-sm"
+                      style={{ borderColor: "var(--amber)" }}
+                      title={`${m.school} ${m.grade} · ${m.on}`}
+                    >
+                      <b style={{ fontSize: 12.5 }}>{m.name}</b>
+                      <span className="hint" style={{ fontSize: 11 }}>{m.examName}</span>
+                    </Link>
+                  ))}
+                  {missing.length > 30 && (
+                    <span className="hint">외 {missing.length - 30}건</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <ScoreUpload />
             <ScoreBoard
               students={students || []}
