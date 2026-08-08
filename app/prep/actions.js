@@ -335,3 +335,68 @@ export async function removeScopes(scopeIds) {
   revalidatePath("/prep");
   return { error: error ? error.message : null };
 }
+
+/**
+ * **모의고사를 문항별로 담을 수 있게 만든다** (원장님, 2026-08-08 —
+ * 「모고는 단원별 아니고 문항별로 시험범위 나온다는 점 고려해줘」).
+ *
+ * ── 왜 필요한가 ──────────────────────────────────────────
+ *
+ * 고등학교 내신은 그 학기 모의고사 지문이 시험범위에 들어간다.
+ * 학교는 「3월 모의고사 18~24번」 처럼 **문항 번호로** 알려준다.
+ *
+ * 그런데 시험범위는 교재 단원에서 골라 담게 되어 있다(ScopePicker).
+ * 모의고사는 교재가 아니니 담을 것이 없었고, 그래서 결국 손으로 적게 됐다.
+ * 손으로 적으면 자료도 안 붙고 학생 배정도 안 된다.
+ *
+ * ── 무엇을 하나 ──────────────────────────────────────────
+ *
+ * 그 모의고사 회차 이름으로 **교재를 하나 만들고, 문항 번호를 단원으로**
+ * 넣는다. 그러면 다음부터는 다른 교재와 똑같이 「18번 ~ 24번」 을 클릭으로
+ * 담을 수 있다.
+ *
+ * 영어 영역은 1~17번이 듣기다. 듣기는 내신 범위에 안 들어가므로
+ * **18번부터** 만든다 (필요하면 first 를 1로 주면 된다).
+ *
+ * 두 번 눌러도 안 늘어난다 — 이미 있으면 그 교재를 그대로 돌려준다.
+ */
+export async function makeMockBook(examId, { first = 18, last = 45 } = {}) {
+  if (!examId) return { error: "시험이 없어요." };
+  const supabase = createClient();
+
+  const { data: exam, error: exErr } = await supabase
+    .from("exam_periods").select("id, name, grade").eq("id", examId).maybeSingle();
+  if (exErr) return { error: exErr.message };
+  if (!exam?.name) return { error: "시험을 못 찾았어요." };
+
+  // 이미 만든 것이 있으면 그것을 쓴다 (이름이 곧 열쇠다)
+  const { data: had } = await supabase
+    .from("textbooks").select("id").eq("name", exam.name).maybeSingle();
+  if (had?.id) return { error: null, bookId: had.id, made: 0, already: true };
+
+  const book = {
+    name: exam.name,
+    area: "내신",
+    target_grade: exam.grade || null,
+  };
+  let { data: made, error } = await supabase
+    .from("textbooks").insert(book).select("id").single();
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data: made, error } = await supabase
+      .from("textbooks").insert({ name: exam.name }).select("id").single());
+  }
+  if (error) return { error: error.message };
+
+  const a = Math.max(1, Math.min(+first || 18, 100));
+  const b = Math.max(a, Math.min(+last || 45, 100));
+  const units = [];
+  for (let i = a; i <= b; i += 1) {
+    units.push({ textbook_id: made.id, name: `${i}번`, sort: i });
+  }
+  const { error: uErr } = await supabase.from("textbook_units").insert(units);
+  if (uErr) return { error: uErr.message, bookId: made.id, made: 0 };
+
+  revalidatePath("/prep");
+  revalidatePath("/textbooks");
+  return { error: null, bookId: made.id, made: units.length };
+}

@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
-  schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns,
+  schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
   isNationwide,
 } from "@/lib/neis";
 import { matchExam } from "@/lib/exams";
+import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
 
 /**
@@ -318,6 +319,8 @@ export async function importSchedule(from, to, schoolId = null) {
   let added = 0;
   let examAdded = 0;
   const exams = [];
+  // 모의고사 회차 — 학교마다 같은 것을 적어내므로 다 모은 뒤 한 번에 넣는다
+  const mocks = [];
   const notes = [];
   // 수능·모의고사는 학교에 안 매인 한 줄로 들어간다 (source_id 가 common: 으로 시작).
   // 어느 학교의 정리에도 안 걸리므로, 이번에 받은 것을 모아 두었다가 마지막에 본다.
@@ -380,7 +383,14 @@ export async function importSchedule(from, to, schoolId = null) {
     // 학교는 같은 날 같은 행사를 학년마다 한 줄씩 주기도 한다. 먼저 하나로 합친다.
     // 그리고 방학처럼 **여러 날 이어지는 것은 한 줄로 잇는다** — 나이스는 하루에
     // 한 줄씩 주므로, 그대로 넣으면 여름방학 하나가 30줄이 된다.
-    const tasks = mergeRuns(mergeSame(res.rows.map((r) => toTask(r, school)).filter(Boolean)));
+    /**
+     * toTask 는 **여럿을 돌려줄 수 있다** — 모의고사는 학년마다 한 줄이다
+     * (2026-08-08). flat 을 빼면 배열이 통째로 한 줄처럼 들어가서
+     * 제목이 「[object Object]」 가 된다.
+     */
+    const tasks = mergeRuns(labelGrades(mergeSame(
+      res.rows.flatMap((r) => toTask(r, school) || []).filter(Boolean)
+    )));
     const found = examPeriods(tasks, school);
     exams.push(...found);
     // 시험 기간은 **묻지 않고 다 넣는다.** 필요 없는 것은 화면에서 숨기면 되고,
@@ -388,6 +398,17 @@ export async function importSchedule(from, to, schoolId = null) {
     const madeExam = await addExamPeriods(found);
     if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
+
+    /**
+     * **모의고사도 회차로 만든다** (원장님, 2026-08-08 — 「모의고사는
+     * 대비는 안 하지만 시험이니 점수는 있고, 그게 내신의 시험범위가
+     * 되어서 연동이 필요한 상황이야」).
+     *
+     * 내신 시험과 달리 **묻지 않고 넣는다.** 이름이 「2026년 3월 고1
+     * 모의고사」 로 완전히 정해져 있어서 고를 것이 없다 — 연도 · 월 ·
+     * 학년이면 유일하다. 학교도 「전국」 하나다.
+     */
+    mocks.push(...mockPeriods(tasks));
 
     // 전국 공통 줄은 여기서 넣지 않는다. 학교마다 한 번씩 넣으면 설명이
     // 마지막 학교 것으로 덮인다. 다 모은 뒤 마지막에 한 번에 넣는다.
@@ -553,6 +574,59 @@ export async function importSchedule(from, to, schoolId = null) {
     }
     added += rows.length;
     notes.push(`전국 공통(수능 · 모의고사 · 공휴일): ${rows.length}건`);
+  }
+
+  /**
+   * **모의고사 회차** — 성적과 시험범위가 붙을 자리 (2026-08-08).
+   *
+   * 이름이 「2026년 3월 고1 모의고사」 로 정해져 있어서, 이미 있으면
+   * 날짜만 맞춰두고 없으면 만든다. 아홉 학교가 같은 것을 적어내도
+   * 회차는 하나다 (mockPeriods 가 이름으로 한 번 걸러 온다).
+   */
+  if (mocks.length > 0) {
+    const seen = new Set();
+    const uniq = mocks.filter((m) => (seen.has(m.name) ? false : seen.add(m.name)));
+    const { data: had } = await supabase
+      .from("exam_periods").select("id, name").eq("school", "전국");
+    const byName = new Map((had || []).map((x) => [x.name, x.id]));
+    let made = 0;
+    for (const m of uniq) {
+      const id = byName.get(m.name);
+      const row = {
+        school: "전국", grade: m.grade || null, name: m.name,
+        from_date: m.from_date, to_date: m.to_date, english_on: m.english_on,
+        source: "neis",
+      };
+      // **날짜만 맞춰둔다.** 원장님이 적어두신 등급컷·메모는 안 건드린다
+      const { error } = id
+        ? await supabase.from("exam_periods")
+            .update({ from_date: row.from_date, to_date: row.to_date, english_on: row.english_on })
+            .eq("id", id)
+        : await supabase.from("exam_periods").insert(row);
+      if (error && error.code !== "23505") { failed.push(`모의고사 — ${error.message}`); break; }
+      if (!id && !error) made += 1;
+    }
+    if (made > 0) { examAdded += made; notes.push(`모의고사 회차 ${made}개`); }
+
+    /**
+     * **문항까지 같이 만들어 둔다** (원장님, 2026-08-08 — 「모고는 단원별
+     * 아니고 문항별로 시험범위 나온다는 점 고려해줘」).
+     *
+     * 학교는 내신 범위를 「3월 모의고사 18~24번」 처럼 문항으로 알려준다.
+     * 그런데 범위는 교재 단원에서 골라 담게 되어 있어서, 모의고사는 담을
+     * 것이 없었다.
+     *
+     * 그래서 회차 이름으로 교재를 하나 만들고 문항을 단원으로 넣어 둔다.
+     * **버튼으로 두지 않는다** — 모의고사는 내신 대비 화면에 아예 안 뜨므로
+     * (대비하는 시험이 아니라서) 누를 자리가 마땅치 않고, 범위를 담으려는
+     * 순간에 없으면 그때는 이미 늦다.
+     */
+    const { data: fresh } = await supabase
+      .from("exam_periods").select("id, name").eq("school", "전국");
+    for (const m of uniq) {
+      const row = (fresh || []).find((x) => x.name === m.name);
+      if (row?.id) await makeMockBook(row.id).catch(() => {});
+    }
   }
 
   /**
