@@ -72,6 +72,89 @@ const empty = {
 };
 eq(await menuTodos(empty), {}, "할 일이 없으면 빈 것을 돌려준다");
 
+console.log("\n== 단원평가 · 시험 성적 (원장님, 2026-08-08) ==");
+/**
+ * 「단원평가 배정되고 시험 점수 없는 것도」
+ *
+ * 이 둘은 **아무도 재촉하지 않는다.** 안 적어도 화면은 멀쩡하고, 몇 달 뒤
+ * 상담에서야 「그 시험 점수가 없네」 가 된다. 그래서 셈이 조금이라도
+ * 어긋나면 있으나 마나다 — 여기서 가짜 자료로 못 박아 둔다.
+ */
+const T = "2026-08-08";
+/**
+ * 표 이름별로 미리 정해둔 답을 돌려주는 가짜 supabase.
+ *
+ * **`eq` 만은 진짜로 거른다.** 안 그러면 같은 표를 서로 다른 조건으로
+ * 두 번 묻는 자리(숨긴 시험 · 이미 보낸 리포트)에서 같은 답이 나와서,
+ * 검사가 통과해도 아무 뜻이 없다.
+ */
+function fake(tables) {
+  return {
+    from(name) {
+      const q = {
+        _rows: tables[name] || [],
+        select() { return q; },
+        eq(k, v) { q._rows = q._rows.filter((r) => r[k] === v); return q; },
+        in() { return q; }, is() { return q; }, not() { return q; },
+        lte() { return q; }, gte() { return q; }, order() { return q; }, limit() { return q; },
+        then(r) { return r({ data: q._rows, count: q._rows.length, error: null }); },
+      };
+      return q;
+    },
+    rpc: async () => ({ data: [], error: null }),
+  };
+}
+
+// ── 단원평가를 봤는데 점수를 안 적었다 ──────────────────
+{
+  const t = await menuTodos(fake({
+    daily_reports: [
+      // 단원평가 배정 · 점수 없음 → 남은 일
+      { id: "r1", date: T, student_id: "s1", sent_total: null, sent_unit: "" },
+      // 단원평가 배정 · 점수 있음 → 아니다
+      { id: "r2", date: T, student_id: "s2", sent_total: 20, sent_unit: "관계대명사" },
+      // 단원평가를 안 봤다 → 아니다
+      { id: "r3", date: T, student_id: "s3", sent_total: null, sent_unit: "" },
+    ],
+    homework_items: [{ id: "u1", unit_test: true }],
+    daily_report_items: [
+      { daily_report_id: "r1", homework_item_id: "u1", status: "assigned", student_done_at: null },
+      { daily_report_id: "r2", homework_item_id: "u1", status: "assigned", student_done_at: null },
+      { daily_report_id: "r3", homework_item_id: "h9", status: "assigned", student_done_at: null },
+    ],
+  }), T);
+  eq(t.today, 1, "점수를 안 적은 단원평가 1건");
+  /**
+   * **단원평가는 검사 대상이 아니다** (0106). 검사 대기에까지 세면
+   * 영영 안 꺼지는 숫자가 된다 — 찍을 방법이 없기 때문이다.
+   */
+  eq(t.check, undefined, "단원평가는 검사 대기로 안 센다");
+}
+
+// ── 시험은 끝났는데 성적이 안 들어왔다 ──────────────────
+{
+  const t = await menuTodos(fake({
+    exam_periods: [
+      // 지난 시험 (해송고 고1) — 이 학교 아이 둘 중 하나만 성적이 있다
+      { id: "e1", school: "해송고", grade: "고1", name: "1학기 기말고사", english_on: "2026-07-10" },
+      // 앞으로 볼 시험은 성적이 없는 것이 당연하다
+      { id: "e2", school: "해송고", grade: "고1", name: "2학기 중간고사", english_on: "2026-08-20" },
+      // **모의고사는 안 센다** — 대비하는 시험이 아니다 (needsScope 와 같은 기준)
+      { id: "e3", school: "해송고", grade: "고1", name: "9월 전국연합학력평가", english_on: "2026-07-11" },
+    ],
+    students: [
+      { id: "a", school: "해송고", grade: "고1", status: "enrolled" },
+      { id: "b", school: "해송고", grade: "고1", status: "enrolled" },
+      { id: "c", school: "신정중", grade: "중2", status: "enrolled" },  // 다른 학교는 상관없다
+    ],
+    scores: [{ student_id: "a", taken_on: "2026-07-12", kind: "school" }],
+    prep_scopes: [],
+  }), T);
+  eq(t.scores, 1, "성적이 안 들어온 학생 1명 (모의고사·앞으로 볼 시험은 뺀다)");
+  // 앞으로 볼 시험의 범위는 따로 센다 — 지난 시험까지 세면 영영 안 꺼진다
+  eq(t.prep, 1, "범위 미등록은 앞으로 볼 시험만");
+}
+
 console.log("\n== 배지 글자 ==");
 eq(badgeText(0), null, "0 은 안 그린다");
 eq(badgeText(3), "3", "3");
