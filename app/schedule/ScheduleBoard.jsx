@@ -814,9 +814,24 @@ export default function ScheduleBoard({
                     다른 일정이 있어서 그런거면 학년이 다를 때만 그 학년을
                     표시하고 전체를 빼」). 학년이 안 적혀 있으면 그 학교 전부라는
                     뜻이고, 그건 대부분이다 — 대부분에 붙는 말은 알려주는 것이 없다 */}
+                {/**
+                  * **모의고사는 이름이 곧 전부다** (원장님, 2026-08-08 —
+                  * 「전국 고1이 아니고, 26년 10월 고1 모의고사 이런 양식으로」).
+                  *
+                  * 「전국 고1」 로 적으면 어느 달 시험인지가 안 보인다.
+                  * 이름에 이미 연도 · 월 · 학년이 다 들어 있다.
+                  */}
                 <b style={{ fontSize: 12.5 }}>
-                  <span title={`${e.school}${e.name ? ` · 학교 표기: ${e.name}` : ""}`}>{shortName(e.school)}</span>
-                  {e.grade ? ` ${e.grade}` : ""}
+                  {isMockExam(e) ? (
+                    e.name || "모의고사"
+                  ) : (
+                    <>
+                      <span title={`${e.school}${e.name ? ` · 학교 표기: ${e.name}` : ""}`}>
+                        {shortName(e.school)}
+                      </span>
+                      {e.grade ? ` ${e.grade}` : ""}
+                    </>
+                  )}
                 </b>
                 {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
                     작년 2학기와 올해 2학기가 같은 얼굴이었다 */}
@@ -834,7 +849,7 @@ export default function ScheduleBoard({
                   *
                   * 학교가 뭐라고 적었는지는 마우스를 올리면 나온다.
                   */}
-                {!termLabel(e) && e.name && (
+                {!termLabel(e) && !isMockExam(e) && e.name && (
                   <span className="tag tag-muted">{e.name}</span>
                 )}
                 {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
