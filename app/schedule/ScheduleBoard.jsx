@@ -15,8 +15,8 @@ import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } fr
 import { cleanNote } from "@/lib/note";
 import { mergeMockExams } from "./actions";
 import {
-  sortExams, filterExams, facetsOf, termLabel, isMockExam,
-  EXAM_SORTS, EXAM_SORT_DEFAULT,
+  sortExams, groupExams, filterExams, facetsOf, termLabel, isMockExam,
+  EXAM_SORTS, EXAM_SORT_DEFAULT, mockMess,
 } from "@/lib/examList";
 
 const ALERT_CLS = {
@@ -38,6 +38,7 @@ function Totals({ months }) {
   const live = months.reduce((s, m) => s + m.live.length, 0);
   const base = months.reduce((s, m) => s + (m.base || 0), 0);
   const diff = live - base;
+
   return (
     <span className={`tag ${diff === 0 ? "tag-mint" : diff > 0 ? "tag-sky" : "tag-amber"}`}>
       3개월 합계 {live}회 / 기준 {base}회
@@ -98,6 +99,250 @@ export default function ScheduleBoard({
       if (msg) alert(msg);
       router.refresh();
     });
+  }
+
+  /**
+   * **시험 한 줄.** 묶음으로 볼 때도 한 줄로 볼 때도 **같은 줄**이어야 한다 —
+   * 두 벌로 적어두면 언젠가 한쪽만 고치게 된다 (2026-08-09 전수검사에서
+   * 겪은 그대로다).
+   *
+   * `inGroup` 은 묶음 머리 아래에 있다는 뜻이다 — 그때는 「26년 2학기 중간」
+   * 표를 줄마다 또 붙이지 않는다. 머리에 이미 적혀 있어서, 붙이면 같은 말이
+   * 세 줄에 세 번 나온다.
+   */
+  function ExamRow({ e, inGroup = false }) {
+    return (
+      <div key={e.id} className="stack" style={{ gap: 0 }}>
+      {/* 학교가 날짜를 바꿨을 때 — **조용히 안 바꾼다.** 알려주고 누르게 한다.
+          자료 만드는 일정이 이 날짜에 매달려 있어서, 모르게 바뀌면
+          시험 사흘 전에 어긋나 있어도 모른다. */}
+      {neisDiff(e)?.any && (
+        <div className="unitrow" style={{ borderColor: "var(--amber)", borderBottom: 0, borderRadius: "9px 9px 0 0" }}>
+          <span className="tag tag-amber">학교 일정 바뀜</span>
+          <span className="hint" style={{ flex: 1 }}>{diffText(neisDiff(e))}</span>
+          <button
+            className="btn btn-sm"
+            disabled={pending}
+            title="내 시험 기간을 학교 일정에 맞춥니다"
+            onClick={() => run(() => applyNeis(e.id), "학교 일정에 맞췄어요.")}
+          >
+            내 것에 반영
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            title="학교 일정을 떼어냅니다. 내 시험은 그대로 남아요"
+            onClick={() => run(() => detachNeis(e.id))}
+          >
+            떼기
+          </button>
+        </div>
+      )}
+      <div className="unitrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
+        {e.hidden && <span className="tag tag-muted">숨김</span>}
+        {/* **「전체」 를 안 적는다** (원장님, 2026-08-07 — 「학년별로
+            다른 일정이 있어서 그런거면 학년이 다를 때만 그 학년을
+            표시하고 전체를 빼」). 학년이 안 적혀 있으면 그 학교 전부라는
+            뜻이고, 그건 대부분이다 — 대부분에 붙는 말은 알려주는 것이 없다 */}
+        {/**
+          * **모의고사는 이름이 곧 전부다** (원장님, 2026-08-08 —
+          * 「전국 고1이 아니고, 26년 10월 고1 모의고사 이런 양식으로」).
+          *
+          * 「전국 고1」 로 적으면 어느 달 시험인지가 안 보인다.
+          * 이름에 이미 연도 · 월 · 학년이 다 들어 있다.
+          */}
+        <b style={{ fontSize: 12.5 }}>
+          {isMockExam(e) ? (
+            e.name || "모의고사"
+          ) : (
+            <>
+              <span title={`${e.school}${e.name ? ` · 학교 표기: ${e.name}` : ""}`}>
+                {shortName(e.school)}
+              </span>
+              {e.grade ? ` ${e.grade}` : ""}
+            </>
+          )}
+        </b>
+        {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
+            작년 2학기와 올해 2학기가 같은 얼굴이었다 */}
+        {!inGroup && termLabel(e) && <span className="tag tag-sky">{termLabel(e)}</span>}
+        {/**
+          * **「일정만」 태그를 뗐다** (원장님, 2026-08-09 — 「일정만
+          * 태그 빼줘」).
+          *
+          * 모의고사는 대비를 안 하니 범위를 안 물어본다는 뜻으로 붙였는데,
+          * 회차 이름이 이미 「26년 10월 고1 모의고사」 라 모의고사인 것이
+          * 한눈에 보인다. 같은 말을 두 번 하는 태그는 줄만 길게 한다.
+          */}
+        {/**
+          * **원래 이름은 안 적는다** (원장님, 2026-08-08 —
+          * 「파란 라벨 26년 2학기 기말 이거 하나면 끝나는데 뒤에
+          *  기말고사 붙고」).
+          *
+          * 파란 뱃지가 이미 「26년 2학기 기말」 이다. 옆에 「기말고사」
+          * 를 또 붙이면 같은 말이 두 번이고, 학교마다 「2차시험」
+          * 「제2차 지필평가」 로 달라서 목록이 들쭉날쭉해 보인다.
+          *
+          * 학교가 뭐라고 적었는지는 마우스를 올리면 나온다.
+          */}
+        {!termLabel(e) && !isMockExam(e) && e.name && (
+          <span className="tag tag-muted">{e.name}</span>
+        )}
+        {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
+        {cleanNote(e.note) && (
+          <span className="hint" title={cleanNote(e.note)}>{cleanNote(e.note)}</span>
+        )}
+        {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075).
+            내가 적은 것에는 아무것도 안 붙인다 — 목록의 거의 전부가 그것이다 */}
+        {STATE_LABEL[examState(e)] && (
+          <span className={`tag ${STATE_CLS[examState(e)]}`}>
+            {STATE_LABEL[examState(e)]}
+          </span>
+        )}
+        {/* 시험 목록은 석 달치가 섞여 나온다 — 달이 없으면 몇 월인지 모른다 */}
+        <span className="hint">
+          {monthDay(e.from_date)} ~ {monthDay(e.to_date)}
+        </span>
+        <span className="spacer" />
+        {e.english_on ? (
+          <>
+            <span className="tag tag-lav">영어 {monthDay(e.english_on)}</span>
+            <span className="tag tag-sky">
+              전날 등원 {monthDay(e.eveDate)}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="tag tag-amber">영어 시험일 미정</span>
+            <input
+              className="input input-sm"
+              type="date"
+              style={{ width: 145 }}
+              value={eng[e.id] || ""}
+              onChange={(ev) => setEng({ ...eng, [e.id]: ev.target.value })}
+            />
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={pending || !eng[e.id]}
+              onClick={() => run(() => setEnglishDate(e.id, eng[e.id]))}
+            >
+              영어 시험일 저장
+            </button>
+          </>
+        )}
+        {/* 등급컷은 **이 회차** 것이다. 여기 한 번 적으면 이 시험을 본
+            학생 전부의 등급이 같은 기준으로 매겨진다. */}
+        {cutOpen === e.id ? (
+          <>
+            <input
+              className="input input-sm"
+              style={{ width: 170 }}
+              placeholder="90, 84, 77, 70"
+              title="1등급컷부터 높은 순서로"
+              value={cuts[e.id] ?? (e.cuts || []).join(", ")}
+              onChange={(ev) => setCuts({ ...cuts, [e.id]: ev.target.value })}
+            />
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={pending}
+              onClick={() =>
+                run(async () => {
+                  const r = await setExamCuts(
+                    e.id,
+                    cuts[e.id] ?? (e.cuts || []).join(", ")
+                  );
+                  if (!r?.error) setCutOpen(null);
+                  return r;
+                })
+              }
+            >
+              컷 저장
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setCutOpen(null)}>
+              취소
+            </button>
+          </>
+        ) : (
+          <button
+            className={`btn btn-ghost btn-sm ${(e.cuts || []).length ? "" : "muted"}`}
+            onClick={() => setCutOpen(e.id)}
+            title="이 시험의 등급컷 — 이 시험을 본 학생 모두에게 쓰입니다"
+          >
+            {(e.cuts || []).length ? `등급컷 ${e.cuts.join("·")}` : "등급컷 적기"}
+          </button>
+        )}
+        {/* 출제 선생님 · 특이사항 — **이 회차** 것이다.
+            같은 학교라도 회차마다 출제 선생님이 바뀐다. */}
+        {infoOpen === e.id ? (
+          <>
+            <input
+              className="input input-sm"
+              style={{ width: 150 }}
+              placeholder="김선생, 박선생"
+              title="여러 명이면 쉼표로 나눠 적으세요"
+              value={teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || "")}
+              onChange={(ev) => setTeach({ ...teach, [e.id]: ev.target.value })}
+            />
+            <input
+              className="input input-sm"
+              style={{ width: 190 }}
+              placeholder="특이사항 (서술형 비중 등)"
+              value={memo[e.id] ?? (e.note || "")}
+              onChange={(ev) => setMemo({ ...memo, [e.id]: ev.target.value })}
+            />
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={pending}
+              onClick={() =>
+                run(async () => {
+                  const r = await updateExam(e.id, {
+                    teachers: teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || ""),
+                    note: memo[e.id] ?? (e.note || ""),
+                  });
+                  if (!r?.error) setInfoOpen(null);
+                  return r;
+                })
+              }
+            >
+              저장
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setInfoOpen(null)}>
+              취소
+            </button>
+          </>
+        ) : (
+          <button
+            className={`btn btn-ghost btn-sm ${teacherText(e) || e.note ? "" : "muted"}`}
+            onClick={() => setInfoOpen(e.id)}
+            title="이 회차의 출제 선생님과 특이사항"
+          >
+            {teacherText(e) || e.note ? "선생님 · 특이사항 고치기" : "선생님 · 특이사항 적기"}
+          </button>
+        )}
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={pending}
+          title={
+            e.hidden
+              ? "다시 쓰겠습니다"
+              : "필요 없는 시험입니다. 알림·결석 예상에서 뺍니다 (기록은 남습니다)"
+          }
+          onClick={() => run(() => hideExam(e.id, !e.hidden))}
+        >
+          {e.hidden ? "다시 쓰기" : "숨기기"}
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            if (!confirm("이 시험 일정을 지울까요?\n\n나이스에서 받아온 것이면 다시 받을 때 또 들어옵니다. 그럴 땐 「숨기기」 를 쓰세요.")) return;
+            run(() => deleteExam(e.id));
+          }}
+        >
+          삭제
+        </button>
+      </div>
+      </div>
+    );
   }
 
   const [showPast, setShowPast] = useState(false);
@@ -627,17 +872,32 @@ export default function ScheduleBoard({
 
         {/* **모의고사는 전국이 같은 날이다 — 한 줄이면 된다** (원장님, 2026-08-07).
             학교마다 한 줄씩 있으면 아홉 줄이 같은 시험이고, 시험 목록을 열면
-            그것만으로 화면이 찬다. 내신은 학교마다 날짜가 다르니 그대로 둔다 */}
-        {exams.some((e) => isMockExam(e) && e.school !== "전국") && (
+            그것만으로 화면이 찬다. 내신은 학교마다 날짜가 다르니 그대로 둔다.
+
+            **세는 눈이 좁으면 단추가 안 나온다** (2026-08-09). 전에는 「학교마다
+            한 줄」 만 셌는데, 원장님 화면에 남아 있던 것은 이미 「전국」 이면서
+            학년만 없는 옛 「전국연합학력평가」 줄이었다 — 안 세니 안내가 안 뜨고,
+            안내가 없으니 치울 단추도 없었다. 이제 mockMess 가 둘 다 센다 */}
+        {mockMess(exams).any && (
           <div className="notice" style={{ marginBottom: 10, fontSize: 12.5, lineHeight: 1.7 }}>
-            <b>모의고사가 학교마다 한 줄씩 있습니다.</b> 전국이 같은 날이라 한 줄이면
-            됩니다 — 합치면 목록이 훨씬 짧아집니다.
+            {mockMess(exams).perSchool > 0 ? (
+              <>
+                <b>모의고사가 학교마다 한 줄씩 있습니다.</b> 전국이 같은 날이라 한 줄이면
+                됩니다 — 합치면 목록이 훨씬 짧아집니다.
+              </>
+            ) : (
+              <>
+                <b>학년 없는 옛 「전국연합학력평가」 줄이 {mockMess(exams).stale}개 있습니다.</b>{" "}
+                모의고사는 고1~고3 회차로 따로 들어와 있어서, 이 줄은 같은 날에
+                겹쳐 보이기만 합니다 — 눌러서 치워주세요.
+              </>
+            )}
             <button
               className="btn btn-primary btn-sm"
               style={{ marginLeft: 8 }}
               disabled={pending}
               onClick={() => {
-                if (!confirm("모의고사를 날짜별로 「전국」 한 줄씩으로 합칠까요?\n\n범위 자료가 붙어 있는 것은 그대로 둡니다.")) return;
+                if (!confirm("모의고사를 날짜별·학년별로 「전국」 한 줄씩으로 정리할까요?\n\n같은 날에 고1~고3 회차가 이미 있으면, 학년 없는 옛 줄은 치웁니다.\n성적·범위가 붙어 있는 것은 그대로 둡니다.")) return;
                 startTransition(async () => {
                   const r = await mergeMockExams();
                   alert(r?.error ? r.error : r.note || "합쳤어요.");
@@ -645,7 +905,7 @@ export default function ScheduleBoard({
                 });
               }}
             >
-              하나로 합치기
+              {mockMess(exams).perSchool > 0 ? "하나로 합치기" : "옛 줄 치우기"}
             </button>
           </div>
         )}
@@ -781,238 +1041,24 @@ export default function ScheduleBoard({
 
         {shownExams.length > 0 && (
           <div className="stack" style={{ gap: 4, marginTop: 12 }}>
-            {shownExams.map((e) => (
-              <div key={e.id} className="stack" style={{ gap: 0 }}>
-              {/* 학교가 날짜를 바꿨을 때 — **조용히 안 바꾼다.** 알려주고 누르게 한다.
-                  자료 만드는 일정이 이 날짜에 매달려 있어서, 모르게 바뀌면
-                  시험 사흘 전에 어긋나 있어도 모른다. */}
-              {neisDiff(e)?.any && (
-                <div className="unitrow" style={{ borderColor: "var(--amber)", borderBottom: 0, borderRadius: "9px 9px 0 0" }}>
-                  <span className="tag tag-amber">학교 일정 바뀜</span>
-                  <span className="hint" style={{ flex: 1 }}>{diffText(neisDiff(e))}</span>
-                  <button
-                    className="btn btn-sm"
-                    disabled={pending}
-                    title="내 시험 기간을 학교 일정에 맞춥니다"
-                    onClick={() => run(() => applyNeis(e.id), "학교 일정에 맞췄어요.")}
-                  >
-                    내 것에 반영
-                  </button>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    disabled={pending}
-                    title="학교 일정을 떼어냅니다. 내 시험은 그대로 남아요"
-                    onClick={() => run(() => detachNeis(e.id))}
-                  >
-                    떼기
-                  </button>
+            {/**
+              * **묶음 머리** (원장님, 2026-08-09 — 「1학기 기말 - 학교별
+              * 날짜순 나열, 2학기 중간 - 학교별 날짜순 나열 이렇게」).
+              *
+              * 원장님이 챙기시는 단위는 「이번 기말」 이고, 그 안에서 어느
+              * 학교가 먼저인지를 보신다. 다른 차례(날짜·학교·이름)로 바꾸시면
+              * 머리는 안 붙는다 — 그때는 한 줄로 죽 늘어놓는 것이 맞다.
+              */}
+            {eSort.key === "term" && groupExams(shownExams).map((g) => (
+              <div key={g.key} className="stack" style={{ gap: 4 }}>
+                <div className="row" style={{ gap: 6, alignItems: "baseline", marginTop: 6 }}>
+                  <b style={{ fontSize: 13 }}>{g.label}</b>
+                  <span className="tag tag-muted">{g.rows.length}</span>
                 </div>
-              )}
-              <div className="unitrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
-                {e.hidden && <span className="tag tag-muted">숨김</span>}
-                {/* **「전체」 를 안 적는다** (원장님, 2026-08-07 — 「학년별로
-                    다른 일정이 있어서 그런거면 학년이 다를 때만 그 학년을
-                    표시하고 전체를 빼」). 학년이 안 적혀 있으면 그 학교 전부라는
-                    뜻이고, 그건 대부분이다 — 대부분에 붙는 말은 알려주는 것이 없다 */}
-                {/**
-                  * **모의고사는 이름이 곧 전부다** (원장님, 2026-08-08 —
-                  * 「전국 고1이 아니고, 26년 10월 고1 모의고사 이런 양식으로」).
-                  *
-                  * 「전국 고1」 로 적으면 어느 달 시험인지가 안 보인다.
-                  * 이름에 이미 연도 · 월 · 학년이 다 들어 있다.
-                  */}
-                <b style={{ fontSize: 12.5 }}>
-                  {isMockExam(e) ? (
-                    e.name || "모의고사"
-                  ) : (
-                    <>
-                      <span title={`${e.school}${e.name ? ` · 학교 표기: ${e.name}` : ""}`}>
-                        {shortName(e.school)}
-                      </span>
-                      {e.grade ? ` ${e.grade}` : ""}
-                    </>
-                  )}
-                </b>
-                {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
-                    작년 2학기와 올해 2학기가 같은 얼굴이었다 */}
-                {termLabel(e) && <span className="tag tag-sky">{termLabel(e)}</span>}
-                {/**
-                  * **「일정만」 태그를 뗐다** (원장님, 2026-08-09 — 「일정만
-                  * 태그 빼줘」).
-                  *
-                  * 모의고사는 대비를 안 하니 범위를 안 물어본다는 뜻으로 붙였는데,
-                  * 회차 이름이 이미 「26년 10월 고1 모의고사」 라 모의고사인 것이
-                  * 한눈에 보인다. 같은 말을 두 번 하는 태그는 줄만 길게 한다.
-                  */}
-                {/**
-                  * **원래 이름은 안 적는다** (원장님, 2026-08-08 —
-                  * 「파란 라벨 26년 2학기 기말 이거 하나면 끝나는데 뒤에
-                  *  기말고사 붙고」).
-                  *
-                  * 파란 뱃지가 이미 「26년 2학기 기말」 이다. 옆에 「기말고사」
-                  * 를 또 붙이면 같은 말이 두 번이고, 학교마다 「2차시험」
-                  * 「제2차 지필평가」 로 달라서 목록이 들쭉날쭉해 보인다.
-                  *
-                  * 학교가 뭐라고 적었는지는 마우스를 올리면 나온다.
-                  */}
-                {!termLabel(e) && !isMockExam(e) && e.name && (
-                  <span className="tag tag-muted">{e.name}</span>
-                )}
-                {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
-                {cleanNote(e.note) && (
-                  <span className="hint" title={cleanNote(e.note)}>{cleanNote(e.note)}</span>
-                )}
-                {/* 이 시험은 **내 것**이다. 학교 일정은 붙어 있는 참고다 (0075).
-                    내가 적은 것에는 아무것도 안 붙인다 — 목록의 거의 전부가 그것이다 */}
-                {STATE_LABEL[examState(e)] && (
-                  <span className={`tag ${STATE_CLS[examState(e)]}`}>
-                    {STATE_LABEL[examState(e)]}
-                  </span>
-                )}
-                {/* 시험 목록은 석 달치가 섞여 나온다 — 달이 없으면 몇 월인지 모른다 */}
-                <span className="hint">
-                  {monthDay(e.from_date)} ~ {monthDay(e.to_date)}
-                </span>
-                <span className="spacer" />
-                {e.english_on ? (
-                  <>
-                    <span className="tag tag-lav">영어 {monthDay(e.english_on)}</span>
-                    <span className="tag tag-sky">
-                      전날 등원 {monthDay(e.eveDate)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="tag tag-amber">영어 시험일 미정</span>
-                    <input
-                      className="input input-sm"
-                      type="date"
-                      style={{ width: 145 }}
-                      value={eng[e.id] || ""}
-                      onChange={(ev) => setEng({ ...eng, [e.id]: ev.target.value })}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={pending || !eng[e.id]}
-                      onClick={() => run(() => setEnglishDate(e.id, eng[e.id]))}
-                    >
-                      영어 시험일 저장
-                    </button>
-                  </>
-                )}
-                {/* 등급컷은 **이 회차** 것이다. 여기 한 번 적으면 이 시험을 본
-                    학생 전부의 등급이 같은 기준으로 매겨진다. */}
-                {cutOpen === e.id ? (
-                  <>
-                    <input
-                      className="input input-sm"
-                      style={{ width: 170 }}
-                      placeholder="90, 84, 77, 70"
-                      title="1등급컷부터 높은 순서로"
-                      value={cuts[e.id] ?? (e.cuts || []).join(", ")}
-                      onChange={(ev) => setCuts({ ...cuts, [e.id]: ev.target.value })}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={pending}
-                      onClick={() =>
-                        run(async () => {
-                          const r = await setExamCuts(
-                            e.id,
-                            cuts[e.id] ?? (e.cuts || []).join(", ")
-                          );
-                          if (!r?.error) setCutOpen(null);
-                          return r;
-                        })
-                      }
-                    >
-                      컷 저장
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setCutOpen(null)}>
-                      취소
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className={`btn btn-ghost btn-sm ${(e.cuts || []).length ? "" : "muted"}`}
-                    onClick={() => setCutOpen(e.id)}
-                    title="이 시험의 등급컷 — 이 시험을 본 학생 모두에게 쓰입니다"
-                  >
-                    {(e.cuts || []).length ? `등급컷 ${e.cuts.join("·")}` : "등급컷 적기"}
-                  </button>
-                )}
-                {/* 출제 선생님 · 특이사항 — **이 회차** 것이다.
-                    같은 학교라도 회차마다 출제 선생님이 바뀐다. */}
-                {infoOpen === e.id ? (
-                  <>
-                    <input
-                      className="input input-sm"
-                      style={{ width: 150 }}
-                      placeholder="김선생, 박선생"
-                      title="여러 명이면 쉼표로 나눠 적으세요"
-                      value={teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || "")}
-                      onChange={(ev) => setTeach({ ...teach, [e.id]: ev.target.value })}
-                    />
-                    <input
-                      className="input input-sm"
-                      style={{ width: 190 }}
-                      placeholder="특이사항 (서술형 비중 등)"
-                      value={memo[e.id] ?? (e.note || "")}
-                      onChange={(ev) => setMemo({ ...memo, [e.id]: ev.target.value })}
-                    />
-                    <button
-                      className="btn btn-primary btn-sm"
-                      disabled={pending}
-                      onClick={() =>
-                        run(async () => {
-                          const r = await updateExam(e.id, {
-                            teachers: teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || ""),
-                            note: memo[e.id] ?? (e.note || ""),
-                          });
-                          if (!r?.error) setInfoOpen(null);
-                          return r;
-                        })
-                      }
-                    >
-                      저장
-                    </button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setInfoOpen(null)}>
-                      취소
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className={`btn btn-ghost btn-sm ${teacherText(e) || e.note ? "" : "muted"}`}
-                    onClick={() => setInfoOpen(e.id)}
-                    title="이 회차의 출제 선생님과 특이사항"
-                  >
-                    {teacherText(e) || e.note ? "선생님 · 특이사항 고치기" : "선생님 · 특이사항 적기"}
-                  </button>
-                )}
-                <button
-                  className="btn btn-ghost btn-sm"
-                  disabled={pending}
-                  title={
-                    e.hidden
-                      ? "다시 쓰겠습니다"
-                      : "필요 없는 시험입니다. 알림·결석 예상에서 뺍니다 (기록은 남습니다)"
-                  }
-                  onClick={() => run(() => hideExam(e.id, !e.hidden))}
-                >
-                  {e.hidden ? "다시 쓰기" : "숨기기"}
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    if (!confirm("이 시험 일정을 지울까요?\n\n나이스에서 받아온 것이면 다시 받을 때 또 들어옵니다. 그럴 땐 「숨기기」 를 쓰세요.")) return;
-                    run(() => deleteExam(e.id));
-                  }}
-                >
-                  삭제
-                </button>
-              </div>
+                {g.rows.map((e) => <ExamRow key={e.id} e={e} inGroup />)}
               </div>
             ))}
+            {eSort.key !== "term" && shownExams.map((e) => <ExamRow key={e.id} e={e} />)}
           </div>
         )}
         {exams.length === 0 && (

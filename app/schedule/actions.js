@@ -469,16 +469,53 @@ export async function mergeMockExams(dates = null) {
     }
   }
 
+  /**
+   * **학년 없는 옛 모의고사 줄을 치운다** (원장님, 2026-08-09 — 「9월 10월
+   * 둘 다 전국연합학력평가로 표시되어 있어. 그게 아니라 고1~고3 모의고사로만
+   * 입력하기로 한 거야」).
+   *
+   * 모의고사는 이제 **학년마다 한 회차**다 (「2026년 10월 고1 모의고사」).
+   * 그 전에 만들어진 「전국연합학력평가」 줄은 학년이 없어서, 위의 합치기가
+   * 자기 혼자 한 묶음이 되어 그냥 지나갔다 — 그래서 같은 날에 네 줄이
+   * 남아 있었다.
+   *
+   * **같은 날에 학년이 적힌 모의고사 회차가 있을 때만** 치운다. 없으면 그
+   * 줄이 그날의 유일한 기록이라 지우면 안 된다. 범위·성적이 붙은 줄도 안
+   * 건드린다 — 지우면 그쪽이 통째로 사라진다.
+   */
+  const { data: scoreRows } = await supabase.from("scores").select("exam_id").not("exam_id", "is", null);
+  const hasScore = new Set((scoreRows || []).map((r) => r.exam_id));
+  const gradedDays = new Set(mock.filter((e) => (e.grade || "").trim()).map((e) => e.from_date));
+  const stale = mock.filter(
+    (e) => !(e.grade || "").trim() && gradedDays.has(e.from_date)
+      && !hasScope.has(e.id) && !hasScore.has(e.id)
+  );
+  let cleaned = 0;
+  if (stale.length) {
+    const { error: sErr } = await supabase
+      .from("exam_periods").delete().in("id", stale.map((e) => e.id));
+    if (sErr) return { error: sErr.message, merged };
+    cleaned = stale.length;
+  }
+  const heldBack = mock.filter(
+    (e) => !(e.grade || "").trim() && gradedDays.has(e.from_date)
+      && (hasScope.has(e.id) || hasScore.has(e.id))
+  ).length;
+
   revalidatePath("/schedule");
   revalidatePath("/prep");
+  const cleanNote = cleaned ? ` 학년 없는 옛 줄 ${cleaned}개도 치웠어요.` : "";
+  const heldNote = heldBack ? ` ${heldBack}개는 성적·범위가 붙어 있어 그대로 뒀습니다.` : "";
   return {
     error: null,
     merged,
     kept,
+    cleaned,
     note:
-      merged === 0
+      (merged === 0 && cleaned === 0
         ? "합칠 것이 없었어요 (이미 한 줄씩입니다)."
         : `${kept}개 시험을 「전국」 한 줄로 합쳤어요 (${merged}줄 정리).` +
-          (skipped.length ? ` 범위가 붙은 것은 그대로 뒀습니다 — ${skipped.join(", ")}` : ""),
+          (skipped.length ? ` 범위가 붙은 것은 그대로 뒀습니다 — ${skipped.join(", ")}` : "")
+      ) + cleanNote + heldNote,
   };
 }

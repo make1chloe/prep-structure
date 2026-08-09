@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 /**
  * 시험 목록 정돈 (lib/examList.js)
  *
@@ -17,6 +18,7 @@
 import { commonName } from "../lib/neis.js";
 import {
   isMockExam, needsScope, termOf, termLabel, sortExams, filterExams, facetsOf,
+  groupExams, mockMess, EXAM_SORT_DEFAULT,
 } from "../lib/examList.js";
 
 let fail = 0;
@@ -112,6 +114,64 @@ eq(commonName("수능 예비소집"), "대학수학능력시험", "수능 관련
 // 아는 것이 아니면 손대지 않는다 — 함부로 바꾸면 멀쩡한 일정이 뭉개진다
 eq(commonName("개학식"), "개학식", "모르는 것은 그대로");
 eq(commonName(""), "", "빈 값");
+
+
+console.log("\n== 시험 묶음으로 늘어세우나 ==");
+/**
+ * 원장님 (2026-08-09) — 「앞으로 학교시험 페이지는 시험 기준으로 재정렬해줘.
+ * 1학기 기말 - 학교별 날짜순 나열, 2학기 중간 - 학교별 날짜순 나열 이렇게」
+ *
+ * 날짜순으로만 늘어놓으면 신정중 기말과 박문중 중간이 뒤섞인다. 원장님이
+ * 챙기시는 단위는 「이번 기말」 이고, 그 안에서 어느 학교가 먼저인지를 보신다.
+ */
+const many = [
+  { id: 1, school: "신정중", name: "1학기 기말고사", from_date: "2026-07-08" },
+  { id: 2, school: "박문중", name: "1학기 기말고사", from_date: "2026-07-06" },
+  { id: 3, school: "해송고", name: "2학기 중간고사", from_date: "2026-10-13" },
+  { id: 4, school: "전국", name: "2026년 10월 고1 모의고사", from_date: "2026-10-20" },
+  { id: 5, school: "신정중", name: "2학기 중간고사", from_date: "2026-10-14" },
+  { id: 6, school: "박문중", name: "1학기 중간고사", from_date: "2026-04-28" },
+];
+const g = groupExams(many);
+eq(g.map((x) => x.label), ["26년 1학기 중간", "26년 1학기 기말", "26년 2학기 중간", "모의고사"],
+   "묶음이 학기·회차 차례로 선다");
+eq(g[1].rows.map((r) => r.school), ["박문중", "신정중"], "묶음 안에서는 날짜순 (7/6 → 7/8)");
+// **모의고사는 늘 맨 뒤** — 대비하는 시험이 아니라 챙길 것이 없다
+eq(g.at(-1).label, "모의고사", "모의고사는 맨 뒤");
+eq(EXAM_SORT_DEFAULT.key, "term", "기본이 묶음 차례다");
+const sb = readFileSync("app/schedule/ScheduleBoard.jsx", "utf8");
+eq(/eSort\.key === "term" && groupExams\(/.test(sb), true, "묶음 차례일 때만 머리를 붙인다");
+// **줄은 한 벌이어야 한다** — 묶어 볼 때와 죽 볼 때가 다르면 언젠가 어긋난다
+eq((sb.match(/<ExamRow key=\{e\.id\} e=\{e\}/g) || []).length, 2,
+   "묶어 볼 때와 죽 볼 때가 같은 줄을 쓴다");
+// 머리에 「26년 2학기 중간」 이라 적어놓고 줄마다 또 붙이면 같은 말이 세 번 나온다
+eq(/<ExamRow key=\{e\.id\} e=\{e\} inGroup \/>/.test(sb), true, "묶음 안에서는 학기 표를 또 안 붙인다");
+// 「일정만」 태그는 뗐다 (2026-08-09)
+eq(/tag-lav">일정만</.test(sb), false, "「일정만」 태그가 남아 있지 않다");
+
+
+console.log("\n== 치울 모의고사가 있다고 알려주나 ==");
+/**
+ * 원장님 (2026-08-09) — 「9월 10월 둘 다 전국연합학력평가로 표시되어 있어.
+ * 그게 아니라 고1~고3 모의고사로만 입력하기로 한 거야」
+ *
+ * **안 세면 단추가 안 나온다.** 전에는 「학교마다 한 줄씩 있는 모의고사」 만
+ * 셌는데, 원장님 화면에 남아 있던 것은 이미 「전국」 이면서 학년만 없는 옛
+ * 줄이었다 — 안내가 안 뜨니 치울 단추도 없었다. 화면에서 직접 겪었다.
+ */
+const OLD = [
+  { id: "a", school: "전국", grade: "고1", name: "2026년 10월 고1 모의고사", from_date: "2026-10-20" },
+  { id: "b", school: "전국", grade: "고2", name: "2026년 10월 고2 모의고사", from_date: "2026-10-20" },
+  { id: "c", school: "전국", grade: "", name: "전국연합학력평가", from_date: "2026-10-20" },
+];
+eq(mockMess(OLD), { perSchool: 0, stale: 1, any: true }, "전국인데 학년만 없는 옛 줄을 센다");
+// **같은 날에 학년 회차가 없으면 그 줄이 유일한 기록이다** — 치우면 안 된다
+eq(mockMess([{ id: "c", school: "전국", grade: "", name: "전국연합학력평가", from_date: "2026-11-20" }]),
+   { perSchool: 0, stale: 0, any: false }, "혼자 있는 옛 줄은 치울 것이 아니다");
+eq(mockMess([{ id: "d", school: "박문중", grade: "고1", name: "3월 모의고사", from_date: "2026-03-04" }]),
+   { perSchool: 1, stale: 0, any: true }, "학교마다 한 줄씩인 것도 그대로 센다");
+eq(mockMess(EXAMS.filter((e) => e.id !== "3")).any, false, "합칠 것이 없으면 안내를 안 띄운다");
+eq(/mockMess\(exams\)\.any &&/.test(sb), true, "화면이 mockMess 로 안내를 띄운다");
 
 if (fail) { console.log("\n❌ 시험 목록에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 시험 목록 통과");
