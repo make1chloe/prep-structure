@@ -4,7 +4,7 @@ import { useState, useRef, useTransition } from "react";
 import { readSheet } from "@/lib/readSheet";
 import { useRouter } from "next/navigation";
 import { parseTextbookAoA, TB_FIELD_LABEL, TEXTBOOK_HEADERS } from "@/lib/importTextbook";
-import { bulkAddTextbooks } from "./actions";
+import { bulkAddTextbooks, exportTextbooks } from "./actions";
 
 const SHOW = ["name", "area", "target_grade", "total_pages", "price", "word_range"];
 
@@ -13,6 +13,7 @@ export default function TextbookUpload() {
   const [parsed, setParsed] = useState(null);
   const [fileName, setFileName] = useState("");
   const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);   // 지금 교재 모으는 중
   const [pending, startTransition] = useTransition();
   const inputRef = useRef(null);
   const router = useRouter();
@@ -32,6 +33,30 @@ export default function TextbookUpload() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "교재");
     XLSX.writeFile(wb, "클로이영어_교재_양식.xlsx");
+  }
+
+  /**
+   * **지금 들어 있는 교재를 내려받는다.**
+   *
+   * 빈 양식만 있으면 「이미 앱에 뭐가 들어 있나」 를 화면에서 눈으로 세어
+   * 옮겨 적어야 한다. 내려받아 고쳐 다시 올리면 **이름이 같은 교재는
+   * 고쳐지고** 없는 것만 새로 생긴다.
+   *
+   * 비고에 단원 수가 같이 적혀 나온다 — 어느 교재에 아직 단원이 없는지가
+   * 파일만 보고도 보인다.
+   */
+  async function downloadCurrent() {
+    setBusy(true);
+    const res = await exportTextbooks();
+    setBusy(false);
+    if (res?.error) { alert(res.error); return; }
+    if (!res.rows?.length) { alert("아직 들어 있는 교재가 없어요."); return; }
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([TEXTBOOK_HEADERS, ...res.rows]);
+    ws["!cols"] = TEXTBOOK_HEADERS.map((h) => ({ wch: h === "교재명" ? 26 : h === "비고" ? 30 : 12 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "교재");
+    XLSX.writeFile(wb, `클로이영어_교재_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   async function handleFile(e) {
@@ -88,6 +113,9 @@ export default function TextbookUpload() {
       <div className="row" style={{ alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <button className="btn btn-ghost" onClick={handleDownloadTemplate}>
           ⬇️ 양식 다운로드
+        </button>
+        <button className="btn btn-ghost btn-sm" onClick={downloadCurrent} disabled={busy}>
+          {busy ? "모으는 중…" : "⬇️ 지금 교재 내려받기"}
         </button>
         <input
           ref={inputRef}

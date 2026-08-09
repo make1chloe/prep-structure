@@ -847,3 +847,52 @@ export async function exportUnits(bookIds = null) {
   }
   return { rows, error: null };
 }
+
+/**
+ * **지금 들어 있는 교재를 내려받는다** (원장님, 2026-08-09 — 「이미 앱에
+ * 있는 교재 목록을 확인하고 다 만들어야 해」).
+ *
+ * 단원에는 내려받기가 있는데 **교재에는 없었다.** 그래서 지금 앱에 무엇이
+ * 들어 있는지 밖으로 꺼낼 방법이 없었고, 새 단원표를 만들려면 화면을 보고
+ * 손으로 옮겨 적어야 했다.
+ *
+ * 내려받은 파일은 **그대로 다시 올릴 수 있다** — 이름이 같은 교재는 고쳐지고
+ * 없는 것만 새로 생긴다. 그래서 열 이름을 올리는 양식과 똑같이 맞춘다.
+ */
+export async function exportTextbooks() {
+  const supabase = createClient();
+  const COLS = "id, name, area, target_grade, total_pages, price, word_range, purchase_url, feature, status";
+  let q = await supabase.from("textbooks").select(COLS).order("name");
+  if (q.error) {
+    // 옛 SQL 이면 뒤에 붙은 칸들이 없다 — 있는 것만이라도 내려받는다
+    q = await supabase.from("textbooks").select("id, name, area, target_grade, status").order("name");
+  }
+  if (q.error) return { rows: [], error: q.error.message };
+
+  const live = (q.data || []).filter((b) => !b.status || b.status === "active");
+  if (live.length === 0) return { rows: [], error: null };
+
+  // 교재마다 단원이 몇 개인지 — 「이 교재는 아직 단원이 없다」 가 한눈에 보여야 한다
+  const counts = new Map();
+  const { data: units } = await supabase
+    .from("textbook_units").select("textbook_id, parent_id")
+    .in("textbook_id", live.map((b) => b.id));
+  (units || []).forEach((u) => {
+    if (!u.parent_id) return;                    // 대단원은 안 센다 (묶음일 뿐이다)
+    counts.set(u.textbook_id, (counts.get(u.textbook_id) || 0) + 1);
+  });
+
+  const rows = live.map((b) => [
+    b.name || "",
+    b.area || "",
+    b.target_grade || "",
+    b.total_pages ?? "",
+    b.price ?? "",
+    b.word_range || "",
+    b.purchase_url || "",
+    // **단원 수를 비고에 적어 보낸다.** 올릴 때는 그냥 글자라 아무 해가 없고,
+    // 파일만 보고도 어느 교재에 단원이 없는지 알 수 있다
+    [b.feature || "", `단원 ${counts.get(b.id) || 0}개`].filter(Boolean).join(" · "),
+  ]);
+  return { rows, error: null };
+}
