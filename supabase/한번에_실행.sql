@@ -24,7 +24,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-08 · 0001~0111 · 110개)
+--   (2026-08-09 · 0001~0113 · 112개)
 -- ============================================================
 
 -- ─────────── 0008_homework_unit.sql ───────────
@@ -6481,4 +6481,112 @@ grant execute on function public.push_keys_ready() to authenticated;
 
 -- 화면이 이 파일이 돌았는지 알 수 있게
 create or replace function public.self_push_on()
+returns boolean language sql immutable as $$ select true $$;
+
+-- ─────────── 0112_exam_skips.sql ───────────
+-- ============================================================
+-- 0112. 「이 아이는 이 시험을 안 봤다」
+--
+-- 원장님 (2026-08-08) — 「시험없음 체크박스도 추가해줘. 없을때가 있어」
+--
+-- ── 왜 필요한가 ─────────────────────────────────────────
+--
+-- 「성적 미입력」 은 **그 학교 · 그 학년 아이는 그 시험을 봤을 것**이라는
+-- 짐작으로 센다. 대개 맞지만 안 맞는 때가 있다 —
+--   · 그날 아파서 못 봤다
+--   · 시험 전에 전학 왔다 (그 학교 시험을 안 봤다)
+--   · 그 과목을 안 듣는다
+--
+-- 이런 아이는 성적이 영영 안 들어온다. 그러면 배지가 **영영 안 꺼진다.**
+-- 안 꺼지는 배지는 며칠 안에 배경이 되고, 그때부터는 진짜 빠진 성적도
+-- 안 보이게 된다. 재촉은 끌 수 있어야 재촉이다.
+--
+-- ── 성적 줄로 하지 않는 까닭 ─────────────────────────────
+--
+-- 「0점짜리 성적」 을 넣어 치울 수도 있다. 그러면 안 된다 —
+--   · 평균과 추이에 0점이 섞여 아이 성적이 실제보다 나쁘게 보인다
+--   · 리포트에도 「0점」 이 적혀 나간다
+-- 안 본 것은 **없는 것**이지 0점이 아니다. 그래서 따로 적어둔다.
+--
+-- 여러 번 돌려도 같다.
+-- ============================================================
+
+create table if not exists public.exam_skips (
+  student_id uuid not null references public.students(id) on delete cascade,
+  exam_id    uuid not null references public.exam_periods(id) on delete cascade,
+  note       text,                                   -- 왜 안 봤는지 (병결 · 전학 …)
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (student_id, exam_id)
+);
+
+comment on table public.exam_skips is
+  '이 아이는 이 회차를 안 봤다 (0112). 성적 미입력 재촉에서 빠진다 — 0점이 아니라 없는 것이다';
+
+alter table public.exam_skips enable row level security;
+
+-- 선생님만 — 아이의 성적과 같은 성격이라 학생·학부모에게는 안 연다.
+-- (아이 화면에는 애초에 「성적 미입력」 이라는 것이 없다)
+drop policy if exists exam_skips_staff on public.exam_skips;
+create policy exam_skips_staff on public.exam_skips
+  for all to authenticated
+  using (public.is_staff())
+  with check (public.is_staff());
+
+grant select, insert, update, delete on public.exam_skips to authenticated;
+
+-- 화면이 이 파일이 돌았는지 알 수 있게
+create or replace function public.exam_skips_on()
+returns boolean language sql immutable as $$ select true $$;
+
+-- ─────────── 0113_task_started.sql ───────────
+-- ============================================================
+-- 0113. 「지금 붙잡고 있는 일」 — 할일 칸반의 가운데 칸
+--
+-- 원장님 (2026-08-09) — academy-video 벤치마킹
+--   「할일 / 진행중 / 완료 3컬럼 드래그」
+--
+-- ── 왜 status 값을 안 늘리는가 ───────────────────────────
+--
+-- 곧이곧대로 하면 status 에 'doing' 을 하나 더 넣으면 된다. 그러면 안 된다.
+--
+-- tasks 는 할일만 쓰는 표가 아니다 — 학사일정 · 수업 · 보강이 같이 산다.
+-- 그리고 앱 곳곳이 **`status = 'open'` 이면 남은 일**이라고 읽는다:
+-- 메뉴 배지, 대시보드 「남은 일」, 달력, 필터 — 아홉 파일 쉰세 군데다.
+--
+-- 'doing' 을 넣으면 그 줄들은 open 도 done 도 아니게 된다. 그러면
+-- **진행중으로 옮긴 할일이 배지에서도 달력에서도 통째로 사라진다.**
+-- 오류는 안 난다. 원장님은 「어? 아까 그거 어디 갔지」 하시게 된다.
+-- 이 앱에서 제일 자주 물린 함정이 바로 이 「조용히 안 세짐」 이다.
+--
+-- ── 그래서 칸 하나 ──────────────────────────────────────
+--
+-- 진행중은 **끝난 것이 아니라 손댄 것**이다. 그러니 status 는 'open' 그대로
+-- 두고, 손댄 때만 따로 적는다.
+--
+--   할일   = status open · started_at 없음
+--   진행중 = status open · started_at 있음      ← 여전히 open 이다
+--   완료   = status done
+--
+-- 쉰세 군데는 한 줄도 안 건드린다. 배지도 달력도 진행중을 그대로 센다 —
+-- 그게 맞다. 시작했다고 일이 없어지지는 않으니까.
+--
+-- 언제 손댔는지도 같이 남는다 — 「사흘째 붙잡고 있는 일」 을 나중에 볼 수 있다.
+--
+-- 여러 번 돌려도 같다.
+-- ============================================================
+
+alter table public.tasks
+  add column if not exists started_at timestamptz;
+
+comment on column public.tasks.started_at is
+  '손대기 시작한 때 (0113). 진행중 = status open + started_at 있음 — status 는 그대로 open 이라 배지·달력이 계속 센다';
+
+-- 진행중만 빨리 찾기 (칸반 가운데 칸)
+create index if not exists tasks_started_idx
+  on public.tasks (started_at)
+  where started_at is not null;
+
+-- 화면이 이 파일이 돌았는지 알 수 있게
+create or replace function public.task_started_on()
 returns boolean language sql immutable as $$ select true $$;

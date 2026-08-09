@@ -113,6 +113,32 @@ export async function setTodoStatus(ids, status) {
   return ok(error);
 }
 
+/**
+ * **손대기 시작했다 · 손 뗐다** (0113 — 칸반 가운데 칸).
+ *
+ * 진행중은 status 값이 아니라 `started_at` 이다. 그래서 이 함수는
+ * status 를 **건드리지 않는다** — 진행중인 할일도 여전히 `open` 이고,
+ * 메뉴 배지도 달력도 그대로 센다. 시작했다고 일이 없어지지는 않는다.
+ *
+ * 0113 전이면 칸이 없어 실패한다. 그때는 「SQL 을 실행해주세요」 라고
+ * 말해야 한다 — 조용히 아무 일도 안 일어나면 원장님은 앱이 고장 난 줄 아신다.
+ */
+export async function setTodoStarted(ids, on = true) {
+  const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+  if (list.length === 0) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ started_at: on ? new Date().toISOString() : null })
+    .in("id", list);
+  if (error && /started_at/.test(error.message || "")) {
+    return { error: "설정 → 관리자 → Supabase SQL 에서 0113 을 실행해주세요." };
+  }
+  revalidatePath("/tasks");
+  revalidatePath("/");
+  return ok(error);
+}
+
 export async function moveTodos(ids, dueOn) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0 || !dueOn) return { error: null };
