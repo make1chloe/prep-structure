@@ -82,7 +82,8 @@ if (!picked) no("수정창에서 유입경로가 빈 칸입니다 (그대로 저
 else if (!picked.includes(WHY)) no(`수정창의 유입경로가 「${picked}」 로 줄었습니다`);
 else ok(`수정창에도 「${picked}」 그대로입니다`);
 
-await q.screenshot({ path: `${process.env.OUT || "."}/apply-other.png`, fullPage: true });
+// 찍은 것은 저장소에 두지 않는다 — OUT 을 주셨을 때만 남긴다
+if (process.env.OUT) await q.screenshot({ path: `${process.env.OUT}/apply-other.png`, fullPage: true });
 await b.close();
 
 if (bad) { console.log("\n❌ 설문지 → 상담 사이에서 잃습니다"); process.exit(1); }
