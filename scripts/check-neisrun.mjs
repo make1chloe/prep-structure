@@ -209,7 +209,7 @@ console.log("\n== 나이스가 만든 줄은 나이스 날짜를 따라가나 ==
   eq(/const inside = absorbable\(e, pool, keepId, inUse\);/.test(act), true,
      "기간 안에 들어앉은 옛 줄을 모은다 (규칙은 lib/exams 한 곳)");
   // 이미 잘못 붙어 있던 것은 다시 받아와도 저절로 안 떨어진다 — 떼어준다
-  eq(/isMockExam\(x\) !== isMockExam\(\{ name: x\.neis_name \}\)/.test(act), true,
+  eq(/examKind\(x\) !== examKind\(\{ name: x\.neis_name \}\)/.test(act), true,
      "종류가 다른 채 붙어 있던 것을 떼어낸다");
 }
 
@@ -258,11 +258,57 @@ console.log("\n== 이 시험을 누가 보는지 적어주나 ==");
      "누가 보는지는 lib/who 의 takesExam 한 곳에서만 정한다");
   eq(/<WhoTakes e=\{e\} \/>/.test(sb), true, "줄에 붙어 있다");
   eq(/보는 학생 없음/.test(sb), true, "아무도 없으면 없다고 적는다 (빈칸으로 두지 않는다)");
+  // **이름을 자르지 않는다** (원장님 — 「외 1명 안 돼, 이름 다 보여야 해」)
+  eq(/외 \$\{/.test(sb), false, "「외 N명」 으로 자르지 않는다");
+  eq(/이름 보기 \(\$\{who\.length\}명\)/.test(sb), true, "많으면 눌러서 편다");
+  eq(/normalizeGrade\(s\.grade\)/.test(sb), true, "학년으로 묶어서 적는다");
   // 내신이 하루짜리면 쪼개진 옛 줄이 남아 있다는 뜻이다
   eq(/하루짜리\?/.test(sb), true, "하루짜리 내신은 눈에 띄게 적어둔다");
   for (const page of ["app/schools/page.jsx", "app/schedule/page.jsx"]) {
     eq(/roster=\{students \|\| \[\]\}/.test(readFileSync(page, "utf8")), true, `${page} 가 명단을 넘긴다`);
   }
+}
+
+
+console.log("\n== 재량휴업일을 받아오나 ==");
+/**
+ * 원장님 (2026-08-09) — 「학사일정에 재량휴업일 넣어줘. 시험은 아니지만
+ * 중요한 일정이라서」 · 「여러 학교가 쉬면 한 줄씩 아니고 일정 하나에
+ * 여러 학교 이름 나열해줘」
+ *
+ * 나이스는 재량휴업일을 **행사 이름 없이** 「수업공제일명 = 휴업일」 로만
+ * 주는 학교가 있다. 이름이 없다고 버리고 있었는데, 그날은 아이가 하루 종일
+ * 비는 날이라 학원 쪽에서는 제일 중요한 날 중 하나다.
+ */
+{
+  const hs = { name: "해송고", schul_code: "H1" };
+  // 2026-09-21 은 월요일 — 평일에 이름 없이 휴업일이면 재량휴업일이다
+  const t = toTask({ AA_YMD: "20260921", EVENT_NM: "", SBTR_DD_SC_NM: "휴업일" }, hs);
+  eq(t?.title, "재량휴업일", "이름이 비어 있어도 받아온다");
+  eq(t?.neisKind, "off", "쉬는 날로 본다");
+  // **토·일은 그대로 버린다** — 원래 안 가는 날이라 한 해에 백 줄이 는다
+  eq(toTask({ AA_YMD: "20260919", EVENT_NM: "", SBTR_DD_SC_NM: "휴업일" }, hs), null, "토요일은 안 받는다");
+  eq(toTask({ AA_YMD: "20260920", EVENT_NM: "", SBTR_DD_SC_NM: "휴업일" }, hs), null, "일요일은 안 받는다");
+  // 이름도 없고 휴업일도 아니면 알려주는 것이 없다
+  eq(toTask({ AA_YMD: "20260921", EVENT_NM: "", SBTR_DD_SC_NM: "" }, hs), null, "빈 줄은 그대로 버린다");
+
+  // **여러 학교가 같은 날 쉬면 한 줄로** — 학교코드를 열쇠에 안 넣는다
+  const a = toTask({ AA_YMD: "20260921", EVENT_NM: "재량휴업일" }, hs);
+  const b = toTask({ AA_YMD: "20260921", EVENT_NM: "재량휴업일" }, { name: "연수여고", schul_code: "Y1" });
+  eq(a.source_id, b.source_id, "두 학교가 같은 줄로 모인다");
+  eq(a.shared, true, "한 줄로 모으는 것이라는 표가 있다");
+  eq(a.title, "재량휴업일", "제목에 학교 이름을 안 붙인다 (학교는 설명에 늘어놓는다)");
+  eq(mergeSame([a, b]).length, 1, "실제로 한 줄이 된다");
+
+  // **방학은 안 모은다** — 학교마다 시작·끝이 달라서 묶으면 누가 언제 쉬는지 사라진다
+  const v = toTask({ AA_YMD: "20260720", EVENT_NM: "여름방학" }, hs);
+  eq(v.shared, undefined, "방학은 학교마다 따로 둔다");
+  eq(v.title, "해송고 여름방학", "방학에는 학교 이름이 붙는다");
+}
+{
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  eq(/if \(!t\.nationwide && !t\.shared\)/.test(act), true, "한 줄로 모을 것을 같은 자리로 보낸다");
+  eq(/if \(shared\) \{/.test(act), true, "어느 학교가 쉬는지 적는다");
 }
 
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }

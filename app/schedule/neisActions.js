@@ -7,7 +7,7 @@ import {
   isNationwide,
 } from "@/lib/neis";
 import { matchExam, absorbable } from "@/lib/exams";
-import { isMockExam } from "@/lib/examList";
+import { examKind } from "@/lib/examList";
 import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
 import { requireStaff } from "@/lib/guard";
@@ -407,9 +407,13 @@ export async function importSchedule(from, to, schoolId = null) {
 
     // 전국 공통 줄은 여기서 넣지 않는다. 학교마다 한 번씩 넣으면 설명이
     // 마지막 학교 것으로 덮인다. 다 모은 뒤 마지막에 한 번에 넣는다.
+    //
+    // **재량휴업일도 같은 자리로 보낸다** (원장님, 2026-08-09 — 「여러 학교가
+    // 쉬면 한 줄씩 아니고 일정 하나에 여러 학교 이름 나열해줘」). 전국 공통은
+    // 아니지만 「한 줄에 학교를 모은다」 는 다루는 법이 똑같다.
     const mine = [];
     tasks.forEach((t) => {
-      if (!t.nationwide) { mine.push(t); return; }
+      if (!t.nationwide && !t.shared) { mine.push(t); return; }
       const had = commonRows.get(t.source_id);
       if (had) { had.schools.add(t.schoolName || school.name); return; }
       commonRows.set(t.source_id, { row: t, schools: new Set([t.schoolName || school.name]) });
@@ -537,12 +541,21 @@ export async function importSchedule(from, to, schoolId = null) {
   if (commonRows.size > 0) {
     const rows = [...commonRows.values()].map(({ row, schools }) => {
       const {
-        neisKind, nationwide, mayDiffer: differs, schoolName, grades, level, mock, ...rest
+        neisKind, nationwide, shared, mayDiffer: differs, schoolName, grades, level, mock, ...rest
       } = row;
       // 대체공휴일처럼 학교마다 다를 수 있는 것 — 전부가 아니면 어디가 쉬는지 적는다
       let note = rest.note;
       if (differs && okSchools > 1 && schools.size < okSchools) {
         note = `쉬는 학교 ${schools.size}/${okSchools}곳 — ${[...schools].join(", ")}`;
+      }
+      /**
+       * **재량휴업일은 어느 학교인지가 전부다** (원장님, 2026-08-09).
+       * 학교가 저마다 정하는 날이라, 학교 이름이 없으면 그날 누가 비는지
+       * 알 수가 없다. 한 곳이든 아홉 곳이든 늘 적는다.
+       */
+      if (shared) {
+        note = `${[...schools].join(" · ")}${okSchools > 1 ? ` (${schools.size}/${okSchools}곳)` : ""}` +
+          (rest.note ? ` — ${rest.note}` : "");
       }
       const open = keepCommonOpen.has(rest.source_id);
       return {
@@ -574,7 +587,7 @@ export async function importSchedule(from, to, schoolId = null) {
       if (error) failed.push(`전국 공통 — ${error.message}`);
     }
     added += rows.length;
-    notes.push(`전국 공통(수능 · 모의고사 · 공휴일): ${rows.length}건`);
+    notes.push(`한 줄로 모은 일정(수능 · 모의고사 · 공휴일 · 재량휴업일): ${rows.length}건`);
   }
 
   /**
@@ -772,7 +785,7 @@ export async function addExamPeriods(list = []) {
    * 그대로 둔다 — 성적이 붙어 있을 수 있다.
    */
   const wrong = pool.filter(
-    (x) => x.neis_source_id && x.neis_name && isMockExam(x) !== isMockExam({ name: x.neis_name })
+    (x) => x.neis_source_id && x.neis_name && examKind(x) !== examKind({ name: x.neis_name })
   );
   for (const x of wrong) {
     await supabase

@@ -14,9 +14,10 @@ import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 import { cleanNote } from "@/lib/note";
 import { takesExam } from "@/lib/who";
+import { GRADES, normalizeGrade } from "@/lib/grades";
 import { mergeMockExams } from "./actions";
 import {
-  sortExams, groupExams, filterExams, facetsOf, termLabel, isMockExam,
+  sortExams, groupExams, filterExams, facetsOf, termLabel, isMockExam, examKind,
   EXAM_SORTS, EXAM_SORT_DEFAULT, mockMess,
 } from "@/lib/examList";
 
@@ -68,6 +69,7 @@ export default function ScheduleBoard({
   const [cutOpen, setCutOpen] = useState(null);   // 등급컷을 적는 중인 회차
   const [cuts, setCuts] = useState({});
   const [infoOpen, setInfoOpen] = useState(null); // 선생님·특이사항을 적는 중인 회차
+  const [whoOpen, setWhoOpen] = useState({});     // 이름을 펴 놓은 회차
   const [teach, setTeach] = useState({});
   const [memo, setMemo] = useState({});
   const [off, setOff] = useState({ date: "", name: "", classId: "" });
@@ -130,17 +132,54 @@ export default function ScheduleBoard({
     return m;
   }, [exams, roster]);
 
+  /**
+   * **이름은 다 보여야 한다** (원장님, 2026-08-09 — 「외 1명 안 돼, 이름 다
+   * 보여야 해. 너무 많으면 토글식으로라도」).
+   *
+   * 「외 16명」 은 아무것도 안 알려준다 — 그 열여섯이 누구인지가 정확히
+   * 알고 싶은 것이다. 그래서 자르지 않고, 길면 접어두고 눌러서 편다.
+   *
+   * **학년으로 묶어서 적는다** (원장님 — 「학생 이름 맨 앞에 학년으로
+   * 구분시켜줘」). 한 회차를 중2와 중3이 같이 보는 일이 흔하고, 그때
+   * 이름만 늘어놓으면 누가 몇 학년인지 알 수가 없다.
+   */
+  const WHO_FOLD = 6;      // 이보다 많으면 접어둔다
+
   function WhoTakes({ e }) {
     const who = takers.get(e.id) || [];
+    const open = whoOpen[e.id];
     if (!who.length) {
       // **빈칸으로 두지 않는다.** 「아직 안 세어봤다」 와 「정말 없다」 는 다르다
       return <span className="tag tag-muted" title="이 학교·학년에 재원생이 없습니다">보는 학생 없음</span>;
     }
-    const names = who.map((s) => s.name).filter(Boolean);
-    const head = names.slice(0, 5).join(" · ");
+    const byGrade = new Map();
+    who.forEach((s) => {
+      const g = normalizeGrade(s.grade) || "학년 없음";
+      if (!byGrade.has(g)) byGrade.set(g, []);
+      byGrade.get(g).push(s.name || "이름 없음");
+    });
+    const order = [...byGrade.keys()].sort(
+      (a, b) => (GRADES.indexOf(a) + 1 || 99) - (GRADES.indexOf(b) + 1 || 99)
+    );
+    const folded = who.length > WHO_FOLD && !open;
     return (
-      <span className="hint" title={names.join(", ")}>
-        <b>{who.length}명</b> {head}{names.length > 5 ? ` 외 ${names.length - 5}명` : ""}
+      <span className="hint" style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+        <b>{who.length}명</b>
+        {!folded && order.map((g) => (
+          <span key={g}>
+            <b style={{ color: "var(--sky)" }}>{g}</b> {byGrade.get(g).join(" · ")}
+          </span>
+        ))}
+        {who.length > WHO_FOLD && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ padding: "0 6px", height: 20, fontSize: 11.5 }}
+            onClick={() => setWhoOpen({ ...whoOpen, [e.id]: !open })}
+          >
+            {open ? "이름 접기" : `이름 보기 (${who.length}명)`}
+          </button>
+        )}
       </span>
     );
   }
@@ -187,7 +226,7 @@ export default function ScheduleBoard({
           * 이름에 이미 연도 · 월 · 학년이 다 들어 있다.
           */}
         <b style={{ fontSize: 12.5 }}>
-          {isMockExam(e) ? (
+          {examKind(e) !== "school" ? (
             e.name || "모의고사"
           ) : (
             <>
@@ -220,7 +259,7 @@ export default function ScheduleBoard({
           *
           * 학교가 뭐라고 적었는지는 마우스를 올리면 나온다.
           */}
-        {!termLabel(e) && !isMockExam(e) && e.name && (
+        {!termLabel(e) && examKind(e) === "school" && e.name && (
           <span className="tag tag-muted">{e.name}</span>
         )}
         {teacherText(e) && <span className="tag tag-lav">{teacherText(e)}</span>}
@@ -246,7 +285,7 @@ export default function ScheduleBoard({
           * 이렇게 보인다. 조용히 두면 「이 학교는 원래 하루인가 보다」 로
           * 넘어가므로, 눈에 띄게 적어둔다.
           */}
-        {!isMockExam(e) && e.from_date === e.to_date && (
+        {examKind(e) === "school" && e.from_date === e.to_date && (
           <span className="tag tag-amber" title="학교 일정을 다시 받아오시면 사흘짜리 한 줄로 모입니다">
             하루짜리?
           </span>
@@ -1100,9 +1139,24 @@ export default function ScheduleBoard({
               */}
             {eSort.key === "term" && groupExams(shownExams).map((g) => (
               <div key={g.key} className="stack" style={{ gap: 4 }}>
-                <div className="row" style={{ gap: 6, alignItems: "baseline", marginTop: 6 }}>
-                  <b style={{ fontSize: 13 }}>{g.label}</b>
-                  <span className="tag tag-muted">{g.rows.length}</span>
+                {/**
+                  * **묶음 이름이 제일 크게** (원장님, 2026-08-09 — 「맨 앞에
+                  * 시험명이 너무 눈에 안 띄어. 2학기 기말 이런 거 제목은 잘
+                  * 보이게 해줘」).
+                  *
+                  * 줄들이 다 네모 칸이라 그 사이에 낀 작은 글씨는 그냥
+                  * 묻힌다. 글씨를 키우고 밑줄을 그어 **여기서부터 다른
+                  * 묶음**이라는 것이 눈으로 먼저 보이게 한다.
+                  */}
+                <div
+                  className="row"
+                  style={{
+                    gap: 8, alignItems: "center", marginTop: 18, marginBottom: 2,
+                    paddingBottom: 6, borderBottom: "2px solid var(--border-strong)",
+                  }}
+                >
+                  <b style={{ fontSize: 17, letterSpacing: "-0.02em" }}>{g.label}</b>
+                  <span className="tag tag-sky">{g.rows.length}건</span>
                 </div>
                 {g.rows.map((e) => <ExamRow key={e.id} e={e} inGroup />)}
               </div>

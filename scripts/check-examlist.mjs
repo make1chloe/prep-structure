@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { commonName } from "../lib/neis.js";
 import {
   isMockExam, needsScope, termOf, termLabel, sortExams, filterExams, facetsOf,
-  groupExams, mockMess, EXAM_SORT_DEFAULT,
+  groupExams, mockMess, isSuneung, EXAM_SORT_DEFAULT,
 } from "../lib/examList.js";
 
 let fail = 0;
@@ -172,6 +172,37 @@ eq(mockMess([{ id: "d", school: "박문중", grade: "고1", name: "3월 모의�
    { perSchool: 1, stale: 0, any: true }, "학교마다 한 줄씩인 것도 그대로 센다");
 eq(mockMess(EXAMS.filter((e) => e.id !== "3")).any, false, "합칠 것이 없으면 안내를 안 띄운다");
 eq(/mockMess\(exams\)\.any &&/.test(sb), true, "화면이 mockMess 로 안내를 띄운다");
+
+
+console.log("\n== 수능은 모의고사가 아니다 ==");
+/**
+ * 원장님 (2026-08-09) — 「수능이 내신 시험으로 잡혀 있으면 안 되는 거잖아.
+ * 수능 모의고사인데, 수능은 그냥 대수능!!」
+ *
+ * 셋이 다 다르다 — 내신은 범위가 있고, 모의고사는 성적만 붙고, 대수능은
+ * 한 해에 하루다. 모의고사 묶음에 대수능이 섞이면 「11월 모의고사」 처럼
+ * 읽힌다.
+ */
+[
+  ["대학수학능력시험", true],
+  ["2026학년도 수능", true],
+  ["수능", true],
+  // 「모의」 가 붙으면 평가원 모의고사다 — 대수능이 아니다
+  ["수능 모의평가", false],
+  ["6월 모의평가", false],
+  ["전국연합학력평가", false],
+  ["2학기 기말고사", false],
+].forEach(([name, want]) => eq(isSuneung({ name }), want, `「${name}」`));
+// 대수능도 범위를 안 담는다 (내신이 아니다)
+eq(needsScope({ name: "대학수학능력시험" }), false, "대수능은 범위를 안 담는다");
+{
+  const g = groupExams([
+    { id: 1, school: "신정중", name: "2학기 기말고사", from_date: "2026-12-14" },
+    { id: 2, school: "전국", name: "2026년 11월 고3 모의고사", from_date: "2026-11-19" },
+    { id: 3, school: "전국", name: "대학수학능력시험", from_date: "2026-11-19" },
+  ]);
+  eq(g.map((x) => x.label), ["26년 2학기 기말", "모의고사", "대수능"], "대수능이 따로 · 맨 뒤에 선다");
+}
 
 if (fail) { console.log("\n❌ 시험 목록에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 시험 목록 통과");
