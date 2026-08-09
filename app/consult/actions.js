@@ -6,6 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { deliver } from "@/lib/send";
 import { fill, guideVars, linkVars, FALLBACK } from "@/lib/inquirySms";
+import { searchSchools, addSchool, importSchedule } from "@/app/schedule/neisActions";
+import { addSchoolByName } from "@/app/schedule/schoolActions";
+import { sameSchool } from "@/lib/who";
+import { schoolYear } from "@/lib/neis";
+import { todaySeoul } from "@/lib/day";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -162,10 +167,86 @@ export async function convertToStudent(id, classId) {
     })
     .eq("id", id);
 
+  // **등록까지 와야 학사일정에 붙인다** (아래 attachSchool 의 설명)
+  const school = await attachSchool(supabase, q.school).catch(() => null);
+
   revalidatePath("/consult");
   revalidatePath("/students");
   revalidatePath("/classes");
-  return { error: error ? error.message : null, studentId: student.id };
+  revalidatePath("/schedule");
+  return { error: error ? error.message : null, studentId: student.id, school };
+}
+
+/**
+ * **등록한 아이의 학교를 학사일정에 붙인다** (원장님, 2026-08-09 —
+ * 「설문지 제출 후 등록까지 해야 학사일정에 반영되게 해줘」).
+ *
+ * ── 왜 등록 때인가 ─────────────────────────────────────
+ *
+ * 설문지는 **아직 우리 아이가 아니다.** 상담만 하고 안 오시는 분도 있고,
+ * 장난으로 넣는 경우도 있다. 설문지가 들어올 때마다 그 학교를 받아오면
+ * 학사일정이 안 다니는 학교로 불어나고, 나이스 부르는 횟수도 하루 한도가
+ * 있다. 반대로 **등록했는데 학교가 없으면** 그 아이만 시험 일정도 없고
+ * 시험범위도 없고 전날 등원도 없다 — 조용히 빠진다.
+ *
+ * 그래서 딱 등록하는 순간에 붙인다.
+ *
+ * ── 못 해도 등록은 된다 ────────────────────────────────
+ *
+ * 나이스가 안 되거나 열쇠가 없어도 **아이 등록은 이미 끝나 있다.** 여기서
+ * 터져도 되돌리지 않는다 — 학교를 못 붙인 것보다 등록이 안 된 것이 훨씬
+ * 나쁘다. 무슨 일이 있었는지만 돌려준다.
+ *
+ * @returns { added, name, note } | null
+ */
+async function attachSchool(supabase, name) {
+  const want = (name || "").trim();
+  if (!want) return null;
+
+  // 이미 있나 — 「신정중」 과 「인천신정중학교」 를 같은 곳으로 본다 (lib/who)
+  const { data: had } = await supabase.from("schools").select("id, name, schul_code");
+  const hit = (had || []).find((r) => sameSchool(r.name, want));
+  if (hit) {
+    // 이름은 있는데 나이스 코드가 없으면 학사일정이 안 돈다 — 그건 알려야 한다
+    if (!hit.schul_code) {
+      return { added: false, name: hit.name, note: "학사일정을 받아오려면 학교 화면에서 나이스와 이어주세요." };
+    }
+    return { added: false, name: hit.name };
+  }
+
+  const found = await searchSchools(want);
+  const rows = found.rows || [];
+
+  /**
+   * **하나로 딱 떨어질 때만 자동으로 넣는다.**
+   *
+   * 「신정중」 으로 찾으면 인천·서울·부천이 같이 나온다. 그중 하나를 앱이
+   * 골라 넣으면 **다른 학교의 시험 일정**이 그 아이에게 붙는다. 그건 학교가
+   * 아예 없는 것보다 나쁘다 — 없으면 비어 보이지만, 틀린 것은 맞는 줄 안다.
+   */
+  if (rows.length !== 1) {
+    // 이름만이라도 남겨둔다. 재원생 목록·시험 회차가 이 이름으로 이어진다
+    await addSchoolByName(want).catch(() => {});
+    return {
+      added: true,
+      name: want,
+      note: rows.length
+        ? `나이스에 「${want}」 로 ${rows.length}곳이 나옵니다 — 학교 화면에서 골라주세요.`
+        : "나이스에서 못 찾았어요 — 학교 화면에서 직접 이어주세요.",
+    };
+  }
+
+  const put = await addSchool(rows[0]);
+  if (put?.error) return { added: false, name: want, note: put.error };
+
+  // 학사일정까지 받아온다 — 이 학년도치만
+  const { from, to } = schoolYear(todaySeoul());
+  const { data: made } = await supabase
+    .from("schools").select("id")
+    .eq("schul_code", rows[0].schul_code).maybeSingle();
+  if (made?.id) await importSchedule(from, to, made.id).catch(() => {});
+
+  return { added: true, name: rows[0].name, note: "학사일정까지 받아왔어요." };
 }
 
 /**

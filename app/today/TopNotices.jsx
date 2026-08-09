@@ -7,6 +7,7 @@ import { applyTasksDelivery } from "@/app/tasks/actions";
 import NoticePhotos from "@/components/NoticePhotos";
 import RequestPhotos from "@/components/RequestPhotos";
 import { NOTICE_KINDS, isMemo, isAlert } from "@/lib/notices";
+import { inTarget } from "@/lib/who";
 
 const SCOPES = [
   { key: "all", label: "전체" },
@@ -68,7 +69,7 @@ export default function TopNotices({
       : scope === "class"
       ? students.filter((s) => (s.classIds || []).includes(classId)).length
       : scope === "grade"
-      ? students.filter((s) => (!school || s.school === school) && (!grade || s.grade === grade)).length
+      ? students.filter((s) => inTarget(s, { school, grade })).length
       : picked.size;
 
   function submit() {

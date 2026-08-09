@@ -275,6 +275,7 @@ echo "== 5-4-24) 메뉴마다 남은 일 배지 =="
 runjs scripts/check-badges.mjs
 runjs scripts/check-kanban.mjs
 runjs scripts/check-pick.mjs
+runjs scripts/check-who.mjs
 
 echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="

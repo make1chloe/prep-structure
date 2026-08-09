@@ -7,6 +7,7 @@ import { summarize, buildMonthlyText, monthLabel, offScheduleAbsences } from "@/
 import { IN_APP_DETAIL } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { endOfMonth } from "@/lib/day";
+import { takesExam } from "@/lib/who";
 
 /** "2026-07" → "2026-06" */
 function prevYm(ym) {
@@ -103,9 +104,7 @@ export async function loadMonth(ym) {
       // 이 학생 학교(학년)의 시험 기간만 본다
       sum.offSchedule = offScheduleAbsences(
         mineReports,
-        periods.filter(
-          (p) => p.school === s.school && (!p.grade || !s.grade || p.grade === s.grade)
-        )
+        periods.filter((p) => takesExam(s, p))
       );
 
       // 지난달 — 한 줄 평에서 견주기만 한다 (문구에 지난달 숫자를 늘어놓지는 않는다)

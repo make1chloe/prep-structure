@@ -7,6 +7,7 @@ import { pushToStudents, pushToFamilies } from "@/app/push/actions";
 import { safeKind, isAlert } from "@/lib/notices";
 import { dowOf } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
+import { inTarget } from "@/lib/who";
 
 function isMissingColumn(error) {
   if (!error) return false;
@@ -391,7 +392,7 @@ export async function createNotice(input) {
         .select("id, school, grade")
         .in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
       ids = (ss || [])
-        .filter((s) => (!school || s.school === school) && (!grade || s.grade === grade))
+        .filter((s) => inTarget(s, { school, grade }))
         .map((s) => s.id);
     }
     targets = ids;

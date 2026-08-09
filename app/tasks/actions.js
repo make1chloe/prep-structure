@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
+import { inTarget, sameGrade } from "@/lib/who";
 
 
 function ok(error) {
@@ -200,10 +201,12 @@ export async function applyTaskDelivery(taskId, date) {
     if (ss.error) ss = await supabase.from("students").select("id, school, grade").in("id", ids);
     ids = (ss.data || [])
       .filter((s) => {
-        const schoolOk = task.deliver_school_id
-          ? s.school_id === task.deliver_school_id
-          : !task.deliver_school || s.school === task.deliver_school;
-        return schoolOk && (!task.deliver_grade || s.grade === task.deliver_grade);
+        // 견주는 규칙은 lib/who 한 곳에 있다 (「신정중」 과 「인천신정중학교」)
+        if (task.deliver_school_id) {
+          return s.school_id === task.deliver_school_id
+            && (!task.deliver_grade || sameGrade(s.grade, task.deliver_grade));
+        }
+        return inTarget(s, { school: task.deliver_school, grade: task.deliver_grade });
       })
       .map((s) => s.id);
   }

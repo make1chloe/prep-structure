@@ -346,7 +346,21 @@ export default function ConsultBoard({
                       className="btn btn-primary btn-sm"
                       onClick={() => {
                         if (!confirm(`${r.name} 학생을 재원생으로 등록할까요?`)) return;
-                        run(() => convertToStudent(r.id, r.class_id));
+                        /**
+                          * **학교가 학사일정에 붙었는지 말해준다** (0114 뒤,
+                          * 2026-08-09). 등록하는 순간 그 학교를 받아오는데,
+                          * 나이스에 같은 이름이 여럿이거나 못 찾으면 원장님이
+                          * 학교 화면에서 이어주셔야 한다. 조용히 지나가면
+                          * 그 아이만 시험 일정이 없는 채로 몇 달이 간다.
+                          */
+                        startTransition(async () => {
+                          const res = await convertToStudent(r.id, r.class_id);
+                          if (res?.error) return alert(res.error);
+                          const sc = res.school;
+                          if (sc?.note) alert(`${sc.name} — ${sc.note}`);
+                          else if (sc?.added) alert(`${sc.name} 을(를) 학사일정에 넣었어요.`);
+                          router.refresh();
+                        });
                       }}
                       disabled={pending}
                     >
