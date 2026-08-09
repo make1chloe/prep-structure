@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import {
   neisReady, searchSchools, addSchool, removeSchool, listSchools,
-  importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports,
+  importSchedule, clearImported, importedSummary, diagnose, clearSchoolImports, resetNeisExams,
 } from "./neisActions";
 import { schoolYear } from "@/lib/neis";
 import { schoolAlike, looseKey, shortName } from "@/lib/schoolName";
@@ -569,6 +569,40 @@ export default function NeisBox({ months = [] }) {
               }}
             >
               받아온 것 지우기
+            </button>
+            {/**
+              * **시험 회차만 따로 비우는 길** (원장님, 2026-08-09 — 「여전히
+              * 한 줄씩 나오거나 모의고사가 내신으로 잡히는데, 진짜 코드 문제
+              * 아닌 거 맞아?」).
+              *
+              * 코드는 고쳤지만 고친 코드는 **새로 만드는 것만** 바로잡는다.
+              * 옛 코드가 만들어 둔 줄은 다시 받아와도 안 없어진다 — 새 줄보다
+              * 넓거나, 이름이 다르거나, 아예 다른 날에 있으면 흡수가 안 된다.
+              * 한 번 비우고 다시 만들면 그 층이 통째로 사라진다.
+              */}
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginBottom: 1 }}
+              disabled={pending}
+              title="옛 코드가 만들어 둔 시험 회차를 비우고 다시 받습니다"
+              onClick={() => {
+                if (!confirm(
+                  "받아온 시험 회차를 모두 지우고 다시 만들까요?\n\n"
+                  + "쪼개져 있거나 이름이 이상한 옛 줄이 한 번에 정리됩니다.\n\n"
+                  + "다음은 그대로 남습니다 —\n"
+                  + "· 성적·시험범위가 붙어 있는 회차\n"
+                  + "· 영어 시험일 · 등급컷 · 선생님 · 특이사항을 적어두신 회차\n"
+                  + "· 손으로 만드신 회차\n\n"
+                  + "지운 뒤 「학사일정 받아오기」 를 눌러주세요."
+                )) return;
+                run(() => resetNeisExams(), (r) => {
+                  setDone(null);
+                  importedSummary().then(setHave);
+                  alert(r?.note || "지웠습니다.");
+                });
+              }}
+            >
+              시험 회차 다시 만들기
             </button>
           </div>
 

@@ -17,6 +17,7 @@ import {
   gradesOf, gradeLabel, levelOf,
 } from "../lib/neis.js";
 import { matchExam, absorbable } from "../lib/exams.js";
+import { kindOf } from "../lib/neis.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -309,6 +310,46 @@ console.log("\n== 재량휴업일을 받아오나 ==");
   const act = readFileSync("app/schedule/neisActions.js", "utf8");
   eq(/if \(!t\.nationwide && !t\.shared\)/.test(act), true, "한 줄로 모을 것을 같은 자리로 보낸다");
   eq(/if \(shared\) \{/.test(act), true, "어느 학교가 쉬는지 적는다");
+}
+
+
+console.log("\n== 쉬는 날이 시험으로 잡히지 않나 ==");
+/**
+ * 원장님 (2026-08-09) — 화면에 「대수능시험 휴업일」 이 **시험 회차**로 네 줄
+ * 앉아 있었다. 이름에 「시험」 이 들어 있어서 EXAM 에 걸린 것이다.
+ * 그날은 아이들이 **쉬는 날**이지 시험 보는 날이 아니다.
+ */
+[
+  ["대수능시험 휴업일", "off"],
+  ["수능시험일 휴업", "off"],
+  ["재량휴업일", "off"],
+  ["여름방학", "off"],
+  ["2학기 기말고사", "exam"],
+  ["1학기 중간고사", "exam"],
+  ["제2차 지필평가", "exam"],
+].forEach(([n, want]) => eq(kindOf(n), want, `「${n}」`));
+
+console.log("\n== 옛 줄을 한 번에 비울 길이 있나 ==");
+/**
+ * 원장님 (2026-08-09) — 「여전히 한 줄씩 나오거나 모의고사가 내신으로
+ * 잡히는데, 진짜 코드 문제 아닌 거 맞아?」
+ *
+ * **고친 코드는 새로 만드는 것만 바로잡는다.** 옛 코드가 만들어 둔 줄은
+ * 다시 받아와도 안 없어진다 — 새 줄보다 넓거나(12/11~12/16 안에
+ * 12/14~12/16), 이름이 다르거나(「대수능시험 휴업일」), 아예 다른 날에
+ * 있으면 흡수(absorbable)가 못 잡는다. 그래서 한 번 비우는 길을 낸다.
+ */
+{
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  eq(/export async function resetNeisExams/.test(act), true, "비우는 자리가 있다");
+  eq(/if \(\(r\.source \|\| ""\) !== "neis"\) continue;/.test(act), true, "손으로 만드신 줄은 안 지운다");
+  eq(/if \(inUse\.has\(r\.id\)\)/.test(act), true, "성적·범위가 붙은 줄은 안 지운다");
+  eq(/const touched = \(r\) =>/.test(act), true, "적어두신 것이 있으면 안 지운다");
+  eq(/r\.english_on \|\| r\.teacher \|\| r\.note/.test(act), true,
+     "영어 시험일 · 선생님 · 특이사항을 살핀다");
+  const box = readFileSync("app/schedule/NeisBox.jsx", "utf8");
+  eq(/resetNeisExams\(\)/.test(box), true, "화면에 단추가 있다");
+  eq(/시험 회차 다시 만들기/.test(box), true, "단추 이름");
 }
 
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }

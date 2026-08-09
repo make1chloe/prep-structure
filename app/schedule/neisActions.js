@@ -897,6 +897,88 @@ export async function clearImported(from, to) {
 }
 
 /**
+ * **받아온 시험 회차를 싹 지우고 다시 만든다** (원장님, 2026-08-09 —
+ * 「여전히 한 줄씩 나오거나 모의고사가 내신으로 잡히는데, 진짜 코드 문제
+ * 아닌 거 맞아?」).
+ *
+ * ── 왜 다시 받아와도 안 고쳐졌나 ──────────────────────
+ *
+ * 코드는 고쳤다. 그런데 **고친 코드는 새로 만드는 것만 바로잡는다.** 옛
+ * 코드가 만들어 놓은 줄은 DB 에 그대로 앉아 있고, 다시 받아오기는 그것을
+ * 지우지 않는다 — 「기간 안에 온전히 들어앉은 것」 만 흡수하기 때문이다.
+ * 옛 줄이 새 줄보다 넓거나(12/11~12/16 안에 12/14~12/16), 이름이 다르거나
+ * (「대수능시험 휴업일」), 아예 다른 날에 있으면 영영 남는다.
+ *
+ * 그래서 **한 번 비우고 다시 만드는 길**을 낸다. 이것이 없으면 원장님이
+ * 스무 줄을 손으로 지우셔야 한다.
+ *
+ * ── 무엇을 지키나 ────────────────────────────────────
+ *
+ * 지우는 것은 되돌릴 수 없다. 아래 중 **하나라도** 있으면 안 지운다 —
+ *   · 성적이나 시험범위가 붙어 있다
+ *   · 영어 시험일 · 등급컷 · 출제 선생님 · 특이사항을 적어두셨다
+ *   · 원장님이 손으로 만드신 줄이다 (source 가 neis 가 아니다)
+ * 지운 뒤에는 **바로 「학사일정 받아오기」 를 누르셔야** 다시 들어온다.
+ */
+export async function resetNeisExams() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  let { data: rows, error } = await supabase
+    .from("exam_periods")
+    .select("id, school, name, from_date, to_date, english_on, cuts, teacher, teachers, note, source");
+  if (error) {
+    // 0073·0076 전이면 없는 칸이 있다 — 한 단계 물러난다
+    ({ data: rows, error } = await supabase
+      .from("exam_periods").select("id, school, name, from_date, to_date, english_on, note, source"));
+  }
+  if (error) return { error: error.message };
+
+  const { data: scopeRows } = await supabase.from("prep_scopes").select("exam_id");
+  const { data: scoreRows } = await supabase
+    .from("scores").select("exam_id").not("exam_id", "is", null);
+  const inUse = new Set([
+    ...(scopeRows || []).map((r) => r.exam_id),
+    ...(scoreRows || []).map((r) => r.exam_id),
+  ]);
+
+  const touched = (r) =>
+    !!(r.english_on || r.teacher || r.note || (r.teachers || []).length || (r.cuts || []).length);
+
+  const kill = [];
+  const keep = [];
+  for (const r of rows || []) {
+    if ((r.source || "") !== "neis") continue;          // 손으로 만드신 줄
+    if (inUse.has(r.id)) { keep.push(`${r.school} ${r.name || ""} (성적·범위)`); continue; }
+    if (touched(r)) { keep.push(`${r.school} ${r.name || ""} (적어두신 것)`); continue; }
+    kill.push(r.id);
+  }
+
+  let removed = 0;
+  for (let i = 0; i < kill.length; i += 200) {
+    const { error: dErr } = await supabase
+      .from("exam_periods").delete().in("id", kill.slice(i, i + 200));
+    if (dErr) return { error: dErr.message, removed };
+    removed += kill.slice(i, i + 200).length;
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schools");
+  revalidatePath("/prep");
+  return {
+    error: null,
+    removed,
+    kept: keep.length,
+    keptList: keep.slice(0, 12),
+    note:
+      `받아온 시험 회차 ${removed}개를 지웠습니다.` +
+      (keep.length ? ` ${keep.length}개는 적어두신 것이 있어 남겼습니다.` : "") +
+      " 이어서 「학사일정 받아오기」 를 눌러주세요.",
+  };
+}
+
+/**
  * 지금 들어와 있는 것 — **학교별로 몇 건, 언제부터 언제까지.**
  *
  * "받아왔나?" 를 기억에 의존하게 하면 안 된다. 받고 나서 화면을 옮기면
