@@ -5,10 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { pushToStaff } from "@/app/push/actions";
 import { todaySeoul } from "@/lib/day";
 import { resolveStudent } from "@/lib/actAs";
+import { needSql } from "@/lib/sqlError";
 
-function unavailable(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
-}
 const NEED = "0033 SQL 을 먼저 실행해주세요.";
 
 /**
@@ -48,7 +46,7 @@ export async function startStudy(homeworkItemId, stayTaskId, kind = "home", asId
     const { kind: _k, ...bare } = row;
     ({ error } = await supabase.from("study_sessions").insert(bare));
   }
-  if (unavailable(error)) return { error: NEED };
+  if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
 
   revalidatePath("/me");
@@ -195,7 +193,7 @@ async function stopRunning(supabase, sid, date) {
     .eq("student_id", sid)
     .eq("date", date)
     .is("ended_at", null);
-  if (unavailable(error)) return { error: NEED };
+  if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
 
   const now = Date.now();

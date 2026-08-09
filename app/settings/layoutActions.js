@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { findPage } from "@/lib/screenLayout";
+import { requireTeacher } from "@/lib/guard";
+import { needSql } from "@/lib/sqlError";
 
 /**
  * 화면 구성 순서 (0095).
@@ -13,26 +15,11 @@ import { findPage } from "@/lib/screenLayout";
 
 const NEED_SQL = "0095 SQL 을 먼저 실행해주세요 (화면 구성 순서).";
 
-function unavailable(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
-}
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요.", user: null };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor"].includes(p?.role)) {
-    return { error: "원장·강사 계정에서만 바꿀 수 있어요.", user: null };
-  }
-  return { error: null, user };
-}
-
 export async function listLayouts() {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("screen_layouts").select("page, order_keys, hidden_keys");
-  if (unavailable(error)) return { layouts: {}, error: NEED_SQL };
+  if (needSql(error)) return { layouts: {}, error: NEED_SQL };
   if (error) return { layouts: {}, error: error.message };
   return {
     layouts: Object.fromEntries(
@@ -56,7 +43,7 @@ export async function saveLayout(pageKey, order = [], hidden = []) {
   const clean = (list) => [...new Set((list || []).filter((k) => known.has(k)))];
 
   const supabase = createClient();
-  const guard = await requireStaff(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 
   const { error } = await supabase.from("screen_layouts").upsert(
@@ -69,7 +56,7 @@ export async function saveLayout(pageKey, order = [], hidden = []) {
     },
     { onConflict: "page" }
   );
-  if (unavailable(error)) return { error: NEED_SQL };
+  if (needSql(error)) return { error: NEED_SQL };
   if (error) return { error: error.message };
 
   revalidatePath(page.href);
@@ -81,11 +68,11 @@ export async function saveLayout(pageKey, order = [], hidden = []) {
 export async function resetLayout(pageKey) {
   if (!findPage(pageKey)) return { error: "모르는 화면이에요." };
   const supabase = createClient();
-  const guard = await requireStaff(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 
   const { error } = await supabase.from("screen_layouts").delete().eq("page", pageKey);
-  if (unavailable(error)) return { error: NEED_SQL };
+  if (needSql(error)) return { error: NEED_SQL };
   if (error) return { error: error.message };
 
   revalidatePath(findPage(pageKey).href);

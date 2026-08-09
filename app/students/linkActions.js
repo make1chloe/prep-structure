@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { noTable } from "@/lib/sqlError";
 
 /**
  * 학생 계정 연결 코드.
@@ -23,13 +24,6 @@ function newCode() {
   return out;
 }
 
-function needSql(error) {
-  return (
-    error &&
-    (error.code === "42P01" || error.code === "PGRST205" || error.code === "PGRST202")
-  );
-}
-
 /** 이 학생의 연결 코드를 새로 뽑는다 (이전 코드는 못 쓰게 된다) */
 export async function makeLinkCode(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
@@ -47,7 +41,7 @@ export async function makeLinkCode(studentId) {
   const { error } = await supabase
     .from("student_link_codes")
     .insert({ code, student_id: studentId, expires_at: expires });
-  if (needSql(error)) return { error: "0043 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "0043 SQL 을 먼저 실행해주세요." };
   if (error) return { error: error.message };
 
   revalidatePath("/students");
@@ -85,7 +79,7 @@ export async function linkStatus(studentId) {
     .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1);
-  if (needSql(error)) return { error: "0043 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "0043 SQL 을 먼저 실행해주세요." };
 
   return { error: null, linked: !!s?.profile_id, code: rows?.[0] || null };
 }

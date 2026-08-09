@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { noTable } from "@/lib/sqlError";
 
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205");
-}
 function ok(error) {
-  if (needSql(error)) return { error: "설정 → Supabase SQL 에서 0072 를 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "설정 → Supabase SQL 에서 0072 를 먼저 실행해주세요." };
   return { error: error ? error.message : null };
 }
 

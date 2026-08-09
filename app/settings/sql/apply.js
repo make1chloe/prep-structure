@@ -5,24 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import { loadSteps } from "./steps";
 import { checkSchema } from "./status";
+import { requirePrincipal } from "@/lib/guard";
 
 const API = "https://api.supabase.com/v1";
-
-async function requirePrincipal(supabase) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "principal") {
-    return { error: "이건 원장 계정에서만 할 수 있어요." };
-  }
-  return { user };
-}
 
 /** 이 앱이 붙어 있는 프로젝트 이름 (SQL 도 여기에 넣어야 한다) */
 function urlRef() {

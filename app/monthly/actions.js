@@ -8,6 +8,7 @@ import { IN_APP_DETAIL } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { endOfMonth } from "@/lib/day";
 import { takesExam } from "@/lib/who";
+import { needSql } from "@/lib/sqlError";
 
 /** "2026-07" → "2026-06" */
 function prevYm(ym) {
@@ -17,10 +18,6 @@ function prevYm(ym) {
 }
 
 const NEED = "0031 SQL 을 먼저 실행해주세요.";
-
-function unavailable(error) {
-  return error && (error.code === "42P01" || error.code === "42703" || error.code === "PGRST205");
-}
 
 /**
  * 한 달치를 학생별로 모은다.
@@ -149,7 +146,7 @@ export async function saveMonthly(studentId, ym, patch = {}) {
   const { error } = await supabase
     .from("monthly_reports")
     .upsert(row, { onConflict: "student_id,ym" });
-  if (unavailable(error)) return { error: NEED };
+  if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
 
   revalidatePath("/monthly");
@@ -205,7 +202,7 @@ export async function sendMonthly(items, ym) {
       okIds.map((id) => ({ student_id: id, ym, sent_at: now })),
       { onConflict: "student_id,ym" }
     );
-    if (unavailable(error)) return { error: NEED, count: 0 };
+    if (needSql(error)) return { error: NEED, count: 0 };
   }
 
   const failed = list.filter((x) => !byRef.get(x.studentId)?.ok);

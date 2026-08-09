@@ -3,10 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
-
-function unavailable(error) {
-  return error && (error.code === "42P01" || /stay_tasks|warning_actions/.test(error.message || ""));
-}
+import { noTable } from "@/lib/sqlError";
 
 // ============================================================
 // 늦귀가 과제
@@ -53,7 +50,7 @@ export async function addStay(studentId, date, body, homeworkItemId, auto = fals
     auto: !!auto,
     created_by: user?.id || null,
   });
-  if (unavailable(error)) {
+  if (noTable(error)) {
     return { error: "0024 SQL 을 먼저 실행해주세요." };
   }
   if (error) return { error: error.message };
@@ -122,7 +119,7 @@ export async function waiveWarning(studentId, targetDate, note) {
     note: (note || "").trim() || null,
     created_by: user?.id || null,
   });
-  if (unavailable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
   if (error) return { error: error.message };
 
   revalidatePath("/today");
@@ -152,7 +149,7 @@ export async function settleWarnings(studentId, kind, onDate, note) {
     note: (note || "").trim() || null,
     created_by: user?.id || null,
   });
-  if (unavailable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
   if (error) return { error: error.message };
 
   revalidatePath("/today");
@@ -189,7 +186,7 @@ export async function resetMonthlyWarnings(studentIds, onDate, note) {
       created_by: user?.id || null,
     }))
   );
-  if (unavailable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "0024 SQL 을 먼저 실행해주세요." };
   if (error) return { error: error.message };
 
   revalidatePath("/today");

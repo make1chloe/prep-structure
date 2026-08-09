@@ -3,10 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setMakeup, waiveMakeup, cancelAbsence } from "./plan/actions";
-import { dayLabel as fmtDay } from "@/lib/day";
+import { dayLabel as fmtDay, DOW as DOWN } from "@/lib/day";
 import { cleanNote } from "@/lib/note";
-
-const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
 
 const dayLabel = fmtDay;
 

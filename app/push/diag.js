@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { inQuiet, nowMinsSeoul, DEFAULT_QUIET } from "@/lib/quiet";
+// 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
+import { isStaff as isStaffRole } from "@/lib/roles";
 
 /**
  * **알림이 안 올 때, 어디서 막혔는지 그 자리에서 읽는다.**
@@ -46,7 +48,7 @@ export async function pushDiag() {
   const { data: profile } = await supabase
     .from("profiles").select("role, name").eq("id", user.id).maybeSingle();
   const role = profile?.role || "unknown";
-  const isStaff = ["principal", "instructor", "assistant"].includes(role);
+  const isStaff = isStaffRole(role);
 
   const steps = [];
   const ROLE_LABEL = {

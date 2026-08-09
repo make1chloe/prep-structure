@@ -3,19 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { toTeachers } from "@/lib/exams";
+import { needSql } from "@/lib/sqlError";
 
-/**
- * 내신 대비 자료.
- *
- *   시험 → 범위(교재 단원·문제를 골라 담는다) → 자료 → 학생 배정
- *
- * 단계는 자료마다 다르다. 만들기·인쇄·클래스카드는 자료 하나에 한 번이고,
- * 배부·풀이·채점은 학생마다 따로 간다.
- */
-
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
-}
 const SQL = "0052~0054 SQL 을 먼저 실행해주세요.";
 
 /** 범위를 담을 때 고를 교재 목록 (정규 교재DB 그대로 쓴다) */

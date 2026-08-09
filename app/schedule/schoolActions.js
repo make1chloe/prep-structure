@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireStaff } from "@/lib/guard";
+import { needSql } from "@/lib/sqlError";
 
 /**
  * 학교 표 — **한 곳에 모인 학교 명단** (0076).
@@ -15,20 +17,6 @@ function ok(error) {
   return { error: error ? error.message : null };
 }
 
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 쓸 수 있어요." };
-  }
-  return { error: null };
-}
-
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
-}
 const SQL = "0076 SQL 을 먼저 실행해주세요.";
 
 /** 학교 명단 — 학생 수 · 시험 수까지 세어 준다 */

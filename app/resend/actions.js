@@ -5,11 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { IN_APP_DETAIL, noticeLabel, postAppNotices } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { todaySeoul } from "@/lib/day";
+import { noColumn } from "@/lib/sqlError";
 
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
-}
 const NEED_SQL = "0013 SQL을 먼저 실행해주세요.";
 
 // 문자 종류 → 어느 칸에 담기는가
@@ -32,7 +29,7 @@ export async function saveText(reportId, kind, text) {
     .from("daily_reports")
     .update({ [col]: (text || "").trim() || null })
     .eq("id", reportId);
-  if (isMissingColumn(error)) return { error: NEED_SQL };
+  if (noColumn(error)) return { error: NEED_SQL };
   revalidatePath("/resend");
   revalidatePath("/report");
   return { error: error ? error.message : null };
@@ -46,7 +43,7 @@ export async function resetText(reportId, kind) {
     .from("daily_reports")
     .update({ [col]: null })
     .eq("id", reportId);
-  if (isMissingColumn(error)) return { error: NEED_SQL };
+  if (noColumn(error)) return { error: NEED_SQL };
   revalidatePath("/resend");
   revalidatePath("/report");
   return { error: error ? error.message : null };
@@ -159,7 +156,7 @@ export async function resend(items, kind) {
       .from("daily_reports")
       .update({ [col]: now })
       .in("id", sentIds);
-    if (isMissingColumn(error)) return { error: NEED_SQL, count: 0 };
+    if (noColumn(error)) return { error: NEED_SQL, count: 0 };
     if (error) return { error: error.message, count: 0 };
   }
 
@@ -180,7 +177,7 @@ export async function resend(items, kind) {
     };
   });
   let { error: logErr } = await supabase.from("report_sends").insert(rows);
-  if (isMissingColumn(logErr)) {
+  if (noColumn(logErr)) {
     await supabase.from("report_sends").insert(
       rows.map(({ channel, ok, detail, to_phone, ...rest }) => rest)
     );

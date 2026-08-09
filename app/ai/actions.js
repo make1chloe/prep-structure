@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireStaff } from "@/lib/guard";
 
 /**
  * AI 에게 초안을 시킨다.
@@ -26,17 +27,6 @@ async function apiKey(supabase) {
     .eq("id", "anthropic")
     .maybeSingle();
   return { key: (data?.config?.key || "").trim(), model: data?.config?.model || MODEL };
-}
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 쓸 수 있어요." };
-  }
-  return { error: null };
 }
 
 async function ask(supabase, system, user, maxTokens = 900) {

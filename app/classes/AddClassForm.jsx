@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { addClass } from "./actions";
-
-const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+import { WEEK_ORDER as DAYS } from "@/lib/day";
 
 export default function AddClassForm() {
   const [open, setOpen] = useState(false);

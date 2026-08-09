@@ -4,12 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { listAlimtalkTemplates } from "@/lib/send";
+import { needSql } from "@/lib/sqlError";
 
 const NEED = "0029 SQL 을 먼저 실행해주세요.";
-
-function unavailable(error) {
-  return error && (error.code === "42703" || error.code === "PGRST204" || error.code === "42P01");
-}
 
 /**
  * 문자 문구 전부 (앱이 만드는 것 + 내가 쓰는 것)
@@ -41,7 +38,7 @@ export async function listMessages() {
     if (!error) return { rows: data || [], level: t.level, error: null };
     last = error;
     // 칸이 없어서 실패한 게 아니면 더 물러나 봐야 소용없다
-    if (!unavailable(error)) break;
+    if (!needSql(error)) break;
   }
 
   // 표 자체가 없다 / 권한이 없다 / 그 밖의 이유 — 있는 그대로 알린다
@@ -84,7 +81,7 @@ export async function saveMessage(id, patch = {}) {
     if (!cur?.key && "body" in patch) row.body = (patch.body || "").trim();
 
     const { error } = await supabase.from("message_templates").update(row).eq("id", id);
-    if (unavailable(error)) return { error: NEED };
+    if (needSql(error)) return { error: NEED };
     if (error) return { error: error.message };
   } else {
     const { data: last } = await supabase
@@ -100,7 +97,7 @@ export async function saveMessage(id, patch = {}) {
       closing: row.closing || null,
       sort: (last?.[0]?.sort ?? 0) + 10,
     });
-    if (unavailable(error)) return { error: NEED };
+    if (needSql(error)) return { error: NEED };
     if (error) return { error: error.message };
   }
 

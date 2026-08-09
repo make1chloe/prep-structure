@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { SLOTS, SOURCES, sourceText } from "@/lib/applySlots";
 import { pushNewInquiry } from "./notify";
+import { noColumn } from "@/lib/sqlError";
 
 /**
  * 학부모가 **로그인 없이** 제출하는 상담 신청.
@@ -102,12 +103,10 @@ export async function submitApply(formData) {
     return { ...rest, memo: [rest.memo, ...extra].filter(Boolean).join("\n") };
   };
 
-  const missingColumn = (e) => e?.code === "PGRST204" || e?.code === "42703";
-
-  if (token) {
+    if (token) {
     const patch = { ...row, status: "scheduled", updated_at: new Date().toISOString() };
     let { error } = await supabase.from("inquiries").update(patch).eq("token", token);
-    if (error && missingColumn(error)) {
+    if (error && noColumn(error)) {
       ({ error } = await supabase
         .from("inquiries")
         .update(legacyOf(patch))
@@ -121,7 +120,7 @@ export async function submitApply(formData) {
   }
 
   let { error } = await supabase.from("inquiries").insert({ ...row, status: "new" });
-  if (error && missingColumn(error)) {
+  if (error && noColumn(error)) {
     ({ error } = await supabase.from("inquiries").insert({ ...legacyOf(row), status: "new" }));
   }
   if (error) return { error: "접수에 실패했어요. 학원으로 전화 주시면 도와드리겠습니다." };

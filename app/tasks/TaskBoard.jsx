@@ -7,8 +7,8 @@ import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } 
 import { audienceLabel } from "@/lib/taskAudience";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 import { cleanNote, cleanTitle } from "@/lib/note";
+import { CATEGORIES } from "./categories";
 
-const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
 const CAT_CLS = {
   학사일정: "tag-sky",
   수업: "tag-lav",
@@ -22,7 +22,6 @@ function today() {
   return todaySeoul();
 }
 const dayLabel = fmtDay;
-
 
 export default function TaskBoard({ tasks = [], classes = [], unavailable = false, linked = [] }) {
   const [sel, setSel] = useState(() => new Set());

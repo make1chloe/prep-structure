@@ -6,6 +6,8 @@ import { setTodoStatus, setTodoStarted, moveTodos } from "./actions";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 // 칸 나누기와 차례는 lib 에 있다 — 화면 안에 두면 검사를 못 한다
 import { split } from "@/lib/kanban";
+// 중요도 이름·빛깔은 목록 화면과 한 벌이어야 한다
+import { PRIORITY } from "./priority";
 
 /**
  * **할일 칸반** — 할 것 · 하는 중 · 끝냄.
@@ -39,11 +41,6 @@ import { split } from "@/lib/kanban";
  * 시작했다고 일이 없어지지는 않는다.
  */
 
-const PRIORITY = [
-  { v: 0, label: "보통", cls: "tag-muted" },
-  { v: 1, label: "중요", cls: "tag-sky" },
-  { v: 2, label: "급함", cls: "tag-amber" },
-];
 
 export default function TodoKanban({
   todos = [],

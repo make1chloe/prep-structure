@@ -5,6 +5,7 @@ import MenuBox from "../MenuBox";
 import LayoutBox from "./LayoutBox";
 import HelpBox from "../HelpBox";
 import Help, { helpOn } from "@/components/Help";
+import { isTeacher } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function ScreenSettingsPage() {
           {/* 화면 안의 덩어리 차례 (0095). 메뉴 순서와는 다른 이야기라 따로 둔다 —
               메뉴는 「어디로 가나」 고, 이것은 「가서 무엇을 먼저 보나」 다.
               강사·조교는 자기 메뉴만 정하고, 이건 모두에게 같이 적용되므로 원장·강사만 */}
-          {["principal", "instructor"].includes(profile?.role) && <LayoutBox />}
+          {isTeacher(profile?.role) && <LayoutBox />}
           <ThemePicker />
         </div>
               {/* **세 개로 나눠 담기.** 원장 · 학부모 · 학생 앱을 따로 담아

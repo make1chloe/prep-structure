@@ -39,6 +39,8 @@ import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
+// 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
+import { isStaff as isStaffRole } from "@/lib/roles";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
 } from "@/lib/homeworkView";
@@ -75,7 +77,7 @@ export default async function MePage({ searchParams }) {
   // 선생님이 학생 화면을 그대로 보는 미리보기 (?s=학생id)
   //   아이가 무엇을 보는지 모르면 "저기 눌러" 라고 말해줄 수가 없다.
   //   보기만 하고 누르지는 못한다 — 선생님이 대신 눌러버리면 기록이 거짓이 된다.
-  const isStaff = ["principal", "instructor", "assistant"].includes(profile?.role);
+  const isStaff = isStaffRole(profile?.role);
   const previewId = isStaff ? searchParams?.s : null;
   if (previewId) {
     const { data: s2 } = await supabase

@@ -4,21 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { resolveStudent } from "@/lib/actAs";
-
-/**
- * 숙제 제출 — 사진 · 녹음 · 글.
- *
- * "학습 완료" 는 눌렀다는 말일 뿐이다. 정말 했는지는 등원해서 공책을 봐야
- * 안다. 그런데 루틴에 있는 **구두테스트(숙제로는 녹음)** 는 종이로 받을 수가
- * 없다. 그래서 낼 수 있게 한다.
- *
- * 파일은 비공개 버킷에 넣는다. 경로 맨 앞이 학생 id 라서 남의 것에는
- * 손이 닿지 않는다 (0044 의 storage 정책).
- */
-
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205");
-}
+import { noTable } from "@/lib/sqlError";
 
 const EXT = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic",
@@ -82,7 +68,7 @@ export async function submitFile(formData) {
   if (error) {
     // 표에 못 넣었으면 올린 파일도 치운다 (주인 없는 파일을 남기지 않는다)
     await supabase.storage.from("submissions").remove([path]);
-    if (needSql(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
+    if (noTable(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
     if (/row-level security|policy/i.test(error.message || "")) {
       return {
         error:
@@ -121,7 +107,7 @@ export async function submitChecklist(itemId, reportItemId, lines, asId = null) 
     kind: "checklist",
     body: JSON.stringify(list),
   });
-  if (needSql(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
+  if (noTable(error)) return { error: "선생님이 0044 SQL 을 먼저 실행해야 해요." };
   if (error) return { error: error.message };
 
   revalidatePath("/me");

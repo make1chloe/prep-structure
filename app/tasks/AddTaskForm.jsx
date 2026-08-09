@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { addTask } from "./actions";
 import { todaySeoul } from "@/lib/day";
-
-const CATEGORIES = ["학사일정", "수업", "행정", "상담", "교재", "기타"];
+import { CATEGORIES } from "./categories";
 
 export default function AddTaskForm({ classes = [], schools = [], grades = [], students = [] }) {
   const [open, setOpen] = useState(false);

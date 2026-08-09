@@ -2,39 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-/**
- * **재원생 정보에서 그 아이 일정을 바로 넣는다** (원장님, 2026-08-06).
- *
- * 「재원생 정보에 일정 추가해서 연동해줘」
- *
- * 지금까지는 아이 하나에게만 해당하는 일정(보강, 개인 상담, 학교 행사로 인한
- * 결석)을 넣으려면 할일 화면으로 나갔다 와야 했다. 나갔다 오면 흐름이 끊기고,
- * 끊기면 **나중에 하게 되고, 그 나중은 안 온다.**
- *
- * 여기서 넣은 일정은 tasks 한 줄이다 — 따로 만든 표가 아니다. 그래서
- *   · 할일 화면 달력에 그대로 뜨고
- *   · 그 아이와 어머니 달력에도 뜬다 (deliver_student_ids 로 이어진다 · 0091)
- *   · 구글 캘린더 구독에도 같이 나간다 (0078)
- * 표를 따로 만들면 이 셋이 전부 어긋난다.
- */
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요.", user: null };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님 계정에서만 할 수 있어요.", user: null };
-  }
-  return { error: null, user };
-}
+import { requireStaff } from "@/lib/guard";
+import { noColumn } from "@/lib/sqlError";
 
 const NEED_SQL = "0077 SQL 을 먼저 실행해주세요 (일정을 학생에게 배정하는 칸).";
-
-function missingColumn(error) {
-  return error && (error.code === "42703" || error.code === "PGRST204");
-}
 
 /** 이 학생에게 이어져 있는 일정 */
 export async function listStudentTasks(studentId) {
@@ -49,7 +20,7 @@ export async function listStudentTasks(studentId) {
     .contains("deliver_student_ids", [studentId])
     .order("due_on", { ascending: false })
     .limit(50);
-  if (missingColumn(error)) return { rows: [], error: NEED_SQL };
+  if (noColumn(error)) return { rows: [], error: NEED_SQL };
   if (error) return { rows: [], error: error.message };
   return { rows: data || [], error: null };
 }
@@ -95,7 +66,7 @@ export async function addStudentTask(studentIds, form = {}) {
   };
 
   const { error } = await supabase.from("tasks").insert(row);
-  if (missingColumn(error)) return { error: NEED_SQL };
+  if (noColumn(error)) return { error: NEED_SQL };
   if (error) return { error: error.message };
 
   revalidatePath("/students");
@@ -119,7 +90,7 @@ export async function removeStudentTask(taskId, studentId) {
 
   const { data: t, error: readErr } = await supabase
     .from("tasks").select("id, deliver_student_ids").eq("id", taskId).maybeSingle();
-  if (missingColumn(readErr)) return { error: NEED_SQL };
+  if (noColumn(readErr)) return { error: NEED_SQL };
   if (readErr) return { error: readErr.message };
   if (!t) return { error: null };
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 import { autoCreateLogins } from "./accountActions";
+import { requireStaff } from "@/lib/guard";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -367,27 +368,6 @@ export async function unlinkSibling(id) {
   const { error } = await supabase.from("students").update({ family_id: null }).eq("id", id);
   revalidatePath("/students");
   return { error: error ? error.message : null };
-}
-
-/**
- * 이 학생이 **어느 반에 들어가는지** 여기서 바꾼다.
- *
- * 예전에는 반 화면에서 「반을 고르고 → 학생을 체크」 하는 길뿐이었다.
- * 한 학생의 반을 옮기려면 옛 반에서 빼고 새 반에서 넣는 두 번이었고,
- * 재원생 화면에서는 아예 손댈 수가 없었다.
- *
- * 반은 **여러 개일 수 있다** (정규반 + 특강). 그래서 하나를 고르는 것이 아니라
- * 켜고 끄는 것으로 둔다.
- */
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 쓸 수 있어요." };
-  }
-  return { error: null };
 }
 
 export async function setStudentClasses(studentId, classIds = []) {

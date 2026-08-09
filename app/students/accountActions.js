@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parentLoginId } from "@/lib/studentId";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
+import { requireTeacher } from "@/lib/guard";
 
 /**
  * 학생 계정을 원장님이 직접 만들어 준다.
@@ -45,17 +46,6 @@ function makePw() {
 
 function emailOf(loginId) {
   return `${(loginId || "").trim().toLowerCase()}@${DOMAIN}`;
-}
-
-async function requirePrincipal(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor"].includes(p?.role)) {
-    return { error: "선생님 계정에서만 할 수 있어요." };
-  }
-  return { error: null };
 }
 
 /** 설정에 넣어둔 service_role 키 */
@@ -126,7 +116,7 @@ async function usedIds(supabase) {
 export async function createStudentLogin(studentId, wantId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const key = await serviceKey(supabase);
@@ -184,7 +174,7 @@ export async function createStudentLogin(studentId, wantId) {
 export async function resetStudentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const key = await serviceKey(supabase);
@@ -219,7 +209,7 @@ export async function resetStudentPassword(studentId) {
  */
 export async function createAllStudentLogins() {
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error, made: [], failed: [] };
 
   const key = await serviceKey(supabase);
@@ -303,7 +293,7 @@ export async function autoCreateLogins(studentIds = []) {
   if (!Array.isArray(studentIds) || studentIds.length === 0) return { made: 0 };
   const supabase = createClient();
 
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { made: 0, skipped: guard.error };
 
   const key = await serviceKey(supabase);
@@ -353,7 +343,7 @@ export async function accountStatus(studentId) {
   const supabase = createClient();
 
   // 아이디·전화번호가 함께 나오므로 선생님만 본다 (표의 잠금이 이미 막지만 한 번 더)
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const { data: s, error } = await supabase
@@ -406,7 +396,7 @@ export async function accountStatus(studentId) {
  */
 export async function createAllParentLogins() {
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error, made: [], failed: [] };
 
   const key = await serviceKey(supabase);

@@ -31,10 +31,9 @@ import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
+import { STAFF_ROLES as STAFF } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
-
-const STAFF = ["principal", "instructor", "assistant"];
 
 /**
  * 학부모 화면.
@@ -898,8 +897,6 @@ export default async function ParentPage({ searchParams }) {
           형제가 있으면 **둘 다** 본다 (아이를 고른 것과 상관없이 —
           다른 아이 보강을 못 보고 지나가면 안 된다) */}
       {!preview && <MakeupConfirm studentIds={children.map((c) => c.id)} />}
-
-
 
       <div className="stack" style={{ marginTop: 10 }}>
         <ScreenNote text={N("parent.top")} tone="card" />

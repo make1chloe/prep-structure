@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { bookKey, pickKeeper } from "@/lib/bookName";
+import { noColumn } from "@/lib/sqlError";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -16,13 +17,9 @@ function num(formData, key) {
 
 // 새 컬럼(word_range/activity)이 아직 DB에 없으면 그 컬럼만 빼고 다시 저장한다.
 // -> Supabase 마이그레이션을 아직 안 돌렸어도 기본 저장은 되게 함.
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
-}
 async function insertSafe(supabase, table, rows, optionalKeys = []) {
   let { error } = await supabase.from(table).insert(rows);
-  if (isMissingColumn(error) && optionalKeys.length) {
+  if (noColumn(error) && optionalKeys.length) {
     const strip = (r) => {
       const c = { ...r };
       optionalKeys.forEach((k) => delete c[k]);
@@ -245,7 +242,7 @@ export async function addUnit(formData) {
   let { error } = await supabase
     .from("textbook_units")
     .insert({ ...row, question_no });
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0051 전 — 문제번호 칸이 아직 없다
     await supabase.from("textbook_units").insert(row);
   }
@@ -276,12 +273,12 @@ export async function updateTextbook(id, patch) {
 
   const supabase = createClient();
   let { error } = await supabase.from("textbooks").update(row).eq("id", id);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0070 전이면 '불규칙' 없이
     const { words_irregular: _wi, ...noIrr } = row;
     ({ error } = await supabase.from("textbooks").update(noIrr).eq("id", id));
   }
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     const { word_range, words_irregular: _wi2, status, ...rest } = row;
     ({ error } = await supabase.from("textbooks").update(rest).eq("id", id));
   }
@@ -340,12 +337,12 @@ export async function updateUnit(id, patch) {
 
   const supabase = createClient();
   let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0070 전 — 단어 개수만 빼고 나머지는 저장한다
     const { word_count: _w, ...noWords } = row;
     ({ error } = await supabase.from("textbook_units").update(noWords).eq("id", id));
   }
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0051 전 — 문제번호 칸만 빼고 나머지는 저장한다
     const { question_no, word_count: _w2, ...rest } = row;
     ({ error } = await supabase.from("textbook_units").update(rest).eq("id", id));
@@ -498,7 +495,7 @@ export async function bulkAddUnits(rows) {
     const row = { name: name.trim() };
     if (pubYear) row.pub_year = pubYear;
     let { data, error } = await supabase.from("textbooks").insert(row).select("id").single();
-    if (error && isMissingColumn(error)) {
+    if (error && noColumn(error)) {
       ({ data, error } = await supabase
         .from("textbooks").insert({ name: name.trim() }).select("id").single());
     }
@@ -548,11 +545,11 @@ export async function bulkAddUnits(rows) {
       if (extra.minutes != null && extra.minutes !== "") patch.minutes = extra.minutes;
       if (Object.keys(patch).length > 0) {
         let { error } = await supabase.from("textbook_units").update(patch).eq("id", id);
-        if (error && isMissingColumn(error)) {
+        if (error && noColumn(error)) {
           // 0100 전이면 분량·내용 칸 없이
           const { question_count: _c, question_range: _r, summary: _s, minutes: _m, ...noVol } = patch;
           ({ error } = await supabase.from("textbook_units").update(noVol).eq("id", id));
-          if (error && isMissingColumn(error)) {
+          if (error && noColumn(error)) {
             // 0070 전이면 단어 개수도 없이
             const { word_count: _w, question_no: _q, ...noQ } = noVol;
             ({ error } = await supabase.from("textbook_units").update(noQ).eq("id", id));
@@ -585,21 +582,21 @@ export async function bulkAddUnits(rows) {
     };
     let { data, error } = await supabase
       .from("textbook_units").insert(row).select("id").single();
-    if (error && isMissingColumn(error)) {
+    if (error && noColumn(error)) {
       // 0100 전이면 분량·내용 없이 → 0070 전이면 단어수도 없이 →
       // 0051 전이면 문제번호 없이 → 그래도 안 되면 총분량도 빼고
       const { question_count: _c, question_range: _r, summary: _s, minutes: _m, ...noVol } = row;
       ({ data, error } = await supabase
         .from("textbook_units").insert(noVol).select("id").single());
-      if (error && isMissingColumn(error)) {
+      if (error && noColumn(error)) {
         const { word_count: _w, ...noWords } = noVol;
         ({ data, error } = await supabase
           .from("textbook_units").insert(noWords).select("id").single());
-        if (error && isMissingColumn(error)) {
+        if (error && noColumn(error)) {
           const { question_no, ...noQ } = noWords;
           ({ data, error } = await supabase
             .from("textbook_units").insert(noQ).select("id").single());
-          if (error && isMissingColumn(error)) {
+          if (error && noColumn(error)) {
             const { total_pages, ...rest } = noQ;
             ({ data, error } = await supabase
               .from("textbook_units").insert(rest).select("id").single());

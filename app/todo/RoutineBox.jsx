@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveRoutine, deleteRoutine } from "./routineActions";
 import { KINDS, describe, byDate } from "@/lib/todoRoutine";
+import { WEEK_ORDER as DOW } from "@/lib/day";
 
 /**
  * **되풀이되는 할일** — 학습 항목(기본 학습 목록)과 같은 자리다.
@@ -16,7 +17,6 @@ import { KINDS, describe, byDate } from "@/lib/todoRoutine";
  * 여기에는 「했다/안 했다」 를 적지 않는다. 두 군데가 되면 어긋난다.
  */
 
-const DOW = ["월", "화", "수", "목", "금", "토", "일"];
 const BLANK = {
   title: "", repeat_kind: "monthly", dows: [], day_of_month: "",
   month: "", lead_days: 0, lead_units: 2, book_area: "",

@@ -2,25 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
-
-/**
- * 구글 캘린더 구독 주소 (0078).
- *
- * 구글은 로그인 없이 이 주소를 부르므로, 주소에 붙은 **긴 열쇠**가 곧 자물쇠다.
- * 그래서 열쇠를 아는 사람은 일정을 볼 수 있다 — 새로 발급하면 옛 주소는
- * 그 자리에서 죽는다.
- */
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 쓸 수 있어요." };
-  }
-  return { error: null, user };
-}
+import { requireStaff } from "@/lib/guard";
 
 const SQL = "0078 SQL 을 먼저 실행해주세요.";
 

@@ -23,6 +23,7 @@ import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
 import { cutOf, verdict } from "@/lib/wordTest";
+import { DOW as DOWN } from "@/lib/day";
 
 // 보강에 자주 쓰는 시간 — 정규 수업이 비는 때
 const MAKEUP_TIMES = ["15:00", "16:00", "17:00", "18:00"];
@@ -34,8 +35,7 @@ const MAKEUP_TIMES = ["15:00", "16:00", "17:00", "18:00"];
  * 그 날짜를 미리 넣어두면 달력을 뒤질 일이 없다.
  */
 function nextMakeupDay(from, days) {
-  const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
-  const want = new Set(days && days.length ? days : ["금"]);
+    const want = new Set(days && days.length ? days : ["금"]);
   const t = new Date(`${from}T00:00:00Z`);
   for (let i = 1; i <= 14; i += 1) {
     t.setUTCDate(t.getUTCDate() + 1);
@@ -590,7 +590,6 @@ export default function StudentPanel({
           already={row.makeupOn || null}
         />
       )}
-
 
       {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
       <SubmissionList rows={row.subs || []} items={items} />

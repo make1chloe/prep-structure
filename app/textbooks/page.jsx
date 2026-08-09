@@ -13,10 +13,9 @@ import DupBooks from "./DupBooks";
 import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
 import { dupGroups, pickKeeper } from "@/lib/bookName";
+import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 
 export const dynamic = "force-dynamic";
-
-const AREAS = ["독해", "듣기", "영작", "문법", "단어", "내신"];
 
 export default async function TextbooksPage({ searchParams }) {
   const supabase = createClient();

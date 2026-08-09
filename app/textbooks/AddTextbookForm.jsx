@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { addTextbook } from "./actions";
-
-const AREAS = ["독해", "듣기", "영작", "문법", "단어", "내신"];
+import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 
 export default function AddTextbookForm() {
   const [open, setOpen] = useState(false);

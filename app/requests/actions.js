@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, dowOf } from "@/lib/day";
+import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
 
 function ok(error) {
@@ -10,7 +10,6 @@ function ok(error) {
 }
 
 const KIND = { absence: "결석", makeup: "보강가능시간", info: "전달", question: "질문" };
-
 
 // 학생·학부모가 직접 넣는 요청 (결석 알림 등)
 export async function createRequest(input) {
@@ -123,8 +122,7 @@ export async function handleRequest(id, accept, reply, makeup) {
       : { data: [] };
     const myDays = new Set((classes || []).flatMap((c) => c.days || []));
 
-    const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
-    const rows = [];
+        const rows = [];
     let d = req.from_date;
     const end = req.to_date || req.from_date;
     while (d <= end) {

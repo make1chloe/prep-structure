@@ -9,17 +9,9 @@ import {
 import { matchExam } from "@/lib/exams";
 import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
+import { requireStaff } from "@/lib/guard";
+import { needSql } from "@/lib/sqlError";
 
-/**
- * 나이스에서 학사일정을 받아온다.
- *
- * 인증키는 설정에서 직접 넣어 integrations 에 담기고 서버에서만 읽는다.
- * 코드에도 대화에도 없다 (다른 열쇠들과 같은 규칙).
- */
-
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
-}
 const SQL = "0059 SQL 을 먼저 실행해주세요.";
 
 /**
@@ -34,17 +26,6 @@ async function schoolTable(supabase) {
   return error && (error.code === "42P01" || error.code === "PGRST205")
     ? "neis_schools"
     : "schools";
-}
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 쓸 수 있어요." };
-  }
-  return { error: null };
 }
 
 async function neisKey(supabase) {

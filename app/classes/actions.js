@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-
-const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+import { noColumn } from "@/lib/sqlError";
+import { WEEK_ORDER as DAYS } from "@/lib/day";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -14,11 +14,6 @@ function num(formData, key) {
   const v = (formData.get(key) || "").toString().replace(/[^\d]/g, "");
   return v ? parseInt(v, 10) : null;
 }
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
-}
-
 export async function addClass(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;
@@ -40,7 +35,7 @@ export async function addClass(formData) {
 
   const supabase = createClient();
   let { data, error } = await supabase.from("classes").insert(row).select("id").single();
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0042·초중고 전 DB 에서도 반은 만들어져야 한다
     const { school_level, starts_on, ends_on, ...rest } = row;
     ({ data, error } = await supabase.from("classes").insert(rest).select("id").single());
@@ -69,7 +64,7 @@ export async function updateClass(id, patch) {
 
   const supabase = createClient();
   let { error } = await supabase.from("classes").update(row).eq("id", id);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     const { school_level, starts_on, ends_on, ...rest } = row;
     ({ error } = await supabase.from("classes").update(rest).eq("id", id));
   }
@@ -94,7 +89,7 @@ export async function archiveClass(id, on = true) {
     .from("classes")
     .update({ archived_at: on ? new Date().toISOString() : null })
     .eq("id", id);
-  if (isMissingColumn(error)) return { error: "0042 SQL 을 먼저 실행해주세요." };
+  if (noColumn(error)) return { error: "0042 SQL 을 먼저 실행해주세요." };
   revalidatePath("/classes");
   revalidatePath("/today");
   revalidatePath("/tuition");
@@ -166,7 +161,7 @@ export async function bulkAddClasses(rows) {
 
   const supabase = createClient();
   let { error } = await supabase.from("classes").insert(payload);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     const trimmed = payload.map(({ school_level, ...rest }) => rest);
     ({ error } = await supabase.from("classes").insert(trimmed));
   }

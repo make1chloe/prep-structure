@@ -3,11 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
-
-function unavailable(error) {
-  // 0023 SQL 전이면 테이블이 없다
-  return error && (error.code === "42P01" || /report_comments/.test(error.message || ""));
-}
+import { noTable } from "@/lib/sqlError";
 
 /** 한 리포트의 댓글 */
 export async function listComments(reportId) {
@@ -18,7 +14,7 @@ export async function listComments(reportId) {
     .select("id, body, author_id, author_role, read_at, created_at")
     .eq("daily_report_id", reportId)
     .order("created_at", { ascending: true });
-  if (unavailable(error)) return { comments: [], ready: false };
+  if (noTable(error)) return { comments: [], ready: false };
   if (error) return { comments: [], ready: true, error: error.message };
 
   // 이름은 따로 붙인다 (profiles 는 학생도 자기 것만 읽을 수 있어서 조인하면 비어 보인다)
@@ -66,7 +62,7 @@ export async function addComment(reportId, studentId, body) {
     // 선생님이 쓴 것은 읽은 것으로 본다 (안 읽은 댓글 세기에 안 걸리도록)
     read_at: author_role === "staff" ? new Date().toISOString() : null,
   });
-  if (unavailable(error)) {
+  if (noTable(error)) {
     return { error: "댓글을 쓰려면 Supabase에서 0023 SQL을 먼저 실행해주세요." };
   }
   if (error) return { error: error.message };
@@ -127,7 +123,7 @@ export async function markRead(reportId) {
     .update({ read_at: new Date().toISOString() })
     .eq("daily_report_id", reportId)
     .is("read_at", null);
-  if (unavailable(error)) return { error: null };
+  if (noTable(error)) return { error: null };
   revalidatePath("/today");
   revalidatePath("/");
   return { error: error ? error.message : null };

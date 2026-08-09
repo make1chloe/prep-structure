@@ -1,6 +1,6 @@
 "use client";
 
-import { endOfMonth, DOW } from "@/lib/day";
+import { endOfMonth, DOW, WEEK_ORDER as DOW_HEAD } from "@/lib/day";
 
 /**
  * 한 달 달력 — **반을 다 합쳐서 하나로** 그린다.
@@ -15,8 +15,6 @@ import { endOfMonth, DOW } from "@/lib/day";
  *
  * **누르면 아래에 적힌다.** 손가락으로는 마우스를 올릴 수 없다.
  */
-
-const DOW_HEAD = ["월", "화", "수", "목", "금", "토", "일"];
 
 /**
  * 월요일을 첫 칸으로.

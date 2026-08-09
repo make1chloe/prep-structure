@@ -3,11 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { resend } from "@/app/resend/actions";
-
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
-}
+import { noColumn } from "@/lib/sqlError";
 
 // 고친 문구를 저장한다. 이후로는 자동 생성 문구 대신 이 문구를 쓴다.
 export async function saveReportText(reportId, text) {
@@ -17,7 +13,7 @@ export async function saveReportText(reportId, text) {
     .from("daily_reports")
     .update({ report_text: (text || "").trim() || null })
     .eq("id", reportId);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     return { error: "0012 SQL을 먼저 실행해주세요 (report_text 컬럼)." };
   }
   revalidatePath("/report");
@@ -54,7 +50,7 @@ export async function skipSend(reportIds, kind = "report", on = true) {
     .from("daily_reports")
     .select("id, skip_kinds")
     .in("id", ids);
-  if (isMissingColumn(readErr) || readErr?.code === "42703") {
+  if (noColumn(readErr) || readErr?.code === "42703") {
     return { error: "0058 SQL 을 먼저 실행해주세요." };
   }
   if (readErr) return { error: readErr.message };
@@ -66,7 +62,7 @@ export async function skipSend(reportIds, kind = "report", on = true) {
       .from("daily_reports")
       .update({ skip_kinds: [...now] })
       .eq("id", r.id);
-    if (isMissingColumn(error)) return { error: "0058 SQL 을 먼저 실행해주세요." };
+    if (noColumn(error)) return { error: "0058 SQL 을 먼저 실행해주세요." };
     if (error) return { error: error.message };
   }
 
@@ -127,7 +123,7 @@ export async function unsend(reportIds) {
     .from("daily_reports")
     .update({ sent_at: null })
     .in("id", ids);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     return { error: "0012 SQL을 먼저 실행해주세요 (sent_at 컬럼)." };
   }
   revalidatePath("/report");
@@ -148,7 +144,7 @@ export async function clearLate(reportIds) {
 
   const row = { late_until: null, late_reason: null, late_text: null, late_sent_at: null };
   let { error } = await supabase.from("daily_reports").update(row).in("id", ids);
-  if (isMissingColumn(error) || error?.code === "42703") {
+  if (noColumn(error) || error?.code === "42703") {
     return { error: "0027 SQL 을 먼저 실행해주세요." };
   }
   if (error) return { error: error.message };

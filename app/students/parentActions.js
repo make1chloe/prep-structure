@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { SUPABASE_URL } from "@/lib/supabase/env";
+import { requireTeacher } from "@/lib/guard";
 
 /**
  * 학부모 계정.
@@ -24,17 +25,6 @@ const INIT_PW = "0000";
 
 function emailOf(loginId) {
   return `${(loginId || "").trim().toLowerCase()}@${DOMAIN}`;
-}
-
-async function requirePrincipal(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor"].includes(p?.role)) {
-    return { error: "선생님 계정에서만 할 수 있어요." };
-  }
-  return { error: null };
 }
 
 async function serviceKey(supabase) {
@@ -86,7 +76,7 @@ async function familyOf(supabase, studentId) {
 export async function parentStatus(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 
   const { me, siblings } = await familyOf(supabase, studentId);
@@ -135,7 +125,7 @@ export async function parentStatus(studentId) {
 export async function createParentLogin(studentId, wantId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const { me, siblings } = await familyOf(supabase, studentId);
@@ -229,7 +219,7 @@ export async function createParentLogin(studentId, wantId) {
 export async function resetParentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const key = await serviceKey(supabase);
@@ -261,7 +251,7 @@ export async function resetParentPassword(studentId) {
 export async function unlinkParent(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const guard = await requirePrincipal(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
   const { error } = await supabase
     .from("parent_student").delete().eq("student_id", studentId);

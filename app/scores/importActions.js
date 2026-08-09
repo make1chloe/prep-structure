@@ -2,33 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-/**
- * 성적 한 번에 올리기 — 내신 · 문법 단원평가 · 모의고사를 **한 장으로**.
- *
- * 세 가지가 이미 한 표(scores)에 들어가므로, 여기서 하는 일은
- * **이름을 학생에 붙이고 넣는 것**뿐이다.
- *
- * ── 두 번 올려도 안 늘어난다 ──────────────────────────────
- * 같은 (학생 · 종류 · 시험명 · 날짜) 는 **한 건**으로 본다. 엑셀을 고쳐서
- * 다시 올리는 일이 흔한데, 그때마다 늘어나면 화면이 못 쓰게 되고 지우는
- * 일이 새로 생긴다. 이미 있으면 덮어쓴다.
- */
-
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205");
-}
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요.", user: null };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor"].includes(p?.role)) {
-    return { error: "원장·강사 계정에서만 할 수 있어요.", user: null };
-  }
-  return { error: null, user };
-}
+import { requireTeacher } from "@/lib/guard";
+import { noTable } from "@/lib/sqlError";
 
 /** 이름 → 학생. 띄어쓰기와 대소문자는 무시한다 */
 function nameKey(s) {
@@ -42,7 +17,7 @@ export async function importScores(rows = []) {
   }
 
   const supabase = createClient();
-  const guard = await requireStaff(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error, saved: 0, skipped: [] };
 
   // ── 이름 붙이기 ────────────────────────────────────────
@@ -86,7 +61,7 @@ export async function importScores(rows = []) {
     .from("scores")
     .select("id, student_id, kind, term, taken_on")
     .in("student_id", ids);
-  if (needSql(hErr)) {
+  if (noTable(hErr)) {
     return { error: "설정 → Supabase SQL 에서 0072 를 먼저 실행해주세요.", saved: 0, skipped };
   }
   const sameKey = (x) =>

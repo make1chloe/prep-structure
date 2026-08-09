@@ -9,8 +9,8 @@ import {
   updateTextbooksStatus,
 } from "./actions";
 import { sortBooks, BOOK_SORTS, DEFAULT_SORT } from "@/lib/bookSort";
+import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 
-const AREAS = ["독해", "듣기", "영작", "문법", "단어", "내신"];
 const TB_STATUS = {
   active: { label: "사용중", cls: "tag tag-mint" },
   discontinued: { label: "절판", cls: "tag tag-muted" },

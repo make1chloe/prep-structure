@@ -2,17 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, dowOf } from "@/lib/day";
+import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToFamilies } from "@/app/push/actions";
+import { noColumn } from "@/lib/sqlError";
 
 function ok(error) {
   return { error: error ? error.message : null };
 }
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
-}
-
 // ---------- 결석 예정 ----------
 // 미리 연락받은 결석. 당일 결석과 구분해서 남긴다.
 export async function setPlannedAbsence(studentId, date, reason) {
@@ -28,7 +24,7 @@ export async function setPlannedAbsence(studentId, date, reason) {
     },
     { onConflict: "student_id,date" }
   );
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼)." };
   }
   revalidatePath("/plan");
@@ -56,8 +52,7 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
     : { data: [] };
   const daysOf = new Map((classes || []).map((c) => [c.id, c.days || []]));
 
-  const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
-  const rows = [];
+    const rows = [];
   for (const sid of sids) {
     const myDays = new Set(
       (members || []).filter((m) => m.student_id === sid).flatMap((m) => daysOf.get(m.class_id) || [])
@@ -82,7 +77,7 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
   let { error } = await supabase
     .from("attendance")
     .upsert(rows, { onConflict: "student_id,date" });
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼).", count: 0 };
   }
   revalidatePath("/plan");
@@ -139,7 +134,7 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
   let { error } = await supabase
     .from("attendance")
     .upsert(row, { onConflict: "student_id,date" });
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0046 전이면 시간 칸이 없다 — 날짜라도 잡힌다
     const { makeup_time: _t, ...noTime } = row;
     ({ error } = await supabase
@@ -320,10 +315,10 @@ export async function assignHomeworkAhead(studentIds, date, items) {
   }
 
   let { error } = await supabase.from("daily_report_items").insert(rows);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     const noArray = rows.map(({ textbook_unit_ids, ...rest }) => rest);
     ({ error } = await supabase.from("daily_report_items").insert(noArray));
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       const bare = noArray.map(({ textbook_unit_id, range_note, ...rest }) => rest);
       ({ error } = await supabase.from("daily_report_items").insert(bare));
     }

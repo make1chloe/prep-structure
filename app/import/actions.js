@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isRealDate } from "@/lib/importNotion";
+import { noTable } from "@/lib/sqlError";
+import { noColumn } from "@/lib/sqlError";
 
 /**
  * **한 줄이 전체를 죽이지 않게** (2026-08-06).
@@ -27,11 +29,6 @@ function dropBadDates(rows, fields, skipped) {
     }
     return true;
   });
-}
-
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
 }
 
 /**
@@ -156,7 +153,7 @@ export async function importReports(rows) {
       .from("daily_reports")
       .update({ sent_at: new Date().toISOString() })
       .in("id", savedIds);
-    if (isMissingColumn(sErr)) {
+    if (noColumn(sErr)) {
       // 0012 전이면 그냥 넘어간다
     }
   }
@@ -206,7 +203,7 @@ export async function importTasks(rows) {
   if (payload.length === 0) return { error: null, saved: 0, skipped };
 
   let { error } = await supabase.from("tasks").insert(payload);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0014 전이면 end_on 없이
     ({ error } = await supabase
       .from("tasks")
@@ -291,7 +288,7 @@ export async function importAbsences(rows) {
     .upsert(dedupe(payload, (r) => `${r.student_id}|${r.date}`).rows, {
       onConflict: "student_id,date",
     });
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0017 전이면 planned/reason 없이
     ({ error } = await supabase
       .from("attendance")
@@ -380,7 +377,7 @@ export async function importHomework(rows) {
       .in("daily_report_id", ids)
       .eq("status", "assigned");
     let { error: iErr } = await supabase.from("daily_report_items").insert(driRows);
-    if (isMissingColumn(iErr)) {
+    if (noColumn(iErr)) {
       await supabase
         .from("daily_report_items")
         .insert(driRows.map(({ range_note, ...rest }) => rest));
@@ -390,7 +387,7 @@ export async function importHomework(rows) {
   // 숙제 문자 발송 내역
   if (sends.length > 0) {
     let { error: sErr } = await supabase.from("report_sends").insert(sends);
-    if (isMissingColumn(sErr)) {
+    if (noColumn(sErr)) {
       await supabase
         .from("report_sends")
         .insert(sends.map(({ channel, ok, detail, ...rest }) => rest));
@@ -465,20 +462,6 @@ export async function importPayments(rows) {
 }
 
 
-/**
- * 상담일지 이관 — 노션 재원생상담일지DB (원장님, 2026-08-06).
- *
- * rows: parseNoteAoA 결과 (이미 학생별로 나뉘어 있다)
- *
- * **같은 (학생 · 날짜 · 제목) 은 한 건**으로 본다. 노션에서 다시 내려받아
- * 올리는 일이 흔한데, 그때마다 늘어나면 상담 이력이 못 쓰게 된다.
- * upsert 를 못 쓰는 이유 — student_notes 에는 그 세 칸의 유일 인덱스가 없고,
- * 여기 하나 때문에 표에 제약을 새로 거는 것은 과하다. 그래서 먼저 읽어보고 고른다.
- */
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205");
-}
-
 export async function importNotes(rows) {
   const badDates = [];
   const list = dropBadDates((rows || []).filter((r) => r?.name && r?.date), ["date"], badDates);
@@ -538,7 +521,7 @@ export async function importNotes(rows) {
     .from("student_notes")
     .select("id, student_id, date, title")
     .in("student_id", ids);
-  if (needSql(readErr)) return { error: "0049 SQL 을 먼저 실행해주세요.", saved: 0, skipped, made };
+  if (noTable(readErr)) return { error: "0049 SQL 을 먼저 실행해주세요.", saved: 0, skipped, made };
   if (readErr) return { error: readErr.message, saved: 0, skipped, made };
   const keyOf = (x) => `${x.student_id}|${x.date}|${(x.title || "").trim()}`;
   const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
@@ -703,7 +686,7 @@ export async function importUnitScores(rows) {
     .select("id, student_id, kind, term, taken_on")
     .eq("kind", "unit")
     .in("student_id", ids);
-  if (needSql(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
+  if (noTable(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
   if (readErr) return { error: readErr.message, saved: 0, skipped };
   const keyOf = (x) => `${x.student_id}|${(x.term || "").trim()}|${x.taken_on}`;
   const known = new Map((have || []).map((x) => [keyOf(x), x.id]));
@@ -768,7 +751,7 @@ export async function importWrongAnswers(rows) {
     .select("id, student_id, kind, term, taken_on")
     .eq("kind", "mock")
     .in("student_id", ids);
-  if (needSql(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
+  if (noTable(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
   if (readErr) return { error: readErr.message, saved: 0, skipped };
   const keyOf = (x) => `${x.student_id}|${(x.term || "").trim()}|${x.taken_on}`;
   const known = new Map((have || []).map((x) => [keyOf(x), x.id]));

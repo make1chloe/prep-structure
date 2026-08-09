@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { todaySeoul } from "@/lib/day";
+import { todaySeoul, DOW } from "@/lib/day";
 import { dedupeSameDay } from "@/lib/calendar";
 import { cleanNote, cleanTitle } from "@/lib/note";
 
@@ -15,7 +15,6 @@ import { cleanNote, cleanTitle } from "@/lib/note";
  * **여기서 고치지 않는다.** 누르면 그 화면으로 간다 — 좁은 칸에서 고치게 만들면
  * 잘못 누르기 쉽고, 고치는 곳이 두 군데가 된다.
  */
-const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
 const CAT_CLS = {
   학사일정: "cal-sky",

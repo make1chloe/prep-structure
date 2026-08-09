@@ -2,20 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-/**
- * 본보기 문장 — **원장님이 예전에 쓰신 것을 그대로 쓴다.**
- *
- * 제가 지어낸 문장을 본보기로 주면 제 말투가 나온다. 그러면 학부모가
- * "선생님 글이 달라졌네" 를 먼저 느낀다.
- *
- * 다행히 노션에서 가져온 데일리리포트에 **원장님이 실제로 쓰신 공지**가
- * 그대로 들어 있다. 그걸 뽑아 본보기로 삼는다.
- */
-
-function needSql(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205");
-}
+import { noTable } from "@/lib/sqlError";
 
 /**
  * 노션에서 쓰시던 줄바꿈 기호를 진짜 줄바꿈으로 되돌린다.
@@ -95,7 +82,7 @@ export async function addSamples(bodies = [], tag = null) {
   const { error } = await supabase
     .from("comment_samples")
     .insert(fresh.map((body) => ({ body, tag: tag || null })));
-  if (needSql(error)) return { error: "0049 SQL 을 먼저 실행해주세요.", added: 0 };
+  if (noTable(error)) return { error: "0049 SQL 을 먼저 실행해주세요.", added: 0 };
   if (error) return { error: error.message, added: 0 };
 
   revalidatePath("/settings/sql");
@@ -109,7 +96,7 @@ export async function listSamples() {
     .select("id, body, tag")
     .order("created_at", { ascending: false })
     .limit(300);
-  if (needSql(error)) return { rows: [], error: "0049 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { rows: [], error: "0049 SQL 을 먼저 실행해주세요." };
   return { rows: data || [], error: error ? error.message : null };
 }
 

@@ -5,6 +5,7 @@ import { OPEN_TO_SEE } from "@/lib/notify";
 import { generateKeys, pushToAll } from "@/lib/push";
 import { inQuiet, nowMinsSeoul, DEFAULT_QUIET } from "@/lib/quiet";
 import { randomUUID } from "node:crypto";
+import { STAFF_ROLES } from "@/lib/roles";
 
 // 알림 키 — 설정 화면에서 한 번 만들면 계속 쓴다
 export async function ensurePushKeys() {
@@ -519,7 +520,7 @@ export async function pushToStaff(payload) {
   const { data: staff } = await supabase
     .from("profiles")
     .select("id, role")
-    .in("role", ["principal", "instructor", "assistant"]);
+    .in("role", STAFF_ROLES);
   const ids = (staff || []).map((p) => p.id);
   if (ids.length === 0) return { sent: 0, error: null };
 

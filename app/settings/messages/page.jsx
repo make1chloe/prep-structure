@@ -9,6 +9,7 @@ import { listMessages } from "./actions";
 import { listNotes } from "../noteActions";
 import { loadSettings } from "@/lib/settings";
 import { channelPlan } from "@/lib/alimtalk";
+import { isTeacher } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function MessagesPage({ searchParams }) {
 
   const tab = searchParams?.t === "screen" ? "screen" : "send";
   // 화면 안내는 아이·어머니 모두에게 한 번에 보이는 글이라 원장·강사만 (0093)
-  const canScreen = ["principal", "instructor"].includes(profile?.role);
+  const canScreen = isTeacher(profile?.role);
 
   const { rows, level, error } = await listMessages();
   const settings = await loadSettings(supabase);

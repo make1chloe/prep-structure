@@ -4,25 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { sendSolapi, sendWebhook, normalizePhone, checkSolapi } from "@/lib/send";
+import { requirePrincipal } from "@/lib/guard";
 
 function ok(error) {
   return { error: error ? error.message : null };
-}
-
-async function requirePrincipal(supabase) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "principal") {
-    return { error: "이 설정은 원장 계정에서만 바꿀 수 있어요." };
-  }
-  return { user };
 }
 
 // 값이 비어 있으면 기존 값을 그대로 둔다 (가려진 비밀값을 실수로 지우지 않도록)

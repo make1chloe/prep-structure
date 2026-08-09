@@ -13,6 +13,7 @@ import WordTestBox from "./WordTestBox";
 import ScheduleBox from "./ScheduleBox";
 import { fromLabel } from "@/lib/bookUse";
 import { shortName } from "@/lib/schoolName";
+import { WEEK_ORDER as DOW } from "@/lib/day";
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -199,8 +200,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
    * 비어 있는 것도 한 묶음으로 둔다. 안 보여주면 학교를 아직 안 적은 아이가
    * 목록에서 사라진 것처럼 보인다.
    */
-  const DOW = ["월", "화", "수", "목", "금", "토", "일"];
-  const groups = (() => {
+    const groups = (() => {
     if (groupBy === "none") return [{ key: "all", title: null, rows: shown }];
 
     const bucket = new Map();
@@ -437,7 +437,6 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
       />
     );
   }
-
 
   /**
    * 오른쪽 칸 — **고르는 곳(왼쪽 표)과 고치는 곳(오른쪽 판)을 나란히.**

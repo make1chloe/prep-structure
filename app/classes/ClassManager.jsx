@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateClass, deleteClasses, setClassStudents, archiveClass } from "./actions";
 import { isArchived, termLabel } from "@/lib/classTerm";
-
-const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+import { WEEK_ORDER as DAYS } from "@/lib/day";
 
 function timeLabel(s, e) {
   const cut = (t) => (t ? t.slice(0, 5) : "");

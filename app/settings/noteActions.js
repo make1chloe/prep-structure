@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { NOTE_KEYS } from "@/lib/screenNotes";
+import { requireTeacher } from "@/lib/guard";
+import { needSql } from "@/lib/sqlError";
 
 /**
  * 화면 안내 문구 — 원장님이 직접 적으신다 (0093).
@@ -14,25 +16,10 @@ import { NOTE_KEYS } from "@/lib/screenNotes";
 
 const NEED_SQL = "0093 SQL 을 먼저 실행해주세요 (화면 안내 문구).";
 
-function unavailable(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "42703");
-}
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요.", user: null };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor"].includes(p?.role)) {
-    return { error: "원장·강사 계정에서만 바꿀 수 있어요.", user: null };
-  }
-  return { error: null, user };
-}
-
 export async function listNotes() {
   const supabase = createClient();
   const { data, error } = await supabase.from("screen_notes").select("key, body");
-  if (unavailable(error)) return { notes: {}, error: NEED_SQL };
+  if (needSql(error)) return { notes: {}, error: NEED_SQL };
   if (error) return { notes: {}, error: error.message };
   return {
     notes: Object.fromEntries((data || []).map((r) => [r.key, r.body || ""])),
@@ -49,7 +36,7 @@ export async function listNotes() {
 export async function saveNote(key, body) {
   if (!NOTE_KEYS.includes(key)) return { error: "모르는 자리예요." };
   const supabase = createClient();
-  const guard = await requireStaff(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 
   const text = (body || "").toString().trim();
@@ -59,7 +46,7 @@ export async function saveNote(key, body) {
         { onConflict: "key" }
       )
     : await supabase.from("screen_notes").delete().eq("key", key);
-  if (unavailable(error)) return { error: NEED_SQL };
+  if (needSql(error)) return { error: NEED_SQL };
   if (error) return { error: error.message };
 
   // 적으신 글이 바로 보여야 한다 — 어느 화면에 뜨는지 여기서 다 되살린다

@@ -8,11 +8,7 @@ import { safeKind, isAlert } from "@/lib/notices";
 import { dowOf } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
-
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
-}
+import { noColumn } from "@/lib/sqlError";
 
 // 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
 export async function listUnitOptions(textbookId) {
@@ -123,7 +119,7 @@ export async function saveStudentDay(studentId, date, form) {
     .upsert(row, { onConflict: "student_id,date" })
     .select("id")
     .single();
-  if (isMissingColumn(repErr)) {
+  if (noColumn(repErr)) {
     // 0099 전이면 단원평가 두 칸 없이
     const { sent_unit: _su, sent_passed: _sp, ...noUnit } = row;
     ({ data: report, error: repErr } = await supabase
@@ -132,7 +128,7 @@ export async function saveStudentDay(studentId, date, form) {
       .select("id")
       .single());
   }
-  if (isMissingColumn(repErr)) {
+  if (noColumn(repErr)) {
     // 0050 전이면 학생공지도 없이
     const { sent_unit: _su2, sent_passed: _sp2, notice_student: _ns, ...noSplit } = row;
     ({ data: report, error: repErr } = await supabase
@@ -265,23 +261,23 @@ export async function saveStudentDay(studentId, date, form) {
 
   if (payload.length > 0) {
     let { error } = await supabase.from("daily_report_items").insert(payload);
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       // 0087 전이면 「바뀐 시각」 칸이 없다
       ({ error } = await supabase
         .from("daily_report_items")
         .insert(payload.map(({ changed_at, ...rest }) => rest)));
     }
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       // 0034 전이면 학생 완료 표시 없이
       ({ error } = await supabase
         .from("daily_report_items")
         .insert(payload.map(({ student_done_at, ...rest }) => rest)));
     }
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       // 0009 전이면 단원 1개만, 0008 전이면 단원 없이 저장
       const noArray = payload.map(({ textbook_unit_ids, ...rest }) => rest);
       ({ error } = await supabase.from("daily_report_items").insert(noArray));
-      if (isMissingColumn(error)) {
+      if (noColumn(error)) {
         const bare = noArray.map(({ textbook_unit_id, range_note, ...rest }) => rest);
         ({ error } = await supabase.from("daily_report_items").insert(bare));
       }
@@ -532,14 +528,14 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate, make
   let { error } = await supabase
     .from("attendance")
     .upsert(row, { onConflict: "student_id,date" });
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0046 전이면 시간 없이
     const { makeup_time: _t, ...noTime } = row;
     ({ error } = await supabase
       .from("attendance")
       .upsert(noTime, { onConflict: "student_id,date" }));
   }
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0017 전이면 reason 도 없이
     const { makeup_time: _t2, reason: _drop, ...bare } = row;
     ({ error } = await supabase

@@ -3,16 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { BASIC_HOMEWORK, withSort } from "@/lib/basicHomework";
+import { noColumn } from "@/lib/sqlError";
 
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
   return v || null;
-}
-
-function isMissingColumn(error) {
-  if (!error) return false;
-  return error.code === "PGRST204" || error.code === "42703";
 }
 
 export async function addHomeworkItem(formData) {
@@ -34,11 +30,11 @@ export async function addHomeworkItem(formData) {
 
   const row = { name, category, sort, active: true, method, prep_task };
   let { error } = await supabase.from("homework_items").insert(row);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0028 전이면 prep_task 없이, 그래도 안 되면 method 도 빼고
     const { prep_task: _p, ...noPrep } = row;
     ({ error } = await supabase.from("homework_items").insert(noPrep));
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       const { method: _m, ...rest } = noPrep;
       await supabase.from("homework_items").insert(rest);
     }
@@ -78,7 +74,7 @@ export async function seedBasicHomework() {
       in_person: !!i.inPerson,
     }));
     let { error } = await supabase.from("homework_items").insert(rows);
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       // 0063 전이면 '직접검사' 없이 — 나중에 SQL 을 돌리고 다시 눌러도 된다
       ({ error } = await supabase
         .from("homework_items")
@@ -136,29 +132,29 @@ export async function updateHomeworkItem(id, patch) {
 
   const supabase = createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0106 전이면 '단원평가' 표시 없이
     const { unit_test: _ut, ...noUnit } = row;
     ({ error } = await supabase.from("homework_items").update(noUnit).eq("id", id));
   }
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0063 전이면 '직접검사' 없이
     const { in_person: _ip, ...noPerson } = row;
     ({ error } = await supabase.from("homework_items").update(noPerson).eq("id", id));
   }
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     // 0045 → 0033 → 0028 순으로 한 칸씩 물러난다
     const { in_person: _ip2, checklist: _c, home_item_id: _h, ...noList } = row;
     ({ error } = await supabase.from("homework_items").update(noList).eq("id", id));
   }
-  if (isMissingColumn(error)) {
+  if (noColumn(error)) {
     const { checklist: _c1, home_item_id: _h1, no_timer: _t, ...noTimer } = row;
     ({ error } = await supabase.from("homework_items").update(noTimer).eq("id", id));
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       const { prep_task: _p, ...noPrep } = noTimer;
       ({ error } = await supabase.from("homework_items").update(noPrep).eq("id", id));
     }
-    if (isMissingColumn(error)) {
+    if (noColumn(error)) {
       const { method: _m, prep_task: _p2, checklist: _c2, ...rest } = noTimer;
       ({ error } = await supabase.from("homework_items").update(rest).eq("id", id));
     }

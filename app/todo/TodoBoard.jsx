@@ -9,13 +9,9 @@ import {
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 import { moveKind } from "@/app/tasks/actions";
 import TodoKanban from "./TodoKanban";
+import { PRIORITY } from "./priority";
 
 const COLORS = ["sky", "lav", "mint", "amber", "muted"];
-const PRIORITY = [
-  { v: 0, label: "보통", cls: "tag-muted" },
-  { v: 1, label: "중요", cls: "tag-sky" },
-  { v: 2, label: "급함", cls: "tag-amber" },
-];
 
 function today() {
   return todaySeoul();

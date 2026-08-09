@@ -10,28 +10,7 @@ import { TEST } from "@/lib/notify";
 import { pushToAll } from "@/lib/push";
 import { sampleRow } from "@/lib/sampleReport";
 import { longLabel, todaySeoul } from "@/lib/day";
-
-/**
- * 시험 삼아 보내보기.
- *
- * **아무 기록도 건드리지 않는다.** 보낸 것으로 표시하지 않고, 발송 이력에도
- * 남기지 않는다. 진짜 학부모에게 나갈 문자를 시험하다가 "보냄" 으로 표시되면
- * 그 학부모는 문자를 영영 못 받는다.
- *
- * 받는 번호도 화면에서 직접 고칠 수 있게 한다. 원장님 본인 번호로 받아보는 게
- * 제일 확실하기 때문이다.
- */
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor", "assistant"].includes(p?.role)) {
-    return { error: "선생님만 쓸 수 있어요." };
-  }
-  return { error: null };
-}
+import { requireStaff } from "@/lib/guard";
 
 /** 그 학생의 진짜 오늘 기록이 있으면 그것으로, 없으면 실제와 같은 모양의 한 판으로 */
 async function rowFor(supabase, studentId, date) {

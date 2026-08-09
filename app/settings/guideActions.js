@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireTeacher } from "@/lib/guard";
 
 /**
  * 수업 가이드 링크 (0089).
@@ -17,17 +18,6 @@ const NEED = "0089 SQL 을 먼저 실행해주세요.";
 function missing(error) {
   // 표가 없거나 칸이 없을 때 — 「알 수 없는 오류」 대신 무엇을 하면 되는지 말한다
   return error && ["42P01", "42703", "PGRST204", "PGRST205"].includes(error.code);
-}
-
-async function requireStaff(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (!["principal", "instructor"].includes(p?.role)) {
-    return { error: "선생님 계정에서만 바꿀 수 있어요." };
-  }
-  return { error: null, user };
 }
 
 /**
@@ -61,7 +51,7 @@ export async function listGuides() {
 
 export async function saveGuide(id, patch = {}) {
   const supabase = createClient();
-  const guard = await requireStaff(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const title = (patch.title || "").trim();
@@ -100,7 +90,7 @@ export async function saveGuide(id, patch = {}) {
 export async function deleteGuide(id) {
   if (!id) return { error: null };
   const supabase = createClient();
-  const guard = await requireStaff(supabase);
+  const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
   const { error } = await supabase.from("class_guides").delete().eq("id", id);

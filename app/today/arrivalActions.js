@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-function needSql(error) {
-  return error && (error.code === "PGRST204" || error.code === "42703");
-}
+import { noColumn } from "@/lib/sqlError";
 
 /** 그 날 리포트 한 줄을 확보한다 (출결보다 폰 제출이 먼저일 수 있다) */
 async function ensureReport(supabase, studentId, date) {
@@ -36,7 +33,7 @@ export async function setArrival(studentId, date, patch = {}) {
   if (Object.keys(row).length === 0) return { error: null };
 
   const { error } = await supabase.from("daily_reports").update(row).eq("id", id);
-  if (needSql(error)) return { error: "0037 SQL 을 먼저 실행해주세요." };
+  if (noColumn(error)) return { error: "0037 SQL 을 먼저 실행해주세요." };
   if (error) return { error: error.message };
 
   revalidatePath("/today");
@@ -98,7 +95,7 @@ export async function setWordWhenDefault(studentId, when) {
     .from("students")
     .update({ word_when: when === "end" ? "end" : "start" })
     .eq("id", studentId);
-  if (needSql(error)) return { error: "0037 SQL 을 먼저 실행해주세요." };
+  if (noColumn(error)) return { error: "0037 SQL 을 먼저 실행해주세요." };
   revalidatePath("/today");
   revalidatePath("/students");
   return { error: error ? error.message : null };

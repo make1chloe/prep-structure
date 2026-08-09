@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requirePrincipal } from "@/lib/guard";
 
 /**
  * 홈 화면 아이콘 — 원장님이 올린 로고를 담아둔다 (0080).
@@ -16,15 +17,6 @@ const KEYS = [
   "icon-mark",   // 화면 안 왼쪽 위 로고 (바탕 없음)
 ];
 const MAX = 400 * 1024;   // 한 장 400KB — 아이콘이 이보다 크면 뭔가 잘못된 것이다
-
-async function requirePrincipal(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "로그인이 필요해요." };
-  const { data: p } = await supabase
-    .from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (p?.role !== "principal") return { error: "원장 계정에서만 바꿀 수 있어요." };
-  return { error: null, user };
-}
 
 const SQL = "0080 SQL 을 먼저 실행해주세요.";
 
@@ -96,7 +88,6 @@ export async function clearIcons() {
   revalidatePath("/settings/screen");
   return { error: error ? error.message : null };
 }
-
 
 /**
  * **왜 안 바뀌는지 서버가 직접 확인한다.**

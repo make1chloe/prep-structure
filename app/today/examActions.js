@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
-function unavailable(error) {
-  return error && (error.code === "42P01" || error.code === "PGRST205");
-}
+import { noTable } from "@/lib/sqlError";
 
 /**
  * 단원평가 결과를 남긴다.
@@ -35,7 +32,7 @@ export async function addUnitExam(studentId, date, { name, wrong, total, note } 
     note: (note || "").trim() || null,
     created_by: user?.id || null,
   });
-  if (unavailable(error)) return { error: "0031 SQL 을 먼저 실행해주세요." };
+  if (noTable(error)) return { error: "0031 SQL 을 먼저 실행해주세요." };
   if (error) return { error: error.message };
 
   revalidatePath("/today");

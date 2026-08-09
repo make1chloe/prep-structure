@@ -2,10 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, dowOf } from "@/lib/day";
+import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { inTarget, sameGrade } from "@/lib/who";
-
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -314,8 +313,7 @@ export async function applyTaskAbsence(taskId) {
     .in("student_id", ids);
   const daysOf = new Map(classes.map((c) => [c.id, c.days || []]));
 
-  const DOWN = ["일", "월", "화", "수", "목", "금", "토"];
-  const rows = [];
+    const rows = [];
   for (const sid of ids) {
     const myDays = new Set(
       (members || []).filter((m) => m.student_id === sid).flatMap((m) => daysOf.get(m.class_id) || [])
