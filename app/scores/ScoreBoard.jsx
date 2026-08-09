@@ -7,6 +7,7 @@ import { KINDS, KIND_LABEL, summary, byKind, trendOf, gradeByCuts, findExam, cut
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { shortName } from "@/lib/schoolName";
 import { examTitle } from "@/lib/examList";
+import { SchoolField } from "@/components/PickField";
 
 const EMPTY = {
   kind: "school",
@@ -25,7 +26,7 @@ const EMPTY = {
   exam_id: "",
 };
 
-export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, pickExam = null, canEdit = false }) {
+export default function ScoreBoard({ students = [], scores = [], exams = [], pick = null, pickExam = null, canEdit = false, schools = [] }) {
   const [sel, setSel] = useState(pick || students[0]?.id || "");
   /**
    * **누르고 들어왔으면 채워져 있어야 한다** (원장님, 2026-08-08 —
@@ -366,9 +367,11 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap", marginTop: 8 }}>
               <div className="field" style={{ width: 160 }}>
                 <label className="label">어느 학교 시험</label>
-                <input
+                {/* 학교는 골라 넣는다 (0114) — 「신정중」 과 「신정중학교」 가
+                    갈라지면 등급컷도 회차도 서로 다른 학교 것이 된다 */}
+                <SchoolField
                   className="input input-sm"
-                  placeholder={student.school || "학교"}
+                  schools={schools}
                   value={form.school}
                   onChange={(e) => setForm({ ...form, school: e.target.value })}
                 />

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { addStudent } from "./actions";
+import { SchoolField, GradeField } from "@/components/PickField";
 
-export default function AddStudentForm() {
+export default function AddStudentForm({ schools = [] }) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -28,11 +29,11 @@ export default function AddStudentForm() {
           </div>
           <div className="field">
             <label className="label">학교</label>
-            <input className="input input-sm" name="school" placeholder="신정중" />
+            <SchoolField schools={schools} />
           </div>
           <div className="field">
             <label className="label">학년</label>
-            <input className="input input-sm" name="grade" placeholder="중2" />
+            <GradeField />
           </div>
           <div className="field">
             <label className="label">생년월일</label>

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddStudentForm from "./AddStudentForm";
+import { schoolNames } from "@/lib/schoolList";
 import ExcelUpload from "./ExcelUpload";
 import BulkAccounts from "./BulkAccounts";
 import StudentList from "./StudentList";
@@ -147,6 +148,9 @@ export default async function StudentsPage({ searchParams }) {
     };
   });
 
+  // 학교는 골라 넣는다 (0114) — 손으로 적으면 「신정중」 과 「신정중학교」 로 갈라진다
+  const schools = await schoolNames(supabase).catch(() => []);
+
   return (
     <>
       <TopBar profile={profile} active="students" />
@@ -161,7 +165,7 @@ export default async function StudentsPage({ searchParams }) {
             </p>
           </Help>
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
-            <AddStudentForm />
+            <AddStudentForm schools={schools} />
             <ExcelUpload />
           </div>
           <div style={{ marginTop: 4 }}>

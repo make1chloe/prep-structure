@@ -4,6 +4,7 @@ import Help from "@/components/Help";
 import AddInquiryForm from "./AddInquiryForm";
 import ApplyLink from "./ApplyLink";
 import ConsultBoard from "./ConsultBoard";
+import { schoolNames } from "@/lib/schoolList";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,9 @@ export default async function ConsultPage() {
     .select("id, name")
     .order("start_time", { ascending: true });
 
+  // 학교는 골라 넣는다 (0114) — 손으로 적으면 「신정중」 과 「신정중학교」 로 갈라진다
+  const schools = await schoolNames(supabase).catch(() => []);
+
   return (
     <>
       <TopBar profile={profile} active="consult" />
@@ -43,11 +47,12 @@ export default async function ConsultPage() {
             </p>
           </Help>
           <div className="row" style={{ marginTop: 10, alignItems: "center", gap: 8 }}>
-            <AddInquiryForm />
+            <AddInquiryForm schools={schools} />
             <ApplyLink />
           </div>
         </div>
         <ConsultBoard
+          schools={schools}
           rows={rows || []}
           classes={classes || []}
           unavailable={!!error}

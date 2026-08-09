@@ -5,6 +5,7 @@ import ScoreBoard from "./ScoreBoard";
 import ScoreUpload from "./ScoreUpload";
 import MissingBox from "./MissingBox";
 import { missingScores } from "@/lib/menuBadges";
+import { schoolNames } from "@/lib/schoolList";
 import { hiddenExamIds } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +64,9 @@ export default async function ScoresPage({ searchParams }) {
    * 펴 놓는다 (lib/menuBadges 의 missingScores) — 두 벌로 세면 언젠가
    * 배지와 목록이 다른 말을 한다.
    */
+  // 학교는 골라 넣는다 (0114) — 「신정중」 과 「신정중학교」 가 갈라지면 회차도 컷도 따로 논다
+  const schools = await schoolNames(supabase).catch(() => []);
+
   const hidden = await hiddenExamIds(supabase).catch(() => new Set());
   // **안 봤다고 적어둔 것** (0112) — 0112 전이면 빈 손으로 (오류가 아니라 없는 것)
   const { data: skipRows } = await supabase
@@ -122,6 +126,7 @@ export default async function ScoresPage({ searchParams }) {
               * `key` 가 바뀌면 판을 새로 만든다 — 그래야 고른 학생이 바뀐다.
               */}
             <ScoreBoard
+              schools={schools}
               key={`${pick || "none"}|${pickExam || ""}`}
               students={students || []}
               pickExam={pickExam}

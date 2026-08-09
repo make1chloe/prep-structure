@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitApply } from "./actions";
 import { SLOTS, slotLabel, SLOT_NOTES, PRIVACY, SOURCES } from "@/lib/applySlots";
+import { SchoolField, GradeField } from "@/components/PickField";
 
 /**
  * **로그인 없이 학부모가 채우는 상담 신청 양식.**
@@ -24,7 +25,7 @@ import { SLOTS, slotLabel, SLOT_NOTES, PRIVACY, SOURCES } from "@/lib/applySlots
  * **4. 「선택」 이라는 말을 안 쓴다** (원장님). 안 적어도 되는 칸이라고
  *    적어두면 반이 비어서 온다. 꼭 필요한 것만 묻고, 물었으면 받는다.
  */
-export default function ApplyForm({ token = "", prefill = {} }) {
+export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState(null);
   const [slots, setSlots] = useState([]);
@@ -83,12 +84,16 @@ export default function ApplyForm({ token = "", prefill = {} }) {
           </div>
           <div className="field">
             <label className="label">학교 *</label>
-            <input className="input" name="school" required defaultValue={prefill.school || ""} />
+            {/* **여기서 갈라지면 뒤에서 다 갈라진다** (0114). 학부모가 적으신
+                「인천신정중학교」 와 표의 「신정중」 이 다른 학교가 되면, 그
+                아이의 시험 일정도 시험범위도 성적도 따로 논다. 골라 넣게 하되
+                **막지는 않는다** — 표에 없는 학교는 그냥 적으시면 된다 */}
+            <SchoolField className="input" schools={schools} required
+              defaultValue={prefill.school || ""} />
           </div>
           <div className="field">
             <label className="label">학년 *</label>
-            <input className="input" name="grade" required placeholder="중2"
-              defaultValue={prefill.grade || ""} />
+            <GradeField className="input" required defaultValue={prefill.grade || ""} />
           </div>
         </div>
         {/* **학생 연락처로 레벨테스트 아이디를 만든다.** 왜 필요한지 적어두지

@@ -14,6 +14,7 @@ import { useBulk, BulkBar } from "@/components/Bulk";
 import TypeBox from "./TypeBox";
 import ScopePicker from "./ScopePicker";
 import { stageOf } from "@/lib/prepRoutine";
+import { SchoolField, GradeField } from "@/components/PickField";
 
 const STAGES = [
   { key: "make", need: "need_make", at: "made_at", label: "만들기" },
@@ -34,7 +35,7 @@ function dLeft(examDate, today) {
 
 export default function PrepBoard({
   today, exams = [], scopes = [], materials = [], assigns = [], types = [],
-  students = [], unitLabel = {}, pick = "",
+  students = [], unitLabel = {}, pick = "", schools = [],
 }) {
   const [sel, setSel] = useState(pick || exams[0]?.id || "");
   const [openTypes, setOpenTypes] = useState(false);
@@ -142,11 +143,13 @@ export default function PrepBoard({
       {newExam && (
         <div className="card card-tight" style={{ marginTop: 10 }}>
           <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <input className="input input-sm" style={{ width: 130 }} placeholder="학교"
+            {/* 학교는 골라 넣는다 (0114) — 손으로 적으면 이 회차만 다른
+                학교 것이 되어 시험범위도 성적도 따로 논다 */}
+            <SchoolField className="input input-sm" style={{ width: 130 }} schools={schools}
               value={newExam.school} onChange={(e) => setNewExam({ ...newExam, school: e.target.value })} />
             <input className="input input-sm" style={{ width: 150 }} placeholder="26' 1학기기말"
               value={newExam.term} onChange={(e) => setNewExam({ ...newExam, term: e.target.value })} />
-            <input className="input input-sm" style={{ width: 80 }} placeholder="고1"
+            <GradeField className="input input-sm" style={{ width: 80 }}
               value={newExam.grade} onChange={(e) => setNewExam({ ...newExam, grade: e.target.value })} />
             <input className="input input-sm" type="date" style={{ width: 150 }}
               title="영어 시험일 — 급한 순서를 이걸로 잡습니다"

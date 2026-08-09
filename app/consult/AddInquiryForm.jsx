@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { addInquiry } from "./actions";
+import { SchoolField, GradeField, PickField } from "@/components/PickField";
+// 유입경로 목록은 **설문지와 한 벌**이다 (lib/applySlots). 두 벌이면
+// 설문지가 남긴 값이 이 화면에서 목록에 없는 값이 되고, 그러면 지워진다.
+import { SOURCES } from "@/lib/applySlots";
 
-const SOURCES = ["블로그", "소개", "전단", "검색", "방문", "기타"];
-
-export default function AddInquiryForm() {
+export default function AddInquiryForm({ schools = [] }) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -41,18 +43,15 @@ export default function AddInquiryForm() {
           </div>
           <div className="field">
             <label className="label">학교</label>
-            <input className="input input-sm" name="school" />
+            <SchoolField schools={schools} />
           </div>
           <div className="field">
             <label className="label">학년</label>
-            <input className="input input-sm" name="grade" placeholder="중2" />
+            <GradeField />
           </div>
           <div className="field">
             <label className="label">유입경로</label>
-            <select className="input input-sm" name="source" defaultValue="">
-              <option value="">—</option>
-              {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <PickField name="source" options={SOURCES.map((x) => x.key)} />
           </div>
           <div className="field">
             <label className="label">희망 시간</label>

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import BrandMark from "@/components/BrandMark";
 import ApplyForm from "./ApplyForm";
+import { schoolNames } from "@/lib/schoolList";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +11,16 @@ export const dynamic = "force-dynamic";
 export default async function ApplyPage({ searchParams }) {
   const token = searchParams?.t || "";
   let prefill = {};
+  const supabase = createClient();
+
+  /**
+   * **여기는 로그인이 없다.** schools 표는 선생님만 읽으므로(0076), 0114 의
+   * 좁은 문으로 이름만 받는다. 못 받으면 빈 목록 — 그러면 그냥 적어 넣는
+   * 칸이 되고 접수는 그대로 된다. 학교 목록 때문에 접수가 막히면 손해가 크다.
+   */
+  const schools = await schoolNames(supabase, { anon: true }).catch(() => []);
 
   if (token) {
-    const supabase = createClient();
     const { data } = await supabase
       .from("inquiries")
       .select("name, phone, school, grade")
@@ -35,7 +43,7 @@ export default async function ApplyPage({ searchParams }) {
         </p>
       </div>
       <div style={{ marginTop: 14 }}>
-        <ApplyForm token={token} prefill={prefill} />
+        <ApplyForm token={token} prefill={prefill} schools={schools} />
       </div>
     </main>
   );

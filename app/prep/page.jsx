@@ -3,6 +3,7 @@ import { examTitle, needsScope } from "@/lib/examList";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrepBoard from "./PrepBoard";
+import { schoolNames } from "@/lib/schoolList";
 import { todaySeoul } from "@/lib/day";
 
 export const dynamic = "force-dynamic";
@@ -104,6 +105,9 @@ export default async function PrepPage({ searchParams }) {
     });
   }
 
+  // 학교는 골라 넣는다 (0114)
+  const schools = await schoolNames(supabase).catch(() => []);
+
   return (
     <>
       <TopBar profile={profile} active="prep" />
@@ -127,6 +131,7 @@ export default async function PrepPage({ searchParams }) {
           </div>
         ) : (
           <PrepBoard
+            schools={schools}
             today={todaySeoul()}
             exams={examRows}
             scopes={scopes.data || []}

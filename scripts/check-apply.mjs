@@ -110,8 +110,23 @@ eq(선택.map(([n, l]) => `${n}: ${l.trim().slice(0, 40)}`), [], "양식에 「�
 console.log("\n== 학생 정보는 전부 받는다 ==");
 // required 가 화면에만 있으면 안 된다 — 받는 쪽(actions)에서도 막아야 한다
 const act = readFileSync("app/apply/actions.js", "utf8");
+/**
+ * **학교·학년은 골라 넣는 칸이 되었다** (0114, 2026-08-09).
+ *
+ * `name="school"` 이 양식 소스에 그대로 있진 않다 — SchoolField·GradeField 가
+ * 안에서 붙인다. 이름이 안 붙으면 받는 쪽(actions)이 빈손이 되므로,
+ * **칸이 있는지**는 여기서 보고 **이름이 붙는지**는 그 컴포넌트에서 못 박는다
+ * (scripts/check-pick.mjs).
+ */
+const PICKED = { school: "SchoolField", grade: "GradeField" };
 ["name", "phone", "student_phone", "school", "grade"].forEach((f) => {
-  eq(form.includes(`name="${f}"`), true, `양식에 ${f} 칸`);
+  const has = form.includes(`name="${f}"`) || (PICKED[f] && form.includes(`<${PICKED[f]}`));
+  eq(has, true, `양식에 ${f} 칸`);
+});
+Object.entries(PICKED).forEach(([f, comp]) => {
+  const pick = readFileSync("components/PickField.jsx", "utf8");
+  eq(new RegExp(`export function ${comp}\\([^)]*name = "${f}"`, "s").test(pick), true,
+     `${comp} 가 name="${f}" 를 붙인다`);
 });
 ["학생 이름", "학부모 연락처", "학생 연락처", "학교", "학년"].forEach((w) => {
   eq(act.includes(w), true, `안 적으면 막는다 — ${w}`);

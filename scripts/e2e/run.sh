@@ -65,5 +65,11 @@ curl -sf "http://127.0.0.1:$APP_PORT/login" >/dev/null || {
 echo "  떴습니다 :$APP_PORT"
 
 echo
-E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/click.mjs
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/click.mjs || exit $?
+
+# **설문지에서 상담 목록까지 값이 닿는가** (0114).
+#   「기타」 뒤에 적어주신 글은 저장은 잘 되고 있었는데 상담 화면이 잃고
+#   있었다. 넣고 → 보고 → 수정창을 열어보는 데까지 가야 잡힌다.
+echo
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/apply-other.mjs
 exit $?

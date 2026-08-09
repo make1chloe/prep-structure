@@ -12,10 +12,19 @@ import {
   ensureFormLink,
 } from "./actions";
 import { STATUS } from "./status";
-import { slotText } from "@/lib/applySlots";
+import { slotText, SOURCES as APPLY_SOURCES } from "@/lib/applySlots";
+import { SchoolField, GradeField, PickField } from "@/components/PickField";
 import { dowOf, parts } from "@/lib/day";
 
-const SOURCES = ["블로그", "소개", "전단", "검색", "방문", "기타"];
+// **설문지와 한 벌이어야 한다** (원장님, 2026-08-09 — 「설문지에서 기타를
+// 선택한 경우 추가로 작성한 내용이 안 들어오는 거 같아」).
+//
+// 여기 목록이 따로 있었다. 설문지는 「재원생 소개 / 지인 소개 / 블로그 /
+// 인터넷 검색 / 지나가다 보고 / 기타」 로 받고, 고른 것 뒤에 적어주신 글을
+// 「기타 (친구 어머니가 알려주심)」 처럼 붙여 저장한다. 그 값이 이 화면의
+// 목록에는 없으니 수정창에서 **빈 칸**으로 보이고, 그대로 저장하면 원래
+// 글이 지워졌다. 저장은 잘 되고 있었다 — 보여주는 쪽이 잃고 있었다.
+const SOURCES = APPLY_SOURCES.map((s) => s.key);
 const CLS = Object.fromEntries(STATUS.map((s) => [s.key, s.cls]));
 const LABEL = Object.fromEntries(STATUS.map((s) => [s.key, s.label]));
 
@@ -29,6 +38,7 @@ function dayLabel(d) {
 export default function ConsultBoard({
   rows = [],
   classes = [],
+  schools = [],
   unavailable = false,
   formReady = true,
 }) {
@@ -420,8 +430,17 @@ export default function ConsultBoard({
                   </div>
                 )}
 
-                {!editing && (r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal
-                  || r.test_want_text || r.visit_want_text || r.want_slots?.length) && (
+                {/**
+                  * **`&&` 앞에 숫자를 두면 그 숫자가 그려진다.**
+                  *
+                  * 여기 맨 끝이 `r.want_slots?.length` 였다. 희망 시간표를 하나도
+                  * 안 고른 줄에서는 그 값이 **0** 이고, 앞의 것들도 다 비어 있으면
+                  * 「거짓」 이 아니라 **0** 이 되어 화면에 0 이 찍혔다 (실제로
+                  * 상담 목록 아래에 0 이 하나 떠 있었다). `> 0` 으로 참·거짓을
+                  * 만들어 넘긴다.
+                  */}
+                {!editing && !!(r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal
+                  || r.test_want_text || r.visit_want_text || r.want_slots?.length > 0) && (
                   <div style={{ padding: "0 16px 10px 44px" }}>
                     {/* **고르신 시간표가 제일 위다** (2026-08-06). 어느 반에 넣을지가
                         상담 전에 정해지는 일이 많아서, 이것부터 보여야 한다 */}
@@ -482,21 +501,19 @@ export default function ConsultBoard({
                       </div>
                       <div className="field">
                         <label className="label">학교</label>
-                        <input className="input input-sm" value={draft.school}
+                        <SchoolField schools={schools} name={undefined} value={draft.school}
                           onChange={(e) => setDraft({ ...draft, school: e.target.value })} />
                       </div>
                       <div className="field">
                         <label className="label">학년</label>
-                        <input className="input input-sm" value={draft.grade}
+                        <GradeField name={undefined} value={draft.grade}
                           onChange={(e) => setDraft({ ...draft, grade: e.target.value })} />
                       </div>
                       <div className="field">
                         <label className="label">유입경로</label>
-                        <select className="input input-sm" value={draft.source}
-                          onChange={(e) => setDraft({ ...draft, source: e.target.value })}>
-                          <option value="">—</option>
-                          {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                        {/* 목록에 없는 값(설문지가 남긴 「기타 (…)」)도 그대로 지킨다 */}
+                        <PickField options={SOURCES} value={draft.source}
+                          onChange={(e) => setDraft({ ...draft, source: e.target.value })} />
                       </div>
                       <div className="field">
                         <label className="label">상태</label>
