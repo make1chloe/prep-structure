@@ -369,10 +369,21 @@ export async function importSchedule(from, to, schoolId = null) {
      * (2026-08-08). flat 을 빼면 배열이 통째로 한 줄처럼 들어가서
      * 제목이 「[object Object]」 가 된다.
      */
-    const tasks = mergeRuns(labelGrades(mergeSame(
+    /**
+     * **차례가 중요하다** (2026-08-09).
+     *   합치기(mergeSame) → 이어붙이기(mergeRuns) → 학년 붙이기(labelGrades)
+     *
+     * 학년을 먼저 붙이면 제목이 달라져 이어붙지 못한다 — 마지막 날만 고3이
+     * 보는 시험이 날마다 한 줄이 됐다. 자세한 까닭은 lib/neis 의 labelGrades.
+     *
+     * 시험 회차는 **학년 꼬리표가 붙기 전** 제목으로 뽑는다. 붙은 뒤에 뽑으면
+     * 회차 이름이 「2학기 기말고사 (고3)」 이 되어 시험 이름이 또 제각각이 된다.
+     */
+    const merged = mergeRuns(mergeSame(
       res.rows.flatMap((r) => toTask(r, school) || []).filter(Boolean)
-    )));
-    const found = examPeriods(tasks, school);
+    ));
+    const found = examPeriods(merged, school);
+    const tasks = labelGrades(merged);
     exams.push(...found);
     // 시험 기간은 **묻지 않고 다 넣는다.** 필요 없는 것은 화면에서 숨기면 되고,
     // 숨긴 것은 다시 받아와도 숨긴 채로 있다. 매번 고르게 하는 것이 더 일이다.
@@ -756,6 +767,12 @@ export async function addExamPeriods(list = []) {
       name: e.name || "시험",
       from_date: e.from_date,
       to_date: e.to_date,
+      /**
+       * **한 학년만 보는 시험이면 학년이 적혀 온다** (lib/neis 의 examPeriods).
+       * 고3 기말이 다른 주에 따로 있는 학교가 있는데, 학년이 없으면 회차 둘이
+       * 똑같이 「2학기 기말」 로 보여서 시험이 하나 더 있는 것처럼 읽힌다.
+       */
+      grade: e.grade || null,
       source: "neis",
       created_by: user?.id || null,
     };

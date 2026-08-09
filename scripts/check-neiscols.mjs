@@ -14,7 +14,7 @@
  * 쓰는 법:  node scripts/check-neiscols.mjs
  */
 import { readFileSync } from "node:fs";
-import { toTask, isNationwide } from "../lib/neis.js";
+import { toTask, isNationwide, mergeSame, mergeRuns, labelGrades, examPeriods } from "../lib/neis.js";
 
 let bad = 0;
 const say = (m) => { console.log(`  ✗ ${m}`); bad = 1; };
@@ -108,6 +108,55 @@ const clean = src.slice(src.indexOf("학교별로 남아 있던 전국 공통"))
 eq(/isNationwide\(eventOf\(r\.source_id\)\)/.test(clean), true,
    "제목이 아니라 source_id 의 행사 이름으로 가른다");
 eq(/isNationwide\(r\.title/.test(clean), false, "제목으로 보던 것이 남아 있다");
+
+console.log("\n== 마지막 날만 고3이 보는 시험이 한 줄로 이어지나 ==");
+/**
+ * 원장님 (2026-08-09) — 「연수여고 중간고사는 10/13-10/16 한 번에 제대로
+ * 표시되는데 기말은 날짜별로 한 줄씩 차지하고 있어. 다른 학교도 마찬가지야」
+ *
+ * 학년을 **이어붙이기 전에** 제목에 붙이고 있었다. 그러면 마지막 날만 고3이
+ * 보는 시험은 그날 제목이 「기말고사 (고3)」 이 되어 앞날과 달라지고, 제목으로
+ * 잇는 mergeRuns 가 못 잇는다 — **날마다 한 줄.** 중간고사는 사흘 내내 학년이
+ * 같아 잘 나왔고, 그래서 「중간은 되는데 기말만 안 된다」 로 보였다.
+ */
+const YEON = { name: "연수여고", schul_code: "S9", id: "y" };
+const day = (d, g) => ({
+  AA_YMD: d, EVENT_NM: "2학기 기말고사",
+  ONE_GRADE_EVENT_YN: g.includes(1) ? "Y" : "N",
+  TW_GRADE_EVENT_YN: g.includes(2) ? "Y" : "N",
+  THREE_GRADE_EVENT_YN: g.includes(3) ? "Y" : "N",
+});
+const raw = [day("20261210", [1, 2, 3]), day("20261211", [1, 2, 3]), day("20261212", [3])]
+  .flatMap((r) => toTask(r, YEON) || []).filter(Boolean);
+const merged = mergeRuns(mergeSame(raw));
+eq(merged.length, 1, "사흘이 한 줄로 이어진다");
+eq([merged[0]?.due_on, merged[0]?.end_on], ["2026-12-10", "2026-12-12"], "12/10 ~ 12/12");
+// 학년을 모았으니 셋 다 → 「전체」 라 꼬리표가 안 붙는다
+eq(labelGrades(merged)[0]?.title, "연수여고 2학기 기말고사", "학년을 모아 「전체」 가 된다");
+eq(examPeriods(merged, YEON).length, 1, "시험 회차도 하나다");
+
+console.log("\n== 고3만 따로 보는 시험은 학년이 적힌다 ==");
+/**
+ * 원장님 (2026-08-09) — 「해송고가 여전히 3개인데 혹시 학년이 다른 거 아니야?」
+ *
+ * 고3 기말이 1·2학년과 다른 주에 있는 학교가 있다. 회차가 둘인 것은 맞는데,
+ * 학년을 안 적으면 둘 다 「2학기 기말」 이라 시험이 하나 더 있는 것처럼 읽힌다.
+ */
+const solo = mergeRuns(mergeSame(
+  [day("20261203", [3]), day("20261204", [3])].flatMap((r) => toTask(r, YEON) || []).filter(Boolean)
+));
+eq(examPeriods(solo, YEON).map((e) => e.grade), ["고3"], "한 학년만 보면 그 학년이 적힌다");
+eq(examPeriods(merged, YEON).map((e) => e.grade), [null],
+   "여러 학년이면 비워둔다 (칸이 하나라 「고1·2」 는 아무와도 안 맞는다)");
+
+console.log("\n== 차례가 지켜지나 ==");
+// 학년을 먼저 붙이면 이 버그가 그대로 돌아온다
+const na = readFileSync("app/schedule/neisActions.js", "utf8");
+eq(/mergeRuns\(labelGrades\(/.test(na), false, "학년을 이어붙이기 전에 붙이지 않는다");
+eq(/const merged = mergeRuns\(mergeSame\(/.test(na), true, "합치기 → 이어붙이기 차례");
+eq(/const tasks = labelGrades\(merged\)/.test(na), true, "학년은 맨 마지막에 붙인다");
+// 회차 이름에 꼬리표가 섞이면 시험 이름이 또 제각각이 된다
+eq(/examPeriods\(merged, school\)/.test(na), true, "회차는 꼬리표 붙기 전 제목으로 뽑는다");
 
 if (bad) { console.log("\n❌ 받아오기가 그 학교에서 통째로 실패합니다"); process.exit(1); }
 console.log("\n✅ 나이스 → 일정 칸 통과");
