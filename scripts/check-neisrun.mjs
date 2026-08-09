@@ -18,6 +18,7 @@ import {
 } from "../lib/neis.js";
 import { matchExam, absorbable } from "../lib/exams.js";
 import { kindOf } from "../lib/neis.js";
+import { parseVideoAoA } from "../lib/importVideo.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -350,6 +351,76 @@ console.log("\n== 옛 줄을 한 번에 비울 길이 있나 ==");
   const box = readFileSync("app/schedule/NeisBox.jsx", "utf8");
   eq(/resetNeisExams\(\)/.test(box), true, "화면에 단추가 있다");
   eq(/시험 회차 다시 만들기/.test(box), true, "단추 이름");
+}
+
+
+console.log("\n== 모의고사에 있을 수 없는 칸을 안 내나 ==");
+/**
+ * 원장님 (2026-08-09) — 「모의고사는 등급컷·선생님 정보가 있을 수가 없어.
+ * 특이사항은 남겨 둬」
+ *
+ * 등급컷도 출제 선생님도 학교가 정하는 것이라 학교 시험에만 있다. 있을 수
+ * 없는 칸이 줄마다 두 개씩 붙어 있으면, 정말 채워야 하는 「영어 시험일」 이
+ * 그 사이에 묻힌다.
+ */
+{
+  const sb = readFileSync("app/schedule/ScheduleBoard.jsx", "utf8");
+  eq(/examKind\(e\) === "school" && \(cutOpen === e\.id \?/.test(sb), true,
+     "등급컷은 학교 시험에만 낸다");
+  eq(/\{examKind\(e\) === "school" && \(\s*<input[\s\S]{0,120}김선생, 박선생/.test(sb), true,
+     "출제 선생님 칸도 학교 시험에만");
+  eq(/e\.note \? "특이사항 고치기" : "특이사항 적기"/.test(sb), true, "특이사항은 남겨 둔다");
+}
+
+console.log("\n== 회차가 하나도 없는 학교를 알려주나 ==");
+/**
+ * 원장님 (2026-08-09) — 「시험 있어야 하는 학교가 없어」
+ *
+ * **목록에 있는 것은 눈에 보이는데, 없는 것은 안 보인다.** 아홉 학교 중
+ * 세 곳이 통째로 안 들어왔어도 남은 여섯 곳이 그럴듯하게 차 있어서 모른다.
+ */
+{
+  const sb = readFileSync("app/schedule/ScheduleBoard.jsx", "utf8");
+  eq(/const missingSchools = useMemo/.test(sb), true, "세는 자리가 있다");
+  eq(/sameSchool\(e\.school, s\)/.test(sb), true,
+     "학교 견주기는 lib/who 한 곳에서만 (해송고 ↔ 인천해송고등학교)");
+  eq(/examKind\(e\) === "school"\)/.test(sb), true, "모의고사는 학교 회차로 안 센다");
+  eq(/시험 회차가 하나도 없는 학교가/.test(sb), true, "화면에 적어준다");
+}
+
+console.log("\n== 영상 엑셀 ==");
+/**
+ * 원장님 (2026-08-09) — 「영상 엑셀로 한 번에 넣을 수 있게 해 줘」
+ *
+ * **주소만 있으면 된다.** 제목을 꼭 적어야 하면 스무 개를 넣으려고 스무 번
+ * 유튜브에 들어가 제목을 복사해 오셔야 한다.
+ */
+{
+  const one = parseVideoAoA([
+    ["제목", "주소", "폴더", "메모"],
+    ["관계대명사 1강", "https://youtu.be/abc12345678", "문법", "3분"],
+    ["", "https://www.youtube.com/watch?v=zzz99999999", "문법", ""],
+    ["제목만 있고 주소가 없음", "", "문법", ""],
+  ]);
+  eq(one.rows.length, 2, "주소가 있는 줄만 (제목이 없어도 받는다)");
+  eq(one.rows[1].title, "", "제목은 비어 있어도 된다 — 유튜브가 알고 있다");
+  eq(one.rows[0].folder, "문법", "폴더 이름을 그대로 읽는다");
+  // 열 이름을 학교마다·사람마다 다르게 적는다
+  const alt = parseVideoAoA([["영상제목", "링크", "묶음", "비고"], ["a", "https://youtu.be/x1234567890", "b", "c"]]);
+  eq(alt.rows[0], { title: "a", url: "https://youtu.be/x1234567890", folder: "b", note: "c" },
+     "제목·주소·폴더·메모를 다르게 적어도 알아본다");
+  eq(parseVideoAoA([["제목", "주소"]]).rows.length, 0, "머리만 있으면 0줄");
+
+  const act = readFileSync("app/videos/actions.js", "utf8");
+  eq(/export async function bulkAddVideos/.test(act), true, "한 번에 넣는 자리가 있다");
+  eq(/export async function exportVideos/.test(act), true, "지금 것을 내려받을 수 있다");
+  // **한 줄이 틀렸다고 전부를 안 넣지 않는다** — 몇 번째 줄인지 알려준다
+  eq(/bad\.push\(`\$\{i \+ 2\}번째 줄/.test(act), true, "주소가 아닌 줄은 몇 번째인지 알려준다");
+  eq(/if \(vid \? haveVid\.has\(vid\) : haveUrl\.has\(url\)\) continue;/.test(act), true,
+     "이미 있는 영상은 건너뛴다 (주소 모양이 달라도 같은 영상)");
+  eq(/madeFolders \+= 1;/.test(act), true, "없는 폴더 이름이면 만든다");
+  const board = readFileSync("app/videos/VideoBoard.jsx", "utf8");
+  eq(/<VideoUpload \/>/.test(board), true, "넣는 자리 바로 아래에 둔다");
 }
 
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }

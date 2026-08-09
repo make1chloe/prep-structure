@@ -385,3 +385,138 @@ export async function assignVideosTo(videoIds, studentIds, dueOn) {
   revalidatePath("/me");
   return { error: null, added: rows.length };
 }
+
+/**
+ * **영상 엑셀 한 번에 넣기** (원장님, 2026-08-09 — 「영상 엑셀로 한 번에
+ * 넣을 수 있게 해 줘」).
+ *
+ * 문법 강의 한 단원이 스무 개면 스무 번을 붙여넣어야 했다.
+ *
+ * ── 무엇을 어떻게 다루나 ────────────────────────────
+ *
+ *   주소가 유튜브·비메오가 아니면   넣지 않고 **몇 번째 줄인지 알려준다**
+ *   이미 들어 있는 영상이면          건너뛴다 (같은 영상 id 로 본다 — 주소
+ *                                    모양이 달라도 같은 영상이다)
+ *   폴더 이름이 아직 없으면          그 이름으로 폴더를 만든다
+ *   제목이 비어 있으면               유튜브에서 받아온다 (키가 있을 때).
+ *                                    못 받으면 주소를 제목으로 둔다 —
+ *                                    나중에 「제목 받아오기」 로 채워진다
+ *
+ * **한 줄이 틀렸다고 전부를 안 넣지 않는다.** 스무 줄 중 한 줄이 오타면
+ * 나머지 열아홉은 들어가야 하고, 틀린 한 줄이 몇 번째인지 알아야 고친다.
+ */
+export async function bulkAddVideos(rows = []) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const list = (rows || []).filter((r) => (r?.url || "").trim());
+  if (list.length === 0) return { error: null, inserted: 0, skipped: 0, bad: [] };
+
+  // 이미 들어 있는 것 — 같은 영상 id 면 주소 모양이 달라도 같은 영상이다
+  const { data: had, error: readErr } = await supabase
+    .from("videos").select("id, url, vid");
+  if (readErr) return ok(readErr);
+  const haveVid = new Set((had || []).map((v) => v.vid).filter(Boolean));
+  const haveUrl = new Set((had || []).map((v) => (v.url || "").trim()));
+
+  // 폴더 — 이름으로 찾고, 없으면 만든다
+  const { data: folders } = await supabase.from("video_folders").select("id, name");
+  const byName = new Map((folders || []).map((f) => [(f.name || "").replace(/\s/g, ""), f.id]));
+  let madeFolders = 0;
+  const folderId = async (name) => {
+    const key = (name || "").replace(/\s/g, "");
+    if (!key) return null;
+    if (byName.has(key)) return byName.get(key);
+    const { data, error } = await supabase
+      .from("video_folders").insert({ name: name.trim(), sort: 100 }).select("id").single();
+    if (error || !data) return null;
+    byName.set(key, data.id);
+    madeFolders += 1;
+    return data.id;
+  };
+
+  const bad = [];        // 주소가 아닌 줄 — 몇 번째인지 그대로 알려준다
+  const seen = new Set();
+  const ready = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const r = list[i];
+    const url = (r.url || "").trim();
+    const { provider, vid } = parseVideo(url);
+    if (!provider) { bad.push(`${i + 2}번째 줄 — ${url.slice(0, 40)}`); continue; }
+    const key = vid || url;
+    if (seen.has(key)) continue;                       // 파일 안에서 겹친 줄
+    if (vid ? haveVid.has(vid) : haveUrl.has(url)) continue;
+    seen.add(key);
+    ready.push({ ...r, url, provider, vid });
+  }
+  if (ready.length === 0) {
+    return { error: null, inserted: 0, skipped: list.length - bad.length, bad, madeFolders: 0 };
+  }
+
+  // 제목이 빈 줄만 유튜브에 물어본다 (한 번에 50개씩 — fetchTitles 가 나눈다)
+  const need = ready.filter((r) => !(r.title || "").trim() && r.provider === "youtube" && r.vid);
+  let titles = new Map();
+  let titleNote = null;
+  if (need.length) {
+    const key = await ytKey(supabase);
+    if (key) {
+      const got = await fetchTitles(key, need.map((r) => r.vid));
+      titles = got.titles;
+      if (got.error) titleNote = got.error;
+    } else {
+      titleNote = "유튜브 키가 없어 제목은 주소로 넣었어요. 설정에서 키를 넣고 「제목 받아오기」 를 누르시면 채워집니다.";
+    }
+  }
+
+  let inserted = 0;
+  for (const r of ready) {
+    const row = {
+      folder_id: await folderId(r.folder),
+      title: (r.title || "").trim() || titles.get(r.vid) || r.url,
+      url: r.url,
+      provider: r.provider,
+      vid: r.vid,
+      note: (r.note || "").trim() || null,
+      sort: 100,
+    };
+    const { error } = await supabase.from("videos").insert(row);
+    if (error && error.code !== "23505") return { ...ok(error), inserted };
+    if (!error) inserted += 1;
+  }
+
+  revalidatePath("/videos");
+  return {
+    error: null,
+    inserted,
+    skipped: list.length - bad.length - inserted,
+    bad,
+    madeFolders,
+    titleNote,
+  };
+}
+
+/**
+ * **지금 들어 있는 영상을 내려받는다.**
+ *
+ * 빈 양식만 있으면 「이미 뭐가 들어 있나」 를 화면에서 눈으로 세어 옮겨
+ * 적어야 한다. 내려받아 고쳐 다시 올리면 **이미 있는 것은 건너뛰고**
+ * 없는 것만 새로 들어간다.
+ */
+export async function exportVideos() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { error: guard.error, rows: [] };
+
+  const { data: folders } = await supabase.from("video_folders").select("id, name");
+  const fname = new Map((folders || []).map((f) => [f.id, f.name]));
+  const { data, error } = await supabase
+    .from("videos").select("title, url, folder_id, note").order("sort");
+  if (error) return { error: ok(error).error, rows: [] };
+  return {
+    error: null,
+    rows: (data || []).map((v) => [
+      v.title || "", v.url || "", fname.get(v.folder_id) || "", v.note || "",
+    ]),
+  };
+}

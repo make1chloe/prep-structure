@@ -15,6 +15,7 @@ import {
   assignVideosTo,
 } from "./actions";
 import { useBulk, BulkBar } from "@/components/Bulk";
+import VideoUpload from "./VideoUpload";
 import { thumbUrl, VIEW_LABEL, VIEW_CLS } from "@/lib/video";
 
 function when(iso) {
@@ -103,6 +104,12 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
             </button>
           </div>
         </form>
+
+        {/* **한 개씩 말고 한 번에** (원장님, 2026-08-09 — 「영상 엑셀로 한 번에
+            넣을 수 있게 해 줘」). 문법 강의 한 단원이 스무 개면 스무 번을
+            붙여넣어야 했다. 넣는 자리 바로 아래에 둔다 — 다른 화면에 있으면
+            있는 줄도 모르신다 */}
+        <VideoUpload />
 
         <form
           action={(fd) => run(() => addFolder(fd))}

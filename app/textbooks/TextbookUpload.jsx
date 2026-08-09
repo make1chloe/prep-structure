@@ -18,10 +18,18 @@ export default function TextbookUpload() {
   const inputRef = useRef(null);
   const router = useRouter();
 
-  function reset() {
+  /**
+   * **저장한 뒤에는 결과를 지우지 않는다** (2026-08-09에 겪었다).
+   *
+   * 예전에는 저장이 끝나면 reset() 이 결과까지 지웠다. 그래서 잘 들어간
+   * 경우에도 **화면에 아무 말이 안 남았고**, 몇 개가 들어갔는지 · 몇 개가
+   * 건너뛰어졌는지 · 못 넣은 줄이 있었는지가 통째로 사라졌다.
+   * 골라둔 파일만 비운다.
+   */
+  function reset(keepResult = false) {
     setParsed(null);
     setFileName("");
-    setResult(null);
+    if (!keepResult) setResult(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -73,8 +81,18 @@ export default function TextbookUpload() {
     startTransition(async () => {
       const res = await bulkAddTextbooks(parsed.rows);
       setResult(res);
+      if (res.error) return;
+      /**
+       * **알림창으로도 한 번 말한다** (2026-08-09). 저장 뒤 목록을 새로 받으면
+       * 이 상자가 다시 그려지면서 결과 글이 같이 사라진다 — 화면에는 아무
+       * 말도 안 남고 목록만 늘어나 있다.
+       */
+      alert(
+        `교재 ${res.inserted}권을 넣었어요.`
+        + (res.skipped > 0 ? `\n${res.skipped}권은 이미 있는 교재라 넘어갔습니다.` : "")
+      );
       if (res.inserted > 0) {
-        reset();
+        reset(true);          // 방금 무슨 일이 있었는지는 남겨둔다
         router.refresh();
       }
     });

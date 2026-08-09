@@ -13,7 +13,7 @@ import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 import { cleanNote } from "@/lib/note";
-import { takesExam } from "@/lib/who";
+import { takesExam, sameSchool } from "@/lib/who";
 import { GRADES, normalizeGrade } from "@/lib/grades";
 import { mergeMockExams } from "./actions";
 import {
@@ -131,6 +131,19 @@ export default function ScheduleBoard({
     exams.forEach((e) => m.set(e.id, roster.filter((s) => takesExam(s, e))));
     return m;
   }, [exams, roster]);
+
+  /**
+   * **회차가 하나도 없는 학교** (원장님, 2026-08-09 — 「시험 있어야 하는
+   * 학교가 없어」).
+   *
+   * 목록에 있는 것은 눈에 보이는데 **없는 것은 안 보인다.** 학교 이름
+   * 표기가 조금 달라도 같은 학교로 봐야 한다 (해송고 ↔ 인천해송고등학교) —
+   * 그래서 sameSchool 한 곳에서만 견준다.
+   */
+  const missingSchools = useMemo(() => {
+    const mine = exams.filter((e) => examKind(e) === "school");
+    return (schools || []).filter((s) => !mine.some((e) => sameSchool(e.school, s)));
+  }, [exams, schools]);
 
   /**
    * **이름은 다 보여야 한다** (원장님, 2026-08-09 — 「외 1명 안 돼, 이름 다
@@ -319,8 +332,14 @@ export default function ScheduleBoard({
           </>
         )}
         {/* 등급컷은 **이 회차** 것이다. 여기 한 번 적으면 이 시험을 본
-            학생 전부의 등급이 같은 기준으로 매겨진다. */}
-        {cutOpen === e.id ? (
+            학생 전부의 등급이 같은 기준으로 매겨진다.
+
+            **모의고사·대수능에는 안 붙인다** (원장님, 2026-08-09 —
+            「모의고사는 등급컷·선생님 정보가 있을 수가 없어. 특이사항은
+            남겨 둬」). 등급컷도 출제 선생님도 학교가 정하는 것이라
+            학교 시험에만 있다. 있을 수 없는 칸이 줄마다 두 개씩 붙어 있으면
+            정말 채워야 하는 「영어 시험일」 이 그 사이에 묻힌다. */}
+        {examKind(e) === "school" && (cutOpen === e.id ? (
           <>
             <input
               className="input input-sm"
@@ -358,19 +377,22 @@ export default function ScheduleBoard({
           >
             {(e.cuts || []).length ? `등급컷 ${e.cuts.join("·")}` : "등급컷 적기"}
           </button>
-        )}
+        ))}
         {/* 출제 선생님 · 특이사항 — **이 회차** 것이다.
-            같은 학교라도 회차마다 출제 선생님이 바뀐다. */}
+            같은 학교라도 회차마다 출제 선생님이 바뀐다.
+            모의고사·대수능에는 출제 선생님 칸을 안 내고 **특이사항만** 낸다. */}
         {infoOpen === e.id ? (
           <>
-            <input
-              className="input input-sm"
-              style={{ width: 150 }}
-              placeholder="김선생, 박선생"
-              title="여러 명이면 쉼표로 나눠 적으세요"
-              value={teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || "")}
-              onChange={(ev) => setTeach({ ...teach, [e.id]: ev.target.value })}
-            />
+            {examKind(e) === "school" && (
+              <input
+                className="input input-sm"
+                style={{ width: 150 }}
+                placeholder="김선생, 박선생"
+                title="여러 명이면 쉼표로 나눠 적으세요"
+                value={teach[e.id] ?? (e.teachers?.length ? e.teachers.join(", ") : e.teacher || "")}
+                onChange={(ev) => setTeach({ ...teach, [e.id]: ev.target.value })}
+              />
+            )}
             <input
               className="input input-sm"
               style={{ width: 190 }}
@@ -404,7 +426,9 @@ export default function ScheduleBoard({
             onClick={() => setInfoOpen(e.id)}
             title="이 회차의 출제 선생님과 특이사항"
           >
-            {teacherText(e) || e.note ? "선생님 · 특이사항 고치기" : "선생님 · 특이사항 적기"}
+            {examKind(e) === "school"
+              ? (teacherText(e) || e.note ? "선생님 · 특이사항 고치기" : "선생님 · 특이사항 적기")
+              : (e.note ? "특이사항 고치기" : "특이사항 적기")}
           </button>
         )}
         <button
@@ -957,6 +981,32 @@ export default function ScheduleBoard({
           <b>2차</b> — 영어 시험일이 확정되면 채워 넣습니다.
           그 <b>전날</b>은 정규수업이 아니어도 등원해야 하므로 알림이 뜹니다.
         </p>
+
+        {/**
+          * **시험이 있어야 하는데 없는 학교** (원장님, 2026-08-09 —
+          * 「시험 있어야 하는 학교가 없어」).
+          *
+          * 목록에 있는 것은 눈에 보이는데, **없는 것은 안 보인다.** 아홉
+          * 학교 중 세 곳이 통째로 안 들어왔어도 목록만 봐서는 모른다 —
+          * 남은 여섯 곳이 그럴듯하게 차 있기 때문이다.
+          *
+          * 그래서 재원생이 다니는 학교 가운데 회차가 하나도 없는 곳을 세어
+          * 이름을 적어둔다. 대개 나이스 코드가 없거나(손으로 넣은 학교),
+          * 그 학교만 받아오기가 실패한 것이다.
+          */}
+        {missingSchools.length > 0 && (
+          <div className="notice" style={{ marginBottom: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+            <b>시험 회차가 하나도 없는 학교가 {missingSchools.length}곳 있습니다</b> —{" "}
+            {missingSchools.join(" · ")}
+            <br />
+            <span className="hint">
+              위 <b>학교 명단</b>에서 그 학교에 <b>나이스 코드</b>가 있는지 보시고,
+              없으면 이름으로 찾아 넣은 뒤 <b>학사일정 받아오기</b> 를 다시 눌러주세요.
+              코드가 있는데도 비어 있으면 <b>이 학교만 받아오기</b> 를 누르면 나이스가 뭐라고
+              하는지 그 자리에 나옵니다.
+            </span>
+          </div>
+        )}
 
         {/* **모의고사는 전국이 같은 날이다 — 한 줄이면 된다** (원장님, 2026-08-07).
             학교마다 한 줄씩 있으면 아홉 줄이 같은 시험이고, 시험 목록을 열면
