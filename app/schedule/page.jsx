@@ -172,6 +172,7 @@ export default async function SchedulePage() {
           months={months}
           reviews={reviews}
           exams={exams}
+          roster={students || []}
           schools={schools}
           grades={grades}
           classes={classes || []}

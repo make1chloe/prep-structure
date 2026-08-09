@@ -6,7 +6,8 @@ import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
   isNationwide,
 } from "@/lib/neis";
-import { matchExam } from "@/lib/exams";
+import { matchExam, absorbable } from "@/lib/exams";
+import { isMockExam } from "@/lib/examList";
 import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
 import { requireStaff } from "@/lib/guard";
@@ -299,6 +300,7 @@ export async function importSchedule(from, to, schoolId = null) {
 
   let added = 0;
   let examAdded = 0;
+  let examTidied = 0;
   const exams = [];
   // 모의고사 회차 — 학교마다 같은 것을 적어내므로 다 모은 뒤 한 번에 넣는다
   const mocks = [];
@@ -390,6 +392,7 @@ export async function importSchedule(from, to, schoolId = null) {
     const madeExam = await addExamPeriods(found);
     if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
+    examTidied += madeExam.tidied || 0;
 
     /**
      * **모의고사도 회차로 만든다** (원장님, 2026-08-08 — 「모의고사는
@@ -698,7 +701,8 @@ export async function importSchedule(from, to, schoolId = null) {
   revalidatePath("/");
   // 다 막혔으면 오류로, 일부만 막혔으면 받은 것은 살리고 막힌 것만 알려준다
   if (failed.length && added === 0) return { error: failed.join("\n") };
-  return { error: null, added, examAdded, exams, notes, failed };
+  if (examTidied > 0) notes.push(`쪼개져 있던 옛 시험 줄 ${examTidied}개를 한 줄로 모았습니다`);
+  return { error: null, added, examAdded, examTidied, exams, notes, failed };
 }
 
 /**
@@ -729,15 +733,26 @@ export async function addExamPeriods(list = []) {
   // 내가 이미 들고 있는 시험들 — 겹치면 여기에 붙인다
   let { data: existing } = await supabase
     .from("exam_periods")
-    .select("id, school, from_date, to_date, neis_source_id");
+    .select("id, school, name, grade, from_date, to_date, source, neis_source_id, neis_name");
   // 0075 전이면 붙일 칸이 없다 — 예전처럼 만들기만 한다
   let canLink = true;
   if (!existing) {
     canLink = false;
     ({ data: existing } = await supabase
-      .from("exam_periods").select("id, school, from_date, to_date"));
+      .from("exam_periods").select("id, school, name, grade, from_date, to_date"));
   }
   const pool = existing || [];
+
+  /**
+   * **성적·범위가 붙은 줄은 절대 안 지운다.** 지우면 그쪽이 통째로 사라진다.
+   */
+  const { data: scopeRows } = await supabase.from("prep_scopes").select("exam_id");
+  const { data: scoreRows } = await supabase
+    .from("scores").select("exam_id").not("exam_id", "is", null);
+  const inUse = new Set([
+    ...(scopeRows || []).map((r) => r.exam_id),
+    ...(scoreRows || []).map((r) => r.exam_id),
+  ]);
 
   const neisPatch = (e) => ({
     neis_source_id: e.source_id || null,
@@ -747,18 +762,77 @@ export async function addExamPeriods(list = []) {
     neis_seen_at: new Date().toISOString(),
   });
 
+  /**
+   * **잘못 붙어 있던 것을 떼어낸다** (2026-08-09).
+   *
+   * 종류를 안 가리던 시절에 모의고사 줄에 내신이 붙었다. 이제는 안 붙지만,
+   * **이미 붙어 있는 것은 다시 받아와도 저절로 안 떨어진다** — 그 줄에는
+   * 「학교는 「2학기 중간고사」 라고 부릅니다」 가 영영 달려 있게 된다.
+   * 붙은 쪽과 붙은 것의 종류가 다르면 참고 자리만 비운다. 회차 자체는
+   * 그대로 둔다 — 성적이 붙어 있을 수 있다.
+   */
+  const wrong = pool.filter(
+    (x) => x.neis_source_id && x.neis_name && isMockExam(x) !== isMockExam({ name: x.neis_name })
+  );
+  for (const x of wrong) {
+    await supabase
+      .from("exam_periods")
+      .update({ neis_source_id: null, neis_from: null, neis_to: null, neis_name: null })
+      .eq("id", x.id);
+    x.neis_source_id = null;
+    x.neis_name = null;
+  }
+
+  /**
+   * **쪼개져 남은 옛 줄을 흡수한다** (원장님, 2026-08-09 — 「대부분의 학교들이
+   * 내신 시험 시작 날짜만 나오고 나머지 날짜가 아예 표시가 안 돼. 시험을
+   * 하루만 보는 건 모의고사가 그런 거야, 내신은 아니야」).
+   *
+   * 전에 학년 때문에 날마다 한 줄로 쪼개졌던 시험이 DB 에 그대로 남아 있다.
+   * 규칙은 lib/exams 의 absorbable 한 곳에만 적어둔다 — 두 벌이 되면
+   * 언젠가 한쪽만 고치게 되고, 그날부터 조용히 남의 시험을 지운다.
+   */
+  const absorb = async (e, keepId) => {
+    const inside = absorbable(e, pool, keepId, inUse);
+    if (!inside.length) return 0;
+    const { error } = await supabase
+      .from("exam_periods").delete().in("id", inside.map((x) => x.id));
+    if (error) return 0;
+    inside.forEach((x) => { pool.splice(pool.indexOf(x), 1); });
+    return inside.length;
+  };
+
   let added = 0;
   let linked = 0;
+  let tidied = 0;
   for (const e of rows) {
     const hit = canLink ? matchExam(e, pool) : null;
 
     if (hit) {
-      // **내 것은 안 바꾼다.** 학교가 뭐라고 하는지만 옆에 적어둔다.
-      // 날짜가 다르면 화면에서 "학교 일정이 바뀌었어요" 로 뜬다.
+      /**
+       * **누가 만든 줄인가에 따라 다르게 다룬다** (2026-08-09).
+       *
+       *   원장님이 적으신 줄   내 것은 안 바꾼다. 학교가 뭐라 하는지만 옆에
+       *                        적어두고, 반영은 「내 것에 반영」 을 누르실 때
+       *   나이스가 만든 줄     학교 일정이 곧 그 줄의 전부다 — 따라간다
+       *
+       * 전에는 둘을 안 갈랐다. 그래서 나이스가 만든 줄이 옛 날짜에 그대로
+       * 굳어, 사흘짜리 시험이 첫날 하루로 남았다. 그 줄에는 지킬 「내 것」 이
+       * 애초에 없었는데도.
+       */
+      const mine = (hit.source || "") !== "neis";
+      const patch = mine
+        ? neisPatch(e)
+        : { ...neisPatch(e), from_date: e.from_date, to_date: e.to_date, name: e.name || hit.name };
       const { error } = await supabase
-        .from("exam_periods").update(neisPatch(e)).eq("id", hit.id);
+        .from("exam_periods").update(patch).eq("id", hit.id);
       if (error && error.code !== "23505") return { error: error.message, added, linked };
-      if (!error) { linked += 1; hit.neis_source_id = e.source_id || null; }
+      if (!error) {
+        linked += 1;
+        hit.neis_source_id = e.source_id || null;
+        if (!mine) { hit.from_date = e.from_date; hit.to_date = e.to_date; hit.name = patch.name; }
+      }
+      tidied += await absorb(e, hit.id);
       continue;
     }
 
@@ -785,11 +859,12 @@ export async function addExamPeriods(list = []) {
     if (error) return { error: error.message, added, linked };
     added += 1;
     pool.push({ id: made.id, ...row, neis_source_id: e.source_id || null });
+    tidied += await absorb(e, made.id);
   }
 
   revalidatePath("/schedule");
   revalidatePath("/prep");
-  return { error: null, added, linked };
+  return { error: null, added, linked, tidied };
 }
 
 /** 받아온 일정만 지운다 (손으로 적은 것은 남는다) */

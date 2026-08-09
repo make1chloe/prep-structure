@@ -145,6 +145,7 @@ export default async function SchoolsPage() {
           months={months}
           reviews={reviews}
           exams={exams}
+          roster={students || []}
           schools={schools}
           grades={grades}
           classes={classes || []}

@@ -16,6 +16,7 @@ import {
   mergeRuns, mergeSame, labelGrades, toTask, mockPeriods,
   gradesOf, gradeLabel, levelOf,
 } from "../lib/neis.js";
+import { matchExam, absorbable } from "../lib/exams.js";
 import { readFileSync } from "node:fs";
 
 let fail = 0;
@@ -160,6 +161,109 @@ eq(/name: `\$\{i\}번`/.test(prep), true, "단원 이름이 문항 번호다");
 eq(/already: true/.test(prep), true, "이미 있으면 그것을 쓴다");
 const neisAct = readFileSync("app/schedule/neisActions.js", "utf8");
 eq(neisAct.includes("makeMockBook"), true, "받아올 때 같이 만들어 둔다");
+
+
+console.log("\n== 내신과 모의고사가 서로 안 붙나 ==");
+/**
+ * 원장님 (2026-08-09) — 「모의고사가 내신으로 표시됐어 / 시험 날짜가 다
+ * 이상해졌어 / 대부분의 학교들이 내신 시험 시작 날짜만 나오고 나머지 날짜가
+ * 아예 표시가 안 돼」
+ *
+ * **한 줄 사고였다.** 합치기 전 시절에 학교마다 있던 모의고사 줄
+ * (해송고 · 전국연합학력평가 · 10/14 하루) 이 그대로 남아 있는데,
+ * 이번에 받아온 해송고 2학기 중간(10/13~10/16)이 날짜가 겹친다는 이유로
+ * **그 모의고사 줄에 붙었다.** 그래서 —
+ *   · 이름이 「전국연합학력평가」 인 채라 내신이 모의고사로 보이고
+ *   · 「내 것은 안 바꾼다」 규칙에 걸려 날짜가 10/14 하루로 굳었다
+ */
+{
+  const pool = [
+    { id: "mock", school: "해송고", name: "전국연합학력평가",
+      from_date: "2026-10-14", to_date: "2026-10-14", source: "neis" },
+    { id: "mid", school: "해송고", name: "2학기 중간고사",
+      from_date: "2026-10-13", to_date: "2026-10-16", source: "neis" },
+  ];
+  const mid = { school: "해송고", name: "2학기 중간고사", from_date: "2026-10-13", to_date: "2026-10-16" };
+  eq(matchExam(mid, pool)?.id, "mid", "내신은 내신에 붙는다 (모의고사 줄을 건너뛴다)");
+  const mock = { school: "해송고", name: "2026년 10월 고1 모의고사", from_date: "2026-10-14", to_date: "2026-10-14" };
+  eq(matchExam(mock, pool)?.id, "mock", "모의고사는 모의고사에 붙는다");
+  // 붙을 짝이 없으면 **안 붙인다** — 아무 데나 붙이느니 새로 만드는 것이 낫다
+  eq(matchExam(mock, [pool[1]]), null, "종류가 다르면 붙지 않는다");
+}
+
+console.log("\n== 나이스가 만든 줄은 나이스 날짜를 따라가나 ==");
+/**
+ * **지킬 「내 것」 이 없는 줄까지 지키고 있었다.** 원장님이 손으로 적으신
+ * 줄은 학교가 날짜를 바꿔도 안 건드리는 것이 맞다 — 자료 일정이 거기 매달려
+ * 있어서 조용히 바뀌면 시험 사흘 전에 어긋나 있어도 모른다. 그런데 나이스가
+ * 만든 줄에는 애초에 지킬 것이 없었는데도 같은 규칙을 썼고, 그래서 옛 날짜에
+ * 그대로 굳었다.
+ */
+{
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  eq(/const mine = \(hit\.source \|\| ""\) !== "neis";/.test(act), true,
+     "누가 만든 줄인지 가른다");
+  eq(/from_date: e\.from_date, to_date: e\.to_date/.test(act), true,
+     "나이스가 만든 줄은 나이스 날짜로 맞춘다");
+  // 쪼개져 남은 옛 줄을 흡수한다 — 안 그러면 같은 시험이 네 줄로 남는다
+  eq(/const inside = absorbable\(e, pool, keepId, inUse\);/.test(act), true,
+     "기간 안에 들어앉은 옛 줄을 모은다 (규칙은 lib/exams 한 곳)");
+  // 이미 잘못 붙어 있던 것은 다시 받아와도 저절로 안 떨어진다 — 떼어준다
+  eq(/isMockExam\(x\) !== isMockExam\(\{ name: x\.neis_name \}\)/.test(act), true,
+     "종류가 다른 채 붙어 있던 것을 떼어낸다");
+}
+
+console.log("\n== 쪼개져 남은 옛 줄만 골라 모으나 ==");
+{
+  // 해송고 2학기 중간이 날마다 세 줄로 쪼개져 있던 그대로
+  const pool = [
+    { id: "d1", school: "해송고", name: "2학기 중간고사", grade: "고2", source: "neis",
+      from_date: "2026-10-13", to_date: "2026-10-13" },
+    { id: "d2", school: "해송고", name: "2학기 중간고사", grade: "고2", source: "neis",
+      from_date: "2026-10-14", to_date: "2026-10-14" },
+    { id: "d3", school: "해송고", name: "2학기 중간고사", grade: "고2", source: "neis",
+      from_date: "2026-10-15", to_date: "2026-10-15" },
+    // 같은 기간 안에 있지만 **다른 것들**
+    { id: "mock", school: "해송고", name: "전국연합학력평가", source: "neis",
+      from_date: "2026-10-14", to_date: "2026-10-14" },
+    { id: "hand", school: "해송고", name: "2학기 중간고사", grade: "고2", source: null,
+      from_date: "2026-10-14", to_date: "2026-10-14" },
+    { id: "g3", school: "해송고", name: "2학기 중간고사", grade: "고3", source: "neis",
+      from_date: "2026-10-15", to_date: "2026-10-15" },
+    { id: "other", school: "신정중", name: "2학기 중간고사", grade: "중2", source: "neis",
+      from_date: "2026-10-14", to_date: "2026-10-14" },
+  ];
+  const cand = { school: "해송고", name: "2학기 중간고사", grade: "고2",
+                 from_date: "2026-10-13", to_date: "2026-10-16" };
+  eq(absorbable(cand, pool, "d1").map((x) => x.id), ["d2", "d3"], "쪼개진 나머지 날만 모은다");
+  // **원장님이 손으로 적으신 줄** · **모의고사** · **다른 학년** · **다른 학교** 는 그대로
+  eq(absorbable(cand, pool, "d1", new Set(["d2"])).map((x) => x.id), ["d3"],
+     "성적·범위가 붙은 줄은 안 지운다");
+  // 기간 밖으로 한 칸이라도 나가면 다른 시험이다
+  const short = { ...cand, to_date: "2026-10-14" };
+  eq(absorbable(short, pool, "d1").map((x) => x.id), ["d2"], "기간 안에 온전히 들어앉은 것만");
+}
+
+console.log("\n== 이 시험을 누가 보는지 적어주나 ==");
+/**
+ * 원장님 (2026-08-09) — 「학사 일정 옆에 해당하는 학생 이름과 몇 명인지를 써 줘」
+ *
+ * 아무도 안 보는 회차면 자료를 만들 까닭이 없고, 여덟이 보는 회차면 그 주
+ * 수업을 통째로 비워야 한다. 판단은 인원에서 시작한다.
+ */
+{
+  const sb = readFileSync("app/schedule/ScheduleBoard.jsx", "utf8");
+  eq(/function WhoTakes\(\{ e \}\)/.test(sb), true, "누가 보는지 적는 자리가 있다");
+  eq(/roster\.filter\(\(s\) => takesExam\(s, e\)\)/.test(sb), true,
+     "누가 보는지는 lib/who 의 takesExam 한 곳에서만 정한다");
+  eq(/<WhoTakes e=\{e\} \/>/.test(sb), true, "줄에 붙어 있다");
+  eq(/보는 학생 없음/.test(sb), true, "아무도 없으면 없다고 적는다 (빈칸으로 두지 않는다)");
+  // 내신이 하루짜리면 쪼개진 옛 줄이 남아 있다는 뜻이다
+  eq(/하루짜리\?/.test(sb), true, "하루짜리 내신은 눈에 띄게 적어둔다");
+  for (const page of ["app/schools/page.jsx", "app/schedule/page.jsx"]) {
+    eq(/roster=\{students \|\| \[\]\}/.test(readFileSync(page, "utf8")), true, `${page} 가 명단을 넘긴다`);
+  }
+}
 
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 일정 합치기 통과");

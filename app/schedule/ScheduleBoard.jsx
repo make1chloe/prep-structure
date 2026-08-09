@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { shortName } from "@/lib/schoolName";
 import { useRouter } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import MonthGrid from "./MonthGrid";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 import { cleanNote } from "@/lib/note";
+import { takesExam } from "@/lib/who";
 import { mergeMockExams } from "./actions";
 import {
   sortExams, groupExams, filterExams, facetsOf, termLabel, isMockExam,
@@ -51,6 +52,7 @@ export default function ScheduleBoard({
   months = [],
   reviews = [],
   exams = [],
+  roster = [],              // 재원생 — 어느 시험을 누가 보는지 적어드리려고
   schools = [],
   grades = [],
   classes = [],
@@ -110,6 +112,39 @@ export default function ScheduleBoard({
    * 표를 줄마다 또 붙이지 않는다. 머리에 이미 적혀 있어서, 붙이면 같은 말이
    * 세 줄에 세 번 나온다.
    */
+  /**
+   * **이 시험을 누가 보나** (원장님, 2026-08-09 — 「학사 일정 옆에 해당하는
+   * 학생 이름과 몇 명인지를 써 줘」).
+   *
+   * 시험 목록만 봐서는 그 회차가 우리 아이 몇을 건드리는지 알 수 없다.
+   * 아무도 안 보는 회차라면 자료를 만들 까닭이 없고, 여덟이 보는 회차라면
+   * 그 주 수업을 통째로 비워야 한다. **판단은 인원에서 시작한다.**
+   *
+   * 누가 보는지는 lib/who 의 takesExam 한 곳에서만 정한다 — 예전에 이 규칙이
+   * 세 벌이었을 때, 학교 이름 표기가 조금 달랐던 아이가 시험 목록에서 통째로
+   * 빠졌다.
+   */
+  const takers = useMemo(() => {
+    const m = new Map();
+    exams.forEach((e) => m.set(e.id, roster.filter((s) => takesExam(s, e))));
+    return m;
+  }, [exams, roster]);
+
+  function WhoTakes({ e }) {
+    const who = takers.get(e.id) || [];
+    if (!who.length) {
+      // **빈칸으로 두지 않는다.** 「아직 안 세어봤다」 와 「정말 없다」 는 다르다
+      return <span className="tag tag-muted" title="이 학교·학년에 재원생이 없습니다">보는 학생 없음</span>;
+    }
+    const names = who.map((s) => s.name).filter(Boolean);
+    const head = names.slice(0, 5).join(" · ");
+    return (
+      <span className="hint" title={names.join(", ")}>
+        <b>{who.length}명</b> {head}{names.length > 5 ? ` 외 ${names.length - 5}명` : ""}
+      </span>
+    );
+  }
+
   function ExamRow({ e, inGroup = false }) {
     return (
       <div key={e.id} className="stack" style={{ gap: 0 }}>
@@ -203,6 +238,20 @@ export default function ScheduleBoard({
         <span className="hint">
           {monthDay(e.from_date)} ~ {monthDay(e.to_date)}
         </span>
+        {/**
+          * **내신이 하루짜리면 무언가 빠진 것이다** (원장님, 2026-08-09 —
+          * 「시험을 하루만 보는 건 모의고사가 그런 거야, 내신은 아니야」).
+          *
+          * 학년 때문에 날마다 쪼개졌던 시절의 줄이 그대로 남아 있으면
+          * 이렇게 보인다. 조용히 두면 「이 학교는 원래 하루인가 보다」 로
+          * 넘어가므로, 눈에 띄게 적어둔다.
+          */}
+        {!isMockExam(e) && e.from_date === e.to_date && (
+          <span className="tag tag-amber" title="학교 일정을 다시 받아오시면 사흘짜리 한 줄로 모입니다">
+            하루짜리?
+          </span>
+        )}
+        <WhoTakes e={e} />
         <span className="spacer" />
         {e.english_on ? (
           <>
