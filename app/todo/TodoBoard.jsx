@@ -8,6 +8,7 @@ import {
 } from "./actions";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 import { moveKind } from "@/app/tasks/actions";
+import TodoKanban from "./TodoKanban";
 
 const COLORS = ["sky", "lav", "mint", "amber", "muted"];
 const PRIORITY = [
@@ -32,6 +33,8 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   );
   const [sel, setSel] = useState(() => new Set());
   const [filter, setFilter] = useState("open");
+  // 스무 개가 넘는 목록이라 **목록이 기본**이다 — 칸반은 골라서 켠다
+  const [view, setView] = useState("list");
   const [catId, setCatId] = useState("");
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -318,6 +321,40 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         </div>
       )}
 
+      {/**
+        * **목록이냐 칸반이냐** (원장님, 2026-08-09 — academy-video 벤치마킹).
+        *
+        * 둘 중 하나를 고르는 게 아니라 **둘 다 둔다.** 칸반은 「지금 뭘 하고
+        * 있나」 를 보는 데 좋고, 목록은 스무 개 넘는 것을 훑고 골라서 한꺼번에
+        * 처리하는 데 좋다. 원장님 할일은 스무 개가 넘으므로 목록이 기본이다.
+        */}
+      <div className="row" style={{ gap: 4, marginTop: 10 }}>
+        {[["list", "목록"], ["kanban", "칸반"]].map(([k, label]) => (
+          <button
+            key={k}
+            className={`btn btn-sm ${view === k ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setView(k)}
+          >
+            {label}
+          </button>
+        ))}
+        <span className="spacer" />
+        {view === "kanban" && (
+          <span className="hint" style={{ fontSize: 11.5 }}>
+            끌어서 옮기거나, 카드의 단추를 누르세요.
+          </span>
+        )}
+      </div>
+
+      {view === "kanban" ? (
+        <TodoKanban
+          todos={todos}
+          categories={categories}
+          catId={catId}
+          started={todos.some((t) => "started_at" in t)}
+        />
+      ) : (
+      <>
       {/* 상태 필터 */}
       <div className="row" style={{ gap: 4, marginTop: 10 }}>
         {[
@@ -531,6 +568,8 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
           })
         )}
       </div>
+      </>
+      )}
     </>
   );
 }

@@ -273,6 +273,7 @@ echo "== 5-4-24) 메뉴마다 남은 일 배지 =="
 # 배지는 틀려도 오류가 안 난다 — 키를 하나 잘못 적으면 그 메뉴에만 조용히
 # 안 붙고, 없는 배지가 「다 했다」 는 말이 된다
 runjs scripts/check-badges.mjs
+runjs scripts/check-kanban.mjs
 
 echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="
