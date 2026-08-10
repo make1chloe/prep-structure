@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
-  isNationwide,
+  isNationwide, explainRow,
 } from "@/lib/neis";
 import { matchExam, staleAfterImport } from "@/lib/exams";
 import { examKind, termLabel } from "@/lib/examList";
@@ -1271,4 +1271,93 @@ export async function examCoverage(from, to) {
     });
 
   return { error: null, rows };
+}
+
+/**
+ * **나이스에 지금 뭐가 들어 있나 — 손대지 않고 그대로 본다** (원장님,
+ * 2026-08-09 — 「나이스 일정 페이지를 만들어서 순수하게 나이스에 입력된
+ * 일정을 전수 볼 수 있게 해줘. 지금 오류가 난 건지 (학교가) 입력이 안 된
+ * 건지 알 수가 없네. 장기적으로도 이 페이지는 필요해 보여」).
+ *
+ * ── 왜 따로 필요한가 ────────────────────────────────────
+ *
+ * 지금까지 볼 수 있는 것은 전부 **우리가 바꾼 뒤**의 모습이었다 —
+ * 이름을 펴고(1회고사 → 1학기 중간고사), 여러 날을 잇고, 갈래를 나누고,
+ * 노이즈를 버린 다음의 것. 그래서 화면에 뭔가 없을 때,
+ *
+ *   · 나이스에 원래 없었는지 (학교가 안 올렸다)
+ *   · 있었는데 우리가 버렸거나 못 알아봤는지 (앱 잘못)
+ *
+ * 를 **구별할 방법이 없었다.** 원장님이 「오류가 난 건지 입력이 안 된 건지
+ * 알 수가 없네」 라고 하신 것이 정확히 이 지점이다.
+ *
+ * 그래서 나이스에 **그 자리에서 다시 물어보고**, 받은 줄을 하나도 안 버리고
+ * 그대로 늘어놓는다. 옆에 **우리가 그 줄을 어떻게 봤는지**를 같이 적는다 —
+ * 어디서 어긋났는지가 한 줄에서 보인다.
+ *
+ * **아무것도 저장하지 않는다.** 보기만 하는 자리다.
+ */
+export async function peekNeis(from, to, schoolId = null) {
+  if (!from || !to) return { rows: [], error: "기간을 골라주세요." };
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { rows: [], error: guard.error };
+
+  const key = await neisKey(supabase);
+  if (!key) return { rows: [], error: "설정에서 나이스 인증키를 먼저 넣어주세요." };
+
+  const { rows: schools, error: sErr } = await listSchools();
+  if (sErr) return { rows: [], error: sErr };
+  const targets = (schools || []).filter(
+    (s) => s.active !== false && s.schul_code && (!schoolId || s.id === schoolId)
+  );
+  if (targets.length === 0) return { rows: [], error: "나이스 코드가 있는 학교가 없어요." };
+
+  // 우리 쪽에 지금 들어와 있는 것 — 「나이스엔 있는데 앱엔 없다」 를 짚으려고
+  const { data: haveTasks } = await supabase
+    .from("tasks").select("source_id").eq("source", "neis")
+    .gte("due_on", from).lte("due_on", to);
+  const inApp = new Set((haveTasks || []).map((t) => t.source_id));
+  const { data: haveExams } = await supabase
+    .from("exam_periods").select("school, from_date, to_date, hidden")
+    .gte("from_date", from).lte("from_date", to);
+
+  const out = [];
+  const notes = [];
+  for (const school of targets) {
+    const res = await callAll(key, school, from, to);
+    if (res.error) { notes.push(`${school.name}: ${res.error}`); continue; }
+    if (res.empty || res.rows.length === 0) {
+      notes.push(`${school.name}: 나이스가 이 기간에 줄 일정이 없다고 합니다.`);
+      continue;
+    }
+    const mine = (haveExams || []).filter(
+      (e) => !e.hidden && looseKey(e.school) === looseKey(school.name)
+    );
+    for (const r of res.rows) {
+      /**
+       * **판정은 lib/neis 의 explainRow 한 곳에서만** — 이 화면이 제 나름대로
+       * 다시 재면 언젠가 실제 받아오기와 다른 말을 하게 되고, 그러면 진단
+       * 도구로서 쓸모가 없어진다.
+       */
+      const x = explainRow(r, school);
+      out.push({
+        school: school.name,
+        ...x,
+        /**
+         * **앱에 들어와 있나.** 「나이스엔 있는데 앱엔 없다」 가 곧 앱 잘못이다.
+         * 전국 줄은 열쇠가 달라 여기서 못 따지므로 null 로 둔다.
+         */
+        inApp: x.sourceId ? inApp.has(x.sourceId) : null,
+        // 시험이면 회차까지 만들어졌나
+        hasExam: x.isExam && x.date
+          ? mine.some((e) => String(e.from_date).slice(0, 10) <= x.date
+              && x.date <= String(e.to_date).slice(0, 10))
+          : null,
+      });
+    }
+  }
+
+  out.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.school.localeCompare(b.school, "ko"));
+  return { error: null, rows: out, notes, schools: targets.map((s) => s.name) };
 }

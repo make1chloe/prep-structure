@@ -19,7 +19,7 @@ import {
 import { matchExam, staleAfterImport } from "../lib/exams.js";
 import { classifyExam } from "../lib/examKind.js";
 import { needsScope } from "../lib/examList.js";
-import { kindOf, examName, isNationwide } from "../lib/neis.js";
+import { kindOf, examName, isNationwide, explainRow } from "../lib/neis.js";
 import { parseVideoAoA } from "../lib/importVideo.js";
 import { readFileSync } from "node:fs";
 
@@ -526,6 +526,58 @@ console.log("\n== 없는 것이 왜 없는지 알려주나 ==");
      "없는 것이 정상일 수 있다고 먼저 말해준다");
   const nb = readFileSync("app/schedule/NeisBox.jsx", "utf8");
   eq(/<CoverageBox from=\{range\.from\} to=\{range\.to\} \/>/.test(nb), true, "받아오기 옆에 있다");
+}
+
+
+console.log("\n== 나이스 원본을 그대로 볼 수 있나 ==");
+/**
+ * 원장님 (2026-08-09) — 「나이스 일정 페이지를 만들어서 순수하게 나이스에
+ * 입력된 일정을 전수 볼 수 있게 해줘. 지금 오류가 난 건지 입력이 안 된 건지
+ * 알 수가 없네. 장기적으로도 이 페이지는 필요해 보여」
+ *
+ * 다른 화면은 전부 **우리가 바꾼 뒤**의 모습이라, 뭔가 없을 때 학교가 안
+ * 올린 것인지 우리가 못 알아본 것인지 가릴 수가 없었다. 이 판정을 화면이
+ * 제 나름대로 다시 재면 실제 받아오기와 다른 말을 하게 되고, 그러면 진단
+ * 도구로서 쓸모가 없어진다 — 그래서 explainRow 한 곳에서만 정한다.
+ */
+{
+  const hs = { name: "해송고", schul_code: "H1" };
+  const R = (nm, ymd = "20261014", extra = {}) =>
+    explainRow({ AA_YMD: ymd, EVENT_NM: nm, ...extra }, hs);
+
+  eq(R("1회고사").how, "시험", "내신 지필은 「시험」");
+  eq(R("1회고사").event, "2학기 중간고사", "편 이름도 같이 준다");
+  eq(R("2학기 중간고사").event, null, "펼 것이 없으면 같은 말을 두 번 안 적는다");
+  eq(R("전국연합학력평가").how, "전국", "모의고사는 「전국」");
+  eq(R("대학수학능력시험").how, "전국", "대수능도 「전국」");
+  eq(R("여름방학", "20260720").how, "쉼", "방학은 「쉼」");
+  // 「대수능시험 휴업일」 은 **전국**이다 — 수능날은 전국이 같은 날이고,
+  // 그 학교가 쉰다는 것은 그 학교의 사정일 뿐이다 (commonName 이 한 줄로 편다)
+  eq(R("대수능시험 휴업일", "20261119").how, "전국", "수능날 휴업은 전국 한 줄로 간다");
+  eq(R("재량휴업일", "20260921").how, "쉼", "재량휴업일은 그 학교가 쉬는 날");
+  eq(R("체육대회").how, "행사", "나머지는 「행사」");
+  eq(R("수행평가").how, "행사", "수행평가는 회차가 아니다");
+  eq(R("토요휴업일", "20261017").how, "버림", "알려주는 것이 없는 줄은 「버림」");
+
+  // **열쇠가 맞아야** 「나이스엔 있는데 앱엔 없다」 를 따질 수 있다
+  eq(R("1회고사").sourceId, "H1:20261014:2학기 중간고사", "학교 줄은 학교코드가 열쇠에 든다");
+  eq(R("전국연합학력평가").sourceId, null, "전국 줄은 학교 열쇠가 아니다");
+  eq(R("토요휴업일", "20261017").sourceId, null, "버리는 줄은 열쇠가 없다");
+  // 학년 칸도 그대로 보여준다 — 「고3만 보는 시험」 을 눈으로 확인하시라고
+  eq(R("1회고사", "20261014", { THREE_GRADE_EVENT_YN: "Y" }).grades, [3], "학년 칸을 그대로 읽는다");
+
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  eq(/export async function peekNeis/.test(act), true, "나이스에 그 자리에서 물어보는 자리가 있다");
+  eq(/const x = explainRow\(r, school\);/.test(act), true, "판정은 lib/neis 한 곳에서만");
+  // **아무것도 저장하지 않는다** — 보기만 하는 자리다
+  const peek = act.slice(act.indexOf("export async function peekNeis"));
+  eq(/\.(insert|update|upsert|delete)\(/.test(peek.slice(0, peek.indexOf("\n}"))), false,
+     "보기만 하고 저장하지 않는다");
+  const pg = readFileSync("app/neis/page.jsx", "utf8");
+  eq(/<NeisPeek/.test(pg), true, "화면이 있다");
+  eq(/키 없음|인증키/.test(act), true, "키가 없으면 무엇을 하라고 말해준다");
+  const menu = readFileSync("lib/menu.js", "utf8");
+  eq(/href: "\/neis", key: "neis"/.test(menu), true, "메뉴에 있다");
 }
 
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }
