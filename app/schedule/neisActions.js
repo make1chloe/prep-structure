@@ -1297,7 +1297,7 @@ export async function examCoverage(from, to) {
  *
  * **아무것도 저장하지 않는다.** 보기만 하는 자리다.
  */
-export async function peekNeis(from, to, schoolId = null) {
+export async function peekNeis(from, to, schoolIds = null) {
   if (!from || !to) return { rows: [], error: "기간을 골라주세요." };
   const supabase = createClient();
   const guard = await requireStaff(supabase);
@@ -1308,8 +1308,11 @@ export async function peekNeis(from, to, schoolId = null) {
 
   const { rows: schools, error: sErr } = await listSchools();
   if (sErr) return { rows: [], error: sErr };
+  // **여러 학교를 한 번에** (원장님, 2026-08-09 — 「필터링할 때 학교를 한 개씩
+  // 선택하는 게 아니라 다중 선택 가능하게 해줘」). 안 고르시면 전체다
+  const want = Array.isArray(schoolIds) ? schoolIds.filter(Boolean) : [];
   const targets = (schools || []).filter(
-    (s) => s.active !== false && s.schul_code && (!schoolId || s.id === schoolId)
+    (s) => s.active !== false && s.schul_code && (want.length === 0 || want.includes(s.id))
   );
   if (targets.length === 0) return { rows: [], error: "나이스 코드가 있는 학교가 없어요." };
 
@@ -1358,6 +1361,23 @@ export async function peekNeis(from, to, schoolId = null) {
     }
   }
 
+  /**
+   * **이어진 날은 한 줄로** (원장님, 2026-08-09 — 「연속된 일정은 합쳐서
+   * 보여 주고」). 나이스는 방학을 하루에 한 줄씩 준다 — 여름방학 하나가
+   * 서른 줄이면 다른 일정이 안 보인다.
+   *
+   * 잇는 규칙은 **받아오기와 똑같은 것**을 쓴다 (lib/neis 의 mergeRuns).
+   * 여기서만 따로 이으면 화면과 실제 받아온 결과가 달라지고, 그러면 이
+   * 화면은 진단 도구로서 거짓말을 하게 된다. 학교와 원래 이름이 같아야
+   * 같은 일정으로 본다.
+   */
+  const runs = mergeRuns(
+    out.map((r) => ({ ...r, due_on: r.date })),
+    (r) => `${r.school}\u0000${r.raw}`
+  ).map(({ due_on, end_on, ...r }) => ({ ...r, date: due_on, endDate: end_on || null }));
+
+  runs.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.school.localeCompare(b.school, "ko"));
   out.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.school.localeCompare(b.school, "ko"));
-  return { error: null, rows: out, notes, schools: targets.map((s) => s.name) };
+  // 합친 것과 안 합친 것을 **둘 다** 준다 — 화면에서 켜고 끌 수 있게
+  return { error: null, rows: out, runs, notes, schools: targets.map((s) => s.name) };
 }

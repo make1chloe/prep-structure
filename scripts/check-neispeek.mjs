@@ -27,24 +27,40 @@ const ok = (cond, what) => {
   if (!cond) { console.log(`  ✗ ${what}`); fail = 1; }
 };
 
-const src = readFileSync("app/neis/NeisPeek.jsx", "utf8")
-  // 서버 액션은 여기서 부를 수 없다 — 부르지 않는 가짜로 바꿔 끼운다
-  .replace(/import \{ peekNeis \} from "[^"]+";/, "const peekNeis = async () => ({ rows: [] });")
-  .replace(/from "@\/lib\/schoolName"/, 'from "./lib/schoolName.js"')
-  .replace(/^"use client";\s*/m, "");
+/**
+ * 앱 조각을 그대로 읽어 **repo 안에** 옮겨 심는다 (밖에 두면 node 가 react 를
+ * 못 푼다). 서버 액션을 부르는 자리만 검사 쪽에서 바꿔 끼운다.
+ */
+async function load(rel, name) {
+  const src = readFileSync(rel, "utf8")
+    .replace(/import \{ peekNeis \} from "[^"]+";/, "const peekNeis = async () => ({ rows: [] });")
+    // `@/...` 는 node 가 못 푼다 — 파일 주소로 바꿔준다 (파일이 어디 놓이든 맞게)
+    .replace(/from "@\/([^"]+)"/g, (_m, x) =>
+      `from "${pathToFileURL(resolve(x.endsWith(".js") ? x : `${x}.js`)).href}"`)
+    .replace(/from "\.\/PeekCalendar"/,
+      `from "${pathToFileURL(resolve("app/neis/.PeekCalendar.check.mjs")).href}"`)
+    .replace(/^"use client";\s*/m, "");
+  const out = await transform(src, {
+    filename: rel,
+    jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2020",
+           transform: { react: { runtime: "automatic" } } },
+    module: { type: "es6" },
+  });
+  writeFileSync(name, out.code);
+  return name;
+}
 
-const out = await transform(src, {
-  filename: "NeisPeek.jsx",
-  jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2020",
-         transform: { react: { runtime: "automatic" } } },
-  module: { type: "es6" },
+const files = [];
+files.push(await load("app/neis/PeekCalendar.jsx", "app/neis/.PeekCalendar.check.mjs"));
+files.push(await load("app/neis/NeisPeek.jsx", ".neispeek.check.mjs"));
+const clean = () => files.forEach((f) => rmSync(f, { force: true }));
+const mod = await import(pathToFileURL(resolve(".neispeek.check.mjs")).href).catch((e) => {
+  clean(); throw e;
 });
-// **repo 안에** 두어야 react 를 찾는다 (밖에 두면 node 가 못 푼다)
-const file = ".neispeek.check.mjs";
-writeFileSync(file, out.code);
-const mod = await import(pathToFileURL(resolve(file)).href)
-  .finally(() => rmSync(file, { force: true }));
+const cal = await import(pathToFileURL(resolve("app/neis/.PeekCalendar.check.mjs")).href);
+clean();
 const { default: NeisPeek, PeekTable } = mod;
+const PeekCalendar = cal.default;
 
 /** 나이스가 줄 법한 답 — 갈래마다 한 줄씩, 어긋난 줄도 섞어서 */
 const rows = [
@@ -100,7 +116,56 @@ ok(tbl.includes("해송고"), "학교 이름은 줄여서");
 ok(renderToStaticMarkup(createElement(PeekTable, {})).includes("나이스에 적힌 이름"),
    "줄이 하나도 없어도 안 터진다");
 
+console.log("\n== 달력을 진짜로 그려본다 ==");
+/**
+ * 원장님 (2026-08-09) — 「맨 위에 달력 형식을 좀 추가해 주고, 연속된 일정은
+ * 합쳐서 보여 주고, 학교를 다중 선택 가능하게 해 줘」
+ *
+ * 표는 「무엇이 있나」 를 세는 데 좋지만 **언제가 비어 있나**는 안 보인다.
+ * 달력은 빈 칸이 곧 정보다.
+ */
+let calHtml = "";
+try {
+  calHtml = renderToStaticMarkup(createElement(PeekCalendar, {
+    // 여러 날짜리 하나를 섞는다 — 날마다 펼쳐져야 한다
+    items: [...rows, { school: "해송고", date: "2026-08-01", endDate: "2026-08-16",
+                       raw: "여름방학", event: null, sbtr: null, grades: [], how: "쉼",
+                       inApp: true, hasExam: null }],
+    today: "2026-08-09",
+  }));
+} catch (e) {
+  console.log(`  ✗ 달력에서 터집니다 — ${e.message}`);
+  process.exit(1);
+}
+ok(calHtml.includes("달력"), "달력이 그려진다");
+// 줄이 있는 달만 그린다 (빈 달 열두 개는 볼 것이 없다)
+["8월", "9월", "10월", "11월"].forEach((m) => ok(calHtml.includes(m), `${m}이 있다`));
+// **요일 머리는 월요일부터** — 예전에 하루씩 밀린 사고가 있었다
+ok(calHtml.indexOf(">월<") < calHtml.indexOf(">일<"), "요일이 월요일부터 늘어선다");
+// 여러 날짜리는 날마다 펼쳐진다 (8/1~8/16 이면 8월 칸이 여럿 칠해진다)
+ok((calHtml.match(/border-radius:99px/g) || []).length > 10, "여러 날짜리가 날마다 펼쳐진다");
+ok(!calHtml.includes("undefined"), "빈 값이 새어 나오지 않는다");
+// 줄이 하나도 없으면 아예 안 그린다 (빈 달력은 볼 것이 없다)
+ok(renderToStaticMarkup(createElement(PeekCalendar, { items: [] })) === "",
+   "줄이 없으면 달력을 안 그린다");
+
 const withRows = readFileSync("app/neis/NeisPeek.jsx", "utf8");
+// **학교 다중 선택** — 하나씩 고르는 칸이면 아홉 곳 견주려고 아홉 번 눌러야 한다
+ok(/const \[picked, setPicked\] = useState\(\[\]\)/.test(withRows), "학교를 여럿 고를 수 있다");
+ok(/picked\.filter\(\(x\) => x !== s\.id\) : \[\.\.\.picked, s\.id\]/.test(withRows),
+   "눌러서 켜고 끈다");
+ok(/setPicked\(\[\]\)/.test(withRows), "「전체」 로 되돌릴 수 있다");
+// **이어진 날 합치기** — 켜고 끌 수 있어야 한다 (원본을 보는 자리다)
+ok(/const \[merge, setMerge\] = useState\(true\)/.test(withRows), "기본은 합쳐서 본다");
+ok(/이어진 날 합치기/.test(withRows), "끄고 하루씩 볼 수도 있다");
+ok(/merge \? \(res\?\.runs \|\| \[\]\) : \(res\?\.rows \|\| \[\]\)/.test(withRows),
+   "합친 것과 안 합친 것을 둘 다 받아두고 고른다");
+ok(/<PeekCalendar items=\{rows\}/.test(withRows), "달력이 맨 위에 있다");
+
+const act2 = readFileSync("app/schedule/neisActions.js", "utf8");
+// 잇는 규칙은 **받아오기와 똑같은 것**을 쓴다 — 두 벌이면 진단이 거짓말을 한다
+ok(/mergeRuns\(\s*out\.map/.test(act2), "잇는 규칙은 lib/neis 의 mergeRuns 한 벌");
+ok(/want\.length === 0 \|\| want\.includes\(s\.id\)/.test(act2), "여러 학교를 한 번에 물어본다");
 // 갈래마다 다른 색을 준다 — 눈으로 훑을 때 시험만 골라 보게
 ok(/HOW_CLS = \{/.test(withRows), "갈래마다 색이 다르다");
 ["시험", "전국", "쉼", "행사", "버림"].forEach((k) =>

@@ -15,6 +15,8 @@
 
 import { useState, useTransition } from "react";
 import { shortName } from "@/lib/schoolName";
+import { todaySeoul } from "@/lib/day";
+import PeekCalendar from "./PeekCalendar";
 import { peekNeis } from "@/app/schedule/neisActions";
 
 const HOW_CLS = {
@@ -27,7 +29,13 @@ const HOW_CLS = {
 
 export default function NeisPeek({ from, to, schools = [] }) {
   const [range, setRange] = useState({ from, to });
-  const [schoolId, setSchoolId] = useState("");
+  /**
+   * **학교는 여러 곳을 한 번에** (원장님, 2026-08-09 — 「필터링할 때 학교를
+   * 한 개씩 선택하는 게 아니라 다중 선택 가능하게 해줘」). 하나만 고르는
+   * 칸이면 아홉 곳을 견주려고 아홉 번 눌러야 한다. 아무것도 안 고르면 전체다.
+   */
+  const [picked, setPicked] = useState([]);
+  const [merge, setMerge] = useState(true);      // 이어진 날은 한 줄로
   const [res, setRes] = useState(null);
   const [err, setErr] = useState("");
   const [only, setOnly] = useState("all");     // all | exam | gap
@@ -37,13 +45,15 @@ export default function NeisPeek({ from, to, schools = [] }) {
   function load() {
     setErr("");
     startTransition(async () => {
-      const r = await peekNeis(range.from, range.to, schoolId || null);
+      const r = await peekNeis(range.from, range.to, picked);
       if (r?.error) { setErr(r.error); setRes(null); return; }
       setRes(r);
     });
   }
 
-  const rows = (res?.rows || []).filter((r) => {
+  // 합친 것과 안 합친 것을 둘 다 받아두고 여기서 고른다 (같은 값을 두 번 안 부른다)
+  const base = merge ? (res?.runs || []) : (res?.rows || []);
+  const rows = base.filter((r) => {
     if (only === "exam" && r.how !== "시험") return false;
     // **어긋난 줄만** — 나이스엔 있는데 앱엔 없는 것, 시험인데 회차가 없는 것
     if (only === "gap" && !(r.inApp === false || r.hasExam === false)) return false;
@@ -52,7 +62,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
     return true;
   });
 
-  const gaps = (res?.rows || []).filter((r) => r.inApp === false || r.hasExam === false).length;
+  const gaps = base.filter((r) => r.inApp === false || r.hasExam === false).length;
 
   return (
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
@@ -72,21 +82,37 @@ export default function NeisPeek({ from, to, schools = [] }) {
               onChange={(e) => setRange({ ...range, to: e.target.value })}
             />
           </div>
-          <div className="field" style={{ width: 170 }}>
-            <label className="label">학교</label>
-            <select
-              className="input input-sm" value={schoolId}
-              onChange={(e) => setSchoolId(e.target.value)}
-            >
-              <option value="">전체 학교</option>
-              {schools.map((s) => (
-                <option key={s.id} value={s.id}>{shortName(s.name)}</option>
-              ))}
-            </select>
-          </div>
           <button className="btn btn-primary btn-sm" disabled={pending} onClick={load}>
             {pending ? "나이스에 물어보는 중…" : "나이스에 물어보기"}
           </button>
+        </div>
+
+        {/* **학교는 눌러서 여러 곳** — 아무것도 안 누르면 전체다 */}
+        <div className="row" style={{ gap: 6, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <span className="hint" style={{ fontSize: 12 }}>학교</span>
+          <button
+            type="button"
+            className={`btn btn-sm ${picked.length === 0 ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setPicked([])}
+          >
+            전체 {schools.length}곳
+          </button>
+          {schools.map((s) => {
+            const on = picked.includes(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                title={s.name}
+                onClick={() =>
+                  setPicked(on ? picked.filter((x) => x !== s.id) : [...picked, s.id])
+                }
+              >
+                {shortName(s.name)}
+              </button>
+            );
+          })}
         </div>
         <p className="hint" style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.7 }}>
           누를 때마다 <b>나이스에 그 자리에서 다시 물어봅니다.</b> 받은 줄을 하나도 안 버리고
@@ -115,6 +141,21 @@ export default function NeisPeek({ from, to, schools = [] }) {
               <option value="exam">시험만</option>
               <option value="gap">앱에 안 들어온 것만</option>
             </select>
+            {/**
+              * **이어진 날은 한 줄로** — 나이스는 방학을 하루에 한 줄씩 준다.
+              * 끄면 받은 그대로 하루씩 볼 수 있다 (원본을 보는 자리이므로
+              * 합친 것만 보여주면 안 된다).
+              */}
+            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 12 }}>
+              <input type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
+              이어진 날 합치기
+            </label>
+          </div>
+
+          {/* **달력이 먼저다** (원장님) — 표는 「무엇이 있나」 를 세는 데 좋지만
+              **언제가 비어 있나**는 달력에만 보인다. 빈 칸이 곧 정보다 */}
+          <div style={{ marginTop: 10 }}>
+            <PeekCalendar items={rows} today={todaySeoul()} />
           </div>
 
           {/* **나이스가 뭐라고 했는지도 그대로** — 0줄인 학교의 까닭이 여기 있다 */}
@@ -161,7 +202,13 @@ export function PeekTable({ rows = [] }) {
         <tbody>
           {rows.slice(0, 400).map((r, i) => (
             <tr key={i}>
-              <td style={{ whiteSpace: "nowrap" }}>{r.date || "—"}</td>
+              <td style={{ whiteSpace: "nowrap" }}>
+                {r.date || "—"}
+                {/* 이어붙였으면 끝날도 — 「8/1 ~ 8/16 여름방학」 */}
+                {r.endDate && r.endDate > r.date && (
+                  <span className="hint"> ~ {r.endDate.slice(5)}</span>
+                )}
+              </td>
               <td style={{ whiteSpace: "nowrap" }}>{shortName(r.school)}</td>
               <td>
                 <b>{r.raw}</b>
