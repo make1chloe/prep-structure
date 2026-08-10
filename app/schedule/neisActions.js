@@ -7,7 +7,7 @@ import {
   isNationwide,
 } from "@/lib/neis";
 import { matchExam, staleAfterImport } from "@/lib/exams";
-import { examKind } from "@/lib/examList";
+import { examKind, termLabel } from "@/lib/examList";
 import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
 import { requireStaff } from "@/lib/guard";
@@ -1183,4 +1183,92 @@ export async function diagnose() {
     .sort((a, b) => Number(a.registered) - Number(b.registered) || b.count - a.count);
 
   return { rows, dupes, total: (data || []).length, error: null };
+}
+
+/**
+ * **학교마다 어느 회차가 있고 없나 — 그리고 없으면 왜 없나** (원장님,
+ * 2026-08-09 — 「지금 중학교에서는 은송중하고 신정중만 2학기 중간 시험
+ * 일정이 나오는데 이게 맞아? 네가 의도한 거야?」).
+ *
+ * ── 목록만 봐서는 이 질문에 답할 수 없다 ────────────────
+ *
+ * 「박문중 2학기 중간」 이 목록에 없을 때, 까닭은 셋 중 하나다 —
+ *
+ *   1. **그 학교가 정말 안 본다.** 요즘 중학교는 학기당 지필을 한 번만
+ *      (기말만) 보는 곳이 많다. 그러면 없는 것이 **맞다.**
+ *   2. 학교가 학사일정에 안 올렸다 (나중에 올린다).
+ *   3. 우리가 받아왔는데 **시험으로 못 알아봤다** — 「2학기 중간」 처럼
+ *      뒷말을 떼고 적었거나, 아직 모르는 표기다. 이건 **우리 잘못**이다.
+ *
+ * 셋은 화면이 똑같다 — 그냥 없다. 그래서 원장님이 「이게 맞아?」 를 물으실
+ * 수밖에 없었다. 이 함수가 셋을 갈라 준다: 회차가 없는 학기에 대해,
+ * **그 학교 나이스 일정에 시험처럼 보이는 줄이 있었는지**를 같이 보여준다.
+ *
+ *   줄이 없다  → 1번이나 2번. 학교에 확인하실 일이지 앱 문제가 아니다
+ *   줄이 있다  → 3번. 그 이름을 알려주시면 바로 고칠 수 있다
+ */
+export async function examCoverage(from, to) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { rows: [], error: guard.error };
+
+  const { rows: schools, error: sErr } = await listSchools();
+  if (sErr) return { rows: [], error: sErr };
+
+  const { data: exams } = await supabase
+    .from("exam_periods")
+    .select("school, name, from_date, to_date, hidden")
+    .gte("from_date", from)
+    .lte("from_date", to);
+
+  // 나이스에서 받아온 그 학교 일정 (source_id 가 "학교코드:날짜:행사")
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("title, due_on, source_id")
+    .eq("source", "neis")
+    .gte("due_on", from)
+    .lte("due_on", to);
+
+  const mine = (exams || []).filter((e) => !e.hidden && examKind(e) === "school");
+
+  const rows = (schools || [])
+    .filter((s) => s.active !== false)
+    .map((s) => {
+      const has = new Set(
+        mine
+          .filter((e) => looseKey(e.school) === looseKey(s.name))
+          .map((e) => termLabel(e))
+          .filter(Boolean)
+      );
+      /**
+       * **학교 일정엔 시험이 있는데 회차가 없는 날.**
+       *
+       * 이것이 「학교가 안 본다」 와 「우리가 못 만들었다」 를 가르는 자리다.
+       * 나이스에서 받아온 그 학교 줄 중 **시험 냄새가 나는데** 그날을 덮는
+       * 회차가 하나도 없으면, 학교는 올렸는데 앱에 회차가 없다는 뜻이다 —
+       * 「학사일정 받아오기」 를 다시 누르시면 생긴다. 여기 아무것도 안 뜨면
+       * 학교가 그 학기에 시험을 안 올린 것이고, 앱이 할 일은 없다.
+       */
+      const covered = mine.filter((e) => looseKey(e.school) === looseKey(s.name));
+      const inSome = (d) =>
+        covered.some((e) => String(e.from_date).slice(0, 10) <= d && d <= String(e.to_date).slice(0, 10));
+      const missed = (tasks || [])
+        .filter((t) => (t.source_id || "").split(":")[0] === s.schul_code)
+        .map((t) => ({ due_on: t.due_on, title: (t.title || "").replace(s.name || "", "").trim() }))
+        .filter((t) => /(고사|시험|지필|중간|기말)/.test(t.title) && examKind({ name: t.title }) !== "mock"
+          && examKind({ name: t.title }) !== "suneung" && examKind({ name: t.title }) !== "assess")
+        .filter((t) => !inSome(t.due_on));
+
+      return {
+        name: s.name,
+        code: s.schul_code || null,
+        terms: [...has].sort(),
+        missed: missed.slice(0, 6),
+        neisRows: (tasks || []).filter(
+          (t) => (t.source_id || "").split(":")[0] === s.schul_code
+        ).length,
+      };
+    });
+
+  return { error: null, rows };
 }

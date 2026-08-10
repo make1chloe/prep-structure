@@ -486,5 +486,47 @@ console.log("\n== 영상 엑셀 ==");
   eq(/<VideoUpload \/>/.test(board), true, "넣는 자리 바로 아래에 둔다");
 }
 
+
+console.log("\n== 「2학기 중간」 처럼 뒷말을 뗀 이름도 시험으로 보나 ==");
+/**
+ * 원장님 (2026-08-09) — 「지금 중학교에서는 은송중하고 신정중만 2학기 중간
+ * 시험 일정이 나오는데 이게 맞아? 네가 의도한 거야?」
+ *
+ * 아니었다. 「고사·시험·평가·지필」 이 하나도 없는 「2학기 중간」 은 시험이
+ * 아닌 것으로 흘러가서, 그 학교는 **회차가 통째로 안 생겼다.** 목록에서
+ * 그냥 없는 것처럼 보이고 왜 없는지도 알 수 없었다.
+ *
+ * 다만 「중간」 두 글자는 다른 데도 쓰인다 — 그 말로 **끝날 때만** 받는다.
+ */
+[
+  ["2학기 중간", "school"],
+  ["1학기 기말", "school"],
+  ["중간", "school"],
+  ["중간놀이시간", ""],
+  ["기말 방학", ""],
+  ["체육대회", ""],
+].forEach(([n, want]) => eq(classifyExam(n), want, `「${n}」`));
+
+console.log("\n== 없는 것이 왜 없는지 알려주나 ==");
+/**
+ * 「박문중 2학기 중간」 이 없을 때 까닭은 셋인데 화면은 똑같이 「없음」 이다 —
+ *   1. 그 학교가 정말 안 본다 (학기당 지필 한 번인 중학교가 많다)
+ *   2. 학교가 아직 안 올렸다
+ *   3. 받아왔는데 우리가 회차로 못 만들었다   ← 이것만 앱 잘못이다
+ * 그래서 원장님이 「이게 맞아?」 를 물으실 수밖에 없었다. 셋을 갈라 준다.
+ */
+{
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  eq(/export async function examCoverage/.test(act), true, "학교별로 세는 자리가 있다");
+  eq(/const inSome = \(d\) =>/.test(act), true, "그날을 덮는 회차가 있는지 본다");
+  eq(/!inSome\(t\.due_on\)/.test(act), true, "회차가 없는 날만 짚어준다");
+  const box = readFileSync("app/schedule/CoverageBox.jsx", "utf8");
+  eq(/학교 일정엔 있는데 회차가 없는 날/.test(box), true, "그 날짜와 이름을 그대로 적어준다");
+  eq(/학기당 지필을 한 번만\(기말만\) 보는 곳이 많습니다/.test(box), true,
+     "없는 것이 정상일 수 있다고 먼저 말해준다");
+  const nb = readFileSync("app/schedule/NeisBox.jsx", "utf8");
+  eq(/<CoverageBox from=\{range\.from\} to=\{range\.to\} \/>/.test(nb), true, "받아오기 옆에 있다");
+}
+
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 일정 합치기 통과");

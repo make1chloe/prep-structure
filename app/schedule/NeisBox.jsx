@@ -10,6 +10,7 @@ import {
 import { schoolYear } from "@/lib/neis";
 import { schoolAlike, looseKey, shortName } from "@/lib/schoolName";
 import { mergeSchools } from "./schoolActions";
+import CoverageBox from "./CoverageBox";
 
 /**
  * 나이스 학사일정.
@@ -605,6 +606,10 @@ export default function NeisBox({ months = [] }) {
               시험 회차 다시 만들기
             </button>
           </div>
+
+          {/* **없는 것은 안 보인다** — 학교별로 어느 회차가 있고 없는지,
+              없으면 왜 없는지(학교가 안 봄 / 우리가 못 알아봄)를 갈라 준다 */}
+          <CoverageBox from={range.from} to={range.to} />
 
           {done && (
             <div className="stack" style={{ gap: 6, marginTop: 10 }}>
