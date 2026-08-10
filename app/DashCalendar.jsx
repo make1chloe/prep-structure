@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { monthGrid, DOW, expandRanges } from "@/lib/calendar";
-import { addMonths } from "@/lib/day";
+import MonthNav from "@/components/MonthNav";
 
 /**
  * 대시보드 달력 — 이번 달에 무엇이 언제 있나.
@@ -58,27 +58,15 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
 
   return (
     <div className="card">
-      <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-          {Number(month.slice(5, 7))}월
-        </h2>
+      {/* 넘기는 방법은 온 앱이 한 벌이다 (components/MonthNav) */}
+      <MonthNav month={month} onChange={setMonth} home={ym}>
         <span className="hint" style={{ fontSize: 12 }}>
           {Object.entries(TONE)
             .filter(([k]) => n(k) > 0)
             .map(([k, v]) => `${v.label} ${n(k)}`)
             .join(" · ") || "이 달은 비어 있어요"}
         </span>
-        <span className="spacer" />
-        <button className="btn btn-ghost btn-sm" onClick={() => setMonth(addMonths(month, -1))}>
-          ◂
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setMonth(ym)}>
-          이번 달
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setMonth(addMonths(month, 1))}>
-          ▸
-        </button>
-      </div>
+      </MonthNav>
 
       <div className="cal">
         {DOW.map((d) => (

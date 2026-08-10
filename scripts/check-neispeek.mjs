@@ -34,9 +34,15 @@ const ok = (cond, what) => {
 async function load(rel, name) {
   const src = readFileSync(rel, "utf8")
     .replace(/import \{ peekNeis \} from "[^"]+";/, "const peekNeis = async () => ({ rows: [] });")
-    // `@/...` 는 node 가 못 푼다 — 파일 주소로 바꿔준다 (파일이 어디 놓이든 맞게)
-    .replace(/from "@\/([^"]+)"/g, (_m, x) =>
-      `from "${pathToFileURL(resolve(x.endsWith(".js") ? x : `${x}.js`)).href}"`)
+    /**
+     * `@/...` 는 node 가 못 푼다 — 파일 주소로 바꿔준다.
+     * **jsx 로 된 것은 먼저 옮겨 심어야 한다** (components/MonthNav 처럼).
+     * 그렇지 않은 것은 lib 의 .js 라 그대로 부를 수 있다.
+     */
+    .replace(/from "@\/([^"]+)"/g, (_m, x) => {
+      const jsx = JSX_DEPS[x];
+      return `from "${pathToFileURL(resolve(jsx || (x.endsWith(".js") ? x : `${x}.js`))).href}"`;
+    })
     .replace(/from "\.\/PeekCalendar"/,
       `from "${pathToFileURL(resolve("app/neis/.PeekCalendar.check.mjs")).href}"`)
     .replace(/^"use client";\s*/m, "");
@@ -50,7 +56,11 @@ async function load(rel, name) {
   return name;
 }
 
+/** 화면 조각이 다시 부르는 화면 조각들 — 먼저 옮겨 심는다 */
+const JSX_DEPS = { "components/MonthNav": "components/.MonthNav.check.mjs" };
+
 const files = [];
+files.push(await load("components/MonthNav.jsx", "components/.MonthNav.check.mjs"));
 files.push(await load("app/neis/PeekCalendar.jsx", "app/neis/.PeekCalendar.check.mjs"));
 files.push(await load("app/neis/NeisPeek.jsx", ".neispeek.check.mjs"));
 const clean = () => files.forEach((f) => rmSync(f, { force: true }));
@@ -137,12 +147,20 @@ try {
   console.log(`  ✗ 달력에서 터집니다 — ${e.message}`);
   process.exit(1);
 }
-ok(calHtml.includes("달력"), "달력이 그려진다");
-// 줄이 있는 달만 그린다 (빈 달 열두 개는 볼 것이 없다)
-["8월", "9월", "10월", "11월"].forEach((m) => ok(calHtml.includes(m), `${m}이 있다`));
+/**
+ * **한 번에 한 달만** (원장님, 2026-08-09 — 「달력을 오늘이 포함된 월부터
+ * 한 칸만 보여주고 양옆으로 버튼 눌러 넘겨서 보는 방식으로 바꿔줘」).
+ * 오늘이 8월이므로 8월만 보이고 9·10·11월은 넘겨야 나온다.
+ */
+ok(calHtml.includes("2026년 8월"), "오늘이 든 달부터 연다");
+["9월", "10월", "11월"].forEach((m) =>
+  ok(!new RegExp(`>${m}<`).test(calHtml), `${m}은 넘겨야 나온다 (쌓아두지 않는다)`));
+ok(calHtml.includes("◂") && calHtml.includes("▸"), "양옆으로 넘기는 단추가 있다");
+// 있는 것보다 앞으로는 못 간다 (8월이 첫 달이면 ◂ 가 꺼져 있다)
+ok(/◂[\s\S]{0,40}<\/button>/.test(calHtml), "넘김 단추가 그려진다");
 // **요일 머리는 월요일부터** — 예전에 하루씩 밀린 사고가 있었다
 ok(calHtml.indexOf(">월<") < calHtml.indexOf(">일<"), "요일이 월요일부터 늘어선다");
-// 여러 날짜리는 날마다 펼쳐진다 (8/1~8/16 이면 8월 칸이 여럿 칠해진다)
+// 여러 날짜리는 날마다 펼쳐진다 (8/1~8/16 이면 8월 칸이 열여섯 개 칠해진다)
 ok((calHtml.match(/border-radius:99px/g) || []).length > 10, "여러 날짜리가 날마다 펼쳐진다");
 ok(!calHtml.includes("undefined"), "빈 값이 새어 나오지 않는다");
 // 줄이 하나도 없으면 아예 안 그린다 (빈 달력은 볼 것이 없다)

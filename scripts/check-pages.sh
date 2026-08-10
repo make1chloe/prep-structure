@@ -193,6 +193,7 @@ echo "== 5-4-11) 여러 날 이어지는 일정 합치기 =="
 # 방학 한 번이 목록에서 여섯 줄이 됐다
 runjs scripts/check-neisrun.mjs
 runjs scripts/check-neispeek.mjs
+runjs scripts/check-monthnav.mjs
 
 echo
 echo "== 5-4-11-2) 나이스가 다는 칸이 표에 다 있나 =="

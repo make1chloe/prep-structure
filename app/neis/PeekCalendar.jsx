@@ -18,6 +18,7 @@ import { useState } from "react";
 import { monthGrid, expandRanges } from "@/lib/calendar";
 import { WEEK_ORDER } from "@/lib/day";
 import { shortName } from "@/lib/schoolName";
+import MonthNav from "@/components/MonthNav";
 
 const DOT = {
   시험: "var(--amber)",
@@ -34,20 +35,45 @@ function monthsOf(items) {
 
 export default function PeekCalendar({ items = [], today = "" }) {
   const [open, setOpen] = useState(null);       // 눌러서 아래에 펼쳐 볼 날
+  /**
+   * **한 번에 한 달만** (원장님, 2026-08-09 — 「달력의 세부 내용을 보려면
+   * 스크롤을 끝까지 내려서 보고 다시 위로 올라와야 해」). 학년도 한 해를
+   * 받으면 달이 열둘이라, 쌓아 놓으면 표까지 내려가는 데만 한참이다.
+   */
+  const [month, setMonth] = useState("");
 
   // 여러 날짜리는 날마다 펼친다 (방학 8/1~8/16 → 열여섯 칸)
   const spread = expandRanges(items.map((r) => ({ ...r, endDate: r.endDate || null })));
   const months = monthsOf(spread);
   if (months.length === 0) return null;
 
+  /**
+   * **오늘이 든 달부터.** 없으면(지난 학년도를 보실 때 등) 있는 것 중
+   * 오늘에 제일 가까운 달로 — 3월을 보여주고 10월까지 여덟 번 누르게 하지 않는다.
+   */
+  const home = months.includes(today.slice(0, 7))
+    ? today.slice(0, 7)
+    : months.find((m) => m >= today.slice(0, 7)) || months[months.length - 1];
+  const ym = months.includes(month) ? month : home;
+
   const onDay = spread.filter((it) => it.date === open);
 
   return (
     <div className="card">
-      <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>달력</b>
-        <span className="hint" style={{ fontSize: 11.5 }}>날짜를 누르면 그날 것이 아래에 나옵니다</span>
-        <span className="spacer" />
+      {/* 넘기는 방법은 온 앱이 한 벌이다 (components/MonthNav).
+          있는 달 밖으로는 못 넘어간다 — 빈 달만 보게 되기 때문이다 */}
+      <MonthNav
+        month={ym}
+        onChange={(m) => { setMonth(m); setOpen(null); }}
+        home={home}
+        bounds={{ min: months[0], max: months[months.length - 1] }}
+      >
+        <span className="hint" style={{ fontSize: 11.5 }}>
+          {spread.filter((it) => (it.date || "").startsWith(ym)).length}건 · 날짜를 누르면 아래에 나옵니다
+        </span>
+      </MonthNav>
+
+      <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
         {Object.entries(DOT).map(([k, c]) => (
           <span key={k} className="hint" style={{ fontSize: 11.5 }}>
             <span style={{
@@ -59,51 +85,44 @@ export default function PeekCalendar({ items = [], today = "" }) {
         ))}
       </div>
 
-      <div className="stack" style={{ gap: 14, marginTop: 10 }}>
-        {months.map((ym) => (
-          <div key={ym}>
-            <b style={{ fontSize: 13 }}>{Number(ym.slice(5, 7))}월</b>
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginTop: 4,
-            }}>
-              {WEEK_ORDER.map((d) => (
-                <div key={d} className="hint" style={{ textAlign: "center", fontSize: 11 }}>{d}</div>
-              ))}
-              {monthGrid(ym, spread, today).map((cell, i) =>
-                cell === null ? (
-                  <div key={`x${i}`} />
-                ) : (
-                  <button
-                    key={cell.date}
-                    type="button"
-                    onClick={() => setOpen(open === cell.date ? null : cell.date)}
-                    title={cell.items.map((it) => `${shortName(it.school)} ${it.raw}`).join("\n")}
-                    style={{
-                      minHeight: 42, padding: "2px 3px", textAlign: "left", cursor: "pointer",
-                      border: `1px solid ${open === cell.date ? "var(--navy)" : "var(--border)"}`,
-                      borderRadius: 6, background: cell.today ? "var(--sky-soft)" : "transparent",
-                      opacity: cell.past ? 0.65 : 1,
-                    }}
-                  >
-                    <span style={{ fontSize: 10.5, fontWeight: 700 }}>{cell.day}</span>
-                    {/* **점만 찍는다** — 칸이 좁아 이름은 안 들어간다. 누르면 아래에 나온다 */}
-                    <span style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 2 }}>
-                      {cell.items.slice(0, 6).map((it, j) => (
-                        <span key={j} style={{
-                          width: 6, height: 6, borderRadius: 99,
-                          background: DOT[it.how] || "var(--border-strong)",
-                        }} />
-                      ))}
-                      {cell.items.length > 6 && (
-                        <span style={{ fontSize: 9 }} className="hint">+{cell.items.length - 6}</span>
-                      )}
-                    </span>
-                  </button>
-                )
-              )}
-            </div>
-          </div>
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginTop: 8,
+      }}>
+        {WEEK_ORDER.map((d) => (
+          <div key={d} className="hint" style={{ textAlign: "center", fontSize: 11 }}>{d}</div>
         ))}
+        {monthGrid(ym, spread, today).map((cell, i) =>
+          cell === null ? (
+            <div key={`x${i}`} />
+          ) : (
+            <button
+              key={cell.date}
+              type="button"
+              onClick={() => setOpen(open === cell.date ? null : cell.date)}
+              title={cell.items.map((it) => `${shortName(it.school)} ${it.raw}`).join("\n")}
+              style={{
+                minHeight: 42, padding: "2px 3px", textAlign: "left", cursor: "pointer",
+                border: `1px solid ${open === cell.date ? "var(--navy)" : "var(--border)"}`,
+                borderRadius: 6, background: cell.today ? "var(--sky-soft)" : "transparent",
+                opacity: cell.past ? 0.65 : 1,
+              }}
+            >
+              <span style={{ fontSize: 10.5, fontWeight: 700 }}>{cell.day}</span>
+              {/* **점만 찍는다** — 칸이 좁아 이름은 안 들어간다. 누르면 아래에 나온다 */}
+              <span style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 2 }}>
+                {cell.items.slice(0, 6).map((it, j) => (
+                  <span key={j} style={{
+                    width: 6, height: 6, borderRadius: 99,
+                    background: DOT[it.how] || "var(--border-strong)",
+                  }} />
+                ))}
+                {cell.items.length > 6 && (
+                  <span style={{ fontSize: 9 }} className="hint">+{cell.items.length - 6}</span>
+                )}
+              </span>
+            </button>
+          )
+        )}
       </div>
 
       {/* **누르면 아래에 적힌다** — 손가락으로는 마우스를 올릴 수 없다 */}

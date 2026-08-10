@@ -10,6 +10,7 @@ import {
 } from "./actions";
 import { shortLabel, monthDay, todaySeoul } from "@/lib/day";
 import MonthGrid from "./MonthGrid";
+import MonthNav from "@/components/MonthNav";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { neisDiff, diffText, examState, STATE_LABEL, STATE_CLS, teacherText } from "@/lib/exams";
 import { cleanNote } from "@/lib/note";
@@ -457,7 +458,6 @@ export default function ScheduleBoard({
     );
   }
 
-  const [showPast, setShowPast] = useState(false);
   const [openDay, setOpenDay] = useState(null);
   const [pickAbs, setPickAbs] = useState(null);      // 결석을 골라 넣는 중인 (반:달)
   const [absSel, setAbsSel] = useState(() => new Set());
@@ -466,6 +466,22 @@ export default function ScheduleBoard({
   const nowYM = todaySeoul().slice(0, 7);
   const monthList = months.filter((ym) => ym >= nowYM);
   const pastList = months.filter((ym) => ym < nowYM);
+
+  /**
+   * **한 번에 한 달만, 넘겨 가며 본다** (원장님, 2026-08-09 — 「달력의 세부
+   * 내용을 보려면 스크롤을 끝까지 내려서 보고 다시 위로 올라와야 해.
+   * 오늘이 포함된 월부터 한 칸만 보여주고 양옆으로 버튼 눌러 넘겨서 보는
+   * 방식으로 바꿔줘. 전체 페이지에 있는 모든 달력들 다 그렇게 바꿔줘」).
+   *
+   * 석 달을 쌓아 두면 아래 달을 보려고 끝까지 내렸다가 다시 올라와야 한다.
+   * 지난 달도 여기서 같이 넘긴다 — 따로 접어두면 「지난 달 보기」 를 누르고
+   * 또 그 안에서 찾아야 한다.
+   */
+  const allMonths = [...pastList, ...monthList];
+  const [calYM, setCalYM] = useState("");
+  const shownYM = allMonths.includes(calYM)
+    ? calYM
+    : (monthList[0] || allMonths[allMonths.length - 1] || nowYM);
 
   /** 그 달에 이 반이 어떤가 — reviews 안에서 찾아온다 */
   function monthOf(review, ym) {
@@ -731,11 +747,17 @@ export default function ScheduleBoard({
 
     return (
       <div className="card" style={past ? { opacity: 0.9 } : undefined}>
-        <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>{ymLabel(ym)}</h2>
+        {/* **달 이름은 한 번만** — 넘김 머리가 곧 달 제목이다 (components/MonthNav) */}
+        <MonthNav
+          month={ym}
+          onChange={(m) => { setCalYM(m); setOpenDay(null); }}
+          home={monthList[0] || nowYM}
+          bounds={{ min: allMonths[0], max: allMonths[allMonths.length - 1] }}
+        >
           <span className="hint">반 {mine.length}</span>
           {alertCount > 0 && <span className="tag tag-amber">챙길 것 {alertCount}</span>}
-        </div>
+          {past && <span className="tag tag-muted">지난 달</span>}
+        </MonthNav>
 
         <MonthGrid
           ym={ym}
@@ -1234,29 +1256,9 @@ export default function ScheduleBoard({
           </div>
         ) : (
           <>
-            {monthList.map((ym) => (
-              <MonthCard key={ym} ym={ym} />
-            ))}
-
-            {/* 지나간 달은 **아래로 내린다.** 지워버리면 「지난달 회차가 몇이었지」
-                를 볼 데가 없고, 위에 두면 매번 지나쳐 내려와야 한다 */}
-            {pastList.length > 0 && (
-              <div className="card">
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setShowPast(!showPast)}
-                >
-                  {showPast ? "지난 달 접기" : `지난 달 보기 (${pastList.length}개월)`}
-                </button>
-                {showPast && (
-                  <div className="stack" style={{ gap: 12, marginTop: 10 }}>
-                    {pastList.map((ym) => (
-                      <MonthCard key={ym} ym={ym} past />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* **한 달씩 넘겨 본다** (원장님, 2026-08-09). 넘기는 머리는
+                MonthCard 안에 있다 — 달 이름을 두 번 적지 않으려고 */}
+            <MonthCard key={shownYM} ym={shownYM} past={shownYM < nowYM} />
           </>
         )}
       </div>
