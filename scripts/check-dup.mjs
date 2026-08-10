@@ -47,6 +47,7 @@ const ONE_PLACE = [
   ["requireTeacher", "lib/guard.js", "조교는 못 하는 일"],
   ["requirePrincipal", "lib/guard.js", "원장님만 하는 일"],
   ["schoolKey", "lib/schoolName.js", "학교 이름 견주기"],
+  ["classifyExam", "lib/examKind.js", "시험 이름의 갈래 (내신·모의·수능·수행)"],
   ["sameSchool", "lib/who.js", "같은 학교인가"],
   ["takesExam", "lib/who.js", "이 아이가 이 시험을 보는가"],
   ["needSql", "lib/sqlError.js", "SQL 을 아직 안 돌리셨다"],

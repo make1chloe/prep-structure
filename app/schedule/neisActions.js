@@ -6,7 +6,7 @@ import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
   isNationwide,
 } from "@/lib/neis";
-import { matchExam, absorbable } from "@/lib/exams";
+import { matchExam, staleAfterImport } from "@/lib/exams";
 import { examKind } from "@/lib/examList";
 import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
@@ -389,7 +389,7 @@ export async function importSchedule(from, to, schoolId = null) {
     exams.push(...found);
     // 시험 기간은 **묻지 않고 다 넣는다.** 필요 없는 것은 화면에서 숨기면 되고,
     // 숨긴 것은 다시 받아와도 숨긴 채로 있다. 매번 고르게 하는 것이 더 일이다.
-    const madeExam = await addExamPeriods(found);
+    const madeExam = await addExamPeriods(found, { school: school.name, from, to });
     if (madeExam.error) failed.push(`${school.name} 시험 — ${madeExam.error}`);
     examAdded += madeExam.added || 0;
     examTidied += madeExam.tidied || 0;
@@ -623,6 +623,50 @@ export async function importSchedule(from, to, schoolId = null) {
     if (made > 0) { examAdded += made; notes.push(`모의고사 회차 ${made}개`); }
 
     /**
+     * **전국 줄도 같은 규칙으로** — 이번에 받아온 목록에 없는 나이스 전국
+     * 줄은 치운다 (학년 없는 옛 「전국연합학력평가」, 잘못 만들어졌던
+     * 「대학수학능력시험」 회차가 여기서 사라진다).
+     *
+     * 학교 하나만 받을 때는 안 한다 — 그 학교 달력에 없는 모의고사가
+     * 다른 학교 달력에는 있을 수 있어서, 전국 줄의 전부를 보지 못했다.
+     */
+    if (!schoolId) {
+      const wanted = new Set(uniq.map((m) => m.name));
+      const { data: nat } = await supabase
+        .from("exam_periods")
+        .select("id, name, from_date, english_on, note, teacher, teachers, cuts, source")
+        .eq("school", "전국")
+        .gte("from_date", from)
+        .lte("from_date", to);
+      const { data: scopeRows2 } = await supabase.from("prep_scopes").select("exam_id");
+      const { data: scoreRows2 } = await supabase
+        .from("scores").select("exam_id").not("exam_id", "is", null);
+      const used = new Set([
+        ...(scopeRows2 || []).map((r) => r.exam_id),
+        ...(scoreRows2 || []).map((r) => r.exam_id),
+      ]);
+      /**
+       * 전국 줄에서 「손댄 흔적」 은 성적·범위·등급컷·특이사항뿐이다.
+       * 영어 시험일은 mockPeriods 가 **기계로 채우는 값**이라(모의고사는
+       * 그날이 곧 영어 시험일) 흔적으로 치면 아무것도 못 지운다.
+       */
+      const stale = (nat || []).filter(
+        (x) =>
+          (x.source || "") === "neis"
+          && !wanted.has(x.name)
+          && !used.has(x.id)
+          && !(x.note || (x.cuts || []).length)
+      );
+      if (stale.length) {
+        const { error: swErr } = await supabase
+          .from("exam_periods").delete().in("id", stale.map((x) => x.id));
+        if (!swErr) {
+          examTidied += stale.length;
+        }
+      }
+    }
+
+    /**
      * **문항까지 같이 만들어 둔다** (원장님, 2026-08-08 — 「모고는 단원별
      * 아니고 문항별로 시험범위 나온다는 점 고려해줘」).
      *
@@ -714,7 +758,7 @@ export async function importSchedule(from, to, schoolId = null) {
   revalidatePath("/");
   // 다 막혔으면 오류로, 일부만 막혔으면 받은 것은 살리고 막힌 것만 알려준다
   if (failed.length && added === 0) return { error: failed.join("\n") };
-  if (examTidied > 0) notes.push(`쪼개져 있던 옛 시험 줄 ${examTidied}개를 한 줄로 모았습니다`);
+  if (examTidied > 0) notes.push(`이번 목록에 없는 옛 시험 줄 ${examTidied}개를 치웠습니다`);
   return { error: null, added, examAdded, examTidied, exams, notes, failed };
 }
 
@@ -731,9 +775,11 @@ export async function importSchedule(from, to, schoolId = null) {
  * 없어서 어차피 직접 채우셔야 하고, 학교가 '고사' 라고만 적어둔 것이
  * 우리가 대비할 시험인지는 사람이 봐야 안다.
  */
-export async function addExamPeriods(list = []) {
+export async function addExamPeriods(list = [], sweep = null) {
   const rows = (list || []).filter((e) => e?.school && e?.from_date && e?.to_date);
-  if (rows.length === 0) return { error: null, added: 0, linked: 0 };
+  // 받아온 시험이 하나도 없어도, 치울 것(sweep)이 있으면 계속 간다 —
+  // 학교가 시험을 학사일정에서 내렸으면 우리 쪽 나이스 줄도 내려가야 한다
+  if (rows.length === 0 && !sweep) return { error: null, added: 0, linked: 0 };
 
   const supabase = createClient();
   const guard = await requireStaff(supabase);
@@ -746,7 +792,7 @@ export async function addExamPeriods(list = []) {
   // 내가 이미 들고 있는 시험들 — 겹치면 여기에 붙인다
   let { data: existing } = await supabase
     .from("exam_periods")
-    .select("id, school, name, grade, from_date, to_date, source, neis_source_id, neis_name");
+    .select("id, school, name, grade, from_date, to_date, source, neis_source_id, neis_name, english_on, note, teacher, teachers, cuts");
   // 0075 전이면 붙일 칸이 없다 — 예전처럼 만들기만 한다
   let canLink = true;
   if (!existing) {
@@ -797,23 +843,27 @@ export async function addExamPeriods(list = []) {
   }
 
   /**
-   * **쪼개져 남은 옛 줄을 흡수한다** (원장님, 2026-08-09 — 「대부분의 학교들이
-   * 내신 시험 시작 날짜만 나오고 나머지 날짜가 아예 표시가 안 돼. 시험을
-   * 하루만 보는 건 모의고사가 그런 거야, 내신은 아니야」).
+   * **이번 받아오기에 안 나온 나이스 줄은 지운다** (2026-08-09 전면 재검토 —
+   * 원장님: 「학사일정이 여전히 제대로 로딩되지 않고 있어. 예외 규칙이 너무
+   * 많아진 것 같아」).
    *
-   * 전에 학년 때문에 날마다 한 줄로 쪼개졌던 시험이 DB 에 그대로 남아 있다.
-   * 규칙은 lib/exams 의 absorbable 한 곳에만 적어둔다 — 두 벌이 되면
-   * 언젠가 한쪽만 고치게 되고, 그날부터 조용히 남의 시험을 지운다.
+   * ── 왜 「고치기」 가 아니라 「비우기」 인가 ───────────────
+   *
+   * 옛 코드가 만들어 둔 잘못된 줄은 모양이 제각각이다 — 날마다 쪼개진 회차,
+   * 「대수능시험 휴업일」 회차, 학교마다 남은 모의고사. 잘못 하나마다 고치는
+   * 규칙을 붙이니(흡수 · 옛 줄 치우기 · 다시 만들기) 예외가 끝없이 늘었고,
+   * 그 규칙들이 못 보는 모양은 영영 남았다.
+   *
+   * 나이스가 만든 줄의 주인은 나이스다. 그러니 규칙은 하나다 —
+   * **「이번에 받아온 목록이 전부다. 그 학교·그 기간의 나이스 줄 중 거기
+   * 없는 것은 치운다.」** 무엇이 어떻게 잘못됐는지는 알 필요가 없다.
+   *
+   * 단, 아래는 늘 지킨다 —
+   *   · 원장님이 손으로 만드신 줄 (source ≠ neis) 은 안 건드린다
+   *   · 성적·시험범위가 붙은 줄은 안 지운다
+   *   · 영어 시험일 · 등급컷 · 선생님 · 특이사항을 적어두신 줄도 안 지운다
    */
-  const absorb = async (e, keepId) => {
-    const inside = absorbable(e, pool, keepId, inUse);
-    if (!inside.length) return 0;
-    const { error } = await supabase
-      .from("exam_periods").delete().in("id", inside.map((x) => x.id));
-    if (error) return 0;
-    inside.forEach((x) => { pool.splice(pool.indexOf(x), 1); });
-    return inside.length;
-  };
+  const touched = new Set();
 
   let added = 0;
   let linked = 0;
@@ -845,7 +895,7 @@ export async function addExamPeriods(list = []) {
         hit.neis_source_id = e.source_id || null;
         if (!mine) { hit.from_date = e.from_date; hit.to_date = e.to_date; hit.name = patch.name; }
       }
-      tidied += await absorb(e, hit.id);
+      touched.add(hit.id);
       continue;
     }
 
@@ -872,7 +922,19 @@ export async function addExamPeriods(list = []) {
     if (error) return { error: error.message, added, linked };
     added += 1;
     pool.push({ id: made.id, ...row, neis_source_id: e.source_id || null });
-    tidied += await absorb(e, made.id);
+    touched.add(made.id);
+  }
+
+  if (canLink && sweep?.school && sweep.from && sweep.to) {
+    const stale = staleAfterImport(pool, {
+      school: sweep.school, from: sweep.from, to: sweep.to, touched, inUse,
+      sameSchool: (a2, b2) => looseKey(a2) === looseKey(b2),
+    });
+    if (stale.length) {
+      const { error: swErr } = await supabase
+        .from("exam_periods").delete().in("id", stale.map((x) => x.id));
+      if (!swErr) tidied += stale.length;
+    }
   }
 
   revalidatePath("/schedule");

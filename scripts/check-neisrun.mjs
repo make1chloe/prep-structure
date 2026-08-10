@@ -16,8 +16,10 @@ import {
   mergeRuns, mergeSame, labelGrades, toTask, mockPeriods,
   gradesOf, gradeLabel, levelOf,
 } from "../lib/neis.js";
-import { matchExam, absorbable } from "../lib/exams.js";
-import { kindOf } from "../lib/neis.js";
+import { matchExam, staleAfterImport } from "../lib/exams.js";
+import { classifyExam } from "../lib/examKind.js";
+import { needsScope } from "../lib/examList.js";
+import { kindOf, examName, isNationwide } from "../lib/neis.js";
 import { parseVideoAoA } from "../lib/importVideo.js";
 import { readFileSync } from "node:fs";
 
@@ -207,43 +209,104 @@ console.log("\n== 나이스가 만든 줄은 나이스 날짜를 따라가나 ==
      "누가 만든 줄인지 가른다");
   eq(/from_date: e\.from_date, to_date: e\.to_date/.test(act), true,
      "나이스가 만든 줄은 나이스 날짜로 맞춘다");
-  // 쪼개져 남은 옛 줄을 흡수한다 — 안 그러면 같은 시험이 네 줄로 남는다
-  eq(/const inside = absorbable\(e, pool, keepId, inUse\);/.test(act), true,
-     "기간 안에 들어앉은 옛 줄을 모은다 (규칙은 lib/exams 한 곳)");
   // 이미 잘못 붙어 있던 것은 다시 받아와도 저절로 안 떨어진다 — 떼어준다
   eq(/examKind\(x\) !== examKind\(\{ name: x\.neis_name \}\)/.test(act), true,
      "종류가 다른 채 붙어 있던 것을 떼어낸다");
 }
 
-console.log("\n== 쪼개져 남은 옛 줄만 골라 모으나 ==");
+console.log("\n== 두 파일이 같은 이름에 같은 답을 내나 (전수 대조) ==");
+/**
+ * 원장님 (2026-08-09) — 「단편적으로 반영하다 보니 예외 규칙이 너무 많아져서
+ * 제대로 작동이 안 되는 것 같아. 일정 관련 코드를 전면 재검토해서 바로잡아」
+ *
+ * 재검토에서 나온 뿌리 — lib/neis.js 와 lib/examList.js 가 **저마다의
+ * 정규식**으로 같은 이름을 갈랐다. 「6월 모의평가」 를 한쪽은 전국, 한쪽은
+ * 내신이라고 했다. 이제 갈래는 lib/examKind 한 곳이고, 여기서는 실제로
+ * 나이스에 올라오는 이름들로 **두 파일이 늘 같은 답**을 내는지 못 박는다.
+ */
 {
-  // 해송고 2학기 중간이 날마다 세 줄로 쪼개져 있던 그대로
-  const pool = [
-    { id: "d1", school: "해송고", name: "2학기 중간고사", grade: "고2", source: "neis",
-      from_date: "2026-10-13", to_date: "2026-10-13" },
-    { id: "d2", school: "해송고", name: "2학기 중간고사", grade: "고2", source: "neis",
-      from_date: "2026-10-14", to_date: "2026-10-14" },
-    { id: "d3", school: "해송고", name: "2학기 중간고사", grade: "고2", source: "neis",
-      from_date: "2026-10-15", to_date: "2026-10-15" },
-    // 같은 기간 안에 있지만 **다른 것들**
-    { id: "mock", school: "해송고", name: "전국연합학력평가", source: "neis",
-      from_date: "2026-10-14", to_date: "2026-10-14" },
-    { id: "hand", school: "해송고", name: "2학기 중간고사", grade: "고2", source: null,
-      from_date: "2026-10-14", to_date: "2026-10-14" },
-    { id: "g3", school: "해송고", name: "2학기 중간고사", grade: "고3", source: "neis",
-      from_date: "2026-10-15", to_date: "2026-10-15" },
-    { id: "other", school: "신정중", name: "2학기 중간고사", grade: "중2", source: "neis",
-      from_date: "2026-10-14", to_date: "2026-10-14" },
+  const CASES = [
+    // [이름, 갈래, kindOf(내신 기간인가), isNationwide(전국 한 줄인가)]
+    ["1학기 중간고사", "school", "exam", false],
+    ["2학기 기말고사", "school", "exam", false],
+    ["1회고사", "school", "exam", false],
+    ["제2차 지필평가", "school", "exam", false],
+    ["2차시험", "school", "exam", false],
+    ["전국연합학력평가", "mock", "event", true],
+    ["3월 전국연합학력평가", "mock", "event", true],
+    // **모의평가에는 「모평」 이 안 들어 있다** — 옛 정규식이 이걸 내신으로 봤다
+    ["6월 모의평가", "mock", "event", true],
+    ["9월 모의평가", "mock", "event", true],
+    ["6월 모평", "mock", "event", true],
+    ["학력평가", "mock", "event", true],
+    ["대학수학능력시험", "suneung", "event", true],
+    ["수능", "suneung", "event", true],
+    ["수능 예비소집", "suneung", "event", true],
+    // 이름에 「시험」 이 있어도 쉬는 날이다
+    ["대수능시험 휴업일", "suneung", "off", true],
+    ["수행평가", "assess", "event", false],
+    ["학업성취도평가", "assess", "event", false],
+    ["진단평가", "assess", "event", false],
+    ["기초학력진단평가", "assess", "event", false],
+    ["재량휴업일", "", "off", false],
+    ["여름방학", "", "off", false],
+    ["체육대회", "", "event", false],
   ];
-  const cand = { school: "해송고", name: "2학기 중간고사", grade: "고2",
-                 from_date: "2026-10-13", to_date: "2026-10-16" };
-  eq(absorbable(cand, pool, "d1").map((x) => x.id), ["d2", "d3"], "쪼개진 나머지 날만 모은다");
-  // **원장님이 손으로 적으신 줄** · **모의고사** · **다른 학년** · **다른 학교** 는 그대로
-  eq(absorbable(cand, pool, "d1", new Set(["d2"])).map((x) => x.id), ["d3"],
-     "성적·범위가 붙은 줄은 안 지운다");
-  // 기간 밖으로 한 칸이라도 나가면 다른 시험이다
-  const short = { ...cand, to_date: "2026-10-14" };
-  eq(absorbable(short, pool, "d1").map((x) => x.id), ["d2"], "기간 안에 온전히 들어앉은 것만");
+  for (const [n, want, wantKind, wantNat] of CASES) {
+    eq(classifyExam(n), want, `갈래 「${n}」`);
+    eq(kindOf(examName(n, "2026-10-14"), ""), wantKind, `kindOf 「${n}」`);
+    eq(isNationwide(n), wantNat, `전국 한 줄 「${n}」`);
+  }
+  // 회차 화면 쪽도 같은 답
+  eq(needsScope({ name: "6월 모의평가" }), false, "모의평가에 범위 재촉을 안 한다");
+  eq(needsScope({ name: "수행평가" }), false, "수행평가에도 안 한다");
+  eq(needsScope({ name: "제2차 지필평가" }), true, "내신 지필에는 한다");
+}
+
+console.log("\n== 이번에 안 나온 나이스 줄을 치우나 (선언적 동기화) ==");
+/**
+ * 원장님 (2026-08-09) — 「학사일정이 여전히 제대로 로딩되지 않고 있어」
+ *
+ * 잘못 하나마다 고치는 규칙(흡수 · 옛 줄 치우기)을 붙이니 규칙이 못 보는
+ * 모양이 영영 남았다. 이제 규칙은 하나다 — **이번에 받아온 목록이 전부고,
+ * 그 학교·그 기간의 나이스 줄 중 거기 없는 것은 치운다.** 손대신 것만 지킨다.
+ */
+{
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  eq(/addExamPeriods\(found, \{ school: school\.name, from, to \}\)/.test(act), true,
+     "받아오기가 학교·기간을 넘겨 치우게 한다");
+  eq(/const touched = new Set\(\);/.test(act), true, "이번에 나온 줄을 기억한다");
+  eq(/staleAfterImport\(pool, \{/.test(act), true, "치울 것 판단은 lib/exams 한 곳이다");
+  // 전국 줄(모의고사·대수능)도 같은 규칙 — 단, 전체 받아오기일 때만
+  eq(/if \(!schoolId\) \{/.test(act), true, "학교 하나만 받을 때는 전국 줄을 안 치운다");
+  eq(/!wanted\.has\(x\.name\)/.test(act), true, "이번 목록에 없는 전국 줄을 치운다");
+  // 옛 땜질(흡수)은 걷어냈다 — 동기화 하나면 된다
+  eq(/absorbable/.test(act), false, "흡수 규칙이 더는 없다");
+}
+{
+  // 원장님 화면(2026-08-09) 그대로 — 옥련여고 기말이 쪼개져 세 줄, 다른 날에도 한 줄
+  const pool = [
+    { id: "a", school: "옥련여고", from_date: "2026-12-10", to_date: "2026-12-10", source: "neis" },
+    { id: "b", school: "옥련여고", from_date: "2026-12-11", to_date: "2026-12-11", source: "neis" },
+    { id: "c", school: "옥련여고", from_date: "2026-12-14", to_date: "2026-12-14", source: "neis" },
+    { id: "new", school: "옥련여고", from_date: "2026-12-10", to_date: "2026-12-15", source: "neis" },
+    // 이름 표기만 다른 같은 학교 — 그래도 치워져야 한다
+    { id: "full", school: "인천옥련여자고등학교", from_date: "2026-09-02", to_date: "2026-09-02", source: "neis" },
+    // 지키는 것들
+    { id: "hand", school: "옥련여고", from_date: "2026-12-11", to_date: "2026-12-11", source: null },
+    { id: "eng", school: "옥련여고", from_date: "2026-12-12", to_date: "2026-12-12", source: "neis", english_on: "2026-12-12" },
+    { id: "score", school: "옥련여고", from_date: "2026-12-13", to_date: "2026-12-13", source: "neis" },
+    // 남의 학교 · 기간 밖
+    { id: "other", school: "연수여고", from_date: "2026-12-11", to_date: "2026-12-11", source: "neis" },
+    { id: "past", school: "옥련여고", from_date: "2025-12-11", to_date: "2025-12-11", source: "neis" },
+  ];
+  const got = staleAfterImport(pool, {
+    school: "옥련여고", from: "2026-03-01", to: "2027-02-28",
+    touched: new Set(["new"]), inUse: new Set(["score"]),
+    sameSchool: (x, y) => x.replace(/인천|자|등학교|학교/g, "") === y.replace(/인천|자|등학교|학교/g, ""),
+  });
+  eq(got.map((x) => x.id), ["a", "b", "c", "full"],
+     "쪼개진 세 줄과 다른 날 옛 줄만 — 손댄 것·손으로 만든 것·성적 붙은 것·남의 학교·기간 밖은 남는다");
 }
 
 console.log("\n== 이 시험을 누가 보는지 적어주나 ==");
