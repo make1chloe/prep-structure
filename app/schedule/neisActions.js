@@ -67,15 +67,22 @@ async function call(url, block) {
  */
 async function callAll(key, school, from, to) {
   const all = [];
+  let total = null;
   for (let page = 1; page <= 20; page += 1) {
     const res = await call(scheduleUrl(key, school, from, to, page), "SchoolSchedule");
-    if (res.error) return { rows: all, error: res.error };
-    if (res.empty) return { rows: all, error: null, empty: all.length === 0 };
+    if (res.error) return { rows: all, error: res.error, total };
+    if (res.empty) return { rows: all, error: null, empty: all.length === 0, total };
+    if (res.total != null) total = Number(res.total);
     all.push(...res.rows);
     // 다 받았거나, 더 줄 게 없으면 그만
     if (!res.total || all.length >= res.total || res.rows.length === 0) break;
   }
-  return { rows: all, error: null, empty: all.length === 0 };
+  /**
+   * **몇 건이라고 했는지도 같이 돌려준다** (2026-08-10). 나이스가 「300건」
+   * 이라고 해놓고 우리가 250줄만 받았다면 뒷부분이 조용히 빠진 것이다 —
+   * 그러면 화면에는 그냥 일정이 없는 것처럼 보인다.
+   */
+  return { rows: all, error: null, empty: all.length === 0, total };
 }
 
 /** 키를 넣는다 */
@@ -1327,8 +1334,29 @@ export async function peekNeis(from, to, schoolIds = null) {
 
   const out = [];
   const notes = [];
+  /**
+   * **어느 학교에 물어봤는지를 그대로 남긴다** (2026-08-10 — 원장님이 학교
+   * 홈페이지와 대조하시면서 「이거랑 나이스 원본에 들어가 있는 게 달라」).
+   *
+   * 다른 것의 까닭 중 **제일 먼저 확인해야 할 것은 「같은 학교인가」** 다.
+   * 같은 이름의 학교가 전국에 여럿 있어서, 학교 코드를 잘못 넣어두면
+   * 일정이 통째로 다른데 화면에는 아무 표시도 안 난다. 그래서 코드와 주소를
+   * 그대로 보여준다 — 원장님이 학교 홈페이지 주소와 견주실 수 있게.
+   *
+   * 나이스가 「몇 건」 이라고 했는지도 같이 적는다. 우리가 받은 줄 수와
+   * 다르면 뒷부분이 조용히 빠진 것이다.
+   */
+  const asked = [];
   for (const school of targets) {
     const res = await callAll(key, school, from, to);
+    asked.push({
+      name: school.name,
+      code: school.schul_code,
+      atpt: school.atpt_name || school.atpt_code || "",
+      address: school.address || "",
+      said: res.total ?? null,
+      got: res.rows.length,
+    });
     if (res.error) { notes.push(`${school.name}: ${res.error}`); continue; }
     if (res.empty || res.rows.length === 0) {
       notes.push(`${school.name}: 나이스가 이 기간에 줄 일정이 없다고 합니다.`);
@@ -1379,5 +1407,5 @@ export async function peekNeis(from, to, schoolIds = null) {
   runs.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.school.localeCompare(b.school, "ko"));
   out.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.school.localeCompare(b.school, "ko"));
   // 합친 것과 안 합친 것을 **둘 다** 준다 — 화면에서 켜고 끌 수 있게
-  return { error: null, rows: out, runs, notes, schools: targets.map((s) => s.name) };
+  return { error: null, rows: out, runs, notes, asked, schools: targets.map((s) => s.name) };
 }

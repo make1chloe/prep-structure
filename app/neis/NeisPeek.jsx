@@ -64,6 +64,27 @@ export default function NeisPeek({ from, to, schools = [] }) {
 
   const gaps = base.filter((r) => r.inApp === false || r.hasExam === false).length;
 
+  /**
+   * **지금 보고 계신 그대로 내려간다.** 걸러 놓은 것과 다른 것이 내려가면
+   * 학교 홈페이지와 대조하다가 「없는 줄」 을 찾게 된다.
+   */
+  async function download() {
+    const XLSX = await import("xlsx");
+    const head = ["날짜", "끝날", "학교", "나이스에 적힌 이름", "앱이 편 이름", "수업공제일명", "학년", "앱이 본 것", "앱에 들어옴"];
+    const body = rows.map((r) => [
+      r.date || "", r.endDate && r.endDate > r.date ? r.endDate : "",
+      r.school, r.raw, r.event || "", r.sbtr || "",
+      (r.grades || []).join("·"),
+      r.how,
+      r.inApp === false ? "안 들어옴" : r.hasExam === false ? "회차 없음" : r.inApp === null ? "전국" : "들어옴",
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([head, ...body]);
+    ws["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 26 }, { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "나이스 원본");
+    XLSX.writeFile(wb, `나이스원본_${range.from}_${range.to}.xlsx`);
+  }
+
   return (
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
       <div className="card">
@@ -150,6 +171,14 @@ export default function NeisPeek({ from, to, schools = [] }) {
               <input type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
               이어진 날 합치기
             </label>
+            {/**
+              * **내려받아서 나란히 놓고 본다** (원장님, 2026-08-10 — 학교
+              * 홈페이지와 대조 중). 화면에서 눈으로 견주면 한 줄씩 놓치기
+              * 쉽다. 지금 걸러 보고 계신 그대로 내려간다.
+              */}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={download}>
+              ⬇️ 엑셀로 내려받기
+            </button>
           </div>
 
           {/* **달력이 먼저다** (원장님) — 표는 「무엇이 있나」 를 세는 데 좋지만
@@ -157,6 +186,45 @@ export default function NeisPeek({ from, to, schools = [] }) {
           <div style={{ marginTop: 10 }}>
             <PeekCalendar items={rows} today={todaySeoul()} />
           </div>
+
+          {/**
+            * **어느 학교에 물어봤나** (원장님, 2026-08-10 — 학교 홈페이지와
+            * 대조하시면서 「이거랑 나이스 원본에 들어가 있는 게 달라」).
+            *
+            * 다를 때 **제일 먼저 확인할 것은 「같은 학교인가」** 다. 같은 이름의
+            * 학교가 여럿이라, 코드를 잘못 넣어두면 일정이 통째로 다른데 화면에는
+            * 아무 표시도 안 난다. 코드와 주소를 그대로 보여드려 학교 홈페이지와
+            * 견주실 수 있게 한다.
+            *
+            * 나이스가 「몇 건」 이라고 했는지도 적는다 — 받은 줄 수와 다르면
+            * 뒷부분이 조용히 빠진 것이다.
+            */}
+          {res.asked?.length > 0 && (
+            <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
+              <b style={{ fontSize: 12.5 }}>물어본 학교</b>
+              <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                {res.asked.map((a) => (
+                  <div className="unitrow" key={a.code}>
+                    <b style={{ fontSize: 12.5, minWidth: 70 }}>{shortName(a.name)}</b>
+                    <span className="tag tag-muted">{a.code}</span>
+                    {a.atpt && <span className="hint" style={{ fontSize: 11.5 }}>{a.atpt}</span>}
+                    <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>{a.address}</span>
+                    {/* 나이스가 말한 건수와 받은 건수가 다르면 뒷부분이 빠진 것이다 */}
+                    {a.said != null && a.said !== a.got ? (
+                      <span className="tag tag-amber">나이스는 {a.said}건이라는데 {a.got}건 받음</span>
+                    ) : (
+                      <span className="hint" style={{ fontSize: 11.5 }}>{a.got}건</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.7 }}>
+                학교 홈페이지 일정과 다르면 <b>먼저 이 주소가 그 학교가 맞는지</b> 봐주세요.
+                맞다면 <b>나이스와 학교 홈페이지는 서로 다른 시스템</b>이라 학교가 한쪽만
+                고쳐두는 일이 흔합니다 — 그건 학교에 여쭤볼 일이지 앱이 고칠 것은 아닙니다.
+              </p>
+            </div>
+          )}
 
           {/* **나이스가 뭐라고 했는지도 그대로** — 0줄인 학교의 까닭이 여기 있다 */}
           {res.notes?.length > 0 && (

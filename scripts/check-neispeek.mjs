@@ -206,5 +206,42 @@ ok(gaps.length === 1 && gaps[0].school === "박문중", "어긋난 줄 세기");
 const exams = rows.filter((r) => r.how === "시험");
 ok(exams.length === 2, "시험만 세기");
 
+
+console.log("\n== 학교 홈페이지와 다를 때, 왜 다른지 짚어주나 ==");
+/**
+ * 원장님 (2026-08-10) — 「여기 박문중학교 일정이 있는데 이거랑 나이스 원본에
+ * 들어가 있는 게 달라. 왜 일까?」
+ *
+ * 다를 수 있는 까닭은 셋이고, 화면은 셋 다 똑같이 「다르다」 로 보인다 —
+ *
+ *   1. **다른 학교에 물어봤다.** 같은 이름의 학교가 여럿이라, 학교 코드를
+ *      잘못 넣어두면 일정이 통째로 다른데 아무 표시도 안 난다
+ *   2. **뒷부분이 조용히 빠졌다.** 나이스가 300건이라 해놓고 250줄만 왔는데
+ *      화면에는 그냥 일정이 없는 것처럼 보인다
+ *   3. **나이스와 학교 홈페이지가 원래 다르다.** 서로 다른 시스템이라 학교가
+ *      한쪽만 고쳐두는 일이 흔하다 — 이건 앱이 고칠 것이 아니다
+ *
+ * 1·2 는 앱이 짚어줄 수 있다. 짚어주지 않으면 3 인지 아닌지도 알 수 없다.
+ */
+{
+  const act = readFileSync("app/schedule/neisActions.js", "utf8");
+  // 1) 어느 학교에 물어봤는지 — 코드와 주소를 그대로
+  ok(/const asked = \[\];/.test(act), "물어본 학교를 남긴다");
+  ok(/address: school\.address \|\| ""/.test(act), "주소까지 — 그 학교가 맞는지 견주시게");
+  ok(/code: school\.schul_code/.test(act), "학교 코드도");
+  // 2) 나이스가 몇 건이라고 했는지 — 받은 줄 수와 다르면 잘린 것이다
+  ok(/said: res\.total \?\? null/.test(act), "나이스가 말한 건수를 적어둔다");
+  ok(/return \{ rows: all, error: null, empty: all\.length === 0, total \};/.test(act),
+     "받아오기가 그 건수를 돌려준다");
+  const peek2 = readFileSync("app/neis/NeisPeek.jsx", "utf8");
+  ok(/나이스는 \{a\.said\}건이라는데 \{a\.got\}건 받음/.test(peek2), "다르면 눈에 띄게 적는다");
+  ok(/물어본 학교/.test(peek2), "물어본 학교를 화면에 보여준다");
+  // 3) 원래 다를 수 있다는 것도 말해준다 — 앱 탓만 하다 시간을 버리지 않게
+  ok(/서로 다른 시스템/.test(peek2), "나이스와 학교 홈페이지가 다른 시스템임을 알려준다");
+  // 나란히 놓고 대조할 수 있게 내려받기
+  ok(/async function download\(\)/.test(peek2), "내려받아서 나란히 볼 수 있다");
+  ok(/const body = rows\.map/.test(peek2), "지금 걸러 보는 그대로 내려간다");
+}
+
 if (fail) { console.log("\n❌ 나이스 원본 화면에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 나이스 원본 화면 통과");
