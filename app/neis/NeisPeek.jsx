@@ -215,6 +215,22 @@ export default function NeisPeek({ from, to, schools = [] }) {
                     ) : (
                       <span className="hint" style={{ fontSize: 11.5 }}>{a.got}건</span>
                     )}
+                    {/**
+                      * **앱을 안 거치고 나이스를 바로 여는 주소** (원장님,
+                      * 2026-08-10 — 「나이스에 등록된 학사일정 어디서 볼 수
+                      * 있어? 주소 알려줘」). 우리가 부르는 것과 **같은 주소**다.
+                      */}
+                    {a.link && (
+                      <a
+                        className="btn btn-ghost btn-sm"
+                        href={a.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="나이스가 우리에게 준 것과 같은 주소입니다 (인증키는 빼고 열립니다)"
+                      >
+                        나이스에서 바로 보기 ↗
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
@@ -222,6 +238,10 @@ export default function NeisPeek({ from, to, schools = [] }) {
                 학교 홈페이지 일정과 다르면 <b>먼저 이 주소가 그 학교가 맞는지</b> 봐주세요.
                 맞다면 <b>나이스와 학교 홈페이지는 서로 다른 시스템</b>이라 학교가 한쪽만
                 고쳐두는 일이 흔합니다 — 그건 학교에 여쭤볼 일이지 앱이 고칠 것은 아닙니다.
+                <br />
+                <b>나이스에서 바로 보기</b> 를 누르면 앱을 안 거치고 나이스가 주는 것을 그대로
+                보실 수 있습니다 (인증키는 빼고 열립니다 — 줄이 모자라면 주소 끝에
+                <b> &amp;KEY=내키</b> 를 붙여주세요).
               </p>
             </div>
           )}

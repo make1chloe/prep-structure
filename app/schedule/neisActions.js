@@ -1356,6 +1356,18 @@ export async function peekNeis(from, to, schoolIds = null) {
       address: school.address || "",
       said: res.total ?? null,
       got: res.rows.length,
+      /**
+       * **나이스에 직접 물어보는 주소** (원장님, 2026-08-10 — 「나이스에 등록된
+       * 학사일정 어디서 볼 수 있어? 주소 알려줘」).
+       *
+       * 앱을 못 믿으실 때 **같은 자료를 원장님 브라우저에서 직접** 여실 수
+       * 있어야 한다. 주소는 scheduleUrl 한 곳에서 만든다 — 우리가 부르는 것과
+       * 글자 하나까지 같은 주소여야 대조가 뜻이 있다.
+       *
+       * **인증키는 빼고 준다.** 화면에 뿌리면 키가 남의 눈에 들어간다.
+       * 키 없이도 나이스가 조금은 보여주고, 모자라면 주소 끝에 붙이시면 된다.
+       */
+      link: scheduleUrl(null, school, from, to),
     });
     if (res.error) { notes.push(`${school.name}: ${res.error}`); continue; }
     if (res.empty || res.rows.length === 0) {
