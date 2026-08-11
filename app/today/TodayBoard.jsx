@@ -8,7 +8,6 @@ import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import { isMemo } from "@/lib/notices";
 import CheckQueue from "./CheckQueue";
-import { setArrivalFor } from "./arrivalActions";
 import { setClassAttendance } from "./classAttendance";
 import { classLabel } from "@/lib/classLabel";
 
@@ -204,107 +203,51 @@ export default function TodayBoard({
 
               {opened && (
                 <div style={{ padding: "0 0 6px" }}>
-                  {/* ① 출결 먼저 — 온 아이부터 아래에 펼쳐진다 */}
+                  {/**
+                    * ① 등원 — **한 줄만** (원장님, 2026-08-11 — 「이거 학생
+                    * 중복으로 둘 필요있어? 폰/숙제/출결 안하면 안넘어가는
+                    * 거는 학생화면만 그러면 되는거고 나는 상관없어」).
+                    *
+                    * 전에는 여기에 학생마다 폰·출석·숙제·정시·지각·결석
+                    * 단추가 한 줄씩 늘어서서, 바로 아래 학생 목록과 이름이
+                    * **두 번** 나왔다. 그 단추들은 각 학생 판의 등원·출결
+                    * 줄에 다 있다 — 여기는 「전부 정시」 하나면 된다.
+                    */}
                   {(() => {
                     const notYet = rows.filter((r) => !r.status);
                     if (notYet.length === 0) return null;
+                    // 결석 예정인 아이는 「전부 정시」 에서 뺀다 — 눌렀다가
+                    // 결석 예정이 정시로 뒤집히면 아무도 모른다
+                    const planned = notYet.filter((r) => r.plannedAbsent);
+                    const coming = notYet.filter((r) => !r.plannedAbsent);
                     return (
                       <div className="attstrip">
-                        <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 6 }}>
+                        <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
                           <b style={{ fontSize: 13 }}>등원</b>
-                          <span className="hint" style={{ flex: 1 }}>
-                            폰·출석·숙제는 <b>학생이 자기 화면에서</b> 누릅니다. 아직 앱을 안 줬거나
-                            폰이 없으면 <b>여기서 대신 찍으셔도 됩니다</b> — {notYet.length}명 남음
+                          <span className="hint" style={{ flex: 1, minWidth: 200 }}>
+                            {notYet.length}명 남음
+                            {planned.length > 0 && (
+                              <>
+                                {" "}· 결석 예정{" "}
+                                {planned
+                                  .map((r) => r.student.name + (r.absenceReason ? `(${r.absenceReason})` : ""))
+                                  .join(" · ")}
+                              </>
+                            )}
+                            {" "}— 출결·폰·숙제는 아래 학생 줄을 열면 있습니다
                           </span>
-                          <button
-                            className="btn btn-sm"
-                            disabled={pending}
-                            onClick={() =>
-                              notYet.forEach((r) => mark(r.student.id, "present", r.extraClassId))
-                            }
-                            title="온 학생을 한 번에 정시로"
-                          >
-                            전부 정시
-                          </button>
-                        </div>
-                        <div className="stack" style={{ gap: 4 }}>
-                          {notYet.map((r) => (
-                            <div className="unitrow" key={r.student.id}>
-                              <b style={{ fontSize: 13.5, minWidth: 62 }}>{r.student.name}</b>
-                              {r.isMakeup && (
-                                <span className="tag tag-lav">
-                                  보강{r.makeupTime ? ` ${r.makeupTime.slice(0, 5)}` : ""}
-                                </span>
-                              )}
-                              {r.plannedAbsent && (
-                                <span className="tag tag-amber">
-                                  결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
-                                </span>
-                              )}
-                              <span className="spacer" />
-                              {[
-                                ["phone", "폰", r.phoneAt],
-                                ["attend", "출석", r.attendAt],
-                                ["homework", "숙제", r.homeworkAt],
-                              ].map(([kind, label, at]) => (
-                                <button
-                                  key={kind}
-                                  className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
-                                  disabled={pending}
-                                  style={{ padding: "3px 9px", fontSize: 12 }}
-                                  title={
-                                    at
-                                      ? `${new Date(at).toLocaleTimeString("ko-KR", {
-                                          timeZone: "Asia/Seoul",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })} · 다시 누르면 취소`
-                                      : "대신 찍기"
-                                  }
-                                  onClick={() =>
-                                    startTransition(async () => {
-                                      const res = await setArrivalFor(r.student.id, date, kind, !at);
-                                      if (res?.error) alert(res.error);
-                                      router.refresh();
-                                    })
-                                  }
-                                >
-                                  {at ? "✓ " : ""}
-                                  {label}
-                                </button>
-                              ))}
-                              <a
-                                className="btn btn-ghost btn-sm"
-                                href={`/me?s=${r.student.id}&try=1`}
-                                target="_blank"
-                                rel="noreferrer"
-                                title="이 학생인 척 학생 화면을 직접 눌러봅니다 (로그아웃 안 해도 됩니다)"
-                                style={{ padding: "3px 8px", fontSize: 11.5 }}
-                              >
-                                체험
-                              </a>
-                              {ATT.slice(0, 3).map((a) => {
-                                const on = r.status === a.key;
-                                return (
-                                  <button
-                                    key={a.key}
-                                    className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
-                                    disabled={pending}
-                                    style={{ padding: "3px 10px" }}
-                                    title={on ? "다시 누르면 취소돼요" : undefined}
-                                    onClick={() =>
-                                      // 이미 찍힌 것을 또 누르면 취소 — 결석도 마찬가지
-                                      a.key === "absent" && !on
-                                        ? markAbsent(r.student.id, r.absenceReason, r.extraClassId)
-                                        : mark(r.student.id, a.key, r.extraClassId, r.status)
-                                    }
-                                  >
-                                    {on ? "✓ " : ""}{a.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          ))}
+                          {coming.length > 0 && (
+                            <button
+                              className="btn btn-sm"
+                              disabled={pending}
+                              onClick={() =>
+                                coming.forEach((r) => mark(r.student.id, "present", r.extraClassId))
+                              }
+                              title="결석 예정을 뺀 나머지를 한 번에 정시로"
+                            >
+                              전부 정시
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

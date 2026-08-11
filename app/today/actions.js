@@ -95,7 +95,12 @@ export async function saveStudentDay(studentId, date, form) {
   const checked = form.items || {};
   const absent = form.attendance === "absent";
   const unchecked = absent ? [] : toCheck.filter((id) => !checked[id]);
-  const complete = unchecked.length === 0;
+  /**
+   * **임시저장** (원장님, 2026-08-11 — 「임시저장 기능 필요해」).
+   * 적은 것은 다 저장하되 「기록 끝」 으로는 안 넘긴다 — 학생이 완료
+   * 묶음으로 접혀 들어가지 않고, 이어서 적을 수 있다.
+   */
+  const complete = form.draft ? false : unchecked.length === 0;
 
   const row = {
     student_id: studentId,
@@ -326,7 +331,12 @@ export async function saveStudentDay(studentId, date, form) {
     }
   }
 
-  revalidatePath("/today");
+  /**
+   * **임시저장이면 화면을 안 갈아엎는다.** revalidatePath 가 돌면 열어둔
+   * 학생 판이 접힌다 — 이어서 적으려고 임시저장을 눌렀는데 흐름이 끊긴다.
+   * 서버에는 이미 들어갔으니, 다음 저장이나 새로고침 때 자연히 맞춰진다.
+   */
+  if (!form.draft) revalidatePath("/today");
   return {
     error: null,
     complete,

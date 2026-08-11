@@ -250,6 +250,7 @@ export default function StudentPanel({
   const [ask, setAsk] = useState("");   // 이번 초안에만 부탁할 것
   const [drafting, setDrafting] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
   const router = useRouter();
 
   const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
@@ -496,7 +497,13 @@ export default function StudentPanel({
     setDraft(null);
   }
 
-  function save() {
+  /**
+   * @param asDraft **임시저장** (원장님, 2026-08-11 — 「임시저장 기능 필요해」).
+   *   적은 것을 전부 서버에 두되 「기록 끝」 으로 안 넘긴다 — 학생이 완료
+   *   묶음으로 접히지 않고, 다른 기기에서 열어도 이어서 적을 수 있다.
+   *   루틴도 안 넘긴다 (진짜 저장 때 넘겨야 두 번 안 넘어간다).
+   */
+  function save(asDraft = false) {
     startTransition(async () => {
       // 특강이면 출결은 그 반에만 남긴다.
       // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
@@ -514,6 +521,7 @@ export default function StudentPanel({
       }
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
+        draft: asDraft,
         attendance: row.extraClassId ? null : form.attendance,
         items: marks,
         inClass: [...inClass],
@@ -534,6 +542,17 @@ export default function StudentPanel({
         return;
       }
       dropDraft();   // 진짜로 저장됐으니 임시본은 필요 없다
+
+      if (asDraft) {
+        /**
+         * 임시저장은 조용히 — 알림도, 완료 처리도, 루틴 넘기기도 없다.
+         * **화면도 안 갈아엎는다** (router.refresh 를 안 부른다) — 새로
+         * 그리면 열어둔 판이 접혀서, 이어서 적으려던 흐름이 끊긴다.
+         * 서버에는 이미 들어갔으니 다음 새로고침 때 자연히 맞춰진다.
+         */
+        setSavedDraftAt(new Date());
+        return;
+      }
 
       // 루틴에서 가져왔으면 그 교재들의 단계를 하나 넘긴다
       if (routine?.steps?.length) {
@@ -1661,8 +1680,18 @@ export default function StudentPanel({
         </div>
       </div>
 
-      <div className="row" style={{ justifyContent: "flex-end", marginTop: 8 }}>
-        <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
+      <div className="row" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
+        {savedDraftAt && (
+          <span className="hint" style={{ fontSize: 12 }}>
+            {savedDraftAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 임시저장됨
+          </span>
+        )}
+        {/* **임시저장** — 적은 것을 서버에 두고 완료로는 안 넘긴다.
+            수업 중간에 끊겨도, 다른 기기에서 열어도 그대로 이어진다 */}
+        <button className="btn btn-ghost btn-sm" onClick={() => save(true)} disabled={pending}>
+          임시저장
+        </button>
+        <button className="btn btn-primary btn-sm" onClick={() => save(false)} disabled={pending}>
           {pending ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
         </button>
       </div>
