@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { addHomeworkItem } from "./actions";
-import { CATEGORIES, TOOLS, TOOL_ICON } from "./categories";
+import { CATEGORIES, toolList } from "./categories";
 
 export default function AddHomeworkForm() {
   const [open, setOpen] = useState(false);
@@ -33,15 +33,20 @@ export default function AddHomeworkForm() {
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          {/* 아이가 **무엇을 펴야 하는지** — 아이 화면 숙제 옆에 붙는다 (0116) */}
-          <div className="field" style={{ width: 140 }}>
-            <label className="label">툴 (아이에게 보임)</label>
-            <select className="input input-sm" name="tool" defaultValue="">
-              <option value="">표시 안 함</option>
-              {TOOLS.map((t) => (
-                <option key={t} value={t}>{TOOL_ICON[t] || ""} {t}</option>
-              ))}
-            </select>
+          {/* 아이가 **무엇을 펴야 하는지** — 아이 화면 숙제 옆에 붙는다 (0116).
+              고를 수도, 직접 적을 수도 있다 (못 박아 두면 언제나 모자란다) */}
+          <div className="field" style={{ width: 150 }}>
+            <label className="label">준비물 (아이에게 보임)</label>
+            <input
+              className="input input-sm"
+              name="tool"
+              list="tool-options-add"
+              placeholder="교재 · 클래스카드 …"
+              title="아이 화면 숙제 옆에 붙습니다. 비우면 표시 안 함"
+            />
+            <datalist id="tool-options-add">
+              {toolList().map((t) => <option key={t} value={t} />)}
+            </datalist>
           </div>
         </div>
         <div className="field">

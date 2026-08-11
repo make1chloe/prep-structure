@@ -9,7 +9,7 @@ import {
   deleteHomeworkItems,
 } from "./actions";
 
-import { CATEGORIES, CAT_CLS, TOOLS, TOOL_ICON, toolBadge } from "./categories";
+import { CATEGORIES, CAT_CLS, toolList, toolBadge } from "./categories";
 export { CAT_CLS };
 
 export default function HomeworkList({ items = [] }) {
@@ -175,6 +175,11 @@ export default function HomeworkList({ items = [] }) {
         </div>
       )}
 
+      {/* 준비물 고르기 목록 — 자주 쓰는 것 + 이미 항목들에 적어 둔 것 (0116) */}
+      <datalist id="tool-options-edit">
+        {toolList(items.map((i) => i.tool)).map((t) => <option key={t} value={t} />)}
+      </datalist>
+
       <div className="tblwrap">
         <table className="tbl tbl-tight">
           <thead>
@@ -225,19 +230,17 @@ export default function HomeworkList({ items = [] }) {
                           <option value="">—</option>
                           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        {/* 툴 — 아이 화면 숙제 이름 옆에 붙는다 (0116) */}
-                        <select
+                        {/* 준비물 — 아이 화면 숙제 이름 옆에 붙는다 (0116).
+                            고를 수도, 직접 적을 수도. 비우면 표시 안 함 */}
+                        <input
                           className="input input-sm"
                           style={{ marginTop: 6 }}
-                          title="아이가 무엇을 펴야 하는지 — 아이 화면에 보입니다"
+                          list="tool-options-edit"
+                          placeholder="준비물 (비우면 표시 안 함)"
+                          title="아이가 무엇을 펴야 하는지 — 아이 화면 숙제 옆에 붙습니다"
                           value={draft.tool}
                           onChange={(e) => setDraft({ ...draft, tool: e.target.value })}
-                        >
-                          <option value="">툴 표시 안 함</option>
-                          {TOOLS.map((t) => (
-                            <option key={t} value={t}>{TOOL_ICON[t] || ""} {t}</option>
-                          ))}
-                        </select>
+                        />
                       </td>
                       <td>
                         <input

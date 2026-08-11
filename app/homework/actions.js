@@ -32,7 +32,7 @@ export async function addHomeworkItem(formData) {
   const row = { name, category, sort, active: true, method, prep_task, tool };
   let { error } = await supabase.from("homework_items").insert(row);
   if (noColumn(error)) {
-    // 0116 전이면 툴 없이
+    // 0116 전이면 준비물 없이
     const { tool: _tl, ...noTool } = row;
     ({ error } = await supabase.from("homework_items").insert(noTool));
   }
@@ -129,7 +129,7 @@ export async function updateHomeworkItem(id, patch) {
       (patch.checklist || "").split("\n").map((t) => t.trim()).filter(Boolean).join("\n") || null;
   }
   if ("prep_task" in (patch || {})) row.prep_task = (patch.prep_task || "").trim() || null;
-  // 툴 — 아이가 무엇을 펴야 하는가 (0116)
+  // 준비물 — 아이가 무엇을 펴야 하는가 (0116)
   if ("tool" in (patch || {})) row.tool = (patch.tool || "").trim() || null;
   if ("home_item_id" in (patch || {})) row.home_item_id = patch.home_item_id || null;
   if ("no_timer" in (patch || {})) row.no_timer = !!patch.no_timer;
@@ -141,11 +141,11 @@ export async function updateHomeworkItem(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
   if (noColumn(error)) {
-    // 0116 전이면 '툴' 없이
+    // 0116 전이면 '준비물' 없이
     const { tool: _tl, ...noTool } = row;
     ({ error } = await supabase.from("homework_items").update(noTool).eq("id", id));
     if (!error && "tool" in row) {
-      return { error: "툴을 적으려면 설정 → Supabase SQL 에서 0116 을 먼저 실행해주세요." };
+      return { error: "준비물을 적으려면 설정 → Supabase SQL 에서 0116 을 먼저 실행해주세요." };
     }
   }
   if (noColumn(error)) {
