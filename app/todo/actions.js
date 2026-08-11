@@ -92,13 +92,32 @@ export async function updateTodo(id, patch) {
   if ("priority" in (patch || {})) row.priority = parseInt(patch.priority, 10) || 0;
   if ("no_due" in (patch || {})) row.no_due = !!patch.no_due;
   if (!row.due_on) delete row.due_on;
+  // 하위목록 — 한 줄에 하나 (0117)
+  if ("checklist" in (patch || {})) {
+    row.checklist =
+      (patch.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean).join("\n") || null;
+  }
 
   const supabase = createClient();
-  const { error } = await supabase.from("tasks").update(row).eq("id", id);
+  let { error } = await supabase.from("tasks").update(row).eq("id", id);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0117 전이면 하위목록 칸이 없다
+    const { checklist: _c, ...noChecklist } = row;
+    ({ error } = await supabase.from("tasks").update(noChecklist).eq("id", id));
+    if (!error && "checklist" in row) {
+      revalidatePath("/tasks");
+      revalidatePath("/");
+      return { error: "하위목록을 적으려면 설정 → Supabase SQL 에서 0117 을 먼저 실행해주세요." };
+    }
+  }
   revalidatePath("/tasks");
   revalidatePath("/");
   return ok(error);
 }
+
+// 하위목록 체크·해제(toggleChecklistLine)는 여기 두지 않는다 —
+// app/tasks/actions.js 에 한 곳으로 두고 여기서도 그걸 가져다 쓴다
+// (「일정」 쪽 할일과 규칙이 같아야 한다. 두 벌이면 반드시 어긋난다).
 
 export async function setTodoStatus(ids, status) {
   const list = Array.isArray(ids) ? ids : [ids];

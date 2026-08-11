@@ -18,10 +18,17 @@ function missing(error) {
 
 export async function listRoutines() {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("todo_routines")
-    .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, active, sort")
+    .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, checklist, active, sort")
     .order("sort", { ascending: true });
+  if (missing(error)) {
+    // 0117 전이면 하위목록 칸 없이
+    ({ data, error } = await supabase
+      .from("todo_routines")
+      .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, active, sort")
+      .order("sort", { ascending: true }));
+  }
   if (missing(error)) return { rows: [], error: SQL };
   if (error) return { rows: [], error: error.message };
   return { rows: data || [], error: null };
@@ -48,6 +55,9 @@ function clean(patch) {
     todo_category_id: patch.todo_category_id || null,
     priority: num(patch.priority, 0, 2) ?? 0,
     note: (patch.note || "").trim() || null,
+    // 하위목록 — 한 줄에 하나. 여기 적으면 생기는 할일마다 그대로 복사된다 (0117)
+    checklist:
+      (patch.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean).join("\n") || null,
     active: patch.active !== false,
   };
 }
@@ -69,15 +79,29 @@ export async function saveRoutine(id, patch) {
 
   const supabase = createClient();
   if (id) {
-    const { error } = await supabase.from("todo_routines").update(row).eq("id", id);
+    let { error } = await supabase.from("todo_routines").update(row).eq("id", id);
+    if (missing(error)) {
+      // 0117 전이면 하위목록 없이 — 표 자체(0082)가 없는 것과는 다른 오류다
+      const { checklist: _c, ...noChecklist } = row;
+      ({ error } = await supabase.from("todo_routines").update(noChecklist).eq("id", id));
+      if (!error && row.checklist) {
+        return { error: "하위목록을 적으려면 설정 → Supabase SQL 에서 0117 을 먼저 실행해주세요." };
+      }
+    }
     if (missing(error)) return { error: SQL };
     if (error) return { error: error.message };
   } else {
     const { data: last } = await supabase
       .from("todo_routines").select("sort").order("sort", { ascending: false }).limit(1);
-    const { error } = await supabase
+    let { error } = await supabase
       .from("todo_routines")
       .insert({ ...row, sort: (last?.[0]?.sort ?? 0) + 10 });
+    if (missing(error)) {
+      const { checklist: _c, ...noChecklist } = row;
+      ({ error } = await supabase
+        .from("todo_routines")
+        .insert({ ...noChecklist, sort: (last?.[0]?.sort ?? 0) + 10 }));
+    }
     if (missing(error)) return { error: SQL };
     if (error) return { error: error.message };
   }
@@ -112,10 +136,17 @@ export async function deleteRoutine(id) {
  */
 export async function syncRoutines() {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("todo_routines")
-    .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, active, created_at")
+    .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, checklist, active, created_at")
     .eq("active", true);
+  if (missing(error)) {
+    // 0117 전이면 하위목록 칸 없이
+    ({ data, error } = await supabase
+      .from("todo_routines")
+      .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, active, created_at")
+      .eq("active", true));
+  }
   if (error) return { error: missing(error) ? SQL : error.message, added: 0 };
 
   const rules = data || [];
@@ -137,7 +168,13 @@ export async function syncRoutines() {
     .map((w) => ({ ...w, kind: "todo", status: "open" }));
   if (rows.length === 0) return { error: null, added: 0 };
 
-  const { error: insErr } = await supabase.from("tasks").insert(rows);
+  let { error: insErr } = await supabase.from("tasks").insert(rows);
+  if (missing(insErr)) {
+    // 0117 전이면 하위목록 없이 (tasks 에 그 칸이 아직 없다)
+    ({ error: insErr } = await supabase
+      .from("tasks")
+      .insert(rows.map(({ checklist: _c, ...r }) => r)));
+  }
   if (insErr) return { error: insErr.message, added: 0 };
   return { error: null, added: rows.length };
 }

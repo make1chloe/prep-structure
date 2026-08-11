@@ -13,6 +13,28 @@ PORT=55433
 
 command -v initdb >/dev/null || { echo "postgres 가 없어 건너뜁니다"; exit 0; }
 
+# **SETUP_ALL.sql 이 마이그레이션 폴더보다 오래됐으면 안 된다.**
+#
+# 손으로 붙이다 0041·0052 뒤죽박죽이 났던 자리라 build-setup-sql.mjs 로
+# 다시 찍어내게 했는데(스크립트 안내문에도 적혀 있다), **막상 새 마이그레이션을
+# 넣고 그 스크립트를 안 돌리는 일이 실제로 있었다** (2026-08-11, 0115~0117
+# 세 개가 몇 시간 동안 SETUP_ALL 에 없이 커밋됐다) — 아래 3번 돌리기가
+# "통과" 로 뜨는데 사실은 **새 마이그레이션을 한 번도 안 돌려본 것**이었다.
+# 검사가 거짓으로 통과하면 검사가 없는 것보다 나쁘다.
+#
+# 합본 전체를 다시 찍어 견주지 않는다 — 머리말에 오늘 날짜가 박혀서
+# (build-setup-sql.mjs) 어제 찍은 파일은 **내용이 같아도 매일 달라 보인다.**
+# 대신 **가장 최근 마이그레이션 번호가 합본 안에 있는지**만 본다 — 놓친
+# 것을 잡아내는 데는 이걸로 충분하다.
+echo "== SETUP_ALL.sql 이 최신인가 =="
+LATEST=$(ls supabase/migrations | sort | tail -1 | cut -c1-4)
+if ! grep -q "${LATEST}_" supabase/SETUP_ALL.sql; then
+  echo "  ✗ 마이그레이션 ${LATEST} 이 합본에 없습니다."
+  echo "    node scripts/build-setup-sql.mjs 를 돌리고 다시 커밋해주세요."
+  exit 1
+fi
+echo "  ${LATEST} 까지 들어 있습니다"
+
 cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
 trap cleanup EXIT
 

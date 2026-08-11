@@ -20,7 +20,7 @@ import { WEEK_ORDER as DOW } from "@/lib/day";
 const BLANK = {
   title: "", repeat_kind: "monthly", dows: [], day_of_month: "",
   month: "", lead_days: 0, lead_units: 2, book_area: "",
-  todo_category_id: "", priority: 0, note: "", active: true,
+  todo_category_id: "", priority: 0, note: "", checklist: "", active: true,
 };
 
 export default function RoutineBox({ rows = [], categories = [], error = null }) {
@@ -49,6 +49,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
       todo_category_id: r.todo_category_id || "",
       priority: r.priority ?? 0,
       note: r.note || "",
+      checklist: r.checklist || "",
       active: r.active !== false,
     });
     setOpen(true);
@@ -108,6 +109,11 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                   <b>{r.title}</b>{" "}
                   <span className="muted">{describe(r)}</span>
                   {r.active === false && <span className="tag tag-muted" style={{ marginLeft: 4 }}>멈춤</span>}
+                  {r.checklist && (
+                    <span className="hint" style={{ marginLeft: 4 }}>
+                      · 하위목록 {r.checklist.split("\n").filter(Boolean).length}개
+                    </span>
+                  )}
                 </span>
                 <button className="btn btn-ghost btn-sm" onClick={() => startEdit(r)} disabled={pending}>
                   고치기
@@ -276,7 +282,25 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                   </label>
                 </div>
 
-                <div className="row" style={{ gap: 6 }}>
+                {/**
+                  * **하위목록** (원장님, 2026-08-11 — 「할일의 하위목록을
+                  * 만들 수 있어? 되풀이 할일 포함」 → 체크리스트형).
+                  * 여기 적으면 이 규칙으로 생기는 할일마다 같은 목록이
+                  * 복사되어 들어가고, 그 뒤로는 각자 따로 체크된다.
+                  */}
+                <div className="field" style={{ marginTop: 8 }}>
+                  <label className="label">하위목록 (한 줄에 하나 · 생기는 할일마다 복사됩니다)</label>
+                  <textarea
+                    className="input input-sm"
+                    rows={3}
+                    style={{ whiteSpace: "pre-wrap" }}
+                    placeholder={"예)\n청구서 뽑기\n문자 발송\n미납자 확인"}
+                    value={draft.checklist}
+                    onChange={(e) => setDraft({ ...draft, checklist: e.target.value })}
+                  />
+                </div>
+
+                <div className="row" style={{ gap: 6, marginTop: 8 }}>
                   <button className="btn btn-primary btn-sm" onClick={save} disabled={pending}>
                     저장
                   </button>

@@ -42,6 +42,9 @@ export async function addTask(formData) {
     deliver_class_id: clean(formData, "deliver_class_id"),
     deliver_school: clean(formData, "deliver_school"),
     deliver_grade: clean(formData, "deliver_grade"),
+    // 하위목록 — 한 줄에 하나 (0117)
+    checklist: (formData.get("checklist") || "")
+      .toString().split("\n").map((s) => s.trim()).filter(Boolean).join("\n") || null,
     created_by: user?.id || null,
   };
   // 학생 지목 · 학교 연결 (0077). 칸이 없는 DB 면 그것만 빼고 넣는다.
@@ -56,11 +59,17 @@ export async function addTask(formData) {
   };
   let { error } = await supabase.from("tasks").insert({ ...row, ...extra });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    await supabase.from("tasks").insert(row);
+    // 0117 전이면 하위목록 칸이 없다
+    const { checklist: _c, ...noChecklist } = row;
+    ({ error } = await supabase.from("tasks").insert({ ...noChecklist, ...extra }));
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const { checklist: _c2, ...noChecklist2 } = row;
+    await supabase.from("tasks").insert(noChecklist2);
   }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0066 전이면 비공개 칸이 없다
-    const { private: _p, ...bare } = row;
+    const { private: _p, checklist: _c3, ...bare } = row;
     await supabase.from("tasks").insert(bare);
   }
   revalidatePath("/tasks");
@@ -77,6 +86,12 @@ export async function updateTask(id, patch) {
   ].forEach((k) => {
     if (k in (patch || {})) row[k] = (patch[k] ?? "").toString().trim() || null;
   });
+  // 하위목록 — 이름을 고치면(줄 내용이 바뀌면) 그 줄의 체크는 떨어진다.
+  // checklist_done 은 글자로 맞추므로, 이제 없는 줄의 체크는 자연히 안 보인다.
+  if ("checklist" in (patch || {})) {
+    row.checklist =
+      (patch.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean).join("\n") || null;
+  }
   ["class_id", "deliver_class_id", "assignee_id"].forEach((k) => {
     if (k in (patch || {})) row[k] = patch[k] || null;
   });
@@ -87,13 +102,48 @@ export async function updateTask(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("tasks").update(row).eq("id", id);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    const { private: _p, ...noPriv } = row;
+    // 0117 전이면 하위목록 칸이 없다
+    const { checklist: _c, ...noChecklist } = row;
+    ({ error } = await supabase.from("tasks").update(noChecklist).eq("id", id));
+    if (!error && "checklist" in row) {
+      return { error: "하위목록을 적으려면 설정 → Supabase SQL 에서 0117 을 먼저 실행해주세요." };
+    }
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const { private: _p, checklist: _c2, ...noPriv } = row;
     ({ error } = await supabase.from("tasks").update(noPriv).eq("id", id));
   }
   revalidatePath("/tasks");
   revalidatePath("/today");
   revalidatePath("/me");
   return ok(error);
+}
+
+/**
+ * 하위목록 한 줄을 체크·해제한다 (0117).
+ *
+ * **글자로 맞춘다** — checklist_done 은 체크된 줄의 글자 그대로를 담은
+ * 배열이다. 자리(순서)로 맞추면 목록 순서를 바꿨을 때 엉뚱한 줄이
+ * 체크된 것처럼 보인다.
+ */
+export async function toggleChecklistLine(taskId, line, checked) {
+  if (!taskId || !line) return { error: "id 없음" };
+  const supabase = createClient();
+  const { data: cur, error: readErr } = await supabase
+    .from("tasks").select("checklist_done").eq("id", taskId).maybeSingle();
+  if (readErr) {
+    if (readErr.code === "42703" || readErr.code === "PGRST204") {
+      return { error: "설정 → Supabase SQL 에서 0117 을 먼저 실행해주세요." };
+    }
+    return { error: readErr.message };
+  }
+  const had = new Set(cur?.checklist_done || []);
+  if (checked) had.add(line); else had.delete(line);
+  const { error } = await supabase
+    .from("tasks").update({ checklist_done: [...had] }).eq("id", taskId);
+  revalidatePath("/tasks");
+  revalidatePath("/today");
+  return { error: error ? error.message : null };
 }
 
 export async function setTaskStatus(ids, status) {

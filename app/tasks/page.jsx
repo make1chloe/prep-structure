@@ -401,12 +401,20 @@ export default async function TasksPage({ searchParams }) {
 
     const TODO_COLS =
       "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id, category, source";
-    // 0113 전이면 started_at 이 없다 — 그때는 칸반이 두 칸으로 선다
+    // 0117 전이면 하위목록 칸이 없다
     let { data, error } = await supabase
       .from("tasks")
-      .select(`${TODO_COLS}, auto_key, started_at, done_at`)
+      .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
       .eq("kind", "todo")
       .order("due_on", { ascending: true });
+    // 0113 전이면 started_at 이 없다 — 그때는 칸반이 두 칸으로 선다
+    if (error) {
+      ({ data, error } = await supabase
+        .from("tasks")
+        .select(`${TODO_COLS}, auto_key, started_at, done_at`)
+        .eq("kind", "todo")
+        .order("due_on", { ascending: true }));
+    }
     if (error) {
       ({ data, error } = await supabase
         .from("tasks")

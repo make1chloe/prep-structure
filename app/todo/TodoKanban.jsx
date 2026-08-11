@@ -123,6 +123,12 @@ export default function TodoKanban({
           {cat && <span className={`tag tag-${cat.color || "muted"}`}>{cat.name}</span>}
           {/* 루틴이 만든 것 — 저쪽 앱에는 없는 갈래라 티를 내야 한다 */}
           {t.auto_key && <span className="tag tag-muted" title="앱이 만든 할일입니다">자동</span>}
+          {/* 하위목록 진행 — 체크는 목록 화면에서 (칸반은 카드가 작아 자리가 없다) */}
+          {t.checklist && (() => {
+            const n = t.checklist.split("\n").filter(Boolean).length;
+            const doneN = (t.checklist_done || []).length;
+            return <span className="tag tag-muted">{doneN}/{n}</span>;
+          })()}
         </div>
         <div
           style={{

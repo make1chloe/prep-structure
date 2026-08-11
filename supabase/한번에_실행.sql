@@ -24,7 +24,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-09 · 0001~0114 · 113개)
+--   (2026-08-11 · 0001~0117 · 116개)
 -- ============================================================
 
 -- ─────────── 0008_homework_unit.sql ───────────
@@ -6640,3 +6640,107 @@ grant execute on function public.school_names() to anon, authenticated;
 -- 화면이 이 파일이 돌았는지 알 수 있게
 create or replace function public.school_names_on()
 returns boolean language sql immutable as $$ select true $$;
+
+-- ─────────── 0115_school_homepage.sql ───────────
+-- ============================================================
+-- 0115. 학교 홈페이지 주소 — 나이스에 없는 일정을 거기서 가져오려고
+--
+-- 원장님 (2026-08-10) — 「나이스 말고 학교 홈페이지에 등록된 내용으로
+-- 기록할 수 없을까? 학교 홈페이지랑 다르다 나이스가」
+-- 「학교 홈페이지를 넣어놓고 확인해서 긁어오게 할 수는 없어?」
+--
+-- ── 왜 두 곳을 다 봐야 하는가 ───────────────────────────
+--
+-- 학교는 일정을 **두 군데에 따로 적는다** —
+--   나이스(교육행정정보시스템)  우리 앱이 받아오는 곳
+--   학교 홈페이지(icems 등)     학부모가 보는 곳
+--
+-- 두 곳을 같은 사람이 같은 날 채우지 않는다. 그래서 시험 날짜가 홈페이지엔
+-- 있는데 나이스엔 없는 일이 실제로 생겼다 (박문중, 2026-08-10).
+-- 나이스에 없으면 우리 앱에는 회차가 안 생기고, 그 학교 아이들은 대비
+-- 자료도 · 결석 예상도 · 성적 자리도 없이 시험을 본다.
+--
+-- 그래서 학교마다 **홈페이지 학사일정 주소**를 적어둘 자리를 만든다.
+-- 주소가 있으면 앱이 그 페이지를 받아 읽어 「나이스엔 없는데 홈페이지엔
+-- 있는 시험」 을 짚어준다.
+--
+-- **자동으로 넣지는 않는다.** 남의 홈페이지 모양은 언제든 바뀌고, 잘못
+-- 읽은 것을 조용히 회차로 만들면 그게 더 나쁘다. 읽은 것을 보여드리고
+-- 원장님이 고르신 것만 넣는다.
+-- ============================================================
+
+alter table public.schools
+  add column if not exists homepage text;
+
+comment on column public.schools.homepage is
+  '학교 홈페이지 학사일정 주소. 나이스에 없는 일정을 여기서 찾아본다 (0115)';
+
+-- 옛 이름(0076 전)으로 남아 있는 곳도 같이
+do $$
+begin
+  if to_regclass('public.neis_schools') is not null then
+    execute 'alter table public.neis_schools add column if not exists homepage text';
+  end if;
+end $$;
+
+-- 이 SQL 이 돌았는지 화면이 알아보게 (다른 마커들과 같은 모양)
+create or replace function public.school_homepage_on()
+returns boolean language sql stable as $$ select true $$;
+
+grant execute on function public.school_homepage_on() to authenticated;
+
+-- ─────────── 0116_homework_tool.sql ───────────
+-- 0116: 학습 항목의 준비물 — 아이가 「무엇으로」 하는지
+--
+-- 원장님 (2026-08-11) — 「툴이 교재인지 클래스카드인지, 노트인지 표시해줄 수
+-- 있지. 물론 아이에게 말이야」
+--
+-- 영역(단어·독해·문법)은 분류 칸이 말해주고, 어느 책 몇 쪽인지는 단원이
+-- 말해준다. 그런데 **무엇을 펴야 하는지** — 교재인지, 클래스카드 앱인지,
+-- 노트인지 — 는 어디에도 없어서 아이가 매번 물어봤다.
+--
+-- 항목에 한 번만 적어두면 그 숙제가 나갈 때마다 아이 화면에 따라붙는다
+-- (같은 값을 두 번 입력하지 않는다 — 원칙 1).
+
+alter table public.homework_items
+  add column if not exists tool text;
+
+comment on column public.homework_items.tool is
+  '준비물 — 아이가 무엇으로 하는 숙제인가. 교재 · 클래스카드 · 노트 · 프린트 …';
+
+-- 들어갔는지 화면이 물어보는 표식 (설정 → Supabase 의 「지금 DB 상태」)
+create or replace function public.homework_tool_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.homework_tool_on() to authenticated;
+
+-- ─────────── 0117_task_checklist.sql ───────────
+-- 0117: 할일 하위목록 (체크리스트형)
+--
+-- 원장님 (2026-08-11) — 「할일의 하위목록을 만들 수 있어? 되풀이 할일 포함」
+-- → 「체크리스트형 (추천)」 을 고르심: 목록을 적고 하나씩 체크만, 마감일·
+-- 담당자는 따로 없음, 되풀이 할일에도 그대로 적용.
+--
+-- 숙제 항목의 체크리스트(homework_items.checklist)와 같은 모양이다 —
+-- 한 줄에 하나씩 적고, 체크는 그 줄의 글자로 표시한다.
+--
+-- tasks.parent_id 라는 칸이 이미 있지만(0020) 화면이 한 번도 쓴 적이
+-- 없다 — 「진짜 하위 할일」(담당자·마감일 따로) 로 가는 자리였는데,
+-- 이번엔 그 방식을 안 쓴다. 다음에 진짜 하위 할일이 필요해지면 그때 쓴다.
+
+alter table public.tasks
+  add column if not exists checklist text,
+  add column if not exists checklist_done text[] not null default '{}';
+
+comment on column public.tasks.checklist is
+  '하위목록 — 한 줄에 하나. 담당자·마감일은 따로 없다 (숙제 체크리스트와 같은 모양)';
+comment on column public.tasks.checklist_done is
+  '체크된 줄의 글자 그대로. checklist 의 줄과 내용으로 맞춘다 (순서 말고)';
+
+-- 되풀이 할일 규칙에도 같은 칸 — 여기 적어두면 매번 생기는 할일마다
+-- 같은 목록이 복사되어 들어간다 (그 뒤로는 각자 따로 체크된다)
+alter table public.todo_routines
+  add column if not exists checklist text;
+
+create or replace function public.task_checklist_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.task_checklist_on() to authenticated;

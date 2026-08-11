@@ -7,7 +7,7 @@ import {
   addCategory, deleteCategory,
 } from "./actions";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
-import { moveKind } from "@/app/tasks/actions";
+import { moveKind, toggleChecklistLine } from "@/app/tasks/actions";
 import TodoKanban from "./TodoKanban";
 import { PRIORITY } from "./priority";
 
@@ -476,6 +476,17 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                       자동
                     </span>
                   )}
+                  {/* 하위목록 진행 — 원장님, 2026-08-11 「할일의 하위목록을
+                      만들 수 있어? 되풀이 할일 포함」 (0117) */}
+                  {t.checklist && (() => {
+                    const lines = t.checklist.split("\n").filter(Boolean);
+                    const doneN = lines.filter((l) => (t.checklist_done || []).includes(l)).length;
+                    return (
+                      <span className={`tag ${doneN === lines.length ? "tag-mint" : "tag-muted"}`}>
+                        {doneN}/{lines.length}
+                      </span>
+                    );
+                  })()}
                   <span className="spacer" />
                   <button
                     className="btn btn-ghost btn-sm"
@@ -490,6 +501,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                         due_time: (t.due_time || "").slice(0, 5),
                         no_due: !!t.no_due,
                         note: t.note || "",
+                        checklist: t.checklist || "",
                       });
                     }}
                   >
@@ -499,6 +511,33 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
 
                 {!editing && t.note && (
                   <div className="hint" style={{ padding: "0 16px 10px 78px" }}>{t.note}</div>
+                )}
+
+                {/* **하위목록 — 누르면 그 자리에서 체크된다** (0117).
+                    담당자·마감일은 따로 없다, 목록을 적고 하나씩 체크만. */}
+                {!editing && t.checklist && (
+                  <div className="stack" style={{ gap: 3, padding: "0 16px 10px 78px" }}>
+                    {t.checklist.split("\n").filter(Boolean).map((line) => {
+                      const on = (t.checklist_done || []).includes(line);
+                      return (
+                        <label
+                          key={line}
+                          className="row"
+                          style={{ gap: 6, alignItems: "center", cursor: "pointer", fontSize: 13 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={pending}
+                            onChange={(e) => run(() => toggleChecklistLine(t.id, line, e.target.checked))}
+                          />
+                          <span style={{ textDecoration: on ? "line-through" : "none", opacity: on ? 0.6 : 1 }}>
+                            {line}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
 
                 {editing && (
@@ -547,6 +586,18 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                       <label className="label">메모</label>
                       <textarea className="input input-sm" rows={2} value={draft.note}
                         onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
+                    </div>
+                    {/* 하위목록 — 한 줄에 하나, 담당자·마감일은 따로 없다 (0117) */}
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">하위목록 (한 줄에 하나)</label>
+                      <textarea
+                        className="input input-sm"
+                        rows={3}
+                        style={{ whiteSpace: "pre-wrap" }}
+                        placeholder={"예)\n청구서 뽑기\n문자 발송\n미납자 확인"}
+                        value={draft.checklist}
+                        onChange={(e) => setDraft({ ...draft, checklist: e.target.value })}
+                      />
                     </div>
                     <div className="row" style={{ gap: 6, marginTop: 10 }}>
                       <button className="btn btn-primary btn-sm" disabled={pending}
