@@ -178,9 +178,11 @@ export default function RequestInbox({ requests = [] }) {
                 onClick={() => {
                   const why = reply[r.id]?.trim()
                     || (window.prompt(
-                      "조정이 필요한 까닭을 적어주세요.\n"
+                      "무엇이 어떻게 필요한지 적어주세요.\n"
                       + "적으신 말이 폰 알림과 화면에 그대로 나갑니다.\n\n"
-                      + "예) 그날 보강이 꽉 차서, 금요일 5시로 와줄 수 있나요?"
+                      + (r.kind === "absence" || r.kind === "makeup"
+                        ? "예) 그날 보강이 꽉 차서, 금요일 5시로 와줄 수 있나요?"
+                        : "예) 사진이 잘려서 안 보여요. 다시 찍어서 보내줄래요?")
                     ) || "").trim();
                   if (!why) return;   // 사유 없이는 안 나간다
                   act(r.id, false, why);

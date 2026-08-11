@@ -209,14 +209,24 @@ export async function handleRequest(id, accept, reply, makeup) {
        * 전에는 확인이든 조정이든 제목이 「확인했습니다」 라서, 알림만 보면
        * 다 끝난 일로 읽혔다 — 열어봐야 하는 쪽인데 아무도 안 열었다.
        * 사유(답장)를 미리보기에 그대로 싣는다.
+       *
+       * **「일정 조정」 이라고 못 박지 않는다** (원장님, 2026-08-11 — 「제출한
+       * 사진에 대해 조정필요 썼는데 일정조정필요라고 떴어」). 조정필요는
+       * 사진·질문·전달에도 누른다 — 결석·보강일 때만 「일정」 이라 하고,
+       * 나머지는 무엇에 대한 것인지(갈래)를 제목에 싣는다.
        */
+      const sched = req.kind === "absence" || req.kind === "makeup";
       await pushToFamilies([req.student_id], {
-        title: accept ? "✅ 확인했습니다" : "⚠️ 일정 조정이 필요해요",
+        title: accept
+          ? "✅ 확인했습니다"
+          : sched
+            ? "⚠️ 일정 조정이 필요해요"
+            : `⚠️ ${KIND[req.kind] || "알림"} — 확인이 필요해요`,
         body:
           (reply || "").trim().slice(0, 90) ||
           (accept
             ? `${KIND[req.kind] || "알림"} 확인했습니다.`
-            : "선생님이 일정 조정을 요청했어요. 열어서 확인해주세요."),
+            : "선생님 답장을 열어서 확인해주세요."),
         url: "/me",
       }, "all");
     } catch {

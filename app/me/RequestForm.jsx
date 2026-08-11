@@ -155,8 +155,12 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                 <span className="tag tag-muted">취소함</span>
               ) : r.status === "declined" ? (
                 /* **조정필요는 눈에 띄어야 한다** (원장님, 2026-08-11 — 「본문
-                   확인했을때도 좀더 눈에 띄게 표시해줘. 애들은 안봐」) */
-                <span className="tag tag-amber">⚠️ 조정 필요</span>
+                   확인했을때도 좀더 눈에 띄게 표시해줘. 애들은 안봐」).
+                   「일정 조정」 은 결석·보강 이야기다 — 사진·질문에 누른 것까지
+                   일정이라 하면 딴 소리가 된다 (같은 날 두 번째 말씀) */
+                <span className="tag tag-amber">
+                  {r.kind === "absence" || r.kind === "makeup" ? "⚠️ 조정 필요" : "⚠️ 확인 필요"}
+                </span>
               ) : (
                 <span className="tag tag-mint">제출 완료</span>
               )}
