@@ -271,7 +271,9 @@ export async function listSchools() {
   const COLS = "id, name, atpt_code, schul_code, kind, active";
   let { data, error } = await supabase
     .from(await schoolTable(supabase))
-    .select(`${COLS}, atpt_name, address`)
+    // homepage 를 빠뜨려서 「주소를 먼저 넣어주세요」 가 계속 떴다 (2026-08-11).
+    // 적어두는 곳과 읽는 곳이 어긋나면 조용히 「없는 것」 이 된다.
+    .select(`${COLS}, atpt_name, address, homepage`)
     .order("name", { ascending: true });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data, error } = await supabase
@@ -1444,7 +1446,7 @@ export async function peekNeis(from, to, schoolIds = null) {
  *
  * 아무것도 저장하지 않는다.
  */
-export async function peekSchoolSite(schoolId, from, to) {
+export async function peekSchoolSite(schoolId, from, to, typed = "") {
   const supabase = createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
@@ -1453,7 +1455,13 @@ export async function peekSchoolSite(schoolId, from, to) {
   if (sErr) return { rows: [], error: sErr };
   const school = (schools || []).find((s) => s.id === schoolId);
   if (!school) return { rows: [], error: "학교를 못 찾았어요." };
-  const urls = splitUrls(school.homepage);
+  /**
+   * **화면에 적힌 주소를 그대로 쓴다.** 적어두는 곳(update)과 읽는 곳(select)이
+   * 어긋나면 「주소를 먼저 넣어주세요」 가 계속 뜬다 — 실제로 그랬다
+   * (listSchools 가 homepage 를 안 골라왔다, 2026-08-11). 화면에 있는 것을
+   * 그대로 받으면 저장이 되든 안 되든 읽기는 된다.
+   */
+  const urls = splitUrls(typed).length ? splitUrls(typed) : splitUrls(school.homepage);
   if (urls.length === 0) return { rows: [], error: "이 학교의 홈페이지 주소를 먼저 넣어주세요." };
 
   const year = Number((from || "").slice(0, 4)) || null;
@@ -1523,7 +1531,85 @@ export async function peekSchoolSite(schoolId, from, to) {
   }
 
   const truncated = queue.length > 0;
-  const inRange = rowsAll.sort((a, b) => a.date.localeCompare(b.date));
+
+  // 한 화면도 못 불렀으면 그것이 원인이다 — 「일정이 없다」 로 보이면 안 된다
+  if (read.length > 0 && read.every((r) => r.error)) {
+    return {
+      rows: [],
+      read,
+      error: `학교 홈페이지를 부르지 못했어요 (${read[0].error}). `
+        + `아래 「붙여넣기」 로 하시면 이런 일이 없습니다.`,
+    };
+  }
+
+  const judged = await judgeSiteRows(supabase, school, from, to, rowsAll);
+  return {
+    error: null,
+    school: school.name,
+    urls,
+    /** 무엇을 읽었나 — 「2학기 화면까지 봤는지」 를 원장님이 눈으로 확인하신다 */
+    read,
+    /** 따라갈 수 없던 단추 (자바스크립트 단추) */
+    blocked,
+    truncated,
+    unread,
+    ...judged,
+  };
+}
+
+/**
+ * **눈에 보이는 것을 그대로 붙여넣는다** (원장님, 2026-08-11 — 「이 방식은
+ * 오류가 많을 거 같음」).
+ *
+ * 맞는 말이다. 주소로 긁어오는 길에는 어긋날 곳이 많다 —
+ * 주소가 학기마다 다르고 · 단추가 자바스크립트고 · 로그인을 걸어두기도 하고 ·
+ * 우리 서버(Vercel)가 그 학교를 못 부를 수도 있다. 하나라도 어긋나면 빈 화면이다.
+ *
+ * **브라우저는 이미 그 화면을 다 그려 놓았다.** 그러니 원장님이 학사일정 표를
+ * 끌어서 복사해 붙여넣으시면, 위의 어긋날 곳이 **전부 사라진다** — 2학기를
+ * 누르셨든 로그인을 하셨든 눈에 보이는 것이 그대로 들어온다.
+ *
+ * 읽는 규칙(readSchedule)·갈래(classifyExam)·나이스 비교는 **주소로 읽을 때와
+ * 똑같은 것 한 벌**을 쓴다. 두 벌이면 반드시 어긋난다.
+ */
+export async function peekSchoolText(schoolId, from, to, text = "") {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { rows: [], error: guard.error };
+
+  const { rows: schools, error: sErr } = await listSchools();
+  if (sErr) return { rows: [], error: sErr };
+  const school = (schools || []).find((s) => s.id === schoolId);
+  if (!school) return { rows: [], error: "학교를 못 찾았어요." };
+  if (!String(text || "").trim()) return { rows: [], error: "붙여넣은 글이 없어요." };
+
+  const year = Number((from || "").slice(0, 4)) || null;
+  // HTML 을 그대로 붙여넣으셔도 되게 — 태그가 있으면 걷어낸다
+  const clean = /<[a-z][^>]*>/i.test(text) ? toText(text) : String(text);
+  const got = readSchedule(clean, year);
+
+  const judged = await judgeSiteRows(supabase, school, from, to, got.rows);
+  return {
+    error: null,
+    school: school.name,
+    read: [{ label: "붙여넣은 글", count: judged.rows.length, found: got.rows.length }],
+    blocked: [],
+    unread: got.unread,
+    ...judged,
+  };
+}
+
+/**
+ * **읽은 줄을 견주어 본다** — 기간 안인가 · 무슨 갈래인가 · 나이스에도 있나 ·
+ * 이미 회차가 있나.
+ *
+ * 주소로 읽을 때와 붙여넣을 때가 **같은 자를 쓰게** 하려고 한곳에 둔다.
+ */
+async function judgeSiteRows(supabase, school, from, to, rows = []) {
+  // 고른 기간 밖은 버린다 (홈페이지는 한 해치를 다 그리기도 한다)
+  const inRange = (rows || [])
+    .filter((r) => (!from || r.date >= from) && (!to || r.date <= to))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   /**
    * **나이스에 없는 것이 무엇인가** — 이 화면의 존재 이유다.
@@ -1562,25 +1648,8 @@ export async function peekSchoolSite(schoolId, from, to) {
     };
   });
 
-  // 한 화면도 못 불렀으면 그것이 원인이다 — 「일정이 없다」 로 보이면 안 된다
-  if (read.length > 0 && read.every((r) => r.error)) {
-    return { rows: [], read, error: `학교 홈페이지를 부르지 못했어요: ${read[0].error}` };
-  }
-
-  return {
-    error: null,
-    school: school.name,
-    urls,
-    /** 무엇을 읽었나 — 「2학기 화면까지 봤는지」 를 원장님이 눈으로 확인하신다 */
-    read,
-    /** 따라갈 수 없던 단추 (자바스크립트 단추) */
-    blocked,
-    truncated,
-    rows: out,
-    unread,
-    /** 나이스는 못 물어봤을 수 있다 — 그러면 「비교 안 함」 이라고 말해준다 */
-    comparedToNeis: !!(key && school.schul_code),
-  };
+  /** 나이스는 못 물어봤을 수 있다 — 그러면 「비교 안 함」 이라고 말해준다 */
+  return { rows: out, comparedToNeis: !!(key && school.schul_code) };
 }
 
 /**

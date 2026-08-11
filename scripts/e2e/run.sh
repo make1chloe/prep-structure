@@ -71,5 +71,10 @@ E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/click.mjs || exit $?
 #   「기타」 뒤에 적어주신 글은 저장은 잘 되고 있었는데 상담 화면이 잃고
 #   있었다. 넣고 → 보고 → 수정창을 열어보는 데까지 가야 잡힌다.
 echo
-E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/apply-other.mjs
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/apply-other.mjs || exit $?
+
+# **학교 홈페이지에서 가져오기** (2026-08-11). 붙여넣은 표를 그대로 읽는지,
+# 나이스를 못 물어봤을 때 「다 있습니다」 라고 하지 않는지 — 화면으로 본다.
+echo
+OUT=/var/tmp node scripts/e2e/homepage-shot.mjs
 exit $?

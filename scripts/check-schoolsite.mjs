@@ -150,6 +150,34 @@ console.log("\n== 「2학기」 를 눌러야 나오는 학교 ==");
   eq(tabLinks(`<a href="/s?x=1">공지사항</a>`, "https://a.kr/s").go, [], "학기·월이 없으면 안 따라간다");
 }
 
+console.log("\n== 화면에서 복사해 붙여넣은 글 ==");
+/**
+ * 원장님, 2026-08-11 — 「이 방식은 오류가 많을 거 같음」. 맞는 말이라
+ * **붙여넣기**를 기본 길로 두었다. 브라우저 표를 끌어 복사하면 칸이 탭으로
+ * 갈라진 글이 된다 — 그 모양을 그대로 읽어야 한다.
+ */
+{
+  const pasted = [
+    "번호\t날짜\t내용",                                   // 표 머리 — 날짜가 없어 그냥 지나간다
+    "1\t2026-10-13\t2학기 중간고사",
+    "2\t10.13(월)~10.16(목)\t2학기 중간고사",             // 요일·기간이 붙은 모양
+    "3\t2026.12.08.~12.10.\t2학기 기말고사",              // 점으로 끝나는 모양
+    "4\t2026년 9월 21일\t재량휴업일",
+  ].join("\n");
+  const { rows } = readSchedule(pasted, 2026);
+  eq(rows.map((r) => `${r.date}${r.endDate ? `~${r.endDate}` : ""} ${r.title}`), [
+    "2026-10-13 2학기 중간고사",
+    "2026-10-13~2026-10-16 2학기 중간고사",
+    "2026-12-08~2026-12-10 2학기 기말고사",
+    "2026-09-21 재량휴업일",
+  ], "탭으로 갈린 표를 그대로 읽는다");
+}
+{
+  // 달력 칸을 복사하면 숫자만 있는 줄이 생긴다 — 날짜로 잘못 보면 안 된다
+  const { rows } = readSchedule("13 14 15 16 17\n2학기 중간고사", 2026);
+  eq(rows, [], "숫자만 늘어선 줄은 날짜가 아니다");
+}
+
 console.log("\n== 갈래는 앱과 같은 규칙으로 보나 ==");
 /**
  * 홈페이지에서 읽은 이름도 **나이스와 같은 자로** 재야 한다 — 두 벌이면
@@ -192,17 +220,45 @@ console.log("\n== 넣을 때 지키는 것 ==");
   ok(/blocked/.test(peek), "못 따라간 단추를 돌려준다");
   ok(/read\.every\(\(r\) => r\.error\)/.test(peek),
      "다 못 불렀으면 「일정이 없다」 가 아니라 못 불렀다고 말한다");
+  // 화면에 적힌 주소를 그대로 쓴다 — 적어두기(update)와 읽기(select)가 어긋나도
+  // 읽기는 되어야 한다 (listSchools 가 homepage 를 안 골라와서 막혔었다)
+  ok(/splitUrls\(typed\)/.test(peek), "화면에 적힌 주소를 그대로 쓴다");
+  ok(/select\(`\$\{COLS\}, atpt_name, address, homepage`\)/.test(act),
+     "학교를 읽을 때 homepage 도 같이 읽는다");
+
+  /**
+   * **붙여넣기** (원장님, 2026-08-11 — 「이 방식은 오류가 많을 거 같음」).
+   * 주소로 긁는 길과 **같은 자**를 써야 한다 — 두 벌이면 붙여넣은 것만 다른
+   * 갈래로 들어간다.
+   */
+  ok(/export async function peekSchoolText/.test(act), "붙여넣은 글에서 읽는 자리가 있다");
+  ok(/async function judgeSiteRows/.test(act), "견주어 보는 규칙이 한곳에 있다");
+  eq((act.match(/await judgeSiteRows\(/g) || []).length, 2,
+     "주소로 읽을 때와 붙여넣을 때가 같은 규칙을 쓴다");
+  const paste = act.slice(act.indexOf("export async function peekSchoolText"),
+                          act.indexOf("async function judgeSiteRows"));
+  ok(!/\.(insert|update|upsert|delete)\(/.test(paste), "붙여넣기도 아무것도 저장하지 않다");
+  ok(!/fetch\(/.test(paste), "붙여넣기는 남의 집을 부르지 않는다 (그래서 안 막힌다)");
 
   const box = readFileSync("app/schedule/HomepageBox.jsx", "utf8");
   ok(/res\.read\?\.length > 0/.test(box), "무엇을 읽었는지 보여준다");
   ok(/res\.blocked\?\.length > 0/.test(box), "못 따라간 단추를 알려준다");
   ok(/<textarea/.test(box), "주소를 여러 줄 넣을 수 있다");
+  // 붙여넣기가 **기본**이다 — 주소로 긁는 길은 어긋날 곳이 많다
+  ok(/useState\("paste"\)/.test(box), "붙여넣기가 기본 길이다");
+  ok(/peekSchoolText\(id, from, to, text\)/.test(box), "붙여넣은 글을 보낸다");
 
   // **자동으로 안 넣는다** — 잘못 읽은 것을 조용히 회차로 만들면 더 나쁘다
   ok(/고른 \$\{pick\.size\}개를 시험 회차로 넣기/.test(box), "고르신 것만 넣는다");
-  // 처음부터 골라두는 것은 「나이스에 없는 내신 시험」 뿐 — 나머지까지 켜두면 다 꺼야 한다
-  ok(/x\.kind === "school" && x\.inNeis === false && !x\.hasExam/.test(box),
-     "나이스에 없는 내신 시험만 미리 골라둔다");
+  /**
+   * 처음부터 골라두는 것은 **회차가 없는 내신 시험**뿐 — 나머지까지 켜두면 다
+   * 꺼야 한다. 나이스를 못 물어봤으면 inNeis 가 없는데(null), 그때 아무것도
+   * 안 골라주면 한 줄씩 켜야 한다 — 그래서 `!== true` 로 본다.
+   */
+  ok(/x\.kind === "school" && x\.inNeis !== true && !x\.hasExam/.test(box),
+     "회차가 없는 내신 시험을 미리 골라둔다");
+  // 안 물어보고 「나이스에 다 있습니다」 라고 하면 안 된다
+  ok(/!res\.comparedToNeis \? \(/.test(box), "나이스와 비교 안 했으면 그렇게 말한다");
   ok(/res\.unread\?\.length > 0/.test(box), "못 읽은 줄을 숨기지 않는다");
   ok(/나이스에 없는 내신 시험/.test(box), "나이스에 없는 것을 세어 보여준다");
 }
