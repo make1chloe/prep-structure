@@ -149,6 +149,7 @@ const CHECKS = [
   { id: "0115", label: "학교 홈페이지에서 일정 가져오기", rpc: "school_homepage_on" },
   { id: "0116", label: "학습 항목의 준비물 (교재·클래스카드·노트)", table: "homework_items", col: "tool" },
   { id: "0117", label: "할일 하위목록 (체크리스트)", rpc: "task_checklist_on" },
+  { id: "0118", label: "이해도 (집중도 옆에)", table: "daily_reports", col: "understanding" },
 
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.

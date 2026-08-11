@@ -101,7 +101,9 @@ export async function saveStudentDay(studentId, date, form) {
     student_id: studentId,
     date,
     attendance_kind: form.attendance || null,
+    // attitude 칸이 곧 **집중도**다 (0118 — 이름만 바뀌고 칸은 그대로)
     attitude: form.attitude || null,
+    understanding: form.understanding || null,
     word_correct: toInt(form.word_correct),
     word_total: toInt(form.word_total),
     sent_correct: toInt(form.sent_correct),
@@ -120,8 +122,17 @@ export async function saveStudentDay(studentId, date, form) {
     .select("id")
     .single();
   if (noColumn(repErr)) {
+    // 0118 전이면 이해도 없이
+    const { understanding: _ud, ...noUd } = row;
+    ({ data: report, error: repErr } = await supabase
+      .from("daily_reports")
+      .upsert(noUd, { onConflict: "student_id,date" })
+      .select("id")
+      .single());
+  }
+  if (noColumn(repErr)) {
     // 0099 전이면 단원평가 두 칸 없이
-    const { sent_unit: _su, sent_passed: _sp, ...noUnit } = row;
+    const { sent_unit: _su, sent_passed: _sp, understanding: _ud2, ...noUnit } = row;
     ({ data: report, error: repErr } = await supabase
       .from("daily_reports")
       .upsert(noUnit, { onConflict: "student_id,date" })
@@ -130,7 +141,7 @@ export async function saveStudentDay(studentId, date, form) {
   }
   if (noColumn(repErr)) {
     // 0050 전이면 학생공지도 없이
-    const { sent_unit: _su2, sent_passed: _sp2, notice_student: _ns, ...noSplit } = row;
+    const { sent_unit: _su2, sent_passed: _sp2, notice_student: _ns, understanding: _ud3, ...noSplit } = row;
     ({ data: report, error: repErr } = await supabase
       .from("daily_reports")
       .upsert(noSplit, { onConflict: "student_id,date" })

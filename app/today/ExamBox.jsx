@@ -11,7 +11,12 @@ import { scoreRaw } from "@/lib/wordTest";
  * 본 날 그 자리에서 적는다. 월간리포트에 그대로 들어간다.
  * 점수는 **틀린 개수**로 받는다 — 채점할 때 세는 것이 그쪽이다.
  */
-export default function ExamBox({ studentId, date, rows = [] }) {
+/**
+ * @param readOnly 적는 칸을 감춘다 — 이제 적는 자리는 **테스트 줄의 단원평가**
+ *   하나다 (2026-08-11, 「중복입력이 있어」). 여기는 지난 기록을 보여주고
+ *   지우는 것만 남는다. 두 군데에 적게 두면 같은 시험이 두 번 들어간다.
+ */
+export default function ExamBox({ studentId, date, rows = [], readOnly = false }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", wrong: "", total: "" });
   const [pending, startTransition] = useTransition();
@@ -57,7 +62,7 @@ export default function ExamBox({ studentId, date, rows = [] }) {
         </div>
       )}
 
-      {!open ? (
+      {readOnly ? null : !open ? (
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
           ＋ 단원평가 결과
         </button>

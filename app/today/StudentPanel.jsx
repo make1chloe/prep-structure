@@ -151,7 +151,9 @@ export default function StudentPanel({
   const r = row.report || {};
   const [form, setForm] = useState({
     attendance: row.status || "present",
+    // attitude 칸이 곧 **집중도**다 (0118 — 이름만 바뀌고 칸은 그대로)
     attitude: r.attitude || "",
+    understanding: r.understanding || "",
     word_correct: r.word_correct ?? "",
     // 전체 개수는 미리 채워둔다.
     //   1) 재원생에 적어둔 개수  2) 지난 수업에 내준 범위 단원의 단어 수
@@ -472,7 +474,8 @@ export default function StudentPanel({
     // 처음 그린 그대로면 담지 않는다 — 안 건드린 것까지 「적다 만 것」 이 되면
     // 열 때마다 되살릴지 물어보게 된다
     const touched =
-      form.attitude || form.word_correct !== "" || form.sent_correct !== "" ||
+      form.attitude || form.understanding ||
+      form.word_correct !== "" || form.sent_correct !== "" ||
       form.sent_unit || form.sent_passed !== "" ||
       form.own_progress || form.notice || form.notice_student ||
       Object.keys(marks).length > 0 || next.size > 0 || inClass.size > 0;
@@ -591,6 +594,119 @@ export default function StudentPanel({
         />
       )}
 
+      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
+      <div className="prow" style={{ alignItems: "center" }}>
+        <span className="plabel">등원</span>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
+          {[
+            ["phone", "핸드폰", row.phoneAt],
+            ["attend", "출석", row.attendAt],
+            ["homework", "숙제", row.homeworkAt],
+          ].map(([kind, label, at]) => (
+            <button
+              key={kind}
+              className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
+              disabled={pending}
+              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await setArrivalFor(row.student.id, date, kind, !at);
+                  if (res?.error) alert(res.error);
+                  router.refresh();
+                })
+              }
+            >
+              {at ? "✓ " : ""}
+              {label}
+              {at
+                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
+                : ""}
+            </button>
+          ))}
+          <span className="spacer" />
+          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
+              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
+          <span className="hint" style={{ fontSize: 12 }}>단어시험을 언제</span>
+          {[
+            ["start", "수업 시작에"],
+            ["end", "다 끝내고"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              className={`btn btn-sm ${wordWhen === k ? "btn-primary" : "btn-ghost"}`}
+              disabled={pending}
+              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
+              style={{ padding: "3px 10px" }}
+              onClick={() => {
+                setWordWhen(k);
+                startTransition(async () => {
+                  const res = await setArrival(row.student.id, date, { wordWhen: k });
+                  if (res?.error) alert(res.error);
+                  router.refresh();
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
+              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/students?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+          >
+            재원생 정보
+          </a>
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/me?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생에게 보이는 화면을 그대로 봅니다"
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+          >
+            학생 화면 보기
+          </a>
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/me?s=${row.student.id}&try=1`}
+            target="_blank"
+            rel="noreferrer"
+            title="로그아웃하지 않고 이 학생인 척 직접 눌러봅니다. 누른 것은 진짜로 기록되고, 그 화면에서 지울 수 있습니다."
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+          >
+            체험
+          </a>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            title="이 학생은 앞으로 계속 이렇게 봅니다"
+            style={{ padding: "3px 8px", fontSize: 11.5 }}
+            onClick={() =>
+              startTransition(async () => {
+                const res = await setWordWhenDefault(row.student.id, wordWhen);
+                if (res?.error) {
+                  alert(res.error);
+                  return;
+                }
+                alert("이 학생 기본값으로 저장했어요.");
+              })
+            }
+          >
+            기본값으로
+          </button>
+        </div>
+      </div>
+
+
       {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
       <SubmissionList rows={row.subs || []} items={items} />
 
@@ -688,9 +804,8 @@ export default function StudentPanel({
           성적표에 줄이 서면 오히려 지저분해진다.
           통과/재시험이 핵심이다. 원장님이 보시는 것은 점수가 아니라
           **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을 다섯 번 봤다). */}
-      {(form.sent_total !== "" || form.sent_unit) && (
-        <div className="prow">
-          <span className="plabel">단원평가</span>
+      <div className="prow">
+        <span className="plabel">단원평가</span>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input
               className="input input-sm"
@@ -722,6 +837,19 @@ export default function StudentPanel({
               </span>
             )}
           </div>
+      </div>
+
+      {/**
+        * 옛 「단원평가 상자」 (0031 · unit_exams) — **이제 적는 자리가 아니다**
+        * (원장님, 2026-08-11 — 「중복정보, 중복입력이 있어」). 같은 시험을
+        * 위 단원평가 줄과 여기 두 군데 적을 수 있었다. 적는 것은 위 한 곳으로
+        * 모으고, 여기는 이미 적어둔 기록을 보여주고 지우는 것만 남는다.
+        * 기록이 없으면 아예 안 그린다. 월간리포트는 두 쪽을 다 읽는다.
+        */}
+      {(row.exams || []).length > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>단원평가 기록</span>
+          <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} readOnly />
         </div>
       )}
 
@@ -882,23 +1010,160 @@ export default function StudentPanel({
         </div>
       </div>
 
+      {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
+        <div style={{ flex: 1 }}>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            {[...inClass].map((iid) => {
+              const sec = (row.secOf || {})[iid] || 0;
+              const doneAt = (row.doneRows || []).find(
+                (d) => d.homework_item_id === iid
+              )?.student_done_at;
+              return (
+                <span
+                  key={iid}
+                  className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
+                  title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
+                >
+                  {nameOf(iid) || "학습"}
+                  {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
+                </span>
+              );
+            })}
+            {inClass.size === 0 && (
+              <span className="hint">아직 정하지 않았어요.</span>
+            )}
+            <span className="spacer" />
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              title="교재에 정해둔 루틴에서 이 학생 차례를 그대로 채웁니다"
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await nextRoutine(row.student.id);
+                  if (res?.error) {
+                    alert(res.error);
+                    return;
+                  }
+                  if (res.steps.length === 0) {
+                    alert("이 학생 교재에는 아직 루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
+                    return;
+                  }
+                  setRoutine(res);
+                  setInClass(new Set([...inClass, ...res.inclass]));
+                  const n = new Set(next);
+                  res.home.forEach((x) => n.add(x));
+                  setNext(n);
+                  // 루틴이 **범위까지** 채운다. 항목만 채워주면 매번
+                  // 「그래서 몇 과였더라」 를 다시 찾아야 했다.
+                  // 이미 범위를 고른 숙제는 건드리지 않는다 — 손으로 정한 것이 먼저다.
+                  const u = res.itemUnits || {};
+                  if (Object.keys(u).length) {
+                    setNextUnits((cur) => {
+                      const m = { ...cur };
+                      Object.entries(u).forEach(([iid, v]) => {
+                        if ((m[iid]?.unitIds || []).length) return;
+                        m[iid] = { ...v, note: m[iid]?.note || "" };
+                      });
+                      return m;
+                    });
+                    Object.values(u).forEach((v) => loadBook(v.textbookId));
+                  }
+                })
+              }
+            >
+              ⟳ 루틴 다음
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
+              {openInClass ? "접기" : "고르기"}
+            </button>
+          </div>
+
+          {openInClass && (
+            <div className="chips" style={{ marginTop: 8 }}>
+              {items.map((i) => {
+                const on = inClass.has(i.id);
+                return (
+                  <button
+                    key={i.id}
+                    className={`chip ${on ? "on" : ""}`}
+                    onClick={() => {
+                      const n = new Set(inClass);
+                      on ? n.delete(i.id) : n.add(i.id);
+                      setInClass(n);
+                    }}
+                  >
+                    {i.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {routine && (
+            <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+              루틴에서 가져왔습니다 —{" "}
+              {routine.steps
+                .map(
+                  (s) =>
+                    `${s.book} ${s.no}/${s.total}${s.label ? ` ${s.label}` : ""}` +
+                    (s.unit ? ` · ${s.unit}` : s.unitDone ? " · 단원을 다 했어요" : "")
+                )
+                .join(" · ")}
+              . <b>저장하면 다음 단계로 넘어갑니다.</b>
+              {routine.steps.some((s) => s.unitDone) && (
+                <>
+                  {" "}
+                  <b>단원이 다 끝난 교재</b>가 있어요 — 회독을 넘기거나 다음 교재로 바꿔주세요.
+                </>
+              )}
+            </p>
+          )}
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+            고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
+            <b>학습 완료</b>를 누르면 여기 노랗게 바뀌고, 검사하시면 초록이 됩니다.
+          </p>
+        </div>
+      </div>
+
+
       {/* 사용중인 교재 · 단원 진도 (순서 무관 체크) */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
-        <div className="row" style={{ gap: 6, flex: 1 }}>
-          {myBooks.map((b) => (
-            <BookProgress key={b.id} studentId={row.student.id} book={b} />
-          ))}
-          {myBooks.length === 0 && (
-            <span className="hint" style={{ alignSelf: "center" }}>
-              배정된 교재가 없어요.
-            </span>
-          )}
-          <StudentBooks
-            studentId={row.student.id}
-            myBooks={myBooks}
-            textbooks={textbooks}
-          />
+        <div className="stack" style={{ gap: 6, flex: 1 }}>
+          <div className="row" style={{ gap: 6 }}>
+            {myBooks.map((b) => (
+              <BookProgress key={b.id} studentId={row.student.id} book={b} />
+            ))}
+            {myBooks.length === 0 && (
+              <span className="hint" style={{ alignSelf: "center" }}>
+                배정된 교재가 없어요.
+              </span>
+            )}
+            <StudentBooks
+              studentId={row.student.id}
+              myBooks={myBooks}
+              textbooks={textbooks}
+            />
+          </div>
+          {/* 진도 **메모**도 여기 — 따로 「메모」 행으로 떨어져 있어서 무슨
+              메모인지 몰랐다 (2026-08-11 「중복정보」 정리). 리포트의 {{진도}} 로 나간다 */}
+          <div className="row" style={{ gap: 6 }}>
+            <input
+              className="input input-sm" style={{ flex: 1, minWidth: 160 }}
+              placeholder={row.lastProgress ? `지난 수업: ${row.lastProgress}` : "진도 메모 (예: Unit 3 뒷부분만)"}
+              value={form.own_progress}
+              onChange={(e) => set("own_progress", e.target.value)}
+            />
+            {row.lastProgress && !form.own_progress && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => set("own_progress", row.lastProgress)}
+              >
+                지난 진도 가져오기
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1068,39 +1333,38 @@ export default function StudentPanel({
         </div>
       </div>
 
-      {/* 진도 · 태도 */}
-      <div className="prow">
-        <span className="plabel">메모</span>
-        <input
-          className="input input-sm" style={{ flex: 1, minWidth: 160 }}
-          placeholder={row.lastProgress ? `지난 수업: ${row.lastProgress}` : "진도 메모 (예: Unit 3 뒷부분만)"}
-          value={form.own_progress}
-          onChange={(e) => set("own_progress", e.target.value)}
-        />
-        {row.lastProgress && !form.own_progress && (
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => set("own_progress", row.lastProgress)}
-          >
-            지난 진도 가져오기
-          </button>
-        )}
-      </div>
-
-      <div className="prow">
-        <span className="plabel">태도</span>
-        <div className="row" style={{ gap: 4 }}>
-          {ATTITUDE.map((a) => (
-            <button
-              key={a.key}
-              className={`btn btn-sm ${form.attitude === a.key ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => set("attitude", form.attitude === a.key ? "" : a.key)}
-            >
-              {a.label}
-            </button>
-          ))}
+      {/**
+        * **집중도 · 이해도** (원장님, 2026-08-11 — 「태도를 집중도로 고치고
+        * 이해도 추가해줘」). 「태도」 는 말이 넓어서 떠든 것과 못 알아들은
+        * 것이 한 칸에 뭉개졌다. 집중도는 옛 attitude 칸 그대로(이름만 바뀜),
+        * 이해도는 0118 의 새 칸이다.
+        *
+        * 리포트에는 **고른 것만** 나간다 — 둘 다 안 고르면 그 줄 자체가 없다.
+        */}
+      {[
+        ["집중도", "attitude"],
+        ["이해도", "understanding"],
+      ].map(([label, key]) => (
+        <div className="prow" key={key}>
+          <span className="plabel">{label}</span>
+          <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+            {ATTITUDE.map((a) => (
+              <button
+                key={a.key}
+                className={`btn btn-sm ${form[key] === a.key ? "btn-primary" : "btn-ghost"}`}
+                onClick={() => set(key, form[key] === a.key ? "" : a.key)}
+              >
+                {a.label}
+              </button>
+            ))}
+            {!form.attitude && !form.understanding && key === "understanding" && (
+              <span className="hint" style={{ fontSize: 11.5 }}>
+                안 고르면 리포트에 안 나갑니다
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      ))}
 
       {/* 공지 — 받는 사람이 다르면 글도 달라야 한다.
           같은 일을 두 번 적지 않도록, 전달사항 한 줄로 둘 다 만든다. */}
@@ -1248,240 +1512,6 @@ export default function StudentPanel({
           </div>
         </div>
       )}
-
-      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
-      <div className="prow" style={{ alignItems: "center" }}>
-        <span className="plabel">등원</span>
-        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
-          {[
-            ["phone", "핸드폰", row.phoneAt],
-            ["attend", "출석", row.attendAt],
-            ["homework", "숙제", row.homeworkAt],
-          ].map(([kind, label, at]) => (
-            <button
-              key={kind}
-              className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
-              disabled={pending}
-              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
-              onClick={() =>
-                startTransition(async () => {
-                  const res = await setArrivalFor(row.student.id, date, kind, !at);
-                  if (res?.error) alert(res.error);
-                  router.refresh();
-                })
-              }
-            >
-              {at ? "✓ " : ""}
-              {label}
-              {at
-                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : ""}
-            </button>
-          ))}
-          <span className="spacer" />
-          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
-              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
-          <span className="hint" style={{ fontSize: 12 }}>단어시험을 언제</span>
-          {[
-            ["start", "수업 시작에"],
-            ["end", "다 끝내고"],
-          ].map(([k, label]) => (
-            <button
-              key={k}
-              className={`btn btn-sm ${wordWhen === k ? "btn-primary" : "btn-ghost"}`}
-              disabled={pending}
-              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
-              style={{ padding: "3px 10px" }}
-              onClick={() => {
-                setWordWhen(k);
-                startTransition(async () => {
-                  const res = await setArrival(row.student.id, date, { wordWhen: k });
-                  if (res?.error) alert(res.error);
-                  router.refresh();
-                });
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
-              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/students?s=${row.student.id}`}
-            target="_blank"
-            rel="noreferrer"
-            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
-          >
-            재원생 정보
-          </a>
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/me?s=${row.student.id}`}
-            target="_blank"
-            rel="noreferrer"
-            title="이 학생에게 보이는 화면을 그대로 봅니다"
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
-          >
-            학생 화면 보기
-          </a>
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/me?s=${row.student.id}&try=1`}
-            target="_blank"
-            rel="noreferrer"
-            title="로그아웃하지 않고 이 학생인 척 직접 눌러봅니다. 누른 것은 진짜로 기록되고, 그 화면에서 지울 수 있습니다."
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
-          >
-            체험
-          </a>
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={pending}
-            title="이 학생은 앞으로 계속 이렇게 봅니다"
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
-            onClick={() =>
-              startTransition(async () => {
-                const res = await setWordWhenDefault(row.student.id, wordWhen);
-                if (res?.error) {
-                  alert(res.error);
-                  return;
-                }
-                alert("이 학생 기본값으로 저장했어요.");
-              })
-            }
-          >
-            기본값으로
-          </button>
-        </div>
-      </div>
-
-      {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
-        <div style={{ flex: 1 }}>
-          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            {[...inClass].map((iid) => {
-              const sec = (row.secOf || {})[iid] || 0;
-              const doneAt = (row.doneRows || []).find(
-                (d) => d.homework_item_id === iid
-              )?.student_done_at;
-              return (
-                <span
-                  key={iid}
-                  className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
-                  title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
-                >
-                  {nameOf(iid) || "학습"}
-                  {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
-                </span>
-              );
-            })}
-            {inClass.size === 0 && (
-              <span className="hint">아직 정하지 않았어요.</span>
-            )}
-            <span className="spacer" />
-            <button
-              className="btn btn-sm"
-              disabled={pending}
-              title="교재에 정해둔 루틴에서 이 학생 차례를 그대로 채웁니다"
-              onClick={() =>
-                startTransition(async () => {
-                  const res = await nextRoutine(row.student.id);
-                  if (res?.error) {
-                    alert(res.error);
-                    return;
-                  }
-                  if (res.steps.length === 0) {
-                    alert("이 학생 교재에는 아직 루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
-                    return;
-                  }
-                  setRoutine(res);
-                  setInClass(new Set([...inClass, ...res.inclass]));
-                  const n = new Set(next);
-                  res.home.forEach((x) => n.add(x));
-                  setNext(n);
-                  // 루틴이 **범위까지** 채운다. 항목만 채워주면 매번
-                  // 「그래서 몇 과였더라」 를 다시 찾아야 했다.
-                  // 이미 범위를 고른 숙제는 건드리지 않는다 — 손으로 정한 것이 먼저다.
-                  const u = res.itemUnits || {};
-                  if (Object.keys(u).length) {
-                    setNextUnits((cur) => {
-                      const m = { ...cur };
-                      Object.entries(u).forEach(([iid, v]) => {
-                        if ((m[iid]?.unitIds || []).length) return;
-                        m[iid] = { ...v, note: m[iid]?.note || "" };
-                      });
-                      return m;
-                    });
-                    Object.values(u).forEach((v) => loadBook(v.textbookId));
-                  }
-                })
-              }
-            >
-              ⟳ 루틴 다음
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
-              {openInClass ? "접기" : "고르기"}
-            </button>
-          </div>
-
-          {openInClass && (
-            <div className="chips" style={{ marginTop: 8 }}>
-              {items.map((i) => {
-                const on = inClass.has(i.id);
-                return (
-                  <button
-                    key={i.id}
-                    className={`chip ${on ? "on" : ""}`}
-                    onClick={() => {
-                      const n = new Set(inClass);
-                      on ? n.delete(i.id) : n.add(i.id);
-                      setInClass(n);
-                    }}
-                  >
-                    {i.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {routine && (
-            <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
-              루틴에서 가져왔습니다 —{" "}
-              {routine.steps
-                .map(
-                  (s) =>
-                    `${s.book} ${s.no}/${s.total}${s.label ? ` ${s.label}` : ""}` +
-                    (s.unit ? ` · ${s.unit}` : s.unitDone ? " · 단원을 다 했어요" : "")
-                )
-                .join(" · ")}
-              . <b>저장하면 다음 단계로 넘어갑니다.</b>
-              {routine.steps.some((s) => s.unitDone) && (
-                <>
-                  {" "}
-                  <b>단원이 다 끝난 교재</b>가 있어요 — 회독을 넘기거나 다음 교재로 바꿔주세요.
-                </>
-              )}
-            </p>
-          )}
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
-            고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
-            <b>학습 완료</b>를 누르면 여기 노랗게 바뀌고, 검사하시면 초록이 됩니다.
-          </p>
-        </div>
-      </div>
-
-      {/* 단원평가 — 본 날 그 자리에서. 월간리포트에 그대로 들어간다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>단원평가</span>
-        <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} />
-      </div>
 
       {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>

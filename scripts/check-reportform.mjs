@@ -70,6 +70,29 @@ eq(/p\.44~48/.test(hw), true, "숙제 범위는 아이 글에");
 // 리포트가 하던 잔소리 — 숙제 줄에 이미 「미완료」 라고 적혀 있다
 eq(/다음 수업에서 함께 채우겠습니다/.test(rep), false, "같은 말을 한 번 더 하지 않는다");
 
+console.log("\n== 집중도 · 이해도 ==");
+/**
+ * 원장님 (2026-08-11) — 「태도를 집중도로 고치고 이해도 추가해줘.
+ * 둘 다 선택하지 않으면 출력되지 않게 해줘」.
+ * 집중도는 옛 attitude 칸 그대로다 — 이름만 바뀌었다.
+ */
+eq(/집중도: ⭐⭐⭐⭐/.test(rep), true, "attitude 칸이 집중도로 나간다");
+eq(/태도: /.test(rep), false, "「태도」 라는 말은 더 안 쓴다");
+{
+  const both = buildReportText(
+    { ...R, report: { ...R.report, understanding: "Excellent" } }, "2026-07-21");
+  eq(/이해도: ⭐⭐⭐⭐⭐/.test(both), true, "이해도도 나간다");
+  // **안 고른 것은 그 줄 자체가 없다** — 빈 별을 보내면 「오늘은 왜 평가가
+  // 없지」 를 읽게 된다
+  const none = buildReportText(
+    { ...R, report: { ...R.report, attitude: "", understanding: "" } }, "2026-07-21");
+  eq(/집중도|이해도/.test(none), false, "둘 다 안 고르면 아무 줄도 없다");
+  const one = buildReportText(
+    { ...R, report: { ...R.report, attitude: "", understanding: "Good" } }, "2026-07-21");
+  eq(/집중도/.test(one), false, "안 고른 쪽만 빠진다");
+  eq(/이해도: ⭐⭐⭐⭐/.test(one), true, "고른 쪽은 나간다");
+}
+
 console.log("\n== 숙제 안내는 할 것만 ==");
 eq(/출결|태도|단어 테스트/.test(hw), false, "오늘 있었던 일은 리포트의 몫");
 // 지난 숙제에서 남은 것과 남아서 하다 만 것은 아이에게는 같은 일이다

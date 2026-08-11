@@ -40,11 +40,20 @@ export async function loadMonth(ym) {
 
   // 지난달까지 같이 읽는다 — 한 줄 평은 **변화**를 말할 때 제일 와닿는다
   const pym = prevYm(ym);
-  const { data: all } = await supabase
+  // 단원평가(0099 — sent_unit)도 여기서 같이 읽는다: **daily_reports 가 원본**이다
+  let { data: all, error: allErr } = await supabase
     .from("daily_reports")
-    .select("id, student_id, date, attendance_kind, word_correct, word_total")
+    .select("id, student_id, date, attendance_kind, word_correct, word_total, sent_unit, sent_correct, sent_total, sent_passed")
     .gte("date", `${pym}-01`)
     .lte("date", to);
+  if (allErr) {
+    // 0099 전이면 단원평가 칸 없이
+    ({ data: all } = await supabase
+      .from("daily_reports")
+      .select("id, student_id, date, attendance_kind, word_correct, word_total")
+      .gte("date", `${pym}-01`)
+      .lte("date", to));
+  }
   const reports = (all || []).filter((r) => r.date >= from);
   const prevReports = (all || []).filter((r) => r.date < from);
 
@@ -62,17 +71,34 @@ export async function loadMonth(ym) {
     itemsOf.get(x.daily_report_id).push({ status: x.status });
   });
 
-  // 단원평가 (0031 전이면 없는 것으로 본다)
+  // 단원평가 — **두 군데에서 모은다** (2026-08-11, 오늘 수업의 이중 입력을 없앰).
+  //   1) daily_reports 의 단원평가 칸 (0099) — 이제 여기가 적는 자리다
+  //   2) unit_exams — 예전 「단원평가 상자」 로 적어온 것 (0031). 지난 기록이
+  //      여기 있으니 계속 읽는다. 같은 날 같은 이름이 둘 다 있으면 하나로 센다.
   const eq = await supabase
     .from("unit_exams")
     .select("student_id, date, name, score, total")
     .gte("date", from)
     .lte("date", to);
   const examsOf = new Map();
-  (eq.error ? [] : eq.data || []).forEach((e) => {
+  const seenExam = new Set();
+  const putExam = (e) => {
+    const k = `${e.student_id}|${e.date}|${e.name}`;
+    if (seenExam.has(k)) return;
+    seenExam.add(k);
     if (!examsOf.has(e.student_id)) examsOf.set(e.student_id, []);
     examsOf.get(e.student_id).push(e);
-  });
+  };
+  reports
+    .filter((r) => (r.sent_unit || "").trim())
+    .forEach((r) => putExam({
+      student_id: r.student_id,
+      date: r.date,
+      name: r.sent_passed === false ? `${r.sent_unit.trim()} (재시험)` : r.sent_unit.trim(),
+      score: r.sent_correct ?? null,
+      total: r.sent_total ?? null,
+    }));
+  (eq.error ? [] : eq.data || []).forEach((e) => putExam(e));
 
   // 학교 시험 일정 — 시험 때문에 빠진 것과 그 밖의 이유로 빠진 것을 가른다.
   // 둘을 같이 세면 "시험이라 빠졌는데 왜 지적하냐" 가 되어 말에 힘이 없어진다.
