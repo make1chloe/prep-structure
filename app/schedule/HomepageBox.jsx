@@ -18,6 +18,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { shortName } from "@/lib/schoolName";
+import { splitUrls } from "@/lib/schoolSite";
 import { peekSchoolSite, addFromSite, saveHomepage } from "./neisActions";
 
 const KIND = {
@@ -51,7 +52,7 @@ export default function HomepageBox({ schools = [], from, to }) {
     setErr("");
     startTransition(async () => {
       // 주소를 고쳤으면 먼저 적어둔다 (다음에 또 안 적으시게)
-      if (url.trim() !== (school?.homepage || "")) {
+      if (splitUrls(url).join("\n") !== splitUrls(school?.homepage).join("\n")) {
         const w = await saveHomepage(id, url);
         if (w?.error) { setErr(w.error); return; }
       }
@@ -126,22 +127,29 @@ export default function HomepageBox({ schools = [], from, to }) {
           </select>
         </div>
         <div className="field" style={{ flex: 1, minWidth: 240 }}>
-          <label className="label">홈페이지 학사일정 주소</label>
-          <input
+          <label className="label">홈페이지 학사일정 주소 (여러 개면 줄을 나눠서)</label>
+          <textarea
             className="input input-sm"
-            placeholder="https://bakmun.icems.kr/schdList.do?..."
+            rows={2}
+            placeholder={"https://bakmun.icems.kr/schdList.do?...\nhttps://bakmun.icems.kr/schdList.do?...2학기 화면"}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={!id}
+            style={{ resize: "vertical", lineHeight: 1.5 }}
           />
         </div>
         <button className="btn btn-primary btn-sm" disabled={pending || !id || !url.trim()} onClick={look}>
           {pending ? "읽는 중…" : "읽어보기"}
         </button>
       </div>
-      <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+      <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.7 }}>
         학교 홈페이지에서 <b>학사일정 목록 화면</b>의 주소를 그대로 붙여넣으세요.
         한 번 넣어두면 다음부터는 고르기만 하면 됩니다.
+        <br />
+        {/* 원장님, 2026-08-11 — 「페이지에서 2학기를 눌러야 할 수도 있는데」 */}
+        <b>2학기를 눌러야 나오는 학교</b>가 많습니다. 그런 단추가 주소로 되어 있으면
+        따라가서 같이 읽고, <b>못 따라가면 아래에 알려드립니다</b> — 그때는 2학기
+        화면을 띄운 뒤 <b>그 주소를 한 줄 더</b> 넣어주세요.
       </p>
       {err && <div className="err" style={{ marginTop: 8 }}>{err}</div>}
 
@@ -159,10 +167,45 @@ export default function HomepageBox({ schools = [], from, to }) {
             )}
           </div>
 
+          {/**
+            * **무엇을 읽었는지 그대로 보여드린다.** 「2학기가 없는 학교」 와
+            * 「2학기 화면을 못 읽은 것」 은 다르다 — 이것이 없으면 구별할 수 없다.
+            */}
+          {res.read?.length > 0 && (
+            <div className="hint" style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.7 }}>
+              읽은 화면 {res.read.length}개 —{" "}
+              {res.read.map((p, i) => (
+                <span key={i}>
+                  {i > 0 && " · "}
+                  <b>{p.label}</b>{" "}
+                  {p.error ? (
+                    <span style={{ color: "var(--danger)" }}>못 읽음 ({p.error})</span>
+                  ) : (
+                    `${p.count}줄`
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* 자바스크립트 단추는 서버가 따라갈 수 없다 — 숨기지 않고 말씀드린다 */}
+          {res.blocked?.length > 0 && (
+            <p className="hint" style={{ marginTop: 4, fontSize: 11.5, color: "var(--amber)" }}>
+              따라갈 수 없는 단추 {res.blocked.join(" · ")} — 그 화면을 직접 띄우신 뒤
+              <b> 주소를 한 줄 더</b> 넣어주세요.
+            </p>
+          )}
+          {res.truncated && (
+            <p className="hint" style={{ marginTop: 4, fontSize: 11.5, color: "var(--amber)" }}>
+              화면이 너무 많아 8개까지만 읽었습니다.
+            </p>
+          )}
+
           {res.rows.length === 0 ? (
             <div className="err" style={{ marginTop: 8 }}>
-              이 주소에서 날짜가 붙은 줄을 못 찾았어요. <b>학사일정 목록 화면</b>의 주소가
-              맞는지 봐주세요 (달력 그림만 있는 화면은 못 읽습니다).
+              이 주소에서 이 기간에 해당하는 줄을 못 찾았어요. <b>학사일정 목록 화면</b>의
+              주소가 맞는지, <b>학기를 눌러야 나오는 화면</b>은 아닌지 봐주세요
+              (그런 화면은 눌러서 띄운 뒤 그 주소를 넣어주시면 됩니다).
             </div>
           ) : (
             <>

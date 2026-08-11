@@ -6,7 +6,7 @@ import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
   isNationwide, explainRow, toDate,
 } from "@/lib/neis";
-import { toText, readSchedule } from "@/lib/schoolSite";
+import { toText, readSchedule, tabLinks, splitUrls } from "@/lib/schoolSite";
 import { classifyExam } from "@/lib/examKind";
 import { matchExam, staleAfterImport } from "@/lib/exams";
 import { examKind, termLabel } from "@/lib/examList";
@@ -1453,26 +1453,77 @@ export async function peekSchoolSite(schoolId, from, to) {
   if (sErr) return { rows: [], error: sErr };
   const school = (schools || []).find((s) => s.id === schoolId);
   if (!school) return { rows: [], error: "학교를 못 찾았어요." };
-  const url = (school.homepage || "").trim();
-  if (!url) return { rows: [], error: "이 학교의 홈페이지 주소를 먼저 넣어주세요." };
-
-  let html = "";
-  try {
-    const res = await fetch(url, {
-      cache: "no-store",
-      // 학교 홈페이지가 브라우저가 아닌 요청을 막는 일이 있다
-      headers: { "user-agent": "Mozilla/5.0 (compatible; ChloeEnglish/1.0)" },
-    });
-    if (!res.ok) return { rows: [], error: `학교 홈페이지가 ${res.status} 로 답했어요.` };
-    html = await res.text();
-  } catch (e) {
-    return { rows: [], error: `학교 홈페이지를 부르지 못했어요: ${e.message}` };
-  }
+  const urls = splitUrls(school.homepage);
+  if (urls.length === 0) return { rows: [], error: "이 학교의 홈페이지 주소를 먼저 넣어주세요." };
 
   const year = Number((from || "").slice(0, 4)) || null;
-  const { rows: read, unread } = readSchedule(toText(html), year);
-  // 고른 기간 밖은 버린다 (홈페이지는 한 해치를 다 그리기도 한다)
-  const inRange = read.filter((r) => (!from || r.date >= from) && (!to || r.date <= to));
+
+  /**
+   * **한 화면만 읽으면 한 학기치만 들어온다** (원장님, 2026-08-11 — 「페이지에서
+   * 2학기를 눌러야 할 수도 있는데」). 그래서 두 가지를 한다 —
+   *   1. 주소를 **여러 개** 적어두실 수 있다 (1학기 화면 · 2학기 화면)
+   *   2. 읽은 화면에 「2학기」 같은 단추가 있으면 **한 걸음만 따라간다**
+   * 무엇을 읽었는지는 화면에 그대로 내보인다 — 안 그러면 「2학기가 없는
+   * 학교」 와 「2학기 화면을 못 읽은 것」 을 구별할 수 없다.
+   */
+  const MAX_PAGES = 8;
+  const read = [];        // 무엇을 읽었나 (화면에 그대로 보여드린다)
+  const blocked = [];     // 따라갈 수 없던 단추 이름
+  const done = new Set();
+  const queue = urls.map((u) => ({ url: u, label: "적어두신 주소", hop: 0 }));
+  const rowsAll = [];
+  const unread = [];
+  const seenRow = new Set();
+
+  while (queue.length > 0 && read.length < MAX_PAGES) {
+    const job = queue.shift();
+    if (done.has(job.url)) continue;
+    done.add(job.url);
+
+    let html = "";
+    try {
+      const res = await fetch(job.url, {
+        cache: "no-store",
+        // 학교 홈페이지가 브라우저가 아닌 요청을 막는 일이 있다
+        headers: { "user-agent": "Mozilla/5.0 (compatible; ChloeEnglish/1.0)" },
+      });
+      if (!res.ok) {
+        read.push({ url: job.url, label: job.label, error: `${res.status} 로 답했어요` });
+        continue;
+      }
+      html = await res.text();
+    } catch (e) {
+      read.push({ url: job.url, label: job.label, error: e.message });
+      continue;
+    }
+
+    const got = readSchedule(toText(html), year);
+    let n = 0;
+    got.rows.forEach((r) => {
+      // 고른 기간 밖은 버린다 (홈페이지는 한 해치를 다 그리기도 한다)
+      if ((from && r.date < from) || (to && r.date > to)) return;
+      const k = `${r.date}|${r.endDate || ""}|${r.title}`;
+      // 여러 화면에 같은 일정이 겹쳐 나온다 — 한 번만 센다
+      if (seenRow.has(k)) return;
+      seenRow.add(k);
+      rowsAll.push(r);
+      n += 1;
+    });
+    got.unread.forEach((u) => { if (!unread.includes(u)) unread.push(u); });
+    read.push({ url: job.url, label: job.label, count: n, found: got.rows.length });
+
+    // 단추 따라가기는 **한 걸음만** — 따라간 화면에서 또 따라가면 끝이 없다
+    if (job.hop === 0) {
+      const t = tabLinks(html, job.url);
+      t.go.forEach((l) => {
+        if (!done.has(l.url)) queue.push({ url: l.url, label: l.label, hop: 1 });
+      });
+      t.blocked.forEach((b) => { if (!blocked.includes(b)) blocked.push(b); });
+    }
+  }
+
+  const truncated = queue.length > 0;
+  const inRange = rowsAll.sort((a, b) => a.date.localeCompare(b.date));
 
   /**
    * **나이스에 없는 것이 무엇인가** — 이 화면의 존재 이유다.
@@ -1511,10 +1562,20 @@ export async function peekSchoolSite(schoolId, from, to) {
     };
   });
 
+  // 한 화면도 못 불렀으면 그것이 원인이다 — 「일정이 없다」 로 보이면 안 된다
+  if (read.length > 0 && read.every((r) => r.error)) {
+    return { rows: [], read, error: `학교 홈페이지를 부르지 못했어요: ${read[0].error}` };
+  }
+
   return {
     error: null,
     school: school.name,
-    url,
+    urls,
+    /** 무엇을 읽었나 — 「2학기 화면까지 봤는지」 를 원장님이 눈으로 확인하신다 */
+    read,
+    /** 따라갈 수 없던 단추 (자바스크립트 단추) */
+    blocked,
+    truncated,
     rows: out,
     unread,
     /** 나이스는 못 물어봤을 수 있다 — 그러면 「비교 안 함」 이라고 말해준다 */
@@ -1576,16 +1637,24 @@ export async function addFromSite(schoolName, rows = []) {
   return { error: null, added, skipped };
 }
 
-/** 학교 홈페이지 주소를 적어둔다 */
+/**
+ * 학교 홈페이지 주소를 적어둔다 — **여러 개 적을 수 있다**
+ * (1학기 화면 · 2학기 화면처럼 한 화면이 한 해를 다 안 보여주는 학교가 많다).
+ */
 export async function saveHomepage(schoolId, url) {
   if (!schoolId) return { error: "학교를 골라주세요." };
   const supabase = createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
+  const clean = splitUrls(url).join("\n");
+  if ((url || "").trim() && !clean) {
+    return { error: "http:// 나 https:// 로 시작하는 주소를 넣어주세요." };
+  }
+
   const { error } = await supabase
     .from(await schoolTable(supabase))
-    .update({ homepage: (url || "").trim() || null })
+    .update({ homepage: clean || null })
     .eq("id", schoolId);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     return { error: "설정 → Supabase SQL 에서 0115 를 먼저 실행해주세요." };
