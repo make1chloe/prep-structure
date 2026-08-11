@@ -197,6 +197,11 @@ runjs scripts/check-monthnav.mjs
 runjs scripts/check-schoolsite.mjs
 
 echo
+echo "== 5-4-10-1) 본보기 루틴이 진짜 있는 항목을 가리키나 =="
+# 이름 하나가 어긋나면 그 단계가 빈 채로 들어간다 — 오류는 안 난다
+runjs scripts/check-routinetpl.mjs
+
+echo
 echo "== 5-4-10-2) 반 이름에 시간이 두 번 나오지 않나 =="
 runjs scripts/check-classlabel.mjs
 

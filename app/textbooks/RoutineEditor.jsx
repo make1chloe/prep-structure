@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { listRoutine, saveStep, deleteStep } from "./routineActions";
+import { listRoutine, saveStep, deleteStep, seedRoutine } from "./routineActions";
 
 /**
  * 학습 루틴 — 진도를 따라 순서대로.
@@ -76,6 +76,34 @@ export default function RoutineEditor({ textbookId, items = [] }) {
         <span className="hint" style={{ flex: 1 }}>
           한 줄이 한 수업 회차입니다. 진도를 따라 순서대로 돌아갑니다.
         </span>
+        {/**
+          * **본보기 넣고 고치기** (원장님, 2026-08-11 — 「엄두가 안나」).
+          * 빈 화면에서 마흔여섯 개를 골라 순서를 짜는 것이 어려운 일이다.
+          * 이미 루틴이 있으면 안 넣는다 — 손으로 짜두신 것을 덮으면 안 된다.
+          */}
+        {steps.length === 0 && (
+          <button
+            className="btn btn-sm"
+            disabled={pending}
+            title="이 교재 영역에 맞는 순서를 넣어드립니다. 넣고 나서 고치시면 됩니다"
+            onClick={() =>
+              startTransition(async () => {
+                const res = await seedRoutine(textbookId);
+                if (res?.error) { alert(res.error); return; }
+                const lines = [`${res.added}단계를 넣었어요 (${res.area}).`, "", "그대로 쓰셔도 되고, 고치셔도 됩니다."];
+                if (res.missing?.length) {
+                  lines.push("", `학습 항목에 없어서 빠진 것 ${res.missing.length}개 —`);
+                  res.missing.forEach((m) => lines.push(`  · ${m}`));
+                  lines.push("", "숙제 → 학습 항목 → 「노션 기본숙제 가져오기」 를 먼저 누르시면 다 들어옵니다.");
+                }
+                alert(lines.join("\n"));
+                await load();
+              })
+            }
+          >
+            ✨ 본보기 넣기
+          </button>
+        )}
         <button
           className="btn btn-sm"
           onClick={() =>
