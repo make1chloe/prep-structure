@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
-  isNationwide, explainRow,
+  isNationwide, explainRow, toDate,
 } from "@/lib/neis";
+import { toText, readSchedule } from "@/lib/schoolSite";
+import { classifyExam } from "@/lib/examKind";
 import { matchExam, staleAfterImport } from "@/lib/exams";
 import { examKind, termLabel } from "@/lib/examList";
 import { makeMockBook } from "@/app/prep/actions";
@@ -1420,4 +1422,174 @@ export async function peekNeis(from, to, schoolIds = null) {
   out.sort((a, b) => (a.date || "").localeCompare(b.date || "") || a.school.localeCompare(b.school, "ko"));
   // 합친 것과 안 합친 것을 **둘 다** 준다 — 화면에서 켜고 끌 수 있게
   return { error: null, rows: out, runs, notes, asked, schools: targets.map((s) => s.name) };
+}
+
+/**
+ * **학교 홈페이지에서 학사일정을 읽어온다** (원장님, 2026-08-10 — 「나이스
+ * 말고 학교 홈페이지에 등록된 내용으로 기록할 수 없을까? 학교 홈페이지랑
+ * 다르다 나이스가」 · 「학교 홈페이지를 넣어놓고 확인해서 긁어오게 할 수는
+ * 없어?」).
+ *
+ * ── 크롬은 안 띄운다 ────────────────────────────────────
+ *
+ * 학교 홈페이지는 서버가 HTML 을 다 그려 보내주는 옛날식 페이지다. 브라우저를
+ * 띄워 자바스크립트를 돌릴 것이 없어서, 주소를 그냥 받아 글자를 읽으면 된다.
+ * 브라우저를 띄우면 느리고 배포 환경에서는 아예 안 뜨는 일이 흔하다.
+ *
+ * ── 자동으로 넣지 않는다 ────────────────────────────────
+ *
+ * 남의 홈페이지 모양은 언제든 바뀐다. 잘못 읽은 것을 조용히 회차로 만들면
+ * 나이스만 볼 때보다 더 나쁘다. **읽은 것을 그대로 보여드리고**, 나이스에
+ * 없는 것이 무엇인지 짚어드리고, 고르신 것만 넣는다.
+ *
+ * 아무것도 저장하지 않는다.
+ */
+export async function peekSchoolSite(schoolId, from, to) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { rows: [], error: guard.error };
+
+  const { rows: schools, error: sErr } = await listSchools();
+  if (sErr) return { rows: [], error: sErr };
+  const school = (schools || []).find((s) => s.id === schoolId);
+  if (!school) return { rows: [], error: "학교를 못 찾았어요." };
+  const url = (school.homepage || "").trim();
+  if (!url) return { rows: [], error: "이 학교의 홈페이지 주소를 먼저 넣어주세요." };
+
+  let html = "";
+  try {
+    const res = await fetch(url, {
+      cache: "no-store",
+      // 학교 홈페이지가 브라우저가 아닌 요청을 막는 일이 있다
+      headers: { "user-agent": "Mozilla/5.0 (compatible; ChloeEnglish/1.0)" },
+    });
+    if (!res.ok) return { rows: [], error: `학교 홈페이지가 ${res.status} 로 답했어요.` };
+    html = await res.text();
+  } catch (e) {
+    return { rows: [], error: `학교 홈페이지를 부르지 못했어요: ${e.message}` };
+  }
+
+  const year = Number((from || "").slice(0, 4)) || null;
+  const { rows: read, unread } = readSchedule(toText(html), year);
+  // 고른 기간 밖은 버린다 (홈페이지는 한 해치를 다 그리기도 한다)
+  const inRange = read.filter((r) => (!from || r.date >= from) && (!to || r.date <= to));
+
+  /**
+   * **나이스에 없는 것이 무엇인가** — 이 화면의 존재 이유다.
+   * 같은 날 같은 갈래가 나이스에도 있으면 이미 아는 것이고, 없으면
+   * 「홈페이지에만 있는 일정」 이다.
+   */
+  const key = await neisKey(supabase);
+  const seen = new Set();
+  if (key && school.schul_code) {
+    const got = await callAll(key, school, from, to);
+    (got.rows || []).forEach((r) => {
+      const d = toDate(r.AA_YMD);
+      if (d) seen.add(`${d}|${classifyExam((r.EVENT_NM || "").trim())}`);
+    });
+  }
+
+  // 이미 우리 회차로 들어와 있나 (그 날을 덮는 시험 회차가 있으면 할 일이 없다)
+  const { data: mine } = await supabase
+    .from("exam_periods").select("school, from_date, to_date, hidden")
+    .gte("from_date", from).lte("from_date", to);
+  const covered = (mine || []).filter(
+    (e) => !e.hidden && looseKey(e.school) === looseKey(school.name)
+  );
+
+  const out = inRange.map((r) => {
+    const kind = classifyExam(r.title);
+    return {
+      ...r,
+      kind,
+      // 나이스에도 같은 날 같은 갈래가 있나
+      inNeis: key && school.schul_code ? seen.has(`${r.date}|${kind}`) : null,
+      hasExam: kind === "school"
+        ? covered.some((e) => String(e.from_date).slice(0, 10) <= r.date
+            && r.date <= String(e.to_date).slice(0, 10))
+        : null,
+    };
+  });
+
+  return {
+    error: null,
+    school: school.name,
+    url,
+    rows: out,
+    unread,
+    /** 나이스는 못 물어봤을 수 있다 — 그러면 「비교 안 함」 이라고 말해준다 */
+    comparedToNeis: !!(key && school.schul_code),
+  };
+}
+
+/**
+ * **홈페이지에서 읽은 것을 시험 회차로 만든다.**
+ *
+ * `source` 를 "homepage" 로 둔다 — **"neis" 로 두면 다음 받아오기가 지운다**
+ * (staleAfterImport 는 나이스가 만든 줄만 치우는데, 나이스에 없는 일정이라
+ * 이번 목록에 안 나오기 때문이다). 손으로 만든 것과 같은 자리에 둔다.
+ */
+export async function addFromSite(schoolName, rows = []) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const want = (rows || []).filter((r) => r?.date && r?.title);
+  if (want.length === 0) return { error: null, added: 0 };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: had } = await supabase
+    .from("exam_periods").select("id, school, from_date, to_date, hidden");
+  const mine = (had || []).filter((e) => looseKey(e.school) === looseKey(schoolName));
+
+  let added = 0;
+  const skipped = [];
+  for (const r of want) {
+    const to = r.endDate && r.endDate > r.date ? r.endDate : r.date;
+    // 이미 그 날을 덮는 회차가 있으면 새로 만들지 않는다 (두 벌이 된다)
+    if (mine.some((e) => String(e.from_date).slice(0, 10) <= to
+        && r.date <= String(e.to_date).slice(0, 10))) {
+      skipped.push(`${r.date} ${r.title}`);
+      continue;
+    }
+    const row = {
+      school: schoolName,
+      name: r.title,
+      from_date: r.date,
+      to_date: to,
+      source: "homepage",
+      created_by: user?.id || null,
+    };
+    const { data: made, error } = await supabase
+      .from("exam_periods").insert(row).select("id").single();
+    if (error) return { error: error.message, added };
+    added += 1;
+    mine.push({ id: made.id, ...row });
+  }
+
+  revalidatePath("/schedule");
+  revalidatePath("/schools");
+  revalidatePath("/prep");
+  return { error: null, added, skipped };
+}
+
+/** 학교 홈페이지 주소를 적어둔다 */
+export async function saveHomepage(schoolId, url) {
+  if (!schoolId) return { error: "학교를 골라주세요." };
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const { error } = await supabase
+    .from(await schoolTable(supabase))
+    .update({ homepage: (url || "").trim() || null })
+    .eq("id", schoolId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "설정 → Supabase SQL 에서 0115 를 먼저 실행해주세요." };
+  }
+  revalidatePath("/schools");
+  return { error: error ? error.message : null };
 }

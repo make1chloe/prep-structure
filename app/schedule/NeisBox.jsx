@@ -11,6 +11,7 @@ import { schoolYear } from "@/lib/neis";
 import { schoolAlike, looseKey, shortName } from "@/lib/schoolName";
 import { mergeSchools } from "./schoolActions";
 import CoverageBox from "./CoverageBox";
+import HomepageBox from "./HomepageBox";
 
 /**
  * 나이스 학사일정.
@@ -610,6 +611,11 @@ export default function NeisBox({ months = [] }) {
           {/* **없는 것은 안 보인다** — 학교별로 어느 회차가 있고 없는지,
               없으면 왜 없는지(학교가 안 봄 / 우리가 못 알아봄)를 갈라 준다 */}
           <CoverageBox from={range.from} to={range.to} />
+
+          {/* **나이스에 없으면 홈페이지에서** (원장님, 2026-08-10). 학교는
+              두 군데에 따로 적어서, 시험이 홈페이지엔 있는데 나이스엔 없는
+              일이 실제로 생겼다 */}
+          <HomepageBox schools={mine} from={range.from} to={range.to} />
 
           {done && (
             <div className="stack" style={{ gap: 6, marginTop: 10 }}>
