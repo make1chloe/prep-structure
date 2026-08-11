@@ -2,17 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { safeName } from "@/lib/noticeFile";
 
 /**
- * 공지에 붙이는 사진.
+ * 공지에 붙이는 **사진과 파일**.
  *
  * 학교에서 나눠준 종이 — 학사일정, 시험 시간표, 가정통신문 — 를 옮겨 적기는
- * 번거롭고, 옮겨 적다 틀리면 그게 더 큰 일이다. 찍어서 그대로 보낸다.
+ * 번거롭고, 옮겨 적다 틀리면 그게 더 큰 일이다. 찍어서 · 받은 파일 그대로
+ * 보낸다 (원장님, 2026-08-11 — 「pdf나 그냥 파일도 가능하게 해주고」).
  *
  * 비공개 버킷이라 주소를 알아도 못 연다. 볼 때마다 짧은 링크를 새로 만든다.
  * 경로 맨 앞 칸이 공지 id 라서, 그것만 보고 볼 사람인지 가릴 수 있다 (0064).
  */
 
+/** 이름에 확장자가 없을 때만 쓰는 되돌림표 */
 const EXT = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
   "image/heic": "heic", "image/heif": "heic", "application/pdf": "pdf",
@@ -20,12 +23,13 @@ const EXT = {
 
 function why(error) {
   const m = error?.message || "";
-  if (/bucket|not found/i.test(m)) return "사진 보관함이 아직 없어요. 설정 → Supabase SQL 에서 0064 를 실행해주세요.";
+  if (/bucket|not found/i.test(m)) return "보관함이 아직 없어요. 설정 → Supabase SQL 에서 0064 를 실행해주세요.";
   if (/row-level security|policy/i.test(m)) return "권한이 없어요. 0064 SQL 을 실행했는지 확인해주세요.";
+  if (/exceeded|too large|payload/i.test(m)) return "파일이 너무 커요 (25MB까지).";
   return m || "올리지 못했어요.";
 }
 
-/** 공지 한 건에 사진을 붙인다 */
+/** 공지 한 건에 사진·파일을 붙인다 */
 export async function addNoticePhoto(formData) {
   const noticeId = (formData.get("noticeId") || "").toString();
   const file = formData.get("file");
@@ -34,8 +38,17 @@ export async function addNoticePhoto(formData) {
   if (file.size > 25 * 1024 * 1024) return { error: "파일이 너무 커요 (25MB까지)." };
 
   const supabase = createClient();
-  const ext = EXT[file.type] || "jpg";
-  const path = `${noticeId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+  /**
+   * **올린 이름을 그대로 살린다.** 전에는 모르는 갈래를 다 `.jpg` 로 바꿔
+   * 담아서, 한글·엑셀을 붙이면 열리지 않는 그림이 됐다.
+   * 이름에 확장자가 없을 때만 갈래로 되돌린다.
+   */
+  let name = safeName(file.name || "");
+  if (!/\.[a-z0-9]{1,8}$/i.test(name)) {
+    const ext = EXT[file.type] || (String(file.type).startsWith("image/") ? "jpg" : "");
+    if (ext) name = `${name}.${ext}`;
+  }
+  const path = `${noticeId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${name}`;
 
   const up = await supabase.storage
     .from("notices")
@@ -64,6 +77,7 @@ export async function addNoticePhoto(formData) {
 
   revalidatePath("/today");
   revalidatePath("/me");
+  revalidatePath("/parent");
   return { error: null, path };
 }
 
@@ -80,6 +94,7 @@ export async function removeNoticePhoto(noticeId, path) {
   await supabase.storage.from("notices").remove([path]);
   revalidatePath("/today");
   revalidatePath("/me");
+  revalidatePath("/parent");
   return { error: null };
 }
 

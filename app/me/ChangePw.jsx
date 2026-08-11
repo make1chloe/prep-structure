@@ -92,6 +92,18 @@ export default function ChangePw({ name, who = "student" }) {
           잊어버리면 선생님께 말씀해주세요. 다시 <b>0000</b> 으로 돌려드리고,
           들어오시면 여기서 새로 정하시면 됩니다.
         </p>
+        {/**
+          * **여기서 나갈 길이 없었다** (원장님, 2026-08-11 — 「학부모페이지는
+          * 아직 확인못했어 근데 로그아웃이 안돼」).
+          *
+          * 이 화면은 비밀번호를 정하기 전에는 아무 데도 안 열리게 앞을 막는
+          * 자리다. 그런데 **로그아웃 단추가 없었다** — 남의 계정으로 잘못
+          * 들어오거나, 확인만 해보려던 것이면 나갈 방법이 아예 없다.
+          * 홈 화면에 담아 여신 경우에는 주소창조차 없다.
+          */}
+        <form action="/logout" method="post">
+          <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>
+        </form>
       </div>
     </main>
   );

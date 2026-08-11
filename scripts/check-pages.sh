@@ -197,6 +197,11 @@ runjs scripts/check-monthnav.mjs
 runjs scripts/check-schoolsite.mjs
 
 echo
+echo "== 5-4-11-1) 전달사항 파일 묶어 받기 =="
+# zip 규격을 직접 쓴 자리 — 시스템 unzip 으로 진짜 풀어서 본다
+runjs scripts/check-zip.mjs
+
+echo
 echo "== 5-4-11-2) 나이스가 다는 칸이 표에 다 있나 =="
 # 우리끼리 쓰는 표시(학년 · 전국 여부)를 안 떼고 보내면 **그 학교가 통째로**
 # 실패한다. 빌드도 검사도 통과하고, 원장님이 받아오기를 누르셔야 나온다

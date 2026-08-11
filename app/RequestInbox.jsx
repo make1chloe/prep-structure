@@ -165,11 +165,28 @@ export default function RequestInbox({ requests = [] }) {
               >
                 {busy === r.id ? "보내는 중…" : quickFor(role, true)}
               </button>
+              {/**
+                * **조정필요는 사유부터** (원장님, 2026-08-11 — 「애초에 조정필요
+                * 누르면 사유도 적게해줘」).
+                *
+                * 전에는 「조정필요」 넉 자만 나갔다. 받는 쪽은 무엇을 어떻게
+                * 조정하라는 것인지 모르고, 아이들은 그 넉 자를 열어보지도
+                * 않는다. 적으신 사유가 **알림 미리보기와 화면에 그대로** 나간다.
+                */}
               <button
                 className="btn btn-ghost btn-sm"
-                onClick={() => act(r.id, false, reply[r.id]?.trim() || quickFor(role, false))}
+                onClick={() => {
+                  const why = reply[r.id]?.trim()
+                    || (window.prompt(
+                      "조정이 필요한 까닭을 적어주세요.\n"
+                      + "적으신 말이 폰 알림과 화면에 그대로 나갑니다.\n\n"
+                      + "예) 그날 보강이 꽉 차서, 금요일 5시로 와줄 수 있나요?"
+                    ) || "").trim();
+                  if (!why) return;   // 사유 없이는 안 나간다
+                  act(r.id, false, why);
+                }}
                 disabled={busy === r.id}
-                title={quickFor(role, false)}
+                title="사유를 적으면 그대로 답장으로 나갑니다"
               >
                 {role === "parent" ? "조정 필요하다고 답장" : "조정필요"}
               </button>

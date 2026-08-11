@@ -202,11 +202,21 @@ export async function handleRequest(id, accept, reply, makeup) {
   // 알림이 안 가면 「알렸는데 답이 없네」 로 끝난다 (2026-08-06)
   if (!uErr) {
     try {
+      /**
+       * **조정필요는 제목부터 다르게** (원장님, 2026-08-11 — 「조정필요 누르면
+       * 알림에 그내용 미리 볼 수 있게 해주고 … 애들은 안봐」).
+       *
+       * 전에는 확인이든 조정이든 제목이 「확인했습니다」 라서, 알림만 보면
+       * 다 끝난 일로 읽혔다 — 열어봐야 하는 쪽인데 아무도 안 열었다.
+       * 사유(답장)를 미리보기에 그대로 싣는다.
+       */
       await pushToFamilies([req.student_id], {
-        title: accept ? "✅ 확인했습니다" : "확인했습니다",
+        title: accept ? "✅ 확인했습니다" : "⚠️ 일정 조정이 필요해요",
         body:
-          (reply || "").trim().slice(0, 60) ||
-          `${KIND[req.kind] || "알림"} 확인했습니다.`,
+          (reply || "").trim().slice(0, 90) ||
+          (accept
+            ? `${KIND[req.kind] || "알림"} 확인했습니다.`
+            : "선생님이 일정 조정을 요청했어요. 열어서 확인해주세요."),
         url: "/me",
       }, "all");
     } catch {

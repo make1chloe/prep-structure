@@ -153,6 +153,10 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                 */}
               {r.canceled_at ? (
                 <span className="tag tag-muted">취소함</span>
+              ) : r.status === "declined" ? (
+                /* **조정필요는 눈에 띄어야 한다** (원장님, 2026-08-11 — 「본문
+                   확인했을때도 좀더 눈에 띄게 표시해줘. 애들은 안봐」) */
+                <span className="tag tag-amber">⚠️ 조정 필요</span>
               ) : (
                 <span className="tag tag-mint">제출 완료</span>
               )}
@@ -162,16 +166,35 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                   : ""}
                 {r.body || ""}
               </span>
-              {/* 오간 말 — 선생님이 여러 번 답하실 수 있다 (0108) */}
-              {Array.isArray(r.thread) && r.thread.length > 0 ? (
-                <span className="hint" style={{ flexBasis: "100%" }}>
-                  {r.thread.map((t, i) => (
-                    <span key={i} style={{ display: "block" }}>선생님 — {t.text}</span>
-                  ))}
-                </span>
-              ) : r.reply ? (
-                <span className="hint">선생님 — {r.reply}</span>
-              ) : null}
+              {/* 오간 말 — 선생님이 여러 번 답하실 수 있다 (0108).
+                  조정필요면 회색 잔글씨가 아니라 **노란 상자**로 — 그 사유를
+                  읽으라고 보낸 것이다 */}
+              {(() => {
+                const talks = Array.isArray(r.thread) && r.thread.length > 0
+                  ? r.thread.map((t) => t.text)
+                  : r.reply ? [r.reply] : [];
+                if (talks.length === 0) return null;
+                const loud = r.status === "declined" && !r.canceled_at;
+                return (
+                  <span
+                    style={{
+                      flexBasis: "100%",
+                      ...(loud
+                        ? {
+                            background: "var(--amber-soft)",
+                            border: "1px solid var(--amber)",
+                            borderRadius: 8, padding: "6px 9px",
+                            fontSize: 13, fontWeight: 600, lineHeight: 1.6,
+                          }
+                        : { fontSize: 12, color: "var(--muted)" }),
+                    }}
+                  >
+                    {talks.map((t, i) => (
+                      <span key={i} style={{ display: "block" }}>선생님 — {t}</span>
+                    ))}
+                  </span>
+                );
+              })()}
               {(r.photos || []).length > 0 && (
                 <RequestPhotos paths={r.photos} readOnly small />
               )}
