@@ -28,11 +28,17 @@ export async function addHomeworkItem(formData) {
     .limit(1);
   const sort = (last?.[0]?.sort ?? 0) + 10;
 
-  const row = { name, category, sort, active: true, method, prep_task };
+  const tool = clean(formData, "tool");
+  const row = { name, category, sort, active: true, method, prep_task, tool };
   let { error } = await supabase.from("homework_items").insert(row);
   if (noColumn(error)) {
+    // 0116 전이면 툴 없이
+    const { tool: _tl, ...noTool } = row;
+    ({ error } = await supabase.from("homework_items").insert(noTool));
+  }
+  if (noColumn(error)) {
     // 0028 전이면 prep_task 없이, 그래도 안 되면 method 도 빼고
-    const { prep_task: _p, ...noPrep } = row;
+    const { prep_task: _p, tool: _tl2, ...noPrep } = row;
     ({ error } = await supabase.from("homework_items").insert(noPrep));
     if (noColumn(error)) {
       const { method: _m, ...rest } = noPrep;
@@ -123,6 +129,8 @@ export async function updateHomeworkItem(id, patch) {
       (patch.checklist || "").split("\n").map((t) => t.trim()).filter(Boolean).join("\n") || null;
   }
   if ("prep_task" in (patch || {})) row.prep_task = (patch.prep_task || "").trim() || null;
+  // 툴 — 아이가 무엇을 펴야 하는가 (0116)
+  if ("tool" in (patch || {})) row.tool = (patch.tool || "").trim() || null;
   if ("home_item_id" in (patch || {})) row.home_item_id = patch.home_item_id || null;
   if ("no_timer" in (patch || {})) row.no_timer = !!patch.no_timer;
   if ("in_person" in (patch || {})) row.in_person = !!patch.in_person;
@@ -133,8 +141,16 @@ export async function updateHomeworkItem(id, patch) {
   const supabase = createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
   if (noColumn(error)) {
+    // 0116 전이면 '툴' 없이
+    const { tool: _tl, ...noTool } = row;
+    ({ error } = await supabase.from("homework_items").update(noTool).eq("id", id));
+    if (!error && "tool" in row) {
+      return { error: "툴을 적으려면 설정 → Supabase SQL 에서 0116 을 먼저 실행해주세요." };
+    }
+  }
+  if (noColumn(error)) {
     // 0106 전이면 '단원평가' 표시 없이
-    const { unit_test: _ut, ...noUnit } = row;
+    const { unit_test: _ut, tool: _tl2, ...noUnit } = row;
     ({ error } = await supabase.from("homework_items").update(noUnit).eq("id", id));
   }
   if (noColumn(error)) {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cleanNote } from "@/lib/note";
+import { toolBadge } from "@/app/homework/categories";
 
 const MARK = {
   done: { label: "완료", cls: "tag-mint" },
@@ -26,6 +27,14 @@ export default function HomeworkCards({ items = [] }) {
             <button className="hwcard-head" onClick={() => setOpenId(open ? null : h.key)}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <b style={{ fontSize: 14.5 }}>{h.name}</b>
+                {/* **무엇을 펴야 하는지** (원장님, 2026-08-11 — 「툴이 교재인지
+                    클래스카드인지, 노트인지 표시해줘. 아이에게」). 매번
+                    물어보던 것이라 이름 바로 옆에 붙인다 */}
+                {h.tool && (
+                  <span className="tag tag-sky" style={{ marginLeft: 5, fontSize: 10.5 }}>
+                    {toolBadge(h.tool)}
+                  </span>
+                )}
                 {/* **나중에 더하거나 고치신 것** (0087).
                     아까 적어 간 것과 다를 수 있으니 눈에 띄어야 한다 */}
                 {h.changedAt && (

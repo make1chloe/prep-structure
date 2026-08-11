@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startStudy, stopStudy, finishStudy, undoFinish } from "./timerActions";
 import SubmitBox from "./SubmitBox";
 import UnitTestBox from "./UnitTestBox";
+import { toolBadge } from "@/app/homework/categories";
 
 /** 초 → "12분" */
 function human(sec) {
@@ -122,7 +123,15 @@ export default function StudyList({
       {now ? (
         <div className="nowcard">
           <p className="nowlabel">지금 할 것</p>
-          <h3 className="nowtitle">{now.name}</h3>
+          <h3 className="nowtitle">
+            {now.name}
+            {/* 무엇을 펴야 하는지 — 「지금 할 것」 에서 제일 많이 물어본다 (0116) */}
+            {now.tool && (
+              <span className="tag tag-sky" style={{ marginLeft: 7, fontSize: 11.5, verticalAlign: "3px" }}>
+                {toolBadge(now.tool)}
+              </span>
+            )}
+          </h3>
           {(now.units?.length > 0 || now.note) && (
             <p className="nowsub">{[...(now.units || []), now.note].filter(Boolean).join(", ")}</p>
           )}

@@ -34,6 +34,30 @@ export function isNoCheck(item) {
   return !!item.unit_test || NO_CHECK_CATEGORIES.includes(item.category || "");
 }
 
+/**
+ * **툴 — 아이가 무엇을 펴야 하는가** (원장님, 2026-08-11 — 「툴이 교재인지
+ * 클래스카드인지, 노트인지 표시해줄 수 있지. 물론 아이에게 말이야」).
+ *
+ * 영역(분류)과 툴은 다른 축이다 — 「단어」 숙제를 클래스카드로 할 수도,
+ * 노트에 쓸 수도 있다. 그래서 분류에 섞지 않고 칸을 따로 둔다 (0116).
+ * 항목에 한 번 적으면 그 숙제가 나갈 때마다 아이 화면에 따라붙는다.
+ *
+ * 목록에 없는 툴은 학습 항목 화면에서 직접 적으면 된다 — 못 박아 두면
+ * 언제나 모자란다 (lib/activities.js 와 같은 이야기).
+ */
+export const TOOLS = ["교재", "클래스카드", "노트", "프린트", "온라인"];
+
+/** 아이 화면에 붙는 그림 — 글자만 있으면 아홉 살은 안 읽는다 */
+export const TOOL_ICON = {
+  교재: "📕", 클래스카드: "🃏", 노트: "📓", 프린트: "📄", 온라인: "💻",
+};
+
+export function toolBadge(tool) {
+  const t = (tool || "").trim();
+  if (!t) return "";
+  return `${TOOL_ICON[t] || "🔧"} ${t}`;
+}
+
 // 색은 6가지뿐이라 몇몇은 겹친다. 옆에 있는 분류끼리만 안 겹치면 된다.
 export const CAT_CLS = {
   단어: "tag-amber",

@@ -61,6 +61,8 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
                   <span style={{ fontSize: 13, lineHeight: 1.6 }}>☐</span>
                   <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
                     {c.name}
+                    {/* 무엇을 펴야 하는지 (0116) — 적어 갈 때도 같이 적는다 */}
+                    {c.tool && <span className="hint"> [{c.tool}]</span>}
                     {c.units?.length > 0 && (
                       <> — {c.units.join(", ")}</>
                     )}

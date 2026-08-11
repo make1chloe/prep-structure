@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { addHomeworkItem } from "./actions";
-import { CATEGORIES } from "./categories";
+import { CATEGORIES, TOOLS, TOOL_ICON } from "./categories";
 
 export default function AddHomeworkForm() {
   const [open, setOpen] = useState(false);
@@ -31,6 +31,16 @@ export default function AddHomeworkForm() {
             <label className="label">분류</label>
             <select className="input input-sm" name="category" defaultValue="기타">
               {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {/* 아이가 **무엇을 펴야 하는지** — 아이 화면 숙제 옆에 붙는다 (0116) */}
+          <div className="field" style={{ width: 140 }}>
+            <label className="label">툴 (아이에게 보임)</label>
+            <select className="input input-sm" name="tool" defaultValue="">
+              <option value="">표시 안 함</option>
+              {TOOLS.map((t) => (
+                <option key={t} value={t}>{TOOL_ICON[t] || ""} {t}</option>
+              ))}
             </select>
           </div>
         </div>

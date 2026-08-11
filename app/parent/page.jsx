@@ -556,6 +556,8 @@ export default async function ParentPage({ searchParams }) {
                       <span style={{ fontSize: 13, lineHeight: 1.6 }}>☐</span>
                       <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
                         {c.name}
+                        {/* 무엇으로 하는 숙제인지 (0116) — 아이 화면과 같은 값 */}
+                        {c.tool && <span className="hint"> [{c.tool}]</span>}
                         {c.units.length > 0 && <> — {c.units.join(", ")}</>}
                         {cleanNote(c.note) && <> {cleanNote(c.note)}</>}
                         {c.changedAt && (

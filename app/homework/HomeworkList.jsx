@@ -9,7 +9,7 @@ import {
   deleteHomeworkItems,
 } from "./actions";
 
-import { CATEGORIES, CAT_CLS } from "./categories";
+import { CATEGORIES, CAT_CLS, TOOLS, TOOL_ICON, toolBadge } from "./categories";
 export { CAT_CLS };
 
 export default function HomeworkList({ items = [] }) {
@@ -61,6 +61,7 @@ export default function HomeworkList({ items = [] }) {
     setDraft({
       name: i.name,
       category: i.category || "",
+      tool: i.tool || "",
       sort: i.sort ?? "",
       method: i.method || "",
       checklist: i.checklist || "",
@@ -224,6 +225,19 @@ export default function HomeworkList({ items = [] }) {
                           <option value="">—</option>
                           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                         </select>
+                        {/* 툴 — 아이 화면 숙제 이름 옆에 붙는다 (0116) */}
+                        <select
+                          className="input input-sm"
+                          style={{ marginTop: 6 }}
+                          title="아이가 무엇을 펴야 하는지 — 아이 화면에 보입니다"
+                          value={draft.tool}
+                          onChange={(e) => setDraft({ ...draft, tool: e.target.value })}
+                        >
+                          <option value="">툴 표시 안 함</option>
+                          {TOOLS.map((t) => (
+                            <option key={t} value={t}>{TOOL_ICON[t] || ""} {t}</option>
+                          ))}
+                        </select>
                       </td>
                       <td>
                         <input
@@ -326,7 +340,12 @@ export default function HomeworkList({ items = [] }) {
                   ) : (
                     <>
                       <td style={{ fontWeight: 600 }}>{i.name}</td>
-                      <td><span className={`tag ${CAT_CLS[cat] || "tag-muted"}`}>{cat}</span></td>
+                      <td>
+                        <span className={`tag ${CAT_CLS[cat] || "tag-muted"}`}>{cat}</span>
+                        {i.tool && (
+                          <span className="tag tag-sky" style={{ marginLeft: 4 }}>{toolBadge(i.tool)}</span>
+                        )}
+                      </td>
                       <td className="muted">{i.sort}</td>
                       <td>
                         {i.active ? (
