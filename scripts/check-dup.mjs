@@ -53,6 +53,7 @@ const ONE_PLACE = [
   ["needSql", "lib/sqlError.js", "SQL 을 아직 안 돌리셨다"],
   ["noTable", "lib/sqlError.js", "표가 없다"],
   ["noColumn", "lib/sqlError.js", "칸이 없다"],
+  ["cleanClassName", "lib/classLabel.js", "반 이름 속 시간 걷어내기"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

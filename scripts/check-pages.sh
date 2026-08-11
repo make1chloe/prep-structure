@@ -197,6 +197,10 @@ runjs scripts/check-monthnav.mjs
 runjs scripts/check-schoolsite.mjs
 
 echo
+echo "== 5-4-10-2) 반 이름에 시간이 두 번 나오지 않나 =="
+runjs scripts/check-classlabel.mjs
+
+echo
 echo "== 5-4-11-1) 전달사항 파일 묶어 받기 =="
 # zip 규격을 직접 쓴 자리 — 시스템 unzip 으로 진짜 풀어서 본다
 runjs scripts/check-zip.mjs

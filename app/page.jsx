@@ -16,6 +16,7 @@ import BreakWatch from "./BreakWatch";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
+import { cleanClassName } from "@/lib/classLabel";
 
 export const dynamic = "force-dynamic";
 
@@ -426,7 +427,8 @@ export default async function Home() {
                     <span className="hint" style={{ minWidth: 84 }}>
                       {cut(c.start_time)}-{cut(c.end_time)}
                     </span>
-                    <b style={{ fontSize: 12.5 }}>{c.name}</b>
+                    {/* 이름 속 시간은 걷어낸다 — 앞 시간과 두 번 나온다 (lib/classLabel) */}
+                    <b style={{ fontSize: 12.5 }}>{cleanClassName(c.name)}</b>
                     {c.room && <span className="tag tag-muted">{c.room}</span>}
                   </Link>
                 ))}

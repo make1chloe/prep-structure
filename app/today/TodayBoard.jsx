@@ -10,6 +10,7 @@ import { isMemo } from "@/lib/notices";
 import CheckQueue from "./CheckQueue";
 import { setArrivalFor } from "./arrivalActions";
 import { setClassAttendance } from "./classAttendance";
+import { classLabel } from "@/lib/classLabel";
 
 
 const ATT = [
@@ -183,8 +184,8 @@ export default function TodayBoard({
                 onClick={() => setOpenClass(opened ? null : klass.id)}
               >
                 <span style={{ fontWeight: 800 }}>
-                  {opened ? "▾" : "▸"} {cut(klass.start_time)}
-                  {klass.end_time ? `-${cut(klass.end_time)}` : ""} {klass.name}
+                  {/* 시간은 칸에서 한 번만 — 이름 속 시간은 걷어낸다 (lib/classLabel) */}
+                  {opened ? "▾" : "▸"} {classLabel(klass)}
                   {klass.category && klass.category !== "정규반" && (
                     <span
                       className="tag tag-lav"

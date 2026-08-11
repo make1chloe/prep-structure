@@ -11,6 +11,7 @@ import { oneRound, stack } from "@/lib/report";
 import GrowthCard from "@/components/GrowthCard";
 import UnitCard from "@/components/UnitCard";
 import { cutOf, passSummary, score } from "@/lib/wordTest";
+import { cleanClassName } from "@/lib/classLabel";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels,
   makeCard, pickAssigned, checkCounts,
@@ -226,7 +227,7 @@ export default async function ParentPage({ searchParams }) {
     const dow = dowOf(d);
     const hit = myClasses.filter((c) => (c.days || []).includes(dow))
       .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""))[0];
-    if (hit) nextClass = { date: d, at: (hit.start_time || "").slice(0, 5), name: hit.name || "" };
+    if (hit) nextClass = { date: d, at: (hit.start_time || "").slice(0, 5), name: cleanClassName(hit.name) };
   }
 
   // 오늘 출결 — 어머니가 제일 자주 물으시던 것 (「갔어요?」)
