@@ -47,21 +47,21 @@ export default function InstallRolePage({ params }) {
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
-        <b style={{ fontSize: 14 }}>지금 이 화면에서 담아주세요</b>
+        <b style={{ fontSize: 15 }}>지금 이 화면에서 담아주세요</b>
         <p className="hint" style={{ margin: "6px 0 0" }}>
           폰은 <b>지금 보고 있는 화면</b>이 가리키는 앱을 담습니다. 다른 화면에서
           담으면 세 개가 다 같은 앱이 됩니다.
         </p>
         <div className="stack" style={{ gap: 6, marginTop: 10 }}>
           <div>
-            <b style={{ fontSize: 13 }}>아이폰 (사파리)</b>
+            <b style={{ fontSize: 14.5 }}>아이폰 (사파리)</b>
             <p className="hint" style={{ margin: "2px 0 0" }}>
               아래 <b>공유 단추(↑)</b> → <b>홈 화면에 추가</b> → 이름이{" "}
               <b>{r.name}</b> 인지 확인하고 추가
             </p>
           </div>
           <div>
-            <b style={{ fontSize: 13 }}>안드로이드 (크롬)</b>
+            <b style={{ fontSize: 14.5 }}>안드로이드 (크롬)</b>
             <p className="hint" style={{ margin: "2px 0 0" }}>
               오른쪽 위 <b>⋮</b> → <b>홈 화면에 추가</b> / <b>앱 설치</b>
             </p>

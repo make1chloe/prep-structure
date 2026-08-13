@@ -60,7 +60,7 @@ export default function AlertBox({ brief = false }) {
 
   return (
     <div className="card">
-      <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>알림</h2>
+      <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>알림</h2>
 
       <PushToggle brief={brief} />
 
@@ -70,7 +70,7 @@ export default function AlertBox({ brief = false }) {
         </p>
       ) : (
         <div style={{ marginTop: 10 }}>
-          <b style={{ fontSize: 13.5 }}>방해금지 시간</b>
+          <b style={{ fontSize: 15 }}>방해금지 시간</b>
           {/* **켜두시기를 권한다** (원장님, 2026-08-07). 알림은 선생님이
               수업을 마치고 정리하시다가 나가는 일이 많아 밤늦게 갈 수 있다.
               그걸 그대로 두면 잠결에 울리는 폰 때문에 알림을 **통째로**

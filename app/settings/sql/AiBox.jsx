@@ -32,7 +32,7 @@ export default function AiBox({ saved = false }) {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>AI 초안</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>AI 초안</h2>
         <span className={`tag ${saved ? "tag-mint" : "tag-amber"}`}>
           {saved ? "키 넣어둠" : "키 없음"}
         </span>
@@ -71,7 +71,7 @@ export default function AiBox({ saved = false }) {
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
-          <div className="notice" style={{ fontSize: 12.5 }}>
+          <div className="notice" style={{ fontSize: 14 }}>
             console.anthropic.com → API Keys 에서 만드신 키를 여기에만 넣으세요.
             메신저·메모·대화창에는 붙여넣지 마세요.
           </div>
@@ -99,7 +99,7 @@ export default function AiBox({ saved = false }) {
 
       {/* ── 항상 지킬 것 ──────────────────────────── */}
       <div style={{ marginTop: 14, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>
-        <b style={{ fontSize: 13.5 }}>AI 에게 항상 지키라고 할 것</b>
+        <b style={{ fontSize: 15 }}>AI 에게 항상 지키라고 할 것</b>
         <p className="hint" style={{ margin: "4px 0 8px" }}>
           여기 적어두면 <b>모든 초안</b>(공지·상담일지·코멘트)에 매번 같이 갑니다.
           매번 다시 적지 않아도 됩니다. 한 줄에 하나씩 적으세요.
@@ -132,7 +132,7 @@ export default function AiBox({ saved = false }) {
           >
             {savedRules ? "저장됨 ✓" : "저장"}
           </button>
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             비워두면 아무 조건 없이 씁니다.
           </span>
         </div>
@@ -140,7 +140,7 @@ export default function AiBox({ saved = false }) {
 
       {/* ── 본보기 문장 ───────────────────────────── */}
       <div style={{ marginTop: 14, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>
-        <b style={{ fontSize: 13.5 }}>본보기 문장</b>
+        <b style={{ fontSize: 15 }}>본보기 문장</b>
         <p className="hint" style={{ margin: "4px 0 8px" }}>
           <b>원장님이 예전에 쓰신 문장</b>이어야 합니다. AI 가 이 말투를 따라 씁니다.
           노션에서 가져온 데일리리포트 공지가 이미 들어와 있으니 거기서 뽑으면 됩니다.
@@ -166,8 +166,8 @@ export default function AiBox({ saved = false }) {
         {pick && (
           <div className="stack" style={{ gap: 6, marginTop: 10 }}>
             <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 13 }}>{pick.rows.length}개 찾음</b>
-              <span className="hint" style={{ fontSize: 12 }}>{chosen.size}개 선택</span>
+              <b style={{ fontSize: 14.5 }}>{pick.rows.length}개 찾음</b>
+              <span className="hint" style={{ fontSize: 13 }}>{chosen.size}개 선택</span>
               <span className="spacer" />
               <button className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set())}>
                 전부 해제
@@ -201,8 +201,8 @@ export default function AiBox({ saved = false }) {
                       setChosen(n);
                     }}
                   />
-                  <span className="hint" style={{ fontSize: 11.5, minWidth: 76 }}>{r.date}</span>
-                  <span style={{ fontSize: 12.5, flex: 1 }}>{r.body}</span>
+                  <span className="hint" style={{ fontSize: 12.5, minWidth: 76 }}>{r.date}</span>
+                  <span style={{ fontSize: 14, flex: 1 }}>{r.body}</span>
                 </label>
               ))}
               {pick.rows.length === 0 && (
@@ -215,7 +215,7 @@ export default function AiBox({ saved = false }) {
         )}
 
         <div className="stack" style={{ gap: 6, marginTop: 12 }}>
-          <span className="hint" style={{ fontSize: 12 }}>직접 붙여넣기 (한 줄에 하나)</span>
+          <span className="hint" style={{ fontSize: 13 }}>직접 붙여넣기 (한 줄에 하나)</span>
           <textarea
             className="input"
             rows={4}
@@ -245,7 +245,7 @@ export default function AiBox({ saved = false }) {
           <div className="stack" style={{ gap: 3, marginTop: 12, maxHeight: 240, overflowY: "auto" }}>
             {mine.rows.map((s) => (
               <div className="unitrow" key={s.id} style={{ alignItems: "flex-start" }}>
-                <span style={{ fontSize: 12.5, flex: 1 }}>{s.body}</span>
+                <span style={{ fontSize: 14, flex: 1 }}>{s.body}</span>
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={pending}

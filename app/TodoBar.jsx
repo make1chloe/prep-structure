@@ -28,9 +28,9 @@ export default async function TodoBar() {
   return (
     <div className="card sect sect-warn" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>남은 일</b>
+        <b style={{ fontSize: 15 }}>남은 일</b>
         <span className="tag tag-amber">{total}건</span>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           위 메뉴에 붙은 숫자가 이것입니다 — 누르면 그 화면으로 갑니다.
         </span>
       </div>
@@ -49,10 +49,10 @@ export default async function TodoBar() {
               {/* **어느 메뉴 것인지 같이 적는다** — 배지는 묶음 이름에도
                   붙으므로, 「발송」 에 뜬 숫자가 어느 화면 것인지 여기서
                   이어져야 한다 */}
-              <span className="hint" style={{ fontSize: 11 }}>
+              <span className="hint" style={{ fontSize: 12 }}>
                 {sec?.label ? `${sec.label} · ` : ""}{it.label}
               </span>
-              <span style={{ fontSize: 12.5 }}>
+              <span style={{ fontSize: 14 }}>
                 {TODO_LABEL[k]?.(todos[k]) || `${todos[k]}건`}
               </span>
             </Link>

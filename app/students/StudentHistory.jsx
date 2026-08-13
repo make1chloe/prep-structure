@@ -44,7 +44,7 @@ export default function StudentHistoryPanel({ studentId }) {
   return (
     <div className="grid2" style={{ gap: 10 }}>
       <div>
-        <b style={{ fontSize: 13 }}>교재 사용 기록</b>
+        <b style={{ fontSize: 14.5 }}>교재 사용 기록</b>
         {data.books.length === 0 ? (
           <p className="hint" style={{ margin: "6px 0 0" }}>기록이 없습니다.</p>
         ) : (
@@ -54,7 +54,7 @@ export default function StudentHistoryPanel({ studentId }) {
               return (
                 <div className="unitrow" key={b.textbook_id}>
                   <span className={`tag ${st.cls}`}>{st.label}</span>
-                  <b style={{ fontSize: 12.5 }}>{b.name}</b>
+                  <b style={{ fontSize: 14 }}>{b.name}</b>
                   {b.area && <span className="tag tag-muted">{b.area}</span>}
                   <span className="spacer" />
                   <span className="hint">
@@ -64,7 +64,7 @@ export default function StudentHistoryPanel({ studentId }) {
                   {(b.rounds || []).length > 1 && (
                     <div style={{ flexBasis: "100%", paddingLeft: 4, marginTop: 2 }}>
                       {b.rounds.map((r) => (
-                        <div className="hint" key={r.round} style={{ fontSize: 11.5 }}>
+                        <div className="hint" key={r.round} style={{ fontSize: 12.5 }}>
                           {r.round}회독 {r.percent === null ? "—" : `${r.percent}%`}
                           {r.total > 0 ? ` (${r.done}/${r.total})` : ""}
                           {r.first ? ` · ${r.first} ~ ${r.last || "지금"}` : ""}
@@ -81,7 +81,7 @@ export default function StudentHistoryPanel({ studentId }) {
       </div>
 
       <div>
-        <b style={{ fontSize: 13 }}>경고 기록</b>
+        <b style={{ fontSize: 14.5 }}>경고 기록</b>
         {(data.warnings || []).length === 0 ? (
           <p className="hint" style={{ margin: "6px 0 12px" }}>기록이 없습니다.</p>
         ) : (
@@ -92,7 +92,7 @@ export default function StudentHistoryPanel({ studentId }) {
                 <div className="unitrow" key={w.id}>
                   <span className={`tag ${k.cls}`}>{k.label}</span>
                   <span className="hint" style={{ minWidth: 74 }}>{w.on_date}</span>
-                  <span style={{ fontSize: 12.5, flex: 1 }}>
+                  <span style={{ fontSize: 14, flex: 1 }}>
                     {w.kind === "waive" && w.target_date ? `${w.target_date} 경고 제외` : ""}
                     {w.note || ""}
                   </span>
@@ -102,7 +102,7 @@ export default function StudentHistoryPanel({ studentId }) {
           </div>
         )}
 
-        <b style={{ fontSize: 13 }}>상담 기록</b>
+        <b style={{ fontSize: 14.5 }}>상담 기록</b>
         {data.inquiries.length === 0 ? (
           <p className="hint" style={{ margin: "6px 0 0" }}>기록이 없습니다.</p>
         ) : (
@@ -115,7 +115,7 @@ export default function StudentHistoryPanel({ studentId }) {
                     {(q.created_at || "").slice(0, 10)}
                     {q.source ? ` · ${q.source}` : ""}
                   </span>
-                  {q.test_result && <div style={{ fontSize: 12.5 }}>테스트: {q.test_result}</div>}
+                  {q.test_result && <div style={{ fontSize: 14 }}>테스트: {q.test_result}</div>}
                   {q.memo && <div className="hint">{q.memo}</div>}
                   {q.test_note && <div className="hint">{q.test_note}</div>}
                 </div>
@@ -125,7 +125,7 @@ export default function StudentHistoryPanel({ studentId }) {
         )}
         {data.note && (
           <div style={{ marginTop: 10 }}>
-            <b style={{ fontSize: 13 }}>특이사항</b>
+            <b style={{ fontSize: 14.5 }}>특이사항</b>
             <p className="hint" style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>
               {data.note}
             </p>

@@ -38,7 +38,7 @@ export default function MonthlyReset({ ym, targets = [] }) {
   return (
     <div className="card" style={{ borderLeft: "3px solid var(--amber, #e0a33e)", marginBottom: 14 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>{month}월이 시작됐습니다 — 지난달 경고를 정리할까요?</b>
+        <b style={{ fontSize: 15 }}>{month}월이 시작됐습니다 — 지난달 경고를 정리할까요?</b>
         <span className="tag tag-amber">{targets.length}명</span>
       </div>
       <p className="hint" style={{ margin: "6px 0 2px" }}>

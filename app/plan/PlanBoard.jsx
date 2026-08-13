@@ -120,9 +120,9 @@ export default function PlanBoard({
           {/* 누구에게 */}
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "14px 16px 0" }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
                 누구{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>{sel.size}명</span>
+                <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>{sel.size}명</span>
               </h2>
               <div className="row" style={{ gap: 6, margin: "8px 0", alignItems: "center" }}>
                 <input
@@ -196,7 +196,7 @@ export default function PlanBoard({
           <div className="card">
             {tab === "absence" && (
               <>
-                <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>결석 예정 넣기</h2>
+                <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>결석 예정 넣기</h2>
                 <div
                   className="row"
                   style={{ gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}
@@ -282,7 +282,7 @@ export default function PlanBoard({
                 </div>
 
                 {/* **들어가 있는 것** — 무르는 자리를 넣는 자리 바로 밑에 둔다 */}
-                <h2 style={{ margin: "16px 0 0", fontSize: 15, fontWeight: 800 }}>
+                <h2 style={{ margin: "16px 0 0", fontSize: 16, fontWeight: 800 }}>
                   앞으로 잡혀 있는 결석{" "}
                   {absences.length > 0 && <span className="tag tag-amber">{absences.length}건</span>}
                 </h2>
@@ -295,7 +295,7 @@ export default function PlanBoard({
                 같은 것을 두 군데 만들면 언젠가 한쪽만 고치게 된다. */}
             {tab === "fix" && (
               <>
-                <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>지난 수업 고치기</h2>
+                <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>지난 수업 고치기</h2>
                 <p className="hint" style={{ margin: "0 0 8px", lineHeight: 1.7 }}>
                   「고치기」 를 누르면 그 날짜의 오늘 수업 화면이 <b>그 학생 판이 열린 채로</b> 뜹니다 —
                   출결 · 숙제 검사 · 리포트를 거기서 고칩니다.
@@ -326,7 +326,7 @@ export default function PlanBoard({
                       const s = students.find((x) => x.id === p.studentId);
                       return (
                         <div className="unitrow" key={p.id}>
-                          <b style={{ fontSize: 12.5, minWidth: 64 }}>{s?.name || "학생"}</b>
+                          <b style={{ fontSize: 14, minWidth: 64 }}>{s?.name || "학생"}</b>
                           <span className="hint" style={{ minWidth: 96 }}>{dayLabel(p.date)}</span>
                           {p.attendance && (
                             <span className="tag tag-muted">{ATT_LABEL[p.attendance] || p.attendance}</span>

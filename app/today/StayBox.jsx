@@ -21,7 +21,7 @@ function Row({ tag, cls, body, dim, strike, children }) {
       </span>
       <span
         style={{
-          fontSize: 13,
+          fontSize: 14.5,
           flex: 1,
           textDecoration: strike ? "line-through" : "none",
         }}

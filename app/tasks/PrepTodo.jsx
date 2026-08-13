@@ -54,7 +54,7 @@ export default function PrepTodo({ rows = [] }) {
             <div key={`${g.exam}-${g.due}`}>
               <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 3 }}>
                 <span className={`tag ${d.cls}`}>{d.text}</span>
-                <b style={{ fontSize: 12.5 }}>{g.exam}</b>
+                <b style={{ fontSize: 14 }}>{g.exam}</b>
                 <span className="hint">
                   {g.byEnglish ? "영어 시험" : "시험 시작"} {shortLabel(g.due)}
                 </span>
@@ -62,7 +62,7 @@ export default function PrepTodo({ rows = [] }) {
               <div className="stack" style={{ gap: 2 }}>
                 {g.items.map((m) => (
                   <Link className="unitrow" key={m.id} href="/prep" style={{ textDecoration: "none" }}>
-                    <span style={{ fontSize: 12.5 }}>{m.name}</span>
+                    <span style={{ fontSize: 14 }}>{m.name}</span>
                     {m.scope && <span className="tag tag-muted">{m.scope}</span>}
                     <span className="spacer" />
                     {m.left.map((s) => (

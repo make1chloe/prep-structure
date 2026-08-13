@@ -42,7 +42,7 @@ export default function WarnBox({ studentId, warn, date }) {
         <span className={`tag ${warn.need ? "tag-red" : "tag-amber"}`}>
           경고 {warn.count} / {at}
         </span>
-        {warn.need && <b style={{ fontSize: 13 }}>반성문 대상입니다</b>}
+        {warn.need && <b style={{ fontSize: 14.5 }}>반성문 대상입니다</b>}
         {warn.deferred && (
           <span className="tag tag-muted" title="지난번에 한 번 봐줬습니다">
             지난번 유예함
@@ -56,7 +56,7 @@ export default function WarnBox({ studentId, warn, date }) {
             <span className="hint" style={{ minWidth: 52 }}>
               {w.date.slice(5).replace("-", "/")}
             </span>
-            <span style={{ fontSize: 12.5, flex: 1 }}>{w.reasons.join(", ")}</span>
+            <span style={{ fontSize: 14, flex: 1 }}>{w.reasons.join(", ")}</span>
             <button
               className="btn btn-ghost btn-sm"
               disabled={pending}

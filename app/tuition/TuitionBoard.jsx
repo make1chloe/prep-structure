@@ -98,16 +98,16 @@ export default function TuitionBoard({
         />
         <a className="btn btn-ghost btn-sm" href={`/tuition?m=${shiftMonth(ym, 1)}`}>다음달 ▸</a>
         <span className="spacer" />
-        <span className="tag tag-mint" style={{ fontSize: 13, padding: "5px 12px" }}>
+        <span className="tag tag-mint" style={{ fontSize: 14.5, padding: "5px 12px" }}>
           이번 달 합계 <b>{won(total)}</b>
         </span>
         {totalUnpaid > 0 && (
-          <span className="tag tag-red" style={{ fontSize: 13, padding: "5px 12px" }}>
+          <span className="tag tag-red" style={{ fontSize: 14.5, padding: "5px 12px" }}>
             아직 못 받음 <b>{won(totalUnpaid)}</b>
           </span>
         )}
         {totalMakeup > 0 && (
-          <span className="tag tag-amber" style={{ fontSize: 13, padding: "5px 12px" }}>
+          <span className="tag tag-amber" style={{ fontSize: 14.5, padding: "5px 12px" }}>
             보강 필요 <b>{totalMakeup}회</b> · 차액 {won(totalCredit)}
           </span>
         )}
@@ -123,8 +123,8 @@ export default function TuitionBoard({
 
       {/* 학년별 수강료 — 학년이 오르면 금액이 오른다 */}
       <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학년별 수강료</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>학년별 수강료</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
           한 반에 학년이 섞여 있어도 학생마다 손으로 고쳐 넣지 않아도 됩니다.
           <br />
           금액은 <b>좁은 것이 이깁니다</b> — 학생에게 따로 적은 금액 ▸ 학년별 금액 ▸ 반 금액 순입니다.
@@ -196,8 +196,8 @@ export default function TuitionBoard({
 
       {/* 휴강일 */}
       <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>휴강일</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>휴강일</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           휴강으로 넣으면 그 날짜가 회차에서 빠집니다. <b>수강료는 그대로</b>이고,
           대신 학생마다 <b>보강 필요 횟수</b>와 <b>차액</b>이 계산됩니다.
         </p>
@@ -346,7 +346,7 @@ export default function TuitionBoard({
                     )}
                   </span>
                 </span>
-                <span className="muted" style={{ fontSize: 12.5 }}>
+                <span className="muted" style={{ fontSize: 14 }}>
                   {live.length}회{off.length > 0 && ` (휴강 ${off.length}회)`} · 기준 {base}회 ·{" "}
                   <b>{won(sum)}</b>
                   {makeupSum > 0 && (
@@ -643,7 +643,7 @@ export default function TuitionBoard({
         })}
         {groups.length === 0 && (
           <div className="card">
-            <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 15 }}>
               반이 없습니다. <b>반</b> 메뉴에서 먼저 만들어주세요.
             </p>
           </div>

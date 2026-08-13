@@ -41,8 +41,8 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
   if (done) {
     return (
       <div className="card">
-        <h2 style={{ margin: "0 0 8px", fontSize: 17, fontWeight: 800 }}>접수되었습니다 🙂</h2>
-        <p className="muted" style={{ margin: 0, fontSize: 13.5, lineHeight: 1.7 }}>
+        <h2 style={{ margin: "0 0 8px", fontSize: 18.5, fontWeight: 800 }}>접수되었습니다 🙂</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.7 }}>
           적어주신 시간을 보고 학원에서 곧 연락드리겠습니다.
           <br />
           급한 문의는 학원으로 전화 주세요.
@@ -127,7 +127,7 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
 
       {/* ---- 희망 시간표 ---------------------------------------------- */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>희망 시간표</h2>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>희망 시간표</h2>
         <p className="hint" style={{ margin: "0 0 10px" }}>
           가능한 시간표를 <b>모두</b> 골라주세요.
         </p>
@@ -145,7 +145,7 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
                 }}
               >
                 <input type="checkbox" checked={on} onChange={() => toggle(s.key)} />
-                <span style={{ fontSize: 13.5 }}>
+                <span style={{ fontSize: 15 }}>
                   <b>{s.group}</b> {s.days} <b>{s.time}</b>
                 </span>
               </label>
@@ -153,14 +153,14 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
           })}
         </div>
         {/* **고르기 전에 알아야 하는 것.** 나중에 알면 「그런 말 없었잖아요」 가 된다 */}
-        <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+        <div className="notice" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7 }}>
           {SLOT_NOTES.map((n) => <div key={n}>· {n}</div>)}
         </div>
       </div>
 
       {/* ---- 레벨테스트 · 방문상담 ------------------------------------ */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
           레벨테스트 · 부모님 방문상담
         </h2>
         {/* **둘이 되는 때가 다르다** (원장님, 2026-08-07).
@@ -220,10 +220,10 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
 
       {/* ---- 개인정보 수집·이용 동의 ---------------------------------- */}
       <div className="card">
-        <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>{PRIVACY.title}</h2>
+        <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>{PRIVACY.title}</h2>
         <div className="stack" style={{ gap: 6 }}>
           {PRIVACY.rows.map((r) => (
-            <div key={r.head} style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+            <div key={r.head} style={{ fontSize: 14, lineHeight: 1.7 }}>
               <b>{r.head}</b>
               <br />
               <span className="muted">{r.body}</span>
@@ -242,7 +242,7 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
             type="checkbox" name="privacy_agree" checked={agree}
             onChange={(e) => setAgree(e.target.checked)}
           />
-          <span style={{ fontSize: 13 }}>{PRIVACY.label}</span>
+          <span style={{ fontSize: 14.5 }}>{PRIVACY.label}</span>
         </label>
       </div>
 

@@ -24,11 +24,11 @@ function Share({ title, rows, hint }) {
   if (!rows?.length) return null;
   return (
     <div className="card card-tight">
-      <b style={{ fontSize: 13 }}>{title}</b>
+      <b style={{ fontSize: 14.5 }}>{title}</b>
       <div style={{ marginTop: 8 }}>
         {rows.map((r) => (
           <div key={r.key} className="row" style={{ gap: 8, alignItems: "center", margin: "3px 0" }}>
-            <span style={{ width: 96, fontSize: 12, flexShrink: 0 }}>{r.key}</span>
+            <span style={{ width: 96, fontSize: 13, flexShrink: 0 }}>{r.key}</span>
             <span
               style={{
                 flex: 1, height: 9, borderRadius: 999,
@@ -42,13 +42,13 @@ function Share({ title, rows, hint }) {
                 }}
               />
             </span>
-            <span className="hint" style={{ width: 96, fontSize: 11.5, textAlign: "right", flexShrink: 0 }}>
+            <span className="hint" style={{ width: 96, fontSize: 12.5, textAlign: "right", flexShrink: 0 }}>
               {r.pct}% · {r.count}문항{r.byPoints ? ` · ${r.points}점` : ""}
             </span>
           </div>
         ))}
       </div>
-      {hint && <p className="hint" style={{ margin: "6px 0 0", fontSize: 11 }}>{hint}</p>}
+      {hint && <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>{hint}</p>}
     </div>
   );
 }
@@ -69,7 +69,7 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
       <div className="card card-tight">
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13 }}>어느 시험</b>
+          <b style={{ fontSize: 14.5 }}>어느 시험</b>
           <select
             className="input input-sm"
             style={{ minWidth: 280, flex: 1 }}
@@ -101,8 +101,8 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
               <div className="stack" style={{ gap: 8 }}>
                 {notes.map((n, i) => (
                   <div key={i}>
-                    <b style={{ fontSize: 12.5 }}>[{n.head}]</b>
-                    <p style={{ margin: "2px 0 0", fontSize: 12.5, lineHeight: 1.75 }}>
+                    <b style={{ fontSize: 14 }}>[{n.head}]</b>
+                    <p style={{ margin: "2px 0 0", fontSize: 14, lineHeight: 1.75 }}>
                       {/* **굵게 표시한 곳만 굵게.** 문장 전체가 굵으면 아무 데도 안 굵다 */}
                       {n.body.split("**").map((part, j) =>
                         j % 2 === 1 ? <b key={j}>{part}</b> : <span key={j}>{part}</span>
@@ -157,7 +157,7 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
           {/* ── 우리 애들 ─────────────────────────────────── */}
           {a.n >= 3 && a.weakUnits.length > 0 && (
             <div className="card">
-              <b style={{ fontSize: 13.5 }}>우리 애들이 몰려 틀린 단원</b>
+              <b style={{ fontSize: 15 }}>우리 애들이 몰려 틀린 단원</b>
               <div className="tblwrap" style={{ marginTop: 8 }}>
                 <table className="tbl tbl-tight">
                   <thead>
@@ -182,7 +182,7 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
                   </tbody>
                 </table>
               </div>
-              <p className="hint" style={{ margin: "6px 0 0", fontSize: 11 }}>
+              <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
                 「틀린 횟수」 는 아이들이 그 단원 문항을 푼 횟수 중 틀린 수입니다
                 ({a.n}명 × 문항 수).
               </p>
@@ -193,7 +193,7 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
           {rows.length > 0 && (
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
               <div className="row" style={{ padding: "12px 14px 4px", gap: 8, alignItems: "center" }}>
-                <b style={{ fontSize: 13.5 }}>문항별</b>
+                <b style={{ fontSize: 15 }}>문항별</b>
                 <span className="spacer" />
                 <button
                   className={`btn btn-sm ${sort === "no" ? "btn-primary" : "btn-ghost"}`}

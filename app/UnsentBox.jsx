@@ -78,12 +78,12 @@ export default function UnsentBox({ fails = [], past = [] }) {
             {r._t === "fail" ? (
               <>
                 <span className="tag tag-red">실패</span>
-                <b style={{ fontSize: 12.5 }}>{r.name}</b>
+                <b style={{ fontSize: 14 }}>{r.name}</b>
                 <span className="hint">{r.detail || r.kind}</span>
                 <span className="spacer" />
                 <Link
                   className="hint"
-                  style={{ fontSize: 11.5, textDecoration: "none" }}
+                  style={{ fontSize: 12.5, textDecoration: "none" }}
                   href={`/report?t=resend${r.date ? `&d=${r.date}` : ""}`}
                 >
                   다시 보내기 ›
@@ -93,12 +93,12 @@ export default function UnsentBox({ fails = [], past = [] }) {
               <>
                 <span className="tag tag-amber">미발송</span>
                 <span className="hint" style={{ minWidth: 62 }}>{dayLabel(r.date)}</span>
-                <b style={{ fontSize: 12.5 }}>{r.name}</b>
+                <b style={{ fontSize: 14 }}>{r.name}</b>
                 <span className="hint">써두고 안 보냄</span>
                 <span className="spacer" />
                 <Link
                   className="hint"
-                  style={{ fontSize: 11.5, textDecoration: "none" }}
+                  style={{ fontSize: 12.5, textDecoration: "none" }}
                   href={`/report?d=${r.date}`}
                 >
                   보내기 ›

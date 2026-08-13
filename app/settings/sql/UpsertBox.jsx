@@ -17,7 +17,7 @@ export default function UpsertBox() {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>받아오기 · 할일 점검</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>받아오기 · 할일 점검</h2>
         {res && (
           <span className={`tag ${bad ? "tag-amber" : "tag-mint"}`}>
             {bad ? "막힌 데가 있어요" : "잘 됩니다"}
@@ -48,14 +48,14 @@ export default function UpsertBox() {
               <span className={`tag ${s.ok ? "tag-mint" : "tag-amber"}`}>
                 {s.ok ? "OK" : "막힘"}
               </span>
-              <b style={{ fontSize: 13 }}>{s.name}</b>
+              <b style={{ fontSize: 14.5 }}>{s.name}</b>
               {s.why && (
-                <span className="hint" style={{ flex: 1, fontSize: 12 }}>{s.why}</span>
+                <span className="hint" style={{ flex: 1, fontSize: 13 }}>{s.why}</span>
               )}
             </div>
           ))}
           {bad && (
-            <div className="notice" style={{ fontSize: 12.5, marginTop: 4 }}>
+            <div className="notice" style={{ fontSize: 14, marginTop: 4 }}>
               위의 <b>전체 SQL</b> 을 한 번 더 복사해서 Supabase SQL Editor 에 붙여넣고
               실행해주세요. <b>0061 까지 들어 있습니다.</b> 여러 번 돌려도 안전합니다.
             </div>

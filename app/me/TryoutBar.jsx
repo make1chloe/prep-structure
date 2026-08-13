@@ -24,7 +24,7 @@ export default function TryoutBar({ studentId, name }) {
       style={{ borderLeft: "3px solid var(--amber, #e0a33e)", background: "var(--surface-2)" }}
     >
       <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>체험 모드 · {name}</b>
+        <b style={{ fontSize: 15 }}>체험 모드 · {name}</b>
         <span className="spacer" />
         <a className="btn btn-ghost btn-sm" href={`/me?s=${studentId}`}>
           보기만 하기

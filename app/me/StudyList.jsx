@@ -108,7 +108,7 @@ export default function StudyList({
       {/* 얼마나 왔나 — 숫자보다 막대가 빨리 읽힌다 */}
       <div className="card card-tight">
         <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-          <b style={{ fontSize: 14 }}>{title}</b>
+          <b style={{ fontSize: 15 }}>{title}</b>
           <span className="spacer" />
           <span className="hint">
             {done.length} / {tasks.length} 끝
@@ -127,7 +127,7 @@ export default function StudyList({
             {now.name}
             {/* 무엇을 펴야 하는지 — 「지금 할 것」 에서 제일 많이 물어본다 (0116) */}
             {now.tool && (
-              <span className="tag tag-sky" style={{ marginLeft: 7, fontSize: 11.5, verticalAlign: "3px" }}>
+              <span className="tag tag-sky" style={{ marginLeft: 7, fontSize: 12.5, verticalAlign: "3px" }}>
                 {toolBadge(now.tool)}
               </span>
             )}
@@ -228,9 +228,9 @@ export default function StudyList({
                     <span className="tag tag-muted" style={{ minWidth: 24, textAlign: "center" }}>
                       {i + 2}
                     </span>
-                    <span style={{ fontSize: 13, flex: 1 }}>{t.name}</span>
+                    <span style={{ fontSize: 14.5, flex: 1 }}>{t.name}</span>
                     {mine.length > 0 && <span className="tag tag-mint">낸 것 {mine.length}</span>}
-                    {t.usual > 0 && <span className="hint" style={{ fontSize: 11.5 }}>보통 {human(t.usual)}</span>}
+                    {t.usual > 0 && <span className="hint" style={{ fontSize: 12.5 }}>보통 {human(t.usual)}</span>}
                     {kind === "home" && (
                       <button
                         className="btn btn-ghost btn-sm"
@@ -280,7 +280,7 @@ export default function StudyList({
                   <div key={t.key} className="stack" style={{ gap: 0 }}>
                     <div className="unitrow" style={{ opacity: 0.7 }}>
                       <span className="tag tag-mint">✓</span>
-                      <span style={{ fontSize: 12.5, flex: 1, textDecoration: "line-through" }}>
+                      <span style={{ fontSize: 14, flex: 1, textDecoration: "line-through" }}>
                         {t.name}
                       </span>
                       {t.seconds > 0 && <span className="hint">{human(t.seconds)}</span>}

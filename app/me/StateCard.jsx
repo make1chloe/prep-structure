@@ -39,7 +39,7 @@ export default function StateCard({ mine = null, unavailable = false }) {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>선생님 부르기</b>
+        <b style={{ fontSize: 15 }}>선생님 부르기</b>
         {cur && <span className={`tag ${cur.cls}`}>{cur.label}</span>}
         <span className="spacer" />
         {saved && <span className="hint" style={{ color: "var(--mint)" }}>선생님께 전달됐어요 ✓</span>}

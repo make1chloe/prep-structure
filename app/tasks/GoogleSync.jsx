@@ -87,7 +87,7 @@ export default function GoogleSync() {
             </button>
           </div>
 
-          <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.9 }}>
+          <div className="notice" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.9 }}>
             <b>구글 캘린더에 넣는 법</b>
             <br />
             ① 컴퓨터에서{" "}

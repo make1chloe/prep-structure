@@ -157,7 +157,7 @@ export default function RoutineEditor({ textbookId, items = [] }) {
   return (
     <>
       {!ready && (
-        <div className="notice" style={{ marginBottom: 10, fontSize: 12.5 }}>
+        <div className="notice" style={{ marginBottom: 10, fontSize: 14 }}>
           <b>0035 SQL</b> 을 먼저 실행해주세요.
         </div>
       )}
@@ -166,7 +166,7 @@ export default function RoutineEditor({ textbookId, items = [] }) {
           자리에 단추 둘을 나란히 놓으면 그것부터가 고르는 일이 된다 */}
       {steps.length === 0 ? (
         <div className="emptybox">
-          <p style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 700 }}>아직 루틴이 없어요</p>
+          <p style={{ margin: "0 0 3px", fontSize: 14.5, fontWeight: 700 }}>아직 루틴이 없어요</p>
           <p className="hint" style={{ margin: "0 0 12px", lineHeight: 1.6 }}>
             한 줄이 한 수업 회차입니다. 진도를 따라 순서대로 돌아가요.
             <br />
@@ -200,18 +200,18 @@ export default function RoutineEditor({ textbookId, items = [] }) {
               <div className="steprow" key={s.id}>
                 <span className="stepno">{i + 1}</span>
                 <div className="stepbody">
-                  {s.label && <b style={{ fontSize: 12.5 }}>{s.label}</b>}
+                  {s.label && <b style={{ fontSize: 14 }}>{s.label}</b>}
                   {/* **어느 쪽 일인지 딱지로.** 「등원:」 「숙제:」 를 글자로 적으면
                       항목 이름과 같은 굵기라 눈이 한 번 더 읽어야 한다 */}
                   <div className="prow">
                     <span className="tag tag-lav plabel">등원</span>
-                    <span style={{ fontSize: 12.5 }}>
+                    <span style={{ fontSize: 14 }}>
                       {(s.inclass_items || []).map(nameOf).filter(Boolean).join(" · ") || "—"}
                     </span>
                   </div>
                   <div className="prow">
                     <span className="tag tag-mint plabel">숙제</span>
-                    <span style={{ fontSize: 12.5 }}>
+                    <span style={{ fontSize: 14 }}>
                       {(s.home_items || []).map(nameOf).filter(Boolean).join(" · ") || "—"}
                     </span>
                   </div>

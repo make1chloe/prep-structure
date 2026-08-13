@@ -100,7 +100,7 @@ export default function PrepBoard({
     <>
       {todoRows.length > 0 && (
         <div className="card" style={{ marginTop: 14, borderLeft: "3px solid var(--amber, #e0a33e)" }}>
-          <b style={{ fontSize: 14 }}>지금 할 것</b>
+          <b style={{ fontSize: 15 }}>지금 할 것</b>
           <p className="hint" style={{ margin: "4px 0 8px" }}>
             시험이 급한 순서입니다. 누르면 다음 단계로 넘어가고 이 줄은 사라집니다.
           </p>
@@ -112,8 +112,8 @@ export default function PrepBoard({
                   <span className={`tag ${d !== null && d <= 3 ? "tag-amber" : "tag-muted"}`}>
                     {d === null ? "날짜 없음" : d < 0 ? "지남" : `D-${d}`}
                   </span>
-                  <span className="hint" style={{ fontSize: 12, minWidth: 130 }}>{r.exam}</span>
-                  <b style={{ fontSize: 13, flex: 1 }}>{r.label}</b>
+                  <span className="hint" style={{ fontSize: 13, minWidth: 130 }}>{r.exam}</span>
+                  <b style={{ fontSize: 14.5, flex: 1 }}>{r.label}</b>
                   <span className="tag tag-sky">{r.stage.label}</span>
                   <button
                     className="btn btn-sm"
@@ -181,11 +181,11 @@ export default function PrepBoard({
                       <button className="btn btn-ghost btn-sm" style={{ width: "100%", textAlign: "left" }}
                         onClick={() => setSel(e.id)}>
                         <b title={e.school}>{shortName(e.school)}</b>{" "}
-                        <span className="hint" style={{ fontSize: 11.5 }}>
+                        <span className="hint" style={{ fontSize: 12.5 }}>
                           {[e.grade, e.term].filter(Boolean).join(" · ")}
                         </span>
                         {e.exam_date && (
-                          <span className={`tag ${d !== null && d <= 7 ? "tag-amber" : "tag-muted"}`} style={{ marginLeft: 6, fontSize: 11 }}>
+                          <span className={`tag ${d !== null && d <= 7 ? "tag-amber" : "tag-muted"}`} style={{ marginLeft: 6, fontSize: 12 }}>
                             {d < 0 ? "지남" : `D-${d}`}
                           </span>
                         )}
@@ -208,7 +208,7 @@ export default function PrepBoard({
           ) : (
             <div className="stack" style={{ gap: 10 }}>
               <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                <b style={{ fontSize: 15 }} title={exam.school}>{shortName(exam.school)} {exam.term}</b>
+                <b style={{ fontSize: 16 }} title={exam.school}>{shortName(exam.school)} {exam.term}</b>
                 {exam.exam_date && <span className="hint">영어 {exam.exam_date}</span>}
                 {teacherText(exam) && <span className="tag tag-lav">{teacherText(exam)}</span>}
                 {(exam.cuts || []).length > 0 && (
@@ -229,7 +229,7 @@ export default function PrepBoard({
 
               {/* 시험 하나에 딸린 것을 한자리에 — 학사일정과 **같은 시험**이다 */}
               <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                {exam.note && <span className="notice" style={{ flex: 1, fontSize: 12.5 }}>{exam.note}</span>}
+                {exam.note && <span className="notice" style={{ flex: 1, fontSize: 14 }}>{exam.note}</span>}
                 <span className="spacer" />
                 <a className="hint sky" href="/schedule" target="_blank" rel="noreferrer">
                   기간 · 등급컷 고치기 — 학사일정 ›
@@ -257,7 +257,7 @@ export default function PrepBoard({
                 <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
                   {/* 위층 — 범위를 골라 그 안의 자료 전부에 한꺼번에 */}
                   <BulkBar bulk={scopeBulk} label="범위">
-                    <span className="hint" style={{ fontSize: 11.5 }}>
+                    <span className="hint" style={{ fontSize: 12.5 }}>
                       자료 {scopeMatIds.length}개
                     </span>
                     {STAGES.map((st) => (
@@ -319,10 +319,10 @@ export default function PrepBoard({
                       checked={scopeBulk.has(sc.id)}
                       onChange={() => scopeBulk.toggle(sc.id)}
                     />
-                    <b style={{ fontSize: 13.5 }}>
+                    <b style={{ fontSize: 15 }}>
                       {sc.name || (sc.unit_ids || []).map((u) => unitLabel[u]).filter(Boolean)[0] || "범위"}
                     </b>
-                    <span className="hint" style={{ fontSize: 11.5 }}>
+                    <span className="hint" style={{ fontSize: 12.5 }}>
                       {(sc.unit_ids || []).length}개 단원·문제
                     </span>
                     <span className="spacer" />
@@ -336,7 +336,7 @@ export default function PrepBoard({
                     </button>
                   </div>
 
-                  <div className="hint" style={{ fontSize: 11.5, marginTop: 2 }}>
+                  <div className="hint" style={{ fontSize: 12.5, marginTop: 2 }}>
                     {(sc.unit_ids || []).map((u) => unitLabel[u]).filter(Boolean).join(" / ") || "—"}
                   </div>
 
@@ -352,13 +352,13 @@ export default function PrepBoard({
                               checked={matBulk.has(m.id)}
                               onChange={() => matBulk.toggle(m.id)}
                             />
-                            <b style={{ fontSize: 13, minWidth: 120 }}>
+                            <b style={{ fontSize: 14.5, minWidth: 120 }}>
                               {typeName(m.type_id) || m.name || "자료"}
                             </b>
                             {STAGES.filter((s) => m[s.need]).map((s) => (
                               <button key={s.key}
                                 className={`btn btn-sm ${m[s.at] ? "btn-primary" : "btn-ghost"}`}
-                                style={{ padding: "2px 8px", fontSize: 11.5 }}
+                                style={{ padding: "2px 8px", fontSize: 12.5 }}
                                 disabled={pending}
                                 onClick={() => run(() => markStage(m.id, s.key, !m[s.at]))}>
                                 {m[s.at] ? "✓ " : ""}{s.label}
@@ -377,7 +377,7 @@ export default function PrepBoard({
 
                           {assignFor === m.id && (
                             <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
-                              <p className="hint" style={{ margin: "0 0 6px", fontSize: 12 }}>
+                              <p className="hint" style={{ margin: "0 0 6px", fontSize: 13 }}>
                                 이 자료를 낼 학생 — 눌러서 켜고 끕니다
                               </p>
                               <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
@@ -386,7 +386,7 @@ export default function PrepBoard({
                                   return (
                                     <button key={st.id}
                                       className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
-                                      style={{ padding: "2px 8px", fontSize: 12 }}
+                                      style={{ padding: "2px 8px", fontSize: 13 }}
                                       disabled={pending}
                                       onClick={() => {
                                         const next = on
@@ -406,11 +406,11 @@ export default function PrepBoard({
                                     const st = students.find((x) => x.id === a.student_id);
                                     return (
                                       <div className="unitrow" key={a.id}>
-                                        <b style={{ fontSize: 12.5, minWidth: 62 }}>{st?.name || "학생"}</b>
+                                        <b style={{ fontSize: 14, minWidth: 62 }}>{st?.name || "학생"}</b>
                                         {OWN.filter((o) => m[`need_${o.key === "hand" ? "hand" : o.key}`]).map((o) => (
                                           <button key={o.key}
                                             className={`btn btn-sm ${a[o.at] ? "btn-primary" : "btn-ghost"}`}
-                                            style={{ padding: "2px 8px", fontSize: 11.5 }}
+                                            style={{ padding: "2px 8px", fontSize: 12.5 }}
                                             disabled={pending}
                                             onClick={() => run(() => markAssign(a.id, o.key, !a[o.at]))}>
                                             {a[o.at] ? "✓ " : ""}{o.label}

@@ -87,7 +87,7 @@ export default function ScoreUpload() {
     return (
       <div className="card card-tight" style={{ marginTop: 10 }}>
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 14 }}>성적 한 번에 올리기</b>
+          <b style={{ fontSize: 15 }}>성적 한 번에 올리기</b>
           <span className="hint">내신 · 단원평가 · 모의고사를 한 장으로</span>
           <span className="spacer" />
           <button className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>열기</button>
@@ -99,7 +99,7 @@ export default function ScoreUpload() {
   return (
     <div className="card" style={{ marginTop: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>성적 한 번에 올리기</b>
+        <b style={{ fontSize: 15 }}>성적 한 번에 올리기</b>
         <span className="spacer" />
         <button className="btn btn-ghost btn-sm" onClick={() => { reset(); setOpen(false); }}>닫기</button>
       </div>
@@ -133,7 +133,7 @@ export default function ScoreUpload() {
           accept=".xlsx,.xls,.csv"
           onChange={onFile}
           disabled={busy}
-          style={{ fontSize: 13 }}
+          style={{ fontSize: 14.5 }}
         />
         {busy && <span className="hint" style={{ marginLeft: 8 }}>읽는 중…</span>}
       </div>
@@ -141,7 +141,7 @@ export default function ScoreUpload() {
       {parsed && (
         <div className="stack" style={{ gap: 8, marginTop: 12 }}>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 13.5 }}>{fileName}</b>
+            <b style={{ fontSize: 15 }}>{fileName}</b>
             <span className="tag tag-sky">{good.length}줄</span>
             {count("school") > 0 && <span className="tag tag-mint">내신 {count("school")}</span>}
             {count("unit") > 0 && <span className="tag tag-lav">단원평가 {count("unit")}</span>}
@@ -153,7 +153,7 @@ export default function ScoreUpload() {
 
           {/* 못 읽은 열 — 뭘 버렸는지 알려주지 않으면 혼자 알아내셔야 한다 */}
           {parsed.unknown.length > 0 && (
-            <div className="notice" style={{ fontSize: 12.5 }}>
+            <div className="notice" style={{ fontSize: 14 }}>
               <b>못 읽은 열이 있어요:</b> {parsed.unknown.join(" · ")}
               <br />
               이 열은 안 들어갑니다. 필요하시면 열 이름을 <b>{HEADERS.join(" · ")}</b> 중 하나로 바꿔주세요.
@@ -161,7 +161,7 @@ export default function ScoreUpload() {
           )}
 
           {guessed.length > 0 && (
-            <div className="notice" style={{ fontSize: 12.5 }}>
+            <div className="notice" style={{ fontSize: 14 }}>
               <b>종류를 안 적으신 줄이 {guessed.length}개</b> 있어서 앱이 짐작했습니다.
               아래 <b>「짐작」</b> 이 붙은 줄을 한 번 봐주세요 — 틀렸으면 엑셀의 「종류」 칸을
               채워서 다시 올리시면 됩니다.
@@ -230,7 +230,7 @@ export default function ScoreUpload() {
             )}
           </div>
           {result.skipped?.length > 0 && (
-            <div className="notice" style={{ fontSize: 12.5 }}>
+            <div className="notice" style={{ fontSize: 14 }}>
               <b>못 넣은 것</b>
               <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                 {result.skipped.slice(0, 20).map((x, i) => (

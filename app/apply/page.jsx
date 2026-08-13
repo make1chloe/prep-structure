@@ -34,7 +34,7 @@ export default async function ApplyPage({ searchParams }) {
       <div className="page-head">
         <div className="login-logo" style={{ justifyContent: "flex-start", marginBottom: 10 }}>
           <BrandMark />
-          <b style={{ fontSize: 17 }}>클로이영어</b>
+          <b style={{ fontSize: 18.5 }}>클로이영어</b>
         </div>
         <h1 className="h1">상담 신청</h1>
         <p className="sub">

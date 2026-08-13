@@ -164,7 +164,7 @@ export default function ClassManager({
       {/* 반 목록 */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "14px 16px 0" }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", gap: 8 }}>
             <input
               type="checkbox"
               checked={allClassesChecked}
@@ -173,7 +173,7 @@ export default function ClassManager({
               title="전체 선택"
             />
             반 목록{" "}
-            <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
+            <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>
               {liveList.length}개
             </span>
           </h2>
@@ -221,7 +221,7 @@ export default function ClassManager({
         )}
 
         {classes.length === 0 ? (
-          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 15 }}>
             아직 반이 없습니다. 위에서 반을 추가해보세요.
           </p>
         ) : (
@@ -314,7 +314,7 @@ export default function ClassManager({
                           </div>
                           {/* 기간 — 종강일을 넣으면 그날 지나서 알아서 내려간다 */}
                           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                            <span className="hint" style={{ fontSize: 12 }}>기간</span>
+                            <span className="hint" style={{ fontSize: 13 }}>기간</span>
                             <input
                               className="input input-sm"
                               type="date"
@@ -322,7 +322,7 @@ export default function ClassManager({
                               value={draft.starts_on || ""}
                               onChange={(e) => setDraft({ ...draft, starts_on: e.target.value })}
                             />
-                            <span className="muted" style={{ fontSize: 12 }}>~</span>
+                            <span className="muted" style={{ fontSize: 13 }}>~</span>
                             <input
                               className="input input-sm"
                               type="date"
@@ -330,7 +330,7 @@ export default function ClassManager({
                               value={draft.ends_on || ""}
                               onChange={(e) => setDraft({ ...draft, ends_on: e.target.value })}
                             />
-                            <span className="hint" style={{ fontSize: 11.5 }}>
+                            <span className="hint" style={{ fontSize: 12.5 }}>
                               정규반은 비워두세요 (무기한)
                             </span>
                           </div>
@@ -370,12 +370,12 @@ export default function ClassManager({
                       {term && (
                         <span
                           className={`tag ${term.tone === "amber" ? "tag-amber" : ""}`}
-                          style={{ marginLeft: 6, fontSize: 11 }}
+                          style={{ marginLeft: 6, fontSize: 12 }}
                         >
                           {term.text}
                         </span>
                       )}
-                      <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+                      <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
                         {[
                           (c.days || []).join("·"),
                           timeLabel(c.start_time, c.end_time),
@@ -388,7 +388,7 @@ export default function ClassManager({
                       </div>
                     </td>
                     <td style={{ width: 86, textAlign: "right" }}>
-                      <span className="muted" style={{ fontSize: 12 }}>
+                      <span className="muted" style={{ fontSize: 13 }}>
                         {count}/{c.capacity ?? "-"}
                       </span>
                       <button
@@ -434,9 +434,9 @@ export default function ClassManager({
         {selected ? (
           <>
             <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
                 {selected.name} · 학생 배정{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
+                <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>
                   {picked.size}/{selected.capacity ?? "-"}명
                 </span>
               </h2>
@@ -448,7 +448,7 @@ export default function ClassManager({
                 {dirty ? "배정 저장" : "저장됨"}
               </button>
             </div>
-            <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5 }}>
+            <p className="muted" style={{ margin: "6px 0 10px", fontSize: 14 }}>
               체크한 학생이 이 반의 명단이 됩니다. 다른 반에 이미 있는 학생은 반 이름이 함께 표시돼요.
             </p>
 
@@ -509,7 +509,7 @@ export default function ClassManager({
                         </td>
                         <td>
                           <span style={{ fontWeight: 600 }}>{s.name}</span>{" "}
-                          <span className="muted" style={{ fontSize: 12 }}>
+                          <span className="muted" style={{ fontSize: 13 }}>
                             {[s.school, s.grade].filter(Boolean).join(" ")}
                           </span>
                         </td>
@@ -526,7 +526,7 @@ export default function ClassManager({
             </div>
           </>
         ) : (
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             왼쪽에서 반을 선택하면 학생을 배정할 수 있어요.
           </p>
         )}

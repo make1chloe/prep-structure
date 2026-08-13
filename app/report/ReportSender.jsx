@@ -282,7 +282,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
         </div>
 
         {shown.length === 0 ? (
-          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 15 }}>
             {filter === "todo"
               ? "보낼 리포트가 없어요. 오늘 수업에서 기록을 완료하면 여기에 나타납니다."
               : "해당하는 학생이 없어요."}
@@ -294,8 +294,8 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
               <div className="stuRow" key={r.id}>
                 <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
                   <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
-                  <b style={{ fontSize: 13.5 }}>{r.name}</b>
-                  <span className="muted" style={{ fontSize: 12 }}>{r.who}</span>
+                  <b style={{ fontSize: 15 }}>{r.name}</b>
+                  <span className="muted" style={{ fontSize: 13 }}>{r.who}</span>
                   {r.phone ? (
                     <span className="hint mono">{r.phone}</span>
                   ) : (
@@ -356,7 +356,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                       rows={Math.max(8, draft.split("\n").length + 1)}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
-                      style={{ fontSize: 13.5, lineHeight: 1.6 }}
+                      style={{ fontSize: 15, lineHeight: 1.6 }}
                     />
                     <div className="row" style={{ gap: 6, marginTop: 8 }}>
                       <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>

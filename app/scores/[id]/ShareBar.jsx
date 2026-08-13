@@ -69,8 +69,8 @@ export default function ShareBar({ studentId, name, share = "both", st, notes = 
         style={{ background: cur === "none" ? "var(--surface-2)" : "var(--mint-soft)" }}
       >
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13 }}>성적 공개 대상</b>
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <b style={{ fontSize: 14.5 }}>성적 공개 대상</b>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             {cur === "none"
               ? "지금은 아무에게도 안 보입니다 — 선생님만 봅니다."
               : `지금은 ${meta.hint} 보입니다.`}
@@ -112,7 +112,7 @@ export default function ShareBar({ studentId, name, share = "both", st, notes = 
         <button className="btn btn-ghost btn-sm" onClick={() => copy("student")}>
           {copied === "student" ? "✓ 복사했어요" : "아이에게 줄 글 복사"}
         </button>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           숫자는 그대로 옮겨 적습니다 — 아이 얘기는 붙여서 쓰세요.
         </span>
       </div>

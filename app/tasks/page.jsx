@@ -503,7 +503,7 @@ export default async function TasksPage({ searchParams }) {
         {wantSchedule && !isCal && (
           <section>
             {view === "all" && (
-              <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>일정</h2>
+              <h2 style={{ margin: "6px 0 8px", fontSize: 16, fontWeight: 800 }}>일정</h2>
             )}
             <div className="row" style={{ marginBottom: 10, alignItems: "center", gap: 8 }}>
               <AddTaskForm
@@ -531,7 +531,7 @@ export default async function TasksPage({ searchParams }) {
         {wantTodo && !isCal && (
           <section style={view === "all" ? { marginTop: 14 } : undefined}>
             {view === "all" && (
-              <h2 style={{ margin: "6px 0 8px", fontSize: 15, fontWeight: 800 }}>할일</h2>
+              <h2 style={{ margin: "6px 0 8px", fontSize: 16, fontWeight: 800 }}>할일</h2>
             )}
             <PrepTodo rows={prep} />
             <MakeupTodo rows={makeups} />

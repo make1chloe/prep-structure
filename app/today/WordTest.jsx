@@ -46,7 +46,7 @@ export default function WordTest({ studentId, book }) {
         className={`btn btn-ghost btn-sm ${cur ? "" : "btn-warn"}`}
         onClick={() => setOpen(true)}
         title="이 교재를 어떻게 시험 보는지"
-        style={{ padding: "2px 8px", fontSize: 11 }}
+        style={{ padding: "2px 8px", fontSize: 12 }}
       >
         {text || `${book.round || 1}회독 · 시험 방식 미설정`}
       </button>
@@ -56,7 +56,7 @@ export default function WordTest({ studentId, book }) {
   return (
     <div className="card card-tight" style={{ width: "100%", marginTop: 6 }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-        <b style={{ fontSize: 13 }}>
+        <b style={{ fontSize: 14.5 }}>
           {book.name} · {book.round || 1}회독 단어시험 방식
         </b>
         <span className={`tag ${sum === 100 ? "tag-mint" : "tag-amber"}`}>합 {sum}%</span>
@@ -91,7 +91,7 @@ export default function WordTest({ studentId, book }) {
             checked={!!cfg.first_hint}
             onChange={(e) => setCfg({ ...cfg, first_hint: e.target.checked })}
           />
-          <span style={{ fontSize: 13 }}>
+          <span style={{ fontSize: 14.5 }}>
             주관식 영단어에 <b>첫 글자 힌트</b> 주기
           </span>
         </label>

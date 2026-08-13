@@ -220,7 +220,7 @@ export default async function TextbooksPage({ searchParams }) {
                     totalPages={selected.total_pages}
                   />
                 </div>
-                <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+                <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
 

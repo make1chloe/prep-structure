@@ -123,7 +123,7 @@ export default function VideoUpload() {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>영상 엑셀로 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>영상 엑셀로 추가</h2>
         <button
           className="btn btn-ghost"
           onClick={() => { reset(); setOpen(false); }}
@@ -136,7 +136,7 @@ export default function VideoUpload() {
         * **주소만 있으면 된다.** 제목을 꼭 적어야 한다고 하면, 스무 개를
         * 넣으려고 스무 번 유튜브에 들어가 제목을 복사해 오셔야 한다.
         */}
-      <p className="muted" style={{ margin: "8px 0 14px", fontSize: 13, lineHeight: 1.7 }}>
+      <p className="muted" style={{ margin: "8px 0 14px", fontSize: 14.5, lineHeight: 1.7 }}>
         <b>주소만 있으면 됩니다.</b> 제목은 유튜브에서 받아옵니다 (설정에 유튜브 키가 있을 때).
         <br />
         폴더 이름을 적으면 그 폴더에 들어가고, <b>없는 이름이면 폴더를 새로 만듭니다.</b>
@@ -164,7 +164,7 @@ export default function VideoUpload() {
       {parsed && (
         <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
               미리보기 <span className="muted" style={{ fontWeight: 600 }}>{parsed.rows.length}개</span>
             </h3>
             {unknown.length > 0 && <span className="hint">무시된 열: {unknown.join(", ")}</span>}
@@ -228,7 +228,7 @@ export default function VideoUpload() {
                   <b>주소가 아닌 줄 {result.bad.length}개는 못 넣었어요</b> (유튜브·비메오만 됩니다) —
                   <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                     {result.bad.slice(0, 8).map((b, i) => (
-                      <span key={i} className="hint" style={{ fontSize: 12 }}>· {b}</span>
+                      <span key={i} className="hint" style={{ fontSize: 13 }}>· {b}</span>
                     ))}
                   </div>
                 </>

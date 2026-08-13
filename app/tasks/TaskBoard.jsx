@@ -109,10 +109,10 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
     <>
       {linked.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
-          <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
             다른 화면에서 온 일정
           </h2>
-          <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+          <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
             시험 일정과 휴강은 <b>회차 관리 · 시험</b> 에서 관리합니다.
             여기서는 같이 보이기만 하고, 고치는 건 그쪽에서 합니다.
           </p>
@@ -126,7 +126,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   {x.from.slice(5)}
                   {x.to !== x.from ? ` ~ ${x.to.slice(5)}` : ""}
                 </span>
-                <b style={{ fontSize: 12.5, flex: 1 }}>{cleanTitle(x.title)}</b>
+                <b style={{ fontSize: 14, flex: 1 }}>{cleanTitle(x.title)}</b>
                 <span className="hint">{x.extra}</span>
                 <Link className="btn btn-ghost btn-sm" href={x.href}>바로가기</Link>
               </div>
@@ -217,7 +217,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
         </div>
 
         {shown.length === 0 ? (
-          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 15 }}>
             해당하는 일이 없어요.
           </p>
         ) : (
@@ -248,7 +248,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                   {t.start_time && <span className="hint">{t.start_time.slice(0, 5)}</span>}
                   <b
                     style={{
-                      fontSize: 13.5,
+                      fontSize: 15,
                       textDecoration: t.status === "done" ? "line-through" : "none",
                       opacity: t.status === "done" ? 0.6 : 1,
                     }}
@@ -378,7 +378,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                         전에는 전달할 내용을 적어야만 이 칸이 나왔다. 그래서
                         달력에 보일지와 전달사항을 보낼지가 뒤엉켜 있었다. */}
                     <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        <b style={{ fontSize: 12.5 }}>누가 보나</b>
+                        <b style={{ fontSize: 14 }}>누가 보나</b>
                         <select className="input input-sm" style={{ width: 170 }}
                           value={draft.private ? "" : draft.deliver_scope}
                           onChange={(e) =>

@@ -42,7 +42,7 @@ export default function GuideBox() {
   return (
     <div className="card" style={{ marginBottom: 14 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>수업 가이드 링크</b>
+        <b style={{ fontSize: 15 }}>수업 가이드 링크</b>
         <span className="hint" style={{ flex: 1 }}>
           여기 넣은 것이 <b>학생·학부모 화면</b>에 그대로 뜹니다. 카톡으로 보내시던
           안내(단어 외우는 법 · 수업 규칙 · 교재 사는 곳)를 여기 붙여두세요.
@@ -81,9 +81,9 @@ export default function GuideBox() {
             ) : (
               <div className="unitrow" key={g.id}>
                 <span className="hint mono" style={{ minWidth: 32 }}>{g.sort}</span>
-                <b style={{ fontSize: 13, minWidth: 120 }}>{g.title}</b>
+                <b style={{ fontSize: 14.5, minWidth: 120 }}>{g.title}</b>
                 <a className="sky" href={g.url} target="_blank" rel="noreferrer"
-                   style={{ fontSize: 12, flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
+                   style={{ fontSize: 13, flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
                   {g.url}
                 </a>
                 {g.note && <span className="hint" style={{ minWidth: 90 }}>{g.note}</span>}
@@ -120,7 +120,7 @@ export default function GuideBox() {
           )}
 
           <div className="card card-tight" style={{ marginTop: 4 }}>
-            <b style={{ fontSize: 13 }}>새 링크</b>
+            <b style={{ fontSize: 14.5 }}>새 링크</b>
             <Fields v={add} on={(k, val) => setAdd({ ...add, [k]: val })} />
             <div className="row" style={{ gap: 6, marginTop: 8 }}>
               <button

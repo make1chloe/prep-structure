@@ -131,7 +131,7 @@ export default function QuickBar({ students = [] }) {
               {pending ? "저장 중…" : "잡기"}
             </button>
           </div>
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
             뒤쪽 날짜는 <b>어느 날 결석의 보강인지</b>입니다 (안 적어도 잡혀요).
             적으면 그 결석이 「보강 잡을 것」 에서 내려갑니다.
           </p>

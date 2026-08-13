@@ -38,7 +38,7 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 15 }}>{title}</b>
+        <b style={{ fontSize: 16 }}>{title}</b>
         {dateLabel && <span className="hint">{dateLabel}</span>}
         {changed.length > 0 && (
           <span className="tag tag-amber">바뀐 것 {changed.length}</span>
@@ -52,14 +52,14 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
       <div className="stack" style={{ gap: 12 }}>
         {groups.map((g) => (
           <div key={g.area}>
-            <b style={{ fontSize: 13.5 }}>{g.area}</b>
+            <b style={{ fontSize: 15 }}>{g.area}</b>
             <div className="stack" style={{ gap: 4, marginTop: 4 }}>
               {g.rows.map((c) => (
                 <div key={c.key} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
                   {/* 종이에 옮겨 적을 때 그대로 따라 그릴 수 있게 네모를 둔다.
                       여기서 누르는 것이 아니라 **적어 가는** 것이다 */}
-                  <span style={{ fontSize: 13, lineHeight: 1.6 }}>☐</span>
-                  <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
+                  <span style={{ fontSize: 14.5, lineHeight: 1.6 }}>☐</span>
+                  <span style={{ fontSize: 15, lineHeight: 1.6, flex: 1 }}>
                     {c.name}
                     {/* 무엇을 펴야 하는지 (0116) — 적어 갈 때도 같이 적는다 */}
                     {c.tool && <span className="hint"> [{c.tool}]</span>}
@@ -68,14 +68,14 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
                     )}
                     {cleanNote(c.note) && <> {cleanNote(c.note)}</>}
                     {c.changedAt && (
-                      <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                      <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 12 }}>
                         바뀜
                       </span>
                     )}
                     {c.method && (
                       <>
                         <br />
-                        <span className="muted" style={{ fontSize: 12 }}>{c.method}</span>
+                        <span className="muted" style={{ fontSize: 13 }}>{c.method}</span>
                       </>
                     )}
                   </span>

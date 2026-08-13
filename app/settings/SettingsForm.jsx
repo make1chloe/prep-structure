@@ -156,8 +156,8 @@ export default function SettingsForm({
       {isKeys && (<>
       {/* 발송 방식 */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>발송 방식</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>발송 방식</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           여기서 고른 방식대로 <b>발송</b>·<b>재발송</b> 화면의 버튼이 동작합니다.
         </p>
         <div className="row" style={{ gap: 4 }}>
@@ -181,8 +181,8 @@ export default function SettingsForm({
           설정을 다 지나쳐야 나온다 — 문자는 한 번 맞춰두고 안 여는 것이고,
           알림은 폰을 바꾸거나 주소가 바뀔 때마다 다시 오시게 된다 */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>앱 알림 (무료)</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>앱 알림 (무료)</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           학생이 학생용 페이지에서 <b>알림 켜기</b>를 누르면, 숙제를 배정할 때 자동으로 알림이 갑니다.
           문자와 달리 <b>건당 요금이 없어요.</b>
         </p>
@@ -230,7 +230,7 @@ export default function SettingsForm({
             여는 화면이라, 다른 알림과 같은 방법을 쓸 수 없다 (아무나 알림
             열쇠를 가져가게 된다). 서버만 아는 열쇠가 있어야 나가므로, 그게
             없으면 여기서 보이게 한다 */}
-        <div className="notice" style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+        <div className="notice" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7 }}>
           <b>신규 상담 접수 알림</b>{" "}
           {inquiryAlert ? (
             <>
@@ -261,7 +261,7 @@ export default function SettingsForm({
           발신번호를 적을 칸 자체가 없었다. 적어둘 수는 있어야 한다. */}
       <div className="card sect sect-info">
           <h2 className="secthead">솔라피 연결 (문자 · 알림톡)</h2>
-          <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+          <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
             솔라피 사이트에서 API Key·Secret을 발급받고, 발신번호를 <b>사전등록</b>해야 보낼 수 있어요.
             <b>알림톡도 여기를 거쳐 나갑니다.</b>
             <br />
@@ -384,7 +384,7 @@ export default function SettingsForm({
                   >
                     {s.ok === true ? "됨" : s.ok === false ? "안 됨" : "없음"}
                   </span>
-                  <b style={{ fontSize: 12.5 }}>{s.label}</b>
+                  <b style={{ fontSize: 14 }}>{s.label}</b>
                   <span className="hint">{s.detail}</span>
                 </div>
               ))}
@@ -417,8 +417,8 @@ export default function SettingsForm({
       {/* 웹훅 */}
       {mode === "webhook" && (
         <div className="card">
-          <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>웹훅 연결</h2>
-          <p className="muted" style={{ margin: "0 0 12px", fontSize: 12.5 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>웹훅 연결</h2>
+          <p className="muted" style={{ margin: "0 0 12px", fontSize: 14 }}>
             아래 주소로 이런 모양의 데이터를 보냅니다. Make에서 받아 발송하시면 돼요.
           </p>
           <pre className="reportbox" style={{ padding: 12, borderRadius: 10, borderTop: 0 }}>
@@ -463,8 +463,8 @@ export default function SettingsForm({
       {!isKeys && (<>
       {/* 학원 정보 */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학원 이름</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>학원 이름</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           문자 맨 앞에 <b>[{academy || "학원이름"}]</b> 으로 붙습니다.
         </p>
         <input
@@ -477,13 +477,13 @@ export default function SettingsForm({
       {/* 문자 문구 */}
       <div className="card">
         <div className="row" style={{ alignItems: "baseline" }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>문자 문구</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>문자 문구</h2>
           <span className="spacer" />
           <a className="btn btn-ghost btn-sm" href="/settings/messages">
             문구 관리
           </a>
         </div>
-        <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+        <p className="muted" style={{ margin: "6px 0 10px", fontSize: 14, lineHeight: 1.7 }}>
           데일리리포트·숙제 문자·하원 안내는 <b>종류마다 인삿말·맺음말을 따로</b> 정합니다.
           교재 안내·지각 안내처럼 직접 쓰는 문자도 거기서 추가하고 지웁니다.
           <br />
@@ -511,8 +511,8 @@ export default function SettingsForm({
 
       {/* 보강 전용 요일 */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>보강만 하는 요일</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>보강만 하는 요일</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
           정규수업이 아니라 <b>보강·재시험·특강만</b> 하는 요일입니다.
           여기 고른 요일은 <b>수강료 회차와 스케줄 알림에서 빠집니다.</b>
           그날 보강을 잡는 것은 그대로 됩니다.
@@ -543,8 +543,8 @@ export default function SettingsForm({
 
       {/* 경고 규칙 */}
       <div className="card">
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>경고 · 반성문 규칙</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>경고 · 반성문 규칙</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
           아래에 해당하면 그날 <b>경고 1회</b>입니다. 하루에 여러 개가 겹쳐도 1회로 셉니다.
           경고는 따로 저장하지 않고 <b>리포트에서 매번 계산</b>하므로, 리포트를 고치면 경고도 같이 맞습니다.
         </p>

@@ -60,7 +60,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
               「결석 · 문의」 로는 학교 유인물이나 수행평가 안내를 여기로
               보내면 된다는 것을 알 수가 없다. 「문의」 는 뺐다 —
               물어보시는 것은 「선생님께 질문」 한 곳으로 모은다 */}
-          <b style={{ fontSize: 14 }}>결석 · 학교공지 · 수행평가 · 학교유인물 전달</b>
+          <b style={{ fontSize: 15 }}>결석 · 학교공지 · 수행평가 · 학교유인물 전달</b>
           <p className="hint" style={{ margin: "4px 0 0" }}>
             결석할 날을 미리 알려주시면 보강을 잡아드립니다.
             <br />
@@ -164,7 +164,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
               ) : (
                 <span className="tag tag-mint">제출 완료</span>
               )}
-              <span style={{ fontSize: 12.5, flex: 1 }}>
+              <span style={{ fontSize: 14, flex: 1 }}>
                 {r.from_date
                   ? `${r.from_date.slice(5)}${r.to_date && r.to_date !== r.from_date ? `~${r.to_date.slice(5)}` : ""} `
                   : ""}
@@ -188,9 +188,9 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                             background: "var(--amber-soft)",
                             border: "1px solid var(--amber)",
                             borderRadius: 8, padding: "6px 9px",
-                            fontSize: 13, fontWeight: 600, lineHeight: 1.6,
+                            fontSize: 14.5, fontWeight: 600, lineHeight: 1.6,
                           }
-                        : { fontSize: 12, color: "var(--muted)" }),
+                        : { fontSize: 13, color: "var(--muted)" }),
                     }}
                   >
                     {talks.map((t, i) => (
@@ -209,7 +209,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
                   className="btn btn-ghost btn-sm"
                   onClick={() => drop(r)}
                   disabled={pending}
-                  style={{ fontSize: 11, padding: "2px 8px" }}
+                  style={{ fontSize: 12, padding: "2px 8px" }}
                 >
                   취소
                 </button>

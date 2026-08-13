@@ -47,10 +47,10 @@ export default function GenerateUnits({ textbookId, parents = [], totalPages }) 
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>단원 한 번에 만들기</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>단원 한 번에 만들기</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
-      <p className="muted" style={{ margin: "8px 0 12px", fontSize: 13 }}>
+      <p className="muted" style={{ margin: "8px 0 12px", fontSize: 14.5 }}>
         <b>Unit 1 ~ Unit 20</b> 처럼 번호만 늘어나는 교재는 여기서 한 번에 만드세요.
         페이지 범위를 넣으면 균등하게 나눠 넣고, 나중에 개별 수정할 수 있어요.
       </p>

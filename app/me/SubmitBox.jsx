@@ -131,7 +131,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
                   setTicked(next);
                 }}
               />
-              <span style={{ fontSize: 13.5, flex: 1 }}>{line}</span>
+              <span style={{ fontSize: 15, flex: 1 }}>{line}</span>
             </label>
           ))}
           <button
@@ -160,7 +160,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
               <span className="tag tag-mint">
                 {m.kind === "audio" ? "녹음" : m.kind === "checklist" ? "체크" : "사진"}
               </span>
-              <span className="hint" style={{ flex: 1, fontSize: 12 }}>
+              <span className="hint" style={{ flex: 1, fontSize: 13 }}>
                 {m.kind === "audio" && m.seconds ? `${m.seconds}초 · ` : ""}
                 {new Date(m.created_at).toLocaleTimeString("ko-KR", {
                   timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit",

@@ -134,7 +134,7 @@ export default function UnitList({
 
   if (rows.length === 0) {
     return (
-      <p className="muted" style={{ fontSize: 13.5 }}>
+      <p className="muted" style={{ fontSize: 15 }}>
         아직 단원이 없습니다. 위에서 단원을 추가해보세요.
       </p>
     );
@@ -365,19 +365,19 @@ export default function UnitList({
                     <td style={{ paddingLeft: 12 + depth * 20, fontWeight: depth === 0 ? 700 : 500 }}>
                       {u.name}
                       {u.question_no && (
-                        <span className="tag tag-muted" style={{ marginLeft: 6, fontSize: 11 }}>
+                        <span className="tag tag-muted" style={{ marginLeft: 6, fontSize: 12 }}>
                           {u.question_no}번
                         </span>
                       )}
                     </td>
-                    <td className="muted" style={{ fontSize: 12 }}>
+                    <td className="muted" style={{ fontSize: 13 }}>
                       {u.page_start
                         ? `${u.page_start}${u.page_end ? `–${u.page_end}` : ""}p`
                         : "—"}
                     </td>
                     <td className="muted">{u.label || "—"}</td>
                     {isWord && (
-                      <td className="muted" style={{ fontSize: 12 }}>
+                      <td className="muted" style={{ fontSize: 13 }}>
                         {u.word_count
                           ? `${u.word_count}개`
                           : book?.word_range && !book?.words_irregular

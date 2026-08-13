@@ -66,7 +66,7 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [], 
   return (
     <div className="card card-tight" style={{ width: "100%", marginTop: 6 }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <b style={{ fontSize: 13 }}>이 학생의 교재 {picked.size}권</b>
+        <b style={{ fontSize: 14.5 }}>이 학생의 교재 {picked.size}권</b>
         <div className="row" style={{ gap: 4 }}>
           <button className="btn btn-primary btn-sm" onClick={save} disabled={pending || !dirty}>
             {dirty ? "저장" : "저장됨"}

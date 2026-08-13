@@ -85,7 +85,7 @@ export default function RequestInbox({ requests = [] }) {
       <div className="card card-tight" key={r.id}>
         <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
           <span className="tag tag-lav">{KIND[r.kind] || r.kind}</span>
-          <b style={{ fontSize: 12.5 }}>{r.studentName}</b>
+          <b style={{ fontSize: 14 }}>{r.studentName}</b>
           <span className="hint">{role === "parent" ? "학부모" : "학생"}</span>
           {r.from_date && (
             <span className="hint">
@@ -195,7 +195,7 @@ export default function RequestInbox({ requests = [] }) {
               <span className="spacer" />
               <button
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: 11, padding: "2px 8px", opacity: 0.8 }}
+                style={{ fontSize: 12, padding: "2px 8px", opacity: 0.8 }}
                 onClick={() => setTyping({ ...typing, [r.id]: !typing[r.id] })}
               >
                 {typing[r.id] ? "접기" : "직접 쓰기"}
@@ -237,7 +237,7 @@ export default function RequestInbox({ requests = [] }) {
 
   return (
     <div className={`card sect ${live.length ? "sect-warn" : "sect-calm"}`}>
-      <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>
+      <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>
         학부모 · 학생 알림{" "}
         {live.length > 0 && <span className="tag tag-amber">{live.length}</span>}
       </h2>

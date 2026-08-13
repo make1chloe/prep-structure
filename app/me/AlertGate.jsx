@@ -94,23 +94,23 @@ export default function AlertGate({ children }) {
   const how = (
     <>
       {no ? (
-        <div className="notice" style={{ marginBottom: 10, fontSize: 13, lineHeight: 1.7 }}>
+        <div className="notice" style={{ marginBottom: 10, fontSize: 14.5, lineHeight: 1.7 }}>
           <b>{no.why}</b>
           <br />
           {no.fix}
         </div>
       ) : guide.why ? (
-        <div className="notice" style={{ marginBottom: 10, fontSize: 13 }}>{guide.why}</div>
+        <div className="notice" style={{ marginBottom: 10, fontSize: 14.5 }}>{guide.why}</div>
       ) : null}
 
       {!no && (
-        <ol style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 13.5, lineHeight: 1.9 }}>
+        <ol style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 15, lineHeight: 1.9 }}>
           {guide.steps.map((t) => <li key={t}>{t}</li>)}
         </ol>
       )}
 
       {state === "denied" ? (
-        <div className="notice" style={{ fontSize: 13, lineHeight: 1.7 }}>
+        <div className="notice" style={{ fontSize: 14.5, lineHeight: 1.7 }}>
           <b>알림이 차단되어 있어요.</b>{" "}
           {kind === "ios"
             ? "아이폰 설정 → 알림 → 클로이영어 에서 [알림 허용]을 켜주세요."
@@ -132,10 +132,10 @@ export default function AlertGate({ children }) {
     <>
       {/* 늘 맨 위에 붙어 있는 빨간 띠 */}
       <div className="card sect sect-bad" data-alertgate>
-        <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>
+        <h2 style={{ margin: "0 0 6px", fontSize: 17.5, fontWeight: 800 }}>
           🔔 알림이 꺼져 있어요
         </h2>
-        <p style={{ margin: "0 0 10px", fontSize: 13.5, lineHeight: 1.75 }}>
+        <p style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.75 }}>
           숙제 · 시험 · 전달사항이 <b>전부 이 앱 알림으로만</b> 갑니다.
           지금은 아무 소식도 못 받는 상태예요. <b>한 번만 켜두면 끝납니다.</b>
         </p>
@@ -161,10 +161,10 @@ export default function AlertGate({ children }) {
             onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: 420, width: "100%", maxHeight: "86vh", overflow: "auto" }}
           >
-            <h2 style={{ margin: "0 0 6px", fontSize: 17, fontWeight: 800 }}>
+            <h2 style={{ margin: "0 0 6px", fontSize: 18.5, fontWeight: 800 }}>
               🔔 알림을 먼저 켜주세요
             </h2>
-            <p style={{ margin: "0 0 10px", fontSize: 13.5, lineHeight: 1.75 }}>
+            <p style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.75 }}>
               알림이 꺼져 있어서 숙제가 올라와도 모르고 지나갑니다.
               <br />
               <b>켜면 이 창은 다시 안 뜹니다.</b> 밤에 안 울리게 하는 것은

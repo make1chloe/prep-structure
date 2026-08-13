@@ -152,7 +152,7 @@ export default async function SettingsPage() {
             내렸다** — 한 번 더 눌러 들어가던 걸음도 같이 없어진다. */}
         <div className="card" style={{ marginTop: 14, opacity: 0.9 }}>
           <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap", marginBottom: 8 }}>
-            <b style={{ fontSize: 13.5 }}>처음 한 번만</b>
+            <b style={{ fontSize: 15 }}>처음 한 번만</b>
             <span className="hint" style={{ flex: 1 }}>
               다 만들고 나면 거의 안 여는 것들입니다.
             </span>
@@ -160,7 +160,7 @@ export default async function SettingsPage() {
           <div className="stack" style={{ gap: 6 }}>
             {ADMIN_ROWS.map((r) => (
               <Link key={r.href} href={r.href} className="unitrow" style={{ textDecoration: "none" }}>
-                <b style={{ fontSize: 13.5, minWidth: 120 }}>{r.label}</b>
+                <b style={{ fontSize: 15, minWidth: 120 }}>{r.label}</b>
                 {r.tag && <span className={`tag ${r.tag.cls}`}>{r.tag.text}</span>}
                 <span className="hint" style={{ flex: 1 }}>{r.desc}</span>
                 <span className="hint">›</span>

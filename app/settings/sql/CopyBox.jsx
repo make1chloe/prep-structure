@@ -49,9 +49,9 @@ export default function CopyBox({ sql, empty }) {
       </div>
       <div
         className="card card-tight"
-        style={{ background: "transparent", marginBottom: 8, fontSize: 12 }}
+        style={{ background: "transparent", marginBottom: 8, fontSize: 13 }}
       >
-        <b style={{ fontSize: 12.5 }}>붙여넣은 뒤 이것만 확인해주세요</b>
+        <b style={{ fontSize: 14 }}>붙여넣은 뒤 이것만 확인해주세요</b>
         <div className="hint" style={{ marginTop: 5, lineHeight: 1.8 }}>
           · Supabase 편집기의 마지막 줄 번호가 <b>{sql.split("\n").length.toLocaleString()}</b> 이어야
           합니다
@@ -67,7 +67,7 @@ export default function CopyBox({ sql, empty }) {
         readOnly
         value={sql}
         onFocus={(e) => e.target.select()}
-        style={{ width: "100%", height: 320, fontFamily: "ui-monospace, monospace", fontSize: 11.5 }}
+        style={{ width: "100%", height: 320, fontFamily: "ui-monospace, monospace", fontSize: 12.5 }}
       />
     </>
   );

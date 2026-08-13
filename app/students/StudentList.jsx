@@ -329,7 +329,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
 
   if (students.length === 0) {
     return (
-      <p className="muted" style={{ padding: 14, margin: 0, fontSize: 13.5 }}>
+      <p className="muted" style={{ padding: 14, margin: 0, fontSize: 15 }}>
         아직 학생이 없습니다. 위에서 학생을 추가하거나 엑셀로 올려보세요.
       </p>
     );
@@ -358,7 +358,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
             <span
               key={b.id}
               className={`tag ${b.from ? "tag-amber" : "tag-muted"}`}
-              style={{ fontSize: 10.5 }}
+              style={{ fontSize: 12 }}
               title={b.from ? `${fromLabel(b.from)} 사용 예정` : undefined}
             >
               {b.name}
@@ -377,7 +377,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
       return (
         <span className="row" style={{ gap: 3, flexWrap: "wrap" }}>
           {kin.map((x) => (
-            <span key={x.id} className="tag tag-lav" style={{ fontSize: 10.5 }}>{x.name}</span>
+            <span key={x.id} className="tag tag-lav" style={{ fontSize: 12 }}>{x.name}</span>
           ))}
         </span>
       );
@@ -390,7 +390,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
       return (
         <button
           className="btn btn-ghost btn-sm"
-          style={{ fontSize: 11, padding: "2px 6px" }}
+          style={{ fontSize: 12, padding: "2px 6px" }}
           onClick={() => open(s, "word")}
         >
           {n ? `${n}개` : "범위대로"} · {cut ? `${cut}%` : "기본"} ·{" "}
@@ -477,7 +477,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
           >
             {folded ? "▾" : "▴"}
           </button>
-          <b style={{ fontSize: 14 }}>{s.name}</b>
+          <b style={{ fontSize: 15 }}>{s.name}</b>
           <span className="hint">{[s.school, s.grade].filter(Boolean).join(" ")}</span>
           <span className="spacer" />
           <a className="btn btn-ghost btn-sm" href={`/me?s=${s.id}`} target="_blank" rel="noreferrer">
@@ -806,7 +806,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                       />
                     </td>
                     <td colSpan={cols.length + 1}>
-                      <b style={{ fontSize: 12.5 }}>{g.title}</b>{" "}
+                      <b style={{ fontSize: 14 }}>{g.title}</b>{" "}
                       <span className="hint">{g.rows.length}명</span>
                     </td>
                   </tr>
@@ -860,7 +860,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
           </tbody>
         </table>
         {shown.length === 0 && (
-          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 15 }}>
             조건에 맞는 학생이 없어요.
           </p>
         )}

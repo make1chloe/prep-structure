@@ -48,7 +48,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
   return (
     <div className="card" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <b style={{ fontSize: 15 }}>등원시 이것부터!</b>
+        <b style={{ fontSize: 16 }}>등원시 이것부터!</b>
         <span className="spacer" />
         <span className="hint">
           {STEPS.length - left.length} / {STEPS.length}
@@ -56,13 +56,13 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
       </div>
 
       {!atAcademy && !readOnly && !asId && (
-        <div className="notice" style={{ margin: "10px 0 0", fontSize: 12.5 }}>
+        <div className="notice" style={{ margin: "10px 0 0", fontSize: 14 }}>
           <b>학원 와이파이에 연결해주세요.</b> 학원에 도착해야 누를 수 있어요.
         </div>
       )}
       <p className="nowsub" style={{ margin: "10px 0 0" }}>{now.ask}</p>
       {now.note && (
-        <p className="hint" style={{ margin: "4px 0 0", fontSize: 12 }}>{now.note}</p>
+        <p className="hint" style={{ margin: "4px 0 0", fontSize: 13 }}>{now.note}</p>
       )}
       <button
         className="bigbtn"
@@ -73,7 +73,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
       </button>
 
       {rest.length > 0 && (
-        <p className="hint" style={{ margin: "10px 0 0", fontSize: 12 }}>
+        <p className="hint" style={{ margin: "10px 0 0", fontSize: 13 }}>
           다음: {rest.map((s) => s.label.replace(" 했어요", "").replace(" 냈어요", "")).join(" → ")}
         </p>
       )}

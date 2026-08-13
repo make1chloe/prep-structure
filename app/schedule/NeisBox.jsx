@@ -72,7 +72,7 @@ export default function NeisBox({ months = [] }) {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>학교 학사일정 (나이스)</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>학교 학사일정 (나이스)</h2>
         <span className={`tag ${ready ? "tag-mint" : "tag-amber"}`}>
           {ready === null ? "…" : ready ? "키 넣어둠" : "키 없음"}
         </span>
@@ -84,7 +84,7 @@ export default function NeisBox({ months = [] }) {
           {ready ? "키 바꾸기 ›" : "키 넣기 ›"}
         </a>
       </div>
-      <p className="muted" style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.7 }}>
+      <p className="muted" style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.7 }}>
         학교 시험·방학·행사 날짜를 나이스에서 받아 <b>일정 화면에 넣습니다.</b>
         여러 번 받아도 같은 줄이 늘어나지 않고, <b>손으로 적으신 일정은 건드리지 않습니다.</b>
       </p>
@@ -95,7 +95,7 @@ export default function NeisBox({ months = [] }) {
           화면을 옮기면 결과 상자는 사라지고, 다시 눌러야 하나 망설이게 된다. */}
       <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
         <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13 }}>지금 들어와 있는 것</b>
+          <b style={{ fontSize: 14.5 }}>지금 들어와 있는 것</b>
           {have === null ? (
             <span className="hint">세는 중…</span>
           ) : have.total > 0 ? (
@@ -114,10 +114,10 @@ export default function NeisBox({ months = [] }) {
                     박문중처럼 줄여서 써줘」). 「인천신정중학교」 는 목록에서
                     자리만 차지하고, 원장님이 부르시는 이름은 「신정중」 이다.
                     나이스가 준 원래 이름은 마우스를 올리면 나온다 */}
-                <b style={{ fontSize: 12.5, flex: 1 }} title={r.name}>{shortName(r.name)}</b>
+                <b style={{ fontSize: 14, flex: 1 }} title={r.name}>{shortName(r.name)}</b>
                 {r.count > 0 ? (
                   <>
-                    <span className="hint" style={{ fontSize: 11.5 }}>
+                    <span className="hint" style={{ fontSize: 12.5 }}>
                       {r.from} ~ {r.to}
                     </span>
                     <span className="tag tag-muted">{r.count}건</span>
@@ -161,21 +161,21 @@ export default function NeisBox({ months = [] }) {
                       </button>
                     )}
                     {school && !school.schul_code && (
-                      <span className="hint" style={{ fontSize: 11.5 }}>
+                      <span className="hint" style={{ fontSize: 12.5 }}>
                         나이스 코드가 없어 못 받아옵니다 — 위에서 이름으로 찾아 넣어주세요
                       </span>
                     )}
                   </>
                 )}
                 {one[r.code] && (
-                  <span className="hint" style={{ fontSize: 11.5, flexBasis: "100%" }}>
+                  <span className="hint" style={{ fontSize: 12.5, flexBasis: "100%" }}>
                     {one[r.code]}
                   </span>
                 )}
               </div>
             );
             })}
-            <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5, lineHeight: 1.8 }}>
+            <p className="hint" style={{ margin: "4px 0 0", fontSize: 12.5, lineHeight: 1.8 }}>
               <b>받아오기가 된 것입니다.</b> 일정 화면과 대시보드 달력에서 보입니다.
               다시 받아도 늘어나지 않으니 언제든 눌러도 됩니다.
               <br />
@@ -199,7 +199,7 @@ export default function NeisBox({ months = [] }) {
           </div>
         ) : (
           have !== null && (
-            <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
+            <p className="hint" style={{ margin: "6px 0 0", fontSize: 13 }}>
               아직 받아온 학사일정이 없습니다. 아래 <b>학사일정 받아오기</b> 를 눌러주세요.
             </p>
           )
@@ -208,8 +208,8 @@ export default function NeisBox({ months = [] }) {
 
       {diag && (
         <div className="card card-tight" style={{ marginTop: 8, background: "var(--surface-2)" }}>
-          <b style={{ fontSize: 13 }}>지금 들어 있는 것 그대로</b>
-          <p className="hint" style={{ margin: "4px 0 8px", fontSize: 11.5 }}>
+          <b style={{ fontSize: 14.5 }}>지금 들어 있는 것 그대로</b>
+          <p className="hint" style={{ margin: "4px 0 8px", fontSize: 12.5 }}>
             내용이 틀리거나 중복이 많다면 대개 셋 중 하나예요.
             ① 나이스 학교 찾기는 <b>부분 일치</b>라 '신송' 으로 찾으면 신송초·신송중·신송고가 같이 나옵니다 —
             엉뚱한 학교를 넣었을 수 있어요.
@@ -222,16 +222,16 @@ export default function NeisBox({ months = [] }) {
               <div key={r.code} className="card card-tight" style={{ background: "var(--surface)" }}>
                 <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
                   {r.registered ? (
-                    <b style={{ fontSize: 13 }} title={r.name}>{shortName(r.name)}</b>
+                    <b style={{ fontSize: 14.5 }} title={r.name}>{shortName(r.name)}</b>
                   ) : (
-                    <b style={{ fontSize: 13, color: "var(--amber)" }}>
+                    <b style={{ fontSize: 14.5, color: "var(--amber)" }}>
                       ⚠ 목록에 없는 학교 ({r.code})
                     </b>
                   )}
-                  {r.where && <span className="hint" style={{ fontSize: 11.5 }}>{r.where}</span>}
+                  {r.where && <span className="hint" style={{ fontSize: 12.5 }}>{r.where}</span>}
                   <span className="spacer" />
                   <span className="tag tag-muted">{r.count}건</span>
-                  <span className="hint" style={{ fontSize: 11.5 }}>{r.from} ~ {r.to}</span>
+                  <span className="hint" style={{ fontSize: 12.5 }}>{r.from} ~ {r.to}</span>
                   <button
                     className="btn btn-ghost btn-sm"
                     disabled={pending}
@@ -251,7 +251,7 @@ export default function NeisBox({ months = [] }) {
                   </button>
                 </div>
                 {/* 무엇이 들어 있는지 몇 줄 — 남의 학교 것이면 여기서 바로 티가 난다 */}
-                <div className="hint" style={{ fontSize: 11.5, marginTop: 4 }}>
+                <div className="hint" style={{ fontSize: 12.5, marginTop: 4 }}>
                   {(r.sample || []).join("  ·  ")}
                 </div>
               </div>
@@ -260,17 +260,17 @@ export default function NeisBox({ months = [] }) {
 
           {(diag.dupes || []).length > 0 && (
             <div style={{ marginTop: 10 }}>
-              <b style={{ fontSize: 13, color: "var(--amber)" }}>
+              <b style={{ fontSize: 14.5, color: "var(--amber)" }}>
                 같은 날 같은 행사가 두 줄 이상 — {diag.dupes.length}가지
               </b>
-              <p className="hint" style={{ margin: "2px 0 6px", fontSize: 11.5 }}>
+              <p className="hint" style={{ margin: "2px 0 6px", fontSize: 12.5 }}>
                 같은 학교를 <b>두 번 넣었을 때</b> 이렇게 됩니다. 위에서 잘못 넣은 쪽을 지우세요.
               </p>
               <div className="stack" style={{ gap: 2 }}>
                 {diag.dupes.map((d) => (
                   <div className="unitrow" key={`${d.due_on}|${d.title}`}>
                     <span className="hint" style={{ minWidth: 64 }}>{d.due_on}</span>
-                    <span style={{ fontSize: 12.5, flex: 1 }}>{d.title}</span>
+                    <span style={{ fontSize: 14, flex: 1 }}>{d.title}</span>
                     <span className="tag tag-amber">{d.n}줄</span>
                   </div>
                 ))}
@@ -283,7 +283,7 @@ export default function NeisBox({ months = [] }) {
 
       {/* 학교 등록 */}
       <div style={{ marginTop: 12, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>
-        <b style={{ fontSize: 13.5 }}>학교</b>
+        <b style={{ fontSize: 15 }}>학교</b>
         <p className="hint" style={{ margin: "4px 0 8px" }}>
           같은 이름 학교가 여럿이라 <b>주소를 보고</b> 고르세요. 한 번 넣으면 계속 씁니다.
         </p>
@@ -319,9 +319,9 @@ export default function NeisBox({ months = [] }) {
                     {/* **여기만 원래 이름 그대로다.** 나이스에서 골라 넣는
                         자리라, 나이스가 뭐라고 부르는지가 그대로 보여야
                         「인천신정중학교」 와 「신정중학교」 를 가릴 수 있다 */}
-                    <b style={{ fontSize: 13 }}>{s.name}</b>
+                    <b style={{ fontSize: 14.5 }}>{s.name}</b>
                     <span className="tag tag-muted">{s.kind}</span>
-                    <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>
+                    <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>
                       {[s.atpt_name, s.address].filter(Boolean).join(" · ")}
                     </span>
                     {already ? (
@@ -399,7 +399,7 @@ export default function NeisBox({ months = [] }) {
             {mine.map((s) => (
               <div className="unitrow" key={s.id}>
                 <input type="checkbox" checked={sBulk.has(s.id)} onChange={() => sBulk.toggle(s.id)} />
-                <b style={{ fontSize: 13 }} title={s.name}>{shortName(s.name)}</b>
+                <b style={{ fontSize: 14.5 }} title={s.name}>{shortName(s.name)}</b>
                 <span className="tag tag-muted">{s.kind || "학교"}</span>
                 {/* 코드가 없으면 **나이스에서 못 받아온다** — 손으로 넣은 학교다.
                     이게 안 보이면 「받아오기를 눌렀는데 왜 이 학교만 안 오지」 가 된다 */}
@@ -409,10 +409,10 @@ export default function NeisBox({ months = [] }) {
                   </span>
                 )}
                 {/* 어느 지역 학교인지 — 같은 이름이 여러 곳이라 이게 없으면 구분이 안 된다 */}
-                <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>
+                <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>
                   {[s.atpt_name, s.address].filter(Boolean).join(" · ")}
                 </span>
-                <span className="hint mono" style={{ fontSize: 11 }}>{s.schul_code}</span>
+                <span className="hint mono" style={{ fontSize: 12 }}>{s.schul_code}</span>
                 {/* 짐작이 맞은 짝은 단추로 바로. 아니면 아래 「합치기」 로 골라서 */}
                 {mergeId === s.id ? (
                   <>
@@ -521,7 +521,7 @@ export default function NeisBox({ months = [] }) {
       {/* 받아오기 */}
       {mine.length > 0 && (
         <div style={{ marginTop: 12, borderTop: "1px solid var(--line, #2a2a2a)", paddingTop: 12 }}>
-          <b style={{ fontSize: 13.5 }}>받아오기</b>
+          <b style={{ fontSize: 15 }}>받아오기</b>
           <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
             <div className="field" style={{ width: 150 }}>
               <label className="label">부터</label>
@@ -619,24 +619,24 @@ export default function NeisBox({ months = [] }) {
 
           {done && (
             <div className="stack" style={{ gap: 6, marginTop: 10 }}>
-              <div className="notice" style={{ fontSize: 12.5 }}>
+              <div className="notice" style={{ fontSize: 14 }}>
                 <b>{done.added}건</b> 을 일정에 반영했습니다.
                 {done.notes?.length ? ` (${done.notes.join(" · ")})` : ""}
               </div>
 
               {done.failed?.length > 0 && (
-                <div className="err" style={{ fontSize: 12.5 }}>
+                <div className="err" style={{ fontSize: 14 }}>
                   <b>못 받은 학교도 있어요</b>
                   <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                     {done.failed.map((f, i) => (
-                      <span key={i} style={{ fontSize: 12 }}>· {f}</span>
+                      <span key={i} style={{ fontSize: 13 }}>· {f}</span>
                     ))}
                   </div>
                 </div>
               )}
 
               {done.examAdded > 0 && (
-                <div className="notice" style={{ fontSize: 12.5 }}>
+                <div className="notice" style={{ fontSize: 14 }}>
                   시험 기간 <b>{done.examAdded}건</b> 도 함께 넣었습니다.
                   필요 없는 것은 아래 <b>학교 시험 일정</b> 에서 <b>숨기기</b> 를 누르세요 —
                   숨긴 것은 알림·결석 예상에서 빠지고, <b>다시 받아와도 숨긴 채로</b> 있습니다.

@@ -179,9 +179,9 @@ export default function AheadBoard({
     <div className="grid-side" style={{ marginTop: 12 }}>
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "14px 16px 0" }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
             누구{" "}
-            <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>{sel.size}명</span>
+            <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>{sel.size}명</span>
           </h2>
           <div className="row" style={{ gap: 6, margin: "8px 0", alignItems: "center" }}>
             <input

@@ -130,7 +130,7 @@ export default async function MePage({ searchParams }) {
           <h1 className="h1">클로이영어</h1>
         </div>
         <div className="card">
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             이 화면은 학생용이에요. 선생님 화면은 위 메뉴에서 볼 수 있습니다.
           </p>
         </div>
@@ -726,7 +726,7 @@ export default async function MePage({ searchParams }) {
               안 보인다 (원장님, 2026-08-06). */}
           {(upcoming.length > 0 || notice2.length > 0 || notices.length > 0) && (
             <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>
                 일정 및 전달사항
               </h2>
               <ScreenNote text={N("me.schedule")} />
@@ -739,7 +739,7 @@ export default async function MePage({ searchParams }) {
                         {dayLabel(c.date)}
                         {c.endDate && c.endDate !== c.date ? " ~" : ""}
                       </span>
-                      <span style={{ fontSize: 13.5, flex: 1 }}>{cleanTitle(c.title)}</span>
+                      <span style={{ fontSize: 15, flex: 1 }}>{cleanTitle(c.title)}</span>
                       {c.tone === "exam" && <span className="tag tag-red">시험</span>}
                       {c.tone === "school" && <span className="tag tag-sky">학교</span>}
                     </div>
@@ -754,10 +754,10 @@ export default async function MePage({ searchParams }) {
                     <div key={n.id} className="stack" style={{ gap: 6 }}>
                       <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
                         <span className="hint">{dayLabel(n.date)}</span>
-                        {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
+                        {n.title && <b style={{ fontSize: 15 }}>{n.title}</b>}
                       </div>
                       {n.body && n.body !== n.title && (
-                        <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
+                        <div style={{ fontSize: 15, whiteSpace: "pre-wrap" }}>{n.body}</div>
                       )}
                       <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
                     </div>
@@ -772,13 +772,13 @@ export default async function MePage({ searchParams }) {
               {/* 리포트의 '공지' 는 학부모께 나가는 문장이라 아이에게는 안 보인다.
                   선생님이 미리보기로 볼 때만 여기 붙는다. */}
               {notices.length > 0 && (
-                <div className="notice" style={{ marginTop: 12, fontSize: 12.5 }}>
+                <div className="notice" style={{ marginTop: 12, fontSize: 14 }}>
                   <b>선생님께만 보임 — 학부모께 나가는 문장</b>
                   <div className="stack" style={{ gap: 6, marginTop: 6 }}>
                     {notices.map((n) => (
                       <div key={n.date}>
                         <span className="hint">{dayLabel(n.date)}</span>
-                        <div style={{ fontSize: 13 }}>{n.body}</div>
+                        <div style={{ fontSize: 14.5 }}>{n.body}</div>
                       </div>
                     ))}
                   </div>
@@ -821,7 +821,7 @@ export default async function MePage({ searchParams }) {
           {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.
               "왜 안 보이지" 를 앱 밖에서 알아내게 하면 안 된다. */}
           {todo.length === 0 && (isStaff || preview || acting) && (
-            <div className="notice" style={{ fontSize: 12.5 }}>
+            <div className="notice" style={{ fontSize: 14 }}>
               <b>선생님께만 보이는 안내</b>
               <br />
               {(reports || []).length === 0
@@ -854,7 +854,7 @@ export default async function MePage({ searchParams }) {
       <>
           {latest && (latest.word_total || latest.sent_total || latest.own_progress) && (
             <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>성장 기록</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>성장 기록</h2>
               <div className="stack" style={{ gap: 6 }}>
                 {latest.word_total ? (
                   <div className="row" style={{ gap: 8 }}>
@@ -887,7 +887,7 @@ export default async function MePage({ searchParams }) {
                 {latest.own_progress ? (
                   <div className="row" style={{ gap: 8 }}>
                     <span className="plabel" style={{ width: 46 }}>진도</span>
-                    <span style={{ fontSize: 13.5 }}>{latest.own_progress}</span>
+                    <span style={{ fontSize: 15 }}>{latest.own_progress}</span>
                   </div>
                 ) : null}
               </div>
@@ -899,7 +899,7 @@ export default async function MePage({ searchParams }) {
       <>
           {checked.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>지난 숙제 검사</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>지난 숙제 검사</h2>
               <HomeworkCards items={checked} />
             </div>
           )}
@@ -909,7 +909,7 @@ export default async function MePage({ searchParams }) {
       <>
           {stay.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
+              <h2 style={{ margin: "0 0 4px", fontSize: 17.5, fontWeight: 800 }}>
                 {STAY_LABEL} <span className="tag tag-lav">{stay.length}</span>
               </h2>
               <p className="hint" style={{ margin: "0 0 10px" }}>
@@ -921,7 +921,7 @@ export default async function MePage({ searchParams }) {
                     <span className="hint" style={{ minWidth: 46 }}>
                       {t.date.slice(5).replace("-", "/")}
                     </span>
-                    <span style={{ fontSize: 13.5, flex: 1 }}>{t.body}</span>
+                    <span style={{ fontSize: 15, flex: 1 }}>{t.body}</span>
                     <span className={`tag ${t.status === "moved" ? "tag-amber" : "tag-lav"}`}>
                       {t.status === "moved" ? "숙제로" : "남아서"}
                     </span>
@@ -967,7 +967,7 @@ export default async function MePage({ searchParams }) {
 
           {latest && (
             <div className="card">
-              <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>선생님께 질문</h2>
+              <h2 style={{ margin: "0 0 4px", fontSize: 17.5, fontWeight: 800 }}>선생님께 질문</h2>
               <p className="hint" style={{ margin: "0 0 8px" }}>
                 숙제나 수업에 대해 궁금한 게 있으면 여기에 남겨주세요. 선생님이 확인합니다.
               </p>
@@ -984,7 +984,7 @@ export default async function MePage({ searchParams }) {
               여기 붙여두면 **언제든 그 자리에 있다** (설정 → 수업 가이드 링크). */}
           {guides.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>수업 가이드</h2>
+              <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>수업 가이드</h2>
               <ScreenNote text={N("me.guide")} />
               <div className="stack" style={{ gap: 6 }}>
                 {guides.map((g) => (
@@ -996,7 +996,7 @@ export default async function MePage({ searchParams }) {
                     rel="noreferrer"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
-                    <span style={{ fontSize: 13.5, fontWeight: 700, flex: 1 }}>{cleanTitle(g.title)}</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>{cleanTitle(g.title)}</span>
                     {g.note && <span className="hint">{g.note}</span>}
                     <span className="tag tag-sky">열기 →</span>
                   </a>
@@ -1041,7 +1041,7 @@ export default async function MePage({ searchParams }) {
       <div className="stack" style={{ marginTop: 10 }}>
         {preview ? (
           <div className="card card-tight" style={{ borderLeft: "3px solid var(--accent, #6d7cff)" }}>
-            <b style={{ fontSize: 13.5 }}>학생 화면 미리보기</b>
+            <b style={{ fontSize: 15 }}>학생 화면 미리보기</b>
             <p className="hint" style={{ margin: "4px 0 0" }}>
               {student.name} 학생에게 보이는 그대로입니다. <b>여기서는 누를 수 없습니다</b> —
               선생님이 대신 누르면 기록이 거짓이 됩니다.

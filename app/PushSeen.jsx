@@ -60,7 +60,7 @@ export default async function PushSeen() {
         {unseen > 0 && <span className="tag tag-muted">미확인 {unseen}</span>}
       </h2>
       {bad > 0 && (
-        <div className="notice" style={{ marginBottom: 8, fontSize: 12.5 }}>
+        <div className="notice" style={{ marginBottom: 8, fontSize: 14 }}>
           <b>{bad}건이 폰까지 못 갔습니다.</b> 그 집은 알림이 꺼져 있거나 앱을 지운 상태예요.
         </div>
       )}
@@ -73,7 +73,7 @@ export default async function PushSeen() {
             : p?.name || "—";
           return (
             <div className="unitrow" key={r.id}>
-              <b style={{ fontSize: 12.5, minWidth: 92 }}>{label}</b>
+              <b style={{ fontSize: 14, minWidth: 92 }}>{label}</b>
               <span className="hint" style={{ flex: 1, minWidth: 100 }}>
                 {r.title || "알림"}
               </span>

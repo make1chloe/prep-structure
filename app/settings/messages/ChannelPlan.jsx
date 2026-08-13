@@ -53,7 +53,7 @@ export default function ChannelPlan({ plan = [], pfId = "" }) {
           return (
             <div className="unitrow" key={p.key || p.label}>
               <span className={`tag ${c.cls}`}>{c.label}</span>
-              <b style={{ fontSize: 12.5, minWidth: 104 }}>{p.label}</b>
+              <b style={{ fontSize: 14, minWidth: 104 }}>{p.label}</b>
               <span className={`tag ${p.auto ? "tag-sky" : "tag-muted"}`}>
                 {p.auto ? "앱이 만듦" : "내가 씀"}
               </span>

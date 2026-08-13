@@ -27,7 +27,7 @@ const pct = (v) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 function Bar({ label, rate, right, total, weak }) {
   return (
     <div className="row" style={{ gap: 8, alignItems: "center", margin: "3px 0" }}>
-      <span style={{ width: 72, fontSize: 12, flexShrink: 0 }}>{label}</span>
+      <span style={{ width: 72, fontSize: 13, flexShrink: 0 }}>{label}</span>
       <span
         style={{
           flex: 1, height: 8, borderRadius: 999,
@@ -44,7 +44,7 @@ function Bar({ label, rate, right, total, weak }) {
           }}
         />
       </span>
-      <span className="hint" style={{ width: 68, fontSize: 11, textAlign: "right", flexShrink: 0 }}>
+      <span className="hint" style={{ width: 68, fontSize: 12, textAlign: "right", flexShrink: 0 }}>
         {pct(rate)} {total ? `${right}/${total}` : ""}
       </span>
     </div>
@@ -75,7 +75,7 @@ export default function GrowthCard({ st, kindLabel = "모의고사", max = 5 }) 
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>{kindLabel}</h2>
+        <h2 style={{ margin: 0, fontSize: 17.5, fontWeight: 800 }}>{kindLabel}</h2>
         {st.last != null && <span className="tag tag-sky">최근 {st.last}점</span>}
         {st.best != null && <span className="tag tag-mint">최고 {st.best}점</span>}
         {st.mean != null && <span className="tag tag-muted">평균 {st.mean}점</span>}
@@ -93,7 +93,7 @@ export default function GrowthCard({ st, kindLabel = "모의고사", max = 5 }) 
 
       {shown.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          <b style={{ fontSize: 12.5 }}>영역별 누적 정답률</b>
+          <b style={{ fontSize: 14 }}>영역별 누적 정답률</b>
           <div style={{ marginTop: 4 }}>
             {shown.map((t) => (
               <Bar
@@ -111,7 +111,7 @@ export default function GrowthCard({ st, kindLabel = "모의고사", max = 5 }) 
             {worst && <span className="tag tag-amber">보완 {worst.topic}</span>}
             {/* 문항이 적은 영역이 흐린 까닭 — 안 적어두면 「어법은 왜 회색이지」 */}
             {shown.some((t) => t.total < 3) && (
-              <span className="hint" style={{ fontSize: 11 }}>
+              <span className="hint" style={{ fontSize: 12 }}>
                 흐린 막대는 문항이 두 개 이하라 크게 흔들립니다
               </span>
             )}
@@ -123,17 +123,17 @@ export default function GrowthCard({ st, kindLabel = "모의고사", max = 5 }) 
         <div className="stack" style={{ gap: 3, marginTop: 10 }}>
           {rows.map((r, i) => (
             <div className="unitrow" key={i}>
-              <span className="hint" style={{ minWidth: 62, fontSize: 11.5 }}>
+              <span className="hint" style={{ minWidth: 62, fontSize: 12.5 }}>
                 {r.score?.taken_on ? r.score.taken_on.slice(2).replaceAll("-", ".") : ""}
               </span>
-              <b style={{ fontSize: 12.5, flex: 1, minWidth: 100 }}>{r.score?.term || "—"}</b>
-              <span style={{ fontSize: 12.5 }}>
+              <b style={{ fontSize: 14, flex: 1, minWidth: 100 }}>{r.score?.term || "—"}</b>
+              <span style={{ fontSize: 14 }}>
                 {r.point}
                 {r.score?.full_score ? `/${r.score.full_score}` : ""}
               </span>
               {r.grade != null && <span className="tag tag-muted">{r.grade}등급</span>}
               {r.rate != null && (
-                <span className="hint" style={{ fontSize: 11.5 }}>{pct(r.rate)}</span>
+                <span className="hint" style={{ fontSize: 12.5 }}>{pct(r.rate)}</span>
               )}
             </div>
           ))}

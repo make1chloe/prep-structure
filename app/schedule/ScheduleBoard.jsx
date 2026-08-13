@@ -194,7 +194,7 @@ export default function ScheduleBoard({
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            style={{ padding: "0 6px", height: 20, fontSize: 11.5 }}
+            style={{ padding: "0 6px", height: 20, fontSize: 12.5 }}
             onClick={() => setWhoOpen({ ...whoOpen, [e.id]: !open })}
           >
             {open ? "이름 접기" : `이름 보기 (${who.length}명)`}
@@ -246,7 +246,7 @@ export default function ScheduleBoard({
           * 「전국 고1」 로 적으면 어느 달 시험인지가 안 보인다.
           * 이름에 이미 연도 · 월 · 학년이 다 들어 있다.
           */}
-        <b style={{ fontSize: 12.5 }}>
+        <b style={{ fontSize: 14 }}>
           {examKind(e) !== "school" ? (
             e.name || "모의고사"
           ) : (
@@ -513,14 +513,14 @@ export default function ScheduleBoard({
             : a.kind === "exam" ? "시험 기간"
             : "영어 시험 전날"}
         </span>
-        <span style={{ fontSize: 12.5, flex: 1 }}>
+        <span style={{ fontSize: 14, flex: 1 }}>
           {a.text}
           {a.advice && (
             <>
               <br />
               <span
                 className="muted"
-                style={{ fontSize: 12, lineHeight: 1.6 }}
+                style={{ fontSize: 13, lineHeight: 1.6 }}
               >
                 {a.advice}
               </span>
@@ -531,7 +531,7 @@ export default function ScheduleBoard({
           {a.who?.length > 0 && (
             <>
               <br />
-              <span style={{ fontSize: 12, lineHeight: 1.7 }}>
+              <span style={{ fontSize: 13, lineHeight: 1.7 }}>
                 {a.school && (
                   <b>{[a.school, a.grade].filter(Boolean).join(" ")} — </b>
                 )}
@@ -679,7 +679,7 @@ export default function ScheduleBoard({
     return (
       <div className="card card-tight" style={{ marginTop: 6, background: "var(--surface-2)" }}>
         <div className="row" style={{ gap: 6, alignItems: "center" }}>
-          <b style={{ fontSize: 12.5 }}>넣을 것 고르기</b>
+          <b style={{ fontSize: 14 }}>넣을 것 고르기</b>
           <span className="hint">눌러서 빼거나 다시 넣습니다</span>
           <span className="spacer" />
           <span className="tag tag-sky">{chosen.length}건</span>
@@ -687,7 +687,7 @@ export default function ScheduleBoard({
         <div className="stack" style={{ gap: 4, marginTop: 6 }}>
           {[...byName.entries()].map(([name, ps]) => (
             <div className="row" key={name} style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 12.5, minWidth: 56 }}>{name}</b>
+              <b style={{ fontSize: 14, minWidth: 56 }}>{name}</b>
               {ps.map((p) => {
                 const k = `${p.student_id}|${p.date}`;
                 const on = absSel.has(k);
@@ -695,7 +695,7 @@ export default function ScheduleBoard({
                   <button
                     key={k}
                     className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
-                    style={{ padding: "3px 7px", fontSize: 11.5 }}
+                    style={{ padding: "3px 7px", fontSize: 12.5 }}
                     onClick={() => toggle(k)}
                   >
                     {dayShort(p.date)}
@@ -704,7 +704,7 @@ export default function ScheduleBoard({
               })}
               <button
                 className="btn btn-ghost btn-sm"
-                style={{ padding: "3px 7px", fontSize: 11.5 }}
+                style={{ padding: "3px 7px", fontSize: 12.5 }}
                 onClick={() => {
                   const ks = ps.map((p) => `${p.student_id}|${p.date}`);
                   const every = ks.every((k) => absSel.has(k));
@@ -788,7 +788,7 @@ export default function ScheduleBoard({
             {noted.map((r) => (
               <div key={r.klass.id} style={{ borderTop: "1px dashed var(--border)", paddingTop: 8 }}>
                 <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-                  <b style={{ fontSize: 13.5 }}>{r.klass.name}</b>
+                  <b style={{ fontSize: 15 }}>{r.klass.name}</b>
                   <span className="hint">
                     {(r.klass.days || []).join("·")} · 수업 {r.m.live.length}회
                     {r.m.off.length > 0 && ` (휴강 ${r.m.off.length}회 제외)`}
@@ -829,8 +829,8 @@ export default function ScheduleBoard({
       <>
       {/* 휴강 — 공휴일이 아닌 날도 쉰다 (원장님 사정, 학교 행사, 가족 일) */}
       <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>휴강</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>휴강</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
           공휴일이 아닌 날도 쉴 수 있습니다. 여기 넣으면 <b>그날은 회차에서 빠지고</b>,
           수강료는 깎지 않고 보강으로 채우도록 계산됩니다.
         </p>
@@ -901,11 +901,11 @@ export default function ScheduleBoard({
             {holidays.map((h) => (
               <div className="unitrow" key={h.id}>
                 <input type="checkbox" checked={hBulk.has(h.id)} onChange={() => hBulk.toggle(h.id)} />
-                <b style={{ fontSize: 12.5, minWidth: 96 }}>{dayShort(h.date)}</b>
+                <b style={{ fontSize: 14, minWidth: 96 }}>{dayShort(h.date)}</b>
                 <span className={`tag ${h.class_id ? "tag-sky" : "tag-muted"}`}>
                   {h.class_id ? `${classes.find((c) => c.id === h.class_id)?.name || "반"}만` : "전체"}
                 </span>
-                <span style={{ fontSize: 12.5, flex: 1 }}>{h.name || "휴강"}</span>
+                <span style={{ fontSize: 14, flex: 1 }}>{h.name || "휴강"}</span>
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={pending}
@@ -927,10 +927,10 @@ export default function ScheduleBoard({
       {/* 공휴일 · 대체공휴일 · 낀 날 */}
       {holidayNotes.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
-          <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+          <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
             공휴일 — 쉴지 정해주세요
           </h2>
-          <p className="muted" style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7 }}>
+          <p className="muted" style={{ margin: "0 0 12px", fontSize: 14, lineHeight: 1.7 }}>
             자동으로 휴강 처리하지 않습니다. 학원마다 다르고 낀 날은 더 그렇기 때문에,
             <b> 수업이 잡혀 있는 공휴일만 골라서 알려드립니다.</b>
             <br />
@@ -949,10 +949,10 @@ export default function ScheduleBoard({
                 >
                   {h.kind === "bridge" ? "낀 날" : h.kind === "substitute" ? "대체공휴일" : "공휴일"}
                 </span>
-                <b style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>
+                <b style={{ fontSize: 14, whiteSpace: "nowrap" }}>
                   {dayShort(h.date)} {h.name}
                 </b>
-                <span className="muted" style={{ fontSize: 12, flex: 1, lineHeight: 1.6 }}>
+                <span className="muted" style={{ fontSize: 13, flex: 1, lineHeight: 1.6 }}>
                   {h.why}
                 </span>
                 {/* 답이 두 개다 — 쉬거나, 그냥 수업하거나 */}
@@ -1006,8 +1006,8 @@ export default function ScheduleBoard({
       <>
       {/* 시험 일정 */}
       <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>학교 시험 일정</h2>
-        <p className="muted" style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>학교 시험 일정</h2>
+        <p className="muted" style={{ margin: "0 0 12px", fontSize: 14, lineHeight: 1.7 }}>
           <b>1차</b> — 학교에서 시험 기간만 알려주면 먼저 기간을 넣습니다.
           그 기간 정규수업은 <b>타과목 시험 때문에 결석 예상</b>으로 표시됩니다.
           <br />
@@ -1028,7 +1028,7 @@ export default function ScheduleBoard({
           * 그 학교만 받아오기가 실패한 것이다.
           */}
         {missingSchools.length > 0 && (
-          <div className="notice" style={{ marginBottom: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+          <div className="notice" style={{ marginBottom: 10, fontSize: 14, lineHeight: 1.7 }}>
             <b>시험 회차가 하나도 없는 학교가 {missingSchools.length}곳 있습니다</b> —{" "}
             {missingSchools.join(" · ")}
             <br />
@@ -1050,7 +1050,7 @@ export default function ScheduleBoard({
             학년만 없는 옛 「전국연합학력평가」 줄이었다 — 안 세니 안내가 안 뜨고,
             안내가 없으니 치울 단추도 없었다. 이제 mockMess 가 둘 다 센다 */}
         {mockMess(exams).any && (
-          <div className="notice" style={{ marginBottom: 10, fontSize: 12.5, lineHeight: 1.7 }}>
+          <div className="notice" style={{ marginBottom: 10, fontSize: 14, lineHeight: 1.7 }}>
             {mockMess(exams).perSchool > 0 ? (
               <>
                 <b>모의고사가 학교마다 한 줄씩 있습니다.</b> 전국이 같은 날이라 한 줄이면
@@ -1155,7 +1155,7 @@ export default function ScheduleBoard({
             <button className="btn btn-ghost btn-sm" onClick={() => setShowHidden(!showHidden)}>
               {showHidden ? "숨긴 것 접기" : `숨긴 시험 ${hiddenExams.length}건 보기`}
             </button>
-            <span className="hint" style={{ fontSize: 11.5 }}>
+            <span className="hint" style={{ fontSize: 12.5 }}>
               숨긴 시험은 알림·결석 예상에서 빠집니다. 다시 받아와도 숨긴 채로 있습니다.
             </span>
           </div>
@@ -1249,7 +1249,7 @@ export default function ScheduleBoard({
                     paddingBottom: 6, borderBottom: "2px solid var(--border-strong)",
                   }}
                 >
-                  <b style={{ fontSize: 17, letterSpacing: "-0.02em" }}>{g.label}</b>
+                  <b style={{ fontSize: 18.5, letterSpacing: "-0.02em" }}>{g.label}</b>
                   <span className="tag tag-sky">{g.rows.length}건</span>
                 </div>
                 {g.rows.map((e) => <ExamRow key={e.id} e={e} inGroup />)}
@@ -1281,7 +1281,7 @@ export default function ScheduleBoard({
             달력 하나에 모아 칠하고, 무슨 일인지는 **아래에 반별로** 적는다. */}
         {reviews.length === 0 ? (
           <div className="card">
-            <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 15 }}>
               반이 없습니다. <b>반</b> 메뉴에서 먼저 만들어주세요.
             </p>
           </div>

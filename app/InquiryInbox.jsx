@@ -47,7 +47,7 @@ export default function InquiryInbox({ rows = [] }) {
           {rows.map((q) => (
             <div className="unitrow" key={q.id}>
               <Link href="/consult" style={{ textDecoration: "none" }}>
-                <b style={{ fontSize: 12.5 }}>{q.name}</b>
+                <b style={{ fontSize: 14 }}>{q.name}</b>
               </Link>
               <span className="hint">{[q.school, q.grade].filter(Boolean).join(" ")}</span>
               <span className={`tag ${q.form_submitted_at ? "tag-mint" : "tag-muted"}`}>

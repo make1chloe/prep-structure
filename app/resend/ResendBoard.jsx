@@ -249,7 +249,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
         </div>
 
         {shown.length === 0 ? (
-          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 15 }}>
             {rows.length === 0
               ? "이 날짜에 수업 기록이 없어요. 숙제 문자는 오늘 수업에 적은 내용으로 만들어지니, 먼저 오늘 수업에서 기록을 저장해주세요."
               : "고른 조건에 맞는 학생이 없어요. 위에서 「전체」를 눌러보세요."}
@@ -264,8 +264,8 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
               <div className="stuRow" key={r.id}>
                 <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
                   <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
-                  <b style={{ fontSize: 13.5 }}>{r.name}</b>
-                  <span className="muted" style={{ fontSize: 12 }}>{r.who}</span>
+                  <b style={{ fontSize: 15 }}>{r.name}</b>
+                  <span className="muted" style={{ fontSize: 13 }}>{r.who}</span>
                   {r.phone ? (
                     <span className="hint mono">{r.phone}</span>
                   ) : (
@@ -312,7 +312,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                               {h.kind === "homework" ? "숙제" : "리포트"}
                             </span>
                             <span className="hint" style={{ minWidth: 84 }}>{timeLabel(h.sent_at)}</span>
-                            <span style={{ flex: 1, fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+                            <span style={{ flex: 1, fontSize: 14, whiteSpace: "pre-wrap" }}>
                               {h.body.split("\n").slice(0, 3).join("\n")}
                               {h.body.split("\n").length > 3 ? " …" : ""}
                             </span>
@@ -330,7 +330,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                       rows={Math.max(6, draft.split("\n").length + 1)}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
-                      style={{ fontSize: 13.5, lineHeight: 1.6 }}
+                      style={{ fontSize: 15, lineHeight: 1.6 }}
                     />
                     <div className="row" style={{ gap: 6, marginTop: 8 }}>
                       <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>

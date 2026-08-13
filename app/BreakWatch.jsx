@@ -71,7 +71,7 @@ export default async function BreakWatch() {
       <div className="stack" style={{ gap: 3 }}>
         {out.map((r) => (
           <div className="unitrow" key={r.sid}>
-            <b style={{ fontSize: 12.5, minWidth: 72 }}>{nameOf.get(r.sid) || "학생"}</b>
+            <b style={{ fontSize: 14, minWidth: 72 }}>{nameOf.get(r.sid) || "학생"}</b>
             <span className="tag tag-amber">{r.why}</span>
             <span className="hint">{r.line}</span>
           </div>

@@ -40,7 +40,7 @@ export default function LinkBox({ studentId, name }) {
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{name} 계정</b>
+        <b style={{ fontSize: 15 }}>{name} 계정</b>
         {st.linked ? (
           <>
             <span className="tag tag-mint">아이디 {st.loginId}</span>
@@ -56,7 +56,7 @@ export default function LinkBox({ studentId, name }) {
       </div>
 
       {!st.hasKey && (
-        <div className="notice" style={{ fontSize: 12.5 }}>
+        <div className="notice" style={{ fontSize: 14 }}>
           학생 계정을 만들려면 <b>설정 → Supabase SQL → 학생 계정 키</b> 에
           service_role 키를 한 번 넣어주셔야 합니다.
         </div>
@@ -64,7 +64,7 @@ export default function LinkBox({ studentId, name }) {
 
       {!st.linked ? (
         <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <span className="hint" style={{ fontSize: 12 }}>아이디</span>
+          <span className="hint" style={{ fontSize: 13 }}>아이디</span>
           <input
             className="input input-sm"
             style={{ width: 160 }}
@@ -109,17 +109,17 @@ export default function LinkBox({ studentId, name }) {
 
       {made && (
         <div className="card card-tight" style={{ background: "var(--surface-2)", textAlign: "center" }}>
-          <p className="hint" style={{ margin: 0, fontSize: 12 }}>학생에게 알려주세요</p>
-          <div style={{ fontSize: 19, fontWeight: 800, marginTop: 4 }}>
+          <p className="hint" style={{ margin: 0, fontSize: 13 }}>학생에게 알려주세요</p>
+          <div style={{ fontSize: 20.5, fontWeight: 800, marginTop: 4 }}>
             아이디 {made.loginId} · 비번 {made.password}
           </div>
-          <p className="hint" style={{ margin: "4px 0 0", fontSize: 12 }}>
+          <p className="hint" style={{ margin: "4px 0 0", fontSize: 13 }}>
             처음 들어가면 비밀번호를 새로 정하게 됩니다.
           </p>
         </div>
       )}
 
-      <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+      <p className="hint" style={{ margin: 0, fontSize: 14 }}>
         학생은 <b>/login</b> 에서 이 아이디와 비밀번호로 들어갑니다. 로그인 없이
         화면만 보시려면 <b>체험</b> 버튼을 쓰시면 됩니다.
       </p>

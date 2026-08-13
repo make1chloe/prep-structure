@@ -31,7 +31,7 @@ export default function MakeupHere({ studentId, date, name = "학생", already =
       <div className="prow">
         <span className="plabel">보강</span>
         <span className="tag tag-mint">{dayLabel(already)} 로 잡혀 있음</span>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           바꾸거나 무르는 것은 <a href="/plan">출결</a> 에서
         </span>
       </div>
@@ -73,7 +73,7 @@ export default function MakeupHere({ studentId, date, name = "학생", already =
           <span className={msg.bad ? "err" : "hint"}>{msg.text}</span>
         )}
         {!msg && (
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             {name} · {dayLabel(date)} 결석분
           </span>
         )}

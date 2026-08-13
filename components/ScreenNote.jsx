@@ -16,7 +16,7 @@ export default function ScreenNote({ text, tone = "hint", style = {} }) {
   if (tone === "card") {
     return (
       <div className="card card-tight" style={{ ...style }}>
-        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
           {body}
         </p>
       </div>

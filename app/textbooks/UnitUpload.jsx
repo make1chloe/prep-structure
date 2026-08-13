@@ -151,10 +151,10 @@ export default function UnitUpload() {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>단원 엑셀로 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>단원 엑셀로 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => { reset(); setOpen(false); }}>닫기</button>
       </div>
-      <p className="muted" style={{ margin: "8px 0 12px", fontSize: 13 }}>
+      <p className="muted" style={{ margin: "8px 0 12px", fontSize: 14.5 }}>
         한 줄이 단원 하나입니다. <b>대·중·소단원</b>을 적으면 계층이 자동으로 만들어지고,
         같은 대단원은 한 번만 생성됩니다. 교재명이 없는 교재는 <b>자동으로 새로 만들어져요.</b>
         총분량을 비우면 시작·끝 페이지로 계산합니다.
@@ -191,7 +191,7 @@ export default function UnitUpload() {
       {parsed && (
         <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
               미리보기{" "}
               <span className="muted" style={{ fontWeight: 600 }}>
                 {parsed.rows.length}줄 · 교재 {bookCount}권
@@ -274,10 +274,10 @@ export default function UnitUpload() {
                   학생 진도가 단원에 걸려 있어서, 지우면 그 기록도 함께 사라진다. */}
               {(result.leftover || []).length > 0 && (
                 <div className="card card-tight" style={{ marginTop: 8, borderColor: "var(--amber)" }}>
-                  <b style={{ fontSize: 13 }}>
+                  <b style={{ fontSize: 14.5 }}>
                     파일에 없는 단원 {result.leftover.length}개
                   </b>
-                  <p className="hint" style={{ margin: "4px 0 6px", fontSize: 11.5 }}>
+                  <p className="hint" style={{ margin: "4px 0 6px", fontSize: 12.5 }}>
                     엑셀에서 <b>지웠거나 이름을 바꾼</b> 단원이에요.
                     <b> 저절로 지우지 않았습니다</b> — 학생 진도가 단원에 걸려 있어서
                     지우면 그 기록도 함께 사라지거든요.
@@ -286,7 +286,7 @@ export default function UnitUpload() {
                   </p>
                   <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
                     {result.leftover.slice(0, 40).map((u) => (
-                      <span key={u.id} className="tag tag-muted" style={{ fontSize: 10.5 }}>
+                      <span key={u.id} className="tag tag-muted" style={{ fontSize: 12 }}>
                         {u.book ? `${u.book} · ` : ""}{u.name}
                       </span>
                     ))}

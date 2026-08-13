@@ -65,7 +65,7 @@ export default function WordRangeBox({ book }) {
           </button>
         )}
 
-        <span className="hint" style={{ flex: 1, minWidth: 220, fontSize: 11.5 }}>
+        <span className="hint" style={{ flex: 1, minWidth: 220, fontSize: 12.5 }}>
           {irregular ? (
             <>
               <b>단원마다 개수가 다른 교재예요.</b> 아래 표의 <b>단어</b> 칸에 단원마다 적어주세요.

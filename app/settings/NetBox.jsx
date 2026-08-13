@@ -35,14 +35,14 @@ export default function NetBox() {
   return (
     <div className="card">
       <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>학원에서만 등원 체크</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>학원에서만 등원 체크</h2>
         {rows.length > 0 ? (
           <span className="tag tag-mint">켜짐</span>
         ) : (
           <span className="tag tag-muted">꺼짐</span>
         )}
       </div>
-      <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5, lineHeight: 1.8 }}>
+      <p className="muted" style={{ margin: "6px 0 10px", fontSize: 14, lineHeight: 1.8 }}>
         아이가 오는 길에 미리 누르는 것을 막습니다. 학원 인터넷에서 온 것만 받습니다.
         <br />
         <b>주소를 하나라도 등록하면 켜지고, 다 지우면 꺼집니다.</b> 아이가 할 일은 없습니다 —
@@ -50,7 +50,7 @@ export default function NetBox() {
       </p>
 
       {!ready && (
-        <div className="notice" style={{ fontSize: 12.5 }}>
+        <div className="notice" style={{ fontSize: 14 }}>
           <b>0041 SQL</b> 을 먼저 실행해주세요.
         </div>
       )}
@@ -95,7 +95,7 @@ export default function NetBox() {
         <div className="stack" style={{ gap: 4, marginTop: 12 }}>
           {rows.map((r) => (
             <div className="unitrow" key={r.ip}>
-              <span className="mono" style={{ fontSize: 12.5, flex: 1 }}>{r.ip}</span>
+              <span className="mono" style={{ fontSize: 14, flex: 1 }}>{r.ip}</span>
               {r.note && <span className="hint">{r.note}</span>}
               {r.ip === now && <span className="tag tag-mint">지금 여기</span>}
               <button

@@ -79,7 +79,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
 
       <div className="card">
         <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 14 }}>누구에게</b>
+          <b style={{ fontSize: 15 }}>누구에게</b>
           <span className="hint" style={{ flex: 1, minWidth: 220 }}>
             재원생에 <b>테스트 학생</b>을 하나 만들어 두고, 학부모 번호에 원장님 번호를
             넣어두시면 편합니다. 상태는 <b>재원 말고 '예비'</b>로 두세요 — 재원으로 두면
@@ -131,7 +131,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
       </div>
 
       <div className="card">
-        <b style={{ fontSize: 14 }}>무엇을</b>
+        <b style={{ fontSize: 15 }}>무엇을</b>
         <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
           {TEST_KINDS.map((k) => (
             <button
@@ -140,7 +140,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
               onClick={() => setKind(k.key)}
             >
               {k.label}
-              <span className="hint" style={{ marginLeft: 4, fontSize: 11 }}>{k.who}</span>
+              <span className="hint" style={{ marginLeft: 4, fontSize: 12 }}>{k.who}</span>
             </button>
           ))}
         </div>
@@ -162,7 +162,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
             </div>
             <pre
               style={{
-                whiteSpace: "pre-wrap", fontSize: 12.5, lineHeight: 1.55,
+                whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.55,
                 background: "var(--surface-2)", padding: 12, borderRadius: 10,
                 marginTop: 8, maxHeight: 320, overflowY: "auto",
               }}
@@ -185,7 +185,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
       {/* 알림톡은 문구마다 템플릿이 다르다 — 따로 골라 보낸다 */}
       {alimtalkTpls.length > 0 && (
         <div className="card">
-          <b style={{ fontSize: 14 }}>알림톡</b>
+          <b style={{ fontSize: 15 }}>알림톡</b>
           <p className="hint" style={{ margin: "4px 0 8px" }}>
             카카오 템플릿이 연결된 문구만 보입니다. 템플릿이 심사에 통과했는지,
             변수 자리가 제대로 채워지는지 여기서 확인하세요.
@@ -219,13 +219,13 @@ export default function TestSender({ students = [], templates = [], mode = "copy
             <div className="err">{res.error}</div>
           ) : (
             <div className="stack" style={{ gap: 4 }}>
-              <b style={{ fontSize: 14 }}>{res.ok ? "보냈어요" : "못 보냈어요"}</b>
+              <b style={{ fontSize: 15 }}>{res.ok ? "보냈어요" : "못 보냈어요"}</b>
               <span className="hint">
                 통로: {res.channel === "sms" ? "문자(솔라피)" : res.channel === "webhook" ? "웹훅" : res.channel === "push" ? "앱 알림" : "직접 발송(기록만)"}
                 {res.to ? ` · ${res.to}` : ""}
               </span>
               {/* 왜 안 됐는지를 그대로 보여준다. "실패" 만으로는 고칠 수가 없다 */}
-              <span style={{ fontSize: 12.5 }}>{res.detail}</span>
+              <span style={{ fontSize: 14 }}>{res.detail}</span>
             </div>
           )}
         </div>

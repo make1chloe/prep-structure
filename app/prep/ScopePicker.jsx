@@ -98,8 +98,8 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
   return (
     <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{scope?.id ? "범위 고치기" : "범위 추가"}</b>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <b style={{ fontSize: 15 }}>{scope?.id ? "범위 고치기" : "범위 추가"}</b>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           교재를 고르고 단원 · 문제번호를 눌러 담습니다
         </span>
         <span className="spacer" />
@@ -156,14 +156,14 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
                 justifyContent: "flex-start",
                 textAlign: "left",
                 marginLeft: (kw ? 0 : o.depth) * 14,
-                fontSize: 12.5,
+                fontSize: 14,
                 padding: "3px 8px",
               }}
               onClick={() => toggle(o.id)}
             >
               {on ? "✓ " : ""}
               {o.question ? `${o.question}번` : o.name}
-              <span className="hint" style={{ fontSize: 11, marginLeft: 6 }}>
+              <span className="hint" style={{ fontSize: 12, marginLeft: 6 }}>
                 {unitOptionText(o)}
               </span>
             </button>
@@ -173,7 +173,7 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
 
       {/* 다른 교재에서 담은 것도 남는다 — 지금 보고 있는 교재 밖의 것을 알려준다 */}
       {picked.size > 0 && bookId && (
-        <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+        <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
           담은 것 중 {[...picked].filter((id) => !options.some((o) => o.id === id)).length}개는
           다른 교재에서 담은 것입니다 (교재를 바꿔도 그대로 남습니다).
         </p>

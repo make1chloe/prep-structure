@@ -59,7 +59,7 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
 
   const Row = (r) => (
     <div className="unitrow" key={`${r.student_id}-${r.date}`}>
-      <b style={{ fontSize: 12.5, minWidth: 72 }}>{nameOf[r.student_id] || "학생"}</b>
+      <b style={{ fontSize: 14, minWidth: 72 }}>{nameOf[r.student_id] || "학생"}</b>
       <span className="hint">{dayLabel(r.date)}</span>
       {r.makeup_time && <span className="hint">{r.makeup_time.slice(0, 5)}</span>}
       {r.makeup_of && <span className="hint">· {r.makeup_of.slice(5)} 결석분</span>}

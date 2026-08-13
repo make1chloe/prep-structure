@@ -65,7 +65,7 @@ export default function LateBox({ studentId, date, reasons = [], saved = {} }) {
           {reasons.map((x) => (
             <div className="unitrow" key={x.key}>
               <span className="tag tag-amber">{x.label}</span>
-              <span className="hint" style={{ flex: 1, fontSize: 12 }}>{x.detail}</span>
+              <span className="hint" style={{ flex: 1, fontSize: 13 }}>{x.detail}</span>
             </div>
           ))}
         </div>
@@ -73,13 +73,13 @@ export default function LateBox({ studentId, date, reasons = [], saved = {} }) {
 
       {/* 하원 예상 시간 — 원장님이 더할 것은 이것뿐 */}
       <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-        <span className="hint" style={{ fontSize: 12 }}>하원</span>
+        <span className="hint" style={{ fontSize: 13 }}>하원</span>
         {TIME_PRESETS.map((t) => (
           <button
             key={t}
             className={`btn btn-sm ${until === t ? "btn-primary" : "btn-ghost"}`}
             disabled={pending || sent}
-            style={{ padding: "2px 8px", fontSize: 12 }}
+            style={{ padding: "2px 8px", fontSize: 13 }}
             onClick={() => {
               setUntil(t);
               run(() => saveLate(studentId, date, { until: t, reason }));
@@ -208,7 +208,7 @@ export default function LateBox({ studentId, date, reasons = [], saved = {} }) {
             width: "100%",
             height: 150,
             marginTop: 8,
-            fontSize: 12.5,
+            fontSize: 14,
             whiteSpace: "pre-wrap",
           }}
         />

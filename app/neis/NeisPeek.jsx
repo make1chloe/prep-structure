@@ -110,7 +110,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
 
         {/* **학교는 눌러서 여러 곳** — 아무것도 안 누르면 전체다 */}
         <div className="row" style={{ gap: 6, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <span className="hint" style={{ fontSize: 12 }}>학교</span>
+          <span className="hint" style={{ fontSize: 13 }}>학교</span>
           <button
             type="button"
             className={`btn btn-sm ${picked.length === 0 ? "btn-primary" : "btn-ghost"}`}
@@ -135,7 +135,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
             );
           })}
         </div>
-        <p className="hint" style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.7 }}>
+        <p className="hint" style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.7 }}>
           누를 때마다 <b>나이스에 그 자리에서 다시 물어봅니다.</b> 받은 줄을 하나도 안 버리고
           그대로 보여주고, 옆에 <b>앱이 그 줄을 어떻게 봤는지</b>를 적습니다.
           <b> 아무것도 저장하지 않습니다.</b>
@@ -146,7 +146,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
       {res && (
         <div className="card">
           <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 14 }}>나이스가 준 것 {res.rows.length}줄</b>
+            <b style={{ fontSize: 15 }}>나이스가 준 것 {res.rows.length}줄</b>
             {gaps > 0 ? (
               <span className="tag tag-amber">앱에 안 들어온 줄 {gaps}개</span>
             ) : (
@@ -167,7 +167,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
               * 끄면 받은 그대로 하루씩 볼 수 있다 (원본을 보는 자리이므로
               * 합친 것만 보여주면 안 된다).
               */}
-            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 12 }}>
+            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 13 }}>
               <input type="checkbox" checked={merge} onChange={(e) => setMerge(e.target.checked)} />
               이어진 날 합치기
             </label>
@@ -201,19 +201,19 @@ export default function NeisPeek({ from, to, schools = [] }) {
             */}
           {res.asked?.length > 0 && (
             <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
-              <b style={{ fontSize: 12.5 }}>물어본 학교</b>
+              <b style={{ fontSize: 14 }}>물어본 학교</b>
               <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                 {res.asked.map((a) => (
                   <div className="unitrow" key={a.code}>
-                    <b style={{ fontSize: 12.5, minWidth: 70 }}>{shortName(a.name)}</b>
+                    <b style={{ fontSize: 14, minWidth: 70 }}>{shortName(a.name)}</b>
                     <span className="tag tag-muted">{a.code}</span>
-                    {a.atpt && <span className="hint" style={{ fontSize: 11.5 }}>{a.atpt}</span>}
-                    <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>{a.address}</span>
+                    {a.atpt && <span className="hint" style={{ fontSize: 12.5 }}>{a.atpt}</span>}
+                    <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>{a.address}</span>
                     {/* 나이스가 말한 건수와 받은 건수가 다르면 뒷부분이 빠진 것이다 */}
                     {a.said != null && a.said !== a.got ? (
                       <span className="tag tag-amber">나이스는 {a.said}건이라는데 {a.got}건 받음</span>
                     ) : (
-                      <span className="hint" style={{ fontSize: 11.5 }}>{a.got}건</span>
+                      <span className="hint" style={{ fontSize: 12.5 }}>{a.got}건</span>
                     )}
                     {/**
                       * **앱을 안 거치고 나이스를 바로 여는 주소** (원장님,
@@ -234,7 +234,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
                   </div>
                 ))}
               </div>
-              <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.7 }}>
+              <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.7 }}>
                 학교 홈페이지 일정과 다르면 <b>먼저 이 주소가 그 학교가 맞는지</b> 봐주세요.
                 맞다면 <b>나이스와 학교 홈페이지는 서로 다른 시스템</b>이라 학교가 한쪽만
                 고쳐두는 일이 흔합니다 — 그건 학교에 여쭤볼 일이지 앱이 고칠 것은 아닙니다.
@@ -248,7 +248,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
 
           {/* **나이스가 뭐라고 했는지도 그대로** — 0줄인 학교의 까닭이 여기 있다 */}
           {res.notes?.length > 0 && (
-            <div className="notice" style={{ marginTop: 8, fontSize: 12.5, lineHeight: 1.8 }}>
+            <div className="notice" style={{ marginTop: 8, fontSize: 14, lineHeight: 1.8 }}>
               {res.notes.map((n, i) => <div key={i}>· {n}</div>)}
             </div>
           )}

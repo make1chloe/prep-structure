@@ -101,7 +101,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
   if (!canWrite) {
     return (
       <div className="card card-tight">
-        <b style={{ fontSize: 14 }}>시험 결과 적기</b>
+        <b style={{ fontSize: 15 }}>시험 결과 적기</b>
         <p className="hint" style={{ margin: "6px 0 0" }}>
           이 화면은 학생 본인만 쓸 수 있어요. (어머니가 대신 적어주시면 기록이
           아이 것이 아니게 됩니다.)
@@ -113,7 +113,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>시험 결과 적기</b>
+        <b style={{ fontSize: 15 }}>시험 결과 적기</b>
         <span className="hint">모의고사 · 내신</span>
         <span className="spacer" />
         {!open && (
@@ -136,13 +136,13 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
               <span className="tag tag-muted">
                 {KINDS.find((k) => k.key === s.kind)?.label || s.kind}
               </span>
-              <span style={{ fontSize: 12.5, fontWeight: 600 }}>{s.term}</span>
-              <span className="hint" style={{ fontSize: 11.5 }}>{s.taken_on}</span>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{s.term}</span>
+              <span className="hint" style={{ fontSize: 12.5 }}>{s.taken_on}</span>
               {s.raw_score != null && (
-                <span className="hint" style={{ fontSize: 11.5 }}>{s.raw_score}점</span>
+                <span className="hint" style={{ fontSize: 12.5 }}>{s.raw_score}점</span>
               )}
               {s.wrongCount > 0 && (
-                <span className="hint" style={{ fontSize: 11.5 }}>틀린 {s.wrongCount}문항</span>
+                <span className="hint" style={{ fontSize: 12.5 }}>틀린 {s.wrongCount}문항</span>
               )}
               {s.source === "form" && (
                 <button
@@ -162,7 +162,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
             </div>
           ))}
           {mine.length > 5 && (
-            <span className="hint" style={{ fontSize: 11.5 }}>… 그 밖 {mine.length - 5}건</span>
+            <span className="hint" style={{ fontSize: 12.5 }}>… 그 밖 {mine.length - 5}건</span>
           )}
         </div>
       )}
@@ -182,7 +182,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
             <span className="spacer" />
             {/* **문법 단원평가는 여기 없다.** 어디에 있는지 안 알려주면
                 「내 단원평가는 왜 없지」 를 아이가 혼자 궁금해한다 */}
-            <span className="hint" style={{ fontSize: 11 }}>
+            <span className="hint" style={{ fontSize: 12 }}>
               문법 단원평가는 선생님이 수업에서 적어요
             </span>
           </div>
@@ -228,7 +228,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
               {/* **적는 동안 바로 보인다.** 다 적고 나서야 알게 되면
                   이걸 왜 적는지 모른다 */}
               {live && (
-                <div className="notice" style={{ fontSize: 12.5 }}>
+                <div className="notice" style={{ fontSize: 14 }}>
                   <b>지금까지 적은 걸로 보면</b>
                   <br />
                   듣기 {live.area.listen.right}/{live.area.listen.total} ·
@@ -244,21 +244,21 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
 
               {nos.length > 0 && (
                 <div className="stack" style={{ gap: 6 }}>
-                  <b style={{ fontSize: 13 }}>왜 틀렸어요?</b>
+                  <b style={{ fontSize: 14.5 }}>왜 틀렸어요?</b>
                   <p className="hint" style={{ margin: 0 }}>
                     생각 안 나는 건 안 골라도 돼요. 고른 것만 셉니다.
                   </p>
                   {nos.map((no) => (
                     <div key={no} className="card card-tight" style={{ padding: "8px 10px" }}>
                       <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                        <b style={{ fontSize: 13, width: 34 }}>{no}번</b>
+                        <b style={{ fontSize: 14.5, width: 34 }}>{no}번</b>
                         {REASONS.map((r) => {
                           const on = reasons[no] === r.key;
                           return (
                             <button
                               key={r.key}
                               className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
-                              style={{ fontSize: 11.5, padding: "3px 8px" }}
+                              style={{ fontSize: 12.5, padding: "3px 8px" }}
                               onClick={() =>
                                 setReasons({ ...reasons, [no]: on ? "" : r.key })
                               }

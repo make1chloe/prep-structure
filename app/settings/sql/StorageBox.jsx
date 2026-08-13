@@ -15,7 +15,7 @@ export default function StorageBox() {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>숙제 파일 점검</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>숙제 파일 점검</h2>
         <span className="spacer" />
         <button
           className="btn btn-sm"
@@ -35,9 +35,9 @@ export default function StorageBox() {
           {res.steps.map((s, i) => (
             <div className="unitrow" key={i}>
               <span className={`tag ${s.ok ? "tag-mint" : "tag-amber"}`}>{s.ok ? "OK" : "막힘"}</span>
-              <b style={{ fontSize: 13 }}>{s.name}</b>
+              <b style={{ fontSize: 14.5 }}>{s.name}</b>
               {s.why && (
-                <span className="hint" style={{ flex: 1, fontSize: 12 }}>{s.why}</span>
+                <span className="hint" style={{ flex: 1, fontSize: 13 }}>{s.why}</span>
               )}
             </div>
           ))}

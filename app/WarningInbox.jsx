@@ -45,7 +45,7 @@ export default function WarningInbox({ rows = [] }) {
         {rows.map((w) => (
           <div className="unitrow" key={w.id}>
             <Link href="/today" style={{ textDecoration: "none" }}>
-              <b style={{ fontSize: 12.5 }}>{w.name}</b>
+              <b style={{ fontSize: 14 }}>{w.name}</b>
             </Link>
             <span className="tag tag-red">경고 {w.count}회</span>
             <span className="hint">

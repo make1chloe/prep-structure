@@ -22,7 +22,7 @@ const REASON_TONE = Object.fromEntries(REASONS.map((r) => [r.key, r.tone]));
 function Bar({ label, rate, right, total, tone = "var(--sky)" }) {
   return (
     <div className="row" style={{ gap: 8, alignItems: "center", margin: "3px 0" }}>
-      <span style={{ width: 78, fontSize: 12, flexShrink: 0 }}>{label}</span>
+      <span style={{ width: 78, fontSize: 13, flexShrink: 0 }}>{label}</span>
       <span
         style={{
           flex: 1, height: 8, borderRadius: 999,
@@ -36,7 +36,7 @@ function Bar({ label, rate, right, total, tone = "var(--sky)" }) {
           }}
         />
       </span>
-      <span className="hint" style={{ width: 76, fontSize: 11.5, textAlign: "right", flexShrink: 0 }}>
+      <span className="hint" style={{ width: 76, fontSize: 12.5, textAlign: "right", flexShrink: 0 }}>
         {pct(rate)}{total ? ` (${right}/${total})` : ""}
       </span>
     </div>
@@ -47,8 +47,8 @@ function Bar({ label, rate, right, total, tone = "var(--sky)" }) {
 function Stat({ label, value, tone }) {
   return (
     <div style={{ minWidth: 84 }}>
-      <div className="hint" style={{ fontSize: 11 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: tone }}>{value}</div>
+      <div className="hint" style={{ fontSize: 12 }}>{label}</div>
+      <div style={{ fontSize: 21, fontWeight: 800, color: tone }}>{value}</div>
     </div>
   );
 }
@@ -62,7 +62,7 @@ function Trend({ rounds }) {
   const span = Math.max(1, hi - lo);
   return (
     <div className="card card-tight">
-      <b style={{ fontSize: 13 }}>총점 추이</b>
+      <b style={{ fontSize: 14.5 }}>총점 추이</b>
       <div
         className="row"
         style={{ gap: 2, alignItems: "flex-end", height: 96, marginTop: 8 }}
@@ -72,14 +72,14 @@ function Trend({ rounds }) {
           const h = p == null ? 0 : Math.round(((p - lo) / span) * 100);
           return (
             <div key={i} style={{ flex: 1, textAlign: "center", minWidth: 34 }}>
-              <div style={{ fontSize: 11, fontWeight: 700 }}>{p == null ? "—" : p}</div>
+              <div style={{ fontSize: 12, fontWeight: 700 }}>{p == null ? "—" : p}</div>
               <div
                 style={{
                   height: `${Math.max(4, h)}%`, minHeight: 4,
                   background: "var(--sky)", borderRadius: "3px 3px 0 0", marginTop: 2,
                 }}
               />
-              <div className="hint" style={{ fontSize: 10, marginTop: 2 }}>{i + 1}회</div>
+              <div className="hint" style={{ fontSize: 12, marginTop: 2 }}>{i + 1}회</div>
             </div>
           );
         })}
@@ -133,7 +133,7 @@ export default function ReportView({ name, kind, rounds = [], st, notes = [] }) 
         <Trend rounds={rounds} />
         {hasTopics && (
           <div className="card card-tight">
-            <b style={{ fontSize: 13 }}>영역별 누적 정답률</b>
+            <b style={{ fontSize: 14.5 }}>영역별 누적 정답률</b>
             <div style={{ marginTop: 8 }}>
               {st.topics.map((t) => (
                 <Bar
@@ -149,7 +149,7 @@ export default function ReportView({ name, kind, rounds = [], st, notes = [] }) 
                 />
               ))}
             </div>
-            <p className="hint" style={{ margin: "6px 0 0", fontSize: 11 }}>
+            <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
               흐린 막대는 문항이 세 개 미만이라 한 문항에 크게 흔들립니다.
             </p>
           </div>
@@ -159,16 +159,16 @@ export default function ReportView({ name, kind, rounds = [], st, notes = [] }) 
       {/* ── 학습포인트 ───────────────────────────────────── */}
       {notes.length > 0 && (
         <div className="card" style={{ background: "var(--surface-2)" }}>
-          <b style={{ fontSize: 13.5 }}>분석 및 학습포인트</b>
+          <b style={{ fontSize: 15 }}>분석 및 학습포인트</b>
           <div className="stack" style={{ gap: 8, marginTop: 8 }}>
             {notes.map((n, i) => (
               <div key={i}>
-                <b style={{ fontSize: 12.5 }}>[{n.head}]</b>
-                <p style={{ margin: "2px 0 0", fontSize: 12.5, lineHeight: 1.75 }}>{n.body}</p>
+                <b style={{ fontSize: 14 }}>[{n.head}]</b>
+                <p style={{ margin: "2px 0 0", fontSize: 14, lineHeight: 1.75 }}>{n.body}</p>
               </div>
             ))}
           </div>
-          <p className="hint" style={{ margin: "8px 0 0", fontSize: 11 }}>
+          <p className="hint" style={{ margin: "8px 0 0", fontSize: 12 }}>
             숫자에서 나온 문장입니다. 상담 때 아이 얘기를 얹어서 쓰시라고 초안만 씁니다.
           </p>
         </div>
@@ -177,7 +177,7 @@ export default function ReportView({ name, kind, rounds = [], st, notes = [] }) 
       {/* ── 회차별 ───────────────────────────────────────── */}
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ padding: "12px 14px 4px" }}>
-          <b style={{ fontSize: 13.5 }}>회차별 성적</b>
+          <b style={{ fontSize: 15 }}>회차별 성적</b>
         </div>
         <div className="tblwrap">
           <table className="tbl tbl-tight">
@@ -229,7 +229,7 @@ function Round({ r, n, name }) {
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>{n}회차 · {r.score.term || "—"}</b>
+        <b style={{ fontSize: 15 }}>{n}회차 · {r.score.term || "—"}</b>
         <span className="hint">{r.score.taken_on}</span>
         <span className={`tag ${from.tone}`}>{from.text}</span>
       </div>
@@ -245,7 +245,7 @@ function Round({ r, n, name }) {
 
       {hasSpec && r.topics.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <b style={{ fontSize: 13 }}>영역별 정답률</b>
+          <b style={{ fontSize: 14.5 }}>영역별 정답률</b>
           <div style={{ marginTop: 6 }}>
             {r.topics.map((t) => (
               <Bar
@@ -265,7 +265,7 @@ function Round({ r, n, name }) {
           — 「해석을 못했어요 13개」 면 그날 수업이 정해진다 */}
       {reasons.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <b style={{ fontSize: 13 }}>왜 틀렸나</b>
+          <b style={{ fontSize: 14.5 }}>왜 틀렸나</b>
           <div className="row" style={{ gap: 5, flexWrap: "wrap", marginTop: 6 }}>
             {reasons.map((x) => (
               <span key={x.reason} className={`tag ${REASON_TONE[x.reason] || "tag-muted"}`}>
@@ -277,7 +277,7 @@ function Round({ r, n, name }) {
       )}
 
       {r.score.self_note && (
-        <div className="notice" style={{ marginTop: 12, fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+        <div className="notice" style={{ marginTop: 12, fontSize: 14, whiteSpace: "pre-wrap" }}>
           <b>{name} 학생이 적은 것</b>
           {"\n"}{r.score.self_note}
         </div>
@@ -288,7 +288,7 @@ function Round({ r, n, name }) {
 
       {r.spec.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <b style={{ fontSize: 13 }}>문항</b>
+          <b style={{ fontSize: 14.5 }}>문항</b>
           <div className="tblwrap" style={{ marginTop: 6, maxHeight: 420, overflowY: "auto" }}>
             <table className="tbl tbl-tight">
               <thead>

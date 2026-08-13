@@ -64,13 +64,13 @@ export default function TypeBox({ types = [] }) {
   function row(t, depth) {
     return (
       <div className="unitrow" key={t.id} style={{ paddingLeft: depth * 16 }}>
-        <b style={{ fontSize: 13, minWidth: 120 }}>{t.name}</b>
-        <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>{stagesOf(t)}</span>
+        <b style={{ fontSize: 14.5, minWidth: 120 }}>{t.name}</b>
+        <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>{stagesOf(t)}</span>
         {t.active === false && <span className="tag tag-muted">안 씀</span>}
         {depth === 0 && (
           <button
             className="btn btn-ghost btn-sm"
-            style={{ padding: "2px 8px", fontSize: 11.5 }}
+            style={{ padding: "2px 8px", fontSize: 12.5 }}
             onClick={() => setDraft({ ...BLANK, parent_id: t.id })}
           >
             ＋ 하위
@@ -78,14 +78,14 @@ export default function TypeBox({ types = [] }) {
         )}
         <button
           className="btn btn-ghost btn-sm"
-          style={{ padding: "2px 8px", fontSize: 11.5 }}
+          style={{ padding: "2px 8px", fontSize: 12.5 }}
           onClick={() => setDraft({ ...t, sort: t.sort ?? "" })}
         >
           고치기
         </button>
         <button
           className="btn btn-ghost btn-sm"
-          style={{ padding: "2px 8px", fontSize: 11.5 }}
+          style={{ padding: "2px 8px", fontSize: 12.5 }}
           disabled={pending}
           onClick={() => {
             const kids = kidsOf(t.id).length;
@@ -105,8 +105,8 @@ export default function TypeBox({ types = [] }) {
   return (
     <div className="card" style={{ marginTop: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>자료 종류</b>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <b style={{ fontSize: 15 }}>자료 종류</b>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           큰 갈래(이그잼) 아래에 실제 자료(변형문제 · 분석지 · 워크북)를 둡니다
         </span>
         <span className="spacer" />
@@ -149,7 +149,7 @@ export default function TypeBox({ types = [] }) {
               value={draft.sort}
               onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
             />
-            <label className="row" style={{ gap: 4, fontSize: 12.5 }}>
+            <label className="row" style={{ gap: 4, fontSize: 14 }}>
               <input
                 type="checkbox"
                 checked={draft.active !== false}
@@ -159,12 +159,12 @@ export default function TypeBox({ types = [] }) {
             </label>
           </div>
 
-          <p className="hint" style={{ margin: "8px 0 4px", fontSize: 12 }}>
+          <p className="hint" style={{ margin: "8px 0 4px", fontSize: 13 }}>
             이 종류에 필요한 단계 — 여기서 켜 둔 것만 나중에 체크할 것으로 뜹니다
           </p>
           <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
             {NEEDS.map((n) => (
-              <label key={n.key} className="row" style={{ gap: 4, fontSize: 12.5 }}>
+              <label key={n.key} className="row" style={{ gap: 4, fontSize: 14 }}>
                 <input
                   type="checkbox"
                   checked={!!draft[n.key]}
@@ -174,7 +174,7 @@ export default function TypeBox({ types = [] }) {
               </label>
             ))}
           </div>
-          <p className="hint" style={{ margin: "4px 0 0", fontSize: 11.5 }}>
+          <p className="hint" style={{ margin: "4px 0 0", fontSize: 12.5 }}>
             만들기 · 인쇄 · 클래스카드는 자료 하나에 한 번, 배부 · 풀이 · 채점은 학생마다 따로 찍습니다.
           </p>
 

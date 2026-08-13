@@ -30,7 +30,7 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>일정 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>일정 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
 
@@ -72,7 +72,7 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
             **일정 자체의 속성**이고, 전달사항은 거기에 얹는 것이다. */}
         <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 13 }}>누가 보나</b>
+            <b style={{ fontSize: 14.5 }}>누가 보나</b>
             {/* **비공개가 곧 나만 보기다** (원장님, 2026-08-06).
                 「비공개는 따로 만들지마」 — 그래서 자물쇠 단추를 따로 두지 않고
                 여기 한 줄에 같이 넣는다. 고를 것이 한 군데면 어긋날 일이 없다. */}

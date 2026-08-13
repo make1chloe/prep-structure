@@ -46,7 +46,7 @@ export default function UnitTestBox({ task, readOnly = false, asId = null }) {
 
   return (
     <div className="card card-tight" style={{ marginTop: 8 }}>
-      <b style={{ fontSize: 13.5 }}>단원평가 결과 내기</b>
+      <b style={{ fontSize: 15 }}>단원평가 결과 내기</b>
       <p className="hint" style={{ margin: "4px 0 8px" }}>
         <b>{unitName}</b> — 몇 개 맞았는지만 적어주세요.
       </p>

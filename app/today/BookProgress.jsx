@@ -86,8 +86,8 @@ export default function BookProgress({ studentId, book }) {
         }}
       >
         <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "nowrap" }}>
-          <span className="muted" style={{ fontSize: 11 }}>{open ? "▾" : "▸"}</span>
-          <b style={{ fontSize: 12.5 }}>{book.name}</b>
+          <span className="muted" style={{ fontSize: 12 }}>{open ? "▾" : "▸"}</span>
+          <b style={{ fontSize: 14 }}>{book.name}</b>
           <span className="spacer" />
           <span className="hint">
             {liveTotal > 0

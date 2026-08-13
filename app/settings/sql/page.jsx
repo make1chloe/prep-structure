@@ -88,10 +88,10 @@ export default async function SqlPage() {
         </div>
 
         <div className="card" style={{ marginBottom: 14 }}>
-          <b style={{ fontSize: 14 }}>앱이 보고 있는 프로젝트</b>
+          <b style={{ fontSize: 15 }}>앱이 보고 있는 프로젝트</b>
           <p
             className="mono"
-            style={{ margin: "6px 0 0", fontSize: 15, fontWeight: 700, letterSpacing: 0.3 }}
+            style={{ margin: "6px 0 0", fontSize: 16, fontWeight: 700, letterSpacing: 0.3 }}
           >
             {projectRef}
           </p>
@@ -113,14 +113,14 @@ export default async function SqlPage() {
 
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-            <b style={{ fontSize: 14 }}>지금 DB 상태</b>
+            <b style={{ fontSize: 15 }}>지금 DB 상태</b>
             <span className={`tag ${done === checks.length ? "tag-mint" : "tag-amber"}`}>
               {done} / {checks.length}
             </span>
             {done === checks.length && <span className="hint">표와 칸은 다 들어가 있습니다</span>}
           </div>
           {/* 여기서 다 됐다고 나와도 안 되는 것이 있다. 그걸 숨기면 안 된다. */}
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.8 }}>
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.8 }}>
             이 목록은 <b>표와 칸</b>만 봅니다. 인덱스처럼 밖에서 물어볼 수 없는 것은
             여기 안 나옵니다 — <b>다 됐다고 보여도 나이스 받아오기나 숙제→할일이 막혀
             있을 수 있습니다.</b> 아래 <b>「받아오기 · 할일 점검」</b> 에서 실제로 해보세요.
@@ -145,13 +145,13 @@ export default async function SqlPage() {
               <br />
               ② Supabase 가 바뀐 표를 아직 못 읽었다 — SQL Editor 에 아래 한 줄만 Run 해보세요
               <br />
-              <code style={{ fontSize: 12 }}>notify pgrst, &apos;reload schema&apos;;</code>
+              <code style={{ fontSize: 13 }}>notify pgrst, &apos;reload schema&apos;;</code>
             </div>
           )}
         </div>
 
         <div className="card">
-          <b style={{ fontSize: 14 }}>이 순서로 하시면 됩니다</b>
+          <b style={{ fontSize: 15 }}>이 순서로 하시면 됩니다</b>
           <ol className="hint" style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.9 }}>
             <li>아래 <b>전체 복사</b> 를 누릅니다.</li>
             <li>
@@ -177,7 +177,7 @@ export default async function SqlPage() {
         </div>
 
         <div className="card" style={{ marginTop: 14 }}>
-          <b style={{ fontSize: 14 }}>SETUP_ALL.sql</b>
+          <b style={{ fontSize: 15 }}>SETUP_ALL.sql</b>
           <p className="hint" style={{ margin: "4px 0 10px" }}>
             처음부터 지금까지가 순서대로 다 들어 있습니다. 이미 있는 것은 전부 건너뜁니다.
             새 프로젝트든 쓰던 프로젝트든 <b>이 파일 하나면</b> 됩니다.
@@ -196,7 +196,7 @@ export default async function SqlPage() {
             여기서 길을 알려준다 (넣는 칸을 두 군데 두면 언젠가 한쪽만 고치게 된다) */}
         <div className="card" style={{ marginTop: 14 }}>
           <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>나이스 인증키</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>나이스 인증키</h2>
             <span className={`tag ${neisSaved ? "tag-mint" : "tag-amber"}`}>
               {neisSaved ? "키 넣어둠" : "키 없음"}
             </span>

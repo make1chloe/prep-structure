@@ -89,9 +89,9 @@ export default function MissingBox({ rows = [] }) {
     <div className="card sect sect-warn" style={{ marginBottom: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
         {/* **제목은 명사로** (원장님, 2026-08-08 — 「제목은 명사화해줘, 성적미입력」) */}
-        <b style={{ fontSize: 14 }}>성적 미입력</b>
+        <b style={{ fontSize: 15 }}>성적 미입력</b>
         <span className="tag tag-amber">{left.length}건</span>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           이름을 누르면 <b>그 학생 · 그 시험</b>이 채워진 채로 입력칸이 열립니다.
           안 본 시험은 <b>안 봄</b>으로 치우세요 — 0점으로 넣지 마세요.
         </span>
@@ -103,11 +103,11 @@ export default function MissingBox({ rows = [] }) {
         {groups.map((g) => (
           <div key={g.key}>
             <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 12.5 }}>
+              <b style={{ fontSize: 14 }}>
                 {shortName(g.school)} {g.grade ? `${g.grade}학년` : ""}
               </b>
-              <span className="hint" style={{ fontSize: 11.5 }}>{g.examName} · {g.on}</span>
-              <span className="hint" style={{ fontSize: 11.5 }}>{g.list.length}명</span>
+              <span className="hint" style={{ fontSize: 12.5 }}>{g.examName} · {g.on}</span>
+              <span className="hint" style={{ fontSize: 12.5 }}>{g.list.length}명</span>
               {/* **학년 통째로** — 중1 1학기 · 중3 2학기 · 고3 은 한 번이면 끝난다 */}
               <button
                 type="button"
@@ -131,7 +131,7 @@ export default function MissingBox({ rows = [] }) {
                     className="btn btn-sm"
                     style={{ borderColor: "var(--amber)", borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
                   >
-                    <b style={{ fontSize: 12.5 }}>{m.name}</b>
+                    <b style={{ fontSize: 14 }}>{m.name}</b>
                   </Link>
                   {/* 아이 하나 — 병결 · 전학 */}
                   <button

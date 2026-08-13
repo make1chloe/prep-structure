@@ -54,7 +54,7 @@ export default function VideoList({ videos = [], asId = null, readOnly = false }
             />
           )}
           <div className="stack" style={{ gap: 4, flex: 1, minWidth: 160 }}>
-            <b style={{ fontSize: 13.5 }}>{v.title}</b>
+            <b style={{ fontSize: 15 }}>{v.title}</b>
             {v.dueOn && <span className="hint">{v.dueOn.slice(5).replace("-", "/")}까지</span>}
             {v.doneAt && <span className="tag tag-mint" style={{ alignSelf: "flex-start" }}>다 봤어요</span>}
           </div>
@@ -105,7 +105,7 @@ export default function VideoList({ videos = [], asId = null, readOnly = false }
 
   return (
     <div className="card">
-      <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>
+      <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>
         볼 영상 <span className="hint" style={{ fontWeight: 500 }}>{done.length} / {videos.length} 봄</span>
       </h2>
       <div className="stack" style={{ gap: 8 }}>

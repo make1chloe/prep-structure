@@ -68,14 +68,14 @@ export default function PeekCalendar({ items = [], today = "" }) {
         home={home}
         bounds={{ min: months[0], max: months[months.length - 1] }}
       >
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           {spread.filter((it) => (it.date || "").startsWith(ym)).length}건 · 날짜를 누르면 아래에 나옵니다
         </span>
       </MonthNav>
 
       <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
         {Object.entries(DOT).map(([k, c]) => (
-          <span key={k} className="hint" style={{ fontSize: 11.5 }}>
+          <span key={k} className="hint" style={{ fontSize: 12.5 }}>
             <span style={{
               display: "inline-block", width: 8, height: 8, borderRadius: 99,
               background: c, marginRight: 3,
@@ -89,7 +89,7 @@ export default function PeekCalendar({ items = [], today = "" }) {
         display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginTop: 8,
       }}>
         {WEEK_ORDER.map((d) => (
-          <div key={d} className="hint" style={{ textAlign: "center", fontSize: 11 }}>{d}</div>
+          <div key={d} className="hint" style={{ textAlign: "center", fontSize: 12 }}>{d}</div>
         ))}
         {monthGrid(ym, spread, today).map((cell, i) =>
           cell === null ? (
@@ -107,7 +107,7 @@ export default function PeekCalendar({ items = [], today = "" }) {
                 opacity: cell.past ? 0.65 : 1,
               }}
             >
-              <span style={{ fontSize: 10.5, fontWeight: 700 }}>{cell.day}</span>
+              <span style={{ fontSize: 12, fontWeight: 700 }}>{cell.day}</span>
               {/* **점만 찍는다** — 칸이 좁아 이름은 안 들어간다. 누르면 아래에 나온다 */}
               <span style={{ display: "flex", flexWrap: "wrap", gap: 2, marginTop: 2 }}>
                 {cell.items.slice(0, 6).map((it, j) => (
@@ -117,7 +117,7 @@ export default function PeekCalendar({ items = [], today = "" }) {
                   }} />
                 ))}
                 {cell.items.length > 6 && (
-                  <span style={{ fontSize: 9 }} className="hint">+{cell.items.length - 6}</span>
+                  <span style={{ fontSize: 12 }} className="hint">+{cell.items.length - 6}</span>
                 )}
               </span>
             </button>
@@ -129,7 +129,7 @@ export default function PeekCalendar({ items = [], today = "" }) {
       {open && (
         <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
           <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-            <b style={{ fontSize: 13 }}>{open}</b>
+            <b style={{ fontSize: 14.5 }}>{open}</b>
             <span className="tag tag-muted">{onDay.length}건</span>
             <span className="spacer" />
             <button className="btn btn-ghost btn-sm" onClick={() => setOpen(null)}>닫기</button>
@@ -144,8 +144,8 @@ export default function PeekCalendar({ items = [], today = "" }) {
                     width: 8, height: 8, borderRadius: 99,
                     background: DOT[it.how] || "var(--border-strong)",
                   }} />
-                  <b style={{ fontSize: 12.5 }}>{shortName(it.school)}</b>
-                  <span style={{ fontSize: 12.5, flex: 1 }}>
+                  <b style={{ fontSize: 14 }}>{shortName(it.school)}</b>
+                  <span style={{ fontSize: 14, flex: 1 }}>
                     {it.raw}
                     {/* 여러 날짜리는 어디부터 어디까지인지 같이 */}
                     {it.spanFrom && it.spanTo && (

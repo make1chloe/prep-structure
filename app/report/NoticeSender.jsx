@@ -353,7 +353,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
               </tbody>
             </table>
             {shown.length === 0 && (
-              <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13 }}>
+              <p className="muted" style={{ padding: 16, margin: 0, fontSize: 14.5 }}>
                 해당하는 사람이 없어요.
               </p>
             )}
@@ -363,7 +363,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
         {/* 문구 · 미리보기 */}
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>문구</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>문구</h2>
             <div className="row" style={{ gap: 4 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>
                 {editing ? "미리보기" : "문구 고치기"}
@@ -423,7 +423,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                 rows={12}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                style={{ fontSize: 13.5, lineHeight: 1.6 }}
+                style={{ fontSize: 15, lineHeight: 1.6 }}
               />
             </>
           ) : (
@@ -436,7 +436,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
               {usesBooks && (
                 <div className="card card-tight" style={{ marginBottom: 10 }}>
                   <div className="row" style={{ alignItems: "center", gap: 6 }}>
-                    <b style={{ fontSize: 13 }}>이번에 안내할 교재</b>
+                    <b style={{ fontSize: 14.5 }}>이번에 안내할 교재</b>
                     <span className="tag tag-sky">{pickBooks.size}권</span>
                     <span className="spacer" />
                     <input
@@ -458,7 +458,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                   </p>
 
                   {catalog.length === 0 ? (
-                    <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                    <p className="muted" style={{ margin: 0, fontSize: 14.5 }}>
                       등록된 교재가 없어요. <a className="sky" href="/textbooks">교재</a> 에서 먼저 넣어주세요.
                     </p>
                   ) : (
@@ -484,7 +484,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                                 <td>
                                   {/* 이미 갖고 있는 책을 또 사라고 보내면 안 된다 */}
                                   {dup > 0 && (
-                                    <span className="tag tag-amber" style={{ fontSize: 10.5 }}>
+                                    <span className="tag tag-amber" style={{ fontSize: 12 }}>
                                       {picked.length > 1 ? `${dup}명 이미 있음` : "이미 있음"}
                                     </span>
                                   )}
@@ -495,7 +495,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                         </tbody>
                       </table>
                       {bookRows.length === 0 && (
-                        <p className="muted" style={{ padding: "8px 0 0", margin: 0, fontSize: 13 }}>
+                        <p className="muted" style={{ padding: "8px 0 0", margin: 0, fontSize: 14.5 }}>
                           찾는 교재가 없어요.
                         </p>
                       )}
@@ -512,7 +512,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                         checked={assign}
                         onChange={(e) => setAssign(e.target.checked)}
                       />
-                      <span style={{ fontSize: 13 }}>재원생 정보에 배정하기</span>
+                      <span style={{ fontSize: 14.5 }}>재원생 정보에 배정하기</span>
                     </label>
                     <span className="hint">사용 예정일</span>
                     <input
@@ -536,7 +536,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
 
               {ask.length > 0 && (
                 <div className="card card-tight" style={{ marginBottom: 10 }}>
-                  <b style={{ fontSize: 13 }}>보내기 전에 채울 것</b>
+                  <b style={{ fontSize: 14.5 }}>보내기 전에 채울 것</b>
                   <p className="hint" style={{ margin: "3px 0 8px" }}>
                     여기 넣은 값은 고른 사람 <b>모두에게 똑같이</b> 들어갑니다. 학생마다 달라야 하면
                     한 명씩 보내주세요.

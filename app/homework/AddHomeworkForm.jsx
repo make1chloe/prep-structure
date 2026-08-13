@@ -18,7 +18,7 @@ export default function AddHomeworkForm() {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>학습 항목 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>학습 항목 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
       <form action={addHomeworkItem} className="stack" style={{ gap: 8, marginTop: 10 }}>

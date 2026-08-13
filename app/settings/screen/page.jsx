@@ -61,7 +61,7 @@ export default async function ScreenSettingsPage() {
             각각 로그인해서 확인하실 때 쓰는 자리다. */}
         <div className="card" style={{ marginTop: 12 }}>
           <div className="row" style={{ alignItems: "center", gap: 8 }}>
-            <b style={{ fontSize: 14 }}>홈 화면에 세 개로 담기</b>
+            <b style={{ fontSize: 15 }}>홈 화면에 세 개로 담기</b>
             <span className="hint">원장 · 학부모 · 학생 앱을 따로</span>
             <span className="spacer" />
             <a className="btn btn-ghost btn-sm" href="/install">담으러 가기 ›</a>

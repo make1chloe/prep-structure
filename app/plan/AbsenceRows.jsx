@@ -61,7 +61,7 @@ export default function AbsenceRows({ rows = [], nameOf = {}, makeupOn = {} }) {
         const mk = makeupOn[key];
         return (
           <div className="unitrow" key={key}>
-            <b style={{ fontSize: 12.5, minWidth: 72 }}>{nameOf[r.student_id] || "학생"}</b>
+            <b style={{ fontSize: 14, minWidth: 72 }}>{nameOf[r.student_id] || "학생"}</b>
             <span className="hint">{dayLabel(r.date)}</span>
             {r.reason && <span className="hint">· {r.reason}</span>}
             {cleanNote(r.note) && <span className="hint">· {cleanNote(r.note)}</span>}

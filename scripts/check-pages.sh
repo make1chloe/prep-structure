@@ -298,6 +298,8 @@ runjs scripts/check-dup.mjs
 runjs scripts/check-align.mjs
 # 목록이면 검색·정렬이 있어야 한다 (원장님: 「목록이라는건 다 정렬 필터가」)
 runjs scripts/check-lists.mjs
+# 글씨가 읽을 수 있는 크기인가 (원장님: 「나 노안이라」)
+runjs scripts/check-fontsize.mjs
 
 echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="

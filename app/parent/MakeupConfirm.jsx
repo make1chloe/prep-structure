@@ -51,10 +51,10 @@ export default function MakeupConfirm({ studentIds = [] }) {
 
   return (
     <div className="card sect sect-bad" style={{ marginTop: 10 }}>
-      <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>
+      <h2 style={{ margin: "0 0 6px", fontSize: 17.5, fontWeight: 800 }}>
         📌 보강 일정을 확인해주세요
       </h2>
-      <p style={{ margin: "0 0 10px", fontSize: 13.5, lineHeight: 1.75 }}>
+      <p style={{ margin: "0 0 10px", fontSize: 15, lineHeight: 1.75 }}>
         아래 날짜로 보강을 잡아두었습니다. <b>오실 수 있으면 「확정」</b>을,
         <b> 어려우시면 「일정 변경 요청」</b>을 눌러주세요.
         <br />
@@ -65,7 +65,7 @@ export default function MakeupConfirm({ studentIds = [] }) {
         {st.rows.map((r) => (
           <div key={`${r.student_id}|${r.date}`} className="card card-tight">
             <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 14 }}>{longLabel(r.date)}</b>
+              <b style={{ fontSize: 15 }}>{longLabel(r.date)}</b>
               {r.makeup_time && (
                 <span className="tag tag-lav">{r.makeup_time.slice(0, 5)}</span>
               )}

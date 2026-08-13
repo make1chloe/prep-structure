@@ -86,7 +86,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
       {/* ---- 넣기 ---- */}
       <div className="card">
-        <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>영상 넣기</h2>
+        <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>영상 넣기</h2>
         <form action={(fd) => run(() => addVideo(fd))} className="stack" style={{ gap: 8 }}>
           <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
             <div className="field" style={{ flex: 1, minWidth: 220 }}>
@@ -246,7 +246,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
         {bulkOpen && bulk.count > 0 && (
           <div className="card card-tight" style={{ background: "var(--surface-2)", marginTop: 6 }}>
             <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 13 }}>영상 {bulk.count}개 → 학생 {bulkPick.size}명</b>
+              <b style={{ fontSize: 14.5 }}>영상 {bulk.count}개 → 학생 {bulkPick.size}명</b>
               <span className="spacer" />
               <span className="hint">언제까지</span>
               <input
@@ -310,7 +310,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
 
       {shown.length === 0 && (
         <div className="card">
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>영상이 없어요.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>영상이 없어요.</p>
         </div>
       )}
 
@@ -385,7 +385,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
                       href={v.url}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ fontWeight: 800, fontSize: 14 }}
+                      style={{ fontWeight: 800, fontSize: 15 }}
                     >
                       {v.title}
                     </a>
@@ -457,7 +457,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
             {isOpen && (
               <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
                 <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <b style={{ fontSize: 13 }}>볼 사람 {picked.size}명</b>
+                  <b style={{ fontSize: 14.5 }}>볼 사람 {picked.size}명</b>
                   <span className="spacer" />
                   <span className="hint">언제까지</span>
                   <input

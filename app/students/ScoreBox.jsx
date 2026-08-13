@@ -53,8 +53,8 @@ export default function ScoreBox({ studentId, name }) {
   return (
     <div className="stack" style={{ gap: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{name} 성장</b>
-        <span className="hint" style={{ fontSize: 11.5 }}>{rows.length}건</span>
+        <b style={{ fontSize: 15 }}>{name} 성장</b>
+        <span className="hint" style={{ fontSize: 12.5 }}>{rows.length}건</span>
         <span className="spacer" />
         {/* 넣고 고치는 것은 저쪽에서. 여기서 또 넣게 하면 두 군데가 어긋난다 */}
         {/* 공개 대상은 **리포트 화면 맨 위**에 있다. 여기에 또 두면 두 군데가
@@ -80,8 +80,8 @@ export default function ScoreBox({ studentId, name }) {
         return (
           <div key={k} className="card card-tight">
             <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 12.5 }}>{KIND_LABEL[k]}</b>
-              <span className="hint" style={{ fontSize: 11.5 }}>{mine.length}건</span>
+              <b style={{ fontSize: 14 }}>{KIND_LABEL[k]}</b>
+              <span className="hint" style={{ fontSize: 12.5 }}>{mine.length}건</span>
               {mean != null && (
                 <span className="tag tag-sky">평균 {mean}</span>
               )}
@@ -95,17 +95,17 @@ export default function ScoreBox({ studentId, name }) {
             <div className="stack" style={{ gap: 2, marginTop: 6 }}>
               {mine.slice(0, 6).map((r) => (
                 <div key={r.id} className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-                  <span className="hint" style={{ fontSize: 11.5, width: 74 }}>{r.taken_on || "—"}</span>
-                  <span style={{ fontSize: 12.5, flex: 1, minWidth: 110 }}>{r.term || "—"}</span>
+                  <span className="hint" style={{ fontSize: 12.5, width: 74 }}>{r.taken_on || "—"}</span>
+                  <span style={{ fontSize: 14, flex: 1, minWidth: 110 }}>{r.term || "—"}</span>
                   {r.raw_score != null && (
-                    <b style={{ fontSize: 12.5 }}>
+                    <b style={{ fontSize: 14 }}>
                       {r.raw_score}
                       {r.full_score ? `/${r.full_score}` : ""}
                     </b>
                   )}
                   {r.grade != null && <span className="tag tag-muted">{r.grade}등급</span>}
                   {r.wrongCount > 0 && (
-                    <span className="hint" style={{ fontSize: 11 }}>틀린 {r.wrongCount}</span>
+                    <span className="hint" style={{ fontSize: 12 }}>틀린 {r.wrongCount}</span>
                   )}
                   {/* 누가 넣었나 — 아이가 낸 것과 선생님이 매긴 것은 무게가 다르다 */}
                   {r.source === "form" && <span className="tag tag-sky">아이가 냄</span>}
@@ -114,7 +114,7 @@ export default function ScoreBox({ studentId, name }) {
                 </div>
               ))}
               {mine.length > 6 && (
-                <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {mine.length - 6}건</span>
+                <span className="hint" style={{ fontSize: 12 }}>… 그 밖 {mine.length - 6}건</span>
               )}
             </div>
           </div>

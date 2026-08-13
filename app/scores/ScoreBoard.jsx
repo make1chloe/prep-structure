@@ -234,7 +234,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
       {/* ---- 넣기 ---- */}
       {student && (
         <div className="card">
-          <h2 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800 }}>
+          <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>
             {editId ? "성적 고치기" : `${student.name} 성적 넣기`}
           </h2>
 
@@ -474,7 +474,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             return (
               <div key={k.key} style={{ marginTop: 10 }}>
                 <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                  <b style={{ fontSize: 14 }}>{k.label}</b>
+                  <b style={{ fontSize: 15 }}>{k.label}</b>
                   <span className="hint">{list.length}건</span>
                   {t && (
                     <span className={`tag ${t.diff > 0 ? "tag-mint" : t.diff < 0 ? "tag-amber" : "tag-muted"}`}>
@@ -495,8 +495,8 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                         <span className="hint" style={{ minWidth: 76 }}>
                           {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : "날짜 없음"}
                         </span>
-                        <b style={{ fontSize: 12.5, minWidth: 120 }}>{s.term || KIND_LABEL[s.kind]}</b>
-                        <span style={{ fontSize: 12.5, flex: 1 }}>{summary(s, findExam(s, exams, student))}</span>
+                        <b style={{ fontSize: 14, minWidth: 120 }}>{s.term || KIND_LABEL[s.kind]}</b>
+                        <span style={{ fontSize: 14, flex: 1 }}>{summary(s, findExam(s, exams, student))}</span>
                         {s.source === "form" && <span className="tag tag-sky">학생이 냄</span>}
                         <button className="btn btn-ghost btn-sm" onClick={() => openWrongs(s)}>
                           {openId === s.id ? "닫기" : "틀린 문제"}
@@ -518,7 +518,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
                             {wrongs.map((x) => (
                               <div className="unitrow" key={x.id}>
                                 {x.question && <span className="tag tag-muted">{x.question}</span>}
-                                <b style={{ fontSize: 12.5 }}>{x.topic || "—"}</b>
+                                <b style={{ fontSize: 14 }}>{x.topic || "—"}</b>
                                 <span className="hint" style={{ flex: 1 }}>{x.reason || ""}</span>
                                 <button
                                   className="btn btn-ghost btn-sm"
@@ -584,7 +584,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
 
       {student && mine.length === 0 && (
         <div className="card">
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             {student.name} 학생의 성적이 아직 없습니다. 위에서 넣어주세요.
           </p>
         </div>

@@ -124,7 +124,7 @@ export default function LoginPage() {
         <div>
           <div className="login-logo">
             <BrandMark />
-            <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-.02em" }}>
+            <span style={{ fontWeight: 800, fontSize: 19.5, letterSpacing: "-.02em" }}>
               클로이영어
             </span>
           </div>
@@ -182,12 +182,12 @@ export default function LoginPage() {
           {mode === "in" ? "처음이신가요? 가입하기" : "이미 계정이 있어요 · 로그인"}
         </button>
         {mode === "in" ? (
-          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+          <p className="hint" style={{ margin: 0, fontSize: 14 }}>
             학생은 <b>선생님께 받은 아이디</b>로 들어오세요. 비밀번호를 잊었으면
             선생님께 말씀드리면 됩니다.
           </p>
         ) : (
-          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+          <p className="hint" style={{ margin: 0, fontSize: 14 }}>
             선생님·학부모 계정용입니다. 학생은 가입하지 않아도 됩니다.
           </p>
         )}

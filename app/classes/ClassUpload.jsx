@@ -73,10 +73,10 @@ export default function ClassUpload() {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>반 엑셀로 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>반 엑셀로 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => { reset(); setOpen(false); }}>닫기</button>
       </div>
-      <p className="muted" style={{ margin: "8px 0 12px", fontSize: 13 }}>
+      <p className="muted" style={{ margin: "8px 0 12px", fontSize: 14.5 }}>
         요일은 <b>월,수</b> 처럼, 수업시간은 <b>7:30-10:00</b> 처럼 적으면 됩니다.
         오후 수업은 12시간제로 적어도 자동으로 오후로 인식해요.
       </p>
@@ -94,7 +94,7 @@ export default function ClassUpload() {
       {parsed && (
         <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
               미리보기 <span className="muted" style={{ fontWeight: 600 }}>{parsed.rows.length}개</span>
             </h3>
             {unknown.length > 0 && <span className="hint">무시된 열: {unknown.join(", ")}</span>}

@@ -594,7 +594,7 @@ export default function StudentPanel({
           ))}
           {/* 특강은 이 반 것만 바뀐다 — 정규 출결은 그대로다 */}
           {row.extraClassId && (
-            <span className="hint" style={{ fontSize: 12 }}>
+            <span className="hint" style={{ fontSize: 13 }}>
               {row.className} 출결만 바뀝니다 (정규 출결은 그대로)
             </span>
           )}
@@ -650,7 +650,7 @@ export default function StudentPanel({
           <span className="spacer" />
           {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
               '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
-          <span className="hint" style={{ fontSize: 12 }}>단어시험을 언제</span>
+          <span className="hint" style={{ fontSize: 13 }}>단어시험을 언제</span>
           {[
             ["start", "수업 시작에"],
             ["end", "다 끝내고"],
@@ -681,7 +681,7 @@ export default function StudentPanel({
             target="_blank"
             rel="noreferrer"
             title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
           >
             재원생 정보
           </a>
@@ -691,7 +691,7 @@ export default function StudentPanel({
             target="_blank"
             rel="noreferrer"
             title="이 학생에게 보이는 화면을 그대로 봅니다"
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
           >
             학생 화면 보기
           </a>
@@ -701,7 +701,7 @@ export default function StudentPanel({
             target="_blank"
             rel="noreferrer"
             title="로그아웃하지 않고 이 학생인 척 직접 눌러봅니다. 누른 것은 진짜로 기록되고, 그 화면에서 지울 수 있습니다."
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
           >
             체험
           </a>
@@ -709,7 +709,7 @@ export default function StudentPanel({
             className="btn btn-ghost btn-sm"
             disabled={pending}
             title="이 학생은 앞으로 계속 이렇게 봅니다"
-            style={{ padding: "3px 8px", fontSize: 11.5 }}
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
             onClick={() =>
               startTransition(async () => {
                 const res = await setWordWhenDefault(row.student.id, wordWhen);
@@ -772,7 +772,7 @@ export default function StudentPanel({
       {/* 적다 만 것이 남아 있으면 알려준다. 저장을 안 누른 채 화면을 옮기면
           예전에는 통째로 날아갔다 — 수업 중에는 자주 있는 일이다. */}
       {draft && (
-        <div className="notice" style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.8 }}>
+        <div className="notice" style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.8 }}>
           <b>적다 만 것이 남아 있어요.</b>{" "}
           {new Date(draft.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
           에 적으신 것입니다 — 저장은 안 눌리셨어요.
@@ -850,9 +850,9 @@ export default function StudentPanel({
               재시험
             </button>
             {form.sent_unit ? (
-              <span className="hint" style={{ fontSize: 11 }}>성적에 쌓입니다</span>
+              <span className="hint" style={{ fontSize: 12 }}>성적에 쌓입니다</span>
             ) : (
-              <span className="hint" style={{ fontSize: 11 }}>
+              <span className="hint" style={{ fontSize: 12 }}>
                 단원명을 적으면 성적에 쌓여요 (안 적으면 그날 확인으로만 남습니다)
               </span>
             )}
@@ -880,7 +880,7 @@ export default function StudentPanel({
           {waiting.length > 0 && (
             <div
               className="notice"
-              style={{ marginBottom: 8, fontSize: 12.5, lineHeight: 1.8 }}
+              style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.8 }}
             >
               <b>검사 기다리는 중 — {waiting.length}건</b>
               <br />
@@ -1121,7 +1121,7 @@ export default function StudentPanel({
             </div>
           )}
           {routine && (
-            <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+            <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
               루틴에서 가져왔습니다 —{" "}
               {routine.steps
                 .map(
@@ -1139,7 +1139,7 @@ export default function StudentPanel({
               )}
             </p>
           )}
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
             고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
             <b>학습 완료</b>를 누르면 여기 노랗게 바뀌고, 검사하시면 초록이 됩니다.
           </p>
@@ -1321,7 +1321,7 @@ export default function StudentPanel({
                           return (
                             <span
                               className="hint"
-                              style={{ marginLeft: 4, fontSize: 11.5, whiteSpace: "nowrap" }}
+                              style={{ marginLeft: 4, fontSize: 12.5, whiteSpace: "nowrap" }}
                             >
                               합계 {tot.text}
                             </span>
@@ -1362,7 +1362,7 @@ export default function StudentPanel({
               </button>
             ))}
             {!form.attitude && !form.understanding && key === "understanding" && (
-              <span className="hint" style={{ fontSize: 11.5 }}>
+              <span className="hint" style={{ fontSize: 12.5 }}>
                 안 고르면 리포트에 안 나갑니다
               </span>
             )}
@@ -1392,7 +1392,7 @@ export default function StudentPanel({
               value={ask}
               onChange={(e) => setAsk(e.target.value)}
             />
-            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 12 }}>
+            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 13 }}>
               <input
                 type="checkbox"
                 checked={emoji}
@@ -1462,13 +1462,13 @@ export default function StudentPanel({
               all.filter((n) => n.body && (kind === "homework" ? inHomework(n.kind) : n.kind === kind));
             const Row = (label, kind, hint, value, key) => (
               <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
-                <span className="hint" style={{ fontSize: 12, minWidth: 64, paddingTop: 6 }}>
+                <span className="hint" style={{ fontSize: 13, minWidth: 64, paddingTop: 6 }}>
                   {label}
                 </span>
                 <div className="stack" style={{ gap: 4, flex: 1, minWidth: 200 }}>
                   {line(kind).map((n) => (
-                    <span className="hint" key={n.id} style={{ fontSize: 11.5 }}>
-                      <span className="tag tag-muted" style={{ fontSize: 10.5 }}>전체</span>{" "}
+                    <span className="hint" key={n.id} style={{ fontSize: 12.5 }}>
+                      <span className="tag tag-muted" style={{ fontSize: 12 }}>전체</span>{" "}
                       {n.body}
                     </span>
                   ))}
@@ -1493,8 +1493,8 @@ export default function StudentPanel({
               </>
             );
           })()}
-          <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
-            <span className="tag tag-muted" style={{ fontSize: 10.5 }}>전체</span> 로 적힌 줄은
+          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+            <span className="tag tag-muted" style={{ fontSize: 12 }}>전체</span> 로 적힌 줄은
             맨 위 <b>공지</b> 칸에서 반 전체에 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
             <br />
             수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>(수업 메모)에 있습니다.
@@ -1620,7 +1620,7 @@ export default function StudentPanel({
                   key={t}
                   type="button"
                   className={`btn btn-sm ${mk.time === t ? "btn-primary" : "btn-ghost"}`}
-                  style={{ padding: "2px 8px", fontSize: 12 }}
+                  style={{ padding: "2px 8px", fontSize: 13 }}
                   onClick={() => setMk({ ...mk, time: t })}
                 >
                   {t}
@@ -1667,7 +1667,7 @@ export default function StudentPanel({
 
       <div className="row" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
         {savedDraftAt && (
-          <span className="hint" style={{ fontSize: 12 }}>
+          <span className="hint" style={{ fontSize: 13 }}>
             {savedDraftAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 임시저장됨
           </span>
         )}

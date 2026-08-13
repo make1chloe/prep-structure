@@ -70,7 +70,7 @@ export default function MenuBox({ profile }) {
 
   return (
     <div className="card">
-      <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>맨 위 메뉴</h2>
+      <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>맨 위 메뉴</h2>
       <p className="sub" style={{ margin: "0 0 10px" }}>
         자주 쓰는 화면을 앞으로 당기고, 안 쓰는 것은 접어두세요.
         <b> 접어도 주소로는 그대로 열립니다</b> — 메뉴에서만 빠져요.
@@ -94,8 +94,8 @@ export default function MenuBox({ profile }) {
           return (
             <div className="unitrow" key={k} style={{ opacity: off ? 0.45 : 1 }}>
               <span className="hint" style={{ minWidth: 22, textAlign: "right" }}>{i + 1}</span>
-              <b style={{ fontSize: 13, minWidth: 120 }}>{it.label}</b>
-              <span className="hint" style={{ flex: 1, fontSize: 11.5 }}>{it.desc || ""}</span>
+              <b style={{ fontSize: 14.5, minWidth: 120 }}>{it.label}</b>
+              <span className="hint" style={{ flex: 1, fontSize: 12.5 }}>{it.desc || ""}</span>
               <button className="btn btn-ghost btn-sm" onClick={() => move(i, -1)} disabled={i === 0}>↑</button>
               <button
                 className="btn btn-ghost btn-sm"

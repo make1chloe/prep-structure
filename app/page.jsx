@@ -83,13 +83,13 @@ export default async function Home() {
 
         {/* 학원이 지금 어떤 상태인가 — 목록을 읽기 전에 숫자로 한 줄 */}
         <div className="row" style={{ gap: 14, marginTop: 10, flexWrap: "wrap" }}>
-          <span className="hint">재원 <b style={{ fontSize: 15 }}>{kpi.enrolled}</b>명</span>
+          <span className="hint">재원 <b style={{ fontSize: 16 }}>{kpi.enrolled}</b>명</span>
           {kpi.attRate !== null && (
-            <span className="hint">이달 출석률 <b style={{ fontSize: 15 }}>{kpi.attRate}%</b></span>
+            <span className="hint">이달 출석률 <b style={{ fontSize: 16 }}>{kpi.attRate}%</b></span>
           )}
           {kpi.sentRate !== null && (
             <span className="hint">
-              오늘 리포트 <b style={{ fontSize: 15 }}>{kpi.written}/{kpi.todayTotal}</b> ({kpi.sentRate}%)
+              오늘 리포트 <b style={{ fontSize: 16 }}>{kpi.written}/{kpi.todayTotal}</b> ({kpi.sentRate}%)
             </span>
           )}
         </div>
@@ -170,7 +170,7 @@ export default async function Home() {
 
                 {/* 같은 단원에서 여럿이 막혔으면 수업에서 다시 짚을 일이다 */}
                 {d.unitStuck.units.map((u) => (
-                  <div className="notice" key={u.unit} style={{ fontSize: 12.5, marginBottom: 6 }}>
+                  <div className="notice" key={u.unit} style={{ fontSize: 14, marginBottom: 6 }}>
                     <b>{u.unit}</b> · <b>{u.n}명</b> — {u.names.join(" · ")}
                   </div>
                 ))}
@@ -183,7 +183,7 @@ export default async function Home() {
                       href={`/scores/${p.student?.id}`}
                       style={{ textDecoration: "none" }}
                     >
-                      <b style={{ fontSize: 12.5 }}>{p.student?.name}</b>
+                      <b style={{ fontSize: 14 }}>{p.student?.name}</b>
                       <span className="tag tag-amber">{p.unit} {p.tries}번째</span>
                       {p.last != null && <span className="hint">마지막 {p.last}점</span>}
                     </Link>
@@ -392,7 +392,7 @@ export default async function Home() {
             {/* 단원이 없으면 오늘 수업에서 숙제 범위를 고를 수가 없다 */}
             {(d.needUnits || []).length > 0 && (
               <div className="card sect sect-warn">
-                <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+                <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
                   단원을 넣어야 하는 교재 {d.needUnits.length}권
                 </h2>
                 <div className="stack" style={{ gap: 3 }}>
@@ -403,7 +403,7 @@ export default async function Home() {
                       href={`/textbooks?tb=${b.id}`}
                       style={{ textDecoration: "none" }}
                     >
-                      <b style={{ fontSize: 12.5, flex: 1 }}>{b.name}</b>
+                      <b style={{ fontSize: 14, flex: 1 }}>{b.name}</b>
                       {b.area && <span className="tag tag-muted">{b.area}</span>}
                       <span className="tag tag-amber">{b.students}명</span>
                     </Link>
@@ -428,7 +428,7 @@ export default async function Home() {
                       {cut(c.start_time)}-{cut(c.end_time)}
                     </span>
                     {/* 이름 속 시간은 걷어낸다 — 앞 시간과 두 번 나온다 (lib/classLabel) */}
-                    <b style={{ fontSize: 12.5 }}>{cleanClassName(c.name)}</b>
+                    <b style={{ fontSize: 14 }}>{cleanClassName(c.name)}</b>
                     {c.room && <span className="tag tag-muted">{c.room}</span>}
                   </Link>
                 ))}
@@ -440,7 +440,7 @@ export default async function Home() {
                     <span className="hint" style={{ minWidth: 84 }}>
                       {t.start_time ? cut(t.start_time) : "일정"}
                     </span>
-                    <b style={{ fontSize: 12.5 }}>{t.title}</b>
+                    <b style={{ fontSize: 14 }}>{t.title}</b>
                     {t.category && <span className="tag tag-sky">{t.category}</span>}
                     {t.deliver_body && <span className="tag tag-lav">전달사항</span>}
                   </Link>
@@ -451,7 +451,7 @@ export default async function Home() {
             <div className="card sect sect-calm">
               <h2 className="secthead">
                 이번 주{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
+                <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>
                   {tasks.week.length}건
                 </span>
               </h2>
@@ -462,7 +462,7 @@ export default async function Home() {
                   {tasks.week.map((t) => (
                     <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
-                      <b style={{ fontSize: 12.5 }}>{t.title}</b>
+                      <b style={{ fontSize: 14 }}>{t.title}</b>
                       {t.category && <span className="tag tag-muted">{t.category}</span>}
                     </Link>
                   ))}
@@ -473,7 +473,7 @@ export default async function Home() {
             <div className="card sect sect-calm">
               <h2 className="secthead">
                 이번 달 남은 일정{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 13 }}>
+                <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>
                   {tasks.month.length}건
                 </span>
               </h2>
@@ -484,7 +484,7 @@ export default async function Home() {
                   {tasks.month.map((t) => (
                     <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
                       <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
-                      <b style={{ fontSize: 12.5 }}>{t.title}</b>
+                      <b style={{ fontSize: 14 }}>{t.title}</b>
                       {t.category && <span className="tag tag-muted">{t.category}</span>}
                     </Link>
                   ))}

@@ -62,7 +62,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
     <>
       <div className="row" style={{ gap: 6, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button className="btn btn-ghost btn-sm" onClick={() => go(-1)}>◂ 지난달</button>
-        <b style={{ fontSize: 15 }}>{ym.replace("-", "년 ")}월</b>
+        <b style={{ fontSize: 16 }}>{ym.replace("-", "년 ")}월</b>
         <button className="btn btn-ghost btn-sm" onClick={() => go(1)}>다음달 ▸</button>
         <span className="spacer" />
         {[["todo", `보낼 것 ${todo.length}`], ["sent", `보냄 ${rows.length - todo.length}`], ["all", `전체 ${rows.length}`]].map(
@@ -131,7 +131,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                   onChange={() => toggle(r.studentId)}
                 />
               )}
-              <b style={{ fontSize: 13.5 }}>{r.name}</b>
+              <b style={{ fontSize: 15 }}>{r.name}</b>
               <span className="hint">{r.who}</span>
               <span className="tag tag-muted">{r.sum.days}회</span>
               {hw.rate !== null && (
@@ -187,7 +187,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
               <div style={{ marginTop: 10 }}>
                 <div className="field">
                   <label className="label">이 학생에게 덧붙일 한마디 (선택)</label>
-                  <p className="hint" style={{ margin: "0 0 4px", fontSize: 11.5 }}>
+                  <p className="hint" style={{ margin: "0 0 4px", fontSize: 12.5 }}>
                     비워두면 그 달 숫자를 보고 <b>한 줄 평이 자동으로</b> 붙습니다.
                     여기에 적으시면 적으신 말이 대신 나갑니다.
                   </p>
@@ -209,7 +209,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                   className="input"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  style={{ width: "100%", height: 260, fontSize: 12.5, marginTop: 8 }}
+                  style={{ width: "100%", height: 260, fontSize: 14, marginTop: 8 }}
                 />
                 <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
                   {r.edited && (

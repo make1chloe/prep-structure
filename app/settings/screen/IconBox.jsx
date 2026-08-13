@@ -135,11 +135,11 @@ export default function IconBox() {
   return (
     <div className="card">
       <div className="row" style={{ alignItems: "center", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>홈 화면 아이콘</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>홈 화면 아이콘</h2>
         {st?.uploaded && <span className="tag tag-mint">올려둔 로고를 씁니다</span>}
         {st && !st.uploaded && !st.error && <span className="tag tag-muted">기본 그림</span>}
       </div>
-      <p className="muted" style={{ margin: "6px 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+      <p className="muted" style={{ margin: "6px 0 10px", fontSize: 14, lineHeight: 1.7 }}>
         학생이 <b>홈 화면에 추가</b>하면 폰 바탕에 생기는 그림입니다. 로고 파일을
         올리면 필요한 크기로 <b>알아서 만들어</b> 둡니다 — 배경 여백은 잘라내고,
         안드로이드가 동그랗게 잘라내는 판은 여백을 더 줍니다.
@@ -195,7 +195,7 @@ export default function IconBox() {
       {name && <p className="hint" style={{ margin: "6px 0 0" }}>고른 파일: {name}</p>}
 
       {why && (
-        <div className={`notice ${why.ok ? "" : "err"}`} style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.9 }}>
+        <div className={`notice ${why.ok ? "" : "err"}`} style={{ marginTop: 10, fontSize: 14, lineHeight: 1.9 }}>
           {why.lines.map((l, i) => <div key={i}>{l}</div>)}
         </div>
       )}
@@ -227,7 +227,7 @@ export default function IconBox() {
                 display: "block",
               }}
             />
-            <span className="hint" style={{ fontSize: 11 }}>{label}</span>
+            <span className="hint" style={{ fontSize: 12 }}>{label}</span>
           </div>
         ))}
       </div>

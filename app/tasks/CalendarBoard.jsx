@@ -71,6 +71,21 @@ export default function CalendarBoard({
   const [classId, setClassId] = useState("");
   const [studentId, setStudentId] = useState("");
   const [pick, setPick] = useState(null);         // 눌러서 펼친 날
+  /**
+   * **글자를 잘라 두지 않는다** (원장님, 2026-08-13 — 「내용이 너무 길면,
+   * 토글 이용해서 다 볼 수 있게 해줘 잘리지않게」).
+   *
+   * 칸이 좁아서 한 줄로 자르면 「해송고 올포2 - 1, 2, 3, 17, 18 닥…」 처럼
+   * **정작 중요한 뒷말이 사라진다.** 그렇다고 늘 펴 두면 한 주가 화면
+   * 하나를 다 먹는다. 그래서 칸마다 펴고 접는다.
+   */
+  const [openCells, setOpenCells] = useState(() => new Set());
+  const toggleCell = (d) =>
+    setOpenCells((prev) => {
+      const n = new Set(prev);
+      n.has(d) ? n.delete(d) : n.add(d);
+      return n;
+    });
 
   // 날짜별로 모은다. 시험·휴강처럼 기간이 있는 것은 **걸치는 날마다** 넣는다.
   const byDay = new Map();
@@ -164,7 +179,7 @@ export default function CalendarBoard({
     <div className="card" style={{ marginBottom: 10 }}>
       <div className="row" style={{ alignItems: "center", gap: 8, marginBottom: 10 }}>
         <Link className="btn btn-ghost btn-sm" href={`/tasks?view=calendar&m=${prev}`}>‹ 지난달</Link>
-        <b style={{ fontSize: 14 }}>{y}년 {Number(m)}월</b>
+        <b style={{ fontSize: 15 }}>{y}년 {Number(m)}월</b>
         <Link className="btn btn-ghost btn-sm" href={`/tasks?view=calendar&m=${next}`}>다음달 ›</Link>
         {ym !== thisMonth && (
           <Link className="btn btn-ghost btn-sm" href="/tasks?view=calendar">이번달</Link>
@@ -190,7 +205,7 @@ export default function CalendarBoard({
               {label}
             </button>
           ))}
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             일정 = 그날 그런 일이 있다 · 할일 = 내가 처리할 것
           </span>
         </div>
@@ -226,7 +241,7 @@ export default function CalendarBoard({
             </button>
           )}
           <span className="spacer" />
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             📕시험 🚫휴강 🤝상담 📝레테 🔁보강 🏠결석 ☑할일
           </span>
         </div>
@@ -257,12 +272,26 @@ export default function CalendarBoard({
             (x) => (x.source === "휴강" ? 3 : x.where?.includes("여기") ? 2 : 1)
           );
           const dow = i % 7;
+          /**
+           * 접혀 있을 때는 **넉 줄까지**. 다섯 줄이 넘어가면 그 주가 통째로
+           * 길어져서 다른 주가 화면 밖으로 밀린다.
+           * `long` — 줄은 몇 개 안 되는데 **글자가 긴** 경우. 이때도 펼 수
+           * 있어야 한다 (개수는 안 넘치지만 뒷말이 잘려 있다).
+           */
+          const open = openCells.has(d);
+          const MAX = 4;
+          const shownItems = open ? items : items.slice(0, MAX);
+          const hidden = open ? 0 : Math.max(0, items.length - MAX);
+          const long = !open && items.some((x) => (x.label || "").length > 14);
           return (
-            <div className={`cal-cell ${d === today ? "cal-today" : ""}`} key={d}>
+            <div
+              className={`cal-cell ${d === today ? "cal-today" : ""} ${open ? "cal-open" : ""}`}
+              key={d}
+            >
               <div className={`cal-num ${dow === 0 ? "cal-sun" : dow === 6 ? "cal-sat" : ""}`}>
                 {Number(d.slice(8))}
               </div>
-              {items.map((it) => (
+              {shownItems.map((it) => (
                 <button
                   type="button"
                   className={`cal-item ${it.cls} ${it.done ? "cal-done" : ""}`}
@@ -273,6 +302,18 @@ export default function CalendarBoard({
                   {it.label}
                 </button>
               ))}
+              {/* 접혀 있고 더 있으면 몇 개가 숨었는지 **세어서** 말한다 —
+                  「…」 만 있으면 몇 개가 가려졌는지 알 수가 없다 */}
+              {(hidden > 0 || long) && (
+                <button
+                  type="button"
+                  className="cal-more"
+                  onClick={() => toggleCell(d)}
+                  title={open ? "접기" : "이 날 내용을 다 보기"}
+                >
+                  {open ? "접기" : hidden > 0 ? `＋${hidden}개 더 보기` : "다 보기"}
+                </button>
+              )}
             </div>
           );
         })}
@@ -284,7 +325,7 @@ export default function CalendarBoard({
       {pick && (
         <div className="card card-tight" style={{ marginTop: 10 }}>
           <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-            <b style={{ fontSize: 13.5 }}>
+            <b style={{ fontSize: 15 }}>
               {Number(pick.slice(5, 7))}월 {Number(pick.slice(8, 10))}일
             </b>
             <span className="hint">{(byDay.get(pick) || []).length}건</span>
@@ -297,10 +338,10 @@ export default function CalendarBoard({
                 <span className={`tag ${it.band === "todo" ? "tag-amber" : "tag-sky"}`}>
                   {it.band === "todo" ? "할일" : "일정"}
                 </span>
-                <span style={{ fontSize: 12.5, flex: 1 }}>
+                <span style={{ fontSize: 14, flex: 1 }}>
                   <b>{it.label}</b>
                   <br />
-                  <span className="muted" style={{ fontSize: 11.5 }}>
+                  <span className="muted" style={{ fontSize: 12.5 }}>
                     {it.where}
                     {it.why ? ` — ${it.why}` : ""}
                   </span>

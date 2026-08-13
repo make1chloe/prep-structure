@@ -154,12 +154,12 @@ export default function MonthGrid({ ym, classes = [], openDay = null, onPick }) 
 
       {openDay && openDay.startsWith(ym) && (
         <div className="card card-tight" style={{ marginTop: 8 }}>
-          <b style={{ fontSize: 13 }}>
+          <b style={{ fontSize: 14.5 }}>
             {Number(openDay.slice(5, 7))}월 {Number(openDay.slice(8, 10))}일 (
             {DOW[new Date(`${openDay}T00:00:00Z`).getUTCDay()]})
           </b>
           {picked.length === 0 ? (
-            <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
+            <p className="muted" style={{ margin: "4px 0 0", fontSize: 14.5 }}>
               챙길 것이 없습니다.
             </p>
           ) : (
@@ -167,17 +167,17 @@ export default function MonthGrid({ ym, classes = [], openDay = null, onPick }) 
               {picked.map((c) => (
                 <div key={c.name}>
                   {/* **반별로** 적는다 — 한 날에 반마다 사정이 다르다 */}
-                  <b style={{ fontSize: 12.5 }}>{c.name}</b>
+                  <b style={{ fontSize: 14 }}>{c.name}</b>
                   <div className="stack" style={{ gap: 3, marginTop: 3 }}>
                     {c.rows.map((x, i) => (
                       <div className="unitrow" key={i} style={{ alignItems: "flex-start" }}>
                         <span className={`tag ${x.cls}`}>{x.tag}</span>
-                        <span style={{ fontSize: 12.5, flex: 1 }}>
+                        <span style={{ fontSize: 14, flex: 1 }}>
                           {x.text}
                           {x.who?.length > 0 && (
                             <>
                               <br />
-                              <span style={{ fontSize: 12, lineHeight: 1.7 }}>
+                              <span style={{ fontSize: 13, lineHeight: 1.7 }}>
                                 {x.who.join(", ")}{" "}
                                 <span className="muted">({x.who.length}명)</span>
                               </span>

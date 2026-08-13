@@ -144,7 +144,7 @@ export default function SchoolBox() {
                   <>
                     {/* 줄여서 보여주고, **고칠 때는 원래 이름 그대로** 담긴다
                         (이름 고치기 칸은 s.name 을 쓴다) */}
-                    <b style={{ fontSize: 12.5, minWidth: 130 }} title={s.name}>{shortName(s.name)}</b>
+                    <b style={{ fontSize: 14, minWidth: 130 }} title={s.name}>{shortName(s.name)}</b>
                     <span className={`tag ${s.linked ? "tag-mint" : "tag-muted"}`}>
                       {s.linked ? "나이스 연결됨" : "손으로 넣음"}
                     </span>

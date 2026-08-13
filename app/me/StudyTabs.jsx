@@ -46,7 +46,7 @@ export default function StudyTabs({
     return (
       <div className="stack" style={{ gap: 10 }}>
         <div className="card">
-          <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>등원학습</h2>
+          <h2 style={{ margin: "0 0 6px", fontSize: 17.5, fontWeight: 800 }}>등원학습</h2>
           <p className="hint" style={{ margin: 0 }}>오늘은 올라온 것이 없어요.</p>
         </div>
         {/* 할 것이 안 올라온 날에도 쉬러는 간다 — 여기서도 눌릴 수 있어야 한다 */}
@@ -67,7 +67,7 @@ export default function StudyTabs({
     <div className="stack" style={{ gap: 10 }}>
       {stayNotice && (
         <div className="card card-tight" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
-          <b style={{ fontSize: 13.5 }}>{stayNotice}</b>
+          <b style={{ fontSize: 15 }}>{stayNotice}</b>
         </div>
       )}
 
@@ -97,7 +97,7 @@ export default function StudyTabs({
               {atClass ? "선생님이 정해주실 때까지 기다려주세요." : ""}
             </p>
             {atClass && homeLeft > 0 && (
-              <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
+              <p className="hint" style={{ margin: "6px 0 0", fontSize: 13 }}>
                 집에서 할 숙제는 <b>하원 후 숙제</b>에 있어요. 지금은 학원이니까
                 선생님께 먼저 여쭤보세요.
               </p>

@@ -120,7 +120,7 @@ export default async function ParentPage({ searchParams }) {
           <h1 className="h1">클로이영어</h1>
         </div>
         <div className="card">
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             {isStaff
               ? "학생을 골라 열어주세요. 재원생 목록에서 「학부모 화면」을 누르시면 됩니다."
               : "아직 연결된 학생이 없어요. 원장님께 연결 코드를 받아주세요."}
@@ -392,7 +392,7 @@ export default async function ParentPage({ searchParams }) {
                 {hasToday ? (
                   <div className="row" style={{ gap: 8, alignItems: "center" }}>
                     <span className="plabel" style={{ width: 62 }}>오늘 수업</span>
-                    <span style={{ fontSize: 13.5 }}>
+                    <span style={{ fontSize: 15 }}>
                       {nextClass.at ? `${nextClass.at} 시작` : "수업일"}
                     </span>
                     {attToday ? (
@@ -406,7 +406,7 @@ export default async function ParentPage({ searchParams }) {
                 ) : nextClass ? (
                   <div className="row" style={{ gap: 8, alignItems: "center" }}>
                     <span className="plabel" style={{ width: 62 }}>다음 수업</span>
-                    <span style={{ fontSize: 13.5 }}>
+                    <span style={{ fontSize: 15 }}>
                       {longLabel(nextClass.date)}
                       {nextClass.at ? ` ${nextClass.at}` : ""}
                     </span>
@@ -421,7 +421,7 @@ export default async function ParentPage({ searchParams }) {
                       {ATT_LABEL[attToday.status] || attToday.status}
                     </span>
                     {attToday.reason && (
-                      <span className="hint" style={{ fontSize: 12.5 }}>{attToday.reason}</span>
+                      <span className="hint" style={{ fontSize: 14 }}>{attToday.reason}</span>
                     )}
                   </div>
                 )}
@@ -429,7 +429,7 @@ export default async function ParentPage({ searchParams }) {
                 {stayLeft.length > 0 && (
                   <div className="row" style={{ gap: 8, alignItems: "flex-start" }}>
                     <span className="plabel" style={{ width: 62 }}>하원</span>
-                    <span style={{ fontSize: 13.5, flex: 1 }}>
+                    <span style={{ fontSize: 15, flex: 1 }}>
                       오늘은 <b>남아서 채우고</b> 갑니다 — {stayLeft.map((t) => t.body).join(" · ")}
                       <br />
                       <span className="hint">평소보다 늦게 갈 수 있어요.</span>
@@ -448,7 +448,7 @@ export default async function ParentPage({ searchParams }) {
               집에서 "이번 달 어땠어?" 를 물을 때 둘이 같은 것을 보게 된다. */}
           <div className="card">
             <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+              <h2 style={{ margin: 0, fontSize: 17.5, fontWeight: 800 }}>
                 이번 달 현황 ({Number(ym.slice(5, 7))}월)
               </h2>
               <span className="hint">수업 {withItems.length}회</span>
@@ -456,21 +456,21 @@ export default async function ParentPage({ searchParams }) {
             {notes.has("parent.month") ? (
               <ScreenNote text={N("parent.month")} style={{ margin: "2px 0 10px" }} />
             ) : (
-              <p className="hint" style={{ margin: "2px 0 10px", fontSize: 11.5 }}>
+              <p className="hint" style={{ margin: "2px 0 10px", fontSize: 12.5 }}>
                 달이 끝나기 전에도 <b>지금까지</b>를 그대로 세어 보여드립니다.
                 아이 화면에도 <b>같은 숫자</b>가 보입니다.
               </p>
             )}
 
             {withItems.length === 0 ? (
-              <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+              <p className="muted" style={{ margin: 0, fontSize: 15 }}>
                 이번 달은 아직 수업 기록이 없어요.
               </p>
             ) : (
               <div className="stack" style={{ gap: 8 }}>
                 {lines.map((l) => (
                   <div className="row" key={l.key} style={{ gap: 8, alignItems: "baseline" }}>
-                    <b style={{ fontSize: 13, minWidth: 62 }}>{l.label}</b>
+                    <b style={{ fontSize: 14.5, minWidth: 62 }}>{l.label}</b>
                     <span className={`tag ${TONE_CLS[l.tone]}`}>{l.text}</span>
                   </div>
                 ))}
@@ -486,7 +486,7 @@ export default async function ParentPage({ searchParams }) {
               이 자리가 학원에서 오는 말이 닿는 유일한 곳이다 — 위로 올린다. */}
           {(upcoming.length > 0 || notices.length > 0) && (
             <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>일정 및 전달사항</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>일정 및 전달사항</h2>
               <ScreenNote text={N("parent.schedule")} />
 
               {upcoming.length > 0 && (
@@ -497,7 +497,7 @@ export default async function ParentPage({ searchParams }) {
                         {shortLabel(c.date)}
                         {c.endDate && c.endDate !== c.date ? " ~" : ""}
                       </span>
-                      <span style={{ fontSize: 13.5, flex: 1 }}>{cleanTitle(c.title)}</span>
+                      <span style={{ fontSize: 15, flex: 1 }}>{cleanTitle(c.title)}</span>
                       {c.tone === "exam" && <span className="tag tag-red">시험</span>}
                       {c.tone === "school" && <span className="tag tag-sky">학교</span>}
                     </div>
@@ -511,10 +511,10 @@ export default async function ParentPage({ searchParams }) {
                     <div key={n.id} className="stack" style={{ gap: 6 }}>
                       <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
                         <span className="hint">{shortLabel(n.date)}</span>
-                        {n.title && <b style={{ fontSize: 14 }}>{n.title}</b>}
+                        {n.title && <b style={{ fontSize: 15 }}>{n.title}</b>}
                       </div>
                       {n.body && n.body !== n.title && (
-                        <div style={{ fontSize: 13.5, whiteSpace: "pre-wrap" }}>{n.body}</div>
+                        <div style={{ fontSize: 15, whiteSpace: "pre-wrap" }}>{n.body}</div>
                       )}
                       <NoticePhotos noticeId={n.id} photos={n.photos || []} readOnly />
                     </div>
@@ -539,14 +539,14 @@ export default async function ParentPage({ searchParams }) {
               두 군데서 체크하면 두 군데가 반드시 어긋난다. */}
           <div className="card">
             <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+              <h2 style={{ margin: 0, fontSize: 17.5, fontWeight: 800 }}>
                 지금 나간 숙제 {homework.length > 0 && <span className="tag tag-lav">{homework.length}</span>}
               </h2>
               {assignedFrom && <span className="hint">{shortLabel(assignedFrom.date)} 수업에서</span>}
             </div>
 
             {homework.length === 0 ? (
-              <p className="muted" style={{ margin: "8px 0 0", fontSize: 13.5 }}>
+              <p className="muted" style={{ margin: "8px 0 0", fontSize: 15 }}>
                 지금 나간 숙제가 없어요. 수업에서 다음 숙제를 정하면 여기에 뜹니다.
               </p>
             ) : (
@@ -554,20 +554,20 @@ export default async function ParentPage({ searchParams }) {
                 <div className="stack" style={{ gap: 6, marginTop: 8 }}>
                   {homework.map((c) => (
                     <div key={c.key} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                      <span style={{ fontSize: 13, lineHeight: 1.6 }}>☐</span>
-                      <span style={{ fontSize: 13.5, lineHeight: 1.6, flex: 1 }}>
+                      <span style={{ fontSize: 14.5, lineHeight: 1.6 }}>☐</span>
+                      <span style={{ fontSize: 15, lineHeight: 1.6, flex: 1 }}>
                         {c.name}
                         {/* 무엇으로 하는 숙제인지 (0116) — 아이 화면과 같은 값 */}
                         {c.tool && <span className="hint"> [{c.tool}]</span>}
                         {c.units.length > 0 && <> — {c.units.join(", ")}</>}
                         {cleanNote(c.note) && <> {cleanNote(c.note)}</>}
                         {c.changedAt && (
-                          <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                          <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 12 }}>
                             바뀜
                           </span>
                         )}
                         {c.doneAt && (
-                          <span className="tag tag-mint" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                          <span className="tag tag-mint" style={{ marginLeft: 4, fontSize: 12 }}>
                             아이가 완료 표시
                           </span>
                         )}
@@ -596,7 +596,7 @@ export default async function ParentPage({ searchParams }) {
               원장님이 쓰신 글 전문은 접어두고, 보고 싶으실 때 펴신다. */}
           {lessons.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 800 }}>최근 수업</h2>
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>최근 수업</h2>
               <ScreenNote text={N("parent.lessons")} />
               {/**
                 * **가장 최근 것 하나만 펴둔다** (원장님, 2026-08-07 —
@@ -615,14 +615,14 @@ export default async function ParentPage({ searchParams }) {
                 {lessons.slice(0, 1).map((r) => (
                   <div key={r.id} className="stack" style={{ gap: 6 }}>
                     <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-                      <b style={{ fontSize: 13.5 }}>{longLabel(r.date)}</b>
+                      <b style={{ fontSize: 15 }}>{longLabel(r.date)}</b>
                       {r.attendance && (
                         <span className={`tag ${r.attendance === "absent" ? "tag-red" : "tag-mint"}`}>
                           {ATT_LABEL[r.attendance] || r.attendance}
                         </span>
                       )}
                       {r.checked > 0 && (
-                        <span className="hint" style={{ fontSize: 12 }}>
+                        <span className="hint" style={{ fontSize: 13 }}>
                           숙제 검사 {[
                             r.check.done ? `완료 ${r.check.done}` : null,
                             r.check.weak ? `보충 ${r.check.weak}` : null,
@@ -636,35 +636,35 @@ export default async function ParentPage({ searchParams }) {
                       {r.word_total ? (
                         <div className="row" style={{ gap: 8 }}>
                           <span className="plabel" style={{ width: 46 }}>단어</span>
-                          <span style={{ fontSize: 13 }}>{score(r.word_correct, r.word_total)}</span>
+                          <span style={{ fontSize: 14.5 }}>{score(r.word_correct, r.word_total)}</span>
                         </div>
                       ) : null}
                       {r.sent_total ? (
                         <div className="row" style={{ gap: 8 }}>
                           <span className="plabel" style={{ width: 46 }}>문법</span>
-                          <span style={{ fontSize: 13 }}>{score(r.sent_correct, r.sent_total)}</span>
+                          <span style={{ fontSize: 14.5 }}>{score(r.sent_correct, r.sent_total)}</span>
                         </div>
                       ) : null}
                       {r.own_progress ? (
                         <div className="row" style={{ gap: 8 }}>
                           <span className="plabel" style={{ width: 46 }}>진도</span>
-                          <span style={{ fontSize: 13 }}>{r.own_progress}</span>
+                          <span style={{ fontSize: 14.5 }}>{r.own_progress}</span>
                         </div>
                       ) : null}
                     </div>
 
                     {/* 선생님이 그날 학부모께 적으신 말 — 있으면 그게 제일 중요하다 */}
                     {r.notice && (
-                      <div className="notice" style={{ fontSize: 13 }}>{r.notice}</div>
+                      <div className="notice" style={{ fontSize: 14.5 }}>{r.notice}</div>
                     )}
 
                     {/* 원장님이 쓰신 리포트 전문. 길어서 접어둔다 */}
                     {r.reportText && (
                       <details>
-                        <summary className="hint" style={{ cursor: "pointer", fontSize: 12.5 }}>
+                        <summary className="hint" style={{ cursor: "pointer", fontSize: 14 }}>
                           이 날 리포트 전문 보기
                         </summary>
-                        <div style={{ fontSize: 13, whiteSpace: "pre-wrap", marginTop: 6 }}>
+                        <div style={{ fontSize: 14.5, whiteSpace: "pre-wrap", marginTop: 6 }}>
                           {r.reportText}
                         </div>
                       </details>
@@ -676,14 +676,14 @@ export default async function ParentPage({ searchParams }) {
               {/* 나머지는 접어둔다 — 지운 것이 아니라 **필요하실 때** 여신다 */}
               {lessons.length > 1 && (
                 <details style={{ marginTop: 12 }}>
-                  <summary className="hint" style={{ cursor: "pointer", fontSize: 12.5 }}>
+                  <summary className="hint" style={{ cursor: "pointer", fontSize: 14 }}>
                     지난 수업 {lessons.length - 1}회 더 보기
                   </summary>
                   <div className="stack" style={{ gap: 12, marginTop: 10 }}>
                     {lessons.slice(1).map((r) => (
                       <div key={r.id} className="stack" style={{ gap: 4 }}>
                         <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-                          <b style={{ fontSize: 13 }}>{longLabel(r.date)}</b>
+                          <b style={{ fontSize: 14.5 }}>{longLabel(r.date)}</b>
                           {r.attendance && (
                             <span className={`tag ${r.attendance === "absent" ? "tag-red" : "tag-mint"}`}>
                               {ATT_LABEL[r.attendance] || r.attendance}
@@ -697,17 +697,17 @@ export default async function ParentPage({ searchParams }) {
                           ) : null}
                         </div>
                         {r.own_progress && (
-                          <div className="hint" style={{ fontSize: 12.5 }}>{r.own_progress}</div>
+                          <div className="hint" style={{ fontSize: 14 }}>{r.own_progress}</div>
                         )}
                         {r.notice && (
-                          <div className="notice" style={{ fontSize: 12.5 }}>{r.notice}</div>
+                          <div className="notice" style={{ fontSize: 14 }}>{r.notice}</div>
                         )}
                         {r.reportText && (
                           <details>
-                            <summary className="hint" style={{ cursor: "pointer", fontSize: 12 }}>
+                            <summary className="hint" style={{ cursor: "pointer", fontSize: 13 }}>
                               이 날 리포트 전문 보기
                             </summary>
-                            <div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", marginTop: 6 }}>
+                            <div style={{ fontSize: 14, whiteSpace: "pre-wrap", marginTop: 6 }}>
                               {r.reportText}
                             </div>
                           </details>
@@ -736,7 +736,7 @@ export default async function ParentPage({ searchParams }) {
           {/* ── 6. 성적 ── */}
           {(scores || []).length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>성장</h2>
+              <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>성장</h2>
               <ScreenNote text={N("parent.scores")} />
               <div className="stack" style={{ gap: 10 }}>
                 {["school", "mock", "unit"].map((k) => {
@@ -744,7 +744,7 @@ export default async function ParentPage({ searchParams }) {
                   if (list.length === 0) return null;
                   return (
                     <div key={k}>
-                      <b style={{ fontSize: 13 }}>{KIND_LABEL[k]}</b>
+                      <b style={{ fontSize: 14.5 }}>{KIND_LABEL[k]}</b>
                       {/* **가장 최근 것 하나만.** 점수를 넉 줄 늘어놓으면
                           세로로 읽으며 견주시게 된다 — 흐름은 위 성장 카드가
                           보여드리는 몫이다 (원장님, 2026-08-07) */}
@@ -754,8 +754,8 @@ export default async function ParentPage({ searchParams }) {
                             <span className="hint" style={{ minWidth: 68 }}>
                               {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
                             </span>
-                            <b style={{ fontSize: 12.5, minWidth: 110 }}>{s.term || ""}</b>
-                            <span style={{ fontSize: 12.5, flex: 1 }}>
+                            <b style={{ fontSize: 14, minWidth: 110 }}>{s.term || ""}</b>
+                            <span style={{ fontSize: 14, flex: 1 }}>
                               {scoreSummary(s, findExam(s, exams || [], child))}
                             </span>
                           </div>
@@ -763,7 +763,7 @@ export default async function ParentPage({ searchParams }) {
                       </div>
                       {list.length > 1 && (
                         <details style={{ marginTop: 4 }}>
-                          <summary className="hint" style={{ cursor: "pointer", fontSize: 12 }}>
+                          <summary className="hint" style={{ cursor: "pointer", fontSize: 13 }}>
                             지난 {KIND_LABEL[k]} {list.length - 1}건 더 보기
                           </summary>
                           <div className="stack" style={{ gap: 3, marginTop: 6 }}>
@@ -772,8 +772,8 @@ export default async function ParentPage({ searchParams }) {
                                 <span className="hint" style={{ minWidth: 68 }}>
                                   {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : ""}
                                 </span>
-                                <b style={{ fontSize: 12.5, minWidth: 110 }}>{s.term || ""}</b>
-                                <span style={{ fontSize: 12.5, flex: 1 }}>
+                                <b style={{ fontSize: 14, minWidth: 110 }}>{s.term || ""}</b>
+                                <span style={{ fontSize: 14, flex: 1 }}>
                                   {scoreSummary(s, findExam(s, exams || [], child))}
                                 </span>
                               </div>
@@ -796,15 +796,15 @@ export default async function ParentPage({ searchParams }) {
               다시 읽으실 일이 드물다 — 접어두고 필요할 때 펴신다. */}
           {monthlyRows.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>월간리포트</h2>
+              <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>월간리포트</h2>
               <ScreenNote text={N("parent.monthly")} />
               <div className="stack" style={{ gap: 12 }}>
                 {monthlyRows.map((m, i) => (
                   <details key={m.ym} open={i === 0}>
-                    <summary style={{ cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>
+                    <summary style={{ cursor: "pointer", fontSize: 15, fontWeight: 700 }}>
                       {m.ym.replace("-", "년 ")}월
                     </summary>
-                    <div style={{ fontSize: 13, whiteSpace: "pre-wrap", marginTop: 6 }}>{m.text}</div>
+                    <div style={{ fontSize: 14.5, whiteSpace: "pre-wrap", marginTop: 6 }}>{m.text}</div>
                   </details>
                 ))}
               </div>
@@ -847,7 +847,7 @@ export default async function ParentPage({ searchParams }) {
       <>
           {latest && (
             <div className="card">
-              <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>남기실 말씀</h2>
+              <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>남기실 말씀</h2>
               <p className="hint" style={{ margin: "0 0 8px" }}>
                 최근 수업({longLabel(latest.date)})에 대해 궁금한 것을 남기시면 선생님이 답합니다.
               </p>
@@ -863,7 +863,7 @@ export default async function ParentPage({ searchParams }) {
     <main className="wrap" style={{ maxWidth: 1180, paddingBottom: 40 }}>
       {preview && (
         <div className="card card-tight" style={{ marginBottom: 10, borderLeft: "3px solid var(--amber)" }}>
-          <b style={{ fontSize: 13 }}>미리보기</b>
+          <b style={{ fontSize: 14.5 }}>미리보기</b>
           <p className="hint" style={{ margin: "2px 0 0" }}>
             {child.name} 학부모님이 보는 화면 그대로입니다. 여기서 누르는 것은 기록되지 않아요.
           </p>

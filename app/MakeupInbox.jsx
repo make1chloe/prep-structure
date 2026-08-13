@@ -68,7 +68,7 @@ export default function MakeupInbox({ rows = [] }) {
 
   return (
     <div className="card sect sect-warn">
-      <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
         보강 잡을 것{" "}
         {rows.length > 0 && <span className="tag tag-amber">{rows.length}</span>}
       </h2>
@@ -86,7 +86,7 @@ export default function MakeupInbox({ rows = [] }) {
                 <span className={`tag ${r.future ? "tag-muted" : r.planned ? "tag-amber" : "tag-muted"}`}>
                   {r.future ? "결석 예정" : r.planned ? "사전 연락" : "결석"}
                 </span>
-                <b style={{ fontSize: 12.5 }}>{r.name}</b>
+                <b style={{ fontSize: 14 }}>{r.name}</b>
                 <span className="hint">{dayLabel(r.date)}{r.future ? "" : " 결석"}</span>
                 {r.reason && <span className="hint">· {r.reason}</span>}
                 {cleanNote(r.note) && <span className="hint">· {cleanNote(r.note)}</span>}

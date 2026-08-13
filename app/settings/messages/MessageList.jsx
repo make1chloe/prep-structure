@@ -43,8 +43,8 @@ export default function MessageList({ rows = [], level = "full", error = null, p
       <div className="card" style={{ marginTop: 12 }}>
         <div className="notice">
           <b>문자 문구를 불러오지 못했습니다.</b>
-          <p style={{ margin: "6px 0 0", fontSize: 12.5 }}>{error}</p>
-          <p style={{ margin: "8px 0 0", fontSize: 12.5 }}>
+          <p style={{ margin: "6px 0 0", fontSize: 14 }}>{error}</p>
+          <p style={{ margin: "8px 0 0", fontSize: 14 }}>
             <a href="/settings/sql">설정 → Supabase SQL</a> 에서 전체 복사해 한 번 실행해주세요.
             (SQL Editor 안을 <b>Ctrl+A 로 지우고</b> 붙여넣어야 합니다)
           </p>
@@ -130,9 +130,9 @@ export default function MessageList({ rows = [], level = "full", error = null, p
     return (
       <div className="card card-tight" style={{ background: "transparent" }}>
         <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-          <b style={{ fontSize: 13 }}>알림톡</b>
+          <b style={{ fontSize: 14.5 }}>알림톡</b>
           {!pfId && (
-            <span className="hint" style={{ fontSize: 11.5 }}>
+            <span className="hint" style={{ fontSize: 12.5 }}>
               먼저 <a href="/settings">설정</a> 에 발신프로필 ID(pfId)를 넣어주세요
             </span>
           )}
@@ -192,8 +192,8 @@ export default function MessageList({ rows = [], level = "full", error = null, p
                 <span className={`tag ${t.approved ? "tag-mint" : "tag-amber"}`}>
                   {t.approved ? "승인" : t.status || "심사중"}
                 </span>
-                <b style={{ fontSize: 12.5 }}>{t.name}</b>
-                <span className="hint mono" style={{ fontSize: 11 }}>{t.templateId}</span>
+                <b style={{ fontSize: 14 }}>{t.name}</b>
+                <span className="hint mono" style={{ fontSize: 12 }}>{t.templateId}</span>
                 <span className="spacer" />
                 {draft.alimtalk_id === t.templateId && <span className="tag tag-sky">지금 이것</span>}
               </button>
@@ -355,7 +355,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
                 실제로 하원 안내가 제목까지 두 번 실린 채로 나갔다. */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">보내면 이렇게 나갑니다 (예시값)</label>
-              <pre className="reportbox" style={{ borderRadius: 10, fontSize: 12.5 }}>
+              <pre className="reportbox" style={{ borderRadius: 10, fontSize: 14 }}>
                 {wholePreview || "템플릿 원문을 붙여넣으면 여기에 보입니다."}
               </pre>
             </div>
@@ -414,7 +414,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
               <textarea
                 className="input"
                 rows={10}
-                style={{ fontSize: 13, whiteSpace: "pre-wrap" }}
+                style={{ fontSize: 14.5, whiteSpace: "pre-wrap" }}
                 value={draft.body}
                 onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               />
@@ -425,7 +425,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
                   key={v}
                   className="btn btn-ghost btn-sm"
                   title={why}
-                  style={{ padding: "2px 7px", fontSize: 11.5 }}
+                  style={{ padding: "2px 7px", fontSize: 12.5 }}
                   onClick={() => setDraft({ ...draft, body: `${draft.body}${v}` })}
                 >
                   {v}
@@ -493,7 +493,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
     return (
       <div className="card card-tight" style={{ marginBottom: 8 }}>
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13.5 }}>{r.name}</b>
+          <b style={{ fontSize: 15 }}>{r.name}</b>
           {/* **어디로 나가나가 먼저다.** 그걸 알아야 무엇을 고칠지 정해진다 —
               앱으로 가는 것에는 알림톡 설정이 아예 필요 없다 (2026-08-07) */}
           {outward(r) ? (
@@ -508,7 +508,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
             </span>
           )}
           {isAuto && !r.greeting && !r.closing && (
-            <span className="hint" style={{ fontSize: 11.5 }}>인사말 없음</span>
+            <span className="hint" style={{ fontSize: 12.5 }}>인사말 없음</span>
           )}
           <span className="spacer" />
           <button className="btn btn-ghost btn-sm" onClick={() => (isEditing ? setEditId(null) : start(r))}>
@@ -530,7 +530,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
         </div>
 
         {!isEditing && (
-          <p className="hint" style={{ margin: "5px 0 0", whiteSpace: "pre-wrap", fontSize: 12 }}>
+          <p className="hint" style={{ margin: "5px 0 0", whiteSpace: "pre-wrap", fontSize: 13 }}>
             {isAuto
               ? [r.greeting, r.closing].filter(Boolean).join("\n…\n") || "— 인사말을 정하지 않았습니다"
               : (r.body || "").slice(0, 120) + ((r.body || "").length > 120 ? " …" : "")}
@@ -561,8 +561,8 @@ export default function MessageList({ rows = [], level = "full", error = null, p
 
       {hasKinds && (
       <div>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>앱이 보내는 문자</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>앱이 보내는 문자</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           본문은 그날 입력한 내용으로 자동으로 만들어집니다. <b>인삿말·맺음말만</b> 정하시면 됩니다.
         </p>
         {auto.map((r) => (
@@ -573,7 +573,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
 
       <div>
         <div className="row" style={{ alignItems: "baseline", marginBottom: 4 }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>내가 쓰는 문자</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>내가 쓰는 문자</h2>
           <span className="spacer" />
           <button
             className="btn btn-sm"
@@ -595,13 +595,13 @@ export default function MessageList({ rows = [], level = "full", error = null, p
             + 문자 추가
           </button>
         </div>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           <b>발송 → 안내 문자</b> 에서 학생을 골라 보냅니다. 얼마든지 추가하고 지울 수 있습니다.
         </p>
 
         {adding && (
           <div className="card card-tight" style={{ marginBottom: 8 }}>
-            <b style={{ fontSize: 13.5 }}>새 문자</b>
+            <b style={{ fontSize: 15 }}>새 문자</b>
             <Editor isAuto={false} />
           </div>
         )}

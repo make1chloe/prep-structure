@@ -28,7 +28,7 @@ export default function BulkAccounts({ who = "student" }) {
   return (
     <div className="card card-tight" style={{ marginTop: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>{parent ? "학부모" : "학생"} 계정 한 번에 만들기</b>
+        <b style={{ fontSize: 15 }}>{parent ? "학부모" : "학생"} 계정 한 번에 만들기</b>
         <span className="spacer" />
         <button
           className="btn btn-primary btn-sm"
@@ -79,7 +79,7 @@ export default function BulkAccounts({ who = "student" }) {
           {res.made.length > 0 && (
             <>
               <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-                <b style={{ fontSize: 13.5 }}>{res.made.length}명 만들었어요</b>
+                <b style={{ fontSize: 15 }}>{res.made.length}명 만들었어요</b>
                 <span className="spacer" />
                 <button
                   className="btn btn-ghost btn-sm"
@@ -95,13 +95,13 @@ export default function BulkAccounts({ who = "student" }) {
               </div>
               <pre
                 style={{
-                  margin: 0, padding: 10, borderRadius: 8, fontSize: 13, lineHeight: 1.7,
+                  margin: 0, padding: 10, borderRadius: 8, fontSize: 14.5, lineHeight: 1.7,
                   background: "var(--surface-2)", overflowX: "auto", whiteSpace: "pre",
                 }}
               >
 {`이름      아이디      비번\n${lines.join("\n")}`}
               </pre>
-              <p className="hint" style={{ margin: 0, fontSize: 12 }}>
+              <p className="hint" style={{ margin: 0, fontSize: 13 }}>
                 이 목록은 <b>지금만 보입니다.</b> 비밀번호가 계정마다 달라서
                 이 화면을 닫으면 <b>다시 볼 수 없습니다</b> — 먼저 복사해 두세요.
                 (잊으면 [계정] 에서 초기화하면 새 비번이 나옵니다)
@@ -115,7 +115,7 @@ export default function BulkAccounts({ who = "student" }) {
             <div className="notice">
               <b>학부모 번호가 없어서 못 만든 학생 {res.noPhone.length}명</b>
               <br />
-              <span style={{ fontSize: 12.5 }}>{res.noPhone.join(", ")}</span>
+              <span style={{ fontSize: 14 }}>{res.noPhone.join(", ")}</span>
               <br />
               <span className="hint">재원생 정보에 어머니 번호를 넣고 다시 눌러주세요.</span>
             </div>
@@ -126,7 +126,7 @@ export default function BulkAccounts({ who = "student" }) {
               <b>{res.failed.length}명은 못 만들었어요</b>
               <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
                 {res.failed.map((f, i) => (
-                  <li key={i} style={{ fontSize: 12.5 }}>{f.name} — {f.why}</li>
+                  <li key={i} style={{ fontSize: 14 }}>{f.name} — {f.why}</li>
                 ))}
               </ul>
             </div>

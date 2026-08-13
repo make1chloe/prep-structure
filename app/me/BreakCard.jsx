@@ -53,7 +53,7 @@ export default function BreakCard() {
   return (
     <div className="card card-tight" style={{ marginTop: 8 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>쉬는 시간</b>
+        <b style={{ fontSize: 15 }}>쉬는 시간</b>
         {open ? (
           <span className="tag tag-mint">{now}분째 쉬는 중</span>
         ) : line ? (

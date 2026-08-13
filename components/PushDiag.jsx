@@ -116,7 +116,7 @@ export default function PushDiag() {
   return (
     <div className="sect" style={{ marginTop: 10 }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <b style={{ fontSize: 13.5 }}>알림 점검</b>
+        <b style={{ fontSize: 15 }}>알림 점검</b>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
       <p className="hint" style={{ margin: "4px 0 8px", lineHeight: 1.7 }}>
@@ -142,7 +142,7 @@ export default function PushDiag() {
               <span style={{ color: COLOR[r.state], fontWeight: 800, marginRight: 6 }}>
                 {ICON[r.state] || "·"}
               </span>
-              <b style={{ fontSize: 13 }}>{r.label}</b>
+              <b style={{ fontSize: 14.5 }}>{r.label}</b>
               <span className="hint"> — {r.detail}</span>
               {r.fix && (
                 <p className="hint" style={{ margin: "3px 0 0 18px", color: "var(--red)" }}>

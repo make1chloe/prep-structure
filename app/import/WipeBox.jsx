@@ -42,7 +42,7 @@ export default function WipeBox() {
   return (
     <div className="card sect sect-bad" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>노션에서 옮긴 것 지우기</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>노션에서 옮긴 것 지우기</h2>
         <span className="hint" style={{ flex: 1, minWidth: 220 }}>
           잘못 들어간 것을 지우고 <b>처음부터 다시</b> 올리실 때 쓰세요.
         </span>
@@ -80,7 +80,7 @@ export default function WipeBox() {
           {res.tables.map((t) => (
             <div className="card card-tight" key={t.table} style={{ padding: "10px 12px" }}>
               <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                <b style={{ fontSize: 12.5 }}>{t.label}</b>
+                <b style={{ fontSize: 14 }}>{t.label}</b>
                 <span className="hint">모두 {t.total}건</span>
               </div>
               {t.days.length === 0 ? (
@@ -97,12 +97,12 @@ export default function WipeBox() {
                         <span className={`tag ${bulk ? "tag-amber" : "tag-muted"}`}>
                           {bulk ? "이관한 날" : "직접 쓰신 날"}
                         </span>
-                        <b style={{ fontSize: 12.5 }}>{d.day}</b>
+                        <b style={{ fontSize: 14 }}>{d.day}</b>
                         <span className="hint">{d.total}건</span>
                         {d.sameDay > 0 && (
                           <span className="hint">· 그날 수업 {d.sameDay}건</span>
                         )}
-                        <span className="hint" style={{ fontSize: 11.5 }}>
+                        <span className="hint" style={{ fontSize: 12.5 }}>
                           · 수업날짜 {d.from} ~ {d.to}
                         </span>
                         <span className="spacer" />

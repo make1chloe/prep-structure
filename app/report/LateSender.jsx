@@ -73,7 +73,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
           {!r.lateSentAt && (
             <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} />
           )}
-          <b style={{ fontSize: 13.5 }}>{r.name}</b>
+          <b style={{ fontSize: 15 }}>{r.name}</b>
           <span className="hint">{r.who}</span>
           {(r.lateReasons || []).map((x) => (
             <span className="tag tag-amber" key={x.key}>{x.label}</span>
@@ -131,7 +131,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
               className="input"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              style={{ width: "100%", height: 160, fontSize: 12.5 }}
+              style={{ width: "100%", height: 160, fontSize: 14 }}
             />
             <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
               {r.lateEdited && (
@@ -195,7 +195,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
       {todo.length > 0 && (
         <>
           <div className="row" style={{ gap: 8, alignItems: "center", marginBottom: 8 }}>
-            <b style={{ fontSize: 14 }}>보낼 것 {todo.length}</b>
+            <b style={{ fontSize: 15 }}>보낼 것 {todo.length}</b>
             {/* 하나씩 누르지 않아도 되게 — 대개는 전부 보낸다 */}
             <label className="row" style={{ gap: 6, alignItems: "center", cursor: "pointer" }}>
               <input
@@ -211,7 +211,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
                   setSel(n);
                 }}
               />
-              <span style={{ fontSize: 12.5, fontWeight: 700 }}>전체</span>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>전체</span>
             </label>
             <span className="spacer" />
             {/* 늦게 갈 것 같아 사유가 잡혔는데 제때 간 학생 — 목록에서 뺀다.
@@ -250,7 +250,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
 
       {sent.length > 0 && (
         <>
-          <b style={{ fontSize: 14, display: "block", margin: "16px 0 8px" }}>
+          <b style={{ fontSize: 15, display: "block", margin: "16px 0 8px" }}>
             보낸 것 {sent.length}
           </b>
           {sent.map((r) => (

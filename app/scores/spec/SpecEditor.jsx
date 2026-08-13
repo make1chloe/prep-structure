@@ -98,7 +98,7 @@ export default function SpecEditor({ base = [], exams = [], examRows = {}, block
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
       <div className="card">
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <b style={{ fontSize: 13.5 }}>무엇을 고치나</b>
+          <b style={{ fontSize: 15 }}>무엇을 고치나</b>
           <select
             className="input input-sm"
             style={{ minWidth: 260 }}

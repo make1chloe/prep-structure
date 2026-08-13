@@ -90,7 +90,7 @@ export function BulkBar({ bulk, label = "항목", children, style = {} }) {
           onChange={bulk.toggleAll}
           disabled={bulk.total === 0}
         />
-        <span style={{ fontSize: 12.5, fontWeight: 700 }}>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>
           보이는 {bulk.total}개 전체
         </span>
       </label>
@@ -102,7 +102,7 @@ export function BulkBar({ bulk, label = "항목", children, style = {} }) {
           <button className="btn btn-ghost btn-sm" onClick={bulk.clear}>선택 해제</button>
         </>
       ) : (
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           왼쪽 칸을 눌러 고르면 {label}을(를) 한 번에 처리할 수 있어요.
         </span>
       )}

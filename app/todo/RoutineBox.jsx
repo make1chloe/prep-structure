@@ -105,7 +105,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                 <span className={`tag ${r.active === false ? "tag-muted" : "tag-lav"}`}>
                   {KINDS.find((k) => k.key === r.repeat_kind)?.label || "매달"}
                 </span>
-                <span style={{ fontSize: 13, flex: 1 }}>
+                <span style={{ fontSize: 14.5, flex: 1 }}>
                   <b>{r.title}</b>{" "}
                   <span className="muted">{describe(r)}</span>
                   {r.active === false && <span className="tag tag-muted" style={{ marginLeft: 4 }}>멈춤</span>}
@@ -164,7 +164,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                       </button>
                     ))}
                   </div>
-                  <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+                  <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
                     {KINDS.find((k) => k.key === draft.repeat_kind)?.hint ||
                       "정한 날짜마다 할일이 생깁니다."}
                   </p>
@@ -216,7 +216,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                     />
                     <span className="hint">일</span>
                     {/* 31 로 적어두면 2월에는 28일이 된다 — 「말일」 을 적는 자연스러운 방법이다 */}
-                    <span className="hint" style={{ fontSize: 11.5 }}>
+                    <span className="hint" style={{ fontSize: 12.5 }}>
                       말일이면 <b>31</b> 로 적으세요 (짧은 달은 그 달 말일로 갑니다)
                     </span>
                   </div>
@@ -241,7 +241,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                       value={draft.book_area}
                       onChange={(e) => setDraft({ ...draft, book_area: e.target.value })}
                     />
-                    <span className="hint" style={{ fontSize: 11.5 }}>비우면 모든 교재</span>
+                    <span className="hint" style={{ fontSize: 12.5 }}>비우면 모든 교재</span>
                   </div>
                 )}
 
@@ -278,7 +278,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                       checked={draft.active !== false}
                       onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
                     />
-                    <span style={{ fontSize: 12.5 }}>쓰는 중</span>
+                    <span style={{ fontSize: 14 }}>쓰는 중</span>
                   </label>
                 </div>
 

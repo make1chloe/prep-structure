@@ -111,10 +111,10 @@ export default function NoticePhotos({ noticeId, photos = [], readOnly = false }
                         padding: "10px 12px", maxWidth: 220,
                       }}
                     >
-                      <b style={{ fontSize: 11 }}>{fileKind(p)}</b>
+                      <b style={{ fontSize: 12 }}>{fileKind(p)}</b>
                       <span style={{
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        fontSize: 12,
+                        fontSize: 13,
                       }}>
                         {name}
                       </span>
@@ -183,7 +183,7 @@ export default function NoticePhotos({ noticeId, photos = [], readOnly = false }
               📷 찍어서 붙이기
             </button>
           </div>
-          <p className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
             PDF · 한글 · 엑셀 · 사진 다 됩니다 (하나에 25MB까지, 여러 개 한 번에).
           </p>
         </>

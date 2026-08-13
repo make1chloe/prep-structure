@@ -340,7 +340,7 @@ export default function HomeworkList({ items = [] }) {
                         {/* 집에서는 못 하는 학습 — 숙제로 낼 때 대신 쓸 것
                             (구두테스트 → 셀프녹음테스트) */}
                         <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 6 }}>
-                          <span className="hint" style={{ fontSize: 12 }}>숙제로 낼 때</span>
+                          <span className="hint" style={{ fontSize: 13 }}>숙제로 낼 때</span>
                           <select
                             className="input input-sm"
                             style={{ minWidth: 170 }}
@@ -374,7 +374,7 @@ export default function HomeworkList({ items = [] }) {
                             checked={!draft.no_timer}
                             onChange={(e) => setDraft({ ...draft, no_timer: !e.target.checked })}
                           />
-                          <span style={{ fontSize: 12 }}>씀</span>
+                          <span style={{ fontSize: 13 }}>씀</span>
                         </label>
                       </td>
                       <td>
@@ -385,7 +385,7 @@ export default function HomeworkList({ items = [] }) {
                             checked={!!draft.in_person}
                             onChange={(e) => setDraft({ ...draft, in_person: e.target.checked })}
                           />
-                          <span style={{ fontSize: 12 }}>직접검사</span>
+                          <span style={{ fontSize: 13 }}>직접검사</span>
                         </label>
                         {/* **단원평가** (0106) — 이 표시가 붙은 항목으로
                             배정하면, 아이가 다음 시간에 와서 맞은 개수만
@@ -397,7 +397,7 @@ export default function HomeworkList({ items = [] }) {
                             checked={!!draft.unit_test}
                             onChange={(e) => setDraft({ ...draft, unit_test: e.target.checked })}
                           />
-                          <span style={{ fontSize: 12 }}>단원평가</span>
+                          <span style={{ fontSize: 13 }}>단원평가</span>
                         </label>
                       </td>
                       <td>
@@ -426,7 +426,7 @@ export default function HomeworkList({ items = [] }) {
                       </td>
                       <td style={{ whiteSpace: "normal", maxWidth: 420 }}>
                         {i.method ? (
-                          <span className="muted" style={{ fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+                          <span className="muted" style={{ fontSize: 14, whiteSpace: "pre-wrap" }}>
                             {i.method}
                           </span>
                         ) : (
@@ -487,7 +487,7 @@ export default function HomeworkList({ items = [] }) {
           </tbody>
         </table>
         {shown.length === 0 && (
-          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 15 }}>
             조건에 맞는 항목이 없어요.
           </p>
         )}

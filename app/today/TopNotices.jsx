@@ -165,18 +165,18 @@ export default function TopNotices({
 
   const preBox = pre.length > 0 && (
     <div className="card" style={{ marginTop: 12, borderColor: "var(--amber)" }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
         수업 전에 볼 것 {pre.length}건
       </h2>
-      <p className="muted" style={{ margin: "0 0 8px", fontSize: 12.5 }}>
+      <p className="muted" style={{ margin: "0 0 8px", fontSize: 14 }}>
         <b>오늘 오는 학생</b>이 남긴 것만 모았습니다. 대시보드까지 안 가도 됩니다.
       </p>
       <div className="stack" style={{ gap: 4 }}>
         {pre.map((p) => (
           <div className="unitrow" key={p.key} style={{ alignItems: "flex-start" }}>
             <span className={`tag ${p.cls}`}>{p.tag}</span>
-            <b style={{ fontSize: 12.5 }}>{p.name}</b>
-            <div style={{ fontSize: 12.5, flex: 1 }}>
+            <b style={{ fontSize: 14 }}>{p.name}</b>
+            <div style={{ fontSize: 14, flex: 1 }}>
               {p.text}
               {/* 학교에서 받은 종이를 찍어 보냈으면 여기 함께 온다 */}
               {(p.photos || []).length > 0 && (
@@ -212,7 +212,7 @@ export default function TopNotices({
         <span style={{ fontWeight: 800 }}>
           {open ? "▾" : "▸"} 공지 (학생용 · 학부모용)
         </span>
-        <span className="muted" style={{ fontSize: 12.5 }}>
+        <span className="muted" style={{ fontSize: 14 }}>
           오늘 {notices.length}건
           {undone.length > 0 && (
             <b style={{ color: "var(--amber)" }}> · 아직 전달 안 한 항목 {undone.length}건</b>
@@ -228,7 +228,7 @@ export default function TopNotices({
           {tasks.length > 0 && (
             <div className="card card-tight" style={{ marginBottom: 12, background: "var(--surface-2)" }}>
               <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-                <b style={{ fontSize: 13 }}>오늘 일정 {tasks.length}건</b>
+                <b style={{ fontSize: 14.5 }}>오늘 일정 {tasks.length}건</b>
                 {pendingTasks.length > 0 && (
                   <button
                     className="btn btn-primary btn-sm"
@@ -243,7 +243,7 @@ export default function TopNotices({
                 {tasks.map((t) => (
                   <div className="unitrow" key={t.id}>
                     {t.time && <span className="hint" style={{ minWidth: 38 }}>{t.time}</span>}
-                    <b style={{ fontSize: 12.5 }}>{t.title}</b>
+                    <b style={{ fontSize: 14 }}>{t.title}</b>
                     {t.category && <span className="tag tag-muted">{t.category}</span>}
                     <span className="spacer" />
                     {t.deliverBody &&
@@ -379,7 +379,7 @@ export default function TopNotices({
                 <div className="card card-tight" key={n.id}>
                   <div className="unitrow">
                     <span className="tag tag-lav">{n.targetLabel}</span>
-                    <span style={{ flex: 1, minWidth: 160, fontSize: 13 }}>
+                    <span style={{ flex: 1, minWidth: 160, fontSize: 14.5 }}>
                       {n.body || n.title}
                     </span>
                     {isMemo(n.kind) && (

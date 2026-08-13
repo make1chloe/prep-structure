@@ -60,7 +60,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
     <div className="card">
       {/* 넘기는 방법은 온 앱이 한 벌이다 (components/MonthNav) */}
       <MonthNav month={month} onChange={setMonth} home={ym}>
-        <span className="hint" style={{ fontSize: 12 }}>
+        <span className="hint" style={{ fontSize: 13 }}>
           {Object.entries(TONE)
             .filter(([k]) => n(k) > 0)
             .map(([k, v]) => `${v.label} ${n(k)}`)
@@ -130,7 +130,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
       {pick && dayItems.length > 0 && (
         <div className="card card-tight" style={{ marginTop: 8 }}>
           <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-            <b style={{ fontSize: 13.5 }}>
+            <b style={{ fontSize: 15 }}>
               {Number(pick.slice(5, 7))}월 {Number(pick.slice(8, 10))}일
             </b>
             <span className="hint">{dayItems.length}개</span>
@@ -141,11 +141,11 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
             {dayItems.map((it, i) => (
               <div className="unitrow" key={`${it.title}-${i}`}>
                 <i className={`cal-dot ${TONE[it.tone]?.cls || ""}`} />
-                <span style={{ fontSize: 13.5, flex: 1 }}>
+                <span style={{ fontSize: 15, flex: 1 }}>
                   {it.title}
                   {it.note && <span className="hint"> · {it.note}</span>}
                 </span>
-                <span className="hint" style={{ fontSize: 11.5 }}>
+                <span className="hint" style={{ fontSize: 12.5 }}>
                   {TONE[it.tone]?.label || ""}
                 </span>
               </div>
@@ -156,7 +156,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
 
       <div className="row" style={{ gap: 10, marginTop: 8, flexWrap: "wrap" }}>
         {openDay && (
-          <span className="hint" style={{ fontSize: 11.5, width: "100%" }}>
+          <span className="hint" style={{ fontSize: 12.5, width: "100%" }}>
             <b>날짜를 누르면</b> 그날 무엇이 있는지 다 보여요.
           </span>
         )}
@@ -165,7 +165,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
           // 늘어놓으면 「내 수업은 왜 안 떴지?」 하고 찾게 된다.
           .filter(([k]) => n(k) > 0)
           .map(([k, v]) => (
-            <span key={k} className="hint" style={{ fontSize: 11.5 }}>
+            <span key={k} className="hint" style={{ fontSize: 12.5 }}>
               <i className={`cal-dot ${v.cls}`} /> {v.label}
             </span>
           ))}

@@ -38,7 +38,7 @@ export default function StepBox({ steps = [], missing = [] }) {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <b style={{ fontSize: 14 }}>하나씩 실행하기</b>
+        <b style={{ fontSize: 15 }}>하나씩 실행하기</b>
         <span className="spacer" />
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(!open)}>
           {open ? "안 들어간 것만" : `전체 ${steps.length}개 보기`}
@@ -56,7 +56,7 @@ export default function StepBox({ steps = [], missing = [] }) {
       {onlyMissing.length > 0 && (
         <div className="card card-tight" style={{ marginBottom: 12, background: "transparent" }}>
           <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 13 }}>안 들어간 것만 한 번에</b>
+            <b style={{ fontSize: 14.5 }}>안 들어간 것만 한 번에</b>
             <span className="tag tag-amber">{onlyMissing.length}개 · {missingLines}줄</span>
             <span className="spacer" />
             <button
@@ -76,7 +76,7 @@ export default function StepBox({ steps = [], missing = [] }) {
       <div className="stack" style={{ gap: 8 }}>
         {show.map((s) => (
           <details key={s.name} className="card card-tight" style={{ background: "transparent" }}>
-            <summary style={{ cursor: "pointer", fontSize: 13 }}>
+            <summary style={{ cursor: "pointer", fontSize: 14.5 }}>
               <span className={`tag ${need.has(s.id) ? "tag-amber" : "tag-mint"}`}>
                 {need.has(s.id) ? "없음" : "OK"}
               </span>{" "}
@@ -97,7 +97,7 @@ export default function StepBox({ steps = [], missing = [] }) {
                 width: "100%",
                 height: 200,
                 fontFamily: "ui-monospace, monospace",
-                fontSize: 11.5,
+                fontSize: 12.5,
               }}
             />
           </details>

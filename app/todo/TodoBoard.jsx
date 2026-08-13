@@ -239,7 +239,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
               <button
                 key={s.id}
                 className={`btn btn-sm ${catId === s.id ? "btn-primary" : "btn-ghost"}`}
-                style={{ padding: "3px 8px", fontSize: 11.5 }}
+                style={{ padding: "3px 8px", fontSize: 12.5 }}
                 onClick={() => setCatId(s.id)}
               >
                 {s.name} {countOf(s.id) > 0 && countOf(s.id)}
@@ -336,7 +336,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         ))}
         <span className="spacer" />
         {view === "kanban" && (
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             끌어서 옮기거나, 카드의 단추를 누르세요.
           </span>
         )}
@@ -390,10 +390,10 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
               setSel(n);
             }}
           />
-          <span style={{ fontSize: 12.5, fontWeight: 700 }}>보이는 {shown.length}개 전체</span>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>보이는 {shown.length}개 전체</span>
         </label>
         {sel.size === 0 && (
-          <span className="hint" style={{ fontSize: 11.5 }}>
+          <span className="hint" style={{ fontSize: 12.5 }}>
             왼쪽 칸을 눌러 고르면 한 번에 처리할 수 있어요.
           </span>
         )}
@@ -435,7 +435,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
 
       <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
         {shown.length === 0 ? (
-          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 15 }}>
             해당하는 할 일이 없어요.
           </p>
         ) : (
@@ -463,7 +463,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                   )}
                   {t.due_time && <span className="hint">{t.due_time.slice(0, 5)}</span>}
                   <b style={{
-                    fontSize: 13.5,
+                    fontSize: 15,
                     textDecoration: t.status === "done" ? "line-through" : "none",
                     opacity: t.status === "done" ? 0.6 : 1,
                   }}>
@@ -523,7 +523,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                         <label
                           key={line}
                           className="row"
-                          style={{ gap: 6, alignItems: "center", cursor: "pointer", fontSize: 13 }}
+                          style={{ gap: 6, alignItems: "center", cursor: "pointer", fontSize: 14.5 }}
                         >
                           <input
                             type="checkbox"

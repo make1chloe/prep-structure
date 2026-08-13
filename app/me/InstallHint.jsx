@@ -50,8 +50,8 @@ export default function InstallHint() {
     <div className="card card-tight" style={{ background: "var(--lav-soft)", borderColor: "transparent" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <b style={{ fontSize: 13.5 }}>앱처럼 쓰기 (선택)</b>
-          <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.6 }}>
+          <b style={{ fontSize: 15 }}>앱처럼 쓰기 (선택)</b>
+          <p style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.6 }}>
             {ios ? (
               <>
                 아래 <b>공유 버튼 ⬆️</b> → <b>홈 화면에 추가</b> 를 누르면 아이콘이 생겨요.

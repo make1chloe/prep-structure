@@ -23,7 +23,7 @@ export default function AddClassForm() {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>반 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>반 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
       <form action={addClass} className="stack" style={{ gap: 8, marginTop: 10 }}>
@@ -121,7 +121,7 @@ export default function AddClassForm() {
               <label className="label">종강일</label>
               <input className="input input-sm" name="ends_on" type="date" />
             </div>
-            <p className="hint" style={{ fontSize: 12, margin: "0 0 6px" }}>
+            <p className="hint" style={{ fontSize: 13, margin: "0 0 6px" }}>
               <b>비워두면 무기한</b>입니다 (정규반). 종강일을 넣으면 그날이 지나서
               반 목록·오늘 수업·수강료에서 자동으로 내려갑니다. 기록은 그대로 남습니다.
             </p>

@@ -48,7 +48,7 @@ export default function CheckQueue({ date, rows = [], items = [] }) {
   return (
     <div className="card" style={{ marginBottom: 12, borderLeft: "3px solid var(--amber, #e0a33e)" }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", marginBottom: 8 }}>
-        <b style={{ fontSize: 14 }}>검사 기다리는 중</b>
+        <b style={{ fontSize: 15 }}>검사 기다리는 중</b>
         <span className="tag tag-amber">{queue.length}건</span>
         <span className="hint" style={{ flex: 1 }}>
           오래 기다린 순입니다. 한 학생이 몰아서 끝냈어도 학생끼리 한 바퀴씩 돌아갑니다.
@@ -58,9 +58,9 @@ export default function CheckQueue({ date, rows = [], items = [] }) {
       <div className="stack" style={{ gap: 4 }}>
         {shown.map((q) => (
           <div className="unitrow" key={`${q.student.id}-${q.id}`}>
-            <b style={{ fontSize: 13.5, minWidth: 62 }}>{q.student.name}</b>
-            <span style={{ fontSize: 12.5, flex: 1 }}>{q.name}</span>
-            <span className="hint" style={{ fontSize: 11.5 }}>{waitingFor(q.since)}</span>
+            <b style={{ fontSize: 15, minWidth: 62 }}>{q.student.name}</b>
+            <span style={{ fontSize: 14, flex: 1 }}>{q.name}</span>
+            <span className="hint" style={{ fontSize: 12.5 }}>{waitingFor(q.since)}</span>
             <span className="markset">
               {[["done", "○"], ["weak", "△"], ["missing", "✕"]].map(([k, sym]) => (
                 <button

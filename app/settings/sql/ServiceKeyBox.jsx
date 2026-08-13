@@ -23,7 +23,7 @@ export default function ServiceKeyBox({ saved = false }) {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>학생 계정 키</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>학생 계정 키</h2>
         <span className={`tag ${saved ? "tag-mint" : "tag-amber"}`}>
           {saved ? "넣어둠" : "아직 없음"}
         </span>
@@ -55,7 +55,7 @@ export default function ServiceKeyBox({ saved = false }) {
 
       {open && (
         <div className="stack" style={{ gap: 8, marginTop: 10 }}>
-          <ol className="hint" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, fontSize: 12.5 }}>
+          <ol className="hint" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, fontSize: 14 }}>
             <li>Supabase 대시보드 → 왼쪽 아래 <b>Project Settings</b></li>
             <li><b>API</b> → Project API keys → <b>service_role</b> 옆 <b>Reveal</b> → 복사</li>
             <li>아래에 붙여넣고 저장</li>
@@ -67,7 +67,7 @@ export default function ServiceKeyBox({ saved = false }) {
             placeholder="service_role 키를 붙여넣으세요"
             onChange={(e) => setKey(e.target.value)}
           />
-          <div className="notice" style={{ fontSize: 12.5 }}>
+          <div className="notice" style={{ fontSize: 14 }}>
             이 키는 <b>무엇이든 할 수 있는 키</b>입니다. 여기 말고 다른 곳
             (메신저·메모·대화창)에는 절대 붙여넣지 마세요. 저장한 뒤에는 화면에
             다시 나오지 않습니다.

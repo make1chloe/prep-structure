@@ -45,7 +45,7 @@ export default function YoutubeKeyBox({ saved = false }) {
   return (
     <div className="card card-tight">
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13 }}>유튜브 키</b>
+        <b style={{ fontSize: 14.5 }}>유튜브 키</b>
         <span className={`tag ${saved ? "tag-mint" : "tag-amber"}`}>
           {saved ? "넣어둠" : "없음"}
         </span>

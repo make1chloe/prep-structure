@@ -17,14 +17,14 @@ export default function MakeupTodo({ rows = [] }) {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <b style={{ fontSize: 14 }}>보강 잡을 것 {rows.length}명</b>
+        <b style={{ fontSize: 15 }}>보강 잡을 것 {rows.length}명</b>
         <span className="hint">결석해서 수업이 한 번 더 필요한 학생입니다</span>
       </div>
       <div className="stack" style={{ gap: 4, marginTop: 8 }}>
         {rows.map((r) => (
           <div className="unitrow" key={r.student_id}>
             <span className="tag tag-sky">보강</span>
-            <span style={{ fontSize: 13, flex: 1 }}>
+            <span style={{ fontSize: 14.5, flex: 1 }}>
               <b>{r.name}</b>{" "}
               <span className="muted">
                 {datesLabel(r.dates)} 결석

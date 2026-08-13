@@ -64,7 +64,7 @@ export default function ScheduleBox({ studentId, name }) {
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{name} 학생 일정</b>
+        <b style={{ fontSize: 15 }}>{name} 학생 일정</b>
         {rows && <span className="tag tag-sky">{rows.length}</span>}
         <span className="spacer" />
         <button className="btn btn-primary btn-sm" onClick={() => setOpen(!open)}>
@@ -77,7 +77,7 @@ export default function ScheduleBox({ studentId, name }) {
         같이 보이고, 구글 캘린더 구독에도 나갑니다 — 따로 적으실 필요 없어요.
       </p>
 
-      {err && <div className="notice" style={{ fontSize: 12.5 }}>{err}</div>}
+      {err && <div className="notice" style={{ fontSize: 14 }}>{err}</div>}
 
       {open && (
         <div className="card card-tight stack" style={{ gap: 8 }}>
@@ -130,7 +130,7 @@ export default function ScheduleBox({ studentId, name }) {
               이름을 둘로 두면 「그 둘이 뭐가 다르지」 를 매번 떠올려야 한다 */}
           <label className="row" style={{ gap: 6, alignItems: "center", cursor: "pointer" }}>
             <input type="checkbox" checked={priv} onChange={(e) => setPriv(e.target.checked)} />
-            <span style={{ fontSize: 13 }}>
+            <span style={{ fontSize: 14.5 }}>
               비공개 <span className="hint">(선생님만 봅니다 — 아이·어머니 달력에 안 뜹니다)</span>
             </span>
           </label>
@@ -150,7 +150,7 @@ export default function ScheduleBox({ studentId, name }) {
           {rows.map((t) => (
             <div className="unitrow" key={t.id}>
               <span className="hint" style={{ minWidth: 76 }}>{longLabel(t.due_on)}</span>
-              <span style={{ fontSize: 13, flex: 1 }}>
+              <span style={{ fontSize: 14.5, flex: 1 }}>
                 {t.title}
                 {t.end_on && t.end_on !== t.due_on && (
                   <span className="hint"> ~ {longLabel(t.end_on)}</span>

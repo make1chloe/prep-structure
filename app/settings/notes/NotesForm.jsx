@@ -23,7 +23,7 @@ function Spot({ spot, value, onSaved }) {
   return (
     <div className="card card-tight stack" style={{ gap: 6 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{spot.label}</b>
+        <b style={{ fontSize: 15 }}>{spot.label}</b>
         <span className="hint">{spot.where}</span>
         <span className="spacer" />
         {value ? (
@@ -39,7 +39,7 @@ function Spot({ spot, value, onSaved }) {
         value={text}
         placeholder={spot.placeholder || "여기에 적으시면 이 자리에 그대로 나옵니다"}
         onChange={(e) => { setText(e.target.value); setSaved(false); }}
-        style={{ fontSize: 13.5, lineHeight: 1.6 }}
+        style={{ fontSize: 15, lineHeight: 1.6 }}
       />
 
       <div className="row" style={{ gap: 6, alignItems: "center" }}>
@@ -75,7 +75,7 @@ function Spot({ spot, value, onSaved }) {
             비우기
           </button>
         )}
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           비우면 원래 문구가 나옵니다
         </span>
       </div>

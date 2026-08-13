@@ -43,7 +43,7 @@ export default async function MenuSection({ params }) {
             할 말이 없는데 자리만 만들어 두면 그 자리가 눈에 걸린다 */}
         {note && (
           <div className="card" style={{ marginBottom: 12 }}>
-            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{note}</p>
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{note}</p>
           </div>
         )}
         <div className="menugrid">

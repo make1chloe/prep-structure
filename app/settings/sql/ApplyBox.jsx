@@ -47,7 +47,7 @@ export default function ApplyBox({ saved = false, projectRef = "", savedRef = ""
   return (
     <div className="card" style={{ marginBottom: 14 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>앱이 대신 실행하기</b>
+        <b style={{ fontSize: 15 }}>앱이 대신 실행하기</b>
         {saved ? (
           <span className="tag tag-mint">토큰 저장됨</span>
         ) : (
@@ -72,7 +72,7 @@ export default function ApplyBox({ saved = false, projectRef = "", savedRef = ""
 
       {open && (
         <div className="stack" style={{ gap: 8, marginTop: 12 }}>
-          <div className="notice" style={{ fontSize: 12.5, lineHeight: 1.9 }}>
+          <div className="notice" style={{ fontSize: 14, lineHeight: 1.9 }}>
             <b>토큰 만드는 법</b>
             <br />
             ① <a href="https://supabase.com/dashboard/account/tokens" target="_blank" rel="noreferrer">
@@ -98,7 +98,7 @@ export default function ApplyBox({ saved = false, projectRef = "", savedRef = ""
               onChange={(e) => setRef(e.target.value.trim())}
               placeholder={projectRef}
             />
-            <p className="hint" style={{ margin: "3px 0 0", fontSize: 11.5 }}>
+            <p className="hint" style={{ margin: "3px 0 0", fontSize: 12.5 }}>
               Supabase 주소창의 <code>project/</code> 뒤 글자입니다. 앱 주소에서 뽑은 값은{" "}
               <b>{projectRef}</b> 입니다.
             </p>
@@ -139,9 +139,9 @@ export default function ApplyBox({ saved = false, projectRef = "", savedRef = ""
           {log.map((r) => (
             <div className="unitrow" key={r.name}>
               <span className={`tag ${r.ok ? "tag-mint" : "tag-red"}`}>{r.ok ? "됨" : "실패"}</span>
-              <span style={{ fontSize: 12.5 }}>{r.name}</span>
+              <span style={{ fontSize: 14 }}>{r.name}</span>
               {!r.ok && (
-                <span className="hint" style={{ flex: 1, fontSize: 11, textAlign: "right" }}>
+                <span className="hint" style={{ flex: 1, fontSize: 12, textAlign: "right" }}>
                   {r.detail}
                 </span>
               )}

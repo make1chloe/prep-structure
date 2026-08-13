@@ -28,7 +28,7 @@ export default function NeisKeyBox() {
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>나이스 (학사일정)</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>나이스 (학사일정)</h2>
         <span className={`tag ${ready ? "tag-mint" : "tag-amber"}`}>
           {ready === null ? "…" : ready ? "키 넣어둠" : "키 없음"}
         </span>
@@ -51,7 +51,7 @@ export default function NeisKeyBox() {
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
-          <div className="notice" style={{ fontSize: 12.5 }}>
+          <div className="notice" style={{ fontSize: 14 }}>
             <b>open.neis.go.kr</b> 에서 회원가입 → 인증키 신청 → 받은 키를 여기에만 넣으세요.
             무료이고, 키는 저장한 뒤 화면에 다시 나오지 않습니다.
             메신저·메모·대화창에는 붙여넣지 마세요.

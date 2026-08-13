@@ -41,8 +41,8 @@ export default function WordTestBox({ student, defaultPass = 90 }) {
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13 }}>{student.name} 단어시험</b>
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <b style={{ fontSize: 14.5 }}>{student.name} 단어시험</b>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           객관식·주관식 배분은 교재마다 다르므로 <b>진도 화면</b>에서 정합니다.
         </span>
       </div>

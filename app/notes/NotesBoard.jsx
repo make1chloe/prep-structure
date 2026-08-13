@@ -117,11 +117,11 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
                   >
                     {s.name}
                     {s.status !== "enrolled" && (
-                      <span className="tag tag-muted" style={{ marginLeft: 4, fontSize: 10.5 }}>
+                      <span className="tag tag-muted" style={{ marginLeft: 4, fontSize: 12 }}>
                         {s.status === "withdrawn" ? "퇴원" : s.status === "paused" ? "휴원" : "예비"}
                       </span>
                     )}
-                    <span className="hint" style={{ marginLeft: 6, fontSize: 11.5 }}>
+                    <span className="hint" style={{ marginLeft: 6, fontSize: 12.5 }}>
                       {[s.school, s.grade].filter(Boolean).join(" ")}
                       {/* **마지막이 언제였나** — 「누구를 오래 안 봤지」 가 이 화면을
                           여는 이유 중 하나다. 건수만으로는 그걸 알 수 없다 */}
@@ -141,11 +141,11 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
         ) : (
           <div className="stack" style={{ gap: 6 }}>
             <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 14 }}>
+              <b style={{ fontSize: 15 }}>
                 {kw ? `「${q.trim()}」 이 들어간 상담 ${flow.length}건` : `최근 상담 ${flow.length}건`}
               </b>
               <span className="spacer" />
-              <span className="hint" style={{ fontSize: 11.5 }}>
+              <span className="hint" style={{ fontSize: 12.5 }}>
                 왼쪽에서 학생을 고르면 그 학생 것만 죽 보입니다
               </span>
             </div>
@@ -153,9 +153,9 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
               <div className="card card-tight" key={n.id}>
                 <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
                   <span className="tag tag-sky">{KIND[n.kind] || n.kind}</span>
-                  <b style={{ fontSize: 13 }}>{nameOf(n.student_id)}</b>
-                  {n.title && <span className="hint" style={{ fontSize: 11.5 }}>{n.title}</span>}
-                  <span className="hint" style={{ fontSize: 12 }}>
+                  <b style={{ fontSize: 14.5 }}>{nameOf(n.student_id)}</b>
+                  {n.title && <span className="hint" style={{ fontSize: 12.5 }}>{n.title}</span>}
+                  <span className="hint" style={{ fontSize: 13 }}>
                     {[n.date, n.with_whom, n.minutes ? `${n.minutes}분` : ""]
                       .filter(Boolean)
                       .join(" · ")}
@@ -169,7 +169,7 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
                   </button>
                 </div>
                 {textOf(n) && (
-                  <p style={{ margin: "6px 0 0", fontSize: 12.5, whiteSpace: "pre-wrap" }}>
+                  <p style={{ margin: "6px 0 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
                     {textOf(n).length > 260 ? `${textOf(n).slice(0, 260)}…` : textOf(n)}
                   </p>
                 )}

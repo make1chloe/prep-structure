@@ -27,7 +27,7 @@ export default function HelpBox({ on = false }) {
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>화면 설명 문구</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>화면 설명 문구</h2>
         <span className={`tag ${now ? "tag-mint" : "tag-muted"}`}>{now ? "보임" : "감춤"}</span>
         <span className="spacer" />
         <button className="btn btn-sm" disabled={pending} onClick={flip}>

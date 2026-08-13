@@ -126,13 +126,13 @@ export default function HomepageBox({ schools = [], from, to }) {
   return (
     <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13 }}>학교 홈페이지에서 가져오기</b>
+        <b style={{ fontSize: 14.5 }}>학교 홈페이지에서 가져오기</b>
         <span className="spacer" />
         <button className="btn btn-ghost btn-sm" onClick={() => { setOpen(false); setRes(null); }}>
           닫기
         </button>
       </div>
-      <p className="hint" style={{ margin: "6px 0 8px", fontSize: 11.5, lineHeight: 1.7 }}>
+      <p className="hint" style={{ margin: "6px 0 8px", fontSize: 12.5, lineHeight: 1.7 }}>
         학교는 일정을 <b>나이스와 홈페이지 두 군데에 따로</b> 적습니다. 그래서 시험 날짜가
         홈페이지엔 있는데 나이스엔 없는 일이 생깁니다. 여기서 <b>나이스에 없는 것</b>을 찾아
         회차로 만듭니다. <b>읽은 것을 보여드리고, 고르신 것만 넣습니다.</b>
@@ -185,7 +185,7 @@ export default function HomepageBox({ schools = [], from, to }) {
               style={{ resize: "vertical", lineHeight: 1.6 }}
             />
           </div>
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.7 }}>
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.7 }}>
             {/* 원장님, 2026-08-11 — 「이 방식은 오류가 많을 거 같음」 (맞는 말입니다) */}
             학교 홈페이지에서 <b>2학기를 눌러 화면을 띄운 뒤</b>, 일정 표를 드래그해
             복사(Ctrl+C)하고 여기에 붙여넣으세요(Ctrl+V). <b>보이는 것이 그대로
@@ -224,7 +224,7 @@ export default function HomepageBox({ schools = [], from, to }) {
               {pending ? "읽는 중…" : "읽어보기"}
             </button>
           </div>
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5, lineHeight: 1.7 }}>
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.7 }}>
             <b>주소로 읽는 것은 잘 안 될 수 있습니다.</b> 학기마다 주소가 다르거나,
             단추가 자바스크립트거나, 우리 서버가 그 학교를 못 부르면 빈 화면이 됩니다.
             안 되면 <b>붙여넣기</b>로 하세요 — 그건 늘 됩니다.
@@ -240,7 +240,7 @@ export default function HomepageBox({ schools = [], from, to }) {
       {res && (
         <div style={{ marginTop: 10 }}>
           <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 12.5 }}>{shortName(res.school)} — 읽은 것 {res.rows.length}줄</b>
+            <b style={{ fontSize: 14 }}>{shortName(res.school)} — 읽은 것 {res.rows.length}줄</b>
             {/**
               * **「비교 안 함」 을 「다 있습니다」 로 보이면 안 된다.** 나이스를
               * 못 물어봤을 때도 초록 딱지가 떠서, 안 물어본 것이 「다 있다」 로
@@ -260,7 +260,7 @@ export default function HomepageBox({ schools = [], from, to }) {
             * 「2학기 화면을 못 읽은 것」 은 다르다 — 이것이 없으면 구별할 수 없다.
             */}
           {res.read?.length > 0 && (
-            <div className="hint" style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.7 }}>
+            <div className="hint" style={{ marginTop: 6, fontSize: 12.5, lineHeight: 1.7 }}>
               읽은 화면 {res.read.length}개 —{" "}
               {res.read.map((p, i) => (
                 <span key={i}>
@@ -278,13 +278,13 @@ export default function HomepageBox({ schools = [], from, to }) {
 
           {/* 자바스크립트 단추는 서버가 따라갈 수 없다 — 숨기지 않고 말씀드린다 */}
           {res.blocked?.length > 0 && (
-            <p className="hint" style={{ marginTop: 4, fontSize: 11.5, color: "var(--amber)" }}>
+            <p className="hint" style={{ marginTop: 4, fontSize: 12.5, color: "var(--amber)" }}>
               따라갈 수 없는 단추 {res.blocked.join(" · ")} — 그 화면을 직접 띄우신 뒤
               <b> 주소를 한 줄 더</b> 넣어주세요.
             </p>
           )}
           {res.truncated && (
-            <p className="hint" style={{ marginTop: 4, fontSize: 11.5, color: "var(--amber)" }}>
+            <p className="hint" style={{ marginTop: 4, fontSize: 12.5, color: "var(--amber)" }}>
               화면이 너무 많아 8개까지만 읽었습니다.
             </p>
           )}
@@ -360,7 +360,7 @@ export default function HomepageBox({ schools = [], from, to }) {
 
               {/* **못 읽은 줄은 숨기지 않는다** — 「없다」 와 「못 읽었다」 는 다르다 */}
               {res.unread?.length > 0 && (
-                <p className="hint" style={{ marginTop: 6, fontSize: 11.5, color: "var(--amber)" }}>
+                <p className="hint" style={{ marginTop: 6, fontSize: 12.5, color: "var(--amber)" }}>
                   날짜는 있는데 이름을 못 읽은 줄 {res.unread.length}개 —{" "}
                   {res.unread.slice(0, 4).join(" · ")}
                 </p>
@@ -374,7 +374,7 @@ export default function HomepageBox({ schools = [], from, to }) {
               >
                 {pending ? "넣는 중…" : `고른 ${pick.size}개를 시험 회차로 넣기`}
               </button>
-              <p className="hint" style={{ marginTop: 6, fontSize: 11.5 }}>
+              <p className="hint" style={{ marginTop: 6, fontSize: 12.5 }}>
                 여기서 넣은 회차는 <b>학사일정 받아오기로 지워지지 않습니다</b> —
                 나이스에 없는 일정이라서요.
               </p>

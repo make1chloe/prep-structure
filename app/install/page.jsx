@@ -33,7 +33,7 @@ export default function InstallPage() {
         {APPS.map((a) => (
           <a className="card" key={a.key} href={`/install/${a.key}`} style={{ textDecoration: "none", display: "block" }}>
             <div className="row" style={{ alignItems: "center", gap: 8 }}>
-              <b style={{ fontSize: 14 }}>{a.name}</b>
+              <b style={{ fontSize: 15 }}>{a.name}</b>
               <span className="hint">{a.desc}</span>
               <span className="spacer" />
               <span className="btn btn-ghost btn-sm">담으러 가기 ›</span>
@@ -43,7 +43,7 @@ export default function InstallPage() {
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
-        <b style={{ fontSize: 14 }}>계정을 따로 로그인해서 쓸 수 있나요</b>
+        <b style={{ fontSize: 15 }}>계정을 따로 로그인해서 쓸 수 있나요</b>
         <p className="hint" style={{ margin: "6px 0 0" }}>
           <b>폰에 따라 다릅니다.</b> 셋 다 같은 주소의 앱이라, 로그인 정보를
           나눠 쓰는 폰에서는 <b>한 곳에서 로그인하면 나머지도 같이 바뀝니다.</b>

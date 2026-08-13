@@ -205,7 +205,7 @@ export default function TextbookList({
 
   if (textbooks.length === 0) {
     return (
-      <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+      <p className="muted" style={{ padding: 16, margin: 0, fontSize: 15 }}>
         아직 교재가 없습니다. 위에서 추가하거나 엑셀로 올려보세요.
       </p>
     );
@@ -281,7 +281,7 @@ export default function TextbookList({
         }}
       >
         {label}
-        <span className="hint" style={{ marginLeft: 3, fontSize: 10 }}>
+        <span className="hint" style={{ marginLeft: 3, fontSize: 12 }}>
           {on ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
         </span>
       </button>
@@ -309,7 +309,7 @@ export default function TextbookList({
           >
             {folded ? "▾" : "▴"}
           </button>
-          <b style={{ fontSize: 14 }}>{selected.name}</b>
+          <b style={{ fontSize: 15 }}>{selected.name}</b>
           <span className="hint">
             {[selected.area, `단원 ${unitCount[selected.id] || 0}`, `학생 ${(byBook[selected.id] || []).length}`]
               .filter(Boolean)
@@ -568,7 +568,7 @@ export default function TextbookList({
             </tbody>
           </table>
           {shown.length === 0 && (
-            <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+            <p className="muted" style={{ padding: 16, margin: 0, fontSize: 15 }}>
               조건에 맞는 교재가 없어요.
               {studentFilter && " 이 학생에게 배정된 교재가 없습니다."}
             </p>

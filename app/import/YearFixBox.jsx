@@ -35,7 +35,7 @@ export default function YearFixBox() {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>연도 다시 맞추기</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>연도 다시 맞추기</h2>
         <span className="hint" style={{ flex: 1, minWidth: 240 }}>
           줄마다 <b>따져서</b> 연도를 정합니다. 범위를 찍어 통째로 밀지 않아요.
         </span>
@@ -79,7 +79,7 @@ export default function YearFixBox() {
           {res.tables.map((t) => (
             <div className="card card-tight" key={t.table} style={{ padding: "10px 12px" }}>
               <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <b style={{ fontSize: 12.5 }}>{t.label}</b>
+                <b style={{ fontSize: 14 }}>{t.label}</b>
                 <span className="hint">{t.total}건</span>
                 <span className="tag tag-mint">그대로 {t.keep}</span>
                 {t.fix.length > 0 && <span className="tag tag-amber">옮길 것 {t.fix.length}</span>}
@@ -110,49 +110,49 @@ export default function YearFixBox() {
                 <div className="stack" style={{ gap: 6, marginTop: 8 }}>
                   {t.fix.length > 0 && (
                     <div>
-                      <b style={{ fontSize: 12 }}>옮길 것 — 후보가 하나로 좁혀졌습니다</b>
+                      <b style={{ fontSize: 13 }}>옮길 것 — 후보가 하나로 좁혀졌습니다</b>
                       <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                         {t.fix.slice(0, 40).map((x) => (
-                          <div className="hint" key={x.id} style={{ fontSize: 11.5 }}>
+                          <div className="hint" key={x.id} style={{ fontSize: 12.5 }}>
                             {x.name} · <b>{x.date}</b> → <b>{x.to}</b>
                           </div>
                         ))}
                         {t.fix.length > 40 && (
-                          <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {t.fix.length - 40}건</span>
+                          <span className="hint" style={{ fontSize: 12 }}>… 그 밖 {t.fix.length - 40}건</span>
                         )}
                       </div>
                     </div>
                   )}
                   {t.ask.length > 0 && (
                     <div>
-                      <b style={{ fontSize: 12 }}>고르셔야 하는 것 — 후보가 둘 이상 남았습니다</b>
+                      <b style={{ fontSize: 13 }}>고르셔야 하는 것 — 후보가 둘 이상 남았습니다</b>
                       <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                         {t.ask.slice(0, 20).map((x) => (
-                          <div className="hint" key={x.id} style={{ fontSize: 11.5 }}>
+                          <div className="hint" key={x.id} style={{ fontSize: 12.5 }}>
                             {x.name} · {x.date} → {x.options.join(" 또는 ")}
                           </div>
                         ))}
                         {t.ask.length > 20 && (
-                          <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {t.ask.length - 20}건</span>
+                          <span className="hint" style={{ fontSize: 12 }}>… 그 밖 {t.ask.length - 20}건</span>
                         )}
                       </div>
                     </div>
                   )}
                   {t.none.length > 0 && (
                     <div>
-                      <b style={{ fontSize: 12 }}>알 수 없는 것 — 어느 해로도 안 맞습니다</b>
-                      <p className="hint" style={{ margin: "2px 0 0", fontSize: 11.5 }}>
+                      <b style={{ fontSize: 13 }}>알 수 없는 것 — 어느 해로도 안 맞습니다</b>
+                      <p className="hint" style={{ margin: "2px 0 0", fontSize: 12.5 }}>
                         그때는 반 요일이 달랐거나(반이 바뀌었거나), 보강·특강처럼
                         정규 요일이 아닌 날일 수 있어요. 손대지 않습니다.
                       </p>
                       <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                         {t.none.slice(0, 10).map((x) => (
-                          <div className="hint" key={x.id} style={{ fontSize: 11.5 }}>
+                          <div className="hint" key={x.id} style={{ fontSize: 12.5 }}>
                             {x.name} · {x.date} — {x.why[0]}
                           </div>
                         ))}
                         {t.none.length > 10 && (
-                          <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {t.none.length - 10}건</span>
+                          <span className="hint" style={{ fontSize: 12 }}>… 그 밖 {t.none.length - 10}건</span>
                         )}
                       </div>
                     </div>
@@ -161,7 +161,7 @@ export default function YearFixBox() {
               )}
 
               {t.shaky > 0 && (
-                <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+                <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
                   그대로 둔 {t.keep}건 중 {t.shaky}건은 다른 해도 가능하지만,
                   <b> 지금 연도도 후보 안에 있어서 건드리지 않았습니다.</b>
                 </p>

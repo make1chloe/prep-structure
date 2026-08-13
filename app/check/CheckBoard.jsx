@@ -172,7 +172,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
         />
       ) : shown.length === 0 ? (
         <div className="card" style={{ marginTop: 12 }}>
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             {totalLeft === 0 && totalUnseen === 0
               ? "검사할 것이 없어요 👏"
               : "조건에 맞는 학생이 없어요."}
@@ -192,7 +192,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                   onClick={() => setOpen((o) => ({ ...o, [r.student.id]: !isOpen }))}
                 >
                   <span style={{ fontWeight: 700 }}>{r.student.name}</span>
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <span className="muted" style={{ fontSize: 13 }}>
                     {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
                   </span>
                   {r.klass && <span className="tag tag-muted">{r.klass.name}</span>}
@@ -212,7 +212,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                 {isOpen && (
                   <div className="stuPanel">
                     {!r.hasReport && (
-                      <div className="notice" style={{ fontSize: 12.5, marginBottom: 8 }}>
+                      <div className="notice" style={{ fontSize: 14, marginBottom: 8 }}>
                         오늘 기록이 아직 없어요. <b>오늘 수업</b> 에서 출결을 먼저 찍어야 검사가 저장됩니다.
                       </div>
                     )}
@@ -236,8 +236,8 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                               <span className={`tag ${s.checked_at ? "tag-muted" : "tag-amber"}`}>
                                 {KIND[s.kind] || "사진"}
                               </span>
-                              <b style={{ fontSize: 12.5 }}>{nameOf(s.homework_item_id)}</b>
-                              <span className="hint" style={{ fontSize: 11.5 }}>
+                              <b style={{ fontSize: 14 }}>{nameOf(s.homework_item_id)}</b>
+                              <span className="hint" style={{ fontSize: 12.5 }}>
                                 {s.kind === "audio" && s.seconds ? `${s.seconds}초 · ` : ""}
                                 {new Date(s.created_at).toLocaleString("ko-KR", {
                                   timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
@@ -246,7 +246,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                               </span>
                               <span className="spacer" />
                               {s.kind !== "checklist" && !s.path && (
-                                <span className="hint" style={{ fontSize: 11.5 }}>보관 기간 지남</span>
+                                <span className="hint" style={{ fontSize: 12.5 }}>보관 기간 지남</span>
                               )}
                               {s.kind !== "checklist" && s.path && (
                                 <button className="btn btn-sm" disabled={pending} onClick={() => show(s)}>
@@ -265,7 +265,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                             {s.kind === "checklist" && (
                               <div className="stack" style={{ gap: 2, paddingLeft: 8 }}>
                                 {parseList(s.body).map((x, i) => (
-                                  <span key={i} className="hint" style={{ fontSize: 12.5 }}>
+                                  <span key={i} className="hint" style={{ fontSize: 14 }}>
                                     {x.done ? "☑" : "☐"} {x.text}
                                   </span>
                                 ))}
@@ -293,7 +293,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                     ) : (
                       <div className="stack" style={{ gap: 6 }}>
                         {r.assignedOn && (
-                          <span className="hint" style={{ fontSize: 11.5 }}>
+                          <span className="hint" style={{ fontSize: 12.5 }}>
                             {r.assignedOn.slice(5).replace("-", "/")} 부터 아직 안 본 숙제입니다
                           </span>
                         )}
@@ -306,15 +306,15 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                           return (
                             <div className="stack" key={c.id} style={{ gap: 3 }}>
                               <div className="unitrow">
-                                <b style={{ fontSize: 13, minWidth: 110 }}>{nameOf(c.id)}</b>
+                                <b style={{ fontSize: 14.5, minWidth: 110 }}>{nameOf(c.id)}</b>
                                 {/* 오래 밀린 것은 눈에 걸려야 한다 — 시험 기간에 넘어간 숙제가 여기 있다 */}
                                 {c.on && c.on !== r.assignedOn && (
-                                  <span className="tag tag-muted" style={{ fontSize: 10.5 }}>
+                                  <span className="tag tag-muted" style={{ fontSize: 12 }}>
                                     {c.on.slice(5).replace("-", "/")}
                                   </span>
                                 )}
                                 {c.range && (
-                                  <span className="hint" style={{ fontSize: 11.5, flex: 1 }}>{c.range}</span>
+                                  <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>{c.range}</span>
                                 )}
                                 {r.doneAt[c.id] && (
                                   <span className="tag tag-sky" title="학생이 다 했다고 눌렀습니다">
@@ -363,7 +363,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                                   {mine.map((s) => (
                                     <div key={s.id} className="stack" style={{ gap: 4 }}>
                                       <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                                        <span className="tag tag-sky" style={{ fontSize: 10.5 }}>
+                                        <span className="tag tag-sky" style={{ fontSize: 12 }}>
                                           {KIND[s.kind] || "사진"}
                                         </span>
                                         {s.path ? (
@@ -376,7 +376,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                                             {url[s.id] ? "닫기" : s.kind === "audio" ? "들어보기" : "보기"}
                                           </button>
                                         ) : (
-                                          <span className="hint" style={{ fontSize: 11 }}>보관 기간 지남</span>
+                                          <span className="hint" style={{ fontSize: 12 }}>보관 기간 지남</span>
                                         )}
                                       </div>
                                       {url[s.id] && s.kind === "audio" && (
@@ -426,7 +426,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                           >
                             안 낸 것 {none.length}개 미제출로
                           </button>
-                          <span className="hint" style={{ fontSize: 11.5 }}>
+                          <span className="hint" style={{ fontSize: 12.5 }}>
                             직접검사 숙제는 여기 안 들어갑니다
                           </span>
                         </div>
@@ -462,7 +462,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                       >
                         다음 숙제 자동배정
                       </button>
-                      <span className="hint" style={{ fontSize: 11.5 }}>
+                      <span className="hint" style={{ fontSize: 12.5 }}>
                         교재 루틴의 다음 차례가 나갑니다
                       </span>
                     </div>
@@ -479,7 +479,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
         <Link className="btn btn-primary" href={`/today?d=${date}`}>
           오늘 수업으로
         </Link>
-        <span className="hint" style={{ fontSize: 12 }}>
+        <span className="hint" style={{ fontSize: 13 }}>
           출결 · 단어시험 · 공지는 오늘 수업 화면에서 합니다.
         </span>
       </div>
@@ -541,7 +541,7 @@ function ItemMode({
 
       {mine.length === 0 || !item ? (
         <div className="card" style={{ marginTop: 12 }}>
-          <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             {mine.length === 0
               ? "이 반에 검사할 학생이 없어요."
               : "이 반에 배정된 숙제가 없어요. 먼저 숙제를 배정해주세요."}
@@ -554,9 +554,9 @@ function ItemMode({
             const cur = r.marks[item] || null;
             return (
               <div className="unitrow" key={r.student.id} style={{ padding: "9px 14px" }}>
-                <b style={{ fontSize: 14, minWidth: 76 }}>{r.student.name}</b>
+                <b style={{ fontSize: 15, minWidth: 76 }}>{r.student.name}</b>
                 {c?.range && (
-                  <span className="hint" style={{ fontSize: 11.5 }}>{c.range}</span>
+                  <span className="hint" style={{ fontSize: 12.5 }}>{c.range}</span>
                 )}
                 {c && r.doneAt[item] && <span className="tag tag-sky">학생 완료</span>}
                 {c?.inPerson && <span className="tag tag-lav">직접검사</span>}
@@ -564,9 +564,9 @@ function ItemMode({
                 <span className="spacer" />
                 {!c ? (
                   // 그 반이어도 이 숙제를 안 받은 학생이 있다. 빈칸으로 두지 않고 적어준다
-                  <span className="hint" style={{ fontSize: 11.5 }}>배정 안 됨</span>
+                  <span className="hint" style={{ fontSize: 12.5 }}>배정 안 됨</span>
                 ) : !r.hasReport ? (
-                  <span className="hint" style={{ fontSize: 11.5 }}>출결 먼저</span>
+                  <span className="hint" style={{ fontSize: 12.5 }}>출결 먼저</span>
                 ) : (
                   <span className="markset">
                     {MARK.map((m) => (
@@ -588,7 +588,7 @@ function ItemMode({
         </div>
       )}
 
-      <p className="hint" style={{ marginTop: 8, fontSize: 12 }}>
+      <p className="hint" style={{ marginTop: 8, fontSize: 13 }}>
         클래스카드를 옆 탭에 띄워놓고 위에서 아래로 훑으며 찍으시면 됩니다.
         찍은 것은 <b>학생별 화면과 리포트에 그대로</b> 들어갑니다.
       </p>

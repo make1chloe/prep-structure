@@ -47,7 +47,7 @@ export default function DupBooks({ groups = [] }) {
           alignItems: "center", gap: 8, width: "100%",
         }}
       >
-        <b style={{ fontSize: 14 }}>같은 교재로 보이는 것</b>
+        <b style={{ fontSize: 15 }}>같은 교재로 보이는 것</b>
         <span className="tag tag-amber">{groups.length}묶음</span>
         <span className="spacer" />
         <span className="hint">{open ? "접기" : "펼쳐서 합치기"}</span>
@@ -78,7 +78,7 @@ export default function DupBooks({ groups = [] }) {
                           checked={keepId === b.id}
                           onChange={() => setKeep({ ...keep, [g.key]: b.id })}
                         />
-                        <b style={{ fontSize: 12.5 }}>{b.name}</b>
+                        <b style={{ fontSize: 14 }}>{b.name}</b>
                         {b.area && <span className="tag tag-muted">{b.area}</span>}
                         <span className="hint">학생 {b.students}명 · 단원 {b.units}개</span>
                         {keepId === b.id && <span className="tag tag-mint">이걸 남김</span>}

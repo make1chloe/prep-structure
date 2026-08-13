@@ -55,7 +55,7 @@ export default function BookStudents({ textbookId, bookName, students = [], pick
         {/* **누가 쓰는지는 펴지 않아도 보여야 한다** — 이름이 안 보이면
             숫자만 보고 「누구지」 하며 한 번 더 누르게 된다 */}
         {initial.length > 0 && (
-          <span className="muted" style={{ fontSize: 12.5 }}>
+          <span className="muted" style={{ fontSize: 14 }}>
             {students
               .filter((s) => initial.includes(s.id))
               .map((s) => s.name)
@@ -69,7 +69,7 @@ export default function BookStudents({ textbookId, bookName, students = [], pick
   return (
     <div className="card card-tight" style={{ width: "100%", marginBottom: 10 }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <b style={{ fontSize: 13 }}>
+        <b style={{ fontSize: 14.5 }}>
           「{bookName}」 를 쓰는 학생 {picked.size}명
         </b>
         <div className="row" style={{ gap: 4 }}>

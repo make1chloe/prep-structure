@@ -98,7 +98,7 @@ export default function ExcelUpload() {
   return (
     <div className="card" style={{ marginTop: 14 }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>엑셀로 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>엑셀로 추가</h2>
         <button
           className="btn btn-ghost"
           onClick={() => { reset(); setOpen(false); }}
@@ -108,7 +108,7 @@ export default function ExcelUpload() {
         </button>
       </div>
 
-      <p className="muted" style={{ margin: "8px 0 14px", fontSize: 13 }}>
+      <p className="muted" style={{ margin: "8px 0 14px", fontSize: 14.5 }}>
         양식을 받아 채운 뒤 파일을 올리면 한 번에 등록돼요. 로그인 아이디도 자동
         생성됩니다.
       </p>
@@ -131,7 +131,7 @@ export default function ExcelUpload() {
       {parsed && (
         <div style={{ marginTop: 10 }}>
           <div className="row" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
               미리보기{" "}
               <span className="muted" style={{ fontWeight: 600 }}>
                 {parsed.rows.length}명

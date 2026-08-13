@@ -26,7 +26,7 @@ export default function YearAuditBox() {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>연도 점검</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>연도 점검</h2>
         <span className="hint" style={{ flex: 1, minWidth: 240 }}>
           이미 들어간 자료에 <b>24 · 25 · 26년이 섞이지 않았는지</b> 훑어봅니다.
           아무것도 바꾸지 않아요.
@@ -48,7 +48,7 @@ export default function YearAuditBox() {
       {res && !res.error && (
         <div className="stack" style={{ gap: 8, marginTop: 12 }}>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 13 }}>전체 연도별</b>
+            <b style={{ fontSize: 14.5 }}>전체 연도별</b>
             {Object.entries(res.sum.years).sort().map(([y, n]) => (
               <span className="tag tag-muted" key={y}>{y}년 {n}건</span>
             ))}
@@ -64,17 +64,17 @@ export default function YearAuditBox() {
           {res.audits.map((a) => (
             <div className="card card-tight" key={a.label} style={{ padding: "10px 12px" }}>
               <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-                <b style={{ fontSize: 12.5 }}>{a.label}</b>
+                <b style={{ fontSize: 14 }}>{a.label}</b>
                 <span className="hint">{a.total}건</span>
                 {Object.entries(a.years).sort().map(([y, n]) => (
-                  <span className="tag tag-muted" key={y} style={{ fontSize: 11 }}>
+                  <span className="tag tag-muted" key={y} style={{ fontSize: 12 }}>
                     {y} · {n}
                   </span>
                 ))}
                 {a.notes.length === 0 && <span className="tag tag-mint">이상 없음</span>}
               </div>
               {a.notes.map((n, i) => (
-                <div key={i} className={TONE[n.tone]} style={{ marginTop: 6, fontSize: 12.5, lineHeight: 1.7 }}>
+                <div key={i} className={TONE[n.tone]} style={{ marginTop: 6, fontSize: 14, lineHeight: 1.7 }}>
                   {n.text}
                   {n.sample?.length > 0 && (
                     <>
@@ -88,7 +88,7 @@ export default function YearAuditBox() {
           ))}
 
           {res.sum.bad > 0 && (
-            <div className="notice" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
+            <div className="notice" style={{ fontSize: 14, lineHeight: 1.7 }}>
               <b>고치는 방법</b> — 아래 <b>「연도 되돌리기」</b> 에서 범위를 정하고
               몇 건이 바뀌는지 눈으로 확인한 뒤 옮기세요. 옮긴 날(들어온 날)로 좁히면
               <b> 이번에 올린 것만</b> 골라 되돌릴 수 있습니다.

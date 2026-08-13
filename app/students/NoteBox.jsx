@@ -85,8 +85,8 @@ export default function NoteBox({ studentId, name }) {
   return (
     <div className="stack" style={{ gap: 10 }}>
       <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 13.5 }}>{name} 상담일지</b>
-        <span className="hint" style={{ fontSize: 12 }}>{rows.rows.length}건</span>
+        <b style={{ fontSize: 15 }}>{name} 상담일지</b>
+        <span className="hint" style={{ fontSize: 13 }}>{rows.rows.length}건</span>
         <span className="spacer" />
         {!draft && (
           <button className="btn btn-primary btn-sm" onClick={() => setDraft(blank())}>
@@ -125,7 +125,7 @@ export default function NoteBox({ studentId, name }) {
           </div>
 
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="hint" style={{ fontSize: 12 }}>말한 것</span>
+            <span className="hint" style={{ fontSize: 13 }}>말한 것</span>
             {canDictate ? (
               <button
                 className={`btn btn-sm ${listening ? "btn-primary" : ""}`}
@@ -134,7 +134,7 @@ export default function NoteBox({ studentId, name }) {
                 {listening ? "⏹ 받아쓰기 멈춤" : "🎤 받아쓰기"}
               </button>
             ) : (
-              <span className="hint" style={{ fontSize: 11.5 }}>
+              <span className="hint" style={{ fontSize: 12.5 }}>
                 이 브라우저는 받아쓰기가 안 돼요 (크롬에서 열면 됩니다)
               </span>
             )}
@@ -170,9 +170,9 @@ export default function NoteBox({ studentId, name }) {
             </button>
           </div>
 
-          {err && <div className="err" style={{ fontSize: 12.5 }}>{err}</div>}
+          {err && <div className="err" style={{ fontSize: 14 }}>{err}</div>}
           {ai?.ready === false && (
-            <div className="notice" style={{ fontSize: 12.5 }}>
+            <div className="notice" style={{ fontSize: 14 }}>
               AI 정리를 쓰려면 <b>설정 → Supabase SQL → AI 초안</b> 에서 키를 넣어주세요.
               키가 없어도 <b>받아쓰기와 저장은 그대로 됩니다.</b>
             </div>
@@ -185,7 +185,7 @@ export default function NoteBox({ studentId, name }) {
             onChange={(e) => setDraft({ ...draft, raw: e.target.value })}
           />
 
-          <span className="hint" style={{ fontSize: 12 }}>정리한 것</span>
+          <span className="hint" style={{ fontSize: 13 }}>정리한 것</span>
           <textarea
             className="input"
             rows={6}
@@ -221,14 +221,14 @@ export default function NoteBox({ studentId, name }) {
               <span className="tag tag-sky">
                 {KINDS.find((k) => k.key === n.kind)?.label || n.kind}
               </span>
-              <b style={{ fontSize: 13 }}>{n.date}</b>
-              {n.title && <span className="hint" style={{ fontSize: 12 }}>{n.title}</span>}
+              <b style={{ fontSize: 14.5 }}>{n.date}</b>
+              {n.title && <span className="hint" style={{ fontSize: 13 }}>{n.title}</span>}
               {!n.body && n.raw && (
                 <span className="tag tag-muted" title="옮겨온 글 그대로예요. 고치기에서 다듬으면 됩니다">
                   안 다듬음
                 </span>
               )}
-              <span className="hint" style={{ fontSize: 12 }}>
+              <span className="hint" style={{ fontSize: 13 }}>
                 {[n.with_whom, n.minutes ? `${n.minutes}분` : ""].filter(Boolean).join(" · ")}
               </span>
               <span className="spacer" />
@@ -258,7 +258,7 @@ export default function NoteBox({ studentId, name }) {
                 **200건이 전부 내용 없이** 보였다. 있는 것을 안 보여주는 것은
                 없는 것보다 나쁘다 — 있는 줄 알고 찾다가 못 찾는다. */}
             {(n.body || n.raw) && (
-              <p style={{ margin: "6px 0 0", fontSize: 13, whiteSpace: "pre-wrap" }}>
+              <p style={{ margin: "6px 0 0", fontSize: 14.5, whiteSpace: "pre-wrap" }}>
                 {n.body || n.raw}
               </p>
             )}

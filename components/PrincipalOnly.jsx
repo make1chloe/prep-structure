@@ -15,7 +15,7 @@ export default function PrincipalOnly({ profile, what = "이 화면" }) {
       <TopBar profile={profile} active="" />
       <main className="wrap">
         <div className="card" style={{ marginTop: 20 }}>
-          <h1 className="h1" style={{ fontSize: 17 }}>원장님만 볼 수 있어요</h1>
+          <h1 className="h1" style={{ fontSize: 18.5 }}>원장님만 볼 수 있어요</h1>
           <p className="sub" style={{ marginTop: 8, lineHeight: 1.8 }}>
             {what}은(는) <b>수강료·발송 열쇠</b>처럼 학원 운영에 관한 것이라
             원장 계정에서만 열립니다. 고장 난 것이 아니에요.

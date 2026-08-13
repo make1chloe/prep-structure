@@ -31,7 +31,7 @@ export default function MonthNav({ month, onChange, home = "", bounds = null, ch
 
   return (
     <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
         {/* **몇 년인지도 적는다** — 학사일정은 3월에 시작해 다음 해 2월에 끝난다.
             넘기다 보면 해가 바뀌는데 「2월」 만 적혀 있으면 어느 해인지 모른다 */}
         {Number(month.slice(0, 4))}년 {Number(month.slice(5, 7))}월

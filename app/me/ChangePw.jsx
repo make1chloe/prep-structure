@@ -88,7 +88,7 @@ export default function ChangePw({ name, who = "student" }) {
         <button className="btn btn-primary btn-block" disabled={pending} onClick={save}>
           {pending ? "저장 중…" : "정하기"}
         </button>
-        <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+        <p className="hint" style={{ margin: 0, fontSize: 14 }}>
           잊어버리면 선생님께 말씀해주세요. 다시 <b>0000</b> 으로 돌려드리고,
           들어오시면 여기서 새로 정하시면 됩니다.
         </p>

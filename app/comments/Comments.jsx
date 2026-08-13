@@ -122,7 +122,7 @@ export default function Comments({ reportId, studentId, me = "staff", openBy = f
           <div key={c.id} className="stack" style={{ gap: 2 }}>
             <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
               <span className={`tag ${r.cls}`}>{r.label}</span>
-              <b style={{ fontSize: 12.5 }}>{c.author_name || ""}</b>
+              <b style={{ fontSize: 14 }}>{c.author_name || ""}</b>
               <span className="hint">{when(c.created_at)}</span>
               {me === "staff" && !c.read_at && c.author_role !== "staff" && (
                 <span className="tag tag-amber">새 댓글</span>
@@ -132,7 +132,7 @@ export default function Comments({ reportId, studentId, me = "staff", openBy = f
                 삭제
               </button>
             </div>
-            <div style={{ fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{c.body}</div>
+            <div style={{ fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{c.body}</div>
           </div>
         );
       })}

@@ -51,8 +51,8 @@ export default function SubmissionList({ rows = [], items = [] }) {
               <span className={`tag ${r.checked_at ? "tag-muted" : "tag-amber"}`}>
                 {r.kind === "audio" ? "녹음" : r.kind === "checklist" ? "체크" : "사진"}
               </span>
-              <b style={{ fontSize: 13 }}>{nameOf(r.homework_item_id)}</b>
-              <span className="hint" style={{ fontSize: 11.5 }}>
+              <b style={{ fontSize: 14.5 }}>{nameOf(r.homework_item_id)}</b>
+              <span className="hint" style={{ fontSize: 12.5 }}>
                 {r.kind === "audio" && r.seconds ? `${r.seconds}초 · ` : ""}
                 {new Date(r.created_at).toLocaleString("ko-KR", {
                   timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
@@ -62,7 +62,7 @@ export default function SubmissionList({ rows = [], items = [] }) {
               <span className="spacer" />
               {/* 보관 기간(1개월)이 지나 파일은 지웠다 — 낸 기록은 남는다 */}
               {r.kind !== "checklist" && !r.path && (
-                <span className="hint" style={{ fontSize: 11.5 }}>보관 기간 지남</span>
+                <span className="hint" style={{ fontSize: 12.5 }}>보관 기간 지남</span>
               )}
               {r.kind !== "checklist" && r.path && (
                 <button className="btn btn-ghost btn-sm" disabled={pending} onClick={() => show(r)}>
@@ -89,7 +89,7 @@ export default function SubmissionList({ rows = [], items = [] }) {
             {r.kind === "checklist" && (
               <div className="stack" style={{ gap: 2 }}>
                 {parseList(r.body).map((x, i) => (
-                  <span key={i} className="hint" style={{ fontSize: 12.5 }}>
+                  <span key={i} className="hint" style={{ fontSize: 14 }}>
                     {x.done ? "☑" : "☐"} {x.text}
                   </span>
                 ))}

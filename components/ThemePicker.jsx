@@ -46,8 +46,8 @@ export default function ThemePicker() {
 
   return (
     <div className="card">
-      <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>화면 테마</h2>
-      <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5, lineHeight: 1.7 }}>
+      <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>화면 테마</h2>
+      <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
         <b>이 브라우저에만</b> 저장됩니다. 학원 컴퓨터는 밝게, 폰은 어둡게 두셔도 돼요.
       </p>
       <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>

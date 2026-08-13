@@ -21,10 +21,10 @@ export default function AddInquiryForm({ schools = [] }) {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>상담 접수</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>상담 접수</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
-      <p className="muted" style={{ margin: "8px 0 10px", fontSize: 13 }}>
+      <p className="muted" style={{ margin: "8px 0 10px", fontSize: 14.5 }}>
         전화 받으면서 <b>이름과 번호만</b> 먼저 넣어도 됩니다. 나머지는 나중에 채우세요.
       </p>
       <form action={addInquiry} className="stack" style={{ gap: 8 }}>

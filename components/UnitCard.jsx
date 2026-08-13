@@ -22,7 +22,7 @@ export default function UnitCard({ scores = [], max = 8, forParent = false }) {
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>문법 단원평가</h2>
+        <h2 style={{ margin: 0, fontSize: 17.5, fontWeight: 800 }}>문법 단원평가</h2>
         <span className="tag tag-mint">통과 {p.passed}/{p.total}</span>
         {p.retests > 0 && <span className="tag tag-amber">재시험 {p.retests}번</span>}
         {p.rate != null && <span className="tag tag-muted">{p.rate}%</span>}
@@ -32,7 +32,7 @@ export default function UnitCard({ scores = [], max = 8, forParent = false }) {
       {p.now && (
         <div
           className="notice"
-          style={{ marginTop: 8, fontSize: 12.5 }}
+          style={{ marginTop: 8, fontSize: 14 }}
         >
           {p.now.tries >= RETEST_WARN_AT ? (
             <>
@@ -59,21 +59,21 @@ export default function UnitCard({ scores = [], max = 8, forParent = false }) {
             >
               {u.passed ? "통과" : "재시험"}
             </span>
-            <b style={{ fontSize: 12.5, flex: 1, minWidth: 90 }}>{u.unit}</b>
+            <b style={{ fontSize: 14, flex: 1, minWidth: 90 }}>{u.unit}</b>
             {/* **몇 번 만에 넘었나** — 이 숫자가 이 화면의 알맹이다 */}
             {u.tries > 1 && (
               <span className={`tag ${u.tries >= RETEST_WARN_AT ? "tag-amber" : "tag-muted"}`}>
                 {u.tries}번
               </span>
             )}
-            {u.last != null && <span className="hint" style={{ fontSize: 11.5 }}>{u.last}점</span>}
-            <span className="hint" style={{ fontSize: 11 }}>
+            {u.last != null && <span className="hint" style={{ fontSize: 12.5 }}>{u.last}점</span>}
+            <span className="hint" style={{ fontSize: 12 }}>
               {(u.passedOn || u.lastOn || "").slice(2).replaceAll("-", ".")}
             </span>
           </div>
         ))}
         {p.units.length > max && (
-          <span className="hint" style={{ fontSize: 11 }}>… 그 밖 {p.units.length - max}단원</span>
+          <span className="hint" style={{ fontSize: 12 }}>… 그 밖 {p.units.length - max}단원</span>
         )}
       </div>
     </div>

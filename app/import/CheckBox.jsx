@@ -56,7 +56,7 @@ export default function CheckBox() {
           </div>
 
           {data.zero.length > 0 && (
-            <div className="notice" style={{ marginBottom: 10, fontSize: 12.5, lineHeight: 1.8 }}>
+            <div className="notice" style={{ marginBottom: 10, fontSize: 14, lineHeight: 1.8 }}>
               <b>기록이 하나도 없는 재원생 {data.zero.length}명</b>
               <br />
               {data.zero.join(", ")}

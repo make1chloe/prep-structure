@@ -83,14 +83,14 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>현황판</b>
+        <b style={{ fontSize: 15 }}>현황판</b>
         {calling.length > 0 && (
           <span className="tag tag-red" style={{ fontWeight: 800 }}>🙋 부르는 중 {calling.length}</span>
         )}
         {doing.length > 0 && <span className="tag tag-sky">하는 중 {doing.length}</span>}
         {finished.length > 0 && <span className="tag tag-mint">끝 {finished.length}</span>}
         <span className="spacer" />
-        <span className="hint" style={{ fontSize: 11.5 }}>
+        <span className="hint" style={{ fontSize: 12.5 }}>
           {unavailable ? "0034 SQL 을 먼저 실행해주세요"
             : live === "on" ? "● 실시간"
             : live === "off" ? "○ 실시간 끊김 — 새로고침 해주세요"
@@ -107,12 +107,12 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
           그래서 폰(홈 화면에 담아둔 앱)에서 이걸 켜두는 것이 전부다.
           이 자리에 두는 까닭 — 알림을 켜고 싶어지는 순간이 바로 여기다. */}
       <details style={{ marginBottom: 8 }}>
-        <summary className="hint" style={{ cursor: "pointer", fontSize: 12 }}>
+        <summary className="hint" style={{ cursor: "pointer", fontSize: 13 }}>
           이 기기로 알림 받기 (워치에도 같이 뜹니다)
         </summary>
         <div style={{ marginTop: 6 }}>
           <PushToggle />
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 11.5 }}>
+          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
             아이가 <b>부르면</b>, 그리고 <b>등원 학습을 끝내면</b> 알립니다.
             <b> 숙제는 안 보냅니다</b> — 집에서 하는 것이라 밤에 울립니다.
             <br />
@@ -170,7 +170,7 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
             <span
               key={r.id}
               className={`tag ${call ? "tag-red" : allDone ? "tag-mint" : r.doing ? "tag-sky" : "tag-muted"}`}
-              style={{ fontSize: 12, padding: "5px 9px", ...(call ? { fontWeight: 800 } : {}) }}
+              style={{ fontSize: 13, padding: "5px 9px", ...(call ? { fontWeight: 800 } : {}) }}
               title={r.doing ? `${r.doing.item} 하는 중` : ""}
             >
               {call && "🙋 "}

@@ -31,7 +31,7 @@ export default function LinkCode() {
           placeholder="ABC123"
           maxLength={10}
           autoCapitalize="characters"
-          style={{ fontSize: 26, letterSpacing: 6, textAlign: "center", fontWeight: 800 }}
+          style={{ fontSize: 27, letterSpacing: 6, textAlign: "center", fontWeight: 800 }}
         />
         <button
           className="btn btn-primary btn-block"
@@ -50,7 +50,7 @@ export default function LinkCode() {
         >
           {pending ? "확인 중…" : "연결하기"}
         </button>
-        <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+        <p className="hint" style={{ margin: 0, fontSize: 14 }}>
           코드는 하루만 쓸 수 있어요. 만료됐으면 선생님께 새로 받아주세요.
         </p>
       </div>

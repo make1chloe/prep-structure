@@ -131,7 +131,7 @@ export default function TodayBoard({
   if (groups.length === 0) {
     return (
       <div className="card" style={{ marginTop: 14 }}>
-        <p className="muted" style={{ margin: 0, fontSize: 13.5 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 15 }}>
           오늘 수업이 없습니다. <b>반</b> 메뉴에서 요일을 설정하면 여기에 나타나요.
         </p>
       </div>
@@ -188,14 +188,14 @@ export default function TodayBoard({
                   {klass.category && klass.category !== "정규반" && (
                     <span
                       className="tag tag-lav"
-                      style={{ marginLeft: 6, fontSize: 11 }}
+                      style={{ marginLeft: 6, fontSize: 12 }}
                       title="이 반의 출결은 따로 셉니다 — 정규 출결은 바뀌지 않습니다"
                     >
                       {klass.category}
                     </span>
                   )}
                 </span>
-                <span className="muted" style={{ fontSize: 12.5 }}>
+                <span className="muted" style={{ fontSize: 14 }}>
                   {[klass.room, klass.level].filter(Boolean).join(" · ")}
                   {"  "}남은 {todo.length}명 / {rows.length}명
                 </span>
@@ -223,7 +223,7 @@ export default function TodayBoard({
                     return (
                       <div className="attstrip">
                         <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                          <b style={{ fontSize: 13 }}>등원</b>
+                          <b style={{ fontSize: 14.5 }}>등원</b>
                           <span className="hint" style={{ flex: 1, minWidth: 200 }}>
                             {notYet.length}명 남음
                             {planned.length > 0 && (
@@ -254,7 +254,7 @@ export default function TodayBoard({
                   })()}
 
                   {visible.length === 0 ? (
-                    <p className="muted" style={{ margin: 0, padding: "10px 16px", fontSize: 13 }}>
+                    <p className="muted" style={{ margin: 0, padding: "10px 16px", fontSize: 14.5 }}>
                       {filter === "todo"
                         ? "이 반은 기록까지 모두 끝냈어요 👏"
                         : "해당하는 학생이 없어요."}
@@ -269,7 +269,7 @@ export default function TodayBoard({
                             onClick={() => setOpenId(isOpen ? null : r.student.id)}
                           >
                             <span style={{ fontWeight: 700 }}>{r.student.name}</span>
-                            <span className="muted" style={{ fontSize: 12 }}>
+                            <span className="muted" style={{ fontSize: 13 }}>
                               {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
                             </span>
                             {r.isMakeup && (
@@ -394,7 +394,7 @@ export default function TodayBoard({
                                 💬 {r.unreadComments}
                               </span>
                             )}
-                            <span className="muted" style={{ fontSize: 11 }}>{isOpen ? "▾" : "▸"}</span>
+                            <span className="muted" style={{ fontSize: 12 }}>{isOpen ? "▾" : "▸"}</span>
                           </button>
 
                           {isOpen && (
@@ -476,7 +476,7 @@ export default function TodayBoard({
             className="card"
             style={{ marginTop: 12, borderLeft: "3px solid var(--amber, #e0a33e)" }}
           >
-            <b style={{ fontSize: 14 }}>수업이 끝났는데 늦귀가 과제가 남아 있어요</b>
+            <b style={{ fontSize: 15 }}>수업이 끝났는데 늦귀가 과제가 남아 있어요</b>
             <p className="hint" style={{ margin: "4px 0 8px" }}>
               아직 안 갔거나, 처리를 못 하신 겁니다. <b>끝냈으면 완료로, 집에서 하게 하려면
               숙제로 넘겨주세요.</b> 그래야 학생 화면도 하원으로 바뀝니다.
@@ -484,11 +484,11 @@ export default function TodayBoard({
             <div className="stack" style={{ gap: 3 }}>
               {stuck.map((r) => (
                 <div className="unitrow" key={r.student.id}>
-                  <b style={{ fontSize: 13.5, minWidth: 62 }}>{r.student.name}</b>
+                  <b style={{ fontSize: 15, minWidth: 62 }}>{r.student.name}</b>
                   <span className="tag tag-amber">
                     {(r.stay || []).filter((t) => t.status === "todo").length}개 남음
                   </span>
-                  <span className="hint" style={{ flex: 1, fontSize: 12 }}>
+                  <span className="hint" style={{ flex: 1, fontSize: 13 }}>
                     {(r.stay || [])
                       .filter((t) => t.status === "todo")
                       .map((t) => t.body)
@@ -516,7 +516,7 @@ export default function TodayBoard({
         return (
           <div className="card" style={{ marginTop: 12 }}>
             <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <b style={{ fontSize: 14 }}>기록 끝난 학생 {ready}명</b>
+              <b style={{ fontSize: 15 }}>기록 끝난 학생 {ready}명</b>
               {left > 0 && (
                 <span className="tag tag-amber">아직 기록 안 한 학생 {left}명</span>
               )}

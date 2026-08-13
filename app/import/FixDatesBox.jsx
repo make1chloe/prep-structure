@@ -31,7 +31,7 @@ export default function FixDatesBox() {
 
   return (
     <div className="card" style={{ marginTop: 14 }}>
-      <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>연도 1년 되돌리기</h2>
+      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>연도 1년 되돌리기</h2>
       <p className="hint" style={{ margin: "6px 0 0" }}>
         노션에서 연도 없이 <b>12/30</b> 같은 날짜를 가져오면서 올해로 붙는 바람에,{" "}
         <b>작년 기록이 통째로 올해로</b> 들어갔습니다. 8~12월 것은 미래 날짜라 눈에
@@ -62,7 +62,7 @@ export default function FixDatesBox() {
           세어보기
         </button>
       </div>
-      <p className="hint" style={{ margin: "6px 0 0", fontSize: 12 }}>
+      <p className="hint" style={{ margin: "6px 0 0", fontSize: 13 }}>
         <b>가져온 날</b>을 넣으면 그날 들어온 것만 옮깁니다. 직접 쓰신 기록은 수업한
         날에 만들어지고, 가져온 기록은 전부 가져오기 한 날에 만들어져서 이걸로 갈립니다.
         아래 <b>들어온 날</b>을 보시면 언제 가져왔는지 알 수 있습니다.
@@ -74,16 +74,16 @@ export default function FixDatesBox() {
             <div key={t.name} className="stack" style={{ gap: 2 }}>
               <div className="unitrow">
                 <span className={`tag ${t.count > 0 ? "tag-amber" : "tag-mint"}`}>{t.count}건</span>
-                <b style={{ fontSize: 13 }}>{t.label}</b>
+                <b style={{ fontSize: 14.5 }}>{t.label}</b>
                 {t.count > 0 && (
-                  <span className="hint" style={{ fontSize: 12 }}>
+                  <span className="hint" style={{ fontSize: 13 }}>
                     {t.first} ~ {t.last}
                     {t.future > 0 ? ` · 그중 미래 ${t.future}건` : ""}
                   </span>
                 )}
               </div>
               {t.count > 0 && (
-                <span className="hint" style={{ fontSize: 11.5, paddingLeft: 4 }}>
+                <span className="hint" style={{ fontSize: 12.5, paddingLeft: 4 }}>
                   들어온 날: {t.days.join(", ") || "—"}
                   {t.sample.length > 0 &&
                     ` · 예) ${t.sample.map((s) => `${s.date}(${s.made} 들어옴)`).join(", ")}`}
@@ -92,7 +92,7 @@ export default function FixDatesBox() {
             </div>
           ))}
 
-          <p className="hint" style={{ margin: 0, fontSize: 12 }}>
+          <p className="hint" style={{ margin: 0, fontSize: 13 }}>
             오늘은 {res.today} 입니다.
           </p>
 
@@ -128,7 +128,7 @@ export default function FixDatesBox() {
       )}
 
       {done && (
-        <div className="notice" style={{ marginTop: 10, fontSize: 12.5 }}>
+        <div className="notice" style={{ marginTop: 10, fontSize: 14 }}>
           {done.map((d) => (
             <div key={d.name}>
               {d.label} — {d.fixed}건 되돌림

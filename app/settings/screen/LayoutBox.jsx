@@ -86,7 +86,7 @@ export default function LayoutBox() {
   if (saved === null) {
     return (
       <div className="card">
-        <b style={{ fontSize: 14 }}>화면 구성 순서</b>
+        <b style={{ fontSize: 15 }}>화면 구성 순서</b>
         <p className="hint" style={{ margin: "6px 0 0" }}>불러오는 중…</p>
       </div>
     );
@@ -95,11 +95,11 @@ export default function LayoutBox() {
   return (
     <div className="card">
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14 }}>화면 구성 순서</b>
+        <b style={{ fontSize: 15 }}>화면 구성 순서</b>
         <span className="hint">무엇을 먼저 보여줄지 정합니다 · 계정과 상관없이 모두에게</span>
       </div>
 
-      {err && <div className="notice" style={{ margin: "8px 0 0", fontSize: 12.5 }}>{err}</div>}
+      {err && <div className="notice" style={{ margin: "8px 0 0", fontSize: 14 }}>{err}</div>}
 
       <div className="row" style={{ gap: 6, margin: "10px 0", flexWrap: "wrap" }}>
         {PAGES.map((p) => (
@@ -128,7 +128,7 @@ export default function LayoutBox() {
           return (
             <div className="unitrow" key={b.key} style={{ opacity: off ? 0.5 : 1 }}>
               <span className="hint" style={{ minWidth: 22, textAlign: "right" }}>{i + 1}</span>
-              <span style={{ fontSize: 13.5, flex: 1 }}>
+              <span style={{ fontSize: 15, flex: 1 }}>
                 <b>{b.label}</b>
                 {b.desc && <span className="hint"> · {b.desc}</span>}
               </span>

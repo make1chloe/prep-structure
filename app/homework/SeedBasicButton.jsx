@@ -36,7 +36,7 @@ export default function SeedBasicButton() {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>노션 기본숙제 가져오기</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>노션 기본숙제 가져오기</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
 
@@ -50,7 +50,7 @@ export default function SeedBasicButton() {
       <div className="stack" style={{ gap: 8, marginTop: 10 }}>
         {Object.entries(byCat).map(([cat, list]) => (
           <div key={cat} className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
-            <b style={{ width: 44, fontSize: 12 }}>{cat}</b>
+            <b style={{ width: 44, fontSize: 13 }}>{cat}</b>
             {list.map((i) => (
               <span key={i.name} className="tag" title={i.method || ""}>
                 {i.name}

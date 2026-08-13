@@ -132,7 +132,7 @@ export default function TodoKanban({
         </div>
         <div
           style={{
-            fontSize: 13,
+            fontSize: 14.5,
             fontWeight: 600,
             marginTop: 4,
             textDecoration: col === "done" ? "line-through" : "none",
@@ -141,7 +141,7 @@ export default function TodoKanban({
         >
           {t.title}
         </div>
-        {t.note && <div className="hint" style={{ fontSize: 11.5, marginTop: 2 }}>{t.note}</div>}
+        {t.note && <div className="hint" style={{ fontSize: 12.5, marginTop: 2 }}>{t.note}</div>}
 
         {/* **폰에서는 끌어놓기가 안 된다** — 그래서 단추도 같이 둔다 */}
         <div className="row" style={{ gap: 4, marginTop: 6 }}>
@@ -185,7 +185,7 @@ export default function TodoKanban({
         onDrop={(e) => onDrop(e, id)}
       >
         <div className="kbhead">
-          <b style={{ fontSize: 12.5 }}>{title}</b>
+          <b style={{ fontSize: 14 }}>{title}</b>
           <span className="tag tag-muted">{count}</span>
         </div>
         <div className="kbbody">{children}</div>
@@ -227,7 +227,7 @@ export default function TodoKanban({
           }
         >
           {todo.length === 0 && later.length === 0 && (
-            <p className="muted" style={{ fontSize: 12.5, padding: 8, margin: 0 }}>비었습니다.</p>
+            <p className="muted" style={{ fontSize: 14, padding: 8, margin: 0 }}>비었습니다.</p>
           )}
           {todo.map((t) => <Card key={t.id} t={t} col="todo" />)}
           {openLater && later.map((t) => <Card key={t.id} t={t} col="todo" />)}
@@ -236,7 +236,7 @@ export default function TodoKanban({
         {started && (
           <Col id="doing" title="하는 중" count={doing.length}>
             {doing.length === 0 && (
-              <p className="muted" style={{ fontSize: 12.5, padding: 8, margin: 0 }}>
+              <p className="muted" style={{ fontSize: 14, padding: 8, margin: 0 }}>
                 손댄 일을 여기로 옮기세요.
               </p>
             )}
@@ -250,14 +250,14 @@ export default function TodoKanban({
           count={doneToday.length}
           foot={
             doneAll > doneToday.length && (
-              <p className="hint" style={{ fontSize: 11.5, padding: "0 8px 8px", margin: 0 }}>
+              <p className="hint" style={{ fontSize: 12.5, padding: "0 8px 8px", margin: 0 }}>
                 그전에 끝낸 {doneAll - doneToday.length}개는 목록의 「끝냄」 에 있습니다.
               </p>
             )
           }
         >
           {doneToday.length === 0 && (
-            <p className="muted" style={{ fontSize: 12.5, padding: 8, margin: 0 }}>아직 없습니다.</p>
+            <p className="muted" style={{ fontSize: 14, padding: 8, margin: 0 }}>아직 없습니다.</p>
           )}
           {doneToday.map((t) => <Card key={t.id} t={t} col="done" />)}
         </Col>

@@ -88,7 +88,7 @@ export default function PushToggle({ onlyWhenOff = false, warn = false, brief = 
   if (state === "unsupported") {
     return (
       <div className={box}>
-        <b style={{ fontSize: 13.5 }}>알림 받기</b>
+        <b style={{ fontSize: 15 }}>알림 받기</b>
         <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
           {/* 「이 브라우저에서는 쓸 수 없어요」 한 줄만 나와서, 홈 화면에
               담고 또 담게 되는 일이 있었다 (원장님, 2026-08-07) */}
@@ -104,7 +104,7 @@ export default function PushToggle({ onlyWhenOff = false, warn = false, brief = 
     <div className={box}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <b style={{ fontSize: 13.5 }}>
+          <b style={{ fontSize: 15 }}>
             {warn && state !== "on" ? "⚠️ 알림이 꺼져 있어요" : "알림 받기"}
           </b>
           <p className="hint" style={{ margin: "4px 0 0" }}>

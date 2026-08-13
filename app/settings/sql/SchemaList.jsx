@@ -29,9 +29,9 @@ export default function SchemaList({ checks = [] }) {
         <div className="unitrow" key={c.id + (c.col || c.rpc || "")}>
           <span className={`tag ${c.ok ? "tag-mint" : "tag-amber"}`}>{c.ok ? "OK" : "없음"}</span>
           <span className="hint" style={{ minWidth: 44 }}>{c.id}</span>
-          <span style={{ fontSize: 12.5, flex: 1 }}>{c.label}</span>
+          <span style={{ fontSize: 14, flex: 1 }}>{c.label}</span>
           {!c.ok && (
-            <span className="hint" style={{ fontSize: 11, maxWidth: 320, textAlign: "right" }}>
+            <span className="hint" style={{ fontSize: 12, maxWidth: 320, textAlign: "right" }}>
               {c.why}
             </span>
           )}

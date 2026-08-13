@@ -303,7 +303,7 @@ export default function ConsultBoard({
         </div>
 
         {shown.length === 0 ? (
-          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 13.5 }}>
+          <p className="muted" style={{ padding: "0 16px 16px", margin: 0, fontSize: 15 }}>
             해당하는 상담이 없어요.
           </p>
         ) : (
@@ -314,8 +314,8 @@ export default function ConsultBoard({
                 <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
                   <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
                   <span className={`tag ${CLS[r.status] || "tag-muted"}`}>{LABEL[r.status] || r.status}</span>
-                  <b style={{ fontSize: 13.5 }}>{r.name}</b>
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <b style={{ fontSize: 15 }}>{r.name}</b>
+                  <span className="muted" style={{ fontSize: 13 }}>
                     {[r.school, r.grade].filter(Boolean).join(" ")}
                   </span>
                   {r.phone && <span className="hint mono">{r.phone}</span>}
@@ -461,7 +461,7 @@ export default function ConsultBoard({
                     {r.want_slots?.length > 0 && (
                       <div className="row" style={{ gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
                         {r.want_slots.map((k) => (
-                          <span className="tag tag-mint" key={k} style={{ fontSize: 11 }}>
+                          <span className="tag tag-mint" key={k} style={{ fontSize: 12 }}>
                             {slotText([k])}
                           </span>
                         ))}

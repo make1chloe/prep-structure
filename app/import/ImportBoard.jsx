@@ -273,10 +273,10 @@ export default function ImportBoard() {
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
           {meta.label} 옮기기
         </h2>
-        <p className="muted" style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.7 }}>
+        <p className="muted" style={{ margin: "0 0 12px", fontSize: 14.5, lineHeight: 1.7 }}>
           {kind === "payment" ? (
             <>
               <b>결제선생</b>(또는 쓰시는 수납 서비스)에서 <b>내보내기 · 엑셀 다운로드</b> 로
@@ -360,7 +360,7 @@ export default function ImportBoard() {
         {rows && (
           <div style={{ marginTop: 14 }}>
             <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-              <b style={{ fontSize: 13.5 }}>미리보기</b>
+              <b style={{ fontSize: 15 }}>미리보기</b>
               <span className="tag tag-mint">옮길 수 있음 {ok.length}</span>
               {outOfRange > 0 && (
                 <span className="tag tag-muted" title="정해둔 기간 밖이라 안 옮깁니다">
@@ -580,7 +580,7 @@ export default function ImportBoard() {
                           {INQ_LABEL[r.status] || r.status}
                         </span>
                         {r.stage && r.stage !== "방문전" && (
-                          <span className="hint" style={{ marginLeft: 4, fontSize: 11 }}>{r.stage}</span>
+                          <span className="hint" style={{ marginLeft: 4, fontSize: 12 }}>{r.stage}</span>
                         )}
                       </td>
                       <td className="muted">
@@ -651,7 +651,7 @@ export default function ImportBoard() {
                             이유 어긋남 {r.orphan.join(",")}
                           </span>
                         )}
-                        <span className="hint" style={{ marginLeft: 6, fontSize: 11 }}>
+                        <span className="hint" style={{ marginLeft: 6, fontSize: 12 }}>
                           {r.nos.slice(0, 10).join(",")}{r.nos.length > 10 ? "…" : ""}
                         </span>
                       </td>
@@ -715,7 +715,7 @@ export default function ImportBoard() {
             {/* **안 옮기는 줄을 감추지 않는다.** 「56줄인데 왜 52줄이지」 를
                 혼자 알아내시게 두면 안 된다 */}
             {kind === "inquiry" && bad.length > 0 && (
-              <div className="notice" style={{ marginTop: 8, fontSize: 12.5 }}>
+              <div className="notice" style={{ marginTop: 8, fontSize: 14 }}>
                 <b>안 옮기는 줄 {bad.length}개</b>
                 <div className="stack" style={{ gap: 2, marginTop: 4 }}>
                   {bad.slice(0, 10).map((r, i) => (
@@ -761,7 +761,7 @@ export default function ImportBoard() {
                 {/* **새로 만든 학생은 반드시 보여준다.** 이름 오타도 그대로
                     학생이 되기 때문이다 — 조용히 만들면 유령 학생이 쌓인다 */}
                 {result.made?.length > 0 && (
-                  <div className="notice" style={{ marginTop: 8, fontSize: 12.5 }}>
+                  <div className="notice" style={{ marginTop: 8, fontSize: 14 }}>
                     <b>재원생 목록에 없던 {result.made.length}명을 「퇴원」 으로 새로 만들었어요.</b>
                     <br />
                     {result.made.join(" · ")}
