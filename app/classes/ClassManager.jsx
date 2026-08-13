@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateClass, deleteClasses, setClassStudents, archiveClass } from "./actions";
 import { isArchived, termLabel } from "@/lib/classTerm";
 import { WEEK_ORDER as DAYS } from "@/lib/day";
+import { sortRows } from "@/lib/listSort";
 
 function timeLabel(s, e) {
   const cut = (t) => (t ? t.slice(0, 5) : "");
@@ -20,6 +21,10 @@ export default function ClassManager({
   today,
 }) {
   const [showPast, setShowPast] = useState(false);
+  // **기본은 시간순** — 반은 시간표로 기억한다 (「7시 반 애들」). 이름순으로
+  // 세우면 「화목 A」 와 「월수 A」 가 붙어서, 오늘 무슨 반이 있는지가 안 보인다
+  const [sortKey, setSortKey] = useState("start_time");
+  const [onlyBare, setOnlyBare] = useState(false);
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -55,7 +60,24 @@ export default function ClassManager({
   const pastList = classes.filter((c) => isArchived(c, today) && c.id !== selectedId);
   const pastIds = new Set(pastList.map((c) => c.id));
   const liveList = classes.filter((c) => !pastIds.has(c.id));
-  const shown = showPast ? [...liveList, ...pastList] : liveList;
+  /**
+   * **빠진 반** — 요일이나 시간이 없으면 그 반은 달력·오늘 수업에 안 뜨고,
+   * 학생이 없으면 반만 있고 수업은 없는 것이다. 셋 다 조용히 지나간다.
+   */
+  const bare = (c) =>
+    (c.days || []).length === 0 ||
+    !String(c.start_time || "").trim() ||
+    members.filter((m) => m.class_id === c.id).length === 0;
+  const bareCount = liveList.filter(bare).length;
+  const base = showPast ? [...liveList, ...pastList] : liveList;
+  const shown = sortRows(
+    (onlyBare ? base.filter(bare) : base).map((c) => ({
+      ...c,
+      cnt: members.filter((m) => m.class_id === c.id).length || "",
+    })),
+    sortKey === "cnt" ? { key: "cnt", dir: "desc" } : { key: sortKey, dir: "asc" },
+    "name"
+  );
 
   const allClassesChecked = liveList.length > 0 && liveList.every((c) => sel.has(c.id));
   function toggleAllClasses() {
@@ -166,6 +188,35 @@ export default function ClassManager({
             <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>
               선택 해제
             </button>
+          </div>
+        )}
+
+        {/* 목록이면 늘어세울 기준과 거를 길이 있어야 한다 */}
+        {classes.length > 1 && (
+          <div className="row" style={{ gap: 6, alignItems: "center", padding: "0 16px" }}>
+            <select
+              className="input input-sm"
+              style={{ width: 110 }}
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value)}
+              title="목록 정렬"
+            >
+              <option value="start_time">시간순</option>
+              <option value="name">이름순</option>
+              <option value="cnt">학생 많은 순</option>
+            </select>
+            <span className="spacer" />
+            <span className="hint">{shown.length}개 반</span>
+            {bareCount > 0 && (
+              <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={onlyBare}
+                  onChange={(e) => setOnlyBare(e.target.checked)}
+                />
+                빠진 것만 ({bareCount})
+              </label>
+            )}
           </div>
         )}
 

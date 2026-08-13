@@ -296,6 +296,8 @@ runjs scripts/check-who.mjs
 runjs scripts/check-dup.mjs
 # 툴바에서 단추 하나만 내려앉는 것 (원장님: 「자꾸 줄이 안 맞아」)
 runjs scripts/check-align.mjs
+# 목록이면 검색·정렬이 있어야 한다 (원장님: 「목록이라는건 다 정렬 필터가」)
+runjs scripts/check-lists.mjs
 
 echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="

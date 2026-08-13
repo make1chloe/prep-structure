@@ -17,6 +17,7 @@ import {
 import { useBulk, BulkBar } from "@/components/Bulk";
 import VideoUpload from "./VideoUpload";
 import { thumbUrl, VIEW_LABEL, VIEW_CLS } from "@/lib/video";
+import { sortRows } from "@/lib/listSort";
 
 function when(iso) {
   if (!iso) return "";
@@ -34,6 +35,8 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
   const [picked, setPicked] = useState(() => new Set());
   const [due, setDue] = useState("");
   const [folderId, setFolderId] = useState("");
+  // **넣은 차례가 기본** — 방금 넣은 것을 바로 찾으시는 일이 가장 잦다
+  const [sort, setSort] = useState({ key: "created_at", dir: "desc" });
   const [q, setQ] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);   // 골라서 한꺼번에 배정하는 칸
   const [bulkPick, setBulkPick] = useState(() => new Set());
@@ -67,11 +70,15 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
   }
 
   const kw = q.trim().toLowerCase();
-  const shown = videos.filter((v) => {
-    if (folderId && (v.folder_id || "") !== folderId) return false;
-    if (kw && !v.title.toLowerCase().includes(kw)) return false;
-    return true;
-  });
+  const shown = sortRows(
+    videos.filter((v) => {
+      if (folderId && (v.folder_id || "") !== folderId) return false;
+      if (kw && !v.title.toLowerCase().includes(kw)) return false;
+      return true;
+    }),
+    sort,
+    "title"
+  );
   // 「전체」는 지금 화면에 보이는 것만이다 (걸러놓고 눌러도 안전하다)
   const bulk = useBulk(shown);
 
@@ -163,6 +170,25 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
             {f.name}
           </button>
         ))}
+        <span className="spacer" />
+        <span className="hint">{shown.length}개</span>
+        <select
+          className="input input-sm"
+          style={{ width: 106 }}
+          value={sort.key}
+          onChange={(e) => setSort({ key: e.target.value, dir: e.target.value === "created_at" ? "desc" : "asc" })}
+          title="목록 정렬"
+        >
+          <option value="created_at">넣은 순</option>
+          <option value="title">이름순</option>
+        </select>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => setSort((v) => ({ ...v, dir: v.dir === "asc" ? "desc" : "asc" }))}
+          title={sort.dir === "asc" ? "오름차순 (누르면 뒤집기)" : "내림차순 (누르면 뒤집기)"}
+        >
+          {sort.dir === "asc" ? "▲" : "▼"}
+        </button>
       </div>
 
       {/* 골라서 한 번에 — 폴더를 새로 만들면 스무 개를 옮겨야 한다 */}

@@ -12,6 +12,7 @@ import {
 import { flattenTree } from "@/lib/unitTree";
 import { DEFAULT_ACTIVITIES } from "@/lib/activities";
 import BookPicker from "@/components/BookPicker";
+import { sortRows } from "@/lib/listSort";
 
 const LEVEL = ["대", "중", "소"];
 
@@ -28,9 +29,52 @@ export default function UnitList({
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [pending, startTransition] = useTransition();
+  const [q, setQ] = useState("");
+  const [onlyBare, setOnlyBare] = useState(false);
+  /**
+   * **늘어세우는 기준은 나무를 접었을 때만 고른다.**
+   *
+   * 평소에는 대·중·소로 겹쳐 보여주므로 차례가 이미 정해져 있다 (원장님이
+   * 매겨두신 순서). 거기서 이름순으로 다시 세우면 아래 단원이 제 위 단원을
+   * 떠나 버려서 목록이 무너진다.
+   * 검색하거나 「범위 없는 것만」 을 켜면 어차피 한 줄씩 늘어놓으므로,
+   * 그때는 무엇으로 세울지 고를 수 있어야 한다.
+   */
+  const [sortKey, setSortKey] = useState("sort");
   const router = useRouter();
 
-  const rows = flattenTree(units);
+  /**
+   * **찾을 때는 나무를 접는다.**
+   *
+   * 단원은 대·중·소로 겹쳐 있어서 보통은 그 모양대로 보여준다. 그런데
+   * 「Lesson 7 이 어디 있지」 를 찾을 때는 그 겹침이 오히려 방해다 — 위
+   * 단원을 하나씩 펴 가며 내려가야 한다. 그래서 **검색 중에는 걸린 것만
+   * 한 줄씩** 늘어놓는다 (겹침은 잠깐 접어둔다).
+   */
+  const kw = q.trim().toLowerCase();
+  /** 이 단원에 범위가 적혀 있나 — 쪽수도 문제번호도 없으면 숙제로 낼 수가 없다 */
+  const bare = (u) =>
+    !String(u.page_start ?? "").trim() &&
+    !String(u.page_end ?? "").trim() &&
+    !String(u.question_no ?? "").trim();
+  const all = flattenTree(units);
+  // 위 단원(대·중단원)은 범위가 없어도 된다 — 아래 것을 묶는 이름일 뿐이다
+  const parentIds = new Set(units.map((u) => u.parent_id).filter(Boolean));
+  const bareCount = units.filter((u) => !parentIds.has(u.id) && bare(u)).length;
+  const flat = !!kw || onlyBare;      // 나무를 접었나
+  const picked = all.filter(({ unit: u }) => {
+    if (onlyBare && (parentIds.has(u.id) || !bare(u))) return false;
+    if (!kw) return true;
+    return [u.name, u.label, u.question_no].some((v) =>
+      (v ?? "").toString().toLowerCase().includes(kw)
+    );
+  });
+  // 접었을 때만 다시 세운다 — 나무일 때는 적어두신 차례 그대로
+  const rows =
+    flat && sortKey !== "sort"
+      ? sortRows(picked.map((r) => ({ ...r, ...r.unit })), { key: sortKey, dir: "asc" }, "name")
+          .map((r) => ({ unit: r.unit, depth: r.depth }))
+      : picked;
   const allChecked = rows.length > 0 && sel.size === rows.length;
   const someChecked = sel.size > 0 && !allChecked;
 
@@ -163,6 +207,49 @@ export default function UnitList({
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
         </div>
       )}
+
+      {/* 목록이면 **찾을 수 있어야 한다** — 단원이 백 줄이 넘는 교재가 있다 */}
+      <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 8 }}>
+        <input
+          className="input input-sm"
+          style={{ width: 180 }}
+          placeholder="단원명 · 문제번호 검색"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setSel(new Set()); }}
+        />
+        <span className="hint">
+          {rows.length}개{(kw || onlyBare) && ` / 전체 ${all.length}개`}
+        </span>
+        {/* 쪽수도 문제번호도 없으면 그 단원은 **숙제 범위로 못 고른다** —
+            목록에서는 「—」 라 눈에 안 띈다 */}
+        {bareCount > 0 && (
+          <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={onlyBare}
+              onChange={(e) => { setOnlyBare(e.target.checked); setSel(new Set()); }}
+            />
+            범위 없는 것만 ({bareCount})
+          </label>
+        )}
+        {/* 접었을 때만 — 나무일 때는 고를 수 있게 해두면 눌러도 아무 일이 안 난다 */}
+        {flat && (
+          <select
+            className="input input-sm"
+            style={{ width: 96 }}
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            title="목록 정렬"
+          >
+            <option value="sort">원래 순서</option>
+            <option value="name">이름순</option>
+            <option value="page_start">쪽수순</option>
+          </select>
+        )}
+        {kw && (
+          <span className="hint">찾는 중에는 대·중단원 겹침을 접어둡니다.</span>
+        )}
+      </div>
 
       <datalist id="unit-activity-list">
         {activities.map((a) => (
@@ -310,6 +397,11 @@ export default function UnitList({
           })}
         </tbody>
       </table>
+      {rows.length === 0 && all.length > 0 && (
+        <p className="hint" style={{ padding: "10px 2px", margin: 0 }}>
+          조건에 맞는 단원이 없어요. {onlyBare ? "범위가 빠진 단원이 없습니다." : "검색어를 지워보세요."}
+        </p>
+      )}
     </>
   );
 }

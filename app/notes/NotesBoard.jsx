@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import NoteBox from "@/app/students/NoteBox";
+import { sortRows } from "@/lib/listSort";
 
 const KIND = { consult: "상담", call: "통화", observe: "관찰" };
 
@@ -12,6 +13,14 @@ const KIND = { consult: "상담", call: "통화", observe: "관찰" };
 export default function NotesBoard({ notes = [], students = [], pick = "" }) {
   const [sel, setSel] = useState(pick || "");
   const [q, setQ] = useState("");
+  /**
+   * **기본은 「최근 상담순」.**
+   *
+   * 이 화면을 여는 까닭이 대개 「요즘 누구랑 얘기했더라」 라서, 이름순으로
+   * 세워두면 방금 상담한 아이를 목록에서 또 찾아야 한다.
+   * 상담을 한 번도 안 한 아이는 자연히 맨 뒤로 간다 (빈 값은 뒤로).
+   */
+  const [sortKey, setSortKey] = useState("last");
 
   const nameOf = (id) => students.find((s) => s.id === id)?.name || "—";
   const kw = q.trim().toLowerCase();
@@ -33,13 +42,20 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
   const hitsBody = (id) =>
     mineOf(id).some((n) => `${n.title || ""} ${textOf(n)}`.toLowerCase().includes(kw));
 
-  const shown = students.filter((s) => {
-    if (!kw) return s.status === "enrolled" || notes.some((n) => n.student_id === s.id);
-    return (
-      [s.name, s.school, s.grade].some((v) => (v || "").toLowerCase().includes(kw)) ||
-      hitsBody(s.id)
-    );
-  });
+  const shown = sortRows(
+    students
+      .filter((s) => {
+        if (!kw) return s.status === "enrolled" || notes.some((n) => n.student_id === s.id);
+        return (
+          [s.name, s.school, s.grade].some((v) => (v || "").toLowerCase().includes(kw)) ||
+          hitsBody(s.id)
+        );
+      })
+      // 늘어세울 값을 붙여준다 — 마지막 상담일 · 상담 건수
+      .map((s) => ({ ...s, last: lastOf(s.id), cnt: mineOf(s.id).length || "" })),
+    sortKey === "name" ? { key: "name", dir: "asc" } : { key: sortKey, dir: "desc" },
+    "name"
+  );
   const countOf = (id) => mineOf(id).length;
 
   // 전체 목록도 내용으로 거른다
@@ -63,6 +79,20 @@ export default function NotesBoard({ notes = [], students = [], pick = "" }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 6 }}>
+            <select
+              className="input input-sm"
+              style={{ flex: 1 }}
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value)}
+              title="목록 정렬"
+            >
+              <option value="last">최근 상담순</option>
+              <option value="cnt">상담 많은 순</option>
+              <option value="name">이름순</option>
+            </select>
+            <span className="hint">{shown.length}명</span>
+          </div>
         </div>
         <table className="tbl">
           <tbody>
