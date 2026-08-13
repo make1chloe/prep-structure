@@ -10,7 +10,33 @@ import {
 } from "./actions";
 
 import { CATEGORIES, CAT_CLS, toolList, toolBadge } from "./categories";
+import { sortRows } from "@/lib/listSort";
+import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
 export { CAT_CLS };
+
+/**
+ * 늘어세울 기준. **기본은 「순서」** — 원장님이 손으로 매겨둔 차례이고,
+ * 오늘 수업에서 숙제를 고를 때 이 차례로 나온다. 화면마다 차례가 다르면
+ * 손이 기억한 자리가 어긋난다.
+ */
+const SORTS = [
+  ["sort", "순서"],
+  ["name", "이름"],
+  ["category", "분류"],
+  ["tool", "준비물"],
+];
+
+/**
+ * **빠진 것** — 이 항목이 제구실을 하려면 있어야 하는 칸.
+ *
+ * 분류가 없으면 숙제검사에서 어디로 묶일지 모르고, 순서가 없으면 고르는
+ * 목록 맨 뒤로 밀린다. 준비물이 없으면 아이 화면에 「뭘 펴요」 가 안 뜬다.
+ */
+const NEED = [
+  { key: "category", label: "분류" },
+  { key: "sort", label: "순서" },
+  { key: "tool", label: "준비물" },
+];
 
 export default function HomeworkList({ items = [] }) {
   const [sel, setSel] = useState(() => new Set());
@@ -19,16 +45,28 @@ export default function HomeworkList({ items = [] }) {
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("전체");
   const [showOff, setShowOff] = useState(false);
+  const [sort, setSort] = useState({ key: "sort", dir: "asc" });
+  const [onlyMissing, setOnlyMissing] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   const kw = q.trim().toLowerCase();
-  const shown = items.filter((i) => {
-    if (!showOff && !i.active) return false;
-    if (catFilter !== "전체" && (i.category || "기타") !== catFilter) return false;
-    if (kw && !i.name.toLowerCase().includes(kw)) return false;
-    return true;
-  });
+  const shown = sortRows(
+    items.filter((i) => {
+      if (!showOff && !i.active) return false;
+      if (catFilter !== "전체" && (i.category || "기타") !== catFilter) return false;
+      if (onlyMissing && !hasMissing(i, NEED)) return false;
+      if (kw && !i.name.toLowerCase().includes(kw)) return false;
+      return true;
+    }),
+    sort
+  );
+  // 세는 것은 **지금 보이는 갈래 안에서** — 분류를 걸러둔 채로 전체 개수를
+  // 보여주면 「3개라는데 하나도 안 보인다」 가 된다
+  const missingCount = countMissing(
+    items.filter((i) => (showOff || i.active) && (catFilter === "전체" || (i.category || "기타") === catFilter)),
+    NEED
+  );
 
   const allChecked = shown.length > 0 && shown.every((i) => sel.has(i.id));
   const someChecked = sel.size > 0 && !allChecked;
@@ -120,6 +158,35 @@ export default function HomeworkList({ items = [] }) {
           );
         })}
         <span className="spacer" />
+        <span className="hint">{shown.length}개</span>
+        <select
+          className="input input-sm"
+          style={{ width: 96 }}
+          value={sort.key}
+          onChange={(e) => setSort({ key: e.target.value, dir: "asc" })}
+          title="목록 정렬"
+        >
+          {SORTS.map(([k, l]) => <option key={k} value={k}>{l}순</option>)}
+        </select>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => setSort((v) => ({ ...v, dir: v.dir === "asc" ? "desc" : "asc" }))}
+          title={sort.dir === "asc" ? "오름차순 (누르면 뒤집기)" : "내림차순 (누르면 뒤집기)"}
+        >
+          {sort.dir === "asc" ? "▲" : "▼"}
+        </button>
+        {/* **빠진 칸은 조용하다** — 준비물이 없으면 아이 화면에 「뭘 펴요」 가
+            안 뜨는데, 목록을 훑어서는 안 보인다 */}
+        {missingCount > 0 && (
+          <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={onlyMissing}
+              onChange={(e) => setOnlyMissing(e.target.checked)}
+            />
+            빠진 것만 ({missingCount})
+          </label>
+        )}
         <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
           <input type="checkbox" checked={showOff} onChange={(e) => setShowOff(e.target.checked)} />
           숨긴 항목도 보기
@@ -399,6 +466,17 @@ export default function HomeworkList({ items = [] }) {
                         )}
                       </td>
                       <td>
+                        {/* **무엇이 빠졌는지 적어준다** — 「빠진 것 3」 이라고만
+                            하면 줄마다 눌러서 찾아야 한다 (원칙 A5) */}
+                        {missingIn(i, NEED).length > 0 && (
+                          <span
+                            className="tag tag-amber"
+                            style={{ marginRight: 4 }}
+                            title={`${missingIn(i, NEED).join(" · ")} 가 비어 있습니다`}
+                          >
+                            {missingIn(i, NEED).join("·")} 없음
+                          </span>
+                        )}
                         <button className="btn btn-ghost btn-sm" onClick={() => startEdit(i)}>수정</button>
                       </td>
                     </>

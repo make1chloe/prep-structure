@@ -10,6 +10,21 @@ import {
 } from "./actions";
 import { sortBooks, BOOK_SORTS, DEFAULT_SORT } from "@/lib/bookSort";
 import { AREA_ORDER as AREAS } from "@/lib/bookSort";
+import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
+
+/**
+ * **빠진 것** — 이 교재가 제구실을 하려면 있어야 하는 칸.
+ *
+ * 영역이 없으면 목록에서 어디에도 안 묶이고, 교재비가 없으면 교재 안내
+ * 문자에 값이 안 나간다. 단어범위는 **단어 교재만** 필요하다 —
+ * 문법책에 단어범위를 채우라고 하면 그 재촉은 늘 켜져 있는 재촉이 된다.
+ */
+const NEED = [
+  { key: "area", label: "영역" },
+  { key: "target_grade", label: "레벨" },
+  { key: "price", label: "교재비" },
+  { key: "word_range", label: "단어범위", when: (t) => t.area === "단어" },
+];
 
 const TB_STATUS = {
   active: { label: "사용중", cls: "tag tag-mint" },
@@ -65,6 +80,7 @@ export default function TextbookList({
   const [studentFilter, setStudentFilter] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [noUnitsOnly, setNoUnitsOnly] = useState(false);
+  const [onlyMissing, setOnlyMissing] = useState(false);
   const [on, setOn] = useState(() => new Set(DEFAULT_ON));
   const [colBox, setColBox] = useState(false);
   // 좁은 화면에서는 판이 위로 올라온다. 목록을 보려면 접을 수 있어야 한다.
@@ -140,11 +156,12 @@ export default function TextbookList({
       if (areaFilter && t.area !== areaFilter) return false;
       if (studentFilter && !(byBook[t.id] || []).includes(studentFilter)) return false;
       if (noUnitsOnly && (unitCount[t.id] || 0) > 0) return false;
+      if (onlyMissing && !hasMissing(t, NEED)) return false;
       if (!kw) return true;
       return [t.name, t.area, t.target_grade, t.feature].some((v) => norm(v).includes(kw));
     });
     return sortBooks(kept, sort, unitCount);
-  }, [textbooks, showHidden, areaFilter, studentFilter, byBook, noUnitsOnly, kw, sort, unitCount]);
+  }, [textbooks, showHidden, areaFilter, studentFilter, byBook, noUnitsOnly, onlyMissing, kw, sort, unitCount]);
   const hiddenCount = textbooks.filter((t) => (t.status || "active") !== "active").length;
   const noUnitCount = textbooks.filter(
     (t) => (t.status || "active") === "active" && !(unitCount[t.id] || 0)
@@ -406,6 +423,14 @@ export default function TextbookList({
           />
           단원 없는 교재만 ({noUnitCount})
         </label>
+        {/* 「단원 없음」 과 따로 둔다 — 단원은 나중에 채우기도 하지만
+            영역·교재비가 비면 지금 당장 문자와 목록이 어긋난다 */}
+        {countMissing(textbooks.filter((t) => (t.status || "active") === "active"), NEED) > 0 && (
+          <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
+            빠진 것만 ({countMissing(textbooks.filter((t) => (t.status || "active") === "active"), NEED)})
+          </label>
+        )}
         <button className="btn btn-ghost btn-sm" onClick={() => setColBox(!colBox)}>
           열 고르기 {cols.length}/{COLS.length}
         </button>
@@ -515,7 +540,18 @@ export default function TextbookList({
                       >
                         {/* 교재명을 누르면 그 교재 한 판이 열린다 */}
                         {c.key === "name" ? (
-                          <button className="namebtn" onClick={() => open(t)}>{t.name}</button>
+                          <>
+                            <button className="namebtn" onClick={() => open(t)}>{t.name}</button>
+                            {missingIn(t, NEED).length > 0 && (
+                              <span
+                                className="tag tag-amber"
+                                style={{ marginLeft: 4 }}
+                                title={`${missingIn(t, NEED).join(" · ")} 가 비어 있습니다`}
+                              >
+                                {missingIn(t, NEED).join("·")} 없음
+                              </span>
+                            )}
+                          </>
                         ) : (
                           cell(t, c)
                         )}

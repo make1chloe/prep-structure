@@ -14,6 +14,20 @@ import ScheduleBox from "./ScheduleBox";
 import { fromLabel } from "@/lib/bookUse";
 import { shortName } from "@/lib/schoolName";
 import { WEEK_ORDER as DOW } from "@/lib/day";
+import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
+
+/**
+ * **빠진 것** — 이 아이에게 없으면 실제로 일이 안 되는 칸.
+ *
+ * 학부모 전화가 없으면 그 아이만 리포트가 안 나가고, 학교가 없으면 시험
+ * 기간에서 통째로 빠진다. 빠진 칸은 오류가 안 나서 목록으로는 안 보인다.
+ * 퇴원·예비는 안 본다 — 채울 이유가 없는 것을 세면 숫자가 늘 켜져 있게 된다.
+ */
+const NEED = [
+  { key: "school", label: "학교" },
+  { key: "grade", label: "학년" },
+  { key: "parent_phone", label: "학부모 전화" },
+];
 
 const STATUS = {
   prospect: { label: "예비", cls: "tag tag-sky" },
@@ -139,6 +153,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const [groupBy, setGroupBy] = useState("none");
   const [sortBy, setSortBy] = useState("name");
   const [savedView, setSavedView] = useState(null);   // 저장해둔 보기
+  const [onlyMissing, setOnlyMissing] = useState(false);
   const [statusFilter, setStatusFilter] = useState(
     () => students.find((s) => s.id === openStudent)?.status || "enrolled"
   );
@@ -169,6 +184,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const kw = norm(q).trim();
   const shown = students.filter((s) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    if (onlyMissing && !hasMissing(s, NEED)) return false;
     if (!kw) return true;
     return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.parent_login_id, s.note]
       .some((v) => norm(v).includes(kw));
@@ -648,6 +664,14 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         })}
         <span className="spacer" />
         <span className="hint">{shown.length}명 표시</span>
+        {/* **빠진 칸은 조용하다** — 학부모 전화가 없으면 그 아이만 리포트가
+            안 나가는데, 목록을 훑어서는 안 보인다 */}
+        {countMissing(students.filter((s) => statusFilter === "all" || s.status === statusFilter), NEED) > 0 && (
+          <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={onlyMissing} onChange={(e) => { setOnlyMissing(e.target.checked); setSel(new Set()); }} />
+            빠진 것만 ({countMissing(students.filter((s) => statusFilter === "all" || s.status === statusFilter), NEED)})
+          </label>
+        )}
         {/* 정렬·묶음·상태는 **저장을 눌러야 남는다.** 그때그때 바꿔보는 것이라
             자동으로 남기면 다음에 열었을 때 왜 이렇게 보이는지 알 수 없다. */}
         {viewDirty && (
@@ -804,7 +828,19 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                     >
                       {/* 이름을 누르면 그 학생 한 판이 열린다 — 버튼을 찾을 일이 없다 */}
                       {c.key === "name" ? (
-                        <button className="namebtn" onClick={() => open(s)}>{s.name}</button>
+                        <>
+                          <button className="namebtn" onClick={() => open(s)}>{s.name}</button>
+                          {/* 무엇이 빠졌는지 적어준다 — 숫자만 있으면 줄마다 눌러 찾아야 한다 */}
+                          {missingIn(s, NEED).length > 0 && (
+                            <span
+                              className="tag tag-amber"
+                              style={{ marginLeft: 4 }}
+                              title={`${missingIn(s, NEED).join(" · ")} 가 비어 있습니다`}
+                            >
+                              {missingIn(s, NEED).join("·")} 없음
+                            </span>
+                          )}
+                        </>
                       ) : (
                         cell(s, c)
                       )}
