@@ -10,6 +10,7 @@ import UnitList from "./UnitList";
 import WordRangeBox from "./WordRangeBox";
 import RoutineEditor from "./RoutineEditor";
 import DupBooks from "./DupBooks";
+import BookStudents from "./BookStudents";
 import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
 import { dupGroups, pickKeeper } from "@/lib/bookName";
@@ -65,9 +66,11 @@ export default async function TextbooksPage({ searchParams }) {
 
   // 같은 교재로 보이는 것 — 엑셀 이름이 조금 달라서 갈라진 것들.
   // 어느 쪽을 남길지 정하려면 **쓰는 학생 수**를 알아야 한다.
+  // 학생 id 도 같이 받는다 — 아래 「이 교재를 쓰는 학생」이 쓴다.
+  // 한 번 물어본 것을 두 번 묻지 않는다 (같은 표를 두 번 읽으면 두 답이 갈린다)
   const { data: assigned } = await supabase
     .from("student_textbooks")
-    .select("textbook_id")
+    .select("textbook_id, student_id, status")
     .neq("status", "dropped");
   const useCount = {};
   (assigned || []).forEach((r) => {
@@ -87,6 +90,15 @@ export default async function TextbooksPage({ searchParams }) {
     .select("id, name, sort")
     .eq("active", true)
     .order("sort", { ascending: true });
+
+  // 교재에 학생을 붙이려면 재원생 명단이 있어야 한다.
+  // 그만둔 아이까지 늘어놓으면 고를 때마다 눈으로 걸러야 한다.
+  let { data: students, error: stuErr } = await supabase
+    .from("students")
+    .select("id, name, school, grade, status")
+    .eq("status", "enrolled")
+    .order("name", { ascending: true });
+  if (stuErr) students = [];
 
   const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
@@ -180,6 +192,17 @@ export default async function TextbooksPage({ searchParams }) {
                 <p className="muted" style={{ margin: "0 0 10px", fontSize: 12.5 }}>
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
+
+                {/* 이 교재를 쓰는 학생 — 학생 화면에서 붙이는 것과 같은 표를 고친다 */}
+                <BookStudents
+                  key={selectedId}
+                  textbookId={selectedId}
+                  bookName={selected.name}
+                  students={students || []}
+                  picked={(assigned || [])
+                    .filter((r) => r.textbook_id === selectedId && r.status === "active")
+                    .map((r) => r.student_id)}
+                />
 
                 {/* 단어 교재만 — 단어시험 개수의 근거가 되는 숫자다 */}
                 {selected.area === "단어" && <WordRangeBox book={selected} />}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { todaySeoul } from "@/lib/day";
+import { planAssign } from "@/lib/bookAssign";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -33,14 +34,17 @@ export async function setStudentTextbooks(studentId, bookIds) {
     .eq("student_id", studentId);
   if (readErr) return { error: readErr.message };
 
-  const known = new Set((have || []).map((r) => r.textbook_id));
-  const active = new Set((have || []).filter((r) => !r.status || r.status === "active").map((r) => r.textbook_id));
+  // 넣고 뺄 것을 가리는 규칙은 lib/bookAssign 한 곳에 있다 —
+  // 교재 쪽에서 고칠 때(setTextbookStudents)도 같은 규칙을 쓴다
+  const { add, drop } = planAssign(
+    (have || []).map((r) => ({ id: r.textbook_id, status: r.status })),
+    want
+  );
 
   // 넣을 것 — 처음이면 새로, 중단했던 것이면 다시 사용중으로
-  const add = want.filter((id) => !active.has(id));
   if (add.length) {
-    const rows = add.map((id) =>
-      known.has(id)
+    const rows = add.map(({ id, known }) =>
+      known
         ? { student_id: studentId, textbook_id: id, status: "active", ended_on: null }
         : { student_id: studentId, textbook_id: id, status: "active", assigned_on: today, ended_on: null }
     );
@@ -57,7 +61,6 @@ export async function setStudentTextbooks(studentId, bookIds) {
   }
 
   // 뺄 것 — 지우지 않고 중단으로
-  const drop = [...active].filter((id) => !want.includes(id));
   if (drop.length) {
     let { error } = await supabase
       .from("student_textbooks")
@@ -74,6 +77,75 @@ export async function setStudentTextbooks(studentId, bookIds) {
     if (error) return { error: error.message };
   }
 
+  revalidatePath("/students");
+  revalidatePath("/today");
+  revalidatePath("/plan");
+  revalidatePath("/textbooks");
+  return { error: null, added: add.length, dropped: drop.length };
+}
+
+/**
+ * **거꾸로** — 이 교재를 쓰는 학생을 통째로 정해준다 (교재 · 단원 화면).
+ *
+ * 교재를 새로 들일 때는 「이 책 쓸 아이들」이 먼저 떠오르지, 아이를 하나씩
+ * 열어 교재를 붙이지 않는다. 그렇게 하면 열다섯 명이면 열다섯 번을 오간다.
+ *
+ * 넣고 빼는 규칙은 위와 **똑같다** (`lib/bookAssign`) — 뺀 학생은 지워지지
+ * 않고 '중단' 으로 남아 진도가 보존된다. 어느 쪽 화면에서 고치든 결과가
+ * 같아야 한다.
+ */
+export async function setTextbookStudents(textbookId, studentIds) {
+  if (!textbookId) return { error: "교재를 찾지 못했어요." };
+  const want = [...new Set((studentIds || []).filter(Boolean))];
+  const supabase = createClient();
+  const today = todaySeoul();
+
+  const { data: have, error: readErr } = await supabase
+    .from("student_textbooks")
+    .select("student_id, status")
+    .eq("textbook_id", textbookId);
+  if (readErr) return { error: readErr.message };
+
+  const { add, drop } = planAssign(
+    (have || []).map((r) => ({ id: r.student_id, status: r.status })),
+    want
+  );
+
+  if (add.length) {
+    const rows = add.map(({ id, known }) =>
+      known
+        ? { student_id: id, textbook_id: textbookId, status: "active", ended_on: null }
+        : { student_id: id, textbook_id: textbookId, status: "active", assigned_on: today, ended_on: null }
+    );
+    let { error } = await supabase
+      .from("student_textbooks")
+      .upsert(rows, { onConflict: "student_id,textbook_id" });
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // ended_on 이 아직 없는 DB
+      ({ error } = await supabase
+        .from("student_textbooks")
+        .upsert(rows.map(({ ended_on: _e, ...r }) => r), { onConflict: "student_id,textbook_id" }));
+    }
+    if (error) return { error: error.message };
+  }
+
+  if (drop.length) {
+    let { error } = await supabase
+      .from("student_textbooks")
+      .update({ status: "dropped", ended_on: today })
+      .eq("textbook_id", textbookId)
+      .in("student_id", drop);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      ({ error } = await supabase
+        .from("student_textbooks")
+        .update({ status: "dropped" })
+        .eq("textbook_id", textbookId)
+        .in("student_id", drop));
+    }
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/textbooks");
   revalidatePath("/students");
   revalidatePath("/today");
   revalidatePath("/plan");
