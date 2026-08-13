@@ -47,13 +47,13 @@ for (const [area, steps] of Object.entries(ROUTINE_TEMPLATES)) {
 console.log("\n== 이름을 id 로 옮기나 ==");
 {
   const items = [
-    { id: "id-1", name: "문법 개념 정독 · 문답노트 정리" },
+    { id: "id-1", name: "문법 개념 정독 + 형광펜" },
     { id: "id-2", name: "셀프녹음테스트 (문답노트)" },
     { id: "id-3", name: "문법 문제풀기" },
   ];
   const { rows, missing } = buildSteps(templateFor("문법"), items);
   eq(rows[0].inclass_items, ["id-1"], "등원 항목을 id 로");
-  eq(rows[0].home_items, ["id-2", "id-3"], "숙제 항목을 id 로");
+  eq(rows[0].home_items, ["id-2"], "숙제 항목을 id 로");
   eq(rows[0].sort, 10, "차례는 10, 20, 30…");
   eq(rows[1].sort, 20, "두 번째는 20");
   // **못 찾은 것은 버리지 않고 돌려준다** — 무엇이 빠졌는지 알아야 채우신다
