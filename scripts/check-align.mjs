@@ -84,4 +84,44 @@ for (const f of pages) {
 }
 if (!bad) ok(`툴바 ${checked}자리 — 저마다 여백을 갖는 단추 없음`);
 
-process.exit(bad ? 1 : 0);
+/**
+ * **같은 규칙을 두 번 적어두지 않았나** (원칙 1).
+ *
+ * 달력이 그랬다 — 대시보드 달력과 달력 화면이 같은 이름(.cal-item …)을 쓰는데
+ * globals.css 에 **두 벌**로 적혀 있었다. 뒤엣것이 앞엣것을 덮으니 어느 줄이
+ * 실제로 먹는지 알 수 없었고, 한쪽만 고치면 다른 달력이 조용히 달라졌다.
+ * 오류는 안 난다. 그래서 기계가 센다.
+ */
+console.log("\n== 같은 CSS 속성을 두 벌로 적어두지 않았나 ==");
+const css = fs.readFileSync("app/globals.css", "utf8");
+// 미디어쿼리 안은 뺀다 — 좁은 화면에서 다시 적는 것은 두 벌이 아니라 덧쓰기다
+const flat = css.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+
+/**
+ * 한 이름을 **여러 곳에 나눠 적는 것 자체는 흠이 아니다** — 「여기까지는
+ * 자리, 여기서부터는 색」 처럼 갈라 두면 오히려 읽기 좋다.
+ * 문제는 **같은 속성을 두 번** 정할 때다. 그때만 뒤엣것이 앞엣것을 덮고,
+ * 한쪽만 고치면 화면이 조용히 어긋난다.
+ */
+const props = new Map();          // "선택자|속성" → 몇 번
+for (const m of flat.matchAll(/^([.#][a-zA-Z][\w-]*)\s*\{([^{}]*)\}/gm)) {
+  const sel = m[1];
+  for (const line of m[2].split(";")) {
+    const name = line.split(":")[0].trim();
+    if (!name || name.startsWith("--")) continue;   // 변수는 일부러 덧쓴다
+    const key = `${sel}|${name}`;
+    props.set(key, (props.get(key) || 0) + 1);
+  }
+}
+const clash = [...props].filter(([, n]) => n > 1);
+if (clash.length) {
+  clash.forEach(([key, n]) => {
+    const [sel, name] = key.split("|");
+    say(`${sel} 의 ${name} 이(가) ${n}번 적혀 있습니다 — 뒤엣것이 앞엣것을 덮습니다`);
+  });
+} else {
+  ok(`${props.size}가지 속성이 저마다 한 번만 정해져 있습니다`);
+}
+
+if (bad) { console.log("\n❌ 위 항목을 고쳐주세요"); process.exit(1); }
+console.log("\n✅ 줄맞춤 검사 통과");
