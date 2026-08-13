@@ -87,12 +87,11 @@ export default function ExcelUpload() {
     : [];
 
   if (!open) {
+    // **접힌 단추는 맨몸으로** — 여백 붙은 껍데기로 감싸면 옆 단추들과 어긋난다
     return (
-      <div className="row" style={{ marginTop: 10 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
-          ＋ 엑셀로 추가
-        </button>
-      </div>
+      <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
+        ＋ 엑셀로 추가
+      </button>
     );
   }
 

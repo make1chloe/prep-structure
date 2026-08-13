@@ -103,12 +103,13 @@ export default function TextbookUpload() {
     : [];
 
   if (!open) {
+    // **접힌 단추는 맨몸으로 돌려준다.** 여백 붙은 껍데기로 감싸면, 옆에
+    // 나란히 선 다른 단추들과 이 단추만 어긋난다 (툴바에서 혼자 내려앉는다).
+    // 여백은 단추가 아니라 **줄을 놓는 쪽**이 준다.
     return (
-      <div className="row" style={{ marginTop: 10 }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
-          ＋ 엑셀로 추가
-        </button>
-      </div>
+      <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
+        ＋ 엑셀로 추가
+      </button>
     );
   }
 

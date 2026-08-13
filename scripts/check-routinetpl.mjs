@@ -81,7 +81,21 @@ console.log("\n== 넣을 때 지키는 것 ==");
   ok(/insert\(\s*filled/.test(act), "채워진 단계만 넣는다");
 
   const ed = readFileSync("app/textbooks/RoutineEditor.jsx", "utf8");
-  ok(/steps\.length === 0 && \(/.test(ed), "루틴이 없을 때만 본보기 단추가 뜬다");
+  /**
+   * **루틴이 없을 때만 본보기 단추가 뜬다.**
+   *
+   * 전에는 `steps.length === 0 && (` 라는 **글자 그대로**를 봤다. 그러면
+   * 뜻은 그대로인데 모양만 바꿔도 (`&&` → `? :`) 검사가 틀렸다고 한다.
+   * 검사가 봐야 하는 것은 **단추가 빈 자리 안에만 있는가**이지 문법이 아니다.
+   * → 빈 자리를 가르는 곳이 있고, 「본보기 넣기」 가 **한 번만** 나오며,
+   *   그것이 그 가름 뒤에 있는지를 본다.
+   */
+  const guard = ed.search(/steps\.length === 0\s*[?&]/);
+  const seeds = [...ed.matchAll(/본보기 넣기/g)];
+  ok(
+    guard >= 0 && seeds.length === 1 && seeds[0].index > guard,
+    "루틴이 없을 때만 본보기 단추가 뜬다"
+  );
 }
 
 if (fail) { console.log("\n❌ 본보기 루틴에 어긋난 것이 있습니다."); process.exit(1); }

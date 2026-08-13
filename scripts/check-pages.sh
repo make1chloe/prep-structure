@@ -294,6 +294,8 @@ runjs scripts/check-kanban.mjs
 runjs scripts/check-pick.mjs
 runjs scripts/check-who.mjs
 runjs scripts/check-dup.mjs
+# 툴바에서 단추 하나만 내려앉는 것 (원장님: 「자꾸 줄이 안 맞아」)
+runjs scripts/check-align.mjs
 
 echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="
