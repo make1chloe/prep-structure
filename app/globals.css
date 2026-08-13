@@ -821,6 +821,11 @@ body { padding-top: var(--topbar-full, 120px); }
   max-height: calc(100vh - var(--topbar-h, 56px) - 24px);
   overflow: auto;
 }
+/* 교재 — 같은 좌우 2분할인데 **판이 더 넓어야 한다.** 재원생의 판에는 칸을
+   채우는 폼이 들어가지만, 교재의 판에는 단원 **표**가 들어간다 (이름 · 쪽수 ·
+   문제번호 · 활동). 440px 에 표를 넣으면 칸마다 글자가 세로로 쪼개진다. */
+.splitview-wide { grid-template-columns: minmax(0, 1fr) minmax(380px, 620px); }
+
 .split-body { margin-top: 8px; }
 .split-fold { display: none; padding: 4px 8px; }
 @media (max-width: 1100px) {

@@ -21,6 +21,7 @@ const COLS = [
   { key: "name", label: "교재명", w: 220, strong: true },
   { key: "area", label: "영역", w: 74, type: "area" },
   { key: "target_grade", label: "레벨", w: 92 },
+  { key: "students", label: "학생", w: 62, type: "students", readOnly: true },
   { key: "total_pages", label: "페이지", w: 62 },
   { key: "price", label: "교재비", w: 78 },
   { key: "word_range", label: "단어범위", w: 78 },
@@ -29,14 +30,46 @@ const COLS = [
   { key: "feature", label: "비고", w: 140 },
 ];
 
-export default function TextbookList({ textbooks = [], unitCount = {}, selectedId }) {
+// 한 판에서 고치는 것 — 표는 **훑어보는 곳**, 판은 **고치는 곳** (재원생과 같다).
+// 「학생」 은 표에서 세어 보여줄 뿐 여기서 고치지 않는다 (학생 탭에서 고친다).
+const ALL_FIELDS = COLS.filter((c) => !c.readOnly);
+
+// 표에 늘어놓을 열 — 전부 켜면 가로가 넘친다. 매일 보는 것만 켜둔다.
+const DEFAULT_ON = ["name", "area", "target_grade", "students", "status"];
+const COL_KEY = "chloe.textbooks.cols";
+
+const TABS = [
+  ["units", "단원"],
+  ["routine", "루틴"],
+  ["students", "학생"],
+  ["info", "정보"],
+];
+
+export default function TextbookList({
+  textbooks = [],
+  unitCount = {},
+  selectedId,
+  students = [],
+  byBook = {},
+  unitsPanel = null,
+  routinePanel = null,
+  studentsPanel = null,
+}) {
   const [sel, setSel] = useState(() => new Set());
-  const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [q, setQ] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
+  // **누가 쓰는 교재인가로 걸러 보기** — 「이 아이 교재만 한 번 훑기」 는
+  // 실제로 자주 하는 일이다 (상담 전, 교재 안내를 보낼 때). 검색으로는
+  // 아이 이름이 교재에 안 적혀 있으니 아예 찾을 수가 없었다.
+  const [studentFilter, setStudentFilter] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [noUnitsOnly, setNoUnitsOnly] = useState(false);
+  const [on, setOn] = useState(() => new Set(DEFAULT_ON));
+  const [colBox, setColBox] = useState(false);
+  // 좁은 화면에서는 판이 위로 올라온다. 목록을 보려면 접을 수 있어야 한다.
+  const [folded, setFolded] = useState(false);
+  const [tab, setTab] = useState("units");
   /**
    * **차례 (원장님, 2026-08-06 — 「교재정렬이 기준이 없어」).**
    *
@@ -52,6 +85,10 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
       const saved = JSON.parse(localStorage.getItem("tbSort") || "null");
       if (saved?.key) setSort(saved);
     } catch {}
+    try {
+      const saved = JSON.parse(localStorage.getItem(COL_KEY) || "null");
+      if (Array.isArray(saved) && saved.length) setOn(new Set(saved));
+    } catch { /* 저장된 게 깨졌으면 기본값 그대로 */ }
   }, []);
   function pickSort(next) {
     setSort(next);
@@ -61,8 +98,38 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
   function clickCol(key) {
     pickSort(sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
   }
+  function toggleCol(k) {
+    const n = new Set(on);
+    n.has(k) ? n.delete(k) : n.add(k);
+    if (n.size === 0) return;          // 전부 끄면 표가 사라진다
+    setOn(n);
+    try { localStorage.setItem(COL_KEY, JSON.stringify([...n])); } catch { /* 사파리 비공개 */ }
+  }
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  const cols = COLS.filter((c) => on.has(c.key));
+  const selected = textbooks.find((t) => t.id === selectedId) || null;
+  const nameById = useMemo(
+    () => new Map(students.map((s) => [s.id, s.name])),
+    [students]
+  );
+
+  // 열린 교재가 바뀌면 고치던 값도 그 교재 것으로 갈아끼운다.
+  // (안 하면 A 를 열어 고치다 B 로 옮겼을 때 A 의 값이 B 에 저장된다)
+  useEffect(() => {
+    if (!selected) return;
+    const d = {};
+    ALL_FIELDS.forEach(({ key }) => (d[key] = selected[key] ?? ""));
+    d.status = selected.status || "active";
+    setDraft(d);
+  }, [selectedId]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** 교재를 고르면 주소가 바뀐다 — 단원은 서버가 그 교재 것으로 다시 읽어온다 */
+  function open(t) {
+    setFolded(false);   // 접어둔 채로 다른 교재를 누르면 아무 일도 안 난 것처럼 보인다
+    router.push(`/textbooks?tb=${t.id}`, { scroll: false });
+  }
 
   const norm = (v) => (v || "").toString().toLowerCase();
   const kw = norm(q).trim();
@@ -71,12 +138,13 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
       const st = t.status || "active";
       if (!showHidden && st !== "active") return false;
       if (areaFilter && t.area !== areaFilter) return false;
+      if (studentFilter && !(byBook[t.id] || []).includes(studentFilter)) return false;
       if (noUnitsOnly && (unitCount[t.id] || 0) > 0) return false;
       if (!kw) return true;
       return [t.name, t.area, t.target_grade, t.feature].some((v) => norm(v).includes(kw));
     });
     return sortBooks(kept, sort, unitCount);
-  }, [textbooks, showHidden, areaFilter, noUnitsOnly, kw, sort, unitCount]);
+  }, [textbooks, showHidden, areaFilter, studentFilter, byBook, noUnitsOnly, kw, sort, unitCount]);
   const hiddenCount = textbooks.filter((t) => (t.status || "active") !== "active").length;
   const noUnitCount = textbooks.filter(
     (t) => (t.status || "active") === "active" && !(unitCount[t.id] || 0)
@@ -94,19 +162,11 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
     setSel(next);
   }
 
-  function startEdit(t) {
-    setEditId(t.id);
-    const d = {};
-    COLS.forEach(({ key }) => (d[key] = t[key] ?? ""));
-    d.status = t.status || "active";
-    setDraft(d);
-  }
   function saveEdit() {
-    const id = editId;
+    const id = selectedId;
     startTransition(async () => {
       const res = await updateTextbook(id, draft);
       if (res?.error) alert(res.error);
-      setEditId(null);
       router.refresh();
     });
   }
@@ -140,6 +200,20 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
       const st = TB_STATUS[t.status || "active"];
       return <span className={st.cls}>{st.label}</span>;
     }
+    // **몇 명이 쓰는지** — 교재를 지울지 합칠지 정할 때 제일 먼저 보는 숫자다.
+    // 마우스를 올리면 누구인지 나온다 (숫자만 보면 또 눌러봐야 한다)
+    if (c.type === "students") {
+      const ids = byBook[t.id] || [];
+      if (ids.length === 0) return <span className="muted">—</span>;
+      return (
+        <span
+          className="tag tag-sky"
+          title={ids.map((id) => nameById.get(id)).filter(Boolean).join(" · ")}
+        >
+          {ids.length}
+        </span>
+      );
+    }
     if (c.type === "url") {
       return v ? (
         <a href={v} target="_blank" rel="noreferrer" className="sky">링크</a>
@@ -147,13 +221,6 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
     }
     if (c.key === "price") return v ? `${Number(v).toLocaleString()}` : <span className="muted">—</span>;
     if (!v) return <span className="muted">—</span>;
-    if (c.key === "name") {
-      return (
-        <a href={`/textbooks?tb=${t.id}`} style={{ fontWeight: 700, color: "inherit", textDecoration: "none" }}>
-          {v}
-        </a>
-      );
-    }
     return v;
   }
 
@@ -204,6 +271,77 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
     );
   }
 
+  /**
+   * 오른쪽 판 — **고르는 곳(왼쪽 표)과 고치는 곳(오른쪽 판)을 나란히.**
+   * 재원생 화면과 같은 구조다. 예전에는 교재를 누르면 단원이 **화면 아래**에
+   * 붙어서, 다른 교재를 보려면 위로 올라가 다시 찾아 눌러야 했다.
+   *
+   * 단원·루틴·학생 판은 서버가 그려서 내려준다 (그 교재의 단원을 읽어야 한다).
+   */
+  function panel() {
+    if (!selected) return null;
+    return (
+      <aside className={`card split-panel ${folded ? "split-folded" : ""}`}>
+        {/* 판이 화면보다 길면 안쪽이 스크롤된다. 그때 **이름이 사라지면**
+            지금 어느 교재를 보고 있는지 알 수 없다. 머리줄은 붙여둔다. */}
+        <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+          <button
+            className="btn btn-ghost btn-sm split-fold"
+            onClick={() => setFolded(!folded)}
+            title={folded ? "펴기" : "접기"}
+          >
+            {folded ? "▾" : "▴"}
+          </button>
+          <b style={{ fontSize: 14 }}>{selected.name}</b>
+          <span className="hint">
+            {[selected.area, `단원 ${unitCount[selected.id] || 0}`, `학생 ${(byBook[selected.id] || []).length}`]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </div>
+        {!folded && (
+          <div className="split-body">
+            <div className="row" style={{ gap: 3, margin: "8px 0 10px" }}>
+              {TABS.map(([k, label]) => (
+                <button
+                  key={k}
+                  className={`hwchip ${tab === k ? "hw-next" : ""}`}
+                  onClick={() => setTab(k)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "units" && unitsPanel}
+            {tab === "routine" && routinePanel}
+            {tab === "students" && studentsPanel}
+
+            {/* 정보 — 표에 안 켜둔 칸도 여기서는 전부 고친다 */}
+            {tab === "info" && (
+              <>
+                <div className="editgrid">
+                  {ALL_FIELDS.map((c) => (
+                    <div className="field" key={c.key}>
+                      <label className="label">{c.label}</label>
+                      {editor(c)}
+                    </div>
+                  ))}
+                </div>
+                <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
+                  <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
+                    {pending ? "저장 중…" : "저장"}
+                  </button>
+                  <span className="hint">고친 뒤 저장을 눌러주세요.</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </aside>
+    );
+  }
+
   return (
     <>
       <div className="row" style={{ gap: 6, padding: "12px 16px 0", alignItems: "center" }}>
@@ -213,6 +351,22 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
           onChange={(e) => { setAreaFilter(e.target.value); setSel(new Set()); }}>
           <option value="">전 영역</option>
           {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        {/* 학생별로 걸러 보기 — 「이 아이 교재만」 */}
+        <select
+          className="input input-sm"
+          style={{ width: 128 }}
+          value={studentFilter}
+          onChange={(e) => { setStudentFilter(e.target.value); setSel(new Set()); }}
+          title="그 학생이 쓰는 교재만 봅니다"
+        >
+          <option value="">학생 전체</option>
+          {students.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+              {s.grade ? ` (${s.grade})` : ""}
+            </option>
+          ))}
         </select>
         {hiddenCount > 0 && (
           <button className={`btn btn-sm ${showHidden ? "btn-primary" : "btn-ghost"}`}
@@ -240,7 +394,10 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
           {sort.dir === "asc" ? "▲" : "▼"}
         </button>
         <span className="spacer" />
-        <span className="hint">{shown.length}권</span>
+        <span className="hint">
+          {shown.length}권
+          {studentFilter && ` · ${nameById.get(studentFilter) || ""}`}
+        </span>
         <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
           <input
             type="checkbox"
@@ -249,7 +406,39 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
           />
           단원 없는 교재만 ({noUnitCount})
         </label>
+        <button className="btn btn-ghost btn-sm" onClick={() => setColBox(!colBox)}>
+          열 고르기 {cols.length}/{COLS.length}
+        </button>
       </div>
+
+      {colBox && (
+        <div className="card card-tight" style={{ marginTop: 8 }}>
+          <p className="hint" style={{ margin: "0 0 8px" }}>
+            볼 것만 켜두세요. <b>이 브라우저에 기억됩니다.</b>
+            끈 것도 교재를 열면 「정보」 탭에서 그대로 고칠 수 있어요.
+          </p>
+          <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+            {COLS.map((c) => (
+              <button
+                key={c.key}
+                className={`hwchip ${on.has(c.key) ? "hw-next" : ""}`}
+                onClick={() => toggleCol(c.key)}
+              >
+                {on.has(c.key) && <b>＋</b>} {c.label}
+              </button>
+            ))}
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setOn(new Set(DEFAULT_ON));
+                try { localStorage.setItem(COL_KEY, JSON.stringify(DEFAULT_ON)); } catch { /* 무시 */ }
+              }}
+            >
+              처음 상태로
+            </button>
+          </div>
+        </div>
+      )}
 
       {sel.size > 0 && (
         <div className="bulkbar">
@@ -271,70 +460,85 @@ export default function TextbookList({ textbooks = [], unitCount = {}, selectedI
         </div>
       )}
 
-      <div className="tblwrap">
-        <table className="tbl tbl-tight">
-          <thead>
-            <tr>
-              <th style={{ width: 32 }}>
-                <input type="checkbox" checked={allChecked}
-                  ref={(el) => el && (el.indeterminate = someChecked)} onChange={toggleAll} />
-              </th>
-              <th style={{ width: 62 }}>{sortableTh("units", "단원")}</th>
-              {COLS.map((c) => (
-                <th key={c.key} style={{ minWidth: c.w }}>
-                  {/* 구매링크·비고는 늘어세울 기준이 못 된다 (링크가 있고 없고 뿐) */}
-                  {["purchase_url", "feature", "word_range"].includes(c.key)
-                    ? c.label
-                    : sortableTh(c.key, c.label)}
+      <div className="splitview splitview-wide">
+        <div className="tblwrap">
+          {/* 폰에서는 열을 다 보여줄 수가 없다. **교재명과 상태만 남기고**
+              나머지는 접는다 — 어차피 교재를 누르면 오른쪽(폰에서는 위) 판이
+              열려서 거기서 다 보고 고친다. */}
+          <table className="tbl tbl-tight stutbl">
+            <thead>
+              <tr>
+                <th style={{ width: 32 }}>
+                  <input type="checkbox" checked={allChecked}
+                    ref={(el) => el && (el.indeterminate = someChecked)} onChange={toggleAll} />
                 </th>
-              ))}
-              <th style={{ width: 86 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((t) => {
-              const editing = editId === t.id;
-              const dim = (t.status || "active") !== "active";
-              return (
-                <tr key={t.id} style={{
-                  ...(t.id === selectedId ? { background: "var(--surface-2)" } : {}),
-                  ...(dim && !editing ? { opacity: 0.55 } : {}),
-                }}>
-                  <td>
-                    <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleOne(t.id)} />
-                  </td>
-                  <td>
-                    {unitCount[t.id] ? (
-                      <span className="tag tag-mint">{unitCount[t.id]}</span>
-                    ) : (
-                      <span className="tag tag-muted">없음</span>
-                    )}
-                  </td>
-                  {COLS.map((c) => (
-                    <td key={c.key} style={!editing && c.strong ? { fontWeight: 700 } : undefined}>
-                      {editing ? editor(c) : cell(t, c)}
+                <th style={{ width: 62 }}>{sortableTh("units", "단원")}</th>
+                {cols.map((c) => (
+                  <th
+                    key={c.key}
+                    className={c.key === "name" || c.key === "status" ? "stu-keep" : "stu-drop"}
+                    style={{ minWidth: c.w }}
+                  >
+                    {/* 구매링크·비고·학생은 늘어세울 기준이 못 된다 */}
+                    {["purchase_url", "feature", "word_range", "students"].includes(c.key)
+                      ? c.label
+                      : sortableTh(c.key, c.label)}
+                  </th>
+                ))}
+                <th style={{ width: 66 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((t) => {
+                const dim = (t.status || "active") !== "active";
+                return (
+                  <tr
+                    key={t.id}
+                    className={t.id === selectedId ? "rowopen" : undefined}
+                    style={dim ? { opacity: 0.55 } : undefined}
+                  >
+                    <td>
+                      <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleOne(t.id)} />
                     </td>
-                  ))}
-                  <td>
-                    {editing ? (
-                      <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
-                        <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
-                      </div>
-                    ) : (
-                      <button className="btn btn-ghost btn-sm" onClick={() => startEdit(t)}>수정</button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {shown.length === 0 && (
-          <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
-            조건에 맞는 교재가 없어요.
-          </p>
-        )}
+                    <td>
+                      {unitCount[t.id] ? (
+                        <span className="tag tag-mint">{unitCount[t.id]}</span>
+                      ) : (
+                        <span className="tag tag-muted">없음</span>
+                      )}
+                    </td>
+                    {cols.map((c) => (
+                      <td
+                        key={c.key}
+                        className={c.key === "name" || c.key === "status" ? "stu-keep" : "stu-drop"}
+                        style={c.strong ? { fontWeight: 700 } : undefined}
+                      >
+                        {/* 교재명을 누르면 그 교재 한 판이 열린다 */}
+                        {c.key === "name" ? (
+                          <button className="namebtn" onClick={() => open(t)}>{t.name}</button>
+                        ) : (
+                          cell(t, c)
+                        )}
+                      </td>
+                    ))}
+                    <td>
+                      <button className="btn btn-ghost btn-sm" onClick={() => open(t)}>
+                        {t.id === selectedId ? "보는 중" : "열기"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {shown.length === 0 && (
+            <p className="muted" style={{ padding: 16, margin: 0, fontSize: 13.5 }}>
+              조건에 맞는 교재가 없어요.
+              {studentFilter && " 이 학생에게 배정된 교재가 없습니다."}
+            </p>
+          )}
+        </div>
+        {panel()}
       </div>
     </>
   );

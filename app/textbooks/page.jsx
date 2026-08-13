@@ -76,6 +76,19 @@ export default async function TextbooksPage({ searchParams }) {
   (assigned || []).forEach((r) => {
     useCount[r.textbook_id] = (useCount[r.textbook_id] || 0) + 1;
   });
+
+  /**
+   * 교재마다 **지금 쓰는 학생** — 「학생별로 걸러 보기」와 「학생」 열이 쓴다.
+   *
+   * '완료(done)' 는 뺀다. 다 뗀 책까지 「쓰는 중」으로 세면, 걸러 봤을 때
+   * 지금 안 쓰는 책이 섞여 나온다.
+   */
+  const byBook = {};
+  (assigned || [])
+    .filter((r) => (r.status || "active") === "active")
+    .forEach((r) => {
+      (byBook[r.textbook_id] ||= []).push(r.student_id);
+    });
   const dups = dupGroups(textbooks || []).map(({ key, books }) => {
     const withCounts = books.map((b) => ({
       id: b.id, name: b.name, area: b.area, created_at: b.created_at,
@@ -160,8 +173,9 @@ export default async function TextbooksPage({ searchParams }) {
 
         <DupBooks groups={dups} />
 
-        {/* 교재 목록 (전체 폭) */}
-        <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+        {/* 교재 목록(왼쪽) + 고른 교재 한 판(오른쪽) — **재원생 화면과 같은 구조.**
+            overflow:hidden 을 걸면 오른쪽 판의 sticky 가 죽는다 (재원생과 같은 이유) */}
+        <div className="card" style={{ marginTop: 12, padding: 0 }}>
           {tbError ? (
             <div style={{ padding: 14 }}>
               <div className="err">불러오기 실패: {tbError.message}</div>
@@ -171,17 +185,25 @@ export default async function TextbooksPage({ searchParams }) {
               textbooks={textbooks || []}
               unitCount={unitCount}
               selectedId={selectedId}
-            />
-          )}
-        </div>
-
-        {/* 선택한 교재의 단원 (아래, 전체 폭) */}
-        <div className="card" style={{ marginTop: 12 }}>
-            {selected ? (
+              students={students || []}
+              byBook={byBook}
+              routinePanel={
+                selected ? <RoutineEditor textbookId={selectedId} items={hwItems} /> : null
+              }
+              studentsPanel={
+                selected ? (
+                  <BookStudents
+                    key={selectedId}
+                    textbookId={selectedId}
+                    bookName={selected.name}
+                    students={students || []}
+                    picked={byBook[selectedId] || []}
+                  />
+                ) : null
+              }
+              unitsPanel={
+                selected ? (
               <>
-                <h2 style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800 }}>
-                  {selected.name} · 단원
-                </h2>
                 <div className="row" style={{ margin: "0 0 8px" }}>
                   <GenerateUnits
                     textbookId={selectedId}
@@ -193,21 +215,8 @@ export default async function TextbooksPage({ searchParams }) {
                   상위 단원을 고르면 그 아래(중·소단원)로 들어가요. 순서는 자동으로 맨 뒤에 붙습니다.
                 </p>
 
-                {/* 이 교재를 쓰는 학생 — 학생 화면에서 붙이는 것과 같은 표를 고친다 */}
-                <BookStudents
-                  key={selectedId}
-                  textbookId={selectedId}
-                  bookName={selected.name}
-                  students={students || []}
-                  picked={(assigned || [])
-                    .filter((r) => r.textbook_id === selectedId && r.status === "active")
-                    .map((r) => r.student_id)}
-                />
-
                 {/* 단어 교재만 — 단어시험 개수의 근거가 되는 숫자다 */}
                 {selected.area === "단어" && <WordRangeBox book={selected} />}
-
-                <RoutineEditor textbookId={selectedId} items={hwItems} />
 
                 <form action={addUnit} className="row" style={{ alignItems: "flex-end", gap: 8, marginBottom: 12 }}>
                   <input type="hidden" name="textbook_id" value={selected.id} />
@@ -273,11 +282,10 @@ export default async function TextbooksPage({ searchParams }) {
                   book={selected}
                 />
               </>
-            ) : (
-              <p className="muted" style={{ fontSize: 13.5 }}>
-                왼쪽에서 교재를 선택하면 단원을 정리할 수 있어요.
-              </p>
-            )}
+                ) : null
+              }
+            />
+          )}
         </div>
       </main>
     </>
