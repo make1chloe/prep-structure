@@ -50,7 +50,12 @@ export default async function TopBar({ profile, active }) {
   for (const it of items) {
     const last = rows[rows.length - 1];
     if (last?.group === it.group) last.items.push(it);
-    else rows.push({ group: it.group, label: groupLabel(it.group), items: [it] });
+    else rows.push({
+      group: it.group,
+      label: groupLabel(it.group),
+      tone: findSection(it.group)?.tone || "navy",
+      items: [it],
+    });
   }
   for (const r of rows) {
     if (r.items.length === 1 && r.items[0].label === r.label) {
@@ -138,7 +143,8 @@ export default async function TopBar({ profile, active }) {
       <nav className="navgrid-wrap">
         <div className="navgrid">
           {rows.map((row) => (
-            <div className={`navcol ${row.solo ? "solo" : ""}`} key={row.group}>
+            /* 묶음마다 제 색 — 아래 소메뉴도 같은 색을 물려받는다 (lib/menu 의 tone) */
+            <div className={`navcol ${row.solo ? "solo" : ""}`} data-tone={row.tone} key={row.group}>
               {/**
                 * 대메뉴 — **굴려도 이 줄만은 남는다.**
                 * 하위가 없는 묶음(대시보드)은 이 이름이 곧 그 화면이다.
