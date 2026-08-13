@@ -375,6 +375,33 @@ body { padding-top: var(--topbar-full, 120px); }
 /* 「등원」·「숙제」 딱지 — 폭을 맞춰야 아래위 두 줄의 글이 같은 자리에서 시작한다 */
 .steprow .plabel { width: auto; min-width: 34px; text-align: center; }
 
+/* 시험 한 줄 — **날짜가 세로로 줄을 맞춰야 훑어진다** (원장님, 2026-08-13 —
+   「시험 페이지에서 정렬이 안맞고」).
+   줄마다 붙는 딱지 수가 다르다 (학기 · 선생님 · 특이사항 · 하루짜리? · 영어
+   시험일…). 그냥 흘려 놓으면 날짜가 줄마다 다른 자리에 와서, 「언제였지」 를
+   보려면 줄마다 눈이 가로로 옮겨 다녀야 한다.
+   → 이름 · 딱지 · 단추를 **칸으로 나눈다.** 딱지는 자기 칸 안에서만 접힌다. */
+.examrow {
+  display: grid;
+  grid-template-columns: minmax(110px, 180px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.examrow .exam-head,
+.examrow .exam-meta,
+.examrow .exam-act {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0;
+}
+.examrow .exam-act { justify-content: flex-end; }
+/* 날짜는 폭이 흔들리면 안 된다 — 숫자를 같은 너비로 (1 과 8 이 다르게 보이면
+   줄이 맞아도 안 맞아 보인다) */
+.examrow .exam-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 900px) {
+  /* 좁으면 칸을 포기하고 위아래로 — 세 칸을 우겨넣으면 이름이 두 글자씩 끊긴다 */
+  .examrow { grid-template-columns: 1fr; }
+  .examrow .exam-act { justify-content: flex-start; }
+}
+
 /* 골라 담을 것을 **분류로 묶어** 보여준다 (원장님: 「분류를 해야 정보가 눈에
    들어오지」). 분류 딱지를 왼쪽에 고정폭으로 세워야 줄들이 가지런히 선다 —
    위에 얹으면 묶음마다 높이가 달라져 계단처럼 보인다. */

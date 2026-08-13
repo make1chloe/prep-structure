@@ -81,14 +81,20 @@ export default function ScheduleBoard({
    * 나이스에서 받으면 학교 × 학년 × 회차만큼 쏟아지는데 날짜순 한 줄이라
    * 학교를 찾으려면 눈으로 훑어야 했다. 거르는 칸과 차례를 붙인다.
    */
-  const [eFilter, setEFilter] = useState({ school: "", year: "", kind: "all", q: "" });
+  // 지난 시험은 **기본으로 안 보인다** — 나이스에서 한 해치를 받으면 지난
+  // 시험이 통째로 쌓여서 앞으로의 시험이 그 아래로 묻힌다
+  const [eFilter, setEFilter] = useState({ school: "", year: "", kind: "all", q: "", past: false });
   const [eSort, setESort] = useState(EXAM_SORT_DEFAULT);
 
   // 숨긴 시험은 기본으로 접어둔다 — 나이스에서 받으면 안 쓰는 것까지 다 들어온다
   const hiddenExams = exams.filter((e) => e.hidden);
   const examFacets = facetsOf(exams);
+  // 지난 시험이 몇 건인가 — 체크박스 옆에 적어준다 (숨긴 것은 세지 않는다)
+  const pastCount = (showHidden ? exams : exams.filter((e) => !e.hidden)).filter(
+    (e) => (e.to_date || e.from_date || "") < todaySeoul()
+  ).length;
   const shownExams = sortExams(
-    filterExams(showHidden ? exams : exams.filter((e) => !e.hidden), eFilter),
+    filterExams(showHidden ? exams : exams.filter((e) => !e.hidden), { ...eFilter, today: todaySeoul() }),
     eSort
   );
   const [pending, startTransition] = useTransition();
@@ -226,7 +232,8 @@ export default function ScheduleBoard({
           </button>
         </div>
       )}
-      <div className="unitrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
+      <div className="unitrow examrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
+        <div className="exam-head">
         {e.hidden && <span className="tag tag-muted">숨김</span>}
         {/* **「전체」 를 안 적는다** (원장님, 2026-08-07 — 「학년별로
             다른 일정이 있어서 그런거면 학년이 다를 때만 그 학년을
@@ -251,6 +258,8 @@ export default function ScheduleBoard({
             </>
           )}
         </b>
+        </div>
+        <div className="exam-meta">
         {/* **몇 년 몇 학기인지**를 이름 앞에 (2026-08-06).
             작년 2학기와 올해 2학기가 같은 얼굴이었다 */}
         {!inGroup && termLabel(e) && <span className="tag tag-sky">{termLabel(e)}</span>}
@@ -288,7 +297,7 @@ export default function ScheduleBoard({
           </span>
         )}
         {/* 시험 목록은 석 달치가 섞여 나온다 — 달이 없으면 몇 월인지 모른다 */}
-        <span className="hint">
+        <span className="hint exam-date">
           {monthDay(e.from_date)} ~ {monthDay(e.to_date)}
         </span>
         {/**
@@ -305,7 +314,8 @@ export default function ScheduleBoard({
           </span>
         )}
         <WhoTakes e={e} />
-        <span className="spacer" />
+        </div>
+        <div className="exam-act">
         {e.english_on ? (
           <>
             <span className="tag tag-lav">영어 {monthDay(e.english_on)}</span>
@@ -453,6 +463,7 @@ export default function ScheduleBoard({
         >
           삭제
         </button>
+        </div>
       </div>
       </div>
     );
@@ -1196,6 +1207,17 @@ export default function ScheduleBoard({
             </button>
             <span className="spacer" />
             <span className="hint">{shownExams.length}건</span>
+            {/* 지난 시험 — 세어서 보여준다. 몇 건인지 모르면 켜볼 이유가 없다 */}
+            {pastCount > 0 && (
+              <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={!!eFilter.past}
+                  onChange={(ev) => setEFilter({ ...eFilter, past: ev.target.checked })}
+                />
+                지난 시험도 ({pastCount})
+              </label>
+            )}
           </div>
         )}
 
@@ -1238,6 +1260,15 @@ export default function ScheduleBoard({
         )}
         {exams.length === 0 && (
           <p className="hint" style={{ marginTop: 8 }}>등록된 시험 일정이 없습니다.</p>
+        )}
+        {/* **「없다」 와 「걸러졌다」 는 다르다** (A25). 지난 시험을 기본으로
+            가리므로, 지난 것만 있는 학교는 화면이 통째로 비어 보인다 —
+            아무 말도 없으면 「시험이 하나도 없나」 로 읽힌다 */}
+        {exams.length > 0 && shownExams.length === 0 && (
+          <p className="hint" style={{ marginTop: 8 }}>
+            조건에 맞는 시험이 없습니다.
+            {!eFilter.past && pastCount > 0 && ` 지난 시험 ${pastCount}건은 가려져 있어요 — 위의 「지난 시험도」 를 켜보세요.`}
+          </p>
         )}
       </div>
       </>
