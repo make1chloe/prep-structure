@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { saveScope, listBooks } from "./actions";
 import { listUnitOptions } from "@/app/today/actions";
 import { unitOptionText } from "@/lib/unitTree";
+import BookPicker from "@/components/BookPicker";
 
 /**
  * 시험범위를 **교재DB에서 골라** 담는다.
@@ -113,19 +114,7 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <select
-          className="input input-sm"
-          style={{ minWidth: 190 }}
-          value={bookId}
-          onChange={(e) => setBookId(e.target.value)}
-        >
-          <option value="">교재 고르기</option>
-          {books.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}{b.category ? ` (${b.category})` : ""}
-            </option>
-          ))}
-        </select>
+        <BookPicker books={books} value={bookId} onChange={setBookId} width={200} />
         <input
           className="input input-sm"
           style={{ width: 150 }}

@@ -375,6 +375,36 @@ body { padding-top: var(--topbar-full, 120px); }
 /* 「등원」·「숙제」 딱지 — 폭을 맞춰야 아래위 두 줄의 글이 같은 자리에서 시작한다 */
 .steprow .plabel { width: auto; min-width: 34px; text-align: center; }
 
+/* 교재 고르기 — 맨 목록 대신 **검색 + 영역**으로 좁혀서 고른다.
+   (원장님: 「목록선택이 너무 비효율적… 분류가 되면서 그중에 선택하게」) */
+.bookpick { position: relative; display: inline-block; }
+.bookpick-btn {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  text-align: left; cursor: pointer; font-family: inherit;
+}
+.bookpick-btn:disabled { opacity: .55; cursor: default; }
+/* 고른 교재 이름이 길어도 칸을 밀지 않는다 — 밀면 옆 칸들이 줄줄이 어긋난다 */
+.bookpick-cur { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bookpick-pop {
+  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0;
+  width: max(260px, 100%); padding: 8px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+}
+/* 목록이 길어도 판이 화면을 넘지 않게 — 넘으면 아래쪽 교재를 못 고른다 */
+.bookpick-list { max-height: 260px; overflow-y: auto; margin-top: 6px; }
+.bookpick-cat {
+  font-size: 11px; font-weight: 800; color: var(--text-faint);
+  padding: 6px 4px 2px; position: sticky; top: 0; background: var(--surface);
+}
+.bookpick-row {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; color: var(--text);
+  background: none; border: 0; border-radius: 8px; padding: 6px 8px;
+}
+.bookpick-row:hover { background: var(--surface-2); }
+.bookpick-row.on { background: var(--lav-soft); color: var(--lav); font-weight: 700; }
+
 /* 시험 한 줄 — **날짜가 세로로 줄을 맞춰야 훑어진다** (원장님, 2026-08-13 —
    「시험 페이지에서 정렬이 안맞고」).
    줄마다 붙는 딱지 수가 다르다 (학기 · 선생님 · 특이사항 · 하루짜리? · 영어

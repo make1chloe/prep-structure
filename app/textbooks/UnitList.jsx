@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { flattenTree } from "@/lib/unitTree";
 import { DEFAULT_ACTIVITIES } from "@/lib/activities";
+import BookPicker from "@/components/BookPicker";
 
 const LEVEL = ["대", "중", "소"];
 
@@ -140,13 +141,15 @@ export default function UnitList({
             ))}
           </select>
           {others.length > 0 && (
-            <select
-              className="input"
-              style={{ width: 150, padding: "6px 8px" }}
-              defaultValue=""
-              onChange={(e) => {
-                const tb = e.target.value;
-                e.target.value = "";
+            /* 옮길 교재도 **검색·영역으로 좁혀서** 고른다 — 교재가 쉰 권이면
+               맨 목록에서는 눈으로 찾아야 했다 (다른 교재 고르는 자리와 같은 한 벌) */
+            <BookPicker
+              books={others}
+              value=""
+              placeholder="다른 교재로 이동…"
+              width={170}
+              disabled={pending}
+              onChange={(tb) => {
                 if (!tb) return;
                 run(async () => {
                   const r = await moveUnitsToTextbook([...sel], tb);
@@ -154,13 +157,7 @@ export default function UnitList({
                   return r;
                 });
               }}
-              disabled={pending}
-            >
-              <option value="">다른 교재로 이동…</option>
-              {others.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+            />
           )}
           <button className="btn btn-ghost btn-sm" onClick={runDelete} disabled={pending}>삭제</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>

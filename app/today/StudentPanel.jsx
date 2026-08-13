@@ -24,6 +24,7 @@ import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
 import { cutOf, verdict } from "@/lib/wordTest";
 import { DOW as DOWN } from "@/lib/day";
+import BookPicker from "@/components/BookPicker";
 
 // 보강에 자주 쓰는 시간 — 정규 수업이 비는 때
 const MAKEUP_TIMES = ["15:00", "16:00", "17:00", "18:00"];
@@ -1248,35 +1249,19 @@ export default function StudentPanel({
                     <span className="tag tag-lav" style={{ fontWeight: 800 }}>
                       {nameOf(iid) || "숙제"}
                     </span>
-                    <select
-                      className="input input-sm"
-                      style={{ width: 150 }}
+                    {/* 수업 중에 고르는 자리다 — 굴려 찾을 시간이 없다.
+                        이 학생 교재가 맨 위에 서고, 나머지는 영역으로 좁힌다 */}
+                    <BookPicker
+                      books={textbooks}
+                      mine={myBooks}
                       value={bookId}
-                      onChange={(e) => {
-                        const v = e.target.value;
+                      width={160}
+                      placeholder="교재 선택"
+                      onChange={(v) => {
                         setUnitField(iid, { textbookId: v });
                         loadBook(v);
                       }}
-                      title="여기서 교재를 바꿔 다른 교재 단원도 이어서 추가할 수 있어요"
-                    >
-                      <option value="">교재 선택</option>
-                      {myBooks.length > 0 && (
-                        <optgroup label="이 학생 교재">
-                          {myBooks.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.area ? `[${t.area}] ` : ""}{t.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      <optgroup label="전체 교재">
-                        {textbooks.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.area ? `[${t.area}] ` : ""}{t.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
+                    />
                     <select
                       className="input input-sm"
                       style={{ flex: 1, minWidth: 200 }}
