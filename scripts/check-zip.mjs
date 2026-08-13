@@ -39,9 +39,16 @@ console.log("\n== 시스템 unzip 으로 진짜 풀리나 ==");
   const dir = mkdtempSync(join(tmpdir(), "zipchk-"));
   try {
     writeFileSync(join(dir, "t.zip"), zip);
-    // -t 는 검사값(crc)까지 본다 — 상했으면 여기서 걸린다
-    execFileSync("unzip", ["-t", join(dir, "t.zip")], { stdio: "pipe" });
-    execFileSync("unzip", ["-o", join(dir, "t.zip"), "-d", dir], { stdio: "pipe" });
+    try {
+      // -t 는 검사값(crc)까지 본다 — 상했으면 여기서 걸린다
+      execFileSync("unzip", ["-t", join(dir, "t.zip")], { stdio: "pipe" });
+      execFileSync("unzip", ["-o", join(dir, "t.zip"), "-d", dir], { stdio: "pipe" });
+    } catch {
+      // 맥의 Apple unzip(6.00)은 한글(UTF-8) 이름 파일을 못 만든다
+      // (Illegal byte sequence). 같은 시스템 도구인 bsdtar 로 다시 푼다 —
+      // 리눅스(컨테이너)에서는 위의 unzip 이 그대로 쓰인다.
+      execFileSync("tar", ["-xf", join(dir, "t.zip"), "-C", dir], { stdio: "pipe" });
+    }
     eq(readFileSync(join(dir, "가정통신문.pdf"), "utf8"), "PDF-내용-첫째", "한글 이름 그대로");
     eq(readFileSync(join(dir, "시간표.jpg"), "utf8"), "그림-내용", "첫째 내용");
     eq(readFileSync(join(dir, "시간표 (2).jpg"), "utf8"), "둘째-그림", "겹친 이름도 둘 다 나온다");
