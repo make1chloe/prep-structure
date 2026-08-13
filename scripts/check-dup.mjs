@@ -55,6 +55,7 @@ const ONE_PLACE = [
   ["noColumn", "lib/sqlError.js", "칸이 없다"],
   ["cleanClassName", "lib/classLabel.js", "반 이름 속 시간 걷어내기"],
   ["planAssign", "lib/bookAssign.js", "교재 배정을 넣고 빼는 규칙 (학생 쪽 · 교재 쪽 공통)"],
+  ["absenceLabel", "lib/absenceLabel.js", "이 결석을 뭐라고 부를까 (지난 것은 「예정」이 아니다)"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

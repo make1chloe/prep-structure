@@ -12,6 +12,7 @@ import { syncRoutines, listRoutines } from "../todo/routineActions";
 import CalendarBoard from "./CalendarBoard";
 import GoogleSync from "./GoogleSync";
 import { todaySeoul, addDays } from "@/lib/day";
+import { absenceLabel } from "@/lib/absenceLabel";
 import { makeupNeeded } from "@/lib/makeupTask";
 import { hiddenExamIds } from "@/lib/schedule";
 
@@ -332,7 +333,9 @@ export default async function TasksPage({ searchParams }) {
           title:
             a.status === "makeup"
               ? `${t}${who} 보강`
-              : `${who} 결석${a.planned ? " 예정" : ""}${a.reason ? ` (${a.reason})` : ""}`,
+              // **지나간 날은 「예정」이 아니다** — planned 는 그날이 지나도
+              // 남는다. 달력을 뒤로 넘기면 지난달 결석까지 「예정」이라 적혔다
+              : `${who} ${absenceLabel(a, today)}${a.reason ? ` (${a.reason})` : ""}`,
           source: a.status === "makeup" ? "보강" : "결석",
           studentId: a.student_id,
           from_where: a.status === "makeup" ? "오늘 수업 · 보강" : "오늘 수업 · 출결",

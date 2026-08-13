@@ -48,11 +48,24 @@ eq(menu.includes('label: "관리자"'), true, "관리자 칸이 있다");
 // 없애지는 않는다 — 새 기능을 넣을 때마다 SQL 은 한 번씩 돌려야 한다
 eq(menu.includes('href: "/settings/sql"'), false, "SQL 이 메뉴에서 한 칸 뒤로");
 eq(menu.includes('href: "/import"'), false, "노션 이관도 한 칸 뒤로");
-const admin = read("app/settings/admin/page.jsx");
-eq(admin.includes('href: "/settings/sql"'), true, "관리자 안에 SQL");
-eq(admin.includes('href: "/import"'), true, "관리자 안에 노션 이관");
+/**
+ * **「관리자」 라는 화면 자체는 없앴다** (원장님, 2026-08-13 — 「관리자
+ * 페이지는 각각 설정, 화면으로 나눠서 페이지를 아예없애」). 묶음 이름이
+ * 「관리자」가 되면서 그 안에 또 「관리자」가 있어 헷갈렸다.
+ *
+ * 검사가 봐야 하는 것은 **어느 파일에 있나**가 아니라 —
+ *   ① 매일 쓰는 것과 섞이지 않게 뒤로 물러나 있나 (설정 화면 맨 아래 칸)
+ *   ② 안 돌린 SQL 을 알려주나
+ *   ③ 옛 주소가 안 깨지나 (C18)
+ */
+const setting = read("app/settings/page.jsx");
+eq(setting.includes('href: "/settings/sql"'), true, "설정 아래 칸에 SQL");
+eq(setting.includes('href: "/import"'), true, "설정 아래 칸에 노션 이관");
 // 표가 없으면 그 기능이 **조용히** 안 된다 — 안 돌린 SQL 은 눈에 띄어야 한다
-eq(admin.includes("checkSchema"), true, "안 돌린 SQL 이 있으면 알려준다");
+eq(setting.includes("checkSchema"), true, "안 돌린 SQL 이 있으면 알려준다");
+// 옛 주소는 없애지 않고 넘긴다 — 즐겨찾기·홈 화면 바로가기가 깨진다
+const admin = read("app/settings/admin/page.jsx");
+eq(/redirect\("\/settings"\)/.test(admin), true, "옛 /settings/admin 은 설정으로 넘긴다");
 
 console.log("\n== 수업 중 동선 ==");
 /**

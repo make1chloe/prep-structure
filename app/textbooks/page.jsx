@@ -98,11 +98,20 @@ export default async function TextbooksPage({ searchParams }) {
     return { key, books: withCounts, keepId: pickKeeper(withCounts)?.id || withCounts[0].id };
   });
 
-  const { data: hwItems } = await supabase
+  // 분류(category)도 받아온다 — 루틴에서 항목을 고를 때 마흔몇 개를 한 덩어리로
+  // 펴 놓으면 눈이 멈출 데가 없다. 분류로 묶어서 보여준다
+  let { data: hwItems, error: hwErr } = await supabase
     .from("homework_items")
-    .select("id, name, sort")
+    .select("id, name, sort, category")
     .eq("active", true)
     .order("sort", { ascending: true });
+  if (hwErr) {
+    ({ data: hwItems } = await supabase
+      .from("homework_items")
+      .select("id, name, sort")
+      .eq("active", true)
+      .order("sort", { ascending: true }));
+  }
 
   // 교재에 학생을 붙이려면 재원생 명단이 있어야 한다.
   // 그만둔 아이까지 늘어놓으면 고를 때마다 눈으로 걸러야 한다.

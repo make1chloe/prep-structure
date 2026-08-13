@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import ThemePicker from "@/components/ThemePicker";
 import MenuBox from "../MenuBox";
 import LayoutBox from "./LayoutBox";
+import IconBox from "./IconBox";
 import HelpBox from "../HelpBox";
 import Help, { helpOn } from "@/components/Help";
 import { isTeacher } from "@/lib/roles";
@@ -52,6 +53,9 @@ export default async function ScreenSettingsPage() {
               강사·조교는 자기 메뉴만 정하고, 이건 모두에게 같이 적용되므로 원장·강사만 */}
           {isTeacher(profile?.role) && <LayoutBox />}
           <ThemePicker />
+          {/* 로고·아이콘 — 옛 「관리자」 화면에 있던 것을 여기로 옮겼다.
+              어떻게 보이는지를 정하는 일이라 화면 쪽이 맞다 (원장님, 2026-08-13) */}
+          <IconBox />
         </div>
               {/* **세 개로 나눠 담기.** 원장 · 학부모 · 학생 앱을 따로 담아
             각각 로그인해서 확인하실 때 쓰는 자리다. */}

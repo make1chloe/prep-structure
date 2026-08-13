@@ -375,6 +375,22 @@ body { padding-top: var(--topbar-full, 120px); }
 /* 「등원」·「숙제」 딱지 — 폭을 맞춰야 아래위 두 줄의 글이 같은 자리에서 시작한다 */
 .steprow .plabel { width: auto; min-width: 34px; text-align: center; }
 
+/* 골라 담을 것을 **분류로 묶어** 보여준다 (원장님: 「분류를 해야 정보가 눈에
+   들어오지」). 분류 딱지를 왼쪽에 고정폭으로 세워야 줄들이 가지런히 선다 —
+   위에 얹으면 묶음마다 높이가 달라져 계단처럼 보인다. */
+.catgroup { display: flex; align-items: flex-start; gap: 8px; }
+.catgroup .catlabel { flex: none; width: 52px; text-align: center; margin-top: 2px; }
+.catgroup .chips { flex: 1; min-width: 0; }
+
+/* **고른 것만 따로 위에** — 아래 목록에서 색으로만 찾으면 무엇을 골랐는지
+   세어봐야 안다. 누르면 바로 빠진다. */
+.pickedbar {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-top: 6px; padding: 7px 8px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
 /* 목록 아래에서 **지금 고치는 것** — 테두리로 갈라둔다 */
 .editpane {
   margin-top: 10px; padding: 12px;

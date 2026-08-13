@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { listRoutine, saveStep, deleteStep, seedRoutine } from "./routineActions";
+import { CATEGORIES, CAT_CLS } from "@/app/homework/categories";
 
 /**
  * 학습 루틴 — 진도를 따라 순서대로.
@@ -45,25 +46,78 @@ export default function RoutineEditor({ textbookId, items = [] }) {
     });
   }
 
+  /**
+   * 항목 고르기 — **분류로 묶고, 검색으로 좁힌다.**
+   *
+   * 원장님 (2026-08-13): 「이것도 좀 어느정도는 분류를 해야 정보가 눈에 들어오지」.
+   * 마흔여섯 개를 한 덩어리로 펴 놓으면 (그것도 등원·숙제 두 번) 눈이 어디서
+   * 멈춰야 할지 모른다. 분류는 이미 항목마다 붙어 있다 (단어·독해·문법…).
+   *
+   * **고른 것은 맨 위에 따로 모은다** — 아래 목록에서 색만으로 찾으면
+   * 무엇을 골랐는지 세어봐야 안다.
+   */
   function Picker({ label, value, onChange }) {
+    const [kw, setKw] = useState("");
+    const q = kw.trim().toLowerCase();
+    const toggle = (id) =>
+      onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+
+    const pool = q ? items.filter((i) => (i.name || "").toLowerCase().includes(q)) : items;
+    // 분류 차례는 CATEGORIES 를 따른다 — 화면마다 순서가 다르면 손이 헷갈린다
+    const groups = [...CATEGORIES, ""]
+      .map((c) => ({
+        cat: c || "기타",
+        cls: CAT_CLS[c] || "tag-muted",
+        rows: pool.filter((i) => (i.category || "기타") === (c || "기타")),
+      }))
+      .filter((g) => g.rows.length > 0);
+
+    const picked = value.map((id) => items.find((i) => i.id === id)).filter(Boolean);
+
     return (
-      <div className="field" style={{ marginTop: 8 }}>
-        <label className="label">{label}</label>
-        <div className="chips">
-          {items.map((i) => {
-            const on = value.includes(i.id);
-            return (
-              <button
-                key={i.id}
-                className={`chip ${on ? "on" : ""}`}
-                onClick={() =>
-                  onChange(on ? value.filter((x) => x !== i.id) : [...value, i.id])
-                }
-              >
-                {i.name}
+      <div className="field" style={{ marginTop: 10 }}>
+        <div className="row" style={{ alignItems: "center", gap: 6 }}>
+          <label className="label" style={{ flex: 1 }}>
+            {label} {value.length > 0 && <span className="hint">{value.length}개</span>}
+          </label>
+          <input
+            className="input input-sm"
+            style={{ width: 120 }}
+            placeholder="항목 검색"
+            value={kw}
+            onChange={(e) => setKw(e.target.value)}
+          />
+        </div>
+
+        {/* 고른 것 — 누르면 바로 빠진다 */}
+        {picked.length > 0 && (
+          <div className="pickedbar">
+            {picked.map((i) => (
+              <button key={i.id} className="chip on" onClick={() => toggle(i.id)} title="빼기">
+                {i.name} ✕
               </button>
-            );
-          })}
+            ))}
+          </div>
+        )}
+
+        <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+          {groups.map((g) => (
+            <div className="catgroup" key={g.cat}>
+              <span className={`tag ${g.cls} catlabel`}>{g.cat}</span>
+              <div className="chips">
+                {g.rows.map((i) => (
+                  <button
+                    key={i.id}
+                    className={`chip ${value.includes(i.id) ? "on" : ""}`}
+                    onClick={() => toggle(i.id)}
+                  >
+                    {i.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {groups.length === 0 && <span className="hint">맞는 항목이 없어요.</span>}
         </div>
       </div>
     );

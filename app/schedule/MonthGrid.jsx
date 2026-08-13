@@ -1,6 +1,7 @@
 "use client";
 
-import { endOfMonth, DOW, WEEK_ORDER as DOW_HEAD } from "@/lib/day";
+import { endOfMonth, DOW, WEEK_ORDER as DOW_HEAD, todaySeoul } from "@/lib/day";
+import { absenceLabel } from "@/lib/absenceLabel";
 
 /**
  * 한 달 달력 — **반을 다 합쳐서 하나로** 그린다.
@@ -31,7 +32,7 @@ export function colOf(date) {
 }
 
 /** 이 날 이 반에 무슨 일이 있나 */
-function whatHappens(c, d) {
+function whatHappens(c, d, today) {
   const m = c.month || {};
   const out = [];
   // 이 반 수업일이 아니면 할 말이 없다 (영어 시험 전날은 수업일이 아니어도 등원한다)
@@ -61,7 +62,11 @@ function whatHappens(c, d) {
   const abs = (c.absents || []).filter((a) => a.date === d);
   if (abs.length) {
     out.push({
-      tag: abs.every((a) => a.planned) ? "결석 예정" : "결석",
+      // **지나간 날은 「예정」이 아니다** — planned 는 그날이 지나도 남는다.
+      // 부르는 이름은 lib/absenceLabel 한 곳에서 정한다
+      tag: abs.every((a) => absenceLabel({ ...a, status: "absent" }, today) === "결석 예정")
+        ? "결석 예정"
+        : "결석",
       cls: "tag-red",
       text: abs.map((a) => `${a.name}${a.reason ? ` (${a.reason})` : ""}`).join(", "),
     });
@@ -102,7 +107,7 @@ export default function MonthGrid({ ym, classes = [], openDay = null, onPick }) 
   // 누른 날 — 반별로 무슨 일이 있는지
   const picked = openDay
     ? classes
-        .map((c) => ({ name: c.name, rows: whatHappens(c, openDay) }))
+        .map((c) => ({ name: c.name, rows: whatHappens(c, openDay, todaySeoul()) }))
         .filter((x) => x.rows.length > 0)
     : [];
 
