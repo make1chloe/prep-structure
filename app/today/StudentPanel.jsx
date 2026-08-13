@@ -7,7 +7,8 @@ import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
 import MakeupHere from "./MakeupHere";
 import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
-import BookProgress from "./BookProgress";
+import BookProgress from "@/components/BookProgress";
+import WordTest from "./WordTest";
 import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
@@ -1153,7 +1154,16 @@ export default function StudentPanel({
         <div className="stack" style={{ gap: 6, flex: 1 }}>
           <div className="row" style={{ gap: 6 }}>
             {myBooks.map((b) => (
-              <BookProgress key={b.id} studentId={row.student.id} book={b} />
+              <BookProgress
+                key={b.id}
+                studentId={row.student.id}
+                book={b}
+                extra={
+                  b.wordTest !== undefined ? (
+                    <WordTest studentId={row.student.id} book={b} />
+                  ) : null
+                }
+              />
             ))}
             {myBooks.length === 0 && (
               <span className="hint" style={{ alignSelf: "center" }}>

@@ -1,21 +1,37 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   listStudentUnits,
   setUnitProgress,
   setCurrentPage,
   setStudentBookStatus,
+  nextRound,
 } from "@/app/progress/actions";
-import WordTest from "./WordTest";
 
-// 교재 한 권의 진도 — 단원을 순서와 상관없이 눌러서 완료/미완료를 기록한다
-export default function BookProgress({ studentId, book }) {
-  const [open, setOpen] = useState(false);
+/**
+ * 교재 한 권의 **진도** — 단원을 순서와 상관없이 눌러서 기록한다.
+ *
+ * 원장님 (2026-08-14): 「학생별로 진도를 저장하는 화면이 오늘수업밖에 없고
+ * 그마저도 조악함」.
+ *
+ * 그래서 **오늘 수업 밖으로 꺼냈다.** 진도를 적는 일이 수업 중에만 생기는 것이
+ * 아니다 — 상담 전에 어디까지 했는지 보고, 결석한 아이 것을 나중에 채우고,
+ * 회독을 넘긴다. 그때마다 오늘 수업 화면을 열어 그 날짜를 찾아 들어갈 수는 없다.
+ * 이제 재원생 화면의 「교재」 탭에서도 같은 것을 쓴다 — **한 벌이라 어긋나지 않는다.**
+ *
+ * @param extra 오늘 수업에서만 붙는 것 (단어시험 방식). components 가
+ *   app/today 를 가리키면 안 되므로 넣어주는 쪽에서 준다.
+ * @param openFirst 재원생 화면처럼 **진도를 보러 들어온 자리**에서는 펴 둔다.
+ */
+export default function BookProgress({ studentId, book, extra = null, openFirst = false }) {
+  const [open, setOpen] = useState(openFirst);
   const [units, setUnits] = useState(null);
   const [err, setErr] = useState(null);
   const [page, setPage] = useState(book.curPage || "");
+  const [round, setRound] = useState(null);      // 지금 몇 회독째
+  const [q, setQ] = useState("");                // 단원 검색
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -23,7 +39,13 @@ export default function BookProgress({ studentId, book }) {
     const res = await listStudentUnits(studentId, book.id);
     if (res.error) setErr(res.error);
     setUnits(res.units || []);
+    if (res.round) setRound(res.round);
   }
+
+  // 진도를 보러 들어온 자리는 펴 둔 채로 여니 처음부터 읽어온다
+  useEffect(() => {
+    if (open && units === null) load();
+  }, [open]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle() {
     const next = !open;
@@ -31,13 +53,23 @@ export default function BookProgress({ studentId, book }) {
     if (next && units === null) load();
   }
 
-  function mark(unitId, done) {
+  /**
+   * **안 함 → 하는 중 → 완료 → 안 함.**
+   *
+   * 표(student_unit_progress)에는 doing 이 처음부터 있었는데 화면에서 쓸 길이
+   * 없었다. 그래서 한 단원을 여러 번에 걸쳐 하는 교재(문법 한 단원을 세 번
+   * 수업)에서는 「아직 안 함」 과 「하다 말았음」 이 같은 얼굴이었다.
+   * 다음 수업에 어디부터인지 다시 물어봐야 했다.
+   */
+  const NEXT = { "": "doing", doing: "done", done: "" };
+
+  function mark(unitId, status) {
     // 화면을 먼저 바꾸고 저장한다 (수업 중 기다리지 않도록)
     setUnits((list) =>
-      (list || []).map((u) => (u.id === unitId ? { ...u, status: done ? "done" : "" } : u))
+      (list || []).map((u) => (u.id === unitId ? { ...u, status: status || "" } : u))
     );
     startTransition(async () => {
-      const res = await setUnitProgress(studentId, [unitId], done ? "done" : null);
+      const res = await setUnitProgress(studentId, [unitId], status || null);
       if (res?.error) {
         alert(res.error);
         load();
@@ -107,12 +139,8 @@ export default function BookProgress({ studentId, book }) {
         </div>
       </button>
 
-      {/* 단어 교재는 시험 방식과 회독을 라벨로 붙인다 — 수업 중 흘깃 보고 알게 */}
-      {book.wordTest !== undefined && (
-        <div style={{ marginTop: 4 }}>
-          <WordTest studentId={studentId} book={book} />
-        </div>
-      )}
+      {/* 단어 교재는 시험 방식을 라벨로 붙인다 (오늘 수업에서만 넣어준다) */}
+      {extra && <div style={{ marginTop: 4 }}>{extra}</div>}
 
       {open && (
         <div style={{ marginTop: 8 }}>
@@ -145,7 +173,42 @@ export default function BookProgress({ studentId, book }) {
           )}
           {leaves.length > 0 && (
             <>
-              <div className="row" style={{ gap: 4, marginBottom: 6 }}>
+              <div className="row" style={{ gap: 4, marginBottom: 6, alignItems: "center" }}>
+                {/**
+                  * **회독을 넘기는 자리가 화면에 아예 없었다.**
+                  * 표와 서버 액션(nextRound)은 처음부터 있었는데 누를 데가
+                  * 없어서, 2회독을 돌리려면 단원 체크를 하나씩 지우는 수밖에
+                  * 없었다 — 그러면 1회독을 언제 끝냈는지도 같이 사라진다.
+                  */}
+                {round > 1 && <span className="tag tag-lav">{round}회독</span>}
+                {leaves.length > 0 && leaves.every((u) => u.status === "done") && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={pending}
+                    title="지난 회독 진도는 그대로 남고, 새 회독이 빈 상태로 시작합니다"
+                    onClick={() => {
+                      if (!confirm(`${book.name} 을 다음 회독으로 넘길까요?\n\n지금까지의 진도는 ${round || 1}회독 기록으로 남고, 단원은 빈 상태가 됩니다.`)) return;
+                      startTransition(async () => {
+                        const res = await nextRound(studentId, book.id);
+                        if (res?.error) { alert(res.error); return; }
+                        await load();
+                        router.refresh();
+                      });
+                    }}
+                  >
+                    ⟳ 다음 회독으로
+                  </button>
+                )}
+                {/* 단원이 쉰 개 넘는 교재가 있다 — 눈으로 찾지 않게 */}
+                {leaves.length > 12 && (
+                  <input
+                    className="input input-sm"
+                    style={{ width: 120 }}
+                    placeholder="단원 찾기"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                )}
                 <button className="btn btn-ghost btn-sm" onClick={() => markAll(true)} disabled={pending}>
                   전체 완료
                 </button>
@@ -167,28 +230,30 @@ export default function BookProgress({ studentId, book }) {
                   전체 해제
                 </button>
                 <span className="hint" style={{ alignSelf: "center" }}>
-                  순서와 상관없이 끝낸 단원만 누르세요
+                  누를 때마다 <b>안 함 → ◐ 하는 중 → ○ 완료</b> 로 바뀝니다
                 </span>
               </div>
               <div className="stack" style={{ gap: 4 }}>
-                {groupByParent(units).map(([head, list]) => (
+                {groupByParent(units, q).map(([head, list]) => (
                   <div className="hwgroup" key={head || "_"}>
                     {head && <span className="tag tag-muted hwcat" style={{ width: "auto" }}>{head}</span>}
                     <div className="row" style={{ gap: 4 }}>
                       {list.map((u) => {
                         const done = u.status === "done";
+                        const doing = u.status === "doing";
                         return (
                           <button
                             key={u.id}
-                            className={`hwchip ${done ? "hw-done" : ""}`}
-                            onClick={() => mark(u.id, !done)}
+                            className={`hwchip ${done ? "hw-done" : doing ? "hw-weak" : ""}`}
+                            onClick={() => mark(u.id, NEXT[u.status || ""])}
                             title={
                               [u.activity, u.pages, u.amount && `분량 ${u.amount}`]
                                 .filter(Boolean)
                                 .join(" · ") || undefined
                             }
                           >
-                            {done && <b>○</b>} {u.name}
+                            {done && <b>○</b>}
+                            {doing && <b>◐</b>} {u.name}
                             {u.activity ? <span className="hint"> · {u.activity}</span> : null}
                             {u.amount ? <span className="hint"> {u.amount}</span> : null}
                           </button>
@@ -206,11 +271,18 @@ export default function BookProgress({ studentId, book }) {
   );
 }
 
-// 소단원을 그 위 단원(대/중) 이름으로 묶는다
-function groupByParent(units = []) {
+// 소단원을 그 위 단원(대/중) 이름으로 묶는다. kw 가 있으면 걸러서 묶는다
+function groupByParent(units = [], kw = "") {
   const m = new Map();
+  const q = (kw || "").trim().toLowerCase();
   units
     .filter((u) => u.leaf)
+    .filter((u) =>
+      !q ||
+      [u.name, u.activity, u.big, u.mid].some((v) =>
+        (v || "").toString().toLowerCase().includes(q)
+      )
+    )
     .forEach((u) => {
       const head = [u.big, u.mid].filter(Boolean).slice(0, 2).join(" › ");
       const key = head === u.name ? "" : head;

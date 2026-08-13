@@ -9,6 +9,7 @@ import ParentBox from "./ParentBox";
 import NoteBox from "./NoteBox";
 import ScoreBox from "./ScoreBox";
 import StudentBooks from "@/app/today/StudentBooks";
+import BookProgress from "@/components/BookProgress";
 import WordTestBox from "./WordTestBox";
 import ScheduleBox from "./ScheduleBox";
 import { fromLabel } from "@/lib/bookUse";
@@ -597,6 +598,27 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                             숙제 배정·진도가 이 교재로 갑니다.
                           </p>
                           <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} alwaysOpen />
+
+                          {/**
+                            * **진도도 여기서 적는다** (원장님, 2026-08-14 —
+                            * 「학생별로 진도를 저장하는 화면이 오늘수업밖에 없고」).
+                            *
+                            * 진도를 적는 일이 수업 중에만 생기는 것이 아니다 —
+                            * 상담 전에 어디까지 했는지 보고, 결석한 아이 것을
+                            * 나중에 채우고, 회독을 넘긴다. 그때마다 오늘 수업에서
+                            * 그 날짜를 찾아 들어갈 수는 없다.
+                            *
+                            * 오늘 수업과 **같은 한 벌**을 쓴다 (components/BookProgress)
+                            * — 두 벌이면 한쪽에서 찍은 진도가 다른 쪽에 안 보인다.
+                            */}
+                          {(s.books || []).length > 0 && (
+                            <div className="stack" style={{ gap: 8, marginTop: 12 }}>
+                              <b style={{ fontSize: 14 }}>진도</b>
+                              {(s.books || []).map((b) => (
+                                <BookProgress key={b.id} studentId={s.id} book={b} openFirst />
+                              ))}
+                            </div>
+                          )}
                         </>
                       )}
                       {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}

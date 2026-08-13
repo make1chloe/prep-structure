@@ -59,5 +59,36 @@ const lib = readFileSync("lib/listSort.js", "utf8");
 if (!/if \(!va\) return 1;/.test(lib)) say("lib/listSort 가 빈 값을 뒤로 보내지 않습니다");
 if (!bad) ok("lib/listSort 한 곳에서 정한다");
 
+
+/**
+ * **진도를 적는 자리가 오늘 수업에만 있으면 안 된다** (원장님, 2026-08-14 —
+ * 「학생별로 진도를 저장하는 화면이 오늘수업밖에 없고 그마저도 조악함」).
+ *
+ * 진도는 수업 중에만 적는 것이 아니다 — 상담 전에 보고, 결석한 아이 것을
+ * 나중에 채우고, 회독을 넘긴다. 그때마다 오늘 수업에서 날짜를 찾아 들어갈
+ * 수는 없다.
+ *
+ * 그리고 **한 벌이어야 한다.** 두 벌이면 한쪽에서 찍은 진도가 다른 쪽에
+ * 안 보이고, 어느 쪽이 맞는지 알 수 없게 된다.
+ */
+console.log("\n== 진도를 적는 자리가 한 벌로 여러 화면에 있나 ==");
+const PROG = "components/BookProgress.jsx";
+if (!existsSync(PROG)) {
+  say(`진도 판이 ${PROG} 에 없습니다 — 한 화면 안에 있으면 다른 화면에서 못 씁니다`);
+} else {
+  const users = ["app/today/StudentPanel.jsx", "app/students/StudentList.jsx"];
+  for (const f of users) {
+    if (!/BookProgress/.test(readFileSync(f, "utf8"))) {
+      say(`${f} 에서 진도 판을 안 씁니다`);
+    }
+  }
+  const src = readFileSync(PROG, "utf8");
+  // 회독을 넘기는 길 — 표와 서버 액션은 있었는데 누를 데가 없었다
+  if (!/nextRound/.test(src)) say(`${PROG} — 회독을 넘기는 단추가 없습니다`);
+  // 하다 만 것과 아직 안 한 것은 다르다
+  if (!/doing/.test(src)) say(`${PROG} — 「하는 중」 을 적을 수가 없습니다`);
+  if (!bad) ok("진도 판이 한 벌로 오늘 수업 · 재원생 두 곳에 있습니다");
+}
+
 if (bad) { console.log("\n❌ 위 항목을 고쳐주세요"); process.exit(1); }
-console.log("\n✅ 목록 검사 통과");
+console.log("\n✅ 목록 · 진도 검사 통과");

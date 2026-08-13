@@ -70,18 +70,18 @@ export default async function StudentsPage({ searchParams }) {
   // 없는 학생은 손댈 수가 없었다).
   const { data: allBooks } = await supabase
     .from("textbooks")
-    .select("id, name, area, status")
+    .select("id, name, area, status, total_pages")
     .order("name", { ascending: true });
   const textbooks = (allBooks || [])
     .filter((b) => !b.status || b.status === "active")
-    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
+    .map((b) => ({ id: b.id, name: b.name, area: b.area || "", bookPages: b.total_pages || null }));
   const bookById = new Map(textbooks.map((b) => [b.id, b]));
 
   const ids = (students || []).map((x) => x.id);
   const { data: stBooks } = ids.length
     ? await supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id, status, assigned_on, ended_on")
+        .select("student_id, textbook_id, status, assigned_on, ended_on, current_page")
         .in("student_id", ids)
     : { data: [] };
   const booksOf = new Map();
@@ -93,7 +93,11 @@ export default async function StudentsPage({ searchParams }) {
     // **여기서는 아직 안 시작한 교재도 보여준다.** 교재 안내를 보내고 나면
     // 「보냈나 안 보냈나」 를 여기서 확인하시게 된다 — 안 보이면 확인할 데가
     // 없다. 대신 언제부터인지를 붙여서, 지금 쓰는 것과 구별되게 한다.
-    booksOf.get(r.student_id).push({ ...b, from: notYet(r, today) ? r.assigned_on : null });
+    booksOf.get(r.student_id).push({
+      ...b,
+      from: notYet(r, today) ? r.assigned_on : null,
+      curPage: r.current_page ?? "",
+    });
   });
 
   // 반과 수업 요일 — 목록을 **반별 · 요일별**로 묶어 보기 위해서다
