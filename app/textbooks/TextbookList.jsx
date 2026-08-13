@@ -57,6 +57,7 @@ const TABS = [
   ["units", "단원"],
   ["routine", "루틴"],
   ["students", "학생"],
+  ["progress", "진도"],
   ["info", "정보"],
 ];
 
@@ -69,6 +70,7 @@ export default function TextbookList({
   unitsPanel = null,
   routinePanel = null,
   studentsPanel = null,
+  progressPanel = null,
 }) {
   const [sel, setSel] = useState(() => new Set());
   const [draft, setDraft] = useState({});
@@ -333,6 +335,7 @@ export default function TextbookList({
             {tab === "units" && unitsPanel}
             {tab === "routine" && routinePanel}
             {tab === "students" && studentsPanel}
+            {tab === "progress" && progressPanel}
 
             {/* 정보 — 표에 안 켜둔 칸도 여기서는 전부 고친다 */}
             {tab === "info" && (

@@ -11,6 +11,7 @@ import WordRangeBox from "./WordRangeBox";
 import RoutineEditor from "./RoutineEditor";
 import DupBooks from "./DupBooks";
 import BookStudents from "./BookStudents";
+import BookProgressBoard from "./BookProgressBoard";
 import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
 import { dupGroups, pickKeeper } from "@/lib/bookName";
@@ -198,6 +199,9 @@ export default async function TextbooksPage({ searchParams }) {
               byBook={byBook}
               routinePanel={
                 selected ? <RoutineEditor textbookId={selectedId} items={hwItems} /> : null
+              }
+              progressPanel={
+                selected ? <BookProgressBoard textbookId={selectedId} /> : null
               }
               studentsPanel={
                 selected ? (

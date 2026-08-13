@@ -473,6 +473,18 @@ body { padding-top: var(--topbar-full, 120px); }
   border-radius: var(--radius-sm);
 }
 
+/* 단원 알약 옆의 메모 연필 — 메모가 있으면 색으로 차 있다.
+   알약 안에 넣으면 상태 바꾸기(알약 누름)와 메모(연필)가 한 자리에 겹쳐
+   잘못 누르게 된다. 밖에 반쯤 겹쳐 세운다. */
+.unitchip-wrap { display: inline-flex; align-items: center; gap: 1px; flex-wrap: wrap; }
+.unitnote-btn {
+  font-family: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+  padding: 3px 4px; border: 0; border-radius: 6px;
+  background: none; color: var(--text-faint); opacity: .55;
+}
+.unitnote-btn:hover { opacity: 1; background: var(--surface-2); }
+.unitnote-btn.has { color: var(--amber); opacity: 1; }
+
 /* 목록 아래에서 **지금 고치는 것** — 테두리로 갈라둔다 */
 .editpane {
   margin-top: 10px; padding: 12px;

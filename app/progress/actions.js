@@ -224,8 +224,145 @@ export async function listStudentUnits(studentId, textbookId, round) {
     leaf: !hasChild.has(o.id),
     status: byUnit.get(o.id)?.status || "",
     doneOn: byUnit.get(o.id)?.done_on || null,
+    note: byUnit.get(o.id)?.note || "",
   }));
   return { units: options, round: r, error: null };
+}
+
+/**
+ * **한 교재의 학생 전부** — 누가 어디까지 갔나 (교재 화면의 「진도」 탭).
+ *
+ * 원장님 (2026-08-14): 「이 교재 다들 어디까지 갔지」 를 보려면 재원생에서
+ * 아이를 하나씩 열어야 했다. 열다섯이면 열다섯 번이다.
+ *
+ * 읽기만 한다 — **고치는 곳은 학생 쪽 진도 판 하나다** (BookProgress).
+ * 여기서도 고치게 만들면 같은 일을 하는 자리가 두 벌이 된다.
+ */
+export async function listBookProgress(textbookId) {
+  if (!textbookId) return { rows: [], error: null };
+  const supabase = createClient();
+
+  // 이 교재를 지금 쓰는 학생들 (회독 포함)
+  let { data: st, error } = await supabase
+    .from("student_textbooks")
+    .select("student_id, status, round, current_page")
+    .eq("textbook_id", textbookId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data: st, error } = await supabase
+      .from("student_textbooks")
+      .select("student_id, status")
+      .eq("textbook_id", textbookId));
+  }
+  if (error) return { rows: [], error: error.message };
+  const active = (st || []).filter((r) => !r.status || r.status === "active");
+  if (active.length === 0) return { rows: [], error: null };
+
+  const { data: students } = await supabase
+    .from("students")
+    .select("id, name, grade, status")
+    .in("id", active.map((r) => r.student_id));
+  const nameOf = new Map((students || []).map((s) => [s.id, s]));
+
+  // 소단원 개수 — 진도의 분모
+  const { data: units } = await supabase
+    .from("textbook_units")
+    .select("id, parent_id")
+    .eq("textbook_id", textbookId);
+  const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+  const leaves = (units || []).filter((u) => !hasChild.has(u.id)).map((u) => u.id);
+
+  // 학생별 완료 수 — **그 학생의 지금 회독** 것만 센다.
+  // 회독을 안 가르면 2회독째인 아이가 1회독 기록 덕에 다 한 것처럼 보인다
+  const rows = [];
+  for (const r of active) {
+    const s = nameOf.get(r.student_id);
+    if (!s || s.status !== "enrolled") continue;   // 퇴원생 진도는 여기 볼 일이 없다
+    const round = r.round || 1;
+    const prog = leaves.length
+      ? await readProgress(supabase, r.student_id, leaves, round)
+      : [];
+    rows.push({
+      studentId: r.student_id,
+      name: s.name,
+      grade: s.grade || "",
+      round,
+      curPage: r.current_page ?? null,
+      done: prog.filter((p) => p.status === "done").length,
+      doing: prog.filter((p) => p.status === "doing").length,
+      total: leaves.length,
+      // 마지막으로 찍은 날 — 오래 멈춘 아이가 보인다
+      lastOn: prog.map((p) => p.done_on).filter(Boolean).sort().pop() || null,
+    });
+  }
+  // 진도 낮은 순 — 챙길 아이가 위로
+  rows.sort((a, b) => (a.total ? a.done / a.total : 0) - (b.total ? b.done / b.total : 0) || a.name.localeCompare(b.name, "ko"));
+  return { rows, total: leaves.length, error: null };
+}
+
+/**
+ * **단원 하나에 메모** — 「이 단원 어려워함」 「17번만 다시」.
+ *
+ * 표(student_unit_progress.note)는 0010 부터 있었는데 적을 데가 없었다.
+ * 수업 기록의 진도 메모(own_progress)와 다르다 — 그건 그날 수업 이야기고,
+ * 이건 **그 단원**에 붙어서 회독이 넘어가도 따라온다.
+ */
+export async function setUnitNote(studentId, unitId, note) {
+  if (!studentId || !unitId) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const { data: u } = await supabase
+    .from("textbook_units")
+    .select("textbook_id")
+    .eq("id", unitId)
+    .maybeSingle();
+  const round = u ? await currentRound(supabase, studentId, u.textbook_id) : 1;
+  const clean = (note || "").trim() || null;
+
+  /**
+   * **upsert 를 안 쓴다.** upsert 는 status 까지 같이 보내야 하는데,
+   * 그러면 메모를 고칠 때마다 완료 표시를 덮어쓰게 된다.
+   * 줄이 있으면 note 만 고치고, 없으면 status 없이 새로 넣는다
+   * (0119 가 status 의 not null 을 풀었다 — 그 전 DB 면 안내한다).
+   */
+  const { data: hit, error: upErr } = await supabase
+    .from("student_unit_progress")
+    .update({ note: clean })
+    .eq("student_id", studentId)
+    .eq("textbook_unit_id", unitId)
+    .eq("round", round)
+    .select("textbook_unit_id");
+  if (upErr && (upErr.code === "42703" || upErr.code === "PGRST204")) {
+    // round 가 아직 없는 DB (0025 전) — 회독 없이 고친다
+    const { data: hit2, error: e2 } = await supabase
+      .from("student_unit_progress")
+      .update({ note: clean })
+      .eq("student_id", studentId)
+      .eq("textbook_unit_id", unitId)
+      .select("textbook_unit_id");
+    if (e2) return ok(e2);
+    if ((hit2 || []).length === 0 && clean) {
+      const { error: e3 } = await supabase
+        .from("student_unit_progress")
+        .insert({ student_id: studentId, textbook_unit_id: unitId, note: clean, status: null });
+      if (e3?.code === "23502") return { error: "0119 SQL 을 먼저 실행해주세요." };
+      return ok(e3);
+    }
+    revalidatePath("/today");
+    revalidatePath("/students");
+    return { error: null };
+  }
+  if (upErr) return ok(upErr);
+
+  if ((hit || []).length === 0 && clean) {
+    // 아직 아무 기록이 없는 단원 — 메모만 있는 줄을 만든다 (status 는 비워둔다)
+    const { error: insErr } = await supabase
+      .from("student_unit_progress")
+      .insert({ student_id: studentId, textbook_unit_id: unitId, round, note: clean, status: null });
+    if (insErr?.code === "23502") return { error: "0119 SQL 을 먼저 실행해주세요." };
+    if (insErr) return ok(insErr);
+  }
+  revalidatePath("/today");
+  revalidatePath("/students");
+  return { error: null };
 }
 
 // 순서와 상관없이 아무 단원이나 완료/미완료로 바꾼다
@@ -250,14 +387,26 @@ export async function setUnitProgress(studentId, unitIds, status) {
   }
 
   if (!status) {
-    // 완료 취소 = 이번 회독 기록만 지운다 (기록이 없으면 = 아직 안 함)
+    // 완료 취소 = 이번 회독 기록만 지운다 (기록이 없으면 = 아직 안 함).
+    // **메모가 있는 줄은 지우지 않는다** — 지우면 메모가 같이 사라진다.
+    // status 만 비운다 (0119). 그 전 DB 는 어차피 메모가 없으니 지워도 된다.
     let error = null;
     for (const id of ids) {
+      const keep = supabase
+        .from("student_unit_progress")
+        .update({ status: null, done_on: null })
+        .eq("student_id", studentId)
+        .eq("textbook_unit_id", id)
+        .not("note", "is", null);
+      const kept = await withRound(keep, await roundFor(id));
+      if (kept.error && kept.error.code !== "23502") error = kept.error;
+
       const q = supabase
         .from("student_unit_progress")
         .delete()
         .eq("student_id", studentId)
-        .eq("textbook_unit_id", id);
+        .eq("textbook_unit_id", id)
+        .is("note", null);
       const res = await withRound(q, await roundFor(id));
       if (res.error) error = res.error;
     }
@@ -394,7 +543,7 @@ async function readProgress(supabase, studentId, unitIds, round) {
   const base = () =>
     supabase
       .from("student_unit_progress")
-      .select("textbook_unit_id, status, done_on")
+      .select("textbook_unit_id, status, done_on, note")
       .eq("student_id", studentId)
       .in("textbook_unit_id", unitIds);
   const res = await base().eq("round", round);

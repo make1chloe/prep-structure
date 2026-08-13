@@ -8,6 +8,7 @@ import {
   setCurrentPage,
   setStudentBookStatus,
   nextRound,
+  setUnitNote,
 } from "@/app/progress/actions";
 
 /**
@@ -32,6 +33,8 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
   const [page, setPage] = useState(book.curPage || "");
   const [round, setRound] = useState(null);      // 지금 몇 회독째
   const [q, setQ] = useState("");                // 단원 검색
+  const [noteFor, setNoteFor] = useState(null);  // 메모를 적는 중인 단원
+  const [noteDraft, setNoteDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -100,6 +103,16 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
   const livePercent =
     liveTotal > 0 ? Math.round((liveDone / liveTotal) * 100) : book.percent;
   const noUnits = units !== null && leaves.length === 0;
+
+  function saveNote(unitId) {
+    startTransition(async () => {
+      const res = await setUnitNote(studentId, unitId, noteDraft);
+      if (res?.error) { alert(res.error); return; }
+      setNoteFor(null);
+      await load();
+      router.refresh();
+    });
+  }
 
   function savePage() {
     startTransition(async () => {
@@ -242,21 +255,57 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
                         const done = u.status === "done";
                         const doing = u.status === "doing";
                         return (
-                          <button
-                            key={u.id}
-                            className={`hwchip ${done ? "hw-done" : doing ? "hw-weak" : ""}`}
-                            onClick={() => mark(u.id, NEXT[u.status || ""])}
-                            title={
-                              [u.activity, u.pages, u.amount && `분량 ${u.amount}`]
-                                .filter(Boolean)
-                                .join(" · ") || undefined
-                            }
-                          >
-                            {done && <b>○</b>}
-                            {doing && <b>◐</b>} {u.name}
-                            {u.activity ? <span className="hint"> · {u.activity}</span> : null}
-                            {u.amount ? <span className="hint"> {u.amount}</span> : null}
-                          </button>
+                          <span key={u.id} className="unitchip-wrap">
+                            <button
+                              className={`hwchip ${done ? "hw-done" : doing ? "hw-weak" : ""}`}
+                              onClick={() => mark(u.id, NEXT[u.status || ""])}
+                              title={
+                                [u.activity, u.pages, u.amount && `분량 ${u.amount}`, u.note && `메모: ${u.note}`]
+                                  .filter(Boolean)
+                                  .join(" · ") || undefined
+                              }
+                            >
+                              {done && <b>○</b>}
+                              {doing && <b>◐</b>} {u.name}
+                              {u.activity ? <span className="hint"> · {u.activity}</span> : null}
+                              {u.amount ? <span className="hint"> {u.amount}</span> : null}
+                            </button>
+                            {/**
+                              * 단원 메모 — 「이 단원 어려워함」 「17번만 다시」.
+                              * 수업 기록의 진도 메모와 다르다 — 그건 그날 이야기고,
+                              * 이건 **이 단원**에 붙어 회독이 넘어가도 따라온다.
+                              * 메모가 있으면 ✎ 가 색으로 차 있다.
+                              */}
+                            <button
+                              className={`unitnote-btn ${u.note ? "has" : ""}`}
+                              title={u.note ? `메모: ${u.note} (누르면 고치기)` : "이 단원에 메모"}
+                              onClick={() => {
+                                setNoteFor(noteFor === u.id ? null : u.id);
+                                setNoteDraft(u.note || "");
+                              }}
+                            >
+                              ✎
+                            </button>
+                            {noteFor === u.id && (
+                              <span className="row" style={{ gap: 4, width: "100%", marginTop: 2 }}>
+                                <input
+                                  className="input input-sm"
+                                  style={{ flex: 1, minWidth: 140 }}
+                                  autoFocus
+                                  placeholder="예: 17번만 다시 · 어려워함"
+                                  value={noteDraft}
+                                  onChange={(e) => setNoteDraft(e.target.value)}
+                                  onKeyDown={(e) => e.key === "Enter" && saveNote(u.id)}
+                                />
+                                <button className="btn btn-primary btn-sm" disabled={pending} onClick={() => saveNote(u.id)}>
+                                  저장
+                                </button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setNoteFor(null)}>
+                                  취소
+                                </button>
+                              </span>
+                            )}
+                          </span>
                         );
                       })}
                     </div>
