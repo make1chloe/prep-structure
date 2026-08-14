@@ -5,7 +5,7 @@
  *
  * SQL 을 새로 만들면 두 가지를 같이 해야 한다 —
  *   1. supabase/migrations/ 에 파일
- *   2. app/settings/sql/status.js 에 한 줄 (「지금 DB 상태」 가 이걸 본다)
+ *   2. lib/sqlChecks.js 에 한 줄 (「지금 DB 상태」 화면과 설정 메뉴 배지가 이걸 본다)
  *
  * 2번을 빠뜨려도 **아무 오류가 안 난다.** SQL 은 「전체 복사」 안에 들어
  * 있으니 붙여넣으면 돌긴 하는데, 화면에는 「90/90 다 됐습니다」 라고 뜬다.
@@ -20,7 +20,8 @@ let bad = 0;
 const files = readdirSync("supabase/migrations")
   .filter((f) => /^\d{4}_.*\.sql$/.test(f))
   .sort();
-const status = readFileSync("app/settings/sql/status.js", "utf8");
+// 목록은 lib/sqlChecks.js 로 옮겨졌다 (2026-08-14 — 메뉴 배지와 한 벌로 쓰려고)
+const status = readFileSync("lib/sqlChecks.js", "utf8");
 
 /**
  * **전부를 요구하지는 않는다.** 옛 파일 중에는 표를 안 만들고 규칙만 고친
@@ -54,7 +55,7 @@ for (const [name, owners] of marks) {
 }
 
 if (missing.length) {
-  console.log("  ✗ 점검 목록(app/settings/sql/status.js)에 없는 SQL:");
+  console.log("  ✗ 점검 목록(lib/sqlChecks.js)에 없는 SQL:");
   missing.forEach((m) => console.log(`     ${m}`));
   console.log("     → 없으면 화면이 「다 됐습니다」 라고 말합니다. 한 줄씩 넣어주세요.");
   bad = 1;

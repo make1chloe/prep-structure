@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
 import { unreadForStaff, badgeText } from "@/lib/inbox";
 import { menuTodos, TODO_LABEL } from "@/lib/menuBadges";
+import { pendingSqlCount } from "@/lib/sqlBadge";
 
 /** 묶음 이름과 그 묶음 화면 — 대시보드처럼 하위가 없으면 바로 그 화면으로 */
 function groupLabel(key) {
@@ -86,9 +87,20 @@ export default async function TopBar({ profile, active }) {
    */
   const staff = isStaff(profile?.role);
   const db = staff ? createClient() : null;
-  const [unread, todos] = staff
-    ? await Promise.all([unreadForStaff(db), menuTodos(db)])
-    : [{ total: 0 }, {}];
+  /**
+   * **안 돌린 SQL 도 배지로** (원장님, 2026-08-14 — 「SQL 이 추가됐을 때도
+   * 그걸 표시하게 해줘. 설정 메뉴 말이야」). 설정 화면은 원장만 여니
+   * (menu.js 의 only:"principal") 배지도 원장에게만 센다.
+   * menuTodos 가 돌려주는 것은 메모된 원본이라 **고치지 않고** 새로 합친다.
+   */
+  const [unread, baseTodos, sqlN] = staff
+    ? await Promise.all([
+        unreadForStaff(db),
+        menuTodos(db),
+        profile?.role === "principal" ? pendingSqlCount(db) : 0,
+      ])
+    : [{ total: 0 }, {}, 0];
+  const todos = sqlN > 0 ? { ...baseTodos, settings: sqlN } : baseTodos;
   const badge = badgeText(unread.total);
 
   /** 그 묶음 안에 남은 일이 몇인가 — 접혔을 때는 이것만 보인다 */

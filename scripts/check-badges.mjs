@@ -411,8 +411,10 @@ for (const [stay, what] of [
 
 console.log("\n== 한꺼번에 묻나 ==");
 // 이 셈은 **모든 화면**의 위 메뉴에서 돈다. 줄줄이 기다리면 앱 전체가 느려진다
-eq(/await Promise\.all\(\[unreadForStaff\(db\), menuTodos\(db\)\]\)/.test(bar), true,
+eq(/await Promise\.all\(\[\s*unreadForStaff\(db\),\s*menuTodos\(db\),/.test(bar), true,
    "안 본 알림과 남은 일을 한꺼번에");
+// 안 돌린 SQL 배지 — 같은 파도에 타고, 원장에게만 (2026-08-14)
+eq(/"principal"\s*\?\s*pendingSqlCount\(db\)/.test(bar), true, "SQL 배지는 원장만 · 같은 파도");
 eq((src.match(/await Promise\.all\(/g) || []).length >= 1, true, "조회도 한꺼번에");
 // 학생·학부모 화면에서는 아예 안 센다 (볼 메뉴도 없다)
 eq(/const staff = isStaff\(profile\?\.role\)/.test(bar), true, "선생님 계정에서만 센다");
