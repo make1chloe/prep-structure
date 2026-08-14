@@ -968,26 +968,38 @@ body { padding-top: var(--topbar-full, 120px); }
    보는 곳은 색으로. 좁은 폰에서는 가로로 굴려서 본다. */
 .sectnav {
   position: sticky; top: var(--topbar-h, 0px); z-index: 20;
-  display: flex; gap: 4px; overflow-x: auto;
-  padding: 8px 10px; margin: 0 -4px 10px;
+  padding: 8px 10px 6px; margin: 0 -4px 10px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
 }
-.sectnav::-webkit-scrollbar { display: none; }
+/* 대메뉴 — **가로 스크롤 없이 한 줄** (원장님, 2026-08-14). 칸을 나눠 가진다.
+   글자가 칸보다 길면 잘리는 게 아니라 글자를 조금 줄인다 (5~6개 기준). */
+.sectnav-main { display: flex; gap: 4px; }
 .sectnav-chip {
-  flex: none; font-family: inherit; cursor: pointer;
-  font-size: 13.5px; font-weight: 700;
-  padding: 5px 11px; border-radius: 999px;
+  flex: 1 1 0; min-width: 0;
+  font-family: inherit; cursor: pointer;
+  font-size: clamp(12px, 3.4vw, 14.5px); font-weight: 700;
+  padding: 7px 2px; border-radius: 10px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
-  white-space: nowrap;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
 .sectnav-chip.on { background: var(--lav-soft); color: var(--lav); border-color: transparent; }
-.sectnav-help { color: var(--text-faint); border-style: dashed; }
+.sectnav-help { flex: 0 0 34px; color: var(--text-faint); border-style: dashed; }
+/* 소메뉴 — 그 갈래를 보고 있을 때만 아래 줄에. 넘치면 다음 줄로 접는다
+   (가로 스크롤 금지는 여기도 같다) */
+.sectnav-sub {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+.sectnav-subchip {
+  font-family: inherit; cursor: pointer;
+  font-size: 12.5px; font-weight: 600;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
+}
+.sectnav-subchip.on { background: var(--lav-soft); color: var(--lav); border-color: transparent; }
 /* 메뉴를 누르면 그 덩어리 머리가 메뉴 줄 아래로 오게 — 안 잡으면 제목이
    메뉴 뒤로 들어간다 */
-.blockgrid > div { scroll-margin-top: calc(var(--topbar-h, 0px) + 52px); }
+.blockgrid > div { scroll-margin-top: calc(var(--topbar-h, 0px) + 86px); }
 
 /* 처음 열면 나오는 소개 — 「볼 필요 없음」 을 눌러야 화면이 나온다 */
 .introwrap {

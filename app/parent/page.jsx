@@ -35,6 +35,7 @@ import { cleanNote, cleanTitle } from "@/lib/note";
 import { STAFF_ROLES as STAFF } from "@/lib/roles";
 import { sessionUser } from "@/lib/session";
 import SectionNav from "@/components/SectionNav";
+import NoticeGate from "@/components/NoticeGate";
 
 export const dynamic = "force-dynamic";
 
@@ -926,6 +927,7 @@ export default async function ParentPage({ searchParams }) {
         {/* 「오늘」 은 폭을 다 쓴다 — 어머니가 제일 먼저 보시는 것이라
             반쪽으로 접히면 안 된다 */}
         <SectionNav page="parent" order={blockOrder} />
+        {!isStaff && <NoticeGate page="parent" notices={notices} />}
         <div className="blockgrid">
           {blockOrder.map((k) => (
             <div key={k} id={`blk-${k}`} className={k === "today" ? "fullrow" : undefined}>
