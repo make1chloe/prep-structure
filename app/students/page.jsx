@@ -124,6 +124,31 @@ export default async function StudentsPage({ searchParams }) {
     });
   });
 
+  /**
+   * **끝냈거나 중단한 교재 — 기록으로 보여준다** (원장님, 2026-08-14 —
+   * 「교재가 끝나면 종료처리도 해야 해. 이미 쓴 적 있는데 기록이 없는
+   * 교재를 추가할 수 있어야 해」). 적을 수 있게만 하고 보여주지 않으면
+   * 적은 보람이 없다. 절판 처리된 교재도 기록에는 나와야 하므로
+   * 활성 교재만 추린 bookById 가 아니라 전체에서 찾는다.
+   */
+  const anyBookById = new Map(
+    (allBooks || []).map((b) => [b.id, { id: b.id, name: b.name, area: b.area || "" }])
+  );
+  const pastOf = new Map();
+  (stBooks || []).forEach((r) => {
+    if (!r.status || r.status === "active") return;
+    const b = anyBookById.get(r.textbook_id);
+    if (!b) return;
+    if (!pastOf.has(r.student_id)) pastOf.set(r.student_id, []);
+    pastOf.get(r.student_id).push({
+      ...b,
+      status: r.status,
+      from: r.assigned_on || null,
+      to: r.ended_on || null,
+    });
+  });
+  pastOf.forEach((list) => list.sort((a, b) => (b.to || "").localeCompare(a.to || "")));
+
   // 반과 수업 요일 — 목록을 **반별 · 요일별**로 묶어 보기 위해서다
   const { data: klasses } = klassesQ;
   const klassById = new Map((klasses || []).map((c) => [c.id, c]));
@@ -164,6 +189,7 @@ export default async function StudentsPage({ searchParams }) {
       initPw: !!s.profile_id && initPw.has(s.profile_id),
       parent_login_id: parentIdOf.get(s.id) || null,
       books: booksOf.get(s.id) || [],
+      pastBooks: pastOf.get(s.id) || [],
       classes: cls,
       days: [...new Set(cls.flatMap((c) => c.days))],
     };

@@ -168,6 +168,41 @@ export async function setCurrentPage(studentId, textbookId, page) {
 
 // 학생 차원의 교재 상태 — active(사용중) | done(완료) | dropped(중단)
 // 완료·중단이면 숙제 배정·진도 화면에서 빠지고, 재원생 기록에만 남는다.
+/**
+ * **날짜를 지정해서** 교재 한 권을 붙인다 (원장님, 2026-08-14 — 「사용예정
+ * 교재 추가가 필요해. 시작날짜를 입력하고 … 이미 쓴 적 있는데 기록이 없는
+ * 교재를 추가할 수 있어야 해」).
+ *
+ * 시작일이 미래면 「사용 예정」 — 그날까지 오늘 수업 숙제·진도에 안 나온다
+ * (그 규칙은 lib/bookUse 한 곳에 있다). 종료일까지 적으면 「끝낸 교재」
+ * 기록으로 바로 들어간다 — 앱을 쓰기 전에 끝낸 교재를 남기는 길이다.
+ */
+export async function addStudentBookDated(studentId, textbookId, startOn, endOn) {
+  if (!studentId || !textbookId) return { error: "학생과 교재를 골라주세요." };
+  if (endOn && startOn && endOn < startOn) return { error: "종료일이 시작일보다 빠를 수 없어요." };
+  const supabase = createClient();
+  const row = {
+    student_id: studentId,
+    textbook_id: textbookId,
+    status: endOn ? "done" : "active",
+    assigned_on: startOn || todaySeoul(),
+    ended_on: endOn || null,
+  };
+  let { error } = await supabase
+    .from("student_textbooks")
+    .upsert(row, { onConflict: "student_id,textbook_id" });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0019 전 DB — ended_on 이 없다
+    const { ended_on: _e, ...rest } = row;
+    ({ error } = await supabase
+      .from("student_textbooks")
+      .upsert(rest, { onConflict: "student_id,textbook_id" }));
+  }
+  revalidatePath("/students");
+  revalidatePath("/today");
+  return ok(error);
+}
+
 export async function setStudentBookStatus(studentId, textbookId, status, endedOn) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = createClient();

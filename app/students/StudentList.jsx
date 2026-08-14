@@ -618,6 +618,33 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                               <StudentBooksProgress studentId={s.id} books={s.books || []} />
                             </div>
                           )}
+
+                          {/**
+                            * **지난 교재** (원장님, 2026-08-14 — 「교재가 끝나면
+                            * 종료처리도 해야 해. 이미 쓴 적 있는데 기록이 없는
+                            * 교재를 추가할 수 있어야 해」). 끝냄·중단으로 처리한
+                            * 교재는 지워지는 게 아니라 여기 기록으로 남는다 —
+                            * 안 보이면 종료처리한 보람이 없다.
+                            */}
+                          {(s.pastBooks || []).length > 0 && (
+                            <div className="stack" style={{ gap: 4, marginTop: 12 }}>
+                              <b style={{ fontSize: 14 }}>지난 교재 {(s.pastBooks || []).length}권</b>
+                              {(s.pastBooks || []).map((b) => (
+                                <div key={b.id} className="row" style={{ gap: 6, alignItems: "baseline" }}>
+                                  <span className={`tag ${b.status === "done" ? "tag-mint" : "tag-muted"}`}>
+                                    {b.status === "done" ? "끝냄" : "중단"}
+                                  </span>
+                                  <b style={{ fontSize: 13.5 }}>
+                                    {b.area ? `[${b.area}] ` : ""}{b.name}
+                                  </b>
+                                  <span className="hint">
+                                    {b.from ? b.from.slice(2).replace(/-/g, ".") : "?"} ~{" "}
+                                    {b.to ? b.to.slice(2).replace(/-/g, ".") : "?"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </>
                       )}
                       {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
