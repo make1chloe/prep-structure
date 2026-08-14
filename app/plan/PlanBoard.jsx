@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   setPlannedAbsenceRange,
   clearPlannedAbsenceRange,
+  setMakeup,
 } from "./actions";
 import AbsenceRows from "./AbsenceRows";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
@@ -31,6 +32,10 @@ export default function PlanBoard({
   makeupAnswers = null,
 }) {
   const [tab, setTab] = useState("absence");
+  // 그냥 보강 (결석과 무관한 추가 수업) — 잡는 문
+  const [freeId, setFreeId] = useState("");
+  const [freeDate, setFreeDate] = useState("");
+  const [freeTime, setFreeTime] = useState("");
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = useState("");
   const [pending, startTransition] = useTransition();
@@ -105,6 +110,57 @@ export default function PlanBoard({
           왼쪽 고르기 칸을 띄우면 안 쓰는 칸이 화면 절반을 차지한다 */}
       {tab === "makeup" && (
         <div className="stack" style={{ gap: 10 }}>
+          {/**
+            * **그냥 보강** (원장님, 2026-08-14 — 「지금 그냥 보강은 잡을 수가
+            * 없네」). 보강이 전부 결석에 묶여 있어서, 결석 없는 추가 수업을
+            * 잡을 문이 없었다. 서버(setMakeup)는 원래 결석 없이도 받았다 —
+            * 문만 단다. 결석에 묶인 보강은 아래 「보강 잡을 것」 그대로.
+            */}
+          <div className="card card-tight">
+            <b style={{ fontSize: 14.5 }}>그냥 보강 잡기</b>
+            <span className="hint" style={{ marginLeft: 6 }}>
+              결석과 상관없는 추가 수업 — 달력·오늘 수업에 보강으로 뜹니다
+            </span>
+            <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <select
+                className="input input-sm"
+                style={{ width: 128 }}
+                value={freeId}
+                onChange={(e) => setFreeId(e.target.value)}
+              >
+                <option value="">학생 고르기…</option>
+                {students.map((st) => (
+                  <option key={st.id} value={st.id}>{st.name}</option>
+                ))}
+              </select>
+              <input
+                className="input input-sm"
+                type="date"
+                value={freeDate}
+                onChange={(e) => setFreeDate(e.target.value)}
+              />
+              <input
+                className="input input-sm"
+                type="time"
+                value={freeTime}
+                onChange={(e) => setFreeTime(e.target.value)}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={pending || !freeId || !freeDate}
+                onClick={() =>
+                  startTransition(async () => {
+                    const res = await setMakeup(freeId, freeDate, null, freeTime);
+                    if (res?.error) { alert(res.error); return; }
+                    setFreeId(""); setFreeDate(""); setFreeTime("");
+                    router.refresh();
+                  })
+                }
+              >
+                보강 잡기
+              </button>
+            </div>
+          </div>
           {makeupInbox}
           {makeupAnswers}
         </div>
