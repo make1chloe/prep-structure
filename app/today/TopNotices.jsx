@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createNotice, deleteNotice } from "./actions";
+import { createNotice, deleteNotice, updateNotice } from "./actions";
 import { applyTasksDelivery } from "@/app/tasks/actions";
 import NoticePhotos from "@/components/NoticePhotos";
 import RequestPhotos from "@/components/RequestPhotos";
@@ -52,6 +52,8 @@ export default function TopNotices({
   const [picked, setPicked] = useState(() => new Set());
   const [body, setBody] = useState("");
   const [sent, setSent] = useState("");
+  const [editId, setEditId] = useState(null);      // 제자리 수정 중인 공지
+  const [editBody, setEditBody] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -379,10 +381,28 @@ export default function TopNotices({
                 <div className="card card-tight" key={n.id}>
                   <div className="unitrow">
                     <span className="tag tag-lav">{n.targetLabel}</span>
-                    <span style={{ flex: 1, minWidth: 160, fontSize: 14.5 }}>
-                      {n.body || n.title}
-                    </span>
-                    {isMemo(n.kind) && (
+                    {editId === n.id ? (
+                      /* **제자리 수정** (원장님, 2026-08-14 — 「확인했어도 수정 후
+                         재공지 필요할 수가 있어서」). 저장하면 고친 시각이 새겨져
+                         학생·학부모 길목에 **다시** 뜬다 — 확인했던 사람에게도. */
+                      <textarea
+                        className="input input-sm"
+                        style={{ flex: 1, minWidth: 200 }}
+                        rows={3}
+                        value={editBody}
+                        onChange={(e) => setEditBody(e.target.value)}
+                      />
+                    ) : (
+                      <span style={{ flex: 1, minWidth: 160, fontSize: 14.5 }}>
+                        {n.body || n.title}
+                        {n.editedAt && (
+                          <span className="hint" style={{ marginLeft: 5 }}>
+                            (수정 {String(n.editedAt).slice(5, 10).replace("-", "/")})
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {isMemo(n.kind) && editId !== n.id && (
                       <span className={`tag ${n.done >= n.total ? "tag-mint" : "tag-amber"}`}>
                         전달 {n.done}/{n.total}
                       </span>
@@ -390,9 +410,43 @@ export default function TopNotices({
                     {/* 옛 줄은 숙제 안내에도 실린다 — 안 적어두면 왜 문자에
                         나오는지 모르신다 */}
                     {n.kind === "deliver" && <span className="tag tag-muted">옛 전달사항</span>}
-                    <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
-                      삭제
-                    </button>
+                    {editId === n.id ? (
+                      <>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          disabled={pending || !editBody.trim()}
+                          onClick={() =>
+                            startTransition(async () => {
+                              const r = await updateNotice(n.id, { body: editBody });
+                              if (r?.error) { alert(r.error); return; }
+                              setEditId(null);
+                              router.refresh();
+                            })
+                          }
+                          title="저장하면 확인했던 학생·학부모에게도 다시 뜹니다"
+                        >
+                          저장 (재공지)
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>
+                          취소
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            setEditId(n.id);
+                            setEditBody(n.body || "");
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)} disabled={pending}>
+                          삭제
+                        </button>
+                      </>
+                    )}
                   </div>
                   <div style={{ marginTop: 6 }}>
                     <NoticePhotos noticeId={n.id} photos={n.photos || []} />

@@ -540,10 +540,19 @@ export default async function MePage({ searchParams }) {
     if (ids.length) {
       let { data: rows } = await supabase
         .from("notices")
-        .select("id, date, kind, title, photos, body")
+        .select("id, date, kind, title, photos, body, edited_at")
         .in("id", ids)
         .gte("date", since)
         .order("date", { ascending: false });
+      if (!rows) {
+        // 0121 전이면 고친 시각 없이
+        ({ data: rows } = await supabase
+          .from("notices")
+          .select("id, date, kind, title, photos, body")
+          .in("id", ids)
+          .gte("date", since)
+          .order("date", { ascending: false }));
+      }
       if (!rows) {
         // 0064 전이면 제목·사진 없이
         ({ data: rows } = await supabase

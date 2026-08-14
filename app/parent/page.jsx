@@ -339,10 +339,19 @@ export default async function ParentPage({ searchParams }) {
   if (nIds.length) {
     let { data } = await supabase
       .from("notices")
-      .select("id, date, kind, title, photos, body")
+      .select("id, date, kind, title, photos, body, edited_at")
       .in("id", nIds)
       .gte("date", addDays(today, -21))
       .order("date", { ascending: false });
+    if (!data) {
+      // 0121 전이면 고친 시각 없이
+      ({ data } = await supabase
+        .from("notices")
+        .select("id, date, kind, title, photos, body")
+        .in("id", nIds)
+        .gte("date", addDays(today, -21))
+        .order("date", { ascending: false }));
+    }
     if (!data) {
       ({ data } = await supabase
         .from("notices").select("id, date, kind, body").in("id", nIds)

@@ -487,6 +487,37 @@ export async function createNotice(input) {
   return { error: null, count: targets.length, id: notice.id, sent, kind: row.kind };
 }
 
+/**
+ * 공지를 **제자리에서 고친다** (원장님, 2026-08-14 — 「확인했어도 수정 후
+ * 재공지 필요할 수가 있어서」).
+ *
+ * 고친 시각(edited_at)을 새긴다 — 학생·학부모 길목(NoticeGate)은 공지를
+ * 「id + 고친 시각」 으로 기억하므로, 고치는 순간 **확인했던 사람에게도
+ * 새 공지처럼 다시 뜬다.** 사진은 그대로 둔다 (사진을 바꿀 일은 지우고
+ * 다시 쓰는 편이 낫다 — 어중간하게 섞이면 어느 판이 맞는지 모른다).
+ */
+export async function updateNotice(id, { body } = {}) {
+  if (!id) return { error: "공지를 찾지 못했어요." };
+  if (!(body || "").trim()) return { error: "내용을 적어주세요." };
+  const supabase = createClient();
+  // 본문만 고친다 — 공지에 제목 칸은 없다는 확정 설계 그대로 (check-notice)
+  let { error } = await supabase
+    .from("notices")
+    .update({ body: body.trim(), edited_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0121 전 — 시각 없이 내용만 (재공지는 0121 을 돌려야 켜진다)
+    ({ error } = await supabase
+      .from("notices")
+      .update({ body: body.trim() })
+      .eq("id", id));
+  }
+  revalidatePath("/today");
+  revalidatePath("/me");
+  revalidatePath("/parent");
+  return { error: error ? error.message : null };
+}
+
 export async function deleteNotice(id) {
   if (!id) return { error: null };
   const supabase = createClient();

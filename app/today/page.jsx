@@ -11,6 +11,7 @@ import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
+import DateNav from "./DateNav";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +132,7 @@ export default async function TodayPage({ searchParams }) {
     supabase.from("textbooks").select("id, word_range, words_irregular"),
     supabase
       .from("notices")
-      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at")
+      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at, edited_at")
       .eq("date", date)
       .order("created_at", { ascending: true }),
     supabase
@@ -526,6 +527,14 @@ export default async function TodayPage({ searchParams }) {
 
   // 오늘의 공지 · 전달사항 (첫 시도는 파도 1)
   let { data: noticeRows, error: noticeErr } = noticeQ1;
+  if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
+    // 0121 전이면 고친 시각 없이
+    ({ data: noticeRows, error: noticeErr } = await supabase
+      .from("notices")
+      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at")
+      .eq("date", date)
+      .order("created_at", { ascending: true }));
+  }
   if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
     // 0064 전이면 제목·사진 없이
     ({ data: noticeRows, error: noticeErr } = await supabase
@@ -1106,6 +1115,7 @@ export default async function TodayPage({ searchParams }) {
     return {
       id: n.id, kind: n.kind, body: n.body,
       title: n.title || "", photos: n.photos || [],
+      editedAt: n.edited_at || null,
       targetLabel, total: t.total, done: t.done,
     };
   });
@@ -1253,6 +1263,8 @@ export default async function TodayPage({ searchParams }) {
         <div className="page-head">
           <p className="eyebrow">오늘 수업</p>
           <h1 className="h1">{label}</h1>
+          {/* 날짜 넘기기 — 지난 공지·숙제를 그 자리에서 고친다 (원장님, 2026-08-14) */}
+          <DateNav date={date} />
         </div>
         <MonthlyReset ym={ym} targets={resetTargets} />
         <TopNotices
