@@ -26,12 +26,19 @@ import {
  *   app/today 를 가리키면 안 되므로 넣어주는 쪽에서 준다.
  * @param openFirst 재원생 화면처럼 **진도를 보러 들어온 자리**에서는 펴 둔다.
  */
-export default function BookProgress({ studentId, book, extra = null, openFirst = false }) {
+export default function BookProgress({
+  studentId,
+  book,
+  extra = null,
+  openFirst = false,
+  initialUnits = null,   // 부모가 한 왕복으로 받아 나눠준 것 (재원생·진도 화면)
+  initialRound = null,
+}) {
   const [open, setOpen] = useState(openFirst);
-  const [units, setUnits] = useState(null);
+  const [units, setUnits] = useState(initialUnits);
   const [err, setErr] = useState(null);
   const [page, setPage] = useState(book.curPage || "");
-  const [round, setRound] = useState(null);      // 지금 몇 회독째
+  const [round, setRound] = useState(initialRound); // 지금 몇 회독째
   const [q, setQ] = useState("");                // 단원 검색
   const [noteFor, setNoteFor] = useState(null);  // 메모를 적는 중인 단원
   /**

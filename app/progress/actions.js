@@ -390,6 +390,92 @@ export async function setUnitNote(studentId, unitId, note) {
   return { error: null };
 }
 
+/**
+ * 한 학생의 **여러 교재**를 한 왕복에 (원장님, 2026-08-14 — 「재원생
+ * 페이지에서 저장할 때도 효율적으로」).
+ *
+ * 재원생·진도 화면에서 학생을 열면 교재 판마다 따로 서버에 다녀왔다 —
+ * 교재 네 권이면 네 왕복. 단원·진도를 통째로 받아 여기서 교재별로 가른다.
+ * 모양은 listStudentUnits 와 같다 (판이 같은 것을 받아야 하니까).
+ */
+export async function listStudentUnitsMany(studentId, textbookIds = []) {
+  const ids = [...new Set((textbookIds || []).filter(Boolean))];
+  if (!studentId || ids.length === 0) return { byBook: {}, error: null };
+  const supabase = createClient();
+
+  const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort";
+  const LADDER = [
+    `${base}, total_pages, question_count, question_range, word_count, summary, minutes`,
+    `${base}, total_pages`,
+    base,
+  ];
+  let units = null;
+  let error = null;
+  for (const cols of LADDER) {
+    ({ data: units, error } = await supabase
+      .from("textbook_units")
+      .select(cols)
+      .in("textbook_id", ids)
+      .order("sort", { ascending: true }));
+    if (!error) break;
+  }
+  if (error) return { byBook: {}, error: error.message };
+
+  // 회독은 교재마다 다르다
+  let rounds = new Map();
+  {
+    const { data: st } = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, round")
+      .eq("student_id", studentId)
+      .in("textbook_id", ids);
+    (st || []).forEach((r) => rounds.set(r.textbook_id, r.round || 1));
+  }
+
+  const unitIds = (units || []).map((u) => u.id);
+  let prog = [];
+  if (unitIds.length) {
+    let q = await supabase
+      .from("student_unit_progress")
+      .select("textbook_unit_id, status, done_on, note, round")
+      .eq("student_id", studentId)
+      .in("textbook_unit_id", unitIds);
+    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+      q = await supabase
+        .from("student_unit_progress")
+        .select("textbook_unit_id, status, done_on, note")
+        .eq("student_id", studentId)
+        .in("textbook_unit_id", unitIds);
+      prog = (q.data || []).map((p) => ({ ...p, round: 1 }));
+    } else {
+      prog = q.data || [];
+    }
+  }
+
+  const byBook = {};
+  for (const tid of ids) {
+    const mine = (units || []).filter((u) => u.textbook_id === tid);
+    const round = rounds.get(tid) || 1;
+    const byUnit = new Map(
+      prog
+        .filter((p) => (p.round || 1) === round)
+        .map((p) => [p.textbook_unit_id, p])
+    );
+    const hasChild = new Set(mine.map((u) => u.parent_id).filter(Boolean));
+    byBook[tid] = {
+      round,
+      units: unitOptions(mine).map((o) => ({
+        ...o,
+        leaf: !hasChild.has(o.id),
+        status: byUnit.get(o.id)?.status || "",
+        doneOn: byUnit.get(o.id)?.done_on || null,
+        note: byUnit.get(o.id)?.note || "",
+      })),
+    };
+  }
+  return { byBook, error: null };
+}
+
 // 순서와 상관없이 아무 단원이나 완료/미완료로 바꾼다
 export async function setUnitProgress(studentId, unitIds, status) {
   const ids = Array.isArray(unitIds) ? unitIds : [unitIds];

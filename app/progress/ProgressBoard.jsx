@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import BookProgress from "@/components/BookProgress";
+import StudentBooksProgress from "./StudentBooksProgress";
 import { sortRows } from "@/lib/listSort";
 
 /**
@@ -102,17 +102,7 @@ export default function ProgressBoard({ rows = [], classes = [] }) {
               </button>
               {open && (
                 <div className="stuPanel">
-                  {r.books.length === 0 ? (
-                    <p className="hint" style={{ margin: 0 }}>
-                      배정된 교재가 없어요. 재원생 → 교재 탭이나 학습 → 교재에서 배정하세요.
-                    </p>
-                  ) : (
-                    <div className="bookgrid">
-                      {r.books.map((b) => (
-                        <BookProgress key={b.id} studentId={r.id} book={b} openFirst />
-                      ))}
-                    </div>
-                  )}
+                  <StudentBooksProgress studentId={r.id} books={r.books} />
                 </div>
               )}
             </div>

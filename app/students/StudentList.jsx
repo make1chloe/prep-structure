@@ -9,7 +9,7 @@ import ParentBox from "./ParentBox";
 import NoteBox from "./NoteBox";
 import ScoreBox from "./ScoreBox";
 import StudentBooks from "@/app/today/StudentBooks";
-import BookProgress from "@/components/BookProgress";
+import StudentBooksProgress from "@/app/progress/StudentBooksProgress";
 import WordTestBox from "./WordTestBox";
 import ScheduleBox from "./ScheduleBox";
 import { fromLabel } from "@/lib/bookUse";
@@ -614,9 +614,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                           {(s.books || []).length > 0 && (
                             <div className="stack" style={{ gap: 8, marginTop: 12 }}>
                               <b style={{ fontSize: 14 }}>진도</b>
-                              {(s.books || []).map((b) => (
-                                <BookProgress key={b.id} studentId={s.id} book={b} openFirst />
-                              ))}
+                              {/* 교재 판마다 따로 다녀오지 않는다 — 한 왕복 (2026-08-14) */}
+                              <StudentBooksProgress studentId={s.id} books={s.books || []} />
                             </div>
                           )}
                         </>
