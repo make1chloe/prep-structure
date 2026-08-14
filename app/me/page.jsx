@@ -42,6 +42,7 @@ import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
 // 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
 import { isStaff as isStaffRole } from "@/lib/roles";
+import SectionNav from "@/components/SectionNav";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
 } from "@/lib/homeworkView";
@@ -1079,10 +1080,12 @@ export default async function MePage({ searchParams }) {
            */
           const inner = (
             <>
+              {/* 위 메뉴 + 처음 소개 (원장님, 2026-08-14) — 갈래가 위에서 보인다 */}
+              <SectionNav page="me" order={blockOrder} />
               <ScreenNote text={N("me.top")} tone="card" />
               <div className="blockgrid">
                 {blockOrder.map((k) => (
-                  <div key={k} className={k === "study" ? "fullrow" : undefined}>
+                  <div key={k} id={`blk-${k}`} className={k === "study" ? "fullrow" : undefined}>
                     {BLOCKS[k]}
                   </div>
                 ))}

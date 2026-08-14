@@ -34,6 +34,7 @@ import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
 import { STAFF_ROLES as STAFF } from "@/lib/roles";
 import { sessionUser } from "@/lib/session";
+import SectionNav from "@/components/SectionNav";
 
 export const dynamic = "force-dynamic";
 
@@ -924,9 +925,10 @@ export default async function ParentPage({ searchParams }) {
         <ScreenNote text={N("parent.top")} tone="card" />
         {/* 「오늘」 은 폭을 다 쓴다 — 어머니가 제일 먼저 보시는 것이라
             반쪽으로 접히면 안 된다 */}
+        <SectionNav page="parent" order={blockOrder} />
         <div className="blockgrid">
           {blockOrder.map((k) => (
-            <div key={k} className={k === "today" ? "fullrow" : undefined}>
+            <div key={k} id={`blk-${k}`} className={k === "today" ? "fullrow" : undefined}>
               {BLOCKS[k]}
             </div>
           ))}

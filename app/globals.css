@@ -962,6 +962,48 @@ body { padding-top: var(--topbar-full, 120px); }
   .cal-dow { padding: 4px 2px; font-size: 12px; }
 }
 
+/* ── 학생·학부모 화면의 위 메뉴 (SectionNav) ──────────────────
+   덩어리가 세로로 이어진 한 장이라 아래에 뭐가 있는지 굴려 본 사람만
+   알았다 (원장님, 2026-08-14). 위에 갈래 한 줄 — 누르면 그리로, 지금
+   보는 곳은 색으로. 좁은 폰에서는 가로로 굴려서 본다. */
+.sectnav {
+  position: sticky; top: var(--topbar-h, 0px); z-index: 20;
+  display: flex; gap: 4px; overflow-x: auto;
+  padding: 8px 10px; margin: 0 -4px 10px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.sectnav::-webkit-scrollbar { display: none; }
+.sectnav-chip {
+  flex: none; font-family: inherit; cursor: pointer;
+  font-size: 13.5px; font-weight: 700;
+  padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  white-space: nowrap;
+}
+.sectnav-chip.on { background: var(--lav-soft); color: var(--lav); border-color: transparent; }
+.sectnav-help { color: var(--text-faint); border-style: dashed; }
+/* 메뉴를 누르면 그 덩어리 머리가 메뉴 줄 아래로 오게 — 안 잡으면 제목이
+   메뉴 뒤로 들어간다 */
+.blockgrid > div { scroll-margin-top: calc(var(--topbar-h, 0px) + 52px); }
+
+/* 처음 열면 나오는 소개 — 「볼 필요 없음」 을 눌러야 화면이 나온다 */
+.introwrap {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(10, 14, 24, .55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.introcard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 18px 16px; width: 100%; max-width: 520px;
+  max-height: 86vh; overflow-y: auto;
+}
+.introrow { display: flex; align-items: baseline; gap: 8px; }
+
 /* 재원생 — **고르는 곳과 고치는 곳을 나란히** (좌우 2분할)
    예전에는 이름을 누르면 표 사이가 벌어지면서 판이 끼어들어, 아래 학생들이
    화면 밖으로 밀려났다. 다른 아이를 보려면 닫고 다시 찾아 내려가야 했다. */
