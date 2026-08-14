@@ -5,15 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   setPlannedAbsenceRange,
   clearPlannedAbsenceRange,
-  recentClasses,
 } from "./actions";
 import AbsenceRows from "./AbsenceRows";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 
 const REASONS = ["학교 행사", "시험 기간", "병원", "가족 일정", "여행", "기타"];
-const ATT_LABEL = {
-  present: "등원", late: "지각", absent: "결석", makeup: "보강", online: "온라인",
-};
 
 const dayLabel = (d) => (d ? fmtDay(d) : "");
 
@@ -45,7 +41,6 @@ export default function PlanBoard({
   const [absTo, setAbsTo] = useState("");
 
   // 지난 수업 목록 — null 이면 아직 안 불러온 것
-  const [past, setPast] = useState(null);
 
   const kw = q.trim().toLowerCase();
   const shown = students.filter(
@@ -89,7 +84,7 @@ export default function PlanBoard({
   const TABS = [
     ["absence", "결석 예정"],
     ["makeup", "보강"],
-    ["fix", "지난 수업 고치기"],
+
   ];
 
   return (
@@ -290,62 +285,9 @@ export default function PlanBoard({
               </>
             )}
 
-            {/* 지난 수업 고치기 — 검사를 빠뜨렸거나 리포트를 고쳐야 할 때.
-                고치는 곳은 오늘 수업 화면의 학생 판 하나다. 여기서는 데려다만 준다 —
-                같은 것을 두 군데 만들면 언젠가 한쪽만 고치게 된다. */}
-            {tab === "fix" && (
-              <>
-                <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>지난 수업 고치기</h2>
-                <p className="hint" style={{ margin: "0 0 8px", lineHeight: 1.7 }}>
-                  「고치기」 를 누르면 그 날짜의 오늘 수업 화면이 <b>그 학생 판이 열린 채로</b> 뜹니다 —
-                  출결 · 숙제 검사 · 리포트를 거기서 고칩니다.
-                </p>
-                <div className="row" style={{ gap: 6, marginBottom: 8, alignItems: "center" }}>
-                  <button
-                    className="btn btn-sm"
-                    disabled={pending || sel.size === 0}
-                    onClick={() =>
-                      startTransition(async () => {
-                        const res = await recentClasses([...sel]);
-                        if (res?.error) { alert(res.error); return; }
-                        setPast(res.rows || []);
-                      })
-                    }
-                  >
-                    {past === null ? "불러오기" : "다시 불러오기"}
-                  </button>
-                  <span className="tag tag-sky">고른 학생 {sel.size}명</span>
-                </div>
-
-                {past !== null && past.length === 0 && (
-                  <p className="hint" style={{ margin: 0 }}>최근 두 달에 기록이 없어요.</p>
-                )}
-                {past !== null && past.length > 0 && (
-                  <div className="stack" style={{ gap: 2 }}>
-                    {past.map((p) => {
-                      const s = students.find((x) => x.id === p.studentId);
-                      return (
-                        <div className="unitrow" key={p.id}>
-                          <b style={{ fontSize: 14, minWidth: 64 }}>{s?.name || "학생"}</b>
-                          <span className="hint" style={{ minWidth: 96 }}>{dayLabel(p.date)}</span>
-                          {p.attendance && (
-                            <span className="tag tag-muted">{ATT_LABEL[p.attendance] || p.attendance}</span>
-                          )}
-                          {p.word && <span className="tag tag-sky">단어 {p.word}</span>}
-                          {p.checked > 0 && <span className="tag tag-mint">검사 {p.checked}</span>}
-                          {!p.written && <span className="tag tag-amber">리포트 미작성</span>}
-                          <span className="spacer" />
-                          <a className="btn btn-sm" href={`/today?d=${p.date}&open=${p.studentId}`}>
-                            고치기 ›
-                          </a>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
+            {/* 「지난 수업 고치기」 는 오늘 수업의 날짜 넘기기로 이사했다
+                (원장님, 2026-08-14 — 「동선·레이아웃 효율성이 많이 떨어져」).
+                같은 일이 두 동선에 있으면 하나로 (A20). */}
             {sel.size === 0 && (
               <div className="notice" style={{ marginTop: 10 }}>
                 왼쪽에서 <b>반 이름</b>을 누르면 반 전체가, 학생 이름을 누르면 그 학생만 선택됩니다.

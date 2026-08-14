@@ -1264,7 +1264,10 @@ export default async function TodayPage({ searchParams }) {
           <p className="eyebrow">오늘 수업</p>
           <h1 className="h1">{label}</h1>
           {/* 날짜 넘기기 — 지난 공지·숙제를 그 자리에서 고친다 (원장님, 2026-08-14) */}
-          <DateNav date={date} />
+          <DateNav
+            date={date}
+            students={(students || []).map((st) => ({ id: st.id, name: st.name }))}
+          />
         </div>
         <MonthlyReset ym={ym} targets={resetTargets} />
         <TopNotices
