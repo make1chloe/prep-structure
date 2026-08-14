@@ -19,6 +19,7 @@ import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 import { listRoutine } from "./routineActions";
 import { listBookProgress } from "@/app/progress/actions";
 import { cachedProfile } from "@/lib/profileCache";
+import { fetchAll } from "@/lib/fetchAll";
 import RoutineUpload from "./RoutineUpload";
 
 export const dynamic = "force-dynamic";
@@ -40,11 +41,17 @@ export default async function TextbooksPage({ searchParams }) {
       .from("textbooks")
       .select("id, name, area, target_grade, total_pages, price, word_range, words_irregular, status, purchase_url, feature, created_at")
       .order("created_at", { ascending: false }),
-    supabase.from("textbook_units").select("textbook_id, label"),
-    supabase
-      .from("student_textbooks")
-      .select("textbook_id, student_id, status")
-      .neq("status", "dropped"),
+    // 단원은 전 교재 합이라 1000줄을 넘는다 — 잘리면 멀쩡한 교재가
+    // 「단원 없음」 으로 보인다 (2026-08-14 실제로 그랬다. lib/fetchAll)
+    fetchAll(() => supabase.from("textbook_units").select("textbook_id, label").order("id")),
+    fetchAll(() =>
+      supabase
+        .from("student_textbooks")
+        .select("textbook_id, student_id, status")
+        .neq("status", "dropped")
+        .order("student_id")
+        .order("textbook_id")
+    ),
     supabase
       .from("homework_items")
       .select("id, name, sort, category")

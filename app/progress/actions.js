@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { todaySeoul } from "@/lib/day";
 import { planAssign } from "@/lib/bookAssign";
+import { fetchAll } from "@/lib/fetchAll";
 import { sessionUser } from "@/lib/session";
 
 function ok(error) {
@@ -351,18 +352,27 @@ export async function listBookProgress(textbookId) {
   });
   let allProg = [];
   if (leaves.length && enrolled.length) {
-    let q = await supabase
-      .from("student_unit_progress")
-      .select("student_id, textbook_unit_id, status, done_on, round")
-      .in("student_id", enrolled.map((r) => r.student_id))
-      .in("textbook_unit_id", leaves);
+    // 교재 하나 × 전 재원생 × 회독이라 1000줄을 넘는다 — 끝까지 (lib/fetchAll)
+    let q = await fetchAll(() =>
+      supabase
+        .from("student_unit_progress")
+        .select("student_id, textbook_unit_id, status, done_on, round")
+        .in("student_id", enrolled.map((r) => r.student_id))
+        .in("textbook_unit_id", leaves)
+        .order("student_id")
+        .order("textbook_unit_id")
+    );
     if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
       // 0025 전이면 round 없이 — 전부 1회독으로 본다
-      q = await supabase
-        .from("student_unit_progress")
-        .select("student_id, textbook_unit_id, status, done_on")
-        .in("student_id", enrolled.map((r) => r.student_id))
-        .in("textbook_unit_id", leaves);
+      q = await fetchAll(() =>
+        supabase
+          .from("student_unit_progress")
+          .select("student_id, textbook_unit_id, status, done_on")
+          .in("student_id", enrolled.map((r) => r.student_id))
+          .in("textbook_unit_id", leaves)
+          .order("student_id")
+          .order("textbook_unit_id")
+      );
       allProg = (q.data || []).map((p) => ({ ...p, round: 1 }));
     } else {
       allProg = q.data || [];
@@ -478,11 +488,15 @@ export async function listStudentUnitsMany(studentId, textbookIds = []) {
   let units = null;
   let error = null;
   for (const cols of LADDER) {
-    ({ data: units, error } = await supabase
-      .from("textbook_units")
-      .select(cols)
-      .in("textbook_id", ids)
-      .order("sort", { ascending: true }));
+    // 교재 여러 권이면 단원이 1000줄을 넘을 수 있다 — 끝까지 (lib/fetchAll)
+    ({ data: units, error } = await fetchAll(() =>
+      supabase
+        .from("textbook_units")
+        .select(cols)
+        .in("textbook_id", ids)
+        .order("sort", { ascending: true })
+        .order("id")
+    ));
     if (!error) break;
   }
   if (error) return { byBook: {}, error: error.message };
@@ -501,17 +515,23 @@ export async function listStudentUnitsMany(studentId, textbookIds = []) {
   const unitIds = (units || []).map((u) => u.id);
   let prog = [];
   if (unitIds.length) {
-    let q = await supabase
-      .from("student_unit_progress")
-      .select("textbook_unit_id, status, done_on, note, round")
-      .eq("student_id", studentId)
-      .in("textbook_unit_id", unitIds);
-    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
-      q = await supabase
+    let q = await fetchAll(() =>
+      supabase
         .from("student_unit_progress")
-        .select("textbook_unit_id, status, done_on, note")
+        .select("textbook_unit_id, status, done_on, note, round")
         .eq("student_id", studentId)
-        .in("textbook_unit_id", unitIds);
+        .in("textbook_unit_id", unitIds)
+        .order("textbook_unit_id")
+    );
+    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+      q = await fetchAll(() =>
+        supabase
+          .from("student_unit_progress")
+          .select("textbook_unit_id, status, done_on, note")
+          .eq("student_id", studentId)
+          .in("textbook_unit_id", unitIds)
+          .order("textbook_unit_id")
+      );
       prog = (q.data || []).map((p) => ({ ...p, round: 1 }));
     } else {
       prog = q.data || [];

@@ -9,6 +9,7 @@ import { tally, resetDoneIn, DEFAULT_RULE } from "@/lib/warnings";
 import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
+import { fetchAll } from "@/lib/fetchAll";
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
@@ -561,11 +562,17 @@ export default async function TodayPage({ searchParams }) {
           .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
           .in("student_id", studentIds)
       : none,
+    // 진도는 학생 수 × 단원 수라 **1000줄을 쉽게 넘는다** — 끝까지 받는다
+    // (잘리면 뒤쪽 학생 진도가 조용히 「기록 전」 이 된다. lib/fetchAll 참고)
     studentIds.length
-      ? supabase
-          .from("student_unit_progress")
-          .select("student_id, textbook_unit_id, status, round")
-          .in("student_id", studentIds)
+      ? fetchAll(() =>
+          supabase
+            .from("student_unit_progress")
+            .select("student_id, textbook_unit_id, status, round")
+            .in("student_id", studentIds)
+            .order("student_id")
+            .order("textbook_unit_id")
+        )
       : none,
     studentIds.length
       ? supabase
@@ -645,10 +652,14 @@ export default async function TodayPage({ searchParams }) {
   if (studentIds.length) {
     const q = stProgQ;
     if (q.error) {
-      const fb = await supabase
-        .from("student_unit_progress")
-        .select("student_id, textbook_unit_id, status")
-        .in("student_id", studentIds);
+      const fb = await fetchAll(() =>
+        supabase
+          .from("student_unit_progress")
+          .select("student_id, textbook_unit_id, status")
+          .in("student_id", studentIds)
+          .order("student_id")
+          .order("textbook_unit_id")
+      );
       stProgress = (fb.data || []).map((r) => ({ ...r, round: 1 }));
     } else {
       stProgress = q.data || [];
@@ -701,15 +712,23 @@ export default async function TodayPage({ searchParams }) {
    */
   const nameBookIds = [...new Set((pickedQ.data || []).map((u) => u.textbook_id))];
   const UNIT_COLS = "id, name, parent_id, textbook_id, page_start, page_end, total_pages, label";
+  // 단원도 교재가 여럿이면 1000줄을 넘는다 — 끝까지 받는다 (lib/fetchAll).
+  // 실제로 여기서 잘려서, 오늘 수업의 오토보카7 이 「진도 기록 전」 인데
+  // 재원생(한 명 것만 읽음)은 18/20 이라고 서로 다르게 말했다 (2026-08-14).
   const [nameUnitsQ, buQ] = await Promise.all([
     nameBookIds.length
-      ? supabase.from("textbook_units").select(`${UNIT_COLS}, word_count`).in("textbook_id", nameBookIds)
+      ? fetchAll(() =>
+          supabase.from("textbook_units").select(`${UNIT_COLS}, word_count`).in("textbook_id", nameBookIds).order("id")
+        )
       : none,
     shownBookIds.size > 0
-      ? supabase
-          .from("textbook_units")
-          .select("id, textbook_id, parent_id, page_start, page_end, total_pages")
-          .in("textbook_id", [...shownBookIds])
+      ? fetchAll(() =>
+          supabase
+            .from("textbook_units")
+            .select("id, textbook_id, parent_id, page_start, page_end, total_pages")
+            .in("textbook_id", [...shownBookIds])
+            .order("id")
+        )
       : none,
   ]);
 
@@ -720,7 +739,9 @@ export default async function TodayPage({ searchParams }) {
       let q = nameUnitsQ;
       if (q.error && nameBookIds.length) {
         // 0070 전이면 단어 개수 칸이 없다
-        q = await supabase.from("textbook_units").select(UNIT_COLS).in("textbook_id", nameBookIds);
+        q = await fetchAll(() =>
+          supabase.from("textbook_units").select(UNIT_COLS).in("textbook_id", nameBookIds).order("id")
+        );
       }
       all = q.data || [];
     }
@@ -761,10 +782,13 @@ export default async function TodayPage({ searchParams }) {
   if (shownBookIds.size > 0) {
     let { data: bu, error: buErr } = buQ;
     if (buErr) {
-      ({ data: bu } = await supabase
-        .from("textbook_units")
-        .select("id, textbook_id, parent_id, page_start, page_end")
-        .in("textbook_id", [...shownBookIds]));
+      ({ data: bu } = await fetchAll(() =>
+        supabase
+          .from("textbook_units")
+          .select("id, textbook_id, parent_id, page_start, page_end")
+          .in("textbook_id", [...shownBookIds])
+          .order("id")
+      ));
     }
     const parents = new Set((bu || []).map((u) => u.parent_id).filter(Boolean));
     (bu || []).forEach((u) => {
