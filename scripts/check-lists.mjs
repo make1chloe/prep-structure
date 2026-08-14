@@ -29,6 +29,8 @@ const LISTS = [
   ["수업(반)", "app/classes/ClassManager.jsx", true],
   ["영상", "app/videos/VideoBoard.jsx", false],
   ["상담일지", "app/notes/NotesBoard.jsx", false],
+  // 진도는 수업 중 훑는 자리(유형 A)라 정렬 대신 「오늘 수업만」 필터가 기본이다
+  ["진도", "app/progress/ProgressBoard.jsx", false],
 ];
 
 // 검색칸 — placeholder 에 「검색」·「찾기」 가 있으면 그것이다
