@@ -103,6 +103,26 @@ export async function setInquiryStatus(ids, status) {
   return ok(error);
 }
 
+/**
+ * **상담 학생의 교재** (원장님, 2026-08-15 — 「신규 상담 정보에 교재 배정이
+ * 없음. 아직 등록 안 해도」). 등록 전에 교재를 골라두면 등록하는 순간
+ * 배정으로 이어진다 (convertToStudent). 교재 안내를 보낼 때도 여기 적힌다.
+ */
+export async function setInquiryBooks(id, bookIds) {
+  if (!id) return { error: "상담을 찾지 못했어요." };
+  const ids = [...new Set((bookIds || []).filter(Boolean))];
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("inquiries")
+    .update({ book_ids: ids, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "0122 SQL 을 먼저 실행해주세요 (관리자 → 설정 → SQL)." };
+  }
+  revalidatePath("/consult");
+  return ok(error);
+}
+
 export async function deleteInquiries(ids) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
@@ -154,6 +174,22 @@ export async function convertToStudent(id, classId) {
         { onConflict: "class_id,student_id", ignoreDuplicates: true }
       );
     // 교재는 반이 아니라 **학생마다** 붙인다. 재원생 목록에서 그 학생에게 직접 넣는다.
+  }
+
+  /**
+   * 상담 때 골라둔 교재 → 그대로 배정 (0122, 원칙 1 — 상담에 적은 것을
+   * 재원생에서 또 안 고르게). 시작일은 등록한 오늘.
+   */
+  if ((q.book_ids || []).length > 0) {
+    const rows = [...new Set(q.book_ids)].map((bid) => ({
+      student_id: student.id, textbook_id: bid,
+      status: "active", assigned_on: todaySeoul(), ended_on: null,
+    }));
+    let { error: bErr } = await supabase.from("student_textbooks").insert(rows);
+    if (bErr && (bErr.code === "42703" || bErr.code === "PGRST204")) {
+      await supabase.from("student_textbooks")
+        .insert(rows.map(({ ended_on: _e, ...r }) => r));
+    }
   }
 
   const { error } = await supabase

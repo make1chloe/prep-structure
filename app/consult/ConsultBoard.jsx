@@ -10,6 +10,7 @@ import {
   sendApplyLink,
   sendVisitInfo,
   ensureFormLink,
+  setInquiryBooks,
 } from "./actions";
 import { STATUS } from "./status";
 import { slotText, SOURCES as APPLY_SOURCES } from "@/lib/applySlots";
@@ -39,9 +40,11 @@ export default function ConsultBoard({
   rows = [],
   classes = [],
   schools = [],
+  textbooks = [],
   unavailable = false,
   formReady = true,
 }) {
+  const bookNameOf = new Map(textbooks.map((b) => [b.id, b.name]));
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -454,7 +457,8 @@ export default function ConsultBoard({
                   * 만들어 넘긴다.
                   */}
                 {!editing && !!(r.memo || r.test_note || r.test_want_on || r.visit_on || r.goal
-                  || r.test_want_text || r.visit_want_text || r.want_slots?.length > 0) && (
+                  || r.test_want_text || r.visit_want_text || r.want_slots?.length > 0
+                  || r.book_ids?.length > 0) && (
                   <div style={{ padding: "0 16px 10px 44px" }}>
                     {/* **고르신 시간표가 제일 위다** (2026-08-06). 어느 반에 넣을지가
                         상담 전에 정해지는 일이 많아서, 이것부터 보여야 한다 */}
@@ -490,6 +494,14 @@ export default function ConsultBoard({
                     {r.test_note && (
                       <div className="hint">
                         <b>테스트:</b> {r.test_result ? `${r.test_result} · ` : ""}{r.test_note}
+                      </div>
+                    )}
+                    {/* 등록 전에 골라둔 교재 (0122) — 등록하면 그대로 배정된다 */}
+                    {r.book_ids?.length > 0 && (
+                      <div className="hint">
+                        <b>교재:</b>{" "}
+                        {r.book_ids.map((bid) => bookNameOf.get(bid) || "(지워진 교재)").join(" · ")}
+                        <span className="muted"> — 등록하면 그대로 배정돼요</span>
                       </div>
                     )}
                   </div>
@@ -574,6 +586,49 @@ export default function ConsultBoard({
                           onChange={(e) => setDraft({ ...draft, class_id: e.target.value })}>
                           <option value="">—</option>
                           {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    {/**
+                      * **등록 전에 교재 골라두기** (0122, 원장님 2026-08-15 —
+                      * 「신규 상담 정보에 교재 배정이 없음. 아직 등록 안 해도」).
+                      * 고르는 즉시 저장된다 (저장 버튼과 무관) — 교재 안내를
+                      * 보낼 때도 자동으로 적히고, 등록하면 그대로 배정된다.
+                      */}
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">교재 (등록하면 자동 배정 · 고르면 바로 저장)</label>
+                      <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                        {(r.book_ids || []).map((bid) => (
+                          <button
+                            key={bid}
+                            className="hwchip hw-next"
+                            title="누르면 뺍니다"
+                            disabled={pending}
+                            onClick={() => run(() =>
+                              setInquiryBooks(r.id, (r.book_ids || []).filter((x) => x !== bid))
+                            )}
+                          >
+                            {bookNameOf.get(bid) || "(지워진 교재)"} ✕
+                          </button>
+                        ))}
+                        <select
+                          className="input input-sm"
+                          style={{ minWidth: 200 }}
+                          value=""
+                          disabled={pending}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            e.target.value = "";
+                            if (!v) return;
+                            run(() => setInquiryBooks(r.id, [...(r.book_ids || []), v]));
+                          }}
+                        >
+                          <option value="">교재 추가…</option>
+                          {textbooks.map((b) => (
+                            <option key={b.id} value={b.id} disabled={(r.book_ids || []).includes(b.id)}>
+                              {b.area ? `[${b.area}] ` : ""}{b.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>

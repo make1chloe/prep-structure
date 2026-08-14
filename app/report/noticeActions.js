@@ -327,6 +327,30 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn) {
     .filter((x) => typeof x === "string" && x.startsWith("s:"))
     .map((x) => x.slice(2));
   const books = [...new Set((bookIds || []).filter(Boolean))];
+  /**
+   * **상담자(q:)에게 안내한 교재는 상담 정보에 적힌다** (0122, 원장님
+   * 2026-08-15 — 「신규 상담 정보에 교재 배정이 없음」). 아직 학생이
+   * 아니라 배정할 데는 없지만, 등록하는 순간 이 목록이 배정으로 이어진다
+   * (convertToStudent). 0122 전 DB 면 조용히 넘어간다 — 안내 발송이
+   * 이것 때문에 멈추면 안 된다.
+   */
+  const inquiries = (ids || [])
+    .filter((x) => typeof x === "string" && x.startsWith("q:"))
+    .map((x) => x.slice(2));
+  if (inquiries.length > 0 && books.length > 0) {
+    try {
+      const supa = createClient();
+      const { data: qs } = await supa
+        .from("inquiries").select("id, book_ids").in("id", inquiries);
+      for (const q of qs || []) {
+        const merged = [...new Set([...(q.book_ids || []), ...books])];
+        await supa.from("inquiries")
+          .update({ book_ids: merged, updated_at: new Date().toISOString() })
+          .eq("id", q.id);
+      }
+      revalidatePath("/consult");
+    } catch { /* 0122 전 — 넘어간다 */ }
+  }
   if (students.length === 0 || books.length === 0) return { error: null, added: 0 };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startOn || "")) {
     return { error: "사용 예정일을 날짜로 적어주세요." };

@@ -20,18 +20,20 @@ export default async function ConsultPage() {
     profile = data;
   }
 
-  const { data: rows, error } = await supabase
-    .from("inquiries")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  const { data: classes } = await supabase
-    .from("classes")
-    .select("id, name")
-    .order("start_time", { ascending: true });
-
-  // 학교는 골라 넣는다 (0114) — 손으로 적으면 「신정중」 과 「신정중학교」 로 갈라진다
-  const schools = await schoolNames(supabase).catch(() => []);
+  // 서로 필요한 것이 없는 조회는 한 파도로 (원칙 6-1 — 직렬 3층이었다)
+  const [inqQ, classesQ, schools, booksQ] = await Promise.all([
+    supabase.from("inquiries").select("*").order("created_at", { ascending: false }),
+    supabase.from("classes").select("id, name").order("start_time", { ascending: true }),
+    // 학교는 골라 넣는다 (0114) — 손으로 적으면 「신정중」 과 「신정중학교」 로 갈라진다
+    schoolNames(supabase).catch(() => []),
+    // 상담에 교재를 골라둔다 (0122) — 사용 중 교재만
+    supabase.from("textbooks").select("id, name, area, status").order("name", { ascending: true }),
+  ]);
+  const { data: rows, error } = inqQ;
+  const { data: classes } = classesQ;
+  const textbooks = (booksQ.data || [])
+    .filter((b) => !b.status || b.status === "active")
+    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
 
   return (
     <>
@@ -55,6 +57,7 @@ export default async function ConsultPage() {
           schools={schools}
           rows={rows || []}
           classes={classes || []}
+          textbooks={textbooks}
           unavailable={!!error}
           formReady={(rows || []).length === 0 || "form_submitted_at" in ((rows || [])[0] || {})}
         />
