@@ -18,48 +18,56 @@ export default async function SchoolsPage() {
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
-
   const startYM = todaySeoul().slice(0, 7);
   const months = monthsFrom(startYM, 3);
   const from = `${months[0]}-01`;
   const to = endOfMonth(months[2]);
 
-  // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강이 여기서도
-  // 계속 수업하는 반으로 잡힌다 (2026-08-06). /schedule 만 고쳐두었었다
-  let classes = await loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions");
+  // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
+  const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
+
+  // **파도** (속도 대원칙 — 원칙 6): 서로 필요한 것이 없는 조회를 한꺼번에
+  const [profileQ, classes0, holidaysQ, membersQ, studentsQ, examQ0, settings, taskQ] =
+    await Promise.all([
+      user
+        ? supabase.from("profiles").select("*").eq("id", user.id).single()
+        : Promise.resolve({ data: null }),
+      // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강이 여기서도
+      // 계속 수업하는 반으로 잡힌다 (2026-08-06)
+      loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions"),
+      supabase
+        .from("holidays")
+        .select("id, date, name, scope, class_id")
+        .gte("date", from)
+        .lte("date", to),
+      supabase.from("class_students").select("class_id, student_id"),
+      supabase
+        .from("students")
+        .select("id, name, school, grade, status")
+        .eq("status", "enrolled"),
+      supabase
+        .from("exam_periods")
+        .select(`${EXAM}, hidden, cuts, teacher, teachers, source, neis_source_id, neis_from, neis_to, neis_name`)
+        .gte("to_date", from)
+        .order("from_date", { ascending: true }),
+      loadSettings(supabase),
+      supabase.from("tasks").select("due_on").gte("due_on", from).lte("due_on", to),
+    ]);
+  const profile = profileQ?.data || null;
+
+  let classes = classes0;
   if (classes.length === 0) {
     classes = await loadClassesWithTerm(supabase, "id, name, days, start_time");
   }
   classes = [...classes].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
-  const { data: holidays } = await supabase
-    .from("holidays")
-    .select("id, date, name, scope, class_id")
-    .gte("date", from)
-    .lte("date", to);
-
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id");
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("status", "enrolled");
+  const { data: holidays } = holidaysQ;
+  const { data: members } = membersQ;
+  const { data: students } = studentsQ;
   const studentById = new Map((students || []).map((s) => [s.id, s]));
 
-  // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
-  const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
   // 0073 전이면 등급컷 칸이 없다 — 한 단계씩 물러난다
-  let examQ = await supabase
-    .from("exam_periods")
-    .select(`${EXAM}, hidden, cuts, teacher, teachers, source, neis_source_id, neis_from, neis_to, neis_name`)
-    .gte("to_date", from)
-    .order("from_date", { ascending: true });
+  let examQ = examQ0;
   if (examQ.error) {
     examQ = await supabase
       .from("exam_periods")
@@ -80,7 +88,6 @@ export default async function SchoolsPage() {
     eveDate: e.english_on ? addDaysISO(e.english_on, -1) : null,
   }));
 
-  const settings = await loadSettings(supabase);
   const makeupDays = settings.schedule?.makeupDays || [];
 
   const reviews = (classes || []).map((klass) => {
@@ -102,11 +109,6 @@ export default async function SchoolsPage() {
   const classDates = new Set();
   reviews.forEach((r) => r.months.forEach((m) => m.all.forEach((d) => classDates.add(d))));
   // 이미 결정한 날 = 휴강으로 잡았거나, '그냥 수업함' 으로 일정에 남겨둔 날
-  const taskQ = await supabase
-    .from("tasks")
-    .select("due_on")
-    .gte("due_on", from)
-    .lte("due_on", to);
   const decided = new Set([
     ...(holidays || []).map((h) => h.date),
     ...(taskQ.error ? [] : taskQ.data || []).map((t) => t.due_on),

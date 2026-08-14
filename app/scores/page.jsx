@@ -15,35 +15,41 @@ export default async function ScoresPage({ searchParams }) {
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
-
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .order("name", { ascending: true });
-
   const pick = searchParams?.s || null;
   // 어느 시험을 넣으려고 들어왔는가 — 「성적 미입력」 에서 누르면 붙는다
   const pickExam = searchParams?.e || null;
 
-  const { data: scores, error } = await supabase
-    .from("scores")
-    .select(
-      "id, student_id, kind, taken_on, year, term, subject, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, note, source, exam_id"
-    )
-    .order("taken_on", { ascending: false });
+  // **파도** (속도 대원칙 — 원칙 6)
+  const [profileQ, studentsQ, scoresQ, examsQ0, schools, hidden, skipQ] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .order("name", { ascending: true }),
+    supabase
+      .from("scores")
+      .select(
+        "id, student_id, kind, taken_on, year, term, subject, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, note, source, exam_id"
+      )
+      .order("taken_on", { ascending: false }),
+    supabase
+      .from("exam_periods")
+      .select("id, school, grade, name, from_date, to_date, english_on, cuts")
+      .order("from_date", { ascending: false }),
+    schoolNames(supabase).catch(() => []),
+    hiddenExamIds(supabase).catch(() => new Set()),
+    supabase.from("exam_skips").select("student_id, exam_id"),
+  ]);
+  const profile = profileQ?.data || null;
+  const { data: students } = studentsQ;
+  const { data: scores, error } = scoresQ;
 
   // 시험 회차 — **등급컷이 사는 곳**이다 (0073).
   // 컷은 학생 것이 아니라 그 학교 그 회차 것이라, 성적 줄마다 적지 않고
   // 회차에 한 번 적어두고 여기서 끌어다 쓴다.
-  let { data: exams } = await supabase
-    .from("exam_periods")
-    .select("id, school, grade, name, from_date, to_date, english_on, cuts")
-    .order("from_date", { ascending: false });
+  let { data: exams } = examsQ0;
   if (!exams) {
     // 0073 전이면 컷 칸 없이 (회차는 보이되 컷은 성적 줄의 것을 쓴다)
     ({ data: exams } = await supabase
@@ -64,13 +70,8 @@ export default async function ScoresPage({ searchParams }) {
    * 배지와 목록이 다른 말을 한다.
    */
   // 학교는 골라 넣는다 (0114) — 「신정중」 과 「신정중학교」 가 갈라지면 회차도 컷도 따로 논다
-  const schools = await schoolNames(supabase).catch(() => []);
-
-  const hidden = await hiddenExamIds(supabase).catch(() => new Set());
   // **안 봤다고 적어둔 것** (0112) — 0112 전이면 빈 손으로 (오류가 아니라 없는 것)
-  const { data: skipRows } = await supabase
-    .from("exam_skips")
-    .select("student_id, exam_id");
+  const { data: skipRows } = skipQ;
   const skips = new Set((skipRows || []).map((r) => `${r.student_id}|${r.exam_id}`));
   const missing = missingScores({
     exams: exams || [],

@@ -19,12 +19,6 @@ export default async function ReportPage({ searchParams }) {
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
-
   const date = searchParams?.d || todaySeoul();
 
   const t = searchParams?.t;
@@ -37,30 +31,36 @@ export default async function ReportPage({ searchParams }) {
     : "report";
 
   // 테스트 발송 탭 — 학생 전체와, 알림톡이 붙은 문구
-  let testStudents = [];
-  let testTemplates = [];
-  if (tab === "test") {
+  // **파도** (속도 대원칙 — 원칙 6)
+  const none = Promise.resolve({ data: [] });
+  const [profileQ, ssQ, ttQ, settings, tplQ] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
     // 상태로 거르지 않는다. 테스트용 학생은 **'예비' 로 만들어 두는 게 낫다** —
     // 재원으로 만들면 오늘 수업·월간리포트·수강료에 계속 끼어든다.
-    const { data: ss } = await supabase
-      .from("students")
-      .select("id, name, parent_phone, student_phone, status")
-      .order("name", { ascending: true });
-    testStudents = ss || [];
-    const { data: tt } = await supabase
-      .from("message_templates")
-      .select("id, name, alimtalk_id")
-      .eq("active", true)
-      .order("sort", { ascending: true });
-    testTemplates = tt || [];
-  }
-
-  const settings = await loadSettings(supabase);
-
-  // 이 화면에서 나가는 것이 **알림톡인지 문자인지** 보내기 전에 알아야 한다.
-  // 다 보내고 나서 "이거 문자로 나갔네" 를 알면 늦다.
-  const { data: tplRows } = await supabase
-    .from("message_templates").select("id, name, key, alimtalk_id, active").not("key", "is", null);
+    tab === "test"
+      ? supabase
+          .from("students")
+          .select("id, name, parent_phone, student_phone, status")
+          .order("name", { ascending: true })
+      : none,
+    tab === "test"
+      ? supabase
+          .from("message_templates")
+          .select("id, name, alimtalk_id")
+          .eq("active", true)
+          .order("sort", { ascending: true })
+      : none,
+    loadSettings(supabase),
+    // 이 화면에서 나가는 것이 **알림톡인지 문자인지** 보내기 전에 알아야 한다.
+    // 다 보내고 나서 "이거 문자로 나갔네" 를 알면 늦다.
+    supabase.from("message_templates").select("id, name, key, alimtalk_id, active").not("key", "is", null),
+  ]);
+  const profile = profileQ?.data || null;
+  const testStudents = ssQ.data || [];
+  const testTemplates = ttQ.data || [];
+  const { data: tplRows } = tplQ;
   // 함수는 화면(클라이언트)으로 못 넘긴다 — **값으로** 넘긴다.
   //   { report: "alimtalk", homework: "sms", … }
   const chans = Object.fromEntries(

@@ -31,6 +31,10 @@ const CAPS = [
   // 학생·학부모 화면 — 아이들 폰에서 매일 열린다. 41·32 직렬이던 것을 파도로
   ["app/me/page.jsx", 19, true],
   ["app/parent/page.jsx", 19, true],
+  ["app/schools/page.jsx", 5, true],
+  ["app/videos/page.jsx", 2, true],
+  ["app/report/page.jsx", 3, true],
+  ["app/scores/page.jsx", 4, true],
 ];
 for (const [f, cap, needWave] of CAPS) {
   const s = readFileSync(f, "utf8");

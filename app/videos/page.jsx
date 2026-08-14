@@ -12,50 +12,40 @@ export default async function VideosPage() {
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
-
-  const { data: folders, error: fErr } = await supabase
-    .from("video_folders")
-    .select("id, name, note, sort")
-    .order("sort", { ascending: true });
-
-  const { data: videos } = await supabase
-    .from("videos")
-    .select("id, folder_id, title, url, provider, vid, note, active, sort")
-    .order("sort", { ascending: true })
-    .order("created_at", { ascending: false });
-
-  const { data: assignments } = await supabase
-    .from("video_assignments")
-    .select("video_id, student_id, assigned_on, due_on");
-
-  const { data: views } = await supabase
-    .from("video_views")
-    .select("video_id, student_id, opened_at, last_at, opens, done_at");
-
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, status")
-    .eq("status", "enrolled")
-    .order("name", { ascending: true });
-
-  // 반 — 「이 반 전체」 로 한 번에 고를 수 있게
-  const { data: classes } = await supabase
-    .from("classes")
-    .select("id, name")
-    .order("name", { ascending: true });
-  const { data: roster } = await supabase.from("class_students").select("class_id, student_id");
-
-  // 유튜브 키는 넣어뒀는지만 본다 — 키 자체는 화면으로 안 내려간다
-  const { data: ytRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "youtube")
-    .maybeSingle();
+  // **파도** (속도 대원칙 — 원칙 6): 서로 필요한 것이 없는 조회를 한꺼번에
+  const [profileQ, foldersQ, videosQ, asgQ, viewsQ, studentsQ, classesQ, rosterQ, ytQ] =
+    await Promise.all([
+      user
+        ? supabase.from("profiles").select("*").eq("id", user.id).single()
+        : Promise.resolve({ data: null }),
+      supabase.from("video_folders").select("id, name, note, sort").order("sort", { ascending: true }),
+      supabase
+        .from("videos")
+        .select("id, folder_id, title, url, provider, vid, note, active, sort")
+        .order("sort", { ascending: true })
+        .order("created_at", { ascending: false }),
+      supabase.from("video_assignments").select("video_id, student_id, assigned_on, due_on"),
+      supabase.from("video_views").select("video_id, student_id, opened_at, last_at, opens, done_at"),
+      supabase
+        .from("students")
+        .select("id, name, status")
+        .eq("status", "enrolled")
+        .order("name", { ascending: true }),
+      // 반 — 「이 반 전체」 로 한 번에 고를 수 있게
+      supabase.from("classes").select("id, name").order("name", { ascending: true }),
+      supabase.from("class_students").select("class_id, student_id"),
+      // 유튜브 키는 넣어뒀는지만 본다 — 키 자체는 화면으로 안 내려간다
+      supabase.from("integrations").select("config").eq("id", "youtube").maybeSingle(),
+    ]);
+  const profile = profileQ?.data || null;
+  const { data: folders, error: fErr } = foldersQ;
+  const { data: videos } = videosQ;
+  const { data: assignments } = asgQ;
+  const { data: views } = viewsQ;
+  const { data: students } = studentsQ;
+  const { data: classes } = classesQ;
+  const { data: roster } = rosterQ;
+  const { data: ytRow } = ytQ;
   const ytSaved = !!ytRow?.config?.key;
 
   const rows = rollup(videos || [], assignments || [], views || [], students || []);

@@ -272,17 +272,41 @@ export async function listBookProgress(textbookId) {
   const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
   const leaves = (units || []).filter((u) => !hasChild.has(u.id)).map((u) => u.id);
 
-  // 학생별 완료 수 — **그 학생의 지금 회독** 것만 센다.
-  // 회독을 안 가르면 2회독째인 아이가 1회독 기록 덕에 다 한 것처럼 보인다
-  const rows = [];
-  for (const r of active) {
+  /**
+   * 학생별 완료 수 — **그 학생의 지금 회독** 것만 센다.
+   * 회독을 안 가르면 2회독째인 아이가 1회독 기록 덕에 다 한 것처럼 보인다.
+   *
+   * **학생마다 따로 묻지 않는다** (원칙 6-1). 처음에는 학생 수만큼 직렬로
+   * 물었다 — 열다섯 명이면 열다섯 왕복. 전부 한 번에 받아서 여기서 가른다.
+   */
+  const enrolled = active.filter((r) => {
     const s = nameOf.get(r.student_id);
-    if (!s || s.status !== "enrolled") continue;   // 퇴원생 진도는 여기 볼 일이 없다
+    return s && s.status === "enrolled";   // 퇴원생 진도는 여기 볼 일이 없다
+  });
+  let allProg = [];
+  if (leaves.length && enrolled.length) {
+    let q = await supabase
+      .from("student_unit_progress")
+      .select("student_id, textbook_unit_id, status, done_on, round")
+      .in("student_id", enrolled.map((r) => r.student_id))
+      .in("textbook_unit_id", leaves);
+    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+      // 0025 전이면 round 없이 — 전부 1회독으로 본다
+      q = await supabase
+        .from("student_unit_progress")
+        .select("student_id, textbook_unit_id, status, done_on")
+        .in("student_id", enrolled.map((r) => r.student_id))
+        .in("textbook_unit_id", leaves);
+      allProg = (q.data || []).map((p) => ({ ...p, round: 1 }));
+    } else {
+      allProg = q.data || [];
+    }
+  }
+  const rows = enrolled.map((r) => {
+    const s = nameOf.get(r.student_id);
     const round = r.round || 1;
-    const prog = leaves.length
-      ? await readProgress(supabase, r.student_id, leaves, round)
-      : [];
-    rows.push({
+    const prog = allProg.filter((p) => p.student_id === r.student_id && (p.round || 1) === round);
+    return {
       studentId: r.student_id,
       name: s.name,
       grade: s.grade || "",
@@ -293,8 +317,8 @@ export async function listBookProgress(textbookId) {
       total: leaves.length,
       // 마지막으로 찍은 날 — 오래 멈춘 아이가 보인다
       lastOn: prog.map((p) => p.done_on).filter(Boolean).sort().pop() || null,
-    });
-  }
+    };
+  });
   // 진도 낮은 순 — 챙길 아이가 위로
   rows.sort((a, b) => (a.total ? a.done / a.total : 0) - (b.total ? b.done / b.total : 0) || a.name.localeCompare(b.name, "ko"));
   return { rows, total: leaves.length, error: null };
