@@ -37,33 +37,143 @@ export default async function TodayPage({ searchParams }) {
   // 한 달 지난 사진·녹음 치우기 — 하루 한 번, 조용히.
   // 따로 도는 서버가 없으니 매일 여는 이 화면에 붙인다.
   // 실패해도 수업 화면은 그냥 열려야 한다.
-  try {
-    await purgeOncePerDay();
-  } catch {
-    /* 정리가 안 됐다고 수업을 못 하면 안 된다 */
-  }
+  /**
+   * ── 한 번에 물어본다 (2026-08-14, 원장님 — 「모든 페이지의 로딩 자체가
+   *    느려」) ──────────────────────────────────────────────
+   *
+   * 이 화면은 서버 조회가 쉰 개가 넘는데 **전부 한 줄씩 차례로** 기다리고
+   * 있었다. 왕복 하나가 수십 ms 라도 쉰 번이면 초 단위가 된다 — 대시보드를
+   * 25회 직렬 → 왕복 2번으로 고쳤을 때(A16)와 똑같은 병.
+   *
+   * 서로 필요한 것이 없는 조회는 **파도(wave)로 묶어 한꺼번에** 보낸다.
+   *   파도 1  날짜만 있으면 되는 것 (여기, 22개 → 왕복 1번)
+   *   파도 2  파도 1 의 결과(학생 id · 리포트 id …)가 필요한 것
+   *   파도 3  로스터가 필요한 것
+   * 사다리 폴백(옛 DB용)은 실패했을 때만 그대로 한 단씩 내려간다.
+   *
+   * 파일 정리(purge)도 같은 파도에 태운다 — 하루 한 번짜리 정리를
+   * 기다리느라 매일 여는 화면이 늦어질 이유가 없다.
+   */
+  const [
+    ,                 // purge — 결과는 안 쓴다 (실패해도 수업은 열려야 한다)
+    allClasses,
+    membersQ,
+    studentsQ1,
+    attQ1,
+    mkQ,
+    subQ,
+    clsAttQ,
+    reportsQ1,
+    itemsQ1,
+    prevQ,
+    booksQ,
+    wordCfgQ,
+    noticeQ1,
+    stayQ,
+    schedQ,
+    ruleQ,
+    warnRepQ,
+    warnActQ,
+    skipQ,
+    todayTasksQ,
+    unreadCmtQ,
+    actQ1,
+  ] = await Promise.all([
+    purgeOncePerDay().catch(() => null),
+    // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
+    loadRunningClasses(
+      supabase,
+      "id, name, days, start_time, end_time, room, level, category",
+      date
+    ),
+    supabase.from("class_students").select("class_id, student_id"),
+    // 단어시험 설정(개수·통과선)까지 같이 — 채점 자리에서 바로 나와야 한다 (0070)
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct")
+      .eq("status", "enrolled"),
+    supabase
+      .from("attendance")
+      .select("student_id, status, makeup_of, planned, reason, makeup_time")
+      .eq("date", date),
+    supabase
+      .from("attendance")
+      .select("student_id, date, makeup_of")
+      .eq("status", "makeup")
+      .eq("makeup_of", date),
+    supabase
+      .from("homework_submissions")
+      .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id, report_item_id")
+      .gte("date", addDays(date, -7))
+      .lte("date", date)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("class_attendance")
+      .select("class_id, student_id, status, makeup_of, note")
+      .eq("date", date),
+    supabase
+      .from("daily_reports")
+      .select("id, student_id, attitude, understanding, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, notice, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when")
+      .eq("date", date),
+    supabase
+      .from("homework_items")
+      .select("id, name, category, sort, method, no_timer, unit_test")
+      .eq("active", true)
+      .order("sort", { ascending: true }),
+    supabase
+      .from("daily_reports")
+      .select("id, student_id, own_progress, date")
+      .lt("date", date)
+      .order("date", { ascending: false })
+      .limit(300),
+    supabase
+      .from("textbooks")
+      .select("id, name, status, total_pages, area")
+      .order("name", { ascending: true }),
+    supabase.from("textbooks").select("id, word_range, words_irregular"),
+    supabase
+      .from("notices")
+      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at")
+      .eq("date", date)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("stay_tasks")
+      .select("id, student_id, body, status, auto")
+      .eq("date", date)
+      .order("created_at", { ascending: true }),
+    supabase.from("integrations").select("config").eq("id", "schedule").maybeSingle(),
+    supabase.from("integrations").select("config").eq("id", "warning").maybeSingle(),
+    supabase
+      .from("daily_reports")
+      .select("id, student_id, date, attendance_kind, word_correct, word_total")
+      .gte("date", addDays(date, -100))
+      .lte("date", date)
+      .order("date", { ascending: true }),
+    supabase.from("warning_actions").select("student_id, kind, on_date, target_date, note"),
+    supabase.from("integrations").select("config").eq("id", "warning_reset").maybeSingle(),
+    supabase
+      .from("tasks")
+      .select("id, title, due_on, start_time, category, deliver_body, kind")
+      .eq("due_on", date)
+      .order("start_time", { ascending: true }),
+    supabase
+      .from("report_comments")
+      .select("daily_report_id")
+      .is("read_at", null)
+      .neq("author_role", "staff"),
+    supabase
+      .from("student_activity")
+      .select("student_id, state, updated_at, by_student")
+      .eq("date", date),
+  ]);
 
-  // 오늘 요일에 수업이 있는 반
-  // (끝난 특강은 여기서 이미 빠진다 — 종강일이 지나면 오늘 수업에 안 뜬다)
-  const allClasses = await loadRunningClasses(
-    supabase,
-    "id, name, days, start_time, end_time, room, level, category",
-    date
-  );
   const classes = allClasses
     .filter((c) => (c.days || []).includes(dow))
     .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
   // 반 배정 + 학생
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id");
-  // 단어시험 설정(개수·통과선)까지 같이 들고 온다 — 채점 자리에서 바로
-  // 통과·미통과가 나와야 하기 때문이다 (0070)
-  let { data: students, error: stuErr } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct")
-    .eq("status", "enrolled");
+  const { data: members } = membersQ;
+  let { data: students, error: stuErr } = studentsQ1;
   if (stuErr) {
     // 0070 전이면 개수·통과선 없이
     ({ data: students, error: stuErr } = await supabase
@@ -79,11 +189,8 @@ export default async function TodayPage({ searchParams }) {
       .eq("status", "enrolled"));
   }
 
-  // 오늘 출결 기록
-  let { data: att, error: attErr } = await supabase
-    .from("attendance")
-    .select("student_id, status, makeup_of, planned, reason, makeup_time")
-    .eq("date", date);
+  // 오늘 출결 기록 (첫 시도는 파도 1)
+  let { data: att, error: attErr } = attQ1;
   if (attErr) {
     // 0046 전이면 시간 없이, 그래도 안 되면 최소 칸만
     ({ data: att, error: attErr } = await supabase
@@ -105,46 +212,22 @@ export default async function TodayPage({ searchParams }) {
    * 이미 잡아둔 것이 있으면 **또 잡을 수 있으면 안 된다** — 그날 오지도
    * 않을 아이가 「오늘 수업」 에 두 번 뜬다.
    */
-  const { data: mkRows } = await supabase
-    .from("attendance")
-    .select("student_id, date, makeup_of")
-    .eq("status", "makeup")
-    .eq("makeup_of", date);
+  const { data: mkRows } = mkQ;
   const makeupOnOf = new Map((mkRows || []).map((m) => [m.student_id, m.date]));
 
   // 학생이 낸 숙제 (0044 전이면 빈 배열)
   //   집에서 어제 냈을 수도 있으므로 지난 수업 이후치를 함께 본다
-  const { data: subRows } = await supabase
-    .from("homework_submissions")
-    .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id, report_item_id")
-    .gte("date", addDays(date, -7))
-    .lte("date", date)
-    .order("created_at", { ascending: false });
+  const { data: subRows } = subQ;
 
   // 오늘 특강 출결 (0042 전이면 빈 배열 — 예전처럼 하루 출결만 쓴다)
-  const { data: clsAtt } = await supabase
-    .from("class_attendance")
-    .select("class_id, student_id, status, makeup_of, note")
-    .eq("date", date);
+  const { data: clsAtt } = clsAttQ;
 
-  // 오늘 리포트 + 숙제 항목 마스터 + 지난 진도
-  let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = await Promise.all([
-    supabase
-      .from("daily_reports")
-      .select("id, student_id, attitude, understanding, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, notice, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when")
-      .eq("date", date),
-    supabase
-      .from("homework_items")
-      .select("id, name, category, sort, method, no_timer, unit_test")
-      .eq("active", true)
-      .order("sort", { ascending: true }),
-    supabase
-      .from("daily_reports")
-      .select("id, student_id, own_progress, date")
-      .lt("date", date)
-      .order("date", { ascending: false })
-      .limit(300),
-  ]);
+  // 오늘 리포트 + 숙제 항목 마스터 + 지난 진도 (파도 1)
+  let [{ data: reports }, { data: items, error: itemsErr }, { data: prevReports }] = [
+    reportsQ1,
+    itemsQ1,
+    prevQ,
+  ];
 
   // 0118 전이면 이해도 없이 다시
   if (!reports) {
@@ -239,6 +322,7 @@ export default async function TodayPage({ searchParams }) {
 
   // 리포트별 숙제 항목 상태
   const reportIds = (reports || []).map((r) => r.id);
+  const prevIds = [...new Set((prevReports || []).map((r) => r.id))];
   const itemsByReport = new Map();
   const nextByReport = new Map();
   const inClassByReport = new Map();   // 오늘 학원에서 할 것
@@ -253,7 +337,18 @@ export default async function TodayPage({ searchParams }) {
       ? [x.textbook_unit_id]
       : []);
 
-  (await loadItems(reportIds)).forEach((x) => {
+  /**
+   * 파도 2 — 파도 1 의 id 들이 필요한 조회.
+   * loadItems(prevIds, true) 는 **두 군데서 똑같이** 부르고 있었다
+   * (배정 목록 · 단원 메모) — 한 번만 부르고 나눠 쓴다.
+   */
+  const [curItemRows, prevAssignedRows, prevAllRows] = await Promise.all([
+    loadItems(reportIds),
+    loadItems(prevIds, true),
+    loadItems(prevIds),
+  ]);
+
+  curItemRows.forEach((x) => {
     idsOf(x).forEach((id) => unitIds.add(id));
     if (x.status === "assigned") {
       if (!nextByReport.has(x.daily_report_id)) nextByReport.set(x.daily_report_id, []);
@@ -281,13 +376,12 @@ export default async function TodayPage({ searchParams }) {
   //   예) 8/3 숙제 냄 → 8/5 결석(출결만 저장, 숙제 없음) → 8/10 검사 대상 0개
   // 그래서 학생별로 **배정이 있었던 가장 최근 리포트**를 찾고,
   // 그 뒤에 검사된 적이 없으면 계속 검사 대상으로 남긴다.
-  const prevIds = [...new Set((prevReports || []).map((r) => r.id))];
   const prevAssigned = new Map();
   const prevUnitOf = new Map(); // `${studentId}|${itemId}` → { unitId, note }
   const prevReportStudent = new Map(
     (prevReports || []).map((r) => [r.id, r.student_id])
   );
-  (await loadItems(prevIds, true)).forEach((x) => {
+  prevAssignedRows.forEach((x) => {
     idsOf(x).forEach((id) => unitIds.add(id));
     if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
     prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
@@ -305,7 +399,7 @@ export default async function TodayPage({ searchParams }) {
 
   // 그 배정이 이후 수업에서 이미 검사됐는지 확인 (검사됐으면 다시 안 물어본다)
   const checkedAfter = new Map(); // studentId → Set(itemId)
-  (await loadItems(prevIds)).forEach((x) => {
+  prevAllRows.forEach((x) => {
     if (x.status === "assigned") return;
     const sid = prevReportStudent.get(x.daily_report_id);
     if (!sid) return;
@@ -324,8 +418,8 @@ export default async function TodayPage({ searchParams }) {
     });
   });
 
-  // 단원·범위 메모는 배정 줄에서 다시 읽는다
-  (await loadItems(prevIds, true)).forEach((x) => {
+  // 단원·범위 메모는 배정 줄에서 다시 읽는다 (같은 조회를 또 하지 않는다)
+  prevAssignedRows.forEach((x) => {
     const sid = prevReportStudent.get(x.daily_report_id);
     if (!sid || lastAssignedReport.get(sid) !== x.daily_report_id) return;
     prevUnitOf.set(`${sid}|${x.homework_item_id}`, {
@@ -378,11 +472,8 @@ export default async function TodayPage({ searchParams }) {
     return out;
   };
 
-  // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름
-  const { data: books } = await supabase
-    .from("textbooks")
-    .select("id, name, status, total_pages, area")
-    .order("name", { ascending: true });
+  // 교재 목록(사용중) + 화면에 이미 쓰인 단원의 이름 (파도 1)
+  const { data: books } = booksQ;
   const textbooks = (books || [])
     .filter((b) => !b.status || b.status === "active")
     .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
@@ -391,9 +482,7 @@ export default async function TodayPage({ searchParams }) {
   // 0070 전이면 칸이 없으니 빈 채로 두고, 개수는 손으로 적는다.
   const wordCfg = new Map();
   {
-    const { data } = await supabase
-      .from("textbooks")
-      .select("id, word_range, words_irregular");
+    const { data } = wordCfgQ;
     (data || []).forEach((b) =>
       wordCfg.set(b.id, {
         range: Number(b.word_range) || 0,
@@ -489,12 +578,8 @@ export default async function TodayPage({ searchParams }) {
     return { total: sum, units: ids.size, counted };
   }
 
-  // 오늘의 공지 · 전달사항
-  let { data: noticeRows, error: noticeErr } = await supabase
-    .from("notices")
-    .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at")
-    .eq("date", date)
-    .order("created_at", { ascending: true });
+  // 오늘의 공지 · 전달사항 (첫 시도는 파도 1)
+  let { data: noticeRows, error: noticeErr } = noticeQ1;
   if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
     // 0064 전이면 제목·사진 없이
     ({ data: noticeRows, error: noticeErr } = await supabase
@@ -505,12 +590,73 @@ export default async function TodayPage({ searchParams }) {
   }
   const noticesAvailable = !noticeErr;
   const noticeIds = (noticeRows || []).map((n) => n.id);
-  const { data: receipts } = noticeIds.length
-    ? await supabase
-        .from("notice_receipts")
-        .select("notice_id, student_id, delivered_at")
-        .in("notice_id", noticeIds)
-    : { data: [] };
+  /**
+   * 파도 3 — 학생 id · 공지 id 가 필요한 것들을 한꺼번에.
+   * (공지 수신 확인이 이 중 제일 먼저 쓰여서, 블록이 이 자리에 있다 —
+   *  선언보다 위에서 쓰면 빌드는 통과하고 화면을 여는 순간 터진다)
+   */
+  const studentIds = (students || []).map((s) => s.id);
+  const none = { data: [] };
+  const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
+  const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ] = await Promise.all([
+    studentIds.length
+      ? supabase
+          .from("student_textbooks")
+          .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
+          .in("student_id", studentIds)
+      : none,
+    studentIds.length
+      ? supabase
+          .from("student_unit_progress")
+          .select("student_id, textbook_unit_id, status, round")
+          .in("student_id", studentIds)
+      : none,
+    studentIds.length
+      ? supabase
+          .from("word_test_settings")
+          .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+          .in("student_id", studentIds)
+      : none,
+    studentIds.length
+      ? supabase
+          .from("unit_exams")
+          .select("id, student_id, name, score, total")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : none,
+    studentIds.length
+      ? supabase
+          .from("arrival_checks")
+          .select("student_id, phone_at, attend_at, homework_at")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : none,
+    studentIds.length
+      ? supabase
+          .from("study_sessions")
+          .select("student_id, homework_item_id, seconds")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : none,
+    noticeIds.length
+      ? supabase
+          .from("notice_receipts")
+          .select("notice_id, student_id, delivered_at")
+          .in("notice_id", noticeIds)
+      : none,
+    warnRepIds.length
+      ? supabase
+          .from("daily_report_items")
+          .select("daily_report_id, status")
+          .in("daily_report_id", warnRepIds)
+          .in("status", ["missing", "weak"])
+      : none,
+    pendingTaskIds0.length
+      ? supabase.from("notices").select("task_id").in("task_id", pendingTaskIds0).eq("date", date)
+      : none,
+  ]);
+  const { data: receipts } = receiptsQ;
 
   const noticeById = new Map((noticeRows || []).map((n) => [n.id, n]));
   const noticesOfStudent = new Map(); // studentId → [{ id, kind, body, delivered }]
@@ -534,20 +680,11 @@ export default async function TodayPage({ searchParams }) {
   });
 
   // ---------- 학생별 교재 배정 · 단원 진도 ----------
-  const studentIds = (students || []).map((s) => s.id);
-  const { data: stBooks } = studentIds.length
-    ? await supabase
-        .from("student_textbooks")
-        .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
-        .in("student_id", studentIds)
-    : { data: [] };
+  const { data: stBooks } = stBooksQ;
   // 회독별로 쌓인다. `round` 가 아직 없는 DB 면 전부 1회독으로 본다.
   let stProgress = [];
   if (studentIds.length) {
-    const q = await supabase
-      .from("student_unit_progress")
-      .select("student_id, textbook_unit_id, status, round")
-      .in("student_id", studentIds);
+    const q = stProgQ;
     if (q.error) {
       const fb = await supabase
         .from("student_unit_progress")
@@ -579,12 +716,7 @@ export default async function TodayPage({ searchParams }) {
   // 단어시험 방식 — (학생, 교재, 회독) 하나에 설정 한 줄
   const wtOf = new Map();
   {
-    const q = studentIds.length
-      ? await supabase
-          .from("word_test_settings")
-          .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
-          .in("student_id", studentIds)
-      : { data: [] };
+    const q = wtQ;
     (q.error ? [] : q.data || []).forEach((w) => {
       wtOf.set(`${w.student_id}|${w.textbook_id}|${w.round}`, w);
     });
@@ -680,11 +812,7 @@ export default async function TodayPage({ searchParams }) {
   // 학생·학부모가 남긴 안 읽은 댓글 (0023 전이면 그냥 없는 것으로 본다)
   const unreadByReport = new Map();
   {
-    const cq = await supabase
-      .from("report_comments")
-      .select("daily_report_id")
-      .is("read_at", null)
-      .neq("author_role", "staff");
+    const cq = unreadCmtQ;
     (cq.data || []).forEach((c) => {
       unreadByReport.set(c.daily_report_id, (unreadByReport.get(c.daily_report_id) || 0) + 1);
     });
@@ -693,13 +821,7 @@ export default async function TodayPage({ searchParams }) {
   // 오늘 본 단원평가 (0031 전이면 없는 것으로 본다)
   const examOf = new Map();
   {
-    const q = studentIds.length
-      ? await supabase
-          .from("unit_exams")
-          .select("id, student_id, name, score, total")
-          .eq("date", date)
-          .in("student_id", studentIds)
-      : { data: [] };
+    const q = examQ;
     (q.error ? [] : q.data || []).forEach((e) => {
       if (!examOf.has(e.student_id)) examOf.set(e.student_id, []);
       examOf.get(e.student_id).push(e);
@@ -709,26 +831,14 @@ export default async function TodayPage({ searchParams }) {
   // 학생이 직접 누른 등원 체크 (폰·숙제)
   const arrivalOf = new Map();
   {
-    const q = studentIds.length
-      ? await supabase
-          .from("arrival_checks")
-          .select("student_id, phone_at, attend_at, homework_at")
-          .eq("date", date)
-          .in("student_id", studentIds)
-      : { data: [] };
+    const q = arrQ;
     (q.error ? [] : q.data || []).forEach((a) => arrivalOf.set(a.student_id, a));
   }
 
   // 오늘 학생들이 얼마나 공부했나 (항목별 합계)
   const secOf = new Map();     // `${studentId}|${itemId}` → 초
   {
-    const q = studentIds.length
-      ? await supabase
-          .from("study_sessions")
-          .select("student_id, homework_item_id, seconds")
-          .eq("date", date)
-          .in("student_id", studentIds)
-      : { data: [] };
+    const q = secQ;
     (q.error ? [] : q.data || []).forEach((x) => {
       if (!x.homework_item_id) return;
       const k = `${x.student_id}|${x.homework_item_id}`;
@@ -739,11 +849,7 @@ export default async function TodayPage({ searchParams }) {
   // ── 늦귀가 과제 ─────────────────────────────────────────
   const stayOf = new Map();
   {
-    const q = await supabase
-      .from("stay_tasks")
-      .select("id, student_id, body, status, auto")
-      .eq("date", date)
-      .order("created_at", { ascending: true });
+    const q = stayQ;
     (q.error ? [] : q.data || []).forEach((t) => {
       if (!stayOf.has(t.student_id)) stayOf.set(t.student_id, []);
       stayOf.get(t.student_id).push(t);
@@ -753,11 +859,7 @@ export default async function TodayPage({ searchParams }) {
   // 보강 요일 — 보강 날짜를 잡을 때 미리 넣어준다 (설정에서 정한다, 기본 금요일)
   let makeupDays = ["금"];
   {
-    const { data: schedRow } = await supabase
-      .from("integrations")
-      .select("config")
-      .eq("id", "schedule")
-      .maybeSingle();
+    const { data: schedRow } = schedQ;
     const d = schedRow?.config?.makeupDays;
     if (Array.isArray(d) && d.length) makeupDays = d;
   }
@@ -768,40 +870,21 @@ export default async function TodayPage({ searchParams }) {
   let warnActions = [];
   let warnRule = DEFAULT_RULE;   // 하원 안내에서도 단어시험 통과선을 쓴다
   {
-    const { data: ruleRow } = await supabase
-      .from("integrations")
-      .select("config")
-      .eq("id", "warning")
-      .maybeSingle();
+    const { data: ruleRow } = ruleQ;
     const rule = { ...DEFAULT_RULE, ...(ruleRow?.config || {}) };
     warnRule = rule;
 
-    const wFrom = addDays(date, -100);
-    const wq = await supabase
-      .from("daily_reports")
-      .select("id, student_id, date, attendance_kind, word_correct, word_total")
-      .gte("date", wFrom)
-      .lte("date", date)
-      .order("date", { ascending: true });
+    const wq = warnRepQ;
     const wReports = wq.error ? [] : wq.data || [];
 
-    const wIds = wReports.map((r) => r.id);
-    const { data: wItems } = wIds.length
-      ? await supabase
-          .from("daily_report_items")
-          .select("daily_report_id, status")
-          .in("daily_report_id", wIds)
-          .in("status", ["missing", "weak"])
-      : { data: [] };
+    const { data: wItems } = wItemsQ;
     const wItemsOf = new Map();
     (wItems || []).forEach((x) => {
       if (!wItemsOf.has(x.daily_report_id)) wItemsOf.set(x.daily_report_id, []);
       wItemsOf.get(x.daily_report_id).push({ status: x.status });
     });
 
-    const aq = await supabase
-      .from("warning_actions")
-      .select("student_id, kind, on_date, target_date, note");
+    const aq = warnActQ;
     const wActions = aq.error ? [] : aq.data || [];
     warnActions = wActions;
 
@@ -819,11 +902,7 @@ export default async function TodayPage({ searchParams }) {
   // ── 경고 월간 정리 ──────────────────────────────────────
   // 달이 바뀌면 한 번 물어본다. 이미 정리했거나 "그냥 두기" 를 눌렀으면 안 뜬다.
   const ym = date.slice(0, 7);
-  const { data: skipRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "warning_reset")
-    .maybeSingle();
+  const { data: skipRow } = skipQ;
   const nameOfStudent = new Map((students || []).map((s) => [s.id, s.name]));
   const resetTargets =
     resetDoneIn(warnActions, ym) || skipRow?.config?.skip === ym
@@ -968,16 +1047,9 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
-  // 오늘 일정 — 전달사항으로 아직 안 깐 것
-  const { data: todayTasks } = await supabase
-    .from("tasks")
-    .select("id, title, due_on, start_time, category, deliver_body, kind")
-    .eq("due_on", date)
-    .order("start_time", { ascending: true });
-  const pendingTaskIds = (todayTasks || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const { data: madeNotices } = pendingTaskIds.length
-    ? await supabase.from("notices").select("task_id").in("task_id", pendingTaskIds).eq("date", date)
-    : { data: [] };
+  // 오늘 일정 — 전달사항으로 아직 안 깐 것 (파도 1)
+  const { data: todayTasks } = todayTasksQ;
+  const { data: madeNotices } = madeNoticesQ;
   const madeSet = new Set((madeNotices || []).map((n) => n.task_id));
   const taskCards = (todayTasks || []).map((t) => ({
     id: t.id,
@@ -1031,16 +1103,50 @@ export default async function TodayPage({ searchParams }) {
 
   // 수업 직전에 알아야 하는 것 — 지금까지는 대시보드에만 있어서 화면을 왔다갔다 해야 했다
   const rosterIds = [...new Set(rosterStudents.map((s) => s.id))];
+
+  // 파도 4 — 로스터가 필요한 것들 (수업 직전 알림 · 현황판)
+  const repIdsToday = (reports || [])
+    .filter((r) => rosterIds.includes(r.student_id))
+    .map((r) => r.id);
+  const [preCmtQ, preReqQ1, actItemQ1, timerQ] = await Promise.all([
+    rosterIds.length
+      ? supabase
+          .from("report_comments")
+          .select("id, body, author_role, student_id, created_at")
+          .is("read_at", null)
+          .neq("author_role", "staff")
+          .in("student_id", rosterIds)
+          .order("created_at", { ascending: false })
+          .limit(10)
+      : { data: [] },
+    rosterIds.length
+      ? supabase
+          .from("requests")
+          .select("id, student_id, kind, from_date, to_date, body, photos")
+          .eq("status", "new")
+          .in("student_id", rosterIds)
+          .order("created_at", { ascending: false })
+          .limit(10)
+      : { data: [] },
+    repIdsToday.length
+      ? supabase
+          .from("daily_report_items")
+          .select("id, daily_report_id, homework_item_id, kind, student_done_at")
+          .in("daily_report_id", repIdsToday)
+      : { data: [] },
+    rosterIds.length
+      ? supabase
+          .from("study_sessions")
+          .select("student_id, homework_item_id, started_at, ended_at")
+          .eq("date", date)
+          .is("ended_at", null)
+          .in("student_id", rosterIds)
+      : { data: [] },
+  ]);
+
   const preClass = { comments: [], requests: [] };
   if (rosterIds.length > 0) {
-    const cq = await supabase
-      .from("report_comments")
-      .select("id, body, author_role, student_id, created_at")
-      .is("read_at", null)
-      .neq("author_role", "staff")
-      .in("student_id", rosterIds)
-      .order("created_at", { ascending: false })
-      .limit(10);
+    const cq = preCmtQ;
     const nameById = new Map(rosterStudents.map((s) => [s.id, s.name]));
     preClass.comments = (cq.error ? [] : cq.data || []).map((c) => ({
       ...c,
@@ -1048,13 +1154,7 @@ export default async function TodayPage({ searchParams }) {
     }));
 
     const RQ = "id, student_id, kind, from_date, to_date, body";
-    let rq = await supabase
-      .from("requests")
-      .select(`${RQ}, photos`)
-      .eq("status", "new")
-      .in("student_id", rosterIds)
-      .order("created_at", { ascending: false })
-      .limit(10);
+    let rq = preReqQ1;
     if (rq.error) {
       // 0068 전이면 사진 없이 — 알림 자체가 안 보이면 안 된다
       rq = await supabase
@@ -1086,16 +1186,10 @@ export default async function TodayPage({ searchParams }) {
   let activityOff = false;
   let calls = [];
   {
-    const ids = [...new Set(rosterStudents.map((s) => s.id))];
     const itemName = new Map((items || []).map((x) => [x.id, x.name]));
     // 오늘 이 아이들의 리포트 줄 (등원 학습 항목)
-    const repIds = (reports || []).filter((r) => ids.includes(r.student_id)).map((r) => r.id);
-    let itemQ = repIds.length
-      ? await supabase
-          .from("daily_report_items")
-          .select("id, daily_report_id, homework_item_id, kind, student_done_at")
-          .in("daily_report_id", repIds)
-      : { data: [] };
+    const repIds = repIdsToday;
+    let itemQ = actItemQ1;
     if (itemQ.error) {
       itemQ = repIds.length
         ? await supabase
@@ -1119,24 +1213,14 @@ export default async function TodayPage({ searchParams }) {
     });
 
     // 지금 타이머가 돌고 있는 것 = 지금 하고 있는 것
-    const ssQ = ids.length
-      ? await supabase
-          .from("study_sessions")
-          .select("student_id, homework_item_id, started_at, ended_at")
-          .eq("date", date)
-          .is("ended_at", null)
-          .in("student_id", ids)
-      : { data: [] };
+    const ssQ = timerQ;
     const doing = new Map();
     (ssQ.error ? [] : ssQ.data || []).forEach((x) => {
       doing.set(x.student_id, { item: itemName.get(x.homework_item_id) || "", at: x.started_at });
     });
 
-    // 아이가 부른 것 (0085) — 이것만은 손으로 누르는 것이 맞다
-    let actQ = await supabase
-      .from("student_activity")
-      .select("student_id, state, updated_at, by_student")
-      .eq("date", date);
+    // 아이가 부른 것 (0085) — 이것만은 손으로 누르는 것이 맞다 (파도 1)
+    let actQ = actQ1;
     if (actQ.error && (actQ.error.code === "42703" || actQ.error.code === "PGRST204")) {
       actQ = await supabase
         .from("student_activity")
