@@ -145,8 +145,16 @@ export default function TodayBoard({
   // 완료 = 기록 저장까지 끝난 학생. 미리 연락받은 결석은 처리할 게 없으므로 완료로 본다.
   // 특강 줄은 정규 리포트의 완료 표시를 따라가면 안 된다.
   // 같은 학생이라도 정규에서 기록을 끝냈다고 특강까지 끝난 것은 아니다.
+  /**
+   * **저장한 순간 줄이 넘어간다** (원칙 6-3). 판이 닫히는 건 빨랐는데,
+   * 줄이 「완료」 묶음으로 옮겨가는 것은 재계산을 기다렸다 — 저장을 눌렀는데
+   * 아직 「남음」 에 서 있으면 안 눌린 줄 알고 또 연다.
+   */
+  const [doneOpt, setDoneOpt] = useState(() => new Set());
   const isDone = (r) =>
-    r.rowDone !== null && r.rowDone !== undefined
+    doneOpt.has(`${r.student.id}|${r.extraClassId || ""}`)
+      ? true
+      : r.rowDone !== null && r.rowDone !== undefined
       ? r.rowDone
       : !!r.reportWritten || r.plannedAbsent;
   const all = groups.flatMap((g) => g.rows);
@@ -434,7 +442,13 @@ export default function TodayBoard({
                               textbooks={textbooks}
                               unitNames={unitNames}
                               rule={rule}
-                              onSaved={() => setOpenId(null)}
+                              onSaved={() => {
+                                setOpenId(null);
+                                // 먼저 넘긴다 — 재계산이 끝나면 서버 값이 이어받는다
+                                setDoneOpt((prev) =>
+                                  new Set(prev).add(`${r.student.id}|${r.extraClassId || ""}`)
+                                );
+                              }}
                             />
                           )}
                         </div>
