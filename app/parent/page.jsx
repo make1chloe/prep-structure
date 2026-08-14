@@ -138,14 +138,59 @@ export default async function ParentPage({ searchParams }) {
   const today = todaySeoul();
   const { ym, from } = monthRange(today);
 
+  /**
+   * **파도** (속도 대원칙 — 원칙 6). 어머니 폰에서 매일 열리는 화면인데
+   * 서른두 조회를 한 줄씩 기다리고 있었다. pickId 만 있으면 되는 것들을
+   * 전부 한 층으로 보낸다.
+   */
+  const [
+    repsQ, warnQ, cutQ, recent, itemById, mineQ, attTodayQ, stayQ,
+    monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts,
+  ] = await Promise.all([
+    supabase
+      .from("daily_reports")
+      .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text")
+      .eq("student_id", pickId)
+      .gte("date", from)
+      .lte("date", today)
+      .order("date", { ascending: false }),
+    supabase.from("settings").select("config").eq("key", "warning").maybeSingle(),
+    supabase.from("students").select("word_cut_pct").eq("id", pickId).maybeSingle(),
+    loadReports(supabase, pickId, today, 6),
+    loadHomeworkItems(supabase),
+    supabase.from("class_students").select("class_id").eq("student_id", pickId),
+    supabase
+      .from("attendance").select("status, reason").eq("student_id", pickId).eq("date", today).maybeSingle(),
+    supabase
+      .from("stay_tasks").select("id, body, status").eq("student_id", pickId).eq("date", today),
+    supabase
+      .from("monthly_reports")
+      .select("ym, text, sent_at")
+      .eq("student_id", pickId)
+      .order("ym", { ascending: false })
+      .limit(3),
+    supabase
+      .from("scores")
+      .select("id, kind, taken_on, term, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, source, exam_id")
+      .eq("student_id", pickId)
+      .order("taken_on", { ascending: false })
+      .limit(30),
+    supabase
+      .from("exam_periods")
+      .select("id, school, grade, name, from_date, to_date, cuts"),
+    supabase.from("notice_receipts").select("notice_id").eq("student_id", pickId),
+    supabase
+      .from("requests")
+      .select("id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at, photos")
+      .eq("student_id", pickId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    loadNotes(supabase),
+    loadLayouts(supabase),
+  ]);
+
   // ── 이번 달 (달이 끝나기 전에도 지금까지를 그대로 센다) ──
-  const { data: reps } = await supabase
-    .from("daily_reports")
-    .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text")
-    .eq("student_id", pickId)
-    .gte("date", from)
-    .lte("date", today)
-    .order("date", { ascending: false });
+  const { data: reps } = repsQ;
 
   const repIds = (reps || []).map((r) => r.id);
   const { data: items } = repIds.length
@@ -163,10 +208,8 @@ export default async function ParentPage({ searchParams }) {
   const sum = summarize(withItems, []);
   // 통과선은 이 학생 것 → 없으면 설정의 기본값.
   // 0070 전이면 학생별 통과선 칸이 없다 — 그때는 기본값만 쓴다.
-  const { data: warnRow } = await supabase
-    .from("settings").select("config").eq("key", "warning").maybeSingle();
-  const { data: cutRow } = await supabase
-    .from("students").select("word_cut_pct").eq("id", pickId).maybeSingle();
+  const { data: warnRow } = warnQ;
+  const { data: cutRow } = cutQ;
   const cut = cutOf(cutRow, Number(warnRow?.config?.wordPassPct) || 90);
   // 몇 번째에 통과했는지를 세려면 **날짜 오름차순**이어야 한다 (reps 는 내림차순)
   const repsAsc = [...(reps || [])].sort((a, b) => a.date.localeCompare(b.date));
@@ -181,9 +224,7 @@ export default async function ParentPage({ searchParams }) {
    * 이번 달 것(reps)과 따로 읽는 이유 — 숙제는 지난달 마지막 수업에서
    * 나갔을 수도 있다. 달을 잘라 읽으면 월초에 숙제가 통째로 사라진다.
    */
-  const recent = await loadReports(supabase, pickId, today, 6);
   const dri = await loadReportItems(supabase, recent.map((r) => r.id));
-  const itemById = await loadHomeworkItems(supabase);
   const unitLabel = await loadUnitLabels(supabase, dri);
   const toCard = makeCard(itemById, unitLabel);
   const { from: assignedFrom, rows: assignedRows } = pickAssigned(recent, dri);
@@ -205,8 +246,7 @@ export default async function ParentPage({ searchParams }) {
   // ── 우리 아이 반 · 다음 수업 ──────────────────────────────────
   let myClasses = [];
   {
-    const { data: mine } = await supabase
-      .from("class_students").select("class_id").eq("student_id", pickId);
+    const { data: mine } = mineQ;
     const ids = (mine || []).map((m) => m.class_id);
     if (ids.length) {
       // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강의 회차가
@@ -230,21 +270,13 @@ export default async function ParentPage({ searchParams }) {
   }
 
   // 오늘 출결 — 어머니가 제일 자주 물으시던 것 (「갔어요?」)
-  const { data: attToday } = await supabase
-    .from("attendance").select("status, reason").eq("student_id", pickId).eq("date", today).maybeSingle();
+  const { data: attToday } = attTodayQ;
 
   // 오늘 늦게 가나 — 남아서 채우고 갈 것이 있으면 늦어진다
-  const stayQ = await supabase
-    .from("stay_tasks").select("id, body, status").eq("student_id", pickId).eq("date", today);
   const stayLeft = (stayQ.error ? [] : stayQ.data || []).filter((t) => t.status === "todo");
 
   // ── 월간리포트 (지난달까지 나간 것) ──
-  const { data: monthly } = await supabase
-    .from("monthly_reports")
-    .select("ym, text, sent_at")
-    .eq("student_id", pickId)
-    .order("ym", { ascending: false })
-    .limit(3);
+  const { data: monthly } = monthlyQ;
   const monthlyRows = (monthly || []).filter((m) => m.text);
 
   // ── 성적 ──
@@ -252,12 +284,7 @@ export default async function ParentPage({ searchParams }) {
   //   **0101 부터는 원장님이 「비공개」 로 두신 아이의 성적이 아예 안 온다.**
   //   화면에서 감추는 것이 아니라 읽기 규칙에서 막힌다 — 그래서 여기서
   //   따로 거를 것이 없다. 없으면 블록이 통째로 안 그려진다.
-  const { data: scores } = await supabase
-    .from("scores")
-    .select("id, kind, taken_on, term, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, source, exam_id")
-    .eq("student_id", pickId)
-    .order("taken_on", { ascending: false })
-    .limit(30);
+  const { data: scores } = scoresQ;
   const scoreGroups = byKind(scores || []);
 
   /**
@@ -297,17 +324,14 @@ export default async function ParentPage({ searchParams }) {
   }
   // 등급컷은 **회차** 것이다 (0073). 선생님 화면과 같은 컷을 봐야
   // "앱에서는 2등급이라던데요" 가 안 생긴다.
-  let { data: exams } = await supabase
-    .from("exam_periods")
-    .select("id, school, grade, name, from_date, to_date, cuts");
+  let { data: exams } = examsQ1;
   if (!exams) {
     ({ data: exams } = await supabase
       .from("exam_periods").select("id, school, grade, name, from_date, to_date"));
   }
 
   // ── 공지 ──
-  const { data: rec } = await supabase
-    .from("notice_receipts").select("notice_id").eq("student_id", pickId);
+  const { data: rec } = recQ;
   const nIds = [...new Set((rec || []).map((r) => r.notice_id))];
   let notices = [];
   if (nIds.length) {
@@ -340,9 +364,7 @@ export default async function ParentPage({ searchParams }) {
   // 한 칸 때문에 「보낸 것」 목록이 통째로 안 보이면 안 된다
   const REQ = "id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at";
   const REQ0 = "id, kind, from_date, to_date, body, status, reply";
-  let { data: myReqs } = await supabase
-    .from("requests").select(`${REQ}, photos`).eq("student_id", pickId)
-    .order("created_at", { ascending: false }).limit(5);
+  let { data: myReqs } = reqQ1.data ? reqQ1 : { data: null };
   if (!myReqs) {
     // 0108 전이면 오간 말 칸이 없다
     ({ data: myReqs } = await supabase
@@ -360,11 +382,9 @@ export default async function ParentPage({ searchParams }) {
   const hasToday = !!nextClass && nextClass.date === today;
 
   // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
-  const notes = await loadNotes(supabase);
   const N = (key, fallback = "") => noteOr(notes, key, fallback);
 
   // 원장님이 정하신 덩어리 차례 (0095). 안 정하셨으면 아래 적힌 차례 그대로
-  const layouts = await loadLayouts(supabase);
   const blockOrder = arrange("parent", layouts);
 
   /**

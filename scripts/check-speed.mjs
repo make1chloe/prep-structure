@@ -28,6 +28,9 @@ const CAPS = [
   // tasks 는 내신·보강 헬퍼 함수(파도 안에서 도는)의 내부 조회까지 세어져 12다
   ["app/tasks/page.jsx", 14, true],
   ["app/plan/page.jsx", 4, true],
+  // 학생·학부모 화면 — 아이들 폰에서 매일 열린다. 41·32 직렬이던 것을 파도로
+  ["app/me/page.jsx", 19, true],
+  ["app/parent/page.jsx", 19, true],
 ];
 for (const [f, cap, needWave] of CAPS) {
   const s = readFileSync(f, "utf8");

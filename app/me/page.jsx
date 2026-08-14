@@ -152,15 +152,105 @@ export default async function MePage({ searchParams }) {
   //   읽는 코드는 lib/homeworkView 한 곳에 있다 — 학부모 화면이 같은 숙제를
   //   보여줘야 하기 때문이다. 두 군데서 읽으면 두 화면이 어긋난다.
   const todayStr = todaySeoul();
-  const reports = await loadReports(supabase, student.id, todayStr, 6);
+
+  /**
+   * **파도** (속도 대원칙 — 원칙 6). 이 화면은 아이 폰에서 매일 열리는데
+   * 서버 조회 마흔한 개를 한 줄씩 기다리고 있었다 — 원장님 화면들과 같은
+   * 병이 학생 화면에 제일 크게 남아 있었다. student.id 만 있으면 되는
+   * 것들을 전부 한 층으로 보낸다.
+   */
+  const sid = student.id;
+  const { ym: myYm, from: myFrom } = monthRange(todayStr);
+  const [
+    reports, subQ, reqQ1, stayQ, aq, attq, mineQ, nq, sessQ,
+    monthRepsQ, myWarnQ, myCutQ, pastQ, recQ, asgQ, seenQ, guidesQ,
+    notes, layouts, scoresQ, specQ, stateQ, itemById,
+  ] = await Promise.all([
+    loadReports(supabase, sid, todayStr, 6),
+    supabase
+      .from("homework_submissions")
+      .select("id, kind, path, body, seconds, checked_at, created_at, homework_item_id, report_item_id")
+      .eq("student_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(60),
+    supabase
+      .from("requests")
+      .select("id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at, photos")
+      .eq("student_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("stay_tasks")
+      .select("id, date, body, status")
+      .eq("student_id", sid)
+      .order("date", { ascending: false })
+      .limit(20),
+    supabase
+      .from("arrival_checks")
+      .select("phone_at, attend_at, homework_at")
+      .eq("student_id", sid)
+      .eq("date", todayStr)
+      .maybeSingle(),
+    supabase
+      .from("attendance")
+      .select("status")
+      .eq("student_id", sid)
+      .eq("date", todayStr)
+      .maybeSingle(),
+    supabase.from("class_students").select("class_id").eq("student_id", sid),
+    supabase.from("academy_net").select("ip"),
+    supabase
+      .from("study_sessions")
+      .select("id, homework_item_id, stay_task_id, started_at, ended_at, seconds")
+      .eq("student_id", sid)
+      .eq("date", todayStr),
+    supabase
+      .from("daily_reports")
+      .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total")
+      .eq("student_id", sid)
+      .gte("date", myFrom)
+      .lte("date", todayStr),
+    supabase.from("settings").select("config").eq("key", "warning").maybeSingle(),
+    supabase.from("students").select("word_cut_pct").eq("id", sid).maybeSingle(),
+    supabase
+      .from("study_sessions")
+      .select("homework_item_id, seconds, date")
+      .eq("student_id", sid)
+      .lt("date", todayStr)
+      .not("seconds", "is", null)
+      .order("date", { ascending: false })
+      .limit(300),
+    supabase.from("notice_receipts").select("notice_id").eq("student_id", sid),
+    supabase.from("video_assignments").select("video_id, due_on, assigned_on").eq("student_id", sid),
+    supabase.from("video_views").select("video_id, done_at, opened_at").eq("student_id", sid),
+    supabase
+      .from("class_guides")
+      .select("id, title, url, note")
+      .eq("active", true)
+      .order("sort", { ascending: true }),
+    loadNotes(supabase),
+    loadLayouts(supabase),
+    supabase
+      .from("scores")
+      .select("id, kind, term, taken_on, raw_score, source")
+      .eq("student_id", sid)
+      .in("kind", ["mock", "school", "unit"])
+      .order("taken_on", { ascending: false })
+      .limit(30),
+    supabase
+      .from("exam_spec_rows")
+      .select("kind, no, area, topic, detail")
+      .order("no", { ascending: true }),
+    supabase
+      .from("student_activity")
+      .select("state, updated_at")
+      .eq("student_id", sid)
+      .maybeSingle(),
+    loadHomeworkItems(supabase),
+  ]);
 
   // 내가 낸 숙제 (0044 전이면 빈 값 — 화면은 그대로 뜬다)
-  const { data: subRows } = await supabase
-    .from("homework_submissions")
-    .select("id, kind, path, body, seconds, checked_at, created_at, homework_item_id, report_item_id")
-    .eq("student_id", student.id)
-    .order("created_at", { ascending: false })
-    .limit(60);
+  const { data: subRows } = subQ;
   const subs = {};
   (subRows || []).forEach((x) => {
     const k = x.report_item_id || x.homework_item_id;
@@ -172,7 +262,6 @@ export default async function MePage({ searchParams }) {
   const reportIds = (reports || []).map((r) => r.id);
 
   const dri = await loadReportItems(supabase, reportIds);
-  const itemById = await loadHomeworkItems(supabase);
   const unitLabel = await loadUnitLabels(supabase, dri);
   const toCard = makeCard(itemById, unitLabel);
 
@@ -190,12 +279,7 @@ export default async function MePage({ searchParams }) {
   // 한 칸 때문에 「보낸 것」 목록이 통째로 안 보이면 안 된다
   const REQ = "id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at";
   const REQ0 = "id, kind, from_date, to_date, body, status, reply";
-  let { data: myRequests, error: reqErr } = await supabase
-    .from("requests")
-    .select(`${REQ}, photos`)
-    .eq("student_id", student.id)
-    .order("created_at", { ascending: false })
-    .limit(5);
+  let { data: myRequests, error: reqErr } = reqQ1;
   if (reqErr) {
     // 0108 전이면 오간 말 칸이 없다
     ({ data: myRequests, error: reqErr } = await supabase
@@ -215,13 +299,7 @@ export default async function MePage({ searchParams }) {
       .limit(5));
   }
 
-  // 늦귀가 과제 — 아직 안 끝났거나 숙제로 넘어온 것
-  const stayQ = await supabase
-    .from("stay_tasks")
-    .select("id, date, body, status")
-    .eq("student_id", student.id)
-    .order("date", { ascending: false })
-    .limit(20);
+  // 늦귀가 과제 — 아직 안 끝났거나 숙제로 넘어온 것 (파도)
   const stay = (stayQ.error ? [] : stayQ.data || []).filter(
     (t) => t.status === "todo" || t.status === "moved"
   );
@@ -230,24 +308,12 @@ export default async function MePage({ searchParams }) {
 
   // 오늘 등원 체크 — 학생이 직접 누른 것
   const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
-  const aq = await supabase
-    .from("arrival_checks")
-    .select("phone_at, attend_at, homework_at")
-    .eq("student_id", student.id)
-    .eq("date", todaySeoul())
-    .maybeSingle();
   const arrival = aq.error ? {} : aq.data || {};
 
   // 지금 등원 중인가.
   //   등원 중이면 화면은 **등원 중 할 일**로 열려야 한다. 집 숙제를 먼저
   //   펼쳐놓으면 아이가 학원에서 집 숙제를 하고 앉아 있는다.
   //   출석 체크를 눌렀거나, 선생님이 오늘 출결을 찍었으면 등원으로 본다.
-  const attq = await supabase
-    .from("attendance")
-    .select("status")
-    .eq("student_id", student.id)
-    .eq("date", todaySeoul())
-    .maybeSingle();
   const attToday = attq.error ? null : attq.data?.status || null;
   const cameToday =
     !!arrival.attend_at || ["present", "late", "makeup", "online"].includes(attToday);
@@ -260,10 +326,7 @@ export default async function MePage({ searchParams }) {
   // 내 반 — 하원 시각을 재는 데도 쓰고, 아래 달력에 **수업일**을 찍는 데도 쓴다
   let myClasses = [];
   {
-    const { data: mine } = await supabase
-      .from("class_students")
-      .select("class_id")
-      .eq("student_id", student.id);
+    const { data: mine } = mineQ;
     const ids = (mine || []).map((m) => m.class_id);
     if (ids.length) {
       // **기간 칸을 꼭 같이 읽는다.** 안 읽으면 종강한 특강의 회차가
@@ -300,7 +363,6 @@ export default async function MePage({ searchParams }) {
   const atClass = cameToday && !wentHome;
 
   // 학원에서 열었나 — 아니면 등원 체크 버튼을 잠근다
-  const nq = await supabase.from("academy_net").select("ip");
   const allowedIps = (nq.error ? [] : nq.data || []).map((x) => x.ip);
   const atAcademy = sameNet(pickIp(headers()), allowedIps);
   const wordWhen = todayRep?.word_when || student.word_when || "start";
@@ -311,15 +373,8 @@ export default async function MePage({ searchParams }) {
   const today = todaySeoul();
   let sessions = [];
   let timerReady = true;
-  {
-    const q = await supabase
-      .from("study_sessions")
-      .select("id, homework_item_id, stay_task_id, started_at, ended_at, seconds")
-      .eq("student_id", student.id)
-      .eq("date", today);
-    if (q.error) timerReady = false;
-    else sessions = q.data || [];
-  }
+  if (sessQ.error) timerReady = false;
+  else sessions = sessQ.data || [];
   const secOf = new Map();
   let running = null;
   sessions.forEach((x) => {
@@ -348,13 +403,7 @@ export default async function MePage({ searchParams }) {
   // 세 줄(출결·숙제·단어)은 **그대로** 쓴다. 말을 따로 지어내면 그것이 곧
   // 두 번째 진실이 되어, 어느 쪽이 맞는지 아무도 모르게 된다.
   // 다른 것은 제목뿐이다 — 학부모에게는 "이번 달", 아이에게는 "이번 달 나".
-  const { ym: myYm, from: myFrom } = monthRange(todayStr);
-  const { data: monthReps } = await supabase
-    .from("daily_reports")
-    .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total")
-    .eq("student_id", student.id)
-    .gte("date", myFrom)
-    .lte("date", todayStr);
+  const { data: monthReps } = monthRepsQ;
   const mIds = (monthReps || []).map((r) => r.id);
   const { data: mItems } = mIds.length
     ? await supabase
@@ -372,10 +421,8 @@ export default async function MePage({ searchParams }) {
     []
   );
   // 통과선은 이 학생 것 → 없으면 설정 기본값 (0070 전이면 기본값만)
-  const { data: myWarn } = await supabase
-    .from("settings").select("config").eq("key", "warning").maybeSingle();
-  const { data: myCutRow } = await supabase
-    .from("students").select("word_cut_pct").eq("id", student.id).maybeSingle();
+  const { data: myWarn } = myWarnQ;
+  const { data: myCutRow } = myCutQ;
   const myCut = cutOf(myCutRow, Number(myWarn?.config?.wordPassPct) || 90);
   const monthLines = threeLines(
     monthSum,
@@ -392,18 +439,7 @@ export default async function MePage({ searchParams }) {
   );
 
   // 항목마다 내가 보통 얼마나 걸렸나 (오늘 것은 빼고 지난 것들로)
-  let pastSessions = [];
-  {
-    const q = await supabase
-      .from("study_sessions")
-      .select("homework_item_id, seconds, date")
-      .eq("student_id", student.id)
-      .lt("date", today)
-      .not("seconds", "is", null)
-      .order("date", { ascending: false })
-      .limit(300);
-    if (!q.error) pastSessions = q.data || [];
-  }
+  const pastSessions = pastQ.error ? [] : pastQ.data || [];
   const perDay = new Map();   // `${item}|${date}` → 그날 합계
   pastSessions.forEach((x) => {
     if (!x.homework_item_id) return;
@@ -497,10 +533,7 @@ export default async function MePage({ searchParams }) {
   const since = addDays(today, -14);
   let notice2 = [];
   {
-    const { data: rec } = await supabase
-      .from("notice_receipts")
-      .select("notice_id")
-      .eq("student_id", student.id);
+    const { data: rec } = recQ;
     const ids = [...new Set((rec || []).map((r) => r.notice_id))];
     if (ids.length) {
       let { data: rows } = await supabase
@@ -528,20 +561,14 @@ export default async function MePage({ searchParams }) {
   // 볼 영상 — 나에게 배정된 것만 (0065 전이면 빈 값, 화면은 그대로 뜬다)
   let myVideos = [];
   {
-    const { data: asg } = await supabase
-      .from("video_assignments")
-      .select("video_id, due_on, assigned_on")
-      .eq("student_id", student.id);
+    const { data: asg } = asgQ;
     const vids = [...new Set((asg || []).map((a) => a.video_id))];
     if (vids.length) {
       const { data: vrows } = await supabase
         .from("videos")
         .select("id, title, url, provider, vid, note, active")
         .in("id", vids);
-      const { data: seen } = await supabase
-        .from("video_views")
-        .select("video_id, done_at, opened_at")
-        .eq("student_id", student.id);
+      const { data: seen } = seenQ;
       const doneOf = new Map((seen || []).map((x) => [x.video_id, x]));
       const dueOf = new Map((asg || []).map((a) => [a.video_id, a]));
       myVideos = (vrows || [])
@@ -582,22 +609,12 @@ export default async function MePage({ searchParams }) {
 
   // 수업 가이드 링크 (0089) — 설정에서 넣은 것이 그대로 뜬다.
   //   표가 아직 없어도 화면은 그대로 열려야 한다 (SQL 이 밀려 있을 수 있다).
-  let guides = [];
-  {
-    const q = await supabase
-      .from("class_guides")
-      .select("id, title, url, note")
-      .eq("active", true)
-      .order("sort", { ascending: true });
-    guides = q.error ? [] : q.data || [];
-  }
+  const guides = guidesQ.error ? [] : guidesQ.data || [];
 
   // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
-  const notes = await loadNotes(supabase);
   const N = (key, fallback = "") => noteOr(notes, key, fallback);
 
   // 원장님이 정하신 덩어리 차례 (0095). 안 정하셨으면 아래 적힌 차례 그대로
-  const layouts = await loadLayouts(supabase);
   const blockOrder = arrange("me", layouts);
 
   /**
@@ -607,31 +624,24 @@ export default async function MePage({ searchParams }) {
    * 그거랑 같은 거야」 — 선생님이 수업에서 적으신 것이 성적으로 간다 (0099).
    */
   let myScores = [];
+  let scoreItems = [];
   let specBase = [];
   let allSpecBase = [];
   {
-    const q = await supabase
-      .from("scores")
-      .select("id, kind, term, taken_on, raw_score, source")
-      .eq("student_id", student.id)
-      .in("kind", ["mock", "school", "unit"])
-      .order("taken_on", { ascending: false })
-      .limit(30);
-    myScores = q.data || [];
+    myScores = scoresQ.data || [];
     if (myScores.length > 0) {
+      // 같은 표를 아래 성장 카드가 또 읽고 있었다 — 한 번만 읽고 나눠 쓴다
       const { data: its } = await supabase
         .from("score_items")
-        .select("score_id")
+        .select("score_id, no, wrong, reason")
         .in("score_id", myScores.map((x) => x.id));
+      scoreItems = its || [];
       const n = new Map();
-      (its || []).forEach((x) => n.set(x.score_id, (n.get(x.score_id) || 0) + 1));
+      scoreItems.forEach((x) => n.set(x.score_id, (n.get(x.score_id) || 0) + 1));
       myScores = myScores.map((x) => ({ ...x, wrongCount: n.get(x.id) || 0 }));
     }
     // 학원 기본 문항표 — 아이가 번호를 적는 동안 영역별로 바로 보여준다
-    const { data: b } = await supabase
-      .from("exam_spec_rows")
-      .select("kind, no, area, topic, detail")
-      .order("no", { ascending: true });
+    const { data: b } = specQ;
     specBase = (b || []).filter((x) => x.kind === "mock");
     allSpecBase = b || [];
   }
@@ -647,11 +657,7 @@ export default async function MePage({ searchParams }) {
    */
   const growth = {};
   if (myScores.length > 0) {
-    const { data: its } = await supabase
-      .from("score_items")
-      .select("score_id, no, wrong, reason")
-      .in("score_id", myScores.map((x) => x.id));
-    const items = its || [];
+    const items = scoreItems;   // 위에서 한 번만 읽었다
     ["mock", "school"].forEach((k) => {
       const mine = myScores
         .filter((x) => x.kind === k)
@@ -668,15 +674,8 @@ export default async function MePage({ searchParams }) {
   // 지금 뭐 하고 있다고 눌러뒀나 (0084) — 첫 그림에 채워둔다
   let myState = null;
   let stateOff = false;
-  {
-    const q = await supabase
-      .from("student_activity")
-      .select("state, updated_at")
-      .eq("student_id", student.id)
-      .maybeSingle();
-    if (q.error) stateOff = true;
-    else myState = q.data;
-  }
+  if (stateQ.error) stateOff = true;
+  else myState = stateQ.data;
 
   /**
    * ── 화면 덩어리 ─────────────────────────────────────────────
