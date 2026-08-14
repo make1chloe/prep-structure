@@ -7,6 +7,7 @@ import { noTable } from "@/lib/sqlError";
 import { noColumn } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
 import { planDatedAssign } from "@/lib/bookAssign";
+import { bookKey } from "@/lib/bookName";
 
 /**
  * **한 줄이 전체를 죽이지 않게** (2026-08-06).
@@ -667,16 +668,10 @@ export async function importInquiries(rows) {
  * 진짜인지 못 가린다. 이름이 없는 학생·교재는 건너뛴 줄로 알려드리고,
  * 교재 화면에서 만드신 뒤 다시 올리시면 그때 들어간다.
  */
-// 노션에서 복사한 글자는 **눈에는 같아 보여도 속은 다르다** — 스마트따옴표
-// (’ ‘ “ ”)나 겹공백이 섞여 있으면 교재 목록의 이름과 바이트가 달라 조용히
-// 안 맞는다. 매칭에서만 정규화한다 — 저장·화면에 보이는 이름은 원본 그대로.
+// 학생 이름은 노션 복사 과정에서 겹공백·전각 글자가 섞일 수 있다 —
+// 매칭에서만 다듬는다. 화면·저장에는 원본 그대로.
 function normName(v) {
-  return String(v || "")
-    .normalize("NFKC")
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(v || "").normalize("NFKC").replace(/\s+/g, " ").trim();
 }
 
 export async function importBookGuide(rows) {
@@ -688,8 +683,12 @@ export async function importBookGuide(rows) {
   const supabase = createClient();
   const { data: studentRows } = await supabase.from("students").select("id, name");
   const students = new Map((studentRows || []).map((s) => [normName(s.name), s.id]));
+  // 교재는 **같은 교재 판단이 사는 곳(lib/bookName bookKey)** 으로 맞춘다 —
+  // 교재 엑셀 업로드가 「능률보카 고교기본」 과 「…(25개정)」 을 같은 책으로
+  // 보고 안 만드는데, 여기서 글자 그대로 찾으면 그 책들이 전부 「목록에
+  // 없어요」 가 된다 (2026-08-14 실제로 그랬다).
   const { data: bookRows } = await supabase.from("textbooks").select("id, name");
-  const books = new Map((bookRows || []).map((b) => [normName(b.name), b.id]));
+  const books = new Map((bookRows || []).map((b) => [bookKey(b.name), b.id]));
 
   const skipped = [];
   // **화면에 줄줄이 반복되지 않게** — 못 찾은 학생·교재는 한 번씩만 센다
@@ -704,7 +703,7 @@ export async function importBookGuide(rows) {
       missingStudents.set(r.name, (missingStudents.get(r.name) || 0) + 1);
       return;
     }
-    const bid = books.get(normName(r.book));
+    const bid = books.get(bookKey(r.book));
     if (!bid) {
       missingBooks.set(r.book, (missingBooks.get(r.book) || 0) + 1);
       return;
