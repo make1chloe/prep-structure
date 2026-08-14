@@ -6,6 +6,7 @@ import ApplyLink from "./ApplyLink";
 import ConsultBoard from "./ConsultBoard";
 import { schoolNames } from "@/lib/schoolList";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function ConsultPage() {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

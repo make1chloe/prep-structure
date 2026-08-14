@@ -3,6 +3,7 @@ import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import NotesBoard from "./NotesBoard";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function NotesPage({ searchParams }) {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

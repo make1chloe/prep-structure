@@ -14,6 +14,7 @@ import StepBox from "./StepBox";
 import SchemaList from "./SchemaList";
 import ApplyBox from "./ApplyBox";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function SqlPage() {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

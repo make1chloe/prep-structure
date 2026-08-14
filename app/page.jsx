@@ -18,6 +18,7 @@ import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
 import { cleanClassName } from "@/lib/classLabel";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function Home() {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

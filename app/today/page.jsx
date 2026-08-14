@@ -10,6 +10,7 @@ import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import ActivityBoard from "./ActivityBoard";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function TodayPage({ searchParams }) {
     actQ1,
   ] = await Promise.all([
     user
-      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
     purgeOncePerDay().catch(() => null),
     // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
@@ -489,59 +490,6 @@ export default async function TodayPage({ searchParams }) {
     );
   }
 
-  const unitNames = {};
-  if (unitIds.size > 0) {
-    // 대/중/소단원 경로를 만들려면 같은 교재의 단원을 모두 가져와야 한다
-    const { data: picked } = await supabase
-      .from("textbook_units")
-      .select("id, textbook_id")
-      .in("id", [...unitIds]);
-    const bookIds = [...new Set((picked || []).map((u) => u.textbook_id))];
-    const UNIT_COLS = "id, name, parent_id, textbook_id, page_start, page_end, total_pages, label";
-    let all = [];
-    if (bookIds.length) {
-      let q = await supabase
-        .from("textbook_units")
-        .select(`${UNIT_COLS}, word_count`)
-        .in("textbook_id", bookIds);
-      if (q.error) {
-        // 0070 전이면 단어 개수 칸이 없다
-        q = await supabase.from("textbook_units").select(UNIT_COLS).in("textbook_id", bookIds);
-      }
-      all = q.data || [];
-    }
-    const byId = new Map((all || []).map((u) => [u.id, u]));
-    (all || []).filter((u) => unitIds.has(u.id)).forEach((u) => {
-      const chain = [];
-      let cur = u;
-      const seen = new Set();
-      while (cur && !seen.has(cur.id)) {
-        seen.add(cur.id);
-        chain.unshift(cur.name);
-        cur = cur.parent_id ? byId.get(cur.parent_id) : null;
-      }
-      const pages =
-        u.page_start && u.page_end ? ` (${u.page_start}~${u.page_end}p)` : "";
-      const amount = u.total_pages
-        ? `${u.total_pages}p`
-        : u.page_start && u.page_end
-        ? `${u.page_end - u.page_start + 1}p`
-        : "";
-      // 이 단원의 단어 개수 — 단원에 적어둔 것이 먼저, 없으면 교재 기본값.
-      // 「단원마다 개수가 다르다」 고 켜둔 교재는 기본값을 안 쓴다 (0070)
-      const cfg = wordCfg.get(u.textbook_id);
-      const words =
-        Number(u.word_count) || (cfg && !cfg.irregular ? cfg.range : 0) || 0;
-      unitNames[u.id] = {
-        path: chain.join(" › ") + pages,
-        amount,
-        activity: u.label || "",
-        textbookId: u.textbook_id,
-        words,
-      };
-    });
-  }
-
   /**
    * 오늘 단어시험은 **몇 개짜리인가.**
    *
@@ -597,7 +545,7 @@ export default async function TodayPage({ searchParams }) {
   const none = { data: [] };
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -652,6 +600,10 @@ export default async function TodayPage({ searchParams }) {
       : none,
     pendingTaskIds0.length
       ? supabase.from("notices").select("task_id").in("task_id", pendingTaskIds0).eq("date", date)
+      : none,
+    // 화면에 쓰인 단원이 어느 교재 것인지 (단원 이름 경로를 만들려고)
+    unitIds.size > 0
+      ? supabase.from("textbook_units").select("id, textbook_id").in("id", [...unitIds])
       : none,
   ]);
   const { data: receipts } = receiptsQ;
@@ -733,17 +685,76 @@ export default async function TodayPage({ searchParams }) {
   const shownBookIds = new Set();
   booksOfStudent.forEach((set) => set.forEach((id) => shownBookIds.add(id)));
 
+  /**
+   * 단원 두 갈래를 **한 층으로** — ① 화면에 쓰인 단원의 이름 경로용
+   * (pickedQ 가 알려준 교재들 전체) ② 진도 분량용 (배정된 교재들).
+   * 따로 기다리면 층이 둘이다.
+   */
+  const nameBookIds = [...new Set((pickedQ.data || []).map((u) => u.textbook_id))];
+  const UNIT_COLS = "id, name, parent_id, textbook_id, page_start, page_end, total_pages, label";
+  const [nameUnitsQ, buQ] = await Promise.all([
+    nameBookIds.length
+      ? supabase.from("textbook_units").select(`${UNIT_COLS}, word_count`).in("textbook_id", nameBookIds)
+      : none,
+    shownBookIds.size > 0
+      ? supabase
+          .from("textbook_units")
+          .select("id, textbook_id, parent_id, page_start, page_end, total_pages")
+          .in("textbook_id", [...shownBookIds])
+      : none,
+  ]);
+
+  const unitNames = {};
+  if (unitIds.size > 0) {
+    let all = [];
+    {
+      let q = nameUnitsQ;
+      if (q.error && nameBookIds.length) {
+        // 0070 전이면 단어 개수 칸이 없다
+        q = await supabase.from("textbook_units").select(UNIT_COLS).in("textbook_id", nameBookIds);
+      }
+      all = q.data || [];
+    }
+    const byId = new Map((all || []).map((u) => [u.id, u]));
+    (all || []).filter((u) => unitIds.has(u.id)).forEach((u) => {
+      const chain = [];
+      let cur = u;
+      const seen = new Set();
+      while (cur && !seen.has(cur.id)) {
+        seen.add(cur.id);
+        chain.unshift(cur.name);
+        cur = cur.parent_id ? byId.get(cur.parent_id) : null;
+      }
+      const pages =
+        u.page_start && u.page_end ? ` (${u.page_start}~${u.page_end}p)` : "";
+      const amount = u.total_pages
+        ? `${u.total_pages}p`
+        : u.page_start && u.page_end
+        ? `${u.page_end - u.page_start + 1}p`
+        : "";
+      // 이 단원의 단어 개수 — 단원에 적어둔 것이 먼저, 없으면 교재 기본값.
+      // 「단원마다 개수가 다르다」 고 켜둔 교재는 기본값을 안 쓴다 (0070)
+      const cfg = wordCfg.get(u.textbook_id);
+      const words =
+        Number(u.word_count) || (cfg && !cfg.irregular ? cfg.range : 0) || 0;
+      unitNames[u.id] = {
+        path: chain.join(" › ") + pages,
+        amount,
+        activity: u.label || "",
+        textbookId: u.textbook_id,
+        words,
+      };
+    });
+  }
+
+
   const unitsOfBook = new Map(); // textbookId → [{ id, parent_id, pages }]
   if (shownBookIds.size > 0) {
-    const cols = "id, textbook_id, parent_id, page_start, page_end";
-    let { data: bu, error: buErr } = await supabase
-      .from("textbook_units")
-      .select(`${cols}, total_pages`)
-      .in("textbook_id", [...shownBookIds]);
+    let { data: bu, error: buErr } = buQ;
     if (buErr) {
       ({ data: bu } = await supabase
         .from("textbook_units")
-        .select(cols)
+        .select("id, textbook_id, parent_id, page_start, page_end")
         .in("textbook_id", [...shownBookIds]));
     }
     const parents = new Set((bu || []).map((u) => u.parent_id).filter(Boolean));

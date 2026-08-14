@@ -12,6 +12,7 @@ import { loadSettings } from "@/lib/settings";
 import { channelPlan } from "@/lib/alimtalk";
 import { todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function ReportPage({ searchParams }) {
   const none = Promise.resolve({ data: [] });
   const [profileQ, ssQ, ttQ, settings, tplQ] = await Promise.all([
     user
-      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
     // 상태로 거르지 않는다. 테스트용 학생은 **'예비' 로 만들어 두는 게 낫다** —
     // 재원으로 만들면 오늘 수업·월간리포트·수강료에 계속 끼어든다.

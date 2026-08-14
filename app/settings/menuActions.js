@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sessionUser } from "@/lib/session";
+import { bustProfile } from "@/lib/profileCache";
 
 /**
  * 메뉴를 내 손에 맞게 (0067).
@@ -30,6 +31,7 @@ export async function saveMenuPrefs(hidden, order) {
     return { error: error.message };
   }
 
+  bustProfile(user.id);   // 프로필 60초 기억을 지운다 — 다음 화면부터 바로 새 메뉴 차례
   revalidatePath("/", "layout");
   return { error: null };
 }

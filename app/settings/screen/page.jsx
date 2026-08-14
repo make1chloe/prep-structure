@@ -8,6 +8,7 @@ import HelpBox from "../HelpBox";
 import Help, { helpOn } from "@/components/Help";
 import { isTeacher } from "@/lib/roles";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function ScreenSettingsPage() {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

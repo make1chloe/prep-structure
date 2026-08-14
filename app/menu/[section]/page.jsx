@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import { findSection } from "@/lib/menu";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function MenuSection({ params }) {
   const user = await sessionUser(supabase);
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

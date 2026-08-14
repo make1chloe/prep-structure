@@ -15,6 +15,7 @@ import { todaySeoul, addDays } from "@/lib/day";
 import { absenceLabel } from "@/lib/absenceLabel";
 import { makeupNeeded } from "@/lib/makeupTask";
 import { hiddenExamIds } from "@/lib/schedule";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -183,7 +184,7 @@ export default async function TasksPage({ searchParams }) {
   } = await supabase.auth.getSession();
   const user = session?.user || null;
   const profileP = user
-    ? supabase.from("profiles").select("*").eq("id", user.id).single()
+    ? cachedProfile(supabase, user.id)
     : Promise.resolve({ data: null });
 
   // ── 일정 ──────────────────────────────────────────────

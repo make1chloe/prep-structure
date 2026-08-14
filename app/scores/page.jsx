@@ -8,6 +8,7 @@ import { missingScores } from "@/lib/menuBadges";
 import { schoolNames } from "@/lib/schoolList";
 import { hiddenExamIds } from "@/lib/schedule";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function ScoresPage({ searchParams }) {
   // **파도** (속도 대원칙 — 원칙 6)
   const [profileQ, studentsQ, scoresQ, examsQ0, schools, hidden, skipQ] = await Promise.all([
     user
-      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
     supabase
       .from("students")

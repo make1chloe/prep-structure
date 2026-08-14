@@ -6,6 +6,7 @@ import MakeupAnswers from "@/app/MakeupAnswers";
 import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function AttendancePage() {
   // **파도** — 서로 필요한 것이 없는 조회를 한꺼번에 (속도 대원칙)
   const [profileQ, classesQ, membersQ, studentsQ, absQ, makeupTodo, probe] = await Promise.all([
     user
-      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
     supabase
       .from("classes")

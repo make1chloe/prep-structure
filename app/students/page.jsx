@@ -8,6 +8,7 @@ import BulkAccounts from "./BulkAccounts";
 import StudentList from "./StudentList";
 import { notYet } from "@/lib/bookUse";
 import { todaySeoul } from "@/lib/day";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function StudentsPage({ searchParams }) {
    */
   const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, schoolsList] = await Promise.all([
     user
-      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
     supabase
       .from("students")

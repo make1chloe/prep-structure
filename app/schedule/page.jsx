@@ -9,6 +9,7 @@ import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
 import { endOfMonth, todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function SchedulePage() {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

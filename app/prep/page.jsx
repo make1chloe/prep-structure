@@ -6,6 +6,7 @@ import PrepBoard from "./PrepBoard";
 import { schoolNames } from "@/lib/schoolList";
 import { todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function PrepPage({ searchParams }) {
   const user = await sessionUser(supabase);
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

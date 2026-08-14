@@ -5,6 +5,7 @@ import VideoBoard from "./VideoBoard";
 import { rollup } from "@/lib/video";
 import YoutubeKeyBox from "./YoutubeKeyBox";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function VideosPage() {
   const [profileQ, foldersQ, videosQ, asgQ, viewsQ, studentsQ, classesQ, rosterQ, ytQ] =
     await Promise.all([
       user
-        ? supabase.from("profiles").select("*").eq("id", user.id).single()
+        ? cachedProfile(supabase, user.id)
         : Promise.resolve({ data: null }),
       supabase.from("video_folders").select("id, name, note, sort").order("sort", { ascending: true }),
       supabase

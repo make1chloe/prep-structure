@@ -4,6 +4,7 @@ import TopBar from "@/components/TopBar";
 import { analyze, advice } from "@/lib/examAnalysis";
 import AnalysisView from "./AnalysisView";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function AnalysisPage({ searchParams }) {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 

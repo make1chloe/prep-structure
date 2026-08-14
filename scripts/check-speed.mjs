@@ -102,6 +102,15 @@ if (!/staleTimes/.test(cfg)) {
 const inbox = readFileSync("lib/inbox.js", "utf8");
 if (!/_memo/.test(inbox)) say("lib/inbox 의 메모가 사라졌습니다 — 안 본 알림 세기가 화면마다 다시 돕니다");
 else ok("안 본 알림 메모 유지");
+// 프로필도 화면마다 다시 읽으면 안 된다 (스물여덟 화면이 그랬다)
+let rawProfile = 0;
+for (const f of files) {
+  if (/from\("profiles"\)\.select\("\*"\)\.eq\("id", user\.id\)\.single\(\)/.test(readFileSync(f, "utf8"))) {
+    say(`${f} — 프로필을 직접 읽습니다. lib/profileCache 의 cachedProfile 을 쓰세요 (원칙 6-4)`);
+    rawProfile++;
+  }
+}
+if (!rawProfile) ok("프로필 — 전부 60초 기억(cachedProfile)");
 
 if (bad) { console.log("\n❌ 위 항목을 고쳐주세요 (docs/PRINCIPLES.md 원칙 6)"); process.exit(1); }
 console.log("\n✅ 속도 검사 통과");

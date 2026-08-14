@@ -16,6 +16,7 @@ import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
 import { dupGroups, pickKeeper } from "@/lib/bookName";
 import { AREA_ORDER as AREAS } from "@/lib/bookSort";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function TextbooksPage({ searchParams }) {
   // **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층)
   const [profileQ, tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ] = await Promise.all([
     user
-      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
     supabase
       .from("textbooks")

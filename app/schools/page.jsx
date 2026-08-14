@@ -11,6 +11,7 @@ import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
 import { endOfMonth, todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function SchoolsPage() {
   const [profileQ, classes0, holidaysQ, membersQ, studentsQ, examQ0, settings, taskQ] =
     await Promise.all([
       user
-        ? supabase.from("profiles").select("*").eq("id", user.id).single()
+        ? cachedProfile(supabase, user.id)
         : Promise.resolve({ data: null }),
       // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강이 여기서도
       // 계속 수업하는 반으로 잡힌다 (2026-08-06)

@@ -12,6 +12,7 @@ import { checkSchema } from "./sql/status";
 import { loadSettings, maskSecret } from "@/lib/settings";
 import { inquiryAlertReady, inquiryAlertName } from "@/app/apply/notify";
 import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function SettingsPage() {
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data } = await cachedProfile(supabase, user.id);
     profile = data;
   }
 
