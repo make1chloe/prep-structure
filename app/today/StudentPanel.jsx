@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
+import { quickAddUnits } from "@/app/textbooks/actions";
 import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
 import MakeupHere from "./MakeupHere";
@@ -302,6 +303,38 @@ export default function StudentPanel({
     setUnitsByBook((m) => ({ ...m, [bookId]: res.options || [] }));
     setLoadingBook(null);
   }
+  /**
+   * **그 자리에서 단원 만들기** (원장님, 2026-08-14 — 「단원평가 배정할 때
+   * 단원을 선택할 수가 없어」). 「이 교재에 단원이 없어요」 를 만나면 교재
+   * 화면까지 갔다 와야 했다 — 이름만 적으면 여기서 만들어지고 바로 골라진다.
+   */
+  const [quickFor, setQuickFor] = useState(null);   // 지금 단원을 만드는 중인 항목 id
+  const [quickText, setQuickText] = useState("");
+  const [quickBusy, setQuickBusy] = useState(false);
+  async function reloadBook(bookId) {
+    if (!bookId) return;
+    setLoadingBook(bookId);
+    const res = await listUnitOptions(bookId);
+    setUnitsByBook((m) => ({ ...m, [bookId]: res.options || [] }));
+    setLoadingBook(null);
+  }
+  async function quickMake(itemId, bookId) {
+    if (!bookId || !quickText.trim()) return;
+    setQuickBusy(true);
+    const res = await quickAddUnits(bookId, quickText);
+    setQuickBusy(false);
+    if (res?.error) { alert(res.error); return; }
+    await reloadBook(bookId);
+    // 만든 단원을 바로 골라 넣는다 — 만들고 또 찾게 하지 않는다
+    setNextUnits((m) => {
+      const u = m[itemId] || { textbookId: bookId, unitIds: [], note: "" };
+      const ids = [...new Set([...(u.unitIds || []), ...(res.ids || [])])];
+      return { ...m, [itemId]: { ...u, unitIds: ids } };
+    });
+    setQuickText("");
+    setQuickFor(null);
+  }
+
   // 이미 저장된 배정이 가리키는 교재는 열자마자 단원을 불러온다
   useEffect(() => {
     const ids = new Set(
@@ -1295,6 +1328,39 @@ export default function StudentPanel({
                         </option>
                       ))}
                     </select>
+                    {/* 「이 교재에 단원이 없어요」 의 답 — 그 자리에서 만든다.
+                        (있는 교재에서도 하나 더 만들 일이 있어 늘 보인다) */}
+                    {bookId && loadingBook !== bookId && (
+                      quickFor === iid ? (
+                        <>
+                          <input
+                            className="input input-sm"
+                            style={{ width: 180 }}
+                            autoFocus
+                            placeholder="단원명 (·로 여러 개)"
+                            value={quickText}
+                            onChange={(e) => setQuickText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") quickMake(iid, bookId); }}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            disabled={quickBusy || !quickText.trim()}
+                            onClick={() => quickMake(iid, bookId)}
+                          >
+                            {quickBusy ? "만드는 중…" : "만들기"}
+                          </button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setQuickFor(null)}>취소</button>
+                        </>
+                      ) : (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          title="단원이 없거나 부족하면 여기서 바로 만듭니다. 이름·페이지 고치기는 교재 화면에서"
+                          onClick={() => { setQuickFor(iid); setQuickText(""); }}
+                        >
+                          ＋ 단원 만들기
+                        </button>
+                      )
+                    )}
                     <input
                       className="input input-sm"
                       style={{ width: 120 }}

@@ -334,6 +334,44 @@ export async function updateTextbooksArea(ids, area) {
 
 // ---------- 단원: 수정 / 삭제 / 이동 ----------
 
+/**
+ * **배정하던 자리에서 단원 빨리 만들기** (원장님, 2026-08-14 — 「단원평가
+ * 배정할 때 내가 단원을 선택할 수가 없어. 추가 기능 필요해」).
+ *
+ * 숙제를 배정하다 「이 교재에 단원이 없어요」 를 만나면, 교재 화면으로
+ * 갔다가 돌아와야 했다 — 수업 중에는 그 동선이 없다. 이름만 적으면
+ * 그 자리에서 단원이 생기고 바로 골라진다.
+ * · , · 줄바꿈으로 여러 개 한 번에. 순서는 맨 뒤에 붙는다.
+ * 고치기·지우기·페이지는 교재 화면(교재 › 단원)에서 — 만들기만 지름길이다.
+ */
+export async function quickAddUnits(textbookId, text) {
+  const names = String(text || "")
+    .split(/[,·\n]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+  if (!textbookId || names.length === 0) return { error: "단원 이름을 적어주세요.", ids: [] };
+  const supabase = createClient();
+  // 이미 있는 이름은 또 만들지 않고 그 단원을 돌려준다
+  const { data: had } = await supabase
+    .from("textbook_units")
+    .select("id, name, sort")
+    .eq("textbook_id", textbookId);
+  const byName = new Map((had || []).map((u) => [u.name.trim(), u.id]));
+  const maxSort = Math.max(0, ...(had || []).map((u) => u.sort || 0));
+  const fresh = names.filter((n) => !byName.has(n));
+  if (fresh.length) {
+    const { data: made, error } = await supabase
+      .from("textbook_units")
+      .insert(fresh.map((name, i) => ({ textbook_id: textbookId, name, sort: maxSort + i + 1 })))
+      .select("id, name");
+    if (error) return { error: error.message, ids: [] };
+    (made || []).forEach((u) => byName.set(u.name.trim(), u.id));
+  }
+  revalidatePath("/textbooks");
+  return { error: null, ids: names.map((n) => byName.get(n)).filter(Boolean), made: fresh.length };
+}
+
 export async function updateUnit(id, patch) {
   if (!id) return { error: "id 없음" };
   const row = {};

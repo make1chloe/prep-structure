@@ -124,13 +124,16 @@ export default function SectionNav({ page, order = [] }) {
       <div className="sectnav">
         {/* 대메뉴 — 칸을 나눠 가져서 **가로 스크롤이 없다** */}
         <div className="sectnav-main">
+          {/* 소개 다시 보기 — 「？」 는 눌러도 되는 것인지조차 안 보였다
+              (원장님, 2026-08-15 — 「？말고 적절한 아이콘으로」). 책 아이콘이
+              「쓰는 법」 이라는 뜻과 제일 가깝다 */}
           <button
             className="sectnav-chip sectnav-help"
             onClick={() => setIntro(true)}
             title="화면 소개 다시 보기"
             aria-label="화면 소개"
           >
-            ？
+            📖
           </button>
           {shownGroups.map((g) => (
             <button
