@@ -9,19 +9,20 @@ import { parsePaymentRow } from "@/lib/importPayment";
 import { parseNoteAoA } from "@/lib/importNote";
 import { parseInquiryAoA } from "@/lib/importInquiry";
 import { parseUnitAoA, parseWrongAoA } from "@/lib/importExam";
+import { parseBookGuideAoA } from "@/lib/importBookGuide";
 import { readSheet } from "@/lib/readSheet";
 import { MOCK_SPEC, byTopic } from "@/lib/examSpec";
 import { STATUS } from "@/app/consult/status";
 import {
   importReports, importHomework, importTasks, importAbsences, importPayments, importNotes,
-  importInquiries, importUnitScores, importWrongAnswers,
+  importInquiries, importUnitScores, importWrongAnswers, importBookGuide,
 } from "./actions";
 
 const INQ_LABEL = Object.fromEntries(STATUS.map((s) => [s.key, s.label]));
 const INQ_CLS = Object.fromEntries(STATUS.map((s) => [s.key, s.cls]));
 
 /** 미리보기에 몇 줄까지 보여줄까 — 자료가 짧으면 다 보여드리는 편이 낫다 */
-const SHOW = { inquiry: 60, unit: 40, wrong: 40 };
+const SHOW = { inquiry: 60, unit: 40, wrong: 40, bookGuide: 40 };
 const showOf = (k) => SHOW[k] || 25;
 
 /**
@@ -124,6 +125,19 @@ const KINDS = [
     whole: true,
   },
   {
+    key: "bookGuide",
+    label: "교재안내 기록",
+    db: "교재구매DB",
+    hint:
+      "교재안내를 보낸 날짜가 교재 시작일(사용예정일)로 들어갑니다 — 재원생 정보의 " +
+      "「📅 날짜 지정해서 추가」 와 같은 규칙입니다. " +
+      "한 통에 교재가 여러 권이면 각각 따로 배정됩니다. " +
+      "교재 이름이 교재 목록의 이름과 정확히 같아야 합니다 — " +
+      "다르면(또는 그 교재가 아직 없으면) 그 줄은 건너뛰고 알려드립니다. " +
+      "교재 화면에서 먼저 만드신 뒤 다시 올리시면 그때 들어갑니다.",
+    whole: true,
+  },
+  {
     key: "payment",
     label: "수납",
     db: "결제선생 등",
@@ -147,6 +161,7 @@ const WHOLE = {
   inquiry: parseInquiryAoA,
   unit: parseUnitAoA,
   wrong: parseWrongAoA,
+  bookGuide: parseBookGuideAoA,
 };
 const SAVE = {
   report: importReports,
@@ -158,6 +173,7 @@ const SAVE = {
   inquiry: importInquiries,
   unit: importUnitScores,
   wrong: importWrongAnswers,
+  bookGuide: importBookGuide,
 };
 
 export default function ImportBoard() {
@@ -294,6 +310,8 @@ export default function ImportBoard() {
             ? "같은 학생·달이 이미 있으면 덮어씁니다."
             : kind === "note"
             ? ""
+            : kind === "bookGuide"
+            ? "이미 배정된 교재는 건드리지 않고 건너뜁니다."
             : "같은 날짜·학생이 이미 있으면 덮어씁니다."}
         </p>
 
@@ -454,6 +472,12 @@ export default function ImportBoard() {
                         <th>점수</th>
                         <th>틀린 문항</th>
                         <th>영역별로 본 약점</th>
+                      </>
+                    ) : kind === "bookGuide" ? (
+                      <>
+                        <th>안내한 날</th>
+                        <th>학생</th>
+                        <th>교재</th>
                       </>
                     ) : kind === "payment" ? (
                       <>
@@ -660,6 +684,13 @@ export default function ImportBoard() {
                       </td>
                     </tr>
                   ))}
+                  {kind === "bookGuide" && ok.slice(0, 40).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.date}</td>
+                      <td style={{ fontWeight: 600 }}>{r.name}</td>
+                      <td className="muted">{r.book}</td>
+                    </tr>
+                  ))}
                   {kind === "payment" && ok.slice(0, 25).map((r, i) => (
                     <tr key={i}>
                       <td>{r.ym}</td>
@@ -776,6 +807,8 @@ export default function ImportBoard() {
                     <b>건너뛴 {result.skipped.length}건</b>
                     {kind === "task"
                       ? " — 같은 날짜·같은 제목이 이미 있는 줄입니다."
+                      : kind === "bookGuide"
+                      ? " — 재원생 이름·교재 이름이 정확히 같아야 합니다(또는 이미 배정된 교재입니다)."
                       : " — 재원생 이름이 정확히 같아야 합니다."}
                     <div className="hint" style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
                       {result.skipped.slice(0, 15).join("\n")}

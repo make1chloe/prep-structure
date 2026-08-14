@@ -6,6 +6,7 @@ import { isRealDate } from "@/lib/importNotion";
 import { noTable } from "@/lib/sqlError";
 import { noColumn } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
+import { planDatedAssign } from "@/lib/bookAssign";
 
 /**
  * **한 줄이 전체를 죽이지 않게** (2026-08-06).
@@ -649,6 +650,88 @@ export async function importInquiries(rows) {
 
   revalidatePath("/consult");
   return { error: null, saved, updated, skipped, linkedClass, linkedStudent };
+}
+
+/**
+ * **교재 안내 기록 이관** — 노션 교재구매DB (원장님, 2026-08-14 —
+ * 「교재구매안내내역 임포트 달라고 한 거야」).
+ *
+ * 안내를 보낸 날을 교재 배정의 시작일(assigned_on)로 남긴다 — 지금 화면의
+ * 「사용예정 교재 추가」(app/progress/actions.js addStudentBookDated·
+ * app/report/noticeActions.js assignAnnouncedBooks)와 같은 규칙이다.
+ * **이미 배정돼 있는 교재는 건드리지 않는다** — 시작일이 바뀌면 지금까지
+ * 나간 진도가 이상하게 보인다.
+ *
+ * **교재가 교재 목록에 없으면 만들지 않는다** (원장님: 「없는 교재는 직접
+ * 추가해야 해」) — 단원도 페이지도 없는 빈 교재가 쌓이면 나중에 어느 것이
+ * 진짜인지 못 가린다. 이름이 없는 학생·교재는 건너뛴 줄로 알려드리고,
+ * 교재 화면에서 만드신 뒤 다시 올리시면 그때 들어간다.
+ */
+export async function importBookGuide(rows) {
+  const list = (rows || []).filter((r) => r?.name && r?.book && r?.date);
+  if (list.length === 0) {
+    return { error: "옮길 줄이 없어요. 학생·교재·날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
+  }
+
+  const supabase = createClient();
+  const students = await studentMap(supabase);
+  const { data: bookRows } = await supabase.from("textbooks").select("id, name");
+  const books = new Map((bookRows || []).map((b) => [b.name.trim(), b.id]));
+
+  const skipped = [];
+  // (학생, 교재)로 묶는다 — 같은 안내가 두 번 잡혀 있으면 먼저 보낸 날을 쓴다
+  const pairs = new Map();
+  list.forEach((r) => {
+    const sid = students.get(r.name);
+    if (!sid) { skipped.push(`${r.date} ${r.name} — 재원생 목록에 없어요`); return; }
+    const bid = books.get(r.book);
+    if (!bid) { skipped.push(`${r.date} ${r.name} — 교재 「${r.book}」 이 교재 목록에 없어요. 교재 화면에서 먼저 만들어주세요`); return; }
+    const key = `${sid}|${bid}`;
+    const prev = pairs.get(key);
+    if (!prev || r.date < prev.date) pairs.set(key, { date: r.date, name: r.name, book: r.book });
+  });
+  if (pairs.size === 0) return { error: null, saved: 0, updated: 0, skipped };
+
+  const sids = [...new Set([...pairs.keys()].map((k) => k.split("|")[0]))];
+  const { data: have, error: readErr } = await supabase
+    .from("student_textbooks")
+    .select("student_id, textbook_id")
+    .in("student_id", sids);
+  if (readErr) return { error: readErr.message, saved: 0, skipped };
+  const known = new Set((have || []).map((h) => `${h.student_id}|${h.textbook_id}`));
+
+  const wants = [...pairs.entries()].map(([key, v]) => {
+    const [studentId, textbookId] = key.split("|");
+    return { studentId, textbookId, date: v.date, name: v.name, book: v.book };
+  });
+  const toKeep = planDatedAssign(known, wants);
+  const keptKeys = new Set(toKeep.map((w) => `${w.studentId}|${w.textbookId}`));
+  wants.forEach((w) => {
+    if (!keptKeys.has(`${w.studentId}|${w.textbookId}`)) {
+      skipped.push(`${w.name} — 「${w.book}」 은 이미 배정돼 있어 건드리지 않았어요`);
+    }
+  });
+  const toInsert = toKeep.map((w) => ({
+    student_id: w.studentId, textbook_id: w.textbookId,
+    status: "active", assigned_on: w.date, ended_on: null,
+  }));
+
+  let saved = 0;
+  if (toInsert.length) {
+    let { error } = await supabase.from("student_textbooks").insert(toInsert);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0019 전 DB — ended_on 이 없다
+      ({ error } = await supabase
+        .from("student_textbooks")
+        .insert(toInsert.map(({ ended_on: _e, ...rest }) => rest)));
+    }
+    if (error) return { error: error.message, saved: 0, skipped };
+    saved = toInsert.length;
+  }
+
+  revalidatePath("/students");
+  revalidatePath("/today");
+  return { error: null, saved, updated: 0, skipped };
 }
 
 /**

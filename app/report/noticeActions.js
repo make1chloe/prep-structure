@@ -9,6 +9,7 @@ import { INQUIRY, IN_APP_DETAIL, noticeKindOf, noticeLabel, postAppNotices } fro
 import { pushToFamilies } from "@/app/push/actions";
 import { longLabel, todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { planDatedAssign } from "@/lib/bookAssign";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -342,16 +343,17 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn) {
   if (readErr) return { error: readErr.message };
   const known = new Set((have || []).map((r) => `${r.student_id}|${r.textbook_id}`));
 
-  const rows = [];
-  students.forEach((sid) =>
-    books.forEach((bid) => {
-      if (known.has(`${sid}|${bid}`)) return;
-      rows.push({
-        student_id: sid, textbook_id: bid,
-        status: "active", assigned_on: startOn, ended_on: null,
-      });
-    })
-  );
+  // 넣고 싶은 짝(학생×교재, 다 같은 날짜) 중 이미 있는 것은 뺀다 —
+  // 판단은 lib/bookAssign 한 곳(교재안내 기록 이관과 같은 규칙)
+  const wants = [];
+  students.forEach((sid) => books.forEach((bid) =>
+    wants.push({ studentId: sid, textbookId: bid, date: startOn })
+  ));
+  const toKeep = planDatedAssign(known, wants);
+  const rows = toKeep.map((w) => ({
+    student_id: w.studentId, textbook_id: w.textbookId,
+    status: "active", assigned_on: w.date, ended_on: null,
+  }));
   if (rows.length === 0) return { error: null, added: 0, skipped: students.length * books.length };
 
   const { error } = await supabase.from("student_textbooks").insert(rows);
