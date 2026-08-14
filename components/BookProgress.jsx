@@ -321,7 +321,32 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
               <div className="stack" style={{ gap: 4 }}>
                 {groupByParent(units, q).map(([head, list]) => (
                   <div className="hwgroup" key={head || "_"}>
-                    {head && <span className="tag tag-muted hwcat" style={{ width: "auto" }}>{head}</span>}
+                    {/**
+                      * 고르기 모드에서는 **대단원 머리가 단추다** (원장님,
+                      * 2026-08-14 — 「대단원 전체를 선택할 수 있게. 선택을
+                      * 너무 많이 해야 해서」). 누르면 그 묶음 소단원이
+                      * 한꺼번에 담기고, 다 담겨 있으면 한꺼번에 빠진다.
+                      */}
+                    {head && selMode ? (
+                      <button
+                        className="tag tag-lav hwcat"
+                        style={{ width: "auto", cursor: "pointer", border: 0, fontFamily: "inherit" }}
+                        title="이 대단원 전체를 담거나 뺍니다"
+                        onClick={() => {
+                          const ids = list.map((u) => u.id);
+                          setSelUnits((prev) => {
+                            const n = new Set(prev);
+                            const all = ids.every((x) => n.has(x));
+                            ids.forEach((x) => (all ? n.delete(x) : n.add(x)));
+                            return n;
+                          });
+                        }}
+                      >
+                        {list.every((u) => selUnits.has(u.id)) ? "☑" : "☐"} {head}
+                      </button>
+                    ) : head ? (
+                      <span className="tag tag-muted hwcat" style={{ width: "auto" }}>{head}</span>
+                    ) : null}
                     <div className="row" style={{ gap: 4 }}>
                       {list.map((u) => {
                         const done = u.status === "done";

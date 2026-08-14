@@ -44,7 +44,13 @@ body {
 }
 a { color: inherit; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+/* PC 는 여백보다 정보량 (원칙 5-8 · 원장님 2026-08-14 — 「PC 화면에서의
+   화면 여백이 너무 많은 게 아까워」). 아주 넓은 모니터에서는 더 편다 —
+   글줄이 무한정 길어지는 본문형 화면(.wrap)은 그대로 둔다. */
 .wrap-wide { max-width: 1480px; margin: 0 auto; padding: 0 16px; }
+@media (min-width: 1700px) {
+  .wrap-wide { max-width: 92vw; }
+}
 .grid-side { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 10px; align-items: start; }
 @media (max-width: 900px) { .grid-side { grid-template-columns: 1fr; } }
 .card-tight { padding: 12px; }
@@ -1015,6 +1021,13 @@ body { padding-top: var(--topbar-full, 120px); }
   max-height: 86vh; overflow-y: auto;
 }
 .introrow { display: flex; align-items: baseline; gap: 8px; }
+
+/* 진도 화면 — 한 학생의 교재 판들. 폰은 한 줄, PC 는 두 칸 —
+   교재가 서너 권이면 세로로만 쌓여서 넓은 화면의 오른쪽이 통째로 논다 */
+.bookgrid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 1100px) {
+  .bookgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
 
 /* 재원생 — **고르는 곳과 고치는 곳을 나란히** (좌우 2분할)
    예전에는 이름을 누르면 표 사이가 벌어지면서 판이 끼어들어, 아래 학생들이

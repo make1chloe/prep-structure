@@ -107,7 +107,7 @@ export default function ProgressBoard({ rows = [], classes = [] }) {
                       배정된 교재가 없어요. 재원생 → 교재 탭이나 학습 → 교재에서 배정하세요.
                     </p>
                   ) : (
-                    <div className="stack" style={{ gap: 10 }}>
+                    <div className="bookgrid">
                       {r.books.map((b) => (
                         <BookProgress key={b.id} studentId={r.id} book={b} openFirst />
                       ))}
