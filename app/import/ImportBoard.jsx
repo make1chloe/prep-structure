@@ -801,14 +801,45 @@ export default function ImportBoard() {
                     {" "}에서 고치거나 지워주세요.
                   </div>
                 )}
+                {/**
+                  * **교재안내 이관 — 못 찾은 것은 줄이 아니라 이름으로 모아 보여준다.**
+                  * 교재 하나가 학생 여럿에게 안내됐으면 같은 「교재 목록에 없어요」 가
+                  * 몇 번이고 반복된다 — 줄 그대로 보여주면 몇 권을 만들어야 하는지
+                  * 세어야 한다. 이름별로 한 번씩만, 몇 건이었는지만 붙인다.
+                  */}
+                {kind === "bookGuide" && result.missingBooks?.length > 0 && (
+                  <div className="notice" style={{ marginTop: 8, fontSize: 14 }}>
+                    <b>교재 목록에 없는 교재 {result.missingBooks.length}권</b>
+                    <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                      {result.missingBooks.map((b) => (
+                        <div key={b.name}>· {b.name} ({b.count}건)</div>
+                      ))}
+                    </div>
+                    <a className="sky" href="/textbooks">교재 화면</a>에서 만드신 뒤 CSV 를 다시 올리시면
+                    그때 들어가요.
+                  </div>
+                )}
+                {kind === "bookGuide" && result.missingStudents?.length > 0 && (
+                  <div className="notice" style={{ marginTop: 8, fontSize: 14 }}>
+                    <b>재원생 목록에 없는 이름 {result.missingStudents.length}명</b>
+                    <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                      {result.missingStudents.map((s) => (
+                        <div key={s.name}>· {s.name} ({s.count}건)</div>
+                      ))}
+                    </div>
+                    이름이 다르거나(띄어쓰기·별칭) 이미 퇴원한 학생이면 그대로 두셔도 됩니다.
+                  </div>
+                )}
                 {result.skipped?.length > 0 && (
                   <>
                     <br />
-                    <b>건너뛴 {result.skipped.length}건</b>
+                    <b>
+                      {kind === "bookGuide" ? "이미 배정돼 건드리지 않은 것" : "건너뛴"} {result.skipped.length}건
+                    </b>
                     {kind === "task"
                       ? " — 같은 날짜·같은 제목이 이미 있는 줄입니다."
                       : kind === "bookGuide"
-                      ? " — 재원생 이름·교재 이름이 정확히 같아야 합니다(또는 이미 배정된 교재입니다)."
+                      ? ""
                       : " — 재원생 이름이 정확히 같아야 합니다."}
                     <div className="hint" style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>
                       {result.skipped.slice(0, 15).join("\n")}

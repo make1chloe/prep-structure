@@ -667,6 +667,18 @@ export async function importInquiries(rows) {
  * 진짜인지 못 가린다. 이름이 없는 학생·교재는 건너뛴 줄로 알려드리고,
  * 교재 화면에서 만드신 뒤 다시 올리시면 그때 들어간다.
  */
+// 노션에서 복사한 글자는 **눈에는 같아 보여도 속은 다르다** — 스마트따옴표
+// (’ ‘ “ ”)나 겹공백이 섞여 있으면 교재 목록의 이름과 바이트가 달라 조용히
+// 안 맞는다. 매칭에서만 정규화한다 — 저장·화면에 보이는 이름은 원본 그대로.
+function normName(v) {
+  return String(v || "")
+    .normalize("NFKC")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function importBookGuide(rows) {
   const list = (rows || []).filter((r) => r?.name && r?.book && r?.date);
   if (list.length === 0) {
@@ -674,30 +686,49 @@ export async function importBookGuide(rows) {
   }
 
   const supabase = createClient();
-  const students = await studentMap(supabase);
+  const { data: studentRows } = await supabase.from("students").select("id, name");
+  const students = new Map((studentRows || []).map((s) => [normName(s.name), s.id]));
   const { data: bookRows } = await supabase.from("textbooks").select("id, name");
-  const books = new Map((bookRows || []).map((b) => [b.name.trim(), b.id]));
+  const books = new Map((bookRows || []).map((b) => [normName(b.name), b.id]));
 
   const skipped = [];
+  // **화면에 줄줄이 반복되지 않게** — 못 찾은 학생·교재는 한 번씩만 센다
+  // (같은 교재가 여러 학생에게 여러 번 안내됐으면 그만큼 줄이 반복된다)
+  const missingStudents = new Map();   // name -> count
+  const missingBooks = new Map();      // name -> count
   // (학생, 교재)로 묶는다 — 같은 안내가 두 번 잡혀 있으면 먼저 보낸 날을 쓴다
   const pairs = new Map();
   list.forEach((r) => {
-    const sid = students.get(r.name);
-    if (!sid) { skipped.push(`${r.date} ${r.name} — 재원생 목록에 없어요`); return; }
-    const bid = books.get(r.book);
-    if (!bid) { skipped.push(`${r.date} ${r.name} — 교재 「${r.book}」 이 교재 목록에 없어요. 교재 화면에서 먼저 만들어주세요`); return; }
+    const sid = students.get(normName(r.name));
+    if (!sid) {
+      missingStudents.set(r.name, (missingStudents.get(r.name) || 0) + 1);
+      return;
+    }
+    const bid = books.get(normName(r.book));
+    if (!bid) {
+      missingBooks.set(r.book, (missingBooks.get(r.book) || 0) + 1);
+      return;
+    }
     const key = `${sid}|${bid}`;
     const prev = pairs.get(key);
     if (!prev || r.date < prev.date) pairs.set(key, { date: r.date, name: r.name, book: r.book });
   });
-  if (pairs.size === 0) return { error: null, saved: 0, updated: 0, skipped };
+  const missingStudentList = [...missingStudents.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ko"))
+    .map(([name, count]) => ({ name, count }));
+  const missingBookList = [...missingBooks.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "ko"))
+    .map(([name, count]) => ({ name, count }));
+  if (pairs.size === 0) {
+    return { error: null, saved: 0, updated: 0, skipped, missingStudents: missingStudentList, missingBooks: missingBookList };
+  }
 
   const sids = [...new Set([...pairs.keys()].map((k) => k.split("|")[0]))];
   const { data: have, error: readErr } = await supabase
     .from("student_textbooks")
     .select("student_id, textbook_id")
     .in("student_id", sids);
-  if (readErr) return { error: readErr.message, saved: 0, skipped };
+  if (readErr) return { error: readErr.message, saved: 0, skipped, missingStudents: missingStudentList, missingBooks: missingBookList };
   const known = new Set((have || []).map((h) => `${h.student_id}|${h.textbook_id}`));
 
   const wants = [...pairs.entries()].map(([key, v]) => {
@@ -725,13 +756,13 @@ export async function importBookGuide(rows) {
         .from("student_textbooks")
         .insert(toInsert.map(({ ended_on: _e, ...rest }) => rest)));
     }
-    if (error) return { error: error.message, saved: 0, skipped };
+    if (error) return { error: error.message, saved: 0, skipped, missingStudents: missingStudentList, missingBooks: missingBookList };
     saved = toInsert.length;
   }
 
   revalidatePath("/students");
   revalidatePath("/today");
-  return { error: null, saved, updated: 0, skipped };
+  return { error: null, saved, updated: 0, skipped, missingStudents: missingStudentList, missingBooks: missingBookList };
 }
 
 /**
