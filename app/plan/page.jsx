@@ -4,7 +4,7 @@ import PlanBoard from "./PlanBoard";
 import MakeupInbox from "@/app/MakeupInbox";
 import MakeupAnswers from "@/app/MakeupAnswers";
 import { loadMakeupTodo } from "@/lib/makeupTodo";
-import { todaySeoul } from "@/lib/day";
+import { todaySeoul, addDays } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
 
@@ -59,11 +59,12 @@ export default async function AttendancePage() {
       .order("name", { ascending: true }),
     supabase
       .from("attendance")
-      .select("student_id, date, reason, note, status, makeup_of")
+      .select("student_id, date, reason, note, status, makeup_of, makeup_time")
       .in("status", ["absent", "makeup"])
-      .gte("date", today)
+      // 보강은 지난 한 주 것도 본다 — 「완료 찍기」 는 끝난 뒤에 하는 일이다
+      .gte("date", addDays(today, -7))
       .order("date", { ascending: true })
-      .limit(200),
+      .limit(300),
     loadMakeupTodo(supabase, today),
     supabase.from("attendance").select("planned").limit(1),
   ]);
@@ -99,7 +100,34 @@ export default async function AttendancePage() {
    */
   const { data: absRaw } = absQ;
 
-  const absences = (absRaw || []).filter((r) => r.status === "absent");
+  // 결석 예정 목록은 예전대로 오늘부터만
+  const absences = (absRaw || []).filter((r) => r.status === "absent" && r.date >= today);
+
+  /**
+   * **잡힌 보강 + 완료 여부** (원장님, 2026-08-14 — 「보강 페이지에서는
+   * 출결을 못 찍네. 보강 완료 찍으면 될 것 같은데」).
+   * 완료 = 그날 리포트가 써졌다 (오늘 수업의 저장과 같은 기준 — 두 벌로
+   * 세면 어긋난다).
+   */
+  const scheduled = (absRaw || []).filter((r) => r.status === "makeup");
+  let writtenSet = new Set();
+  if (scheduled.length) {
+    const { data: reps } = await supabase
+      .from("daily_reports")
+      .select("student_id, date, report_written")
+      .in("student_id", [...new Set(scheduled.map((r) => r.student_id))])
+      .gte("date", addDays(today, -7));
+    (reps || []).forEach((r) => {
+      if (r.report_written) writtenSet.add(`${r.student_id}|${r.date}`);
+    });
+  }
+  const scheduledMakeups = scheduled.map((r) => ({
+    studentId: r.student_id,
+    date: r.date,
+    time: r.makeup_time ? String(r.makeup_time).slice(0, 5) : "",
+    of: r.makeup_of || null,
+    written: writtenSet.has(`${r.student_id}|${r.date}`),
+  }));
   // 결석 하나에 보강이 잡혀 있나 — 「결석만 무르면 보강이 남는다」 를 말해주려고
   const makeupOn = {};
   (absRaw || [])
@@ -129,6 +157,7 @@ export default async function AttendancePage() {
           absences={absences}
           makeupOn={makeupOn}
           nameOf={nameOf}
+          scheduledMakeups={scheduledMakeups}
           makeupInbox={<MakeupInbox rows={makeupTodo} />}
           makeupAnswers={<MakeupAnswers />}
         />

@@ -7,6 +7,7 @@ import {
   clearPlannedAbsenceRange,
   setMakeup,
 } from "./actions";
+import { saveStudentDay } from "@/app/today/actions";
 import AbsenceRows from "./AbsenceRows";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 
@@ -28,6 +29,7 @@ export default function PlanBoard({
   absences = [],
   makeupOn = {},
   nameOf = {},
+  scheduledMakeups = [],
   makeupInbox = null,
   makeupAnswers = null,
 }) {
@@ -161,6 +163,60 @@ export default function PlanBoard({
               </button>
             </div>
           </div>
+          {/**
+            * **잡힌 보강 — 여기서 완료까지** (원장님, 2026-08-14 — 「보강
+            * 페이지에서는 출결을 못 찍네. 보강 완료 찍으면 될 것 같은데」).
+            * 완료 = 그날 리포트 저장 (오늘 수업의 저장과 같은 한 벌 —
+            * saveStudentDay). 숙제·점수까지 적을 거면 「자세히」 로.
+            */}
+          {scheduledMakeups.length > 0 && (
+            <div className="card card-tight">
+              <b style={{ fontSize: 14.5 }}>잡힌 보강</b>
+              <span className="hint" style={{ marginLeft: 6 }}>지난 7일부터 — 끝났으면 완료를 찍으세요</span>
+              <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+                {scheduledMakeups.map((m2) => (
+                  <div className="unitrow" key={`${m2.studentId}|${m2.date}`}>
+                    <b style={{ fontSize: 14, minWidth: 64 }}>{nameOf[m2.studentId] || "학생"}</b>
+                    <span className="hint" style={{ minWidth: 90 }}>{dayLabel(m2.date)}</span>
+                    {m2.time && <span className="tag tag-sky">{m2.time}</span>}
+                    {m2.of ? (
+                      <span className="tag tag-muted">{dayLabel(m2.of)} 결석분</span>
+                    ) : (
+                      <span className="tag tag-lav">그냥 보강</span>
+                    )}
+                    <span className="spacer" />
+                    {m2.written ? (
+                      <span className="tag tag-mint">완료</span>
+                    ) : (
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={pending}
+                        title="그날 리포트가 만들어집니다 — 숙제·점수는 자세히에서"
+                        onClick={() =>
+                          startTransition(async () => {
+                            const res = await saveStudentDay(m2.studentId, m2.date, {
+                              attendance: "makeup",
+                              notice: "",
+                              items: {},
+                              toCheck: [],
+                              nextHomework: [],
+                            });
+                            if (res?.error) { alert(res.error); return; }
+                            router.refresh();
+                          })
+                        }
+                      >
+                        ✓ 완료 찍기
+                      </button>
+                    )}
+                    <a className="btn btn-ghost btn-sm" href={`/today?d=${m2.date}&open=${m2.studentId}`}>
+                      자세히
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {makeupInbox}
           {makeupAnswers}
         </div>
