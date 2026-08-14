@@ -204,6 +204,13 @@ export default function BookProgress({
         <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "nowrap" }}>
           <span className="muted" style={{ fontSize: 12 }}>{open ? "▾" : "▸"}</span>
           <b style={{ fontSize: 14 }}>{book.name}</b>
+          {/* 교재 자체가 절판·중단인데 배정만 남은 것 — 숨기지 않고 표시한다
+              (숨기면 화면마다 다른 말을 하고, 끝냄 처리할 길도 없다) */}
+          {book.dead && (
+            <span className="tag tag-muted" title="교재가 절판·중단 상태예요. 안 쓰면 🧹 교재 정리로 끝내주세요">
+              중단 교재
+            </span>
+          )}
           <span className="spacer" />
           <span className="hint">
             {liveTotal > 0

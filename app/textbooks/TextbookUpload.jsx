@@ -90,6 +90,10 @@ export default function TextbookUpload() {
       alert(
         `교재 ${res.inserted}권을 넣었어요.`
         + (res.skipped > 0 ? `\n${res.skipped}권은 이미 있는 교재라 넘어갔습니다.` : "")
+        + ((res.skippedDead || []).length > 0
+          ? `\n${res.skippedDead.length}권은 절판·중단 목록에 같은 이름이 있어 안 만들었어요`
+            + ` (되살리려면 「절판·중단 보기」 에서 여세요):\n· ${res.skippedDead.join("\n· ")}`
+          : "")
       );
       if (res.inserted > 0) {
         reset(true);          // 방금 무슨 일이 있었는지는 남겨둔다

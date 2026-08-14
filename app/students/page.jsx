@@ -81,6 +81,13 @@ export default async function StudentsPage({ searchParams }) {
     .filter((b) => !b.status || b.status === "active")
     .map((b) => ({ id: b.id, name: b.name, area: b.area || "", bookPages: b.total_pages || null }));
   const bookById = new Map(textbooks.map((b) => [b.id, b]));
+  // 절판·중단까지 전부 — 배정·기록이 가리키는 교재를 찾을 때 쓴다
+  const anyBookById = new Map(
+    (allBooks || []).map((b) => [
+      b.id,
+      { id: b.id, name: b.name, area: b.area || "", bookPages: b.total_pages || null },
+    ])
+  );
 
   const ids = (students || []).map((x) => x.id);
   const pids2 = (students || []).map((s2) => s2.profile_id).filter(Boolean);
@@ -111,7 +118,14 @@ export default async function StudentsPage({ searchParams }) {
   const booksOf = new Map();
   (stBooks || []).forEach((r) => {
     if (r.status && r.status !== "active") return;   // 끝냈거나 그만둔 교재는 뺀다
-    const b = bookById.get(r.textbook_id);
+    /**
+     * **교재가 절판·중단이어도 배정이 살아 있으면 보여준다** (2026-08-14 —
+     * 「동아」 계열: 오늘 수업에는 뜨는데 여기서는 조용히 사라져서 두 화면이
+     * 다른 말을 했다). 숨기면 원장님이 끝냄 처리할 길도 없다 — 「중단 교재」
+     * 꼬리표를 달아 보여주고, 🧹 교재 정리로 치우시게 한다.
+     */
+    const alive = bookById.get(r.textbook_id);
+    const b = alive || anyBookById.get(r.textbook_id);
     if (!b) return;
     if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
     // **여기서는 아직 안 시작한 교재도 보여준다.** 교재 안내를 보내고 나면
@@ -119,6 +133,7 @@ export default async function StudentsPage({ searchParams }) {
     // 없다. 대신 언제부터인지를 붙여서, 지금 쓰는 것과 구별되게 한다.
     booksOf.get(r.student_id).push({
       ...b,
+      dead: !alive,
       from: notYet(r, today) ? r.assigned_on : null,
       curPage: r.current_page ?? "",
     });
@@ -131,9 +146,6 @@ export default async function StudentsPage({ searchParams }) {
    * 적은 보람이 없다. 절판 처리된 교재도 기록에는 나와야 하므로
    * 활성 교재만 추린 bookById 가 아니라 전체에서 찾는다.
    */
-  const anyBookById = new Map(
-    (allBooks || []).map((b) => [b.id, { id: b.id, name: b.name, area: b.area || "" }])
-  );
   const pastOf = new Map();
   (stBooks || []).forEach((r) => {
     if (!r.status || r.status === "active") return;

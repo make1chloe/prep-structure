@@ -54,11 +54,10 @@ export default async function ProgressPage() {
   const classes = classesQ.data || [];
   const members = membersQ.data || [];
 
-  const bookById = new Map(
-    (booksQ.data || [])
-      .filter((b) => !b.status || b.status === "active")
-      .map((b) => [b.id, b])
-  );
+  // 절판·중단 교재도 **배정이 살아 있으면 보여준다** (2026-08-14 — 숨기면
+  // 오늘 수업과 다른 말을 하고, 🧹 로 끝냄 처리할 길도 없다). 대신 표시한다.
+  const bookById = new Map((booksQ.data || []).map((b) => [b.id, b]));
+  const deadBook = (b) => !!(b.status && b.status !== "active");
 
   /**
    * ◐ 단원의 이름 — 이름 줄(접힌 상태)에서 바로 보여준다.
@@ -96,6 +95,7 @@ export default async function ProgressPage() {
       id: b.id,
       name: b.name,
       area: b.area || "",
+      dead: deadBook(b),
       bookPages: b.total_pages || 0,
       curPage: r.current_page ?? "",
       round,

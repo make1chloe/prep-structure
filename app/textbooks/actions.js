@@ -40,14 +40,21 @@ export async function addTextbook(formData) {
   // 이미 **같은 교재**가 있으면 하나 더 만들지 않는다.
   // 「그래머존」 과 「그래머존 개정판」 은 사람 눈에는 같은 책인데, 이름이
   // 다르다는 이유로 둘이 되면 배정은 이쪽에 단원은 저쪽에 붙는다.
-  const { data: has } = await supabase.from("textbooks").select("id, name");
+  const { data: has } = await supabase.from("textbooks").select("id, name, status");
   const key = bookKey(name);
   // 조용히 넘어가면 "저장을 눌렀는데 아무 일도 안 났다" 가 된다.
   // 이미 있는 그 교재로 **데려다 준다** — 왜 안 만들어졌는지가 바로 보인다.
   const twin = (has || []).find((b) => bookKey(b.name) === key);
   if (twin) {
     revalidatePath("/textbooks");
-    redirect(`/textbooks?tb=${twin.id}&same=${encodeURIComponent(name)}`);
+    /**
+     * 쌍둥이가 **절판·중단**이면 그 사정까지 실어 보낸다 (2026-08-14 —
+     * 「동아」 계열: 목록·검색에는 안 보이는데 「이미 있어요」 만 떠서,
+     * 만들 수도 쓸 수도 없는 것처럼 보였다). dead=1 이면 화면이
+     * 「중단 처리돼 숨어 있다 · 되살리는 법」 을 알려준다.
+     */
+    const dead = twin.status && twin.status !== "active" ? "&dead=1" : "";
+    redirect(`/textbooks?tb=${twin.id}&same=${encodeURIComponent(name)}${dead}`);
   }
 
   await insertSafe(
@@ -81,15 +88,29 @@ export async function bulkAddTextbooks(rows) {
 
   // 이미 있는 교재는 다시 만들지 않는다. 띄어쓰기·「2025 개정」만 다른 것도
   // 같은 교재로 본다 (lib/bookName) — 그래야 진도가 둘로 갈리지 않는다.
-  const { data: had } = await supabase.from("textbooks").select("name");
+  const { data: had } = await supabase.from("textbooks").select("name, status");
   const known = new Set((had || []).map((b) => bookKey(b.name)));
+  // 같은 이름이 **절판·중단**에 숨어 있는 경우를 따로 센다 (2026-08-14 —
+  // 「동아」 계열 52권 중 48권이 조용히 「이미 있음」 으로 넘어가서, 왜
+  // 안 생겼는지 알 길이 없었다)
+  const deadNames = new Set(
+    (had || []).filter((b) => b.status && b.status !== "active").map((b) => bookKey(b.name))
+  );
+  const aliveNames = new Set(
+    (had || []).filter((b) => !b.status || b.status === "active").map((b) => bookKey(b.name))
+  );
   let skipped = 0;
+  const skippedDead = [];
 
   const payload = rows
     .filter((r) => (r?.name || "").trim() !== "")
     .filter((r) => {
       const k = bookKey(r.name);
-      if (known.has(k)) { skipped += 1; return false; }
+      if (known.has(k)) {
+        if (deadNames.has(k) && !aliveNames.has(k)) skippedDead.push(r.name.trim());
+        else skipped += 1;
+        return false;
+      }
       known.add(k);          // 엑셀 안에서 같은 이름이 두 번 나와도 한 번만
       return true;
     })
@@ -106,13 +127,14 @@ export async function bulkAddTextbooks(rows) {
 
   if (payload.length === 0) {
     revalidatePath("/textbooks");
-    return { inserted: 0, skipped, error: null };
+    return { inserted: 0, skipped, skippedDead, error: null };
   }
   const error = await insertSafe(supabase, "textbooks", payload, ["word_range"]);
   revalidatePath("/textbooks");
   return {
     inserted: error ? 0 : payload.length,
     skipped,
+    skippedDead,
     error: error ? error.message : null,
   };
 }

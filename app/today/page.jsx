@@ -802,6 +802,10 @@ export default async function TodayPage({ searchParams }) {
   }
 
   const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+  // 절판·중단 교재에 배정만 남은 것 — 재원생·진도와 같은 「중단 교재」 표시
+  const bookDeadOf = new Map(
+    (books || []).map((b) => [b.id, !!(b.status && b.status !== "active")])
+  );
   const bookAreaOf = new Map((books || []).map((b) => [b.id, b.area || ""]));
   const bookPagesOf = new Map((books || []).map((b) => [b.id, b.total_pages || 0]));
 
@@ -835,6 +839,7 @@ export default async function TodayPage({ searchParams }) {
         id: tid,
         name: bookNameOf.get(tid) || "교재",
         area: bookAreaOf.get(tid) || "",
+        dead: bookDeadOf.get(tid) || false,
         round,
         // 단어 교재만 시험 방식이 의미 있다
         wordTest: (bookAreaOf.get(tid) || "") === "단어"

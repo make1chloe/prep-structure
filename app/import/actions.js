@@ -687,8 +687,14 @@ export async function importBookGuide(rows) {
   // 교재 엑셀 업로드가 「능률보카 고교기본」 과 「…(25개정)」 을 같은 책으로
   // 보고 안 만드는데, 여기서 글자 그대로 찾으면 그 책들이 전부 「목록에
   // 없어요」 가 된다 (2026-08-14 실제로 그랬다).
-  const { data: bookRows } = await supabase.from("textbooks").select("id, name");
-  const books = new Map((bookRows || []).map((b) => [bookKey(b.name), b.id]));
+  // **사용 중 교재만 맞춰본다** — 절판·중단 교재에 배정을 붙이면 화면마다
+  // 보였다 안 보였다 한다 (2026-08-14 「동아」 계열이 실제로 그랬다).
+  const { data: bookRows } = await supabase.from("textbooks").select("id, name, status");
+  const books = new Map(
+    (bookRows || [])
+      .filter((b) => !b.status || b.status === "active")
+      .map((b) => [bookKey(b.name), b.id])
+  );
 
   const skipped = [];
   // **화면에 줄줄이 반복되지 않게** — 못 찾은 학생·교재는 한 번씩만 센다
