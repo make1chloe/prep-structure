@@ -153,3 +153,119 @@ export async function seedRoutine(textbookId) {
   revalidatePath("/today");
   return { error: null, added: filled.length, area: book.area, missing };
 }
+
+/**
+ * 루틴 엑셀 올리기 (원장님, 2026-08-14). 한 줄 = 한 수업 회차.
+ *
+ * **이미 루틴이 있는 교재는 통째로 건너뛰고 알려준다** — 덮어쓰면 그 루틴을
+ * 돌고 있는 학생들의 단계 id(0120)가 끊긴다. 고치려면 화면에서 고치거나,
+ * 루틴을 비운 뒤 올린다 (지우는 것은 원장님 손에 둔다 — seedRoutine 과 같은 규칙).
+ * 항목 이름을 못 찾으면 그 항목만 빠지고 무엇이 빠졌는지 알려준다.
+ */
+export async function bulkAddRoutines(rows = []) {
+  if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
+  const supabase = createClient();
+
+  const [{ data: books }, { data: items }] = await Promise.all([
+    supabase.from("textbooks").select("id, name"),
+    supabase.from("homework_items").select("id, name").eq("active", true),
+  ]);
+  const bookByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
+  const itemByName = new Map((items || []).map((i) => [i.name.trim(), i.id]));
+
+  // 교재별로 묶는다
+  const byBook = new Map();
+  const missingBooks = new Set();
+  for (const r of rows) {
+    const bid = bookByName.get(r.book);
+    if (!bid) { missingBooks.add(r.book); continue; }
+    if (!byBook.has(bid)) byBook.set(bid, []);
+    byBook.get(bid).push(r);
+  }
+
+  const skippedHasRoutine = [];
+  const missingItems = new Set();
+  let addedSteps = 0;
+  let bookCount = 0;
+
+  for (const [bid, list] of byBook) {
+    // 이미 루틴이 있으면 건너뛴다 (위 주석의 까닭)
+    const { data: has } = await supabase
+      .from("routine_steps").select("id").eq("textbook_id", bid).limit(1);
+    if ((has || []).length > 0) {
+      skippedHasRoutine.push((books || []).find((b) => b.id === bid)?.name || "교재");
+      continue;
+    }
+    const stepRows = [];
+    list.forEach((r, i) => {
+      const toIds = (names) =>
+        names
+          .map((n) => {
+            const id = itemByName.get(n);
+            if (!id) missingItems.add(n);
+            return id;
+          })
+          .filter(Boolean);
+      const inclass_items = toIds(r.inclass);
+      const home_items = toIds(r.home);
+      // 하나도 못 이었으면 그 단계는 안 넣는다 (빈 단계는 일만 늘린다 — seed 와 같은 규칙)
+      if (inclass_items.length === 0 && home_items.length === 0) return;
+      stepRows.push({
+        textbook_id: bid,
+        sort: r.sort !== null && r.sort !== undefined ? r.sort * 10 : (i + 1) * 10,
+        label: r.label || "",
+        inclass_items,
+        home_items,
+      });
+    });
+    if (stepRows.length === 0) continue;
+    const { error } = await supabase.from("routine_steps").insert(stepRows);
+    if (error) {
+      if (needSql(error)) return { error: NEED };
+      return { error: error.message };
+    }
+    addedSteps += stepRows.length;
+    bookCount += 1;
+  }
+
+  revalidatePath("/textbooks");
+  revalidatePath("/today");
+  return {
+    error: null,
+    bookCount,
+    addedSteps,
+    missingBooks: [...missingBooks],
+    missingItems: [...missingItems],
+    skippedHasRoutine,
+  };
+}
+
+/** 지금 들어 있는 루틴 내려받기 — 양식 그대로 (교재명 · 순서 · 이름 · 등원 · 숙제) */
+export async function exportRoutines() {
+  const supabase = createClient();
+  const [{ data: steps, error }, { data: books }, { data: items }] = await Promise.all([
+    supabase.from("routine_steps").select("textbook_id, sort, label, inclass_items, home_items").order("sort", { ascending: true }),
+    supabase.from("textbooks").select("id, name"),
+    supabase.from("homework_items").select("id, name"),
+  ]);
+  if (error) return { error: error.message, rows: [] };
+  const bookName = new Map((books || []).map((b) => [b.id, b.name]));
+  const itemName = new Map((items || []).map((i) => [i.id, i.name]));
+  const names = (ids) => (ids || []).map((id) => itemName.get(id)).filter(Boolean).join(" · ");
+  const sorted = [...(steps || [])].sort((a, b) =>
+    (bookName.get(a.textbook_id) || "").localeCompare(bookName.get(b.textbook_id) || "", "ko") ||
+    (a.sort || 0) - (b.sort || 0)
+  );
+  const rows = sorted.map((s2, i) => {
+    const prev = sorted[i - 1];
+    const sameBook = prev && prev.textbook_id === s2.textbook_id;
+    return [
+      sameBook ? "" : bookName.get(s2.textbook_id) || "",
+      Math.round((s2.sort || 0) / 10) || "",
+      s2.label || "",
+      names(s2.inclass_items),
+      names(s2.home_items),
+    ];
+  });
+  return { error: null, rows };
+}

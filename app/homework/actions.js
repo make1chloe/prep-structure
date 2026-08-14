@@ -112,6 +112,87 @@ export async function seedBasicHomework() {
   return { error: null, added, kept: wanted.length - missing.length, paired };
 }
 
+/**
+ * 학습항목 엑셀 올리기 (원장님, 2026-08-14). **이름이 같으면 덮어쓰고**
+ * 없는 이름은 새로 만든다 — 내려받아 고쳐 다시 올리는 왕복 (단원과 같은 규칙).
+ * 파일에서 지운 항목은 안 지운다 — 루틴·리포트가 그 항목을 가리키고 있다.
+ */
+export async function bulkAddHomeworkItems(rows = []) {
+  if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
+  const supabase = createClient();
+
+  const { data: exist } = await supabase
+    .from("homework_items")
+    .select("id, name, sort");
+  const byName = new Map((exist || []).map((x) => [x.name.trim(), x]));
+  let maxSort = Math.max(0, ...(exist || []).map((x) => x.sort || 0));
+
+  let added = 0;
+  let updated = 0;
+  for (const r of rows) {
+    const hit = byName.get(r.name);
+    const patch = {
+      category: r.category || (hit ? undefined : "기타"),
+      tool: r.tool || null,
+      kind: r.kind || "home",
+      active: true,
+    };
+    if (r.sort !== null && r.sort !== undefined) patch.sort = r.sort;
+    if (hit) {
+      // undefined 칸은 보내지 않는다 — 빈 엑셀 칸이 있는 값을 지우면 안 된다
+      const clean = Object.fromEntries(
+        Object.entries(patch).filter(([, v]) => v !== undefined)
+      );
+      let { error } = await supabase.from("homework_items").update(clean).eq("id", hit.id);
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        const { tool: _t, ...noTool } = clean;   // 0116 전
+        ({ error } = await supabase.from("homework_items").update(noTool).eq("id", hit.id));
+      }
+      if (error) return { error: `「${r.name}」 저장 실패: ${error.message}` };
+      updated += 1;
+    } else {
+      maxSort += 10;
+      const row = {
+        name: r.name,
+        category: r.category || "기타",
+        sort: r.sort ?? maxSort,
+        tool: r.tool || null,
+        kind: r.kind || "home",
+        active: true,
+      };
+      let { error } = await supabase.from("homework_items").insert(row);
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        const { tool: _t, ...noTool } = row;
+        ({ error } = await supabase.from("homework_items").insert(noTool));
+      }
+      if (error) return { error: `「${r.name}」 추가 실패: ${error.message}` };
+      added += 1;
+    }
+  }
+  revalidatePath("/homework");
+  return { error: null, added, updated };
+}
+
+/** 지금 들어 있는 학습항목 내려받기용 — 고쳐서 다시 올리는 왕복 */
+export async function exportHomeworkItems() {
+  const supabase = createClient();
+  let { data, error } = await supabase
+    .from("homework_items")
+    .select("name, category, sort, tool, kind, active")
+    .order("sort", { ascending: true });
+  if (error) {
+    ({ data, error } = await supabase
+      .from("homework_items")
+      .select("name, category, sort, kind, active")
+      .order("sort", { ascending: true }));
+  }
+  if (error) return { error: error.message, rows: [] };
+  const rows = (data || [])
+    .filter((x) => x.active)
+    .map((x) => [x.name, x.category || "", x.sort ?? "", x.tool || "", x.kind === "inclass" ? "등원" : "집"]);
+  return { error: null, rows };
+}
+
 export async function updateHomeworkItem(id, patch) {
   if (!id) return { error: "id 없음" };
   const row = {};

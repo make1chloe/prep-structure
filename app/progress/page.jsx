@@ -5,6 +5,7 @@ import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
 import { todaySeoul, DOW } from "@/lib/day";
 import { inUseOn } from "@/lib/bookUse";
+import ProgressUpload from "./ProgressUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +133,9 @@ export default async function ProgressPage() {
             학생을 열면 쓰는 교재가 나옵니다. 단원을 누르면 <b>안 함 → ◐ 하는 중 → ○ 완료</b>,
             단원이 없는 교재는 몇 페이지까지인지 적으면 돼요.
           </p>
+          <div className="row" style={{ marginTop: 10, gap: 8 }}>
+            <ProgressUpload />
+          </div>
         </div>
         <div className="card" style={{ marginTop: 12, padding: 0 }}>
           <ProgressBoard

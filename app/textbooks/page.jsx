@@ -19,6 +19,7 @@ import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 import { listRoutine } from "./routineActions";
 import { listBookProgress } from "@/app/progress/actions";
 import { cachedProfile } from "@/lib/profileCache";
+import RoutineUpload from "./RoutineUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +187,7 @@ export default async function TextbooksPage({ searchParams }) {
             <AddTextbookForm />
             <TextbookUpload />
             <UnitUpload />
+            <RoutineUpload />
           </div>
         </div>
 

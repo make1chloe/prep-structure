@@ -476,6 +476,146 @@ export async function listStudentUnitsMany(studentId, textbookIds = []) {
   return { byBook, error: null };
 }
 
+/**
+ * 진도 엑셀 올리기 (원장님, 2026-08-14). **적힌 단원만 바꾼다** —
+ * 안 적은 단원은 안 건드린다. 학생·교재·단원은 이름으로 잇고, 못 찾은
+ * 이름은 알려준다. 기록은 그 학생의 **지금 회독**에 들어간다.
+ */
+export async function bulkSetProgress(rows = []) {
+  if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
+  const supabase = createClient();
+
+  const [{ data: students }, { data: books }] = await Promise.all([
+    supabase.from("students").select("id, name").eq("status", "enrolled"),
+    supabase.from("textbooks").select("id, name"),
+  ]);
+  const stByName = new Map();
+  (students || []).forEach((x) => {
+    const k = x.name.trim();
+    stByName.set(k, stByName.has(k) ? "DUP" : x.id);
+  });
+  const bkByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
+
+  const missing = [];
+  let marked = 0;
+  let pages = 0;
+  const today = todaySeoul();
+
+  for (const r of rows) {
+    const sid = stByName.get(r.student);
+    if (!sid) { missing.push(`학생 「${r.student}」`); continue; }
+    if (sid === "DUP") { missing.push(`학생 「${r.student}」 — 같은 이름이 둘이라 못 정함`); continue; }
+    const bid = bkByName.get(r.book);
+    if (!bid) { missing.push(`교재 「${r.book}」`); continue; }
+
+    const round = await currentRound(supabase, sid, bid);
+    const { data: units } = await supabase
+      .from("textbook_units")
+      .select("id, name, parent_id")
+      .eq("textbook_id", bid);
+    const parents = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+    const leafByName = new Map();
+    (units || []).forEach((u) => {
+      if (parents.has(u.id)) return;
+      const k = u.name.trim();
+      leafByName.set(k, leafByName.has(k) ? "DUP" : u.id);
+    });
+    const resolve = (names) =>
+      names
+        .map((n) => {
+          const id = leafByName.get(n);
+          if (!id) { missing.push(`${r.book} 단원 「${n}」`); return null; }
+          if (id === "DUP") { missing.push(`${r.book} 단원 「${n}」 — 같은 이름이 둘`); return null; }
+          return id;
+        })
+        .filter(Boolean);
+
+    const upserts = [
+      ...resolve(r.done).map((id) => ({
+        student_id: sid, textbook_unit_id: id, round, status: "done", done_on: today,
+      })),
+      ...resolve(r.doing).map((id) => ({
+        student_id: sid, textbook_unit_id: id, round, status: "doing", done_on: null,
+      })),
+    ];
+    if (upserts.length) {
+      let { error } = await supabase
+        .from("student_unit_progress")
+        .upsert(upserts, { onConflict: "student_id,textbook_unit_id,round" });
+      if (error && (error.code === "42703" || error.code === "PGRST204")) {
+        ({ error } = await supabase.from("student_unit_progress").upsert(
+          upserts.map(({ round: _r, ...x }) => x),
+          { onConflict: "student_id,textbook_unit_id" }
+        ));
+      }
+      if (error) return { error: `${r.student} · ${r.book}: ${error.message}` };
+      marked += upserts.length;
+    }
+    if (r.page !== null && r.page !== undefined) {
+      await supabase.from("student_textbooks").upsert(
+        { student_id: sid, textbook_id: bid, current_page: r.page },
+        { onConflict: "student_id,textbook_id" }
+      );
+      pages += 1;
+    }
+  }
+  revalidatePath("/today");
+  revalidatePath("/students");
+  return { error: null, marked, pages, missing: [...new Set(missing)] };
+}
+
+/** 지금 진도 내려받기 — 고쳐서 다시 올리는 왕복 (양식과 같은 칸) */
+export async function exportProgress() {
+  const supabase = createClient();
+  const [{ data: students }, { data: books }, { data: st }, { data: units }, progQ] =
+    await Promise.all([
+      supabase.from("students").select("id, name, status").eq("status", "enrolled").order("name"),
+      supabase.from("textbooks").select("id, name"),
+      supabase.from("student_textbooks").select("student_id, textbook_id, status, round, current_page"),
+      supabase.from("textbook_units").select("id, name, textbook_id, parent_id, sort").order("sort"),
+      supabase.from("student_unit_progress").select("student_id, textbook_unit_id, status, round"),
+    ]);
+  if (progQ.error && !(progQ.error.code === "42703" || progQ.error.code === "PGRST204")) {
+    return { error: progQ.error.message, rows: [] };
+  }
+  const prog = (progQ.data || []).map((p) => ({ ...p, round: p.round || 1 }));
+  const bookName = new Map((books || []).map((b) => [b.id, b.name]));
+  const unitById = new Map((units || []).map((u) => [u.id, u]));
+  const parents = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+
+  const rows = [];
+  for (const s2 of students || []) {
+    const mine = (st || []).filter(
+      (r) => r.student_id === s2.id && (!r.status || r.status === "active")
+    );
+    let first = true;
+    for (const r of mine) {
+      const round = r.round || 1;
+      const my = prog.filter((p) => {
+        const u = unitById.get(p.textbook_unit_id);
+        return (
+          p.student_id === s2.id && u && u.textbook_id === r.textbook_id &&
+          p.round === round && !parents.has(u.id)
+        );
+      });
+      const names = (status) =>
+        my.filter((p) => p.status === status)
+          .map((p) => unitById.get(p.textbook_unit_id)?.name)
+          .filter(Boolean)
+          .join(" · ");
+      rows.push([
+        first ? s2.name : "",
+        bookName.get(r.textbook_id) || "",
+        names("done"),
+        names("doing"),
+        r.current_page ?? "",
+      ]);
+      first = false;
+    }
+  }
+  return { error: null, rows };
+}
+
 // 순서와 상관없이 아무 단원이나 완료/미완료로 바꾼다
 export async function setUnitProgress(studentId, unitIds, status) {
   const ids = Array.isArray(unitIds) ? unitIds : [unitIds];

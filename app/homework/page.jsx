@@ -6,6 +6,7 @@ import HomeworkList from "./HomeworkList";
 import SeedBasicButton from "./SeedBasicButton";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
+import HwUpload from "./HwUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export default async function HomeworkPage() {
           </Help>
           <div className="row" style={{ marginTop: 10, gap: 6, flexWrap: "wrap" }}>
             <AddHomeworkForm />
+            <HwUpload />
             <SeedBasicButton />
           </div>
         </div>
