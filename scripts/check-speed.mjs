@@ -93,5 +93,15 @@ if (!/_memo/.test(mb)) say("lib/menuBadges 의 메모가 사라졌습니다 — 
 else if (!/NODE_ENV === "production"/.test(mb)) say("배지 메모가 검사(가짜 DB)까지 기억합니다 — 배포에서만 켜야 합니다");
 else ok("배지 메모 유지 (배포에서만)");
 
+// ── 5) 메뉴를 오갈 때 ────────────────────────────────────────
+console.log("\n== 한 번 갔던 화면이 30초 안에는 즉시 뜨나 ==");
+const cfg = readFileSync("next.config.mjs", "utf8");
+if (!/staleTimes/.test(cfg)) {
+  say("next.config 의 staleTimes 가 사라졌습니다 — 메뉴를 오갈 때마다 서버 렌더를 통째로 기다리게 됩니다");
+} else ok("staleTimes 유지");
+const inbox = readFileSync("lib/inbox.js", "utf8");
+if (!/_memo/.test(inbox)) say("lib/inbox 의 메모가 사라졌습니다 — 안 본 알림 세기가 화면마다 다시 돕니다");
+else ok("안 본 알림 메모 유지");
+
 if (bad) { console.log("\n❌ 위 항목을 고쳐주세요 (docs/PRINCIPLES.md 원칙 6)"); process.exit(1); }
 console.log("\n✅ 속도 검사 통과");
