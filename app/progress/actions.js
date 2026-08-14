@@ -203,6 +203,37 @@ export async function addStudentBookDated(studentId, textbookId, startOn, endOn)
   return ok(error);
 }
 
+/**
+ * **여러 권 한 번에 끝냄** (원장님, 2026-08-14 — 「오늘 진도에 사용 중인
+ * 교재가 아니라 누적 교재가 다 나와」).
+ *
+ * 교재안내 기록 이관으로 옛날 안내분까지 전부 「사용 중」 으로 들어왔다 —
+ * 앱이 없던 시절 책이라 종료처리가 안 된 것뿐인데, 한 권씩 열어 「이 교재
+ * 끝냄」 을 누르기엔 너무 많다. 어느 책이 끝났는지는 원장님만 아니
+ * (1월에 안내한 책을 아직 쓰기도 한다) 날짜로 짐작하지 않고 골라서 끝낸다.
+ */
+export async function endStudentBooks(studentId, textbookIds) {
+  const ids = [...new Set((textbookIds || []).filter(Boolean))];
+  if (!studentId || ids.length === 0) return { error: "교재를 골라주세요." };
+  const supabase = createClient();
+  let { error } = await supabase
+    .from("student_textbooks")
+    .update({ status: "done", ended_on: todaySeoul() })
+    .eq("student_id", studentId)
+    .in("textbook_id", ids);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ error } = await supabase
+      .from("student_textbooks")
+      .update({ status: "done" })
+      .eq("student_id", studentId)
+      .in("textbook_id", ids));
+  }
+  revalidatePath("/students");
+  revalidatePath("/today");
+  revalidatePath("/progress");
+  return ok(error);
+}
+
 export async function setStudentBookStatus(studentId, textbookId, status, endedOn) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = createClient();

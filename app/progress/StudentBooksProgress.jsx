@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import BookProgress from "@/components/BookProgress";
-import { listStudentUnitsMany } from "./actions";
+import { listStudentUnitsMany, endStudentBooks } from "./actions";
 
 /**
  * 한 학생의 교재 진도 판 묶음 — **한 왕복으로** (원장님, 2026-08-14 —
@@ -14,6 +15,16 @@ import { listStudentUnitsMany } from "./actions";
  */
 export default function StudentBooksProgress({ studentId, books = [] }) {
   const [byBook, setByBook] = useState(null);
+  /**
+   * **🧹 정리 — 안 쓰는 교재를 골라 한 번에 끝냄** (원장님, 2026-08-14 —
+   * 「오늘 진도에 사용 중인 교재가 아니라 누적 교재가 다 나와」).
+   * 교재안내 이관으로 옛 책까지 전부 사용 중이 됐다 — 한 권씩 열어
+   * 끝냄을 누르기엔 많다. 골라서 한 번에 치운다 (끝낸 교재 기록에 남는다).
+   */
+  const [tidy, setTidy] = useState(false);
+  const [sel, setSel] = useState(() => new Set());
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     let dead = false;
@@ -34,18 +45,73 @@ export default function StudentBooksProgress({ studentId, books = [] }) {
   }
   if (byBook === null) return <p className="hint">진도 불러오는 중…</p>;
 
+  function endPicked() {
+    const ids = [...sel];
+    if (ids.length === 0) return;
+    const names = books.filter((b) => sel.has(b.id)).map((b) => b.name).join(" · ");
+    if (!confirm(`${ids.length}권을 끝낸 교재로 처리할까요?\n\n${names}\n\n숙제·진도 화면에서 빠지고 「지난 교재」 기록에 남습니다.`)) return;
+    startTransition(async () => {
+      const res = await endStudentBooks(studentId, ids);
+      if (res?.error) { alert(res.error); return; }
+      setSel(new Set());
+      setTidy(false);
+      router.refresh();
+    });
+  }
+
   return (
-    <div className="bookgrid">
-      {books.map((b) => (
-        <BookProgress
-          key={b.id}
-          studentId={studentId}
-          book={b}
-          openFirst
-          initialUnits={byBook[b.id]?.units || []}
-          initialRound={byBook[b.id]?.round || b.round || 1}
-        />
-      ))}
+    <div className="stack" style={{ gap: 8 }}>
+      <div className="row" style={{ gap: 6, alignItems: "center" }}>
+        <button
+          className={`btn btn-sm ${tidy ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => { setTidy(!tidy); setSel(new Set()); }}
+          title="안 쓰는 교재를 골라 한 번에 끝냄 처리합니다"
+        >
+          🧹 교재 정리
+        </button>
+        {tidy && (
+          <>
+            <span className="hint">이제 안 쓰는 교재를 누르세요 — 한 번에 끝냄 처리돼요</span>
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={pending || sel.size === 0}
+              onClick={endPicked}
+            >
+              {sel.size}권 끝냄
+            </button>
+          </>
+        )}
+      </div>
+      {tidy && (
+        <div className="row" style={{ gap: 4 }}>
+          {books.map((b) => (
+            <button
+              key={b.id}
+              className={`hwchip ${sel.has(b.id) ? "hw-next" : ""}`}
+              onClick={() => {
+                const n = new Set(sel);
+                n.has(b.id) ? n.delete(b.id) : n.add(b.id);
+                setSel(n);
+              }}
+            >
+              {sel.has(b.id) && <b>✓</b>} {b.name}
+              {b.from && <span className="hint" style={{ marginLeft: 4 }}>{b.from.slice(2)}부터</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="bookgrid">
+        {books.map((b) => (
+          <BookProgress
+            key={b.id}
+            studentId={studentId}
+            book={b}
+            openFirst
+            initialUnits={byBook[b.id]?.units || []}
+            initialRound={byBook[b.id]?.round || b.round || 1}
+          />
+        ))}
+      </div>
     </div>
   );
 }
