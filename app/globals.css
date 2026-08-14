@@ -321,6 +321,11 @@ body { padding-top: var(--topbar-full, 120px); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .daychip input:checked + span { color: #0d1119; } }
 :root[data-theme="dark"] .daychip input:checked + span { color: #0d1119; }
 .input-sm { padding: 5px 8px; font-size: 14px; height: auto; }
+/* 시간·날짜 칸 — 글씨를 키우면서(2026-08-14 노안) 좁은 인라인 폭(105px 안팎)
+   17곳이 「오후 02:5」 처럼 끝자리가 잘렸다. 한 곳에서 바닥 폭을 깐다 —
+   min-width 는 인라인 width 보다 세서, 화면마다 고치지 않아도 된다. */
+input[type="time"] { min-width: 136px; }
+input[type="date"] { min-width: 148px; }
 .bulkbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 12px 18px 0; padding: 8px 12px;
