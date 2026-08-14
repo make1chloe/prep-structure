@@ -44,6 +44,42 @@ export async function saveStep(textbookId, step) {
 export async function deleteStep(id) {
   if (!id) return { error: null };
   const supabase = createClient();
+
+  /**
+   * **이 단계에 서 있는 학생을 먼저 다음 단계로 옮긴다** (0120).
+   *
+   * 학생은 단계의 id 를 기억하므로(중간 수정에 안전하려고 그렇게 했다),
+   * 그 단계가 지워지면 가리킬 곳이 사라진다. 지우기 전에 sort 상 다음
+   * 단계로 옮겨준다 — 다음이 없으면 처음으로 (루틴은 돌기 때문이다).
+   *
+   * **과거 기록은 안 건드린다** — 그날 무엇을 했는지는 리포트에 이미
+   * 박제되어 있다. 여기서 옮기는 것은 「다음 수업에 뭘 할까」 뿐이다.
+   */
+  const { data: gone } = await supabase
+    .from("routine_steps")
+    .select("id, textbook_id, sort")
+    .eq("id", id)
+    .maybeSingle();
+  if (gone) {
+    const { data: list } = await supabase
+      .from("routine_steps")
+      .select("id, sort")
+      .eq("textbook_id", gone.textbook_id)
+      .order("sort", { ascending: true });
+    const rest = (list || []).filter((x) => x.id !== id);
+    const next =
+      rest.find((x) => x.sort > gone.sort) || rest[0] || null;   // 다음 → 없으면 처음
+    const move = await supabase
+      .from("student_textbooks")
+      .update({ routine_step_id: next?.id || null })
+      .eq("textbook_id", gone.textbook_id)
+      .eq("routine_step_id", id);
+    // 0120 전이면 칸이 없다 — 옮길 것도 없으니 조용히 지나간다
+    if (move.error && move.error.code !== "42703" && move.error.code !== "PGRST204") {
+      return { error: move.error.message };
+    }
+  }
+
   const { error } = await supabase.from("routine_steps").delete().eq("id", id);
   revalidatePath("/textbooks");
   revalidatePath("/today");

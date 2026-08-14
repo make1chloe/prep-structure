@@ -96,6 +96,19 @@ console.log("\n== 넣을 때 지키는 것 ==");
     guard >= 0 && seeds.length === 1 && seeds[0].index > guard,
     "루틴이 없을 때만 본보기 단추가 뜬다"
   );
+
+  /**
+   * **학생은 단계를 번호가 아니라 id 로 기억한다** (0120 — 원장님:
+   * 「중간에 루틴을 바꾸면 복잡해지는 거 없을까?」). 번호로 돌아가면
+   * 중간 끼움·순서 변경 때 모든 학생이 조용히 다른 단계로 밀린다.
+   */
+  const tr = readFileSync("app/today/routineActions.js", "utf8");
+  ok(/routine_step_id\s*\?\s*(list|\(list)/.test(tr) || /findIndex\(\(x\) => x\.id === r\.routine_step_id\)/.test(tr),
+     "단계 고르기가 id 먼저다");
+  ok(/routine_step_id: \(list \|\| \[\]\)\[nextIdx\]/.test(tr), "루틴 다음이 다음 단계의 id 를 적는다");
+  const dr = readFileSync("app/textbooks/routineActions.js", "utf8");
+  ok(/routine_step_id/.test(dr) && /eq\("routine_step_id", id\)/.test(dr),
+     "단계를 지우면 그 단계에 서 있던 학생을 다음으로 옮긴다");
 }
 
 if (fail) { console.log("\n❌ 본보기 루틴에 어긋난 것이 있습니다."); process.exit(1); }

@@ -151,6 +151,7 @@ const CHECKS = [
   { id: "0117", label: "할일 하위목록 (체크리스트)", rpc: "task_checklist_on" },
   { id: "0118", label: "이해도 (집중도 옆에)", table: "daily_reports", col: "understanding" },
   { id: "0119", label: "단원 메모 (완료 취소해도 메모가 남게)", rpc: "unit_note_on" },
+  { id: "0120", label: "루틴 단계를 번호 아닌 id 로 (중간 수정해도 학생이 안 밀리게)", rpc: "routine_step_id_on" },
 
   // 0086 은 실시간 발행만 건드린다 — 표·칸으로는 확인할 수가 없다.
   // 확인은 오늘 수업 화면 오른쪽 위의 「● 실시간」 으로 한다.

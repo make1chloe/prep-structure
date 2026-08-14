@@ -17,12 +17,12 @@ export async function nextRoutine(studentId) {
   // 회독(round)까지 본다 — 2회독이면 1회독 진도는 끝난 것으로 치지 않는다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, round")
+    .select("textbook_id, status, routine_step, routine_step_id, round")
     .eq("student_id", studentId);
   if (stq.error) {
     stq = await supabase
       .from("student_textbooks")
-      .select("textbook_id, status, routine_step")
+      .select("textbook_id, status, routine_step, routine_step_id")
       .eq("student_id", studentId);
   }
   if (stq.error) return { inclass: [], home: [], steps: [], error: null };
@@ -66,7 +66,16 @@ export async function nextRoutine(studentId) {
   mine.forEach((r) => {
     const list = byBook.get(r.textbook_id) || [];
     if (list.length === 0) return;
-    const idx = ((r.routine_step || 0) % list.length + list.length) % list.length;
+    /**
+     * **id 가 먼저다** (0120). 번호는 루틴을 중간에 고치면 다른 단계를
+     * 가리키게 되어, 아직 id 가 없는 옛 줄의 폴백으로만 쓴다.
+     * id 가 목록에 없으면(그 단계가 지워졌는데 보정을 못 받은 드문 경우)
+     * 번호 폴백으로 내려간다 — 화면이 비는 것보다 낫다.
+     */
+    let idx = r.routine_step_id
+      ? list.findIndex((x) => x.id === r.routine_step_id)
+      : -1;
+    if (idx < 0) idx = ((r.routine_step || 0) % list.length + list.length) % list.length;
     const step = list[idx];
     const unit = unitOfBook.get(r.textbook_id) || null;
     (step.inclass_items || []).forEach((x) => inclass.add(x));
@@ -141,23 +150,48 @@ export async function advanceRoutine(studentId, textbookIds) {
     return { error: null };
   }
   const supabase = createClient();
-  const { data: cur } = await supabase
+  let { data: cur, error: curErr } = await supabase
     .from("student_textbooks")
-    .select("textbook_id, routine_step")
+    .select("textbook_id, routine_step, routine_step_id")
     .eq("student_id", studentId)
     .in("textbook_id", textbookIds);
+  if (curErr) {
+    // 0120 전 — 번호만
+    ({ data: cur } = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, routine_step")
+      .eq("student_id", studentId)
+      .in("textbook_id", textbookIds));
+  }
 
   for (const r of cur || []) {
     const { data: list } = await supabase
       .from("routine_steps")
-      .select("id")
-      .eq("textbook_id", r.textbook_id);
+      .select("id, sort")
+      .eq("textbook_id", r.textbook_id)
+      .order("sort", { ascending: true });
     const len = (list || []).length || 1;
-    await supabase
+    // 지금 어디인가 — id 먼저, 없으면 번호 (nextRoutine 과 같은 규칙)
+    let idx = r.routine_step_id
+      ? (list || []).findIndex((x) => x.id === r.routine_step_id)
+      : -1;
+    if (idx < 0) idx = ((r.routine_step || 0) % len + len) % len;
+    const nextIdx = (idx + 1) % len;
+    // **다음 단계의 id 를 적는다.** 번호도 같이 맞춰두지만 (옛 화면 폴백용)
+    // 진실은 id 다 — 두 벌이 어긋나면 id 가 이긴다 (위의 읽기 규칙)
+    let up = await supabase
       .from("student_textbooks")
-      .update({ routine_step: ((r.routine_step || 0) + 1) % len })
+      .update({ routine_step: nextIdx, routine_step_id: (list || [])[nextIdx]?.id || null })
       .eq("student_id", studentId)
       .eq("textbook_id", r.textbook_id);
+    if (up.error && (up.error.code === "42703" || up.error.code === "PGRST204")) {
+      // 0120 전이면 번호만 — 옛 동작 그대로
+      await supabase
+        .from("student_textbooks")
+        .update({ routine_step: nextIdx })
+        .eq("student_id", studentId)
+        .eq("textbook_id", r.textbook_id);
+    }
   }
   return { error: null };
 }
