@@ -4,14 +4,13 @@ import Help from "@/components/Help";
 import AddHomeworkForm from "./AddHomeworkForm";
 import HomeworkList from "./HomeworkList";
 import SeedBasicButton from "./SeedBasicButton";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomeworkPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

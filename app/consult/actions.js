@@ -11,6 +11,7 @@ import { addSchoolByName } from "@/app/schedule/schoolActions";
 import { sameSchool } from "@/lib/who";
 import { schoolYear } from "@/lib/neis";
 import { todaySeoul } from "@/lib/day";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -52,9 +53,7 @@ export async function addInquiry(formData) {
   if (!name) return;
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   await supabase.from("inquiries").insert({
     name,

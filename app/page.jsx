@@ -17,6 +17,7 @@ import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
 import { cleanClassName } from "@/lib/classLabel";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,7 @@ function Badge({ href, children, tone }) {
 
 export default async function Home() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

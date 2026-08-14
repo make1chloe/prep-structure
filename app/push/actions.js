@@ -6,6 +6,7 @@ import { generateKeys, pushToAll } from "@/lib/push";
 import { inQuiet, nowMinsSeoul, DEFAULT_QUIET } from "@/lib/quiet";
 import { randomUUID } from "node:crypto";
 import { STAFF_ROLES } from "@/lib/roles";
+import { sessionUser } from "@/lib/session";
 
 // 알림 키 — 설정 화면에서 한 번 만들면 계속 쓴다
 export async function ensurePushKeys() {
@@ -75,9 +76,7 @@ export async function getPushPublicKey() {
 export async function saveSubscription(sub, ua) {
   if (!sub?.endpoint) return { error: "구독 정보가 없어요." };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
   const { data: student } = await supabase
@@ -401,9 +400,7 @@ async function withReceipts(supabase, subs, payload, childOf = new Map()) {
  */
 export async function testPush() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
   let keys = await keysOf(supabase);
@@ -542,9 +539,7 @@ export async function pushToStaff(payload) {
 /** 내 방해금지 시간 — 없으면 둘 다 빈 값 */
 export async function getQuietHours() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { from: "", to: "", ready: true };
 
   const { data, error } = await supabase
@@ -574,9 +569,7 @@ export async function getQuietHours() {
  */
 export async function saveQuietHours(from, to) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
   const a = (from || "").trim();

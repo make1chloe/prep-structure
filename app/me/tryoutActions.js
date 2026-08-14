@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { isStaffRole } from "@/lib/actAs";
+import { sessionUser } from "@/lib/session";
 
 /**
  * 체험하면서 남긴 오늘 기록을 지운다.
@@ -22,9 +23,7 @@ export async function clearTryout(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
   const { data: profile } = await supabase
     .from("profiles")

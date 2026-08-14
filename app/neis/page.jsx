@@ -5,6 +5,7 @@ import NeisPeek from "./NeisPeek";
 import { listSchools } from "@/app/schedule/neisActions";
 import { schoolYear } from "@/lib/neis";
 import { todaySeoul } from "@/lib/day";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function NeisPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

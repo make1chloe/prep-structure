@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
 import { noTable } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 /** 한 리포트의 댓글 */
 export async function listComments(reportId) {
@@ -38,9 +39,7 @@ export async function addComment(reportId, studentId, body) {
   if (text.length > 2000) return { error: "너무 깁니다. 2000자 안으로 적어주세요." };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
   const { data: profile } = await supabase

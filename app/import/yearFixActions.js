@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { plan } from "@/lib/yearFix";
 import { pageAll } from "@/lib/pageAll";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **연도 다시 맞추기** — 줄마다 따져서, 하나로 좁혀진 것만.
@@ -47,7 +48,7 @@ async function context(supabase) {
 }
 
 async function staffOnly(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return "로그인이 필요해요.";
   const { data: p } = await supabase
     .from("profiles").select("role").eq("id", user.id).maybeSingle();

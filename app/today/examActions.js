@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { noTable } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 /**
  * 단원평가 결과를 남긴다.
@@ -19,9 +20,7 @@ export async function addUnitExam(studentId, date, { name, wrong, total, note } 
   const t = parseInt(total, 10);
   const w = parseInt(wrong, 10);
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("unit_exams").insert({
     student_id: studentId,

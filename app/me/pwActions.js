@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sessionUser } from "@/lib/session";
 
 /**
  * 학생이 처음 들어와서 비밀번호를 정한다.
@@ -35,7 +36,7 @@ export async function setMyPassword(newPw) {
   if (pw === INIT_PW) return { error: "0000 말고 다른 것으로 정해주세요." };
 
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "다시 로그인해주세요." };
 
   const key = await serviceKey(supabase);

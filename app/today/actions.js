@@ -9,6 +9,7 @@ import { dowOf } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 // 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
 export async function listUnitOptions(textbookId) {
@@ -387,9 +388,7 @@ export async function createNotice(input) {
   if (!date || (!text && !head)) return { error: "내용을 적어주세요." };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   // 대상 학생 확정
   let targets = [];
@@ -632,9 +631,7 @@ async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}
     .eq("name", "수업 준비")
     .maybeSingle();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   // 그 숙제에 붙여준 단원 이름 (제목에 {단원} 을 쓸 수 있게)
   const unitIds = [

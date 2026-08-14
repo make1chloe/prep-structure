@@ -177,15 +177,14 @@ export default async function TasksPage({ searchParams }) {
   const showPast = searchParams?.past === "1";
 
   const supabase = createClient();
+  // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user || null;
+  const profileP = user
+    ? supabase.from("profiles").select("*").eq("id", user.id).single()
+    : Promise.resolve({ data: null });
 
   // ── 일정 ──────────────────────────────────────────────
   let rows = [];
@@ -204,12 +203,54 @@ export default async function TasksPage({ searchParams }) {
         ? q.gte("due_on", mFrom).lte("due_on", mTo)
         : q.gte("due_on", showPast ? "1900-01-01" : todaySeoul());
     // deliver_student_ids · deliver_school_id 는 「누가 보나」 를 적어주는 데 쓴다 (0092)
-    let { data: tasks, error } = await range(
+    /**
+     * **파도** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 9회 → 1층).
+     * 사다리 폴백(옛 DB용)은 실패했을 때만 그대로 내려간다.
+     */
+    let examSel0 = supabase
+      .from("exam_periods")
+      .select("id, school, grade, name, from_date, to_date, english_on")
+      .gte("to_date", isCal ? mFrom : todaySeoul());
+    if (isCal) examSel0 = examSel0.lte("from_date", mTo);
+    let holSel0 = supabase
+      .from("holidays")
+      .select("id, date, name, scope, class_id")
+      .gte("date", isCal ? mFrom : todaySeoul());
+    if (isCal) holSel0 = holSel0.lte("date", mTo);
+    const [tasksQ1, clsQ, schQ, stuQ, examQ, hiddenExams, holQ, inqQW, attQW] = await Promise.all([
+      range(
+        supabase
+          .from("tasks")
+          .select(`${COLS}, private, deliver_student_ids, deliver_school_id`)
+          .eq("kind", "schedule")
+      ).order("due_on", { ascending: true }),
+      supabase.from("classes").select("id, name").order("start_time", { ascending: true }),
+      supabase.from("schools").select("id, name").order("name"),
       supabase
-        .from("tasks")
-        .select(`${COLS}, private, deliver_student_ids, deliver_school_id`)
-        .eq("kind", "schedule")
-    ).order("due_on", { ascending: true });
+        .from("students")
+        .select("id, name, school, grade")
+        .eq("status", "enrolled")
+        .order("name"),
+      examSel0.order("from_date", { ascending: true }),
+      hiddenExamIds(supabase),
+      holSel0.order("date", { ascending: true }),
+      isCal
+        ? supabase
+            .from("inquiries")
+            .select("id, name, status, consult_on, consult_at, test_on, test_at")
+            .or(`and(consult_on.gte.${mFrom},consult_on.lte.${mTo}),and(test_on.gte.${mFrom},test_on.lte.${mTo})`)
+        : Promise.resolve({ data: [] }),
+      isCal
+        ? supabase
+            .from("attendance")
+            .select("id, student_id, date, status, reason, makeup_time, planned")
+            .in("status", ["makeup", "absent"])
+            .gte("date", mFrom)
+            .lte("date", mTo)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    let { data: tasks, error } = tasksQ1;
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0077 전이면 학생 지목 칸이 없다
       ({ data: tasks, error } = await range(
@@ -224,21 +265,11 @@ export default async function TasksPage({ searchParams }) {
     }
     taskErr = !!error;
 
-    const { data: cls } = await supabase
-      .from("classes")
-      .select("id, name")
-      .order("start_time", { ascending: true });
-    classes = cls || [];
+    classes = clsQ.data || [];
 
     // 일정을 **누구에게** 보낼지 고를 거리 (0077).
     // 학교는 표에서 고른다 — 글자로 치면 「신송중」과 「신송중학교」가 갈린다.
-    const schQ = await supabase.from("schools").select("id, name").order("name");
     schools = schQ.error ? [] : schQ.data || [];
-    const stuQ = await supabase
-      .from("students")
-      .select("id, name, school, grade")
-      .eq("status", "enrolled")
-      .order("name");
     students = stuQ.error ? [] : stuQ.data || [];
     grades = [...new Set(students.map((s) => s.grade).filter(Boolean))].sort();
 
@@ -254,20 +285,6 @@ export default async function TasksPage({ searchParams }) {
     //   시험 일정 → exam_periods (회차 관리 · 시험)
     //   휴강     → holidays      (수강료 · 회차 관리)
     const today = todaySeoul();
-    // 달력이면 그 달에 걸치는 것, 아니면 오늘 이후 것
-    let examSel = supabase
-      .from("exam_periods")
-      .select("id, school, grade, name, from_date, to_date, english_on")
-      .gte("to_date", isCal ? mFrom : today);
-    if (isCal) examSel = examSel.lte("from_date", mTo);
-    const examQ = await examSel.order("from_date", { ascending: true });
-    const hiddenExams = await hiddenExamIds(supabase);
-    let holSel = supabase
-      .from("holidays")
-      .select("id, date, name, scope, class_id")
-      .gte("date", isCal ? mFrom : today);
-    if (isCal) holSel = holSel.lte("date", mTo);
-    const holQ = await holSel.order("date", { ascending: true });
 
     // ── 달력에만 더 붙이는 것 ─────────────────────────────
     // 방문상담 · 레벨테스트 · 보강 · 결석은 각자 다른 표에 있다. 그래도
@@ -275,10 +292,7 @@ export default async function TasksPage({ searchParams }) {
     // (목록에서는 안 붙인다 — 거기서 고칠 수 있는 것이 아니라 시끄러워진다)
     let extra = [];
     if (isCal) {
-      const inqQ = await supabase
-        .from("inquiries")
-        .select("id, name, status, consult_on, consult_at, test_on, test_at")
-        .or(`and(consult_on.gte.${mFrom},consult_on.lte.${mTo}),and(test_on.gte.${mFrom},test_on.lte.${mTo})`);
+      const inqQ = inqQW;
       (inqQ.error ? [] : inqQ.data || []).forEach((q) => {
         if (q.consult_on >= mFrom && q.consult_on <= mTo) {
           extra.push({
@@ -307,12 +321,7 @@ export default async function TasksPage({ searchParams }) {
       });
 
       // 보강 · 결석 — 학생 이름이 붙어야 쓸모가 있다
-      let attQ = await supabase
-        .from("attendance")
-        .select("id, student_id, date, status, reason, makeup_time, planned")
-        .in("status", ["makeup", "absent"])
-        .gte("date", mFrom)
-        .lte("date", mTo);
+      let attQ = attQW;
       if (attQ.error) {
         attQ = await supabase
           .from("attendance")
@@ -387,29 +396,35 @@ export default async function TasksPage({ searchParams }) {
   let routines = [];
   let routineErr = null;
   if (wantTodo) {
-    const catQ = await supabase
-      .from("todo_categories")
-      .select("id, name, parent_id, color, sort, active")
-      .eq("active", true)
-      .order("sort", { ascending: true });
+    const TODO_COLS =
+      "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id, category, source";
+    // 되풀이 할일 — 때가 된 것을 **목록보다 먼저** 만들어 둔다 (auto_key 가
+    // 막아줘서 몇 번을 열어도 하나만 생긴다). 그래서 sync → 목록만 순서를
+    // 지키고, 나머지(분류·되풀이 규칙·내신·보강)는 그 옆에서 같이 돈다.
+    const syncP = syncRoutines().catch(() => null);   // **한 번만** 돌린다
+    const [catQ, rq, todoQ1, prepR, makeupsR] = await Promise.all([
+      supabase
+        .from("todo_categories")
+        .select("id, name, parent_id, color, sort, active")
+        .eq("active", true)
+        .order("sort", { ascending: true }),
+      syncP.then(() => listRoutines()),
+      syncP.then(() =>
+        supabase
+          .from("tasks")
+          .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
+          .eq("kind", "todo")
+          .order("due_on", { ascending: true })
+      ),
+      pendingPrep(supabase),
+      pendingMakeups(supabase),
+    ]);
     cats = catQ.error ? [] : catQ.data || [];
-
-    // 되풀이 할일 — 때가 된 것을 **먼저** 만들어 둔다 (auto_key 가 막아줘서
-    // 몇 번을 열어도 하나만 생긴다). 목록을 읽기 전에 해야 이번에 생긴 것이
-    // 바로 보인다. 밤에 따로 도는 것을 두면 그게 멈춘 것을 아무도 모른다.
-    await syncRoutines();
-    const rq = await listRoutines();
     routines = rq.rows;
     routineErr = rq.error;
 
-    const TODO_COLS =
-      "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id, category, source";
     // 0117 전이면 하위목록 칸이 없다
-    let { data, error } = await supabase
-      .from("tasks")
-      .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
-      .eq("kind", "todo")
-      .order("due_on", { ascending: true });
+    let { data, error } = todoQ1;
     // 0113 전이면 started_at 이 없다 — 그때는 칸반이 두 칸으로 선다
     if (error) {
       ({ data, error } = await supabase
@@ -436,9 +451,11 @@ export default async function TasksPage({ searchParams }) {
     todos = data || [];
     todoErr = !!error || !!catQ.error;
 
-    prep = await pendingPrep(supabase);
-    makeups = await pendingMakeups(supabase);
+    prep = prepR;
+    makeups = makeupsR;
   }
+
+  const profile = (await profileP)?.data || null;
 
   return (
     <>

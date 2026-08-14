@@ -5,6 +5,7 @@ import BrandMark from "@/components/BrandMark";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { sessionUser } from "@/lib/session";
 
 /**
  * 이 사람이 첫 화면으로 가야 할 곳.
@@ -23,7 +24,7 @@ const HOME = {
 async function goHome(supabase, router) {
   let to = "/me";
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await sessionUser(supabase);
     if (user) {
       const { data } = await supabase
         .from("profiles").select("role").eq("id", user.id).maybeSingle();

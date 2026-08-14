@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { inQuiet, nowMinsSeoul, DEFAULT_QUIET } from "@/lib/quiet";
 // 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
 import { isStaff as isStaffRole } from "@/lib/roles";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **알림이 안 올 때, 어디서 막혔는지 그 자리에서 읽는다.**
@@ -40,9 +41,7 @@ async function ran(supabase, rpc) {
 
 export async function pushDiag() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { role: null, steps: [line("로그인", "bad", "로그인이 안 되어 있습니다.")] };
 
   const { data: profile } = await supabase

@@ -14,6 +14,7 @@ import { makeMockBook } from "@/app/prep/actions";
 import { schoolKey, looseKey } from "@/lib/schoolName";
 import { requireStaff } from "@/lib/guard";
 import { needSql } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 const SQL = "0059 SQL 을 먼저 실행해주세요.";
 
@@ -305,9 +306,7 @@ export async function importSchedule(from, to, schoolId = null) {
   );
   if (targets.length === 0) return { error: "먼저 학교를 등록해주세요." };
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let added = 0;
   let examAdded = 0;
@@ -796,9 +795,7 @@ export async function addExamPeriods(list = [], sweep = null) {
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   // 내가 이미 들고 있는 시험들 — 겹치면 여기에 붙인다
   let { data: existing } = await supabase
@@ -1667,9 +1664,7 @@ export async function addFromSite(schoolName, rows = []) {
   const want = (rows || []).filter((r) => r?.date && r?.title);
   if (want.length === 0) return { error: null, added: 0 };
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const { data: had } = await supabase
     .from("exam_periods").select("id, school, from_date, to_date, hidden");

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { pageAll } from "@/lib/pageAll";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **노션에서 옮긴 것만 골라 지운다.**
@@ -32,7 +33,7 @@ const TABLES = {
 };
 
 async function principalOnly(supabase) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return "로그인이 필요해요.";
   const { data: p } = await supabase
     .from("profiles").select("role").eq("id", user.id).maybeSingle();

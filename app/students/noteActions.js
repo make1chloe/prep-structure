@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { noTable } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 export async function listNotes(studentId) {
   if (!studentId) return { rows: [], error: null };
@@ -23,7 +24,7 @@ export async function listNotes(studentId) {
 export async function saveNote(studentId, note = {}) {
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const row = {
     student_id: studentId,

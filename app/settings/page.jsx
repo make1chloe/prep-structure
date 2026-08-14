@@ -11,6 +11,7 @@ import AiBox from "./sql/AiBox";
 import { checkSchema } from "./sql/status";
 import { loadSettings, maskSecret } from "@/lib/settings";
 import { inquiryAlertReady, inquiryAlertName } from "@/app/apply/notify";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +32,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

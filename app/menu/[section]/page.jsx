@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { findSection } from "@/lib/menu";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,7 @@ export default async function MenuSection({ params }) {
   if (!section || section.items.length === 0) notFound();
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   let profile = null;
   if (user) {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();

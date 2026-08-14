@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { MOCK_SPEC } from "@/lib/examSpec";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **기본 문항표 저장** (원장님, 2026-08-06 —
@@ -54,9 +55,7 @@ export async function resetSpec(kind) {
 export async function saveExamQuestions(examId, rows) {
   if (!examId) return { error: "어느 시험인지 골라주세요." };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const list = (rows || [])
     .map((r) => ({

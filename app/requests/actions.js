@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -18,9 +19,7 @@ export async function createRequest(input) {
   if (kind === "absence" && !fromDate) return { error: "날짜를 골라주세요." };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const { data: whoAmI } = user
     ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
@@ -94,9 +93,7 @@ export async function createRequest(input) {
 export async function handleRequest(id, accept, reply, makeup) {
   if (!id) return { error: "id 없음" };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   // 0108 전 DB 에서도 돌아야 한다 — 새 칸이 없으면 그것만 빼고 다시 묻는다
   const BASE = "id, student_id, kind, from_date, to_date, body, reply";

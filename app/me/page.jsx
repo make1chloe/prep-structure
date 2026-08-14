@@ -1,3 +1,4 @@
+import { sessionUser } from "@/lib/session";
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { showsTo } from "@/lib/notices";
@@ -51,9 +52,7 @@ const dayLabel = fmtLong;
 
 export default async function MePage({ searchParams }) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) redirect("/login");
 
   let { data: profile, error: profErr } = await supabase

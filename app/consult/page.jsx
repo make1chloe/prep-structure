@@ -5,14 +5,13 @@ import AddInquiryForm from "./AddInquiryForm";
 import ApplyLink from "./ApplyLink";
 import ConsultBoard from "./ConsultBoard";
 import { schoolNames } from "@/lib/schoolList";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConsultPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

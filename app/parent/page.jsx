@@ -33,6 +33,7 @@ import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
 import { STAFF_ROLES as STAFF } from "@/lib/roles";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -68,9 +69,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ParentPage({ searchParams }) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) redirect("/login");
 
   let { data: profile, error: profErr } = await supabase

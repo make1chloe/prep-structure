@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sessionUser } from "@/lib/session";
 
 /**
  * 메뉴를 내 손에 맞게 (0067).
@@ -14,9 +15,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function saveMenuPrefs(hidden, order) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
   const row = {

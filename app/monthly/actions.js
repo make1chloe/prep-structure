@@ -9,6 +9,7 @@ import { pushToFamilies } from "@/app/push/actions";
 import { endOfMonth } from "@/lib/day";
 import { takesExam } from "@/lib/who";
 import { needSql } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 /** "2026-07" → "2026-06" */
 function prevYm(ym) {
@@ -161,9 +162,7 @@ export async function loadMonth(ym) {
 export async function saveMonthly(studentId, ym, patch = {}) {
   if (!studentId || !ym) return { error: "값이 부족해요." };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const row = { student_id: studentId, ym, created_by: user?.id || null };
   if ("text" in patch) row.text = (patch.text || "").trim() || null;

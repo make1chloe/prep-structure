@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **아이가 자기 시험 결과를 적는다** (원장님, 2026-08-06 —
@@ -24,9 +25,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /** 로그인한 사람의 학생 줄 (없으면 null) */
 async function meOf(supabase) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return null;
   const { data } = await supabase
     .from("students")

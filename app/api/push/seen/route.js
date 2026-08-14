@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sessionUser } from "@/lib/session";
 
 /**
  * 알림이 폰에 닿았거나, 눌러서 열렸을 때 (0105).
@@ -21,9 +22,7 @@ export async function POST(request) {
     if (!r) return NextResponse.json({}, { status: 204 });
 
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await sessionUser(supabase);
     if (!user) return NextResponse.json({}, { status: 204 });
 
     await supabase.rpc("mark_push_seen", { p_id: r, p_opened: !!opened });

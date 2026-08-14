@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -59,9 +60,7 @@ export async function addTodo(input) {
   if (!t) return { error: "할 일을 적어주세요." };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const row = {
     title: t,

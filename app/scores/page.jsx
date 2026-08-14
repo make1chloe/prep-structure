@@ -7,14 +7,13 @@ import MissingBox from "./MissingBox";
 import { missingScores } from "@/lib/menuBadges";
 import { schoolNames } from "@/lib/schoolList";
 import { hiddenExamIds } from "@/lib/schedule";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ScoresPage({ searchParams }) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

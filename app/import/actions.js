@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isRealDate } from "@/lib/importNotion";
 import { noTable } from "@/lib/sqlError";
 import { noColumn } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **한 줄이 전체를 죽이지 않게** (2026-08-06).
@@ -470,9 +471,7 @@ export async function importNotes(rows) {
   }
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   const students = await studentMap(supabase);
 
   /**
@@ -574,9 +573,7 @@ export async function importInquiries(rows) {
   }
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   // 반 — 요일 묶음 + 시작시각으로 찾는다 (이름은 「월수1」 이라 안 맞는다)
   const { data: classes } = await supabase.from("classes").select("id, name, days, start_time");
@@ -668,7 +665,7 @@ export async function importUnitScores(rows) {
   }
 
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   const students = await studentMap(supabase);
 
   const skipped = [...badDates];
@@ -733,7 +730,7 @@ export async function importWrongAnswers(rows) {
   }
 
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   const students = await studentMap(supabase);
 
   const skipped = [...badDates];

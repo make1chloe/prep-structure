@@ -13,6 +13,7 @@ import { SUPABASE_URL } from "@/lib/supabase/env";
 import StepBox from "./StepBox";
 import SchemaList from "./SchemaList";
 import ApplyBox from "./ApplyBox";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +26,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function SqlPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

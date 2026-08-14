@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { isMockExam } from "@/lib/examList";
 import { createClient } from "@/lib/supabase/server";
 import { toTeachers } from "@/lib/exams";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -15,9 +16,7 @@ export async function addExam(input) {
   const { school, grade, name, from, to } = input || {};
   if (!school || !from) return { error: "학교와 시작일을 넣어주세요." };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   const { error } = await supabase.from("exam_periods").insert({
     school: school.trim(),
     grade: (grade || "").trim() || null,
@@ -257,9 +256,7 @@ export async function makeExamEveSession(input) {
   const { date, school, grade, classId, englishOn } = input || {};
   if (!date) return { error: "날짜가 없어요." };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const who = [school, grade].filter(Boolean).join(" ");
   const { data: exist } = await supabase

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { listAlimtalkTemplates } from "@/lib/send";
 import { needSql } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 const NEED = "0029 SQL 을 먼저 실행해주세요.";
 
@@ -139,9 +140,7 @@ export async function deleteMessage(id) {
  */
 export async function listApprovedTemplates() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { rows: [], error: "로그인이 필요해요." };
   const { data: p } = await supabase
     .from("profiles").select("role").eq("id", user.id).maybeSingle();

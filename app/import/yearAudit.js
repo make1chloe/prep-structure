@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { auditRows, summarize, attendanceAhead } from "@/lib/yearAudit";
 import { pageAll } from "@/lib/pageAll";
+import { sessionUser } from "@/lib/session";
 
 /**
  * **이미 들어간 자료의 연도를 훑는다** (아무것도 안 바꾼다).
@@ -38,9 +39,7 @@ const TARGETS = [
 
 export async function auditYears() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요.", audits: [] };
   const { data: p } = await supabase
     .from("profiles").select("role").eq("id", user.id).maybeSingle();

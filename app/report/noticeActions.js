@@ -8,6 +8,7 @@ import { autoValues, buildVariables } from "@/lib/alimtalk";
 import { INQUIRY, IN_APP_DETAIL, noticeKindOf, noticeLabel, postAppNotices } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { longLabel, todaySeoul } from "@/lib/day";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -174,7 +175,7 @@ export async function sendNotices(items, label, templateId) {
 
   const supabase = createClient();
   const settings = await loadSettings(supabase);
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   const kind = label || "notice";
   const today = todaySeoul();
 

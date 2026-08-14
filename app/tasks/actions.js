@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { inTarget, sameGrade } from "@/lib/who";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -19,9 +20,7 @@ export async function addTask(formData) {
   if (!title) return;
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const row = {
     title,

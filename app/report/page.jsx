@@ -11,14 +11,13 @@ import { loadReportRows } from "@/lib/reportData";
 import { loadSettings } from "@/lib/settings";
 import { channelPlan } from "@/lib/alimtalk";
 import { todaySeoul } from "@/lib/day";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportPage({ searchParams }) {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

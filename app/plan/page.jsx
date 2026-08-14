@@ -5,6 +5,7 @@ import MakeupInbox from "@/app/MakeupInbox";
 import MakeupAnswers from "@/app/MakeupAnswers";
 import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { todaySeoul } from "@/lib/day";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +39,7 @@ export const dynamic = "force-dynamic";
 export default async function AttendancePage() {
   const supabase = createClient();
   const today = todaySeoul();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

@@ -21,25 +21,41 @@ export const dynamic = "force-dynamic";
 
 export default async function TextbooksPage({ searchParams }) {
   const supabase = createClient();
+  // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user || null;
 
-  let profile = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-    profile = data;
-  }
+  // **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층)
+  const [profileQ, tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("textbooks")
+      .select("id, name, area, target_grade, total_pages, price, word_range, words_irregular, status, purchase_url, feature, created_at")
+      .order("created_at", { ascending: false }),
+    supabase.from("textbook_units").select("textbook_id, label"),
+    supabase
+      .from("student_textbooks")
+      .select("textbook_id, student_id, status")
+      .neq("status", "dropped"),
+    supabase
+      .from("homework_items")
+      .select("id, name, sort, category")
+      .eq("active", true)
+      .order("sort", { ascending: true }),
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .eq("status", "enrolled")
+      .order("name", { ascending: true }),
+  ]);
+  const profile = profileQ?.data || null;
 
   // word_range 컬럼이 아직 없는 DB에서도 목록이 보이도록, 실패하면 기본 컬럼만 다시 조회
-  let { data: textbooks, error: tbError } = await supabase
-    .from("textbooks")
-    .select("id, name, area, target_grade, total_pages, price, word_range, words_irregular, status, purchase_url, feature, created_at")
-    .order("created_at", { ascending: false });
+  let { data: textbooks, error: tbError } = tbQ1;
   if (tbError) {
     // 0070 전이면 '불규칙' 없이
     ({ data: textbooks, error: tbError } = await supabase
@@ -56,9 +72,7 @@ export default async function TextbooksPage({ searchParams }) {
 
   // 교재별 단원 개수 — 어느 교재를 아직 안 채웠는지 한눈에 보기 위해
   // 활동 이름도 여기서 모은다 (한 번 적은 것은 다음부터 골라 쓸 수 있게)
-  const { data: allUnits } = await supabase
-    .from("textbook_units")
-    .select("textbook_id, label");
+  const { data: allUnits } = allUnitsQ;
   const unitCount = {};
   (allUnits || []).forEach((u) => {
     unitCount[u.textbook_id] = (unitCount[u.textbook_id] || 0) + 1;
@@ -69,10 +83,7 @@ export default async function TextbooksPage({ searchParams }) {
   // 어느 쪽을 남길지 정하려면 **쓰는 학생 수**를 알아야 한다.
   // 학생 id 도 같이 받는다 — 아래 「이 교재를 쓰는 학생」이 쓴다.
   // 한 번 물어본 것을 두 번 묻지 않는다 (같은 표를 두 번 읽으면 두 답이 갈린다)
-  const { data: assigned } = await supabase
-    .from("student_textbooks")
-    .select("textbook_id, student_id, status")
-    .neq("status", "dropped");
+  const { data: assigned } = assignedQ;
   const useCount = {};
   (assigned || []).forEach((r) => {
     useCount[r.textbook_id] = (useCount[r.textbook_id] || 0) + 1;
@@ -101,11 +112,7 @@ export default async function TextbooksPage({ searchParams }) {
 
   // 분류(category)도 받아온다 — 루틴에서 항목을 고를 때 마흔몇 개를 한 덩어리로
   // 펴 놓으면 눈이 멈출 데가 없다. 분류로 묶어서 보여준다
-  let { data: hwItems, error: hwErr } = await supabase
-    .from("homework_items")
-    .select("id, name, sort, category")
-    .eq("active", true)
-    .order("sort", { ascending: true });
+  let { data: hwItems, error: hwErr } = hwQ1;
   if (hwErr) {
     ({ data: hwItems } = await supabase
       .from("homework_items")
@@ -116,11 +123,7 @@ export default async function TextbooksPage({ searchParams }) {
 
   // 교재에 학생을 붙이려면 재원생 명단이 있어야 한다.
   // 그만둔 아이까지 늘어놓으면 고를 때마다 눈으로 걸러야 한다.
-  let { data: students, error: stuErr } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("status", "enrolled")
-    .order("name", { ascending: true });
+  let { data: students, error: stuErr } = studentsQ;
   if (stuErr) students = [];
 
   const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;

@@ -4,14 +4,13 @@ import Help from "@/components/Help";
 import VideoBoard from "./VideoBoard";
 import { rollup } from "@/lib/video";
 import YoutubeKeyBox from "./YoutubeKeyBox";
+import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function VideosPage() {
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   let profile = null;
   if (user) {

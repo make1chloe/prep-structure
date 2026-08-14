@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { todaySeoul } from "@/lib/day";
 import { planAssign } from "@/lib/bookAssign";
+import { sessionUser } from "@/lib/session";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -463,9 +464,7 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
   if (sum !== 100) return { error: `합이 100%가 되어야 해요. 지금 ${sum}%입니다.` };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const { error } = await supabase
     .from("word_test_settings")

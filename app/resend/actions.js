@@ -6,6 +6,7 @@ import { IN_APP_DETAIL, noticeLabel, postAppNotices } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { todaySeoul } from "@/lib/day";
 import { noColumn } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 const NEED_SQL = "0013 SQL을 먼저 실행해주세요.";
 
@@ -69,9 +70,7 @@ export async function resend(items, kind) {
   if (list.length === 0) return { error: null, count: 0 };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const k = KINDS[kind] ? kind : "report";
   const channel = "app";

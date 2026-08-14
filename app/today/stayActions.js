@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { noTable } from "@/lib/sqlError";
+import { sessionUser } from "@/lib/session";
 
 // ============================================================
 // 늦귀가 과제
@@ -23,9 +24,7 @@ export async function addStay(studentId, date, body, homeworkItemId, auto = fals
     return { error: "알 수 없는 상태예요." };
   }
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   // 같은 날 같은 내용이 이미 있으면 또 만들지 않는다 (자동 부여가 겹칠 수 있다)
   const { data: exist } = await supabase
@@ -107,9 +106,7 @@ export async function deleteStay(id) {
 export async function waiveWarning(studentId, targetDate, note) {
   if (!studentId || !targetDate) return { error: "값이 부족해요." };
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("warning_actions").insert({
     student_id: studentId,
@@ -138,9 +135,7 @@ export async function settleWarnings(studentId, kind, onDate, note) {
   if (!["reflection", "defer", "reset"].includes(kind)) return { error: "알 수 없는 처리예요." };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("warning_actions").insert({
     student_id: studentId,
@@ -172,9 +167,7 @@ export async function resetMonthlyWarnings(studentIds, onDate, note) {
   if (ids.length === 0) return { error: null, count: 0 };
 
   const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await sessionUser(supabase);
   const on = onDate || todaySeoul();
 
   const { error } = await supabase.from("warning_actions").insert(
