@@ -32,6 +32,8 @@ async function bye() {
     .getAll()
     .filter((c) => c.name.startsWith("sb-"))
     .forEach((c) => res.cookies.set(c.name, "", { path: "/", maxAge: 0 }));
+  // 역할 캐시도 지운다 — 다음 사람이 이 브라우저로 로그인할 수 있다
+  res.cookies.set("app-role", "", { path: "/", maxAge: 0 });
   return res;
 }
 

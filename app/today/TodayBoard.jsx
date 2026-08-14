@@ -57,19 +57,47 @@ export default function TodayBoard({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  /**
+   * **누르면 0.1초 안에 바뀌어야 한다** (원장님, 2026-08-14).
+   *
+   * 지금까지는 출결 하나를 찍으면 저장 → 화면 전체 재계산이 끝날 때까지
+   * 표시가 안 바뀌었다. 서버 왕복은 아무리 줄여도 0.1초가 안 되므로,
+   * **화면을 먼저 바꾸고 저장은 뒤에서** 한다. 실패하면 되돌리고 알린다.
+   * (진도 칩이 이미 이 방식이다 — 같은 규칙을 출결에도)
+   */
+  const [opt, setOpt] = useState({});
+  const optKey = (sid, extra) => `${sid}|${extra || ""}`;
+  const stOf = (r) =>
+    optKey(r.student.id, r.extraClassId) in opt
+      ? opt[optKey(r.student.id, r.extraClassId)]
+      : r.status;
+  const paint = (sid, extra, status) =>
+    setOpt((prev) => ({ ...prev, [optKey(sid, extra)]: status }));
+  const unpaint = (sid, extra) =>
+    setOpt((prev) => {
+      const n = { ...prev };
+      delete n[optKey(sid, extra)];
+      return n;
+    });
+
   // 특강이면 그 반 출결에만 찍는다. 정규는 예전 그대로 그날 출결에 찍는다.
   //
   // **같은 것을 다시 누르면 취소된다.** 잘못 눌렀을 때 되돌릴 방법이 없으면
   // 안 눌러보게 된다. 등원·지각·결석 다 똑같이 동작해야 헷갈리지 않는다.
   function mark(studentId, status, extraClassId = null, now = null) {
     const off = now === status;
+    paint(studentId, extraClassId, off ? null : status);   // 먼저 그린다
     startTransition(async () => {
       const res = extraClassId
         ? await setClassAttendance(extraClassId, studentId, date, off ? null : status)
         : off
           ? await clearAttendance(studentId, date)
           : await setAttendance(studentId, date, status);
-      if (res?.error) alert(res.error);
+      if (res?.error) {
+        unpaint(studentId, extraClassId);                  // 실패하면 되돌린다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -105,6 +133,7 @@ export default function TodayBoard({
     });
   }
   function undo(studentId, extraClassId = null) {
+    paint(studentId, extraClassId, null);                  // 먼저 그린다
     startTransition(async () => {
       if (extraClassId) await setClassAttendance(extraClassId, studentId, date, null);
       else await clearAttendance(studentId, date);
@@ -124,7 +153,7 @@ export default function TodayBoard({
   const counts = {
     todo: all.filter((r) => !isDone(r)).length,
     done: all.filter(isDone).length,
-    absent: all.filter((r) => r.status === "absent").length,
+    absent: all.filter((r) => stOf(r) === "absent").length,
     makeup: all.filter((r) => r.isMakeup).length,
   };
 
@@ -170,7 +199,7 @@ export default function TodayBoard({
             filter === "todo"
               ? [...todo].sort(byArrived)
               : filter === "absent"
-              ? rows.filter((r) => r.status === "absent")
+              ? rows.filter((r) => stOf(r) === "absent")
               : filter === "makeup"
               ? rows.filter((r) => r.isMakeup)
               : rows;
@@ -214,7 +243,7 @@ export default function TodayBoard({
                     * 줄에 다 있다 — 여기는 「전부 정시」 하나면 된다.
                     */}
                   {(() => {
-                    const notYet = rows.filter((r) => !r.status);
+                    const notYet = rows.filter((r) => !stOf(r));
                     if (notYet.length === 0) return null;
                     // 결석 예정인 아이는 「전부 정시」 에서 뺀다 — 눌렀다가
                     // 결석 예정이 정시로 뒤집히면 아무도 모른다
@@ -310,9 +339,9 @@ export default function TodayBoard({
                               );
                             })()}
                             <span className="spacer" />
-                            {r.status ? (
+                            {stOf(r) ? (
                               <span
-                                className={`tag ${CLS[r.status]}`}
+                                className={`tag ${CLS[stOf(r)]}`}
                                 style={{ cursor: "pointer" }}
                                 onClick={(e) => { e.stopPropagation(); undo(r.student.id, r.extraClassId); }}
                                 title={
@@ -325,7 +354,7 @@ export default function TodayBoard({
                                     : "누르면 출결이 취소돼요"
                                 }
                               >
-                                {LABEL[r.status]}
+                                {LABEL[stOf(r)]}
                                 {r.attendAt
                                   ? ` ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
                                       timeZone: "Asia/Seoul",
@@ -351,7 +380,7 @@ export default function TodayBoard({
                               >
                                 완료
                               </span>
-                            ) : r.status ? (
+                            ) : stOf(r) ? (
                               <span className="tag tag-amber">기록 전</span>
                             ) : null}
                             {(() => {
@@ -428,7 +457,7 @@ export default function TodayBoard({
                           <div key={r.student.id} className="stuLine" style={{ cursor: "default" }}>
                             <span style={{ fontWeight: 600 }}>{r.student.name}</span>
                             <span className="spacer" />
-                            <span className={`tag ${CLS[r.status]}`}>{LABEL[r.status]}</span>
+                            <span className={`tag ${CLS[stOf(r)]}`}>{LABEL[stOf(r)]}</span>
                             <button
                               className="btn btn-ghost btn-sm"
                               onClick={() => reopen(r.student.id)}
@@ -511,7 +540,7 @@ export default function TodayBoard({
       {(() => {
         const all = groups.flatMap((g) => g.rows);
         const ready = all.filter((r) => r.reportWritten).length;
-        const left = all.filter((r) => r.status && !isDone(r)).length;
+        const left = all.filter((r) => stOf(r) && !isDone(r)).length;
         if (ready === 0) return null;
         return (
           <div className="card" style={{ marginTop: 12 }}>

@@ -16,19 +16,12 @@ export const dynamic = "force-dynamic";
 
 export default async function TodayPage({ searchParams }) {
   const supabase = createClient();
+  // 로그인 확인은 쿠키로 (미들웨어와 같은 까닭 — getUser 는 요청마다
+  // 인증 서버 왕복이다). 프로필 조회는 아래 파도 1 에 같이 태운다.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let profile = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-    profile = data;
-  }
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user || null;
 
   // 오늘(서울) 기준 날짜와 요일
   const date = searchParams?.d || todaySeoul();
@@ -55,6 +48,7 @@ export default async function TodayPage({ searchParams }) {
    * 기다리느라 매일 여는 화면이 늦어질 이유가 없다.
    */
   const [
+    profileQ,
     ,                 // purge — 결과는 안 쓴다 (실패해도 수업은 열려야 한다)
     allClasses,
     membersQ,
@@ -79,6 +73,9 @@ export default async function TodayPage({ searchParams }) {
     unreadCmtQ,
     actQ1,
   ] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
     purgeOncePerDay().catch(() => null),
     // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
     loadRunningClasses(
@@ -167,6 +164,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
   ]);
 
+  const profile = profileQ?.data || null;
   const classes = allClasses
     .filter((c) => (c.days || []).includes(dow))
     .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
