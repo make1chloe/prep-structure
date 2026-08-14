@@ -198,7 +198,13 @@ export default function BookProgress({
           {noUnits && (
             <div className="stack" style={{ gap: 6 }}>
               <span className="hint">
-                이 교재는 아직 단원이 없어요. 단원을 만들기 전까지는 페이지로 진도를 적을 수 있어요.
+                이 교재는 아직 단원이 없어요. 단원을 만들기 전까지는 페이지로 진도를 적을 수 있어요.{" "}
+                {/* 원장님 (2026-08-14): 「교재 진도 입력하는 게 계속 페이지야」 —
+                    페이지로만 나오는 이유와 벗어나는 길을 그 자리에서 알려준다 */}
+                <a href={`/textbooks?tb=${book.id}`} style={{ fontWeight: 700 }}>
+                  단원 만들러 가기 →
+                </a>{" "}
+                (「⚡ 단원 한 번에 만들기」 로 Unit 1~N 을 한 번에)
               </span>
               <div className="row" style={{ gap: 6, alignItems: "center" }}>
                 <span className="hint">지금</span>
