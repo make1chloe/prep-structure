@@ -41,26 +41,35 @@ export default async function AttendancePage() {
   const today = todaySeoul();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
-  }
-
-  const { data: classes } = await supabase
-    .from("classes")
-    .select("id, name, days, start_time")
-    .order("start_time", { ascending: true });
-
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id");
-
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("status", "enrolled")
-    .order("name", { ascending: true });
+  // **파도** — 서로 필요한 것이 없는 조회를 한꺼번에 (속도 대원칙)
+  const [profileQ, classesQ, membersQ, studentsQ, absQ, makeupTodo, probe] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("*").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("classes")
+      .select("id, name, days, start_time")
+      .order("start_time", { ascending: true }),
+    supabase.from("class_students").select("class_id, student_id"),
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .eq("status", "enrolled")
+      .order("name", { ascending: true }),
+    supabase
+      .from("attendance")
+      .select("student_id, date, reason, note, status, makeup_of")
+      .in("status", ["absent", "makeup"])
+      .gte("date", today)
+      .order("date", { ascending: true })
+      .limit(200),
+    loadMakeupTodo(supabase, today),
+    supabase.from("attendance").select("planned").limit(1),
+  ]);
+  const profile = profileQ?.data || null;
+  const { data: classes } = classesQ;
+  const { data: members } = membersQ;
+  const { data: students } = studentsQ;
 
   const daysOf = new Map((classes || []).map((c) => [c.id, c.days || []]));
   const classIdsOf = new Map();
@@ -87,13 +96,7 @@ export default async function AttendancePage() {
    * 오늘 것도 넣는다. 아침에 「오늘 못 간다」 연락이 오고 저녁에 「그냥
    * 보낼게요」 가 오는 일이 실제로 있다.
    */
-  const { data: absRaw } = await supabase
-    .from("attendance")
-    .select("student_id, date, reason, note, status, makeup_of")
-    .in("status", ["absent", "makeup"])
-    .gte("date", today)
-    .order("date", { ascending: true })
-    .limit(200);
+  const { data: absRaw } = absQ;
 
   const absences = (absRaw || []).filter((r) => r.status === "absent");
   // 결석 하나에 보강이 잡혀 있나 — 「결석만 무르면 보강이 남는다」 를 말해주려고
@@ -105,10 +108,10 @@ export default async function AttendancePage() {
   const nameOf = Object.fromEntries((students || []).map((s) => [s.id, s.name]));
 
   // 보강 잡을 것 — 셈은 lib/makeupTodo.js 한 군데에 있다 (대시보드도 같은 것을 쓴다)
-  const makeupTodo = await loadMakeupTodo(supabase, today);
+
 
   // planned 컬럼 유무 확인 (0017 실행 여부)
-  const probe = await supabase.from("attendance").select("planned").limit(1);
+
   const planReady = !probe.error;
 
   return (

@@ -300,6 +300,8 @@ runjs scripts/check-align.mjs
 runjs scripts/check-lists.mjs
 # 글씨가 읽을 수 있는 크기인가 (원장님: 「나 노안이라」)
 runjs scripts/check-fontsize.mjs
+# 속도 대원칙 (원칙 6) — 파도·쿠키 세션·낙관 칩·배지 메모가 무너지지 않았나
+runjs scripts/check-speed.mjs
 
 echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="

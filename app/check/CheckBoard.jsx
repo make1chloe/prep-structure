@@ -44,10 +44,22 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  /**
+   * **찍는 순간 바뀐다** (2026-08-14 「0.1초 반응」 — 출결·진도 칩과 같은
+   * 규칙). 숙제 검사는 하루에 수십 번 누르는 자리라, 저장 → 재계산을
+   * 기다리면 그 수십 번이 전부 기다림이 된다. 화면을 먼저 칠하고 저장은
+   * 뒤에서. 실패하면 되돌리고 알린다.
+   */
+  const [optMark, setOptMark] = useState({});     // `${sid}:${itemId}` → status
+  const markOf = (r, itemId) => {
+    const k = `${r.student.id}:${itemId}`;
+    return k in optMark ? optMark[k] : r.marks[itemId] || null;
+  };
+
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "숙제";
 
   // 아직 안 찍은 숙제가 있으면 '남은 학생'
-  const left = (r) => r.toCheck.filter((c) => !r.marks[c.id]);
+  const left = (r) => r.toCheck.filter((c) => !markOf(r, c.id));
   const unseen = (r) => r.subs.filter((s) => !s.checked_at);
 
   const shown = useMemo(() => {
@@ -91,11 +103,15 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
   /** 한 항목을 찍는다 — 그 항목에 딸린 제출물도 같이 '봤다' 로 */
   function mark(r, itemId, status) {
     const key = `${r.student.id}:${itemId}`;
+    setOptMark((m) => ({ ...m, [key]: status }));      // 먼저 칠한다
     const mySubs = r.subs
       .filter((s) => !s.checked_at && (!s.homework_item_id || s.homework_item_id === itemId))
       .map((s) => s.id);
     run(async () => {
       const res = await checkOne(r.student.id, date, itemId, status, note[key] ?? r.notes[itemId] ?? "", mySubs);
+      if (res?.error) {
+        setOptMark((m) => { const n2 = { ...m }; delete n2[key]; return n2; });   // 실패 — 되돌린다
+      }
       if (!res?.error) setNote((n) => ({ ...n, [key]: undefined }));
       return res;
     });
@@ -166,6 +182,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
           setKlass={setKlass}
           pickItem={pickItem}
           setPickItem={setPickItem}
+          markOf={markOf}
           nameOf={nameOf}
           mark={mark}
           pending={pending}
@@ -299,7 +316,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                         )}
                         {r.toCheck.map((c) => {
                           const key = `${r.student.id}:${c.id}`;
-                          const cur = r.marks[c.id] || null;
+                          const cur = markOf(r, c.id);
                           // 이 숙제로 낸 것 (사진·녹음) — 위 목록과 같은 것이지만
                           // 여기 붙여야 눈이 위아래로 안 오간다
                           const mine = (r.subs || []).filter((x) => x.homework_item_id === c.id);
@@ -328,7 +345,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                                   </span>
                                 )}
                                 {/* 낼 숙제인데 안 냈다 */}
-                                {c.noSub && !r.marks[c.id] && (
+                                {c.noSub && !markOf(r, c.id) && (
                                   <span className="tag tag-red" title="내야 하는 숙제인데 올라온 것이 없습니다">
                                     안 냄
                                   </span>
@@ -498,7 +515,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
  */
 function ItemMode({
   date, rows, items, classes, klass, setKlass, pickItem, setPickItem,
-  nameOf, mark, pending,
+  nameOf, mark, markOf, pending,
 }) {
   // 반을 안 고르면 첫 반으로 — 몰아 찍기는 한 반을 보는 화면이다
   const cid = klass || classes[0]?.id || "";
@@ -509,7 +526,7 @@ function ItemMode({
   const choices = items.filter((i) => itemIds.includes(i.id));
   const item = pickItem && itemIds.includes(pickItem) ? pickItem : choices[0]?.id || "";
 
-  const left = mine.filter((r) => r.toCheck.some((c) => c.id === item) && !r.marks[item]).length;
+  const left = mine.filter((r) => r.toCheck.some((c) => c.id === item) && !markOf(r, item)).length;
 
   return (
     <>
@@ -551,7 +568,7 @@ function ItemMode({
         <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
           {mine.map((r) => {
             const c = r.toCheck.find((x) => x.id === item);
-            const cur = r.marks[item] || null;
+            const cur = markOf(r, item);
             return (
               <div className="unitrow" key={r.student.id} style={{ padding: "9px 14px" }}>
                 <b style={{ fontSize: 15, minWidth: 76 }}>{r.student.name}</b>
