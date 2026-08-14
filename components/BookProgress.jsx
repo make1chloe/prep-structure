@@ -376,8 +376,34 @@ export default function BookProgress({
                 </div>
               )}
               <div className="stack" style={{ gap: 4 }}>
-                {groupByParent(units, q).map(([head, list]) => (
+                {annotateBigs(groupByParent(units, q)).map(({ head, list, big, bigFirst, bigIds }) => (
                   <div className="hwgroup" key={head || "_"}>
+                    {/**
+                      * **대단원 통째로** (원장님, 2026-08-14 — 「그래도 대단원
+                      * 자체를 통째로 선택하는 게 안 돼」). 소단원까지 있는
+                      * 교재는 묶음 머리가 「대단원 › 중단원」 이라, 머리를
+                      * 눌러도 중단원 하나만 담겼다. 대단원이 여러 묶음으로
+                      * 쪼개졌을 때만 그 첫 묶음 위에 통째 단추를 단다.
+                      */}
+                    {bigFirst && selMode && (
+                      <div className="row" style={{ marginBottom: 2 }}>
+                        <button
+                          className="tag tag-lav hwcat"
+                          style={{ width: "auto", cursor: "pointer", border: 0, fontFamily: "inherit", fontWeight: 800 }}
+                          title="이 대단원의 소단원 전체를 담거나 뺍니다"
+                          onClick={() => {
+                            setSelUnits((prev) => {
+                              const n = new Set(prev);
+                              const all = bigIds.every((x) => n.has(x));
+                              bigIds.forEach((x) => (all ? n.delete(x) : n.add(x)));
+                              return n;
+                            });
+                          }}
+                        >
+                          {bigIds.every((x) => selUnits.has(x)) ? "☑" : "☐"} {big} 통째로
+                        </button>
+                      </div>
+                    )}
                     {/**
                       * 고르기 모드에서는 **대단원 머리가 단추다** (원장님,
                       * 2026-08-14 — 「대단원 전체를 선택할 수 있게. 선택을
@@ -488,6 +514,30 @@ export default function BookProgress({
 }
 
 // 소단원을 그 위 단원(대/중) 이름으로 묶는다. kw 가 있으면 걸러서 묶는다
+/**
+ * 묶음마다 대단원 이름을 붙이고, 한 대단원이 **여러 묶음으로 쪼개졌을 때**
+ * 첫 묶음에 bigFirst 표시 + 그 대단원 소단원 전체 id 를 실어준다.
+ * (한 묶음뿐이면 묶음 머리 단추가 이미 대단원 전체라 통째 단추가 필요 없다)
+ */
+function annotateBigs(groups) {
+  const rows = groups.map(([head, list]) => ({
+    head,
+    list,
+    big: head && head.includes(" › ") ? head.split(" › ")[0] : "",
+  }));
+  const count = new Map();
+  rows.forEach((g) => { if (g.big) count.set(g.big, (count.get(g.big) || 0) + 1); });
+  let prev = null;
+  rows.forEach((g) => {
+    g.bigFirst = !!g.big && g.big !== prev && (count.get(g.big) || 0) > 1;
+    g.bigIds = g.bigFirst
+      ? rows.filter((x) => x.big === g.big).flatMap((x) => x.list.map((u) => u.id))
+      : [];
+    prev = g.big || null;
+  });
+  return rows;
+}
+
 function groupByParent(units = [], kw = "") {
   const m = new Map();
   const q = (kw || "").trim().toLowerCase();
