@@ -34,6 +34,15 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
   const [round, setRound] = useState(null);      // 지금 몇 회독째
   const [q, setQ] = useState("");                // 단원 검색
   const [noteFor, setNoteFor] = useState(null);  // 메모를 적는 중인 단원
+  /**
+   * **골라서 한 번에** (원장님, 2026-08-14 — 「체크박스를 이용한 완료
+   * 여부를 일괄적으로 바꿀 수 있게 하면 안될까?」).
+   *
+   * 순차로 안 나가는 교재는 완료가 띄엄띄엄이다 — 하나씩 세 단계 사이클로
+   * 맞추려면 손이 많이 간다. 목록은 전체선택 → 일괄처리 (원칙 5-3).
+   */
+  const [selMode, setSelMode] = useState(false);
+  const [selUnits, setSelUnits] = useState(() => new Set());
   const [noteDraft, setNoteDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -114,6 +123,26 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
     });
   }
 
+  function markMany(status) {
+    const ids = [...selUnits];
+    if (ids.length === 0) return;
+    // 화면 먼저 (수업 중 기다리지 않게) — 실패하면 다시 읽어온다
+    setUnits((list) =>
+      (list || []).map((u) => (selUnits.has(u.id) ? { ...u, status: status || "" } : u))
+    );
+    setSelUnits(new Set());
+    setSelMode(false);
+    startTransition(async () => {
+      const res = await setUnitProgress(studentId, ids, status || null);
+      if (res?.error) {
+        alert(res.error);
+        load();
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function savePage() {
     startTransition(async () => {
       const res = await setCurrentPage(studentId, book.id, page);
@@ -186,6 +215,23 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
           )}
           {leaves.length > 0 && (
             <>
+              {/**
+                * **지금 하는 곳** (원장님, 2026-08-14 — 「순차적으로 진도를
+                * 안 나간 교재들도 있어서 그 부분 고려해 줘」).
+                *
+                * 순차로 나가는 교재는 마지막 ○ 다음이 오늘 자리지만, 건너뛰며
+                * 나가는 교재는 ○ 가 흩어져 있어 **오늘 어디인지가 안 보인다.**
+                * 그래서 ◐(하는 중)로 찍은 단원을 맨 위에 이름으로 박아준다 —
+                * 오늘 시작할 때 ◐ 를 찍어두면, 다음에 열어도 바로 보인다.
+                */}
+              {leaves.some((u) => u.status === "doing") && (
+                <div className="row" style={{ gap: 5, marginBottom: 6, alignItems: "center" }}>
+                  <span className="tag tag-amber">◐ 지금 하는 곳</span>
+                  <b style={{ fontSize: 13.5 }}>
+                    {leaves.filter((u) => u.status === "doing").map((u) => u.name).join(" · ")}
+                  </b>
+                </div>
+              )}
               <div className="row" style={{ gap: 4, marginBottom: 6, alignItems: "center" }}>
                 {/**
                   * **회독을 넘기는 자리가 화면에 아예 없었다.**
@@ -222,6 +268,13 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
                     onChange={(e) => setQ(e.target.value)}
                   />
                 )}
+                <button
+                  className={`btn btn-sm ${selMode ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => { setSelMode(!selMode); setSelUnits(new Set()); }}
+                  title="여러 단원을 골라 한 번에 바꿉니다"
+                >
+                  ☑ 골라서
+                </button>
                 <button className="btn btn-ghost btn-sm" onClick={() => markAll(true)} disabled={pending}>
                   전체 완료
                 </button>
@@ -243,9 +296,28 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
                   전체 해제
                 </button>
                 <span className="hint" style={{ alignSelf: "center" }}>
-                  누를 때마다 <b>안 함 → ◐ 하는 중 → ○ 완료</b> 로 바뀝니다
+                  {selMode
+                    ? "바꿀 단원을 누르고, 아래에서 한 번에 적으세요"
+                    : "누를 때마다 안 함 → ◐ 하는 중 → ○ 완료. 여러 개면 ☑ 골라서"}
                 </span>
               </div>
+              {selMode && (
+                <div className="bulkbar" style={{ margin: "0 0 8px" }}>
+                  <b>{selUnits.size}개 골랐어요</b>
+                  <button className="btn btn-primary btn-sm" disabled={pending || selUnits.size === 0} onClick={() => markMany("done")}>
+                    ○ 완료로
+                  </button>
+                  <button className="btn btn-sm" disabled={pending || selUnits.size === 0} onClick={() => markMany("doing")}>
+                    ◐ 하는 중으로
+                  </button>
+                  <button className="btn btn-ghost btn-sm" disabled={pending || selUnits.size === 0} onClick={() => markMany(null)}>
+                    안 함으로
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setSelMode(false); setSelUnits(new Set()); }}>
+                    취소
+                  </button>
+                </div>
+              )}
               <div className="stack" style={{ gap: 4 }}>
                 {groupByParent(units, q).map(([head, list]) => (
                   <div className="hwgroup" key={head || "_"}>
@@ -257,16 +329,28 @@ export default function BookProgress({ studentId, book, extra = null, openFirst 
                         return (
                           <span key={u.id} className="unitchip-wrap">
                             <button
-                              className={`hwchip ${done ? "hw-done" : doing ? "hw-weak" : ""}`}
-                              onClick={() => mark(u.id, NEXT[u.status || ""])}
+                              className={`hwchip ${
+                                selMode && selUnits.has(u.id)
+                                  ? "hw-next"
+                                  : done ? "hw-done" : doing ? "hw-weak" : ""
+                              }`}
+                              onClick={() => {
+                                if (!selMode) return mark(u.id, NEXT[u.status || ""]);
+                                setSelUnits((prev) => {
+                                  const n = new Set(prev);
+                                  n.has(u.id) ? n.delete(u.id) : n.add(u.id);
+                                  return n;
+                                });
+                              }}
                               title={
                                 [u.activity, u.pages, u.amount && `분량 ${u.amount}`, u.note && `메모: ${u.note}`]
                                   .filter(Boolean)
                                   .join(" · ") || undefined
                               }
                             >
-                              {done && <b>○</b>}
-                              {doing && <b>◐</b>} {u.name}
+                              {selMode && <b>{selUnits.has(u.id) ? "☑" : "☐"}</b>}
+                              {!selMode && done && <b>○</b>}
+                              {!selMode && doing && <b>◐</b>} {u.name}
                               {u.activity ? <span className="hint"> · {u.activity}</span> : null}
                               {u.amount ? <span className="hint"> {u.amount}</span> : null}
                             </button>

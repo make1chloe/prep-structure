@@ -84,9 +84,19 @@ export default function ProgressBoard({ rows = [], classes = [] }) {
                 <b style={{ fontSize: 15 }}>{r.name}</b>
                 <span className="hint">{[r.grade, r.school].filter(Boolean).join(" · ")}</span>
                 <span className="spacer" />
+                {/* 교재마다 ◐(오늘 위치)를 같이 — 순차로 안 나가는 교재는
+                    이게 없으면 열어봐야만 오늘 어디인지 안다 (원장님, 2026-08-14) */}
                 <span className="hint" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.books.length > 0
-                    ? r.books.map((b) => b.name).join(" · ")
+                    ? r.books
+                        .map((b) =>
+                          b.doing?.length
+                            ? `${b.name} ◐${b.doing.join("·")}`
+                            : b.curPage
+                            ? `${b.name} ${b.curPage}p`
+                            : b.name
+                        )
+                        .join("  ·  ")
                     : "배정된 교재 없음"}
                 </span>
               </button>

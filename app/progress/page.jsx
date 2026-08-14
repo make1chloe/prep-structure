@@ -28,7 +28,7 @@ export default async function ProgressPage() {
   const dow = DOW[new Date(`${today}T00:00:00+09:00`).getUTCDay()];
 
   // **파도** (속도 대원칙 — 원칙 6)
-  const [profileQ, studentsQ, classesQ, membersQ, stBooksQ, booksQ] = await Promise.all([
+  const [profileQ, studentsQ, classesQ, membersQ, stBooksQ, booksQ, doingQ] = await Promise.all([
     user ? cachedProfile(supabase, user.id) : Promise.resolve({ data: null }),
     supabase
       .from("students")
@@ -42,6 +42,11 @@ export default async function ProgressPage() {
       .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round")
       .neq("status", "dropped"),
     supabase.from("textbooks").select("id, name, area, status, total_pages"),
+    // 하는 중(◐)으로 찍힌 단원 — 순차로 안 나가는 교재의 「오늘 위치」다
+    supabase
+      .from("student_unit_progress")
+      .select("student_id, textbook_unit_id, round")
+      .eq("status", "doing"),
   ]);
   const profile = profileQ?.data || null;
   const students = studentsQ.data || [];
@@ -54,6 +59,30 @@ export default async function ProgressPage() {
       .map((b) => [b.id, b])
   );
 
+  /**
+   * ◐ 단원의 이름 — 이름 줄(접힌 상태)에서 바로 보여준다.
+   * 열어봐야만 오늘 위치가 나오면, 훑는 화면에서 열다섯 번을 열게 된다.
+   * 회독이 다른 옛 ◐ 는 뺀다 (2회독 시작 후 1회독 것이 남아 있을 수 있다).
+   */
+  const doingRows = doingQ.error ? [] : doingQ.data || [];
+  const doingUnitIds = [...new Set(doingRows.map((r) => r.textbook_unit_id))];
+  const { data: doingUnits } = doingUnitIds.length
+    ? await supabase
+        .from("textbook_units")
+        .select("id, name, textbook_id")
+        .in("id", doingUnitIds)
+    : { data: [] };
+  const unitById = new Map((doingUnits || []).map((u) => [u.id, u]));
+  const doingOf = new Map();   // `${studentId}|${bookId}` → [단원 이름]
+  doingRows.forEach((r) => {
+    const u = unitById.get(r.textbook_unit_id);
+    if (!u) return;
+    const key = `${r.student_id}|${u.textbook_id}`;
+    if (!doingOf.has(key)) doingOf.set(key, []);
+    doingOf.get(key).push({ name: u.name, round: r.round || 1 });
+  });
+
+
   // 학생 → 지금 쓰는 교재 (아직 시작 전·끝낸 것은 뺀다 — lib/bookUse 한 벌)
   const booksOf = new Map();
   (stBooksQ.data || []).forEach((r) => {
@@ -61,13 +90,17 @@ export default async function ProgressPage() {
     const b = bookById.get(r.textbook_id);
     if (!b) return;
     if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
+    const round = r.round || 1;
     booksOf.get(r.student_id).push({
       id: b.id,
       name: b.name,
       area: b.area || "",
       bookPages: b.total_pages || 0,
       curPage: r.current_page ?? "",
-      round: r.round || 1,
+      round,
+      doing: (doingOf.get(`${r.student_id}|${b.id}`) || [])
+        .filter((d) => d.round === round)
+        .map((d) => d.name),
     });
   });
 
