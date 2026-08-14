@@ -194,6 +194,7 @@ echo "== 5-4-11) 여러 날 이어지는 일정 합치기 =="
 runjs scripts/check-neisrun.mjs
 runjs scripts/check-neispeek.mjs
 runjs scripts/check-monthnav.mjs
+runjs scripts/check-navorder.mjs
 runjs scripts/check-schoolsite.mjs
 
 echo
