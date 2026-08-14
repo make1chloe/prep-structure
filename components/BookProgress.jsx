@@ -50,6 +50,14 @@ export default function BookProgress({
    */
   const [selMode, setSelMode] = useState(false);
   const [selUnits, setSelUnits] = useState(() => new Set());
+  /**
+   * **여기까지 완료** (원장님, 2026-08-14 — 「이미 100페이지 진도를
+   * 나갔다고 치면 100페이지 내용을 다 일일이 선택해야 하니까 번거로워」).
+   *
+   * 이미 나간 진도를 처음 적을 때는 골라서(☑)로도 백 번을 눌러야 한다.
+   * 지금 하는 단원 하나만 누르면 — 그 단원은 ◐, 그 앞은 전부 ○ 완료.
+   */
+  const [uptoMode, setUptoMode] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -146,6 +154,33 @@ export default function BookProgress({
         load();
         return;
       }
+      router.refresh();
+    });
+  }
+
+  function markUpto(unitId) {
+    const idx = leaves.findIndex((u) => u.id === unitId);
+    if (idx < 0) return;
+    const beforeIds = leaves.slice(0, idx).map((u) => u.id);
+    const beforeSet = new Set(beforeIds);
+    setUptoMode(false);
+    // 화면 먼저 — 실패하면 다시 읽어온다
+    setUnits((list) =>
+      (list || []).map((u) =>
+        u.id === unitId
+          ? { ...u, status: "doing" }
+          : beforeSet.has(u.id)
+          ? { ...u, status: "done" }
+          : u
+      )
+    );
+    startTransition(async () => {
+      if (beforeIds.length) {
+        const res = await setUnitProgress(studentId, beforeIds, "done");
+        if (res?.error) { alert(res.error); load(); return; }
+      }
+      const res2 = await setUnitProgress(studentId, [unitId], "doing");
+      if (res2?.error) { alert(res2.error); load(); return; }
       router.refresh();
     });
   }
@@ -282,8 +317,15 @@ export default function BookProgress({
                   />
                 )}
                 <button
+                  className={`btn btn-sm ${uptoMode ? "btn-primary" : "btn-ghost"}`}
+                  onClick={() => { setUptoMode(!uptoMode); setSelMode(false); setSelUnits(new Set()); }}
+                  title="지금 하는 단원을 누르면 그 앞이 전부 완료로 찍힙니다"
+                >
+                  ⏩ 여기까지
+                </button>
+                <button
                   className={`btn btn-sm ${selMode ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => { setSelMode(!selMode); setSelUnits(new Set()); }}
+                  onClick={() => { setSelMode(!selMode); setUptoMode(false); setSelUnits(new Set()); }}
                   title="여러 단원을 골라 한 번에 바꿉니다"
                 >
                   ☑ 골라서
@@ -309,7 +351,9 @@ export default function BookProgress({
                   전체 해제
                 </button>
                 <span className="hint" style={{ alignSelf: "center" }}>
-                  {selMode
+                  {uptoMode
+                    ? "지금 하는 단원을 누르세요 — 그 단원은 ◐, 그 앞은 전부 ○ 완료"
+                    : selMode
                     ? "바꿀 단원을 누르고, 아래에서 한 번에 적으세요"
                     : "누를 때마다 안 함 → ◐ 하는 중 → ○ 완료. 여러 개면 ☑ 골라서"}
                 </span>
@@ -373,6 +417,7 @@ export default function BookProgress({
                                   : done ? "hw-done" : doing ? "hw-weak" : ""
                               }`}
                               onClick={() => {
+                                if (uptoMode) return markUpto(u.id);
                                 if (!selMode) return mark(u.id, NEXT[u.status || ""]);
                                 setSelUnits((prev) => {
                                   const n = new Set(prev);
