@@ -14,20 +14,21 @@ import { listBookProgress } from "@/app/progress/actions";
  * 같은 일을 하는 자리가 두 벌이 되면 어느 쪽이 맞는지 알 수 없게 된다.
  * 이름을 누르면 그 학생의 교재 탭으로 간다 (거기가 고치는 자리다).
  */
-export default function BookProgressBoard({ textbookId }) {
-  const [rows, setRows] = useState(null);
+export default function BookProgressBoard({ textbookId, initialRows = null }) {
+  // 처음 데이터는 페이지가 실어 보낸다 — 탭을 누르는 순간 바로 보인다 (원칙 6)
+  const [rows, setRows] = useState(initialRows);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
+    if (rows !== null) return;   // 실려 온 것이 있으면 다녀올 일 없다
     let dead = false;
-    setRows(null);
     listBookProgress(textbookId).then((res) => {
       if (dead) return;
       if (res.error) setErr(res.error);
       setRows(res.rows || []);
     });
     return () => { dead = true; };
-  }, [textbookId]);
+  }, [textbookId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (err) return <div className="err">{err}</div>;
   if (rows === null) return <p className="hint">진도 불러오는 중…</p>;

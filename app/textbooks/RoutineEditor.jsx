@@ -14,9 +14,11 @@ import { CATEGORIES, CAT_CLS } from "@/app/homework/categories";
  * 오늘 수업에서 [루틴 다음] 을 누르면 이 줄이 그대로 채워지고,
  * 그 학생의 단계가 하나 넘어간다. 매번 고를 필요가 없다.
  */
-export default function RoutineEditor({ textbookId, items = [] }) {
-  const [steps, setSteps] = useState(null);
-  const [ready, setReady] = useState(true);
+export default function RoutineEditor({ textbookId, items = [], initialSteps = null, initialReady = true }) {
+  // 처음 데이터는 페이지가 실어 보낸다 (원칙 6 — 탭을 누르고 나서 서버에
+  // 다녀오면, 누를 때마다 빈 판을 보게 된다). 이후 고침은 load() 로 새로.
+  const [steps, setSteps] = useState(initialSteps);
+  const [ready, setReady] = useState(initialReady);
   const [editing, setEditing] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -26,8 +28,8 @@ export default function RoutineEditor({ textbookId, items = [] }) {
     setReady(res.ready);
   }
   useEffect(() => {
-    if (textbookId) load();
-  }, [textbookId]);
+    if (textbookId && steps === null) load();
+  }, [textbookId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!textbookId) return null;
   if (steps === null) return <p className="hint">불러오는 중…</p>;

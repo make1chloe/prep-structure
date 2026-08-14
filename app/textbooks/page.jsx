@@ -16,6 +16,8 @@ import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
 import { dupGroups, pickKeeper } from "@/lib/bookName";
 import { AREA_ORDER as AREAS } from "@/lib/bookSort";
+import { listRoutine } from "./routineActions";
+import { listBookProgress } from "@/app/progress/actions";
 import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
@@ -130,6 +132,17 @@ export default async function TextbooksPage({ searchParams }) {
   const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
 
+  /**
+   * 루틴·진도 탭의 데이터도 **여기서 미리** (원장님, 2026-08-14 — 「루틴
+   * 진도 누르면 엄청나게 느려」). 탭을 누른 뒤에 서버에 다녀오게 두면
+   * 누를 때마다 빈 판 → 왕복 → 내용 순서가 된다. 페이지가 이미 어느
+   * 교재인지 아니까 실어 보낸다 — 탭 전환이 왕복 0 이 된다.
+   */
+  const [routineInit, progressInit] = await Promise.all([
+    selectedId ? listRoutine(selectedId) : { steps: [], ready: true },
+    selectedId ? listBookProgress(selectedId) : { rows: [] },
+  ]);
+
   let units = [];
   if (selectedId) {
     const base = "id, name, sort, label, parent_id, page_start, page_end";
@@ -202,10 +215,24 @@ export default async function TextbooksPage({ searchParams }) {
               students={students || []}
               byBook={byBook}
               routinePanel={
-                selected ? <RoutineEditor textbookId={selectedId} items={hwItems} /> : null
+                selected ? (
+                  <RoutineEditor
+                    key={selectedId}
+                    textbookId={selectedId}
+                    items={hwItems}
+                    initialSteps={routineInit.steps}
+                    initialReady={routineInit.ready}
+                  />
+                ) : null
               }
               progressPanel={
-                selected ? <BookProgressBoard textbookId={selectedId} /> : null
+                selected ? (
+                  <BookProgressBoard
+                    key={selectedId}
+                    textbookId={selectedId}
+                    initialRows={progressInit.rows || []}
+                  />
+                ) : null
               }
               studentsPanel={
                 selected ? (

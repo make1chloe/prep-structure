@@ -243,11 +243,17 @@ export async function listBookProgress(textbookId) {
   if (!textbookId) return { rows: [], error: null };
   const supabase = createClient();
 
-  // 이 교재를 지금 쓰는 학생들 (회독 포함)
-  let { data: st, error } = await supabase
-    .from("student_textbooks")
-    .select("student_id, status, round, current_page")
-    .eq("textbook_id", textbookId);
+  // 파도 — 배정과 단원은 서로 필요한 게 없다 (원칙 6-1: 직렬 4층이었다)
+  let [{ data: st, error }, { data: units }] = await Promise.all([
+    supabase
+      .from("student_textbooks")
+      .select("student_id, status, round, current_page")
+      .eq("textbook_id", textbookId),
+    supabase
+      .from("textbook_units")
+      .select("id, parent_id")
+      .eq("textbook_id", textbookId),
+  ]);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     ({ data: st, error } = await supabase
       .from("student_textbooks")
@@ -257,20 +263,14 @@ export async function listBookProgress(textbookId) {
   if (error) return { rows: [], error: error.message };
   const active = (st || []).filter((r) => !r.status || r.status === "active");
   if (active.length === 0) return { rows: [], error: null };
+  const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+  const leaves = (units || []).filter((u) => !hasChild.has(u.id)).map((u) => u.id);
 
   const { data: students } = await supabase
     .from("students")
     .select("id, name, grade, status")
     .in("id", active.map((r) => r.student_id));
   const nameOf = new Map((students || []).map((s) => [s.id, s]));
-
-  // 소단원 개수 — 진도의 분모
-  const { data: units } = await supabase
-    .from("textbook_units")
-    .select("id, parent_id")
-    .eq("textbook_id", textbookId);
-  const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
-  const leaves = (units || []).filter((u) => !hasChild.has(u.id)).map((u) => u.id);
 
   /**
    * 학생별 완료 수 — **그 학생의 지금 회독** 것만 센다.
