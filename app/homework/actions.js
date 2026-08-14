@@ -134,7 +134,6 @@ export async function bulkAddHomeworkItems(rows = []) {
     const patch = {
       category: r.category || (hit ? undefined : "기타"),
       tool: r.tool || null,
-      kind: r.kind || "home",
       active: true,
     };
     if (r.sort !== null && r.sort !== undefined) patch.sort = r.sort;
@@ -157,7 +156,6 @@ export async function bulkAddHomeworkItems(rows = []) {
         category: r.category || "기타",
         sort: r.sort ?? maxSort,
         tool: r.tool || null,
-        kind: r.kind || "home",
         active: true,
       };
       let { error } = await supabase.from("homework_items").insert(row);
@@ -178,18 +176,19 @@ export async function exportHomeworkItems() {
   const supabase = createClient();
   let { data, error } = await supabase
     .from("homework_items")
-    .select("name, category, sort, tool, kind, active")
+    .select("name, category, sort, tool, active")
     .order("sort", { ascending: true });
   if (error) {
+    // 0116 전이면 준비물 없이
     ({ data, error } = await supabase
       .from("homework_items")
-      .select("name, category, sort, kind, active")
+      .select("name, category, sort, active")
       .order("sort", { ascending: true }));
   }
   if (error) return { error: error.message, rows: [] };
   const rows = (data || [])
     .filter((x) => x.active)
-    .map((x) => [x.name, x.category || "", x.sort ?? "", x.tool || "", x.kind === "inclass" ? "등원" : "집"]);
+    .map((x) => [x.name, x.category || "", x.sort ?? "", x.tool || ""]);
   return { error: null, rows };
 }
 

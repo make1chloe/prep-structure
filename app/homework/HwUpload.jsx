@@ -28,9 +28,9 @@ export default function HwUpload() {
   async function downloadTemplate() {
     const XLSX = await import("xlsx");
     const examples = [
-      ["문법 개념 정독 + 형광펜", "문법", "10", "교재", "등원"],
-      ["문법 문제풀기", "문법", "20", "교재", "집"],
-      ["단어 외우기", "단어", "30", "클래스카드", "집"],
+      ["문법 개념 정독 + 형광펜", "문법", "10", "교재"],
+      ["문법 문제풀기", "문법", "20", "교재"],
+      ["단어 외우기", "단어", "30", "클래스카드"],
     ];
     const ws = XLSX.utils.aoa_to_sheet([HW_HEADERS, ...examples]);
     ws["!cols"] = HW_HEADERS.map((h) => ({ wch: h === "이름" ? 28 : 14 }));
@@ -86,7 +86,6 @@ export default function HwUpload() {
       <p className="hint" style={{ margin: "8px 0 10px", lineHeight: 1.7 }}>
         한 줄이 학습항목 하나입니다. <b>이름이 같으면 덮어써지고</b>, 없는 이름은 새로 생겨요.
         파일에서 지운 항목은 안 지웁니다 (루틴·리포트가 그 항목을 쓰고 있어요).
-        어디서는 「집」 또는 「등원」.
       </p>
       <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <button className="btn btn-ghost btn-sm" onClick={downloadTemplate}>빈 양식 받기</button>
