@@ -56,16 +56,22 @@ async function studentMap(supabase) {
   return m;
 }
 
-// 학습 항목을 이름으로 찾고, 없으면 만든다
+// 학습 항목을 이름으로 찾고, 없으면 만든다.
+// **실패를 삼키지 않는다** (전수검사 A8) — 전에는 insert 오류를 안 읽어서,
+// 만들다 실패하면 그 항목이 걸린 숙제 줄들이 말없이 빠졌다. sort 도 전부
+// 900 고정이라 이관 항목끼리 순서가 뒤엉켰다 — 맨 뒤에 10씩 띄워 붙인다.
 async function itemMap(supabase, names) {
-  const { data } = await supabase.from("homework_items").select("id, name");
+  const { data } = await supabase.from("homework_items").select("id, name, sort");
   const m = new Map((data || []).map((i) => [i.name.trim(), i.id]));
-  const missing = [...new Set(names)].filter((n) => n && !m.has(n));
+  m.error = null;
+  const missing = [...new Set(names.map((n) => (n || "").trim()))].filter((n) => n && !m.has(n));
   if (missing.length > 0) {
-    const { data: made } = await supabase
+    let maxSort = Math.max(900, ...(data || []).map((i) => i.sort || 0));
+    const { data: made, error } = await supabase
       .from("homework_items")
-      .insert(missing.map((name) => ({ name, category: "기타", sort: 900, active: true })))
+      .insert(missing.map((name) => ({ name, category: "기타", sort: (maxSort += 10), active: true })))
       .select("id, name");
+    if (error) m.error = `학습 항목을 만들지 못했어요 (${error.message})`;
     (made || []).forEach((i) => m.set(i.name.trim(), i.id));
   }
   return m;

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fetchAll } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { dueTasks, KINDS, byDate, studentKey, bookKey, nearEnd } from "@/lib/todoRoutine";
@@ -273,14 +274,21 @@ async function bookEndTasks(supabase, rules) {
     bookOfUnit.set(u.id, u.textbook_id);
   });
 
-  // 학생이 끝낸 단원 — 회독별로 센다
-  let pq = await supabase
-    .from("student_unit_progress")
-    .select("student_id, textbook_unit_id, status, round");
-  if (pq.error) {
-    pq = await supabase
+  // 학생이 끝낸 단원 — 회독별로 센다. 표 전체라 1000줄을 넘는다 —
+  // 잘리면 뒷 학생의 「교재 끝나감」 할일이 영영 안 생긴다 (A5)
+  let pq = await fetchAll(() =>
+    supabase
       .from("student_unit_progress")
-      .select("student_id, textbook_unit_id, status");
+      .select("student_id, textbook_unit_id, status, round")
+      .order("student_id").order("textbook_unit_id")
+  );
+  if (pq.error) {
+    pq = await fetchAll(() =>
+      supabase
+        .from("student_unit_progress")
+        .select("student_id, textbook_unit_id, status")
+        .order("student_id").order("textbook_unit_id")
+    );
   }
   const doneCount = new Map();   // `${student}|${book}|${round}` → 끝낸 수
   (pq.error ? [] : pq.data || []).forEach((x) => {

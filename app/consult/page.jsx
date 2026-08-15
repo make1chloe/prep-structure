@@ -34,6 +34,9 @@ export default async function ConsultPage() {
   const textbooks = (booksQ.data || [])
     .filter((b) => !b.status || b.status === "active")
     .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
+  // 이름 찾기는 **전체** 교재로 (전수검사 A10) — 활성만 주면 절판된 책이
+  // 「(지워진 교재)」 로 보인다. 고르는 판은 위의 활성 목록 그대로.
+  const bookNames = (booksQ.data || []).map((b) => ({ id: b.id, name: b.name }));
 
   return (
     <>
@@ -58,6 +61,7 @@ export default async function ConsultPage() {
           rows={rows || []}
           classes={classes || []}
           textbooks={textbooks}
+          bookNames={bookNames}
           unavailable={!!error}
           formReady={(rows || []).length === 0 || "form_submitted_at" in ((rows || [])[0] || {})}
         />

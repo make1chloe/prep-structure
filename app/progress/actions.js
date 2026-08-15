@@ -43,21 +43,26 @@ export async function setStudentTextbooks(studentId, bookIds) {
     want
   );
 
-  // 넣을 것 — 처음이면 새로, 중단했던 것이면 다시 사용중으로
-  if (add.length) {
-    const rows = add.map(({ id, known }) =>
-      known
-        ? { student_id: studentId, textbook_id: id, status: "active", ended_on: null }
-        : { student_id: studentId, textbook_id: id, status: "active", assigned_on: today, ended_on: null }
-    );
+  // 넣을 것 — 처음이면 새로, 중단했던 것이면 다시 사용중으로.
+  // **두 갈래를 한 upsert 에 섞지 않는다** (전수검사 A3, 2026-08-15) —
+  // 칸이 합집합이 되어, 다시 넣는 책의 assigned_on 이 NULL 로 덮인다
+  // (지키려고 known 을 가른 바로 그 값이 지워졌다. import/actions 의
+  // 「기본값이 안 먹는다」 교훈과 같은 병).
+  for (const part of [
+    add.filter((a) => a.known).map(({ id }) =>
+      ({ student_id: studentId, textbook_id: id, status: "active", ended_on: null })),
+    add.filter((a) => !a.known).map(({ id }) =>
+      ({ student_id: studentId, textbook_id: id, status: "active", assigned_on: today, ended_on: null })),
+  ]) {
+    if (part.length === 0) continue;
     let { error } = await supabase
       .from("student_textbooks")
-      .upsert(rows, { onConflict: "student_id,textbook_id" });
+      .upsert(part, { onConflict: "student_id,textbook_id" });
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // ended_on 이 아직 없는 DB
       ({ error } = await supabase
         .from("student_textbooks")
-        .upsert(rows.map(({ ended_on: _e, ...r }) => r), { onConflict: "student_id,textbook_id" }));
+        .upsert(part.map(({ ended_on: _e, ...r }) => r), { onConflict: "student_id,textbook_id" }));
     }
     if (error) return { error: error.message };
   }
@@ -113,20 +118,22 @@ export async function setTextbookStudents(textbookId, studentIds) {
     want
   );
 
-  if (add.length) {
-    const rows = add.map(({ id, known }) =>
-      known
-        ? { student_id: id, textbook_id: textbookId, status: "active", ended_on: null }
-        : { student_id: id, textbook_id: textbookId, status: "active", assigned_on: today, ended_on: null }
-    );
+  // 두 갈래를 한 upsert 에 섞지 않는다 — 위 setStudentTextbooks 와 같은 까닭 (A3)
+  for (const part of [
+    add.filter((a) => a.known).map(({ id }) =>
+      ({ student_id: id, textbook_id: textbookId, status: "active", ended_on: null })),
+    add.filter((a) => !a.known).map(({ id }) =>
+      ({ student_id: id, textbook_id: textbookId, status: "active", assigned_on: today, ended_on: null })),
+  ]) {
+    if (part.length === 0) continue;
     let { error } = await supabase
       .from("student_textbooks")
-      .upsert(rows, { onConflict: "student_id,textbook_id" });
+      .upsert(part, { onConflict: "student_id,textbook_id" });
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // ended_on 이 아직 없는 DB
       ({ error } = await supabase
         .from("student_textbooks")
-        .upsert(rows.map(({ ended_on: _e, ...r }) => r), { onConflict: "student_id,textbook_id" }));
+        .upsert(part.map(({ ended_on: _e, ...r }) => r), { onConflict: "student_id,textbook_id" }));
     }
     if (error) return { error: error.message };
   }
@@ -657,9 +664,15 @@ export async function exportProgress() {
     await Promise.all([
       supabase.from("students").select("id, name, status").eq("status", "enrolled").order("name"),
       supabase.from("textbooks").select("id, name"),
-      supabase.from("student_textbooks").select("student_id, textbook_id, status, round, current_page"),
-      supabase.from("textbook_units").select("id, name, textbook_id, parent_id, sort").order("sort"),
-      supabase.from("student_unit_progress").select("student_id, textbook_unit_id, status, round"),
+      // 표 전체 읽기 셋은 1000줄을 넘는다 — 잘린 파일이 진짜처럼 보인다 (A5)
+      fetchAll(() => supabase.from("student_textbooks")
+        .select("student_id, textbook_id, status, round, current_page")
+        .order("student_id").order("textbook_id")),
+      fetchAll(() => supabase.from("textbook_units")
+        .select("id, name, textbook_id, parent_id, sort").order("sort").order("id")),
+      fetchAll(() => supabase.from("student_unit_progress")
+        .select("student_id, textbook_unit_id, status, round")
+        .order("student_id").order("textbook_unit_id")),
     ]);
   if (progQ.error && !(progQ.error.code === "42703" || progQ.error.code === "PGRST204")) {
     return { error: progQ.error.message, rows: [] };

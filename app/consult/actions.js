@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { autoCreateLogins } from "@/app/students/accountActions";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
@@ -160,6 +161,8 @@ export async function convertToStudent(id, classId) {
         .filter(Boolean)
         .join("\n"),
       status: "enrolled",
+      // 등원 시작일 — 신입생 할일(todo/routineActions)과 목록 정렬이 이 칸을 본다
+      enrolled_on: todaySeoul(),
     })
     .select("id")
     .single();
@@ -204,6 +207,14 @@ export async function convertToStudent(id, classId) {
 
   // **등록까지 와야 학사일정에 붙인다** (아래 attachSchool 의 설명)
   const school = await attachSchool(supabase, q.school).catch(() => null);
+
+  /**
+   * **로그인 계정도 같이** (전수검사 A1, 2026-08-15). 직접 등록·엑셀에는
+   * 있는데 이 길에만 없어서, 상담으로 들어온 아이는 계정이 영영 없었다 —
+   * addStudent 의 「나중에 하기로 하면 그 나중이 안 온다」 가 그대로 적용된다.
+   * 실패해도 등록은 그대로다.
+   */
+  try { await autoCreateLogins([student.id]); } catch { /* 계정은 재원생에서 다시 */ }
 
   revalidatePath("/consult");
   revalidatePath("/students");

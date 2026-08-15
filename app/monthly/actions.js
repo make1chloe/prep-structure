@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fetchAll } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings, loadMessageParts } from "@/lib/settings";
 import { summarize, buildMonthlyText, monthLabel, offScheduleAbsences } from "@/lib/monthly";
@@ -42,29 +43,40 @@ export async function loadMonth(ym) {
   // 지난달까지 같이 읽는다 — 한 줄 평은 **변화**를 말할 때 제일 와닿는다
   const pym = prevYm(ym);
   // 단원평가(0099 — sent_unit)도 여기서 같이 읽는다: **daily_reports 가 원본**이다
-  let { data: all, error: allErr } = await supabase
-    .from("daily_reports")
-    .select("id, student_id, date, attendance_kind, word_correct, word_total, sent_unit, sent_correct, sent_total, sent_passed")
-    .gte("date", `${pym}-01`)
-    .lte("date", to);
+  // 두 달 × 전 재원생이라 1000줄을 막 넘는 크기다 — 잘리면 월말 학생들
+  // 리포트가 조용히 빈다 (A5)
+  let { data: all, error: allErr } = await fetchAll(() =>
+    supabase
+      .from("daily_reports")
+      .select("id, student_id, date, attendance_kind, word_correct, word_total, sent_unit, sent_correct, sent_total, sent_passed")
+      .gte("date", `${pym}-01`)
+      .lte("date", to)
+      .order("id")
+  );
   if (allErr) {
     // 0099 전이면 단원평가 칸 없이
-    ({ data: all } = await supabase
-      .from("daily_reports")
-      .select("id, student_id, date, attendance_kind, word_correct, word_total")
-      .gte("date", `${pym}-01`)
-      .lte("date", to));
+    ({ data: all } = await fetchAll(() =>
+      supabase
+        .from("daily_reports")
+        .select("id, student_id, date, attendance_kind, word_correct, word_total")
+        .gte("date", `${pym}-01`)
+        .lte("date", to)
+        .order("id")
+    ));
   }
   const reports = (all || []).filter((r) => r.date >= from);
   const prevReports = (all || []).filter((r) => r.date < from);
 
   const ids = (all || []).map((r) => r.id);
   const { data: items } = ids.length
-    ? await supabase
-        .from("daily_report_items")
-        .select("daily_report_id, status")
-        .in("daily_report_id", ids)
-        .in("status", ["done", "weak", "missing"])
+    ? await fetchAll(() =>
+        supabase
+          .from("daily_report_items")
+          .select("daily_report_id, status")
+          .in("daily_report_id", ids)
+          .in("status", ["done", "weak", "missing"])
+          .order("daily_report_id")
+      )
     : { data: [] };
   const itemsOf = new Map();
   (items || []).forEach((x) => {
@@ -103,12 +115,21 @@ export async function loadMonth(ym) {
 
   // 학교 시험 일정 — 시험 때문에 빠진 것과 그 밖의 이유로 빠진 것을 가른다.
   // 둘을 같이 세면 "시험이라 빠졌는데 왜 지적하냐" 가 되어 말에 힘이 없어진다.
-  const ep = await supabase
+  let ep = await supabase
     .from("exam_periods")
-    .select("school, grade, from_date, to_date")
+    .select("school, grade, from_date, to_date, hidden")
     .lte("from_date", to)
     .gte("to_date", from);
-  const periods = ep.error ? [] : ep.data || [];
+  if (ep.error) {
+    // 0060 전이면 hidden 없이
+    ep = await supabase
+      .from("exam_periods")
+      .select("school, grade, from_date, to_date")
+      .lte("from_date", to)
+      .gte("to_date", from);
+  }
+  // 숨긴 시험은 없는 셈 — 결석예정도 안 만들면서 결석 사유로만 남으면 어긋난다 (A6)
+  const periods = (ep.error ? [] : ep.data || []).filter((e) => !e.hidden);
 
   // 이미 만들어 둔 것 (고친 문구 · 보낸 시각)
   const mq = await supabase

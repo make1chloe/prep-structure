@@ -42,10 +42,12 @@ export default function ConsultBoard({
   classes = [],
   schools = [],
   textbooks = [],
+  bookNames = null,
   unavailable = false,
   formReady = true,
 }) {
-  const bookNameOf = new Map(textbooks.map((b) => [b.id, b.name]));
+  // 이름 찾기는 전체 교재로 — 절판된 책이 「(지워진 교재)」 로 보이면 안 된다 (A10)
+  const bookNameOf = new Map((bookNames ?? textbooks).map((b) => [b.id, b.name]));
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});

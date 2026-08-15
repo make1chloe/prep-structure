@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { todaySeoul } from "@/lib/day";
+import { inUseOn } from "@/lib/bookUse";
 
 /**
  * 이 학생이 **지금 할 차례**인 루틴 단계를 내어준다.
@@ -17,17 +19,19 @@ export async function nextRoutine(studentId) {
   // 회독(round)까지 본다 — 2회독이면 1회독 진도는 끝난 것으로 치지 않는다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, routine_step_id, round")
+    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on")
     .eq("student_id", studentId);
   if (stq.error) {
     stq = await supabase
       .from("student_textbooks")
-      .select("textbook_id, status, routine_step, routine_step_id")
+      .select("textbook_id, status, routine_step, routine_step_id, assigned_on, ended_on")
       .eq("student_id", studentId);
   }
   if (stq.error) return { inclass: [], home: [], steps: [], error: null };
 
-  const mine = (stq.data || []).filter((r) => !r.status || r.status === "active");
+  // 오늘 수업 로스터와 같은 규칙 — 아직 안 시작한 책·끝난 책의 루틴을
+  // 제안하면 같은 화면 안에서 딴소리가 된다 (전수검사 A7, 2026-08-15)
+  const mine = (stq.data || []).filter((r) => inUseOn(r, todaySeoul()));
   const bookIds = mine.map((r) => r.textbook_id);
   if (bookIds.length === 0) return { inclass: [], home: [], steps: [], error: null };
 

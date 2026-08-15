@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { fetchAll } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
 import { deliver } from "@/lib/send";
@@ -97,11 +98,21 @@ export async function listRecipients() {
       price: b.price || 0, url: b.purchase_url || "",
     }));
 
-  // 이미 갖고 있는 교재 (그만둔 것은 뺀다) — 다시 사라고 보내지 않으려고
-  const { data: st } = await supabase
-    .from("student_textbooks")
-    .select("student_id, textbook_id, status");
-  const bookById = new Map(catalog.map((b) => [b.id, b]));
+  // 이미 갖고 있는 교재 (그만둔 것은 뺀다) — 다시 사라고 보내지 않으려고.
+  // 표 전체라 fetchAll (A5). **보유 판정은 전체 교재로** (전수검사 A9) —
+  // 활성 지도로 찾으면 절판된 보유 책이 「없음」 이 되어 또 사라고 보낸다.
+  const { data: st } = await fetchAll(() =>
+    supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status")
+      .order("student_id").order("textbook_id")
+  );
+  const bookById = new Map(
+    (catalogRaw || []).map((b) => [
+      b.id,
+      { id: b.id, name: b.name, area: b.area || "", price: b.price || 0, url: b.purchase_url || "" },
+    ])
+  );
 
   const booksOf = new Map();
   (st || []).forEach((x) => {

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetchAll";
 
 /**
  * 이관이 제대로 됐는지 본다.
@@ -16,29 +17,42 @@ export async function checkImport(ym) {
   const { data: students } = await supabase.from("students").select("id, name, status");
   const nameOf = new Map((students || []).map((s) => [s.id, s.name]));
 
-  const { data: reports } = await supabase
-    .from("daily_reports")
-    .select("id, student_id, date")
-    .gte("date", from)
-    .lte("date", to);
+  // 한 해치 전체 — 1000줄을 훌쩍 넘는다. 이 화면의 일이 「다 들어갔나」
+  // 세는 것인데 세는 쪽이 잘리면 화면이 거짓말을 한다 (A5)
+  const { data: reports } = await fetchAll(() =>
+    supabase
+      .from("daily_reports")
+      .select("id, student_id, date")
+      .gte("date", from)
+      .lte("date", to)
+      .order("id")
+  );
 
   const ids = (reports || []).map((r) => r.id);
   // 검사한 숙제 · 배정한 숙제가 같이 넘어왔는지
+  // id 를 500개씩 잘라도 **줄 수**는 안 잘린다 (id 하나에 숙제 대여섯 줄)
+  // — 묶음마다 fetchAll 로 끝까지 받는다
   let items = [];
   for (let i = 0; i < ids.length; i += 500) {
-    const { data } = await supabase
-      .from("daily_report_items")
-      .select("daily_report_id, status")
-      .in("daily_report_id", ids.slice(i, i + 500));
+    const { data } = await fetchAll(() =>
+      supabase
+        .from("daily_report_items")
+        .select("daily_report_id, status")
+        .in("daily_report_id", ids.slice(i, i + 500))
+        .order("daily_report_id")
+    );
     items = items.concat(data || []);
   }
   const withItems = new Set(items.map((x) => x.daily_report_id));
 
-  const { data: att } = await supabase
-    .from("attendance")
-    .select("student_id, date, status")
-    .gte("date", from)
-    .lte("date", to);
+  const { data: att } = await fetchAll(() =>
+    supabase
+      .from("attendance")
+      .select("student_id, date, status")
+      .gte("date", from)
+      .lte("date", to)
+      .order("date").order("student_id")
+  );
 
   // 월별로 센다
   const byMonth = new Map();

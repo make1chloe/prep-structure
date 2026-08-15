@@ -69,7 +69,12 @@ export async function addNoticePhoto(formData) {
   }
 
   const photos = [...(cur?.photos || []), path];
-  const { error } = await supabase.from("notices").update({ photos }).eq("id", noticeId);
+  // 사진을 붙인 것도 고친 것 — edited_at 을 올려 재공지 (A4, 아래 remove 와 같음)
+  let { error } = await supabase.from("notices")
+    .update({ photos, edited_at: new Date().toISOString() }).eq("id", noticeId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ error } = await supabase.from("notices").update({ photos }).eq("id", noticeId));
+  }
   if (error) {
     await supabase.storage.from("notices").remove([path]);
     return { error: error.message };
@@ -88,7 +93,16 @@ export async function removeNoticePhoto(noticeId, path) {
 
   const { data: cur } = await supabase.from("notices").select("photos").eq("id", noticeId).maybeSingle();
   const photos = (cur?.photos || []).filter((p) => p !== path);
-  const { error } = await supabase.from("notices").update({ photos }).eq("id", noticeId);
+  /**
+   * **사진이 바뀐 것도 고친 것이다** (전수검사 A4, 2026-08-15). edited_at 을
+   * 안 올리면 이미 확인한 학생·학부모에게 다시 안 뜬다 — 가정통신문 사진을
+   * 나중에 붙였는데 아무도 못 본다. 0121 전 DB 면 사진만 저장한다.
+   */
+  let { error } = await supabase.from("notices")
+    .update({ photos, edited_at: new Date().toISOString() }).eq("id", noticeId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ error } = await supabase.from("notices").update({ photos }).eq("id", noticeId));
+  }
   if (error) return { error: error.message };
 
   await supabase.storage.from("notices").remove([path]);

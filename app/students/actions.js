@@ -187,6 +187,19 @@ export async function bulkAddStudents(rows) {
     }
   }
 
+  /**
+   * **엑셀로 온 학생의 학교도 학사일정에** (전수검사 A2, 2026-08-15).
+   * 직접 등록·상담 전환에는 있는데 이 길에만 없어서, 엑셀로 올린 아이는
+   * 시험 일정·시험범위·전날 등원이 조용히 빠졌다. 학교는 겹치니
+   * 한 번씩만. 실패해도 업로드는 그대로다.
+   */
+  if (!error && made?.length) {
+    const uniq = [...new Set(payload.map((r) => r.school).filter(Boolean))];
+    for (const sc of uniq) {
+      try { await attachSchool(supabase, sc); } catch { /* 업로드가 먼저다 */ }
+    }
+  }
+
   revalidatePath("/students");
 
   return {
