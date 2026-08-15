@@ -12,6 +12,7 @@ import {
 import { CATEGORIES, CAT_CLS, toolList, toolBadge } from "./categories";
 import { sortRows } from "@/lib/listSort";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
+import MissingPicker from "@/components/MissingPicker";
 export { CAT_CLS };
 
 /**
@@ -38,7 +39,9 @@ const NEED = [
   { key: "tool", label: "준비물" },
 ];
 
-export default function HomeworkList({ items = [] }) {
+export default function HomeworkList({ items = [], missKeys = null }) {
+  // 「빠진 것」 은 원장님이 고른 칸만 센다 (11-11). 안 정했으면 후보 전부.
+  const need = missKeys === null ? NEED : NEED.filter((d) => missKeys.includes(d.key));
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
@@ -55,7 +58,7 @@ export default function HomeworkList({ items = [] }) {
     items.filter((i) => {
       if (!showOff && !i.active) return false;
       if (catFilter !== "전체" && (i.category || "기타") !== catFilter) return false;
-      if (onlyMissing && !hasMissing(i, NEED)) return false;
+      if (onlyMissing && !hasMissing(i, need)) return false;
       if (kw && !i.name.toLowerCase().includes(kw)) return false;
       return true;
     }),
@@ -65,7 +68,7 @@ export default function HomeworkList({ items = [] }) {
   // 보여주면 「3개라는데 하나도 안 보인다」 가 된다
   const missingCount = countMissing(
     items.filter((i) => (showOff || i.active) && (catFilter === "전체" || (i.category || "기타") === catFilter)),
-    NEED
+    need
   );
 
   const allChecked = shown.length > 0 && shown.every((i) => sel.has(i.id));
@@ -187,6 +190,7 @@ export default function HomeworkList({ items = [] }) {
             빠진 것만 ({missingCount})
           </label>
         )}
+        <MissingPicker listKey="homework" defs={NEED} chosen={missKeys} />
         <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
           <input type="checkbox" checked={showOff} onChange={(e) => setShowOff(e.target.checked)} />
           숨긴 항목도 보기
@@ -468,13 +472,13 @@ export default function HomeworkList({ items = [] }) {
                       <td>
                         {/* **무엇이 빠졌는지 적어준다** — 「빠진 것 3」 이라고만
                             하면 줄마다 눌러서 찾아야 한다 (원칙 A5) */}
-                        {missingIn(i, NEED).length > 0 && (
+                        {missingIn(i, need).length > 0 && (
                           <span
                             className="tag tag-amber"
                             style={{ marginRight: 4 }}
-                            title={`${missingIn(i, NEED).join(" · ")} 가 비어 있습니다`}
+                            title={`${missingIn(i, need).join(" · ")} 가 비어 있습니다`}
                           >
-                            {missingIn(i, NEED).join("·")} 없음
+                            {missingIn(i, need).join("·")} 없음
                           </span>
                         )}
                         <button className="btn btn-ghost btn-sm" onClick={() => startEdit(i)}>수정</button>

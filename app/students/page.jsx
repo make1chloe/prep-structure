@@ -29,7 +29,7 @@ export default async function StudentsPage({ searchParams }) {
    * **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층).
    * 학생 사다리 폴백(옛 DB용)은 실패했을 때만 그대로 내려간다.
    */
-  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, schoolsList] = await Promise.all([
+  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, schoolsList, missQ] = await Promise.all([
     user
       ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
@@ -46,6 +46,8 @@ export default async function StudentsPage({ searchParams }) {
       .from("classes")
       .select("id, name, days, start_time")
       .order("start_time", { ascending: true }),
+    // 「빠진 것」 기준 — 목록마다 어떤 칸을 셀지 (11-11, app/settings/missingActions)
+    supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
     schoolNames(supabase).catch(() => []),
   ]);
   const profile = profileQ?.data || null;
@@ -249,6 +251,7 @@ export default async function StudentsPage({ searchParams }) {
               defaultPass={defaultPass}
               openStudent={searchParams?.s || null}
               classList={(klasses || []).map((c) => ({ id: c.id, name: c.name }))}
+              missKeys={missQ?.data?.config?.students ?? null}
             />
           )}
         </div>

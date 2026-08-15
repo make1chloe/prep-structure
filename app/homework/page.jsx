@@ -20,10 +20,14 @@ export default async function HomeworkPage() {
     profile = data;
   }
 
-  let { data: items, error } = await supabase
-    .from("homework_items")
-    .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id, in_person, unit_test, tool")
-    .order("sort", { ascending: true });
+  // 항목과 「빠진 것」 기준(11-11)은 서로 필요한 게 없다 — 한 파도 (원칙 6-1)
+  let [{ data: items, error }, missQ] = await Promise.all([
+    supabase
+      .from("homework_items")
+      .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id, in_person, unit_test, tool")
+      .order("sort", { ascending: true }),
+    supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
+  ]);
   if (error) {
     // 0116 전이면 '준비물' 없이
     ({ data: items, error } = await supabase
@@ -87,7 +91,7 @@ export default async function HomeworkPage() {
               <div className="err">불러오기 실패: {error.message}</div>
             </div>
           ) : (
-            <HomeworkList items={items || []} />
+            <HomeworkList items={items || []} missKeys={missQ?.data?.config?.homework ?? null} />
           )}
         </div>
       </main>

@@ -11,6 +11,7 @@ import {
 import { sortBooks, BOOK_SORTS, DEFAULT_SORT } from "@/lib/bookSort";
 import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
+import MissingPicker from "@/components/MissingPicker";
 
 /**
  * **빠진 것** — 이 교재가 제구실을 하려면 있어야 하는 칸.
@@ -71,7 +72,10 @@ export default function TextbookList({
   routinePanel = null,
   studentsPanel = null,
   progressPanel = null,
+  missKeys = null,
 }) {
+  // 「빠진 것」 은 원장님이 고른 칸만 센다 (11-11). 안 정했으면 후보 전부.
+  const need = missKeys === null ? NEED : NEED.filter((d) => missKeys.includes(d.key));
   const [sel, setSel] = useState(() => new Set());
   const [draft, setDraft] = useState({});
   const [q, setQ] = useState("");
@@ -158,7 +162,7 @@ export default function TextbookList({
       if (areaFilter && t.area !== areaFilter) return false;
       if (studentFilter && !(byBook[t.id] || []).includes(studentFilter)) return false;
       if (noUnitsOnly && (unitCount[t.id] || 0) > 0) return false;
-      if (onlyMissing && !hasMissing(t, NEED)) return false;
+      if (onlyMissing && !hasMissing(t, need)) return false;
       if (!kw) return true;
       return [t.name, t.area, t.target_grade, t.feature].some((v) => norm(v).includes(kw));
     });
@@ -428,12 +432,13 @@ export default function TextbookList({
         </label>
         {/* 「단원 없음」 과 따로 둔다 — 단원은 나중에 채우기도 하지만
             영역·교재비가 비면 지금 당장 문자와 목록이 어긋난다 */}
-        {countMissing(textbooks.filter((t) => (t.status || "active") === "active"), NEED) > 0 && (
+        {countMissing(textbooks.filter((t) => (t.status || "active") === "active"), need) > 0 && (
           <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
             <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
-            빠진 것만 ({countMissing(textbooks.filter((t) => (t.status || "active") === "active"), NEED)})
+            빠진 것만 ({countMissing(textbooks.filter((t) => (t.status || "active") === "active"), need)})
           </label>
         )}
+        <MissingPicker listKey="textbooks" defs={NEED} chosen={missKeys} />
         <button className="btn btn-ghost btn-sm" onClick={() => setColBox(!colBox)}>
           열 고르기 {cols.length}/{COLS.length}
         </button>
@@ -545,13 +550,13 @@ export default function TextbookList({
                         {c.key === "name" ? (
                           <>
                             <button className="namebtn" onClick={() => open(t)}>{t.name}</button>
-                            {missingIn(t, NEED).length > 0 && (
+                            {missingIn(t, need).length > 0 && (
                               <span
                                 className="tag tag-amber"
                                 style={{ marginLeft: 4 }}
-                                title={`${missingIn(t, NEED).join(" · ")} 가 비어 있습니다`}
+                                title={`${missingIn(t, need).join(" · ")} 가 비어 있습니다`}
                               >
-                                {missingIn(t, NEED).join("·")} 없음
+                                {missingIn(t, need).join("·")} 없음
                               </span>
                             )}
                           </>

@@ -33,7 +33,7 @@ export default async function TextbooksPage({ searchParams }) {
   const user = session?.user || null;
 
   // **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층)
-  const [profileQ, tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ] = await Promise.all([
+  const [profileQ, tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ, missQ] = await Promise.all([
     user
       ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
@@ -62,6 +62,8 @@ export default async function TextbooksPage({ searchParams }) {
       .select("id, name, school, grade, status")
       .eq("status", "enrolled")
       .order("name", { ascending: true }),
+    // 「빠진 것」 기준 — 목록마다 어떤 칸을 셀지 (11-11)
+    supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
   ]);
   const profile = profileQ?.data || null;
 
@@ -234,6 +236,7 @@ export default async function TextbooksPage({ searchParams }) {
           ) : (
             <TextbookList
               textbooks={textbooks || []}
+              missKeys={missQ?.data?.config?.textbooks ?? null}
               unitCount={unitCount}
               selectedId={selectedId}
               students={students || []}

@@ -16,6 +16,7 @@ import { fromLabel } from "@/lib/bookUse";
 import { shortName } from "@/lib/schoolName";
 import { WEEK_ORDER as DOW } from "@/lib/day";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
+import MissingPicker from "@/components/MissingPicker";
 
 /**
  * **빠진 것** — 이 아이에게 없으면 실제로 일이 안 되는 칸.
@@ -109,7 +110,9 @@ const SORTS = [
   ["created_at", "최근 추가순"],
 ];
 
-export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null, classList = [] }) {
+export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null, classList = [], missKeys = null }) {
+  // 「빠진 것」 은 원장님이 고른 칸만 센다 (11-11). 안 정했으면 후보 전부.
+  const need = missKeys === null ? NEED : NEED.filter((d) => missKeys.includes(d.key));
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
   const [on, setOn] = useState(() => new Set(DEFAULT_ON));
   const [colBox, setColBox] = useState(false);
@@ -185,7 +188,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const kw = norm(q).trim();
   const shown = students.filter((s) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
-    if (onlyMissing && !hasMissing(s, NEED)) return false;
+    if (onlyMissing && !hasMissing(s, need)) return false;
     if (!kw) return true;
     return [s.name, s.school, s.grade, s.parent_phone, s.student_phone, s.login_id, s.parent_login_id, s.note]
       .some((v) => norm(v).includes(kw));
@@ -714,12 +717,13 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         <span className="hint">{shown.length}명 표시</span>
         {/* **빠진 칸은 조용하다** — 학부모 전화가 없으면 그 아이만 리포트가
             안 나가는데, 목록을 훑어서는 안 보인다 */}
-        {countMissing(students.filter((s) => statusFilter === "all" || s.status === statusFilter), NEED) > 0 && (
+        {countMissing(students.filter((s) => statusFilter === "all" || s.status === statusFilter), need) > 0 && (
           <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
             <input type="checkbox" checked={onlyMissing} onChange={(e) => { setOnlyMissing(e.target.checked); setSel(new Set()); }} />
-            빠진 것만 ({countMissing(students.filter((s) => statusFilter === "all" || s.status === statusFilter), NEED)})
+            빠진 것만 ({countMissing(students.filter((s) => statusFilter === "all" || s.status === statusFilter), need)})
           </label>
         )}
+        <MissingPicker listKey="students" defs={NEED} chosen={missKeys} />
         {/* 정렬·묶음·상태는 **저장을 눌러야 남는다.** 그때그때 바꿔보는 것이라
             자동으로 남기면 다음에 열었을 때 왜 이렇게 보이는지 알 수 없다. */}
         {viewDirty && (
@@ -879,13 +883,13 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                         <>
                           <button className="namebtn" onClick={() => open(s)}>{s.name}</button>
                           {/* 무엇이 빠졌는지 적어준다 — 숫자만 있으면 줄마다 눌러 찾아야 한다 */}
-                          {missingIn(s, NEED).length > 0 && (
+                          {missingIn(s, need).length > 0 && (
                             <span
                               className="tag tag-amber"
                               style={{ marginLeft: 4 }}
-                              title={`${missingIn(s, NEED).join(" · ")} 가 비어 있습니다`}
+                              title={`${missingIn(s, need).join(" · ")} 가 비어 있습니다`}
                             >
-                              {missingIn(s, NEED).join("·")} 없음
+                              {missingIn(s, need).join("·")} 없음
                             </span>
                           )}
                         </>
