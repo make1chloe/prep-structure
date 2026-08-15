@@ -347,6 +347,24 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
     if (c.key === "school" && v) {
       return <span title={v}>{shortName(v)}</span>;
     }
+    // 특이사항이 길면 표가 옆으로 무한정 늘어나 줄이 안 맞았다 (2026-08-15).
+    // 표에서는 줄여 보여주고, 전체는 마우스 올리기(제목)나 한 판에서 본다.
+    if (c.key === "note" && v) {
+      return (
+        <span
+          title={v}
+          style={{
+            display: "inline-block",
+            maxWidth: 180,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            verticalAlign: "bottom",
+          }}
+        >
+          {v}
+        </span>
+      );
+    }
     // 아직 0000 그대로인 계정 — 아이디가 규칙적이라 남이 열 수 있다
     // 같은 반이어도 교재는 학생마다 다르다 — 목록에서 바로 보이게
     // 교재는 **전부 보여준다.** "외 3" 이라고 줄여두면 무엇을 쓰는지 알려고
@@ -448,6 +466,18 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
         </select>
       );
     }
+    if (c.key === "note") {
+      // 특이사항은 길다 — 한 줄 input 으로는 전체가 안 보인다 (2026-08-15)
+      return (
+        <textarea
+          className="input input-sm"
+          rows={3}
+          style={{ resize: "vertical", lineHeight: 1.6 }}
+          value={draft[c.key] ?? ""}
+          onChange={(e) => setDraft({ ...draft, [c.key]: e.target.value })}
+        />
+      );
+    }
     return (
       <input
         className="input input-sm"
@@ -511,7 +541,11 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                         <>
                           <div className="editgrid">
                             {ALL_FIELDS.map((c) => (
-                              <div className="field" key={c.key}>
+                              <div
+                                className="field"
+                                key={c.key}
+                                style={c.key === "note" ? { gridColumn: "1 / -1" } : undefined}
+                              >
                                 <label className="label">{c.label}</label>
                                 {editor(c)}
                               </div>

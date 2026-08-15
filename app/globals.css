@@ -1112,6 +1112,10 @@ input[type="date"] { min-width: 148px; }
   .splitview { grid-template-columns: 1fr; }
   .split-panel { position: static; order: -1; max-height: none; overflow: visible; }
   .split-fold { display: inline-flex; }
+  /* 판이 안 스크롤되는데 머리줄만 sticky 면, 화면을 내릴 때 머리줄이
+     메뉴와 겹쳐 내용 위에 얹힌다 (2026-08-15 「레이아웃이 겹치거나 줄이
+     안 맞음」). 폰에서는 그냥 흐름에 둔다. */
+  .split-head { position: static; margin: 0 0 4px; padding: 6px 0 8px; }
 }
 
 /* 재원생을 묶어 볼 때의 머리줄 (반별 · 요일별 · 학교별 · 학년별) */
