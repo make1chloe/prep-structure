@@ -263,7 +263,8 @@ export default async function TasksPage({ searchParams }) {
     // 이미 전달사항을 만든 일정 표시
     const taskIds = (tasks || []).filter((t) => t.deliver_body).map((t) => t.id);
     const { data: made } = taskIds.length
-      ? await supabase.from("notices").select("task_id, date").in("task_id", taskIds)
+      ? await supabase.from("notices").select("task_id, date")
+          .in("task_id", taskIds).eq("kind", "memo")   // 전달사항만 (A12)
       : { data: [] };
     const madeMap = new Map((made || []).map((n) => [n.task_id, n.date]));
     rows = (tasks || []).map((t) => ({ ...t, deliveredOn: madeMap.get(t.id) || null }));

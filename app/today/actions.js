@@ -437,7 +437,12 @@ export async function createNotice(input) {
   const { error: rErr } = await supabase
     .from("notice_receipts")
     .insert(targets.map((student_id) => ({ notice_id: notice.id, student_id })));
-  if (rErr) return { error: rErr.message };
+  if (rErr) {
+    // **고아 공지를 남기지 않는다** (전수검사 A16) — 받는 사람 없이 목록에
+    // 남으면 「보냈는데요」 의 근거가 되어버린다 (postAppNotices 와 같은 규칙)
+    await supabase.from("notices").delete().eq("id", notice.id);
+    return { error: rErr.message };
+  }
 
   /**
    * **여기서는 알림을 안 보낸다** (원장님, 2026-08-07 —

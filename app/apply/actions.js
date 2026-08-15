@@ -104,7 +104,19 @@ export async function submitApply(formData) {
   };
 
     if (token) {
-    const patch = { ...row, status: "scheduled", updated_at: new Date().toISOString() };
+    /**
+     * **재제출이 단계를 되돌리면 안 된다** (값-지도 P1-17). 링크는 남아
+     * 있어서 학부모가 나중에 고쳐 다시 낼 수 있다 — 자료는 갱신하되,
+     * 이미 상담 완료·등록·미등록으로 넘어간 건의 상태는 건드리지 않는다.
+     */
+    const { data: cur } = await supabase
+      .from("inquiries").select("status").eq("token", token).maybeSingle();
+    const keep = ["consulted", "tested", "enrolled", "hold", "declined"].includes(cur?.status);
+    const patch = {
+      ...row,
+      ...(keep ? {} : { status: "scheduled" }),
+      updated_at: new Date().toISOString(),
+    };
     let { error } = await supabase.from("inquiries").update(patch).eq("token", token);
     if (error && noColumn(error)) {
       ({ error } = await supabase

@@ -71,6 +71,17 @@ export default function WarnBox({ studentId, warn, date }) {
             </button>
           </div>
         ))}
+        {/* 빼주거나 넘어간 사유 — 적어두신 말이 다시 보여야 기록이다 (P1-13) */}
+        {(warn.acts || []).length > 0 && (
+          <div className="hint" style={{ marginTop: 4, lineHeight: 1.7 }}>
+            {warn.acts.map((a, i) => (
+              <div key={i}>
+                ↩ {String(a.on || "").slice(5).replace("-", "/")}{" "}
+                {a.kind === "waive" ? "빼줌" : a.kind === "defer" ? "넘어감" : "정리"} — {a.note}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {warn.need && (

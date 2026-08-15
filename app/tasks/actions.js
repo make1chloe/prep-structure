@@ -209,11 +209,14 @@ export async function applyTaskDelivery(taskId, date) {
   const on = date || task.due_on;
 
   // 이미 만든 적이 있으면 다시 만들지 않는다
+  // 「이미 만들었나」 는 task_id + 날짜 + **종류**로 (전수검사 A12) —
+  // 종류를 빼면 학부모 공지를 먼저 만든 일정이 「전달사항도 만들었다」 가 된다
   const { data: exist } = await supabase
     .from("notices")
     .select("id")
     .eq("task_id", taskId)
     .eq("date", on)
+    .eq("kind", "memo")
     .limit(1);
   if (exist?.length) return { error: null, skipped: true };
 

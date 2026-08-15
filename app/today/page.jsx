@@ -615,7 +615,7 @@ export default async function TodayPage({ searchParams }) {
           .in("status", ["missing", "weak"])
       : none,
     pendingTaskIds0.length
-      ? supabase.from("notices").select("task_id").in("task_id", pendingTaskIds0).eq("date", date)
+      ? supabase.from("notices").select("task_id").in("task_id", pendingTaskIds0).eq("date", date).eq("kind", "memo")
       : none,
     // 화면에 쓰인 단원이 어느 교재 것인지 (단원 이름 경로를 만들려고)
     unitIds.size > 0
@@ -939,9 +939,14 @@ export default async function TodayPage({ searchParams }) {
       const mine = wReports
         .filter((r) => r.student_id === sid)
         .map((r) => ({ ...r, items: wItemsOf.get(r.id) || [] }));
+      const myActs = wActions.filter((a) => a.student_id === sid);
       warnOf.set(sid, {
-        ...tally(mine, wActions.filter((a) => a.student_id === sid), rule),
+        ...tally(mine, myActs, rule),
         rule,
+        // 빼주고 넘어간 **사유** — 적기만 하고 다시는 안 보이던 칸 (값-지도 P1-13)
+        acts: myActs
+          .filter((a) => (a.note || "").trim())
+          .map((a) => ({ kind: a.kind, on: a.on_date, note: a.note })),
       });
     });
   }
