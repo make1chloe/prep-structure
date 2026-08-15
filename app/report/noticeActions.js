@@ -228,9 +228,29 @@ export async function sendNotices(items, label, templateId) {
     // **한 명씩 보낸다.** 문구에 {{학생명}} 이 채워져 있어서 사람마다 본문이
     // 다르다. 한 사람 것으로 묶어 보내면 남의 이름이 적힌 알림이 간다.
     const toParent = noticeKindOf(kind) === "alert_parent";
+    /**
+     * **한 가족에는 알림 한 번** (값-지도 P1-7, 2026-08-15). 문구에
+     * {{학생명}} 이 있어 공지는 아이마다 따로 올리지만, 알림까지 아이마다
+     * 울리면 형제 있는 집 어머니 폰이 같은 안내로 두 번 운다.
+     * 공지는 둘 다 올라가 있으니 알림은 가족당 한 번이면 된다.
+     */
+    const sids2 = students.map((x) => x.id.slice(2));
+    const { data: famLinks } = await supabase
+      .from("parent_student")
+      .select("parent_profile_id, student_id")
+      .in("student_id", sids2);
+    const parentsOf = new Map();
+    (famLinks || []).forEach((l) => {
+      if (!parentsOf.has(l.student_id)) parentsOf.set(l.student_id, []);
+      parentsOf.get(l.student_id).push(l.parent_profile_id);
+    });
+    const rangParents = new Set();
     for (const x of students) {
       const sid = x.id.slice(2);
       if (!okSet.has(sid)) continue;
+      const fam = parentsOf.get(sid) || [];
+      if (fam.length > 0 && fam.every((pid) => rangParents.has(pid))) continue;
+      fam.forEach((pid) => rangParents.add(pid));
       try {
         const r = await pushToFamilies(
           [sid],
