@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import PickOrType from "@/components/PickOrType";
 import { useRouter } from "next/navigation";
 import {
@@ -98,6 +98,12 @@ export default function UnitList({
       word_count: u.word_count ?? "",
       page_start: u.page_start ?? "",
       page_end: u.page_end ?? "",
+      // 분량·내용 (0100) — 엑셀로만 넣을 수 있던 것을 앱에서도 (값-지도 P2)
+      total_pages: u.total_pages ?? "",
+      question_count: u.question_count ?? "",
+      question_range: u.question_range ?? "",
+      summary: u.summary ?? "",
+      minutes: u.minutes ?? "",
     });
   }
 
@@ -275,7 +281,8 @@ export default function UnitList({
           {rows.map(({ unit: u, depth }) => {
             const editing = editId === u.id;
             return (
-              <tr key={u.id}>
+              <Fragment key={u.id}>
+              <tr>
                 <td>
                   <input type="checkbox" checked={sel.has(u.id)} onChange={() => toggleOne(u.id)} />
                 </td>
@@ -387,6 +394,49 @@ export default function UnitList({
                   </>
                 )}
               </tr>
+              {/* 분량·내용 (0100) — 엑셀로만 넣을 수 있고 앱에서는 한 번
+                  넣으면 고칠 수 없던 칸 (값-지도 P2). 학생·학부모 숙제
+                  줄의 「25문항 · 15분」 이 여기서 나온다 */}
+              {editing && (
+                <tr>
+                  <td colSpan={isWord ? 7 : 6} style={{ background: "var(--surface-2)" }}>
+                    <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap", padding: "2px 0" }}>
+                      <div className="field">
+                        <label className="label">분량(쪽)</label>
+                        <input className="input input-sm" style={{ width: 64 }} inputMode="numeric"
+                          title="쪽수 범위와 달리 실제 몇 쪽짜리인지 — 비우면 범위로 셉니다"
+                          value={draft.total_pages}
+                          onChange={(e) => setDraft({ ...draft, total_pages: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">문항 수</label>
+                        <input className="input input-sm" style={{ width: 64 }} inputMode="numeric"
+                          value={draft.question_count}
+                          onChange={(e) => setDraft({ ...draft, question_count: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">문제 번호(글)</label>
+                        <input className="input input-sm" style={{ width: 110 }} placeholder="1~25, 서술 3"
+                          value={draft.question_range}
+                          onChange={(e) => setDraft({ ...draft, question_range: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">걸리는 시간(분)</label>
+                        <input className="input input-sm" style={{ width: 64 }} inputMode="numeric"
+                          value={draft.minutes}
+                          onChange={(e) => setDraft({ ...draft, minutes: e.target.value })} />
+                      </div>
+                      <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                        <label className="label">내용 한 줄 (학생에게 보입니다)</label>
+                        <input className="input input-sm" placeholder="관계대명사 who/which 연습"
+                          value={draft.summary}
+                          onChange={(e) => setDraft({ ...draft, summary: e.target.value })} />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

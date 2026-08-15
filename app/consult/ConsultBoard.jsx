@@ -334,6 +334,16 @@ export default function ConsultBoard({
                       <span className="tag tag-muted">양식 미제출</span>
                     )
                   )}
+                  {/* 동의 증거 — 받아만 두고 볼 데가 없던 칸 (값-지도 P2).
+                      분쟁이 나면 「언제 동의했나」 를 여기서 바로 답한다 */}
+                  {r.privacy_agreed_at && (
+                    <span
+                      className="tag tag-mint"
+                      title={new Date(r.privacy_agreed_at).toLocaleString("ko-KR")}
+                    >
+                      개인정보 동의 ✓
+                    </span>
+                  )}
                   {r.consult_on && (
                     <span className="hint">
                       상담 {dayLabel(r.consult_on)}

@@ -483,9 +483,23 @@ export async function updateUnit(id, patch) {
       row[k] = d ? parseInt(d, 10) : null;
     }
   });
+  // 분량·내용 (0100) — 엑셀로만 넣을 수 있던 것을 앱에서도 (값-지도 P2)
+  ["total_pages", "question_count", "minutes"].forEach((k) => {
+    if (k in (patch || {})) {
+      const d = (patch[k] ?? "").toString().replace(/[^\d]/g, "");
+      row[k] = d ? parseInt(d, 10) : null;
+    }
+  });
+  if ("question_range" in (patch || {})) row.question_range = (patch.question_range || "").trim() || null;
+  if ("summary" in (patch || {})) row.summary = (patch.summary || "").trim() || null;
 
   const supabase = createClient();
   let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
+  if (noColumn(error)) {
+    // 0100 전 — 분량·내용 칸 없이
+    const { total_pages: _t, question_count: _q, question_range: _r, summary: _s, minutes: _m, ...noVol } = row;
+    ({ error } = await supabase.from("textbook_units").update(noVol).eq("id", id));
+  }
   if (noColumn(error)) {
     // 0070 전 — 단어 개수만 빼고 나머지는 저장한다
     const { word_count: _w, ...noWords } = row;

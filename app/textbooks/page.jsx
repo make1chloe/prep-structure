@@ -157,11 +157,19 @@ export default async function TextbooksPage({ searchParams }) {
   let units = [];
   if (selectedId) {
     const base = "id, name, sort, label, parent_id, page_start, page_end";
+    // 분량·내용(0100)도 같이 — 편집 판이 이 값을 고친다 (값-지도 P2)
     let { data, error } = await supabase
       .from("textbook_units")
-      .select(`${base}, question_no, word_count`)
+      .select(`${base}, question_no, word_count, total_pages, question_count, question_range, summary, minutes`)
       .eq("textbook_id", selectedId)
       .order("sort", { ascending: true });
+    if (error) {
+      ({ data, error } = await supabase
+        .from("textbook_units")
+        .select(`${base}, question_no, word_count`)
+        .eq("textbook_id", selectedId)
+        .order("sort", { ascending: true }));
+    }
     if (error) {
       // 0070 전이면 단어 개수 없이
       ({ data, error } = await supabase

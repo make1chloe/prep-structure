@@ -351,6 +351,15 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
                       onChange={(e) => setDraft({ ...draft, url: e.target.value })}
                       placeholder="주소"
                     />
+                    {/* 설명 — 학생 화면에 영상 아래로 보인다. 넣을 수는 있는데
+                        고칠 수가 없던 칸 (값-지도 P2) */}
+                    <textarea
+                      className="input input-sm"
+                      rows={2}
+                      placeholder="설명 (학생 화면에 영상 아래로 보입니다)"
+                      value={draft.note ?? ""}
+                      onChange={(e) => setDraft({ ...draft, note: e.target.value })}
+                    />
                     <div className="row" style={{ gap: 6 }}>
                       <select
                         className="input input-sm"
@@ -407,7 +416,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
                   className="btn btn-ghost btn-sm"
                   onClick={() => {
                     setEditId(v.id);
-                    setDraft({ title: v.title, url: v.url, folder_id: v.folder_id || "" });
+                    setDraft({ title: v.title, url: v.url, folder_id: v.folder_id || "", note: v.note || "" });
                   }}
                 >
                   수정
