@@ -156,7 +156,8 @@ export default function SendTodo({
             </button>
           </div>
           <p className="hint" style={{ margin: "4px 0 0" }}>
-            예약은 그 시각이 지난 뒤 <b>앱을 열 때</b> 나갑니다 (대시보드·발송 화면).
+            예약은 그 시각이 지난 뒤 <b>앱을 열 때</b>, 또는 바깥 시계가 한 시간마다
+            서버를 두드릴 때 나갑니다 (설정해두면 앱을 안 열어도 나가요).
           </p>
         </div>
       )}

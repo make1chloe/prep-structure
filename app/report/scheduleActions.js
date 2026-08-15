@@ -71,8 +71,10 @@ export async function cancelScheduled(id) {
  * 실패해도 sent_at 을 적는다 — 안 적으면 열 때마다 같은 실패를 되풀이하고,
  * 문자라면 요금이 되풀이된다. 실패 사유는 result 에 남아 화면에 보인다.
  */
-export async function runDueSends() {
-  const supabase = createClient();
+export async function runDueSends(supa = null) {
+  // supa — 외부 크론(/api/cron/send)이 서버 열쇠 클라이언트를 넣어준다.
+  // 없으면 로그인 쿠키(직원이 화면을 연 순간)로 돈다.
+  const supabase = supa || createClient();
   const now = new Date().toISOString();
   const { data: due, error } = await supabase
     .from("scheduled_sends")
@@ -98,13 +100,13 @@ export async function runDueSends() {
     try {
       if (job.kind === "report") {
         const ids = job.payload?.reportIds || [];
-        const res = await resend(ids.map((id) => ({ id })), "report");
+        const res = await resend(ids.map((id) => ({ id })), "report", supa);
         result = { count: res?.count ?? 0, failed: res?.failed || [], error: res?.error || null };
       } else if (job.kind === "book") {
         const p = job.payload || {};
-        const res = await sendNotices(p.items || [], "book", p.templateId || null);
+        const res = await sendNotices(p.items || [], "book", p.templateId || null, supa);
         if (!res?.error && p.ids?.length && p.bookIds?.length && p.startOn) {
-          await assignAnnouncedBooks(p.ids, p.bookIds, p.startOn);
+          await assignAnnouncedBooks(p.ids, p.bookIds, p.startOn, supa);
         }
         result = { count: res?.count ?? 0, failed: res?.failed || [], error: res?.error || null };
       } else {

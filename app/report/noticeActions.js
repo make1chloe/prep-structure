@@ -219,11 +219,12 @@ export async function listRecipients() {
  * @param label    안내 종류 (교재 book · 보강 makeup …)
  * @param templateId 어떤 문구로 보냈는지 — 알림톡 템플릿을 찾는 데 쓴다
  */
-export async function sendNotices(items, label, templateId) {
+export async function sendNotices(items, label, templateId, supa = null) {
   const list = Array.isArray(items) ? items.filter((x) => x?.body) : [];
   if (list.length === 0) return { error: null, count: 0 };
 
-  const supabase = createClient();
+  // supa — 예약 발송(외부 크론)의 서버 열쇠 클라이언트 (0126)
+  const supabase = supa || createClient();
   const settings = await loadSettings(supabase);
   const user = await sessionUser(supabase);
   const kind = label || "notice";
@@ -329,7 +330,8 @@ export async function sendNotices(items, label, templateId) {
             url: toParent ? "/parent" : "/me",
             tag: `notice-${kind}`,
           },
-          toParent ? "parent" : kindOf === "alert_student" ? "student" : "all"
+          toParent ? "parent" : kindOf === "alert_student" ? "student" : "all",
+          supa
         );
         pushed += r?.sent || 0;
       } catch {
@@ -421,7 +423,7 @@ function firstLine(body = "") {
  * @param bookIds 안내한 교재
  * @param startOn "YYYY-MM-DD" 사용 예정일
  */
-export async function assignAnnouncedBooks(ids, bookIds, startOn) {
+export async function assignAnnouncedBooks(ids, bookIds, startOn, supaIn = null) {
   const students = (ids || [])
     .filter((x) => typeof x === "string" && x.startsWith("s:"))
     .map((x) => x.slice(2));
@@ -438,7 +440,7 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn) {
     .map((x) => x.slice(2));
   if (inquiries.length > 0 && books.length > 0) {
     try {
-      const supa = createClient();
+      const supa = supaIn || createClient();
       const { data: qs } = await supa
         .from("inquiries").select("id, book_ids").in("id", inquiries);
       for (const q of qs || []) {
@@ -455,7 +457,7 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn) {
     return { error: "사용 예정일을 날짜로 적어주세요." };
   }
 
-  const supabase = createClient();
+  const supabase = supaIn || createClient();
 
   // 이미 있는 줄은 그대로 둔다
   const { data: have, error: readErr } = await supabase

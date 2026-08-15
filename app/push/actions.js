@@ -206,7 +206,7 @@ export async function pushToStudents(studentIds, payload) {
  *
  * 알림을 안 켠 기기는 그냥 없는 것이다 — 조용히 넘어간다.
  */
-export async function pushToFamilies(studentIds, payload, who = "all") {
+export async function pushToFamilies(studentIds, payload, who = "all", supa = null) {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0) return { sent: 0, error: null };
 
@@ -229,7 +229,7 @@ export async function pushToFamilies(studentIds, payload, who = "all") {
   // **줄 순서가 곧 버그였다.** withAcademy 를 넣으면서 이 줄을
   // `const supabase` 보다 위에 두었다 — 자바스크립트는 그러면 그 자리에서
   // 터진다(TDZ). `next build` 는 통과했다. 실행해봐야만 나는 종류다.
-  const supabase = createClient();
+  const supabase = supa || createClient();
   const safe = { ...(await withAcademy(supabase, payload)), body: OPEN_TO_SEE };
 
   const keys = await keysOf(supabase);

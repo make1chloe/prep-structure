@@ -65,11 +65,13 @@ export async function resetText(reportId, kind) {
  *
  * items: [{ id, body }]
  */
-export async function resend(items, kind) {
+export async function resend(items, kind, supa = null) {
   const list = Array.isArray(items) ? items.filter((x) => x?.id) : [];
   if (list.length === 0) return { error: null, count: 0 };
 
-  const supabase = createClient();
+  // supa — 예약 발송(외부 크론)이 서버 열쇠 클라이언트를 넣어준다 (0126).
+  // 없으면 여느 때처럼 로그인 쿠키로 연다.
+  const supabase = supa || createClient();
   const user = await sessionUser(supabase);
 
   const k = KINDS[kind] ? kind : "report";
@@ -140,7 +142,8 @@ export async function resend(items, kind) {
           url: forStudent ? "/me" : "/parent",
           tag: `send-${k}`,
         },
-        forStudent ? "all" : "parent"
+        forStudent ? "all" : "parent",
+        supa
       );
     } catch {
       /* 알림이 안 가도 올라간 것은 그대로다 */
