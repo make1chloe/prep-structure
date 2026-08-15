@@ -90,7 +90,7 @@ export default async function TodayPage({ searchParams }) {
     // 단어시험 설정(개수·통과선)까지 같이 — 채점 자리에서 바로 나와야 한다 (0070)
     supabase
       .from("students")
-      .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct")
+      .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct, note")
       .eq("status", "enrolled"),
     supabase
       .from("attendance")

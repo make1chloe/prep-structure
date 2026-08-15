@@ -635,6 +635,17 @@ export default function StudentPanel({
         </div>
       </div>
 
+      {/**
+        * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
+        * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
+        * 정작 수업 중에는 아무도 몰랐다.
+        */}
+      {(row.student.note || "").trim() && (
+        <div className="notice" style={{ margin: "6px 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
+          <b>특이사항</b> · {row.student.note.trim()}
+        </div>
+      )}
+
       {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
           순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
           옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,

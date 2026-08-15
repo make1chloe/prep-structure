@@ -157,7 +157,20 @@ export async function convertToStudent(id, classId) {
       grade: q.grade,
       parent_phone: q.phone,
       student_phone: q.student_phone,
-      note: [q.source && `유입: ${q.source}`, q.memo, q.test_note]
+      /**
+       * 학부모가 설문지에 적어준 것들이 등록 순간 증발하던 것 (값-지도 P1-1)
+       * — 목표·학원경력·테스트 결과·희망 시간까지 특이사항으로 넘긴다.
+       */
+      note: [
+        q.source && `유입: ${q.source}`,
+        q.test_result && `레벨테스트: ${q.test_result}`,
+        q.test_note,
+        q.prev_academy && `학습 경험: ${q.prev_academy}`,
+        q.goal && `개선 목표: ${q.goal}`,
+        (q.want_time || q.want_days_text) &&
+          `희망 시간: ${[q.want_days_text, q.want_time].filter(Boolean).join(" ")}`,
+        q.memo,
+      ]
         .filter(Boolean)
         .join("\n"),
       status: "enrolled",

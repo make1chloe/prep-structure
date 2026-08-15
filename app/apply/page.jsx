@@ -23,7 +23,7 @@ export default async function ApplyPage({ searchParams }) {
   if (token) {
     const { data } = await supabase
       .from("inquiries")
-      .select("name, phone, school, grade")
+      .select("name, phone, school, grade, student_phone")
       .eq("token", token)
       .maybeSingle();
     if (data) prefill = data;

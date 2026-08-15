@@ -100,7 +100,8 @@ export default function ApplyForm({ token = "", prefill = {}, schools = [] }) {
             않으면 「아이 번호는 왜?」 하고 비워두신다 */}
         <div className="field" style={{ marginTop: 10 }}>
           <label className="label">학생 연락처 * (레벨테스트 아이디 생성)</label>
-          <input className="input" name="student_phone" required placeholder="010-0000-0000" />
+          <input className="input" name="student_phone" required placeholder="010-0000-0000"
+              defaultValue={prefill.student_phone || ""} />
           <p className="hint" style={{ marginTop: 4 }}>
             이 번호로 학생 아이디를 만들어 테스트 결과와 학습 기록을 보여드립니다.
           </p>

@@ -162,7 +162,7 @@ export default async function ParentPage({ searchParams }) {
     loadHomeworkItems(supabase),
     supabase.from("class_students").select("class_id").eq("student_id", pickId),
     supabase
-      .from("attendance").select("status, reason").eq("student_id", pickId).eq("date", today).maybeSingle(),
+      .from("attendance").select("status, reason, planned, note").eq("student_id", pickId).eq("date", today).maybeSingle(),
     supabase
       .from("stay_tasks").select("id, body, status").eq("student_id", pickId).eq("date", today),
     supabase
@@ -426,9 +426,19 @@ export default async function ParentPage({ searchParams }) {
                       {nextClass.at ? `${nextClass.at} 시작` : "수업일"}
                     </span>
                     {attToday ? (
-                      <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
-                        {ATT_LABEL[attToday.status] || attToday.status}
-                      </span>
+                      <>
+                        <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
+                          {ATT_LABEL[attToday.status] || attToday.status}
+                        </span>
+                        {attToday.status === "absent" && attToday.planned && (
+                          <span className="tag tag-sky">미리 말씀해주신 결석</span>
+                        )}
+                        {(attToday.reason || attToday.note) && (
+                          <span className="hint" style={{ fontSize: 14 }}>
+                            {[attToday.reason, attToday.note].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
+                      </>
                     ) : (
                       <span className="tag tag-muted">아직 출결 전</span>
                     )}
@@ -450,8 +460,14 @@ export default async function ParentPage({ searchParams }) {
                     <span className={`tag ${attToday.status === "absent" ? "tag-red" : "tag-mint"}`}>
                       {ATT_LABEL[attToday.status] || attToday.status}
                     </span>
-                    {attToday.reason && (
-                      <span className="hint" style={{ fontSize: 14 }}>{attToday.reason}</span>
+                    {/* 사전 연락 결석과 무단 결석은 다른 이야기다 (값-지도 P1-6) */}
+                    {attToday.status === "absent" && attToday.planned && (
+                      <span className="tag tag-sky">미리 말씀해주신 결석</span>
+                    )}
+                    {(attToday.reason || attToday.note) && (
+                      <span className="hint" style={{ fontSize: 14 }}>
+                        {[attToday.reason, attToday.note].filter(Boolean).join(" · ")}
+                      </span>
                     )}
                   </div>
                 )}
