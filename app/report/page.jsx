@@ -5,12 +5,13 @@ import ReportSender from "./ReportSender";
 import NoticeSender from "./NoticeSender";
 import LateSender from "./LateSender";
 import SendTabs from "./SendTabs";
+import SendTodo from "./SendTodo";
 import ResendBoard from "../resend/ResendBoard";
 import TestSender from "./TestSender";
 import { loadReportRows } from "@/lib/reportData";
 import { loadSettings } from "@/lib/settings";
 import { channelPlan } from "@/lib/alimtalk";
-import { todaySeoul } from "@/lib/day";
+import { todaySeoul, addDays } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
 
@@ -23,13 +24,15 @@ export default async function ReportPage({ searchParams }) {
   const date = searchParams?.d || todaySeoul();
 
   const t = searchParams?.t;
+  // 첫 화면은 「보낼 것」 모아보기 (원장님, 2026-08-16). 리포트 탭은 t=report 로
   const tab =
     t === "notice" ? "notice"
     : t === "hw" ? "hw"
     : t === "late" ? "late"
     : t === "resend" ? "resend"
     : t === "test" ? "test"
-    : "report";
+    : t === "report" ? "report"
+    : "todo";
 
   // 테스트 발송 탭 — 학생 전체와, 알림톡이 붙은 문구
   // **파도** (속도 대원칙 — 원칙 6)
@@ -58,6 +61,65 @@ export default async function ReportPage({ searchParams }) {
     // 다 보내고 나서 "이거 문자로 나갔네" 를 알면 늦다.
     supabase.from("message_templates").select("id, name, key, alimtalk_id, active").not("key", "is", null),
   ]);
+
+  /**
+   * **보낼 것 모아보기** — 흩어진 미발송을 한 판에 (2026-08-16).
+   * 셈은 메뉴 배지(lib/menuBadges)와 같은 기준: 리포트는 지난 한 달의
+   * 쓰고 안 보낸 것(「안 보냄」 처리 제외), 교재는 안내 안 나간 사용 예정
+   * (0125), 월간은 월말 사흘 전부터.
+   */
+  let todoData = null;
+  if (tab === "todo") {
+    const today = todaySeoul();
+    const ym = today.slice(0, 7);
+    const [unsentQ, stuQ, pendQ, monQ] = await Promise.all([
+      supabase
+        .from("daily_reports")
+        .select("id, student_id, date, skip_kinds")
+        .eq("report_written", true).is("sent_at", null)
+        .gte("date", addDays(today, -30)).lte("date", today)
+        .order("date", { ascending: false }),
+      supabase.from("students").select("id, name, status, enrolled_on").eq("status", "enrolled"),
+      supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id")
+        .eq("status", "active").is("notified_on", null).gt("assigned_on", today),
+      supabase.from("monthly_reports").select("id", { count: "exact", head: true }).eq("ym", ym),
+    ]);
+    const nameOf = new Map((stuQ.data || []).map((x) => [x.id, x.name]));
+
+    const byDate = new Map();
+    (unsentQ.error ? [] : unsentQ.data || [])
+      .filter((r) => !(r.skip_kinds || []).includes("report"))
+      .forEach((r) => {
+        const nm = nameOf.get(r.student_id);
+        if (!nm) return;   // 퇴원생 지난 리포트는 재촉하지 않는다
+        if (!byDate.has(r.date)) byDate.set(r.date, []);
+        byDate.get(r.date).push(nm);
+      });
+    const unsentByDate = [...byDate.entries()].map(([d, names]) => ({ date: d, names }));
+
+    const pend = pendQ.error ? [] : pendQ.data || [];   // 0125 전이면 비어 있다
+    const bookIds = [...new Set(pend.map((x) => x.textbook_id))];
+    const { data: tbs } = bookIds.length
+      ? await supabase.from("textbooks").select("id, name").in("id", bookIds)
+      : { data: [] };
+    const tbName = new Map((tbs || []).map((b) => [b.id, b.name]));
+    const waitOf = new Map();
+    pend.forEach((x) => {
+      const nm = nameOf.get(x.student_id);
+      if (!nm) return;
+      if (!waitOf.has(x.student_id)) waitOf.set(x.student_id, { studentId: x.student_id, name: nm, books: [] });
+      waitOf.get(x.student_id).books.push(tbName.get(x.textbook_id) || "교재");
+    });
+
+    // 월간은 월말 사흘 전부터만 (menuBadges 와 같은 기준)
+    const lastDay = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate();
+    const left = lastDay - Number(today.slice(8, 10));
+    const monthlyLeft = left <= 3 ? Math.max(0, (stuQ.data || []).length - (monQ.count || 0)) : 0;
+
+    todoData = { unsentByDate, bookWait: [...waitOf.values()], monthlyLeft, ym };
+  }
   const profile = profileQ?.data || null;
   const testStudents = ssQ.data || [];
   const testTemplates = ttQ.data || [];
@@ -75,6 +137,7 @@ export default async function ReportPage({ searchParams }) {
 
   // 탭마다 부제가 다르다 — 지금 무엇을 하는 화면인지 위에서 바로 읽히게
   const SUB = {
+    todo: "아직 안 보낸 것을 한 판에 모았습니다. 누르면 그 자리로 갑니다.",
     report: "데일리리포트는 오늘 수업 입력 내용으로 자동 작성됩니다.",
     hw: "다음 수업 숙제만 담은 짧은 문자입니다. 학생에게 갑니다.",
     late: "늦게 가는 학생의 사유는 수업 기록에서 자동으로 잡힙니다.",
@@ -93,7 +156,9 @@ export default async function ReportPage({ searchParams }) {
           <Help><p className="sub">{SUB[tab]}</p></Help>
         </div>
         <SendTabs tab={tab} date={date} />
-        {tab === "test" ? (
+        {tab === "todo" ? (
+          <SendTodo {...todoData} />
+        ) : tab === "test" ? (
           <TestSender
             students={testStudents}
             templates={testTemplates}
