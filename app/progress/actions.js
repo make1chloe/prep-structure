@@ -266,11 +266,19 @@ export async function listWordTestBooks(studentId) {
     .map((r) => ({ r, b: bookOf.get(r.textbook_id) }))
     .filter((x) => x.b && (!x.b.status || x.b.status === "active") && x.b.area === "단어");
   if (mine.length === 0) return { books: [] };
-  const wt = await supabase
+  let wt = await supabase
     .from("word_test_settings")
-    .select("textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+    .select("textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint, units_per")
     .eq("student_id", studentId)
     .in("textbook_id", mine.map((x) => x.r.textbook_id));
+  if (wt.error && (wt.error.code === "42703" || wt.error.code === "PGRST204")) {
+    // 0124 전이면 「몇 단원씩」 없이
+    wt = await supabase
+      .from("word_test_settings")
+      .select("textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+      .eq("student_id", studentId)
+      .in("textbook_id", mine.map((x) => x.r.textbook_id));
+  }
   const wtOf = new Map(
     (wt.error ? [] : wt.data || []).map((w) => [`${w.textbook_id}|${w.round}`, w])
   );
@@ -872,6 +880,8 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
     sa_word: n(cfg?.sa_word),
     first_hint: !!cfg?.first_hint,
     note: (cfg?.note || "").trim() || null,
+    // 한 번에 몇 단원씩 (0124) — 0/빈값이면 「지난번 개수만큼」
+    units_per: Math.max(0, Math.min(20, parseInt(cfg?.units_per, 10) || 0)) || null,
   };
   const sum = row.mc_meaning + row.sa_meaning + row.mc_word + row.sa_word;
   if (sum !== 100) return { error: `합이 100%가 되어야 해요. 지금 ${sum}%입니다.` };
@@ -879,11 +889,18 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from("word_test_settings")
     .upsert({ ...row, created_by: user?.id || null }, {
       onConflict: "student_id,textbook_id,round",
     });
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0124 전이면 「몇 단원씩」 없이 저장한다
+    const { units_per: _u, ...rest } = row;
+    ({ error } = await supabase
+      .from("word_test_settings")
+      .upsert({ ...rest, created_by: user?.id || null }, { onConflict: "student_id,textbook_id,round" }));
+  }
   if (error) {
     if (error.code === "42P01") return { error: "0025 SQL 을 먼저 실행해주세요." };
     return { error: error.message };

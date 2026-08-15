@@ -577,7 +577,7 @@ export default async function TodayPage({ searchParams }) {
     studentIds.length
       ? supabase
           .from("word_test_settings")
-          .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+          .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint, units_per")
           .in("student_id", studentIds)
       : none,
     studentIds.length
@@ -686,7 +686,14 @@ export default async function TodayPage({ searchParams }) {
   // 단어시험 방식 — (학생, 교재, 회독) 하나에 설정 한 줄
   const wtOf = new Map();
   {
-    const q = wtQ;
+    let q = wtQ;
+    if (q.error && studentIds.length) {
+      // 0124 전이면 「몇 단원씩」 없이 다시 (설정이 통째로 사라지면 안 된다)
+      q = await supabase
+        .from("word_test_settings")
+        .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+        .in("student_id", studentIds);
+    }
     (q.error ? [] : q.data || []).forEach((w) => {
       wtOf.set(`${w.student_id}|${w.textbook_id}|${w.round}`, w);
     });

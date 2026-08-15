@@ -464,12 +464,16 @@ export default function StudentPanel({
       const bookId = prevUnits.length ? unitNames[prevUnits[0]]?.textbookId : bookFor(iid);
       const opts = (bookId && (loaded[bookId] || unitsByBook[bookId])) || [];
 
-      // 지난번 단원 중 가장 뒤엣것 다음 단원을 고른다
+      // 지난번 단원 중 가장 뒤엣것 **다음부터, 지난번 낸 개수만큼** 고른다.
+      // 단어 교재는 미리 정한 「한 번에 몇 단원씩」(0124)이 있으면 그 수가 먼저다.
       let picked = [];
       if (prevUnits.length && opts.length) {
         const lastIdx = Math.max(...prevUnits.map((u) => opts.findIndex((o) => o.id === u)));
         if (lastIdx >= 0 && lastIdx + 1 < opts.length) {
-          picked = [opts[lastIdx + 1].id];
+          const per =
+            myBooks.find((b) => b.id === bookId)?.wordTest?.units_per ||
+            prevUnits.length || 1;
+          picked = opts.slice(lastIdx + 1, lastIdx + 1 + per).map((o) => o.id);
         }
       }
       patch[iid] = {

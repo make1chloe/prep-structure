@@ -21,12 +21,14 @@ export default function WordTest({ studentId, book }) {
     mc_word: cur?.mc_word ?? 0,
     sa_word: cur?.sa_word ?? 0,
     first_hint: cur?.first_hint ?? false,
+    units_per: cur?.units_per ?? "",
   }));
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   const sum = total(cfg);
-  const text = label(cur ? { ...cur, round: book.round } : null);
+  const base = label(cur ? { ...cur, round: book.round } : null);
+  const text = base && cur?.units_per ? `${base} · ${cur.units_per}단원씩` : base;
 
   function save() {
     startTransition(async () => {
@@ -81,6 +83,19 @@ export default function WordTest({ studentId, book }) {
         ))}
       </div>
 
+      <div className="row" style={{ gap: 7, marginTop: 10, alignItems: "center" }}>
+        <span style={{ fontSize: 14.5 }}>한 번에</span>
+        <input
+          className="input input-sm"
+          inputMode="numeric"
+          style={{ width: 52, textAlign: "center" }}
+          value={cfg.units_per}
+          onChange={(e) => setCfg({ ...cfg, units_per: e.target.value.replace(/[^\d]/g, "") })}
+        />
+        <span style={{ fontSize: 14.5 }}>단원씩 외우기</span>
+        <span className="hint">비우면 지난번에 낸 개수만큼</span>
+      </div>
+
       {Number(cfg.sa_word) > 0 && (
         <label
           className="row"
@@ -116,7 +131,7 @@ export default function WordTest({ studentId, book }) {
                 alert(res.error);
                 return;
               }
-              setCfg({ mc_meaning: 0, sa_meaning: 0, mc_word: 0, sa_word: 0, first_hint: false });
+              setCfg({ mc_meaning: 0, sa_meaning: 0, mc_word: 0, sa_word: 0, first_hint: false, units_per: "" });
               router.refresh();
             });
           }}
