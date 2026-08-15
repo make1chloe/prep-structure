@@ -47,7 +47,7 @@ export default function MonthConfirm({ studentId, ym, parentAt, childName }) {
         )}
       </div>
       <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
-        {month}월에 빠질 날(여행·학교 행사 등)이 있으면 <b>위의 보내기</b>로 먼저
+        {month}월에 빠질 날(여행·학교 행사 등)이 있으면 <b>아래 보내기</b>로 먼저
         알려주세요. 다 보내셨거나 빠질 날이 없으면 버튼을 눌러주시면 됩니다.
         <b> 25일까지</b> 확인해 주시면 {month}월 수업 회차가 확정돼요.
       </p>
