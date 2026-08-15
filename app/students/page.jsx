@@ -252,6 +252,7 @@ export default async function StudentsPage({ searchParams }) {
               openStudent={searchParams?.s || null}
               classList={(klasses || []).map((c) => ({ id: c.id, name: c.name }))}
               missKeys={missQ?.data?.config?.students ?? null}
+              schools={schools}
             />
           )}
         </div>
