@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { principalConfirmMonth, principalUnconfirmMonth } from "./confirmActions";
+import { dayLabel } from "@/lib/day";
 
 /**
  * **다음 달 회차 확정 판** (0123, 원장님 2026-08-14~15).
@@ -18,6 +19,7 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
     return d >= 25 || rows.some((r) => !r.principalAt) === false ? d >= 25 : false;
   });
   const [sel, setSel] = useState(() => new Set());
+  const [showAbs, setShowAbs] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -79,7 +81,31 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
             >
               고른 {sel.size}명 회차 확정
             </button>
+            <span className="spacer" />
+            {rows.some((r) => r.absences > 0) && (
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAbs(!showAbs)}>
+                {showAbs ? "결석 예정 접기" : `결석 예정 모두 보기 (${rows.filter((r) => r.absences > 0).length}명)`}
+              </button>
+            )}
           </div>
+          {showAbs && (
+            <div className="card card-tight" style={{ marginBottom: 8, background: "var(--amber-soft)" }}>
+              <b style={{ fontSize: 14 }}>{month}월 결석 예정</b>
+              <div className="stack" style={{ gap: 2, marginTop: 4 }}>
+                {rows
+                  .filter((r) => r.absences > 0)
+                  .map((r) => (
+                    <div key={r.studentId} style={{ fontSize: 13.5, lineHeight: 1.7 }}>
+                      <b style={{ minWidth: 60, display: "inline-block" }}>{r.name}</b>{" "}
+                      {(r.absList || [])
+                        .map((a) => `${dayLabel(a.date)}${a.reason ? `(${a.reason})` : ""}`)
+                        .join(" · ")}
+                    </div>
+                  ))}
+                {rows.every((r) => r.absences === 0) && <span className="hint">없어요</span>}
+              </div>
+            </div>
+          )}
           <div className="stack" style={{ gap: 3 }}>
             {rows.map((r) => (
               <div className="unitrow" key={r.studentId}>
@@ -100,7 +126,12 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
                   ? <span className="tag tag-mint">학부모 ✓</span>
                   : <span className="tag tag-muted">학부모 확인 전</span>}
                 {r.absences > 0 && (
-                  <span className="tag tag-amber">{month}월 결석 예정 {r.absences}</span>
+                  <span
+                    className="tag tag-amber"
+                    title={(r.absList || []).map((a) => `${dayLabel(a.date)}${a.reason ? ` ${a.reason}` : ""}`).join(", ")}
+                  >
+                    {month}월 결석 예정 {r.absences}
+                  </span>
                 )}
                 <span className="spacer" />
                 {r.principalAt ? (

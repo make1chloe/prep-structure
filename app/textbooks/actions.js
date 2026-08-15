@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { bookKey, pickKeeper } from "@/lib/bookName";
 import { noColumn } from "@/lib/sqlError";
+import { inUseOn, notYet } from "@/lib/bookUse";
+import { todaySeoul } from "@/lib/day";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -273,6 +275,60 @@ export async function addUnit(formData) {
 
 // ---------- 교재: 수정 / 삭제 ----------
 
+/**
+ * **지금 쓰는 학생이 있으면 지우지도 접지도 못한다** (원장님, 2026-08-15 —
+ * 「교재 삭제하거나 중단처리할때 사용중인학생이 있으면 불가능하게하기」).
+ *
+ * 절판·중단으로 접거나 삭제한 교재는 고르는 목록에서 사라지는데, 쓰는
+ * 학생이 남아 있으면 오늘 수업·진도·숙제가 어긋난다 (동아 계열에서 실제로
+ * 겪은 3중 모순). 사용중 판정은 lib/bookUse 한 곳 그대로 — 오늘 쓰는
+ * 중이거나 시작일이 앞으로 잡힌(사용 예정) **재원생**만 센다. 퇴원생
+ * 배정은 막을 이유가 없다.
+ *
+ * @returns 걸리는 게 없으면 null, 있으면 「교재」 누구·누구 문구
+ */
+async function inUseBlockers(supabase, ids) {
+  const today = todaySeoul();
+  const { data: rows } = await supabase
+    .from("student_textbooks")
+    .select("textbook_id, student_id, status, assigned_on, ended_on")
+    .in("textbook_id", ids)
+    .eq("status", "active");
+  const live = (rows || []).filter((r) => inUseOn(r, today) || notYet(r, today));
+  if (live.length === 0) return null;
+
+  const sids = [...new Set(live.map((r) => r.student_id))];
+  const { data: stu } = await supabase
+    .from("students")
+    .select("id, name")
+    .in("id", sids)
+    .eq("status", "enrolled");
+  const nameOf = new Map((stu || []).map((x) => [x.id, x.name]));
+
+  const byBook = new Map();
+  live.forEach((r) => {
+    const n = nameOf.get(r.student_id);
+    if (!n) return;
+    if (!byBook.has(r.textbook_id)) byBook.set(r.textbook_id, new Set());
+    byBook.get(r.textbook_id).add(n);
+  });
+  if (byBook.size === 0) return null;
+
+  const { data: tbs } = await supabase
+    .from("textbooks")
+    .select("id, name")
+    .in("id", [...byBook.keys()]);
+  const tbName = new Map((tbs || []).map((t) => [t.id, t.name]));
+  return [...byBook.entries()]
+    .map(([tid, names]) => {
+      const arr = [...names];
+      const head = arr.slice(0, 5).join("·");
+      const rest = arr.length > 5 ? ` 외 ${arr.length - 5}명` : "";
+      return `「${tbName.get(tid) || "이름 없음"}」 ${head}${rest}`;
+    })
+    .join(", ");
+}
+
 export async function updateTextbook(id, patch) {
   if (!id) return { error: "id 없음" };
   const allow = ["name", "area", "target_grade", "total_pages", "price", "word_range", "words_irregular", "purchase_url", "feature", "status"];
@@ -294,6 +350,21 @@ export async function updateTextbook(id, patch) {
   if (Object.keys(row).length === 0) return { error: null };
 
   const supabase = createClient();
+  if (row.status && row.status !== "active") {
+    // 사용중 → 절판·중단으로 **바꾸는** 순간만 막는다. 이미 접힌 교재의
+    // 다른 칸 수정(상태 그대로 재전송)까지 막으면 고칠 수가 없다.
+    const { data: cur } = await supabase.from("textbooks").select("status").eq("id", id).maybeSingle();
+    if ((!cur?.status || cur.status === "active") && cur !== null) {
+      const who = await inUseBlockers(supabase, [id]);
+      if (who) {
+        return {
+          error:
+            `지금 쓰는 학생이 있어 절판·중단 처리할 수 없어요 — ${who}. ` +
+            "재원생 정보에서 그 학생의 교재를 종료한 뒤에 접어주세요.",
+        };
+      }
+    }
+  }
   let { error } = await supabase.from("textbooks").update(row).eq("id", id);
   if (noColumn(error)) {
     // 0070 전이면 '불규칙' 없이
@@ -311,6 +382,14 @@ export async function updateTextbook(id, patch) {
 export async function deleteTextbooks(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
   const supabase = createClient();
+  const who = await inUseBlockers(supabase, ids);
+  if (who) {
+    return {
+      error:
+        `지금 쓰는 학생이 있어 삭제할 수 없어요 — ${who}. ` +
+        "재원생 정보에서 그 학생의 교재를 종료한 뒤에 지워주세요.",
+    };
+  }
   const { error } = await supabase.from("textbooks").delete().in("id", ids);
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
@@ -319,6 +398,16 @@ export async function deleteTextbooks(ids) {
 export async function updateTextbooksStatus(ids, status) {
   if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
   const supabase = createClient();
+  if (status !== "active") {
+    const who = await inUseBlockers(supabase, ids);
+    if (who) {
+      return {
+        error:
+          `지금 쓰는 학생이 있어 절판·중단 처리할 수 없어요 — ${who}. ` +
+          "재원생 정보에서 그 학생의 교재를 종료한 뒤에 접어주세요.",
+      };
+    }
+  }
   const { error } = await supabase.from("textbooks").update({ status }).in("id", ids);
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };

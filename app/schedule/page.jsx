@@ -66,16 +66,18 @@ export default async function SchedulePage() {
     supabase.from("month_confirms").select("student_id, parent_at, principal_at").eq("ym", nextYm),
     supabase
       .from("attendance")
-      .select("student_id, status")
+      .select("student_id, status, date, reason")
       .eq("status", "absent")
       .gte("date", `${nextYm}-01`)
-      .lte("date", `${nextYm}-31`),
+      .lte("date", `${nextYm}-31`)
+      .order("date"),
   ]);
   const confirmReady = !confirmQ.error;
   const confirmOf = new Map((confirmQ.data || []).map((c) => [c.student_id, c]));
   const nextAbsOf = new Map();
   (nextAbsQ.data || []).forEach((a) => {
-    nextAbsOf.set(a.student_id, (nextAbsOf.get(a.student_id) || 0) + 1);
+    if (!nextAbsOf.has(a.student_id)) nextAbsOf.set(a.student_id, []);
+    nextAbsOf.get(a.student_id).push({ date: a.date, reason: a.reason || "" });
   });
   const confirmRows = (students || [])
     .map((st) => ({
@@ -84,7 +86,8 @@ export default async function SchedulePage() {
       who: [st.school, st.grade].filter(Boolean).join(" "),
       parentAt: confirmOf.get(st.id)?.parent_at || null,
       principalAt: confirmOf.get(st.id)?.principal_at || null,
-      absences: nextAbsOf.get(st.id) || 0,
+      absences: (nextAbsOf.get(st.id) || []).length,
+      absList: nextAbsOf.get(st.id) || [],
     }))
     .sort((a, b) => (a.principalAt ? 1 : 0) - (b.principalAt ? 1 : 0) || a.name.localeCompare(b.name, "ko"));
 
