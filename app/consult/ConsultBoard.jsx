@@ -16,6 +16,7 @@ import { STATUS } from "./status";
 import { slotText, SOURCES as APPLY_SOURCES } from "@/lib/applySlots";
 import { SchoolField, GradeField, PickField } from "@/components/PickField";
 import { dowOf, parts } from "@/lib/day";
+import BookPickPanel from "@/components/BookPickPanel";
 
 // **설문지와 한 벌이어야 한다** (원장님, 2026-08-09 — 「설문지에서 기타를
 // 선택한 경우 추가로 작성한 내용이 안 들어오는 거 같아」).
@@ -596,41 +597,21 @@ export default function ConsultBoard({
                       * 보낼 때도 자동으로 적히고, 등록하면 그대로 배정된다.
                       */}
                     <div className="field" style={{ marginTop: 8 }}>
-                      <label className="label">교재 (등록하면 자동 배정 · 고르면 바로 저장)</label>
-                      <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-                        {(r.book_ids || []).map((bid) => (
-                          <button
-                            key={bid}
-                            className="hwchip hw-next"
-                            title="누르면 뺍니다"
-                            disabled={pending}
-                            onClick={() => run(() =>
-                              setInquiryBooks(r.id, (r.book_ids || []).filter((x) => x !== bid))
-                            )}
-                          >
-                            {bookNameOf.get(bid) || "(지워진 교재)"} ✕
-                          </button>
-                        ))}
-                        <select
-                          className="input input-sm"
-                          style={{ minWidth: 200 }}
-                          value=""
-                          disabled={pending}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            e.target.value = "";
-                            if (!v) return;
-                            run(() => setInquiryBooks(r.id, [...(r.book_ids || []), v]));
-                          }}
-                        >
-                          <option value="">교재 추가…</option>
-                          {textbooks.map((b) => (
-                            <option key={b.id} value={b.id} disabled={(r.book_ids || []).includes(b.id)}>
-                              {b.area ? `[${b.area}] ` : ""}{b.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <label className="label">교재 (등록하면 자동 배정 · 누르면 바로 저장)</label>
+                      {/* 재원생 교재 배정과 **같은 판** (원장님, 2026-08-15 —
+                          「한 권만 고르는 것도 아니고 검색도 안 됨」) */}
+                      <BookPickPanel
+                        books={textbooks}
+                        picked={new Set(r.book_ids || [])}
+                        disabled={pending}
+                        onToggle={(bid) => {
+                          const has = (r.book_ids || []).includes(bid);
+                          const next = has
+                            ? (r.book_ids || []).filter((x) => x !== bid)
+                            : [...(r.book_ids || []), bid];
+                          run(() => setInquiryBooks(r.id, next));
+                        }}
+                      />
                     </div>
                     <div className="field" style={{ marginTop: 8 }}>
                       <label className="label">상담 내용</label>
