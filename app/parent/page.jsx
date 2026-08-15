@@ -1,9 +1,10 @@
 import { Fragment } from "react";
+import MonthConfirm from "./MonthConfirm";
 import { createClient } from "@/lib/supabase/server";
 import { showsTo } from "@/lib/notices";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { addDays, dowOf, longLabel, shortLabel, todaySeoul } from "@/lib/day";
+import { addDays, dowOf, longLabel, shortLabel, todaySeoul , addMonths} from "@/lib/day";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange, ATT_LABEL } from "@/lib/parentView";
 import { byKind, summary as scoreSummary, KIND_LABEL, findExam } from "@/lib/scores";
@@ -145,9 +146,10 @@ export default async function ParentPage({ searchParams }) {
    * 서른두 조회를 한 줄씩 기다리고 있었다. pickId 만 있으면 되는 것들을
    * 전부 한 층으로 보낸다.
    */
+  const nextMonthYm = addMonths(today.slice(0, 7), 1);
   const [
     repsQ, warnQ, cutQ, recent, itemById, mineQ, attTodayQ, stayQ,
-    monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts,
+    monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts, confirmQ,
   ] = await Promise.all([
     supabase
       .from("daily_reports")
@@ -189,6 +191,13 @@ export default async function ParentPage({ searchParams }) {
       .limit(5),
     loadNotes(supabase),
     loadLayouts(supabase),
+    // 다음 달 일정 1차 확인 (0123) — 표가 없으면 조용히 없음
+    supabase
+      .from("month_confirms")
+      .select("parent_at")
+      .eq("student_id", pickId)
+      .eq("ym", addMonths(today.slice(0, 7), 1))
+      .maybeSingle(),
   ]);
 
   // ── 이번 달 (달이 끝나기 전에도 지금까지를 그대로 센다) ──
@@ -887,6 +896,13 @@ export default async function ParentPage({ searchParams }) {
               아래쪽에 두되, 무엇을 하는 자리인지 한 줄 적어둔다. */}
           {!preview && (
             <>
+              {/* 다음 달 일정 1차 확인 (0123) — 보내기 바로 위, 흐름이 이어진다 */}
+              <MonthConfirm
+                studentId={pickId}
+                ym={nextMonthYm}
+                parentAt={confirmQ?.data?.parent_at || null}
+                childName={child?.name || ""}
+              />
               <RequestForm studentId={pickId} mine={myReqs || []} />
               {notes.has("parent.request") ? (
                 <ScreenNote text={N("parent.request")} style={{ margin: "-4px 2px 0" }} />

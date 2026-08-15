@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import MonthConfirmBoard from "./MonthConfirmBoard";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ScheduleBoard from "./ScheduleBoard";
@@ -7,7 +8,7 @@ import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { loadClassesWithTerm } from "@/lib/classTerm";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
-import { endOfMonth, todaySeoul } from "@/lib/day";
+import { endOfMonth, todaySeoul , addMonths} from "@/lib/day";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
 
@@ -55,6 +56,37 @@ export default async function SchedulePage() {
     .select("id, name, school, grade, status")
     .eq("status", "enrolled");
   const studentById = new Map((students || []).map((s) => [s.id, s]));
+
+  /**
+   * **다음 달 회차 확정 판** (0123). 확인 도장 두 벌 + 다음 달 결석 예정
+   * 수를 학생별로 모은다. 표가 아직 없으면(0123 전) 판을 안 그린다.
+   */
+  const nextYm = addMonths(today.slice(0, 7), 1);
+  const [confirmQ, nextAbsQ] = await Promise.all([
+    supabase.from("month_confirms").select("student_id, parent_at, principal_at").eq("ym", nextYm),
+    supabase
+      .from("attendance")
+      .select("student_id, status")
+      .eq("status", "absent")
+      .gte("date", `${nextYm}-01`)
+      .lte("date", `${nextYm}-31`),
+  ]);
+  const confirmReady = !confirmQ.error;
+  const confirmOf = new Map((confirmQ.data || []).map((c) => [c.student_id, c]));
+  const nextAbsOf = new Map();
+  (nextAbsQ.data || []).forEach((a) => {
+    nextAbsOf.set(a.student_id, (nextAbsOf.get(a.student_id) || 0) + 1);
+  });
+  const confirmRows = (students || [])
+    .map((st) => ({
+      studentId: st.id,
+      name: st.name,
+      who: [st.school, st.grade].filter(Boolean).join(" "),
+      parentAt: confirmOf.get(st.id)?.parent_at || null,
+      principalAt: confirmOf.get(st.id)?.principal_at || null,
+      absences: nextAbsOf.get(st.id) || 0,
+    }))
+    .sort((a, b) => (a.principalAt ? 1 : 0) - (b.principalAt ? 1 : 0) || a.name.localeCompare(b.name, "ko"));
 
   // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
   const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
@@ -167,6 +199,7 @@ export default async function SchedulePage() {
             </p>
           </Help>
         </div>
+        <MonthConfirmBoard ym={nextYm} rows={confirmRows} ready={confirmReady} />
         <ScheduleBoard
           show="schedule"
           months={months}
