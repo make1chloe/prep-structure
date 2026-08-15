@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetchAll";
 import {
   schoolUrl, scheduleUrl, readNeis, whyFailed, toSchool, toTask, examPeriods, mergeSame, mergeRuns, labelGrades, mockPeriods,
   isNationwide, explainRow, toDate,
@@ -347,13 +348,15 @@ export async function importSchedule(from, to, schoolId = null) {
       .lte("due_on", to);
     if (q.error) {
       // 0092 전이면 「누가 보나」 칸이 없다 — 그때는 잠가둔 것만 지킨다
-      q = await supabase
-        .from("tasks")
-        .select("source_id, private")
-        .eq("source", "neis")
-        .like("source_id", "common:%")
-        .gte("due_on", from)
-        .lte("due_on", to);
+      q = await fetchAll(() =>
+        supabase
+          .from("tasks")
+          .select("source_id, private")
+          .eq("source", "neis")
+          .like("source_id", "common:%")
+          .gte("due_on", from)
+          .lte("due_on", to)
+          .order("id"));
     }
     if (!q.error) {
       (q.data || []).forEach((r) => {
@@ -435,22 +438,26 @@ export async function importSchedule(from, to, schoolId = null) {
     let keepPrivate = new Map();
     let oldIds = new Map();
     {
-      let q = await supabase
-        .from("tasks")
-        .select("id, source_id, private")
-        .eq("source", "neis")
-        .like("source_id", `${school.schul_code}:%`)
-        .gte("due_on", from)
-        .lte("due_on", to);
-      if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
-        // 0066 전이면 '나만 보기' 없이
-        q = await supabase
+      let q = await fetchAll(() =>
+        supabase
           .from("tasks")
-          .select("id, source_id")
+          .select("id, source_id, private")
           .eq("source", "neis")
           .like("source_id", `${school.schul_code}:%`)
           .gte("due_on", from)
-          .lte("due_on", to);
+          .lte("due_on", to)
+          .order("id"));
+      if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+        // 0066 전이면 '나만 보기' 없이
+        q = await fetchAll(() =>
+          supabase
+            .from("tasks")
+            .select("id, source_id")
+            .eq("source", "neis")
+            .like("source_id", `${school.schul_code}:%`)
+            .gte("due_on", from)
+            .lte("due_on", to)
+            .order("id"));
       }
       (q.data || []).forEach((r) => {
         oldIds.set(r.source_id, r.id);
@@ -648,9 +655,11 @@ export async function importSchedule(from, to, schoolId = null) {
         .eq("school", "전국")
         .gte("from_date", from)
         .lte("from_date", to);
-      const { data: scopeRows2 } = await supabase.from("prep_scopes").select("exam_id");
-      const { data: scoreRows2 } = await supabase
-        .from("scores").select("exam_id").not("exam_id", "is", null);
+      // 잘리면 「안 쓰는 시험」 으로 잘못 판정해 지운다 (전수검사 B2)
+      const { data: scopeRows2 } = await fetchAll(() =>
+        supabase.from("prep_scopes").select("exam_id").order("id"));
+      const { data: scoreRows2 } = await fetchAll(() =>
+        supabase.from("scores").select("exam_id").not("exam_id", "is", null).order("id"));
       const used = new Set([
         ...(scopeRows2 || []).map((r) => r.exam_id),
         ...(scoreRows2 || []).map((r) => r.exam_id),
@@ -708,13 +717,15 @@ export async function importSchedule(from, to, schoolId = null) {
    * 수능일이 사라진 것은 아무도 모른다.
    */
   if (okSchools > 0 && !schoolId) {
-    const { data: old } = await supabase
-      .from("tasks")
-      .select("id, source_id")
-      .eq("source", "neis")
-      .like("source_id", "common:%")
-      .gte("due_on", from)
-      .lte("due_on", to);
+    const { data: old } = await fetchAll(() =>
+      supabase
+        .from("tasks")
+        .select("id, source_id")
+        .eq("source", "neis")
+        .like("source_id", "common:%")
+        .gte("due_on", from)
+        .lte("due_on", to)
+        .order("id"));
     const stale = (old || []).filter((r) => !commonRows.has(r.source_id)).map((r) => r.id);
     for (let i = 0; i < stale.length; i += 200) {
       await supabase.from("tasks").delete().in("id", stale.slice(i, i + 200));
@@ -744,13 +755,15 @@ export async function importSchedule(from, to, schoolId = null) {
   // 이름이 아니라 **행사 이름만** 본다. source_id 는 「학교코드:날짜:행사」 라
   // 세 번째 조각이 학교가 적어낸 행사 이름 그대로다.
   if (okSchools > 0) {
-    const { data: leftover } = await supabase
-      .from("tasks")
-      .select("id, title, source_id")
-      .eq("source", "neis")
-      .not("source_id", "like", "common:%")
-      .gte("due_on", from)
-      .lte("due_on", to);
+    const { data: leftover } = await fetchAll(() =>
+      supabase
+        .from("tasks")
+        .select("id, title, source_id")
+        .eq("source", "neis")
+        .not("source_id", "like", "common:%")
+        .gte("due_on", from)
+        .lte("due_on", to)
+        .order("id"));
     const eventOf = (sid) => (sid || "").split(":").slice(2).join(":");
     const drop = (leftover || [])
       .filter((r) => isNationwide(eventOf(r.source_id)))
@@ -813,9 +826,11 @@ export async function addExamPeriods(list = [], sweep = null) {
   /**
    * **성적·범위가 붙은 줄은 절대 안 지운다.** 지우면 그쪽이 통째로 사라진다.
    */
-  const { data: scopeRows } = await supabase.from("prep_scopes").select("exam_id");
-  const { data: scoreRows } = await supabase
-    .from("scores").select("exam_id").not("exam_id", "is", null);
+  // 잘리면 「안 쓰는 시험」 으로 잘못 판정해 지운다 (전수검사 B2)
+  const { data: scopeRows } = await fetchAll(() =>
+    supabase.from("prep_scopes").select("exam_id").order("id"));
+  const { data: scoreRows } = await fetchAll(() =>
+    supabase.from("scores").select("exam_id").not("exam_id", "is", null).order("id"));
   const inUse = new Set([
     ...(scopeRows || []).map((r) => r.exam_id),
     ...(scoreRows || []).map((r) => r.exam_id),
@@ -1005,9 +1020,11 @@ export async function resetNeisExams() {
   }
   if (error) return { error: error.message };
 
-  const { data: scopeRows } = await supabase.from("prep_scopes").select("exam_id");
-  const { data: scoreRows } = await supabase
-    .from("scores").select("exam_id").not("exam_id", "is", null);
+  // 잘리면 「안 쓰는 시험」 으로 잘못 판정해 지운다 (전수검사 B2)
+  const { data: scopeRows } = await fetchAll(() =>
+    supabase.from("prep_scopes").select("exam_id").order("id"));
+  const { data: scoreRows } = await fetchAll(() =>
+    supabase.from("scores").select("exam_id").not("exam_id", "is", null).order("id"));
   const inUse = new Set([
     ...(scopeRows || []).map((r) => r.exam_id),
     ...(scoreRows || []).map((r) => r.exam_id),
@@ -1325,9 +1342,9 @@ export async function peekNeis(from, to, schoolIds = null) {
   if (targets.length === 0) return { rows: [], error: "나이스 코드가 있는 학교가 없어요." };
 
   // 우리 쪽에 지금 들어와 있는 것 — 「나이스엔 있는데 앱엔 없다」 를 짚으려고
-  const { data: haveTasks } = await supabase
-    .from("tasks").select("source_id").eq("source", "neis")
-    .gte("due_on", from).lte("due_on", to);
+  const { data: haveTasks } = await fetchAll(() =>
+    supabase.from("tasks").select("source_id").eq("source", "neis")
+      .gte("due_on", from).lte("due_on", to).order("id"));
   const inApp = new Set((haveTasks || []).map((t) => t.source_id));
   const { data: haveExams } = await supabase
     .from("exam_periods").select("school, from_date, to_date, hidden")

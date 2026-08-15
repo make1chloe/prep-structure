@@ -18,6 +18,7 @@ import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { hiddenExamIds } from "@/lib/schedule";
 import { cachedProfile } from "@/lib/profileCache";
 import { firstDayEvents } from "@/lib/firstDay";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
 
@@ -205,12 +206,15 @@ export default async function TasksPage({ searchParams }) {
       .gte("date", isCal ? mFrom : todaySeoul());
     if (isCal) holSel0 = holSel0.lte("date", mTo);
     const [tasksQ1, clsQ, schQ, stuQ, examQ, hiddenExams, holQ, inqQW, attQW] = await Promise.all([
-      range(
-        supabase
-          .from("tasks")
-          .select(`${COLS}, private, deliver_student_ids, deliver_school_id`)
-          .eq("kind", "schedule")
-      ).order("due_on", { ascending: true }),
+      // 지난 것 보기를 켜면 무기한이라 1000줄을 넘는다 (전수검사 B4)
+      fetchAll(() =>
+        range(
+          supabase
+            .from("tasks")
+            .select(`${COLS}, private, deliver_student_ids, deliver_school_id`)
+            .eq("kind", "schedule")
+        ).order("due_on", { ascending: true }).order("id")
+      ),
       // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
     loadRunningClasses(supabase, "id, name, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
       supabase.from("schools").select("id, name").order("name"),
@@ -241,15 +245,15 @@ export default async function TasksPage({ searchParams }) {
     let { data: tasks, error } = tasksQ1;
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0077 전이면 학생 지목 칸이 없다
-      ({ data: tasks, error } = await range(
-        supabase.from("tasks").select(`${COLS}, private`).eq("kind", "schedule")
-      ).order("due_on", { ascending: true }));
+      ({ data: tasks, error } = await fetchAll(() =>
+        range(supabase.from("tasks").select(`${COLS}, private`).eq("kind", "schedule"))
+          .order("due_on", { ascending: true }).order("id")));
     }
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0066 전이면 '나만 보기' 없이
-      ({ data: tasks, error } = await range(
-        supabase.from("tasks").select(COLS).eq("kind", "schedule")
-      ).order("due_on", { ascending: true }));
+      ({ data: tasks, error } = await fetchAll(() =>
+        range(supabase.from("tasks").select(COLS).eq("kind", "schedule"))
+          .order("due_on", { ascending: true }).order("id")));
     }
     taskErr = !!error;
 
@@ -416,12 +420,16 @@ export default async function TasksPage({ searchParams }) {
         .eq("active", true)
         .order("sort", { ascending: true }),
       syncP.then(() => listRoutines()),
+      // 할일은 끝난 것까지 전부라 무기한 — 쌓이면 1000줄을 넘는다 (B4)
       syncP.then(() =>
-        supabase
-          .from("tasks")
-          .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
-          .eq("kind", "todo")
-          .order("due_on", { ascending: true })
+        fetchAll(() =>
+          supabase
+            .from("tasks")
+            .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
+            .eq("kind", "todo")
+            .order("due_on", { ascending: true })
+            .order("id")
+        )
       ),
       pendingPrep(supabase),
       pendingMakeups(supabase),
@@ -434,26 +442,32 @@ export default async function TasksPage({ searchParams }) {
     let { data, error } = todoQ1;
     // 0113 전이면 started_at 이 없다 — 그때는 칸반이 두 칸으로 선다
     if (error) {
-      ({ data, error } = await supabase
-        .from("tasks")
-        .select(`${TODO_COLS}, auto_key, started_at, done_at`)
-        .eq("kind", "todo")
-        .order("due_on", { ascending: true }));
+      ({ data, error } = await fetchAll(() =>
+        supabase
+          .from("tasks")
+          .select(`${TODO_COLS}, auto_key, started_at, done_at`)
+          .eq("kind", "todo")
+          .order("due_on", { ascending: true })
+          .order("id")));
     }
     if (error) {
-      ({ data, error } = await supabase
-        .from("tasks")
-        .select(`${TODO_COLS}, auto_key, done_at`)
-        .eq("kind", "todo")
-        .order("due_on", { ascending: true }));
+      ({ data, error } = await fetchAll(() =>
+        supabase
+          .from("tasks")
+          .select(`${TODO_COLS}, auto_key, done_at`)
+          .eq("kind", "todo")
+          .order("due_on", { ascending: true })
+          .order("id")));
     }
     if (error) {
       // 0028 전이면 auto_key 없이
-      ({ data, error } = await supabase
-        .from("tasks")
-        .select(TODO_COLS)
-        .eq("kind", "todo")
-        .order("due_on", { ascending: true }));
+      ({ data, error } = await fetchAll(() =>
+        supabase
+          .from("tasks")
+          .select(TODO_COLS)
+          .eq("kind", "todo")
+          .order("due_on", { ascending: true })
+          .order("id")));
     }
     todos = data || [];
     todoErr = !!error || !!catQ.error;

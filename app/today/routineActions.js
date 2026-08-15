@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { inUseOn } from "@/lib/bookUse";
+import { fetchAll } from "@/lib/fetchAll";
 
 /**
  * 이 학생이 **지금 할 차례**인 루틴 단계를 내어준다.
@@ -113,11 +114,13 @@ async function currentUnits(supabase, studentId, bookIds, mine) {
   const out = new Map();
   if (bookIds.length === 0) return out;
 
-  const uq = await supabase
-    .from("textbook_units")
-    .select("id, name, parent_id, textbook_id, sort")
-    .in("textbook_id", bookIds)
-    .order("sort", { ascending: true });
+  const uq = await fetchAll(() =>
+    supabase
+      .from("textbook_units")
+      .select("id, name, parent_id, textbook_id, sort")
+      .in("textbook_id", bookIds)
+      .order("sort", { ascending: true })
+      .order("id"));
   if (uq.error) return out;
 
   // 진도는 **소단원**에 찍힌다 (자식이 없는 것)

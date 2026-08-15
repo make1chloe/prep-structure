@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetchAll";
 import { isRealDate } from "@/lib/importNotion";
 import { noTable } from "@/lib/sqlError";
 import { noColumn } from "@/lib/sqlError";
@@ -805,11 +806,15 @@ export async function importUnitScores(rows) {
   if (ready.length === 0) return { error: null, saved: 0, updated: 0, skipped };
 
   const ids = [...new Set(ready.map((r) => r.student_id))];
-  const { data: have, error: readErr } = await supabase
-    .from("scores")
-    .select("id, student_id, kind, term, taken_on")
-    .eq("kind", "unit")
-    .in("student_id", ids);
+  // 겹침 검사 명단이 잘리면 같은 성적이 **중복으로 들어간다** (전수검사 B2)
+  const { data: have, error: readErr } = await fetchAll(() =>
+    supabase
+      .from("scores")
+      .select("id, student_id, kind, term, taken_on")
+      .eq("kind", "unit")
+      .in("student_id", ids)
+      .order("id")
+  );
   if (noTable(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
   if (readErr) return { error: readErr.message, saved: 0, skipped };
   const keyOf = (x) => `${x.student_id}|${(x.term || "").trim()}|${x.taken_on}`;
@@ -870,11 +875,15 @@ export async function importWrongAnswers(rows) {
   if (ready.length === 0) return { error: null, saved: 0, updated: 0, items: 0, skipped };
 
   const ids = [...new Set(ready.map((r) => r.student_id))];
-  const { data: have, error: readErr } = await supabase
-    .from("scores")
-    .select("id, student_id, kind, term, taken_on")
-    .eq("kind", "mock")
-    .in("student_id", ids);
+  // 겹침 검사 명단이 잘리면 같은 성적이 **중복으로 들어간다** (전수검사 B2)
+  const { data: have, error: readErr } = await fetchAll(() =>
+    supabase
+      .from("scores")
+      .select("id, student_id, kind, term, taken_on")
+      .eq("kind", "mock")
+      .in("student_id", ids)
+      .order("id")
+  );
   if (noTable(readErr)) return { error: "0072 SQL 을 먼저 실행해주세요.", saved: 0, skipped };
   if (readErr) return { error: readErr.message, saved: 0, skipped };
   const keyOf = (x) => `${x.student_id}|${(x.term || "").trim()}|${x.taken_on}`;

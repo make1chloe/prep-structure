@@ -42,6 +42,7 @@ import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
+import { fetchAll } from "@/lib/fetchAll";
 // 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
 import { isStaff as isStaffRole } from "@/lib/roles";
 import SectionNav from "@/components/SectionNav";
@@ -448,10 +449,12 @@ export default async function MePage({ searchParams }) {
   const { data: monthReps } = monthRepsQ;
   const mIds = (monthReps || []).map((r) => r.id);
   const { data: mItems } = mIds.length
-    ? await supabase
-        .from("daily_report_items")
-        .select("daily_report_id, status")
-        .in("daily_report_id", mIds)
+    ? await fetchAll(() =>
+        supabase
+          .from("daily_report_items")
+          .select("daily_report_id, status")
+          .in("daily_report_id", mIds)
+          .order("daily_report_id"))
     : { data: [] };
   const mItemsOf = new Map();
   (mItems || []).forEach((i) => {
@@ -682,10 +685,13 @@ export default async function MePage({ searchParams }) {
     myScores = scoresQ.data || [];
     if (myScores.length > 0) {
       // 같은 표를 아래 성장 카드가 또 읽고 있었다 — 한 번만 읽고 나눠 쓴다
-      const { data: its } = await supabase
-        .from("score_items")
-        .select("score_id, no, wrong, reason")
-        .in("score_id", myScores.map((x) => x.id));
+      // 시험이 쌓이면 문항 합이 1000줄을 넘는다 (전수검사 B5)
+      const { data: its } = await fetchAll(() =>
+        supabase
+          .from("score_items")
+          .select("score_id, no, wrong, reason")
+          .in("score_id", myScores.map((x) => x.id))
+          .order("score_id").order("no"));
       scoreItems = its || [];
       const n = new Map();
       scoreItems.forEach((x) => n.set(x.score_id, (n.get(x.score_id) || 0) + 1));

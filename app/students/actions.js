@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 import { autoCreateLogins } from "./accountActions";
 import { requireStaff } from "@/lib/guard";
+import { fetchAll } from "@/lib/fetchAll";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -291,11 +292,14 @@ export async function loadStudentHistory(studentId) {
   const bookById = new Map((books || []).map((b) => [b.id, b]));
 
   // 단원 진도율
+  // 누적 교재 전부의 단원 합 — 1000줄 넘으면 진도율이 틀린다 (전수검사 B3)
   const { data: units } = ids.length
-    ? await supabase
-        .from("textbook_units")
-        .select("id, textbook_id, parent_id")
-        .in("textbook_id", ids)
+    ? await fetchAll(() =>
+        supabase
+          .from("textbook_units")
+          .select("id, textbook_id, parent_id")
+          .in("textbook_id", ids)
+          .order("id"))
     : { data: [] };
   const parents = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
   const leafByBook = new Map();
@@ -307,15 +311,20 @@ export async function loadStudentHistory(studentId) {
   // 진도는 **회독별로 쌓인다.** 2회독을 돌려도 1회독 기록이 남아 있다.
   let prog = [];
   {
-    const q = await supabase
-      .from("student_unit_progress")
-      .select("textbook_unit_id, round, done_on")
-      .eq("student_id", studentId);
-    if (q.error) {
-      const fb = await supabase
+    // 회독이 쌓이면 한 학생도 1000줄을 넘는다 — 끝까지 (전수검사 B5)
+    const q = await fetchAll(() =>
+      supabase
         .from("student_unit_progress")
-        .select("textbook_unit_id")
-        .eq("student_id", studentId);
+        .select("textbook_unit_id, round, done_on")
+        .eq("student_id", studentId)
+        .order("textbook_unit_id"));
+    if (q.error) {
+      const fb = await fetchAll(() =>
+        supabase
+          .from("student_unit_progress")
+          .select("textbook_unit_id")
+          .eq("student_id", studentId)
+          .order("textbook_unit_id"));
       prog = (fb.data || []).map((p) => ({ ...p, round: 1, done_on: null }));
     } else {
       prog = q.data || [];

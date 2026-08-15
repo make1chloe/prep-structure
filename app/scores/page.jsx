@@ -9,6 +9,7 @@ import { schoolNames } from "@/lib/schoolList";
 import { hiddenExamIds } from "@/lib/schedule";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,17 @@ export default async function ScoresPage({ searchParams }) {
       .from("students")
       .select("id, name, school, grade, status")
       .order("name", { ascending: true }),
-    supabase
-      .from("scores")
-      .select(
-        "id, student_id, kind, taken_on, year, term, subject, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, note, source, exam_id"
-      )
-      .order("taken_on", { ascending: false }),
+    // 성적은 전교생 몇 해치라 1000줄을 넘는다 — 잘리면 옛 성적이 소리 없이
+    // 사라진 것처럼 보인다 (lib/fetchAll, 전수검사 B2)
+    fetchAll(() =>
+      supabase
+        .from("scores")
+        .select(
+          "id, student_id, kind, taken_on, year, term, subject, raw_score, full_score, grade, percentile, rank_in, rank_of, school, cuts, note, source, exam_id"
+        )
+        .order("taken_on", { ascending: false })
+        .order("id")
+    ),
     supabase
       .from("exam_periods")
       .select("id, school, grade, name, from_date, to_date, english_on, cuts")

@@ -9,6 +9,7 @@ import { todaySeoul, addDays } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
 
@@ -82,13 +83,17 @@ export default async function CheckPage({ searchParams }) {
   const ITEM = "id, daily_report_id, homework_item_id, status, student_done_at, range_note";
   let itemRows = [];
   if (repIds.length) {
-    let q = await supabase
-      .from("daily_report_items")
-      .select(`${ITEM}, check_note`)
-      .in("daily_report_id", repIds);
+    // 학생 수 × 항목 수 — 1000줄을 넘으면 뒷 학생 숙제가 안 보인다 (B6)
+    let q = await fetchAll(() =>
+      supabase
+        .from("daily_report_items")
+        .select(`${ITEM}, check_note`)
+        .in("daily_report_id", repIds)
+        .order("id"));
     if (q.error) {
       // 0062 전이면 한 줄 없이
-      q = await supabase.from("daily_report_items").select(ITEM).in("daily_report_id", repIds);
+      q = await fetchAll(() =>
+        supabase.from("daily_report_items").select(ITEM).in("daily_report_id", repIds).order("id"));
     }
     itemRows = q.error ? [] : q.data || [];
   }
@@ -104,10 +109,12 @@ export default async function CheckPage({ searchParams }) {
   // 배정한 것과 **검사한 것을 함께** 읽는다. 배정만 보면 2주 전에 내주고
   // 아직 못 본 숙제가 영영 안 뜬다 — 시험 기간에 밀린 것이 그렇게 사라진다.
   const { data: prevItems } = prevIds.length
-    ? await supabase
-        .from("daily_report_items")
-        .select("daily_report_id, homework_item_id, status, range_note")
-        .in("daily_report_id", prevIds)
+    ? await fetchAll(() =>
+        supabase
+          .from("daily_report_items")
+          .select("daily_report_id, homework_item_id, status, range_note")
+          .in("daily_report_id", prevIds)
+          .order("daily_report_id"))
     : { data: [] };
 
   // 학생이 낸 것 (사진 · 녹음 · 체크리스트)

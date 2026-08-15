@@ -256,7 +256,7 @@ async function bookEndTasks(supabase, rules) {
   const bookIds = [...new Set(uses.map((x) => x.textbook_id))];
   const [bq, uq, sq] = await Promise.all([
     supabase.from("textbooks").select("id, name, area").in("id", bookIds),
-    supabase.from("textbook_units").select("id, textbook_id").in("textbook_id", bookIds),
+    fetchAll(() => supabase.from("textbook_units").select("id, textbook_id").in("textbook_id", bookIds).order("id")),
     supabase.from("students").select("id, name, status"),
   ]);
   if (bq.error || uq.error || sq.error) return [];

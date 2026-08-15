@@ -7,6 +7,7 @@ import { schoolNames } from "@/lib/schoolList";
 import { todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
 
@@ -81,11 +82,14 @@ export default async function PrepPage({ searchParams }) {
       .select("id, name, parent_id, textbook_id, question_no")
       .in("id", unitIds);
     const bookIds = [...new Set((picked || []).map((u) => u.textbook_id))];
+    // 교재가 여럿이면 단원 합이 1000줄을 넘는다 — 끝까지 (전수검사 B3)
     const { data: all } = bookIds.length
-      ? await supabase
-          .from("textbook_units")
-          .select("id, name, parent_id, textbook_id, question_no")
-          .in("textbook_id", bookIds)
+      ? await fetchAll(() =>
+          supabase
+            .from("textbook_units")
+            .select("id, name, parent_id, textbook_id, question_no")
+            .in("textbook_id", bookIds)
+            .order("id"))
       : { data: [] };
     const { data: books } = bookIds.length
       ? await supabase.from("textbooks").select("id, name").in("id", bookIds)
