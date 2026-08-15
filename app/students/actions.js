@@ -93,10 +93,6 @@ export async function addStudent(formData) {
   if (newId && row.school) {
     try { await attachSchool(supabase, row.school); } catch { /* 등록이 먼저다 */ }
   }
-  if (newId && row.status === "enrolled") {
-    try { await addFirstDayTask(supabase, row.name, row.enrolled_on || row.started_on); } catch { /* 일정은 덤 */ }
-  }
-
   revalidatePath("/students");
 }
 
@@ -133,19 +129,6 @@ export async function updateStudent(id, patch) {
   if (!error && row.school) {
     try { await attachSchool(supabase, row.school); } catch { /* 저장이 먼저다 */ }
   }
-  /**
-   * **등원시작일을 적으면 첫 등원 일정도 따라온다** (원장님, 2026-08-15 —
-   * 「첫등원일정 안뜸」). 등록할 때 날짜가 비어 있으면 일정이 조용히
-   * 빠졌고, 나중에 날짜를 적어도 아무 일도 안 일어났다 — 값을 한 번
-   * 적으면 쓰는 곳(달력)까지 가야 한다 (원칙 1). 오늘 이후 것만 —
-   * 옛날 학생의 시작일을 정리하는 것까지 달력에 세우면 소음이다.
-   */
-  if (!error && row.enrolled_on && row.enrolled_on >= todaySeoul()) {
-    try {
-      const { data: st } = await supabase.from("students").select("name").eq("id", id).maybeSingle();
-      if (st?.name) await addFirstDayTask(supabase, st.name, row.enrolled_on);
-    } catch { /* 일정은 덤 */ }
-  }
   revalidatePath("/students");
   revalidatePath("/today");
   return { error: error ? error.message : null };
@@ -161,28 +144,9 @@ export async function deleteStudents(ids) {
 }
 
 
-/**
- * **첫 등원을 일정에** (원장님, 2026-08-14 — 「첫등원 학생 일정에 추가」).
- * 신입생 첫날은 원장님이 챙길 일이 많은 날인데 달력 어디에도 없었다.
- * 같은 날 같은 제목이 있으면 또 안 만든다 (다시 저장해도 안 는다).
- * 실패해도 등록은 그대로다.
- */
-export async function addFirstDayTask(supabase, name, date) {
-  if (!name || !date) return;
-  const title = `🌱 ${name} 첫 등원`;
-  // 날짜가 바뀌었으면 헌 것을 옮긴다 — 안 지우면 달력에 첫 등원이 두 번 선다.
-  // 이미 지난(done 포함 안 함) 열린 것만 — 지난 기록은 역사라 안 건드린다.
-  const td = todaySeoul();
-  await supabase.from("tasks").delete()
-    .eq("title", title).eq("kind", "schedule").eq("status", "open")
-    .gte("due_on", td).neq("due_on", date);
-  const { data: had } = await supabase
-    .from("tasks").select("id").eq("due_on", date).eq("title", title).limit(1);
-  if (had?.length) return;
-  await supabase.from("tasks").insert({
-    title, kind: "schedule", category: "기타", due_on: date, status: "open",
-  });
-}
+// 첫 등원 일정은 이제 **베끼지 않는다** — 달력·대시보드가 students 의
+// 등원시작일을 그 자리에서 읽는다 (lib/firstDay, 2026-08-15 「신규생
+// 첫등원은 달력에 안떠」 — 복사 방식은 기능 이전 등록생이 영영 빠졌다).
 
 // 선택한 학생 상태 일괄 변경
 export async function updateStudentsStatus(ids, status) {
@@ -286,13 +250,6 @@ export async function bulkAddStudents(rows) {
     const uniq = [...new Set(payload.map((r) => r.school).filter(Boolean))];
     for (const sc of uniq) {
       try { await attachSchool(supabase, sc); } catch { /* 업로드가 먼저다 */ }
-    }
-    // 첫 등원 일정 — 엑셀은 옛 명단일 수 있으니 **오늘 이후** 것만
-    const td = todaySeoul();
-    for (const r of payload) {
-      if (r.status === "enrolled" && r.enrolled_on && r.enrolled_on >= td) {
-        try { await addFirstDayTask(supabase, r.name, r.enrolled_on); } catch { /* 덤 */ }
-      }
     }
   }
 

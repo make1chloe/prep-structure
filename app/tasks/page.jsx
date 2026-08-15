@@ -17,6 +17,7 @@ import { absenceLabel } from "@/lib/absenceLabel";
 import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { hiddenExamIds } from "@/lib/schedule";
 import { cachedProfile } from "@/lib/profileCache";
+import { firstDayEvents } from "@/lib/firstDay";
 
 export const dynamic = "force-dynamic";
 
@@ -215,7 +216,7 @@ export default async function TasksPage({ searchParams }) {
       supabase.from("schools").select("id, name").order("name"),
       supabase
         .from("students")
-        .select("id, name, school, grade")
+        .select("id, name, school, grade, enrolled_on, started_on")
         .eq("status", "enrolled")
         .order("name"),
       examSel0.order("from_date", { ascending: true }),
@@ -372,6 +373,24 @@ export default async function TasksPage({ searchParams }) {
         href: "/schedule",
       })),
       ...extra,
+      // 첫 등원 — students 의 등원시작일을 그 자리에서 읽는다 (lib/firstDay).
+      // 예전 방식(등록 때 tasks 로 복사)으로 이미 생긴 줄과는 제목+날짜로 겹침 방지.
+      ...(() => {
+        const had = new Set((tasks || []).map((t) => `${t.title}|${t.due_on}`));
+        return firstDayEvents(students, isCal ? mFrom : today, isCal ? mTo : "9999-12-31")
+          .filter((e) => !had.has(`${e.title}|${e.date}`))
+          .map((e) => ({
+            key: `first-${e.studentId}`,
+            from: e.date,
+            to: e.date,
+            title: e.title,
+            source: "첫등원",
+            studentId: e.studentId,
+            from_where: "재원생 정보 · 등원시작일",
+            why: "이 학생이 처음 등원하는 날입니다 — 등원시작일을 고치면 여기도 따라 움직입니다.",
+            href: `/students?s=${e.studentId}`,
+          }));
+      })(),
     ].sort((a, b) => a.from.localeCompare(b.from));
   }
 
