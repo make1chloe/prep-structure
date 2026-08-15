@@ -133,6 +133,19 @@ export async function updateStudent(id, patch) {
   if (!error && row.school) {
     try { await attachSchool(supabase, row.school); } catch { /* 저장이 먼저다 */ }
   }
+  /**
+   * **등원시작일을 적으면 첫 등원 일정도 따라온다** (원장님, 2026-08-15 —
+   * 「첫등원일정 안뜸」). 등록할 때 날짜가 비어 있으면 일정이 조용히
+   * 빠졌고, 나중에 날짜를 적어도 아무 일도 안 일어났다 — 값을 한 번
+   * 적으면 쓰는 곳(달력)까지 가야 한다 (원칙 1). 오늘 이후 것만 —
+   * 옛날 학생의 시작일을 정리하는 것까지 달력에 세우면 소음이다.
+   */
+  if (!error && row.enrolled_on && row.enrolled_on >= todaySeoul()) {
+    try {
+      const { data: st } = await supabase.from("students").select("name").eq("id", id).maybeSingle();
+      if (st?.name) await addFirstDayTask(supabase, st.name, row.enrolled_on);
+    } catch { /* 일정은 덤 */ }
+  }
   revalidatePath("/students");
   revalidatePath("/today");
   return { error: error ? error.message : null };
@@ -157,6 +170,12 @@ export async function deleteStudents(ids) {
 export async function addFirstDayTask(supabase, name, date) {
   if (!name || !date) return;
   const title = `🌱 ${name} 첫 등원`;
+  // 날짜가 바뀌었으면 헌 것을 옮긴다 — 안 지우면 달력에 첫 등원이 두 번 선다.
+  // 이미 지난(done 포함 안 함) 열린 것만 — 지난 기록은 역사라 안 건드린다.
+  const td = todaySeoul();
+  await supabase.from("tasks").delete()
+    .eq("title", title).eq("kind", "schedule").eq("status", "open")
+    .gte("due_on", td).neq("due_on", date);
   const { data: had } = await supabase
     .from("tasks").select("id").eq("due_on", date).eq("title", title).limit(1);
   if (had?.length) return;
