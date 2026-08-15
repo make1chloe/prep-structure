@@ -94,17 +94,34 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       // 데일리리포트처럼 앱이 본문을 만드는 문자는 여기서 보내지 않는다
       const list = (t.templates || []).filter((x) => !x.key);
       setTemplates(list);
+      const r = await listRecipients();
+      if (r.error) setErr(r.error);
+      setStudents(r.students || []);
+      setInquiries(r.inquiries || []);
+      setCatalog(r.catalog || []);
+
+      /**
+       * **보낼 것이 있으면 열자마자 차려져 있다** (원장님, 2026-08-16 —
+       * 「교재나 오늘수업등등이 채워지면 발송목록에 보낼것이 목록화되고
+       * 필요시 수정+발송누르기가 되어야 해」). 안내 안 나간 사용 예정
+       * 교재가 있으면 교재 문구 · 그 학생들 · 예정 교재까지 골라둔다 —
+       * 원장님은 확인하고 보내기만 누르면 된다. 자동 발송은 아니다.
+       */
+      const wait = (r.students || []).filter((x) => (x.pending || []).some((b) => !b.notified));
+      const bookTpl = list.find((x) => x.kind === "book");
+      if (wait.length > 0 && bookTpl) {
+        setTplId(bookTpl.id);
+        setBody(bookTpl.body);
+        setWho("student");
+        setSel(new Set(wait.map((x) => x.id)));
+        return;   // 예정 교재는 아래 자동 채움 효과가 이어받는다
+      }
       const first = list[0];
       if (first) {
         setTplId(first.id);
         setBody(first.body);
         setWho(["book", "makeup", "exam", "late_in"].includes(first.kind) ? "student" : "inquiry");
       }
-      const r = await listRecipients();
-      if (r.error) setErr(r.error);
-      setStudents(r.students || []);
-      setInquiries(r.inquiries || []);
-      setCatalog(r.catalog || []);
     })();
   }, []);
 
