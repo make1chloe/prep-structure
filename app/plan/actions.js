@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToFamilies } from "@/app/push/actions";
 import { noColumn } from "@/lib/sqlError";
+import { syncPrepTasks } from "@/app/today/actions";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -270,6 +271,39 @@ export async function waiveMakeup(studentId, absentDate, on = true) {
  * 그 날짜 리포트에 status='assigned' 로 들어가고, 다음 수업에 검사 대상이 된다.
  * @param items [{ homeworkItemId, unitIds, note }]
  */
+
+/**
+ * **미리 내주기도 숙제 준비 할일을 만든다** (값-지도 P1-11, 2026-08-16).
+ * 오늘 수업 경로만 syncPrepTasks 를 불러서, 미리 내준 단원평가 대비는
+ * 「문제 내기」 할일이 안 생겼다 — 시험지 없이 수업날이 온다.
+ *
+ * 지금 넣은 것만 넘기면 안 된다: syncPrepTasks 는 그날 배정 전체와
+ * 견줘서 빠진 할일을 지우므로, **그날 배정 전체**를 다시 읽어 넘긴다.
+ * (빼기 경로도 같은 까닭으로 이걸 부른다)
+ */
+async function syncPrepForDay(supabase, studentIds, date) {
+  for (const sid of studentIds) {
+    try {
+      const { data: rep } = await supabase
+        .from("daily_reports").select("id").eq("student_id", sid).eq("date", date).maybeSingle();
+      if (!rep) continue;
+      let { data: items } = await supabase
+        .from("daily_report_items")
+        .select("homework_item_id, textbook_unit_id, textbook_unit_ids, range_note")
+        .eq("daily_report_id", rep.id).eq("status", "assigned");
+      if (!items) items = [];
+      const units = {};
+      items.forEach((it) => {
+        units[it.homework_item_id] = {
+          unitIds: it.textbook_unit_ids || (it.textbook_unit_id ? [it.textbook_unit_id] : []),
+          note: it.range_note || "",
+        };
+      });
+      await syncPrepTasks(supabase, sid, date, items.map((it) => it.homework_item_id), units);
+    } catch { /* 할일은 덤 — 배정이 먼저다 */ }
+  }
+}
+
 export async function assignHomeworkAhead(studentIds, date, items) {
   const sids = Array.isArray(studentIds) ? studentIds : [studentIds];
   const list = Array.isArray(items) ? items.filter((x) => x?.homeworkItemId) : [];
@@ -325,6 +359,9 @@ export async function assignHomeworkAhead(studentIds, date, items) {
   }
   if (error) return { error: error.message, count: 0 };
 
+  // 숙제 준비 할일 (P1-11) — 오늘 수업 경로와 같은 한 벌
+  await syncPrepForDay(supabase, sids, date);
+
   revalidatePath("/plan");
   revalidatePath("/today");
   return { error: null, count: rows.length };
@@ -348,6 +385,8 @@ export async function unassignHomeworkAhead(studentIds, date, homeworkItemId) {
     .in("daily_report_id", ids)
     .eq("status", "assigned")
     .eq("homework_item_id", homeworkItemId);
+  // 배정을 뺐으면 아직 안 한 준비 할일도 같이 정리된다 (P1-11)
+  await syncPrepForDay(supabase, sids, date);
   revalidatePath("/plan");
   revalidatePath("/today");
   return ok(error);

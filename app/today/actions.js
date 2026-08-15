@@ -615,7 +615,7 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate, make
  * 배정을 취소하면 아직 안 한 할일은 같이 사라진다.
  * 이미 끝낸 할일은 건드리지 않는다 — 한 일은 한 일이다.
  */
-async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}) {
+export async function syncPrepTasks(supabase, studentId, date, nextIds = [], units = {}) {
   // 0028 전이면 조용히 넘어간다
   const itemQ = nextIds.length
     ? await supabase.from("homework_items").select("id, name, prep_task").in("id", nextIds)
