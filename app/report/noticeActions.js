@@ -11,6 +11,7 @@ import { pushToFamilies } from "@/app/push/actions";
 import { longLabel, todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
 import { planDatedAssign } from "@/lib/bookAssign";
+import { notYet } from "@/lib/bookUse";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -101,12 +102,21 @@ export async function listRecipients() {
   // 이미 갖고 있는 교재 (그만둔 것은 뺀다) — 다시 사라고 보내지 않으려고.
   // 표 전체라 fetchAll (A5). **보유 판정은 전체 교재로** (전수검사 A9) —
   // 활성 지도로 찾으면 절판된 보유 책이 「없음」 이 되어 또 사라고 보낸다.
-  const { data: st } = await fetchAll(() =>
+  let { data: st, error: stErr } = await fetchAll(() =>
     supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, notified_on")
       .order("student_id").order("textbook_id")
   );
+  if (stErr) {
+    // 0125 전이면 안내 나간 날 칸이 없다 — 미안내 목록 없이 그대로 간다
+    ({ data: st } = await fetchAll(() =>
+      supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status, assigned_on, ended_on")
+        .order("student_id").order("textbook_id")
+    ));
+  }
   const bookById = new Map(
     (catalogRaw || []).map((b) => [
       b.id,
@@ -115,12 +125,22 @@ export async function listRecipients() {
   );
 
   const booksOf = new Map();
+  // **사용 예정(아직 시작 전) 교재** — 안내에 자동으로 채울 거리이자,
+  // notified_on 이 비면 「안내 안 나간 것」 (0125). 판정은 lib/bookUse 한 곳.
+  const today = todaySeoul();
+  const pendingOf = new Map();
   (st || []).forEach((x) => {
     if (x.status === "dropped") return;
     const b = bookById.get(x.textbook_id);
     if (!b) return;
     if (!booksOf.has(x.student_id)) booksOf.set(x.student_id, []);
     booksOf.get(x.student_id).push(b);
+    if (notYet(x, today)) {
+      if (!pendingOf.has(x.student_id)) pendingOf.set(x.student_id, []);
+      pendingOf.get(x.student_id).push({
+        id: b.id, name: b.name, notified: !!x.notified_on,
+      });
+    }
   });
 
   const studentRows = (students || []).map((s) => {
@@ -135,16 +155,27 @@ export async function listRecipients() {
       // 보내지 않으려고 화면에서 「이미 있음」 으로 표시하는 데 쓴다.
       books: list.map((b) => b.name),
       has: list.map((b) => b.id),
+      // 사용 예정 교재 — 고르면 자동으로 안내 목록에 채워진다.
+      // notified 가 false 면 「안내 안 나간 것」 확인 줄에 선다 (0125)
+      pending: pendingOf.get(s.id) || [],
       testResult: "",
     };
   });
 
   // 상담자 (레벨테스트 안내 대상)
-  const { data: inq, error: inqErr } = await supabase
+  let { data: inq, error: inqErr } = await supabase
     .from("inquiries")
-    .select("id, name, school, grade, phone, test_on, test_result, test_note, status")
+    .select("id, name, school, grade, phone, test_on, test_result, test_note, status, book_ids")
     .not("status", "in", '("enrolled","declined")')
     .order("created_at", { ascending: false });
+  if (inqErr) {
+    // 0122 전이면 상담 교재 칸이 없다
+    ({ data: inq, error: inqErr } = await supabase
+      .from("inquiries")
+      .select("id, name, school, grade, phone, test_on, test_result, test_note, status")
+      .not("status", "in", '("enrolled","declined")')
+      .order("created_at", { ascending: false }));
+  }
 
   const inquiryRows = (inq || []).map((q) => ({
     id: `q:${q.id}`,
@@ -154,6 +185,11 @@ export async function listRecipients() {
     phone: q.phone || "",
     books: [],
     has: [],
+    // 상담 때 정해둔 교재(0122) — 등록 안내 문자에 자동으로 채워진다
+    // (원장님, 2026-08-15 — 「신규생은 등록안내문자 보낼때 교재내용이 들어가야해」)
+    pending: (q.book_ids || [])
+      .filter((id) => bookById.has(id))
+      .map((id) => ({ id, name: bookById.get(id).name, notified: false })),
     testOn: q.test_on || "",
     testResult: [q.test_result, q.test_note].filter(Boolean).join(" · "),
   }));
@@ -411,13 +447,28 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn) {
     wants.push({ studentId: sid, textbookId: bid, date: startOn })
   ));
   const toKeep = planDatedAssign(known, wants);
+  const notifiedOn = todaySeoul();
   const rows = toKeep.map((w) => ({
     student_id: w.studentId, textbook_id: w.textbookId,
     status: "active", assigned_on: w.date, ended_on: null,
+    notified_on: notifiedOn,   // 이 길은 안내를 보내면서 배정한다 (0125)
   }));
+
+  // 이미 배정돼 있던(예: 상담 등록 자동 배정) 짝도 지금 안내가 나갔다
+  try {
+    await supabase.from("student_textbooks")
+      .update({ notified_on: notifiedOn })
+      .in("student_id", students).in("textbook_id", books);
+  } catch { /* 0125 전 */ }
+
   if (rows.length === 0) return { error: null, added: 0, skipped: students.length * books.length };
 
-  const { error } = await supabase.from("student_textbooks").insert(rows);
+  let { error } = await supabase.from("student_textbooks").insert(rows);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0125 전이면 안내 나간 날 없이
+    ({ error } = await supabase.from("student_textbooks")
+      .insert(rows.map(({ notified_on: _n, ...r }) => r)));
+  }
   if (error) return { error: error.message };
 
   revalidatePath("/students");

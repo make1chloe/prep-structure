@@ -77,6 +77,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
   // 이번에 **안내할** 교재 (학원 교재 전체에서 고른다) · 언제부터 쓸 것인가
   const [catalog, setCatalog] = useState([]);
   const [pickBooks, setPickBooks] = useState(() => new Set());
+  const [handPicked, setHandPicked] = useState(false);   // 손으로 골랐으면 자동 채움 멈춤
   const [bookQ, setBookQ] = useState("");
   const [startOn, setStartOn] = useState(todaySeoul());
   const [assign, setAssign] = useState(true);
@@ -121,6 +122,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       setSel(new Set());
       setExtra({});
       setPickBooks(new Set());
+      setHandPicked(false);
     }
   }
 
@@ -172,7 +174,22 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
     const n = new Set(pickBooks);
     n.has(id) ? n.delete(id) : n.add(id);
     setPickBooks(n);
+    setHandPicked(true);
   }
+
+  /**
+   * **받는 사람을 고르면 그 사람의 예정 교재가 자동으로 골라진다** (원장님,
+   * 2026-08-15 — 「신규생은 등록안내문자 보낼때 교재내용이 들어가야해」).
+   * 재원생은 사용 예정(아직 시작 전) 교재, 상담자는 상담 때 정해둔 교재
+   * (0122). 손으로 책을 만졌으면 자동은 멈춘다 — 덮어쓰면 안 된다.
+   */
+  useEffect(() => {
+    if (!usesBooks || handPicked) return;
+    const auto = new Set();
+    picked.forEach((r) => (r.pending || []).forEach((b) => auto.add(b.id)));
+    setPickBooks(auto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usesBooks, handPicked, [...sel].sort().join("|"), students, inquiries]);
 
   // 자동으로 못 채우는 변수 — 보내기 전에 입력칸으로 띄운다
   const ask = askedVars(body, picked[0], academy, msg);
@@ -299,6 +316,46 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       <div className="grid-side" style={{ marginTop: 12 }}>
         {/* 받는 사람 */}
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          {/**
+            * **안내 안 나간 사용 예정 교재** (0125, 원장님 2026-08-15 —
+            * 「교재안내는 놓치면 안되는 중요한 부분」 · 「발송목록에 추가해서
+            * 확인후 보내야지」). 상담 등록 자동 배정·직접 추가로 생긴 예정
+            * 교재는 안내가 안 나갔다 — 여기 서고, 누르면 그 학생들이
+            * 골라지고 예정 교재가 자동으로 채워진다. 자동 발송은 없다.
+            */}
+          {(() => {
+            const wait = students.filter((r) => (r.pending || []).some((b) => !b.notified));
+            if (wait.length === 0) return null;
+            return (
+              <div style={{ padding: "12px 16px 0" }}>
+                <div className="card card-tight" style={{ background: "var(--amber-soft)" }}>
+                  <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <b style={{ fontSize: 14 }}>📚 안내 안 나간 사용 예정 교재 — {wait.length}명</b>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => {
+                        setWho("student");
+                        setSel(new Set(wait.map((r) => r.id)));
+                        setHandPicked(false);   // 예정 교재로 다시 자동 채움
+                      }}
+                    >
+                      이 학생들 선택
+                    </button>
+                  </div>
+                  <div className="hint" style={{ marginTop: 4, lineHeight: 1.7 }}>
+                    {wait
+                      .map((r) =>
+                        `${r.name}(${(r.pending || []).filter((b) => !b.notified).map((b) => b.name).join("·")})`)
+                      .join(" · ")}
+                  </div>
+                  <p className="hint" style={{ margin: "4px 0 0" }}>
+                    보내면 안내 나간 날이 적혀 이 목록에서 빠집니다. 학생마다 교재가
+                    다르면 나눠서 보내주세요 — 문구의 교재 목록은 한 번에 한 벌입니다.
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
           <div className="row" style={{ gap: 6, padding: "12px 16px", alignItems: "center" }}>
             {[
               ["student", `재원생 ${students.length}`],
@@ -344,8 +401,18 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                       )}
                     </td>
                     <td>
+                      {who === "student" && (r.pending || []).some((b) => !b.notified) && (
+                        <span className="tag tag-amber" title={(r.pending || []).filter((b) => !b.notified).map((b) => b.name).join(", ")}>
+                          안내 전 {(r.pending || []).filter((b) => !b.notified).length}권
+                        </span>
+                      )}
                       {who === "student" && r.books.length > 0 && (
                         <span className="hint">교재 {r.books.length}권</span>
+                      )}
+                      {who === "inquiry" && (r.pending || []).length > 0 && (
+                        <span className="tag tag-sky" title={(r.pending || []).map((b) => b.name).join(", ")}>
+                          상담 교재 {(r.pending || []).length}권
+                        </span>
                       )}
                       {who === "inquiry" && r.testOn && (
                         <span className="tag tag-sky">테스트 {r.testOn.slice(5)}</span>

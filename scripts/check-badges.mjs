@@ -291,7 +291,8 @@ console.log("\n== 제목은 명사로 ==");
  * 나란히 서면 더 그렇다. 명사로 끊으면 훑어진다.
  */
 eq(TODO_LABEL.scores(3), "성적 미입력 3명", "성적 미입력");
-eq(TODO_LABEL.report(2), "리포트 미발송 2건", "리포트 미발송");
+// 0125 부터 발송 배지는 리포트 미발송 + 교재 안내 미발송의 합이다
+eq(TODO_LABEL.report(2), "발송할 것 2건 (리포트 · 교재 안내)", "발송할 것");
 eq(TODO_LABEL.plan(1), "보강 미배정 1건", "보강 미배정");
 for (const [k, f] of Object.entries(TODO_LABEL)) {
   // 「아직」 「안 」 같은 서술 표현이 남아 있으면 명사가 아니다
