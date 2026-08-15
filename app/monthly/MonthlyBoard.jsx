@@ -13,6 +13,12 @@ import { addMonths } from "@/lib/day";
  */
 export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy" }) {
   const [sel, setSel] = useState(() => new Set());
+  /**
+   * **성적 비공개 학생 처리** (값-지도 P0-1, 원장님 2026-08-15 — 「선택
+   * 가능하게」). 비공개면 문구에서 점수 절은 이미 빠져 있고, 여기서는
+   * 그 학생을 보낼지 자체를 고른다.
+   */
+  const [privateMode, setPrivateMode] = useState("mask");   // mask: 점수 빼고 보냄 · skip: 발송 제외
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState("");
@@ -108,10 +114,30 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
           </button>
           <span className="tag tag-sky">{sel.size}명</span>
           <span className="spacer" />
+          {shown.some((r) => r.scoreHidden) && (
+            <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              성적 비공개 학생:
+              <select
+                className="input input-sm"
+                style={{ width: 150 }}
+                value={privateMode}
+                onChange={(e) => setPrivateMode(e.target.value)}
+              >
+                <option value="mask">점수 빼고 보냄</option>
+                <option value="skip">보내지 않음</option>
+              </select>
+            </label>
+          )}
           <button
             className="btn btn-primary btn-sm"
             disabled={pending || sel.size === 0}
-            onClick={() => send(shown.filter((r) => sel.has(r.studentId)))}
+            onClick={() =>
+              send(
+                shown.filter(
+                  (r) => sel.has(r.studentId) && !(privateMode === "skip" && r.scoreHidden)
+                )
+              )
+            }
           >
             고른 {sel.size}명에게 보내기
           </button>
@@ -144,6 +170,11 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
               )}
               {r.sum.word.count > 0 && (
                 <span className="tag tag-muted">단어 {r.sum.word.rate}%</span>
+              )}
+              {r.scoreHidden && (
+                <span className="tag tag-muted" title="성적 공개 설정이 학부모 비공개라, 문구에서 점수 절이 빠져 있어요">
+                  성적 비공개
+                </span>
               )}
               {r.sum.exams.length > 0 && (
                 <span className="tag tag-lav">단원평가 {r.sum.exams.length}</span>

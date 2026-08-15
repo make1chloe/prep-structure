@@ -34,10 +34,17 @@ export async function loadMonth(ym) {
   const parts = await loadMessageParts(supabase, settings.message);
   const msg = parts.monthly || settings.message;
 
-  const { data: students } = await supabase
+  let { data: students, error: stuErr } = await supabase
     .from("students")
-    .select("id, name, school, grade, parent_phone, status")
+    .select("id, name, school, grade, parent_phone, status, score_share")
     .order("name", { ascending: true });
+  if (stuErr) {
+    // 0101 전이면 공개 설정 없이 — 전원 공개로 본다
+    ({ data: students } = await supabase
+      .from("students")
+      .select("id, name, school, grade, parent_phone, status")
+      .order("name", { ascending: true }));
+  }
   const enrolled = (students || []).filter((s) => !s.status || s.status === "enrolled");
 
   // 지난달까지 같이 읽는다 — 한 줄 평은 **변화**를 말할 때 제일 와닿는다
@@ -159,9 +166,12 @@ export async function loadMonth(ym) {
       const prev = before.length >= 3 ? summarize(before, []) : null;
 
       const saved = mine.get(s.id);
-      const data = { student: s, ym, sum, prev, note: saved?.note || "" };
+      // 학부모에게 성적이 비공개인 아이 — 자동 문구에서 점수 절을 뺀다 (P0-1)
+      const hideScores = s.score_share === "none" || s.score_share === "student";
+      const data = { student: s, ym, sum, prev, note: saved?.note || "", hideScores };
       const auto = buildMonthlyText(data, settings.academy.name, msg);
       return {
+        scoreHidden: hideScores,
         studentId: s.id,
         name: s.name,
         who: [s.school, s.grade].filter(Boolean).join(" "),
