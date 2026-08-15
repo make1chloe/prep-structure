@@ -29,7 +29,10 @@ function autoMap(r, academy, msg, books = []) {
     날짜: r.testOn || today,
     교재목록: books.map((b) => `· ${b.name}`).join("\n") || "(배정된 교재 없음)",
     교재비: price ? `${price.toLocaleString()}원` : "(미정)",
-    구매링크: books.map((b) => b.url).filter(Boolean)[0] || "(링크 없음)",
+    // 여러 권이면 **전권** — 첫 권만 나가면 나머지 링크가 통째로 유실된다 (값-지도 P0-4)
+    구매링크:
+      books.filter((b) => b.url).map((b) => (books.length > 1 ? `${b.name}: ${b.url}` : b.url)).join("\n") ||
+      "(링크 없음)",
     테스트결과: r.testResult || "",
     학원주소: msg?.address || "",
     학원전화: msg?.phone || "",

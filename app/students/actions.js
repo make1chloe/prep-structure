@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { todaySeoul } from "@/lib/day";
 import { attachSchool } from "@/app/consult/actions";
 import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
@@ -26,6 +27,15 @@ export async function addStudent(formData) {
     parent_phone: clean(formData, "parent_phone"),
     status: clean(formData, "status") || "enrolled",
     enrolled_on: clean(formData, "enrolled_on"),
+    /**
+     * **수강료 일할은 started_on 을 본다** (값-지도 P0-2, 2026-08-15).
+     * 등록 화면은 enrolled_on 만 받아서, 월중 입회도 만액으로 계산됐다.
+     * 등록이면 시작일을 같이 채운다 — 두 칸 문제의 근본 정리는 P3.
+     */
+    started_on:
+      (clean(formData, "status") || "enrolled") === "enrolled"
+        ? clean(formData, "enrolled_on") || todaySeoul()
+        : null,
     electives: clean(formData, "electives"),
     note: clean(formData, "note"),
   };
@@ -36,11 +46,20 @@ export async function addStudent(formData) {
   let candidate = base || null;
   let newId = null;
   for (let attempt = 0; attempt < 25; attempt++) {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("students")
       .insert({ ...row, login_id: candidate })
       .select("id")
       .single();
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0018 전이면 started_on 없이
+      const { started_on: _so, ...rest } = row;
+      ({ data, error } = await supabase
+        .from("students")
+        .insert({ ...rest, login_id: candidate })
+        .select("id")
+        .single());
+    }
     if (!error) {
       newId = data?.id || null;
       break;
@@ -130,6 +149,27 @@ export async function updateStudentsStatus(ids, status) {
   if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
   const supabase = createClient();
   const { error } = await supabase.from("students").update({ status }).in("id", ids);
+  /**
+   * 상태가 바뀌면 따라와야 하는 것들 (값-지도 P0-2 · 전수검사 A19).
+   * 퇴원 → 퇴원일(ended_on)이 있어야 그 달 수강료가 일할된다.
+   * 재원 → 시작일이 비어 있으면 오늘로, 퇴원일은 지우고, 계정도 만든다
+   *        (예비→재원 전환은 어느 등록 경로도 안 지나서 계정이 없었다).
+   * 0018 전 DB 면 칸이 없어 실패한다 — 상태 변경은 이미 됐으니 조용히 넘어간다.
+   */
+  if (!error && status === "withdrawn") {
+    try {
+      await supabase.from("students").update({ ended_on: todaySeoul() })
+        .in("id", ids).is("ended_on", null);
+    } catch { /* 0018 전 */ }
+  }
+  if (!error && status === "enrolled") {
+    try {
+      await supabase.from("students").update({ started_on: todaySeoul() })
+        .in("id", ids).is("started_on", null);
+      await supabase.from("students").update({ ended_on: null }).in("id", ids);
+    } catch { /* 0018 전 */ }
+    try { await autoCreateLogins(ids); } catch { /* 계정은 재원생에서 다시 */ }
+  }
   revalidatePath("/students");
   return { error: error ? error.message : null };
 }
@@ -170,13 +210,22 @@ export async function bulkAddStudents(rows) {
         parent_phone,
         status: r.status || "enrolled",
         enrolled_on: r.enrolled_on || null,
+        // 수강료 일할용 시작일 — 등록이면 등원시작일로 (값-지도 P0-2)
+        started_on: (r.status || "enrolled") === "enrolled" ? r.enrolled_on || null : null,
         electives: (r.electives || "").trim() || null,
         note: (r.note || "").trim() || null,
         login_id,
       };
     });
 
-  const { data: made, error } = await supabase.from("students").insert(payload).select("id, status");
+  let { data: made, error } = await supabase.from("students").insert(payload).select("id, status");
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0018 전이면 started_on 없이
+    ({ data: made, error } = await supabase
+      .from("students")
+      .insert(payload.map(({ started_on: _so, ...r }) => r))
+      .select("id, status"));
+  }
 
   // 새로 들어온 재원생에게 로그인 계정도 같이 만든다 (비번 0000)
   if (!error && made?.length) {

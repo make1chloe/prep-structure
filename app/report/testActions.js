@@ -60,7 +60,9 @@ export async function previewTest(studentId, kind, date) {
     to = got.student.parent_phone || "";
   } else if (kind === "homework") {
     text = buildHomeworkText(got.row, d, academy, parts.homework);
-    to = got.student.student_phone || got.student.parent_phone || "";
+    // 실제 숙제 발송(reportData:327)은 부모 번호로 나간다 — 테스트가 다른
+    // 번호로 가면 시험해 본 것과 실제가 다르다 (값-지도 P0-5)
+    to = got.student.parent_phone || got.student.student_phone || "";
   } else if (kind === "late") {
     text = buildLateText(got.row, d, academy, parts.late, settings.warning || {});
     to = got.student.parent_phone || "";
