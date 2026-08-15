@@ -32,9 +32,25 @@
     /* 다크에서 --navy 는 밝은 파랑이다. 흰 글씨를 얹으면 안 읽힌다 */
     --chip-fg: #0d1119;
 }
-/* 브라우저에게도 알려준다 — 스크롤바·기본 위젯 색이 따라온다 */
+/* 브라우저에게도 알려준다 — 스크롤바·기본 위젯 색이 따라온다.
+   **시스템 다크에도 꼭** — 손으로 고른 다크에만 적혀 있어서, 시스템
+   다크로 쓰면 날짜 칸의 달력 아이콘이 밝은 테마용(검정)으로 그려져
+   어두운 배경에서 안 보였다 (원장님, 2026-08-15 — 「날짜 입력할 때
+   캘린더 아이콘만 잘 안 보여」) */
+:root { color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+}
 :root[data-theme="dark"] { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }
+
+/* 아이콘 자체도 또렷하게 — 기본은 반투명하게 그려진다 */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  opacity: .9;
+  cursor: pointer;
+}
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
