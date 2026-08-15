@@ -1,4 +1,6 @@
 import { sessionUser } from "@/lib/session";
+import PendingGate from "./PendingGate";
+import { missingScores } from "@/lib/menuBadges";
 import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { showsTo } from "@/lib/notices";
@@ -270,6 +272,44 @@ export default async function MePage({ searchParams }) {
   // 지금 해야 할 숙제 = **가장 최근에 배정한 것** (까닭은 lib/homeworkView 에)
   const { from: assignedFrom, rows: assignedRows } = pickAssigned(reports, dri);
   const todo = assignedRows.map(toCard);
+
+  /**
+   * **팝업 재료** (원장님 — 「성적 미입력 시, 숙제 미제출 시 학생에게 팝업
+   * 계속」). 안 낸 숙제 = 배정됐는데 완료를 안 누른 것. 적어야 할 시험 =
+   * 내 학교 시험이 끝났는데 점수를 안 적은 것 (성장 화면과 같은 규칙 —
+   * lib/menuBadges missingScores 한 벌). 시험 조회가 막히면 조용히 빈다.
+   */
+  const pendingHw = todo.filter((c) => !c.doneAt).map((c) => c.name);
+  let pendingScores = [];
+  const gDay = todaySeoul();   // 아래 today 는 한참 뒤에 선언된다 (TDZ)
+  try {
+    const [pgExamsQ, pgScoresQ, pgSkipsQ] = await Promise.all([
+      supabase
+        .from("exam_periods")
+        .select("id, school, grade, name, neis_name, english_on, hidden")
+        .gte("english_on", addDays(gDay, -35))
+        .lte("english_on", gDay),
+      supabase
+        .from("scores")
+        .select("student_id, taken_on, exam_id")
+        .eq("student_id", student.id)
+        .eq("kind", "school")
+        .gte("taken_on", addDays(gDay, -70)),
+      supabase.from("exam_skips").select("student_id, exam_id").eq("student_id", student.id),
+    ]);
+    if (!pgExamsQ.error) {
+      const hidden = new Set((pgExamsQ.data || []).filter((e) => e.hidden).map((e) => e.id));
+      const skips = new Set((pgSkipsQ.data || []).map((r) => `${r.student_id}|${r.exam_id}`));
+      pendingScores = missingScores({
+        exams: pgExamsQ.data || [],
+        students: [student],
+        scores: pgScoresQ.error ? [] : pgScoresQ.data || [],
+        hidden,
+        skips,
+        today: gDay,
+      }).map((m) => m.examName);
+    }
+  } catch { /* 시험 표를 못 읽는 계정 — 팝업만 조용히 빈다 */ }
 
   // 지난 수업 검사 결과
   const checked = latest
@@ -1096,6 +1136,10 @@ export default async function MePage({ searchParams }) {
                   선생님 미리보기에서는 안 띄운다 (원장님 브라우저에 확인이 쌓이면
                   정작 아이 기기에서 뜰 것이 안 뜬 것처럼 헷갈린다) */}
               {!preview && !acting && !isStaff && <NoticeGate page="me" notices={notice2} />}
+              {/* 안 한 것 팝업 — 해결될 때까지 들어올 때마다 (원장님, 2026-08-14) */}
+              {!preview && !acting && !isStaff && (
+                <PendingGate homework={pendingHw} scores={pendingScores} />
+              )}
               <ScreenNote text={N("me.top")} tone="card" />
               <div className="blockgrid">
                 {blockOrder.map((k) => (
