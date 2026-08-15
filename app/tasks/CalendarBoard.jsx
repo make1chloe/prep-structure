@@ -285,8 +285,10 @@ export default function CalendarBoard({
           const long = !open && items.some((x) => (x.label || "").length > 14);
           return (
             <div
-              className={`cal-cell ${d === today ? "cal-today" : ""} ${open ? "cal-open" : ""}`}
+              className={`cal-cell cal-tap ${d === today ? "cal-today" : ""} ${open ? "cal-open" : ""}`}
               key={d}
+              /* 폰에서는 줄이 점이라 못 누른다 — 칸을 누르면 그날 목록 (11-13) */
+              onClick={() => items.length > 0 && setPick(pick === d ? null : d)}
             >
               <div className={`cal-num ${dow === 0 ? "cal-sun" : dow === 6 ? "cal-sat" : ""}`}>
                 {Number(d.slice(8))}
@@ -296,7 +298,7 @@ export default function CalendarBoard({
                   type="button"
                   className={`cal-item ${it.cls} ${it.done ? "cal-done" : ""}`}
                   key={it.key}
-                  onClick={() => setPick(pick === d ? null : d)}
+                  onClick={(e) => { e.stopPropagation(); setPick(pick === d ? null : d); }}
                   title={it.label}
                 >
                   {it.label}

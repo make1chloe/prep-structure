@@ -983,10 +983,36 @@ input[type="date"] { min-width: 148px; }
 }
 
 @media (max-width: 700px) {
-  /* 좁으면 칸이 손톱만 해진다. 글자를 줄이고 높이를 낮춘다 */
-  .cal-cell, .cal-blank, .cal-empty { min-height: 62px; padding: 3px 3px 4px; }
-  .cal-item { font-size: 12px; padding: 1px 3px 1px 8px; }
+  /* 좁으면 칸이 손톱만 해진다. 높이를 낮춘다 */
+  .cal-cell, .cal-blank, .cal-empty { min-height: 54px; padding: 3px 3px 4px; }
   .cal-dow { padding: 4px 2px; font-size: 12px; }
+
+  /**
+   * **폰 월간 달력은 점으로** (원장님, 2026-08-15 — 「달력이 모바일에서는
+   * 글씨가 너무 생략되어 잘 안 보여. 인기 일정 앱들 살펴보고 개선해」).
+   *
+   * 구글·틱틱·네이버 캘린더의 공통 문법: 월간 칸에는 **색 점만**, 내용은
+   * **누른 날 아래 목록**에서. 12px로 잘라 넣은 글자는 「해송고 올포…」
+   * 처럼 생략만 보여서 있으나 마나였다. 점 색 = 종류 색(왼쪽 막대와 같은
+   * 값). 누른 날 목록은 세 달력(할일·학사일정·학생 달력)에 이미 있다.
+   * 펼친 칸(.cal-open)은 그대로 글로 보인다.
+   */
+  .cal-cell:not(.cal-open) { display: block; }
+  .cal-cell:not(.cal-open) .cal-item {
+    display: inline-block; width: 8px; height: 8px; margin: 3px 3px 0 0;
+    padding: 0; border-radius: 99px;
+    background: var(--bar, var(--text-faint));
+    font-size: 0; line-height: 0; overflow: hidden; vertical-align: top;
+    pointer-events: none;   /* 점은 못 누른다 — 칸(날짜)을 누르게 */
+  }
+  .cal-cell:not(.cal-open) .cal-item::before { display: none; }
+  /* 끝낸 일의 점은 색을 죽인다 — 흐림(opacity)이 아니라 회색으로 (노안 규칙) */
+  .cal-cell:not(.cal-open) .cal-item.cal-done { background: var(--text-faint); text-decoration: none; }
+  .cal-cell:not(.cal-open) .cal-more {
+    display: inline-block; vertical-align: top;
+    font-size: 12px; padding: 0 2px; margin: 0; pointer-events: none;
+  }
+  .cal-open .cal-item { font-size: 12.5px; }
 }
 
 /* ── 학생·학부모 화면의 위 메뉴 (SectionNav) ──────────────────
