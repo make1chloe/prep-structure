@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent } from "./actions";
+import { listWordTestBooks } from "@/app/progress/actions";
+import WordTest from "@/app/today/WordTest";
 
 /**
  * 이 학생의 단어시험 — **몇 개씩 · 몇 %면 통과 · 언제**.
@@ -14,6 +16,21 @@ import { updateStudent } from "./actions";
  * 어떤 줄은 높아야 좋고 어떤 줄은 낮아야 좋으면 볼 때마다 뒤집어 생각해야 한다.
  */
 export default function WordTestBox({ student, defaultPass = 90 }) {
+  /**
+   * **교재별 방식도 여기서 미리** (원장님, 2026-08-15 — 「(방식을) 오늘
+   * 수업 말고 미리 정해두고 싶다」). 지금까지는 오늘 수업 단어시험 칸에서만
+   * 정할 수 있어서, 수업 전에 미리 정할 자리가 없었다. 판은 오늘 수업과
+   * **같은 한 벌**(app/today/WordTest)이라 어긋나지 않는다.
+   */
+  const [wtBooks, setWtBooks] = useState(null);
+  useEffect(() => {
+    let dead = false;
+    listWordTestBooks(student?.id).then((res) => {
+      if (!dead) setWtBooks(res.books || []);
+    });
+    return () => { dead = true; };
+  }, [student?.id]);
+
   const [count, setCount] = useState(student?.word_test_count ?? "");
   const [cut, setCut] = useState(student?.word_cut_pct ?? "");
   const [when, setWhen] = useState(student?.word_when || "start");
@@ -100,6 +117,25 @@ export default function WordTestBox({ student, defaultPass = 90 }) {
           ? `${n}개 중 ${allowed}개까지 틀려도 통과입니다 (${pass}%).`
           : `개수를 비워두면 그날 나간 범위의 단어 수로 봅니다. 통과선은 ${pass}% 예요.`}
       </p>
+
+      {/* 교재별 시험 방식 — 오늘 수업과 같은 판 (객/주 배분 · 첫 글자 힌트) */}
+      {wtBooks === null ? (
+        <p className="hint" style={{ margin: "10px 0 0" }}>교재별 방식 불러오는 중…</p>
+      ) : wtBooks.length > 0 ? (
+        <div className="stack" style={{ gap: 6, marginTop: 12 }}>
+          <b style={{ fontSize: 14 }}>교재별 시험 방식</b>
+          {wtBooks.map((b) => (
+            <div className="row" key={b.id} style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 14, minWidth: 120 }}>{b.name}</span>
+              <WordTest studentId={student.id} book={b} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="hint" style={{ margin: "10px 0 0" }}>
+          사용 중인 단어 교재가 없어요 — 교재 탭에서 배정하면 여기서 방식을 정할 수 있어요.
+        </p>
+      )}
     </div>
   );
 }

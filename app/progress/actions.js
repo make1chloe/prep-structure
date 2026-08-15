@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { todaySeoul } from "@/lib/day";
 import { planAssign } from "@/lib/bookAssign";
+import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
 import { sessionUser } from "@/lib/session";
 
@@ -243,6 +244,46 @@ export async function addStudentBookDated(studentId, textbookId, startOn, endOn)
  * 끝냄」 을 누르기엔 너무 많다. 어느 책이 끝났는지는 원장님만 아니
  * (1월에 안내한 책을 아직 쓰기도 한다) 날짜로 짐작하지 않고 골라서 끝낸다.
  */
+/**
+ * 이 학생의 **단어 교재 + 시험 방식** (원장님, 2026-08-15 — 「(방식을)
+ * 오늘 수업 말고 미리 정해두고 싶다」 → 재원생 단어시험 탭이 부른다).
+ * 오늘 수업의 wtOf 와 같은 것 — (학생, 교재, 회독) 하나에 설정 한 줄.
+ */
+export async function listWordTestBooks(studentId) {
+  if (!studentId) return { books: [] };
+  const supabase = createClient();
+  const today = todaySeoul();
+  const [stQ, bQ] = await Promise.all([
+    supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, assigned_on, ended_on, round")
+      .eq("student_id", studentId),
+    supabase.from("textbooks").select("id, name, area, status"),
+  ]);
+  const bookOf = new Map((bQ.data || []).map((b) => [b.id, b]));
+  const mine = (stQ.data || [])
+    .filter((r) => inUseOn(r, today))
+    .map((r) => ({ r, b: bookOf.get(r.textbook_id) }))
+    .filter((x) => x.b && (!x.b.status || x.b.status === "active") && x.b.area === "단어");
+  if (mine.length === 0) return { books: [] };
+  const wt = await supabase
+    .from("word_test_settings")
+    .select("textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint")
+    .eq("student_id", studentId)
+    .in("textbook_id", mine.map((x) => x.r.textbook_id));
+  const wtOf = new Map(
+    (wt.error ? [] : wt.data || []).map((w) => [`${w.textbook_id}|${w.round}`, w])
+  );
+  return {
+    books: mine.map(({ r, b }) => ({
+      id: b.id,
+      name: b.name,
+      round: r.round || 1,
+      wordTest: wtOf.get(`${b.id}|${r.round || 1}`) || null,
+    })),
+  };
+}
+
 export async function endStudentBooks(studentId, textbookIds) {
   const ids = [...new Set((textbookIds || []).filter(Boolean))];
   if (!studentId || ids.length === 0) return { error: "교재를 골라주세요." };
