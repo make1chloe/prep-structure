@@ -9,6 +9,9 @@ import SendTodo from "./SendTodo";
 import ResendBoard from "../resend/ResendBoard";
 import TestSender from "./TestSender";
 import { loadReportRows } from "@/lib/reportData";
+import { fill } from "@/lib/noticeFill";
+import { runDueSends } from "./scheduleActions";
+import { listScheduled } from "./scheduleActions";
 import { loadSettings } from "@/lib/settings";
 import { channelPlan } from "@/lib/alimtalk";
 import { todaySeoul, addDays } from "@/lib/day";
@@ -70,55 +73,96 @@ export default async function ReportPage({ searchParams }) {
    */
   let todoData = null;
   if (tab === "todo") {
+    // 때가 된 예약부터 내보낸다 — 이 화면이 열리는 것이 곧 시계다 (0126)
+    try { await runDueSends(); } catch { /* 보낼 것 화면은 그대로 선다 */ }
+
     const today = todaySeoul();
     const ym = today.slice(0, 7);
-    const [unsentQ, stuQ, pendQ, monQ] = await Promise.all([
+    const [unsentQ, stuQ, pendQ, monQ, bookTplQ, schedQ] = await Promise.all([
       supabase
         .from("daily_reports")
         .select("id, student_id, date, skip_kinds")
         .eq("report_written", true).is("sent_at", null)
         .gte("date", addDays(today, -30)).lte("date", today)
         .order("date", { ascending: false }),
-      supabase.from("students").select("id, name, status, enrolled_on").eq("status", "enrolled"),
+      supabase.from("students").select("id, name, status, enrolled_on, parent_phone").eq("status", "enrolled"),
       supabase
         .from("student_textbooks")
-        .select("student_id, textbook_id")
+        .select("student_id, textbook_id, assigned_on")
         .eq("status", "active").is("notified_on", null).gt("assigned_on", today),
       supabase.from("monthly_reports").select("id", { count: "exact", head: true }).eq("ym", ym),
+      // 교재 안내 문구 — 학생마다 제 교재로 채워 보낸다 (lib/noticeFill 한 벌)
+      supabase.from("message_templates")
+        .select("id, body").eq("kind", "book").eq("active", true).is("key", null)
+        .order("sort", { ascending: true }).limit(1),
+      listScheduled(),
     ]);
-    const nameOf = new Map((stuQ.data || []).map((x) => [x.id, x.name]));
+    const stuOf = new Map((stuQ.data || []).map((x) => [x.id, x]));
 
     const byDate = new Map();
     (unsentQ.error ? [] : unsentQ.data || [])
       .filter((r) => !(r.skip_kinds || []).includes("report"))
       .forEach((r) => {
-        const nm = nameOf.get(r.student_id);
-        if (!nm) return;   // 퇴원생 지난 리포트는 재촉하지 않는다
+        const st = stuOf.get(r.student_id);
+        if (!st) return;   // 퇴원생 지난 리포트는 재촉하지 않는다
         if (!byDate.has(r.date)) byDate.set(r.date, []);
-        byDate.get(r.date).push(nm);
+        byDate.get(r.date).push({ id: r.id, name: st.name });
       });
-    const unsentByDate = [...byDate.entries()].map(([d, names]) => ({ date: d, names }));
+    const unsentByDate = [...byDate.entries()].map(([d, items]) => ({ date: d, items }));
 
     const pend = pendQ.error ? [] : pendQ.data || [];   // 0125 전이면 비어 있다
     const bookIds = [...new Set(pend.map((x) => x.textbook_id))];
     const { data: tbs } = bookIds.length
-      ? await supabase.from("textbooks").select("id, name").in("id", bookIds)
+      ? await supabase.from("textbooks").select("id, name, price, purchase_url").in("id", bookIds)
       : { data: [] };
-    const tbName = new Map((tbs || []).map((b) => [b.id, b.name]));
+    const tbOf = new Map((tbs || []).map((b) => [b.id, b]));
+    const bookTpl = bookTplQ.error ? null : (bookTplQ.data || [])[0] || null;
     const waitOf = new Map();
     pend.forEach((x) => {
-      const nm = nameOf.get(x.student_id);
-      if (!nm) return;
-      if (!waitOf.has(x.student_id)) waitOf.set(x.student_id, { studentId: x.student_id, name: nm, books: [] });
-      waitOf.get(x.student_id).books.push(tbName.get(x.textbook_id) || "교재");
+      const st = stuOf.get(x.student_id);
+      if (!st) return;
+      const b = tbOf.get(x.textbook_id);
+      if (!waitOf.has(x.student_id)) {
+        waitOf.set(x.student_id, {
+          studentId: x.student_id,
+          id: `s:${x.student_id}`,
+          name: st.name,
+          phone: st.parent_phone || "",
+          firstComing: !!(st.enrolled_on && st.enrolled_on > today),
+          books: [],
+        });
+      }
+      waitOf.get(x.student_id).books.push({
+        id: x.textbook_id,
+        name: b?.name || "교재",
+        price: b?.price || 0,
+        url: b?.purchase_url || "",
+        from: x.assigned_on,   // 교재 사용 예정일 — 화면에 그대로 보인다
+      });
     });
+    // 학생마다 **자기 교재**로 본문을 채운다 — 안내 탭(한 벌 공통)보다 정확하다
+    const bookWait = [...waitOf.values()].map((w) => ({
+      ...w,
+      body: bookTpl
+        ? fill(bookTpl.body, { name: w.name }, settings.academy.name, settings.message, {}, w.books)
+        : "",
+    }));
 
     // 월간은 월말 사흘 전부터만 (menuBadges 와 같은 기준)
     const lastDay = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0).getDate();
     const left = lastDay - Number(today.slice(8, 10));
     const monthlyLeft = left <= 3 ? Math.max(0, (stuQ.data || []).length - (monQ.count || 0)) : 0;
 
-    todoData = { unsentByDate, bookWait: [...waitOf.values()], monthlyLeft, ym };
+    todoData = {
+      unsentByDate,
+      bookWait,
+      monthlyLeft,
+      ym,
+      bookTemplateId: bookTpl?.id || null,
+      hasBookTpl: !!bookTpl,
+      scheduled: schedQ.rows || [],
+      mode: settings.mode,
+    };
   }
   const profile = profileQ?.data || null;
   const testStudents = ssQ.data || [];

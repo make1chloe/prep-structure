@@ -19,6 +19,7 @@ import { dayLabel, longLabel } from "@/lib/day";
 import { cleanClassName } from "@/lib/classLabel";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
+import { runDueSends } from "@/app/report/scheduleActions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,9 @@ function Badge({ href, children, tone }) {
 }
 
 export default async function Home() {
+  // 때가 된 예약 발송 — 대시보드가 열리는 것이 곧 시계다 (0126).
+  // 실패해도 대시보드는 그대로 선다.
+  try { await runDueSends(); } catch { /* 조용히 */ }
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
