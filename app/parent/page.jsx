@@ -29,6 +29,7 @@ import PushToggle from "@/app/me/PushToggle";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
 import { loadClassesWithTerm } from "@/lib/classTerm";
+import { notYet, fromLabel } from "@/lib/bookUse";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import ScreenNote from "@/components/ScreenNote";
@@ -149,7 +150,7 @@ export default async function ParentPage({ searchParams }) {
   const nextMonthYm = addMonths(today.slice(0, 7), 1);
   const [
     repsQ, warnQ, cutQ, recent, itemById, mineQ, attTodayQ, stayQ,
-    monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts, confirmQ,
+    monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts, confirmQ, stbQ,
   ] = await Promise.all([
     supabase
       .from("daily_reports")
@@ -198,7 +199,34 @@ export default async function ParentPage({ searchParams }) {
       .eq("student_id", pickId)
       .eq("ym", addMonths(today.slice(0, 7), 1))
       .maybeSingle(),
+    // 사용 예정 교재 — 사야 할 책 (값-지도 P1-18: 구매링크·교재비가
+    // 안내 문자 밖에는 아무 데도 안 보였다)
+    supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, assigned_on, ended_on")
+      .eq("student_id", pickId)
+      .eq("status", "active"),
   ]);
+
+  /** 아직 시작 전인(사야 할) 교재 — 판정은 lib/bookUse 의 notYet 한 곳 */
+  let buyBooks = [];
+  {
+    const soon = (stbQ.error ? [] : stbQ.data || []).filter((r) => notYet(r, today));
+    if (soon.length) {
+      const { data: bks } = await supabase
+        .from("textbooks")
+        .select("id, name, price, purchase_url")
+        .in("id", soon.map((r) => r.textbook_id));
+      const fromOf = new Map(soon.map((r) => [r.textbook_id, r.assigned_on]));
+      buyBooks = (bks || []).map((b) => ({
+        id: b.id,
+        name: b.name,
+        price: b.price || 0,
+        url: b.purchase_url || "",
+        from: fromOf.get(b.id) || null,
+      }));
+    }
+  }
 
   // ── 이번 달 (달이 끝나기 전에도 지금까지를 그대로 센다) ──
   const { data: reps } = repsQ;
@@ -896,6 +924,33 @@ export default async function ParentPage({ searchParams }) {
               아래쪽에 두되, 무엇을 하는 자리인지 한 줄 적어둔다. */}
           {!preview && (
             <>
+              {/* 사야 할 교재 — 안내 문자에만 있던 구매링크·교재비를 앱에도
+                  (값-지도 P1-18). 시작 전 배정이 있을 때만 나온다 */}
+              {buyBooks.length > 0 && (
+                <div className="card card-tight">
+                  <b style={{ fontSize: 15 }}>📚 준비할 교재</b>
+                  <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+                    {buyBooks.map((b) => (
+                      <div key={b.id} className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <b style={{ fontSize: 14 }}>{b.name}</b>
+                        {b.from && <span className="tag tag-amber">{fromLabel(b.from)} 씁니다</span>}
+                        {b.price ? (
+                          <span className="hint">{Number(b.price).toLocaleString()}원</span>
+                        ) : null}
+                        {b.url && (
+                          <a className="btn btn-sm" href={b.url} target="_blank" rel="noreferrer">
+                            구매하러 가기 ↗
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
+                    수업에 쓰기 시작하는 날 전까지 준비해 주세요. 구하기 어려우시면
+                    아래 보내기로 말씀해 주세요.
+                  </p>
+                </div>
+              )}
               {/* 다음 달 일정 1차 확인 (0123) — 카드가 위 (원장님, 2026-08-15 —
                   「카드가 위에 있는 게 나음」). 문구가 「아래 보내기」 를 가리킨다 */}
               <MonthConfirm

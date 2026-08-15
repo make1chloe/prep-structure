@@ -1001,6 +1001,17 @@ export default function StudentPanel({
                           </button>
                         ))}
                       </span>
+                      {/* 이 숙제로 만든 늦귀가 과제 — 연결(homework_item_id)을
+                          이제 읽는다 (값-지도 P1-15). 이미 늦귀가에 올라가
+                          있으면 또 만들 필요가 없다는 것이 검사 중에 보인다 */}
+                      {(row.stay || []).some((t) => t.homework_item_id === iid) && (
+                        <span
+                          className="tag tag-lav"
+                          title="이 숙제로 만든 늦귀가 과제가 아래 「늦귀가」 줄에 있습니다"
+                        >
+                          늦귀가 ↓
+                        </span>
+                      )}
                       {item?.method && (
                         <button
                           className="btn btn-ghost btn-sm"

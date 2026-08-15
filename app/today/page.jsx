@@ -138,7 +138,7 @@ export default async function TodayPage({ searchParams }) {
       .order("created_at", { ascending: true }),
     supabase
       .from("stay_tasks")
-      .select("id, student_id, body, status, auto")
+      .select("id, student_id, body, status, auto, homework_item_id")
       .eq("date", date)
       .order("created_at", { ascending: true }),
     supabase.from("integrations").select("config").eq("id", "schedule").maybeSingle(),
