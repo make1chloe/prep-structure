@@ -234,7 +234,7 @@ export async function convertToStudent(id, classId) {
  *
  * @returns { added, name, note } | null
  */
-async function attachSchool(supabase, name) {
+export async function attachSchool(supabase, name) {
   const want = (name || "").trim();
   if (!want) return null;
 

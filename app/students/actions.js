@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { attachSchool } from "@/app/consult/actions";
 import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 import { autoCreateLogins } from "./accountActions";
@@ -62,6 +63,18 @@ export async function addStudent(formData) {
     }
   }
 
+  /**
+   * **등록하면 학교도 자동으로** (원장님, 2026-08-15 — 「설문지 학교는
+   * 나이스 기준이잖아. 그럼 등록 시에도 자동으로 학교 추가하고」).
+   * 상담 → 등록 전환(convertToStudent)에만 있던 것을 직접 등록에도 —
+   * 학교가 학사일정 명단에 없으면 그 아이만 시험 일정·시험범위·전날
+   * 등원이 조용히 빠진다. 실패해도 등록은 그대로 (같은 규칙 한 곳:
+   * consult/actions 의 attachSchool).
+   */
+  if (newId && row.school) {
+    try { await attachSchool(supabase, row.school); } catch { /* 등록이 먼저다 */ }
+  }
+
   revalidatePath("/students");
 }
 
@@ -93,6 +106,10 @@ export async function updateStudent(id, patch) {
       return { error: "설정 → Supabase SQL 에서 0070 을 먼저 실행해주세요." };
     }
     ({ error } = await supabase.from("students").update(rest).eq("id", id));
+  }
+  // 학교를 새로 적었으면 학사일정 명단에도 붙인다 (위 addStudent 와 같은 까닭)
+  if (!error && row.school) {
+    try { await attachSchool(supabase, row.school); } catch { /* 저장이 먼저다 */ }
   }
   revalidatePath("/students");
   revalidatePath("/today");
