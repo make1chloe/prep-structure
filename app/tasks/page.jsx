@@ -181,7 +181,7 @@ export default async function TasksPage({ searchParams }) {
   let taskErr = false;
   if (wantSchedule) {
     const COLS =
-      "id, title, kind, category, due_on, end_on, start_time, status, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
+      "id, title, kind, category, due_on, end_on, start_time, status, priority, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
     // 달력이면 그 달만, 아니면 오늘부터 (지난 것은 켜야 보인다)
     const range = (q) =>
       isCal

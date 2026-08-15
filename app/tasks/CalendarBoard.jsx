@@ -116,7 +116,11 @@ export default function CalendarBoard({
       put(d, {
         key: `t-${t.id}-${d}`,
         label: `${t.start_time ? `${t.start_time.slice(0, 5)} ` : ""}${cleanTitle(t.title)}`,
-        cls: CAT_CLS[t.category || "기타"] || "cal-muted",
+        // 중요도가 색을 이긴다 (원장님, 2026-08-15 — 「점 색깔로 일정
+        // 중요도를 표시해줘」): 급함=빨강 · 중요=노랑 · 보통=종류색
+        cls: `${CAT_CLS[t.category || "기타"] || "cal-muted"} ${
+          (t.priority || 0) >= 2 ? "cal-pri2" : t.priority === 1 ? "cal-pri1" : ""
+        }`,
         href: "/tasks?view=schedule",
         done: t.status === "done",
         band: "schedule",

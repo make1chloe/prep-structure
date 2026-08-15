@@ -102,13 +102,13 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
                   <Link
                     key={k}
                     href={it.href || "/tasks"}
-                    className={`cal-item ${TONE[it.tone]?.cls || ""}`}
+                    className={`cal-item ${TONE[it.tone]?.cls || ""} ${it.pri >= 2 ? "cal-pri2" : it.pri === 1 ? "cal-pri1" : ""}`}
                     title={it.title}
                   >
                     {it.title}
                   </Link>
                 ) : (
-                  <span key={k} className={`cal-item ${TONE[it.tone]?.cls || ""}`} title={it.title}>
+                  <span key={k} className={`cal-item ${TONE[it.tone]?.cls || ""} ${it.pri >= 2 ? "cal-pri2" : it.pri === 1 ? "cal-pri1" : ""}`} title={it.title}>
                     {it.title}
                   </span>
                 )
