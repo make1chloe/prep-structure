@@ -225,11 +225,14 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
       alert("안내할 교재를 한 권 이상 골라주세요.");
       return;
     }
+    const smsAmong = toApp ? picked.filter((r) => r.firstComing).length : 0;
     if (
       realSend &&
       !confirm(
         toApp
-          ? `${picked.length}명에게 앱으로 안내를 보낼까요?\n앱 공지에 올라가고 아이·어머니 폰으로 알림이 갑니다. 문자는 나가지 않습니다.`
+          ? smsAmong > 0
+            ? `${picked.length}명에게 보낼까요?\n첫 등원 전 ${smsAmong}명에게는 학부모 번호로 문자가 가고, 나머지는 앱 공지·알림으로 갑니다.`
+            : `${picked.length}명에게 앱으로 안내를 보낼까요?\n앱 공지에 올라가고 아이·어머니 폰으로 알림이 갑니다. 문자는 나가지 않습니다.`
           : `${picked.length}명에게 지금 문자를 보낼까요?`
       )
     ) return;
@@ -443,6 +446,14 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                       )}
                     </td>
                     <td>
+                      {who === "student" && r.firstComing && (
+                        <span
+                          className="tag tag-lav"
+                          title="아직 첫 등원 전이라 앱 대신 학부모 번호로 문자가 갑니다"
+                        >
+                          문자로 · 첫 등원 전
+                        </span>
+                      )}
                       {who === "student" && (r.pending || []).some((b) => !b.notified) && (
                         <span className="tag tag-amber" title={(r.pending || []).filter((b) => !b.notified).map((b) => b.name).join(", ")}>
                           안내 전 {(r.pending || []).filter((b) => !b.notified).length}권

@@ -80,7 +80,7 @@ export async function listRecipients() {
 
   const { data: students } = await supabase
     .from("students")
-    .select("id, name, school, grade, parent_phone, status")
+    .select("id, name, school, grade, parent_phone, status, enrolled_on")
     .eq("status", "enrolled")
     .order("name", { ascending: true });
 
@@ -158,6 +158,8 @@ export async function listRecipients() {
       // 사용 예정 교재 — 고르면 자동으로 안내 목록에 채워진다.
       // notified 가 false 면 「안내 안 나간 것」 확인 줄에 선다 (0125)
       pending: pendingOf.get(s.id) || [],
+      // 첫 등원 전 — 이 집엔 앱 공지 대신 **문자**가 간다 (2026-08-16)
+      firstComing: !!(s.enrolled_on && s.enrolled_on > today),
       testResult: "",
     };
   });
@@ -230,20 +232,43 @@ export async function sendNotices(items, label, templateId) {
   const students = list.filter((x) => `${x.id}`.startsWith("s:"));
   const inquiries = list.filter((x) => !`${x.id}`.startsWith("s:"));
 
+  /**
+   * **첫 등원 전인 신입생에게는 문자로** (원장님, 2026-08-16 — 「(재원생은)
+   * 앱알림으로만 할거야 / 신규생 대상은 전부 문자」). 등록돼서 재원생
+   * 목록에 있어도 아직 한 번도 안 온 집은 앱을 깔았을 리가 없다 — 앱
+   * 공지만 올리면 등록·교재 안내를 못 본다. 첫 등원(등원시작일)이 지나면
+   * 재원생 규칙(앱으로만)으로 돌아간다.
+   */
+  let appOnes = students;
+  let smsOnes = [];
+  if (students.length > 0) {
+    const { data: stRows } = await supabase
+      .from("students")
+      .select("id, enrolled_on")
+      .in("id", students.map((x) => x.id.slice(2)));
+    const coming = new Set(
+      (stRows || [])
+        .filter((r) => r.enrolled_on && r.enrolled_on > today)
+        .map((r) => r.id)
+    );
+    appOnes = students.filter((x) => !coming.has(x.id.slice(2)));
+    smsOnes = students.filter((x) => coming.has(x.id.slice(2)));
+  }
+
   const byRef = new Map();
   let pushed = 0;                 // 실제로 폰에 간 알림 수 (0 이면 아무도 안 켠 것이다)
 
   // ── 1) 재원생 · 학부모 — 앱 안으로 ────────────────────────────
-  if (students.length > 0) {
+  if (appOnes.length > 0) {
     const title = noticeLabel(kind);
     const { ok, failed } = await postAppNotices(
       supabase,
-      students.map((x) => ({ studentId: x.id.slice(2), title, body: x.body })),
+      appOnes.map((x) => ({ studentId: x.id.slice(2), title, body: x.body })),
       { date: today, kind, createdBy: user?.id || null }
     );
     const okSet = new Set(ok);
     const whyOf = new Map(failed.map((f) => [f.studentId, f.detail]));
-    students.forEach((x) => {
+    appOnes.forEach((x) => {
       const sid = x.id.slice(2);
       byRef.set(x.id, okSet.has(sid)
         ? { ok: true, detail: IN_APP_DETAIL }
@@ -270,7 +295,7 @@ export async function sendNotices(items, label, templateId) {
      * 울리면 형제 있는 집 어머니 폰이 같은 안내로 두 번 운다.
      * 공지는 둘 다 올라가 있으니 알림은 가족당 한 번이면 된다.
      */
-    const sids2 = students.map((x) => x.id.slice(2));
+    const sids2 = appOnes.map((x) => x.id.slice(2));
     const { data: famLinks } = await supabase
       .from("parent_student")
       .select("parent_profile_id, student_id")
@@ -281,7 +306,7 @@ export async function sendNotices(items, label, templateId) {
       parentsOf.get(l.student_id).push(l.parent_profile_id);
     });
     const rangParents = new Set();
-    for (const x of students) {
+    for (const x of appOnes) {
       const sid = x.id.slice(2);
       if (!okSet.has(sid)) continue;
       const fam = parentsOf.get(sid) || [];
@@ -313,9 +338,10 @@ export async function sendNotices(items, label, templateId) {
     }
   }
 
-  // ── 2) 신규 상담 — 밖으로 (문자 · 알림톡) ─────────────────────
-  let channel = students.length > 0 ? "app" : null;
-  if (inquiries.length > 0) {
+  // ── 2) 신규 상담 + 첫 등원 전 신입생 — 밖으로 (문자 · 알림톡) ────
+  let channel = appOnes.length > 0 ? "app" : null;
+  const outward = [...inquiries, ...smsOnes];
+  if (outward.length > 0) {
     let tpl = null;
     if (templateId) {
       const q = await supabase
@@ -326,7 +352,7 @@ export async function sendNotices(items, label, templateId) {
       if (!q.error) tpl = q.data;
     }
     const dateLabel = longLabel(today);
-    const sendable = inquiries.filter((x) => x.phone);
+    const sendable = outward.filter((x) => x.phone);
     const out = await deliver(
       settings,
       sendable.map((x) => {
@@ -353,17 +379,17 @@ export async function sendNotices(items, label, templateId) {
       { kind, audience: INQUIRY }
     );
     out.results.forEach((r) => byRef.set(r.ref, r));
-    inquiries.forEach((x) => {
+    outward.forEach((x) => {
       if (!x.phone) byRef.set(x.id, { ok: false, detail: "번호 없음" });
     });
-    channel = students.length > 0 ? "app+sms" : out.channel;
+    channel = appOnes.length > 0 ? "app+sms" : out.channel;
   }
 
   const failed = list.filter((x) => !byRef.get(x.id)?.ok);
   return {
     error: null,
     channel,
-    inApp: students.length,
+    inApp: appOnes.length,
     pushed,
     count: list.length - failed.length,
     failed: failed.map((x) => ({ name: x.name, detail: byRef.get(x.id)?.detail || "발송 실패" })),
