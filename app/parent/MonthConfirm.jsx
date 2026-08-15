@@ -38,19 +38,18 @@ export default function MonthConfirm({ studentId, ym, parentAt, childName }) {
         <b style={{ fontSize: 15 }}>📅 {month}월 일정 확인</b>
         {at ? (
           <span className="tag tag-mint">
-            확인해주셨어요 · {new Date(at).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })}
+            확인 완료 · {new Date(at).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })}
           </span>
         ) : (
           <button className="btn btn-primary btn-sm" disabled={pending} onClick={confirm}>
-            {month}월에 빠질 날 없어요 / 다 보냈어요 — 확인
+            {month}월 일정 확인했어요
           </button>
         )}
       </div>
       <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
-        {month}월에 {childName ? `${childName} 학생이` : "아이가"} 빠질 날(여행·행사 등)이
-        있으면 <b>위의 보내기로 먼저</b> 알려주시고, 다 보내셨으면 확인을 눌러주세요.
-        없으면 바로 눌러주시면 됩니다. <b>매달 25일까지</b> 확인해주시면 다음 달
-        수업 회차가 확정돼요.
+        {month}월에 빠질 날(여행·학교 행사 등)이 있으면 <b>위의 보내기</b>로 먼저
+        알려주세요. 다 보내셨거나 빠질 날이 없으면 버튼을 눌러주시면 됩니다.
+        <b> 25일까지</b> 확인해 주시면 {month}월 수업 회차가 확정돼요.
       </p>
     </div>
   );

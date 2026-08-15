@@ -203,6 +203,14 @@ export default async function Home() {
             <div className="card sect sect-info">
               <h2 className="secthead">특이사항</h2>
               <div className="stack" style={{ gap: 10 }}>
+                {/* 다음 달 회차 확정 (0123) — 25일부터, 회차 화면으로 가는 길 */}
+                {(d.monthConfirmLeft || 0) > 0 && (
+                  <div>
+                    <Link className="tag tag-amber" href="/schedule" style={{ fontSize: 13 }}>
+                      📅 다음 달 회차 미확정 {d.monthConfirmLeft}명 — 회차 화면에서 확정하기 →
+                    </Link>
+                  </div>
+                )}
                 {/* 이번 주 생일 (원장님, 2026-08-15 — 「생일 나한테 알려주고」) */}
                 {(d.birthdays || []).length > 0 && (
                   <div>

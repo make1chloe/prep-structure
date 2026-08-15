@@ -896,14 +896,16 @@ export default async function ParentPage({ searchParams }) {
               아래쪽에 두되, 무엇을 하는 자리인지 한 줄 적어둔다. */}
           {!preview && (
             <>
-              {/* 다음 달 일정 1차 확인 (0123) — 보내기 바로 위, 흐름이 이어진다 */}
+              <RequestForm studentId={pickId} mine={myReqs || []} />
+              {/* 다음 달 일정 1차 확인 (0123) — 보내기 **아래**. 결석을 먼저
+                  보내고 마지막에 확인하는 순서 그대로 (원장님, 2026-08-15 —
+                  「결석 보내기가 밑에 있음」 → 순서를 맞췄다) */}
               <MonthConfirm
                 studentId={pickId}
                 ym={nextMonthYm}
                 parentAt={confirmQ?.data?.parent_at || null}
                 childName={child?.name || ""}
               />
-              <RequestForm studentId={pickId} mine={myReqs || []} />
               {notes.has("parent.request") ? (
                 <ScreenNote text={N("parent.request")} style={{ margin: "-4px 2px 0" }} />
               ) : (
