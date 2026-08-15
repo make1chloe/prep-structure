@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PRIORITY } from "@/app/todo/priority";
 import { addTask } from "./actions";
 import { todaySeoul } from "@/lib/day";
 import { CATEGORIES } from "./categories";
@@ -54,6 +55,13 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
           <div className="field" style={{ width: 110 }}>
             <label className="label">시간</label>
             <input className="input input-sm" type="time" name="start_time" />
+          </div>
+          <div className="field" style={{ width: 92 }}>
+            <label className="label">중요도</label>
+            {/* 달력 점·막대 색이 이걸 따른다 — 급함 빨강 · 중요 노랑 */}
+            <select className="input input-sm" name="priority" defaultValue="0">
+              {PRIORITY.map((p2) => <option key={p2.v} value={p2.v}>{p2.label}</option>)}
+            </select>
           </div>
         </div>
 

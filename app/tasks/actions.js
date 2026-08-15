@@ -29,6 +29,8 @@ export async function addTask(formData) {
     due_on: clean(formData, "due_on") || new Date().toISOString().slice(0, 10),
     end_on: clean(formData, "end_on"),
     start_time: clean(formData, "start_time"),
+    // 중요도 (0020) — 달력 점·막대 색이 이걸 본다 (2026-08-15)
+    priority: parseInt(clean(formData, "priority") || "0", 10) || 0,
     class_id: clean(formData, "class_id"),
     note: clean(formData, "note"),
     deliver_body: clean(formData, "deliver_body"),
@@ -85,6 +87,7 @@ export async function updateTask(id, patch) {
   ].forEach((k) => {
     if (k in (patch || {})) row[k] = (patch[k] ?? "").toString().trim() || null;
   });
+  if ("priority" in (patch || {})) row.priority = parseInt(patch.priority, 10) || 0;
   // 하위목록 — 이름을 고치면(줄 내용이 바뀌면) 그 줄의 체크는 떨어진다.
   // checklist_done 은 글자로 맞추므로, 이제 없는 줄의 체크는 자연히 안 보인다.
   if ("checklist" in (patch || {})) {

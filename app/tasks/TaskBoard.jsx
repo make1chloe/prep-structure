@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PRIORITY } from "@/app/todo/priority";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } from "./actions";
@@ -90,6 +91,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
       deliver_scope: t.deliver_scope || "",
       private: !!t.private,
       deliver_class_id: t.deliver_class_id || "",
+      priority: t.priority ?? 0,
     });
   }
 
@@ -361,6 +363,14 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                         <label className="label">시간</label>
                         <input className="input input-sm" type="time" value={draft.start_time}
                           onChange={(e) => setDraft({ ...draft, start_time: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">중요도</label>
+                        {/* 달력 점·막대 색 — 급함 빨강 · 중요 노랑 (2026-08-15) */}
+                        <select className="input input-sm" value={draft.priority}
+                          onChange={(e) => setDraft({ ...draft, priority: e.target.value })}>
+                          {PRIORITY.map((p2) => <option key={p2.v} value={p2.v}>{p2.label}</option>)}
+                        </select>
                       </div>
                     </div>
                     <div className="field" style={{ marginTop: 8 }}>
