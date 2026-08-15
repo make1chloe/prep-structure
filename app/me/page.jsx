@@ -215,7 +215,7 @@ export default async function MePage({ searchParams }) {
       .gte("date", myFrom)
       .lte("date", todayStr),
     supabase.from("settings").select("config").eq("key", "warning").maybeSingle(),
-    supabase.from("students").select("word_cut_pct").eq("id", sid).maybeSingle(),
+    supabase.from("students").select("word_cut_pct, word_test_count").eq("id", sid).maybeSingle(),
     supabase
       .from("study_sessions")
       .select("homework_item_id, seconds, date")
@@ -761,6 +761,11 @@ export default async function MePage({ searchParams }) {
                     <span className={`tag ${TONE_CLS[l.tone] || "tag-muted"}`}>{l.text}</span>
                   </div>
                 ))}
+                {/* 내 단어시험 규칙 — 통과선만 알고 몇 개짜리인지는 몰랐다 (값-지도 P1-14) */}
+                <p className="hint" style={{ margin: "4px 0 0" }}>
+                  단어시험은 {myCutRow?.word_test_count ? `${myCutRow.word_test_count}개 중 ` : ""}
+                  {myCut}% 넘으면 통과예요.
+                </p>
               </div>
             </div>
           )}

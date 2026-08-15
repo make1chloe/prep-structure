@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import PickOrType from "@/components/PickOrType";
 import { useRouter } from "next/navigation";
 import {
   updateHomeworkItem,
@@ -246,11 +247,6 @@ export default function HomeworkList({ items = [], missKeys = null }) {
         </div>
       )}
 
-      {/* 준비물 고르기 목록 — 자주 쓰는 것 + 이미 항목들에 적어 둔 것 (0116) */}
-      <datalist id="tool-options-edit">
-        {toolList(items.map((i) => i.tool)).map((t) => <option key={t} value={t} />)}
-      </datalist>
-
       <div className="tblwrap">
         <table className="tbl tbl-tight">
           <thead>
@@ -303,15 +299,16 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                         </select>
                         {/* 준비물 — 아이 화면 숙제 이름 옆에 붙는다 (0116).
                             고를 수도, 직접 적을 수도. 비우면 표시 안 함 */}
-                        <input
-                          className="input input-sm"
-                          style={{ marginTop: 6 }}
-                          list="tool-options-edit"
-                          placeholder="준비물 (비우면 표시 안 함)"
-                          title="아이가 무엇을 펴야 하는지 — 아이 화면 숙제 옆에 붙습니다"
-                          value={draft.tool}
-                          onChange={(e) => setDraft({ ...draft, tool: e.target.value })}
-                        />
+                        <div style={{ marginTop: 6 }}>
+                          {/* datalist 는 아이폰에서 안 보인다 (C6) */}
+                          <PickOrType
+                            options={toolList(items.map((i) => i.tool))}
+                            placeholder="준비물 (비우면 표시 안 함)"
+                            title="아이가 무엇을 펴야 하는지 — 아이 화면 숙제 옆에 붙습니다"
+                            value={draft.tool}
+                            onChange={(e) => setDraft({ ...draft, tool: e.target.value })}
+                          />
+                        </div>
                       </td>
                       <td>
                         <input

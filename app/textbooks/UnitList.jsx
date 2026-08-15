@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import PickOrType from "@/components/PickOrType";
 import { useRouter } from "next/navigation";
 import {
   updateUnit,
@@ -251,12 +252,6 @@ export default function UnitList({
         )}
       </div>
 
-      <datalist id="unit-activity-list">
-        {activities.map((a) => (
-          <option key={a} value={a} />
-        ))}
-      </datalist>
-
       <table className="tbl">
         <thead>
           <tr>
@@ -327,11 +322,10 @@ export default function UnitList({
                     </td>
                     <td>
                       {/* 교재마다 활동이 다르다 — 골라도 되고 직접 적어도 된다 */}
-                      <input
-                        className="input input-sm"
-                        list="unit-activity-list"
+                      {/* datalist 는 아이폰에서 안 보인다 (C6) */}
+                      <PickOrType
+                        options={activities}
                         placeholder="없음"
-                        title="목록에서 골라도 되고 직접 적어도 됩니다"
                         value={draft.activity}
                         onChange={(e) => setDraft({ ...draft, activity: e.target.value })}
                       />

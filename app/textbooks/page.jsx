@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import PickOrType from "@/components/PickOrType";
 import TopBar from "@/components/TopBar";
 import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
@@ -327,18 +328,8 @@ export default async function TextbooksPage({ searchParams }) {
                   <div className="field" style={{ width: 118 }}>
                     <label className="label">활동</label>
                     {/* 교재마다 다르니 골라도 되고 직접 적어도 된다 */}
-                    <input
-                      className="input input-sm"
-                      name="activity"
-                      list="activity-list"
-                      placeholder="설명 · 예습 …"
-                      title="목록에서 골라도 되고 직접 적어도 됩니다"
-                    />
-                    <datalist id="activity-list">
-                      {activities.map((a) => (
-                        <option key={a} value={a} />
-                      ))}
-                    </datalist>
+                    {/* datalist 는 아이폰에서 안 보인다 (C6) — 골라 넣기 한 벌 */}
+                    <PickOrType name="activity" options={activities} placeholder="설명 · 예습 …" />
                   </div>
                   <button className="btn btn-primary btn-sm" type="submit" style={{ marginBottom: 1 }}>
                     추가

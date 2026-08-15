@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PickOrType from "@/components/PickOrType";
 import { addHomeworkItem } from "./actions";
 import { CATEGORIES, toolList } from "./categories";
 
@@ -37,16 +38,13 @@ export default function AddHomeworkForm() {
               고를 수도, 직접 적을 수도 있다 (못 박아 두면 언제나 모자란다) */}
           <div className="field" style={{ width: 150 }}>
             <label className="label">준비물 (아이에게 보임)</label>
-            <input
-              className="input input-sm"
+            {/* datalist 는 아이폰에서 안 보인다 (C6) — 골라 넣기 한 벌 */}
+            <PickOrType
               name="tool"
-              list="tool-options-add"
+              options={toolList()}
               placeholder="교재 · 클래스카드 …"
               title="아이 화면 숙제 옆에 붙습니다. 비우면 표시 안 함"
             />
-            <datalist id="tool-options-add">
-              {toolList().map((t) => <option key={t} value={t} />)}
-            </datalist>
           </div>
         </div>
         <div className="field">
