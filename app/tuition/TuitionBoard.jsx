@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { GradeField } from "@/components/PickField";
 import { useRouter } from "next/navigation";
 import {
   addHoliday,
@@ -154,9 +155,10 @@ export default function TuitionBoard({
         <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div className="field" style={{ width: 110 }}>
             <label className="label">학년 추가</label>
-            <input
-              className="input input-sm"
-              placeholder="고1"
+            {/* 학년은 골라 넣는다 (C2) — 글자로 치면 students.grade 와 안 맞아
+                금액이 조용히 안 걸린다 */}
+            <GradeField
+              name={undefined}
               value={gRow.grade}
               onChange={(e) => setGRow({ ...gRow, grade: e.target.value })}
             />

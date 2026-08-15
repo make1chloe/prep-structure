@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setStudentTextbooks, addStudentBookDated } from "@/app/progress/actions";
+import BookPicker from "@/components/BookPicker";
 import BookPickPanel from "@/components/BookPickPanel";
 
 // 학생 한 명의 교재.
@@ -98,14 +99,15 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [], 
             <div className="row" style={{ gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
               <div className="field" style={{ minWidth: 200, flex: 1 }}>
                 <label className="label">교재</label>
-                <select className="input input-sm" value={dBook} onChange={(e) => setDBook(e.target.value)}>
-                  <option value="">교재 고르기…</option>
-                  {textbooks.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.area ? `[${b.area}] ` : ""}{b.name}
-                    </option>
-                  ))}
-                </select>
+                {/* 교재 고르기 한 벌 (C3) — 검색·영역이 되는 BookPicker */}
+                <BookPicker
+                  books={textbooks}
+                  mine={myBooks}
+                  value={dBook}
+                  width={220}
+                  placeholder="교재 고르기…"
+                  onChange={(bid) => setDBook(bid)}
+                />
               </div>
               <div className="field">
                 <label className="label">시작일</label>

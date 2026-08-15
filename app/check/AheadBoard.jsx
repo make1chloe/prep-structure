@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import BookPicker from "@/components/BookPicker";
 import { useRouter } from "next/navigation";
 import { assignHomeworkAhead, unassignHomeworkAhead } from "@/app/plan/actions";
 import { createNotice, listUnitOptions } from "@/app/today/actions";
@@ -311,22 +312,18 @@ export default function AheadBoard({
                       <span className={`tag ${CAT_CLS[item?.category] || "tag-muted"}`}>
                         {item?.name}
                       </span>
-                      <select
-                        className="input input-sm"
-                        style={{ width: 150 }}
+                      {/* 교재 고르기 한 벌 (C3) — 오늘 수업과 같은 BookPicker */}
+                      <BookPicker
+                        books={textbooks}
+                        mine={selStudents.flatMap((s2) => (s2.bookIds || []).map((id) => ({ id })))}
                         value={v.textbookId}
-                        onChange={(e) => {
-                          patchItem(iid, { textbookId: e.target.value, unitIds: [] });
-                          loadBook(e.target.value);
+                        width={150}
+                        placeholder="교재 선택"
+                        onChange={(bid) => {
+                          patchItem(iid, { textbookId: bid, unitIds: [] });
+                          loadBook(bid);
                         }}
-                      >
-                        <option value="">교재 선택</option>
-                        {textbooks.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.area ? `[${t.area}] ` : ""}{t.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       <select
                         className="input input-sm"
                         style={{ flex: 1, minWidth: 180 }}

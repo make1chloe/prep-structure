@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AREA_ORDER } from "@/lib/bookSort";
+import { PickField } from "@/components/PickField";
 import { useRouter } from "next/navigation";
 import { saveRoutine, deleteRoutine } from "./routineActions";
 import { KINDS, describe, byDate } from "@/lib/todoRoutine";
@@ -234,10 +236,14 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                     />
                     <span className="hint">단원 (0이면 다 끝난 뒤)</span>
                     <span className="hint">· 교재 영역</span>
-                    <input
+                    {/* 영역은 목록에서 (C5) — 글자로 치면 textbooks.area 와
+                        안 맞아 규칙이 조용히 빗나간다 */}
+                    <PickField
+                      name={undefined}
+                      options={AREA_ORDER}
+                      blank="모든 교재"
                       className="input input-sm"
-                      style={{ width: 96 }}
-                      placeholder="단어"
+                      style={{ width: 110 }}
                       value={draft.book_area}
                       onChange={(e) => setDraft({ ...draft, book_area: e.target.value })}
                     />

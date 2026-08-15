@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState, useTransition } from "react";
-import { SchoolField } from "@/components/PickField";
+import { SchoolField, GradeField } from "@/components/PickField";
 import { shortName } from "@/lib/schoolName";
 import { useRouter } from "next/navigation";
 import {
@@ -1096,16 +1096,13 @@ export default function ScheduleBoard({
           </div>
           <div className="field" style={{ width: 110 }}>
             <label className="label">학년</label>
-            <input
-              className="input input-sm"
-              list="grades"
-              placeholder="비우면 전체"
+            {/* datalist 는 아이폰에서 안 보인다 (C2) — 학년 한 벌(GradeField) */}
+            <GradeField
+              name={undefined}
+              blank="전체"
               value={form.grade}
               onChange={(e) => setForm({ ...form, grade: e.target.value })}
             />
-            <datalist id="grades">
-              {grades.map((g) => <option key={g} value={g} />)}
-            </datalist>
           </div>
           <div className="field" style={{ width: 150 }}>
             <label className="label">시험 이름</label>

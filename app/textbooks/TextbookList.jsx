@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
+import { GradeField } from "@/components/PickField";
 import { useRouter } from "next/navigation";
 import {
   updateTextbook,
@@ -263,6 +264,13 @@ export default function TextbookList({
           <option value="">—</option>
           {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
+      );
+    }
+    if (c.key === "target_grade") {
+      // 레벨은 학년 목록에서 (C2)
+      return (
+        <GradeField name={undefined} value={draft.target_grade || ""}
+          onChange={(e) => setDraft({ ...draft, target_grade: e.target.value })} />
       );
     }
     return (

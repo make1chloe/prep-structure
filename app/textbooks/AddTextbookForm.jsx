@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GradeField } from "@/components/PickField";
 import { addTextbook } from "./actions";
 import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 
@@ -36,7 +37,8 @@ export default function AddTextbookForm() {
           </div>
           <div className="field">
             <label className="label">레벨</label>
-            <input className="input input-sm" name="target_grade" placeholder="중2" />
+            {/* 레벨은 학년 목록에서 (C2) — 글자로 치면 「중 2」 「중2」 가 갈린다 */}
+            <GradeField name="target_grade" />
           </div>
           <div className="field">
             <label className="label">전체 페이지</label>
