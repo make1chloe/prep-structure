@@ -129,6 +129,7 @@ export async function importReports(rows) {
   // 숙제 검사 결과 (완료O / 미흡△ / 미제출X)
   const names = dd.rows.flatMap(({ _row }) => [..._row.done, ..._row.weak, ..._row.missing]);
   const items = await itemMap(supabase, names);
+  if (items.error) skipped.push(items.error);   // 조용히 삼키지 않는다 (A8)
   const byKey = new Map((saved || []).map((r) => [`${r.student_id}|${r.date}`, r.id]));
 
   const driRows = [];
@@ -327,6 +328,7 @@ export async function importHomework(rows) {
   const items = await itemMap(supabase, list.flatMap((r) => r.items.map((i) => i.name)));
 
   const skipped = [...badDates];
+  if (items.error) skipped.push(items.error);   // 조용히 삼키지 않는다 (A8)
   const need = [];
   list.forEach((r) => {
     const sid = students.get(r.name);
