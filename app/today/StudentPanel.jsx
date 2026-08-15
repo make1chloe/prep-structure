@@ -9,6 +9,7 @@ import SubmissionList from "./SubmissionList";
 import MakeupHere from "./MakeupHere";
 import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
 import BookProgress from "@/components/BookProgress";
+import PickOrType from "@/components/PickOrType";
 import WordTest from "./WordTest";
 import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
@@ -295,6 +296,23 @@ export default function StudentPanel({
     });
     return [...m.entries()];
   }
+
+  /**
+   * **단원평가 단원은 골라 넣는다** (전수검사 C4). 지금까지 맨 글자라
+   * 「관계대명사」 「관계 대명사」 가 성적에서 다른 단원으로 갈라졌다.
+   * 그 학생 문법 교재의 단원 이름을 골라 넣되, 목록에 없으면 직접 적는다
+   * (PickOrType). 문법 교재 단원만 미리 불러온다 — 단원평가는 문법이다.
+   */
+  const grammarIds = myBooks.filter((b) => b.area === "문법").map((b) => b.id);
+  useEffect(() => {
+    grammarIds.forEach((id) => loadBook(id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grammarIds.join("|")]);
+  const grammarUnitNames = [
+    ...new Set(
+      grammarIds.flatMap((id) => (unitsByBook[id] || []).map((o) => o.name)).filter(Boolean)
+    ),
+  ];
 
   // 교재 단원 목록은 고를 때 한 번만 불러와 캐시한다
   async function loadBook(bookId) {
@@ -877,11 +895,12 @@ export default function StudentPanel({
       <div className="prow">
         <span className="plabel">단원평가</span>
           <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <input
+            <PickOrType
               className="input input-sm"
-              style={{ width: 150 }}
+              style={{ width: 170 }}
+              options={grammarUnitNames}
               placeholder="단원명 (관계대명사)"
-              title="단원명을 적으면 성적에 단원평가로 쌓입니다"
+              title="그 학생 문법 교재의 단원에서 고르거나, 없으면 직접 적습니다. 적으면 성적에 단원평가로 쌓입니다"
               value={form.sent_unit}
               onChange={(e) => set("sent_unit", e.target.value)}
             />
