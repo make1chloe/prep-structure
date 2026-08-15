@@ -52,6 +52,27 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* 아이폰의 날짜 칸은 **고유 너비를 고집한다** — width:100% 를 줘도 제
+   칸보다 넓게 그려져 옆 칸 밑으로 파고들었다 (원장님, 2026-08-15 —
+   재원생 정보 「여전히 표 이상해」: 등원시작일이 선택과목과 겹침).
+   기본 그리기를 끄면 보통 input 처럼 줄어든다. 고르기 창은 그대로 뜬다.
+   **터치 화면에만** — PC 크롬은 이걸 끄면 달력 아이콘까지 사라진다. */
+@media (pointer: coarse) {
+  input[type="date"],
+  input[type="time"],
+  input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    /* 값이 비면 iOS 가 속을 0 높이로 그린다 — 칸 높이는 지킨다 */
+    min-height: 2.4em;
+  }
+  /* 기본 그리기를 끄면 iOS 가 값을 가운데 정렬로 두어 줄이 안 맞아 보인다 */
+  input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -71,6 +92,9 @@ a { color: inherit; }
 @media (max-width: 900px) { .grid-side { grid-template-columns: 1fr; } }
 .card-tight { padding: 12px; }
 .editgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+/* 칸 안의 입력이 칸보다 넓어져도 이웃 칸을 밀거나 밑으로 파고들지 않게 */
+.editgrid > .field { min-width: 0; }
+.field .input { min-width: 0; max-width: 100%; }
 
 /* Top bar */
 /* **다시 붙인다 — 접히니까** (원장님, 2026-08-07 — 「아래로 스크롤하면
