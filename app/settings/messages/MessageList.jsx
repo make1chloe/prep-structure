@@ -2,8 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveMessage, deleteMessage, listApprovedTemplates } from "./actions";
+import { saveMessage, deleteMessage, restoreMessage, purgeMessage, listApprovedTemplates } from "./actions";
 import { sourcesFor, slotsIn, fillTemplate, EXAMPLE, TO_STUDENT_KINDS } from "@/lib/alimtalk";
+
+/**
+ * 안내 문자 분류 — 재원생 것은 앱으로, 상담·바깥 것은 문자·알림톡으로
+ * 나간다 (lib/alimtalk 의 TO_STUDENT_KINDS 와 같은 갈래). 발송 화면의
+ * 문구 고르기도 이 갈래로 묶는다.
+ */
+export const KIND_GROUPS = [
+  ["재원생께 — 앱으로", ["book", "makeup", "exam", "late_in"]],
+  ["신규 상담·바깥 — 문자·알림톡으로", ["general", "notice"]],
+];
+export const KIND_OPTIONS = [
+  ["book", "교재 안내"],
+  ["makeup", "보강 안내"],
+  ["exam", "시험 안내"],
+  ["late_in", "지각 안내"],
+  ["general", "일반 (문자로 나감)"],
+];
 
 /** 본문에 쓸 수 있는 변수 — 보낼 때 채워진다 */
 const VARS = [
@@ -28,10 +45,11 @@ const VARS = [
  *                      고칠 것은 인삿말·맺음말뿐이고, 지울 수 없다.
  *   내가 쓰는 문자   — 본문을 직접 쓴다. 얼마든지 추가·삭제할 수 있다.
  */
-export default function MessageList({ rows = [], level = "full", error = null, pfId = "" }) {
+export default function MessageList({ rows = [], hidden = [], level = "full", error = null, pfId = "" }) {
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [adding, setAdding] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [tplRows, setTplRows] = useState(null);   // 솔라피에서 불러온 템플릿 목록
   const [tplErr, setTplErr] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -78,6 +96,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
     setTplErr(null);
     setDraft({
       name: r.name || "",
+      kind: r.kind || "general",
       greeting: r.greeting || "",
       closing: r.closing || "",
       body: r.body || "",
@@ -381,6 +400,21 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           />
         </div>
 
+        {!isAuto && (
+          <div className="field">
+            <label className="label">분류 — 재원생 것은 앱으로, 일반은 문자로 나갑니다</label>
+            <select
+              className="input input-sm"
+              value={draft.kind || "general"}
+              onChange={(e) => setDraft({ ...draft, kind: e.target.value })}
+            >
+              {KIND_OPTIONS.map(([k, label]) => (
+                <option key={k} value={k}>{label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {isAuto ? (
           <>
             <div className="field">
@@ -450,7 +484,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           * 밖으로 나가는 것은 아직 계정이 없는 **신규 상담**뿐이다.
           * 거기서만 편다.
           */}
-        {hasAlimtalk && goesOut && <Alimtalk msgKey={msgKey} />}
+        {hasAlimtalk && goesOut && Alimtalk({ msgKey })}
 
         <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
           <button
@@ -487,11 +521,19 @@ export default function MessageList({ rows = [], level = "full", error = null, p
    */
   const outward = (r) => !r.key && !TO_STUDENT_KINDS.includes(r.kind);
 
+  /**
+   * **Editor·Alimtalk·Card 는 컴포넌트가 아니라 함수로 부른다** (원장님,
+   * 2026-08-16 — 「내용 고치기가 안돼」). 부모 안에서 정의한 함수를
+   * <Editor/> 처럼 컴포넌트로 쓰면 글자 하나 칠 때마다 새 컴포넌트로
+   * 갈아끼워져(재마운트) 입력칸의 포커스가 계속 풀렸다 — 한 글자밖에 못
+   * 치니 「고치기가 안 되는」 것처럼 보였다. {Editor(...)} 로 부르면 그냥
+   * 같은 트리의 JSX 라 포커스가 산다.
+   */
   function Card({ r }) {
     const isEditing = editId === r.id;
     const isAuto = !!r.key;
     return (
-      <div className="card card-tight" style={{ marginBottom: 8 }}>
+      <div className="card card-tight" key={r.id} style={{ marginBottom: 8 }}>
         <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <b style={{ fontSize: 15 }}>{r.name}</b>
           {/* **어디로 나가나가 먼저다.** 그걸 알아야 무엇을 고칠지 정해진다 —
@@ -537,9 +579,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
           </p>
         )}
 
-        {isEditing && (
-          <Editor isAuto={isAuto} msgKey={r.key || null} goesOut={outward(r)} />
-        )}
+        {isEditing && Editor({ isAuto, msgKey: r.key || null, goesOut: outward(r) })}
       </div>
     );
   }
@@ -565,9 +605,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
         <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
           본문은 그날 입력한 내용으로 자동으로 만들어집니다. <b>인삿말·맺음말만</b> 정하시면 됩니다.
         </p>
-        {auto.map((r) => (
-          <Card key={r.id} r={r} />
-        ))}
+        {auto.map((r) => Card({ r }))}
       </div>
       )}
 
@@ -582,6 +620,7 @@ export default function MessageList({ rows = [], level = "full", error = null, p
               setAdding(true);
               setDraft({
                 name: "",
+                kind: "general",
                 greeting: "",
                 closing: "",
                 body: "",
@@ -602,17 +641,79 @@ export default function MessageList({ rows = [], level = "full", error = null, p
         {adding && (
           <div className="card card-tight" style={{ marginBottom: 8 }}>
             <b style={{ fontSize: 15 }}>새 문자</b>
-            <Editor isAuto={false} />
+            {Editor({ isAuto: false })}
           </div>
         )}
 
-        {mine.map((r) => (
-          <Card key={r.id} r={r} />
-        ))}
+        {KIND_GROUPS.map(([label, kinds]) => {
+          const inGroup = mine.filter((r) => kinds.includes(r.kind || "general"));
+          if (inGroup.length === 0) return null;
+          return (
+            <div key={label} style={{ marginBottom: 6 }}>
+              {/* 몰려 있던 것을 종류로 가른다 (원장님, 2026-08-16 —
+                  「안내문자가 너무 몰려있어 분류 다시해줘」) */}
+              <p className="hint" style={{ margin: "8px 0 4px", fontWeight: 700 }}>{label}</p>
+              {inGroup.map((r) => Card({ r }))}
+            </div>
+          );
+        })}
+        {(() => {
+          const known = KIND_GROUPS.flatMap(([, ks]) => ks);
+          const rest = mine.filter((r) => !known.includes(r.kind || "general"));
+          return rest.length ? rest.map((r) => Card({ r })) : null;
+        })()}
         {mine.length === 0 && !adding && (
           <p className="hint">아직 없습니다. 위의 <b>+ 문자 추가</b> 를 눌러 만드세요.</p>
         )}
       </div>
+
+      {/**
+        * **숨긴 문구도 볼 수 있어야 한다** (원장님, 2026-08-16 — 「삭제할때
+        * 숨기기만 되는듯. 숨긴거 볼수도 없고」). 삭제는 발송 기록이 남아
+        * 있어 숨기기로 두는데, 볼 수도 되살릴 수도 없으면 잃어버린 것과
+        * 같다. 여기서 되살리거나, 정말 필요 없으면 완전히 지운다.
+        */}
+      {hidden.length > 0 && (
+        <div>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setShowHidden(!showHidden)}
+          >
+            {showHidden ? "▾" : "▸"} 숨긴 문구 {hidden.length}개
+          </button>
+          {showHidden &&
+            hidden.map((r) => (
+              <div className="card card-tight" key={r.id} style={{ margin: "8px 0 0", opacity: 0.75 }}>
+                <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                  <b style={{ fontSize: 14.5 }}>{r.name}</b>
+                  <span className="spacer" />
+                  <button
+                    className="btn btn-sm"
+                    disabled={pending}
+                    onClick={() => run(() => restoreMessage(r.id))}
+                  >
+                    되살리기
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    onClick={() => {
+                      if (!confirm(`'${r.name}' 을 완전히 지울까요?
+되돌릴 수 없습니다.`)) return;
+                      run(() => purgeMessage(r.id));
+                    }}
+                  >
+                    완전히 지우기
+                  </button>
+                </div>
+                <p className="hint" style={{ margin: "4px 0 0", whiteSpace: "pre-wrap", fontSize: 12.5 }}>
+                  {(r.body || "").slice(0, 100)}
+                  {(r.body || "").length > 100 ? " …" : ""}
+                </p>
+              </div>
+            ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -36,7 +36,15 @@ export async function listMessages() {
       .select(t.cols)
       .eq("active", true)
       .order("sort", { ascending: true });
-    if (!error) return { rows: data || [], level: t.level, error: null };
+    if (!error) {
+      // 숨긴 것(삭제)도 따로 내려준다 — 되살리기·완전 삭제용 (2026-08-16)
+      const { data: off } = await supabase
+        .from("message_templates")
+        .select("id, name, kind, body")
+        .eq("active", false)
+        .order("sort", { ascending: true });
+      return { rows: data || [], hidden: off || [], level: t.level, error: null };
+    }
     last = error;
     // 칸이 없어서 실패한 게 아니면 더 물러나 봐야 소용없다
     if (!needSql(error)) break;
@@ -47,7 +55,7 @@ export async function listMessages() {
     last?.code === "42P01"
       ? "message_templates 표가 아직 없습니다. SQL 을 실행해주세요."
       : `${last?.message || "알 수 없는 오류"}${last?.code ? ` (${last.code})` : ""}`;
-  return { rows: [], level: "none", error: why };
+  return { rows: [], hidden: [], level: "none", error: why };
 }
 
 /**
@@ -58,6 +66,7 @@ export async function saveMessage(id, patch = {}) {
   const supabase = createClient();
   const row = {};
   if ("name" in patch) row.name = (patch.name || "").trim() || "이름 없음";
+  if ("kind" in patch && patch.kind) row.kind = patch.kind;
   if ("greeting" in patch) row.greeting = (patch.greeting || "").trim() || null;
   if ("closing" in patch) row.closing = (patch.closing || "").trim() || null;
   if ("sort" in patch) {
@@ -92,7 +101,7 @@ export async function saveMessage(id, patch = {}) {
       .limit(1);
     const { error } = await supabase.from("message_templates").insert({
       name: row.name || "새 문자",
-      kind: "general",
+      kind: row.kind || "general",
       body: (patch.body || "").trim(),
       greeting: row.greeting || null,
       closing: row.closing || null,
@@ -112,6 +121,30 @@ export async function saveMessage(id, patch = {}) {
  * 지운다 — 실제로는 숨긴다. 지난 발송 기록이 어떤 문구였는지 남아야 하기 때문이다.
  * 앱이 본문을 만드는 문자(데일리리포트 등)는 지울 수 없다. 기능이 그걸 쓰기 때문이다.
  */
+/** 숨긴 문구 되살리기 (2026-08-16 — 「숨긴거 볼수도없고」) */
+export async function restoreMessage(id) {
+  if (!id) return { error: null };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("message_templates")
+    .update({ active: true })
+    .eq("id", id);
+  revalidatePath("/settings/messages");
+  return { error: error ? error.message : null };
+}
+
+/** 완전히 지우기 — 앱 자동 문자(key)는 못 지운다 */
+export async function purgeMessage(id) {
+  if (!id) return { error: null };
+  const supabase = createClient();
+  const { data: cur } = await supabase
+    .from("message_templates").select("key, name").eq("id", id).maybeSingle();
+  if (cur?.key) return { error: `'${cur.name}' 은 앱이 쓰는 문자라 지울 수 없어요.` };
+  const { error } = await supabase.from("message_templates").delete().eq("id", id);
+  revalidatePath("/settings/messages");
+  return { error: error ? error.message : null };
+}
+
 export async function deleteMessage(id) {
   if (!id) return { error: null };
   const supabase = createClient();

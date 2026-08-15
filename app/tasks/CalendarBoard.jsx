@@ -344,13 +344,11 @@ export default function CalendarBoard({
                 <span className={`tag ${it.band === "todo" ? "tag-amber" : "tag-sky"}`}>
                   {it.band === "todo" ? "할일" : "일정"}
                 </span>
+                {/* 출처·까닭 설명은 뺐다 (원장님, 2026-08-16 — 「일정 자체에
+                    대한 추가설명 전부 빼줘」). 제목이면 충분하고, 「가기」 가
+                    그 화면으로 데려간다 */}
                 <span style={{ fontSize: 14, flex: 1 }}>
                   <b>{it.label}</b>
-                  <br />
-                  <span className="muted" style={{ fontSize: 12.5 }}>
-                    {it.where}
-                    {it.why ? ` — ${it.why}` : ""}
-                  </span>
                 </span>
                 <Link className="btn btn-ghost btn-sm" href={it.href}>
                   가기

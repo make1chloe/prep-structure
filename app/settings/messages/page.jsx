@@ -44,7 +44,7 @@ export default async function MessagesPage({ searchParams }) {
   // 화면 안내는 아이·어머니 모두에게 한 번에 보이는 글이라 원장·강사만 (0093)
   const canScreen = isTeacher(profile?.role);
 
-  const { rows, level, error } = await listMessages();
+  const { rows, hidden, level, error } = await listMessages();
   const settings = await loadSettings(supabase);
   const notes = tab === "screen" && canScreen ? await listNotes() : null;
 
@@ -95,6 +95,7 @@ export default async function MessagesPage({ searchParams }) {
             </Help>
             <MessageList
               rows={rows}
+              hidden={hidden || []}
               level={level}
               error={error}
               pfId={settings.solapi?.pfId || ""}

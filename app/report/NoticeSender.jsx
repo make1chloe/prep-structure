@@ -12,6 +12,7 @@ import {
 } from "./noticeActions";
 import { longLabel, todaySeoul } from "@/lib/day";
 import { fromLabel } from "@/lib/bookUse";
+import { KIND_GROUPS, KIND_OPTIONS } from "@/app/settings/messages/MessageList";
 
 // 자동으로 채울 수 있는 변수 — 학생 정보에서 나온다
 //
@@ -73,6 +74,8 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
   const [err, setErr] = useState(null);
   const [copied, setCopied] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editKind, setEditKind] = useState("general");
   const [extra, setExtra] = useState({});   // 직접 채우는 변수
   // 이번에 **안내할** 교재 (학원 교재 전체에서 고른다) · 언제부터 쓸 것인가
   const [catalog, setCatalog] = useState([]);
@@ -286,16 +289,38 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
         </div>
       )}
 
-      <div className="row" style={{ gap: 4, marginTop: 12, alignItems: "center" }}>
-        {templates.map((t) => (
-          <button
-            key={t.id}
-            className={`btn btn-sm ${tplId === t.id ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => pickTemplate(t.id)}
-          >
-            {t.name}
-          </button>
-        ))}
+      {/* 문구가 한 줄에 몰려 있던 것을 갈래로 (원장님, 2026-08-16 —
+          「안내문자가 너무 몰려있어 분류 다시해줘」). 분류는 문구 고치기에서 바꾼다 */}
+      <div className="row" style={{ gap: 10, marginTop: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {(() => {
+          const known = KIND_GROUPS.flatMap(([, ks]) => ks);
+          const groups = [
+            ...KIND_GROUPS,
+            ["그 밖", null],   // 갈래에 없는 kind — 숨기면 잃어버린다
+          ];
+          return groups.map(([label, kinds]) => {
+            const inGroup = (templates || []).filter((t) =>
+              kinds ? kinds.includes(t.kind || "general") : !known.includes(t.kind || "general")
+            );
+            if (inGroup.length === 0) return null;
+            return (
+              <div key={label} style={{ minWidth: 180 }}>
+                <p className="hint" style={{ margin: "0 0 3px", fontWeight: 700 }}>{label}</p>
+                <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                  {inGroup.map((t) => (
+                    <button
+                      key={t.id}
+                      className={`btn btn-sm ${tplId === t.id ? "btn-primary" : "btn-ghost"}`}
+                      onClick={() => pickTemplate(t.id)}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          });
+        })()}
         <span className="spacer" />
         <button
           className="btn btn-ghost btn-sm"
@@ -435,7 +460,17 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>문구</h2>
             <div className="row" style={{ gap: 4 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(!editing)}>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  if (!editing) {
+                    const t = (templates || []).find((x) => x.id === tplId);
+                    setEditName(t?.name || "");
+                    setEditKind(t?.kind || "general");
+                  }
+                  setEditing(!editing);
+                }}
+              >
                 {editing ? "미리보기" : "문구 고치기"}
               </button>
               {editing && (
@@ -446,10 +481,16 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                     onClick={() =>
                       startTransition(async () => {
                         const t = templates.find((x) => x.id === tplId);
-                        const res = await saveTemplate(tplId, { ...t, body });
+                        const res = await saveTemplate(tplId, {
+                          ...t,
+                          body,
+                          name: editName.trim() || t?.name,
+                          kind: editKind || t?.kind || "general",
+                        });
                         if (res?.error) alert(res.error);
                         const next = await listTemplates();
-                        setTemplates(next.templates || []);
+                        // 앱 자동 문자(key)는 이 화면 것이 아니다 — 섞이면 몰려 보인다
+                        setTemplates((next.templates || []).filter((x) => !x.key));
                         setEditing(false);
                       })
                     }
@@ -460,11 +501,11 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                     className="btn btn-ghost btn-sm"
                     disabled={pending || !tplId}
                     onClick={() => {
-                      if (!confirm("이 문자 종류를 목록에서 숨길까요?")) return;
+                      if (!confirm("이 문자 종류를 목록에서 숨길까요?\n숨긴 것은 설정 → 문구 맨 아래에서 되살릴 수 있어요.")) return;
                       startTransition(async () => {
                         await deleteTemplate(tplId);
                         const next = await listTemplates();
-                        setTemplates(next.templates || []);
+                        setTemplates((next.templates || []).filter((x) => !x.key));
                         const first = (next.templates || [])[0];
                         setTplId(first?.id || "");
                         setBody(first?.body || "");
@@ -488,6 +529,28 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                 그 밖의 <b>{"{{이름}}"}</b> 은 무엇이든 쓸 수 있고, 보내기 전에 입력칸이 뜹니다
                 (예: {"{{시간}} {{내용}}"}).
               </p>
+              <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                <div className="field" style={{ flex: 1, minWidth: 160 }}>
+                  <label className="label">이름</label>
+                  <input
+                    className="input input-sm"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                  />
+                </div>
+                <div className="field" style={{ minWidth: 180 }}>
+                  <label className="label">분류 — 재원생 것은 앱, 일반은 문자</label>
+                  <select
+                    className="input input-sm"
+                    value={editKind}
+                    onChange={(e) => setEditKind(e.target.value)}
+                  >
+                    {KIND_OPTIONS.map(([k, label]) => (
+                      <option key={k} value={k}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <textarea
                 className="input"
                 rows={12}
