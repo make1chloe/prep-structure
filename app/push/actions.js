@@ -243,11 +243,14 @@ export async function pushToFamilies(studentIds, payload, who = "all") {
         .select("id, endpoint, p256dh, auth, profile_id, student_id")
         .in("student_id", ids);
 
-  // 그 아이의 학부모 기기 (학부모 계정은 student_id 가 안 붙는다 — profile_id 로 찾는다)
-  const { data: links } = await supabase
-    .from("parent_student")
-    .select("parent_profile_id, student_id")
-    .in("student_id", ids);
+  // 그 아이의 학부모 기기 (학부모 계정은 student_id 가 안 붙는다 — profile_id 로 찾는다).
+  // who === "student" 면 부모 기기는 뺀다 (전수검사 A17 — 학생 공지는 학생 기기만)
+  const { data: links } = who === "student"
+    ? { data: [] }
+    : await supabase
+        .from("parent_student")
+        .select("parent_profile_id, student_id")
+        .in("student_id", ids);
   const parents = [...new Set((links || []).map((l) => l.parent_profile_id).filter(Boolean))];
   const { data: theirs } = parents.length
     ? await supabase

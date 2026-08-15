@@ -200,11 +200,22 @@ export async function convertToStudent(id, classId) {
    * 재원생에서 또 안 고르게). 시작일은 등록한 오늘.
    */
   if ((q.book_ids || []).length > 0) {
-    const rows = [...new Set(q.book_ids)].map((bid) => ({
+    // 절판·중단 교재는 안 잇는다 (전수검사 A13) — 상담 때 골라둔 뒤 교재가
+    // 절판됐을 수 있다. 배정 화면들이 「중단 교재」 로 표시는 해주지만,
+    // 새로 배정하는 길은 사용 중 교재만이 맞다 (이관과 같은 규칙).
+    const { data: liveBooks } = await supabase
+      .from("textbooks").select("id, status").in("id", q.book_ids);
+    const live = new Set(
+      (liveBooks || []).filter((b) => !b.status || b.status === "active").map((b) => b.id)
+    );
+    const rows = [...new Set(q.book_ids)].filter((bid) => live.has(bid)).map((bid) => ({
       student_id: student.id, textbook_id: bid,
       status: "active", assigned_on: todaySeoul(), ended_on: null,
     }));
-    let { error: bErr } = await supabase.from("student_textbooks").insert(rows);
+    if (rows.length === 0) { /* 전부 절판이면 넘어간다 */ }
+    let { error: bErr } = rows.length
+      ? await supabase.from("student_textbooks").insert(rows)
+      : { error: null };
     if (bErr && (bErr.code === "42703" || bErr.code === "PGRST204")) {
       await supabase.from("student_textbooks")
         .insert(rows.map(({ ended_on: _e, ...r }) => r));

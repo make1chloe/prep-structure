@@ -252,6 +252,12 @@ export async function sendNotices(items, label, templateId) {
       if (fam.length > 0 && fam.every((pid) => rangParents.has(pid))) continue;
       fam.forEach((pid) => rangParents.add(pid));
       try {
+        /**
+         * 알림 대상은 공지 종류가 정한다 (전수검사 A17) — 오늘 수업 길과
+         * 같은 계약: 학생 공지는 **학생 기기만**, 학부모 공지는 부모만,
+         * 그 밖은 가족 전부. 전에는 이 길만 학생 공지도 부모 폰을 울렸다.
+         */
+        const kindOf = noticeKindOf(kind);
         const r = await pushToFamilies(
           [sid],
           {
@@ -262,7 +268,7 @@ export async function sendNotices(items, label, templateId) {
             url: toParent ? "/parent" : "/me",
             tag: `notice-${kind}`,
           },
-          toParent ? "parent" : "all"
+          toParent ? "parent" : kindOf === "alert_student" ? "student" : "all"
         );
         pushed += r?.sent || 0;
       } catch {
