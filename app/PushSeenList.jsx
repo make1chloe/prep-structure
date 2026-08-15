@@ -88,6 +88,18 @@ export default function PushSeenList({ rows = [] }) {
                 {sel.size}건 치우기
               </button>
             )}
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                const shown = rows.slice(0, 20);
+                const every = shown.every((r) => sel.has(r.id));
+                const n = new Set(sel);
+                shown.forEach((r) => (every ? n.delete(r.id) : n.add(r.id)));
+                setSel(n);
+              }}
+            >
+              전체 선택
+            </button>
             <span className="hint">줄 앞 체크로 골라서 치울 수 있어요</span>
           </div>
           <div className="stack" style={{ gap: 3 }}>

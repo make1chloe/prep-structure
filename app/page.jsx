@@ -203,6 +203,20 @@ export default async function Home() {
             <div className="card sect sect-info">
               <h2 className="secthead">특이사항</h2>
               <div className="stack" style={{ gap: 10 }}>
+                {/* 이번 주 생일 (원장님, 2026-08-15 — 「생일 나한테 알려주고」) */}
+                {(d.birthdays || []).length > 0 && (
+                  <div>
+                    <b className="hint">이번 주 생일</b>
+                    <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                      {d.birthdays.map((b) => (
+                        <span className="tag tag-lav" key={b.id}>
+                          🎂 {b.name} · {b.m}/{b.d}
+                          {b.inDays === 0 ? " (오늘!)" : b.inDays === 1 ? " (내일)" : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {d.todayMakeups.length > 0 && (
                   <div>
                     <b className="hint">오늘 보강 · 재시험</b>

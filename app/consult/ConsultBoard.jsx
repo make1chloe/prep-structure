@@ -13,7 +13,7 @@ import {
   setInquiryBooks,
 } from "./actions";
 import { STATUS } from "./status";
-import { slotText, SOURCES as APPLY_SOURCES } from "@/lib/applySlots";
+import { slotText, classesForSlots, SOURCES as APPLY_SOURCES } from "@/lib/applySlots";
 import { SchoolField, GradeField, PickField } from "@/components/PickField";
 import { dowOf, parts } from "@/lib/day";
 import BookPickPanel from "@/components/BookPickPanel";
@@ -211,6 +211,7 @@ export default function ConsultBoard({
       test_at: (r.test_at || "").slice(0, 5),
       test_result: r.test_result || "",
       test_note: r.test_note || "",
+      book_ids: r.book_ids || [],
       want_time: r.want_time || "",
       memo: r.memo || "",
       class_id: r.class_id || "",
@@ -590,6 +591,29 @@ export default function ConsultBoard({
                           <option value="">—</option>
                           {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
+                        {/* 학부모가 고른 희망 시간표에서 반을 제안한다 (원칙 1 —
+                            적은 값을 써먹는다). 반의 요일·시간으로 맞춘 것이라
+                            표가 따로 없다. 누르면 그 반이 골라진다 */}
+                        {r.want_slots?.length > 0 && (() => {
+                          const fits = classesForSlots(r.want_slots, classes)
+                            .filter((c) => c.id !== draft.class_id);
+                          if (fits.length === 0) return null;
+                          return (
+                            <div className="row" style={{ gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+                              <span className="hint" style={{ fontSize: 12 }}>희망 시간표와 맞는 반:</span>
+                              {fits.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  className="hwchip"
+                                  onClick={() => setDraft({ ...draft, class_id: c.id })}
+                                >
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                     {/**
@@ -599,19 +623,26 @@ export default function ConsultBoard({
                       * 보낼 때도 자동으로 적히고, 등록하면 그대로 배정된다.
                       */}
                     <div className="field" style={{ marginTop: 8 }}>
-                      <label className="label">교재 (등록하면 자동 배정 · 누르면 바로 저장)</label>
+                      <label className="label">교재 (등록하면 자동 배정 — 아래 저장을 눌러야 저장돼요)</label>
                       {/* 재원생 교재 배정과 **같은 판** (원장님, 2026-08-15 —
                           「한 권만 고르는 것도 아니고 검색도 안 됨」) */}
+                      {/**
+                        * **저장을 눌러야 저장된다** (원장님, 2026-08-15 —
+                        * 「하나 선택하면 바로 화면이 바뀌어서 불편」 → 「저장
+                        * 누르기 전에 화면 안 바뀌게」). 고르는 동안은 draft
+                        * 에만 쌓이고, 아래 저장 버튼이 교재까지 같이 저장한다.
+                        */}
                       <BookPickPanel
                         books={textbooks}
-                        picked={new Set(r.book_ids || [])}
-                        disabled={pending}
+                        picked={new Set(draft.book_ids || [])}
                         onToggle={(bid) => {
-                          const has = (r.book_ids || []).includes(bid);
-                          const next = has
-                            ? (r.book_ids || []).filter((x) => x !== bid)
-                            : [...(r.book_ids || []), bid];
-                          run(() => setInquiryBooks(r.id, next));
+                          const has = (draft.book_ids || []).includes(bid);
+                          setDraft({
+                            ...draft,
+                            book_ids: has
+                              ? (draft.book_ids || []).filter((x) => x !== bid)
+                              : [...(draft.book_ids || []), bid],
+                          });
                         }}
                       />
                     </div>
@@ -629,8 +660,11 @@ export default function ConsultBoard({
                       <button className="btn btn-primary btn-sm" disabled={pending}
                         onClick={() => run(async () => {
                           const res = await updateInquiry(r.id, draft);
+                          if (res?.error) return res;
+                          // 교재도 이 저장 버튼 하나로 (저장 전에는 아무것도 안 바뀐다)
+                          const res2 = await setInquiryBooks(r.id, draft.book_ids || []);
                           setEditId(null);
-                          return res;
+                          return res2;
                         })}>저장</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
                     </div>
