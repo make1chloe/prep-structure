@@ -117,7 +117,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
     supabase
       .from("homework_items")
-      .select("id, name, category, sort, method, no_timer, unit_test")
+      .select("id, name, category, sort, method, no_timer, unit_test, tool, in_person")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase

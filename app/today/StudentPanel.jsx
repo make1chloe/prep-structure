@@ -260,6 +260,7 @@ export default function StudentPanel({
   const toCheckSet = new Set(toCheck);
   const unchecked = toCheck.filter((id) => !marks[id]);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
+  const itemOf = (id) => items.find((i) => i.id === id) || null;
 
   // △·✕ 로 찍은 숙제 — **배정된 것뿐 아니라 지금 찍은 것 전부**를 본다.
   // 예전에는 toCheck(지난 수업에 배정한 것)만 봐서, 배정 없이 그 자리에서 찍은
@@ -1303,6 +1304,13 @@ export default function StudentPanel({
                     <span className="tag tag-lav" style={{ fontWeight: 800 }}>
                       {nameOf(iid) || "숙제"}
                     </span>
+                    {/* 준비물·직접검사 — 학생 화면에는 있는데 여기만 없었다 (P1-9) */}
+                    {itemOf(iid)?.tool && (
+                      <span className="tag tag-sky" style={{ fontSize: 12 }}>{itemOf(iid).tool}</span>
+                    )}
+                    {itemOf(iid)?.in_person && (
+                      <span className="tag tag-amber" style={{ fontSize: 12 }} title="선생님이 직접 검사하는 숙제">직접검사</span>
+                    )}
                     {/* 수업 중에 고르는 자리다 — 굴려 찾을 시간이 없다.
                         이 학생 교재가 맨 위에 서고, 나머지는 영역으로 좁힌다 */}
                     <BookPicker

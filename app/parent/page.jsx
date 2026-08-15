@@ -617,6 +617,17 @@ export default async function ParentPage({ searchParams }) {
                             아이가 완료 표시
                           </span>
                         )}
+                        {c.checkNote && (
+                          <div className="hint" style={{ marginTop: 2 }}>💬 선생님: {c.checkNote}</div>
+                        )}
+                        {/* 하는 법 — 아이 화면에 있는 것과 같은 값 (값-지도 P1-10).
+                            서버 컴포넌트라 details 로 접는다 */}
+                        {c.method && (
+                          <details style={{ marginTop: 2 }}>
+                            <summary className="hint" style={{ cursor: "pointer" }}>하는 법</summary>
+                            <div className="hint" style={{ whiteSpace: "pre-wrap", marginTop: 2 }}>{c.method}</div>
+                          </details>
+                        )}
                       </span>
                     </div>
                   ))}

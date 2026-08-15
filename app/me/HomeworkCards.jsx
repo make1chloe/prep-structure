@@ -48,6 +48,9 @@ export default function HomeworkCards({ items = [] }) {
                 {cleanNote(h.note) && (
                   <div className="hint" style={{ marginTop: 2 }}>{cleanNote(h.note)}</div>
                 )}
+                {h.checkNote && (
+                  <div className="hint" style={{ marginTop: 2 }}>💬 선생님: {h.checkNote}</div>
+                )}
               </div>
               {h.status && MARK[h.status] && (
                 <span className={`tag ${MARK[h.status].cls}`}>{MARK[h.status].label}</span>
