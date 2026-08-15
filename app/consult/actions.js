@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { autoCreateLogins } from "@/app/students/accountActions";
+import { addFirstDayTask } from "@/app/students/actions";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/settings";
@@ -230,6 +231,8 @@ export async function convertToStudent(id, classId) {
    * 실패해도 등록은 그대로다.
    */
   try { await autoCreateLogins([student.id]); } catch { /* 계정은 재원생에서 다시 */ }
+  // 첫 등원 일정 (11-10) — 규칙은 students/actions 의 addFirstDayTask 한 곳
+  try { await addFirstDayTask(supabase, q.name, todaySeoul()); } catch { /* 덤 */ }
 
   revalidatePath("/consult");
   revalidatePath("/students");

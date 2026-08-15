@@ -93,6 +93,9 @@ export async function addStudent(formData) {
   if (newId && row.school) {
     try { await attachSchool(supabase, row.school); } catch { /* 등록이 먼저다 */ }
   }
+  if (newId && row.status === "enrolled") {
+    try { await addFirstDayTask(supabase, row.name, row.enrolled_on || row.started_on); } catch { /* 일정은 덤 */ }
+  }
 
   revalidatePath("/students");
 }
@@ -142,6 +145,24 @@ export async function deleteStudents(ids) {
   const { error } = await supabase.from("students").delete().in("id", ids);
   revalidatePath("/students");
   return { error: error ? error.message : null };
+}
+
+
+/**
+ * **첫 등원을 일정에** (원장님, 2026-08-14 — 「첫등원 학생 일정에 추가」).
+ * 신입생 첫날은 원장님이 챙길 일이 많은 날인데 달력 어디에도 없었다.
+ * 같은 날 같은 제목이 있으면 또 안 만든다 (다시 저장해도 안 는다).
+ * 실패해도 등록은 그대로다.
+ */
+export async function addFirstDayTask(supabase, name, date) {
+  if (!name || !date) return;
+  const title = `🌱 ${name} 첫 등원`;
+  const { data: had } = await supabase
+    .from("tasks").select("id").eq("due_on", date).eq("title", title).limit(1);
+  if (had?.length) return;
+  await supabase.from("tasks").insert({
+    title, kind: "schedule", category: "기타", due_on: date, status: "open",
+  });
 }
 
 // 선택한 학생 상태 일괄 변경
@@ -246,6 +267,13 @@ export async function bulkAddStudents(rows) {
     const uniq = [...new Set(payload.map((r) => r.school).filter(Boolean))];
     for (const sc of uniq) {
       try { await attachSchool(supabase, sc); } catch { /* 업로드가 먼저다 */ }
+    }
+    // 첫 등원 일정 — 엑셀은 옛 명단일 수 있으니 **오늘 이후** 것만
+    const td = todaySeoul();
+    for (const r of payload) {
+      if (r.status === "enrolled" && r.enrolled_on && r.enrolled_on >= td) {
+        try { await addFirstDayTask(supabase, r.name, r.enrolled_on); } catch { /* 덤 */ }
+      }
     }
   }
 
