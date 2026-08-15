@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { datesLabel } from "@/lib/makeupTask";
+import { datesLabel } from "@/lib/makeupTodo";
 
 /**
  * **결석해서 늘어난 내 수업.**

@@ -13,7 +13,7 @@ import CalendarBoard from "./CalendarBoard";
 import GoogleSync from "./GoogleSync";
 import { todaySeoul, addDays } from "@/lib/day";
 import { absenceLabel } from "@/lib/absenceLabel";
-import { makeupNeeded } from "@/lib/makeupTask";
+import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { hiddenExamIds } from "@/lib/schedule";
 import { cachedProfile } from "@/lib/profileCache";
 
@@ -72,39 +72,23 @@ function shiftMonth(ym, by) {
  * 지난 것만 본다. 앞으로의 결석 예정은 아직 「해야 할 일」이 아니다.
  */
 async function pendingMakeups(supabase) {
-  const today = todaySeoul();
-  const from = addDays(today, -60);              // 두 달이면 충분하다
-  let q = await supabase
-    .from("attendance")
-    .select("student_id, date, status, reason")
-    .in("status", ["absent", "makeup"])
-    .gte("date", from)
-    .lte("date", today);
-  if (q.error) {
-    q = await supabase
-      .from("attendance")
-      .select("student_id, date, status")
-      .in("status", ["absent", "makeup"])
-      .gte("date", from)
-      .lte("date", today);
-  }
-  if (q.error) return [];
-  const all = q.data || [];
-  const rows = makeupNeeded(
-    all.filter((a) => a.status === "absent"),
-    all.filter((a) => a.status === "makeup")
-  );
-  if (rows.length === 0) return [];
-
-  const { data: ss } = await supabase
-    .from("students")
-    .select("id, name, status")
-    .in("id", rows.map((r) => r.student_id));
-  const byId = new Map((ss || []).map((s) => [s.id, s]));
-  return rows
-    // 퇴원생 보강은 잡을 것이 없다
-    .filter((r) => byId.get(r.student_id)?.status === "enrolled")
-    .map((r) => ({ ...r, name: byId.get(r.student_id).name }));
+  /**
+   * **규칙은 lib/makeupTodo 한 곳** (전수검사 A11, 2026-08-15).
+   * 여기만 다른 규칙(lib/makeupTask — 학생 단위 「마지막 결석 뒤에 보강이
+   * 하나라도 있으면 됐다」, 보강없음 무시)을 써서, 「보강 없음」 으로 치운
+   * 결석이 할일에 다시 뜨고 대시보드·출결과 딴소리를 했다.
+   * 같은 목록을 받아 화면용으로 학생별로만 묶는다.
+   */
+  const rows = await loadMakeupTodo(supabase);
+  const byStu = new Map();
+  rows.forEach((r) => {
+    const g = byStu.get(r.student_id) ||
+      { student_id: r.student_id, name: r.name, dates: [], reasons: [] };
+    g.dates.push(r.date);
+    if (r.reason) g.reasons.push(r.reason);
+    byStu.set(r.student_id, g);
+  });
+  return [...byStu.values()];
 }
 
 async function pendingPrep(supabase) {

@@ -166,10 +166,14 @@ export async function setCurrentPage(studentId, textbookId, page) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const d = (page ?? "").toString().replace(/[^\d]/g, "");
   const supabase = createClient();
-  const { error } = await supabase.from("student_textbooks").upsert(
-    { student_id: studentId, textbook_id: textbookId, current_page: d ? parseInt(d, 10) : null },
-    { onConflict: "student_id,textbook_id" }
-  );
+  // **고치기만 한다** (전수검사 A15) — upsert 였을 때는 배정이 없는데
+  // 페이지만 적으면 status·assigned_on 없는 줄이 생겼고, 그 줄은 「영원
+  // 전부터 사용 중」 인 유령 배정으로 보였다. 페이지는 배정된 책에만 적는다.
+  const { error } = await supabase
+    .from("student_textbooks")
+    .update({ current_page: d ? parseInt(d, 10) : null })
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId);
   revalidatePath("/today");
   return ok(error);
 }
@@ -189,6 +193,25 @@ export async function addStudentBookDated(studentId, textbookId, startOn, endOn)
   if (!studentId || !textbookId) return { error: "학생과 교재를 골라주세요." };
   if (endOn && startOn && endOn < startOn) return { error: "종료일이 시작일보다 빠를 수 없어요." };
   const supabase = createClient();
+  /**
+   * **이미 있는 짝은 덮지 않는다** (전수검사 A14). 형제 둘(교재 안내 ·
+   * 이관)은 planDatedAssign 으로 지키는데 이 길만 upsert 라, 쓰던 책의
+   * 시작일이 바뀌고 끝낸 책이 도로 사용 중이 될 수 있었다.
+   */
+  const { data: had } = await supabase
+    .from("student_textbooks")
+    .select("status")
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId)
+    .maybeSingle();
+  if (had) {
+    return {
+      error:
+        had.status === "active" || !had.status
+          ? "이미 배정된 교재예요. 시작일을 바꾸려면 먼저 교재 고르기에서 뺐다가 다시 넣어주세요."
+          : "이 교재는 끝냄·중단 기록이 있어요. 다시 쓰려면 교재 고르기에서 넣어주세요 — 진도가 이어집니다.",
+    };
+  }
   const row = {
     student_id: studentId,
     textbook_id: textbookId,
