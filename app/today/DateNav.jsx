@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, todaySeoul, dayLabel as fmtDay } from "@/lib/day";
 import { recentClasses } from "@/app/plan/actions";
@@ -20,6 +20,19 @@ export default function DateNav({ date, students = [] }) {
   const router = useRouter();
   const today = todaySeoul();
   const go = (d) => router.push(d === today ? "/today" : `/today?d=${d}`);
+
+  /**
+   * **아이폰에서는 다 고른 뒤에 옮긴다** (원장님, 2026-08-15 — 「모바일에서
+   * 오늘수업 날짜선택이 안돼」). 아이폰의 날짜 바퀴는 돌리는 동안에도
+   * change 가 계속 오는데, 그때마다 화면을 옮기면 고르기 창이 닫혀서
+   * 선택이 안 되는 것처럼 보인다. 아이폰은 창이 닫힐 때(blur) 옮기고,
+   * 안드로이드(확인을 눌러야 change 가 한 번 온다)와 마우스(달력에서
+   * 누르는 순간)는 지금처럼 바로 옮긴다.
+   */
+  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const [draft, setDraft] = useState(date);
+  useEffect(() => setDraft(date), [date]);
+  const commit = (v) => { if (v && v !== date) go(v); };
 
   /**
    * **학생으로 찾기** — 출결의 「지난 수업 고치기」 탭이 하던 일을 여기로
@@ -50,9 +63,13 @@ export default function DateNav({ date, students = [] }) {
         className="input input-sm"
         type="date"
         style={{ width: 150 }}
-        value={date}
+        value={draft}
         max={today}
-        onChange={(e) => e.target.value && go(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          if (!isIOS) commit(e.target.value);
+        }}
+        onBlur={() => commit(draft)}
       />
       <button
         className="btn btn-ghost btn-sm"
