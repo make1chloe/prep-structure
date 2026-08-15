@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState, useTransition } from "react";
+import { SchoolField } from "@/components/PickField";
 import { shortName } from "@/lib/schoolName";
 import { useRouter } from "next/navigation";
 import {
@@ -1084,15 +1085,14 @@ export default function ScheduleBoard({
         <div className="row" style={{ gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div className="field" style={{ width: 150 }}>
             <label className="label">학교 *</label>
-            <input
-              className="input input-sm"
-              list="schools"
+            {/* 골라 넣는 칸 한 벌(SchoolField) — datalist 는 아이폰에서
+                안 보여서 그냥 글자 치는 칸이 됐다 (11-12) */}
+            <SchoolField
+              schools={schools}
+              name={undefined}
               value={form.school}
               onChange={(e) => setForm({ ...form, school: e.target.value })}
             />
-            <datalist id="schools">
-              {schools.map((s) => <option key={s} value={s} />)}
-            </datalist>
           </div>
           <div className="field" style={{ width: 110 }}>
             <label className="label">학년</label>

@@ -52,8 +52,9 @@ for (const [f, label] of FORMS) {
 }
 if (!bad) ok(`${FORMS.length}개 화면 모두 골라 넣습니다`);
 
-// 학사일정은 처음부터 골라 넣게 되어 있었다 — 그대로인지만 확인
-eq(/list="schools"/.test(read("app/schedule/ScheduleBoard.jsx")), true,
+// 학사일정도 이제 SchoolField 한 벌이다 (11-12 — datalist 는 아이폰에서
+// 안 보여서 사실상 글자 치는 칸이었다)
+eq(/SchoolField/.test(read("app/schedule/ScheduleBoard.jsx")), true,
    "학사일정도 그대로 골라 넣습니다");
 
 console.log("\n== 학년 값이 한 벌인가 ==");
