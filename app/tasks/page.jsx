@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { loadRunningClasses } from "@/lib/classTerm";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
@@ -209,7 +210,8 @@ export default async function TasksPage({ searchParams }) {
           .select(`${COLS}, private, deliver_student_ids, deliver_school_id`)
           .eq("kind", "schedule")
       ).order("due_on", { ascending: true }),
-      supabase.from("classes").select("id, name").order("start_time", { ascending: true }),
+      // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
+    loadRunningClasses(supabase, "id, name, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
       supabase.from("schools").select("id, name").order("name"),
       supabase
         .from("students")

@@ -185,7 +185,8 @@ export default async function CheckPage({ searchParams }) {
    * 반만이라, 여기서는 전부를 다시 읽는다.
    */
   const [{ data: allClasses }, { data: stBooks }] = await Promise.all([
-    supabase.from("classes").select("id, name, days, start_time").order("start_time", { ascending: true }),
+    // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
+    loadRunningClasses(supabase, "id, name, days, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
     supabase.from("student_textbooks").select("student_id, textbook_id, status, assigned_on, ended_on"),
   ]);
   const daysOfClass = new Map((allClasses || []).map((c) => [c.id, c.days || []]));

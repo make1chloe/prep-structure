@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadRunningClasses } from "@/lib/classTerm";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import VideoBoard from "./VideoBoard";
@@ -33,7 +34,8 @@ export default async function VideosPage() {
         .eq("status", "enrolled")
         .order("name", { ascending: true }),
       // 반 — 「이 반 전체」 로 한 번에 고를 수 있게
-      supabase.from("classes").select("id, name").order("name", { ascending: true }),
+      // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
+    loadRunningClasses(supabase, "id, name").then((r) => ({ data: [...r].sort((a, b) => a.name.localeCompare(b.name, "ko")) })),
       supabase.from("class_students").select("class_id, student_id"),
       // 유튜브 키는 넣어뒀는지만 본다 — 키 자체는 화면으로 안 내려간다
       supabase.from("integrations").select("config").eq("id", "youtube").maybeSingle(),

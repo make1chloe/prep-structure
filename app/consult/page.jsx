@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadRunningClasses } from "@/lib/classTerm";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddInquiryForm from "./AddInquiryForm";
@@ -23,7 +24,8 @@ export default async function ConsultPage() {
   // 서로 필요한 것이 없는 조회는 한 파도로 (원칙 6-1 — 직렬 3층이었다)
   const [inqQ, classesQ, schools, booksQ] = await Promise.all([
     supabase.from("inquiries").select("*").order("created_at", { ascending: false }),
-    supabase.from("classes").select("id, name, days, start_time").order("start_time", { ascending: true }),
+    // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
+    loadRunningClasses(supabase, "id, name, days, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
     // 학교는 골라 넣는다 (0114) — 손으로 적으면 「신정중」 과 「신정중학교」 로 갈라진다
     schoolNames(supabase).catch(() => []),
     // 상담에 교재를 골라둔다 (0122) — 사용 중 교재만

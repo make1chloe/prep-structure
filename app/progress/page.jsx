@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadRunningClasses } from "@/lib/classTerm";
 import TopBar from "@/components/TopBar";
 import ProgressBoard from "./ProgressBoard";
 import { sessionUser } from "@/lib/session";
@@ -36,7 +37,8 @@ export default async function ProgressPage() {
       .select("id, name, school, grade, status")
       .eq("status", "enrolled")
       .order("name", { ascending: true }),
-    supabase.from("classes").select("id, name, days, start_time").order("start_time", { ascending: true }),
+    // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
+    loadRunningClasses(supabase, "id, name, days, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
     supabase.from("class_students").select("class_id, student_id"),
     supabase
       .from("student_textbooks")
