@@ -445,9 +445,21 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn, supaIn = null)
         .from("inquiries").select("id, book_ids").in("id", inquiries);
       for (const q of qs || []) {
         const merged = [...new Set([...(q.book_ids || []), ...books])];
-        await supa.from("inquiries")
-          .update({ book_ids: merged, updated_at: new Date().toISOString() })
+        let { error: upErr } = await supa.from("inquiries")
+          .update({
+            book_ids: merged,
+            // 안내에 적은 사용 예정일도 남긴다 (0128, A13) — 등록 전환이
+            // 이 날짜로 배정한다. 문자에 적힌 날짜와 어긋나면 안 된다
+            book_start_on: startOn || null,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", q.id);
+        if (upErr && (upErr.code === "42703" || upErr.code === "PGRST204")) {
+          // 0128 전 — 예정일 없이 목록만
+          await supa.from("inquiries")
+            .update({ book_ids: merged, updated_at: new Date().toISOString() })
+            .eq("id", q.id);
+        }
       }
       revalidatePath("/consult");
     } catch { /* 0122 전 — 넘어간다 */ }

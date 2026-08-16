@@ -194,7 +194,9 @@ export async function convertToStudent(id, classId) {
 
   /**
    * 상담 때 골라둔 교재 → 그대로 배정 (0122, 원칙 1 — 상담에 적은 것을
-   * 재원생에서 또 안 고르게). 시작일은 등록한 오늘.
+   * 재원생에서 또 안 고르게). 시작일은 안내에 적은 사용 예정일(0128,
+   * A13 — 아직 안 왔으면 그 날짜, 지났으면 오늘). 문자에 「8/20부터」
+   * 라고 나갔는데 배정이 오늘로 잡히면 어긋난다.
    */
   if ((q.book_ids || []).length > 0) {
     // 절판·중단 교재는 안 잇는다 (전수검사 A13) — 상담 때 골라둔 뒤 교재가
@@ -205,9 +207,11 @@ export async function convertToStudent(id, classId) {
     const live = new Set(
       (liveBooks || []).filter((b) => !b.status || b.status === "active").map((b) => b.id)
     );
+    const bookFrom =
+      q.book_start_on && q.book_start_on > todaySeoul() ? q.book_start_on : todaySeoul();
     const rows = [...new Set(q.book_ids)].filter((bid) => live.has(bid)).map((bid) => ({
       student_id: student.id, textbook_id: bid,
-      status: "active", assigned_on: todaySeoul(), ended_on: null,
+      status: "active", assigned_on: bookFrom, ended_on: null,
     }));
     if (rows.length === 0) { /* 전부 절판이면 넘어간다 */ }
     let { error: bErr } = rows.length
