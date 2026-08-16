@@ -188,13 +188,15 @@ async function backtest(progress) {
 
   let done = 0;
   for (const d of dates) {
-    const days = [];
-    for (const r of roster) {
-      try {
-        const sets = await fetchDay(r.user_idx, d);
-        if (sets.length) days.push({ user_idx: r.user_idx, date: d, sets });
-      } catch { /* 한 명 실패로 안 멈춘다 */ }
-    }
+    // 학생을 한꺼번에 — 통로가 끊기기 전에 끝내는 것이 제일 확실하다
+    const results = await Promise.all(
+      roster.map((r) =>
+        fetchDay(r.user_idx, d)
+          .then((sets) => ({ user_idx: r.user_idx, date: d, sets }))
+          .catch(() => null)
+      )
+    );
+    const days = results.filter((x) => x && x.sets.length);
     if (days.length) {
       await fetch(`${c.appUrl}/api/classcard`, {
         method: "POST",
@@ -213,17 +215,20 @@ async function backtest(progress) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg === "backtest") {
-    (async () => {
-      try {
-        const r = await backtest((t) => chrome.storage.local.set({ btProgress: t }));
-        await chrome.storage.local.set({ btProgress: null, btResult: r });
-        sendResponse({ ok: true, ...r });
-      } catch (e) {
-        await chrome.storage.local.set({ btProgress: null });
-        sendResponse({ ok: false, error: String(e?.message || e) });
-      }
-    })();
-    return true;
+    /**
+     * 오래 걸리는 일은 **응답 통로로 답하지 않는다** (2026-08-17 —
+     * 「실패: 알 수 없음」). 팝업을 닫거나 몇 분이 지나면 통로가 끊겨
+     * 결과가 허공에 사라진다. 결과·진행·실패 전부 저장소에 적고,
+     * 팝업이 저장소를 읽는다 — 닫았다 열어도 결과가 남아 있다.
+     */
+    chrome.storage.local.set({ btProgress: "시작…", btResult: null, btError: null });
+    backtest((t) => chrome.storage.local.set({ btProgress: t }))
+      .then((r) => chrome.storage.local.set({ btProgress: null, btResult: r, btError: null }))
+      .catch((e) =>
+        chrome.storage.local.set({ btProgress: null, btError: String(e?.message || e) })
+      );
+    sendResponse({ ok: true, started: true });
+    return false;
   }
   if (msg === "run-now") {
     runOnce()
