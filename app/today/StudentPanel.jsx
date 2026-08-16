@@ -211,20 +211,12 @@ export default function StudentPanel({
     if (!kind || !row.classcard) return null;
     return ccJudge(row.classcard.sets || [], kind);
   };
-  useEffect(() => {
-    if (!row.classcard) return;
-    setMarks((m) => {
-      const n = { ...m };
-      let touched = false;
-      (row.toCheck || []).forEach((iid) => {
-        if (n[iid]) return;                    // 원장님이 이미 찍은 것은 안 건드린다
-        const v = ccVerdictOf(iid);
-        if (v) { n[iid] = v.status; touched = true; }
-      });
-      return touched ? n : m;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [row.student.id]);
+  /**
+   * **한 달 그림자 모드** (원장님, 2026-08-17 — 「자연어 기반이라 오류
+   * 가능성이 높아. 시뮬레이션 한 달간 돌려봐」). 자동 판정을 미리
+   * 채우지 않는다 — 태그로 보여주기만 하고, 저장할 때 원장님이 실제로
+   * 찍은 것과 나란히 기록한다(0132). 일치율이 검증되면 채움을 켠다.
+   */
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
@@ -610,14 +602,16 @@ export default function StudentPanel({
         draft: asDraft,
         attendance: row.extraClassId ? null : form.attendance,
         items: marks,
-        // 클카 자동 판정의 「안 한 세트」 — 검사 메모로 학생·리포트에 병기
-        checkNotes: Object.fromEntries(
-          Object.keys(marks)
+        /**
+         * 그림자 모드(0132): 자동 판정·미달 상세를 **기록만** 한다.
+         * 검사 메모(학생·리포트 병기)도 일치율이 검증될 때까지 안 남긴다 —
+         * 틀린 「미달」 이 학부모께 나가는 것이 제일 나쁘다.
+         */
+        ccShadow: Object.fromEntries(
+          (row.toCheck || [])
             .map((iid) => {
               const v = ccVerdictOf(iid);
-              return v && v.missed.length
-                ? [iid, `클카: ${v.missed.join(" · ")}`]
-                : null;
+              return v ? [iid, { status: v.status, note: v.missed.join(" · ") }] : null;
             })
             .filter(Boolean)
         ),

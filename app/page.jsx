@@ -266,7 +266,7 @@ export default async function Home() {
                 {/* 클카 플래너 감시 (0131 — 원장님 「이건 꼭 필요한 기능」).
                     소진 = 마감일이 앞으로 없거나 3일 안. 불일치 = 앱 단어
                     Day 와 플래너 Day 가 2 이상 어긋남 */}
-                {(d.classcard?.runningOut?.length > 0 || d.classcard?.mismatch?.length > 0) && (
+                {(d.classcard?.runningOut?.length > 0 || d.classcard?.mismatch?.length > 0 || d.classcard?.shadow) && (
                   <div>
                     <b className="hint">
                       클래스카드 플래너
@@ -286,6 +286,14 @@ export default async function Home() {
                           {r.name} · 플래너 새로 잡기{r.last ? "" : " (마감 없음)"}
                         </span>
                       ))}
+                      {d.classcard.shadow && (
+                        <span
+                          className="tag tag-sky"
+                          title="자동 판정과 원장님 실제 검사의 일치율 (지난 30일) — 한 달 그림자 시뮬레이션 중"
+                        >
+                          자동검사 시뮬레이션 · 일치 {d.classcard.shadow.agree}/{d.classcard.shadow.total} ({d.classcard.shadow.pct}%)
+                        </span>
+                      )}
                       {d.classcard.mismatch.map((r) => (
                         <span className="tag tag-red" key={`m-${r.name}`}
                           title="앱 단어 진도와 플래너가 어긋납니다 — 어느 쪽이 맞는지 봐주세요">

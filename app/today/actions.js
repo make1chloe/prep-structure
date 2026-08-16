@@ -343,6 +343,28 @@ export async function saveStudentDay(studentId, date, form) {
   }
 
   /**
+   * 클카 그림자 기록 (0132, 원장님 「시뮬레이션 한 달간 돌려봐」) —
+   * 자동 판정 vs 원장님 실제 판정을 나란히. 원장님이 실제로 찍은
+   * 항목만 비교가 된다. 실패해도 조용히 — 저장이 먼저다.
+   */
+  {
+    const shadow = form.ccShadow || {};
+    const shadowRows = Object.entries(shadow)
+      .filter(([iid]) => items[iid])
+      .map(([iid, v]) => ({
+        student_id: studentId,
+        date,
+        item_id: iid,
+        auto_status: v?.status || null,
+        actual_status: items[iid],
+        note: (v?.note || "").slice(0, 300) || null,
+      }));
+    if (shadowRows.length) {
+      try { await supabase.from("classcard_shadow").upsert(shadowRows); } catch { /* 0132 전 */ }
+    }
+  }
+
+  /**
    * **임시저장이면 화면을 안 갈아엎는다.** revalidatePath 가 돌면 열어둔
    * 학생 판이 접힌다 — 이어서 적으려고 임시저장을 눌렀는데 흐름이 끊긴다.
    * 서버에는 이미 들어갔으니, 다음 저장이나 새로고침 때 자연히 맞춰진다.
