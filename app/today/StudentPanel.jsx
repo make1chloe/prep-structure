@@ -616,7 +616,7 @@ export default function StudentPanel({
             .map((iid) => {
               const v = ccVerdictOf(iid);
               return v && v.missed.length
-                ? [iid, `클카 안 함: ${v.missed.join(" · ")}`]
+                ? [iid, `클카: ${v.missed.join(" · ")}`]
                 : null;
             })
             .filter(Boolean)
@@ -1067,10 +1067,10 @@ export default function StudentPanel({
                         return (
                           <span
                             className={`tag ${v.status === "done" ? "tag-mint" : "tag-amber"}`}
-                            title={v.missed.length ? `안 한 세트: ${v.missed.join(" · ")}` : "그날 마감 세트 전부 완료"}
+                            title={v.missed.length ? v.missed.join("\n") : "그날 마감 세트 전부 완료"}
                           >
                             클카 {v.total - v.missed.length}/{v.total}
-                            {v.missed.length > 0 && ` · 안 함 ${v.missed.join("·")}`.slice(0, 60)}
+                            {v.missed.length > 0 && ` · ${v.missed[0]}${v.missed.length > 1 ? ` 외 ${v.missed.length - 1}` : ""}`}
                           </span>
                         );
                       })()}

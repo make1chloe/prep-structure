@@ -64,14 +64,28 @@ async function fetchDay(userIdx, date) {
     body: new URLSearchParams({ user_idx: userIdx, date }),
   }).then((r) => r.json());
   const sets = [];
+  const MODES = ["mem", "recall", "spell", "speaking", "match"];
   (res.class_list || []).forEach((c) => {
     (c.set_list || []).forEach((s) => {
+      // 필수 모드(goal_yn=1)의 목표와 결과 — 「매칭 3000점 미달」 을
+      // 앱이 셈할 수 있게. 판정·문구는 앱 lib 한 곳이 한다
+      const lc = s.learn_config || {};
+      const ls = s.learn_summary || {};
+      const goals = {}, got = {};
+      MODES.forEach((m) => {
+        if (String(lc[`${m}_goal_yn`]) === "1") {
+          goals[m] = Number(lc[`${m}_goal_score`]) || 0;
+          got[m] = Number(ls[`${m}_score`]) || 0;
+        }
+      });
       sets.push({
         name: s.name || "",
         type: String(s.set_type || ""),   // 1 단어 · 2 문장 (판정은 앱 lib 한 곳)
         complete: !!s.is_complete,
         status: Number(s.learn_status) || 0,
         cards: Number(s.card_cnt) || 0,
+        goals,
+        got,
       });
     });
   });

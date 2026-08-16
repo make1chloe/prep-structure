@@ -71,13 +71,23 @@ export async function POST(request) {
         user_idx: String(d.user_idx),
         date: d.date,
         // 필요한 칸만 — 세트 내용 미러링 금지 (설계 문서)
-        sets: (d.sets || []).slice(0, 50).map((s) => ({
-          name: String(s.name || "").slice(0, 120),
-          type: String(s.type || "").slice(0, 8),
-          complete: !!s.complete,
-          status: Number(s.status) || 0,
-          cards: Number(s.cards) || 0,
-        })),
+        sets: (d.sets || []).slice(0, 50).map((s) => {
+          const num = (o) =>
+            Object.fromEntries(
+              Object.entries(o || {})
+                .slice(0, 8)
+                .map(([k, v]) => [String(k).slice(0, 12), Number(v) || 0])
+            );
+          return {
+            name: String(s.name || "").slice(0, 120),
+            type: String(s.type || "").slice(0, 8),
+            complete: !!s.complete,
+            status: Number(s.status) || 0,
+            cards: Number(s.cards) || 0,
+            goals: num(s.goals),   // 필수 모드 목표 (매칭 3000점 등)
+            got: num(s.got),       // 그 모드의 결과
+          };
+        }),
         fetched_at: now,
       }))
     );
