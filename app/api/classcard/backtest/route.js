@@ -70,14 +70,23 @@ export async function GET(request) {
     .in("status", ["done", "weak", "missing"]);
 
   const rows = [];
+  // 사슬 어디서 새는지 — 고리마다 센다 (2026-08-17, 대조 0건 진단 2차)
+  const funnel = { linked: 0, hasDay: 0 };
+  const unlinked = new Map();   // 검사는 있는데 클카에 안 이어진 학생
   (dri || []).forEach((x) => {
     const rep = repOf.get(x.daily_report_id);
     const meta = kindOfItem.get(x.homework_item_id);
     if (!rep || !meta) return;
     const uidx = uidxOf.get(rep.student_id);
-    if (!uidx) return;                                   // 클카에 안 이어진 학생
+    if (!uidx) {                                         // 클카에 안 이어진 학생
+      const nm = nameOf.get(rep.student_id) || "?";
+      unlinked.set(nm, (unlinked.get(nm) || 0) + 1);
+      return;
+    }
+    funnel.linked += 1;
     const sets = daySets.get(`${uidx}|${rep.date}`);
     if (!sets) return;                                   // 그날 클카 자료 없음
+    funnel.hasDay += 1;
     const v = ccJudge(sets, meta.kind);
     if (!v) return;                                      // 그날 그 종류 마감 세트 없음
     rows.push({
@@ -107,6 +116,18 @@ export async function GET(request) {
       ccDays: (dayQ.data || []).length,             // 기간 안 클카 일자료
       reports: (reps || []).length,                 // 기간 안 수업 리포트
       checks: (dri || []).length,                   // 두 항목의 실제 검사 수
+      // 2차 — 검사 86건이 어디서 새는가
+      checksLinked: funnel.linked,                  // 이어진 학생의 검사
+      checksWithCcDay: funnel.hasDay,               // + 그날 클카 자료 있음
+      judged: rows.length,                          // + 그 종류 마감 세트 있음
+      unlinkedWithChecks: [...unlinked.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([n, c]) => `${n}(${c})`),             // 검사 많은데 안 이어진 학생
+      ccDates: [...new Set((dayQ.data || []).map((d2) => d2.date))].sort().slice(-6),
+      checkDates: [...new Set(
+        (dri || []).map((x) => repOf.get(x.daily_report_id)?.date).filter(Boolean)
+      )].sort().slice(-6),
     },
     compared: rows.length,
     agree: agree.length,

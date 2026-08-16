@@ -33,7 +33,12 @@ function showBt(res) {
     `대조 ${res.compared}건 · <b>일치 ${res.agree}건 (${res.pct}%)</b><br>` +
     `자동이 후함 ${res.generous} (수업 뒤 마저 한 것 포함) · 자동이 박함 ${res.strict}` +
     (res.diag
-      ? `<br><span style="color:#888">명단 ${res.diag.roster} · 이어짐 ${res.diag.linked} · 클카일자료 ${res.diag.ccDays} · 리포트 ${res.diag.reports} · 실제검사 ${res.diag.checks}</span>`
+      ? `<br><span style="color:#888">명단 ${res.diag.roster} · 이어짐 ${res.diag.linked} · 클카일자료 ${res.diag.ccDays} · 리포트 ${res.diag.reports} · 실제검사 ${res.diag.checks}</span>` +
+        `<br><span style="color:#888">→ 이어진학생검사 ${res.diag.checksLinked} → 그날자료있음 ${res.diag.checksWithCcDay} → 판정가능 ${res.diag.judged}</span>` +
+        (res.diag.unlinkedWithChecks?.length
+          ? `<br><span style="color:#c0392b">안 이어진 학생: ${res.diag.unlinkedWithChecks.join(", ")}</span>`
+          : "") +
+        `<br><span style="color:#888">클카날짜끝: ${(res.diag.ccDates || []).join(",")} / 검사날짜끝: ${(res.diag.checkDates || []).join(",")}</span>`
       : "") +
     `</div>`;
 }
