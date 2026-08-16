@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/guard";
 import { needSql } from "@/lib/sqlError";
+import { linkLooseStudents } from "@/lib/schoolLink";
 
 /**
  * 학교 표 — **한 곳에 모인 학교 명단** (0076).
@@ -208,6 +209,25 @@ export async function mergeSchools(keepId, dropId) {
 }
 
 /** 학교를 손으로 넣는다 — 나이스에 없는 학교도 있다 (전학 오기 전 학교) */
+/**
+ * **글자만 있는 학생을 학교 줄에 잇는다** (C7, 2026-08-16). 설문·직접
+ * 입력으로 들어와 school_id 가 빈 아이들 — 학교 이름을 고쳐도 이 아이들만
+ * 옛 이름으로 남는 문제를 여기서 한 번에 정리한다.
+ */
+export async function linkLoose() {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+  try {
+    const r = await linkLooseStudents(supabase);
+    revalidatePath("/schedule");
+    revalidatePath("/students");
+    return { error: null, ...r };
+  } catch (e) {
+    return { error: e?.message || "잇지 못했어요." };
+  }
+}
+
 export async function addSchoolByName(name) {
   const n = (name || "").trim();
   if (!n) return { error: "학교 이름을 적어주세요." };

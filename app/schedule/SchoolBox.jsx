@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { listAllSchools, renameSchool, mergeSchools, addSchoolByName } from "./schoolActions";
+import { listAllSchools, renameSchool, mergeSchools, addSchoolByName, linkLoose } from "./schoolActions";
 import { schoolAlike, looseKey, shortName } from "@/lib/schoolName";
 
 /**
@@ -100,6 +100,32 @@ export default function SchoolBox() {
           })}
         >
           추가
+        </button>
+        <span className="spacer" />
+        {/* 글자만 있는 학생 잇기 (C7) — 설문·직접 입력으로 들어와 학교
+            줄에 안 이어진 아이들. 안 이어두면 학교 이름을 고칠 때 그
+            아이들만 옛 이름으로 남는다 */}
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={pending}
+          title="학교를 글자로만 적어 명단에 안 이어진 학생을 찾아 잇습니다"
+          onClick={() =>
+            run(async () => {
+              const r = await linkLoose();
+              if (!r?.error) {
+                alert(
+                  `${r.linked}명을 이었어요.` +
+                    (r.left?.length
+                      ? `\n명단에 없는 학교라 남겨둔 것: ${r.left.join(", ")}\n(위 「학교 직접 추가」 로 만들고 다시 눌러주세요)`
+                      : "")
+                );
+                setRows(null);   // 다시 세게 한다
+              }
+              return r;
+            })
+          }
+        >
+          안 이어진 학생 잇기
         </button>
       </div>
 

@@ -8,6 +8,7 @@ import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 import { autoCreateLogins } from "./accountActions";
 import { requireStaff } from "@/lib/guard";
 import { fetchAll } from "@/lib/fetchAll";
+import { schoolIdOf } from "@/lib/schoolLink";
 
 function clean(formData, key) {
   const v = (formData.get(key) || "").toString().trim();
@@ -41,6 +42,10 @@ export async function addStudent(formData) {
   };
 
   const supabase = createClient();
+  // 학교 줄 잇기 (C7) — 글자만 적으면 학교 이름을 고칠 때 이 아이만 남는다
+  if (row.school) {
+    try { row.school_id = await schoolIdOf(supabase, row.school); } catch { /* 잇기는 덤 */ }
+  }
   const base = baseLoginId(row.student_phone, row.parent_phone);
 
   let candidate = base || null;
@@ -52,8 +57,8 @@ export async function addStudent(formData) {
       .select("id")
       .single();
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
-      // 옛 DB — 없는 칸(electives)만 덜어내고 다시
-      const { electives: _el, ...rest } = row;
+      // 옛 DB — 없는 칸만 덜어내고 다시
+      const { electives: _el, school_id: _si, ...rest } = row;
       ({ data, error } = await supabase
         .from("students")
         .insert({ ...rest, login_id: candidate })
@@ -128,6 +133,11 @@ export async function updateStudent(id, patch) {
   // 학교를 새로 적었으면 학사일정 명단에도 붙인다 (위 addStudent 와 같은 까닭)
   if (!error && row.school) {
     try { await attachSchool(supabase, row.school); } catch { /* 저장이 먼저다 */ }
+    // 학교 줄 잇기 (C7) — attachSchool 이 방금 만들었을 수도 있으니 그 뒤에
+    try {
+      const sid2 = await schoolIdOf(supabase, row.school);
+      await supabase.from("students").update({ school_id: sid2 }).eq("id", id);
+    } catch { /* 잇기는 덤 */ }
   }
   revalidatePath("/students");
   revalidatePath("/today");
@@ -250,6 +260,17 @@ export async function bulkAddStudents(rows) {
     for (const sc of uniq) {
       try { await attachSchool(supabase, sc); } catch { /* 업로드가 먼저다 */ }
     }
+    // 학교 줄 잇기 (C7) — 방금 들어온 아이들의 school_id 를 채운다
+    try {
+      const { data: sch } = await supabase.from("schools").select("id, name");
+      for (const sc of uniq) {
+        const sid2 = await schoolIdOf(supabase, sc, sch || []);
+        if (sid2) {
+          await supabase.from("students").update({ school_id: sid2 })
+            .eq("school", sc).is("school_id", null);
+        }
+      }
+    } catch { /* 잇기는 덤 */ }
   }
 
   revalidatePath("/students");

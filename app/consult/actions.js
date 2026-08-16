@@ -13,6 +13,7 @@ import { sameSchool } from "@/lib/who";
 import { schoolYear } from "@/lib/neis";
 import { todaySeoul } from "@/lib/day";
 import { sessionUser } from "@/lib/session";
+import { schoolIdOf } from "@/lib/schoolLink";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -235,6 +236,11 @@ export async function convertToStudent(id, classId) {
 
   // **등록까지 와야 학사일정에 붙인다** (아래 attachSchool 의 설명)
   const school = await attachSchool(supabase, q.school).catch(() => null);
+  // 학교 줄 잇기 (C7) — 방금 붙었을 수도 있으니 attachSchool 뒤에
+  try {
+    const sid2 = await schoolIdOf(supabase, q.school);
+    if (sid2) await supabase.from("students").update({ school_id: sid2 }).eq("id", student.id);
+  } catch { /* 잇기는 덤 */ }
 
   /**
    * **로그인 계정도 같이** (전수검사 A1, 2026-08-15). 직접 등록·엑셀에는
