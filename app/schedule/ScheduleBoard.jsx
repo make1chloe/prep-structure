@@ -57,6 +57,7 @@ export default function ScheduleBoard({
   exams = [],
   roster = [],              // 재원생 — 어느 시험을 누가 보는지 적어드리려고
   schools = [],
+  neisLinked = [],
   grades = [],
   classes = [],
   unavailable = false,
@@ -150,8 +151,19 @@ export default function ScheduleBoard({
    */
   const missingSchools = useMemo(() => {
     const mine = exams.filter((e) => examKind(e) === "school");
-    return (schools || []).filter((s) => !mine.some((e) => sameSchool(e.school, s)));
-  }, [exams, schools]);
+    return (
+      (schools || [])
+        // 초등학교는 뺀다 (원장님, 2026-08-16 — 「초등학교는 원래 시험이
+        // 없어」). 시험이 없는 게 정상인 학교를 세면 경고가 배경이 된다
+        .filter((s) => !/초등학교$|초$/.test((s || "").trim()))
+        .filter((s) => !mine.some((e) => sameSchool(e.school, s)))
+        // 왜 없는지까지 — 코드가 안 이어진 학교는 받아올 길이 없다
+        .map((s) => ({
+          name: s,
+          linked: (neisLinked || []).some((n) => sameSchool(n, s)),
+        }))
+    );
+  }, [exams, schools, neisLinked]);
 
   /**
    * **이름은 다 보여야 한다** (원장님, 2026-08-09 — 「외 1명 안 돼, 이름 다
@@ -1031,13 +1043,20 @@ export default function ScheduleBoard({
         {missingSchools.length > 0 && (
           <div className="notice" style={{ marginBottom: 10, fontSize: 14, lineHeight: 1.7 }}>
             <b>시험 회차가 하나도 없는 학교가 {missingSchools.length}곳 있습니다</b> —{" "}
-            {missingSchools.join(" · ")}
+            {missingSchools.map((s, i) => (
+              <span key={s.name}>
+                {i > 0 && " · "}
+                {s.name}
+                {!s.linked && <span className="tag tag-amber" style={{ marginLeft: 3 }}>나이스 코드 없음</span>}
+              </span>
+            ))}
             <br />
             <span className="hint">
-              위 <b>학교 명단</b>에서 그 학교에 <b>나이스 코드</b>가 있는지 보시고,
-              없으면 이름으로 찾아 넣은 뒤 <b>학사일정 받아오기</b> 를 다시 눌러주세요.
-              코드가 있는데도 비어 있으면 <b>이 학교만 받아오기</b> 를 누르면 나이스가 뭐라고
-              하는지 그 자리에 나옵니다.
+              「나이스 코드 없음」 은 위 <b>학교 명단</b>에서 이름으로 찾아 이어주셔야
+              학사일정·시험을 받아올 수 있어요. 코드가 있는데도 비어 있으면{" "}
+              <b>이 학교만 받아오기</b> — 나이스가 뭐라고 하는지 그 자리에 나옵니다.
+              (학교가 나이스 학사일정에 시험 기간을 안 올렸으면 직접 넣으셔야 해요 —
+              초등학교는 시험이 없어 여기서 빼고 셉니다.)
             </span>
           </div>
         )}
