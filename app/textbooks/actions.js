@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { bookKey, pickKeeper } from "@/lib/bookName";
 import { noColumn } from "@/lib/sqlError";
+import { fetchAll } from "@/lib/fetchAll";
 import { inUseOn, notYet } from "@/lib/bookUse";
 import { todaySeoul } from "@/lib/day";
 
@@ -668,10 +669,14 @@ export async function bulkAddUnits(rows) {
     return data.id;
   }
 
-  // 2) 기존 단원을 (교재, 부모, 이름) 으로 색인
-  const { data: existing } = await supabase
-    .from("textbook_units")
-    .select("id, textbook_id, parent_id, name, sort");
+  // 2) 기존 단원을 (교재, 부모, 이름) 으로 색인.
+  //    **전 교재 합이라 1000줄을 넘는다** — 잘리면 색인이 반쪽이 되어
+  //    같은 단원이 두 벌로 생긴다 (2026-08-17, 31권 업로드 직전 발견)
+  const { data: existing } = await fetchAll(() =>
+    supabase
+      .from("textbook_units")
+      .select("id, textbook_id, parent_id, name, sort")
+      .order("id"));
   const unitKey = (tb, parent, name) => `${tb}|${parent || "root"}|${name}`;
   const unitIndex = new Map(
     (existing || []).map((u) => [unitKey(u.textbook_id, u.parent_id, u.name), u.id])
