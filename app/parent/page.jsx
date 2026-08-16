@@ -13,6 +13,7 @@ import GrowthCard from "@/components/GrowthCard";
 import UnitCard from "@/components/UnitCard";
 import { cutOf, passSummary, score } from "@/lib/wordTest";
 import { cleanClassName } from "@/lib/classLabel";
+import NoticeDismiss from "@/components/NoticeDismiss";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels,
   makeCard, pickAssigned, checkCounts,
@@ -604,6 +605,14 @@ export default async function ParentPage({ searchParams }) {
                       <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
                         <span className="hint">{shortLabel(n.date)}</span>
                         {n.title && <b style={{ fontSize: 15 }}>{n.title}</b>}
+                        <span className="spacer" />
+                        {!preview && (
+                          <NoticeDismiss
+                            studentId={pickId}
+                            noticeId={n.id}
+                            stamp={`${n.id}|${n.edited_at || ""}`}
+                          />
+                        )}
                       </div>
                       {n.body && n.body !== n.title && (
                         <div style={{ fontSize: 15, whiteSpace: "pre-wrap" }}>{n.body}</div>
@@ -1044,7 +1053,7 @@ export default async function ParentPage({ searchParams }) {
         {/* 「오늘」 은 폭을 다 쓴다 — 어머니가 제일 먼저 보시는 것이라
             반쪽으로 접히면 안 된다 */}
         <SectionNav page="parent" order={blockOrder} />
-        {!isStaff && <NoticeGate page="parent" notices={notices} studentId={pickId} />}
+        {!isStaff && <NoticeGate page="parent" notices={notices} />}
         <div className="blockgrid">
           {blockOrder.map((k) => (
             <div key={k} id={`blk-${k}`} className={k === "today" ? "fullrow" : undefined}>
