@@ -56,6 +56,8 @@ const COLS = [
   { key: "electives", label: "선택과목", w: 130 },
   { key: "note", label: "특이사항", w: 140 },
   { key: "login_id", label: "아이디", w: 104, mono: true },
+  // 학교에서 이미 클카 계정을 만든 아이들 — 앱 아이디와 다를 때만 적는다 (0131)
+  { key: "classcard_login", label: "클카 아이디 (다르면)", w: 130, mono: true },
   // **엄마 아이디** — 물어오시면 바로 답할 수 있게 (원장님, 2026-08-07).
   // 고치는 칸이 아니다 (학부모 계정 칸에서 만들고 바꾼다)
   { key: "parent_login_id", label: "엄마 아이디", w: 110, mono: true, readOnly: true },

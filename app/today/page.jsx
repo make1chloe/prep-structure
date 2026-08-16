@@ -10,6 +10,7 @@ import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
+import { ccUserIdxOf, ccDaySummary } from "@/lib/classcard";
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
@@ -90,7 +91,7 @@ export default async function TodayPage({ searchParams }) {
     // 단어시험 설정(개수·통과선)까지 같이 — 채점 자리에서 바로 나와야 한다 (0070)
     supabase
       .from("students")
-      .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct, note")
+      .select("id, name, school, grade, status, word_when, word_test_count, word_cut_pct, note, login_id, classcard_login")
       .eq("status", "enrolled"),
     supabase
       .from("attendance")
@@ -900,6 +901,26 @@ export default async function TodayPage({ searchParams }) {
     });
   }
 
+  // ── 클래스카드 — 오늘 마감 세트 완료 여부 (0131, 설계 문서) ──
+  const ccOf = new Map();
+  let ccFetchedAt = null;
+  {
+    const [rosterQ, dayQ] = await Promise.all([
+      supabase.from("classcard_students").select("user_idx, login_id"),
+      supabase.from("classcard_day").select("user_idx, sets, fetched_at").eq("date", date),
+    ]);
+    if (!rosterQ.error && !dayQ.error) {
+      const dayOf = new Map((dayQ.data || []).map((d) => [d.user_idx, d]));
+      (students || []).forEach((st) => {
+        const uidx = ccUserIdxOf(st, rosterQ.data || []);
+        const d = uidx ? dayOf.get(uidx) : null;
+        if (!d || !(d.sets || []).length) return;
+        ccOf.set(st.id, { ...ccDaySummary(d.sets), sets: d.sets });
+        if (!ccFetchedAt || d.fetched_at > ccFetchedAt) ccFetchedAt = d.fetched_at;
+      });
+    }
+  }
+
   // ── 늦귀가 과제 ─────────────────────────────────────────
   const stayOf = new Map();
   {
@@ -1039,6 +1060,7 @@ export default async function TodayPage({ searchParams }) {
           attendAt: arrivalOf.get(s.id)?.attend_at || null,
           homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
           wordWhen: rep?.word_when || s.word_when || "start",
+          classcard: ccOf.get(s.id) || null,
           exams: examOf.get(s.id) || [],
           inClass: rep ? inClassByReport.get(rep.id) || [] : [],
           doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
@@ -1089,6 +1111,7 @@ export default async function TodayPage({ searchParams }) {
         attendAt: arrivalOf.get(s.id)?.attend_at || null,
         homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
         wordWhen: rep?.word_when || s.word_when || "start",
+        classcard: ccOf.get(s.id) || null,
         exams: examOf.get(s.id) || [],
         inClass: rep ? inClassByReport.get(rep.id) || [] : [],
         doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],

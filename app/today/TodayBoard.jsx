@@ -324,6 +324,18 @@ export default function TodayBoard({
                                 결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
                               </span>
                             )}
+                            {/* 클카 플래너 — 오늘 마감 세트 완료 여부 (0131).
+                                확장이 15분마다 읽어온다 — 수업 시작에 이미 찍혀 있다 */}
+                            {r.classcard && (
+                              <span
+                                className={`tag ${r.classcard.allDone ? "tag-mint" : "tag-amber"}`}
+                                title={(r.classcard.sets || [])
+                                  .map((x) => `${x.complete ? "✅" : "❌"} ${x.name}`)
+                                  .join("\n")}
+                              >
+                                클카 {r.classcard.done}/{r.classcard.total}
+                              </span>
+                            )}
                             {r.plannedAbsent && !r.reportWritten && (
                               <span
                                 className="btn btn-ghost btn-sm"

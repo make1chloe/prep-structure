@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; width: 300px; padding: 12px; margin: 0; }
+  h1 { font-size: 14px; margin: 0 0 8px; }
+  label { display: block; font-size: 11px; color: #666; margin: 8px 0 2px; }
+  input { width: 100%; box-sizing: border-box; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 6px; }
+  button { margin-top: 10px; width: 100%; padding: 8px; font-size: 13px; font-weight: 700; border: 0; border-radius: 8px; background: #1d2c54; color: #fff; cursor: pointer; }
+  button[disabled] { opacity: .5; }
+  .st { margin-top: 8px; font-size: 12px; line-height: 1.5; }
+  .err { color: #c0392b; white-space: pre-wrap; }
+  .ok { color: #1e8449; }
+</style>
+<h1>클로이영어 · 클래스카드 연동</h1>
+<label>앱 주소</label>
+<input id="appUrl" />
+<label>열쇠 (Vercel 의 CLASSCARD_KEY 와 같은 값)</label>
+<input id="key" type="password" placeholder="원장님만 아는 값" />
+<button id="save">저장</button>
+<button id="run">지금 읽어서 보내기</button>
+<div class="st" id="status"></div>
+<script src="popup.js"></script>

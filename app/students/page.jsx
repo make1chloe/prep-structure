@@ -35,7 +35,7 @@ export default async function StudentsPage({ searchParams }) {
       : Promise.resolve({ data: null }),
     supabase
       .from("students")
-      .select(`${SCOLS}, word_when, word_test_count, word_cut_pct, family_id`)
+      .select(`${SCOLS}, word_when, word_test_count, word_cut_pct, family_id, classcard_login`)
       .order("created_at", { ascending: false }),
     supabase.from("integrations").select("config").eq("id", "warning").maybeSingle(),
     supabase
@@ -53,6 +53,13 @@ export default async function StudentsPage({ searchParams }) {
   const profile = profileQ?.data || null;
 
   let { data: students, error } = studentsQ1;
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0131 전이면 클카 아이디 없이
+    ({ data: students, error } = await supabase
+      .from("students")
+      .select(`${SCOLS}, word_when, word_test_count, word_cut_pct, family_id`)
+      .order("created_at", { ascending: false }));
+  }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0071 전이면 형제 묶음 없이
     ({ data: students, error } = await supabase
