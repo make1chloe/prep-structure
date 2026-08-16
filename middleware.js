@@ -13,6 +13,9 @@ export async function middleware(request) {
 // 받을 수가 없었다 — 오류는 아무 데도 안 났다.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|api/icon|api/calendar|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // api/cron(바깥 시계)·api/classcard(크롬 확장)는 로그인 쿠키가 없는
+    // 호출이다 — 미들웨어가 로그인으로 돌려보내면 열쇠 검사까지 가지도
+    // 못한다 (2026-08-17 실제로 「Redirecting...」 만 나왔다)
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|api/icon|api/calendar|api/cron|api/classcard|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
