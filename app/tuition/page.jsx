@@ -109,7 +109,8 @@ export default async function TuitionPage({ searchParams }) {
 
   let { data: students } = await supabase
     .from("students")
-    .select("id, name, grade, status, tuition, started_on, ended_on")
+    // 시작일은 enrolled_on 하나 (0127 — A18 합침)
+    .select("id, name, grade, status, tuition, enrolled_on, ended_on")
     .in("status", ["enrolled", "paused"]);
   if (!students) {
     ({ data: students } = await supabase.from("students").select("id, name, grade, status"));

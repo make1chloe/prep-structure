@@ -220,7 +220,7 @@ export default async function TasksPage({ searchParams }) {
       supabase.from("schools").select("id, name").order("name"),
       supabase
         .from("students")
-        .select("id, name, school, grade, enrolled_on, started_on")
+        .select("id, name, school, grade, enrolled_on")
         .eq("status", "enrolled")
         .order("name"),
       examSel0.order("from_date", { ascending: true }),

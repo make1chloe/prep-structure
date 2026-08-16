@@ -548,8 +548,8 @@ export default function TuitionBoard({
                                     <input
                                       className="input input-sm"
                                       type="date"
-                                      value={sDraft.started_on}
-                                      onChange={(e) => setSDraft({ ...sDraft, started_on: e.target.value })}
+                                      value={sDraft.enrolled_on}
+                                      onChange={(e) => setSDraft({ ...sDraft, enrolled_on: e.target.value })}
                                     />
                                   </td>
                                   <td>
@@ -593,7 +593,7 @@ export default function TuitionBoard({
                                 </>
                               ) : (
                                 <>
-                                  <td className="muted">{r.student.started_on || "—"}</td>
+                                  <td className="muted">{r.student.enrolled_on || "—"}</td>
                                   <td className="muted">{r.student.ended_on || "—"}</td>
                                   <td>
                                     <b>{won(r.amount)}</b>
@@ -616,7 +616,7 @@ export default function TuitionBoard({
                                       onClick={() => {
                                         setEditStudent(r.student.id);
                                         setSDraft({
-                                          started_on: r.student.started_on || "",
+                                          enrolled_on: r.student.enrolled_on || "",
                                           ended_on: r.student.ended_on || "",
                                           tuition: r.student.tuition ?? "",
                                         });

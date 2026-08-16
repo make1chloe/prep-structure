@@ -174,10 +174,8 @@ export async function convertToStudent(id, classId) {
         .filter(Boolean)
         .join("\n"),
       status: "enrolled",
-      // 등원 시작일 — 신입생 할일(todo/routineActions)과 목록 정렬이 이 칸을 본다.
-      // started_on 은 수강료 일할이 보는 칸 (값-지도 P0-2) — 같이 채운다
-      enrolled_on: todaySeoul(),
-      started_on: todaySeoul(),
+      // 등원 시작일 — 수강료 일할·첫 등원 달력·목록 정렬이 전부 이 칸을 본다
+      enrolled_on: todaySeoul(),   // 시작일은 이 칸 하나 (0127 — A18 합침)
     })
     .select("id")
     .single();

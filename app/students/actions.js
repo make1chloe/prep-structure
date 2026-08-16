@@ -27,16 +27,15 @@ export async function addStudent(formData) {
     student_phone: clean(formData, "student_phone"),
     parent_phone: clean(formData, "parent_phone"),
     status: clean(formData, "status") || "enrolled",
-    enrolled_on: clean(formData, "enrolled_on"),
     /**
-     * **수강료 일할은 started_on 을 본다** (값-지도 P0-2, 2026-08-15).
-     * 등록 화면은 enrolled_on 만 받아서, 월중 입회도 만액으로 계산됐다.
-     * 등록이면 시작일을 같이 채운다 — 두 칸 문제의 근본 정리는 P3.
+     * 시작일은 **enrolled_on 하나** (0127 — A18 「합쳐줘」). 수강료
+     * 일할도 이제 이 칸을 본다. 등록이면 비어 있어도 오늘로 채운다 —
+     * 월중 입회가 만액으로 계산되면 안 된다.
      */
-    started_on:
+    enrolled_on:
       (clean(formData, "status") || "enrolled") === "enrolled"
         ? clean(formData, "enrolled_on") || todaySeoul()
-        : null,
+        : clean(formData, "enrolled_on"),
     electives: clean(formData, "electives"),
     note: clean(formData, "note"),
   };
@@ -53,8 +52,8 @@ export async function addStudent(formData) {
       .select("id")
       .single();
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
-      // 0018 전이면 started_on 없이
-      const { started_on: _so, ...rest } = row;
+      // 옛 DB — 없는 칸(electives)만 덜어내고 다시
+      const { electives: _el, ...rest } = row;
       ({ data, error } = await supabase
         .from("students")
         .insert({ ...rest, login_id: candidate })
@@ -169,8 +168,8 @@ export async function updateStudentsStatus(ids, status) {
   }
   if (!error && status === "enrolled") {
     try {
-      await supabase.from("students").update({ started_on: todaySeoul() })
-        .in("id", ids).is("started_on", null);
+      await supabase.from("students").update({ enrolled_on: todaySeoul() })
+        .in("id", ids).is("enrolled_on", null);
       await supabase.from("students").update({ ended_on: null }).in("id", ids);
     } catch { /* 0018 전 */ }
     try { await autoCreateLogins(ids); } catch { /* 계정은 재원생에서 다시 */ }
@@ -216,7 +215,6 @@ export async function bulkAddStudents(rows) {
         status: r.status || "enrolled",
         enrolled_on: r.enrolled_on || null,
         // 수강료 일할용 시작일 — 등록이면 등원시작일로 (값-지도 P0-2)
-        started_on: (r.status || "enrolled") === "enrolled" ? r.enrolled_on || null : null,
         electives: (r.electives || "").trim() || null,
         note: (r.note || "").trim() || null,
         login_id,
@@ -225,10 +223,10 @@ export async function bulkAddStudents(rows) {
 
   let { data: made, error } = await supabase.from("students").insert(payload).select("id, status");
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    // 0018 전이면 started_on 없이
+    // 옛 DB — 없는 칸(electives)만 덜어내고 다시
     ({ data: made, error } = await supabase
       .from("students")
-      .insert(payload.map(({ started_on: _so, ...r }) => r))
+      .insert(payload.map(({ electives: _el, ...r }) => r))
       .select("id, status"));
   }
 

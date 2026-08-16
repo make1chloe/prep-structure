@@ -54,7 +54,8 @@ export async function setStudentTuition(studentId, patch) {
   };
   const row = {};
   if ("tuition" in patch) row.tuition = num(patch.tuition);
-  if ("started_on" in patch) row.started_on = patch.started_on || null;
+  // 시작일은 enrolled_on 하나 (0127 — A18 합침)
+  if ("enrolled_on" in patch) row.enrolled_on = patch.enrolled_on || null;
   if ("ended_on" in patch) row.ended_on = patch.ended_on || null;
 
   const supabase = createClient();

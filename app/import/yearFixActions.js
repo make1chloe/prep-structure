@@ -41,7 +41,7 @@ async function context(supabase) {
 
   // 재원 기간 — 다니기 전·그만둔 뒤의 기록일 수는 없다
   const { data: studs } = await supabase
-    .from("students").select("id, name, started_on, ended_on");
+    .from("students").select("id, name, enrolled_on, ended_on");
   const info = new Map((studs || []).map((s) => [s.id, s]));
 
   return { today, daysOf, info };
@@ -81,7 +81,7 @@ export async function planYearFix() {
       return {
         today,
         classDays: daysOf.get(r.student_id) || null,
-        startedOn: s?.started_on || null,
+        startedOn: s?.enrolled_on || null,
         endedOn: s?.ended_on || null,
       };
     });
