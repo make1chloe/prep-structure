@@ -227,6 +227,9 @@ export async function saveStudentDay(studentId, date, form) {
 
   // 배정한 숙제에 붙은 단원/범위 { [homework_item_id]: { unitId, note } }
   const units = form.nextUnits || {};
+  // 클카 자동 판정이 남기는 검사 메모 (0062 check_note) — 「안 한 세트가
+  // 무엇인지」 가 학생 화면(💬 선생님)과 데일리리포트에 같이 나간다
+  const checkNotes = form.checkNotes || {};
   const payload = [
     ...Object.entries(items)
       .filter(([, status]) => status)
@@ -234,6 +237,7 @@ export async function saveStudentDay(studentId, date, form) {
         daily_report_id: report.id,
         homework_item_id,
         status,
+        check_note: (checkNotes[homework_item_id] || "").trim() || null,
       })),
     // 오늘 학원에서 할 것
     ...inClassIds.map((homework_item_id) => ({
@@ -278,6 +282,12 @@ export async function saveStudentDay(studentId, date, form) {
 
   if (payload.length > 0) {
     let { error } = await supabase.from("daily_report_items").insert(payload);
+    if (noColumn(error)) {
+      // 0062 전이면 검사 메모 칸이 없다
+      ({ error } = await supabase
+        .from("daily_report_items")
+        .insert(payload.map(({ check_note, ...rest }) => rest)));
+    }
     if (noColumn(error)) {
       // 0087 전이면 「바뀐 시각」 칸이 없다
       ({ error } = await supabase

@@ -68,6 +68,7 @@ async function fetchDay(userIdx, date) {
     (c.set_list || []).forEach((s) => {
       sets.push({
         name: s.name || "",
+        type: String(s.set_type || ""),   // 1 단어 · 2 문장 (판정은 앱 lib 한 곳)
         complete: !!s.is_complete,
         status: Number(s.learn_status) || 0,
         cards: Number(s.card_cnt) || 0,

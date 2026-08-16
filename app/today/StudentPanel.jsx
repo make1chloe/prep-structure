@@ -26,6 +26,7 @@ import { lateReasons } from "@/lib/lateNotice";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
 import { cutOf, verdict } from "@/lib/wordTest";
+import { CC_ITEM_KIND, ccJudge } from "@/lib/classcard";
 import { DOW as DOWN } from "@/lib/day";
 import BookPicker from "@/components/BookPicker";
 
@@ -197,6 +198,33 @@ export default function StudentPanel({
       : "";
 
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
+
+  /**
+   * **클카 자동 판정** (원장님, 2026-08-17 — 단어 세트→단어(온라인),
+   * 문장 세트→문장암기(온라인)). 그날 마감 세트가 전부 완료면 ○, 일부면
+   * △, 하나도 안 했으면 ✕ 를 **미리 채워둔다** — 원장님은 뒤집을 것만
+   * 뒤집으면 된다. 안 한 세트 이름은 저장 때 검사 메모(check_note)로
+   * 같이 나가서 학생 화면(💬)과 데일리리포트에 병기된다.
+   */
+  const ccVerdictOf = (iid) => {
+    const kind = CC_ITEM_KIND[itemOf(iid)?.name || ""];
+    if (!kind || !row.classcard) return null;
+    return ccJudge(row.classcard.sets || [], kind);
+  };
+  useEffect(() => {
+    if (!row.classcard) return;
+    setMarks((m) => {
+      const n = { ...m };
+      let touched = false;
+      (row.toCheck || []).forEach((iid) => {
+        if (n[iid]) return;                    // 원장님이 이미 찍은 것은 안 건드린다
+        const v = ccVerdictOf(iid);
+        if (v) { n[iid] = v.status; touched = true; }
+      });
+      return touched ? n : m;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.student.id]);
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
@@ -582,6 +610,17 @@ export default function StudentPanel({
         draft: asDraft,
         attendance: row.extraClassId ? null : form.attendance,
         items: marks,
+        // 클카 자동 판정의 「안 한 세트」 — 검사 메모로 학생·리포트에 병기
+        checkNotes: Object.fromEntries(
+          Object.keys(marks)
+            .map((iid) => {
+              const v = ccVerdictOf(iid);
+              return v && v.missed.length
+                ? [iid, `클카 안 함: ${v.missed.join(" · ")}`]
+                : null;
+            })
+            .filter(Boolean)
+        ),
         inClass: [...inClass],
         toCheck,
         nextHomework: [...next],
@@ -1022,6 +1061,19 @@ export default function StudentPanel({
                           </button>
                         ))}
                       </span>
+                      {(() => {
+                        const v = ccVerdictOf(iid);
+                        if (!v) return null;
+                        return (
+                          <span
+                            className={`tag ${v.status === "done" ? "tag-mint" : "tag-amber"}`}
+                            title={v.missed.length ? `안 한 세트: ${v.missed.join(" · ")}` : "그날 마감 세트 전부 완료"}
+                          >
+                            클카 {v.total - v.missed.length}/{v.total}
+                            {v.missed.length > 0 && ` · 안 함 ${v.missed.join("·")}`.slice(0, 60)}
+                          </span>
+                        );
+                      })()}
                       {/* 이 숙제로 만든 늦귀가 과제 — 연결(homework_item_id)을
                           이제 읽는다 (값-지도 P1-15). 이미 늦귀가에 올라가
                           있으면 또 만들 필요가 없다는 것이 검사 중에 보인다 */}

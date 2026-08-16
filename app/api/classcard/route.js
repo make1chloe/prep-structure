@@ -73,6 +73,7 @@ export async function POST(request) {
         // 필요한 칸만 — 세트 내용 미러링 금지 (설계 문서)
         sets: (d.sets || []).slice(0, 50).map((s) => ({
           name: String(s.name || "").slice(0, 120),
+          type: String(s.type || "").slice(0, 8),
           complete: !!s.complete,
           status: Number(s.status) || 0,
           cards: Number(s.cards) || 0,
