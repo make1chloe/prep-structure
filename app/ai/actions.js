@@ -291,6 +291,87 @@ export async function draftNotices(facts = {}) {
   return { error: null, student: m[1].trim(), parent: m[2].trim() };
 }
 
+/**
+ * **월간 AI 브리핑** (11-4, 원장님 2026-08-14 — 「수업 중에 간단한 키워드
+ * 수준의 코멘트를 적으면 종합해서 월간 리포트의 AI 브리핑을 생성」,
+ * 08-16 「해줘」).
+ *
+ * 그 달의 별점(집중도·이해도)·단어/문장 시험·단원평가 통과·수업 코멘트
+ * (키워드)를 모아 학부모께 드릴 서너 문장을 만든다. **기록에 있는 것만**
+ * 쓴다 — 지어내면 학부모가 아이에게 물었을 때 어긋난다. 초안일 뿐이고,
+ * 월간 화면의 「덧붙일 한마디」 칸에 채워져 원장님이 고쳐 보낸다.
+ */
+export async function monthlyBriefing(studentId, ym) {
+  if (!studentId || !/^\d{4}-\d{2}$/.test(ym || "")) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  const from = `${ym}-01`;
+  const to = `${ym}-31`;
+  const [stuQ, repQ, scoreQ] = await Promise.all([
+    supabase.from("students").select("name, grade").eq("id", studentId).maybeSingle(),
+    supabase
+      .from("daily_reports")
+      .select("id, date, attendance_kind, attitude, understanding, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, notice")
+      .eq("student_id", studentId).gte("date", from).lte("date", to)
+      .order("date", { ascending: true }),
+    supabase
+      .from("scores")
+      .select("kind, term, taken_on, raw_score, full_score, grade")
+      .eq("student_id", studentId).gte("taken_on", from).lte("taken_on", to),
+  ]);
+  const reps = repQ.data || [];
+  if (reps.length === 0) return { error: "이 달 수업 기록이 없어요." };
+
+  const { data: cmts } = await supabase
+    .from("report_comments")
+    .select("daily_report_id, body, author_role")
+    .in("daily_report_id", reps.map((r) => r.id));
+  const dateOf = new Map(reps.map((r) => [r.id, r.date]));
+
+  const star = (v) => (v ? `${v}점` : "");
+  const lines = [
+    `학생: ${stuQ.data?.name || "학생"}${stuQ.data?.grade ? ` (${stuQ.data.grade})` : ""}`,
+    `달: ${ym}`,
+    `수업 ${reps.length}회`,
+    "",
+    "날짜별 기록 (별점은 5점 만점 — 집중도/이해도):",
+    ...reps.map((r) => {
+      const bits = [
+        r.attendance_kind && r.attendance_kind !== "정시출석" ? r.attendance_kind : "",
+        r.attitude ? `집중 ${star(r.attitude)}` : "",
+        r.understanding ? `이해 ${star(r.understanding)}` : "",
+        r.word_total ? `단어 ${r.word_correct ?? 0}/${r.word_total}` : "",
+        r.sent_total ? `문장 ${r.sent_correct ?? 0}/${r.sent_total}` : "",
+        r.sent_unit ? `단원평가 ${r.sent_unit} ${r.sent_passed === true ? "통과" : r.sent_passed === false ? "재시험" : ""}` : "",
+        (r.notice || "").trim(),
+      ].filter(Boolean);
+      return `- ${r.date.slice(5)}: ${bits.join(" · ") || "기록 없음"}`;
+    }),
+    (cmts || []).length ? "" : null,
+    (cmts || []).length ? "수업 중 코멘트 (키워드 메모):" : null,
+    ...(cmts || []).map((c) => `- ${String(dateOf.get(c.daily_report_id) || "").slice(5)}: ${c.body}`),
+    (scoreQ.data || []).length ? "" : null,
+    (scoreQ.data || []).length ? "이 달 성적:" : null,
+    ...(scoreQ.data || []).map((x) => `- ${x.term || x.kind}: ${x.raw_score ?? "?"}${x.full_score ? `/${x.full_score}` : ""}${x.grade ? ` (${x.grade}등급)` : ""}`),
+  ].filter((x) => x !== null);
+
+  const myRules = await rules(supabase);
+  const system = withRules([
+    "당신은 한국 영어학원 원장을 대신해 **월간 학부모 브리핑**을 씁니다.",
+    "한 달치 수업 기록을 읽고, 학부모께 드릴 3~5문장을 씁니다.",
+    "",
+    "규칙",
+    "- **기록에 있는 것만 씁니다.** 지어내면 학부모가 아이에게 물었을 때 어긋납니다.",
+    "- 흐름을 봅니다: 잘해진 것 → 아쉬운 것(있으면 부드럽게) → 다음 달 방향 한 문장.",
+    "- 별점·점수를 나열하지 말고 **뜻을 풀어** 씁니다 (「집중도가 월말로 갈수록 올라왔습니다」).",
+    "- 존댓말. 과장·빈말 금지. 인사말 없이 본문만.",
+  ], myRules, "");
+
+  return ask(supabase, system, lines.join("\n"), 700);
+}
+
 /** 키가 들어와 있는지 (키 자체는 절대 돌려주지 않는다) */
 export async function aiReady() {
   const supabase = createClient();

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveMonthly, sendMonthly, unsendMonthly } from "./actions";
+import { monthlyBriefing } from "@/app/ai/actions";
 import { addMonths } from "@/lib/day";
 
 /**
@@ -217,7 +218,26 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
             {isOpen && (
               <div style={{ marginTop: 10 }}>
                 <div className="field">
-                  <label className="label">이 학생에게 덧붙일 한마디 (선택)</label>
+                  <div className="row" style={{ alignItems: "baseline", gap: 6 }}>
+                    <label className="label">이 학생에게 덧붙일 한마디 (선택)</label>
+                    <span className="spacer" />
+                    {/* 월간 AI 브리핑 (11-4) — 그 달 별점·시험·수업 코멘트를
+                        모아 서너 문장 초안. 저장 전이니 고쳐서 쓰면 된다 */}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={pending}
+                      title="이 달의 집중도·이해도 별점, 시험, 수업 중 코멘트를 모아 AI 가 초안을 씁니다"
+                      onClick={() =>
+                        startTransition(async () => {
+                          const res = await monthlyBriefing(r.studentId, ym);
+                          if (res?.error) { alert(res.error); return; }
+                          setNote(res.text || "");
+                        })
+                      }
+                    >
+                      ✨ AI 브리핑 초안
+                    </button>
+                  </div>
                   <p className="hint" style={{ margin: "0 0 4px", fontSize: 12.5 }}>
                     비워두면 그 달 숫자를 보고 <b>한 줄 평이 자동으로</b> 붙습니다.
                     여기에 적으시면 적으신 말이 대신 나갑니다.
