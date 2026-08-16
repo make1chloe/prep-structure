@@ -183,6 +183,12 @@ async function backtest(progress) {
   const c = await cfg();
   if (!c.key) throw new Error("열쇠를 먼저 저장해주세요.");
   const roster = await fetchRoster();
+  // 명단부터 — 이게 없으면 앱이 학생을 못 이어 대조가 전부 0건이 된다
+  await fetch(`${c.appUrl}/api/classcard`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-cc-key": c.key },
+    body: JSON.stringify({ roster, days: [], planner: [] }),
+  });
   const dates = [];
   for (let i = 31; i >= 1; i--) dates.push(seoulToday(-i));
 

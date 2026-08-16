@@ -95,10 +95,19 @@ export async function GET(request) {
   const generous = rows.filter((r) => RANK[r.auto] > RANK[r.actual]);   // 시점 차이 후보
   const strict = rows.filter((r) => RANK[r.auto] < RANK[r.actual]);
 
+  // 어디서 끊겼는지 — 0건이면 이 숫자들이 말해준다 (2026-08-17)
+  const linkedCount = (stuQ.data || []).filter((st) => uidxOf.get(st.id)).length;
   return NextResponse.json({
     ok: true,
     from,
     to,
+    diag: {
+      roster: (rosterQ.data || []).length,          // 클카 학생 명단
+      linked: linkedCount,                          // 앱 학생과 이어진 수
+      ccDays: (dayQ.data || []).length,             // 기간 안 클카 일자료
+      reports: (reps || []).length,                 // 기간 안 수업 리포트
+      checks: (dri || []).length,                   // 두 항목의 실제 검사 수
+    },
     compared: rows.length,
     agree: agree.length,
     pct: rows.length ? Math.round((agree.length / rows.length) * 100) : null,

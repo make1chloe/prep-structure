@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "클로이영어 — 클래스카드 연동",
-  "version": "1.5",
+  "version": "1.6",
   "description": "원장님 크롬의 클래스카드 로그인으로 플래너를 읽어 클로이영어 앱에 보냅니다. 비밀번호는 저장하지 않습니다.",
   "permissions": ["alarms", "storage"],
   "host_permissions": [

@@ -31,7 +31,11 @@ function showBt(res) {
   $("status").innerHTML =
     `<div class="ok">백테스트 (${res.from}~${res.to})<br>` +
     `대조 ${res.compared}건 · <b>일치 ${res.agree}건 (${res.pct}%)</b><br>` +
-    `자동이 후함 ${res.generous} (수업 뒤 마저 한 것 포함) · 자동이 박함 ${res.strict}</div>`;
+    `자동이 후함 ${res.generous} (수업 뒤 마저 한 것 포함) · 자동이 박함 ${res.strict}` +
+    (res.diag
+      ? `<br><span style="color:#888">명단 ${res.diag.roster} · 이어짐 ${res.diag.linked} · 클카일자료 ${res.diag.ccDays} · 리포트 ${res.diag.reports} · 실제검사 ${res.diag.checks}</span>`
+      : "") +
+    `</div>`;
 }
 
 // 결과는 저장소에서 읽는다 — 팝업을 닫았다 열어도 남아 있다
