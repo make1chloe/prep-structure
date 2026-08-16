@@ -225,7 +225,7 @@ export default async function MePage({ searchParams }) {
       .not("seconds", "is", null)
       .order("date", { ascending: false })
       .limit(300),
-    supabase.from("notice_receipts").select("notice_id").eq("student_id", sid),
+    supabase.from("notice_receipts").select("notice_id, read_stamp").eq("student_id", sid),
     supabase.from("video_assignments").select("video_id, due_on, assigned_on").eq("student_id", sid),
     supabase.from("video_views").select("video_id, done_at, opened_at").eq("student_id", sid),
     supabase
@@ -578,8 +578,15 @@ export default async function MePage({ searchParams }) {
   const since = addDays(today, -14);
   let notice2 = [];
   {
-    const { data: rec } = recQ;
+    let { data: rec } = recQ;
+    if (recQ.error) {
+      // 0129 전이면 도장 칸 없이
+      ({ data: rec } = await supabase
+        .from("notice_receipts").select("notice_id").eq("student_id", sid));
+    }
     const ids = [...new Set((rec || []).map((r) => r.notice_id))];
+    // 확인 도장 — 「id|고친시각」 이 맞으면 더 안 보여준다 (0129)
+    const readStamp = new Map((rec || []).map((r) => [r.notice_id, r.read_stamp || null]));
     if (ids.length) {
       let { data: rows } = await supabase
         .from("notices")
@@ -608,7 +615,11 @@ export default async function MePage({ searchParams }) {
       // 학부모용 공지는 아이 화면에 안 띄운다 (0050 과 같은 이유),
       // 「수업 메모」 도 안 띄운다 — 교실에서 말하려고 적어둔 것이라
       // 아이가 먼저 읽으면 그 말을 할 이유가 없어진다 (lib/notices)
-      notice2 = (rows || []).filter((n) => showsTo(n.kind, myRole === "parent" ? "parent" : "student"));
+      notice2 = (rows || [])
+        .filter((n) => showsTo(n.kind, myRole === "parent" ? "parent" : "student"))
+        // 확인 누른 공지는 더 안 보인다 (0129). 고치면(edited_at 변경)
+        // 도장이 안 맞아 다시 보인다 — 그게 재공지다
+        .filter((n) => readStamp.get(n.id) !== `${n.id}|${n.edited_at || ""}`);
     }
   }
 
@@ -1146,7 +1157,9 @@ export default async function MePage({ searchParams }) {
               {/* 새 공지는 길목에서 — 확인을 눌러야 화면 (원장님, 2026-08-14).
                   선생님 미리보기에서는 안 띄운다 (원장님 브라우저에 확인이 쌓이면
                   정작 아이 기기에서 뜰 것이 안 뜬 것처럼 헷갈린다) */}
-              {!preview && !acting && !isStaff && <NoticeGate page="me" notices={notice2} />}
+              {!preview && !acting && !isStaff && (
+                <NoticeGate page="me" notices={notice2} studentId={sid} />
+              )}
               {/* 안 한 것 팝업 — 해결될 때까지 들어올 때마다 (원장님, 2026-08-14) */}
               {!preview && !acting && !isStaff && (
                 <PendingGate homework={pendingHw} scores={pendingScores} />

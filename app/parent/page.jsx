@@ -183,7 +183,7 @@ export default async function ParentPage({ searchParams }) {
     supabase
       .from("exam_periods")
       .select("id, school, grade, name, from_date, to_date, cuts"),
-    supabase.from("notice_receipts").select("notice_id").eq("student_id", pickId),
+    supabase.from("notice_receipts").select("notice_id, read_stamp").eq("student_id", pickId),
     supabase
       .from("requests")
       .select("id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at, photos")
@@ -370,7 +370,13 @@ export default async function ParentPage({ searchParams }) {
   }
 
   // ── 공지 ──
-  const { data: rec } = recQ;
+  let { data: rec } = recQ;
+  if (recQ.error) {
+    // 0129 전이면 도장 칸 없이
+    ({ data: rec } = await supabase
+      .from("notice_receipts").select("notice_id").eq("student_id", pickId));
+  }
+  const readStamp = new Map((rec || []).map((r) => [r.notice_id, r.read_stamp || null]));
   const nIds = [...new Set((rec || []).map((r) => r.notice_id))];
   let notices = [];
   if (nIds.length) {
@@ -395,7 +401,10 @@ export default async function ParentPage({ searchParams }) {
         .gte("date", addDays(today, -21)).order("date", { ascending: false }));
     }
     // 「수업 메모」 는 원장님이 교실에서 말하려고 적어둔 것이라 안 띄운다
-    notices = (data || []).filter((n) => showsTo(n.kind, "parent"));
+    notices = (data || [])
+      .filter((n) => showsTo(n.kind, "parent"))
+      // 확인 누른 공지는 더 안 보인다 (0129) — 고치면 도장이 안 맞아 다시 뜬다
+      .filter((n) => readStamp.get(n.id) !== `${n.id}|${n.edited_at || ""}`);
   }
 
   /**
@@ -1035,7 +1044,7 @@ export default async function ParentPage({ searchParams }) {
         {/* 「오늘」 은 폭을 다 쓴다 — 어머니가 제일 먼저 보시는 것이라
             반쪽으로 접히면 안 된다 */}
         <SectionNav page="parent" order={blockOrder} />
-        {!isStaff && <NoticeGate page="parent" notices={notices} />}
+        {!isStaff && <NoticeGate page="parent" notices={notices} studentId={pickId} />}
         <div className="blockgrid">
           {blockOrder.map((k) => (
             <div key={k} id={`blk-${k}`} className={k === "today" ? "fullrow" : undefined}>

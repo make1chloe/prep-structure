@@ -19,7 +19,9 @@ import NoticePhotos from "@/components/NoticePhotos";
  *
  * 다시 보는 길은 이미 있다 — 화면의 「알림」 덩어리 (2주치가 그대로 있다).
  */
-export default function NoticeGate({ page, notices = [] }) {
+import { markNoticesRead } from "@/app/me/noticeReadActions";
+
+export default function NoticeGate({ page, notices = [], studentId = null }) {
   const KEY = `chloe.noticeSeen.${page}`;
   const [unseen, setUnseen] = useState([]);
 
@@ -56,6 +58,14 @@ export default function NoticeGate({ page, notices = [] }) {
       // 오래된 것은 흘려보낸다 — 무한히 쌓이면 언젠가 저장이 막힌다
       localStorage.setItem(KEY, JSON.stringify([...seen].slice(-200)));
     } catch { /* 무시 */ }
+    /**
+     * DB 에도 남긴다 (0129, 원장님 2026-08-16 — 「확인 누르면 더 보이지
+     * 않게」). 다음 열 때부터 알림 덩어리에서도 빠진다. 실패해도 조용히 —
+     * 기기 저장이 받쳐준다.
+     */
+    if (studentId) {
+      markNoticesRead(studentId, unseen.map((n) => ({ id: n.id, stamp: stampOf(n) }))).catch(() => {});
+    }
     setUnseen([]);
   }
 
