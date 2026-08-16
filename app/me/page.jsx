@@ -26,6 +26,7 @@ import RequestForm from "./RequestForm";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
+import DictBar from "./DictBar";
 import MyScoreForm from "./MyScoreForm";
 import GrowthCard from "@/components/GrowthCard";
 import UnitCard from "@/components/UnitCard";
@@ -1195,6 +1196,9 @@ export default async function MePage({ searchParams }) {
           * 볼 일이 없는 칸**이다 — 꺼져 있을 때는 어차피 AlertGate 가
           * 화면 앞에서 막아선다.
           */}
+        {/* 영어사전 — 숙제하다 모르는 단어가 나오면 여기서 바로 (2026-08-16) */}
+        {!preview && <DictBar />}
+
         {!preview && !acting && <AlertBox brief />}
 
         <form action="/logout" method="post">
