@@ -100,12 +100,16 @@ async function runOnce() {
   const roster = await fetchRoster();
   if (roster.length === 0) throw new Error("학생 명단을 못 읽었어요 — 클카 화면이 바뀌었을 수 있어요.");
 
-  // 오늘 마감 세트 — 학생마다 하나씩 (한 번에 한 명씩, 클카에 부담 안 주게)
+  // 오늘 + 내일 마감 세트 — 내일치는 전날 밤 「아직 안 한 애」 목록에 쓴다.
+  // 학생마다 하나씩 차례로 (클카에 부담 안 주게)
+  const tomorrow = seoulToday(1);
   const days = [];
   for (const r of roster) {
-    try {
-      days.push({ user_idx: r.user_idx, date: today, sets: await fetchDay(r.user_idx, today) });
-    } catch { /* 한 명 실패로 전체를 멈추지 않는다 */ }
+    for (const d of [today, tomorrow]) {
+      try {
+        days.push({ user_idx: r.user_idx, date: d, sets: await fetchDay(r.user_idx, d) });
+      } catch { /* 한 명 실패로 전체를 멈추지 않는다 */ }
+    }
   }
 
   // 마감일 달력 — 하루 한 번이면 충분하다 (이번 달 + 다음 달)
