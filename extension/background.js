@@ -173,7 +173,58 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === "cc-sync") safeRun();
 });
+/**
+ * **한 달 백테스트** (원장님, 2026-08-17 — 「가상으로 지금 한 달치 검사를
+ * 검증해보라는 거야」). 지난 31일의 플래너 자료를 전부 긁어 앱에 넣고,
+ * 앱이 실제 검사와 대조한 일치율을 받아온다. 학생 24명 × 31일이라
+ * 2~5분 걸린다 — 팝업이 진행을 보여준다.
+ */
+async function backtest(progress) {
+  const c = await cfg();
+  if (!c.key) throw new Error("열쇠를 먼저 저장해주세요.");
+  const roster = await fetchRoster();
+  const dates = [];
+  for (let i = 31; i >= 1; i--) dates.push(seoulToday(-i));
+
+  let done = 0;
+  for (const d of dates) {
+    const days = [];
+    for (const r of roster) {
+      try {
+        const sets = await fetchDay(r.user_idx, d);
+        if (sets.length) days.push({ user_idx: r.user_idx, date: d, sets });
+      } catch { /* 한 명 실패로 안 멈춘다 */ }
+    }
+    if (days.length) {
+      await fetch(`${c.appUrl}/api/classcard`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-cc-key": c.key },
+        body: JSON.stringify({ roster: done === 0 ? roster : [], days, planner: [] }),
+      });
+    }
+    done += 1;
+    progress && progress(`${done}/${dates.length}일 읽는 중…`);
+  }
+  const res = await fetch(
+    `${c.appUrl}/api/classcard/backtest?key=${encodeURIComponent(c.key)}&days=32`
+  ).then((r) => r.json());
+  return res;
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg === "backtest") {
+    (async () => {
+      try {
+        const r = await backtest((t) => chrome.storage.local.set({ btProgress: t }));
+        await chrome.storage.local.set({ btProgress: null, btResult: r });
+        sendResponse({ ok: true, ...r });
+      } catch (e) {
+        await chrome.storage.local.set({ btProgress: null });
+        sendResponse({ ok: false, error: String(e?.message || e) });
+      }
+    })();
+    return true;
+  }
   if (msg === "run-now") {
     runOnce()
       .then((r) => sendResponse({ ok: true, ...r }))

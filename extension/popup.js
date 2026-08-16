@@ -27,6 +27,27 @@ $("save").addEventListener("click", async () => {
   $("status").textContent = "저장했어요.";
 });
 
+$("backtest").addEventListener("click", () => {
+  $("backtest").disabled = true;
+  $("status").textContent = "지난 31일치를 읽는 중… (2~5분, 창 닫아도 계속 돕니다)";
+  const tick = setInterval(async () => {
+    const { btProgress } = await chrome.storage.local.get("btProgress");
+    if (btProgress) $("status").textContent = btProgress;
+  }, 1500);
+  chrome.runtime.sendMessage("backtest", (res) => {
+    clearInterval(tick);
+    $("backtest").disabled = false;
+    if (res?.ok) {
+      $("status").innerHTML =
+        `<div class="ok">백테스트 (${res.from}~${res.to})<br>` +
+        `대조 ${res.compared}건 · <b>일치 ${res.agree}건 (${res.pct}%)</b><br>` +
+        `자동이 후함 ${res.generous} (수업 뒤 마저 한 것 포함) · 자동이 박함 ${res.strict}</div>`;
+    } else {
+      $("status").innerHTML = `<div class="err">실패:\n${res?.error || "알 수 없음"}</div>`;
+    }
+  });
+});
+
 $("run").addEventListener("click", () => {
   $("run").disabled = true;
   $("status").textContent = "읽는 중… (학생 수만큼 몇 초 걸려요)";
