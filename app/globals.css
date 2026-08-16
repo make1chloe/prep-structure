@@ -527,7 +527,9 @@ input[type="date"] { min-width: 148px; }
 /* 단원 알약 옆의 메모 연필 — 메모가 있으면 색으로 차 있다.
    알약 안에 넣으면 상태 바꾸기(알약 누름)와 메모(연필)가 한 자리에 겹쳐
    잘못 누르게 된다. 밖에 반쯤 겹쳐 세운다. */
-.unitchip-wrap { display: inline-flex; align-items: center; gap: 1px; flex-wrap: wrap; }
+/* 칩과 연필(메모)은 **한 몸** — wrap 이면 연필만 혼자 다음 줄로 떨어져
+   무엇의 메모인지 알 수 없게 된다 (2026-08-17 진도 화면) */
+.unitchip-wrap { display: inline-flex; align-items: center; gap: 1px; flex-wrap: nowrap; }
 .unitnote-btn {
   font-family: inherit; font-size: 12px; line-height: 1; cursor: pointer;
   padding: 3px 4px; border: 0; border-radius: 6px;

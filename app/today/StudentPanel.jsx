@@ -669,6 +669,27 @@ export default function StudentPanel({
         </div>
       )}
 
+      {/**
+        * 클카 플래너 — **어느 세트가 체크됐는지 여기서** (원장님, 2026-08-17
+        * — 「어디에 숙제 체크된 건지 모르겠어」). 줄의 「클카 n/n」 태그는
+        * 요약이고, 세트별 ✅❌ 는 여기 편다. 확장이 15분마다 갱신한다.
+        */}
+      {row.classcard && (
+        <div className="prow">
+          <span className="plabel">클카</span>
+          <div className="row" style={{ gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+            {(row.classcard.sets || []).map((s, i) => (
+              <span key={i} className={`tag ${s.complete ? "tag-mint" : "tag-amber"}`}>
+                {s.complete ? "✅" : "❌"} {s.name}
+              </span>
+            ))}
+            <span className="hint" style={{ fontSize: 12 }}>
+              그날 마감 플래너 {row.classcard.done}/{row.classcard.total} 완료
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
           순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
           옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,

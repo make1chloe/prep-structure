@@ -384,7 +384,11 @@ export default function BookProgress({
               )}
               <div className="stack" style={{ gap: 4 }}>
                 {annotateBigs(groupByParent(units, q)).map(({ head, list, big, bigFirst, bigIds }) => (
-                  <div className="hwgroup" key={head || "_"}>
+                  <div className="hwgroup" style={{ flexWrap: "wrap" }} key={head || "_"}>
+                    {/* 대단원 이름이 길면(고교영문법 3300제) 왼쪽 라벨이 카드
+                        절반을 먹고 칩이 좁은 오른쪽에 한 줄씩 쌓였다 (원장님,
+                        2026-08-17 「학생별 교재 화면이 이상해」). 라벨이 길면
+                        칩 묶음(flex 300px)이 아랫줄 전체 너비로 내려온다 */}
                     {/**
                       * **대단원 통째로** (원장님, 2026-08-14 — 「그래도 대단원
                       * 자체를 통째로 선택하는 게 안 돼」). 소단원까지 있는
@@ -437,7 +441,7 @@ export default function BookProgress({
                     ) : head ? (
                       <span className="tag tag-muted hwcat" style={{ width: "auto" }}>{head}</span>
                     ) : null}
-                    <div className="row" style={{ gap: 4 }}>
+                    <div className="row" style={{ gap: 4, flex: "1 1 300px", minWidth: 0 }}>
                       {list.map((u) => {
                         const done = u.status === "done";
                         const doing = u.status === "doing";

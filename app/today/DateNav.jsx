@@ -64,18 +64,15 @@ export default function DateNav({ date, students = [] }) {
         type="date"
         style={{ width: 150 }}
         value={draft}
-        max={today}
         onChange={(e) => {
           setDraft(e.target.value);
           if (!isIOS) commit(e.target.value);
         }}
         onBlur={() => commit(draft)}
       />
-      <button
-        className="btn btn-ghost btn-sm"
-        onClick={() => go(addDays(date, 1))}
-        disabled={date >= today}
-      >
+      {/* 미래도 연다 (원장님, 2026-08-17 — 「하루 뒤 버튼이 안 먹어」).
+          미리 내주기·클카 확인용. 출결을 미래에 찍는 사고는 띠가 막는다 */}
+      <button className="btn btn-ghost btn-sm" onClick={() => go(addDays(date, 1))}>
         하루 뒤 ›
       </button>
       {date !== today && (
@@ -83,7 +80,11 @@ export default function DateNav({ date, students = [] }) {
           <button className="btn btn-primary btn-sm" onClick={() => go(today)}>
             오늘로
           </button>
-          <span className="tag tag-amber">지난 날짜를 보는 중 — 여기서 고치면 그날 기록이 바뀝니다</span>
+          <span className="tag tag-amber">
+            {date < today
+              ? "지난 날짜를 보는 중 — 여기서 고치면 그날 기록이 바뀝니다"
+              : "미래 날짜 — 미리 보는 중입니다. 출결은 그날 찍어주세요"}
+          </span>
         </>
       )}
       <span className="spacer" />
