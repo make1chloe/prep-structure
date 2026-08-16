@@ -19,6 +19,10 @@ const PUBLIC = [
   "/api/icon/192",
   "/api/icon/512",
   "/api/calendar",
+  // 로그인 없이 열쇠로 문단속하는 주소들 (2026-08-17) — 미들웨어가 잡으면
+  // 「Redirecting...」 만 나오고 열쇠 검사까지 못 간다
+  "/api/cron/send",
+  "/api/classcard",
   "/manifest.webmanifest",
 ];
 
