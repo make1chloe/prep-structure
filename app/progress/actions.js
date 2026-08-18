@@ -800,6 +800,18 @@ export async function setUnitProgress(studentId, unitIds, status) {
     .select("id, textbook_id")
     .in("id", ids);
   const bookOfUnit = new Map((us || []).map((u) => [u.id, u.textbook_id]));
+  // 화면이 옛날 것일 수 있다 — 단원을 통째로 갈아끼운 뒤(엑셀 재주입 등)
+  // 그 전에 열어둔 화면의 단원 id 는 이제 없다. 그대로 쓰면 FK 오류로
+  // 조용히 실패하고, 원장님 눈에는 「표시했는데 다 날아감」 이 된다
+  // (2026-08-17). 없는 단원이 섞여 있으면 저장 전에 멈추고 말해준다.
+  const gone = ids.filter((id) => !bookOfUnit.has(id));
+  if (gone.length > 0) {
+    return {
+      error:
+        "단원 목록이 그 사이에 새로 바뀌어서, 지금 화면이 옛날 것이에요.\n" +
+        "화면을 새로고침한 뒤 다시 표시해 주세요. (저장 안 됨)",
+    };
+  }
   const roundCache = new Map();
   async function roundFor(unitId) {
     const tid = bookOfUnit.get(unitId);

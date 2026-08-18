@@ -374,6 +374,19 @@ input[type="date"] { min-width: 148px; }
 }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
 .tblwrap { overflow-x: auto; }
+/* **긴 표는 표 안에서만 굴러간다** (원장님, 2026-08-17 — 「페이지 자체가
+   다 움직여버리니까 화면 왔다갔다가 너무 불편해. 메뉴나 목록 위쪽이
+   고정되거나 아이프레임같은걸 활용하던지」).
+
+   표가 화면보다 길면 표 자체에 세로 스크롤이 생기고, 머리줄(항목 이름)은
+   그 안에 붙어 있는다. 페이지는 짧게 남아서 위 메뉴·단추까지 오르내리는
+   거리가 사라진다. 짧은 표는 max-height 에 안 걸리니 전과 같다. */
+.tblwrap { max-height: calc(100vh - var(--topbar-h, 56px) - 150px); overflow-y: auto; overscroll-behavior: contain; }
+.tblwrap .tbl thead th { position: sticky; top: 0; z-index: 3; background: var(--surface); }
+/* 오른쪽 판(재원생·교재)은 판 자체가 스크롤이라 이중 스크롤을 만들지 않는다.
+   판 머리(.split-head)도 top:0 에 붙어 있어 겹치면 서로 가린다. */
+.split-panel .tblwrap { max-height: none; }
+.split-panel .tbl thead th { position: static; }
 .tbl-tight th, .tbl-tight td { padding: 7px 9px; font-size: 14.5px; white-space: nowrap; }
 .tbl-tight .input-sm { min-width: 60px; }
 .sky { color: var(--sky); font-weight: 600; text-decoration: none; }
@@ -417,6 +430,37 @@ input[type="date"] { min-width: 148px; }
 .hwgroup { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px dashed var(--border); }
 .hwgroup:first-child { border-top: 0; }
 .hwcat { flex: none; margin-top: 3px; width: 42px; text-align: center; }
+
+/* ── 진도 판의 단원 위계 (원장님, 2026-08-17 — 「대중소단원 구별이 너무
+   안돼. 색깔이 다 비슷비슷해서 내용이 구조로 빨리 파악이 안돼」)
+   대단원 = 판을 가로지르는 남색 막대 · 중단원 = 하늘색 라벨 · 소단원 = 알약.
+   막대는 sticky — 단원이 많아 판 안이 굴러가도 지금 어느 대단원인지 남는다. */
+.unit-bigbar {
+  position: sticky; top: 0; z-index: 2;
+  display: block; width: 100%;
+  margin-top: 6px; padding: 5px 10px;
+  background: var(--surface-2);
+  border: 0; border-left: 4px solid var(--navy);
+  border-radius: 6px;
+  font-family: inherit; text-align: left;
+  font-size: 13.5px; font-weight: 800; color: var(--text);
+}
+.unit-bigbar:first-child { margin-top: 0; }
+button.unit-bigbar { cursor: pointer; }
+button.unit-bigbar:hover { background: var(--lav-soft); }
+/* 막대 아래 묶음은 살짝 들여쓴다 — 층이 눈에 보이게 */
+.unitscroll .unit-bigbar + .hwgroup,
+.unitscroll .unit-bigbar ~ .hwgroup { padding-left: 8px; }
+
+/* **판 안에서만 굴러가는 단원 목록** (원장님, 2026-08-17 — 「진도 단원
+   내용도 많은데 페이지 자체가 다 움직여버리니까」). 단원이 많으면 판이
+   이 높이에서 멈추고 안쪽만 스크롤된다 — 교재 이름·도구 줄은 위에 남는다. */
+.unitscroll { max-height: min(62vh, 620px); overflow-y: auto; overscroll-behavior: contain; }
+
+/* 교재 화면 단원 표 — 대단원 줄은 줄 전체가 다르게 보이게 */
+.unitrow-big td { background: var(--surface-2); font-weight: 700; }
+.unitrow-big td:first-child { border-left: 4px solid var(--navy); }
+.unitrow-mid td { background: color-mix(in srgb, var(--sky-soft) 35%, transparent); }
 .unitrow {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 6px 8px; background: var(--surface); border: 1px solid var(--border);
@@ -1155,8 +1199,10 @@ input[type="date"] { min-width: 148px; }
 .brandmark img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 /* 재원생 표 — 바깥에 overflow:hidden 을 걸면 오른쪽 판의 sticky 가 죽는다.
-   그래서 모서리 다듬기는 표를 감싼 안쪽에서 한다. */
-.splitview > .tblwrap { border-radius: var(--radius); overflow: hidden; }
+   그래서 모서리 다듬기는 표를 감싼 안쪽에서 한다.
+   hidden 이 아니라 auto — hidden 이면 위의 「표 안에서만 굴러간다」
+   max-height 에 걸린 긴 표가 잘린 채 굴릴 수도 없게 된다. */
+.splitview > .tblwrap { border-radius: var(--radius); overflow: auto; }
 
 /* 오른쪽 판의 머리줄 — 판이 화면보다 길어 안쪽이 스크롤될 때도
    이름과 「닫기」 는 남아 있어야 한다. 누구를 보고 있는지가 사라지면 안 된다. */

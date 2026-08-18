@@ -282,7 +282,9 @@ export default function UnitList({
             const editing = editId === u.id;
             return (
               <Fragment key={u.id}>
-              <tr>
+              {/* 대·중·소가 라벨 색만으로는 안 갈렸다 (원장님 2026-08-17) —
+                  대단원 줄은 줄 전체에 바탕색·왼쪽 남색 띠를 준다 */}
+              <tr className={depth === 0 ? "unitrow-big" : depth === 1 ? "unitrow-mid" : ""}>
                 <td>
                   <input type="checkbox" checked={sel.has(u.id)} onChange={() => toggleOne(u.id)} />
                 </td>

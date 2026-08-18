@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   listStudentUnits,
@@ -60,7 +60,21 @@ export default function BookProgress({
   const [uptoMode, setUptoMode] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [pending, startTransition] = useTransition();
+  /**
+   * **저장됐다는 표시** (원장님, 2026-08-17 — 「진도 다 표시했는데
+   * 저장버튼도 없고 다 날아감」). 저장 단추가 없는 건 누르는 순간
+   * 저장되기 때문인데, 그걸 화면이 말을 안 해줘서 저장됐는지 알 수가
+   * 없었다. 마지막으로 저장된 시각을 보여준다.
+   */
+  const [savedAt, setSavedAt] = useState(null);
   const router = useRouter();
+
+  function stampSaved() {
+    const d = new Date();
+    setSavedAt(
+      `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+    );
+  }
 
   async function load() {
     const res = await listStudentUnits(studentId, book.id);
@@ -102,6 +116,7 @@ export default function BookProgress({
         load();
         return;
       }
+      stampSaved();
       router.refresh();
     });
   }
@@ -115,7 +130,8 @@ export default function BookProgress({
     );
     startTransition(async () => {
       const res = await setUnitProgress(studentId, ids, done ? "done" : null);
-      if (res?.error) alert(res.error);
+      if (res?.error) { alert(res.error); load(); return; }
+      stampSaved();
       router.refresh();
     });
   }
@@ -154,6 +170,7 @@ export default function BookProgress({
         load();
         return;
       }
+      stampSaved();
       router.refresh();
     });
   }
@@ -181,6 +198,7 @@ export default function BookProgress({
       }
       const res2 = await setUnitProgress(studentId, [unitId], "doing");
       if (res2?.error) { alert(res2.error); load(); return; }
+      stampSaved();
       router.refresh();
     });
   }
@@ -357,12 +375,20 @@ export default function BookProgress({
                 <button className="btn btn-ghost btn-sm" onClick={() => markAll(false)} disabled={pending}>
                   전체 해제
                 </button>
+                {(pending || savedAt) && (
+                  <span
+                    className={`tag ${pending ? "tag-amber" : "tag-mint"}`}
+                    style={{ alignSelf: "center" }}
+                  >
+                    {pending ? "저장 중…" : `✓ ${savedAt} 저장됨`}
+                  </span>
+                )}
                 <span className="hint" style={{ alignSelf: "center" }}>
                   {uptoMode
                     ? "지금 하는 단원을 누르세요 — 그 단원은 ◐, 그 앞은 전부 ○ 완료"
                     : selMode
                     ? "바꿀 단원을 누르고, 아래에서 한 번에 적으세요"
-                    : "누를 때마다 안 함 → ◐ 하는 중 → ○ 완료. 여러 개면 ☑ 골라서"}
+                    : "누를 때마다 안 함 → ◐ 하는 중 → ○ 완료 — 누르는 순간 저장돼요"}
                 </span>
               </div>
               {selMode && (
@@ -382,50 +408,43 @@ export default function BookProgress({
                   </button>
                 </div>
               )}
-              <div className="stack" style={{ gap: 4 }}>
-                {annotateBigs(groupByParent(units, q)).map(({ head, list, big, bigFirst, bigIds }) => (
-                  <div className="hwgroup" style={{ flexWrap: "wrap" }} key={head || "_"}>
-                    {/* 대단원 이름이 길면(고교영문법 3300제) 왼쪽 라벨이 카드
-                        절반을 먹고 칩이 좁은 오른쪽에 한 줄씩 쌓였다 (원장님,
-                        2026-08-17 「학생별 교재 화면이 이상해」). 라벨이 길면
-                        칩 묶음(flex 300px)이 아랫줄 전체 너비로 내려온다 */}
+              <div className="stack unitscroll" style={{ gap: 4 }}>
+                {annotateBigs(groupByParent(units, q)).map(({ head, mid, list, big, bigStart, bigIds }) => (
+                  <Fragment key={head || "_"}>
                     {/**
-                      * **대단원 통째로** (원장님, 2026-08-14 — 「그래도 대단원
-                      * 자체를 통째로 선택하는 게 안 돼」). 소단원까지 있는
-                      * 교재는 묶음 머리가 「대단원 › 중단원」 이라, 머리를
-                      * 눌러도 중단원 하나만 담겼다. 대단원이 여러 묶음으로
-                      * 쪼개졌을 때만 그 첫 묶음 위에 통째 단추를 단다.
+                      * **대단원은 판을 가로지르는 막대** (원장님, 2026-08-17 —
+                      * 「대중소단원 구별이 너무 안돼. 색깔이 다 비슷비슷해서
+                      * 내용이 구조로 빨리 파악이 안돼」). 대=막대 · 중=하늘
+                      * 라벨 · 소=알약, 세 층이 다른 얼굴을 갖는다.
+                      * 고르기 모드에서는 막대가 「통째로」 단추다 (2026-08-14
+                      * 「대단원 자체를 통째로 선택하는 게 안 돼」).
                       */}
-                    {bigFirst && selMode && (
-                      <div className="row" style={{ marginBottom: 2 }}>
-                        <button
-                          className="tag tag-lav hwcat"
-                          style={{ width: "auto", cursor: "pointer", border: 0, fontFamily: "inherit", fontWeight: 800 }}
-                          title="이 대단원의 소단원 전체를 담거나 뺍니다"
-                          onClick={() => {
-                            setSelUnits((prev) => {
-                              const n = new Set(prev);
-                              const all = bigIds.every((x) => n.has(x));
-                              bigIds.forEach((x) => (all ? n.delete(x) : n.add(x)));
-                              return n;
-                            });
-                          }}
-                        >
-                          {bigIds.every((x) => selUnits.has(x)) ? "☑" : "☐"} {big} 통째로
-                        </button>
-                      </div>
-                    )}
-                    {/**
-                      * 고르기 모드에서는 **대단원 머리가 단추다** (원장님,
-                      * 2026-08-14 — 「대단원 전체를 선택할 수 있게. 선택을
-                      * 너무 많이 해야 해서」). 누르면 그 묶음 소단원이
-                      * 한꺼번에 담기고, 다 담겨 있으면 한꺼번에 빠진다.
-                      */}
-                    {head && selMode ? (
+                    {bigStart && (selMode ? (
                       <button
-                        className="tag tag-lav hwcat"
+                        className="unit-bigbar"
+                        title="이 대단원의 단원 전체를 담거나 뺍니다"
+                        onClick={() => {
+                          setSelUnits((prev) => {
+                            const n = new Set(prev);
+                            const all = bigIds.every((x) => n.has(x));
+                            bigIds.forEach((x) => (all ? n.delete(x) : n.add(x)));
+                            return n;
+                          });
+                        }}
+                      >
+                        {bigIds.every((x) => selUnits.has(x)) ? "☑" : "☐"} {big}
+                        <span className="hint" style={{ fontWeight: 600 }}> 통째로</span>
+                      </button>
+                    ) : (
+                      <div className="unit-bigbar">{big}</div>
+                    ))}
+                    <div className="hwgroup" style={{ flexWrap: "wrap" }}>
+                    {/* 중단원 — 고르기 모드에서는 이 묶음만 담는 단추 */}
+                    {mid && selMode ? (
+                      <button
+                        className="tag tag-sky hwcat"
                         style={{ width: "auto", cursor: "pointer", border: 0, fontFamily: "inherit" }}
-                        title="이 대단원 전체를 담거나 뺍니다"
+                        title="이 중단원 전체를 담거나 뺍니다"
                         onClick={() => {
                           const ids = list.map((u) => u.id);
                           setSelUnits((prev) => {
@@ -436,10 +455,10 @@ export default function BookProgress({
                           });
                         }}
                       >
-                        {list.every((u) => selUnits.has(u.id)) ? "☑" : "☐"} {head}
+                        {list.every((u) => selUnits.has(u.id)) ? "☑" : "☐"} {mid}
                       </button>
-                    ) : head ? (
-                      <span className="tag tag-muted hwcat" style={{ width: "auto" }}>{head}</span>
+                    ) : mid ? (
+                      <span className="tag tag-sky hwcat" style={{ width: "auto" }}>{mid}</span>
                     ) : null}
                     <div className="row" style={{ gap: 4, flex: "1 1 300px", minWidth: 0 }}>
                       {list.map((u) => {
@@ -513,7 +532,8 @@ export default function BookProgress({
                         );
                       })}
                     </div>
-                  </div>
+                    </div>
+                  </Fragment>
                 ))}
               </div>
             </>
@@ -534,14 +554,15 @@ function annotateBigs(groups) {
   const rows = groups.map(([head, list]) => ({
     head,
     list,
-    big: head && head.includes(" › ") ? head.split(" › ")[0] : "",
+    // 묶음 머리가 「대단원 › 중단원」 이면 쪼개고, 「대단원」 뿐이면 통째로 대단원
+    big: head ? head.split(" › ")[0] : "",
+    mid: head && head.includes(" › ") ? head.split(" › ").slice(1).join(" › ") : "",
   }));
-  const count = new Map();
-  rows.forEach((g) => { if (g.big) count.set(g.big, (count.get(g.big) || 0) + 1); });
   let prev = null;
   rows.forEach((g) => {
-    g.bigFirst = !!g.big && g.big !== prev && (count.get(g.big) || 0) > 1;
-    g.bigIds = g.bigFirst
+    // 새 대단원이 시작되는 묶음 — 여기에 대단원 막대를 세운다
+    g.bigStart = !!g.big && g.big !== prev;
+    g.bigIds = g.bigStart
       ? rows.filter((x) => x.big === g.big).flatMap((x) => x.list.map((u) => u.id))
       : [];
     prev = g.big || null;
