@@ -140,7 +140,13 @@ export default async function TextbooksPage({ searchParams }) {
   let { data: students, error: stuErr } = studentsQ;
   if (stuErr) students = [];
 
-  const selectedId = searchParams?.tb || textbooks?.[0]?.id || null;
+  /**
+   * 고른 교재가 없으면 **목록만** (원장님, 2026-08-18 — 「맨 처음에 저
+   * 교재는 왜 뜨는 거야? 목록만 보고 싶어」). 전에는 첫 교재(=가장 최근
+   * 만든 것)를 자동으로 펴서, 엑셀로 새 교재가 생길 때마다 그게 첫
+   * 화면을 차지했다.
+   */
+  const selectedId = searchParams?.tb || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
 
   /**
