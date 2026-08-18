@@ -22,6 +22,42 @@ export const maxDuration = 60;
  *
  * 원장님 로그인(직원)으로만 돈다 — 브라우저에서 부르는 일회성 청소.
  */
+/**
+ * GET ?op=end-dead — **죽은 교재의 산 배정 끝내기** (원장님, 2026-08-18 —
+ * 「사용중이지 않은 교재가 사용중이라고 체크되어 있어」).
+ * 이관으로 들어온 옛 배정이 종료 없이 살아 있어서, 절판·중단된 책이
+ * 진도·오늘 수업에 「사용중」 으로 섰다. 책이 죽었으면 배정도 끝낸다
+ * (ended_on 오늘 · status done). 폰에서 이 주소를 열면 된다 — 원장님
+ * 로그인으로만 돈다.
+ */
+export async function GET(request) {
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
+  const op = new URL(request.url).searchParams.get("op");
+  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead 로 열어주세요." }, { status: 400 });
+
+  const { data: dead } = await supabase
+    .from("textbooks").select("id, name").neq("status", "active").not("status", "is", null);
+  const ids = (dead || []).map((b) => b.id);
+  if (!ids.length) return NextResponse.json({ ok: true, ended: 0, note: "죽은 교재가 없어요." });
+
+  const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  const { data: endedRows, error } = await supabase
+    .from("student_textbooks")
+    .update({ status: "done", ended_on: today })
+    .in("textbook_id", ids)
+    .eq("status", "active")
+    .select("student_id, textbook_id");
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const nameOf = new Map((dead || []).map((b) => [b.id, b.name]));
+  return NextResponse.json({
+    ok: true,
+    ended: (endedRows || []).length,
+    detail: (endedRows || []).slice(0, 60).map((r) => nameOf.get(r.textbook_id) || r.textbook_id),
+  });
+}
+
 export async function POST(request) {
   const supabase = createClient();
   const guard = await requireStaff(supabase);
