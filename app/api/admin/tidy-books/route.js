@@ -42,10 +42,24 @@ export async function GET(request) {
   const ids = (dead || []).map((b) => b.id);
   if (!ids.length) return NextResponse.json({ ok: true, ended: 0, note: "죽은 교재가 없어요." });
 
+  /**
+   * 「끝냄(done)」 이 아니라 **「배정 취소(dropped)」** 다 (원장님,
+   * 2026-08-18 — 「한 적 없는 교재들이 했다고 들어가 있네」). 이관
+   * 잔재는 실제로 한 적이 없으니 「했던 교재」 기록에 서면 거짓말이
+   * 된다. dropped 는 기록 화면에도 안 선다.
+   * 첫 실행에서 done 으로 찍었던 것(오늘 날짜)도 여기서 되돌린다.
+   */
   const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  const { data: fixedRows } = await supabase
+    .from("student_textbooks")
+    .update({ status: "dropped" })
+    .in("textbook_id", ids)
+    .eq("status", "done")
+    .eq("ended_on", today)
+    .select("student_id");
   const { data: endedRows, error } = await supabase
     .from("student_textbooks")
-    .update({ status: "done", ended_on: today })
+    .update({ status: "dropped", ended_on: today })
     .in("textbook_id", ids)
     .eq("status", "active")
     .select("student_id, textbook_id");
@@ -54,6 +68,7 @@ export async function GET(request) {
   return NextResponse.json({
     ok: true,
     ended: (endedRows || []).length,
+    fixedFromDone: (fixedRows || []).length,   // done 으로 잘못 찍혔다 정정된 수
     detail: (endedRows || []).slice(0, 60).map((r) => nameOf.get(r.textbook_id) || r.textbook_id),
   });
 }
