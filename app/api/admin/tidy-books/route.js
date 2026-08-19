@@ -37,10 +37,27 @@ export async function GET(request) {
   const supabase = createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
-  const op = new URL(request.url).searchParams.get("op");
+  const url = new URL(request.url);
+  const op = url.searchParams.get("op");
   if (op === "dedupe-units") return dedupeUnits(supabase, request);
   if (op === "prune-units") return pruneUnits(supabase, request);
-  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead · dedupe-units · prune-units 로 열어주세요." }, { status: 400 });
+  /**
+   * op=twins&keep=남길이름&twin=합칠이름(&twin=… 반복) — 쌍둥이 합치기를
+   * **주소 한 번으로** (원장님, 2026-08-19 — 「첫단추 독해유형편」 두 권이
+   * 「같은책이야」). POST 와 같은 일을 한다. 폰에서 열 수 있게 GET 으로도
+   * 받는다 — 원장님 로그인으로만 돈다.
+   */
+  if (op === "twins") {
+    const keep = (url.searchParams.get("keep") || "").trim();
+    const twins = url.searchParams.getAll("twin").map((s) => s.trim()).filter(Boolean);
+    if (!keep || !twins.length) {
+      return NextResponse.json({ error: "keep= 과 twin= 을 주세요." }, { status: 400 });
+    }
+    const wipe = url.searchParams.get("wipe") === "1";
+    const out = await tidyGroups(supabase, [{ keep, twins, wipeKeeperUnits: wipe }]);
+    return NextResponse.json({ ok: true, results: out });
+  }
+  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead · dedupe-units · prune-units · twins 로 열어주세요." }, { status: 400 });
 
   const { data: dead } = await supabase
     .from("textbooks").select("id, name").neq("status", "active").not("status", "is", null);
@@ -345,9 +362,13 @@ export async function POST(request) {
   }
   const groups = Array.isArray(body?.groups) ? body.groups : [];
   if (!groups.length) return NextResponse.json({ error: "groups 가 비었어요." }, { status: 400 });
+  const out = await tidyGroups(supabase, groups);
+  return NextResponse.json({ ok: true, results: out });
+}
 
+async function tidyGroups(supabase, groups) {
   const { data: books, error: bErr } = await supabase.from("textbooks").select("id, name");
-  if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
+  if (bErr) return [{ errors: [bErr.message] }];
   const idOf = new Map((books || []).map((b) => [b.name.trim(), b.id]));
 
   const out = [];
@@ -401,5 +422,5 @@ export async function POST(request) {
     out.push(res);
   }
 
-  return NextResponse.json({ ok: true, results: out });
+  return out;
 }
