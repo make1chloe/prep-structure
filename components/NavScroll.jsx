@@ -59,15 +59,46 @@ export default function NavScroll() {
       last = y;
     };
 
-    const onScroll = () => {
+    /**
+     * **판 안쪽 스크롤도 듣는다** (원장님, 2026-08-19 — 「진도를 위로
+     * 올리면 대메뉴가 안 접혀」). 진도 판·긴 표가 판 안에서만 굴러가게
+     * 되면서(unitscroll·tblwrap) window 는 가만히 있다 — window 만 듣던
+     * 이 감지가 벙어리가 됐다. document 캡처로 모든 스크롤을 받아,
+     * 굴린 상자가 무엇이든 같은 규칙(내려가면 접고, 많이 올라오면 편다)
+     * 을 적용한다.
+     */
+    const mem = new WeakMap(); // 안쪽 상자 -> { last, lowest }
+    const measureEl = (el) => {
+      queued = false;
+      const y = el.scrollTop;
+      const m = mem.get(el) || { last: y, lowest: y };
+      if (y <= NEAR_TOP && window.scrollY <= NEAR_TOP) {
+        set("full");
+        m.lowest = y;
+      } else if (y > m.last) {
+        set("compact");
+        m.lowest = y;
+      } else if (m.lowest - y > UP_ENOUGH) {
+        set("full");
+      }
+      m.last = y;
+      mem.set(el, m);
+    };
+
+    const onScroll = (e) => {
       if (queued) return;
       queued = true;
-      requestAnimationFrame(measure);
+      const t = e?.target;
+      const isWindow =
+        !t || t === document || t === document.documentElement || t === document.body;
+      if (isWindow || !(t instanceof Element)) requestAnimationFrame(measure);
+      else requestAnimationFrame(() => measureEl(t));
     };
 
     measure();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    // capture — 안쪽 상자의 scroll 은 window 까지 안 떠오른다(버블 안 됨)
+    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => document.removeEventListener("scroll", onScroll, { capture: true });
   }, []);
 
   return null;

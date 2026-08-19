@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/guard";
+import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -35,7 +36,8 @@ export async function GET(request) {
   const guard = await requireStaff(supabase);
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
   const op = new URL(request.url).searchParams.get("op");
-  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead 로 열어주세요." }, { status: 400 });
+  if (op === "dedupe-units") return dedupeUnits(supabase, request);
+  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead 또는 op=dedupe-units 로 열어주세요." }, { status: 400 });
 
   const { data: dead } = await supabase
     .from("textbooks").select("id, name").neq("status", "active").not("status", "is", null);
@@ -70,6 +72,188 @@ export async function GET(request) {
     ended: (endedRows || []).length,
     fixedFromDone: (fixedRows || []).length,   // done 으로 잘못 찍혔다 정정된 수
     detail: (endedRows || []).slice(0, 60).map((r) => nameOf.get(r.textbook_id) || r.textbook_id),
+  });
+}
+
+/**
+ * **쌍둥이 단원 청소** (원장님, 2026-08-19 — 「왜 단원이 중복되지?」).
+ *
+ * 단원 엑셀에는 한 줄인데 DB 에 같은 단원이 2~5개씩 있다 — 색인이
+ * 1000줄에서 잘리던 시절(fetchAll 전)의 업로드 재시도가 「이미 있음」 을
+ * 못 보고 매번 새로 넣은 잔재다. 넣던 길은 고쳐졌으니 남은 중복만 걷는다.
+ *
+ * 같은 (교재 · 같은 자리(부모) · 이름 · 라벨 · 쪽 · 문제번호) 는 한 몸으로
+ * 본다. 맨 먼저 만든 것을 남기고:
+ *  - 남는 단원의 부모가 지워질 쪽이면 부모를 남는 쪽으로 옮기고,
+ *  - 진도(student_unit_progress)는 남는 쪽으로 합치고 (남는 쪽에 이미
+ *    기록이 있으면 채워진 쪽을 남긴다),
+ *  - 숙제·수업 기록(daily_report_items 등)의 단원 연결도 남는 쪽으로,
+ *  - 그 다음 중복을 지운다.
+ * ?dry=1 이면 지우지 않고 세기만 한다.
+ */
+async function dedupeUnits(supabase, request) {
+  const dry = new URL(request.url).searchParams.get("dry") === "1";
+
+  const { data: units, error: uErr } = await fetchAll(() =>
+    supabase
+      .from("textbook_units")
+      .select("id, textbook_id, parent_id, label, name, page_start, page_end, question_no, sort")
+      .order("id")
+  );
+  if (uErr) {
+    // 0070 전 DB 는 question_no 가 없다
+    const { data: u2, error: e2 } = await fetchAll(() =>
+      supabase
+        .from("textbook_units")
+        .select("id, textbook_id, parent_id, label, name, page_start, page_end, sort")
+        .order("id")
+    );
+    if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+    return dedupeCore(supabase, u2, dry);
+  }
+  return dedupeCore(supabase, units, dry);
+}
+
+async function dedupeCore(supabase, units, dry) {
+  const byId = new Map(units.map((u) => [u.id, u]));
+  const depthOf = (u) => {
+    let d = 0;
+    for (let p = u.parent_id; p; p = byId.get(p)?.parent_id) {
+      if (++d > 6) break; // 고리 방어
+    }
+    return d;
+  };
+  // 위(대단원)부터 — 부모가 어느 쪽으로 남는지 정해져야 자식 열쇠가 맞다
+  const ordered = [...units].sort(
+    (a, b) => depthOf(a) - depthOf(b) || (a.sort ?? 0) - (b.sort ?? 0) || (a.id < b.id ? -1 : 1)
+  );
+  const canon = new Map();   // 지워질 id -> 남는 id
+  const firstOf = new Map(); // 열쇠 -> 남는 id
+  for (const u of ordered) {
+    const pk = u.parent_id ? canon.get(u.parent_id) || u.parent_id : "root";
+    const key = [
+      u.textbook_id, pk, (u.name || "").trim(), (u.label || "").trim(),
+      u.page_start ?? "", u.page_end ?? "", (u.question_no || "").toString().trim(),
+    ].join("|");
+    if (firstOf.has(key)) canon.set(u.id, firstOf.get(key));
+    else firstOf.set(key, u.id);
+  }
+  const dupIds = [...canon.keys()];
+  const bookCount = new Map();
+  for (const id of dupIds) {
+    const b = byId.get(id)?.textbook_id;
+    bookCount.set(b, (bookCount.get(b) || 0) + 1);
+  }
+  const { data: bookRows } = await supabase.from("textbooks").select("id, name");
+  const bookName = new Map((bookRows || []).map((b) => [b.id, b.name]));
+  const byBook = [...bookCount.entries()]
+    .map(([b, n]) => `${bookName.get(b) || b}: ${n}`)
+    .slice(0, 40);
+  const summary = { ok: true, dry, dups: dupIds.length, books: bookCount.size, byBook };
+  if (!dupIds.length || dry) return NextResponse.json(summary);
+
+  const chunks = (arr, n = 150) => {
+    const out = [];
+    for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+    return out;
+  };
+  const dupSet = new Set(dupIds);
+
+  // 1) 살아남는 단원의 부모가 지워질 쪽이면 남는 쪽으로
+  let reparented = 0;
+  for (const u of units) {
+    if (dupSet.has(u.id)) continue;
+    if (u.parent_id && dupSet.has(u.parent_id)) {
+      await supabase
+        .from("textbook_units")
+        .update({ parent_id: canon.get(u.parent_id) })
+        .eq("id", u.id);
+      reparented += 1;
+    }
+  }
+
+  // 2) 진도 합치기 — 남는 쪽에 (학생·회독) 기록이 없으면 옮기고, 있으면
+  //    채워진 쪽을 남긴다 (지워질 쪽만 status 가 있으면 그걸 남는 쪽에 쓴다)
+  let movedProgress = 0, mergedProgress = 0;
+  const keeperIds = [...new Set(canon.values())];
+  const progOf = async (ids) => {
+    const rows = [];
+    for (const c of chunks(ids)) {
+      const { data } = await fetchAll(() =>
+        supabase
+          .from("student_unit_progress")
+          .select("student_id, textbook_unit_id, round, status, done_on, note")
+          .in("textbook_unit_id", c)
+          .order("student_id")
+      );
+      rows.push(...(data || []));
+    }
+    return rows;
+  };
+  const dupProg = await progOf(dupIds);
+  if (dupProg.length) {
+    const keepProg = await progOf(keeperIds);
+    const keepKey = new Map(
+      keepProg.map((r) => [`${r.student_id}|${r.textbook_unit_id}|${r.round ?? 1}`, r])
+    );
+    for (const r of dupProg) {
+      const keeper = canon.get(r.textbook_unit_id);
+      const k = `${r.student_id}|${keeper}|${r.round ?? 1}`;
+      const exist = keepKey.get(k);
+      if (!exist) {
+        const { error } = await supabase
+          .from("student_unit_progress")
+          .update({ textbook_unit_id: keeper })
+          .eq("student_id", r.student_id)
+          .eq("textbook_unit_id", r.textbook_unit_id)
+          .eq("round", r.round ?? 1);
+        if (!error) { movedProgress += 1; keepKey.set(k, { ...r, textbook_unit_id: keeper }); }
+      } else if (!exist.status && r.status) {
+        await supabase
+          .from("student_unit_progress")
+          .update({ status: r.status, done_on: r.done_on, note: exist.note || r.note })
+          .eq("student_id", r.student_id)
+          .eq("textbook_unit_id", keeper)
+          .eq("round", exist.round ?? 1);
+        mergedProgress += 1;
+      }
+      // 남는 쪽이 이미 채워져 있으면 그대로 — 지워질 쪽 기록은 cascade 로 사라진다
+    }
+  }
+
+  // 3) 숙제·수업 기록의 단원 연결 — 걸린 줄만 골라 남는 쪽으로
+  const repointed = {};
+  for (const table of ["daily_report_items", "daily_assignments", "student_curriculum", "class_progress"]) {
+    try {
+      let n = 0;
+      for (const c of chunks(dupIds)) {
+        const { data: rows } = await supabase
+          .from(table).select("id, textbook_unit_id").in("textbook_unit_id", c);
+        for (const r of rows || []) {
+          await supabase
+            .from(table)
+            .update({ textbook_unit_id: canon.get(r.textbook_unit_id) })
+            .eq("id", r.id);
+          n += 1;
+        }
+      }
+      if (n) repointed[table] = n;
+    } catch { /* 없는 표(옛 DB)는 건너뜀 */ }
+  }
+
+  // 4) 중복 삭제 — 깊은 것(자식)부터, 부모 cascade 로 산 것이 딸려가지 않게
+  const delOrdered = [...dupIds].sort((a, b) => depthOf(byId.get(b)) - depthOf(byId.get(a)));
+  let removed = 0;
+  for (const c of chunks(delOrdered)) {
+    const { data: gone, error } = await supabase
+      .from("textbook_units").delete().in("id", c).select("id");
+    if (error) return NextResponse.json({ ...summary, error: error.message, removed }, { status: 500 });
+    removed += (gone || []).length;
+  }
+
+  return NextResponse.json({
+    ...summary,
+    removed, reparented, movedProgress, mergedProgress, repointed,
   });
 }
 

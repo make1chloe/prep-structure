@@ -283,6 +283,24 @@ export default function BookProgress({
                 {!book.bookPages && (
                   <span className="hint">교재 페이지에서 총 페이지를 넣으면 %가 나와요</span>
                 )}
+                {/* **단원 없이도 끝낼 수 있다** (원장님, 2026-08-19 —
+                    「단원입력없이 사용완료 처리도 가능하게해줘」). 끝냄
+                    단추가 단원 도구 줄에만 있어서, 단원을 안 만든 교재는
+                    끝낼 길이 없었다. */}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    if (!confirm(`${book.name} 을 다 끝낸 교재로 처리할까요?\n숙제·진도 화면에서 빠지고 학생 기록에만 남습니다.`)) return;
+                    startTransition(async () => {
+                      const res = await setStudentBookStatus(studentId, book.id, "done");
+                      if (res?.error) alert(res.error);
+                      router.refresh();
+                    });
+                  }}
+                  disabled={pending}
+                >
+                  이 교재 끝냄
+                </button>
               </div>
             </div>
           )}
