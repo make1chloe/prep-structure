@@ -168,6 +168,9 @@ export async function nextRoutine(studentId) {
       label: step.label || "",
       unit: unit ? unit.name : "",
       unitDone: !!unit?.allDone,
+      // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 화면이 교재별로 거른다
+      inclassItems: step.inclass_items || [],
+      homeItems: [...(step.home_items || []), ...(step.home_next || [])],
     });
   });
 

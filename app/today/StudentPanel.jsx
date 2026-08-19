@@ -275,6 +275,35 @@ export default function StudentPanel({
       .filter(([iid]) => next.has(iid))
       .flatMap(([, v]) => v.unitIds || [])
   );
+  /** 고른 교재 것만 차린다 — 등원·숙제·범위·메모 (원장님 2026-08-20 「3」) */
+  function applyRoutine(res, chosen) {
+    const steps = res.steps.filter((st) => chosen.has(st.textbookId));
+    const inc = steps.flatMap((st) => st.inclassItems || []);
+    const homeItems = steps.flatMap((st) => st.homeItems || []);
+    setRoutine({ ...res, steps });
+    setRoutinePick(null);
+    setInClass([...inClass, ...inc]);
+    const n = new Set(next);
+    homeItems.forEach((x) => n.add(x));
+    setNext(n);
+    // 루틴이 **범위까지** 채운다. 이미 범위를 고른 숙제는 안 건드린다.
+    const u = {};
+    Object.entries(res.itemUnits || {}).forEach(([iid, v]) => {
+      if (chosen.has(v.textbookId) && homeItems.includes(iid)) u[iid] = v;
+    });
+    if (Object.keys(u).length) {
+      setNextUnits((cur) => {
+        const m = { ...cur };
+        Object.entries(u).forEach(([iid, v]) => {
+          if ((m[iid]?.unitIds || []).length) return;
+          m[iid] = { ...v, note: m[iid]?.note || v.note || "" };
+        });
+        return m;
+      });
+      Object.values(u).forEach((v) => loadBook(v.textbookId));
+    }
+  }
+
   function pickHomework(book, u) {
     // 이미 담겨 있으면 뺀다 (어느 항목에 있든)
     for (const [iid, v] of Object.entries(nextUnits)) {
@@ -346,6 +375,9 @@ export default function StudentPanel({
   const [carryNext, setCarryNext] = useState(() => new Set(row.inClassCarry || []));
   const [openInClass, setOpenInClass] = useState(false);
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
+  // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 루틴 다음을 누르면 먼저
+  // 오늘 할 교재를 고른다. 교재가 하나면 바로 차린다.
+  const [routinePick, setRoutinePick] = useState(null); // { res, chosen:Set }
   const [wordWhen, setWordWhen] = useState(row.wordWhen || "start");
   // 전달사항 한 줄 → 학생공지·부모님공지를 한 번에 (0050)
   const [hint, setHint] = useState("");
@@ -1362,27 +1394,11 @@ export default function StudentPanel({
                     alert("이 학생 교재에는 아직 루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
                     return;
                   }
-                  setRoutine(res);
-                  setInClass([...inClass, ...res.inclass]);
-                  const n = new Set(next);
-                  res.home.forEach((x) => n.add(x));
-                  setNext(n);
-                  // 루틴이 **범위까지** 채운다. 항목만 채워주면 매번
-                  // 「그래서 몇 과였더라」 를 다시 찾아야 했다.
-                  // 이미 범위를 고른 숙제는 건드리지 않는다 — 손으로 정한 것이 먼저다.
-                  const u = res.itemUnits || {};
-                  if (Object.keys(u).length) {
-                    setNextUnits((cur) => {
-                      const m = { ...cur };
-                      Object.entries(u).forEach(([iid, v]) => {
-                        if ((m[iid]?.unitIds || []).length) return;
-                        // 루틴의 항목별 주의사항(0139)이 메모로 — 손으로
-                        // 적어둔 메모가 있으면 그게 이긴다
-                        m[iid] = { ...v, note: m[iid]?.note || v.note || "" };
-                      });
-                      return m;
-                    });
-                    Object.values(u).forEach((v) => loadBook(v.textbookId));
+                  // 교재가 하나면 바로, 여럿이면 먼저 고른다 (2026-08-20 「3」)
+                  if (res.steps.length === 1) {
+                    applyRoutine(res, new Set(res.steps.map((st) => st.textbookId)));
+                  } else {
+                    setRoutinePick({ res, chosen: new Set(res.steps.map((st) => st.textbookId)) });
                   }
                 })
               }
@@ -1393,6 +1409,42 @@ export default function StudentPanel({
               {openInClass ? "접기" : "고르기"}
             </button>
           </div>
+
+          {/* 오늘 할 교재 고르기 (2026-08-20 「3」) — 뺄 것만 눌러 끄고 차린다 */}
+          {routinePick && (
+            <div className="card card-tight" style={{ marginTop: 6 }}>
+              <b style={{ fontSize: 13.5 }}>오늘 할 교재만 남기세요</b>
+              <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                {routinePick.res.steps.map((st) => {
+                  const on = routinePick.chosen.has(st.textbookId);
+                  return (
+                    <button
+                      key={st.textbookId}
+                      className={`chip ${on ? "on" : ""}`}
+                      onClick={() => {
+                        const c = new Set(routinePick.chosen);
+                        on ? c.delete(st.textbookId) : c.add(st.textbookId);
+                        setRoutinePick({ ...routinePick, chosen: c });
+                      }}
+                    >
+                      {on ? "☑" : "☐"} {st.book}
+                      <span className="hint"> {st.label || st.unit}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setRoutinePick(null)}>취소</button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={routinePick.chosen.size === 0}
+                  onClick={() => applyRoutine(routinePick.res, routinePick.chosen)}
+                >
+                  이대로 차리기 ({routinePick.chosen.size}권)
+                </button>
+              </div>
+            </div>
+          )}
 
           {openInClass && (
             <div className="chips" style={{ marginTop: 8 }}>
