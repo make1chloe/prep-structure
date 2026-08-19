@@ -16,7 +16,15 @@ import { TIME_PRESETS, normalizeTime } from "@/lib/lateNotice";
  * 그 밖의 사유(상담·보강·학교 행사 …)는 직접 적어서 보낸다.
  * 데리러 오시는 분께 가는 문자라 발송 화면까지 가지 않고 여기서 바로 보낸다.
  */
-export default function LateBox({ studentId, date, reasons = [], saved = {} }) {
+export default function LateBox({
+  studentId,
+  date,
+  reasons = [],
+  saved = {},
+  // 단어 재시험 건너뛰기 (원장님 2026-08-19) — 사유 줄에서 바로 끄고 켠다
+  retestSkipped = false,
+  onSkipRetest = null,
+}) {
   const [until, setUntil] = useState(saved.until || "");
   const [reason, setReason] = useState(saved.reason || "");
   const [open, setOpen] = useState(false);
@@ -66,8 +74,28 @@ export default function LateBox({ studentId, date, reasons = [], saved = {} }) {
             <div className="unitrow" key={x.key}>
               <span className="tag tag-amber">{x.label}</span>
               <span className="hint" style={{ flex: 1, fontSize: 13 }}>{x.detail}</span>
+              {x.key === "retest" && onSkipRetest && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => onSkipRetest(true)}
+                  title="오늘은 재시험을 안 봅니다 — 사유·문구에서 빠져요. 점수 기록은 그대로예요"
+                >
+                  오늘은 건너뛰기
+                </button>
+              )}
             </div>
           ))}
+        </div>
+      )}
+      {/* 건너뛴 상태 — 어디서 사라졌는지 보이고, 한 번에 되돌린다 */}
+      {retestSkipped && (
+        <div className="unitrow" style={{ marginBottom: 8 }}>
+          <span className="tag tag-muted">단어 재시험 건너뜀</span>
+          {onSkipRetest && (
+            <button className="btn btn-ghost btn-sm" onClick={() => onSkipRetest(false)}>
+              되돌리기
+            </button>
+          )}
         </div>
       )}
 

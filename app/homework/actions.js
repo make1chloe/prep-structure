@@ -286,3 +286,26 @@ export async function deleteHomeworkItems(ids) {
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
+
+/**
+ * **단원평가 공통 단원 목록** (원장님, 2026-08-19 — 「단원평가는 교재단원과
+ * 별개로 문법 대단원으로 공통의 목록이 하나 필요함」).
+ * 관계사·수동태처럼 교재가 무엇이든 같은 문법 갈래 이름들 — 한 줄에 하나.
+ * integrations 'grammar_units' 에 담는다 (새 표를 만들 것 없이).
+ */
+export async function saveGrammarUnits(text) {
+  const supabase = createClient();
+  const names = (text || "")
+    .split(/\n+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const { error } = await supabase.from("integrations").upsert({
+    id: "grammar_units",
+    enabled: true,
+    config: { names },
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/homework");
+  revalidatePath("/today");
+  return { error: null, count: names.length };
+}

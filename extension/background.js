@@ -99,10 +99,16 @@ async function fetchPlannerMonth(userIdx, ym) {
     await fetch(`${CC}/Pro/ReportAllPlanner/0/${userIdx}/${y}/${Number(mo)}`, { credentials: "include" })
   ).text();
   const days = [];
-  const re = /<td class="day planner"[^>]*>[\s\S]*?>(\d{1,2})<[\s\S]*?<\/td>/g;
+  /**
+   * 클카 달력은 **홑따옴표**다: <td class='day planner' data-date='2026-08-11 …'>
+   * 쌍따옴표만 찾던 옛 정규식은 늘 0개를 읽어, 모든 학생이 「마감 없음」
+   * 으로 떴다 (원장님 2026-08-19 「플래너 설정되어 있는데 안 되어 있다는
+   * 경우가 있어」). data-date 를 그대로 읽는다 — 날짜 계산도 안 한다.
+   */
+  const re = /class=['"]day planner['"][^>]*data-date=['"](\d{4}-\d{2}-\d{2})/g;
   let m;
   while ((m = re.exec(html))) {
-    days.push(`${ym}-${String(m[1]).padStart(2, "0")}`);
+    days.push(m[1]);
   }
   return days;
 }

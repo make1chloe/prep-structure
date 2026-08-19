@@ -23,6 +23,7 @@ import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions"
 import { STAY_LABEL } from "@/lib/reportText";
 import { isMemo, inHomework } from "@/lib/notices";
 import { lateReasons } from "@/lib/lateNotice";
+import { skipWordRetest } from "./lateActions";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
 import { cutOf, verdict } from "@/lib/wordTest";
@@ -151,9 +152,14 @@ export default function StudentPanel({
   textbooks = [],
   unitNames = {},
   rule = {},
+  grammarCommon = [],
   onSaved,
 }) {
   const r = row.report || {};
+  // 오늘 단어 재시험 건너뛰기 (skip_kinds 'retest' — 원장님 2026-08-19)
+  const [retestSkip, setRetestSkip] = useState(() =>
+    (r.skip_kinds || []).includes("retest")
+  );
   const [form, setForm] = useState({
     attendance: row.status || "present",
     // attitude 칸이 곧 **집중도**다 (0118 — 이름만 바뀌고 칸은 그대로)
@@ -170,6 +176,9 @@ export default function StudentPanel({
       row.student?.word_test_count ??
       row.plannedWords?.total ??
       row.lastTotals?.word_total ??
+      // 마지막 폴백 — 단어 교재의 한 단원 단어 수 × 몇 단원씩 (2026-08-19
+      // 「단어 전체 갯수 안 뜸」)
+      row.wordDefault ??
       "",
     sent_correct: r.sent_correct ?? "",
     sent_total: r.sent_total ?? row.lastTotals?.sent_total ?? "",
@@ -195,6 +204,8 @@ export default function StudentPanel({
         : `범위 ${pw.units}단원 합계`
       : row.lastTotals?.word_total
       ? "지난번과 같은 개수"
+      : row.wordDefault
+      ? "교재 기본 (한 단원 단어 수 × 몇 단원씩)"
       : "";
 
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
@@ -1017,7 +1028,10 @@ export default function StudentPanel({
             <PickOrType
               className="input input-sm"
               style={{ width: 170 }}
-              options={grammarUnitNames}
+              options={[
+                ...grammarCommon,
+                ...grammarUnitNames.filter((n) => !grammarCommon.includes(n)),
+              ]}
               placeholder="단원명 (관계대명사)"
               title="그 학생 문법 교재의 단원에서 고르거나, 없으면 직접 적습니다. 적으면 성적에 단원평가로 쌓입니다"
               value={form.sent_unit}
@@ -1826,6 +1840,7 @@ export default function StudentPanel({
               report: {
                 word_correct: form.word_correct === "" ? null : Number(form.word_correct),
                 word_total: form.word_total === "" ? 0 : Number(form.word_total),
+                skip_kinds: retestSkip ? ["retest"] : [],
               },
               checks: weakOrMissing.map(({ iid, st }) => ({
                 name: nameOf(iid) || "숙제",
@@ -1835,6 +1850,14 @@ export default function StudentPanel({
             },
             rule
           )}
+          retestSkipped={retestSkip}
+          onSkipRetest={(on) => {
+            setRetestSkip(on);
+            startTransition(async () => {
+              const res = await skipWordRetest(row.student.id, date, on);
+              if (res?.error) { alert(res.error); setRetestSkip(!on); }
+            });
+          }}
         />
       </div>
 

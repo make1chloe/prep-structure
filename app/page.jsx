@@ -428,9 +428,26 @@ export default async function Home() {
                   <div>
                     <b className="hint">앞으로 3개월 스케줄</b>
                     <div className="stack" style={{ gap: 3, marginTop: 4 }}>
-                      {d.scheduleAlerts.slice(0, 8).map((a, i) => (
+                      {/* 타과목 시험은 학교 것이다 — 학교별로 묶어 정렬
+                          (원장님 2026-08-19 「학교시험이니까 학교별로 정렬해줘」) */}
+                      {[
+                        ...d.scheduleAlerts.filter((a) => a.kind !== "exam"),
+                        ...d.scheduleAlerts
+                          .filter((a) => a.kind === "exam")
+                          .sort(
+                            (a, b) =>
+                              (a.schools?.[0] || "").localeCompare(b.schools?.[0] || "", "ko") ||
+                              a.ym.localeCompare(b.ym)
+                          ),
+                      ].slice(0, 8).map((a, i) => (
                         <div className="hint" key={i}>
-                          <b>{a.klass}</b> {Number(a.ym.slice(5))}월 · {a.text}
+                          <b>
+                            {a.kind === "exam" && a.schools?.length
+                              ? a.schools.join(" · ")
+                              : a.klass}
+                          </b>{" "}
+                          {Number(a.ym.slice(5))}월 · {a.text}
+                          {a.kind === "exam" && a.schools?.length ? ` (${a.klass})` : null}
                           {a.advice && (
                             <>
                               <br />

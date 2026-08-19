@@ -76,6 +76,7 @@ export default async function TodayPage({ searchParams }) {
     todayTasksQ,
     unreadCmtQ,
     actQ1,
+    grammarQ,
   ] = await Promise.all([
     user
       ? cachedProfile(supabase, user.id)
@@ -114,7 +115,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
     supabase
       .from("daily_reports")
-      .select("id, student_id, attitude, understanding, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, notice, notice_student, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when")
+      .select("id, student_id, attitude, understanding, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, notice, notice_student, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when, skip_kinds")
       .eq("date", date),
     supabase
       .from("homework_items")
@@ -166,6 +167,8 @@ export default async function TodayPage({ searchParams }) {
       .from("student_activity")
       .select("student_id, state, updated_at, by_student")
       .eq("date", date),
+    // 단원평가 공통 단원 목록 (원장님 2026-08-19)
+    supabase.from("integrations").select("config").eq("id", "grammar_units").maybeSingle(),
   ]);
 
   const profile = profileQ?.data || null;
@@ -888,6 +891,26 @@ export default async function TodayPage({ searchParams }) {
   // 진도율 = 완료한 단원 ÷ 전체 단원 (분량이 있으면 분량 기준)
   // 순서와 상관없이 아무 단원이나 체크할 수 있으므로 "합계"로 센다
   // 교재는 **학생별**이다 — 정규든 특강이든. 반별 교재라는 개념은 안 쓴다.
+  /**
+   * **단어 전체 개수의 마지막 폴백** (원장님, 2026-08-19 — 「단어 전체
+   * 갯수 안 뜸」). 재원생 개수도, 범위 단원 합계도, 지난번 값도 없으면 —
+   * 그 학생 단어 교재의 「한 단원당 단어 수 × 한 번에 몇 단원씩」 으로
+   * 채운다. 단원마다 개수가 다른 교재는 못 짐작하니 비워둔다.
+   */
+  function wordDefaultOf(studentId) {
+    const ids = [...(booksOfStudent.get(studentId) || [])].filter(
+      (tid) => (bookAreaOf.get(tid) || "") === "단어"
+    );
+    for (const tid of ids) {
+      const cfg = wordCfg.get(tid);
+      if (!cfg || cfg.irregular || !cfg.range) continue;
+      const round = roundOf.get(`${studentId}|${tid}`) || 1;
+      const per = Number(wtOf.get(`${studentId}|${tid}|${round}`)?.units_per) || 1;
+      return cfg.range * per;
+    }
+    return null;
+  }
+
   function progressOf(studentId) {
     const ids = new Set(booksOfStudent.get(studentId) || []);
     return [...ids].map((tid) => {
@@ -1113,6 +1136,8 @@ export default async function TodayPage({ searchParams }) {
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
           plannedWords: plannedWordsOf(s.id),
+        wordDefault: wordDefaultOf(s.id),
+          wordDefault: wordDefaultOf(s.id),
           notices: noticesOfStudent.get(s.id) || [],
           books: progressOf(s.id),
           classId: klass.id,
@@ -1175,6 +1200,7 @@ export default async function TodayPage({ searchParams }) {
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),
         plannedWords: plannedWordsOf(s.id),
+        wordDefault: wordDefaultOf(s.id),
         notices: noticesOfStudent.get(s.id) || [],
         books: progressOf(s.id),
         reportWritten: !!rep?.report_written,
@@ -1428,6 +1454,7 @@ export default async function TodayPage({ searchParams }) {
           textbooks={textbooks}
           unitNames={unitNames}
           rule={{ ...warnRule, makeupDays }}
+          grammarCommon={grammarQ?.data?.config?.names || []}
           openStudent={searchParams?.open || null}
         />
       </main>

@@ -32,6 +32,30 @@ async function ensureReport(supabase, studentId, date) {
  * 자동으로 잡히는 사유(단어 재시험 · 늦귀가 과제)는 저장하지 않는다.
  * 이미 입력한 값에서 매번 계산하기 때문이다 — 리포트를 고치면 문구도 같이 맞는다.
  */
+/**
+ * **오늘은 단어 재시험 건너뛰기** (원장님, 2026-08-19). 시간이 없거나
+ * 다음에 몰아 보기로 한 날 — 자동으로 잡힌 「단어 재시험」 사유를 끈다.
+ * skip_kinds(0058) 에 'retest' 를 넣고 빼는 것뿐이라 점수 기록은 그대로다.
+ */
+export async function skipWordRetest(studentId, date, on) {
+  if (!studentId || !date) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const { id, error: idErr } = await ensureReport(supabase, studentId, date);
+  if (idErr || !id) return { error: idErr || "리포트를 만들지 못했어요." };
+  const { data: row } = await supabase
+    .from("daily_reports").select("skip_kinds").eq("id", id).single();
+  const now = new Set(row?.skip_kinds || []);
+  if (on) now.add("retest");
+  else now.delete("retest");
+  const { error } = await supabase
+    .from("daily_reports").update({ skip_kinds: [...now] }).eq("id", id);
+  if (noColumn(error)) return { error: "0058 SQL 을 먼저 실행해주세요." };
+  if (error) return { error: error.message };
+  revalidatePath("/today");
+  revalidatePath("/report");
+  return { error: null };
+}
+
 export async function saveLate(studentId, date, { until, reason, text } = {}) {
   if (!studentId || !date) return { error: "값이 부족해요." };
   const supabase = createClient();

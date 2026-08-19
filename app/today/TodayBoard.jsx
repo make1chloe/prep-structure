@@ -34,6 +34,7 @@ export default function TodayBoard({
   textbooks = [],
   unitNames = {},
   rule = {},
+  grammarCommon = [],
   openStudent = null,
 }) {
   // 수업 준비에서 「고치기」 로 넘어오면 그 학생 판을 **열어둔 채로** 시작한다.
@@ -454,6 +455,7 @@ export default function TodayBoard({
                               textbooks={textbooks}
                               unitNames={unitNames}
                               rule={rule}
+                              grammarCommon={grammarCommon}
                               onSaved={() => {
                                 setOpenId(null);
                                 // 먼저 넘긴다 — 재계산이 끝나면 서버 값이 이어받는다
