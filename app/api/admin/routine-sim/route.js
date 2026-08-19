@@ -24,6 +24,8 @@ export async function GET(request) {
   const supabase = createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
+  const op = new URL(request.url).searchParams.get("op");
+  if (op === "rebuild") return rebuildRoutines(supabase);
 
   const today = todaySeoul();
 
@@ -209,4 +211,133 @@ export async function GET(request) {
       예습다음단원없음: [...issues.예습다음단원없음],
     },
   });
+}
+
+
+/**
+ * **루틴 갈아엎고 굵은 판으로 다시 심기** (원장님, 2026-08-20 — 잘게 쪼갠
+ * 1차 업로드를 굵은 판(ㅇㅇ 확정)으로 교체).
+ *
+ * ① routine_steps 전부 삭제 (교재별·영역별 모두 — 학생의 현재 단계
+ *    기억(routine_step_id)은 다음 「루틴 다음」 때 처음 단계로 폴백된다)
+ * ② drafts.json 의 굵은 루틴을 다시 심는다 — 없는 학습항목은 만들고,
+ *    [대괄호]는 항목별 주의사항(item_notes)으로
+ * ③ 1차 때 생긴 잘게 쪼갠 항목들: 기록에 쓰인 적 없으면 삭제,
+ *    쓰였으면 숨김(active=false) — 기록은 절대 안 지운다
+ */
+async function rebuildRoutines(supabase) {
+  const out = { deletedSteps: 0, insertedSteps: 0, createdItems: [], removedItems: [], hiddenItems: [] };
+
+  // ① 루틴 전부 비우기
+  {
+    const { data: gone } = await supabase.from("routine_steps").delete().not("id", "is", null).select("id");
+    out.deletedSteps = (gone || []).length;
+  }
+
+  // ② 굵은 판 심기
+  const [{ data: books }, { data: items0 }] = await Promise.all([
+    supabase.from("textbooks").select("id, name, area"),
+    supabase.from("homework_items").select("id, name").eq("active", true),
+  ]);
+  const bookByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
+  const itemByName = new Map((items0 || []).map((i) => [i.name.trim(), i.id]));
+
+  const parse = (x) => {
+    const m = x.match(/^(.*?)\s*\[([^\]]+)\]\s*$/);
+    return m ? { name: m[1].trim(), note: m[2].trim() } : { name: x.trim(), note: "" };
+  };
+  const guessCat = (n) =>
+    /단어/.test(n) ? "단어"
+    : /문법/.test(n) ? "문법"
+    : /노트/.test(n) ? "노트"
+    : /내신/.test(n) ? "내신"
+    : /step|예습|독해|해석|지문|워크북/i.test(n) ? "독해"
+    : "기타";
+
+  // 필요한 항목 전부 모아 한 번에 만든다
+  const need = new Set();
+  const eachStep = (fn) => {
+    for (const [name, val] of Object.entries(DRAFTS.books)) {
+      const steps = typeof val === "string" ? DRAFTS.books[val] : val;
+      fn({ bookName: name }, steps);
+    }
+    for (const [area, steps] of Object.entries(DRAFTS.areas)) fn({ area }, steps);
+  };
+  eachStep((_t, steps) =>
+    steps.forEach((st) =>
+      [...(st.inclass || []), ...(st.home || []), ...(st.homeNext || [])].forEach((x) =>
+        need.add(parse(x).name)
+      )
+    )
+  );
+  const toMake = [...need].filter((n) => !itemByName.has(n));
+  if (toMake.length) {
+    const { data: made, error } = await supabase
+      .from("homework_items")
+      .insert(toMake.map((n, i) => ({ name: n, category: guessCat(n), active: true, sort: 900 + i })))
+      .select("id, name");
+    if (error) return NextResponse.json({ ...out, error: `항목 만들기 실패: ${error.message}` }, { status: 500 });
+    (made || []).forEach((i2) => { itemByName.set(i2.name.trim(), i2.id); out.createdItems.push(i2.name); });
+  }
+
+  const rows = [];
+  const missBooks = [];
+  eachStep((target, steps) => {
+    const bid = target.bookName ? bookByName.get(target.bookName.trim()) : null;
+    if (target.bookName && !bid) { missBooks.push(target.bookName); return; }
+    steps.forEach((st, i) => {
+      const item_notes = {};
+      const ids = (arr) =>
+        (arr || []).map((x) => {
+          const { name, note } = parse(x);
+          const id = itemByName.get(name);
+          if (id && note) item_notes[id] = note;
+          return id;
+        }).filter(Boolean);
+      rows.push({
+        textbook_id: bid,
+        ...(target.area ? { area: target.area } : {}),
+        sort: (i + 1) * 10,
+        label: st.label || "",
+        inclass_items: ids(st.inclass),
+        home_items: ids(st.home),
+        home_next: ids(st.homeNext),
+        item_notes,
+        round: st.round ?? null,
+      });
+    });
+  });
+  {
+    const { data: ins, error } = await supabase.from("routine_steps").insert(rows).select("id");
+    if (error) return NextResponse.json({ ...out, error: `루틴 심기 실패: ${error.message}` }, { status: 500 });
+    out.insertedSteps = (ins || []).length;
+  }
+
+  // ③ 1차의 잘게 쪼갠 항목 정리 (굵은 판에서 안 쓰는 것만)
+  const FINE = [
+    "클카 단어 3초훈련", "클카 입해석", "클카 낭독", "클카 녹음", "클카 스크램블",
+    "클카 암기 100%", "클카 단어매칭", "Step3 기호표시", "Step4 한글뜻쓰기", "Step5 영작",
+    "테스트북 영작", "SVOCM 표시", "틀린 문장 해석쓰기", "예습 문제풀기", "예습숙제 채점",
+    "품사 쇼츠 빈칸채우기", "불규칙동사 녹음 인증", "워크북 채점", "세모별표 검사",
+    "워크북 문제풀기", "끊어읽기 표시", "한줄해석쓰기", "구조정리·문제풀기", "구조정리",
+    "모르는 단어 뜻쓰기", "예습 단어문제풀기", "예습 지문문제풀기", "틀린문제 클카 3단계",
+    "자유 1회독", "분석지 정독", "N회독 날짜기록", "변형문제 풀기", "형광펜 중요표시",
+    "문답노트 요약정리",
+  ].filter((n) => need.has(n) === false);
+  const { data: fineRows } = await supabase
+    .from("homework_items").select("id, name").in("name", FINE);
+  for (const it of fineRows || []) {
+    const { data: used } = await supabase
+      .from("daily_report_items").select("id").eq("homework_item_id", it.id).limit(1);
+    if ((used || []).length) {
+      await supabase.from("homework_items").update({ active: false }).eq("id", it.id);
+      out.hiddenItems.push(it.name);
+    } else {
+      const { error } = await supabase.from("homework_items").delete().eq("id", it.id);
+      if (!error) out.removedItems.push(it.name);
+      else { await supabase.from("homework_items").update({ active: false }).eq("id", it.id); out.hiddenItems.push(it.name); }
+    }
+  }
+
+  return NextResponse.json({ ok: true, ...out, missBooks });
 }

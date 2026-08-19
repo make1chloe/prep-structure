@@ -1322,7 +1322,7 @@ export default function StudentPanel({
                           setCarryNext(n);
                         }}
                       >
-                        다음 수업에
+                        다음수업
                       </button>
                       <button
                         className="btn btn-ghost btn-sm"
