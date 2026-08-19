@@ -252,6 +252,57 @@ export default function StudentPanel({
     return seed;
   });
   const [unitsByBook, setUnitsByBook] = useState({});   // textbookId → options
+
+  /**
+   * **진도 판에서 숙제로 담기** (원장님, 2026-08-19 — 「오늘 숙제로 나갈
+   * 부분을 따로 표시해서 숙제에 반영」). 저장소는 nextUnits 하나다 —
+   * 여기서 담은 것과 아래 「다음 숙제 배정」 에서 고른 것이 같은 값이다
+   * (원칙 1). 이미 담긴 단원을 다시 누르면 빠진다.
+   */
+  const hwPicked = new Set(
+    Object.entries(nextUnits)
+      .filter(([iid]) => next.has(iid))
+      .flatMap(([, v]) => v.unitIds || [])
+  );
+  function pickHomework(book, u) {
+    // 이미 담겨 있으면 뺀다 (어느 항목에 있든)
+    for (const [iid, v] of Object.entries(nextUnits)) {
+      if (next.has(iid) && (v.unitIds || []).includes(u.id)) {
+        setNextUnits((m) => ({
+          ...m,
+          [iid]: { ...m[iid], unitIds: (m[iid].unitIds || []).filter((x) => x !== u.id) },
+        }));
+        return;
+      }
+    }
+    // 담을 항목: ① 이미 이 교재로 단원을 고르는 항목 ② 영역이 맞는 항목
+    const cand =
+      toCheck.find((iid) => next.has(iid) && nextUnits[iid]?.textbookId === book.id) ||
+      toCheck.find((iid) => nextUnits[iid]?.textbookId === book.id) ||
+      toCheck.find((iid) => bookFor(iid) === book.id);
+    if (!cand) {
+      alert(`「${book.name}」 이 들어갈 숙제 종류를 못 찾았어요.\n아래 「다음 숙제 배정」 에서 항목을 켜고 교재를 골라 주세요.`);
+      return;
+    }
+    setNext((s) => new Set(s).add(cand));
+    setNextUnits((m) => {
+      const cur = m[cand] || { textbookId: book.id, unitIds: [], note: "" };
+      return {
+        ...m,
+        [cand]: {
+          ...cur,
+          textbookId: cur.textbookId || book.id,
+          unitIds: [...new Set([...(cur.unitIds || []), u.id])],
+        },
+      };
+    });
+    // 담은 단원의 이름이 아래 배정 판에 바로 보이게 목록을 챙겨둔다
+    if (!unitsByBook[book.id]) {
+      listUnitOptions(book.id).then((res) =>
+        setUnitsByBook((m2) => ({ ...m2, [book.id]: res.options || [] }))
+      );
+    }
+  }
   const [loadingBook, setLoadingBook] = useState(null);
 
   const [cat, setCat] = useState("전체");
@@ -1318,6 +1369,8 @@ export default function StudentPanel({
                 key={b.id}
                 studentId={row.student.id}
                 book={b}
+                onHomework={(u) => pickHomework(b, u)}
+                hwPicked={hwPicked}
                 extra={
                   b.wordTest !== undefined ? (
                     <WordTest studentId={row.student.id} book={b} />

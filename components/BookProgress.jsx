@@ -34,6 +34,13 @@ export default function BookProgress({
   openFirst = false,
   initialUnits = null,   // 부모가 한 왕복으로 받아 나눠준 것 (재원생·진도 화면)
   initialRound = null,
+  /**
+   * **숙제로 담기** (원장님, 2026-08-19 — 「오늘 숙제로 나갈 부분을 따로
+   * 표시해서 숙제에 반영」). 오늘 수업에서만 넣어준다 — 단원을 누르면
+   * 아래 「다음 숙제 배정」 에 담긴다 (저장소는 그 한 곳, 원칙 1).
+   */
+  onHomework = null,     // (unit) => void — 담기/빼기 토글
+  hwPicked = null,       // Set<unitId> — 지금 담겨 있는 단원들
 }) {
   const [open, setOpen] = useState(openFirst);
   const [units, setUnits] = useState(initialUnits);
@@ -59,6 +66,7 @@ export default function BookProgress({
    * 지금 하는 단원 하나만 누르면 — 그 단원은 ◐, 그 앞은 전부 ○ 완료.
    */
   const [uptoMode, setUptoMode] = useState(false);
+  const [hwMode, setHwMode] = useState(false);   // 📝 숙제로 담는 중
   const [noteDraft, setNoteDraft] = useState("");
   const [pending, startTransition] = useTransition();
   /**
@@ -395,9 +403,18 @@ export default function BookProgress({
                     onChange={(e) => setQ(e.target.value)}
                   />
                 )}
+                {onHomework && (
+                  <button
+                    className={`btn btn-sm ${hwMode ? "btn-primary" : "btn-ghost"}`}
+                    onClick={() => { setHwMode(!hwMode); setUptoMode(false); setSelMode(false); setSelUnits(new Set()); }}
+                    title="단원을 누르면 아래 「다음 숙제 배정」 에 담깁니다. ◐ 하다 만 단원도 이어서 낼 수 있어요"
+                  >
+                    📝 숙제로
+                  </button>
+                )}
                 <button
                   className={`btn btn-sm ${uptoMode ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => { setUptoMode(!uptoMode); setSelMode(false); setSelUnits(new Set()); }}
+                  onClick={() => { setUptoMode(!uptoMode); setHwMode(false); setSelMode(false); setSelUnits(new Set()); }}
                   title="지금 하는 단원을 누르면 그 앞이 전부 완료로 찍힙니다"
                 >
                   ⏩ 여기까지
@@ -438,7 +455,9 @@ export default function BookProgress({
                   </span>
                 )}
                 <span className="hint" style={{ alignSelf: "center" }}>
-                  {uptoMode
+                  {hwMode
+                    ? "숙제로 낼 단원을 누르세요 — 아래 「다음 숙제 배정」 에 담겨요 (◐ 하다 만 것도 이어서)"
+                    : uptoMode
                     ? "지금 하는 단원을 누르세요 — 그 단원은 ◐, 그 앞은 전부 ○ 완료"
                     : selMode
                     ? "바꿀 단원을 누르고, 아래에서 한 번에 적으세요"
@@ -558,6 +577,7 @@ export default function BookProgress({
                                   : done ? "hw-done" : doing ? "hw-weak" : ""
                               } ${isSkipped(u) ? "hw-skipoff" : ""}`}
                               onClick={() => {
+                                if (hwMode && onHomework) return onHomework(u);
                                 if (uptoMode) return markUpto(u.id);
                                 if (!selMode) return mark(u.id, NEXT[u.status || ""]);
                                 setSelUnits((prev) => {
@@ -577,7 +597,8 @@ export default function BookProgress({
                             >
                               {selMode && <b>{selUnits.has(u.id) ? "☑" : "☐"}</b>}
                               {!selMode && done && <b>○</b>}
-                              {!selMode && doing && <b>◐</b>} {u.name}
+                              {!selMode && doing && <b>◐</b>}
+                              {hwPicked?.has(u.id) && <b title="다음 숙제로 담김">📝</b>} {u.name}
                               {u.activity ? <span className="hint"> · {u.activity}</span> : null}
                               {u.amount ? <span className="hint"> {u.amount}</span> : null}
                             </button>
