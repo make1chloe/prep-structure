@@ -32,6 +32,25 @@ export async function listRoutine(textbookId) {
   }
   if (needSql(error)) return { steps: [], ready: false, error: NEED };
   if (error) return { steps: [], ready: true, error: error.message };
+  /**
+   * 교재 루틴이 없으면 **영역 루틴을 따르는 중** (0137). 그대로 보여주되
+   * inherited 로 표시한다 — 여기서 단계를 추가하면 교재별 루틴이 생기고
+   * 그때부터 그것이 우선이다.
+   */
+  if ((data || []).length === 0) {
+    const { data: bk } = await supabase
+      .from("textbooks").select("area").eq("id", textbookId).maybeSingle();
+    if (bk?.area) {
+      const aq = await supabase
+        .from("routine_steps")
+        .select("id, sort, label, inclass_items, home_items, home_next, note, round, area")
+        .eq("area", bk.area)
+        .order("sort", { ascending: true });
+      if (!aq.error && (aq.data || []).length > 0) {
+        return { steps: aq.data, ready: true, inherited: bk.area, error: null };
+      }
+    }
+  }
   return { steps: data || [], ready: true, error: null };
 }
 
@@ -203,10 +222,29 @@ export async function bulkAddRoutines(rows = []) {
   const bookByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
   const itemByName = new Map((items || []).map((i) => [i.name.trim(), i.id]));
 
-  // 교재별로 묶는다
+  /**
+   * **영역 루틴** (0137) — 교재명 칸에 「영역:문법」 또는 그냥 영역 이름
+   * (문법·독해·단어·영작·듣기·내신)을 적으면 그 영역의 공통 루틴이 된다.
+   * 교재별 루틴이 있는 교재는 교재별이 우선이다.
+   */
+  const AREA_NAMES = ["단어", "독해", "문법", "내신", "듣기", "영작"];
+  const areaOfRow = (name) => {
+    const m = (name || "").match(/^영역\s*[::]\s*(.+)$/);
+    if (m) return m[1].trim();
+    return AREA_NAMES.includes((name || "").trim()) ? name.trim() : null;
+  };
+
+  // 교재별로 묶는다 (영역 줄은 area 키로)
   const byBook = new Map();
   const missingBooks = new Set();
   for (const r of rows) {
+    const area = areaOfRow(r.book);
+    if (area) {
+      const key = `area:${area}`;
+      if (!byBook.has(key)) byBook.set(key, []);
+      byBook.get(key).push(r);
+      continue;
+    }
     const bid = bookByName.get(r.book);
     if (!bid) { missingBooks.add(r.book); continue; }
     if (!byBook.has(bid)) byBook.set(bid, []);
@@ -249,11 +287,14 @@ export async function bulkAddRoutines(rows = []) {
   let bookCount = 0;
 
   for (const [bid, list] of byBook) {
+    const isArea = String(bid).startsWith("area:");
+    const areaName = isArea ? String(bid).slice(5) : null;
     // 이미 루틴이 있으면 건너뛴다 (위 주석의 까닭)
-    const { data: has } = await supabase
-      .from("routine_steps").select("id").eq("textbook_id", bid).limit(1);
+    const { data: has } = isArea
+      ? await supabase.from("routine_steps").select("id").eq("area", areaName).limit(1)
+      : await supabase.from("routine_steps").select("id").eq("textbook_id", bid).limit(1);
     if ((has || []).length > 0) {
-      skippedHasRoutine.push((books || []).find((b) => b.id === bid)?.name || "교재");
+      skippedHasRoutine.push(isArea ? `영역:${areaName}` : (books || []).find((b) => b.id === bid)?.name || "교재");
       continue;
     }
     const stepRows = [];
@@ -272,7 +313,8 @@ export async function bulkAddRoutines(rows = []) {
       // 하나도 못 이었으면 그 단계는 안 넣는다 (빈 단계는 일만 늘린다 — seed 와 같은 규칙)
       if (inclass_items.length === 0 && home_items.length === 0 && home_next.length === 0) return;
       stepRows.push({
-        textbook_id: bid,
+        textbook_id: isArea ? null : bid,
+        ...(isArea ? { area: areaName } : {}),
         sort: r.sort !== null && r.sort !== undefined ? r.sort * 10 : (i + 1) * 10,
         label: r.label || "",
         inclass_items,
@@ -283,6 +325,9 @@ export async function bulkAddRoutines(rows = []) {
     });
     if (stepRows.length === 0) continue;
     let { error } = await supabase.from("routine_steps").insert(stepRows);
+    if (error && isArea) {
+      return { error: "영역 루틴은 0137 SQL 을 먼저 실행해야 넣을 수 있어요." };
+    }
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0136 전 — 예습 숙제 칸 없이
       ({ error } = await supabase

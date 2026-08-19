@@ -1064,3 +1064,45 @@ export async function exportTextbooks() {
   ]);
   return { rows, error: null };
 }
+
+
+/**
+ * **활동 → 학습항목 연결** (0138, 원장님 2026-08-19 — 「개념설명에 학습
+ * 배정, 문제풀이에 학습 배정」). 교재의 {활동: 항목 id} 지도.
+ * 진도 판에서 단원을 숙제로 담을 때 이 지도가 먼저다.
+ */
+export async function getActItems(textbookId) {
+  if (!textbookId) return { map: {}, items: [], error: null };
+  const supabase = createClient();
+  const [{ data: bk, error }, { data: items }] = await Promise.all([
+    supabase.from("textbooks").select("act_items").eq("id", textbookId).maybeSingle(),
+    supabase
+      .from("homework_items")
+      .select("id, name, category")
+      .eq("active", true)
+      .order("sort", { ascending: true }),
+  ]);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { map: {}, items: items || [], needSql: true, error: null };
+  }
+  return { map: bk?.act_items || {}, items: items || [], error: error?.message || null };
+}
+
+export async function saveActItems(textbookId, map) {
+  if (!textbookId) return { error: "교재가 없어요." };
+  const supabase = createClient();
+  const clean2 = {};
+  Object.entries(map || {}).forEach(([k, v]) => {
+    if (k && v) clean2[k] = v;
+  });
+  const { error } = await supabase
+    .from("textbooks")
+    .update({ act_items: clean2 })
+    .eq("id", textbookId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "관리자 → SQL 확인에서 0138 을 먼저 실행해 주세요." };
+  }
+  revalidatePath("/textbooks");
+  revalidatePath("/today");
+  return { error: error?.message || null };
+}

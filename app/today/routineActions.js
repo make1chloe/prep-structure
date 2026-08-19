@@ -59,6 +59,27 @@ export async function nextRoutine(studentId) {
   }
   if (rq.error) return { inclass: [], home: [], steps: [], error: "0035 SQL 을 먼저 실행해주세요." };
 
+  /**
+   * **영역별 루틴** (0137 — 원장님 2026-08-19 「따로 설정 없으면 영역별로
+   * 하고, 교재별 설정하면 그걸 우선으로」). 교재 루틴이 한 줄도 없는
+   * 교재는 그 교재 영역(문법/독해…)의 루틴을 따른다. 0137 전 DB 는
+   * 이 조회가 조용히 실패하고 — 교재별만 돈다 (전과 같다).
+   */
+  let areaSteps = new Map();
+  {
+    const aq = await supabase
+      .from("routine_steps")
+      .select("id, area, sort, label, inclass_items, home_items, home_next, round")
+      .not("area", "is", null)
+      .order("sort", { ascending: true });
+    if (!aq.error) {
+      (aq.data || []).forEach((s) => {
+        if (!areaSteps.has(s.area)) areaSteps.set(s.area, []);
+        areaSteps.get(s.area).push(s);
+      });
+    }
+  }
+
   const byBook = new Map();
   (rq.data || []).forEach((s) => {
     if (!byBook.has(s.textbook_id)) byBook.set(s.textbook_id, []);
@@ -67,9 +88,10 @@ export async function nextRoutine(studentId) {
 
   const { data: books } = await supabase
     .from("textbooks")
-    .select("id, name")
+    .select("id, name, area")
     .in("id", bookIds);
   const bookName = new Map((books || []).map((b) => [b.id, b.name]));
+  const bookArea = new Map((books || []).map((b) => [b.id, b.area || ""]));
 
   // ── 지금 할 단원 ────────────────────────────────────────
   //
@@ -85,7 +107,11 @@ export async function nextRoutine(studentId) {
   const steps = [];
   const itemUnits = {};   // itemId → { textbookId, unitIds }
   mine.forEach((r) => {
-    const all = byBook.get(r.textbook_id) || [];
+    // 교재별이 우선 — 없으면 영역별 (0137)
+    const all =
+      (byBook.get(r.textbook_id) || []).length > 0
+        ? byBook.get(r.textbook_id)
+        : areaSteps.get(bookArea.get(r.textbook_id)) || [];
     /**
      * **회독 분기** (0135, 브릿지1). round 가 빈 줄은 모든 회독.
      * n 은 「n회독부터」 — 지금 회독 이하 중 **가장 가까운(큰)** 정의만

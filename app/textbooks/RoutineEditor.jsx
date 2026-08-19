@@ -22,10 +22,12 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
   const [editing, setEditing] = useState(null);
   const [pending, startTransition] = useTransition();
 
+  const [inherited, setInherited] = useState(null);   // 영역 루틴을 따르는 중 (0137)
   async function load() {
     const res = await listRoutine(textbookId);
     setSteps(res.steps);
     setReady(res.ready);
+    setInherited(res.inherited || null);
   }
   useEffect(() => {
     if (textbookId && steps === null) load();
@@ -196,6 +198,11 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
               한 줄이 한 수업 회차입니다. 진도를 따라 순서대로 돌아갑니다.
             </span>
             <button className="btn btn-sm" onClick={addStep}>＋ 단계 추가</button>
+            {inherited && (
+              <span className="tag tag-sky" title="이 교재만의 루틴이 없어서 영역 공통 루틴을 따르는 중이에요. 단계를 추가하면 이 교재만의 루틴이 우선이 됩니다">
+                영역 루틴({inherited}) 따르는 중
+              </span>
+            )}
           </div>
 
           <div className="stack" style={{ gap: 6 }}>
@@ -234,9 +241,12 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
                   )}
                 </div>
                 <div className="row" style={{ gap: 2, flexWrap: "nowrap" }}>
+                  {inherited ? null : (
                   <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...s })}>
                     수정
                   </button>
+                  )}
+                  {inherited ? null : (
                   <button
                     className="btn btn-ghost btn-sm"
                     disabled={pending}
@@ -247,6 +257,7 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
                   >
                     삭제
                   </button>
+                  )}
                 </div>
               </div>
             ))}

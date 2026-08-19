@@ -286,8 +286,13 @@ export default function StudentPanel({
         return;
       }
     }
-    // 담을 항목: ① 이미 이 교재로 단원을 고르는 항목 ② 영역이 맞는 항목
+    // 담을 항목: ⓪ 이 단원 활동에 연결된 항목(0138 — 「개념설명에 학습
+    // 배정, 문제풀이에 학습 배정」) ① 이미 이 교재로 단원을 고르는 항목
+    // ② 영역이 맞는 항목
+    const actItem =
+      u.activity && book.actItems ? book.actItems[(u.activity || "").trim()] : null;
     const cand =
+      (actItem && items.some((i) => i.id === actItem) ? actItem : null) ||
       toCheck.find((iid) => next.has(iid) && nextUnits[iid]?.textbookId === book.id) ||
       toCheck.find((iid) => nextUnits[iid]?.textbookId === book.id) ||
       toCheck.find((iid) => bookFor(iid) === book.id);

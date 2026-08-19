@@ -1,5 +1,6 @@
 "use client";
 
+import ActItems from "./ActItems";
 import { Fragment, useState, useTransition } from "react";
 import PickOrType from "@/components/PickOrType";
 import { useRouter } from "next/navigation";
@@ -147,8 +148,20 @@ export default function UnitList({
     );
   }
 
+  // 소단원(잎)의 활동별 개수 — 「개념설명 8 · 문제풀이 8」 (0138).
+  // 검색으로 걸러진 rows 가 아니라 **전체 units** 기준 (요약이 흔들리면 안 된다)
+  const actCount = new Map();
+  units.forEach((u) => {
+    if (parentIds.has(u.id)) return;           // 잎만 센다
+    const a = (u.label || "").trim();
+    if (!a) return;
+    actCount.set(a, (actCount.get(a) || 0) + 1);
+  });
+  const acts = [...actCount.entries()].map(([name, count]) => ({ name, count }));
+
   return (
     <>
+      <ActItems textbookId={textbookId} acts={acts} />
       {sel.size > 0 && (
         <div className="bulkbar" style={{ margin: "0 0 12px" }}>
           <b>{sel.size}개 선택</b>

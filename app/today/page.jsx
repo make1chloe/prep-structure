@@ -66,6 +66,7 @@ export default async function TodayPage({ searchParams }) {
     prevQ,
     booksQ,
     wordCfgQ,
+    actItemsQ,
     noticeQ1,
     stayQ,
     schedQ,
@@ -133,6 +134,8 @@ export default async function TodayPage({ searchParams }) {
       .select("id, name, status, total_pages, area")
       .order("name", { ascending: true }),
     supabase.from("textbooks").select("id, word_range, words_irregular"),
+    // 활동 → 학습항목 연결 (0138) — 0138 전 DB 면 이 조회만 조용히 실패한다
+    supabase.from("textbooks").select("id, act_items"),
     supabase
       .from("notices")
       .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at, edited_at")
@@ -841,6 +844,10 @@ export default async function TodayPage({ searchParams }) {
   }
 
   const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+  // 활동 → 학습항목 (0138). 실패(0138 전)면 빈 지도 — 전처럼 영역으로 짐작
+  const bookActOf = new Map(
+    (actItemsQ?.error ? [] : actItemsQ?.data || []).map((b) => [b.id, b.act_items || {}])
+  );
 
   /**
    * **오늘 만진 진도 → 리포트 「오늘 수업」 초안** (원장님, 2026-08-19 —
@@ -956,6 +963,7 @@ export default async function TodayPage({ searchParams }) {
         bookPages,
         percent,
         skipActs: skip ? [...skip].join(",") : "",
+        actItems: bookActOf.get(tid) || {},
       };
     });
   }
