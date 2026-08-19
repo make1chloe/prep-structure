@@ -1345,6 +1345,18 @@ export default function StudentPanel({
               value={form.own_progress}
               onChange={(e) => set("own_progress", e.target.value)}
             />
+            {/* 오늘 진도 판에 찍은 ○·◐ (0134) — 누르면 그대로 담긴다.
+                비워두고 저장해도 서버가 이걸로 채운다 (원장님 2026-08-19
+                「오늘 수업 한 부분을 데일리 리포트에 반영」) */}
+            {row.todayDraft && !form.own_progress && (
+              <button
+                className="btn btn-primary btn-sm"
+                title={row.todayDraft}
+                onClick={() => set("own_progress", row.todayDraft.replace(/\n/g, " / "))}
+              >
+                오늘 찍은 진도 넣기
+              </button>
+            )}
             {row.lastProgress && !form.own_progress && (
               <button
                 className="btn btn-ghost btn-sm"

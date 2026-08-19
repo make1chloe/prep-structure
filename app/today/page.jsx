@@ -569,7 +569,7 @@ export default async function TodayPage({ searchParams }) {
       ? fetchAll(() =>
           supabase
             .from("student_unit_progress")
-            .select("student_id, textbook_unit_id, status, round")
+            .select("student_id, textbook_unit_id, status, round, marked_on")
             .in("student_id", studentIds)
             .order("student_id")
             .order("textbook_unit_id")
@@ -660,15 +660,29 @@ export default async function TodayPage({ searchParams }) {
   if (studentIds.length) {
     const q = stProgQ;
     if (q.error) {
-      const fb = await fetchAll(() =>
+      // 0134 전 — marked_on 없이
+      const fb1 = await fetchAll(() =>
         supabase
           .from("student_unit_progress")
-          .select("student_id, textbook_unit_id, status")
+          .select("student_id, textbook_unit_id, status, round")
           .in("student_id", studentIds)
           .order("student_id")
           .order("textbook_unit_id")
       );
-      stProgress = (fb.data || []).map((r) => ({ ...r, round: 1 }));
+      if (!fb1.error) {
+        stProgress = fb1.data || [];
+      } else {
+        // 0026 전 — round 도 없이
+        const fb = await fetchAll(() =>
+          supabase
+            .from("student_unit_progress")
+            .select("student_id, textbook_unit_id, status")
+            .in("student_id", studentIds)
+            .order("student_id")
+            .order("textbook_unit_id")
+        );
+        stProgress = (fb.data || []).map((r) => ({ ...r, round: 1 }));
+      }
     } else {
       stProgress = q.data || [];
     }
@@ -824,6 +838,46 @@ export default async function TodayPage({ searchParams }) {
   }
 
   const bookNameOf = new Map((books || []).map((b) => [b.id, b.name]));
+
+  /**
+   * **오늘 만진 진도 → 리포트 「오늘 수업」 초안** (원장님, 2026-08-19 —
+   * 「오늘 수업 한 부분을 데일리 리포트에 반영하고 싶어」).
+   * marked_on(0134)이 오늘이고 ○·◐ 인 단원을 교재별로 묶는다.
+   * 지금 회독 것만 — 지난 회독의 옛 날짜는 어차피 오늘이 아니다.
+   */
+  const todayDraftOf = new Map(); // studentId → "교재: 단원 ○ · 단원 ◐" 줄들
+  {
+    const touched = stProgress.filter(
+      (r) => r.marked_on === date && (r.status === "done" || r.status === "doing")
+    );
+    const tIds = [...new Set(touched.map((r) => r.textbook_unit_id))];
+    let tUnits = [];
+    for (let i = 0; i < tIds.length; i += 200) {
+      const { data: part } = await supabase
+        .from("textbook_units")
+        .select("id, name, textbook_id")
+        .in("id", tIds.slice(i, i + 200));
+      tUnits.push(...(part || []));
+    }
+    const tuById = new Map(tUnits.map((u) => [u.id, u]));
+    const lines = new Map(); // studentId → Map(bookId → [이름+기호])
+    touched.forEach((r) => {
+      const u = tuById.get(r.textbook_unit_id);
+      if (!u) return;
+      const round = roundOf.get(`${r.student_id}|${u.textbook_id}`) || 1;
+      if ((r.round || 1) !== round) return;
+      if (!lines.has(r.student_id)) lines.set(r.student_id, new Map());
+      const m = lines.get(r.student_id);
+      if (!m.has(u.textbook_id)) m.set(u.textbook_id, []);
+      m.get(u.textbook_id).push(`${u.name}${r.status === "done" ? " ○" : " ◐ 하는 중"}`);
+    });
+    lines.forEach((m, sid) => {
+      const parts = [...m.entries()].map(
+        ([bid, names]) => `${bookNameOf.get(bid) || "교재"}: ${names.join(" · ")}`
+      );
+      if (parts.length) todayDraftOf.set(sid, parts.join("\n"));
+    });
+  }
   // 절판·중단 교재에 배정만 남은 것 — 재원생·진도와 같은 「중단 교재」 표시
   const bookDeadOf = new Map(
     (books || []).map((b) => [b.id, !!(b.status && b.status !== "active")])
@@ -1051,6 +1105,7 @@ export default async function TodayPage({ searchParams }) {
           report: rep,
           items: rep ? itemsByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
+          todayDraft: todayDraftOf.get(s.id) || null,
           lastTotals: lastTotals.get(s.id) || null,
           toCheck: toCheckOf(s.id),
           assignedFrom: assignedFromOf(s.id),
@@ -1112,6 +1167,7 @@ export default async function TodayPage({ searchParams }) {
         report: rep,
         items: rep ? itemsByReport.get(rep.id) || {} : {},
         lastProgress: lastProgress.get(s.id) || null,
+        todayDraft: todayDraftOf.get(s.id) || null,
         lastTotals: lastTotals.get(s.id) || null,
         toCheck: toCheckOf(s.id),
         assignedFrom: assignedFromOf(s.id),

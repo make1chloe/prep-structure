@@ -76,6 +76,52 @@ function toInt(v) {
  *  - daily_reports: 점수 · 진도 · 태도 · 공지
  *  - daily_report_items: 숙제 항목별 상태(done/weak/missing)
  */
+/**
+ * 오늘 진도 판에 찍은 ○·◐ 를 리포트 문구로 (0134 marked_on).
+ * 예: "그래머인사이드1: UNIT 3 ○ · UNIT 4 ◐ 하는 중 / 쓰작1: 1과 ○"
+ * marked_on 이 없는 DB(0134 전)면 조용히 빈 값 — 손 문구만 쓰던 그대로.
+ */
+async function todayProgressDraft(supabase, studentId, date) {
+  const { data: prog, error } = await supabase
+    .from("student_unit_progress")
+    .select("textbook_unit_id, status, round, marked_on")
+    .eq("student_id", studentId)
+    .eq("marked_on", date)
+    .in("status", ["done", "doing"]);
+  if (error || !prog?.length) return "";
+
+  const ids = [...new Set(prog.map((r) => r.textbook_unit_id))];
+  const { data: units } = await supabase
+    .from("textbook_units")
+    .select("id, name, textbook_id")
+    .in("id", ids);
+  const uById = new Map((units || []).map((u) => [u.id, u]));
+  const bookIds = [...new Set((units || []).map((u) => u.textbook_id))];
+  if (!bookIds.length) return "";
+  const [{ data: books }, { data: st }] = await Promise.all([
+    supabase.from("textbooks").select("id, name").in("id", bookIds),
+    supabase
+      .from("student_textbooks")
+      .select("textbook_id, round")
+      .eq("student_id", studentId)
+      .in("textbook_id", bookIds),
+  ]);
+  const bName = new Map((books || []).map((b) => [b.id, b.name]));
+  const bRound = new Map((st || []).map((r) => [r.textbook_id, r.round || 1]));
+
+  const byBook = new Map();
+  prog.forEach((r) => {
+    const u = uById.get(r.textbook_unit_id);
+    if (!u) return;
+    if ((r.round || 1) !== (bRound.get(u.textbook_id) || 1)) return; // 지금 회독만
+    if (!byBook.has(u.textbook_id)) byBook.set(u.textbook_id, []);
+    byBook.get(u.textbook_id).push(`${u.name}${r.status === "done" ? " ○" : " ◐ 하는 중"}`);
+  });
+  return [...byBook.entries()]
+    .map(([bid, names]) => `${bName.get(bid) || "교재"}: ${names.join(" · ")}`)
+    .join(" / ");
+}
+
 export async function saveStudentDay(studentId, date, form) {
   if (!studentId || !date) return { error: "값이 부족해요." };
   const supabase = createClient();
@@ -117,7 +163,13 @@ export async function saveStudentDay(studentId, date, form) {
     // 단원평가 — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑 같은 거야」
     sent_unit: (form.sent_unit || "").trim() || null,
     sent_passed: form.sent_passed === "" || form.sent_passed == null ? null : !!form.sent_passed,
-    own_progress: (form.own_progress || "").trim() || null,
+    // 비워두면 **오늘 진도 판에 찍은 ○·◐** 로 채운다 (0134, 원장님
+    // 2026-08-19 — 「오늘 수업 한 부분을 데일리 리포트에 반영하고 싶어」).
+    // 손으로 적은 것이 있으면 늘 그것이 이긴다.
+    own_progress:
+      (form.own_progress || "").trim() ||
+      (await todayProgressDraft(supabase, studentId, date)) ||
+      null,
     notice: (form.notice || "").trim() || null,
     notice_student: (form.notice_student || "").trim() || null,
     report_written: complete,

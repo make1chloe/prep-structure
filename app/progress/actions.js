@@ -881,6 +881,9 @@ export async function setUnitProgress(studentId, unitIds, status) {
       round: await roundFor(textbook_unit_id),
       status,
       done_on: status === "done" ? today : null,
+      // 「마지막으로 만진 날」 (0134) — ◐도 날짜가 남아야
+      // 「오늘 수업한 부분」 을 리포트에 자동으로 채울 수 있다
+      marked_on: today,
     });
   }
 
@@ -888,9 +891,16 @@ export async function setUnitProgress(studentId, unitIds, status) {
     .from("student_unit_progress")
     .upsert(rows, { onConflict: "student_id,textbook_unit_id,round" });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    // 0026 전 — round 컬럼이 아직 없다
+    // 0134 전 — marked_on 컬럼이 아직 없다
     ({ error } = await supabase.from("student_unit_progress").upsert(
-      rows.map(({ round, ...r }) => r),
+      rows.map(({ marked_on, ...r }) => r),
+      { onConflict: "student_id,textbook_unit_id,round" }
+    ));
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0026 전 — round 컬럼도 아직 없다
+    ({ error } = await supabase.from("student_unit_progress").upsert(
+      rows.map(({ round, marked_on, ...r }) => r),
       { onConflict: "student_id,textbook_unit_id" }
     ));
   }
