@@ -530,17 +530,23 @@ export default async function MePage({ searchParams }) {
 
   // 오늘 학원에서 할 것 (선생님이 오늘 정해준 것)
   const inClass = (latest && latest.date === today
-    ? dri.filter((x) => x.daily_report_id === latest.id && x.status === "inclass").map(toCard)
+    ? dri
+        .filter((x) => x.daily_report_id === latest.id && x.status === "inclass")
+        // 선생님이 정한 차례대로 (0140) — 옛 줄(차례 없음)은 뒤로
+        .sort((a, b) => (a.inclass_sort ?? 999) - (b.inclass_sort ?? 999))
+        .map(toCard)
     : []
   )
     .map((c) => {
       const t = toTask(c);
       // 단어시험은 학생마다 보는 때가 다르다 — 맨 앞이거나 맨 뒤다
       const it = itemById.get(c.itemId);
-      if (it?.word_test) t.sort = wordWhen === "end" ? 99000 : -1;
+      // 단어시험 맨앞/맨뒤 규칙만 남기고, 나머지는 선생님이 정한 차례(0140)
+      t.sort = it?.word_test ? (wordWhen === "end" ? 99000 : -1) : 0;
       return t;
     })
-    .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, "ko"));
+    .map((t, i) => ({ ...t, _ord: i }))
+    .sort((a, b) => a.sort - b.sort || a._ord - b._ord);
 
   const studyTasks = [
     ...todo.map((c) => {

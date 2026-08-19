@@ -291,11 +291,13 @@ export async function saveStudentDay(studentId, date, form) {
         status,
         check_note: (checkNotes[homework_item_id] || "").trim() || null,
       })),
-    // 오늘 학원에서 할 것
-    ...inClassIds.map((homework_item_id) => ({
+    // 오늘 학원에서 할 것 — 차례(0140)와 「다음 수업에 계속」 표시까지
+    ...inClassIds.map((homework_item_id, i) => ({
       daily_report_id: report.id,
       homework_item_id,
       status: "inclass",
+      inclass_sort: i,
+      carry_next: Array.isArray(form.carryNext) && form.carryNext.includes(homework_item_id),
     })),
     // 다음 수업에 검사할 숙제 배정 (교재 단원과 함께)
     ...nextIds.map((homework_item_id) => ({
@@ -334,6 +336,12 @@ export async function saveStudentDay(studentId, date, form) {
 
   if (payload.length > 0) {
     let { error } = await supabase.from("daily_report_items").insert(payload);
+    if (noColumn(error)) {
+      // 0140 전이면 차례·이월 칸이 없다
+      ({ error } = await supabase
+        .from("daily_report_items")
+        .insert(payload.map(({ inclass_sort, carry_next, ...rest }) => rest)));
+    }
     if (noColumn(error)) {
       // 0062 전이면 검사 메모 칸이 없다
       ({ error } = await supabase

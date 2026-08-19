@@ -317,10 +317,14 @@ export default async function TodayPage({ searchParams }) {
       if (onlyAssigned) q = q.eq("status", "assigned");
       return q;
     };
-    // 0009(단원 배열) → 0008(단원 1개) → 그 이전 순으로 물러난다
+    // 0140(차례·이월) → 0009(단원 배열) → 0008(단원 1개) → 그 이전 순으로 물러난다
     let { data, error } = await build(
-      `${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at`
+      `${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at, inclass_sort, carry_next`
     );
+    if (error)
+      ({ data, error } = await build(
+        `${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note, student_done_at`
+      ));
     if (error)
       ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, textbook_unit_ids, range_note`));
     if (error) ({ data, error } = await build(`${DRI_BASE}, textbook_unit_id, range_note`));
@@ -369,7 +373,7 @@ export default async function TodayPage({ searchParams }) {
     }
     if (x.status === "inclass") {
       if (!inClassByReport.has(x.daily_report_id)) inClassByReport.set(x.daily_report_id, []);
-      inClassByReport.get(x.daily_report_id).push(x.homework_item_id);
+      inClassByReport.get(x.daily_report_id).push({ id: x.homework_item_id, sort: x.inclass_sort ?? 999, carry: !!x.carry_next });
       if (!doneRowsByReport.has(x.daily_report_id)) doneRowsByReport.set(x.daily_report_id, []);
       doneRowsByReport.get(x.daily_report_id).push(x);
       return;
@@ -393,6 +397,24 @@ export default async function TodayPage({ searchParams }) {
     idsOf(x).forEach((id) => unitIds.add(id));
     if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
     prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
+  });
+
+  /**
+   * **「다음 수업에 계속」 이월** (0140) — 학생별 가장 최근 지난 리포트의
+   * inclass 줄 중 carry_next 가 켜진 것. 오늘 판의 오늘 학원 목록에
+   * 처음부터 서 있게 한다 (원장님 2026-08-20 「다음 수업시간에 하기」).
+   */
+  const latestPrevOf = new Map();
+  (prevReports || []).forEach((r) => {
+    if (!latestPrevOf.has(r.student_id)) latestPrevOf.set(r.student_id, r.id);
+  });
+  const carriedOf = new Map(); // studentId → [{id, sort}]
+  prevAllRows.forEach((x) => {
+    if (x.status !== "inclass" || !x.carry_next) return;
+    const sid = prevReportStudent.get(x.daily_report_id);
+    if (!sid || latestPrevOf.get(sid) !== x.daily_report_id) return;
+    if (!carriedOf.has(sid)) carriedOf.set(sid, []);
+    carriedOf.get(sid).push({ id: x.homework_item_id, sort: x.inclass_sort ?? 999 });
   });
 
   // 학생별: 배정이 있었던 가장 최근 리포트 (날짜 내림차순으로 첫 번째)
@@ -1169,7 +1191,13 @@ export default async function TodayPage({ searchParams }) {
           wordWhen: rep?.word_when || s.word_when || "start",
           classcard: ccOf.get(s.id) || null,
           exams: examOf.get(s.id) || [],
-          inClass: rep ? inClassByReport.get(rep.id) || [] : [],
+          inClass: rep
+            ? (inClassByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)
+            : [],
+          inClassCarry: rep
+            ? (inClassByReport.get(rep.id) || []).filter((x) => x.carry).map((x) => x.id)
+            : [],
+          carriedIn: (carriedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
           doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
           secOf: Object.fromEntries(
             [...secOf.entries()]
@@ -1222,7 +1250,13 @@ export default async function TodayPage({ searchParams }) {
         wordWhen: rep?.word_when || s.word_when || "start",
         classcard: ccOf.get(s.id) || null,
         exams: examOf.get(s.id) || [],
-        inClass: rep ? inClassByReport.get(rep.id) || [] : [],
+        inClass: rep
+          ? (inClassByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)
+          : [],
+        inClassCarry: rep
+          ? (inClassByReport.get(rep.id) || []).filter((x) => x.carry).map((x) => x.id)
+          : [],
+        carriedIn: (carriedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
         doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
         secOf: Object.fromEntries(
           [...secOf.entries()]

@@ -331,7 +331,19 @@ export default function StudentPanel({
   // 검사하다 "그럼 목요일에 다시 보자" 가 되는 순간을 여기서 바로 처리한다
   const [mk, setMk] = useState({ open: false, date: "", time: "", reason: "" });
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고 타이머가 여기 붙는다
-  const [inClass, setInClass] = useState(() => new Set(row.inClass || []));
+  /**
+   * **오늘 학원에서 할 것 — 순서가 있는 목록** (0140, 원장님 2026-08-20
+   * 「그날 공부할 순서를 설정하는 게 필요해」). 위에서부터 학생이 하나씩
+   * 한다. 지난 수업에서 「다음 수업에 계속」 한 것(carriedIn)은 처음부터
+   * 맨 위에 서 있다.
+   */
+  const [inClass, setInClassList] = useState(() => {
+    const base = row.inClass || [];
+    const carried = (row.carriedIn || []).filter((x) => !base.includes(x));
+    return [...carried, ...base];
+  });
+  const setInClass = (v) => setInClassList([...new Set(v)]);   // 중복만 걸러 순서 유지
+  const [carryNext, setCarryNext] = useState(() => new Set(row.inClassCarry || []));
   const [openInClass, setOpenInClass] = useState(false);
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
   const [wordWhen, setWordWhen] = useState(row.wordWhen || "start");
@@ -638,7 +650,7 @@ export default function StudentPanel({
       form.word_correct !== "" || form.sent_correct !== "" ||
       form.sent_unit || form.sent_passed !== "" ||
       form.own_progress || form.notice || form.notice_student ||
-      Object.keys(marks).length > 0 || next.size > 0 || inClass.size > 0;
+      Object.keys(marks).length > 0 || next.size > 0 || inClass.length > 0;
     if (!touched) return;
     const t = setTimeout(() => {
       try {
@@ -697,6 +709,7 @@ export default function StudentPanel({
             .filter(Boolean)
         ),
         inClass: [...inClass],
+        carryNext: [...carryNext].filter((x) => inClass.includes(x)),
         toCheck,
         nextHomework: [...next],
         nextUnits: Object.fromEntries(
@@ -986,7 +999,7 @@ export default function StudentPanel({
                 setForm(draft.form);
                 setMarks(draft.marks || {});
                 setNext(new Set(draft.next || []));
-                setInClass(new Set(draft.inClass || []));
+                setInClass(draft.inClass || []);
                 setDraft(null);
               }}
             >
@@ -1265,26 +1278,74 @@ export default function StudentPanel({
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
         <div style={{ flex: 1 }}>
-          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            {[...inClass].map((iid) => {
+          {/* 순서 목록 (0140) — 위에서부터 학생이 하는 차례. ↑↓ 로 조정,
+              시간이 모자라면 ✕(오늘 뺌) · 숙제로 · 다음 수업에 중 하나 */}
+          <div className="stack" style={{ gap: 3 }}>
+            {inClass.map((iid, idx) => {
               const sec = (row.secOf || {})[iid] || 0;
               const doneAt = (row.doneRows || []).find(
                 (d) => d.homework_item_id === iid
               )?.student_done_at;
+              const carried = (row.carriedIn || []).includes(iid);
+              const willCarry = carryNext.has(iid);
               return (
-                <span
-                  key={iid}
-                  className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
-                  title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
-                >
-                  {nameOf(iid) || "학습"}
-                  {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
-                </span>
+                <div className="row" key={iid} style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="hint" style={{ width: 16, textAlign: "right" }}>{idx + 1}</span>
+                  <span
+                    className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
+                    title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
+                  >
+                    {nameOf(iid) || "학습"}
+                    {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
+                  </span>
+                  {carried && <span className="tag tag-sky" title="지난 수업에서 「다음 수업에 계속」 한 것">이어서</span>}
+                  <button className="btn btn-ghost btn-sm" title="위로" disabled={idx === 0}
+                    onClick={() => {
+                      const n = [...inClass];
+                      [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                      setInClass(n);
+                    }}>↑</button>
+                  <button className="btn btn-ghost btn-sm" title="아래로" disabled={idx === inClass.length - 1}
+                    onClick={() => {
+                      const n = [...inClass];
+                      [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
+                      setInClass(n);
+                    }}>↓</button>
+                  {!doneAt && (
+                    <>
+                      <button
+                        className={`btn btn-sm ${willCarry ? "btn-primary" : "btn-ghost"}`}
+                        title="오늘 못 끝냄 — 다음 수업의 목록에 자동으로 다시 섭니다"
+                        onClick={() => {
+                          const n = new Set(carryNext);
+                          n.has(iid) ? n.delete(iid) : n.add(iid);
+                          setCarryNext(n);
+                        }}
+                      >
+                        다음 수업에
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        title="남은 것을 숙제로 — 아래 「다음 숙제 배정」 에 담깁니다"
+                        onClick={() => {
+                          setInClass(inClass.filter((x) => x !== iid));
+                          setNext((s2) => new Set(s2).add(iid));
+                        }}
+                      >
+                        숙제로
+                      </button>
+                    </>
+                  )}
+                  <button className="btn btn-ghost btn-sm" title="오늘 목록에서 뺌"
+                    onClick={() => setInClass(inClass.filter((x) => x !== iid))}>✕</button>
+                </div>
               );
             })}
-            {inClass.size === 0 && (
+            {inClass.length === 0 && (
               <span className="hint">아직 정하지 않았어요.</span>
             )}
+          </div>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
             <span className="spacer" />
             <button
               className="btn btn-sm"
@@ -1302,7 +1363,7 @@ export default function StudentPanel({
                     return;
                   }
                   setRoutine(res);
-                  setInClass(new Set([...inClass, ...res.inclass]));
+                  setInClass([...inClass, ...res.inclass]);
                   const n = new Set(next);
                   res.home.forEach((x) => n.add(x));
                   setNext(n);
@@ -1336,16 +1397,14 @@ export default function StudentPanel({
           {openInClass && (
             <div className="chips" style={{ marginTop: 8 }}>
               {items.map((i) => {
-                const on = inClass.has(i.id);
+                const on = inClass.includes(i.id);
                 return (
                   <button
                     key={i.id}
                     className={`chip ${on ? "on" : ""}`}
-                    onClick={() => {
-                      const n = new Set(inClass);
-                      on ? n.delete(i.id) : n.add(i.id);
-                      setInClass(n);
-                    }}
+                    onClick={() =>
+                      setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
+                    }
                   >
                     {i.name}
                   </button>
