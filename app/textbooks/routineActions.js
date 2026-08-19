@@ -199,6 +199,36 @@ export async function bulkAddRoutines(rows = []) {
     byBook.get(bid).push(r);
   }
 
+  /**
+   * **없는 항목은 만들어서 잇는다** (원장님, 2026-08-19 — 「활동마다
+   * 항목을 새로 만든다. 1해줘」). 루틴 구술의 활동(클카 낭독,
+   * SVOCM 표시 …)은 학습항목에 아직 없다 — 빼고 넣으면 루틴이
+   * 반쪽이 된다. 갈래는 이름으로 짐작해 붙이고, 학습항목 화면에서
+   * 언제든 고칠 수 있다.
+   */
+  const allNames = new Set();
+  for (const r of rows) [...r.inclass, ...r.home].forEach((n) => allNames.add(n));
+  const toMake = [...allNames].filter((n) => !itemByName.has(n));
+  const createdItems = [];
+  if (toMake.length) {
+    const guessCat = (n) =>
+      /단어/.test(n) ? "단어"
+      : /문법/.test(n) ? "문법"
+      : /노트/.test(n) ? "노트"
+      : /내신/.test(n) ? "내신"
+      : /step|예습|독해|해석/i.test(n) ? "독해"
+      : "기타";
+    const { data: made, error: mkErr } = await supabase
+      .from("homework_items")
+      .insert(toMake.map((n, i) => ({ name: n, category: guessCat(n), active: true, sort: 900 + i })))
+      .select("id, name");
+    if (mkErr) return { error: `학습항목 만들다 실패: ${mkErr.message}` };
+    (made || []).forEach((i2) => {
+      itemByName.set(i2.name.trim(), i2.id);
+      createdItems.push(i2.name);
+    });
+  }
+
   const skippedHasRoutine = [];
   const missingItems = new Set();
   let addedSteps = 0;
@@ -258,6 +288,7 @@ export async function bulkAddRoutines(rows = []) {
     addedSteps,
     missingBooks: [...missingBooks],
     missingItems: [...missingItems],
+    createdItems,
     skippedHasRoutine,
   };
 }

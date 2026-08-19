@@ -91,7 +91,8 @@ export default function RoutineUpload() {
       </div>
       <p className="hint" style={{ margin: "8px 0 10px", lineHeight: 1.7 }}>
         한 줄이 <b>한 수업 회차</b>입니다. 등원·숙제 칸에는 <b>학습항목 이름</b>을 · 로 이어 적으세요
-        (학습항목에 있는 그대로 — 없는 이름은 그 항목만 빠지고 알려드립니다).
+        (학습항목에 없는 이름은 <b>새로 만들어서</b> 잇고, 무엇을 만들었는지 알려드립니다).
+        회독 칸에 숫자를 넣으면 <b>그 회독부터</b> 그 줄이 적용됩니다 (비우면 모든 회독).
         같은 교재는 교재명을 첫 줄에만 적으면 됩니다.
         <b> 이미 루틴이 있는 교재는 건너뜁니다</b> — 돌고 있는 학생이 밀리면 안 돼요.
       </p>
@@ -124,6 +125,9 @@ export default function RoutineUpload() {
           )}
           {result.missingBooks?.length > 0 && (
             <><br />교재를 못 찾음: {result.missingBooks.join(" · ")} (교재 이름 그대로인지 확인)</>
+          )}
+          {result.createdItems?.length > 0 && (
+            <><br />새로 만든 학습항목: {result.createdItems.join(" · ")} (갈래는 학습항목에서 고칠 수 있어요)</>
           )}
           {result.missingItems?.length > 0 && (
             <><br />학습항목에 없는 이름: {result.missingItems.join(" · ")}</>
