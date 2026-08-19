@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/guard";
 import { fetchAll } from "@/lib/fetchAll";
+import { bookKey } from "@/lib/bookName";
+import EXCEL_PATHS from "./excel-paths.json";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -37,7 +39,8 @@ export async function GET(request) {
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
   const op = new URL(request.url).searchParams.get("op");
   if (op === "dedupe-units") return dedupeUnits(supabase, request);
-  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead 또는 op=dedupe-units 로 열어주세요." }, { status: 400 });
+  if (op === "prune-units") return pruneUnits(supabase, request);
+  if (op !== "end-dead") return NextResponse.json({ error: "op=end-dead · dedupe-units · prune-units 로 열어주세요." }, { status: 400 });
 
   const { data: dead } = await supabase
     .from("textbooks").select("id, name").neq("status", "active").not("status", "is", null);
@@ -73,6 +76,78 @@ export async function GET(request) {
     fixedFromDone: (fixedRows || []).length,   // done 으로 잘못 찍혔다 정정된 수
     detail: (endedRows || []).slice(0, 60).map((r) => nameOf.get(r.textbook_id) || r.textbook_id),
   });
+}
+
+/**
+ * **옛 이관 단원 걷어내기** (원장님, 2026-08-19 — 3300제에 노션 이관분과
+ * 엑셀 정본이 섞여 있길래 「어느 쪽?」 물으니 「1」(엑셀만 남기기)).
+ *
+ * 엑셀 정본의 단원 경로 목록(excel-paths.json — 8/17 단원 엑셀에서 뽑음)에
+ * **없는 경로의 단원**을 그 31권에서 지운다. 지워지는 단원에 찍힌 진도도
+ * 함께 사라진다 — 원장님이 알고 고른 것. 엑셀에 없는 교재(단어책 등)는
+ * 아예 안 건드린다. 정본 단원이 하나도 안 잡히는 교재는 (엑셀 주입이
+ * 안 된 것일 수 있어) 건너뛰고 알려만 준다. ?dry=1 이면 세기만 한다.
+ */
+async function pruneUnits(supabase, request) {
+  const dry = new URL(request.url).searchParams.get("dry") === "1";
+  const SEP = "";
+
+  const { data: books, error: bErr } = await supabase.from("textbooks").select("id, name");
+  if (bErr) return NextResponse.json({ error: bErr.message }, { status: 500 });
+  const byKey = new Map((books || []).map((b) => [bookKey(b.name), b]));
+
+  const missingBooks = [];
+  const results = [];
+  let totalRemove = 0;
+
+  for (const [xname, paths] of Object.entries(EXCEL_PATHS)) {
+    const book = byKey.get(bookKey(xname));
+    if (!book) { missingBooks.push(xname); continue; }
+
+    const { data: units, error } = await fetchAll(() =>
+      supabase
+        .from("textbook_units")
+        .select("id, parent_id, name")
+        .eq("textbook_id", book.id)
+        .order("id")
+    );
+    if (error) { results.push({ book: book.name, error: error.message }); continue; }
+    if (!units?.length) continue;
+
+    const byId = new Map(units.map((u) => [u.id, u]));
+    const pathOf = (u) => {
+      const parts = [];
+      for (let cur = u, hop = 0; cur && hop < 7; hop += 1) {
+        parts.unshift((cur.name || "").trim());
+        cur = cur.parent_id ? byId.get(cur.parent_id) : null;
+      }
+      return parts.join(SEP);
+    };
+    const valid = new Set(paths);
+    const bad = units.filter((u) => !valid.has(pathOf(u)));
+    const goodCount = units.length - bad.length;
+    if (goodCount === 0) {
+      results.push({ book: book.name, skip: "정본 단원이 하나도 없음 — 건너뜀", units: units.length });
+      continue;
+    }
+    if (!bad.length) continue;
+
+    totalRemove += bad.length;
+    const row = { book: book.name, before: units.length, remove: bad.length, keep: goodCount };
+    if (!dry) {
+      // 맨 위 잘못 단원만 지우면 그 아래는 cascade 로 따라 지워진다
+      const badSet = new Set(bad.map((u) => u.id));
+      const top = bad.filter((u) => !u.parent_id || !badSet.has(u.parent_id)).map((u) => u.id);
+      for (let i = 0; i < top.length; i += 150) {
+        const { error: dErr } = await supabase
+          .from("textbook_units").delete().in("id", top.slice(i, i + 150));
+        if (dErr) { row.error = dErr.message; break; }
+      }
+    }
+    results.push(row);
+  }
+
+  return NextResponse.json({ ok: true, dry, totalRemove, missingBooks, results });
 }
 
 /**
