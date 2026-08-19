@@ -1315,7 +1315,9 @@ export default function StudentPanel({
                       const m = { ...cur };
                       Object.entries(u).forEach(([iid, v]) => {
                         if ((m[iid]?.unitIds || []).length) return;
-                        m[iid] = { ...v, note: m[iid]?.note || "" };
+                        // 루틴의 항목별 주의사항(0139)이 메모로 — 손으로
+                        // 적어둔 메모가 있으면 그게 이긴다
+                        m[iid] = { ...v, note: m[iid]?.note || v.note || "" };
                       });
                       return m;
                     });

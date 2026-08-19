@@ -38,7 +38,7 @@ export async function nextRoutine(studentId) {
 
   let rq = await supabase
     .from("routine_steps")
-    .select("id, textbook_id, sort, label, inclass_items, home_items, home_next, round")
+    .select("id, textbook_id, sort, label, inclass_items, home_items, home_next, round, item_notes")
     .in("textbook_id", bookIds)
     .order("sort", { ascending: true });
   if (rq.error) {
@@ -69,7 +69,7 @@ export async function nextRoutine(studentId) {
   {
     const aq = await supabase
       .from("routine_steps")
-      .select("id, area, sort, label, inclass_items, home_items, home_next, round")
+      .select("id, area, sort, label, inclass_items, home_items, home_next, round, item_notes")
       .not("area", "is", null)
       .order("sort", { ascending: true });
     if (!aq.error) {
@@ -138,7 +138,13 @@ export async function nextRoutine(studentId) {
     (step.home_items || []).forEach((x) => {
       home.add(x);
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
-      if (unit?.id) itemUnits[x] = { textbookId: r.textbook_id, unitIds: [unit.id] };
+      if (unit?.id)
+        itemUnits[x] = {
+          textbookId: r.textbook_id,
+          unitIds: [unit.id],
+          // 항목별 주의사항 (0139) — 배정 메모로 흘러가 학생 화면에 뜬다
+          note: step.item_notes?.[x] || "",
+        };
     });
     /**
      * **예습(선행) 숙제** (0136 — 원장님 2026-08-19 「숙제가 선행인지
@@ -147,7 +153,12 @@ export async function nextRoutine(studentId) {
      */
     (step.home_next || []).forEach((x) => {
       home.add(x);
-      if (unit?.nextId) itemUnits[x] = { textbookId: r.textbook_id, unitIds: [unit.nextId] };
+      if (unit?.nextId)
+        itemUnits[x] = {
+          textbookId: r.textbook_id,
+          unitIds: [unit.nextId],
+          note: step.item_notes?.[x] || "",
+        };
     });
     steps.push({
       textbookId: r.textbook_id,

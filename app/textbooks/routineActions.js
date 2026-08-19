@@ -259,7 +259,8 @@ export async function bulkAddRoutines(rows = []) {
    * 언제든 고칠 수 있다.
    */
   const allNames = new Set();
-  for (const r of rows) [...r.inclass, ...r.home].forEach((n) => allNames.add(n));
+  for (const r of rows)
+    [...r.inclass, ...r.home, ...(r.homeNext || [])].forEach((n) => allNames.add(n.name ?? n));
   const toMake = [...allNames].filter((n) => !itemByName.has(n));
   const createdItems = [];
   if (toMake.length) {
@@ -299,11 +300,15 @@ export async function bulkAddRoutines(rows = []) {
     }
     const stepRows = [];
     list.forEach((r, i) => {
+      // 항목별 주의사항 (0139) — 이름[주의] 의 대괄호가 여기 모인다
+      const item_notes = {};
       const toIds = (names) =>
         names
           .map((n) => {
-            const id = itemByName.get(n);
-            if (!id) missingItems.add(n);
+            const name = n.name ?? n;
+            const id = itemByName.get(name);
+            if (!id) missingItems.add(name);
+            else if (n.note) item_notes[id] = n.note;
             return id;
           })
           .filter(Boolean);
@@ -320,11 +325,18 @@ export async function bulkAddRoutines(rows = []) {
         inclass_items,
         home_items,
         home_next,
+        item_notes,
         round: r.round ?? null,
       });
     });
     if (stepRows.length === 0) continue;
     let { error } = await supabase.from("routine_steps").insert(stepRows);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0139 전 — 항목별 주의사항 없이
+      ({ error } = await supabase
+        .from("routine_steps")
+        .insert(stepRows.map(({ item_notes, ...r2 }) => r2)));
+    }
     if (error && isArea) {
       return { error: "영역 루틴은 0137 SQL 을 먼저 실행해야 넣을 수 있어요." };
     }
