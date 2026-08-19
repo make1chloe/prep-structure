@@ -179,6 +179,30 @@ export async function setCurrentPage(studentId, textbookId, page) {
   return ok(error);
 }
 
+/**
+ * **이 학생은 이 활동을 건너뛴다** (원장님, 2026-08-19 — 「도저히 안
+ * 되겠다 싶으면 워크북은 빼고 하게 된단 말이야. 그때까지 진도 기록은
+ * 유지된 상태에서 앞으로의 숙제 배정에는 워크북이 빠지게」).
+ *
+ * 쉼표로 이어 적는다 (예: '워크북'). 기록은 안 건드린다 — 읽는 쪽
+ * (진도 판·지난번과 같게·진도율)이 이 값을 보고 거른다.
+ */
+export async function setBookSkipActs(studentId, textbookId, acts) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const txt = (acts || "").toString().trim() || null;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("student_textbooks")
+    .update({ skip_acts: txt })
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "관리자 → SQL 확인에서 0133 을 먼저 실행해 주세요." };
+  }
+  revalidatePath("/today");
+  return ok(error);
+}
+
 // 학생 차원의 교재 상태 — active(사용중) | done(완료) | dropped(중단)
 // 완료·중단이면 숙제 배정·진도 화면에서 빠지고, 재원생 기록에만 남는다.
 /**

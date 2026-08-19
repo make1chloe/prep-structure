@@ -457,6 +457,15 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
    이 높이에서 멈추고 안쪽만 스크롤된다 — 교재 이름·도구 줄은 위에 남는다. */
 .unitscroll { max-height: min(62vh, 620px); overflow-y: auto; overscroll-behavior: contain; }
 
+/* 빼는 활동(워크북 등)의 단원 — 색을 빼고 테두리를 점선으로.
+   (흐림(opacity) 금지 규칙 — 색으로 말한다) 눌러서 기록을 고칠 수는 있다 */
+.hw-skipoff {
+  border-style: dashed;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  text-decoration: line-through;
+}
+
 /* 교재 화면 단원 표 — 대단원 줄은 줄 전체가 다르게 보이게 */
 .unitrow-big td { background: var(--surface-2); font-weight: 700; }
 .unitrow-big td:first-child { border-left: 4px solid var(--navy); }

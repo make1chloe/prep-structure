@@ -106,7 +106,7 @@ export default async function StudentsPage({ searchParams }) {
     ids.length
       ? supabase
           .from("student_textbooks")
-          .select("student_id, textbook_id, status, assigned_on, ended_on, current_page")
+          .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, skip_acts")
           .in("student_id", ids)
       : none,
     pids2.length
@@ -119,7 +119,14 @@ export default async function StudentsPage({ searchParams }) {
       ? supabase.from("parent_student").select("student_id, parent_profile_id").in("student_id", ids)
       : none,
   ]);
-  const { data: stBooks } = stBooksQ;
+  // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
+  let stBooks = stBooksQ.data;
+  if (stBooksQ.error && ids.length) {
+    ({ data: stBooks } = await supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page")
+      .in("student_id", ids));
+  }
 
   // 아직 초기 비밀번호(0000) 그대로인 학생 — 파도 2 에서 왔다
   const initPw = new Set();
@@ -145,6 +152,7 @@ export default async function StudentsPage({ searchParams }) {
       dead: !alive,
       from: notYet(r, today) ? r.assigned_on : null,
       curPage: r.current_page ?? "",
+      skipActs: r.skip_acts || "",
     });
   });
 

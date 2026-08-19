@@ -9,6 +9,7 @@ import {
   setStudentBookStatus,
   nextRound,
   setUnitNote,
+  setBookSkipActs,
 } from "@/app/progress/actions";
 
 /**
@@ -67,6 +68,17 @@ export default function BookProgress({
    * 없었다. 마지막으로 저장된 시각을 보여준다.
    */
   const [savedAt, setSavedAt] = useState(null);
+  /**
+   * **빼는 활동** (원장님, 2026-08-19 — 「도저히 안 되겠다 싶으면
+   * 워크북은 빼고 하게 된단 말이야」). 여기 담긴 활동의 단원은
+   * 이 학생의 진도율·전체완료·여기까지·숙제 배정에서 빠진다.
+   * 기록은 그대로다 — 칩이 흐려질 뿐 눌러서 고칠 수도 있다.
+   */
+  const [skipActs, setSkipActs] = useState(book.skipActs || "");
+  const skipSet = new Set(
+    (skipActs || "").split(",").map((s) => s.trim()).filter(Boolean)
+  );
+  const isSkipped = (u) => !!(u.activity && skipSet.has((u.activity || "").trim()));
   const router = useRouter();
 
   function stampSaved() {
@@ -122,11 +134,14 @@ export default function BookProgress({
   }
 
   function markAll(done) {
-    const leaves = (units || []).filter((u) => u.leaf);
-    const ids = leaves.filter((u) => (u.status === "done") !== done).map((u) => u.id);
+    // 빼는 활동(워크북 등)은 전체완료·전체해제에서도 빠진다
+    const targets = (units || []).filter((u) => u.leaf && !isSkipped(u));
+    const ids = targets.filter((u) => (u.status === "done") !== done).map((u) => u.id);
     if (ids.length === 0) return;
     setUnits((list) =>
-      (list || []).map((u) => (u.leaf ? { ...u, status: done ? "done" : "" } : u))
+      (list || []).map((u) =>
+        u.leaf && !isSkipped(u) ? { ...u, status: done ? "done" : "" } : u
+      )
     );
     startTransition(async () => {
       const res = await setUnitProgress(studentId, ids, done ? "done" : null);
@@ -136,10 +151,30 @@ export default function BookProgress({
     });
   }
 
+  function toggleSkip(act) {
+    const n = new Set(skipSet);
+    if (n.has(act)) n.delete(act);
+    else n.add(act);
+    const txt = [...n].join(",");
+    const prev = skipActs;
+    setSkipActs(txt);
+    startTransition(async () => {
+      const res = await setBookSkipActs(studentId, book.id, txt);
+      if (res?.error) { alert(res.error); setSkipActs(prev); return; }
+      stampSaved();
+      router.refresh();
+    });
+  }
+
   // 화면에 보이는 값 (막 누른 것도 바로 반영)
   const leaves = (units || []).filter((u) => u.leaf);
-  const liveDone = units ? leaves.filter((u) => u.status === "done").length : book.doneUnits;
-  const liveTotal = units ? leaves.length : book.totalUnits;
+  // 이 교재에 있는 활동들 — 두 갈래 이상일 때만 「빼기」 를 보여준다
+  // (활동이 하나뿐이면 빼기 = 교재를 안 하는 것이라 「끝냄」 이 맞다)
+  const actList = [...new Set(leaves.map((u) => (u.activity || "").trim()).filter(Boolean))];
+  // 진도율·순차 배정의 기준 — 빼는 활동은 분모에서도 빠진다
+  const activeLeaves = leaves.filter((u) => !isSkipped(u));
+  const liveDone = units ? activeLeaves.filter((u) => u.status === "done").length : book.doneUnits;
+  const liveTotal = units ? activeLeaves.length : book.totalUnits;
   const livePercent =
     liveTotal > 0 ? Math.round((liveDone / liveTotal) * 100) : book.percent;
   const noUnits = units !== null && leaves.length === 0;
@@ -176,9 +211,10 @@ export default function BookProgress({
   }
 
   function markUpto(unitId) {
-    const idx = leaves.findIndex((u) => u.id === unitId);
+    // 빼는 활동은 「여기까지」 로도 완료가 찍히지 않는다
+    const idx = activeLeaves.findIndex((u) => u.id === unitId);
     if (idx < 0) return;
-    const beforeIds = leaves.slice(0, idx).map((u) => u.id);
+    const beforeIds = activeLeaves.slice(0, idx).map((u) => u.id);
     const beforeSet = new Set(beforeIds);
     setUptoMode(false);
     // 화면 먼저 — 실패하면 다시 읽어온다
@@ -331,7 +367,7 @@ export default function BookProgress({
                   * 없었다 — 그러면 1회독을 언제 끝냈는지도 같이 사라진다.
                   */}
                 {round > 1 && <span className="tag tag-lav">{round}회독</span>}
-                {leaves.length > 0 && leaves.every((u) => u.status === "done") && (
+                {activeLeaves.length > 0 && activeLeaves.every((u) => u.status === "done") && (
                   <button
                     className="btn btn-primary btn-sm"
                     disabled={pending}
@@ -426,6 +462,37 @@ export default function BookProgress({
                   </button>
                 </div>
               )}
+              {/**
+                * **빼기** (원장님, 2026-08-19 — 「체크박스의 워크북 나중에
+                * 누르면 그때까지 진도 기록은 유지가 된 상태에서 앞으로의
+                * 숙제 배정에는 워크북이 빠지게 할 수 있어?」). ⛔ 누른
+                * 활동은 이 학생의 배정·진도율·전체완료·여기까지에서 빠진다.
+                */}
+              {(actList.length >= 2 || skipSet.size > 0) && (
+                <div className="row" style={{ gap: 4, margin: "0 0 6px", alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="hint">이 학생은 빼기:</span>
+                  {actList.map((a) => {
+                    const on = skipSet.has(a);
+                    return (
+                      <button
+                        key={a}
+                        className={`tag ${on ? "tag-amber" : "tag-muted"}`}
+                        style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
+                        title="누르면 이 활동 단원이 이 학생의 숙제 배정·진도율에서 빠져요. 기록은 남아요."
+                        onClick={() => toggleSkip(a)}
+                        disabled={pending}
+                      >
+                        {on ? "⛔" : "☐"} {a}
+                      </button>
+                    );
+                  })}
+                  {skipSet.size > 0 && (
+                    <span className="hint">
+                      ⛔ 활동은 앞으로의 배정·진도율에서 빠져요 — 지금까지 기록은 남아요
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="stack unitscroll" style={{ gap: 4 }}>
                 {annotateBigs(groupByParent(units, q)).map(({ head, mid, list, big, bigStart, bigIds }) => (
                   <Fragment key={head || "_"}>
@@ -489,7 +556,7 @@ export default function BookProgress({
                                 selMode && selUnits.has(u.id)
                                   ? "hw-next"
                                   : done ? "hw-done" : doing ? "hw-weak" : ""
-                              }`}
+                              } ${isSkipped(u) ? "hw-skipoff" : ""}`}
                               onClick={() => {
                                 if (uptoMode) return markUpto(u.id);
                                 if (!selMode) return mark(u.id, NEXT[u.status || ""]);
@@ -500,7 +567,10 @@ export default function BookProgress({
                                 });
                               }}
                               title={
-                                [u.activity, u.pages, u.amount && `분량 ${u.amount}`, u.note && `메모: ${u.note}`]
+                                [
+                                  isSkipped(u) && "⛔ 빠짐 — 배정·진도율 제외 (기록은 남음)",
+                                  u.activity, u.pages, u.amount && `분량 ${u.amount}`, u.note && `메모: ${u.note}`,
+                                ]
                                   .filter(Boolean)
                                   .join(" · ") || undefined
                               }

@@ -500,7 +500,21 @@ export default function StudentPanel({
       nextSet.add(iid);
       const prevUnits = src[iid].unitIds || [];
       const bookId = prevUnits.length ? unitNames[prevUnits[0]]?.textbookId : bookFor(iid);
-      const opts = (bookId && (loaded[bookId] || unitsByBook[bookId])) || [];
+      let opts = (bookId && (loaded[bookId] || unitsByBook[bookId])) || [];
+      /**
+       * **빼는 활동은 다음 숙제로 안 나간다** (원장님, 2026-08-19 —
+       * 「앞으로의 숙제 배정에는 워크북이 빠지게」, 0133 skip_acts).
+       * 지난번에 낸 단원이 빠진 활동이어도 자리는 잡힌다 — 그 다음부터
+       * 남은(빠지지 않은) 단원만 이어진다.
+       */
+      const skipTxt = myBooks.find((b) => b.id === bookId)?.skipActs || "";
+      const skip = new Set(skipTxt.split(",").map((s) => s.trim()).filter(Boolean));
+      if (skip.size) {
+        const prevSet = new Set(prevUnits);
+        opts = opts.filter(
+          (o) => prevSet.has(o.id) || !(o.activity && skip.has((o.activity || "").trim()))
+        );
+      }
 
       // 지난번 단원 중 가장 뒤엣것 **다음부터, 지난번 낸 개수만큼** 고른다.
       // 단어 교재는 미리 정한 「한 번에 몇 단원씩」(0124)이 있으면 그 수가 먼저다.

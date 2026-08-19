@@ -560,7 +560,7 @@ export default async function TodayPage({ searchParams }) {
     studentIds.length
       ? supabase
           .from("student_textbooks")
-          .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
+          .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on, skip_acts")
           .in("student_id", studentIds)
       : none,
     // 진도는 학생 수 × 단원 수라 **1000줄을 쉽게 넘는다** — 끝까지 받는다
@@ -647,7 +647,14 @@ export default async function TodayPage({ searchParams }) {
   });
 
   // ---------- 학생별 교재 배정 · 단원 진도 ----------
-  const { data: stBooks } = stBooksQ;
+  // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
+  let stBooks = stBooksQ.data;
+  if (stBooksQ.error && studentIds.length) {
+    ({ data: stBooks } = await supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
+      .in("student_id", studentIds));
+  }
   // 회독별로 쌓인다. `round` 가 아직 없는 DB 면 전부 1회독으로 본다.
   let stProgress = [];
   if (studentIds.length) {
@@ -669,6 +676,7 @@ export default async function TodayPage({ searchParams }) {
 
   const booksOfStudent = new Map();
   const pageOf = new Map(); // `${studentId}|${textbookId}` → 지금 페이지
+  const skipOf = new Map(); // `${studentId}|${textbookId}` → 빼는 활동 Set (0133)
   (stBooks || []).forEach((r) => {
     // 완료·중단한 교재는 숙제 배정·진도 화면에서 빼고, 재원생 기록에만 남긴다.
     // 사용 예정일이 아직 안 온 교재도 뺀다 — 학생 손에 책이 없다.
@@ -676,6 +684,12 @@ export default async function TodayPage({ searchParams }) {
     if (!booksOfStudent.has(r.student_id)) booksOfStudent.set(r.student_id, new Set());
     booksOfStudent.get(r.student_id).add(r.textbook_id);
     if (r.current_page) pageOf.set(`${r.student_id}|${r.textbook_id}`, r.current_page);
+    if (r.skip_acts) {
+      skipOf.set(
+        `${r.student_id}|${r.textbook_id}`,
+        new Set(r.skip_acts.split(",").map((s2) => s2.trim()).filter(Boolean))
+      );
+    }
   });
   // 지금 몇 회독째인가 (`round` 컬럼이 아직 없으면 1회독으로 본다)
   const roundOf = new Map();
@@ -733,7 +747,7 @@ export default async function TodayPage({ searchParams }) {
       ? fetchAll(() =>
           supabase
             .from("textbook_units")
-            .select("id, textbook_id, parent_id, page_start, page_end, total_pages")
+            .select("id, textbook_id, parent_id, page_start, page_end, total_pages, label")
             .in("textbook_id", [...shownBookIds])
             .order("id")
         )
@@ -793,7 +807,7 @@ export default async function TodayPage({ searchParams }) {
       ({ data: bu } = await fetchAll(() =>
         supabase
           .from("textbook_units")
-          .select("id, textbook_id, parent_id, page_start, page_end")
+          .select("id, textbook_id, parent_id, page_start, page_end, label")
           .in("textbook_id", [...shownBookIds])
           .order("id")
       ));
@@ -805,7 +819,7 @@ export default async function TodayPage({ searchParams }) {
         u.total_pages ||
         (u.page_start && u.page_end ? u.page_end - u.page_start + 1 : 0);
       if (!unitsOfBook.has(u.textbook_id)) unitsOfBook.set(u.textbook_id, []);
-      unitsOfBook.get(u.textbook_id).push({ id: u.id, pages });
+      unitsOfBook.get(u.textbook_id).push({ id: u.id, pages, act: (u.label || "").trim() });
     });
   }
 
@@ -826,7 +840,11 @@ export default async function TodayPage({ searchParams }) {
       const round = roundOf.get(`${studentId}|${tid}`) || 1;
       // 진도율은 **지금 회독** 기준이다. 지난 회독은 기록으로만 남는다.
       const done = doneUnitsOf.get(`${studentId}|${round}`) || new Set();
-      const list = unitsOfBook.get(tid) || [];
+      // 빼는 활동(0133 — 워크북 빼기)은 분자·분모 모두에서 빠진다
+      const skip = skipOf.get(`${studentId}|${tid}`);
+      const list = (unitsOfBook.get(tid) || []).filter(
+        (u) => !(skip && u.act && skip.has(u.act))
+      );
       const totalUnits = list.length;
       const doneUnits = list.filter((u) => done.has(u.id)).length;
       const totalPages = list.reduce((a, u) => a + (u.pages || 0), 0);
@@ -860,6 +878,7 @@ export default async function TodayPage({ searchParams }) {
         curPage,
         bookPages,
         percent,
+        skipActs: skip ? [...skip].join(",") : "",
       };
     });
   }

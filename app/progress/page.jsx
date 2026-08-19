@@ -42,7 +42,7 @@ export default async function ProgressPage() {
     supabase.from("class_students").select("class_id, student_id"),
     supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts")
       .neq("status", "dropped"),
     supabase.from("textbooks").select("id, name, area, status, total_pages"),
     // 하는 중(◐)으로 찍힌 단원 — 순차로 안 나가는 교재의 「오늘 위치」다
@@ -86,8 +86,16 @@ export default async function ProgressPage() {
 
 
   // 학생 → 지금 쓰는 교재 (아직 시작 전·끝낸 것은 뺀다 — lib/bookUse 한 벌)
+  // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
+  let stBookRows = stBooksQ.data;
+  if (stBooksQ.error) {
+    ({ data: stBookRows } = await supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round")
+      .neq("status", "dropped"));
+  }
   const booksOf = new Map();
-  (stBooksQ.data || []).forEach((r) => {
+  (stBookRows || []).forEach((r) => {
     if (!inUseOn(r, today)) return;
     const b = bookById.get(r.textbook_id);
     if (!b) return;
@@ -100,6 +108,7 @@ export default async function ProgressPage() {
       dead: deadBook(b),
       bookPages: b.total_pages || 0,
       curPage: r.current_page ?? "",
+      skipActs: r.skip_acts || "",
       round,
       doing: (doingOf.get(`${r.student_id}|${b.id}`) || [])
         .filter((d) => d.round === round)
