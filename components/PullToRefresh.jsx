@@ -34,6 +34,23 @@ export default function PullToRefresh() {
     const atTop = () =>
       (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
 
+    /**
+     * **판 안에서 시작한 손가락은 당김이 아니다** (원장님, 2026-08-19 —
+     * 「진도선택후 갑자기 창이닫혀」). 진도 판·긴 표가 판 안에서만
+     * 굴러가게 되자(unitscroll·tblwrap) 페이지는 늘 맨 위다 — 판 안에서
+     * 아래로 쓸어내린 것을 당김으로 받아 통째로 새로고침해 버렸다.
+     * 안쪽에 굴러가는 상자가 있으면 그 상자의 몫이다.
+     */
+    function inInnerScroll(el) {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        if (n.scrollHeight > n.clientHeight + 1) {
+          const ov = getComputedStyle(n).overflowY;
+          if (ov === "auto" || ov === "scroll") return true;
+        }
+      }
+      return false;
+    }
+
     function onStart(e) {
       if (working.current || e.touches.length !== 1) {
         startY.current = null;
@@ -41,7 +58,10 @@ export default function PullToRefresh() {
       }
       // **맨 위에서 시작한 것만** 당김으로 본다. 중간에서 당기는 것은
       // 그냥 화면을 넘기는 것이다 — 그것까지 새로고침으로 받으면 못 쓴다
-      startY.current = atTop() ? e.touches[0].clientY : null;
+      startY.current =
+        atTop() && !(e.target instanceof Element && inInnerScroll(e.target))
+          ? e.touches[0].clientY
+          : null;
     }
 
     function onMove(e) {
