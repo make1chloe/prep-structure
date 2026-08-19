@@ -38,9 +38,17 @@ export async function nextRoutine(studentId) {
 
   let rq = await supabase
     .from("routine_steps")
-    .select("id, textbook_id, sort, label, inclass_items, home_items, round")
+    .select("id, textbook_id, sort, label, inclass_items, home_items, home_next, round")
     .in("textbook_id", bookIds)
     .order("sort", { ascending: true });
+  if (rq.error) {
+    // 0136 전 — 예습 칸 없이
+    rq = await supabase
+      .from("routine_steps")
+      .select("id, textbook_id, sort, label, inclass_items, home_items, round")
+      .in("textbook_id", bookIds)
+      .order("sort", { ascending: true });
+  }
   if (rq.error) {
     // 0135 전 — 회독 칸 없이
     rq = await supabase
@@ -106,6 +114,15 @@ export async function nextRoutine(studentId) {
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
       if (unit?.id) itemUnits[x] = { textbookId: r.textbook_id, unitIds: [unit.id] };
     });
+    /**
+     * **예습(선행) 숙제** (0136 — 원장님 2026-08-19 「숙제가 선행인지
+     * 후행인지」). 오늘 단원이 아니라 **다음 단원**이 붙는다.
+     * 다음 단원이 없으면(마지막 단원) 범위 없이 항목만 담는다.
+     */
+    (step.home_next || []).forEach((x) => {
+      home.add(x);
+      if (unit?.nextId) itemUnits[x] = { textbookId: r.textbook_id, unitIds: [unit.nextId] };
+    });
     steps.push({
       textbookId: r.textbook_id,
       book: bookName.get(r.textbook_id) || "교재",
@@ -161,9 +178,18 @@ async function currentUnits(supabase, studentId, bookIds, mine) {
     const list = leaves.filter((u) => u.textbook_id === bid);
     if (list.length === 0) return;
     const round = roundOf.get(bid) || 1;
-    const nextOne = list.find((u) => !done.has(`${u.id}|${round}`));
-    if (nextOne) out.set(bid, { id: nextOne.id, name: nextOne.name || "" });
-    else out.set(bid, { id: null, name: "", allDone: true });
+    const idx = list.findIndex((u) => !done.has(`${u.id}|${round}`));
+    if (idx >= 0) {
+      const nextOne = list[idx];
+      // 예습(선행) 숙제용 — 지금 단원의 **그다음** (0136)
+      const after = list.slice(idx + 1).find((u) => !done.has(`${u.id}|${round}`)) || null;
+      out.set(bid, {
+        id: nextOne.id,
+        name: nextOne.name || "",
+        nextId: after?.id || null,
+        nextName: after?.name || "",
+      });
+    } else out.set(bid, { id: null, name: "", allDone: true });
   });
   return out;
 }

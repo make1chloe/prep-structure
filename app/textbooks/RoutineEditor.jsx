@@ -151,6 +151,7 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
       label: "",
       inclass_items: [],
       home_items: [],
+      home_next: [],
       note: "",
     });
 
@@ -222,6 +223,15 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
                       {(s.home_items || []).map(nameOf).filter(Boolean).join(" · ") || "—"}
                     </span>
                   </div>
+                  {(s.home_next || []).length > 0 && (
+                    <div className="prow">
+                      <span className="tag tag-sky plabel">예습</span>
+                      <span style={{ fontSize: 14 }}>
+                        {(s.home_next || []).map(nameOf).filter(Boolean).join(" · ")}
+                        <span className="hint"> (다음 단원)</span>
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="row" style={{ gap: 2, flexWrap: "nowrap" }}>
                   <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...s })}>
@@ -281,9 +291,15 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
             onChange={(v) => setEditing({ ...editing, inclass_items: v })}
           />
           <Picker
-            label="숙제로 낼 것"
+            label="숙제로 낼 것 (오늘 단원 복습)"
             value={editing.home_items || []}
             onChange={(v) => setEditing({ ...editing, home_items: v })}
+          />
+          {/* 예습(선행) 숙제 (0136) — 루틴이 채울 때 **다음 단원**이 붙는다 */}
+          <Picker
+            label="예습 숙제 (다음 단원이 붙어요)"
+            value={editing.home_next || []}
+            onChange={(v) => setEditing({ ...editing, home_next: v })}
           />
           <div className="row" style={{ gap: 6, marginTop: 10, justifyContent: "flex-end" }}>
             <button className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>

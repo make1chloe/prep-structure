@@ -12,9 +12,16 @@ export async function listRoutine(textbookId) {
   const supabase = createClient();
   let { data, error } = await supabase
     .from("routine_steps")
-    .select("id, sort, label, inclass_items, home_items, note, round")
+    .select("id, sort, label, inclass_items, home_items, home_next, note, round")
     .eq("textbook_id", textbookId)
     .order("sort", { ascending: true });
+  if (error) {
+    ({ data, error } = await supabase
+      .from("routine_steps")
+      .select("id, sort, label, inclass_items, home_items, note, round")
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
   if (error) {
     // 0135 전 — 회독 칸 없이
     ({ data, error } = await supabase
@@ -37,6 +44,7 @@ export async function saveStep(textbookId, step) {
     label: (step?.label || "").trim() || null,
     inclass_items: step?.inclass_items || [],
     home_items: step?.home_items || [],
+    home_next: step?.home_next || [],
     note: (step?.note || "").trim() || null,
     // 회독 분기 (0135) — 빈칸이면 모든 회독
     round: Number.isFinite(+step?.round) && +step.round > 0 ? +step.round : null,
@@ -45,7 +53,13 @@ export async function saveStep(textbookId, step) {
     ? await supabase.from("routine_steps").update(row).eq("id", step.id)
     : await supabase.from("routine_steps").insert(row);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    const { round: _r, ...noRound } = row;
+    const { home_next: _hn, ...noNext } = row;
+    ({ error } = step?.id
+      ? await supabase.from("routine_steps").update(noNext).eq("id", step.id)
+      : await supabase.from("routine_steps").insert(noNext));
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const { round: _r, home_next: _hn2, ...noRound } = row;
     ({ error } = step?.id
       ? await supabase.from("routine_steps").update(noRound).eq("id", step.id)
       : await supabase.from("routine_steps").insert(noRound));
@@ -254,23 +268,32 @@ export async function bulkAddRoutines(rows = []) {
           .filter(Boolean);
       const inclass_items = toIds(r.inclass);
       const home_items = toIds(r.home);
+      const home_next = toIds(r.homeNext || []);
       // 하나도 못 이었으면 그 단계는 안 넣는다 (빈 단계는 일만 늘린다 — seed 와 같은 규칙)
-      if (inclass_items.length === 0 && home_items.length === 0) return;
+      if (inclass_items.length === 0 && home_items.length === 0 && home_next.length === 0) return;
       stepRows.push({
         textbook_id: bid,
         sort: r.sort !== null && r.sort !== undefined ? r.sort * 10 : (i + 1) * 10,
         label: r.label || "",
         inclass_items,
         home_items,
+        home_next,
         round: r.round ?? null,
       });
     });
     if (stepRows.length === 0) continue;
     let { error } = await supabase.from("routine_steps").insert(stepRows);
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0136 전 — 예습 숙제 칸 없이
       ({ error } = await supabase
         .from("routine_steps")
-        .insert(stepRows.map(({ round, ...r2 }) => r2)));
+        .insert(stepRows.map(({ home_next, ...r2 }) => r2)));
+    }
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // 0135 전 — 회독 칸도 없이
+      ({ error } = await supabase
+        .from("routine_steps")
+        .insert(stepRows.map(({ home_next, round, ...r2 }) => r2)));
     }
     if (error) {
       if (needSql(error)) return { error: NEED };
@@ -297,12 +320,19 @@ export async function bulkAddRoutines(rows = []) {
 export async function exportRoutines() {
   const supabase = createClient();
   let [{ data: steps, error }, { data: books }, { data: items }] = await Promise.all([
-    supabase.from("routine_steps").select("textbook_id, sort, label, inclass_items, home_items, round").order("sort", { ascending: true }),
+    supabase.from("routine_steps").select("textbook_id, sort, label, inclass_items, home_items, round, home_next").order("sort", { ascending: true }),
     supabase.from("textbooks").select("id, name"),
     supabase.from("homework_items").select("id, name"),
   ]);
   if (error) {
-    // 0135 전 — 회독 칸 없이
+    // 0136 전 — 예습 칸 없이
+    ({ data: steps, error } = await supabase
+      .from("routine_steps")
+      .select("textbook_id, sort, label, inclass_items, home_items, round")
+      .order("sort", { ascending: true }));
+  }
+  if (error) {
+    // 0135 전 — 회독 칸도 없이
     ({ data: steps, error } = await supabase
       .from("routine_steps")
       .select("textbook_id, sort, label, inclass_items, home_items")
@@ -326,6 +356,7 @@ export async function exportRoutines() {
       names(s2.inclass_items),
       names(s2.home_items),
       s2.round || "",
+      names(s2.home_next),
     ];
   });
   return { error: null, rows };
