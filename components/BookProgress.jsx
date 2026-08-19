@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   listStudentUnits,
@@ -89,6 +89,29 @@ export default function BookProgress({
   const isSkipped = (u) => !!(u.activity && skipSet.has((u.activity || "").trim()));
   const router = useRouter();
 
+  /**
+   * **찍는 동안은 화면을 다시 안 그린다** (원장님, 2026-08-19 — 「교재
+   * 진도선택시 새로고침 자동으로 되지 않게 해줘. 아직 선택할게 남았는데
+   * 자꾸 뭐가 바뀌어」). 저장은 누르는 순간 그대로 나가고, 주변 화면
+   * (요약 줄·진도율 따위)의 새로고침만 **마지막 누름 12초 뒤 한 번**으로
+   * 미룬다. 판을 접으면 그 자리에서 바로 새로고침한다.
+   */
+  const refreshT = useRef(null);
+  function lazyRefresh() {
+    if (refreshT.current) clearTimeout(refreshT.current);
+    refreshT.current = setTimeout(() => {
+      refreshT.current = null;
+      router.refresh();
+    }, 12000);
+  }
+  function flushRefresh() {
+    if (!refreshT.current) return;
+    clearTimeout(refreshT.current);
+    refreshT.current = null;
+    router.refresh();
+  }
+  useEffect(() => () => { if (refreshT.current) clearTimeout(refreshT.current); }, []);
+
   function stampSaved() {
     const d = new Date();
     setSavedAt(
@@ -112,6 +135,7 @@ export default function BookProgress({
     const next = !open;
     setOpen(next);
     if (next && units === null) load();
+    if (!next) flushRefresh();   // 접으면 미뤄둔 새로고침을 그 자리에서
   }
 
   /**
@@ -137,7 +161,7 @@ export default function BookProgress({
         return;
       }
       stampSaved();
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -155,7 +179,7 @@ export default function BookProgress({
       const res = await setUnitProgress(studentId, ids, done ? "done" : null);
       if (res?.error) { alert(res.error); load(); return; }
       stampSaved();
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -170,7 +194,7 @@ export default function BookProgress({
       const res = await setBookSkipActs(studentId, book.id, txt);
       if (res?.error) { alert(res.error); setSkipActs(prev); return; }
       stampSaved();
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -193,7 +217,7 @@ export default function BookProgress({
       if (res?.error) { alert(res.error); return; }
       setNoteFor(null);
       await load();
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -214,7 +238,7 @@ export default function BookProgress({
         return;
       }
       stampSaved();
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -243,7 +267,7 @@ export default function BookProgress({
       const res2 = await setUnitProgress(studentId, [unitId], "doing");
       if (res2?.error) { alert(res2.error); load(); return; }
       stampSaved();
-      router.refresh();
+      lazyRefresh();
     });
   }
 
