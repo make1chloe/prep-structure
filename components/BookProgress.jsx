@@ -564,7 +564,25 @@ export default function BookProgress({
                         <span className="hint" style={{ fontWeight: 600 }}> 통째로</span>
                       </button>
                     ) : (
-                      <div className="unit-bigbar">{big}</div>
+                      /**
+                       * 평소에도 막대가 단추다 (원장님, 2026-08-19 —
+                       * 「여기까지 체크를 해놓고 나중에 뺄 거를 대단원으로
+                       * 선택이 안 되어서 너무 불편해」). 골라서를 먼저 켜야만
+                       * 통째 선택이 되니 "안 된다"로 보였다 — 막대를 누르면
+                       * 골라서 모드로 들어가며 그 대단원이 통째로 담긴다.
+                       */
+                      <button
+                        className="unit-bigbar"
+                        title="누르면 이 대단원 전체가 골라져요 — 아래에서 완료·하는 중·안 함으로 한 번에"
+                        onClick={() => {
+                          setSelMode(true);
+                          setUptoMode(false);
+                          setHwMode(false);
+                          setSelUnits(new Set(bigIds));
+                        }}
+                      >
+                        {big} <span className="hint" style={{ fontWeight: 600 }}>▸ 통째로 고르기</span>
+                      </button>
                     ))}
                     <div className="hwgroup" style={{ flexWrap: "wrap" }}>
                     {/* 중단원 — 고르기 모드에서는 이 묶음만 담는 단추 */}
