@@ -36,11 +36,19 @@ export async function nextRoutine(studentId) {
   const bookIds = mine.map((r) => r.textbook_id);
   if (bookIds.length === 0) return { inclass: [], home: [], steps: [], error: null };
 
-  const rq = await supabase
+  let rq = await supabase
     .from("routine_steps")
-    .select("id, textbook_id, sort, label, inclass_items, home_items")
+    .select("id, textbook_id, sort, label, inclass_items, home_items, round")
     .in("textbook_id", bookIds)
     .order("sort", { ascending: true });
+  if (rq.error) {
+    // 0135 전 — 회독 칸 없이
+    rq = await supabase
+      .from("routine_steps")
+      .select("id, textbook_id, sort, label, inclass_items, home_items")
+      .in("textbook_id", bookIds)
+      .order("sort", { ascending: true });
+  }
   if (rq.error) return { inclass: [], home: [], steps: [], error: "0035 SQL 을 먼저 실행해주세요." };
 
   const byBook = new Map();
@@ -69,7 +77,16 @@ export async function nextRoutine(studentId) {
   const steps = [];
   const itemUnits = {};   // itemId → { textbookId, unitIds }
   mine.forEach((r) => {
-    const list = byBook.get(r.textbook_id) || [];
+    const all = byBook.get(r.textbook_id) || [];
+    /**
+     * **회독 분기** (0135, 브릿지1). round 가 빈 줄은 모든 회독.
+     * n 은 「n회독부터」 — 지금 회독 이하 중 **가장 가까운(큰)** 정의만
+     * 살린다. 1·2·3회독 줄이 있으면 4회독 학생에겐 3회독 줄이 나온다.
+     */
+    const cur = r.round || 1;
+    const rounded = all.filter((s) => s.round != null && s.round <= cur);
+    const maxR = rounded.length ? Math.max(...rounded.map((s) => s.round)) : null;
+    const list = all.filter((s) => s.round == null || s.round === maxR);
     if (list.length === 0) return;
     /**
      * **id 가 먼저다** (0120). 번호는 루틴을 중간에 고치면 다른 단계를

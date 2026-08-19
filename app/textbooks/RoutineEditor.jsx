@@ -203,6 +203,11 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
                 <span className="stepno">{i + 1}</span>
                 <div className="stepbody">
                   {s.label && <b style={{ fontSize: 14 }}>{s.label}</b>}
+                  {s.round ? (
+                    <span className="tag tag-amber" title="이 회독부터 적용 — 더 높은 회독 줄이 있으면 그게 이깁니다">
+                      {s.round}회독부터
+                    </span>
+                  ) : null}
                   {/* **어느 쪽 일인지 딱지로.** 「등원:」 「숙제:」 를 글자로 적으면
                       항목 이름과 같은 굵기라 눈이 한 번 더 읽어야 한다 */}
                   <div className="prow">
@@ -251,6 +256,24 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
               value={editing.label || ""}
               onChange={(e) => setEditing({ ...editing, label: e.target.value })}
             />
+          </div>
+          {/* 회독 분기 (0135) — 브릿지1처럼 회독마다 하는 일이 다른 교재.
+              비워두면 모든 회독에 적용된다 */}
+          <div className="field">
+            <label className="label">어느 회독부터? (비우면 모든 회독)</label>
+            <select
+              className="input input-sm"
+              style={{ width: 180 }}
+              value={editing.round || ""}
+              onChange={(e) =>
+                setEditing({ ...editing, round: e.target.value ? +e.target.value : null })
+              }
+            >
+              <option value="">모든 회독</option>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>{n}회독부터</option>
+              ))}
+            </select>
           </div>
           <Picker
             label="등원해서 할 것"

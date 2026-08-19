@@ -10,11 +10,19 @@ const NEED = "0035 SQL 을 먼저 실행해주세요.";
 export async function listRoutine(textbookId) {
   if (!textbookId) return { steps: [], ready: true, error: null };
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("routine_steps")
-    .select("id, sort, label, inclass_items, home_items, note")
+    .select("id, sort, label, inclass_items, home_items, note, round")
     .eq("textbook_id", textbookId)
     .order("sort", { ascending: true });
+  if (error) {
+    // 0135 전 — 회독 칸 없이
+    ({ data, error } = await supabase
+      .from("routine_steps")
+      .select("id, sort, label, inclass_items, home_items, note")
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
   if (needSql(error)) return { steps: [], ready: false, error: NEED };
   if (error) return { steps: [], ready: true, error: error.message };
   return { steps: data || [], ready: true, error: null };
@@ -30,10 +38,18 @@ export async function saveStep(textbookId, step) {
     inclass_items: step?.inclass_items || [],
     home_items: step?.home_items || [],
     note: (step?.note || "").trim() || null,
+    // 회독 분기 (0135) — 빈칸이면 모든 회독
+    round: Number.isFinite(+step?.round) && +step.round > 0 ? +step.round : null,
   };
-  const { error } = step?.id
+  let { error } = step?.id
     ? await supabase.from("routine_steps").update(row).eq("id", step.id)
     : await supabase.from("routine_steps").insert(row);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    const { round: _r, ...noRound } = row;
+    ({ error } = step?.id
+      ? await supabase.from("routine_steps").update(noRound).eq("id", step.id)
+      : await supabase.from("routine_steps").insert(noRound));
+  }
   if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
   revalidatePath("/textbooks");
@@ -216,10 +232,16 @@ export async function bulkAddRoutines(rows = []) {
         label: r.label || "",
         inclass_items,
         home_items,
+        round: r.round ?? null,
       });
     });
     if (stepRows.length === 0) continue;
-    const { error } = await supabase.from("routine_steps").insert(stepRows);
+    let { error } = await supabase.from("routine_steps").insert(stepRows);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      ({ error } = await supabase
+        .from("routine_steps")
+        .insert(stepRows.map(({ round, ...r2 }) => r2)));
+    }
     if (error) {
       if (needSql(error)) return { error: NEED };
       return { error: error.message };
@@ -243,11 +265,18 @@ export async function bulkAddRoutines(rows = []) {
 /** 지금 들어 있는 루틴 내려받기 — 양식 그대로 (교재명 · 순서 · 이름 · 등원 · 숙제) */
 export async function exportRoutines() {
   const supabase = createClient();
-  const [{ data: steps, error }, { data: books }, { data: items }] = await Promise.all([
-    supabase.from("routine_steps").select("textbook_id, sort, label, inclass_items, home_items").order("sort", { ascending: true }),
+  let [{ data: steps, error }, { data: books }, { data: items }] = await Promise.all([
+    supabase.from("routine_steps").select("textbook_id, sort, label, inclass_items, home_items, round").order("sort", { ascending: true }),
     supabase.from("textbooks").select("id, name"),
     supabase.from("homework_items").select("id, name"),
   ]);
+  if (error) {
+    // 0135 전 — 회독 칸 없이
+    ({ data: steps, error } = await supabase
+      .from("routine_steps")
+      .select("textbook_id, sort, label, inclass_items, home_items")
+      .order("sort", { ascending: true }));
+  }
   if (error) return { error: error.message, rows: [] };
   const bookName = new Map((books || []).map((b) => [b.id, b.name]));
   const itemName = new Map((items || []).map((i) => [i.id, i.name]));
@@ -265,6 +294,7 @@ export async function exportRoutines() {
       s2.label || "",
       names(s2.inclass_items),
       names(s2.home_items),
+      s2.round || "",
     ];
   });
   return { error: null, rows };
