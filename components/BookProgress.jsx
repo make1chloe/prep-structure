@@ -595,12 +595,22 @@ function groupByParent(units = [], kw = "") {
     .filter((u) => u.leaf)
     .filter((u) =>
       !q ||
-      [u.name, u.activity, u.big, u.mid].some((v) =>
+      [u.name, u.activity, u.big, u.mid, u.small].some((v) =>
         (v || "").toString().toLowerCase().includes(q)
       )
     )
     .forEach((u) => {
-      const head = [u.big, u.mid].filter(Boolean).slice(0, 2).join(" › ");
+      /**
+       * 셋째 층까지 머리에 넣는다 (원장님, 2026-08-19 — 「진도에서 단원과
+       * 교재단원이 달라」). 층이 셋인 교재(기초편 › 개념 정리 › 1 영어의
+       * 8품사 › 진도설명)에서 둘째 층까지만 붙이니, 8품사·문장의 성분…
+       * 마다 하나씩인 「진도설명」 들이 구분 없이 한 묶음에 쏟아져
+       * 전부 중복처럼 보였다. small 이 제 이름(둘째 층짜리 교재)이면 뺀다.
+       */
+      const head = [u.big, u.mid, u.small && u.small !== u.name ? u.small : null]
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(" › ");
       const key = head === u.name ? "" : head;
       if (!m.has(key)) m.set(key, []);
       m.get(key).push(u);

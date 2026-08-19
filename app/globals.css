@@ -1293,6 +1293,13 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
   .stutbl .stu-drop { display: none; }
   .stutbl td, .stutbl th { padding-left: 6px; padding-right: 6px; }
   .stutbl .namebtn { font-size: 15px; }
+  /* **가로로 안 흔들리게** (원장님, 2026-08-19 — 「목록에 불필요한
+     가로움직임이 있어」). 열을 접었는데도 인라인 minWidth(교재명 220 등)의
+     합이 폰 폭을 넘어 표가 옆으로 밀렸다. 폰에서는 최소폭을 풀고 글자를
+     줄바꿈시켜 남은 열이 화면 안에 다 들어오게 한다. */
+  .stutbl th { min-width: 0 !important; width: auto !important; }
+  .stutbl th:first-child { width: 28px !important; }
+  .stutbl td, .stutbl th { white-space: normal; word-break: keep-all; }
 }
 
 /* ── 새 버전이 나왔을 때 뜨는 띠 ─────────────────────────────
