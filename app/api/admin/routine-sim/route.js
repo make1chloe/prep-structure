@@ -85,6 +85,12 @@ export async function GET(request) {
   };
   const stripNote = (s) => s.replace(/\s*\[[^\]]*\]\s*$/, "").trim();
 
+  // 초안 교재명이 실제 교재 목록에 없는 것 — 오타·옛 이름 (무조건 잡는다)
+  const dbNames = new Set((bkQ.data || []).map((b) => b.name.trim()));
+  const draftNameMiss = Object.keys(DRAFTS.books).filter(
+    (n) => typeof DRAFTS.books[n] !== "string" && !dbNames.has(n)
+  );
+
   const perStudent = [];
   const issues = { 루틴없는교재: new Map(), 단원없는교재: new Map(), 한달안소진: [], 예습다음단원없음: new Set() };
   const itemNames = new Set();
@@ -107,7 +113,8 @@ export async function GET(request) {
       const round = r.round || 1;
       let ptr = leaves.findIndex((u) => !doneSet.has(`${s.id}|${u.id}|${round}`));
       if (ptr < 0) ptr = leaves.length; // 이미 소진
-      if (!steps) {
+      // 단어책은 루틴이 없는 게 맞다 (원장님 2026-08-20 확정) — 단어시험 체계가 담당
+      if (!steps && (r.book.area || "") !== "단어") {
         const m = issues.루틴없는교재;
         m.set(r.book.name, (m.get(r.book.name) || 0) + 1);
       }
@@ -195,6 +202,7 @@ export async function GET(request) {
     학습항목목록: [...itemNames].sort(),
     학생별: perStudent,
     문제: {
+      초안이름불일치: draftNameMiss,
       루틴없는교재: [...issues.루틴없는교재.entries()].map(([n, c]) => `${n}(${c}명)`),
       단원없는교재: [...issues.단원없는교재.entries()].map(([n, c]) => `${n}(${c}명)`),
       한달안소진: issues.한달안소진,
