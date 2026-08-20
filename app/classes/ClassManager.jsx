@@ -361,8 +361,11 @@ export default function ClassManager({
                       <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggleOne(c.id)} />
                     </td>
                     <td>
+                      {/* 전체 리로드 금지 (2026-08-21) — <a> 는 검색어·스크롤·
+                          편집 중이던 반까지 다 날렸다. 교재 화면과 같은 방식 */}
                       <a
                         href={`/classes?c=${c.id}`}
+                        onClick={(e) => { e.preventDefault(); router.push(`/classes?c=${c.id}`, { scroll: false }); }}
                         style={{ fontWeight: 700, textDecoration: "none", color: "inherit" }}
                       >
                         {c.name}

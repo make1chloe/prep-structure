@@ -53,7 +53,7 @@ export default function NeisBox({ months = [] }) {
     importedSummary().then(setHave);
   };
 
-  function run(fn, after, loud = false) {
+  function run(fn, after, loud = false, quiet = false) {
     setErr("");
     startTransition(async () => {
       const res = await fn();
@@ -65,6 +65,9 @@ export default function NeisBox({ months = [] }) {
         return;
       }
       after?.(res);
+      // 읽기만 한 것(검색)은 새로고침하지 않는다 (2026-08-21) —
+      // 검색 한 번에 /schools 조회 열몇 개가 다시 돌았다
+      if (quiet) return;
       router.refresh();
     });
   }
@@ -294,12 +297,12 @@ export default function NeisBox({ months = [] }) {
             placeholder="학교 이름"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && run(() => searchSchools(q), (r) => setFound(r.rows))}
+            onKeyDown={(e) => e.key === "Enter" && run(() => searchSchools(q), (r) => setFound(r.rows), false, true)}
           />
           <button
             className="btn btn-sm"
             disabled={pending || q.trim().length < 2}
-            onClick={() => run(() => searchSchools(q), (r) => setFound(r.rows))}
+            onClick={() => run(() => searchSchools(q), (r) => setFound(r.rows), false, true)}
           >
             찾기
           </button>

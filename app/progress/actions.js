@@ -868,7 +868,9 @@ export async function setUnitProgress(studentId, unitIds, status) {
       const res = await withRound(q, await roundFor(id));
       if (res.error) error = res.error;
     }
-    revalidatePath("/today");
+    // revalidate 없음 (2026-08-21) — 진도를 찍는 그 화면이 응답과 함께
+    // 즉시 다시 그려져서, 12초 lazyRefresh 를 만들어 둔 보람이 없었다.
+    // 새로고침 시점은 화면(BookProgress)이 정한다
     return ok(error);
   }
 
@@ -904,8 +906,10 @@ export async function setUnitProgress(studentId, unitIds, status) {
       { onConflict: "student_id,textbook_unit_id" }
     ));
   }
-  revalidatePath("/today");
-  return ok(error);
+  // revalidate 없음 (2026-08-21) — 진도를 찍는 그 화면이 응답과 함께
+  // 즉시 다시 그려져서, 12초 lazyRefresh 를 만들어 둔 보람이 없었다.
+  // 새로고침 시점은 화면(BookProgress)이 정한다
+    return ok(error);
 }
 
 // ============================================================

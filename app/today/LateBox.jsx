@@ -36,7 +36,13 @@ export default function LateBox({
   const has = auto || !!saved.until || !!saved.reason;
   const sent = saved.sentAt;
 
-  function run(fn, after) {
+  /**
+   * @param quiet 새로고침 없이 조용히 (2026-08-21). 프리셋·사유는 이미
+   *   로컬 state 라, 누를 때마다 페이지 전체를 다시 그려 위 목록이
+   *   재정렬되고 스크롤이 흔들리던 것이 순수 손해였다.
+   *   보내기·되돌리기처럼 다른 화면 상태가 바뀌는 것만 새로고침한다.
+   */
+  function run(fn, after, quiet = false) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) {
@@ -44,7 +50,7 @@ export default function LateBox({
         return;
       }
       if (after) after(res);
-      router.refresh();
+      if (!quiet) router.refresh();
     });
   }
 
@@ -110,7 +116,7 @@ export default function LateBox({
             style={{ padding: "2px 8px", fontSize: 13 }}
             onClick={() => {
               setUntil(t);
-              run(() => saveLate(studentId, date, { until: t, reason }));
+              run(() => saveLate(studentId, date, { until: t, reason }), null, true);
             }}
           >
             {t}
@@ -126,7 +132,7 @@ export default function LateBox({
           onBlur={() => {
             const v = normalizeTime(until);
             setUntil(v);
-            run(() => saveLate(studentId, date, { until: v, reason }));
+            run(() => saveLate(studentId, date, { until: v, reason }), null, true);
           }}
         />
       </div>
@@ -139,7 +145,7 @@ export default function LateBox({
         value={reason}
         disabled={sent}
         onChange={(e) => setReason(e.target.value)}
-        onBlur={() => run(() => save())}
+        onBlur={() => run(() => save(), null, true)}
       />
 
       <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>

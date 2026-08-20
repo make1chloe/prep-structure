@@ -43,6 +43,12 @@ export default function PrepBoard({
   const [scopeFor, setScopeFor] = useState(null);   // 범위 고르는 중
   const [assignFor, setAssignFor] = useState(null); // 학생 배정 중
   const [addTo, setAddTo] = useState("");           // 자료 추가할 범위
+  /**
+   * 배정 낙관 상태 (2026-08-21) — 학생 칩을 누를 때마다 router.refresh 로
+   * 페이지 전체(시험·범위·자료·배정)를 다시 그리던 것을, 화면은 즉시
+   * 바꾸고 저장은 뒤에서 하게. 15명 배정 = 15번 왕복이던 자리.
+   */
+  const [assignLocal, setAssignLocal] = useState({});   // material_id → [student_id]
   const [pickType, setPickType] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -76,7 +82,10 @@ export default function PrepBoard({
   const scopeBulk = useBulk(myScopes);
   const matBulk = useBulk(materials.filter((m) => myScopes.some((s) => s.id === m.scope_id)));
   const scopeMatIds = scopeBulk.ids.flatMap((id) => matsOf(id).map((m) => m.id));
-  const assignsOf = (matId) => assigns.filter((a) => a.material_id === matId);
+  const assignsOf = (matId) =>
+    assignLocal[matId]
+      ? assignLocal[matId].map((sid) => ({ material_id: matId, student_id: sid }))
+      : assigns.filter((a) => a.material_id === matId);
 
   // ── 지금 할 것 — 숫자가 아니라 줄로 ──────────────────
   const todoRows = useMemo(() => {
@@ -387,12 +396,18 @@ export default function PrepBoard({
                                     <button key={st.id}
                                       className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
                                       style={{ padding: "2px 8px", fontSize: 13 }}
-                                      disabled={pending}
                                       onClick={() => {
                                         const next = on
                                           ? mine.filter((a) => a.student_id !== st.id).map((a) => a.student_id)
                                           : [...mine.map((a) => a.student_id), st.id];
-                                        run(() => setAssignees(m.id, next));
+                                        setAssignLocal((x) => ({ ...x, [m.id]: next }));
+                                        startTransition(async () => {
+                                          const res = await setAssignees(m.id, next);
+                                          if (res?.error) {
+                                            alert(res.error);
+                                            setAssignLocal((x) => ({ ...x, [m.id]: mine.map((a) => a.student_id) }));
+                                          }
+                                        });
                                       }}>
                                       {st.name}
                                     </button>

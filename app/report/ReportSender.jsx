@@ -23,6 +23,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
+  const [savedAt, setSavedAt] = useState(null);   // 문구 저장 시각 (2026-08-21)
   const [filter, setFilter] = useState("todo");
   const [copied, setCopied] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -169,6 +170,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
 
   function startEdit(r) {
     setOpenId(r.id);
+    setSavedAt(null);
     setDraft(r.text);
   }
   function saveEdit(r) {
@@ -178,7 +180,9 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
         alert(res.error);
         return;
       }
-      setOpenId(null);
+      // 저장해도 안 닫는다 (2026-08-21) — 저장=닫기면 두 번 고칠 때
+      // 「고치기」 를 다시 눌러 그 줄을 다시 찾아야 했다
+      setSavedAt(new Date());
       router.refresh();
     });
   }
@@ -359,6 +363,11 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                       style={{ fontSize: 15, lineHeight: 1.6 }}
                     />
                     <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                      {savedAt && (
+                        <span className="hint" style={{ fontSize: 12.5, alignSelf: "center" }}>
+                          {savedAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 저장됨 ✓
+                        </span>
+                      )}
                       <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>
                         저장
                       </button>

@@ -89,7 +89,9 @@ export default async function SchedulePage() {
       absences: (nextAbsOf.get(st.id) || []).length,
       absList: nextAbsOf.get(st.id) || [],
     }))
-    .sort((a, b) => (a.principalAt ? 1 : 0) - (b.principalAt ? 1 : 0) || a.name.localeCompare(b.name, "ko"));
+    // 이름순 고정 (2026-08-21) — 확정 순으로 다시 세우면 누를 때마다 그
+    // 줄이 맨 아래로 내려가 스무 명 확정하는 동안 손가락 자리가 계속 밀렸다
+    .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
   // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
   const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
