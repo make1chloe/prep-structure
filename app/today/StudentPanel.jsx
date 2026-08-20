@@ -23,6 +23,7 @@ import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions"
 import { STAY_LABEL } from "@/lib/reportText";
 import { isMemo, inHomework } from "@/lib/notices";
 import { lateReasons } from "@/lib/lateNotice";
+import { listLoad, overflowIds, minLabel } from "@/lib/pace";
 import { skipWordRetest } from "./lateActions";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
@@ -1292,7 +1293,7 @@ export default function StudentPanel({
                         <>
                           {!inClass.includes(iid) && (
                             <button
-                              className="btn btn-ghost btn-sm"
+                              className={`btn btn-sm ${item?.redo_default === "inclass" ? "btn-primary" : "btn-ghost"}`}
                               title="이 숙제를 오늘 학원에서 하게 — 등원 학습 맨 위에 섭니다"
                               onClick={() => setInClass([iid, ...inClass])}
                             >
@@ -1301,7 +1302,7 @@ export default function StudentPanel({
                           )}
                           {!next.has(iid) && (
                             <button
-                              className="btn btn-ghost btn-sm"
+                              className={`btn btn-sm ${item?.redo_default === "homework" ? "btn-primary" : "btn-ghost"}`}
                               title="다음 수업 숙제로 다시 냅니다"
                               onClick={() => setNext((s2) => new Set(s2).add(iid))}
                             >
@@ -1423,6 +1424,42 @@ export default function StudentPanel({
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
         <div style={{ flex: 1 }}>
+          {/* **소화량 게이지** (원장님 2026-08-20 — 일률 % 가 아니라 그
+              학생의 실제 타이머 기록으로. 기록 없는 항목은 추정 안 함) */}
+          {(() => {
+            if (inClass.length === 0) return null;
+            const { sec, unknownN } = listLoad(row.paceOf || {}, inClass);
+            if (!sec) return null;
+            const budget = row.classMinutes || 0;
+            const over = budget > 0 && sec / 60 > budget * 0.9;
+            const tail = over ? overflowIds(row.paceOf || {}, inClass, budget * 0.9) : [];
+            return (
+              <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                <span className={`tag ${over ? "tag-amber" : "tag-mint"}`}>
+                  예상 {minLabel(sec)}{budget ? ` / 수업 ${budget}분` : ""}
+                </span>
+                {unknownN > 0 && (
+                  <span className="hint">기록 없는 항목 {unknownN}개는 계산에서 뺌</span>
+                )}
+                {tail.length > 0 && (
+                  <button
+                    className="btn btn-sm"
+                    title="이 학생 기록 기준으로 시간이 넘치는 아래 항목들을 다음 숙제로 돌립니다"
+                    onClick={() => {
+                      setInClass(inClass.filter((x) => !tail.includes(x)));
+                      setNext((s2) => {
+                        const n = new Set(s2);
+                        tail.forEach((x) => n.add(x));
+                        return n;
+                      });
+                    }}
+                  >
+                    시간 넘는 {tail.length}개 숙제로 돌리기
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           {/* 순서 목록 (0140) — 위에서부터 학생이 하는 차례. ↑↓ 로 조정,
               시간이 모자라면 ✕(오늘 뺌) · 숙제로 · 다음 수업에 중 하나 */}
           <div className="stack" style={{ gap: 3 }}>
@@ -2092,6 +2129,18 @@ export default function StudentPanel({
                 다음 수업에 학원에서 할 것 — 지금 정해두면 다음 수업 등원 목록에 미리 서요.
               </span>
             )}
+            {planNext.length > 0 && (() => {
+              const { sec, unknownN } = listLoad(row.paceOf || {}, planNext);
+              if (!sec) return null;
+              const budget = row.classMinutes || 0;
+              const over = budget > 0 && sec / 60 > budget * 0.9;
+              return (
+                <span className={`tag ${over ? "tag-amber" : "tag-mint"}`} style={{ alignSelf: "flex-start" }}>
+                  예상 {minLabel(sec)}{budget ? ` / 수업 ${budget}분` : ""}
+                  {unknownN > 0 ? ` (기록 없음 ${unknownN})` : ""}
+                </span>
+              );
+            })()}
           </div>
           <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
             <button

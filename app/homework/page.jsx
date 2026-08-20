@@ -25,7 +25,7 @@ export default async function HomeworkPage() {
   let [{ data: items, error }, missQ, guQ] = await Promise.all([
     supabase
       .from("homework_items")
-      .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id, in_person, unit_test, tool")
+      .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id, in_person, unit_test, tool, redo_default")
       .order("sort", { ascending: true }),
     supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
     supabase.from("integrations").select("config").eq("id", "grammar_units").maybeSingle(),

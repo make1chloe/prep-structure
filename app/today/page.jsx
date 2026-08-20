@@ -10,6 +10,7 @@ import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
+import { paceMap } from "@/lib/pace";
 import { ccUserIdxOf, ccDaySummary } from "@/lib/classcard";
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
@@ -120,7 +121,7 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
     supabase
       .from("homework_items")
-      .select("id, name, category, sort, method, no_timer, unit_test, tool, in_person")
+      .select("id, name, category, sort, method, no_timer, unit_test, tool, in_person, redo_default")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase
@@ -596,7 +597,7 @@ export default async function TodayPage({ searchParams }) {
   const none = { data: [] };
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -662,6 +663,18 @@ export default async function TodayPage({ searchParams }) {
     unitIds.size > 0
       ? supabase.from("textbook_units").select("id, textbook_id").in("id", [...unitIds])
       : none,
+    // 학생별 소화량 재료 — 최근 8주 타이머 (lib/pace 한 벌, 원장님 2026-08-20)
+    studentIds.length
+      ? fetchAll(() =>
+          supabase
+            .from("study_sessions")
+            .select("student_id, homework_item_id, seconds")
+            .in("student_id", studentIds)
+            .gte("date", addDays(date, -56))
+            .not("seconds", "is", null)
+            .order("id")
+        )
+      : none,
   ]);
   const { data: receipts } = receiptsQ;
 
@@ -685,6 +698,16 @@ export default async function TodayPage({ searchParams }) {
       delivered: !!r.delivered_at,
     });
   });
+
+  const paceAvg = paceMap(paceQ?.data || []);
+  const paceOfStudent = (sid) => {
+    const out = {};
+    paceAvg.forEach((v, k) => {
+      const [s2, iid] = k.split("|");
+      if (s2 === sid) out[iid] = v;
+    });
+    return out;
+  };
 
   // ---------- 학생별 교재 배정 · 단원 진도 ----------
   // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
@@ -1183,6 +1206,14 @@ export default async function TodayPage({ searchParams }) {
           notices: noticesOfStudent.get(s.id) || [],
           books: progressOf(s.id),
           classId: klass.id,
+          // 수업 길이(분) — 소화량 게이지의 예산. 시각이 없으면 0 (게이지 숨김)
+          classMinutes: (() => {
+            const [a, b] = [klass.start_time, klass.end_time];
+            if (!a || !b) return 0;
+            const m = (t) => parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3, 5), 10);
+            return Math.max(0, m(b) - m(a));
+          })(),
+          paceOf: paceOfStudent(s.id),
           // 있으면 출결을 이 반에만 찍는다 (없으면 예전처럼 그날 출결)
           extraClassId: extra ? klass.id : null,
           className: klass.name,

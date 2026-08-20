@@ -266,6 +266,18 @@ export default async function Home() {
                 {/* 클카 플래너 감시 (0131 — 원장님 「이건 꼭 필요한 기능」).
                     소진 = 마감일이 앞으로 없거나 3일 안. 불일치 = 앱 단어
                     Day 와 플래너 Day 가 2 이상 어긋남 */}
+                {(d.backlog || []).length > 0 && (
+                  <div>
+                    <b className="hint">등원 밀림 (다음 수업에 계속이 쌓인 학생)</b>
+                    <div className="stack" style={{ gap: 3, marginTop: 4 }}>
+                      {d.backlog.slice(0, 6).map((b) => (
+                        <div className="hint" key={b.name}>
+                          <b>{b.name}</b> — 밀린 항목 {b.count}개
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {(d.classcard?.runningOut?.length > 0 || d.classcard?.mismatch?.length > 0 || d.classcard?.shadow) && (
                   <div>
                     <b className="hint">

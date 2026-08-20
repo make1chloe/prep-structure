@@ -203,6 +203,8 @@ export async function updateHomeworkItem(id, patch) {
   }
   if ("active" in (patch || {})) row.active = !!patch.active;
   if ("method" in (patch || {})) row.method = (patch.method || "").trim() || null;
+  // 안 해온 숙제 기본 처분 (0141) — inclass | homework | 빈값
+  if ("redo_default" in (patch || {})) row.redo_default = patch.redo_default || null;
   // 체크리스트 — 한 줄에 하나. 비면 학생 화면에 버튼이 안 나온다
   if ("checklist" in (patch || {})) {
     row.checklist =

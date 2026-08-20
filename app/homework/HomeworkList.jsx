@@ -112,6 +112,7 @@ export default function HomeworkList({ items = [], missKeys = null }) {
       no_timer: !!i.no_timer,
       in_person: !!i.in_person,
       unit_test: !!i.unit_test,
+      redo_default: i.redo_default || "",
     });
   }
   function saveEdit() {
@@ -387,6 +388,21 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                             onChange={(e) => setDraft({ ...draft, in_person: e.target.checked })}
                           />
                           <span style={{ fontSize: 13 }}>직접검사</span>
+                        </label>
+                        {/* 안 해온 숙제의 기본 처분 (0141) — 검사에서 △·✕ 일 때
+                            어느 버튼을 눈에 띄게 할지 */}
+                        <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          안 해오면
+                          <select
+                            className="input input-sm"
+                            style={{ width: 120 }}
+                            value={draft.redo_default || ""}
+                            onChange={(e) => setDraft({ ...draft, redo_default: e.target.value })}
+                          >
+                            <option value="">매번 고름</option>
+                            <option value="inclass">오늘수업으로</option>
+                            <option value="homework">숙제 다시</option>
+                          </select>
                         </label>
                         {/* **단원평가** (0106) — 이 표시가 붙은 항목으로
                             배정하면, 아이가 다음 시간에 와서 맞은 개수만

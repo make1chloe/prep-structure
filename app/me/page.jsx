@@ -528,6 +528,18 @@ export default async function MePage({ searchParams }) {
     };
   };
 
+  /**
+   * **밀림 배너** (원장님 2026-08-20 「d 나보다 학생한테도 떠야 할 듯」).
+   * 지난 수업에서 「다음 수업에 계속」 된 것 — 오늘 목록에 실려 오니,
+   * 몇 개가 밀려 있는지 한 줄로만 알려준다 (태그 덕지덕지 금지).
+   */
+  const prevRep = (reports || []).find((r) => r.date < today);
+  const carriedOver = prevRep
+    ? dri.filter(
+        (x) => x.daily_report_id === prevRep.id && x.status === "inclass" && x.carry_next
+      ).length
+    : 0;
+
   // 오늘 학원에서 할 것 (선생님이 오늘 정해준 것)
   const inClass = (latest && latest.date === today
     ? dri
@@ -892,6 +904,13 @@ export default async function MePage({ searchParams }) {
           />
 
           <ScreenNote text={N("me.study")} tone="card" />
+
+          {/* 밀림 배너 (0140) — 지난 수업에서 미룬 것이 오늘 목록에 실려 온다 */}
+          {carriedOver > 0 && (
+            <p className="notice" style={{ fontSize: 14, margin: "0 0 8px" }}>
+              지난 수업에서 미룬 것이 <b>{carriedOver}개</b> 있어요 — 오늘 할 일에 이어서 나와요.
+            </p>
+          )}
 
           <StudyTabs
             inClass={inClass}
