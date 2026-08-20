@@ -251,6 +251,25 @@ export async function handleRequest(id, accept, reply, makeup) {
  * 사라졌지」 가 없어야 한다. 이미 처리하신 것은 못 무른다 (결석 예정이
  * 깔렸는데 요청만 사라지면, 왜 깔렸는지 아무도 모르는 결석이 남는다).
  */
+/**
+ * **처리 완료** (원장님, 2026-08-20). 확인·조정 알림까지 끝낸 뒤,
+ * 업무 반영(출결 조정 등)이 끝났음을 표시한다 — 알림은 안 나간다.
+ * 이게 찍혀야 대시보드 목록에서 접힌다.
+ */
+export async function finishRequest(id) {
+  if (!id) return { error: "id 없음" };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("requests")
+    .update({ done_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "관리자 → SQL 확인에서 0142 를 먼저 실행해 주세요." };
+  }
+  revalidatePath("/");
+  return { error: error?.message || null };
+}
+
 export async function cancelRequest(id) {
   if (!id) return { error: "어느 것인지 모르겠어요." };
   const supabase = createClient();

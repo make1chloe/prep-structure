@@ -21,7 +21,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-20 · 0001~0141 · 139개)
+--   (2026-08-20 · 0001~0142 · 140개)
 -- ============================================================
 
 -- ─────────── 0001_core_schema.sql ───────────
@@ -7797,3 +7797,18 @@ alter table public.homework_items
 create or replace function public.redo_default_on()
 returns boolean language sql stable as $$ select true $$;
 grant execute on function public.redo_default_on() to authenticated;
+
+-- ─────────── 0142_request_done.sql ───────────
+-- 전달사항의 「처리 완료」 (원장님, 2026-08-20 — 「확인했다고 알림도
+-- 보냈으면 그다음에는 내가 업무에 반영을 해야 되잖아. 반영이 다 끝나면
+-- 더 이상 상시 떠 있을 필요가 없으니까 처리 완료가 되어야 해」).
+--
+-- 확인/조정(handled_at·알림)과 반영 끝(done_at)은 다른 단계다.
+-- done_at 이 찍혀야 대시보드 목록에서 접힌다.
+
+alter table public.requests
+  add column if not exists done_at timestamptz;
+
+create or replace function public.request_done_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.request_done_on() to authenticated;

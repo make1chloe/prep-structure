@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { handleRequest } from "./requests/actions";
+import { handleRequest, finishRequest } from "./requests/actions";
 import { quickFor } from "./requests/quick";
 import RequestPhotos from "@/components/RequestPhotos";
 
@@ -75,8 +75,16 @@ export default function RequestInbox({ requests = [] }) {
 
   const setM = (id, patch) => setMk({ ...mk, [id]: { ...(mk[id] || {}), ...patch } });
 
-  const live = requests.filter((r) => !r.canceled_at && !r.handled_at);
-  const past = requests.filter((r) => r.canceled_at || r.handled_at);
+  /**
+   * **처리 완료까지 남는다** (원장님, 2026-08-20 — 「확인했다고 알림도
+   * 보냈으면 그다음에는 내가 업무에 반영을 해야 되잖아」).
+   * 확인·조정(handled_at)은 답장 단계일 뿐 — done_at(반영 끝)이 찍혀야
+   * 접힌다. done_at 칸이 없는 옛 DB 는 전처럼 handled 로 접는다.
+   */
+  const hasDone = requests.some((r) => "done_at" in r);
+  const closed = (r) => r.canceled_at || (hasDone ? r.done_at : r.handled_at);
+  const live = requests.filter((r) => !closed(r));
+  const past = requests.filter((r) => closed(r));
 
   function Row(r, done) {
     const role = r.author_role === "parent" ? "parent" : "student";
@@ -156,15 +164,8 @@ export default function RequestInbox({ requests = [] }) {
               * 쓰면 어머니께 무슨 말이 갔는지 여기서는 알 수가 없다.
               */}
             <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-              {/* **누른 줄만 잠근다.** 예전에는 pending 하나로 스무 줄이
-                  통째로 잠겨서, 다른 줄을 눌러도 아무 일이 안 일어났다 */}
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => act(r.id, true, reply[r.id]?.trim() || quickFor(role, true))}
-                disabled={busy === r.id}
-              >
-                {busy === r.id ? "보내는 중…" : quickFor(role, true)}
-              </button>
+              {/* 순서: 조정 필요 → 확인 완료 → 처리 완료 (원장님 2026-08-20).
+                  누른 줄만 잠근다. 이미 확인(accepted)했으면 확인 버튼은 잠긴다 */}
               {/**
                 * **조정필요는 사유부터** (원장님, 2026-08-11 — 「애초에 조정필요
                 * 누르면 사유도 적게해줘」).
@@ -191,6 +192,46 @@ export default function RequestInbox({ requests = [] }) {
                 title="사유를 적으면 그대로 답장으로 나갑니다"
               >
                 {role === "parent" ? "조정 필요하다고 답장" : "조정필요"}
+              </button>
+              {/* 확인 완료 — 이미 확인했으면 다시 못 누른다 (원장님 2026-08-20) */}
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => act(r.id, true, reply[r.id]?.trim() || quickFor(role, true))}
+                disabled={busy === r.id || (!!r.handled_at && r.status === "accepted")}
+                title={
+                  r.handled_at && r.status === "accepted"
+                    ? `이미 확인 알림을 보냈어요 (${when(r.handled_at)})`
+                    : "확인했다는 답장이 나갑니다"
+                }
+              >
+                {r.handled_at && r.status === "accepted"
+                  ? "확인 완료됨"
+                  : busy === r.id ? "보내는 중…" : quickFor(role, true)}
+              </button>
+              {/**
+                * **처리 완료** (원장님, 2026-08-20 — 「확인했다고 알림도
+                * 보냈으면 그다음에는 내가 업무에 반영을 해야 되잖아. 반영이
+                * 다 끝나면 더 이상 상시 떠 있을 필요가 없으니까」).
+                * 알림은 안 나간다 — 반영 끝 표시일 뿐. 눌러야 접힌다.
+                */}
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  setBusy(r.id);
+                  startTransition(async () => {
+                    try {
+                      const res = await finishRequest(r.id);
+                      if (res?.error) setMsg({ ...msg, [r.id]: { bad: true, text: res.error } });
+                      else router.refresh();
+                    } finally {
+                      setBusy(null);
+                    }
+                  });
+                }}
+                disabled={busy === r.id}
+                title="업무 반영까지 끝났을 때 — 목록에서 접힙니다 (알림은 안 나가요)"
+              >
+                처리 완료
               </button>
               <span className="spacer" />
               <button
