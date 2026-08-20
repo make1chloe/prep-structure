@@ -60,8 +60,9 @@ export default function PrepTodo({ rows = [] }) {
                 </span>
               </div>
               <div className="stack" style={{ gap: 2 }}>
+                {/* 그 시험이 열린 채로 — /prep 맨 위에서 다시 찾지 않게 (2026-08-21) */}
                 {g.items.map((m) => (
-                  <Link className="unitrow" key={m.id} href="/prep" style={{ textDecoration: "none" }}>
+                  <Link className="unitrow" key={m.id} href={m.examId ? `/prep?e=${m.examId}` : "/prep"} style={{ textDecoration: "none" }}>
                     <span style={{ fontSize: 14 }}>{m.name}</span>
                     {m.scope && <span className="tag tag-muted">{m.scope}</span>}
                     <span className="spacer" />

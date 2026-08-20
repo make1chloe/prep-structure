@@ -381,6 +381,17 @@ export async function sendNotices(items, label, templateId, supa = null) {
       { kind, audience: INQUIRY }
     );
     out.results.forEach((r) => byRef.set(r.ref, r));
+    if (out.channel === "copy") {
+      /**
+       * **직접 발송(복사) 모드는 성공이 아니다** (2026-08-21). 지금까지
+       * ok:true 「직접 발송(기록만)」 로 돌아와 「N명에게 보냈어요」 로
+       * 표시되고 notified_on 까지 찍혔다 — 문자는 안 나갔는데 목록에서
+       * 사라져서, 그 집은 영영 안내를 못 받았다.
+       */
+      sendable.forEach((x) =>
+        byRef.set(x.id, { ok: false, detail: "직접 발송 모드 — 실제로는 안 나갔어요. 문자 화면에서 복사해 보내주세요." })
+      );
+    }
     outward.forEach((x) => {
       if (!x.phone) byRef.set(x.id, { ok: false, detail: "번호 없음" });
     });

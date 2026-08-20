@@ -433,6 +433,12 @@ export default function StudentPanel({
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
   const [saving, setSaving] = useState(false);            // 저장 진짜 잠금 (2026-08-21)
+  /**
+   * **출결은 만졌을 때만 저장** (2026-08-21). 등원 전에 미리 숙제를 준비해
+   * 두는 흐름(TodayBoard)이 있는데, 그 상태로 저장하면 오지도 않은 아이가
+   * 「정시」 로 찍혔다 — 수강료·결석 집계까지 틀어진다.
+   */
+  const [attTouched, setAttTouched] = useState(!!row.status);
   const router = useRouter();
 
   const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
@@ -765,7 +771,7 @@ export default function StudentPanel({
       try {
       // 특강이면 출결은 그 반에만 남긴다.
       // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
-      if (row.extraClassId && form.attendance) {
+      if (row.extraClassId && form.attendance && (attTouched || row.attendAt)) {
         const a = await setClassAttendance(
           row.extraClassId,
           row.student.id,
@@ -780,7 +786,8 @@ export default function StudentPanel({
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         draft: asDraft,
-        attendance: row.extraClassId ? null : form.attendance,
+        attendance:
+          row.extraClassId || (!attTouched && !row.attendAt) ? null : form.attendance,
         items: marks,
         /**
          * 그림자 모드(0132): 자동 판정·미달 상세를 **기록만** 한다.
@@ -873,12 +880,17 @@ export default function StudentPanel({
           {ATT.map((a) => (
             <button
               key={a.key}
-              className={`btn btn-sm ${form.attendance === a.key ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => set("attendance", a.key)}
+              className={`btn btn-sm ${(attTouched || row.attendAt) && form.attendance === a.key ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => { setAttTouched(true); set("attendance", a.key); }}
             >
               {a.label}
             </button>
           ))}
+          {!attTouched && !row.attendAt && (
+            <span className="hint" style={{ fontSize: 12.5 }}>
+              아직 미기록 — 누르거나 등원하면 기록돼요 (미리 준비만 하고 저장해도 출결은 안 찍힙니다)
+            </span>
+          )}
           {/* 특강은 이 반 것만 바뀐다 — 정규 출결은 그대로다 */}
           {row.extraClassId && (
             <span className="hint" style={{ fontSize: 13 }}>
@@ -1805,7 +1817,7 @@ export default function StudentPanel({
             <div className="stack" style={{ gap: 6, marginTop: 8 }}>
               {[...next].map((iid) => {
                 const u = nextUnits[iid] || { textbookId: defaultBook, unitIds: [], note: "" };
-                const bookId = u.textbookId ?? defaultBook;
+                const bookId = u.textbookId || defaultBook;
                 const opts = unitsByBook[bookId] || [];
                 const chosen = u.unitIds || [];
                 return (

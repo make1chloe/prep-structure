@@ -1012,11 +1012,11 @@ export async function resetNeisExams() {
 
   let { data: rows, error } = await supabase
     .from("exam_periods")
-    .select("id, school, name, from_date, to_date, english_on, cuts, teacher, teachers, note, source");
+    .select("id, school, name, from_date, to_date, english_on, cuts, teacher, teachers, note, source, hidden");
   if (error) {
     // 0073·0076 전이면 없는 칸이 있다 — 한 단계 물러난다
     ({ data: rows, error } = await supabase
-      .from("exam_periods").select("id, school, name, from_date, to_date, english_on, note, source"));
+      .from("exam_periods").select("id, school, name, from_date, to_date, english_on, note, source, hidden"));
   }
   if (error) return { error: error.message };
 
@@ -1030,8 +1030,10 @@ export async function resetNeisExams() {
     ...(scoreRows || []).map((r) => r.exam_id),
   ]);
 
+  // hidden 도 「만진 것」 이다 (2026-08-21) — 지우면 다시 받아올 때 숨김이
+  // 풀린 채 되살아나서, 치워둔 회차 스무 줄을 또 하나씩 숨겨야 했다
   const touched = (r) =>
-    !!(r.english_on || r.teacher || r.note || (r.teachers || []).length || (r.cuts || []).length);
+    !!(r.english_on || r.teacher || r.note || r.hidden || (r.teachers || []).length || (r.cuts || []).length);
 
   const kill = [];
   const keep = [];

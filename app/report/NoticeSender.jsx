@@ -229,7 +229,9 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
 
       // 안내한 교재를 **사용 예정일부터** 재원생 정보에 꽂아둔다.
       // 보낸 뒤에 한다 — 문자가 안 나갔는데 배정만 되어 있으면 안 된다.
-      if (usesBooks && assign && chosen.length > 0) {
+      // 하나도 안 나갔으면 배정(notified_on)도 안 한다 — 안 나간 안내가
+      // 「나간 것」 이 되어 목록에서 사라지면 안 된다 (2026-08-21)
+      if (usesBooks && assign && chosen.length > 0 && res.count > 0) {
         const a = await assignAnnouncedBooks(
           picked.map((r) => r.id),
           chosen.map((b) => b.id),

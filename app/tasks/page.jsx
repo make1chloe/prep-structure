@@ -140,6 +140,7 @@ async function pendingPrep(supabase) {
       if (!exam) return null;
       return {
         id: m.id,
+        examId: scope?.exam_id || null,
         name: m.name,
         left,
         scope: scope?.name || "",

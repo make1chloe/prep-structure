@@ -702,6 +702,20 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate, make
   if (!studentId || !makeupDate) return { error: "날짜를 골라주세요." };
   const supabase = createClient();
 
+  // 그날 이미 출결이 있으면 덮어쓰지 않는다 (2026-08-21) — 기본 날짜가
+  // 다음 보강 요일이라 정규 수업일과 겹치기 쉬웠고, upsert 가 정시·지각을
+  // 소리 없이 「보강」 으로 바꿔 수강료 집계까지 틀어질 수 있었다
+  {
+    const { data: clash } = await supabase
+      .from("attendance")
+      .select("status")
+      .eq("student_id", studentId)
+      .eq("date", makeupDate)
+      .maybeSingle();
+    if (clash && clash.status !== "makeup") {
+      return { error: `${makeupDate} 에는 이미 출결 기록(${clash.status})이 있어요. 다른 날짜로 잡아주세요.` };
+    }
+  }
   const row = {
     student_id: studentId,
     date: makeupDate,

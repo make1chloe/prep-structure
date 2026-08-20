@@ -335,6 +335,10 @@ export default function ScheduleBoard({
             <span className="tag tag-sky">
               전날 등원 {monthDay(e.eveDate)}
             </span>
+            {/* 회차를 만들었으면 다음 일은 범위다 — 메뉴를 옮겨 다시 찾지 않게 (2026-08-21) */}
+            <a className="btn btn-ghost btn-sm" href={`/prep?e=${e.id}`} style={{ padding: "2px 8px", fontSize: 12.5 }}>
+              범위 넣기 →
+            </a>
           </>
         ) : (
           <>

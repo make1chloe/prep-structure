@@ -84,8 +84,9 @@ export default function SendTodo({
         "book",
         bookTemplateId
       );
-      if (!res?.error) {
-        // 안내 나간 날을 새긴다 — 이 목록에서 빠진다 (0125)
+      if (!res?.error && res.count > 0) {
+        // 안내 나간 날을 새긴다 — 이 목록에서 빠진다 (0125).
+        // 직접 발송 모드로 0명이면 안 새긴다 (2026-08-21)
         const ids = pickedBooks.map((w) => w.id);
         const bookIds = [...new Set(pickedBooks.flatMap((w) => w.books.map((b) => b.id)))];
         const startOn = pickedBooks.flatMap((w) => w.books.map((b) => b.from)).sort()[0];
