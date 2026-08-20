@@ -27,6 +27,7 @@ export async function GET(request) {
   const op = new URL(request.url).searchParams.get("op");
   if (op === "rebuild") return rebuildRoutines(supabase);
   if (op === "flow") return flowSim(supabase);
+  if (op === "retest") return retestList(supabase);
 
   const today = todaySeoul();
 
@@ -525,4 +526,82 @@ async function flowSim(supabase) {
       루틴전무학생: findings.루틴전무학생,
     },
   });
+}
+
+
+/**
+ * **오늘 단어 재시험 명단 + 시험 방식** (원장님, 2026-08-20 — 「재시험
+ * 뜬 학생들 확인해서 클로드가 크롬에서 재시험지 클래스카드로 인쇄」 +
+ * 「(시험지 유형은) 앱의 학생별 시험 방식을 그대로 — 그게 포인트임」).
+ *
+ * 읽기만 한다. 클로드가 이 목록을 받아 클카에서 학생별 오늘 세트로
+ * 시험지를 생성한다. 유형 매핑:
+ *   단어제시 객관식=mc_meaning · 주관식=sa_meaning
+ *   의미제시 객관식=mc_word   · 주관식=sa_word
+ *   first_hint → 「주관식 첫 글자 힌트」 체크
+ */
+async function retestList(supabase) {
+  const today = todaySeoul();
+  const { data: reps } = await supabase
+    .from("daily_reports")
+    .select("student_id, word_correct, word_total, skip_kinds")
+    .eq("date", today)
+    .gt("word_total", 0);
+  const failed = (reps || []).filter((r) => {
+    if ((r.skip_kinds || []).includes("retest")) return false;   // 오늘은 건너뛰기
+    if (r.word_correct == null) return false;
+    return (r.word_correct / r.word_total) * 100 < 90;
+  });
+  if (!failed.length) return NextResponse.json({ ok: true, today, students: [] });
+
+  const ids = failed.map((r) => r.student_id);
+  const [{ data: sts }, { data: sb }, { data: bks }] = await Promise.all([
+    supabase.from("students").select("id, name, login_id, classcard_login").in("id", ids),
+    supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, round, status")
+      .in("student_id", ids)
+      .neq("status", "dropped"),
+    supabase.from("textbooks").select("id, name, area"),
+  ]);
+  const bookById = new Map((bks || []).map((b) => [b.id, b]));
+  const wordBookOf = new Map();
+  (sb || []).forEach((r) => {
+    const b = bookById.get(r.textbook_id);
+    if (b?.area === "단어" && !wordBookOf.has(r.student_id))
+      wordBookOf.set(r.student_id, { id: b.id, name: b.name, round: r.round || 1 });
+  });
+  let wt = [];
+  {
+    const q = await supabase
+      .from("word_test_settings")
+      .select("student_id, textbook_id, round, mc_meaning, sa_meaning, mc_word, sa_word, first_hint, units_per")
+      .in("student_id", ids);
+    if (!q.error) wt = q.data || [];
+  }
+  const stById = new Map((sts || []).map((x) => [x.id, x]));
+  const students = failed.map((r) => {
+    const st = stById.get(r.student_id) || {};
+    const wb = wordBookOf.get(r.student_id) || null;
+    const w = wt.find(
+      (x) => x.student_id === r.student_id && (!wb || x.textbook_id === wb.id)
+    ) || null;
+    return {
+      name: st.name || "학생",
+      ccLogin: st.classcard_login || st.login_id || "",
+      score: `${r.word_correct}/${r.word_total}`,
+      wordBook: wb?.name || "",
+      방식: w
+        ? {
+            단어제시_객관식: w.mc_meaning || 0,
+            단어제시_주관식: w.sa_meaning || 0,
+            의미제시_객관식: w.mc_word || 0,
+            의미제시_주관식: w.sa_word || 0,
+            첫글자힌트: !!w.first_hint,
+            한번에단원: w.units_per || 1,
+          }
+        : null,
+    };
+  });
+  return NextResponse.json({ ok: true, today, students });
 }
