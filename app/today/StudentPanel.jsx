@@ -1131,6 +1131,24 @@ export default function StudentPanel({
             onTotal={(v) => set("sent_total", v)}
             onCorrect={(v) => set("sent_correct", v)}
           />
+          {/* **재시험 건너뛰기를 점수 칸 옆에** (원장님 2026-08-21 — 「단어재시험
+              건너뛰기 버튼 필요」). 전에는 하원 사유 줄에만 있어서, 사유가 자동으로
+              잡히기 전엔 버튼 자체가 안 보였다 — 점수를 적는 그 자리에서 누른다 */}
+          <button
+            className={`btn btn-sm ${retestSkip ? "btn-primary" : "btn-ghost"}`}
+            disabled={pending}
+            title={retestSkip ? "누르면 다시 재시험 대상이 됩니다" : "오늘은 단어 재시험을 안 봅니다 — 하원 사유·문자에서 빠져요. 점수 기록은 그대로예요"}
+            onClick={() => {
+              const on = !retestSkip;
+              setRetestSkip(on);
+              startTransition(async () => {
+                const res = await skipWordRetest(row.student.id, date, on);
+                if (res?.error) { alert(res.error); setRetestSkip(!on); }
+              });
+            }}
+          >
+            {retestSkip ? "재시험 건너뜀 ✓" : "재시험 건너뛰기"}
+          </button>
         </div>
       </div>
 

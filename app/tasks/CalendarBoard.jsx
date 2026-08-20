@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { todaySeoul, DOW } from "@/lib/day";
-import { dedupeSameDay } from "@/lib/calendar";
+import { dedupeSameDay, mergePrefixSameDay } from "@/lib/calendar";
 import { cleanNote, cleanTitle } from "@/lib/note";
 
 /**
@@ -91,6 +91,26 @@ export default function CalendarBoard({
    * 하나를 다 먹는다. 그래서 칸마다 펴고 접는다.
    */
   const [openCells, setOpenCells] = useState(() => new Set());
+
+  /**
+   * **한 날의 목록은 어디서 보든 한 벌** (원장님, 2026-08-21 — 「여전히
+   * 학사일정에 뭔가 문제가 있어」). 중복 제거가 칸에만 걸리고 누른 날
+   * 목록에는 안 걸려서, 칸에서는 하나였던 시험이 눌러 보면 두 줄이었다.
+   *
+   * 순위: 휴강(그날 수업이 없다는 뜻까지) > 시험 회차(영어 시험일·범위가
+   * 붙는다) > 원장님이 적으신 일정 > 나이스 학사일정.
+   * 마지막으로 「추석」⊂「추석연휴」 처럼 한쪽이 다른 쪽을 품는 같은 날
+   * 학사일정끼리는 긴 쪽만 남긴다.
+   */
+  const dayList = (d) =>
+    mergePrefixSameDay(
+      dedupeSameDay(
+        (byDay.get(d) || []).map((x) => ({ ...x, date: d, title: x.label })),
+        (x) =>
+          x.source === "휴강" ? 4 : x.source === "시험" ? 3 : x.where?.includes("여기") ? 2 : 1
+      ),
+      (a, b) => a.source === "학사일정" && b.source === "학사일정"
+    );
   const toggleCell = (d) =>
     setOpenCells((prev) => {
       const n = new Set(prev);
@@ -285,10 +305,7 @@ export default function CalendarBoard({
            * 더 많이 말해주는 것을 남긴다 — 휴강(그날 수업이 없다는 뜻까지) >
            * 원장님이 정하신 일정 > 학교가 준 학사일정.
            */
-          const items = dedupeSameDay(
-            (byDay.get(d) || []).map((x) => ({ ...x, date: d, title: x.label })),
-            (x) => (x.source === "휴강" ? 3 : x.where?.includes("여기") ? 2 : 1)
-          );
+          const items = dayList(d);
           const dow = i % 7;
           /**
            * 접혀 있을 때는 **넉 줄까지**. 다섯 줄이 넘어가면 그 주가 통째로
@@ -349,12 +366,12 @@ export default function CalendarBoard({
             <b style={{ fontSize: 15 }}>
               {Number(pick.slice(5, 7))}월 {Number(pick.slice(8, 10))}일
             </b>
-            <span className="hint">{(byDay.get(pick) || []).length}건</span>
+            <span className="hint">{dayList(pick).length}건</span>
             <span className="spacer" />
             <button className="btn btn-ghost btn-sm" onClick={() => setPick(null)}>닫기</button>
           </div>
           <div className="stack" style={{ gap: 6, marginTop: 6 }}>
-            {(byDay.get(pick) || []).map((it) => (
+            {dayList(pick).map((it) => (
               <div className="unitrow" key={it.key} style={{ alignItems: "flex-start" }}>
                 <span className={`tag ${it.band === "todo" ? "tag-amber" : "tag-sky"}`}>
                   {it.band === "todo" ? "할일" : "일정"}

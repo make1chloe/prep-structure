@@ -6,6 +6,8 @@ import Help from "@/components/Help";
 import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
 import TbdList from "./TbdList";
+import { dropNeisShadowedByExams, examTitle } from "@/lib/calendar";
+import { looseKey } from "@/lib/schoolName";
 import TodoBoard from "../todo/TodoBoard";
 import PrepTodo from "./PrepTodo";
 import MakeupTodo from "./MakeupTodo";
@@ -186,7 +188,7 @@ export default async function TasksPage({ searchParams }) {
   let taskErr = false;
   if (wantSchedule) {
     const COLS =
-      "id, title, kind, category, due_on, end_on, start_time, status, priority, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
+      "id, title, kind, category, due_on, end_on, start_time, status, priority, class_id, note, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade, source, source_id";
     // 달력이면 그 달만, 아니면 오늘부터 (지난 것은 켜야 보인다)
     const range = (q) =>
       isCal
@@ -199,7 +201,7 @@ export default async function TasksPage({ searchParams }) {
      */
     let examSel0 = supabase
       .from("exam_periods")
-      .select("id, school, grade, name, from_date, to_date, english_on")
+      .select("id, school, grade, name, from_date, to_date, english_on, neis_source_id")
       .gte("to_date", isCal ? mFrom : todaySeoul());
     if (isCal) examSel0 = examSel0.lte("from_date", mTo);
     let holSel0 = supabase
@@ -258,6 +260,9 @@ export default async function TasksPage({ searchParams }) {
           .order("due_on", { ascending: true }).order("id")));
     }
     taskErr = !!error;
+    // **회차가 이미 말하는 나이스 줄은 뺀다** (2026-08-21) — 같은 시험이
+    // 🏫(나이스)와 📕(회차) 두 벌로 서던 근본 원인. 판단은 lib/calendar 한 곳
+    tasks = dropNeisShadowedByExams(tasks, examQ.error ? [] : examQ.data || [], looseKey);
 
     classes = clsQ.data || [];
 
@@ -375,7 +380,7 @@ export default async function TasksPage({ searchParams }) {
         key: `exam-${e.id}`,
         from: e.from_date,
         to: e.to_date,
-        title: `${e.school} ${e.grade || ""} ${e.name || "시험"}`.replace(/\s+/g, " ").trim(),
+        title: examTitle(e),
         extra: e.english_on ? `영어 ${e.english_on.slice(5)}` : "영어 시험일 미정",
         source: "시험",
         school: e.school,
