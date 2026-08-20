@@ -40,6 +40,8 @@ export async function addTask(formData) {
     // 고르면 대상이 비고 private 이 켜진다 — 자물쇠를 따로 두지 않는다
     deliver_scope: clean(formData, "deliver_scope"),
     private: !!clean(formData, "private"),
+    // 날짜 미정 (0143) — due_on 은 대략 시기일 뿐, 달력에 안 박힌다
+    date_tbd: !!clean(formData, "date_tbd"),
     deliver_class_id: clean(formData, "deliver_class_id"),
     deliver_school: clean(formData, "deliver_school"),
     deliver_grade: clean(formData, "deliver_grade"),
@@ -60,17 +62,26 @@ export async function addTask(formData) {
   };
   let { error } = await supabase.from("tasks").insert({ ...row, ...extra });
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0143 전이면 날짜 미정 칸이 없다
+    const { date_tbd: _d, ...noTbd } = row;
+    ({ error } = await supabase.from("tasks").insert({ ...noTbd, ...extra }));
+    if (!error && row.date_tbd) {
+      revalidatePath("/tasks");
+      return { error: "날짜 미정으로 두려면 설정 → Supabase SQL 에서 0143 을 먼저 실행해주세요." };
+    }
+  }
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0117 전이면 하위목록 칸이 없다
-    const { checklist: _c, ...noChecklist } = row;
+    const { checklist: _c, date_tbd: _d2, ...noChecklist } = row;
     ({ error } = await supabase.from("tasks").insert({ ...noChecklist, ...extra }));
   }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    const { checklist: _c2, ...noChecklist2 } = row;
+    const { checklist: _c2, date_tbd: _d3, ...noChecklist2 } = row;
     await supabase.from("tasks").insert(noChecklist2);
   }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0066 전이면 비공개 칸이 없다
-    const { private: _p, checklist: _c3, ...bare } = row;
+    const { private: _p, checklist: _c3, date_tbd: _d4, ...bare } = row;
     await supabase.from("tasks").insert(bare);
   }
   revalidatePath("/tasks");
@@ -99,6 +110,8 @@ export async function updateTask(id, patch) {
   });
   // 나만 보기 — 켜면 학생·학부모 달력에서 빠진다 (0066)
   if ("private" in (patch || {})) row.private = !!patch.private;
+  // 날짜 확정 — due_on 채우고 미정 표시를 끈다 (0143)
+  if ("date_tbd" in (patch || {})) row.date_tbd = !!patch.date_tbd;
   if (!row.due_on && "due_on" in row) delete row.due_on; // 날짜는 비울 수 없음
 
   const supabase = createClient();
@@ -112,8 +125,11 @@ export async function updateTask(id, patch) {
     }
   }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    const { private: _p, checklist: _c2, ...noPriv } = row;
+    const { private: _p, checklist: _c2, date_tbd: _d5, ...noPriv } = row;
     ({ error } = await supabase.from("tasks").update(noPriv).eq("id", id));
+    if (!error && "date_tbd" in row) {
+      return { error: "날짜 미정을 쓰려면 설정 → Supabase SQL 에서 0143 을 먼저 실행해주세요." };
+    }
   }
   revalidatePath("/tasks");
   revalidatePath("/today");

@@ -52,6 +52,17 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
             <label className="label">날짜 *</label>
             <input className="input input-sm" type="date" name="due_on" defaultValue={today} required />
           </div>
+          {/* **날짜 미정** (원장님 2026-08-21). 공지만 나온 일정 — 날짜 칸엔
+              대략 그쯤을 적는다. 달력엔 안 박히고 「날짜 안 나온 일정」 에
+              모였다가, 확정되면 같은 줄에 날짜만 채운다 */}
+          <label
+            className="row"
+            style={{ gap: 4, alignItems: "center", fontSize: 13, paddingBottom: 7, whiteSpace: "nowrap" }}
+            title="날짜가 아직 안 나온 일정이면 켜세요. 날짜 칸엔 대략 그쯤을 적어두면 됩니다"
+          >
+            <input type="checkbox" name="date_tbd" value="1" />
+            날짜 미정
+          </label>
           <div className="field" style={{ width: 110 }}>
             <label className="label">시간</label>
             <input className="input input-sm" type="time" name="start_time" />

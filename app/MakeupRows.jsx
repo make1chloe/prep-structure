@@ -133,7 +133,7 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
           이 날로 옮기기
         </button>
         <span className="hint" style={{ fontSize: 12.5 }}>
-          어머니껜 다음 정각에 「보강 일정이 바뀌었습니다」 로 갑니다 — 그 전엔 발송에서 취소돼요
+          어머니껜 다음 :00/:30 에 「보강 일정이 바뀌었습니다」 로 갑니다 — 그 전엔 발송에서 취소돼요
         </span>
       </div>
     )}

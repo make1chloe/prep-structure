@@ -5,6 +5,7 @@ import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
+import TbdList from "./TbdList";
 import TodoBoard from "../todo/TodoBoard";
 import PrepTodo from "./PrepTodo";
 import MakeupTodo from "./MakeupTodo";
@@ -176,6 +177,7 @@ export default async function TasksPage({ searchParams }) {
 
   // ── 일정 ──────────────────────────────────────────────
   let rows = [];
+  let tbdRows = [];
   let linked = [];
   let classes = [];
   let schools = [];
@@ -273,6 +275,23 @@ export default async function TasksPage({ searchParams }) {
       : { data: [] };
     const madeMap = new Map((made || []).map((n) => [n.task_id, n.date]));
     rows = (tasks || []).map((t) => ({ ...t, deliveredOn: madeMap.get(t.id) || null }));
+
+    // **날짜 안 나온 일정** (0143) — 달month·오늘부터 거르기에 안 걸리고
+    // 늘 보인다. 0143 전 DB 면 조용히 빈 목록 (칸이 없다는 재촉은 폼이 한다)
+    {
+      const { data: tb, error: te } = await supabase
+        .from("tasks")
+        .select(`${COLS}, date_tbd`)
+        .eq("kind", "schedule")
+        .eq("date_tbd", true)
+        .order("due_on", { ascending: true });
+      if (!te) {
+        tbdRows = (tb || []).filter((t) => t.status !== "done");
+        const ids = new Set(tbdRows.map((t) => t.id));
+        // 대략 날짜가 이번 달이면 본 목록·달력에도 걸린다 — 거기선 뺀다
+        rows = rows.filter((t) => !ids.has(t.id));
+      }
+    }
 
     // 다른 화면에서 만든 일정도 여기서 같이 보여준다 (여기서 고치지는 않는다)
     //   시험 일정 → exam_periods (회차 관리 · 시험)
@@ -523,6 +542,7 @@ export default async function TasksPage({ searchParams }) {
             <GoogleSync />
           </div>
         )}
+        {isCal && <TbdList rows={tbdRows} />}
         {isCal && <RoutineBox rows={routines} categories={cats} error={routineErr} />}
         {isCal && (
           <CalendarBoard
@@ -562,6 +582,7 @@ export default async function TasksPage({ searchParams }) {
                 {showPast ? "지난 일정 숨기기" : "지난 일정도 보기"}
               </Link>
             </div>
+            <TbdList rows={tbdRows} />
             <TaskBoard tasks={rows} classes={classes} unavailable={taskErr} linked={linked} />
           </section>
         )}

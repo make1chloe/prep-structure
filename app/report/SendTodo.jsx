@@ -182,7 +182,7 @@ export default function SendTodo({
                 <span className="tag tag-lav">
                   {new Date(s.due_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </span>
-                {/* 배치 규칙(2026-08-21) — 자동 앱 알림은 다음 정각까지 여기 선다.
+                {/* 배치 규칙(2026-08-21) — 자동 앱 알림은 다음 :00/:30 까지 여기 선다.
                     취소를 누르면 그 알림은 안 나간다 */}
                 {s.kind === "push" && <span className="tag tag-mint">앱 알림</span>}
                 <span style={{ fontSize: 14, flex: 1 }}>{s.note || (s.kind === "report" ? "리포트" : s.kind === "push" ? "앱 알림" : "교재 안내")}</span>
