@@ -19,15 +19,15 @@ import MonthNav from "@/components/MonthNav";
  * 보이는 것은 세 가지 안팎이다. 안 쓰인 색은 아래 설명에도 안 나온다.
  */
 const TONE = {
-  school: { cls: "cal-school", label: "학사일정" },
-  event: { cls: "cal-event", label: "학원 일정" },
-  todo: { cls: "cal-todo", label: "할일" },
+  school: { cls: "cal-school", label: "학사일정", icon: "🏫" },
+  event: { cls: "cal-event", label: "학원 일정", icon: "📌" },
+  todo: { cls: "cal-todo", label: "할일", icon: "☑" },
   // 학생 달력 (0089 이후) — 「내 수업이 언제인가」 가 제일 먼저 궁금하다
-  klass: { cls: "cal-mint", label: "수업" },
-  exam: { cls: "cal-red", label: "시험" },
-  absent: { cls: "cal-amber", label: "결석·보강" },
+  klass: { cls: "cal-mint", label: "수업", icon: "📘" },
+  exam: { cls: "cal-red", label: "시험", icon: "📕" },
+  absent: { cls: "cal-amber", label: "결석·보강", icon: "🏠" },
   // 휴강은 **제일 알려야 하는 것**이다 — 그날 헛걸음하지 않으시라고 (0096)
-  off: { cls: "cal-off", label: "휴강" },
+  off: { cls: "cal-off", label: "휴강", icon: "🚫" },
 };
 
 /**
@@ -105,10 +105,12 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
                     className={`cal-item ${TONE[it.tone]?.cls || ""} ${it.pri >= 2 ? "cal-pri2" : it.pri === 1 ? "cal-pri1" : ""}`}
                     title={it.title}
                   >
+                    <span className="cal-ico" aria-hidden="true">{TONE[it.tone]?.icon || "📌"}</span>
                     {it.title}
                   </Link>
                 ) : (
                   <span key={k} className={`cal-item ${TONE[it.tone]?.cls || ""} ${it.pri >= 2 ? "cal-pri2" : it.pri === 1 ? "cal-pri1" : ""}`} title={it.title}>
+                    <span className="cal-ico" aria-hidden="true">{TONE[it.tone]?.icon || "📌"}</span>
                     {it.title}
                   </span>
                 )
@@ -140,7 +142,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
           <div className="stack" style={{ gap: 4, marginTop: 6 }}>
             {dayItems.map((it, i) => (
               <div className="unitrow" key={`${it.title}-${i}`}>
-                <i className={`cal-dot ${TONE[it.tone]?.cls || ""}`} />
+                <span className="cal-ico" aria-hidden="true">{TONE[it.tone]?.icon || "📌"}</span>
                 <span style={{ fontSize: 15, flex: 1 }}>
                   {it.title}
                   {it.note && <span className="hint"> · {it.note}</span>}
@@ -166,7 +168,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
           .filter(([k]) => n(k) > 0)
           .map(([k, v]) => (
             <span key={k} className="hint" style={{ fontSize: 12.5 }}>
-              <i className={`cal-dot ${v.cls}`} /> {v.label}
+              <span className="cal-ico" aria-hidden="true">{v.icon}</span> {v.label}
             </span>
           ))}
       </div>

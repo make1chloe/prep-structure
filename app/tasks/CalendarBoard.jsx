@@ -29,6 +29,17 @@ const CAT_CLS = {
  * 다른 화면에서 온 것들 — 각자 다른 표에 있지만 원장님 하루에는 같이 있다.
  * 글자만으로는 한 칸 안에서 구별이 안 되므로 **그림 하나씩** 붙인다.
  */
+/** 일정(여기서 적은 것)의 갈래 그림 — 폰 달력 칸에서 점 대신 이걸 보인다
+    (원장님 2026-08-21 — 「점 말고 아이콘으로 어느 정도 내용을 예측」) */
+const CAT_ICON = {
+  학사일정: "🏫",
+  수업: "📘",
+  행정: "🧾",
+  상담: "🤝",
+  교재: "📗",
+  기타: "📌",
+};
+
 const SOURCE = {
   시험: { icon: "📕", cls: "cal-amber" },
   휴강: { icon: "🚫", cls: "cal-muted" },
@@ -121,6 +132,7 @@ export default function CalendarBoard({
         cls: `${CAT_CLS[t.category || "기타"] || "cal-muted"} ${
           (t.priority || 0) >= 2 ? "cal-pri2" : t.priority === 1 ? "cal-pri1" : ""
         }`,
+        icon: CAT_ICON[t.category || "기타"] || "📌",
         href: "/tasks?view=schedule",
         done: t.status === "done",
         band: "schedule",
@@ -141,7 +153,8 @@ export default function CalendarBoard({
     .forEach((t) =>
       put(t.due_on, {
         key: `d-${t.id}`,
-        label: `☑ ${cleanTitle(t.title)}`,
+        label: cleanTitle(t.title),
+        icon: "☑",
         cls: "cal-muted",
         href: "/tasks?view=todo",
         band: "todo",
@@ -159,7 +172,8 @@ export default function CalendarBoard({
     while (d <= l.to) {
       put(d, {
         key: `${l.key}-${d}`,
-        label: `${mark.icon} ${cleanTitle(l.title)}`,
+        label: cleanTitle(l.title),
+        icon: mark.icon,
         cls: mark.cls,
         href: l.href,
         // **어디서 왔고 왜 있는지.** 「다른 화면에서 온 일정이 뭔지 왜 있는지
@@ -246,7 +260,7 @@ export default function CalendarBoard({
           )}
           <span className="spacer" />
           <span className="hint" style={{ fontSize: 12.5 }}>
-            📕시험 🚫휴강 🤝상담 📝레테 🔁보강 🏠결석 ☑할일
+            📕시험 🚫휴강 🤝상담 📝레테 🔁보강 🏠결석 ☑할일 · 🏫학사 📘수업 📗교재 🧾행정 📌기타
           </span>
         </div>
       </div>
@@ -305,6 +319,7 @@ export default function CalendarBoard({
                   onClick={(e) => { e.stopPropagation(); setPick(pick === d ? null : d); }}
                   title={it.label}
                 >
+                  {it.icon && <span className="cal-ico" aria-hidden="true">{it.icon}</span>}
                   {it.label}
                 </button>
               ))}
@@ -348,6 +363,7 @@ export default function CalendarBoard({
                     대한 추가설명 전부 빼줘」). 제목이면 충분하고, 「가기」 가
                     그 화면으로 데려간다 */}
                 <span style={{ fontSize: 14, flex: 1 }}>
+                  {it.icon && <span className="cal-ico" aria-hidden="true">{it.icon}</span>}
                   <b>{it.label}</b>
                 </span>
                 <Link className="btn btn-ghost btn-sm" href={it.href}>

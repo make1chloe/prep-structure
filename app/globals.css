@@ -1062,6 +1062,9 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
 .cal-pri1 { --bar: var(--amber); }
 .cal-pri2 { --bar: var(--red); font-weight: 800; }
 
+/* 달력 줄 맨 앞의 갈래 그림 — 글자와 같이 흐른다 */
+.cal-ico { margin-right: 3px; }
+
 /* 요약 줄의 동그라미는 색이 있어야 한다 — 거기는 색이 곧 뜻이다 */
 .cal-dot {
   display: inline-block; width: 9px; height: 9px; border-radius: 3px;
@@ -1074,29 +1077,29 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
   .cal-dow { padding: 4px 2px; font-size: 12px; }
 
   /**
-   * **폰 월간 달력은 점으로** (원장님, 2026-08-15 — 「달력이 모바일에서는
-   * 글씨가 너무 생략되어 잘 안 보여. 인기 일정 앱들 살펴보고 개선해」).
+   * **폰 월간 달력은 갈래 그림으로** (원장님, 2026-08-21 — 「달력에 그냥
+   * 점 말고 아이콘으로 어느 정도 내용을 예측할 수 있도록」).
    *
-   * 구글·틱틱·네이버 캘린더의 공통 문법: 월간 칸에는 **색 점만**, 내용은
-   * **누른 날 아래 목록**에서. 12px로 잘라 넣은 글자는 「해송고 올포…」
-   * 처럼 생략만 보여서 있으나 마나였다. 점 색 = 종류 색(왼쪽 막대와 같은
-   * 값). 누른 날 목록은 세 달력(할일·학사일정·학생 달력)에 이미 있다.
+   * 8/15에는 색 점이었다(구글·틱틱 문법). 그런데 점은 「뭔가 있다」 까지만
+   * 말하고 **무엇인지**는 눌러봐야 알았다. 그림(📕시험 🚫휴강 🏠결석 …)은
+   * 안 누르고도 갈래가 보인다. 내용 글자는 여전히 누른 날 아래 목록에서.
    * 펼친 칸(.cal-open)은 그대로 글로 보인다.
    */
   .cal-cell:not(.cal-open) { display: block; }
   .cal-cell:not(.cal-open) .cal-item {
-    display: inline-block; width: 8px; height: 8px; margin: 3px 3px 0 0;
-    padding: 0; border-radius: 99px;
-    background: var(--bar, var(--text-faint));
-    font-size: 0; line-height: 0; overflow: hidden; vertical-align: top;
-    pointer-events: none;   /* 점은 못 누른다 — 칸(날짜)을 누르게 */
+    display: inline-block; width: auto; height: auto; margin: 1px 2px 0 0;
+    padding: 0; border-radius: 0; background: transparent;
+    font-size: 0; line-height: 1; overflow: hidden; vertical-align: top;
+    pointer-events: none;   /* 그림은 못 누른다 — 칸(날짜)을 누르게 */
   }
+  .cal-cell:not(.cal-open) .cal-item .cal-ico { font-size: 13px; line-height: 1.2; margin: 0; }
   .cal-cell:not(.cal-open) .cal-item::before { display: none; }
-  /* 중요한 날의 점은 한 눈금 크게 — 색만으로는 점이 작아 안 보인다 */
-  .cal-cell:not(.cal-open) .cal-item.cal-pri1,
-  .cal-cell:not(.cal-open) .cal-item.cal-pri2 { width: 11px; height: 11px; }
-  /* 끝낸 일의 점은 색을 죽인다 — 흐림(opacity)이 아니라 회색으로 (노안 규칙) */
-  .cal-cell:not(.cal-open) .cal-item.cal-done { background: var(--text-faint); text-decoration: none; }
+  /* 중요한 날의 그림은 한 눈금 크게 */
+  .cal-cell:not(.cal-open) .cal-item.cal-pri1 .cal-ico,
+  .cal-cell:not(.cal-open) .cal-item.cal-pri2 .cal-ico { font-size: 15px; }
+  /* 끝낸 일의 그림은 색을 죽인다 — 회색으로 (노안 규칙) */
+  .cal-cell:not(.cal-open) .cal-item.cal-done { background: transparent; text-decoration: none; }
+  .cal-cell:not(.cal-open) .cal-item.cal-done .cal-ico { filter: grayscale(1); }
   .cal-cell:not(.cal-open) .cal-more {
     display: inline-block; vertical-align: top;
     font-size: 12px; padding: 0 2px; margin: 0; pointer-events: none;
