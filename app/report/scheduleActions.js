@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sessionUser } from "@/lib/session";
 import { resend } from "@/app/resend/actions";
 import { sendNotices, assignAnnouncedBooks } from "./noticeActions";
+import { pushToFamilies } from "@/app/push/actions";
 
 /**
  * **예약 발송** (0126, 원장님 2026-08-16 — 「체크박스로 선택해서 보내는
@@ -109,6 +110,17 @@ export async function runDueSends(supa = null) {
           await assignAnnouncedBooks(p.ids, p.bookIds, p.startOn, supa);
         }
         result = { count: res?.count ?? 0, failed: res?.failed || [], error: res?.error || null };
+      } else if (job.kind === "push") {
+        // 배치 알림 (2026-08-21 규칙) — 같은 정각에 뜬 같은 집 알림은
+        // 아래 묶음 단계에서 이미 하나로 합쳐 들어온다
+        const p = job.payload || {};
+        const res = await pushToFamilies(
+          p.studentIds || [],
+          { title: p.title, body: p.body || "", url: p.url || "/parent" },
+          p.who || "all",
+          supa
+        );
+        result = { sent: res?.sent ?? 0, error: res?.error || null };
       } else {
         result = { error: `모르는 종류: ${job.kind}` };
       }

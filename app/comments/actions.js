@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
+import { queuePush } from "@/lib/pushQueue";
 import { noTable } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
 
@@ -79,11 +80,13 @@ export async function addComment(reportId, studentId, body) {
     if (author_role === "staff") {
       const { data: who } = await supabase
         .from("students").select("name").eq("id", studentId).maybeSingle();
-      await pushToFamilies([studentId], {
+      await queuePush(supabase, {
+        studentIds: [studentId],
+        who: "all",
         title: "💬 선생님 댓글",
         body: `${who?.name ? `${who.name} · ` : ""}${text.slice(0, 60)}`,
         url: "/me",
-      }, "all");
+      }, `${who?.name || "학생"} · 댓글 알림`);
     } else {
       const { data: who } = await supabase
         .from("students").select("name").eq("id", studentId).maybeSingle();

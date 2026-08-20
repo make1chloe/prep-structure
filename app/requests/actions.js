@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
+import { queuePush } from "@/lib/pushQueue";
 import { sessionUser } from "@/lib/session";
 
 function ok(error) {
@@ -213,7 +214,9 @@ export async function handleRequest(id, accept, reply, makeup) {
        * 나머지는 무엇에 대한 것인지(갈래)를 제목에 싣는다.
        */
       const sched = req.kind === "absence" || req.kind === "makeup";
-      await pushToFamilies([req.student_id], {
+      await queuePush(supabase, {
+        studentIds: [req.student_id],
+        who: "all",
         title: accept
           ? "✅ 확인했습니다"
           : sched
@@ -225,7 +228,7 @@ export async function handleRequest(id, accept, reply, makeup) {
             ? `${KIND[req.kind] || "알림"} 확인했습니다.`
             : "선생님 답장을 열어서 확인해주세요."),
         url: "/me",
-      }, "all");
+      }, "전달사항 답장");
     } catch {
       // 알림이 안 가도 답은 남았다
     }

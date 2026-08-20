@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { pushToStudents, pushToFamilies } from "@/app/push/actions";
+import { queuePush } from "@/lib/pushQueue";
 import { safeKind, isAlert } from "@/lib/notices";
 import { dowOf, todaySeoul } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
@@ -407,14 +408,16 @@ export async function saveStudentDay(studentId, date, form) {
       const list = (names || []).map((n) => n.name).filter(Boolean);
       // **바뀐 것이 있으면 그것부터 말한다.** 「숙제가 올라왔어요」 만 오면
       // 아까 본 것과 무엇이 다른지 아이가 알 수가 없다
-      await pushToStudents([studentId], {
+      // 배치 규칙 (2026-08-21) — 다음 정각에 나간다. 그 전엔 보낼 것에서 취소 가능
+      await queuePush(supabase, {
+        studentIds: [studentId],
+        who: "student",
         title: changed.length ? "숙제가 바뀌었어요" : "오늘 숙제가 올라왔어요",
         body: changed.length
           ? `${changed.join(", ")} — 앱에서 확인해주세요`
           : (list.length ? list.join(", ") : "앱에서 확인해주세요"),
         url: "/me",
-        tag: "homework",
-      });
+      }, "숙제 알림");
     } catch {
       // 알림 실패는 무시한다
     }
@@ -454,11 +457,13 @@ export async function saveStudentDay(studentId, date, form) {
    */
   try {
     if (date === todaySeoul() && JSON.stringify(oldInclass) !== JSON.stringify(inClassIds) && inClassIds.length) {
-      await pushToStudents([studentId], {
+      await queuePush(supabase, {
+        studentIds: [studentId],
+        who: "student",
         title: "오늘 할 일이 바뀌었어요",
         body: "화면을 열어 새 순서를 확인해 주세요.",
         url: "/me",
-      });
+      }, "오늘 할 일 변경");
     }
   } catch { /* 알림 실패는 저장을 막지 않는다 */ }
 

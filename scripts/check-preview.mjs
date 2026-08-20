@@ -119,7 +119,8 @@ eq(/pushToStaff\(/.test(create), true, "제출하면 선생님께 간다");
 eq(/pushToFamilies\(/.test(create), false, "제출한 집으로는 안 간다");
 // 답장은 반대로 — 그건 집으로 가야 한다
 const handle = req.slice(req.indexOf("export async function handleRequest"));
-eq(/pushToFamilies\(/.test(handle), true, "선생님 답장은 집으로 간다");
+// 2026-08-21 배치 규칙 — 답장 알림은 queuePush(다음 정각)로 나간다
+eq(/(queuePush|pushToFamilies)\(/.test(handle), true, "선생님 답장은 집으로 간다");
 
 console.log("\n== 학부모 화면은 한 줄 ==");
 // 왜 켜야 하는지·요금 이야기는 다 맞는 말이지만 첫 화면에서 읽으실 글이 아니다

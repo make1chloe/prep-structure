@@ -86,7 +86,8 @@ eq(pl.includes("export async function cancelMakeup"), true, "취소하는 길이
 eq(/cancelMakeup[\s\S]*?\.eq\("status", "makeup"\)/.test(pl), true,
    "보강 줄만 지운다 (결석은 그대로)");
 // 어머니는 그날 아이를 보내실 참이었다 — 조용히 지우면 헛걸음을 하신다
-eq(/cancelMakeup[\s\S]*?pushToFamilies/.test(pl), true, "취소하면 알린다");
+// 2026-08-21 배치 규칙 — 취소 알림은 queuePush(다음 정각)로 나간다
+eq(/cancelMakeup[\s\S]*?(queuePush|pushToFamilies)/.test(pl), true, "취소하면 알린다");
 
 console.log("\n== 전달사항 — 답장 여러 번 · 보낸 쪽 취소 ==");
 /**

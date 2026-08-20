@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToFamilies } from "@/app/push/actions";
+import { queuePush } from "@/lib/pushQueue";
 import { noColumn } from "@/lib/sqlError";
 import { syncPrepTasks } from "@/app/today/actions";
 
@@ -122,7 +123,7 @@ export async function clearPlannedAbsence(studentId, date) {
  * 보강은 비어 있는 틈에 끼워 넣는 것이라 **몇 시인지가 날짜만큼 중요하다.**
  * 날짜만 잡아두면 그날 아침에 「몇 시에 오라고 했더라」 를 다시 찾으시게 된다.
  */
-export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
+export async function setMakeup(studentId, makeupDate, absentDate, makeupTime, reason) {
   if (!studentId || !makeupDate) return { error: "값이 부족해요." };
   const supabase = createClient();
   const row = {
@@ -131,13 +132,15 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
     status: "makeup",
     makeup_of: absentDate || null,
     makeup_time: (makeupTime || "").trim() || null,
+    // 결석 보강이 아닌 추가 보강의 까닭 (원장님 2026-08-21 「사유 칸 필요」)
+    reason: (reason || "").trim() || null,
   };
   let { error } = await supabase
     .from("attendance")
     .upsert(row, { onConflict: "student_id,date" });
   if (noColumn(error)) {
-    // 0046 전이면 시간 칸이 없다 — 날짜라도 잡힌다
-    const { makeup_time: _t, ...noTime } = row;
+    // 0046 전이면 시간·사유 칸이 없다 — 날짜라도 잡힌다
+    const { makeup_time: _t, reason: _r, ...noTime } = row;
     ({ error } = await supabase
       .from("attendance")
       .upsert(noTime, { onConflict: "student_id,date" }));
@@ -162,6 +165,71 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime) {
  * **알려야 한다.** 어머니는 그날 아이를 보내실 참이었다. 조용히 지우면
  * 헛걸음을 하시게 된다.
  */
+/**
+ * **보강 일정 바꾸기** (원장님, 2026-08-21 — 「보강 일정을 수정할 수가
+ * 없음」). 취소+재등록이 아니라 그 줄을 옮긴다 — 원 결석 연결(makeup_of)과
+ * 사유는 따라간다. 옮길 날짜에 이미 출결이 있으면 막고 말해준다.
+ * 알림은 배치 규칙대로 다음 정각에 「변경」 으로 나간다.
+ */
+export async function moveMakeup(studentId, fromDate, toDate, toTime) {
+  if (!studentId || !fromDate || !toDate) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  if (fromDate !== toDate) {
+    const { data: clash } = await supabase
+      .from("attendance")
+      .select("status")
+      .eq("student_id", studentId)
+      .eq("date", toDate)
+      .maybeSingle();
+    if (clash) return { error: `옮길 날짜(${toDate})에 이미 출결 기록이 있어요 (${clash.status}). 그 날을 먼저 정리해주세요.` };
+  }
+  const { data: old } = await supabase
+    .from("attendance")
+    .select("makeup_of, reason, note")
+    .eq("student_id", studentId)
+    .eq("date", fromDate)
+    .eq("status", "makeup")
+    .maybeSingle();
+  if (!old) return { error: "그 날짜의 보강을 못 찾았어요." };
+
+  const { error: delErr } = await supabase
+    .from("attendance").delete()
+    .eq("student_id", studentId).eq("date", fromDate).eq("status", "makeup");
+  if (delErr) return { error: delErr.message };
+  const row = {
+    student_id: studentId,
+    date: toDate,
+    status: "makeup",
+    makeup_of: old.makeup_of || null,
+    reason: old.reason || null,
+    note: old.note || null,
+    makeup_time: (toTime || "").trim() || null,
+  };
+  let { error } = await supabase.from("attendance").upsert(row, { onConflict: "student_id,date" });
+  if (noColumn(error)) {
+    const { makeup_time: _t, reason: _r, ...bare } = row;
+    ({ error } = await supabase.from("attendance").upsert(bare, { onConflict: "student_id,date" }));
+  }
+  if (error) return { error: error.message };
+
+  try {
+    const { data: me } = await supabase
+      .from("students").select("name").eq("id", studentId).maybeSingle();
+    await queuePush(supabase, {
+      studentIds: [studentId],
+      who: "all",
+      title: "보강 일정이 바뀌었습니다",
+      body: `${fromDate} → ${toDate}${(toTime || "").trim() ? ` ${toTime}` : ""} 로 변경되었어요.`,
+      url: "/parent",
+    }, `${me?.name || "학생"} · 보강 변경 알림`);
+  } catch { /* 알림 실패는 변경을 막지 않는다 */ }
+
+  revalidatePath("/");
+  revalidatePath("/plan");
+  revalidatePath("/today");
+  return { error: null };
+}
+
 export async function cancelMakeup(studentId, date, why, notify = true) {
   if (!studentId || !date) return { error: "어느 보강인지 모르겠어요." };
   const supabase = createClient();
@@ -192,12 +260,14 @@ export async function cancelMakeup(studentId, date, why, notify = true) {
   try {
     const { data: me } = await supabase
       .from("students").select("name").eq("id", studentId).maybeSingle();
-    await pushToFamilies([studentId], {
+    // 배치 규칙 (2026-08-21) — 다음 정각에. 그 전엔 보낼 것에서 취소 가능
+    await queuePush(supabase, {
+      studentIds: [studentId],
+      who: "all",
       title: "보강 일정이 취소되었습니다",
       body: `${date} 보강이 취소되었어요.${(why || "").trim() ? ` ${why.trim()}` : " 다시 잡아서 알려드리겠습니다."}`,
       url: "/parent",
-      tag: "makeup-cancel",
-    }, "all");
+    }, `${me?.name || "학생"} · 보강 취소 알림`);
   } catch {
     /* 알림이 안 가도 취소는 됐다 — 다만 전화를 한 번 드리는 편이 낫다 */
   }
