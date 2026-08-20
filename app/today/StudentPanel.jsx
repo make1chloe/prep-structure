@@ -240,22 +240,23 @@ export default function StudentPanel({
      *   ① 클카 자동 판정 ② 학생 제출물 ③ (등원 학습은 다 했어요 버튼)
      * 저장해야 확정 — 원장님은 뒤집을 것만 뒤집으면 된다.
      */
+    const auto = {};
     setMarks((m) => {
       const n = { ...m };
-      let changed = false;
       (row.toCheck || []).forEach((iid) => {
         if (n[iid]) return;
         const v = ccVerdictOf(iid);
-        if (v) { n[iid] = v.status; changed = true; return; }
+        if (v) { n[iid] = v.status; auto[iid] = v.status; return; }
         const item = items.find((x) => x.id === iid);
         if (item?.in_person) return;   // 직접검사는 눈으로
         if ((row.subs || []).some((x) => x.homework_item_id === iid)) {
           n[iid] = "done";
-          changed = true;
+          auto[iid] = "done";
         }
       });
-      return changed ? n : m;
+      return Object.keys(auto).length ? n : m;
     });
+    setAutoMarks(auto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1252,6 +1253,9 @@ export default function StudentPanel({
                       >
                         {st ? <b>{MARK[st]}</b> : <b>·</b>} {nameOf(iid) || "숙제"}
                       </span>
+                      {autoMarks[iid] && marks[iid] === autoMarks[iid] && (
+                        <span className="tag tag-sky" title="클카·제출물로 미리 채운 판정 — 저장해야 확정돼요. 다르면 옆에서 뒤집으세요">자동</span>
+                      )}
                       <span className="markset">
                         {[["done", "○"], ["weak", "△"], ["missing", "✕"]].map(([k, sym]) => (
                           <button
@@ -2258,7 +2262,9 @@ export default function StudentPanel({
         </div>
       </div>
 
-      <div className="row" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
+      {/* 저장 줄 — 판이 길어서 저장하러 바닥까지 내려가야 했다
+          (원장님 2026-08-20 교수자 흐름 점검). 화면 아래에 붙어 다닌다 */}
+      <div className="row savebar" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
         {savedDraftAt && (
           <span className="hint" style={{ fontSize: 13 }}>
             {savedDraftAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 임시저장됨

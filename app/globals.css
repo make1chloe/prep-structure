@@ -1428,3 +1428,12 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
   cursor: grab;
 }
 .kbcard:active { cursor: grabbing; }
+
+/* 오늘 수업 판의 저장 줄 — 판이 길어도 저장이 늘 보이게 화면 아래에 붙는다
+   (원장님 2026-08-20 교수자 흐름 점검) */
+.savebar {
+  position: sticky; bottom: 0; z-index: 5;
+  background: var(--surface);
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
