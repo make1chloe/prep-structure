@@ -6,7 +6,7 @@ import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./act
 import { quickAddUnits } from "@/app/textbooks/actions";
 import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
-import MakeupHere from "./MakeupHere";
+import MakeupHere, { MakeupMissed } from "./MakeupHere";
 import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
 import BookProgress from "@/components/BookProgress";
 import PickOrType from "@/components/PickOrType";
@@ -911,12 +911,23 @@ export default function StudentPanel({
           옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
           나중에 하기로 하면 나중은 오지 않는다 */}
       {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
-        <MakeupHere
-          studentId={row.student.id}
-          date={date}
-          name={row.student.name}
-          already={row.makeupOn || null}
-        />
+        row.isMakeup ? (
+          /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
+             보강 없음으로 접는다 (원장님 2026-08-21) */
+          <MakeupMissed
+            studentId={row.student.id}
+            date={date}
+            name={row.student.name}
+            makeupOf={row.makeupOf || null}
+          />
+        ) : (
+          <MakeupHere
+            studentId={row.student.id}
+            date={date}
+            name={row.student.name}
+            already={row.makeupOn || null}
+          />
+        )
       )}
 
       {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}

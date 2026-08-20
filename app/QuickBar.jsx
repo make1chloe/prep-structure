@@ -32,6 +32,7 @@ export default function QuickBar({ students = [] }) {
   const [on, setOn] = useState("");
   const [at, setAt] = useState("");
   const [ofDate, setOfDate] = useState("");
+  const [why, setWhy] = useState("");   // 결석 보강이 아닐 때의 까닭 (2026-08-21)
 
   // 할일
   const [title, setTitle] = useState("");
@@ -46,10 +47,10 @@ export default function QuickBar({ students = [] }) {
     setMsg(null);
     startTransition(async () => {
       try {
-        const res = await setMakeup(who, on, ofDate || null, at);
+        const res = await setMakeup(who, on, ofDate || null, at, why);
         if (res?.error) { setMsg({ bad: true, text: res.error }); return; }
         const name = students.find((s) => s.id === who)?.name || "학생";
-        setWho(""); setOn(""); setAt(""); setOfDate("");
+        setWho(""); setOn(""); setAt(""); setOfDate(""); setWhy("");
         done(`${name} 보강을 잡았어요.`);
       } catch (e) {
         setMsg({ bad: true, text: `저장하지 못했어요: ${e?.message || e}` });
@@ -122,6 +123,14 @@ export default function QuickBar({ students = [] }) {
               className="input input-sm" type="date" style={{ width: 145 }}
               value={ofDate} onChange={(e) => setOfDate(e.target.value)}
               title="어느 날 결석의 보강인가 (안 적어도 됩니다)"
+            />
+            {/* **왜 하는 보강인지** (원장님 2026-08-21 — 「결석이 아닌
+                추가 보강에 사유를 적는 칸 필요함」). 결석분이면 비워둔다 */}
+            <input
+              className="input input-sm"
+              style={{ flex: 1, minWidth: 150 }}
+              placeholder="왜 (단어 재시험 · 시험 대비 …)"
+              value={why} onChange={(e) => setWhy(e.target.value)}
             />
             <button
               className="btn btn-primary btn-sm"

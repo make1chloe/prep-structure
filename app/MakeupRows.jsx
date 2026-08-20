@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cancelMakeup } from "./plan/actions";
+import { cancelMakeup, moveMakeup } from "./plan/actions";
 import { dayLabel } from "@/lib/day";
 
 /**
@@ -19,6 +19,18 @@ import { dayLabel } from "@/lib/day";
 export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, onlyChanged = false }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // **일정 바꾸기** (원장님 2026-08-21 — 「보강 일정을 수정할 수가 없음」).
+  // 취소했다 다시 잡는 게 아니라 그 줄을 옮긴다 — 원 결석 연결·사유가 따라간다
+  const [edit, setEdit] = useState(null);   // { key, date, time }
+
+  function move(r) {
+    startTransition(async () => {
+      const res = await moveMakeup(r.student_id, r.date, edit.date, edit.time);
+      if (res?.error) { alert(res.error); return; }
+      setEdit(null);
+      router.refresh();
+    });
+  }
 
   function drop(r) {
     const who = nameOf[r.student_id] || "학생";
@@ -57,8 +69,11 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
   const done = rows.filter((r) => r.makeup_confirmed_at);
   const sorted = [...changed, ...wait, ...done];
 
-  const Row = (r) => (
-    <div className="unitrow" key={`${r.student_id}-${r.date}`}>
+  const Row = (r) => {
+    const key = `${r.student_id}-${r.date}`;
+    return (
+    <div key={key}>
+    <div className="unitrow">
       <b style={{ fontSize: 14, minWidth: 72 }}>{nameOf[r.student_id] || "학생"}</b>
       <span className="hint">{dayLabel(r.date)}</span>
       {r.makeup_time && <span className="hint">{r.makeup_time.slice(0, 5)}</span>}
@@ -77,6 +92,16 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
       )}
       <span className="spacer" />
       <button
+        className={`btn btn-sm ${edit?.key === key ? "btn-primary" : "btn-ghost"}`}
+        disabled={pending}
+        title="날짜·시간만 옮깁니다. 원래 결석 연결과 사유는 그대로 따라가요"
+        onClick={() =>
+          setEdit(edit?.key === key ? null : { key, date: r.date, time: (r.makeup_time || "").slice(0, 5) })
+        }
+      >
+        일정 바꾸기
+      </button>
+      <button
         className="btn btn-ghost btn-sm"
         onClick={() => drop(r)}
         disabled={pending}
@@ -94,7 +119,27 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
         조용히 지우기
       </button>
     </div>
-  );
+    {edit?.key === key && (
+      <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center", margin: "2px 0 4px 72px" }}>
+        <input
+          className="input input-sm" type="date" style={{ width: 145 }}
+          value={edit.date} onChange={(e) => setEdit({ ...edit, date: e.target.value })}
+        />
+        <input
+          className="input input-sm" type="time" style={{ width: 105 }}
+          value={edit.time} onChange={(e) => setEdit({ ...edit, time: e.target.value })}
+        />
+        <button className="btn btn-primary btn-sm" disabled={pending || !edit.date} onClick={() => move(r)}>
+          이 날로 옮기기
+        </button>
+        <span className="hint" style={{ fontSize: 12.5 }}>
+          어머니껜 다음 정각에 「보강 일정이 바뀌었습니다」 로 갑니다 — 그 전엔 발송에서 취소돼요
+        </span>
+      </div>
+    )}
+    </div>
+    );
+  };
 
   return (
     <div className={`card sect ${changed.length ? "sect-bad" : "sect-calm"}`}>
