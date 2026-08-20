@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { quickAddUnits } from "@/app/textbooks/actions";
@@ -210,6 +210,23 @@ export default function StudentPanel({
       : "";
 
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
+  /**
+   * **내가 만진 판정만 내 것이다** (2026-08-21). marks 는 열 때 한 번만
+   * 서버값으로 초기화됐다 — 그 사이 검사 대기줄(CheckQueue)에서 찍은
+   * 판정이 DB 에 들어와도 이 판은 모르고, 저장(전체 교체)이 그걸 옛값으로
+   * 되돌렸다. 새로고침으로 서버값이 오면 **안 만진 항목만** 받아들인다.
+   */
+  const touchedMarks = useRef(new Set());
+  useEffect(() => {
+    setMarks((m) => {
+      let changed = false;
+      const n = { ...m };
+      Object.entries(row.items || {}).forEach(([iid, st]) => {
+        if (st && !touchedMarks.current.has(iid) && n[iid] !== st) { n[iid] = st; changed = true; }
+      });
+      return changed ? n : m;
+    });
+  }, [row.items]);
   // 1차 판단으로 미리 채운 값 — 화면에 「자동」 을 붙여 손 판정과 구분한다
   const [autoMarks, setAutoMarks] = useState({});
 
@@ -626,6 +643,8 @@ export default function StudentPanel({
   }
 
   function cycle(id) {
+    if (saving) return;   // 저장 중 찍은 판정은 서버에 못 실린다 — 잠깐 막는다
+    touchedMarks.current.add(id);
     setMarks((m) => ({ ...m, [id]: CYCLE[m[id] || ""] }));
   }
 
@@ -1284,10 +1303,11 @@ export default function StudentPanel({
                   <button
                     className="btn btn-sm"
                     style={{ marginBottom: 6 }}
+                    disabled={saving}
                     onClick={() =>
                       setMarks((m) => {
                         const n = { ...m };
-                        fillable.forEach((iid) => { n[iid] = "done"; });
+                        fillable.forEach((iid) => { touchedMarks.current.add(iid); n[iid] = "done"; });
                         return n;
                       })
                     }
@@ -1321,9 +1341,11 @@ export default function StudentPanel({
                             key={k}
                             className={`markbtn ${st === k ? `on ${MARK_CLS[k]}` : ""}`}
                             title={k === "done" ? "완료" : k === "weak" ? "미흡" : "미제출"}
-                            onClick={() =>
-                              setMarks((m) => ({ ...m, [iid]: m[iid] === k ? "" : k }))
-                            }
+                            disabled={saving}
+                            onClick={() => {
+                              touchedMarks.current.add(iid);
+                              setMarks((m) => ({ ...m, [iid]: m[iid] === k ? "" : k }));
+                            }}
                           >
                             {sym}
                           </button>

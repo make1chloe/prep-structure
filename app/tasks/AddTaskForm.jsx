@@ -35,7 +35,16 @@ export default function AddTaskForm({ classes = [], schools = [], grades = [], s
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
 
-      <form action={addTask} className="stack" style={{ gap: 8, marginTop: 10 }}>
+      {/* 서버가 돌려준 오류를 보여준다 (2026-08-21) — form action 직결이면
+          「0143 을 실행해주세요」 같은 답이 조용히 버려졌다 */}
+      <form
+        action={async (fd) => {
+          const res = await addTask(fd);
+          if (res?.error) alert(res.error);
+        }}
+        className="stack"
+        style={{ gap: 8, marginTop: 10 }}
+      >
         <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label className="label">이름 *</label>
