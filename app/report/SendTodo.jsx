@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { dayLabel } from "@/lib/day";
@@ -38,6 +38,26 @@ export default function SendTodo({
     () => new Set(unsentByDate.flatMap((d) => d.items.map((x) => x.id)))
   );
   const [bookSel, setBookSel] = useState(() => new Set(bookWait.map((w) => w.studentId)));
+  /**
+   * 새로 나타난 것도 체크로 (2026-08-21) — 「처음 전부 체크」 가 마운트
+   * 한 번뿐이라, 보내고 새로고침되면 그 사이 생긴 미발송은 체크 없이 섰다.
+   * 원장님이 손으로 뺀 것은 그대로 두고, 처음 보는 id 만 켠다.
+   */
+  const seenRep = useRef(new Set(unsentByDate.flatMap((d) => d.items.map((x) => x.id))));
+  const seenBook = useRef(new Set(bookWait.map((w) => w.studentId)));
+  useEffect(() => {
+    const fresh = unsentByDate.flatMap((d) => d.items.map((x) => x.id))
+      .filter((id) => !seenRep.current.has(id));
+    if (fresh.length > 0) {
+      fresh.forEach((id) => seenRep.current.add(id));
+      setRepSel((prev) => new Set([...prev, ...fresh]));
+    }
+    const freshB = bookWait.map((w) => w.studentId).filter((id) => !seenBook.current.has(id));
+    if (freshB.length > 0) {
+      freshB.forEach((id) => seenBook.current.add(id));
+      setBookSel((prev) => new Set([...prev, ...freshB]));
+    }
+  }, [unsentByDate, bookWait]);
   const [when, setWhen] = useState("");   // 예약 시각 (datetime-local)
 
   const repCount = unsentByDate.flatMap((d) => d.items).filter((x) => repSel.has(x.id)).length;

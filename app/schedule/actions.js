@@ -292,6 +292,14 @@ export async function makeExamEveSession(input) {
 export async function addClassHoliday(date, name, classId) {
   if (!date) return { error: "날짜를 골라주세요." };
   const supabase = createClient();
+  // 같은 날 같은 범위 중복 방지 (2026-08-21) — 두 번 누르면 두 줄이 되어
+  // 회차가 두 번 빠진 것처럼 보였다
+  {
+    let dup = supabase.from("holidays").select("id").eq("date", date);
+    dup = classId ? dup.eq("class_id", classId) : dup.eq("scope", "all");
+    const { data } = await dup.limit(1);
+    if ((data || []).length > 0) return { error: "그 날은 이미 휴강으로 잡혀 있어요." };
+  }
   const { error } = await supabase.from("holidays").insert({
     date,
     name: (name || "").trim() || "휴강",
@@ -300,6 +308,7 @@ export async function addClassHoliday(date, name, classId) {
   });
   revalidatePath("/schedule");
   revalidatePath("/tuition");
+  revalidatePath("/today");
   return ok(error);
 }
 

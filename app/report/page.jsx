@@ -175,9 +175,12 @@ export default async function ReportPage({ searchParams }) {
       .filter((p) => p.key)
       .map((p) => [p.key, p.channel])
   );
-  const { rows, sendReady, resendReady } = await loadReportRows(
-    supabase, date, settings.academy.name, settings.message
-  );
+  // 리포트 본문이 실제로 쓰이는 탭에서만 조립한다 (2026-08-21) —
+  // 기본 탭 「보낼 것」 에서는 통째로 버려지는데도 매번 만들고 있었다
+  const needRows = ["report", "hw", "late", "resend"].includes(tab);
+  const { rows, sendReady, resendReady } = needRows
+    ? await loadReportRows(supabase, date, settings.academy.name, settings.message)
+    : { rows: [], sendReady: true, resendReady: true };
 
   // 탭마다 부제가 다르다 — 지금 무엇을 하는 화면인지 위에서 바로 읽히게
   const SUB = {

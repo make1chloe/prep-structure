@@ -1,5 +1,7 @@
 "use client";
 
+import { todaySeoul } from "@/lib/day";
+
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useBulk, BulkBar } from "@/components/Bulk";
@@ -26,7 +28,9 @@ export default function NeisBox({ months = [] }) {
   const [found, setFound] = useState(null);
   // 기본은 **올해 학사일정 전부** — 3월부터 다음 2월까지.
   // 학교 일정은 한 해가 한 덩어리라, 몇 달만 받으면 어차피 또 받게 된다.
-  const year = schoolYear(months[0]?.ym ? `${months[0].ym}-01` : new Date().toISOString().slice(0, 10));
+  // months 는 "YYYY-MM" 문자열 배열이다 — 전에는 .ym 을 읽어 늘 undefined 로
+  // 떨어졌고, UTC 오늘로 폴백해 아침 9시 전 3/1 경계에서 학년도가 어긋났다
+  const year = schoolYear(months[0] ? `${months[0]}-01` : todaySeoul());
   const [range, setRange] = useState({ from: year.from, to: year.to });
   const [done, setDone] = useState(null);      // 방금 받아온 결과
   const [have, setHave] = useState(null);   // 지금 들어와 있는 것

@@ -2,23 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { addClassHoliday } from "@/app/schedule/actions";
 
 function ok(error) {
   return { error: error ? error.message : null };
 }
 
+/**
+ * 같은 판단 두 벌 금지 (원칙 1, 2026-08-21) — 휴강 추가 규칙(이름 기본
+ * 「휴강」 · 중복 방지 · revalidate 범위)은 schedule/actions 한 곳에 있다.
+ * 여기는 수강료 화면이 부르던 이름만 남긴다.
+ */
 export async function addHoliday(date, name, classId) {
-  if (!date) return { error: "날짜를 골라주세요." };
-  const supabase = createClient();
-  const { error } = await supabase.from("holidays").insert({
-    date,
-    name: (name || "").trim() || null,
-    scope: classId ? "class" : "all",
-    class_id: classId || null,
-  });
-  revalidatePath("/tuition");
-  revalidatePath("/today");
-  return ok(error);
+  return addClassHoliday(date, name, classId);
 }
 
 export async function deleteHoliday(id) {

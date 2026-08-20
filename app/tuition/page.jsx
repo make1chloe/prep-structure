@@ -55,21 +55,44 @@ export default async function TuitionPage({ searchParams }) {
   // 이 달에 하루도 안 굴러간 반은 청구할 것이 없다 (지난 특강 · 아직 개강 전)
   classes = (classes || []).filter((c) => overlaps(c, first, last));
 
-  const { data: holidays } = await supabase
-    .from("holidays")
-    .select("id, date, name, scope, class_id")
-    .gte("date", first)
-    .lte("date", last)
-    .order("date", { ascending: true });
+  /**
+   * **파도** (속도 대원칙 1, 2026-08-21) — 서로 필요한 것이 없는 조회
+   * 일곱을 직렬로 기다리고 있었다 (한 달에 한 번 여는 화면이지만
+   * 3초짜리일 이유가 없다).
+   */
+  const [holQ, attQ, clsAttQ, memQ, stuQ1, settings, tuiQ] = await Promise.all([
+    supabase
+      .from("holidays")
+      .select("id, date, name, scope, class_id")
+      .gte("date", first)
+      .lte("date", last)
+      .order("date", { ascending: true }),
+    // fetchAll — 잘리면 결석·보강 필요·차액이 덜 계산된다 (돈이 틀린다)
+    fetchAll(() => supabase
+      .from("attendance")
+      .select("student_id, date, status, makeup_of")
+      .gte("date", first)
+      .lte("date", last)
+      .order("date").order("student_id")),
+    fetchAll(() => supabase
+      .from("class_attendance")
+      .select("class_id, student_id, date, status, makeup_of")
+      .gte("date", first)
+      .lte("date", last)
+      .order("date").order("student_id")),
+    supabase.from("class_students").select("class_id, student_id"),
+    supabase
+      .from("students")
+      // 시작일은 enrolled_on 하나 (0127 — A18 합침)
+      .select("id, name, grade, status, tuition, enrolled_on, ended_on")
+      .in("status", ["enrolled", "paused"]),
+    loadSettings(supabase),
+    supabase.from("integrations").select("config").eq("id", "tuition").maybeSingle(),
+  ]);
+  const holidays = holQ.data;
 
   // 결석 · 보강 — 보강이 이미 잡힌 결석은 '보강 필요'에서 뺀다
-  // fetchAll — 잘리면 결석·보강 필요·차액이 덜 계산된다 (돈이 틀린다)
-  const { data: attRows } = await fetchAll(() => supabase
-    .from("attendance")
-    .select("student_id, date, status, makeup_of")
-    .gte("date", first)
-    .lte("date", last)
-    .order("date").order("student_id"));
+  const attRows = attQ.data;
   const doneMakeup = new Set(
     (attRows || [])
       .filter((a) => a.status === "makeup" && a.makeup_of)
@@ -85,12 +108,7 @@ export default async function TuitionPage({ searchParams }) {
   // 특강 결석은 반별 출결에서 센다.
   //   정규는 왔는데 특강만 빠지는 날이 있고, 그 반의 보강·차액은 그 반에만
   //   걸려야 한다. 예전처럼 하루 출결 하나로 세면 정규까지 같이 결석 처리된다.
-  const { data: clsAtt } = await fetchAll(() => supabase
-    .from("class_attendance")
-    .select("class_id, student_id, date, status, makeup_of")
-    .gte("date", first)
-    .lte("date", last)
-    .order("date").order("student_id"));
+  const clsAtt = clsAttQ.data;
   const clsMakeup = new Set(
     (clsAtt || [])
       .filter((a) => a.status === "makeup" && a.makeup_of)
@@ -107,30 +125,20 @@ export default async function TuitionPage({ searchParams }) {
       extraAbsentOf.set(k, [...(extraAbsentOf.get(k) || []), a.date]);
     });
 
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id");
+  const members = memQ.data;
 
-  let { data: students } = await supabase
-    .from("students")
-    // 시작일은 enrolled_on 하나 (0127 — A18 합침)
-    .select("id, name, grade, status, tuition, enrolled_on, ended_on")
-    .in("status", ["enrolled", "paused"]);
+  let students = stuQ1.data;
   if (!students) {
+    // 0127 전 폴백 — 실패했을 때만 그대로 내려간다
     ({ data: students } = await supabase.from("students").select("id, name, grade, status"));
   }
   const studentById = new Map((students || []).map((s) => [s.id, s]));
 
-  const settings = await loadSettings(supabase);
   const makeupDays = settings.schedule?.makeupDays || [];
 
   // 학년별 수강료 — 학년이 오르면 금액이 오른다.
   // 한 반에 학년이 섞여 있어도 학생마다 손으로 고쳐 넣지 않게 한다.
-  const { data: tuiRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "tuition")
-    .maybeSingle();
+  const tuiRow = tuiQ.data;
   const byGrade = tuiRow?.config?.byGrade || {};
 
   // 받았는가 — 금액은 여기서 다시 계산하지 않는다. 저장하는 건 '받았다'뿐이다 (원칙1)
