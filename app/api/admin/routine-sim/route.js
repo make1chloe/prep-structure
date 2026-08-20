@@ -5,6 +5,7 @@ import { fetchAll } from "@/lib/fetchAll";
 import { inUseOn } from "@/lib/bookUse";
 import { todaySeoul } from "@/lib/day";
 import DRAFTS from "./drafts.json";
+import { nextRoutine } from "@/app/today/routineActions";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,6 +29,7 @@ export async function GET(request) {
   if (op === "rebuild") return rebuildRoutines(supabase);
   if (op === "flow") return flowSim(supabase);
   if (op === "retest") return retestList(supabase);
+  if (op === "month") return monthSim(supabase);
 
   const today = todaySeoul();
 
@@ -604,4 +606,170 @@ async function retestList(supabase) {
     };
   });
   return NextResponse.json({ ok: true, today, students });
+}
+
+
+/**
+ * **실전 데이터 한 달 시뮬 + 오류 사냥** (원장님, 2026-08-21 — 「시뮬레이션
+ * 한 달치 돌리고 오류 잡아」). drafts 가 아니라 **DB 에 심긴 루틴**으로
+ * 돌리고, 첫 세션은 실제 서비스 코드(nextRoutine)와 맞대조한다 —
+ * 시뮬과 실코드가 다른 말을 하면 그게 곧 버그다. 아무것도 안 쓴다.
+ */
+async function monthSim(supabase) {
+  const today = todaySeoul();
+  const [stQ, sbQ, bkQ, csQ, clQ, itQ, rsQ] = await Promise.all([
+    supabase.from("students").select("id, name").eq("status", "enrolled"),
+    supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, round, routine_step, routine_step_id, skip_acts")
+      .neq("status", "dropped"),
+    supabase.from("textbooks").select("id, name, area"),
+    supabase.from("class_students").select("class_id, student_id"),
+    supabase.from("classes").select("id, days"),
+    supabase.from("homework_items").select("id, name, active"),
+    supabase
+      .from("routine_steps")
+      .select("id, textbook_id, area, sort, label, inclass_items, home_items, home_next, item_notes, round")
+      .order("sort", { ascending: true }),
+  ]);
+  const bookById = new Map((bkQ.data || []).map((b) => [b.id, b]));
+  const itemById = new Map((itQ.data || []).map((i) => [i.id, i]));
+  const classDays = new Map((clQ.data || []).map((c) => [c.id, (c.days || []).length]));
+  const weekly = new Map();
+  (csQ.data || []).forEach((m) =>
+    weekly.set(m.student_id, (weekly.get(m.student_id) || 0) + (classDays.get(m.class_id) || 0))
+  );
+  const { data: units } = await fetchAll(() =>
+    supabase.from("textbook_units").select("id, textbook_id, parent_id, name, sort")
+      .order("sort", { ascending: true }).order("id"));
+  const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+  const leavesOf = new Map();
+  (units || []).forEach((u) => {
+    if (hasChild.has(u.id)) return;
+    if (!leavesOf.has(u.textbook_id)) leavesOf.set(u.textbook_id, []);
+    leavesOf.get(u.textbook_id).push(u);
+  });
+  const { data: prog } = await fetchAll(() =>
+    supabase.from("student_unit_progress").select("student_id, textbook_unit_id, status, round")
+      .order("student_id").order("textbook_unit_id"));
+  const doneSet = new Set(
+    (prog || []).filter((p) => p.status === "done")
+      .map((p) => `${p.student_id}|${p.textbook_unit_id}|${p.round || 1}`)
+  );
+
+  // DB 루틴 색인
+  const stepsOfBook = new Map();
+  const stepsOfArea = new Map();
+  (rsQ.data || []).forEach((r) => {
+    if (r.textbook_id) {
+      if (!stepsOfBook.has(r.textbook_id)) stepsOfBook.set(r.textbook_id, []);
+      stepsOfBook.get(r.textbook_id).push(r);
+    } else if (r.area) {
+      if (!stepsOfArea.has(r.area)) stepsOfArea.set(r.area, []);
+      stepsOfArea.get(r.area).push(r);
+    }
+  });
+
+  const errors = [];
+  const warns = [];
+  // 오류 사냥 ①: 루틴이 가리키는 항목이 실제로 있나(활성인가)
+  (rsQ.data || []).forEach((r) => {
+    [...(r.inclass_items || []), ...(r.home_items || []), ...(r.home_next || [])].forEach((iid) => {
+      const it = itemById.get(iid);
+      const whereName = r.textbook_id ? bookById.get(r.textbook_id)?.name : `영역:${r.area}`;
+      if (!it) errors.push(`루틴(${whereName} ${r.label || ""})이 없는 항목 id 를 가리킴`);
+      else if (!it.active) errors.push(`루틴(${whereName})이 숨긴 항목 「${it.name}」 을 가리킴`);
+    });
+  });
+
+  const stepFor = (all, curRound, stepIdx) => {
+    const rounded = all.filter((x) => x.round != null && x.round <= curRound);
+    const maxR = rounded.length ? Math.max(...rounded.map((x) => x.round)) : null;
+    const list = all.filter((x) => (x.round == null && maxR == null) || x.round === maxR);
+    if (!list.length) return { step: null, list };
+    return { step: list[stepIdx % list.length], list };
+  };
+
+  const perStudent = [];
+  const CAP = 5;
+  for (const s of stQ.data || []) {
+    const myBooks = (sbQ.data || [])
+      .filter((r) => r.student_id === s.id && inUseOn(r, today))
+      .map((r) => ({ ...r, book: bookById.get(r.textbook_id) }))
+      .filter((r) => r.book);
+    if (!myBooks.length) continue;
+    const sessions = Math.max(1, weekly.get(s.id) || 2) * 4;
+
+    const tracks = myBooks
+      .map((r) => {
+        const all = stepsOfBook.get(r.textbook_id)?.length
+          ? stepsOfBook.get(r.textbook_id)
+          : stepsOfArea.get(r.book.area || "") || null;
+        if (!all) return null;
+        const leaves = leavesOf.get(r.textbook_id) || [];
+        if (!leaves.length) {
+          warns.push(`${s.name}·${r.book.name} — 루틴은 있는데 단원 0`);
+          return null;
+        }
+        const round = r.round || 1;
+        let ptr = leaves.findIndex((u) => !doneSet.has(`${s.id}|${u.id}|${round}`));
+        if (ptr < 0) ptr = 0;
+        return { r, all, leaves, round, ptr, stepIdx: 0, name: r.book.name };
+      })
+      .filter(Boolean);
+    if (!tracks.length) continue;
+
+    // 오류 사냥 ②: 첫 세션을 실제 nextRoutine 과 맞대조
+    let firstDiff = null;
+    try {
+      const real = await nextRoutine(s.id);
+      const realBooks = new Set((real.steps || []).map((x) => x.textbookId));
+      const simBooks = new Set(tracks.map((t) => t.r.textbook_id));
+      const missing = [...simBooks].filter((b) => !realBooks.has(b)).map((b) => bookById.get(b)?.name);
+      const extra = [...realBooks].filter((b) => !simBooks.has(b)).map((b) => bookById.get(b)?.name);
+      if (missing.length || extra.length)
+        firstDiff = `실코드와 다름 — 시뮬만: ${missing.join(",") || "-"} · 실코드만: ${extra.join(",") || "-"}`;
+    } catch (e) {
+      firstDiff = `nextRoutine 이 던짐: ${e?.message || e}`;
+    }
+    if (firstDiff) errors.push(`${s.name}: ${firstDiff}`);
+
+    let queue = [];
+    let maxBacklog = 0;
+    let lastNoNext = 0;
+    for (let sess = 1; sess <= sessions; sess += 1) {
+      let list = [...queue];
+      tracks.forEach((t) => {
+        const { step } = stepFor(t.all, t.round, t.stepIdx);
+        if (!step) {
+          errors.push(`${s.name}·${t.name} — 회독 ${t.round}에 맞는 루틴 줄이 없음`);
+          return;
+        }
+        (step.inclass_items || []).forEach((x) => { if (!list.includes(x)) list.push(x); });
+        if ((step.home_next || []).length && t.ptr + 1 >= t.leaves.length) lastNoNext += 1;
+        t.stepIdx += 1;
+        t.ptr += 1;
+        if (t.ptr >= t.leaves.length) { t.round += 1; t.ptr = 0; }
+      });
+      queue = list.slice(CAP);
+      maxBacklog = Math.max(maxBacklog, queue.length);
+    }
+    perStudent.push({
+      name: s.name,
+      루틴교재: tracks.length,
+      sessions,
+      한달뒤밀림: queue.length,
+      최대밀림: maxBacklog,
+      마지막단원예습없음횟수: lastNoNext,
+    });
+  }
+
+  perStudent.sort((a, b) => b.한달뒤밀림 - a.한달뒤밀림);
+  return NextResponse.json({
+    ok: true,
+    학생수: perStudent.length,
+    오류: [...new Set(errors)].slice(0, 30),
+    주의: [...new Set(warns)].slice(0, 20),
+    학생별: perStudent,
+  });
 }
