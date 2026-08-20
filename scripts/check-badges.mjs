@@ -165,9 +165,12 @@ console.log("\n== 「안 보내기」 로 치운 것은 안 센다 ==");
  */
 {
   const t = await menuTodos(fake({
+    students: [{ id: "s1", name: "가", status: "enrolled" }],
     daily_reports: [
-      { id: "a", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: [] },
-      { id: "b", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: ["report"] },
+      { id: "a", student_id: "s1", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: [] },
+      { id: "b", student_id: "s1", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: ["report"] },
+      // 퇴원생 것 — 화면 목록에 안 뜨는데 배지만 남던 그 줄 (2026-08-21)
+      { id: "c", student_id: "s9", date: "2026-08-07", report_written: true, sent_at: null, skip_kinds: [] },
     ],
   }), T);
   eq(t.report, 1, "「안 보내기」 로 치운 것은 빼고 센다");

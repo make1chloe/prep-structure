@@ -952,24 +952,25 @@ export async function exportUnits(bookIds = null) {
   const COLS = "id, textbook_id, parent_id, name, label, page_start, page_end, total_pages, sort";
   // 분량·내용(0100)까지 내려받아야 **고쳐서 다시 올릴 때 안 날아간다**
   const VOL = "question_count, question_range, word_count, summary, minutes";
-  let uq = await supabase
+  // fetchAll — 전 교재 단원이라 1000줄에서 잘린 파일이 진짜처럼 보인다 (2026-08-21)
+  let uq = await fetchAll(() => supabase
     .from("textbook_units")
     .select(`${COLS}, question_no, ${VOL}`)
     .in("textbook_id", ids)
-    .order("sort", { ascending: true });
+    .order("sort", { ascending: true }).order("id"));
   if (uq.error) {
-    uq = await supabase
+    uq = await fetchAll(() => supabase
       .from("textbook_units")
       .select(`${COLS}, question_no`)
       .in("textbook_id", ids)
-      .order("sort", { ascending: true });
+      .order("sort", { ascending: true }).order("id"));
   }
   if (uq.error) {
-    uq = await supabase
+    uq = await fetchAll(() => supabase
       .from("textbook_units")
       .select(COLS)
       .in("textbook_id", ids)
-      .order("sort", { ascending: true });
+      .order("sort", { ascending: true }).order("id"));
   }
   if (uq.error) return { rows: [], error: uq.error.message };
 
@@ -1042,9 +1043,9 @@ export async function exportTextbooks() {
 
   // 교재마다 단원이 몇 개인지 — 「이 교재는 아직 단원이 없다」 가 한눈에 보여야 한다
   const counts = new Map();
-  const { data: units } = await supabase
+  const { data: units } = await fetchAll(() => supabase
     .from("textbook_units").select("textbook_id, parent_id")
-    .in("textbook_id", live.map((b) => b.id));
+    .in("textbook_id", live.map((b) => b.id)).order("id"));
   (units || []).forEach((u) => {
     if (!u.parent_id) return;                    // 대단원은 안 센다 (묶음일 뿐이다)
     counts.set(u.textbook_id, (counts.get(u.textbook_id) || 0) + 1);

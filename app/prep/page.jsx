@@ -38,7 +38,8 @@ export default async function PrepPage({ searchParams }) {
       .order("english_on", { ascending: true, nullsFirst: false }),
     supabase.from("prep_scopes").select("id, exam_id, name, unit_ids, note, sort").order("sort", { ascending: true }),
     supabase.from("prep_materials").select("id, scope_id, type_id, name, sort, note, need_make, need_print, need_card, need_hand, need_solve, need_grade, made_at, printed_at, card_at").order("sort", { ascending: true }),
-    supabase.from("prep_assignments").select("id, material_id, student_id, handed_at, solved_at, graded_at, result, score, sort"),
+    // fetchAll — 자료×학생이라 금방 1000줄을 넘는다 (잘리면 배정이 안 된 것처럼 보인다)
+    fetchAll(() => supabase.from("prep_assignments").select("id, material_id, student_id, handed_at, solved_at, graded_at, result, score, sort").order("id")),
     supabase.from("prep_material_types").select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade").order("sort", { ascending: true }),
     supabase.from("students").select("id, name, school, grade, status").eq("status", "enrolled").order("name", { ascending: true }),
   ]);

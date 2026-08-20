@@ -14,6 +14,78 @@ import { CATEGORIES, CAT_CLS } from "@/app/homework/categories";
  * 오늘 수업에서 [루틴 다음] 을 누르면 이 줄이 그대로 채워지고,
  * 그 학생의 단계가 하나 넘어간다. 매번 고를 필요가 없다.
  */
+/**
+ * 항목 고르기 판. **파일 최상위에 있어야 한다** — 컴포넌트 안에서 정의하면
+ * 렌더마다 새 타입이라 리마운트되어 검색어·스크롤이 날아간다 (2026-08-21).
+ * 훅(useState)이 있어서 호출식으로도 못 쓴다.
+ */
+function Picker({ label, value, onChange, items = [] }) {
+  const [kw, setKw] = useState("");
+  const q = kw.trim().toLowerCase();
+  const toggle = (id) =>
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+
+  const pool = q ? items.filter((i) => (i.name || "").toLowerCase().includes(q)) : items;
+  // 분류 차례는 CATEGORIES 를 따른다 — 화면마다 순서가 다르면 손이 헷갈린다
+  const groups = [...CATEGORIES, ""]
+    .map((c) => ({
+      cat: c || "기타",
+      cls: CAT_CLS[c] || "tag-muted",
+      rows: pool.filter((i) => (i.category || "기타") === (c || "기타")),
+    }))
+    .filter((g) => g.rows.length > 0);
+
+  const picked = value.map((id) => items.find((i) => i.id === id)).filter(Boolean);
+
+  return (
+    <div className="field" style={{ marginTop: 10 }}>
+      <div className="row" style={{ alignItems: "center", gap: 6 }}>
+        <label className="label" style={{ flex: 1 }}>
+          {label} {value.length > 0 && <span className="hint">{value.length}개</span>}
+        </label>
+        <input
+          className="input input-sm"
+          style={{ width: 120 }}
+          placeholder="항목 검색"
+          value={kw}
+          onChange={(e) => setKw(e.target.value)}
+        />
+      </div>
+
+      {/* 고른 것 — 누르면 바로 빠진다 */}
+      {picked.length > 0 && (
+        <div className="pickedbar">
+          {picked.map((i) => (
+            <button key={i.id} className="chip on" onClick={() => toggle(i.id)} title="빼기">
+              {i.name} ✕
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+        {groups.map((g) => (
+          <div className="catgroup" key={g.cat}>
+            <span className={`tag ${g.cls} catlabel`}>{g.cat}</span>
+            <div className="chips">
+              {g.rows.map((i) => (
+                <button
+                  key={i.id}
+                  className={`chip ${value.includes(i.id) ? "on" : ""}`}
+                  onClick={() => toggle(i.id)}
+                >
+                  {i.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {groups.length === 0 && <span className="hint">맞는 항목이 없어요.</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function RoutineEditor({ textbookId, items = [], initialSteps = null, initialReady = true }) {
   // 처음 데이터는 페이지가 실어 보낸다 (원칙 6 — 탭을 누르고 나서 서버에
   // 다녀오면, 누를 때마다 빈 판을 보게 된다). 이후 고침은 load() 로 새로.
@@ -60,72 +132,6 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
    * **고른 것은 맨 위에 따로 모은다** — 아래 목록에서 색만으로 찾으면
    * 무엇을 골랐는지 세어봐야 안다.
    */
-  function Picker({ label, value, onChange }) {
-    const [kw, setKw] = useState("");
-    const q = kw.trim().toLowerCase();
-    const toggle = (id) =>
-      onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
-
-    const pool = q ? items.filter((i) => (i.name || "").toLowerCase().includes(q)) : items;
-    // 분류 차례는 CATEGORIES 를 따른다 — 화면마다 순서가 다르면 손이 헷갈린다
-    const groups = [...CATEGORIES, ""]
-      .map((c) => ({
-        cat: c || "기타",
-        cls: CAT_CLS[c] || "tag-muted",
-        rows: pool.filter((i) => (i.category || "기타") === (c || "기타")),
-      }))
-      .filter((g) => g.rows.length > 0);
-
-    const picked = value.map((id) => items.find((i) => i.id === id)).filter(Boolean);
-
-    return (
-      <div className="field" style={{ marginTop: 10 }}>
-        <div className="row" style={{ alignItems: "center", gap: 6 }}>
-          <label className="label" style={{ flex: 1 }}>
-            {label} {value.length > 0 && <span className="hint">{value.length}개</span>}
-          </label>
-          <input
-            className="input input-sm"
-            style={{ width: 120 }}
-            placeholder="항목 검색"
-            value={kw}
-            onChange={(e) => setKw(e.target.value)}
-          />
-        </div>
-
-        {/* 고른 것 — 누르면 바로 빠진다 */}
-        {picked.length > 0 && (
-          <div className="pickedbar">
-            {picked.map((i) => (
-              <button key={i.id} className="chip on" onClick={() => toggle(i.id)} title="빼기">
-                {i.name} ✕
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="stack" style={{ gap: 6, marginTop: 6 }}>
-          {groups.map((g) => (
-            <div className="catgroup" key={g.cat}>
-              <span className={`tag ${g.cls} catlabel`}>{g.cat}</span>
-              <div className="chips">
-                {g.rows.map((i) => (
-                  <button
-                    key={i.id}
-                    className={`chip ${value.includes(i.id) ? "on" : ""}`}
-                    onClick={() => toggle(i.id)}
-                  >
-                    {i.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          {groups.length === 0 && <span className="hint">맞는 항목이 없어요.</span>}
-        </div>
-      </div>
-    );
-  }
 
   /**
     * **본보기 넣고 고치기** (원장님, 2026-08-11 — 「엄두가 안나」).
@@ -298,17 +304,20 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
           </div>
           <Picker
             label="등원해서 할 것"
+            items={items}
             value={editing.inclass_items || []}
             onChange={(v) => setEditing({ ...editing, inclass_items: v })}
           />
           <Picker
             label="숙제로 낼 것 (오늘 단원 복습)"
+            items={items}
             value={editing.home_items || []}
             onChange={(v) => setEditing({ ...editing, home_items: v })}
           />
           {/* 예습(선행) 숙제 (0136) — 루틴이 채울 때 **다음 단원**이 붙는다 */}
           <Picker
             label="예습 숙제 (다음 단원이 붙어요)"
+            items={items}
             value={editing.home_next || []}
             onChange={(v) => setEditing({ ...editing, home_next: v })}
           />

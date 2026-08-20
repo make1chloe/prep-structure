@@ -432,6 +432,7 @@ export default function StudentPanel({
   const [drafting, setDrafting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
+  const [saving, setSaving] = useState(false);            // 저장 진짜 잠금 (2026-08-21)
   const router = useRouter();
 
   const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
@@ -752,8 +753,16 @@ export default function StudentPanel({
    *   묶음으로 접히지 않고, 다른 기기에서 열어도 이어서 적을 수 있다.
    *   루틴도 안 넘긴다 (진짜 저장 때 넘겨야 두 번 안 넘어간다).
    */
+  /**
+   * **진짜 잠금** (2026-08-21). startTransition 의 pending 은 async 콜백을
+   * 안 기다려서 「저장 중…」 이 한 프레임 만에 풀렸다 — 수업 중 두 번
+   * 탭하면 삭제와 삽입이 겹쳐 그날 항목이 날아갈 수 있다.
+   */
   function save(asDraft = false) {
+    if (saving) return;
+    setSaving(true);
     startTransition(async () => {
+      try {
       // 특강이면 출결은 그 반에만 남긴다.
       // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
       if (row.extraClassId && form.attendance) {
@@ -815,7 +824,6 @@ export default function StudentPanel({
         alert(res.error);
         return;
       }
-      dropDraft();   // 진짜로 저장됐으니 임시본은 필요 없다
 
       if (asDraft) {
         /**
@@ -824,9 +832,12 @@ export default function StudentPanel({
          * 그리면 열어둔 판이 접혀서, 이어서 적으려던 흐름이 끊긴다.
          * 서버에는 이미 들어갔으니 다음 새로고침 때 자연히 맞춰진다.
          */
+        // 로컬 임시본은 **안 지운다** (2026-08-21) — 지우면 다른 학생을
+        // 눌렀다 돌아왔을 때 서버 캐시가 옛것이라 적은 게 통째로 안 보였다
         setSavedDraftAt(new Date());
         return;
       }
+      dropDraft();   // 진짜로 저장됐으니 임시본은 필요 없다
 
       // 루틴에서 가져왔으면 그 교재들의 단계를 하나 넘긴다
       if (routine?.steps?.length) {
@@ -847,6 +858,9 @@ export default function StudentPanel({
       }
       onSaved?.();
       router.refresh();
+      } finally {
+        setSaving(false);
+      }
     });
   }
 
@@ -982,7 +996,8 @@ export default function StudentPanel({
                 startTransition(async () => {
                   const res = await setArrival(row.student.id, date, { wordWhen: k });
                   if (res?.error) alert(res.error);
-                  router.refresh();
+                  // refresh 없음 (2026-08-21) — wordWhen 은 이미 로컬 state 다.
+                  // 매번 페이지 전체를 다시 그려 목록이 튀던 순수 손해였다
                 });
               }}
             >
@@ -2352,11 +2367,11 @@ export default function StudentPanel({
         )}
         {/* **임시저장** — 적은 것을 서버에 두고 완료로는 안 넘긴다.
             수업 중간에 끊겨도, 다른 기기에서 열어도 그대로 이어진다 */}
-        <button className="btn btn-ghost btn-sm" onClick={() => save(true)} disabled={pending}>
+        <button className="btn btn-ghost btn-sm" onClick={() => save(true)} disabled={pending || saving}>
           임시저장
         </button>
-        <button className="btn btn-primary btn-sm" onClick={() => save(false)} disabled={pending}>
-          {pending ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
+        <button className="btn btn-primary btn-sm" onClick={() => save(false)} disabled={pending || saving}>
+          {pending || saving ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
         </button>
       </div>
     </div>

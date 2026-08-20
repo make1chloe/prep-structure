@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetchAll";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
@@ -62,11 +63,13 @@ export default async function TuitionPage({ searchParams }) {
     .order("date", { ascending: true });
 
   // 결석 · 보강 — 보강이 이미 잡힌 결석은 '보강 필요'에서 뺀다
-  const { data: attRows } = await supabase
+  // fetchAll — 잘리면 결석·보강 필요·차액이 덜 계산된다 (돈이 틀린다)
+  const { data: attRows } = await fetchAll(() => supabase
     .from("attendance")
     .select("student_id, date, status, makeup_of")
     .gte("date", first)
-    .lte("date", last);
+    .lte("date", last)
+    .order("date").order("student_id"));
   const doneMakeup = new Set(
     (attRows || [])
       .filter((a) => a.status === "makeup" && a.makeup_of)
@@ -82,11 +85,12 @@ export default async function TuitionPage({ searchParams }) {
   // 특강 결석은 반별 출결에서 센다.
   //   정규는 왔는데 특강만 빠지는 날이 있고, 그 반의 보강·차액은 그 반에만
   //   걸려야 한다. 예전처럼 하루 출결 하나로 세면 정규까지 같이 결석 처리된다.
-  const { data: clsAtt } = await supabase
+  const { data: clsAtt } = await fetchAll(() => supabase
     .from("class_attendance")
     .select("class_id, student_id, date, status, makeup_of")
     .gte("date", first)
-    .lte("date", last);
+    .lte("date", last)
+    .order("date").order("student_id"));
   const clsMakeup = new Set(
     (clsAtt || [])
       .filter((a) => a.status === "makeup" && a.makeup_of)

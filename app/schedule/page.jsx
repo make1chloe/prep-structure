@@ -172,12 +172,20 @@ export default async function SchedulePage() {
   // 이미 결정한 날 = 휴강으로 잡았거나, '그냥 수업함' 으로 일정에 남겨둔 날
   const taskQ = await supabase
     .from("tasks")
-    .select("due_on")
+    .select("due_on, title")
     .gte("due_on", from)
     .lte("due_on", to);
+  /**
+   * 「결정한 날」 은 **원장님이 정한 것만** 이다 (2026-08-21). 전에는 그날
+   * tasks 에 뭐든 있으면 결정으로 쳤는데, 나이스 학사일정(공휴일 그 자체)이
+   * 바로 그 tasks 로 들어와서 — 받아오는 순간 「쉴지 정해주세요」 알림이
+   * 통째로 죽었다. 휴강을 못 잡으면 회차·수강료가 그대로 틀어진다.
+   */
   const decided = new Set([
     ...(holidays || []).map((h) => h.date),
-    ...(taskQ.error ? [] : taskQ.data || []).map((t) => t.due_on),
+    ...(taskQ.error ? [] : taskQ.data || [])
+      .filter((t) => (t.title || "").includes("— 정상 수업"))
+      .map((t) => t.due_on),
   ]);
   const seoulToday = today;
   const holidayNotes = holidayAlerts(seoulToday, to, classDates, decided);

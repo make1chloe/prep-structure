@@ -248,12 +248,11 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                     placeholder="예) 이번 달 문법 단원평가에서 특히 좋아졌습니다."
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    onBlur={() =>
-                      startTransition(async () => {
-                        await saveMonthly(r.studentId, ym, { note });
-                        router.refresh();
-                      })
-                    }
+                    /* transition 없이 조용히 저장 (2026-08-21) — pending 이 켜지면
+                       바로 아래 「문구 저장」 이 disabled 로 바뀌어 마우스를 내리는
+                       사이 첫 클릭이 씹혔다. refresh 도 안 한다 — draft 가 옛
+                       글로 남은 채 저장되면 한마디가 사라졌다 */
+                    onBlur={() => { saveMonthly(r.studentId, ym, { note }).catch(() => {}); }}
                   />
                 </div>
                 <textarea

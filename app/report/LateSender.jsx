@@ -242,9 +242,9 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
               고른 {sel.size}건 보내기
             </button>
           </div>
-          {todo.map((r) => (
-            <Row key={r.id} r={r} />
-          ))}
+          {/* 호출식 — <Row/> 태그면 글자마다 리마운트로 커서가 풀린다
+              (설정 문구 화면과 같은 처방, 2026-08-21) */}
+          {todo.map((r) => Row({ r }))}
         </>
       )}
 
@@ -253,9 +253,7 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
           <b style={{ fontSize: 15, display: "block", margin: "16px 0 8px" }}>
             보낸 것 {sent.length}
           </b>
-          {sent.map((r) => (
-            <Row key={r.id} r={r} />
-          ))}
+          {sent.map((r) => Row({ r }))}
         </>
       )}
     </div>

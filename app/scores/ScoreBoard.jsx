@@ -91,7 +91,19 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
     run(
       () => saveScore({ ...form, id: editId, studentId: sel }),
       () => {
-        setForm(EMPTY);
+        // **시험 맥락은 남긴다** (2026-08-21) — 같은 시험을 20명 넣는 자리라,
+        // 종류·회차·본 날·학교·만점까지 비우면 매번 다시 골라야 했다.
+        // 점수 쪽(원점수·등급·백분위·석차·메모)만 비운다
+        setForm((f) => ({
+          ...EMPTY,
+          kind: f.kind,
+          exam_id: f.exam_id,
+          taken_on: f.taken_on,
+          term: f.term,
+          school: f.school,
+          full_score: f.full_score,
+          cuts: f.cuts,
+        }));
         setEditId(null);
       }
     );
@@ -196,7 +208,16 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             <button
               key={s.id}
               className={`hwchip ${sel === s.id ? "hw-next" : ""}`}
-              onClick={() => { setSel(s.id); setEditId(null); setForm(EMPTY); }}
+              /* 학생만 바꾼다 — 시험 맥락(종류·회차·날짜·학교)은 그대로 (2026-08-21) */
+              onClick={() => {
+                setSel(s.id);
+                setEditId(null);
+                setForm((f) => ({
+                  ...EMPTY,
+                  kind: f.kind, exam_id: f.exam_id, taken_on: f.taken_on,
+                  term: f.term, school: f.school, full_score: f.full_score, cuts: f.cuts,
+                }));
+              }}
             >
               {sel === s.id && <b>＋</b>} {s.name}
             </button>

@@ -115,7 +115,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
             다른 화면에서 온 일정
           </h2>
           <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
-            시험 일정과 휴강은 <b>회차 관리 · 시험</b> 에서 관리합니다.
+            시험 일정은 <b>학교 · 시험</b>, 휴강은 <b>회차 관리</b> 에서 관리합니다.
             여기서는 같이 보이기만 하고, 고치는 건 그쪽에서 합니다.
           </p>
           <div className="stack" style={{ gap: 4 }}>

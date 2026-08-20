@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetchAll";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddStudentForm from "./AddStudentForm";
@@ -29,7 +30,9 @@ export default async function StudentsPage({ searchParams }) {
    * **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층).
    * 학생 사다리 폴백(옛 DB용)은 실패했을 때만 그대로 내려간다.
    */
-  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, schoolsList, missQ] = await Promise.all([
+  // 순서 주의: 6번째가 missing 설정, 7번째가 학교 이름 — 2026-08-21 뒤바뀐 채
+  // 발견 (schools 에 설정 객체가 들어가 학생 추가 폼이 터졌다)
+  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, missQ, schoolsList] = await Promise.all([
     user
       ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
@@ -104,10 +107,11 @@ export default async function StudentsPage({ searchParams }) {
   // 파도 2 — 학생 id 가 필요한 것들
   const [stBooksQ, initPwQ, membersQ, plinksQ] = await Promise.all([
     ids.length
-      ? supabase
+      ? fetchAll(() => supabase
           .from("student_textbooks")
           .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, skip_acts")
           .in("student_id", ids)
+          .order("student_id").order("textbook_id"))
       : none,
     pids2.length
       ? supabase.from("profiles").select("id, must_change_pw").in("id", pids2)

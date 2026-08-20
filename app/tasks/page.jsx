@@ -386,7 +386,7 @@ export default async function TasksPage({ searchParams }) {
         school: e.school,
         from_where: "회차 관리 · 학교 시험",
         why: "이 학교 시험 기간입니다 — 결석이 있을 수 있습니다.",
-        href: "/schedule",
+        href: "/schools",
       })),
       ...(holQ.error ? [] : holQ.data || []).map((h) => ({
         key: `hol-${h.id}`,

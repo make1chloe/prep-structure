@@ -254,8 +254,12 @@ export async function sendMonthly(items, ym) {
   }
   if (okIds.length > 0) {
     const now = new Date().toISOString();
+    // **보낸 본문을 같이 저장한다** (2026-08-21). 안 남기면 학부모 화면은
+    // text 있는 것만 그려서, 문구를 한 번도 안 고친 학생(대부분)은 알림만
+    // 가고 들어가면 빈 화면이었다 — 앱에는 「보냄」 으로 뜨면서.
+    const bodyOf = new Map(list.map((x) => [x.studentId, (x.body || "").trim()]));
     const { error } = await supabase.from("monthly_reports").upsert(
-      okIds.map((id) => ({ student_id: id, ym, sent_at: now })),
+      okIds.map((id) => ({ student_id: id, ym, sent_at: now, text: bodyOf.get(id) || null })),
       { onConflict: "student_id,ym" }
     );
     if (needSql(error)) return { error: NEED, count: 0 };

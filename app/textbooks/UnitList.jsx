@@ -161,7 +161,7 @@ export default function UnitList({
 
   return (
     <>
-      <ActItems textbookId={textbookId} acts={acts} />
+      <ActItems key={textbookId} textbookId={textbookId} acts={acts} />
       {sel.size > 0 && (
         <div className="bulkbar" style={{ margin: "0 0 12px" }}>
           <b>{sel.size}개 선택</b>

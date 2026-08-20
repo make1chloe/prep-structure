@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAll } from "@/lib/fetchAll";
 import { loadRunningClasses } from "@/lib/classTerm";
 import TopBar from "@/components/TopBar";
 import ProgressBoard from "./ProgressBoard";
@@ -40,16 +41,18 @@ export default async function ProgressPage() {
     // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
     loadRunningClasses(supabase, "id, name, days, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
     supabase.from("class_students").select("class_id, student_id"),
-    supabase
+    fetchAll(() => supabase
       .from("student_textbooks")
       .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts")
-      .neq("status", "dropped"),
+      .neq("status", "dropped")
+      .order("student_id").order("textbook_id")),
     supabase.from("textbooks").select("id, name, area, status, total_pages"),
     // 하는 중(◐)으로 찍힌 단원 — 순차로 안 나가는 교재의 「오늘 위치」다
-    supabase
+    fetchAll(() => supabase
       .from("student_unit_progress")
       .select("student_id, textbook_unit_id, round")
-      .eq("status", "doing"),
+      .eq("status", "doing")
+      .order("student_id").order("textbook_unit_id")),
   ]);
   const profile = profileQ?.data || null;
   const students = studentsQ.data || [];

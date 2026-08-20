@@ -686,7 +686,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                           )}
                         </>
                       )}
-                      {tab === "word" && <WordTestBox student={s} defaultPass={defaultPass} />}
+                      {/* key — 학생이 바뀌면 값도 새로 (2026-08-21: A 학생 값이 B 에게 저장되던 것) */}
+                      {tab === "word" && <WordTestBox key={s.id} student={s} defaultPass={defaultPass} />}
                       {tab === "schedule" && <ScheduleBox studentId={s.id} name={s.name} />}
                       {tab === "score" && <ScoreBox studentId={s.id} name={s.name} />}
                       {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
