@@ -152,6 +152,13 @@ export default function TodayBoard({
    * 아직 「남음」 에 서 있으면 안 눌린 줄 알고 또 연다.
    */
   const [doneOpt, setDoneOpt] = useState(() => new Set());
+  /**
+   * **방금 저장한 학생은 줄만 접는다** (원장님, 2026-08-21 — 「ㅇㅇ 줄만
+   * 접어」). 저장하자마자 완료 묶음으로 사라지면, 별점 하나 고치려고
+   * 완료 펼치기→찾기→열기 서너 번을 눌러야 했다. 그 자리에 「완료」
+   * 태그로 남았다가, **다른 학생을 여는 순간** 완료 묶음으로 정리된다.
+   */
+  const [justSaved, setJustSaved] = useState(null);
   const isDone = (r) =>
     doneOpt.has(`${r.student.id}|${r.extraClassId || ""}`)
       ? true
@@ -197,7 +204,9 @@ export default function TodayBoard({
 
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {groups.map(({ klass, rows }) => {
-          const todo = rows.filter((r) => !isDone(r));
+          const todo = rows.filter(
+            (r) => !isDone(r) || `${r.student.id}|${r.extraClassId || ""}` === justSaved
+          );
           const done = rows.filter(isDone);
           // 출결을 찍은 학생이 **위로** 온다. 안 찍었다고 감추지는 않는다 —
           // 등원 전에 미리 숙제를 검사하거나 다음 숙제를 정해둘 수 있어야 한다.
@@ -304,7 +313,12 @@ export default function TodayBoard({
                         <div key={r.student.id} className="stuRow">
                           <button
                             className="stuLine"
-                            onClick={() => setOpenId(isOpen ? null : r.student.id)}
+                            onClick={() => {
+                              const k = `${r.student.id}|${r.extraClassId || ""}`;
+                              // 다른 학생을 여는 순간 방금 저장한 줄은 완료 묶음으로
+                              if (justSaved && justSaved !== k) setJustSaved(null);
+                              setOpenId(isOpen ? null : r.student.id);
+                            }}
                           >
                             <span style={{ fontWeight: 700 }}>{r.student.name}</span>
                             <span className="muted" style={{ fontSize: 13 }}>
@@ -392,12 +406,12 @@ export default function TodayBoard({
                                 등원
                               </span>
                             )}
-                            {r.reportWritten ? (
+                            {r.reportWritten || isDone(r) ? (
                               <span
                                 className="tag tag-mint"
-                                title="클릭하면 완료를 취소해요"
-                                onClick={(e) => { e.stopPropagation(); reopen(r.student.id); }}
-                                style={{ cursor: "pointer" }}
+                                title={r.reportWritten ? "클릭하면 완료를 취소해요" : "방금 저장했어요 — 누르면 다시 열려요"}
+                                onClick={r.reportWritten ? (e) => { e.stopPropagation(); reopen(r.student.id); } : undefined}
+                                style={r.reportWritten ? { cursor: "pointer" } : undefined}
                               >
                                 완료
                               </span>
@@ -462,6 +476,8 @@ export default function TodayBoard({
                                 setDoneOpt((prev) =>
                                   new Set(prev).add(`${r.student.id}|${r.extraClassId || ""}`)
                                 );
+                                // 줄은 그 자리에 남긴다 (2026-08-21)
+                                setJustSaved(`${r.student.id}|${r.extraClassId || ""}`);
                               }}
                             />
                           )}
