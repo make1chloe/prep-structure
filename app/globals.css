@@ -655,16 +655,29 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
    **왼쪽에 얇은 색 띠 하나**로 나눈다 — 눈에 띄지 않지만 경계는 보인다.
    색은 성격만 말한다: 급한 것(빨강) · 봐야 할 것(주황) · 그냥 정보(파랑).
    ───────────────────────────────────────────────────────────── */
-.sect { border-left: 3px solid var(--border-strong); }
+.sect { border-left: 5px solid var(--border-strong); }
 .sect-bad  { border-left-color: var(--red); }
 .sect-warn { border-left-color: var(--amber); }
 .sect-info { border-left-color: var(--sky); }
 .sect-calm { border-left-color: var(--mint); }
 /* 카드 제목 — 화면마다 인라인으로 적던 것을 한 군데로 모은다 */
 .secthead {
-  margin: 0 0 8px; font-size: 15.5px; font-weight: 800;
+  margin: 0 0 8px; font-size: 17px; font-weight: 800;
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
+
+/* ── 대시보드 네 묶음 (2026-08-21 — 「연관성 없는 것들이 연달아」) ──
+   묶음 머리 하나 + 묶음 사이 큰 여백. 카드 사이(dashcol)는 카드 안쪽
+   여백보다 넓어야 경계가 보인다 (전에는 사이 10 < 안 14 라 뭉개졌다) */
+.dashhead {
+  margin: 30px 0 10px; font-size: 20px; font-weight: 900;
+  letter-spacing: -0.3px; display: flex; align-items: center; gap: 6px;
+}
+.dashcol { gap: 18px; }
+details.dashfold > summary.dashhead { cursor: pointer; list-style: none; }
+details.dashfold > summary.dashhead::-webkit-details-marker { display: none; }
+details.dashfold > summary.dashhead::after { content: "▸"; font-size: 15px; opacity: .6; }
+details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 
 /* 재원생 — 이름을 누르면 그 학생 한 판이 열린다 */
 .namebtn {
