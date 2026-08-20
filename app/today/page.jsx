@@ -489,12 +489,26 @@ export default async function TodayPage({ searchParams }) {
    */
   const unitTestIds = new Set((items || []).filter(isNoCheck).map((i) => i.id));
 
-  const toCheckOf = (sid) => {
+  /**
+   * @param todayItems 오늘 리포트의 항목별 상태 map (있으면 **오늘 검사한
+   *   것도 목록에 남긴다**, 2026-08-21 — 저장 후 다시 열면 「지난 숙제가
+   *   없어요」 가 떠서 △를 ○로 고치려면 3클릭을 돌아야 했다).
+   *   지난 다른 날 검사한 것은 여전히 뺀다 — 그건 다시 물을 일이 아니다.
+   */
+  const toCheckOf = (sid, todayItems = null) => {
     const rid = lastAssignedReport.get(sid);
     if (!rid) return [];
     const done = checkedAfter.get(sid) || new Set();
-    return (prevAssigned.get(rid) || [])
-      .filter((iid) => !done.has(iid) && !unitTestIds.has(iid));
+    const base = (prevAssigned.get(rid) || []).filter(
+      (iid) =>
+        !unitTestIds.has(iid) &&
+        (!done.has(iid) || (todayItems && iid in todayItems))
+    );
+    // 오늘 임의로 검사한 항목(대기줄·「다른 항목도 검사」)도 판정이 보여야 한다
+    const extra = Object.keys(todayItems || {}).filter(
+      (iid) => !base.includes(iid) && !unitTestIds.has(iid)
+    );
+    return [...base, ...extra];
   };
   const assignedFromOf = (sid) => lastAssignedDate.get(sid) || null;
   const assignedUnitsOf = (sid) => {
@@ -1195,7 +1209,7 @@ export default async function TodayPage({ searchParams }) {
           lastProgress: lastProgress.get(s.id) || null,
           todayDraft: todayDraftOf.get(s.id) || null,
           lastTotals: lastTotals.get(s.id) || null,
-          toCheck: toCheckOf(s.id),
+          toCheck: toCheckOf(s.id, rep ? itemsByReport.get(rep.id) || null : null),
           assignedFrom: assignedFromOf(s.id),
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
           nextUnits: nextUnitsOf(rep),
@@ -1281,7 +1295,7 @@ export default async function TodayPage({ searchParams }) {
         lastProgress: lastProgress.get(s.id) || null,
         todayDraft: todayDraftOf.get(s.id) || null,
         lastTotals: lastTotals.get(s.id) || null,
-        toCheck: toCheckOf(s.id),
+        toCheck: toCheckOf(s.id, rep ? itemsByReport.get(rep.id) || null : null),
         assignedFrom: assignedFromOf(s.id),
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
         nextUnits: nextUnitsOf(rep),

@@ -456,6 +456,15 @@ export default function StudentPanel({
    * 「정시」 로 찍혔다 — 수강료·결석 집계까지 틀어진다.
    */
   const [attTouched, setAttTouched] = useState(!!row.status);
+  /**
+   * 등원 체크 낙관 상태 (2026-08-21) — 「출석」 대신 찍기가 전체 새로고침을
+   * 불러 byArrived 재정렬로 열린 학생 줄이 위로 튀었다. 화면은 즉시 바꾸고
+   * 저장은 뒤에서, 목록 정렬은 다음 자연 새로고침 때 따라온다.
+   */
+  const [arr, setArr] = useState({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
+  useEffect(() => {
+    setArr({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
+  }, [row.phoneAt, row.attendAt, row.homeworkAt]);
   const router = useRouter();
 
   const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
@@ -790,7 +799,7 @@ export default function StudentPanel({
       try {
       // 특강이면 출결은 그 반에만 남긴다.
       // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
-      if (row.extraClassId && form.attendance && (attTouched || row.attendAt)) {
+      if (row.extraClassId && form.attendance && (attTouched || arr.attend)) {
         const a = await setClassAttendance(
           row.extraClassId,
           row.student.id,
@@ -806,7 +815,7 @@ export default function StudentPanel({
         ...form,
         draft: asDraft,
         attendance:
-          row.extraClassId || (!attTouched && !row.attendAt) ? null : form.attendance,
+          row.extraClassId || (!attTouched && !arr.attend) ? null : form.attendance,
         items: marks,
         /**
          * 그림자 모드(0132): 자동 판정·미달 상세를 **기록만** 한다.
@@ -899,13 +908,13 @@ export default function StudentPanel({
           {ATT.map((a) => (
             <button
               key={a.key}
-              className={`btn btn-sm ${(attTouched || row.attendAt) && form.attendance === a.key ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${(attTouched || arr.attend) && form.attendance === a.key ? "btn-primary" : "btn-ghost"}`}
               onClick={() => { setAttTouched(true); set("attendance", a.key); }}
             >
               {a.label}
             </button>
           ))}
-          {!attTouched && !row.attendAt && (
+          {!attTouched && !arr.attend && (
             <span className="hint" style={{ fontSize: 12.5 }}>
               아직 미기록 — 누르거나 등원하면 기록돼요 (미리 준비만 하고 저장해도 출결은 안 찍힙니다)
             </span>
@@ -980,22 +989,25 @@ export default function StudentPanel({
         <span className="plabel">등원</span>
         <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
           {[
-            ["phone", "핸드폰", row.phoneAt],
-            ["attend", "출석", row.attendAt],
-            ["homework", "숙제", row.homeworkAt],
+            ["phone", "핸드폰", arr.phone],
+            ["attend", "출석", arr.attend],
+            ["homework", "숙제", arr.homework],
           ].map(([kind, label, at]) => (
             <button
               key={kind}
               className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
               disabled={pending}
               title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
-              onClick={() =>
+              onClick={() => {
+                const prev = arr[kind];
+                // 낙관 — 즉시 표시하고 저장은 뒤에서. refresh 없음 (2026-08-21):
+                // 매번 목록이 재정렬되어 열린 학생 줄이 위로 튀었다
+                setArr((a) => ({ ...a, [kind]: prev ? null : new Date().toISOString() }));
                 startTransition(async () => {
                   const res = await setArrivalFor(row.student.id, date, kind, !at);
-                  if (res?.error) alert(res.error);
-                  router.refresh();
-                })
-              }
+                  if (res?.error) { alert(res.error); setArr((a) => ({ ...a, [kind]: prev })); }
+                });
+              }}
             >
               {at ? "✓ " : ""}
               {label}
