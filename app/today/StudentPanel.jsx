@@ -226,8 +226,39 @@ export default function StudentPanel({
    * **한 달 그림자 모드** (원장님, 2026-08-17 — 「자연어 기반이라 오류
    * 가능성이 높아. 시뮬레이션 한 달간 돌려봐」). 자동 판정을 미리
    * 채우지 않는다 — 태그로 보여주기만 하고, 저장할 때 원장님이 실제로
-   * 찍은 것과 나란히 기록한다(0132). 일치율이 검증되면 채움을 켠다.
+   * 찍은 것과 나란히 기록한다(0132).
+   * → **채움을 켰다** (원장님 2026-08-20 「클카 자동화 일단 해놓고 수업
+   *   중에 내가 확인하면서 오류를 알려주면 고치는 게 나을 것 같아.
+   *   자동화 시급해」). 원장님이 저장해야 확정이고, 그림자 기록은 계속
+   *   쌓여서 일치율을 잰다.
    */
+  useEffect(() => {
+    /**
+     * **1차 판단 미리 채움** (원장님 2026-08-20 — 「학생이 먼저 과제
+     * 제출하는 기능으로 숙제 완료 여부를 1차 판단하고, 수업 시작 →
+     * 내가 확정. 이 흐름 어때」). 세 재료로 안 찍힌 검사 칸만 채운다:
+     *   ① 클카 자동 판정 ② 학생 제출물 ③ (등원 학습은 다 했어요 버튼)
+     * 저장해야 확정 — 원장님은 뒤집을 것만 뒤집으면 된다.
+     */
+    setMarks((m) => {
+      const n = { ...m };
+      let changed = false;
+      (row.toCheck || []).forEach((iid) => {
+        if (n[iid]) return;
+        const v = ccVerdictOf(iid);
+        if (v) { n[iid] = v.status; changed = true; return; }
+        const item = items.find((x) => x.id === iid);
+        if (item?.in_person) return;   // 직접검사는 눈으로
+        if ((row.subs || []).some((x) => x.homework_item_id === iid)) {
+          n[iid] = "done";
+          changed = true;
+        }
+      });
+      return changed ? n : m;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [next, setNext] = useState(() => new Set(row.nextHomework || []));
   // 배정한 숙제에 붙는 교재 단원 { [itemId]: { textbookId, unitIds: [], note } }
   //   textbookId 는 "지금 단원을 고를 교재"일 뿐, 고른 단원은 교재가 달라도 함께 쌓인다
@@ -368,8 +399,12 @@ export default function StudentPanel({
    */
   const [inClass, setInClassList] = useState(() => {
     const base = row.inClass || [];
+    // 못 끝내 이월된 것이 맨 위, 그다음 지난 수업에 세워둔 계획(plan_next)
     const carried = (row.carriedIn || []).filter((x) => !base.includes(x));
-    return [...carried, ...base];
+    const planned = (row.plannedIn || []).filter(
+      (x) => !base.includes(x) && !carried.includes(x)
+    );
+    return [...carried, ...planned, ...base];
   });
   const setInClass = (v) => setInClassList([...new Set(v)]);   // 중복만 걸러 순서 유지
   const [carryNext, setCarryNext] = useState(() => new Set(row.inClassCarry || []));
@@ -378,6 +413,13 @@ export default function StudentPanel({
   // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 루틴 다음을 누르면 먼저
   // 오늘 할 교재를 고른다. 교재가 하나면 바로 차린다.
   const [routinePick, setRoutinePick] = useState(null); // { res, chosen:Set }
+  /**
+   * **다음 수업 계획** (원장님 2026-08-20 — 「숙제를 낼 때 다음 수업
+   * 내용까지 정하는 게 기억력 측면에서도 더 나아」). 오늘 저장에
+   * plan_next 로 담기고, 다음 수업 판의 등원 목록에 「계획」 으로 선다.
+   * 숙제 검사 뒤 고치고 저장하면 확정 — 바뀌면 학생에게 알림이 간다.
+   */
+  const [planNext, setPlanNext] = useState(() => row.planNextSaved || []);
   const [wordWhen, setWordWhen] = useState(row.wordWhen || "start");
   // 전달사항 한 줄 → 학생공지·부모님공지를 한 번에 (0050)
   const [hint, setHint] = useState("");
@@ -732,6 +774,16 @@ export default function StudentPanel({
          * 검사 메모(학생·리포트 병기)도 일치율이 검증될 때까지 안 남긴다 —
          * 틀린 「미달」 이 학부모께 나가는 것이 제일 나쁘다.
          */
+        checkNotes: Object.fromEntries(
+          (row.toCheck || [])
+            .map((iid) => {
+              const v = ccVerdictOf(iid);
+              return v && marks[iid] === v.status && v.missed.length
+                ? [iid, v.missed.join(" · ")]
+                : null;
+            })
+            .filter(Boolean)
+        ),
         ccShadow: Object.fromEntries(
           (row.toCheck || [])
             .map((iid) => {
@@ -742,6 +794,7 @@ export default function StudentPanel({
         ),
         inClass: [...inClass],
         carryNext: [...carryNext].filter((x) => inClass.includes(x)),
+        planNext: [...planNext],
         toCheck,
         nextHomework: [...next],
         nextUnits: Object.fromEntries(
@@ -1154,6 +1207,35 @@ export default function StudentPanel({
                   <b style={{ color: "var(--mint)" }}> · 모두 검사함</b>
                 )}
               </p>
+              {/* 학생이 「다 했어요」 누른 것 한 번에 ○ (원장님 2026-08-20 —
+                  「c도 좋아 … 팝업식으로 나에게 확인을」 → 버튼 확인식.
+                  직접검사(in_person) 항목은 눈으로 봐야 하니 뺀다) */}
+              {(() => {
+                const fillable = toCheck.filter((iid) => {
+                  if (marks[iid]) return false;
+                  const item = items.find((x) => x.id === iid);
+                  if (item?.in_person) return false;
+                  return (row.doneRows || []).some(
+                    (d) => d.homework_item_id === iid && d.student_done_at
+                  );
+                });
+                if (fillable.length === 0) return null;
+                return (
+                  <button
+                    className="btn btn-sm"
+                    style={{ marginBottom: 6 }}
+                    onClick={() =>
+                      setMarks((m) => {
+                        const n = { ...m };
+                        fillable.forEach((iid) => { n[iid] = "done"; });
+                        return n;
+                      })
+                    }
+                  >
+                    다 했어요 누른 {fillable.length}개 ○로 채우기
+                  </button>
+                );
+              })()}
               {/* 배정할 때 적어둔 단원과 분량 — 무엇을 검사할지 여기서 바로 본다 */}
               <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
                 {toCheck.map((iid) => {
@@ -1197,6 +1279,31 @@ export default function StudentPanel({
                           </span>
                         );
                       })()}
+                      {/* 안 해온 숙제의 처분 (원장님 2026-08-20 — 「숙제 다시
+                          옆에 오늘수업으로도. 그렇게 하고도 못하면 다시
+                          숙제로 나가도록」) */}
+                      {(st === "missing" || st === "weak") && (
+                        <>
+                          {!inClass.includes(iid) && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              title="이 숙제를 오늘 학원에서 하게 — 등원 학습 맨 위에 섭니다"
+                              onClick={() => setInClass([iid, ...inClass])}
+                            >
+                              오늘수업으로
+                            </button>
+                          )}
+                          {!next.has(iid) && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              title="다음 수업 숙제로 다시 냅니다"
+                              onClick={() => setNext((s2) => new Set(s2).add(iid))}
+                            >
+                              숙제 다시
+                            </button>
+                          )}
+                        </>
+                      )}
                       {/* 이 숙제로 만든 늦귀가 과제 — 연결(homework_item_id)을
                           이제 읽는다 (값-지도 P1-15). 이미 늦귀가에 올라가
                           있으면 또 만들 필요가 없다는 것이 검사 중에 보인다 */}
@@ -1331,6 +1438,9 @@ export default function StudentPanel({
                     {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
                   </span>
                   {carried && <span className="tag tag-sky" title="지난 수업에서 「다음 수업에 계속」 한 것">이어서</span>}
+                  {!carried && (row.plannedIn || []).includes(iid) && (
+                    <span className="tag tag-lav" title="지난 수업 마무리 때 세워둔 계획 — 숙제 확인 후 고치고 저장하면 확정">계획</span>
+                  )}
                   <button className="btn btn-ghost btn-sm" title="위로" disabled={idx === 0}
                     onClick={() => {
                       const n = [...inClass];
@@ -1944,6 +2054,73 @@ export default function StudentPanel({
             };
           })}
         />
+      </div>
+
+      {/* 다음 수업 계획 (원장님 2026-08-20) — 기억이 생생할 때 미리 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>다음 수업</span>
+        <div style={{ flex: 1 }}>
+          <div className="stack" style={{ gap: 3 }}>
+            {planNext.map((iid, idx) => (
+              <div className="row" key={iid} style={{ gap: 4, alignItems: "center" }}>
+                <span className="hint" style={{ width: 16, textAlign: "right" }}>{idx + 1}</span>
+                <span className="tag tag-sky">{nameOf(iid) || "학습"}</span>
+                <button className="btn btn-ghost btn-sm" disabled={idx === 0}
+                  onClick={() => {
+                    const n = [...planNext];
+                    [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                    setPlanNext(n);
+                  }}>↑</button>
+                <button className="btn btn-ghost btn-sm" disabled={idx === planNext.length - 1}
+                  onClick={() => {
+                    const n = [...planNext];
+                    [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
+                    setPlanNext(n);
+                  }}>↓</button>
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => setPlanNext(planNext.filter((x) => x !== iid))}>✕</button>
+              </div>
+            ))}
+            {planNext.length === 0 && (
+              <span className="hint">
+                다음 수업에 학원에서 할 것 — 지금 정해두면 다음 수업 등원 목록에 미리 서요.
+              </span>
+            )}
+          </div>
+          <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              title="루틴의 다음 차례(오늘 저장으로 한 단계 넘어간 것)를 미리 담습니다"
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await nextRoutine(row.student.id, { peek: true });
+                  if (res?.error) { alert(res.error); return; }
+                  const inc = (res.steps || []).flatMap((st) => st.inclassItems || []);
+                  if (inc.length === 0) { alert("루틴에서 담을 것이 없어요."); return; }
+                  setPlanNext([...new Set([...planNext, ...inc])]);
+                })
+              }
+            >
+              ⟳ 다음 수업 루틴 미리 담기
+            </button>
+            <select
+              className="input input-sm"
+              style={{ width: 160 }}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v && !planNext.includes(v)) setPlanNext([...planNext, v]);
+                e.target.value = "";
+              }}
+            >
+              <option value="">＋ 항목 더하기…</option>
+              {items.filter((i) => !planNext.includes(i.id)).map((i) => (
+                <option key={i.id} value={i.id}>{i.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* 늦은 귀가 안내 — 재시험·미완료 숙제가 있으면 사유가 자동으로 잡힌다 */}

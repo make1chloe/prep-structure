@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unitOptions } from "@/lib/unitTree";
 import { pushToStudents, pushToFamilies } from "@/app/push/actions";
 import { safeKind, isAlert } from "@/lib/notices";
-import { dowOf } from "@/lib/day";
+import { dowOf, todaySeoul } from "@/lib/day";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
@@ -247,6 +247,17 @@ export async function saveStudentDay(studentId, date, form) {
   }
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고, 타이머가 여기 붙는다
   const inClassIds = Array.isArray(form.inClass) ? form.inClass : [];
+  const planNextIds = Array.isArray(form.planNext) ? form.planNext : [];
+  // 오늘 목록이 실제로 바뀌었는지 — 바뀌면 학생에게 알림 (원장님 2026-08-20
+  // 「내가 뭔가 바꾸고 저장하면 학생에게 알람이 가야 해」)
+  const { data: oldInclassRows } = await supabase
+    .from("daily_report_items")
+    .select("homework_item_id, inclass_sort")
+    .eq("daily_report_id", report.id)
+    .eq("status", "inclass");
+  const oldInclass = (oldInclassRows || [])
+    .sort((a, b) => (a.inclass_sort ?? 999) - (b.inclass_sort ?? 999))
+    .map((x) => x.homework_item_id);
   // 학생이 눌러둔 '학습 완료' 는 지우고 다시 넣어도 살려야 한다
   const { data: keepDone } = await supabase
     .from("daily_report_items")
@@ -298,6 +309,13 @@ export async function saveStudentDay(studentId, date, form) {
       status: "inclass",
       inclass_sort: i,
       carry_next: Array.isArray(form.carryNext) && form.carryNext.includes(homework_item_id),
+    })),
+    // 다음 수업 계획 (plan_next) — 다음 수업의 등원 목록에 미리 선다
+    ...planNextIds.map((homework_item_id, i) => ({
+      daily_report_id: report.id,
+      homework_item_id,
+      status: "plan_next",
+      inclass_sort: i,
     })),
     // 다음 수업에 검사할 숙제 배정 (교재 단원과 함께)
     ...nextIds.map((homework_item_id) => ({
@@ -429,6 +447,21 @@ export async function saveStudentDay(studentId, date, form) {
    * 학생 판이 접힌다 — 이어서 적으려고 임시저장을 눌렀는데 흐름이 끊긴다.
    * 서버에는 이미 들어갔으니, 다음 저장이나 새로고침 때 자연히 맞춰진다.
    */
+  /**
+   * **오늘 목록이 바뀌었으면 학생에게 알림** (원장님 2026-08-20 —
+   * 「내가 뭔가 바꾸고 저장하면 학생에게 알람이 가야 해」).
+   * 오늘 날짜의 저장에서만, 순서까지 비교해 정말 바뀐 경우에만 보낸다.
+   */
+  try {
+    if (date === todaySeoul() && JSON.stringify(oldInclass) !== JSON.stringify(inClassIds) && inClassIds.length) {
+      await pushToStudents([studentId], {
+        title: "오늘 할 일이 바뀌었어요",
+        body: "화면을 열어 새 순서를 확인해 주세요.",
+        url: "/me",
+      });
+    }
+  } catch { /* 알림 실패는 저장을 막지 않는다 */ }
+
   if (!form.draft) revalidatePath("/today");
   return {
     error: null,

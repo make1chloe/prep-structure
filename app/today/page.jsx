@@ -338,6 +338,7 @@ export default async function TodayPage({ searchParams }) {
   const itemsByReport = new Map();
   const nextByReport = new Map();
   const inClassByReport = new Map();   // 오늘 학원에서 할 것
+  const planByReport = new Map();      // 다음 수업 계획 (plan_next)
   const doneRowsByReport = new Map();  // 학생이 '학습 완료' 를 누른 줄
   const unitIds = new Set();
   const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
@@ -369,6 +370,11 @@ export default async function TodayPage({ searchParams }) {
         unitIds: idsOf(x),
         note: x.range_note || "",
       });
+      return;
+    }
+    if (x.status === "plan_next") {
+      if (!planByReport.has(x.daily_report_id)) planByReport.set(x.daily_report_id, []);
+      planByReport.get(x.daily_report_id).push({ id: x.homework_item_id, sort: x.inclass_sort ?? 999 });
       return;
     }
     if (x.status === "inclass") {
@@ -409,10 +415,16 @@ export default async function TodayPage({ searchParams }) {
     if (!latestPrevOf.has(r.student_id)) latestPrevOf.set(r.student_id, r.id);
   });
   const carriedOf = new Map(); // studentId → [{id, sort}]
+  const plannedOf = new Map(); // studentId → [{id, sort}] — 지난 수업에 세워둔 계획
   prevAllRows.forEach((x) => {
-    if (x.status !== "inclass" || !x.carry_next) return;
     const sid = prevReportStudent.get(x.daily_report_id);
     if (!sid || latestPrevOf.get(sid) !== x.daily_report_id) return;
+    if (x.status === "plan_next") {
+      if (!plannedOf.has(sid)) plannedOf.set(sid, []);
+      plannedOf.get(sid).push({ id: x.homework_item_id, sort: x.inclass_sort ?? 999 });
+      return;
+    }
+    if (x.status !== "inclass" || !x.carry_next) return;
     if (!carriedOf.has(sid)) carriedOf.set(sid, []);
     carriedOf.get(sid).push({ id: x.homework_item_id, sort: x.inclass_sort ?? 999 });
   });
@@ -1198,6 +1210,14 @@ export default async function TodayPage({ searchParams }) {
             ? (inClassByReport.get(rep.id) || []).filter((x) => x.carry).map((x) => x.id)
             : [],
           carriedIn: (carriedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
+        plannedIn: (plannedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
+        planNextSaved: rep
+          ? (planByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)
+          : [],
+          plannedIn: (plannedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
+          planNextSaved: rep
+            ? (planByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)
+            : [],
           doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
           secOf: Object.fromEntries(
             [...secOf.entries()]
@@ -1257,6 +1277,10 @@ export default async function TodayPage({ searchParams }) {
           ? (inClassByReport.get(rep.id) || []).filter((x) => x.carry).map((x) => x.id)
           : [],
         carriedIn: (carriedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
+        plannedIn: (plannedOf.get(s.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id),
+        planNextSaved: rep
+          ? (planByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)
+          : [],
         doneRows: rep ? doneRowsByReport.get(rep.id) || [] : [],
         secOf: Object.fromEntries(
           [...secOf.entries()]

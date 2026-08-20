@@ -13,7 +13,11 @@ import { fetchAll } from "@/lib/fetchAll";
  *
  * 되돌려주기만 하고 저장하지는 않는다 — 화면에서 보고 고칠 수 있어야 하니까.
  */
-export async function nextRoutine(studentId) {
+export async function nextRoutine(studentId, opts = {}) {
+  // peek: 오늘 저장으로 한 단계 넘어간 **다음 수업** 차례를 미리 본다
+  // (원장님 2026-08-20 「숙제를 낼 때 다음 수업 내용까지 정하는 게
+  //  기억력 측면에서도 더 나아」)
+  const peek = !!opts.peek;
   if (!studentId) return { inclass: [], home: [], steps: [], error: null };
   const supabase = createClient();
 
@@ -132,6 +136,7 @@ export async function nextRoutine(studentId) {
       ? list.findIndex((x) => x.id === r.routine_step_id)
       : -1;
     if (idx < 0) idx = ((r.routine_step || 0) % list.length + list.length) % list.length;
+    if (peek) idx = (idx + 1) % list.length;   // 다음 수업 차례
     const step = list[idx];
     const unit = unitOfBook.get(r.textbook_id) || null;
     (step.inclass_items || []).forEach((x) => inclass.add(x));
