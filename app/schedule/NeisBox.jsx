@@ -602,12 +602,20 @@ export default function NeisBox({ months = [] }) {
                   + "· 성적·시험범위가 붙어 있는 회차\n"
                   + "· 영어 시험일 · 등급컷 · 선생님 · 특이사항을 적어두신 회차\n"
                   + "· 손으로 만드신 회차\n\n"
-                  + "지운 뒤 「학사일정 받아오기」 를 눌러주세요."
+                  + "지운 다음 곧바로 학사일정을 다시 받아와 회차를 새로 만듭니다."
                 )) return;
-                run(() => resetNeisExams(), (r) => {
-                  setDone(null);
+                run(async () => {
+                  const r = await resetNeisExams();
+                  if (r?.error) return r;
+                  // 이어서 바로 받아온다 (2026-08-21) — 사람이 두 번 누르던
+                  // 것을 한 흐름으로. 중간에 화면을 떠나면 회차가 0인 채
+                  // 남아서 달력·내신·결석 예상이 전부 비었다
+                  const im = await importSchedule(range.from, range.to);
+                  return { ...im, note: r?.note };
+                }, (x) => {
+                  setDone(x?.added != null ? x : null);
                   importedSummary().then(setHave);
-                  alert(r?.note || "지웠습니다.");
+                  alert(`${x?.note || "지웠습니다."}\n이어서 받아왔어요 — ${x?.added ?? 0}건 반영.`);
                 });
               }}
             >

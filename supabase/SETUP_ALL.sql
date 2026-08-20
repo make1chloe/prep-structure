@@ -21,7 +21,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-20 · 0001~0143 · 141개)
+--   (2026-08-20 · 0001~0144 · 142개)
 -- ============================================================
 
 -- ─────────── 0001_core_schema.sql ───────────
@@ -7820,3 +7820,9 @@ grant execute on function public.request_done_on() to authenticated;
 -- 「날짜 안 나온 일정」 목록에 선다. 날짜가 확정되면 due_on 을 채우고
 -- 이 표시를 끈다 — 같은 줄이라 두 번 입력이 없다.
 alter table tasks add column if not exists date_tbd boolean not null default false;
+
+-- ─────────── 0144_inquiry_books_notified.sql ───────────
+-- 상담 때 교재 안내가 나간 날 (2026-08-21 감사) — 등록 전환 때
+-- student_textbooks.notified_on 으로 이어져서, 상담 때 이미 안내한 교재를
+-- 「안내 안 나간 교재」 로 또 재촉하지 않는다.
+alter table inquiries add column if not exists books_notified_on date;

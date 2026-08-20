@@ -213,14 +213,22 @@ export async function convertToStudent(id, classId) {
     const rows = [...new Set(q.book_ids)].filter((bid) => live.has(bid)).map((bid) => ({
       student_id: student.id, textbook_id: bid,
       status: "active", assigned_on: bookFrom, ended_on: null,
+      // 상담 때 안내가 나갔으면 그 날을 승계 (0144, 2026-08-21) — 안 하면
+      // 발송 화면이 「안내 안 나간 교재」 로 또 재촉해 두 번 보내게 됐다
+      notified_on: q.books_notified_on || null,
     }));
     if (rows.length === 0) { /* 전부 절판이면 넘어간다 */ }
     let { error: bErr } = rows.length
       ? await supabase.from("student_textbooks").insert(rows)
       : { error: null };
     if (bErr && (bErr.code === "42703" || bErr.code === "PGRST204")) {
+      // 0125 전 — notified_on 없이
+      ({ error: bErr } = await supabase.from("student_textbooks")
+        .insert(rows.map(({ notified_on: _n, ...r }) => r)));
+    }
+    if (bErr && (bErr.code === "42703" || bErr.code === "PGRST204")) {
       await supabase.from("student_textbooks")
-        .insert(rows.map(({ ended_on: _e, ...r }) => r));
+        .insert(rows.map(({ ended_on: _e, notified_on: _n2, ...r }) => r));
     }
   }
 

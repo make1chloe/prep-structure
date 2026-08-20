@@ -462,9 +462,17 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn, supaIn = null)
             // 안내에 적은 사용 예정일도 남긴다 (0128, A13) — 등록 전환이
             // 이 날짜로 배정한다. 문자에 적힌 날짜와 어긋나면 안 된다
             book_start_on: startOn || null,
+            // 안내가 나간 날 (0144) — 등록 전환 때 notified_on 으로 이어진다
+            books_notified_on: new Date().toISOString().slice(0, 10),
             updated_at: new Date().toISOString(),
           })
           .eq("id", q.id);
+        if (upErr && (upErr.code === "42703" || upErr.code === "PGRST204")) {
+          // 0144 전 — 안내일 없이
+          ({ error: upErr } = await supa.from("inquiries")
+            .update({ book_ids: merged, book_start_on: startOn || null, updated_at: new Date().toISOString() })
+            .eq("id", q.id));
+        }
         if (upErr && (upErr.code === "42703" || upErr.code === "PGRST204")) {
           // 0128 전 — 예정일 없이 목록만
           await supa.from("inquiries")
