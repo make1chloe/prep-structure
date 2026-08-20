@@ -26,6 +26,7 @@ export async function GET(request) {
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
   const op = new URL(request.url).searchParams.get("op");
   if (op === "rebuild") return rebuildRoutines(supabase);
+  if (op === "flow") return flowSim(supabase);
 
   const today = todaySeoul();
 
@@ -340,4 +341,188 @@ async function rebuildRoutines(supabase) {
   }
 
   return NextResponse.json({ ok: true, ...out, missBooks });
+}
+
+
+/**
+ * **전원 · 전체 흐름 한 달 시뮬** (원장님, 2026-08-20 — 「한 달치 모든
+ * 학생에게. 숙제 배정이 안 된 경우 가상으로라도 진도를 설정해서라도 다
+ * 돌려봐」). 결정론(난수 없음)으로 수업 사슬 전체를 돌린다:
+ *
+ *   검사(1차 판단 프리필 → 손 판정 수) → 미제출은 오늘수업으로 ·
+ *   미흡은 숙제 다시 → 등원 소화(세션당 5개) → 남으면 이월(carry)
+ *   → 다음 숙제(루틴 home·예습) → 다음 수업 계획(peek) → 반복
+ *
+ * 재는 것: 세션당 손 판정 수 · 등원 밀림(backlog) 추이 · 재숙제 루프 ·
+ * 회독 경계의 peek 오류 · 씨앗 중복. 단원 없는 루틴 교재는 가상 단원
+ * 20개로 돌린다 (멈추지 않는 것이 목적).
+ */
+async function flowSim(supabase) {
+  const today = todaySeoul();
+  const [stQ, sbQ, bkQ, csQ, clQ] = await Promise.all([
+    supabase.from("students").select("id, name, grade").eq("status", "enrolled"),
+    supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, round")
+      .neq("status", "dropped"),
+    supabase.from("textbooks").select("id, name, area"),
+    supabase.from("class_students").select("class_id, student_id"),
+    supabase.from("classes").select("id, days"),
+  ]);
+  const bookById = new Map((bkQ.data || []).map((b) => [b.id, b]));
+  const classDays = new Map((clQ.data || []).map((c) => [c.id, (c.days || []).length]));
+  const weekly = new Map();
+  (csQ.data || []).forEach((m) => {
+    weekly.set(m.student_id, (weekly.get(m.student_id) || 0) + (classDays.get(m.class_id) || 0));
+  });
+  const { data: units } = await fetchAll(() =>
+    supabase.from("textbook_units").select("id, textbook_id, parent_id, name, sort")
+      .order("sort", { ascending: true }).order("id"));
+  const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
+  const leavesOf = new Map();
+  (units || []).forEach((u) => {
+    if (hasChild.has(u.id)) return;
+    if (!leavesOf.has(u.textbook_id)) leavesOf.set(u.textbook_id, []);
+    leavesOf.get(u.textbook_id).push(u);
+  });
+
+  const routineOf = (name) => {
+    let r = DRAFTS.books[name];
+    if (typeof r === "string") r = DRAFTS.books[r];
+    return r || null;
+  };
+  const CAP = 5;               // 세션당 등원 소화량 (가정)
+  const SESS_CAP_NOTE = "세션당 등원 5개 소화 가정";
+  const isCc = (n) => /클카/.test(n);
+
+  const perStudent = [];
+  const findings = { peek오류: [], 씨앗중복: [], 가상단원교재: new Set(), 루틴전무학생: [] };
+  let counter = 0;             // 결정론 패턴용
+
+  for (const s of stQ.data || []) {
+    const myBooks = (sbQ.data || [])
+      .filter((r) => r.student_id === s.id && inUseOn(r, today))
+      .map((r) => ({ ...r, book: bookById.get(r.textbook_id) }))
+      .filter((r) => r.book);
+    const sessions = Math.max(1, weekly.get(s.id) || 2) * 4;
+
+    const tracks = myBooks
+      .map((r) => {
+        const steps = routineOf(r.book.name) || DRAFTS.areas[r.book.area || ""] || null;
+        if (!steps) return null;
+        let leaves = (leavesOf.get(r.textbook_id) || []).map((u) => u.name);
+        if (leaves.length === 0) {
+          findings.가상단원교재.add(r.book.name);
+          leaves = Array.from({ length: 20 }, (_, i) => `가상 ${i + 1}과`);
+        }
+        return { name: r.book.name, steps, leaves, round: r.round || 1, ptr: 0, stepIdx: 0 };
+      })
+      .filter(Boolean);
+    if (tracks.length === 0) {
+      findings.루틴전무학생.push(`${s.name}(교재 ${myBooks.length})`);
+      continue;
+    }
+
+    const stepOf = (t, idxShift = 0) => {
+      const rounded = t.steps.filter((x) => x.round != null && x.round <= t.round);
+      const maxR = rounded.length ? Math.max(...rounded.map((x) => x.round)) : null;
+      const list = t.steps.filter((x) => (x.round == null && maxR == null) || x.round === maxR);
+      if (!list.length) return null;
+      return list[(t.stepIdx + idxShift) % list.length];
+    };
+
+    let homework = [];           // [{name}] 이번 세션에 검사할 숙제
+    let inclassQueue = [];       // 이월 포함 등원 대기열
+    let plan = null;             // 지난 세션에 세워둔 계획
+    let handMarks = 0, autoMarks2 = 0, redo = 0, pulledIn = 0, notified = 0;
+    let maxBacklog = 0, endBacklog = 0;
+
+    for (let sess = 1; sess <= sessions; sess += 1) {
+      // ① 검사 — 1차 판단(클카·제출물)/손 판정, 결정론 패턴으로 결과 배정
+      const todayInclassExtra = [];
+      homework.forEach((h) => {
+        counter += 1;
+        const outcome = counter % 4 === 0 ? "missing" : counter % 9 === 0 ? "weak" : "done";
+        const auto = isCc(h) || counter % 5 !== 0;   // 클카거나 제출물 있음
+        if (auto) autoMarks2 += 1; else handMarks += 1;
+        if (outcome === "missing") { todayInclassExtra.push(h); pulledIn += 1; }
+        if (outcome === "weak") redo += 1;           // 숙제 다시
+      });
+
+      // ② 등원 목록 = 미제출 끌어온 것 + 이월 + 계획(또는 루틴 현재 단계)
+      let list = [...todayInclassExtra, ...inclassQueue];
+      const base = plan
+        ? plan
+        : tracks.flatMap((t) => (stepOf(t)?.inclass || []));
+      base.forEach((x) => { if (!list.includes(x)) list.push(x); });
+      const dupCheck = new Set(list);
+      if (dupCheck.size !== list.length) findings.씨앗중복.push(`${s.name} ${sess}회`);
+      if (plan && sess > 1) notified += 0;           // 계획 그대로면 알림 없음 (변경 모델 생략)
+
+      // ③ 소화 — CAP 개까지, 나머지는 이월
+      const donePart = list.slice(0, CAP);
+      inclassQueue = list.slice(CAP);
+      maxBacklog = Math.max(maxBacklog, inclassQueue.length);
+
+      // ④ 진도 — 오늘 다룬 교재(등원에 항목이 있던 교재) 단원 하나씩
+      tracks.forEach((t) => {
+        const st = stepOf(t);
+        if (!st) return;
+        const touched = (st.inclass || []).some((x) => donePart.includes(x));
+        if (!touched) return;
+        t.ptr += 1;
+        t.stepIdx += 1;
+        if (t.ptr >= t.leaves.length) { t.round += 1; t.ptr = 0; }
+      });
+
+      // ⑤ 다음 숙제 + 다음 수업 계획(peek)
+      homework = tracks.flatMap((t) => {
+        const st = stepOf(t);
+        return st ? [...(st.home || []), ...(st.homeNext || [])] : [];
+      });
+      for (let r2 = 0; r2 < redo && r2 < 1; r2 += 1) homework.push("재숙제");
+      plan = tracks.flatMap((t) => {
+        const nxt = stepOf(t, 1);
+        if (!nxt) {
+          findings.peek오류.push(`${s.name}·${t.name} ${sess}회 (다음 단계 없음)`);
+          return [];
+        }
+        return nxt.inclass || [];
+      });
+    }
+    endBacklog = inclassQueue.length;
+
+    perStudent.push({
+      name: s.name,
+      sessions,
+      루틴교재: tracks.length,
+      평균손판정: Math.round((handMarks / sessions) * 10) / 10,
+      평균자동판정: Math.round((autoMarks2 / sessions) * 10) / 10,
+      미제출끌어옴: pulledIn,
+      재숙제: redo,
+      최대밀림: maxBacklog,
+      한달뒤밀림: endBacklog,
+    });
+  }
+
+  perStudent.sort((a, b) => b.한달뒤밀림 - a.한달뒤밀림 || b.최대밀림 - a.최대밀림);
+  const worst = perStudent.filter((x) => x.한달뒤밀림 > 0);
+  return NextResponse.json({
+    ok: true,
+    가정: SESS_CAP_NOTE,
+    학생수: perStudent.length,
+    자동판정비율: (() => {
+      const h = perStudent.reduce((a, x) => a + x.평균손판정, 0);
+      const a2 = perStudent.reduce((a, x) => a + x.평균자동판정, 0);
+      return h + a2 ? Math.round((a2 / (h + a2)) * 100) : 0;
+    })(),
+    밀림있는학생: worst.length,
+    학생별: perStudent,
+    발견: {
+      peek오류: findings.peek오류.slice(0, 10),
+      씨앗중복: findings.씨앗중복.slice(0, 10),
+      가상단원교재: [...findings.가상단원교재],
+      루틴전무학생: findings.루틴전무학생,
+    },
+  });
 }
