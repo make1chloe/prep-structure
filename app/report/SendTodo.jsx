@@ -61,39 +61,60 @@ export default function SendTodo({
     });
   }
 
-  /** 고른 리포트 지금 보내기 — 앱 공지·알림 (리포트 발송과 같은 길) */
-  function sendReportsNow() {
-    if (repCount === 0) return;
-    if (!confirm(`리포트 ${repCount}건을 지금 보낼까요?\n앱 공지에 올라가고 알림이 갑니다.`)) return;
-    const items = unsentByDate.flatMap((d) => d.items).filter((x) => repSel.has(x.id))
-      .map((x) => ({ id: x.id }));
-    run(() => sendReports(items), `${repCount}건 보냈어요.`);
-  }
-
-  /** 고른 교재 안내 지금 보내기 — 학생마다 제 교재로 채운 본문 */
-  function sendBooksNow() {
-    if (pickedBooks.length === 0) return;
+  /**
+   * **지금 보내기 — 확인 한 번, 결과 한 번** (2026-08-21). 리포트와 교재가
+   * 각각 confirm → alert 를 띄워 버튼 하나에 창이 네 번 뜨고, refresh 도
+   * 두 번 돌았다. 매일 저녁 반복되는 동선이라 하나로 합친다.
+   */
+  function sendAllNow() {
+    if (repCount === 0 && pickedBooks.length === 0) return;
     const smsN = pickedBooks.filter((w) => w.firstComing).length;
+    const parts = [];
+    if (repCount > 0) parts.push(`리포트 ${repCount}건`);
+    if (pickedBooks.length > 0) parts.push(`교재 안내 ${pickedBooks.length}명`);
     if (!confirm(
-      `교재 안내 ${pickedBooks.length}명에게 지금 보낼까요?` +
+      `${parts.join(" · ")} 지금 보낼까요?` +
       (smsN > 0 ? `\n첫 등원 전 ${smsN}명에게는 학부모 번호로 문자가 갑니다.` : "\n앱 공지·알림으로 갑니다.")
     )) return;
-    run(async () => {
-      const res = await sendNotices(
-        pickedBooks.map((w) => ({ id: w.id, name: w.name, phone: w.phone, body: w.body })),
-        "book",
-        bookTemplateId
-      );
-      if (!res?.error && res.count > 0) {
-        // 안내 나간 날을 새긴다 — 이 목록에서 빠진다 (0125).
-        // 직접 발송 모드로 0명이면 안 새긴다 (2026-08-21)
-        const ids = pickedBooks.map((w) => w.id);
-        const bookIds = [...new Set(pickedBooks.flatMap((w) => w.books.map((b) => b.id)))];
-        const startOn = pickedBooks.flatMap((w) => w.books.map((b) => b.from)).sort()[0];
-        if (startOn) await assignAnnouncedBooks(ids, bookIds, startOn);
+    startTransition(async () => {
+      const msgs = [];
+      let failedAll = [];
+      if (repCount > 0) {
+        const items = unsentByDate.flatMap((d) => d.items).filter((x) => repSel.has(x.id))
+          .map((x) => ({ id: x.id }));
+        const r = await sendReports(items);
+        if (r?.error) msgs.push(`리포트: ${r.error}`);
+        else {
+          msgs.push(`리포트 ${repCount}건 보냈어요.`);
+          failedAll = failedAll.concat(r?.failed || []);
+        }
       }
-      return res;
-    }, `${pickedBooks.length}명에게 보냈어요.`);
+      if (pickedBooks.length > 0) {
+        const res = await sendNotices(
+          pickedBooks.map((w) => ({ id: w.id, name: w.name, phone: w.phone, body: w.body })),
+          "book",
+          bookTemplateId
+        );
+        if (res?.error) msgs.push(`교재 안내: ${res.error}`);
+        else {
+          msgs.push(`교재 안내 ${res.count}명 보냈어요.`);
+          failedAll = failedAll.concat(res?.failed || []);
+          if (res.count > 0) {
+            // 안내 나간 날을 새긴다 — 이 목록에서 빠진다 (0125).
+            // 직접 발송 모드로 0명이면 안 새긴다
+            const ids = pickedBooks.map((w) => w.id);
+            const bookIds = [...new Set(pickedBooks.flatMap((w) => w.books.map((b) => b.id)))];
+            const startOn = pickedBooks.flatMap((w) => w.books.map((b) => b.from)).sort()[0];
+            if (startOn) await assignAnnouncedBooks(ids, bookIds, startOn);
+          }
+        }
+      }
+      if (failedAll.length > 0) {
+        msgs.push(`실패 ${failedAll.length}건\n` + failedAll.map((f) => `· ${f.name}: ${f.detail}`).join("\n"));
+      }
+      alert(msgs.join("\n"));
+      router.refresh();
+    });
   }
 
   /** 예약 — 고른 것을 정한 시각 뒤에 (열릴 때 나간다) */
@@ -142,7 +163,7 @@ export default function SendTodo({
             </b>
             <span className="spacer" />
             <button className="btn btn-primary btn-sm" disabled={pending || (repCount === 0 && pickedBooks.length === 0)}
-              onClick={() => { if (repCount > 0) sendReportsNow(); if (pickedBooks.length > 0) sendBooksNow(); }}>
+              onClick={sendAllNow}>
               지금 보내기
             </button>
             <input

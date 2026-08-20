@@ -85,17 +85,20 @@ export async function resend(items, kind, supa = null) {
   {
     const { data } = await supabase
       .from("daily_reports")
-      .select("id, student_id, date")
+      .select("id, student_id, date, report_text")
       .in("id", list.map((x) => x.id));
     (data || []).forEach((r) => owner.set(r.id, r));
   }
   const studentOf = (x) => owner.get(x.id)?.student_id || null;
+  // 본문 폴백 (2026-08-21) — 「보낼 것」·예약 발송은 {id} 만 넘겨서 발송
+  // 이력 body 가 빈칸으로 남았다. 고쳐 둔 문구(report_text)라도 싣는다
+  const bodyOf = (x) => x.body || owner.get(x.id)?.report_text || "";
 
   // 늦은 귀가 안내만 앱에 자기 자리가 없다 — 공지로 올린다
   if (k === "late") {
     const rows = list
       .filter((x) => studentOf(x))
-      .map((x) => ({ studentId: studentOf(x), title: noticeLabel("late"), body: x.body || "" }));
+      .map((x) => ({ studentId: studentOf(x), title: noticeLabel("late"), body: bodyOf(x) }));
     const { ok, failed } = await postAppNotices(supabase, rows, {
       date: owner.get(list[0]?.id)?.date || list[0]?.date || todaySeoul(),
       kind: "late",
@@ -168,7 +171,7 @@ export async function resend(items, kind, supa = null) {
     return {
       daily_report_id: x.id,
       kind: k,
-      body: x.body || "",
+      body: bodyOf(x),
       sent_by: user?.id || null,
       channel,
       ok: !!r.ok,
