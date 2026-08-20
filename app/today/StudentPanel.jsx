@@ -209,6 +209,8 @@ export default function StudentPanel({
       : "";
 
   const [marks, setMarks] = useState(() => ({ ...(row.items || {}) }));
+  // 1차 판단으로 미리 채운 값 — 화면에 「자동」 을 붙여 손 판정과 구분한다
+  const [autoMarks, setAutoMarks] = useState({});
 
   /**
    * **클카 자동 판정** (원장님, 2026-08-17 — 단어 세트→단어(온라인),
