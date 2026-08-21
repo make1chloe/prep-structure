@@ -466,6 +466,7 @@ export default function StudentPanel({
   // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 루틴 다음을 누르면 먼저
   // 오늘 할 교재를 고른다. 교재가 하나면 바로 차린다.
   const [routinePick, setRoutinePick] = useState(null); // { res, chosen:Set }
+
   /**
    * **다음 수업 계획** (원장님 2026-08-20 — 「숙제를 낼 때 다음 수업
    * 내용까지 정하는 게 기억력 측면에서도 더 나아」). 오늘 저장에
@@ -798,7 +799,31 @@ export default function StudentPanel({
   // 구별이 안 되고, 반쯤 적은 기록이 리포트로 나갈 수 있다.
   // 저장을 누르면 지운다. 남은 것이 있으면 열 때 알려주고, 되살릴지 물어본다.
   const draftKey = `chloe.today.${date}.${row.student.id}`;
-  const [draft, setDraft] = useState(null);      // 되살릴 것이 있으면 여기
+  const [draft, setDraft] = useState(null);
+
+  /**
+   * **판을 열면 진도루틴 차례가 이미 채워져 있다** (원장님 2026-08-21 —
+   * 「진도가 있고 루틴이 있으면 숙제가 배정돼야 되는 거 아냐?」).
+   * 빈 판일 때 한 번만 미리 채운다 — 저장해야 확정(대전제 3)이고,
+   * ⟳ 단추는 다시 채우기·다른 교재 고르기용으로 남는다.
+   * 여러 교재면 전부 차린다 (8/20 「여럿이면 고른다」 는 ⟳ 수동 때만).
+   */
+  const autoRoutined = useRef(false);
+  useEffect(() => {
+    if (autoRoutined.current) return;
+    if (draft) return;                                  // 되살릴 초안이 먼저다
+    if (next.size > 0 || inClass.length > 0) return;    // 이미 차려진 판은 안 덮는다
+    autoRoutined.current = true;
+    (async () => {
+      try {
+        const res = await nextRoutine(row.student.id);
+        if (res?.error || !res?.steps?.length) return;
+        applyRoutine(res, new Set(res.steps.map((st) => st.textbookId)));
+      } catch { /* 못 채우면 ⟳ 로 하던 대로 */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
+      // 되살릴 것이 있으면 여기
 
   useEffect(() => {
     try {
