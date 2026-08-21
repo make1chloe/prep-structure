@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { addTask } from "@/app/tasks/actions";
-import { todaySeoul } from "@/lib/day";
+import { addQuickMemo } from "@/app/tasks/actions";
 
 /**
  * **아무 화면에서나 한 줄 메모** (원장님, 2026-08-21 — 「수업 하다가 갑자기
@@ -23,14 +22,9 @@ export default function QuickMemo() {
   function save() {
     const t = text.trim();
     if (!t) return;
-    const [first, ...rest] = t.split("\n");
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("title", first.trim());
-      fd.set("kind", "todo");
-      fd.set("due_on", todaySeoul());
-      if (rest.join("\n").trim()) fd.set("note", rest.join("\n").trim());
-      const res = await addTask(fd);
+      // 전용 저장 — 아무 화면도 안 갈아엎는다 (약속: 이동 없음 · 새로고침 없음)
+      const res = await addQuickMemo(t);
       if (res?.error) { alert(res.error); return; }
       setText("");
       setSaved(true);

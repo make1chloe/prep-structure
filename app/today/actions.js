@@ -253,19 +253,26 @@ export async function saveStudentDay(studentId, date, form) {
    * 학생 화면·리포트·검사까지 여느 숙제처럼 흐른다 (두 번 안 적는다).
    */
   if ((form.quickHomework || "").trim()) {
-    const NAME = "직접 적은 숙제";
-    let { data: qi } = await supabase
-      .from("homework_items").select("id").eq("name", NAME).maybeSingle();
-    if (!qi) {
-      ({ data: qi } = await supabase
-        .from("homework_items").insert({ name: NAME, category: "기타" }).select("id").maybeSingle());
-    }
-    if (qi?.id) {
+    // **줄마다 따로** (원장님 2026-08-21 「줄 구분되는 거지 — 여러 개를
+    // 내더라도 학생들이 다 해서 볼 수 있도록」). 한 줄 = 숙제 하나.
+    // 항목은 같은 이름을 못 겹쳐 쓰니(리포트당 항목 한 줄) 슬롯을 판다 —
+    // 「직접 적은 숙제」 「직접 적은 숙제 2」 … 학생에겐 범위 메모(내용)가
+    // 같이 보이고, 각각 완료·검사된다.
+    const lines = form.quickHomework.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 8);
+    for (let i = 0; i < lines.length; i += 1) {
+      const NAME = i === 0 ? "직접 적은 숙제" : `직접 적은 숙제 ${i + 1}`;
+      let { data: qi } = await supabase
+        .from("homework_items").select("id").eq("name", NAME).maybeSingle();
+      if (!qi) {
+        ({ data: qi } = await supabase
+          .from("homework_items").insert({ name: NAME, category: "기타" }).select("id").maybeSingle());
+      }
+      if (!qi?.id) continue;
       if (!nextIds.includes(qi.id)) nextIds = [...nextIds, qi.id];
       const prev = (nextUnitsIn[qi.id]?.note || "").trim();
       nextUnitsIn[qi.id] = {
         unitIds: nextUnitsIn[qi.id]?.unitIds || [],
-        note: prev ? `${prev}\n${form.quickHomework.trim()}` : form.quickHomework.trim(),
+        note: prev ? `${prev} · ${lines[i]}` : lines[i],
       };
     }
   }

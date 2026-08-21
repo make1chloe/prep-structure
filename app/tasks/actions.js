@@ -88,6 +88,28 @@ export async function addTask(formData) {
   revalidatePath("/today");
 }
 
+/**
+ * **빠른 메모 전용 저장** (2026-08-21). addTask 는 /tasks·/today 를
+ * revalidate 해서, 수업 중 메모 하나에 지금 보던 화면이 다시 그려졌다 —
+ * 「화면 이동 없이 새로고침 없이」 가 약속이라 여기는 아무것도 안 갈아엎는다.
+ * 할일 화면은 다음에 열 때 자연히 보인다.
+ */
+export async function addQuickMemo(text) {
+  const t = (text || "").trim();
+  if (!t) return { error: null };
+  const supabase = createClient();
+  const user = await sessionUser(supabase);
+  const [first, ...rest] = t.split("\n");
+  const { error } = await supabase.from("tasks").insert({
+    title: first.trim().slice(0, 200),
+    kind: "todo",
+    due_on: new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10),
+    note: rest.join("\n").trim() || null,
+    created_by: user?.id || null,
+  });
+  return { error: error?.message || null };
+}
+
 export async function updateTask(id, patch) {
   if (!id) return { error: "id 없음" };
   const row = {};

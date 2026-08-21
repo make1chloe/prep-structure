@@ -1823,10 +1823,11 @@ export default function StudentPanel({
               「직접 적은 숙제」 로 학생 화면·리포트·검사까지 여느 숙제처럼 */}
           <div className="row" style={{ gap: 6, alignItems: "center", margin: "6px 0" }}>
             <span className="hint" style={{ fontSize: 13, whiteSpace: "nowrap" }}>✍ 급한 숙제</span>
-            <input
+            <textarea
               className="input input-sm"
-              style={{ flex: 1, minWidth: 160 }}
-              placeholder="예) 문법 프린트 3장 풀어오기 — 저장하면 그대로 숙제로 나가요"
+              rows={form.quickHomework.includes("\n") ? 3 : 1}
+              style={{ flex: 1, minWidth: 160, resize: "vertical" }}
+              placeholder="한 줄에 하나씩 — 줄마다 따로 숙제가 돼요 (예: 문법 프린트 3장)"
               value={form.quickHomework}
               onChange={(e) => set("quickHomework", e.target.value)}
             />
