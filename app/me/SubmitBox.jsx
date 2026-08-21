@@ -25,7 +25,13 @@ function seoulToday() {
 export default function SubmitBox({ itemId, reportItemId, asId = null, mine = [], readOnly = false, checklist = [], openList = false }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(null);        // null | "list"
-  const [ticked, setTicked] = useState(() => new Set());
+  /**
+   * 체크 3단계 (원장님 2026-08-21 — 「숙제검사와 마찬가지로: 안 누르면
+   * 빨강 미이행 · 한 번 누르면 노랑 하는 중 · 두 번 누르면 초록 완료」).
+   * 검사 ○△✕ 와 같은 문법이라 학생·원장이 같은 색말을 쓴다.
+   * marks[i]: 0 미이행 · 1 하는 중 · 2 완료 (누를 때마다 0→1→2→0)
+   */
+  const [marks, setMarks] = useState({});
   const [rec, setRec] = useState(null);          // MediaRecorder
   const [recSec, setRecSec] = useState(0);
   const fileRef = useRef(null);
@@ -47,23 +53,36 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
   useEffect(() => {
     if (!storeKey || checklist.length === 0) return;
     try {
-      const raw = JSON.parse(localStorage.getItem(storeKey) || "[]");
-      if (Array.isArray(raw)) {
-        // 선생님이 그새 목록을 고쳤을 수 있다 — 범위 밖 번호는 버린다
-        setTicked(new Set(raw.filter((i) => Number.isInteger(i) && i >= 0 && i < checklist.length)));
+      const raw = JSON.parse(localStorage.getItem(storeKey) || "null");
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        const next = {};
+        Object.entries(raw).forEach(([k, v]) => {
+          const i = Number(k);
+          if (Number.isInteger(i) && i >= 0 && i < checklist.length && (v === 1 || v === 2)) next[i] = v;
+        });
+        setMarks(next);
+      } else if (Array.isArray(raw)) {
+        // 옛 저장(체크한 번호 배열) — 체크했던 것은 완료(2)로 이어받는다
+        const next = {};
+        raw.forEach((i) => {
+          if (Number.isInteger(i) && i >= 0 && i < checklist.length) next[i] = 2;
+        });
+        setMarks(next);
       }
     } catch { /* 못 읽으면 빈 채로 — 표시일 뿐이라 화면은 그대로 돈다 */ }
   }, [storeKey, checklist.length]);
 
-  function saveTicks(next) {
-    setTicked(next);   // 화면 먼저 (낙관) — 저장은 뒤따라간다
+  function saveMarks(next) {
+    setMarks(next);   // 화면 먼저 (낙관) — 저장은 뒤따라간다
     try {
-      if (storeKey) localStorage.setItem(storeKey, JSON.stringify([...next]));
+      if (storeKey) localStorage.setItem(storeKey, JSON.stringify(next));
     } catch { /* 저장 공간이 막혀도 체크 자체는 화면에 남는다 */ }
   }
+  const doneCount = checklist.reduce((a, _, i) => a + (marks[i] === 2 ? 1 : 0), 0);
+  const touchedCount = checklist.reduce((a, _, i) => a + (marks[i] ? 1 : 0), 0);
 
-  // 다 짚었으면 「끝」 을 보여준다 — 이제 완료(내기)를 누르라는 뜻이다
-  const allTicked = checklist.length > 0 && ticked.size === checklist.length;
+  // 전부 완료(초록)면 「끝」 — 이제 완료(내기)를 누르라는 뜻이다
+  const allTicked = checklist.length > 0 && doneCount === checklist.length;
   const listOpen = openList || open === "list";
 
   function send(form) {
@@ -164,40 +183,55 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
 
       {checklist.length > 0 && listOpen && (
         <div className="stack" style={{ gap: 6 }}>
-          {checklist.map((line, i) => (
-            <label key={i} className="unitrow" style={{ cursor: readOnly ? "default" : "pointer" }}>
-              <input
-                type="checkbox"
-                checked={ticked.has(i)}
+          {checklist.map((line, i) => {
+            const st = marks[i] || 0;   // 0 미이행(빨강) · 1 하는 중(노랑) · 2 완료(초록)
+            const color = st === 2 ? "var(--mint)" : st === 1 ? "var(--amber)" : "var(--red)";
+            return (
+              <button
+                type="button"
+                key={i}
+                className="unitrow"
                 disabled={readOnly}
-                onChange={() => {
-                  const next = new Set(ticked);
-                  next.has(i) ? next.delete(i) : next.add(i);
-                  saveTicks(next);
+                style={{
+                  cursor: readOnly ? "default" : "pointer",
+                  textAlign: "left",
+                  borderLeft: `4px solid ${color}`,
+                  background: "var(--surface-2)",
                 }}
-              />
-              <span style={{ fontSize: 15, flex: 1, textDecoration: ticked.has(i) ? "line-through" : "none" }}>
-                {line}
-              </span>
-            </label>
-          ))}
+                onClick={() => saveMarks({ ...marks, [i]: (st + 1) % 3 })}
+                title="누를 때마다 미이행 → 하는 중 → 완료"
+              >
+                <b style={{ color, minWidth: 34, fontSize: 13 }}>
+                  {st === 2 ? "○ 완료" : st === 1 ? "△ 중" : "✕"}
+                </b>
+                <span style={{ fontSize: 15, flex: 1, textDecoration: st === 2 ? "line-through" : "none" }}>
+                  {line}
+                </span>
+              </button>
+            );
+          })}
           <button
             className="btn btn-primary btn-sm"
-            disabled={pending || readOnly || ticked.size === 0}
+            disabled={pending || readOnly || touchedCount === 0}
             onClick={() =>
               startTransition(async () => {
-                const done = checklist.map((text, i) => ({ text, done: ticked.has(i) }));
+                // 상태째 낸다 — 원장님 검사 화면에서 ○△✕ 그대로 보인다
+                const done = checklist.map((text, i) => ({
+                  text,
+                  done: marks[i] === 2,
+                  state: marks[i] === 2 ? "done" : marks[i] === 1 ? "doing" : "missing",
+                }));
                 const res = await submitChecklist(itemId, reportItemId, done, asId);
                 if (res?.error) { alert(res.error); return; }
                 // 낸 뒤에는 표시를 비운다 — 낸 것은 아래 줄로 남는데,
                 // 체크가 그대로면 「내기」 가 살아 있어 또 내게 된다
-                saveTicks(new Set());
+                saveMarks({});
                 setOpen(null);
                 router.refresh();
               })
             }
           >
-            {ticked.size}/{checklist.length} 내기
+            ○{doneCount}{touchedCount > doneCount ? ` △${touchedCount - doneCount}` : ""}/{checklist.length} 내기
           </button>
         </div>
       )}

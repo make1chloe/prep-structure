@@ -297,7 +297,10 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                               <div className="stack" style={{ gap: 2, paddingLeft: 8 }}>
                                 {parseList(s.body).map((x, i) => (
                                   <span key={i} className="hint" style={{ fontSize: 14 }}>
-                                    {x.done ? "☑" : "☐"} {x.text}
+                                    <b style={{ color: x.state === "doing" ? "var(--amber)" : x.done ? "var(--mint)" : "var(--red)" }}>
+                                      {x.done ? "○" : x.state === "doing" ? "△" : "✕"}
+                                    </b>{" "}
+                                    {x.text}
                                   </span>
                                 ))}
                               </div>

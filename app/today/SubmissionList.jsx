@@ -102,7 +102,11 @@ export default function SubmissionList({ rows = [], items = [] }) {
               <div className="stack" style={{ gap: 2 }}>
                 {parseList(r.body).map((x, i) => (
                   <span key={i} className="hint" style={{ fontSize: 14 }}>
-                    {x.done ? "☑" : "☐"} {x.text}
+                    {/* 학생 3단계 그대로 — ○완료 △하는 중 ✕미이행 (2026-08-21) */}
+                    <b style={{ color: x.state === "doing" ? "var(--amber)" : x.done ? "var(--mint)" : "var(--red)" }}>
+                      {x.done ? "○" : x.state === "doing" ? "△" : "✕"}
+                    </b>{" "}
+                    {x.text}
                   </span>
                 ))}
               </div>
