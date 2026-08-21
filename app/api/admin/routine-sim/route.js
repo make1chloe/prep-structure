@@ -1,9 +1,12 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/guard";
 import { fetchAll } from "@/lib/fetchAll";
 import { inUseOn } from "@/lib/bookUse";
-import { todaySeoul } from "@/lib/day";
+import { todaySeoul, addDays } from "@/lib/day";
+import { loadReportRows } from "@/lib/reportData";
 import DRAFTS from "./drafts.json";
 import { nextRoutine } from "@/app/today/routineActions";
 
@@ -30,6 +33,7 @@ export async function GET(request) {
   if (op === "flow") return flowSim(supabase);
   if (op === "retest") return retestList(supabase);
   if (op === "month") return monthSim(supabase);
+  if (op === "safety") return safetyCheck(supabase);
 
   const today = todaySeoul();
 
@@ -771,5 +775,354 @@ async function monthSim(supabase) {
     오류: [...new Set(errors)].slice(0, 30),
     주의: [...new Set(warns)].slice(0, 20),
     학생별: perStudent,
+  });
+}
+
+
+/**
+ * **실전 투입 전 안전 점검** (원장님, 2026-08-21 — 「학부모한테 다른
+ * 학부모·다른 학생 정보가 잘못 공지되거나, 숙제 문자가 다 꼬여서 당일
+ * 아무것도 못 나가면 어떡할건데」).
+ *
+ * 반복해서 돌리는 검사다. **아무것도 쓰지 않는다** — 지금 DB 에 실제로
+ * 담긴 알림·공지·리포트를, 실제 발송이 쓰는 코드(loadReportRows ·
+ * monthlyBriefing 의 재료 쿼리)와 맞대조해서 「남의 집으로 새는 길」과
+ * 「빈 문자로 나가는 길」을 미리 잡는다. errorTotal 0 이면 통과.
+ */
+async function safetyCheck(supabase) {
+  const today = todaySeoul();
+  const weekAgo = addDays(today, -7);
+  const checks = [];
+
+  // 학생 명부 — 여러 검사가 같은 명부를 본다 (재원생 + 전체)
+  const { data: allStudents } = await fetchAll(() =>
+    supabase.from("students").select("id, name, status").order("id")
+  );
+  const enrolled = (allStudents || []).filter((s) => s.status === "enrolled");
+  const enrolledSet = new Set(enrolled.map((s) => s.id));
+  const knownSet = new Set((allStudents || []).map((s) => s.id));
+  const nameOf = new Map((allStudents || []).map((s) => [s.id, s.name]));
+
+  // ── ① 알림 대상 정합 — 대기 중인 앱 알림(push)이 엉뚱한 집으로 갈 길이 있나
+  {
+    const errors = [];
+    const { data: pend } = await fetchAll(() =>
+      supabase
+        .from("scheduled_sends")
+        .select("id, kind, due_at, note, payload, sent_at")
+        .eq("kind", "push")
+        .is("sent_at", null)
+        .order("due_at", { ascending: true })
+        .order("id")
+    );
+    const now = Date.now();
+    let multiFamily = 0;
+    (pend || []).forEach((j) => {
+      const label = j.note || j.payload?.title || j.id;
+      const ids = [...new Set((j.payload?.studentIds || []).filter(Boolean))];
+      if (ids.length === 0) errors.push(`예약알림 「${label}」 — 보낼 학생이 없다 (빈 대상)`);
+      const ghosts = ids.filter((x) => !enrolledSet.has(x));
+      if (ghosts.length)
+        errors.push(`예약알림 「${label}」 — 재원생 아닌 id ${ghosts.length}개 (${ghosts.map((x) => nameOf.get(x) || x).join(", ")})`);
+      if (ids.length > 1) {
+        multiFamily += 1;
+        // 학생 여럿(=여러 집)에 한 통 — note 에 사유가 없으면 실수로 본다
+        if (!(j.note || "").trim())
+          errors.push(`예약알림 — 학생 ${ids.length}명이 한 건에 묶였는데 note 에 사유가 없다 (${ids.map((x) => nameOf.get(x) || x).join(", ")})`);
+      }
+      if (j.due_at && new Date(j.due_at).getTime() <= now)
+        errors.push(`예약알림 「${label}」 — 발송 시각(${j.due_at})이 지났는데 아직 대기 중`);
+    });
+    checks.push({
+      name: "알림 대상 정합",
+      ok: errors.length === 0,
+      errors,
+      세부: { 대기건수: (pend || []).length, 여러학생묶음: multiFamily },
+    });
+  }
+
+  // ── ② 공지 수신자 정합 — 최근 7일 공지가 지목한 학생 밖으로 샜나
+  {
+    const errors = [];
+    const { data: nts } = await fetchAll(() =>
+      supabase
+        .from("notices")
+        .select("id, date, kind, task_id")
+        .gte("date", weekAgo)
+        .lte("date", today)
+        .order("date", { ascending: true })
+        .order("id")
+    );
+    const nIds = (nts || []).map((n) => n.id);
+    const { data: recs } = nIds.length
+      ? await fetchAll(() =>
+          supabase
+            .from("notice_receipts")
+            .select("notice_id, student_id")
+            .in("notice_id", nIds)
+            .order("notice_id")
+            .order("student_id")
+        )
+      : { data: [] };
+    const recsOf = new Map();
+    (recs || []).forEach((r) => {
+      if (!recsOf.has(r.notice_id)) recsOf.set(r.notice_id, []);
+      recsOf.get(r.notice_id).push(r.student_id);
+    });
+    // 수신자가 재원생인가
+    (nts || []).forEach((n) => {
+      const ghosts = (recsOf.get(n.id) || []).filter((x) => !enrolledSet.has(x));
+      if (ghosts.length)
+        errors.push(`공지(${n.date} ${n.kind}) — 재원생 아닌 수신자 ${ghosts.length}명 (${ghosts.map((x) => nameOf.get(x) || x).join(", ")})`);
+    });
+    // 학생 지목 일정(deliver_student_ids)에서 온 공지가 다른 학생에게 새지 않았나
+    const taskIds = [...new Set((nts || []).map((n) => n.task_id).filter(Boolean))];
+    let pinned = 0;
+    if (taskIds.length) {
+      const { data: tks } = await fetchAll(() =>
+        supabase.from("tasks").select("id, deliver_student_ids").in("id", taskIds).order("id")
+      );
+      const deliverOf = new Map((tks || []).map((t) => [t.id, t.deliver_student_ids || []]));
+      (nts || []).forEach((n) => {
+        const picked = deliverOf.get(n.task_id) || [];
+        if (!picked.length) return; // 전체·반 대상 일정은 지목이 아니다 — 대조 불가
+        pinned += 1;
+        const allow = new Set(picked);
+        const leaked = (recsOf.get(n.id) || []).filter((x) => !allow.has(x));
+        if (leaked.length)
+          errors.push(`공지(${n.date} ${n.kind}) — 일정이 지목한 학생 밖으로 receipts 가 샜다: ${leaked.map((x) => nameOf.get(x) || x).join(", ")}`);
+      });
+    }
+    checks.push({
+      name: "공지 수신자 정합",
+      ok: errors.length === 0,
+      errors,
+      세부: { 최근7일공지: (nts || []).length, 수신줄: (recs || []).length, 학생지목공지: pinned },
+    });
+  }
+
+  // ── ③ 데일리리포트 소유 정합 — 한 학생 하루 한 장, 남의 리포트에 붙은 항목 없음
+  {
+    const errors = [];
+    const { data: reps } = await fetchAll(() =>
+      supabase
+        .from("daily_reports")
+        .select("id, student_id, date")
+        .gte("date", weekAgo)
+        .lte("date", today)
+        .order("date", { ascending: true })
+        .order("id")
+    );
+    const seen = new Map();
+    (reps || []).forEach((r) => {
+      const k = `${r.student_id}|${r.date}`;
+      seen.set(k, (seen.get(k) || 0) + 1);
+    });
+    [...seen.entries()]
+      .filter(([, c]) => c > 1)
+      .forEach(([k, c]) => {
+        const [sid, d] = k.split("|");
+        errors.push(`리포트 중복 — ${nameOf.get(sid) || sid} ${d} 에 ${c}장 (문자가 두 벌 나갈 길)`);
+      });
+    // 고아 항목 — 리포트 없이 떠 있는 검사 줄 (FK cascade 가 지켜주지만 선언만 믿지 않는다)
+    let orphanNote = "FK 정상";
+    try {
+      const q = await supabase
+        .from("daily_report_items")
+        .select("id, daily_report_id, daily_reports(id)")
+        .is("daily_reports", null)
+        .limit(20);
+      if (q.error) orphanNote = "조회 불가 — FK(on delete cascade) 선언에 맡김";
+      else if ((q.data || []).length)
+        errors.push(`고아 항목 ${q.data.length}건 — 리포트 없이 떠 있는 daily_report_items`);
+    } catch {
+      orphanNote = "조회 불가 — FK(on delete cascade) 선언에 맡김";
+    }
+    // 키워드 메모(0146) — 실재 학생 것인가
+    let kwCount = null;
+    try {
+      const { data: kws } = await fetchAll(() =>
+        supabase
+          .from("report_keywords")
+          .select("student_id, date")
+          .gte("date", weekAgo)
+          .lte("date", today)
+          .order("date", { ascending: true })
+          .order("student_id")
+      );
+      kwCount = (kws || []).length;
+      (kws || []).forEach((k) => {
+        if (!knownSet.has(k.student_id))
+          errors.push(`키워드 메모(${k.date}) — 명부에 없는 학생 id ${k.student_id}`);
+      });
+    } catch {
+      kwCount = null; // 0146 전 — 표가 없으면 검사할 것도 없다
+    }
+    checks.push({
+      name: "데일리리포트 소유 정합",
+      ok: errors.length === 0,
+      errors,
+      세부: { 최근7일리포트: (reps || []).length, 고아항목: orphanNote, 키워드줄: kwCount },
+    });
+  }
+
+  // ── ④ 숙제 문자 조립 검증 — 실제 발송 코드(loadReportRows)로 문구를 만들어 본다
+  {
+    const errors = [];
+    const 세부 = {};
+    const { data: catalog } = await fetchAll(() =>
+      supabase.from("homework_items").select("id, name").order("id")
+    );
+    const catalogNames = (catalog || [])
+      .map((i) => (i.name || "").trim())
+      .filter((n) => n.length >= 3); // 두 글자짜리는 일상어와 겹쳐 오탐이 된다
+    for (const date of [today, addDays(today, -1)]) {
+      const { rows } = await loadReportRows(supabase, date);
+      // 학생별 「내 리포트에 실제로 붙은 항목 이름」 — 발송 코드와 별도로 다시 읽어 맞대조
+      const repIds = rows.map((r) => r.id);
+      const { data: dri } = repIds.length
+        ? await fetchAll(() =>
+            supabase
+              .from("daily_report_items")
+              .select("daily_report_id, homework_item_id")
+              .in("daily_report_id", repIds)
+              .order("daily_report_id")
+          )
+        : { data: [] };
+      const itemName = new Map((catalog || []).map((i) => [i.id, (i.name || "").trim()]));
+      const ownOf = new Map();
+      (dri || []).forEach((x) => {
+        if (!ownOf.has(x.daily_report_id)) ownOf.set(x.daily_report_id, new Set());
+        const n = itemName.get(x.homework_item_id);
+        if (n) ownOf.get(x.daily_report_id).add(n);
+      });
+      for (const row of rows) {
+        const hw = row.hwText || "";
+        const own = ownOf.get(row.id) || new Set();
+        // 그 학생 리포트에 없는 배정이 문구에 들어갔나 (항목은 공용 카탈로그 — 이름으로 판정)
+        const foreign = catalogNames.filter(
+          (n) => hw.includes(n) && !own.has(n) && ![...own].some((o) => o.includes(n))
+        );
+        if (foreign.length)
+          errors.push(`${date} ${row.name} 숙제 문자 — 이 학생 리포트에 없는 항목이 실렸다: ${foreign.join(", ")}`);
+        // 다른 학생 이름이 문구에 있나 (같은 이름 학생은 제 이름이니 뺀다)
+        const otherNames = [...new Set(
+          (allStudents || []).map((s) => (s.name || "").trim()).filter((n) => n.length >= 2 && n !== row.name)
+        )];
+        const leakedName = otherNames.filter((n) => hw.includes(n) || (row.text || "").includes(n));
+        if (leakedName.length)
+          errors.push(`${date} ${row.name} 문자 — 다른 학생 이름이 들어 있다: ${leakedName.join(", ")}`);
+        // 빈 문구로 「보냄」 처리될 위험
+        if (!(row.skip || []).includes("homework") && !hw.trim())
+          errors.push(`${date} ${row.name} — 숙제 문자가 빈 채로 발송 대상`);
+      }
+      세부[date] = { 대상: rows.length };
+    }
+    checks.push({ name: "숙제 문자 조립 검증", ok: errors.length === 0, errors, 세부 });
+  }
+
+  // ── ⑤ 월간 브리핑 재료 격리 — 표본 학생의 재료가 전부 제 것인가
+  //     (app/ai/actions.js monthlyBriefing 의 재료 쿼리와 같은 조건으로 돌린다)
+  {
+    const errors = [];
+    const ym = today.slice(0, 7);
+    const from = `${ym}-01`;
+    const to = `${ym}-31`;
+    const sample = [...enrolled].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko")).slice(0, 5);
+    // 이 달 리포트 공지 전체의 수신 명부 — 학생별 결과를 이걸로 맞춰본다
+    let nq = await supabase
+      .from("notices").select("id, date, body, task_id")
+      .eq("kind", "notice").gte("date", from).lte("date", to);
+    if (nq.error)
+      nq = await supabase.from("notices").select("id, date, body").eq("kind", "notice").gte("date", from).lte("date", to);
+    const monthNotices = (nq.data || []).filter((n) => !n.task_id && (n.body || "").trim());
+    const mnIds = monthNotices.map((n) => n.id);
+    const { data: allRecs } = mnIds.length
+      ? await fetchAll(() =>
+          supabase
+            .from("notice_receipts")
+            .select("notice_id, student_id")
+            .in("notice_id", mnIds)
+            .order("notice_id")
+            .order("student_id")
+        )
+      : { data: [] };
+    for (const s of sample) {
+      // 실코드와 같은 쿼리 — 이 학생의 receipts 만
+      const { data: rec } = mnIds.length
+        ? await supabase
+            .from("notice_receipts")
+            .select("notice_id, student_id")
+            .eq("student_id", s.id)
+            .in("notice_id", mnIds)
+        : { data: [] };
+      (rec || []).forEach((r) => {
+        if (r.student_id !== s.id)
+          errors.push(`${s.name} 월간 재료 — 남의 수신줄이 섞여 왔다 (${nameOf.get(r.student_id) || r.student_id})`);
+      });
+      // 전체 명부와 맞대조 — 이 학생 것으로 실릴 공지가 정말 이 학생 수신인가
+      const trueMine = new Set(
+        (allRecs || []).filter((r) => r.student_id === s.id).map((r) => r.notice_id)
+      );
+      (rec || []).forEach((r) => {
+        if (!trueMine.has(r.notice_id))
+          errors.push(`${s.name} 월간 재료 — 수신 명부에 없는 공지가 실린다 (notice ${r.notice_id})`);
+      });
+      // 키워드 메모 — 전부 이 학생 것인가
+      try {
+        const { data: kws } = await supabase
+          .from("report_keywords")
+          .select("student_id, date")
+          .eq("student_id", s.id)
+          .gte("date", from).lte("date", to)
+          .order("date", { ascending: true });
+        (kws || []).forEach((k) => {
+          if (k.student_id !== s.id)
+            errors.push(`${s.name} 월간 재료 — 남의 키워드 메모가 섞여 왔다 (${nameOf.get(k.student_id) || k.student_id})`);
+        });
+      } catch { /* 0146 전 */ }
+    }
+    checks.push({
+      name: "월간 브리핑 재료 격리",
+      ok: errors.length === 0,
+      errors,
+      세부: { 표본: sample.map((s) => s.name), 이달공지: monthNotices.length },
+    });
+  }
+
+  // ── ⑥ RLS 선언 검사 — 원장만 읽어야 하는 표가 is_staff() 로 잠겨 있나
+  //     (DB 를 직접 캐물을 수는 없다 — 마이그레이션 선언 기준으로 본다)
+  {
+    const errors = [];
+    const 세부 = {};
+    const dir = path.join(process.cwd(), "supabase", "migrations");
+    const want = [
+      ["report_keywords", "0146_report_keywords.sql"],
+      ["classcard_shadow", "0132_classcard_shadow.sql"],
+    ];
+    for (const [table, file] of want) {
+      try {
+        const body = await fs.readFile(path.join(dir, file), "utf8");
+        const rlsOn = new RegExp(`alter table public\\.${table} enable row level security`).test(body);
+        const staffOnly = new RegExp(
+          `create policy [^;]*on public\\.${table}[\\s\\S]*?using \\(public\\.is_staff\\(\\)\\) with check \\(public\\.is_staff\\(\\)\\)`
+        ).test(body);
+        if (!rlsOn) errors.push(`${table} — RLS enable 선언이 없다 (${file})`);
+        if (!staffOnly) errors.push(`${table} — is_staff() 정책(using+with check) 선언이 없다 (${file})`);
+        세부[table] = rlsOn && staffOnly ? "is_staff() 잠금 확인" : "선언 미비";
+      } catch {
+        errors.push(`${file} 을 읽지 못했다 — RLS 선언을 확인할 수 없다`);
+        세부[table] = "파일 없음";
+      }
+    }
+    checks.push({ name: "RLS 선언 검사", ok: errors.length === 0, errors, 세부 });
+  }
+
+  const errorTotal = checks.reduce((a, c) => a + c.errors.length, 0);
+  return NextResponse.json({
+    ok: errorTotal === 0,
+    students: enrolled.length,
+    checks,
+    errorTotal,
   });
 }
