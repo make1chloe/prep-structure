@@ -1,5 +1,7 @@
 "use client";
 
+import { PREP_VARS } from "@/lib/prepTask";
+
 import { useState, useTransition } from "react";
 import PickOrType from "@/components/PickOrType";
 import { useRouter } from "next/navigation";
@@ -350,15 +352,30 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                               ))}
                           </select>
                         </div>
-                        <div className="field" style={{ flex: 1, minWidth: 180 }}>
-                          <label className="label">내 할일 자동 생성</label>
+                        <div className="field" style={{ flex: 1, minWidth: 220 }}>
+                          <label className="label">내 할일 자동 생성 <span className="hint" style={{ fontWeight: 400 }}>— 이 숙제를 배정하면 이 제목의 할일이 생겨요 (비우면 안 만듦)</span></label>
                           <input
                             className="input input-sm"
                             placeholder="{학생}-단원평가-{단원}"
-                            title="이 숙제를 배정하면 이 제목으로 내 할일이 생깁니다. 쓸 수 있는 자리: {학생} {단원} {교재} {숙제}. 비우면 안 만듭니다"
                             value={draft.prep_task}
                             onChange={(e) => setDraft({ ...draft, prep_task: e.target.value })}
                           />
+                          {/* 자리표를 외울 필요 없게 — 누르면 끼워진다 (원장님 2026-08-21
+                              「뭐가 있는지 내가 어떻게 알지」). 목록은 lib/prepTask 한 벌 */}
+                          <div className="row" style={{ gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+                            {PREP_VARS.map(([v, why]) => (
+                              <button
+                                key={v}
+                                type="button"
+                                className="tag tag-sky"
+                                style={{ cursor: "pointer", border: 0 }}
+                                title={why}
+                                onClick={() => setDraft({ ...draft, prep_task: `${draft.prep_task || ""}${v}` })}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                       {/* 방법과 체크리스트는 **다른 물건**이다 — 원장님이 방법

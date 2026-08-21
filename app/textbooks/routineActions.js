@@ -269,10 +269,17 @@ export async function bulkAddRoutines(rows = [], force = false) {
 
   const [{ data: books }, { data: items }] = await Promise.all([
     supabase.from("textbooks").select("id, name"),
-    supabase.from("homework_items").select("id, name").eq("active", true),
+    // active 안 거른다 (2026-08-21 — 「duplicate key homework_items_name_key」).
+    // 숨긴 항목과 같은 이름을 「없다」 고 보고 새로 만들다 유니크에 부딪혔다
+    supabase.from("homework_items").select("id, name, active"),
   ]);
   const bookByName = new Map((books || []).map((b) => [b.name.trim(), b.id]));
   const itemByName = new Map((items || []).map((i) => [i.name.trim(), i.id]));
+  // 숨겨져 있던 항목을 루틴이 다시 쓰면 되살린다 — 루틴에 있는데 목록에
+  // 안 보이면 「항목이 없다」 로 읽히기 때문
+  const inactiveByName = new Map(
+    (items || []).filter((i) => i.active === false).map((i) => [i.name.trim(), i.id])
+  );
 
   /**
    * **영역 루틴** (0137) — 교재명 칸에 「영역:문법」 또는 그냥 영역 이름
@@ -315,6 +322,11 @@ export async function bulkAddRoutines(rows = [], force = false) {
     [...r.inclass, ...r.home, ...(r.homeNext || [])].forEach((n) => allNames.add(n.name ?? n));
   const toMake = [...allNames].filter((n) => !itemByName.has(n));
   const createdItems = [];
+  // 루틴이 쓰는 숨김 항목은 다시 켠다
+  const revive = [...allNames].filter((n) => inactiveByName.has(n)).map((n) => inactiveByName.get(n));
+  if (revive.length) {
+    await supabase.from("homework_items").update({ active: true }).in("id", revive);
+  }
   if (toMake.length) {
     const guessCat = (n) =>
       /단어/.test(n) ? "단어"
