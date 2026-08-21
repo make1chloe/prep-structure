@@ -45,6 +45,7 @@ export async function GET(request) {
   if (op === "month") return monthSim(supabase);
   if (op === "safety") return safetyCheck(supabase);
   if (op === "noassign") return noAssign(supabase);
+  if (op === "mockmerge") return mockMerge(supabase, sp.get("apply") === "1");
 
   const today = todaySeoul();
 
@@ -1221,4 +1222,341 @@ async function noAssign(supabase) {
     else 정상.push(tag);
   });
   return jsonKo({ ok: true, 배정없음: 없음, 배정오래됨_14일: 오래됨, 정상: 정상.length });
+}
+
+
+/**
+ * **모의고사 교재 통합** (원장님, 2026-08-22 — 「대단원을 기존의 교재명으로,
+ * 중단원을 번호로 만들어서 고1 모의고사·고2·고3으로 교재 통합시켜줘」).
+ *
+ * 「2026년 3월 고1 모의고사」 처럼 회차마다 한 권씩 생긴 교재(prep 의
+ * makeMockBook 산물)를 학년별 한 권(「고1 모의고사」)으로 합친다.
+ * 원본 교재명이 대상 교재의 **대단원**이 되고, 문항 단원(18번~45번)은
+ * **id 를 그대로 둔 채** 그 밑으로 이동한다 — 그래서 진도
+ * (student_unit_progress) · 검사 기록(daily_report_items.textbook_unit_ids) ·
+ * 내신 범위(prep_scopes.unit_ids)는 전부 unit id 를 물고 있어 손대지 않아도
+ * 따라온다.
+ *
+ * 기본은 **미리보기** — 아무것도 안 쓴다. `&apply=1` 일 때만 바꾼다.
+ * 모든 단계가 멱등이라 두 번 눌러도 안전하다:
+ *   · 원본 후보 = 이름이 정확히 「YYYY년 M월 고N 모의고사」 이고 status 가
+ *     아직 active 인 것만 — 「첫모의고사」 같은 유사명은 절대 안 걸린다
+ *   · apply 후 재실행하면 원본이 전부 절판(discontinued)이라 「이미 통합됨」
+ *
+ * 단원 sort 는 연월 오프셋(yyyymm*100)을 더해 옮긴다 — 진도 포인터
+ * (routineActions.currentUnits)가 트리를 안 보고 교재 전체를 sort 순으로
+ * 납작하게 읽기 때문에, 오프셋 없이 합치면 여러 달의 「18번」이 전부
+ * 붙어버려 다음 단원이 엉킨다. 같은 원본 안의 상대 순서는 그대로다.
+ */
+async function mockMerge(supabase, apply = false) {
+  const RE = /^(\d{4})년 (\d{1,2})월 고([123]) 모의고사$/;
+  const TARGET_NAME = (g) => `고${g} 모의고사`;
+
+  const { data: books, error: bErr } = await supabase
+    .from("textbooks")
+    .select("id, name, area, target_grade, total_pages, price, feature, purchase_url, status");
+  if (bErr) return jsonKo({ error: bErr.message }, { status: 500 });
+
+  // 유사명은 절대 포함하지 않는다 — 무엇을 제외했는지도 밝힌다
+  const 유사명제외 = (books || [])
+    .map((b) => (b.name || "").trim())
+    .filter((n) => /모의고사/.test(n) && !RE.test(n) && !/^고[123] 모의고사$/.test(n));
+
+  const sources = (books || [])
+    .map((b) => {
+      const m = RE.exec((b.name || "").trim());
+      return m ? { b, y: +m[1], mo: +m[2], g: m[3], yyyymm: +m[1] * 100 + +m[2] } : null;
+    })
+    .filter(Boolean)
+    .filter((x) => !x.b.status || x.b.status === "active")   // 이미 절판이면 = 이미 통합됨
+    .sort((a, z) => a.yyyymm - z.yyyymm);
+
+  const targetOf = new Map(); // 학년 → 기존 대상 교재 (있으면)
+  ["1", "2", "3"].forEach((g) => {
+    const t = (books || []).find((b) => (b.name || "").trim() === TARGET_NAME(g));
+    if (t) targetOf.set(g, t);
+  });
+
+  if (sources.length === 0) {
+    const done = ["1", "2", "3"].some((g) => targetOf.has(g));
+    return jsonKo({
+      ok: true,
+      메시지: done
+        ? "이미 통합됨 — 정규식에 맞는 active 원본이 없고 학년별 교재가 있습니다"
+        : "할 것 없음 — 정규식에 맞는 모의고사 교재가 없습니다",
+      유사명제외,
+    });
+  }
+
+  const srcIds = sources.map((x) => x.b.id);
+  const tgtIds = [...targetOf.values()].map((t) => t.id);
+  const [uQ, sbQ2, rsQ2] = await Promise.all([
+    fetchAll(() =>
+      supabase
+        .from("textbook_units")
+        .select("id, textbook_id, parent_id, name, sort")
+        .in("textbook_id", [...srcIds, ...tgtIds])
+        .order("sort", { ascending: true })
+        .order("id")
+    ),
+    fetchAll(() =>
+      supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status, assigned_on, ended_on, round, skip_acts")
+        .in("textbook_id", [...srcIds, ...tgtIds])
+        .order("student_id")
+    ),
+    fetchAll(() =>
+      supabase
+        .from("routine_steps")
+        .select("id, textbook_id")
+        .in("textbook_id", [...srcIds, ...tgtIds])
+    ),
+  ]);
+  const units = uQ.data || [];
+  const assigns = sbQ2.data || [];
+  const steps = rsQ2.data || [];
+  const unitsOf = new Map();   // textbook_id → units
+  units.forEach((u) => {
+    if (!unitsOf.has(u.textbook_id)) unitsOf.set(u.textbook_id, []);
+    unitsOf.get(u.textbook_id).push(u);
+  });
+  const stepsOf = new Map();   // textbook_id → 루틴 줄 수
+  steps.forEach((r) => stepsOf.set(r.textbook_id, (stepsOf.get(r.textbook_id) || 0) + 1));
+
+  // 학생 이름 (미리보기 표기용)
+  const stuIds = [...new Set(assigns.map((a) => a.student_id))];
+  const { data: stus } = stuIds.length
+    ? await supabase.from("students").select("id, name").in("id", stuIds)
+    : { data: [] };
+  const stuName = new Map((stus || []).map((s) => [s.id, s.name]));
+
+  const 처리 = {
+    만든교재: [],
+    만든대단원: 0,
+    옮긴단원: 0,
+    이관배정: 0,
+    접은배정: 0,
+    옮긴루틴: 0,
+    지운루틴: 0,
+    절판처리: 0,
+  };
+  const 학년별 = [];
+
+  for (const g of ["1", "2", "3"]) {
+    const mySources = sources.filter((x) => x.g === g);
+    if (mySources.length === 0) continue;
+    let target = targetOf.get(g) || null;
+    const 경고 = [];
+
+    // ── 1) 대상 교재 find-or-create — 속성은 원본과 같게, 학년만 명시
+    if (!target && apply) {
+      const first = mySources[0].b;
+      const { data: made, error } = await supabase
+        .from("textbooks")
+        .insert({
+          name: TARGET_NAME(g),
+          area: first.area || null,
+          target_grade: `고${g}`,
+          total_pages: first.total_pages || null,
+          price: first.price || null,
+          feature: first.feature || null,
+          purchase_url: first.purchase_url || null,
+        })
+        .select("id, name")
+        .single();
+      if (error) return jsonKo({ error: `고${g} 대상 교재 만들기 실패: ${error.message}`, 처리 }, { status: 500 });
+      target = made;
+      처리.만든교재.push(made.name);
+    }
+    const tgtUnits = target ? unitsOf.get(target.id) || [] : [];
+    const bigOf = new Map(); // 대단원 이름 → unit (대상 교재 최상위)
+    tgtUnits.filter((u) => !u.parent_id).forEach((u) => bigOf.set(u.name.trim(), u));
+
+    const 옮길원본 = [];
+    const 새로만들대단원 = [];
+    const 이관학생 = new Set();
+
+    for (const src of mySources) {
+      const srcUnits = unitsOf.get(src.b.id) || [];
+      const srcAssigns = assigns.filter((a) => a.textbook_id === src.b.id && a.status !== "dropped");
+      옮길원본.push({
+        이름: src.b.name,
+        단원수: srcUnits.length,
+        배정학생수: srcAssigns.length,
+        루틴단계수: stepsOf.get(src.b.id) || 0,
+      });
+      srcAssigns.forEach((a) => {
+        이관학생.add(a.student_id);
+        if (a.ended_on) 경고.push(`${stuName.get(a.student_id) || a.student_id}·${src.b.name} 배정에 종료일(${a.ended_on})이 있음 — 대상 배정은 활성으로 만든다`);
+        if ((a.round || 1) > 1) 경고.push(`${stuName.get(a.student_id) || a.student_id}·${src.b.name} 배정이 ${a.round}회독 — 대상 배정은 1회독으로 시작한다`);
+      });
+      // 단원이 0인 원본은 대단원을 안 만든다 — 빈 대단원은 자식이 없어
+      // 잎(진도 대상)으로 잡힌다 (currentUnits 의 잎 = 자식 없는 단원)
+      if (srcUnits.length && !bigOf.has(src.b.name.trim())) 새로만들대단원.push(src.b.name);
+      if (!srcUnits.length) 경고.push(`${src.b.name} — 단원이 0이라 대단원 없이 배정·상태만 정리`);
+
+      if (apply && srcUnits.length) {
+        // ── 2) 대단원 find-or-create + 단원 id 보존 이동
+        let big = bigOf.get(src.b.name.trim()) || null;
+        if (!big) {
+          const { data: madeBig, error } = await supabase
+            .from("textbook_units")
+            .insert({ textbook_id: target.id, parent_id: null, name: src.b.name, sort: src.yyyymm })
+            .select("id, textbook_id, parent_id, name, sort")
+            .single();
+          if (error) return jsonKo({ error: `대단원 만들기 실패(${src.b.name}): ${error.message}`, 처리 }, { status: 500 });
+          big = madeBig;
+          bigOf.set(src.b.name.trim(), big);
+          처리.만든대단원 += 1;
+        }
+        if (srcUnits.length) {
+          // 최상위만 새 대단원 밑으로, 안에 이미 계층이 있으면 그대로 유지.
+          // sort 는 연월 오프셋을 일괄로 더한다 (상대 순서 보존 — 함수 머리 주석)
+          const moved = srcUnits.map((u) => ({
+            id: u.id,
+            name: u.name,                       // not null 칸이라 같이 싣는다 (값 그대로)
+            textbook_id: target.id,
+            parent_id: u.parent_id || big.id,
+            sort: (u.sort || 0) + src.yyyymm * 100,
+          }));
+          const { data: mv, error } = await supabase
+            .from("textbook_units")
+            .upsert(moved, { onConflict: "id" })
+            .select("id");
+          if (error) return jsonKo({ error: `단원 이동 실패(${src.b.name}): ${error.message}`, 처리 }, { status: 500 });
+          처리.옮긴단원 += (mv || []).length;
+        }
+      }
+    }
+
+    // ── 3) 배정 이관 — 대상 배정 find-or-create, 원본 배정은 dropped 로 접는다
+    const tgtAssigned = new Set(
+      assigns.filter((a) => target && a.textbook_id === target.id).map((a) => a.student_id)
+    );
+    const 배정이관 = [...이관학생]
+      .filter((sid) => !tgtAssigned.has(sid))
+      .map((sid) => stuName.get(sid) || sid)
+      .sort((a, b) => String(a).localeCompare(String(b), "ko"));
+    if (apply && 이관학생.size) {
+      const srcIdSet = new Set(mySources.map((x) => x.b.id));
+      const rows = [...이관학생].map((sid) => {
+        const mine = assigns.filter(
+          (a) => a.student_id === sid && srcIdSet.has(a.textbook_id) && a.status !== "dropped"
+        );
+        const dates = mine.map((a) => a.assigned_on).filter(Boolean).sort();
+        const acts = [...new Set(
+          mine.flatMap((a) => (a.skip_acts || "").split(",").map((x) => x.trim()).filter(Boolean))
+        )];
+        return {
+          student_id: sid,
+          textbook_id: target.id,
+          status: "active",
+          assigned_on: dates[0] || todaySeoul(),
+          skip_acts: acts.length ? acts.join(",") : null,
+          // routine_step_id 는 일부러 비운다 — 번호(routine_step 기본 0) 폴백이 잇는다
+        };
+      });
+      // 이미 있는 배정은 그대로 둔다 (find-or-create — 원장님이 손댄 줄을 안 덮는다)
+      const { data: ins, error } = await supabase
+        .from("student_textbooks")
+        .upsert(rows, { onConflict: "student_id,textbook_id", ignoreDuplicates: true })
+        .select("student_id");
+      if (error) return jsonKo({ error: `고${g} 배정 이관 실패: ${error.message}`, 처리 }, { status: 500 });
+      처리.이관배정 += (ins || []).length;
+
+      const { data: folded, error: fErr } = await supabase
+        .from("student_textbooks")
+        .update({ status: "dropped" })                      // 절판 교재와 함께 안 보이는 값
+        .in("textbook_id", [...srcIdSet])
+        .neq("status", "dropped")
+        .select("student_id");
+      if (fErr) return jsonKo({ error: `고${g} 원본 배정 접기 실패: ${fErr.message}`, 처리 }, { status: 500 });
+      처리.접은배정 += (folded || []).length;
+    }
+
+    // ── 4) 루틴 — 원본 중 한 권 것을 대상으로 이동, 나머지는 삭제.
+    //     루틴 삭제는 대전제 2(docs/업무루틴-규칙.md — 원장님이 손으로 적은
+    //     것은 자동이 절대 덮지 않는다)와 안 어긋난다: 이 통합 자체가
+    //     원장님의 명시 지시(2026-08-22 「교재 통합시켜줘」)이고, 같은 루틴이
+    //     회차마다 복제된 것을 대상 한 벌로 합치는 일이기 때문이다.
+    const donor = mySources.find((x) => (stepsOf.get(x.b.id) || 0) > 0) || null;
+    const targetHasSteps = target ? (stepsOf.get(target.id) || 0) > 0 : false;
+    if (donor && targetHasSteps)
+      경고.push(`대상에 루틴이 이미 있어 원본 루틴 이동은 건너뜀 (원본 루틴 줄은 삭제)`);
+    if (apply) {
+      if (donor && !targetHasSteps) {
+        const { data: mvR, error } = await supabase
+          .from("routine_steps")
+          .update({ textbook_id: target.id })
+          .eq("textbook_id", donor.b.id)
+          .select("id");
+        if (error) return jsonKo({ error: `고${g} 루틴 이동 실패: ${error.message}`, 처리 }, { status: 500 });
+        처리.옮긴루틴 += (mvR || []).length;
+      }
+      const rest = mySources.filter((x) => !(donor && !targetHasSteps && x.b.id === donor.b.id)).map((x) => x.b.id);
+      if (rest.length) {
+        const { data: del, error } = await supabase
+          .from("routine_steps")
+          .delete()
+          .in("textbook_id", rest)
+          .select("id");
+        if (error) return jsonKo({ error: `고${g} 원본 루틴 삭제 실패: ${error.message}`, 처리 }, { status: 500 });
+        처리.지운루틴 += (del || []).length;
+      }
+
+      // ── 5) 원본 교재 절판 — 기록 보존 (삭제 금지)
+      const { data: dead, error } = await supabase
+        .from("textbooks")
+        .update({ status: "discontinued" })
+        .in("id", mySources.map((x) => x.b.id))
+        .select("id");
+      if (error) return jsonKo({ error: `고${g} 원본 절판 처리 실패: ${error.message}`, 처리 }, { status: 500 });
+      처리.절판처리 += (dead || []).length;
+    }
+
+    학년별.push({
+      대상: `${TARGET_NAME(g)} (${targetOf.get(g) ? "이미 있음" : apply ? "새로 만듦" : "새로 만들 것"})`,
+      옮길원본,
+      새로만들대단원,
+      배정이관,
+      경고,
+    });
+  }
+
+  // ── 진도·검사 기록이 정말 따라오는지 — unit id 기준인 소비처를 세어 명시
+  //     (id 보존 이동이라 이 줄들은 한 글자도 안 바뀐다. 세기만 한다.)
+  const srcUnitIds = sources.flatMap((x) => (unitsOf.get(x.b.id) || []).map((u) => u.id));
+  let 진도줄 = 0;
+  let 리포트항목줄 = 0;
+  for (let i = 0; i < srcUnitIds.length; i += 100) {
+    const chunk = srcUnitIds.slice(i, i + 100);
+    const [p, d] = await Promise.all([
+      supabase
+        .from("student_unit_progress")
+        .select("student_id", { count: "exact", head: true })
+        .in("textbook_unit_id", chunk),
+      supabase
+        .from("daily_report_items")
+        .select("id", { count: "exact", head: true })
+        .overlaps("textbook_unit_ids", chunk),
+    ]);
+    진도줄 += p.count || 0;
+    리포트항목줄 += d.count || 0;
+  }
+
+  return jsonKo({
+    ok: true,
+    모드: apply ? "실행 완료" : "미리보기 — 아무것도 안 바꿈 (&apply=1 로 실행)",
+    ...(apply ? { 처리 } : {}),
+    학년별,
+    따라오는기록: {
+      설명: "단원 id 를 보존한 채 옮기므로 아래 줄들은 자동으로 따라온다 (수정 0)",
+      진도줄_student_unit_progress: 진도줄,
+      검사줄_daily_report_items: 리포트항목줄,
+      내신범위_prep_scopes: "unit_ids 가 unit id 배열 — 동일하게 자동",
+    },
+    유사명제외,
+    참고: "내신 대비의 「모의고사 교재 만들기」(makeMockBook)는 회차 이름으로 찾으므로, 절판된 원본을 이름으로 다시 찾을 수 있다 — 새 회차부터는 새로 만들어지니 통합 후 같은 방식으로 다시 합치면 된다",
+  });
 }
