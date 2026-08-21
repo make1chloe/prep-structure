@@ -330,6 +330,38 @@ export async function monthlyBriefing(studentId, ym) {
     .in("daily_report_id", reps.map((r) => r.id));
   const dateOf = new Map(reps.map((r) => [r.id, r.date]));
 
+  /**
+   * **그 달 학부모 전달사항도 재료다** (원장님, 2026-08-21 — 「당일
+   * 데일리리포트의 학부모 전달사항에서 일정이 아닌 … 리포트에 반영되게」).
+   * 단, **일정에서 온 공지(task_id 있는 것 — 휴강 안내 같은 일정성)는
+   * 뺀다** — 월간에 다시 쓸 내용이 아니다. 이 학생이 받은 것만
+   * (notice_receipts).
+   */
+  let monthNotices = [];
+  try {
+    let nq = await supabase
+      .from("notices")
+      .select("id, date, body, task_id")
+      .eq("kind", "notice")
+      .gte("date", from).lte("date", to);
+    if (nq.error) {
+      // task_id 칸이 없는 옛 DB — 가르지 못하면 다 담는 쪽이 낫다
+      nq = await supabase
+        .from("notices").select("id, date, body")
+        .eq("kind", "notice").gte("date", from).lte("date", to);
+    }
+    const all = (nq.data || []).filter((n) => !n.task_id && (n.body || "").trim());
+    if (all.length > 0) {
+      const { data: rec } = await supabase
+        .from("notice_receipts")
+        .select("notice_id")
+        .eq("student_id", studentId)
+        .in("notice_id", all.map((n) => n.id));
+      const mine = new Set((rec || []).map((r) => r.notice_id));
+      monthNotices = all.filter((n) => mine.has(n.id));
+    }
+  } catch { /* 공지 표가 없어도 브리핑은 돈다 */ }
+
   const star = (v) => (v ? `${v}점` : "");
   const lines = [
     `학생: ${stuQ.data?.name || "학생"}${stuQ.data?.grade ? ` (${stuQ.data.grade})` : ""}`,
@@ -352,6 +384,9 @@ export async function monthlyBriefing(studentId, ym) {
     (cmts || []).length ? "" : null,
     (cmts || []).length ? "수업 중 코멘트 (키워드 메모):" : null,
     ...(cmts || []).map((c) => `- ${String(dateOf.get(c.daily_report_id) || "").slice(5)}: ${c.body}`),
+    monthNotices.length ? "" : null,
+    monthNotices.length ? "학부모 전달사항 (일정 공지는 뺐다):" : null,
+    ...monthNotices.map((n) => `- ${String(n.date || "").slice(5)}: ${n.body}`),
     (scoreQ.data || []).length ? "" : null,
     (scoreQ.data || []).length ? "이 달 성적:" : null,
     ...(scoreQ.data || []).map((x) => `- ${x.term || x.kind}: ${x.raw_score ?? "?"}${x.full_score ? `/${x.full_score}` : ""}${x.grade ? ` (${x.grade}등급)` : ""}`),
