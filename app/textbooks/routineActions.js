@@ -6,10 +6,27 @@ import { needSql } from "@/lib/sqlError";
 import { templateFor, buildSteps, TEMPLATE_AREAS } from "@/lib/routineTemplates";
 
 const NEED = "0035 SQL 을 먼저 실행해주세요.";
-/** 이 교재의 루틴 (한 줄 = 한 수업 회차) */
-export async function listRoutine(textbookId) {
-  if (!textbookId) return { steps: [], ready: true, error: null };
+/**
+ * 이 교재의 루틴 (한 줄 = 한 수업 회차).
+ *
+ * **영역 루틴도 같은 함수로** (2026-08-21 — 원장님 「수정·삭제 가능하게
+ * 해줘」). textbookId 없이 area(문법·영작…)를 주면 그 영역의 공통 루틴을
+ * 그대로 내어준다 — 편집기 하나가 교재·영역 두 갈래를 다 다룬다 (원칙 1).
+ */
+export async function listRoutine(textbookId, area = null) {
+  if (!textbookId && !area) return { steps: [], ready: true, error: null };
   const supabase = createClient();
+  if (!textbookId && area) {
+    const { data, error } = await supabase
+      .from("routine_steps")
+      .select("id, sort, label, inclass_items, home_items, home_next, note, round")
+      .eq("area", area)
+      .order("sort", { ascending: true });
+    if (needSql(error) || error?.code === "42703")
+      return { steps: [], ready: false, error: "영역 루틴은 0137 SQL 을 먼저 실행해주세요." };
+    if (error) return { steps: [], ready: true, error: error.message };
+    return { steps: data || [], ready: true, error: null };
+  }
   let { data, error } = await supabase
     .from("routine_steps")
     .select("id, sort, label, inclass_items, home_items, home_next, note, round")
@@ -54,11 +71,13 @@ export async function listRoutine(textbookId) {
   return { steps: data || [], ready: true, error: null };
 }
 
-export async function saveStep(textbookId, step) {
-  if (!textbookId) return { error: "교재가 없어요." };
+/** 단계 저장 — textbookId 대신 area 를 주면 영역 루틴 단계다 (0137 · 2026-08-21) */
+export async function saveStep(textbookId, step, area = null) {
+  if (!textbookId && !area) return { error: "교재가 없어요." };
   const supabase = createClient();
   const row = {
-    textbook_id: textbookId,
+    textbook_id: textbookId || null,
+    ...(area && !textbookId ? { area } : {}),
     sort: Number.isFinite(+step?.sort) ? +step.sort : 0,
     label: (step?.label || "").trim() || null,
     inclass_items: step?.inclass_items || [],
@@ -83,6 +102,9 @@ export async function saveStep(textbookId, step) {
       ? await supabase.from("routine_steps").update(noRound).eq("id", step.id)
       : await supabase.from("routine_steps").insert(noRound));
   }
+  // 여기까지 왔는데도 칸이 없다면 영역 칸(0137) 자체가 없는 DB 다
+  if (error && area && !textbookId && (error.code === "42703" || error.code === "PGRST204"))
+    return { error: "영역 루틴은 0137 SQL 을 먼저 실행해야 저장할 수 있어요." };
   if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
   revalidatePath("/textbooks");
@@ -104,25 +126,36 @@ export async function deleteStep(id) {
    * **과거 기록은 안 건드린다** — 그날 무엇을 했는지는 리포트에 이미
    * 박제되어 있다. 여기서 옮기는 것은 「다음 수업에 뭘 할까」 뿐이다.
    */
-  const { data: gone } = await supabase
+  let { data: gone, error: gErr } = await supabase
     .from("routine_steps")
-    .select("id, textbook_id, sort")
+    .select("id, textbook_id, area, sort")
     .eq("id", id)
     .maybeSingle();
-  if (gone) {
-    const { data: list } = await supabase
+  if (gErr) {
+    // 0137 전 — 영역 칸 없이
+    ({ data: gone } = await supabase
       .from("routine_steps")
-      .select("id, sort")
-      .eq("textbook_id", gone.textbook_id)
-      .order("sort", { ascending: true });
+      .select("id, textbook_id, sort")
+      .eq("id", id)
+      .maybeSingle());
+  }
+  if (gone) {
+    // 영역 루틴 단계(0137)는 형제를 영역으로 찾는다 — 교재 칸이 비어 있다
+    const sibling = gone.textbook_id
+      ? supabase.from("routine_steps").select("id, sort").eq("textbook_id", gone.textbook_id)
+      : supabase.from("routine_steps").select("id, sort").eq("area", gone.area);
+    const { data: list } = await sibling.order("sort", { ascending: true });
     const rest = (list || []).filter((x) => x.id !== id);
     const next =
       rest.find((x) => x.sort > gone.sort) || rest[0] || null;   // 다음 → 없으면 처음
-    const move = await supabase
+    // 영역 단계는 여러 교재의 학생이 딛고 있을 수 있어 교재로 못 좁힌다 —
+    // 이 단계 id 를 기억하는 줄 전부를 옮긴다
+    let move = supabase
       .from("student_textbooks")
       .update({ routine_step_id: next?.id || null })
-      .eq("textbook_id", gone.textbook_id)
       .eq("routine_step_id", id);
+    if (gone.textbook_id) move = move.eq("textbook_id", gone.textbook_id);
+    move = await move;
     // 0120 전이면 칸이 없다 — 옮길 것도 없으니 조용히 지나간다
     if (move.error && move.error.code !== "42703" && move.error.code !== "PGRST204") {
       return { error: move.error.message };
@@ -148,26 +181,34 @@ export async function deleteStep(id) {
  * 학습 항목을 이름으로 잇는다. 없는 이름은 **버리지 않고 알려준다** —
  * 「기본 학습 목록」 을 아직 안 넣으셨을 수 있다.
  */
-export async function seedRoutine(textbookId) {
-  if (!textbookId) return { error: "교재가 없어요." };
+export async function seedRoutine(textbookId, area = null) {
+  if (!textbookId && !area) return { error: "교재가 없어요." };
   const supabase = createClient();
 
-  const { data: book, error: bErr } = await supabase
-    .from("textbooks").select("id, name, area").eq("id", textbookId).maybeSingle();
-  if (bErr) return { error: bErr.message };
-  if (!book) return { error: "교재를 못 찾았어요." };
+  // 영역 루틴(0137)도 같은 본보기로 — 영역 이름이 곧 본보기 갈래다 (2026-08-21)
+  let seedArea = area;
+  if (textbookId) {
+    const { data: book, error: bErr } = await supabase
+      .from("textbooks").select("id, name, area").eq("id", textbookId).maybeSingle();
+    if (bErr) return { error: bErr.message };
+    if (!book) return { error: "교재를 못 찾았어요." };
+    seedArea = book.area;
+  }
 
-  const steps = templateFor(book.area);
+  const steps = templateFor(seedArea);
   if (!steps) {
     return {
       error:
-        `「${book.area || "영역 없음"}」 는 본보기가 아직 없어요. `
-        + `교재의 영역을 ${TEMPLATE_AREAS.join(" · ")} 중 하나로 정해주시면 넣어드립니다.`,
+        `「${seedArea || "영역 없음"}」 는 본보기가 아직 없어요. `
+        + (textbookId
+          ? `교재의 영역을 ${TEMPLATE_AREAS.join(" · ")} 중 하나로 정해주시면 넣어드립니다.`
+          : `본보기가 있는 영역: ${TEMPLATE_AREAS.join(" · ")}`),
     };
   }
 
-  const { data: had } = await supabase
-    .from("routine_steps").select("id").eq("textbook_id", textbookId).limit(1);
+  const { data: had } = textbookId
+    ? await supabase.from("routine_steps").select("id").eq("textbook_id", textbookId).limit(1)
+    : await supabase.from("routine_steps").select("id").eq("area", area).limit(1);
   if ((had || []).length > 0) {
     return { error: "이미 루틴이 있어요. 지우고 다시 넣으시거나, 있는 것을 고쳐주세요." };
   }
@@ -194,24 +235,35 @@ export async function seedRoutine(textbookId) {
 
   const { error } = await supabase
     .from("routine_steps")
-    .insert(filled.map((r) => ({ ...r, textbook_id: textbookId })));
+    .insert(filled.map((r) => ({
+      ...r,
+      textbook_id: textbookId || null,
+      ...(textbookId ? {} : { area }),
+    })));
+  if (error && !textbookId && (error.code === "42703" || error.code === "PGRST204"))
+    return { error: "영역 루틴은 0137 SQL 을 먼저 실행해야 넣을 수 있어요." };
   if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
 
   revalidatePath("/textbooks");
   revalidatePath("/today");
-  return { error: null, added: filled.length, area: book.area, missing };
+  return { error: null, added: filled.length, area: seedArea, missing };
 }
 
 /**
  * 루틴 엑셀 올리기 (원장님, 2026-08-14). 한 줄 = 한 수업 회차.
  *
- * **이미 루틴이 있는 교재는 통째로 건너뛰고 알려준다** — 덮어쓰면 그 루틴을
- * 돌고 있는 학생들의 단계 id(0120)가 끊긴다. 고치려면 화면에서 고치거나,
- * 루틴을 비운 뒤 올린다 (지우는 것은 원장님 손에 둔다 — seedRoutine 과 같은 규칙).
+ * **이미 루틴이 있는 교재는 통째로 건너뛰고 알려준다** — 화면에서 고친
+ * 루틴을 자동이 덮으면 대전제 2(원장님이 손댄 것은 자동이 절대 덮지 않는다,
+ * docs/업무루틴-규칙.md) 위반이고, 돌고 있는 학생들의 단계 id(0120)도 끊긴다.
  * 항목 이름을 못 찾으면 그 항목만 빠지고 무엇이 빠졌는지 알려준다.
+ *
+ * **force** (2026-08-21) — 원장님이 「덮어쓰기」 를 명시적으로 체크했을 때만,
+ * 올린 파일에 있는 교재·영역의 기존 루틴을 지우고 새로 심는다. 자동이 아니라
+ * 원장님 손이므로 대전제 2 와 어긋나지 않는다. 지운 단계를 딛고 있던 학생
+ * 기억(routine_step_id)은 비운다 — nextRoutine 이 번호 폴백으로 잇는다.
  */
-export async function bulkAddRoutines(rows = []) {
+export async function bulkAddRoutines(rows = [], force = false) {
   if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
   const supabase = createClient();
 
@@ -283,6 +335,7 @@ export async function bulkAddRoutines(rows = []) {
   }
 
   const skippedHasRoutine = [];
+  const replaced = [];
   const missingItems = new Set();
   let addedSteps = 0;
   let bookCount = 0;
@@ -290,14 +343,9 @@ export async function bulkAddRoutines(rows = []) {
   for (const [bid, list] of byBook) {
     const isArea = String(bid).startsWith("area:");
     const areaName = isArea ? String(bid).slice(5) : null;
-    // 이미 루틴이 있으면 건너뛴다 (위 주석의 까닭)
-    const { data: has } = isArea
-      ? await supabase.from("routine_steps").select("id").eq("area", areaName).limit(1)
-      : await supabase.from("routine_steps").select("id").eq("textbook_id", bid).limit(1);
-    if ((has || []).length > 0) {
-      skippedHasRoutine.push(isArea ? `영역:${areaName}` : (books || []).find((b) => b.id === bid)?.name || "교재");
-      continue;
-    }
+    const targetLabel = isArea
+      ? `영역:${areaName}`
+      : (books || []).find((b) => b.id === bid)?.name || "교재";
     const stepRows = [];
     list.forEach((r, i) => {
       // 항목별 주의사항 (0139) — 이름[주의] 의 대괄호가 여기 모인다
@@ -329,7 +377,35 @@ export async function bulkAddRoutines(rows = []) {
         round: r.round ?? null,
       });
     });
+    // 넣을 것이 없으면 여기서 끝 — **지우기보다 먼저 확인한다.** 파일이
+    // 비었는데 기존 루틴부터 지우면, 덮어쓰기가 아니라 그냥 삭제가 된다
     if (stepRows.length === 0) continue;
+
+    // 이미 루틴이 있으면 건너뛴다 (위 주석의 까닭 — 대전제 2)
+    const { data: has } = isArea
+      ? await supabase.from("routine_steps").select("id").eq("area", areaName).limit(1)
+      : await supabase.from("routine_steps").select("id").eq("textbook_id", bid).limit(1);
+    if ((has || []).length > 0) {
+      if (!force) {
+        skippedHasRoutine.push(targetLabel);
+        continue;
+      }
+      // force — 원장님이 명시한 덮어쓰기만. 기존 단계를 지우고 학생 기억을 비운다
+      const { data: goneIds, error: delErr } = isArea
+        ? await supabase.from("routine_steps").delete().eq("area", areaName).select("id")
+        : await supabase.from("routine_steps").delete().eq("textbook_id", bid).select("id");
+      if (delErr) return { error: `「${targetLabel}」 기존 루틴 지우기 실패: ${delErr.message}` };
+      if ((goneIds || []).length) {
+        const clear = await supabase
+          .from("student_textbooks")
+          .update({ routine_step_id: null })
+          .in("routine_step_id", goneIds.map((g) => g.id));
+        // 0120 전이면 칸이 없다 — 비울 것도 없으니 조용히 지나간다
+        if (clear.error && clear.error.code !== "42703" && clear.error.code !== "PGRST204")
+          return { error: clear.error.message };
+      }
+      replaced.push(targetLabel);
+    }
     let { error } = await supabase.from("routine_steps").insert(stepRows);
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       // 0139 전 — 항목별 주의사항 없이
@@ -370,6 +446,7 @@ export async function bulkAddRoutines(rows = []) {
     missingItems: [...missingItems],
     createdItems,
     skippedHasRoutine,
+    replaced,
   };
 }
 
@@ -377,10 +454,17 @@ export async function bulkAddRoutines(rows = []) {
 export async function exportRoutines() {
   const supabase = createClient();
   let [{ data: steps, error }, { data: books }, { data: items }] = await Promise.all([
-    supabase.from("routine_steps").select("textbook_id, sort, label, inclass_items, home_items, round, home_next").order("sort", { ascending: true }),
+    supabase.from("routine_steps").select("textbook_id, area, sort, label, inclass_items, home_items, round, home_next").order("sort", { ascending: true }),
     supabase.from("textbooks").select("id, name"),
     supabase.from("homework_items").select("id, name"),
   ]);
+  if (error) {
+    // 0137 전 — 영역 칸 없이
+    ({ data: steps, error } = await supabase
+      .from("routine_steps")
+      .select("textbook_id, sort, label, inclass_items, home_items, round, home_next")
+      .order("sort", { ascending: true }));
+  }
   if (error) {
     // 0136 전 — 예습 칸 없이
     ({ data: steps, error } = await supabase
@@ -399,15 +483,18 @@ export async function exportRoutines() {
   const bookName = new Map((books || []).map((b) => [b.id, b.name]));
   const itemName = new Map((items || []).map((i) => [i.id, i.name]));
   const names = (ids) => (ids || []).map((id) => itemName.get(id)).filter(Boolean).join(" · ");
+  // 영역 루틴 줄은 교재명 칸에 「영역:문법」 — 올리기가 읽는 표기 그대로.
+  // 내려받은 파일이 그대로 다시 올라가야 왕복이 성립한다 (원칙 1)
+  const labelOf = (s2) => (s2.textbook_id ? bookName.get(s2.textbook_id) || "" : `영역:${s2.area || ""}`);
+  const keyOf = (s2) => s2.textbook_id || `area:${s2.area || ""}`;
   const sorted = [...(steps || [])].sort((a, b) =>
-    (bookName.get(a.textbook_id) || "").localeCompare(bookName.get(b.textbook_id) || "", "ko") ||
-    (a.sort || 0) - (b.sort || 0)
+    labelOf(a).localeCompare(labelOf(b), "ko") || (a.sort || 0) - (b.sort || 0)
   );
   const rows = sorted.map((s2, i) => {
     const prev = sorted[i - 1];
-    const sameBook = prev && prev.textbook_id === s2.textbook_id;
+    const sameBook = prev && keyOf(prev) === keyOf(s2);
     return [
-      sameBook ? "" : bookName.get(s2.textbook_id) || "",
+      sameBook ? "" : labelOf(s2),
       Math.round((s2.sort || 0) / 10) || "",
       s2.label || "",
       names(s2.inclass_items),

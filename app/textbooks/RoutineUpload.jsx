@@ -20,6 +20,9 @@ export default function RoutineUpload() {
   const [parsed, setParsed] = useState(null);
   const [fileName, setFileName] = useState("");
   const [result, setResult] = useState(null);
+  // 덮어쓰기 — 기본은 꺼짐. 화면에서 고친 루틴을 자동이 덮으면 대전제 2 위반이라,
+  // 원장님이 이 칸을 직접 켰을 때만 덮는다 (2026-08-21)
+  const [force, setForce] = useState(false);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef(null);
   const router = useRouter();
@@ -68,8 +71,10 @@ export default function RoutineUpload() {
 
   function save() {
     if (!parsed || parsed.rows.length === 0) return;
+    // 덮어쓰기는 돌이킬 수 없다 — 누르기 전에 한 번 더 묻는다
+    if (force && !confirm("이미 루틴이 있는 교재·영역도 덮어씁니다.\n화면에서 고친 것까지 전부 덮어요. 계속할까요?")) return;
     startTransition(async () => {
-      const res = await bulkAddRoutines(parsed.rows);
+      const res = await bulkAddRoutines(parsed.rows, force);
       setResult(res);
       if (!res.error) { setParsed(null); setFileName(""); router.refresh(); }
     });
@@ -94,7 +99,8 @@ export default function RoutineUpload() {
         (학습항목에 없는 이름은 <b>새로 만들어서</b> 잇고, 무엇을 만들었는지 알려드립니다).
         회독 칸에 숫자를 넣으면 <b>그 회독부터</b> 그 줄이 적용됩니다 (비우면 모든 회독).
         같은 교재는 교재명을 첫 줄에만 적으면 됩니다.
-        <b> 이미 루틴이 있는 교재는 건너뜁니다</b> — 돌고 있는 학생이 밀리면 안 돼요.
+        <b> 이미 루틴이 있는 교재는 건너뜁니다</b> — 화면에서 고친 루틴을 덮으면 안 되니까요.
+        덮어쓰려면 아래 「덮어쓰기」 를 직접 켜세요.
       </p>
       <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <button className="btn btn-ghost btn-sm" onClick={downloadTemplate}>빈 양식 받기</button>
@@ -112,6 +118,11 @@ export default function RoutineUpload() {
               {parsed.problems.map((p, i) => <li key={i}>{p}</li>)}
             </ul>
           )}
+          <label className="row" style={{ gap: 6, alignItems: "center", marginTop: 8, fontSize: 14 }}>
+            <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
+            이미 루틴이 있는 교재·영역도 덮어쓰기
+            {force && <span className="tag tag-amber">화면에서 고친 것까지 전부 덮습니다</span>}
+          </label>
           <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={save} disabled={pending || parsed.rows.length === 0}>
             {pending ? "올리는 중…" : "올리기"}
           </button>
@@ -120,6 +131,9 @@ export default function RoutineUpload() {
       {result && !result.error && (
         <div className="hint" style={{ marginTop: 8, lineHeight: 1.7 }}>
           교재 {result.bookCount}권에 {result.addedSteps}단계 들어갔어요.
+          {result.replaced?.length > 0 && (
+            <><br />덮어씀 (기존 루틴 삭제 후 새로 심음): {result.replaced.join(" · ")}</>
+          )}
           {result.skippedHasRoutine?.length > 0 && (
             <><br />이미 루틴이 있어 건너뜀: {result.skippedHasRoutine.join(" · ")}</>
           )}

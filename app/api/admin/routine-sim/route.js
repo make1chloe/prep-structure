@@ -24,12 +24,22 @@ export const maxDuration = 60;
  *   (지금 「⟳ 루틴 다음」 동작 그대로) → 세션당 항목 수가 곧 부하다.
  *   단원은 수업마다 하나씩 나간다고 가정하고 소진·회독 넘김을 센다.
  */
+
+/** 폰 브라우저가 charset 없는 JSON 의 한글을 깨뜨린다 (원장님 스샷 2026-08-21) */
+function jsonKo(body, init = {}) {
+  return new NextResponse(JSON.stringify(body, null, 1), {
+    status: init.status || 200,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
 export async function GET(request) {
   const supabase = createClient();
   const guard = await requireStaff(supabase);
-  if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
-  const op = new URL(request.url).searchParams.get("op");
-  if (op === "rebuild") return rebuildRoutines(supabase);
+  if (guard.error) return jsonKo({ error: guard.error }, { status: 403 });
+  const sp = new URL(request.url).searchParams;
+  const op = sp.get("op");
+  if (op === "rebuild") return rebuildRoutines(supabase, sp.get("force") === "1");
   if (op === "flow") return flowSim(supabase);
   if (op === "retest") return retestList(supabase);
   if (op === "month") return monthSim(supabase);
@@ -199,7 +209,7 @@ export async function GET(request) {
   }
 
   perStudent.sort((a, b) => b.avgLoad - a.avgLoad);
-  return NextResponse.json({
+  return jsonKo({
     ok: true,
     학생수: perStudent.length,
     세션: {
@@ -223,26 +233,45 @@ export async function GET(request) {
 
 
 /**
- * **루틴 갈아엎고 굵은 판으로 다시 심기** (원장님, 2026-08-20 — 잘게 쪼갠
- * 1차 업로드를 굵은 판(ㅇㅇ 확정)으로 교체).
+ * **빈 곳만 씨앗 심기** (원장님, 2026-08-21 — 「루틴을 엑셀로 넣기만 하지
+ * 말고 수정·삭제 가능하게 해줘」).
  *
- * ① routine_steps 전부 삭제 (교재별·영역별 모두 — 학생의 현재 단계
- *    기억(routine_step_id)은 다음 「루틴 다음」 때 처음 단계로 폴백된다)
- * ② drafts.json 의 굵은 루틴을 다시 심는다 — 없는 학습항목은 만들고,
- *    [대괄호]는 항목별 주의사항(item_notes)으로
- * ③ 1차 때 생긴 잘게 쪼갠 항목들: 기록에 쓰인 적 없으면 삭제,
- *    쓰였으면 숨김(active=false) — 기록은 절대 안 지운다
+ * **화면(루틴 편집기)이 원본이다. drafts.json 은 초기 씨앗일 뿐이다.**
+ * 전에는 전삭제 후 재주입이라, 편집기에서 고친 것이 다음 재주입에 전부
+ * 날아갔다 — 대전제 2(docs/업무루틴-규칙.md — 「원장님이 손으로 적은 것은
+ * 자동이 절대 덮지 않는다」) 위반. 그래서 기본 동작은:
+ *
+ * ① 단계가 **하나도 없는** 교재·영역만 drafts 로 채운다 — 한 줄이라도
+ *    있으면 원장님이 고쳤을 수 있는 곳이니 통째로 건너뛴다
+ * ② 없는 학습항목은 만들고, [대괄호]는 항목별 주의사항(item_notes)으로
+ *
+ * `&force=1` 일 때만 옛 동작(전삭제 후 전량 재주입 + 잘게 쪼갠 항목 정리).
+ * 학생의 현재 단계 기억(routine_step_id)은 다음 「루틴 다음」 때 처음
+ * 단계로 폴백된다. 응답에 경고와 건드린/건너뛴 목록을 담는다.
  */
-async function rebuildRoutines(supabase) {
+async function rebuildRoutines(supabase, force = false) {
   const out = { deletedSteps: 0, insertedSteps: 0, createdItems: [], removedItems: [], hiddenItems: [] };
 
-  // ① 루틴 전부 비우기
-  {
+  // 지금 심겨 있는 곳 — 원장님이 화면에서 고쳤을 수 있는 곳이다 (대전제 2)
+  let { data: existing, error: exErr } = await supabase.from("routine_steps").select("id, textbook_id, area");
+  if (exErr) {
+    // 0137 전 — 영역 칸 없이. 이 조회가 실패한 채 심으면 「있는 곳」 을
+    // 못 보고 덮어 심게 된다 — 그래서 끝까지 못 읽으면 아예 멈춘다
+    ({ data: existing, error: exErr } = await supabase.from("routine_steps").select("id, textbook_id"));
+  }
+  if (exErr)
+    return jsonKo({ error: `기존 루틴을 못 읽어 중단: ${exErr.message}` }, { status: 500 });
+  const hasBookSteps = new Set((existing || []).filter((r) => r.textbook_id).map((r) => r.textbook_id));
+  const hasAreaSteps = new Set((existing || []).filter((r) => !r.textbook_id && r.area).map((r) => r.area));
+
+  if (force) {
+    // 통째 갈아엎기 — force 를 명시했을 때만. 화면에서 고친 것까지 덮는다
     const { data: gone } = await supabase.from("routine_steps").delete().not("id", "is", null).select("id");
     out.deletedSteps = (gone || []).length;
+    hasBookSteps.clear();
+    hasAreaSteps.clear();
   }
 
-  // ② 굵은 판 심기
   const [{ data: books }, { data: items0 }] = await Promise.all([
     supabase.from("textbooks").select("id, name, area"),
     supabase.from("homework_items").select("id, name").eq("active", true),
@@ -262,17 +291,28 @@ async function rebuildRoutines(supabase) {
     : /step|예습|독해|해석|지문|워크북/i.test(n) ? "독해"
     : "기타";
 
-  // 필요한 항목 전부 모아 한 번에 만든다
+  // 심을 대상 고르기 — 이미 단계가 있는 교재·영역은 통째로 건너뛴다 (대전제 2)
+  const targets = [];
+  const skipped = [];
+  const missBooks = [];
+  for (const [name, val] of Object.entries(DRAFTS.books)) {
+    const steps = typeof val === "string" ? DRAFTS.books[val] : val;
+    if (!Array.isArray(steps)) continue; // 별칭이 끊긴 초안 — GET 의 초안이름불일치가 잡는다
+    const bid = bookByName.get(name.trim());
+    if (!bid) { missBooks.push(name); continue; }
+    if (hasBookSteps.has(bid)) { skipped.push(name); continue; }
+    targets.push({ bookName: name, bid, steps });
+  }
+  for (const [area, steps] of Object.entries(DRAFTS.areas)) {
+    if (hasAreaSteps.has(area)) { skipped.push(`영역:${area}`); continue; }
+    targets.push({ area, steps });
+  }
+
+  // 필요한 항목 — **이번에 실제로 심는 단계 것만.** 건너뛴 교재 때문에
+  // 항목을 만들면, 안 심은 루틴의 흔적이 학습항목에 남는다
   const need = new Set();
-  const eachStep = (fn) => {
-    for (const [name, val] of Object.entries(DRAFTS.books)) {
-      const steps = typeof val === "string" ? DRAFTS.books[val] : val;
-      fn({ bookName: name }, steps);
-    }
-    for (const [area, steps] of Object.entries(DRAFTS.areas)) fn({ area }, steps);
-  };
-  eachStep((_t, steps) =>
-    steps.forEach((st) =>
+  targets.forEach((t) =>
+    t.steps.forEach((st) =>
       [...(st.inclass || []), ...(st.home || []), ...(st.homeNext || [])].forEach((x) =>
         need.add(parse(x).name)
       )
@@ -284,16 +324,13 @@ async function rebuildRoutines(supabase) {
       .from("homework_items")
       .insert(toMake.map((n, i) => ({ name: n, category: guessCat(n), active: true, sort: 900 + i })))
       .select("id, name");
-    if (error) return NextResponse.json({ ...out, error: `항목 만들기 실패: ${error.message}` }, { status: 500 });
+    if (error) return jsonKo({ ...out, error: `항목 만들기 실패: ${error.message}` }, { status: 500 });
     (made || []).forEach((i2) => { itemByName.set(i2.name.trim(), i2.id); out.createdItems.push(i2.name); });
   }
 
   const rows = [];
-  const missBooks = [];
-  eachStep((target, steps) => {
-    const bid = target.bookName ? bookByName.get(target.bookName.trim()) : null;
-    if (target.bookName && !bid) { missBooks.push(target.bookName); return; }
-    steps.forEach((st, i) => {
+  targets.forEach((target) => {
+    target.steps.forEach((st, i) => {
       const item_notes = {};
       const ids = (arr) =>
         (arr || []).map((x) => {
@@ -303,7 +340,7 @@ async function rebuildRoutines(supabase) {
           return id;
         }).filter(Boolean);
       rows.push({
-        textbook_id: bid,
+        textbook_id: target.bid || null,
         ...(target.area ? { area: target.area } : {}),
         sort: (i + 1) * 10,
         label: st.label || "",
@@ -315,39 +352,52 @@ async function rebuildRoutines(supabase) {
       });
     });
   });
-  {
+  if (rows.length) {
     const { data: ins, error } = await supabase.from("routine_steps").insert(rows).select("id");
-    if (error) return NextResponse.json({ ...out, error: `루틴 심기 실패: ${error.message}` }, { status: 500 });
+    if (error) return jsonKo({ ...out, error: `루틴 심기 실패: ${error.message}` }, { status: 500 });
     out.insertedSteps = (ins || []).length;
   }
 
-  // ③ 1차의 잘게 쪼갠 항목 정리 (굵은 판에서 안 쓰는 것만)
-  const FINE = [
-    "클카 단어 3초훈련", "클카 입해석", "클카 낭독", "클카 녹음", "클카 스크램블",
-    "클카 암기 100%", "클카 단어매칭", "Step3 기호표시", "Step4 한글뜻쓰기", "Step5 영작",
-    "테스트북 영작", "SVOCM 표시", "틀린 문장 해석쓰기", "예습 문제풀기", "예습숙제 채점",
-    "품사 쇼츠 빈칸채우기", "불규칙동사 녹음 인증", "워크북 채점", "세모별표 검사",
-    "워크북 문제풀기", "끊어읽기 표시", "한줄해석쓰기", "구조정리·문제풀기", "구조정리",
-    "모르는 단어 뜻쓰기", "예습 단어문제풀기", "예습 지문문제풀기", "틀린문제 클카 3단계",
-    "자유 1회독", "분석지 정독", "N회독 날짜기록", "변형문제 풀기", "형광펜 중요표시",
-    "문답노트 요약정리",
-  ].filter((n) => need.has(n) === false);
-  const { data: fineRows } = await supabase
-    .from("homework_items").select("id, name").in("name", FINE);
-  for (const it of fineRows || []) {
-    const { data: used } = await supabase
-      .from("daily_report_items").select("id").eq("homework_item_id", it.id).limit(1);
-    if ((used || []).length) {
-      await supabase.from("homework_items").update({ active: false }).eq("id", it.id);
-      out.hiddenItems.push(it.name);
-    } else {
-      const { error } = await supabase.from("homework_items").delete().eq("id", it.id);
-      if (!error) out.removedItems.push(it.name);
-      else { await supabase.from("homework_items").update({ active: false }).eq("id", it.id); out.hiddenItems.push(it.name); }
+  // 잘게 쪼갠 항목 정리는 **force(전면 재주입) 때만** — 빈 곳만 채울 때는
+  // 화면에서 짠 루틴이 그 항목을 아직 쓰고 있을 수 있다 (need 가 부분집합이라
+  // 여기서 지우면 멀쩡한 루틴이 없는 항목을 가리키게 된다)
+  if (force) {
+    const FINE = [
+      "클카 단어 3초훈련", "클카 입해석", "클카 낭독", "클카 녹음", "클카 스크램블",
+      "클카 암기 100%", "클카 단어매칭", "Step3 기호표시", "Step4 한글뜻쓰기", "Step5 영작",
+      "테스트북 영작", "SVOCM 표시", "틀린 문장 해석쓰기", "예습 문제풀기", "예습숙제 채점",
+      "품사 쇼츠 빈칸채우기", "불규칙동사 녹음 인증", "워크북 채점", "세모별표 검사",
+      "워크북 문제풀기", "끊어읽기 표시", "한줄해석쓰기", "구조정리·문제풀기", "구조정리",
+      "모르는 단어 뜻쓰기", "예습 단어문제풀기", "예습 지문문제풀기", "틀린문제 클카 3단계",
+      "자유 1회독", "분석지 정독", "N회독 날짜기록", "변형문제 풀기", "형광펜 중요표시",
+      "문답노트 요약정리",
+    ].filter((n) => need.has(n) === false);
+    const { data: fineRows } = await supabase
+      .from("homework_items").select("id, name").in("name", FINE);
+    for (const it of fineRows || []) {
+      const { data: used } = await supabase
+        .from("daily_report_items").select("id").eq("homework_item_id", it.id).limit(1);
+      if ((used || []).length) {
+        await supabase.from("homework_items").update({ active: false }).eq("id", it.id);
+        out.hiddenItems.push(it.name);
+      } else {
+        const { error } = await supabase.from("homework_items").delete().eq("id", it.id);
+        if (!error) out.removedItems.push(it.name);
+        else { await supabase.from("homework_items").update({ active: false }).eq("id", it.id); out.hiddenItems.push(it.name); }
+      }
     }
   }
 
-  return NextResponse.json({ ok: true, ...out, missBooks });
+  return jsonKo({
+    ok: true,
+    ...(force
+      ? { 경고: "force=1 — 화면에서 고친 것까지 전부 덮었습니다" }
+      : { 방식: "화면이 원본 — 단계가 하나도 없는 교재·영역만 채웠습니다 (전부 덮으려면 &force=1)" }),
+    ...out,
+    건드린곳: targets.map((t) => t.bookName || `영역:${t.area}`),
+    건너뛴곳: skipped,
+    missBooks,
+  });
 }
 
 
@@ -514,7 +564,7 @@ async function flowSim(supabase) {
 
   perStudent.sort((a, b) => b.한달뒤밀림 - a.한달뒤밀림 || b.최대밀림 - a.최대밀림);
   const worst = perStudent.filter((x) => x.한달뒤밀림 > 0);
-  return NextResponse.json({
+  return jsonKo({
     ok: true,
     가정: SESS_CAP_NOTE,
     학생수: perStudent.length,
@@ -558,7 +608,7 @@ async function retestList(supabase) {
     if (r.word_correct == null) return false;
     return (r.word_correct / r.word_total) * 100 < 90;
   });
-  if (!failed.length) return NextResponse.json({ ok: true, today, students: [] });
+  if (!failed.length) return jsonKo({ ok: true, today, students: [] });
 
   const ids = failed.map((r) => r.student_id);
   const [{ data: sts }, { data: sb }, { data: bks }] = await Promise.all([
@@ -609,7 +659,7 @@ async function retestList(supabase) {
         : null,
     };
   });
-  return NextResponse.json({ ok: true, today, students });
+  return jsonKo({ ok: true, today, students });
 }
 
 
@@ -769,7 +819,7 @@ async function monthSim(supabase) {
   }
 
   perStudent.sort((a, b) => b.한달뒤밀림 - a.한달뒤밀림);
-  return NextResponse.json({
+  return jsonKo({
     ok: true,
     학생수: perStudent.length,
     오류: [...new Set(errors)].slice(0, 30),
@@ -1119,7 +1169,7 @@ async function safetyCheck(supabase) {
   }
 
   const errorTotal = checks.reduce((a, c) => a + c.errors.length, 0);
-  return NextResponse.json({
+  return jsonKo({
     ok: errorTotal === 0,
     students: enrolled.length,
     checks,

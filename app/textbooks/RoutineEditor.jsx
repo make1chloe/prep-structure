@@ -86,7 +86,9 @@ function Picker({ label, value, onChange, items = [] }) {
   );
 }
 
-export default function RoutineEditor({ textbookId, items = [], initialSteps = null, initialReady = true }) {
+// 교재(textbookId) 또는 영역(area) 하나를 받는다 — 영역 루틴(0137)도
+// 같은 편집기로 고친다 (원칙 1: 같은 판을 두 벌로 그리지 않는다, 2026-08-21)
+export default function RoutineEditor({ textbookId = null, area = null, items = [], initialSteps = null, initialReady = true }) {
   // 처음 데이터는 페이지가 실어 보낸다 (원칙 6 — 탭을 누르고 나서 서버에
   // 다녀오면, 누를 때마다 빈 판을 보게 된다). 이후 고침은 load() 로 새로.
   const [steps, setSteps] = useState(initialSteps);
@@ -96,16 +98,16 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
 
   const [inherited, setInherited] = useState(null);   // 영역 루틴을 따르는 중 (0137)
   async function load() {
-    const res = await listRoutine(textbookId);
+    const res = await listRoutine(textbookId, area);
     setSteps(res.steps);
     setReady(res.ready);
     setInherited(res.inherited || null);
   }
   useEffect(() => {
-    if (textbookId && steps === null) load();
-  }, [textbookId]);   // eslint-disable-line react-hooks/exhaustive-deps
+    if ((textbookId || area) && steps === null) load();
+  }, [textbookId, area]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!textbookId) return null;
+  if (!textbookId && !area) return null;
   if (steps === null) return <p className="hint">불러오는 중…</p>;
 
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
@@ -140,7 +142,7 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
     */
   function seed() {
     startTransition(async () => {
-      const res = await seedRoutine(textbookId);
+      const res = await seedRoutine(textbookId, area);
       if (res?.error) { alert(res.error); return; }
       const lines = [`${res.added}단계를 넣었어요 (${res.area}).`, "", "그대로 쓰셔도 되고, 고치셔도 됩니다."];
       if (res.missing?.length) {
@@ -162,6 +164,35 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
       home_next: [],
       note: "",
     });
+
+  /**
+   * 순서 이동 (원장님, 2026-08-21 — 「수정·삭제 가능하게 해줘」).
+   * 이웃한 두 줄의 sort 값을 서로 바꾼다. **낙관적** — 화면을 먼저 바꾸고
+   * 저장은 뒤에서, 실패하면 되돌린다 (PRINCIPLES 6-3 · 낙관 UI 원칙
+   * 2026-08-21). startTransition 에 안 넣는 것도 같은 까닭 — pending 이
+   * 걸리면 두 칸 올리려는 연타가 기다리게 된다.
+   */
+  function move(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= steps.length) return;
+    const prev = steps;
+    let next = [...steps];
+    [next[i], next[j]] = [next[j], next[i]];
+    if (prev[i].sort === prev[j].sort) {
+      // sort 가 같으면 바꿔 넣어도 순서가 그대로다 — 전체를 10 간격으로 다시 매긴다
+      next = next.map((s, k) => ({ ...s, sort: (k + 1) * 10 }));
+    } else {
+      next[i] = { ...next[i], sort: prev[i].sort };
+      next[j] = { ...next[j], sort: prev[j].sort };
+    }
+    const oldSort = new Map(prev.map((s) => [s.id, s.sort]));
+    const changed = next.filter((s) => oldSort.get(s.id) !== s.sort);
+    setSteps(next);   // 서버 답을 기다리지 않는다
+    Promise.all(changed.map((s) => saveStep(textbookId, s, area))).then((rs) => {
+      const bad = rs.find((r) => r?.error);
+      if (bad) { alert(bad.error); setSteps(prev); }
+    });
+  }
 
   // **판 안에 카드를 또 그리지 않는다.** 이 자리는 이미 「루틴」 탭이라
   // 제목도 테두리도 한 겹 더 두르면 그만큼 안이 좁아지고 겹쳐 보인다.
@@ -205,7 +236,7 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
             </span>
             <button className="btn btn-sm" onClick={addStep}>＋ 단계 추가</button>
             {inherited && (
-              <span className="tag tag-sky" title="이 교재만의 루틴이 없어서 영역 공통 루틴을 따르는 중이에요. 단계를 추가하면 이 교재만의 루틴이 우선이 됩니다">
+              <span className="tag tag-sky" title="이 교재만의 루틴이 없어서 영역 공통 루틴을 따르는 중이에요. 단계를 추가하면 이 교재만의 루틴이 우선이 됩니다. 영역 루틴 자체는 맨 위 「영역 루틴」 단추에서 고칠 수 있어요">
                 영역 루틴({inherited}) 따르는 중
               </span>
             )}
@@ -247,6 +278,27 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
                   )}
                 </div>
                 <div className="row" style={{ gap: 2, flexWrap: "nowrap" }}>
+                  {/* 순서 이동 — 따르는 중(inherited)이면 남의 루틴이라 못 만진다 */}
+                  {inherited ? null : (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={i === 0}
+                    title="위로"
+                    onClick={() => move(i, -1)}
+                  >
+                    ↑
+                  </button>
+                  )}
+                  {inherited ? null : (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={i === steps.length - 1}
+                    title="아래로"
+                    onClick={() => move(i, 1)}
+                  >
+                    ↓
+                  </button>
+                  )}
                   {inherited ? null : (
                   <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...s })}>
                     수정
@@ -328,7 +380,7 @@ export default function RoutineEditor({ textbookId, items = [], initialSteps = n
             <button
               className="btn btn-primary btn-sm"
               disabled={pending}
-              onClick={() => run(() => saveStep(textbookId, editing))}
+              onClick={() => run(() => saveStep(textbookId, editing, area))}
             >
               저장
             </button>
