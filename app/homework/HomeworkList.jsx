@@ -42,7 +42,9 @@ const NEED = [
   { key: "tool", label: "준비물" },
 ];
 
-export default function HomeworkList({ items = [], missKeys = null }) {
+export default function HomeworkList({ items = [], missKeys = null, usageOf = {} }) {
+  // 쓰는 곳 거르기 (원장님 2026-08-21) — 전체 / 특정 진도루틴 / 상시(루틴에 안 박힘)
+  const [useFilter, setUseFilter] = useState("");   // "" | "상시" | 루틴 이름
   // 「빠진 것」 은 원장님이 고른 칸만 센다 (11-11). 안 정했으면 후보 전부.
   const need = missKeys === null ? NEED : NEED.filter((d) => missKeys.includes(d.key));
   const [sel, setSel] = useState(() => new Set());
@@ -63,6 +65,10 @@ export default function HomeworkList({ items = [], missKeys = null }) {
       if (catFilter !== "전체" && (i.category || "기타") !== catFilter) return false;
       if (onlyMissing && !hasMissing(i, need)) return false;
       if (kw && !i.name.toLowerCase().includes(kw)) return false;
+      if (useFilter) {
+        const u = usageOf[i.id] || [];
+        if (useFilter === "상시" ? u.length > 0 : !u.includes(useFilter)) return false;
+      }
       return true;
     }),
     sort
@@ -164,6 +170,22 @@ export default function HomeworkList({ items = [], missKeys = null }) {
             </button>
           );
         })}
+        {/* 쓰는 곳 거르기 (2026-08-21) — 진도루틴별 / 상시(어느 루틴에도 안 박힘) */}
+        <span style={{ width: "100%" }} />
+        <span className="hint" style={{ fontSize: 12.5 }}>쓰는 곳:</span>
+        {(() => {
+          const all = [...new Set(Object.values(usageOf).flat())].sort((a, b) => a.localeCompare(b, "ko"));
+          return ["", ...all, "상시"].map((w) => (
+            <button
+              key={w || "전부"}
+              className={`btn btn-sm ${useFilter === w ? "btn-primary" : "btn-ghost"}`}
+              style={{ padding: "2px 8px", fontSize: 12.5 }}
+              onClick={() => setUseFilter(w)}
+            >
+              {w === "" ? "전부" : w}
+            </button>
+          ));
+        })()}
         <span className="spacer" />
         <span className="hint">{shown.length}개</span>
         <select
@@ -464,7 +486,21 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                     </td>
                   ) : (
                     <>
-                      <td style={{ fontWeight: 600 }}>{i.name}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        {i.name}
+                        {/* 쓰는 곳 — 루틴이 만든 항목과 상시 항목을 한눈에 가른다 */}
+                        <span className="row" style={{ gap: 3, marginTop: 2 }}>
+                          {(usageOf[i.id] || []).slice(0, 3).map((w) => (
+                            <span key={w} className="tag tag-sky" style={{ fontSize: 12 }}>{w}</span>
+                          ))}
+                          {(usageOf[i.id] || []).length > 3 && (
+                            <span className="tag tag-muted" style={{ fontSize: 12 }}>외 {(usageOf[i.id] || []).length - 3}</span>
+                          )}
+                          {(usageOf[i.id] || []).length === 0 && (
+                            <span className="tag tag-muted" style={{ fontSize: 12 }} title="진도루틴에 안 박힌 항목 — 아무 수업에서나 골라 쓰는 상시 항목">상시</span>
+                          )}
+                        </span>
+                      </td>
                       <td>
                         <span className={`tag ${CAT_CLS[cat] || "tag-muted"}`}>{cat}</span>
                         {i.tool && (

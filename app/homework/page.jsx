@@ -22,13 +22,17 @@ export default async function HomeworkPage() {
   }
 
   // 항목과 「빠진 것」 기준(11-11)은 서로 필요한 게 없다 — 한 파도 (원칙 6-1)
-  let [{ data: items, error }, missQ, guQ] = await Promise.all([
+  let [{ data: items, error }, missQ, guQ, stepsQ, booksQ] = await Promise.all([
     supabase
       .from("homework_items")
       .select("id, name, category, sort, active, method, prep_task, no_timer, checklist, home_item_id, in_person, unit_test, tool, redo_default")
       .order("sort", { ascending: true }),
     supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
     supabase.from("integrations").select("config").eq("id", "grammar_units").maybeSingle(),
+    // 「쓰는 곳」 (원장님 2026-08-21 — 루틴이 만든 항목과 내가 만든 것이
+    // 섞여 구별이 안 돼) — 어느 진도루틴이 이 항목을 쓰는지
+    supabase.from("routine_steps").select("textbook_id, area, inclass_items, home_items, home_next"),
+    supabase.from("textbooks").select("id, name"),
   ]);
   if (error) {
     // 0116 전이면 '준비물' 없이
@@ -58,6 +62,22 @@ export default async function HomeworkPage() {
       .select("id, name, category, sort, active, method")
       .order("sort", { ascending: true }));
   }
+
+  /**
+   * 항목 id → 쓰는 진도루틴 이름들. 아무 데도 안 쓰이면 「상시」 —
+   * 안 쓰인다는 뜻이 아니라 **아무 수업에서나 골라 쓰는 항목**이라는 뜻
+   * (원장님 2026-08-21 「안쓰임이 아니라 상시」).
+   */
+  const bookName = new Map(((booksQ?.data) || []).map((b) => [b.id, b.name]));
+  const usageOf = {};
+  (((stepsQ?.data) || [])).forEach((st) => {
+    const who = st.textbook_id ? bookName.get(st.textbook_id) || "교재" : `영역:${st.area || "?"}`;
+    [...(st.inclass_items || []), ...(st.home_items || []), ...(st.home_next || [])].forEach((iid) => {
+      if (!usageOf[iid]) usageOf[iid] = [];
+      if (!usageOf[iid].includes(who)) usageOf[iid].push(who);
+    });
+  });
+
   if (error) {
     // method 컬럼도 없는 DB
     ({ data: items, error } = await supabase
@@ -94,7 +114,7 @@ export default async function HomeworkPage() {
               <div className="err">불러오기 실패: {error.message}</div>
             </div>
           ) : (
-            <HomeworkList items={items || []} missKeys={missQ?.data?.config?.homework ?? null} />
+            <HomeworkList items={items || []} missKeys={missQ?.data?.config?.homework ?? null} usageOf={usageOf} />
           )}
         </div>
       </main>
