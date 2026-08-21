@@ -168,9 +168,14 @@ INQUIRIES.filter((q) => ["new", "scheduled"].includes(q.status)).forEach((q) =>
   NEEDED.push({ key: "inquiry", sev: "중간", text: `신규 상담 ${q.name}` })
 );
 
-// 미납 — 기능 자체가 없다
+// 미납 — **안 떠야 한다** (기대 뒤집음, 2026-08-21).
+// 원장님 규칙 6 (docs/업무루틴-규칙.md, 2026-08-05): 「이 앱이 챙기는 것은
+// 수업이다. 수강료·미납은 결제선생 — 대시보드·메뉴 배지에 띄우지 않고
+// 수강료 화면에서만 보인다.」 lib/dashboard.js 도 unpaid = [] 로 일부러
+// 비워 둔다 (344줄 근처 주석). 전에는 「떠야 하는데 기능이 없다」 로
+// 검사했지만, 그건 이 규칙이 정해지기 전의 기대였다.
 UNPAID.forEach((u) =>
-  NEEDED.push({ key: "unpaid", sev: "높음", text: `${nameOf.get(u.student_id)} 9월분 미납 ${u.amount.toLocaleString()}원` })
+  NEEDED.push({ key: "unpaid", sev: "높음", hide: true, text: `${nameOf.get(u.student_id)} 9월분 미납 ${u.amount.toLocaleString()}원 — 대시보드엔 안 띄운다 (수강료 화면 몫)` })
 );
 
 // 요약 숫자 — 학원이 지금 어떤 상태인가
@@ -185,21 +190,35 @@ NEEDED.push({ key: "kpi", sev: "중간", text: `요약 숫자: 재원 ${STUDENTS
 //   · 눌러서 갈 수 있는가          → 그 자리가 <Link> 인가
 const PAGE = fs.readFileSync(new URL("../app/page.jsx", import.meta.url), "utf8");
 const has = (needle) => PAGE.includes(needle);
+// 문구가 page.jsx 가 아니라 카드 컴포넌트 안에 사는 것들 — 그 파일을 같이 본다.
+// (2026-08-21 네 묶음 재편: 미발송은 💬묶음 UnsentBox, 상담은 💬묶음 InquiryInbox)
+const UNSENT = fs.readFileSync(new URL("../app/UnsentBox.jsx", import.meta.url), "utf8");
+const INQ = fs.readFileSync(new URL("../app/InquiryInbox.jsx", import.meta.url), "utf8");
 
 const CURRENT_RULES = {
   warning: { shows: () => has("반성문 대상"), how: "link" },
   makeup: { shows: () => has("보강 필요"), how: "link" },
   sendfail: { shows: () => has("발송 실패"), how: "link" },
-  "unsent-past": { shows: () => has("지난 미발송"), how: "link" },
+  // 「지난 미발송」 카드는 없어졌다 — 💬묶음 UnsentBox 가 past={d.unsentPast} 를
+  // 받아 「미발송 · 써두고 안 보냄」 줄로 그린다 (골라서 「안 보내기」 정리까지)
+  "unsent-past": { shows: () => has("past={d.unsentPast}") && UNSENT.includes("미발송"), how: "link" },
   retest: { shows: () => has("오늘 보강 · 재시험"), how: "link" },
   "exam-soon": { shows: () => has("다가오는 내신 시험"), how: "link" },
-  "exam-scope": { shows: () => has("시험범위 미등록"), how: "link" },
-  monthly: { shows: () => has("월말 리포트"), how: "link" },
+  // 「시험범위 미등록」 별도 카드 → 📅묶음 「다가오는 내신 시험」 카드의
+  // noScope 꼬리표 「· 범위 미등록」 (창도 21→60일: 원장님 2026-08-21
+  // 「대비 시작(3~4주 전)보다 재촉이 늦으면 재촉이 아니다」)
+  "exam-scope": { shows: () => has("범위 미등록") && has("noScope"), how: "link" },
+  // 「월말 리포트」 → 💰묶음 「월간리포트」 카드 (d.monthlyDue, 급하면 펴짐)
+  monthly: { shows: () => has("월간리포트") && has("d.monthlyDue"), how: "link" },
   "tuition-makeup": { shows: () => has("보강 필요"), how: "link" },
   request: { shows: () => has("학부모 알림"), how: "link" },
-  comment: { shows: () => has("남긴 댓글"), how: "link" },
-  inquiry: { shows: () => has("새 상담"), how: "link" },
-  unpaid: { shows: () => has("미납"), how: "link" },       // 수납은 아직 기능이 없다
+  // 「남긴 댓글」 → 💬묶음 「학생 · 학부모 댓글」 카드 (d.newComments)
+  comment: { shows: () => has("학생 · 학부모 댓글"), how: "link" },
+  // 「새 상담」 → 「신규 상담」 (원장님 2026-08-07 「새 상담 → 신규상담 으로
+  // 고치고」) — 💬묶음 InquiryInbox 가 rows={d.inquiries} 를 받아 그린다
+  inquiry: { shows: () => has("InquiryInbox rows={d.inquiries}") && INQ.includes("신규 상담"), how: "link" },
+  // 미납은 hide 기대 — 뜨면 오히려 위반 (원장님 규칙 6, 위 UNPAID 주석)
+  unpaid: { shows: () => has("미납"), how: "link" },
   kpi: { shows: () => has("이달 출석률"), how: "link" },
 };
 
@@ -217,11 +236,16 @@ for (const n of NEEDED) {
   if (n.fold) seenFold.add(n.fold);
   const rule = CURRENT_RULES[n.key];
   const shown = rule && rule.shows();
-  const mark = shown ? (rule.how === "dead" ? "▲ 뜨지만 막다름" : "○ 뜸") : "✕ 안 뜸";
+  // hide 기대 — 안 떠야 규칙대로다 (미납: 원장님 규칙 6)
+  const mark = n.hide
+    ? (shown ? "✕ 뜸 (안 떠야 함)" : "○ 안 뜸 (규칙대로)")
+    : (shown ? (rule.how === "dead" ? "▲ 뜨지만 막다름" : "○ 뜸") : "✕ 안 뜸");
   console.log(`  [${n.sev}] ${mark}  ${n.text}${n.fold ? " …외 같은 반 전원" : ""}`);
 }
 
-const missed = NEEDED.filter((n) => !CURRENT_RULES[n.key]?.shows());
+const missed = NEEDED.filter((n) =>
+  n.hide ? CURRENT_RULES[n.key]?.shows() : !CURRENT_RULES[n.key]?.shows()
+);
 const dead = NEEDED.filter((n) => CURRENT_RULES[n.key]?.shows() && CURRENT_RULES[n.key].how === "dead");
 const uniqMissedKeys = [...new Set(missed.map((n) => n.key))];
 
