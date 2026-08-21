@@ -254,6 +254,36 @@ export default function StudentPanel({
    *   자동화 시급해」). 원장님이 저장해야 확정이고, 그림자 기록은 계속
    *   쌓여서 일치율을 잰다.
    */
+  /**
+   * 학생 체크리스트 신고 → 검사 1차 판단 (원장님 2026-08-21 — 「학생이
+   * 누르면 숙제검사에 미리 반영. 좋아, 클카 우선」).
+   * 전부 ○ → done · △나 일부 ✕ 섞임 → weak(근거 메모) · 전부 ✕ → 안 채움.
+   * 자기 신고라 클카(기계 기록)보다 뒤 순위다.
+   */
+  const clVerdictOf = (iid) => {
+    const subs = (row.subs || []).filter((x) => x.homework_item_id === iid);
+    const cl = subs.find((x) => x.kind === "checklist");   // created_at 내림차순 — 첫 것이 최신
+    if (cl) {
+      try {
+        const lines = JSON.parse(cl.body || "[]");
+        if (Array.isArray(lines) && lines.length > 0) {
+          const dn = lines.filter((l) => l.done).length;
+          const dg = lines.filter((l) => !l.done && l.state === "doing").length;
+          const ms = lines.length - dn - dg;
+          if (dn === lines.length) return { status: "done", note: "" };
+          if (dn + dg > 0)
+            return {
+              status: "weak",
+              note: `체크리스트 ○${dn}${dg ? ` △${dg}` : ""}${ms ? ` ✕${ms}` : ""}`,
+            };
+          return null;   // 전부 ✕ — 신고만으로 ✕ 를 박진 않는다 (원장님이 눈으로)
+        }
+      } catch { /* 못 읽으면 다른 제출물 규칙으로 */ }
+    }
+    if (subs.some((x) => x.kind !== "checklist")) return { status: "done", note: "" };
+    return null;
+  };
+
   useEffect(() => {
     /**
      * **1차 판단 미리 채움** (원장님 2026-08-20 — 「학생이 먼저 과제
@@ -271,10 +301,9 @@ export default function StudentPanel({
         if (v) { n[iid] = v.status; auto[iid] = v.status; return; }
         const item = items.find((x) => x.id === iid);
         if (item?.in_person) return;   // 직접검사는 눈으로
-        if ((row.subs || []).some((x) => x.homework_item_id === iid)) {
-          n[iid] = "done";
-          auto[iid] = "done";
-        }
+        // 클카 우선, 그다음 학생 신고(체크리스트 3단계·기타 제출물)
+        const c = clVerdictOf(iid);
+        if (c) { n[iid] = c.status; auto[iid] = c.status; }
       });
       return Object.keys(auto).length ? n : m;
     });
@@ -828,9 +857,12 @@ export default function StudentPanel({
           (row.toCheck || [])
             .map((iid) => {
               const v = ccVerdictOf(iid);
-              return v && marks[iid] === v.status && v.missed.length
-                ? [iid, v.missed.join(" · ")]
-                : null;
+              if (v && marks[iid] === v.status && v.missed.length)
+                return [iid, v.missed.join(" · ")];
+              // 클카 근거가 없으면 학생 체크리스트 신고를 근거로 (클카 우선)
+              const c = clVerdictOf(iid);
+              if (c && c.note && marks[iid] === c.status) return [iid, c.note];
+              return null;
             })
             .filter(Boolean)
         ),
