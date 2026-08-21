@@ -71,7 +71,10 @@ export default async function HomeworkPage() {
   const bookName = new Map(((booksQ?.data) || []).map((b) => [b.id, b.name]));
   const usageOf = {};
   (((stepsQ?.data) || [])).forEach((st) => {
-    const who = st.textbook_id ? bookName.get(st.textbook_id) || "교재" : `영역:${st.area || "?"}`;
+    let who = st.textbook_id ? bookName.get(st.textbook_id) || "교재" : `영역:${st.area || "?"}`;
+    // 모의고사 12권은 한 갈래로 (원장님 2026-08-22 「따로 보여주지 말고
+    // 그냥 모의고사 영역으로」). 「저절로 첫모의고사」 같은 교재는 안 접힌다
+    if (/^\d{4}년 \d+월 고[123] 모의고사$/.test(who)) who = "모의고사";
     [...(st.inclass_items || []), ...(st.home_items || []), ...(st.home_next || [])].forEach((iid) => {
       if (!usageOf[iid]) usageOf[iid] = [];
       if (!usageOf[iid].includes(who)) usageOf[iid].push(who);
