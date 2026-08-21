@@ -244,6 +244,31 @@ export async function saveStudentDay(studentId, date, form) {
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
   const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
   let nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
+  const nextUnitsIn = { ...(form.nextUnits || {}) };
+
+  /**
+   * **급한 숙제는 글로 바로** (원장님, 2026-08-21 — 「급하면 영역별 숙제에
+   * 대해 텍스트로 직접 숙제 적을 수 있도록」). 항목·교재·단원을 고를 짬이
+   * 없을 때 한 줄 적으면, 「직접 적은 숙제」 항목의 범위 메모로 실려
+   * 학생 화면·리포트·검사까지 여느 숙제처럼 흐른다 (두 번 안 적는다).
+   */
+  if ((form.quickHomework || "").trim()) {
+    const NAME = "직접 적은 숙제";
+    let { data: qi } = await supabase
+      .from("homework_items").select("id").eq("name", NAME).maybeSingle();
+    if (!qi) {
+      ({ data: qi } = await supabase
+        .from("homework_items").insert({ name: NAME, category: "기타" }).select("id").maybeSingle());
+    }
+    if (qi?.id) {
+      if (!nextIds.includes(qi.id)) nextIds = [...nextIds, qi.id];
+      const prev = (nextUnitsIn[qi.id]?.note || "").trim();
+      nextUnitsIn[qi.id] = {
+        unitIds: nextUnitsIn[qi.id]?.unitIds || [],
+        note: prev ? `${prev}\n${form.quickHomework.trim()}` : form.quickHomework.trim(),
+      };
+    }
+  }
 
   // 집에서는 못 하는 학습을 숙제로 낼 때 바꿔준다 (구두테스트 → 셀프녹음테스트).
   // 루틴은 등원 기준 하나만 알면 되고, 숙제로 나갈 때 여기서 알아서 바뀐다.
@@ -302,7 +327,7 @@ export async function saveStudentDay(studentId, date, form) {
   if (delErr) return { error: delErr.message };
 
   // 배정한 숙제에 붙은 단원/범위 { [homework_item_id]: { unitId, note } }
-  const units = form.nextUnits || {};
+  const units = nextUnitsIn;   // 급한 숙제(quickHomework)의 범위 메모까지 합친 한 벌
   // 클카 자동 판정이 남기는 검사 메모 (0062 check_note) — 「안 한 세트가
   // 무엇인지」 가 학생 화면(💬 선생님)과 데일리리포트에 같이 나간다
   const checkNotes = form.checkNotes || {};

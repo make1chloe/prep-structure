@@ -36,6 +36,9 @@ export default function RequestInbox({ requests = [] }) {
   const [typing, setTyping] = useState({});   // 직접 쓰기를 편 줄
   const [mk, setMk] = useState({});      // { [id]: { on, at } } — 보강일
   const [seen, setSeen] = useState(false);
+  // 처리 완료 낙관 (원장님 2026-08-21 「작동이 너무 늦어」) — 서버 답을
+  // 기다렸다가 접으니 한 박자 늦었다. 누르는 순간 접고 저장은 뒤에서
+  const [doneLocal, setDoneLocal] = useState(() => new Set());
   const [, startTransition] = useTransition();
   const router = useRouter();
 
@@ -82,7 +85,8 @@ export default function RequestInbox({ requests = [] }) {
    * 접힌다. done_at 칸이 없는 옛 DB 는 전처럼 handled 로 접는다.
    */
   const hasDone = requests.some((r) => "done_at" in r);
-  const closed = (r) => r.canceled_at || (hasDone ? r.done_at : r.handled_at);
+  const closed = (r) =>
+    r.canceled_at || doneLocal.has(r.id) || (hasDone ? r.done_at : r.handled_at);
   const live = requests.filter((r) => !closed(r));
   const past = requests.filter((r) => closed(r));
 
@@ -217,18 +221,18 @@ export default function RequestInbox({ requests = [] }) {
               <button
                 className="btn btn-sm"
                 onClick={() => {
-                  setBusy(r.id);
+                  // 누르는 순간 접는다 — 실패하면 되살리고 알린다
+                  setDoneLocal((prev) => new Set(prev).add(r.id));
                   startTransition(async () => {
-                    try {
-                      const res = await finishRequest(r.id);
-                      if (res?.error) setMsg({ ...msg, [r.id]: { bad: true, text: res.error } });
-                      else router.refresh();
-                    } finally {
-                      setBusy(null);
+                    const res = await finishRequest(r.id);
+                    if (res?.error) {
+                      setDoneLocal((prev) => {
+                        const n = new Set(prev); n.delete(r.id); return n;
+                      });
+                      setMsg({ ...msg, [r.id]: { bad: true, text: res.error } });
                     }
                   });
                 }}
-                disabled={busy === r.id}
                 title="업무 반영까지 끝났을 때 — 목록에서 접힙니다 (알림은 안 나가요)"
               >
                 처리 완료

@@ -166,6 +166,7 @@ export default function StudentPanel({
     // attitude 칸이 곧 **집중도**다 (0118 — 이름만 바뀌고 칸은 그대로)
     attitude: r.attitude || "",
     monthKeyword: row.monthKeyword || "",
+    quickHomework: "",
     understanding: r.understanding || "",
     word_correct: r.word_correct ?? "",
     // 전체 개수는 미리 채워둔다.
@@ -1816,6 +1817,19 @@ export default function StudentPanel({
                 ⟳ 지난번과 같게 (단원은 다음 것)
               </button>
             )}
+          </div>
+          {/* **급하면 글로** (원장님 2026-08-21 — 「급하면 텍스트로 직접
+              숙제 적을 수 있도록」). 항목·단원 고를 짬이 없을 때 한 줄 —
+              「직접 적은 숙제」 로 학생 화면·리포트·검사까지 여느 숙제처럼 */}
+          <div className="row" style={{ gap: 6, alignItems: "center", margin: "6px 0" }}>
+            <span className="hint" style={{ fontSize: 13, whiteSpace: "nowrap" }}>✍ 급한 숙제</span>
+            <input
+              className="input input-sm"
+              style={{ flex: 1, minWidth: 160 }}
+              placeholder="예) 문법 프린트 3장 풀어오기 — 저장하면 그대로 숙제로 나가요"
+              value={form.quickHomework}
+              onChange={(e) => set("quickHomework", e.target.value)}
+            />
           </div>
           <div className="stack" style={{ gap: 6 }}>
             {grouped(shown).map(([g, list]) => (

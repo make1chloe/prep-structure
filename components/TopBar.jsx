@@ -3,6 +3,7 @@ import { menuFor, findSection, sectionOf } from "@/lib/menu";
 import BrandMark from "./BrandMark";
 import Refresh from "./Refresh";
 import TopBarHeight from "./TopBarHeight";
+import QuickMemo from "./QuickMemo";
 import NavScroll from "./NavScroll";
 import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
@@ -121,6 +122,8 @@ export default async function TopBar({ profile, active }) {
           <b>{profile?.name || "사용자"}</b>{" "}
           {profile?.role ? `· ${ROLE_LABEL[profile.role] || profile.role}` : ""}
         </span>
+        {/* 빠른 메모 (2026-08-21) — 수업 중 떠오른 것을 그 자리에서 할일로 */}
+        <QuickMemo />
         {/* 홈 화면에 담은 앱에는 주소창이 없다 — 새로고침이 여기 없으면 방법이 없다 */}
         <Refresh />
         <form action="/logout" method="post">
