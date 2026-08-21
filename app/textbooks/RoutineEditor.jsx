@@ -27,7 +27,9 @@ function Picker({ label, value, onChange, items = [] }) {
 
   const pool = q ? items.filter((i) => (i.name || "").toLowerCase().includes(q)) : items;
   // 분류 차례는 CATEGORIES 를 따른다 — 화면마다 순서가 다르면 손이 헷갈린다
-  const groups = [...CATEGORIES, ""]
+  // CATEGORIES 에 이미 「기타」 가 있어서 빈 갈래("")와 겹치면 기타 묶음이
+  // 두 번 선다 (원장님 2026-08-21 「기타가 두 번 나와」) — 한 번만
+  const groups = [...new Set([...CATEGORIES, "기타"])]
     .map((c) => ({
       cat: c || "기타",
       cls: CAT_CLS[c] || "tag-muted",
