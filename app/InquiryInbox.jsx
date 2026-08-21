@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setInquiryStatus } from "./consult/actions";
 import { dayLabel } from "@/lib/day";
@@ -17,13 +17,24 @@ import { dayLabel } from "@/lib/day";
  */
 export default function InquiryInbox({ rows = [] }) {
   const [pending, startTransition] = useTransition();
+  // 누르는 순간 줄이 빠진다 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
+  // 서버 답 + router.refresh 를 기다리면 한 박자 늦다. 실패하면 되살리고 alert.
+  const [gone, setGone] = useState(() => new Set());
   const router = useRouter();
+
+  // 방금 끝맺은 줄은 바로 뺀다 — 건수 배지도 같이 준다
+  const live = rows.filter((q) => !gone.has(q.id));
 
   function mark(q, status, word) {
     if (!confirm(`${q.name} 상담을 ${word}로 옮길까요?`)) return;
+    setGone((prev) => new Set(prev).add(q.id));   // 먼저 뺀다 — 저장은 뒤에서
     startTransition(async () => {
       const res = await setInquiryStatus([q.id], status);
-      if (res?.error) { alert(res.error); return; }
+      if (res?.error) {
+        setGone((prev) => { const n = new Set(prev); n.delete(q.id); return n; });   // 실패 — 되살린다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -36,15 +47,15 @@ export default function InquiryInbox({ rows = [] }) {
    * 카드 하나다. 그런 카드가 대여섯이면, 정작 온 것 하나를 보려고 화면을
    * 한참 내려야 한다. 없는 것은 없는 것이다.
    */
-  if (rows.length === 0) return null;
+  if (live.length === 0) return null;
 
   return (
     <div className="card sect sect-warn">
       <h2 className="secthead">
-        신규 상담 <span className="tag tag-amber">{rows.length}</span>
+        신규 상담 <span className="tag tag-amber">{live.length}</span>
       </h2>
       <div className="stack" style={{ gap: 4 }}>
-          {rows.map((q) => (
+          {live.map((q) => (
             <div className="unitrow" key={q.id}>
               <Link href="/consult" style={{ textDecoration: "none" }}>
                 <b style={{ fontSize: 14 }}>{q.name}</b>

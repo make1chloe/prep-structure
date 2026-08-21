@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { settleWarnings } from "./today/stayActions";
 
@@ -23,26 +23,37 @@ import { settleWarnings } from "./today/stayActions";
  */
 export default function WarningInbox({ rows = [] }) {
   const [pending, startTransition] = useTransition();
+  // 누르는 순간 줄이 빠진다 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
+  // 서버 답 + router.refresh 를 기다리면 한 박자 늦다. 실패하면 되살리고 alert.
+  const [gone, setGone] = useState(() => new Set());
   const router = useRouter();
+
+  // 방금 정리한 줄은 바로 뺀다 — 건수 배지도 같이 준다
+  const live = rows.filter((w) => !gone.has(w.id));
 
   function settle(w, kind, word) {
     if (!confirm(`${w.name} 학생의 경고 ${w.count}회를 ${word}할까요?`)) return;
+    setGone((prev) => new Set(prev).add(w.id));   // 먼저 뺀다 — 저장은 뒤에서
     startTransition(async () => {
       const res = await settleWarnings(w.id, kind);
-      if (res?.error) { alert(res.error); return; }
+      if (res?.error) {
+        setGone((prev) => { const n = new Set(prev); n.delete(w.id); return n; });   // 실패 — 되살린다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
 
-  if (rows.length === 0) return null;
+  if (live.length === 0) return null;
 
   return (
     <div className="card sect sect-bad">
       <h2 className="secthead">
-        반성문 대상 <span className="tag tag-red">{rows.length}</span>
+        반성문 대상 <span className="tag tag-red">{live.length}</span>
       </h2>
       <div className="stack" style={{ gap: 4 }}>
-        {rows.map((w) => (
+        {live.map((w) => (
           <div className="unitrow" key={w.id}>
             <Link href="/today" style={{ textDecoration: "none" }}>
               <b style={{ fontSize: 14 }}>{w.name}</b>

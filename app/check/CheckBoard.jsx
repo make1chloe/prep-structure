@@ -55,12 +55,16 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
     const k = `${r.student.id}:${itemId}`;
     return k in optMark ? optMark[k] : r.marks[itemId] || null;
   };
+  // 「봤어요/안 봄으로」 도 optMark 와 같은 규칙 — 누르는 순간 바뀐다
+  // (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 되돌리고 알린다.
+  const [optSeen, setOptSeen] = useState({});     // sub.id → 봤는지 (true/false)
+  const seenOf = (s) => (s.id in optSeen ? optSeen[s.id] : !!s.checked_at);
 
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "숙제";
 
   // 아직 안 찍은 숙제가 있으면 '남은 학생'
   const left = (r) => r.toCheck.filter((c) => !markOf(r, c.id));
-  const unseen = (r) => r.subs.filter((s) => !s.checked_at);
+  const unseen = (r) => r.subs.filter((s) => !seenOf(s));
 
   const shown = useMemo(() => {
     const kw = q.trim().toLowerCase();
@@ -250,7 +254,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                         {loose.map((s) => (
                           <div key={s.id} className="stack" style={{ gap: 4 }}>
                             <div className="unitrow">
-                              <span className={`tag ${s.checked_at ? "tag-muted" : "tag-amber"}`}>
+                              <span className={`tag ${seenOf(s) ? "tag-muted" : "tag-amber"}`}>
                                 {KIND[s.kind] || "사진"}
                               </span>
                               <b style={{ fontSize: 14 }}>{nameOf(s.homework_item_id)}</b>
@@ -273,9 +277,19 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                               <button
                                 className="btn btn-ghost btn-sm"
                                 disabled={pending}
-                                onClick={() => run(() => seenSubmission(s.id, !s.checked_at))}
+                                onClick={() => {
+                                  const next = !seenOf(s);
+                                  setOptSeen((m) => ({ ...m, [s.id]: next }));   // 먼저 칠한다
+                                  run(async () => {
+                                    const res = await seenSubmission(s.id, next);
+                                    if (res?.error) {
+                                      setOptSeen((m) => { const n2 = { ...m }; delete n2[s.id]; return n2; });   // 실패 — 되돌린다
+                                    }
+                                    return res;
+                                  });
+                                }}
                               >
-                                {s.checked_at ? "안 봄으로" : "봤어요"}
+                                {seenOf(s) ? "안 봄으로" : "봤어요"}
                               </button>
                             </div>
 

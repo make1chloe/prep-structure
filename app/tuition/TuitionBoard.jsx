@@ -57,10 +57,23 @@ export default function TuitionBoard({
   // 여기저기서 한 명씩 들어오는 날도 있다
   const allRows = groups.flatMap((g) => g.rows || []);
 
-  function run(fn) {
+  // 미납↔받음 낙관 토글 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
+  // 서버 답 + router.refresh 를 기다리면 단추가 한 박자 늦게 뒤집혔다.
+  // 방금 누른 학생만 덮고, 실패하면 되돌리고 alert. (위 합계 배지는 서버 계산이라
+  // refresh 때 같이 온다)
+  const [paidLocal, setPaidLocal] = useState(() => new Map());   // studentId → 받았는가
+  const paidOf = (r) =>
+    paidLocal.has(r.student.id) ? paidLocal.get(r.student.id) : r.paid;
+  const putPaid = (ids, v) =>
+    setPaidLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.set(id, v)); return n; });
+  const delPaid = (ids) =>
+    setPaidLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.delete(id)); return n; });
+
+  function run(fn, undo) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) {
+        if (undo) undo();   // 실패 — 먼저 바꾼 화면을 되돌린다
         alert(res.error);
         return;
       }
@@ -292,14 +305,17 @@ export default function TuitionBoard({
               const picked = allRows.filter((r) => payPick.has(r.student.id));
               if (picked.length === 0) return;
               if (!confirm(`${picked.length}명을 ${payOn} 에 받은 것으로 처리할까요?`)) return;
-              run(async () => {
-                const res = await setPaidMany(
+              // 누르는 순간 전부 「받음」 으로 바뀌고 선택이 풀린다 — 저장은 뒤에서 (2026-08-21)
+              const ids = picked.map((r) => r.student.id);
+              putPaid(ids, true);
+              setPayPick(new Set());
+              run(
+                () => setPaidMany(
                   picked.map((r) => ({ studentId: r.student.id, amount: r.amount })),
                   ym, true, payOn
-                );
-                if (!res?.error) setPayPick(new Set());
-                return res;
-              });
+                ),
+                () => delPaid(ids)
+              );
             }}
           >
             받음으로 처리
@@ -311,14 +327,14 @@ export default function TuitionBoard({
               const picked = allRows.filter((r) => payPick.has(r.student.id));
               if (picked.length === 0) return;
               if (!confirm(`${picked.length}명을 미납으로 되돌릴까요?`)) return;
-              run(async () => {
-                const res = await setPaidMany(
-                  picked.map((r) => ({ studentId: r.student.id })),
-                  ym, false
-                );
-                if (!res?.error) setPayPick(new Set());
-                return res;
-              });
+              // 누르는 순간 전부 「미납」 으로 바뀌고 선택이 풀린다 — 저장은 뒤에서 (2026-08-21)
+              const ids = picked.map((r) => r.student.id);
+              putPaid(ids, false);
+              setPayPick(new Set());
+              run(
+                () => setPaidMany(picked.map((r) => ({ studentId: r.student.id })), ym, false),
+                () => delPaid(ids)
+              );
             }}
           >
             미납으로 되돌리기
@@ -456,7 +472,7 @@ export default function TuitionBoard({
                       disabled={!payReady}
                       onClick={() => {
                         const n = new Set(payPick);
-                        rows.filter((r) => !r.paid).forEach((r) => n.add(r.student.id));
+                        rows.filter((r) => !paidOf(r)).forEach((r) => n.add(r.student.id));
                         setPayPick(n);
                       }}
                     >
@@ -484,6 +500,7 @@ export default function TuitionBoard({
                       <tbody>
                         {rows.map((r) => {
                           const se = editStudent === r.student.id;
+                          const paid = paidOf(r);   // 방금 누른 값이 서버 값보다 먼저다
                           return (
                             <tr key={r.student.id}>
                               <td>
@@ -502,23 +519,29 @@ export default function TuitionBoard({
                               {/* 받았는가 — 한 번 눌러 뒤집는다. 엑셀로 올린 것도 여기 나온다 */}
                               <td>
                                 <button
-                                  className={`btn btn-sm ${r.paid ? "btn-ghost" : ""}`}
+                                  className={`btn btn-sm ${paid ? "btn-ghost" : ""}`}
                                   style={
-                                    r.paid
+                                    paid
                                       ? { color: "var(--mint)", borderColor: "var(--mint)" }
                                       : { color: "var(--red)", borderColor: "var(--red)" }
                                   }
                                   title={
-                                    r.paid
+                                    paid
                                       ? `${r.pay?.paid_on || ""} 받음${r.pay?.source === "결제선생" ? " (결제선생)" : ""}`
                                       : r.pay?.note || "아직 안 받음 — 누르면 받음으로"
                                   }
-                                  onClick={() =>
-                                    run(() => setPaid(r.student.id, ym, !r.paid, r.amount))
-                                  }
+                                  onClick={() => {
+                                    // 누르는 순간 뒤집힌다 — 저장은 뒤에서 (2026-08-21)
+                                    const to = !paid;
+                                    putPaid([r.student.id], to);
+                                    run(
+                                      () => setPaid(r.student.id, ym, to, r.amount),
+                                      () => delPaid([r.student.id])
+                                    );
+                                  }}
                                   disabled={pending || !payReady}
                                 >
-                                  {r.paid ? "받음" : "미납"}
+                                  {paid ? "받음" : "미납"}
                                 </button>
                               </td>
                               <td>

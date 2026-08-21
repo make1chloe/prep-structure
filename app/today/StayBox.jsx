@@ -44,13 +44,18 @@ function Row({ tag, cls, body, dim, strike, children }) {
  */
 export default function StayBox({ studentId, date, rows = [], suggestions = [] }) {
   const [body, setBody] = useState("");
+  // 누르는 순간 행 상태가 바뀐다 — 서버 답 + 재계산을 기다리면 한 박자 늦다
+  // (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 되돌리고 알린다.
+  const [optRow, setOptRow] = useState({});   // t.id → status (삭제는 "dropped" 로 숨긴다)
+  const [optSug, setOptSug] = useState({});   // 제안 body → 고른 status (refresh 전까지 임시 표시)
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  function run(fn) {
+  function run(fn, undo) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) {
+        if (undo) undo();   // 실패 — 먼저 바꾼 화면을 되돌린다
         alert(res.error);
         return;
       }
@@ -58,16 +63,32 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
     });
   }
 
+  // 화면 먼저 바꾸고 저장은 뒤에서 — 올라온 행의 상태를 로컬로 덮는다
+  function setRow(t, status, fn) {
+    setOptRow((m) => ({ ...m, [t.id]: status }));
+    run(fn, () => setOptRow((m) => { const n = { ...m }; delete n[t.id]; return n; }));
+  }
+  // 제안 줄도 같은 규칙 — 누르는 순간 제안에서 빠지고 고른 모습으로 보인다
+  function pickSug(s, status, fn) {
+    setOptSug((m) => ({ ...m, [s.body]: status }));
+    run(fn, () => setOptSug((m) => { const n = { ...m }; delete n[s.body]; return n; }));
+  }
+  const stOf = (t) => optRow[t.id] ?? t.status;
+
   // 이미 올라온 것과 겹치지 않는 제안만.
   // '삭제' 한 것도 자국이 남아 있으므로 여기서 다시 제안되면 안 된다.
   const have = new Set(rows.map((r) => r.body));
-  const fresh = suggestions.filter((s) => !have.has(s.body));
+  const fresh = suggestions.filter((s) => !have.has(s.body) && !(s.body in optSug));
   // 뺀 것은 목록에도 안 보인다 (문자에도 안 나간다)
-  const live = rows.filter((t) => t.status !== "dropped");
+  const live = rows.filter((t) => stOf(t) !== "dropped");
+  // 방금 결정한 제안 — 서버가 행을 만들어 줄 때까지 그 자리에 보여준다
+  const pendingSug = suggestions.filter(
+    (s) => optSug[s.body] && optSug[s.body] !== "dropped" && !have.has(s.body)
+  );
 
   return (
     <div style={{ flex: 1 }}>
-      {live.length === 0 && fresh.length === 0 && (
+      {live.length === 0 && fresh.length === 0 && pendingSug.length === 0 && (
         <p className="hint" style={{ margin: "0 0 6px" }}>
           남아서 채우고 갈 것이 있으면 적어주세요. 숙제를 △·✕ 로 찍으면 여기 자동으로 올라옵니다.
         </p>
@@ -84,7 +105,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                 className="btn btn-primary btn-sm"
                 disabled={pending}
                 title="남아서 하고 갑니다"
-                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true))}
+                onClick={() => pickSug(s, "todo", () => addStay(studentId, date, s.body, s.itemId, true))}
               >
                 남김
               </button>
@@ -92,7 +113,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                 className="btn btn-sm"
                 disabled={pending}
                 title="집에서 해옵니다. 숙제 문자에 함께 나갑니다"
-                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true, "moved"))}
+                onClick={() => pickSug(s, "moved", () => addStay(studentId, date, s.body, s.itemId, true, "moved"))}
               >
                 숙제로
               </button>
@@ -100,7 +121,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                 className="btn btn-ghost btn-sm"
                 disabled={pending}
                 title="오늘은 그냥 보냅니다. 문자에는 안 나갑니다 (기록은 남습니다)"
-                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true, "skipped"))}
+                onClick={() => pickSug(s, "skipped", () => addStay(studentId, date, s.body, s.itemId, true, "skipped"))}
               >
                 넘어가기
               </button>
@@ -108,7 +129,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                 className="btn btn-ghost btn-sm"
                 disabled={pending}
                 title="이건 남길 것이 아닙니다. 목록에서 뺍니다"
-                onClick={() => run(() => addStay(studentId, date, s.body, s.itemId, true, "dropped"))}
+                onClick={() => pickSug(s, "dropped", () => addStay(studentId, date, s.body, s.itemId, true, "dropped"))}
               >
                 삭제
               </button>
@@ -118,24 +139,25 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
       )}
 
       {/* 올라온 것 */}
-      {live.length > 0 && (
+      {(live.length > 0 || pendingSug.length > 0) && (
         <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
           {live.map((t) => {
-            const settled = t.status !== "todo";
+            const st = stOf(t);   // 방금 누른 것이 있으면 그 모습 먼저
+            const settled = st !== "todo";
             return (
               <Row
                 key={t.id}
-                tag={settled ? NEXT[t.status].label : "남을 것"}
-                cls={settled ? NEXT[t.status].cls : "tag-sky"}
+                tag={settled ? NEXT[st].label : "남을 것"}
+                cls={settled ? NEXT[st].cls : "tag-sky"}
                 body={t.body}
                 dim={settled}
-                strike={t.status === "done"}
+                strike={st === "done"}
               >
                 {settled ? (
                   <button
                     className="btn btn-ghost btn-sm"
                     disabled={pending}
-                    onClick={() => run(() => setStayStatus(t.id, "todo"))}
+                    onClick={() => setRow(t, "todo", () => setStayStatus(t.id, "todo"))}
                   >
                     되돌리기
                   </button>
@@ -144,7 +166,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                     <button
                       className="btn btn-primary btn-sm"
                       disabled={pending}
-                      onClick={() => run(() => setStayStatus(t.id, "done"))}
+                      onClick={() => setRow(t, "done", () => setStayStatus(t.id, "done"))}
                     >
                       다 함
                     </button>
@@ -152,7 +174,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                       className="btn btn-sm"
                       disabled={pending}
                       title="다 못 끝냈어요. 숙제 문자에 함께 나갑니다"
-                      onClick={() => run(() => setStayStatus(t.id, "moved"))}
+                      onClick={() => setRow(t, "moved", () => setStayStatus(t.id, "moved"))}
                     >
                       숙제로
                     </button>
@@ -160,7 +182,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                       className="btn btn-ghost btn-sm"
                       disabled={pending}
                       title="오늘은 그냥 보냅니다. 문자에는 안 나갑니다"
-                      onClick={() => run(() => setStayStatus(t.id, "skipped"))}
+                      onClick={() => setRow(t, "skipped", () => setStayStatus(t.id, "skipped"))}
                     >
                       넘어가기
                     </button>
@@ -171,13 +193,28 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
                       onClick={() =>
                         // 자동으로 올라온 것은 지우면 △·✕ 자국에서 **다시 제안된다.**
                         // 그래서 지우지 않고 '뺀 것' 으로 둔다.
-                        run(() => (t.auto ? setStayStatus(t.id, "dropped") : deleteStay(t.id)))
+                        setRow(t, "dropped", () => (t.auto ? setStayStatus(t.id, "dropped") : deleteStay(t.id)))
                       }
                     >
                       삭제
                     </button>
                   </>
                 )}
+              </Row>
+            );
+          })}
+          {/* 방금 결정한 제안 — 서버가 행을 만들 때까지 임시로 그 자리에 (단추는 refresh 후에) */}
+          {pendingSug.map((s) => {
+            const st = optSug[s.body];
+            return (
+              <Row
+                key={`sug-${s.body}`}
+                tag={st === "todo" ? "남을 것" : NEXT[st].label}
+                cls={st === "todo" ? "tag-sky" : NEXT[st].cls}
+                body={s.body}
+                dim={st !== "todo"}
+              >
+                <span className="hint" style={{ fontSize: 12 }}>저장 중…</span>
               </Row>
             );
           })}

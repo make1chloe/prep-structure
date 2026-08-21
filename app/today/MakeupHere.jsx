@@ -132,20 +132,28 @@ export default function MakeupHere({ studentId, date, name = "학생", already =
           className="btn btn-sm"
           disabled={pending || !on}
           onClick={() => {
-            setMsg(null);
+            // 누르는 순간 입력을 비우고 알린다 — 서버 답을 기다리면 한 박자 늦다
+            // (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 입력을 되살린다.
+            const v = on, t = at;
+            setOn(""); setAt("");
+            setMsg({ bad: false, text: `${dayLabel(v)} 로 잡았어요.` });
             startTransition(async () => {
               try {
-                const res = await setMakeup(studentId, on, date, at);
-                if (res?.error) { setMsg({ bad: true, text: res.error }); return; }
-                setMsg({ bad: false, text: `${dayLabel(on)} 로 잡았어요.` });
+                const res = await setMakeup(studentId, v, date, t);
+                if (res?.error) {
+                  setOn(v); setAt(t);
+                  setMsg({ bad: true, text: res.error });
+                  return;
+                }
                 router.refresh();
               } catch (e) {
+                setOn(v); setAt(t);
                 setMsg({ bad: true, text: `잡지 못했어요: ${e?.message || e}` });
               }
             });
           }}
         >
-          {pending ? "잡는 중…" : "보강 잡기"}
+          보강 잡기
         </button>
         {msg && (
           <span className={msg.bad ? "err" : "hint"}>{msg.text}</span>

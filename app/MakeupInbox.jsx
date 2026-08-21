@@ -15,8 +15,30 @@ const dayLabel = fmtDay;
 export default function MakeupInbox({ rows = [] }) {
   const [pick, setPick] = useState({});
   const [at, setAt] = useState({});
+  // 누르는 순간 줄이 빠진다 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
+  // 서버 답 + router.refresh 를 기다리면 한 박자 늦다. 실패하면 되살리고 alert.
+  const [gone, setGone] = useState(() => new Set());
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  const keyOf = (r) => `${r.studentId}|${r.date}`;
+  // 방금 처리한 줄은 바로 뺀다 — 건수 배지도 이걸로 같이 준다
+  const live = rows.filter((r) => !gone.has(keyOf(r)));
+
+  /** 셋(보강 잡기·보강 없음·결석 취소) 다 「줄이 빠지는」 일이라 한 길로 */
+  function drop(r, fn) {
+    const key = keyOf(r);
+    setGone((prev) => new Set(prev).add(key));   // 먼저 뺀다 — 저장은 뒤에서
+    startTransition(async () => {
+      const res = await fn();
+      if (res?.error) {
+        setGone((prev) => { const n = new Set(prev); n.delete(key); return n; });   // 실패 — 되살린다
+        alert(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   /**
    * **보강 없음** (2026-08-06, 0103).
@@ -28,25 +50,13 @@ export default function MakeupInbox({ rows = [] }) {
    * 그러면 출결 기록이 거짓이 된다. 결석은 그대로 두고 목록에서만 내린다.
    */
   function waive(r) {
-    startTransition(async () => {
-      const res = await waiveMakeup(r.studentId, r.date, true);
-      if (res?.error) { alert(res.error); return; }
-      router.refresh();
-    });
+    drop(r, () => waiveMakeup(r.studentId, r.date, true));
   }
 
   function schedule(r) {
-    const key = `${r.studentId}|${r.date}`;
-    const d = pick[key];
+    const d = pick[keyOf(r)];
     if (!d) return;
-    startTransition(async () => {
-      const res = await setMakeup(r.studentId, d, r.date, at[key]);
-      if (res?.error) {
-        alert(res.error);
-        return;
-      }
-      router.refresh();
-    });
+    drop(r, () => setMakeup(r.studentId, d, r.date, at[keyOf(r)]));
   }
 
   /**
@@ -59,26 +69,22 @@ export default function MakeupInbox({ rows = [] }) {
    */
   function cancel(r) {
     if (!confirm(`${r.name} ${dayLabel(r.date)} 결석을 없던 것으로 할까요?`)) return;
-    startTransition(async () => {
-      const res = await cancelAbsence(r.studentId, r.date);
-      if (res?.error) { alert(res.error); return; }
-      router.refresh();
-    });
+    drop(r, () => cancelAbsence(r.studentId, r.date));
   }
 
   return (
     <div className="card sect sect-warn">
       <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>
         보강 필요{" "}
-        {rows.length > 0 && <span className="tag tag-amber">{rows.length}</span>}
+        {live.length > 0 && <span className="tag tag-amber">{live.length}</span>}
       </h2>
 
-      {rows.length === 0 ? (
+      {live.length === 0 ? (
         <p className="hint" style={{ margin: 0 }}>보강 잡을 학생이 없습니다 👍</p>
       ) : (
         <div className="stack" style={{ gap: 6 }}>
-          {rows.map((r) => {
-            const key = `${r.studentId}|${r.date}`;
+          {live.map((r) => {
+            const key = keyOf(r);
             return (
               <div className="unitrow" key={key}>
                 {/* **아직 오지 않은 날은 「결석」 이 아니라 「예정」 이다.**

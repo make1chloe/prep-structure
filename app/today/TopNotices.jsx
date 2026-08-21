@@ -54,15 +54,21 @@ export default function TopNotices({
   const [sent, setSent] = useState("");
   const [editId, setEditId] = useState(null);      // 제자리 수정 중인 공지
   const [editBody, setEditBody] = useState("");
+  // 누르는 순간 줄이 빠지거나 태그가 바뀐다 — 서버 답 + 재계산을 기다리면
+  // 한 박자 늦다 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 되살리고 alert.
+  const [removed, setRemoved] = useState(() => new Set());        // 방금 지운 공지
+  const [appliedLocal, setAppliedLocal] = useState(() => new Set()); // 방금 전달사항으로 만든 일정
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   const schools = [...new Set(students.map((s) => s.school).filter(Boolean))].sort();
   const grades = [...new Set(students.map((s) => s.grade).filter(Boolean))].sort();
 
+  // 방금 지운 것은 서버 답 전에 미리 뺀다
+  const alive = notices.filter((n) => !removed.has(n.id));
   // 옛 「전달사항」(deliver) 은 수업 메모 자리에서 같이 보인다 — 겸하고 있었다
-  const mine = notices.filter((n) => (kind === "memo" ? isMemo(n.kind) : n.kind === kind));
-  const undone = notices.filter((n) => isMemo(n.kind) && n.done < n.total);
+  const mine = alive.filter((n) => (kind === "memo" ? isMemo(n.kind) : n.kind === kind));
+  const undone = alive.filter((n) => isMemo(n.kind) && n.done < n.total);
 
   // 지금 설정으로 몇 명에게 가는지 미리 보여준다
   const targetCount =
@@ -118,20 +124,32 @@ export default function TopNotices({
 
   function remove(id) {
     if (!confirm("이 내용을 지울까요? 전달 체크 기록도 함께 지워집니다.")) return;
+    setRemoved((prev) => new Set(prev).add(id));   // 먼저 뺀다 — 저장은 뒤에서
     startTransition(async () => {
       const res = await deleteNotice(id);
-      if (res?.error) alert(res.error);
+      if (res?.error) {
+        setRemoved((prev) => { const n = new Set(prev); n.delete(id); return n; });   // 실패 — 되살린다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
 
-  const pendingTasks = tasks.filter((t) => t.deliverBody && !t.applied);
+  const isApplied = (t) => t.applied || appliedLocal.has(t.id);
+  const pendingTasks = tasks.filter((t) => t.deliverBody && !isApplied(t));
 
   function applyTasks(ids) {
     if (ids.length === 0) return;
+    setAppliedLocal((prev) => new Set([...prev, ...ids]));   // 먼저 「만듦」 으로 — 저장은 뒤에서
     startTransition(async () => {
       const res = await applyTasksDelivery(ids, date);
       if (res?.error) {
+        setAppliedLocal((prev) => {
+          const n = new Set(prev);
+          ids.forEach((id) => n.delete(id));                 // 실패 — 되살린다
+          return n;
+        });
         alert(res.error);
         return;
       }
@@ -215,7 +233,7 @@ export default function TopNotices({
           {open ? "▾" : "▸"} 공지 (학생용 · 학부모용)
         </span>
         <span className="muted" style={{ fontSize: 14 }}>
-          오늘 {notices.length}건
+          오늘 {alive.length}건
           {undone.length > 0 && (
             <b style={{ color: "var(--amber)" }}> · 아직 전달 안 한 항목 {undone.length}건</b>
           )}
@@ -249,7 +267,7 @@ export default function TopNotices({
                     {t.category && <span className="tag tag-muted">{t.category}</span>}
                     <span className="spacer" />
                     {t.deliverBody &&
-                      (t.applied ? (
+                      (isApplied(t) ? (
                         <span className="tag tag-mint">전달사항 만듦</span>
                       ) : (
                         <button

@@ -56,8 +56,16 @@ export default function ConsultBoard({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 상태 변경 낙관 반영 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
+  // 서버 답 + router.refresh 를 기다리면 줄이 한 박자 늦게 움직였다.
+  // 방금 바꾼 상태만 덮어 그리고, 실패하면 되돌리고 alert.
+  const [statusLocal, setStatusLocal] = useState(() => new Map());   // id → 방금 바꾼 상태
+  const view = rows.map((r) =>
+    statusLocal.has(r.id) ? { ...r, status: statusLocal.get(r.id) } : r
+  );
+
   const kw = q.trim().toLowerCase();
-  const shown = rows.filter((r) => {
+  const shown = view.filter((r) => {
     if (filter === "open" && ["enrolled", "declined"].includes(r.status)) return false;
     if (filter !== "open" && filter !== "all" && r.status !== filter) return false;
     if (kw && ![r.name, r.school, r.grade, r.phone].filter(Boolean).some((v) => v.toLowerCase().includes(kw)))
@@ -66,8 +74,8 @@ export default function ConsultBoard({
   });
 
   const counts = {};
-  STATUS.forEach((s) => (counts[s.key] = rows.filter((r) => r.status === s.key).length));
-  const openCount = rows.filter((r) => !["enrolled", "declined"].includes(r.status)).length;
+  STATUS.forEach((s) => (counts[s.key] = view.filter((r) => r.status === s.key).length));
+  const openCount = view.filter((r) => !["enrolled", "declined"].includes(r.status)).length;
 
   const allChecked = shown.length > 0 && shown.every((r) => sel.has(r.id));
   function toggleAll() {
@@ -184,10 +192,11 @@ export default function ConsultBoard({
     router.refresh();
   }
 
-  function run(fn) {
+  function run(fn, undo) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) {
+        if (undo) undo();   // 실패 — 먼저 바꾼 화면을 되돌린다
         alert(res.error);
         return;
       }
@@ -274,11 +283,14 @@ export default function ConsultBoard({
               const v = e.target.value;
               e.target.value = "";
               if (!v) return;
-              run(async () => {
-                const r = await setInquiryStatus([...sel], v);
-                setSel(new Set());
-                return r;
-              });
+              // 누르는 순간 줄이 옮겨 그려지고 선택이 풀린다 — 저장은 뒤에서 (2026-08-21)
+              const ids = [...sel];
+              setStatusLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.set(id, v)); return n; });
+              setSel(new Set());
+              run(
+                () => setInquiryStatus(ids, v),
+                () => setStatusLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.delete(id)); return n; })
+              );
             }}
             disabled={pending}
           >

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { skipSend, dismissSendFails } from "@/app/report/actions";
@@ -21,10 +21,13 @@ import { dayLabel } from "@/lib/day";
  *   목록에서만 빠진다. 나중에 "왜 안 갔지" 할 때 답이 남아 있어야 한다.
  */
 export default function UnsentBox({ fails = [], past = [] }) {
+  // 누르는 순간 고른 줄이 빠진다 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」)
+  // — 서버 답 + router.refresh 를 기다리면 한 박자 늦다. 실패한 몫만 되살리고 alert.
+  const [gone, setGone] = useState(() => new Set());
   const rows = [
     ...fails.map((s) => ({ ...s, _t: "fail", _id: `f:${s.id}` })),
     ...past.map((r) => ({ ...r, _t: "past", _id: `p:${r.id}` })),
-  ];
+  ].filter((r) => !gone.has(r._id));
   const bulk = useBulk(rows, "_id");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -41,16 +44,26 @@ export default function UnsentBox({ fails = [], past = [] }) {
     ].filter(Boolean);
     if (!confirm(`${parts.join("\n")}\n\n수업 기록은 그대로 남습니다. 정리할까요?`)) return;
 
+    // 먼저 치운다 — 저장은 뒤에서. 마지막 것까지 치우면 박스째 사라진다
+    setGone((prev) => new Set([...prev, ...picked]));
+    bulk.clear();
     startTransition(async () => {
+      const revive = (keys) =>
+        setGone((prev) => { const n = new Set(prev); keys.forEach((k) => n.delete(k)); return n; });
       if (repIds.length) {
         const r = await skipSend(repIds, "report", true);
-        if (r?.error) { alert(r.error); return; }
+        if (r?.error) {
+          revive(repIds.map((id) => `p:${id}`));   // 실패한 몫만 되살린다
+          alert(r.error);
+        }
       }
       if (failIds.length) {
         const r = await dismissSendFails(failIds);
-        if (r?.error) { alert(r.error); return; }
+        if (r?.error) {
+          revive(failIds.map((id) => `f:${id}`));
+          alert(r.error);
+        }
       }
-      bulk.clear();
       router.refresh();
     });
   }

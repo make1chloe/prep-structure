@@ -44,10 +44,35 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 낙관 오버레이 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
+  // 체크박스는 제어 컴포넌트라 서버 답 + router.refresh 가 올 때까지
+  // 옛 값이 그대로 보였다. 누르는 순간 화면 값부터 덮고, 실패하면 되돌리고 alert.
+  const [statusLocal, setStatusLocal] = useState(() => new Map());  // id → "done"|"open"
+  const [dueLocal, setDueLocal] = useState(() => new Map());        // id → 옮긴 마감
+  const [checkLocal, setCheckLocal] = useState(() => new Map());    // "id|줄" → 체크 여부
+
   const now = today();
   const week = addDays(now, 7);
 
-  const shown = todos.filter((t) => {
+  // 서버가 준 todos 위에 방금 누른 것만 덮는다 — refresh 가 오면 그쪽이 이긴다
+  const overlaid = todos.map((t) => {
+    const patch = {};
+    if (statusLocal.has(t.id)) patch.status = statusLocal.get(t.id);
+    if (dueLocal.has(t.id)) { patch.due_on = dueLocal.get(t.id); patch.no_due = false; }
+    if (t.checklist) {
+      const lines = t.checklist.split("\n").filter(Boolean);
+      if (lines.some((l) => checkLocal.has(`${t.id}|${l}`))) {
+        patch.checklist_done = lines.filter((l) =>
+          checkLocal.has(`${t.id}|${l}`)
+            ? checkLocal.get(`${t.id}|${l}`)
+            : (t.checklist_done || []).includes(l)
+        );
+      }
+    }
+    return Object.keys(patch).length ? { ...t, ...patch } : t;
+  });
+
+  const shown = overlaid.filter((t) => {
     if (catId && t.todo_category_id !== catId) return false;
     if (filter === "open") return t.status === "open";
     if (filter === "today") return t.status === "open" && !t.no_due && t.due_on <= now;
@@ -59,29 +84,39 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   });
 
   const counts = {
-    open: todos.filter((t) => t.status === "open").length,
-    today: todos.filter((t) => t.status === "open" && !t.no_due && t.due_on <= now).length,
-    late: todos.filter((t) => t.status === "open" && !t.no_due && t.due_on < now).length,
-    nodue: todos.filter((t) => t.status === "open" && t.no_due).length,
-    done: todos.filter((t) => t.status === "done").length,
+    open: overlaid.filter((t) => t.status === "open").length,
+    today: overlaid.filter((t) => t.status === "open" && !t.no_due && t.due_on <= now).length,
+    late: overlaid.filter((t) => t.status === "open" && !t.no_due && t.due_on < now).length,
+    nodue: overlaid.filter((t) => t.status === "open" && t.no_due).length,
+    done: overlaid.filter((t) => t.status === "done").length,
   };
 
   const catById = new Map(categories.map((c) => [c.id, c]));
   const roots = categories.filter((c) => !c.parent_id);
   const childrenOf = (id) => categories.filter((c) => c.parent_id === id);
   const countOf = (id) =>
-    todos.filter((t) => t.status === "open" && t.todo_category_id === id).length;
+    overlaid.filter((t) => t.status === "open" && t.todo_category_id === id).length;
 
-  function run(fn) {
+  function run(fn, undo) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) {
+        if (undo) undo();   // 실패 — 먼저 바꾼 화면을 되돌린다
         alert(res.error);
         return;
       }
       router.refresh();
     });
   }
+  // 오버레이 넣기·빼기 — 끝냄 체크와 일괄 처리가 같은 길을 쓴다
+  const putLocal = (set) => (ids, v) =>
+    set((prev) => { const n = new Map(prev); ids.forEach((id) => n.set(id, v)); return n; });
+  const delLocal = (set) => (ids) =>
+    set((prev) => { const n = new Map(prev); ids.forEach((id) => n.delete(id)); return n; });
+  const putStatus = putLocal(setStatusLocal);
+  const delStatus = delLocal(setStatusLocal);
+  const putDue = putLocal(setDueLocal);
+  const delDue = delLocal(setDueLocal);
   function toggleOne(id) {
     const n = new Set(sel);
     n.has(id) ? n.delete(id) : n.add(id);
@@ -402,20 +437,37 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}개 선택</b>
+          {/* 누르는 순간 줄이 바뀐다 — 저장은 뒤에서 (2026-08-21) */}
           <button className="btn btn-ghost btn-sm" disabled={pending}
-            onClick={() => run(async () => { const r = await setTodoStatus([...sel], "done"); setSel(new Set()); return r; })}>
+            onClick={() => {
+              const ids = [...sel];
+              putStatus(ids, "done"); setSel(new Set());
+              run(() => setTodoStatus(ids, "done"), () => delStatus(ids));
+            }}>
             끝냄
           </button>
           <button className="btn btn-ghost btn-sm" disabled={pending}
-            onClick={() => run(async () => { const r = await setTodoStatus([...sel], "open"); setSel(new Set()); return r; })}>
+            onClick={() => {
+              const ids = [...sel];
+              putStatus(ids, "open"); setSel(new Set());
+              run(() => setTodoStatus(ids, "open"), () => delStatus(ids));
+            }}>
             다시 할 것
           </button>
           <button className="btn btn-ghost btn-sm" disabled={pending}
-            onClick={() => run(async () => { const r = await moveTodos([...sel], now); setSel(new Set()); return r; })}>
+            onClick={() => {
+              const ids = [...sel];
+              putDue(ids, now); setSel(new Set());
+              run(() => moveTodos(ids, now), () => delDue(ids));
+            }}>
             오늘로
           </button>
           <button className="btn btn-ghost btn-sm" disabled={pending}
-            onClick={() => run(async () => { const r = await moveTodos([...sel], addDays(now, 1)); setSel(new Set()); return r; })}>
+            onClick={() => {
+              const ids = [...sel];
+              putDue(ids, addDays(now, 1)); setSel(new Set());
+              run(() => moveTodos(ids, addDays(now, 1)), () => delDue(ids));
+            }}>
             내일로
           </button>
           <input className="input input-sm" type="date" style={{ width: 140 }}
@@ -452,7 +504,12 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                     type="checkbox"
                     checked={t.status === "done"}
                     title="끝냄"
-                    onChange={(e) => run(() => setTodoStatus([t.id], e.target.checked ? "done" : "open"))}
+                    onChange={(e) => {
+                      // 누르는 순간 체크부터 — 서버 답을 기다리면 체크가 한 박자 늦는다 (2026-08-21)
+                      const to = e.target.checked ? "done" : "open";
+                      putStatus([t.id], to);
+                      run(() => setTodoStatus([t.id], to), () => delStatus([t.id]));
+                    }}
                   />
                   {t.no_due ? (
                     <span className="tag tag-muted" style={{ minWidth: 66, textAlign: "center" }}>마감 없음</span>
@@ -529,7 +586,16 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                             type="checkbox"
                             checked={on}
                             disabled={pending}
-                            onChange={(e) => run(() => toggleChecklistLine(t.id, line, e.target.checked))}
+                            onChange={(e) => {
+                              // 누르는 순간 체크부터 — 저장은 뒤에서 (2026-08-21)
+                              const k = `${t.id}|${line}`;
+                              const to = e.target.checked;
+                              setCheckLocal((prev) => new Map(prev).set(k, to));
+                              run(
+                                () => toggleChecklistLine(t.id, line, to),
+                                () => setCheckLocal((prev) => { const n = new Map(prev); n.delete(k); return n; })
+                              );
+                            }}
                           />
                           <span style={{ textDecoration: on ? "line-through" : "none", opacity: on ? 0.6 : 1 }}>
                             {line}

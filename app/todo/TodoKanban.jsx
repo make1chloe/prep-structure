@@ -53,43 +53,81 @@ export default function TodoKanban({
   const [msg, setMsg] = useState("");
   const [openLater, setOpenLater] = useState(false);
   const [over, setOver] = useState("");     // 지금 끌어다 댄 칸
+  // 카드가 누르는 순간 칸을 옮긴다 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」)
+  // — 서버 답 + router.refresh 를 기다리면 카드가 한 박자 늦게 움직였다.
+  // 방금 누른 카드에만 status·started_at 을 덮고, 실패하면 되돌리고 msg 로 알린다.
+  const [local, setLocal] = useState(() => new Map());   // id → { status, started_at, done_at, due_on }
   const catById = new Map(categories.map((c) => [c.id, c]));
 
   const now = todaySeoul();
   const week = addDays(now, 7);
 
+  const view = todos.map((t) => (local.has(t.id) ? { ...t, ...local.get(t.id) } : t));
   const { doing, todo, later, doneToday, doneAll } =
-    split({ todos, catId, now, week, started });
-  const mine = todos.filter((t) => !catId || t.todo_category_id === catId);
+    split({ todos: view, catId, now, week, started });
+  const mine = view.filter((t) => !catId || t.todo_category_id === catId);
 
-  const run = (fn) => {
+  const patchLocal = (id, patch) =>
+    setLocal((prev) => {
+      const n = new Map(prev);
+      n.set(id, { ...(n.get(id) || {}), ...patch });
+      return n;
+    });
+  const revertLocal = (id, before) =>
+    setLocal((prev) => {
+      const n = new Map(prev);
+      before ? n.set(id, before) : n.delete(id);
+      return n;
+    });
+
+  const run = (fn, undo) => {
     setMsg("");
     start(async () => {
       const r = await fn();
-      if (r?.error) return setMsg(r.error);
+      if (r?.error) {
+        if (undo) undo();   // 실패 — 먼저 옮긴 카드를 되돌린다
+        return setMsg(r.error);
+      }
       router.refresh();
     });
   };
 
-  /** 어느 칸으로 옮기든 여기 한 곳을 지난다 — 끌어놓기와 단추가 같은 길을 쓴다 */
+  /** 어느 칸으로 옮기든 여기 한 곳을 지난다 — 끌어놓기와 단추가 같은 길을 쓴다.
+      먼저 카드를 옮겨 그리고(patchLocal), 저장은 뒤에서 한다. */
   const moveTo = (t, col) => {
+    const before = local.get(t.id);   // 실패하면 여기로 되돌린다
+    const undo = () => revertLocal(t.id, before);
     if (col === "todo") {
-      if (t.status === "done") return run(() => setTodoStatus([t.id], "open"));
-      if (t.started_at) return run(() => setTodoStarted([t.id], false));
+      if (t.status === "done") {
+        patchLocal(t.id, { status: "open" });
+        return run(() => setTodoStatus([t.id], "open"), undo);
+      }
+      if (t.started_at) {
+        patchLocal(t.id, { started_at: null });
+        return run(() => setTodoStarted([t.id], false), undo);
+      }
       return;
     }
     if (col === "doing") {
       if (t.status === "done") {
+        patchLocal(t.id, { status: "open", started_at: new Date().toISOString() });
         return run(async () => {
           const a = await setTodoStatus([t.id], "open");
           if (a?.error) return a;
           return setTodoStarted([t.id], true);
-        });
+        }, undo);
       }
-      if (!t.started_at) return run(() => setTodoStarted([t.id], true));
+      if (!t.started_at) {
+        patchLocal(t.id, { started_at: new Date().toISOString() });
+        return run(() => setTodoStarted([t.id], true), undo);
+      }
       return;
     }
-    if (col === "done" && t.status !== "done") return run(() => setTodoStatus([t.id], "done"));
+    if (col === "done" && t.status !== "done") {
+      // done_at 이 오늘이어야 「끝냄 (오늘)」 칸에 그려진다 (lib/kanban)
+      patchLocal(t.id, { status: "done", done_at: `${now}T12:00:00` });
+      return run(() => setTodoStatus([t.id], "done"), undo);
+    }
   };
 
   const onDrop = (e, col) => {
@@ -166,7 +204,12 @@ export default function TodoKanban({
               className="btn btn-ghost btn-sm"
               disabled={pending}
               title="마감을 내일로 미룹니다"
-              onClick={() => run(() => moveTodos([t.id], addDays(now, 1)))}
+              onClick={() => {
+                // 누르는 순간 마감 배지가 내일로 바뀌고 차례가 내려간다 — 저장은 뒤에서 (2026-08-21)
+                const before = local.get(t.id);
+                patchLocal(t.id, { due_on: addDays(now, 1), no_due: false });
+                run(() => moveTodos([t.id], addDays(now, 1)), () => revertLocal(t.id, before));
+              }}
             >
               내일로
             </button>

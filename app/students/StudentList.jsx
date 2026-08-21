@@ -175,6 +175,12 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 상태 변경·삭제 낙관 반영 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」)
+  // — 서버 답 + router.refresh 를 기다리면 줄이 한 박자 늦게 바뀌었다.
+  // 누르는 순간 화면부터 바꾸고, 실패하면 되돌리고 alert.
+  const [statusLocal, setStatusLocal] = useState(() => new Map());   // id → 방금 바꾼 상태
+  const [deletedLocal, setDeletedLocal] = useState(() => new Set()); // 방금 지운 학생
+
   function open(s, which = "info") {
     if (openId === s.id && tab === which) { setOpenId(null); return; }
     setOpenId(s.id);
@@ -188,7 +194,11 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   const cellPwStatic = <span className="muted">—</span>;
   const norm = (v) => (v || "").toString().toLowerCase();
   const kw = norm(q).trim();
-  const shown = students.filter((s) => {
+  // 서버가 준 목록 위에 방금 누른 것만 덮는다 — refresh 가 오면 그쪽이 이긴다
+  const overlaid = students
+    .filter((s) => !deletedLocal.has(s.id))
+    .map((s) => (statusLocal.has(s.id) ? { ...s, status: statusLocal.get(s.id) } : s));
+  const shown = overlaid.filter((s) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
     if (onlyMissing && !hasMissing(s, need)) return false;
     if (!kw) return true;
@@ -307,10 +317,18 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   function runDelete() {
     const ids = [...sel];
     if (ids.length === 0) return;
+    // 삭제는 확인창을 지킨다 — 되돌릴 수 없는 일이라 낙관은 확인 뒤부터다
     if (!confirm(`선택한 ${ids.length}명을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    // 누르는 순간 줄이 빠진다 — 저장은 뒤에서, 실패하면 되살린다 (2026-08-21)
+    setDeletedLocal((prev) => new Set([...prev, ...ids]));
+    setSel(new Set());
     startTransition(async () => {
-      await deleteStudents(ids);
-      setSel(new Set());
+      const res = await deleteStudents(ids);
+      if (res?.error) {
+        setDeletedLocal((prev) => { const n = new Set(prev); ids.forEach((id) => n.delete(id)); return n; });
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -326,9 +344,17 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   function runStatus(status) {
     const ids = [...sel];
     if (ids.length === 0 || !status) return;
+    // 누르는 순간 상태 태그가 바뀐다 (지금 필터에 안 맞으면 줄이 바로 빠진다)
+    // — 저장은 뒤에서, 실패하면 되돌린다 (2026-08-21)
+    setStatusLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.set(id, status)); return n; });
+    setSel(new Set());
     startTransition(async () => {
-      await updateStudentsStatus(ids, status);
-      setSel(new Set());
+      const res = await updateStudentsStatus(ids, status);
+      if (res?.error) {
+        setStatusLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.delete(id)); return n; });
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -738,7 +764,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
           {SORTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
         {STATUS_TABS.map(([k, label]) => {
-          const n = k === "all" ? students.length : students.filter((s) => s.status === k).length;
+          // 탭 머릿수도 방금 바꾼 상태를 바로 센다 (overlaid = 낙관 반영본, 2026-08-21)
+          const n = k === "all" ? overlaid.length : overlaid.filter((s) => s.status === k).length;
           if (n === 0 && k !== "enrolled" && k !== "all") return null;
           return (
             <button

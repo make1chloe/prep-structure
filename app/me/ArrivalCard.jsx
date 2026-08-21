@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { checkArrival } from "./arrivalActions";
 
@@ -25,19 +25,24 @@ const STEPS = [
 ];
 
 export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = false, asId = null }) {
+  // 누르는 순간 다음 단계로 — 서버 답을 기다리면 한 박자 늦어 애들이 또 누른다
+  // (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 되돌리고 알린다.
+  const [doneLocal, setDoneLocal] = useState(() => new Set());
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const left = STEPS.filter((s) => !done[s.kind]);
+  const left = STEPS.filter((s) => !done[s.kind] && !doneLocal.has(s.kind));
   if (left.length === 0) return null;
 
   const now = left[0];
   const rest = left.slice(1);
 
   function tap(kind) {
+    setDoneLocal((prev) => new Set(prev).add(kind));   // 먼저 넘어간다 — 저장은 뒤에서
     startTransition(async () => {
       const res = await checkArrival(kind, true, asId);
       if (res?.error) {
+        setDoneLocal((prev) => { const n = new Set(prev); n.delete(kind); return n; });   // 실패 — 되돌린다
         alert(res.error);
         return;
       }

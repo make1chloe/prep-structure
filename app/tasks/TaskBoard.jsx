@@ -33,10 +33,25 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  // 낙관 오버레이 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) — 서버 답 +
+  // router.refresh 를 기다리면 태그·체크가 한 박자 늦게 바뀌었다. 방금 누른
+  // 것만 덮어 그리고, 실패하면 되돌리고 alert.
+  const [local, setLocal] = useState(() => new Map());   // id → 덮어 그릴 값들
+  const putLocal = (ids, patch) =>
+    setLocal((prev) => {
+      const n = new Map(prev);
+      ids.forEach((id) => n.set(id, { ...(n.get(id) || {}), ...patch }));
+      return n;
+    });
+  const delLocal = (ids) =>
+    setLocal((prev) => { const n = new Map(prev); ids.forEach((id) => n.delete(id)); return n; });
+
   const now = today();
   const week = addDays(now, 7);
 
-  const shown = tasks.filter((t) => {
+  const view = tasks.map((t) => (local.has(t.id) ? { ...t, ...local.get(t.id) } : t));
+
+  const shown = view.filter((t) => {
     if (cat !== "전체" && (t.category || "기타") !== cat) return false;
     if (filter === "open") return t.status === "open";
     if (filter === "today") return t.status === "open" && t.due_on <= now;
@@ -47,10 +62,10 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
   });
 
   const counts = {
-    open: tasks.filter((t) => t.status === "open").length,
-    today: tasks.filter((t) => t.status === "open" && t.due_on <= now).length,
-    late: tasks.filter((t) => t.status === "open" && t.due_on < now).length,
-    done: tasks.filter((t) => t.status === "done").length,
+    open: view.filter((t) => t.status === "open").length,
+    today: view.filter((t) => t.status === "open" && t.due_on <= now).length,
+    late: view.filter((t) => t.status === "open" && t.due_on < now).length,
+    done: view.filter((t) => t.status === "done").length,
   };
 
   const allChecked = shown.length > 0 && shown.every((t) => sel.has(t.id));
@@ -69,10 +84,14 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
     setSel(n);
   }
 
-  function run(fn) {
+  function run(fn, undo) {
     startTransition(async () => {
       const res = await fn();
-      if (res?.error) alert(res.error);
+      if (res?.error) {
+        if (undo) undo();   // 실패 — 먼저 바꾼 화면을 되돌린다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -170,26 +189,27 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
       {sel.size > 0 && (
         <div className="bulkbar">
           <b>{sel.size}개 선택</b>
-          <button className="btn btn-ghost btn-sm" onClick={() => run(async () => {
-            const r = await setTaskStatus([...sel], "done");
-            setSel(new Set());
-            return r;
-          })} disabled={pending}>끝냄</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => run(async () => {
-            const r = await setTaskStatus([...sel], "open");
-            setSel(new Set());
-            return r;
-          })} disabled={pending}>다시 할 것</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => run(async () => {
-            const r = await moveTasks([...sel], now);
-            setSel(new Set());
-            return r;
-          })} disabled={pending}>오늘로</button>
-          <button className="btn btn-ghost btn-sm" onClick={() => run(async () => {
-            const r = await moveTasks([...sel], addDays(now, 1));
-            setSel(new Set());
-            return r;
-          })} disabled={pending}>내일로</button>
+          {/* 누르는 순간 줄이 바뀌고 선택이 풀린다 — 저장은 뒤에서 (2026-08-21) */}
+          <button className="btn btn-ghost btn-sm" onClick={() => {
+            const ids = [...sel];
+            putLocal(ids, { status: "done" }); setSel(new Set());
+            run(() => setTaskStatus(ids, "done"), () => delLocal(ids));
+          }} disabled={pending}>끝냄</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => {
+            const ids = [...sel];
+            putLocal(ids, { status: "open" }); setSel(new Set());
+            run(() => setTaskStatus(ids, "open"), () => delLocal(ids));
+          }} disabled={pending}>다시 할 것</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => {
+            const ids = [...sel];
+            putLocal(ids, { due_on: now }); setSel(new Set());
+            run(() => moveTasks(ids, now), () => delLocal(ids));
+          }} disabled={pending}>오늘로</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => {
+            const ids = [...sel];
+            putLocal(ids, { due_on: addDays(now, 1) }); setSel(new Set());
+            run(() => moveTasks(ids, addDays(now, 1)), () => delLocal(ids));
+          }} disabled={pending}>내일로</button>
           <input
             className="input input-sm"
             type="date"
@@ -234,9 +254,12 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                     type="checkbox"
                     checked={t.status === "done"}
                     title="끝냄"
-                    onChange={(e) =>
-                      run(() => setTaskStatus([t.id], e.target.checked ? "done" : "open"))
-                    }
+                    onChange={(e) => {
+                      // 누르는 순간 체크부터 — 서버 답을 기다리면 체크가 한 박자 늦는다 (2026-08-21)
+                      const to = e.target.checked ? "done" : "open";
+                      putLocal([t.id], { status: to });
+                      run(() => setTaskStatus([t.id], to), () => delLocal([t.id]));
+                    }}
                   />
                   <span className={`tag ${late ? "tag-amber" : "tag-muted"}`} style={{ minWidth: 66, textAlign: "center" }}>
                     {dayLabel(t.due_on)}
@@ -281,13 +304,14 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                             : `${a.text} 의 달력에 뜹니다. 누르면 비공개로 바뀝니다`
                         }
                         disabled={pending}
-                        onClick={() =>
-                          run(() =>
-                            hidden
-                              ? updateTask(t.id, { private: false, deliver_scope: "all" })
-                              : updateTask(t.id, { private: true, deliver_scope: "" })
-                          )
-                        }
+                        onClick={() => {
+                          // 누르는 순간 태그가 바뀐다 — 저장은 뒤에서 (2026-08-21)
+                          const patch = hidden
+                            ? { private: false, deliver_scope: "all" }
+                            : { private: true, deliver_scope: "" };
+                          putLocal([t.id], patch);
+                          run(() => updateTask(t.id, patch), () => delLocal([t.id]));
+                        }}
                       >
                         {a.text}
                       </button>
@@ -303,7 +327,11 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
                       {!t.deliveredOn && (
                         <button
                           className="btn btn-ghost btn-sm"
-                          onClick={() => run(() => applyTaskDelivery(t.id, t.due_on))}
+                          onClick={() => {
+                            // 누르는 순간 「전달사항 만듦」 으로 — 저장은 뒤에서 (2026-08-21)
+                            putLocal([t.id], { deliveredOn: t.due_on });
+                            run(() => applyTaskDelivery(t.id, t.due_on), () => delLocal([t.id]));
+                          }}
                           disabled={pending}
                         >
                           전달사항 만들기

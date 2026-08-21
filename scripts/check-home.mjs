@@ -146,7 +146,8 @@ console.log("\n== 없는 것은 안 그린다 ==");
 // 온 것 하나를 보려고 화면을 한참 내려야 한다
 eq(read("app/RequestInbox.jsx").includes("if (live.length === 0 && past.length === 0) return null"),
    true, "온 알림도 지난 것도 없으면 카드째 안 그린다");
-eq(read("app/InquiryInbox.jsx").includes("if (rows.length === 0) return null"), true,
+// live = 낙관 반영본 (2026-08-21 「버튼이 작동이 너무 늦어」 — 방금 처리한 줄을 바로 뺀다)
+eq(read("app/InquiryInbox.jsx").includes("if (live.length === 0) return null"), true,
    "신규 상담도 마찬가지");
 for (const p of ["app/UnsentBox.jsx", "app/WarningInbox.jsx"]) {
   eq(read(p).includes("return null"), true, `${p} 도 빈 카드를 안 그린다`);

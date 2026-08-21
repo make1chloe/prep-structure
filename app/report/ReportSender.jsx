@@ -32,14 +32,34 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
   // 안 보내기로 한 것은 '보낼 것' 에서 빠진다 (처리하면 목록에서 사라진다)
   const skipped = (r) => (r.skip || []).includes("report");
 
+  // 발송 취소·안 보내기 낙관 반영 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」)
+  // — 서버 답 + router.refresh 를 기다리면 줄이 한 박자 늦게 움직였다.
+  // 방금 누른 줄만 덮어 그리고, 실패하면 되돌리고 alert.
+  // (보내기는 그대로 서버를 기다린다 — 안 나갔는데 「보냄」 으로 그리면 안 된다)
+  const [local, setLocal] = useState(() => new Map());   // id → { sentAt, skip }
+  const view = rows.map((r) => (local.has(r.id) ? { ...r, ...local.get(r.id) } : r));
+  const putLocal = (entries) =>
+    setLocal((prev) => {
+      const n = new Map(prev);
+      entries.forEach(([id, patch]) => n.set(id, { ...(n.get(id) || {}), ...patch }));
+      return n;
+    });
+  const restoreLocal = (before) =>
+    setLocal((prev) => {
+      const n = new Map(prev);
+      before.forEach((b, id) => (b ? n.set(id, b) : n.delete(id)));
+      return n;
+    });
+  const snapLocal = (ids) => new Map(ids.map((id) => [id, local.get(id)]));
+
   const counts = {
-    todo: rows.filter((r) => r.written && !r.sentAt && !skipped(r)).length,
-    sent: rows.filter((r) => r.sentAt).length,
-    draft: rows.filter((r) => !r.written && !skipped(r)).length,
-    skip: rows.filter((r) => skipped(r) && !r.sentAt).length,
+    todo: view.filter((r) => r.written && !r.sentAt && !skipped(r)).length,
+    sent: view.filter((r) => r.sentAt).length,
+    draft: view.filter((r) => !r.written && !skipped(r)).length,
+    skip: view.filter((r) => skipped(r) && !r.sentAt).length,
   };
 
-  const shown = rows.filter((r) => {
+  const shown = view.filter((r) => {
     if (filter === "todo") return r.written && !r.sentAt && !skipped(r);
     if (filter === "sent") return !!r.sentAt;
     if (filter === "draft") return !r.written && !skipped(r);
@@ -131,19 +151,37 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
   }
 
   function cancelSend(ids) {
+    // 누르는 순간 「보냄」 이 걷힌다 — 저장은 뒤에서, 실패하면 되살린다 (2026-08-21)
+    const before = snapLocal(ids);
+    putLocal(ids.map((id) => [id, { sentAt: null }]));
+    setSel(new Set());
     startTransition(async () => {
       const res = await unsend(ids);
-      if (res?.error) alert(res.error);
-      setSel(new Set());
+      if (res?.error) {
+        restoreLocal(before);
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
 
   function skip(ids, on) {
+    // 누르는 순간 「안 보냄」 으로 옮겨 그린다 — 저장은 뒤에서 (2026-08-21)
+    const byId = new Map(view.map((r) => [r.id, r]));
+    const before = snapLocal(ids);
+    putLocal(ids.map((id) => {
+      const cur = (byId.get(id)?.skip || []).filter((k) => k !== "report");
+      return [id, { skip: on ? [...cur, "report"] : cur }];
+    }));
+    setSel(new Set());
     startTransition(async () => {
       const res = await skipSend(ids, "report", on);
-      if (res?.error) { alert(res.error); return; }
-      setSel(new Set());
+      if (res?.error) {
+        restoreLocal(before);
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -245,7 +283,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
           </button>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => send(rows.filter((r) => sel.has(r.id)))}
+            onClick={() => send(view.filter((r) => sel.has(r.id)))}
             disabled={pending}
           >
             선택한 학생에게 보내기
@@ -269,7 +307,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
           )}
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => remove(rows.filter((r) => sel.has(r.id)))}
+            onClick={() => remove(view.filter((r) => sel.has(r.id)))}
             disabled={pending}
             title="그날 수업 기록까지 지웁니다"
           >

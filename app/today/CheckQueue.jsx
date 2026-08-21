@@ -17,6 +17,9 @@ const SHOW = 6;
  */
 export default function CheckQueue({ date, rows = [], items = [] }) {
   const [all, setAll] = useState(false);
+  // 찍는 순간 줄이 빠진다 — 서버 답 + 재계산을 기다리면 한 박자 늦다
+  // (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 되살리고 알린다.
+  const [gone, setGone] = useState(() => new Set());
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -27,7 +30,7 @@ export default function CheckQueue({ date, rows = [], items = [] }) {
         ...w,
       }))
     )
-  );
+  ).filter((q) => !gone.has(`${q.student.id}-${q.id}`));   // 방금 찍은 줄은 바로 뺀다 (건수 배지도 같이 준다)
 
   if (queue.length === 0) return null;
 
@@ -35,9 +38,12 @@ export default function CheckQueue({ date, rows = [], items = [] }) {
   const rest = queue.length - shown.length;
 
   function mark(studentId, itemId, status) {
+    const key = `${studentId}-${itemId}`;
+    setGone((prev) => new Set(prev).add(key));   // 먼저 뺀다 — 저장은 뒤에서
     startTransition(async () => {
       const res = await markCheck(studentId, date, itemId, status);
       if (res?.error) {
+        setGone((prev) => { const n = new Set(prev); n.delete(key); return n; });   // 실패 — 되살린다
         alert(res.error);
         return;
       }

@@ -80,6 +80,23 @@ export default function TodayBoard({
       delete n[optKey(sid, extra)];
       return n;
     });
+  /**
+   * **완료 표시도 누르는 순간 바뀐다** (원장님, 2026-08-21 — 「버튼이 작동이
+   * 너무 늦어」). 「결석 기록」 과 「완료 취소」 는 서버 답 + 재계산을
+   * 기다렸다 — 출결 칠하기(paint)와 같은 규칙으로 화면 먼저, 실패하면 되돌린다.
+   * key → true(방금 기록 씀) | false(방금 완료 취소).
+   */
+  const [optWrote, setOptWrote] = useState({});
+  const wrote = (r) => {
+    const k = optKey(r.student.id, r.extraClassId);
+    return k in optWrote ? optWrote[k] : !!r.reportWritten;
+  };
+  const unWrote = (k) =>
+    setOptWrote((m) => {
+      const n = { ...m };
+      delete n[k];
+      return n;
+    });
 
   // 특강이면 그 반 출결에만 찍는다. 정규는 예전 그대로 그날 출결에 찍는다.
   //
@@ -104,15 +121,22 @@ export default function TodayBoard({
   }
   // 결석 예정 학생의 리포트를 만들어 둔다 → 발송 목록에 '결석 안내'로 뜬다
   function markAbsent(studentId, reason, extraClassId = null) {
+    paint(studentId, extraClassId, "absent");   // 먼저 그린다 (원장님 2026-08-21 「작동이 너무 늦어」)
     // 특강 결석은 그 반에만 남긴다 — 정규까지 결석 처리되면 수강료가 틀린다
     if (extraClassId) {
       startTransition(async () => {
         const res = await setClassAttendance(extraClassId, studentId, date, "absent");
-        if (res?.error) alert(res.error);
+        if (res?.error) {
+          unpaint(studentId, extraClassId);     // 실패 — 되돌린다
+          alert(res.error);
+          return;
+        }
         router.refresh();
       });
       return;
     }
+    const k = optKey(studentId, extraClassId);
+    setOptWrote((m) => ({ ...m, [k]: true }));  // 「결석 기록」 단추도 그 자리에서 사라진다
     startTransition(async () => {
       const res = await saveStudentDay(studentId, date, {
         attendance: "absent",
@@ -121,15 +145,28 @@ export default function TodayBoard({
         toCheck: [],
         nextHomework: [],
       });
-      if (res?.error) alert(res.error);
+      if (res?.error) {
+        unpaint(studentId, extraClassId);       // 실패 — 되돌린다
+        unWrote(k);
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
 
-  function reopen(studentId) {
+  function reopen(studentId, extraClassId = null) {
+    const k = optKey(studentId, extraClassId);
+    // 누르는 순간 완료가 풀린다 — 재계산을 기다리면 안 눌린 줄 알고 또 누른다
+    setDoneOpt((prev) => { const n = new Set(prev); n.delete(k); return n; });
+    setOptWrote((m) => ({ ...m, [k]: false }));
     startTransition(async () => {
       const res = await reopenReport(studentId, date);
-      if (res?.error) alert(res.error);
+      if (res?.error) {
+        unWrote(k);                             // 실패 — 서버 값(완료)으로 되돌아간다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
@@ -159,12 +196,15 @@ export default function TodayBoard({
    * 태그로 남았다가, **다른 학생을 여는 순간** 완료 묶음으로 정리된다.
    */
   const [justSaved, setJustSaved] = useState(null);
-  const isDone = (r) =>
-    doneOpt.has(`${r.student.id}|${r.extraClassId || ""}`)
-      ? true
-      : r.rowDone !== null && r.rowDone !== undefined
+  const isDone = (r) => {
+    const k = optKey(r.student.id, r.extraClassId);
+    if (doneOpt.has(k)) return true;
+    // 방금 완료 취소/결석 기록한 줄 — 서버 답 전에 먼저 반영 (2026-08-21)
+    if (k in optWrote) return optWrote[k] || !!r.plannedAbsent;
+    return r.rowDone !== null && r.rowDone !== undefined
       ? r.rowDone
       : !!r.reportWritten || r.plannedAbsent;
+  };
   const all = groups.flatMap((g) => g.rows);
   const counts = {
     todo: all.filter((r) => !isDone(r)).length,
@@ -351,7 +391,7 @@ export default function TodayBoard({
                                 클카 {r.classcard.done}/{r.classcard.total}
                               </span>
                             )}
-                            {r.plannedAbsent && !r.reportWritten && (
+                            {r.plannedAbsent && !wrote(r) && (
                               <span
                                 className="btn btn-ghost btn-sm"
                                 title="결석 안내를 보낼 수 있도록 기록을 만들어 둡니다"
@@ -406,12 +446,12 @@ export default function TodayBoard({
                                 등원
                               </span>
                             )}
-                            {r.reportWritten || isDone(r) ? (
+                            {wrote(r) || isDone(r) ? (
                               <span
                                 className="tag tag-mint"
-                                title={r.reportWritten ? "클릭하면 완료를 취소해요" : "방금 저장했어요 — 누르면 다시 열려요"}
-                                onClick={r.reportWritten ? (e) => { e.stopPropagation(); reopen(r.student.id); } : undefined}
-                                style={r.reportWritten ? { cursor: "pointer" } : undefined}
+                                title={wrote(r) ? "클릭하면 완료를 취소해요" : "방금 저장했어요 — 누르면 다시 열려요"}
+                                onClick={wrote(r) ? (e) => { e.stopPropagation(); reopen(r.student.id, r.extraClassId); } : undefined}
+                                style={wrote(r) ? { cursor: "pointer" } : undefined}
                               >
                                 완료
                               </span>
@@ -504,7 +544,7 @@ export default function TodayBoard({
                             <span className={`tag ${CLS[stOf(r)]}`}>{LABEL[stOf(r)]}</span>
                             <button
                               className="btn btn-ghost btn-sm"
-                              onClick={() => reopen(r.student.id)}
+                              onClick={() => reopen(r.student.id, r.extraClassId)}
                               disabled={pending}
                             >
                               완료 취소

@@ -47,6 +47,12 @@ export default function PlanBoard({
   const [absFrom, setAbsFrom] = useState("");
   const [absTo, setAbsTo] = useState("");
 
+  // 낙관 반영 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) — 서버 답 +
+  // router.refresh 를 기다리면 한 박자 늦다. 누르는 순간 화면부터 바꾸고,
+  // 실패하면 되돌리고 alert. 성공 alert 은 없앤다 — 화면이 이미 바뀌었다.
+  const [addedMk, setAddedMk] = useState([]);              // 방금 잡은 보강 (서버 답 전 미리 그린다)
+  const [doneMk, setDoneMk] = useState(() => new Set());   // 방금 완료 찍은 보강 "학생|날짜"
+
   // 지난 수업 목록 — null 이면 아직 안 불러온 것
 
   const kw = q.trim().toLowerCase();
@@ -69,14 +75,25 @@ export default function PlanBoard({
     setSel(n);
   }
 
-  function run(fn, okMsg) {
+  function run(fn, undo) {
     startTransition(async () => {
       const res = await fn();
-      if (res?.error) { alert(res.error); return; }
-      if (okMsg) alert(okMsg);
+      if (res?.error) {
+        if (undo) undo();   // 실패 — 먼저 바꾼 화면을 되돌린다
+        alert(res.error);
+        return;
+      }
       router.refresh();
     });
   }
+
+  // 잡힌 보강 = 서버가 준 것 + 방금 잡은 것 (refresh 가 오면 서버 것과 겹치므로 뺀다)
+  const mkShown = [
+    ...scheduledMakeups,
+    ...addedMk.filter(
+      (a) => !scheduledMakeups.some((m) => m.studentId === a.studentId && m.date === a.date)
+    ),
+  ];
 
   if (!planReady) {
     return (
@@ -150,14 +167,24 @@ export default function PlanBoard({
               <button
                 className="btn btn-primary btn-sm"
                 disabled={pending || !freeId || !freeDate}
-                onClick={() =>
+                onClick={() => {
+                  // 누르는 순간 「잡힌 보강」 에 줄이 생기고 칸이 비워진다 —
+                  // 저장은 뒤에서, 실패하면 줄을 거두고 alert (2026-08-21)
+                  const added = { studentId: freeId, date: freeDate, time: freeTime || "", of: null, written: false };
+                  setAddedMk((prev) => [...prev, added]);
+                  setFreeId(""); setFreeDate(""); setFreeTime("");
                   startTransition(async () => {
-                    const res = await setMakeup(freeId, freeDate, null, freeTime);
-                    if (res?.error) { alert(res.error); return; }
-                    setFreeId(""); setFreeDate(""); setFreeTime("");
+                    const res = await setMakeup(added.studentId, added.date, null, added.time);
+                    if (res?.error) {
+                      setAddedMk((prev) =>
+                        prev.filter((a) => !(a.studentId === added.studentId && a.date === added.date))
+                      );
+                      alert(res.error);
+                      return;
+                    }
                     router.refresh();
-                  })
-                }
+                  });
+                }}
               >
                 보강 잡기
               </button>
@@ -169,12 +196,12 @@ export default function PlanBoard({
             * 완료 = 그날 리포트 저장 (오늘 수업의 저장과 같은 한 벌 —
             * saveStudentDay). 숙제·점수까지 적을 거면 「자세히」 로.
             */}
-          {scheduledMakeups.length > 0 && (
+          {mkShown.length > 0 && (
             <div className="card card-tight">
               <b style={{ fontSize: 14.5 }}>잡힌 보강</b>
               <span className="hint" style={{ marginLeft: 6 }}>지난 7일부터 — 끝났으면 완료를 찍으세요</span>
               <div className="stack" style={{ gap: 4, marginTop: 8 }}>
-                {scheduledMakeups.map((m2) => (
+                {mkShown.map((m2) => (
                   <div className="unitrow" key={`${m2.studentId}|${m2.date}`}>
                     <b style={{ fontSize: 14, minWidth: 64 }}>{nameOf[m2.studentId] || "학생"}</b>
                     <span className="hint" style={{ minWidth: 90 }}>{dayLabel(m2.date)}</span>
@@ -185,14 +212,17 @@ export default function PlanBoard({
                       <span className="tag tag-lav">그냥 보강</span>
                     )}
                     <span className="spacer" />
-                    {m2.written ? (
+                    {m2.written || doneMk.has(`${m2.studentId}|${m2.date}`) ? (
                       <span className="tag tag-mint">완료</span>
                     ) : (
                       <button
                         className="btn btn-primary btn-sm"
                         disabled={pending}
                         title="그날 리포트가 만들어집니다 — 숙제·점수는 자세히에서"
-                        onClick={() =>
+                        onClick={() => {
+                          // 누르는 순간 「완료」 로 — 저장은 뒤에서, 실패하면 되돌린다 (2026-08-21)
+                          const key = `${m2.studentId}|${m2.date}`;
+                          setDoneMk((prev) => new Set(prev).add(key));
                           startTransition(async () => {
                             const res = await saveStudentDay(m2.studentId, m2.date, {
                               attendance: "makeup",
@@ -201,10 +231,14 @@ export default function PlanBoard({
                               toCheck: [],
                               nextHomework: [],
                             });
-                            if (res?.error) { alert(res.error); return; }
+                            if (res?.error) {
+                              setDoneMk((prev) => { const n = new Set(prev); n.delete(key); return n; });
+                              alert(res.error);
+                              return;
+                            }
                             router.refresh();
-                          })
-                        }
+                          });
+                        }}
                       >
                         ✓ 완료 찍기
                       </button>
@@ -365,10 +399,8 @@ export default function PlanBoard({
                     className="btn btn-primary btn-sm"
                     disabled={pending || sel.size === 0 || !absFrom}
                     onClick={() =>
-                      run(
-                        () => setPlannedAbsenceRange([...sel], absFrom, absTo || absFrom, reason),
-                        `${sel.size}명 결석 예정으로 남겼어요.`
-                      )
+                      // 성공 alert 은 없앴다 (2026-08-21) — 아래 「앞으로 잡혀 있는 결석」 에 바로 보인다
+                      run(() => setPlannedAbsenceRange([...sel], absFrom, absTo || absFrom, reason))
                     }
                   >
                     결석 예정으로 남기기
@@ -378,10 +410,7 @@ export default function PlanBoard({
                     disabled={pending || sel.size === 0 || !absFrom}
                     title="고른 학생의 이 기간 결석 예정을 한 번에 지웁니다"
                     onClick={() =>
-                      run(
-                        () => clearPlannedAbsenceRange([...sel], absFrom, absTo || absFrom),
-                        "취소했어요."
-                      )
+                      run(() => clearPlannedAbsenceRange([...sel], absFrom, absTo || absFrom))
                     }
                   >
                     이 기간 한꺼번에 취소
