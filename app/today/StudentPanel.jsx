@@ -14,6 +14,7 @@ import WordTest from "./WordTest";
 import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
+import { addStay } from "./stayActions";
 import { CAT_CLS } from "@/app/homework/categories";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
@@ -481,6 +482,9 @@ export default function StudentPanel({
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
   const [saving, setSaving] = useState(false);            // 저장 진짜 잠금 (2026-08-21)
+  // 「남아서」 누른 숙제 — 서버가 늦귀가 과제 행을 만들어 줄 때까지
+  // 누르는 순간 올라간 것으로 보인다 (낙관 UI, 실패하면 되돌린다)
+  const [stayedOpt, setStayedOpt] = useState(() => new Set());
   /**
    * **출결은 만졌을 때만 저장** (2026-08-21). 등원 전에 미리 숙제를 준비해
    * 두는 흐름(TodayBoard)이 있는데, 그 상태로 저장하면 오지도 않은 아이가
@@ -513,6 +517,23 @@ export default function StudentPanel({
   const weakOrMissing = Object.entries(marks)
     .filter(([, st]) => st === "weak" || st === "missing")
     .map(([iid, st]) => ({ iid, st }));
+  /**
+   * 늦귀가 과제 제안 한 줄 만들기 — 검사 줄의 「남아서」 버튼과 아래
+   * StayBox 제안이 **같은 글**을 만들어야 한다. 글이 다르면 addStay 의
+   * 겹침 걸러내기(body 로 비교)가 못 알아봐서 두 줄이 생긴다.
+   */
+  const staySugOf = (iid, st) => {
+    const u = row.checkUnits?.[iid] || {};
+    const uids = u.unitIds?.length ? u.unitIds : u.unitId ? [u.unitId] : [];
+    const where = uids.map((x) => unitNames[x]?.path).filter(Boolean).join(", ");
+    const detail = [where, u.note].filter(Boolean).join(" ");
+    const name = nameOf(iid) || "숙제";
+    return {
+      itemId: iid,
+      body: detail ? `${name} ${detail}` : name,
+      why: st === "missing" ? "미제출" : "미흡",
+    };
+  };
   // 지난 수업에 낸 숙제의 교재 단원 (무엇을 검사해야 하는지 그대로 보여준다)
   const checkUnitList = Object.entries(row.checkUnits || {}).filter(
     ([, u]) => u.unitId || u.note
@@ -1392,6 +1413,11 @@ export default function StudentPanel({
                   const uids = u.unitIds && u.unitIds.length ? u.unitIds : u.unitId ? [u.unitId] : [];
                   const st = marks[iid] || "";
                   const item = items.find((x) => x.id === iid);
+                  // 이 숙제로 만든 늦귀가 과제가 이미 있는가 —
+                  // 「남아서」 버튼(있으면 숨김)과 「늦귀가 ↓」 표가 같이 본다
+                  const inStay =
+                    stayedOpt.has(iid) ||
+                    (row.stay || []).some((t) => t.homework_item_id === iid);
                   return (
                     <div className="unitrow" key={iid}>
                       {/* 세 가지를 한 번에 — 예전엔 칩을 돌려야 해서 미제출이 3탭이었다 */}
@@ -1456,12 +1482,41 @@ export default function StudentPanel({
                               숙제 다시
                             </button>
                           )}
+                          {/* 세 번째 처분 (원장님 2026-08-21 — 「미제출 처분에
+                              수업 후 남아서 항목도 필요해」). 늦귀가 과제와
+                              같은 길(addStay)로 올라간다 — 하원 안내 사유·
+                              학생 화면 「남을 것」 이 저절로 따라온다 */}
+                          {!inStay && (
+                            <button
+                              className={`btn btn-sm ${item?.redo_default === "stay" ? "btn-primary" : "btn-ghost"}`}
+                              title="수업 끝나고 남아서 마저 하고 갑니다 — 아래 늦귀가 과제에 올라가고, 하원 안내 사유로 잡힙니다"
+                              onClick={() => {
+                                // 누르는 순간 올라간 걸로 보인다 — 실패하면 되돌리고 알린다
+                                setStayedOpt((s2) => new Set(s2).add(iid));
+                                startTransition(async () => {
+                                  const res = await addStay(
+                                    row.student.id, date, staySugOf(iid, st).body, iid, true
+                                  );
+                                  if (res?.error) {
+                                    setStayedOpt((s2) => {
+                                      const n = new Set(s2); n.delete(iid); return n;
+                                    });
+                                    alert(res.error);
+                                    return;
+                                  }
+                                  router.refresh();
+                                });
+                              }}
+                            >
+                              남아서
+                            </button>
+                          )}
                         </>
                       )}
                       {/* 이 숙제로 만든 늦귀가 과제 — 연결(homework_item_id)을
                           이제 읽는다 (값-지도 P1-15). 이미 늦귀가에 올라가
                           있으면 또 만들 필요가 없다는 것이 검사 중에 보인다 */}
-                      {(row.stay || []).some((t) => t.homework_item_id === iid) && (
+                      {inStay && (
                         <span
                           className="tag tag-lav"
                           title="이 숙제로 만든 늦귀가 과제가 아래 「늦귀가」 줄에 있습니다"
@@ -2265,18 +2320,7 @@ export default function StudentPanel({
           studentId={row.student.id}
           date={date}
           rows={row.stay || []}
-          suggestions={weakOrMissing.map(({ iid, st }) => {
-            const u = row.checkUnits?.[iid] || {};
-            const uids = u.unitIds?.length ? u.unitIds : u.unitId ? [u.unitId] : [];
-            const where = uids.map((x) => unitNames[x]?.path).filter(Boolean).join(", ");
-            const detail = [where, u.note].filter(Boolean).join(" ");
-            const name = nameOf(iid) || "숙제";
-            return {
-              itemId: iid,
-              body: detail ? `${name} ${detail}` : name,
-              why: st === "missing" ? "미제출" : "미흡",
-            };
-          })}
+          suggestions={weakOrMissing.map(({ iid, st }) => staySugOf(iid, st))}
         />
       </div>
 

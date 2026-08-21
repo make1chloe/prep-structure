@@ -281,71 +281,63 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                     <input type="checkbox" checked={sel.has(i.id)} onChange={() => toggleOne(i.id)} />
                   </td>
                   {editing ? (
-                    <>
-                      <td>
-                        <input
-                          className="input input-sm"
-                          value={draft.name}
-                          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <select
-                          className="input input-sm"
-                          value={draft.category}
-                          onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-                        >
-                          <option value="">—</option>
-                          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                    /* 편집은 한 판으로 펼친다. 예전엔 보기용 좁은 칸(92px 등)에
+                       편집 입력을 그대로 욱여넣어 「직접검사·안 해오면·단원평가·
+                       저장·취소」 가 겹치고 안쪽 스크롤이 생겼다 (원장님
+                       2026-08-21 「레이아웃 깨짐」). 단원 편집(UnitList)과 같은
+                       문법 — colSpan 한 칸 + row flexWrap + field. */
+                    <td colSpan={9} style={{ background: "var(--surface-2)", whiteSpace: "normal" }}>
+                      <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap", padding: "2px 0" }}>
+                        <div className="field">
+                          <label className="label">항목명</label>
+                          <input
+                            className="input input-sm"
+                            style={{ width: 160 }}
+                            value={draft.name}
+                            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                          />
+                        </div>
+                        <div className="field">
+                          <label className="label">분류</label>
+                          <select
+                            className="input input-sm"
+                            style={{ width: 100 }}
+                            value={draft.category}
+                            onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+                          >
+                            <option value="">—</option>
+                            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
                         {/* 준비물 — 아이 화면 숙제 이름 옆에 붙는다 (0116).
-                            고를 수도, 직접 적을 수도. 비우면 표시 안 함 */}
-                        <div style={{ marginTop: 6 }}>
-                          {/* datalist 는 아이폰에서 안 보인다 (C6) */}
+                            고를 수도, 직접 적을 수도. 비우면 표시 안 함.
+                            datalist 는 아이폰에서 안 보인다 (C6) */}
+                        <div className="field">
+                          <label className="label">준비물</label>
                           <PickOrType
-                            options={toolList(items.map((i) => i.tool))}
-                            placeholder="준비물 (비우면 표시 안 함)"
+                            options={toolList(items.map((x) => x.tool))}
+                            placeholder="비우면 표시 안 함"
                             title="아이가 무엇을 펴야 하는지 — 아이 화면 숙제 옆에 붙습니다"
                             value={draft.tool}
                             onChange={(e) => setDraft({ ...draft, tool: e.target.value })}
                           />
                         </div>
-                      </td>
-                      <td>
-                        <input
-                          className="input input-sm"
-                          style={{ width: 56 }}
-                          value={draft.sort}
-                          onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
-                        />
-                      </td>
-                      <td />
-                      <td>
-                        <textarea
-                          className="input input-sm"
-                          rows={3}
-                          style={{ minWidth: 260, whiteSpace: "pre-wrap" }}
-                          placeholder={"학생이 숙제를 눌렀을 때 볼 설명\n예) 1. 단어를 3번 쓰고 2. 뜻을 가리고 셀프테스트"}
-                          value={draft.method}
-                          onChange={(e) => setDraft({ ...draft, method: e.target.value })}
-                        />
-                        {/* 체크리스트 — 학생이 집에서 하나씩 짚고 낸다 */}
-                        <textarea
-                          className="input input-sm"
-                          rows={3}
-                          style={{ minWidth: 260, marginTop: 6, whiteSpace: "pre-wrap" }}
-                          placeholder={"체크리스트 (한 줄에 하나)\n예) 단어 3번 쓰기\n뜻 가리고 셀프테스트\n틀린 것 다시 쓰기"}
-                          title="비우면 학생 화면에 체크리스트 버튼이 안 나옵니다"
-                          value={draft.checklist}
-                          onChange={(e) => setDraft({ ...draft, checklist: e.target.value })}
-                        />
+                        <div className="field">
+                          <label className="label">순서</label>
+                          <input
+                            className="input input-sm"
+                            style={{ width: 56 }}
+                            value={draft.sort}
+                            onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
+                          />
+                        </div>
                         {/* 집에서는 못 하는 학습 — 숙제로 낼 때 대신 쓸 것
                             (구두테스트 → 셀프녹음테스트) */}
-                        <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 6 }}>
-                          <span className="hint" style={{ fontSize: 13 }}>숙제로 낼 때</span>
+                        <div className="field">
+                          <label className="label">숙제로 낼 때</label>
                           <select
                             className="input input-sm"
-                            style={{ minWidth: 170 }}
+                            style={{ minWidth: 150 }}
                             title="집에서는 못 하는 학습이면, 숙제로 낼 때 대신 나갈 것을 고르세요"
                             value={draft.home_item_id}
                             onChange={(e) => setDraft({ ...draft, home_item_id: e.target.value })}
@@ -358,28 +350,57 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                               ))}
                           </select>
                         </div>
-                      </td>
-                      <td>
-                        <input
-                          className="input input-sm"
-                          style={{ minWidth: 150 }}
-                          placeholder="{학생}-단원평가-{단원}"
-                          title="이 숙제를 배정하면 이 제목으로 내 할일이 생깁니다. 쓸 수 있는 자리: {학생} {단원} {교재} {숙제}. 비우면 안 만듭니다"
-                          value={draft.prep_task}
-                          onChange={(e) => setDraft({ ...draft, prep_task: e.target.value })}
-                        />
-                      </td>
-                      <td>
+                        <div className="field" style={{ flex: 1, minWidth: 180 }}>
+                          <label className="label">내 할일 자동 생성</label>
+                          <input
+                            className="input input-sm"
+                            placeholder="{학생}-단원평가-{단원}"
+                            title="이 숙제를 배정하면 이 제목으로 내 할일이 생깁니다. 쓸 수 있는 자리: {학생} {단원} {교재} {숙제}. 비우면 안 만듭니다"
+                            value={draft.prep_task}
+                            onChange={(e) => setDraft({ ...draft, prep_task: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      {/* 방법과 체크리스트는 **다른 물건**이다 — 원장님이 방법
+                          칸을 체크리스트로 오인하셨다 (2026-08-21). 방법은 읽는
+                          설명글, 체크리스트는 학생이 눌러 지우는 절차 */}
+                      <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                        <div className="field" style={{ flex: 1, minWidth: 260 }}>
+                          <label className="label">학습 방법 (설명글 — 학생이 읽기만)</label>
+                          <textarea
+                            className="input input-sm"
+                            rows={3}
+                            style={{ whiteSpace: "pre-wrap" }}
+                            placeholder={"학생이 숙제를 눌렀을 때 볼 설명\n예) 1. 단어를 3번 쓰고 2. 뜻을 가리고 셀프테스트"}
+                            value={draft.method}
+                            onChange={(e) => setDraft({ ...draft, method: e.target.value })}
+                          />
+                        </div>
+                        <div className="field" style={{ flex: 1, minWidth: 260 }}>
+                          <label className="label">체크리스트 (학생이 눌러 지우는 절차 — 한 줄에 하나, ✕→△→○)</label>
+                          <textarea
+                            className="input input-sm"
+                            rows={3}
+                            style={{ whiteSpace: "pre-wrap" }}
+                            placeholder={"예) 단어 3번 쓰기\n뜻 가리고 셀프테스트\n틀린 것 다시 쓰기"}
+                            title="비우면 학생 화면에 체크리스트 버튼이 안 나옵니다"
+                            value={draft.checklist}
+                            onChange={(e) => setDraft({ ...draft, checklist: e.target.value })}
+                          />
+                          <span className="hint" style={{ fontSize: 12.5 }}>
+                            절차는 여기에 — 방법 칸에 적으면 학생이 누를 수 없어요
+                          </span>
+                        </div>
+                      </div>
+                      <div className="row" style={{ gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
                         <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer" }}>
                           <input
                             type="checkbox"
                             checked={!draft.no_timer}
                             onChange={(e) => setDraft({ ...draft, no_timer: !e.target.checked })}
                           />
-                          <span style={{ fontSize: 13 }}>씀</span>
+                          <span style={{ fontSize: 13 }}>타이머 씀</span>
                         </label>
-                      </td>
-                      <td>
                         {/* 기본은 **내는 것**이다. 공책으로 보는 숙제만 켠다 */}
                         <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer" }}>
                           <input
@@ -389,26 +410,11 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                           />
                           <span style={{ fontSize: 13 }}>직접검사</span>
                         </label>
-                        {/* 안 해온 숙제의 기본 처분 (0141) — 검사에서 △·✕ 일 때
-                            어느 버튼을 눈에 띄게 할지 */}
-                        <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          안 해오면
-                          <select
-                            className="input input-sm"
-                            style={{ width: 120 }}
-                            value={draft.redo_default || ""}
-                            onChange={(e) => setDraft({ ...draft, redo_default: e.target.value })}
-                          >
-                            <option value="">매번 고름</option>
-                            <option value="inclass">오늘수업으로</option>
-                            <option value="homework">숙제 다시</option>
-                          </select>
-                        </label>
                         {/* **단원평가** (0106) — 이 표시가 붙은 항목으로
                             배정하면, 아이가 다음 시간에 와서 맞은 개수만
                             적어 낸다. 단원 이름은 배정에 붙어 있으니 아이가
                             적을 일이 없다 (원장님, 2026-08-07) */}
-                        <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer", marginTop: 4 }}>
+                        <label className="row" style={{ gap: 5, alignItems: "center", cursor: "pointer" }}>
                           <input
                             type="checkbox"
                             checked={!!draft.unit_test}
@@ -416,14 +422,29 @@ export default function HomeworkList({ items = [], missKeys = null }) {
                           />
                           <span style={{ fontSize: 13 }}>단원평가</span>
                         </label>
-                      </td>
-                      <td>
-                        <div className="row" style={{ gap: 3, flexWrap: "nowrap" }}>
-                          <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
-                        </div>
-                      </td>
-                    </>
+                        {/* 안 해온 숙제의 기본 처분 (0141) — 검사에서 △·✕ 일 때
+                            어느 버튼을 눈에 띄게 할지. 「수업 후 남아서」 는
+                            원장님 2026-08-21 「미제출 처분에 수업 후 남아서
+                            항목도 필요해」 */}
+                        <label className="hint" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          안 해오면
+                          <select
+                            className="input input-sm"
+                            style={{ width: 140 }}
+                            value={draft.redo_default || ""}
+                            onChange={(e) => setDraft({ ...draft, redo_default: e.target.value })}
+                          >
+                            <option value="">매번 고름</option>
+                            <option value="inclass">오늘수업으로</option>
+                            <option value="homework">숙제 다시</option>
+                            <option value="stay">수업 후 남아서</option>
+                          </select>
+                        </label>
+                        <span className="spacer" />
+                        <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>저장</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
+                      </div>
+                    </td>
                   ) : (
                     <>
                       <td style={{ fontWeight: 600 }}>{i.name}</td>
