@@ -136,6 +136,18 @@ export async function saveStudentDay(studentId, date, form) {
     if (error) return { error: error.message };
   }
 
+  // 1.5) 월간용 키워드 메모 (0146) — 원장만 읽는 표. 빈 값도 upsert 해
+  //      지운 것이 지워지게 한다. 표가 없으면(0146 전) 적었을 때만 알린다
+  if ("monthKeyword" in form) {
+    const kw = (form.monthKeyword || "").trim() || null;
+    const { error: kwErr } = await supabase
+      .from("report_keywords")
+      .upsert({ student_id: studentId, date, body: kw }, { onConflict: "student_id,date" });
+    if (kwErr && kw) {
+      return { error: "월간 키워드를 쓰려면 설정 → Supabase SQL 에서 0146 을 먼저 실행해주세요." };
+    }
+  }
+
   // 2) 리포트 본체
   //    지난 수업에 '배정한' 숙제가 오늘 모두 검사됐을 때만 '완료'로 본다
   //    단, 결석이면 검사할 게 없으므로 완료로 본다 (숙제는 다음 수업에 검사한다)

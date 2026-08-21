@@ -76,7 +76,7 @@ export default function MissingBox({ rows = [] }) {
   const whole = (g) => {
     setMsg("");
     // **되돌리기 어려운 일은 한 번 묻는다** — 열댓 명이 한꺼번에 사라진다
-    if (!confirm(`${g.school} ${g.grade || ""} ${g.list.length}명을 「${g.examName} 안 봄」 으로 둘까요?`)) return;
+    if (!confirm(`${g.school} ${g.grade || ""} ${g.list.length}명을 「${g.examName} 시험 없음」 으로 둘까요?`)) return;
     start(async () => {
       const r = await markNoExamMany(g.list.map((m) => m.studentId), g.examId);
       if (r?.error) return setMsg(r.error);
@@ -93,7 +93,7 @@ export default function MissingBox({ rows = [] }) {
         <span className="tag tag-amber">{left.length}건</span>
         <span className="hint" style={{ fontSize: 12.5 }}>
           이름을 누르면 <b>그 학생 · 그 시험</b>이 채워진 채로 입력칸이 열립니다.
-          안 본 시험은 <b>안 봄</b>으로 치우세요 — 0점으로 넣지 마세요.
+          안 본 시험은 <b>시험 없음</b>으로 치우세요 — 0점으로 넣지 마세요.
         </span>
       </div>
 
@@ -116,7 +116,7 @@ export default function MissingBox({ rows = [] }) {
                 disabled={busy}
                 title="이 학년은 이 시험을 안 봤습니다 — 재촉에서 뺍니다"
               >
-                이 학년 안 봄
+                이 학년 시험 없음
               </button>
             </div>
             <div className="row" style={{ gap: 6, marginTop: 4, flexWrap: "wrap" }}>
@@ -142,7 +142,7 @@ export default function MissingBox({ rows = [] }) {
                     title={`${m.name} 은(는) 이 시험을 안 봤습니다`}
                     style={{ borderLeft: 0, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: "0 7px" }}
                   >
-                    안 봄
+                    시험 없음
                   </button>
                 </span>
               ))}

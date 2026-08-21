@@ -100,7 +100,7 @@ export default function HomepageBox({ schools = [], from, to }) {
     startTransition(async () => {
       const r = await addFromSite(res.school, rows);
       if (r?.error) { setErr(r.error); return; }
-      const lines = [`시험 회차 ${r.added}개를 넣었어요.`];
+      const lines = [`시험 ${r.added}개를 넣었어요.`];
       if (r.skipped?.length) {
         lines.push("", `${r.skipped.length}개는 이미 그 날짜에 회차가 있어 넘어갔습니다 —`);
         r.skipped.slice(0, 8).forEach((x) => lines.push(`  · ${x}`));
@@ -372,7 +372,7 @@ export default function HomepageBox({ schools = [], from, to }) {
                 disabled={pending || pick.size === 0}
                 onClick={save}
               >
-                {pending ? "넣는 중…" : `고른 ${pick.size}개를 시험 회차로 넣기`}
+                {pending ? "넣는 중…" : `고른 ${pick.size}개를 시험으로 넣기`}
               </button>
               <p className="hint" style={{ marginTop: 6, fontSize: 12.5 }}>
                 여기서 넣은 회차는 <b>학사일정 받아오기로 지워지지 않습니다</b> —

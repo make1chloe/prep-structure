@@ -324,11 +324,21 @@ export async function monthlyBriefing(studentId, ym) {
   const reps = repQ.data || [];
   if (reps.length === 0) return { error: "이 달 수업 기록이 없어요." };
 
-  const { data: cmts } = await supabase
-    .from("report_comments")
-    .select("daily_report_id, body, author_role")
-    .in("daily_report_id", reps.map((r) => r.id));
-  const dateOf = new Map(reps.map((r) => [r.id, r.date]));
+  /**
+   * **키워드 메모** (0146, 원장님 2026-08-21) — 댓글은 다는 즉시 학부모에게
+   * 나가서 키워드 자리로 못 쓴다 (「수업 중에 댓글 달 이유가 없어」).
+   * 원장만 읽는 표를 종합한다. 댓글은 재료에서 뺐다.
+   */
+  let kws = [];
+  try {
+    const { data } = await supabase
+      .from("report_keywords")
+      .select("date, body")
+      .eq("student_id", studentId)
+      .gte("date", from).lte("date", to)
+      .order("date", { ascending: true });
+    kws = (data || []).filter((k) => (k.body || "").trim());
+  } catch { /* 0146 전 */ }
 
   /**
    * **그 달 학부모 전달사항도 재료다** (원장님, 2026-08-21 — 「당일
@@ -381,9 +391,9 @@ export async function monthlyBriefing(studentId, ym) {
       ].filter(Boolean);
       return `- ${r.date.slice(5)}: ${bits.join(" · ") || "기록 없음"}`;
     }),
-    (cmts || []).length ? "" : null,
-    (cmts || []).length ? "수업 중 코멘트 (키워드 메모):" : null,
-    ...(cmts || []).map((c) => `- ${String(dateOf.get(c.daily_report_id) || "").slice(5)}: ${c.body}`),
+    kws.length ? "" : null,
+    kws.length ? "수업 중 키워드 메모 (원장 기록):" : null,
+    ...kws.map((k) => `- ${String(k.date || "").slice(5)}: ${k.body}`),
     monthNotices.length ? "" : null,
     monthNotices.length ? "학부모 전달사항 (일정 공지는 뺐다):" : null,
     ...monthNotices.map((n) => `- ${String(n.date || "").slice(5)}: ${n.body}`),

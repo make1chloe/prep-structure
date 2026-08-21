@@ -593,10 +593,10 @@ export default function NeisBox({ months = [] }) {
               className="btn btn-ghost btn-sm"
               style={{ marginBottom: 1 }}
               disabled={pending}
-              title="옛 코드가 만들어 둔 시험 회차를 비우고 다시 받습니다"
+              title="옛 코드가 만들어 둔 시험 목록을 비우고 다시 받습니다"
               onClick={() => {
                 if (!confirm(
-                  "받아온 시험 회차를 모두 지우고 다시 만들까요?\n\n"
+                  "받아온 시험 목록을 모두 지우고 다시 만들까요?\n\n"
                   + "쪼개져 있거나 이름이 이상한 옛 줄이 한 번에 정리됩니다.\n\n"
                   + "다음은 그대로 남습니다 —\n"
                   + "· 성적·시험범위가 붙어 있는 회차\n"
@@ -619,7 +619,7 @@ export default function NeisBox({ months = [] }) {
                 });
               }}
             >
-              시험 회차 다시 만들기
+              시험 목록 다시 만들기
             </button>
           </div>
 

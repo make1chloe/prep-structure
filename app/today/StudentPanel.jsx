@@ -165,6 +165,7 @@ export default function StudentPanel({
     attendance: row.status || "present",
     // attitude 칸이 곧 **집중도**다 (0118 — 이름만 바뀌고 칸은 그대로)
     attitude: r.attitude || "",
+    monthKeyword: row.monthKeyword || "",
     understanding: r.understanding || "",
     word_correct: r.word_correct ?? "",
     // 전체 개수는 미리 채워둔다.
@@ -2019,6 +2020,26 @@ export default function StudentPanel({
           </div>
         </div>
       ))}
+
+      {/**
+        * **월간용 키워드 메모** (원장님, 2026-08-21 — 「키워드메모칸 필여해」).
+        * 학부모·학생에게 절대 안 나간다 (원장만 읽는 표, 0146) — 월간
+        * AI 브리핑만 이걸 종합한다. 리포트 댓글은 다는 즉시 나가서 이
+        * 자리로 못 쓴다.
+        */}
+      <div className="prow">
+        <span className="plabel">월간 키워드</span>
+        <div className="row" style={{ gap: 6, alignItems: "center", flex: 1 }}>
+          <input
+            className="input input-sm"
+            style={{ flex: 1, minWidth: 180 }}
+            placeholder="예) 관계대명사 감 잡음, 숙제 태도 좋아짐 (학부모에겐 안 보여요)"
+            value={form.monthKeyword}
+            onChange={(e) => set("monthKeyword", e.target.value)}
+          />
+          <span className="hint" style={{ fontSize: 12 }}>월간리포트 초안 재료</span>
+        </div>
+      </div>
 
       {/* 공지 — 받는 사람이 다르면 글도 달라야 한다.
           같은 일을 두 번 적지 않도록, 전달사항 한 줄로 둘 다 만든다. */}

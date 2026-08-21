@@ -193,7 +193,7 @@ export default async function SchedulePage() {
   const holidayNotes = holidayAlerts(seoulToday, to, classDates, decided);
 
   const schools = [...new Set((students || []).map((s) => s.school).filter(Boolean))].sort();
-  // 「시험 회차 없음」 경고가 학교마다 **왜** 없는지 말해주게 — 코드 유무
+  // 「시험 없음」 경고가 학교마다 **왜** 없는지 말해주게 — 코드 유무
   const { data: schoolRows } = await supabase.from("schools").select("name, schul_code");
   const neisLinked = (schoolRows || []).filter((x) => x.schul_code).map((x) => x.name);
   const grades = [...new Set((students || []).map((s) => s.grade).filter(Boolean))].sort();

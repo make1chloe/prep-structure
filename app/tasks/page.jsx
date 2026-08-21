@@ -385,7 +385,7 @@ export default async function TasksPage({ searchParams }) {
         extra: e.english_on ? `영어 ${e.english_on.slice(5)}` : "영어 시험일 미정",
         source: "시험",
         school: e.school,
-        from_where: "회차 관리 · 학교 시험",
+        from_where: "학교 · 시험",
         why: "이 학교 시험 기간입니다 — 결석이 있을 수 있습니다.",
         href: "/schools",
       })),

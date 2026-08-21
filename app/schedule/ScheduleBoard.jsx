@@ -247,7 +247,7 @@ export default function ScheduleBoard({
       )}
       <div className="unitrow examrow" style={e.hidden ? { opacity: 0.55 } : undefined}>
         <div className="exam-head">
-        {e.hidden && <span className="tag tag-muted">숨김</span>}
+        {e.hidden && <span className="tag tag-muted">시험 숨김</span>}
         {/* **「전체」 를 안 적는다** (원장님, 2026-08-07 — 「학년별로
             다른 일정이 있어서 그런거면 학년이 다를 때만 그 학년을
             표시하고 전체를 빼」). 학년이 안 적혀 있으면 그 학교 전부라는
@@ -469,12 +469,12 @@ export default function ScheduleBoard({
           }
           onClick={() => run(() => hideExam(e.id, !e.hidden))}
         >
-          {e.hidden ? "다시 쓰기" : "숨기기"}
+          {e.hidden ? "다시 쓰기" : "시험 숨기기"}
         </button>
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => {
-            if (!confirm("이 시험 일정을 지울까요?\n\n나이스에서 받아온 것이면 다시 받을 때 또 들어옵니다. 그럴 땐 「숨기기」 를 쓰세요.")) return;
+            if (!confirm("이 시험 일정을 지울까요?\n\n나이스에서 받아온 것이면 다시 받을 때 또 들어옵니다. 그럴 땐 「시험 숨기기」 를 쓰세요.")) return;
             run(() => deleteExam(e.id));
           }}
         >
@@ -1046,7 +1046,7 @@ export default function ScheduleBoard({
           */}
         {missingSchools.length > 0 && (
           <div className="notice" style={{ marginBottom: 10, fontSize: 14, lineHeight: 1.7 }}>
-            <b>시험 회차가 하나도 없는 학교가 {missingSchools.length}곳 있습니다</b> —{" "}
+            <b>시험이 하나도 없는 학교가 {missingSchools.length}곳 있습니다</b> —{" "}
             {missingSchools.map((s, i) => (
               <span key={s.name}>
                 {i > 0 && " · "}

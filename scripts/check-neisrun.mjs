@@ -413,7 +413,7 @@ console.log("\n== 옛 줄을 한 번에 비울 길이 있나 ==");
      "영어 시험일 · 선생님 · 특이사항을 살핀다");
   const box = readFileSync("app/schedule/NeisBox.jsx", "utf8");
   eq(/resetNeisExams\(\)/.test(box), true, "화면에 단추가 있다");
-  eq(/시험 회차 다시 만들기/.test(box), true, "단추 이름");
+  eq(/시험 목록 다시 만들기/.test(box), true, "단추 이름");
 }
 
 
@@ -448,7 +448,7 @@ console.log("\n== 회차가 하나도 없는 학교를 알려주나 ==");
   eq(/sameSchool\(e\.school, s\)/.test(sb), true,
      "학교 견주기는 lib/who 한 곳에서만 (해송고 ↔ 인천해송고등학교)");
   eq(/examKind\(e\) === "school"\)/.test(sb), true, "모의고사는 학교 회차로 안 센다");
-  eq(/시험 회차가 하나도 없는 학교가/.test(sb), true, "화면에 적어준다");
+  eq(/시험이 하나도 없는 학교가/.test(sb), true, "화면에 적어준다");
 }
 
 console.log("\n== 영상 엑셀 ==");

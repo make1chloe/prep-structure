@@ -611,7 +611,7 @@ export default async function TodayPage({ searchParams }) {
   const none = { data: [] };
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -688,7 +688,9 @@ export default async function TodayPage({ searchParams }) {
             .not("seconds", "is", null)
             .order("id")
         )
-      : none,
+      : none,,
+    // 월간용 키워드 메모 (0146) — 원장만 읽는 표라 없으면 조용히 빈다
+    supabase.from("report_keywords").select("student_id, body").eq("date", date)
   ]);
   const { data: receipts } = receiptsQ;
 
@@ -926,6 +928,9 @@ export default async function TodayPage({ searchParams }) {
    * marked_on(0134)이 오늘이고 ○·◐ 인 단원을 교재별로 묶는다.
    * 지금 회독 것만 — 지난 회독의 옛 날짜는 어차피 오늘이 아니다.
    */
+  // 월간용 키워드 메모 (0146)
+  const keywordOf = new Map((kwQ.error ? [] : kwQ.data || []).map((k) => [k.student_id, k.body || ""]));
+
   const todayDraftOf = new Map(); // studentId → "교재: 단원 ○ · 단원 ◐" 줄들
   {
     const touched = stProgress.filter(
@@ -1208,6 +1213,8 @@ export default async function TodayPage({ searchParams }) {
           items: rep ? itemsByReport.get(rep.id) || {} : {},
           lastProgress: lastProgress.get(s.id) || null,
           todayDraft: todayDraftOf.get(s.id) || null,
+        monthKeyword: keywordOf.get(s.id) || "",
+          monthKeyword: keywordOf.get(s.id) || "",
           lastTotals: lastTotals.get(s.id) || null,
           toCheck: toCheckOf(s.id, rep ? itemsByReport.get(rep.id) || null : null),
           assignedFrom: assignedFromOf(s.id),

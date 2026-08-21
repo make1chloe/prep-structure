@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * **학교별 시험 회차 점검** (원장님, 2026-08-09 — 「지금 중학교에서는 은송중하고
+ * **학교별 시험 점검** (원장님, 2026-08-09 — 「지금 중학교에서는 은송중하고
  * 신정중만 2학기 중간 시험 일정이 나오는데 이게 맞아? 네가 의도한 거야?」).
  *
  * 목록에 **없는 것은 안 보인다.** 「박문중 2학기 중간」 이 없을 때 까닭은
@@ -38,7 +38,7 @@ export default function CoverageBox({ from, to }) {
     return (
       <div className="row" style={{ marginTop: 8 }}>
         <button className="btn btn-ghost btn-sm" disabled={pending} onClick={load}>
-          {pending ? "세는 중…" : "학교별 시험 회차 점검"}
+          {pending ? "세는 중…" : "학교별 시험 점검"}
         </button>
         {err && <span className="err" style={{ fontSize: 13 }}>{err}</span>}
       </div>
@@ -48,7 +48,7 @@ export default function CoverageBox({ from, to }) {
   return (
     <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-        <b style={{ fontSize: 14.5 }}>학교별 시험 회차</b>
+        <b style={{ fontSize: 14.5 }}>학교별 시험</b>
         <span className="hint" style={{ fontSize: 12.5 }}>{from} ~ {to}</span>
         <span className="spacer" />
         <button className="btn btn-ghost btn-sm" disabled={pending} onClick={load}>다시 세기</button>
@@ -73,7 +73,7 @@ export default function CoverageBox({ from, to }) {
               <span className="tag tag-amber">받아온 일정 없음</span>
             )}
             {r.terms.length === 0 ? (
-              <span className="tag tag-muted">시험 회차 없음</span>
+              <span className="tag tag-muted">시험 없음</span>
             ) : (
               r.terms.map((t) => <span key={t} className="tag tag-mint">{t}</span>)
             )}

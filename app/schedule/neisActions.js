@@ -1061,7 +1061,7 @@ export async function resetNeisExams() {
     kept: keep.length,
     keptList: keep.slice(0, 12),
     note:
-      `받아온 시험 회차 ${removed}개를 지웠습니다.` +
+      `받아온 시험 ${removed}개를 지웠습니다.` +
       (keep.length ? ` ${keep.length}개는 적어두신 것이 있어 남겼습니다.` : "") +
       " 이어서 「학사일정 받아오기」 를 눌러주세요.",
   };
