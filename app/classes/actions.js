@@ -42,8 +42,10 @@ export async function addClass(formData) {
   }
   revalidatePath("/classes");
   revalidatePath("/today");
-  // 만든 반을 바로 열어 학생을 배정할 수 있게 한다
-  if (!error && data?.id) redirect(`/classes?c=${data.id}`);
+  if (error) return { error: error.message };
+  // 만든 반은 화면이 바로 연다 (클라이언트 push) — 서버 redirect 는
+  // 오류 반환과 같이 못 쓴다 (전수 검사 2026-08-21)
+  return { error: null, id: data?.id || null };
 }
 
 export async function updateClass(id, patch) {

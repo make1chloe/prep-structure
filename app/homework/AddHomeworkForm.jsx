@@ -22,7 +22,11 @@ export default function AddHomeworkForm() {
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>학습 항목 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
-      <form action={addHomeworkItem} className="stack" style={{ gap: 8, marginTop: 10 }}>
+      <form
+        action={async (fd) => {
+          const res = await addHomeworkItem(fd);
+          if (res?.error) alert(res.error);
+        }} className="stack" style={{ gap: 8, marginTop: 10 }}>
         <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
           <div className="field" style={{ flex: 1, minWidth: 180 }}>
             <label className="label">항목명 *</label>

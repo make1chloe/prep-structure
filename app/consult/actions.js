@@ -57,7 +57,7 @@ export async function addInquiry(formData) {
   const supabase = createClient();
   const user = await sessionUser(supabase);
 
-  await supabase.from("inquiries").insert({
+  const { error } = await supabase.from("inquiries").insert({
     name,
     phone: clean(formData, "phone"),
     student_phone: clean(formData, "student_phone"),
@@ -72,6 +72,7 @@ export async function addInquiry(formData) {
     created_by: user?.id || null,
   });
   revalidatePath("/consult");
+  return { error: error?.message || null };
 }
 
 export async function updateInquiry(id, patch) {

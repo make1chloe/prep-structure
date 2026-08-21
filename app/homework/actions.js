@@ -42,11 +42,12 @@ export async function addHomeworkItem(formData) {
     ({ error } = await supabase.from("homework_items").insert(noPrep));
     if (noColumn(error)) {
       const { method: _m, ...rest } = noPrep;
-      await supabase.from("homework_items").insert(rest);
+      ({ error } = await supabase.from("homework_items").insert(rest));
     }
   }
   revalidatePath("/homework");
   revalidatePath("/today");
+  return { error: error?.message || null };
 }
 
 /**

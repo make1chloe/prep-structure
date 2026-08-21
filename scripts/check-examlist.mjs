@@ -142,10 +142,11 @@ eq(EXAM_SORT_DEFAULT.key, "term", "기본이 묶음 차례다");
 const sb = readFileSync("app/schedule/ScheduleBoard.jsx", "utf8");
 eq(/eSort\.key === "term" && groupExams\(/.test(sb), true, "묶음 차례일 때만 머리를 붙인다");
 // **줄은 한 벌이어야 한다** — 묶어 볼 때와 죽 볼 때가 다르면 언젠가 어긋난다
-eq((sb.match(/<ExamRow key=\{e\.id\} e=\{e\}/g) || []).length, 2,
+// 호출식으로 바뀜 (2026-08-21 커서 병 전수 수리) — 뜻은 그대로: 두 곳이 같은 줄 함수를 쓴다
+eq((sb.match(/\{ExamRow\(\{ e/g) || []).length, 2,
    "묶어 볼 때와 죽 볼 때가 같은 줄을 쓴다");
 // 머리에 「26년 2학기 중간」 이라 적어놓고 줄마다 또 붙이면 같은 말이 세 번 나온다
-eq(/<ExamRow key=\{e\.id\} e=\{e\} inGroup \/>/.test(sb), true, "묶음 안에서는 학기 표를 또 안 붙인다");
+eq(/\{ExamRow\(\{ e, inGroup: true \}\)\}/.test(sb), true, "묶음 안에서는 학기 표를 또 안 붙인다");
 // 「일정만」 태그는 뗐다 (2026-08-09)
 eq(/tag-lav">일정만</.test(sb), false, "「일정만」 태그가 남아 있지 않다");
 

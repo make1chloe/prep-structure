@@ -321,7 +321,7 @@ console.log("\n== 이 시험을 누가 보는지 적어주나 ==");
   eq(/function WhoTakes\(\{ e \}\)/.test(sb), true, "누가 보는지 적는 자리가 있다");
   eq(/roster\.filter\(\(s\) => takesExam\(s, e\)\)/.test(sb), true,
      "누가 보는지는 lib/who 의 takesExam 한 곳에서만 정한다");
-  eq(/<WhoTakes e=\{e\} \/>/.test(sb), true, "줄에 붙어 있다");
+  eq(/\{WhoTakes\(\{ e \}\)\}/.test(sb), true, "줄에 붙어 있다");
   eq(/보는 학생 없음/.test(sb), true, "아무도 없으면 없다고 적는다 (빈칸으로 두지 않는다)");
   // **이름을 자르지 않는다** (원장님 — 「외 1명 안 돼, 이름 다 보여야 해」)
   eq(/외 \$\{/.test(sb), false, "「외 N명」 으로 자르지 않는다");

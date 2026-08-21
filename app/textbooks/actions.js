@@ -269,9 +269,10 @@ export async function addUnit(formData) {
     .insert({ ...row, question_no });
   if (noColumn(error)) {
     // 0051 전 — 문제번호 칸이 아직 없다
-    await supabase.from("textbook_units").insert(row);
+    ({ error } = await supabase.from("textbook_units").insert(row));
   }
   revalidatePath("/textbooks");
+  return { error: error?.message || null };
 }
 
 // ---------- 교재: 수정 / 삭제 ----------

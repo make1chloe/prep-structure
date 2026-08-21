@@ -178,6 +178,10 @@ export default function ScheduleBoard({
    */
   const WHO_FOLD = 6;      // 이보다 많으면 접어둔다
 
+  /* 아래 다섯(WhoTakes·ExamRow·AlertRow·AbsPicker·MonthCard)은 컴포넌트 안
+     정의라 <태그/> 로 쓰면 부모가 다시 그릴 때마다 새 타입 = 전부 리마운트
+     — 영어 시험일·등급컷·선생님 입력이 글자마다 커서를 잃었다 (하원 문구와
+     같은 병, 전수 검사로 발견 2026-08-21). 훅이 없으므로 호출식으로 쓴다. */
   function WhoTakes({ e }) {
     const who = takers.get(e.id) || [];
     const open = whoOpen[e.id];
@@ -326,7 +330,7 @@ export default function ScheduleBoard({
             하루짜리?
           </span>
         )}
-        <WhoTakes e={e} />
+        {WhoTakes({ e })}
         </div>
         <div className="exam-act">
         {e.english_on ? (
@@ -815,10 +819,9 @@ export default function ScheduleBoard({
                 <div className="stack" style={{ gap: 4, marginTop: 6 }}>
                   {r.m.alerts.map((a, i) => (
                     <Fragment key={i}>
-                      <AlertRow klass={r.klass} m={r.m} a={a} i={i} />
-                      {a.kind === "exam" && (
-                        <AbsPicker klass={r.klass} m={r.m} pairs={a.pairs || []} />
-                      )}
+                      {AlertRow({ klass: r.klass, m: r.m, a, i })}
+                      {a.kind === "exam" &&
+                        AbsPicker({ klass: r.klass, m: r.m, pairs: a.pairs || [] })}
                     </Fragment>
                   ))}
                 </div>
@@ -1272,10 +1275,10 @@ export default function ScheduleBoard({
                   <b style={{ fontSize: 18.5, letterSpacing: "-0.02em" }}>{g.label}</b>
                   <span className="tag tag-sky">{g.rows.length}건</span>
                 </div>
-                {g.rows.map((e) => <ExamRow key={e.id} e={e} inGroup />)}
+                {g.rows.map((e) => <Fragment key={e.id}>{ExamRow({ e, inGroup: true })}</Fragment>)}
               </div>
             ))}
-            {eSort.key !== "term" && shownExams.map((e) => <ExamRow key={e.id} e={e} />)}
+            {eSort.key !== "term" && shownExams.map((e) => <Fragment key={e.id}>{ExamRow({ e })}</Fragment>)}
           </div>
         )}
         {exams.length === 0 && (
@@ -1309,7 +1312,7 @@ export default function ScheduleBoard({
           <>
             {/* **한 달씩 넘겨 본다** (원장님, 2026-08-09). 넘기는 머리는
                 MonthCard 안에 있다 — 달 이름을 두 번 적지 않으려고 */}
-            <MonthCard key={shownYM} ym={shownYM} past={shownYM < nowYM} />
+            {MonthCard({ ym: shownYM, past: shownYM < nowYM })}
           </>
         )}
       </div>

@@ -21,7 +21,11 @@ export default function AddStudentForm({ schools = [] }) {
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>학생 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
-      <form action={addStudent} className="stack" style={{ gap: 8, marginTop: 10 }}>
+      <form
+        action={async (fd) => {
+          const res = await addStudent(fd);
+          if (res?.error) alert(res.error);
+        }} className="stack" style={{ gap: 8, marginTop: 10 }}>
         <div className="editgrid">
           <div className="field">
             <label className="label">이름 *</label>

@@ -26,7 +26,13 @@ export default function AddClassForm() {
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>반 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
       </div>
-      <form action={addClass} className="stack" style={{ gap: 8, marginTop: 10 }}>
+      <form
+        /* 서버 답을 보여준다 (전수 검사 2026-08-21) — 직결이면 실패가 조용히 사라졌다 */
+        action={async (fd) => {
+          const res = await addClass(fd);
+          if (res?.error) { alert(res.error); return; }
+          if (res?.id) window.location.href = `/classes?c=${res.id}`;
+        }} className="stack" style={{ gap: 8, marginTop: 10 }}>
         <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
           <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <label className="label">반 이름 *</label>

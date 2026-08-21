@@ -50,6 +50,7 @@ export async function addStudent(formData) {
 
   let candidate = base || null;
   let newId = null;
+  let lastErr = null;   // 실패를 조용히 삼키지 않는다 (전수 검사 2026-08-21)
   for (let attempt = 0; attempt < 25; attempt++) {
     let { data, error } = await supabase
       .from("students")
@@ -73,7 +74,11 @@ export async function addStudent(formData) {
       candidate = `${base}-${attempt + 2}`;
       continue;
     }
+    lastErr = error;
     break;
+  }
+  if (!newId) {
+    return { error: `학생을 저장하지 못했어요: ${lastErr?.message || "알 수 없는 오류"}` };
   }
 
   // 등록하면 로그인 계정도 같이 만든다 (비번 0000).

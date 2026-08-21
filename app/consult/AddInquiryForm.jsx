@@ -27,7 +27,11 @@ export default function AddInquiryForm({ schools = [] }) {
       <p className="muted" style={{ margin: "8px 0 10px", fontSize: 14.5 }}>
         전화 받으면서 <b>이름과 번호만</b> 먼저 넣어도 됩니다. 나머지는 나중에 채우세요.
       </p>
-      <form action={addInquiry} className="stack" style={{ gap: 8 }}>
+      <form
+        action={async (fd) => {
+          const res = await addInquiry(fd);
+          if (res?.error) alert(res.error);
+        }} className="stack" style={{ gap: 8 }}>
         <div className="editgrid">
           <div className="field">
             <label className="label">이름 *</label>
