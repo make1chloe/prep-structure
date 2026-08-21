@@ -513,7 +513,12 @@ async function flowSim(supabase) {
         : tracks.flatMap((t) => (stepOf(t)?.inclass || []));
       base.forEach((x) => { if (!list.includes(x)) list.push(x); });
       const dupCheck = new Set(list);
-      if (dupCheck.size !== list.length) findings.씨앗중복.push(`${s.name} ${sess}회`);
+      if (dupCheck.size !== list.length) {
+        // 어느 항목이 겹치는지 이름으로 (원장님 2026-08-21 「뭐가 중복이라는거지」)
+        const seen = new Set();
+        const dups = [...new Set(list.filter((x) => (seen.has(x) ? true : (seen.add(x), false))))];
+        findings.씨앗중복.push(`${s.name} ${sess}회: ${dups.join(" · ")}`);
+      }
       if (plan && sess > 1) notified += 0;           // 계획 그대로면 알림 없음 (변경 모델 생략)
 
       // ③ 소화 — CAP 개까지, 나머지는 이월
