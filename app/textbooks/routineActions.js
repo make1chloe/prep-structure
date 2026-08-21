@@ -20,7 +20,7 @@ export async function listRoutine(textbookId, area = null) {
     const { data, error } = await supabase
       .from("routine_steps")
       .select("id, sort, label, inclass_items, home_items, home_next, note, round")
-      .eq("area", area)
+      .eq("area", area).is("textbook_id", null)
       .order("sort", { ascending: true });
     if (needSql(error) || error?.code === "42703")
       return { steps: [], ready: false, error: "영역 루틴은 0137 SQL 을 먼저 실행해주세요." };
@@ -61,7 +61,7 @@ export async function listRoutine(textbookId, area = null) {
       const aq = await supabase
         .from("routine_steps")
         .select("id, sort, label, inclass_items, home_items, home_next, note, round, area")
-        .eq("area", bk.area)
+        .eq("area", bk.area).is("textbook_id", null)
         .order("sort", { ascending: true });
       if (!aq.error && (aq.data || []).length > 0) {
         return { steps: aq.data, ready: true, inherited: bk.area, error: null };
@@ -143,7 +143,7 @@ export async function deleteStep(id) {
     // 영역 루틴 단계(0137)는 형제를 영역으로 찾는다 — 교재 칸이 비어 있다
     const sibling = gone.textbook_id
       ? supabase.from("routine_steps").select("id, sort").eq("textbook_id", gone.textbook_id)
-      : supabase.from("routine_steps").select("id, sort").eq("area", gone.area);
+      : supabase.from("routine_steps").select("id, sort").eq("area", gone.area).is("textbook_id", null);
     const { data: list } = await sibling.order("sort", { ascending: true });
     const rest = (list || []).filter((x) => x.id !== id);
     const next =
@@ -208,7 +208,7 @@ export async function seedRoutine(textbookId, area = null) {
 
   const { data: had } = textbookId
     ? await supabase.from("routine_steps").select("id").eq("textbook_id", textbookId).limit(1)
-    : await supabase.from("routine_steps").select("id").eq("area", area).limit(1);
+    : await supabase.from("routine_steps").select("id").eq("area", area).is("textbook_id", null).limit(1);
   if ((had || []).length > 0) {
     return { error: "이미 루틴이 있어요. 지우고 다시 넣으시거나, 있는 것을 고쳐주세요." };
   }
@@ -395,7 +395,7 @@ export async function bulkAddRoutines(rows = [], force = false) {
 
     // 이미 루틴이 있으면 건너뛴다 (위 주석의 까닭 — 대전제 2)
     const { data: has } = isArea
-      ? await supabase.from("routine_steps").select("id").eq("area", areaName).limit(1)
+      ? await supabase.from("routine_steps").select("id").eq("area", areaName).is("textbook_id", null).limit(1)
       : await supabase.from("routine_steps").select("id").eq("textbook_id", bid).limit(1);
     if ((has || []).length > 0) {
       if (!force) {
@@ -404,7 +404,7 @@ export async function bulkAddRoutines(rows = [], force = false) {
       }
       // force — 원장님이 명시한 덮어쓰기만. 기존 단계를 지우고 학생 기억을 비운다
       const { data: goneIds, error: delErr } = isArea
-        ? await supabase.from("routine_steps").delete().eq("area", areaName).select("id")
+        ? await supabase.from("routine_steps").delete().eq("area", areaName).is("textbook_id", null).select("id")
         : await supabase.from("routine_steps").delete().eq("textbook_id", bid).select("id");
       if (delErr) return { error: `「${targetLabel}」 기존 루틴 지우기 실패: ${delErr.message}` };
       if ((goneIds || []).length) {

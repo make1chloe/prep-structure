@@ -75,6 +75,7 @@ export async function nextRoutine(studentId, opts = {}) {
       .from("routine_steps")
       .select("id, area, sort, label, inclass_items, home_items, home_next, round, item_notes")
       .not("area", "is", null)
+      .is("textbook_id", null)   // 영역 루틴 = 교재 없는 줄만 (2026-08-21 섞임 수리)
       .order("sort", { ascending: true });
     if (!aq.error) {
       (aq.data || []).forEach((s) => {
