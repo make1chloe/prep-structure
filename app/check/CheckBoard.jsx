@@ -471,7 +471,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                         disabled={pending || !r.hasReport}
                         title={
                           r.hasReport
-                            ? "교재 루틴의 다음 차례를 오늘 숙제로 냅니다"
+                            ? "교재 진도루틴의 다음 차례를 오늘 숙제로 냅니다"
                             : "먼저 오늘 수업에서 출결을 찍어주세요"
                         }
                         onClick={() =>

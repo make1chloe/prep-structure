@@ -45,19 +45,19 @@ export default function RoutineUpload() {
     const ws = XLSX.utils.aoa_to_sheet([RT_HEADERS, ...examples]);
     ws["!cols"] = [{ wch: 24 }, { wch: 6 }, { wch: 22 }, { wch: 40 }, { wch: 40 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "루틴");
-    XLSX.writeFile(wb, "클로이영어_루틴_양식.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "진도루틴");
+    XLSX.writeFile(wb, "클로이영어_진도루틴_양식.xlsx");
   }
 
   async function downloadCurrent() {
     const res = await exportRoutines();
     if (res?.error) { alert(res.error); return; }
-    if (!res.rows?.length) { alert("아직 루틴이 없어요."); return; }
+    if (!res.rows?.length) { alert("아직 진도루틴이 없어요."); return; }
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([RT_HEADERS, ...res.rows]);
     ws["!cols"] = [{ wch: 24 }, { wch: 6 }, { wch: 22 }, { wch: 40 }, { wch: 40 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "루틴");
+    XLSX.utils.book_append_sheet(wb, ws, "진도루틴");
     XLSX.writeFile(wb, `클로이영어_루틴_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
@@ -72,7 +72,7 @@ export default function RoutineUpload() {
   function save() {
     if (!parsed || parsed.rows.length === 0) return;
     // 덮어쓰기는 돌이킬 수 없다 — 누르기 전에 한 번 더 묻는다
-    if (force && !confirm("이미 루틴이 있는 교재·영역도 덮어씁니다.\n화면에서 고친 것까지 전부 덮어요. 계속할까요?")) return;
+    if (force && !confirm("이미 진도루틴이 있는 교재·영역도 덮어씁니다.\n화면에서 고친 것까지 전부 덮어요. 계속할까요?")) return;
     startTransition(async () => {
       const res = await bulkAddRoutines(parsed.rows, force);
       setResult(res);
@@ -83,7 +83,7 @@ export default function RoutineUpload() {
   if (!open) {
     return (
       <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>
-        ＋ 루틴 엑셀로 추가
+        ＋ 진도루틴 엑셀로 추가
       </button>
     );
   }
@@ -91,7 +91,7 @@ export default function RoutineUpload() {
   return (
     <div className="card card-tight" style={{ marginTop: 10, width: "100%" }}>
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>루틴 엑셀로 추가</h2>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>진도루틴 엑셀로 추가</h2>
         <button className="btn btn-ghost btn-sm" onClick={() => { reset(); setOpen(false); }}>닫기</button>
       </div>
       <p className="hint" style={{ margin: "8px 0 10px", lineHeight: 1.7 }}>
@@ -99,12 +99,12 @@ export default function RoutineUpload() {
         (학습항목에 없는 이름은 <b>새로 만들어서</b> 잇고, 무엇을 만들었는지 알려드립니다).
         회독 칸에 숫자를 넣으면 <b>그 회독부터</b> 그 줄이 적용됩니다 (비우면 모든 회독).
         같은 교재는 교재명을 첫 줄에만 적으면 됩니다.
-        <b> 이미 루틴이 있는 교재는 건너뜁니다</b> — 화면에서 고친 루틴을 덮으면 안 되니까요.
+        <b> 이미 진도루틴이 있는 교재는 건너뜁니다</b> — 화면에서 고친 루틴을 덮으면 안 되니까요.
         덮어쓰려면 아래 「덮어쓰기」 를 직접 켜세요.
       </p>
       <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <button className="btn btn-ghost btn-sm" onClick={downloadTemplate}>빈 양식 받기</button>
-        <button className="btn btn-ghost btn-sm" onClick={downloadCurrent}>지금 루틴 내려받기</button>
+        <button className="btn btn-ghost btn-sm" onClick={downloadCurrent}>지금 진도루틴 내려받기</button>
         <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="input input-sm" style={{ width: 230 }} />
       </div>
       {parsed && (
@@ -132,10 +132,10 @@ export default function RoutineUpload() {
         <div className="hint" style={{ marginTop: 8, lineHeight: 1.7 }}>
           교재 {result.bookCount}권에 {result.addedSteps}단계 들어갔어요.
           {result.replaced?.length > 0 && (
-            <><br />덮어씀 (기존 루틴 삭제 후 새로 심음): {result.replaced.join(" · ")}</>
+            <><br />덮어씀 (기존 진도루틴 삭제 후 새로 심음): {result.replaced.join(" · ")}</>
           )}
           {result.skippedHasRoutine?.length > 0 && (
-            <><br />이미 루틴이 있어 건너뜀: {result.skippedHasRoutine.join(" · ")}</>
+            <><br />이미 진도루틴이 있어 건너뜀: {result.skippedHasRoutine.join(" · ")}</>
           )}
           {result.missingBooks?.length > 0 && (
             <><br />교재를 못 찾음: {result.missingBooks.join(" · ")} (교재 이름 그대로인지 확인)</>

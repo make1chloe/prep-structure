@@ -86,7 +86,7 @@ function Picker({ label, value, onChange, items = [] }) {
   );
 }
 
-// 교재(textbookId) 또는 영역(area) 하나를 받는다 — 영역 루틴(0137)도
+// 교재(textbookId) 또는 영역(area) 하나를 받는다 — 영역 진도루틴(0137)도
 // 같은 편집기로 고친다 (원칙 1: 같은 판을 두 벌로 그리지 않는다, 2026-08-21)
 export default function RoutineEditor({ textbookId = null, area = null, items = [], initialSteps = null, initialReady = true }) {
   // 처음 데이터는 페이지가 실어 보낸다 (원칙 6 — 탭을 누르고 나서 서버에
@@ -96,7 +96,7 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
   const [editing, setEditing] = useState(null);
   const [pending, startTransition] = useTransition();
 
-  const [inherited, setInherited] = useState(null);   // 영역 루틴을 따르는 중 (0137)
+  const [inherited, setInherited] = useState(null);   // 영역 진도루틴을 따르는 중 (0137)
   async function load() {
     const res = await listRoutine(textbookId, area);
     setSteps(res.steps);
@@ -208,7 +208,7 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
           자리에 단추 둘을 나란히 놓으면 그것부터가 고르는 일이 된다 */}
       {steps.length === 0 ? (
         <div className="emptybox">
-          <p style={{ margin: "0 0 3px", fontSize: 14.5, fontWeight: 700 }}>아직 루틴이 없어요</p>
+          <p style={{ margin: "0 0 3px", fontSize: 14.5, fontWeight: 700 }}>아직 진도루틴이 없어요</p>
           <p className="hint" style={{ margin: "0 0 12px", lineHeight: 1.6 }}>
             한 줄이 한 수업 회차입니다. 진도를 따라 순서대로 돌아가요.
             <br />
@@ -236,8 +236,8 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
             </span>
             <button className="btn btn-sm" onClick={addStep}>＋ 단계 추가</button>
             {inherited && (
-              <span className="tag tag-sky" title="이 교재만의 루틴이 없어서 영역 공통 루틴을 따르는 중이에요. 단계를 추가하면 이 교재만의 루틴이 우선이 됩니다. 영역 루틴 자체는 맨 위 「영역 루틴」 단추에서 고칠 수 있어요">
-                영역 루틴({inherited}) 따르는 중
+              <span className="tag tag-sky" title="이 교재만의 진도루틴이 없어서 영역 공통 진도루틴을 따르는 중이에요. 단계를 추가하면 이 교재만의 진도루틴이 우선이 됩니다. 영역 진도루틴 자체는 맨 위 「영역 진도루틴」 단추에서 고칠 수 있어요">
+                영역 진도루틴({inherited}) 따르는 중
               </span>
             )}
           </div>

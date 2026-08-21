@@ -213,7 +213,7 @@ export default async function TextbooksPage({ searchParams }) {
             <TextbookUpload />
             <UnitUpload />
             <RoutineUpload />
-            {/* 영역 공통 루틴(0137) 편집 자리 — 교재를 고르지 않아도 고칠 수 있어야 한다 (2026-08-21) */}
+            {/* 영역 공통 진도루틴(0137) 편집 자리 — 교재를 고르지 않아도 고칠 수 있어야 한다 (2026-08-21) */}
             <AreaRoutines items={hwItems || []} />
           </div>
         </div>

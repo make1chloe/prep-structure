@@ -1627,7 +1627,7 @@ export default function StudentPanel({
             <button
               className="btn btn-sm"
               disabled={pending}
-              title="교재에 정해둔 루틴에서 이 학생 차례를 그대로 채웁니다"
+              title="교재에 정해둔 진도루틴에서 이 학생 차례를 그대로 채웁니다"
               onClick={() =>
                 startTransition(async () => {
                   const res = await nextRoutine(row.student.id);
@@ -1636,7 +1636,7 @@ export default function StudentPanel({
                     return;
                   }
                   if (res.steps.length === 0) {
-                    alert("이 학생 교재에는 아직 루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
+                    alert("이 학생 교재에는 아직 진도루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
                     return;
                   }
                   // 교재가 하나면 바로, 여럿이면 먼저 고른다 (2026-08-20 「3」)
@@ -1648,7 +1648,7 @@ export default function StudentPanel({
                 })
               }
             >
-              ⟳ 루틴 다음
+              ⟳ 진도루틴 다음
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
               {openInClass ? "접기" : "고르기"}
@@ -1711,7 +1711,7 @@ export default function StudentPanel({
           )}
           {routine && (
             <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
-              루틴에서 가져왔습니다 —{" "}
+              진도루틴에서 가져왔습니다 —{" "}
               {routine.steps
                 .map(
                   (s) =>
@@ -2272,13 +2272,13 @@ export default function StudentPanel({
             <button
               className="btn btn-sm"
               disabled={pending}
-              title="루틴의 다음 차례(오늘 저장으로 한 단계 넘어간 것)를 미리 담습니다"
+              title="진도루틴의 다음 차례(오늘 저장으로 한 단계 넘어간 것)를 미리 담습니다"
               onClick={() =>
                 startTransition(async () => {
                   const res = await nextRoutine(row.student.id, { peek: true });
                   if (res?.error) { alert(res.error); return; }
                   const inc = (res.steps || []).flatMap((st) => st.inclassItems || []);
-                  if (inc.length === 0) { alert("루틴에서 담을 것이 없어요."); return; }
+                  if (inc.length === 0) { alert("진도루틴에서 담을 것이 없어요."); return; }
                   setPlanNext([...new Set([...planNext, ...inc])]);
                 })
               }

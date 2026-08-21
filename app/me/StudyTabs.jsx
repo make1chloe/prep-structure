@@ -42,18 +42,13 @@ export default function StudyTabs({
   const stayNotice =
     stayLeft > 0 ? `남아서 채우고 갈 것이 ${stayLeft}개 있어요. 그것부터 끝내고 가야 해요.` : "";
 
-  if (inClass.length === 0 && home.length === 0) {
-    return (
-      <div className="stack" style={{ gap: 10 }}>
-        <div className="card">
-          <h2 style={{ margin: "0 0 6px", fontSize: 17.5, fontWeight: 800 }}>등원학습</h2>
-          <p className="hint" style={{ margin: 0 }}>오늘은 올라온 것이 없어요.</p>
-        </div>
-        {/* 할 것이 안 올라온 날에도 쉬러는 간다 — 여기서도 눌릴 수 있어야 한다 */}
-        {!readOnly && <BreakCard />}
-      </div>
-    );
-  }
+  /**
+   * 둘 다 비었을 때도 **조기 return 을 하지 않는다.**
+   * 트리를 갈라놓으면 마지막 항목을 끝내 목록이 비는 순간 React 가 이 아래를
+   * 통째로 새로 붙인다 — 탭·펼침·쉬는 시간 카드가 소리 없이 초기화된다.
+   * 같은 트리 안에서 분기해야 BreakCard 가 제자리에 그대로 남는다.
+   */
+  const nothing = inClass.length === 0 && home.length === 0;
 
   // 원장님이 주신 순서 그대로 — 하원 숙제가 먼저다 (2026-08-06).
   // 어느 쪽을 **펼쳐줄지**는 위에서 상황을 보고 정한다. 순서와 별개다:
@@ -65,12 +60,20 @@ export default function StudyTabs({
 
   return (
     <div className="stack" style={{ gap: 10 }}>
-      {stayNotice && (
+      {nothing && (
+        <div className="card">
+          <h2 style={{ margin: "0 0 6px", fontSize: 17.5, fontWeight: 800 }}>등원학습</h2>
+          <p className="hint" style={{ margin: 0 }}>오늘은 올라온 것이 없어요.</p>
+        </div>
+      )}
+
+      {!nothing && stayNotice && (
         <div className="card card-tight" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
           <b style={{ fontSize: 15 }}>{stayNotice}</b>
         </div>
       )}
 
+      {!nothing && (
       <div className="row" style={{ gap: 6 }}>
         {tabs.map(([k, label, left, total]) => (
           <button
@@ -88,8 +91,9 @@ export default function StudyTabs({
           </button>
         ))}
       </div>
+      )}
 
-      {tab === "inclass" &&
+      {!nothing && tab === "inclass" &&
         (inClass.length === 0 ? (
           <div className="card">
             <p className="hint" style={{ margin: 0 }}>
@@ -105,9 +109,11 @@ export default function StudyTabs({
           </div>
         ) : (
           <>
+            {/* 순서 강제 (원장님 2026-08-21) — 「내가 지정한 순서대로
+                학습을 해야 되기 때문에 그 순서에 맞게 하도록 강제」 */}
             <StudyList
               title="등원 중 할 일"
-              hint="위에서부터 하나씩 하면 돼요. 다 하면 학습 완료를 누르고, 선생님이 부르시면 가져가세요."
+              hint="위에서부터 순서대로 하면 돼요. 다 하면 학습 완료를 누르고, 선생님이 부르시면 가져가세요."
               tasks={inClass}
               running={running}
               ready={ready}
@@ -134,15 +140,17 @@ export default function StudyTabs({
           </>
         ))}
 
-      {tab === "home" &&
+      {!nothing && tab === "home" &&
         (home.length === 0 ? (
           <div className="card">
             <p className="hint" style={{ margin: 0 }}>지금은 집에서 할 숙제가 없어요.</p>
           </div>
         ) : (
+          /* 자유 이동 (원장님 2026-08-21) — 「이 숙제 저 숙제 왔다갔다하면서
+             할 수 있기 때문에 전체 목록과 체크리스트가 한 번에 보이는 게 맞아」 */
           <StudyList
             title="하원 후 숙제"
-            hint="집에서 할 때도 시작을 눌러주세요. 얼마나 걸렸는지 볼 수 있어요."
+            hint="어느 숙제부터 해도 돼요. 집에서 할 때도 시작을 눌러주세요 — 얼마나 걸렸는지 볼 수 있어요."
             tasks={home}
             running={running}
             ready={ready}

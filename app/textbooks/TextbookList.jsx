@@ -57,7 +57,7 @@ const COL_KEY = "chloe.textbooks.cols";
 
 const TABS = [
   ["units", "단원"],
-  ["routine", "루틴"],
+  ["routine", "진도루틴"],
   ["students", "학생"],
   ["progress", "진도"],
   ["info", "정보"],

@@ -1,8 +1,13 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitFile, submitChecklist, removeSubmission } from "./submitActions";
+
+/** 서울 기준 오늘 (YYYY-MM-DD) — reportItemId 가 없을 때 저장 키에 쓴다 */
+function seoulToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
 
 /**
  * 숙제 한 건을 낸다.
@@ -13,8 +18,11 @@ import { submitFile, submitChecklist, removeSubmission } from "./submitActions";
  *   체크리스트 — 선생님이 숙제마다 미리 적어둔 항목을 하나씩 짚는다
  *
  * 낸 것은 아래에 남고, 선생님이 보기 전까지는 지울 수 있다.
+ *
+ * openList — 숙제(하원 후) 모드에서는 체크리스트를 **버튼 없이 바로 편다**
+ * (원장님 2026-08-21: 「전체 목록과 체크리스트가 한 번에 보이는 게 맞아」).
  */
-export default function SubmitBox({ itemId, reportItemId, asId = null, mine = [], readOnly = false, checklist = [] }) {
+export default function SubmitBox({ itemId, reportItemId, asId = null, mine = [], readOnly = false, checklist = [], openList = false }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(null);        // null | "list"
   const [ticked, setTicked] = useState(() => new Set());
@@ -23,6 +31,40 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
   const fileRef = useRef(null);
   const timerRef = useRef(null);
   const router = useRouter();
+
+  /**
+   * **체크는 껐다 켜도 남는다** (원장님 2026-08-21 — 「체크리스트를 지워
+   * 가면서 학생이 숙제를 끝낼 수 있게」). 전에는 useState 뿐이라 화면을
+   * 닫는 순간 다 사라졌다 — 며칠에 걸쳐 하는 숙제에서 하다 만 표시가
+   * 매번 날아갔다. localStorage 에 두고 열 때 되살린다.
+   * reportItemId 가 없으면 항목id+오늘 날짜로 대신한다.
+   */
+  const storeKey = reportItemId
+    ? `hwck-${reportItemId}`
+    : itemId
+    ? `hwck-${itemId}-${seoulToday()}`
+    : null;
+  useEffect(() => {
+    if (!storeKey || checklist.length === 0) return;
+    try {
+      const raw = JSON.parse(localStorage.getItem(storeKey) || "[]");
+      if (Array.isArray(raw)) {
+        // 선생님이 그새 목록을 고쳤을 수 있다 — 범위 밖 번호는 버린다
+        setTicked(new Set(raw.filter((i) => Number.isInteger(i) && i >= 0 && i < checklist.length)));
+      }
+    } catch { /* 못 읽으면 빈 채로 — 표시일 뿐이라 화면은 그대로 돈다 */ }
+  }, [storeKey, checklist.length]);
+
+  function saveTicks(next) {
+    setTicked(next);   // 화면 먼저 (낙관) — 저장은 뒤따라간다
+    try {
+      if (storeKey) localStorage.setItem(storeKey, JSON.stringify([...next]));
+    } catch { /* 저장 공간이 막혀도 체크 자체는 화면에 남는다 */ }
+  }
+
+  // 다 짚었으면 「끝」 을 보여준다 — 이제 완료(내기)를 누르라는 뜻이다
+  const allTicked = checklist.length > 0 && ticked.size === checklist.length;
+  const listOpen = openList || open === "list";
 
   function send(form) {
     startTransition(async () => {
@@ -107,7 +149,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
         >
           {rec ? `⏹ 녹음 끝내기 ${recSec}초` : "🎤 녹음"}
         </button>
-        {checklist.length > 0 && (
+        {checklist.length > 0 && !openList && (
           <button
             className="btn btn-sm"
             disabled={pending || readOnly || !!rec}
@@ -116,33 +158,40 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
             ☑ 체크리스트
           </button>
         )}
+        {/* 전부 체크 = 이 항목은 다 한 것 — 완료(내기)로 이끈다 */}
+        {allTicked && <span className="tag tag-mint">체크리스트 끝 ✓</span>}
       </div>
 
-      {open === "list" && (
+      {checklist.length > 0 && listOpen && (
         <div className="stack" style={{ gap: 6 }}>
           {checklist.map((line, i) => (
-            <label key={i} className="unitrow" style={{ cursor: "pointer" }}>
+            <label key={i} className="unitrow" style={{ cursor: readOnly ? "default" : "pointer" }}>
               <input
                 type="checkbox"
                 checked={ticked.has(i)}
+                disabled={readOnly}
                 onChange={() => {
                   const next = new Set(ticked);
                   next.has(i) ? next.delete(i) : next.add(i);
-                  setTicked(next);
+                  saveTicks(next);
                 }}
               />
-              <span style={{ fontSize: 15, flex: 1 }}>{line}</span>
+              <span style={{ fontSize: 15, flex: 1, textDecoration: ticked.has(i) ? "line-through" : "none" }}>
+                {line}
+              </span>
             </label>
           ))}
           <button
             className="btn btn-primary btn-sm"
-            disabled={pending || ticked.size === 0}
+            disabled={pending || readOnly || ticked.size === 0}
             onClick={() =>
               startTransition(async () => {
                 const done = checklist.map((text, i) => ({ text, done: ticked.has(i) }));
                 const res = await submitChecklist(itemId, reportItemId, done, asId);
                 if (res?.error) { alert(res.error); return; }
-                setTicked(new Set());
+                // 낸 뒤에는 표시를 비운다 — 낸 것은 아래 줄로 남는데,
+                // 체크가 그대로면 「내기」 가 살아 있어 또 내게 된다
+                saveTicks(new Set());
                 setOpen(null);
                 router.refresh();
               })
