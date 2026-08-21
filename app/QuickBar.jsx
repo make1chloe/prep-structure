@@ -118,7 +118,7 @@ export default function QuickBar({ students = [] }) {
               value={at} onChange={(e) => setAt(e.target.value)} title="보강 시간"
             />
             {/* **어느 결석의 보강인가** — 안 적어도 잡힌다. 적어두면 그 결석이
-                「보강 잡을 것」 목록에서 내려간다 */}
+                「보강 필요」 목록에서 내려간다 */}
             <input
               className="input input-sm" type="date" style={{ width: 145 }}
               value={ofDate} onChange={(e) => setOfDate(e.target.value)}
@@ -142,7 +142,7 @@ export default function QuickBar({ students = [] }) {
           </div>
           <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
             뒤쪽 날짜는 <b>어느 날 결석의 보강인지</b>입니다 (안 적어도 잡혀요).
-            적으면 그 결석이 「보강 잡을 것」 에서 내려갑니다.
+            적으면 그 결석이 「보강 필요」 에서 내려갑니다.
           </p>
           {msg && (
             <p className={msg.bad ? "err" : "hint"} style={{ margin: "6px 0 0" }}>{msg.text}</p>

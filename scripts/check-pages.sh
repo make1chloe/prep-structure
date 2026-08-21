@@ -230,7 +230,7 @@ echo "== 5-4-13) 화면에 적을 말만 남나 =="
 runjs scripts/check-note.mjs
 
 echo
-echo "== 5-4-14) 보강 잡을 것 (대시보드와 출결이 같은 숫자를 말하나) =="
+echo "== 5-4-14) 보강 필요 (대시보드와 출결이 같은 숫자를 말하나) =="
 # 셈을 두 벌 만들면 두 화면이 다른 숫자를 말하고, 그러면 둘 다 안 믿게 된다
 runjs scripts/check-makeuptodo.mjs
 

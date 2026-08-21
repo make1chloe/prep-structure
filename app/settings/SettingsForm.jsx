@@ -51,7 +51,7 @@ export default function SettingsForm({
   });
   const [makeupDays, setMakeupDays] = useState(view.schedule?.makeupDays || []);
   const [warn, setWarn] = useState(() => ({
-    reflectionAt: 3, wordPassPct: 80, weakAt: 2,
+    reflectionAt: 3, wordPassPct: 90, weakAt: 2,
     countLate: true, countHomework: true, countWordTest: true,
     ...(view.warning || {}),
   }));

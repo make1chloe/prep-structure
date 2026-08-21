@@ -188,7 +188,7 @@ const has = (needle) => PAGE.includes(needle);
 
 const CURRENT_RULES = {
   warning: { shows: () => has("반성문 대상"), how: "link" },
-  makeup: { shows: () => has("보강 잡을 것"), how: "link" },
+  makeup: { shows: () => has("보강 필요"), how: "link" },
   sendfail: { shows: () => has("발송 실패"), how: "link" },
   "unsent-past": { shows: () => has("지난 미발송"), how: "link" },
   retest: { shows: () => has("오늘 보강 · 재시험"), how: "link" },

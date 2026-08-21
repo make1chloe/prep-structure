@@ -10,7 +10,7 @@ import { dayLabel } from "@/lib/day";
  * 「보강일정 잡았다가 취소하려면 어떻게 해야해?」).
  *
  * 취소하면 **원래 결석은 그대로 남는다.** 결석이 없던 일이 된 것이 아니라
- * 보강 날짜만 무른 것이라, 그 결석은 다시 「보강 잡을 것」 으로 올라온다.
+ * 보강 날짜만 무른 것이라, 그 결석은 다시 「보강 필요」 으로 올라온다.
  * 그게 맞다 — 아직 보강을 못 해드린 상태니까.
  *
  * **어머니께 알림이 간다.** 그날 아이를 보내실 참이셨다. 조용히 지우면
@@ -105,7 +105,7 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
         className="btn btn-ghost btn-sm"
         onClick={() => drop(r)}
         disabled={pending}
-        title="보강 날짜만 무릅니다. 결석 기록은 그대로 남고 「보강 잡을 것」 으로 돌아갑니다"
+        title="보강 날짜만 무릅니다. 결석 기록은 그대로 남고 「보강 필요」 으로 돌아갑니다"
       >
         보강 취소
       </button>

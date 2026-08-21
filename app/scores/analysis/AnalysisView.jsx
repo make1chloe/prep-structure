@@ -117,6 +117,13 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
           <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <span className="tag tag-muted">문항 {a.questionCount}</span>
             {a.totalPoints && <span className="tag tag-muted">{a.totalPoints}점</span>}
+            {/* 배점이 일부만 적히면 배점 셈을 아예 안 한다 (원장님 설계) —
+                왜 문항 수로만 세는지 여기서 말해준다 */}
+            {a.pointsMissing > 0 && (
+              <span className="tag tag-amber" title="배점이 전부 적혀야 배점 비율로 셉니다 — 그 전까지는 문항 수로만 셉니다">
+                배점 {a.pointsMissing}문항 비어 있음
+              </span>
+            )}
             <span className={`tag ${a.n >= 3 ? "tag-sky" : "tag-amber"}`}>응시 {a.n}명</span>
             {/* **추측으로 묶은 것은 밝힌다.** 엉뚱한 시험지로 분석하면 전부 어긋난다 */}
             {a.guessed && (

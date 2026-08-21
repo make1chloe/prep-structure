@@ -296,7 +296,7 @@ console.log("\n== 제목은 명사로 ==");
 eq(TODO_LABEL.scores(3), "성적 미입력 3명", "성적 미입력");
 // 0125 부터 발송 배지는 리포트 미발송 + 교재 안내 미발송의 합이다
 eq(TODO_LABEL.report(2), "발송할 것 2건 (리포트 · 교재 안내)", "발송할 것");
-eq(TODO_LABEL.plan(1), "보강 미배정 1건", "보강 미배정");
+eq(TODO_LABEL.plan(1), "보강 필요 1건", "보강 필요");
 for (const [k, f] of Object.entries(TODO_LABEL)) {
   // 「아직」 「안 」 같은 서술 표현이 남아 있으면 명사가 아니다
   eq(/아직|했는데|하지 않|입니다/.test(f(1)), false, `${k} — 서술문이 남아 있다`);
@@ -396,7 +396,7 @@ const home = read("app/page.jsx");
 for (const [gone, what] of [
   ["d.unsentPast.length > 0 &&", "지난 미발송"],
   ["d.unsentToday.length > 0 &&", "보낼 리포트"],
-  ["d.makeupRows.length > 0 &&", "보강 잡을 것"],
+  ["d.makeupRows.length > 0 &&", "보강 필요"],
   ['<Badge href="/monthly"', "월간리포트"],
   ["d.examSoon.some((e) => e.noScope)", "시험범위 미등록"],
   ["d.inquiries.length > 0 &&", "진행중 상담"],

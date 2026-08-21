@@ -17,7 +17,7 @@ export default function MakeupTodo({ rows = [] }) {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="row" style={{ alignItems: "baseline", gap: 8 }}>
-        <b style={{ fontSize: 15 }}>보강 잡을 것 {rows.length}명</b>
+        <b style={{ fontSize: 15 }}>보강 필요 {rows.length}명</b>
         <span className="hint">결석해서 수업이 한 번 더 필요한 학생입니다</span>
       </div>
       <div className="stack" style={{ gap: 4, marginTop: 8 }}>

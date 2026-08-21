@@ -136,7 +136,7 @@ export default async function AttendancePage() {
 
   const nameOf = Object.fromEntries((students || []).map((s) => [s.id, s.name]));
 
-  // 보강 잡을 것 — 셈은 lib/makeupTodo.js 한 군데에 있다 (대시보드도 같은 것을 쓴다)
+  // 보강 필요 — 셈은 lib/makeupTodo.js 한 군데에 있다 (대시보드도 같은 것을 쓴다)
 
 
   // planned 컬럼 유무 확인 (0017 실행 여부)

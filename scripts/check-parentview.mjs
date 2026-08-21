@@ -65,13 +65,13 @@ const ans = read("app/MakeupAnswers.jsx");
  * 2026-08-07 에 **출결 화면으로 옮겼다** (원장님 — 「보강, 결석사전연락,
  * 출석을 출결페이지에서 관리하는게 나을거 같기도 해」).
  *
- * 대시보드에는 「보강 잡을 것 N건」 배지만 남는다. 어디에 있든 상관없지만
+ * 대시보드에는 「보강 필요 N건」 배지만 남는다. 어디에 있든 상관없지만
  * **어딘가에는 반드시 있어야 한다** — 어머니가 「그날 시험이라 안 돼요」 라고
  * 누르신 것이 아무 화면에도 안 뜨면, 그 보강은 잡힌 채로 지나간다.
  */
 eq(read("app/plan/page.jsx").includes("<MakeupAnswers"), true, "출결 화면에 있다");
-eq(read("app/plan/page.jsx").includes("<MakeupInbox"), true, "보강 잡을 것도 같은 화면에");
-eq(read("app/page.jsx").includes("보강 잡을 것"), true, "대시보드에는 배지로 남는다");
+eq(read("app/plan/page.jsx").includes("<MakeupInbox"), true, "보강 필요도 같은 화면에");
+eq(read("app/page.jsx").includes("보강 필요"), true, "대시보드에는 배지로 남는다");
 const rowsFile = read("app/MakeupRows.jsx");
 eq(rowsFile.includes("변경 요청"), true, "변경 요청이 먼저 보인다");
 eq(rowsFile.includes("답 없음"), true, "답 없는 것도 보인다");

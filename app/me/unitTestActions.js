@@ -46,7 +46,7 @@ export async function submitUnitTest(input) {
   ]);
   const cut = Number(me?.word_cut_pct) > 0
     ? Number(me.word_cut_pct)
-    : Number(cfg?.config?.wordPassPct) || 80;
+    : Number(cfg?.config?.wordPassPct) || 90;
 
   const pct = Math.round((c / t) * 100);
   const passed = pct >= cut;

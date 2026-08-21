@@ -24,7 +24,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-20 · 0001~0144 · 142개)
+--   (2026-08-21 · 0001~0145 · 143개)
 -- ============================================================
 
 -- ─────────── 0008_homework_unit.sql ───────────
@@ -7302,3 +7302,17 @@ alter table tasks add column if not exists date_tbd boolean not null default fal
 -- student_textbooks.notified_on 으로 이어져서, 상담 때 이미 안내한 교재를
 -- 「안내 안 나간 교재」 로 또 재촉하지 않는다.
 alter table inquiries add column if not exists books_notified_on date;
+
+-- ─────────── 0145_word_pass_90.sql ───────────
+-- 단어시험 통과선 90 확정 (원장님 2026-08-21 「90%」).
+-- 코드 기본값이 80/90 으로 갈라져 있던 것을 90 으로 통일하면서,
+-- 이미 저장된 설정이 옛 기본값 80 그대로면 90 으로 올린다
+-- (원장님이 일부러 80 이 아닌 다른 값을 적으셨다면 안 건드린다).
+update integrations
+set config = jsonb_set(config, '{wordPassPct}', '90')
+where id = 'warning'
+  and (config->>'wordPassPct')::numeric = 80;
+
+-- 실행 확인용 표식 (설정 → SQL 배지가 이 함수 유무로 실행 여부를 안다)
+create or replace function word_pass_90() returns boolean
+language sql stable as $$ select true $$;

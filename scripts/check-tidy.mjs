@@ -23,7 +23,7 @@ const read = (p) => readFileSync(p, "utf8");
 console.log("== 출결은 한 화면에 ==");
 const plan = read("app/plan/page.jsx");
 const board = read("app/plan/PlanBoard.jsx");
-eq(plan.includes("<MakeupInbox"), true, "보강 잡을 것");
+eq(plan.includes("<MakeupInbox"), true, "보강 필요");
 eq(plan.includes("<MakeupAnswers"), true, "잡아둔 보강 (취소도 여기서)");
 eq(board.includes("AbsenceRows"), true, "앞으로 잡힌 결석 예정 목록");
 // **무르는 자리가 넣는 자리에 있어야 한다.** 이게 없어서 원장님이
