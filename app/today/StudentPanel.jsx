@@ -978,18 +978,41 @@ export default function StudentPanel({
         * — 「어디에 숙제 체크된 건지 모르겠어」). 줄의 「클카 n/n」 태그는
         * 요약이고, 세트별 ✅❌ 는 여기 편다. 확장이 15분마다 갱신한다.
         */}
-      {row.classcard && (
+      {(row.classcard || row.ccGap) && (
         <div className="prow">
           <span className="plabel">클카</span>
           <div className="row" style={{ gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-            {(row.classcard.sets || []).map((s, i) => (
+            {(row.classcard?.sets || []).map((s, i) => (
               <span key={i} className={`tag ${s.complete ? "tag-mint" : "tag-amber"}`}>
                 {s.complete ? "✅" : "❌"} {s.name}
               </span>
             ))}
-            <span className="hint" style={{ fontSize: 12 }}>
-              그날 마감 플래너 {row.classcard.done}/{row.classcard.total} 완료
-            </span>
+            {row.classcard && (
+              <span className="hint" style={{ fontSize: 12 }}>
+                그날 마감 플래너 {row.classcard.done}/{row.classcard.total} 완료
+              </span>
+            )}
+            {/* 감시③ 오늘 공백 (ccTodayGap, lib/classcard) — 클카 단어 배정인데
+                오늘 마감 세트가 없다. 교재 단어가 나간 날은 애초에 안 잰다
+                (2026-08-21 정정 — 「단어는 교재숙제가 나갈 경우 클카 숙제가
+                없다는 뜻이었어」). 대시보드 🎯 카드와 같은 판정이다. */}
+            {row.ccGap === "gap" && (
+              <span className="tag tag-red"
+                title="클카 방식 단어 숙제가 배정돼 있는데 플래너에 오늘 마감 세트가 없어요 — 플래너를 잡아주세요">
+                클카 단어 배정인데 오늘 마감 없음
+              </span>
+            )}
+            {row.ccGap === "nodata" && (
+              <span className="tag tag-amber"
+                title="클카 방식 단어 숙제가 배정돼 있는데 이 학생의 오늘치 클카 수신 자료가 없어요 — 확장이 이 학생을 못 읽었을 수 있어요">
+                클카 단어 배정인데 수신 자료 없음
+              </span>
+            )}
+            {row.ccGap === "stale" && (
+              <span className="hint" style={{ fontSize: 12 }}>
+                클카 수신 12시간 지남 — 오늘 공백 검사 쉼
+              </span>
+            )}
           </div>
         </div>
       )}

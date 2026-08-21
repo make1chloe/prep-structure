@@ -11,7 +11,7 @@ import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
 import { paceMap } from "@/lib/pace";
-import { ccUserIdxOf, ccDaySummary } from "@/lib/classcard";
+import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/lib/classcard";
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
@@ -1083,6 +1083,10 @@ export default async function TodayPage({ searchParams }) {
 
   // ── 클래스카드 — 오늘 마감 세트 완료 여부 (0131, 설계 문서) ──
   const ccOf = new Map();
+  // 감시③ 오늘 공백 — 클카 단어 배정인데 오늘 마감 없음 (판정은 lib/classcard
+  // ccTodayGap 한 곳 — 대시보드 🎯 카드와 같은 셈이어야 한다).
+  // 값: "gap"(마감 0) · "nodata"(그 학생 수신 없음) · "stale"(수신이 낡아 쉼)
+  const ccGapOf = new Map();
   let ccFetchedAt = null;
   {
     const [rosterQ, dayQ] = await Promise.all([
@@ -1091,12 +1095,28 @@ export default async function TodayPage({ searchParams }) {
     ]);
     if (!rosterQ.error && !dayQ.error) {
       const dayOf = new Map((dayQ.data || []).map((d) => [d.user_idx, d]));
+      // 수신 시각은 빈 세트 줄에서도 읽는다 — 공백 검사의 신선도 기준
+      (dayQ.data || []).forEach((d) => {
+        if (!ccFetchedAt || d.fetched_at > ccFetchedAt) ccFetchedAt = d.fetched_at;
+      });
+      // 클카 단어 방식 학습 항목 — 이름으로 잇는다 (CC_ITEM_KIND)
+      const ccWordIds = new Set((items || []).filter((i) => ccWordItem(i.name)).map((i) => i.id));
+      // 지난 날짜를 열어봤을 때는 공백을 재지 않는다 — 그날 무엇이 배정이었는지
+      // 지금 자료로는 못 세고, 지난 일을 재촉해봐야 늘 켜진 경고가 된다 (규칙 7)
+      const gapDay = date === todaySeoul();
+      const stale = ccStale(ccFetchedAt);
       (students || []).forEach((st) => {
         const uidx = ccUserIdxOf(st, rosterQ.data || []);
-        const d = uidx ? dayOf.get(uidx) : null;
-        if (!d || !(d.sets || []).length) return;
-        ccOf.set(st.id, { ...ccDaySummary(d.sets), sets: d.sets });
-        if (!ccFetchedAt || d.fetched_at > ccFetchedAt) ccFetchedAt = d.fetched_at;
+        if (!uidx) return;   // 클카 명단에 못 잇는 학생 — 검사 대상 아님 (재촉 금지)
+        const d = dayOf.get(uidx) || null;
+        if (d && (d.sets || []).length) ccOf.set(st.id, { ...ccDaySummary(d.sets), sets: d.sets });
+        if (!gapDay) return;
+        // 현재 배정 = 오늘 검사 대상(지난 배정) + 오늘 나간 숙제 (2026-08-21 정정:
+        // 단어는 교재와 클카가 번갈아 나가서, 교재 단어가 나간 날은 마감 0 이 정상)
+        const rep = reportByStudent.get(st.id);
+        const cur = [...toCheckOf(st.id), ...(rep ? nextByReport.get(rep.id) || [] : [])];
+        const g = ccTodayGap(cur.some((iid) => ccWordIds.has(iid)), d);
+        if (g) ccGapOf.set(st.id, stale ? "stale" : g);
       });
     }
   }
@@ -1254,6 +1274,7 @@ export default async function TodayPage({ searchParams }) {
           homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
           wordWhen: rep?.word_when || s.word_when || "start",
           classcard: ccOf.get(s.id) || null,
+          ccGap: ccGapOf.get(s.id) || null,
           exams: examOf.get(s.id) || [],
           inClass: rep
             ? (inClassByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)
@@ -1321,6 +1342,7 @@ export default async function TodayPage({ searchParams }) {
         homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
         wordWhen: rep?.word_when || s.word_when || "start",
         classcard: ccOf.get(s.id) || null,
+        ccGap: ccGapOf.get(s.id) || null,
         exams: examOf.get(s.id) || [],
         inClass: rep
           ? (inClassByReport.get(rep.id) || []).sort((a, b) => a.sort - b.sort).map((x) => x.id)

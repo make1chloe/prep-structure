@@ -209,7 +209,13 @@ export default async function Home() {
                 </div>
               </div>
             )}
-            {(d.classcard?.runningOut?.length > 0 || d.classcard?.mismatch?.length > 0 || d.classcard?.shadow) && (
+            {/* 클카 감시 3종 — 서로 다른 것을 잰다 (판단은 lib/dashboard·lib/classcard):
+                ① 소진(주황) = 앞으로 마감이 없거나 3일 안에 끝남 → 플래너를 새로 잡을 때
+                ② 불일치(빨강) = 앱 단어 진도와 플래너 Day 어긋남 → 어느 쪽이 맞는지 볼 때
+                ③ 공백(빨강) = 클카 단어 배정인데 오늘 마감 세트가 0 → 오늘 숙제가 새는 날
+                   (교재 단어가 나간 날은 클카 마감 0 이 정상이라 안 잰다 — 2026-08-21 정정.
+                    수신이 12시간 넘게 낡으면 ③은 쉬고 그 사실만 흐리게) */}
+            {(d.classcard?.runningOut?.length > 0 || d.classcard?.mismatch?.length > 0 || d.classcard?.noPlanner?.length > 0 || d.classcard?.shadow) && (
               <div className="card sect sect-info">
                 <h2 className="secthead">
                   클래스카드 플래너
@@ -243,6 +249,17 @@ export default async function Home() {
                       {r.name} · 앱 Day {r.app} ≠ 플래너 Day {r.cc}
                     </span>
                   ))}
+                  {(d.classcard.noPlanner || []).map((r) => (
+                    <span className="tag tag-red" key={`g-${r.name}`}
+                      title="클카 방식 단어 숙제가 배정된 학생인데 플래너에 오늘 마감 세트가 없어요 — 플래너를 잡아주세요">
+                      {r.name} · 클카 단어 배정인데 오늘 마감 없음
+                    </span>
+                  ))}
+                  {d.classcard.gapSkipped && (
+                    <span className="hint" style={{ fontSize: 12 }}>
+                      클카 수신 12시간 지남 — 오늘 공백 검사 쉼
+                    </span>
+                  )}
                 </div>
               </div>
             )}
