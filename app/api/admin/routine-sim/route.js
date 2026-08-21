@@ -44,6 +44,7 @@ export async function GET(request) {
   if (op === "retest") return retestList(supabase);
   if (op === "month") return monthSim(supabase);
   if (op === "safety") return safetyCheck(supabase);
+  if (op === "noassign") return noAssign(supabase);
 
   const today = todaySeoul();
 
@@ -1180,4 +1181,44 @@ async function safetyCheck(supabase) {
     checks,
     errorTotal,
   });
+}
+
+
+/**
+ * **검사할 배정이 없는 재원생** (원장님 2026-08-21 — 「진도가 배정되지
+ * 않아서 숙제 검사할 수 없는 게 누구누구야?」). 읽기만 한다.
+ * 마지막으로 숙제(assigned)가 나간 날을 학생마다 찾아 — 없으면 「배정
+ * 없음」, 14일 넘었으면 「오래됨」 으로 가른다.
+ */
+async function noAssign(supabase) {
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const [stQ, repQ] = await Promise.all([
+    supabase.from("students").select("id, name, grade").eq("status", "enrolled").order("name"),
+    fetchAll(() => supabase
+      .from("daily_reports").select("id, student_id, date")
+      .lte("date", today).order("date", { ascending: false }).order("id")),
+  ]);
+  const reps = repQ.data || [];
+  const repIds = reps.map((r) => r.id);
+  const assignedSet = new Set();
+  for (let i = 0; i < repIds.length; i += 300) {
+    const { data } = await supabase
+      .from("daily_report_items").select("daily_report_id")
+      .eq("status", "assigned").in("daily_report_id", repIds.slice(i, i + 300));
+    (data || []).forEach((x) => assignedSet.add(x.daily_report_id));
+  }
+  const lastAssigned = new Map();
+  reps.forEach((r) => {
+    if (assignedSet.has(r.id) && !lastAssigned.has(r.student_id)) lastAssigned.set(r.student_id, r.date);
+  });
+  const 없음 = [], 오래됨 = [], 정상 = [];
+  const old = new Date(Date.now() + 9 * 3600 * 1000 - 14 * 86400000).toISOString().slice(0, 10);
+  (stQ.data || []).forEach((s2) => {
+    const d = lastAssigned.get(s2.id);
+    const tag = `${s2.name}${s2.grade ? `(${s2.grade})` : ""}`;
+    if (!d) 없음.push(tag);
+    else if (d < old) 오래됨.push(`${tag} — 마지막 배정 ${d.slice(5)}`);
+    else 정상.push(tag);
+  });
+  return jsonKo({ ok: true, 배정없음: 없음, 배정오래됨_14일: 오래됨, 정상: 정상.length });
 }
