@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { safeName } from "@/lib/noticeFile";
+import { uploadName, MAX_UPLOAD } from "@/lib/noticeFile";
 
 /**
  * 공지에 붙이는 **사진과 파일**.
@@ -14,12 +14,6 @@ import { safeName } from "@/lib/noticeFile";
  * 비공개 버킷이라 주소를 알아도 못 연다. 볼 때마다 짧은 링크를 새로 만든다.
  * 경로 맨 앞 칸이 공지 id 라서, 그것만 보고 볼 사람인지 가릴 수 있다 (0064).
  */
-
-/** 이름에 확장자가 없을 때만 쓰는 되돌림표 */
-const EXT = {
-  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
-  "image/heic": "heic", "image/heif": "heic", "application/pdf": "pdf",
-};
 
 function why(error) {
   const m = error?.message || "";
@@ -35,20 +29,15 @@ export async function addNoticePhoto(formData) {
   const file = formData.get("file");
   if (!noticeId) return { error: "공지를 찾지 못했어요." };
   if (!file || typeof file === "string" || file.size === 0) return { error: "파일이 없어요." };
-  if (file.size > 25 * 1024 * 1024) return { error: "파일이 너무 커요 (25MB까지)." };
+  if (file.size > MAX_UPLOAD) return { error: "파일이 너무 커요 (25MB까지)." };
 
   const supabase = createClient();
   /**
    * **올린 이름을 그대로 살린다.** 전에는 모르는 갈래를 다 `.jpg` 로 바꿔
    * 담아서, 한글·엑셀을 붙이면 열리지 않는 그림이 됐다.
-   * 이름에 확장자가 없을 때만 갈래로 되돌린다.
+   * 이름 규칙은 lib/noticeFile 한 벌 — 빠른 메모 첨부(0147)와 같다.
    */
-  let name = safeName(file.name || "");
-  if (!/\.[a-z0-9]{1,8}$/i.test(name)) {
-    const ext = EXT[file.type] || (String(file.type).startsWith("image/") ? "jpg" : "");
-    if (ext) name = `${name}.${ext}`;
-  }
-  const path = `${noticeId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${name}`;
+  const path = `${noticeId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${uploadName(file)}`;
 
   const up = await supabase.storage
     .from("notices")

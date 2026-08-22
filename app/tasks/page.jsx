@@ -450,7 +450,7 @@ export default async function TasksPage({ searchParams }) {
         fetchAll(() =>
           supabase
             .from("tasks")
-            .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
+            .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done, photos`)
             .eq("kind", "todo")
             .order("due_on", { ascending: true })
             .order("id")
@@ -463,8 +463,18 @@ export default async function TasksPage({ searchParams }) {
     routines = rq.rows;
     routineErr = rq.error;
 
-    // 0117 전이면 하위목록 칸이 없다
     let { data, error } = todoQ1;
+    // 0147 전이면 첨부 칸이 없다
+    if (error) {
+      ({ data, error } = await fetchAll(() =>
+        supabase
+          .from("tasks")
+          .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done`)
+          .eq("kind", "todo")
+          .order("due_on", { ascending: true })
+          .order("id")));
+    }
+    // 0117 전이면 하위목록 칸이 없다
     // 0113 전이면 started_at 이 없다 — 그때는 칸반이 두 칸으로 선다
     if (error) {
       ({ data, error } = await fetchAll(() =>

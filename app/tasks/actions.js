@@ -6,6 +6,7 @@ import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { inTarget, sameGrade } from "@/lib/who";
 import { sessionUser } from "@/lib/session";
+import { isImage, shownName } from "@/lib/noticeFile";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -94,19 +95,38 @@ export async function addTask(formData) {
  * 「화면 이동 없이 새로고침 없이」 가 약속이라 여기는 아무것도 안 갈아엎는다.
  * 할일 화면은 다음에 열 때 자연히 보인다.
  */
-export async function addQuickMemo(text) {
+export async function addQuickMemo(text, paths = []) {
   const t = (text || "").trim();
-  if (!t) return { error: null };
+  // 첨부 경로는 uploadTaskFile(photoActions)이 이미 올려둔 것 — 여기서는 줄에 담기만
+  const photos = (paths || []).filter(Boolean);
+  if (!t && photos.length === 0) return { error: null };
   const supabase = createClient();
   const user = await sessionUser(supabase);
   const [first, ...rest] = t.split("\n");
-  const { error } = await supabase.from("tasks").insert({
-    title: first.trim().slice(0, 200),
+  // 글 없이 첨부만이면 제목은 「사진 메모」, 사진이 아니면 파일 이름 (2026-08-22)
+  const title = first.trim()
+    ? first.trim().slice(0, 200)
+    : (isImage(photos[0]) ? "사진 메모" : shownName(photos[0]).slice(0, 200));
+  const row = {
+    title,
     kind: "todo",
     due_on: new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10),
     note: rest.join("\n").trim() || null,
     created_by: user?.id || null,
-  });
+  };
+  let { error } = await supabase.from("tasks").insert(
+    photos.length ? { ...row, photos } : row
+  );
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // 0147 전이면 첨부 칸이 없다 — 메모만 저장하고, 첨부가 있을 때만 알린다
+    ({ error } = await supabase.from("tasks").insert(row));
+    if (!error && photos.length) {
+      return {
+        error: null,
+        warn: "메모는 넣었지만 첨부는 못 담았어요. 설정 → Supabase SQL 에서 0147 을 실행해주세요.",
+      };
+    }
+  }
   return { error: error?.message || null };
 }
 

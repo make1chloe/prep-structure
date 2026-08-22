@@ -9,6 +9,7 @@ import {
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
 import { moveKind, toggleChecklistLine } from "@/app/tasks/actions";
 import TodoKanban from "./TodoKanban";
+import TodoFiles from "./TodoFiles";
 import { PRIORITY } from "./priority";
 
 const COLORS = ["sky", "lav", "mint", "amber", "muted"];
@@ -35,6 +36,8 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [manageCat, setManageCat] = useState(false);
+  // 첨부(0147)를 펼쳐둔 할일 — 비공개 버킷이라 눌렀을 때만 링크를 만든다
+  const [filesFor, setFilesFor] = useState(null);
   const [newCat, setNewCat] = useState({ name: "", parentId: "", color: "muted" });
   const [movePending, startMove] = useTransition();
   const [form, setForm] = useState({
@@ -544,6 +547,17 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
                       </span>
                     );
                   })()}
+                  {/* 첨부 (0147 — 빠른 메모에서 붙인 사진·파일). 누르면 아래에 펼친다 */}
+                  {(t.photos || []).length > 0 && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: "0 6px" }}
+                      title="첨부 보기"
+                      onClick={() => setFilesFor(filesFor === t.id ? null : t.id)}
+                    >
+                      📎{t.photos.length}
+                    </button>
+                  )}
                   <span className="spacer" />
                   <button
                     className="btn btn-ghost btn-sm"
@@ -568,6 +582,13 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
 
                 {!editing && t.note && (
                   <div className="hint" style={{ padding: "0 16px 10px 78px" }}>{t.note}</div>
+                )}
+
+                {/* 첨부 펼침 (0147) — 완료·삭제 흐름과는 상관없다, 보기만 */}
+                {!editing && filesFor === t.id && (t.photos || []).length > 0 && (
+                  <div style={{ padding: "0 16px 10px 78px" }}>
+                    <TodoFiles paths={t.photos} />
+                  </div>
                 )}
 
                 {/* **하위목록 — 누르면 그 자리에서 체크된다** (0117).
