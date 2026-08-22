@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { submitFile, submitChecklist, removeSubmission } from "./submitActions";
+import { checkPhoto, PHOTO_GUIDE } from "@/lib/photoCheck";
 
 /** 서울 기준 오늘 (YYYY-MM-DD) — reportItemId 가 없을 때 저장 키에 쓴다 */
 function seoulToday() {
@@ -93,9 +94,18 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
     });
   }
 
-  function pickFile(e) {
+  async function pickFile(e) {
     const f = e.target.files?.[0];
+    e.target.value = "";
     if (!f) return;
+    // 흔들리거나 너무 어두운 사진은 올리기 전에 막는다 (원장님 2026-08-22:
+    // 「사진이 흔들려서 글씨 못 알아보면 업로드 아예 안 되게」).
+    // 판단은 lib/photoCheck 한 벌 — 탈락이면 이유를 말해주고 끝낸다.
+    const chk = await checkPhoto(f);
+    if (!chk.ok) {
+      alert(chk.message);
+      return;
+    }
     const form = new FormData();
     form.set("file", f);
     form.set("kind", f.type.startsWith("audio") ? "audio" : "photo");
@@ -103,7 +113,6 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
     if (reportItemId) form.set("reportItemId", reportItemId);
     if (asId) form.set("asId", asId);
     send(form);
-    e.target.value = "";
   }
 
   async function toggleRec() {
@@ -180,6 +189,11 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
         {/* 전부 체크 = 이 항목은 다 한 것 — 완료(내기)로 이끈다 */}
         {allTicked && <span className="tag tag-mint">체크리스트 끝 ✓</span>}
       </div>
+
+      {/* 찍는 법 안내 — 잘림은 기계가 못 걸러서 이 한 줄이 그 몫을 진다 (lib/photoCheck 참고) */}
+      {!readOnly && (
+        <div className="hint" style={{ fontSize: 12 }}>{PHOTO_GUIDE}</div>
+      )}
 
       {checklist.length > 0 && listOpen && (
         <div className="stack" style={{ gap: 6 }}>

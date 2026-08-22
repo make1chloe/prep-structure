@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { uploadRequestPhoto, dropRequestPhoto, requestPhotoUrls } from "@/app/requests/photoActions";
+import { checkPhoto, PHOTO_GUIDE } from "@/lib/photoCheck";
 import PhotoView from "./PhotoView";
 
 /**
@@ -49,6 +50,14 @@ export default function RequestPhotos({
     startTransition(async () => {
       const added = [];
       for (const f of files) {
+        // 흔들리거나 너무 어두운 사진은 올리기 전에 막는다 (원장님 2026-08-22).
+        // 판단은 lib/photoCheck 한 벌 — PDF·못 읽는 형식은 저기서 통과시킨다.
+        // 여러 장 중 탈락한 그 장만 이유를 말하고 건너뛴다 — 나머지는 올라간다.
+        const chk = await checkPhoto(f);
+        if (!chk.ok) {
+          alert(chk.message);
+          continue;
+        }
         const form = new FormData();
         form.set("file", f);
         if (asId) form.set("asId", asId);
@@ -146,6 +155,8 @@ export default function RequestPhotos({
           >
             {pending ? "올리는 중…" : "📷 사진 붙이기"}
           </button>
+          {/* 찍는 법 안내 — 잘림은 기계가 못 걸러서 이 한 줄이 그 몫을 진다 (lib/photoCheck 참고) */}
+          <div className="hint" style={{ fontSize: 12 }}>{PHOTO_GUIDE}</div>
         </>
       )}
     </div>
