@@ -106,7 +106,9 @@ export default function StudentBooksProgress({ studentId, books = [] }) {
             key={b.id}
             studentId={studentId}
             book={b}
-            openFirst
+            /* 접힌 채로 시작 (원장님 2026-08-23 「교재 다 펼쳐지지 않게 —
+               접힌 상태로, 클릭하면 펼쳐지게」) — 교재가 예닐곱이면 다 펴진
+               판이 한 화면을 넘겨 스크롤 지옥이었다 */
             initialUnits={byBook[b.id]?.units || []}
             initialRound={byBook[b.id]?.round || b.round || 1}
           />
