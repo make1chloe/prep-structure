@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { submitFile, submitChecklist, removeSubmission } from "./submitActions";
+import { submitFile, submitChecklist, removeSubmission, answerViewUrls } from "./submitActions";
 import { checkPhoto, PHOTO_GUIDE } from "@/lib/photoCheck";
+import { isImage, shownName, fileKind } from "@/lib/noticeFile";
 
 /** 서울 기준 오늘 (YYYY-MM-DD) — reportItemId 가 없을 때 저장 키에 쓴다 */
 function seoulToday() {
@@ -22,8 +23,11 @@ function seoulToday() {
  *
  * openList — 숙제(하원 후) 모드에서는 체크리스트를 **버튼 없이 바로 편다**
  * (원장님 2026-08-21: 「전체 목록과 체크리스트가 한 번에 보이는 게 맞아」).
+ *
+ * answer — 파일형 답지 (0148). 있으면 열리기 전엔 「제출하면 열려요」 힌트,
+ * 열리면 「채점해서 오세요」 + 답지 보기. 없으면 아무 표시 없음 (지금 그대로).
  */
-export default function SubmitBox({ itemId, reportItemId, asId = null, mine = [], readOnly = false, checklist = [], openList = false }) {
+export default function SubmitBox({ itemId, reportItemId, asId = null, mine = [], readOnly = false, checklist = [], answer = null, openList = false }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(null);        // null | "list"
   /**
@@ -35,6 +39,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
   const [marks, setMarks] = useState({});
   const [rec, setRec] = useState(null);          // MediaRecorder
   const [recSec, setRecSec] = useState(0);
+  const [ansFiles, setAnsFiles] = useState(null);   // 열어본 답지 파일들 (0148)
   const fileRef = useRef(null);
   const timerRef = useRef(null);
   const router = useRouter();
@@ -152,8 +157,63 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
     setRec(mr);
   }
 
+  /** 답지 링크는 누를 때 만든다 — 비공개 버킷이라 10분짜리 링크다 */
+  function toggleAnswer() {
+    if (ansFiles) { setAnsFiles(null); return; }
+    startTransition(async () => {
+      const res = await answerViewUrls(itemId, asId);
+      if (res?.error) { alert(res.error); return; }
+      setAnsFiles(res.files || []);
+    });
+  }
+
   return (
     <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+      {/* **답지** (0148, 원장님 2026-08-22 — 「답지 없으면 그냥 제출까지,
+          답지 있으면 채점하라는 메시지까지 나오기」). 답지 없는 숙제는
+          이 자리가 통째로 없다 — 지금 그대로. */}
+      {answer && !answer.opened && (
+        <p className="hint" style={{ margin: 0, fontSize: 13 }}>
+          📖 이 숙제는 답지가 있어요 — <b>제출하면 선생님 확인 후 답지가 열려요.</b>
+        </p>
+      )}
+      {answer?.opened && (
+        <div className="stack" style={{ gap: 6 }}>
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 14, color: "var(--mint)" }}>
+              📖 답지가 열렸어요 — 답지 보고 채점해서 오세요!
+            </b>
+            <button className="btn btn-sm" disabled={pending} onClick={toggleAnswer}>
+              {ansFiles ? "답지 닫기" : "📖 답지 보기"}
+            </button>
+          </div>
+          {ansFiles &&
+            ansFiles.map((f) =>
+              isImage(f.path) ? (
+                <a key={f.path} href={f.url} target="_blank" rel="noreferrer">
+                  <img
+                    src={f.url}
+                    alt="답지"
+                    style={{ maxWidth: "100%", borderRadius: 8, display: "block" }}
+                  />
+                </a>
+              ) : (
+                // pdf·hwp 는 이름표로 — 눌러서 새 창에 연다
+                <a
+                  key={f.path}
+                  className="btn btn-ghost btn-sm"
+                  style={{ justifyContent: "flex-start" }}
+                  href={f.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {fileKind(f.path)} · {shownName(f.path)}
+                </a>
+              )
+            )}
+        </div>
+      )}
+
       <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
         <input
           ref={fileRef}

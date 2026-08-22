@@ -64,6 +64,7 @@ export default function StudyList({
   readOnly = false,
   asId = null,
   subs = {},
+  answers = {},   // itemId → { opened } — 파일형 답지 (0148, 하원 숙제만 온다)
 }) {
   const [pending, startTransition] = useTransition();
   const [openDone, setOpenDone] = useState(false);
@@ -308,6 +309,7 @@ export default function StudyList({
                     readOnly={readOnly}
                     mine={mine}
                     checklist={t.checklist || []}
+                    answer={answers[t.itemId] || null}
                     openList
                   />
                 )}
@@ -367,6 +369,7 @@ export default function StudyList({
                           readOnly={readOnly}
                           mine={mine}
                           checklist={t.checklist || []}
+                          answer={answers[t.itemId] || null}
                         />
                       </div>
                     )}

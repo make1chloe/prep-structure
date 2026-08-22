@@ -611,7 +611,7 @@ export default async function TodayPage({ searchParams }) {
   const none = { data: [] };
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -688,9 +688,17 @@ export default async function TodayPage({ searchParams }) {
             .not("seconds", "is", null)
             .order("id")
         )
-      : none,,
+      : none,
     // 월간용 키워드 메모 (0146) — 원장만 읽는 표라 없으면 조용히 빈다
-    supabase.from("report_keywords").select("student_id, body").eq("date", date)
+    supabase.from("report_keywords").select("student_id, body").eq("date", date),
+    // 오늘 배정에 붙인 파일형 답지 (0148) — 0148 전이면 조용히 빈다
+    studentIds.length
+      ? supabase
+          .from("answer_files")
+          .select("student_id, homework_item_id, paths, opened_at")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : none,
   ]);
   const { data: receipts } = receiptsQ;
 
@@ -1197,6 +1205,14 @@ export default async function TodayPage({ searchParams }) {
     subsOf.set(x.student_id, [...(subsOf.get(x.student_id) || []), x]);
   });
 
+  // 오늘 배정(다음 숙제)에 붙인 답지 (0148) — 학생 판의 📎 답지 표시용
+  const answersOf = new Map();   // studentId → { itemId: { paths, opened_at } }
+  ((ansQ.error ? [] : ansQ.data) || []).forEach((a) => {
+    const m = answersOf.get(a.student_id) || {};
+    m[a.homework_item_id] = { paths: a.paths || [], opened_at: a.opened_at || null };
+    answersOf.set(a.student_id, m);
+  });
+
   const studentById = new Map((students || []).map((s) => [s.id, s]));
   const attById = new Map((att || []).map((a) => [a.student_id, a]));
   // 특강 출결은 반별로 따로 (정규는 왔는데 특강만 빠지는 날이 있다)
@@ -1241,6 +1257,7 @@ export default async function TodayPage({ searchParams }) {
           nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
           nextUnits: nextUnitsOf(rep),
           checkUnits: assignedUnitsOf(s.id),
+          answers: answersOf.get(s.id) || {},
           plannedWords: plannedWordsOf(s.id),
         wordDefault: wordDefaultOf(s.id),
           wordDefault: wordDefaultOf(s.id),
@@ -1328,6 +1345,7 @@ export default async function TodayPage({ searchParams }) {
         nextHomework: rep ? nextByReport.get(rep.id) || [] : [],
         nextUnits: nextUnitsOf(rep),
         checkUnits: assignedUnitsOf(s.id),
+        answers: answersOf.get(s.id) || {},
         plannedWords: plannedWordsOf(s.id),
         wordDefault: wordDefaultOf(s.id),
         notices: noticesOfStudent.get(s.id) || [],

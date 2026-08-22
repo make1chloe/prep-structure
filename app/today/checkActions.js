@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { openAnswers } from "@/lib/answers";
+import { addDays } from "@/lib/day";
 
 /**
  * 검사 결과 한 건만 찍는다.
@@ -34,6 +36,9 @@ export async function markCheck(studentId, date, itemId, status) {
       .from("daily_report_items")
       .insert({ daily_report_id: rep.id, homework_item_id: itemId, status });
     if (error) return { error: error.message };
+    // **검사가 답지를 연다** (0148) — 지난 배정의 답지만 (검사일 전날까지).
+    // 판단은 lib/answers 한 곳, 실패해도 검사는 그대로 남는다.
+    await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
   }
 
   revalidatePath("/today");

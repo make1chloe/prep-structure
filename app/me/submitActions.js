@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { todaySeoul } from "@/lib/day";
 import { resolveStudent } from "@/lib/actAs";
 import { noTable } from "@/lib/sqlError";
+import { latestAnswerRow } from "@/lib/answers";
 
 const EXT = {
   "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic",
@@ -159,4 +160,33 @@ export async function viewUrl(path, download = false) {
     .createSignedUrl(path, 600, name ? { download: name } : undefined);
   if (error) return { error: error.message, url: null };
   return { error: null, url: data?.signedUrl || null };
+}
+
+/**
+ * **답지 보기** (0148, 원장님 — 「답지 있으면 채점하라는 메시지까지」).
+ *
+ * 열린 답지의 파일들에 10분짜리 링크를 만든다. 자기 것 + **열린 것만** —
+ * RLS 도 같은 규칙이지만, 체험 모드(선생님)는 줄이 다 보이므로 여기서
+ * opened_at 을 한 번 더 본다. 어느 배정일 줄인지는 lib/answers 한 곳의
+ * 판단(오늘 이하의 가장 최근 배정일)을 그대로 쓴다.
+ */
+export async function answerViewUrls(itemId, asId = null) {
+  if (!itemId) return { error: "숙제를 찾지 못했어요.", files: [] };
+  const supabase = createClient();
+  const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
+  if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요.", files: [] };
+
+  const row = await latestAnswerRow(supabase, studentId, itemId, todaySeoul());
+  if (!row || !row.opened_at || !(row.paths || []).length) {
+    return { error: "아직 답지가 안 열렸어요. 제출하고 선생님 확인을 기다려주세요.", files: [] };
+  }
+  const { data, error } = await supabase.storage
+    .from("answers")
+    .createSignedUrls(row.paths, 600);
+  if (error) return { error: error.message, files: [] };
+  const files = (data || [])
+    .map((x, i) => ({ url: x.signedUrl || null, path: x.path || row.paths[i] }))
+    .filter((x) => x.url);
+  if (!files.length) return { error: "답지 파일을 열지 못했어요. 선생님께 말씀해주세요.", files: [] };
+  return { error: null, files };
 }

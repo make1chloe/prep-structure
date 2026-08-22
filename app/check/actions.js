@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { nextRoutine, advanceRoutine } from "@/app/today/routineActions";
+import { openAnswers, openForSubmission } from "@/lib/answers";
+import { addDays } from "@/lib/day";
 
 /**
  * 숙제 검사 — **한 자리에서 끝낸다.**
@@ -81,6 +83,13 @@ export async function checkOne(studentId, date, itemId, status, note = "", submi
       .in("id", ids);
   }
 
+  // **검사가 답지를 연다** (0148). 검사 대상은 지난 수업의 배정이라
+  // **검사일 전날까지**의 답지 줄만 본다 — 오늘 새로 배정하며 붙인 다음
+  // 답지가 같이 열리면 안 된다 (판단은 lib/answers 한 곳).
+  if (status) {
+    await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
+  }
+
   revalidatePath("/check");
   revalidatePath("/today");
   revalidatePath("/me");
@@ -95,6 +104,9 @@ export async function seenSubmission(id, on = true) {
     .from("homework_submissions")
     .update({ checked_at: on ? new Date().toISOString() : null })
     .eq("id", id);
+  // 「봤어요」 도 확인이다 (0148) — 그 배정일의 답지를 연다 (안 봄으로
+  // 되돌려도 이미 열린 답지는 그대로다 — 학생이 봤을 수 있다)
+  if (!error && on) await openForSubmission(supabase, id);
   revalidatePath("/check");
   revalidatePath("/me");
   return { error: error ? error.message : null };

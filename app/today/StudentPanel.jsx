@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
+import { uploadAnswerFiles, removeAnswerFiles } from "./answerActions";
 import { quickAddUnits } from "@/app/textbooks/actions";
 import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
@@ -143,6 +144,83 @@ function ScoreInput({ label, total, correct, onTotal, onCorrect, cut = null, sou
       {/* 전체 개수를 어디서 가져왔는지 밝힌다 — 틀린 숫자가 미리 들어와 있으면
           그게 어디서 온 것인지 알아야 고칠 수 있다 */}
       {source && <span className="hint">{source}</span>}
+    </span>
+  );
+}
+
+/**
+ * **📎 답지** (0148, 원장님 2026-08-22 — 「답지가 DB화되지 않았을 때
+ * 업로드도 가능해야 해」). 다음 숙제 항목 줄에서 파일형 답지를 붙인다 —
+ * 여러 장, pdf 도 그대로 (lib/noticeFile 규칙). 학생에게는 안 보이다가
+ * **제출을 확인하는 순간** 열린다 (lib/answers). 학부모에게는 끝까지 안
+ * 보인다. 급한 숙제(직접 적은 숙제)도 저장돼 항목이 생기면 같은 줄로 온다.
+ */
+function AnswerAttach({ studentId, itemId, date, saved = null }) {
+  const [info, setInfo] = useState(saved);   // { paths, opened_at } | null
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+
+  // 새로고침으로 서버값이 오면 그대로 받는다 (올린 직후엔 서버 답으로 이미 맞다)
+  const savedKey = JSON.stringify(saved || null);
+  useEffect(() => {
+    setInfo(saved || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  async function pick(e) {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    if (!files.length) return;
+    setBusy(true);
+    const form = new FormData();
+    form.set("studentId", studentId);
+    form.set("itemId", itemId);
+    form.set("date", date);
+    files.forEach((f) => form.append("files", f));
+    const res = await uploadAnswerFiles(form);
+    setBusy(false);
+    if (res?.error) { alert(res.error); return; }
+    setInfo({ paths: res.paths || [], opened_at: info?.opened_at || null });
+  }
+
+  const n = info?.paths?.length || 0;
+  return (
+    <span className="row" style={{ gap: 4, alignItems: "center" }}>
+      <input ref={fileRef} type="file" multiple hidden onChange={pick} />
+      <button
+        className="btn btn-ghost btn-sm"
+        disabled={busy}
+        title="파일형 답지 — 제출을 확인하는 순간 학생에게 열려요 (학부모에게는 안 보여요)"
+        onClick={() => fileRef.current?.click()}
+      >
+        {busy ? "올리는 중…" : "📎 답지"}
+      </button>
+      {n > 0 && (
+        <span
+          className={`tag ${info?.opened_at ? "tag-mint" : "tag-muted"}`}
+          style={{ fontSize: 12 }}
+          title={info?.opened_at ? "학생에게 이미 열렸어요" : "확인 전 — 학생에게 아직 안 보여요"}
+        >
+          {info?.opened_at ? `답지 열림 ${n}` : `파일 ${n}개`}
+        </span>
+      )}
+      {n > 0 && (
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={busy}
+          title="답지를 뗍니다 (파일도 지워져요)"
+          onClick={async () => {
+            if (!confirm("붙인 답지를 뗄까요? 파일도 지워져요.")) return;
+            setBusy(true);
+            const res = await removeAnswerFiles(studentId, itemId, date);
+            setBusy(false);
+            if (res?.error) { alert(res.error); return; }
+            setInfo(null);
+          }}
+        >
+          ✕ 빼기
+        </button>
+      )}
     </span>
   );
 }
@@ -2148,6 +2226,14 @@ export default function StudentPanel({
                       placeholder="범위 메모"
                       value={u.note || ""}
                       onChange={(e) => setUnitField(iid, { note: e.target.value })}
+                    />
+                    {/* 📎 답지 (0148) — 이 항목·이 배정일에 파일형 답지를 붙인다.
+                        제출을 확인해야 학생에게 열린다 (내신 프린트가 주 용도) */}
+                    <AnswerAttach
+                      studentId={row.student.id}
+                      itemId={iid}
+                      date={date}
+                      saved={(row.answers || {})[iid] || null}
                     />
                     {chosen.length > 0 && (
                       <span className="unitmeta" style={{ flexBasis: "100%" }}>

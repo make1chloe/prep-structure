@@ -6,7 +6,8 @@ import { unitOptions } from "@/lib/unitTree";
 import { pushToStudents, pushToFamilies } from "@/app/push/actions";
 import { queuePush } from "@/lib/pushQueue";
 import { safeKind, isAlert } from "@/lib/notices";
-import { dowOf, todaySeoul } from "@/lib/day";
+import { dowOf, todaySeoul, addDays } from "@/lib/day";
+import { openAnswers } from "@/lib/answers";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
@@ -471,6 +472,22 @@ export async function saveStudentDay(studentId, date, form) {
     if (weakUnits.length) {
       const r = await setUnitProgress(studentId, weakUnits, "doing", { on: date, keepDone: true });
       if (r?.error) progressWarn = progressWarn || `진도 반영 실패: ${r.error}`;
+    }
+  }
+
+  /**
+   * 3.6) **검사 저장이 답지를 연다** (0148, 원장님 2026-08-22 — 원장의
+   * 「저장」 이 곧 확정 행위다. 3.5 진도 반영과 같은 태도).
+   *
+   * 판정(○△✕)을 찍은 항목의 답지를 연다. 검사 대상은 지난 수업의
+   * 배정이라 **검사일 전날까지**의 답지 줄만 본다 — 방금 다음 숙제에
+   * 붙인 답지가 같이 열리면 안 된다. 임시저장은 확정이 아니라서 뺀다.
+   * 실패해도 저장은 그대로 (lib/answers 가 조용히 삼킨다).
+   */
+  if (!form.draft) {
+    const checkedIds = Object.keys(items).filter((iid) => items[iid]);
+    if (checkedIds.length) {
+      await openAnswers(supabase, { studentId, itemIds: checkedIds, upTo: addDays(date, -1) });
     }
   }
 

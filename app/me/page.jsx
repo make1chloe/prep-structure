@@ -277,6 +277,32 @@ export default async function MePage({ searchParams }) {
   const todo = assignedRows.map(toCard);
 
   /**
+   * **답지 표시** (0148, 원장님 2026-08-22 — 「답지 없으면 그냥 제출까지,
+   * 답지 있으면 채점하라는 메시지까지 나오기」). 지금 숙제(배정일)에 답지가
+   * 있는지 · 열렸는지만 본다. 학생 눈에는 열리기 전 줄이 안 보여서(RLS)
+   * 직접 조회만으로는 「제출하면 열려요」 힌트를 못 띄운다 — 있고 없음만
+   * 내주는 my_answer_flags 와 합쳐 본다 (체험 모드는 직접 조회로 다 보인다).
+   * 0148 전 DB 면 조용히 빈다 — 답지 없는 숙제는 지금 그대로 아무 표시 없음.
+   */
+  const answers = {};   // itemId → { opened }
+  if (assignedFrom?.date) {
+    const [directQ, flagsQ] = await Promise.all([
+      supabase
+        .from("answer_files")
+        .select("homework_item_id, opened_at")
+        .eq("student_id", sid)
+        .eq("date", assignedFrom.date),
+      supabase.rpc("my_answer_flags", { d: assignedFrom.date }),
+    ]);
+    (directQ.error ? [] : directQ.data || []).forEach((a) => {
+      answers[a.homework_item_id] = { opened: !!a.opened_at };
+    });
+    (flagsQ.error ? [] : flagsQ.data || []).forEach((a) => {
+      if (!answers[a.homework_item_id]) answers[a.homework_item_id] = { opened: !!a.opened };
+    });
+  }
+
+  /**
    * **팝업 재료** (원장님 — 「성적 미입력 시, 숙제 미제출 시 학생에게 팝업
    * 계속」). 안 낸 숙제 = 배정됐는데 완료를 안 누른 것. 적어야 할 시험 =
    * 내 학교 시험이 끝났는데 점수를 안 적은 것 (성장 화면과 같은 규칙 —
@@ -922,6 +948,7 @@ export default async function MePage({ searchParams }) {
             readOnly={preview}
             asId={acting ? student.id : null}
             subs={subs}
+            answers={answers}
           />
 
           {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.

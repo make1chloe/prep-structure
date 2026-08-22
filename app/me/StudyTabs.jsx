@@ -25,6 +25,7 @@ export default function StudyTabs({
   readOnly = false,
   asId = null,
   subs = {},
+  answers = {},
   atClass = false,
   stayLeft = 0,
 }) {
@@ -158,6 +159,7 @@ export default function StudyTabs({
             readOnly={readOnly}
             asId={asId}
             subs={subs}
+            answers={answers}
           />
         ))}
 
