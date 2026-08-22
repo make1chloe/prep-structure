@@ -1075,6 +1075,20 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 .cal-pri1 { --bar: var(--amber); }
 .cal-pri2 { --bar: var(--red); font-weight: 800; }
 
+/* 빠른 메모 판 — 단추에 붙는 작은 판. 폰에서는 단추 기준으로 띄우면
+   왼쪽이 화면 밖으로 잘린다 (원장님 2026-08-22 스샷) — 화면 붙박이로 */
+.qmemo-pop {
+  position: absolute; right: 0; top: calc(100% + 6px);
+  width: min(320px, 86vw); z-index: 60;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+}
+@media (max-width: 700px) {
+  .qmemo-pop {
+    position: fixed; left: 8px; right: 8px; width: auto;
+    top: calc(var(--topbar-full, 96px) + 6px);
+  }
+}
+
 /* 달력 줄 맨 앞의 갈래 그림 — 글자와 같이 흐른다 */
 .cal-ico { margin-right: 3px; }
 

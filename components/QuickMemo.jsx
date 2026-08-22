@@ -91,12 +91,7 @@ export default function QuickMemo() {
       </button>
       {open && (
         <div
-          className="card card-tight"
-          style={{
-            position: "absolute", right: 0, top: "calc(100% + 6px)",
-            width: "min(320px, 86vw)", zIndex: 60,
-            boxShadow: "0 8px 30px rgba(0,0,0,.25)",
-          }}
+          className="card card-tight qmemo-pop"
         >
           <textarea
             className="input input-sm"
