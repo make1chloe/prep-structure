@@ -11,6 +11,8 @@ import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
+// 회독·되돌리기 금지 규칙째로 재사용한다 (원칙 1 — 같은 판단을 두 벌 안 만든다)
+import { setUnitProgress } from "@/app/progress/actions";
 
 // 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
 export async function listUnitOptions(textbookId) {
@@ -435,6 +437,43 @@ export async function saveStudentDay(studentId, date, form) {
     if (error) return { error: error.message };
   }
 
+  /**
+   * 3.5) **검사 결과 → 진도 자동 반영** (원장님 확정, 2026-08-22 —
+   * 원장님의 「저장」 이 곧 확정 행위다).
+   *
+   * 지난 배정 숙제(toCheck)에 붙여둔 단원(checkUnits — 지난 배정의
+   * textbook_unit_ids)을, 검사가 ○(done)이면 done + done_on=그 날짜로,
+   * △(weak)면 doing(하는 중)으로 찍는다. ✕·미검사는 안 건드린다.
+   *
+   * 회독(round) 규칙과 「이미 done 인 단원을 되돌리지 않기」 는
+   * setUnitProgress 한 곳에 있다 (원칙 1 — 판단 복붙 금지).
+   * 임시저장은 확정이 아니라서 뺀다. 실패해도 수업 기록은 살린다 —
+   * warn 으로만 같이 알린다 (할일 만들기와 같은 태도).
+   */
+  let progressWarn = null;
+  if (!form.draft) {
+    const cu = form.checkUnits || {};
+    const unitsWhere = (want) => [
+      ...new Set(
+        toCheck
+          .filter((iid) => items[iid] === want)
+          .flatMap((iid) => cu[iid]?.unitIds || [])
+          .filter(Boolean)
+      ),
+    ];
+    const doneUnits = unitsWhere("done");
+    // ○ 먼저 — 같은 단원이 ○·△ 두 숙제에 걸리면 높은 쪽(완료)이 이긴다
+    const weakUnits = unitsWhere("weak").filter((id) => !doneUnits.includes(id));
+    if (doneUnits.length) {
+      const r = await setUnitProgress(studentId, doneUnits, "done", { on: date, keepDone: true });
+      if (r?.error) progressWarn = `진도 반영 실패: ${r.error}`;
+    }
+    if (weakUnits.length) {
+      const r = await setUnitProgress(studentId, weakUnits, "doing", { on: date, keepDone: true });
+      if (r?.error) progressWarn = progressWarn || `진도 반영 실패: ${r.error}`;
+    }
+  }
+
   // 배정한 숙제 중 "내가 준비해야 하는 것" 은 내 할일로 올린다.
   // 여기서 실패해도 **오늘 기록은 살아 있어야 한다** — 할일은 다시 만들 수 있지만
   // 수업 기록이 날아가면 곤란하다. 대신 조용히 넘기지 않고 같이 알려준다.
@@ -516,7 +555,7 @@ export async function saveStudentDay(studentId, date, form) {
     error: null,
     complete,
     unchecked: unchecked.length,
-    warn: prep?.error || null,   // 기록은 됐지만 할일은 못 만든 경우
+    warn: prep?.error || progressWarn || null,   // 기록은 됐지만 할일·진도는 못 만진 경우
   };
 }
 

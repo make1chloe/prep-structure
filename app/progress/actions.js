@@ -811,8 +811,14 @@ export async function exportProgress() {
   return { error: null, rows };
 }
 
-// 순서와 상관없이 아무 단원이나 완료/미완료로 바꾼다
-export async function setUnitProgress(studentId, unitIds, status) {
+// 순서와 상관없이 아무 단원이나 완료/미완료로 바꾼다.
+// opts (검사 → 진도 자동 반영, 원장님 2026-08-22 — 「저장」 이 곧 확정 행위):
+//   on:       기록 날짜 (done_on·marked_on). 안 주면 오늘 — 지난 날짜의
+//             수업을 저장할 때 진도가 엉뚱한 날로 찍히지 않게.
+//   keepDone: 이미 done 인 단원은 안 건드린다 — 「이미 더 높은 상태로
+//             찍힌 단원을 낮추지 않는다」 (△가 지난 완료를 doing 으로
+//             되돌리거나, ○ 재검사가 done_on 을 덮어쓰는 일 방지).
+export async function setUnitProgress(studentId, unitIds, status, opts = {}) {
   const ids = Array.isArray(unitIds) ? unitIds : [unitIds];
   if (!studentId || ids.length === 0) return { error: null };
   const supabase = createClient();
@@ -874,9 +880,37 @@ export async function setUnitProgress(studentId, unitIds, status) {
     return ok(error);
   }
 
-  const today = todaySeoul();
+  // 이미 done 인 단원 골라내기 (keepDone) — 지금 회독 기록만 본다
+  let write = ids;
+  if (opts.keepDone) {
+    let q = await supabase
+      .from("student_unit_progress")
+      .select("textbook_unit_id, round")
+      .eq("student_id", studentId)
+      .in("textbook_unit_id", ids)
+      .eq("status", "done");
+    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
+      // 0026 전 — round 없이 (전부 1회독으로 본다)
+      q = await supabase
+        .from("student_unit_progress")
+        .select("textbook_unit_id")
+        .eq("student_id", studentId)
+        .in("textbook_unit_id", ids)
+        .eq("status", "done");
+    }
+    const doneSet = new Set();
+    for (const r of q.error ? [] : q.data || []) {
+      if (r.round === undefined || (r.round || 1) === (await roundFor(r.textbook_unit_id))) {
+        doneSet.add(r.textbook_unit_id);
+      }
+    }
+    write = ids.filter((id) => !doneSet.has(id));
+    if (write.length === 0) return { error: null };
+  }
+
+  const today = opts.on || todaySeoul();
   const rows = [];
-  for (const textbook_unit_id of ids) {
+  for (const textbook_unit_id of write) {
     rows.push({
       student_id: studentId,
       textbook_unit_id,

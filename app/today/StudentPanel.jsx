@@ -506,6 +506,18 @@ export default function StudentPanel({
   const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
   const toCheckSet = new Set(toCheck);
   const unchecked = toCheck.filter((id) => !marks[id]);
+  /**
+   * **검사 구역엔 검사할 것만 등장** (원장님 확정, 2026-08-22). 오늘 이미
+   * 검사돼 **서버에 저장된** 항목(row.items 에 상태가 있는 것)은 아래
+   * 「오늘 검사한 N개」 접힌 묶음으로 내려간다 — 펴면 판정이 보이고 칩으로
+   * 고칠 수 있다 (2026-08-21 재검사 유지 — toCheckOf 는 안 건드리고
+   * 화면에서 접기만 한다). 지금 찍고 아직 저장 안 한 것은 그대로 펼쳐져
+   * 있다 — 저장 전에 접히면 뒤집을 것을 못 본다.
+   */
+  const savedToday = row.items || {};
+  const checkOpen = toCheck.filter((iid) => !savedToday[iid]);
+  const checkFolded = toCheck.filter((iid) => savedToday[iid]);
+  const [showCheckedToday, setShowCheckedToday] = useState(false);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
   const itemOf = (id) => items.find((i) => i.id === id) || null;
 
@@ -539,6 +551,163 @@ export default function StudentPanel({
   const checkUnitList = Object.entries(row.checkUnits || {}).filter(
     ([, u]) => u.unitId || u.note
   );
+
+  /**
+   * 검사 줄 하나 — 펼친 목록과 「오늘 검사한 N개」 접힌 묶음이 **같은 줄**을
+   * 그린다 (두 벌이면 칩·처분 버튼이 딴소리를 한다). 컴포넌트가 아니라
+   * 그냥 함수로 부른다 — 컴포넌트로 만들면 매 렌더마다 새 타입이 되어
+   * 입력 상태가 날아간다.
+   */
+  const checkRow = (iid) => {
+    const u = row.checkUnits?.[iid] || {};
+    const uids = u.unitIds && u.unitIds.length ? u.unitIds : u.unitId ? [u.unitId] : [];
+    const st = marks[iid] || "";
+    const item = items.find((x) => x.id === iid);
+    // 이 숙제로 만든 늦귀가 과제가 이미 있는가 —
+    // 「남아서」 버튼(있으면 숨김)과 「늦귀가 ↓」 표가 같이 본다
+    const inStay =
+      stayedOpt.has(iid) ||
+      (row.stay || []).some((t) => t.homework_item_id === iid);
+    return (
+      <div className="unitrow" key={iid}>
+        {/* 세 가지를 한 번에 — 예전엔 칩을 돌려야 해서 미제출이 3탭이었다 */}
+        <span
+          className={`hwchip ${st ? MARK_CLS[st] : ""}`}
+          style={!st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
+        >
+          {st ? <b>{MARK[st]}</b> : <b>·</b>} {nameOf(iid) || "숙제"}
+        </span>
+        {autoMarks[iid] && marks[iid] === autoMarks[iid] && (
+          <span className="tag tag-sky" title="클카·제출물로 미리 채운 판정 — 저장해야 확정돼요. 다르면 옆에서 뒤집으세요">자동</span>
+        )}
+        <span className="markset">
+          {[["done", "○"], ["weak", "△"], ["missing", "✕"]].map(([k, sym]) => (
+            <button
+              key={k}
+              className={`markbtn ${st === k ? `on ${MARK_CLS[k]}` : ""}`}
+              title={k === "done" ? "완료" : k === "weak" ? "미흡" : "미제출"}
+              disabled={saving}
+              onClick={() => {
+                touchedMarks.current.add(iid);
+                setMarks((m) => ({ ...m, [iid]: m[iid] === k ? "" : k }));
+              }}
+            >
+              {sym}
+            </button>
+          ))}
+        </span>
+        {(() => {
+          const v = ccVerdictOf(iid);
+          if (!v) return null;
+          return (
+            <span
+              className={`tag ${v.status === "done" ? "tag-mint" : "tag-amber"}`}
+              title={v.missed.length ? v.missed.join("\n") : "그날 마감 세트 전부 완료"}
+            >
+              클카 {v.total - v.missed.length}/{v.total}
+              {v.missed.length > 0 && ` · ${v.missed[0]}${v.missed.length > 1 ? ` 외 ${v.missed.length - 1}` : ""}`}
+            </span>
+          );
+        })()}
+        {/* 안 해온 숙제의 처분 (원장님 2026-08-20 — 「숙제 다시
+            옆에 오늘수업으로도. 그렇게 하고도 못하면 다시
+            숙제로 나가도록」) */}
+        {(st === "missing" || st === "weak") && (
+          <>
+            {!inClass.includes(iid) && (
+              <button
+                className={`btn btn-sm ${item?.redo_default === "inclass" ? "btn-primary" : "btn-ghost"}`}
+                title="이 숙제를 오늘 학원에서 하게 — 등원 학습 맨 위에 섭니다"
+                onClick={() => setInClass([iid, ...inClass])}
+              >
+                오늘수업으로
+              </button>
+            )}
+            {!next.has(iid) && (
+              <button
+                className={`btn btn-sm ${item?.redo_default === "homework" ? "btn-primary" : "btn-ghost"}`}
+                title="다음 수업 숙제로 다시 냅니다"
+                onClick={() => setNext((s2) => new Set(s2).add(iid))}
+              >
+                숙제 다시
+              </button>
+            )}
+            {/* 세 번째 처분 (원장님 2026-08-21 — 「미제출 처분에
+                수업 후 남아서 항목도 필요해」). 늦귀가 과제와
+                같은 길(addStay)로 올라간다 — 하원 안내 사유·
+                학생 화면 「남을 것」 이 저절로 따라온다 */}
+            {!inStay && (
+              <button
+                className={`btn btn-sm ${item?.redo_default === "stay" ? "btn-primary" : "btn-ghost"}`}
+                title="수업 끝나고 남아서 마저 하고 갑니다 — 아래 늦귀가 과제에 올라가고, 하원 안내 사유로 잡힙니다"
+                onClick={() => {
+                  // 누르는 순간 올라간 걸로 보인다 — 실패하면 되돌리고 알린다
+                  setStayedOpt((s2) => new Set(s2).add(iid));
+                  startTransition(async () => {
+                    const res = await addStay(
+                      row.student.id, date, staySugOf(iid, st).body, iid, true
+                    );
+                    if (res?.error) {
+                      setStayedOpt((s2) => {
+                        const n = new Set(s2); n.delete(iid); return n;
+                      });
+                      alert(res.error);
+                      return;
+                    }
+                    router.refresh();
+                  });
+                }}
+              >
+                남아서
+              </button>
+            )}
+          </>
+        )}
+        {/* 이 숙제로 만든 늦귀가 과제 — 연결(homework_item_id)을
+            이제 읽는다 (값-지도 P1-15). 이미 늦귀가에 올라가
+            있으면 또 만들 필요가 없다는 것이 검사 중에 보인다 */}
+        {inStay && (
+          <span
+            className="tag tag-lav"
+            title="이 숙제로 만든 늦귀가 과제가 아래 「늦귀가」 줄에 있습니다"
+          >
+            늦귀가 ↓
+          </span>
+        )}
+        {item?.method && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setMethodOf(methodOf === iid ? null : iid)}
+            title="학습 방법 보기"
+          >
+            방법
+          </button>
+        )}
+        {uids.length === 0 && !u.note ? (
+          <span className="hint">단원 지정 없음</span>
+        ) : (
+          <span className="unitmeta">
+            {uids.map((uid) => {
+              const m = unitMeta(uid);
+              // **교재명 + 단원 경로** (원장님 확정, 2026-08-22 — 「검사
+              // 항목에 교재명·단원 표시」). 어느 교재인지는 판에 이미 있는
+              // unitNames/unitMeta 의 textbookId 로 잇는다 — 새로 안 묻는다
+              const bn = bookName(m?.textbookId || unitNames[uid]?.textbookId || "");
+              return (
+                <span className="tag tag-sky" key={uid}>
+                  {bn ? `${bn} · ` : ""}
+                  {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
+                  {m?.activity ? ` · ${m.activity}` : ""}
+                  {m?.amount ? ` · ${m.amount}` : m?.pages ? ` · ${m.pages}` : ""}
+                </span>
+              );
+            })}
+            {u.note && <span className="tag tag-muted">{u.note}</span>}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   const cats = ["전체", "자주", ...new Set(items.map((i) => i.category).filter(Boolean))];
   const COMMON = ["단어(교재)", "단어(온라인)", "독해", "워크북", "문법", "영작", "듣기", "오답노트"];
@@ -680,19 +849,23 @@ export default function StudentPanel({
     const cur = nextUnits[itemId]?.unitIds || [];
     setUnitField(itemId, { unitIds: cur.filter((x) => x !== unitId) });
   }
-  const bookName = (id) => textbooks.find((t) => t.id === id)?.name || "";
+  // 이 학생 것(row.books)에서도 찾는다 — 절판돼 전체 목록에서 빠진 교재도 이름은 보여야 한다
+  const bookName = (id) =>
+    textbooks.find((t) => t.id === id)?.name || myBooks.find((b) => b.id === id)?.name || "";
 
-  // 단원 한 개의 표시 정보 — 불러온 교재 목록에서 먼저, 없으면 서버가 준 이름으로
+  // 단원 한 개의 표시 정보 — 불러온 교재 목록에서 먼저, 없으면 서버가 준 이름으로.
+  // 어느 교재의 단원인지(textbookId)도 같이 준다 — 검사 줄의 교재명 표시가 쓴다
   function unitMeta(unitId) {
-    for (const opts of Object.values(unitsByBook)) {
+    for (const [bid, opts] of Object.entries(unitsByBook)) {
       const hit = opts.find((o) => o.id === unitId);
-      if (hit) return hit;
+      if (hit) return { ...hit, textbookId: bid };
     }
     const n = unitNames[unitId];
     return n
       ? {
           id: unitId, big: n.path, mid: "", small: "",
           activity: n.activity || "", pages: "", amount: n.amount || "",
+          textbookId: n.textbookId || "",
         }
       : null;
   }
@@ -924,6 +1097,18 @@ export default function StudentPanel({
         carryNext: [...carryNext].filter((x) => inClass.includes(x)),
         planNext: [...planNext],
         toCheck,
+        /**
+         * 검사한 숙제에 붙은 단원 — 저장이 곧 진도 확정 (원장님 2026-08-22).
+         * 서버(page)가 지난 배정에서 계산해 내려준 checkUnits 를 그대로
+         * 되돌려 보낸다 — toCheck 가 다니는 길과 같다. ○면 done, △면
+         * doing 으로 진도 판에 찍히는 건 서버(saveStudentDay)가 한다.
+         */
+        checkUnits: Object.fromEntries(
+          Object.entries(row.checkUnits || {}).map(([iid, u]) => [
+            iid,
+            { unitIds: u.unitIds?.length ? u.unitIds : u.unitId ? [u.unitId] : [] },
+          ])
+        ),
         nextHomework: [...next],
         nextUnits: Object.fromEntries(
           [...next].map((iid) => [
@@ -971,6 +1156,8 @@ export default function StudentPanel({
       if (res && res.complete === false) {
         alert(`저장했지만 아직 완료가 아니에요.\n지난 수업 숙제 ${res.unchecked}개가 검사되지 않았습니다.`);
       }
+      // 기록은 됐지만 곁가지(할일·진도 반영)가 실패한 경우 — 조용히 안 넘긴다
+      if (res?.warn) alert(res.warn);
       onSaved?.();
       router.refresh();
       } finally {
@@ -1431,153 +1618,22 @@ export default function StudentPanel({
                   </button>
                 );
               })()}
-              {/* 배정할 때 적어둔 단원과 분량 — 무엇을 검사할지 여기서 바로 본다 */}
+              {/* 배정할 때 적어둔 단원과 분량 — 무엇을 검사할지 여기서 바로 본다.
+                  오늘 이미 저장된 검사는 아래 접힌 묶음으로 (원장님 2026-08-22) */}
               <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
-                {toCheck.map((iid) => {
-                  const u = row.checkUnits?.[iid] || {};
-                  const uids = u.unitIds && u.unitIds.length ? u.unitIds : u.unitId ? [u.unitId] : [];
-                  const st = marks[iid] || "";
-                  const item = items.find((x) => x.id === iid);
-                  // 이 숙제로 만든 늦귀가 과제가 이미 있는가 —
-                  // 「남아서」 버튼(있으면 숨김)과 「늦귀가 ↓」 표가 같이 본다
-                  const inStay =
-                    stayedOpt.has(iid) ||
-                    (row.stay || []).some((t) => t.homework_item_id === iid);
-                  return (
-                    <div className="unitrow" key={iid}>
-                      {/* 세 가지를 한 번에 — 예전엔 칩을 돌려야 해서 미제출이 3탭이었다 */}
-                      <span
-                        className={`hwchip ${st ? MARK_CLS[st] : ""}`}
-                        style={!st ? { borderColor: "var(--amber)", borderWidth: 2 } : undefined}
-                      >
-                        {st ? <b>{MARK[st]}</b> : <b>·</b>} {nameOf(iid) || "숙제"}
-                      </span>
-                      {autoMarks[iid] && marks[iid] === autoMarks[iid] && (
-                        <span className="tag tag-sky" title="클카·제출물로 미리 채운 판정 — 저장해야 확정돼요. 다르면 옆에서 뒤집으세요">자동</span>
-                      )}
-                      <span className="markset">
-                        {[["done", "○"], ["weak", "△"], ["missing", "✕"]].map(([k, sym]) => (
-                          <button
-                            key={k}
-                            className={`markbtn ${st === k ? `on ${MARK_CLS[k]}` : ""}`}
-                            title={k === "done" ? "완료" : k === "weak" ? "미흡" : "미제출"}
-                            disabled={saving}
-                            onClick={() => {
-                              touchedMarks.current.add(iid);
-                              setMarks((m) => ({ ...m, [iid]: m[iid] === k ? "" : k }));
-                            }}
-                          >
-                            {sym}
-                          </button>
-                        ))}
-                      </span>
-                      {(() => {
-                        const v = ccVerdictOf(iid);
-                        if (!v) return null;
-                        return (
-                          <span
-                            className={`tag ${v.status === "done" ? "tag-mint" : "tag-amber"}`}
-                            title={v.missed.length ? v.missed.join("\n") : "그날 마감 세트 전부 완료"}
-                          >
-                            클카 {v.total - v.missed.length}/{v.total}
-                            {v.missed.length > 0 && ` · ${v.missed[0]}${v.missed.length > 1 ? ` 외 ${v.missed.length - 1}` : ""}`}
-                          </span>
-                        );
-                      })()}
-                      {/* 안 해온 숙제의 처분 (원장님 2026-08-20 — 「숙제 다시
-                          옆에 오늘수업으로도. 그렇게 하고도 못하면 다시
-                          숙제로 나가도록」) */}
-                      {(st === "missing" || st === "weak") && (
-                        <>
-                          {!inClass.includes(iid) && (
-                            <button
-                              className={`btn btn-sm ${item?.redo_default === "inclass" ? "btn-primary" : "btn-ghost"}`}
-                              title="이 숙제를 오늘 학원에서 하게 — 등원 학습 맨 위에 섭니다"
-                              onClick={() => setInClass([iid, ...inClass])}
-                            >
-                              오늘수업으로
-                            </button>
-                          )}
-                          {!next.has(iid) && (
-                            <button
-                              className={`btn btn-sm ${item?.redo_default === "homework" ? "btn-primary" : "btn-ghost"}`}
-                              title="다음 수업 숙제로 다시 냅니다"
-                              onClick={() => setNext((s2) => new Set(s2).add(iid))}
-                            >
-                              숙제 다시
-                            </button>
-                          )}
-                          {/* 세 번째 처분 (원장님 2026-08-21 — 「미제출 처분에
-                              수업 후 남아서 항목도 필요해」). 늦귀가 과제와
-                              같은 길(addStay)로 올라간다 — 하원 안내 사유·
-                              학생 화면 「남을 것」 이 저절로 따라온다 */}
-                          {!inStay && (
-                            <button
-                              className={`btn btn-sm ${item?.redo_default === "stay" ? "btn-primary" : "btn-ghost"}`}
-                              title="수업 끝나고 남아서 마저 하고 갑니다 — 아래 늦귀가 과제에 올라가고, 하원 안내 사유로 잡힙니다"
-                              onClick={() => {
-                                // 누르는 순간 올라간 걸로 보인다 — 실패하면 되돌리고 알린다
-                                setStayedOpt((s2) => new Set(s2).add(iid));
-                                startTransition(async () => {
-                                  const res = await addStay(
-                                    row.student.id, date, staySugOf(iid, st).body, iid, true
-                                  );
-                                  if (res?.error) {
-                                    setStayedOpt((s2) => {
-                                      const n = new Set(s2); n.delete(iid); return n;
-                                    });
-                                    alert(res.error);
-                                    return;
-                                  }
-                                  router.refresh();
-                                });
-                              }}
-                            >
-                              남아서
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {/* 이 숙제로 만든 늦귀가 과제 — 연결(homework_item_id)을
-                          이제 읽는다 (값-지도 P1-15). 이미 늦귀가에 올라가
-                          있으면 또 만들 필요가 없다는 것이 검사 중에 보인다 */}
-                      {inStay && (
-                        <span
-                          className="tag tag-lav"
-                          title="이 숙제로 만든 늦귀가 과제가 아래 「늦귀가」 줄에 있습니다"
-                        >
-                          늦귀가 ↓
-                        </span>
-                      )}
-                      {item?.method && (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setMethodOf(methodOf === iid ? null : iid)}
-                          title="학습 방법 보기"
-                        >
-                          방법
-                        </button>
-                      )}
-                      {uids.length === 0 && !u.note ? (
-                        <span className="hint">단원 지정 없음</span>
-                      ) : (
-                        <span className="unitmeta">
-                          {uids.map((uid) => {
-                            const m = unitMeta(uid);
-                            return (
-                              <span className="tag tag-sky" key={uid}>
-                                {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
-                                {m?.activity ? ` · ${m.activity}` : ""}
-                                {m?.amount ? ` · ${m.amount}` : m?.pages ? ` · ${m.pages}` : ""}
-                              </span>
-                            );
-                          })}
-                          {u.note && <span className="tag tag-muted">{u.note}</span>}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
+                {checkOpen.map((iid) => checkRow(iid))}
+                {checkFolded.length > 0 && (
+                  <div>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setShowCheckedToday((v) => !v)}
+                      title="오늘 이미 검사하고 저장한 숙제예요 — 펴면 판정이 보이고, 칩을 눌러 고친 뒤 다시 저장하면 됩니다"
+                    >
+                      오늘 검사한 {checkFolded.length}개 {showCheckedToday ? "▾" : "▸"}
+                    </button>
+                  </div>
+                )}
+                {showCheckedToday && checkFolded.map((iid) => checkRow(iid))}
               </div>
               {methodOf && (
                 <div className="notice" style={{ marginBottom: 8, whiteSpace: "pre-wrap" }}>
