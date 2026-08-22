@@ -1087,6 +1087,9 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
     position: fixed; left: 8px; right: 8px; width: auto;
     top: calc(var(--topbar-full, 96px) + 6px);
   }
+  /* 아이폰은 16px 미만 입력칸에 커서가 들어가면 화면을 강제 확대하고,
+     닫아도 확대가 남아 화면이 잘려 보인다 (원장님 2026-08-22 스샷) */
+  .qmemo-pop textarea { font-size: 16px; }
 }
 
 /* 달력 줄 맨 앞의 갈래 그림 — 글자와 같이 흐른다 */
