@@ -43,7 +43,7 @@ export default async function ProgressPage() {
     supabase.from("class_students").select("class_id, student_id"),
     fetchAll(() => supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts")
+      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts, pause")
       .neq("status", "dropped")
       .order("student_id").order("textbook_id")),
     supabase.from("textbooks").select("id, name, area, status, total_pages"),
@@ -89,13 +89,22 @@ export default async function ProgressPage() {
 
 
   // 학생 → 지금 쓰는 교재 (아직 시작 전·끝낸 것은 뺀다 — lib/bookUse 한 벌)
-  // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
+  // pause(0149) → skip_acts(0133) 가 없는 DB 면 한 칸씩 물러나며 다시 읽는다
   let stBookRows = stBooksQ.data;
   if (stBooksQ.error) {
-    ({ data: stBookRows } = await supabase
+    // 0149 전 — pause 없이 (skip_acts 는 지킨다)
+    let fb = await supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round")
-      .neq("status", "dropped"));
+      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts")
+      .neq("status", "dropped");
+    if (fb.error) {
+      // 0133 전 — skip_acts 도 없이
+      fb = await supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round")
+        .neq("status", "dropped");
+    }
+    stBookRows = fb.data;
   }
   const booksOf = new Map();
   (stBookRows || []).forEach((r) => {
@@ -112,6 +121,8 @@ export default async function ProgressPage() {
       bookPages: b.total_pages || 0,
       curPage: r.current_page ?? "",
       skipActs: r.skip_acts || "",
+      // 멈춤 (0149) — 진도 판(BookProgress)이 태그·토글로 보여준다
+      pause: r.pause || null,
       round,
       doing: (doingOf.get(`${r.student_id}|${b.id}`) || [])
         .filter((d) => d.round === round)

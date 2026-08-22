@@ -109,7 +109,7 @@ export default async function StudentsPage({ searchParams }) {
     ids.length
       ? fetchAll(() => supabase
           .from("student_textbooks")
-          .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, skip_acts")
+          .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, skip_acts, pause")
           .in("student_id", ids)
           .order("student_id").order("textbook_id"))
       : none,
@@ -123,13 +123,22 @@ export default async function StudentsPage({ searchParams }) {
       ? supabase.from("parent_student").select("student_id, parent_profile_id").in("student_id", ids)
       : none,
   ]);
-  // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
+  // pause(0149) → skip_acts(0133) 가 없는 DB 면 한 칸씩 물러나며 다시 읽는다
   let stBooks = stBooksQ.data;
   if (stBooksQ.error && ids.length) {
-    ({ data: stBooks } = await supabase
+    // 0149 전 — pause 없이 (skip_acts 는 지킨다)
+    let fb = await supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page")
-      .in("student_id", ids));
+      .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, skip_acts")
+      .in("student_id", ids);
+    if (fb.error) {
+      // 0133 전 — skip_acts 도 없이
+      fb = await supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status, assigned_on, ended_on, current_page")
+        .in("student_id", ids);
+    }
+    stBooks = fb.data;
   }
 
   // 아직 초기 비밀번호(0000) 그대로인 학생 — 파도 2 에서 왔다
@@ -157,6 +166,8 @@ export default async function StudentsPage({ searchParams }) {
       from: notYet(r, today) ? r.assigned_on : null,
       curPage: r.current_page ?? "",
       skipActs: r.skip_acts || "",
+      // 멈춤 (0149) — 진도 판(BookProgress)이 태그·토글로 보여준다
+      pause: r.pause || null,
     });
   });
 

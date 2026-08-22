@@ -615,7 +615,7 @@ export default async function TodayPage({ searchParams }) {
     studentIds.length
       ? supabase
           .from("student_textbooks")
-          .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on, skip_acts")
+          .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on, skip_acts, pause")
           .in("student_id", studentIds)
       : none,
     // 진도는 학생 수 × 단원 수라 **1000줄을 쉽게 넘는다** — 끝까지 받는다
@@ -734,13 +734,22 @@ export default async function TodayPage({ searchParams }) {
   };
 
   // ---------- 학생별 교재 배정 · 단원 진도 ----------
-  // skip_acts(0133) 가 없는 DB 면 그 칸 없이 다시 읽는다
+  // pause(0149) → skip_acts(0133) 가 없는 DB 면 한 칸씩 물러나며 다시 읽는다
   let stBooks = stBooksQ.data;
   if (stBooksQ.error && studentIds.length) {
-    ({ data: stBooks } = await supabase
+    // 0149 전 — pause 없이 (skip_acts 는 지킨다 — 통째로 빼면 0133 이 죽는다)
+    let fb = await supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
-      .in("student_id", studentIds));
+      .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on, skip_acts")
+      .in("student_id", studentIds);
+    if (fb.error) {
+      // 0133 전 — skip_acts 도 없이
+      fb = await supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status, current_page, ended_on, round, assigned_on")
+        .in("student_id", studentIds);
+    }
+    stBooks = fb.data;
   }
   // 회독별로 쌓인다. `round` 가 아직 없는 DB 면 전부 1회독으로 본다.
   let stProgress = [];
@@ -778,6 +787,7 @@ export default async function TodayPage({ searchParams }) {
   const booksOfStudent = new Map();
   const pageOf = new Map(); // `${studentId}|${textbookId}` → 지금 페이지
   const skipOf = new Map(); // `${studentId}|${textbookId}` → 빼는 활동 Set (0133)
+  const pauseOfBook = new Map(); // `${studentId}|${textbookId}` → 멈춤 (0149: all|home)
   (stBooks || []).forEach((r) => {
     // 완료·중단한 교재는 숙제 배정·진도 화면에서 빼고, 재원생 기록에만 남긴다.
     // 사용 예정일이 아직 안 온 교재도 뺀다 — 학생 손에 책이 없다.
@@ -785,6 +795,7 @@ export default async function TodayPage({ searchParams }) {
     if (!booksOfStudent.has(r.student_id)) booksOfStudent.set(r.student_id, new Set());
     booksOfStudent.get(r.student_id).add(r.textbook_id);
     if (r.current_page) pageOf.set(`${r.student_id}|${r.textbook_id}`, r.current_page);
+    if (r.pause) pauseOfBook.set(`${r.student_id}|${r.textbook_id}`, r.pause);
     if (r.skip_acts) {
       skipOf.set(
         `${r.student_id}|${r.textbook_id}`,
@@ -1047,6 +1058,8 @@ export default async function TodayPage({ searchParams }) {
         bookPages,
         percent,
         skipActs: skip ? [...skip].join(",") : "",
+        // 멈춤 (0149) — 판단은 nextRoutine 한 곳, 화면은 태그·토글만 그린다
+        pause: pauseOfBook.get(`${studentId}|${tid}`) || null,
         actItems: bookActOf.get(tid) || {},
       };
     });

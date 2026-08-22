@@ -288,6 +288,36 @@ export default async function Home() {
                 </div>
               </div>
             )}
+            {/* 배정만 되고 진도가 한 줄도 안 찍힌 교재 (원장님 2026-08-22 —
+                「교재 배정됐는데 진도 체크 안 된 학생 대시보드에 알려줘」).
+                멈춘 교재(⏸)·배정 7일 안(유예)은 안 올린다 — 판단은
+                lib/dashboard progressIdle 한 곳 */}
+            {(d.progressIdle || []).length > 0 && (
+              <div className="card sect sect-warn">
+                <h2 className="secthead">
+                  진도 시작 안 한 교재 <span className="tag tag-amber">{d.progressIdle.length}건</span>
+                </h2>
+                <div className="stack" style={{ gap: 3 }}>
+                  {d.progressIdle.slice(0, 8).map((p) => (
+                    <Link
+                      className="unitrow"
+                      key={`${p.name}|${p.book}`}
+                      href="/progress"
+                      style={{ textDecoration: "none" }}
+                      title={p.since ? `${p.since} 배정` : undefined}
+                    >
+                      <b style={{ fontSize: 14 }}>{p.name}</b>
+                      <span className="hint" style={{ flex: 1 }}>{p.book}</span>
+                    </Link>
+                  ))}
+                  {d.progressIdle.length > 8 && (
+                    <Link className="hint" href="/progress">
+                      외 {d.progressIdle.length - 8}건 더 보기
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="stack dashcol">
             <div className="card sect sect-calm">

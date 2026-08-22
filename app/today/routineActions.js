@@ -22,11 +22,20 @@ export async function nextRoutine(studentId, opts = {}) {
   const supabase = createClient();
 
   // 회독(round)까지 본다 — 2회독이면 1회독 진도는 끝난 것으로 치지 않는다
+  // 멈춤(pause, 0149)도 여기서 같이 읽는다 — 멈춤 판단은 이 함수 한 곳이다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on")
+    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause")
     .eq("student_id", studentId);
   if (stq.error) {
+    // 0149 전 — pause 없이 (멈춘 교재가 없는 것으로 본다)
+    stq = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on")
+      .eq("student_id", studentId);
+  }
+  if (stq.error) {
+    // 0025 전 — 회독 칸도 없이
     stq = await supabase
       .from("student_textbooks")
       .select("textbook_id, status, routine_step, routine_step_id, assigned_on, ended_on")
@@ -36,7 +45,16 @@ export async function nextRoutine(studentId, opts = {}) {
 
   // 오늘 수업 로스터와 같은 규칙 — 아직 안 시작한 책·끝난 책의 루틴을
   // 제안하면 같은 화면 안에서 딴소리가 된다 (전수검사 A7, 2026-08-15)
-  const mine = (stq.data || []).filter((r) => inUseOn(r, todaySeoul()));
+  /**
+   * **교재멈춤은 아예 뺀다** (원장님 2026-08-22 — 「교재멈춤은 내신 대비할
+   * 때 아예 진도 스탑」). 자동 차림·⟳ 다음·peek(다음 수업 미리 담기)까지
+   * 이 함수를 지나는 모든 길에서 빠진다. 진도 기록·회독은 그대로라
+   * 해제하면 하던 자리에서 재개된다. 저장 때 advanceRoutine 도 steps 에
+   * 있는 교재만 넘기므로, 멈춘 교재의 루틴 차례도 제자리에 선다.
+   */
+  const mine = (stq.data || [])
+    .filter((r) => inUseOn(r, todaySeoul()))
+    .filter((r) => r.pause !== "all");
   const bookIds = mine.map((r) => r.textbook_id);
   if (bookIds.length === 0) return { inclass: [], home: [], steps: [], error: null };
 
@@ -140,8 +158,14 @@ export async function nextRoutine(studentId, opts = {}) {
     if (peek) idx = (idx + 1) % list.length;   // 다음 수업 차례
     const step = list[idx];
     const unit = unitOfBook.get(r.textbook_id) || null;
+    /**
+     * **숙제멈춤** (원장님 2026-08-22 — 「숙제멈춤은 숙제만 안 나감」).
+     * 등원 학습(inclass)은 그대로 차리고, 숙제(home_items)와 예습
+     * (home_next)만 비운다. 해제하면 다시 여느 때처럼 나간다.
+     */
+    const homePaused = r.pause === "home";
     (step.inclass_items || []).forEach((x) => inclass.add(x));
-    (step.home_items || []).forEach((x) => {
+    if (!homePaused) (step.home_items || []).forEach((x) => {
       home.add(x);
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
       if (unit?.id)
@@ -157,7 +181,7 @@ export async function nextRoutine(studentId, opts = {}) {
      * 후행인지」). 오늘 단원이 아니라 **다음 단원**이 붙는다.
      * 다음 단원이 없으면(마지막 단원) 범위 없이 항목만 담는다.
      */
-    (step.home_next || []).forEach((x) => {
+    if (!homePaused) (step.home_next || []).forEach((x) => {
       home.add(x);
       if (unit?.nextId)
         itemUnits[x] = {
@@ -174,9 +198,11 @@ export async function nextRoutine(studentId, opts = {}) {
       label: step.label || "",
       unit: unit ? unit.name : "",
       unitDone: !!unit?.allDone,
+      // 멈춤 상태 — 화면(오늘 수업 판)이 태그로 보여준다
+      pause: r.pause || null,
       // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 화면이 교재별로 거른다
       inclassItems: step.inclass_items || [],
-      homeItems: [...(step.home_items || []), ...(step.home_next || [])],
+      homeItems: homePaused ? [] : [...(step.home_items || []), ...(step.home_next || [])],
     });
   });
 

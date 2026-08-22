@@ -8,6 +8,7 @@ import { planAssign } from "@/lib/bookAssign";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
 import { sessionUser } from "@/lib/session";
+import { requireStaff } from "@/lib/guard";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -200,6 +201,36 @@ export async function setBookSkipActs(studentId, textbookId, acts) {
     return { error: "관리자 → SQL 확인에서 0133 을 먼저 실행해 주세요." };
   }
   revalidatePath("/today");
+  return ok(error);
+}
+
+/**
+ * **교재멈춤 · 숙제멈춤** (원장님, 2026-08-22 — 「교재멈춤은 내신 대비할 때
+ * 아예 진도 스탑, 숙제멈춤은 숙제만 안 나감. 버튼이나 체크박스 해제해야
+ * 정상 수업 숙제 나가기」).
+ *
+ * pause: null(정상) | 'all'(교재멈춤) | 'home'(숙제멈춤). 여기는 적기만
+ * 한다 — **멈춤을 읽고 거르는 판단은 nextRoutine(app/today/routineActions)
+ * 한 곳**이고, 대시보드의 「진도 시작 안 함」 도 멈춘 교재는 재촉하지
+ * 않는다 (lib/dashboard). 기록·회독은 안 건드리니 해제하면 그대로 재개된다.
+ */
+export async function setBookPause(studentId, textbookId, pause) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const p = pause === "all" || pause === "home" ? pause : null;
+  const supabase = createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { error: guard.error };
+  const { error } = await supabase
+    .from("student_textbooks")
+    .update({ pause: p })
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "관리자 → SQL 확인에서 0149 를 먼저 실행해 주세요." };
+  }
+  // revalidate 없음 (setUnitProgress 와 같은 태도, 2026-08-21) — 수업 중
+  // 누르는 단추라 /today 를 갈아엎으면 열어둔 판이 튄다. 누른 화면이
+  // 낙관으로 즉시 바꾸고, 다른 화면은 다음 자연 새로고침 때 맞춰진다.
   return ok(error);
 }
 

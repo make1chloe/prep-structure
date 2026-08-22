@@ -10,6 +10,7 @@ import {
   nextRound,
   setUnitNote,
   setBookSkipActs,
+  setBookPause,
 } from "@/app/progress/actions";
 
 /**
@@ -41,6 +42,17 @@ export default function BookProgress({
    */
   onHomework = null,     // (unit) => void — 담기/빼기 토글
   hwPicked = null,       // Set<unitId> — 지금 담겨 있는 단원들
+  /**
+   * **교재멈춤 · 숙제멈춤** (0149, 원장님 2026-08-22 — 「교재멈춤은 내신
+   * 대비할 때 아예 진도 스탑, 숙제멈춤은 숙제만 안 나감」). 내신 대비
+   * 기간에 평소 교재를 잠시 세우는 단추다 — 거르는 판단은 서버 nextRoutine
+   * 한 곳이고, 여기는 켜고 끄기만 한다.
+   * 오늘 수업 판은 이미 차려진 항목을 즉시 걷어내야 해서 부모(StudentPanel)
+   * 가 값·토글을 쥐고 내려준다 (pause + onPauseToggle). 재원생·진도
+   * 화면에서는 안 내려주므로 이 판이 스스로 저장한다 (낙관, 실패 되돌림).
+   */
+  pause: pauseCtl = undefined,   // 부모가 쥔 멈춤 값 (오늘 수업)
+  onPauseToggle = null,          // (kind) => void — 있으면 부모가 저장까지 한다
 }) {
   const [open, setOpen] = useState(openFirst);
   const [units, setUnits] = useState(initialUnits);
@@ -83,6 +95,9 @@ export default function BookProgress({
    * 기록은 그대로다 — 칩이 흐려질 뿐 눌러서 고칠 수도 있다.
    */
   const [skipActs, setSkipActs] = useState(book.skipActs || "");
+  // 멈춤 (0149) — 오늘 수업은 부모 값, 그 외 화면은 이 판이 스스로 쥔다
+  const [pauseSelf, setPauseSelf] = useState(book.pause || null);
+  const pause = onPauseToggle ? (pauseCtl ?? null) : pauseSelf;
   const skipSet = new Set(
     (skipActs || "").split(",").map((s) => s.trim()).filter(Boolean)
   );
@@ -178,6 +193,19 @@ export default function BookProgress({
     startTransition(async () => {
       const res = await setUnitProgress(studentId, ids, done ? "done" : null);
       if (res?.error) { alert(res.error); load(); return; }
+      stampSaved();
+      lazyRefresh();
+    });
+  }
+
+  /** 멈춤 켜고 끄기 — 부모가 안 쥐는 화면(재원생·진도)용. 낙관, 실패 되돌림 */
+  function togglePauseSelf(kind) {
+    const prev = pauseSelf;
+    const nextP = prev === kind ? null : kind;   // 같은 것 다시 누르면 해제
+    setPauseSelf(nextP);
+    startTransition(async () => {
+      const res = await setBookPause(studentId, book.id, nextP);
+      if (res?.error) { alert(res.error); setPauseSelf(prev); return; }
       stampSaved();
       lazyRefresh();
     });
@@ -315,6 +343,35 @@ export default function BookProgress({
           <span style={{ width: `${livePercent ?? 0}%` }} />
         </div>
       </button>
+
+      {/**
+        * **판 머리의 멈춤 단추** (0149, 원장님 2026-08-22). 내신 대비 기간에
+        * 쓴다 — ⏸ 교재멈춤은 이 교재를 통째로 세우고(자동 차림·숙제 전부),
+        * 📴 숙제멈춤은 수업은 하되 숙제만 안 나간다. 해제해야 정상 수업
+        * 숙제가 나간다. 접힌 채로도 보인다 — 멈춘 걸 모르는 게 제일 나쁘다.
+        */}
+      <div className="row" style={{ gap: 4, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
+        {[["all", "⏸ 교재멈춤", "tag-red", "내신 대비 등으로 이 교재 진도를 아예 세웁니다 — 자동 차림·숙제에서 빠져요"],
+          ["home", "📴 숙제멈춤", "tag-amber", "수업(등원 학습)은 그대로 하고 숙제만 안 나가요"]].map(
+          ([kind, label, cls, tip]) => (
+            <button
+              key={kind}
+              className={`tag ${pause === kind ? cls : "tag-muted"}`}
+              style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
+              title={tip}
+              disabled={pending}
+              onClick={() => (onPauseToggle ? onPauseToggle(kind) : togglePauseSelf(kind))}
+            >
+              {pause === kind ? "●" : "○"} {label}
+            </button>
+          )
+        )}
+        {pause && (
+          <span className="tag tag-amber">
+            멈춤 — 해제해야 숙제 나감
+          </span>
+        )}
+      </div>
 
       {/* 단어 교재는 시험 방식을 라벨로 붙인다 (오늘 수업에서만 넣어준다) */}
       {extra && <div style={{ marginTop: 4 }}>{extra}</div>}

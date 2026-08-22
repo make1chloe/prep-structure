@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
+import { setBookPause } from "@/app/progress/actions";
 import { uploadAnswerFiles, removeAnswerFiles } from "./answerActions";
 import { quickAddUnits } from "@/app/textbooks/actions";
 import { setClassAttendance } from "./classAttendance";
@@ -544,6 +545,58 @@ export default function StudentPanel({
   // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 루틴 다음을 누르면 먼저
   // 오늘 할 교재를 고른다. 교재가 하나면 바로 차린다.
   const [routinePick, setRoutinePick] = useState(null); // { res, chosen:Set }
+
+  /**
+   * **교재멈춤 · 숙제멈춤** (0149, 원장님 2026-08-22 — 「교재멈춤은 내신
+   * 대비할 때 아예 진도 스탑, 숙제멈춤은 숙제만 안 나감. 버튼이나 체크박스
+   * 해제해야 정상 수업 숙제 나가기」). 값은 bookId → null|'all'|'home'.
+   * 거르는 판단은 서버 nextRoutine 한 곳 — 여기는 낙관 토글과, **이미
+   * 차려진 판에서 그 교재 항목을 즉시 걷어내는 것**만 한다.
+   */
+  const [pauseOf, setPauseOf] = useState(() => {
+    const m = {};
+    (row.books || []).forEach((b) => { if (b.pause) m[b.id] = b.pause; });
+    return m;
+  });
+
+  /**
+   * 멈춤 켜고 끄기 — 누르는 순간 태그가 바뀌고(낙관), 켜는 순간 이미 차려진
+   * 판에서 그 교재 항목을 걷어낸다. 교재멈춤은 등원(오늘 할 것)·숙제 둘 다,
+   * 숙제멈춤은 숙제 쪽만. 저장 실패면 태그는 되돌린다 — 걷어낸 항목까지
+   * 자동 복원하진 않는다 (⟳ 진도루틴 다음으로 다시 차리면 된다).
+   * 해제(끄기)는 걷지도 채우지도 않는다 — 다음 차림부터 정상으로 나간다.
+   */
+  function togglePause(bookId, kind) {
+    const prev = pauseOf[bookId] || null;
+    const nextP = prev === kind ? null : kind;   // 같은 것 다시 누르면 해제
+    setPauseOf((m) => ({ ...m, [bookId]: nextP }));
+    if (nextP) {
+      // 다른(안 멈춘) 교재도 쓰는 항목은 남긴다 — 그 교재 몫까지 걷으면 과하다
+      const others = (routine?.steps || []).filter((s) => s.textbookId !== bookId);
+      const keepHome = new Set(others.flatMap((s) => s.homeItems || []));
+      const keepIn = new Set(others.flatMap((s) => s.inclassItems || []));
+      const st = (routine?.steps || []).find((s) => s.textbookId === bookId);
+      const homeDrop = new Set([
+        ...(st?.homeItems || []).filter((x) => !keepHome.has(x)),
+        // 범위(단원)가 이 교재로 잡힌 숙제도 이 교재 항목이다
+        ...Object.entries(nextUnits)
+          .filter(([, v]) => v?.textbookId === bookId)
+          .map(([iid]) => iid),
+      ]);
+      if (homeDrop.size) setNext((s) => new Set([...s].filter((x) => !homeDrop.has(x))));
+      if (nextP === "all") {
+        const inDrop = new Set((st?.inclassItems || []).filter((x) => !keepIn.has(x)));
+        if (inDrop.size) setInClass(inClass.filter((x) => !inDrop.has(x)));
+      }
+    }
+    startTransition(async () => {
+      const res = await setBookPause(row.student.id, bookId, nextP);
+      if (res?.error) {
+        alert(res.error);
+        setPauseOf((m) => ({ ...m, [bookId]: prev }));
+      }
+    });
+  }
 
   /**
    * **다음 수업 계획** (원장님 2026-08-20 — 「숙제를 낼 때 다음 수업
@@ -2017,6 +2070,9 @@ export default function StudentPanel({
                 book={b}
                 onHomework={(u) => pickHomework(b, u)}
                 hwPicked={hwPicked}
+                /* 멈춤은 이 판이 쥔다 (0149) — 켜는 순간 차려진 항목도 걷어야 해서 */
+                pause={pauseOf[b.id] || null}
+                onPauseToggle={(kind) => togglePause(b.id, kind)}
                 extra={
                   b.wordTest !== undefined ? (
                     <WordTest studentId={row.student.id} book={b} />
@@ -2087,6 +2143,31 @@ export default function StudentPanel({
               </button>
             )}
           </div>
+          {/**
+            * **멈춘 교재 태그** (0149, 원장님 2026-08-22). 자동 차림에서
+            * 그 교재 항목이 왜 안 나오는지 이 자리에서 보여야 한다 —
+            * 안 보이면 「루틴이 고장났나」 가 된다. 누르면 그 자리에서
+            * 해제된다 (진도 판의 단추와 같은 togglePause 한 벌).
+            */}
+          {myBooks.some((b) => pauseOf[b.id]) && (
+            <div className="row" style={{ gap: 4, alignItems: "center", margin: "0 0 6px", flexWrap: "wrap" }}>
+              {myBooks.filter((b) => pauseOf[b.id]).map((b) => (
+                <button
+                  key={b.id}
+                  className={`tag ${pauseOf[b.id] === "all" ? "tag-red" : "tag-amber"}`}
+                  style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
+                  title="해제해야 이 교재 숙제가 정상으로 나가요 — 누르면 해제"
+                  disabled={pending}
+                  onClick={() => togglePause(b.id, pauseOf[b.id])}
+                >
+                  {b.name} {pauseOf[b.id] === "all" ? "⏸ 교재멈춤" : "📴 숙제멈춤"} ✕해제
+                </button>
+              ))}
+              <span className="hint">
+                멈춘 교재는 자동 차림·숙제에서 빠져요 (숙제멈춤은 숙제만)
+              </span>
+            </div>
+          )}
           {/* **급하면 글로** (원장님 2026-08-21 — 「급하면 텍스트로 직접
               숙제 적을 수 있도록」). 항목·단원 고를 짬이 없을 때 한 줄 —
               「직접 적은 숙제」 로 학생 화면·리포트·검사까지 여느 숙제처럼 */}

@@ -51,7 +51,9 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
   // 방학·시험기간은 한 줄로 저장하고 달력에서만 날마다 펼친다
   const spread = expandRanges(items);
   const cells = monthGrid(month, spread, today);
-  const openDay = !links;
+  // 날짜 눌러 세부 펴기 — 원장 대시보드에도 (원장님 2026-08-22 「세부
+  // 일정이 안 보여」). 줄(링크)을 누르면 이동, 칸을 누르면 그날 목록
+  const openDay = true;
   const dayItems = pick ? spread.filter((i) => i.date === pick) : [];
   const mine = spread.filter((i) => (i.date || "").startsWith(month));
   const n = (t) => mine.filter((i) => i.tone === t).length;
@@ -104,6 +106,7 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
                     href={it.href || "/tasks"}
                     className={`cal-item ${TONE[it.tone]?.cls || ""} ${it.pri >= 2 ? "cal-pri2" : it.pri === 1 ? "cal-pri1" : ""}`}
                     title={it.title}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <span className="cal-ico" aria-hidden="true">{TONE[it.tone]?.icon || "📌"}</span>
                     {it.title}
