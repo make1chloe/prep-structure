@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { addQuickMemo } from "@/app/tasks/actions";
 import { uploadTaskFile, dropTaskFile } from "@/app/tasks/photoActions";
 import { MAX_UPLOAD } from "@/lib/noticeFile";
@@ -89,7 +90,11 @@ export default function QuickMemo() {
       >
         ✏️
       </button>
-      {open && (
+      {open && typeof document !== "undefined" &&
+        /* 포털 (2026-08-22 「입력칸 없음」) — 위 메뉴의 접힘 효과(transform)
+           안에서는 fixed 가 메뉴 기준이 되어 판이 메뉴에 갇혀 안 보였다.
+           화면 최상위(body)로 빼서 어느 화면에서든 뜬다 */
+        createPortal(
         <div
           className="card card-tight qmemo-pop"
         >
@@ -183,7 +188,7 @@ export default function QuickMemo() {
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
