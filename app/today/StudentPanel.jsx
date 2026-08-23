@@ -1911,45 +1911,60 @@ export default function StudentPanel({
                   {!carried && (row.plannedIn || []).includes(iid) && (
                     <span className="tag tag-lav" title="지난 수업 마무리 때 세워둔 계획 — 숙제 확인 후 고치고 저장하면 확정">계획</span>
                   )}
-                  <button className="btn btn-ghost btn-sm" title="위로" disabled={idx === 0}
-                    onClick={() => {
-                      const n = [...inClass];
-                      [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
-                      setInClass(n);
-                    }}>↑</button>
-                  <button className="btn btn-ghost btn-sm" title="아래로" disabled={idx === inClass.length - 1}
-                    onClick={() => {
-                      const n = [...inClass];
-                      [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
-                      setInClass(n);
-                    }}>↓</button>
+                  {/**
+                    * **무엇을 하는 단추인지 글자로 말한다** (원장님 2026-08-23 —
+                    * 「각각 뭘 하라는 건지 구분도 안 되고 시각적 구별이 안 된다」).
+                    * 「다음수업」·「숙제로」 처럼 명사만 적으면 누르면 무슨 일이
+                    * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
+                    * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
+                    */}
+                  <span className="spacer" />
+                  <span className="row" style={{ gap: 0, alignItems: "center" }}>
+                    <button className="btn btn-ghost btn-sm" title="차례를 위로" disabled={idx === 0}
+                      style={{ padding: "2px 6px" }}
+                      onClick={() => {
+                        const n = [...inClass];
+                        [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                        setInClass(n);
+                      }}>↑</button>
+                    <button className="btn btn-ghost btn-sm" title="차례를 아래로" disabled={idx === inClass.length - 1}
+                      style={{ padding: "2px 6px" }}
+                      onClick={() => {
+                        const n = [...inClass];
+                        [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
+                        setInClass(n);
+                      }}>↓</button>
+                  </span>
                   {!doneAt && (
-                    <>
+                    <span className="row" style={{ gap: 4, alignItems: "center", marginLeft: 8 }}>
                       <button
                         className={`btn btn-sm ${willCarry ? "btn-primary" : "btn-ghost"}`}
-                        title="오늘 못 끝냄 — 다음 수업의 목록에 자동으로 다시 섭니다"
+                        style={{ fontSize: 12.5 }}
+                        title="오늘 못 끝냄 — 다음 수업 목록에 자동으로 다시 섭니다"
                         onClick={() => {
                           const n = new Set(carryNext);
                           n.has(iid) ? n.delete(iid) : n.add(iid);
                           setCarryNext(n);
                         }}
                       >
-                        다음수업
+                        {willCarry ? "✓ 다음 수업에" : "다음 수업으로 미룸"}
                       </button>
                       <button
                         className="btn btn-ghost btn-sm"
-                        title="남은 것을 숙제로 — 아래 「다음 숙제 배정」 에 담깁니다"
+                        style={{ fontSize: 12.5 }}
+                        title="학원에서 말고 집에서 — 아래 「다음 숙제 배정」 으로 옮깁니다"
                         onClick={() => {
                           setInClass(inClass.filter((x) => x !== iid));
                           setNext((s2) => new Set(s2).add(iid));
                         }}
                       >
-                        숙제로
+                        집 숙제로 옮김
                       </button>
-                    </>
+                    </span>
                   )}
-                  <button className="btn btn-ghost btn-sm" title="오늘 목록에서 뺌"
-                    onClick={() => setInClass(inClass.filter((x) => x !== iid))}>✕</button>
+                  <button className="btn btn-ghost btn-sm" title="오늘은 안 함 — 목록에서 뺍니다"
+                    style={{ marginLeft: 8, padding: "2px 8px" }}
+                    onClick={() => setInClass(inClass.filter((x) => x !== iid))}>✕ 오늘 뺌</button>
                 </div>
               );
             })}
@@ -2045,23 +2060,33 @@ export default function StudentPanel({
             </div>
           )}
           {routine && (
-            <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
-              진도루틴에서 가져왔습니다 —{" "}
-              {routine.steps
-                .map(
-                  (s) =>
-                    `${s.book} ${s.no}/${s.total}${s.label ? ` ${s.label}` : ""}` +
-                    (s.unit ? ` · ${s.unit}` : s.unitDone ? " · 단원을 다 했어요" : "")
-                )
-                .join(" · ")}
-              . <b>저장하면 다음 단계로 넘어갑니다.</b>
-              {routine.steps.some((s) => s.unitDone) && (
-                <>
-                  {" "}
-                  <b>단원이 다 끝난 교재</b>가 있어요 — 회독을 넘기거나 다음 교재로 바꿔주세요.
-                </>
-              )}
-            </p>
+            /**
+             * **교재마다 한 줄** (원장님 2026-08-23 — 「이건 어쩌라고 써놓은
+             * 거지?」). 전에는 교재 넷의 진행·단원을 가운뎃점으로 이어 붙여
+             * 한 문단이었다. 어디가 교재 이름이고 어디가 단원인지 눈으로
+             * 가를 수가 없었다. 교재 하나가 한 줄이면 그냥 읽힌다.
+             */
+            <div className="stack" style={{ gap: 2, margin: "6px 0 0" }}>
+              <span className="hint" style={{ fontSize: 12.5 }}>
+                진도루틴에서 가져온 것 — <b>저장하면 다음 단계로 넘어갑니다.</b>
+              </span>
+              {routine.steps.map((s, i) => (
+                <div
+                  key={`${s.book}-${i}`}
+                  className="row"
+                  style={{ gap: 6, alignItems: "baseline", fontSize: 12.5 }}
+                >
+                  <b style={{ minWidth: 150 }}>{s.book}</b>
+                  <span className="tag tag-muted">
+                    {s.no}/{s.total}{s.label ? ` ${s.label}` : ""}
+                  </span>
+                  <span className="hint" style={{ flex: 1 }}>
+                    {s.unit || (s.unitDone ? "단원을 다 했어요 — 회독을 넘기거나 다음 교재로" : "")}
+                  </span>
+                  {s.unitDone && <span className="tag tag-amber">단원 끝</span>}
+                </div>
+              ))}
+            </div>
           )}
           <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
             고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
