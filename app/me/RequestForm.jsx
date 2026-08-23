@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createRequest, cancelRequest } from "@/app/requests/actions";
 import RequestPhotos from "@/components/RequestPhotos";
@@ -8,17 +8,42 @@ import RequestPhotos from "@/components/RequestPhotos";
 // 학생·학부모가 결석을 미리 알리는 칸
 export default function RequestForm({ studentId, mine = [], asId = null, readOnly = false }) {
   /**
-   * **선생님이 확인한 것은 더 안 보인다** (원장님, 2026-08-23 — 「학생
-   * 어플에서 전달사항 선생님이 확인한 건 더 안 보게 해줘」).
-   * 처리가 끝난 줄이 며칠씩 쌓여 있으면 화면만 길어지고, 아이는 그걸
-   * 다시 볼 일이 없다.
+   * **끝난 것은 접어 둔다** (원장님, 2026-08-23 — 「선생님이 확인한 건 더
+   * 안 보게 해줘 … 답장이 달렸어도 아이 확인 누르면 더보기 눌러야 보이게.
+   * 아니면 지난 한 달 것만 — 여기서 한 달은 지금부터 30일 전」).
    *
-   * 다만 **아직 볼 것이 남은 줄은 남긴다** — 답장이 달렸거나(읽어야 한다),
-   * 「조정필요」(아이가 다시 해야 한다)면 확인됐어도 그대로 둔다.
+   * 바로 보이는 것 = **30일 안**이면서 **아직 볼 것이 남은 것**
+   *   · 선생님이 아직 확인 안 함
+   *   · 「조정필요」 — 아이가 다시 해야 한다
+   *   · 답장이 달렸는데 아직 확인 안 눌렀다
+   * 나머지(끝난 것 · 30일 지난 것)는 「지난 것 보기」 안으로 들어간다.
    */
-  const shown = (mine || []).filter(
-    (r) => !r.handled_at || r.reply || r.status === "declined"
-  );
+  const [showOld, setShowOld] = useState(false);
+  // 답장을 읽고 「확인」 을 누른 것 — 이 기기에 기억한다 (숙제 체크와 같은 방식).
+  // 표를 늘리지 않는다: 아이가 읽었다는 사실은 선생님이 쓸 일이 없다.
+  const [seen, setSeen] = useState(() => new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("req-seen");
+      if (raw) setSeen(new Set(JSON.parse(raw)));
+    } catch { /* 사생활 보호 모드 — 그냥 다 보인다 */ }
+  }, []);
+  function markSeen(id) {
+    setSeen((prev) => {
+      const n = new Set(prev).add(id);
+      try { localStorage.setItem("req-seen", JSON.stringify([...n])); } catch { /* 무시 */ }
+      return n;
+    });
+  }
+
+  const days30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const isFresh = (r) => !r.created_at || new Date(r.created_at).getTime() >= days30;
+  const isLive = (r) =>
+    !r.canceled_at &&
+    (!r.handled_at || r.status === "declined" || (r.reply && !seen.has(r.id)));
+  const live = (mine || []).filter((r) => isFresh(r) && isLive(r));
+  const old = (mine || []).filter((r) => !(isFresh(r) && isLive(r)));
+  const shown = showOld ? [...live, ...old] : live;
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("absence");
   const [from, setFrom] = useState("");
@@ -147,6 +172,16 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
         </div>
       )}
 
+      {old.length > 0 && (
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ marginTop: 8 }}
+          onClick={() => setShowOld(!showOld)}
+        >
+          {showOld ? "지난 것 접기" : `지난 것 보기 (${old.length})`}
+        </button>
+      )}
+
       {shown.length > 0 && (
         <div className="stack" style={{ gap: 4, marginTop: 12 }}>
           {shown.map((r) => (
@@ -213,6 +248,17 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
               })()}
               {(r.photos || []).length > 0 && (
                 <RequestPhotos paths={r.photos} readOnly small />
+              )}
+              {/* 답을 읽었으면 눌러서 치운다 — 다음부터는 「지난 것 보기」 안에 있다
+                  (원장님 2026-08-23 「아이 확인 누르면 더보기 눌러야 보이게」) */}
+              {!readOnly && r.reply && !seen.has(r.id) && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ flexBasis: "100%" }}
+                  onClick={() => markSeen(r.id)}
+                >
+                  확인했어요
+                </button>
               )}
               {/* **아직 답이 오기 전이면 무를 수 있다.** 확인하신 뒤에는
                   새로 보내주시는 편이 맞다 — 이미 결석 예정이 깔렸을 수 있다 */}

@@ -182,10 +182,10 @@ export default async function MePage({ searchParams }) {
       .limit(60),
     supabase
       .from("requests")
-      .select("id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at, photos")
+      .select("id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at, photos, created_at")
       .eq("student_id", sid)
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(20),
     supabase
       .from("stay_tasks")
       .select("id, date, body, status")
@@ -348,7 +348,7 @@ export default async function MePage({ searchParams }) {
   // 내가 보낸 요청
   // 오간 말·취소는 0108 에서 붙는다. 없으면 그 아래에서 한 칸씩 물러난다 —
   // 한 칸 때문에 「보낸 것」 목록이 통째로 안 보이면 안 된다
-  const REQ = "id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at";
+  const REQ = "id, kind, from_date, to_date, body, status, reply, thread, canceled_at, handled_at, created_at";
   const REQ0 = "id, kind, from_date, to_date, body, status, reply";
   let { data: myRequests, error: reqErr } = reqQ1;
   if (reqErr) {
