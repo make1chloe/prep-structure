@@ -545,6 +545,8 @@ export default function StudentPanel({
   // 이 학생 교재의 루틴이 쓰는 항목 (칩을 좁히는 데 쓴다)
   const [myItems, setMyItems] = useState(null);
   const [showAllChips, setShowAllChips] = useState(false);
+  // 자동 차림을 건너뛴 까닭 (비어 있는 이유를 화면이 말한다)
+  const [autoSkip, setAutoSkip] = useState("");
   // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 루틴 다음을 누르면 먼저
   // 오늘 할 교재를 고른다. 교재가 하나면 바로 차린다.
   const [routinePick, setRoutinePick] = useState(null); // { res, chosen:Set }
@@ -1167,22 +1169,33 @@ export default function StudentPanel({
   const autoRoutined = useRef(false);
   useEffect(() => {
     if (autoRoutined.current) return;
-    if (draft) return;                                  // 되살릴 초안이 먼저다
+    if (draft) { setAutoSkip("적다 만 초안이 있어 자동 차림을 멈췄어요 — 위에서 되살리거나 버리면 차려집니다"); return; }
     autoRoutined.current = true;
     (async () => {
       try {
         const res = await nextRoutine(row.student.id);
-        if (res?.error) return;
+        if (res?.error) { setAutoSkip("루틴을 못 읽었어요"); return; }
         /**
          * **차리지 않더라도 「이 학생 항목」 은 쥐어 둔다** (원장님 2026-08-24 —
          * 「왕희연 독해교재는 첫단추·빈순삽함 이런 게 없는데 그 교재의 숙제가
          * 붙어 있어」). 항목 칩을 그 학생 교재 것으로 좁히는 데 쓴다.
          */
         if (res.myItems?.length) setMyItems(new Set(res.myItems));
-        if (!res.steps?.length) return;
-        if (next.size > 0 || inClass.length > 0) return; // 이미 차려진 판은 안 덮는다
+        /**
+         * **왜 안 차려졌는지 말해준다** (원장님 2026-08-24 — 「진도랑 루틴을
+         * 다 입력했는데도 숙제도 등원학습도 없는 거 뭐야」).
+         * 조용히 건너뛰면 원장님은 루틴이 잘못된 줄 안다.
+         */
+        if (!res.steps?.length) {
+          setAutoSkip("이 학생 교재에 진도루틴이 없어요 — 교재 화면에서 루틴을 넣어주세요");
+          return;
+        }
+        if (next.size > 0 || inClass.length > 0) {
+          setAutoSkip("이미 차려진 판이라 자동 차림을 건너뛰었어요");
+          return;
+        }
         applyRoutine(res, new Set(res.steps.map((st) => st.textbookId)));
-      } catch { /* 못 채우면 ⟳ 로 하던 대로 */ }
+      } catch { setAutoSkip("루틴을 불러오다 끊겼어요"); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft]);
@@ -2033,7 +2046,10 @@ export default function StudentPanel({
               );
             })}
             {inClass.length === 0 && (
-              <span className="hint">아직 정하지 않았어요.</span>
+              /* 비어 있으면 **왜 비었는지**와 **무엇을 누르면 되는지** (2026-08-24) */
+              <span className="hint">
+                {autoSkip || "아직 정하지 않았어요 — 아래 ⟳ 진도루틴 다음을 누르면 차려집니다."}
+              </span>
             )}
           </div>
           <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
