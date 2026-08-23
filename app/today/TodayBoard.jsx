@@ -39,7 +39,25 @@ export default function TodayBoard({
 }) {
   // 수업 준비에서 「고치기」 로 넘어오면 그 학생 판을 **열어둔 채로** 시작한다.
   // 날짜만 맞춰놓고 다시 찾아 누르게 하면 두 번 일하는 것이다.
-  const [openId, setOpenId] = useState(openStudent || null);
+  /**
+   * **열림 키는 「학생 + 그 반」 이다** (2026-08-24 검증에서 나온 것).
+   *
+   * 한 학생이 정규반과 특강반 두 줄로 뜬다(app/today/page.jsx 의 extraClassId).
+   * 그런데 열림 표시가 학생 id 하나뿐이라, 두 줄이 동시에 펼쳐지면 **판이 두 개**
+   * 열린다 — 같은 임시저장을 서로 덮어쓰고, 출결도 「특강 결석이 정규까지」 로
+   * 샐 수 있다(그러면 수강료가 틀어진다). 지금은 반이 한 번에 하나만 펼쳐져
+   * 우연히 안 터졌을 뿐이다. 판을 줄 밖으로 꺼내는 순간(시트·분할) 바로 터진다.
+   *
+   * 딥링크(`?open=학생id`)는 학생만 주므로, 그 학생의 **첫 줄**로 맞춘다.
+   */
+  const [openId, setOpenId] = useState(() => {
+    if (!openStudent) return null;
+    for (const g of groups) {
+      const hit = (g.rows || []).find((r) => r.student.id === openStudent);
+      if (hit) return `${hit.student.id}|${hit.extraClassId || ""}`;
+    }
+    return `${openStudent}|`;
+  });
   const [openClass, setOpenClass] = useState(() => {
     if (openStudent) {
       const g = groups.find((x) => (x.rows || []).some((r) => r.student.id === openStudent));
@@ -57,7 +75,7 @@ export default function TodayBoard({
   const [filter, setFilter] = useState("todo");
   const [pending, startTransition] = useTransition();
   // 출결 칩·완료 풀기는 연달아 누른다 — 미뤄서 한 번만 (2026-08-23)
-  const { lazy } = useLazyRefresh();
+  const { lazy, flush } = useLazyRefresh();
 
   /**
    * **누르면 0.1초 안에 바뀌어야 한다** (원장님, 2026-08-14).
@@ -349,7 +367,7 @@ export default function TodayBoard({
                     </p>
                   ) : (
                     visible.map((r) => {
-                      const isOpen = openId === r.student.id;
+                      const isOpen = openId === optKey(r.student.id, r.extraClassId);
                       return (
                         <div key={r.student.id} className="stuRow">
                           <button
@@ -358,7 +376,10 @@ export default function TodayBoard({
                               const k = `${r.student.id}|${r.extraClassId || ""}`;
                               // 다른 학생을 여는 순간 방금 저장한 줄은 완료 묶음으로
                               if (justSaved && justSaved !== k) setJustSaved(null);
-                              setOpenId(isOpen ? null : r.student.id);
+                              // 판을 닫는 순간이 곧 목록을 보는 순간이다 —
+                              // 미뤄둔 새로고침이 있으면 여기서 돌린다 (2026-08-24)
+                              if (isOpen) flush();
+                              setOpenId(isOpen ? null : optKey(r.student.id, r.extraClassId));
                             }}
                           >
                             <span style={{ fontWeight: 700 }}>{r.student.name}</span>
@@ -610,7 +631,7 @@ export default function TodayBoard({
                   </span>
                   <button
                     className="btn btn-ghost btn-sm"
-                    onClick={() => setOpenId(r.student.id)}
+                    onClick={() => setOpenId(optKey(r.student.id, r.extraClassId))}
                   >
                     열기
                   </button>

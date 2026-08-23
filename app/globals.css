@@ -1491,3 +1491,14 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
   padding: 8px 0;
   border-top: 1px solid var(--border);
 }
+
+/**
+ * **폰에서는 입력 글씨를 16px 로** (원장님 2026-08-22 스샷 — 「확대는 아닌데
+ * 이렇게 돼, 입력칸 없음」). 아이폰은 16px 미만 입력칸에 커서가 들어가면
+ * 화면을 강제로 확대하고, **닫아도 확대가 남아 화면이 잘려 보인다.**
+ * 퀵메모에서 한 번 겪고 그 판만 고쳤는데(.qmemo-pop textarea), 오늘 수업 판만
+ * 해도 입력칸이 열댓 개다. 좁은 화면에서는 한꺼번에 올린다.
+ */
+@media (max-width: 700px) {
+  .input, .input-sm, select.input, textarea.input { font-size: 16px; }
+}

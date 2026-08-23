@@ -1156,7 +1156,11 @@ export default function StudentPanel({
   // **이 브라우저에만** 임시로 담아둔다 — 서버에 보내면 「저장했다」 와
   // 구별이 안 되고, 반쯤 적은 기록이 리포트로 나갈 수 있다.
   // 저장을 누르면 지운다. 남은 것이 있으면 열 때 알려주고, 되살릴지 물어본다.
-  const draftKey = `chloe.today.${date}.${row.student.id}`;
+  /**
+   * 임시저장 열쇠에 **그 반**까지 넣는다 (2026-08-24). 한 학생이 정규·특강
+   * 두 줄로 뜨는데 열쇠가 학생뿐이면 두 판이 같은 초안을 서로 덮어쓴다.
+   */
+  const draftKey = `chloe.today.${date}.${row.student.id}${row.extraClassId ? `.${row.extraClassId}` : ""}`;
   const [draft, setDraft] = useState(null);
 
   /**

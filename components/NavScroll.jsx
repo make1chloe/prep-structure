@@ -86,6 +86,9 @@ export default function NavScroll() {
     };
 
     const onScroll = (e) => {
+      // 시트가 열려 있는 동안은 위 메뉴를 건드리지 않는다 (2026-08-24 검증)
+      // — 시트 안 스크롤이 메뉴를 접었다 폈다 하면 닫을 때 자리를 잃는다
+      if (document.documentElement.dataset.sheet === "open") return;
       if (queued) return;
       queued = true;
       const t = e?.target;

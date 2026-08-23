@@ -52,6 +52,10 @@ export default function PullToRefresh() {
     }
 
     function onStart(e) {
+      // 시트(전면 판)가 열려 있으면 당김을 아예 안 잡는다 (2026-08-24 검증)
+      // — 뒤를 잠그면 scrollY 가 0이라 「맨 위」 로 착각해, 시트를 쓸어내리는
+      //   순간 페이지가 통째로 새로고침된다 (적던 것이 날아간다)
+      if (document.documentElement.dataset.sheet === "open") return;
       if (working.current || e.touches.length !== 1) {
         startY.current = null;
         return;
