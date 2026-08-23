@@ -62,15 +62,41 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
     );
   }, [options, kw]);
 
+  /**
+   * **대단원을 누르면 그 아래가 통째로 담긴다** (원장님 2026-08-23 —
+   * 「내신대비 범위 입력 시 대단원으로 선택 가능하게 해줘」).
+   *
+   * 담기는 것은 **맨 아래 단원들**이다 — 대단원 자체는 담지 않는다.
+   * 자료·배정이 실제 단원에 붙기 때문이다. 대신 아래가 다 담기면
+   * 대단원 줄도 ✓ 로 보인다 (눌렀는데 반응이 없어 보이지 않게).
+   */
+  const leavesOf = useMemo(() => {
+    const map = new Map();
+    options.forEach((o, i) => {
+      const kids = [];
+      for (let j = i + 1; j < options.length && options[j].depth > o.depth; j++) {
+        // 그 아래로 더 없는 줄 = 맨 아래 단원
+        const isLeaf = j + 1 >= options.length || options[j + 1].depth <= options[j].depth;
+        if (isLeaf) kids.push(options[j].id);
+      }
+      map.set(o.id, kids.length ? kids : [o.id]);
+    });
+    return map;
+  }, [options]);
+
+  const isOn = (o) => (leavesOf.get(o.id) || [o.id]).every((id) => picked.has(id));
+
   function toggle(id) {
+    const ids = leavesOf.get(id) || [id];
+    const allOn = ids.every((x) => picked.has(x));
     const next = new Set(picked);
-    next.has(id) ? next.delete(id) : next.add(id);
+    ids.forEach((x) => (allOn ? next.delete(x) : next.add(x)));
     setPicked(next);
   }
 
   /** 눈에 보이는 것 전부 담기 / 빼기 — 문제번호가 많을 때 하나씩 누르면 못 쓴다 */
   function toggleShown() {
-    const ids = shown.map((o) => o.id);
+    const ids = [...new Set(shown.flatMap((o) => leavesOf.get(o.id) || [o.id]))];
     const allOn = ids.length > 0 && ids.every((id) => picked.has(id));
     const next = new Set(picked);
     ids.forEach((id) => (allOn ? next.delete(id) : next.add(id)));
@@ -93,7 +119,7 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
     });
   }
 
-  const allShownOn = shown.length > 0 && shown.every((o) => picked.has(o.id));
+  const allShownOn = shown.length > 0 && shown.every((o) => isOn(o));
 
   return (
     <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
@@ -147,7 +173,9 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
           </p>
         )}
         {shown.map((o) => {
-          const on = picked.has(o.id);
+          const kids = leavesOf.get(o.id) || [o.id];
+          const many = kids.length > 1 && kids[0] !== o.id;
+          const on = isOn(o);
           return (
             <button
               key={o.id}
@@ -163,6 +191,11 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
             >
               {on ? "✓ " : ""}
               {o.question ? `${o.question}번` : o.name}
+              {many && (
+                <span className="tag tag-lav" style={{ fontSize: 12, marginLeft: 6 }}>
+                  아래 {kids.length}개
+                </span>
+              )}
               <span className="hint" style={{ fontSize: 12, marginLeft: 6 }}>
                 {unitOptionText(o)}
               </span>
