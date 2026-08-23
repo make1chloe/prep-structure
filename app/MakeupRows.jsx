@@ -16,7 +16,11 @@ import { dayLabel } from "@/lib/day";
  * **어머니께 알림이 간다.** 그날 아이를 보내실 참이셨다. 조용히 지우면
  * 헛걸음을 하시게 된다.
  */
-export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, onlyChanged = false }) {
+/**
+ * @param renderExtra  줄 오른쪽에 더 붙일 것 (보강 화면의 「완료 찍기」 처럼)
+ *                     — 같은 줄을 두 벌로 만들지 않으려고 자리만 내준다
+ */
+export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, onlyChanged = false, renderExtra = null }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   // **일정 바꾸기** (원장님 2026-08-21 — 「보강 일정을 수정할 수가 없음」).
@@ -91,6 +95,7 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
         <span className="hint" style={{ flex: 1 }}>{r.makeup_change_req}</span>
       )}
       <span className="spacer" />
+      {renderExtra ? renderExtra(r) : null}
       <button
         className={`btn btn-sm ${edit?.key === key ? "btn-on" : "btn-ghost"}`}
         disabled={pending}

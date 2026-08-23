@@ -10,6 +10,7 @@ import {
 import { saveStudentDay } from "@/app/today/actions";
 import AbsenceRows from "./AbsenceRows";
 import { addDays, dayLabel as fmtDay, todaySeoul } from "@/lib/day";
+import MakeupRows from "@/app/MakeupRows";
 
 const REASONS = ["학교 행사", "시험 기간", "병원", "가족 일정", "여행", "기타"];
 
@@ -200,54 +201,65 @@ export default function PlanBoard({
             <div className="card card-tight">
               <b style={{ fontSize: 14.5 }}>잡힌 보강</b>
               <span className="hint" style={{ marginLeft: 6 }}>지난 7일부터 — 끝났으면 완료를 찍으세요</span>
-              <div className="stack" style={{ gap: 4, marginTop: 8 }}>
-                {mkShown.map((m2) => (
-                  <div className="unitrow" key={`${m2.studentId}|${m2.date}`}>
-                    <b style={{ fontSize: 14, minWidth: 64 }}>{nameOf[m2.studentId] || "학생"}</b>
-                    <span className="hint" style={{ minWidth: 90 }}>{dayLabel(m2.date)}</span>
-                    {m2.time && <span className="tag tag-sky">{m2.time}</span>}
-                    {m2.of ? (
-                      <span className="tag tag-muted">{dayLabel(m2.of)} 결석분</span>
-                    ) : (
-                      <span className="tag tag-lav">그냥 보강</span>
-                    )}
-                    <span className="spacer" />
-                    {m2.written || doneMk.has(`${m2.studentId}|${m2.date}`) ? (
-                      <span className="tag tag-mint">완료</span>
-                    ) : (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={pending}
-                        title="그날 리포트가 만들어집니다 — 숙제·점수는 자세히에서"
-                        onClick={() => {
-                          // 누르는 순간 「완료」 로 — 저장은 뒤에서, 실패하면 되돌린다 (2026-08-21)
-                          const key = `${m2.studentId}|${m2.date}`;
-                          setDoneMk((prev) => new Set(prev).add(key));
-                          startTransition(async () => {
-                            const res = await saveStudentDay(m2.studentId, m2.date, {
-                              attendance: "makeup",
-                              notice: "",
-                              items: {},
-                              toCheck: [],
-                              nextHomework: [],
-                            });
-                            if (res?.error) {
-                              setDoneMk((prev) => { const n = new Set(prev); n.delete(key); return n; });
-                              alert(res.error);
-                              return;
-                            }
-                            router.refresh();
-                          });
-                        }}
-                      >
-                        ✓ 완료 찍기
-                      </button>
-                    )}
-                    <a className="btn btn-ghost btn-sm" href={`/today?d=${m2.date}&open=${m2.studentId}`}>
-                      자세히
-                    </a>
-                  </div>
-                ))}
+              {/**
+                * **한 자리에서 다 한다** (원장님 2026-08-24 — 「잡힌 보강
+                * 잡아둔 보강 따로 있고, 잡아둔 보강에서만 일정 바꿀 수 있는
+                * 거 뭐야. 완전 비효율적임」).
+                * 줄은 대시보드와 **같은 한 벌**(MakeupRows)을 쓴다 — 일정
+                * 바꾸기·보강 취소가 그대로 따라온다. 이 화면에만 있는
+                * 「완료 찍기·자세히」 는 자리를 내어 받아 붙인다.
+                */}
+              <div style={{ marginTop: 8 }}>
+                <MakeupRows
+                  rows={mkShown.map((m2) => ({
+                    student_id: m2.studentId,
+                    date: m2.date,
+                    makeup_time: m2.time || null,
+                    makeup_of: m2.of || null,
+                  }))}
+                  nameOf={nameOf}
+                  hasAnswer={false}
+                  renderExtra={(r) => {
+                    const key = `${r.student_id}|${r.date}`;
+                    const m2 = mkShown.find((x) => x.studentId === r.student_id && x.date === r.date);
+                    return (
+                      <>
+                        {m2?.written || doneMk.has(key) ? (
+                          <span className="tag tag-mint">완료</span>
+                        ) : (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            disabled={pending}
+                            title="그날 리포트가 만들어집니다 — 숙제·점수는 자세히에서"
+                            onClick={() => {
+                              setDoneMk((prev) => new Set(prev).add(key));
+                              startTransition(async () => {
+                                const res = await saveStudentDay(r.student_id, r.date, {
+                                  attendance: "makeup",
+                                  notice: "",
+                                  items: {},
+                                  toCheck: [],
+                                  nextHomework: [],
+                                });
+                                if (res?.error) {
+                                  setDoneMk((prev) => { const n = new Set(prev); n.delete(key); return n; });
+                                  alert(res.error);
+                                  return;
+                                }
+                                router.refresh();
+                              });
+                            }}
+                          >
+                            ✓ 완료 찍기
+                          </button>
+                        )}
+                        <a className="btn btn-ghost btn-sm" href={`/today?d=${r.date}&open=${r.student_id}`}>
+                          자세히
+                        </a>
+                      </>
+                    );
+                  }}
+                />
               </div>
             </div>
           )}
