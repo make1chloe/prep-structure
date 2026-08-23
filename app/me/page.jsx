@@ -249,10 +249,20 @@ export default async function MePage({ searchParams }) {
       .from("exam_spec_rows")
       .select("kind, no, area, topic, detail")
       .order("no", { ascending: true }),
+    /**
+     * **오늘 것만** (원장님 2026-08-23 — 「테스트하느라 몇 일 몇 주 전에
+     * 누른 게 아직도 눌려 있어」).
+     *
+     * 선생님 부르기는 **그날의 일**이다. 원장님 화면은 이미 날짜로 거르는데
+     * (app/today/page.jsx) 아이 화면만 안 걸러서, 지난달에 누른 「질문
+     * 있어요」 가 오늘도 켜진 채로 보였다. 아이는 자기가 부른 줄 알고
+     * 기다리고, 선생님 화면엔 아무것도 없다.
+     */
     supabase
       .from("student_activity")
       .select("state, updated_at")
       .eq("student_id", sid)
+      .eq("date", todayStr)
       .maybeSingle(),
     loadHomeworkItems(supabase),
   ]);
@@ -970,6 +980,12 @@ export default async function MePage({ searchParams }) {
             asId={acting ? student.id : null}
             subs={subs}
             answers={answers}
+            homeFrom={assignedFrom ? dayLabel(assignedFrom.date) : ""}
+            homeDays={
+              assignedFrom && assignedFrom.date < today
+                ? Math.round((Date.parse(today) - Date.parse(assignedFrom.date)) / 86400000)
+                : 0
+            }
           />
 
           {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.

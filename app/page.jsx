@@ -292,6 +292,36 @@ export default async function Home() {
                 「교재 배정됐는데 진도 체크 안 된 학생 대시보드에 알려줘」).
                 멈춘 교재(⏸)·배정 7일 안(유예)은 안 올린다 — 판단은
                 lib/dashboard progressIdle 한 곳 */}
+            {/* **아이 화면에 오래 떠 있는 숙제** (원장님 2026-08-23).
+                검사를 안 하면 그 배정이 아이 화면에 계속 떠 있는다 —
+                판단은 lib/dashboard staleHomework 한 곳 */}
+            {(d.staleHomework || []).length > 0 && (
+              <div className="card sect sect-warn">
+                <h2 className="secthead">
+                  검사 안 한 숙제{" "}
+                  <span className="tag tag-amber">{d.staleHomework.length}명</span>
+                </h2>
+                <p className="hint" style={{ margin: "0 0 6px" }}>
+                  아이 화면에는 아직 이 숙제가 떠 있어요 — 검사해서 저장하면 넘어갑니다.
+                </p>
+                <div className="stack" style={{ gap: 3 }}>
+                  {d.staleHomework.slice(0, 8).map((h) => (
+                    <Link
+                      className="unitrow"
+                      key={`${h.name}|${h.date}`}
+                      href={`/today?d=${h.date}`}
+                      style={{ textDecoration: "none" }}
+                    >
+                      <b style={{ fontSize: 14 }}>{h.name}</b>
+                      <span className="hint" style={{ flex: 1 }}>
+                        {h.date} 배정 · {h.count}개
+                      </span>
+                      <span className="tag tag-amber">{h.days}일째</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
             {(d.progressIdle || []).length > 0 && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">

@@ -28,6 +28,9 @@ export default function StudyTabs({
   answers = {},
   atClass = false,
   stayLeft = 0,
+  // 언제 받은 숙제인지 (원장님 2026-08-23 — 몇 주 전 것이 그대로 떠 있었다)
+  homeFrom = "",
+  homeDays = 0,
 }) {
   const inClassLeft = inClass.filter((t) => !t.doneAt).length;
   const homeLeft = home.filter((t) => !t.doneAt).length;
@@ -149,6 +152,15 @@ export default function StudyTabs({
         ) : (
           /* 자유 이동 (원장님 2026-08-21) — 「이 숙제 저 숙제 왔다갔다하면서
              할 수 있기 때문에 전체 목록과 체크리스트가 한 번에 보이는 게 맞아」 */
+          <>
+          {homeDays > 0 && (
+            <p
+              className="hint"
+              style={{ margin: "0 0 6px", fontSize: 13, ...(homeDays >= 7 ? { color: "var(--amber)" } : null) }}
+            >
+              {homeFrom}에 받은 숙제예요{homeDays >= 7 ? " — 아직 검사 전이에요" : ""}.
+            </p>
+          )}
           <StudyList
             title="하원 후 숙제"
             hint="어느 숙제부터 해도 돼요. 집에서 할 때도 시작을 눌러주세요 — 얼마나 걸렸는지 볼 수 있어요."
@@ -161,6 +173,7 @@ export default function StudyTabs({
             subs={subs}
             answers={answers}
           />
+          </>
         ))}
 
       {/* **등원학습 아래에 쉬는 시간** (원장님, 2026-08-07).
