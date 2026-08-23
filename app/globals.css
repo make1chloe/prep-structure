@@ -707,7 +707,6 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 }
 .namebtn:hover { border-bottom-color: var(--navy); }
 .rowopen > td { background: var(--surface-2); }
-.stupanel { background: var(--surface-2); padding: 12px !important; }
 
 @media (max-width: 640px) {
   .stats { grid-template-columns: 1fr; }
@@ -715,7 +714,7 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
   /* 폰에서는 가장자리 여백이 곧 읽을 수 있는 폭이다 — 최대한 좁힌다 */
   .wrap, .wrap-wide { padding: 0 10px; }
   .card { padding: 11px; }
-  .card-tight, .stupanel { padding: 10px !important; }
+  .card-tight { padding: 10px !important; }
   .page-head { padding: 10px 0 2px; }
   .h1 { font-size: 20.5px; }
   .stack { gap: 8px; }

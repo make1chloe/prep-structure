@@ -27,6 +27,13 @@ function cut(t) {
   return t ? t.slice(0, 5) : "";
 }
 
+/**
+ * **열쇠 한 벌** — 한 학생이 정규·특강 두 줄로 뜨므로 「학생 + 그 반」 이
+ * 한 줄을 가리킨다. 컴포넌트 밖에 둔다 — 안에 두면 useState 초기화 함수가
+ * 선언보다 먼저 써서 첫 렌더가 백지가 된다 (검사도 못 잡는 꼴이다).
+ */
+const optKey = (sid, extra) => `${sid}|${extra || ""}`;
+
 export default function TodayBoard({
   date,
   groups = [],
@@ -61,7 +68,7 @@ export default function TodayBoard({
       }
     }
     const pick = hits.find((r) => !r.extraClassId) || hits[0];
-    return pick ? `${pick.student.id}|${pick.extraClassId || ""}` : `${openStudent}|`;
+    return pick ? optKey(pick.student.id, pick.extraClassId) : optKey(openStudent, null);
   });
   const [openClass, setOpenClass] = useState(() => {
     if (openStudent) {
@@ -91,7 +98,6 @@ export default function TodayBoard({
    * (진도 칩이 이미 이 방식이다 — 같은 규칙을 출결에도)
    */
   const [opt, setOpt] = useState({});
-  const optKey = (sid, extra) => `${sid}|${extra || ""}`;
   const stOf = (r) =>
     optKey(r.student.id, r.extraClassId) in opt
       ? opt[optKey(r.student.id, r.extraClassId)]
@@ -269,7 +275,7 @@ export default function TodayBoard({
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {groups.map(({ klass, rows }) => {
           const todo = rows.filter(
-            (r) => !isDone(r) || `${r.student.id}|${r.extraClassId || ""}` === justSaved
+            (r) => !isDone(r) || optKey(r.student.id, r.extraClassId) === justSaved
           );
           const done = rows.filter(isDone);
           // 출결을 찍은 학생이 **위로** 온다. 안 찍었다고 감추지는 않는다 —
@@ -277,14 +283,27 @@ export default function TodayBoard({
           const byArrived = (a, b) =>
             (b.status ? 1 : 0) - (a.status ? 1 : 0) ||
             a.student.name.localeCompare(b.student.name, "ko");
-          const visible =
+          /**
+           * **열어둔 줄은 필터에서 빠져도 남긴다** (2026-08-24 검증).
+           * 빠지면 그 순간 판이 통째로 언마운트되어 적던 것이 사라진다.
+           * 세 갈래 전부에 적용한다 — 열어둔 채 필터를 바꿔도 마찬가지다.
+           * (「남은 N명」 세는 todo 는 건드리지 않는다 — 숫자가 틀어진다)
+           */
+          const keepOpen = (list) => {
+            if (!openId) return list;
+            if (list.some((r) => optKey(r.student.id, r.extraClassId) === openId)) return list;
+            const back = rows.find((r) => optKey(r.student.id, r.extraClassId) === openId);
+            return back ? [...list, back] : list;
+          };
+          const visible = keepOpen(
             filter === "todo"
               ? [...todo].sort(byArrived)
               : filter === "absent"
               ? rows.filter((r) => stOf(r) === "absent")
               : filter === "makeup"
               ? rows.filter((r) => r.isMakeup)
-              : rows;
+              : rows
+          );
           const opened = openClass === klass.id;
 
           return (
@@ -374,7 +393,11 @@ export default function TodayBoard({
                     visible.map((r) => {
                       const isOpen = openId === optKey(r.student.id, r.extraClassId);
                       return (
-                        <div key={r.student.id} className="stuRow">
+                        <div
+                          key={optKey(r.student.id, r.extraClassId)}
+                          className="stuRow"
+                          data-row={optKey(r.student.id, r.extraClassId)}
+                        >
                           <button
                             className="stuLine"
                             onClick={() => {
@@ -538,14 +561,20 @@ export default function TodayBoard({
                               rule={rule}
                               grammarCommon={grammarCommon}
                               onSaved={() => {
-                                flush();   // 미뤄둔 것 정리 (2026-08-24)
-                                setOpenId(null);
+                                /**
+                                 * **닫는 것은 「그 학생 판」 뿐이다** (2026-08-24 검증).
+                                 * A 를 저장하고 닫은 뒤 B 를 열었는데 A 의 저장이
+                                 * 늦게 끝나면, 무조건 닫던 옛 코드는 **B 판을**
+                                 * 닫고 「방금 저장」 표시도 A 로 되돌려 B 가 완료
+                                 * 묶음으로 사라졌다.
+                                 */
+                                const k = optKey(r.student.id, r.extraClassId);
+                                flush();   // 미뤄둔 것 정리
+                                setOpenId((cur) => (cur === k ? null : cur));
                                 // 먼저 넘긴다 — 재계산이 끝나면 서버 값이 이어받는다
-                                setDoneOpt((prev) =>
-                                  new Set(prev).add(`${r.student.id}|${r.extraClassId || ""}`)
-                                );
+                                setDoneOpt((prev) => new Set(prev).add(k));
                                 // 줄은 그 자리에 남긴다 (2026-08-21)
-                                setJustSaved(`${r.student.id}|${r.extraClassId || ""}`);
+                                setJustSaved((cur) => (cur === null || cur === k ? k : cur));
                               }}
                             />
                           )}
@@ -609,7 +638,8 @@ export default function TodayBoard({
             ).padStart(2, "0")}`;
             return hhmm >= end;
           })
-          .flatMap(({ rows }) => rows)
+          // 그 반 id 를 실어 둔다 — 「열기」 가 반도 같이 열어야 줄이 그려진다
+          .flatMap(({ klass, rows }) => rows.map((r) => ({ ...r, klassId: klass.id })))
           .filter((r) => (r.stay || []).some((t) => t.status === "todo"));
         if (stuck.length === 0) return null;
         return (
@@ -624,7 +654,7 @@ export default function TodayBoard({
             </p>
             <div className="stack" style={{ gap: 3 }}>
               {stuck.map((r) => (
-                <div className="unitrow" key={r.student.id}>
+                <div className="unitrow" key={optKey(r.student.id, r.extraClassId)}>
                   <b style={{ fontSize: 15, minWidth: 62 }}>{r.student.name}</b>
                   <span className="tag tag-amber">
                     {(r.stay || []).filter((t) => t.status === "todo").length}개 남음
@@ -637,7 +667,12 @@ export default function TodayBoard({
                   </span>
                   <button
                     className="btn btn-ghost btn-sm"
-                    onClick={() => setOpenId(optKey(r.student.id, r.extraClassId))}
+                    onClick={() => {
+                      // 그 반이 접혀 있으면 줄 자체가 안 그려져 아무 일도 안 났다
+                      // (원장님이 「열기」 를 눌러도 반응 없던 까닭, 2026-08-24)
+                      if (r.klassId) setOpenClass(r.klassId);
+                      setOpenId(optKey(r.student.id, r.extraClassId));
+                    }}
                   >
                     열기
                   </button>
