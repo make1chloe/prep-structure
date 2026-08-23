@@ -1659,15 +1659,14 @@ async function progressPeek(supabase, daysStr) {
  *   ③ 대단원마다 그 대단원 워크북 (원하는 것)
  */
 async function workbookTree(supabase, bookQ) {
-  const isWb = (s) => /워크\s*북|workbook|WB\b/i.test(s || "");
-  const isMain = (s) => /본\s*책|본\s*교재|main/i.test(s || "");
+  const isWb = (s) => /워크\\s*북|workbook|WB\\b/i.test(s || "");
 
   let bq = supabase.from("textbooks").select("id, name, area, status").neq("status", "dropped");
   if (bookQ) bq = bq.ilike("name", `%${bookQ}%`);
   const { data: books, error: be } = await bq;
   if (be) return jsonKo({ error: be.message }, { status: 500 });
   const ids = (books || []).map((b) => b.id);
-  if (ids.length === 0) return jsonKo({ 교재: [], 참고: "교재가 없습니다" });
+  if (ids.length === 0) return jsonKo({ 교재: [] });
 
   const uq = await fetchAll(() => supabase
     .from("textbook_units")
@@ -1685,65 +1684,73 @@ async function workbookTree(supabase, bookQ) {
   const out = [];
   for (const b of books || []) {
     const us = byBook.get(b.id) || [];
-    if (us.length === 0) continue;
     const wb = us.filter((u) => isWb(u.name) || isWb(u.label));
-    if (wb.length === 0) continue;   // 워크북이 없는 교재는 이 얘기와 무관
+    if (wb.length === 0) continue;
 
-    const kids = new Map();          // parent_id -> [자식]
+    const byId = new Map(us.map((u) => [u.id, u]));
+    const kids = new Map();
     for (const u of us) {
       const k = u.parent_id || "root";
       if (!kids.has(k)) kids.set(k, []);
       kids.get(k).push(u);
     }
-    const tops = (kids.get("root") || []).slice().sort((x, y) => (x.sort || 0) - (y.sort || 0));
+    const tops = kids.get("root") || [];
 
-    // 모양 가르기
-    let 모양, 근거;
-    const wbTop = tops.filter((u) => isWb(u.name) || isWb(u.label));
-    const wbUnderTop = tops.filter((t) => (kids.get(t.id) || []).some((c) => isWb(c.name) || isWb(c.label)));
-    const 깊이3 = us.some((u) => {
-      const p = us.find((x) => x.id === u.parent_id);
-      return p && p.parent_id;
-    });
-
-    if (wbTop.length > 0 && wbUnderTop.length === 0) {
-      모양 = "① 뒤에 몰림 (본교재 전체 → 워크북 전체)";
-      근거 = `맨 위 줄에 워크북 ${wbTop.length}개가 따로 서 있음`;
-    } else if (wbUnderTop.length > 0 && 깊이3) {
-      모양 = "② 소단원마다 반복 (대단원 안에서 본책·워크북이 번갈아)";
-      근거 = `워크북이 3단 아래까지 내려가 있음`;
-    } else if (wbUnderTop.length > 0) {
-      모양 = "③ 대단원마다 워크북 (원장님이 원하는 모양)";
-      근거 = `대단원 ${wbUnderTop.length}개 밑에 워크북이 한 장씩`;
-    } else {
-      모양 = "판정 못 함";
-      근거 = "워크북 위치가 위 셋 중 어디에도 안 맞음";
+    // 각 줄의 깊이와 맨 위 조상
+    const depthOf = new Map(), topOf = new Map();
+    for (const u of us) {
+      let d = 0, cur = u;
+      while (cur.parent_id && byId.has(cur.parent_id) && d < 10) { cur = byId.get(cur.parent_id); d += 1; }
+      depthOf.set(u.id, d);
+      topOf.set(u.id, cur.id);
     }
 
+    // 워크북이 어느 대단원 밑에 몇 장씩 있나
+    const perTop = new Map();
+    for (const w of wb) perTop.set(topOf.get(w.id), (perTop.get(topOf.get(w.id)) || 0) + 1);
+    const 워크북있는대단원 = perTop.size;
+    const 평균장수 = 워크북있는대단원 ? +(wb.length / 워크북있는대단원).toFixed(1) : 0;
+    const 평균깊이 = +(wb.reduce((a, w) => a + depthOf.get(w.id), 0) / wb.length).toFixed(1);
+
+    // 워크북만 담긴 대단원(= 뒤에 몰아둔 것)
+    const 워크북전용대단원 = tops.filter((t) => {
+      const under = us.filter((u) => topOf.get(u.id) === t.id);
+      const w = under.filter((u) => isWb(u.name) || isWb(u.label));
+      return w.length > 0 && w.length >= under.length - 1;
+    });
+
+    let 모양;
+    if (워크북전용대단원.length > 0 && 워크북전용대단원.length >= 워크북있는대단원 - 1) {
+      모양 = "① 뒤에 몰림";
+    } else if (평균장수 >= 2) {
+      모양 = "② 소단원마다 반복";
+    } else {
+      모양 = "③ 대단원마다 한 장 (원하는 모양)";
+    }
+
+    // 본보기 — 워크북 한 장의 자리 (대단원 › 소단원 › 워크북)
+    const w0 = wb[0];
+    const path = [];
+    let cur = w0;
+    while (cur) { path.unshift(cur.name); cur = cur.parent_id ? byId.get(cur.parent_id) : null; }
+
     out.push({
-      교재: b.name,
-      영역: b.area,
-      모양,
-      근거,
-      대단원수: tops.length,
-      전체단원수: us.length,
-      워크북줄수: wb.length,
-      맨위줄: tops.slice(0, 8).map((t) => {
-        const c = kids.get(t.id) || [];
-        return `${t.name}${c.length ? ` (밑에 ${c.length}: ${c.slice(0, 3).map((x) => x.name).join(", ")}${c.length > 3 ? "…" : ""})` : ""}`;
-      }),
+      교재: b.name, 영역: b.area, 모양,
+      대단원수: tops.length, 전체단원수: us.length, 워크북장수: wb.length,
+      워크북있는대단원, 대단원당평균: 평균장수, 워크북깊이: 평균깊이,
+      본보기자리: path.join(" › "),
     });
   }
 
-  const 묶음 = { "①": [], "②": [], "③": [], "판정 못 함": [] };
+  const 묶음 = { "①뒤에몰림": [], "②소단원마다": [], "③대단원마다(원하는것)": [] };
   for (const r of out) {
-    const k = r.모양.startsWith("①") ? "①" : r.모양.startsWith("②") ? "②" : r.모양.startsWith("③") ? "③" : "판정 못 함";
-    묶음[k].push(r.교재);
+    if (r.모양.startsWith("①")) 묶음["①뒤에몰림"].push(r.교재);
+    else if (r.모양.startsWith("②")) 묶음["②소단원마다"].push(r.교재);
+    else 묶음["③대단원마다(원하는것)"].push(r.교재);
   }
-
   return jsonKo({
-    설명: "쓰지 않고 읽기만 했습니다. 워크북이 있는 교재만 추립니다.",
+    설명: "쓰지 않고 읽기만 했습니다. 워크북이 있는 교재만 추립니다. 깊이 0=대단원, 1=소단원, 2=그 아래.",
     한눈에: 묶음,
-    교재: out,
+    교재: out.sort((x, y) => x.모양.localeCompare(y.모양)),
   });
 }
