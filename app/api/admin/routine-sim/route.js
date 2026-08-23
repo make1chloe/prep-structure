@@ -49,6 +49,7 @@ export async function GET(request) {
   if (op === "peek") return progressPeek(supabase, sp.get("days") || "3");
   if (op === "tree") return workbookTree(supabase, sp.get("book") || "");
   if (op === "wbmove") return workbookMove(supabase, sp.get("book") || "", sp.get("apply") === "1");
+  if (op === "outline") return bookOutline(supabase, sp.get("book") || "", sp.get("top") || "2");
 
   const today = todaySeoul();
 
@@ -1866,4 +1867,57 @@ async function workbookMove(supabase, bookQ, apply) {
     교재: 계획.map(({ 줄들, ...r }) => r),
     손대지않음: 건너뜀,
   });
+}
+
+/**
+ * **교재 한 권을 눈으로 보는 차림표** (원장님 2026-08-23 — 「이렇게만 떠서
+ * 뭔지 모르겠음」). 숫자 요약 말고 단원을 차례대로 들여쓴 줄로 보여준다.
+ * 아무것도 쓰지 않는다.
+ */
+async function bookOutline(supabase, bookQ, topStr) {
+  if (!bookQ) return jsonKo({ error: "교재 이름 조각을 &book= 으로 주세요" }, { status: 400 });
+  const topN = Math.max(1, Math.min(20, parseInt(topStr, 10) || 2));
+  const { data: books, error: be } = await supabase
+    .from("textbooks").select("id, name").ilike("name", `%${bookQ}%`).neq("status", "dropped");
+  if (be) return jsonKo({ error: be.message }, { status: 500 });
+  if (!books || books.length === 0) return jsonKo({ error: "그 이름의 교재가 없어요" }, { status: 404 });
+
+  const out = [];
+  for (const b of books) {
+    const uq = await fetchAll(() => supabase
+      .from("textbook_units")
+      .select("id, parent_id, label, name, sort, page_start, page_end")
+      .eq("textbook_id", b.id)
+      .order("sort").order("id"));
+    if (uq.error) return jsonKo({ error: uq.error.message }, { status: 500 });
+    const us = uq.data || [];
+    const kids = new Map();
+    for (const u of us) {
+      const k = u.parent_id || "root";
+      if (!kids.has(k)) kids.set(k, []);
+      kids.get(k).push(u);
+    }
+    const 줄 = [];
+    const walk = (id, depth) => {
+      for (const c of (kids.get(id) || []).sort((x, y) => (x.sort || 0) - (y.sort || 0))) {
+        const 쪽 = c.page_start ? ` (p${c.page_start}${c.page_end && c.page_end !== c.page_start ? `~${c.page_end}` : ""})` : "";
+        줄.push(`${"　".repeat(depth)}${depth ? "└ " : "■ "}${c.name}${쪽}`);
+        walk(c.id, depth + 1);
+      }
+    };
+    const tops = (kids.get("root") || []).sort((x, y) => (x.sort || 0) - (y.sort || 0));
+    for (const t of tops.slice(0, topN)) {
+      줄.push(`■ ${t.name}`);
+      walk(t.id, 1);
+    }
+    out.push({
+      교재: b.name,
+      대단원수: tops.length,
+      전체단원수: us.length,
+      보여준대단원: Math.min(topN, tops.length),
+      차림표: 줄,
+      다음대단원들: tops.slice(topN).map((t) => t.name),
+    });
+  }
+  return jsonKo({ 설명: "읽기만 했습니다. &top=숫자 로 몇 개 대단원을 펼칠지 정합니다.", 교재: out });
 }
