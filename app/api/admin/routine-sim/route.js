@@ -46,6 +46,7 @@ export async function GET(request) {
   if (op === "safety") return safetyCheck(supabase);
   if (op === "noassign") return noAssign(supabase);
   if (op === "mockmerge") return mockMerge(supabase, sp.get("apply") === "1");
+  if (op === "peek") return progressPeek(supabase, sp.get("days") || "3");
 
   const today = todaySeoul();
 
@@ -1558,5 +1559,90 @@ async function mockMerge(supabase, apply = false) {
     },
     유사명제외,
     참고: "내신 대비의 「모의고사 교재 만들기」(makeMockBook)는 회차 이름으로 찾으므로, 절판된 원본을 이름으로 다시 찾을 수 있다 — 새 회차부터는 새로 만들어지니 통합 후 같은 방식으로 다시 합치면 된다",
+  });
+}
+
+/**
+ * **진도가 어느 회독에 적혔나** (원장님 2026-08-23 — 「진도체크 다 한 게
+ * 날아간 것 같은데」). 아무것도 쓰지 않는다 — 읽고 셈만 한다.
+ *
+ * 진도는 **회독별로** 쌓인다(학생·단원·회독이 한 줄). 그래서 「사라졌다」의
+ * 대부분은 지워진 게 아니라 **다른 회독에 적혀 안 보이는 것**이다.
+ * 최근 며칠에 찍은 줄을 학생·교재·회독으로 모아, 지금 회독과 다른 곳에
+ * 적힌 것이 있으면 그것부터 보여준다.
+ */
+async function progressPeek(supabase, daysStr) {
+  const today = todaySeoul();
+  const days = Math.max(1, Math.min(30, parseInt(daysStr, 10) || 3));
+  const since = addDays(today, -(days - 1));
+
+  const [stQ, bkQ, sbQ, unitQ] = await Promise.all([
+    supabase.from("students").select("id, name").eq("status", "enrolled"),
+    supabase.from("textbooks").select("id, name"),
+    fetchAll(() => supabase
+      .from("student_textbooks")
+      .select("student_id, textbook_id, status, round")
+      .order("student_id").order("textbook_id")),
+    fetchAll(() => supabase
+      .from("textbook_units")
+      .select("id, textbook_id, name")
+      .order("id")),
+  ]);
+  const nameOf = new Map((stQ.data || []).map((r) => [r.id, r.name]));
+  const bookOf = new Map((bkQ.data || []).map((r) => [r.id, r.name]));
+  const unitBook = new Map((unitQ.data || []).map((u) => [u.id, u.textbook_id]));
+  const unitName = new Map((unitQ.data || []).map((u) => [u.id, u.name]));
+  const curRound = new Map();
+  for (const r of sbQ.data || []) curRound.set(`${r.student_id}|${r.textbook_id}`, r.round || 1);
+
+  // 최근에 만진 진도 줄 (marked_on 이 없는 옛 줄은 done_on 으로 본다)
+  let prog = await fetchAll(() => supabase
+    .from("student_unit_progress")
+    .select("student_id, textbook_unit_id, round, status, done_on, marked_on")
+    .gte("marked_on", since)
+    .order("student_id").order("textbook_unit_id"));
+  if (prog.error) {
+    prog = await fetchAll(() => supabase
+      .from("student_unit_progress")
+      .select("student_id, textbook_unit_id, round, status, done_on")
+      .gte("done_on", since)
+      .order("student_id").order("textbook_unit_id"));
+  }
+  if (prog.error) return jsonKo({ error: prog.error.message }, { status: 500 });
+
+  const bins = new Map();   // 학생|교재|회독 -> { …, 단원: [] }
+  for (const r of prog.data || []) {
+    const tid = unitBook.get(r.textbook_unit_id);
+    if (!tid) continue;
+    const round = r.round == null ? 1 : r.round;
+    const key = `${r.student_id}|${tid}|${round}`;
+    if (!bins.has(key)) {
+      bins.set(key, {
+        학생: nameOf.get(r.student_id) || "(퇴원생)",
+        교재: bookOf.get(tid) || "(없는 교재)",
+        적힌회독: round,
+        지금회독: curRound.get(`${r.student_id}|${tid}`) ?? "(배정 없음)",
+        완료: 0, 하는중: 0, 마지막날: "", 단원: [],
+      });
+    }
+    const b = bins.get(key);
+    if (r.status === "done") b.완료 += 1;
+    else if (r.status === "doing") b.하는중 += 1;
+    const d = r.marked_on || r.done_on || "";
+    if (d > b.마지막날) b.마지막날 = d;
+    if (b.단원.length < 6) b.단원.push(unitName.get(r.textbook_unit_id) || r.textbook_unit_id);
+  }
+
+  const all = [...bins.values()].sort((a, b) => (b.마지막날 || "").localeCompare(a.마지막날 || ""));
+  const 안보이는것 = all.filter((b) => b.적힌회독 !== b.지금회독);
+
+  return jsonKo({
+    설명: "쓰지 않고 읽기만 했습니다. 「안보이는것」은 지금 회독과 다른 회독에 적혀 화면에 안 나오는 진도입니다 — 지워진 게 아닙니다.",
+    기간: `${since} ~ ${today}`,
+    찍은줄: (prog.data || []).length,
+    묶음: all.length,
+    안보이는묶음: 안보이는것.length,
+    안보이는것,
+    전부: all,
   });
 }
