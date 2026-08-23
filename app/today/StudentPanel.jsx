@@ -663,6 +663,24 @@ export default function StudentPanel({
   const checkFolded = toCheck.filter((iid) => savedToday[iid]);
   const [showCheckedToday, setShowCheckedToday] = useState(false);
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
+
+  /**
+   * **이 항목이 어느 교재의 무엇인가** (원장님 2026-08-24 — 「등원 학습에
+   * 영역도 교재명도 단원명도 없고 그냥 「개념정리」 띡 있으면 학생도 나도
+   * 뭔 줄 어떻게 아니?」).
+   *
+   * 루틴이 이미 알고 있다 — 단계마다 교재·단원과 그 단계가 시키는 항목이
+   * 붙어 있다. 그걸 항목 쪽에서 찾을 수 있게 뒤집어 둔다.
+   */
+  const bookOfItem = (() => {
+    const m = new Map();
+    for (const st of routine?.steps || []) {
+      for (const iid of [...(st.inclassItems || []), ...(st.homeItems || [])]) {
+        if (!m.has(iid)) m.set(iid, { book: st.book || "", unit: st.unit || "" });
+      }
+    }
+    return m;
+  })();
   const itemOf = (id) => items.find((i) => i.id === id) || null;
 
   // △·✕ 로 찍은 숙제 — **배정된 것뿐 아니라 지금 찍은 것 전부**를 본다.
@@ -1907,6 +1925,13 @@ export default function StudentPanel({
                     {nameOf(iid) || "학습"}
                     {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
                   </span>
+                  {/* 무슨 교재의 어디인지 — 항목 이름만으로는 아이도 원장님도 모른다 */}
+                  {bookOfItem.get(iid) && (
+                    <span className="hint" style={{ fontSize: 12.5 }}>
+                      {bookOfItem.get(iid).book}
+                      {bookOfItem.get(iid).unit ? ` · ${bookOfItem.get(iid).unit}` : ""}
+                    </span>
+                  )}
                   {carried && <span className="tag tag-sky" title="지난 수업에서 「다음 수업에 계속」 한 것">이어서</span>}
                   {!carried && (row.plannedIn || []).includes(iid) && (
                     <span className="tag tag-lav" title="지난 수업 마무리 때 세워둔 계획 — 숙제 확인 후 고치고 저장하면 확정">계획</span>
@@ -2059,39 +2084,10 @@ export default function StudentPanel({
               })}
             </div>
           )}
-          {routine && (
-            /**
-             * **교재마다 한 줄** (원장님 2026-08-23 — 「이건 어쩌라고 써놓은
-             * 거지?」). 전에는 교재 넷의 진행·단원을 가운뎃점으로 이어 붙여
-             * 한 문단이었다. 어디가 교재 이름이고 어디가 단원인지 눈으로
-             * 가를 수가 없었다. 교재 하나가 한 줄이면 그냥 읽힌다.
-             */
-            <div className="stack" style={{ gap: 2, margin: "6px 0 0" }}>
-              <span className="hint" style={{ fontSize: 12.5 }}>
-                진도루틴에서 가져온 것 — <b>저장하면 다음 단계로 넘어갑니다.</b>
-              </span>
-              {routine.steps.map((s, i) => (
-                <div
-                  key={`${s.book}-${i}`}
-                  className="row"
-                  style={{ gap: 6, alignItems: "baseline", fontSize: 12.5 }}
-                >
-                  <b style={{ minWidth: 150 }}>{s.book}</b>
-                  <span className="tag tag-muted">
-                    {s.no}/{s.total}{s.label ? ` ${s.label}` : ""}
-                  </span>
-                  <span className="hint" style={{ flex: 1 }}>
-                    {s.unit || (s.unitDone ? "단원을 다 했어요 — 회독을 넘기거나 다음 교재로" : "")}
-                  </span>
-                  {s.unitDone && <span className="tag tag-amber">단원 끝</span>}
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="hint" style={{ margin: "6px 0 0", fontSize: 12.5 }}>
-            고른 순서가 아니라 <b>학습 항목 순서</b>대로 학생 화면에 뜹니다. 학생이{" "}
-            <b>학습 완료</b>를 누르면 여기 노랗게 바뀌고, 검사하시면 초록이 됩니다.
-          </p>
+          {/* 루틴 요약 줄은 없앴다 (원장님 2026-08-24 「두 번째 사진 내용은 왜
+              있는 건데」) — 이제 위 목록의 줄마다 교재·단원이 붙어 있어 같은
+              말을 두 번 하는 셈이었다 */}
+
         </div>
       </div>
 
