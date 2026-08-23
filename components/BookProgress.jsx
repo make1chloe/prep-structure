@@ -800,6 +800,13 @@ export default function BookProgress({
                               {hwPicked?.has(u.id) && <b title="다음 숙제로 담김">📝</b>} {u.name}
                               {u.activity ? <span className="hint"> · {u.activity}</span> : null}
                               {u.amount ? <span className="hint"> {u.amount}</span> : null}
+                              {/* 몇 페이지인지 (원장님 2026-08-23 「교재 진도에 몇
+                                  페이지인지가 없어서 불편」) — 단원에 적힌 시작~끝 */}
+                              {u.page_start ? (
+                                <span className="hint">
+                                  {" "}p{u.page_start}{u.page_end && u.page_end !== u.page_start ? `~${u.page_end}` : ""}
+                                </span>
+                              ) : null}
                             </button>
                             {/**
                               * 단원 메모 — 「이 단원 어려워함」 「17번만 다시」.
