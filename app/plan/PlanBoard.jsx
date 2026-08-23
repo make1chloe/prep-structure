@@ -117,7 +117,7 @@ export default function PlanBoard({
         {TABS.map(([k, l]) => (
           <button
             key={k}
-            className={`btn btn-sm ${tab === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${tab === k ? "btn-on" : "btn-ghost"}`}
             onClick={() => setTab(k)}
           >
             {l}
@@ -381,7 +381,7 @@ export default function PlanBoard({
                   {REASONS.map((r) => (
                     <button
                       key={r}
-                      className={`btn btn-sm ${reason === r ? "btn-primary" : "btn-ghost"}`}
+                      className={`btn btn-sm ${reason === r ? "btn-on" : "btn-ghost"}`}
                       onClick={() => setReason(r)}
                     >
                       {r}

@@ -55,7 +55,7 @@ export default function ThemePicker() {
           <button
             key={v}
             type="button"
-            className={`btn btn-sm ${ready && pick === v ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${ready && pick === v ? "btn-on" : "btn-ghost"}`}
             title={desc}
             onClick={() => choose(v)}
           >

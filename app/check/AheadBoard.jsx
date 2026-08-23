@@ -153,7 +153,7 @@ export default function AheadBoard({
       {suggested.map((d) => (
         <button
           key={d}
-          className={`btn btn-sm ${value === d ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${value === d ? "btn-on" : "btn-ghost"}`}
           style={{ padding: "3px 8px" }}
           onClick={() => onChange(d)}
         >
@@ -261,7 +261,7 @@ export default function AheadBoard({
           ].map(([k, l]) => (
             <button
               key={k}
-              className={`btn btn-sm ${tab === k ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${tab === k ? "btn-on" : "btn-ghost"}`}
               onClick={() => setTab(k)}
             >
               {l}
@@ -282,7 +282,7 @@ export default function AheadBoard({
               {cats.map((c) => (
                 <button
                   key={c}
-                  className={`btn btn-sm ${cat === c ? "btn-primary" : "btn-ghost"}`}
+                  className={`btn btn-sm ${cat === c ? "btn-on" : "btn-ghost"}`}
                   style={{ padding: "3px 8px" }}
                   onClick={() => setCat(c)}
                 >
@@ -442,7 +442,7 @@ export default function AheadBoard({
               {NOTICE_KINDS.filter((k) => !k.push).map((k) => [k.key, k.label]).map(([k, l]) => (
                 <button
                   key={k}
-                  className={`btn btn-sm ${kind === k ? "btn-primary" : "btn-ghost"}`}
+                  className={`btn btn-sm ${kind === k ? "btn-on" : "btn-ghost"}`}
                   onClick={() => setKind(k)}
                 >
                   {l}

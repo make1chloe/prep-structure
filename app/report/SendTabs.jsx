@@ -32,7 +32,7 @@ export default function SendTabs({ tab = "todo", date }) {
       {TABS.map(([k, label]) => (
         <button
           key={k}
-          className={`btn btn-sm ${tab === k ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${tab === k ? "btn-on" : "btn-ghost"}`}
           onClick={() => go(k)}
         >
           {label}

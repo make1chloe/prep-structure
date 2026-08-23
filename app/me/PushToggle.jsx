@@ -124,7 +124,7 @@ export default function PushToggle({ onlyWhenOff = false, warn = false, brief = 
         </div>
         {state !== "denied" && (
           <button
-            className={`btn btn-sm ${state === "on" ? "btn-ghost" : "btn-primary"}`}
+            className={`btn btn-sm ${state === "on" ? "btn-ghost" : "btn-on"}`}
             onClick={state === "on" ? turnOff : turnOn}
             disabled={pending}
           >

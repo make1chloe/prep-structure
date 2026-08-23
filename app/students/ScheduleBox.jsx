@@ -85,7 +85,7 @@ export default function ScheduleBox({ studentId, name }) {
             {KINDS.map((k) => (
               <button
                 key={k}
-                className={`btn btn-sm ${category === k ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${category === k ? "btn-on" : "btn-ghost"}`}
                 onClick={() => {
                   setCategory(k);
                   // 제목을 안 적으셨으면 종류를 그대로 제목으로 — 대부분 이걸로 충분하다

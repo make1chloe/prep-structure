@@ -105,7 +105,7 @@ export default function MenuBox({ profile }) {
                 ↓
               </button>
               <button
-                className={`btn btn-sm ${off ? "btn-ghost" : "btn-primary"}`}
+                className={`btn btn-sm ${off ? "btn-ghost" : "btn-on"}`}
                 onClick={() => toggle(k)}
                 style={{ minWidth: 60 }}
               >

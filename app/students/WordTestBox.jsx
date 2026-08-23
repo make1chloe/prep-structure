@@ -96,7 +96,7 @@ export default function WordTestBox({ student, defaultPass = 90 }) {
             {[["start", "수업 시작"], ["end", "다 끝내고"]].map(([k, label]) => (
               <button
                 key={k}
-                className={`btn btn-sm ${when === k ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${when === k ? "btn-on" : "btn-ghost"}`}
                 onClick={() => setWhen(k)}
               >
                 {label}

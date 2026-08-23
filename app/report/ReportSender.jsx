@@ -255,7 +255,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
         ].map(([k, label]) => (
           <button
             key={k}
-            className={`btn btn-sm ${filter === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${filter === k ? "btn-on" : "btn-ghost"}`}
             onClick={() => setFilter(k)}
           >
             {label}

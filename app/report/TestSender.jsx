@@ -136,7 +136,7 @@ export default function TestSender({ students = [], templates = [], mode = "copy
           {TEST_KINDS.map((k) => (
             <button
               key={k.key}
-              className={`btn btn-sm ${kind === k.key ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${kind === k.key ? "btn-on" : "btn-ghost"}`}
               onClick={() => setKind(k.key)}
             >
               {k.label}

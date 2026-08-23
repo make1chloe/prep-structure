@@ -322,6 +322,27 @@ body { padding-top: var(--topbar-full, 120px); }
 .btn-primary:hover { opacity: .92; }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
 .btn-block { width: 100%; justify-content: center; }
+/**
+ * **골라 놓은 것** (원장님 2026-08-23 — 「정보가 많은데 구별이 안 돼」).
+ *
+ * 전수로 세어 보니 채운 단추 291개 중 **105개가 「선택됨」 표시**였다 —
+ * 출결 칩·통과/재시험·분류 탭 같은 것들. 강조색이 「지금 눌러야 할 것」과
+ * 「이미 골라 둔 것」 두 가지 뜻으로 쓰이니 화면에 파란 것이 열여덟 개씩
+ * 생겨, 「여기가 중요하다」 는 신호가 죽었다.
+ *
+ * 그래서 **채움은 행동에만** 남기고, 골라 놓은 것은 연한 바탕 + 테두리로
+ * 가른다. 눈에는 「켜져 있다」 로 보이되 「눌러라」 로는 안 보인다.
+ */
+.btn-on {
+  background: rgba(43,74,138,.10);
+  border-color: var(--navy);
+  color: var(--navy);
+  font-weight: 800;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn-on { background: rgba(120,160,255,.14); border-color: var(--navy); color: var(--text); }
+}
+:root[data-theme="dark"] .btn-on { background: rgba(120,160,255,.14); border-color: var(--navy); color: var(--text); }
 
 /* Forms */
 .field { display: flex; flex-direction: column; gap: 6px; }

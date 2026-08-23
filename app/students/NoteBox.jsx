@@ -101,7 +101,7 @@ export default function NoteBox({ studentId, name }) {
             {KINDS.map((k) => (
               <button
                 key={k.key}
-                className={`btn btn-sm ${draft.kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${draft.kind === k.key ? "btn-on" : "btn-ghost"}`}
                 onClick={() => setDraft({ ...draft, kind: k.key })}
               >
                 {k.label}
@@ -128,7 +128,7 @@ export default function NoteBox({ studentId, name }) {
             <span className="hint" style={{ fontSize: 13 }}>말한 것</span>
             {canDictate ? (
               <button
-                className={`btn btn-sm ${listening ? "btn-primary" : ""}`}
+                className={`btn btn-sm ${listening ? "btn-on" : ""}`}
                 onClick={toggleDictate}
               >
                 {listening ? "⏹ 받아쓰기 멈춤" : "🎤 받아쓰기"}

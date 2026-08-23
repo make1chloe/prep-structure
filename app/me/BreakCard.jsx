@@ -63,7 +63,7 @@ export default function BreakCard() {
         )}
         <span className="spacer" />
         <button
-          className={`btn btn-sm ${open ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${open ? "btn-on" : "btn-ghost"}`}
           onClick={() => go(open ? endBreak : startBreak)}
           disabled={pending}
         >

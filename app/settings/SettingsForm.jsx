@@ -140,13 +140,13 @@ export default function SettingsForm({
     <div className="stack" style={{ marginTop: 10 }}>
       <div className="row" style={{ gap: 4 }}>
         <button
-          className={`btn btn-sm ${isKeys ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${isKeys ? "btn-on" : "btn-ghost"}`}
           onClick={() => setTab("keys")}
         >
           연동 · 키
         </button>
         <button
-          className={`btn btn-sm ${!isKeys ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${!isKeys ? "btn-on" : "btn-ghost"}`}
           onClick={() => setTab("rules")}
         >
           운영 규칙
@@ -164,7 +164,7 @@ export default function SettingsForm({
           {MODES.map((m) => (
             <button
               key={m.key}
-              className={`btn btn-sm ${mode === m.key ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${mode === m.key ? "btn-on" : "btn-ghost"}`}
               onClick={() => setMode(m.key)}
             >
               {m.label}
@@ -524,7 +524,7 @@ export default function SettingsForm({
               <button
                 key={d}
                 type="button"
-                className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${on ? "btn-on" : "btn-ghost"}`}
                 onClick={() =>
                   setMakeupDays(on ? makeupDays.filter((x) => x !== d) : [...makeupDays, d])
                 }
@@ -557,7 +557,7 @@ export default function SettingsForm({
             <button
               key={k}
               type="button"
-              className={`btn btn-sm ${warn[k] ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${warn[k] ? "btn-on" : "btn-ghost"}`}
               onClick={() => setWarn({ ...warn, [k]: !warn[k] })}
             >
               {warn[k] ? "✓ " : ""}{label}

@@ -80,7 +80,7 @@ export default function ShareBar({ studentId, name, share = "both", st, notes = 
             {SHARE.map((s) => (
               <button
                 key={s.key}
-                className={`btn btn-sm ${cur === s.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${cur === s.key ? "btn-on" : "btn-ghost"}`}
                 disabled={pending || blocked}
                 onClick={() => pick(s.key)}
                 title={s.hint}

@@ -111,7 +111,7 @@ export default function LateBox({
         {TIME_PRESETS.map((t) => (
           <button
             key={t}
-            className={`btn btn-sm ${until === t ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${until === t ? "btn-on" : "btn-ghost"}`}
             disabled={pending || sent}
             style={{ padding: "2px 8px", fontSize: 13 }}
             onClick={() => {

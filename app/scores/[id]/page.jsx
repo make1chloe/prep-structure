@@ -141,7 +141,7 @@ export default async function ReportPage({ params, searchParams }) {
               <Link
                 key={k}
                 href={`/scores/${student.id}?kind=${k}`}
-                className={`btn btn-sm ${kind === k ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${kind === k ? "btn-on" : "btn-ghost"}`}
               >
                 {KIND_LABEL[k]}
                 {countOf(k) > 0 && (

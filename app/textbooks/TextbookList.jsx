@@ -401,7 +401,7 @@ export default function TextbookList({
           ))}
         </select>
         {hiddenCount > 0 && (
-          <button className={`btn btn-sm ${showHidden ? "btn-primary" : "btn-ghost"}`}
+          <button className={`btn btn-sm ${showHidden ? "btn-on" : "btn-ghost"}`}
             onClick={() => setShowHidden((v) => !v)}>
             절판·중단 {hiddenCount} {showHidden ? "숨기기" : "보기"}
           </button>

@@ -246,7 +246,7 @@ export default function ClassManager({
                               <button
                                 key={d}
                                 type="button"
-                                className={`btn btn-sm ${(draft.days || []).includes(d) ? "btn-primary" : "btn-ghost"}`}
+                                className={`btn btn-sm ${(draft.days || []).includes(d) ? "btn-on" : "btn-ghost"}`}
                                 style={{ padding: "4px 8px" }}
                                 onClick={() => toggleDay(d)}
                               >

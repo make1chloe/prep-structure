@@ -286,7 +286,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                   {inGroup.map((t) => (
                     <button
                       key={t.id}
-                      className={`btn btn-sm ${tplId === t.id ? "btn-primary" : "btn-ghost"}`}
+                      className={`btn btn-sm ${tplId === t.id ? "btn-on" : "btn-ghost"}`}
                       onClick={() => pickTemplate(t.id)}
                     >
                       {t.name}
@@ -364,7 +364,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
             ].map(([k, label]) => (
               <button
                 key={k}
-                className={`btn btn-sm ${who === k ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${who === k ? "btn-on" : "btn-ghost"}`}
                 onClick={() => { setWho(k); setSel(new Set()); }}
               >
                 {label}

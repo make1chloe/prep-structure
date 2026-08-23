@@ -440,7 +440,7 @@ export default function PrepBoard({
                             </b>
                             {STAGES.filter((s) => m[s.need]).map((s) => (
                               <button key={s.key}
-                                className={`btn btn-sm ${m[s.at] ? "btn-primary" : "btn-ghost"}`}
+                                className={`btn btn-sm ${m[s.at] ? "btn-on" : "btn-ghost"}`}
                                 style={{ padding: "2px 8px", fontSize: 12.5 }}
                                 disabled={pending}
                                 onClick={() => run(() => markStage(m.id, s.key, !m[s.at]))}>
@@ -468,7 +468,7 @@ export default function PrepBoard({
                                   const on = mine.some((a) => a.student_id === st.id);
                                   return (
                                     <button key={st.id}
-                                      className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                                      className={`btn btn-sm ${on ? "btn-on" : "btn-ghost"}`}
                                       style={{ padding: "2px 8px", fontSize: 13 }}
                                       onClick={() => {
                                         const next = on
@@ -498,7 +498,7 @@ export default function PrepBoard({
                                         <b style={{ fontSize: 14, minWidth: 62 }}>{st?.name || "학생"}</b>
                                         {OWN.filter((o) => m[`need_${o.key === "hand" ? "hand" : o.key}`]).map((o) => (
                                           <button key={o.key}
-                                            className={`btn btn-sm ${a[o.at] ? "btn-primary" : "btn-ghost"}`}
+                                            className={`btn btn-sm ${a[o.at] ? "btn-on" : "btn-ghost"}`}
                                             style={{ padding: "2px 8px", fontSize: 12.5 }}
                                             disabled={pending}
                                             onClick={() => run(() => markAssign(a.id, o.key, !a[o.at]))}>

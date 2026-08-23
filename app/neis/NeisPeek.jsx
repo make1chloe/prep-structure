@@ -113,7 +113,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
           <span className="hint" style={{ fontSize: 13 }}>학교</span>
           <button
             type="button"
-            className={`btn btn-sm ${picked.length === 0 ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${picked.length === 0 ? "btn-on" : "btn-ghost"}`}
             onClick={() => setPicked([])}
           >
             전체 {schools.length}곳
@@ -124,7 +124,7 @@ export default function NeisPeek({ from, to, schools = [] }) {
               <button
                 key={s.id}
                 type="button"
-                className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${on ? "btn-on" : "btn-ghost"}`}
                 title={s.name}
                 onClick={() =>
                   setPicked(on ? picked.filter((x) => x !== s.id) : [...picked, s.id])

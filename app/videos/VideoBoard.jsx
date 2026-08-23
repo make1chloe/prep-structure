@@ -156,7 +156,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
           onChange={(e) => setQ(e.target.value)}
         />
         <button
-          className={`btn btn-sm ${folderId === "" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${folderId === "" ? "btn-on" : "btn-ghost"}`}
           onClick={() => setFolderId("")}
         >
           전체 {videos.length}
@@ -164,7 +164,7 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
         {folders.map((f) => (
           <button
             key={f.id}
-            className={`btn btn-sm ${folderId === f.id ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${folderId === f.id ? "btn-on" : "btn-ghost"}`}
             onClick={() => setFolderId(f.id)}
           >
             {f.name}

@@ -779,7 +779,7 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
           return (
             <button
               key={k}
-              className={`btn btn-sm ${statusFilter === k ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${statusFilter === k ? "btn-on" : "btn-ghost"}`}
               onClick={() => { setStatusFilter(k); setSel(new Set()); }}
             >
               {label} {n}

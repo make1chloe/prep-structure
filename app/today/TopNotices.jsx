@@ -287,7 +287,7 @@ export default function TopNotices({
             {KINDS.map((k) => (
               <button
                 key={k.key}
-                className={`btn btn-sm ${kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${kind === k.key ? "btn-on" : "btn-ghost"}`}
                 onClick={() => setKind(k.key)}
               >
                 {k.label}
@@ -302,7 +302,7 @@ export default function TopNotices({
             {SCOPES.map((sc) => (
               <button
                 key={sc.key}
-                className={`btn btn-sm ${scope === sc.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${scope === sc.key ? "btn-on" : "btn-ghost"}`}
                 onClick={() => setScope(sc.key)}
               >
                 {sc.label}
@@ -378,7 +378,7 @@ export default function TopNotices({
               onChange={(e) => setBody(e.target.value)}
             />
             <button
-              className={`btn btn-sm ${isAlert(kind) ? "btn-danger" : "btn-primary"}`}
+              className={`btn btn-sm ${isAlert(kind) ? "btn-danger" : "btn-on"}`}
               onClick={submit}
               disabled={pending || !body.trim() || targetCount === 0}
             >

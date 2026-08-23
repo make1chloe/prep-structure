@@ -48,7 +48,7 @@ export default function WordRangeBox({ book }) {
         </div>
 
         <button
-          className={`btn btn-sm ${irregular ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${irregular ? "btn-on" : "btn-ghost"}`}
           disabled={pending}
           onClick={() => {
             const next = !irregular;

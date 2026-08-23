@@ -179,7 +179,7 @@ export default function ScopePicker({ scope, onClose, onSaved }) {
           return (
             <button
               key={o.id}
-              className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${on ? "btn-on" : "btn-ghost"}`}
               style={{
                 justifyContent: "flex-start",
                 textAlign: "left",

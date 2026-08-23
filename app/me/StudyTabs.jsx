@@ -82,7 +82,7 @@ export default function StudyTabs({
         {tabs.map(([k, label, left, total]) => (
           <button
             key={k}
-            className={`btn btn-sm ${tab === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${tab === k ? "btn-on" : "btn-ghost"}`}
             style={{ flex: 1 }}
             onClick={() => setTab(k)}
           >

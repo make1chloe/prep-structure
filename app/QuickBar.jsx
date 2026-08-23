@@ -79,13 +79,13 @@ export default function QuickBar({ students = [] }) {
     <div style={{ marginTop: 10 }}>
       <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
         <button
-          className={`btn btn-sm ${open === "makeup" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${open === "makeup" ? "btn-on" : "btn-ghost"}`}
           onClick={() => { setMsg(null); setOpen(open === "makeup" ? null : "makeup"); }}
         >
           ＋ 보강 잡기
         </button>
         <button
-          className={`btn btn-sm ${open === "todo" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${open === "todo" ? "btn-on" : "btn-ghost"}`}
           onClick={() => { setMsg(null); setOpen(open === "todo" ? null : "todo"); }}
         >
           ＋ 할일

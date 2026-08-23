@@ -569,7 +569,7 @@ export default function BookProgress({
                 {activeLeaves.length > 0 && !pastView && (
                   <button
                     className={`btn btn-sm ${
-                      activeLeaves.every((u) => u.status === "done") ? "btn-primary" : "btn-ghost"
+                      activeLeaves.every((u) => u.status === "done") ? "btn-on" : "btn-ghost"
                     }`}
                     disabled={pending}
                     title="지난 회독 진도는 그대로 남고, 새 회독이 빈 상태로 시작합니다"
@@ -632,7 +632,7 @@ export default function BookProgress({
                   <>
                     {onHomework && (
                       <button
-                        className={`btn btn-sm ${hwMode ? "btn-primary" : "btn-ghost"}`}
+                        className={`btn btn-sm ${hwMode ? "btn-on" : "btn-ghost"}`}
                         onClick={() => { setHwMode(!hwMode); setUptoMode(false); setSelMode(false); setSelUnits(new Set()); }}
                         title="단원을 누르면 아래 「다음 숙제 배정」 에 담깁니다. ◐ 하다 만 단원도 이어서 낼 수 있어요"
                       >
@@ -640,14 +640,14 @@ export default function BookProgress({
                       </button>
                     )}
                     <button
-                      className={`btn btn-sm ${uptoMode ? "btn-primary" : "btn-ghost"}`}
+                      className={`btn btn-sm ${uptoMode ? "btn-on" : "btn-ghost"}`}
                       onClick={() => { setUptoMode(!uptoMode); setHwMode(false); setSelMode(false); setSelUnits(new Set()); }}
                       title="지금 하는 단원을 누르면 그 앞이 전부 완료로 찍힙니다"
                     >
                       ⏩ 여기까지
                     </button>
                     <button
-                      className={`btn btn-sm ${selMode ? "btn-primary" : "btn-ghost"}`}
+                      className={`btn btn-sm ${selMode ? "btn-on" : "btn-ghost"}`}
                       onClick={() => { setSelMode(!selMode); setUptoMode(false); setSelUnits(new Set()); }}
                       title="여러 단원을 골라 한 번에 바꿉니다"
                     >

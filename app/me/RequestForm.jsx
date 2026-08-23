@@ -130,7 +130,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
             ].map(([k, label]) => (
               <button
                 key={k}
-                className={`btn btn-sm ${kind === k ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${kind === k ? "btn-on" : "btn-ghost"}`}
                 onClick={() => setKind(k)}
               >
                 {label}

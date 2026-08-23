@@ -250,7 +250,7 @@ export default function ConsultBoard({
           onChange={(e) => setQ(e.target.value)}
         />
         <button
-          className={`btn btn-sm ${filter === "open" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${filter === "open" ? "btn-on" : "btn-ghost"}`}
           onClick={() => setFilter("open")}
         >
           진행중 {openCount}
@@ -258,14 +258,14 @@ export default function ConsultBoard({
         {STATUS.map((s) => (
           <button
             key={s.key}
-            className={`btn btn-sm ${filter === s.key ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${filter === s.key ? "btn-on" : "btn-ghost"}`}
             onClick={() => setFilter(s.key)}
           >
             {s.label} {counts[s.key]}
           </button>
         ))}
         <button
-          className={`btn btn-sm ${filter === "all" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${filter === "all" ? "btn-on" : "btn-ghost"}`}
           onClick={() => setFilter("all")}
         >
           전체 {rows.length}

@@ -760,7 +760,7 @@ export default function StudentPanel({
           <>
             {!inClass.includes(iid) && (
               <button
-                className={`btn btn-sm ${item?.redo_default === "inclass" ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${item?.redo_default === "inclass" ? "btn-on" : "btn-ghost"}`}
                 title="이 숙제를 오늘 학원에서 하게 — 등원 학습 맨 위에 섭니다"
                 onClick={() => setInClass([iid, ...inClass])}
               >
@@ -769,7 +769,7 @@ export default function StudentPanel({
             )}
             {!next.has(iid) && (
               <button
-                className={`btn btn-sm ${item?.redo_default === "homework" ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${item?.redo_default === "homework" ? "btn-on" : "btn-ghost"}`}
                 title="다음 수업 숙제로 다시 냅니다"
                 onClick={() => setNext((s2) => new Set(s2).add(iid))}
               >
@@ -782,7 +782,7 @@ export default function StudentPanel({
                 학생 화면 「남을 것」 이 저절로 따라온다 */}
             {!inStay && (
               <button
-                className={`btn btn-sm ${item?.redo_default === "stay" ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${item?.redo_default === "stay" ? "btn-on" : "btn-ghost"}`}
                 title="수업 끝나고 남아서 마저 하고 갑니다 — 아래 늦귀가 과제에 올라가고, 하원 안내 사유로 잡힙니다"
                 onClick={() => {
                   // 누르는 순간 올라간 걸로 보인다 — 실패하면 되돌리고 알린다
@@ -1319,7 +1319,7 @@ export default function StudentPanel({
           {ATT.map((a) => (
             <button
               key={a.key}
-              className={`btn btn-sm ${(attTouched || arr.attend) && form.attendance === a.key ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${(attTouched || arr.attend) && form.attendance === a.key ? "btn-on" : "btn-ghost"}`}
               onClick={() => { setAttTouched(true); set("attendance", a.key); }}
             >
               {a.label}
@@ -1429,7 +1429,7 @@ export default function StudentPanel({
           ].map(([kind, label, at]) => (
             <button
               key={kind}
-              className={`btn btn-sm ${at ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${at ? "btn-on" : "btn-ghost"}`}
               disabled={pending}
               title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
               onClick={() => {
@@ -1464,7 +1464,7 @@ export default function StudentPanel({
           ].map(([k, label]) => (
             <button
               key={k}
-              className={`btn btn-sm ${wordWhen === k ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${wordWhen === k ? "btn-on" : "btn-ghost"}`}
               disabled={pending}
               title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
               style={{ padding: "3px 10px" }}
@@ -1627,7 +1627,7 @@ export default function StudentPanel({
               건너뛰기 버튼 필요」). 전에는 하원 사유 줄에만 있어서, 사유가 자동으로
               잡히기 전엔 버튼 자체가 안 보였다 — 점수를 적는 그 자리에서 누른다 */}
           <button
-            className={`btn btn-sm ${retestSkip ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${retestSkip ? "btn-on" : "btn-ghost"}`}
             disabled={pending}
             title={retestSkip ? "누르면 다시 재시험 대상이 됩니다" : "오늘은 단어 재시험을 안 봅니다 — 하원 사유·문자에서 빠져요. 점수 기록은 그대로예요"}
             onClick={() => {
@@ -1667,14 +1667,14 @@ export default function StudentPanel({
             />
             <button
               type="button"
-              className={`btn btn-sm ${form.sent_passed === true ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${form.sent_passed === true ? "btn-on" : "btn-ghost"}`}
               onClick={() => set("sent_passed", form.sent_passed === true ? "" : true)}
             >
               통과
             </button>
             <button
               type="button"
-              className={`btn btn-sm ${form.sent_passed === false ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${form.sent_passed === false ? "btn-on" : "btn-ghost"}`}
               onClick={() => set("sent_passed", form.sent_passed === false ? "" : false)}
             >
               재시험
@@ -1808,7 +1808,7 @@ export default function StudentPanel({
             {cats.map((c) => (
               <button
                 key={c}
-                className={`btn btn-sm ${cat === c ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${cat === c ? "btn-on" : "btn-ghost"}`}
                 style={{ padding: "3px 8px" }}
                 onClick={() => setCat(c)}
               >
@@ -1938,7 +1938,7 @@ export default function StudentPanel({
                   {!doneAt && (
                     <span className="row" style={{ gap: 4, alignItems: "center", marginLeft: 8 }}>
                       <button
-                        className={`btn btn-sm ${willCarry ? "btn-primary" : "btn-ghost"}`}
+                        className={`btn btn-sm ${willCarry ? "btn-on" : "btn-ghost"}`}
                         style={{ fontSize: 12.5 }}
                         title="오늘 못 끝냄 — 다음 수업 목록에 자동으로 다시 섭니다"
                         onClick={() => {
@@ -2417,7 +2417,7 @@ export default function StudentPanel({
             {ATTITUDE.map((a) => (
               <button
                 key={a.key}
-                className={`btn btn-sm ${form[key] === a.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${form[key] === a.key ? "btn-on" : "btn-ghost"}`}
                 onClick={() => set(key, form[key] === a.key ? "" : a.key)}
               >
                 {a.label}
@@ -2778,7 +2778,7 @@ export default function StudentPanel({
                 <button
                   key={t}
                   type="button"
-                  className={`btn btn-sm ${mk.time === t ? "btn-primary" : "btn-ghost"}`}
+                  className={`btn btn-sm ${mk.time === t ? "btn-on" : "btn-ghost"}`}
                   style={{ padding: "2px 8px", fontSize: 13 }}
                   onClick={() => setMk({ ...mk, time: t })}
                 >

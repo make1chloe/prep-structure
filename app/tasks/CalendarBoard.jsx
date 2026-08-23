@@ -237,7 +237,7 @@ export default function CalendarBoard({
           ].map(([k, label]) => (
             <button
               key={k}
-              className={`btn btn-sm ${only === k ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${only === k ? "btn-on" : "btn-ghost"}`}
               onClick={() => setOnly(k)}
             >
               {label}

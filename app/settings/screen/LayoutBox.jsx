@@ -105,7 +105,7 @@ export default function LayoutBox() {
         {PAGES.map((p) => (
           <button
             key={p.key}
-            className={`btn btn-sm ${pageKey === p.key ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${pageKey === p.key ? "btn-on" : "btn-ghost"}`}
             onClick={() => pick(p.key)}
           >
             {p.label}

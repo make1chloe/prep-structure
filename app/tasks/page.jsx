@@ -537,7 +537,7 @@ export default async function TasksPage({ searchParams }) {
             {VIEWS.map((v) => (
               <Link
                 key={v.key}
-                className={`btn btn-sm ${view === v.key ? "btn-primary" : ""}`}
+                className={`btn btn-sm ${view === v.key ? "btn-on" : ""}`}
                 href={v.key === "all" ? "/tasks" : `/tasks?view=${v.key}`}
               >
                 {v.label}

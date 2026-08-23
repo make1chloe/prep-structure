@@ -59,7 +59,7 @@ export default function StateCard({ mine = null, unavailable = false }) {
           return (
             <button
               key={k}
-              className={`btn ${on ? "btn-primary" : "btn-ghost"}`}
+              className={`btn ${on ? "btn-on" : "btn-ghost"}`}
               style={s.call && !on ? { borderColor: "var(--red)", color: "var(--red)" } : undefined}
               onClick={() => pick(k)}
               disabled={pending}

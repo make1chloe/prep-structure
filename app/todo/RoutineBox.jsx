@@ -146,7 +146,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                     {KINDS.filter((k) => k.when === "date").map((k) => (
                       <button
                         key={k.key}
-                        className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                        className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-on" : "btn-ghost"}`}
                         onClick={() => setDraft({ ...draft, repeat_kind: k.key })}
                       >
                         {k.label}
@@ -158,7 +158,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                     {KINDS.filter((k) => k.when === "event").map((k) => (
                       <button
                         key={k.key}
-                        className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                        className={`btn btn-sm ${draft.repeat_kind === k.key ? "btn-on" : "btn-ghost"}`}
                         title={k.hint}
                         onClick={() => setDraft({ ...draft, repeat_kind: k.key })}
                       >
@@ -177,7 +177,7 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
                     {DOW.map((d) => (
                       <button
                         key={d}
-                        className={`btn btn-sm ${(draft.dows || []).includes(d) ? "btn-primary" : "btn-ghost"}`}
+                        className={`btn btn-sm ${(draft.dows || []).includes(d) ? "btn-on" : "btn-ghost"}`}
                         style={{ padding: "4px 8px" }}
                         onClick={() => {
                           const has = (draft.dows || []).includes(d);

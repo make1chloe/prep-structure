@@ -173,7 +173,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
             {KINDS.map((k) => (
               <button
                 key={k.key}
-                className={`btn btn-sm ${kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${kind === k.key ? "btn-on" : "btn-ghost"}`}
                 onClick={() => { setKind(k.key); setNosText(""); setReasons({}); }}
               >
                 {k.label}
@@ -257,7 +257,7 @@ export default function MyScoreForm({ mine = [], base = [], canWrite = true }) {
                           return (
                             <button
                               key={r.key}
-                              className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                              className={`btn btn-sm ${on ? "btn-on" : "btn-ghost"}`}
                               style={{ fontSize: 12.5, padding: "3px 8px" }}
                               onClick={() =>
                                 setReasons({ ...reasons, [no]: on ? "" : r.key })

@@ -74,7 +74,7 @@ export default function StudentBooksProgress({ studentId, books = [], allBooks =
     <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 6, alignItems: "center" }}>
         <button
-          className={`btn btn-sm ${tidy ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${tidy ? "btn-on" : "btn-ghost"}`}
           onClick={() => { setTidy(!tidy); setSel(new Set()); }}
           title="안 쓰는 교재를 골라 한 번에 끝냄 처리합니다"
         >

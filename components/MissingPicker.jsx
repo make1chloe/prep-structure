@@ -35,7 +35,7 @@ export default function MissingPicker({ listKey, defs = [], chosen = null }) {
   return (
     <span className="row" style={{ gap: 4, alignItems: "center" }}>
       <button
-        className={`btn btn-ghost btn-sm ${open ? "btn-primary" : ""}`}
+        className={`btn btn-ghost btn-sm ${open ? "btn-on" : ""}`}
         style={{ padding: "2px 8px" }}
         title="이 목록에서 어떤 칸이 비면 「빠졌다」 로 셀지 고릅니다"
         onClick={() => setOpen(!open)}

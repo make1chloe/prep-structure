@@ -264,7 +264,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
       {/* 분류 */}
       <div className="row" style={{ gap: 4, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
         <button
-          className={`btn btn-sm ${!catId ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${!catId ? "btn-on" : "btn-ghost"}`}
           onClick={() => setCatId("")}
         >
           전체
@@ -272,7 +272,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         {roots.map((c) => (
           <span key={c.id} className="row" style={{ gap: 2 }}>
             <button
-              className={`btn btn-sm ${catId === c.id ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${catId === c.id ? "btn-on" : "btn-ghost"}`}
               onClick={() => setCatId(c.id)}
             >
               {c.name} {countOf(c.id) > 0 && countOf(c.id)}
@@ -280,7 +280,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
             {childrenOf(c.id).map((s) => (
               <button
                 key={s.id}
-                className={`btn btn-sm ${catId === s.id ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${catId === s.id ? "btn-on" : "btn-ghost"}`}
                 style={{ padding: "3px 8px", fontSize: 12.5 }}
                 onClick={() => setCatId(s.id)}
               >
@@ -370,7 +370,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         {[["list", "목록"], ["kanban", "칸반"]].map(([k, label]) => (
           <button
             key={k}
-            className={`btn btn-sm ${view === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${view === k ? "btn-on" : "btn-ghost"}`}
             onClick={() => setView(k)}
           >
             {label}
@@ -406,7 +406,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         ].map(([k, label]) => (
           <button
             key={k}
-            className={`btn btn-sm ${filter === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${filter === k ? "btn-on" : "btn-ghost"}`}
             onClick={() => setFilter(k)}
           >
             {label}

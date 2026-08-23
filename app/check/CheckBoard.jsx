@@ -140,7 +140,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
 
       <div className="row" style={{ gap: 6, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
         <button
-          className={`btn btn-sm ${klass === "" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${klass === "" ? "btn-on" : "btn-ghost"}`}
           onClick={() => setKlass("")}
         >
           전체
@@ -148,7 +148,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
         {classes.map((c) => (
           <button
             key={c.id}
-            className={`btn btn-sm ${klass === c.id ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${klass === c.id ? "btn-on" : "btn-ghost"}`}
             onClick={() => setKlass(klass === c.id ? "" : c.id)}
           >
             {c.name}
@@ -165,7 +165,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
         {/* 클래스카드처럼 **한 항목을 반 전체가 세로로** 늘어선 화면이 필요할 때가 있다.
             옆 탭에 띄워놓고 위에서 아래로 훑으며 탭만 하면 되게 */}
         <button
-          className={`btn btn-sm ${mode === "item" ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${mode === "item" ? "btn-on" : "btn-ghost"}`}
           onClick={() => setMode(mode === "item" ? "student" : "item")}
           title="숙제 하나를 골라 반 전체를 한 줄씩 봅니다 (클래스카드 보면서 찍기 좋습니다)"
         >

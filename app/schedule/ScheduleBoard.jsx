@@ -715,7 +715,7 @@ export default function ScheduleBoard({
                 return (
                   <button
                     key={k}
-                    className={`btn btn-sm ${on ? "btn-primary" : "btn-ghost"}`}
+                    className={`btn btn-sm ${on ? "btn-on" : "btn-ghost"}`}
                     style={{ padding: "3px 7px", fontSize: 12.5 }}
                     onClick={() => toggle(k)}
                   >

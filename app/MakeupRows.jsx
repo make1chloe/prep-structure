@@ -92,7 +92,7 @@ export default function MakeupRows({ rows = [], nameOf = {}, hasAnswer = true, o
       )}
       <span className="spacer" />
       <button
-        className={`btn btn-sm ${edit?.key === key ? "btn-primary" : "btn-ghost"}`}
+        className={`btn btn-sm ${edit?.key === key ? "btn-on" : "btn-ghost"}`}
         disabled={pending}
         title="날짜·시간만 옮깁니다. 원래 결석 연결과 사유는 그대로 따라가요"
         onClick={() =>

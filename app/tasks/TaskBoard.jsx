@@ -171,7 +171,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
         ].map(([k, label]) => (
           <button
             key={k}
-            className={`btn btn-sm ${filter === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${filter === k ? "btn-on" : "btn-ghost"}`}
             onClick={() => setFilter(k)}
           >
             {label}
@@ -181,7 +181,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
         {["전체", ...CATEGORIES].map((c) => (
           <button
             key={c}
-            className={`btn btn-sm ${cat === c ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${cat === c ? "btn-on" : "btn-ghost"}`}
             style={{ padding: "3px 8px" }}
             onClick={() => setCat(c)}
           >

@@ -104,7 +104,7 @@ export default function NotesForm({ notes = {}, unavailable = null }) {
         {NOTE_GROUPS.map((g) => (
           <button
             key={g.key}
-            className={`btn btn-sm ${open === g.key ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${open === g.key ? "btn-on" : "btn-ghost"}`}
             onClick={() => setOpen(g.key)}
           >
             {g.label}

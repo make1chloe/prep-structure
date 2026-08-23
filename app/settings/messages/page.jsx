@@ -65,14 +65,14 @@ export default async function MessagesPage({ searchParams }) {
 
         <div className="row" style={{ gap: 4, marginBottom: 10 }}>
           <Link
-            className={`btn btn-sm ${tab === "send" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${tab === "send" ? "btn-on" : "btn-ghost"}`}
             href="/settings/messages"
           >
             나가는 문자
           </Link>
           {canScreen && (
             <Link
-              className={`btn btn-sm ${tab === "screen" ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${tab === "screen" ? "btn-on" : "btn-ghost"}`}
               href="/settings/messages?t=screen"
             >
               화면 안내

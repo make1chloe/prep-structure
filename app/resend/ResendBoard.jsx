@@ -185,7 +185,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
           KINDS.map((k) => (
             <button
               key={k.key}
-              className={`btn btn-sm ${kind === k.key ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${kind === k.key ? "btn-on" : "btn-ghost"}`}
               onClick={() => { setKind(k.key); setOpenId(null); setSel(new Set()); }}
             >
               {k.label}
@@ -217,7 +217,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
         ].map(([k, label]) => (
           <button
             key={k}
-            className={`btn btn-sm ${filter === k ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm ${filter === k ? "btn-on" : "btn-ghost"}`}
             onClick={() => setFilter(k)}
           >
             {label}

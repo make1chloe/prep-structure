@@ -231,7 +231,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
           📷 사진
         </button>
         <button
-          className={`btn btn-sm ${rec ? "btn-primary" : ""}`}
+          className={`btn btn-sm ${rec ? "btn-on" : ""}`}
           disabled={pending || readOnly}
           onClick={toggleRec}
         >

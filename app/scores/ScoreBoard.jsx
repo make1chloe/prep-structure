@@ -263,7 +263,7 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
             {KINDS.map((k) => (
               <button
                 key={k.key}
-                className={`btn btn-sm ${form.kind === k.key ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${form.kind === k.key ? "btn-on" : "btn-ghost"}`}
                 onClick={() => setForm({ ...form, kind: k.key })}
                 title={k.hint}
               >

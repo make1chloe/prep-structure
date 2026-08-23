@@ -163,7 +163,7 @@ export default function HomeworkList({ items = [], missKeys = null, usageOf = {}
           return (
             <button
               key={c}
-              className={`btn btn-sm ${catFilter === c ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${catFilter === c ? "btn-on" : "btn-ghost"}`}
               onClick={() => setCatFilter(c)}
             >
               {c} {n}
@@ -178,7 +178,7 @@ export default function HomeworkList({ items = [], missKeys = null, usageOf = {}
           return ["", ...all, "상시"].map((w) => (
             <button
               key={w || "전부"}
-              className={`btn btn-sm ${useFilter === w ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${useFilter === w ? "btn-on" : "btn-ghost"}`}
               style={{ padding: "2px 8px", fontSize: 12.5 }}
               onClick={() => setUseFilter(w)}
             >

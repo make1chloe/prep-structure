@@ -21,7 +21,7 @@ export default function ChildPicker({ children = [], pick }) {
       {children.map((c) => (
         <button
           key={c.id}
-          className={`btn btn-sm ${pick === c.id ? "btn-primary" : "btn-ghost"}`}
+          className={`btn btn-sm ${pick === c.id ? "btn-on" : "btn-ghost"}`}
           onClick={() => go(c.id)}
         >
           {c.name}

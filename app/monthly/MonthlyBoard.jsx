@@ -76,7 +76,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
           ([k, label]) => (
             <button
               key={k}
-              className={`btn btn-sm ${filter === k ? "btn-primary" : "btn-ghost"}`}
+              className={`btn btn-sm ${filter === k ? "btn-on" : "btn-ghost"}`}
               onClick={() => setFilter(k)}
             >
               {label}

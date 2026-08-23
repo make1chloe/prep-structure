@@ -161,7 +161,7 @@ export default function HomepageBox({ schools = [], from, to }) {
             {[["paste", "붙여넣기"], ["url", "주소로 읽기"]].map(([v, label]) => (
               <button
                 key={v}
-                className={`btn btn-sm ${way === v ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-sm ${way === v ? "btn-on" : "btn-ghost"}`}
                 onClick={() => { setWay(v); setRes(null); setErr(""); }}
               >
                 {label}

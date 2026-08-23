@@ -203,13 +203,13 @@ export default function AnalysisView({ exams = [], qCount = {}, pick, exam, a, n
                 <b style={{ fontSize: 15 }}>문항별</b>
                 <span className="spacer" />
                 <button
-                  className={`btn btn-sm ${sort === "no" ? "btn-primary" : "btn-ghost"}`}
+                  className={`btn btn-sm ${sort === "no" ? "btn-on" : "btn-ghost"}`}
                   onClick={() => setSort("no")}
                 >
                   번호순
                 </button>
                 <button
-                  className={`btn btn-sm ${sort === "wrong" ? "btn-primary" : "btn-ghost"}`}
+                  className={`btn btn-sm ${sort === "wrong" ? "btn-on" : "btn-ghost"}`}
                   onClick={() => setSort("wrong")}
                 >
                   많이 틀린 순
