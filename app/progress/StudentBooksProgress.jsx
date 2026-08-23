@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import BookProgress from "@/components/BookProgress";
 import { listStudentUnitsMany, endStudentBooks, addStudentBookDated } from "./actions";
 import { todaySeoul } from "@/lib/day";
+import { AREA_ORDER } from "@/lib/bookSort";
 
 /**
  * 한 학생의 교재 진도 판 묶음 — **한 왕복으로** (원장님, 2026-08-14 —
@@ -23,6 +24,7 @@ export default function StudentBooksProgress({ studentId, books = [], allBooks =
   const [adding, setAdding] = useState(false);
   const [addBook, setAddBook] = useState("");
   const [addFrom, setAddFrom] = useState(todaySeoul());
+  const [addQ, setAddQ] = useState("");   // 교재 검색 (긴 드롭다운이 번거롭다 — 2026-08-23)
   const [byBook, setByBook] = useState(null);
   /**
    * **🧹 정리 — 안 쓰는 교재를 골라 한 번에 끝냄** (원장님, 2026-08-14 —
@@ -117,21 +119,16 @@ export default function StudentBooksProgress({ studentId, books = [], allBooks =
             </button>
           ) : (
             <>
-              <select
+              {/* 검색 + 영역 묶음 칩 (원장님 2026-08-23 「교재 고르기 방식이
+                  번거로워」) — 긴 드롭다운 대신 몇 자 치고 칩 한 번 */}
+              <input
                 className="input input-sm"
-                style={{ minWidth: 180 }}
-                value={addBook}
-                onChange={(e) => setAddBook(e.target.value)}
-              >
-                <option value="">교재 고르기…</option>
-                {allBooks
-                  .filter((ab) => !books.some((b) => b.id === ab.id))
-                  .map((ab) => (
-                    <option key={ab.id} value={ab.id}>
-                      {ab.area ? `[${ab.area}] ` : ""}{ab.name}
-                    </option>
-                  ))}
-              </select>
+                style={{ width: 160 }}
+                placeholder="교재 검색"
+                value={addQ}
+                autoFocus
+                onChange={(e) => { setAddQ(e.target.value); }}
+              />
               <input
                 className="input input-sm" type="date" style={{ width: 145 }}
                 value={addFrom} onChange={(e) => setAddFrom(e.target.value)}
@@ -153,6 +150,34 @@ export default function StudentBooksProgress({ studentId, books = [], allBooks =
                 {pending ? "넣는 중…" : "배정"}
               </button>
               <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>취소</button>
+              <div style={{ width: "100%" }}>
+                {(() => {
+                  const kw = addQ.trim().toLowerCase();
+                  const pool = allBooks
+                    .filter((ab) => !books.some((b) => b.id === ab.id))
+                    .filter((ab) => !kw || ab.name.toLowerCase().includes(kw));
+                  const order = [...AREA_ORDER, ""];
+                  const groups = order
+                    .map((a) => ({ area: a || "기타", rows: pool.filter((ab) => (ab.area || "기타") === (a || "기타")) }))
+                    .filter((g) => g.rows.length > 0);
+                  if (pool.length === 0)
+                    return <p className="hint" style={{ margin: "4px 0 0" }}>맞는 교재가 없어요.</p>;
+                  return groups.map((g) => (
+                    <div key={g.area} className="row" style={{ gap: 4, marginTop: 4, flexWrap: "wrap", alignItems: "center" }}>
+                      <span className="tag tag-muted" style={{ minWidth: 44, justifyContent: "center" }}>{g.area}</span>
+                      {g.rows.map((ab) => (
+                        <button
+                          key={ab.id}
+                          className={`chip ${addBook === ab.id ? "on" : ""}`}
+                          onClick={() => setAddBook(addBook === ab.id ? "" : ab.id)}
+                        >
+                          {ab.name}
+                        </button>
+                      ))}
+                    </div>
+                  ));
+                })()}
+              </div>
             </>
           )}
         </div>
