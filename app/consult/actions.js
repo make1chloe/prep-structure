@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { autoCreateLogins } from "@/app/students/accountActions";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { joinFamilyByPhone } from "@/lib/family";
 import { loadSettings } from "@/lib/settings";
 import { deliver } from "@/lib/send";
 import { fill, guideVars, linkVars, FALLBACK } from "@/lib/inquirySms";
@@ -182,6 +183,9 @@ export async function convertToStudent(id, classId) {
     .select("id")
     .single();
   if (sErr) return { error: sErr.message };
+
+  // 형제는 학부모 번호가 같다 — 등록하는 순간 그 집으로 묶는다 (전수, 2026-08-23)
+  await joinFamilyByPhone(supabase, student.id, q.phone);
 
   const cid = classId || q.class_id;
   if (cid) {

@@ -255,6 +255,16 @@ export default async function StudentsPage({ searchParams }) {
               아이디는 전화 뒷자리로 자동 생성됩니다.
             </p>
           </Help>
+        {/* 새로 넣은 학생 — 「저장을 눌렀는데 아무 일도 안 났다」 의 답 */}
+        {searchParams?.made && (
+          <div className="notice" style={{ marginTop: 12, background: "var(--mint-soft)" }}>
+            <b>「{searchParams.made}」 를 넣었어요.</b>{" "}
+            {searchParams?.kin
+              ? `학부모 번호가 같은 형제 ${searchParams.kin}명과 한 집으로 묶었어요.`
+              : "아래에서 반·교재를 배정해주세요."}
+          </div>
+        )}
+
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <AddStudentForm schools={schools} />
             <ExcelUpload />

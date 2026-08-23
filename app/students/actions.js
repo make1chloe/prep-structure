@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { joinFamilyByPhone, mergeFamily } from "@/lib/family";
 import { todaySeoul } from "@/lib/day";
 import { attachSchool } from "@/app/consult/actions";
 import { createClient } from "@/lib/supabase/server";
@@ -103,7 +105,28 @@ export async function addStudent(formData) {
   if (newId && row.school) {
     try { await attachSchool(supabase, row.school); } catch { /* 등록이 먼저다 */ }
   }
+
+  /**
+   * **형제는 학부모 번호가 같다** (원장님 2026-08-23 — 「재원생 형제인 경우
+   * 학부모가 동일하다는 것 고려해서 묶어야 해」).
+   *
+   * 같은 번호를 쓰는 아이가 이미 있으면 **그 집으로 자동으로 묶는다.**
+   * 손으로 묶기를 기다리면 그 사이에 학부모 계정이 둘로 생기고, 어머니는
+   * 아이마다 따로 로그인해야 한다. 묶는 규칙은 linkSiblings 한 벌을
+   * 그대로 부른다 (이미 묶인 집이 있으면 그 집으로 합치는 규칙까지 같다).
+   */
+  const joined = await joinFamilyByPhone(supabase, newId, row.parent_phone);
+
   revalidatePath("/students");
+  /**
+   * **저장한 학생에게 데려다 준다** (원장님 2026-08-23 — 「신입생을 상담
+   * 없이 추가하는 게 불가능해」). 저장은 되고 있었는데 화면이 그대로여서
+   * 안 된 것처럼 보였다 — 판은 열린 채, 적은 값도 그대로였다.
+   * 교재 추가와 같은 길로 보낸다 (원칙 1 — 같은 일은 같은 모양으로).
+   */
+  redirect(
+    `/students?s=${newId}&made=${encodeURIComponent(name)}${joined ? `&kin=${joined}` : ""}`
+  );
 }
 
 // 한 명 수정
@@ -445,36 +468,11 @@ export async function loadStudentHistory(studentId) {
 export async function linkSiblings(ids) {
   const list = [...new Set((ids || []).filter(Boolean))];
   if (list.length < 2) return { error: "두 명 이상 골라주세요." };
-
   const supabase = createClient();
-  const { data: rows, error: readErr } = await supabase
-    .from("students")
-    .select("id, family_id")
-    .in("id", list);
-  if (readErr) {
-    if (readErr.code === "42703" || readErr.code === "PGRST204") {
-      return { error: "설정 → Supabase SQL 에서 0071 을 먼저 실행해주세요." };
-    }
-    return { error: readErr.message };
-  }
-
-  // 이미 묶인 집이 있으면 **그 집으로 합친다.** 새 집을 만들면 형이 쓰던 묶음이
-  // 깨져서, 형에게 연결된 다른 형제가 떨어져 나간다.
-  const existing = [...new Set((rows || []).map((r) => r.family_id).filter(Boolean))];
-  const family = existing[0] || crypto.randomUUID();
-
-  // 여러 집이 섞여 있으면 전부 한 집으로 (한 집인 게 맞으니 고른 것이다)
-  const also = existing.length > 1
-    ? (await supabase.from("students").select("id").in("family_id", existing)).data || []
-    : [];
-  const targets = [...new Set([...list, ...also.map((r) => r.id)])];
-
-  const { error } = await supabase
-    .from("students")
-    .update({ family_id: family })
-    .in("id", targets);
+  // 묶는 규칙은 lib/family 한 곳 (직접 추가·상담 등록도 같은 규칙을 쓴다)
+  const r = await mergeFamily(supabase, list);
   revalidatePath("/students");
-  return { error: error ? error.message : null, count: targets.length };
+  return r;
 }
 
 /** 이 학생만 집에서 뺀다 (나머지 형제는 그대로 묶여 있다) */
