@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { unitName } from "@/lib/unitName";
 import { bookKey, pickKeeper } from "@/lib/bookName";
 import { noColumn } from "@/lib/sqlError";
 import { fetchAll } from "@/lib/fetchAll";
@@ -77,6 +78,25 @@ export async function addTextbook(formData) {
     ["word_range", "status"]
   );
   revalidatePath("/textbooks");
+
+  /**
+   * **저장한 교재로 데려다 준다** (원장님 2026-08-23 — 「교재 직접 추가 시
+   * 저장 버튼이 이상해. 저장은 되는데 안 된 것처럼 보임」).
+   *
+   * 서버 액션 폼이라 저장해도 화면이 그대로였다 — 판은 열린 채, 적은 값도
+   * 그대로, 새로 생긴 교재는 긴 목록 어딘가에 조용히 들어갔다. 그러니
+   * 눌렀는데 아무 일도 안 난 것처럼 보인다.
+   * 이미 있는 교재일 때 그리로 데려다 주던 길(위 twin)과 **같은 길**로
+   * 보낸다 — 새로 만든 교재의 판이 열리므로 「됐다」 가 눈에 보인다.
+   */
+  const { data: made } = await supabase
+    .from("textbooks")
+    .select("id")
+    .eq("name", name)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (made?.id) redirect(`/textbooks?tb=${made.id}&made=${encodeURIComponent(name)}`);
 }
 
 export async function bulkAddTextbooks(rows) {
@@ -904,7 +924,7 @@ export async function generateUnits(input) {
     rows.push({
       textbook_id: textbookId,
       parent_id: parentId || null,
-      name: `${prefix} ${a + i}`.trim(),
+      name: unitName(prefix, a + i),
       sort: sort++,
       label: activity || null,
       page_start: start,

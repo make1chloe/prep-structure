@@ -218,6 +218,13 @@ export default async function TextbooksPage({ searchParams }) {
           </div>
         </div>
 
+        {/* 새로 만든 교재 — 「저장을 눌렀는데 아무 일도 안 났다」 의 답 */}
+        {searchParams?.made && (
+          <div className="notice" style={{ marginTop: 12, background: "var(--mint-soft)" }}>
+            <b>「{searchParams.made}」 를 만들었어요.</b> 아래에서 단원을 넣어주세요.
+          </div>
+        )}
+
         {/* 「저장했는데 안 생겼다」 의 답 — 이미 같은 교재가 있어서 그리로 왔다 */}
         {searchParams?.same && (
           <div className="notice" style={{ marginTop: 12 }}>

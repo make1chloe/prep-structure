@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { generateUnits } from "./actions";
 
+import { unitName } from "@/lib/unitName";
+
 const PREFIXES = ["Unit", "Chapter", "Lesson", "Day", "강", "과"];
 
 // 규칙적인 교재는 손으로 치지 않고 한 번에 만든다
@@ -100,7 +102,7 @@ export default function GenerateUnits({ textbookId, parents = [], totalPages }) 
           {pending ? "만드는 중…" : `${count}개 만들기`}
         </button>
         <span className="hint">
-          {form.prefix} {form.from} … {form.prefix} {form.to}
+          {unitName(form.prefix, form.from)} … {unitName(form.prefix, form.to)}
           {form.pageStart && form.pageEnd ? ` · ${form.pageStart}~${form.pageEnd}p 균등 분할` : ""}
         </span>
       </div>
