@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { principalConfirmMonth, principalUnconfirmMonth } from "./confirmActions";
+import { principalConfirmMonth, principalUnconfirmMonth, sendMonthPlan } from "./confirmActions";
 import { dayLabel } from "@/lib/day";
 
 /**
@@ -28,6 +28,8 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
   const month = Number(ym.slice(5, 7));
   const left = rows.filter((r) => !r.principalAt);
   const noParent = rows.filter((r) => !r.parentAt && !r.principalAt);
+  // **아직 예상 일정을 안 보낸 학생** (0152) — 새 흐름의 1단계다
+  const noNotice = rows.filter((r) => !r.noticeAt && !r.principalAt);
 
   function run(fn) {
     startTransition(async () => {
@@ -47,8 +49,13 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
           {left.length > 0
             ? <span className="tag tag-amber">미확정 {left.length}명</span>
             : <span className="tag tag-mint">전원 확정</span>}{" "}
+          {noNotice.length > 0 && (
+            <span className="tag tag-amber" title="예상 수업일정을 아직 안 보낸 학생">
+              안내 전 {noNotice.length}
+            </span>
+          )}{" "}
           {noParent.length > 0 && (
-            <span className="tag tag-muted" title="학부모가 아직 1차 확인을 안 누른 학생">
+            <span className="tag tag-muted" title="학부모가 아직 확인을 안 누른 학생">
               학부모 확인 전 {noParent.length}
             </span>
           )}
@@ -57,10 +64,16 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
 
       {open && (
         <>
+          {/**
+            * **순서가 뒤집혔다** (원장님 2026-08-23 — 「먼저 일정을 보내고
+            * 봐라, 결석 이 중에 있냐 물어보는 거지」). 전에는 학부모가 결석을
+            * 먼저 보내야 했다.
+            */}
           <p className="hint" style={{ margin: "8px 0", lineHeight: 1.7 }}>
-            학부모 확인(✓)과 다음 달 결석 제출을 보고, 위의 회차·달력에서 공휴일·시험
-            겹침까지 확인한 뒤 <b>확정</b>을 누르세요. 확정되면 수강료(수납) 안내를
-            내보내시면 됩니다 — 발송은 앱 밖 일이라 여기서는 상태만 남습니다.
+            ① 위 달력에서 <b>반별 휴강</b>을 먼저 잡고 → ② <b>예상 일정 보내기</b> →
+            ③ 학부모가 빠질 날을 알려오면 결석 예정에 반영 → ④ <b>확정</b>.
+            확정되면 수강료(수납) 안내를 내보내시면 됩니다 — 발송은 앱 밖 일이라
+            여기서는 상태만 남습니다.
           </p>
           <div className="row" style={{ gap: 6, marginBottom: 8, alignItems: "center" }}>
             <button
@@ -73,6 +86,25 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
               }}
             >
               미확정 전체 선택
+            </button>
+            {noNotice.length > 0 && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSel(new Set(noNotice.map((r) => r.studentId)))}
+              >
+                안내 전 {noNotice.length}명 고르기
+              </button>
+            )}
+            <button
+              className="btn btn-sm"
+              disabled={pending || sel.size === 0}
+              title="고른 학생의 학부모께 이 달 예상 수업일정을 보냅니다 (앱 공지 + 알림)"
+              onClick={() => {
+                if (!confirm(`고른 ${sel.size}명의 학부모께 ${month}월 예상 수업일정을 보낼까요?`)) return;
+                run(() => sendMonthPlan([...sel], ym));
+              }}
+            >
+              📨 예상 일정 보내기
             </button>
             <button
               className="btn btn-primary btn-sm"
@@ -122,6 +154,10 @@ export default function MonthConfirmBoard({ ym, rows = [], ready = true }) {
                 )}
                 <b style={{ fontSize: 14, minWidth: 76 }}>{r.name}</b>
                 <span className="hint" style={{ minWidth: 70 }}>{r.who}</span>
+                {/* 세 상태 — 초안 → 보냄 → 확정 (0152) */}
+                {r.noticeAt
+                  ? <span className="tag tag-sky">일정 보냄</span>
+                  : <span className="tag tag-amber">안내 전</span>}
                 {r.parentAt
                   ? <span className="tag tag-mint">학부모 ✓</span>
                   : <span className="tag tag-muted">학부모 확인 전</span>}

@@ -63,7 +63,7 @@ export default async function SchedulePage() {
    */
   const nextYm = addMonths(today.slice(0, 7), 1);
   const [confirmQ, nextAbsQ] = await Promise.all([
-    supabase.from("month_confirms").select("student_id, parent_at, principal_at").eq("ym", nextYm),
+    supabase.from("month_confirms").select("student_id, parent_at, principal_at, notice_at").eq("ym", nextYm),
     supabase
       .from("attendance")
       .select("student_id, status, date, reason")
@@ -72,8 +72,17 @@ export default async function SchedulePage() {
       .lte("date", `${nextYm}-31`)
       .order("date"),
   ]);
-  const confirmReady = !confirmQ.error;
-  const confirmOf = new Map((confirmQ.data || []).map((c) => [c.student_id, c]));
+  // 0152 전 DB 는 notice_at 칸이 없다 — 그러면 조회가 통째로 실패해 확정 판이
+  // 사라진다. 없이 한 번 더 읽는다 (안내 상태만 「안내 전」 으로 보인다)
+  let confirmRes = confirmQ;
+  if (confirmQ.error && (confirmQ.error.code === "42703" || confirmQ.error.code === "PGRST204")) {
+    confirmRes = await supabase
+      .from("month_confirms")
+      .select("student_id, parent_at, principal_at")
+      .eq("ym", nextYm);
+  }
+  const confirmReady = !confirmRes.error;
+  const confirmOf = new Map((confirmRes.data || []).map((c) => [c.student_id, c]));
   const nextAbsOf = new Map();
   (nextAbsQ.data || []).forEach((a) => {
     if (!nextAbsOf.has(a.student_id)) nextAbsOf.set(a.student_id, []);
@@ -86,6 +95,7 @@ export default async function SchedulePage() {
       who: [st.school, st.grade].filter(Boolean).join(" "),
       parentAt: confirmOf.get(st.id)?.parent_at || null,
       principalAt: confirmOf.get(st.id)?.principal_at || null,
+      noticeAt: confirmOf.get(st.id)?.notice_at || null,   // 0152 — 예상 일정 보낸 시각
       absences: (nextAbsOf.get(st.id) || []).length,
       absList: nextAbsOf.get(st.id) || [],
     }))

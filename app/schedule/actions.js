@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clearMonthNotice } from "./confirmActions";
 import { isMockExam } from "@/lib/examList";
 import { createClient } from "@/lib/supabase/server";
 import { toTeachers } from "@/lib/exams";
@@ -306,6 +307,8 @@ export async function addClassHoliday(date, name, classId) {
     scope: classId ? "class" : "all",
     class_id: classId || null,
   });
+  // 일정이 바뀌었으니 그 달 안내는 「다시 보내야 함」 으로 (0152)
+  await clearMonthNotice((date || "").slice(0, 7));
   revalidatePath("/schedule");
   revalidatePath("/tuition");
   revalidatePath("/today");

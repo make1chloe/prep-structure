@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clearMonthNotice } from "@/app/schedule/confirmActions";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { pushToFamilies } from "@/app/push/actions";
@@ -29,6 +30,8 @@ export async function setPlannedAbsence(studentId, date, reason) {
   if (noColumn(error)) {
     return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼)." };
   }
+  // 결석이 바뀌면 그 달 안내는 「다시 보내야 함」 으로 (0152)
+  await clearMonthNotice((date || "").slice(0, 7));
   revalidatePath("/plan");
   revalidatePath("/today");
   return ok(error);
@@ -82,6 +85,7 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
   if (noColumn(error)) {
     return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼).", count: 0 };
   }
+  await clearMonthNotice((from || "").slice(0, 7));
   revalidatePath("/plan");
   revalidatePath("/today");
   return { error: error ? error.message : null, count: rows.length };
@@ -98,6 +102,7 @@ export async function clearPlannedAbsenceRange(studentIds, from, to) {
     .in("student_id", sids)
     .gte("date", from)
     .lte("date", to || from);
+  await clearMonthNotice((from || "").slice(0, 7));
   revalidatePath("/plan");
   revalidatePath("/today");
   return ok(error);
@@ -111,6 +116,8 @@ export async function clearPlannedAbsence(studentId, date) {
     .delete()
     .eq("student_id", studentId)
     .eq("date", date);
+  // 결석이 바뀌면 그 달 안내는 「다시 보내야 함」 으로 (0152)
+  await clearMonthNotice((date || "").slice(0, 7));
   revalidatePath("/plan");
   revalidatePath("/today");
   return ok(error);
