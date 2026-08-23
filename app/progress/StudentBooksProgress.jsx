@@ -158,7 +158,13 @@ export default function StudentBooksProgress({ studentId, books = [], allBooks =
                     .filter((ab) => !kw || ab.name.toLowerCase().includes(kw));
                   const order = [...AREA_ORDER, ""];
                   const groups = order
-                    .map((a) => ({ area: a || "기타", rows: pool.filter((ab) => (ab.area || "기타") === (a || "기타")) }))
+                    .map((a) => ({
+                      area: a || "기타",
+                      // 묶음 안은 이름순 (원장님 2026-08-23 「정렬이 안 되어 있어」)
+                      rows: pool
+                        .filter((ab) => (ab.area || "기타") === (a || "기타"))
+                        .sort((x, y) => x.name.localeCompare(y.name, "ko")),
+                    }))
                     .filter((g) => g.rows.length > 0);
                   if (pool.length === 0)
                     return <p className="hint" style={{ margin: "4px 0 0" }}>맞는 교재가 없어요.</p>;
