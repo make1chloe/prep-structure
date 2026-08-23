@@ -70,7 +70,11 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [], 
           <button className="btn btn-primary btn-sm" onClick={save} disabled={pending || !dirty}>
             {dirty ? "저장" : "저장됨"}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
+          {/* 항상 펼침(재원생 판)에서는 닫기를 안 그린다 — 눌러도 안 닫혀
+              「버튼이 죽어 있다」가 됐다 (원장님 2026-08-23) */}
+          {!alwaysOpen && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>닫기</button>
+          )}
         </div>
       </div>
       <p className="hint" style={{ margin: "6px 0 8px" }}>

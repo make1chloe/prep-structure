@@ -7,6 +7,18 @@ import RequestPhotos from "@/components/RequestPhotos";
 
 // 학생·학부모가 결석을 미리 알리는 칸
 export default function RequestForm({ studentId, mine = [], asId = null, readOnly = false }) {
+  /**
+   * **선생님이 확인한 것은 더 안 보인다** (원장님, 2026-08-23 — 「학생
+   * 어플에서 전달사항 선생님이 확인한 건 더 안 보게 해줘」).
+   * 처리가 끝난 줄이 며칠씩 쌓여 있으면 화면만 길어지고, 아이는 그걸
+   * 다시 볼 일이 없다.
+   *
+   * 다만 **아직 볼 것이 남은 줄은 남긴다** — 답장이 달렸거나(읽어야 한다),
+   * 「조정필요」(아이가 다시 해야 한다)면 확인됐어도 그대로 둔다.
+   */
+  const shown = (mine || []).filter(
+    (r) => !r.handled_at || r.reply || r.status === "declined"
+  );
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("absence");
   const [from, setFrom] = useState("");
@@ -135,9 +147,9 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
         </div>
       )}
 
-      {mine.length > 0 && (
+      {shown.length > 0 && (
         <div className="stack" style={{ gap: 4, marginTop: 12 }}>
-          {mine.map((r) => (
+          {shown.map((r) => (
             <div className="unitrow" key={r.id}>
               {/**
                 * **「제출 완료」 만 보여드린다** (원장님, 2026-08-07 —
