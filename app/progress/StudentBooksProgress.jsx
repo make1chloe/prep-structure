@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import BookProgress from "@/components/BookProgress";
-import { listStudentUnitsMany, endStudentBooks } from "./actions";
+import { listStudentUnitsMany, endStudentBooks, addStudentBookDated } from "./actions";
+import { todaySeoul } from "@/lib/day";
 
 /**
  * 한 학생의 교재 진도 판 묶음 — **한 왕복으로** (원장님, 2026-08-14 —
@@ -13,7 +14,15 @@ import { listStudentUnitsMany, endStudentBooks } from "./actions";
  * 「불러오는 중…」). 여기서 한 번에 받아 나눠준다.
  * 재원생 교재 탭과 진도 화면이 같은 한 벌을 쓴다.
  */
-export default function StudentBooksProgress({ studentId, books = [] }) {
+export default function StudentBooksProgress({ studentId, books = [], allBooks = [] }) {
+  /**
+   * **진도 판에서 바로 교재 추가** (원장님 2026-08-23 — 「진도체크에서
+   * 바로 학생한테 교재 추가할 수 있게」). 재원생 화면까지 안 건너가게 —
+   * 배정 판단은 addStudentBookDated 한 벌 재사용.
+   */
+  const [adding, setAdding] = useState(false);
+  const [addBook, setAddBook] = useState("");
+  const [addFrom, setAddFrom] = useState(todaySeoul());
   const [byBook, setByBook] = useState(null);
   /**
    * **🧹 정리 — 안 쓰는 교재를 골라 한 번에 끝냄** (원장님, 2026-08-14 —
@@ -98,6 +107,54 @@ export default function StudentBooksProgress({ studentId, books = [] }) {
               {b.from && <span className="hint" style={{ marginLeft: 4 }}>{b.from.slice(2)}부터</span>}
             </button>
           ))}
+        </div>
+      )}
+      {allBooks.length > 0 && (
+        <div className="row" style={{ gap: 6, alignItems: "center", margin: "4px 0 8px", flexWrap: "wrap" }}>
+          {!adding ? (
+            <button className="btn btn-ghost btn-sm" onClick={() => setAdding(true)}>
+              ＋ 교재 추가
+            </button>
+          ) : (
+            <>
+              <select
+                className="input input-sm"
+                style={{ minWidth: 180 }}
+                value={addBook}
+                onChange={(e) => setAddBook(e.target.value)}
+              >
+                <option value="">교재 고르기…</option>
+                {allBooks
+                  .filter((ab) => !books.some((b) => b.id === ab.id))
+                  .map((ab) => (
+                    <option key={ab.id} value={ab.id}>
+                      {ab.area ? `[${ab.area}] ` : ""}{ab.name}
+                    </option>
+                  ))}
+              </select>
+              <input
+                className="input input-sm" type="date" style={{ width: 145 }}
+                value={addFrom} onChange={(e) => setAddFrom(e.target.value)}
+                title="언제부터 쓰나 — 오늘이면 그대로"
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={pending || !addBook}
+                onClick={() =>
+                  startTransition(async () => {
+                    const res = await addStudentBookDated(studentId, addBook, addFrom, null);
+                    if (res?.error) { alert(res.error); return; }
+                    setAdding(false);
+                    setAddBook("");
+                    router.refresh();
+                  })
+                }
+              >
+                {pending ? "넣는 중…" : "배정"}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>취소</button>
+            </>
+          )}
         </div>
       )}
       <div className="bookgrid">

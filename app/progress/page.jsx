@@ -166,6 +166,9 @@ export default async function ProgressPage() {
           <ProgressBoard
             rows={rows}
             classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+            allBooks={((booksQ && booksQ.data) || [])
+              .filter((b) => !b.status || b.status === "active")
+              .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }))}
           />
         </div>
       </main>

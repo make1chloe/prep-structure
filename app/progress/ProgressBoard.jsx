@@ -12,7 +12,7 @@ import { sortRows } from "@/lib/listSort";
  * 자리라(유형 A), 오늘 안 오는 아이까지 늘어놓으면 훑는 길이만 는다.
  * 전체는 단추 하나로 편다.
  */
-export default function ProgressBoard({ rows = [], classes = [] }) {
+export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }) {
   const [q, setQ] = useState("");
   const [klass, setKlass] = useState("");
   const [todayOnly, setTodayOnly] = useState(() => rows.some((r) => r.todayClass));
@@ -102,7 +102,7 @@ export default function ProgressBoard({ rows = [], classes = [] }) {
               </button>
               {open && (
                 <div className="stuPanel">
-                  <StudentBooksProgress studentId={r.id} books={r.books} />
+                  <StudentBooksProgress studentId={r.id} books={r.books} allBooks={allBooks} />
                 </div>
               )}
             </div>
