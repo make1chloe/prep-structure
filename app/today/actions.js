@@ -444,7 +444,14 @@ export async function saveStudentDay(studentId, date, form) {
    *
    * 지난 배정 숙제(toCheck)에 붙여둔 단원(checkUnits — 지난 배정의
    * textbook_unit_ids)을, 검사가 ○(done)이면 done + done_on=그 날짜로,
-   * △(weak)면 doing(하는 중)으로 찍는다. ✕·미검사는 안 건드린다.
+   * △(weak)면 doing(하는 중)으로 찍는다.
+   *
+   * **정정하면 진도도 따라 내려간다** (원장님 2026-08-23 — 「내려가야지」).
+   * ○ 로 저장했다가 ✕ 로 고치면 그 날 찍힌 진도를 지우고, △ 로 고치면
+   * 하는 중으로 낮춘다. 다만 **그 날 찍은 것만** 건드린다(reCheckOn) —
+   * 지난 회차에 끝낸 단원이 이번 숙제에 다시 걸렸을 때 예전 완료까지
+   * 지워지면 안 된다. 미검사(빈 값)는 그대로 둔다 — 아직 안 본 것과
+   * 진도판에서 직접 찍은 것을 구별할 수 없기 때문이다.
    *
    * 회독(round) 규칙과 「이미 done 인 단원을 되돌리지 않기」 는
    * setUnitProgress 한 곳에 있다 (원칙 1 — 판단 복붙 금지).
@@ -463,14 +470,21 @@ export async function saveStudentDay(studentId, date, form) {
       ),
     ];
     const doneUnits = unitsWhere("done");
-    // ○ 먼저 — 같은 단원이 ○·△ 두 숙제에 걸리면 높은 쪽(완료)이 이긴다
+    // ○ 먼저 — 같은 단원이 ○·△·✕ 여러 숙제에 걸리면 높은 쪽이 이긴다
     const weakUnits = unitsWhere("weak").filter((id) => !doneUnits.includes(id));
+    const missUnits = unitsWhere("missing")
+      .filter((id) => !doneUnits.includes(id) && !weakUnits.includes(id));
     if (doneUnits.length) {
-      const r = await setUnitProgress(studentId, doneUnits, "done", { on: date, keepDone: true });
+      const r = await setUnitProgress(studentId, doneUnits, "done", { on: date, keepDone: true, reCheckOn: date });
       if (r?.error) progressWarn = `진도 반영 실패: ${r.error}`;
     }
     if (weakUnits.length) {
-      const r = await setUnitProgress(studentId, weakUnits, "doing", { on: date, keepDone: true });
+      const r = await setUnitProgress(studentId, weakUnits, "doing", { on: date, keepDone: true, reCheckOn: date });
+      if (r?.error) progressWarn = progressWarn || `진도 반영 실패: ${r.error}`;
+    }
+    if (missUnits.length) {
+      // ✕ — 그 날 찍은 진도를 도로 지운다 (메모가 있는 줄은 메모만 남는다)
+      const r = await setUnitProgress(studentId, missUnits, null, { reCheckOn: date });
       if (r?.error) progressWarn = progressWarn || `진도 반영 실패: ${r.error}`;
     }
   }

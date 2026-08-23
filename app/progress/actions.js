@@ -910,22 +910,42 @@ export async function setUnitProgress(studentId, unitIds, status, opts = {}) {
     // status 만 비운다 (0119). 그 전 DB 는 어차피 메모가 없으니 지워도 된다.
     let error = null;
     for (const id of ids) {
-      const keep = supabase
+      /**
+       * **정정으로 지울 때는 그 날 찍은 것만** (원장님 2026-08-23 —
+       * 「○ 를 ✕ 로 고치면 진도도 내려가야지」). 날짜 자물쇠가 없으면,
+       * 지난 회차에 이미 끝낸 단원이 이번 주 숙제에 다시 걸렸을 때
+       * (문법 한 단원을 여러 번 수업하는 교재) 안 해왔다는 이유로
+       * 예전 완료까지 지워진다. reCheckOn 이 있으면 그 날 찍힌 줄만 건드린다.
+       */
+      const lock = (q) => (opts.reCheckOn ? q.eq("marked_on", opts.reCheckOn) : q);
+      const keep = lock(supabase
         .from("student_unit_progress")
         .update({ status: null, done_on: null })
         .eq("student_id", studentId)
         .eq("textbook_unit_id", id)
-        .not("note", "is", null);
+        .not("note", "is", null));
       const kept = await withRound(keep, await roundFor(id));
       if (kept.error && kept.error.code !== "23502") error = kept.error;
 
-      const q = supabase
+      const q = lock(supabase
         .from("student_unit_progress")
         .delete()
         .eq("student_id", studentId)
         .eq("textbook_unit_id", id)
-        .is("note", null);
-      const res = await withRound(q, await roundFor(id));
+        .is("note", null));
+      let res = await withRound(q, await roundFor(id));
+      if (res.error && opts.reCheckOn && (res.error.code === "42703" || res.error.code === "PGRST204")) {
+        // 0134 전 — marked_on 이 없다. 완료 날짜로 대신 잠근다
+        // (자물쇠를 아예 풀지는 않는다 — 예전 완료까지 지우는 것이 더 나쁘다)
+        const q2 = supabase
+          .from("student_unit_progress")
+          .delete()
+          .eq("student_id", studentId)
+          .eq("textbook_unit_id", id)
+          .is("note", null)
+          .eq("done_on", opts.reCheckOn);
+        res = await withRound(q2, await roundFor(id));
+      }
       if (res.error) error = res.error;
     }
     // revalidate 없음 (2026-08-21) — 진도를 찍는 그 화면이 응답과 함께
@@ -939,7 +959,7 @@ export async function setUnitProgress(studentId, unitIds, status, opts = {}) {
   if (opts.keepDone) {
     let q = await supabase
       .from("student_unit_progress")
-      .select("textbook_unit_id, round")
+      .select("textbook_unit_id, round, marked_on")
       .eq("student_id", studentId)
       .in("textbook_unit_id", ids)
       .eq("status", "done");
@@ -954,6 +974,8 @@ export async function setUnitProgress(studentId, unitIds, status, opts = {}) {
     }
     const doneSet = new Set();
     for (const r of q.error ? [] : q.data || []) {
+      // 그 날 찍은 완료는 「지킬 것」이 아니다 — 같은 날의 정정은 반영돼야 한다
+      if (opts.reCheckOn && r.marked_on === opts.reCheckOn) continue;
       if (r.round === undefined || (r.round || 1) === (await roundFor(r.textbook_unit_id))) {
         doneSet.add(r.textbook_unit_id);
       }
