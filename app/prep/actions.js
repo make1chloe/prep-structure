@@ -142,6 +142,42 @@ export async function saveTypesBulk(text) {
   return { error: null, addedTop, addedKid, skipped };
 }
 
+
+/**
+ * **고른 것들의 단계를 한 번에 바꾼다** (원장님 2026-08-23 — 「이거 고치는
+ * 방식이 너무 번거로워. 목록에서 선택해서 한 번에 일괄 변경 가능하게 해줘」).
+ *
+ * 자료 종류가 서른 개가 넘는데, 유료로 받아온 것은 「만들기」 를 다 꺼야 한다.
+ * 하나씩 「고치기 → 체크 → 저장」 이면 서른 번이다.
+ *
+ * patch 에 담긴 칸만 바꾼다 — 안 담긴 칸은 그대로 둔다 (섞어 고를 수 있게).
+ */
+export async function setTypesFlags(ids, patch = {}) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  if (list.length === 0) return { error: "고른 것이 없어요." };
+  const ALLOW = ["need_make", "need_print", "need_card", "need_hand", "need_solve", "need_grade", "active"];
+  const row = {};
+  for (const k of ALLOW) if (patch[k] !== undefined) row[k] = !!patch[k];
+  if (Object.keys(row).length === 0) return { error: "바꿀 것을 골라주세요." };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("prep_material_types").update(row).in("id", list);
+  if (needSql(error)) return { error: SQL };
+  revalidatePath("/prep");
+  return { error: error ? error.message : null, count: list.length };
+}
+
+/** 고른 것들을 한 번에 지운다 (하위는 표가 알아서 딸려 지운다) */
+export async function removeTypes(ids) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  if (list.length === 0) return { error: "고른 것이 없어요." };
+  const supabase = createClient();
+  const { error } = await supabase.from("prep_material_types").delete().in("id", list);
+  if (needSql(error)) return { error: SQL };
+  revalidatePath("/prep");
+  return { error: error ? error.message : null, count: list.length };
+}
+
 export async function removeType(id) {
   if (!id) return { error: null };
   const supabase = createClient();

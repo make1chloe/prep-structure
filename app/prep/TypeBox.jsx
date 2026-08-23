@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveType, removeType, saveTypesBulk } from "./actions";
+import { saveType, removeType, saveTypesBulk, setTypesFlags, removeTypes } from "./actions";
 
 /**
  * 자료 종류를 미리 등록해 둔다.
@@ -40,6 +40,8 @@ export default function TypeBox({ types = [] }) {
   const [draft, setDraft] = useState(null);   // 고치는 중이거나 새로 넣는 중
   // **여러 개 한 번에** (원장님 2026-08-23 — 「한 개씩 하는 게 너무 번거로워」)
   const [bulk, setBulk] = useState(null);
+  // 목록에서 골라 한 번에 바꾸기 (원장님 2026-08-23 — 「너무 번거로워」)
+  const [sel, setSel] = useState(() => new Set());
   const [err, setErr] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -66,6 +68,15 @@ export default function TypeBox({ types = [] }) {
   function row(t, depth) {
     return (
       <div className="unitrow" key={t.id} style={{ paddingLeft: depth * 16 }}>
+        <input
+          type="checkbox"
+          checked={sel.has(t.id)}
+          onChange={() => {
+            const n = new Set(sel);
+            n.has(t.id) ? n.delete(t.id) : n.add(t.id);
+            setSel(n);
+          }}
+        />
         <b style={{ fontSize: 14.5, minWidth: 120 }}>{t.name}</b>
         <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>{stagesOf(t)}</span>
         {t.active === false && <span className="tag tag-muted">안 씀</span>}
@@ -158,6 +169,58 @@ export default function TypeBox({ types = [] }) {
 
       {err && <div className="err" style={{ marginTop: 8 }}>{err}</div>}
 
+      {/* **고른 것 한 번에** — 단계를 켜고 끄는 일이 제일 잦다 */}
+      {sel.size > 0 && (
+        <div className="card card-tight" style={{ marginTop: 8, background: "var(--surface-2)" }}>
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 14 }}>고른 {sel.size}개</b>
+            <span className="hint" style={{ fontSize: 12.5 }}>단계 켜기 / 끄기 —</span>
+            {NEEDS.map((n) => (
+              <span key={n.key} className="row" style={{ gap: 2, alignItems: "center" }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: "2px 6px", fontSize: 12.5 }}
+                  disabled={pending}
+                  onClick={() => run(() => setTypesFlags([...sel], { [n.key]: true }))}
+                >
+                  {n.label} 켜기
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: "2px 6px", fontSize: 12.5, opacity: 0.75 }}
+                  disabled={pending}
+                  onClick={() => run(() => setTypesFlags([...sel], { [n.key]: false }))}
+                >
+                  끄기
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <button className="btn btn-ghost btn-sm" disabled={pending}
+              onClick={() => run(() => setTypesFlags([...sel], { active: true }))}>
+              쓰는 종류로
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={pending}
+              onClick={() => run(() => setTypesFlags([...sel], { active: false }))}>
+              안 쓰는 종류로
+            </button>
+            <span className="spacer" />
+            <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>선택 해제</button>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={pending}
+              onClick={() => {
+                if (!confirm(`고른 ${sel.size}개를 지울까요?\n하위가 있으면 같이 사라집니다.`)) return;
+                run(() => removeTypes([...sel]), () => setSel(new Set()));
+              }}
+            >
+              ✕ 지우기
+            </button>
+          </div>
+        </div>
+      )}
+
       {draft && (
         <div className="card card-tight" style={{ marginTop: 8, background: "var(--surface-2)" }}>
           <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -182,21 +245,30 @@ export default function TypeBox({ types = [] }) {
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
-            <input
-              className="input input-sm"
-              style={{ width: 84 }}
-              placeholder="순서"
-              title="학생이 순서대로 풀 때의 기본 순서 (작은 것부터)"
-              value={draft.sort}
-              onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
-            />
-            <label className="row" style={{ gap: 4, fontSize: 14 }}>
+            {/* 빈칸이면 무슨 숫자인지 알 수 없어서 이름을 붙였다 (원장님
+                2026-08-23 — 「저 숫자랑 쓰는 종류가 뭐야」) */}
+            <label className="row" style={{ gap: 4, fontSize: 14, alignItems: "center" }}>
+              <span className="hint" style={{ fontSize: 12.5 }}>목록 차례</span>
+              <input
+                className="input input-sm"
+                style={{ width: 64 }}
+                placeholder="0"
+                title="작은 숫자가 위로 옵니다. 다 0이면 넣은 차례대로"
+                value={draft.sort}
+                onChange={(e) => setDraft({ ...draft, sort: e.target.value })}
+              />
+            </label>
+            <label
+              className="row"
+              style={{ gap: 4, fontSize: 14 }}
+              title="끄면 자료를 만들 때 고르는 목록에 안 뜹니다 (지난 기록은 그대로)"
+            >
               <input
                 type="checkbox"
                 checked={draft.active !== false}
                 onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
               />
-              쓰는 종류
+              지금 쓰는 종류
             </label>
           </div>
 
