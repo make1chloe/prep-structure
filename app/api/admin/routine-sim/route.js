@@ -1964,6 +1964,48 @@ async function whoRoutine(supabase, nameQ) {
     .map((s) => s.book)
     .filter((b) => b && !쓰는교재.has(b));
 
+  /**
+   * **검사 목록에 무엇이 들어 있나** (원장님 2026-08-23 — 「배정 안 된
+   * 교재의 루틴이 숙제 검사에 들어간다」). 검사 목록은 **지난 배정**에서
+   * 온다 — 그때는 배정돼 있었는데 지금은 끝냈거나 뺀 교재일 수 있다.
+   * 항목마다 어느 교재에서 나온 것인지, 그 교재가 지금 쓰는 것인지 적는다.
+   */
+  const 검사목록 = [];
+  {
+    // 그 학생의 가장 최근 「배정」 리포트
+    const { data: reps } = await supabase
+      .from("daily_reports").select("id, date").eq("student_id", st.id)
+      .order("date", { ascending: false }).limit(20);
+    const ids = (reps || []).map((x) => x.id);
+    let items = [];
+    if (ids.length) {
+      const q = await supabase
+        .from("daily_report_items")
+        .select("daily_report_id, homework_item_id, status, textbook_unit_ids")
+        .in("daily_report_id", ids)
+        .eq("status", "assigned");
+      items = q.error ? [] : q.data || [];
+    }
+    const firstRep = (reps || []).find((x) => items.some((i) => i.daily_report_id === x.id));
+    const mineItems = items.filter((i) => i.daily_report_id === firstRep?.id);
+    const { data: hw } = await supabase
+      .from("homework_items").select("id, name, textbook_id, category");
+    const hwById = new Map((hw || []).map((h) => [h.id, h]));
+    const usedBookId = new Map((mine || []).map((x) => [x.textbook_id, x]));
+    for (const it of mineItems) {
+      const h = hwById.get(it.homework_item_id);
+      const bid = h?.textbook_id || null;
+      const st2 = bid ? usedBookId.get(bid) : null;
+      검사목록.push({
+        항목: h?.name || "(없는 항목)",
+        교재: bid ? nameOfBook.get(bid) || "(없는 교재)" : "(교재 없음)",
+        그교재지금쓰나: bid ? !!(st2 && inUseOn(st2, today) && st2.pause !== "all") : null,
+        배정일: firstRep?.date || "",
+      });
+    }
+  }
+  const 검사에샌것 = 검사목록.filter((x) => x.그교재지금쓰나 === false);
+
   return jsonKo({
     설명: "읽기만 했습니다. 「샌것」 이 있으면 배정 안 된 교재가 차림에 들어간 것입니다.",
     학생: st.name,
@@ -1971,5 +2013,7 @@ async function whoRoutine(supabase, nameQ) {
     배정,
     차림,
     샌것: [...new Set(샌것)],
+    검사목록,
+    "검사에 샌 것 (지금 안 쓰는 교재인데 검사에 있음)": 검사에샌것,
   });
 }
