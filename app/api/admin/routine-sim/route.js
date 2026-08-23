@@ -47,6 +47,7 @@ export async function GET(request) {
   if (op === "noassign") return noAssign(supabase);
   if (op === "mockmerge") return mockMerge(supabase, sp.get("apply") === "1");
   if (op === "peek") return progressPeek(supabase, sp.get("days") || "3");
+  if (op === "tree") return workbookTree(supabase, sp.get("book") || "");
 
   const today = todaySeoul();
 
@@ -1644,5 +1645,105 @@ async function progressPeek(supabase, daysStr) {
     안보이는묶음: 안보이는것.length,
     안보이는것,
     전부: all,
+  });
+}
+
+/**
+ * **워크북이 어떤 모양으로 들어가 있나** (원장님 2026-08-23 — 「문법 교재의
+ * 워크북이 단원별로 되어 있어야 하는데 지금 3가지로 되어 있어」).
+ * 아무것도 쓰지 않는다 — 읽고 모양만 가른다.
+ *
+ * 원장님이 원하는 것은 ③ — **본교재 대단원 뒤에 그 대단원의 워크북**.
+ *   ① 본교재 전체가 끝나고 워크북 전체가 뒤에 몰림
+ *   ② 소단원마다 워크북이 붙어 대단원 안에서 반복
+ *   ③ 대단원마다 그 대단원 워크북 (원하는 것)
+ */
+async function workbookTree(supabase, bookQ) {
+  const isWb = (s) => /워크\s*북|workbook|WB\b/i.test(s || "");
+  const isMain = (s) => /본\s*책|본\s*교재|main/i.test(s || "");
+
+  let bq = supabase.from("textbooks").select("id, name, area, status").neq("status", "dropped");
+  if (bookQ) bq = bq.ilike("name", `%${bookQ}%`);
+  const { data: books, error: be } = await bq;
+  if (be) return jsonKo({ error: be.message }, { status: 500 });
+  const ids = (books || []).map((b) => b.id);
+  if (ids.length === 0) return jsonKo({ 교재: [], 참고: "교재가 없습니다" });
+
+  const uq = await fetchAll(() => supabase
+    .from("textbook_units")
+    .select("id, textbook_id, parent_id, label, name, sort")
+    .in("textbook_id", ids)
+    .order("textbook_id").order("sort").order("id"));
+  if (uq.error) return jsonKo({ error: uq.error.message }, { status: 500 });
+
+  const byBook = new Map();
+  for (const u of uq.data || []) {
+    if (!byBook.has(u.textbook_id)) byBook.set(u.textbook_id, []);
+    byBook.get(u.textbook_id).push(u);
+  }
+
+  const out = [];
+  for (const b of books || []) {
+    const us = byBook.get(b.id) || [];
+    if (us.length === 0) continue;
+    const wb = us.filter((u) => isWb(u.name) || isWb(u.label));
+    if (wb.length === 0) continue;   // 워크북이 없는 교재는 이 얘기와 무관
+
+    const kids = new Map();          // parent_id -> [자식]
+    for (const u of us) {
+      const k = u.parent_id || "root";
+      if (!kids.has(k)) kids.set(k, []);
+      kids.get(k).push(u);
+    }
+    const tops = (kids.get("root") || []).slice().sort((x, y) => (x.sort || 0) - (y.sort || 0));
+
+    // 모양 가르기
+    let 모양, 근거;
+    const wbTop = tops.filter((u) => isWb(u.name) || isWb(u.label));
+    const wbUnderTop = tops.filter((t) => (kids.get(t.id) || []).some((c) => isWb(c.name) || isWb(c.label)));
+    const 깊이3 = us.some((u) => {
+      const p = us.find((x) => x.id === u.parent_id);
+      return p && p.parent_id;
+    });
+
+    if (wbTop.length > 0 && wbUnderTop.length === 0) {
+      모양 = "① 뒤에 몰림 (본교재 전체 → 워크북 전체)";
+      근거 = `맨 위 줄에 워크북 ${wbTop.length}개가 따로 서 있음`;
+    } else if (wbUnderTop.length > 0 && 깊이3) {
+      모양 = "② 소단원마다 반복 (대단원 안에서 본책·워크북이 번갈아)";
+      근거 = `워크북이 3단 아래까지 내려가 있음`;
+    } else if (wbUnderTop.length > 0) {
+      모양 = "③ 대단원마다 워크북 (원장님이 원하는 모양)";
+      근거 = `대단원 ${wbUnderTop.length}개 밑에 워크북이 한 장씩`;
+    } else {
+      모양 = "판정 못 함";
+      근거 = "워크북 위치가 위 셋 중 어디에도 안 맞음";
+    }
+
+    out.push({
+      교재: b.name,
+      영역: b.area,
+      모양,
+      근거,
+      대단원수: tops.length,
+      전체단원수: us.length,
+      워크북줄수: wb.length,
+      맨위줄: tops.slice(0, 8).map((t) => {
+        const c = kids.get(t.id) || [];
+        return `${t.name}${c.length ? ` (밑에 ${c.length}: ${c.slice(0, 3).map((x) => x.name).join(", ")}${c.length > 3 ? "…" : ""})` : ""}`;
+      }),
+    });
+  }
+
+  const 묶음 = { "①": [], "②": [], "③": [], "판정 못 함": [] };
+  for (const r of out) {
+    const k = r.모양.startsWith("①") ? "①" : r.모양.startsWith("②") ? "②" : r.모양.startsWith("③") ? "③" : "판정 못 함";
+    묶음[k].push(r.교재);
+  }
+
+  return jsonKo({
+    설명: "쓰지 않고 읽기만 했습니다. 워크북이 있는 교재만 추립니다.",
+    한눈에: 묶음,
+    교재: out,
   });
 }
