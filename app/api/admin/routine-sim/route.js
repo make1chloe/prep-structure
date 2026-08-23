@@ -1821,7 +1821,9 @@ async function workbookMove(supabase, bookQ, apply) {
       let sort = Math.max(0, ...남는소단원.map((c) => c.sort || 0)) + 10;
       list.sort((x, y) => (x.소단원.sort || 0) - (y.소단원.sort || 0) || (x.줄.sort || 0) - (y.줄.sort || 0));
       for (const m of list) {
-        const 새이름 = `${m.소단원.name} 워크북`;
+        // 「워크북 Unit 1」 꼴로 **앞에** 붙인다 (원장님 2026-08-23 예시) —
+        // 앞에 붙어야 대단원 밑에서 워크북끼리 나란히 모여 보인다
+        const 새이름 = `워크북 ${m.소단원.name}`;
         줄들.push({
           id: m.줄.id,
           지금: `${m.대단원.name} › ${m.소단원.name} › ${m.줄.name}`,
