@@ -1659,7 +1659,7 @@ async function progressPeek(supabase, daysStr) {
  *   ③ 대단원마다 그 대단원 워크북 (원하는 것)
  */
 async function workbookTree(supabase, bookQ) {
-  const isWb = (s) => /워크\\s*북|workbook|WB\\b/i.test(s || "");
+  const isWb = (s) => /워크\s*북|work\s*book|WB(?![a-z])/i.test(s || "");
 
   let bq = supabase.from("textbooks").select("id, name, area, status").neq("status", "dropped");
   if (bookQ) bq = bq.ilike("name", `%${bookQ}%`);
