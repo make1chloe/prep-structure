@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveType, removeType, saveTypesBulk, setTypesFlags, removeTypes } from "./actions";
 
@@ -65,55 +65,142 @@ export default function TypeBox({ types = [] }) {
     return on.length ? on.join(" · ") : "단계 없음";
   }
 
+  /**
+   * 줄 하나 — **단원 목록과 같은 표 문법** (원장님 2026-08-23 — 「목록 구성이
+   * 다른 페이지랑 다른데 너무 허접하다」). 대·소 구분 태그, 줄 바탕색,
+   * 오른쪽 끝 도구까지 app/textbooks/UnitList 와 같은 자리에 둔다.
+   */
   function row(t, depth) {
+    /**
+     * **그 줄에서 바로 고친다** (원장님 2026-08-23 — 「수정 방식도 완전
+     * 번거로움 자체」). 전에는 「고치기」 를 누르면 판 맨 위 폼으로 값이
+     * 올라가서, 목록에서 눈을 떼고 위로 올라갔다 다시 내려와야 했다.
+     * 단원 목록(UnitList)과 같이 그 자리에서 고치고 그 자리에서 저장한다.
+     */
+    if (draft && draft.id === t.id) {
+      return (
+        <tr key={t.id} className={depth === 0 ? "unitrow-big" : ""}>
+          <td />
+          <td>
+            <span className={`tag ${depth === 0 ? "tag-lav" : "tag-muted"}`}>
+              {depth === 0 ? "갈래" : "자료"}
+            </span>
+          </td>
+          <td style={{ paddingLeft: depth * 14 }}>
+            <input
+              className="input input-sm"
+              style={{ width: "100%" }}
+              autoFocus
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") run(() => saveType(draft), () => setDraft(null));
+                if (e.key === "Escape") setDraft(null);
+              }}
+            />
+          </td>
+          <td>
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+              {NEEDS.map((n) => (
+                <label key={n.key} className="row" style={{ gap: 2, fontSize: 12.5 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!draft[n.key]}
+                    onChange={(e) => setDraft({ ...draft, [n.key]: e.target.checked })}
+                  />
+                  {n.label}
+                </label>
+              ))}
+              <label className="row" style={{ gap: 2, fontSize: 12.5 }}>
+                <input
+                  type="checkbox"
+                  checked={draft.active !== false}
+                  onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+                />
+                지금 씀
+              </label>
+            </div>
+          </td>
+          <td style={{ whiteSpace: "nowrap" }}>
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ padding: "2px 8px", fontSize: 12.5 }}
+              disabled={pending}
+              onClick={() => run(() => saveType(draft), () => setDraft(null))}
+            >
+              저장
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: "2px 8px", fontSize: 12.5 }}
+              onClick={() => { setDraft(null); setErr(""); }}
+            >
+              취소
+            </button>
+          </td>
+        </tr>
+      );
+    }
     return (
-      <div className="unitrow" key={t.id} style={{ paddingLeft: depth * 16 }}>
-        <input
-          type="checkbox"
-          checked={sel.has(t.id)}
-          onChange={() => {
-            const n = new Set(sel);
-            n.has(t.id) ? n.delete(t.id) : n.add(t.id);
-            setSel(n);
-          }}
-        />
-        <b style={{ fontSize: 14.5, minWidth: 120 }}>{t.name}</b>
-        <span className="hint" style={{ fontSize: 12.5, flex: 1 }}>{stagesOf(t)}</span>
-        {t.active === false && <span className="tag tag-muted">안 씀</span>}
-        {depth === 0 && (
+      <tr key={t.id} className={depth === 0 ? "unitrow-big" : ""}>
+        <td>
+          <input
+            type="checkbox"
+            checked={sel.has(t.id)}
+            onChange={() => {
+              const n = new Set(sel);
+              n.has(t.id) ? n.delete(t.id) : n.add(t.id);
+              setSel(n);
+            }}
+          />
+        </td>
+        <td>
+          <span className={`tag ${depth === 0 ? "tag-lav" : "tag-muted"}`}>
+            {depth === 0 ? "갈래" : "자료"}
+          </span>
+        </td>
+        <td style={{ paddingLeft: depth * 14 }}>
+          <b style={{ fontSize: 14.5 }}>{t.name}</b>
+          {t.active === false && <span className="tag tag-muted" style={{ marginLeft: 6 }}>안 씀</span>}
+        </td>
+        <td className="hint" style={{ fontSize: 12.5 }}>{stagesOf(t)}</td>
+        <td style={{ whiteSpace: "nowrap" }}>
+          {depth === 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: "2px 8px", fontSize: 12.5 }}
+              onClick={() => setDraft({ ...BLANK, parent_id: t.id })}
+            >
+              ＋ 하위
+            </button>
+          )}
           <button
             className="btn btn-ghost btn-sm"
             style={{ padding: "2px 8px", fontSize: 12.5 }}
-            onClick={() => setDraft({ ...BLANK, parent_id: t.id })}
+            onClick={() => setDraft({ ...t, sort: t.sort ?? "" })}
           >
-            ＋ 하위
+            고치기
           </button>
-        )}
-        <button
-          className="btn btn-ghost btn-sm"
-          style={{ padding: "2px 8px", fontSize: 12.5 }}
-          onClick={() => setDraft({ ...t, sort: t.sort ?? "" })}
-        >
-          고치기
-        </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          style={{ padding: "2px 8px", fontSize: 12.5 }}
-          disabled={pending}
-          onClick={() => {
-            const kids = kidsOf(t.id).length;
-            const msg = kids
-              ? `${t.name} 을 지울까요?\n하위 ${kids}개도 같이 사라집니다.`
-              : `${t.name} 을 지울까요?`;
-            if (!confirm(msg)) return;
-            run(() => removeType(t.id));
-          }}
-        >
-          ✕
-        </button>
-      </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ padding: "2px 8px", fontSize: 12.5 }}
+            disabled={pending}
+            onClick={() => {
+              const kids = kidsOf(t.id).length;
+              const msg = kids
+                ? `${t.name} 을 지울까요?\n하위 ${kids}개도 같이 사라집니다.`
+                : `${t.name} 을 지울까요?`;
+              if (!confirm(msg)) return;
+              run(() => removeType(t.id));
+            }}
+          >
+            ✕
+          </button>
+        </td>
+      </tr>
     );
   }
+
 
   return (
     <div className="card" style={{ marginTop: 10 }}>
@@ -221,7 +308,7 @@ export default function TypeBox({ types = [] }) {
         </div>
       )}
 
-      {draft && (
+      {draft && !draft.id && (
         <div className="card card-tight" style={{ marginTop: 8, background: "var(--surface-2)" }}>
           <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "flex-end" }}>
             <select
@@ -306,21 +393,48 @@ export default function TypeBox({ types = [] }) {
         </div>
       )}
 
-      <div className="stack" style={{ gap: 3, marginTop: 10 }}>
-        {tops.map((t) => (
-          <div className="stack" style={{ gap: 3 }} key={t.id}>
-            {row(t, 0)}
-            {kidsOf(t.id).map((k) => row(k, 1))}
-          </div>
-        ))}
-        {orphans.map((t) => row(t, 0))}
-        {types.length === 0 && (
-          <p className="hint" style={{ margin: 0 }}>
-            아직 등록한 종류가 없습니다. 「＋ 종류 추가」로 이그잼 · 족보 같은 갈래를 먼저 만들고,
-            그 아래에 변형문제 · 분석지 · 워크북을 넣어주세요.
-          </p>
-        )}
+      <div className="tblwrap" style={{ marginTop: 10 }}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th style={{ width: 34 }}>
+                <input
+                  type="checkbox"
+                  checked={types.length > 0 && sel.size === types.length}
+                  ref={(el) => el && (el.indeterminate = sel.size > 0 && sel.size < types.length)}
+                  onChange={() =>
+                    setSel(sel.size === types.length ? new Set() : new Set(types.map((t) => t.id)))
+                  }
+                />
+              </th>
+              <th style={{ width: 52 }}>구분</th>
+              <th>이름</th>
+              <th style={{ width: 220 }}>단계</th>
+              <th style={{ width: 150 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {tops.map((t) => (
+              <Fragment key={t.id}>
+                {row(t, 0)}
+                {kidsOf(t.id).map((k) => row(k, 1))}
+              </Fragment>
+            ))}
+            {orphans.map((t) => row(t, 0))}
+            {types.length === 0 && (
+              <tr>
+                <td colSpan={5}>
+                  <p className="hint" style={{ margin: 0, padding: 8 }}>
+                    아직 등록한 종류가 없습니다. 「＋ 종류 추가」로 이그잼 · 족보 같은 갈래를
+                    먼저 만들고, 그 아래에 변형문제 · 분석지 · 워크북을 넣어주세요.
+                  </p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
+
     </div>
   );
 }
