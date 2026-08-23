@@ -8,6 +8,7 @@ import {
   setCurrentPage,
   setStudentBookStatus,
   nextRound,
+  prevRound,
   setUnitNote,
   setBookSkipActs,
   setBookPause,
@@ -63,9 +64,11 @@ export default function BookProgress({
    * **지난 회독 보기** (원장님, 2026-08-23 — 「진도 체크에서 몇 회독인지
    * 체크할 수가 없어」). 진도는 회독별로 쌓이고(학생·단원·회독이 한 줄)
    * 지난 회독 기록은 지우지 않는 규칙이라 기록은 다 있는데, 볼 창이
-   * 없었다. viewRound 가 있으면 그 회독의 체크를 **읽기 전용**으로
-   * 보여준다 — 쓰기는 언제나 지금 회독에만 간다 (setUnitProgress 의
-   * 회독 규칙은 안 건드린다).
+   * 없었다. viewRound 가 있으면 그 회독의 체크를 보여주고, **단건
+   * 체크는 그 회독에 바로 고칠 수 있다** (원장님 2026-08-23 — 「체크
+   * 안 한 게 안 한 걸로 기록되는 걸 모르고 넘어가버렸어. 과거 기록을
+   * 수정할 수 있게」). 일괄 도구(구간·전체·숙제로)는 지난 회독에서
+   * 계속 숨긴다 — 실수로 지난 기록을 쓸어버리지 않게.
    */
   const [viewRound, setViewRound] = useState(null); // null = 지금 회독
   const [pastUnits, setPastUnits] = useState(null); // 보는 회독의 단원들 (null = 불러오는 중)
@@ -203,6 +206,20 @@ export default function BookProgress({
   const NEXT = { "": "doing", doing: "done", done: "" };
 
   function mark(unitId, status) {
+    // 지난 회독 보기 중이면 **그 회독에** 쓴다 (2026-08-23 「과거 기록을
+    // 수정할 수 있게」). 낙관 — 화면 먼저, 저장은 뒤에서.
+    if (pastView) {
+      const r = viewRound;
+      setPastUnits((list) =>
+        (list || []).map((u) => (u.id === unitId ? { ...u, status: status || "" } : u))
+      );
+      startTransition(async () => {
+        const res = await setUnitProgress(studentId, [unitId], status || null, { round: r });
+        if (res?.error) { alert(res.error); viewPast(r); return; }
+        stampSaved();
+      });
+      return;
+    }
     // 화면을 먼저 바꾸고 저장한다 (수업 중 기다리지 않도록)
     setUnits((list) =>
       (list || []).map((u) => (u.id === unitId ? { ...u, status: status || "" } : u))
@@ -511,7 +528,7 @@ export default function BookProgress({
                         key={r}
                         className={`tag ${on ? "tag-lav" : "tag-muted"}`}
                         style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
-                        title={cur ? "지금 회독" : "이 회독의 체크 기록 보기 (보기만)"}
+                        title={cur ? "지금 회독" : "이 회독의 기록 보기·고치기"}
                         onClick={() => viewPast(cur ? null : r)}
                       >
                         {r}회독
@@ -521,7 +538,7 @@ export default function BookProgress({
                 )}
                 {pastView && (
                   <span className="tag tag-amber">
-                    지난 회독 — 보기만, 체크는 현재 회독에
+                    {viewRound}회독 기록을 고치는 중 — 체크가 이 회독에 저장돼요
                   </span>
                 )}
                 {pastView && pastUnits === null && (
@@ -557,6 +574,33 @@ export default function BookProgress({
                     }}
                   >
                     ⟳ 다음 회독으로
+                  </button>
+                )}
+                {/**
+                  * **회독 취소** (원장님, 2026-08-23 — 「잘 모르고
+                  * 넘어가버렸어 … 회독을 취소할 수 있게 해줘」).
+                  * 번호만 되돌린다 — 이번 회독에 찍은 기록은 표에 남아,
+                  * 다시 넘기면 그대로 보인다 (기록은 지우지 않는 규칙).
+                  */}
+                {!pastView && (round || 1) > 1 && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    title="회독 번호만 되돌립니다 — 이번 회독에 찍은 것은 지워지지 않고, 다시 넘기면 그대로 보여요"
+                    onClick={() => {
+                      if (!confirm(`${book.name} 을 ${(round || 1) - 1}회독으로 되돌릴까요?\n\n${round || 1}회독에 찍은 기록은 지워지지 않아요 — 다시 넘기면 그대로 보입니다.`)) return;
+                      startTransition(async () => {
+                        const res = await prevRound(studentId, book.id);
+                        if (res?.error) { alert(res.error); return; }
+                        setRound(res.round);
+                        setViewRound(null);
+                        setPastUnits(null);
+                        await load();
+                        router.refresh();
+                      });
+                    }}
+                  >
+                    ↩ 회독 취소
                   </button>
                 )}
                 {/* 단원이 쉰 개 넘는 교재가 있다 — 눈으로 찾지 않게 */}
@@ -770,11 +814,10 @@ export default function BookProgress({
                                   ? "hw-next"
                                   : done ? "hw-done" : doing ? "hw-weak" : ""
                               } ${isSkipped(u) ? "hw-skipoff" : ""}`}
-                              style={pastView ? { cursor: "default" } : undefined}
                               onClick={() => {
-                                // 지난 회독은 보기만 — 누름을 통째로 무시한다.
-                                // disabled 로 하면 ○·◐ 색까지 흐려져 기록이 안 보인다
-                                if (pastView) return;
+                                // 지난 회독도 단건 체크는 고친다 (2026-08-23) —
+                                // mark 안에서 viewRound 로 저장된다
+                                if (pastView) return mark(u.id, NEXT[u.status || ""]);
                                 if (hwMode && onHomework) return onHomework(u);
                                 if (uptoMode) return markUpto(u.id);
                                 if (!selMode) return mark(u.id, NEXT[u.status || ""]);
@@ -786,7 +829,7 @@ export default function BookProgress({
                               }}
                               title={
                                 [
-                                  pastView && `${viewRound}회독 기록 — 보기만`,
+                                  pastView && `${viewRound}회독 기록 — 누르면 이 회독에 고쳐져요`,
                                   isSkipped(u) && "⛔ 빠짐 — 배정·진도율 제외 (기록은 남음)",
                                   u.activity, u.pages, u.amount && `분량 ${u.amount}`, u.note && `메모: ${u.note}`,
                                 ]

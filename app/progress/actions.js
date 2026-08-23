@@ -896,6 +896,8 @@ export async function setUnitProgress(studentId, unitIds, status, opts = {}) {
   }
   const roundCache = new Map();
   async function roundFor(unitId) {
+    // 지난 회독 고치기 (원장님 2026-08-23 「과거 기록을 수정할 수 있게」)
+    if (opts.round) return opts.round;
     const tid = bookOfUnit.get(unitId);
     if (!tid) return 1;
     if (!roundCache.has(tid)) roundCache.set(tid, await currentRound(supabase, studentId, tid));
@@ -1055,6 +1057,31 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
  * 새 회독은 빈 상태로 시작하고, 1회독을 언제 어디까지 했는지는
  * 학생 기록(교재 사용 기록)에 회독별로 남는다.
  */
+/**
+ * **회독 취소** (원장님 2026-08-23 — 「체크 안 한 게 안 한 걸로 기록되는
+ * 걸 모르고 넘어가버렸어 … 회독을 취소할 수 있게」). 번호만 되돌린다 —
+ * 이번 회독에 찍은 기록은 단원 표에 남아, 다시 넘기면 그대로 보인다.
+ */
+export async function prevRound(studentId, textbookId) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const { data: cur } = await supabase
+    .from("student_textbooks")
+    .select("round")
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId)
+    .maybeSingle();
+  const now = cur?.round || 1;
+  if (now <= 1) return { error: "1회독이라 되돌릴 회독이 없어요." };
+  const { error } = await supabase
+    .from("student_textbooks")
+    .update({ round: now - 1 })
+    .eq("student_id", studentId)
+    .eq("textbook_id", textbookId);
+  if (error) return { error: error.message };
+  return { error: null, round: now - 1 };
+}
+
 export async function nextRound(studentId, textbookId) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = createClient();
