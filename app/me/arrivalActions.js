@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { todaySeoul } from "@/lib/day";
 import { pickIp, sameNet } from "@/lib/clientIp";
 import { resolveStudent } from "@/lib/actAs";
+import { pushToFamilies } from "@/app/push/actions";
 
 /**
  * 등원 체크 — **학생이 누른다.**
@@ -52,13 +53,19 @@ export async function checkArrival(kind, on, asId = null) {
     return { error: error.message };
   }
 
-  // 출석 체크를 눌렀으면 **등원으로 잡는다.**
-  // 선생님이 또 찍을 이유가 없다. 늦게 온 아이는 누른 시각이 남으니
-  // 선생님 화면에서 보고 지각으로 고치면 된다.
-  //
-  // 여기서 실패해도 체크 자체는 이미 저장됐다. 조용히 넘어간다 —
-  // 등원 표시가 안 됐다고 아이에게 빨간 경고를 띄울 일은 아니다.
-  if (kind === "attend" && on) {
+  /**
+   * **핸드폰을 내면 그 자리에서 등원으로 잡는다** (원장님 2026-08-23 —
+   * 「학생이 핸드폰 냈어요 누르면 바로 출석 처리하게 해줘」).
+   *
+   * 전에는 두 번째 단계(출석 체크 했어요)를 눌러야 등원이 됐다. 그런데
+   * 폰을 내는 것이 실제로 학원에 **도착한** 순간이고, 아이가 세 단계를
+   * 다 누르지 않고 수업에 들어가 버리면 등원이 안 잡혔다.
+   * 출석 체크 단계도 그대로 둔다 — 둘 중 **먼저 누른 것**이 등원이 된다.
+   *
+   * 여기서 실패해도 체크 자체는 이미 저장됐다. 조용히 넘어간다 —
+   * 등원 표시가 안 됐다고 아이에게 빨간 경고를 띄울 일은 아니다.
+   */
+  if ((kind === "phone" || kind === "attend") && on) {
     const today = todaySeoul();
     const { data: already } = await supabase
       .from("attendance")
@@ -67,10 +74,64 @@ export async function checkArrival(kind, on, asId = null) {
       .eq("date", today)
       .maybeSingle();
     if (!already) {
-      await supabase
+      const { error: attErr } = await supabase
         .from("attendance")
         .insert({ student_id: me.id, date: today, status: "present" });
+      // **어머니께 등원 알림** (원장님 2026-08-23). 방금 등원으로 **새로**
+      // 잡혔을 때만 — 이미 잡혀 있으면 두 번 울리지 않는다.
+      // 선생님이 체험 모드로 눌러보는 중이면 안 보낸다.
+      if (!attErr && !acting) {
+        const { data: who } = await supabase
+          .from("students").select("name").eq("id", me.id).maybeSingle();
+        await pushToFamilies(
+          [me.id],
+          { title: `${who?.name || "학생"} 등원했어요`, url: "/parent" },
+          "parent",
+          supabase
+        );
+      }
     }
+  }
+
+  revalidatePath("/me");
+  revalidatePath("/today");
+  return { error: null };
+}
+
+/**
+ * **하원 — 아이가 누른다** (원장님 2026-08-23 — 「하원 누르면 자동
+ * 로그아웃되고, 엄마에게 하원했다고 알림 가게 해줘」).
+ *
+ * 학생 앱은 등원하면 **학원 공용 기기**로 보고, 집에서는 제 폰으로 본다.
+ * 그래서 로그아웃은 화면이 정한다 — 공용 기기로 표시해 둔 기기에서만
+ * 로그아웃한다 (제 폰에서 로그아웃하면 집에서 숙제를 못 본다).
+ * 여기 서버 쪽은 **누른 시각을 적고 어머니께 알리는 것**까지만 한다.
+ */
+export async function leaveNow(asId = null) {
+  const supabase = createClient();
+  const { studentId, acting, error: whoErr } = await resolveStudent(supabase, asId);
+  if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
+
+  const today = todaySeoul();
+  let { error } = await supabase.from("arrival_checks").upsert(
+    { student_id: studentId, date: today, leave_at: new Date().toISOString() },
+    { onConflict: "student_id,date" }
+  );
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "선생님이 SQL(0150) 을 먼저 실행해야 해요." };
+  }
+  if (error) return { error: error.message };
+
+  // 어머니께 하원 알림 — 체험 모드(선생님이 눌러보는 중)면 안 보낸다
+  if (!acting) {
+    const { data: who } = await supabase
+      .from("students").select("name").eq("id", studentId).maybeSingle();
+    await pushToFamilies(
+      [studentId],
+      { title: `${who?.name || "학생"} 하원했어요`, url: "/parent" },
+      "parent",
+      supabase
+    );
   }
 
   revalidatePath("/me");

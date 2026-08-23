@@ -23,6 +23,7 @@ import HomeworkSheet from "./HomeworkSheet";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
+import LeaveCard from "./LeaveCard";
 import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
@@ -194,7 +195,7 @@ export default async function MePage({ searchParams }) {
       .limit(20),
     supabase
       .from("arrival_checks")
-      .select("phone_at, attend_at, homework_at")
+      .select("phone_at, attend_at, homework_at, leave_at")
       .eq("student_id", sid)
       .eq("date", todayStr)
       .maybeSingle(),
@@ -379,7 +380,18 @@ export default async function MePage({ searchParams }) {
 
   // 오늘 등원 체크 — 학생이 직접 누른 것
   const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
-  const arrival = aq.error ? {} : aq.data || {};
+  // 0150 전 DB 는 leave_at 칸이 없어 조회가 통째로 실패한다 — 그러면 등원
+  // 카드까지 빈 채로 떠서 아이가 처음부터 다시 누르게 된다. 없이 한 번 더.
+  let arrivalQ = aq;
+  if (aq.error && (aq.error.code === "42703" || aq.error.code === "PGRST204")) {
+    arrivalQ = await supabase
+      .from("arrival_checks")
+      .select("phone_at, attend_at, homework_at")
+      .eq("student_id", student.id)
+      .eq("date", todayStr)
+      .maybeSingle();
+  }
+  const arrival = arrivalQ.error ? {} : arrivalQ.data || {};
 
   // 지금 등원 중인가.
   //   등원 중이면 화면은 **등원 중 할 일**로 열려야 한다. 집 숙제를 먼저
@@ -925,6 +937,15 @@ export default async function MePage({ searchParams }) {
               homework: arrival.homework_at,
             }}
             atAcademy={atAcademy}
+            readOnly={preview}
+            asId={acting ? student.id : null}
+          />
+
+          {/* **하원할게요** (원장님 2026-08-23) — 학원 안에서만 뜬다.
+              공용 기기로 표시해 둔 기기에서는 누르면 로그아웃까지 */}
+          <LeaveCard
+            atAcademy={atAcademy}
+            done={!!arrival.leave_at}
             readOnly={preview}
             asId={acting ? student.id : null}
           />
