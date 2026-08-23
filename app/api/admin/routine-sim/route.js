@@ -48,6 +48,7 @@ export async function GET(request) {
   if (op === "mockmerge") return mockMerge(supabase, sp.get("apply") === "1");
   if (op === "peek") return progressPeek(supabase, sp.get("days") || "3");
   if (op === "tree") return workbookTree(supabase, sp.get("book") || "");
+  if (op === "wbmove") return workbookMove(supabase, sp.get("book") || "", sp.get("apply") === "1");
 
   const today = todaySeoul();
 
@@ -1752,5 +1753,108 @@ async function workbookTree(supabase, bookQ) {
     설명: "쓰지 않고 읽기만 했습니다. 워크북이 있는 교재만 추립니다. 깊이 0=대단원, 1=소단원, 2=그 아래.",
     한눈에: 묶음,
     교재: out.sort((x, y) => x.모양.localeCompare(y.모양)),
+  });
+}
+
+/**
+ * **워크북을 대단원 밑으로 올린다** (원장님 2026-08-23 — 「B로 ㄱㄱ」).
+ * 자리만 옮기고 **장수는 그대로 둔다** — 합치지 않으므로 학생 진도 기록이
+ * 한 줄도 안 없어진다 (진도는 단원 id 에 붙어 있고, id 는 안 바뀐다).
+ *
+ * 지금(②): 대단원 › 소단원 › 워크북   →  바꾼 뒤(③): 대단원 › …소단원들… › 워크북들
+ * 이름은 어느 소단원 것인지 알 수 있게 「Unit 49 워크북」 꼴로 붙인다 —
+ * 안 그러면 대단원 밑에 「워크북」이 넷씩 나란히 서서 구별이 안 된다.
+ *
+ * apply=1 이 없으면 **아무것도 안 바꾸고** 무엇을 할지만 보여준다.
+ */
+async function workbookMove(supabase, bookQ, apply) {
+  const isWb = (s) => /워크\s*북|work\s*book|WB(?![a-z])/i.test(s || "");
+
+  let bq = supabase.from("textbooks").select("id, name").neq("status", "dropped");
+  if (bookQ) bq = bq.ilike("name", `%${bookQ}%`);
+  const { data: books, error: be } = await bq;
+  if (be) return jsonKo({ error: be.message }, { status: 500 });
+  const ids = (books || []).map((b) => b.id);
+  if (ids.length === 0) return jsonKo({ 교재: [] });
+
+  const uq = await fetchAll(() => supabase
+    .from("textbook_units")
+    .select("id, textbook_id, parent_id, label, name, sort")
+    .in("textbook_id", ids)
+    .order("textbook_id").order("sort").order("id"));
+  if (uq.error) return jsonKo({ error: uq.error.message }, { status: 500 });
+
+  const 계획 = [];
+  const 건너뜀 = [];
+  for (const b of books || []) {
+    const us = (uq.data || []).filter((u) => u.textbook_id === b.id);
+    if (us.length === 0) continue;
+    const byId = new Map(us.map((u) => [u.id, u]));
+    const kids = new Map();
+    for (const u of us) {
+      const k = u.parent_id || "root";
+      if (!kids.has(k)) kids.set(k, []);
+      kids.get(k).push(u);
+    }
+
+    // 소단원(깊이1) 밑에 달린 워크북(깊이2)만 대상
+    const moves = [];
+    for (const u of us) {
+      if (!isWb(u.name) && !isWb(u.label)) continue;
+      const 부모 = u.parent_id ? byId.get(u.parent_id) : null;
+      if (!부모 || !부모.parent_id) continue;           // 이미 대단원 밑이면 그대로
+      const 할아버지 = byId.get(부모.parent_id);
+      if (!할아버지 || 할아버지.parent_id) continue;    // 4단 이상은 손대지 않는다
+      moves.push({ 줄: u, 소단원: 부모, 대단원: 할아버지 });
+    }
+    if (moves.length === 0) { 건너뜀.push(b.name); continue; }
+
+    // 대단원마다: 남는 소단원들 뒤에 워크북을 원래 차례대로 붙인다
+    const 대단원별 = new Map();
+    for (const m of moves) {
+      if (!대단원별.has(m.대단원.id)) 대단원별.set(m.대단원.id, []);
+      대단원별.get(m.대단원.id).push(m);
+    }
+    const 줄들 = [];
+    for (const [topId, list] of 대단원별) {
+      const 남는소단원 = (kids.get(topId) || []).filter((c) => !isWb(c.name) && !isWb(c.label));
+      let sort = Math.max(0, ...남는소단원.map((c) => c.sort || 0)) + 10;
+      list.sort((x, y) => (x.소단원.sort || 0) - (y.소단원.sort || 0) || (x.줄.sort || 0) - (y.줄.sort || 0));
+      for (const m of list) {
+        const 새이름 = `${m.소단원.name} 워크북`;
+        줄들.push({
+          id: m.줄.id,
+          지금: `${m.대단원.name} › ${m.소단원.name} › ${m.줄.name}`,
+          바뀐뒤: `${m.대단원.name} › ${새이름}`,
+          새부모: topId, 새이름, 새차례: sort,
+        });
+        sort += 10;
+      }
+    }
+
+    계획.push({
+      교재: b.name, 옮길장수: 줄들.length, 대단원수: 대단원별.size,
+      본보기: 줄들.slice(0, 4).map((r) => `${r.지금}  →  ${r.바뀐뒤}`),
+      줄들: apply ? 줄들 : undefined,
+    });
+
+    if (apply) {
+      for (const r of 줄들) {
+        const { error } = await supabase
+          .from("textbook_units")
+          .update({ parent_id: r.새부모, name: r.새이름, sort: r.새차례 })
+          .eq("id", r.id);
+        if (error) return jsonKo({ error: `${b.name} — ${error.message}` }, { status: 500 });
+      }
+    }
+  }
+
+  return jsonKo({
+    모드: apply ? "실행함 — 자리를 옮겼습니다" : "미리보기 — 아무것도 안 바꿈 (&apply=1 로 실행)",
+    방식: "자리만 옮기고 장수는 그대로 (합치지 않음) — 학생 진도 기록은 한 줄도 안 없어집니다",
+    옮길교재수: 계획.length,
+    옮길총장수: 계획.reduce((a, c) => a + c.옮길장수, 0),
+    교재: 계획.map(({ 줄들, ...r }) => r),
+    손대지않음: 건너뜀,
   });
 }
