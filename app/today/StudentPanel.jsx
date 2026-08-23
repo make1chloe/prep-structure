@@ -542,6 +542,9 @@ export default function StudentPanel({
   const [carryNext, setCarryNext] = useState(() => new Set(row.inClassCarry || []));
   const [openInClass, setOpenInClass] = useState(false);
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
+  // 이 학생 교재의 루틴이 쓰는 항목 (칩을 좁히는 데 쓴다)
+  const [myItems, setMyItems] = useState(null);
+  const [showAllChips, setShowAllChips] = useState(false);
   // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 루틴 다음을 누르면 먼저
   // 오늘 할 교재를 고른다. 교재가 하나면 바로 차린다.
   const [routinePick, setRoutinePick] = useState(null); // { res, chosen:Set }
@@ -873,12 +876,30 @@ export default function StudentPanel({
 
   const cats = ["전체", "자주", ...new Set(items.map((i) => i.category).filter(Boolean))];
   const COMMON = ["단어(교재)", "단어(온라인)", "독해", "워크북", "문법", "영작", "듣기", "오답노트"];
-  const shown =
+  /**
+   * **이 학생 것부터** (원장님 2026-08-24 — 「왕희연 독해교재는 첫단추·
+   * 빈순삽함 이런 게 없는데 그 교재의 숙제가 붙어 있어」).
+   *
+   * 학습항목 표에는 교재 칸이 없어 항목만으로는 어느 교재 것인지 알 수 없다.
+   * 대신 **루틴이 안다** — 그 학생 교재의 단계들이 쓰는 항목(myItems)을
+   * 앞에 두고, 나머지는 「전체」 를 눌러야 나온다. 지금 판에 이미 걸린 것
+   * (검사 대상·배정한 것·찍은 것)은 언제나 보인다 — 안 보이면 못 고친다.
+   */
+  const mineFirst = (list) => {
+    if (!myItems || showAllChips) return list;
+    const keep = list.filter(
+      (i) => myItems.has(i.id) || marks[i.id] || toCheckSet.has(i.id) || next.has(i.id) || inClass.includes(i.id)
+    );
+    return keep.length > 0 ? keep : list;
+  };
+  const shown = mineFirst(
     cat === "전체"
       ? items
       : cat === "자주"
       ? items.filter((i) => COMMON.includes(i.name) || marks[i.id] || toCheckSet.has(i.id) || next.has(i.id))
-      : items.filter((i) => i.category === cat);
+      : items.filter((i) => i.category === cat)
+  );
+  const hiddenCount = myItems && !showAllChips ? items.length - shown.length : 0;
 
   // 분류별로 묶어 줄을 나눈다
   function grouped(list) {
@@ -1147,12 +1168,19 @@ export default function StudentPanel({
   useEffect(() => {
     if (autoRoutined.current) return;
     if (draft) return;                                  // 되살릴 초안이 먼저다
-    if (next.size > 0 || inClass.length > 0) return;    // 이미 차려진 판은 안 덮는다
     autoRoutined.current = true;
     (async () => {
       try {
         const res = await nextRoutine(row.student.id);
-        if (res?.error || !res?.steps?.length) return;
+        if (res?.error) return;
+        /**
+         * **차리지 않더라도 「이 학생 항목」 은 쥐어 둔다** (원장님 2026-08-24 —
+         * 「왕희연 독해교재는 첫단추·빈순삽함 이런 게 없는데 그 교재의 숙제가
+         * 붙어 있어」). 항목 칩을 그 학생 교재 것으로 좁히는 데 쓴다.
+         */
+        if (res.myItems?.length) setMyItems(new Set(res.myItems));
+        if (!res.steps?.length) return;
+        if (next.size > 0 || inClass.length > 0) return; // 이미 차려진 판은 안 덮는다
         applyRoutine(res, new Set(res.steps.map((st) => st.textbookId)));
       } catch { /* 못 채우면 ⟳ 로 하던 대로 */ }
     })();
@@ -1943,6 +1971,17 @@ export default function StudentPanel({
                     * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
                     * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
                     */}
+                  {/* 그 항목의 절차 — 작게 (원장님 2026-08-24 「학습항목 밑에
+                      아주 조그맣게 체크리스트 같이 줘」) */}
+                  {(items.find((x) => x.id === iid)?.checklist || "").trim() && (
+                    <span
+                      className="hint"
+                      style={{ flexBasis: "100%", fontSize: 12, marginLeft: 20, lineHeight: 1.5 }}
+                    >
+                      {(items.find((x) => x.id === iid)?.checklist || "")
+                        .split("\n").map((t) => t.trim()).filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                   <span className="spacer" />
                   <span className="row" style={{ gap: 0, alignItems: "center" }}>
                     <button className="btn btn-ghost btn-sm" title="차례를 위로" disabled={idx === 0}
@@ -2216,6 +2255,25 @@ export default function StudentPanel({
               onChange={(e) => set("quickHomework", e.target.value)}
             />
           </div>
+          {/* 이 학생 교재가 쓰는 항목만 — 나머지는 눌러서 (2026-08-24) */}
+          {hiddenCount > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 12.5, marginBottom: 4 }}
+              onClick={() => setShowAllChips(true)}
+            >
+              이 학생 교재 것만 보이는 중 · 전체 {items.length}개 보기
+            </button>
+          )}
+          {showAllChips && myItems && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 12.5, marginBottom: 4 }}
+              onClick={() => setShowAllChips(false)}
+            >
+              이 학생 교재 것만 보기
+            </button>
+          )}
           <div className="stack" style={{ gap: 6 }}>
             {grouped(shown).map(([g, list]) => (
               <div className="hwgroup" key={g}>

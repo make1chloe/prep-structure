@@ -121,7 +121,8 @@ export default async function TodayPage({ searchParams }) {
       .eq("date", date),
     supabase
       .from("homework_items")
-      .select("id, name, category, sort, method, no_timer, unit_test, tool, in_person, redo_default")
+      // checklist — 학습항목 밑에 작게 보여준다 (원장님 2026-08-24)
+      .select("id, name, category, sort, method, no_timer, unit_test, tool, in_person, redo_default, checklist")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase

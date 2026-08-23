@@ -129,6 +129,16 @@ export async function nextRoutine(studentId, opts = {}) {
   const home = new Set();
   const steps = [];
   const itemUnits = {};   // itemId → { textbookId, unitIds }
+  /**
+   * **이 학생 교재가 쓰는 항목 전부** (원장님 2026-08-24 — 「왕희연 독해교재는
+   * 첫단추·빈순삽함 이런 게 없는데 그 교재의 숙제가 붙어 있어」).
+   *
+   * 학습항목 표에는 교재 칸이 없어서, 항목만 보고는 어느 교재 것인지 알 수
+   * 없다. 그런데 **루틴은 안다** — 교재마다 단계가 있고 단계마다 항목이
+   * 적혀 있다. 지금 차례 단계뿐 아니라 **그 교재의 모든 단계**를 모아두면,
+   * 화면에서 「이 학생이 쓸 만한 항목」 을 앞으로 낼 수 있다.
+   */
+  const myItems = new Set();
   mine.forEach((r) => {
     // 교재별이 우선 — 없으면 영역별 (0137)
     const all =
@@ -144,6 +154,11 @@ export async function nextRoutine(studentId, opts = {}) {
     const rounded = all.filter((s) => s.round != null && s.round <= cur);
     const maxR = rounded.length ? Math.max(...rounded.map((s) => s.round)) : null;
     const list = all.filter((s) => s.round == null || s.round === maxR);
+    // 이 교재의 모든 단계가 쓰는 항목 (차례와 상관없이)
+    list.forEach((st) => {
+      [...(st.inclass_items || []), ...(st.home_items || []), ...(st.home_next || [])]
+        .forEach((x) => x && myItems.add(x));
+    });
     if (list.length === 0) return;
     /**
      * **id 가 먼저다** (0120). 번호는 루틴을 중간에 고치면 다른 단계를
@@ -206,7 +221,7 @@ export async function nextRoutine(studentId, opts = {}) {
     });
   });
 
-  return { inclass: [...inclass], home: [...home], steps, itemUnits, error: null };
+  return { inclass: [...inclass], home: [...home], steps, itemUnits, myItems: [...myItems], error: null };
 }
 
 /**
