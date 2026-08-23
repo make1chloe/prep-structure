@@ -199,6 +199,54 @@ export async function saveExam(e = {}) {
   return { error: q.error ? q.error.message : null };
 }
 
+
+/**
+ * **시험을 학년별로 쪼갠다** (원장님 2026-08-23 — 「내신대비 범위를 학년별로
+ * 구분해야 하는데 그게 없어. 날짜도 아주 드문 경우 달라」).
+ *
+ * 나이스에서 받아온 시험은 **학교 한 줄**로 들어온다(학년 칸이 빈다).
+ * 그런데 범위는 학년마다 다르고, 드물게 영어 시험일도 다르다. 한 줄에
+ * 범위를 다 담으면 중2 범위가 중3 아이 자료에 섞인다.
+ *
+ * 쪼갠 뒤에는 학년마다 **따로** 범위를 담고 날짜를 고칠 수 있다.
+ * 원본은 **첫 학년으로 바뀐다** — 이미 담아둔 범위·자료가 딸려 있으므로
+ * 새로 만들어 옮기지 않는다 (배정 기록까지 따라 움직이면 위험하다).
+ */
+export async function splitExamByGrade(examId, grades = []) {
+  const list = [...new Set((grades || []).map((g) => (g || "").trim()).filter(Boolean))];
+  if (!examId || list.length === 0) return { error: "나눌 학년이 없어요." };
+  const supabase = createClient();
+
+  const { data: ex, error: readErr } = await supabase
+    .from("exam_periods")
+    .select("*")
+    .eq("id", examId)
+    .maybeSingle();
+  if (readErr) return { error: readErr.message };
+  if (!ex) return { error: "그 시험을 찾지 못했어요." };
+  if ((ex.grade || "").trim()) {
+    return { error: `이미 「${ex.grade}」 시험이에요. 나눌 것이 없어요.` };
+  }
+
+  const [first, ...rest] = list;
+
+  // 원본을 첫 학년으로 (담아둔 범위·자료가 그대로 따라온다)
+  const up = await supabase.from("exam_periods").update({ grade: first }).eq("id", examId);
+  if (up.error) return { error: up.error.message };
+
+  // 나머지 학년은 같은 날짜로 새 줄 (날짜가 다르면 뒤에 각자 고친다)
+  if (rest.length) {
+    const { id: _id, created_at: _c, created_by: _b, ...base } = ex;
+    const rows = rest.map((g) => ({ ...base, grade: g }));
+    const ins = await supabase.from("exam_periods").insert(rows);
+    if (ins.error) return { error: ins.error.message };
+  }
+
+  revalidatePath("/prep");
+  revalidatePath("/schedule");
+  return { error: null, made: rest.length, first };
+}
+
 export async function removeExam(id) {
   if (!id) return { error: null };
   const supabase = createClient();

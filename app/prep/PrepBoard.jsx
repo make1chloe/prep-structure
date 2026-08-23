@@ -8,9 +8,11 @@ import {
   addMaterial, updateMaterial, removeMaterial, markStage,
   setAssignees, markAssign,
   markStages, removeMaterials, removeScopes,
+  splitExamByGrade,
 } from "./actions";
 import { teacherText } from "@/lib/exams";
 import { cleanNote } from "@/lib/note";
+import { sameSchool } from "@/lib/who";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import TypeBox from "./TypeBox";
 import ScopePicker from "./ScopePicker";
@@ -265,6 +267,38 @@ export default function PrepBoard({
                 <button className="btn btn-sm" onClick={() => setScopeFor({ exam_id: exam.id, unit_ids: [], name: "" })}>
                   ＋ 범위 추가
                 </button>
+                {/**
+                  * **학년별로 나누기** (원장님 2026-08-23 — 「내신대비 범위를
+                  * 학년별로 구분해야 하는데 그게 없어. 날짜도 아주 드문 경우
+                  * 달라」). 나이스 시험은 학교 한 줄로 들어와 학년 칸이 빈다.
+                  */}
+                {!exam.grade && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={pending}
+                    title="이 학교에 다니는 재원생 학년만큼 줄을 나눕니다 — 학년마다 범위·날짜를 따로 잡을 수 있어요"
+                    onClick={() => {
+                      const gs = [...new Set(
+                        students
+                          .filter((st) => sameSchool(st.school, exam.school))
+                          .map((st) => (st.grade || "").trim())
+                          .filter(Boolean)
+                      )].sort();
+                      if (gs.length === 0) {
+                        alert("이 학교에 다니는 재원생이 없어요.");
+                        return;
+                      }
+                      if (gs.length === 1) {
+                        if (!confirm(`재원생 학년이 「${gs[0]}」 하나예요. 이 시험을 ${gs[0]} 시험으로 둘까요?`)) return;
+                      } else if (!confirm(`${gs.join(" · ")} — ${gs.length}개 학년으로 나눌까요?\n\n지금 담아둔 범위·자료는 「${gs[0]}」 쪽에 남습니다.`)) {
+                        return;
+                      }
+                      run(() => splitExamByGrade(exam.id, gs));
+                    }}
+                  >
+                    학년별로 나누기
+                  </button>
+                )}
                 <button className="btn btn-ghost btn-sm" disabled={pending}
                   onClick={() => {
                     if (!confirm(`${exam.school} ${exam.term} 을 지울까요?\n범위·자료·배정이 모두 사라집니다.`)) return;
