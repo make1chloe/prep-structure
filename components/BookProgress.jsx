@@ -139,7 +139,19 @@ export default function BookProgress({
     refreshT.current = null;
     router.refresh();
   }
-  useEffect(() => () => { if (refreshT.current) clearTimeout(refreshT.current); }, []);
+  /**
+   * 판을 떠날 때도 **미뤄둔 새로고침은 돌리고 간다** (2026-08-23 시뮬).
+   * 전에는 타이머를 지우기만 해서, 체크하고 12초 안에 다른 학생을 누르면
+   * 목록의 ◐·진도율이 옛날 그대로 남았다 — 「저장이 안 됐나」로 보인다.
+   * (setUnitProgress 는 revalidate 를 일부러 안 한다. 새로고침 시점을
+   * 화면이 정하기로 한 이상, 떠나는 것도 시점의 하나다.)
+   */
+  useEffect(() => () => {
+    if (!refreshT.current) return;
+    clearTimeout(refreshT.current);
+    refreshT.current = null;
+    router.refresh();
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   function stampSaved() {
     const d = new Date();

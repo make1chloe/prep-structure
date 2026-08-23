@@ -241,13 +241,17 @@ async function bookEndTasks(supabase, rules) {
   const today = todaySeoul();
 
   // 배정된 교재 (지금 쓰는 것만)
-  let stQ = await supabase
+  // 끝까지 읽는다 (2026-08-23 전수) — 천 줄에서 잘리면 뒤쪽 학생의 할일이
+  // 통째로 안 생긴다 (오류도 안 난다)
+  let stQ = await fetchAll(() => supabase
     .from("student_textbooks")
-    .select("student_id, textbook_id, status, round, assigned_on, ended_on");
+    .select("student_id, textbook_id, status, round, assigned_on, ended_on")
+    .order("student_id").order("textbook_id"));
   if (stQ.error) {
-    stQ = await supabase
+    stQ = await fetchAll(() => supabase
       .from("student_textbooks")
-      .select("student_id, textbook_id, status");
+      .select("student_id, textbook_id, status")
+      .order("student_id").order("textbook_id"));
   }
   if (stQ.error) return [];
   const uses = (stQ.data || []).filter((x) => inUseOn(x, today));

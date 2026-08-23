@@ -194,7 +194,16 @@ export default async function CheckPage({ searchParams }) {
   const [{ data: allClasses }, { data: stBooks }] = await Promise.all([
     // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
     loadRunningClasses(supabase, "id, name, days, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
-    supabase.from("student_textbooks").select("student_id, textbook_id, status, assigned_on, ended_on"),
+    // 끝까지 읽는다 (2026-08-23 전수) — 이 표는 그만둔 학생·끝낸 교재 줄도
+    // 지우지 않고 쌓여서, 천 줄에서 조용히 잘리면 어떤 학생 교재가 통째로
+    // 없는 것처럼 보인다 (2026-08-14 「오늘 진도가 재원생이랑 달라」와 같은 병)
+    fetchAll(() =>
+      supabase
+        .from("student_textbooks")
+        .select("student_id, textbook_id, status, assigned_on, ended_on")
+        .order("student_id")
+        .order("textbook_id")
+    ),
   ]);
   const daysOfClass = new Map((allClasses || []).map((c) => [c.id, c.days || []]));
   const cidsOf = new Map();

@@ -93,16 +93,18 @@ export default async function ProgressPage() {
   let stBookRows = stBooksQ.data;
   if (stBooksQ.error) {
     // 0149 전 — pause 없이 (skip_acts 는 지킨다)
-    let fb = await supabase
+    let fb = await fetchAll(() => supabase
       .from("student_textbooks")
       .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts")
-      .neq("status", "dropped");
+      .neq("status", "dropped")
+      .order("student_id").order("textbook_id"));
     if (fb.error) {
       // 0133 전 — skip_acts 도 없이
-      fb = await supabase
+      fb = await fetchAll(() => supabase
         .from("student_textbooks")
         .select("student_id, textbook_id, status, assigned_on, ended_on, current_page, round")
-        .neq("status", "dropped");
+        .neq("status", "dropped")
+        .order("student_id").order("textbook_id"));
     }
     stBookRows = fb.data;
   }

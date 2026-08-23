@@ -197,7 +197,10 @@ export default function StudentBooksProgress({ studentId, books = [], allBooks =
             /* 접힌 채로 시작 (원장님 2026-08-23 「교재 다 펼쳐지지 않게 —
                접힌 상태로, 클릭하면 펼쳐지게」) — 교재가 예닐곱이면 다 펴진
                판이 한 화면을 넘겨 스크롤 지옥이었다 */
-            initialUnits={byBook[b.id]?.units || []}
+            /* 방금 배정한 교재는 아직 한 왕복에 안 실려 있다. [](빈 목록)로
+               넘기면 「이 교재는 아직 단원이 없어요」로 보였다 (2026-08-23 시뮬).
+               모르면 null — 펼칠 때 그 교재만 스스로 불러온다 */
+            initialUnits={byBook[b.id]?.units ?? null}
             initialRound={byBook[b.id]?.round || b.round || 1}
           />
         ))}
