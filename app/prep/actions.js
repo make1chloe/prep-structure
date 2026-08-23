@@ -60,6 +60,88 @@ export async function saveType(t = {}) {
   return { error: q.error ? q.error.message : null };
 }
 
+/**
+ * **자료 종류를 한 화면에서 한꺼번에 넣는다** (원장님 2026-08-23 —
+ * 「내신자료종류 입력하는 게 한 개씩 하는 게 너무 번거로워. 한 번에 한
+ * 화면에서 하게 해줘」).
+ *
+ * 적는 법 — 큰 갈래를 쓰고, 그 아래 자료를 들여쓰거나 `>` 로 잇는다:
+ *
+ *     이그잼
+ *       변형문제
+ *       분석지
+ *     자이스토리 > 변형문제
+ *
+ * 이미 있는 이름은 **건드리지 않는다** — 여러 번 눌러도 늘어나지 않는다
+ * (같은 이름이 두 벌 생기면 자료가 어느 쪽에 붙었는지 알 수 없게 된다).
+ * 단계(만들기·인쇄·…)는 기본값으로 들어가고, 뒤에 줄마다 고치면 된다.
+ */
+export async function saveTypesBulk(text) {
+  const lines = (text || "").split("\n").filter((l) => l.trim());
+  if (lines.length === 0) return { error: "적은 것이 없어요." };
+  const supabase = createClient();
+
+  const { data: have, error: readErr } = await supabase
+    .from("prep_material_types")
+    .select("id, parent_id, name");
+  if (needSql(readErr)) return { error: SQL };
+  if (readErr) return { error: readErr.message };
+
+  // 이름으로 찾는다 — 큰 갈래는 부모 없는 것들 중에서
+  const key = (parentId, name) => `${parentId || ""}|${name.trim()}`;
+  const found = new Map((have || []).map((t) => [key(t.parent_id, t.name), t]));
+
+  const BASE = {
+    active: true, need_make: true, need_print: true,
+    need_card: false, need_hand: true, need_solve: true, need_grade: true,
+  };
+
+  let addedTop = 0, addedKid = 0, skipped = 0;
+  let curTop = null;   // 지금 열려 있는 큰 갈래
+
+  async function ensure(name, parentId) {
+    const k = key(parentId, name);
+    if (found.has(k)) { skipped += 1; return found.get(k); }
+    const { data, error } = await supabase
+      .from("prep_material_types")
+      .insert({ ...BASE, name: name.trim(), parent_id: parentId, sort: 0 })
+      .select("id, parent_id, name")
+      .maybeSingle();
+    if (error) return null;
+    found.set(k, data);
+    if (parentId) addedKid += 1; else addedTop += 1;
+    return data;
+  }
+
+  for (const raw of lines) {
+    const indented = /^[\s\t　]+/.test(raw);
+    const line = raw.trim();
+    const parts = line.split(">").map((x) => x.trim()).filter(Boolean);
+
+    if (parts.length >= 2) {
+      // 「이그잼 > 변형문제」 — 한 줄에 둘 다
+      const top = await ensure(parts[0], null);
+      if (!top) return { error: `「${parts[0]}」 을 넣지 못했어요.` };
+      curTop = top;
+      const kid = await ensure(parts.slice(1).join(" ").trim(), top.id);
+      if (!kid) return { error: `「${parts[1]}」 을 넣지 못했어요.` };
+      continue;
+    }
+
+    if (indented && curTop) {
+      const kid = await ensure(line, curTop.id);
+      if (!kid) return { error: `「${line}」 을 넣지 못했어요.` };
+    } else {
+      const top = await ensure(line, null);
+      if (!top) return { error: `「${line}」 을 넣지 못했어요.` };
+      curTop = top;
+    }
+  }
+
+  revalidatePath("/prep");
+  return { error: null, addedTop, addedKid, skipped };
+}
+
 export async function removeType(id) {
   if (!id) return { error: null };
   const supabase = createClient();
