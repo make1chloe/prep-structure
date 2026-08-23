@@ -59,6 +59,17 @@ export default function BookProgress({
   const [err, setErr] = useState(null);
   const [page, setPage] = useState(book.curPage || "");
   const [round, setRound] = useState(initialRound); // 지금 몇 회독째
+  /**
+   * **지난 회독 보기** (원장님, 2026-08-23 — 「진도 체크에서 몇 회독인지
+   * 체크할 수가 없어」). 진도는 회독별로 쌓이고(학생·단원·회독이 한 줄)
+   * 지난 회독 기록은 지우지 않는 규칙이라 기록은 다 있는데, 볼 창이
+   * 없었다. viewRound 가 있으면 그 회독의 체크를 **읽기 전용**으로
+   * 보여준다 — 쓰기는 언제나 지금 회독에만 간다 (setUnitProgress 의
+   * 회독 규칙은 안 건드린다).
+   */
+  const [viewRound, setViewRound] = useState(null); // null = 지금 회독
+  const [pastUnits, setPastUnits] = useState(null); // 보는 회독의 단원들 (null = 불러오는 중)
+  const viewReq = useRef(0);                        // 칩을 빨리 갈아눌러도 마지막 것만
   const [q, setQ] = useState("");                // 단원 검색
   const [noteFor, setNoteFor] = useState(null);  // 메모를 적는 중인 단원
   /**
@@ -154,6 +165,34 @@ export default function BookProgress({
   }
 
   /**
+   * 회독 칩을 눌러 그 회독의 기록을 본다. 회독 전환은 **조회**라 화면을
+   * 먼저 「불러오는 중」 으로 갈아끼운다 (낙관 UI 와 같은 태도 — 누른 즉시
+   * 반응). 읽기는 listStudentUnits 의 round 매개변수 하나로 끝난다 —
+   * 판단(어느 회독을 읽나)이 서버 한 곳에 있으니 여기는 숫자만 넘긴다.
+   */
+  async function viewPast(r) {
+    viewReq.current += 1;
+    // 보기 전용으로 들어가며 고치는 모드는 다 끈다 — 지난 회독에 찍는 사고 방지
+    setSelMode(false);
+    setUptoMode(false);
+    setHwMode(false);
+    setSelUnits(new Set());
+    setNoteFor(null);
+    if (!r || r === (round || 1)) {  // 지금 회독으로 돌아오기
+      setViewRound(null);
+      setPastUnits(null);
+      return;
+    }
+    const seq = viewReq.current;
+    setViewRound(r);
+    setPastUnits(null);              // 즉시 「불러오는 중」
+    const res = await listStudentUnits(studentId, book.id, r);
+    if (seq !== viewReq.current) return;   // 그 사이 다른 칩을 눌렀다
+    if (res.error) { setErr(res.error); return; }
+    setPastUnits(res.units || []);
+  }
+
+  /**
    * **안 함 → 하는 중 → 완료 → 안 함.**
    *
    * 표(student_unit_progress)에는 doing 이 처음부터 있었는데 화면에서 쓸 길이
@@ -238,6 +277,10 @@ export default function BookProgress({
   const livePercent =
     liveTotal > 0 ? Math.round((liveDone / liveTotal) * 100) : book.percent;
   const noUnits = units !== null && leaves.length === 0;
+  // 지난 회독을 보는 중 — 단원 목록만 그 회독 것으로 바뀐다.
+  // 판 머리의 진도율·요약은 지금 회독 그대로 (거긴 「지금 어디」 를 말하는 자리)
+  const pastView = viewRound !== null;
+  const shownUnits = pastView ? pastUnits || [] : units;
 
   function saveNote(unitId) {
     startTransition(async () => {
@@ -440,7 +483,7 @@ export default function BookProgress({
                 * 그래서 ◐(하는 중)로 찍은 단원을 맨 위에 이름으로 박아준다 —
                 * 오늘 시작할 때 ◐ 를 찍어두면, 다음에 열어도 바로 보인다.
                 */}
-              {leaves.some((u) => u.status === "doing") && (
+              {!pastView && leaves.some((u) => u.status === "doing") && (
                 <div className="row" style={{ gap: 5, marginBottom: 6, alignItems: "center" }}>
                   <span className="tag tag-amber">◐ 지금 하는 곳</span>
                   <b style={{ fontSize: 13.5 }}>
@@ -450,19 +493,61 @@ export default function BookProgress({
               )}
               <div className="row" style={{ gap: 4, marginBottom: 6, alignItems: "center" }}>
                 {/**
-                  * **회독을 넘기는 자리가 화면에 아예 없었다.**
-                  * 표와 서버 액션(nextRound)은 처음부터 있었는데 누를 데가
-                  * 없어서, 2회독을 돌리려면 단원 체크를 하나씩 지우는 수밖에
-                  * 없었다 — 그러면 1회독을 언제 끝냈는지도 같이 사라진다.
+                  * **몇 회독인지 항상 보인다** (원장님, 2026-08-23 — 「진도
+                  * 체크에서 몇 회독인지 체크할 수가 없어」). 전에는 2회독부터만
+                  * 태그가 붙어서, 1회독 때는 회독이라는 것이 있는지도 화면에
+                  * 안 나왔다. 2회독부터는 칩이 회독 수만큼 생긴다 — 지난
+                  * 회독 칩을 누르면 그때의 체크 기록을 **보기만** 할 수 있다
+                  * (기록은 회독별로 그대로 쌓여 있으니 읽기만 하면 된다).
                   */}
-                {round > 1 && <span className="tag tag-lav">{round}회독</span>}
-                {activeLeaves.length > 0 && activeLeaves.every((u) => u.status === "done") && (
+                {(round || 1) === 1 ? (
+                  <span className="tag tag-lav">1회독</span>
+                ) : (
+                  Array.from({ length: round }, (_, i) => i + 1).map((r) => {
+                    const cur = r === round;
+                    const on = pastView ? viewRound === r : cur;
+                    return (
+                      <button
+                        key={r}
+                        className={`tag ${on ? "tag-lav" : "tag-muted"}`}
+                        style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
+                        title={cur ? "지금 회독" : "이 회독의 체크 기록 보기 (보기만)"}
+                        onClick={() => viewPast(cur ? null : r)}
+                      >
+                        {r}회독
+                      </button>
+                    );
+                  })
+                )}
+                {pastView && (
+                  <span className="tag tag-amber">
+                    지난 회독 — 보기만, 체크는 현재 회독에
+                  </span>
+                )}
+                {pastView && pastUnits === null && (
+                  <span className="hint" style={{ alignSelf: "center" }}>불러오는 중…</span>
+                )}
+                {/**
+                  * **다음 회독은 언제든 넘길 수 있다** (원장님, 2026-08-23).
+                  * 전에는 전 단원 완료일 때만 단추가 나타났는데, 원장님
+                  * 운영에서 회독(같은 책을 다시 도는 반복)은 독해 복습의
+                  * 축이라 어디서 끊고 다시 돌지가 교재마다 자유다 — 다 못
+                  * 채운 채 2회독을 시작하는 게 예외가 아니라 일상이다.
+                  * 미완료가 있으면 확인창이 개수를 말해주고 넘어간다.
+                  */}
+                {activeLeaves.length > 0 && !pastView && (
                   <button
-                    className="btn btn-primary btn-sm"
+                    className={`btn btn-sm ${
+                      activeLeaves.every((u) => u.status === "done") ? "btn-primary" : "btn-ghost"
+                    }`}
                     disabled={pending}
                     title="지난 회독 진도는 그대로 남고, 새 회독이 빈 상태로 시작합니다"
                     onClick={() => {
-                      if (!confirm(`${book.name} 을 다음 회독으로 넘길까요?\n\n지금까지의 진도는 ${round || 1}회독 기록으로 남고, 단원은 빈 상태가 됩니다.`)) return;
+                      const left = activeLeaves.filter((u) => u.status !== "done").length;
+                      const warn = left > 0
+                        ? `\n\n아직 ○ 안 된 단원이 ${left}개 있어요 — 그래도 다음 회독으로 넘길까요?`
+                        : "";
+                      if (!confirm(`${book.name} 을 다음 회독으로 넘길까요?\n\n지금까지의 진도는 ${round || 1}회독 기록으로 남고, 단원은 빈 상태가 됩니다.${warn}`)) return;
                       startTransition(async () => {
                         const res = await nextRound(studentId, book.id);
                         if (res?.error) { alert(res.error); return; }
@@ -484,49 +569,54 @@ export default function BookProgress({
                     onChange={(e) => setQ(e.target.value)}
                   />
                 )}
-                {onHomework && (
-                  <button
-                    className={`btn btn-sm ${hwMode ? "btn-primary" : "btn-ghost"}`}
-                    onClick={() => { setHwMode(!hwMode); setUptoMode(false); setSelMode(false); setSelUnits(new Set()); }}
-                    title="단원을 누르면 아래 「다음 숙제 배정」 에 담깁니다. ◐ 하다 만 단원도 이어서 낼 수 있어요"
-                  >
-                    📝 숙제로
-                  </button>
+                {/* 지난 회독을 보는 중엔 고치는 단추를 전부 감춘다 — 보기 전용 */}
+                {!pastView && (
+                  <>
+                    {onHomework && (
+                      <button
+                        className={`btn btn-sm ${hwMode ? "btn-primary" : "btn-ghost"}`}
+                        onClick={() => { setHwMode(!hwMode); setUptoMode(false); setSelMode(false); setSelUnits(new Set()); }}
+                        title="단원을 누르면 아래 「다음 숙제 배정」 에 담깁니다. ◐ 하다 만 단원도 이어서 낼 수 있어요"
+                      >
+                        📝 숙제로
+                      </button>
+                    )}
+                    <button
+                      className={`btn btn-sm ${uptoMode ? "btn-primary" : "btn-ghost"}`}
+                      onClick={() => { setUptoMode(!uptoMode); setHwMode(false); setSelMode(false); setSelUnits(new Set()); }}
+                      title="지금 하는 단원을 누르면 그 앞이 전부 완료로 찍힙니다"
+                    >
+                      ⏩ 여기까지
+                    </button>
+                    <button
+                      className={`btn btn-sm ${selMode ? "btn-primary" : "btn-ghost"}`}
+                      onClick={() => { setSelMode(!selMode); setUptoMode(false); setSelUnits(new Set()); }}
+                      title="여러 단원을 골라 한 번에 바꿉니다"
+                    >
+                      ☑ 골라서
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => markAll(true)} disabled={pending}>
+                      전체 완료
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        if (!confirm(`${book.name} 을 다 끝낸 교재로 처리할까요?\n숙제·진도 화면에서 빠지고 학생 기록에만 남습니다.`)) return;
+                        startTransition(async () => {
+                          const res = await setStudentBookStatus(studentId, book.id, "done");
+                          if (res?.error) alert(res.error);
+                          router.refresh();
+                        });
+                      }}
+                      disabled={pending}
+                    >
+                      이 교재 끝냄
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => markAll(false)} disabled={pending}>
+                      전체 해제
+                    </button>
+                  </>
                 )}
-                <button
-                  className={`btn btn-sm ${uptoMode ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => { setUptoMode(!uptoMode); setHwMode(false); setSelMode(false); setSelUnits(new Set()); }}
-                  title="지금 하는 단원을 누르면 그 앞이 전부 완료로 찍힙니다"
-                >
-                  ⏩ 여기까지
-                </button>
-                <button
-                  className={`btn btn-sm ${selMode ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => { setSelMode(!selMode); setUptoMode(false); setSelUnits(new Set()); }}
-                  title="여러 단원을 골라 한 번에 바꿉니다"
-                >
-                  ☑ 골라서
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => markAll(true)} disabled={pending}>
-                  전체 완료
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    if (!confirm(`${book.name} 을 다 끝낸 교재로 처리할까요?\n숙제·진도 화면에서 빠지고 학생 기록에만 남습니다.`)) return;
-                    startTransition(async () => {
-                      const res = await setStudentBookStatus(studentId, book.id, "done");
-                      if (res?.error) alert(res.error);
-                      router.refresh();
-                    });
-                  }}
-                  disabled={pending}
-                >
-                  이 교재 끝냄
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => markAll(false)} disabled={pending}>
-                  전체 해제
-                </button>
                 {(pending || savedAt) && (
                   <span
                     className={`tag ${pending ? "tag-amber" : "tag-mint"}`}
@@ -536,7 +626,9 @@ export default function BookProgress({
                   </span>
                 )}
                 <span className="hint" style={{ alignSelf: "center" }}>
-                  {hwMode
+                  {pastView
+                    ? `${viewRound}회독 때의 기록이에요 — 체크하려면 ${round}회독 칩으로 돌아오세요`
+                    : hwMode
                     ? "숙제로 낼 단원을 누르세요 — 아래 「다음 숙제 배정」 에 담겨요 (◐ 하다 만 것도 이어서)"
                     : uptoMode
                     ? "지금 하는 단원을 누르세요 — 그 단원은 ◐, 그 앞은 전부 ○ 완료"
@@ -568,7 +660,7 @@ export default function BookProgress({
                 * 숙제 배정에는 워크북이 빠지게 할 수 있어?」). ⛔ 누른
                 * 활동은 이 학생의 배정·진도율·전체완료·여기까지에서 빠진다.
                 */}
-              {(actList.length >= 2 || skipSet.size > 0) && (
+              {!pastView && (actList.length >= 2 || skipSet.size > 0) && (
                 <div className="row" style={{ gap: 4, margin: "0 0 6px", alignItems: "center", flexWrap: "wrap" }}>
                   <span className="hint">이 학생은 빼기:</span>
                   {actList.map((a) => {
@@ -594,7 +686,7 @@ export default function BookProgress({
                 </div>
               )}
               <div className="stack unitscroll" style={{ gap: 4 }}>
-                {annotateBigs(groupByParent(units, q)).map(({ head, mid, list, big, bigStart, bigIds }) => (
+                {annotateBigs(groupByParent(shownUnits, q)).map(({ head, mid, list, big, bigStart, bigIds }) => (
                   <Fragment key={head || "_"}>
                     {/**
                       * **대단원은 판을 가로지르는 막대** (원장님, 2026-08-17 —
@@ -604,7 +696,10 @@ export default function BookProgress({
                       * 고르기 모드에서는 막대가 「통째로」 단추다 (2026-08-14
                       * 「대단원 자체를 통째로 선택하는 게 안 돼」).
                       */}
-                    {bigStart && (selMode ? (
+                    {bigStart && (pastView ? (
+                      // 지난 회독 보기 — 막대는 구분선일 뿐, 단추가 아니다
+                      <div className="unit-bigbar">{big}</div>
+                    ) : selMode ? (
                       <button
                         className="unit-bigbar"
                         title="이 대단원의 단원 전체를 담거나 뺍니다"
@@ -675,7 +770,11 @@ export default function BookProgress({
                                   ? "hw-next"
                                   : done ? "hw-done" : doing ? "hw-weak" : ""
                               } ${isSkipped(u) ? "hw-skipoff" : ""}`}
+                              style={pastView ? { cursor: "default" } : undefined}
                               onClick={() => {
+                                // 지난 회독은 보기만 — 누름을 통째로 무시한다.
+                                // disabled 로 하면 ○·◐ 색까지 흐려져 기록이 안 보인다
+                                if (pastView) return;
                                 if (hwMode && onHomework) return onHomework(u);
                                 if (uptoMode) return markUpto(u.id);
                                 if (!selMode) return mark(u.id, NEXT[u.status || ""]);
@@ -687,6 +786,7 @@ export default function BookProgress({
                               }}
                               title={
                                 [
+                                  pastView && `${viewRound}회독 기록 — 보기만`,
                                   isSkipped(u) && "⛔ 빠짐 — 배정·진도율 제외 (기록은 남음)",
                                   u.activity, u.pages, u.amount && `분량 ${u.amount}`, u.note && `메모: ${u.note}`,
                                 ]
@@ -707,16 +807,20 @@ export default function BookProgress({
                               * 이건 **이 단원**에 붙어 회독이 넘어가도 따라온다.
                               * 메모가 있으면 ✎ 가 색으로 차 있다.
                               */}
-                            <button
-                              className={`unitnote-btn ${u.note ? "has" : ""}`}
-                              title={u.note ? `메모: ${u.note} (누르면 고치기)` : "이 단원에 메모"}
-                              onClick={() => {
-                                setNoteFor(noteFor === u.id ? null : u.id);
-                                setNoteDraft(u.note || "");
-                              }}
-                            >
-                              ✎
-                            </button>
+                            {/* 지난 회독 보기에선 메모 단추도 감춘다 — 적으면
+                                지금 회독에 붙어서, 보는 회독과 어긋난다 */}
+                            {!pastView && (
+                              <button
+                                className={`unitnote-btn ${u.note ? "has" : ""}`}
+                                title={u.note ? `메모: ${u.note} (누르면 고치기)` : "이 단원에 메모"}
+                                onClick={() => {
+                                  setNoteFor(noteFor === u.id ? null : u.id);
+                                  setNoteDraft(u.note || "");
+                                }}
+                              >
+                                ✎
+                              </button>
+                            )}
                             {noteFor === u.id && (
                               <span className="row" style={{ gap: 4, width: "100%", marginTop: 2 }}>
                                 <input
