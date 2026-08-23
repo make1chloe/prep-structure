@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
@@ -56,7 +56,8 @@ export default function TodayBoard({
   const [showDone, setShowDone] = useState({});
   const [filter, setFilter] = useState("todo");
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
+  // 출결 칩·완료 풀기는 연달아 누른다 — 미뤄서 한 번만 (2026-08-23)
+  const { lazy } = useLazyRefresh();
 
   /**
    * **누르면 0.1초 안에 바뀌어야 한다** (원장님, 2026-08-14).
@@ -116,7 +117,7 @@ export default function TodayBoard({
         alert(res.error);
         return;
       }
-      router.refresh();
+      lazy();
     });
   }
   // 결석 예정 학생의 리포트를 만들어 둔다 → 발송 목록에 '결석 안내'로 뜬다
@@ -131,7 +132,7 @@ export default function TodayBoard({
           alert(res.error);
           return;
         }
-        router.refresh();
+        lazy();
       });
       return;
     }
@@ -151,7 +152,7 @@ export default function TodayBoard({
         alert(res.error);
         return;
       }
-      router.refresh();
+      lazy();
     });
   }
 
@@ -167,7 +168,7 @@ export default function TodayBoard({
         alert(res.error);
         return;
       }
-      router.refresh();
+      lazy();
     });
   }
   function undo(studentId, extraClassId = null) {
@@ -175,7 +176,7 @@ export default function TodayBoard({
     startTransition(async () => {
       if (extraClassId) await setClassAttendance(extraClassId, studentId, date, null);
       else await clearAttendance(studentId, date);
-      router.refresh();
+      lazy();
     });
   }
 

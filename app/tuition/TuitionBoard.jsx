@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { GradeField } from "@/components/PickField";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import {
   addHoliday,
   deleteHoliday,
@@ -52,6 +53,7 @@ export default function TuitionBoard({
   const [gRow, setGRow] = useState({ grade: "", amount: "" });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { lazy } = useLazyRefresh();
 
   // 반을 가로질러 고를 수 있어야 한다 — 반 하나가 다 들어오는 날도 있고,
   // 여기저기서 한 명씩 들어오는 날도 있다
@@ -77,7 +79,9 @@ export default function TuitionBoard({
         alert(res.error);
         return;
       }
-      router.refresh();
+      // 미뤄서 한 번만 (원장님 2026-08-23 — 연달아 누르는 동안 화면이
+      // 다시 그려지며 단추가 잠기던 것). 화면은 이미 낙관으로 바뀌어 있다
+      lazy();
     });
   }
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import {
   addTodo, updateTodo, setTodoStatus, moveTodos, deleteTodos,
   addCategory, deleteCategory,
@@ -46,6 +47,7 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
   });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { lazy } = useLazyRefresh();
 
   // 낙관 오버레이 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
   // 체크박스는 제어 컴포넌트라 서버 답 + router.refresh 가 올 때까지
@@ -108,7 +110,9 @@ export default function TodoBoard({ todos = [], categories = [], unavailable = f
         alert(res.error);
         return;
       }
-      router.refresh();
+      // 미뤄서 한 번만 (원장님 2026-08-23 — 연달아 누르는 동안 화면이
+      // 다시 그려지며 단추가 잠기던 것). 화면은 이미 낙관으로 바뀌어 있다
+      lazy();
     });
   }
   // 오버레이 넣기·빼기 — 끝냄 체크와 일괄 처리가 같은 길을 쓴다

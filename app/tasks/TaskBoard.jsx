@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { PRIORITY } from "@/app/todo/priority";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import Link from "next/link";
 import { updateTask, setTaskStatus, moveTasks, deleteTasks, applyTaskDelivery } from "./actions";
 import { audienceLabel } from "@/lib/taskAudience";
@@ -32,6 +33,7 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
   const [cat, setCat] = useState("전체");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { lazy } = useLazyRefresh();
 
   // 낙관 오버레이 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) — 서버 답 +
   // router.refresh 를 기다리면 태그·체크가 한 박자 늦게 바뀌었다. 방금 누른
@@ -92,7 +94,9 @@ export default function TaskBoard({ tasks = [], classes = [], unavailable = fals
         alert(res.error);
         return;
       }
-      router.refresh();
+      // 미뤄서 한 번만 (원장님 2026-08-23 — 연달아 누르는 동안 화면이
+      // 다시 그려지며 단추가 잠기던 것). 화면은 이미 낙관으로 바뀌어 있다
+      lazy();
     });
   }
 
