@@ -11,13 +11,13 @@ function ok(error) {
   return { error: error ? error.message : null };
 }
 
-const KIND = { absence: "결석", makeup: "보강가능시간", info: "전달", question: "질문" };
+const KIND = { absence: "결석", late: "지각", makeup: "보강가능시간", info: "전달", question: "질문" };
 
 // 학생·학부모가 직접 넣는 요청 (결석 알림 등)
 export async function createRequest(input) {
   const { studentId, kind, fromDate, toDate, body, photos } = input || {};
   if (!studentId) return { error: "학생 정보가 없어요." };
-  if (kind === "absence" && !fromDate) return { error: "날짜를 골라주세요." };
+  if ((kind === "absence" || kind === "late") && !fromDate) return { error: "날짜를 골라주세요." };
 
   const supabase = createClient();
   const user = await sessionUser(supabase);
@@ -74,6 +74,35 @@ export async function createRequest(input) {
     });
   } catch {
     // 알림이 안 가도 요청은 들어갔다
+  }
+
+  /**
+   * **아이가 보낸 결석·지각은 어머니께 한 번 더 여쭌다** (원장님 2026-08-23 —
+   * 「늦게 등원하거나 결석한다고 학생에게 알림을 받은 것에 대해 엄마에게
+   * 더블체크하기 위한 목적으로 알림을 보내고 싶어」).
+   *
+   * 아이가 「오늘 못 가요」 를 보내면 학원은 그 말을 믿고 자리를 비운다.
+   * 어머니가 모르시는 일이면 그날 아이가 어디 있는지 아무도 모른다.
+   * 그래서 **아이가 보낸 것만** 어머니께 알린다 — 어머니가 직접 보내신
+   * 것을 되돌려 보내면 같은 말이 두 번 울릴 뿐이다.
+   *
+   * 잠금화면에는 내용이 안 뜬다 (pushToFamilies 한 곳의 규칙) — 무슨
+   * 알림인지는 제목으로 알고, 자세한 것은 앱을 열어야 보인다.
+   */
+  if (authorRole === "student" && (row.kind === "absence" || row.kind === "late")) {
+    try {
+      const { data: kid } = await supabase
+        .from("students").select("name").eq("id", studentId).maybeSingle();
+      await pushToFamilies(
+        [studentId],
+        {
+          title: `${kid?.name || "학생"} ${KIND[row.kind]} 알림 — 맞는지 봐주세요`,
+          url: "/parent",
+        },
+        "parent",
+        supabase
+      );
+    } catch { /* 더블체크는 덤 — 요청은 이미 들어갔다 */ }
   }
 
   revalidatePath("/me");

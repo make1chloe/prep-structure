@@ -122,6 +122,8 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
           <div className="row" style={{ gap: 4 }}>
             {[
               ["absence", "결석"],
+              // 늦게 가는 날도 알려야 한다 — 결석과 다르다 (원장님 2026-08-23)
+              ["late", "늦어요"],
               // 「보강 요청」 → 어느 때가 되는지를 적어주시는 칸이다
               ["makeup", "보강가능시간"],
               ["info", "전달"],

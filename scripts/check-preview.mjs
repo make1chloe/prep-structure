@@ -116,7 +116,23 @@ const req = read("app/requests/actions.js");
 const create = req.slice(req.indexOf("export async function createRequest"),
                          req.indexOf("export async function handleRequest"));
 eq(/pushToStaff\(/.test(create), true, "제출하면 선생님께 간다");
-eq(/pushToFamilies\(/.test(create), false, "제출한 집으로는 안 간다");
+/**
+ * **되돌아오는 메아리만 막는다** (2026-08-23 규칙 다듬기).
+ *
+ * 원래는 「제출한 집으로는 아예 안 간다」 였다. 그런데 원장님이
+ * 「늦게 등원하거나 결석한다고 **학생에게** 알림을 받은 것에 대해 엄마에게
+ * 더블체크하기 위한 목적으로 알림을 보내고 싶어」 (2026-08-23) 라고 하셨다.
+ *
+ * 두 가지는 다른 일이다 —
+ *   ① 어머니가 보낸 글이 어머니 폰에 다시 뜨는 것 (막아야 한다)
+ *   ② 아이가 보낸 결석을 어머니께 여쭈는 것 (보내야 한다)
+ * 그래서 「집으로 가는 것은 **아이가 보낸 것만**」 으로 조인다.
+ */
+eq(
+  !/pushToFamilies\(/.test(create) || /authorRole === "student"/.test(create),
+  true,
+  "집으로 가는 것은 아이가 보낸 것만 (어머니 글이 되돌아오면 안 된다)"
+);
 // 답장은 반대로 — 그건 집으로 가야 한다
 const handle = req.slice(req.indexOf("export async function handleRequest"));
 // 2026-08-21 배치 규칙 — 답장 알림은 queuePush(다음 정각)로 나간다
