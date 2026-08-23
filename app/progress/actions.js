@@ -260,13 +260,34 @@ export async function addStudentBookDated(studentId, textbookId, startOn, endOn)
     .eq("student_id", studentId)
     .eq("textbook_id", textbookId)
     .maybeSingle();
-  if (had) {
+  if (had && (had.status === "active" || !had.status)) {
     return {
-      error:
-        had.status === "active" || !had.status
-          ? "이미 배정된 교재예요. 시작일을 바꾸려면 먼저 교재 고르기에서 뺐다가 다시 넣어주세요."
-          : "이 교재는 끝냄·중단 기록이 있어요. 다시 쓰려면 교재 고르기에서 넣어주세요 — 진도가 이어집니다.",
+      error: "이미 배정된 교재예요.",
     };
+  }
+  if (had) {
+    /**
+     * **끝냄·중단 기록이 있으면 그 자리에서 되살린다** (원장님 2026-08-23
+     * — 「이게 어떻게 하라는 건지 모르겠어」). 전에는 딴 화면으로 가라는
+     * 순환 안내만 떴다. 진도·회독 기록은 단원 표에 있어 그대로 이어진다.
+     */
+    let { error: rvErr } = await supabase
+      .from("student_textbooks")
+      .update({ status: "active", assigned_on: startOn || null, ended_on: endOn || null, pause: null })
+      .eq("student_id", studentId)
+      .eq("textbook_id", textbookId);
+    if (rvErr && (rvErr.code === "42703" || rvErr.code === "PGRST204")) {
+      // 0149 전 — pause 없이
+      ({ error: rvErr } = await supabase
+        .from("student_textbooks")
+        .update({ status: "active", assigned_on: startOn || null, ended_on: endOn || null })
+        .eq("student_id", studentId)
+        .eq("textbook_id", textbookId));
+    }
+    if (rvErr) return { error: rvErr.message };
+    revalidatePath("/progress");
+    revalidatePath("/students");
+    return { error: null, revived: true };
   }
   const row = {
     student_id: studentId,
