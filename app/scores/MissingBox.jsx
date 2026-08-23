@@ -69,7 +69,8 @@ export default function MissingBox({ rows = [] }) {
       const r = await markNoExam(m.studentId, m.examId, true);
       if (r?.error) return setMsg(r.error);
       forget([`${m.studentId}|${m.examId}`]);
-      router.refresh();
+      // 새로고침 안 함 (원장님 2026-08-23) — 누른 줄은 이미 걷혔고,
+      // 서버를 다시 불러도 화면이 바뀌지 않는다 (그동안 단추만 잠긴다)
     });
   };
 

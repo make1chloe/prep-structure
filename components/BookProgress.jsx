@@ -375,7 +375,9 @@ export default function BookProgress({
     startTransition(async () => {
       const res = await setCurrentPage(studentId, book.id, page);
       if (res?.error) alert(res.error);
-      router.refresh();
+      // 이 판의 다른 저장은 전부 미뤄 두는데(2026-08-19 처방) 여기만 즉시
+      // 새로고침이라 페이지를 적는 동안 화면이 다시 그려졌다 — 빠진 구멍
+      lazyRefresh();
     });
   }
 

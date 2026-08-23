@@ -614,6 +614,19 @@ export default function StudentPanel({
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
   const [saving, setSaving] = useState(false);            // 저장 진짜 잠금 (2026-08-21)
+
+  /**
+   * **판이 열려 있는 동안은 실시간 갱신을 늦춘다** (원장님 2026-08-23 —
+   * 「내용 수정하다가 목록이 새로고침되는 문제가 굉장히 불편해」).
+   *
+   * 아이들이 /me 에서 누를 때마다 실시간 알림이 오고, 그때마다 오늘 화면이
+   * 통째로 다시 그려졌다. 여기서 표시만 걸어두면 ActivityBoard 가 그 동안
+   * 20초에 한 번까지만 다시 그린다 (판단은 그쪽 한 곳에 있다).
+   */
+  useEffect(() => {
+    document.documentElement.dataset.editing = "1";
+    return () => { delete document.documentElement.dataset.editing; };
+  }, []);
   // 「남아서」 누른 숙제 — 서버가 늦귀가 과제 행을 만들어 줄 때까지
   // 누르는 순간 올라간 것으로 보인다 (낙관 UI, 실패하면 되돌린다)
   const [stayedOpt, setStayedOpt] = useState(() => new Set());

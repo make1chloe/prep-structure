@@ -6,7 +6,9 @@ import { generateUnits } from "./actions";
 
 import { unitName } from "@/lib/unitName";
 
-const PREFIXES = ["Unit", "Chapter", "Lesson", "Day", "강", "과"];
+// 「번」 은 모의고사 문항용 (원장님 2026-08-23 — 「모의고사 18번 이런 거
+// 해야 해서」). 한글은 뒤에 붙는다 → 18번 (lib/unitName)
+const PREFIXES = ["Unit", "Chapter", "Lesson", "Day", "강", "과", "번", "문항"];
 
 // 규칙적인 교재는 손으로 치지 않고 한 번에 만든다
 export default function GenerateUnits({ textbookId, parents = [], totalPages }) {

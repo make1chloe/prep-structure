@@ -176,7 +176,9 @@ export async function setCurrentPage(studentId, textbookId, page) {
     .update({ current_page: d ? parseInt(d, 10) : null })
     .eq("student_id", studentId)
     .eq("textbook_id", textbookId);
-  revalidatePath("/today");
+  // revalidate 없음 (2026-08-23) — 이 판의 다른 저장과 같은 규칙이다.
+  // 화면(BookProgress)이 12초 뒤 한 번만 다시 그린다. 서버가 여기서
+  // 즉시 무르면 그 처방이 무력해져 적는 중에 화면이 바뀐다
   return ok(error);
 }
 
@@ -200,7 +202,9 @@ export async function setBookSkipActs(studentId, textbookId, acts) {
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     return { error: "관리자 → SQL 확인에서 0133 을 먼저 실행해 주세요." };
   }
-  revalidatePath("/today");
+  // revalidate 없음 (2026-08-23) — 이 판의 다른 저장과 같은 규칙이다.
+  // 화면(BookProgress)이 12초 뒤 한 번만 다시 그린다. 서버가 여기서
+  // 즉시 무르면 그 처방이 무력해져 적는 중에 화면이 바뀐다
   return ok(error);
 }
 
@@ -602,8 +606,6 @@ export async function setUnitNote(studentId, unitId, note) {
       if (e3?.code === "23502") return { error: "0119 SQL 을 먼저 실행해주세요." };
       return ok(e3);
     }
-    revalidatePath("/today");
-    revalidatePath("/students");
     return { error: null };
   }
   if (upErr) return ok(upErr);
@@ -616,8 +618,6 @@ export async function setUnitNote(studentId, unitId, note) {
     if (insErr?.code === "23502") return { error: "0119 SQL 을 먼저 실행해주세요." };
     if (insErr) return ok(insErr);
   }
-  revalidatePath("/today");
-  revalidatePath("/students");
   return { error: null };
 }
 

@@ -52,9 +52,30 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
     const supabase = createClient();
     // 여러 아이가 한꺼번에 누르면 알림도 한꺼번에 온다. 그때마다 다시 그리면
     // 화면이 떨린다 — 잠깐 모아서 한 번만 다시 센다
+    /**
+     * **적는 중에는 끼어들지 않는다** (원장님 2026-08-23 — 「내용 수정하다가
+     * 목록이 새로고침되는 문제가 굉장히 불편해」).
+     *
+     * 아이들이 /me 에서 누를 때마다 이 알림이 온다 — 수업 중엔 쉬지 않고
+     * 온다. 그때마다 오늘 화면(서버 조회 수십 개)을 통째로 다시 그리면,
+     * 원장님이 학생 판에 적는 동안 화면이 얼어붙는다.
+     *
+     * 세는 일은 그대로 서버가 한다 (여기서 또 세면 두 군데가 어긋난다).
+     * **시점만** 미룬다:
+     *   · 글자를 치는 중이면      → 5초 뒤에 다시 물어본다
+     *   · 학생 판이 열려 있으면   → 20초에 한 번까지만
+     *   · 아니면                  → 지금까지처럼 0.4초 뒤
+     */
+    const typing = () => {
+      const el = document.activeElement;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    };
+    const panelOpen = () => document.documentElement.dataset.editing === "1";
     const bump = () => {
       clearTimeout(timer.current);
-      timer.current = setTimeout(() => router.refresh(), 400);
+      if (typing()) { timer.current = setTimeout(bump, 5000); return; }
+      const wait = panelOpen() ? 20000 : 400;
+      timer.current = setTimeout(() => router.refresh(), wait);
     };
     const ch = supabase
       .channel("today-activity")

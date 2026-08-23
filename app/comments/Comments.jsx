@@ -47,7 +47,10 @@ export default function Comments({ reportId, studentId, me = "staff", openBy = f
       setLoaded(true);
       // 선생님이 열면 읽음 처리
       if (me === "staff" && (res.comments || []).some((c) => !c.read_at)) {
-        markRead(reportId).then(() => router.refresh());
+        // 읽음만 찍는다. **새로고침은 안 한다** (원장님 2026-08-23) —
+        // 판이 열리는 것만으로 오늘 화면 전체가 다시 그려지고 있었다.
+        // 바뀌는 것은 「새 댓글」 배지 하나뿐이고, 목록은 바로 위에서 채웠다
+        markRead(reportId);
       }
     });
     return () => {
