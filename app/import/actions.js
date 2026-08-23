@@ -269,7 +269,7 @@ export async function importAbsences(rows) {
       planned: false,
       reason: r.reason,
       makeup_of: null,
-      note: "노션 이관",
+      note: null,
     };
     if (r.isAbsence && r.absentOn) {
       byKey.set(`${sid}|${r.absentOn}`, {
@@ -277,7 +277,9 @@ export async function importAbsences(rows) {
         date: r.absentOn,
         status: "absent",
         planned: true,
-        note: r.absentGuessed ? "노션 이관 (결석일이 생성일 기준이라 다를 수 있음)" : "노션 이관",
+        // 옮겨온 줄이라는 꼬리표는 안 붙인다 (원장님 2026-08-23 「쓸모가
+        // 없어 전수 빼버려」). 알아야 할 것은 괄호 쪽뿐이다
+        note: r.absentGuessed ? "결석일이 생성일 기준이라 다를 수 있음" : null,
       });
     }
     if (r.makeupOn) {
@@ -286,7 +288,7 @@ export async function importAbsences(rows) {
         date: r.makeupOn,
         status: "makeup",
         makeup_of: r.isAbsence ? r.absentOn : null,
-        note: r.none ? "보강 없음으로 처리됨" : "노션 이관",
+        note: r.none ? "보강 없음으로 처리됨" : null,
       });
     }
   });

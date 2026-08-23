@@ -680,7 +680,16 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                             <div className="stack" style={{ gap: 8, marginTop: 12 }}>
                               <b style={{ fontSize: 14 }}>진도</b>
                               {/* 교재 판마다 따로 다녀오지 않는다 — 한 왕복 (2026-08-14) */}
-                              <StudentBooksProgress studentId={s.id} books={s.books || []} />
+                              {/* 재원생에서도 진도판 안에서 바로 교재를 더할 수 있게
+                                  같은 목록을 넘긴다 (원장님 2026-08-23 — 「학생별로
+                                  정하는 모든 정보는 오늘수업 또는 재원생에서 편집하는
+                                  게 제일 안 헷갈린다」). 진도 페이지와 한 벌이라
+                                  어느 쪽에서 하든 같은 판·같은 결과다 */}
+                              <StudentBooksProgress
+                                studentId={s.id}
+                                books={s.books || []}
+                                allBooks={textbooks}
+                              />
                             </div>
                           )}
 

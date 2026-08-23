@@ -10,6 +10,7 @@ import {
   markStages, removeMaterials, removeScopes,
 } from "./actions";
 import { teacherText } from "@/lib/exams";
+import { cleanNote } from "@/lib/note";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import TypeBox from "./TypeBox";
 import ScopePicker from "./ScopePicker";
@@ -37,7 +38,29 @@ export default function PrepBoard({
   today, exams = [], scopes = [], materials = [], assigns = [], types = [],
   students = [], unitLabel = {}, pick = "", schools = [],
 }) {
-  const [sel, setSel] = useState(pick || exams[0]?.id || "");
+  /**
+   * **지난 시험은 접어 둔다 · 시험날 순으로 세운다** (원장님 2026-08-23 —
+   * 「내신대비 페이지에서 시험목록이 일단 정렬이 엉망이야. 지난 시험은
+   * 안 보이는 걸 디폴트로 하고 필터링해서 보게 해줘」).
+   *
+   * 정렬이 엉망이던 까닭: 서버가 english_on(영어 시험일) 하나로만 세웠는데,
+   * 그 날짜가 아직 안 잡힌 시험이 많아 **날짜 없는 것들이 뒤엉켰다.**
+   * 여기서 기간(from_date)까지 이어 붙여 세운다 — 영어 시험일이 없으면
+   * 시험 기간 시작일로, 그것도 없으면 맨 뒤로.
+   */
+  const [showPast, setShowPast] = useState(false);
+  const keyOf = (e) => e.exam_date || e.from_date || "9999-99-99";
+  const isPast = (e) => {
+    const end = e.to_date || e.exam_date || e.from_date;
+    return !!end && end < today;
+  };
+  const sortedExams = [...exams].sort(
+    (a, b) => keyOf(a).localeCompare(keyOf(b)) || (a.school || "").localeCompare(b.school || "", "ko")
+  );
+  const pastCount = sortedExams.filter(isPast).length;
+  const shownExams = showPast ? sortedExams : sortedExams.filter((e) => !isPast(e));
+
+  const [sel, setSel] = useState(pick || shownExams[0]?.id || exams[0]?.id || "");
   const [openTypes, setOpenTypes] = useState(false);
   const [newExam, setNewExam] = useState(null);
   const [scopeFor, setScopeFor] = useState(null);   // 범위 고르는 중
@@ -182,7 +205,7 @@ export default function PrepBoard({
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
           <table className="tbl">
             <tbody>
-              {exams.map((e) => {
+              {shownExams.map((e) => {
                 const d = dLeft(e.exam_date, today);
                 return (
                   <tr key={e.id} style={sel === e.id ? { background: "var(--surface-2)" } : undefined}>
@@ -203,8 +226,23 @@ export default function PrepBoard({
                   </tr>
                 );
               })}
-              {exams.length === 0 && (
-                <tr><td><p className="hint" style={{ margin: 0, padding: 10 }}>시험을 추가해주세요.</p></td></tr>
+              {shownExams.length === 0 && (
+                <tr><td><p className="hint" style={{ margin: 0, padding: 10 }}>
+                  {exams.length === 0 ? "시험을 추가해주세요." : "다가오는 시험이 없어요."}
+                </p></td></tr>
+              )}
+              {pastCount > 0 && (
+                <tr>
+                  <td>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ width: "100%", textAlign: "left" }}
+                      onClick={() => setShowPast(!showPast)}
+                    >
+                      {showPast ? "지난 시험 접기" : `지난 시험 보기 (${pastCount})`}
+                    </button>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -238,7 +276,9 @@ export default function PrepBoard({
 
               {/* 시험 하나에 딸린 것을 한자리에 — 학사일정과 **같은 시험**이다 */}
               <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                {exam.note && <span className="notice" style={{ flex: 1, fontSize: 14 }}>{exam.note}</span>}
+                {cleanNote(exam.note) && (
+                  <span className="notice" style={{ flex: 1, fontSize: 14 }}>{cleanNote(exam.note)}</span>
+                )}
                 <span className="spacer" />
                 <a className="hint sky" href="/schedule" target="_blank" rel="noreferrer">
                   기간 · 등급컷 고치기 — 학사일정 ›
