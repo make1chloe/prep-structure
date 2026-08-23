@@ -398,7 +398,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                       rows={Math.max(8, draft.split("\n").length + 1)}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
-                      style={{ fontSize: 15, lineHeight: 1.6 }}
+                      style={{ fontSize: 16, lineHeight: 1.6 }}
                     />
                     <div className="row" style={{ gap: 6, marginTop: 8 }}>
                       {savedAt && (

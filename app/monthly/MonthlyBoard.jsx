@@ -259,7 +259,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                   className="input"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  style={{ width: "100%", height: 260, fontSize: 14, marginTop: 8 }}
+                  style={{ width: "100%", height: 260, fontSize: 16, marginTop: 8 }}
                 />
                 <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
                   {r.edited && (

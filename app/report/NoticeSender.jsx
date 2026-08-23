@@ -540,7 +540,7 @@ export default function NoticeSender({ academy = "클로이영어", mode = "copy
                 rows={12}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                style={{ fontSize: 15, lineHeight: 1.6 }}
+                style={{ fontSize: 16, lineHeight: 1.6 }}
               />
             </>
           ) : (

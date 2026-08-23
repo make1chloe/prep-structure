@@ -448,7 +448,7 @@ export default function MessageList({ rows = [], hidden = [], level = "full", er
               <textarea
                 className="input"
                 rows={10}
-                style={{ fontSize: 14.5, whiteSpace: "pre-wrap" }}
+                style={{ fontSize: 16, whiteSpace: "pre-wrap" }}
                 value={draft.body}
                 onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               />

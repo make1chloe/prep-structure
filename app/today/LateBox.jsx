@@ -242,7 +242,7 @@ export default function LateBox({
             width: "100%",
             height: 150,
             marginTop: 8,
-            fontSize: 14,
+            fontSize: 16,
             whiteSpace: "pre-wrap",
           }}
         />

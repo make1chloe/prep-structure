@@ -39,7 +39,7 @@ function Spot({ spot, value, onSaved }) {
         value={text}
         placeholder={spot.placeholder || "여기에 적으시면 이 자리에 그대로 나옵니다"}
         onChange={(e) => { setText(e.target.value); setSaved(false); }}
-        style={{ fontSize: 15, lineHeight: 1.6 }}
+        style={{ fontSize: 16, lineHeight: 1.6 }}
       />
 
       <div className="row" style={{ gap: 6, alignItems: "center" }}>

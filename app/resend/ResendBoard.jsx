@@ -330,7 +330,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                       rows={Math.max(6, draft.split("\n").length + 1)}
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
-                      style={{ fontSize: 15, lineHeight: 1.6 }}
+                      style={{ fontSize: 16, lineHeight: 1.6 }}
                     />
                     <div className="row" style={{ gap: 6, marginTop: 8 }}>
                       <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>

@@ -52,11 +52,16 @@ export default function TodayBoard({
    */
   const [openId, setOpenId] = useState(() => {
     if (!openStudent) return null;
+    // **정규 줄이 먼저다** (2026-08-24 검증) — 반 목록은 시작 시각 순이라
+    // 특강이 앞 시간이면 딥링크가 특강 판을 열어, 출결이 그 특강 반에만 찍힌다
+    const hits = [];
     for (const g of groups) {
-      const hit = (g.rows || []).find((r) => r.student.id === openStudent);
-      if (hit) return `${hit.student.id}|${hit.extraClassId || ""}`;
+      for (const r of g.rows || []) {
+        if (r.student.id === openStudent) hits.push(r);
+      }
     }
-    return `${openStudent}|`;
+    const pick = hits.find((r) => !r.extraClassId) || hits[0];
+    return pick ? `${pick.student.id}|${pick.extraClassId || ""}` : `${openStudent}|`;
   });
   const [openClass, setOpenClass] = useState(() => {
     if (openStudent) {
@@ -533,6 +538,7 @@ export default function TodayBoard({
                               rule={rule}
                               grammarCommon={grammarCommon}
                               onSaved={() => {
+                                flush();   // 미뤄둔 것 정리 (2026-08-24)
                                 setOpenId(null);
                                 // 먼저 넘긴다 — 재계산이 끝나면 서버 값이 이어받는다
                                 setDoneOpt((prev) =>
