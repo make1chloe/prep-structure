@@ -2305,8 +2305,21 @@ export default function StudentPanel({
                           n.delete(i.id);
                         } else {
                           n.add(i.id);
-                          const b = bookFor(i.id);
-                          setUnitField(i.id, { textbookId: b });
+                          /**
+                           * **진도가 이미 아는 다음 단원을 미리 넣는다**
+                           * (원장님 2026-08-24 — 「그러면 진도체크를 내가 왜
+                           * 해놔. 반영이 되어 있어야지」).
+                           * 루틴이 교재마다 「지금 어디까지 했고 다음은 무엇」
+                           * 을 이미 셈해 뒀다(itemUnits). 항목을 켜면 그 범위가
+                           * 채워진 채로 뜬다 — 바꾸고 싶으면 그 자리에서 고친다.
+                           */
+                          const pre = routine?.itemUnits?.[i.id];
+                          const b = pre?.textbookId || bookFor(i.id);
+                          setUnitField(i.id, {
+                            textbookId: b,
+                            ...(pre?.unitIds?.length ? { unitIds: pre.unitIds } : null),
+                            ...(pre?.note ? { note: pre.note } : null),
+                          });
                           loadBook(b);
                         }
                         setNext(n);
