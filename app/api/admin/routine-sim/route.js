@@ -50,6 +50,7 @@ export async function GET(request) {
   if (op === "tree") return workbookTree(supabase, sp.get("book") || "");
   if (op === "wbmove") return workbookMove(supabase, sp.get("book") || "", sp.get("apply") === "1");
   if (op === "outline") return bookOutline(supabase, sp.get("book") || "", sp.get("top") || "2");
+  if (op === "whoroutine") return whoRoutine(supabase, sp.get("student") || "");
 
   const today = todaySeoul();
 
@@ -1920,4 +1921,55 @@ async function bookOutline(supabase, bookQ, topStr) {
     });
   }
   return jsonKo({ 설명: "읽기만 했습니다. &top=숫자 로 몇 개 대단원을 펼칠지 정합니다.", 교재: out });
+}
+
+/**
+ * **이 학생에게 지금 무엇이 차려지나** (원장님 2026-08-23 — 「배정받지 않은
+ * 교재의 루틴 숙제까지 들어가 있어」). 배정 목록과 차려질 것을 나란히 놓아
+ * 어디서 새는지 본다. 아무것도 쓰지 않는다.
+ */
+async function whoRoutine(supabase, nameQ) {
+  if (!nameQ) return jsonKo({ error: "학생 이름을 &student= 로 주세요" }, { status: 400 });
+  const { data: sts } = await supabase
+    .from("students").select("id, name, status").ilike("name", `%${nameQ}%`);
+  const st = (sts || [])[0];
+  if (!st) return jsonKo({ error: "그 이름의 학생이 없어요" }, { status: 404 });
+
+  const today = todaySeoul();
+  const [{ data: mine }, { data: books }] = await Promise.all([
+    supabase.from("student_textbooks")
+      .select("textbook_id, status, assigned_on, ended_on, pause, round, routine_step")
+      .eq("student_id", st.id),
+    supabase.from("textbooks").select("id, name, area"),
+  ]);
+  const nameOfBook = new Map((books || []).map((b) => [b.id, b.name]));
+  const 배정 = (mine || []).map((r) => ({
+    교재: nameOfBook.get(r.textbook_id) || "(없는 교재)",
+    상태: r.status || "active",
+    시작: r.assigned_on || "(없음)",
+    끝: r.ended_on || "",
+    멈춤: r.pause || "",
+    회독: r.round || 1,
+    지금쓰나: inUseOn(r, today) && r.pause !== "all",
+  })).sort((a, b) => Number(b.지금쓰나) - Number(a.지금쓰나));
+
+  const r = await nextRoutine(st.id, { peek: false });
+  const 차림 = {
+    등원: (r.inclass || []).length,
+    숙제: (r.home || []).length,
+    단계: (r.steps || []).map((s) => `${s.book} ${s.no}/${s.total}${s.unit ? ` · ${s.unit}` : ""}`),
+  };
+  const 쓰는교재 = new Set(배정.filter((b) => b.지금쓰나).map((b) => b.교재));
+  const 샌것 = (r.steps || [])
+    .map((s) => s.book)
+    .filter((b) => b && !쓰는교재.has(b));
+
+  return jsonKo({
+    설명: "읽기만 했습니다. 「샌것」 이 있으면 배정 안 된 교재가 차림에 들어간 것입니다.",
+    학생: st.name,
+    오늘: today,
+    배정,
+    차림,
+    샌것: [...new Set(샌것)],
+  });
 }
