@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { commonName } from "../lib/neis.js";
 import {
   isMockExam, needsScope, termOf, termLabel, sortExams, filterExams, facetsOf,
-  groupExams, mockMess, isSuneung, EXAM_SORT_DEFAULT,
+  groupExams, mockMess, isSuneung, EXAM_SORT_DEFAULT, examTitle,
 } from "../lib/examList.js";
 
 let fail = 0;
@@ -204,6 +204,28 @@ eq(needsScope({ name: "대학수학능력시험" }), false, "대수능은 범위
   ]);
   eq(g.map((x) => x.label), ["26년 2학기 기말", "모의고사", "대수능"], "대수능이 따로 · 맨 뒤에 선다");
 }
+
+/**
+ * **수행평가를 「기말」 로 고쳐 쓰지 않는다** (원장님 2026-08-24 —
+ * 「수행평가가 회차가 2학기중간고사로 보여」).
+ *
+ * termOf 는 이름에 중간·기말이 없으면 **달로 짐작한다.** 그 짐작이 통하는
+ * 것은 「2회고사」 같은 지필 회차뿐인데, 수행평가까지 짚어서 「26년 2학기
+ * 기말」 이라는 **없는 시험 이름**을 만들어 화면에 내보냈다. 진짜 기말고사
+ * 줄과 나란히 서면 구별이 안 된다.
+ */
+[
+  "수행평가",
+  "수행평가1",
+  "26 2학기 수행평가1",
+  "2학기 수행평가",
+  "학업성취도평가",
+].forEach((name) => {
+  const got = examTitle({ name, from_date: "2026-08-24" });
+  eq(got, name, `「${name}」 는 적힌 그대로 (고쳐 쓰면 없는 시험이 생긴다)`);
+});
+// 진짜 지필 회차는 여전히 정리해서 보여준다
+eq(examTitle({ name: "2회고사", from_date: "2026-08-24" }), "26년 2학기 기말", "2회고사는 정리해서");
 
 if (fail) { console.log("\n❌ 시험 목록에 어긋난 것이 있습니다."); process.exit(1); }
 console.log("\n✅ 시험 목록 통과");
