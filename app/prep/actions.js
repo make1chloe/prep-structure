@@ -230,6 +230,19 @@ export async function saveExam(e = {}) {
       : await supabase.from("exam_periods").insert(noNew);
   }
   if (needSql(q.error)) return { error: SQL };
+  /**
+   * **겹쳤다는 말을 사람 말로** (원장님 2026-08-24 — 「duplicate key value
+   * violates unique constraint "exam_periods_uniq"」 가 그대로 떴다).
+   * 무엇이 겹쳤는지, 어떻게 하면 되는지가 없으면 손쓸 데가 없다.
+   */
+  if (q.error?.code === "23505") {
+    return {
+      error:
+        `「${school} ${(e.grade || "").trim() || "전학년"} ${term}」 은 이미 있어요.\n` +
+        "목록에서 그 시험을 골라 고치시거나, 시험 이름을 다르게 적어주세요.\n" +
+        "(지난 시험은 기본으로 숨겨져 있으니 「지난 것도」 를 켜고 찾아보세요)",
+    };
+  }
   revalidatePath("/prep");
   revalidatePath("/schedule");
   return { error: q.error ? q.error.message : null };

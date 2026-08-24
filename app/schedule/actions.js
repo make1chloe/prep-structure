@@ -26,7 +26,25 @@ export async function addExam(input) {
     to_date: to || from,
     created_by: user?.id || null,
   });
-  if (error) return { error: "0021 SQL을 먼저 실행해주세요." };
+  /**
+   * **오류를 하나로 덮지 않는다** (2026-08-24). 여태 무슨 일이 나든
+   * 「0021 SQL을 먼저 실행해주세요」 라고 했다 — 겹쳐서 안 들어간 것도,
+   * 권한이 없어 막힌 것도 전부 그 말이라 손쓸 데가 없었다.
+   */
+  if (error?.code === "23505") {
+    return {
+      error:
+        `「${school.trim()} ${(grade || "").trim() || "전학년"} ${(name || "").trim() || "시험"}」 은 이미 있어요.\n` +
+        "목록에서 그 시험을 골라 고쳐주세요.",
+    };
+  }
+  if (error) {
+    return {
+      error: /relation|column|schema cache/i.test(error.message || "")
+        ? "0021 SQL을 먼저 실행해주세요."
+        : error.message,
+    };
+  }
   revalidatePath("/schedule");
   return { error: null };
 }
