@@ -1341,6 +1341,9 @@ export default function StudentPanel({
          */
         // 로컬 임시본은 **안 지운다** (2026-08-21) — 지우면 다른 학생을
         // 눌렀다 돌아왔을 때 서버 캐시가 옛것이라 적은 게 통째로 안 보였다
+        // 뺀 것이 있으면 임시저장에서도 말해준다 — 조용히 빠지면
+        // 나중에 진짜 저장 때 「내가 담은 게 왜 없지」 가 된다
+        if (res?.warn) alert(res.warn);
         setSavedDraftAt(new Date());
         return;
       }

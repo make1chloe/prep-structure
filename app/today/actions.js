@@ -246,7 +246,7 @@ export async function saveStudentDay(studentId, date, form) {
   });
 
   // 3) 숙제 항목 (기존 것 지우고 다시 넣기)
-  const items = form.items || {};       // 검사 결과 { id: "done"|"weak"|"missing" }
+  const items = { ...(form.items || {}) };   // 검사 결과 { id: "done"|"weak"|"missing" }
   let nextIds = Array.isArray(form.nextHomework) ? form.nextHomework : []; // 다음 숙제
   const nextUnitsIn = { ...(form.nextUnits || {}) };
 
@@ -295,8 +295,45 @@ export async function saveStudentDay(studentId, date, form) {
     }
   }
   // 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜨고, 타이머가 여기 붙는다
-  const inClassIds = Array.isArray(form.inClass) ? form.inClass : [];
-  const planNextIds = Array.isArray(form.planNext) ? form.planNext : [];
+  let inClassIds = Array.isArray(form.inClass) ? form.inClass : [];
+  let planNextIds = Array.isArray(form.planNext) ? form.planNext : [];
+
+  /**
+   * **지워진 학습 항목은 빼고 저장한다** (원장님 2026-08-24 — 저장이
+   * 「violates foreign key constraint daily_report_items_homework_item_id_fkey」
+   * 로 거절당했다).
+   *
+   * 학습 항목을 지워도 그 이름표를 들고 있는 데가 여럿이다 — 교재의 등원 학습
+   * 목록(textbooks.act_items) · 진도루틴의 항목 메모 · 학생 기본 등원 목록 ·
+   * 브라우저에 남은 임시본. 전부 **연결 고리가 없는 jsonb** 라 항목이 사라져도
+   * 조용히 남는다.
+   *
+   * 그중 하나만 섞여도 **적은 것 전체가** 저장 안 됐다. 수업 중에 제일 나쁜
+   * 실패다 — 30분 적은 것이 통째로 날아간다. 그래서 죽은 이름표만 빼고
+   * 저장하고, 무엇을 뺐는지 돌려준다.
+   */
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let deadItems = 0;
+  {
+    const used = [...new Set([
+      ...Object.keys(items), ...inClassIds, ...planNextIds, ...nextIds,
+    ].filter(Boolean))];
+    const shaped = used.filter((id) => UUID.test(id));
+    let alive = new Set();
+    if (shaped.length) {
+      const { data: rows } = await supabase
+        .from("homework_items").select("id").in("id", shaped);
+      alive = new Set((rows || []).map((x) => x.id));
+    }
+    const dead = new Set(used.filter((id) => !alive.has(id)));
+    if (dead.size) {
+      deadItems = dead.size;
+      for (const id of dead) delete items[id];
+      inClassIds = inClassIds.filter((id) => !dead.has(id));
+      planNextIds = planNextIds.filter((id) => !dead.has(id));
+      nextIds = nextIds.filter((id) => !dead.has(id));
+    }
+  }
   // 오늘 목록이 실제로 바뀌었는지 — 바뀌면 학생에게 알림 (원장님 2026-08-20
   // 「내가 뭔가 바꾸고 저장하면 학생에게 알람이 가야 해」)
   const { data: oldInclassRows } = await supabase
@@ -595,7 +632,10 @@ export async function saveStudentDay(studentId, date, form) {
     error: null,
     complete,
     unchecked: unchecked.length,
-    warn: prep?.error || progressWarn || null,   // 기록은 됐지만 할일·진도는 못 만진 경우
+    warn:
+      (deadItems
+        ? `이미 지워진 학습 항목 ${deadItems}개는 빼고 저장했어요 — 교재의 등원 학습 목록이나 진도루틴에 옛 항목이 남아 있습니다`
+        : null) || prep?.error || progressWarn || null,   // 기록은 됐지만 할일·진도는 못 만진 경우
   };
 }
 
