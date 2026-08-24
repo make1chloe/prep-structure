@@ -17,6 +17,7 @@ import { shortName } from "@/lib/schoolName";
 import { WEEK_ORDER as DOW } from "@/lib/day";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
 import MissingPicker from "@/components/MissingPicker";
+import RoutineEditor from "@/app/textbooks/RoutineEditor";
 
 /**
  * **빠진 것** — 이 아이에게 없으면 실제로 일이 안 되는 칸.
@@ -112,7 +113,7 @@ const SORTS = [
   ["created_at", "최근 추가순"],
 ];
 
-export default function StudentList({ students = [], textbooks = [], defaultPass = 90, openStudent = null, classList = [], missKeys = null }) {
+export default function StudentList({ students = [], textbooks = [], hwItems = [], defaultPass = 90, openStudent = null, classList = [], missKeys = null }) {
   // 「빠진 것」 은 원장님이 고른 칸만 센다 (11-11). 안 정했으면 후보 전부.
   const need = missKeys === null ? NEED : NEED.filter((d) => missKeys.includes(d.key));
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
@@ -169,6 +170,8 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
   // 오늘 수업에서 「재원생 정보」로 넘어오면 그 학생이 **열린 채로** 뜬다.
   // 넘어와서 다시 이름을 찾게 하면 넘어온 뜻이 없다.
   const [openId, setOpenId] = useState(openStudent);
+  // 어느 교재의 루틴을 펼쳤나 (재원생 › 교재)
+  const [openRoutine, setOpenRoutine] = useState(null);
   // 좁은 화면에서는 판이 위로 올라온다. 목록을 보려면 접을 수 있어야 한다.
   const [folded, setFolded] = useState(false);
   const [tab, setTab] = useState("info");
@@ -690,6 +693,42 @@ export default function StudentList({ students = [], textbooks = [], defaultPass
                                 books={s.books || []}
                                 allBooks={textbooks}
                               />
+                            </div>
+                          )}
+
+                          {/**
+                            * **등원 학습 · 집 숙제 루틴** (원장님 2026-08-24 —
+                            * 「등원학습/하원숙제 루틴을 재원생 정보에서 변경할
+                            * 수 있게 해줘」).
+                            *
+                            * 교재 화면의 편집기를 **그대로** 쓴다 (원칙 1) —
+                            * 두 벌이면 여기서 고친 루틴이 저기서 안 보인다.
+                            *
+                            * **루틴은 교재에 붙는다, 학생이 아니라.** 여기서
+                            * 고치면 그 교재를 쓰는 다른 학생에게도 같이 간다 —
+                            * 그러니 그 말을 화면에 적어 둔다. 안 적으면 한
+                            * 아이 것만 바꾼 줄 알고 반 전체가 바뀐다.
+                            */}
+                          {(s.books || []).length > 0 && (
+                            <div className="stack" style={{ gap: 6, marginTop: 12 }}>
+                              <b style={{ fontSize: 14 }}>등원 학습 · 집 숙제 루틴</b>
+                              <p className="hint" style={{ margin: 0 }}>
+                                루틴은 <b>교재</b>에 붙습니다 — 여기서 고치면 이 교재를 쓰는 다른 학생도 같이 바뀝니다.
+                              </p>
+                              {(s.books || []).map((b) => (
+                                <div key={`rt-${b.id}`} className="stack" style={{ gap: 4 }}>
+                                  <button
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ alignSelf: "flex-start" }}
+                                    onClick={() => setOpenRoutine((cur) => (cur === b.id ? null : b.id))}
+                                  >
+                                    {openRoutine === b.id ? "▾" : "▸"} {b.name}
+                                  </button>
+                                  {openRoutine === b.id && (
+                                    <RoutineEditor key={`rte-${b.id}`} textbookId={b.id} items={hwItems} />
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           )}
 

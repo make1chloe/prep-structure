@@ -32,7 +32,7 @@ export default async function StudentsPage({ searchParams }) {
    */
   // 순서 주의: 6번째가 missing 설정, 7번째가 학교 이름 — 2026-08-21 뒤바뀐 채
   // 발견 (schools 에 설정 객체가 들어가 학생 추가 폼이 터졌다)
-  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, missQ, schoolsList] = await Promise.all([
+  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, missQ, schoolsList, hwQ] = await Promise.all([
     user
       ? cachedProfile(supabase, user.id)
       : Promise.resolve({ data: null }),
@@ -52,7 +52,19 @@ export default async function StudentsPage({ searchParams }) {
     // 「빠진 것」 기준 — 목록마다 어떤 칸을 셀지 (11-11, app/settings/missingActions)
     supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
     schoolNames(supabase).catch(() => []),
+    /**
+     * **학습 항목** — 재원생에서 그 학생 교재의 등원 학습·집 숙제 루틴을
+     * 바로 고칠 수 있게 (원장님 2026-08-24 — 「등원학습/하원숙제 루틴을
+     * 재원생 정보에서 변경할 수 있게 해줘」). 교재 화면과 **같은 편집기**를
+     * 쓰므로 고르는 항목 목록도 같은 한 벌이어야 한다.
+     */
+    supabase
+      .from("homework_items")
+      .select("id, name, sort, category")
+      .eq("active", true)
+      .order("sort", { ascending: true }),
   ]);
+  const hwItems = hwQ?.error ? [] : hwQ?.data || [];
   const profile = profileQ?.data || null;
 
   let { data: students, error } = studentsQ1;
@@ -288,6 +300,7 @@ export default async function StudentsPage({ searchParams }) {
             <StudentList
               students={rows}
               textbooks={textbooks}
+              hwItems={hwItems}
               defaultPass={defaultPass}
               openStudent={searchParams?.s || null}
               classList={(klasses || []).map((c) => ({ id: c.id, name: c.name }))}
