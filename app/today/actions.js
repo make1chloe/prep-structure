@@ -11,6 +11,7 @@ import { openAnswers } from "@/lib/answers";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
+import { evenRows } from "@/lib/rows";
 import { sessionUser } from "@/lib/session";
 // 회독·되돌리기 금지 규칙째로 재사용한다 (원칙 1 — 같은 판단을 두 벌 안 만든다)
 import { setUnitProgress } from "@/app/progress/actions";
@@ -400,35 +401,43 @@ export async function saveStudentDay(studentId, date, form) {
     changedNames.push(r.homework_item_id);
   });
 
-  if (payload.length > 0) {
-    let { error } = await supabase.from("daily_report_items").insert(payload);
+  /**
+   * **줄마다 칸을 같은 벌로 맞춘다** (원장님 8/24 — 폰에서 임시저장이 터졌다).
+   * 등원 학습 줄만 들고 있는 `carry_next` 가 나머지 줄에서는 NULL 로 채워져
+   * `not null` 에 걸렸다. 왜 이제야 터졌나 — 등원 학습과 숙제가 **둘 다**
+   * 있어야만 나는 오류라서 며칠을 숨어 있었다.
+   */
+  const rows = evenRows(payload, { carry_next: false });
+
+  if (rows.length > 0) {
+    let { error } = await supabase.from("daily_report_items").insert(rows);
     if (noColumn(error)) {
       // 0140 전이면 차례·이월 칸이 없다
       ({ error } = await supabase
         .from("daily_report_items")
-        .insert(payload.map(({ inclass_sort, carry_next, ...rest }) => rest)));
+        .insert(rows.map(({ inclass_sort, carry_next, ...rest }) => rest)));
     }
     if (noColumn(error)) {
       // 0062 전이면 검사 메모 칸이 없다
       ({ error } = await supabase
         .from("daily_report_items")
-        .insert(payload.map(({ check_note, ...rest }) => rest)));
+        .insert(rows.map(({ check_note, ...rest }) => rest)));
     }
     if (noColumn(error)) {
       // 0087 전이면 「바뀐 시각」 칸이 없다
       ({ error } = await supabase
         .from("daily_report_items")
-        .insert(payload.map(({ changed_at, ...rest }) => rest)));
+        .insert(rows.map(({ changed_at, ...rest }) => rest)));
     }
     if (noColumn(error)) {
       // 0034 전이면 학생 완료 표시 없이
       ({ error } = await supabase
         .from("daily_report_items")
-        .insert(payload.map(({ student_done_at, ...rest }) => rest)));
+        .insert(rows.map(({ student_done_at, ...rest }) => rest)));
     }
     if (noColumn(error)) {
       // 0009 전이면 단원 1개만, 0008 전이면 단원 없이 저장
-      const noArray = payload.map(({ textbook_unit_ids, ...rest }) => rest);
+      const noArray = rows.map(({ textbook_unit_ids, ...rest }) => rest);
       ({ error } = await supabase.from("daily_report_items").insert(noArray));
       if (noColumn(error)) {
         const bare = noArray.map(({ textbook_unit_id, range_note, ...rest }) => rest);
