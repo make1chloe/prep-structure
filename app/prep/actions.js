@@ -243,12 +243,27 @@ export async function saveExam(e = {}) {
      * 막히기 때문이다(0156 을 아직 안 돌렸을 때). 그래서 지어내지 말고
      * **진짜로 있는 줄**을 읽어다 보여준다.
      */
+    /**
+     * **0156 을 돌렸는지 먼저 확인한다.** 안 돌렸으면 잣대에 이름이 없어서
+     * **이름이 달라도** 같은 날 시작하는 시험이 있으면 막힌다 — 그때는
+     * 「이 이름이 이미 있다」 고 말하면 거짓말이 된다. 추측하지 말고 묻는다.
+     */
+    const { error: noPatch } = await supabase.rpc("exam_uniq_name_on");
     const { data: hit } = await supabase
       .from("exam_periods")
       .select("name, grade, from_date, english_on")
       .eq("school", school)
       .eq("from_date", row.from_date || day || "")
       .limit(3);
+    if (noPatch) {
+      return {
+        error:
+          "아직 0156 SQL 을 안 돌리셔서, **같은 학교에 같은 날 시작하는 시험**은 " +
+          "이름이 달라도 하나만 들어갑니다.\n" +
+          "설정 › 관리자 › SQL 확인에서 0156 을 실행하시면 바로 됩니다.\n" +
+          "지금 당장 넣으시려면 영어 시험일을 넣어 다른 날로 두세요.",
+      };
+    }
     const 있는것 = (hit || [])
       .map((x) => `· ${x.name || "이름 없음"}${x.grade ? ` (${x.grade})` : ""}` +
                   `${x.from_date ? ` — ${x.from_date} 시작` : ""}`)
@@ -323,6 +338,21 @@ export async function removeExam(id) {
   revalidatePath("/prep");
   revalidatePath("/schedule");
   return { error: error ? error.message : null };
+}
+
+/**
+ * **골라서 한 번에 지운다** (원장님 2026-08-24 — 「잘못 입력할 때 지우게
+ * 선택 삭제 기능 넣어줘」). 하나씩 지우면서 매번 확인창을 받으면, 시험
+ * 대여섯 개를 정리하는 데 열두 번을 누른다.
+ * 범위·자료·배정이 같이 간다 — 부르는 쪽에서 몇 개인지 보여주고 묻는다.
+ */
+export async function removeExams(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return { error: null, count: 0 };
+  const supabase = createClient();
+  const { error } = await supabase.from("exam_periods").delete().in("id", ids);
+  revalidatePath("/prep");
+  revalidatePath("/schedule");
+  return { error: error ? error.message : null, count: ids.length };
 }
 
 // ── 범위 ───────────────────────────────────────────────

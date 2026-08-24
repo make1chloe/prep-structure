@@ -8,7 +8,7 @@ import {
   addMaterial, updateMaterial, removeMaterial, markStage,
   setAssignees, markAssign,
   markStages, removeMaterials, removeScopes,
-  splitExamByGrade,
+  splitExamByGrade, removeExams,
 } from "./actions";
 import { teacherText } from "@/lib/exams";
 import { EXAM_TERMS, examTerm, termRank } from "@/lib/examKind";
@@ -154,6 +154,8 @@ export default function PrepBoard({
   //   아래층 그 범위 안에서 자료만 골라서
   // 층마다 「전체」가 따로 있어야 한다 — 위층 전체가 아래층까지 다 켜버리면
   // 자료 하나만 빼고 싶을 때 다시 스무 개를 눌러야 한다.
+  // 시험 목록에서 골라 지우기 (원장님 2026-08-24 「선택 삭제 기능 넣어줘」)
+  const examBulk = useBulk(shownExams);
   const scopeBulk = useBulk(myScopes);
   const matBulk = useBulk(materials.filter((m) => myScopes.some((s) => s.id === m.scope_id)));
   const scopeMatIds = scopeBulk.ids.flatMap((id) => matsOf(id).map((m) => m.id));
@@ -299,9 +301,35 @@ export default function PrepBoard({
               </button>
             )}
           </div>
+          {examBulk.count > 0 && (
+            <div style={{ padding: "0 10px 8px" }}>
+              <BulkBar bulk={examBulk} label="시험">
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={pending}
+                  onClick={() => {
+                    if (!confirm(`시험 ${examBulk.count}개를 지울까요?\n각 시험의 범위·자료·배정도 함께 사라집니다.`)) return;
+                    const ids = examBulk.ids;
+                    run(async () => {
+                      const r = await removeExams(ids);
+                      if (!r?.error) { examBulk.clear(); if (ids.includes(sel)) setSel(""); }
+                      return r;
+                    });
+                  }}
+                >
+                  골라 지우기
+                </button>
+              </BulkBar>
+            </div>
+          )}
           <table className="tbl tbl-tight">
             <thead>
               <tr>
+                <th style={{ width: 28 }}>
+                  <input type="checkbox" checked={examBulk.all}
+                    ref={(el) => { if (el) el.indeterminate = examBulk.some; }}
+                    onChange={examBulk.toggleAll} title="보이는 것 전부" />
+                </th>
                 {head("school", "학교")}
                 <th style={{ whiteSpace: "nowrap" }}>학년</th>
                 {head("term", "회차")}
@@ -315,6 +343,10 @@ export default function PrepBoard({
                   <tr key={e.id}
                       onClick={() => setSel(e.id)}
                       style={{ cursor: "pointer", ...(sel === e.id ? { background: "var(--surface-2)" } : {}) }}>
+                    <td onClick={(ev) => ev.stopPropagation()}>
+                      <input type="checkbox" checked={examBulk.has(e.id)}
+                        onChange={() => examBulk.toggle(e.id)} />
+                    </td>
                     <td><b title={e.school}>{shortName(e.school)}</b></td>
                     <td><span className="hint">{e.grade || "전체"}</span></td>
                     <td>
@@ -339,7 +371,7 @@ export default function PrepBoard({
                 );
               })}
               {shownExams.length === 0 && (
-                <tr><td colSpan={4}><p className="hint" style={{ margin: 0, padding: 10 }}>
+                <tr><td colSpan={5}><p className="hint" style={{ margin: 0, padding: 10 }}>
                   {exams.length === 0
                     ? "시험을 추가해주세요."
                     : 거르는중
@@ -349,7 +381,7 @@ export default function PrepBoard({
               )}
               {pastCount > 0 && (
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <button
                       className="btn btn-ghost btn-sm"
                       style={{ width: "100%", textAlign: "left" }}
