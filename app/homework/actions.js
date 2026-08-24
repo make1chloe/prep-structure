@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { BASIC_HOMEWORK, withSort } from "@/lib/basicHomework";
 import { noColumn } from "@/lib/sqlError";
+import { stripItemRefs } from "@/lib/itemRefs";
 
 
 function clean(formData, key) {
@@ -285,6 +286,14 @@ export async function setHomeworkItemsCategory(ids, category) {
 export async function deleteHomeworkItems(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
   const supabase = createClient();
+  /**
+   * **지우기 전에 이름표부터 걷는다** (원장님 2026-08-24 — 저장이
+   * `daily_report_items_homework_item_id_fkey` 로 거절당했다).
+   * 항목만 지우면 교재 활동 지도·진도루틴 단계·학생 기본 목록에 그 이름표가
+   * 조용히 남는다. 그 학생 판을 열 때마다 다시 담기고, **적은 것 전체가**
+   * 저장 안 된다. 여기서 안 걷으면 며칠 뒤 수업 중에 터진다.
+   */
+  await stripItemRefs(supabase, { dead: ids, apply: true });
   const { error } = await supabase.from("homework_items").delete().in("id", ids);
   revalidatePath("/homework");
   revalidatePath("/today");
