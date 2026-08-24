@@ -444,10 +444,13 @@ export default function TodayBoard({
                               else setOpenId(k);
                             }}
                           >
-                            <span style={{ fontWeight: 700 }}>{r.student.name}</span>
-                            <span className="muted" style={{ fontSize: 13 }}>
-                              {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
+                            <span className="stuWho">
+                              <span className="stuName">{r.student.name}</span>
+                              <span className="stuSub">
+                                {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
+                              </span>
                             </span>
+                            <span className="stuTags">
                             {r.isMakeup && (
                               <span className="tag tag-lav" title="보강으로 온 학생">
                                 보강
@@ -497,39 +500,6 @@ export default function TodayBoard({
                                 </span>
                               );
                             })()}
-                            <span className="spacer" />
-                            {stOf(r) ? (
-                              <span
-                                className={`tag ${CLS[stOf(r)]}`}
-                                style={{ cursor: "pointer" }}
-                                onClick={(e) => { e.stopPropagation(); undo(r.student.id, r.extraClassId); }}
-                                title={
-                                  r.attendAt
-                                    ? `학생이 ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
-                                        timeZone: "Asia/Seoul",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })} 에 출석 체크를 눌렀습니다 · 누르면 출결이 취소돼요`
-                                    : "누르면 출결이 취소돼요"
-                                }
-                              >
-                                {LABEL[stOf(r)]}
-                                {r.attendAt
-                                  ? ` ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
-                                      timeZone: "Asia/Seoul",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}`
-                                  : ""}
-                              </span>
-                            ) : (
-                              <span
-                                className="btn btn-ghost btn-sm"
-                                onClick={(e) => { e.stopPropagation(); mark(r.student.id, "present", r.extraClassId); }}
-                              >
-                                등원
-                              </span>
-                            )}
                             {wrote(r) || isDone(r) ? (
                               <span
                                 className="tag tag-mint"
@@ -582,7 +552,42 @@ export default function TodayBoard({
                                 💬 {r.unreadComments}
                               </span>
                             )}
-                            <span className="muted" style={{ fontSize: 12 }}>{isOpen ? "▾" : "▸"}</span>
+                            </span>
+                            <span className="stuEnd">
+                            {stOf(r) ? (
+                              <span
+                                className={`tag ${CLS[stOf(r)]}`}
+                                style={{ cursor: "pointer" }}
+                                onClick={(e) => { e.stopPropagation(); undo(r.student.id, r.extraClassId); }}
+                                title={
+                                  r.attendAt
+                                    ? `학생이 ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
+                                        timeZone: "Asia/Seoul",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })} 에 출석 체크를 눌렀습니다 · 누르면 출결이 취소돼요`
+                                    : "누르면 출결이 취소돼요"
+                                }
+                              >
+                                {LABEL[stOf(r)]}
+                                {r.attendAt
+                                  ? ` ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
+                                      timeZone: "Asia/Seoul",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}`
+                                  : ""}
+                              </span>
+                            ) : (
+                              <span
+                                className="btn btn-ghost btn-sm"
+                                onClick={(e) => { e.stopPropagation(); mark(r.student.id, "present", r.extraClassId); }}
+                              >
+                                등원
+                              </span>
+                            )}
+                              <span className="stuOpen">{isOpen ? "▾" : "▸"}</span>
+                            </span>
                           </button>
 
                           {isOpen && (
