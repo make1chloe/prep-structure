@@ -51,6 +51,7 @@ export async function GET(request) {
   if (op === "wbmove") return workbookMove(supabase, sp.get("book") || "", sp.get("apply") === "1");
   if (op === "outline") return bookOutline(supabase, sp.get("book") || "", sp.get("top") || "2");
   if (op === "whoroutine") return whoRoutine(supabase, sp.get("student") || "");
+  if (op === "deaditems") return deadItems(supabase, sp.get("apply") === "1");
 
   const today = todaySeoul();
 
@@ -2015,5 +2016,122 @@ async function whoRoutine(supabase, nameQ) {
     샌것: [...new Set(샌것)],
     검사목록,
     "검사에 샌 것 (지금 안 쓰는 교재인데 검사에 있음)": 검사에샌것,
+  });
+}
+
+/**
+ * **지워진 학습 항목의 이름표가 어디에 남아 있나** (원장님 2026-08-24 —
+ * 저장이 `daily_report_items_homework_item_id_fkey` 로 거절당했다).
+ *
+ * 항목을 지워도 그 이름표를 들고 있는 데가 넷이다. 전부 연결 고리가 없는
+ * jsonb 라 항목이 사라져도 조용히 남고, 하나만 섞여도 그 학생 저장이 통째로
+ * 막힌다. 저장 쪽은 이미 「죽은 것만 빼고 저장」 하게 고쳤지만, 그건 증상을
+ * 막은 것이고 **남아 있는 이름표 자체**는 여기서 찾아 지운다.
+ *
+ *   ?op=deaditems         찾기만 한다 (아무것도 안 바꾼다)
+ *   ?op=deaditems&apply=1 찾은 것을 지운다
+ */
+async function deadItems(supabase, apply) {
+  const [hiQ, tbQ, rsQ, stQ] = await Promise.all([
+    supabase.from("homework_items").select("id, name"),
+    supabase.from("textbooks").select("id, name, act_items"),
+    supabase.from("routine_steps").select("id, textbook_id, label, inclass_items, home_items, item_notes"),
+    supabase.from("students").select("id, name, default_inclass, default_home").eq("status", "enrolled"),
+  ]);
+  const alive = new Set((hiQ.data || []).map((x) => x.id));
+  const 찾음 = [];
+  const 고칠것 = [];
+  const deadIn = (arr) => (Array.isArray(arr) ? arr : []).filter((x) => x && !alive.has(x));
+
+  // ① 교재의 활동 → 항목 지도. **배열이 아니라 {활동: 항목} 지도**다 (0138)
+  const bookName = new Map((tbQ.data || []).map((b) => [b.id, b.name]));
+  for (const b of tbQ.data || []) {
+    const map = b.act_items && typeof b.act_items === "object" && !Array.isArray(b.act_items)
+      ? b.act_items : {};
+    const keep = {};
+    const dead = [];
+    for (const [act, v] of Object.entries(map)) {
+      if (Array.isArray(v)) {
+        const live = v.filter((x) => alive.has(x));
+        v.filter((x) => x && !alive.has(x)).forEach((x) => dead.push(`${act}:${x}`));
+        if (live.length) keep[act] = live;
+      } else if (v && !alive.has(v)) {
+        dead.push(`${act}:${v}`);
+      } else if (v) {
+        keep[act] = v;
+      }
+    }
+    if (!dead.length) continue;
+    찾음.push({ 어디: "교재 활동→항목", 이름: b.name, 죽은것: dead.length, 무엇: dead });
+    고칠것.push(() => supabase.from("textbooks").update({ act_items: keep }).eq("id", b.id));
+  }
+
+  // ② 진도루틴 단계 — 등원 학습 · 숙제 · 항목 메모(0139)
+  for (const st of rsQ.data || []) {
+    const dIn = deadIn(st.inclass_items);
+    const dHome = deadIn(st.home_items);
+    const notes = st.item_notes && typeof st.item_notes === "object" && !Array.isArray(st.item_notes)
+      ? st.item_notes : {};
+    const dNote = Object.keys(notes).filter((k) => !alive.has(k));
+    if (!dIn.length && !dHome.length && !dNote.length) continue;
+    찾음.push({
+      어디: "진도루틴 단계",
+      교재: bookName.get(st.textbook_id) || "(없는 교재)",
+      단계: st.label || st.id,
+      죽은것: dIn.length + dHome.length + dNote.length,
+      무엇: [...dIn, ...dHome, ...dNote],
+    });
+    const patch = {};
+    if (dIn.length) patch.inclass_items = (st.inclass_items || []).filter((x) => alive.has(x));
+    if (dHome.length) patch.home_items = (st.home_items || []).filter((x) => alive.has(x));
+    if (dNote.length) {
+      const keep = {};
+      for (const [k, v] of Object.entries(notes)) if (alive.has(k)) keep[k] = v;
+      patch.item_notes = keep;
+    }
+    고칠것.push(() => supabase.from("routine_steps").update(patch).eq("id", st.id));
+  }
+
+  // ③ 학생 기본 등원 목록 · 기본 숙제 (0035)
+  for (const s2 of stQ.data || []) {
+    const dIn = deadIn(s2.default_inclass);
+    const dHome = deadIn(s2.default_home);
+    if (!dIn.length && !dHome.length) continue;
+    찾음.push({ 어디: "학생 기본 목록", 이름: s2.name, 죽은것: dIn.length + dHome.length, 무엇: [...dIn, ...dHome] });
+    const patch = {};
+    if (dIn.length) patch.default_inclass = (s2.default_inclass || []).filter((x) => alive.has(x));
+    if (dHome.length) patch.default_home = (s2.default_home || []).filter((x) => alive.has(x));
+    고칠것.push(() => supabase.from("students").update(patch).eq("id", s2.id));
+  }
+
+  // ④ 집에서 못 하는 학습의 짝(home_item_id)이 죽은 것을 가리키나
+  const { data: twins } = await supabase
+    .from("homework_items").select("id, name, home_item_id").not("home_item_id", "is", null);
+  const deadTwin = (twins || []).filter((t) => !alive.has(t.home_item_id));
+  for (const t of deadTwin) {
+    찾음.push({ 어디: "항목의 집짝(home_item_id)", 이름: t.name, 죽은것: 1, 무엇: [t.home_item_id] });
+    고칠것.push(() => supabase.from("homework_items").update({ home_item_id: null }).eq("id", t.id));
+  }
+
+  let 고친수 = 0;
+  const 못고침 = [];
+  if (apply) {
+    for (const run of 고칠것) {
+      const { error } = await run();
+      if (error) 못고침.push(error.message);
+      else 고친수 += 1;
+    }
+  }
+
+  return jsonKo({
+    설명: apply
+      ? "죽은 이름표를 지웠습니다."
+      : "읽기만 했습니다. 지우려면 주소 끝에 &apply=1 을 붙이세요.",
+    살아있는항목수: alive.size,
+    찾은곳: 찾음.length,
+    고친곳: apply ? 고친수 : 0,
+    못고침,
+    상세: 찾음,
+    "브라우저 임시본": "이 점검이 못 보는 곳입니다 — 폰에 남은 초안은 판 위쪽 「버리기」 로 지웁니다",
   });
 }
