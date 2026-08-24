@@ -2016,19 +2016,11 @@ export default function StudentPanel({
                     * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
                     * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
                     */}
-                  {/* 그 항목의 절차 — 작게 (원장님 2026-08-24 「학습항목 밑에
-                      아주 조그맣게 체크리스트 같이 줘」) */}
-                  {(items.find((x) => x.id === iid)?.checklist || "").trim() && (
-                    <span
-                      className="hint"
-                      style={{ flexBasis: "100%", fontSize: 12, marginLeft: 20, lineHeight: 1.5 }}
-                    >
-                      {(items.find((x) => x.id === iid)?.checklist || "")
-                        .split("\n").map((t) => t.trim()).filter(Boolean).join(" · ")}
-                    </span>
-                  )}
-                  <span className="spacer" />
+                  <span className="stuEnd">
                   <span className="row" style={{ gap: 0, alignItems: "center" }}>
+                    <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={idx === 0}
+                      style={{ padding: "2px 5px" }}
+                      onClick={() => setInClass([iid, ...inClass.filter((x) => x !== iid)])}>⇈</button>
                     <button className="btn btn-ghost btn-sm" title="차례를 위로" disabled={idx === 0}
                       style={{ padding: "2px 6px" }}
                       onClick={() => {
@@ -2043,6 +2035,9 @@ export default function StudentPanel({
                         [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
                         setInClass(n);
                       }}>↓</button>
+                    <button className="btn btn-ghost btn-sm" title="맨 아래로" disabled={idx === inClass.length - 1}
+                      style={{ padding: "2px 5px" }}
+                      onClick={() => setInClass([...inClass.filter((x) => x !== iid), iid])}>⇊</button>
                   </span>
                   {!doneAt && (
                     <span className="row" style={{ gap: 4, alignItems: "center", marginLeft: 8 }}>
@@ -2074,6 +2069,17 @@ export default function StudentPanel({
                   <button className="btn btn-ghost btn-sm" title="오늘은 안 함 — 목록에서 뺍니다"
                     style={{ marginLeft: 8, padding: "2px 8px" }}
                     onClick={() => setInClass(inClass.filter((x) => x !== iid))}>✕ 오늘 뺌</button>
+                  </span>
+                  {/* 그 항목의 절차 — 작게 (원장님 2026-08-24 「학습항목 밑에
+                      아주 조그맣게 체크리스트 같이 줘」).
+                      **단추 뒤에 둔다** — 앞에 두면 제 줄을 차지하면서 단추를
+                      통째로 아랫줄로 밀어, 줄마다 단추 자리가 달라졌다 (8/24) */}
+                  {(items.find((x) => x.id === iid)?.checklist || "").trim() && (
+                    <span className="hint itemnote">
+                      {(items.find((x) => x.id === iid)?.checklist || "")
+                        .split("\n").map((t) => t.trim()).filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                 </div>
               );
             })}

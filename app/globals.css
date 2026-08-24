@@ -464,6 +464,10 @@ button.stuLine:hover { background: var(--surface-2); }
 /* 태그가 아니라 「긴 한 줄」(교재 목록 같은 것)이 아랫줄에 오는 경우 —
    자리는 태그 띠와 같고, 넘치면 … 로 줄인다 */
 .stuflow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 항목 밑에 붙는 작은 절차 줄 — **늘 맨 끝, 늘 제 줄, 늘 같은 들여쓰기.**
+   앞에 두면 제 줄을 차지하면서 단추를 통째로 아랫줄로 밀어, 줄마다 단추
+   자리가 달라졌다 (원장님 2026-08-24 「등원학습에서 줄이 이상해」) */
+.itemnote { flex: 0 0 100%; order: 3; margin-left: 20px; font-size: 12px; line-height: 1.5; }
 .stuEnd {
   display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
   gap: 6px 8px; flex: 0 0 auto; margin-left: auto; white-space: nowrap;
