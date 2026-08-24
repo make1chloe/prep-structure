@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { examTitle, needsScope } from "@/lib/examList";
+import { examTitle, needsPrep } from "@/lib/examList";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrepBoard from "./PrepBoard";
@@ -60,7 +60,8 @@ export default async function PrepPage({ searchParams }) {
    */
   const examRows = (exams.data || [])
     .filter((e) => !e.hidden)
-    .filter(needsScope)
+    // 수행평가도 대비 대상이다 (원장님 2026-08-24) — 회차·재촉 쪽 잣대는 그대로
+    .filter(needsPrep)
     .map((e) => ({
       id: e.id,
       school: e.school,
