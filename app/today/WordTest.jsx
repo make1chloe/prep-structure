@@ -14,7 +14,14 @@ import { TYPES, total, label } from "@/lib/wordTest";
  */
 export default function WordTest({ studentId, book }) {
   const cur = book.wordTest;
-  const [open, setOpen] = useState(false);
+  /**
+   * **펼친 채로 시작한다** (원장님 2026-08-24 — 「단어교재 첫 번째 화면의
+   * 내용이 두 번째 화면에 바로 보이게 해줘, 즉 클릭 수 줄이게 해줘」).
+   * 여태는 「1회독 · 시험 방식 미설정」 알약을 **눌러야** 배분 칸이 나왔다 —
+   * 정하러 들어온 화면에서 한 번 더 누르게 하는 것은 그냥 손해다.
+   * 접고 싶으면 「닫기」 로 접는다.
+   */
+  const [open, setOpen] = useState(true);
   const [cfg, setCfg] = useState(() => ({
     mc_meaning: cur?.mc_meaning ?? 0,
     sa_meaning: cur?.sa_meaning ?? 0,
@@ -37,7 +44,7 @@ export default function WordTest({ studentId, book }) {
         alert(res.error);
         return;
       }
-      setOpen(false);
+      // 저장하고도 **안 접는다** — 배분을 몇 번 고쳐보는 자리다
       router.refresh();
     });
   }
@@ -138,8 +145,8 @@ export default function WordTest({ studentId, book }) {
         >
           ⟳ 다음 회독으로
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)}>
-          닫기
+        <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} title="한 줄로 접습니다">
+          접기
         </button>
         <button
           className="btn btn-primary btn-sm"
