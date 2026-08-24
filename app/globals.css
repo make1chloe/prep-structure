@@ -1501,3 +1501,50 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 @media (max-width: 700px) {
   .input, .input-sm, select.input, textarea.input { font-size: 16px; }
 }
+
+/**
+ * **폰 전면 시트** (원장님 2026-08-24 — 「모바일은 모달로 다시 재구성하자.
+ * 세로 스크롤이 확실히 필요한 것 같아」).
+ *
+ * 계획을 여섯 판 고치며 검증한 결과가 이 몇 줄이다.
+ *   · 미디어쿼리로 켜지 않는다 — 폰을 가로로 돌리면 시트가 풀려 찢어진다.
+ *     폭은 **열 때 한 번** JS 가 보고(useSheet) 표시를 붙인다
+ *   · 포털을 쓰지 않는다 — 이 판의 조상에 transform 이 없어 fixed 가 그대로 선다
+ *   · 몸통 잠금은 overflow 하나뿐 — position:fixed 로 묶으면 회전·키보드에서
+ *     화면이 얼어붙는다
+ *   · 머리·본문·발 세 겹 — 저장 줄이 키보드 뒤로 숨지 않게
+ *   · z 50 — 새 버전 알림 띠(60)는 시트 위에 남아야 한다
+ */
+html[data-sheet="open"], html[data-sheet="open"] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html[data-sheet="open"] .stusheet {
+  position: fixed;
+  top: var(--vvtop, 0px); left: 0; right: 0;
+  height: var(--vvh, 100%);
+  z-index: 50;
+  display: flex; flex-direction: column;
+  padding: 0;
+  background: var(--surface-2);
+}
+html[data-sheet="open"] .stusheet .stusheet-head { flex: 0 0 auto; padding: 8px 16px 0; }
+html[data-sheet="open"] .stusheet .stusheet-body {
+  flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px;
+}
+html[data-sheet="open"] .stusheet .stusheet-foot {
+  flex: 0 0 auto; padding: 6px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+/* 시트 안에서는 저장 줄이 이미 발이다 — sticky 를 푼다 */
+html[data-sheet="open"] .stusheet .savebar { position: static; z-index: auto; margin-top: 0; }
+/* 칸 안에 갇힌 스크롤을 푼다 — 본문 한 벌로 굴린다 */
+html[data-sheet="open"] .stusheet .unitscroll { max-height: none; overflow-y: visible; overscroll-behavior: auto; }
+/* 넓은 화면에서는 머리의 이름·닫기가 필요 없다 (줄에 이미 있다) */
+.sheettop { display: none; }
+html[data-sheet="open"] .sheettop {
+  display: flex; align-items: baseline; gap: 8px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 6px;
+}
+/* 닫은 뒤 그 줄이 고정 메뉴 뒤로 들어가지 않게 */
+.stuRow { scroll-margin-top: calc(var(--topbar-h, 56px) + 12px); }

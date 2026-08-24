@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { setBookPause } from "@/app/progress/actions";
+import { useSheet } from "@/components/useSheet";
 import { uploadAnswerFiles, removeAnswerFiles } from "./answerActions";
 import { quickAddUnits } from "@/app/textbooks/actions";
 import { setClassAttendance } from "./classAttendance";
@@ -235,6 +236,7 @@ export default function StudentPanel({
   rule = {},
   grammarCommon = [],
   onSaved,
+  onClose,
 }) {
   const r = row.report || {};
   // 오늘 단어 재시험 건너뛰기 (skip_kinds 'retest' — 원장님 2026-08-19)
@@ -628,10 +630,8 @@ export default function StudentPanel({
    * 통째로 다시 그려졌다. 여기서 표시만 걸어두면 ActivityBoard 가 그 동안
    * 20초에 한 번까지만 다시 그린다 (판단은 그쪽 한 곳에 있다).
    */
-  useEffect(() => {
-    document.documentElement.dataset.editing = "1";
-    return () => { delete document.documentElement.dataset.editing; };
-  }, []);
+  // 판 열림 표시·폰 시트는 useSheet 한 곳에서 (2026-08-24)
+  const { phone: asSheet } = useSheet();
   // 「남아서」 누른 숙제 — 서버가 늦귀가 과제 행을 만들어 줄 때까지
   // 누르는 순간 올라간 것으로 보인다 (낙관 UI, 실패하면 되돌린다)
   const [stayedOpt, setStayedOpt] = useState(() => new Set());
@@ -1374,7 +1374,30 @@ export default function StudentPanel({
   }
 
   return (
-    <div className="stuPanel">
+    <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
+      {/**
+        * **머리 — 누구 판인지와 나가는 길** (원장님 2026-08-24 「모바일은
+        * 모달로」). 폰에서 판이 화면을 덮으면 학생 이름줄이 시트 뒤에 깔려,
+        * 누구 것인지도 모르고 나갈 길도 없어진다. 이름과 닫기를 여기 둔다
+        * (넓은 화면에서는 CSS 로 감춘다 — 줄에 이미 이름이 있다).
+        */}
+      <div className="stusheet-head">
+        <div className="sheettop">
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              if (saving && !confirm("저장 중입니다. 그래도 닫을까요?")) return;
+              onClose?.();
+            }}
+          >
+            ← 닫기
+          </button>
+          <b style={{ fontSize: 15 }}>{row.student.name}</b>
+          <span className="hint" style={{ fontSize: 12.5 }}>
+            {[row.student.school, row.student.grade].filter(Boolean).join(" ")}
+            {row.className ? ` · ${row.className}` : ""}
+          </span>
+        </div>
       {/* 출결 */}
       <div className="prow">
         <span className="plabel">출결</span>
@@ -1401,7 +1424,9 @@ export default function StudentPanel({
           )}
         </div>
       </div>
+      </div>
 
+      <div className="stusheet-body">
       {/**
         * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
         * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
@@ -2911,8 +2936,12 @@ export default function StudentPanel({
         </div>
       </div>
 
+      </div>
+
       {/* 저장 줄 — 판이 길어서 저장하러 바닥까지 내려가야 했다
-          (원장님 2026-08-20 교수자 흐름 점검). 화면 아래에 붙어 다닌다 */}
+          (원장님 2026-08-20). 폰 시트에서는 본문 밖 「발」 이라 키보드가
+          올라와도 가려지지 않는다 */}
+      <div className="stusheet-foot">
       <div className="row savebar" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
         {savedDraftAt && (
           <span className="hint" style={{ fontSize: 13 }}>
@@ -2927,6 +2956,7 @@ export default function StudentPanel({
         <button className="btn btn-primary btn-sm" onClick={() => save(false)} disabled={pending || saving}>
           {pending || saving ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
         </button>
+      </div>
       </div>
     </div>
   );

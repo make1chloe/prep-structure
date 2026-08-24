@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { useLazyRefresh } from "@/components/useLazyRefresh";
 import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
@@ -226,6 +226,35 @@ export default function TodayBoard({
    * 태그로 남았다가, **다른 학생을 여는 순간** 완료 묶음으로 정리된다.
    */
   const [justSaved, setJustSaved] = useState(null);
+
+  /**
+   * **닫는 길은 하나** (2026-08-24). 미뤄둔 새로고침을 정리하고, 닫은 뒤
+   * 그 줄로 눈을 돌려준다 — 폰 시트는 화면을 덮으므로 닫고 나면 목록 어디에
+   * 있었는지 알 수 없다. 저장으로 닫힐 때는 목록이 다시 오며 줄이 위로
+   * 올라가므로(출결이 찍혀서) 한 박자 뒤에 한 번 더 잡는다.
+   */
+  const wantScroll = useRef(null);
+  function closeRow(k) {
+    if (typeof document !== "undefined") document.activeElement?.blur?.();
+    flush();
+    setOpenId((cur) => (cur === k ? null : cur));
+    wantScroll.current = k;
+    requestAnimationFrame(() => scrollToRow(k));
+  }
+  function scrollToRow(k) {
+    if (typeof document === "undefined" || !k) return;
+    const el = document.querySelector(`[data-row="${CSS.escape(k)}"]`);
+    if (el) el.scrollIntoView({ block: "center" });
+  }
+  // 목록이 다시 온 뒤 한 번 더 (저장하면 줄 자리가 바뀐다)
+  useEffect(() => {
+    const k = wantScroll.current;
+    if (!k) return;
+    wantScroll.current = null;
+    const t = setTimeout(() => scrollToRow(k), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
   const isDone = (r) => {
     const k = optKey(r.student.id, r.extraClassId);
     if (doneOpt.has(k)) return true;
@@ -310,7 +339,14 @@ export default function TodayBoard({
             <div className="card" key={klass.id} style={{ padding: 0, overflow: "hidden" }}>
               <button
                 className="grouphead"
-                onClick={() => setOpenClass(opened ? null : klass.id)}
+                onClick={() => {
+                  // 접으면 그 반의 줄이 통째로 사라진다 — 열린 판이 있으면 같이 닫는다
+                  if (opened && openId && rows.some((r) => optKey(r.student.id, r.extraClassId) === openId)) {
+                    flush();
+                    setOpenId(null);
+                  }
+                  setOpenClass(opened ? null : klass.id);
+                }}
               >
                 <span style={{ fontWeight: 800 }}>
                   {/* 시간은 칸에서 한 번만 — 이름 속 시간은 걷어낸다 (lib/classLabel) */}
@@ -401,13 +437,11 @@ export default function TodayBoard({
                           <button
                             className="stuLine"
                             onClick={() => {
-                              const k = `${r.student.id}|${r.extraClassId || ""}`;
+                              const k = optKey(r.student.id, r.extraClassId);
                               // 다른 학생을 여는 순간 방금 저장한 줄은 완료 묶음으로
                               if (justSaved && justSaved !== k) setJustSaved(null);
-                              // 판을 닫는 순간이 곧 목록을 보는 순간이다 —
-                              // 미뤄둔 새로고침이 있으면 여기서 돌린다 (2026-08-24)
-                              if (isOpen) flush();
-                              setOpenId(isOpen ? null : optKey(r.student.id, r.extraClassId));
+                              if (isOpen) closeRow(k);
+                              else setOpenId(k);
                             }}
                           >
                             <span style={{ fontWeight: 700 }}>{r.student.name}</span>
@@ -560,6 +594,7 @@ export default function TodayBoard({
                               unitNames={unitNames}
                               rule={rule}
                               grammarCommon={grammarCommon}
+                              onClose={() => closeRow(optKey(r.student.id, r.extraClassId))}
                               onSaved={() => {
                                 /**
                                  * **닫는 것은 「그 학생 판」 뿐이다** (2026-08-24 검증).
@@ -569,8 +604,7 @@ export default function TodayBoard({
                                  * 묶음으로 사라졌다.
                                  */
                                 const k = optKey(r.student.id, r.extraClassId);
-                                flush();   // 미뤄둔 것 정리
-                                setOpenId((cur) => (cur === k ? null : cur));
+                                closeRow(k);
                                 // 먼저 넘긴다 — 재계산이 끝나면 서버 값이 이어받는다
                                 setDoneOpt((prev) => new Set(prev).add(k));
                                 // 줄은 그 자리에 남긴다 (2026-08-21)

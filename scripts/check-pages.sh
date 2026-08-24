@@ -308,6 +308,7 @@ echo
 echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행하면 터진다) =="
 # `withAcademy(supabase, …)` 를 `const supabase` 위에 두었는데 next build 가
 # 통과했다. 학부모 알림을 보내실 때까지 안 보이는 종류다
+runjs scripts/check-sheet.mjs
 runjs scripts/check-tdz.mjs
 
 echo
