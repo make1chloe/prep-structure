@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { inUseOn } from "@/lib/bookUse";
+import { todaySeoul } from "@/lib/day";
 
 /**
  * **루틴은 메뉴다 — 학생마다 그중 할 것만 고른다** (원장님 2026-08-24 —
@@ -187,7 +189,15 @@ export async function routineLayout(studentId) {
   }
   const areaRank = new Map(areaOrder.map((a, i) => [a, i]));
 
+  /**
+   * **지금 쓰는 교재만** (원장님 2026-08-24 — 「루틴에 여태까지 교재가 다
+   * 들어가 있어, 지금 사용중 아닌 것도」). 끝냈거나 중단한 책, 아직 시작
+   * 안 한 책의 루틴을 정하라고 하면 목록이 열한 권이 된다 — 오늘 수업
+   * 차림이 보는 잣대(inUseOn)와 **같은 것**을 쓴다.
+   */
+  const today = todaySeoul();
   const books = (stq.data || [])
+    .filter((r) => inUseOn(r, today))
     .map((r) => {
       const b = meta.get(r.textbook_id);
       if (!b || b.status === "hidden") return null;
@@ -211,6 +221,11 @@ export async function routineLayout(studentId) {
   // 화면에 보일 영역 차례 — 정해둔 것 먼저, 안 정한 것은 뒤에
   const seen = [];
   books.forEach((b) => { if (!seen.includes(b.area)) seen.push(b.area); });
+  // 영역이 안 적힌 교재(「그 밖」)는 따로 정해두지 않았으면 뒤로 민다
+  if (!areaRank.has("") && seen.includes("")) {
+    seen.splice(seen.indexOf(""), 1);
+    seen.push("");
+  }
   return { areas: seen, books, 차례있음: hasSort, error: null };
 }
 

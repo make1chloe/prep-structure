@@ -18,6 +18,7 @@ import { WEEK_ORDER as DOW } from "@/lib/day";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
 import MissingPicker from "@/components/MissingPicker";
 import RoutineAssign from "./RoutineAssign";
+import { setStudentBookStatus, removeStudentBook } from "@/app/progress/actions";
 
 /**
  * **빠진 것** — 이 아이에게 없으면 실제로 일이 안 되는 칸.
@@ -724,17 +725,63 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                           {(s.pastBooks || []).length > 0 && (
                             <div className="stack" style={{ gap: 4, marginTop: 12 }}>
                               <b style={{ fontSize: 14 }}>지난 교재 {(s.pastBooks || []).length}권</b>
+                              <p className="hint" style={{ margin: 0 }}>
+                                끝냄·중단이 잘못 찍혔으면 눌러서 바꾸고, 아예 안 쓴 책은 지웁니다.
+                              </p>
                               {(s.pastBooks || []).map((b) => (
-                                <div key={b.id} className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                                  <span className={`tag ${b.status === "done" ? "tag-mint" : "tag-muted"}`}>
-                                    {b.status === "done" ? "끝냄" : "중단"}
+                                <div key={b.id} className="stuLine" style={{ padding: "3px 0", cursor: "default" }}>
+                                  <span className="stuWho">
+                                    <span className="stuName" style={{ fontSize: 13.5 }}>
+                                      {b.area ? `[${b.area}] ` : ""}{b.name}
+                                    </span>
+                                    <span className="stuSub">
+                                      {b.from ? b.from.slice(2).replace(/-/g, ".") : "?"} ~{" "}
+                                      {b.to ? b.to.slice(2).replace(/-/g, ".") : "?"}
+                                    </span>
                                   </span>
-                                  <b style={{ fontSize: 13.5 }}>
-                                    {b.area ? `[${b.area}] ` : ""}{b.name}
-                                  </b>
-                                  <span className="hint">
-                                    {b.from ? b.from.slice(2).replace(/-/g, ".") : "?"} ~{" "}
-                                    {b.to ? b.to.slice(2).replace(/-/g, ".") : "?"}
+                                  <span className="stuTags">
+                                    {/**
+                                      * **눌러서 끝냄 ↔ 중단** (원장님 2026-08-24 —
+                                      * 「중단이 아니라 끝냄인데 이것도 표시를 제대로
+                                      * 안 해서 그런 것 같아」). 둘의 뜻이 다르다 —
+                                      * 끝낸 책은 회독을 돌릴 수 있고, 중단한 책은
+                                      * 내신 대비 끝나면 다시 든다.
+                                      */}
+                                    <button
+                                      className={`tag ${b.status === "done" ? "tag-mint" : "tag-muted"}`}
+                                      title="누르면 끝냄 ↔ 중단 이 바뀝니다"
+                                      style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
+                                      onClick={() =>
+                                        run(() =>
+                                          setStudentBookStatus(
+                                            s.id, b.id,
+                                            b.status === "done" ? "dropped" : "done",
+                                            b.to || null
+                                          )
+                                        )
+                                      }
+                                    >
+                                      {b.status === "done" ? "끝냄" : "중단"}
+                                    </button>
+                                  </span>
+                                  <span className="stuEnd">
+                                    <button
+                                      className="btn btn-ghost btn-sm"
+                                      title="다시 쓰는 교재로 되돌립니다"
+                                      onClick={() => run(() => setStudentBookStatus(s.id, b.id, "active"))}
+                                    >
+                                      다시 쓰기
+                                    </button>
+                                    <button
+                                      className="btn btn-ghost btn-sm"
+                                      title="애초에 안 쓴 책이면 기록에서 지웁니다 (단원 진도는 남습니다)"
+                                      onClick={() => {
+                                        if (!confirm(`「${b.name}」 을 이 학생 기록에서 지울까요?\n실제로 쓴 교재라면 지우지 마세요 — 끝냄·중단은 기록입니다.`)) return;
+                                        run(() => removeStudentBook(s.id, b.id));
+                                      }}
+                                    >
+                                      기록 지우기
+                                    </button>
                                   </span>
                                 </div>
                               ))}

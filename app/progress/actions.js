@@ -394,6 +394,28 @@ export async function endStudentBooks(studentId, textbookIds) {
   return ok(error);
 }
 
+/**
+ * **잘못 넣은 교재를 기록에서 지운다** (원장님 2026-08-24 — 「내가 테스트하다
+ * 잘못 넣은 건지 모르겠는데 안 쓴 교재가 기록에 있어, 이거 어떻게 지워?」).
+ *
+ * 끝냄·중단은 **쓴 기록**이라 남겨야 하지만, 애초에 안 쓴 책은 기록이 아니라
+ * 잡음이다. 「지난 교재 7권」 이 사실은 4권이면 그 숫자를 못 믿게 된다.
+ *
+ * 배정 줄만 지운다 — 그 교재에 찍힌 단원 진도는 그대로 둔다. 진도까지 지우면
+ * 되돌릴 수가 없고, 배정이 없으면 어차피 화면에 안 나온다.
+ */
+export async function removeStudentBook(studentId, textbookId) {
+  if (!studentId || !textbookId) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("student_textbooks").delete()
+    .eq("student_id", studentId).eq("textbook_id", textbookId);
+  revalidatePath("/today");
+  revalidatePath("/students");
+  revalidatePath("/progress");
+  return ok(error);
+}
+
 export async function setStudentBookStatus(studentId, textbookId, status, endedOn) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = createClient();
