@@ -18,6 +18,7 @@ import { WEEK_ORDER as DOW } from "@/lib/day";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
 import MissingPicker from "@/components/MissingPicker";
 import RoutineEditor from "@/app/textbooks/RoutineEditor";
+import RoutinePick from "./RoutinePick";
 
 /**
  * **빠진 것** — 이 아이에게 없으면 실제로 일이 안 되는 칸.
@@ -172,6 +173,8 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
   const [openId, setOpenId] = useState(openStudent);
   // 어느 교재의 루틴을 펼쳤나 (재원생 › 교재)
   const [openRoutine, setOpenRoutine] = useState(null);
+  // 그중 루틴 **자체**를 고치는 판을 연 교재 (다른 학생도 같이 바뀐다)
+  const [editRoutine, setEditRoutine] = useState(null);
   // 좁은 화면에서는 판이 위로 올라온다. 목록을 보려면 접을 수 있어야 한다.
   const [folded, setFolded] = useState(false);
   const [tab, setTab] = useState("info");
@@ -711,9 +714,10 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                             */}
                           {(s.books || []).length > 0 && (
                             <div className="stack" style={{ gap: 6, marginTop: 12 }}>
-                              <b style={{ fontSize: 14 }}>등원 학습 · 집 숙제 루틴</b>
+                              <b style={{ fontSize: 14 }}>루틴 배정</b>
                               <p className="hint" style={{ margin: 0 }}>
-                                루틴은 <b>교재</b>에 붙습니다 — 여기서 고치면 이 교재를 쓰는 다른 학생도 같이 바뀝니다.
+                                루틴은 <b>메뉴</b>입니다 — 켜진 것만 이 학생에게 나갑니다. 끄면 이 학생만 빠지고
+                                교재 루틴 자체는 그대로예요.
                               </p>
                               {(s.books || []).map((b) => (
                                 <div key={`rt-${b.id}`} className="stack" style={{ gap: 4 }}>
@@ -725,7 +729,21 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                                     {openRoutine === b.id ? "▾" : "▸"} {b.name}
                                   </button>
                                   {openRoutine === b.id && (
-                                    <RoutineEditor key={`rte-${b.id}`} textbookId={b.id} items={hwItems} />
+                                    <>
+                                      <RoutinePick key={`rp-${b.id}`} studentId={s.id} book={b} />
+                                      {/* 루틴 **자체**를 고치는 것은 따로 — 여기서 고치면
+                                          이 교재를 쓰는 다른 학생도 같이 바뀐다 */}
+                                      <button
+                                        className="btn btn-ghost btn-sm"
+                                        style={{ alignSelf: "flex-start", marginTop: 4 }}
+                                        onClick={() => setEditRoutine((cur) => (cur === b.id ? null : b.id))}
+                                      >
+                                        {editRoutine === b.id ? "▾" : "▸"} 이 교재의 루틴 자체 고치기 (다른 학생도 같이 바뀜)
+                                      </button>
+                                      {editRoutine === b.id && (
+                                        <RoutineEditor key={`rte-${b.id}`} textbookId={b.id} items={hwItems} />
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               ))}

@@ -25,8 +25,15 @@ export async function nextRoutine(studentId, opts = {}) {
   // 멈춤(pause, 0149)도 여기서 같이 읽는다 — 멈춤 판단은 이 함수 한 곳이다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause")
+    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip")
     .eq("student_id", studentId);
+  if (stq.error) {
+    // 0153 전 — 「이 학생은 뺀다」 목록 없이 (루틴에 적힌 것 전부 한다)
+    stq = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause")
+      .eq("student_id", studentId);
+  }
   if (stq.error) {
     // 0149 전 — pause 없이 (멈춘 교재가 없는 것으로 본다)
     stq = await supabase
@@ -155,9 +162,10 @@ export async function nextRoutine(studentId, opts = {}) {
     const maxR = rounded.length ? Math.max(...rounded.map((s) => s.round)) : null;
     const list = all.filter((s) => s.round == null || s.round === maxR);
     // 이 교재의 모든 단계가 쓰는 항목 (차례와 상관없이)
+    const mySkip = new Set(r.routine_skip || []);
     list.forEach((st) => {
       [...(st.inclass_items || []), ...(st.home_items || []), ...(st.home_next || [])]
-        .forEach((x) => x && myItems.add(x));
+        .forEach((x) => { if (x && !mySkip.has(x)) myItems.add(x); });
     });
     if (list.length === 0) return;
     /**
@@ -179,8 +187,17 @@ export async function nextRoutine(studentId, opts = {}) {
      * (home_next)만 비운다. 해제하면 다시 여느 때처럼 나간다.
      */
     const homePaused = r.pause === "home";
-    (step.inclass_items || []).forEach((x) => inclass.add(x));
-    if (!homePaused) (step.home_items || []).forEach((x) => {
+    /**
+     * **이 학생이 빼둔 항목** (0153 — 원장님 2026-08-24 「교재루틴이 있으면
+     * 그걸 학생한테 일부만 배정하는 거야」).
+     * 루틴은 메뉴다 — 교재(또는 영역)에 한 벌 적어두고 학생마다 할 것만
+     * 고른다. **교재 루틴과 영역 루틴이 같은 이 자리를 지나므로** 둘 다
+     * 여기서 한 번에 걸러진다.
+     */
+    const skip = new Set(r.routine_skip || []);
+    const keep = (x) => x && !skip.has(x);
+    (step.inclass_items || []).filter(keep).forEach((x) => inclass.add(x));
+    if (!homePaused) (step.home_items || []).filter(keep).forEach((x) => {
       home.add(x);
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
       if (unit?.id)
@@ -196,7 +213,7 @@ export async function nextRoutine(studentId, opts = {}) {
      * 후행인지」). 오늘 단원이 아니라 **다음 단원**이 붙는다.
      * 다음 단원이 없으면(마지막 단원) 범위 없이 항목만 담는다.
      */
-    if (!homePaused) (step.home_next || []).forEach((x) => {
+    if (!homePaused) (step.home_next || []).filter(keep).forEach((x) => {
       home.add(x);
       if (unit?.nextId)
         itemUnits[x] = {
@@ -216,8 +233,8 @@ export async function nextRoutine(studentId, opts = {}) {
       // 멈춤 상태 — 화면(오늘 수업 판)이 태그로 보여준다
       pause: r.pause || null,
       // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 화면이 교재별로 거른다
-      inclassItems: step.inclass_items || [],
-      homeItems: homePaused ? [] : [...(step.home_items || []), ...(step.home_next || [])],
+      inclassItems: (step.inclass_items || []).filter(keep),
+      homeItems: homePaused ? [] : [...(step.home_items || []), ...(step.home_next || [])].filter(keep),
     });
   });
 
