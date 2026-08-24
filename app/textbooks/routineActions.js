@@ -181,6 +181,60 @@ export async function deleteStep(id) {
  * 학습 항목을 이름으로 잇는다. 없는 이름은 **버리지 않고 알려준다** —
  * 「기본 학습 목록」 을 아직 안 넣으셨을 수 있다.
  */
+/**
+ * **영역 루틴을 이 교재로 복사해 온다** (원장님 2026-08-24 — 「영역루틴 먼저
+ * 짜고, 교재가 생겼을 때 영역루틴을 그대로 추가할지 수정할지 더 추가할지
+ * 정하고, 그 다음에 학생별 루틴을 배정하는 게 맞는 거 같아」).
+ *
+ * 여태는 이 자리가 **함정**이었다. 영역 루틴을 따르는 교재에서 「＋ 단계
+ * 추가」 를 누르면, 그 순간 교재 루틴(1단계)이 생기고 교재가 영역보다
+ * 우선이므로 **영역의 나머지 단계가 통째로 사라졌다.** 더하려다 지운 셈이다.
+ *
+ * 그래서 갈래를 눈에 보이게 셋으로 나눈다:
+ *   ① 영역 루틴 그대로   — 아무것도 안 만든다 (지금까지의 기본)
+ *   ② 가져와서 고치기     — 이 함수. 영역 단계를 그대로 복사한 뒤 고친다
+ *   ③ 처음부터 따로 짜기  — 빈 채로 시작
+ */
+export async function copyAreaRoutine(textbookId) {
+  if (!textbookId) return { error: "교재가 없어요." };
+  const supabase = createClient();
+  const { data: bk } = await supabase
+    .from("textbooks").select("area, name").eq("id", textbookId).maybeSingle();
+  if (!bk?.area) return { error: "이 교재에 영역이 안 적혀 있어요 — 교재 정보에서 영역을 먼저 정해주세요." };
+
+  // 이미 제 루틴이 있으면 덮지 않는다 — 손으로 짜두신 것을 지우면 안 된다
+  const { data: mine } = await supabase
+    .from("routine_steps").select("id").eq("textbook_id", textbookId).limit(1);
+  if ((mine || []).length > 0) return { error: "이 교재는 이미 제 진도루틴이 있어요." };
+
+  let aq = await supabase
+    .from("routine_steps")
+    .select("sort, label, inclass_items, home_items, home_next, note, round")
+    .eq("area", bk.area).is("textbook_id", null)
+    .order("sort", { ascending: true });
+  if (aq.error) {
+    aq = await supabase
+      .from("routine_steps")
+      .select("sort, label, inclass_items, home_items")
+      .eq("area", bk.area).is("textbook_id", null)
+      .order("sort", { ascending: true });
+  }
+  const src = aq.data || [];
+  if (src.length === 0) return { error: `「${bk.area}」 영역 루틴이 아직 없어요 — 영역 루틴을 먼저 짜주세요.` };
+
+  const rows = src.map((x) => ({ ...x, textbook_id: textbookId, area: null }));
+  let { error } = await supabase.from("routine_steps").insert(rows);
+  if (error) {
+    // 옛 DB — 회독·예습 칸 없이 한 번 더
+    const bare = rows.map(({ round, home_next, ...rest }) => rest);
+    ({ error } = await supabase.from("routine_steps").insert(bare));
+  }
+  if (error) return { error: error.message };
+  revalidatePath("/textbooks");
+  revalidatePath("/today");
+  return { error: null, added: src.length, area: bk.area };
+}
+
 export async function seedRoutine(textbookId, area = null) {
   if (!textbookId && !area) return { error: "교재가 없어요." };
   const supabase = createClient();

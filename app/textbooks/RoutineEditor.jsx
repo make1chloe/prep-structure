@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { listRoutine, saveStep, deleteStep, seedRoutine } from "./routineActions";
+import { listRoutine, saveStep, deleteStep, seedRoutine, copyAreaRoutine } from "./routineActions";
 import { CATEGORIES, CAT_CLS } from "@/app/homework/categories";
 
 /**
@@ -157,6 +157,25 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
     });
   }
 
+  /**
+   * **따르는 중에는 그냥 못 더한다** (원장님 2026-08-24). 여태 여기서
+   * 「＋ 단계 추가」 를 누르면 교재 루틴(1단계)이 생기고, 교재가 영역보다
+   * 우선이라 **영역의 나머지 단계가 통째로 사라졌다.** 더하려다 지운 셈이다.
+   * 먼저 가져올지 묻고, 가져온 뒤에 더한다.
+   */
+  function copyThenAdd() {
+    if (!confirm(
+      `이 교재는 지금 「${inherited}」 영역 루틴을 따르고 있어요.\n\n` +
+      "여기에 단계를 더하려면 영역 루틴을 이 교재로 **가져와야** 합니다.\n" +
+      "가져오면 이 교재만 따로 굴러가고, 영역 루틴을 나중에 고쳐도 이 교재는 안 따라갑니다."
+    )) return;
+    startTransition(async () => {
+      const res = await copyAreaRoutine(textbookId);
+      if (res?.error) { alert(res.error); return; }
+      await load();
+    });
+  }
+
   const addStep = () =>
     setEditing({
       sort: (steps[steps.length - 1]?.sort ?? 0) + 10,
@@ -236,13 +255,28 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
             <span className="hint" style={{ flex: 1 }}>
               한 줄이 한 수업 회차입니다. 진도를 따라 순서대로 돌아갑니다.
             </span>
-            <button className="btn btn-sm" onClick={addStep}>＋ 단계 추가</button>
-            {inherited && (
-              <span className="tag tag-sky" title="이 교재만의 진도루틴이 없어서 영역 공통 진도루틴을 따르는 중이에요. 단계를 추가하면 이 교재만의 진도루틴이 우선이 됩니다. 영역 진도루틴 자체는 맨 위 「영역 진도루틴」 단추에서 고칠 수 있어요">
-                영역 진도루틴({inherited}) 따르는 중
-              </span>
-            )}
+            <button className="btn btn-sm" onClick={inherited ? copyThenAdd : addStep}>＋ 단계 추가</button>
           </div>
+
+          {/**
+            * **지금 어느 갈래인지 한 줄로 말한다** (원장님 2026-08-24 —
+            * 「영역루틴 먼저 짜고, 교재가 생겼을 때 영역루틴을 그대로 추가할지
+            * 수정할지 더 추가할지 정하고, 그 다음에 학생별 루틴을 배정」).
+            * 여태는 작은 딱지 하나뿐이라, 이 교재가 남의 루틴을 빌려 쓰는
+            * 중인지 제 것을 가진 건지 눈에 안 들어왔다.
+            */}
+          {inherited && (
+            <div className="notice" style={{ marginBottom: 10, fontSize: 14 }}>
+              <b>「{inherited}」 영역 루틴을 그대로 쓰는 중</b> — 이 교재만의 루틴은 아직 없어요.
+              영역 루틴을 고치면 이 교재도 같이 바뀝니다.
+              <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                <button className="btn btn-sm" disabled={pending} onClick={copyThenAdd}>
+                  이 교재만 따로 짜기 (영역 것을 가져와서 고침)
+                </button>
+                <span className="hint">그대로 쓰실 거면 아무것도 안 하셔도 됩니다.</span>
+              </div>
+            </div>
+          )}
 
           <div className="stack" style={{ gap: 6 }}>
             {steps.map((s, i) => (
