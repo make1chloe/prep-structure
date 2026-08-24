@@ -11,6 +11,7 @@ import {
   splitExamByGrade,
 } from "./actions";
 import { teacherText } from "@/lib/exams";
+import { EXAM_TERMS, examTerm, termRank } from "@/lib/examKind";
 import { cleanNote } from "@/lib/note";
 import { sameSchool } from "@/lib/who";
 import { useBulk, BulkBar } from "@/components/Bulk";
@@ -56,11 +57,60 @@ export default function PrepBoard({
     const end = e.to_date || e.exam_date || e.from_date;
     return !!end && end < today;
   };
-  const sortedExams = [...exams].sort(
-    (a, b) => keyOf(a).localeCompare(keyOf(b)) || (a.school || "").localeCompare(b.school || "", "ko")
-  );
+  /**
+   * **표로 세우고, 골라 본다** (원장님 2026-08-24 — 「시험목록도 표 방식으로
+   * 정렬, 필터 등등 가능하게 만들어줘. 시험종류는 1학기중간, 1학기기말,
+   * 2학기중간, 2학기기말, 수행평가」).
+   *
+   * 학교가 열 곳이 넘고 학년까지 나뉘면 시험 줄이 수십 개다. 한 줄짜리 목록
+   * 으로는 「해송고 것만」 이나 「기말만」 을 볼 수가 없어서 눈으로 훑었다.
+   * 회차는 이름에서 읽어낸다 (lib/examKind examTerm) — 칸을 새로 만들지 않아
+   * 지금 있는 줄도 오늘부터 묶인다.
+   */
+  const [fSchool, setFSchool] = useState("");
+  const [fGrade, setFGrade] = useState("");
+  const [fTerm, setFTerm] = useState("");
+  const [sortBy, setSortBy] = useState("date");     // date · school · term
+  const [asc, setAsc] = useState(true);
+
+  const withTerm = exams.map((e) => ({ ...e, _term: examTerm(e.term) }));
+  const filtered = withTerm.filter((e) => {
+    if (fSchool && e.school !== fSchool) return false;
+    if (fGrade && (e.grade || "") !== fGrade) return false;
+    if (fTerm === "__none__" ? !!e._term : fTerm && e._term !== fTerm) return false;
+    return true;
+  });
+  const cmp = (a, b) => {
+    if (sortBy === "school") {
+      return (a.school || "").localeCompare(b.school || "", "ko")
+        || keyOf(a).localeCompare(keyOf(b));
+    }
+    if (sortBy === "term") {
+      return termRank(a._term) - termRank(b._term)
+        || keyOf(a).localeCompare(keyOf(b))
+        || (a.school || "").localeCompare(b.school || "", "ko");
+    }
+    return keyOf(a).localeCompare(keyOf(b))
+      || (a.school || "").localeCompare(b.school || "", "ko");
+  };
+  const sortedExams = [...filtered].sort((a, b) => (asc ? cmp(a, b) : -cmp(a, b)));
   const pastCount = sortedExams.filter(isPast).length;
   const shownExams = showPast ? sortedExams : sortedExams.filter((e) => !isPast(e));
+  const schoolsIn = [...new Set(exams.map((e) => e.school).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko"));
+  const gradesIn = [...new Set(exams.map((e) => e.grade || "").filter(Boolean))].sort();
+  const 거르는중 = !!(fSchool || fGrade || fTerm);
+  function head(key, label) {
+    const on = sortBy === key;
+    return (
+      <th
+        style={{ cursor: "pointer", whiteSpace: "nowrap" }}
+        title="눌러서 이 기준으로 세웁니다"
+        onClick={() => { if (on) setAsc(!asc); else { setSortBy(key); setAsc(true); } }}
+      >
+        {label}{on ? (asc ? " ↑" : " ↓") : ""}
+      </th>
+    );
+  }
 
   const [sel, setSel] = useState(pick || shownExams[0]?.id || exams[0]?.id || "");
   const [openTypes, setOpenTypes] = useState(false);
@@ -181,8 +231,27 @@ export default function PrepBoard({
                 학교 것이 되어 시험범위도 성적도 따로 논다 */}
             <SchoolField className="input input-sm" style={{ width: 130 }} schools={schools}
               value={newExam.school} onChange={(e) => setNewExam({ ...newExam, school: e.target.value })} />
-            <input className="input input-sm" style={{ width: 150 }} placeholder="26' 1학기기말"
-              value={newExam.term} onChange={(e) => setNewExam({ ...newExam, term: e.target.value })} />
+            {/**
+              * **회차는 골라 넣는다** (원장님 2026-08-24 — 「시험종류는
+              * 1학기중간, 1학기기말, 2학기중간, 2학기기말, 수행평가」).
+              * 손으로 적으면 「26' 1학기기말」 과 「1학기 기말고사」 가 다른
+              * 글자가 되어 목록에서 묶이지도 걸러지지도 않는다.
+              * 수행평가는 학기에 여러 번이라 뒤에 번호를 덧붙일 수 있게 둔다.
+              */}
+            <select className="input input-sm" style={{ width: 130 }}
+              value={EXAM_TERMS.includes(newExam.term.replace(/\s*\d+$/, "")) ? newExam.term.replace(/\s*\d+$/, "") : ""}
+              onChange={(e) => setNewExam({ ...newExam, term: e.target.value })}>
+              <option value="">회차 고르기</option>
+              {EXAM_TERMS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+            {newExam.term.startsWith("수행평가") && (
+              <input className="input input-sm" style={{ width: 90 }} placeholder="몇 번째"
+                title="수행평가는 학기에 여러 번이라 번호로 가릅니다"
+                value={newExam.term.replace(/^수행평가\s*/, "")}
+                onChange={(e) =>
+                  setNewExam({ ...newExam, term: `수행평가${e.target.value.replace(/[^\d]/g, "")}` })
+                } />
+            )}
             <GradeField className="input input-sm" style={{ width: 80 }}
               value={newExam.grade} onChange={(e) => setNewExam({ ...newExam, grade: e.target.value })} />
             <input className="input input-sm" type="date" style={{ width: 150 }}
@@ -205,37 +274,82 @@ export default function PrepBoard({
       <div className="grid-side" style={{ marginTop: 12 }}>
         {/* 시험 목록 */}
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <table className="tbl">
+          {/* 골라 보기 — 학교 · 학년 · 회차 */}
+          <div className="row" style={{ gap: 4, padding: "8px 10px", flexWrap: "wrap", alignItems: "center" }}>
+            <select className="input input-sm" style={{ width: 110 }} value={fSchool}
+              onChange={(ev) => setFSchool(ev.target.value)}>
+              <option value="">학교 전체</option>
+              {schoolsIn.map((x) => <option key={x} value={x}>{shortName(x)}</option>)}
+            </select>
+            <select className="input input-sm" style={{ width: 80 }} value={fGrade}
+              onChange={(ev) => setFGrade(ev.target.value)}>
+              <option value="">학년 전체</option>
+              {gradesIn.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <select className="input input-sm" style={{ width: 120 }} value={fTerm}
+              onChange={(ev) => setFTerm(ev.target.value)}>
+              <option value="">회차 전체</option>
+              {EXAM_TERMS.map((x) => <option key={x} value={x}>{x}</option>)}
+              <option value="__none__">그 밖 (회차를 못 읽은 것)</option>
+            </select>
+            {거르는중 && (
+              <button className="btn btn-ghost btn-sm"
+                onClick={() => { setFSchool(""); setFGrade(""); setFTerm(""); }}>
+                거르기 지우기
+              </button>
+            )}
+          </div>
+          <table className="tbl tbl-tight">
+            <thead>
+              <tr>
+                {head("school", "학교")}
+                <th style={{ whiteSpace: "nowrap" }}>학년</th>
+                {head("term", "회차")}
+                {head("date", "영어 시험일")}
+              </tr>
+            </thead>
             <tbody>
               {shownExams.map((e) => {
                 const d = dLeft(e.exam_date, today);
                 return (
-                  <tr key={e.id} style={sel === e.id ? { background: "var(--surface-2)" } : undefined}>
+                  <tr key={e.id}
+                      onClick={() => setSel(e.id)}
+                      style={{ cursor: "pointer", ...(sel === e.id ? { background: "var(--surface-2)" } : {}) }}>
+                    <td><b title={e.school}>{shortName(e.school)}</b></td>
+                    <td><span className="hint">{e.grade || "전체"}</span></td>
                     <td>
-                      <button className="btn btn-ghost btn-sm" style={{ width: "100%", textAlign: "left" }}
-                        onClick={() => setSel(e.id)}>
-                        <b title={e.school}>{shortName(e.school)}</b>{" "}
-                        <span className="hint" style={{ fontSize: 12.5 }}>
-                          {[e.grade, e.term].filter(Boolean).join(" · ")}
-                        </span>
-                        {e.exam_date && (
-                          <span className={`tag ${d !== null && d <= 7 ? "tag-amber" : "tag-muted"}`} style={{ marginLeft: 6, fontSize: 12 }}>
+                      <span className="hint">{e._term || e.term || "—"}</span>
+                      {/* 회차를 못 읽은 이름은 적힌 그대로 (지어내지 않는다) */}
+                      {!e._term && e.term && <span className="hint"> </span>}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {e.exam_date ? (
+                        <>
+                          <span className="hint">{e.exam_date.slice(2).replace(/-/g, ".")}</span>{" "}
+                          <span className={`tag ${d !== null && d >= 0 && d <= 7 ? "tag-amber" : "tag-muted"}`}
+                                style={{ fontSize: 12 }}>
                             {d < 0 ? "지남" : `D-${d}`}
                           </span>
-                        )}
-                      </button>
+                        </>
+                      ) : (
+                        <span className="hint">아직</span>
+                      )}
                     </td>
                   </tr>
                 );
               })}
               {shownExams.length === 0 && (
-                <tr><td><p className="hint" style={{ margin: 0, padding: 10 }}>
-                  {exams.length === 0 ? "시험을 추가해주세요." : "다가오는 시험이 없어요."}
+                <tr><td colSpan={4}><p className="hint" style={{ margin: 0, padding: 10 }}>
+                  {exams.length === 0
+                    ? "시험을 추가해주세요."
+                    : 거르는중
+                    ? "고른 조건에 맞는 시험이 없어요."
+                    : "다가오는 시험이 없어요."}
                 </p></td></tr>
               )}
               {pastCount > 0 && (
                 <tr>
-                  <td>
+                  <td colSpan={4}>
                     <button
                       className="btn btn-ghost btn-sm"
                       style={{ width: "100%", textAlign: "left" }}

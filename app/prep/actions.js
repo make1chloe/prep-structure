@@ -236,11 +236,30 @@ export async function saveExam(e = {}) {
    * 무엇이 겹쳤는지, 어떻게 하면 되는지가 없으면 손쓸 데가 없다.
    */
   if (q.error?.code === "23505") {
+    /**
+     * **무엇이 막고 있는지 찾아서 말해준다.** 「이미 있어요」 라고만 하면
+     * 원장님이 목록을 뒤져도 안 나올 수 있다 — 겹치는 잣대가 (학교·학년·
+     * 시작일)이라, **이름이 달라도** 같은 날 시작하는 다른 시험이 있으면
+     * 막히기 때문이다(0156 을 아직 안 돌렸을 때). 그래서 지어내지 말고
+     * **진짜로 있는 줄**을 읽어다 보여준다.
+     */
+    const { data: hit } = await supabase
+      .from("exam_periods")
+      .select("name, grade, from_date, english_on")
+      .eq("school", school)
+      .eq("from_date", row.from_date || day || "")
+      .limit(3);
+    const 있는것 = (hit || [])
+      .map((x) => `· ${x.name || "이름 없음"}${x.grade ? ` (${x.grade})` : ""}` +
+                  `${x.from_date ? ` — ${x.from_date} 시작` : ""}`)
+      .join("\n");
     return {
-      error:
-        `「${school} ${(e.grade || "").trim() || "전학년"} ${term}」 은 이미 있어요.\n` +
-        "목록에서 그 시험을 골라 고치시거나, 시험 이름을 다르게 적어주세요.\n" +
-        "(지난 시험은 기본으로 숨겨져 있으니 「지난 것도」 를 켜고 찾아보세요)",
+      error: 있는것
+        ? `${school} 에 이미 있는 시험과 겹칩니다:\n${있는것}\n\n` +
+          "그 시험을 골라 고치시거나, 시험 시작일(영어 시험일)을 넣어 다른 날로 두세요.\n" +
+          "(지난 시험은 기본으로 숨겨져 있어요 — 「지난 시험 보기」 를 눌러 찾아보세요)"
+        : `「${school} ${(e.grade || "").trim() || "전학년"} ${term}」 은 이미 있어요.\n` +
+          "목록에서 그 시험을 골라 고쳐주세요. (지난 시험은 「지난 시험 보기」 로)",
     };
   }
   revalidatePath("/prep");
