@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { viewUrl } from "@/app/me/submitActions";
 import { markSubmissionChecked } from "./submissionActions";
 
@@ -28,6 +29,8 @@ export default function SubmissionList({ rows = [], items = [] }) {
   const [checkedLocal, setCheckedLocal] = useState(() => new Set());
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
   const nameOf = (id) => items.find((i) => i.id === id)?.name || "숙제";
   const isChecked = (r) => !!r.checked_at || checkedLocal.has(r.id);
 
@@ -89,7 +92,7 @@ export default function SubmissionList({ rows = [], items = [] }) {
                         alert(res.error);
                         return;
                       }
-                      router.refresh();
+                      lazyRefresh();
                     });
                   }}
                 >

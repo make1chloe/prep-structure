@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { saveWordTest, nextRound } from "@/app/progress/actions";
 import { TYPES, total, label } from "@/lib/wordTest";
 
@@ -32,6 +33,8 @@ export default function WordTest({ studentId, book }) {
   }));
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   const sum = total(cfg);
   const base = label(cur ? { ...cur, round: book.round } : null);
@@ -45,7 +48,7 @@ export default function WordTest({ studentId, book }) {
         return;
       }
       // 저장하고도 **안 접는다** — 배분을 몇 번 고쳐보는 자리다
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -139,7 +142,7 @@ export default function WordTest({ studentId, book }) {
                 return;
               }
               setCfg({ mc_meaning: 0, sa_meaning: 0, mc_word: 0, sa_word: 0, first_hint: false, units_per: "" });
-              router.refresh();
+              lazyRefresh();
             });
           }}
         >

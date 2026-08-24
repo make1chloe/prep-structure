@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { addUnitExam, deleteUnitExam } from "./examActions";
 import { scoreRaw } from "@/lib/wordTest";
 
@@ -21,6 +22,8 @@ export default function ExamBox({ studentId, date, rows = [], readOnly = false }
   const [form, setForm] = useState({ name: "", wrong: "", total: "" });
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   function add() {
     startTransition(async () => {
@@ -31,7 +34,7 @@ export default function ExamBox({ studentId, date, rows = [], readOnly = false }
       }
       setForm({ name: "", wrong: "", total: "" });
       setOpen(false);
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -51,7 +54,7 @@ export default function ExamBox({ studentId, date, rows = [], readOnly = false }
                   if (!confirm(`'${e.name}' 결과를 지울까요?`)) return;
                   startTransition(async () => {
                     await deleteUnitExam(e.id);
-                    router.refresh();
+                    lazyRefresh();
                   });
                 }}
               >

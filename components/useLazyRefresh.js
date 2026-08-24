@@ -25,8 +25,20 @@ export function useLazyRefresh(delay = 12000) {
   const timer = useRef(null);
   const armed = useRef(false);
 
+  /**
+   * **적는 중이면 기다린다** — 글자를 치는 도중이거나, **판이 열려 있으면.**
+   *
+   * 판이 열려 있는 동안 화면을 새로 그리면 그 판이 다시 서면서 **아직 저장
+   * 안 한 것이 사라진다** (원장님 2026-08-24 — 「숙제 적다가 늦귀가 보내기
+   * 누르니까 일부 날아갔어, 숙제 단원」). 서버에 이미 담긴 것만 남고 방금
+   * 고른 것이 없어지니, 「일부만」 날아간 것처럼 보인다.
+   *
+   * 판이 열렸다는 표시(data-editing)는 useSheet 이 붙인다. 닫을 때
+   * flush() 가 밀린 것을 한 번에 돌린다 — 낡은 채로 두지 않는다.
+   */
   const typing = () => {
     if (typeof document === "undefined") return false;
+    if (document.documentElement.dataset.editing) return true;   // 판이 열려 있다
     const el = document.activeElement;
     return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
   };

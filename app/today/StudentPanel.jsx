@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { saveStudentDay, listUnitOptions, setDelivered, bookMakeup } from "./actions";
 import { setBookPause } from "@/app/progress/actions";
 import { useSheet } from "@/components/useSheet";
@@ -651,6 +652,8 @@ export default function StudentPanel({
     setArr({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
   }, [row.phoneAt, row.attendAt, row.homeworkAt]);
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   const toCheck = row.toCheck || [];          // 지난 수업에 배정한 숙제 = 오늘 검사 대상
   const toCheckSet = new Set(toCheck);
@@ -821,7 +824,7 @@ export default function StudentPanel({
                       alert(res.error);
                       return;
                     }
-                    router.refresh();
+                    lazyRefresh();
                   });
                 }}
               >
@@ -1368,8 +1371,10 @@ export default function StudentPanel({
       }
       // 기록은 됐지만 곁가지(할일·진도 반영)가 실패한 경우 — 조용히 안 넘긴다
       if (res?.warn) alert(res.warn);
+      // 미룬 것을 먼저 걸어두고 닫는다 — 닫으면서 TodayBoard 가 flush 로
+      // 한 번에 돌린다 (저장은 확정이라 늦출 까닭이 없다)
+      lazyRefresh();
       onSaved?.();
-      router.refresh();
       } finally {
         setSaving(false);
       }
@@ -2927,7 +2932,7 @@ export default function StudentPanel({
                     );
                     if (res?.error) { alert(res.error); return; }
                     setMk({ open: false, date: "", time: "", reason: "" });
-                    router.refresh();
+                    lazyRefresh();
                   })
                 }
               >

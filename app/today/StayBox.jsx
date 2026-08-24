@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { addStay, setStayStatus, deleteStay } from "./stayActions";
 import { STAY_LABEL } from "@/lib/reportText";
 
@@ -50,6 +51,8 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
   const [optSug, setOptSug] = useState({});   // 제안 body → 고른 status (refresh 전까지 임시 표시)
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   function run(fn, undo) {
     startTransition(async () => {
@@ -59,7 +62,7 @@ export default function StayBox({ studentId, date, rows = [], suggestions = [] }
         alert(res.error);
         return;
       }
-      router.refresh();
+      lazyRefresh();
     });
   }
 

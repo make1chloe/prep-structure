@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { setMakeup, waiveMakeup } from "@/app/plan/actions";
 import { dayLabel } from "@/lib/day";
 
@@ -34,6 +35,8 @@ export function MakeupMissed({ studentId, date, name = "학생", makeupOf = null
   const [msg, setMsg] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
   const origin = makeupOf || null;
 
   function act(fn, okText) {
@@ -43,7 +46,7 @@ export function MakeupMissed({ studentId, date, name = "학생", makeupOf = null
         const res = await fn();
         if (res?.error) { setMsg({ bad: true, text: res.error }); return; }
         setMsg({ bad: false, text: okText });
-        router.refresh();
+        lazyRefresh();
       } catch (e) {
         setMsg({ bad: true, text: `안 됐어요: ${e?.message || e}` });
       }
@@ -103,6 +106,8 @@ export default function MakeupHere({ studentId, date, name = "학생", already =
   const [msg, setMsg] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   if (already) {
     return (
@@ -145,7 +150,7 @@ export default function MakeupHere({ studentId, date, name = "학생", already =
                   setMsg({ bad: true, text: res.error });
                   return;
                 }
-                router.refresh();
+                lazyRefresh();
               } catch (e) {
                 setOn(v); setAt(t);
                 setMsg({ bad: true, text: `잡지 못했어요: ${e?.message || e}` });

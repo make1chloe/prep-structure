@@ -428,6 +428,12 @@ export default async function MePage({ searchParams }) {
     new Date(`${todaySeoul()}T00:00:00Z`).getUTCDay()
   ];
   let classEnd = null;
+  /**
+   * **오늘이 이 아이의 수업 요일인가** (원장님 2026-08-24 — 「수업요일이
+   * 아닌 날은 출력 안 되게 해주고」). 수업이 없는 날에 「폰 냈어요 · 하원할게요」
+   * 가 떠 있으면 아이가 눌러버리고, 어머니께 오지도 않은 아이의 하원 알림이 간다.
+   */
+  let isClassDay = false;
   // 내 반 — 하원 시각을 재는 데도 쓰고, 아래 달력에 **수업일**을 찍는 데도 쓴다
   let myClasses = [];
   {
@@ -440,6 +446,7 @@ export default async function MePage({ searchParams }) {
       myClasses = await loadClassesWithTerm(
         supabase, "id, name, days, start_time, end_time", ids
       );
+      isClassDay = myClasses.some((c) => (c.days || []).includes(dowNow));
       myClasses
         .filter((c) => (c.days || []).includes(dowNow) && c.end_time)
         .forEach((c) => {
@@ -954,13 +961,14 @@ export default async function MePage({ searchParams }) {
           {/* ── 3~4. 하원 숙제 · 등원 학습 ───────────────────────────
               등원 절차(폰·출석·숙제 제출)를 먼저 둔다 — 학원에 들어와서
               제일 먼저 누르는 것이라 학습보다 위에 있어야 한다. */}
+          {/* 수업 요일이 아니면 등원·하원 절차를 아예 안 띄운다 (2026-08-24) */}
           <ArrivalCard
             done={{
               phone: arrival.phone_at,
               attend: arrival.attend_at,
               homework: arrival.homework_at,
             }}
-            atAcademy={atAcademy}
+            atAcademy={atAcademy && isClassDay}
             readOnly={preview}
             asId={acting ? student.id : null}
           />
@@ -968,7 +976,7 @@ export default async function MePage({ searchParams }) {
           {/* **하원할게요** (원장님 2026-08-23) — 학원 안에서만 뜬다.
               공용 기기로 표시해 둔 기기에서는 누르면 로그아웃까지 */}
           <LeaveCard
-            atAcademy={atAcademy}
+            atAcademy={atAcademy && isClassDay}
             done={!!arrival.leave_at}
             readOnly={preview}
             asId={acting ? student.id : null}

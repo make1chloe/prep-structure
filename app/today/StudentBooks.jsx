@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { setStudentTextbooks, addStudentBookDated } from "@/app/progress/actions";
 import BookPicker from "@/components/BookPicker";
 import BookPickPanel from "@/components/BookPickPanel";
@@ -29,13 +30,15 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [], 
   const [dEnd, setDEnd] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   function addDated() {
     startTransition(async () => {
       const res = await addStudentBookDated(studentId, dBook, dStart || null, dEnd || null);
       if (res?.error) { alert(res.error); return; }
       setDBook(""); setDStart(""); setDEnd(""); setDOpen(false);
-      router.refresh();
+      lazyRefresh();
     });
   }
 
@@ -50,7 +53,7 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [], 
         return;
       }
       setOpen(false);
-      router.refresh();
+      lazyRefresh();
     });
   }
 

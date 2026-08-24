@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { saveLate, previewLate, sendLateNow, unsendLate, clearLate } from "./lateActions";
 import { TIME_PRESETS, normalizeTime } from "@/lib/lateNotice";
 
@@ -31,6 +32,8 @@ export default function LateBox({
   const [preview, setPreview] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  // 판이 열려 있는 동안은 미룬다 — 새로 그리면 아직 저장 안 한 것이 사라진다 (2026-08-24)
+  const { lazy: lazyRefresh } = useLazyRefresh();
 
   const auto = reasons.length > 0;
   const has = auto || !!saved.until || !!saved.reason;
@@ -50,7 +53,7 @@ export default function LateBox({
         return;
       }
       if (after) after(res);
-      if (!quiet) router.refresh();
+      if (!quiet) lazyRefresh();
     });
   }
 
@@ -190,7 +193,7 @@ export default function LateBox({
                   }
                   const bad = (res.failed || [])[0];
                   alert(bad ? `보내지 못했어요: ${bad.detail}` : "하원 안내를 보냈어요.");
-                  router.refresh();
+                  lazyRefresh();
                 });
               }}
             >

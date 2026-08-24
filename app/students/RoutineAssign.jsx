@@ -96,7 +96,9 @@ export default function RoutineAssign({ studentId, hwItems = [] }) {
       {/* ── ① 영역 차례 */}
       {areas.length > 1 && (
         <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <span className="hint" style={{ fontSize: 12.5, fontWeight: 700 }}>영역 차례</span>
+          <span className="hint" style={{ fontSize: 12.5, fontWeight: 700 }}>
+            영역 차례 <span style={{ fontWeight: 400 }}>← → 로 바꿔요</span>
+          </span>
           {areas.map((a, i) => (
             <span key={a || "그밖"} className="row" style={{ gap: 0, alignItems: "center" }}>
               <span className="tag tag-muted">{a || "그 밖"}</span>
@@ -136,12 +138,27 @@ export default function RoutineAssign({ studentId, hwItems = [] }) {
                 )}
               </span>
               <span className="stuEnd">
-                <button className="btn btn-ghost btn-sm" title="이 영역 안에서 위로"
-                  disabled={pending || at === 0} style={{ padding: "2px 6px" }}
-                  onClick={() => moveBook(b, "up")}>↑</button>
-                <button className="btn btn-ghost btn-sm" title="이 영역 안에서 아래로"
-                  disabled={pending || at === sameArea.length - 1} style={{ padding: "2px 6px" }}
-                  onClick={() => moveBook(b, "down")}>↓</button>
+                {/**
+                  * **영역에 교재가 하나면 ↑↓ 를 아예 안 보여준다**
+                  * (원장님 2026-08-24 — 「여기 화살표가 안 움직여」).
+                  * 교재 차례는 **그 영역 안에서만** 뜻이 있다. 영역마다 한 권씩
+                  * 이면 눌러도 움직일 데가 없는데, 흐릿하게라도 단추가 있으면
+                  * 고장 난 것처럼 보인다. 그 자리엔 어디서 바꾸는지를 적는다.
+                  */}
+                {sameArea.length > 1 ? (
+                  <>
+                    <button className="btn btn-ghost btn-sm" title="이 영역 안에서 위로"
+                      disabled={pending || at === 0} style={{ padding: "2px 6px" }}
+                      onClick={() => moveBook(b, "up")}>↑</button>
+                    <button className="btn btn-ghost btn-sm" title="이 영역 안에서 아래로"
+                      disabled={pending || at === sameArea.length - 1} style={{ padding: "2px 6px" }}
+                      onClick={() => moveBook(b, "down")}>↓</button>
+                  </>
+                ) : (
+                  <span className="hint" style={{ fontSize: 12 }}>
+                    {areas.length > 1 ? "차례는 위 「영역 차례」 로" : ""}
+                  </span>
+                )}
               </span>
             </div>
             {open && (
