@@ -322,6 +322,41 @@ export default async function Home() {
                 </div>
               </div>
             )}
+            {/**
+              * **루틴을 아직 안 정한 교재** (0154 — 원장님 2026-08-24
+              * 「안 되어 있으면 안 되는 정보니까 대시보드 알림이 필요해」).
+              * 배정만 하고 루틴을 안 정하면 그 교재는 오늘 수업에서 아무것도
+              * 안 차려지거나 루틴에 적힌 것이 통째로 나간다 — 둘 다 원장님이
+              * 정한 것이 아니다. 눌러서 그 학생 판으로 바로 간다.
+              */}
+            {(d.routineUnset || []).length > 0 && (
+              <div className="card sect sect-warn">
+                <h2 className="secthead">
+                  루틴 안 정한 교재 <span className="tag tag-amber">{d.routineUnset.length}건</span>
+                </h2>
+                <div className="stack" style={{ gap: 3 }}>
+                  {d.routineUnset.slice(0, 8).map((p) => (
+                    <Link
+                      className="unitrow"
+                      key={p.id}
+                      href={`/students?s=${p.studentId}`}
+                      style={{ textDecoration: "none" }}
+                      title={p.since ? `${p.since} 배정` : undefined}
+                    >
+                      <b style={{ fontSize: 14 }}>{p.name}</b>
+                      <span className="hint" style={{ flex: 1 }}>
+                        {p.area ? `[${p.area}] ` : ""}{p.book}
+                      </span>
+                    </Link>
+                  ))}
+                  {d.routineUnset.length > 8 && (
+                    <Link className="hint" href="/students">
+                      외 {d.routineUnset.length - 8}건 더 보기
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
             {(d.progressIdle || []).length > 0 && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">

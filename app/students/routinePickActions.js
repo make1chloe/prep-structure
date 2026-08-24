@@ -27,8 +27,16 @@ export async function routineChoices(studentId, textbookId) {
 
   let stq = await supabase
     .from("student_textbooks")
-    .select("round, routine_skip")
+    .select("round, routine_skip, routine_set_at, routine_order")
     .eq("student_id", studentId).eq("textbook_id", textbookId).maybeSingle();
+  let hasOrder = !stq.error;
+  if (stq.error) {
+    // 0154 전 — 도장·차례 없이
+    stq = await supabase
+      .from("student_textbooks")
+      .select("round, routine_skip")
+      .eq("student_id", studentId).eq("textbook_id", textbookId).maybeSingle();
+  }
   let hasCol = !stq.error;
   if (stq.error) {
     // 0153 전 — 뺀 목록 칸이 아직 없다
@@ -84,8 +92,19 @@ export async function routineChoices(studentId, textbookId) {
       .filter(Boolean).map((id) => ({ id, name: nameOf.get(id) || "(지워진 항목)" })),
   }));
 
+  /**
+   * **차례** (0154). 정해둔 것이 앞, 없던 것은 루틴 차례대로 뒤에.
+   * 루틴에 항목을 새로 더해도 사라지지 않는다.
+   */
+  const saved = hasOrder ? (stq.data?.routine_order || []).filter(Boolean) : [];
+  const rank = new Map(saved.map((x, i) => [x, i]));
+  const order = [...ids].sort((a2, b2) => (rank.get(a2) ?? 9e9) - (rank.get(b2) ?? 9e9));
+
   return {
     steps,
+    order,
+    정함: hasOrder ? !!stq.data?.routine_set_at : false,
+    차례있음: hasOrder,
     skip: hasCol ? stq.data?.routine_skip || [] : [],
     따르는루틴: steps.length ? 따르는루틴 : null,
     회독: cur,
@@ -94,18 +113,36 @@ export async function routineChoices(studentId, textbookId) {
   };
 }
 
-export async function setRoutineSkip(studentId, textbookId, skip) {
+/**
+ * 뺀 것 · 차례 · 「정했다」 도장을 한 번에 담는다.
+ *
+ * **도장을 따로 두는 까닭** — 뺀 목록이 비어 있는 것이 「전부 한다」 인지
+ * 「아직 안 봤다」 인지 구별이 안 된다. 대시보드가 재촉할 것을 알려면
+ * 도장이 있어야 한다 (원장님 2026-08-24 「안 되어 있으면 안 되는 정보니까
+ * 대시보드 알림이 필요해」).
+ */
+export async function setRoutinePick(studentId, textbookId, { skip, order, 정함 } = {}) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = createClient();
-  const { error } = await supabase
-    .from("student_textbooks")
-    .update({ routine_skip: [...new Set((skip || []).filter(Boolean))] })
+  const patch = { routine_skip: [...new Set((skip || []).filter(Boolean))] };
+  if (Array.isArray(order)) patch.routine_order = [...new Set(order.filter(Boolean))];
+  if (정함) patch.routine_set_at = new Date().toISOString();
+  let { error } = await supabase
+    .from("student_textbooks").update(patch)
     .eq("student_id", studentId).eq("textbook_id", textbookId);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    return { error: "관리자 → SQL 확인에서 0153 을 먼저 실행해 주세요." };
+    // 0154 전 — 뺀 목록만이라도 담는다
+    ({ error } = await supabase
+      .from("student_textbooks").update({ routine_skip: patch.routine_skip })
+      .eq("student_id", studentId).eq("textbook_id", textbookId));
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      return { error: "관리자 → SQL 확인에서 0153·0154 를 먼저 실행해 주세요." };
+    }
+    if (!error) return { error: null, 도장못찍음: true };
   }
   if (error) return { error: error.message };
   revalidatePath("/students");
   revalidatePath("/today");
+  revalidatePath("/");
   return { error: null };
 }

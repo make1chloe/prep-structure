@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startStudy, stopStudy, finishStudy, undoFinish } from "./timerActions";
 import SubmitBox from "./SubmitBox";
@@ -89,7 +89,27 @@ export default function StudyList({
 
   if (tasks.length === 0) return null;
 
-  const left = tasks.filter((t) => !t.doneAt);
+  /**
+   * **영역별로 취합해서 보여준다** (원장님 2026-08-24 — 「학생에게는 그게
+   * 영역별로 취합이 되어서 보이는 거야」).
+   *
+   * 아이는 교재 이름보다 **문법·독해·어휘**로 묶어 볼 때 「오늘 뭐뭐 하지」
+   * 가 한눈에 든다. 교재가 셋이면 카드 여덟 장이 그냥 줄줄이 서 있었다.
+   * 영역이 하나뿐이면 머리글을 안 붙인다 — 없어도 되는 줄은 안 만든다.
+   *
+   * 등원 학습은 **차례가 강제**라 다시 묶지 않는다 (묶으면 순서가 흐트러진다)
+   * — 대신 줄마다 영역을 작게 붙인다.
+   */
+  const areaOf = (t) => t.bookArea || "그 밖";
+  const sortByArea = (list) => {
+    const seen = [];
+    list.forEach((t) => { if (!seen.includes(areaOf(t))) seen.push(areaOf(t)); });
+    return [...list].sort((x, y) => seen.indexOf(areaOf(x)) - seen.indexOf(areaOf(y)));
+  };
+  const left = kind === "home"
+    ? sortByArea(tasks.filter((t) => !t.doneAt))
+    : tasks.filter((t) => !t.doneAt);
+  const areaCount = new Set(tasks.map(areaOf)).size;
   const done = tasks.filter((t) => t.doneAt);
   const now = left[0] || null;
   const rest = left.slice(1);
@@ -210,6 +230,9 @@ export default function StudyList({
                   {i + 2}
                 </span>
                 <span style={{ fontSize: 14.5, flex: 1 }}>{t.name}</span>
+                {areaCount > 1 && t.bookArea && (
+                  <span className="hint" style={{ fontSize: 12 }}>{t.bookArea}</span>
+                )}
                 {t.usual > 0 && <span className="hint" style={{ fontSize: 12.5 }}>보통 {human(t.usual)}</span>}
                 <button className="btn btn-ghost btn-sm" disabled title="앞엣것을 먼저 끝내요">
                   🔒
@@ -231,8 +254,13 @@ export default function StudyList({
             const isRun = runsOn(t);
             const mine = subs[t.reportItemId || t.itemId] || [];
             const missing = needSub(t);
+            const newArea = i === 0 || areaOf(left[i - 1]) !== areaOf(t);
             return (
-              <div key={t.key} className="card">
+              <Fragment key={t.key}>
+              {areaCount > 1 && newArea && (
+                <p className="hint" style={{ margin: "6px 0 0", fontWeight: 700 }}>{areaOf(t)}</p>
+              )}
+              <div className="card">
                 <div className="row" style={{ gap: 7, alignItems: "baseline", flexWrap: "wrap" }}>
                   <span className="tag tag-muted" style={{ minWidth: 24, textAlign: "center" }}>
                     {i + 1}
@@ -314,6 +342,7 @@ export default function StudyList({
                   />
                 )}
               </div>
+              </Fragment>
             );
           })
         ))}

@@ -25,8 +25,15 @@ export async function nextRoutine(studentId, opts = {}) {
   // 멈춤(pause, 0149)도 여기서 같이 읽는다 — 멈춤 판단은 이 함수 한 곳이다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip")
+    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order")
     .eq("student_id", studentId);
+  if (stq.error) {
+    // 0154 전 — 그 학생의 차례 없이 (루틴에 적힌 차례 그대로)
+    stq = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip")
+      .eq("student_id", studentId);
+  }
   if (stq.error) {
     // 0153 전 — 「이 학생은 뺀다」 목록 없이 (루틴에 적힌 것 전부 한다)
     stq = await supabase
@@ -196,7 +203,17 @@ export async function nextRoutine(studentId, opts = {}) {
      */
     const skip = new Set(r.routine_skip || []);
     const keep = (x) => x && !skip.has(x);
-    (step.inclass_items || []).filter(keep).forEach((x) => inclass.add(x));
+    /**
+     * **그 학생의 차례** (0154 — 원장님 2026-08-24 「배정할 때 기본순서도
+     * 정해놔」). 같은 루틴이라도 아이마다 먼저 할 것이 다르다. 정해둔 차례가
+     * 있으면 그대로, 없는 항목은 뒤에 붙인다 — 루틴에 항목을 새로 더해도
+     * 사라지지 않는다.
+     */
+    const ord = (r.routine_order || []).filter(Boolean);
+    const rank = new Map(ord.map((x, i) => [x, i]));
+    const inOrder = (arr) =>
+      [...arr].sort((a2, b2) => (rank.get(a2) ?? 9e9) - (rank.get(b2) ?? 9e9));
+    inOrder((step.inclass_items || []).filter(keep)).forEach((x) => inclass.add(x));
     if (!homePaused) (step.home_items || []).filter(keep).forEach((x) => {
       home.add(x);
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
@@ -233,7 +250,7 @@ export async function nextRoutine(studentId, opts = {}) {
       // 멈춤 상태 — 화면(오늘 수업 판)이 태그로 보여준다
       pause: r.pause || null,
       // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 화면이 교재별로 거른다
-      inclassItems: (step.inclass_items || []).filter(keep),
+      inclassItems: inOrder((step.inclass_items || []).filter(keep)),
       homeItems: homePaused ? [] : [...(step.home_items || []), ...(step.home_next || [])].filter(keep),
     });
   });

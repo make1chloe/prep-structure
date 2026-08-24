@@ -716,8 +716,8 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                             <div className="stack" style={{ gap: 6, marginTop: 12 }}>
                               <b style={{ fontSize: 14 }}>루틴 배정</b>
                               <p className="hint" style={{ margin: 0 }}>
-                                루틴은 <b>메뉴</b>입니다 — 켜진 것만 이 학생에게 나갑니다. 끄면 이 학생만 빠지고
-                                교재 루틴 자체는 그대로예요.
+                                루틴은 <b>메뉴</b>입니다 — 교재를 배정했으면 여기서 이 학생이 할 것과 차례를 정합니다.
+                                끄면 이 학생만 빠지고 교재 루틴 자체는 그대로예요.
                               </p>
                               {(s.books || []).map((b) => (
                                 <div key={`rt-${b.id}`} className="stack" style={{ gap: 4 }}>

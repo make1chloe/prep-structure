@@ -558,6 +558,8 @@ export default async function MePage({ searchParams }) {
       stayId: null,
       name: c.name,
       units: c.units,
+      // 영역(문법·독해·어휘) — 아이 화면이 이걸로 묶는다 (2026-08-24)
+      bookArea: c.bookArea || "",
       note: c.note,
       method: c.method,
       checklist: c.checklist || [],   // 빠져 있어서 체크리스트가 학생 화면에 안 뜨고 있었다
