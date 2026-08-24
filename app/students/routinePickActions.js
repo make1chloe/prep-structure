@@ -141,8 +141,103 @@ export async function setRoutinePick(studentId, textbookId, { skip, order, 정�
     if (!error) return { error: null, 도장못찍음: true };
   }
   if (error) return { error: error.message };
-  revalidatePath("/students");
-  revalidatePath("/today");
-  revalidatePath("/");
+  /**
+   * **여기서 화면을 새로 그리지 않는다** (원장님 2026-08-24 — 「루틴순서만
+   * 바꿔도 새로고침돼」). 차례는 ↑↓ 로 여러 번 누르는 자리다. 한 번 누를
+   * 때마다 판을 새로 그리면 열어둔 것이 접히고 눈이 튄다.
+   * 담긴 값은 화면이 이미 들고 있고, 다음에 그 화면을 열 때 서버 값이 온다.
+   * **「이대로 정함」 도장을 찍을 때만** 새로 그린다 — 대시보드 재촉이
+   * 그때 없어져야 하기 때문이다.
+   */
+  if (정함) { revalidatePath("/students"); revalidatePath("/today"); revalidatePath("/"); }
+  return { error: null };
+}
+
+/**
+ * **차례 세 겹 중 위의 둘** (0155) — 영역 차례와, 그 안의 교재 차례.
+ * 항목 차례(routine_order)는 setRoutinePick 이 담는다.
+ */
+export async function routineLayout(studentId) {
+  if (!studentId) return { areas: [], books: [], error: null };
+  const supabase = createClient();
+  let stq = await supabase
+    .from("student_textbooks")
+    .select("textbook_id, status, assigned_on, ended_on, book_sort, routine_set_at")
+    .eq("student_id", studentId);
+  let hasSort = !stq.error;
+  if (stq.error) {
+    stq = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, assigned_on, ended_on")
+      .eq("student_id", studentId);
+  }
+  if (stq.error) return { areas: [], books: [], error: null };
+
+  const ids = (stq.data || []).map((r) => r.textbook_id);
+  const { data: bks } = ids.length
+    ? await supabase.from("textbooks").select("id, name, area, status").in("id", ids)
+    : { data: [] };
+  const meta = new Map((bks || []).map((b) => [b.id, b]));
+
+  let areaOrder = [];
+  {
+    const { data: st2 } = await supabase
+      .from("students").select("area_order").eq("id", studentId).maybeSingle();
+    areaOrder = (st2?.area_order || []).filter(Boolean);
+  }
+  const areaRank = new Map(areaOrder.map((a, i) => [a, i]));
+
+  const books = (stq.data || [])
+    .map((r) => {
+      const b = meta.get(r.textbook_id);
+      if (!b || b.status === "hidden") return null;
+      return {
+        id: r.textbook_id,
+        name: b.name,
+        area: b.area || "",
+        sort: r.book_sort ?? 0,
+        정함: hasSort ? !!r.routine_set_at : false,
+      };
+    })
+    .filter(Boolean)
+    .sort((x, y) => {
+      const ax = areaRank.get(x.area) ?? 9e9;
+      const ay = areaRank.get(y.area) ?? 9e9;
+      if (ax !== ay) return ax - ay;
+      if (x.sort !== y.sort) return x.sort - y.sort;
+      return x.name.localeCompare(y.name, "ko");
+    });
+
+  // 화면에 보일 영역 차례 — 정해둔 것 먼저, 안 정한 것은 뒤에
+  const seen = [];
+  books.forEach((b) => { if (!seen.includes(b.area)) seen.push(b.area); });
+  return { areas: seen, books, 차례있음: hasSort, error: null };
+}
+
+export async function setAreaOrder(studentId, areas) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("students")
+    .update({ area_order: (areas || []).filter((a) => a != null) })
+    .eq("id", studentId);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    return { error: "관리자 → SQL 확인에서 0155 를 먼저 실행해 주세요." };
+  }
+  return { error: error ? error.message : null };
+}
+
+export async function setBookSort(studentId, pairs) {
+  if (!studentId || !Array.isArray(pairs)) return { error: "값이 부족해요." };
+  const supabase = createClient();
+  for (const { textbookId, sort } of pairs) {
+    const { error } = await supabase
+      .from("student_textbooks").update({ book_sort: sort })
+      .eq("student_id", studentId).eq("textbook_id", textbookId);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      return { error: "관리자 → SQL 확인에서 0155 를 먼저 실행해 주세요." };
+    }
+    if (error) return { error: error.message };
+  }
   return { error: null };
 }

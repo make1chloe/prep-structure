@@ -18,6 +18,8 @@ import BreakCard from "./BreakCard";
  * 물론 학생이 직접 눌러 왔다갔다 할 수 있다. 반대쪽에 남은 개수를 같이 띄운다.
  */
 export default function StudyTabs({
+  // 이 아이의 영역 차례 (0155) — 숙제 묶음의 차례가 된다
+  areaOrder = [],
   inClass = [],
   home = [],
   running = null,
@@ -116,6 +118,7 @@ export default function StudyTabs({
             {/* 순서 강제 (원장님 2026-08-21) — 「내가 지정한 순서대로
                 학습을 해야 되기 때문에 그 순서에 맞게 하도록 강제」 */}
             <StudyList
+            areaOrder={areaOrder}
               title="등원 중 할 일"
               hint="위에서부터 순서대로 하면 돼요. 다 하면 학습 완료를 누르고, 선생님이 부르시면 가져가세요."
               tasks={inClass}
@@ -162,6 +165,7 @@ export default function StudyTabs({
             </p>
           )}
           <StudyList
+            areaOrder={areaOrder}
             title="하원 후 숙제"
             hint="어느 숙제부터 해도 돼요. 집에서 할 때도 시작을 눌러주세요 — 얼마나 걸렸는지 볼 수 있어요."
             tasks={home}

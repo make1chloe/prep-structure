@@ -6,9 +6,13 @@ import { routineChoices, setRoutinePick } from "./routinePickActions";
 /**
  * **이 학생은 이 교재 루틴에서 무엇을, 어떤 차례로 하나**
  * (원장님 2026-08-24 — 「교재루틴이 있으면 그걸 학생한테 일부만 배정하는
- * 거야」 · 「배정할 때 기본순서도 정해놔」).
+ * 거야」 · 「배정할 때 기본순서도 정해놔」 · 「등원끼리, 숙제끼리 순서를
+ * 정해야 의미가 있지 않아?」).
  *
- * 루틴에 적힌 항목을 늘어놓고 **끄고 켜고, 차례를 잡는다.**
+ * **등원과 숙제를 갈라 놓는다.** 하는 자리가 다르므로 섞인 차례는 아무 뜻이
+ * 없다 — 등원 목록은 학원에서 그 순서로 강제되고, 숙제는 집에서 그 순서로
+ * 뜬다. 담기는 곳은 한 줄(routine_order)이지만 화면이 둘로 나눠 다룬다.
+ *
  * 끄면 그 학생에게서만 빠진다 — 교재 루틴 자체는 그대로라 다른 학생은
  * 안 바뀐다. 교재 루틴이 없으면 영역 루틴을 따르고, 그때도 똑같이 고른다.
  *
@@ -16,7 +20,7 @@ import { routineChoices, setRoutinePick } from "./routinePickActions";
  * 「전부 한다」 인지 「아직 안 봤다」 인지 구별이 안 되기 때문이다.
  * 도장이 없는 교재는 대시보드가 재촉한다.
  */
-export default function RoutinePick({ studentId, book }) {
+export default function RoutinePick({ studentId, book, onStamp }) {
   const [data, setData] = useState(null);
   const [skip, setSkip] = useState(new Set());
   const [order, setOrder] = useState([]);
@@ -44,7 +48,6 @@ export default function RoutinePick({ studentId, book }) {
     );
   }
 
-  // 이름은 단계 목록에서 찾는다 (한 항목이 여러 단계에 있을 수 있다)
   const nameOf = (id) => {
     for (const st of data.steps) {
       const hit = [...st.inclass, ...st.home].find((x) => x.id === id);
@@ -52,15 +55,17 @@ export default function RoutinePick({ studentId, book }) {
     }
     return "학습";
   };
-  const isHome = (id) => data.steps.some((st) => st.home.some((x) => x.id === id));
+  const homeIds = new Set(data.steps.flatMap((st) => st.home.map((x) => x.id)));
+  const isHome = (id) => homeIds.has(id);
 
-  function save(next, nextOrder, stamp) {
+  function push(nextSkip, nextOrder, stamp) {
     startTransition(async () => {
       const res = await setRoutinePick(studentId, book.id, {
-        skip: [...next], order: nextOrder, 정함: stamp,
+        skip: [...nextSkip], order: nextOrder, 정함: stamp,
       });
-      if (res?.error) { alert(res.error); return; }
-      if (stamp) setSet(true);
+      if (res?.error) { alert(res.error); return { bad: true }; }
+      if (stamp) { setSet(true); onStamp?.(); }
+      return {};
     });
   }
 
@@ -68,17 +73,26 @@ export default function RoutinePick({ studentId, book }) {
     const next = new Set(skip);
     next.has(id) ? next.delete(id) : next.add(id);
     const before = new Set(skip);
-    setSkip(next);                                   // 먼저 그린다
+    setSkip(next);
     startTransition(async () => {
       const res = await setRoutinePick(studentId, book.id, { skip: [...next], order });
       if (res?.error) { setSkip(before); alert(res.error); }
     });
   }
 
-  function move(id, to) {
-    const cur = order.filter((x) => x !== id);
-    const at = to === "top" ? 0 : to === "bottom" ? cur.length : Math.max(0, order.indexOf(id) + (to === "up" ? -1 : 1));
-    const next = [...cur.slice(0, at), id, ...cur.slice(at)];
+  /**
+   * 차례 옮기기 — **제 무리 안에서만** 움직인다. 등원 항목이 숙제 사이로
+   * 가면 뜻이 없다. 담을 때는 등원 차례 뒤에 숙제 차례를 이어 붙인다.
+   */
+  function move(id, to, group) {
+    const cur = group.filter((x) => x !== id);
+    const at = to === "top" ? 0
+      : to === "bottom" ? cur.length
+      : Math.max(0, Math.min(cur.length, group.indexOf(id) + (to === "up" ? -1 : 1)));
+    const moved = [...cur.slice(0, at), id, ...cur.slice(at)];
+    // 두 무리를 합쳐 한 줄로 — 등원 먼저, 숙제 뒤
+    const other = order.filter((x) => !group.includes(x));
+    const next = isHome(id) ? [...other, ...moved] : [...moved, ...other];
     const before = order;
     setOrder(next);
     startTransition(async () => {
@@ -87,11 +101,43 @@ export default function RoutinePick({ studentId, book }) {
     });
   }
 
-  const off = skip.size;
   const live = order.filter((id) => !skip.has(id));
+  const inList = live.filter((id) => !isHome(id));
+  const homeList = live.filter((id) => isHome(id));
+  const off = skip.size;
+
+  const Row = ({ id, i, group }) => (
+    <div className="stuLine" style={{ padding: "3px 0", cursor: "default" }}>
+      <span className="stuWho">
+        <span className="hint" style={{ width: 16, textAlign: "right" }}>{i + 1}</span>
+        <span className="stuName" style={{ fontWeight: 600, fontSize: 13.5 }}>{nameOf(id)}</span>
+      </span>
+      <span className="stuTags" />
+      <span className="stuEnd">
+        <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={pending || i === 0}
+          style={{ padding: "2px 5px" }} onClick={() => move(id, "top", group)}>⇈</button>
+        <button className="btn btn-ghost btn-sm" title="위로" disabled={pending || i === 0}
+          style={{ padding: "2px 6px" }} onClick={() => move(id, "up", group)}>↑</button>
+        <button className="btn btn-ghost btn-sm" title="아래로" disabled={pending || i === group.length - 1}
+          style={{ padding: "2px 6px" }} onClick={() => move(id, "down", group)}>↓</button>
+        <button className="btn btn-ghost btn-sm" title="맨 아래로" disabled={pending || i === group.length - 1}
+          style={{ padding: "2px 5px" }} onClick={() => move(id, "bottom", group)}>⇊</button>
+        <button className="btn btn-ghost btn-sm" title="이 학생은 안 합니다"
+          style={{ padding: "2px 8px" }} onClick={() => toggle(id)}>✕ 뺌</button>
+      </span>
+    </div>
+  );
+
+  const Group = ({ title, ids }) =>
+    ids.length === 0 ? null : (
+      <div className="stack" style={{ gap: 2 }}>
+        <span className="hint" style={{ fontSize: 12.5, fontWeight: 700 }}>{title}</span>
+        {ids.map((id, i) => <Row key={id} id={id} i={i} group={ids} />)}
+      </div>
+    );
 
   return (
-    <div className="stack" style={{ gap: 6 }}>
+    <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <span className="hint">
           {data.따르는루틴 === "영역" ? "영역 루틴" : "교재 루틴"}
@@ -105,44 +151,17 @@ export default function RoutinePick({ studentId, book }) {
             className="btn btn-primary btn-sm"
             disabled={pending}
             title="이 학생의 루틴을 이대로 확정합니다 — 대시보드 재촉이 없어집니다"
-            onClick={() => save(skip, order, true)}
+            onClick={() => push(skip, order, true)}
           >
             이대로 정함
           </button>
         )}
       </div>
 
-      {/* ── 차례 — 오늘 수업의 등원 학습 목록이 이 차례로 차려진다 */}
-      <div className="stack" style={{ gap: 2 }}>
-        {live.map((id, i) => (
-          <div className="stuLine" key={id} style={{ padding: "3px 0", cursor: "default" }}>
-            <span className="stuWho">
-              <span className="hint" style={{ width: 16, textAlign: "right" }}>{i + 1}</span>
-              <span className="stuName" style={{ fontWeight: 600, fontSize: 13.5 }}>{nameOf(id)}</span>
-            </span>
-            <span className="stuTags">
-              <span className={`tag ${isHome(id) ? "tag-muted" : "tag-sky"}`}>
-                {isHome(id) ? "숙제" : "등원"}
-              </span>
-            </span>
-            <span className="stuEnd">
-              <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={pending || i === 0}
-                style={{ padding: "2px 5px" }} onClick={() => move(id, "top")}>⇈</button>
-              <button className="btn btn-ghost btn-sm" title="위로" disabled={pending || i === 0}
-                style={{ padding: "2px 6px" }} onClick={() => move(id, "up")}>↑</button>
-              <button className="btn btn-ghost btn-sm" title="아래로" disabled={pending || i === live.length - 1}
-                style={{ padding: "2px 6px" }} onClick={() => move(id, "down")}>↓</button>
-              <button className="btn btn-ghost btn-sm" title="맨 아래로" disabled={pending || i === live.length - 1}
-                style={{ padding: "2px 5px" }} onClick={() => move(id, "bottom")}>⇊</button>
-              <button className="btn btn-ghost btn-sm" title="이 학생은 안 합니다"
-                style={{ padding: "2px 8px" }} onClick={() => toggle(id)}>✕ 뺌</button>
-            </span>
-          </div>
-        ))}
-        {live.length === 0 && <span className="hint">전부 뺐어요 — 이 교재에서는 아무것도 안 나갑니다.</span>}
-      </div>
+      <Group title="등원 학습 — 학원에서 이 차례로" ids={inList} />
+      <Group title="집 숙제 — 아이 화면에 이 차례로" ids={homeList} />
+      {live.length === 0 && <span className="hint">전부 뺐어요 — 이 교재에서는 아무것도 안 나갑니다.</span>}
 
-      {/* ── 뺀 것 — 눌러서 되돌린다 */}
       {off > 0 && (
         <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
           <span className="hint" style={{ fontSize: 12 }}>뺀 것</span>

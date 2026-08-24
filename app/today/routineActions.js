@@ -25,8 +25,15 @@ export async function nextRoutine(studentId, opts = {}) {
   // 멈춤(pause, 0149)도 여기서 같이 읽는다 — 멈춤 판단은 이 함수 한 곳이다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order")
+    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order, book_sort")
     .eq("student_id", studentId);
+  if (stq.error) {
+    // 0155 전 — 교재 차례 없이
+    stq = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order")
+      .eq("student_id", studentId);
+  }
   if (stq.error) {
     // 0154 전 — 그 학생의 차례 없이 (루틴에 적힌 차례 그대로)
     stq = await supabase
@@ -130,6 +137,31 @@ export async function nextRoutine(studentId, opts = {}) {
   const bookName = new Map((books || []).map((b) => [b.id, b.name]));
   const bookArea = new Map((books || []).map((b) => [b.id, b.area || ""]));
 
+  /**
+   * **차례는 세 겹이다** (0155 — 원장님 2026-08-24 「독해/문법/영작 순서를
+   * 먼저 놓고, 그 안에서 루틴순서」).
+   *   ① 영역   students.area_order
+   *   ② 교재   student_textbooks.book_sort  (같은 영역 안에서)
+   *   ③ 항목   routine_order (0154, 아래에서)
+   * 목록에 없는 영역·교재는 뒤로 — 새로 생겨도 안 사라진다.
+   */
+  let areaOrder = [];
+  {
+    const { data: st2 } = await supabase
+      .from("students").select("area_order").eq("id", studentId).maybeSingle();
+    areaOrder = (st2?.area_order || []).filter(Boolean);
+  }
+  const areaRank = new Map(areaOrder.map((a, i) => [a, i]));
+  mine.sort((x, y) => {
+    const ax = areaRank.get(bookArea.get(x.textbook_id) || "") ?? 9e9;
+    const ay = areaRank.get(bookArea.get(y.textbook_id) || "") ?? 9e9;
+    if (ax !== ay) return ax - ay;
+    const bx = x.book_sort ?? 0;
+    const by = y.book_sort ?? 0;
+    if (bx !== by) return bx - by;
+    return (bookName.get(x.textbook_id) || "").localeCompare(bookName.get(y.textbook_id) || "", "ko");
+  });
+
   // ── 지금 할 단원 ────────────────────────────────────────
   //
   // 루틴은 **한 단원을 여러 회차에 걸쳐** 하는 순서다. 그래서 항목만 채워주고
@@ -214,7 +246,7 @@ export async function nextRoutine(studentId, opts = {}) {
     const inOrder = (arr) =>
       [...arr].sort((a2, b2) => (rank.get(a2) ?? 9e9) - (rank.get(b2) ?? 9e9));
     inOrder((step.inclass_items || []).filter(keep)).forEach((x) => inclass.add(x));
-    if (!homePaused) (step.home_items || []).filter(keep).forEach((x) => {
+    if (!homePaused) inOrder((step.home_items || []).filter(keep)).forEach((x) => {
       home.add(x);
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
       if (unit?.id)
@@ -230,7 +262,7 @@ export async function nextRoutine(studentId, opts = {}) {
      * 후행인지」). 오늘 단원이 아니라 **다음 단원**이 붙는다.
      * 다음 단원이 없으면(마지막 단원) 범위 없이 항목만 담는다.
      */
-    if (!homePaused) (step.home_next || []).filter(keep).forEach((x) => {
+    if (!homePaused) inOrder((step.home_next || []).filter(keep)).forEach((x) => {
       home.add(x);
       if (unit?.nextId)
         itemUnits[x] = {
@@ -251,7 +283,7 @@ export async function nextRoutine(studentId, opts = {}) {
       pause: r.pause || null,
       // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 화면이 교재별로 거른다
       inclassItems: inOrder((step.inclass_items || []).filter(keep)),
-      homeItems: homePaused ? [] : [...(step.home_items || []), ...(step.home_next || [])].filter(keep),
+      homeItems: homePaused ? [] : inOrder([...(step.home_items || []), ...(step.home_next || [])].filter(keep)),
     });
   });
 

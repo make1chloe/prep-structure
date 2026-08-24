@@ -55,6 +55,7 @@ function useTick(on) {
  *   보이고, 어떤 항목이든 순서 없이 타이머·완료·제출이 된다.
  */
 export default function StudyList({
+  areaOrder = [],
   title,
   hint,
   tasks = [],
@@ -102,7 +103,8 @@ export default function StudyList({
    */
   const areaOf = (t) => t.bookArea || "그 밖";
   const sortByArea = (list) => {
-    const seen = [];
+    // 원장님이 정해둔 차례가 먼저 — 없으면 온 차례 그대로 (뒤에 붙는다)
+    const seen = [...areaOrder];
     list.forEach((t) => { if (!seen.includes(areaOf(t))) seen.push(areaOf(t)); });
     return [...list].sort((x, y) => seen.indexOf(areaOf(x)) - seen.indexOf(areaOf(y)));
   };

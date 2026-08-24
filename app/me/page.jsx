@@ -94,6 +94,18 @@ export default async function MePage({ searchParams }) {
       .maybeSingle();
     if (s2) student = s2;
   }
+  /**
+   * **이 아이의 영역 차례** (0155 — 원장님 2026-08-24 「독해/문법/영작 순서를
+   * 먼저 놓고, 그 안에서 루틴순서」). 숙제를 영역별로 묶어 보일 때 그 묶음의
+   * 차례가 된다. 0155 전 DB 면 조용히 빈 목록 — 여태처럼 온 차례 그대로.
+   */
+  let areaOrder = [];
+  if (student?.id) {
+    const { data: ao } = await supabase
+      .from("students").select("area_order").eq("id", student.id).maybeSingle();
+    areaOrder = (ao?.area_order || []).filter(Boolean);
+  }
+
   // 보기만 할 것인가, 직접 눌러볼 것인가 (?s=학생id&try=1)
   //   앱을 나눠주기 전에 원장님이 먼저 눌러봐야 한다. 타이머가 어떻게 도는지,
   //   학습완료를 누르면 오늘 수업에 어떻게 뜨는지는 눌러봐야 안다.
@@ -972,6 +984,7 @@ export default async function MePage({ searchParams }) {
           )}
 
           <StudyTabs
+            areaOrder={areaOrder}
             inClass={inClass}
             home={studyTasks}
             running={running}
