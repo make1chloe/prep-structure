@@ -4,6 +4,7 @@ import ActItems from "./ActItems";
 import { Fragment, useState, useTransition } from "react";
 import PickOrType from "@/components/PickOrType";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import {
   updateUnit,
   deleteUnits,
@@ -108,20 +109,27 @@ export default function UnitList({
     });
   }
 
+  /**
+   * **↑↓ 를 누를 때마다 표를 새로 그리지 않는다** (원장님 2026-08-23).
+   * 단원 차례는 여러 번 누르는 자리다 — 한 번 누를 때마다 표가 다시 서면
+   * 방금 어디를 옮겼는지 눈으로 다시 찾아야 한다.
+   * 고침 판을 닫을 때는 바로(flush) — 그때는 값이 확정된 것이다.
+   */
+  const { lazy, flush } = useLazyRefresh();
   function saveEdit() {
     const id = editId;
     startTransition(async () => {
       await updateUnit(id, draft);
       setEditId(null);
-      router.refresh();
+      flush();
     });
   }
 
   function run(fn) {
     startTransition(async () => {
       const res = await fn();
-      if (res?.error) alert(res.error);
-      router.refresh();
+      if (res?.error) { alert(res.error); return; }
+      lazy();
     });
   }
 

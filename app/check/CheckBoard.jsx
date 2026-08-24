@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { checkOne, seenSubmission, autoAssign, markMissing } from "./actions";
 import Link from "next/link";
 import { viewUrl } from "@/app/me/submitActions";
@@ -81,11 +82,18 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
   const totalLeft = rows.reduce((a, r) => a + left(r).length, 0);
   const totalUnseen = rows.reduce((a, r) => a + unseen(r).length, 0);
 
+  /**
+   * **적는 중에 목록을 새로 그리지 않는다** (원장님 2026-08-23 — 「내용
+   * 수정하다가 목록이 새로고침되는 문제가 굉장히 불편해」).
+   * 화면은 누르는 순간 이미 바뀌어 있으므로, 서버 왕복은 주변 배지·요약을
+   * 맞추는 일일 뿐이라 늦어도 된다.
+   */
+  const { lazy } = useLazyRefresh();
   function run(fn) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) { alert(res.error); return; }
-      router.refresh();
+      lazy();
     });
   }
 

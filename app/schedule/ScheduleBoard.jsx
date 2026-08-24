@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState, useTransition } from "react";
 import { SchoolField, GradeField } from "@/components/PickField";
 import { shortName } from "@/lib/schoolName";
 import { useRouter } from "next/navigation";
+import { useLazyRefresh } from "@/components/useLazyRefresh";
 import {
   addExam, setEnglishDate, updateExam, deleteExam, hideExam, setExamCuts,
   applyNeis, detachNeis,
@@ -102,6 +103,15 @@ export default function ScheduleBoard({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
+  /**
+   * **조용히 담은 것은 목록을 바로 새로 그리지 않는다** (원장님 2026-08-23
+   * 「내용 수정하다가 목록이 새로고침되는 문제가 굉장히 불편해」).
+   *
+   * 가름: **알림을 띄운 일은 확정**이라 바로 그린다(그 화면을 마주 보고 있다).
+   * 조용히 담은 것(칸 하나 고침·차례 옮김)은 미뤄 둔다 — 여러 번 누르는
+   * 자리라, 누를 때마다 표가 다시 서면 어디를 만졌는지 눈으로 다시 찾는다.
+   */
+  const { lazy, flush } = useLazyRefresh();
   function run(fn, msg) {
     startTransition(async () => {
       const res = await fn();
@@ -109,8 +119,8 @@ export default function ScheduleBoard({
         alert(res.error);
         return;
       }
-      if (msg) alert(msg);
-      router.refresh();
+      if (msg) { alert(msg); flush(); return; }
+      lazy();
     });
   }
 

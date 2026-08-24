@@ -560,8 +560,10 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
 /* 학습 루틴 한 단계 — 번호 · 내용 · 손댈 단추.
    번호를 **고정폭**으로 두어야 여러 줄이 왼쪽에서 가지런히 선다
    (태그로 두면 한 자리 · 두 자리에서 폭이 달라져 글이 들쭉날쭉했다). */
+/* 진도루틴 단계 줄 — 오른쪽 단추 묶음이 nowrap 이라 폰에서 가운데(.stepbody)
+   만 계속 짜부라져 항목 이름이 글자로 끊겼다 (2026-08-24 전수) */
 .steprow {
-  display: flex; align-items: flex-start; gap: 8px;
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 8px;
   padding: 8px 10px; background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
@@ -797,11 +799,14 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 
 /* 학생용 화면 */
 .hwcard { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); }
+/* 학생 앱 숙제 카드 머리 — 좁으면 칸이 아니라 글자가 접히던 것
+   (2026-08-24 전수, .stuLine 과 같은 병). 안쪽 두 덩어리가 제 안에서 줄인다 */
 .hwcard-head {
-  width: 100%; display: flex; align-items: center; gap: 10px;
+  width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
   padding: 12px 14px; background: transparent; border: 0; cursor: pointer;
   font-family: inherit; color: var(--text); text-align: left;
 }
+.hwcard-head > * { min-width: 0; }
 .hwcard-head:hover { background: var(--surface-2); }
 .hwcard-body { padding: 0 14px 14px; border-top: 1px dashed var(--border); padding-top: 12px; }
 .tag-red { background: var(--red-soft); color: var(--red); border-color: transparent; }

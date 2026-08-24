@@ -389,7 +389,8 @@ export default function BookProgress({
           all: "unset", cursor: "pointer", display: "block", width: "100%",
         }}
       >
-        <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "nowrap" }}>
+        {/* 접히게 둔다 — nowrap 이면 교재 이름이 글자 단위로 끊긴다 (2026-08-24) */}
+        <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
           <span className="muted" style={{ fontSize: 12 }}>{open ? "▾" : "▸"}</span>
           <b style={{ fontSize: 14 }}>{book.name}</b>
           {/* 교재 자체가 절판·중단인데 배정만 남은 것 — 숨기지 않고 표시한다

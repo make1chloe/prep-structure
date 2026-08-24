@@ -208,13 +208,20 @@ export default function MessageList({ rows = [], hidden = [], level = "full", er
                   setTplRows(null);
                 }}
               >
-                <span className={`tag ${t.approved ? "tag-mint" : "tag-amber"}`}>
-                  {t.approved ? "승인" : t.status || "심사중"}
+                {/* 세 자리로 (2026-08-24 전수) — 템플릿 코드가 길어 폰에서 반드시
+                    넘치는데, 「지금 이것」 이 붙는 줄만 자리가 달라졌다 */}
+                <span className="stuWho">
+                  <span className="stuName" style={{ fontSize: 14 }}>{t.name}</span>
+                  <span className="stuSub mono" style={{ fontSize: 12 }}>{t.templateId}</span>
                 </span>
-                <b style={{ fontSize: 14 }}>{t.name}</b>
-                <span className="hint mono" style={{ fontSize: 12 }}>{t.templateId}</span>
-                <span className="spacer" />
-                {draft.alimtalk_id === t.templateId && <span className="tag tag-sky">지금 이것</span>}
+                <span className="stuTags">
+                  <span className={`tag ${t.approved ? "tag-mint" : "tag-amber"}`}>
+                    {t.approved ? "승인" : t.status || "심사중"}
+                  </span>
+                </span>
+                <span className="stuEnd">
+                  {draft.alimtalk_id === t.templateId && <span className="tag tag-sky">지금 이것</span>}
+                </span>
               </button>
             ))}
           </div>
