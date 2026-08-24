@@ -334,10 +334,13 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
             const editing = openId === r.id;
             return (
               <div className="stuRow" key={r.id}>
-                <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
-                  <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
-                  <b style={{ fontSize: 15 }}>{r.name}</b>
-                  <span className="muted" style={{ fontSize: 13 }}>{r.who}</span>
+                <div className="stuLine" style={{ cursor: "default" }}>
+                  <span className="stuWho">
+                    <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
+                    <span className="stuName">{r.name}</span>
+                    <span className="stuSub">{r.who}</span>
+                  </span>
+                  <span className="stuTags">
                   {r.phone ? (
                     <span className="hint mono">{r.phone}</span>
                   ) : (
@@ -349,7 +352,6 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                       내용 없음
                     </span>
                   )}
-                  <span className="spacer" />
                   {r.sentAt ? (
                     <span className="tag tag-mint">보냄</span>
                   ) : skipped(r) ? (
@@ -359,6 +361,8 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                   ) : (
                     <span className="tag tag-amber">기록 전</span>
                   )}
+                  </span>
+                  <span className="stuEnd">
                   <button className="btn btn-ghost btn-sm" onClick={() => copy(r.text, r.id)}>
                     {copied === r.id ? "복사됨 ✓" : "복사"}
                   </button>
@@ -389,6 +393,7 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                   >
                     {r.sentAt ? "발송 취소" : "보내기"}
                   </button>
+                  </span>
                 </div>
 
                 {editing ? (

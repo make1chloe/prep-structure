@@ -80,24 +80,29 @@ export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }
               {/* 이름 줄 — 교재 이름을 접힌 채로도 보여준다. 몇 권인지만 있으면
                   「무슨 책이더라」 하고 열어봐야 한다 */}
               <button className="stuLine" onClick={() => setOpenId(open ? null : r.id)}>
-                <span className="muted" style={{ fontSize: 13 }}>{open ? "▾" : "▸"}</span>
-                <b style={{ fontSize: 15 }}>{r.name}</b>
-                <span className="hint">{[r.grade, r.school].filter(Boolean).join(" · ")}</span>
-                <span className="spacer" />
+                <span className="stuWho">
+                  <span className="stuName">{r.name}</span>
+                  <span className="stuSub">{[r.grade, r.school].filter(Boolean).join(" · ")}</span>
+                </span>
                 {/* 교재마다 ◐(오늘 위치)를 같이 — 순차로 안 나가는 교재는
                     이게 없으면 열어봐야만 오늘 어디인지 안다 (원장님, 2026-08-14) */}
-                <span className="hint" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {r.books.length > 0
-                    ? r.books
-                        .map((b) =>
-                          b.doing?.length
-                            ? `${b.name} ◐${b.doing.join("·")}`
-                            : b.curPage
-                            ? `${b.name} ${b.curPage}p`
-                            : b.name
-                        )
-                        .join("  ·  ")
-                    : "배정된 교재 없음"}
+                <span className="stuTags">
+                  <span className="hint stuflow">
+                    {r.books.length > 0
+                      ? r.books
+                          .map((b) =>
+                            b.doing?.length
+                              ? `${b.name} ◐${b.doing.join("·")}`
+                              : b.curPage
+                              ? `${b.name} ${b.curPage}p`
+                              : b.name
+                          )
+                          .join("  ·  ")
+                      : "배정된 교재 없음"}
+                  </span>
+                </span>
+                <span className="stuEnd">
+                  <span className="stuOpen">{open ? "▾" : "▸"}</span>
                 </span>
               </button>
               {open && (

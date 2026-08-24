@@ -150,7 +150,8 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
         const hw = r.sum.homework;
         return (
           <div className="card card-tight" key={r.studentId} style={{ marginBottom: 6 }}>
-            <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="stuLine" style={{ padding: 0, cursor: "default" }}>
+              <span className="stuWho">
               {!r.sentAt && (
                 <input
                   type="checkbox"
@@ -158,8 +159,10 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                   onChange={() => toggle(r.studentId)}
                 />
               )}
-              <b style={{ fontSize: 15 }}>{r.name}</b>
-              <span className="hint">{r.who}</span>
+                <span className="stuName">{r.name}</span>
+                <span className="stuSub">{r.who}</span>
+              </span>
+              <span className="stuTags">
               <span className="tag tag-muted">{r.sum.days}회</span>
               {hw.rate !== null && (
                 <span
@@ -181,7 +184,8 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
                 <span className="tag tag-lav">단원평가 {r.sum.exams.length}</span>
               )}
               {!r.phone && <span className="tag tag-red">번호 없음</span>}
-              <span className="spacer" />
+              </span>
+              <span className="stuEnd">
               {r.sentAt ? (
                 <>
                   <span className="tag tag-mint">보냄</span>
@@ -213,6 +217,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
               >
                 {isOpen ? "접기" : "문구"}
               </button>
+              </span>
             </div>
 
             {isOpen && (

@@ -262,10 +262,13 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
             const hist = history[r.id];
             return (
               <div className="stuRow" key={r.id}>
-                <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
-                  <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
-                  <b style={{ fontSize: 15 }}>{r.name}</b>
-                  <span className="muted" style={{ fontSize: 13 }}>{r.who}</span>
+                <div className="stuLine" style={{ cursor: "default" }}>
+                  <span className="stuWho">
+                    <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
+                    <span className="stuName">{r.name}</span>
+                    <span className="stuSub">{r.who}</span>
+                  </span>
+                  <span className="stuTags">
                   {r.phone ? (
                     <span className="hint mono">{r.phone}</span>
                   ) : (
@@ -273,12 +276,13 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                   )}
                   {isHw && r.nextCount === 0 && <span className="tag tag-muted">숙제 없음</span>}
                   {editedOf(r) && <span className="tag tag-lav">수정함</span>}
-                  <span className="spacer" />
                   {sent ? (
                     <span className="tag tag-mint">{timeLabel(sent)} 보냄{n > 1 ? ` · ${n}회` : ""}</span>
                   ) : (
                     <span className="tag tag-amber">안 보냄</span>
                   )}
+                  </span>
+                  <span className="stuEnd">
                   <button className="btn btn-ghost btn-sm" onClick={() => copy(textOf(r), r.id)}>
                     {copied === r.id ? "복사됨 ✓" : "복사"}
                   </button>
@@ -298,6 +302,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                   >
                     다시 보내기
                   </button>
+                  </span>
                 </div>
 
                 {hist && (

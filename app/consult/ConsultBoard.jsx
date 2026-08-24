@@ -330,13 +330,16 @@ export default function ConsultBoard({
             const editing = editId === r.id;
             return (
               <div className="stuRow" key={r.id}>
-                <div className="row" style={{ gap: 8, alignItems: "center", padding: "10px 16px" }}>
-                  <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
-                  <span className={`tag ${CLS[r.status] || "tag-muted"}`}>{LABEL[r.status] || r.status}</span>
-                  <b style={{ fontSize: 15 }}>{r.name}</b>
-                  <span className="muted" style={{ fontSize: 13 }}>
-                    {[r.school, r.grade].filter(Boolean).join(" ")}
+                <div className="stuLine" style={{ cursor: "default" }}>
+                  <span className="stuWho">
+                    <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
+                    <span className="stuName">{r.name}</span>
+                    <span className="stuSub">
+                      {[r.school, r.grade].filter(Boolean).join(" ")}
+                    </span>
                   </span>
+                  <span className="stuTags">
+                  <span className={`tag ${CLS[r.status] || "tag-muted"}`}>{LABEL[r.status] || r.status}</span>
                   {r.phone && <span className="hint mono">{r.phone}</span>}
                   {r.source && <span className="tag tag-muted">{r.source}</span>}
                   {formReady && (
@@ -369,7 +372,8 @@ export default function ConsultBoard({
                     </span>
                   )}
                   {r.class_id && <span className="tag tag-muted">{className(r.class_id)}</span>}
-                  <span className="spacer" />
+                  </span>
+                  <span className="stuEnd">
                   {r.status !== "enrolled" && (
                     <button
                       className="btn btn-primary btn-sm"
@@ -438,6 +442,7 @@ export default function ConsultBoard({
                   >
                     {editing ? "닫기" : "수정"}
                   </button>
+                  </span>
                 </div>
 
                 {/* **보낸 결과는 그 줄에서 보인다.** 화면 맨 아래에 두면

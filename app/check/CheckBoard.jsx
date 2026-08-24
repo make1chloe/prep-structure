@@ -212,12 +212,14 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                   style={{ width: "100%" }}
                   onClick={() => setOpen((o) => ({ ...o, [r.student.id]: !isOpen }))}
                 >
-                  <span style={{ fontWeight: 700 }}>{r.student.name}</span>
-                  <span className="muted" style={{ fontSize: 13 }}>
-                    {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
+                  <span className="stuWho">
+                    <span className="stuName">{r.student.name}</span>
+                    <span className="stuSub">
+                      {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
+                    </span>
                   </span>
+                  <span className="stuTags">
                   {r.klass && <span className="tag tag-muted">{r.klass.name}</span>}
-                  <span className="spacer" />
                   {myLeft.length > 0 && <span className="tag tag-amber">검사 {myLeft.length}</span>}
                   {myUnseen.length > 0 && <span className="tag tag-sky">낸 것 {myUnseen.length}</span>}
                   {myLeft.filter((c) => c.noSub).length > 0 && (
@@ -228,6 +230,10 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
                   {myLeft.length === 0 && myUnseen.length === 0 && (
                     <span className="tag tag-mint">끝</span>
                   )}
+                  </span>
+                  <span className="stuEnd">
+                    <span className="stuOpen">{isOpen ? "▾" : "▸"}</span>
+                  </span>
                 </button>
 
                 {isOpen && (

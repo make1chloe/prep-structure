@@ -635,23 +635,28 @@ export default function TodayBoard({
                       {showDone[klass.id] &&
                         done.map((r) => (
                           <div key={r.student.id} className="stuLine" style={{ cursor: "default" }}>
-                            <span style={{ fontWeight: 600 }}>{r.student.name}</span>
-                            <span className="spacer" />
-                            <span className={`tag ${CLS[stOf(r)]}`}>{LABEL[stOf(r)]}</span>
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => reopen(r.student.id, r.extraClassId)}
-                              disabled={pending}
-                            >
-                              완료 취소
-                            </button>
-                            <button
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => undo(r.student.id, r.extraClassId)}
-                              disabled={pending}
-                            >
-                              출결 취소
-                            </button>
+                            <span className="stuWho">
+                              <span className="stuName">{r.student.name}</span>
+                            </span>
+                            <span className="stuTags">
+                              <span className={`tag ${CLS[stOf(r)]}`}>{LABEL[stOf(r)]}</span>
+                            </span>
+                            <span className="stuEnd">
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => reopen(r.student.id, r.extraClassId)}
+                                disabled={pending}
+                              >
+                                완료 취소
+                              </button>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => undo(r.student.id, r.extraClassId)}
+                                disabled={pending}
+                              >
+                                출결 취소
+                              </button>
+                            </span>
                           </div>
                         ))}
                     </div>

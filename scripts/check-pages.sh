@@ -310,6 +310,7 @@ echo "== 5-4-25) 선언보다 먼저 쓴 변수 (빌드는 통과하고 실행�
 # 통과했다. 학부모 알림을 보내실 때까지 안 보이는 종류다
 runjs scripts/check-sheet.mjs
 runjs scripts/check-rows.mjs
+runjs scripts/check-stuline.mjs
 runjs scripts/check-tdz.mjs
 
 echo
