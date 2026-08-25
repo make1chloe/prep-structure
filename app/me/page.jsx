@@ -42,6 +42,7 @@ import { loadStudentCalendar } from "@/lib/studentCalendar";
 import { loadClassesWithTerm } from "@/lib/classTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
+import { nextRoutine } from "@/app/today/routineActions";
 import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
 import { fetchAll } from "@/lib/fetchAll";
@@ -609,6 +610,24 @@ export default async function MePage({ searchParams }) {
       ).length
     : 0;
 
+  /**
+   * **등원 학습에도 교재·단원을** (원장님 2026-08-24 — 「학생 화면에서
+   * 학습목록에 교재와 단원명이 안 떠」). 등원 줄에는 범위가 안 붙는다 —
+   * 그 자리에서 하는 것이라 원장님 판에서는 루틴이 말해줬는데, 아이
+   * 화면에는 아무도 말해주지 않았다. 같은 루틴(nextRoutine)에서 「이 항목이
+   * 어느 교재의 지금 단원인가」 를 가져온다 (원칙 1 — 판단은 한 벌).
+   */
+  const inclassWhere = new Map();
+  try {
+    const rt = await nextRoutine(student.id);
+    (rt?.steps || []).forEach((st) => {
+      const label = `${st.book}${st.unit ? ` · ${st.unit}` : ""}`;
+      (st.inclassItems || []).forEach((iid) => {
+        if (!inclassWhere.has(iid)) inclassWhere.set(iid, label);
+      });
+    });
+  } catch { /* 루틴이 없으면 이름만 나온다 — 전과 같다 */ }
+
   // 오늘 학원에서 할 것 (선생님이 오늘 정해준 것)
   const inClass = (latest && latest.date === today
     ? dri
@@ -620,6 +639,10 @@ export default async function MePage({ searchParams }) {
   )
     .map((c) => {
       const t = toTask(c);
+      // 등원 줄에 범위가 없으면 루틴이 아는 교재·단원을 붙인다 (2026-08-24)
+      if (!(t.units || []).length && inclassWhere.has(c.itemId)) {
+        t.units = [inclassWhere.get(c.itemId)];
+      }
       // 단어시험은 학생마다 보는 때가 다르다 — 맨 앞이거나 맨 뒤다
       const it = itemById.get(c.itemId);
       // 단어시험 맨앞/맨뒤 규칙만 남기고, 나머지는 선생님이 정한 차례(0140)
@@ -1215,14 +1238,15 @@ export default async function MePage({ searchParams }) {
 
   return (
     /**
-     * **넓은 화면에서는 나란히** (원장님, 2026-08-07 — 「여백이 너무 많아…
-     * 병렬로 나열해야할듯」).
+     * **컴퓨터에서도 폰과 같은 한 줄** (원장님 2026-08-24 — 「학생 어플이
+     * PC에서 볼 때 화면구성이 너무 헷갈려」).
      *
-     * 폰에 맞춰 560px 한 줄로 짜여 있었다. 폰에서는 그게 맞지만 컴퓨터로
-     * 열면 양옆이 통째로 비어서 화면의 3분의 2가 논다 — 원장님은 컴퓨터로
-     * 아이 화면을 확인하신다. 폭만 열어두고 배치는 아래 blockgrid 가 한다.
+     * 8/7 에는 「여백이 너무 많다」 고 두세 칸으로 폈는데, 써 보니 칸마다
+     * 높이가 달라 어디를 봐야 할지 흩어졌다 — 아이는 폰으로, 원장님은
+     * 확인용으로만 여니, **폰과 같은 모양이 가운데 서 있는 것**이 제일
+     * 안 헷갈린다. 여백은 비어 있는 게 맞다.
      */
-    <main className="wrap" style={{ maxWidth: 1180, paddingBottom: 40 }}>
+    <main className="wrap" style={{ maxWidth: 640, paddingBottom: 40 }}>
       <div className="page-head">
         <p className="eyebrow">클로이영어</p>
         <h1 className="h1">{student.name} 학생</h1>

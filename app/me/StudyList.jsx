@@ -200,6 +200,22 @@ export default function StudyList({
                 >
                   {now.seconds > 0 ? "이어서 하기" : "시작하기"}
                 </button>
+                {/**
+                  * **시작을 안 눌렀어도 끝낼 수는 있어야 한다** (원장님
+                  * 2026-08-24 — 「학생들은 가끔 누르는 걸 잊어버리기 때문에
+                  * 문제기록으로 남기더라도 넘어갈 수는 있어야 해」).
+                  * 여태는 타이머가 돌 때만 「다 했어요」 가 있어서, 시작을
+                  * 잊은 아이는 다음으로 못 넘어갔다. 시간이 0분으로 남는
+                  * 것이 곧 기록이다 — 원장님 화면에서 바로 보인다.
+                  */}
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ width: "100%", marginTop: 6 }}
+                  disabled={pending || readOnly}
+                  onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind, asId))}
+                >
+                  타이머 없이 다 했어요
+                </button>
               </>
             )}
 

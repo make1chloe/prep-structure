@@ -43,9 +43,15 @@ eq(me.includes('className="blockgrid"'), true, "학생 화면이 쓴다");
 // 「지금 할 것」 은 큰 글씨·큰 버튼으로 하나만 보여주는 칸이다. 반쪽으로
 // 접히면 그 뜻이 사라진다
 eq(me.includes('"study" ? "fullrow"'), true, "「지금 할 것」 은 폭을 다 쓴다");
-// 본 화면의 폭을 열어두지 않으면 grid 를 짜봐야 560px 안에서 접힌다
-// (안내만 뜨는 작은 화면은 560 그대로 둔다 — 거기는 읽을 글 한 줄이 전부다)
-eq(me.includes("maxWidth: 1180"), true, "학생 본 화면의 폭이 열려 있다");
+/**
+ * **학생 화면은 컴퓨터에서도 폰과 같은 한 줄** (원장님 2026-08-24 —
+ * 「학생 어플이 PC에서 볼 때 화면구성이 너무 헷갈려」).
+ * 8/7 의 「폭을 열어라(1180)」 를 원장님이 뒤집으셨다 — 칸마다 높이가 달라
+ * 어디를 봐야 할지 흩어졌다. 아이는 폰으로 보고, 원장님은 확인용으로만
+ * 여니 폰 모양이 가운데 서 있는 것이 맞다. **학부모 화면은 그대로 넓다.**
+ */
+eq(me.includes("maxWidth: 640"), true, "학생 화면은 폰과 같은 한 줄 (640)");
+eq(me.includes("maxWidth: 1180"), false, "학생 화면에 옛 넓은 폭이 남아 있다");
 
 const pa = readFileSync("app/parent/page.jsx", "utf8");
 eq(pa.includes('className="blockgrid"'), true, "학부모 화면이 쓴다");
