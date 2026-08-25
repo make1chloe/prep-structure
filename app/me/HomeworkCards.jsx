@@ -26,7 +26,11 @@ export default function HomeworkCards({ items = [] }) {
           <div key={h.key} className="hwcard">
             <button className="hwcard-head" onClick={() => setOpenId(open ? null : h.key)}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <b style={{ fontSize: 15.5 }}>{h.name}</b>
+                {/* 나중에 더하거나 고친 줄은 **글씨로** 말한다 — 딱지를 없앴다
+                    (원장님 2026-08-24 「바뀜 표시 없애고 글씨체나 색깔을 강조해」) */}
+                <b style={{ fontSize: 15.5, ...(h.changedAt ? { color: "var(--amber)" } : {}) }}>
+                  {h.name}
+                </b>
                 {/* **무엇을 펴야 하는지** (원장님, 2026-08-11 — 「툴이 교재인지
                     클래스카드인지, 노트인지 표시해줘. 아이에게」). 매번
                     물어보던 것이라 이름 바로 옆에 붙인다 */}
@@ -34,11 +38,6 @@ export default function HomeworkCards({ items = [] }) {
                   <span className="tag tag-sky" style={{ marginLeft: 5, fontSize: 12 }}>
                     {toolBadge(h.tool)}
                   </span>
-                )}
-                {/* **나중에 더하거나 고치신 것** (0087).
-                    아까 적어 간 것과 다를 수 있으니 눈에 띄어야 한다 */}
-                {h.changedAt && (
-                  <span className="tag tag-amber" style={{ marginLeft: 5, fontSize: 12 }}>바뀜</span>
                 )}
                 {h.units.length > 0 && (
                   <div className="muted" style={{ fontSize: 14, marginTop: 3 }}>

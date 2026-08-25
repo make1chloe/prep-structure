@@ -40,14 +40,14 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
       <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
         <b style={{ fontSize: 16 }}>{title}</b>
         {dateLabel && <span className="hint">{dateLabel}</span>}
-        {changed.length > 0 && (
-          <span className="tag tag-amber">바뀐 것 {changed.length}</span>
-        )}
       </div>
-      <p className="hint" style={{ margin: "4px 0 10px" }}>
-        집에서 폰을 못 쓰면 <b>이 부분만 찍어 두거나 종이에 옮겨 적어</b> 가세요.
-        위에서 하나씩 하는 것과 같은 내용입니다.
-      </p>
+      {/**
+        * **「바뀜」 딱지도 설명도 뺐다** (원장님 2026-08-24 — 「숙제가 바뀌면
+        * 어차피 알람이 새로 가는 거 아니야? 바뀐 것·바뀜 표시 없애고, 그냥
+        * 글씨체나 색깔을 강조해」 · 「이거 멘트 둘 다 빼」).
+        * 바뀐 줄은 **글씨로** 말한다 — 딱지 하나에 각주 두 줄을 붙이는 것보다
+        * 진하게 쓴 한 줄이 빨리 읽힌다 (화면 규칙 1·2).
+        */}
 
       <div className="stack" style={{ gap: 12 }}>
         {groups.map((g) => (
@@ -59,7 +59,12 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
                   {/* 종이에 옮겨 적을 때 그대로 따라 그릴 수 있게 네모를 둔다.
                       여기서 누르는 것이 아니라 **적어 가는** 것이다 */}
                   <span style={{ fontSize: 14.5, lineHeight: 1.6 }}>☐</span>
-                  <span style={{ fontSize: 15, lineHeight: 1.6, flex: 1 }}>
+                  <span
+                    style={{
+                      fontSize: 15, lineHeight: 1.6, flex: 1,
+                      ...(c.changedAt ? { fontWeight: 700, color: "var(--amber)" } : {}),
+                    }}
+                  >
                     {c.name}
                     {/* 무엇을 펴야 하는지 (0116) — 적어 갈 때도 같이 적는다 */}
                     {c.tool && <span className="hint"> [{c.tool}]</span>}
@@ -67,11 +72,6 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
                       <> — {c.units.join(", ")}</>
                     )}
                     {cleanNote(c.note) && <> {cleanNote(c.note)}</>}
-                    {c.changedAt && (
-                      <span className="tag tag-amber" style={{ marginLeft: 4, fontSize: 12 }}>
-                        바뀜
-                      </span>
-                    )}
                     {c.method && (
                       <>
                         <br />
@@ -86,12 +86,6 @@ export default function HomeworkSheet({ items = [], dateLabel = "", title = "오
         ))}
       </div>
 
-      {changed.length > 0 && (
-        <p className="hint" style={{ margin: "10px 0 0" }}>
-          <b>바뀜</b> 은 선생님이 나중에 더하거나 고치신 것입니다.
-          아까 적어둔 것과 다를 수 있으니 한 번 더 봐주세요.
-        </p>
-      )}
     </div>
   );
 }

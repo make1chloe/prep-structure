@@ -58,9 +58,7 @@ export default function BreakCard() {
           <span className="tag tag-mint">{now}분째 쉬는 중</span>
         ) : line ? (
           <span className="hint">오늘 {line}</span>
-        ) : (
-          <span className="hint">화장실 · 물 마시러 갈 때 눌러주세요</span>
-        )}
+        ) : null}
         <span className="spacer" />
         <button
           className={`btn btn-sm ${open ? "btn-on" : "btn-ghost"}`}

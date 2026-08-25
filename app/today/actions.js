@@ -256,27 +256,46 @@ export async function saveStudentDay(studentId, date, form) {
    * 없을 때 한 줄 적으면, 「직접 적은 숙제」 항목의 범위 메모로 실려
    * 학생 화면·리포트·검사까지 여느 숙제처럼 흐른다 (두 번 안 적는다).
    */
-  if ((form.quickHomework || "").trim()) {
-    // **줄마다 따로** (원장님 2026-08-21 「줄 구분되는 거지 — 여러 개를
-    // 내더라도 학생들이 다 해서 볼 수 있도록」). 한 줄 = 숙제 하나.
-    // 항목은 같은 이름을 못 겹쳐 쓰니(리포트당 항목 한 줄) 슬롯을 판다 —
-    // 「직접 적은 숙제」 「직접 적은 숙제 2」 … 학생에겐 범위 메모(내용)가
-    // 같이 보이고, 각각 완료·검사된다.
-    const lines = form.quickHomework.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 8);
-    for (let i = 0; i < lines.length; i += 1) {
-      const NAME = i === 0 ? "직접 적은 숙제" : `직접 적은 숙제 ${i + 1}`;
+  /**
+   * **급한 숙제는 영역마다** (원장님 2026-08-24 — 「직접 적은 숙제는 영역이
+   * 없는 게 문제야. 영역마다 그냥 텍스트를 추가할 칸을 줘」 · 「학생 어플에서
+   * 내가 직접 적은 숙제가 '직접 적은 숙제' 라고 나올 필요 없어」).
+   *
+   * 적은 자리가 곧 영역이다 — 항목의 분류(category)로 넣으면 아이 화면의
+   * 영역별 묶음에 제 자리로 간다. `quick`(0157) 을 켜 두면 아이 화면이
+   * **이름을 감추고 적은 글만** 보여준다.
+   *
+   * 항목은 한 리포트에 한 줄뿐이라 줄마다 슬롯을 판다 — 「영작 직접」
+   * 「영작 직접 2」 … 이름은 원장님 관리용일 뿐 아이에게는 안 보인다.
+   */
+  const quickIn = form.quickHomework;
+  const quickMap = typeof quickIn === "string"
+    ? (quickIn.trim() ? { 기타: quickIn } : {})      // 옛 판(한 칸)에서 온 것
+    : (quickIn && typeof quickIn === "object" ? quickIn : {});
+  for (const [area, text] of Object.entries(quickMap)) {
+    const lines = (text || "").split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 8);
+    for (let li = 0; li < lines.length; li += 1) {
+      const NAME = `${area} 직접${li === 0 ? "" : ` ${li + 1}`}`;
       let { data: qi } = await supabase
         .from("homework_items").select("id").eq("name", NAME).maybeSingle();
       if (!qi) {
-        ({ data: qi } = await supabase
-          .from("homework_items").insert({ name: NAME, category: "기타" }).select("id").maybeSingle());
+        let ins = await supabase
+          .from("homework_items")
+          .insert({ name: NAME, category: area, quick: true }).select("id").maybeSingle();
+        if (ins.error && noColumn(ins.error)) {
+          // 0157 전 — quick 칸 없이 (이름이 그대로 뜬다)
+          ins = await supabase
+            .from("homework_items")
+            .insert({ name: NAME, category: area }).select("id").maybeSingle();
+        }
+        qi = ins.data;
       }
       if (!qi?.id) continue;
       if (!nextIds.includes(qi.id)) nextIds = [...nextIds, qi.id];
       const prev = (nextUnitsIn[qi.id]?.note || "").trim();
       nextUnitsIn[qi.id] = {
         unitIds: nextUnitsIn[qi.id]?.unitIds || [],
-        note: prev ? `${prev} · ${lines[i]}` : lines[i],
+        note: prev ? `${prev} · ${lines[li]}` : lines[li],
       };
     }
   }

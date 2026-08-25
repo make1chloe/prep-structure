@@ -249,7 +249,7 @@ export default function StudentPanel({
     // attitude 칸이 곧 **집중도**다 (0118 — 이름만 바뀌고 칸은 그대로)
     attitude: r.attitude || "",
     monthKeyword: row.monthKeyword || "",
-    quickHomework: "",
+    quickHomework: {},        // { 영역: "적은 글" } — 0157
     understanding: r.understanding || "",
     word_correct: r.word_correct ?? "",
     // 전체 개수는 미리 채워둔다.
@@ -403,6 +403,8 @@ export default function StudentPanel({
   // 숙제 분류와 교재 영역이 같으면 그 교재를 자동으로 고른다
   //   독해 숙제 → 이 학생의 독해 교재 (예: 수능딥독3)
   const AREA_OF = { 단어: "단어", 독해: "독해", 문법: "문법", 내신: "내신", 듣기: "듣기", 영작: "영작" };
+  // 급한 숙제를 적는 칸 — 영역마다 하나 (0157)
+  const QUICK_AREAS = Object.keys(AREA_OF);
   const myBooks = row.books || [];
   function bookFor(itemId) {
     const item = items.find((i) => i.id === itemId);
@@ -2300,19 +2302,33 @@ export default function StudentPanel({
               </span>
             </div>
           )}
-          {/* **급하면 글로** (원장님 2026-08-21 — 「급하면 텍스트로 직접
-              숙제 적을 수 있도록」). 항목·단원 고를 짬이 없을 때 한 줄 —
-              「직접 적은 숙제」 로 학생 화면·리포트·검사까지 여느 숙제처럼 */}
-          <div className="row" style={{ gap: 6, alignItems: "center", margin: "6px 0" }}>
-            <span className="hint" style={{ fontSize: 13, whiteSpace: "nowrap" }}>✍ 급한 숙제</span>
-            <textarea
-              className="input input-sm"
-              rows={form.quickHomework.includes("\n") ? 3 : 1}
-              style={{ flex: 1, minWidth: 160, resize: "vertical" }}
-              placeholder="한 줄에 하나씩 — 줄마다 따로 숙제가 돼요 (예: 문법 프린트 3장)"
-              value={form.quickHomework}
-              onChange={(e) => set("quickHomework", e.target.value)}
-            />
+          {/**
+            * **급하면 글로 — 영역마다 한 칸** (원장님 2026-08-21 「급하면
+            * 텍스트로 직접 숙제 적을 수 있도록」 · 2026-08-24 「직접 적은
+            * 숙제는 영역이 없는 게 문제야. 영역마다 그냥 텍스트를 추가할
+            * 칸을 줘」).
+            *
+            * 한 칸이면 영역이 안 붙어서, 아이 화면의 영역별 묶음에서 「기타」 로
+            * 떨어진다 — 영작 숙제인데 영작 묶음에 없다. 칸을 영역마다 두면
+            * 적는 자리가 곧 영역이라 따로 고를 것이 없다. 빈 칸은 안 나간다.
+            */}
+          <div className="stack" style={{ gap: 4, margin: "6px 0" }}>
+            <span className="hint" style={{ fontSize: 13 }}>✍ 급한 숙제 — 한 줄에 하나씩</span>
+            {QUICK_AREAS.map((area) => (
+              <div className="row" key={area} style={{ gap: 6, alignItems: "center" }}>
+                <span className="plabel" style={{ width: 34 }}>{area}</span>
+                <textarea
+                  className="input input-sm"
+                  rows={(form.quickHomework?.[area] || "").includes("\n") ? 3 : 1}
+                  style={{ flex: 1, minWidth: 160, resize: "vertical" }}
+                  placeholder={area === "문법" ? "예: 문법 프린트 3장" : ""}
+                  value={form.quickHomework?.[area] || ""}
+                  onChange={(e) =>
+                    set("quickHomework", { ...(form.quickHomework || {}), [area]: e.target.value })
+                  }
+                />
+              </div>
+            ))}
           </div>
           {/* 이 학생 교재가 쓰는 항목만 — 나머지는 눌러서 (2026-08-24) */}
           {hiddenCount > 0 && (
