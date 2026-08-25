@@ -115,7 +115,7 @@ async function usedIds(supabase) {
  */
 export async function createStudentLogin(studentId, wantId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
@@ -173,7 +173,7 @@ export async function createStudentLogin(studentId, wantId) {
 /** 비밀번호를 새로 만든다 (아이가 잊었을 때). 다시 0000 이 되고, 들어오면 바로 바꾼다 */
 export async function resetStudentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
@@ -208,7 +208,7 @@ export async function resetStudentPassword(studentId) {
  * 이미 계정이 있는 학생은 건드리지 않는다 (비밀번호도 안 바꾼다).
  */
 export async function createAllStudentLogins() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error, made: [], failed: [] };
 
@@ -291,7 +291,7 @@ export async function createAllStudentLogins() {
  */
 export async function autoCreateLogins(studentIds = []) {
   if (!Array.isArray(studentIds) || studentIds.length === 0) return { made: 0 };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const guard = await requireTeacher(supabase);
   if (guard.error) return { made: 0, skipped: guard.error };
@@ -340,7 +340,7 @@ export async function autoCreateLogins(studentIds = []) {
 /** 지금 상태 — 아이디가 있나, 계정이 붙어 있나 */
 export async function accountStatus(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 아이디·전화번호가 함께 나오므로 선생님만 본다 (표의 잠금이 이미 막지만 한 번 더)
   const guard = await requireTeacher(supabase);
@@ -395,7 +395,7 @@ export async function accountStatus(studentId) {
  * 들어가시면 바꾸라고 나옵니다」.
  */
 export async function createAllParentLogins() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error, made: [], failed: [] };
 

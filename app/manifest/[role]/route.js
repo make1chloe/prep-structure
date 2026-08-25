@@ -40,7 +40,8 @@ const ROLES = {
   student: { name: "클로이영어", short: "클로이영어", role: "student" },
 };
 
-export async function GET(_req, { params }) {
+export async function GET(_req, ctx) {
+  const params = await ctx.params;
   const key = (params?.role || "").replace(/[^a-z]/gi, "");
   const r = ROLES[key];
   if (!r) return new Response("없는 앱", { status: 404 });

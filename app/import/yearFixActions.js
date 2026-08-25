@@ -57,7 +57,7 @@ async function staffOnly(supabase) {
 
 /** 무엇이 몇 건인지 따져본다 (아무것도 안 바꾼다) */
 export async function planYearFix() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const deny = await staffOnly(supabase);
   if (deny) return { error: deny, tables: [] };
 
@@ -123,7 +123,7 @@ export async function planYearFix() {
  * 덮어쓰면 원래 있던 기록이 사라진다.
  */
 export async function applyYearFix(table) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const deny = await staffOnly(supabase);
   if (deny) return { error: deny, moved: 0 };
   const meta = TABLES[table];

@@ -56,7 +56,7 @@ export async function saveScore(input) {
     exam_id: input.exam_id || null,
   };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   // 0097 전이면 exam_id 칸이 없다 — 그것만 빼고 넣는다
@@ -91,7 +91,7 @@ export async function saveScore(input) {
 export async function removeScores(ids) {
   const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("scores").delete().in("id", list);
   revalidatePath("/scores");
   revalidatePath("/me");
@@ -111,7 +111,7 @@ export async function removeScores(ids) {
  */
 export async function addWrong(scoreId, input) {
   if (!scoreId) return { error: "성적을 먼저 저장해주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const raw = (input?.question || "").trim();
   const m = raw.match(/^\s*(\d+)/);
@@ -137,7 +137,7 @@ export async function addWrong(scoreId, input) {
 export async function removeWrongs(ids) {
   const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("score_items").delete().in("id", list);
   revalidatePath("/scores");
   return ok(error);
@@ -146,7 +146,7 @@ export async function removeWrongs(ids) {
 /** 그 성적의 틀린 문제들 */
 export async function listWrongs(scoreId) {
   if (!scoreId) return { rows: [] };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("score_items")
     .select("id, no, label, reason, note")
@@ -198,7 +198,7 @@ export async function listWrongs(scoreId) {
  */
 export async function markNoExam(studentId, examId, on = true, note = "") {
   if (!studentId || !examId) return { error: "학생이나 시험이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const q = on
@@ -247,7 +247,7 @@ export async function markNoExam(studentId, examId, on = true, note = "") {
 export async function markNoExamMany(studentIds = [], examId, note = "") {
   const ids = (studentIds || []).filter(Boolean);
   if (!ids.length || !examId) return { error: "학생이나 시험이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("exam_skips").upsert(

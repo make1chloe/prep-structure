@@ -35,7 +35,7 @@ function jsonKo(body, init = {}) {
 }
 
 export async function GET(request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return jsonKo({ error: guard.error }, { status: 403 });
   const sp = new URL(request.url).searchParams;

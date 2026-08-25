@@ -41,7 +41,7 @@ async function rowFor(supabase, studentId, date) {
 
 /** 무엇이 나가는지 먼저 보여준다 — 보내기 전에 눈으로 읽는다 */
 export async function previewTest(studentId, kind, date) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -94,7 +94,7 @@ export async function previewTest(studentId, kind, date) {
  * @param to 비우면 학생에게 등록된 번호로. 적으면 그 번호로 (원장님 본인 번호 등)
  */
 export async function sendTest(studentId, kind, date, to) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -160,7 +160,7 @@ export async function sendTest(studentId, kind, date, to) {
 
 /** 알림톡 문구가 붙은 문구로 한 번 보내본다 */
 export async function sendTestAlimtalk(studentId, templateId, to) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 

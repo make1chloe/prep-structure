@@ -13,7 +13,7 @@ import { addDays } from "@/lib/day";
  */
 export async function markCheck(studentId, date, itemId, status) {
   if (!studentId || !date || !itemId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: rep } = await supabase
     .from("daily_reports")

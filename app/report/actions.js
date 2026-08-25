@@ -8,7 +8,7 @@ import { noColumn } from "@/lib/sqlError";
 // 고친 문구를 저장한다. 이후로는 자동 생성 문구 대신 이 문구를 쓴다.
 export async function saveReportText(reportId, text) {
   if (!reportId) return { error: "리포트가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ report_text: (text || "").trim() || null })
@@ -23,7 +23,7 @@ export async function saveReportText(reportId, text) {
 // 자동 생성 문구로 되돌린다
 export async function resetReportText(reportId) {
   if (!reportId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ report_text: null })
@@ -44,7 +44,7 @@ export async function skipSend(reportIds, kind = "report", on = true) {
   const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
   if (ids.length === 0) return { error: null };
   if (!["report", "homework", "late"].includes(kind)) return { error: "알 수 없는 문자예요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: rows, error: readErr } = await supabase
     .from("daily_reports")
@@ -80,7 +80,7 @@ export async function skipSend(reportIds, kind = "report", on = true) {
 export async function dismissSendFails(sendIds) {
   const ids = Array.isArray(sendIds) ? sendIds : [sendIds];
   if (ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 성공한 발송은 절대 지우지 않는다 (보낸 기록은 남아야 한다)
   const { error } = await supabase
     .from("report_sends").delete().in("id", ids).eq("ok", false);
@@ -98,7 +98,7 @@ export async function dismissSendFails(sendIds) {
 export async function removeReports(reportIds) {
   const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
   if (ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("daily_reports").delete().in("id", ids);
   revalidatePath("/report");
   revalidatePath("/today");
@@ -118,7 +118,7 @@ export async function sendReports(items) {
 export async function unsend(reportIds) {
   const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
   if (ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ sent_at: null })
@@ -140,7 +140,7 @@ export async function unsend(reportIds) {
 export async function clearLate(reportIds) {
   const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
   if (ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const row = { late_until: null, late_reason: null, late_text: null, late_sent_at: null };
   let { error } = await supabase.from("daily_reports").update(row).in("id", ids);

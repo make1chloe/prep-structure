@@ -16,7 +16,7 @@ import { needSql } from "@/lib/sqlError";
 const NEED_SQL = "0095 SQL 을 먼저 실행해주세요 (화면 구성 순서).";
 
 export async function listLayouts() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("screen_layouts").select("page, order_keys, hidden_keys");
   if (needSql(error)) return { layouts: {}, error: NEED_SQL };
@@ -42,7 +42,7 @@ export async function saveLayout(pageKey, order = [], hidden = []) {
   const known = new Set(page.blocks.map((b) => b.key));
   const clean = (list) => [...new Set((list || []).filter((k) => known.has(k)))];
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 
@@ -67,7 +67,7 @@ export async function saveLayout(pageKey, order = [], hidden = []) {
 /** 원래 차례로 되돌린다 — 줄을 지우면 코드에 적힌 차례가 그대로 쓰인다 */
 export async function resetLayout(pageKey) {
   if (!findPage(pageKey)) return { error: "모르는 화면이에요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 

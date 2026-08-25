@@ -19,7 +19,7 @@ export async function addUnitExam(studentId, date, { name, wrong, total, note } 
 
   const t = parseInt(total, 10);
   const w = parseInt(wrong, 10);
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("unit_exams").insert({
@@ -41,7 +41,7 @@ export async function addUnitExam(studentId, date, { name, wrong, total, note } 
 
 export async function deleteUnitExam(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("unit_exams").delete().eq("id", id);
   revalidatePath("/today");
   revalidatePath("/monthly");

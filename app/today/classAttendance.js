@@ -6,7 +6,7 @@ import { needSql } from "@/lib/sqlError";
 
 export async function setClassAttendance(classId, studentId, date, status) {
   if (!classId || !studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 같은 것을 다시 누르면 지운다 (잘못 찍었을 때 되돌릴 길)
   if (!status) {

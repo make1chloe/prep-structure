@@ -13,8 +13,9 @@ import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudentsPage({ searchParams }) {
-  const supabase = createClient();
+export default async function StudentsPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const today = todaySeoul();
   // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다
   // (미들웨어·오늘 수업과 같은 까닭. 2026-08-14 「로딩 자체가 느려」)

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
  * 읽어보고, 지운다. 안 되면 **어디서** 막혔는지 그대로 보여준다.
  */
 export async function checkStorage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const steps = [];
   const add = (name, ok, why) => steps.push({ name, ok, why: why || null });
 

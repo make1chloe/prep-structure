@@ -16,7 +16,7 @@ import { cachedProfile } from "@/lib/profileCache";
 export const dynamic = "force-dynamic";
 
 export default async function SchoolsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const startYM = todaySeoul().slice(0, 7);

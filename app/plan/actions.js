@@ -16,7 +16,7 @@ function ok(error) {
 // 미리 연락받은 결석. 당일 결석과 구분해서 남긴다.
 export async function setPlannedAbsence(studentId, date, reason) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("attendance").upsert(
     {
       student_id: studentId,
@@ -46,7 +46,7 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
   if (sids.length === 0 || !from) return { error: "학생과 날짜를 골라주세요.", count: 0 };
   const end = to || from;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: members } = await supabase
     .from("class_students")
     .select("class_id, student_id")
@@ -95,7 +95,7 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
 export async function clearPlannedAbsenceRange(studentIds, from, to) {
   const sids = Array.isArray(studentIds) ? studentIds : [studentIds];
   if (sids.length === 0 || !from) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("attendance")
     .delete()
@@ -110,7 +110,7 @@ export async function clearPlannedAbsenceRange(studentIds, from, to) {
 
 export async function clearPlannedAbsence(studentId, date) {
   if (!studentId || !date) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("attendance")
     .delete()
@@ -132,7 +132,7 @@ export async function clearPlannedAbsence(studentId, date) {
  */
 export async function setMakeup(studentId, makeupDate, absentDate, makeupTime, reason) {
   if (!studentId || !makeupDate) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const row = {
     student_id: studentId,
     date: makeupDate,
@@ -180,7 +180,7 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime, r
  */
 export async function moveMakeup(studentId, fromDate, toDate, toTime) {
   if (!studentId || !fromDate || !toDate) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   if (fromDate !== toDate) {
     const { data: clash } = await supabase
       .from("attendance")
@@ -239,7 +239,7 @@ export async function moveMakeup(studentId, fromDate, toDate, toTime) {
 
 export async function cancelMakeup(studentId, date, why, notify = true) {
   if (!studentId || !date) return { error: "어느 보강인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from("attendance")
@@ -300,7 +300,7 @@ export async function cancelMakeup(studentId, date, why, notify = true) {
  */
 export async function cancelAbsence(studentId, date) {
   if (!studentId || !date) return { error: "어느 결석인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("attendance")
     .delete()
@@ -327,7 +327,7 @@ export async function cancelAbsence(studentId, date) {
  */
 export async function waiveMakeup(studentId, absentDate, on = true) {
   if (!studentId || !absentDate) return { error: "어느 결석인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("attendance")
     .update({ makeup_waived: !!on })
@@ -388,7 +388,7 @@ export async function assignHomeworkAhead(studentIds, date, items) {
     return { error: "학생과 숙제를 골라주세요.", count: 0 };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 리포트가 없으면 만든다 (점수·태도는 수업 당일에 채운다)
   const { data: reports, error: repErr } = await supabase
@@ -448,7 +448,7 @@ export async function assignHomeworkAhead(studentIds, date, items) {
 export async function unassignHomeworkAhead(studentIds, date, homeworkItemId) {
   const sids = Array.isArray(studentIds) ? studentIds : [studentIds];
   if (sids.length === 0 || !date || !homeworkItemId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: reports } = await supabase
     .from("daily_reports")
     .select("id")
@@ -483,7 +483,7 @@ export async function unassignHomeworkAhead(studentIds, date, homeworkItemId) {
 export async function recentClasses(studentIds = [], days = 60) {
   const ids = (studentIds || []).filter(Boolean);
   if (ids.length === 0) return { rows: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const from = addDays(new Date().toISOString().slice(0, 10), -days);
 
   const BASE = "id, student_id, date, word_total, word_correct, notice";

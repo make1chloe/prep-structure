@@ -60,7 +60,7 @@ async function detailOf(res) {
  */
 export async function saveAdminToken(token, ref) {
   const t = (token || "").trim();
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
   if (!t) return { error: "토큰을 넣어주세요." };
@@ -128,7 +128,7 @@ export async function saveAdminToken(token, ref) {
 }
 
 export async function clearAdminToken() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
   const { error } = await supabase.from("integrations").delete().eq("id", "supabase_admin");
@@ -143,7 +143,7 @@ export async function clearAdminToken() {
  * 하나가 실패하면 거기서 멈춘다 — 순서가 있어서 뒤엣것만 넣어봐야 소용없다.
  */
 export async function applyMissing() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
 

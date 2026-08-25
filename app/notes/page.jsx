@@ -14,8 +14,9 @@ export const dynamic = "force-dynamic";
  * "이번 달에 누구랑 상담했더라", "이 학생 지난번에 뭐라고 했더라" 를
  * 한 화면에서 볼 수 있어야 한다.
  */
-export default async function NotesPage({ searchParams }) {
-  const supabase = createClient();
+export default async function NotesPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

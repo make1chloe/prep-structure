@@ -115,7 +115,7 @@ function withRules(lines, mine, ask) {
 
 /** 조건을 저장한다 */
 export async function saveAiRules(text) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -130,7 +130,7 @@ export async function saveAiRules(text) {
 
 /** 저장해둔 조건 (화면에 다시 보여주기 위해) */
 export async function getAiRules() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { text: "", error: guard.error };
   return { text: await rules(supabase), error: null };
@@ -153,7 +153,7 @@ export async function summarizeConsult(raw, studentName, opts = {}) {
   const text = (raw || "").trim();
   if (text.length < 10) return { error: "받아쓴 내용이 너무 짧아요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -182,7 +182,7 @@ export async function summarizeConsult(raw, studentName, opts = {}) {
  * @param facts  { name, attendance, word, homework:[], inclass:[], keywords:[], note }
  */
 export async function draftComment(facts = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -238,7 +238,7 @@ export async function draftNotices(facts = {}) {
   const hint = (facts.hint || "").trim();
   if (hint.length < 2) return { error: "전달할 말을 적어주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -303,7 +303,7 @@ export async function draftNotices(facts = {}) {
  */
 export async function monthlyBriefing(studentId, ym) {
   if (!studentId || !/^\d{4}-\d{2}$/.test(ym || "")) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -419,7 +419,7 @@ export async function monthlyBriefing(studentId, ym) {
 
 /** 키가 들어와 있는지 (키 자체는 절대 돌려주지 않는다) */
 export async function aiReady() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { key, model } = await apiKey(supabase);
   const { count } = await supabase
     .from("comment_samples")

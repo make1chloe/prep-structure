@@ -25,7 +25,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function resolveCall(studentId) {
   if (!studentId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("student_activity")
     .delete()
@@ -40,7 +40,7 @@ export async function resolveCall(studentId) {
 export async function resolveAllCalls(studentIds) {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0) return { error: null, count: 0 };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("student_activity")
     .delete()

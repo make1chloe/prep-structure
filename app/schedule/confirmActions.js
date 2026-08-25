@@ -40,7 +40,7 @@ export async function nextYm() {
 export async function clearMonthNotice(ym) {
   if (!ym) return;
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     await supabase
       .from("month_confirms")
       .update({ notice_at: null })
@@ -52,7 +52,7 @@ export async function clearMonthNotice(ym) {
 /** 학부모 — 이 아이의 다음 달 일정을 1차 확인 */
 export async function parentConfirmMonth(studentId) {
   if (!studentId) return { error: "어느 학생인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const ym = addMonths(todaySeoul().slice(0, 7), 1);
   const { error } = await supabase.from("month_confirms").upsert(
@@ -90,7 +90,7 @@ export async function parentConfirmMonth(studentId) {
 export async function sendMonthPlan(studentIds, ym) {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0 || !ym) return { error: "학생을 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const [stQ, clsRows, csQ, hqQ, absQ, exQ, setQ] = await Promise.all([
@@ -185,7 +185,7 @@ export async function sendMonthPlan(studentIds, ym) {
 export async function principalConfirmMonth(studentIds, ym) {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0 || !ym) return { error: "학생을 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const now = new Date().toISOString();
   const { error } = await supabase.from("month_confirms").upsert(
     ids.map((sid) => ({ student_id: sid, ym, principal_at: now })),
@@ -201,7 +201,7 @@ export async function principalConfirmMonth(studentIds, ym) {
 /** 원장 — 확정을 되돌린다 (잘못 눌렀을 때) */
 export async function principalUnconfirmMonth(studentId, ym) {
   if (!studentId || !ym) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("month_confirms")
     .update({ principal_at: null })

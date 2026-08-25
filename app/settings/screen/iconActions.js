@@ -22,7 +22,7 @@ const SQL = "0080 SQL 을 먼저 실행해주세요.";
 
 /** 지금 올려둔 것이 있나 */
 export async function iconStatus() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
   const { data, error } = await supabase
@@ -49,7 +49,7 @@ export async function iconStatus() {
  * @param images { "icon-512": "data:image/png;base64,...", ... }
  */
 export async function saveIcons(images = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return guard;
 
@@ -81,7 +81,7 @@ export async function saveIcons(images = {}) {
 
 /** 다시 기본 그림으로 (올린 것을 지운다) */
 export async function clearIcons() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return guard;
   const { error } = await supabase.from("app_assets").delete().in("key", KEYS);
@@ -97,7 +97,7 @@ export async function clearIcons() {
  * 「안 바뀜」 으로 보인다. 그래서 어디서 막혔는지 여기서 알아내 말로 돌려준다.
  */
 export async function checkIcons() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
 

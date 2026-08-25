@@ -18,7 +18,7 @@ import { pushToFamilies } from "@/app/push/actions";
  * 아이들이 자꾸 잊어버리기 때문이다.
  */
 export async function checkArrival(kind, on, asId = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId, acting, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
   const me = { id: studentId };
@@ -31,7 +31,7 @@ export async function checkArrival(kind, on, asId = null) {
   if (on && !acting) {
     const nq = await supabase.from("academy_net").select("ip");
     const allowed = (nq.error ? [] : nq.data || []).map((x) => x.ip);
-    if (allowed.length > 0 && !sameNet(pickIp(headers()), allowed)) {
+    if (allowed.length > 0 && !sameNet(pickIp(await headers()), allowed)) {
       return { error: "학원에 도착해서 학원 와이파이에 연결한 뒤 눌러주세요." };
     }
   }
@@ -108,7 +108,7 @@ export async function checkArrival(kind, on, asId = null) {
  * 여기 서버 쪽은 **누른 시각을 적고 어머니께 알리는 것**까지만 한다.
  */
 export async function leaveNow(asId = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId, acting, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 

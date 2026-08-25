@@ -25,8 +25,9 @@ export const dynamic = "force-dynamic";
  * 오답만 있으면 몇 번을 몇 명이 틀렸는지가 나온다. 둘 다 있어야만 보이면
  * 아무도 채우기 시작하지 않는다.
  */
-export default async function AnalysisPage({ searchParams }) {
-  const supabase = createClient();
+export default async function AnalysisPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

@@ -15,11 +15,12 @@ export const dynamic = "force-dynamic";
  * 위에는 큰 이름 다섯 개만 두고, 들어오면 여기서 고른다.
  * 큼직한 카드로 두는 것은 폰에서 손가락으로 누르기 위해서다.
  */
-export default async function MenuSection({ params }) {
+export default async function MenuSection(props) {
+  const params = await props.params;
   const section = findSection(params.section);
   if (!section || section.items.length === 0) notFound();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   let profile = null;
   if (user) {

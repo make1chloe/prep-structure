@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function listStudentScores(studentId) {
   if (!studentId) return { rows: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("scores")

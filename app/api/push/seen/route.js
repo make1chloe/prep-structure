@@ -21,7 +21,7 @@ export async function POST(request) {
     const { r, opened } = await request.json();
     if (!r) return NextResponse.json({}, { status: 204 });
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const user = await sessionUser(supabase);
     if (!user) return NextResponse.json({}, { status: 204 });
 

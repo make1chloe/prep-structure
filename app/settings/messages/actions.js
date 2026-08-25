@@ -20,7 +20,7 @@ const NEED = "0029 SQL 을 먼저 실행해주세요.";
  * 무엇이 모자란지는 화면에 그대로 알려준다.
  */
 export async function listMessages() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const BASE = "id, name, kind, body, sort, active";
 
   const tries = [
@@ -63,7 +63,7 @@ export async function listMessages() {
  * key 가 있는 것(앱이 본문을 만드는 문자)은 본문을 못 바꾼다 — 바꿔봐야 안 쓰인다.
  */
 export async function saveMessage(id, patch = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const row = {};
   if ("name" in patch) row.name = (patch.name || "").trim() || "이름 없음";
   if ("kind" in patch && patch.kind) row.kind = patch.kind;
@@ -124,7 +124,7 @@ export async function saveMessage(id, patch = {}) {
 /** 숨긴 문구 되살리기 (2026-08-16 — 「숨긴거 볼수도없고」) */
 export async function restoreMessage(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("message_templates")
     .update({ active: true })
@@ -136,7 +136,7 @@ export async function restoreMessage(id) {
 /** 완전히 지우기 — 앱 자동 문자(key)는 못 지운다 */
 export async function purgeMessage(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: cur } = await supabase
     .from("message_templates").select("key, name").eq("id", id).maybeSingle();
   if (cur?.key) return { error: `'${cur.name}' 은 앱이 쓰는 문자라 지울 수 없어요.` };
@@ -147,7 +147,7 @@ export async function purgeMessage(id) {
 
 export async function deleteMessage(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: cur } = await supabase
     .from("message_templates")
     .select("key, name")
@@ -172,7 +172,7 @@ export async function deleteMessage(id) {
  * 보낼 때가 되어서야 실패한다. 이미 승인받아 두신 것에서 고르면 그 일이 없다.
  */
 export async function listApprovedTemplates() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { rows: [], error: "로그인이 필요해요." };
   const { data: p } = await supabase

@@ -19,7 +19,7 @@ import { setUnitProgress } from "@/app/progress/actions";
 // 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
 export async function listUnitOptions(textbookId) {
   if (!textbookId) return { options: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 분량·내용(0100)까지 실어와야 고르는 순간에 「이게 25문항이구나」 를 안다.
   // 없는 DB 도 있으므로 아래로 한 칸씩 내려가며 다시 본다
@@ -47,7 +47,7 @@ export async function listUnitOptions(textbookId) {
 // 출결만 빠르게 찍기
 export async function setAttendance(studentId, date, status, note) {
   if (!studentId || !date || !status) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("attendance")
     .upsert(
@@ -60,7 +60,7 @@ export async function setAttendance(studentId, date, status, note) {
 
 export async function clearAttendance(studentId, date) {
   if (!studentId || !date) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("attendance")
     .delete()
@@ -129,7 +129,7 @@ async function todayProgressDraft(supabase, studentId, date) {
 
 export async function saveStudentDay(studentId, date, form) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1) 출결
   if (form.attendance) {
@@ -661,7 +661,7 @@ export async function saveStudentDay(studentId, date, form) {
 // 완료 취소: 기록을 '미완료'로 되돌린다 (입력값은 그대로 둠)
 export async function reopenReport(studentId, date) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ report_written: false })
@@ -699,7 +699,7 @@ export async function createNotice(input) {
   // 그때는 제목만 있으면 된다.
   if (!date || (!text && !head)) return { error: "내용을 적어주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   // 대상 학생 확정
@@ -816,7 +816,7 @@ export async function createNotice(input) {
 export async function updateNotice(id, { body } = {}) {
   if (!id) return { error: "공지를 찾지 못했어요." };
   if (!(body || "").trim()) return { error: "내용을 적어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 본문만 고친다 — 공지에 제목 칸은 없다는 확정 설계 그대로 (check-notice)
   let { error } = await supabase
     .from("notices")
@@ -837,7 +837,7 @@ export async function updateNotice(id, { body } = {}) {
 
 export async function deleteNotice(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("notices").delete().eq("id", id);
   revalidatePath("/today");
   return { error: error ? error.message : null };
@@ -846,7 +846,7 @@ export async function deleteNotice(id) {
 // 하원 전 "전달했어요" 체크
 export async function setDelivered(noticeId, studentId, delivered) {
   if (!noticeId || !studentId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("notice_receipts")
     .update({ delivered_at: delivered ? new Date().toISOString() : null })
@@ -861,7 +861,7 @@ export async function setAllDelivered(studentId, noticeIds, delivered) {
   if (!studentId || !Array.isArray(noticeIds) || noticeIds.length === 0) {
     return { error: null };
   }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("notice_receipts")
     .update({ delivered_at: delivered ? new Date().toISOString() : null })
@@ -882,7 +882,7 @@ export async function setAllDelivered(studentId, noticeIds, delivered) {
  */
 export async function bookMakeup(studentId, makeupDate, reason, absentDate, makeupTime) {
   if (!studentId || !makeupDate) return { error: "날짜를 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 그날 이미 출결이 있으면 덮어쓰지 않는다 (2026-08-21) — 기본 날짜가
   // 다음 보강 요일이라 정규 수업일과 겹치기 쉬웠고, upsert 가 정시·지각을

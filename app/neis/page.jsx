@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  * 받은 줄을 하나도 안 버리고 그대로 늘어놓는다. 저장은 하지 않는다.
  */
 export default async function NeisPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

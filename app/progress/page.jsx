@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  * 쪽에 안 보인다. 이 화면은 그 판을 학생 명단으로 감싼 것뿐이다.
  */
 export default async function ProgressPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const today = todaySeoul();
   const dow = DOW[new Date(`${today}T00:00:00+09:00`).getUTCDay()];

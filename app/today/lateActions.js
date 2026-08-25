@@ -39,7 +39,7 @@ async function ensureReport(supabase, studentId, date) {
  */
 export async function skipWordRetest(studentId, date, on) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { id, error: idErr } = await ensureReport(supabase, studentId, date);
   if (idErr || !id) return { error: idErr || "리포트를 만들지 못했어요." };
   const { data: row } = await supabase
@@ -58,7 +58,7 @@ export async function skipWordRetest(studentId, date, on) {
 
 export async function saveLate(studentId, date, { until, reason, text } = {}) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { id, error: idErr } = await ensureReport(supabase, studentId, date);
   if (idErr || !id) return { error: idErr || "리포트를 만들지 못했어요." };
@@ -82,7 +82,7 @@ export async function saveLate(studentId, date, { until, reason, text } = {}) {
 /** 지금 나갈 문구를 미리 본다 (자동 사유 + 시간이 반영된 것) */
 export async function previewLate(studentId, date) {
   if (!studentId || !date) return { error: "값이 부족해요.", text: "" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const settings = await loadSettings(supabase);
   const { rows } = await loadReportRows(supabase, date, settings.academy.name, settings.message);
   const row = rows.find((r) => r.studentId === studentId);
@@ -98,7 +98,7 @@ export async function previewLate(studentId, date) {
  */
 export async function sendLateNow(studentId, date) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const settings = await loadSettings(supabase);
   const { rows } = await loadReportRows(supabase, date, settings.academy.name, settings.message);
@@ -117,7 +117,7 @@ export async function sendLateNow(studentId, date) {
 /** 잘못 보냈을 때 — 보낸 표시만 지운다 (문자는 이미 나갔다) */
 export async function unsendLate(reportId) {
   if (!reportId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ late_sent_at: null })
@@ -131,7 +131,7 @@ export async function unsendLate(reportId) {
 /** 하원 안내를 없던 것으로 (시간·사유·문구를 모두 비운다) */
 export async function clearLate(studentId, date) {
   if (!studentId || !date) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ late_until: null, late_reason: null, late_text: null })

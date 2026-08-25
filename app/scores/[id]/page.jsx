@@ -18,8 +18,10 @@ export const dynamic = "force-dynamic";
  * 여기서는 **모으기만** 하고 계산은 lib/report.js 가 한다. 문항표는 세 겹으로
  * 찾는다 (그 회차 → 학원 기본 → 코드 표준) — lib/examSpec.js 의 specFor.
  */
-export default async function ReportPage({ params, searchParams }) {
-  const supabase = createClient();
+export default async function ReportPage(props) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

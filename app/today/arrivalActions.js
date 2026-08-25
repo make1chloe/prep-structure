@@ -24,7 +24,7 @@ async function ensureReport(supabase, studentId, date) {
 /** 그날만 단어시험 시점을 바꾼다 */
 export async function setArrival(studentId, date, patch = {}) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const id = await ensureReport(supabase, studentId, date);
   if (!id) return { error: "기록을 만들지 못했어요." };
 
@@ -56,7 +56,7 @@ export async function setArrivalFor(studentId, date, kind, on) {
   const col = COLS[kind];
   if (!col) return { error: "알 수 없는 항목이에요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("arrival_checks").upsert(
     { student_id: studentId, date, [col]: on ? new Date().toISOString() : null },
     { onConflict: "student_id,date" }
@@ -90,7 +90,7 @@ export async function setArrivalFor(studentId, date, kind, on) {
 /** 이 학생의 평소 단어시험 시점을 바꾼다 */
 export async function setWordWhenDefault(studentId, when) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("students")
     .update({ word_when: when === "end" ? "end" : "start" })

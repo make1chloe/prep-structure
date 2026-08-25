@@ -153,7 +153,8 @@ async function pendingPrep(supabase) {
     .sort((a, b) => a.due.localeCompare(b.due) || a.exam.localeCompare(b.exam));
 }
 
-export default async function TasksPage({ searchParams }) {
+export default async function TasksPage(props) {
+  const searchParams = await props.searchParams;
   const view = VIEWS.some((v) => v.key === searchParams?.view) ? searchParams.view : "calendar";
   // 달력은 **그 달 전체**를 본다 — 지난 날도 같이 봐야 달력이다
   const isCal = view === "calendar";
@@ -168,7 +169,7 @@ export default async function TasksPage({ searchParams }) {
   // 앞으로 무슨 일이 있는지가 그 아래로 묻힌다. 필요하면 켜서 본다.
   const showPast = searchParams?.past === "1";
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
   const {
     data: { session },

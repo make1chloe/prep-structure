@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 // 로그인 없이 학부모가 여는 신청 양식.
 // /apply           → 새 접수
 // /apply?t=토큰    → 전화로 이름만 받아둔 건에 이어 붙임
-export default async function ApplyPage({ searchParams }) {
+export default async function ApplyPage(props) {
+  const searchParams = await props.searchParams;
   const token = searchParams?.t || "";
   let prefill = {};
-  const supabase = createClient();
+  const supabase = await createClient();
 
   /**
    * **여기는 로그인이 없다.** schools 표는 선생님만 읽으므로(0076), 0114 의

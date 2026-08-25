@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * 원장님 (2026-08-06) — 「기본값을 세팅하되, 수정 가능하게 해줘」
  */
 export default async function SpecPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

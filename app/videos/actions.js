@@ -17,7 +17,7 @@ function ok(error) {
 export async function addFolder(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return { error: "이름을 적어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("video_folders")
     .insert({ name, note: (formData.get("note") || "").toString().trim() || null, sort: 100 });
@@ -27,7 +27,7 @@ export async function addFolder(formData) {
 
 export async function removeFolder(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("video_folders").delete().eq("id", id);
   revalidatePath("/videos");
   return ok(error);
@@ -43,7 +43,7 @@ export async function addVideo(formData) {
   }
   const title = (formData.get("title") || "").toString().trim();
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 제목을 안 적었으면 유튜브에서 받아온다 (키가 있을 때만).
   // 키가 없거나 실패해도 넣는 것은 넣는다 — 제목은 나중에 고칠 수 있다.
@@ -85,7 +85,7 @@ export async function updateVideo(id, patch) {
   }
   if (row.title === "") return { error: "제목은 비울 수 없어요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("videos").update(row).eq("id", id);
   revalidatePath("/videos");
   return ok(error);
@@ -93,7 +93,7 @@ export async function updateVideo(id, patch) {
 
 export async function removeVideo(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("videos").delete().eq("id", id);
   revalidatePath("/videos");
   return ok(error);
@@ -107,7 +107,7 @@ export async function removeVideo(id) {
 export async function setVideoStudents(videoId, studentIds, dueOn) {
   if (!videoId) return { error: "영상을 찾지 못했어요." };
   const want = [...new Set((studentIds || []).filter(Boolean))];
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: have, error: readErr } = await supabase
     .from("video_assignments")
@@ -159,7 +159,7 @@ export async function setVideoStudents(videoId, studentIds, dueOn) {
  */
 export async function openVideo(videoId, asId = null) {
   if (!videoId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: null };   // 선생님이 미리보기로 여는 것 — 기록하지 않는다
 
@@ -187,7 +187,7 @@ export async function openVideo(videoId, asId = null) {
 /** 다 봤어요 */
 export async function finishVideo(videoId, asId = null) {
   if (!videoId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 
@@ -218,7 +218,7 @@ export async function finishVideo(videoId, asId = null) {
 /** 다시 보기 — 「다 봤어요」를 잘못 눌렀을 때 */
 export async function undoFinishVideo(videoId, asId = null) {
   if (!videoId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: null };
   const { error } = await supabase
@@ -245,7 +245,7 @@ async function ytKey(supabase) {
 }
 
 export async function saveYoutubeKey(key) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
   const { error } = await supabase
@@ -257,7 +257,7 @@ export async function saveYoutubeKey(key) {
 
 /** 키가 들어 있나 (키 자체는 절대 돌려주지 않는다) */
 export async function youtubeReady() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { ready: false };
   return { ready: !!(await ytKey(supabase)) };
@@ -294,7 +294,7 @@ async function fetchTitles(key, ids) {
  * ids 를 주면 그것만, 안 주면 유튜브 영상 전부.
  */
 export async function syncTitles(ids = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -330,7 +330,7 @@ export async function syncTitles(ids = null) {
 
 export async function setVideosActive(ids, active) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("videos").update({ active: !!active }).in("id", ids);
   revalidatePath("/videos");
   return ok(error);
@@ -338,7 +338,7 @@ export async function setVideosActive(ids, active) {
 
 export async function setVideosFolder(ids, folderId) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("videos")
     .update({ folder_id: folderId || null })
@@ -349,7 +349,7 @@ export async function setVideosFolder(ids, folderId) {
 
 export async function removeVideos(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("videos").delete().in("id", ids);
   revalidatePath("/videos");
   return ok(error);
@@ -361,7 +361,7 @@ export async function assignVideosTo(videoIds, studentIds, dueOn) {
   const sids = [...new Set((studentIds || []).filter(Boolean))];
   if (vids.length === 0 || sids.length === 0) return { error: "영상과 학생을 골라주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: have, error: readErr } = await supabase
     .from("video_assignments")
     .select("video_id, student_id")
@@ -406,7 +406,7 @@ export async function assignVideosTo(videoIds, studentIds, dueOn) {
  * 나머지 열아홉은 들어가야 하고, 틀린 한 줄이 몇 번째인지 알아야 고친다.
  */
 export async function bulkAddVideos(rows = []) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -504,7 +504,7 @@ export async function bulkAddVideos(rows = []) {
  * 없는 것만 새로 들어간다.
  */
 export async function exportVideos() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error, rows: [] };
 

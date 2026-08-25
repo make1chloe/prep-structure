@@ -9,8 +9,9 @@ import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClassesPage({ searchParams }) {
-  const supabase = createClient();
+export default async function ClassesPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

@@ -19,8 +19,9 @@ import DateNav from "./DateNav";
 export const dynamic = "force-dynamic";
 
 
-export default async function TodayPage({ searchParams }) {
-  const supabase = createClient();
+export default async function TodayPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   // 로그인 확인은 쿠키로 (미들웨어와 같은 까닭 — getUser 는 요청마다
   // 인증 서버 왕복이다). 프로필 조회는 아래 파도 1 에 같이 태운다.
   const {

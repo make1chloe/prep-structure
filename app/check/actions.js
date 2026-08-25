@@ -29,7 +29,7 @@ function noteMissing(error) {
  */
 export async function checkOne(studentId, date, itemId, status, note = "", submissionIds = []) {
   if (!studentId || !date || !itemId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: rep } = await supabase
     .from("daily_reports")
@@ -99,7 +99,7 @@ export async function checkOne(studentId, date, itemId, status, note = "", submi
 /** 낸 것만 '봤다' 로 (검사 결과는 나중에) */
 export async function seenSubmission(id, on = true) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("homework_submissions")
     .update({ checked_at: on ? new Date().toISOString() : null })
@@ -128,7 +128,7 @@ export async function seenSubmission(id, on = true) {
  */
 export async function autoAssign(studentId, date) {
   if (!studentId || !date) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: rep } = await supabase
     .from("daily_reports")
@@ -196,7 +196,7 @@ export async function autoAssign(studentId, date) {
 export async function markMissing(studentId, date, itemIds = []) {
   const ids = (itemIds || []).filter(Boolean);
   if (!studentId || !date || ids.length === 0) return { error: null, count: 0 };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: rep } = await supabase
     .from("daily_reports")

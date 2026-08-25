@@ -38,7 +38,7 @@ const TARGETS = [
 ];
 
 export async function auditYears() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요.", audits: [] };
   const { data: p } = await supabase

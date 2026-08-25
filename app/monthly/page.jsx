@@ -9,8 +9,9 @@ import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
-export default async function MonthlyPage({ searchParams }) {
-  const supabase = createClient();
+export default async function MonthlyPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

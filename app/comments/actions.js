@@ -10,7 +10,7 @@ import { sessionUser } from "@/lib/session";
 /** 한 리포트의 댓글 */
 export async function listComments(reportId) {
   if (!reportId) return { comments: [], ready: true };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("report_comments")
     .select("id, body, author_id, author_role, read_at, created_at")
@@ -39,7 +39,7 @@ export async function addComment(reportId, studentId, body) {
   if (!text) return { error: "내용을 적어주세요." };
   if (text.length > 2000) return { error: "너무 깁니다. 2000자 안으로 적어주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
@@ -109,7 +109,7 @@ export async function addComment(reportId, studentId, body) {
 
 export async function deleteComment(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("report_comments").delete().eq("id", id);
   revalidatePath("/me");
   revalidatePath("/today");
@@ -119,7 +119,7 @@ export async function deleteComment(id) {
 /** 선생님이 읽음 처리 */
 export async function markRead(reportId) {
   if (!reportId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("report_comments")
     .update({ read_at: new Date().toISOString() })

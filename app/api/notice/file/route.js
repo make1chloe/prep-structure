@@ -25,7 +25,7 @@ export async function GET(request) {
   const dl = request.nextUrl.searchParams.get("dl") === "1";
   if (!p) return new NextResponse("파일을 찾지 못했어요.", { status: 400 });
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.storage
     .from("notices")
     .createSignedUrl(p, 300, dl ? { download: shownName(p) } : undefined);

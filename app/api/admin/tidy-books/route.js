@@ -34,7 +34,7 @@ export const maxDuration = 60;
  * 로그인으로만 돈다.
  */
 export async function GET(request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
   const url = new URL(request.url);
@@ -350,7 +350,7 @@ async function dedupeCore(supabase, units, dry) {
 }
 
 export async function POST(request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: 403 });
 

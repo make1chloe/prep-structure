@@ -19,7 +19,7 @@ export async function addHoliday(date, name, classId) {
 
 export async function deleteHoliday(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("holidays").delete().eq("id", id);
   revalidatePath("/tuition");
   return ok(error);
@@ -32,7 +32,7 @@ export async function setClassTuition(classId, tuition, baseSessions) {
     const d = (v ?? "").toString().replace(/[^\d]/g, "");
     return d ? parseInt(d, 10) : null;
   };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("classes")
     .update({ tuition: num(tuition), base_sessions: num(baseSessions) })
@@ -54,7 +54,7 @@ export async function setStudentTuition(studentId, patch) {
   if ("enrolled_on" in patch) row.enrolled_on = patch.enrolled_on || null;
   if ("ended_on" in patch) row.ended_on = patch.ended_on || null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("students").update(row).eq("id", studentId);
   revalidatePath("/tuition");
   return ok(error);
@@ -69,7 +69,7 @@ export async function setStudentTuition(studentId, patch) {
  */
 export async function setPaid(studentId, ym, paid, amount = null, paidOn = null) {
   if (!studentId || !ym) return { error: "학생과 달이 필요해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 받은 날은 **고를 수 있다.** 계좌를 며칠 만에 확인하시는 일이 흔해서,
   // 오늘로 찍어버리면 실제 받은 날과 어긋난다.
   const on = /^\d{4}-\d{2}-\d{2}$/.test(paidOn || "")
@@ -114,7 +114,7 @@ export async function saveGradeTuition(map = {}) {
     clean[g] = parseInt(digits, 10);
   });
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("integrations")
     .upsert({ id: "tuition", enabled: true, config: { byGrade: clean } }, { onConflict: "id" });
@@ -141,7 +141,7 @@ export async function setPaidMany(items = [], ym, paid = true, paidOn = null) {
   const list = (items || []).filter((x) => x?.studentId);
   if (list.length === 0) return { error: null, count: 0 };
   if (!ym) return { error: "달이 필요해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const on = /^\d{4}-\d{2}-\d{2}$/.test(paidOn || "")
     ? paidOn
     : new Date().toISOString().slice(0, 10);

@@ -15,7 +15,7 @@ import { bustProfile } from "@/lib/profileCache";
  * 갇히지 않는다.
  */
 export async function saveMenuPrefs(hidden, order) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 

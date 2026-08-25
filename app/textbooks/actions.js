@@ -39,7 +39,7 @@ export async function addTextbook(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 이미 **같은 교재**가 있으면 하나 더 만들지 않는다.
   // 「그래머존」 과 「그래머존 개정판」 은 사람 눈에는 같은 책인데, 이름이
@@ -107,7 +107,7 @@ export async function bulkAddTextbooks(rows) {
     const d = (v || "").toString().replace(/[^\d]/g, "");
     return d ? parseInt(d, 10) : null;
   };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 이미 있는 교재는 다시 만들지 않는다. 띄어쓰기·「2025 개정」만 다른 것도
   // 같은 교재로 본다 (lib/bookName) — 그래야 진도가 둘로 갈리지 않는다.
@@ -179,7 +179,7 @@ export async function mergeTextbooks(keepId, dropIds) {
     (id) => id && id !== keepId
   );
   if (!keepId || drops.length === 0) return { error: null, moved: 0 };
-  const supabase = createClient();
+  const supabase = await createClient();
   let moved = 0;
 
   // 그냥 옮기면 되는 것들 (겹칠 일이 없다)
@@ -257,7 +257,7 @@ export async function addUnit(formData) {
   const parent_id = (formData.get("parent_id") || "").toString().trim() || null;
   const activity = clean(formData, "activity"); // label 컬럼에 저장(활동)
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 순서: 비어있으면 같은 상위 안에서 최대+1 자동
   let sort = num(formData, "sort");
@@ -371,7 +371,7 @@ export async function updateTextbook(id, patch) {
   });
   if (Object.keys(row).length === 0) return { error: null };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (row.status && row.status !== "active") {
     // 사용중 → 절판·중단으로 **바꾸는** 순간만 막는다. 이미 접힌 교재의
     // 다른 칸 수정(상태 그대로 재전송)까지 막으면 고칠 수가 없다.
@@ -403,7 +403,7 @@ export async function updateTextbook(id, patch) {
 
 export async function deleteTextbooks(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const who = await inUseBlockers(supabase, ids);
   if (who) {
     return {
@@ -419,7 +419,7 @@ export async function deleteTextbooks(ids) {
 
 export async function updateTextbooksStatus(ids, status) {
   if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   if (status !== "active") {
     const who = await inUseBlockers(supabase, ids);
     if (who) {
@@ -437,7 +437,7 @@ export async function updateTextbooksStatus(ids, status) {
 
 export async function updateTextbooksArea(ids, area) {
   if (!Array.isArray(ids) || ids.length === 0 || !area) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("textbooks").update({ area }).in("id", ids);
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
@@ -462,7 +462,7 @@ export async function quickAddUnits(textbookId, text) {
     .filter(Boolean)
     .slice(0, 30);
   if (!textbookId || names.length === 0) return { error: "단원 이름을 적어주세요.", ids: [] };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 이미 있는 이름은 또 만들지 않고 그 단원을 돌려준다
   const { data: had } = await supabase
     .from("textbook_units")
@@ -515,7 +515,7 @@ export async function updateUnit(id, patch) {
   if ("question_range" in (patch || {})) row.question_range = (patch.question_range || "").trim() || null;
   if ("summary" in (patch || {})) row.summary = (patch.summary || "").trim() || null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("textbook_units").update(row).eq("id", id);
   if (noColumn(error)) {
     // 0100 전 — 분량·내용 칸 없이
@@ -538,7 +538,7 @@ export async function updateUnit(id, patch) {
 
 export async function deleteUnits(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("textbook_units").delete().in("id", ids);
   revalidatePath("/textbooks");
   return { error: error ? error.message : null };
@@ -547,7 +547,7 @@ export async function deleteUnits(ids) {
 // 선택한 단원을 다른 교재로 옮기기 (최상위=대단원으로 이동)
 export async function moveUnitsToTextbook(ids, textbookId) {
   if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: last } = await supabase
     .from("textbook_units")
     .select("sort")
@@ -577,7 +577,7 @@ export async function moveUnitsUnder(ids, parentId, textbookId) {
   if (parentId && ids.includes(parentId)) {
     return { error: "자기 자신 아래로는 옮길 수 없어요." };
   }
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let q = supabase
     .from("textbook_units")
@@ -606,7 +606,7 @@ export async function moveUnitsUnder(ids, parentId, textbookId) {
 // 선택한 단원을 같은 상위 안에서 위/아래로 한 칸 이동
 export async function moveUnits(ids, direction, textbookId) {
   if (!Array.isArray(ids) || ids.length === 0 || !textbookId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: all } = await supabase
     .from("textbook_units")
     .select("id, sort, parent_id")
@@ -647,7 +647,7 @@ export async function moveUnits(ids, direction, textbookId) {
 export async function deleteUnit(formData) {
   const id = (formData.get("id") || "").toString().trim();
   if (!id) return;
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.from("textbook_units").delete().eq("id", id);
   revalidatePath("/textbooks");
 }
@@ -662,7 +662,7 @@ export async function bulkAddUnits(rows) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return { inserted: 0, error: null, createdBooks: 0 };
   }
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1) 교재 찾아두기.
   //
@@ -899,7 +899,7 @@ export async function generateUnits(input) {
   const count = b - a + 1;
   if (count > 200) return { error: "한 번에 200개까지 만들 수 있어요.", created: 0 };
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 같은 위치의 마지막 순서 뒤에 붙인다
   let q = supabase
@@ -957,7 +957,7 @@ export async function generateUnits(input) {
  * 다시 올리면 같은 모양으로 다시 쌓인다.
  */
 export async function exportUnits(bookIds = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let bq = supabase.from("textbooks").select("id, name, pub_year, status").order("name");
   if (Array.isArray(bookIds) && bookIds.length) bq = bq.in("id", bookIds);
@@ -1050,7 +1050,7 @@ export async function exportUnits(bookIds = null) {
  * 없는 것만 새로 생긴다. 그래서 열 이름을 올리는 양식과 똑같이 맞춘다.
  */
 export async function exportTextbooks() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const COLS = "id, name, area, target_grade, total_pages, price, word_range, purchase_url, feature, status";
   let q = await supabase.from("textbooks").select(COLS).order("name");
   if (q.error) {
@@ -1095,7 +1095,7 @@ export async function exportTextbooks() {
  */
 export async function getActItems(textbookId) {
   if (!textbookId) return { map: {}, items: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const [{ data: bk, error }, { data: items }] = await Promise.all([
     supabase.from("textbooks").select("act_items").eq("id", textbookId).maybeSingle(),
     supabase
@@ -1112,7 +1112,7 @@ export async function getActItems(textbookId) {
 
 export async function saveActItems(textbookId, map) {
   if (!textbookId) return { error: "교재가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const clean2 = {};
   Object.entries(map || {}).forEach(([k, v]) => {
     if (k && v) clean2[k] = v;

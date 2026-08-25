@@ -20,8 +20,9 @@ import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportPage({ searchParams }) {
-  const supabase = createClient();
+export default async function ReportPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const date = searchParams?.d || todaySeoul();

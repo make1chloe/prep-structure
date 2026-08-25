@@ -75,7 +75,7 @@ async function familyOf(supabase, studentId) {
 /** 지금 이 아이의 학부모 계정은 어떤 상태인가 */
 export async function parentStatus(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 
@@ -124,7 +124,7 @@ export async function parentStatus(studentId) {
  */
 export async function createParentLogin(studentId, wantId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
@@ -218,7 +218,7 @@ export async function createParentLogin(studentId, wantId) {
 /** 비밀번호를 0000 으로 되돌린다 (학부모님이 잊었을 때) */
 export async function resetParentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
@@ -250,7 +250,7 @@ export async function resetParentPassword(studentId) {
  */
 export async function unlinkParent(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
   const { error } = await supabase

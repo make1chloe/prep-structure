@@ -47,7 +47,7 @@ async function principalOnly(supabase) {
  * 그 수가 크면 그날은 이관한 날이 아니다.
  */
 export async function countImported() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const deny = await principalOnly(supabase);
   if (deny) return { error: deny, tables: [] };
 
@@ -93,7 +93,7 @@ export async function countImported() {
  * 이관분만 지우는 것이 목적이지, 그날 것을 다 지우는 것이 아니다.
  */
 export async function wipeImported(table, day, keepSameDay = true) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const deny = await principalOnly(supabase);
   if (deny) return { error: deny, removed: 0 };
   const meta = TABLES[table];

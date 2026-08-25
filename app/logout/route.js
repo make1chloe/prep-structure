@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/server";
  *    걸어두고 싶을 때가 있다. 나가는 일은 되돌릴 것이 없으니 열어둔다.
  */
 async function bye() {
-  const supabase = createClient();
+  const supabase = await createClient();
   try {
     await supabase.auth.signOut();
   } catch {
@@ -28,7 +28,7 @@ async function bye() {
   }
 
   const res = new NextResponse(null, { status: 303, headers: { Location: "/login" } });
-  cookies()
+  (await cookies())
     .getAll()
     .filter((c) => c.name.startsWith("sb-"))
     .forEach((c) => res.cookies.set(c.name, "", { path: "/", maxAge: 0 }));

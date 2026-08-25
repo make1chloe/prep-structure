@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
  * 폰은 「지금 보고 있는 화면이 가리키는 앱」 을 담는다. 그래서 담을 앱마다
  * 화면이 하나씩 있어야 한다 — 같은 화면에서 세 번 담으면 같은 앱이 세 개다.
  */
-export async function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params;
   const r = ROLES[params?.role];
   if (!r) return { title: "클로이영어" };
   return {
@@ -23,7 +24,8 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default function InstallRolePage({ params }) {
+export default async function InstallRolePage(props) {
+  const params = await props.params;
   const key = params?.role;
   const r = ROLES[key];
   if (!r) {

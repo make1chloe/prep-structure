@@ -18,7 +18,7 @@ function missing(error) {
 }
 
 export async function listRoutines() {
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data, error } = await supabase
     .from("todo_routines")
     .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, checklist, active, sort")
@@ -78,7 +78,7 @@ export async function saveRoutine(id, patch) {
     }
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   if (id) {
     let { error } = await supabase.from("todo_routines").update(row).eq("id", id);
     if (missing(error)) {
@@ -119,7 +119,7 @@ export async function saveRoutine(id, patch) {
  */
 export async function deleteRoutine(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("todo_routines").delete().eq("id", id);
   if (missing(error)) return { error: SQL };
   revalidatePath("/tasks");
@@ -136,7 +136,7 @@ export async function deleteRoutine(id) {
  * 따로 적어두지 않는다 — 두 군데가 되면 반드시 어긋난다.
  */
 export async function syncRoutines() {
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data, error } = await supabase
     .from("todo_routines")
     .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, checklist, active, created_at")

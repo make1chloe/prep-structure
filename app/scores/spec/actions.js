@@ -13,7 +13,7 @@ import { sessionUser } from "@/lib/session";
  * 46문항이 되어버리기 때문이다.
  */
 export async function saveSpec(kind, rows) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const list = (rows || [])
     .map((r) => ({
       kind: kind || "mock",
@@ -54,7 +54,7 @@ export async function resetSpec(kind) {
  */
 export async function saveExamQuestions(examId, rows) {
   if (!examId) return { error: "어느 시험인지 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const list = (rows || [])

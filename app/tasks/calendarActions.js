@@ -7,7 +7,7 @@ import { requireStaff } from "@/lib/guard";
 const SQL = "0078 SQL 을 먼저 실행해주세요.";
 
 export async function getCalendarToken() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { token: null, error: guard.error };
 
@@ -22,7 +22,7 @@ export async function getCalendarToken() {
 
 /** 새로 발급 — 옛 주소는 그 자리에서 죽는다 */
 export async function newCalendarToken() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { token: null, error: guard.error };
 

@@ -13,7 +13,7 @@ const YEAR = 60 * 60 * 24 * 365;
  * 하고, 글씨를 보이고 감추는 일에 그럴 것까지는 없다.
  */
 export async function setHelp(on) {
-  cookies().set(NAME, on ? "on" : "off", {
+  (await cookies()).set(NAME, on ? "on" : "off", {
     path: "/",
     maxAge: YEAR,
     sameSite: "lax",

@@ -19,7 +19,7 @@ export async function setMyState(state) {
   const ok = state === "idle" || STATES.some((s) => s.key === state);
   if (!ok) return { error: "알 수 없는 상태예요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: sid, error: whoErr } = await supabase.rpc("my_student_id");
   if (whoErr) return { error: "0047 SQL 을 먼저 실행해주세요." };
   if (!sid) return { error: "학생 계정이 연결되어 있지 않아요." };

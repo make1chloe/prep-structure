@@ -38,6 +38,10 @@ const CAPS = [
 ];
 for (const [f, cap, needWave] of CAPS) {
   const s = readFileSync(f, "utf8");
+  // `await createClient()` 는 일부러 안 센다 (2026-08-26, 16 직행 2단계).
+  // 쿠키 읽기라 DB 왕복이 아니고 파일당 한 번뿐이다. 단, 이 줄 덕에
+  // 카운터가 통과한다고 파도가 안전한 건 아니니 — DB 조회를 더할 때는
+  // 여전히 `await supabase` 로 세어진다는 사실이 이 검사의 전부다.
   const n = (s.match(/await supabase/g) || []).length;
   if (n > cap) say(`${f} — await supabase 가 ${n}개 (상한 ${cap}). 파도에 태우세요 (원칙 6-1)`);
   if (needWave && !/Promise\.all\(/.test(s)) say(`${f} — 파도(Promise.all)가 사라졌습니다`);

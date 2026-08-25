@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
  * 매번 깃허브에 들어가 복사해 오는 게 번거로워서 여기서 바로 복사한다.
  */
 export default async function SqlPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

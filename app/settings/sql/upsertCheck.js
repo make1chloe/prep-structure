@@ -15,7 +15,7 @@ import { todaySeoul } from "@/lib/day";
  *   이게 나이스 받아오기와 숙제→할일이 쓰는 것과 똑같은 문장이다.
  */
 export async function checkUpsert() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const steps = [];
   const add = (name, ok, why) => steps.push({ name, ok, why: why || null });
 

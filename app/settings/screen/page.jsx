@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * 원장님만 여는 화면이 아니다 — 강사·조교도 자기 메뉴와 밝기를 정할 수 있어야 한다.
  */
 export default async function ScreenSettingsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

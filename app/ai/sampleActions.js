@@ -37,7 +37,7 @@ function usable(t) {
 
 /** 지난 공지에서 뽑을 것을 미리 보여준다 (아직 저장 안 함) */
 export async function previewFromReports(limit = 400) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("daily_reports")
     .select("notice, date")
@@ -71,7 +71,7 @@ export async function addSamples(bodies = [], tag = null) {
     .filter((b) => b.length > 3);
   if (list.length === 0) return { error: "넣을 문장이 없어요.", added: 0 };
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 이미 들어 있는 것은 다시 넣지 않는다
   const { data: have } = await supabase.from("comment_samples").select("body");
@@ -90,7 +90,7 @@ export async function addSamples(bodies = [], tag = null) {
 }
 
 export async function listSamples() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("comment_samples")
     .select("id, body, tag")
@@ -102,7 +102,7 @@ export async function listSamples() {
 
 export async function removeSample(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("comment_samples").delete().eq("id", id);
   revalidatePath("/settings/sql");
   return { error: error ? error.message : null };

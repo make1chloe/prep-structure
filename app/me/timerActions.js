@@ -25,7 +25,7 @@ async function meAs(supabase, asId) {
  * 한 번에 하나만 한다. 둘을 동시에 켜두면 시간이 두 배로 잡힌다.
  */
 export async function startStudy(homeworkItemId, stayTaskId, kind = "home", asId = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const date = todaySeoul();
@@ -61,7 +61,7 @@ export async function startStudy(homeworkItemId, stayTaskId, kind = "home", asId
  * 선생님 화면 대기줄에 올라가고, 선생님은 손이 빌 때 한꺼번에 본다.
  */
 export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind = "home", asId = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
 
@@ -174,7 +174,7 @@ async function needsSubmission(supabase, sid, homeworkItemId, reportItemId) {
 /** 잘못 눌렀을 때 되돌린다 */
 export async function undoFinish(reportItemId, asId = null) {
   if (!reportItemId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const { error } = await supabase
@@ -209,7 +209,7 @@ async function stopRunning(supabase, sid, date) {
 
 /** 멈춤 */
 export async function stopStudy(asId = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const res = await stopRunning(supabase, sid, todaySeoul());

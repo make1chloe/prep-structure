@@ -16,7 +16,7 @@ export async function importScores(rows = []) {
     return { error: "넣을 줄이 없어요. 학생 이름과 점수가 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error, saved: 0, skipped: [] };
 

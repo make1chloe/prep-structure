@@ -49,7 +49,7 @@ export default async function Home() {
   // 때가 된 예약 발송 — 대시보드가 열리는 것이 곧 시계다 (0126).
   // 실패해도 대시보드는 그대로 선다.
   try { await runDueSends(); } catch { /* 조용히 */ }
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

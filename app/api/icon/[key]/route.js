@@ -34,7 +34,8 @@ const CHAIN = {
   mark: ["icon-mark", "icon-favicon", "icon-192", "icon-512"],
 };
 
-export async function GET(_req, { params }) {
+export async function GET(_req, ctx) {
+  const params = await ctx.params;
   const key = (params?.key || "").replace(/[^a-z0-9]/gi, "");
   const chain = CHAIN[key];
   if (!chain) return new Response("없는 아이콘", { status: 404 });

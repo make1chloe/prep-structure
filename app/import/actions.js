@@ -87,7 +87,7 @@ export async function importReports(rows) {
   const list = dropBadDates((rows || []).filter((r) => r.name && r.date), ["date"], badDates);
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const students = await studentMap(supabase);
 
   const skipped = [...badDates];
@@ -183,7 +183,7 @@ export async function importTasks(rows) {
   const list = dropBadDates((rows || []).filter((r) => r.title && r.due_on), ["due_on", "end_on"], badDates);
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const dates = [...new Set(list.map((r) => r.due_on))].sort();
   const { data: exist } = await supabase
     .from("tasks")
@@ -236,7 +236,7 @@ export async function importAbsences(rows) {
   const list = (rows || []).filter((r) => r.name && (r.absentOn || r.makeupOn));
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const students = await studentMap(supabase);
 
   const skipped = [];
@@ -326,7 +326,7 @@ export async function importHomework(rows) {
   const list = dropBadDates((rows || []).filter((r) => r.name && r.date && r.items.length > 0), ["date"], badDates);
   if (list.length === 0) return { error: "옮길 줄이 없어요.", saved: 0, skipped: [] };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const students = await studentMap(supabase);
   const items = await itemMap(supabase, list.flatMap((r) => r.items.map((i) => i.name)));
 
@@ -431,7 +431,7 @@ export async function importPayments(rows) {
     return { error: "옮길 줄이 없어요. 학생 이름과 달이 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const students = await studentMap(supabase);
 
   const skipped = [...badDates];
@@ -483,7 +483,7 @@ export async function importNotes(rows) {
     return { error: "옮길 줄이 없어요. 학생 이름과 날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const students = await studentMap(supabase);
 
@@ -585,7 +585,7 @@ export async function importInquiries(rows) {
     return { error: "옮길 줄이 없어요. 학생 이름이 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   // 반 — 요일 묶음 + 시작시각으로 찾는다 (이름은 「월수1」 이라 안 맞는다)
@@ -691,7 +691,7 @@ export async function importBookGuide(rows) {
     return { error: "옮길 줄이 없어요. 학생·교재·날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: studentRows } = await supabase.from("students").select("id, name");
   const students = new Map((studentRows || []).map((s) => [normName(s.name), s.id]));
   // 교재는 **같은 교재 판단이 사는 곳(lib/bookName bookKey)** 으로 맞춘다 —
@@ -794,7 +794,7 @@ export async function importUnitScores(rows) {
     return { error: "옮길 줄이 없어요. 학생·날짜·단원명이 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const students = await studentMap(supabase);
 
@@ -863,7 +863,7 @@ export async function importWrongAnswers(rows) {
     return { error: "옮길 줄이 없어요. 이름과 시험 본 날짜가 있는지 봐주세요.", saved: 0, skipped: [] };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const students = await studentMap(supabase);
 

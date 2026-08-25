@@ -10,7 +10,7 @@ import { fetchAll } from "@/lib/fetchAll";
  * 수업이 있었는데 리포트가 0인 달, 학생 명단에 없어서 통째로 빠진 이름 같은 것들.
  */
 export async function checkImport(ym) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const from = ym ? `${ym}-01-01` : "1900-01-01";
   const to = ym ? `${ym}-12-31` : "2999-12-31";
 

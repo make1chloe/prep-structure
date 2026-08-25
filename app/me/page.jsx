@@ -59,8 +59,9 @@ export const dynamic = "force-dynamic";
 
 const dayLabel = fmtLong;
 
-export default async function MePage({ searchParams }) {
-  const supabase = createClient();
+export default async function MePage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) redirect("/login");
 
@@ -477,7 +478,7 @@ export default async function MePage({ searchParams }) {
 
   // 학원에서 열었나 — 아니면 등원 체크 버튼을 잠근다
   const allowedIps = (nq.error ? [] : nq.data || []).map((x) => x.ip);
-  const atAcademy = sameNet(pickIp(headers()), allowedIps);
+  const atAcademy = sameNet(pickIp(await headers()), allowedIps);
   const wordWhen = todayRep?.word_when || student.word_when || "start";
 
   // ── 오늘 할 것 (순서대로) ────────────────────────────────

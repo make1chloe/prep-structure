@@ -23,7 +23,7 @@ function merge(prev = {}, next = {}) {
 }
 
 export async function saveIntegration(id, { enabled, config, replace } = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
 
@@ -96,7 +96,7 @@ export async function saveIntegration(id, { enabled, config, replace } = {}) {
  * 「저장이 안 된다」 가 앱 문제인지 솔라피 쪽 문제인지 갈라준다.
  */
 export async function checkSolapiNow() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
   const settings = await loadSettings(supabase);
@@ -106,7 +106,7 @@ export async function checkSolapiNow() {
 
 // 저장된 키를 지운다
 export async function clearIntegration(id) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
   const { error } = await supabase
@@ -119,7 +119,7 @@ export async function clearIntegration(id) {
 
 // 내 번호로 한 통 보내 연결을 확인한다
 export async function testSend(to, mode) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requirePrincipal(supabase);
   if (guard.error) return { error: guard.error };
 

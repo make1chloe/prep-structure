@@ -72,8 +72,9 @@ export const dynamic = "force-dynamic";
  * 선생님은 ?s=학생id 로 **그대로 미리 볼 수 있다.** 학부모가 무엇을 보는지
  * 모르면 "거기 보시면 나와요" 라고 말해줄 수가 없다.
  */
-export default async function ParentPage({ searchParams }) {
-  const supabase = createClient();
+export default async function ParentPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) redirect("/login");
 

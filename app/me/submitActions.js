@@ -15,7 +15,7 @@ const EXT = {
 
 /** 사진·녹음 한 건을 낸다 */
 export async function submitFile(formData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const asId = formData.get("asId") || null;
   const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
@@ -96,7 +96,7 @@ export async function submitChecklist(itemId, reportItemId, lines, asId = null) 
   const list = (Array.isArray(lines) ? lines : []).filter((x) => x && x.text);
   if (list.length === 0) return { error: "체크할 것이 없어요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 
@@ -119,7 +119,7 @@ export async function submitChecklist(itemId, reportItemId, lines, asId = null) 
 /** 잘못 낸 것을 지운다 (선생님이 보기 전까지만) */
 export async function removeSubmission(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: row } = await supabase
     .from("homework_submissions")
@@ -145,7 +145,7 @@ export async function removeSubmission(id) {
  */
 export async function viewUrl(path, download = false) {
   if (!path) return { error: "없어요.", url: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   /**
    * **받아둘 수 있어야 한다** (원장님, 2026-08-07 — 「내가 다운받을 수
    * 있냐는거」). 사진은 30일이 지나면 지워진다. 남겨야 할 것이 있으면
@@ -172,7 +172,7 @@ export async function viewUrl(path, download = false) {
  */
 export async function answerViewUrls(itemId, asId = null) {
   if (!itemId) return { error: "숙제를 찾지 못했어요.", files: [] };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요.", files: [] };
 

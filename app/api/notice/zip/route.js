@@ -18,7 +18,7 @@ export async function GET(request) {
   const nid = request.nextUrl.searchParams.get("n") || "";
   if (!nid) return new NextResponse("공지를 찾지 못했어요.", { status: 400 });
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: notice } = await supabase
     .from("notices")
     .select("title, date, photos")

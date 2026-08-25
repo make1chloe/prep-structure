@@ -40,7 +40,7 @@ async function ran(supabase, rpc) {
 }
 
 export async function pushDiag() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { role: null, steps: [line("로그인", "bad", "로그인이 안 되어 있습니다.")] };
 

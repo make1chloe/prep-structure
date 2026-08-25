@@ -16,7 +16,7 @@ export async function addHomeworkItem(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const category = clean(formData, "category");
   const method = clean(formData, "method");
   const prep_task = clean(formData, "prep_task");
@@ -60,7 +60,7 @@ export async function addHomeworkItem(formData) {
  * · 마지막에 구두테스트 ↔ 셀프녹음테스트 같은 짝을 이어준다.
  */
 export async function seedBasicHomework() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: exist, error: readErr } = await supabase
     .from("homework_items")
@@ -121,7 +121,7 @@ export async function seedBasicHomework() {
  */
 export async function bulkAddHomeworkItems(rows = []) {
   if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: exist } = await supabase
     .from("homework_items")
@@ -175,7 +175,7 @@ export async function bulkAddHomeworkItems(rows = []) {
 
 /** 지금 들어 있는 학습항목 내려받기용 — 고쳐서 다시 올리는 왕복 */
 export async function exportHomeworkItems() {
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data, error } = await supabase
     .from("homework_items")
     .select("name, category, sort, tool, active")
@@ -223,7 +223,7 @@ export async function updateHomeworkItem(id, patch) {
   if ("unit_test" in (patch || {})) row.unit_test = !!patch.unit_test;
   if (!row.name && "name" in row) return { error: "이름은 비울 수 없어요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("homework_items").update(row).eq("id", id);
   if (noColumn(error)) {
     // 0116 전이면 '준비물' 없이
@@ -267,7 +267,7 @@ export async function updateHomeworkItem(id, patch) {
 
 export async function setHomeworkItemsActive(ids, active) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("homework_items").update({ active }).in("id", ids);
   revalidatePath("/homework");
   revalidatePath("/today");
@@ -276,7 +276,7 @@ export async function setHomeworkItemsActive(ids, active) {
 
 export async function setHomeworkItemsCategory(ids, category) {
   if (!Array.isArray(ids) || ids.length === 0 || !category) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("homework_items").update({ category }).in("id", ids);
   revalidatePath("/homework");
   revalidatePath("/today");
@@ -285,7 +285,7 @@ export async function setHomeworkItemsCategory(ids, category) {
 
 export async function deleteHomeworkItems(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   /**
    * **지우기 전에 이름표부터 걷는다** (원장님 2026-08-24 — 저장이
    * `daily_report_items_homework_item_id_fkey` 로 거절당했다).
@@ -307,7 +307,7 @@ export async function deleteHomeworkItems(ids) {
  * integrations 'grammar_units' 에 담는다 (새 표를 만들 것 없이).
  */
 export async function saveGrammarUnits(text) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const names = (text || "")
     .split(/\n+/)
     .map((x) => x.trim())

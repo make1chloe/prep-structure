@@ -27,7 +27,7 @@ function why(error) {
 
 /** 파일 하나를 올리고 경로를 돌려준다 (할일 저장은 addQuickMemo 가 한다) */
 export async function uploadTaskFile(formData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
 
@@ -46,7 +46,7 @@ export async function uploadTaskFile(formData) {
 /** 저장 전에 뗀 첨부를 치운다 (주인 없는 파일을 남기지 않는다) */
 export async function dropTaskFile(path) {
   if (!path) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
   await supabase.storage.from("tasks").remove([path]);
@@ -61,7 +61,7 @@ export async function taskFileUrls(paths) {
   const list = (paths || []).filter(Boolean);
   if (list.length === 0) return { urls: {}, error: null };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { urls: {}, error: guard.error };
 

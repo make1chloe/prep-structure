@@ -33,7 +33,7 @@ export async function addClass(formData) {
     ends_on: clean(formData, "ends_on"),
   };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data, error } = await supabase.from("classes").insert(row).select("id").single();
   if (noColumn(error)) {
     // 0042·초중고 전 DB 에서도 반은 만들어져야 한다
@@ -64,7 +64,7 @@ export async function updateClass(id, patch) {
   }
   if ("days" in (patch || {})) row.days = Array.isArray(patch.days) ? patch.days : [];
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("classes").update(row).eq("id", id);
   if (noColumn(error)) {
     const { school_level, starts_on, ends_on, ...rest } = row;
@@ -86,7 +86,7 @@ export async function updateClass(id, patch) {
  */
 export async function archiveClass(id, on = true) {
   if (!id) return { error: "반이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("classes")
     .update({ archived_at: on ? new Date().toISOString() : null })
@@ -100,7 +100,7 @@ export async function archiveClass(id, on = true) {
 
 export async function deleteClasses(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("classes").delete().in("id", ids);
   revalidatePath("/classes");
   revalidatePath("/today");
@@ -110,7 +110,7 @@ export async function deleteClasses(ids) {
 // 반에 학생 배정 (체크된 학생 = 최종 명단)
 export async function setClassStudents(classId, studentIds) {
   if (!classId) return { error: "반이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: current } = await supabase
     .from("class_students")
@@ -161,7 +161,7 @@ export async function bulkAddClasses(rows) {
       capacity: r.capacity ?? 5,
     }));
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("classes").insert(payload);
   if (noColumn(error)) {
     const trimmed = payload.map(({ school_level, ...rest }) => rest);

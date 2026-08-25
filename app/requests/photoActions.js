@@ -27,7 +27,7 @@ function why(error) {
 
 /** 사진 한 장을 올리고 경로를 돌려준다 */
 export async function uploadRequestPhoto(formData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const asId = formData.get("asId") || null;
   const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
   if (!studentId) return { error: whoErr || "로그인이 필요해요." };
@@ -50,7 +50,7 @@ export async function uploadRequestPhoto(formData) {
 /** 보내기 전에 뗀다 */
 export async function dropRequestPhoto(path) {
   if (!path) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.storage.from("requests").remove([path]);
   return { error: null };
 }
@@ -63,7 +63,7 @@ export async function requestPhotoUrls(paths) {
   const list = (paths || []).filter(Boolean);
   if (list.length === 0) return { urls: {}, error: null };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const urls = {};
   const saves = {};
   for (const p of list) {

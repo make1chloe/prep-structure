@@ -15,7 +15,7 @@ const NEED = "0035 SQL 을 먼저 실행해주세요.";
  */
 export async function listRoutine(textbookId, area = null) {
   if (!textbookId && !area) return { steps: [], ready: true, error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   if (!textbookId && area) {
     const { data, error } = await supabase
       .from("routine_steps")
@@ -74,7 +74,7 @@ export async function listRoutine(textbookId, area = null) {
 /** 단계 저장 — textbookId 대신 area 를 주면 영역 루틴 단계다 (0137 · 2026-08-21) */
 export async function saveStep(textbookId, step, area = null) {
   if (!textbookId && !area) return { error: "교재가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const row = {
     textbook_id: textbookId || null,
     ...(area && !textbookId ? { area } : {}),
@@ -114,7 +114,7 @@ export async function saveStep(textbookId, step, area = null) {
 
 export async function deleteStep(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   /**
    * **이 단계에 서 있는 학생을 먼저 다음 단계로 옮긴다** (0120).
@@ -197,7 +197,7 @@ export async function deleteStep(id) {
  */
 export async function copyAreaRoutine(textbookId) {
   if (!textbookId) return { error: "교재가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: bk } = await supabase
     .from("textbooks").select("area, name").eq("id", textbookId).maybeSingle();
   if (!bk?.area) return { error: "이 교재에 영역이 안 적혀 있어요 — 교재 정보에서 영역을 먼저 정해주세요." };
@@ -237,7 +237,7 @@ export async function copyAreaRoutine(textbookId) {
 
 export async function seedRoutine(textbookId, area = null) {
   if (!textbookId && !area) return { error: "교재가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 영역 루틴(0137)도 같은 본보기로 — 영역 이름이 곧 본보기 갈래다 (2026-08-21)
   let seedArea = area;
@@ -319,7 +319,7 @@ export async function seedRoutine(textbookId, area = null) {
  */
 export async function bulkAddRoutines(rows = [], force = false) {
   if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const [{ data: books }, { data: items }] = await Promise.all([
     supabase.from("textbooks").select("id, name"),
@@ -518,7 +518,7 @@ export async function bulkAddRoutines(rows = [], force = false) {
 
 /** 지금 들어 있는 루틴 내려받기 — 양식 그대로 (교재명 · 순서 · 이름 · 등원 · 숙제) */
 export async function exportRoutines() {
-  const supabase = createClient();
+  const supabase = await createClient();
   let [{ data: steps, error }, { data: books }, { data: items }] = await Promise.all([
     supabase.from("routine_steps").select("textbook_id, area, sort, label, inclass_items, home_items, round, home_next").order("sort", { ascending: true }),
     supabase.from("textbooks").select("id, name"),

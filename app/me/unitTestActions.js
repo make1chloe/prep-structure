@@ -26,7 +26,7 @@ import { pushToStaff } from "@/app/push/actions";
  */
 export async function submitUnitTest(input) {
   const { reportItemId, itemId, term, correct, total, asId } = input || {};
-  const supabase = createClient();
+  const supabase = await createClient();
   const { studentId: sid } = await resolveStudent(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
 

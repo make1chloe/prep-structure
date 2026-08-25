@@ -25,7 +25,7 @@ const kindOf = (k) => KINDS[k] || KINDS.report;
 export async function saveText(reportId, kind, text) {
   if (!reportId) return { error: "리포트가 없어요." };
   const col = kindOf(kind).text;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ [col]: (text || "").trim() || null })
@@ -39,7 +39,7 @@ export async function saveText(reportId, kind, text) {
 export async function resetText(reportId, kind) {
   if (!reportId) return { error: null };
   const col = kindOf(kind).text;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("daily_reports")
     .update({ [col]: null })
@@ -71,7 +71,7 @@ export async function resend(items, kind, supa = null) {
 
   // supa — 예약 발송(외부 크론)이 서버 열쇠 클라이언트를 넣어준다 (0126).
   // 없으면 여느 때처럼 로그인 쿠키로 연다.
-  const supabase = supa || createClient();
+  const supabase = supa || await createClient();
   const user = await sessionUser(supabase);
 
   const k = KINDS[kind] ? kind : "report";
@@ -205,7 +205,7 @@ export async function resend(items, kind, supa = null) {
 // 한 학생의 발송 이력 보기
 export async function listSends(reportId) {
   if (!reportId) return { sends: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("report_sends")
     .select("id, kind, body, sent_at")

@@ -12,7 +12,7 @@ function ok(error) {
 export async function addCategory(name, parentId, color) {
   const n = (name || "").trim();
   if (!n) return { error: "이름을 적어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: last } = await supabase
     .from("todo_categories")
     .select("sort")
@@ -39,7 +39,7 @@ export async function updateCategory(id, patch) {
     row.sort = d ? parseInt(d, 10) : 0;
   }
   if ("active" in patch) row.active = !!patch.active;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("todo_categories").update(row).eq("id", id);
   revalidatePath("/tasks");
   return ok(error);
@@ -47,7 +47,7 @@ export async function updateCategory(id, patch) {
 
 export async function deleteCategory(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("todo_categories").update({ active: false }).eq("id", id);
   revalidatePath("/tasks");
   return ok(error);
@@ -59,7 +59,7 @@ export async function addTodo(input) {
   const t = (title || "").trim();
   if (!t) return { error: "할 일을 적어주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const row = {
@@ -97,7 +97,7 @@ export async function updateTodo(id, patch) {
       (patch.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean).join("\n") || null;
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("tasks").update(row).eq("id", id);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0117 전이면 하위목록 칸이 없다
@@ -121,7 +121,7 @@ export async function updateTodo(id, patch) {
 export async function setTodoStatus(ids, status) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("tasks")
     .update({ status, done_at: status === "done" ? new Date().toISOString() : null })
@@ -144,7 +144,7 @@ export async function setTodoStatus(ids, status) {
 export async function setTodoStarted(ids, on = true) {
   const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("tasks")
     .update({ started_at: on ? new Date().toISOString() : null })
@@ -160,7 +160,7 @@ export async function setTodoStarted(ids, on = true) {
 export async function moveTodos(ids, dueOn) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0 || !dueOn) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("tasks")
     .update({ due_on: dueOn, no_due: false })
@@ -172,7 +172,7 @@ export async function moveTodos(ids, dueOn) {
 export async function deleteTodos(ids) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("tasks").delete().in("id", list);
   revalidatePath("/tasks");
   return ok(error);

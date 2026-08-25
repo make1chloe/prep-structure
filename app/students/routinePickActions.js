@@ -25,7 +25,7 @@ import { todaySeoul } from "@/lib/day";
  */
 export async function routineChoices(studentId, textbookId) {
   if (!studentId || !textbookId) return { steps: [], skip: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   let stq = await supabase
     .from("student_textbooks")
@@ -125,7 +125,7 @@ export async function routineChoices(studentId, textbookId) {
  */
 export async function setRoutinePick(studentId, textbookId, { skip, order, 정함 } = {}) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const patch = { routine_skip: [...new Set((skip || []).filter(Boolean))] };
   if (Array.isArray(order)) patch.routine_order = [...new Set(order.filter(Boolean))];
   if (정함) patch.routine_set_at = new Date().toISOString();
@@ -161,7 +161,7 @@ export async function setRoutinePick(studentId, textbookId, { skip, order, 정�
  */
 export async function routineLayout(studentId) {
   if (!studentId) return { areas: [], books: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   let stq = await supabase
     .from("student_textbooks")
     .select("textbook_id, status, assigned_on, ended_on, book_sort, routine_set_at")
@@ -231,7 +231,7 @@ export async function routineLayout(studentId) {
 
 export async function setAreaOrder(studentId, areas) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("students")
     .update({ area_order: (areas || []).filter((a) => a != null) })
@@ -244,7 +244,7 @@ export async function setAreaOrder(studentId, areas) {
 
 export async function setBookSort(studentId, pairs) {
   if (!studentId || !Array.isArray(pairs)) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   for (const { textbookId, sort } of pairs) {
     const { error } = await supabase
       .from("student_textbooks").update({ book_sort: sort })

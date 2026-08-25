@@ -12,7 +12,7 @@ import { openForSubmission } from "@/lib/answers";
  */
 export async function markSubmissionChecked(id, on = true) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("homework_submissions")
     .update({ checked_at: on ? new Date().toISOString() : null })

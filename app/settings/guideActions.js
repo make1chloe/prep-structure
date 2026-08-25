@@ -38,7 +38,7 @@ function tidyUrl(v) {
 
 /** 선생님 화면에서 관리할 목록 — 꺼둔 것도 함께 온다 */
 export async function listGuides() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("class_guides")
     .select("id, title, url, note, sort, active")
@@ -50,7 +50,7 @@ export async function listGuides() {
 }
 
 export async function saveGuide(id, patch = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 
@@ -89,7 +89,7 @@ export async function saveGuide(id, patch = {}) {
  */
 export async function deleteGuide(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return guard;
 

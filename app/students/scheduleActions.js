@@ -10,7 +10,7 @@ const NEED_SQL = "0077 SQL 을 먼저 실행해주세요 (일정을 학생에게
 /** 이 학생에게 이어져 있는 일정 */
 export async function listStudentTasks(studentId) {
   if (!studentId) return { rows: [], error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -44,7 +44,7 @@ export async function addStudentTask(studentIds, form = {}) {
   if (endOn && !/^\d{4}-\d{2}-\d{2}$/.test(endOn)) return { error: "끝나는 날짜가 이상해요." };
   if (endOn && endOn < dueOn) return { error: "끝나는 날이 시작보다 앞설 수 없어요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
 
@@ -84,7 +84,7 @@ export async function addStudentTask(studentIds, form = {}) {
  */
 export async function removeStudentTask(taskId, studentId) {
   if (!taskId || !studentId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
 

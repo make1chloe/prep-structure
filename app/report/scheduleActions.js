@@ -26,7 +26,7 @@ export async function scheduleSend(kind, dueAt, payload, note) {
   if (!KINDS.has(kind)) return { error: "모르는 종류예요." };
   const due = new Date(dueAt || "");
   if (isNaN(due.getTime())) return { error: "예약 시각을 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const { error } = await supabase.from("scheduled_sends").insert({
     kind,
@@ -44,7 +44,7 @@ export async function scheduleSend(kind, dueAt, payload, note) {
 
 /** 아직 안 나간 예약 (+ 최근 나간 것 몇 개 — 잘 나갔는지 보게) */
 export async function listScheduled() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("scheduled_sends")
     .select("id, kind, due_at, note, sent_at, result, created_at")
@@ -56,7 +56,7 @@ export async function listScheduled() {
 
 export async function cancelScheduled(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("scheduled_sends")
     .delete()
@@ -75,7 +75,7 @@ export async function cancelScheduled(id) {
 export async function runDueSends(supa = null) {
   // supa — 외부 크론(/api/cron/send)이 서버 열쇠 클라이언트를 넣어준다.
   // 없으면 로그인 쿠키(직원이 화면을 연 순간)로 돈다.
-  const supabase = supa || createClient();
+  const supabase = supa || await createClient();
   const now = new Date().toISOString();
   const { data: due, error } = await supabase
     .from("scheduled_sends")

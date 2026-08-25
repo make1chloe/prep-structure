@@ -13,8 +13,9 @@ import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
 
-export default async function ScoresPage({ searchParams }) {
-  const supabase = createClient();
+export default async function ScoresPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const pick = searchParams?.s || null;

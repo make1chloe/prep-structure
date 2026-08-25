@@ -15,7 +15,7 @@ import { noTable } from "@/lib/sqlError";
  * 보인다 — 제출을 확인하는 순간 열린다 (lib/answers openAnswers).
  */
 export async function uploadAnswerFiles(formData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
 
@@ -82,7 +82,7 @@ export async function uploadAnswerFiles(formData) {
 /** 답지를 뗀다 — 파일과 줄을 함께 지운다 (열림 기록도 같이 사라진다) */
 export async function removeAnswerFiles(studentId, itemId, date) {
   if (!studentId || !itemId || !date) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
 

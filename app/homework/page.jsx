@@ -12,7 +12,7 @@ import HwUpload from "./HwUpload";
 export const dynamic = "force-dynamic";
 
 export default async function HomeworkPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

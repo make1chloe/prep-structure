@@ -19,7 +19,7 @@ function ok(error) {
 
 // ---------- 템플릿 ----------
 export async function listTemplates() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("message_templates")
     .select("id, name, kind, body, sort, active, key")
@@ -39,7 +39,7 @@ export async function listTemplates() {
 }
 
 export async function saveTemplate(id, patch) {
-  const supabase = createClient();
+  const supabase = await createClient();
   if (id) {
     const { error } = await supabase
       .from("message_templates")
@@ -64,7 +64,7 @@ export async function saveTemplate(id, patch) {
 
 export async function deleteTemplate(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("message_templates").update({ active: false }).eq("id", id);
   revalidatePath("/report");
   return ok(error);
@@ -76,7 +76,7 @@ export async function deleteTemplate(id) {
  * 교재 구매 안내에 쓸 교재 목록·교재비·구매링크도 학생별로 채워둔다. (원칙1)
  */
 export async function listRecipients() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: students } = await supabase
     .from("students")
@@ -224,7 +224,7 @@ export async function sendNotices(items, label, templateId, supa = null) {
   if (list.length === 0) return { error: null, count: 0 };
 
   // supa — 예약 발송(외부 크론)의 서버 열쇠 클라이언트 (0126)
-  const supabase = supa || createClient();
+  const supabase = supa || await createClient();
   const settings = await loadSettings(supabase);
   const user = await sessionUser(supabase);
   const kind = label || "notice";
@@ -451,7 +451,7 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn, supaIn = null)
     .map((x) => x.slice(2));
   if (inquiries.length > 0 && books.length > 0) {
     try {
-      const supa = supaIn || createClient();
+      const supa = supaIn || await createClient();
       const { data: qs } = await supa
         .from("inquiries").select("id, book_ids").in("id", inquiries);
       for (const q of qs || []) {
@@ -488,7 +488,7 @@ export async function assignAnnouncedBooks(ids, bookIds, startOn, supaIn = null)
     return { error: "사용 예정일을 날짜로 적어주세요." };
   }
 
-  const supabase = supaIn || createClient();
+  const supabase = supaIn || await createClient();
 
   // 이미 있는 줄은 그대로 둔다
   const { data: have, error: readErr } = await supabase

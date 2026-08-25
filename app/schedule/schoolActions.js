@@ -22,7 +22,7 @@ const SQL = "0076 SQL 을 먼저 실행해주세요.";
 
 /** 학교 명단 — 학생 수 · 시험 수까지 세어 준다 */
 export async function listAllSchools() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -62,7 +62,7 @@ export async function listAllSchools() {
 export async function renameSchool(id, name) {
   const n = (name || "").trim();
   if (!id || !n) return { error: "학교 이름을 적어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -85,7 +85,7 @@ export async function renameSchool(id, name) {
  */
 export async function mergeSchools(keepId, dropId) {
   if (!keepId || !dropId || keepId === dropId) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -215,7 +215,7 @@ export async function mergeSchools(keepId, dropId) {
  * 옛 이름으로 남는 문제를 여기서 한 번에 정리한다.
  */
 export async function linkLoose() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
   try {
@@ -231,7 +231,7 @@ export async function linkLoose() {
 export async function addSchoolByName(name) {
   const n = (name || "").trim();
   if (!n) return { error: "학교 이름을 적어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 

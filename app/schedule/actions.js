@@ -16,7 +16,7 @@ function ok(error) {
 export async function addExam(input) {
   const { school, grade, name, from, to } = input || {};
   if (!school || !from) return { error: "학교와 시작일을 넣어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const { error } = await supabase.from("exam_periods").insert({
     school: school.trim(),
@@ -51,7 +51,7 @@ export async function addExam(input) {
 
 export async function setEnglishDate(id, englishOn) {
   if (!id) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("exam_periods")
     .update({ english_on: englishOn || null })
@@ -72,7 +72,7 @@ export async function updateExam(id, patch) {
     if (k in (patch || {})) row[k] = patch[k] || null;
   });
   if (!row.school && "school" in row) return { error: "학교는 비울 수 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("exam_periods").update(row).eq("id", id);
 
   // 0076 전이면 선생님이 **한 명 칸**밖에 없다 — 한 줄로 이어 붙여 넣는다.
@@ -101,7 +101,7 @@ export async function updateExam(id, patch) {
  */
 export async function attachNeis(examId, neis = {}) {
   if (!examId || !neis?.source_id) return { error: "붙일 일정이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("exam_periods")
     .update({
@@ -127,7 +127,7 @@ export async function attachNeis(examId, neis = {}) {
 /** 잘못 붙였을 때 — 내 시험은 그대로 남는다 */
 export async function detachNeis(examId) {
   if (!examId) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("exam_periods")
     .update({
@@ -145,7 +145,7 @@ export async function detachNeis(examId) {
  */
 export async function applyNeis(examId) {
   if (!examId) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: e, error: readErr } = await supabase
     .from("exam_periods")
     .select("id, from_date, to_date, english_on, neis_from, neis_to")
@@ -192,7 +192,7 @@ export async function setExamCuts(id, text) {
     return { error: "1등급컷부터 높은 순서로 적어주세요. 예) 90, 84, 77, 70" };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("exam_periods")
     .update({ cuts: nums.length ? nums : null })
@@ -213,7 +213,7 @@ export async function setExamCuts(id, text) {
  */
 export async function hideExam(id, on = true) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("exam_periods")
     .update({ hidden: !!on })
@@ -229,7 +229,7 @@ export async function hideExam(id, on = true) {
 
 export async function deleteExam(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("exam_periods").delete().eq("id", id);
   revalidatePath("/schedule");
   return ok(error);
@@ -251,7 +251,7 @@ export async function markExamAbsence(pairs, reason) {
   if (list.length === 0) {
     return { error: "시험 기간에 걸리는 학생이 없어요.", count: 0 };
   }
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const rows = list.map((p) => ({
     student_id: p.student_id,
@@ -274,7 +274,7 @@ export async function markExamAbsence(pairs, reason) {
 export async function makeExamEveSession(input) {
   const { date, school, grade, classId, englishOn } = input || {};
   if (!date) return { error: "날짜가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const who = [school, grade].filter(Boolean).join(" ");
@@ -310,7 +310,7 @@ export async function makeExamEveSession(input) {
 // ---------- 회차 많은 달 → 휴강 지정 ----------
 export async function addClassHoliday(date, name, classId) {
   if (!date) return { error: "날짜를 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 같은 날 같은 범위 중복 방지 (2026-08-21) — 두 번 누르면 두 줄이 되어
   // 회차가 두 번 빠진 것처럼 보였다
   {
@@ -345,7 +345,7 @@ export async function removeHoliday(id) {
 export async function removeHolidays(ids) {
   const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("holidays").delete().in("id", list);
   revalidatePath("/schedule");
   revalidatePath("/tuition");
@@ -368,7 +368,7 @@ export async function removeHolidays(ids) {
  */
 export async function keepClassOn(date, name) {
   if (!date) return { error: "날짜가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const title = `${(name || "공휴일").trim()} — 정상 수업`;
 
@@ -417,7 +417,7 @@ export async function keepClassOn(date, name) {
  * @param dates 합칠 날짜들 (안 주면 앞으로의 것 전부)
  */
 export async function mergeMockExams(dates = null) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: all, error } = await supabase
     .from("exam_periods")
     .select("id, school, grade, name, from_date, to_date, english_on, neis_source_id, hidden");

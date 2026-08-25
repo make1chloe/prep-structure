@@ -13,7 +13,7 @@ export async function useLinkCode(code) {
   const clean = (code || "").toString().trim().toUpperCase().replace(/\s/g, "");
   if (clean.length < 4) return { ok: false, message: "코드를 넣어주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("link_student_by_code", { p_code: clean });
 
   if (error) {

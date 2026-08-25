@@ -32,7 +32,7 @@ function makeToken() {
 // 전화로 받은 건에 양식 링크를 만들어 준다 (엄마가 채워 넣도록)
 export async function ensureFormLink(id) {
   if (!id) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("inquiries").select("token").eq("id", id).maybeSingle();
   if (data?.token) return { error: null, token: data.token };
   const token = makeToken();
@@ -55,7 +55,7 @@ export async function addInquiry(formData) {
   const name = (formData.get("name") || "").toString().trim();
   if (!name) return;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("inquiries").insert({
@@ -88,7 +88,7 @@ export async function updateInquiry(id, patch) {
   });
   if ("class_id" in (patch || {})) row.class_id = patch.class_id || null;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("inquiries").update(row).eq("id", id);
   revalidatePath("/consult");
   revalidatePath("/report");
@@ -98,7 +98,7 @@ export async function updateInquiry(id, patch) {
 export async function setInquiryStatus(ids, status) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0 || !status) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("inquiries")
     .update({ status, updated_at: new Date().toISOString() })
@@ -115,7 +115,7 @@ export async function setInquiryStatus(ids, status) {
 export async function setInquiryBooks(id, bookIds) {
   if (!id) return { error: "상담을 찾지 못했어요." };
   const ids = [...new Set((bookIds || []).filter(Boolean))];
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("inquiries")
     .update({ book_ids: ids, updated_at: new Date().toISOString() })
@@ -130,7 +130,7 @@ export async function setInquiryBooks(id, bookIds) {
 export async function deleteInquiries(ids) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("inquiries").delete().in("id", list);
   revalidatePath("/consult");
   return ok(error);
@@ -142,7 +142,7 @@ export async function deleteInquiries(ids) {
  */
 export async function convertToStudent(id, classId) {
   if (!id) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: q, error: qErr } = await supabase
     .from("inquiries")
@@ -360,7 +360,7 @@ export async function attachSchool(supabase, name) {
 
 /** 지금 이 앱의 주소 — 문자에 넣을 링크는 절대주소여야 한다 */
 function siteUrl() {
-  const h = headers();
+  const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   return host ? `${proto}://${host}` : "";
@@ -416,7 +416,7 @@ async function sendOne(supabase, inq, body, vars, stamp) {
 /** ② 설문지 링크 */
 export async function sendApplyLink(id) {
   if (!id) return { error: "어느 문의인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const link = await ensureFormLink(id);
   if (link.error) return { error: link.error };
@@ -434,7 +434,7 @@ export async function sendApplyLink(id) {
 /** ③ 레벨테스트 · 상담 시간 · 오는 길 */
 export async function sendVisitInfo(id) {
   if (!id) return { error: "어느 문의인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: inq } = await supabase
     .from("inquiries")

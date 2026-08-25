@@ -78,7 +78,7 @@ export async function submitApply(formData) {
     form_submitted_at: new Date().toISOString(),
   };
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   /**
    * 0102 전 DB 에서도 접수는 되어야 한다.

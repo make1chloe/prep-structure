@@ -41,7 +41,7 @@ function backOneYear(date) {
  * @param importedOn "2026-07-28"  이 날 우리 DB 에 들어온 것만 (비우면 전부)
  */
 export async function countRows({ from, to, importedOn } = {}) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
   const out = [];
 
@@ -79,7 +79,7 @@ export async function countRows({ from, to, importedOn } = {}) {
 export async function shiftBackOneYear({ from, to, importedOn } = {}) {
   if (!from || !to) return { error: "기간을 골라주세요.", done: [] };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const done = [];
 
   for (const t of TABLES) {

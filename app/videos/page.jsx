@@ -11,7 +11,7 @@ import { cachedProfile } from "@/lib/profileCache";
 export const dynamic = "force-dynamic";
 
 export default async function VideosPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   // **파도** (속도 대원칙 — 원칙 6): 서로 필요한 것이 없는 조회를 한꺼번에

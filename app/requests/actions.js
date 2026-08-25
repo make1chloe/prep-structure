@@ -19,7 +19,7 @@ export async function createRequest(input) {
   if (!studentId) return { error: "학생 정보가 없어요." };
   if ((kind === "absence" || kind === "late") && !fromDate) return { error: "날짜를 골라주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const { data: whoAmI } = user
@@ -122,7 +122,7 @@ export async function createRequest(input) {
  */
 export async function handleRequest(id, accept, reply, makeup) {
   if (!id) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   // 0108 전 DB 에서도 돌아야 한다 — 새 칸이 없으면 그것만 빼고 다시 묻는다
@@ -290,7 +290,7 @@ export async function handleRequest(id, accept, reply, makeup) {
  */
 export async function finishRequest(id) {
   if (!id) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("requests")
     .update({ done_at: new Date().toISOString() })
@@ -304,7 +304,7 @@ export async function finishRequest(id) {
 
 export async function cancelRequest(id) {
   if (!id) return { error: "어느 것인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.rpc("cancel_request", { p_id: id });
   if (error) return { error: "설정 → Supabase 에서 0108 을 먼저 실행해주세요." };
   if (data === "handled") {

@@ -17,8 +17,9 @@ export const dynamic = "force-dynamic";
  * 이전 앱이 안 쓰인 이유는 "미업로드 296건" 처럼 숫자만 크고 손이 안 갔기
  * 때문이다. 여기서는 **지금 할 것**을 맨 위에 몇 줄로 올린다.
  */
-export default async function PrepPage({ searchParams }) {
-  const supabase = createClient();
+export default async function PrepPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   let profile = null;
   if (user) {

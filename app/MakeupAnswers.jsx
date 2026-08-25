@@ -26,7 +26,7 @@ import MakeupRows from "./MakeupRows";
  * 전부 보는 자리는 출결 화면이다.
  */
 export default async function MakeupAnswers({ only = null }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("attendance")
     .select("student_id, date, makeup_time, reason, makeup_of, makeup_confirmed_at, makeup_change_req")

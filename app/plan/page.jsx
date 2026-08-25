@@ -38,7 +38,7 @@ export const dynamic = "force-dynamic";
  * 매번 두 번 열어야 했다.
  */
 export default async function AttendancePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
   const user = await sessionUser(supabase);
 

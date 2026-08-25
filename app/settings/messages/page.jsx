@@ -30,8 +30,9 @@ export const dynamic = "force-dynamic";
  *
  * 그래서 한 화면에 두 칸으로 둔다.
  */
-export default async function MessagesPage({ searchParams }) {
-  const supabase = createClient();
+export default async function MessagesPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

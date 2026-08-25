@@ -21,7 +21,7 @@ import { sessionUser } from "@/lib/session";
  */
 export async function clearTryout(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };

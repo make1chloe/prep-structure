@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function markNoticesRead(studentId, items = []) {
   if (!studentId || !items.length) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const now = new Date().toISOString();
   for (const it of items) {
     if (!it?.id) continue;

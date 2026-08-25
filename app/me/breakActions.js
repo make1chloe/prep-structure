@@ -10,7 +10,7 @@ const missing = (e) => e && (e.code === "42P01" || e.code === "42703" || e.code 
 
 /** 지금 쉬는 중인가 (안 끝난 줄) + 오늘 쉼 */
 export async function myBreaks() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: sid } = await supabase.rpc("my_student_id");
   if (!sid) return { ready: true, open: null, rows: [] };
 
@@ -27,7 +27,7 @@ export async function myBreaks() {
 
 /** 쉬러 간다 */
 export async function startBreak() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: sid } = await supabase.rpc("my_student_id");
   if (!sid) return { error: "학생 계정이 연결되어 있지 않아요." };
 
@@ -56,7 +56,7 @@ export async function startBreak() {
  * 5분이면 그때 알려야 뜻이 있다.
  */
 export async function endBreak() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: sid } = await supabase.rpc("my_student_id");
   if (!sid) return { error: "학생 계정이 연결되어 있지 않아요." };
 

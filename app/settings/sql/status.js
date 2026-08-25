@@ -26,7 +26,7 @@ import { primeSqlBadge } from "@/lib/sqlBadge";
  */
 
 export async function checkSchema() {
-  const supabase = createClient();
+  const supabase = await createClient();
   // 로그인 없이 읽히는지 보려면 **로그인 안 한 손님**으로 물어봐야 한다
   const anon = createAnonClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false },

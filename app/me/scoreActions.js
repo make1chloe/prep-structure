@@ -58,7 +58,7 @@ function num(v) {
  * }
  */
 export async function saveMyScore(input) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const me = await meOf(supabase);
   if (!me) return { error: "로그인을 다시 해주세요." };
 
@@ -140,7 +140,7 @@ export async function saveMyScore(input) {
 /** 잘못 낸 것 물리기 — 자기가 낸 것만 (0098) */
 export async function dropMyScore(id) {
   if (!id) return { error: "어느 것인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const me = await meOf(supabase);
   if (!me) return { error: "로그인을 다시 해주세요." };
 

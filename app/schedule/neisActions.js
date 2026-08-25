@@ -91,7 +91,7 @@ async function callAll(key, school, from, to) {
 
 /** 키를 넣는다 */
 export async function saveNeisKey(key) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -104,7 +104,7 @@ export async function saveNeisKey(key) {
 
 /** 키가 들어 있나 (키 자체는 절대 돌려주지 않는다) */
 export async function neisReady() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { ready: false };
   return { ready: !!(await neisKey(supabase)) };
@@ -115,7 +115,7 @@ export async function searchSchools(name) {
   const q = (name || "").trim();
   if (q.length < 2) return { rows: [], error: "학교 이름을 두 글자 이상 적어주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -128,7 +128,7 @@ export async function searchSchools(name) {
 /** 찾은 학교를 내 목록에 넣는다 */
 export async function addSchool(s = {}) {
   if (!s.atpt_code || !s.schul_code) return { error: "학교 코드가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -225,7 +225,7 @@ export async function addSchool(s = {}) {
  */
 export async function removeSchool(id, alsoTasks = false) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -250,7 +250,7 @@ export async function removeSchool(id, alsoTasks = false) {
 export async function clearSchoolImports(schulCode) {
   const code = (schulCode || "").trim();
   if (!code) return { error: "학교 코드가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -269,7 +269,7 @@ export async function clearSchoolImports(schulCode) {
 }
 
 export async function listSchools() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const COLS = "id, name, atpt_code, schul_code, kind, active";
   let { data, error } = await supabase
     .from(await schoolTable(supabase))
@@ -295,7 +295,7 @@ export async function listSchools() {
  */
 export async function importSchedule(from, to, schoolId = null) {
   if (!from || !to) return { error: "기간을 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -804,7 +804,7 @@ export async function addExamPeriods(list = [], sweep = null) {
   // 학교가 시험을 학사일정에서 내렸으면 우리 쪽 나이스 줄도 내려가야 한다
   if (rows.length === 0 && !sweep) return { error: null, added: 0, linked: 0 };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -967,7 +967,7 @@ export async function addExamPeriods(list = [], sweep = null) {
 
 /** 받아온 일정만 지운다 (손으로 적은 것은 남는다) */
 export async function clearImported(from, to) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -1006,7 +1006,7 @@ export async function clearImported(from, to) {
  * 지운 뒤에는 **바로 「학사일정 받아오기」 를 누르셔야** 다시 들어온다.
  */
 export async function resetNeisExams() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -1075,7 +1075,7 @@ export async function resetNeisExams() {
  * 화면을 열 때마다 **지금 상태**가 그대로 보여야 한다.
  */
 export async function importedSummary() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], total: 0 };
 
@@ -1136,7 +1136,7 @@ export async function importedSummary() {
  * 셋 다 여기서 바로 보인다. 등록 안 된 코드는 ⚠ 로 뜬다.
  */
 export async function diagnose() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -1235,7 +1235,7 @@ export async function diagnose() {
  *   줄이 있다  → 3번. 그 이름을 알려주시면 바로 고칠 수 있다
  */
 export async function examCoverage(from, to) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -1326,7 +1326,7 @@ export async function examCoverage(from, to) {
  */
 export async function peekNeis(from, to, schoolIds = null) {
   if (!from || !to) return { rows: [], error: "기간을 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -1463,7 +1463,7 @@ export async function peekNeis(from, to, schoolIds = null) {
  * 아무것도 저장하지 않는다.
  */
 export async function peekSchoolSite(schoolId, from, to, typed = "") {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -1589,7 +1589,7 @@ export async function peekSchoolSite(schoolId, from, to, typed = "") {
  * 똑같은 것 한 벌**을 쓴다. 두 벌이면 반드시 어긋난다.
  */
 export async function peekSchoolText(schoolId, from, to, text = "") {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { rows: [], error: guard.error };
 
@@ -1676,7 +1676,7 @@ async function judgeSiteRows(supabase, school, from, to, rows = []) {
  * 이번 목록에 안 나오기 때문이다). 손으로 만든 것과 같은 자리에 둔다.
  */
 export async function addFromSite(schoolName, rows = []) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 
@@ -1726,7 +1726,7 @@ export async function addFromSite(schoolName, rows = []) {
  */
 export async function saveHomepage(schoolId, url) {
   if (!schoolId) return { error: "학교를 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 

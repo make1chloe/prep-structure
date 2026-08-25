@@ -26,8 +26,9 @@ import AreaRoutines from "./AreaRoutines";
 
 export const dynamic = "force-dynamic";
 
-export default async function TextbooksPage({ searchParams }) {
-  const supabase = createClient();
+export default async function TextbooksPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
   const {
     data: { session },

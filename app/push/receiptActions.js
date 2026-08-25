@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function deleteReceipts(ids) {
   const list = [...new Set((ids || []).filter(Boolean))];
   if (list.length === 0) return { error: null, removed: 0 };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("push_receipts").delete().in("id", list);
   revalidatePath("/");
   return { error: error ? error.message : null, removed: list.length };
@@ -22,7 +22,7 @@ export async function deleteReceipts(ids) {
 
 /** 확인된 것(열어 본 알림)을 한 번에 치운다 — 남는 것은 오류·미확인뿐 */
 export async function clearOpenedReceipts() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("push_receipts")
     .delete()

@@ -35,7 +35,7 @@ export async function setMyPassword(newPw) {
   if (pw.length < 4) return { error: "네 자리 이상으로 정해주세요." };
   if (pw === INIT_PW) return { error: "0000 말고 다른 것으로 정해주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "다시 로그인해주세요." };
 
@@ -74,7 +74,7 @@ export async function setMyPassword(newPw) {
  * 브라우저가 먼저 바꾸고 부르므로, 여기서는 깃발만 내린다.
  */
 export async function pwChanged() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.rpc("clear_must_change_pw");
   if (error && (error.code === "PGRST202" || error.code === "42883")) {
     return { error: "선생님이 0045 SQL 을 먼저 실행해야 해요." };

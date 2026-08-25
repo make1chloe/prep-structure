@@ -9,7 +9,7 @@ const SQL = "0052~0054 SQL 을 먼저 실행해주세요.";
 
 /** 범위를 담을 때 고를 교재 목록 (정규 교재DB 그대로 쓴다) */
 export async function listBooks() {
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data, error } = await supabase
     .from("textbooks")
     .select("id, name, category")
@@ -26,7 +26,7 @@ export async function listBooks() {
 
 // ── 자료 종류 ──────────────────────────────────────────
 export async function listTypes() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("prep_material_types")
     .select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade")
@@ -38,7 +38,7 @@ export async function listTypes() {
 export async function saveType(t = {}) {
   const name = (t.name || "").trim();
   if (!name) return { error: "이름을 넣어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const row = {
     parent_id: t.parent_id || null,
@@ -79,7 +79,7 @@ export async function saveType(t = {}) {
 export async function saveTypesBulk(text) {
   const lines = (text || "").split("\n").filter((l) => l.trim());
   if (lines.length === 0) return { error: "적은 것이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: have, error: readErr } = await supabase
     .from("prep_material_types")
@@ -160,7 +160,7 @@ export async function setTypesFlags(ids, patch = {}) {
   for (const k of ALLOW) if (patch[k] !== undefined) row[k] = !!patch[k];
   if (Object.keys(row).length === 0) return { error: "바꿀 것을 골라주세요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_material_types").update(row).in("id", list);
   if (needSql(error)) return { error: SQL };
   revalidatePath("/prep");
@@ -171,7 +171,7 @@ export async function setTypesFlags(ids, patch = {}) {
 export async function removeTypes(ids) {
   const list = [...new Set((ids || []).filter(Boolean))];
   if (list.length === 0) return { error: "고른 것이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_material_types").delete().in("id", list);
   if (needSql(error)) return { error: SQL };
   revalidatePath("/prep");
@@ -180,7 +180,7 @@ export async function removeTypes(ids) {
 
 export async function removeType(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_material_types").delete().eq("id", id);
   revalidatePath("/prep");
   return { error: error ? error.message : null };
@@ -200,7 +200,7 @@ export async function saveExam(e = {}) {
   const school = (e.school || "").trim();
   const term = (e.term || "").trim();
   if (!school || !term) return { error: "학교와 학기를 넣어주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 시험 기간을 모르면 영어 시험일 하루짜리로 둔다 — 아는 것이 그것뿐이다.
   // 학사일정에서 나이스로 받아오면 진짜 기간으로 채워진다.
@@ -298,7 +298,7 @@ export async function saveExam(e = {}) {
 export async function splitExamByGrade(examId, grades = []) {
   const list = [...new Set((grades || []).map((g) => (g || "").trim()).filter(Boolean))];
   if (!examId || list.length === 0) return { error: "나눌 학년이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: ex, error: readErr } = await supabase
     .from("exam_periods")
@@ -332,7 +332,7 @@ export async function splitExamByGrade(examId, grades = []) {
 
 export async function removeExam(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 시험을 지우면 범위·자료도 같이 간다. 학사일정에서도 사라진다 — 같은 시험이다.
   const { error } = await supabase.from("exam_periods").delete().eq("id", id);
   revalidatePath("/prep");
@@ -348,7 +348,7 @@ export async function removeExam(id) {
  */
 export async function removeExams(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null, count: 0 };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("exam_periods").delete().in("id", ids);
   revalidatePath("/prep");
   revalidatePath("/schedule");
@@ -358,7 +358,7 @@ export async function removeExams(ids) {
 // ── 범위 ───────────────────────────────────────────────
 export async function saveScope(s = {}) {
   if (!s.exam_id) return { error: "시험이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const row = {
     exam_id: s.exam_id,
     name: (s.name || "").trim() || null,
@@ -380,7 +380,7 @@ export async function saveScope(s = {}) {
  */
 export async function removeScope(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_scopes").delete().eq("id", id);
   revalidatePath("/prep");
   return { error: error ? error.message : null };
@@ -389,7 +389,7 @@ export async function removeScope(id) {
 // ── 자료 ───────────────────────────────────────────────
 export async function addMaterial(scopeId, typeId, name) {
   if (!scopeId) return { error: "범위가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 종류에 정해둔 단계를 그대로 가져온다 — 매번 체크할 일이 없게
   let base = { need_make: true, need_print: true, need_card: false, need_hand: true, need_solve: true, need_grade: true };
@@ -423,7 +423,7 @@ export async function addMaterial(scopeId, typeId, name) {
 
 export async function updateMaterial(id, patch = {}) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const row = {};
   ["need_make", "need_print", "need_card", "need_hand", "need_solve", "need_grade"].forEach((k) => {
     if (k in patch) row[k] = !!patch[k];
@@ -444,7 +444,7 @@ export async function updateMaterial(id, patch = {}) {
 
 export async function removeMaterial(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_materials").delete().eq("id", id);
   revalidatePath("/prep");
   return { error: error ? error.message : null };
@@ -455,7 +455,7 @@ export async function markStage(materialId, stage, on = true) {
   const COL = { make: "made_at", print: "printed_at", card: "card_at" };
   const col = COL[stage];
   if (!materialId || !col) return { error: "알 수 없는 단계예요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("prep_materials")
     .update({ [col]: on ? new Date().toISOString() : null })
@@ -469,7 +469,7 @@ export async function markStage(materialId, stage, on = true) {
 // ── 학생 배정 ──────────────────────────────────────────
 export async function setAssignees(materialId, studentIds = []) {
   if (!materialId) return { error: "자료가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: have } = await supabase
     .from("prep_assignments")
@@ -499,7 +499,7 @@ export async function markAssign(assignId, stage, on = true, extra = {}) {
   const COL = { hand: "handed_at", solve: "solved_at", grade: "graded_at" };
   const col = COL[stage];
   if (!assignId || !col) return { error: "알 수 없는 단계예요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const row = { [col]: on ? new Date().toISOString() : null };
   if ("result" in extra) row.result = extra.result || null;
   if ("score" in extra) row.score = (extra.score || "").trim() || null;
@@ -525,7 +525,7 @@ export async function markStages(materialIds, stage, on = true) {
   const col = COL[stage];
   const ids = (materialIds || []).filter(Boolean);
   if (ids.length === 0 || !col) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("prep_materials")
     .update({ [col]: on ? new Date().toISOString() : null })
@@ -538,7 +538,7 @@ export async function markStages(materialIds, stage, on = true) {
 export async function removeMaterials(materialIds) {
   const ids = (materialIds || []).filter(Boolean);
   if (ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_materials").delete().in("id", ids);
   revalidatePath("/prep");
   return { error: error ? error.message : null };
@@ -547,7 +547,7 @@ export async function removeMaterials(materialIds) {
 export async function removeScopes(scopeIds) {
   const ids = (scopeIds || []).filter(Boolean);
   if (ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("prep_scopes").delete().in("id", ids);
   revalidatePath("/prep");
   return { error: error ? error.message : null };
@@ -579,7 +579,7 @@ export async function removeScopes(scopeIds) {
  */
 export async function makeMockBook(examId, { first = 18, last = 45 } = {}) {
   if (!examId) return { error: "시험이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: exam, error: exErr } = await supabase
     .from("exam_periods").select("id, name, grade").eq("id", examId).maybeSingle();

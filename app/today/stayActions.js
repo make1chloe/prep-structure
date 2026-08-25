@@ -23,7 +23,7 @@ export async function addStay(studentId, date, body, homeworkItemId, auto = fals
   if (!["todo", "done", "moved", "skipped", "dropped"].includes(status)) {
     return { error: "알 수 없는 상태예요." };
   }
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   // 같은 날 같은 내용이 이미 있으면 또 만들지 않는다 (자동 부여가 겹칠 수 있다)
@@ -73,7 +73,7 @@ export async function setStayStatus(id, status) {
   const ok = ["todo", "done", "moved", "skipped", "dropped"];
   if (!ok.includes(status)) return { error: "알 수 없는 상태예요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("stay_tasks")
     .update({
@@ -90,7 +90,7 @@ export async function setStayStatus(id, status) {
 
 export async function deleteStay(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("stay_tasks").delete().eq("id", id);
   revalidatePath("/today");
   revalidatePath("/me");
@@ -105,7 +105,7 @@ export async function deleteStay(id) {
 /** 그 날 경고를 없던 것으로 (사정이 있었을 때) */
 export async function waiveWarning(studentId, targetDate, note) {
   if (!studentId || !targetDate) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("warning_actions").insert({
@@ -134,7 +134,7 @@ export async function settleWarnings(studentId, kind, onDate, note) {
   if (!studentId) return { error: "학생이 없어요." };
   if (!["reflection", "defer", "reset"].includes(kind)) return { error: "알 수 없는 처리예요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const { error } = await supabase.from("warning_actions").insert({
@@ -166,7 +166,7 @@ export async function resetMonthlyWarnings(studentIds, onDate, note) {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0) return { error: null, count: 0 };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const on = onDate || todaySeoul();
 
@@ -194,7 +194,7 @@ export async function resetMonthlyWarnings(studentIds, onDate, note) {
  */
 export async function skipMonthlyReset(ym) {
   const month = ym || todaySeoul().slice(0, 7);
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 'warning' 설정과 따로 둔다 — 설정 화면에서 저장하면 그 줄은 통째로 덮어써지기 때문이다
   const { error } = await supabase.from("integrations").upsert(
@@ -210,7 +210,7 @@ export async function skipMonthlyReset(ym) {
 /** 잘못 누른 처리를 되돌린다 */
 export async function undoWarningAction(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("warning_actions").delete().eq("id", id);
   revalidatePath("/today");
   revalidatePath("/report");

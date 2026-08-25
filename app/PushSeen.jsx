@@ -19,7 +19,7 @@ import PushSeenList from "./PushSeenList";
  * 한다 (원장님, 2026-08-15 — 「선택/삭제/확인/접기가 필요하지 않나」).
  */
 export default async function PushSeen() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("push_receipts")
     .select("id, profile_id, student_id, title, kind, sent_at, delivered_at, opened_at, failed_at, fail_why")

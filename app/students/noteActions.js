@@ -7,7 +7,7 @@ import { sessionUser } from "@/lib/session";
 
 export async function listNotes(studentId) {
   if (!studentId) return { rows: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("student_notes")
     .select("id, date, kind, title, raw, body, with_whom, minutes, created_at")
@@ -23,7 +23,7 @@ export async function listNotes(studentId) {
 
 export async function saveNote(studentId, note = {}) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const row = {
@@ -52,7 +52,7 @@ export async function saveNote(studentId, note = {}) {
 
 export async function deleteNote(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("student_notes").delete().eq("id", id);
   revalidatePath("/students");
   return { error: error ? error.message : null };

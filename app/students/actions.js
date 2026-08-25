@@ -43,7 +43,7 @@ export async function addStudent(formData) {
     note: clean(formData, "note"),
   };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // 학교 줄 잇기 (C7) — 글자만 적으면 학교 이름을 고칠 때 이 아이만 남는다
   if (row.school) {
     try { row.school_id = await schoolIdOf(supabase, row.school); } catch { /* 잇기는 덤 */ }
@@ -148,7 +148,7 @@ export async function updateStudent(id, patch) {
   });
   if (Object.keys(row).length === 0) return { error: null };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("students").update(row).eq("id", id);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0070 전이면 단어시험 칸 없이 — 나머지는 그대로 저장된다
@@ -175,7 +175,7 @@ export async function updateStudent(id, patch) {
 // 선택한 학생 삭제
 export async function deleteStudents(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("students").delete().in("id", ids);
   revalidatePath("/students");
   return { error: error ? error.message : null };
@@ -189,7 +189,7 @@ export async function deleteStudents(ids) {
 // 선택한 학생 상태 일괄 변경
 export async function updateStudentsStatus(ids, status) {
   if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("students").update({ status }).in("id", ids);
   /**
    * 상태가 바뀌면 따라와야 하는 것들 (값-지도 P0-2 · 전수검사 A19).
@@ -222,7 +222,7 @@ export async function bulkAddStudents(rows) {
     return { inserted: 0, error: null };
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 기존 로그인 아이디를 한 번만 불러와 배치 내에서 충돌을 피한다
   const { data: existing } = await supabase
@@ -312,7 +312,7 @@ export async function bulkAddStudents(rows) {
 // ---------- 수정하지 않는 기록 (상담 · 교재 사용) ----------
 export async function loadStudentHistory(studentId) {
   if (!studentId) return { books: [], inquiries: [], note: "" };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const cols = "textbook_id, status, assigned_on, ended_on, current_page";
   let { data: st, error } = await supabase
@@ -468,7 +468,7 @@ export async function loadStudentHistory(studentId) {
 export async function linkSiblings(ids) {
   const list = [...new Set((ids || []).filter(Boolean))];
   if (list.length < 2) return { error: "두 명 이상 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   // 묶는 규칙은 lib/family 한 곳 (직접 추가·상담 등록도 같은 규칙을 쓴다)
   const r = await mergeFamily(supabase, list);
   revalidatePath("/students");
@@ -478,7 +478,7 @@ export async function linkSiblings(ids) {
 /** 이 학생만 집에서 뺀다 (나머지 형제는 그대로 묶여 있다) */
 export async function unlinkSibling(id) {
   if (!id) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("students").update({ family_id: null }).eq("id", id);
   revalidatePath("/students");
   return { error: error ? error.message : null };
@@ -486,7 +486,7 @@ export async function unlinkSibling(id) {
 
 export async function setStudentClasses(studentId, classIds = []) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return guard;
 

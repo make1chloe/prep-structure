@@ -26,7 +26,7 @@ const NEED = "0031 SQL 을 먼저 실행해주세요.";
  * 새로 입력받는 것은 없다 — 그 달 데일리리포트를 다시 세는 것뿐이다.
  */
 export async function loadMonth(ym) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const from = `${ym}-01`;
   const to = endOfMonth(ym);
 
@@ -192,7 +192,7 @@ export async function loadMonth(ym) {
 /** 문구를 고쳐 저장하거나, 한마디를 덧붙인다 */
 export async function saveMonthly(studentId, ym, patch = {}) {
   if (!studentId || !ym) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const row = { student_id: studentId, ym, created_by: user?.id || null };
@@ -220,7 +220,7 @@ export async function sendMonthly(items, ym) {
   const list = (items || []).filter((x) => x?.studentId);
   if (list.length === 0) return { error: null, count: 0 };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const channel = "app";
 
   // 글이 비어 있으면 보낸 것이 아니다 — 열어봐야 아무것도 없다
@@ -280,7 +280,7 @@ export async function sendMonthly(items, ym) {
 
 /** 보낸 표시 되돌리기 */
 export async function unsendMonthly(studentId, ym) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("monthly_reports")
     .update({ sent_at: null })

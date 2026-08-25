@@ -17,7 +17,7 @@ import { needSql } from "@/lib/sqlError";
 const NEED_SQL = "0093 SQL 을 먼저 실행해주세요 (화면 안내 문구).";
 
 export async function listNotes() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.from("screen_notes").select("key, body");
   if (needSql(error)) return { notes: {}, error: NEED_SQL };
   if (error) return { notes: {}, error: error.message };
@@ -35,7 +35,7 @@ export async function listNotes() {
  */
 export async function saveNote(key, body) {
   if (!NOTE_KEYS.includes(key)) return { error: "모르는 자리예요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireTeacher(supabase);
   if (guard.error) return { error: guard.error };
 

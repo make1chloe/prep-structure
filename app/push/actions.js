@@ -10,7 +10,7 @@ import { sessionUser } from "@/lib/session";
 
 // 알림 키 — 설정 화면에서 한 번 만들면 계속 쓴다
 export async function ensurePushKeys() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("integrations")
     .select("config")
@@ -46,7 +46,7 @@ export async function ensurePushKeys() {
  * 그건 여전히 선생님만 읽는다).
  */
 export async function getPushPublicKey() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const rpc = await supabase.rpc("push_public_key");
   if (!rpc.error) {
@@ -75,7 +75,7 @@ export async function getPushPublicKey() {
 // 기기 등록 / 해제
 export async function saveSubscription(sub, ua) {
   if (!sub?.endpoint) return { error: "구독 정보가 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
@@ -101,7 +101,7 @@ export async function saveSubscription(sub, ua) {
 
 export async function removeSubscription(endpoint) {
   if (!endpoint) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
   return { error: error ? error.message : null };
 }
@@ -170,7 +170,7 @@ async function withAcademy(supabase, payload) {
 }
 
 export async function pushToStudents(studentIds, payload) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const keys = await keysOf(supabase);
   if (!keys?.privateKey) return { sent: 0, error: null }; // 알림을 안 쓰는 상태면 조용히 넘어간다
 
@@ -229,7 +229,7 @@ export async function pushToFamilies(studentIds, payload, who = "all", supa = nu
   // **줄 순서가 곧 버그였다.** withAcademy 를 넣으면서 이 줄을
   // `const supabase` 보다 위에 두었다 — 자바스크립트는 그러면 그 자리에서
   // 터진다(TDZ). `next build` 는 통과했다. 실행해봐야만 나는 종류다.
-  const supabase = supa || createClient();
+  const supabase = supa || await createClient();
   const safe = { ...(await withAcademy(supabase, payload)), body: OPEN_TO_SEE };
 
   const keys = await keysOf(supabase);
@@ -402,7 +402,7 @@ async function withReceipts(supabase, subs, payload, childOf = new Map()) {
  * 함께 내준다. 남의 폰으로는 못 보낸다 — 돌려주는 줄이 본인 것뿐이다.
  */
 export async function testPush() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 
@@ -494,7 +494,7 @@ export async function testPush() {
  * 0104 를 아직 안 돌리셨으면 예전 길로 돌아간다 (원장님이 부르실 때는 된다).
  */
 export async function pushToStaff(payload) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 0104 — 학생·학부모가 불러도 대상을 찾을 수 있는 길
   const { data: targets, error: rpcErr } = await supabase.rpc("staff_push_targets");
@@ -541,7 +541,7 @@ export async function pushToStaff(payload) {
 
 /** 내 방해금지 시간 — 없으면 둘 다 빈 값 */
 export async function getQuietHours() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { from: "", to: "", ready: true };
 
@@ -571,7 +571,7 @@ export async function getQuietHours() {
  * 가 되어 영영 안 울릴 수도 있다. 그 자리에서 여쭙는다.
  */
 export async function saveQuietHours(from, to) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   if (!user) return { error: "로그인이 필요해요." };
 

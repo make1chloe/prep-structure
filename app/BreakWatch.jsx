@@ -14,7 +14,7 @@ import { notable, breakLine, minutesOf } from "@/lib/breaks";
  * **아직 안 돌아온 아이는 따로** 맨 위에 둔다 — 그건 지금 일이다.
  */
 export default async function BreakWatch() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
 
   const { data, error } = await supabase

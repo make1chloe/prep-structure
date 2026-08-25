@@ -32,7 +32,7 @@ export const dynamic = "force-dynamic";
  * 노션 이관·SQL 처럼 **다 만들고 나면 안 여는 것**은 「관리자」 로 뺐다.
  */
 export default async function SettingsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;

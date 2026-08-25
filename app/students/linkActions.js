@@ -27,7 +27,7 @@ function newCode() {
 /** 이 학생의 연결 코드를 새로 뽑는다 (이전 코드는 못 쓰게 된다) */
 export async function makeLinkCode(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 아직 안 쓴 옛 코드는 만료시킨다 — 살아 있는 코드가 둘이면 헷갈린다
   await supabase
@@ -51,7 +51,7 @@ export async function makeLinkCode(studentId) {
 /** 연결을 끊는다 (계정을 잘못 붙였을 때) */
 export async function unlinkStudent(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("students")
     .update({ profile_id: null })
@@ -63,7 +63,7 @@ export async function unlinkStudent(studentId) {
 /** 지금 살아 있는 코드 + 연결 상태 */
 export async function linkStatus(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: s } = await supabase
     .from("students")

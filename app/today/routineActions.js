@@ -19,7 +19,7 @@ export async function nextRoutine(studentId, opts = {}) {
   //  기억력 측면에서도 더 나아」)
   const peek = !!opts.peek;
   if (!studentId) return { inclass: [], home: [], steps: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 회독(round)까지 본다 — 2회독이면 1회독 진도는 끝난 것으로 치지 않는다
   // 멈춤(pause, 0149)도 여기서 같이 읽는다 — 멈춤 판단은 이 함수 한 곳이다
@@ -352,7 +352,7 @@ export async function advanceRoutine(studentId, textbookIds) {
   if (!studentId || !Array.isArray(textbookIds) || textbookIds.length === 0) {
     return { error: null };
   }
-  const supabase = createClient();
+  const supabase = await createClient();
   let { data: cur, error: curErr } = await supabase
     .from("student_textbooks")
     .select("textbook_id, routine_step, routine_step_id")
@@ -402,7 +402,7 @@ export async function advanceRoutine(studentId, textbookIds) {
 /** 학생별 기본값 저장 (루틴이 없는 과목용) */
 export async function saveStudentDefaults(studentId, inclass, home) {
   if (!studentId) return { error: "학생이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("students")
     .update({ default_inclass: inclass || [], default_home: home || [] })

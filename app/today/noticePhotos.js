@@ -31,7 +31,7 @@ export async function addNoticePhoto(formData) {
   if (!file || typeof file === "string" || file.size === 0) return { error: "파일이 없어요." };
   if (file.size > MAX_UPLOAD) return { error: "파일이 너무 커요 (25MB까지)." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   /**
    * **올린 이름을 그대로 살린다.** 전에는 모르는 갈래를 다 `.jpg` 로 바꿔
    * 담아서, 한글·엑셀을 붙이면 열리지 않는 그림이 됐다.
@@ -78,7 +78,7 @@ export async function addNoticePhoto(formData) {
 /** 붙인 사진을 뗀다 */
 export async function removeNoticePhoto(noticeId, path) {
   if (!noticeId || !path) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: cur } = await supabase.from("notices").select("photos").eq("id", noticeId).maybeSingle();
   const photos = (cur?.photos || []).filter((p) => p !== path);
@@ -109,7 +109,7 @@ export async function noticePhotoUrls(paths) {
   const list = (paths || []).filter(Boolean);
   if (list.length === 0) return { urls: {}, error: null };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const urls = {};
   for (const p of list) {
     const { data } = await supabase.storage.from("notices").createSignedUrl(p, 600);

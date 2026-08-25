@@ -18,7 +18,7 @@ import { ALL_ITEMS, findSection } from "@/lib/menu";
  * 적힌 것과 위 메뉴에 뜬 것은 **항상 같다.**
  */
 export default async function TodoBar() {
-  const todos = await menuTodos(createClient());
+  const todos = await menuTodos(await createClient());
   const keys = Object.keys(todos);
   if (keys.length === 0) return null;
 

@@ -15,7 +15,7 @@ import { KEEP_DAYS, cutoff, ranToday } from "@/lib/purge";
  * 정리가 안 됐다고 수업을 못 하면 안 된다.
  */
 export async function purgeOldSubmissions(days = KEEP_DAYS) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const before = cutoff(todaySeoul(), days);
 
   const { data: rows, error } = await supabase
@@ -44,7 +44,7 @@ export async function purgeOldSubmissions(days = KEEP_DAYS) {
 
 /** 하루에 한 번만 — 마지막으로 돈 날을 integrations 에 적어둔다 */
 export async function purgeOncePerDay(days = KEEP_DAYS) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
 
   const { data, error } = await supabase

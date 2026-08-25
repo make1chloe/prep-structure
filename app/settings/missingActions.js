@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function saveMissingKeys(listKey, keys) {
   if (!listKey) return { error: "목록이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: had } = await supabase
     .from("integrations")
     .select("config")

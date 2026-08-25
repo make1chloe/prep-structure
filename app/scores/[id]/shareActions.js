@@ -17,7 +17,7 @@ export async function setScoreShare(studentId, share) {
   if (!studentId) return { error: "어느 학생인지 모르겠어요." };
   if (!OK.includes(share)) return { error: "고를 수 없는 값이에요." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("students")
     .update({ score_share: share })

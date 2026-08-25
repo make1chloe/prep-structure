@@ -19,7 +19,7 @@ export async function pendingMakeups(studentIds = []) {
   const ids = [...new Set((studentIds || []).filter(Boolean))];
   if (ids.length === 0) return { ready: true, rows: [] };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("attendance")
     .select("student_id, date, makeup_time, reason, makeup_of, makeup_confirmed_at, makeup_change_req")
@@ -46,7 +46,7 @@ export async function pendingMakeups(studentIds = []) {
  */
 export async function answerMakeup(studentId, date, ok, note) {
   if (!studentId || !date) return { error: "어느 보강인지 모르겠어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { error } = await supabase.rpc("confirm_makeup", {
     p_student: studentId,

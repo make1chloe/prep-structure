@@ -20,7 +20,7 @@ export async function addTask(formData) {
   const title = (formData.get("title") || "").toString().trim();
   if (!title) return;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   const row = {
@@ -100,7 +100,7 @@ export async function addQuickMemo(text, paths = []) {
   // 첨부 경로는 uploadTaskFile(photoActions)이 이미 올려둔 것 — 여기서는 줄에 담기만
   const photos = (paths || []).filter(Boolean);
   if (!t && photos.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
   const [first, ...rest] = t.split("\n");
   // 글 없이 첨부만이면 제목은 「사진 메모」, 사진이 아니면 파일 이름 (2026-08-22)
@@ -156,7 +156,7 @@ export async function updateTask(id, patch) {
   if ("date_tbd" in (patch || {})) row.date_tbd = !!patch.date_tbd;
   if (!row.due_on && "due_on" in row) delete row.due_on; // 날짜는 비울 수 없음
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase.from("tasks").update(row).eq("id", id);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0117 전이면 하위목록 칸이 없다
@@ -188,7 +188,7 @@ export async function updateTask(id, patch) {
  */
 export async function toggleChecklistLine(taskId, line, checked) {
   if (!taskId || !line) return { error: "id 없음" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: cur, error: readErr } = await supabase
     .from("tasks").select("checklist_done").eq("id", taskId).maybeSingle();
   if (readErr) {
@@ -209,7 +209,7 @@ export async function toggleChecklistLine(taskId, line, checked) {
 export async function setTaskStatus(ids, status) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("tasks")
     .update({ status, done_at: status === "done" ? new Date().toISOString() : null })
@@ -222,7 +222,7 @@ export async function setTaskStatus(ids, status) {
 export async function moveTasks(ids, dueOn) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0 || !dueOn) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("tasks").update({ due_on: dueOn }).in("id", list);
   revalidatePath("/tasks");
   revalidatePath("/today");
@@ -232,7 +232,7 @@ export async function moveTasks(ids, dueOn) {
 export async function deleteTasks(ids) {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("tasks").delete().in("id", list);
   revalidatePath("/tasks");
   revalidatePath("/today");
@@ -244,7 +244,7 @@ export async function deleteTasks(ids) {
 
 export async function applyTaskDelivery(taskId, date) {
   if (!taskId) return { error: "일정이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const BASE =
     "id, title, due_on, deliver_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade";
@@ -353,7 +353,7 @@ export async function applyTaskDelivery(taskId, date) {
 // 일정에 적어둔 학부모 공지를 그날 공지로 깐다
 export async function applyTaskNotice(taskId, date) {
   if (!taskId) return { error: "일정이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: task, error } = await supabase
     .from("tasks")
     .select("id, due_on, notice_body, deliver_scope, deliver_class_id, deliver_school, deliver_grade")
@@ -403,7 +403,7 @@ export async function applyTaskNotice(taskId, date) {
  */
 export async function applyTaskAbsence(taskId) {
   if (!taskId) return { error: "일정이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: task, error } = await supabase
     .from("tasks")
     .select("id, title, due_on, end_on, absence_student_ids, absence_reason")
@@ -461,7 +461,7 @@ export async function applyTaskAbsence(taskId) {
 // 일정에 결석할 학생을 지정
 export async function setTaskAbsenceStudents(taskId, studentIds, reason) {
   if (!taskId) return { error: "일정이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("tasks")
     .update({
@@ -503,7 +503,7 @@ export async function moveKind(ids, kind = "schedule") {
   const list = Array.isArray(ids) ? ids : [ids];
   if (list.length === 0) return { error: null };
   if (!["schedule", "todo"].includes(kind)) return { error: "알 수 없는 갈래예요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("tasks").update({ kind }).in("id", list);
   revalidatePath("/tasks");
   revalidatePath("/");

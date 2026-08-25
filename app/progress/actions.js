@@ -29,7 +29,7 @@ function ok(error) {
 export async function setStudentTextbooks(studentId, bookIds) {
   if (!studentId) return { error: "학생을 찾지 못했어요." };
   const want = [...new Set((bookIds || []).filter(Boolean))];
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
 
   const { data: have, error: readErr } = await supabase
@@ -106,7 +106,7 @@ export async function setStudentTextbooks(studentId, bookIds) {
 export async function setTextbookStudents(textbookId, studentIds) {
   if (!textbookId) return { error: "교재를 찾지 못했어요." };
   const want = [...new Set((studentIds || []).filter(Boolean))];
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
 
   const { data: have, error: readErr } = await supabase
@@ -167,7 +167,7 @@ export async function setTextbookStudents(textbookId, studentIds) {
 export async function setCurrentPage(studentId, textbookId, page) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const d = (page ?? "").toString().replace(/[^\d]/g, "");
-  const supabase = createClient();
+  const supabase = await createClient();
   // **고치기만 한다** (전수검사 A15) — upsert 였을 때는 배정이 없는데
   // 페이지만 적으면 status·assigned_on 없는 줄이 생겼고, 그 줄은 「영원
   // 전부터 사용 중」 인 유령 배정으로 보였다. 페이지는 배정된 책에만 적는다.
@@ -193,7 +193,7 @@ export async function setCurrentPage(studentId, textbookId, page) {
 export async function setBookSkipActs(studentId, textbookId, acts) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const txt = (acts || "").toString().trim() || null;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("student_textbooks")
     .update({ skip_acts: txt })
@@ -221,7 +221,7 @@ export async function setBookSkipActs(studentId, textbookId, acts) {
 export async function setBookPause(studentId, textbookId, pause) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const p = pause === "all" || pause === "home" ? pause : null;
-  const supabase = createClient();
+  const supabase = await createClient();
   const guard = await requireStaff(supabase);
   if (guard.error) return { error: guard.error };
   const { error } = await supabase
@@ -252,7 +252,7 @@ export async function setBookPause(studentId, textbookId, pause) {
 export async function addStudentBookDated(studentId, textbookId, startOn, endOn) {
   if (!studentId || !textbookId) return { error: "학생과 교재를 골라주세요." };
   if (endOn && startOn && endOn < startOn) return { error: "종료일이 시작일보다 빠를 수 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   /**
    * **이미 있는 짝은 덮지 않는다** (전수검사 A14). 형제 둘(교재 안내 ·
    * 이관)은 planDatedAssign 으로 지키는데 이 길만 upsert 라, 쓰던 책의
@@ -331,7 +331,7 @@ export async function addStudentBookDated(studentId, textbookId, startOn, endOn)
  */
 export async function listWordTestBooks(studentId) {
   if (!studentId) return { books: [] };
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
   const [stQ, bQ] = await Promise.all([
     supabase
@@ -375,7 +375,7 @@ export async function listWordTestBooks(studentId) {
 export async function endStudentBooks(studentId, textbookIds) {
   const ids = [...new Set((textbookIds || []).filter(Boolean))];
   if (!studentId || ids.length === 0) return { error: "교재를 골라주세요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   let { error } = await supabase
     .from("student_textbooks")
     .update({ status: "done", ended_on: todaySeoul() })
@@ -406,7 +406,7 @@ export async function endStudentBooks(studentId, textbookIds) {
  */
 export async function removeStudentBook(studentId, textbookId) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase
     .from("student_textbooks").delete()
     .eq("student_id", studentId).eq("textbook_id", textbookId);
@@ -418,7 +418,7 @@ export async function removeStudentBook(studentId, textbookId) {
 
 export async function setStudentBookStatus(studentId, textbookId, status, endedOn) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = todaySeoul();
   const { error } = await supabase.from("student_textbooks").upsert(
     {
@@ -440,7 +440,7 @@ export async function setStudentBookStatus(studentId, textbookId, status, endedO
 // round 를 주지 않으면 **지금 회독**의 진도를 본다. 지난 회독 기록은 그대로 남아 있다.
 export async function listStudentUnits(studentId, textbookId, round) {
   if (!studentId || !textbookId) return { units: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
   const r = round || (await currentRound(supabase, studentId, textbookId));
 
   // 분량·내용(0100)까지. 없는 DB 는 아래로 한 칸씩 내려가며 다시 본다
@@ -489,7 +489,7 @@ export async function listStudentUnits(studentId, textbookId, round) {
  */
 export async function listBookProgress(textbookId) {
   if (!textbookId) return { rows: [], error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 파도 — 배정과 단원은 서로 필요한 게 없다 (원칙 6-1: 직렬 4층이었다)
   let [{ data: st, error }, { data: units }] = await Promise.all([
@@ -590,7 +590,7 @@ export async function listBookProgress(textbookId) {
  */
 export async function setUnitNote(studentId, unitId, note) {
   if (!studentId || !unitId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: u } = await supabase
     .from("textbook_units")
     .select("textbook_id")
@@ -654,7 +654,7 @@ export async function setUnitNote(studentId, unitId, note) {
 export async function listStudentUnitsMany(studentId, textbookIds = []) {
   const ids = [...new Set((textbookIds || []).filter(Boolean))];
   if (!studentId || ids.length === 0) return { byBook: {}, error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const base = "id, textbook_id, parent_id, label, name, page_start, page_end, sort";
   const LADDER = [
@@ -746,7 +746,7 @@ export async function listStudentUnitsMany(studentId, textbookIds = []) {
  */
 export async function bulkSetProgress(rows = []) {
   if (!Array.isArray(rows) || rows.length === 0) return { error: "올릴 줄이 없어요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const [{ data: students }, { data: books }] = await Promise.all([
     supabase.from("students").select("id, name").eq("status", "enrolled"),
@@ -829,7 +829,7 @@ export async function bulkSetProgress(rows = []) {
 
 /** 지금 진도 내려받기 — 고쳐서 다시 올리는 왕복 (양식과 같은 칸) */
 export async function exportProgress() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const [{ data: students }, { data: books }, { data: st }, { data: units }, progQ] =
     await Promise.all([
       supabase.from("students").select("id, name, status").eq("status", "enrolled").order("name"),
@@ -895,7 +895,7 @@ export async function exportProgress() {
 export async function setUnitProgress(studentId, unitIds, status, opts = {}) {
   const ids = Array.isArray(unitIds) ? unitIds : [unitIds];
   if (!studentId || ids.length === 0) return { error: null };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 이 단원들이 속한 교재의 **지금 회독**에 기록한다.
   // 체크를 지워도 지난 회독 기록은 건드리지 않는다.
@@ -1068,7 +1068,7 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
   const sum = row.mc_meaning + row.sa_meaning + row.mc_word + row.sa_word;
   if (sum !== 100) return { error: `합이 100%가 되어야 해요. 지금 ${sum}%입니다.` };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let { error } = await supabase
@@ -1108,7 +1108,7 @@ export async function saveWordTest(studentId, textbookId, round, cfg) {
  */
 export async function prevRound(studentId, textbookId) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: cur } = await supabase
     .from("student_textbooks")
     .select("round")
@@ -1128,7 +1128,7 @@ export async function prevRound(studentId, textbookId) {
 
 export async function nextRound(studentId, textbookId) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: cur } = await supabase
     .from("student_textbooks")

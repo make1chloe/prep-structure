@@ -22,8 +22,9 @@ export const dynamic = "force-dynamic";
  *
  * 그래서 여기서는 **검사할 것만** 늘어놓는다. 처리하면 목록에서 빠진다.
  */
-export default async function CheckPage({ searchParams }) {
-  const supabase = createClient();
+export default async function CheckPage(props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const user = await sessionUser(supabase);
 
   let profile = null;
