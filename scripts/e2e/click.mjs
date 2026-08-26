@@ -386,8 +386,12 @@ async function roundTrip() {
     await pp.waitForTimeout(400);
     await pp.getByRole("button", { name: "전달", exact: true }).first().click();
     await pp.waitForTimeout(300);
-    await pp.locator("textarea").first().fill(`${stamp} 병원 때문에 늦습니다`);
-    await pp.getByRole("button", { name: /보내기/ }).first().click();
+    // **느슨한 선택자 금지** — 위쪽 보강 확인 카드에도 textarea 와
+    // 「변경 요청 보내기」 가 있어서, first() 가 그쪽을 잡았다 (7판 실측:
+    // 스탬프가 엉뚱한 칸에 들어가고 엉뚱한 단추가 눌려 소리 없이 샜다).
+    // 「전달」 의 안내 문구와 정확한 「보내기」 로 표적을 박는다.
+    await pp.getByPlaceholder(/무엇인지 적어주세요/).fill(`${stamp} 2학기 시간표입니다`);
+    await pp.getByRole("button", { name: "보내기", exact: true }).click();
     await pp.waitForTimeout(2000);
     // **보낸 것이 내 목록에 남았나** — 여기 없으면 저장부터 실패한 것이라
     // 대시보드를 보러 갈 이유가 없다 (5판: 대시보드에 안 떠서 갈랐다)
