@@ -100,12 +100,20 @@ export default async function CheckPage(props) {
   }
 
   // 지난 수업에 배정한 것 — **오늘 검사할 것**이 여기 있다
-  const { data: prevReports } = await supabase
-    .from("daily_reports")
-    .select("id, student_id, date")
-    .gte("date", addDays(date, -21))
-    .lt("date", date)
-    .order("date", { ascending: false });
+  // 학생별 최근 40판 (0171) — 판(/today)과 같은 창을 써야 두 화면의
+  // 검사 판정이 한 벌이다 (옛 21일 고정 창은 시험 기간에 밀린 숙제를
+  // /today 와 다르게 잘랐다)
+  let { data: prevReports, error: prevErr } = await supabase
+    .rpc("prev_reports_of", { d: date });
+  if (prevErr) {
+    // 0171 전 DB — 옛 21일 창으로 폴백
+    ({ data: prevReports } = await supabase
+      .from("daily_reports")
+      .select("id, student_id, date")
+      .gte("date", addDays(date, -21))
+      .lt("date", date)
+      .order("date", { ascending: false }));
+  }
   const prevIds = (prevReports || []).map((r) => r.id);
   // 배정한 것과 **검사한 것을 함께** 읽는다. 배정만 보면 2주 전에 내주고
   // 아직 못 본 숙제가 영영 안 뜬다 — 시험 기간에 밀린 것이 그렇게 사라진다.

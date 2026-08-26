@@ -130,13 +130,10 @@ export default async function TodayPage(props) {
       .select("id, name, category, sort, method, no_timer, unit_test, tool, in_person, redo_default, checklist")
       .eq("active", true)
       .order("sort", { ascending: true }),
-    supabase
-      .from("daily_reports")
-      .select("id, student_id, own_progress, date")
-      .is("archived_at", null)
-      .lt("date", date)
-      .order("date", { ascending: false })
-      .limit(300),
+    // 학생별 최근 40판 (0171 — 전학생 공용 300줄은 인원이 늘면 조용히
+    // 잘렸다 #28). rpc 도 thenable 이라 파도 유지. 함수 없으면(42883)
+    // 아래에서 옛 조회로 폴백 — 저하일 뿐 파손 아님
+    supabase.rpc("prev_reports_of", { d: date }),
     supabase
       .from("textbooks")
       .select("id, name, status, total_pages, area")
@@ -258,6 +255,15 @@ export default async function TodayPage(props) {
     itemsQ1,
     prevQ,
   ];
+  if (prevQ?.error) {
+    // 0171 전 DB — 옛 창(전체 300줄)으로 폴백. 좁아질 뿐 깨지진 않는다
+    ({ data: prevReports } = await supabase
+      .from("daily_reports")
+      .select("id, student_id, own_progress, date")
+      .lt("date", date)
+      .order("date", { ascending: false })
+      .limit(300));
+  }
 
   // 0118 전이면 이해도 없이 다시
   if (!reports) {
