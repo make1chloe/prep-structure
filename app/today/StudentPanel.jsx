@@ -237,6 +237,9 @@ export default function StudentPanel({
   grammarCommon = [],
   // "sheets" = 3때 새 판 (실행지도 v2) — 기본은 구판 그대로
   layout = "classic",
+  // C4: 줄 칩이 고른 때를 판이 따른다 (제어형 — 없으면 자체 상태)
+  sheetTab: sheetTabProp,
+  onSheetTab,
   onSaved,
   onClose,
 }) {
@@ -618,7 +621,9 @@ export default function StudentPanel({
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
   const [saving, setSaving] = useState(false);
-  const [sheetTab, setSheetTab] = useState("check"); // 3때 — 새 판에서만
+  const [tabState, setTabState] = useState("check"); // 3때 — 새 판에서만
+  const sheetTab = typeof sheetTabProp === "string" ? sheetTabProp : tabState;
+  const setSheetTab = onSheetTab || setTabState;
   const [pop, setPop] = useState(null); // 팝오버 A(absence)·B(warn)·C(comments)            // 저장 진짜 잠금 (2026-08-21)
 
   /**

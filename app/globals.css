@@ -1619,3 +1619,6 @@ html[data-sheet="open"] .sheettop {
 }
 /* 아이폰 강제 확대 방지 — qmemo 와 같은 이유 */
 .sheetpop textarea, .sheetpop input { font-size: 16px; }
+
+/* 줄 신판의 칩 — 폰 엄지 기준 36px (판세분화 v7 §1) */
+.stuChip { min-height: 36px; }
