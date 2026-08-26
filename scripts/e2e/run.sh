@@ -42,17 +42,13 @@ echo
 echo "== 앱 띄우기 =="
 killport "$APP_PORT"
 
-# **개발 모드로 띄운다.**
+# **배포판 모드로 띄운다** (2026-08-27 — dev 모드에서 옮김).
 #
-# 배포판(`next build && next start`)으로도 해봤는데, 앞 판이 안 죽고 남아
-# 옛 화면을 내주면 새로 만든 조각과 짝이 안 맞아 **400 + ChunkLoadError** 가
-# 났다. 검사가 앱 잘못이 아닌 것으로 빨개지면 아무도 안 믿게 된다.
-#
-# 개발 모드는 조각 이름을 안 박아두므로 그 일이 없다. 대신 개발 모드에만
-# 나는 소리가 섞이는데, 그건 click.mjs 에서 이름을 적어 걸러낸다.
-# (next16-probe 브랜치 한정) **배포판 모드** — 프로덕션 사고(대부분 화면
-# 안 열림)를 재현하려면 dev 가 아니라 build+start 여야 한다. CI 러너는
-# 매번 새 판이라 dev 모드의 존재 이유(앞 판 잔재)가 여기엔 없다.
+# dev 로 두던 이유는 로컬 재실행 때 앞 판 잔재(400 + ChunkLoadError)였는데,
+# CI 러너는 매번 새 판이라 그 사정이 없다. 그리고 dev 는 **원장이 실제로
+# 보는 판과 다른 판을 그린다** — 자동 판정 배지가 dev 에선 안 뜨고
+# 배포판에선 뜨는 것을 골든이 실제로 잡았다 (probe 검사판, 「자동」 1줄).
+# 검사는 원장이 보는 판(배포판)을 봐야 한다.
 ANON="$(node scripts/e2e/token.mjs anon)"
 NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:$API_PORT" \
 NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON" \
@@ -111,5 +107,11 @@ OUT=/var/tmp node scripts/e2e/homepage-shot.mjs || exit $?
 # 못 보게. 골든 파일이 커밋에 없으면 빨강, 갱신은 GOLDEN_UPDATE=1 로만
 # (CI 에서는 workflow_dispatch 의 golden_update 입력).
 echo
-E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/golden-dayboard.mjs
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/golden-dayboard.mjs || exit $?
+
+# **폰 폭 가로 넘침** (2026-08-27 — 원장 실물: 수업 탭 가로 스크롤).
+# 골든 씨앗을 재사용하므로 골든 뒤에서만 돈다. 지금은 진단 모드(경고) —
+# 수리 뒤 OVERFLOW_STRICT=1 로 올려 재발을 빨강으로 만든다.
+echo
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/check-overflow.mjs
 exit $?
