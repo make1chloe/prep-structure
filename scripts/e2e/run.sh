@@ -78,6 +78,11 @@ E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/apply-other.mjs || exit $?
 echo
 node scripts/e2e/check-rpc.mjs || exit $?
 
+# **특강 셈(0164)이 정규와 안 겹치나** — summarize 이중 셈·oneLiner 문턱·
+# offSetFor·extraDatesBy 를 순수 함수로 바로 돌려본다 (특강 6단계).
+echo
+node scripts/e2e/check-extra.mjs || exit $?
+
 # **배정·등원 줄 수술(0165)이 계약대로 도는가** — 행 id 불변·changed_at·
 # 그룹 무접촉·전부-또는-무 (배정줄수술 v2 §4).
 echo
