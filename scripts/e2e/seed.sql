@@ -69,6 +69,12 @@ insert into public.attendance (student_id, date, status, makeup_of) values
   ('aaaaaaa1-0000-0000-0000-000000000002', current_date + 7, 'makeup', current_date + 5)
 on conflict (student_id, date) do nothing;
 
+-- ── 학교 목록 (설문지 「골라 넣기」 검사용 — 0114) ─────────
+-- 표가 비면 설문지 학교 칸이 손으로 적는 칸으로 내려앉는다 — 그 화면을
+-- 검사하려면 목록이 있어야 한다
+insert into public.schools (name) values ('신정중'), ('박문중')
+on conflict do nothing;
+
 -- ── 학교 시험 (일정 화면) ────────────────────────────────
 insert into public.exam_periods (school, grade, name, from_date, to_date)
 values ('해송고등학교', null, '2학기 중간', current_date + 20, current_date + 23)

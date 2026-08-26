@@ -23,12 +23,15 @@ const p = await b.newPage({ viewport: { width: 900, height: 1000 } });
 p.on("pageerror", (e) => no(`설문지가 터졌습니다: ${e.message.split("\n")[0]}`));
 await p.goto(`${APP}/apply`, { waitUntil: "networkidle" });
 
-// 학교가 **골라 넣는 칸**인가 — 로그인 없이도 목록이 와야 한다
-const listId = await p.locator('input[name="school"]').getAttribute("list");
-const opts = listId ? await p.locator(`datalist#${listId} option`).count() : 0;
-if (!listId) no("설문지의 학교가 아직 손으로 적는 칸입니다");
-else if (opts === 0) no("로그인 없는 설문지에 학교 목록이 안 옵니다 (0114)");
-else ok(`설문지에서 학교를 골라 넣습니다 (${opts}곳)`);
+// 학교가 **골라 넣는 칸**인가 — 로그인 없이도 목록이 와야 한다 (0114).
+// 1판은 datalist 였는데 아이폰에서 목록이 안 내려와 select + 「직접
+// 적기」 로 개편됐다 (PickField 주석) — 검사도 그 개편을 따른다.
+// 골라주세요·직접 적기 두 줄은 늘 있으니, 학교는 그 밖의 option 수다.
+const schoolSel = p.locator("select").filter({ hasText: "직접 적기" }).first();
+const opts = (await schoolSel.count()) ? await schoolSel.locator("option").count() : 0;
+if (!(await schoolSel.count())) no("설문지의 학교가 아직 손으로 적는 칸입니다");
+else if (opts <= 2) no("로그인 없는 설문지에 학교 목록이 안 옵니다 (0114)");
+else ok(`설문지에서 학교를 골라 넣습니다 (${opts - 2}곳)`);
 
 const gradeTag = await p.locator('[name="grade"]').evaluate((el) => el.tagName);
 if (gradeTag !== "SELECT") no(`설문지의 학년이 ${gradeTag} 입니다 (골라 넣어야 합니다)`);
@@ -37,7 +40,7 @@ else ok("설문지에서 학년을 골라 넣습니다");
 await p.fill('input[name="name"]', "테스트아이");
 await p.fill('input[name="phone"]', "01099998888");
 await p.fill('input[name="student_phone"]', "01077776666");
-await p.fill('input[name="school"]', "신정중");
+await schoolSel.selectOption({ label: "신정중" });
 await p.selectOption('[name="grade"]', "중2");
 
 // 「기타」 를 고르면 뒤에 적는 칸이 열리는가
