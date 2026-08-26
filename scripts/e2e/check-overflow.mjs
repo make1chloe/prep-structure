@@ -16,12 +16,89 @@
 import { kstToday, addDays } from "./golden-lib.mjs";
 
 const APP = process.env.E2E_APP || "http://127.0.0.1:3300";
+const API = process.env.E2E_API || "http://127.0.0.1:55442";
 const EXE = process.env.PW_CHROMIUM || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const STRICT = process.env.OVERFLOW_STRICT === "1";
 const PHONE = { width: 390, height: 844 };
 const D = addDays(kstToday(), 10);   // golden-dayboard 와 같은 기준일
 
 const { chromium } = await import("playwright-core");
+
+/**
+ * **무거운 판** — 원장 실물(2026-08-27 스크린샷, 이승우 판)의 모양을
+ * 재현한다: 오늘 학원에서 할 것 6개 · 긴 교재·단원명 · 단원평가 출제.
+ * 골든 씨앗(항목 1~2개)으로는 넘침이 재현되지 않았다 — 데이터 의존이다.
+ * 골든과 안 섞이게 반·학생·교재 전부 제 uuid (eeeeeeee-…).
+ */
+const V = (t) => `eeeeeeee-0000-0000-0000-00000000${t}`;
+const OC = V("0c01"), OS = V("0e01"), OT1 = V("0b01"), OT2 = V("0b02");
+const OU1 = V("0a01"), OU2 = V("0a02");
+const OH = (n) => V(`0d0${n}`);
+const ORT = V("0f01");
+const LONG = "Unit 26 전치사+명사 – 형용사 역할";
+const HEAVY = [
+  ["classes", "id", [{ id: OC, name: "넘침반", days: ["월", "화", "수", "목", "금", "토", "일"], start_time: "11:00", end_time: "12:30" }]],
+  ["students", "id", [{ id: OS, name: "넘침학생", school: "연송초등학교", grade: "초5", status: "enrolled" }]],
+  ["class_students", "class_id,student_id", [{ class_id: OC, student_id: OS }]],
+  ["textbooks", "id", [
+    { id: OT1, name: "그래머인사이드1", area: "문법" },
+    { id: OT2, name: "일관성 있는 기준 영문법", area: "문법" },
+  ]],
+  ["textbook_units", "id", [
+    { id: OU1, textbook_id: OT1, name: "본책", sort: 1 },
+    { id: OU2, textbook_id: OT2, name: LONG, sort: 1 },
+  ]],
+  ["homework_items", "id", [
+    { id: OH(1), name: "서술형 대비", category: "문법", sort: 111, active: true },
+    { id: OH(2), name: "숙제 검사", category: "기타", sort: 112, active: true },
+    { id: OH(3), name: "문제풀기", category: "문법", sort: 113, active: true },
+    { id: OH(4), name: "단원평가 대비 복습", category: "문법", sort: 114, active: true, unit_test: true },
+    { id: OH(5), name: "클카 문장훈련", category: "단어", sort: 115, active: true },
+    { id: OH(6), name: "테스트북", category: "문법", sort: 116, active: true },
+  ]],
+  ["student_textbooks", "student_id,textbook_id", [
+    { student_id: OS, textbook_id: OT1, status: "active" },
+    { student_id: OS, textbook_id: OT2, status: "active" },
+  ]],
+  ["daily_reports", "id", [{ id: ORT, student_id: OS, date: D }]],
+  ["daily_report_items", "id", [
+    { id: V("0901"), daily_report_id: ORT, homework_item_id: OH(1), status: "inclass", inclass_sort: 1, textbook_unit_ids: [OU1] },
+    { id: V("0902"), daily_report_id: ORT, homework_item_id: OH(2), status: "inclass", inclass_sort: 2, textbook_unit_ids: [OU1] },
+    { id: V("0903"), daily_report_id: ORT, homework_item_id: OH(3), status: "inclass", inclass_sort: 3, textbook_unit_ids: [OU1] },
+    { id: V("0904"), daily_report_id: ORT, homework_item_id: OH(4), status: "inclass", inclass_sort: 4, textbook_unit_ids: [OU1] },
+    { id: V("0905"), daily_report_id: ORT, homework_item_id: OH(5), status: "inclass", inclass_sort: 5, textbook_unit_ids: [OU2] },
+    { id: V("0906"), daily_report_id: ORT, homework_item_id: OH(6), status: "inclass", inclass_sort: 6, textbook_unit_ids: [OU2] },
+  ]],
+];
+
+async function plant() {
+  const { sign } = await import("./token.mjs");
+  const jwt = sign({ sub: "11111111-1111-1111-1111-111111111111", role: "authenticated" });
+  for (const [table, conflict, rows] of HEAVY) {
+    // PostgREST 벌크 insert 는 행마다 키가 같아야 한다 — 키 집합별로 나눈다
+    const groups = new Map();
+    for (const row of rows) {
+      const k = Object.keys(row).sort().join(",");
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(row);
+    }
+    for (const batch of groups.values()) {
+      const r = await fetch(`${API}/rest/v1/${table}?on_conflict=${conflict}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(batch),
+      });
+      if (!r.ok) {
+        console.log(`✗ 넘침 씨앗 실패: ${table} — ${r.status} ${await r.text()}`);
+        process.exit(1);
+      }
+    }
+  }
+}
 
 async function login(page) {
   await page.goto(`${APP}/login`, { waitUntil: "networkidle", timeout: 90000 });
@@ -61,20 +138,14 @@ async function offenders(page) {
 }
 
 let bad = 0;
-const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox"] });
-try {
-  const ctx = await browser.newContext({ viewport: PHONE });
-  await ctx.addCookies([{ name: "panel3", value: "on", url: APP }]);
-  const page = await ctx.newPage();
-  await login(page);
-  await page.goto(`${APP}/today?d=${D}`, { waitUntil: "networkidle", timeout: 90000 });
 
-  const card = page.locator('.card:has(.grouphead:has-text("골든반"))').first();
+async function measure(page, group, student) {
+  const card = page.locator(`.card:has(.grouphead:has-text("${group}"))`).first();
   if (!(await card.count())) {
-    console.log("✗ 골든반 카드가 없습니다 — run.sh 에서 골든 뒤에 돌아야 합니다");
+    console.log(`✗ 「${group}」 카드가 없습니다 — 씨앗이 판에 안 섰습니다`);
     process.exit(1);
   }
-  const row = card.locator('.stuRow:has-text("골든하나")').first();
+  const row = card.locator(`.stuRow:has-text("${student}")`).first();
   if (!(await row.isVisible().catch(() => false))) {
     await card.locator(".grouphead").click();
     await page.waitForTimeout(400);
@@ -85,22 +156,37 @@ try {
   await page.waitForLoadState("networkidle").catch(() => {});
   await page.waitForTimeout(1500);
 
-  console.log("== 폰 폭 가로 넘침 (390px · 골든하나 판) ==");
   for (const tab of ["검사", "수업", "다음"]) {
     await panel.getByRole("button", { name: tab, exact: true }).first().click()
       .catch(() => {});
     await page.waitForTimeout(600);
     const { W, doc, list } = await offenders(page);
     if (list.length === 0) {
-      console.log(`  ${tab} 탭 — 넘침 없음 (문서 ${doc} / 화면 ${W})`);
+      console.log(`  ${student} · ${tab} 탭 — 넘침 없음 (문서 ${doc} / 화면 ${W})`);
       continue;
     }
     bad++;
-    console.log(`  ✗ ${tab} 탭 — 문서 ${doc}px > 화면 ${W}px. 넘은 요소:`);
+    console.log(`  ✗ ${student} · ${tab} 탭 — 문서 ${doc}px > 화면 ${W}px. 넘은 요소:`);
     for (const o of list) {
       console.log(`      <${o.tag} class="${o.cls}"> 오른끝 ${o.right} 폭 ${o.width} — 「${o.text}」`);
     }
   }
+  await row.getByRole("button", { name: "▾ 닫기" }).click().catch(() => {});
+  await page.waitForTimeout(300);
+}
+
+await plant();
+const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox"] });
+try {
+  const ctx = await browser.newContext({ viewport: PHONE });
+  await ctx.addCookies([{ name: "panel3", value: "on", url: APP }]);
+  const page = await ctx.newPage();
+  await login(page);
+  await page.goto(`${APP}/today?d=${D}`, { waitUntil: "networkidle", timeout: 90000 });
+
+  console.log("== 폰 폭 가로 넘침 (390px) ==");
+  await measure(page, "골든반", "골든하나");     // 가벼운 판 — 기준선
+  await measure(page, "넘침반", "넘침학생");     // 원장 실물 모양 재현
 } finally {
   await browser.close();
 }
