@@ -68,8 +68,9 @@ jobs:
         run: sudo -E env "PATH=$PATH" bash scripts/e2e/run.sh
 
       # 박제 모드에서 뜬 골든 — 내려받아 커밋한다 (golden-dayboard.mjs 머리말)
+      # 박제 뒤의 다른 검사가 빨개져도 골든은 이미 떠 있다 — 버리지 않는다
       - name: 골든 아티팩트
-        if: inputs.golden_update
+        if: inputs.golden_update && !cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: dayboard-golden
