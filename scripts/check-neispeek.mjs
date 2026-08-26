@@ -20,7 +20,10 @@ import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { transform } from "next/dist/build/swc/index.js";
+import { transform, loadBindings } from "next/dist/build/swc/index.js";
+// Next 16 부터 SWC 바인딩이 지연 로딩이라 먼저 불러와야 한다 —
+// 안 부르면 transform 이 "bindings not loaded yet" 으로 죽는다.
+await loadBindings();
 
 let fail = 0;
 const ok = (cond, what) => {
