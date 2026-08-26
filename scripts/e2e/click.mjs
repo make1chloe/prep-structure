@@ -186,6 +186,24 @@ try {
     bad("/tuition 특강", e.message.split("\n")[0]);
   }
 
+  // ── 2-2) 특강 수업일이 월간에 서나 (6단계 — 씨앗 ②) ────────
+  //
+  // 최특강은 정규 판이 0인데 특강(매일)만으로 「총 N회 수업」 이 서야 한다.
+  // 특강일이 안 실리면 이 학생은 월간 명단에서 통째로 빠진다 (sum.days 0).
+  console.log("\n== 특강 수업일이 월간에 서나 ==");
+  try {
+    const errs = watch(page);
+    await page.goto(`${APP}/monthly`, { waitUntil: "networkidle", timeout: 30000 });
+    const text = (await page.locator("main").innerText().catch(() => "")) || "";
+    if (!text.includes("최특강")) {
+      bad("/monthly 특강", "최특강이 월간 명단에 없습니다 (특강일이 총회수에 안 실림)");
+    } else console.log("  최특강 — 월간 명단에 있습니다");
+    if (errs.length) bad("/monthly 특강", errs.slice(0, 2).join(" / "));
+    page.removeAllListeners();
+  } catch (e) {
+    bad("/monthly 특강", e.message.split("\n")[0]);
+  }
+
   // ── 3) 눌러본다 ────────────────────────────────────────────
   //
   // **누른 뒤 화면이 달라져야 한다.** 「눌렀는데 아무 일도 안 일어난다」 가
@@ -345,6 +363,10 @@ try {
   console.log("\n== 학부모 화면 ==");
   await eachPage("parent", ["/parent"]);
 
+  // ── 5-1) 특강 회차가 달력에 서나 (6단계 — 씨앗 ①②③) ─────
+  console.log("\n== 특강 회차가 달력에 서나 ==");
+  await extraCalendar();
+
   // ── 6) 오간 것이 서로에게 닿나 ────────────────────────────
   console.log("\n== 오간 것이 닿나 ==");
   await roundTrip();
@@ -381,6 +403,91 @@ async function eachPage(who, paths) {
   }
   await c.close();
   return p;
+}
+
+/**
+ * **특강 회차가 아이·어머니 달력에 서나** (특강 6단계 — 씨앗 ①②③).
+ *
+ *   ① 김서은(학생 세션): 정규는 월수금뿐이라, **목요일 칸의 회차**는
+ *      특강(내신 특강 — 월·목)이 달력에 오른 증거다. 학생 세션으로 보므로
+ *      읽기 규칙(0166)까지 함께 검사된다 — 원장 미리보기(선생님 권한)로는
+ *      절대 못 잡는 자리다 (0090 이 그렇게 몇 주를 놓쳤다).
+ *   ② 최특강(학부모 미리보기): 반 배정이 0인데 특강(매일)만으로 회차가
+ *      서야 한다.
+ *   ③ 다음 월요일 전체 휴강: 매일 특강인데도 **그 칸에는 회차가 없어야**
+ *      한다 — offSetFor 가 전체 휴강을 빼는지 (검토 T3).
+ */
+async function extraCalendar() {
+  // 날짜는 seed.sql 과 같은 식으로 여기서 직접 센다 (한국 시각)
+  const kstNow = new Date(Date.now() + 9 * 3600e3);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const today = iso(kstNow);
+  const plus = (n) => { const d = new Date(kstNow); d.setUTCDate(d.getUTCDate() + n); return iso(d); };
+  const isodow = (s) => { const w = new Date(`${s}T00:00:00Z`).getUTCDay(); return w === 0 ? 7 : w; };
+  const monday = plus((8 - isodow(today)) % 7);            // 씨앗 ③의 그 월요일
+  // 특강 기간(오늘±) 안에서 **이번 달** 목요일 하나 — 씨앗 ①의 특강 요일
+  let thursday = null;
+  for (let n = -7; n <= 21 && !thursday; n += 1) {
+    const d = plus(n);
+    if (isodow(d) === 4 && d.slice(0, 7) === today.slice(0, 7)) thursday = d;
+  }
+
+  /** 그 달력에서 「day일」 칸의 글자를 통째로 */
+  const cellText = (p, day) =>
+    p.evaluate((dd) => {
+      const hit = [...document.querySelectorAll(".cal-cell")].find((el) => {
+        const n = el.querySelector(".cal-day");
+        return n && n.textContent.trim() === String(dd);
+      });
+      return hit ? hit.innerText : null;
+    }, Number(day));
+  /** 달력이 monday 의 달을 보게 넘긴다 (기본은 이번 달) */
+  const showMonthOf = async (p, date) => {
+    if (date.slice(0, 7) === today.slice(0, 7)) return;
+    // 다른 카드(성장 그래프 등)에도 MonthNav 가 있을 수 있다 — 달력 카드로 못박는다
+    await p.locator(".card:has(.cal)").getByRole("button", { name: "▸" }).first().click();
+    await p.waitForTimeout(400);
+  };
+
+  // ① 학생 세션 — 목요일 회차 (특강이 달력에 오르나 + 0166 읽기 규칙)
+  try {
+    const c = await browser.newContext();
+    const p = await c.newPage();
+    await login(p, "student");
+    await p.goto(`${APP}/me`, { waitUntil: "networkidle", timeout: 30000 });
+    if (thursday) {
+      const t = (await cellText(p, thursday.slice(8, 10))) || "";
+      if (/회차/.test(t)) console.log(`  학생 달력 ${thursday} (목) — 특강 회차가 섰습니다`);
+      else bad("학생 달력 특강", `${thursday} (목) 칸에 회차가 없습니다 — 특강이 달력에 안 올랐거나 학생이 특강을 못 읽습니다(0166)`);
+    }
+    await c.close();
+  } catch (e) {
+    bad("학생 달력 특강", e.message.split("\n")[0]);
+  }
+
+  // ②③ 최특강 학부모 미리보기 — 매일 특강의 회차, 단 전체 휴강일은 비어야
+  try {
+    const c = await browser.newContext();
+    const p = await c.newPage();
+    await login(p, "principal");
+    await p.goto(`${APP}/parent?s=aaaaaaa1-0000-0000-0000-000000000003`, {
+      waitUntil: "networkidle", timeout: 30000,
+    });
+    const text = (await p.locator("main").innerText().catch(() => "")) || "";
+    if (!/회차/.test(text)) {
+      bad("최특강 달력", "반 배정 0인 특강 전용 학생의 달력에 회차가 하나도 없습니다");
+    } else console.log("  최특강 — 특강만으로 회차가 섰습니다");
+    await showMonthOf(p, monday);
+    const mt = await cellText(p, monday.slice(8, 10));
+    if (mt === null || !mt.includes("검사용 전체 휴강")) {
+      bad("최특강 달력", `${monday} 칸에서 씨앗 ③ 휴강을 못 찾았습니다`);
+    } else if (/회차/.test(mt)) {
+      bad("최특강 달력", `전체 휴강일 ${monday} 에 회차가 찍혔습니다 (offSetFor 가 안 먹음 — T3)`);
+    } else console.log(`  ${monday} 전체 휴강 — 그 칸엔 회차가 없습니다 (T3)`);
+    await c.close();
+  } catch (e) {
+    bad("최특강 달력", e.message.split("\n")[0]);
+  }
 }
 
 /**

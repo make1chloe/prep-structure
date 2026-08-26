@@ -38,7 +38,8 @@ import VideoList from "./VideoList";
 import DashCalendar from "@/app/DashCalendar";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
-import { loadClassesWithTerm } from "@/lib/classTerm";
+import { loadClassesWithTerm, meetsOn } from "@/lib/classTerm";
+import { toTermShape, extraDatesBy } from "@/lib/extraTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
 import { nextRoutine } from "@/app/today/routineActions";
@@ -190,6 +191,7 @@ export default async function MePage(props) {
     reports, subQ, reqQ1, stayQ, aq, attq, mineQ, nq, sessQ,
     monthRepsQ, myWarnQ, myCutQ, pastQ, recQ, asgQ, seenQ, guidesQ,
     notes, layouts, scoresQ, specQ, stateQ, itemById,
+    extraQ, exAbsQ, holMonthQ,
   ] = await Promise.all([
     loadReports(supabase, sid, todayStr, 6),
     supabase
@@ -282,6 +284,14 @@ export default async function MePage(props) {
       .eq("date", todayStr)
       .maybeSingle(),
     loadHomeworkItems(supabase),
+    // 내 특강 (0164 — 재원생 속성). 달력·이번 달 셈·수업 요일 판정에 쓴다.
+    // 0164 전 DB 면 error → 조용히 정규만 (다른 화면들과 같은 태도)
+    supabase
+      .from("student_extra_schedules")
+      .select("id, student_id, label, days, start_time, end_time, from_date, to_date, off_dates")
+      .eq("student_id", sid),
+    supabase.from("student_extra_absences").select("schedule_id, date, status"),
+    supabase.from("holidays").select("date, scope").gte("date", myFrom).lte("date", todayStr),
   ]);
 
   // 내가 낸 숙제 (0044 전이면 빈 값 — 화면은 그대로 뜬다)
@@ -462,14 +472,25 @@ export default async function MePage(props) {
       myClasses = await loadClassesWithTerm(
         supabase, "id, name, days, start_time, end_time", ids
       );
-      isClassDay = myClasses.some((c) => (c.days || []).includes(dowNow));
-      myClasses
-        .filter((c) => (c.days || []).includes(dowNow) && c.end_time)
-        .forEach((c) => {
-          const t = c.end_time.slice(0, 5);
-          if (!classEnd || t > classEnd) classEnd = t;
-        });
     }
+    // 특강(0164)도 내 수업이다 — 반 모양으로 바꿔 이어 붙인다 (lib/extraTerm).
+    // 지난 특강도 남긴다: 달력은 지나간 달도 그리고, 기간 판단은 inTermOn 이 한다.
+    // off_dates 는 달력의 offOf 갈래가 읽는다 (studentCalendar)
+    myClasses = [
+      ...myClasses,
+      ...(extraQ?.error ? [] : extraQ?.data || []).map((x) => ({
+        ...toTermShape(x), off_dates: x.off_dates || [],
+      })),
+    ];
+    // 요일만 보지 않고 meetsOn(기간 포함)으로 — 종강한 특강 요일이
+    // 등원·하원 버튼을 영원히 켜 두면 안 된다 (규칙은 classTerm 한 곳에)
+    isClassDay = myClasses.some((c) => meetsOn(c, todayStr, dowNow));
+    myClasses
+      .filter((c) => meetsOn(c, todayStr, dowNow) && c.end_time)
+      .forEach((c) => {
+        const t = c.end_time.slice(0, 5);
+        if (!classEnd || t > classEnd) classEnd = t;
+      });
   }
 
   /**
@@ -546,9 +567,20 @@ export default async function MePage(props) {
     if (!mItemsOf.has(i.daily_report_id)) mItemsOf.set(i.daily_report_id, []);
     mItemsOf.get(i.daily_report_id).push(i);
   });
+  // 특강(0164) 수업일도 이번 달에 넣는다 — 정규와 겹친 날은 summarize 가
+  // 리포트 날짜를 보고 한 번만 센다. 범위는 monthReps 와 같은 myFrom~오늘.
+  const myExtraDates =
+    extraDatesBy(
+      extraQ?.error ? [] : extraQ?.data || [],
+      myYm,
+      holMonthQ?.error ? [] : holMonthQ?.data || [],
+      exAbsQ?.error ? [] : exAbsQ?.data || [],
+      { from: myFrom, to: todayStr }
+    ).get(sid) || [];
   const monthSum = summarize(
     (monthReps || []).map((r) => ({ ...r, items: mItemsOf.get(r.id) || [] })),
-    []
+    [],
+    myExtraDates
   );
   // 통과선은 이 학생 것 → 없으면 설정 기본값 (0070 전이면 기본값만)
   const { data: myWarn } = myWarnQ;

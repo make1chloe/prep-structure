@@ -7,7 +7,8 @@ import { loadSettings, loadMessageParts } from "@/lib/settings";
 import { summarize, buildMonthlyText, monthLabel, offScheduleAbsences } from "@/lib/monthly";
 import { IN_APP_DETAIL } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
-import { endOfMonth } from "@/lib/day";
+import { endOfMonth, todaySeoul } from "@/lib/day";
+import { extraDatesBy } from "@/lib/extraTerm";
 import { takesExam } from "@/lib/who";
 import { needSql } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
@@ -120,6 +121,34 @@ export async function loadMonth(ym) {
     }));
   (eq.error ? [] : eq.data || []).forEach((e) => putExam(e));
 
+  // 특강(0164) 수업일 — 「총 N회 수업」 에 들어간다 (정규와 겹친 날은
+  // summarize 가 뺀다). 0164 전 DB 면 조회가 error → 조용히 정규만 센다.
+  // 지난달 것도 같이 만든다 — 한 줄 평의 「지난달 N회」 가 이번 달과
+  // 다른 잣대로 세어지면 견주는 말이 거짓이 된다.
+  const [exSchedQ, exHolQ, exAbsQ] = await Promise.all([
+    supabase
+      .from("student_extra_schedules")
+      .select("id, student_id, label, days, from_date, to_date, off_dates")
+      .lte("from_date", to)
+      .gte("to_date", `${pym}-01`),
+    supabase
+      .from("holidays")
+      .select("date, scope, class_id")
+      .gte("date", `${pym}-01`)
+      .lte("date", to),
+    supabase.from("student_extra_absences").select("schedule_id, date, status"),
+  ]);
+  const exScheds = exSchedQ.error ? [] : exSchedQ.data || [];
+  const exHols = exHolQ.error ? [] : exHolQ.data || [];
+  const exAbs = exAbsQ.error ? [] : exAbsQ.data || [];
+  // 이번 달은 **오늘까지만** — 리포트도 오늘까지만 있으니 같은 잣대여야 한다
+  const capTo = to < todaySeoul() ? to : todaySeoul();
+  const extraDatesOf = extraDatesBy(exScheds, ym, exHols, exAbs, { from, to: capTo });
+  const prevExtraDatesOf = extraDatesBy(exScheds, pym, exHols, exAbs, {
+    from: `${pym}-01`,
+    to: endOfMonth(pym),
+  });
+
   // 학교 시험 일정 — 시험 때문에 빠진 것과 그 밖의 이유로 빠진 것을 가른다.
   // 둘을 같이 세면 "시험이라 빠졌는데 왜 지적하냐" 가 되어 말에 힘이 없어진다.
   let ep = await supabase
@@ -152,7 +181,7 @@ export async function loadMonth(ym) {
         .filter((r) => r.student_id === s.id)
         .map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }))
         .sort((a, b) => a.date.localeCompare(b.date));
-      const sum = summarize(mineReports, examsOf.get(s.id) || []);
+      const sum = summarize(mineReports, examsOf.get(s.id) || [], extraDatesOf.get(s.id) || []);
       // 이 학생 학교(학년)의 시험 기간만 본다
       sum.offSchedule = offScheduleAbsences(
         mineReports,
@@ -163,7 +192,8 @@ export async function loadMonth(ym) {
       const before = prevReports
         .filter((r) => r.student_id === s.id)
         .map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }));
-      const prev = before.length >= 3 ? summarize(before, []) : null;
+      const prev =
+        before.length >= 3 ? summarize(before, [], prevExtraDatesOf.get(s.id) || []) : null;
 
       const saved = mine.get(s.id);
       // 학부모에게 성적이 비공개인 아이 — 자동 문구에서 점수 절을 뺀다 (P0-1)

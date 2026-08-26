@@ -6,7 +6,8 @@ import { unitOptions } from "@/lib/unitTree";
 import { pushToStudents, pushToFamilies } from "@/app/push/actions";
 import { queuePush } from "@/lib/pushQueue";
 import { safeKind, isAlert } from "@/lib/notices";
-import { dowOf, todaySeoul, addDays } from "@/lib/day";
+import { todaySeoul, addDays } from "@/lib/day";
+import { rosterOn } from "@/lib/roster";
 import { openAnswers } from "@/lib/answers";
 import { checkMany } from "@/lib/checkWrite";
 import { planMany } from "@/lib/planWrite";
@@ -618,17 +619,11 @@ export async function reopenReport(studentId, date) {
 // ============================================================
 
 
-async function rosterOf(supabase, date) {
-  const dow = dowOf(date);
-  const { data: classes } = await supabase.from("classes").select("id, days");
-  const ids = (classes || []).filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
-  if (ids.length === 0) return [];
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id")
-    .in("class_id", ids);
-  return members || [];
-}
+// 「그날 오는 학생」 은 lib/roster 한 곳이 정한다 — 특강(0164) 학생을
+// 포함하고, 종강한 반은 뺀다 (전에는 여기서 요일만 봐서 종강한 반
+// 학생이 공지 대상에 계속 남았다). scope==="class" 는 uuid 로 거르므로
+// 특강 그룹(extra:라벨)은 안 잡는다 — 8단계 전까지는 그게 맞다.
+const rosterOf = rosterOn;
 
 export async function createNotice(input) {
   const { date, kind, scope, classId, school, grade, studentIds, body, title } = input || {};
