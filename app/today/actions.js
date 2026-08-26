@@ -9,10 +9,10 @@ import { safeKind, isAlert } from "@/lib/notices";
 import { dowOf, todaySeoul, addDays } from "@/lib/day";
 import { openAnswers } from "@/lib/answers";
 import { checkMany } from "@/lib/checkWrite";
+import { planMany } from "@/lib/planWrite";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
-import { evenRows } from "@/lib/rows";
 import { sessionUser } from "@/lib/session";
 // 회독·되돌리기 금지 규칙째로 재사용한다 (원칙 1 — 같은 판단을 두 벌 안 만든다)
 import { applyCheckProgress } from "@/lib/checkProgress";
@@ -369,6 +369,25 @@ export async function saveStudentDay(studentId, date, form) {
       nextIds = nextIds.filter((id) => !dead.has(id));
     }
   }
+  // 지워진 **단원** 이름표도 저장을 통째로 죽인다 (textbook_unit_id FK —
+  // 배정줄수술 v2 §3 미보호 FK. RPC 는 전부-또는-무라 하나가 전체를
+  // 물귀신한다). 항목은 살리고 죽은 단원만 뺀다.
+  {
+    const uids = [...new Set(nextIds.flatMap((id) => nextUnitsIn[id]?.unitIds || []))]
+      .filter((id) => UUID.test(id));
+    if (uids.length) {
+      const { data: urows } = await supabase
+        .from("textbook_units").select("id").in("id", uids);
+      const ualive = new Set((urows || []).map((x) => x.id));
+      const deadU = new Set(uids.filter((id) => !ualive.has(id)));
+      if (deadU.size) {
+        for (const id of nextIds) {
+          const u = nextUnitsIn[id];
+          if (u?.unitIds?.length) u.unitIds = u.unitIds.filter((x) => !deadU.has(x));
+        }
+      }
+    }
+  }
   // 오늘 목록이 실제로 바뀌었는지 — 바뀌면 학생에게 알림 (원장님 2026-08-20
   // 「내가 뭔가 바꾸고 저장하면 학생에게 알람이 가야 해」)
   const { data: oldInclassRows } = await supabase
@@ -379,61 +398,11 @@ export async function saveStudentDay(studentId, date, form) {
   const oldInclass = (oldInclassRows || [])
     .sort((a, b) => (a.inclass_sort ?? 999) - (b.inclass_sort ?? 999))
     .map((x) => x.homework_item_id);
-  // 학생이 눌러둔 '학습 완료' 는 지우고 다시 넣어도 살려야 한다.
-  // (검사 3상태 행은 이제 안 지워지니 이 맵의 소관이 아니다 — 등원
-  //  학습(inclass) 등 여전히 지우고-다시넣는 그룹의 「다 했어요」 몫)
-  const { data: keepDone } = await supabase
-    .from("daily_report_items")
-    .select("homework_item_id, status, student_done_at")
-    .eq("daily_report_id", report.id)
-    .not("student_done_at", "is", null);
-  const doneAt = new Map(
-    (keepDone || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.student_done_at])
-  );
-  // (조교 검사 메모를 살리던 keepNote 붕대는 0163 과 함께 소멸 — 검사행이
-  //  안 지워지고, RPC 의 note null=유지 계약이 그 일을 원인째 대신한다)
+  // (keepDone·before/had/hadAny 스냅샷·복구 원본은 0165 plan_many 와
+  //  함께 소멸 — 목록 3그룹이 제자리에서 고쳐지니 살려 옮길 것도
+  //  되살릴 것도 없고, changed_at 판정은 RPC 가 delete 전에 스스로
+  //  확정한다. 배정줄수술 v2 §4-C2)
 
-  // **무엇이 바뀌었는지 알려면 무엇이 있었는지 먼저 봐야 한다.**
-  //   저장할 때마다 통째로 지우고 다시 넣기 때문에, 지우기 전에 적어둔다.
-  //   그래야 「이 줄은 원래 있던 것」 과 「이번에 새로 생긴 것」 을 가를 수 있다.
-  // 복구 원본이기도 하다 (#13) — 삽입이 실패하면 이 행들을 그대로
-  // 되살린다. 그래서 판정에 쓰는 칸만이 아니라 **전 칸**을 읽는다.
-  let { data: before, error: befErr } = await supabase
-    .from("daily_report_items")
-    .select("id, homework_item_id, status, textbook_unit_ids, textbook_unit_id, range_note, changed_at, check_note, student_done_at, inclass_sort, carry_next")
-    .eq("daily_report_id", report.id);
-  if (befErr) {
-    // 옛 DB(칸 부족) — 판정용 최소 칸으로 물러난다 (복구 정밀도만 준다)
-    ({ data: before } = await supabase
-      .from("daily_report_items")
-      .select("homework_item_id, status, textbook_unit_ids, range_note, changed_at")
-      .eq("daily_report_id", report.id));
-  }
-  const had = new Map(
-    (before || []).map((x) => [`${x.homework_item_id}|${x.status}`, x])
-  );
-  // 이 리포트에 숙제가 한 번이라도 들어간 적이 있나.
-  // 처음 주는 숙제는 「바뀐 것」 이 아니다 — 그날 원래 받은 것이다.
-  const hadAny = (before || []).some((x) => x.status === "assigned");
-
-  // **이번 저장이 실제로 들고 온 그룹만 지운다** (0잔여-A #13) — 전량
-  // 삭제는 조교가 그 사이 적은 다른 그룹까지 지웠다. 그룹 판정은 payload
-  // 행 수가 아니라 **form 키의 존재**다 — 전부 비우는 저장(다 뺀 것)도
-  // 지워져야 하니까. (판 화면은 넷 다 항상 보낸다 — 동작 불변.)
-  // 검사 3상태는 여기 없다 — 검사행은 지우지 않고 제자리에서 고친다
-  // (0163 check_many). 지우기(칩 재클릭)도 RPC 의 status null 이 맡는다.
-  const delStatuses = [];
-  if (form.inClass) delStatuses.push("inclass");
-  if (form.planNext) delStatuses.push("plan_next");
-  if (form.nextHomework) delStatuses.push("assigned");
-  if (delStatuses.length) {
-    const { error: delErr } = await supabase
-      .from("daily_report_items")
-      .delete()
-      .eq("daily_report_id", report.id)
-      .in("status", delStatuses);
-    if (delErr) return { error: delErr.message };
-  }
 
   // ── 검사 쓰기 = check_many 한 문 (0163 — 계획서 v2 §2-4-①) ──
   //
@@ -456,125 +425,43 @@ export async function saveStudentDay(studentId, date, form) {
     }
   }
 
-  // 배정한 숙제에 붙은 단원/범위 { [homework_item_id]: { unitId, note } }
+  // ── 목록 3그룹 = plan_many 한 문 (0165 — 배정줄수술 v2 §2) ──
+  //
+  // form 키 존재 = 그 그룹 전체 교체(키 없음 = 무접촉 — 결석 기록처럼
+  // 출결만 만지는 저장은 배정을 스치지도 않는다). 행이 제자리라 제출물
+  // 소속·학생 「다 했어요」 가 저장에도 살고, changed_at 은 RPC 가
+  // delete 전에 확정한다. 실패는 전부-또는-무 — 복구 코드가 필요 없다.
   const units = nextUnitsIn;   // 급한 숙제(quickHomework)의 범위 메모까지 합친 한 벌
-  const payload = [
-    // 오늘 학원에서 할 것 — 차례(0140)와 「다음 수업에 계속」 표시까지
-    ...inClassIds.map((homework_item_id, i) => ({
-      daily_report_id: report.id,
-      homework_item_id,
-      status: "inclass",
-      inclass_sort: i,
-      carry_next: Array.isArray(form.carryNext) && form.carryNext.includes(homework_item_id),
-    })),
-    // 다음 수업 계획 (plan_next) — 다음 수업의 등원 목록에 미리 선다
-    ...planNextIds.map((homework_item_id, i) => ({
-      daily_report_id: report.id,
-      homework_item_id,
-      status: "plan_next",
-      inclass_sort: i,
-    })),
-    // 다음 수업에 검사할 숙제 배정 (교재 단원과 함께)
-    ...nextIds.map((homework_item_id) => ({
-      daily_report_id: report.id,
-      homework_item_id,
-      status: "assigned",
-      // 대표 단원 1개 + 전체 목록 (여러 단원 배정)
-      textbook_unit_id: (units[homework_item_id]?.unitIds || [])[0] || null,
-      textbook_unit_ids: (units[homework_item_id]?.unitIds || []).length
-        ? units[homework_item_id].unitIds
-        : null,
-      range_note: (units[homework_item_id]?.note || "").trim() || null,
-    })),
-  ];
-  // 새로 생겼거나 범위가 달라진 줄에만 「바뀐 시각」 을 찍는다.
-  // 안 바뀐 줄은 **원래 있던 시각을 그대로** 들고 간다 — 그러지 않으면
-  // 저장을 한 번 더 누르는 것만으로 목록 전체가 「바뀜」 이 된다.
-  const changedNames = [];
-  payload.forEach((r) => {
-    const at = doneAt.get(`${r.homework_item_id}|${r.status}`);
-    if (at) r.student_done_at = at;
-    if (r.status !== "assigned") return;
-    const old = had.get(`${r.homework_item_id}|assigned`);
-    const same =
-      old &&
-      (old.range_note || "") === (r.range_note || "") &&
-      JSON.stringify(old.textbook_unit_ids || []) === JSON.stringify(r.textbook_unit_ids || []);
-    if (same) {
-      r.changed_at = old.changed_at || null;
-      return;
+  let changedNames = [];
+  {
+    const groups = {};
+    if (form.inClass) {
+      groups.inclass = inClassIds.map((homework_item_id, i2) => ({
+        item_id: homework_item_id,
+        sort: i2,
+        carry_next: Array.isArray(form.carryNext) && form.carryNext.includes(homework_item_id),
+      }));
     }
-    if (!hadAny) return;                    // 그날 처음 주는 숙제
-    r.changed_at = new Date().toISOString();
-    changedNames.push(r.homework_item_id);
-  });
-
-  /**
-   * **줄마다 칸을 같은 벌로 맞춘다** (원장님 8/24 — 폰에서 임시저장이 터졌다).
-   * 등원 학습 줄만 들고 있는 `carry_next` 가 나머지 줄에서는 NULL 로 채워져
-   * `not null` 에 걸렸다. 왜 이제야 터졌나 — 등원 학습과 숙제가 **둘 다**
-   * 있어야만 나는 오류라서 며칠을 숨어 있었다.
-   */
-  const rows = evenRows(payload, { carry_next: false });
-
-  if (rows.length > 0) {
-    let { error } = await supabase.from("daily_report_items").insert(rows);
-    if (noColumn(error)) {
-      // 0140 전이면 차례·이월 칸이 없다
-      ({ error } = await supabase
-        .from("daily_report_items")
-        .insert(rows.map(({ inclass_sort, carry_next, ...rest }) => rest)));
+    if (form.planNext) {
+      groups.plan_next = planNextIds.map((homework_item_id, i2) => ({
+        item_id: homework_item_id,
+        sort: i2,
+      }));
     }
-    if (noColumn(error)) {
-      // 0062 전이면 검사 메모 칸이 없다
-      ({ error } = await supabase
-        .from("daily_report_items")
-        .insert(rows.map(({ check_note, ...rest }) => rest)));
+    if (form.nextHomework) {
+      groups.assigned = nextIds.map((homework_item_id) => ({
+        item_id: homework_item_id,
+        unit_id: (units[homework_item_id]?.unitIds || [])[0] || null,
+        unit_ids: (units[homework_item_id]?.unitIds || []).length
+          ? units[homework_item_id].unitIds
+          : null,
+        range_note: (units[homework_item_id]?.note || "").trim() || null,
+      }));
     }
-    if (noColumn(error)) {
-      // 0087 전이면 「바뀐 시각」 칸이 없다
-      ({ error } = await supabase
-        .from("daily_report_items")
-        .insert(rows.map(({ changed_at, ...rest }) => rest)));
-    }
-    if (noColumn(error)) {
-      // 0034 전이면 학생 완료 표시 없이
-      ({ error } = await supabase
-        .from("daily_report_items")
-        .insert(rows.map(({ student_done_at, ...rest }) => rest)));
-    }
-    if (noColumn(error)) {
-      // 0009 전이면 단원 1개만, 0008 전이면 단원 없이 저장
-      const noArray = rows.map(({ textbook_unit_ids, ...rest }) => rest);
-      ({ error } = await supabase.from("daily_report_items").insert(noArray));
-      if (noColumn(error)) {
-        const bare = noArray.map(({ textbook_unit_id, range_note, ...rest }) => rest);
-        ({ error } = await supabase.from("daily_report_items").insert(bare));
-      }
-    }
-    if (error) {
-      // **전멸 방지** (#13) — 삭제는 이미 됐는데 삽입이 실패하면 그날
-      // 기록이 통째로 사라진다(8/24 FK·carry_next 사고의 그 구간).
-      // 지웠던 행을 있는 그대로 되살리고 오류를 알린다. (id 까지 살려
-      // 넣는다 — 같은 id 면 다른 참조가 덜 어긋난다.)
-      try {
-        // 이번에 지운 그룹만 되살린다 — 명시 화이트리스트 (검사 3상태는
-        // delete 대상이 아니니 복구 대상도 아니고, delStatuses 가 비면
-        // 지운 것이 없으니 복구도 0 이어야 한다 — 옛 「빈 목록 = 전량
-        // 재삽입」 함정 제거, 검토 G-2)
-        const restore = (before || [])
-          .filter((b) => delStatuses.includes(b.status))
-          .map((b) => ({ ...b, daily_report_id: report.id }));
-        if (restore.length) {
-          let r = await supabase.from("daily_report_items").insert(restore);
-          if (noColumn(r.error)) {
-            await supabase.from("daily_report_items").insert(
-              restore.map(({ id: _i, check_note, student_done_at, inclass_sort, carry_next, textbook_unit_id, ...rest }) => rest)
-            );
-          }
-        }
-      } catch { /* 복구 실패 — 원래 오류를 그대로 알린다 */ }
-      return { error: error.message };
+    if (Object.keys(groups).length) {
+      const r = await planMany(supabase, report.id, groups);
+      if (r.error) return { error: r.error };
+      changedNames = r.changed || [];
     }
   }
 
