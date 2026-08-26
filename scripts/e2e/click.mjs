@@ -373,6 +373,11 @@ async function roundTrip() {
   let sent = false;
   try {
     await pp.goto(`${APP}/parent`, { waitUntil: "networkidle" });
+    // 첫 방문에는 「화면 소개」 안내판이 화면을 덮는다 (SectionNav) —
+    // 진짜 어머니가 하시는 그대로, 먼저 닫고 들어간다. 안 닫으면
+    // 아래 어떤 단추도 안 눌린다 (4판 실측: introwrap 이 클릭을 가로챔)
+    const intro = pp.getByRole("button", { name: /볼 필요 없음/ }).first();
+    if (await intro.count()) { await intro.click(); await pp.waitForTimeout(300); }
     // 알림 칸은 접혀 있다 — 늘 펴져 있으면 첫 화면이 입력칸으로 시작한다
     await pp.getByRole("button", { name: "알리기", exact: true }).first().click();
     await pp.waitForTimeout(400);
