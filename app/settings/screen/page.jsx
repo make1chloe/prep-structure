@@ -46,7 +46,7 @@ export default async function ScreenSettingsPage() {
         </div>
 
         <div className="stack" style={{ gap: 12 }}>
-          <HelpBox on={helpOn()} />
+          <HelpBox on={await helpOn()} />
           <MenuBox profile={profile} />
           {/* 화면 안의 덩어리 차례 (0095). 메뉴 순서와는 다른 이야기라 따로 둔다 —
               메뉴는 「어디로 가나」 고, 이것은 「가서 무엇을 먼저 보나」 다.
