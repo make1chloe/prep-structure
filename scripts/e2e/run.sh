@@ -96,5 +96,12 @@ node scripts/e2e/check-roster.mjs || exit $?
 # **학교 홈페이지에서 가져오기** (2026-08-11). 붙여넣은 표를 그대로 읽는지,
 # 나이스를 못 물어봤을 때 「다 있습니다」 라고 하지 않는지 — 화면으로 본다.
 echo
-OUT=/var/tmp node scripts/e2e/homepage-shot.mjs
+OUT=/var/tmp node scripts/e2e/homepage-shot.mjs || exit $?
+
+# **오늘 수업 판 골든** (대전제 v22 ⓑ — C6 배치 공사 전 판정·내용 박제).
+# 자기 씨앗을 REST 로 심으므로 **맨 끝**에 둔다 — 앞 검사들이 그 씨앗을
+# 못 보게. 골든 파일이 커밋에 없으면 빨강, 갱신은 GOLDEN_UPDATE=1 로만
+# (CI 에서는 workflow_dispatch 의 golden_update 입력).
+echo
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/golden-dayboard.mjs
 exit $?

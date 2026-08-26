@@ -13,6 +13,15 @@
 name: e2e
 on:
   workflow_dispatch:
+    inputs:
+      # **골든 박제는 여기로만 켠다** (golden-dayboard.mjs 머리말 — 「골든
+      # 없음 → 자동 생성 → 초록」 이 상시 경로가 되면 검사가 죽는다).
+      # 켜고 돌리면 골든 JSON 이 아티팩트(dayboard-golden)로 나온다 —
+      # 내려받아 scripts/e2e/golden/dayboard.json 으로 커밋해야 비교가 선다.
+      golden_update:
+        description: "오늘 수업 판 골든을 새로 박제 (아티팩트로 내려받아 커밋)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -53,7 +62,18 @@ jobs:
       # run.sh 는 root 를 전제한다(su postgres·chown). 러너의 node PATH 를
       # 들고 root 로 들어간다.
       - name: e2e (세우고·띄우고·눌러보고)
+        env:
+          # sudo -E 가 이 값을 run.sh → golden-dayboard.mjs 까지 나른다
+          GOLDEN_UPDATE: ${{ inputs.golden_update && '1' || '' }}
         run: sudo -E env "PATH=$PATH" bash scripts/e2e/run.sh
+
+      # 박제 모드에서 뜬 골든 — 내려받아 커밋한다 (golden-dayboard.mjs 머리말)
+      - name: 골든 아티팩트
+        if: inputs.golden_update
+        uses: actions/upload-artifact@v4
+        with:
+          name: dayboard-golden
+          path: scripts/e2e/golden/dayboard.json
 
       - name: 실패 로그
         if: failure()
