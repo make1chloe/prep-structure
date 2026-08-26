@@ -386,7 +386,13 @@ async function roundTrip() {
     await pp.locator("textarea").first().fill(`${stamp} 병원 때문에 늦습니다`);
     await pp.getByRole("button", { name: /보내기/ }).first().click();
     await pp.waitForTimeout(2000);
-    sent = true;
+    // **보낸 것이 내 목록에 남았나** — 여기 없으면 저장부터 실패한 것이라
+    // 대시보드를 보러 갈 이유가 없다 (5판: 대시보드에 안 떠서 갈랐다)
+    const mine = await pp.locator("main").innerText();
+    if (!mine.includes(stamp)) {
+      bad("학부모가 보내기", "눌렀는데 내 목록에 안 남았습니다 (저장 실패)");
+      await pp.screenshot({ path: "/var/tmp/e2e-parent-fail.png", fullPage: true }).catch(() => {});
+    } else sent = true;
   } catch (e) {
     // 첫 줄만 찍으면 「Timeout」 만 남고 어느 단추였는지가 사라진다 —
     // 원격(Actions)에서는 다시 눌러볼 수 없으니 호출 기록까지 남긴다.
@@ -405,7 +411,12 @@ async function roundTrip() {
     await p.goto(`${APP}/`, { waitUntil: "networkidle" });
     const body = await p.locator("main").innerText();
     if (body.includes(stamp)) console.log("  학부모 → 원장 (알림이 대시보드에 떴습니다)");
-    else bad("학부모 → 원장", "보냈는데 대시보드에 안 뜹니다");
+    else {
+      // 학부모 쪽에는 남았는데 여기 없다 — 대시보드가 잃는 쪽이다.
+      // 「학부모 알림」 배지조차 없는지까지 갈라 적는다 (0건 조회 vs 접힘)
+      bad("학부모 → 원장", `보냈는데 대시보드에 안 뜹니다 (배지 ${body.includes("학부모 알림") ? "있음 — 접힘/본문 누락" : "없음 — 조회 0건"})`);
+      await p.screenshot({ path: "/var/tmp/e2e-dash-fail.png", fullPage: true }).catch(() => {});
+    }
     await c.close();
   }
 
