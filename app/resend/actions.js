@@ -82,17 +82,19 @@ export async function resend(items, kind, supa = null) {
   // 학생 id 를 같이 넘겨달라고 하면 언젠가 한 군데가 빠뜨린다 —
   // 그러면 그 화면에서 보낸 것만 조용히 알림이 안 간다.
   const owner = new Map();
+  // 본문 폴백 (2026-08-21) — 「보낼 것」·예약 발송은 {id} 만 넘겨서 발송
+  // 이력 body 가 빈칸으로 남았다. **이 문자 종류의** 고쳐 둔 문구라도
+  // 싣는다 — report_text 로 고정하면 숙제·하원 문자에 리포트 본문이 실린다
+  const textCol = kindOf(k).text;
   {
     const { data } = await supabase
       .from("daily_reports")
-      .select("id, student_id, date, report_text")
+      .select(`id, student_id, date, ${textCol}`)
       .in("id", list.map((x) => x.id));
     (data || []).forEach((r) => owner.set(r.id, r));
   }
   const studentOf = (x) => owner.get(x.id)?.student_id || null;
-  // 본문 폴백 (2026-08-21) — 「보낼 것」·예약 발송은 {id} 만 넘겨서 발송
-  // 이력 body 가 빈칸으로 남았다. 고쳐 둔 문구(report_text)라도 싣는다
-  const bodyOf = (x) => x.body || owner.get(x.id)?.report_text || "";
+  const bodyOf = (x) => x.body || owner.get(x.id)?.[textCol] || "";
 
   // 늦은 귀가 안내만 앱에 자기 자리가 없다 — 공지로 올린다
   if (k === "late") {
