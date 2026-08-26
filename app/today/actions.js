@@ -372,6 +372,21 @@ export async function saveStudentDay(studentId, date, form) {
   const doneAt = new Map(
     (keepDone || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.student_done_at])
   );
+  // 조교가 /check 에서 단 검사 메모도 남의 칸이다 — 판 화면은 클카 근거가
+  // 있을 때만 메모를 보내므로, 안 보낸 항목의 옛 메모까지 지우면 안 된다.
+  let keepNote = new Map();
+  {
+    const { data: notes, error: noteErr } = await supabase
+      .from("daily_report_items")
+      .select("homework_item_id, status, check_note")
+      .eq("daily_report_id", report.id)
+      .not("check_note", "is", null);
+    if (!noteErr) {
+      keepNote = new Map(
+        (notes || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.check_note])
+      );
+    }
+  }
 
   // **무엇이 바뀌었는지 알려면 무엇이 있었는지 먼저 봐야 한다.**
   //   저장할 때마다 통째로 지우고 다시 넣기 때문에, 지우기 전에 적어둔다.
@@ -405,7 +420,10 @@ export async function saveStudentDay(studentId, date, form) {
         daily_report_id: report.id,
         homework_item_id,
         status,
-        check_note: (checkNotes[homework_item_id] || "").trim() || null,
+        check_note:
+          (checkNotes[homework_item_id] || "").trim() ||
+          keepNote.get(`${homework_item_id}|${status}`) ||
+          null,
       })),
     // 오늘 학원에서 할 것 — 차례(0140)와 「다음 수업에 계속」 표시까지
     ...inClassIds.map((homework_item_id, i) => ({
