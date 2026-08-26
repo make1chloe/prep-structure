@@ -34,6 +34,10 @@ const jwt = sign({ sub: STAFF, role: "authenticated" });
 const supabase = createClient(API, jwt, {
   auth: { persistSession: false, autoRefreshToken: false },
   global: { headers: { Authorization: `Bearer ${jwt}` } },
+  // CI 는 Node 20 — 네이티브 WebSocket 이 없어 기본 탐지가 생성자에서
+  // 죽는다. 이 검사는 실시간을 안 쓰므로 빈 껍데기로 탐지를 끈다
+  // (realtime-js 는 transport 가 있으면 탐지 자체를 안 한다).
+  realtime: { transport: class {} },
 });
 // 임시 줄 만들기·치우기는 check-rpc 의 rest 헬퍼 그대로
 async function rest(method, path, body) {
