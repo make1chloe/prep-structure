@@ -76,12 +76,20 @@ export async function purgeOncePerDay(days = KEEP_DAYS) {
   const res = await purgeOldSubmissions(days);
   const bin = await purgeArchivedReports();   // 휴지통 30일 (0168)
 
+  // 제출물 ↔ 검사 줄 연결 백업도 같은 파도에서 하루 한 번 (0172).
+  // 함수가 아직 없으면(0172 전) 조용히 넘어간다 — 정리가 막히면 안 된다
+  const link = await supabase.rpc("backup_submission_links");
+
   // 실패해도 오늘은 더 안 돈다 — 화면 열 때마다 같은 실패를 반복할 이유가 없다
   await supabase.from("integrations").upsert(
     {
       id: "purge",
       enabled: true,
-      config: { lastRun: today, count: res.count, binCount: bin.count, error: res.error || null },
+      config: {
+        lastRun: today, count: res.count, binCount: bin.count,
+        linkBackup: link.error ? null : link.data,
+        error: res.error || null,
+      },
     },
     { onConflict: "id" }
   );
