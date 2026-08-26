@@ -234,12 +234,12 @@ export default function PlanBoard({
                             onClick={() => {
                               setDoneMk((prev) => new Set(prev).add(key));
                               startTransition(async () => {
+                                // 빈 items·nextHomework 를 보내면 그날
+                                // 검사·배정이 전체 교체로 지워진다 (검토
+                                // 중대6) — 출결만 만지므로 안 보낸다
                                 const res = await saveStudentDay(r.student_id, r.date, {
                                   attendance: "makeup",
                                   notice: "",
-                                  items: {},
-                                  toCheck: [],
-                                  nextHomework: [],
                                 });
                                 if (res?.error) {
                                   setDoneMk((prev) => { const n = new Set(prev); n.delete(key); return n; });

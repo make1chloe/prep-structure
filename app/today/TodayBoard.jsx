@@ -171,12 +171,13 @@ export default function TodayBoard({
     const k = optKey(studentId, extraClassId);
     setOptWrote((m) => ({ ...m, [k]: true }));  // 「결석 기록」 단추도 그 자리에서 사라진다
     startTransition(async () => {
+      // items·nextHomework 키를 보내면 「그 그룹 전체 교체」 라서, 빈
+      // 값이면 그날 검사·배정이 통째로 지워진다 (배정줄 계획서 검토
+      // 중대6 실측 — 결석 기록이 그날 배정을 전멸시키던 출혈). 결석
+      // 기록은 출결·안내만 만지므로 그 키들을 아예 안 보낸다.
       const res = await saveStudentDay(studentId, date, {
         attendance: "absent",
         notice: reason ? `${reason}로 결석했습니다.` : "",
-        items: {},
-        toCheck: [],
-        nextHomework: [],
       });
       if (res?.error) {
         unpaint(studentId, extraClassId);       // 실패 — 되돌린다
