@@ -169,18 +169,29 @@ async function plant() {
   const { sign } = await import("./token.mjs");   // jwt-secret 은 up.sh 가 만든다
   const jwt = sign({ sub: "11111111-1111-1111-1111-111111111111", role: "authenticated" });
   for (const [table, conflict, rows] of SEED) {
-    const r = await fetch(`${API}/rest/v1/${table}?on_conflict=${conflict}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
-      body: JSON.stringify(rows),
-    });
-    if (!r.ok) {
-      console.log(`✗ 골든 씨앗 실패: ${table} — ${r.status} ${await r.text()}`);
-      process.exit(1);
+    // PostgREST 벌크 insert 는 모든 행의 키가 같아야 한다 (PGRST102).
+    // 빠진 키를 null 로 메우면 not null default 칸이 깨지므로,
+    // **키 집합이 같은 행끼리 묶어** 요청을 나눈다 — 행은 적힌 그대로 들어간다.
+    const groups = new Map();
+    for (const row of rows) {
+      const key = Object.keys(row).sort().join(",");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(row);
+    }
+    for (const batch of groups.values()) {
+      const r = await fetch(`${API}/rest/v1/${table}?on_conflict=${conflict}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(batch),
+      });
+      if (!r.ok) {
+        console.log(`✗ 골든 씨앗 실패: ${table} — ${r.status} ${await r.text()}`);
+        process.exit(1);
+      }
     }
   }
 }
