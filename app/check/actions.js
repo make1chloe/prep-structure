@@ -8,6 +8,7 @@ import { addDays } from "@/lib/day";
 import { checkMany } from "@/lib/checkWrite";
 import { assignedUnitsFor } from "@/lib/dayCheck";
 import { applyCheckProgress } from "@/lib/checkProgress";
+import { ensureReport } from "@/lib/ensureReport";
 
 /**
  * 숙제 검사 — **한 자리에서 끝낸다.**
@@ -30,13 +31,11 @@ export async function checkOne(studentId, date, itemId, status, note = "", submi
   if (!studentId || !date || !itemId) return { error: "값이 부족해요." };
   const supabase = await createClient();
 
-  const { data: rep } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .maybeSingle();
-  if (!rep?.id) return { error: "이 날짜에 기록이 없어요. 먼저 출결을 찍어주세요." };
+  // 판이 없으면 거절하지 않고 만든다 (선행 거절 제거 — 원장님 2026-08-26
+  // 「숙제 검사하려면 등원 처리를 하래서」. 행 생성은 lib/ensureReport 한 벌)
+  const { id: repId, error: repErr } = await ensureReport(supabase, studentId, date);
+  if (repErr || !repId) return { error: repErr || "기록을 만들지 못했어요." };
+  const rep = { id: repId };
 
   // 검사 쓰기는 check_many 한 문 (0163 — 계획서 v2 §2-4-①). '배정' 과
   // '학원에서 할 것' 은 원래대로 무접촉 — RPC 는 검사 3상태만 만진다.
@@ -114,13 +113,11 @@ export async function autoAssign(studentId, date) {
   if (!studentId || !date) return { error: "값이 부족해요." };
   const supabase = await createClient();
 
-  const { data: rep } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .maybeSingle();
-  if (!rep?.id) return { error: "이 날짜에 기록이 없어요. 먼저 출결을 찍어주세요." };
+  // 판이 없으면 거절하지 않고 만든다 (선행 거절 제거 — 원장님 2026-08-26
+  // 「숙제 검사하려면 등원 처리를 하래서」. 행 생성은 lib/ensureReport 한 벌)
+  const { id: repId, error: repErr } = await ensureReport(supabase, studentId, date);
+  if (repErr || !repId) return { error: repErr || "기록을 만들지 못했어요." };
+  const rep = { id: repId };
 
   const routine = await nextRoutine(studentId);
   if (routine.error) return { error: routine.error };
@@ -182,13 +179,11 @@ export async function markMissing(studentId, date, itemIds = []) {
   if (!studentId || !date || ids.length === 0) return { error: null, count: 0 };
   const supabase = await createClient();
 
-  const { data: rep } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .maybeSingle();
-  if (!rep?.id) return { error: "이 날짜에 기록이 없어요. 먼저 출결을 찍어주세요." };
+  // 판이 없으면 거절하지 않고 만든다 (선행 거절 제거 — 원장님 2026-08-26
+  // 「숙제 검사하려면 등원 처리를 하래서」. 행 생성은 lib/ensureReport 한 벌)
+  const { id: repId, error: repErr } = await ensureReport(supabase, studentId, date);
+  if (repErr || !repId) return { error: repErr || "기록을 만들지 못했어요." };
+  const rep = { id: repId };
 
   // 이미 찍힌 것은 건드리지 않는다 (○ 로 봐준 것을 ✕ 로 덮으면 안 된다)
   const { data: had } = await supabase

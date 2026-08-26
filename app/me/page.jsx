@@ -51,7 +51,7 @@ import { isStaff as isStaffRole } from "@/lib/roles";
 import SectionNav from "@/components/SectionNav";
 import NoticeGate from "@/components/NoticeGate";
 import {
-  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned,
+  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned, isLesson,
 } from "@/lib/homeworkView";
 
 export const dynamic = "force-dynamic";
@@ -293,7 +293,9 @@ export default async function MePage(props) {
     (subs[k] = subs[k] || []).push(x);
   });
 
-  const latest = reports?.[0] || null;
+  // 출결 없는 판(검사·배정만)은 「최근 수업」 이 아니다 — 댓글 앵커도
+  // 진짜 수업에 붙는다 (isLesson — 월간 #16 과 같은 기준)
+  const latest = (reports || []).find(isLesson) || null;
   const reportIds = (reports || []).map((r) => r.id);
 
   const dri = await loadReportItems(supabase, reportIds);

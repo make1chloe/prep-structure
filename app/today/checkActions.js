@@ -6,6 +6,7 @@ import { openAnswers } from "@/lib/answers";
 import { addDays } from "@/lib/day";
 import { checkMany } from "@/lib/checkWrite";
 import { assignedUnitsFor } from "@/lib/dayCheck";
+import { ensureReport } from "@/lib/ensureReport";
 import { applyCheckProgress } from "@/lib/checkProgress";
 
 /**
@@ -18,13 +19,12 @@ export async function markCheck(studentId, date, itemId, status) {
   if (!studentId || !date || !itemId) return { error: "값이 부족해요." };
   const supabase = await createClient();
 
-  const { data: rep } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .maybeSingle();
-  if (!rep?.id) return { error: "먼저 출결을 찍어주세요." };
+  // 판이 없으면 거절하지 않고 만든다 (선행 거절 제거 — 원장님 2026-08-26
+  // 「숙제 검사하려면 등원 처리를 하래서」. 검사가 곧 확정 행위인데 출결
+  // 순서가 그것을 막으면 안 된다. 행 생성은 lib/ensureReport 한 벌)
+  const { id: repId, error: repErr } = await ensureReport(supabase, studentId, date);
+  if (repErr || !repId) return { error: repErr || "기록을 만들지 못했어요." };
+  const rep = { id: repId };
 
   // 검사 쓰기는 check_many 한 문 (0163 — 계획서 v2 §2-4-①). 행이 제자리에서
   // 고쳐지니 학생 「다 했어요」·조교 메모(note null=유지)·제출물 소속이

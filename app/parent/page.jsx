@@ -15,7 +15,7 @@ import { cutOf, passSummary, score } from "@/lib/wordTest";
 import { cleanClassName } from "@/lib/classLabel";
 import NoticeDismiss from "@/components/NoticeDismiss";
 import {
-  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels,
+  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, isLesson,
   makeCard, pickAssigned, checkCounts,
 } from "@/lib/homeworkView";
 import Comments from "@/app/comments/Comments";
@@ -271,8 +271,10 @@ export default async function ParentPage(props) {
   const { from: assignedFrom, rows: assignedRows } = pickAssigned(recent, dri);
   const homework = assignedRows.map(toCard);
 
-  // 최근 수업 세 번 — 그날 검사 결과를 같이 붙인다
-  const lessons = recent.slice(0, 3).map((r) => {
+  // 최근 수업 세 번 — 그날 검사 결과를 같이 붙인다.
+  // 출결 없는 판(검사·배정만 얹힌 것)은 수업이 아니다 — isLesson 기준은
+  // 월간(#16)과 동일 (정합성 검토 2026-08-26)
+  const lessons = recent.filter(isLesson).slice(0, 3).map((r) => {
     const mine = dri.filter((x) => x.daily_report_id === r.id && x.status !== "assigned" && x.status !== "inclass");
     const month = withItems.find((w) => w.id === r.id);
     return {
@@ -437,7 +439,8 @@ export default async function ParentPage(props) {
       .order("created_at", { ascending: false }).limit(5));
   }
 
-  const latest = withItems[0] || null;
+  // 댓글·「남기실 말씀」 이 붙는 최근 수업 — 유령 판(출결 없음)엔 안 붙인다
+  const latest = withItems.find((w) => w.attendance_kind !== null) || null;
   const hasToday = !!nextClass && nextClass.date === today;
 
   // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
@@ -1023,7 +1026,7 @@ export default async function ParentPage(props) {
         <h1 className="h1">{child.name} 학생</h1>
         <p className="sub">
           {[child.school, child.grade].filter(Boolean).join(" ")}
-          {recent[0] ? ` · 최근 수업 ${longLabel(recent[0].date)}` : ""}
+          {recent.find(isLesson) ? ` · 최근 수업 ${longLabel(recent.find(isLesson).date)}` : ""}
         </p>
       </div>
 
