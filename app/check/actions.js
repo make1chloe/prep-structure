@@ -6,6 +6,8 @@ import { nextRoutine, advanceRoutine } from "@/app/today/routineActions";
 import { openAnswers, openForSubmission } from "@/lib/answers";
 import { addDays } from "@/lib/day";
 import { checkMany } from "@/lib/checkWrite";
+import { assignedUnitsFor } from "@/lib/dayCheck";
+import { applyCheckProgress } from "@/lib/checkProgress";
 
 /**
  * 숙제 검사 — **한 자리에서 끝낸다.**
@@ -63,10 +65,19 @@ export async function checkOne(studentId, date, itemId, status, note = "", submi
     await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
   }
 
+  // **여기서 찍은 검사도 진도를 움직인다** (계획서 v2 §2-4-② — 8/22
+  // 확정의 원래 뜻). 배정 단원은 판과 같은 판단(lib/dayCheck 1학생판).
+  // 취소(null)는 미검사로 돌아가는 것 — 진도 무접촉.
+  let warn = null;
+  if (status) {
+    const units = await assignedUnitsFor(supabase, studentId, date);
+    warn = await applyCheckProgress(studentId, date, [itemId], { [itemId]: status }, units);
+  }
+
   revalidatePath("/check");
   revalidatePath("/today");
   revalidatePath("/me");
-  return { error: null };
+  return { error: null, warn };
 }
 
 /** 낸 것만 '봤다' 로 (검사 결과는 나중에) */
@@ -199,7 +210,17 @@ export async function markMissing(studentId, date, itemIds = []) {
   );
   if (error) return { error };
 
+  // ✕ 도 진도를 움직인다 — 그 날 찍힌 것을 도로 지운다 (계획서 v2
+  // §2-4-②. 판단은 lib/checkProgress 한 벌 — 판 저장의 ✕ 와 동일).
+  // ✕ 는 답지를 안 여는 것(#22)도 그대로 — 이 경로엔 openAnswers 없음.
+  const units = await assignedUnitsFor(supabase, studentId, date);
+  const warn = await applyCheckProgress(
+    studentId, date, add,
+    Object.fromEntries(add.map((id) => [id, "missing"])),
+    units
+  );
+
   revalidatePath("/check");
   revalidatePath("/today");
-  return { error: null, count: add.length };
+  return { error: null, count: add.length, warn };
 }

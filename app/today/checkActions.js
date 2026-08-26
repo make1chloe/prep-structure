@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { openAnswers } from "@/lib/answers";
 import { addDays } from "@/lib/day";
 import { checkMany } from "@/lib/checkWrite";
+import { assignedUnitsFor } from "@/lib/dayCheck";
+import { applyCheckProgress } from "@/lib/checkProgress";
 
 /**
  * 검사 결과 한 건만 찍는다.
@@ -40,6 +42,17 @@ export async function markCheck(studentId, date, itemId, status) {
     await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
   }
 
+  // **여기서 찍은 검사도 진도를 움직인다** (계획서 v2 §2-4-② — 8/22
+  // 확정의 원래 뜻. 전에는 판 저장만 진도를 움직여서, 대기줄에서 ○ 를
+  // 주면 진도판이 그대로였다). 배정 단원은 판과 같은 판단(lib/dayCheck)
+  // 의 1학생판으로 읽는다. 취소(null)는 미검사로 돌아가는 것 — 진도
+  // 무접촉 (안 본 것과 손으로 찍은 것을 구별할 수 없다).
+  let warn = null;
+  if (status) {
+    const units = await assignedUnitsFor(supabase, studentId, date);
+    warn = await applyCheckProgress(studentId, date, [itemId], { [itemId]: status }, units);
+  }
+
   revalidatePath("/today");
-  return { error: null };
+  return { error: null, warn };
 }

@@ -15,7 +15,7 @@ import { noColumn } from "@/lib/sqlError";
 import { evenRows } from "@/lib/rows";
 import { sessionUser } from "@/lib/session";
 // 회독·되돌리기 금지 규칙째로 재사용한다 (원칙 1 — 같은 판단을 두 벌 안 만든다)
-import { setUnitProgress } from "@/app/progress/actions";
+import { applyCheckProgress } from "@/lib/checkProgress";
 
 // 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
 export async function listUnitOptions(textbookId) {
@@ -600,33 +600,9 @@ export async function saveStudentDay(studentId, date, form) {
    */
   let progressWarn = null;
   if (!form.draft) {
-    const cu = form.checkUnits || {};
-    const unitsWhere = (want) => [
-      ...new Set(
-        toCheck
-          .filter((iid) => items[iid] === want)
-          .flatMap((iid) => cu[iid]?.unitIds || [])
-          .filter(Boolean)
-      ),
-    ];
-    const doneUnits = unitsWhere("done");
-    // ○ 먼저 — 같은 단원이 ○·△·✕ 여러 숙제에 걸리면 높은 쪽이 이긴다
-    const weakUnits = unitsWhere("weak").filter((id) => !doneUnits.includes(id));
-    const missUnits = unitsWhere("missing")
-      .filter((id) => !doneUnits.includes(id) && !weakUnits.includes(id));
-    if (doneUnits.length) {
-      const r = await setUnitProgress(studentId, doneUnits, "done", { on: date, keepDone: true, reCheckOn: date });
-      if (r?.error) progressWarn = `진도 반영 실패: ${r.error}`;
-    }
-    if (weakUnits.length) {
-      const r = await setUnitProgress(studentId, weakUnits, "doing", { on: date, keepDone: true, reCheckOn: date });
-      if (r?.error) progressWarn = progressWarn || `진도 반영 실패: ${r.error}`;
-    }
-    if (missUnits.length) {
-      // ✕ — 그 날 찍은 진도를 도로 지운다 (메모가 있는 줄은 메모만 남는다)
-      const r = await setUnitProgress(studentId, missUnits, null, { reCheckOn: date });
-      if (r?.error) progressWarn = progressWarn || `진도 반영 실패: ${r.error}`;
-    }
+    // 3분기·승자 규칙은 lib/checkProgress 한 벌 — /check·대기줄 검사와
+    // 같은 판단을 탄다 (계획서 v2 §2-4-②)
+    progressWarn = await applyCheckProgress(studentId, date, toCheck, items, form.checkUnits || {});
   }
 
   /**
