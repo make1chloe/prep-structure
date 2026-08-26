@@ -83,7 +83,7 @@ export default async function ReportPage(props) {
       supabase
         .from("daily_reports")
         .select("id, student_id, date, skip_kinds")
-        .eq("report_written", true).is("sent_at", null)
+        .eq("report_written", true).is("sent_at", null).is("archived_at", null)
         .gte("date", addDays(today, -30)).lte("date", today)
         .order("date", { ascending: false }),
       supabase.from("students").select("id, name, status, enrolled_on, parent_phone").eq("status", "enrolled"),

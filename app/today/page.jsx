@@ -123,7 +123,7 @@ export default async function TodayPage(props) {
     supabase
       .from("daily_reports")
       .select("id, student_id, attitude, understanding, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, notice, notice_student, report_written, late_until, late_reason, late_sent_at, phone_in, homework_in, word_when, skip_kinds")
-      .eq("date", date),
+      .eq("date", date).is("archived_at", null),   // 휴지통 판 제외 (0168)
     supabase
       .from("homework_items")
       // checklist — 학습항목 밑에 작게 보여준다 (원장님 2026-08-24)
@@ -133,6 +133,7 @@ export default async function TodayPage(props) {
     supabase
       .from("daily_reports")
       .select("id, student_id, own_progress, date")
+      .is("archived_at", null)
       .lt("date", date)
       .order("date", { ascending: false })
       .limit(300),
@@ -158,6 +159,7 @@ export default async function TodayPage(props) {
     supabase
       .from("daily_reports")
       .select("id, student_id, date, attendance_kind, word_correct, word_total")
+      .is("archived_at", null)
       .gte("date", addDays(date, -100))
       .lte("date", date)
       .order("date", { ascending: true }),

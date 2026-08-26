@@ -42,6 +42,24 @@ export async function purgeOldSubmissions(days = KEEP_DAYS) {
   return { error: null, count: rows.length };
 }
 
+/**
+ * **휴지통 비우기** (0168 — 원장 확정 8/27). 숨긴 지 30일이 지나도록
+ * 안 되살린 판만 진짜 지운다. 발송 이력은 set null(0168)이라 남는다.
+ * 칸이 없는 DB(0168 전)면 42703 — 조용히 넘어간다 (정리는 다음 기회에).
+ */
+async function purgeArchivedReports() {
+  const supabase = await createClient();
+  const before = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("daily_reports")
+    .delete()
+    .not("archived_at", "is", null)
+    .lt("archived_at", before)
+    .select("id");
+  if (error) return { count: 0 };
+  return { count: (data || []).length };
+}
+
 /** 하루에 한 번만 — 마지막으로 돈 날을 integrations 에 적어둔다 */
 export async function purgeOncePerDay(days = KEEP_DAYS) {
   const supabase = await createClient();
@@ -56,13 +74,14 @@ export async function purgeOncePerDay(days = KEEP_DAYS) {
   if (ranToday(data?.config?.lastRun, today)) return { error: null, count: 0, skipped: true };
 
   const res = await purgeOldSubmissions(days);
+  const bin = await purgeArchivedReports();   // 휴지통 30일 (0168)
 
   // 실패해도 오늘은 더 안 돈다 — 화면 열 때마다 같은 실패를 반복할 이유가 없다
   await supabase.from("integrations").upsert(
     {
       id: "purge",
       enabled: true,
-      config: { lastRun: today, count: res.count, error: res.error || null },
+      config: { lastRun: today, count: res.count, binCount: bin.count, error: res.error || null },
     },
     { onConflict: "id" }
   );
