@@ -86,8 +86,30 @@ E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/apply-other.mjs || exit $?
 echo
 node scripts/e2e/check-rpc.mjs || exit $?
 
+# **특강 셈(0164)이 정규와 안 겹치나** — summarize 이중 셈·oneLiner 문턱·
+# offSetFor·extraDatesBy 를 순수 함수로 바로 돌려본다 (특강 6단계).
+echo
+node scripts/e2e/check-extra.mjs || exit $?
+
+# **배정·등원 줄 수술(0165)이 계약대로 도는가** — 행 id 불변·changed_at·
+# 그룹 무접촉·전부-또는-무 (배정줄수술 v2 §4).
+echo
+node scripts/e2e/plan-rpc.mjs || exit $?
+
+# **「그날 오는 학생」(rosterOn)에 특강이 서나** — scope all 공지가 특강
+# 전용 학생(최특강)을 잃지 않는지, 종강한 반·특강이 남지 않는지 (특강 7단계).
+echo
+node scripts/e2e/check-roster.mjs || exit $?
+
 # **학교 홈페이지에서 가져오기** (2026-08-11). 붙여넣은 표를 그대로 읽는지,
 # 나이스를 못 물어봤을 때 「다 있습니다」 라고 하지 않는지 — 화면으로 본다.
 echo
-OUT=/var/tmp node scripts/e2e/homepage-shot.mjs
+OUT=/var/tmp node scripts/e2e/homepage-shot.mjs || exit $?
+
+# **오늘 수업 판 골든** (대전제 v22 ⓑ — C6 배치 공사 전 판정·내용 박제).
+# 자기 씨앗을 REST 로 심으므로 **맨 끝**에 둔다 — 앞 검사들이 그 씨앗을
+# 못 보게. 골든 파일이 커밋에 없으면 빨강, 갱신은 GOLDEN_UPDATE=1 로만
+# (CI 에서는 workflow_dispatch 의 golden_update 입력).
+echo
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/golden-dayboard.mjs
 exit $?

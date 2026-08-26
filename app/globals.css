@@ -1604,3 +1604,21 @@ html[data-sheet="open"] .sheettop {
 }
 /* 닫은 뒤 그 줄이 고정 메뉴 뒤로 들어가지 않게 */
 .stuRow { scroll-margin-top: calc(var(--topbar-h, 56px) + 12px); }
+
+/* 새 판(3때)의 순서 밖 사건 팝오버 — qmemo-pop 형을 따른다 (판세분화
+   실행지도 v2 §5. z 는 60 미만 — 새 버전 띠 아래). 시트가 길어도
+   손 닿는 위에 떠야 해서 화면 붙박이 */
+.sheetpop {
+  position: fixed; left: 8px; right: 8px; width: auto;
+  top: calc(var(--topbar-full, 96px) + 6px); z-index: 59;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+  max-height: 70vh; overflow: auto;
+}
+@media (min-width: 701px) {
+  .sheetpop { left: auto; right: 24px; width: min(420px, 90vw); }
+}
+/* 아이폰 강제 확대 방지 — qmemo 와 같은 이유 */
+.sheetpop textarea, .sheetpop input { font-size: 16px; }
+
+/* 줄 신판의 칩 — 폰 엄지 기준 36px (판세분화 v7 §1) */
+.stuChip { min-height: 36px; }

@@ -4,7 +4,8 @@ import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import TuitionBoard from "./TuitionBoard";
-import { classSessions, studentAmount, monthRange, unitFor, unitSource } from "@/lib/tuition";
+import { classSessions, studentAmount, monthRange, unitFor, unitSource, sessionDates } from "@/lib/tuition";
+import { offSetFor } from "@/lib/extraTerm";
 import { loadSettings } from "@/lib/settings";
 import { overlaps, isExtra } from "@/lib/classTerm";
 import { todaySeoul } from "@/lib/day";
@@ -53,15 +54,16 @@ export default async function TuitionPage(props) {
         .order("start_time", { ascending: true }));
     }
   }
-  // 이 달에 하루도 안 굴러간 반은 청구할 것이 없다 (지난 특강 · 아직 개강 전)
-  classes = (classes || []).filter((c) => overlaps(c, first, last));
+  // 이 달에 하루도 안 굴러간 반은 청구할 것이 없다 (아직 개강 전 · 이미 종강).
+  // 특강반은 반이 아니라 재원생 속성이다 (0164) — 아래 「특강」 그룹이 잇는다.
+  classes = (classes || []).filter((c) => overlaps(c, first, last) && !isExtra(c));
 
   /**
    * **파도** (속도 대원칙 1, 2026-08-21) — 서로 필요한 것이 없는 조회
    * 일곱을 직렬로 기다리고 있었다 (한 달에 한 번 여는 화면이지만
    * 3초짜리일 이유가 없다).
    */
-  const [holQ, attQ, clsAttQ, memQ, stuQ1, settings, tuiQ] = await Promise.all([
+  const [holQ, attQ, extQ, memQ, stuQ1, settings, tuiQ] = await Promise.all([
     supabase
       .from("holidays")
       .select("id, date, name, scope, class_id")
@@ -75,12 +77,13 @@ export default async function TuitionPage(props) {
       .gte("date", first)
       .lte("date", last)
       .order("date").order("student_id")),
-    fetchAll(() => supabase
-      .from("class_attendance")
-      .select("class_id, student_id, date, status, makeup_of")
-      .gte("date", first)
-      .lte("date", last)
-      .order("date").order("student_id")),
+    // 이 달에 걸린 특강 (재원생 속성 — 0164). 요일·휴강 셈은 아래 JS 에서.
+    // 0164 전 DB 면 error 로 오고, 그때는 특강 그룹이 안 뜰 뿐이다
+    supabase
+      .from("student_extra_schedules")
+      .select("id, student_id, label, days, start_time, from_date, to_date, fee, off_dates")
+      .lte("from_date", last)
+      .gte("to_date", first),
     supabase.from("class_students").select("class_id, student_id"),
     supabase
       .from("students")
@@ -104,26 +107,6 @@ export default async function TuitionPage(props) {
     .filter((a) => a.status === "absent" && !doneMakeup.has(`${a.student_id}|${a.date}`))
     .forEach((a) => {
       absentOf.set(a.student_id, [...(absentOf.get(a.student_id) || []), a.date]);
-    });
-
-  // 특강 결석은 반별 출결에서 센다.
-  //   정규는 왔는데 특강만 빠지는 날이 있고, 그 반의 보강·차액은 그 반에만
-  //   걸려야 한다. 예전처럼 하루 출결 하나로 세면 정규까지 같이 결석 처리된다.
-  const clsAtt = clsAttQ.data;
-  const clsMakeup = new Set(
-    (clsAtt || [])
-      .filter((a) => a.status === "makeup" && a.makeup_of)
-      .map((a) => `${a.class_id}|${a.student_id}|${a.makeup_of}`)
-  );
-  const extraAbsentOf = new Map();
-  (clsAtt || [])
-    .filter(
-      (a) =>
-        a.status === "absent" && !clsMakeup.has(`${a.class_id}|${a.student_id}|${a.date}`)
-    )
-    .forEach((a) => {
-      const k = `${a.class_id}|${a.student_id}`;
-      extraAbsentOf.set(k, [...(extraAbsentOf.get(k) || []), a.date]);
     });
 
   const members = memQ.data;
@@ -166,10 +149,7 @@ export default async function TuitionPage(props) {
       .map((s) => {
         const unit = unitFor(s, klass, byGrade);
         const unitFrom = unitSource(s, klass, byGrade);
-        // 특강은 그 반 출결만, 정규반은 그날 출결을 본다
-        const absent = isExtra(klass)
-          ? extraAbsentOf.get(`${klass.id}|${s.id}`) || []
-          : absentOf.get(s.id) || [];
+        const absent = absentOf.get(s.id) || [];
         const calc = studentAmount(live, base, unit, s, all, absent);
         const pay = payOf.get(s.id) || null;
         const paid = !!pay?.paid_on;
@@ -187,8 +167,49 @@ export default async function TuitionPage(props) {
     return { klass, all, off, live, base, rows, sum, makeupSum, creditSum, makeupOnly };
   });
 
+  // ── 특강 (재원생 속성 — 0164) ──────────────────────────────
+  // label 이 곧 그룹. 금액은 정액 fee — 결석·휴강 무접촉(원장 확정).
+  // 납부(받음) 체크는 안 그린다 — payments 는 학생당 한 달 한 줄이라
+  // (0055 unique) 특강 줄의 체크가 정규 줄까지 「받음」 으로 덮는다.
+  // 특강비 분리 납부는 미정(원장) — 그래서 pay 를 아예 안 싣고,
+  // totalUnpaid 에도 특강 fee 를 안 더한다. 합계(total)에만 들어간다.
+  {
+    const inMonth = (extQ?.data || []).filter((x) => x.fee !== null && x.fee !== undefined);
+    const byLabel = new Map();
+    inMonth.forEach((x) => {
+      if (!byLabel.has(x.label)) byLabel.set(x.label, []);
+      byLabel.get(x.label).push(x);
+    });
+    [...byLabel.entries()]
+      .sort((a, b) => (a[1][0].start_time || "").localeCompare(b[1][0].start_time || ""))
+      .forEach(([label, scheds]) => {
+        const first0 = scheds[0];
+        const klass = { id: `extra:${label}`, name: `특강 · ${label}`, days: first0.days || [],
+                        virtual: true, tuition: null, base_sessions: null };
+        // 회차 표시용 — 금액과 무관 (6단계 offSetFor 를 그대로 쓴다)
+        const off0 = offSetFor(first0, holidays || []);
+        const allD = sessionDates(ym, first0.days || [])
+          .filter((d) => d >= first0.from_date && d <= first0.to_date);
+        const rows = scheds.map((x) => {
+          const s = studentById.get(x.student_id);
+          if (!s) return null;
+          return { student: s, amount: x.fee, sessions: allD.length, planned: allD.length,
+                   base: allD.length, credit: 0, makeupNeeded: 0, full: true,
+                   unit: x.fee, unitFrom: "특강", pay: null, paid: false };
+        }).filter(Boolean).sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
+        if (rows.length === 0) return;
+        const sum = rows.reduce((a, r) => a + (r.amount || 0), 0);
+        total += sum;
+        groups.push({ klass, all: allD, off: allD.filter((d) => off0.has(d)),
+                      live: allD.filter((d) => !off0.has(d)), base: allD.length,
+                      rows, sum, makeupSum: 0, creditSum: 0, makeupOnly: [] });
+      });
+  }
+
   // 반에 안 들어간 재원생 — 위 목록에 아예 안 나와서 청구를 빠뜨리기 쉽다
   const inClass = new Set((members || []).map((m) => m.student_id));
+  // 특강만 듣는 학생은 반이 없어도 위 특강 그룹에 나온다 — 경고 대상이 아니다
+  (extQ?.data || []).forEach((x) => inClass.add(x.student_id));
   const noClass = (students || [])
     .filter((s) => !inClass.has(s.id) && s.status === "enrolled")
     .map((s) => s.name);

@@ -15,7 +15,7 @@ import { cutOf, passSummary, score } from "@/lib/wordTest";
 import { cleanClassName } from "@/lib/classLabel";
 import NoticeDismiss from "@/components/NoticeDismiss";
 import {
-  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels,
+  loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, isLesson,
   makeCard, pickAssigned, checkCounts,
 } from "@/lib/homeworkView";
 import Comments from "@/app/comments/Comments";
@@ -29,7 +29,8 @@ import MakeupConfirm from "./MakeupConfirm";
 import PushToggle from "@/app/me/PushToggle";
 import Refresh from "@/components/Refresh";
 import { loadStudentCalendar } from "@/lib/studentCalendar";
-import { loadClassesWithTerm } from "@/lib/classTerm";
+import { loadClassesWithTerm, meetsOn } from "@/lib/classTerm";
+import { toTermShape, extraDatesBy } from "@/lib/extraTerm";
 import { notYet, fromLabel } from "@/lib/bookUse";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
 import { loadLayouts, arrange } from "@/lib/screenLayout";
@@ -153,6 +154,7 @@ export default async function ParentPage(props) {
   const [
     repsQ, warnQ, cutQ, recent, itemById, mineQ, attTodayQ, stayQ,
     monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts, confirmQ, stbQ,
+    extraQ, exAbsQ, holMonthQ,
   ] = await Promise.all([
     supabase
       .from("daily_reports")
@@ -208,6 +210,14 @@ export default async function ParentPage(props) {
       .select("textbook_id, status, assigned_on, ended_on")
       .eq("student_id", pickId)
       .eq("status", "active"),
+    // 우리 아이 특강 (0164 — 재원생 속성). 달력·이번 달 셈·다음 수업에 쓴다.
+    // 0164 전 DB 면 error → 조용히 정규만
+    supabase
+      .from("student_extra_schedules")
+      .select("id, student_id, label, days, start_time, end_time, from_date, to_date, off_dates")
+      .eq("student_id", pickId),
+    supabase.from("student_extra_absences").select("schedule_id, date, status"),
+    supabase.from("holidays").select("date, scope").gte("date", from).lte("date", today),
   ]);
 
   /** 아직 시작 전인(사야 할) 교재 — 판정은 lib/bookUse 의 notYet 한 곳 */
@@ -246,7 +256,17 @@ export default async function ParentPage(props) {
     itemsOf.get(i.daily_report_id).push(i);
   });
   const withItems = (reps || []).map((r) => ({ ...r, items: itemsOf.get(r.id) || [] }));
-  const sum = summarize(withItems, []);
+  // 특강(0164) 수업일도 이번 달에 넣는다 — 정규와 겹친 날은 summarize 가
+  // 리포트 날짜를 보고 한 번만 센다. 범위는 reps 와 같은 from~오늘.
+  const childExtraDates =
+    extraDatesBy(
+      extraQ?.error ? [] : extraQ?.data || [],
+      ym,
+      holMonthQ?.error ? [] : holMonthQ?.data || [],
+      exAbsQ?.error ? [] : exAbsQ?.data || [],
+      { from, to: today }
+    ).get(pickId) || [];
+  const sum = summarize(withItems, [], childExtraDates);
   // 통과선은 이 학생 것 → 없으면 설정의 기본값.
   // 0070 전이면 학생별 통과선 칸이 없다 — 그때는 기본값만 쓴다.
   const { data: warnRow } = warnQ;
@@ -271,8 +291,10 @@ export default async function ParentPage(props) {
   const { from: assignedFrom, rows: assignedRows } = pickAssigned(recent, dri);
   const homework = assignedRows.map(toCard);
 
-  // 최근 수업 세 번 — 그날 검사 결과를 같이 붙인다
-  const lessons = recent.slice(0, 3).map((r) => {
+  // 최근 수업 세 번 — 그날 검사 결과를 같이 붙인다.
+  // 출결 없는 판(검사·배정만 얹힌 것)은 수업이 아니다 — isLesson 기준은
+  // 월간(#16)과 동일 (정합성 검토 2026-08-26)
+  const lessons = recent.filter(isLesson).slice(0, 3).map((r) => {
     const mine = dri.filter((x) => x.daily_report_id === r.id && x.status !== "assigned" && x.status !== "inclass");
     const month = withItems.find((w) => w.id === r.id);
     return {
@@ -296,16 +318,26 @@ export default async function ParentPage(props) {
         supabase, "id, name, days, start_time, end_time", ids
       );
     }
+    // 특강(0164)도 우리 아이 수업이다 — 반 모양으로 이어 붙인다 (lib/extraTerm).
+    // 지난 특강도 남긴다: 달력은 지나간 달도 그리고, 기간 판단은 inTermOn 이 한다
+    myClasses = [
+      ...myClasses,
+      ...(extraQ?.error ? [] : extraQ?.data || []).map((x) => ({
+        ...toTermShape(x), off_dates: x.off_dates || [],
+      })),
+    ];
   }
   /**
    * 다음 수업이 언제인가 — **앞으로 2주만 본다.**
    * 그 안에 없으면 요일이 안 잡혀 있는 것이라, 날짜를 지어내느니 안 적는 편이 낫다.
+   * 요일만 보지 않고 meetsOn(기간 포함)으로 — 종강한 특강이 「다음 수업」 으로
+   * 영원히 서 있으면 어머니가 헛걸음하신다 (규칙은 classTerm 한 곳에).
    */
   let nextClass = null;
   for (let i = 0; i < 15 && !nextClass; i += 1) {
     const d = addDays(today, i);
     const dow = dowOf(d);
-    const hit = myClasses.filter((c) => (c.days || []).includes(dow))
+    const hit = myClasses.filter((c) => meetsOn(c, d, dow))
       .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""))[0];
     if (hit) nextClass = { date: d, at: (hit.start_time || "").slice(0, 5), name: cleanClassName(hit.name) };
   }
@@ -437,7 +469,8 @@ export default async function ParentPage(props) {
       .order("created_at", { ascending: false }).limit(5));
   }
 
-  const latest = withItems[0] || null;
+  // 댓글·「남기실 말씀」 이 붙는 최근 수업 — 유령 판(출결 없음)엔 안 붙인다
+  const latest = withItems.find((w) => w.attendance_kind !== null) || null;
   const hasToday = !!nextClass && nextClass.date === today;
 
   // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
@@ -1023,7 +1056,7 @@ export default async function ParentPage(props) {
         <h1 className="h1">{child.name} 학생</h1>
         <p className="sub">
           {[child.school, child.grade].filter(Boolean).join(" ")}
-          {recent[0] ? ` · 최근 수업 ${longLabel(recent[0].date)}` : ""}
+          {recent.find(isLesson) ? ` · 최근 수업 ${longLabel(recent.find(isLesson).date)}` : ""}
         </p>
       </div>
 

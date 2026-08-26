@@ -24,7 +24,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-26 · 0001~0163 · 161개)
+--   (2026-08-26 · 0001~0173 · 166개)
 -- ============================================================
 
 -- ─────────── 0008_homework_unit.sql ───────────
@@ -8089,3 +8089,304 @@ grant execute on function public.check_many(uuid, jsonb) to authenticated;
 create or replace function public.check_many_on()
 returns boolean language sql stable as $$ select true $$;
 grant execute on function public.check_many_on() to authenticated;
+
+-- ─────────── 0164_student_extra.sql ───────────
+-- **특강 = 재원생 속성** (특강-이행계획서-v2 §1 — 1단계).
+--
+-- 특강은 수업(classes 행)이 아니라 「학생의 추가 시간+기간」 이다
+-- (원장님 확정 2026-08-26). 반으로 만들면 같은 날 판이 둘로 갈라지고
+-- (#9 겹침 저장 사고), 출결이 이중이 되고, 학년 요금표가 특강비를
+-- 덮었다 — 전부 모델이 만든 병이라 모델을 바꾼다. 이 마이그는 표만
+-- 깐다(소비 0곳) — 화면·백필·수강료 전환은 다음 커밋들.
+--
+-- 되돌리기:
+--   drop table if exists public.student_extra_absences;
+--   drop table if exists public.student_extra_schedules;
+
+create table if not exists public.student_extra_schedules (
+  id          uuid primary key default gen_random_uuid(),
+  student_id  uuid not null references public.students(id) on delete cascade,
+  label       text not null,          -- '여름 내신 특강' — 화면·문자에 그대로
+  days        text[] not null,
+  start_time  time not null,
+  end_time    time,
+  from_date   date not null,
+  to_date     date not null,          -- 특강은 끝난다 (무기한 금지)
+  -- 학생별 정액. 결석해도 안 깎는다 (원장님 확정 — 보강도 예외적 수동).
+  -- null = 별도 청구 없음
+  fee         int,
+  off_dates   date[] not null default '{}',  -- 이 특강만 쉬는 날
+  source      text not null default 'manual', -- 'migrated' = 백필분 (되돌리기 표적)
+  note        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists ses_student_to
+  on public.student_extra_schedules (student_id, to_date);
+-- 같은 이름 특강이 두 기수면 공지 대상이 섞인다
+create unique index if not exists ses_label_once
+  on public.student_extra_schedules (student_id, label, from_date);
+
+-- 「정규는 왔는데 특강만 빠짐」 — 내부 기록 전용 (리포트·학부모 발송
+-- 제외는 attendance_kind 에 안 들어가는 것으로 저절로 성립).
+-- status 'makeup' = 예외적으로 보강을 잡아준 기록.
+create table if not exists public.student_extra_absences (
+  id          uuid primary key default gen_random_uuid(),
+  schedule_id uuid not null references public.student_extra_schedules(id) on delete cascade,
+  date        date not null,
+  status      text not null default 'absent' check (status in ('absent','makeup')),
+  note        text,
+  unique (schedule_id, date)
+);
+
+alter table public.student_extra_schedules enable row level security;
+drop policy if exists staff_all on public.student_extra_schedules;
+create policy staff_all on public.student_extra_schedules
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+alter table public.student_extra_absences enable row level security;
+drop policy if exists staff_all on public.student_extra_absences;
+create policy staff_all on public.student_extra_absences
+  for all to authenticated
+  using (public.is_staff()) with check (public.is_staff());
+
+-- 돌아가는지 손가락 하나로 확인하는 탐침
+create or replace function public.student_extra_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.student_extra_on() to authenticated;
+
+-- ─────────── 0165_plan_many.sql ───────────
+-- **배정·등원 줄 수술 — 목록 3그룹을 제자리-고치기로** (배정줄수술 v2 §2).
+--
+-- 검사행 수술(0163)이 남긴 반쪽: assigned·inclass·plan_next 는 아직
+-- 지우고-다시쓰기라, 저장마다 행 id 가 바뀌어 제출물 소속이 끊기고
+-- (homework_submissions.report_item_id — 0159 set null) 학생 「다했어요」
+-- 가 옛 id 를 못 찾아 「0158 SQL」 오진을 냈다. 행이 안 죽으면 전부
+-- 원인째 사라진다.
+--
+-- 계약 (v2 §2 — 위반은 회귀다):
+--   p_groups = { assigned|inclass|plan_next: 배열 } — 키 없음 = 무접촉,
+--   배열(빈 것 포함) = 그 그룹 전체 교체(목록 밖 delete + 제자리 upsert).
+--   축은 0005 의 (판,항목,status) 유일 — 새 자물쇠 없음.
+--   무조건 덮기: unit_id·unit_ids·range_note·inclass_sort·carry_next
+--     (json 에 없으면 컬럼 null — 단 carry_next 는 coalesce false,
+--      8/24 23502 사고 재발 방지).
+--   불가침: student_done_at·check_note (행이 제자리라 자연 보존).
+--   changed_at: delete 전에 v_had_any·기존 assigned 행을 확정한 뒤 판정
+--     (같으면 유지 / 다르면 now() / 신규+처음이면 null).
+--   한 함수 = 한 트랜잭션 = 전부-또는-무.
+--
+-- 되돌리기:
+--   drop function public.plan_many(uuid, jsonb);
+--   drop function public.plan_many_on();
+
+create or replace function public.plan_many(p_report_id uuid, p_groups jsonb)
+returns jsonb
+language plpgsql
+as $$
+declare
+  g text;
+  it jsonb;
+  v_had_any boolean;
+  old_assigned jsonb;
+  v_changed uuid[] := '{}';
+  keep uuid[];
+  v_item uuid;
+  v_sort int;
+  v_carry boolean;
+  v_u1 uuid;
+  v_us uuid[];
+  v_note text;
+  v_old jsonb;
+  v_ch timestamptz;
+begin
+  if p_report_id is null then
+    raise exception '판이 없습니다';
+  end if;
+  for g in select jsonb_object_keys(coalesce(p_groups, '{}'::jsonb)) loop
+    if g not in ('assigned','inclass','plan_next') then
+      raise exception '어휘 밖 그룹: %', g;
+    end if;
+  end loop;
+
+  -- changed_at 재료는 delete **전에** 확정한다 (검토 중대4 — 지운 뒤
+  -- 재면 「처음 주는 숙제」 오판·루프 자기오염)
+  v_had_any := exists (
+    select 1 from public.daily_report_items
+     where daily_report_id = p_report_id and status = 'assigned');
+  select coalesce(jsonb_object_agg(homework_item_id::text, jsonb_build_object(
+           'us', to_jsonb(coalesce(textbook_unit_ids, '{}'::uuid[])),
+           'note', coalesce(range_note, ''),
+           'ch', changed_at)), '{}'::jsonb)
+    into old_assigned
+    from public.daily_report_items
+   where daily_report_id = p_report_id and status = 'assigned';
+
+  foreach g in array array['assigned','inclass','plan_next'] loop
+    if p_groups ? g then
+      keep := '{}';
+      for it in select * from jsonb_array_elements(p_groups->g) loop
+        v_item := nullif(it->>'item_id', '')::uuid;
+        if v_item is not null then keep := keep || v_item; end if;
+      end loop;
+      -- 목록 밖 행만 지운다 (검사 3상태는 이 그룹이 아니라 무접촉)
+      delete from public.daily_report_items
+       where daily_report_id = p_report_id and status = g
+         and (array_length(keep, 1) is null or homework_item_id <> all (keep));
+
+      for it in select * from jsonb_array_elements(p_groups->g) loop
+        v_item := nullif(it->>'item_id', '')::uuid;
+        if v_item is null then continue; end if;
+        v_sort  := (it->>'sort')::int;
+        v_carry := coalesce((it->>'carry_next')::boolean, false);
+        v_u1    := nullif(it->>'unit_id', '')::uuid;
+        v_us    := case when it ? 'unit_ids' and jsonb_typeof(it->'unit_ids') = 'array'
+                        then (select array_agg(x::uuid)
+                                from jsonb_array_elements_text(it->'unit_ids') x)
+                        else null end;
+        v_note  := nullif(it->>'range_note', '');
+
+        if g = 'assigned' then
+          v_old := old_assigned -> (v_item::text);
+          if v_old is not null
+             and (v_old->>'note') = coalesce(v_note, '')
+             and (v_old->'us') = to_jsonb(coalesce(v_us, '{}'::uuid[])) then
+            v_ch := nullif(v_old->>'ch', '')::timestamptz;  -- 안 바뀜 — 그대로
+          elsif not v_had_any then
+            v_ch := null;                                    -- 그날 처음 주는 숙제
+          else
+            v_ch := now();
+            v_changed := v_changed || v_item;
+          end if;
+        else
+          v_ch := null;
+        end if;
+
+        insert into public.daily_report_items as d
+          (daily_report_id, homework_item_id, status, inclass_sort, carry_next,
+           textbook_unit_id, textbook_unit_ids, range_note, changed_at)
+        values
+          (p_report_id, v_item, g, v_sort, v_carry, v_u1, v_us, v_note, v_ch)
+        on conflict (daily_report_id, homework_item_id, status)
+        do update set
+          inclass_sort      = excluded.inclass_sort,
+          carry_next        = excluded.carry_next,
+          textbook_unit_id  = excluded.textbook_unit_id,
+          textbook_unit_ids = excluded.textbook_unit_ids,
+          range_note        = excluded.range_note,
+          changed_at        = excluded.changed_at;
+        -- student_done_at·check_note 는 set 목록에 없다 — 불가침 (계약)
+      end loop;
+    end if;
+  end loop;
+
+  return jsonb_build_object('ok', true,
+    'changed', to_jsonb(coalesce(v_changed, '{}'::uuid[])));
+end;
+$$;
+
+grant execute on function public.plan_many(uuid, jsonb) to authenticated;
+
+create or replace function public.plan_many_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.plan_many_on() to authenticated;
+
+-- ─────────── 0166_extra_read_own.sql ───────────
+-- 0166: 특강(0164)을 **학생·학부모도 읽는다** — 특강 6단계의 전제.
+--
+-- 0164 는 staff_all 만 깔았다. RLS 는 없는 것처럼 보여주므로, 그대로면
+-- /me·/parent 가 특강을 0줄로 읽어 **달력 회차·이번 달 셈이 조용히 빈다** —
+-- 오류도 안 나고, 원장님 미리보기(선생님 권한)로는 절대 안 잡히는 종류다
+-- (0090 에서 학부모 화면이 몇 주 비어 있던 것과 똑같은 모양).
+--
+-- 규칙은 my_student_ids() 하나로 (0057) — 「내 아이 + 나 자신」 을 함께
+-- 돌려주므로 학생·학부모를 두 줄로 나눠 적지 않는다. 쓰기는 여전히
+-- staff_all 만 허용한다 (이 정책은 select 만 연다).
+--
+-- 되돌리기:
+--   drop policy if exists read_own on public.student_extra_schedules;
+--   drop policy if exists read_own on public.student_extra_absences;
+
+drop policy if exists read_own on public.student_extra_schedules;
+create policy read_own on public.student_extra_schedules
+  for select to authenticated
+  using (student_id in (select public.my_student_ids()));
+
+drop policy if exists read_own on public.student_extra_absences;
+create policy read_own on public.student_extra_absences
+  for select to authenticated
+  using (
+    exists (
+      select 1
+        from public.student_extra_schedules s
+       where s.id = student_extra_absences.schedule_id
+         and s.student_id in (select public.my_student_ids())
+    )
+  );
+
+-- 돌아가는지 손가락 하나로 확인하는 탐침 (설정 → SQL 화면·메뉴 배지가 본다)
+create or replace function public.extra_read_own_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.extra_read_own_on() to authenticated;
+
+-- ─────────── 0167_extra_label.sql ───────────
+-- 0167: label 공지 — 특강(0164)을 공지 대상으로 (특강 이행계획서 v2 §8, 8단계).
+--
+-- 원장 확정 (2026-08-26): 「label 공지 필요함」.
+--
+-- 특강은 반이 아니라 재원생 속성(0164)이라 notices.class_id (uuid) 에
+-- 담을 수가 없다 — 「보강」 같은 가상 그룹이 uuid 자리로 흘러들면 22P02 로
+-- 죽는 것과 같은 자리다. 대상 학생은 어차피 만들 때 notice_receipts 에
+-- 확정해 깔지만, **어느 특강에 보낸 공지인지**가 줄에 안 남으면 재발송도
+-- 감사(「그 특강에 뭘 보냈더라」)도 못 한다. 그래서 정체성 한 칸을 남긴다.
+--
+-- scope 는 'extra' 로 적힌다 (기존 all | class | grade | student 에 추가 —
+-- scope 를 읽는 곳은 표시(targetLabel) 한 곳뿐이라 옛 판도 안 죽는다).
+--
+-- 되돌리기:
+--   alter table public.notices drop column if exists extra_label;
+--   (scope='extra' 줄은 남는다 — 수신자는 notice_receipts 에 이미 확정되어
+--    있으므로 발송·표시는 그대로 되, 대상 이름만 「특강」 으로 뭉개진다)
+
+alter table public.notices add column if not exists extra_label text;
+
+comment on column public.notices.extra_label is
+  '특강 label 공지의 대상 (scope=extra 일 때). 재발송·감사용 정체성 — 대상 학생 확정은 여전히 notice_receipts';
+
+-- 돌아가는지 손가락 하나로 확인하는 탐침 (설정 → SQL 화면·메뉴 배지가 본다)
+create or replace function public.extra_label_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.extra_label_on() to authenticated;
+
+-- ─────────── 0173_demote_extra_classes.sql ───────────
+-- 0173: 옛 특강반 일괄 하강 (특강 이행계획서 v2 §9, 9단계).
+--
+-- 원장 확정 (2026-08-26): 「응, 내려도 됨」.
+--
+-- 특강은 반이 아니라 재원생 속성(0164)이 되었다 — 새 특강은 재원생 →
+-- 특강 탭에서 만든다. 반으로 남아 있는 옛 특강(category <> '정규반')이
+-- 무기한(ends_on 없음)으로 서 있으면 오늘 수업·달력·수강료가 계속
+-- 두 모델을 같이 굴리게 된다. **화면에서만 내린다**(archived_at) —
+-- 표·기록(classes · class_students · class_attendance)은 지우지 않는다
+-- (원장 확정: 지난 특강은 지난 반 조회로 본다. sqlChecks 0042 도 존치).
+--
+-- 「특강인가」 는 lib/classTerm.isExtra 와 같은 판단이다 (원칙 1):
+--   category 가 있고 '정규반' 이 아니다.
+--
+-- 시각을 고정 리터럴로 박는 이유 — now() 로 적으면 손으로 보관한 반과
+-- 섞여서 「이 마이그가 내린 것」 만 골라 되돌릴 수가 없다.
+--
+-- 되돌리기 (이 마이그가 내린 것만):
+--   update public.classes set archived_at = null
+--    where archived_at = timestamptz '2026-08-27 00:00:00+09';
+
+update public.classes
+   set archived_at = timestamptz '2026-08-27 00:00:00+09'
+ where category is not null
+   and category <> '정규반'
+   and archived_at is null;
+
+-- 돌아가는지 손가락 하나로 확인하는 탐침 (설정 → SQL 화면·메뉴 배지가 본다)
+create or replace function public.demote_extra_classes_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.demote_extra_classes_on() to authenticated;

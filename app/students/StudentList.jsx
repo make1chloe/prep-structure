@@ -12,6 +12,7 @@ import StudentBooks from "@/app/today/StudentBooks";
 import StudentBooksProgress from "@/app/progress/StudentBooksProgress";
 import WordTestBox from "./WordTestBox";
 import ScheduleBox from "./ScheduleBox";
+import ExtraBox from "./ExtraBox";
 import { fromLabel } from "@/lib/bookUse";
 import { shortName } from "@/lib/schoolName";
 import { WEEK_ORDER as DOW } from "@/lib/day";
@@ -84,6 +85,8 @@ const TABS = [
   // 이 아이에게만 해당하는 일정 (보강 · 상담 · 학교 행사).
   // 할일 화면으로 나갔다 오면 흐름이 끊기고, 끊기면 나중에 하게 된다 (2026-08-06)
   ["schedule", "일정"],
+  // 특강 = 이 학생의 추가 등원 (반이 아니다 — 원장님 확정 2026-08-26)
+  ["extra", "특강"],
   // 성적은 **여기서 읽기만** 한다. 넣는 곳은 /scores 한 곳이다 —
   // 두 군데서 넣으면 두 군데가 어긋난다 (원장님, 2026-08-06)
   ["score", "성장"],
@@ -792,6 +795,7 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                       {/* key — 학생이 바뀌면 값도 새로 (2026-08-21: A 학생 값이 B 에게 저장되던 것) */}
                       {tab === "word" && <WordTestBox key={s.id} student={s} defaultPass={defaultPass} />}
                       {tab === "schedule" && <ScheduleBox studentId={s.id} name={s.name} />}
+                      {tab === "extra" && <ExtraBox studentId={s.id} name={s.name} />}
                       {tab === "score" && <ScoreBox studentId={s.id} name={s.name} />}
                       {tab === "note" && <NoteBox studentId={s.id} name={s.name} />}
                       {tab === "account" && (

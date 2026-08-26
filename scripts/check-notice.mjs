@@ -73,6 +73,24 @@ eq(read("app/check/AheadBoard.jsx").includes("NOTICE_KINDS.filter((k) => !k.push
 // 되돌릴 수 없는 것은 한 번 더 여쭙는다
 eq(/isAlert\(kind\)[\s\S]{0,300}confirm\(/.test(top), true, "울리기 전에 한 번 물어본다");
 
+console.log("\n== 특강 label 공지 (0167 — 이행계획서 v2 §8) ==");
+/**
+ * 특강은 반이 아니라 재원생 속성(0164)이라 notices.class_id (uuid) 에 못
+ * 담는다. 비-uuid 가 uuid 칸으로 흘러들면 22P02 로 죽는다 — 「보강」 가상
+ * 그룹이 그 잠복 버그였다. label 공지는 extra_label 한 칸에 정체성을 남긴다.
+ */
+eq(body.includes('startsWith("extra:")'), true,
+   "옛 판이 반 자리에 실어 보낸 「extra:라벨」 도 label 공지로 받아준다");
+eq(body.includes("extra_label"), true,
+   "어느 특강에 보냈는지(extra_label)를 남긴다 — 재발송·감사의 근거");
+eq(/반이 아닌 그룹/.test(body), true,
+   "「보강」 같은 비-uuid 가상 그룹은 반 공지로 못 흘러든다");
+const todayPage = read("app/today/page.jsx");
+eq(/g\.klass\.id !== "makeup"/.test(todayPage), true,
+   "공지 반 목록에서 「보강」 가상 그룹은 뺀다 (특강 그룹은 label 로 선다)");
+eq(top.includes("extraLabel"), true,
+   "반별 목록의 특강 그룹은 classId 가 아니라 extraLabel 로 보낸다");
+
 console.log("\n== 실려 나가는 것 / 이미 나간 것 ==");
 const rd = read("lib/reportData.js");
 // 「알림」 갈래는 적는 순간 이미 나갔다 — 리포트에 또 실으면 두 번 받으신다

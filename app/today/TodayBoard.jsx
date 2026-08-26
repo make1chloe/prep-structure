@@ -8,7 +8,6 @@ import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import { isMemo } from "@/lib/notices";
 import CheckQueue from "./CheckQueue";
-import { setClassAttendance } from "./classAttendance";
 import { classLabel } from "@/lib/classLabel";
 
 
@@ -36,6 +35,9 @@ const optKey = (sid, extra) => `${sid}|${extra || ""}`;
 
 export default function TodayBoard({
   date,
+  // 새 판(3때 시트) 스위치 — C1 에서는 받기만 한다. 분기(신 줄·시트
+  // 렌더)는 C3·C4 에서 이 값 뒤에 선다 (판세분화-실행지도 §6)
+  panel3 = false,
   groups = [],
   items = [],
   textbooks = [],
@@ -85,6 +87,8 @@ export default function TodayBoard({
   });
   const [showDone, setShowDone] = useState({});
   const [filter, setFilter] = useState("todo");
+  // 새 판(C4) — 칩이 고른 때. 판(StudentPanel sheets)이 이 값을 따른다
+  const [rowTab, setRowTab] = useState("check");
   const [pending, startTransition] = useTransition();
   // 출결 칩·완료 풀기는 연달아 누른다 — 미뤄서 한 번만 (2026-08-23)
   const { lazy, flush } = useLazyRefresh();
@@ -128,7 +132,9 @@ export default function TodayBoard({
       return n;
     });
 
-  // 특강이면 그 반 출결에만 찍는다. 정규는 예전 그대로 그날 출결에 찍는다.
+  // 출결은 늘 그날 출결(attendance) 하나다 — 옛 특강반의 반별 출결
+  // (setClassAttendance → class_attendance) 쓰기는 0164 모델 전환·0173
+  // 하강으로 끝났다. 남은 표는 지난 반 조회 전용이다.
   //
   // **같은 것을 다시 누르면 취소된다.** 잘못 눌렀을 때 되돌릴 방법이 없으면
   // 안 눌러보게 된다. 등원·지각·결석 다 똑같이 동작해야 헷갈리지 않는다.
@@ -136,11 +142,9 @@ export default function TodayBoard({
     const off = now === status;
     paint(studentId, extraClassId, off ? null : status);   // 먼저 그린다
     startTransition(async () => {
-      const res = extraClassId
-        ? await setClassAttendance(extraClassId, studentId, date, off ? null : status)
-        : off
-          ? await clearAttendance(studentId, date)
-          : await setAttendance(studentId, date, status);
+      const res = off
+        ? await clearAttendance(studentId, date)
+        : await setAttendance(studentId, date, status);
       if (res?.error) {
         unpaint(studentId, extraClassId);                  // 실패하면 되돌린다
         alert(res.error);
@@ -152,28 +156,16 @@ export default function TodayBoard({
   // 결석 예정 학생의 리포트를 만들어 둔다 → 발송 목록에 '결석 안내'로 뜬다
   function markAbsent(studentId, reason, extraClassId = null) {
     paint(studentId, extraClassId, "absent");   // 먼저 그린다 (원장님 2026-08-21 「작동이 너무 늦어」)
-    // 특강 결석은 그 반에만 남긴다 — 정규까지 결석 처리되면 수강료가 틀린다
-    if (extraClassId) {
-      startTransition(async () => {
-        const res = await setClassAttendance(extraClassId, studentId, date, "absent");
-        if (res?.error) {
-          unpaint(studentId, extraClassId);     // 실패 — 되돌린다
-          alert(res.error);
-          return;
-        }
-        lazy();
-      });
-      return;
-    }
     const k = optKey(studentId, extraClassId);
     setOptWrote((m) => ({ ...m, [k]: true }));  // 「결석 기록」 단추도 그 자리에서 사라진다
     startTransition(async () => {
+      // items·nextHomework 키를 보내면 「그 그룹 전체 교체」 라서, 빈
+      // 값이면 그날 검사·배정이 통째로 지워진다 (배정줄 계획서 검토
+      // 중대6 실측 — 결석 기록이 그날 배정을 전멸시키던 출혈). 결석
+      // 기록은 출결·안내만 만지므로 그 키들을 아예 안 보낸다.
       const res = await saveStudentDay(studentId, date, {
         attendance: "absent",
         notice: reason ? `${reason}로 결석했습니다.` : "",
-        items: {},
-        toCheck: [],
-        nextHomework: [],
       });
       if (res?.error) {
         unpaint(studentId, extraClassId);       // 실패 — 되돌린다
@@ -203,8 +195,7 @@ export default function TodayBoard({
   function undo(studentId, extraClassId = null) {
     paint(studentId, extraClassId, null);                  // 먼저 그린다
     startTransition(async () => {
-      if (extraClassId) await setClassAttendance(extraClassId, studentId, date, null);
-      else await clearAttendance(studentId, date);
+      await clearAttendance(studentId, date);
       lazy();
     });
   }
@@ -264,7 +255,9 @@ export default function TodayBoard({
       ? r.rowDone
       : !!r.reportWritten || r.plannedAbsent;
   };
-  const all = groups.flatMap((g) => g.rows);
+  // 참조 줄(특강 label 그룹의 겹치는 학생)은 세지 않는다 — 정규 줄에서
+  // 이미 센 학생이라 두 번 세면 숫자가 부푼다 (0164)
+  const all = groups.flatMap((g) => g.rows).filter((r) => !r.refOnly);
   const counts = {
     todo: all.filter((r) => !isDone(r)).length,
     done: all.filter(isDone).length,
@@ -427,6 +420,23 @@ export default function TodayBoard({
                     </p>
                   ) : (
                     visible.map((r) => {
+                      // 특강 label 그룹의 참조 줄 — 이 학생은 오늘 정규
+                      // 반에도 있어서 기록은 그쪽 줄이 주체다 (0164,
+                      // 하루 1판). 여기는 「누가 오나」 명단 확인용.
+                      if (r.refOnly) {
+                        return (
+                          <div key={`ref-${r.student.id}`} className="stuRow">
+                            <div className="stuLine" style={{ cursor: "default" }}>
+                              <span className="stuWho">
+                                <span className="stuName">{r.student.name}</span>
+                              </span>
+                              <span className="stuTags">
+                                <span className="tag">기록은 정규 반 줄에서</span>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
                       const isOpen = openId === optKey(r.student.id, r.extraClassId);
                       return (
                         <div
@@ -434,6 +444,84 @@ export default function TodayBoard({
                           className="stuRow"
                           data-row={optKey(r.student.id, r.extraClassId)}
                         >
+                          {panel3 ? (
+                            /* ── 줄 신판 (C4 — 실행지도 v2) ──
+                               div + 칩3(검사·수업·다음 — 진짜 button 36px) +
+                               배지2(경고·💬) + 출결·✓(stuEnd). 빈 곳은
+                               무반응(원장 확정 — 오탭 방지), 칩이 그 때로
+                               직행한다. 공유 .stuLine 은 무변형 — cursor 만
+                               인라인 (TodayBoard 완료 줄 선례) */
+                            <div className="stuLine" style={{ cursor: "default" }}>
+                              <span className="stuWho">
+                                <span className="stuName">{r.student.name}</span>
+                                <span className="stuSub">
+                                  {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
+                                </span>
+                              </span>
+                              <span className="stuTags">
+                                {[
+                                  ["check", "검사", (() => {
+                                    const t = (r.toCheck || []).length;
+                                    if (!t) return "";
+                                    const left = (r.toCheck || []).filter((id) => !(r.items || {})[id]).length;
+                                    return left ? `${left}` : "✓";
+                                  })()],
+                                  ["lesson", "수업", (r.inClass || []).length ? String((r.inClass || []).length) : ""],
+                                  ["next", "다음", (r.nextHomework || []).length ? String((r.nextHomework || []).length) : ""],
+                                ].map(([tab, label, n]) => (
+                                  <button
+                                    key={tab}
+                                    className="btn btn-sm btn-ghost stuChip"
+                                    onClick={() => {
+                                      const k = optKey(r.student.id, r.extraClassId);
+                                      if (justSaved && justSaved !== k) setJustSaved(null);
+                                      setRowTab(tab);
+                                      setOpenId(k);
+                                    }}
+                                  >
+                                    {label}{n ? ` ${n}` : ""}
+                                  </button>
+                                ))}
+                                {r.warn?.count > 0 && (
+                                  <span className="tag tag-red">경고 {r.warn.count}</span>
+                                )}
+                                {(r.unreadComments || 0) > 0 && (
+                                  <span className="tag tag-lav">💬 {r.unreadComments}</span>
+                                )}
+                                {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                                {r.plannedAbsent && <span className="tag tag-amber">결석 예정</span>}
+                              </span>
+                              <span className="stuEnd">
+                                {stOf(r) ? (
+                                  <span
+                                    className={`tag ${CLS[stOf(r)]}`}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => undo(r.student.id, r.extraClassId)}
+                                    title="누르면 출결이 취소돼요"
+                                  >
+                                    {LABEL[stOf(r)]}
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => mark(r.student.id, "present", r.extraClassId)}
+                                  >
+                                    등원
+                                  </span>
+                                )}
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => {
+                                    const k = optKey(r.student.id, r.extraClassId);
+                                    if (isOpen) closeRow(k);
+                                    else { setRowTab("check"); setOpenId(k); }
+                                  }}
+                                >
+                                  {isOpen ? "▾ 닫기" : "▸ 열기"}
+                                </button>
+                              </span>
+                            </div>
+                          ) : (
                           <button
                             className="stuLine"
                             onClick={() => {
@@ -589,9 +677,13 @@ export default function TodayBoard({
                               <span className="stuOpen">{isOpen ? "▾" : "▸"}</span>
                             </span>
                           </button>
+                          )}
 
                           {isOpen && (
                             <StudentPanel
+                              layout={panel3 ? "sheets" : "classic"}
+                              sheetTab={panel3 ? rowTab : undefined}
+                              onSheetTab={panel3 ? setRowTab : undefined}
                               row={r}
                               date={date}
                               items={items}
@@ -729,7 +821,8 @@ export default function TodayBoard({
 
       {/* 다 찍고 나면 바로 발송으로 — 매번 메뉴를 다시 찾아 들어가지 않게 */}
       {(() => {
-        const all = groups.flatMap((g) => g.rows);
+        // 참조 줄은 세지 않는다 (0164 — 정규 줄에서 이미 센 학생)
+        const all = groups.flatMap((g) => g.rows).filter((r) => !r.refOnly);
         const ready = all.filter((r) => r.reportWritten).length;
         const left = all.filter((r) => stOf(r) && !isDone(r)).length;
         if (ready === 0) return null;

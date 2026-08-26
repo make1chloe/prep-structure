@@ -69,6 +69,32 @@ insert into public.attendance (student_id, date, status, makeup_of) values
   ('aaaaaaa1-0000-0000-0000-000000000002', current_date + 7, 'makeup', current_date + 5)
 on conflict (student_id, date) do nothing;
 
+-- ── 특강 (0164 — 재원생 속성) 검사용 3종 ──────────────────
+-- ① 겹치는 날 학생: 김서은은 정규(월수금)에 특강(월목)도 듣는다
+insert into public.student_extra_schedules
+  (id, student_id, label, days, start_time, from_date, to_date, fee) values
+  ('ccccccc1-0000-0000-0000-000000000001', 'aaaaaaa1-0000-0000-0000-000000000001',
+   '내신 특강', array['월','목'], '19:00', current_date - 7, current_date + 21, 150000)
+on conflict (id) do nothing;
+
+-- ② 특강 전용 학생: 반 배정이 하나도 없다 — 로스터·공지·수강료가
+--    이 아이를 잃으면 안 된다 (검토 T4·M7 의 그 자리)
+insert into public.students (id, name, school, grade, status) values
+  ('aaaaaaa1-0000-0000-0000-000000000003', '최특강', '신정중학교', '중2', 'enrolled')
+on conflict (id) do nothing;
+insert into public.student_extra_schedules
+  (id, student_id, label, days, start_time, from_date, to_date, fee) values
+  ('ccccccc1-0000-0000-0000-000000000002', 'aaaaaaa1-0000-0000-0000-000000000003',
+   '리스닝 특강', array['월','화','수','목','금','토','일'], '16:00', current_date - 7, current_date + 21, 100000)
+on conflict (id) do nothing;
+
+-- ③ 학원 전체 휴강과 겹치는 특강일 (다음 월요일 — ①의 특강 요일.
+--    회차 셈이 이 날을 빼는지가 검사 대상 — 검토 T3)
+insert into public.holidays (date, name, scope)
+select current_date + ((8 - extract(isodow from current_date))::int % 7),
+       '검사용 전체 휴강', 'all'
+where not exists (select 1 from public.holidays where name = '검사용 전체 휴강');
+
 -- ── 학교 목록 (설문지 「골라 넣기」 검사용 — 0114) ─────────
 -- 표가 비면 설문지 학교 칸이 손으로 적는 칸으로 내려앉는다 — 그 화면을
 -- 검사하려면 목록이 있어야 한다

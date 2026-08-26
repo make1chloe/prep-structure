@@ -16,6 +16,8 @@ import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/li
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
+import Panel3Toggle from "./Panel3Toggle";
+import { panel3On } from "./panelFlag";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +83,7 @@ export default async function TodayPage(props) {
     unreadCmtQ,
     actQ1,
     grammarQ,
+    extraSchedQ,
   ] = await Promise.all([
     user
       ? cachedProfile(supabase, user.id)
@@ -142,7 +145,7 @@ export default async function TodayPage(props) {
     supabase.from("textbooks").select("id, act_items"),
     supabase
       .from("notices")
-      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at, edited_at")
+      .select("id, kind, scope, class_id, extra_label, school, grade, title, photos, body, created_at, edited_at")
       .eq("date", date)
       .order("created_at", { ascending: true }),
     supabase
@@ -176,11 +179,24 @@ export default async function TodayPage(props) {
       .eq("date", date),
     // 단원평가 공통 단원 목록 (원장님 2026-08-19)
     supabase.from("integrations").select("config").eq("id", "grammar_units").maybeSingle(),
+    // 오늘 걸린 특강 (재원생 속성 — 0164). 요일·휴강일 필터는 아래 JS 에서.
+    // 0164 전 DB 면 error 로 오고, 그때는 특강 그룹이 안 뜰 뿐이다
+    supabase
+      .from("student_extra_schedules")
+      .select("id, student_id, label, days, start_time, end_time, off_dates")
+      .lte("from_date", date)
+      .gte("to_date", date),
   ]);
 
   const profile = profileQ?.data || null;
+  // 새 판(3때 시트) 스위치 — 이 브라우저 쿠키 (C1: 아직 분기점만)
+  const panel3 = await panel3On();
   const classes = allClasses
     .filter((c) => (c.days || []).includes(dow))
+    // 특강은 반이 아니라 재원생 속성이다 (0164 — 이행계획서 v2 §4,
+    // 원장님 확정 8/26). 특강반은 판에서 반으로 그리지 않는다 —
+    // label 그룹(아래 「특강」 절)이 그 자리를 잇는다.
+    .filter((c) => !isExtra(c))
     .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
 
   // 반 배정 + 학생
@@ -504,6 +520,14 @@ export default async function TodayPage(props) {
 
   // 오늘의 공지 · 전달사항 (첫 시도는 파도 1)
   let { data: noticeRows, error: noticeErr } = noticeQ1;
+  if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
+    // 0167 전이면 특강 label 없이
+    ({ data: noticeRows, error: noticeErr } = await supabase
+      .from("notices")
+      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at, edited_at")
+      .eq("date", date)
+      .order("created_at", { ascending: true }));
+  }
   if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
     // 0121 전이면 고친 시각 없이
     ({ data: noticeRows, error: noticeErr } = await supabase
@@ -1154,18 +1178,12 @@ export default async function TodayPage(props) {
   );
   const memberIds = new Set();
 
-  const groups = classes.map((klass) => {
-    // 특강은 그 반에 들어왔는지를 따로 찍는다 (결석·보강·수강료가 반마다 따로다)
-    const extra = isExtra(klass);
-    const ids = (members || [])
-      .filter((m) => m.class_id === klass.id)
-      .map((m) => m.student_id);
-    const rows = ids
-      .map((id) => studentById.get(id))
-      .filter(Boolean)
-      .map((s) => {
+  // **한 학생 줄** — 정규 반이든 특강 label 그룹이든 같은 빌더를 쓴다
+  // (판단 두 벌 금지). 옛 특강반(extra) 분기는 0164 모델 전환으로 소멸 —
+  // 출결은 늘 그날 출결(attendance) 하나다.
+  const buildRow = (klass, s) => {
         memberIds.add(s.id);
-        const a = extra ? clsAttById.get(`${klass.id}|${s.id}`) : attById.get(s.id);
+        const a = attById.get(s.id);
         const rep = reportByStudent.get(s.id) || null;
         return {
           student: s,
@@ -1205,14 +1223,11 @@ export default async function TodayPage(props) {
             return Math.max(0, m(b) - m(a));
           })(),
           paceOf: paceOfStudent(s.id),
-          // 있으면 출결을 이 반에만 찍는다 (없으면 예전처럼 그날 출결)
-          extraClassId: extra ? klass.id : null,
+          // 옛 특강반 시절의 두 칸 — 0164 전환으로 항상 null (4b 에서
+          // 소비처와 함께 제거 예정. 지금은 TodayBoard 호환용)
+          extraClassId: null,
           className: klass.name,
-          // 특강 줄의 '완료' 는 그 반에서만 판단한다.
-          //   정규 리포트는 학생 하루에 한 장이라, 정규에서 기록을 끝내면
-          //   특강 줄까지 완료로 보여버린다 — 특강은 아직 아무것도 안 했는데도.
-          //   결석·보강이면 그 반에서 할 게 없으므로 완료로 본다.
-          rowDone: extra ? a?.status === "absent" || a?.status === "makeup" : null,
+          rowDone: null,
           subs: subsOf.get(s.id) || [],
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
@@ -1248,7 +1263,16 @@ export default async function TodayPage(props) {
               .map(([k, v]) => [k.split("|")[1], v])
           ),
         };
-      })
+  };
+
+  const groups = classes.map((klass) => {
+    const ids = (members || [])
+      .filter((m) => m.class_id === klass.id)
+      .map((m) => m.student_id);
+    const rows = ids
+      .map((id) => studentById.get(id))
+      .filter(Boolean)
+      .map((s) => buildRow(klass, s))
       .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
     return { klass, rows };
   });
@@ -1321,6 +1345,42 @@ export default async function TodayPage(props) {
     });
   }
 
+  // ── 특강 (재원생 속성 — 0164, 이행계획서 v2 §4) ────────────
+  // label 이 곧 그룹이다 — 그날 그 label 전원을 한 판에서 본다.
+  // 겹치는 학생(오늘 정규 반도 있는)은 **정규 줄이 기록 주체**라 참조
+  // 줄로만 선다 (하루 1판 원칙 — 두 줄이 같은 판을 쓰면 서로 덮는다).
+  const extraScheds = (extraSchedQ?.data || []).filter(
+    (x) => (x.days || []).includes(dow) && !(x.off_dates || []).includes(date)
+  );
+  {
+    const byLabel = new Map();
+    extraScheds.forEach((x) => {
+      if (!byLabel.has(x.label)) byLabel.set(x.label, []);
+      byLabel.get(x.label).push(x);
+    });
+    [...byLabel.entries()]
+      .sort((a, b) => (a[1][0].start_time || "").localeCompare(b[1][0].start_time || ""))
+      .forEach(([label, scheds]) => {
+        const first = scheds[0];
+        const klass = {
+          id: `extra:${label}`,
+          name: `특강 · ${label}`,
+          start_time: first.start_time,
+          end_time: first.end_time,
+        };
+        const rows = scheds
+          .map((x) => studentById.get(x.student_id))
+          .filter(Boolean)
+          .map((s) =>
+            memberIds.has(s.id)
+              ? { student: s, refOnly: true }   // 기록은 정규 줄에서
+              : buildRow(klass, s)
+          )
+          .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
+        if (rows.length) groups.push({ klass, rows });
+      });
+  }
+
   // 오늘 일정 — 전달사항으로 아직 안 깐 것 (파도 1)
   const { data: todayTasks } = todayTasksQ;
   const { data: madeNotices } = madeNoticesQ;
@@ -1363,6 +1423,9 @@ export default async function TodayPage(props) {
     const targetLabel =
       n.scope === "class"
         ? classNameOf(n.class_id)
+        : n.scope === "extra"
+        // label 공지 (0167) — extra_label 이 정체성. 칸이 없는 옛 DB 폴백이면 이름만 뭉개진다
+        ? (n.extra_label ? `특강 · ${n.extra_label}` : "특강")
         : n.scope === "grade"
         ? [n.school, n.grade].filter(Boolean).join(" ") || "학년"
         : n.scope === "student"
@@ -1526,11 +1589,26 @@ export default async function TodayPage(props) {
             date={date}
             students={(students || []).map((st) => ({ id: st.id, name: st.name }))}
           />
+          {/* 새 판(3때 시트) 스위치 — 원장 브라우저에서만. 켜기 전에는
+              아무 것도 안 바뀐다 (C1: 분기점만 — 실행지도 §6) */}
+          {profile?.role === "principal" && <Panel3Toggle on={panel3} />}
         </div>
         <MonthlyReset ym={ym} targets={resetTargets} />
         <TopNotices
           date={date}
-          classes={groups.map((g) => ({ id: g.klass.id, name: g.klass.name }))}
+          // 「보강」 가상 그룹은 반 공지 대상이 아니다 — 비-uuid 가
+          // notices.class_id 에 들어가면 22P02 로 죽는다 (검토 M5).
+          // 특강 그룹은 label 공지(0167)로 받는다 — extraLabel 을 달아서
+          // 보내면 서버(createNotice)가 uuid 칸 대신 extra_label 에 남긴다
+          classes={groups
+            .filter((g) => g.klass.id !== "makeup")
+            .map((g) => ({
+              id: g.klass.id,
+              name: g.klass.name,
+              extraLabel: String(g.klass.id).startsWith("extra:")
+                ? String(g.klass.id).slice("extra:".length)
+                : null,
+            }))}
           students={rosterStudents}
           notices={noticeCards}
           tasks={taskCards}
@@ -1542,6 +1620,7 @@ export default async function TodayPage(props) {
         <ActivityBoard rows={activity} calls={calls} unavailable={activityOff} />
         <TodayBoard
           date={date}
+          panel3={panel3}
           groups={groups}
           items={items || []}
           textbooks={textbooks}

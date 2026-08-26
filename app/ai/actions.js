@@ -321,7 +321,10 @@ export async function monthlyBriefing(studentId, ym) {
       .select("kind, term, taken_on, raw_score, full_score, grade")
       .eq("student_id", studentId).gte("taken_on", from).lte("taken_on", to),
   ]);
-  const reps = repQ.data || [];
+  // 출결 없는 판(검사·배정만 얹힌 것)은 수업이 아니다 — 「수업 N회」 가
+  // 월간 요약(days)과 어긋난 채 학부모 브리핑에 실리면 안 된다
+  // (정합성 검토 2026-08-26. 기준은 월간 #16 과 동일)
+  const reps = (repQ.data || []).filter((r) => r.attendance_kind !== null);
   if (reps.length === 0) return { error: "이 달 수업 기록이 없어요." };
 
   /**

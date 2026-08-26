@@ -62,3 +62,21 @@
 | 학생 (김서은) | chloe0001 | e2e-pass |
 | 학생 (박지호) | chloe0002 | e2e-pass |
 | 학부모 | parent0001@e2e.test | e2e-pass |
+
+## 오늘 수업 판 골든 (golden-dayboard.mjs)
+
+C6(학생 판 배치 공사) 전의 **판정·내용을 글자로 박제**해 두고, 공사 뒤
+같은 씨앗에서 같은 글자가 나오는지 견줍니다. 픽셀·마크업은 안 봅니다 —
+배치는 바뀌라고 하는 공사이고, 흘리면 안 되는 것은 내용입니다.
+
+- 자기 씨앗(골든반·골든특강 — **매일 도는** 반이라 요일과 무관)을 REST 로
+  심고, `/today?d=오늘+10일` 을 sheets 배치(panel3 쿠키)로 열어 학생 판
+  세 개(골든하나·골든둘·골든셋)의 구역별 텍스트를 뽑습니다.
+- 날짜·요일·경과 표기는 `golden-lib.mjs` 가 ⟨D+n⟩·(요일)·N분 전 토큰으로
+  눕힙니다 — 어느 날 떠도 같은 골든이 나옵니다.
+- 골든 파일: `scripts/e2e/golden/dayboard.json` (커밋합니다).
+  **없으면 빨강**입니다 — 자동 생성으로 초록을 주면 검사가 죽습니다.
+- 박제·갱신: Actions → e2e → Run workflow 에서 `golden_update` 를 켜면
+  아티팩트(dayboard-golden)로 나옵니다. 내려받아 커밋하세요.
+- 맥(로컬)에서는 판이 없으니 `node scripts/e2e/golden-dayboard.mjs
+  --selftest` 로 정규화·diff 부품만 실측할 수 있습니다.

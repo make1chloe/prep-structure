@@ -8,7 +8,6 @@ import { setBookPause } from "@/app/progress/actions";
 import { useSheet } from "@/components/useSheet";
 import { uploadAnswerFiles, removeAnswerFiles } from "./answerActions";
 import { quickAddUnits } from "@/app/textbooks/actions";
-import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
 import MakeupHere, { MakeupMissed } from "./MakeupHere";
 import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
@@ -235,6 +234,11 @@ export default function StudentPanel({
   unitNames = {},
   rule = {},
   grammarCommon = [],
+  // "sheets" = 3때 새 판 (실행지도 v2) — 기본은 구판 그대로
+  layout = "classic",
+  // C4: 줄 칩이 고른 때를 판이 따른다 (제어형 — 없으면 자체 상태)
+  sheetTab: sheetTabProp,
+  onSheetTab,
   onSaved,
   onClose,
 }) {
@@ -615,7 +619,11 @@ export default function StudentPanel({
   const [drafting, setDrafting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
-  const [saving, setSaving] = useState(false);            // 저장 진짜 잠금 (2026-08-21)
+  const [saving, setSaving] = useState(false);
+  const [tabState, setTabState] = useState("check"); // 3때 — 새 판에서만
+  const sheetTab = typeof sheetTabProp === "string" ? sheetTabProp : tabState;
+  const setSheetTab = onSheetTab || setTabState;
+  const [pop, setPop] = useState(null); // 팝오버 A(absence)·B(warn)·C(comments)            // 저장 진짜 잠금 (2026-08-21)
 
   /**
    * **판이 열려 있는 동안은 실시간 갱신을 늦춘다** (원장님 2026-08-23 —
@@ -1238,25 +1246,12 @@ export default function StudentPanel({
     setSaving(true);
     startTransition(async () => {
       try {
-      // 특강이면 출결은 그 반에만 남긴다.
-      // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
-      if (row.extraClassId && form.attendance && (attTouched || arr.attend)) {
-        const a = await setClassAttendance(
-          row.extraClassId,
-          row.student.id,
-          date,
-          form.attendance
-        );
-        if (a?.error) {
-          alert(a.error);
-          return;
-        }
-      }
+      // 출결은 늘 그날 출결(attendance) 하나다 — 옛 특강반의 반별 출결
+      // 쓰기(setClassAttendance)는 0164 모델 전환·0173 하강으로 끝났다
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         draft: asDraft,
-        attendance:
-          row.extraClassId || (!attTouched && !arr.attend) ? null : form.attendance,
+        attendance: !attTouched && !arr.attend ? null : form.attendance,
         items: marks,
         /**
          * 그림자 모드(0132): 자동 판정·미달 상세를 **기록만** 한다.
@@ -1351,120 +1346,15 @@ export default function StudentPanel({
     });
   }
 
-  return (
-    <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
-      {/**
-        * **머리 — 누구 판인지와 나가는 길** (원장님 2026-08-24 「모바일은
-        * 모달로」). 폰에서 판이 화면을 덮으면 학생 이름줄이 시트 뒤에 깔려,
-        * 누구 것인지도 모르고 나갈 길도 없어진다. 이름과 닫기를 여기 둔다
-        * (넓은 화면에서는 CSS 로 감춘다 — 줄에 이미 이름이 있다).
-        */}
-      <div className="stusheet-head">
-        <div className="sheettop">
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              if (saving && !confirm("저장 중입니다. 그래도 닫을까요?")) return;
-              onClose?.();
-            }}
-          >
-            ← 닫기
-          </button>
-          <b style={{ fontSize: 15 }}>{row.student.name}</b>
-          <span className="hint" style={{ fontSize: 12.5 }}>
-            {[row.student.school, row.student.grade].filter(Boolean).join(" ")}
-            {row.className ? ` · ${row.className}` : ""}
-          </span>
-        </div>
-      {/* 출결 */}
-      <div className="prow">
-        <span className="plabel">출결</span>
-        <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
-          {ATT.map((a) => (
-            <button
-              key={a.key}
-              className={`btn btn-sm ${(attTouched || arr.attend) && form.attendance === a.key ? "btn-on" : "btn-ghost"}`}
-              onClick={() => { setAttTouched(true); set("attendance", a.key); }}
-            >
-              {a.label}
-            </button>
-          ))}
-          {!attTouched && !arr.attend && (
-            <span className="hint" style={{ fontSize: 12.5 }}>
-              아직 미기록 — 누르거나 등원하면 기록돼요 (미리 준비만 하고 저장해도 출결은 안 찍힙니다)
-            </span>
-          )}
-          {/* 특강은 이 반 것만 바뀐다 — 정규 출결은 그대로다 */}
-          {row.extraClassId && (
-            <span className="hint" style={{ fontSize: 13 }}>
-              {row.className} 출결만 바뀝니다 (정규 출결은 그대로)
-            </span>
-          )}
-        </div>
-      </div>
-      </div>
 
-      <div className="stusheet-body">
-      {/**
-        * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
-        * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
-        * 정작 수업 중에는 아무도 몰랐다.
-        */}
-      {(row.student.note || "").trim() && (
-        <div className="notice" style={{ margin: "6px 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
-          <b>특이사항</b> · {row.student.note.trim()}
-        </div>
-      )}
-
-      {/**
-        * 클카 플래너 — **어느 세트가 체크됐는지 여기서** (원장님, 2026-08-17
-        * — 「어디에 숙제 체크된 건지 모르겠어」). 줄의 「클카 n/n」 태그는
-        * 요약이고, 세트별 ✅❌ 는 여기 편다. 확장이 15분마다 갱신한다.
-        */}
-      {(row.classcard || row.ccGap) && (
-        <div className="prow">
-          <span className="plabel">클카</span>
-          <div className="row" style={{ gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-            {(row.classcard?.sets || []).map((s, i) => (
-              <span key={i} className={`tag ${s.complete ? "tag-mint" : "tag-amber"}`}>
-                {s.complete ? "✅" : "❌"} {s.name}
-              </span>
-            ))}
-            {row.classcard && (
-              <span className="hint" style={{ fontSize: 12 }}>
-                그날 마감 플래너 {row.classcard.done}/{row.classcard.total} 완료
-              </span>
-            )}
-            {/* 감시③ 오늘 공백 (ccTodayGap, lib/classcard) — 클카 단어 배정인데
-                오늘 마감 세트가 없다. 교재 단어가 나간 날은 애초에 안 잰다
-                (2026-08-21 정정 — 「단어는 교재숙제가 나갈 경우 클카 숙제가
-                없다는 뜻이었어」). 대시보드 🎯 카드와 같은 판정이다. */}
-            {row.ccGap === "gap" && (
-              <span className="tag tag-red"
-                title="클카 방식 단어 숙제가 배정돼 있는데 플래너에 오늘 마감 세트가 없어요 — 플래너를 잡아주세요">
-                클카 단어 배정인데 오늘 마감 없음
-              </span>
-            )}
-            {row.ccGap === "nodata" && (
-              <span className="tag tag-amber"
-                title="클카 방식 단어 숙제가 배정돼 있는데 이 학생의 오늘치 클카 수신 자료가 없어요 — 확장이 이 학생을 못 읽었을 수 있어요">
-                클카 단어 배정인데 수신 자료 없음
-              </span>
-            )}
-            {row.ccGap === "stale" && (
-              <span className="hint" style={{ fontSize: 12 }}>
-                클카 수신 12시간 지남 — 오늘 공백 검사 쉼
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
+  // ── C3c 구역 함수 (팝오버 A·B·C 내용물 — 순서 밖 사건) ──
+  const mkGateZone = () => (
+    <>
       {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
           순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
           옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
           나중에 하기로 하면 나중은 오지 않는다 */}
-      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
+      {["absent", "online"].includes(form.attendance) && (
         row.isMakeup ? (
           /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
              보강 없음으로 접는다 (원장님 2026-08-21) */
@@ -1483,7 +1373,138 @@ export default function StudentPanel({
           />
         )
       )}
+    </>
+  );
+  const commentsZone = () => (
+    <>
+      {/* 학생·학부모가 남긴 댓글 */}
+      {r.id && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel">댓글</span>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <Comments
+              reportId={r.id}
+              studentId={row.student.id}
+              me="staff"
+              openBy={(row.unreadComments || 0) > 0}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const warnZone = () => (
+    <>
+      {/* 경고 · 반성문 — 지난 리포트에서 계산된 것 */}
+      {row.warn && row.warn.count > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>경고</span>
+          <WarnBox studentId={row.student.id} warn={row.warn} date={date} />
+        </div>
+      )}
+    </>
+  );
+  const mkFormZone = () => (
+    <>
+      {/* 재시험 · 보강 — 검사하다 정해지는 것이라 여기서 바로 잡는다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>재시험 · 보강</span>
+        <div style={{ flex: 1 }}>
+          {!mk.open ? (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() =>
+                setMk({
+                  open: true,
+                  date: nextMakeupDay(date, rule.makeupDays),
+                  time: "",
+                  // 미제출·미흡이 있으면 무엇 때문인지 미리 적어둔다
+                  reason: unchecked.length === 0
+                    ? Object.entries(marks)
+                        .filter(([, v]) => v === "missing" || v === "weak")
+                        .map(([id]) => nameOf(id))
+                        .filter(Boolean)
+                        .join(", ")
+                    : "",
+                })
+              }
+            >
+              ＋ 날짜 잡기
+            </button>
+          ) : (
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+              <input
+                className="input input-sm"
+                type="date"
+                style={{ width: 150 }}
+                value={mk.date}
+                onChange={(e) => setMk({ ...mk, date: e.target.value })}
+              />
+              {/* 보강은 비는 시간에 끼워 넣는 것이라 몇 시인지가 날짜만큼 중요하다.
+                  학부모께도 "금요일에 오세요" 로는 안 되고 "금요일 5시" 라야 한다. */}
+              <input
+                className="input input-sm"
+                type="time"
+                style={{ width: 116 }}
+                title="보강 시각"
+                value={mk.time}
+                onChange={(e) => setMk({ ...mk, time: e.target.value })}
+              />
+              {MAKEUP_TIMES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`btn btn-sm ${mk.time === t ? "btn-on" : "btn-ghost"}`}
+                  style={{ padding: "2px 8px", fontSize: 13 }}
+                  onClick={() => setMk({ ...mk, time: t })}
+                >
+                  {t}
+                </button>
+              ))}
+              <input
+                className="input input-sm"
+                style={{ flex: 1, minWidth: 140 }}
+                placeholder="무엇 때문인지 (단어 재시험 / 결석 보강 …)"
+                value={mk.reason}
+                onChange={(e) => setMk({ ...mk, reason: e.target.value })}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={pending || !mk.date}
+                onClick={() =>
+                  startTransition(async () => {
+                    const res = await bookMakeup(
+                      row.student.id,
+                      mk.date,
+                      mk.reason,
+                      row.isMakeup ? row.makeupOf : null,
+                      mk.time
+                    );
+                    if (res?.error) { alert(res.error); return; }
+                    setMk({ open: false, date: "", time: "", reason: "" });
+                    lazyRefresh();
+                  })
+                }
+              >
+                잡기
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", time: "", reason: "" })}>
+                취소
+              </button>
+            </div>
+          )}
+          <p className="hint" style={{ margin: "4px 0 0" }}>
+            그날 <b>오늘 수업</b> 화면에 이 학생이 보강으로 뜹니다. 일정 화면으로 안 나가도 돼요.
+            {" "}날짜는 <b>다음 보강 요일</b>이 미리 들어가 있습니다 — 바꾸셔도 됩니다.
+          </p>
+        </div>
+      </div>
+    </>
+  );
 
+  // ── C3b 구역 함수 (②수업·하원 / ③다음 — 같은 무복제 규칙) ──
+  const arriveZone = () => (
+    <>
       {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
       <div className="prow" style={{ alignItems: "center" }}>
         <span className="plabel">등원</span>
@@ -1589,117 +1610,10 @@ export default function StudentPanel({
           </button>
         </div>
       </div>
-
-
-      {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
-      <SubmissionList rows={row.subs || []} items={items} />
-
-      {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
-      {(row.notices || []).filter((n) => isMemo(n.kind)).length > 0 && (
-        <div className="sayblock">
-          <div className="sayhead">
-            학생에게 말할 것
-            <span className="hint" style={{ fontWeight: 600 }}>
-              {" "}· 말한 뒤 눌러주세요
-            </span>
-          </div>
-          <div className="stack" style={{ gap: 6 }}>
-            {(row.notices || [])
-              .filter((n) => isMemo(n.kind))
-              .map((n) => {
-                const done = !!delivered[n.id];
-                return (
-                  <label key={n.id} className={`sayitem ${done ? "done" : ""}`}>
-                    <input
-                      type="checkbox"
-                      checked={done}
-                      onChange={(e) => {
-                        const v = e.target.checked;
-                        setDeliveredMap((m) => ({ ...m, [n.id]: v }));
-                        startTransition(async () => {
-                          const res = await setDelivered(n.id, row.student.id, v);
-                          if (res?.error) alert(res.error);
-                        });
-                      }}
-                    />
-                    <span className="saybody">{n.body}</span>
-                    <span className={`tag ${done ? "tag-muted" : "tag-amber"}`}>
-                      {done ? "전달함" : "전달 전"}
-                    </span>
-                  </label>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      {/* 적다 만 것이 남아 있으면 알려준다. 저장을 안 누른 채 화면을 옮기면
-          예전에는 통째로 날아갔다 — 수업 중에는 자주 있는 일이다. */}
-      {draft && (
-        <div className="notice" style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.8 }}>
-          <b>적다 만 것이 남아 있어요.</b>{" "}
-          {new Date(draft.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-          에 적으신 것입니다 — 저장은 안 눌리셨어요.
-          <div className="row" style={{ gap: 6, marginTop: 6 }}>
-            <button
-              className="btn btn-sm"
-              onClick={() => {
-                setForm(draft.form);
-                setMarks(draft.marks || {});
-                setNext(new Set(draft.next || []));
-                setInClass(draft.inClass || []);
-                setDraft(null);
-              }}
-            >
-              되살리기
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={dropDraft}>버리기</button>
-          </div>
-        </div>
-      )}
-
-      {/* 테스트 점수 — 채점할 때 세는 건 '틀린 개수' 다.
-          전체 개수는 지난번 것을 미리 채워두고, 틀린 개수만 치면 맞은 개수가 계산된다. */}
-      <div className="prow">
-        <span className="plabel">테스트</span>
-        <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <ScoreInput
-            label="단어"
-            total={form.word_total}
-            correct={form.word_correct}
-            onTotal={(v) => set("word_total", v)}
-            onCorrect={(v) => set("word_correct", v)}
-            cut={cutOf(row.student, Number(rule.wordPassPct) || 90)}
-            source={wordSource}
-          />
-          <ScoreInput
-            label="문법"
-            total={form.sent_total}
-            correct={form.sent_correct}
-            onTotal={(v) => set("sent_total", v)}
-            onCorrect={(v) => set("sent_correct", v)}
-          />
-          {/* **재시험 건너뛰기를 점수 칸 옆에** (원장님 2026-08-21 — 「단어재시험
-              건너뛰기 버튼 필요」). 전에는 하원 사유 줄에만 있어서, 사유가 자동으로
-              잡히기 전엔 버튼 자체가 안 보였다 — 점수를 적는 그 자리에서 누른다 */}
-          <button
-            className={`btn btn-sm ${retestSkip ? "btn-on" : "btn-ghost"}`}
-            disabled={pending}
-            title={retestSkip ? "누르면 다시 재시험 대상이 됩니다" : "오늘은 단어 재시험을 안 봅니다 — 하원 사유·문자에서 빠져요. 점수 기록은 그대로예요"}
-            onClick={() => {
-              const on = !retestSkip;
-              setRetestSkip(on);
-              startTransition(async () => {
-                const res = await skipWordRetest(row.student.id, date, on);
-                if (res?.error) { alert(res.error); setRetestSkip(!on); }
-              });
-            }}
-          >
-            {retestSkip ? "재시험 건너뜀 ✓" : "재시험 건너뛰기"}
-          </button>
-        </div>
-      </div>
-
+    </>
+  );
+  const utZone = () => (
+    <>
       {/* **단원평가** — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑
           같은 거야」. 그래서 학생 화면에 따로 만들지 않고 여기에 붙였다.
           **단원명을 적으신 것만** 성적으로 올라간다 — 그냥 문장 확인은
@@ -1744,7 +1658,10 @@ export default function StudentPanel({
             )}
           </div>
       </div>
-
+    </>
+  );
+  const utLogZone = () => (
+    <>
       {/**
         * 옛 「단원평가 상자」 (0031 · unit_exams) — **이제 적는 자리가 아니다**
         * (원장님, 2026-08-11 — 「중복정보, 중복입력이 있어」). 같은 시험을
@@ -1758,151 +1675,10 @@ export default function StudentPanel({
           <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} readOnly />
         </div>
       )}
-
-      {/* 숙제 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
-        <div style={{ flex: 1 }}>
-          {waiting.length > 0 && (
-            <div
-              className="notice"
-              style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.8 }}
-            >
-              <b>검사 기다리는 중 — {waiting.length}건</b>
-              <br />
-              {waiting.map((w) => `${w.name} (${waitingFor(w.since)})`).join(" · ")}
-              <br />
-              바쁘시면 그냥 두셔도 됩니다. <b>검사 안 한 항목은 다음 수업으로 넘어갑니다.</b>
-            </div>
-          )}
-          {toCheck.length > 0 && (
-            <>
-              <p className="hint" style={{ margin: "0 0 6px" }}>
-                {row.assignedFrom
-                  ? `${row.assignedFrom.slice(5).replace("-", "/")} 수업에 낸 숙제 `
-                  : "지난 수업에 낸 숙제 "}
-                {toCheck.length}개
-                {unchecked.length > 0 ? (
-                  <b style={{ color: "var(--amber)" }}> · 미검사 {unchecked.length}개</b>
-                ) : (
-                  <b style={{ color: "var(--mint)" }}> · 모두 검사함</b>
-                )}
-              </p>
-              {/* 학생이 「다 했어요」 누른 것 한 번에 ○ (원장님 2026-08-20 —
-                  「c도 좋아 … 팝업식으로 나에게 확인을」 → 버튼 확인식.
-                  직접검사(in_person) 항목은 눈으로 봐야 하니 뺀다) */}
-              {(() => {
-                const fillable = toCheck.filter((iid) => {
-                  if (marks[iid]) return false;
-                  const item = items.find((x) => x.id === iid);
-                  if (item?.in_person) return false;
-                  return (row.doneRows || []).some(
-                    (d) => d.homework_item_id === iid && d.student_done_at
-                  );
-                });
-                if (fillable.length === 0) return null;
-                return (
-                  <button
-                    className="btn btn-sm"
-                    style={{ marginBottom: 6 }}
-                    disabled={saving}
-                    onClick={() =>
-                      setMarks((m) => {
-                        const n = { ...m };
-                        fillable.forEach((iid) => { touchedMarks.current.add(iid); n[iid] = "done"; });
-                        return n;
-                      })
-                    }
-                  >
-                    다 했어요 누른 {fillable.length}개 ○로 채우기
-                  </button>
-                );
-              })()}
-              {/* 배정할 때 적어둔 단원과 분량 — 무엇을 검사할지 여기서 바로 본다.
-                  오늘 이미 저장된 검사는 아래 접힌 묶음으로 (원장님 2026-08-22) */}
-              <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
-                {checkOpen.map((iid) => checkRow(iid))}
-                {checkFolded.length > 0 && (
-                  <div>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setShowCheckedToday((v) => !v)}
-                      title="오늘 이미 검사하고 저장한 숙제예요 — 펴면 판정이 보이고, 칩을 눌러 고친 뒤 다시 저장하면 됩니다"
-                    >
-                      오늘 검사한 {checkFolded.length}개 {showCheckedToday ? "▾" : "▸"}
-                    </button>
-                  </div>
-                )}
-                {showCheckedToday && checkFolded.map((iid) => checkRow(iid))}
-              </div>
-              {methodOf && (
-                <div className="notice" style={{ marginBottom: 8, whiteSpace: "pre-wrap" }}>
-                  <b>{nameOf(methodOf)} 학습 방법</b>
-                  {"\n"}
-                  {items.find((x) => x.id === methodOf)?.method}
-                </div>
-              )}
-            </>
-          )}
-          {!showAllItems ? (
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ marginBottom: 6 }}
-              onClick={() => setShowAllItems(true)}
-            >
-              ＋ 다른 항목도 검사하기
-            </button>
-          ) : (
-          <div className="row" style={{ gap: 3, marginBottom: 6 }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ padding: "3px 8px" }}
-              onClick={() => setShowAllItems(false)}
-            >
-              접기
-            </button>
-            {cats.map((c) => (
-              <button
-                key={c}
-                className={`btn btn-sm ${cat === c ? "btn-on" : "btn-ghost"}`}
-                style={{ padding: "3px 8px" }}
-                onClick={() => setCat(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-          )}
-          {showAllItems && (
-            <div className="stack" style={{ gap: 6 }}>
-              {grouped(shown.filter((i) => !toCheckSet.has(i.id))).map(([g, list]) => (
-                <div className="hwgroup" key={g}>
-                  <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
-                  <div className="row" style={{ gap: 4 }}>
-                    {list.map((i) => {
-                      const st = marks[i.id] || "";
-                      return (
-                        <button
-                          key={i.id}
-                          className={`hwchip ${st ? MARK_CLS[st] : ""}`}
-                          onClick={() => cycle(i.id)}
-                          title="클릭: 완료 → 미흡 → 미제출 → 없음"
-                        >
-                          {st && <b>{MARK[st]}</b>} {i.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {toCheck.length === 0 && !showAllItems && (
-            <span className="hint">지난 수업에 낸 숙제가 없어요.</span>
-          )}
-        </div>
-      </div>
-
+    </>
+  );
+  const inclassZone = () => (
+    <>
       {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
@@ -1981,7 +1757,11 @@ export default function StudentPanel({
                     * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
                     * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
                     */}
-                  <span className="stuEnd">
+                  {/* 컨트롤 묶음 — 제 줄을 통째로 쓰고 안에서 줄바꿈한다.
+                      오른쪽 끝 고정(stuEnd 기본)이면 좁은 폰에서 「✕ 오늘
+                      뺌」 이 화면 밖으로 밀려 가로 스크롤을 만든다
+                      (원장님 2026-08-27 새 판 실물 판정) */}
+                  <span className="stuEnd" style={{ flexBasis: "100%", justifyContent: "flex-start", whiteSpace: "normal", marginLeft: 0 }}>
                   <span className="row" style={{ gap: 0, alignItems: "center" }}>
                     <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={idx === 0}
                       style={{ padding: "2px 5px" }}
@@ -2148,8 +1928,10 @@ export default function StudentPanel({
 
         </div>
       </div>
-
-
+    </>
+  );
+  const booksZone = () => (
+    <>
       {/* 사용중인 교재 · 단원 진도 (순서 무관 체크) */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
@@ -2215,7 +1997,10 @@ export default function StudentPanel({
           </div>
         </div>
       </div>
-
+    </>
+  );
+  const nextHwZone = () => (
+    <>
       {/* 다음 숙제 배정 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>다음</span>
@@ -2498,7 +2283,10 @@ export default function StudentPanel({
           )}
         </div>
       </div>
-
+    </>
+  );
+  const focusZone = () => (
+    <>
       {/**
         * **집중도 · 이해도** (원장님, 2026-08-11 — 「태도를 집중도로 고치고
         * 이해도 추가해줘」). 「태도」 는 말이 넓어서 떠든 것과 못 알아들은
@@ -2531,7 +2319,10 @@ export default function StudentPanel({
           </div>
         </div>
       ))}
-
+    </>
+  );
+  const kwZone = () => (
+    <>
       {/**
         * **월간용 키워드 메모** (원장님, 2026-08-21 — 「키워드메모칸 필여해」).
         * 학부모·학생에게 절대 안 나간다 (원장만 읽는 표, 0146) — 월간
@@ -2551,7 +2342,10 @@ export default function StudentPanel({
           <span className="hint" style={{ fontSize: 12 }}>월간리포트 초안 재료</span>
         </div>
       </div>
-
+    </>
+  );
+  const noticeZone = () => (
+    <>
       {/* 공지 — 받는 사람이 다르면 글도 달라야 한다.
           같은 일을 두 번 적지 않도록, 전달사항 한 줄로 둘 다 만든다. */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
@@ -2683,22 +2477,10 @@ export default function StudentPanel({
           </p>
         </div>
       </div>
-
-      {/* 학생·학부모가 남긴 댓글 */}
-      {r.id && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel">댓글</span>
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <Comments
-              reportId={r.id}
-              studentId={row.student.id}
-              me="staff"
-              openBy={(row.unreadComments || 0) > 0}
-            />
-          </div>
-        </div>
-      )}
-
+    </>
+  );
+  const stayZone = () => (
+    <>
       {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>{STAY_LABEL}</span>
@@ -2709,7 +2491,10 @@ export default function StudentPanel({
           suggestions={weakOrMissing.map(({ iid, st }) => staySugOf(iid, st))}
         />
       </div>
-
+    </>
+  );
+  const planNextZone = () => (
+    <>
       {/* 다음 수업 계획 (원장님 2026-08-20) — 기억이 생생할 때 미리 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>다음 수업</span>
@@ -2788,7 +2573,10 @@ export default function StudentPanel({
           </div>
         </div>
       </div>
-
+    </>
+  );
+  const lateZone = () => (
+    <>
       {/* 늦은 귀가 안내 — 재시험·미완료 숙제가 있으면 사유가 자동으로 잡힌다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>하원 안내</span>
@@ -2821,111 +2609,377 @@ export default function StudentPanel({
           }}
         />
       </div>
+    </>
+  );
 
-      {/* 경고 · 반성문 — 지난 리포트에서 계산된 것 */}
-      {row.warn && row.warn.count > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 5 }}>경고</span>
-          <WarnBox studentId={row.student.id} warn={row.warn} date={date} />
+  // ── 구역 렌더 함수 (checkRow 선례 — 컴포넌트가 아니라 함수: 매
+  //    렌더 새 타입이 되면 입력 상태가 날아간다). classic·sheets 두
+  //    배치가 같은 함수를 그린다 — 실행지도 v2 §0-2 무복제 분해.
+  const headZone = () => (
+    <>
+      {/**
+        * **머리 — 누구 판인지와 나가는 길** (원장님 2026-08-24 「모바일은
+        * 모달로」). 폰에서 판이 화면을 덮으면 학생 이름줄이 시트 뒤에 깔려,
+        * 누구 것인지도 모르고 나갈 길도 없어진다. 이름과 닫기를 여기 둔다
+        * (넓은 화면에서는 CSS 로 감춘다 — 줄에 이미 이름이 있다).
+        */}
+      <div className="stusheet-head">
+        <div className="sheettop">
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              if (saving && !confirm("저장 중입니다. 그래도 닫을까요?")) return;
+              onClose?.();
+            }}
+          >
+            ← 닫기
+          </button>
+          <b style={{ fontSize: 15 }}>{row.student.name}</b>
+          <span className="hint" style={{ fontSize: 12.5 }}>
+            {[row.student.school, row.student.grade].filter(Boolean).join(" ")}
+            {row.className ? ` · ${row.className}` : ""}
+          </span>
+        </div>
+      {/* 출결 */}
+      <div className="prow">
+        <span className="plabel">출결</span>
+        <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+          {ATT.map((a) => (
+            <button
+              key={a.key}
+              className={`btn btn-sm ${(attTouched || arr.attend) && form.attendance === a.key ? "btn-on" : "btn-ghost"}`}
+              onClick={() => { setAttTouched(true); set("attendance", a.key); }}
+            >
+              {a.label}
+            </button>
+          ))}
+          {!attTouched && !arr.attend && (
+            <span className="hint" style={{ fontSize: 12.5 }}>
+              아직 미기록 — 누르거나 등원하면 기록돼요 (미리 준비만 하고 저장해도 출결은 안 찍힙니다)
+            </span>
+          )}
+        </div>
+      </div>
+      </div>
+    </>
+  );
+  const ccZone = () => (
+    <>
+      {/**
+        * 클카 플래너 — **어느 세트가 체크됐는지 여기서** (원장님, 2026-08-17
+        * — 「어디에 숙제 체크된 건지 모르겠어」). 줄의 「클카 n/n」 태그는
+        * 요약이고, 세트별 ✅❌ 는 여기 편다. 확장이 15분마다 갱신한다.
+        */}
+      {(row.classcard || row.ccGap) && (
+        <div className="prow">
+          <span className="plabel">클카</span>
+          <div className="row" style={{ gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+            {(row.classcard?.sets || []).map((s, i) => (
+              <span key={i} className={`tag ${s.complete ? "tag-mint" : "tag-amber"}`}>
+                {s.complete ? "✅" : "❌"} {s.name}
+              </span>
+            ))}
+            {row.classcard && (
+              <span className="hint" style={{ fontSize: 12 }}>
+                그날 마감 플래너 {row.classcard.done}/{row.classcard.total} 완료
+              </span>
+            )}
+            {/* 감시③ 오늘 공백 (ccTodayGap, lib/classcard) — 클카 단어 배정인데
+                오늘 마감 세트가 없다. 교재 단어가 나간 날은 애초에 안 잰다
+                (2026-08-21 정정 — 「단어는 교재숙제가 나갈 경우 클카 숙제가
+                없다는 뜻이었어」). 대시보드 🎯 카드와 같은 판정이다. */}
+            {row.ccGap === "gap" && (
+              <span className="tag tag-red"
+                title="클카 방식 단어 숙제가 배정돼 있는데 플래너에 오늘 마감 세트가 없어요 — 플래너를 잡아주세요">
+                클카 단어 배정인데 오늘 마감 없음
+              </span>
+            )}
+            {row.ccGap === "nodata" && (
+              <span className="tag tag-amber"
+                title="클카 방식 단어 숙제가 배정돼 있는데 이 학생의 오늘치 클카 수신 자료가 없어요 — 확장이 이 학생을 못 읽었을 수 있어요">
+                클카 단어 배정인데 수신 자료 없음
+              </span>
+            )}
+            {row.ccGap === "stale" && (
+              <span className="hint" style={{ fontSize: 12 }}>
+                클카 수신 12시간 지남 — 오늘 공백 검사 쉼
+              </span>
+            )}
+          </div>
         </div>
       )}
-
-      {/* 재시험 · 보강 — 검사하다 정해지는 것이라 여기서 바로 잡는다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>재시험 · 보강</span>
-        <div style={{ flex: 1 }}>
-          {!mk.open ? (
+    </>
+  );
+  const subsZone = () => (
+    <>
+      {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
+      <SubmissionList rows={row.subs || []} items={items} />
+    </>
+  );
+  const sayZone = () => (
+    <>
+      {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
+      {(row.notices || []).filter((n) => isMemo(n.kind)).length > 0 && (
+        <div className="sayblock">
+          <div className="sayhead">
+            학생에게 말할 것
+            <span className="hint" style={{ fontWeight: 600 }}>
+              {" "}· 말한 뒤 눌러주세요
+            </span>
+          </div>
+          <div className="stack" style={{ gap: 6 }}>
+            {(row.notices || [])
+              .filter((n) => isMemo(n.kind))
+              .map((n) => {
+                const done = !!delivered[n.id];
+                return (
+                  <label key={n.id} className={`sayitem ${done ? "done" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={done}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setDeliveredMap((m) => ({ ...m, [n.id]: v }));
+                        startTransition(async () => {
+                          const res = await setDelivered(n.id, row.student.id, v);
+                          if (res?.error) alert(res.error);
+                        });
+                      }}
+                    />
+                    <span className="saybody">{n.body}</span>
+                    <span className={`tag ${done ? "tag-muted" : "tag-amber"}`}>
+                      {done ? "전달함" : "전달 전"}
+                    </span>
+                  </label>
+                );
+              })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const draftZone = () => (
+    <>
+      {/* 적다 만 것이 남아 있으면 알려준다. 저장을 안 누른 채 화면을 옮기면
+          예전에는 통째로 날아갔다 — 수업 중에는 자주 있는 일이다. */}
+      {draft && (
+        <div className="notice" style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.8 }}>
+          <b>적다 만 것이 남아 있어요.</b>{" "}
+          {new Date(draft.at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          에 적으신 것입니다 — 저장은 안 눌리셨어요.
+          <div className="row" style={{ gap: 6, marginTop: 6 }}>
             <button
-              className="btn btn-ghost btn-sm"
-              onClick={() =>
-                setMk({
-                  open: true,
-                  date: nextMakeupDay(date, rule.makeupDays),
-                  time: "",
-                  // 미제출·미흡이 있으면 무엇 때문인지 미리 적어둔다
-                  reason: unchecked.length === 0
-                    ? Object.entries(marks)
-                        .filter(([, v]) => v === "missing" || v === "weak")
-                        .map(([id]) => nameOf(id))
-                        .filter(Boolean)
-                        .join(", ")
-                    : "",
-                })
-              }
+              className="btn btn-sm"
+              onClick={() => {
+                setForm(draft.form);
+                setMarks(draft.marks || {});
+                setNext(new Set(draft.next || []));
+                setInClass(draft.inClass || []);
+                setDraft(null);
+              }}
             >
-              ＋ 날짜 잡기
+              되살리기
             </button>
-          ) : (
-            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-              <input
-                className="input input-sm"
-                type="date"
-                style={{ width: 150 }}
-                value={mk.date}
-                onChange={(e) => setMk({ ...mk, date: e.target.value })}
-              />
-              {/* 보강은 비는 시간에 끼워 넣는 것이라 몇 시인지가 날짜만큼 중요하다.
-                  학부모께도 "금요일에 오세요" 로는 안 되고 "금요일 5시" 라야 한다. */}
-              <input
-                className="input input-sm"
-                type="time"
-                style={{ width: 116 }}
-                title="보강 시각"
-                value={mk.time}
-                onChange={(e) => setMk({ ...mk, time: e.target.value })}
-              />
-              {MAKEUP_TIMES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`btn btn-sm ${mk.time === t ? "btn-on" : "btn-ghost"}`}
-                  style={{ padding: "2px 8px", fontSize: 13 }}
-                  onClick={() => setMk({ ...mk, time: t })}
-                >
-                  {t}
-                </button>
-              ))}
-              <input
-                className="input input-sm"
-                style={{ flex: 1, minWidth: 140 }}
-                placeholder="무엇 때문인지 (단어 재시험 / 결석 보강 …)"
-                value={mk.reason}
-                onChange={(e) => setMk({ ...mk, reason: e.target.value })}
-              />
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={pending || !mk.date}
-                onClick={() =>
-                  startTransition(async () => {
-                    const res = await bookMakeup(
-                      row.student.id,
-                      mk.date,
-                      mk.reason,
-                      row.isMakeup ? row.makeupOf : null,
-                      mk.time
-                    );
-                    if (res?.error) { alert(res.error); return; }
-                    setMk({ open: false, date: "", time: "", reason: "" });
-                    lazyRefresh();
-                  })
-                }
-              >
-                잡기
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", time: "", reason: "" })}>
-                취소
-              </button>
-            </div>
-          )}
-          <p className="hint" style={{ margin: "4px 0 0" }}>
-            그날 <b>오늘 수업</b> 화면에 이 학생이 보강으로 뜹니다. 일정 화면으로 안 나가도 돼요.
-            {" "}날짜는 <b>다음 보강 요일</b>이 미리 들어가 있습니다 — 바꾸셔도 됩니다.
-          </p>
+            <button className="btn btn-ghost btn-sm" onClick={dropDraft}>버리기</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const scoreZone = () => (
+    <>
+      {/* 테스트 점수 — 채점할 때 세는 건 '틀린 개수' 다.
+          전체 개수는 지난번 것을 미리 채워두고, 틀린 개수만 치면 맞은 개수가 계산된다. */}
+      <div className="prow">
+        <span className="plabel">테스트</span>
+        <div className="row" style={{ gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <ScoreInput
+            label="단어"
+            total={form.word_total}
+            correct={form.word_correct}
+            onTotal={(v) => set("word_total", v)}
+            onCorrect={(v) => set("word_correct", v)}
+            cut={cutOf(row.student, Number(rule.wordPassPct) || 90)}
+            source={wordSource}
+          />
+          <ScoreInput
+            label="문법"
+            total={form.sent_total}
+            correct={form.sent_correct}
+            onTotal={(v) => set("sent_total", v)}
+            onCorrect={(v) => set("sent_correct", v)}
+          />
+          {/* **재시험 건너뛰기를 점수 칸 옆에** (원장님 2026-08-21 — 「단어재시험
+              건너뛰기 버튼 필요」). 전에는 하원 사유 줄에만 있어서, 사유가 자동으로
+              잡히기 전엔 버튼 자체가 안 보였다 — 점수를 적는 그 자리에서 누른다 */}
+          <button
+            className={`btn btn-sm ${retestSkip ? "btn-on" : "btn-ghost"}`}
+            disabled={pending}
+            title={retestSkip ? "누르면 다시 재시험 대상이 됩니다" : "오늘은 단어 재시험을 안 봅니다 — 하원 사유·문자에서 빠져요. 점수 기록은 그대로예요"}
+            onClick={() => {
+              const on = !retestSkip;
+              setRetestSkip(on);
+              startTransition(async () => {
+                const res = await skipWordRetest(row.student.id, date, on);
+                if (res?.error) { alert(res.error); setRetestSkip(!on); }
+              });
+            }}
+          >
+            {retestSkip ? "재시험 건너뜀 ✓" : "재시험 건너뛰기"}
+          </button>
         </div>
       </div>
-
+    </>
+  );
+  const checkZone = () => (
+    <>
+      {/* 숙제 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
+        <div style={{ flex: 1 }}>
+          {waiting.length > 0 && (
+            <div
+              className="notice"
+              style={{ marginBottom: 8, fontSize: 14, lineHeight: 1.8 }}
+            >
+              <b>검사 기다리는 중 — {waiting.length}건</b>
+              <br />
+              {waiting.map((w) => `${w.name} (${waitingFor(w.since)})`).join(" · ")}
+              <br />
+              바쁘시면 그냥 두셔도 됩니다. <b>검사 안 한 항목은 다음 수업으로 넘어갑니다.</b>
+            </div>
+          )}
+          {toCheck.length > 0 && (
+            <>
+              <p className="hint" style={{ margin: "0 0 6px" }}>
+                {row.assignedFrom
+                  ? `${row.assignedFrom.slice(5).replace("-", "/")} 수업에 낸 숙제 `
+                  : "지난 수업에 낸 숙제 "}
+                {toCheck.length}개
+                {unchecked.length > 0 ? (
+                  <b style={{ color: "var(--amber)" }}> · 미검사 {unchecked.length}개</b>
+                ) : (
+                  <b style={{ color: "var(--mint)" }}> · 모두 검사함</b>
+                )}
+              </p>
+              {/* 학생이 「다 했어요」 누른 것 한 번에 ○ (원장님 2026-08-20 —
+                  「c도 좋아 … 팝업식으로 나에게 확인을」 → 버튼 확인식.
+                  직접검사(in_person) 항목은 눈으로 봐야 하니 뺀다) */}
+              {(() => {
+                const fillable = toCheck.filter((iid) => {
+                  if (marks[iid]) return false;
+                  const item = items.find((x) => x.id === iid);
+                  if (item?.in_person) return false;
+                  return (row.doneRows || []).some(
+                    (d) => d.homework_item_id === iid && d.student_done_at
+                  );
+                });
+                if (fillable.length === 0) return null;
+                return (
+                  <button
+                    className="btn btn-sm"
+                    style={{ marginBottom: 6 }}
+                    disabled={saving}
+                    onClick={() =>
+                      setMarks((m) => {
+                        const n = { ...m };
+                        fillable.forEach((iid) => { touchedMarks.current.add(iid); n[iid] = "done"; });
+                        return n;
+                      })
+                    }
+                  >
+                    다 했어요 누른 {fillable.length}개 ○로 채우기
+                  </button>
+                );
+              })()}
+              {/* 배정할 때 적어둔 단원과 분량 — 무엇을 검사할지 여기서 바로 본다.
+                  오늘 이미 저장된 검사는 아래 접힌 묶음으로 (원장님 2026-08-22) */}
+              <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
+                {checkOpen.map((iid) => checkRow(iid))}
+                {checkFolded.length > 0 && (
+                  <div>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setShowCheckedToday((v) => !v)}
+                      title="오늘 이미 검사하고 저장한 숙제예요 — 펴면 판정이 보이고, 칩을 눌러 고친 뒤 다시 저장하면 됩니다"
+                    >
+                      오늘 검사한 {checkFolded.length}개 {showCheckedToday ? "▾" : "▸"}
+                    </button>
+                  </div>
+                )}
+                {showCheckedToday && checkFolded.map((iid) => checkRow(iid))}
+              </div>
+              {methodOf && (
+                <div className="notice" style={{ marginBottom: 8, whiteSpace: "pre-wrap" }}>
+                  <b>{nameOf(methodOf)} 학습 방법</b>
+                  {"\n"}
+                  {items.find((x) => x.id === methodOf)?.method}
+                </div>
+              )}
+            </>
+          )}
+          {!showAllItems ? (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginBottom: 6 }}
+              onClick={() => setShowAllItems(true)}
+            >
+              ＋ 다른 항목도 검사하기
+            </button>
+          ) : (
+          <div className="row" style={{ gap: 3, marginBottom: 6 }}>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: "3px 8px" }}
+              onClick={() => setShowAllItems(false)}
+            >
+              접기
+            </button>
+            {cats.map((c) => (
+              <button
+                key={c}
+                className={`btn btn-sm ${cat === c ? "btn-on" : "btn-ghost"}`}
+                style={{ padding: "3px 8px" }}
+                onClick={() => setCat(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          )}
+          {showAllItems && (
+            <div className="stack" style={{ gap: 6 }}>
+              {grouped(shown.filter((i) => !toCheckSet.has(i.id))).map(([g, list]) => (
+                <div className="hwgroup" key={g}>
+                  <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                  <div className="row" style={{ gap: 4 }}>
+                    {list.map((i) => {
+                      const st = marks[i.id] || "";
+                      return (
+                        <button
+                          key={i.id}
+                          className={`hwchip ${st ? MARK_CLS[st] : ""}`}
+                          onClick={() => cycle(i.id)}
+                          title="클릭: 완료 → 미흡 → 미제출 → 없음"
+                        >
+                          {st && <b>{MARK[st]}</b>} {i.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {toCheck.length === 0 && !showAllItems && (
+            <span className="hint">지난 수업에 낸 숙제가 없어요.</span>
+          )}
+        </div>
       </div>
-
+    </>
+  );
+  const footZone = () => (
+    <>
       {/* 저장 줄 — 판이 길어서 저장하러 바닥까지 내려가야 했다
           (원장님 2026-08-20). 폰 시트에서는 본문 밖 「발」 이라 키보드가
           올라와도 가려지지 않는다 */}
@@ -2946,6 +3000,142 @@ export default function StudentPanel({
         </button>
       </div>
       </div>
+    </>
+  );
+
+  if (layout === "sheets") {
+    return (
+      <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
+        {headZone()}
+        <div className="stusheet-body">
+          {/* 3때 탭 (판세분화 v7 §1). 비활성 판은 display:none — 언마운트하면
+              업로드 진행 같은 시트 안 상태가 날아간다 (실행지도 v2 §0-6) */}
+          <div className="row" style={{ gap: 4, margin: "6px 0" }}>
+            {[["check", "검사"], ["lesson", "수업"], ["next", "다음"]].map(([k, label]) => (
+              <button key={k}
+                className={`btn btn-sm ${sheetTab === k ? "btn-on" : "btn-ghost"}`}
+                onClick={() => setSheetTab(k)}>
+                {label}
+              </button>
+            ))}
+            <span className="spacer" />
+            {/* 순서 밖 사건 — 팝오버 3 (v7 §1). z 59 — 새 버전 띠(60) 아래 */}
+            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "absence" ? null : "absence")}>결석·보강</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "warn" ? null : "warn")}>
+              경고{row.warn?.count > 0 ? ` ${row.warn.count}` : ""}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "comments" ? null : "comments")}>
+              댓글{(row.unreadComments || 0) > 0 ? ` ●` : ""}
+            </button>
+          </div>
+          {pop && (
+            <div className="sheetpop card" role="dialog" aria-label="순서 밖 사건">
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <b style={{ fontSize: 15 }}>
+                  {pop === "absence" ? "결석 · 보강 · 재시험" : pop === "warn" ? "경고 · 반성문" : "댓글"}
+                </b>
+                <button className="btn btn-ghost btn-sm" onClick={() => setPop(null)}>닫기</button>
+              </div>
+              {pop === "absence" && (<>{mkGateZone()}{mkFormZone()}</>)}
+              {pop === "warn" && (row.warn?.count > 0 ? warnZone() : <p className="hint">경고가 없어요.</p>)}
+              {pop === "comments" && commentsZone()}
+            </div>
+          )}
+          <div style={sheetTab === "check" ? undefined : { display: "none" }}>
+            {sayZone()}
+            {draftZone()}
+            {ccZone()}
+            {subsZone()}
+            {scoreZone()}
+            {checkZone()}
+          </div>
+          <div style={sheetTab === "lesson" ? undefined : { display: "none" }}>
+            {arriveZone()}
+            {utZone()}
+            {utLogZone()}
+            {inclassZone()}
+            {stayZone()}
+            {lateZone()}
+          </div>
+          <div style={sheetTab === "next" ? undefined : { display: "none" }}>
+            {nextHwZone()}
+            {planNextZone()}
+            {booksZone()}
+            {focusZone()}
+            {kwZone()}
+            {noticeZone()}
+          </div>
+        </div>
+        {footZone()}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
+      {headZone()}
+
+      <div className="stusheet-body">
+      {/**
+        * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
+        * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
+        * 정작 수업 중에는 아무도 몰랐다.
+        */}
+      {(row.student.note || "").trim() && (
+        <div className="notice" style={{ margin: "6px 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
+          <b>특이사항</b> · {row.student.note.trim()}
+        </div>
+      )}
+
+      {ccZone()}
+
+      {mkGateZone()}
+
+      {arriveZone()}
+
+
+      {subsZone()}
+
+      {sayZone()}
+
+      {draftZone()}
+
+      {scoreZone()}
+
+      {utZone()}
+
+      {utLogZone()}
+
+      {checkZone()}
+
+      {inclassZone()}
+
+
+      {booksZone()}
+
+      {nextHwZone()}
+
+      {focusZone()}
+
+      {kwZone()}
+
+      {noticeZone()}
+
+      {commentsZone()}
+
+      {stayZone()}
+
+      {planNextZone()}
+
+      {lateZone()}
+
+      {warnZone()}
+
+      {mkFormZone()}
+
+      </div>
+
+      {footZone()}
     </div>
   );
 }
