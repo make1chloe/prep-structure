@@ -96,7 +96,13 @@ jwt-secret = "$(cat scripts/e2e/jwt-secret.txt)"
 db-pre-request = "public.e2e_noop"
 CONF
 (/tmp/postgrest /var/tmp/e2e-pgrst.conf >/var/tmp/e2e-pgrst.log 2>&1 &)
-sleep 3
+# **한 번만 물으면 요동에 진다.** 뜨는 중(스키마 캐시 적재)에는 503 을
+# 주는데, 그때 딱 한 번 묻고 포기하면 앱 잘못이 아닌 것으로 검사가
+# 빨개진다 (Actions 9판 실측). 앱 확인(run.sh, 60회)과 같은 결로 기다린다.
+for i in $(seq 1 15); do
+  curl -sf "http://127.0.0.1:$PGRST_PORT/" >/dev/null && break
+  sleep 2
+done
 curl -sf "http://127.0.0.1:$PGRST_PORT/" >/dev/null || { echo "  안 떴습니다"; tail -10 /var/tmp/e2e-pgrst.log; exit 1; }
 echo "  떴습니다 :$PGRST_PORT"
 
