@@ -141,6 +141,9 @@ async function offenders(page) {
 let bad = 0;
 
 async function measure(page, group, student) {
+  // 판마다 새로 연다 — 앞 학생의 열린 판(고정 푸터)이 다음 카드 클릭을
+  // 가로챈 실사고가 있다 (임시저장 버튼이 pointer events 를 먹음)
+  await page.goto(`${APP}/today?d=${D}`, { waitUntil: "networkidle", timeout: 90000 });
   const card = page.locator(`.card:has(.grouphead:has-text("${group}"))`).first();
   if (!(await card.count())) {
     console.log(`✗ 「${group}」 카드가 없습니다 — 씨앗이 판에 안 섰습니다`);
