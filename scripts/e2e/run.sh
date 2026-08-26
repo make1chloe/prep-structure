@@ -73,6 +73,11 @@ E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/click.mjs || exit $?
 echo
 E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/apply-other.mjs || exit $?
 
+# **검사 저장 수술(0163)이 계약대로 도는가** — 지우기·메모 유지·자물쇠를
+# 진짜 Postgres 에 대고 눌러본다 (계획서 v2 §3).
+echo
+node scripts/e2e/check-rpc.mjs || exit $?
+
 # **학교 홈페이지에서 가져오기** (2026-08-11). 붙여넣은 표를 그대로 읽는지,
 # 나이스를 못 물어봤을 때 「다 있습니다」 라고 하지 않는지 — 화면으로 본다.
 echo
