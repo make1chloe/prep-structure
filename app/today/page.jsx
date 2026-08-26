@@ -16,6 +16,8 @@ import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/li
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
+import Panel3Toggle from "./Panel3Toggle";
+import { panel3On } from "./panelFlag";
 
 export const dynamic = "force-dynamic";
 
@@ -187,6 +189,8 @@ export default async function TodayPage(props) {
   ]);
 
   const profile = profileQ?.data || null;
+  // 새 판(3때 시트) 스위치 — 이 브라우저 쿠키 (C1: 아직 분기점만)
+  const panel3 = await panel3On();
   const classes = allClasses
     .filter((c) => (c.days || []).includes(dow))
     // 특강은 반이 아니라 재원생 속성이다 (0164 — 이행계획서 v2 §4,
@@ -1574,6 +1578,9 @@ export default async function TodayPage(props) {
             date={date}
             students={(students || []).map((st) => ({ id: st.id, name: st.name }))}
           />
+          {/* 새 판(3때 시트) 스위치 — 원장 브라우저에서만. 켜기 전에는
+              아무 것도 안 바뀐다 (C1: 분기점만 — 실행지도 §6) */}
+          {profile?.role === "principal" && <Panel3Toggle on={panel3} />}
         </div>
         <MonthlyReset ym={ym} targets={resetTargets} />
         <TopNotices
@@ -1594,6 +1601,7 @@ export default async function TodayPage(props) {
         <ActivityBoard rows={activity} calls={calls} unavailable={activityOff} />
         <TodayBoard
           date={date}
+          panel3={panel3}
           groups={groups}
           items={items || []}
           textbooks={textbooks}

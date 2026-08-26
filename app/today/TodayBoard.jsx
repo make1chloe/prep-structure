@@ -36,6 +36,9 @@ const optKey = (sid, extra) => `${sid}|${extra || ""}`;
 
 export default function TodayBoard({
   date,
+  // 새 판(3때 시트) 스위치 — C1 에서는 받기만 한다. 분기(신 줄·시트
+  // 렌더)는 C3·C4 에서 이 값 뒤에 선다 (판세분화-실행지도 §6)
+  panel3 = false,
   groups = [],
   items = [],
   textbooks = [],
