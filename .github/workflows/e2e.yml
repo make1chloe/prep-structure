@@ -1,0 +1,59 @@
+# e2e 를 GitHub Actions(ubuntu)에서 돌린다 — 검사 수술 계획서 v2 §0-b.
+#
+# 왜 여기서 도나: 이 검사(scripts/e2e/)는 리눅스 전제 3개를 깔고 있다 —
+# /usr/lib/postgresql/16/bin · `su postgres` · /opt/pw-browsers 크로뮴.
+# 개발하는 맥에는 셋 다 없고, check-sql.sh 는 postgres 가 없으면
+# 「건너뜁니다」 로 초록이 된다(거짓 초록). 마이그(0162·0163)와 저장 수술
+# (2-1·2-4)은 이 판이 초록일 때만 착수한다.
+#
+# 손으로 돌리기: Actions 탭 → e2e → Run workflow. 마이그를 건드린 푸시는
+# 자동으로도 돈다. (매 푸시마다 돌리지 않는 이유: 한 판에 ~10분이라
+# 평소 검사(check-pages.sh, 몇 초)와 자리가 다르다 — run.sh 머리말과
+# 같은 논리.)
+name: e2e
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - "scripts/e2e/**"
+      - ".github/workflows/e2e.yml"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # up.sh 의 고정 경로(/opt/pw-browsers/chromium-1194/…)를 그대로
+      # 만족시킨다 — 스크립트에 손대지 않기 위해(up.sh 의 원칙: 앱에도
+      # 검사에도 환경 맞춤 구멍을 내지 않는다). 러너의 크로뮴 판 번호가
+      # 1194 가 아니면 이름표만 걸어준다(symlink).
+      - name: Chromium (고정 경로 채우기)
+        run: |
+          sudo mkdir -p /opt/pw-browsers
+          sudo chown "$USER" /opt/pw-browsers
+          PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npx --yes playwright-core install chromium
+          d=$(ls -d /opt/pw-browsers/chromium-[0-9]* | head -1)
+          [ -e /opt/pw-browsers/chromium-1194 ] || ln -s "$d" /opt/pw-browsers/chromium-1194
+          /opt/pw-browsers/chromium-1194/chrome-linux/chrome --version
+
+      # run.sh 는 root 를 전제한다(su postgres·chown). 러너의 node PATH 를
+      # 들고 root 로 들어간다.
+      - name: e2e (세우고·띄우고·눌러보고)
+        run: sudo -E env "PATH=$PATH" bash scripts/e2e/run.sh
+
+      - name: 실패 로그
+        if: failure()
+        run: |
+          sudo tail -40 /var/tmp/e2e-next.log 2>/dev/null || true
+          sudo tail -20 /var/tmp/e2e-pgrst.log 2>/dev/null || true
+          sudo tail -20 /var/tmp/e2e-auth.log 2>/dev/null || true
+          sudo tail -20 /var/tmp/e2e-pg/log 2>/dev/null || true
