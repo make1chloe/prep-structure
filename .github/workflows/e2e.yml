@@ -41,8 +41,13 @@ jobs:
           sudo mkdir -p /opt/pw-browsers
           sudo chown "$USER" /opt/pw-browsers
           PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npx --yes playwright-core install chromium
-          d=$(ls -d /opt/pw-browsers/chromium-[0-9]* | head -1)
-          [ -e /opt/pw-browsers/chromium-1194 ] || ln -s "$d" /opt/pw-browsers/chromium-1194
+          # 새 Playwright 는 Chrome for Testing 판이라 안쪽이 chrome-linux/ 가
+          # 아니다 — 실행파일을 찾아 기대 경로에 이어붙인다 (배치가 또
+          # 바뀌어도 여기만 버틴다)
+          exe=$(find /opt/pw-browsers/chromium-[0-9]*/ -name chrome -type f ! -path "*headless*" | head -1)
+          [ -n "$exe" ] || { echo "chrome 실행파일을 못 찾았습니다"; find /opt/pw-browsers -maxdepth 2; exit 1; }
+          mkdir -p /opt/pw-browsers/chromium-1194/chrome-linux
+          ln -sf "$exe" /opt/pw-browsers/chromium-1194/chrome-linux/chrome
           /opt/pw-browsers/chromium-1194/chrome-linux/chrome --version
 
       # run.sh 는 root 를 전제한다(su postgres·chown). 러너의 node PATH 를
