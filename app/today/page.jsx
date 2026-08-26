@@ -145,7 +145,7 @@ export default async function TodayPage(props) {
     supabase.from("textbooks").select("id, act_items"),
     supabase
       .from("notices")
-      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at, edited_at")
+      .select("id, kind, scope, class_id, extra_label, school, grade, title, photos, body, created_at, edited_at")
       .eq("date", date)
       .order("created_at", { ascending: true }),
     supabase
@@ -520,6 +520,14 @@ export default async function TodayPage(props) {
 
   // 오늘의 공지 · 전달사항 (첫 시도는 파도 1)
   let { data: noticeRows, error: noticeErr } = noticeQ1;
+  if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
+    // 0167 전이면 특강 label 없이
+    ({ data: noticeRows, error: noticeErr } = await supabase
+      .from("notices")
+      .select("id, kind, scope, class_id, school, grade, title, photos, body, created_at, edited_at")
+      .eq("date", date)
+      .order("created_at", { ascending: true }));
+  }
   if (noticeErr && (noticeErr.code === "42703" || noticeErr.code === "PGRST204")) {
     // 0121 전이면 고친 시각 없이
     ({ data: noticeRows, error: noticeErr } = await supabase
@@ -1415,6 +1423,9 @@ export default async function TodayPage(props) {
     const targetLabel =
       n.scope === "class"
         ? classNameOf(n.class_id)
+        : n.scope === "extra"
+        // label 공지 (0167) — extra_label 이 정체성. 칸이 없는 옛 DB 폴백이면 이름만 뭉개진다
+        ? (n.extra_label ? `특강 · ${n.extra_label}` : "특강")
         : n.scope === "grade"
         ? [n.school, n.grade].filter(Boolean).join(" ") || "학년"
         : n.scope === "student"
@@ -1585,11 +1596,19 @@ export default async function TodayPage(props) {
         <MonthlyReset ym={ym} targets={resetTargets} />
         <TopNotices
           date={date}
-          // 가상 그룹(보강·특강)은 반 공지 대상이 아니다 — 비-uuid 가
-          // notices.class_id 에 들어가면 22P02 로 죽는다 (검토 M5 선반영)
+          // 「보강」 가상 그룹은 반 공지 대상이 아니다 — 비-uuid 가
+          // notices.class_id 에 들어가면 22P02 로 죽는다 (검토 M5).
+          // 특강 그룹은 label 공지(0167)로 받는다 — extraLabel 을 달아서
+          // 보내면 서버(createNotice)가 uuid 칸 대신 extra_label 에 남긴다
           classes={groups
-            .filter((g) => g.klass.id !== "makeup" && !String(g.klass.id).startsWith("extra:"))
-            .map((g) => ({ id: g.klass.id, name: g.klass.name }))}
+            .filter((g) => g.klass.id !== "makeup")
+            .map((g) => ({
+              id: g.klass.id,
+              name: g.klass.name,
+              extraLabel: String(g.klass.id).startsWith("extra:")
+                ? String(g.klass.id).slice("extra:".length)
+                : null,
+            }))}
           students={rosterStudents}
           notices={noticeCards}
           tasks={taskCards}

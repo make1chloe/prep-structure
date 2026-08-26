@@ -94,11 +94,15 @@ export default function TopNotices({
       if (!confirm(`지금 바로 ${who} ${targetCount}명 폰에 알림이 울립니다. 보낼까요?`)) return;
     }
     startTransition(async () => {
+      // 반별 목록에는 특강 그룹(extra:라벨)도 선다 (0167 — label 공지).
+      // 특강은 반이 아니라 uuid 가 없다 — classId 대신 extraLabel 로 보낸다
+      const sel = classes.find((c) => c.id === classId);
       const res = await createNotice({
         date,
         kind,
         scope,
-        classId: classId || null,
+        classId: sel?.extraLabel ? null : classId || null,
+        extraLabel: scope === "class" ? sel?.extraLabel || null : null,
         school: school || null,
         grade: grade || null,
         studentIds: [...picked],

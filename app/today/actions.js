@@ -621,12 +621,12 @@ export async function reopenReport(studentId, date) {
 
 // 「그날 오는 학생」 은 lib/roster 한 곳이 정한다 — 특강(0164) 학생을
 // 포함하고, 종강한 반은 뺀다 (전에는 여기서 요일만 봐서 종강한 반
-// 학생이 공지 대상에 계속 남았다). scope==="class" 는 uuid 로 거르므로
-// 특강 그룹(extra:라벨)은 안 잡는다 — 8단계 전까지는 그게 맞다.
+// 학생이 공지 대상에 계속 남았다). scope==="class" 는 uuid 로 거르고,
+// 특강 그룹(extra:라벨)은 label 공지(0167)가 따로 잡는다.
 const rosterOf = rosterOn;
 
 export async function createNotice(input) {
-  const { date, kind, scope, classId, school, grade, studentIds, body, title } = input || {};
+  const { date, kind, scope, classId, school, grade, studentIds, body, title, extraLabel } = input || {};
   const text = (body || "").trim();
   const head = (title || "").trim();
   // 사진만 보내는 경우도 있다 — 학교에서 나눠준 종이를 찍어서.
@@ -636,6 +636,24 @@ export async function createNotice(input) {
   const supabase = await createClient();
   const user = await sessionUser(supabase);
 
+  /**
+   * **특강 label 공지** (0167 — 이행계획서 v2 §8, 원장 확정 「필요함」).
+   * 특강은 반이 아니라 재원생 속성(0164)이라 class_id (uuid) 에 못 담는다.
+   * 화면이 label 을 따로 주지만, 옛 판이 「extra:라벨」 을 반 자리에 실어
+   * 보내도 여기서 받아준다 — 비-uuid 가 uuid 칸으로 흘러들어 22P02 로
+   * 죽던 잠복 버그(「보강」 가상 그룹)의 서버 쪽 봉합이다.
+   */
+  let label = (extraLabel || "").trim() || null;
+  let cid = classId || null;
+  if (scope === "class" && cid && String(cid).startsWith("extra:")) {
+    label = String(cid).slice("extra:".length);
+    cid = null;
+  }
+  if (scope === "class" && cid && !/^[0-9a-f-]{36}$/i.test(String(cid))) {
+    // 「makeup(보강)」 같은 가상 그룹 — 반이 아니라서 공지의 반이 될 수 없다
+    return { error: "반이 아닌 그룹이에요. 반을 다시 골라주세요." };
+  }
+
   // 대상 학생 확정
   let targets = [];
   if (scope === "student") {
@@ -643,9 +661,14 @@ export async function createNotice(input) {
   } else {
     const roster = await rosterOf(supabase, date);
     let ids = [...new Set(roster.map((m) => m.student_id))];
-    if (scope === "class") {
-      if (!classId) return { error: "반을 골라주세요." };
-      ids = [...new Set(roster.filter((m) => m.class_id === classId).map((m) => m.student_id))];
+    if (label) {
+      // 그날 유효한 그 label 특강 학생 — 판단은 rosterOn(meetsOn) 한 곳 (원칙 1)
+      ids = [...new Set(
+        roster.filter((m) => m.class_id === `extra:${label}`).map((m) => m.student_id)
+      )];
+    } else if (scope === "class") {
+      if (!cid) return { error: "반을 골라주세요." };
+      ids = [...new Set(roster.filter((m) => m.class_id === cid).map((m) => m.student_id))];
     }
     if (scope === "grade") {
       if (!school && !grade) return { error: "학교나 학년을 골라주세요." };
@@ -659,20 +682,28 @@ export async function createNotice(input) {
     }
     targets = ids;
   }
-  if (targets.length === 0) return { error: "대상 학생이 없어요." };
+  if (targets.length === 0) return { error: label ? "그날 그 특강에 오는 학생이 없어요." : "대상 학생이 없어요." };
 
   const row = {
     date,
     kind: safeKind(kind),
-    scope: scope || "all",
-    class_id: scope === "class" ? classId : null,
+    // label 공지는 scope 'extra' 로 남는다 — class_id 는 uuid 라 담을 수 없고,
+    // 어느 특강에 보냈는지(extra_label)가 재발송·감사의 근거다 (0167)
+    scope: label ? "extra" : scope || "all",
+    class_id: !label && scope === "class" ? cid : null,
     school: scope === "grade" ? school || null : null,
     grade: scope === "grade" ? grade || null : null,
     body: text || head,
     title: head || null,
     created_by: user?.id || null,
   };
+  if (label) row.extra_label = label;
   let { data: notice, error } = await supabase.from("notices").insert(row).select("id").single();
+  if (error && noColumn(error) && label) {
+    // 정체성 칸 없이 남기면 「어느 특강에 보냈는지」 를 영영 모른다 — 조용히
+    // 빼고 저장하는 대신 멈추고 알린다
+    return { error: "0167 SQL 을 먼저 실행해주세요. (특강 label 공지)" };
+  }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0064 전이면 제목 없이
     const { title: _t, ...noTitle } = row;
