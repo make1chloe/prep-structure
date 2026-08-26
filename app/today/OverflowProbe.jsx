@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 
 /**
- * **임시 진단 (2026-08-27)** — 수업 탭 가로 스크롤의 범인 찾기.
+ * **임시 진단 v2 (2026-08-27)** — 수업 탭 가로 스크롤의 범인 찾기.
  *
- * 원장 실물(아이폰 14 프로)에서만 나는 가로 넘침을 검사판(390·375·360,
- * 실물 모양 씨앗)이 재현하지 못했다 — 실데이터에만 있는 무언가다.
- * 그래서 현장에서 잡는다: 문서가 화면보다 넓어지는 순간, 화면 밖으로
- * 나간 **제일 안쪽 요소**의 이름·클래스·글머리를 아래 빨간 줄로 띄운다.
- * 원장은 그 줄을 찍어 보내기만 하면 된다.
+ * v1 의 두 가지 실패에서 배웠다:
+ *   1. **2초 간격 전체 훑기가 화면을 느리게 했다** — 이제 시간표가 아니라
+ *      **사건**(옆으로 밀림·크기 변화·탭 전환)에만 깨어난다.
+ *   2. **문서 폭만 보면 아이폰의 밀림을 놓친다** — 문서는 정상 폭인데
+ *      화면이 옆으로 밀리는 경우(입력칸 자동 확대, 실제 스크롤)를 v1 이
+ *      못 잡아 「빨간 줄 없이 가로 스크롤」 이 났다. 이제 네 가지를 본다:
+ *      실제 밀림(scrollX) · 문서 넘침 · 확대 배율 · 확대 상태의 가로 이동.
  *
  * 범인을 잡아 수리하면 이 파일과 마운트 한 줄은 걷어낸다.
  */
@@ -17,21 +19,15 @@ export default function OverflowProbe() {
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const scan = () => {
+    let t = null;
+
+    const worst = () => {
+      // 넘쳤을 때만 부르는 무거운 훑기 — 화면 밖 제일 안쪽 요소
       const W = document.documentElement.clientWidth;
-      const doc = Math.max(
-        document.documentElement.scrollWidth,
-        document.body.scrollWidth
-      );
-      if (doc <= W + 1) {
-        setMsg("");
-        return;
-      }
       let best = null;
       document.querySelectorAll("body *").forEach((el) => {
         const r = el.getBoundingClientRect();
         if (r.right <= W + 1 || r.width === 0) return;
-        // 자식이 넘쳤으면 부모는 범인이 아니다 — 제일 안쪽만
         for (const c of el.children) {
           if (c.getBoundingClientRect().right > W + 1) return;
         }
@@ -47,13 +43,60 @@ export default function OverflowProbe() {
           };
         }
       });
-      setMsg(
-        `가로넘침 ${Math.round(doc - W)}px — ${best ? best.label : "요소 미상"}`
-      );
+      return best ? best.label : "요소 미상";
     };
+
+    const scan = () => {
+      t = null;
+      const W = document.documentElement.clientWidth;
+      const doc = Math.max(
+        document.documentElement.scrollWidth,
+        document.body.scrollWidth
+      );
+      const x = Math.max(
+        window.scrollX || 0,
+        document.documentElement.scrollLeft || 0,
+        document.body.scrollLeft || 0
+      );
+      const vv = window.visualViewport;
+
+      if (x > 2) setMsg(`v2 밀림 ${Math.round(x)}px — ${worst()}`);
+      else if (doc > W + 1)
+        setMsg(`v2 문서넘침 ${Math.round(doc - W)}px — ${worst()}`);
+      else if (vv && vv.scale > 1.01)
+        setMsg(
+          `v2 화면확대 ${vv.scale.toFixed(2)}배 (입력칸 확대 의심) — 가로이동 ${Math.round(vv.offsetLeft)}px`
+        );
+      else if (vv && vv.offsetLeft > 2)
+        setMsg(`v2 확대이동 ${Math.round(vv.offsetLeft)}px`);
+      else setMsg("");
+    };
+
+    // 사건이 있을 때만, 몰아서 한 번 — 시간표(interval) 없음
+    const poke = () => {
+      if (t) return;
+      t = setTimeout(scan, 400);
+    };
+
     scan();
-    const t = setInterval(scan, 2000);
-    return () => clearInterval(t);
+    window.addEventListener("scroll", poke, { passive: true });
+    window.addEventListener("resize", poke);
+    window.addEventListener("click", poke, { passive: true });
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", poke);
+      vv.addEventListener("scroll", poke);
+    }
+    return () => {
+      if (t) clearTimeout(t);
+      window.removeEventListener("scroll", poke);
+      window.removeEventListener("resize", poke);
+      window.removeEventListener("click", poke);
+      if (vv) {
+        vv.removeEventListener("resize", poke);
+        vv.removeEventListener("scroll", poke);
+      }
+    };
   }, []);
 
   if (!msg) return null;
