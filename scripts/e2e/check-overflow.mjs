@@ -19,7 +19,9 @@ const APP = process.env.E2E_APP || "http://127.0.0.1:3300";
 const API = process.env.E2E_API || "http://127.0.0.1:55442";
 const EXE = process.env.PW_CHROMIUM || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
 const STRICT = process.env.OVERFLOW_STRICT === "1";
-const PHONE = { width: 390, height: 844 };
+// 폭 3종 — 아이폰 프로(390) · 미니/SE(375) · 좁은 안드로이드(360).
+// 390 에서 안 넘치는 것이 375 에선 넘칠 수 있다 (실물 재현 실패의 남은 변수)
+const WIDTHS = [390, 375, 360];
 const D = addDays(kstToday(), 10);   // golden-dayboard 와 같은 기준일
 
 const { chromium } = await import("playwright-core");
@@ -182,15 +184,16 @@ async function measure(page, group, student) {
 await plant();
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox"] });
 try {
-  const ctx = await browser.newContext({ viewport: PHONE });
-  await ctx.addCookies([{ name: "panel3", value: "on", url: APP }]);
-  const page = await ctx.newPage();
-  await login(page);
-  await page.goto(`${APP}/today?d=${D}`, { waitUntil: "networkidle", timeout: 90000 });
-
-  console.log("== 폰 폭 가로 넘침 (390px) ==");
-  await measure(page, "골든반", "골든하나");     // 가벼운 판 — 기준선
-  await measure(page, "넘침반", "넘침학생");     // 원장 실물 모양 재현
+  for (const width of WIDTHS) {
+    const ctx = await browser.newContext({ viewport: { width, height: 844 } });
+    await ctx.addCookies([{ name: "panel3", value: "on", url: APP }]);
+    const page = await ctx.newPage();
+    await login(page);
+    console.log(`== 폰 폭 가로 넘침 (${width}px) ==`);
+    await measure(page, "골든반", "골든하나");     // 가벼운 판 — 기준선
+    await measure(page, "넘침반", "넘침학생");     // 원장 실물 모양 재현
+    await ctx.close();
+  }
 } finally {
   await browser.close();
 }
