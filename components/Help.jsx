@@ -19,11 +19,16 @@ import { cookies } from "next/headers";
  */
 export const HELP_COOKIE = "help";
 
-export function helpOn() {
-  return cookies().get(HELP_COOKIE)?.value === "on";
+// **await 를 빼먹으면 안 되는 자리** — Next 15+에서 cookies() 는
+// Promise 다. 여기 한 줄의 동기 호출이 8/26 Next 16 배포 사고의 전부였다:
+// Help 를 쓰는 화면(= 거의 전부)이 서버 렌더에서 터져 백지가 됐고,
+// 안 쓰는 세 화면(대시보드·오늘수업·계획)만 살았다. Next 14 에서도
+// await 는 무해하다 (동기값을 await 하면 그대로 나온다).
+export async function helpOn() {
+  return (await cookies()).get(HELP_COOKIE)?.value === "on";
 }
 
-export default function Help({ children }) {
-  if (!helpOn()) return null;
+export default async function Help({ children }) {
+  if (!(await helpOn())) return null;
   return children;
 }
