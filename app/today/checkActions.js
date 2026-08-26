@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { openAnswers } from "@/lib/answers";
 import { addDays } from "@/lib/day";
+import { checkMany } from "@/lib/checkWrite";
 
 /**
  * 검사 결과 한 건만 찍는다.
@@ -23,55 +24,20 @@ export async function markCheck(studentId, date, itemId, status) {
     .maybeSingle();
   if (!rep?.id) return { error: "먼저 출결을 찍어주세요." };
 
-  // 같은 항목의 예전 결과는 지우고 새로 넣는다 (○ → △ 로 고칠 수 있게).
-  // 학생의 「학습 완료」와 조교가 /check 에서 단 검사 메모는 남의 칸이다 —
-  // 지우고 다시 넣어도 살린다 (checkOne 과 같은 규칙. 전에는 여기만
-  // 안 살려서, 어느 화면에서 찍었는지에 따라 결과가 달랐다).
-  let { data: old, error: oldErr } = await supabase
-    .from("daily_report_items")
-    .select("id, student_done_at, check_note")
-    .eq("daily_report_id", rep.id)
-    .eq("homework_item_id", itemId)
-    .in("status", ["done", "weak", "missing"]);
-  if (oldErr) {
-    // 0062 전 — 메모 칸 없이
-    ({ data: old } = await supabase
-      .from("daily_report_items")
-      .select("id, student_done_at")
-      .eq("daily_report_id", rep.id)
-      .eq("homework_item_id", itemId)
-      .in("status", ["done", "weak", "missing"]));
-  }
-  const doneAt = (old || []).map((x) => x.student_done_at).find(Boolean) || null;
-  const oldNote = (old || []).map((x) => x.check_note).find(Boolean) || null;
-  if (old?.length) {
-    await supabase
-      .from("daily_report_items")
-      .delete()
-      .in("id", old.map((x) => x.id));
-  }
+  // 검사 쓰기는 check_many 한 문 (0163 — 계획서 v2 §2-4-①). 행이 제자리에서
+  // 고쳐지니 학생 「다 했어요」·조교 메모(note null=유지)·제출물 소속이
+  // 저절로 산다 — 옛 「지우고 다시 넣으며 살려 옮기기」 는 통째로 소멸.
+  // status null = 취소(그 검사행 delete)도 같은 문이 맡는다.
+  const { error } = await checkMany(supabase, rep.id, [
+    { item_id: itemId, status: status || null, note: null },
+  ]);
+  if (error) return { error };
 
-  if (status) {
-    const row = {
-      daily_report_id: rep.id,
-      homework_item_id: itemId,
-      status,
-      student_done_at: doneAt,
-      check_note: oldNote,
-    };
-    let { error } = await supabase.from("daily_report_items").insert(row);
-    if (error && (error.code === "42703" || error.code === "PGRST204")) {
-      // 0062 전이면 한 줄 없이 (검사는 되어야 한다)
-      const { check_note, ...bare } = row;
-      ({ error } = await supabase.from("daily_report_items").insert(bare));
-    }
-    if (error) return { error: error.message };
-    // **검사가 답지를 연다** (0148) — 지난 배정의 답지만 (검사일 전날까지).
-    // 판단은 lib/answers 한 곳, 실패해도 검사는 그대로 남는다.
-    // ✕는 안 연다 (#22 — 안 해온 아이에게 답 먼저 금지).
-    if (status !== "missing") {
-      await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
-    }
+  // **검사가 답지를 연다** (0148) — 지난 배정의 답지만 (검사일 전날까지).
+  // 판단은 lib/answers 한 곳, 실패해도 검사는 그대로 남는다.
+  // ✕는 안 연다 (#22 — 안 해온 아이에게 답 먼저 금지).
+  if (status && status !== "missing") {
+    await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
   }
 
   revalidatePath("/today");

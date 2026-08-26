@@ -8,6 +8,7 @@ import { queuePush } from "@/lib/pushQueue";
 import { safeKind, isAlert } from "@/lib/notices";
 import { dowOf, todaySeoul, addDays } from "@/lib/day";
 import { openAnswers } from "@/lib/answers";
+import { checkMany } from "@/lib/checkWrite";
 import { taskTitle, nextClassDate, autoKey } from "@/lib/prepTask";
 import { inTarget } from "@/lib/who";
 import { noColumn } from "@/lib/sqlError";
@@ -378,7 +379,9 @@ export async function saveStudentDay(studentId, date, form) {
   const oldInclass = (oldInclassRows || [])
     .sort((a, b) => (a.inclass_sort ?? 999) - (b.inclass_sort ?? 999))
     .map((x) => x.homework_item_id);
-  // 학생이 눌러둔 '학습 완료' 는 지우고 다시 넣어도 살려야 한다
+  // 학생이 눌러둔 '학습 완료' 는 지우고 다시 넣어도 살려야 한다.
+  // (검사 3상태 행은 이제 안 지워지니 이 맵의 소관이 아니다 — 등원
+  //  학습(inclass) 등 여전히 지우고-다시넣는 그룹의 「다 했어요」 몫)
   const { data: keepDone } = await supabase
     .from("daily_report_items")
     .select("homework_item_id, status, student_done_at")
@@ -387,21 +390,8 @@ export async function saveStudentDay(studentId, date, form) {
   const doneAt = new Map(
     (keepDone || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.student_done_at])
   );
-  // 조교가 /check 에서 단 검사 메모도 남의 칸이다 — 판 화면은 클카 근거가
-  // 있을 때만 메모를 보내므로, 안 보낸 항목의 옛 메모까지 지우면 안 된다.
-  let keepNote = new Map();
-  {
-    const { data: notes, error: noteErr } = await supabase
-      .from("daily_report_items")
-      .select("homework_item_id, status, check_note")
-      .eq("daily_report_id", report.id)
-      .not("check_note", "is", null);
-    if (!noteErr) {
-      keepNote = new Map(
-        (notes || []).map((x) => [`${x.homework_item_id}|${x.status}`, x.check_note])
-      );
-    }
-  }
+  // (조교 검사 메모를 살리던 keepNote 붕대는 0163 과 함께 소멸 — 검사행이
+  //  안 지워지고, RPC 의 note null=유지 계약이 그 일을 원인째 대신한다)
 
   // **무엇이 바뀌었는지 알려면 무엇이 있었는지 먼저 봐야 한다.**
   //   저장할 때마다 통째로 지우고 다시 넣기 때문에, 지우기 전에 적어둔다.
@@ -430,8 +420,9 @@ export async function saveStudentDay(studentId, date, form) {
   // 삭제는 조교가 그 사이 적은 다른 그룹까지 지웠다. 그룹 판정은 payload
   // 행 수가 아니라 **form 키의 존재**다 — 전부 비우는 저장(다 뺀 것)도
   // 지워져야 하니까. (판 화면은 넷 다 항상 보낸다 — 동작 불변.)
+  // 검사 3상태는 여기 없다 — 검사행은 지우지 않고 제자리에서 고친다
+  // (0163 check_many). 지우기(칩 재클릭)도 RPC 의 status null 이 맡는다.
   const delStatuses = [];
-  if (form.items) delStatuses.push("done", "weak", "missing", "verified");
   if (form.inClass) delStatuses.push("inclass");
   if (form.planNext) delStatuses.push("plan_next");
   if (form.nextHomework) delStatuses.push("assigned");
@@ -444,23 +435,30 @@ export async function saveStudentDay(studentId, date, form) {
     if (delErr) return { error: delErr.message };
   }
 
+  // ── 검사 쓰기 = check_many 한 문 (0163 — 계획서 v2 §2-4-①) ──
+  //
+  // 빈 값(칩 재클릭 = 지우기)까지 **전부** 보낸다 — 지우기가 blanket
+  // delete 에 얹혀 살던 시절이 끝났으니, RPC 의 status null 이 정식
+  // 경로다. note 는 클카 근거가 있을 때만 문자열이고 나머지는 null(유지)
+  // — 조교가 /check 에서 단 메모가 판 저장에 안 쓸려 나간다.
+  // 덤: 판이 안 그린 항목(marks 에 키 없음 — 예: 페이지 연 뒤 대기줄에서
+  // 찍은 것)은 아예 안 건드린다. 전량 delete 시절에는 그것까지 지웠다.
+  const checkNotes = form.checkNotes || {};
+  if (form.items) {
+    const checkItems = Object.entries(items).map(([homework_item_id, status]) => ({
+      item_id: homework_item_id,
+      status: status || null,
+      note: (checkNotes[homework_item_id] || "").trim() || null,
+    }));
+    if (checkItems.length) {
+      const { error: ckErr } = await checkMany(supabase, report.id, checkItems);
+      if (ckErr) return { error: ckErr };
+    }
+  }
+
   // 배정한 숙제에 붙은 단원/범위 { [homework_item_id]: { unitId, note } }
   const units = nextUnitsIn;   // 급한 숙제(quickHomework)의 범위 메모까지 합친 한 벌
-  // 클카 자동 판정이 남기는 검사 메모 (0062 check_note) — 「안 한 세트가
-  // 무엇인지」 가 학생 화면(💬 선생님)과 데일리리포트에 같이 나간다
-  const checkNotes = form.checkNotes || {};
   const payload = [
-    ...Object.entries(items)
-      .filter(([, status]) => status)
-      .map(([homework_item_id, status]) => ({
-        daily_report_id: report.id,
-        homework_item_id,
-        status,
-        check_note:
-          (checkNotes[homework_item_id] || "").trim() ||
-          keepNote.get(`${homework_item_id}|${status}`) ||
-          null,
-      })),
     // 오늘 학원에서 할 것 — 차례(0140)와 「다음 수업에 계속」 표시까지
     ...inClassIds.map((homework_item_id, i) => ({
       daily_report_id: report.id,
@@ -560,8 +558,12 @@ export async function saveStudentDay(studentId, date, form) {
       // 지웠던 행을 있는 그대로 되살리고 오류를 알린다. (id 까지 살려
       // 넣는다 — 같은 id 면 다른 참조가 덜 어긋난다.)
       try {
+        // 이번에 지운 그룹만 되살린다 — 명시 화이트리스트 (검사 3상태는
+        // delete 대상이 아니니 복구 대상도 아니고, delStatuses 가 비면
+        // 지운 것이 없으니 복구도 0 이어야 한다 — 옛 「빈 목록 = 전량
+        // 재삽입」 함정 제거, 검토 G-2)
         const restore = (before || [])
-          .filter((b) => !delStatuses.length || delStatuses.includes(b.status))
+          .filter((b) => delStatuses.includes(b.status))
           .map((b) => ({ ...b, daily_report_id: report.id }));
         if (restore.length) {
           let r = await supabase.from("daily_report_items").insert(restore);

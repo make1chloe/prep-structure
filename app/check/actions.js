@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { nextRoutine, advanceRoutine } from "@/app/today/routineActions";
 import { openAnswers, openForSubmission } from "@/lib/answers";
 import { addDays } from "@/lib/day";
+import { checkMany } from "@/lib/checkWrite";
 
 /**
  * 숙제 검사 — **한 자리에서 끝낸다.**
@@ -17,10 +18,6 @@ import { addDays } from "@/lib/day";
  *   2. 한 줄 코멘트 — 리포트에 그대로 나간다
  *   3. 낸 것을 '봤다' 고 표시
  */
-
-function noteMissing(error) {
-  return error && (error.code === "PGRST204" || error.code === "42703");
-}
 
 /**
  * 검사 한 건을 마무리한다.
@@ -39,40 +36,15 @@ export async function checkOne(studentId, date, itemId, status, note = "", submi
     .maybeSingle();
   if (!rep?.id) return { error: "이 날짜에 기록이 없어요. 먼저 출결을 찍어주세요." };
 
-  // 같은 항목의 예전 결과는 지우고 새로 넣는다 (○ → △ 로 고칠 수 있게).
-  // '배정' 과 '학원에서 할 것' 은 건드리지 않는다 — 검사 결과만 바꾼다.
-  const { data: old } = await supabase
-    .from("daily_report_items")
-    .select("id, student_done_at")
-    .eq("daily_report_id", rep.id)
-    .eq("homework_item_id", itemId)
-    .in("status", ["done", "weak", "missing"]);
-  // 학생이 눌러둔 '학습 완료' 는 살린다
-  const doneAt = (old || []).map((x) => x.student_done_at).find(Boolean) || null;
-
-  if (old?.length) {
-    await supabase
-      .from("daily_report_items")
-      .delete()
-      .in("id", old.map((x) => x.id));
-  }
-
-  if (status) {
-    const row = {
-      daily_report_id: rep.id,
-      homework_item_id: itemId,
-      status,
-      student_done_at: doneAt,
-      check_note: (note || "").trim() || null,
-    };
-    let { error } = await supabase.from("daily_report_items").insert(row);
-    if (noteMissing(error)) {
-      // 0062 전이면 한 줄 없이 (검사는 되어야 한다)
-      const { check_note, ...bare } = row;
-      ({ error } = await supabase.from("daily_report_items").insert(bare));
-    }
-    if (error) return { error: error.message };
-  }
+  // 검사 쓰기는 check_many 한 문 (0163 — 계획서 v2 §2-4-①). '배정' 과
+  // '학원에서 할 것' 은 원래대로 무접촉 — RPC 는 검사 3상태만 만진다.
+  // 이 화면의 note 는 **권위**다: 빈 값이면 지운다('') — 현행 그대로.
+  // status null = 취소(검사행 delete). 학생 「다 했어요」·제출물 소속은
+  // 행이 제자리라 저절로 산다.
+  const { error } = await checkMany(supabase, rep.id, [
+    { item_id: itemId, status: status || null, note: (note || "").trim() },
+  ]);
+  if (error) return { error };
 
   // 낸 것을 봤다고 표시 — 안 하면 대기줄에 계속 남는다
   const ids = (submissionIds || []).filter(Boolean);
@@ -217,14 +189,15 @@ export async function markMissing(studentId, date, itemIds = []) {
   const add = ids.filter((id) => !done.has(id));
   if (add.length === 0) return { error: null, count: 0 };
 
-  const { error } = await supabase.from("daily_report_items").insert(
-    add.map((homework_item_id) => ({
-      daily_report_id: rep.id,
-      homework_item_id,
-      status: "missing",
-    }))
+  // 벌크도 check_many 한 문 · 한 왕복 (0163). 위의 선필터(○ 불가침)가
+  // 이 경로의 방벽이다 — RPC 는 do update 라, 필터 없이 보내면 ○ 를
+  // ✕ 로 갈아엎는다 (검토 급-1). 필터를 지우면 안 된다.
+  const { error } = await checkMany(
+    supabase,
+    rep.id,
+    add.map((id) => ({ item_id: id, status: "missing", note: null }))
   );
-  if (error) return { error: error.message };
+  if (error) return { error };
 
   revalidatePath("/check");
   revalidatePath("/today");
