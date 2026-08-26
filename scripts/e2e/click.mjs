@@ -372,6 +372,9 @@ async function roundTrip() {
   await login(pp, "parent");
   let sent = false;
   try {
+    // 저장이 실패하면 alert 로 뜬다 (RequestForm:80) — 헤드리스는 자동으로
+    // 닫아버려서 문구가 증발한다. 가로채서 적는다 (6판: 저장 실패 갈래)
+    pp.on("dialog", (d) => { console.log(`  [학부모 화면 알림창] ${d.message()}`); d.dismiss().catch(() => {}); });
     await pp.goto(`${APP}/parent`, { waitUntil: "networkidle" });
     // 첫 방문에는 「화면 소개」 안내판이 화면을 덮는다 (SectionNav) —
     // 진짜 어머니가 하시는 그대로, 먼저 닫고 들어간다. 안 닫으면
