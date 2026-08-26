@@ -50,9 +50,17 @@ killport "$APP_PORT"
 #
 # 개발 모드는 조각 이름을 안 박아두므로 그 일이 없다. 대신 개발 모드에만
 # 나는 소리가 섞이는데, 그건 click.mjs 에서 이름을 적어 걸러낸다.
+# (next16-probe 브랜치 한정) **배포판 모드** — 프로덕션 사고(대부분 화면
+# 안 열림)를 재현하려면 dev 가 아니라 build+start 여야 한다. CI 러너는
+# 매번 새 판이라 dev 모드의 존재 이유(앞 판 잔재)가 여기엔 없다.
+ANON="$(node scripts/e2e/token.mjs anon)"
 NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:$API_PORT" \
-NEXT_PUBLIC_SUPABASE_ANON_KEY="$(node scripts/e2e/token.mjs anon)" \
-  npx next dev -p "$APP_PORT" > /var/tmp/e2e-next.log 2>&1 &
+NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON" \
+  npx next build > /var/tmp/e2e-build.log 2>&1 || {
+    echo "  빌드 실패"; tail -30 /var/tmp/e2e-build.log; exit 1; }
+NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:$API_PORT" \
+NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON" \
+  npx next start -p "$APP_PORT" > /var/tmp/e2e-next.log 2>&1 &
 
 # **떴는지 확인하고 나서 누른다.** 안 그러면 「안 열립니다」 가 우수수 뜨는데
 # 그건 화면 잘못이 아니라 아직 안 뜬 것이다
