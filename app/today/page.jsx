@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
 import TodayBoard from "./TodayBoard";
+import OverflowProbe from "./OverflowProbe";
 import TopNotices from "./TopNotices";
 import MonthlyReset from "./MonthlyReset";
 import { dowOf, longLabel, todaySeoul, addDays } from "@/lib/day";
@@ -1618,6 +1619,8 @@ export default async function TodayPage(props) {
         {/* **말 걸기 전에 한 번 본다.** 한 반에 여럿이 각자 다른 것을 하고
             있어서, 지금 누가 시험 중인지 눈으로 세고 있어야 했다. */}
         <ActivityBoard rows={activity} calls={calls} unavailable={activityOff} />
+        {/* 임시 진단 — 가로 넘침의 범인을 현장에서 지목 (OverflowProbe 머리말) */}
+        <OverflowProbe />
         <TodayBoard
           date={date}
           panel3={panel3}
