@@ -1355,6 +1355,1112 @@ export default function StudentPanel({
   }
 
 
+  // ── C3b 구역 함수 (②수업·하원 / ③다음 — 같은 무복제 규칙) ──
+  const arriveZone = () => (
+    <>
+      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
+      <div className="prow" style={{ alignItems: "center" }}>
+        <span className="plabel">등원</span>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
+          {[
+            ["phone", "핸드폰", arr.phone],
+            ["attend", "출석", arr.attend],
+            ["homework", "숙제", arr.homework],
+          ].map(([kind, label, at]) => (
+            <button
+              key={kind}
+              className={`btn btn-sm ${at ? "btn-on" : "btn-ghost"}`}
+              disabled={pending}
+              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
+              onClick={() => {
+                const prev = arr[kind];
+                // 낙관 — 즉시 표시하고 저장은 뒤에서. refresh 없음 (2026-08-21):
+                // 매번 목록이 재정렬되어 열린 학생 줄이 위로 튀었다
+                setArr((a) => ({ ...a, [kind]: prev ? null : new Date().toISOString() }));
+                startTransition(async () => {
+                  const res = await setArrivalFor(row.student.id, date, kind, !at);
+                  if (res?.error) { alert(res.error); setArr((a) => ({ ...a, [kind]: prev })); }
+                });
+              }}
+            >
+              {at ? "✓ " : ""}
+              {label}
+              {at
+                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
+                : ""}
+            </button>
+          ))}
+          <span className="spacer" />
+          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
+              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
+          <span className="hint" style={{ fontSize: 13 }}>단어시험을 언제</span>
+          {[
+            ["start", "수업 시작에"],
+            ["end", "다 끝내고"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              className={`btn btn-sm ${wordWhen === k ? "btn-on" : "btn-ghost"}`}
+              disabled={pending}
+              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
+              style={{ padding: "3px 10px" }}
+              onClick={() => {
+                setWordWhen(k);
+                startTransition(async () => {
+                  const res = await setArrival(row.student.id, date, { wordWhen: k });
+                  if (res?.error) alert(res.error);
+                  // refresh 없음 (2026-08-21) — wordWhen 은 이미 로컬 state 다.
+                  // 매번 페이지 전체를 다시 그려 목록이 튀던 순수 손해였다
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
+              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/students?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
+          >
+            재원생 정보
+          </a>
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/me?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생에게 보이는 화면을 그대로 봅니다"
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
+          >
+            학생 화면 보기
+          </a>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            title="이 학생은 앞으로 계속 이렇게 봅니다"
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
+            onClick={() =>
+              startTransition(async () => {
+                const res = await setWordWhenDefault(row.student.id, wordWhen);
+                if (res?.error) {
+                  alert(res.error);
+                  return;
+                }
+                alert("이 학생 기본값으로 저장했어요.");
+              })
+            }
+          >
+            기본값으로
+          </button>
+        </div>
+      </div>
+    </>
+  );
+  const utZone = () => (
+    <>
+      {/* **단원평가** — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑
+          같은 거야」. 그래서 학생 화면에 따로 만들지 않고 여기에 붙였다.
+          **단원명을 적으신 것만** 성적으로 올라간다 — 그냥 문장 확인은
+          성적표에 줄이 서면 오히려 지저분해진다.
+          통과/재시험이 핵심이다. 원장님이 보시는 것은 점수가 아니라
+          **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을 다섯 번 봤다). */}
+      <div className="prow">
+        <span className="plabel">단원평가</span>
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <PickOrType
+              className="input input-sm"
+              style={{ width: 170 }}
+              options={[
+                ...grammarCommon,
+                ...grammarUnitNames.filter((n) => !grammarCommon.includes(n)),
+              ]}
+              placeholder="단원명 (관계대명사)"
+              title="그 학생 문법 교재의 단원에서 고르거나, 없으면 직접 적습니다. 적으면 성적에 단원평가로 쌓입니다"
+              value={form.sent_unit}
+              onChange={(e) => set("sent_unit", e.target.value)}
+            />
+            <button
+              type="button"
+              className={`btn btn-sm ${form.sent_passed === true ? "btn-on" : "btn-ghost"}`}
+              onClick={() => set("sent_passed", form.sent_passed === true ? "" : true)}
+            >
+              통과
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${form.sent_passed === false ? "btn-on" : "btn-ghost"}`}
+              onClick={() => set("sent_passed", form.sent_passed === false ? "" : false)}
+            >
+              재시험
+            </button>
+            {form.sent_unit ? (
+              <span className="hint" style={{ fontSize: 12 }}>성적에 쌓입니다</span>
+            ) : (
+              <span className="hint" style={{ fontSize: 12 }}>
+                단원명을 적으면 성적에 쌓여요 (안 적으면 그날 확인으로만 남습니다)
+              </span>
+            )}
+          </div>
+      </div>
+    </>
+  );
+  const utLogZone = () => (
+    <>
+      {/**
+        * 옛 「단원평가 상자」 (0031 · unit_exams) — **이제 적는 자리가 아니다**
+        * (원장님, 2026-08-11 — 「중복정보, 중복입력이 있어」). 같은 시험을
+        * 위 단원평가 줄과 여기 두 군데 적을 수 있었다. 적는 것은 위 한 곳으로
+        * 모으고, 여기는 이미 적어둔 기록을 보여주고 지우는 것만 남는다.
+        * 기록이 없으면 아예 안 그린다. 월간리포트는 두 쪽을 다 읽는다.
+        */}
+      {(row.exams || []).length > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>단원평가 기록</span>
+          <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} readOnly />
+        </div>
+      )}
+    </>
+  );
+  const inclassZone = () => (
+    <>
+      {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
+        <div style={{ flex: 1 }}>
+          {/* **소화량 게이지** (원장님 2026-08-20 — 일률 % 가 아니라 그
+              학생의 실제 타이머 기록으로. 기록 없는 항목은 추정 안 함) */}
+          {(() => {
+            if (inClass.length === 0) return null;
+            const { sec, unknownN } = listLoad(row.paceOf || {}, inClass);
+            if (!sec) return null;
+            const budget = row.classMinutes || 0;
+            const over = budget > 0 && sec / 60 > budget * 0.9;
+            const tail = over ? overflowIds(row.paceOf || {}, inClass, budget * 0.9) : [];
+            return (
+              <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                <span className={`tag ${over ? "tag-amber" : "tag-mint"}`}>
+                  예상 {minLabel(sec)}{budget ? ` / 수업 ${budget}분` : ""}
+                </span>
+                {unknownN > 0 && (
+                  <span className="hint">기록 없는 항목 {unknownN}개는 계산에서 뺌</span>
+                )}
+                {tail.length > 0 && (
+                  <button
+                    className="btn btn-sm"
+                    title="이 학생 기록 기준으로 시간이 넘치는 아래 항목들을 다음 숙제로 돌립니다"
+                    onClick={() => {
+                      setInClass(inClass.filter((x) => !tail.includes(x)));
+                      setNext((s2) => {
+                        const n = new Set(s2);
+                        tail.forEach((x) => n.add(x));
+                        return n;
+                      });
+                    }}
+                  >
+                    시간 넘는 {tail.length}개 숙제로 돌리기
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+          {/* 순서 목록 (0140) — 위에서부터 학생이 하는 차례. ↑↓ 로 조정,
+              시간이 모자라면 ✕(오늘 뺌) · 숙제로 · 다음 수업에 중 하나 */}
+          <div className="stack" style={{ gap: 3 }}>
+            {inClass.map((iid, idx) => {
+              const sec = (row.secOf || {})[iid] || 0;
+              const doneAt = (row.doneRows || []).find(
+                (d) => d.homework_item_id === iid
+              )?.student_done_at;
+              const carried = (row.carriedIn || []).includes(iid);
+              const willCarry = carryNext.has(iid);
+              return (
+                <div className="row" key={iid} style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="hint" style={{ width: 16, textAlign: "right" }}>{idx + 1}</span>
+                  <span
+                    className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
+                    title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
+                  >
+                    {nameOf(iid) || "학습"}
+                    {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
+                  </span>
+                  {/* 무슨 교재의 어디인지 — 항목 이름만으로는 아이도 원장님도 모른다 */}
+                  {bookOfItem.get(iid) && (
+                    <span className="hint" style={{ fontSize: 12.5 }}>
+                      {bookOfItem.get(iid).book}
+                      {bookOfItem.get(iid).unit ? ` · ${bookOfItem.get(iid).unit}` : ""}
+                    </span>
+                  )}
+                  {carried && <span className="tag tag-sky" title="지난 수업에서 「다음 수업에 계속」 한 것">이어서</span>}
+                  {!carried && (row.plannedIn || []).includes(iid) && (
+                    <span className="tag tag-lav" title="지난 수업 마무리 때 세워둔 계획 — 숙제 확인 후 고치고 저장하면 확정">계획</span>
+                  )}
+                  {/**
+                    * **무엇을 하는 단추인지 글자로 말한다** (원장님 2026-08-23 —
+                    * 「각각 뭘 하라는 건지 구분도 안 되고 시각적 구별이 안 된다」).
+                    * 「다음수업」·「숙제로」 처럼 명사만 적으면 누르면 무슨 일이
+                    * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
+                    * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
+                    */}
+                  <span className="stuEnd">
+                  <span className="row" style={{ gap: 0, alignItems: "center" }}>
+                    <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={idx === 0}
+                      style={{ padding: "2px 5px" }}
+                      onClick={() => setInClass([iid, ...inClass.filter((x) => x !== iid)])}>⇈</button>
+                    <button className="btn btn-ghost btn-sm" title="차례를 위로" disabled={idx === 0}
+                      style={{ padding: "2px 6px" }}
+                      onClick={() => {
+                        const n = [...inClass];
+                        [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                        setInClass(n);
+                      }}>↑</button>
+                    <button className="btn btn-ghost btn-sm" title="차례를 아래로" disabled={idx === inClass.length - 1}
+                      style={{ padding: "2px 6px" }}
+                      onClick={() => {
+                        const n = [...inClass];
+                        [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
+                        setInClass(n);
+                      }}>↓</button>
+                    <button className="btn btn-ghost btn-sm" title="맨 아래로" disabled={idx === inClass.length - 1}
+                      style={{ padding: "2px 5px" }}
+                      onClick={() => setInClass([...inClass.filter((x) => x !== iid), iid])}>⇊</button>
+                  </span>
+                  {!doneAt && (
+                    <span className="row" style={{ gap: 4, alignItems: "center", marginLeft: 8 }}>
+                      <button
+                        className={`btn btn-sm ${willCarry ? "btn-on" : "btn-ghost"}`}
+                        style={{ fontSize: 12.5 }}
+                        title="오늘 못 끝냄 — 다음 수업 목록에 자동으로 다시 섭니다"
+                        onClick={() => {
+                          const n = new Set(carryNext);
+                          n.has(iid) ? n.delete(iid) : n.add(iid);
+                          setCarryNext(n);
+                        }}
+                      >
+                        {willCarry ? "✓ 다음 수업에" : "다음 수업으로 미룸"}
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: 12.5 }}
+                        title="학원에서 말고 집에서 — 아래 「다음 숙제 배정」 으로 옮깁니다"
+                        onClick={() => {
+                          setInClass(inClass.filter((x) => x !== iid));
+                          setNext((s2) => new Set(s2).add(iid));
+                        }}
+                      >
+                        집 숙제로 옮김
+                      </button>
+                    </span>
+                  )}
+                  <button className="btn btn-ghost btn-sm" title="오늘은 안 함 — 목록에서 뺍니다"
+                    style={{ marginLeft: 8, padding: "2px 8px" }}
+                    onClick={() => setInClass(inClass.filter((x) => x !== iid))}>✕ 오늘 뺌</button>
+                  </span>
+                  {/* 그 항목의 절차 — 작게 (원장님 2026-08-24 「학습항목 밑에
+                      아주 조그맣게 체크리스트 같이 줘」).
+                      **단추 뒤에 둔다** — 앞에 두면 제 줄을 차지하면서 단추를
+                      통째로 아랫줄로 밀어, 줄마다 단추 자리가 달라졌다 (8/24) */}
+                  {(items.find((x) => x.id === iid)?.checklist || "").trim() && (
+                    <span className="hint itemnote">
+                      {(items.find((x) => x.id === iid)?.checklist || "")
+                        .split("\n").map((t) => t.trim()).filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            {inClass.length === 0 && (
+              /* 비어 있으면 **왜 비었는지**와 **무엇을 누르면 되는지** (2026-08-24) */
+              <span className="hint">
+                {autoSkip || "아직 정하지 않았어요 — 아래 ⟳ 진도루틴 다음을 누르면 차려집니다."}
+              </span>
+            )}
+          </div>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
+            <span className="spacer" />
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              title="교재에 정해둔 진도루틴에서 이 학생 차례를 그대로 채웁니다"
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await nextRoutine(row.student.id);
+                  if (res?.error) {
+                    alert(res.error);
+                    return;
+                  }
+                  if (res.steps.length === 0) {
+                    alert("이 학생 교재에는 아직 진도루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
+                    return;
+                  }
+                  // 교재가 하나면 바로, 여럿이면 먼저 고른다 (2026-08-20 「3」)
+                  if (res.steps.length === 1) {
+                    applyRoutine(res, new Set(res.steps.map((st) => st.textbookId)));
+                  } else {
+                    setRoutinePick({ res, chosen: new Set(res.steps.map((st) => st.textbookId)) });
+                  }
+                })
+              }
+            >
+              ⟳ 진도루틴 다음
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
+              {openInClass ? "접기" : "고르기"}
+            </button>
+          </div>
+
+          {/* 오늘 할 교재 고르기 (2026-08-20 「3」) — 뺄 것만 눌러 끄고 차린다 */}
+          {routinePick && (
+            <div className="card card-tight" style={{ marginTop: 6 }}>
+              <b style={{ fontSize: 13.5 }}>오늘 할 교재만 남기세요</b>
+              <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                {routinePick.res.steps.map((st) => {
+                  const on = routinePick.chosen.has(st.textbookId);
+                  return (
+                    <button
+                      key={st.textbookId}
+                      className={`chip ${on ? "on" : ""}`}
+                      onClick={() => {
+                        const c = new Set(routinePick.chosen);
+                        on ? c.delete(st.textbookId) : c.add(st.textbookId);
+                        setRoutinePick({ ...routinePick, chosen: c });
+                      }}
+                    >
+                      {on ? "☑" : "☐"} {st.book}
+                      <span className="hint"> {st.label || st.unit}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setRoutinePick(null)}>취소</button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={routinePick.chosen.size === 0}
+                  onClick={() => applyRoutine(routinePick.res, routinePick.chosen)}
+                >
+                  이대로 차리기 ({routinePick.chosen.size}권)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {openInClass && (
+            <div className="chips" style={{ marginTop: 8 }}>
+              {items.map((i) => {
+                const on = inClass.includes(i.id);
+                return (
+                  <button
+                    key={i.id}
+                    className={`chip ${on ? "on" : ""}`}
+                    onClick={() =>
+                      setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
+                    }
+                  >
+                    {i.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* 루틴 요약 줄은 없앴다 (원장님 2026-08-24 「두 번째 사진 내용은 왜
+              있는 건데」) — 이제 위 목록의 줄마다 교재·단원이 붙어 있어 같은
+              말을 두 번 하는 셈이었다 */}
+
+        </div>
+      </div>
+    </>
+  );
+  const booksZone = () => (
+    <>
+      {/* 사용중인 교재 · 단원 진도 (순서 무관 체크) */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
+        <div className="stack" style={{ gap: 6, flex: 1 }}>
+          <div className="row" style={{ gap: 6 }}>
+            {myBooks.map((b) => (
+              <BookProgress
+                key={b.id}
+                studentId={row.student.id}
+                book={b}
+                onHomework={(u) => pickHomework(b, u)}
+                hwPicked={hwPicked}
+                /* 멈춤은 이 판이 쥔다 (0149) — 켜는 순간 차려진 항목도 걷어야 해서 */
+                pause={pauseOf[b.id] || null}
+                onPauseToggle={(kind) => togglePause(b.id, kind)}
+                extra={
+                  b.wordTest !== undefined ? (
+                    <WordTest studentId={row.student.id} book={b} />
+                  ) : null
+                }
+              />
+            ))}
+            {myBooks.length === 0 && (
+              <span className="hint" style={{ alignSelf: "center" }}>
+                배정된 교재가 없어요.
+              </span>
+            )}
+            <StudentBooks
+              studentId={row.student.id}
+              myBooks={myBooks}
+              textbooks={textbooks}
+            />
+          </div>
+          {/* 진도 **메모**도 여기 — 따로 「메모」 행으로 떨어져 있어서 무슨
+              메모인지 몰랐다 (2026-08-11 「중복정보」 정리). 리포트의 {{진도}} 로 나간다 */}
+          <div className="row" style={{ gap: 6 }}>
+            <input
+              className="input input-sm" style={{ flex: 1, minWidth: 160 }}
+              placeholder={row.lastProgress ? `지난 수업: ${row.lastProgress}` : "진도 메모 (예: Unit 3 뒷부분만)"}
+              value={form.own_progress}
+              onChange={(e) => set("own_progress", e.target.value)}
+            />
+            {/* 오늘 진도 판에 찍은 ○·◐ (0134) — 누르면 그대로 담긴다.
+                비워두고 저장해도 서버가 이걸로 채운다 (원장님 2026-08-19
+                「오늘 수업 한 부분을 데일리 리포트에 반영」) */}
+            {row.todayDraft && !form.own_progress && (
+              <button
+                className="btn btn-primary btn-sm"
+                title={row.todayDraft}
+                onClick={() => set("own_progress", row.todayDraft.replace(/\n/g, " / "))}
+              >
+                오늘 찍은 진도 넣기
+              </button>
+            )}
+            {row.lastProgress && !form.own_progress && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => set("own_progress", row.lastProgress)}
+              >
+                지난 진도 가져오기
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+  const nextHwZone = () => (
+    <>
+      {/* 다음 숙제 배정 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>다음</span>
+        <div style={{ flex: 1 }}>
+          <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <p className="hint" style={{ margin: 0, flex: 1 }}>
+              다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
+              {next.size > 0 && <b> · {next.size}개 배정</b>}
+            </p>
+            {toCheck.length > 0 && (
+              <button
+                className="btn btn-sm"
+                onClick={copyLast}
+                title="지난번에 낸 항목·교재를 그대로 가져오고, 단원만 다음 것으로 옮깁니다"
+              >
+                ⟳ 지난번과 같게 (단원은 다음 것)
+              </button>
+            )}
+          </div>
+          {/**
+            * **멈춘 교재 태그** (0149, 원장님 2026-08-22). 자동 차림에서
+            * 그 교재 항목이 왜 안 나오는지 이 자리에서 보여야 한다 —
+            * 안 보이면 「루틴이 고장났나」 가 된다. 누르면 그 자리에서
+            * 해제된다 (진도 판의 단추와 같은 togglePause 한 벌).
+            */}
+          {myBooks.some((b) => pauseOf[b.id]) && (
+            <div className="row" style={{ gap: 4, alignItems: "center", margin: "0 0 6px", flexWrap: "wrap" }}>
+              {myBooks.filter((b) => pauseOf[b.id]).map((b) => (
+                <button
+                  key={b.id}
+                  className={`tag ${pauseOf[b.id] === "all" ? "tag-red" : "tag-amber"}`}
+                  style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
+                  title="해제해야 이 교재 숙제가 정상으로 나가요 — 누르면 해제"
+                  disabled={pending}
+                  onClick={() => togglePause(b.id, pauseOf[b.id])}
+                >
+                  {b.name} {pauseOf[b.id] === "all" ? "⏸ 교재멈춤" : "📴 숙제멈춤"} ✕해제
+                </button>
+              ))}
+              <span className="hint">
+                멈춘 교재는 자동 차림·숙제에서 빠져요 (숙제멈춤은 숙제만)
+              </span>
+            </div>
+          )}
+          {/**
+            * **급하면 글로 — 영역마다 한 칸** (원장님 2026-08-21 「급하면
+            * 텍스트로 직접 숙제 적을 수 있도록」 · 2026-08-24 「직접 적은
+            * 숙제는 영역이 없는 게 문제야. 영역마다 그냥 텍스트를 추가할
+            * 칸을 줘」).
+            *
+            * 한 칸이면 영역이 안 붙어서, 아이 화면의 영역별 묶음에서 「기타」 로
+            * 떨어진다 — 영작 숙제인데 영작 묶음에 없다. 칸을 영역마다 두면
+            * 적는 자리가 곧 영역이라 따로 고를 것이 없다. 빈 칸은 안 나간다.
+            */}
+          <div className="stack" style={{ gap: 4, margin: "6px 0" }}>
+            <span className="hint" style={{ fontSize: 13 }}>✍ 급한 숙제 — 한 줄에 하나씩</span>
+            {QUICK_AREAS.map((area) => (
+              <div className="row" key={area} style={{ gap: 6, alignItems: "center" }}>
+                <span className="plabel" style={{ width: 34 }}>{area}</span>
+                <textarea
+                  className="input input-sm"
+                  rows={(form.quickHomework?.[area] || "").includes("\n") ? 3 : 1}
+                  style={{ flex: 1, minWidth: 160, resize: "vertical" }}
+                  placeholder={area === "문법" ? "예: 문법 프린트 3장" : ""}
+                  value={form.quickHomework?.[area] || ""}
+                  onChange={(e) =>
+                    set("quickHomework", { ...(form.quickHomework || {}), [area]: e.target.value })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          {/* 이 학생 교재가 쓰는 항목만 — 나머지는 눌러서 (2026-08-24) */}
+          {hiddenCount > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 12.5, marginBottom: 4 }}
+              onClick={() => setShowAllChips(true)}
+            >
+              이 학생 교재 것만 보이는 중 · 전체 {items.length}개 보기
+            </button>
+          )}
+          {showAllChips && myItems && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 12.5, marginBottom: 4 }}
+              onClick={() => setShowAllChips(false)}
+            >
+              이 학생 교재 것만 보기
+            </button>
+          )}
+          <div className="stack" style={{ gap: 6 }}>
+            {grouped(shown).map(([g, list]) => (
+              <div className="hwgroup" key={g}>
+                <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                <div className="row" style={{ gap: 4 }}>
+                  {list.map((i) => (
+                    <button
+                      key={i.id}
+                      className={`hwchip ${next.has(i.id) ? "hw-next" : ""}`}
+                      onClick={() => {
+                        const n = new Set(next);
+                        if (n.has(i.id)) {
+                          n.delete(i.id);
+                        } else {
+                          n.add(i.id);
+                          /**
+                           * **진도가 이미 아는 다음 단원을 미리 넣는다**
+                           * (원장님 2026-08-24 — 「그러면 진도체크를 내가 왜
+                           * 해놔. 반영이 되어 있어야지」).
+                           * 루틴이 교재마다 「지금 어디까지 했고 다음은 무엇」
+                           * 을 이미 셈해 뒀다(itemUnits). 항목을 켜면 그 범위가
+                           * 채워진 채로 뜬다 — 바꾸고 싶으면 그 자리에서 고친다.
+                           */
+                          const pre = routine?.itemUnits?.[i.id];
+                          const b = pre?.textbookId || bookFor(i.id);
+                          setUnitField(i.id, {
+                            textbookId: b,
+                            ...(pre?.unitIds?.length ? { unitIds: pre.unitIds } : null),
+                            ...(pre?.note ? { note: pre.note } : null),
+                          });
+                          loadBook(b);
+                        }
+                        setNext(n);
+                      }}
+                    >
+                      {next.has(i.id) && <b>＋</b>} {i.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 배정한 숙제별 교재 단원 — 교재DB의 단원명과 연동, 여러 단원 가능 */}
+          {next.size > 0 && (
+            <div className="stack" style={{ gap: 6, marginTop: 8 }}>
+              {[...next].map((iid) => {
+                const u = nextUnits[iid] || { textbookId: defaultBook, unitIds: [], note: "" };
+                const bookId = u.textbookId || defaultBook;
+                const opts = unitsByBook[bookId] || [];
+                const chosen = u.unitIds || [];
+                return (
+                  <div className="unitrow" key={iid}>
+                    <span className="tag tag-lav" style={{ fontWeight: 800 }}>
+                      {nameOf(iid) || "숙제"}
+                    </span>
+                    {/* 준비물·직접검사 — 학생 화면에는 있는데 여기만 없었다 (P1-9) */}
+                    {itemOf(iid)?.tool && (
+                      <span className="tag tag-sky" style={{ fontSize: 12 }}>{itemOf(iid).tool}</span>
+                    )}
+                    {itemOf(iid)?.in_person && (
+                      <span className="tag tag-amber" style={{ fontSize: 12 }} title="선생님이 직접 검사하는 숙제">직접검사</span>
+                    )}
+                    {/* 수업 중에 고르는 자리다 — 굴려 찾을 시간이 없다.
+                        이 학생 교재가 맨 위에 서고, 나머지는 영역으로 좁힌다 */}
+                    <BookPicker
+                      books={textbooks}
+                      mine={myBooks}
+                      value={bookId}
+                      width={160}
+                      placeholder="교재 선택"
+                      onChange={(v) => {
+                        setUnitField(iid, { textbookId: v });
+                        loadBook(v);
+                      }}
+                    />
+                    <select
+                      className="input input-sm"
+                      style={{ flex: 1, minWidth: 200 }}
+                      value=""
+                      onChange={(e) => { addUnit(iid, e.target.value); e.target.value = ""; }}
+                      disabled={!bookId}
+                    >
+                      <option value="">
+                        {!bookId
+                          ? "교재를 먼저 고르세요"
+                          : loadingBook === bookId
+                          ? "단원 불러오는 중…"
+                          : opts.length === 0
+                          ? "이 교재에 단원이 없어요 — 교재 › 교재·단원 에서 올려주세요"
+                          : "단원 추가…"}
+                      </option>
+                      {opts.map((o) => (
+                        <option key={o.id} value={o.id} disabled={chosen.includes(o.id)}>
+                          {"\u00a0".repeat(o.depth * 3)}
+                          {unitOptionText(o)}
+                        </option>
+                      ))}
+                    </select>
+                    {/* 「이 교재에 단원이 없어요」 의 답 — 그 자리에서 만든다.
+                        (있는 교재에서도 하나 더 만들 일이 있어 늘 보인다) */}
+                    {bookId && loadingBook !== bookId && (
+                      quickFor === iid ? (
+                        <>
+                          <input
+                            className="input input-sm"
+                            style={{ width: 180 }}
+                            autoFocus
+                            placeholder="단원명 (·로 여러 개)"
+                            value={quickText}
+                            onChange={(e) => setQuickText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") quickMake(iid, bookId); }}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            disabled={quickBusy || !quickText.trim()}
+                            onClick={() => quickMake(iid, bookId)}
+                          >
+                            {quickBusy ? "만드는 중…" : "만들기"}
+                          </button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setQuickFor(null)}>취소</button>
+                        </>
+                      ) : (
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          title="단원이 없거나 부족하면 여기서 바로 만듭니다. 이름·페이지 고치기는 교재 화면에서"
+                          onClick={() => { setQuickFor(iid); setQuickText(""); }}
+                        >
+                          ＋ 단원 만들기
+                        </button>
+                      )
+                    )}
+                    <input
+                      className="input input-sm"
+                      style={{ width: 120 }}
+                      placeholder="범위 메모"
+                      value={u.note || ""}
+                      onChange={(e) => setUnitField(iid, { note: e.target.value })}
+                    />
+                    {/* 📎 답지 (0148) — 이 항목·이 배정일에 파일형 답지를 붙인다.
+                        제출을 확인해야 학생에게 열린다 (내신 프린트가 주 용도) */}
+                    <AnswerAttach
+                      studentId={row.student.id}
+                      itemId={iid}
+                      date={date}
+                      saved={(row.answers || {})[iid] || null}
+                    />
+                    {chosen.length > 0 && (
+                      <span className="unitmeta" style={{ flexBasis: "100%" }}>
+                        {chosen.map((uid) => {
+                          const m = unitMeta(uid);
+                          return (
+                            <button
+                              key={uid}
+                              className="hwchip hw-next"
+                              onClick={() => removeUnit(iid, uid)}
+                              title="클릭하면 뺍니다"
+                            >
+                              {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
+                              {m?.activity ? ` · ${m.activity}` : ""}
+                              {/* **분량이 칩에 붙어야 한다** (0100). 고르고 나서
+                                  「이거 몇 문항이었지」 를 다시 찾으면 안 낸다 */}
+                              {m && volumeLabel(m) ? ` · ${volumeLabel(m)}` : ""} ✕
+                            </button>
+                          );
+                        })}
+                        {/* **오늘 낸 숙제가 다 해서 얼마나 되나** (0100).
+                            원장님: 「단원의 실제 내용과 분량을 오늘 수업에서
+                            확인하고 숙제를 주고 싶은 거야」 —
+                            단원마다 따로 보면 합쳐서 두 시간짜리를 내고도 모른다 */}
+                        {(() => {
+                          const tot = totalOf(chosen);
+                          if (!tot.text) return null;
+                          return (
+                            <span
+                              className="hint"
+                              style={{ marginLeft: 4, fontSize: 12.5, whiteSpace: "nowrap" }}
+                            >
+                              합계 {tot.text}
+                            </span>
+                          );
+                        })()}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+  const focusZone = () => (
+    <>
+      {/**
+        * **집중도 · 이해도** (원장님, 2026-08-11 — 「태도를 집중도로 고치고
+        * 이해도 추가해줘」). 「태도」 는 말이 넓어서 떠든 것과 못 알아들은
+        * 것이 한 칸에 뭉개졌다. 집중도는 옛 attitude 칸 그대로(이름만 바뀜),
+        * 이해도는 0118 의 새 칸이다.
+        *
+        * 리포트에는 **고른 것만** 나간다 — 둘 다 안 고르면 그 줄 자체가 없다.
+        */}
+      {[
+        ["집중도", "attitude"],
+        ["이해도", "understanding"],
+      ].map(([label, key]) => (
+        <div className="prow" key={key}>
+          <span className="plabel">{label}</span>
+          <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+            {ATTITUDE.map((a) => (
+              <button
+                key={a.key}
+                className={`btn btn-sm ${form[key] === a.key ? "btn-on" : "btn-ghost"}`}
+                onClick={() => set(key, form[key] === a.key ? "" : a.key)}
+              >
+                {a.label}
+              </button>
+            ))}
+            {!form.attitude && !form.understanding && key === "understanding" && (
+              <span className="hint" style={{ fontSize: 12.5 }}>
+                안 고르면 리포트에 안 나갑니다
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+  const kwZone = () => (
+    <>
+      {/**
+        * **월간용 키워드 메모** (원장님, 2026-08-21 — 「키워드메모칸 필여해」).
+        * 학부모·학생에게 절대 안 나간다 (원장만 읽는 표, 0146) — 월간
+        * AI 브리핑만 이걸 종합한다. 리포트 댓글은 다는 즉시 나가서 이
+        * 자리로 못 쓴다.
+        */}
+      <div className="prow">
+        <span className="plabel">월간 키워드</span>
+        <div className="row" style={{ gap: 6, alignItems: "center", flex: 1 }}>
+          <input
+            className="input input-sm"
+            style={{ flex: 1, minWidth: 180 }}
+            placeholder="예) 관계대명사 감 잡음, 숙제 태도 좋아짐 (학부모에겐 안 보여요)"
+            value={form.monthKeyword}
+            onChange={(e) => set("monthKeyword", e.target.value)}
+          />
+          <span className="hint" style={{ fontSize: 12 }}>월간리포트 초안 재료</span>
+        </div>
+      </div>
+    </>
+  );
+  const noticeZone = () => (
+    <>
+      {/* 공지 — 받는 사람이 다르면 글도 달라야 한다.
+          같은 일을 두 번 적지 않도록, 전달사항 한 줄로 둘 다 만든다. */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>공지</span>
+        <div className="stack" style={{ gap: 6, flex: 1 }}>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              className="input input-sm"
+              style={{ flex: 1, minWidth: 180 }}
+              placeholder="전달사항 — 간단히 적으세요 (예: 워크북 안 해와서 남겨서 시킴)"
+              value={hint}
+              onChange={(e) => setHint(e.target.value)}
+            />
+            {/* 이번에만 부탁할 것 — 늘 지킬 것은 설정 › AI 초안 에 적어둔다 */}
+            <input
+              className="input input-sm"
+              style={{ width: 170 }}
+              placeholder="이번만 요청 (예: 짧게)"
+              title="이 초안에만 적용됩니다. 매번 지킬 것은 설정 › AI 초안 에 적어두세요"
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+            />
+            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={emoji}
+                onChange={(e) => setEmoji(e.target.checked)}
+              />
+              이모티콘
+            </label>
+            <button
+              className="btn btn-sm"
+              disabled={drafting || hint.trim().length < 2}
+              title="적으신 말을 학생용·학부모용으로 각각 고쳐 씁니다"
+              onClick={() => {
+                // 이미 적어두신 게 있으면 덮어쓰기 전에 묻는다.
+                // AI 는 **누를 때만** 돈다 — 저장하거나 화면을 열 때는 부르지 않는다.
+                if (
+                  (form.notice_student || form.notice) &&
+                  !confirm("이미 적어둔 공지가 있습니다. 새 초안으로 바꿀까요?")
+                ) return;
+                setDrafting(true);
+                startTransition(async () => {
+                  const res = await draftNotices({
+                    hint,
+                    emoji,
+                    ask,
+                    name: row.student.name,
+                    attendance: ATT.find((a) => a.key === form.attendance)?.label,
+                    word:
+                      form.word_total && form.word_correct !== ""
+                        ? `${form.word_total - form.word_correct}개 틀림 / ${form.word_total}`
+                        : "",
+                    homework: Object.entries(marks)
+                      .filter(([, v]) => v)
+                      .map(([id, v]) => `${nameOf(id)} ${MARK[v]}`),
+                    inclass: [...inClass].map(nameOf).filter(Boolean),
+                  });
+                  setDrafting(false);
+                  if (res?.error) { alert(res.error); return; }
+                  setForm((f) => ({
+                    ...f,
+                    notice_student: res.student || f.notice_student,
+                    notice: res.parent || f.notice,
+                  }));
+                });
+              }}
+            >
+              {drafting ? "쓰는 중…" : "✎ 초안 만들기"}
+            </button>
+          </div>
+
+          {/**
+            * **맨 위에서 적은 것이 여기 같이 보인다** (원장님, 2026-08-07 —
+            * 「오늘 수업 맨위 공지랑 학생별 검사 밑에 공지랑 내용이 연동
+            *  되어야 해」).
+            *
+            * 둘 다 **같은 글에 실려 나간다** — 반 전체에 한 말과 이 아이에게만
+            * 하는 말이 어머니께는 한 통으로 간다. 그런데 화면에서는 하나가
+            * 판 맨 위에, 하나가 맨 아래에 떨어져 있어서 **같이 읽어볼 수가
+            * 없었다.** 그러면 같은 말을 두 번 적거나, 앞에 적은 것을 잊는다.
+            *
+            * 전체 것은 여기서 못 고친다 — 고치면 그 반 모두의 글이 바뀐다.
+            * 맨 위 칸에서 고치시라고 자리만 알려준다.
+            */}
+          {(() => {
+            const all = row.notices || [];
+            // 옛 「전달사항」(deliver) 은 숙제 안내에도 실렸다 — 숙제 공지 옆에 같이 보인다
+            const line = (kind) =>
+              all.filter((n) => n.body && (kind === "homework" ? inHomework(n.kind) : n.kind === kind));
+            const Row = (label, kind, hint, value, key) => (
+              <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <span className="hint" style={{ fontSize: 13, minWidth: 64, paddingTop: 6 }}>
+                  {label}
+                </span>
+                <div className="stack" style={{ gap: 4, flex: 1, minWidth: 200 }}>
+                  {line(kind).map((n) => (
+                    <span className="hint" key={n.id} style={{ fontSize: 12.5 }}>
+                      <span className="tag tag-muted" style={{ fontSize: 12 }}>전체</span>{" "}
+                      {n.body}
+                    </span>
+                  ))}
+                  <textarea
+                    className="input input-sm"
+                    rows={2}
+                    placeholder={hint}
+                    value={value}
+                    onChange={(e) => set(key, e.target.value)}
+                  />
+                </div>
+              </div>
+            );
+            return (
+              <>
+                {Row("숙제 공지", "homework",
+                     "이 아이에게만 — 숙제 안내 맨 위에 들어갑니다",
+                     form.notice_student, "notice_student")}
+                {Row("리포트 공지", "notice",
+                     "이 아이에게만 — 데일리리포트 맨 아래에 들어갑니다",
+                     form.notice, "notice")}
+              </>
+            );
+          })()}
+          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+            <span className="tag tag-muted" style={{ fontSize: 12 }}>전체</span> 로 적힌 줄은
+            맨 위 <b>공지</b> 칸에서 반 전체에 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
+            <br />
+            수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>(수업 메모)에 있습니다.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+  const stayZone = () => (
+    <>
+      {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>{STAY_LABEL}</span>
+        <StayBox
+          studentId={row.student.id}
+          date={date}
+          rows={row.stay || []}
+          suggestions={weakOrMissing.map(({ iid, st }) => staySugOf(iid, st))}
+        />
+      </div>
+    </>
+  );
+  const planNextZone = () => (
+    <>
+      {/* 다음 수업 계획 (원장님 2026-08-20) — 기억이 생생할 때 미리 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>다음 수업</span>
+        <div style={{ flex: 1 }}>
+          <div className="stack" style={{ gap: 3 }}>
+            {planNext.map((iid, idx) => (
+              <div className="row" key={iid} style={{ gap: 4, alignItems: "center" }}>
+                <span className="hint" style={{ width: 16, textAlign: "right" }}>{idx + 1}</span>
+                <span className="tag tag-sky">{nameOf(iid) || "학습"}</span>
+                <button className="btn btn-ghost btn-sm" disabled={idx === 0}
+                  onClick={() => {
+                    const n = [...planNext];
+                    [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
+                    setPlanNext(n);
+                  }}>↑</button>
+                <button className="btn btn-ghost btn-sm" disabled={idx === planNext.length - 1}
+                  onClick={() => {
+                    const n = [...planNext];
+                    [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
+                    setPlanNext(n);
+                  }}>↓</button>
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => setPlanNext(planNext.filter((x) => x !== iid))}>✕</button>
+              </div>
+            ))}
+            {planNext.length === 0 && (
+              <span className="hint">
+                다음 수업에 학원에서 할 것 — 지금 정해두면 다음 수업 등원 목록에 미리 서요.
+              </span>
+            )}
+            {planNext.length > 0 && (() => {
+              const { sec, unknownN } = listLoad(row.paceOf || {}, planNext);
+              if (!sec) return null;
+              const budget = row.classMinutes || 0;
+              const over = budget > 0 && sec / 60 > budget * 0.9;
+              return (
+                <span className={`tag ${over ? "tag-amber" : "tag-mint"}`} style={{ alignSelf: "flex-start" }}>
+                  예상 {minLabel(sec)}{budget ? ` / 수업 ${budget}분` : ""}
+                  {unknownN > 0 ? ` (기록 없음 ${unknownN})` : ""}
+                </span>
+              );
+            })()}
+          </div>
+          <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              title="진도루틴의 다음 차례(오늘 저장으로 한 단계 넘어간 것)를 미리 담습니다"
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await nextRoutine(row.student.id, { peek: true });
+                  if (res?.error) { alert(res.error); return; }
+                  const inc = (res.steps || []).flatMap((st) => st.inclassItems || []);
+                  if (inc.length === 0) { alert("진도루틴에서 담을 것이 없어요."); return; }
+                  setPlanNext([...new Set([...planNext, ...inc])]);
+                })
+              }
+            >
+              ⟳ 다음 수업 루틴 미리 담기
+            </button>
+            <select
+              className="input input-sm"
+              style={{ width: 160 }}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v && !planNext.includes(v)) setPlanNext([...planNext, v]);
+                e.target.value = "";
+              }}
+            >
+              <option value="">＋ 항목 더하기…</option>
+              {items.filter((i) => !planNext.includes(i.id)).map((i) => (
+                <option key={i.id} value={i.id}>{i.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+  const lateZone = () => (
+    <>
+      {/* 늦은 귀가 안내 — 재시험·미완료 숙제가 있으면 사유가 자동으로 잡힌다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>하원 안내</span>
+        <LateBox
+          studentId={row.student.id}
+          date={date}
+          saved={row.late || {}}
+          reasons={lateReasons(
+            {
+              report: {
+                word_correct: form.word_correct === "" ? null : Number(form.word_correct),
+                word_total: form.word_total === "" ? 0 : Number(form.word_total),
+                skip_kinds: retestSkip ? ["retest"] : [],
+              },
+              checks: weakOrMissing.map(({ iid, st }) => ({
+                name: nameOf(iid) || "숙제",
+                status: st,
+              })),
+              stay: row.stay || [],
+            },
+            rule
+          )}
+          retestSkipped={retestSkip}
+          onSkipRetest={(on) => {
+            setRetestSkip(on);
+            startTransition(async () => {
+              const res = await skipWordRetest(row.student.id, date, on);
+              if (res?.error) { alert(res.error); setRetestSkip(!on); }
+            });
+          }}
+        />
+      </div>
+    </>
+  );
+
   // ── 구역 렌더 함수 (checkRow 선례 — 컴포넌트가 아니라 함수: 매
   //    렌더 새 타입이 되면 입력 상태가 날아간다). classic·sheets 두
   //    배치가 같은 함수를 그린다 — 실행지도 v2 §0-2 무복제 분해.
@@ -1777,10 +2883,20 @@ export default function StudentPanel({
             {checkZone()}
           </div>
           <div style={sheetTab === "lesson" ? undefined : { display: "none" }}>
-            <p className="hint">②수업·하원 판은 C3b 에서 옵니다 — 그때까지는 「새 판」을 끄고 적어주세요.</p>
+            {arriveZone()}
+            {utZone()}
+            {utLogZone()}
+            {inclassZone()}
+            {stayZone()}
+            {lateZone()}
           </div>
           <div style={sheetTab === "next" ? undefined : { display: "none" }}>
-            <p className="hint">③다음 판은 C3b 에서 옵니다.</p>
+            {nextHwZone()}
+            {planNextZone()}
+            {booksZone()}
+            {focusZone()}
+            {kwZone()}
+            {noticeZone()}
           </div>
         </div>
         {footZone()}
@@ -1830,111 +2946,7 @@ export default function StudentPanel({
         )
       )}
 
-      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
-      <div className="prow" style={{ alignItems: "center" }}>
-        <span className="plabel">등원</span>
-        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
-          {[
-            ["phone", "핸드폰", arr.phone],
-            ["attend", "출석", arr.attend],
-            ["homework", "숙제", arr.homework],
-          ].map(([kind, label, at]) => (
-            <button
-              key={kind}
-              className={`btn btn-sm ${at ? "btn-on" : "btn-ghost"}`}
-              disabled={pending}
-              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
-              onClick={() => {
-                const prev = arr[kind];
-                // 낙관 — 즉시 표시하고 저장은 뒤에서. refresh 없음 (2026-08-21):
-                // 매번 목록이 재정렬되어 열린 학생 줄이 위로 튀었다
-                setArr((a) => ({ ...a, [kind]: prev ? null : new Date().toISOString() }));
-                startTransition(async () => {
-                  const res = await setArrivalFor(row.student.id, date, kind, !at);
-                  if (res?.error) { alert(res.error); setArr((a) => ({ ...a, [kind]: prev })); }
-                });
-              }}
-            >
-              {at ? "✓ " : ""}
-              {label}
-              {at
-                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : ""}
-            </button>
-          ))}
-          <span className="spacer" />
-          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
-              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
-          <span className="hint" style={{ fontSize: 13 }}>단어시험을 언제</span>
-          {[
-            ["start", "수업 시작에"],
-            ["end", "다 끝내고"],
-          ].map(([k, label]) => (
-            <button
-              key={k}
-              className={`btn btn-sm ${wordWhen === k ? "btn-on" : "btn-ghost"}`}
-              disabled={pending}
-              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
-              style={{ padding: "3px 10px" }}
-              onClick={() => {
-                setWordWhen(k);
-                startTransition(async () => {
-                  const res = await setArrival(row.student.id, date, { wordWhen: k });
-                  if (res?.error) alert(res.error);
-                  // refresh 없음 (2026-08-21) — wordWhen 은 이미 로컬 state 다.
-                  // 매번 페이지 전체를 다시 그려 목록이 튀던 순수 손해였다
-                });
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
-              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/students?s=${row.student.id}`}
-            target="_blank"
-            rel="noreferrer"
-            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-          >
-            재원생 정보
-          </a>
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/me?s=${row.student.id}`}
-            target="_blank"
-            rel="noreferrer"
-            title="이 학생에게 보이는 화면을 그대로 봅니다"
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-          >
-            학생 화면 보기
-          </a>
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={pending}
-            title="이 학생은 앞으로 계속 이렇게 봅니다"
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-            onClick={() =>
-              startTransition(async () => {
-                const res = await setWordWhenDefault(row.student.id, wordWhen);
-                if (res?.error) {
-                  alert(res.error);
-                  return;
-                }
-                alert("이 학생 기본값으로 저장했어요.");
-              })
-            }
-          >
-            기본값으로
-          </button>
-        </div>
-      </div>
+      {arriveZone()}
 
 
       {subsZone()}
@@ -1945,847 +2957,24 @@ export default function StudentPanel({
 
       {scoreZone()}
 
-      {/* **단원평가** — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑
-          같은 거야」. 그래서 학생 화면에 따로 만들지 않고 여기에 붙였다.
-          **단원명을 적으신 것만** 성적으로 올라간다 — 그냥 문장 확인은
-          성적표에 줄이 서면 오히려 지저분해진다.
-          통과/재시험이 핵심이다. 원장님이 보시는 것은 점수가 아니라
-          **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을 다섯 번 봤다). */}
-      <div className="prow">
-        <span className="plabel">단원평가</span>
-          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <PickOrType
-              className="input input-sm"
-              style={{ width: 170 }}
-              options={[
-                ...grammarCommon,
-                ...grammarUnitNames.filter((n) => !grammarCommon.includes(n)),
-              ]}
-              placeholder="단원명 (관계대명사)"
-              title="그 학생 문법 교재의 단원에서 고르거나, 없으면 직접 적습니다. 적으면 성적에 단원평가로 쌓입니다"
-              value={form.sent_unit}
-              onChange={(e) => set("sent_unit", e.target.value)}
-            />
-            <button
-              type="button"
-              className={`btn btn-sm ${form.sent_passed === true ? "btn-on" : "btn-ghost"}`}
-              onClick={() => set("sent_passed", form.sent_passed === true ? "" : true)}
-            >
-              통과
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${form.sent_passed === false ? "btn-on" : "btn-ghost"}`}
-              onClick={() => set("sent_passed", form.sent_passed === false ? "" : false)}
-            >
-              재시험
-            </button>
-            {form.sent_unit ? (
-              <span className="hint" style={{ fontSize: 12 }}>성적에 쌓입니다</span>
-            ) : (
-              <span className="hint" style={{ fontSize: 12 }}>
-                단원명을 적으면 성적에 쌓여요 (안 적으면 그날 확인으로만 남습니다)
-              </span>
-            )}
-          </div>
-      </div>
+      {utZone()}
 
-      {/**
-        * 옛 「단원평가 상자」 (0031 · unit_exams) — **이제 적는 자리가 아니다**
-        * (원장님, 2026-08-11 — 「중복정보, 중복입력이 있어」). 같은 시험을
-        * 위 단원평가 줄과 여기 두 군데 적을 수 있었다. 적는 것은 위 한 곳으로
-        * 모으고, 여기는 이미 적어둔 기록을 보여주고 지우는 것만 남는다.
-        * 기록이 없으면 아예 안 그린다. 월간리포트는 두 쪽을 다 읽는다.
-        */}
-      {(row.exams || []).length > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 5 }}>단원평가 기록</span>
-          <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} readOnly />
-        </div>
-      )}
+      {utLogZone()}
 
       {checkZone()}
 
-      {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>등원 학습</span>
-        <div style={{ flex: 1 }}>
-          {/* **소화량 게이지** (원장님 2026-08-20 — 일률 % 가 아니라 그
-              학생의 실제 타이머 기록으로. 기록 없는 항목은 추정 안 함) */}
-          {(() => {
-            if (inClass.length === 0) return null;
-            const { sec, unknownN } = listLoad(row.paceOf || {}, inClass);
-            if (!sec) return null;
-            const budget = row.classMinutes || 0;
-            const over = budget > 0 && sec / 60 > budget * 0.9;
-            const tail = over ? overflowIds(row.paceOf || {}, inClass, budget * 0.9) : [];
-            return (
-              <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                <span className={`tag ${over ? "tag-amber" : "tag-mint"}`}>
-                  예상 {minLabel(sec)}{budget ? ` / 수업 ${budget}분` : ""}
-                </span>
-                {unknownN > 0 && (
-                  <span className="hint">기록 없는 항목 {unknownN}개는 계산에서 뺌</span>
-                )}
-                {tail.length > 0 && (
-                  <button
-                    className="btn btn-sm"
-                    title="이 학생 기록 기준으로 시간이 넘치는 아래 항목들을 다음 숙제로 돌립니다"
-                    onClick={() => {
-                      setInClass(inClass.filter((x) => !tail.includes(x)));
-                      setNext((s2) => {
-                        const n = new Set(s2);
-                        tail.forEach((x) => n.add(x));
-                        return n;
-                      });
-                    }}
-                  >
-                    시간 넘는 {tail.length}개 숙제로 돌리기
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-          {/* 순서 목록 (0140) — 위에서부터 학생이 하는 차례. ↑↓ 로 조정,
-              시간이 모자라면 ✕(오늘 뺌) · 숙제로 · 다음 수업에 중 하나 */}
-          <div className="stack" style={{ gap: 3 }}>
-            {inClass.map((iid, idx) => {
-              const sec = (row.secOf || {})[iid] || 0;
-              const doneAt = (row.doneRows || []).find(
-                (d) => d.homework_item_id === iid
-              )?.student_done_at;
-              const carried = (row.carriedIn || []).includes(iid);
-              const willCarry = carryNext.has(iid);
-              return (
-                <div className="row" key={iid} style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-                  <span className="hint" style={{ width: 16, textAlign: "right" }}>{idx + 1}</span>
-                  <span
-                    className={`tag ${doneAt ? (marks[iid] ? "tag-mint" : "tag-amber") : "tag-muted"}`}
-                    title={doneAt ? (marks[iid] ? "검사함" : "검사 기다리는 중") : "아직 안 함"}
-                  >
-                    {nameOf(iid) || "학습"}
-                    {sec > 0 ? ` ${Math.max(1, Math.round(sec / 60))}분` : ""}
-                  </span>
-                  {/* 무슨 교재의 어디인지 — 항목 이름만으로는 아이도 원장님도 모른다 */}
-                  {bookOfItem.get(iid) && (
-                    <span className="hint" style={{ fontSize: 12.5 }}>
-                      {bookOfItem.get(iid).book}
-                      {bookOfItem.get(iid).unit ? ` · ${bookOfItem.get(iid).unit}` : ""}
-                    </span>
-                  )}
-                  {carried && <span className="tag tag-sky" title="지난 수업에서 「다음 수업에 계속」 한 것">이어서</span>}
-                  {!carried && (row.plannedIn || []).includes(iid) && (
-                    <span className="tag tag-lav" title="지난 수업 마무리 때 세워둔 계획 — 숙제 확인 후 고치고 저장하면 확정">계획</span>
-                  )}
-                  {/**
-                    * **무엇을 하는 단추인지 글자로 말한다** (원장님 2026-08-23 —
-                    * 「각각 뭘 하라는 건지 구분도 안 되고 시각적 구별이 안 된다」).
-                    * 「다음수업」·「숙제로」 처럼 명사만 적으면 누르면 무슨 일이
-                    * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
-                    * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
-                    */}
-                  <span className="stuEnd">
-                  <span className="row" style={{ gap: 0, alignItems: "center" }}>
-                    <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={idx === 0}
-                      style={{ padding: "2px 5px" }}
-                      onClick={() => setInClass([iid, ...inClass.filter((x) => x !== iid)])}>⇈</button>
-                    <button className="btn btn-ghost btn-sm" title="차례를 위로" disabled={idx === 0}
-                      style={{ padding: "2px 6px" }}
-                      onClick={() => {
-                        const n = [...inClass];
-                        [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
-                        setInClass(n);
-                      }}>↑</button>
-                    <button className="btn btn-ghost btn-sm" title="차례를 아래로" disabled={idx === inClass.length - 1}
-                      style={{ padding: "2px 6px" }}
-                      onClick={() => {
-                        const n = [...inClass];
-                        [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
-                        setInClass(n);
-                      }}>↓</button>
-                    <button className="btn btn-ghost btn-sm" title="맨 아래로" disabled={idx === inClass.length - 1}
-                      style={{ padding: "2px 5px" }}
-                      onClick={() => setInClass([...inClass.filter((x) => x !== iid), iid])}>⇊</button>
-                  </span>
-                  {!doneAt && (
-                    <span className="row" style={{ gap: 4, alignItems: "center", marginLeft: 8 }}>
-                      <button
-                        className={`btn btn-sm ${willCarry ? "btn-on" : "btn-ghost"}`}
-                        style={{ fontSize: 12.5 }}
-                        title="오늘 못 끝냄 — 다음 수업 목록에 자동으로 다시 섭니다"
-                        onClick={() => {
-                          const n = new Set(carryNext);
-                          n.has(iid) ? n.delete(iid) : n.add(iid);
-                          setCarryNext(n);
-                        }}
-                      >
-                        {willCarry ? "✓ 다음 수업에" : "다음 수업으로 미룸"}
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ fontSize: 12.5 }}
-                        title="학원에서 말고 집에서 — 아래 「다음 숙제 배정」 으로 옮깁니다"
-                        onClick={() => {
-                          setInClass(inClass.filter((x) => x !== iid));
-                          setNext((s2) => new Set(s2).add(iid));
-                        }}
-                      >
-                        집 숙제로 옮김
-                      </button>
-                    </span>
-                  )}
-                  <button className="btn btn-ghost btn-sm" title="오늘은 안 함 — 목록에서 뺍니다"
-                    style={{ marginLeft: 8, padding: "2px 8px" }}
-                    onClick={() => setInClass(inClass.filter((x) => x !== iid))}>✕ 오늘 뺌</button>
-                  </span>
-                  {/* 그 항목의 절차 — 작게 (원장님 2026-08-24 「학습항목 밑에
-                      아주 조그맣게 체크리스트 같이 줘」).
-                      **단추 뒤에 둔다** — 앞에 두면 제 줄을 차지하면서 단추를
-                      통째로 아랫줄로 밀어, 줄마다 단추 자리가 달라졌다 (8/24) */}
-                  {(items.find((x) => x.id === iid)?.checklist || "").trim() && (
-                    <span className="hint itemnote">
-                      {(items.find((x) => x.id === iid)?.checklist || "")
-                        .split("\n").map((t) => t.trim()).filter(Boolean).join(" · ")}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-            {inClass.length === 0 && (
-              /* 비어 있으면 **왜 비었는지**와 **무엇을 누르면 되는지** (2026-08-24) */
-              <span className="hint">
-                {autoSkip || "아직 정하지 않았어요 — 아래 ⟳ 진도루틴 다음을 누르면 차려집니다."}
-              </span>
-            )}
-          </div>
-          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 6 }}>
-            <span className="spacer" />
-            <button
-              className="btn btn-sm"
-              disabled={pending}
-              title="교재에 정해둔 진도루틴에서 이 학생 차례를 그대로 채웁니다"
-              onClick={() =>
-                startTransition(async () => {
-                  const res = await nextRoutine(row.student.id);
-                  if (res?.error) {
-                    alert(res.error);
-                    return;
-                  }
-                  if (res.steps.length === 0) {
-                    alert("이 학생 교재에는 아직 진도루틴이 없어요.\n교재 · 단원 화면에서 만들 수 있습니다.");
-                    return;
-                  }
-                  // 교재가 하나면 바로, 여럿이면 먼저 고른다 (2026-08-20 「3」)
-                  if (res.steps.length === 1) {
-                    applyRoutine(res, new Set(res.steps.map((st) => st.textbookId)));
-                  } else {
-                    setRoutinePick({ res, chosen: new Set(res.steps.map((st) => st.textbookId)) });
-                  }
-                })
-              }
-            >
-              ⟳ 진도루틴 다음
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
-              {openInClass ? "접기" : "고르기"}
-            </button>
-          </div>
-
-          {/* 오늘 할 교재 고르기 (2026-08-20 「3」) — 뺄 것만 눌러 끄고 차린다 */}
-          {routinePick && (
-            <div className="card card-tight" style={{ marginTop: 6 }}>
-              <b style={{ fontSize: 13.5 }}>오늘 할 교재만 남기세요</b>
-              <div className="row" style={{ gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-                {routinePick.res.steps.map((st) => {
-                  const on = routinePick.chosen.has(st.textbookId);
-                  return (
-                    <button
-                      key={st.textbookId}
-                      className={`chip ${on ? "on" : ""}`}
-                      onClick={() => {
-                        const c = new Set(routinePick.chosen);
-                        on ? c.delete(st.textbookId) : c.add(st.textbookId);
-                        setRoutinePick({ ...routinePick, chosen: c });
-                      }}
-                    >
-                      {on ? "☑" : "☐"} {st.book}
-                      <span className="hint"> {st.label || st.unit}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="row" style={{ gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setRoutinePick(null)}>취소</button>
-                <button
-                  className="btn btn-primary btn-sm"
-                  disabled={routinePick.chosen.size === 0}
-                  onClick={() => applyRoutine(routinePick.res, routinePick.chosen)}
-                >
-                  이대로 차리기 ({routinePick.chosen.size}권)
-                </button>
-              </div>
-            </div>
-          )}
-
-          {openInClass && (
-            <div className="chips" style={{ marginTop: 8 }}>
-              {items.map((i) => {
-                const on = inClass.includes(i.id);
-                return (
-                  <button
-                    key={i.id}
-                    className={`chip ${on ? "on" : ""}`}
-                    onClick={() =>
-                      setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
-                    }
-                  >
-                    {i.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {/* 루틴 요약 줄은 없앴다 (원장님 2026-08-24 「두 번째 사진 내용은 왜
-              있는 건데」) — 이제 위 목록의 줄마다 교재·단원이 붙어 있어 같은
-              말을 두 번 하는 셈이었다 */}
-
-        </div>
-      </div>
+      {inclassZone()}
 
 
-      {/* 사용중인 교재 · 단원 진도 (순서 무관 체크) */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 3 }}>진도</span>
-        <div className="stack" style={{ gap: 6, flex: 1 }}>
-          <div className="row" style={{ gap: 6 }}>
-            {myBooks.map((b) => (
-              <BookProgress
-                key={b.id}
-                studentId={row.student.id}
-                book={b}
-                onHomework={(u) => pickHomework(b, u)}
-                hwPicked={hwPicked}
-                /* 멈춤은 이 판이 쥔다 (0149) — 켜는 순간 차려진 항목도 걷어야 해서 */
-                pause={pauseOf[b.id] || null}
-                onPauseToggle={(kind) => togglePause(b.id, kind)}
-                extra={
-                  b.wordTest !== undefined ? (
-                    <WordTest studentId={row.student.id} book={b} />
-                  ) : null
-                }
-              />
-            ))}
-            {myBooks.length === 0 && (
-              <span className="hint" style={{ alignSelf: "center" }}>
-                배정된 교재가 없어요.
-              </span>
-            )}
-            <StudentBooks
-              studentId={row.student.id}
-              myBooks={myBooks}
-              textbooks={textbooks}
-            />
-          </div>
-          {/* 진도 **메모**도 여기 — 따로 「메모」 행으로 떨어져 있어서 무슨
-              메모인지 몰랐다 (2026-08-11 「중복정보」 정리). 리포트의 {{진도}} 로 나간다 */}
-          <div className="row" style={{ gap: 6 }}>
-            <input
-              className="input input-sm" style={{ flex: 1, minWidth: 160 }}
-              placeholder={row.lastProgress ? `지난 수업: ${row.lastProgress}` : "진도 메모 (예: Unit 3 뒷부분만)"}
-              value={form.own_progress}
-              onChange={(e) => set("own_progress", e.target.value)}
-            />
-            {/* 오늘 진도 판에 찍은 ○·◐ (0134) — 누르면 그대로 담긴다.
-                비워두고 저장해도 서버가 이걸로 채운다 (원장님 2026-08-19
-                「오늘 수업 한 부분을 데일리 리포트에 반영」) */}
-            {row.todayDraft && !form.own_progress && (
-              <button
-                className="btn btn-primary btn-sm"
-                title={row.todayDraft}
-                onClick={() => set("own_progress", row.todayDraft.replace(/\n/g, " / "))}
-              >
-                오늘 찍은 진도 넣기
-              </button>
-            )}
-            {row.lastProgress && !form.own_progress && (
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => set("own_progress", row.lastProgress)}
-              >
-                지난 진도 가져오기
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      {booksZone()}
 
-      {/* 다음 숙제 배정 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>다음</span>
-        <div style={{ flex: 1 }}>
-          <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
-            <p className="hint" style={{ margin: 0, flex: 1 }}>
-              다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
-              {next.size > 0 && <b> · {next.size}개 배정</b>}
-            </p>
-            {toCheck.length > 0 && (
-              <button
-                className="btn btn-sm"
-                onClick={copyLast}
-                title="지난번에 낸 항목·교재를 그대로 가져오고, 단원만 다음 것으로 옮깁니다"
-              >
-                ⟳ 지난번과 같게 (단원은 다음 것)
-              </button>
-            )}
-          </div>
-          {/**
-            * **멈춘 교재 태그** (0149, 원장님 2026-08-22). 자동 차림에서
-            * 그 교재 항목이 왜 안 나오는지 이 자리에서 보여야 한다 —
-            * 안 보이면 「루틴이 고장났나」 가 된다. 누르면 그 자리에서
-            * 해제된다 (진도 판의 단추와 같은 togglePause 한 벌).
-            */}
-          {myBooks.some((b) => pauseOf[b.id]) && (
-            <div className="row" style={{ gap: 4, alignItems: "center", margin: "0 0 6px", flexWrap: "wrap" }}>
-              {myBooks.filter((b) => pauseOf[b.id]).map((b) => (
-                <button
-                  key={b.id}
-                  className={`tag ${pauseOf[b.id] === "all" ? "tag-red" : "tag-amber"}`}
-                  style={{ cursor: "pointer", border: 0, fontFamily: "inherit" }}
-                  title="해제해야 이 교재 숙제가 정상으로 나가요 — 누르면 해제"
-                  disabled={pending}
-                  onClick={() => togglePause(b.id, pauseOf[b.id])}
-                >
-                  {b.name} {pauseOf[b.id] === "all" ? "⏸ 교재멈춤" : "📴 숙제멈춤"} ✕해제
-                </button>
-              ))}
-              <span className="hint">
-                멈춘 교재는 자동 차림·숙제에서 빠져요 (숙제멈춤은 숙제만)
-              </span>
-            </div>
-          )}
-          {/**
-            * **급하면 글로 — 영역마다 한 칸** (원장님 2026-08-21 「급하면
-            * 텍스트로 직접 숙제 적을 수 있도록」 · 2026-08-24 「직접 적은
-            * 숙제는 영역이 없는 게 문제야. 영역마다 그냥 텍스트를 추가할
-            * 칸을 줘」).
-            *
-            * 한 칸이면 영역이 안 붙어서, 아이 화면의 영역별 묶음에서 「기타」 로
-            * 떨어진다 — 영작 숙제인데 영작 묶음에 없다. 칸을 영역마다 두면
-            * 적는 자리가 곧 영역이라 따로 고를 것이 없다. 빈 칸은 안 나간다.
-            */}
-          <div className="stack" style={{ gap: 4, margin: "6px 0" }}>
-            <span className="hint" style={{ fontSize: 13 }}>✍ 급한 숙제 — 한 줄에 하나씩</span>
-            {QUICK_AREAS.map((area) => (
-              <div className="row" key={area} style={{ gap: 6, alignItems: "center" }}>
-                <span className="plabel" style={{ width: 34 }}>{area}</span>
-                <textarea
-                  className="input input-sm"
-                  rows={(form.quickHomework?.[area] || "").includes("\n") ? 3 : 1}
-                  style={{ flex: 1, minWidth: 160, resize: "vertical" }}
-                  placeholder={area === "문법" ? "예: 문법 프린트 3장" : ""}
-                  value={form.quickHomework?.[area] || ""}
-                  onChange={(e) =>
-                    set("quickHomework", { ...(form.quickHomework || {}), [area]: e.target.value })
-                  }
-                />
-              </div>
-            ))}
-          </div>
-          {/* 이 학생 교재가 쓰는 항목만 — 나머지는 눌러서 (2026-08-24) */}
-          {hiddenCount > 0 && (
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 12.5, marginBottom: 4 }}
-              onClick={() => setShowAllChips(true)}
-            >
-              이 학생 교재 것만 보이는 중 · 전체 {items.length}개 보기
-            </button>
-          )}
-          {showAllChips && myItems && (
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ fontSize: 12.5, marginBottom: 4 }}
-              onClick={() => setShowAllChips(false)}
-            >
-              이 학생 교재 것만 보기
-            </button>
-          )}
-          <div className="stack" style={{ gap: 6 }}>
-            {grouped(shown).map(([g, list]) => (
-              <div className="hwgroup" key={g}>
-                <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
-                <div className="row" style={{ gap: 4 }}>
-                  {list.map((i) => (
-                    <button
-                      key={i.id}
-                      className={`hwchip ${next.has(i.id) ? "hw-next" : ""}`}
-                      onClick={() => {
-                        const n = new Set(next);
-                        if (n.has(i.id)) {
-                          n.delete(i.id);
-                        } else {
-                          n.add(i.id);
-                          /**
-                           * **진도가 이미 아는 다음 단원을 미리 넣는다**
-                           * (원장님 2026-08-24 — 「그러면 진도체크를 내가 왜
-                           * 해놔. 반영이 되어 있어야지」).
-                           * 루틴이 교재마다 「지금 어디까지 했고 다음은 무엇」
-                           * 을 이미 셈해 뒀다(itemUnits). 항목을 켜면 그 범위가
-                           * 채워진 채로 뜬다 — 바꾸고 싶으면 그 자리에서 고친다.
-                           */
-                          const pre = routine?.itemUnits?.[i.id];
-                          const b = pre?.textbookId || bookFor(i.id);
-                          setUnitField(i.id, {
-                            textbookId: b,
-                            ...(pre?.unitIds?.length ? { unitIds: pre.unitIds } : null),
-                            ...(pre?.note ? { note: pre.note } : null),
-                          });
-                          loadBook(b);
-                        }
-                        setNext(n);
-                      }}
-                    >
-                      {next.has(i.id) && <b>＋</b>} {i.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+      {nextHwZone()}
 
-          {/* 배정한 숙제별 교재 단원 — 교재DB의 단원명과 연동, 여러 단원 가능 */}
-          {next.size > 0 && (
-            <div className="stack" style={{ gap: 6, marginTop: 8 }}>
-              {[...next].map((iid) => {
-                const u = nextUnits[iid] || { textbookId: defaultBook, unitIds: [], note: "" };
-                const bookId = u.textbookId || defaultBook;
-                const opts = unitsByBook[bookId] || [];
-                const chosen = u.unitIds || [];
-                return (
-                  <div className="unitrow" key={iid}>
-                    <span className="tag tag-lav" style={{ fontWeight: 800 }}>
-                      {nameOf(iid) || "숙제"}
-                    </span>
-                    {/* 준비물·직접검사 — 학생 화면에는 있는데 여기만 없었다 (P1-9) */}
-                    {itemOf(iid)?.tool && (
-                      <span className="tag tag-sky" style={{ fontSize: 12 }}>{itemOf(iid).tool}</span>
-                    )}
-                    {itemOf(iid)?.in_person && (
-                      <span className="tag tag-amber" style={{ fontSize: 12 }} title="선생님이 직접 검사하는 숙제">직접검사</span>
-                    )}
-                    {/* 수업 중에 고르는 자리다 — 굴려 찾을 시간이 없다.
-                        이 학생 교재가 맨 위에 서고, 나머지는 영역으로 좁힌다 */}
-                    <BookPicker
-                      books={textbooks}
-                      mine={myBooks}
-                      value={bookId}
-                      width={160}
-                      placeholder="교재 선택"
-                      onChange={(v) => {
-                        setUnitField(iid, { textbookId: v });
-                        loadBook(v);
-                      }}
-                    />
-                    <select
-                      className="input input-sm"
-                      style={{ flex: 1, minWidth: 200 }}
-                      value=""
-                      onChange={(e) => { addUnit(iid, e.target.value); e.target.value = ""; }}
-                      disabled={!bookId}
-                    >
-                      <option value="">
-                        {!bookId
-                          ? "교재를 먼저 고르세요"
-                          : loadingBook === bookId
-                          ? "단원 불러오는 중…"
-                          : opts.length === 0
-                          ? "이 교재에 단원이 없어요 — 교재 › 교재·단원 에서 올려주세요"
-                          : "단원 추가…"}
-                      </option>
-                      {opts.map((o) => (
-                        <option key={o.id} value={o.id} disabled={chosen.includes(o.id)}>
-                          {"\u00a0".repeat(o.depth * 3)}
-                          {unitOptionText(o)}
-                        </option>
-                      ))}
-                    </select>
-                    {/* 「이 교재에 단원이 없어요」 의 답 — 그 자리에서 만든다.
-                        (있는 교재에서도 하나 더 만들 일이 있어 늘 보인다) */}
-                    {bookId && loadingBook !== bookId && (
-                      quickFor === iid ? (
-                        <>
-                          <input
-                            className="input input-sm"
-                            style={{ width: 180 }}
-                            autoFocus
-                            placeholder="단원명 (·로 여러 개)"
-                            value={quickText}
-                            onChange={(e) => setQuickText(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") quickMake(iid, bookId); }}
-                          />
-                          <button
-                            className="btn btn-primary btn-sm"
-                            disabled={quickBusy || !quickText.trim()}
-                            onClick={() => quickMake(iid, bookId)}
-                          >
-                            {quickBusy ? "만드는 중…" : "만들기"}
-                          </button>
-                          <button className="btn btn-ghost btn-sm" onClick={() => setQuickFor(null)}>취소</button>
-                        </>
-                      ) : (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          title="단원이 없거나 부족하면 여기서 바로 만듭니다. 이름·페이지 고치기는 교재 화면에서"
-                          onClick={() => { setQuickFor(iid); setQuickText(""); }}
-                        >
-                          ＋ 단원 만들기
-                        </button>
-                      )
-                    )}
-                    <input
-                      className="input input-sm"
-                      style={{ width: 120 }}
-                      placeholder="범위 메모"
-                      value={u.note || ""}
-                      onChange={(e) => setUnitField(iid, { note: e.target.value })}
-                    />
-                    {/* 📎 답지 (0148) — 이 항목·이 배정일에 파일형 답지를 붙인다.
-                        제출을 확인해야 학생에게 열린다 (내신 프린트가 주 용도) */}
-                    <AnswerAttach
-                      studentId={row.student.id}
-                      itemId={iid}
-                      date={date}
-                      saved={(row.answers || {})[iid] || null}
-                    />
-                    {chosen.length > 0 && (
-                      <span className="unitmeta" style={{ flexBasis: "100%" }}>
-                        {chosen.map((uid) => {
-                          const m = unitMeta(uid);
-                          return (
-                            <button
-                              key={uid}
-                              className="hwchip hw-next"
-                              onClick={() => removeUnit(iid, uid)}
-                              title="클릭하면 뺍니다"
-                            >
-                              {m ? [m.big, m.mid, m.small].filter(Boolean).join(" › ") : "단원"}
-                              {m?.activity ? ` · ${m.activity}` : ""}
-                              {/* **분량이 칩에 붙어야 한다** (0100). 고르고 나서
-                                  「이거 몇 문항이었지」 를 다시 찾으면 안 낸다 */}
-                              {m && volumeLabel(m) ? ` · ${volumeLabel(m)}` : ""} ✕
-                            </button>
-                          );
-                        })}
-                        {/* **오늘 낸 숙제가 다 해서 얼마나 되나** (0100).
-                            원장님: 「단원의 실제 내용과 분량을 오늘 수업에서
-                            확인하고 숙제를 주고 싶은 거야」 —
-                            단원마다 따로 보면 합쳐서 두 시간짜리를 내고도 모른다 */}
-                        {(() => {
-                          const tot = totalOf(chosen);
-                          if (!tot.text) return null;
-                          return (
-                            <span
-                              className="hint"
-                              style={{ marginLeft: 4, fontSize: 12.5, whiteSpace: "nowrap" }}
-                            >
-                              합계 {tot.text}
-                            </span>
-                          );
-                        })()}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      {focusZone()}
 
-      {/**
-        * **집중도 · 이해도** (원장님, 2026-08-11 — 「태도를 집중도로 고치고
-        * 이해도 추가해줘」). 「태도」 는 말이 넓어서 떠든 것과 못 알아들은
-        * 것이 한 칸에 뭉개졌다. 집중도는 옛 attitude 칸 그대로(이름만 바뀜),
-        * 이해도는 0118 의 새 칸이다.
-        *
-        * 리포트에는 **고른 것만** 나간다 — 둘 다 안 고르면 그 줄 자체가 없다.
-        */}
-      {[
-        ["집중도", "attitude"],
-        ["이해도", "understanding"],
-      ].map(([label, key]) => (
-        <div className="prow" key={key}>
-          <span className="plabel">{label}</span>
-          <div className="row" style={{ gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-            {ATTITUDE.map((a) => (
-              <button
-                key={a.key}
-                className={`btn btn-sm ${form[key] === a.key ? "btn-on" : "btn-ghost"}`}
-                onClick={() => set(key, form[key] === a.key ? "" : a.key)}
-              >
-                {a.label}
-              </button>
-            ))}
-            {!form.attitude && !form.understanding && key === "understanding" && (
-              <span className="hint" style={{ fontSize: 12.5 }}>
-                안 고르면 리포트에 안 나갑니다
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
+      {kwZone()}
 
-      {/**
-        * **월간용 키워드 메모** (원장님, 2026-08-21 — 「키워드메모칸 필여해」).
-        * 학부모·학생에게 절대 안 나간다 (원장만 읽는 표, 0146) — 월간
-        * AI 브리핑만 이걸 종합한다. 리포트 댓글은 다는 즉시 나가서 이
-        * 자리로 못 쓴다.
-        */}
-      <div className="prow">
-        <span className="plabel">월간 키워드</span>
-        <div className="row" style={{ gap: 6, alignItems: "center", flex: 1 }}>
-          <input
-            className="input input-sm"
-            style={{ flex: 1, minWidth: 180 }}
-            placeholder="예) 관계대명사 감 잡음, 숙제 태도 좋아짐 (학부모에겐 안 보여요)"
-            value={form.monthKeyword}
-            onChange={(e) => set("monthKeyword", e.target.value)}
-          />
-          <span className="hint" style={{ fontSize: 12 }}>월간리포트 초안 재료</span>
-        </div>
-      </div>
-
-      {/* 공지 — 받는 사람이 다르면 글도 달라야 한다.
-          같은 일을 두 번 적지 않도록, 전달사항 한 줄로 둘 다 만든다. */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>공지</span>
-        <div className="stack" style={{ gap: 6, flex: 1 }}>
-          <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <input
-              className="input input-sm"
-              style={{ flex: 1, minWidth: 180 }}
-              placeholder="전달사항 — 간단히 적으세요 (예: 워크북 안 해와서 남겨서 시킴)"
-              value={hint}
-              onChange={(e) => setHint(e.target.value)}
-            />
-            {/* 이번에만 부탁할 것 — 늘 지킬 것은 설정 › AI 초안 에 적어둔다 */}
-            <input
-              className="input input-sm"
-              style={{ width: 170 }}
-              placeholder="이번만 요청 (예: 짧게)"
-              title="이 초안에만 적용됩니다. 매번 지킬 것은 설정 › AI 초안 에 적어두세요"
-              value={ask}
-              onChange={(e) => setAsk(e.target.value)}
-            />
-            <label className="row" style={{ gap: 4, alignItems: "center", fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={emoji}
-                onChange={(e) => setEmoji(e.target.checked)}
-              />
-              이모티콘
-            </label>
-            <button
-              className="btn btn-sm"
-              disabled={drafting || hint.trim().length < 2}
-              title="적으신 말을 학생용·학부모용으로 각각 고쳐 씁니다"
-              onClick={() => {
-                // 이미 적어두신 게 있으면 덮어쓰기 전에 묻는다.
-                // AI 는 **누를 때만** 돈다 — 저장하거나 화면을 열 때는 부르지 않는다.
-                if (
-                  (form.notice_student || form.notice) &&
-                  !confirm("이미 적어둔 공지가 있습니다. 새 초안으로 바꿀까요?")
-                ) return;
-                setDrafting(true);
-                startTransition(async () => {
-                  const res = await draftNotices({
-                    hint,
-                    emoji,
-                    ask,
-                    name: row.student.name,
-                    attendance: ATT.find((a) => a.key === form.attendance)?.label,
-                    word:
-                      form.word_total && form.word_correct !== ""
-                        ? `${form.word_total - form.word_correct}개 틀림 / ${form.word_total}`
-                        : "",
-                    homework: Object.entries(marks)
-                      .filter(([, v]) => v)
-                      .map(([id, v]) => `${nameOf(id)} ${MARK[v]}`),
-                    inclass: [...inClass].map(nameOf).filter(Boolean),
-                  });
-                  setDrafting(false);
-                  if (res?.error) { alert(res.error); return; }
-                  setForm((f) => ({
-                    ...f,
-                    notice_student: res.student || f.notice_student,
-                    notice: res.parent || f.notice,
-                  }));
-                });
-              }}
-            >
-              {drafting ? "쓰는 중…" : "✎ 초안 만들기"}
-            </button>
-          </div>
-
-          {/**
-            * **맨 위에서 적은 것이 여기 같이 보인다** (원장님, 2026-08-07 —
-            * 「오늘 수업 맨위 공지랑 학생별 검사 밑에 공지랑 내용이 연동
-            *  되어야 해」).
-            *
-            * 둘 다 **같은 글에 실려 나간다** — 반 전체에 한 말과 이 아이에게만
-            * 하는 말이 어머니께는 한 통으로 간다. 그런데 화면에서는 하나가
-            * 판 맨 위에, 하나가 맨 아래에 떨어져 있어서 **같이 읽어볼 수가
-            * 없었다.** 그러면 같은 말을 두 번 적거나, 앞에 적은 것을 잊는다.
-            *
-            * 전체 것은 여기서 못 고친다 — 고치면 그 반 모두의 글이 바뀐다.
-            * 맨 위 칸에서 고치시라고 자리만 알려준다.
-            */}
-          {(() => {
-            const all = row.notices || [];
-            // 옛 「전달사항」(deliver) 은 숙제 안내에도 실렸다 — 숙제 공지 옆에 같이 보인다
-            const line = (kind) =>
-              all.filter((n) => n.body && (kind === "homework" ? inHomework(n.kind) : n.kind === kind));
-            const Row = (label, kind, hint, value, key) => (
-              <div className="row" style={{ gap: 6, alignItems: "flex-start", flexWrap: "wrap" }}>
-                <span className="hint" style={{ fontSize: 13, minWidth: 64, paddingTop: 6 }}>
-                  {label}
-                </span>
-                <div className="stack" style={{ gap: 4, flex: 1, minWidth: 200 }}>
-                  {line(kind).map((n) => (
-                    <span className="hint" key={n.id} style={{ fontSize: 12.5 }}>
-                      <span className="tag tag-muted" style={{ fontSize: 12 }}>전체</span>{" "}
-                      {n.body}
-                    </span>
-                  ))}
-                  <textarea
-                    className="input input-sm"
-                    rows={2}
-                    placeholder={hint}
-                    value={value}
-                    onChange={(e) => set(key, e.target.value)}
-                  />
-                </div>
-              </div>
-            );
-            return (
-              <>
-                {Row("숙제 공지", "homework",
-                     "이 아이에게만 — 숙제 안내 맨 위에 들어갑니다",
-                     form.notice_student, "notice_student")}
-                {Row("리포트 공지", "notice",
-                     "이 아이에게만 — 데일리리포트 맨 아래에 들어갑니다",
-                     form.notice, "notice")}
-              </>
-            );
-          })()}
-          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
-            <span className="tag tag-muted" style={{ fontSize: 12 }}>전체</span> 로 적힌 줄은
-            맨 위 <b>공지</b> 칸에서 반 전체에 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
-            <br />
-            수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>(수업 메모)에 있습니다.
-          </p>
-        </div>
-      </div>
+      {noticeZone()}
 
       {/* 학생·학부모가 남긴 댓글 */}
       {r.id && (
@@ -2802,128 +2991,11 @@ export default function StudentPanel({
         </div>
       )}
 
-      {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>{STAY_LABEL}</span>
-        <StayBox
-          studentId={row.student.id}
-          date={date}
-          rows={row.stay || []}
-          suggestions={weakOrMissing.map(({ iid, st }) => staySugOf(iid, st))}
-        />
-      </div>
+      {stayZone()}
 
-      {/* 다음 수업 계획 (원장님 2026-08-20) — 기억이 생생할 때 미리 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>다음 수업</span>
-        <div style={{ flex: 1 }}>
-          <div className="stack" style={{ gap: 3 }}>
-            {planNext.map((iid, idx) => (
-              <div className="row" key={iid} style={{ gap: 4, alignItems: "center" }}>
-                <span className="hint" style={{ width: 16, textAlign: "right" }}>{idx + 1}</span>
-                <span className="tag tag-sky">{nameOf(iid) || "학습"}</span>
-                <button className="btn btn-ghost btn-sm" disabled={idx === 0}
-                  onClick={() => {
-                    const n = [...planNext];
-                    [n[idx - 1], n[idx]] = [n[idx], n[idx - 1]];
-                    setPlanNext(n);
-                  }}>↑</button>
-                <button className="btn btn-ghost btn-sm" disabled={idx === planNext.length - 1}
-                  onClick={() => {
-                    const n = [...planNext];
-                    [n[idx + 1], n[idx]] = [n[idx], n[idx + 1]];
-                    setPlanNext(n);
-                  }}>↓</button>
-                <button className="btn btn-ghost btn-sm"
-                  onClick={() => setPlanNext(planNext.filter((x) => x !== iid))}>✕</button>
-              </div>
-            ))}
-            {planNext.length === 0 && (
-              <span className="hint">
-                다음 수업에 학원에서 할 것 — 지금 정해두면 다음 수업 등원 목록에 미리 서요.
-              </span>
-            )}
-            {planNext.length > 0 && (() => {
-              const { sec, unknownN } = listLoad(row.paceOf || {}, planNext);
-              if (!sec) return null;
-              const budget = row.classMinutes || 0;
-              const over = budget > 0 && sec / 60 > budget * 0.9;
-              return (
-                <span className={`tag ${over ? "tag-amber" : "tag-mint"}`} style={{ alignSelf: "flex-start" }}>
-                  예상 {minLabel(sec)}{budget ? ` / 수업 ${budget}분` : ""}
-                  {unknownN > 0 ? ` (기록 없음 ${unknownN})` : ""}
-                </span>
-              );
-            })()}
-          </div>
-          <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              className="btn btn-sm"
-              disabled={pending}
-              title="진도루틴의 다음 차례(오늘 저장으로 한 단계 넘어간 것)를 미리 담습니다"
-              onClick={() =>
-                startTransition(async () => {
-                  const res = await nextRoutine(row.student.id, { peek: true });
-                  if (res?.error) { alert(res.error); return; }
-                  const inc = (res.steps || []).flatMap((st) => st.inclassItems || []);
-                  if (inc.length === 0) { alert("진도루틴에서 담을 것이 없어요."); return; }
-                  setPlanNext([...new Set([...planNext, ...inc])]);
-                })
-              }
-            >
-              ⟳ 다음 수업 루틴 미리 담기
-            </button>
-            <select
-              className="input input-sm"
-              style={{ width: 160 }}
-              value=""
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v && !planNext.includes(v)) setPlanNext([...planNext, v]);
-                e.target.value = "";
-              }}
-            >
-              <option value="">＋ 항목 더하기…</option>
-              {items.filter((i) => !planNext.includes(i.id)).map((i) => (
-                <option key={i.id} value={i.id}>{i.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+      {planNextZone()}
 
-      {/* 늦은 귀가 안내 — 재시험·미완료 숙제가 있으면 사유가 자동으로 잡힌다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>하원 안내</span>
-        <LateBox
-          studentId={row.student.id}
-          date={date}
-          saved={row.late || {}}
-          reasons={lateReasons(
-            {
-              report: {
-                word_correct: form.word_correct === "" ? null : Number(form.word_correct),
-                word_total: form.word_total === "" ? 0 : Number(form.word_total),
-                skip_kinds: retestSkip ? ["retest"] : [],
-              },
-              checks: weakOrMissing.map(({ iid, st }) => ({
-                name: nameOf(iid) || "숙제",
-                status: st,
-              })),
-              stay: row.stay || [],
-            },
-            rule
-          )}
-          retestSkipped={retestSkip}
-          onSkipRetest={(on) => {
-            setRetestSkip(on);
-            startTransition(async () => {
-              const res = await skipWordRetest(row.student.id, date, on);
-              if (res?.error) { alert(res.error); setRetestSkip(!on); }
-            });
-          }}
-        />
-      </div>
+      {lateZone()}
 
       {/* 경고 · 반성문 — 지난 리포트에서 계산된 것 */}
       {row.warn && row.warn.count > 0 && (
