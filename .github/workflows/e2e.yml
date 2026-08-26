@@ -58,6 +58,16 @@ jobs:
       - name: 실패 로그
         if: failure()
         run: |
+          echo "== 죽은 화면 부검 (/check) =="
+          code=$(curl -s -o /var/tmp/check.html -w "%{http_code}" --max-time 40 "http://127.0.0.1:3300/check" -H "Cookie: $(cat /var/tmp/e2e-cookie 2>/dev/null)")
+          echo "HTTP $code, $(wc -c < /var/tmp/check.html 2>/dev/null || echo 0) bytes"
+          head -c 1200 /var/tmp/check.html 2>/dev/null; echo
+          echo "== next.log 오류 전수 =="
+          sudo grep -n -m 8 -B2 -A10 "⨯\|Error:" /var/tmp/e2e-next.log 2>/dev/null | head -80 || true
+          echo "== next.log 머리 =="
+          sudo head -30 /var/tmp/e2e-next.log 2>/dev/null || true
+          echo "== build.log 꼬리 =="
+          sudo tail -25 /var/tmp/e2e-build.log 2>/dev/null || true
           sudo tail -40 /var/tmp/e2e-next.log 2>/dev/null || true
           sudo tail -20 /var/tmp/e2e-pgrst.log 2>/dev/null || true
           sudo tail -20 /var/tmp/e2e-auth.log 2>/dev/null || true
