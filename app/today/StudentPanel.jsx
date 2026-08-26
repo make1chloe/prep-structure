@@ -8,7 +8,6 @@ import { setBookPause } from "@/app/progress/actions";
 import { useSheet } from "@/components/useSheet";
 import { uploadAnswerFiles, removeAnswerFiles } from "./answerActions";
 import { quickAddUnits } from "@/app/textbooks/actions";
-import { setClassAttendance } from "./classAttendance";
 import SubmissionList from "./SubmissionList";
 import MakeupHere, { MakeupMissed } from "./MakeupHere";
 import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
@@ -1247,25 +1246,12 @@ export default function StudentPanel({
     setSaving(true);
     startTransition(async () => {
       try {
-      // 특강이면 출결은 그 반에만 남긴다.
-      // 하루 출결(= 정규 기준)까지 같이 바꾸면 정규 결석·수강료가 틀어진다.
-      if (row.extraClassId && form.attendance && (attTouched || arr.attend)) {
-        const a = await setClassAttendance(
-          row.extraClassId,
-          row.student.id,
-          date,
-          form.attendance
-        );
-        if (a?.error) {
-          alert(a.error);
-          return;
-        }
-      }
+      // 출결은 늘 그날 출결(attendance) 하나다 — 옛 특강반의 반별 출결
+      // 쓰기(setClassAttendance)는 0164 모델 전환·0173 하강으로 끝났다
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         draft: asDraft,
-        attendance:
-          row.extraClassId || (!attTouched && !arr.attend) ? null : form.attendance,
+        attendance: !attTouched && !arr.attend ? null : form.attendance,
         items: marks,
         /**
          * 그림자 모드(0132): 자동 판정·미달 상세를 **기록만** 한다.
@@ -1368,7 +1354,7 @@ export default function StudentPanel({
           순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
           옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
           나중에 하기로 하면 나중은 오지 않는다 */}
-      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
+      {["absent", "online"].includes(form.attendance) && (
         row.isMakeup ? (
           /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
              보강 없음으로 접는다 (원장님 2026-08-21) */
@@ -2670,12 +2656,6 @@ export default function StudentPanel({
           {!attTouched && !arr.attend && (
             <span className="hint" style={{ fontSize: 12.5 }}>
               아직 미기록 — 누르거나 등원하면 기록돼요 (미리 준비만 하고 저장해도 출결은 안 찍힙니다)
-            </span>
-          )}
-          {/* 특강은 이 반 것만 바뀐다 — 정규 출결은 그대로다 */}
-          {row.extraClassId && (
-            <span className="hint" style={{ fontSize: 13 }}>
-              {row.className} 출결만 바뀝니다 (정규 출결은 그대로)
             </span>
           )}
         </div>

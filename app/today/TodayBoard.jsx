@@ -8,7 +8,6 @@ import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
 import { isMemo } from "@/lib/notices";
 import CheckQueue from "./CheckQueue";
-import { setClassAttendance } from "./classAttendance";
 import { classLabel } from "@/lib/classLabel";
 
 
@@ -133,7 +132,9 @@ export default function TodayBoard({
       return n;
     });
 
-  // 특강이면 그 반 출결에만 찍는다. 정규는 예전 그대로 그날 출결에 찍는다.
+  // 출결은 늘 그날 출결(attendance) 하나다 — 옛 특강반의 반별 출결
+  // (setClassAttendance → class_attendance) 쓰기는 0164 모델 전환·0173
+  // 하강으로 끝났다. 남은 표는 지난 반 조회 전용이다.
   //
   // **같은 것을 다시 누르면 취소된다.** 잘못 눌렀을 때 되돌릴 방법이 없으면
   // 안 눌러보게 된다. 등원·지각·결석 다 똑같이 동작해야 헷갈리지 않는다.
@@ -141,11 +142,9 @@ export default function TodayBoard({
     const off = now === status;
     paint(studentId, extraClassId, off ? null : status);   // 먼저 그린다
     startTransition(async () => {
-      const res = extraClassId
-        ? await setClassAttendance(extraClassId, studentId, date, off ? null : status)
-        : off
-          ? await clearAttendance(studentId, date)
-          : await setAttendance(studentId, date, status);
+      const res = off
+        ? await clearAttendance(studentId, date)
+        : await setAttendance(studentId, date, status);
       if (res?.error) {
         unpaint(studentId, extraClassId);                  // 실패하면 되돌린다
         alert(res.error);
@@ -157,19 +156,6 @@ export default function TodayBoard({
   // 결석 예정 학생의 리포트를 만들어 둔다 → 발송 목록에 '결석 안내'로 뜬다
   function markAbsent(studentId, reason, extraClassId = null) {
     paint(studentId, extraClassId, "absent");   // 먼저 그린다 (원장님 2026-08-21 「작동이 너무 늦어」)
-    // 특강 결석은 그 반에만 남긴다 — 정규까지 결석 처리되면 수강료가 틀린다
-    if (extraClassId) {
-      startTransition(async () => {
-        const res = await setClassAttendance(extraClassId, studentId, date, "absent");
-        if (res?.error) {
-          unpaint(studentId, extraClassId);     // 실패 — 되돌린다
-          alert(res.error);
-          return;
-        }
-        lazy();
-      });
-      return;
-    }
     const k = optKey(studentId, extraClassId);
     setOptWrote((m) => ({ ...m, [k]: true }));  // 「결석 기록」 단추도 그 자리에서 사라진다
     startTransition(async () => {
@@ -209,8 +195,7 @@ export default function TodayBoard({
   function undo(studentId, extraClassId = null) {
     paint(studentId, extraClassId, null);                  // 먼저 그린다
     startTransition(async () => {
-      if (extraClassId) await setClassAttendance(extraClassId, studentId, date, null);
-      else await clearAttendance(studentId, date);
+      await clearAttendance(studentId, date);
       lazy();
     });
   }
