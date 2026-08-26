@@ -78,14 +78,21 @@ export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind
   if (stop.error) return stop;
 
   if (reportItemId) {
-    const { error } = await supabase
+    // .select() 로 몇 줄이 바뀌었는지 확인한다 — RLS 에 막히면 update 는
+    // 0행 갱신 + 오류 없음이라, 확인 안 하면 「다 했어요」가 조용히
+    // 사라진다 (0158 전에 실제로 그랬다).
+    const { data: done, error } = await supabase
       .from("daily_report_items")
       .update({ student_done_at: new Date().toISOString() })
-      .eq("id", reportItemId);
+      .eq("id", reportItemId)
+      .select("id");
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
       return { error: "0034 SQL 을 먼저 실행해주세요." };
     }
     if (error) return { error: error.message };
+    if (!done || done.length === 0) {
+      return { error: "완료 표시가 저장되지 않았어요. 원장님께 알려주세요. (0158 SQL)" };
+    }
   }
 
   // ── 선생님께 알린다 ────────────────────────────────────────
@@ -177,13 +184,18 @@ export async function undoFinish(reportItemId, asId = null) {
   const supabase = await createClient();
   const sid = await meAs(supabase, asId);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
-  const { error } = await supabase
+  const { data: undone, error } = await supabase
     .from("daily_report_items")
     .update({ student_done_at: null })
-    .eq("id", reportItemId);
+    .eq("id", reportItemId)
+    .select("id");
   revalidatePath("/me");
   revalidatePath("/today");
-  return { error: error ? error.message : null };
+  if (error) return { error: error.message };
+  if (!undone || undone.length === 0) {
+    return { error: "취소가 저장되지 않았어요. 원장님께 알려주세요. (0158 SQL)" };
+  }
+  return { error: null };
 }
 
 async function stopRunning(supabase, sid, date) {

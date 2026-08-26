@@ -89,10 +89,16 @@ export async function submitUnitTest(input) {
   // 낸 것으로 숙제도 끝난 것으로 표시한다 (따로 「다 했어요」 를 또 누르게 하면
   // 하나는 빠뜨린다)
   if (reportItemId) {
-    await supabase
+    // 0행 갱신 감지 — RLS 에 막히면 조용히 사라진다 (0158 전 실사고).
+    // 여기선 채점 결과 저장이 주역이라 실패해도 멈추진 않고 흔적만 남긴다.
+    const { data: done } = await supabase
       .from("daily_report_items")
       .update({ student_done_at: new Date().toISOString() })
-      .eq("id", reportItemId);
+      .eq("id", reportItemId)
+      .select("id");
+    if (!done || done.length === 0) {
+      console.error("unitTest: student_done_at 0행 갱신", reportItemId);
+    }
   }
 
   // **재시험이면 알린다.** 통과한 것까지 울리면 하루에 열 번이 된다

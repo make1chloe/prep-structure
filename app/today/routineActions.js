@@ -347,6 +347,55 @@ async function currentUnits(supabase, studentId, bookIds, mine) {
   return out;
 }
 
+/**
+ * nextRoutine 과 **같은 규칙**으로 이 교재의 단계 목록을 만든다 —
+ * 교재별 줄 → 없으면 영역별(0137) → 회독 분기(0135).
+ *
+ * 전에는 advanceRoutine 이 교재별 줄만 읽어서, 영역 루틴을 쓰는 교재는
+ * 목록이 비어 **루틴이 영원히 안 넘어가고 routine_step_id 를 null 로
+ * 덮어쓰기까지** 했다 (2026-08-26 수리). 지금 어디인지 정하는 함수와
+ * 다음으로 넘기는 함수가 다른 목록을 보면 반드시 어긋난다 — 목록은
+ * 여기 하나다.
+ */
+async function stepListFor(supabase, textbookId, round) {
+  let sq = await supabase
+    .from("routine_steps")
+    .select("id, sort, round")
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: true });
+  if (sq.error) {
+    // 0135 전 — 회독 칸 없이 (전부 모든 회독으로 취급)
+    sq = await supabase
+      .from("routine_steps")
+      .select("id, sort")
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true });
+  }
+  let all = sq.data || [];
+  if (all.length === 0) {
+    const { data: book } = await supabase
+      .from("textbooks")
+      .select("area")
+      .eq("id", textbookId)
+      .maybeSingle();
+    if (book?.area) {
+      const aq = await supabase
+        .from("routine_steps")
+        .select("id, sort, round")
+        .eq("area", book.area)
+        .is("textbook_id", null)   // 영역 루틴 = 교재 없는 줄만 (0137)
+        .order("sort", { ascending: true });
+      if (!aq.error) all = aq.data || [];
+    }
+  }
+  // 회독 분기 — nextRoutine 과 동일: round 빈 줄은 모든 회독,
+  // n 은 「n회독부터」라 지금 회독 이하 중 가장 가까운(큰) 정의만.
+  const cur = round || 1;
+  const rounded = all.filter((s) => s.round != null && s.round <= cur);
+  const maxR = rounded.length ? Math.max(...rounded.map((s) => s.round)) : null;
+  return all.filter((s) => s.round == null || s.round === maxR);
+}
+
 /** 이 학생의 루틴 단계를 하나 넘긴다 (끝까지 가면 처음으로) */
 export async function advanceRoutine(studentId, textbookIds) {
   if (!studentId || !Array.isArray(textbookIds) || textbookIds.length === 0) {
@@ -355,11 +404,11 @@ export async function advanceRoutine(studentId, textbookIds) {
   const supabase = await createClient();
   let { data: cur, error: curErr } = await supabase
     .from("student_textbooks")
-    .select("textbook_id, routine_step, routine_step_id")
+    .select("textbook_id, routine_step, routine_step_id, round")
     .eq("student_id", studentId)
     .in("textbook_id", textbookIds);
   if (curErr) {
-    // 0120 전 — 번호만
+    // 0120/0135 전 — 번호만
     ({ data: cur } = await supabase
       .from("student_textbooks")
       .select("textbook_id, routine_step")
@@ -368,12 +417,11 @@ export async function advanceRoutine(studentId, textbookIds) {
   }
 
   for (const r of cur || []) {
-    const { data: list } = await supabase
-      .from("routine_steps")
-      .select("id, sort")
-      .eq("textbook_id", r.textbook_id)
-      .order("sort", { ascending: true });
-    const len = (list || []).length || 1;
+    const list = await stepListFor(supabase, r.textbook_id, r.round);
+    // 단계가 하나도 없으면 넘길 것도 없다 — 건드리지 않는다
+    // (전에는 여기서 null 로 덮어써 포인터를 망가뜨렸다).
+    if (list.length === 0) continue;
+    const len = list.length;
     // 지금 어디인가 — id 먼저, 없으면 번호 (nextRoutine 과 같은 규칙)
     let idx = r.routine_step_id
       ? (list || []).findIndex((x) => x.id === r.routine_step_id)
