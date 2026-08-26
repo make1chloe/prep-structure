@@ -184,7 +184,10 @@ export async function loadMonth(ym) {
         sentAt: saved?.sent_at || null,
       };
     })
-    .filter((r) => r.sum.days > 0);
+    // 수업이 0회여도 **이미 문구를 보냈거나 손댄 학생은 남긴다** —
+    // #16 로 유령 판이 빠지면서 명단째 사라지면, 보낸 월간을 다시
+    // 볼 수도 정정할 수도 없게 된다 (검토 경고 반영).
+    .filter((r) => r.sum.days > 0 || r.sentAt || r.edited || r.note);
 
   return { rows, ready, mode: settings.mode };
 }
