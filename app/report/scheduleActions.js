@@ -111,8 +111,9 @@ export async function runDueSends(supa = null) {
         }
         result = { count: res?.count ?? 0, failed: res?.failed || [], error: res?.error || null };
       } else if (job.kind === "push") {
-        // 배치 알림 (2026-08-21 규칙) — 같은 정각에 뜬 같은 집 알림은
-        // 아래 묶음 단계에서 이미 하나로 합쳐 들어온다
+        // 배치 알림 (2026-08-21 규칙). 알림은 잡 단위로 나간다 —
+        // 「같은 집 한 통 합치기」는 구현된 적 없고 필요 없음으로
+        // 확정(2026-08-26): 학부모는 학생별 알림을 그대로 받는다
         const p = job.payload || {};
         const res = await pushToFamilies(
           p.studentIds || [],

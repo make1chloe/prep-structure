@@ -111,7 +111,11 @@ export default async function MePage(props) {
   // 보기만 할 것인가, 직접 눌러볼 것인가 (?s=학생id&try=1)
   //   앱을 나눠주기 전에 원장님이 먼저 눌러봐야 한다. 타이머가 어떻게 도는지,
   //   학습완료를 누르면 오늘 수업에 어떻게 뜨는지는 눌러봐야 안다.
-  const trying = !!(previewId && searchParams?.try);
+  // 체험 모드 제거 (원장님 확정 2026-08-26 「체험 없애」) — 「정리」가
+  // 그 아이의 진짜 등원·공부시간·완료 기록까지 지우는 사고 구조였고,
+  // 원장 계정으로 눌러보면 학생 권한 문제(0158류)가 안 보이는 가림막이기도
+  // 했다. 보기 전용(?s=)은 남긴다. 검증은 실제 학생 계정으로.
+  const trying = false;
   const preview = !!(previewId && student) && !trying;
   const acting = !!(previewId && student) && trying;
 
@@ -1264,9 +1268,6 @@ export default async function MePage(props) {
             <p className="hint" style={{ margin: "4px 0 0" }}>
               {student.name} 학생에게 보이는 그대로입니다. <b>여기서는 누를 수 없습니다</b> —
               선생님이 대신 누르면 기록이 거짓이 됩니다.
-            </p>
-            <p className="hint" style={{ margin: "6px 0 0" }}>
-              <a href={`/me?s=${student.id}&try=1`}>직접 눌러보기 →</a>
             </p>
           </div>
         ) : acting ? (

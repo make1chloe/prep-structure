@@ -121,7 +121,7 @@ export default function LinkBox({ studentId, name }) {
 
       <p className="hint" style={{ margin: 0, fontSize: 14 }}>
         학생은 <b>/login</b> 에서 이 아이디와 비밀번호로 들어갑니다. 로그인 없이
-        화면만 보시려면 <b>체험</b> 버튼을 쓰시면 됩니다.
+        화면만 보시려면 <b>학생 화면 보기</b>를 쓰시면 됩니다.
       </p>
     </div>
   );

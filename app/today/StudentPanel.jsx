@@ -323,9 +323,11 @@ export default function StudentPanel({
    * 같이 나가서 학생 화면(💬)과 데일리리포트에 병기된다.
    */
   const ccVerdictOf = (iid) => {
-    const kind = CC_ITEM_KIND[itemOf(iid)?.name || ""];
-    if (!kind || !row.classcard) return null;
-    return ccJudge(row.classcard.sets || [], kind);
+    // 클카 자동 판정 제거 (원장님 확정 2026-08-26 「클카 자동판정 애매한
+    // 건 없애」) — 세트→항목 대응이 자연어 추정이라 판정이 애매했고,
+    // 그림자 일치율 실험도 함께 종료. 클카 연동(세트·기록 보기)은 남는다.
+    // 학생 신고 기반 1차 판단(clVerdictOf, 8/21 확정)은 그대로.
+    return null;
   };
   /**
    * **한 달 그림자 모드** (원장님, 2026-08-17 — 「자연어 기반이라 오류
@@ -1600,16 +1602,6 @@ export default function StudentPanel({
             style={{ padding: "3px 8px", fontSize: 12.5 }}
           >
             학생 화면 보기
-          </a>
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/me?s=${row.student.id}&try=1`}
-            target="_blank"
-            rel="noreferrer"
-            title="로그아웃하지 않고 이 학생인 척 직접 눌러봅니다. 누른 것은 진짜로 기록되고, 그 화면에서 지울 수 있습니다."
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-          >
-            체험
           </a>
           <button
             className="btn btn-ghost btn-sm"

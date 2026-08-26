@@ -20,6 +20,10 @@ import { sessionUser } from "@/lib/session";
  * 숙제 검사 결과·리포트 본문처럼 선생님이 적은 것은 건드리지 않는다.
  */
 export async function clearTryout(studentId) {
+  // 체험 모드 제거 (2026-08-26) — 이 정리는 체험 기록과 그 아이의 진짜
+  // 기록(등원·공부시간·완료)을 구분하지 못해 실제 데이터를 지웠다.
+  return { error: "체험 모드는 없어졌어요." };
+
   if (!studentId) return { error: "학생이 없어요." };
   const supabase = await createClient();
 

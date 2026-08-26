@@ -620,27 +620,9 @@ export async function saveStudentDay(studentId, date, form) {
     }
   }
 
-  /**
-   * 클카 그림자 기록 (0132, 원장님 「시뮬레이션 한 달간 돌려봐」) —
-   * 자동 판정 vs 원장님 실제 판정을 나란히. 원장님이 실제로 찍은
-   * 항목만 비교가 된다. 실패해도 조용히 — 저장이 먼저다.
-   */
-  {
-    const shadow = form.ccShadow || {};
-    const shadowRows = Object.entries(shadow)
-      .filter(([iid]) => items[iid])
-      .map(([iid, v]) => ({
-        student_id: studentId,
-        date,
-        item_id: iid,
-        auto_status: v?.status || null,
-        actual_status: items[iid],
-        note: (v?.note || "").slice(0, 300) || null,
-      }));
-    if (shadowRows.length) {
-      try { await supabase.from("classcard_shadow").upsert(shadowRows); } catch { /* 0132 전 */ }
-    }
-  }
+  // 클카 그림자 기록(0132)은 자동 판정과 함께 종료 (원장님 확정
+  // 2026-08-26 「클카 자동판정 애매한 건 없애」) — 실험 표는 기록만
+  // 남기고 더 쓰지 않는다.
 
   /**
    * **임시저장이면 화면을 안 갈아엎는다.** revalidatePath 가 돌면 열어둔
