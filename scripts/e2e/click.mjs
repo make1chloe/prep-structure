@@ -23,6 +23,7 @@
  * 쓰는 법:  node scripts/e2e/click.mjs
  */
 import { chromium } from "playwright-core";
+import { writeFileSync } from "node:fs";
 
 const APP = process.env.E2E_APP || "http://127.0.0.1:3300";
 const EXE = process.env.PW_CHROMIUM || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
@@ -149,7 +150,14 @@ try {
     // 화면이 열렸는데 **아무 글자도 없으면** 열린 것이 아니다
     const text = (await page.locator("main").innerText().catch(() => "")) || "";
     if (text.trim().length < 10) {
-      bad(path, "화면이 비어 있습니다");
+      // (probe) 빈 화면의 정체를 남긴다 — HTML 크기·콘솔 오류·첫 실물 파일
+      const html = await page.content().catch(() => "");
+      bad(path, `화면이 비어 있습니다 (HTTP ${res.status()} · html ${html.length}b · 콘솔: ${errs.slice(0, 3).join(" / ") || "없음"})`);
+      if (!globalThis.__dumped) {
+        globalThis.__dumped = true;
+        try { writeFileSync("/var/tmp/e2e-empty.html", html); } catch {}
+        await page.screenshot({ path: "/var/tmp/e2e-empty.png", fullPage: true }).catch(() => {});
+      }
       continue;
     }
     if (errs.length) { bad(path, errs.slice(0, 2).join(" / ")); continue; }
