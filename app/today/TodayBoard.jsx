@@ -88,6 +88,8 @@ export default function TodayBoard({
   });
   const [showDone, setShowDone] = useState({});
   const [filter, setFilter] = useState("todo");
+  // 새 판(C4) — 칩이 고른 때. 판(StudentPanel sheets)이 이 값을 따른다
+  const [rowTab, setRowTab] = useState("check");
   const [pending, startTransition] = useTransition();
   // 출결 칩·완료 풀기는 연달아 누른다 — 미뤄서 한 번만 (2026-08-23)
   const { lazy, flush } = useLazyRefresh();
@@ -457,6 +459,84 @@ export default function TodayBoard({
                           className="stuRow"
                           data-row={optKey(r.student.id, r.extraClassId)}
                         >
+                          {panel3 ? (
+                            /* ── 줄 신판 (C4 — 실행지도 v2) ──
+                               div + 칩3(검사·수업·다음 — 진짜 button 36px) +
+                               배지2(경고·💬) + 출결·✓(stuEnd). 빈 곳은
+                               무반응(원장 확정 — 오탭 방지), 칩이 그 때로
+                               직행한다. 공유 .stuLine 은 무변형 — cursor 만
+                               인라인 (TodayBoard 완료 줄 선례) */
+                            <div className="stuLine" style={{ cursor: "default" }}>
+                              <span className="stuWho">
+                                <span className="stuName">{r.student.name}</span>
+                                <span className="stuSub">
+                                  {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
+                                </span>
+                              </span>
+                              <span className="stuTags">
+                                {[
+                                  ["check", "검사", (() => {
+                                    const t = (r.toCheck || []).length;
+                                    if (!t) return "";
+                                    const left = (r.toCheck || []).filter((id) => !(r.items || {})[id]).length;
+                                    return left ? `${left}` : "✓";
+                                  })()],
+                                  ["lesson", "수업", (r.inClass || []).length ? String((r.inClass || []).length) : ""],
+                                  ["next", "다음", (r.nextHomework || []).length ? String((r.nextHomework || []).length) : ""],
+                                ].map(([tab, label, n]) => (
+                                  <button
+                                    key={tab}
+                                    className="btn btn-sm btn-ghost stuChip"
+                                    onClick={() => {
+                                      const k = optKey(r.student.id, r.extraClassId);
+                                      if (justSaved && justSaved !== k) setJustSaved(null);
+                                      setRowTab(tab);
+                                      setOpenId(k);
+                                    }}
+                                  >
+                                    {label}{n ? ` ${n}` : ""}
+                                  </button>
+                                ))}
+                                {r.warn?.count > 0 && (
+                                  <span className="tag tag-red">경고 {r.warn.count}</span>
+                                )}
+                                {(r.unreadComments || 0) > 0 && (
+                                  <span className="tag tag-lav">💬 {r.unreadComments}</span>
+                                )}
+                                {r.isMakeup && <span className="tag tag-lav">보강</span>}
+                                {r.plannedAbsent && <span className="tag tag-amber">결석 예정</span>}
+                              </span>
+                              <span className="stuEnd">
+                                {stOf(r) ? (
+                                  <span
+                                    className={`tag ${CLS[stOf(r)]}`}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => undo(r.student.id, r.extraClassId)}
+                                    title="누르면 출결이 취소돼요"
+                                  >
+                                    {LABEL[stOf(r)]}
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => mark(r.student.id, "present", r.extraClassId)}
+                                  >
+                                    등원
+                                  </span>
+                                )}
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => {
+                                    const k = optKey(r.student.id, r.extraClassId);
+                                    if (isOpen) closeRow(k);
+                                    else { setRowTab("check"); setOpenId(k); }
+                                  }}
+                                >
+                                  {isOpen ? "▾ 닫기" : "▸ 열기"}
+                                </button>
+                              </span>
+                            </div>
+                          ) : (
                           <button
                             className="stuLine"
                             onClick={() => {
@@ -612,9 +692,13 @@ export default function TodayBoard({
                               <span className="stuOpen">{isOpen ? "▾" : "▸"}</span>
                             </span>
                           </button>
+                          )}
 
                           {isOpen && (
                             <StudentPanel
+                              layout={panel3 ? "sheets" : "classic"}
+                              sheetTab={panel3 ? rowTab : undefined}
+                              onSheetTab={panel3 ? setRowTab : undefined}
                               row={r}
                               date={date}
                               items={items}
