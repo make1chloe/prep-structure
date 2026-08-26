@@ -85,7 +85,7 @@ on conflict (id) do nothing;
 insert into public.student_extra_schedules
   (id, student_id, label, days, start_time, from_date, to_date, fee) values
   ('ccccccc1-0000-0000-0000-000000000002', 'aaaaaaa1-0000-0000-0000-000000000003',
-   '리스닝 특강', array['화','금'], '16:00', current_date - 7, current_date + 21, 100000)
+   '리스닝 특강', array['월','화','수','목','금','토','일'], '16:00', current_date - 7, current_date + 21, 100000)
 on conflict (id) do nothing;
 
 -- ③ 학원 전체 휴강과 겹치는 특강일 (다음 월요일 — ①의 특강 요일.

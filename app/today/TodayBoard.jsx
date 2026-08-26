@@ -264,7 +264,9 @@ export default function TodayBoard({
       ? r.rowDone
       : !!r.reportWritten || r.plannedAbsent;
   };
-  const all = groups.flatMap((g) => g.rows);
+  // 참조 줄(특강 label 그룹의 겹치는 학생)은 세지 않는다 — 정규 줄에서
+  // 이미 센 학생이라 두 번 세면 숫자가 부푼다 (0164)
+  const all = groups.flatMap((g) => g.rows).filter((r) => !r.refOnly);
   const counts = {
     todo: all.filter((r) => !isDone(r)).length,
     done: all.filter(isDone).length,
@@ -427,6 +429,23 @@ export default function TodayBoard({
                     </p>
                   ) : (
                     visible.map((r) => {
+                      // 특강 label 그룹의 참조 줄 — 이 학생은 오늘 정규
+                      // 반에도 있어서 기록은 그쪽 줄이 주체다 (0164,
+                      // 하루 1판). 여기는 「누가 오나」 명단 확인용.
+                      if (r.refOnly) {
+                        return (
+                          <div key={`ref-${r.student.id}`} className="stuRow">
+                            <div className="stuLine" style={{ cursor: "default" }}>
+                              <span className="stuWho">
+                                <span className="stuName">{r.student.name}</span>
+                              </span>
+                              <span className="stuTags">
+                                <span className="tag">기록은 정규 반 줄에서</span>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
                       const isOpen = openId === optKey(r.student.id, r.extraClassId);
                       return (
                         <div
@@ -729,7 +748,8 @@ export default function TodayBoard({
 
       {/* 다 찍고 나면 바로 발송으로 — 매번 메뉴를 다시 찾아 들어가지 않게 */}
       {(() => {
-        const all = groups.flatMap((g) => g.rows);
+        // 참조 줄은 세지 않는다 (0164 — 정규 줄에서 이미 센 학생)
+        const all = groups.flatMap((g) => g.rows).filter((r) => !r.refOnly);
         const ready = all.filter((r) => r.reportWritten).length;
         const left = all.filter((r) => stOf(r) && !isDone(r)).length;
         if (ready === 0) return null;
