@@ -77,7 +77,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-fail-shots
+          include-hidden-files: true
           path: |
             /var/tmp/e2e-*.png
             /var/tmp/e2e-empty.html
+            /var/tmp/e2e-next.log
+            /var/tmp/e2e-build.log
           if-no-files-found: ignore
