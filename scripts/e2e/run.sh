@@ -88,6 +88,11 @@ node scripts/e2e/check-extra.mjs || exit $?
 echo
 node scripts/e2e/plan-rpc.mjs || exit $?
 
+# **「그날 오는 학생」(rosterOn)에 특강이 서나** — scope all 공지가 특강
+# 전용 학생(최특강)을 잃지 않는지, 종강한 반·특강이 남지 않는지 (특강 7단계).
+echo
+node scripts/e2e/check-roster.mjs || exit $?
+
 # **학교 홈페이지에서 가져오기** (2026-08-11). 붙여넣은 표를 그대로 읽는지,
 # 나이스를 못 물어봤을 때 「다 있습니다」 라고 하지 않는지 — 화면으로 본다.
 echo

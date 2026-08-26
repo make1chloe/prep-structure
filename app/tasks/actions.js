@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
+import { rosterOn } from "@/lib/roster";
 import { inTarget, sameGrade } from "@/lib/who";
 import { sessionUser } from "@/lib/session";
 import { isImage, shownName } from "@/lib/noticeFile";
@@ -278,13 +279,9 @@ export async function applyTaskDelivery(taskId, date) {
     .limit(1);
   if (exist?.length) return { error: null, skipped: true };
 
-  // 그날 수업 오는 학생 (오늘 수업 화면과 같은 기준)
-  const dow = dowOf(on);
-  const classes = await loadRunningClasses(supabase, "id, days", on);
-  const classIds = classes.filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
-  const { data: members } = classIds.length
-    ? await supabase.from("class_students").select("class_id, student_id").in("class_id", classIds)
-    : { data: [] };
+  // 그날 수업 오는 학생 — lib/roster 한 곳의 판단 (특강 학생 포함, 오늘
+  // 수업 공지와 같은 기준. 전에는 여기와 오늘 수업이 서로 다르게 셌다)
+  const members = await rosterOn(supabase, on);
 
   const scope = task.deliver_scope || "all";
   let ids = [...new Set((members || []).map((m) => m.student_id))];
@@ -372,13 +369,8 @@ export async function applyTaskNotice(taskId, date) {
     .limit(1);
   if (exist?.length) return { error: null, skipped: true };
 
-  // 그날 수업 오는 학생 (위 전달사항 만들기와 같은 기준)
-  const dow = dowOf(on);
-  const classes = await loadRunningClasses(supabase, "id, days", on);
-  const classIds = classes.filter((c) => (c.days || []).includes(dow)).map((c) => c.id);
-  const { data: members } = classIds.length
-    ? await supabase.from("class_students").select("student_id").in("class_id", classIds)
-    : { data: [] };
+  // 그날 수업 오는 학생 (위 전달사항 만들기와 같은 기준 — lib/roster 한 곳)
+  const members = await rosterOn(supabase, on);
   const ids = [...new Set((members || []).map((m) => m.student_id))];
   if (ids.length === 0) return { error: "그날 수업 오는 학생이 없어요." };
 
