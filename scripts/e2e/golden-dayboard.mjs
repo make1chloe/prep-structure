@@ -315,7 +315,21 @@ async function capture() {
       for (const tab of ["검사", "수업", "다음"]) {
         await panel.getByRole("button", { name: tab, exact: true }).first().click();
         await page.waitForTimeout(400);
-        const got = await panel.evaluate(extractPanel).catch(() => null);
+        /**
+         * **두 번 연속 같을 때까지 기다렸다 찍는다.** 자동 판정 배지처럼
+         * 클라이언트에서 뒤늦게 계산되는 글자가 있어서, 시간 고정 대기는
+         * 실행 속도(dev/배포판)에 따라 다른 판을 찍는다 — 실제로 배포판
+         * 모드에서 「자동」 한 줄이 더 잡혀 골든이 흔들렸다.
+         */
+        let got = null;
+        let prev = "";
+        for (let i = 0; i < 12; i += 1) {
+          got = await panel.evaluate(extractPanel).catch(() => null);
+          const now = got ? JSON.stringify(got) : "";
+          if (now && now === prev) break;
+          prev = now;
+          await page.waitForTimeout(700);
+        }
         if (!got) throw new Error(`${key} ${tab} 때를 못 읽었습니다`);
         if (!("머리" in rec)) rec.머리 = norm(got.머리);
         /**
