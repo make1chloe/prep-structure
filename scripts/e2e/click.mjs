@@ -157,6 +157,35 @@ try {
     page.removeAllListeners();
   }
 
+  // ── 2-1) 특강이 수강료에 서나 (0164 — 씨앗 ①②) ────────────
+  //
+  // 특강은 반이 아니라 재원생 속성이다 — /tuition 에 label 가상 그룹으로
+  // 선다. 열리는 것만으로는 모자라다: 그룹이 조용히 안 뜨면 특강비가
+  // 합계에서 그냥 빠진다. 최특강(반 배정 0)이 「반이 없는 재원생」 경고에
+  // 뜨면 특강 학생을 경고에서 빼는 예외(5-8)가 무너진 것이다.
+  console.log("\n== 특강이 수강료에 서나 ==");
+  try {
+    const errs = watch(page);
+    await page.goto(`${APP}/tuition`, { waitUntil: "networkidle", timeout: 30000 });
+    const text = (await page.locator("main").innerText().catch(() => "")) || "";
+    for (const want of ["특강 · 내신 특강", "특강 · 리스닝 특강", "최특강"]) {
+      if (!text.includes(want)) bad("/tuition 특강", `「${want}」 이 안 보입니다`);
+      else console.log(`  ${want} — 보입니다`);
+    }
+    const warn = await page
+      .locator(".notice", { hasText: "반이 없는 재원생" })
+      .innerText()
+      .catch(() => "");
+    if (warn.includes("최특강")) {
+      bad("/tuition 특강", "특강 전용 학생이 「반이 없는 재원생」 경고에 떴습니다");
+    } else console.log("  최특강 — 「반이 없는 재원생」 경고엔 없습니다");
+    // 가상 그룹이 터지면 (live·all 미주입 등) 여기 pageerror 로 잡힌다
+    if (errs.length) bad("/tuition 특강", errs.slice(0, 2).join(" / "));
+    page.removeAllListeners();
+  } catch (e) {
+    bad("/tuition 특강", e.message.split("\n")[0]);
+  }
+
   // ── 3) 눌러본다 ────────────────────────────────────────────
   //
   // **누른 뒤 화면이 달라져야 한다.** 「눌렀는데 아무 일도 안 일어난다」 가

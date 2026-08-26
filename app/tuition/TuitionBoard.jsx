@@ -55,9 +55,14 @@ export default function TuitionBoard({
   const router = useRouter();
   const { lazy } = useLazyRefresh();
 
+  // 특강 가상 그룹 (0164) — 반이 아니라서 id 가 "extra:라벨" 이다 (비-uuid)
+  const isVirtual = (k) => k.virtual || String(k.id).startsWith("extra:");
+
   // 반을 가로질러 고를 수 있어야 한다 — 반 하나가 다 들어오는 날도 있고,
-  // 여기저기서 한 명씩 들어오는 날도 있다
-  const allRows = groups.flatMap((g) => g.rows || []);
+  // 여기저기서 한 명씩 들어오는 날도 있다.
+  // 특강 가상 그룹은 뺀다 — payments 는 학생당 한 달 한 줄(0055 unique)이라,
+  // 같은 학생의 특강 줄까지 잡히면 setPaidMany 가 정규 금액을 특강 fee 로 덮는다
+  const allRows = groups.filter((g) => !isVirtual(g.klass)).flatMap((g) => g.rows || []);
 
   // 미납↔받음 낙관 토글 (원장님 2026-08-21 「버튼이 작동이 너무 늦어」) —
   // 서버 답 + router.refresh 를 기다리면 단추가 한 박자 늦게 뒤집혔다.
@@ -242,7 +247,9 @@ export default function TuitionBoard({
             onChange={(e) => setHClass(e.target.value)}
           >
             <option value="">전체 휴강</option>
-            {groups.map((g) => (
+            {/* 특강 가상 그룹은 반 휴강 대상이 아니다 — 비-uuid 가
+                holidays.class_id 에 들어가면 22P02 로 죽는다 (today TopNotices 선례) */}
+            {groups.filter((g) => !isVirtual(g.klass)).map((g) => (
               <option key={g.klass.id} value={g.klass.id}>{g.klass.name} 만</option>
             ))}
           </select>
@@ -354,6 +361,11 @@ export default function TuitionBoard({
         {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum, makeupOnly = [] }) => {
           const opened = open.has(klass.id);
           const editing = editClass === klass.id;
+          // 특강 그룹 — 납부 체크·수납 칸·단가 수정을 안 그린다.
+          //   ① klass.id 가 비-uuid 라 setClassTuition 에 못 들어가고,
+          //   ② 특강비 분리 납부는 미정(원장) — payments 가 학생당 한 달
+          //      한 줄이라 여기 체크가 정규 줄까지 「받음」 으로 덮는다
+          const virtual = isVirtual(klass);
           return (
             <div className="card" key={klass.id} style={{ padding: 0, overflow: "hidden" }}>
               <button className="grouphead" onClick={() => toggle(klass.id)}>
@@ -379,6 +391,11 @@ export default function TuitionBoard({
 
               {opened && (
                 <div style={{ padding: "10px 16px 14px" }}>
+                  {virtual && (
+                    <p className="hint" style={{ margin: "0 0 10px" }}>
+                      특강비 납부 관리는 준비 중 — 합계만 보여요
+                    </p>
+                  )}
                   {/* 수업일 */}
                   <div className="row" style={{ gap: 4, marginBottom: 10 }}>
                     {all.map((d) => {
@@ -395,7 +412,8 @@ export default function TuitionBoard({
                     })}
                   </div>
 
-                  {/* 반 단가 */}
+                  {/* 반 단가 — 특강 가상 그룹엔 없다 (금액은 학생별 정액 fee) */}
+                  {!virtual && (
                   <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 10 }}>
                     {editing ? (
                       <>
@@ -454,8 +472,10 @@ export default function TuitionBoard({
                       </>
                     )}
                   </div>
+                  )}
 
-                  {/* 학생별 */}
+                  {/* 학생별 — 고르기 단추는 수납용이라 특강 그룹엔 없다 */}
+                  {!virtual && (
                   <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
                     <button
                       className="btn btn-ghost btn-sm"
@@ -483,16 +503,18 @@ export default function TuitionBoard({
                       안 받은 사람만
                     </button>
                   </div>
+                  )}
                   <div className="tblwrap">
                     <table className="tbl tbl-tight">
                       <thead>
                         <tr>
-                          <th style={{ width: 28 }}></th>
+                          {!virtual && <th style={{ width: 28 }}></th>}
                           <th style={{ minWidth: 90 }}>학생</th>
                           {/* **수납이 두 번째다.** 전에는 여덟째 칸이라, 폰에서는
                               가로로 한참 밀어야 나왔다 — 「납부 버튼이 없다」 는
-                              말이 여기서 나왔다. 이 표에서 매일 누르는 것은 이것 하나다 */}
-                          <th style={{ width: 96 }}>수납</th>
+                              말이 여기서 나왔다. 이 표에서 매일 누르는 것은 이것 하나다.
+                              특강 그룹엔 이 칸이 없다 (분리 납부 미정 — 위 힌트) */}
+                          {!virtual && <th style={{ width: 96 }}>수납</th>}
                           <th style={{ width: 70 }}>회차</th>
                           <th style={{ width: 84 }}>보강 필요</th>
                           <th style={{ width: 100 }}>등원 시작</th>
@@ -507,6 +529,7 @@ export default function TuitionBoard({
                           const paid = paidOf(r);   // 방금 누른 값이 서버 값보다 먼저다
                           return (
                             <tr key={r.student.id}>
+                              {!virtual && (
                               <td>
                                 <input
                                   type="checkbox"
@@ -519,8 +542,10 @@ export default function TuitionBoard({
                                   disabled={!payReady}
                                 />
                               </td>
+                              )}
                               <td style={{ fontWeight: 600 }}>{r.student.name}</td>
                               {/* 받았는가 — 한 번 눌러 뒤집는다. 엑셀로 올린 것도 여기 나온다 */}
+                              {!virtual && (
                               <td>
                                 <button
                                   className={`btn btn-sm ${paid ? "btn-ghost" : ""}`}
@@ -548,6 +573,7 @@ export default function TuitionBoard({
                                   {paid ? "받음" : "미납"}
                                 </button>
                               </td>
+                              )}
                               <td>
                                 {r.sessions}/{r.base}
                                 {!r.full && <span className="tag tag-muted" style={{ marginLeft: 4 }}>일부</span>}
@@ -660,7 +686,8 @@ export default function TuitionBoard({
                       </tbody>
                     </table>
                   </div>
-                  {klass.tuition ? null : (
+                  {/* 특강은 반 단가가 원래 없다 — 이 힌트가 뜨면 헛걸음 시킨다 */}
+                  {klass.tuition || virtual ? null : (
                     <p className="hint" style={{ marginTop: 8 }}>
                       월 수강료를 넣으면 금액이 계산됩니다.
                     </p>
