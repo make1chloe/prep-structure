@@ -384,8 +384,12 @@ async function roundTrip() {
     sent = true;
   } catch (e) {
     // 첫 줄만 찍으면 「Timeout」 만 남고 어느 단추였는지가 사라진다 —
-    // 원격(Actions)에서는 다시 눌러볼 수 없으니 호출 기록까지 남긴다
-    bad("학부모가 보내기", e.message.split("\n").slice(0, 5).join(" ⏎ "));
+    // 원격(Actions)에서는 다시 눌러볼 수 없으니 호출 기록까지 남긴다.
+    // (3판: 단추는 찾았는데 click 이 안 끝났다 — 겹침·흔들림이면 그
+    // 이유가 기록 뒷줄에 나온다. 그래서 넉넉히 남긴다)
+    bad("학부모가 보내기", e.message.split("\n").slice(0, 16).join(" ⏎ "));
+    // 눈으로도 본다 — 원격에서는 이 사진이 유일한 목격자다
+    await pp.screenshot({ path: "/var/tmp/e2e-parent-fail.png", fullPage: true }).catch(() => {});
   }
   await pc.close();
 
