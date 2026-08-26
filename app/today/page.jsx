@@ -1488,7 +1488,7 @@ export default async function TodayPage(props) {
     repIdsToday.length
       ? supabase
           .from("daily_report_items")
-          .select("id, daily_report_id, homework_item_id, kind, student_done_at")
+          .select("id, daily_report_id, homework_item_id, status, student_done_at")
           .in("daily_report_id", repIdsToday)
       : { data: [] },
     rosterIds.length
@@ -1551,7 +1551,7 @@ export default async function TodayPage(props) {
       itemQ = repIds.length
         ? await supabase
             .from("daily_report_items")
-            .select("id, daily_report_id, homework_item_id, kind")
+            .select("id, daily_report_id, homework_item_id, status")
             .in("daily_report_id", repIds)
         : { data: [] };
       activityOff = true;               // 0034 전이면 「다 했어요」 가 없다
@@ -1559,8 +1559,10 @@ export default async function TodayPage(props) {
     const repOwner = new Map((reports || []).map((r) => [r.id, r.student_id]));
     const tally = new Map();            // student_id → { total, done }
     (itemQ.data || []).forEach((x) => {
-      // 등원 학습만 센다 — 집 숙제는 오늘 이 자리에서 하는 일이 아니다
-      if (x.kind && x.kind !== "class") return;
+      // 등원 학습만 센다 — 집 숙제는 오늘 이 자리에서 하는 일이 아니다.
+      // 구분은 kind 칸이 아니라 status='inclass' 다 — kind 는 이 표에 없어
+      // 조회가 42703 으로 죽고 현황판이 늘 꺼져 있었다 (#24).
+      if (x.status !== "inclass") return;
       const sid = repOwner.get(x.daily_report_id);
       if (!sid) return;
       if (!tally.has(sid)) tally.set(sid, { total: 0, done: 0 });

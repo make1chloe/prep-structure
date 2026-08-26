@@ -133,11 +133,13 @@ async function notifyDone(supabase, sid, homeworkItemId) {
   ]);
   if (!rep?.id) return;
 
+  // 「등원 학습」 구분은 kind 칸이 아니라 status='inclass' 다 — kind 칸은
+  // 이 표에 없어서(42703) 이 알림이 한 번도 제대로 센 적이 없었다 (#24).
   const { data: rows } = await supabase
     .from("daily_report_items")
-    .select("kind, student_done_at")
+    .select("status, student_done_at")
     .eq("daily_report_id", rep.id);
-  const mine = (rows || []).filter((r) => !r.kind || r.kind === "class");
+  const mine = (rows || []).filter((r) => r.status === "inclass");
   const total = mine.length;
   const done = mine.filter((r) => r.student_done_at).length;
 

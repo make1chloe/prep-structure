@@ -279,18 +279,33 @@ export async function saveStudentDay(studentId, date, form) {
       let { data: qi } = await supabase
         .from("homework_items").select("id").eq("name", NAME).maybeSingle();
       if (!qi) {
+        // 이름 충돌(동시 저장·대소문자 등)이어도 조용히 삼키지 않는다 —
+        // ignoreDuplicates 라 기존 행은 안 덮이고, 충돌이면 빈 배열이
+        // 오므로 **반드시 재조회**한다 (0잔여-A #6, 2026-08-27).
         let ins = await supabase
           .from("homework_items")
-          .insert({ name: NAME, category: area, quick: true }).select("id").maybeSingle();
+          .upsert({ name: NAME, category: area, quick: true },
+                  { onConflict: "name", ignoreDuplicates: true })
+          .select("id").maybeSingle();
         if (ins.error && noColumn(ins.error)) {
           // 0157 전 — quick 칸 없이 (이름이 그대로 뜬다)
           ins = await supabase
             .from("homework_items")
-            .insert({ name: NAME, category: area }).select("id").maybeSingle();
+            .upsert({ name: NAME, category: area },
+                    { onConflict: "name", ignoreDuplicates: true })
+            .select("id").maybeSingle();
         }
         qi = ins.data;
+        if (!qi?.id) {
+          const again = await supabase
+            .from("homework_items").select("id").eq("name", NAME).maybeSingle();
+          qi = again.data;
+        }
       }
-      if (!qi?.id) continue;
+      if (!qi?.id) {
+        // 재조회까지 실패 — 이 줄이 조용히 사라지던 것이 #6 의 병.
+        return { error: `급한 숙제 「${NAME}」 를 저장하지 못했어요. 다시 눌러주세요.` };
+      }
       if (!nextIds.includes(qi.id)) nextIds = [...nextIds, qi.id];
       const prev = (nextUnitsIn[qi.id]?.note || "").trim();
       nextUnitsIn[qi.id] = {
@@ -391,10 +406,19 @@ export async function saveStudentDay(studentId, date, form) {
   // **무엇이 바뀌었는지 알려면 무엇이 있었는지 먼저 봐야 한다.**
   //   저장할 때마다 통째로 지우고 다시 넣기 때문에, 지우기 전에 적어둔다.
   //   그래야 「이 줄은 원래 있던 것」 과 「이번에 새로 생긴 것」 을 가를 수 있다.
-  const { data: before } = await supabase
+  // 복구 원본이기도 하다 (#13) — 삽입이 실패하면 이 행들을 그대로
+  // 되살린다. 그래서 판정에 쓰는 칸만이 아니라 **전 칸**을 읽는다.
+  let { data: before, error: befErr } = await supabase
     .from("daily_report_items")
-    .select("homework_item_id, status, textbook_unit_ids, range_note, changed_at")
+    .select("id, homework_item_id, status, textbook_unit_ids, textbook_unit_id, range_note, changed_at, check_note, student_done_at, inclass_sort, carry_next")
     .eq("daily_report_id", report.id);
+  if (befErr) {
+    // 옛 DB(칸 부족) — 판정용 최소 칸으로 물러난다 (복구 정밀도만 준다)
+    ({ data: before } = await supabase
+      .from("daily_report_items")
+      .select("homework_item_id, status, textbook_unit_ids, range_note, changed_at")
+      .eq("daily_report_id", report.id));
+  }
   const had = new Map(
     (before || []).map((x) => [`${x.homework_item_id}|${x.status}`, x])
   );
@@ -402,11 +426,23 @@ export async function saveStudentDay(studentId, date, form) {
   // 처음 주는 숙제는 「바뀐 것」 이 아니다 — 그날 원래 받은 것이다.
   const hadAny = (before || []).some((x) => x.status === "assigned");
 
-  const { error: delErr } = await supabase
-    .from("daily_report_items")
-    .delete()
-    .eq("daily_report_id", report.id);
-  if (delErr) return { error: delErr.message };
+  // **이번 저장이 실제로 들고 온 그룹만 지운다** (0잔여-A #13) — 전량
+  // 삭제는 조교가 그 사이 적은 다른 그룹까지 지웠다. 그룹 판정은 payload
+  // 행 수가 아니라 **form 키의 존재**다 — 전부 비우는 저장(다 뺀 것)도
+  // 지워져야 하니까. (판 화면은 넷 다 항상 보낸다 — 동작 불변.)
+  const delStatuses = [];
+  if (form.items) delStatuses.push("done", "weak", "missing", "verified");
+  if (form.inClass) delStatuses.push("inclass");
+  if (form.planNext) delStatuses.push("plan_next");
+  if (form.nextHomework) delStatuses.push("assigned");
+  if (delStatuses.length) {
+    const { error: delErr } = await supabase
+      .from("daily_report_items")
+      .delete()
+      .eq("daily_report_id", report.id)
+      .in("status", delStatuses);
+    if (delErr) return { error: delErr.message };
+  }
 
   // 배정한 숙제에 붙은 단원/범위 { [homework_item_id]: { unitId, note } }
   const units = nextUnitsIn;   // 급한 숙제(quickHomework)의 범위 메모까지 합친 한 벌
@@ -518,7 +554,26 @@ export async function saveStudentDay(studentId, date, form) {
         ({ error } = await supabase.from("daily_report_items").insert(bare));
       }
     }
-    if (error) return { error: error.message };
+    if (error) {
+      // **전멸 방지** (#13) — 삭제는 이미 됐는데 삽입이 실패하면 그날
+      // 기록이 통째로 사라진다(8/24 FK·carry_next 사고의 그 구간).
+      // 지웠던 행을 있는 그대로 되살리고 오류를 알린다. (id 까지 살려
+      // 넣는다 — 같은 id 면 다른 참조가 덜 어긋난다.)
+      try {
+        const restore = (before || [])
+          .filter((b) => !delStatuses.length || delStatuses.includes(b.status))
+          .map((b) => ({ ...b, daily_report_id: report.id }));
+        if (restore.length) {
+          let r = await supabase.from("daily_report_items").insert(restore);
+          if (noColumn(r.error)) {
+            await supabase.from("daily_report_items").insert(
+              restore.map(({ id: _i, check_note, student_done_at, inclass_sort, carry_next, textbook_unit_id, ...rest }) => rest)
+            );
+          }
+        }
+      } catch { /* 복구 실패 — 원래 오류를 그대로 알린다 */ }
+      return { error: error.message };
+    }
   }
 
   /**
@@ -582,7 +637,12 @@ export async function saveStudentDay(studentId, date, form) {
    * 실패해도 저장은 그대로 (lib/answers 가 조용히 삼킨다).
    */
   if (!form.draft) {
-    const checkedIds = Object.keys(items).filter((iid) => items[iid]);
+    // ✕(안 해옴)는 답지를 열지 않는다 (0잔여-A #22) — 안 해온 아이에게
+    // 답을 먼저 주는 셈이었다. 다시 해와서 ○/△ 받을 때 열린다.
+    // (제출물 「봤어요」 경로의 답지 열림은 확인 사건이라 의도적으로 유지.)
+    const checkedIds = Object.keys(items).filter(
+      (iid) => items[iid] && items[iid] !== "missing"
+    );
     if (checkedIds.length) {
       await openAnswers(supabase, { studentId, itemIds: checkedIds, upTo: addDays(date, -1) });
     }
@@ -593,8 +653,11 @@ export async function saveStudentDay(studentId, date, form) {
   // 수업 기록이 날아가면 곤란하다. 대신 조용히 넘기지 않고 같이 알려준다.
   const prep = await syncPrepTasks(supabase, studentId, date, nextIds, units);
 
-  // 숙제가 배정됐으면 학생 앱으로 알림 (요금 없음, 실패해도 저장은 그대로)
-  if (nextIds.length > 0) {
+  // 숙제가 배정됐으면 학생 앱으로 알림 (요금 없음, 실패해도 저장은 그대로).
+  // **임시저장은 알림을 안 보낸다** (0잔여-A #10) — draft 는 「기록만」이
+  // 계약인데 알림 2건이 새고 있었다. 성적 사본(mirrorUnitScore)은 일부러
+  // 유지 — 막으면 임시저장만 한 날 성적표에 구멍이 난다(검토 판정).
+  if (!form.draft && nextIds.length > 0) {
     try {
       const { data: names } = await supabase
         .from("homework_items")
@@ -635,7 +698,7 @@ export async function saveStudentDay(studentId, date, form) {
    * 오늘 날짜의 저장에서만, 순서까지 비교해 정말 바뀐 경우에만 보낸다.
    */
   try {
-    if (date === todaySeoul() && JSON.stringify(oldInclass) !== JSON.stringify(inClassIds) && inClassIds.length) {
+    if (!form.draft && date === todaySeoul() && JSON.stringify(oldInclass) !== JSON.stringify(inClassIds) && inClassIds.length) {
       await queuePush(supabase, {
         studentIds: [studentId],
         who: "student",
@@ -662,6 +725,17 @@ export async function saveStudentDay(studentId, date, form) {
 export async function reopenReport(studentId, date) {
   if (!studentId || !date) return { error: "값이 부족해요." };
   const supabase = await createClient();
+  // 이미 학부모께 나간 리포트는 여기서 못 되돌린다 (0잔여-A #8) —
+  // 발송 표시까지 지우려면 발송 화면의 「발송 취소」가 그 자리다.
+  {
+    const sent = await supabase
+      .from("daily_reports").select("sent_at")
+      .eq("student_id", studentId).eq("date", date).maybeSingle();
+    if (!sent.error && sent.data?.sent_at) {
+      return { error: "이미 학부모께 보낸 날이에요. 발송 화면에서 「발송 취소」 후에 고칠 수 있어요." };
+    }
+    // sent_at 칸이 없는 옛 DB(0012 전)는 그냥 통과
+  }
   const { error } = await supabase
     .from("daily_reports")
     .update({ report_written: false })

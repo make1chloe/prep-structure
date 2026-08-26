@@ -118,13 +118,16 @@ export default async function CheckPage(props) {
           .order("daily_report_id"))
     : { data: [] };
 
-  // 학생이 낸 것 (사진 · 녹음 · 체크리스트)
-  const { data: subs } = await supabase
-    .from("homework_submissions")
-    .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id")
-    .gte("date", addDays(date, -14))
-    .lte("date", date)
-    .order("created_at", { ascending: false });
+  // 학생이 낸 것 (사진 · 녹음 · 체크리스트) — 창은 배정 조회와 **같은
+  // 21일**(0잔여-A #18: 15~21일 전 배정이 「안 냄」으로 오탐되던 것).
+  // 21일이면 1000행 상한에 걸릴 수 있어 fetchAll 로 전부 받는다.
+  const { data: subs } = await fetchAll(() =>
+    supabase
+      .from("homework_submissions")
+      .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id")
+      .gte("date", addDays(date, -21))
+      .lte("date", date)
+      .order("created_at", { ascending: false }));
 
   // ── 학생별로 모은다 ──────────────────────────────────
   const repOf = new Map((reports || []).map((r) => [r.student_id, r]));

@@ -86,7 +86,8 @@ export async function checkOne(studentId, date, itemId, status, note = "", submi
   // **검사가 답지를 연다** (0148). 검사 대상은 지난 수업의 배정이라
   // **검사일 전날까지**의 답지 줄만 본다 — 오늘 새로 배정하며 붙인 다음
   // 답지가 같이 열리면 안 된다 (판단은 lib/answers 한 곳).
-  if (status) {
+  if (status && status !== "missing") {
+    // ✕는 안 연다 (#22 — 안 해온 아이에게 답 먼저 금지)
     await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
   }
 

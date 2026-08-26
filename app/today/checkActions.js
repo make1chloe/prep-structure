@@ -68,7 +68,10 @@ export async function markCheck(studentId, date, itemId, status) {
     if (error) return { error: error.message };
     // **검사가 답지를 연다** (0148) — 지난 배정의 답지만 (검사일 전날까지).
     // 판단은 lib/answers 한 곳, 실패해도 검사는 그대로 남는다.
-    await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
+    // ✕는 안 연다 (#22 — 안 해온 아이에게 답 먼저 금지).
+    if (status !== "missing") {
+      await openAnswers(supabase, { studentId, itemIds: [itemId], upTo: addDays(date, -1) });
+    }
   }
 
   revalidatePath("/today");

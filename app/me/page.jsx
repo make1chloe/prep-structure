@@ -368,9 +368,13 @@ export default async function MePage(props) {
     }
   } catch { /* 시험 표를 못 읽는 계정 — 팝업만 조용히 빈다 */ }
 
-  // 지난 수업 검사 결과
+  // 지난 수업 검사 결과 — 검사 3상태만 (inclass·plan_next 가 「검사
+  // 결과」인 척 섞이던 것, #26 과 같은 병의 학생 화면 자리)
   const checked = latest
-    ? dri.filter((x) => x.daily_report_id === latest.id && x.status !== "assigned").map(toCard)
+    ? dri
+        .filter((x) => x.daily_report_id === latest.id &&
+          ["done", "weak", "missing"].includes(x.status))
+        .map(toCard)
     : [];
 
   // 내가 보낸 요청
@@ -398,12 +402,17 @@ export default async function MePage(props) {
       .limit(5));
   }
 
-  // 늦귀가 과제 — 아직 안 끝났거나 숙제로 넘어온 것 (파도)
+  // 늦귀가 과제 — **오늘 것만** (0잔여-A #17). 조회에 날짜 조건이 없어서
+  // 옛날 미완 하나가 남으면 화면이 영원히 「학원 모드」로 잠기고, 지난
+  // 과제가 오늘 할 것에 계속 서 있었다.
+  const todayStayStr = todaySeoul();
   const stay = (stayQ.error ? [] : stayQ.data || []).filter(
-    (t) => t.status === "todo" || t.status === "moved"
+    (t) => t.date === todayStayStr && (t.status === "todo" || t.status === "moved")
   );
   // 아직 손 안 댄 늦귀가 과제 — 이게 남아 있으면 집에 간 게 아니다
-  const stayLeft = (stayQ.error ? [] : stayQ.data || []).filter((t) => t.status === "todo");
+  const stayLeft = (stayQ.error ? [] : stayQ.data || []).filter(
+    (t) => t.date === todayStayStr && t.status === "todo"
+  );
 
   // 오늘 등원 체크 — 학생이 직접 누른 것
   const todayRep = (reports || []).find((r) => r.date === todaySeoul()) || null;
