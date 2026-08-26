@@ -167,7 +167,11 @@ try {
     { at: "/", label: "＋ 보강 잡기", then: async (p) => p.locator('select:visible').first().isVisible() },
     { at: "/", label: "＋ 할일", then: async (p) => p.locator('input[placeholder*="예)"]').first().isVisible() },
     { at: "/plan", label: "보강", then: async (p) => (await p.locator("text=잡아둔 보강, text=보강 필요").count()) >= 0 },
-    { at: "/plan", label: "지난 수업 고치기", then: async (p) => p.locator('text=불러오기').first().isVisible() },
+    // 「지난 수업 고치기」 는 오늘 수업의 날짜 넘기기로 이사했다
+    // (PlanBoard 주석, 2026-08-14). 이사한 자리에서 같은 일을 본다 —
+    // 하루 전으로 넘기면 「지난 날짜」 띠가 떠야 한다. 띠가 없으면
+    // 지난 날을 오늘인 줄 알고 출결을 찍어 그날 기록이 조용히 덮인다.
+    { at: "/today", label: "‹ 하루 전", then: async (p) => p.locator('text=지난 날짜를 보는 중').first().isVisible() },
     { at: "/check", label: "다음 수업 숙제 · 전달사항 미리 넣기", then: async (p) => p.locator("text=숙제 내기").first().isVisible() },
     { at: "/settings", label: "운영 규칙", then: async (p) => p.locator("text=경고 · 반성문 규칙").first().isVisible() },
     { at: "/settings", label: "연동 · 키", then: async (p) => p.locator("text=발송 방식").first().isVisible() },
@@ -379,7 +383,9 @@ async function roundTrip() {
     await pp.waitForTimeout(2000);
     sent = true;
   } catch (e) {
-    bad("학부모가 보내기", e.message.split("\n")[0]);
+    // 첫 줄만 찍으면 「Timeout」 만 남고 어느 단추였는지가 사라진다 —
+    // 원격(Actions)에서는 다시 눌러볼 수 없으니 호출 기록까지 남긴다
+    bad("학부모가 보내기", e.message.split("\n").slice(0, 5).join(" ⏎ "));
   }
   await pc.close();
 
