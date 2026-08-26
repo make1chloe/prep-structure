@@ -615,6 +615,7 @@ export default function TodayBoard({
 
                           {isOpen && (
                             <StudentPanel
+                              layout={panel3 ? "sheets" : "classic"}
                               row={r}
                               date={date}
                               items={items}

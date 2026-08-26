@@ -235,6 +235,8 @@ export default function StudentPanel({
   unitNames = {},
   rule = {},
   grammarCommon = [],
+  // "sheets" = 3때 새 판 (실행지도 v2) — 기본은 구판 그대로
+  layout = "classic",
   onSaved,
   onClose,
 }) {
@@ -615,7 +617,8 @@ export default function StudentPanel({
   const [drafting, setDrafting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
-  const [saving, setSaving] = useState(false);            // 저장 진짜 잠금 (2026-08-21)
+  const [saving, setSaving] = useState(false);
+  const [sheetTab, setSheetTab] = useState("check"); // 3때 — 새 판에서만            // 저장 진짜 잠금 (2026-08-21)
 
   /**
    * **판이 열려 있는 동안은 실시간 갱신을 늦춘다** (원장님 2026-08-23 —
@@ -1351,8 +1354,12 @@ export default function StudentPanel({
     });
   }
 
-  return (
-    <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
+
+  // ── 구역 렌더 함수 (checkRow 선례 — 컴포넌트가 아니라 함수: 매
+  //    렌더 새 타입이 되면 입력 상태가 날아간다). classic·sheets 두
+  //    배치가 같은 함수를 그린다 — 실행지도 v2 §0-2 무복제 분해.
+  const headZone = () => (
+    <>
       {/**
         * **머리 — 누구 판인지와 나가는 길** (원장님 2026-08-24 「모바일은
         * 모달로」). 폰에서 판이 화면을 덮으면 학생 이름줄이 시트 뒤에 깔려,
@@ -1403,19 +1410,10 @@ export default function StudentPanel({
         </div>
       </div>
       </div>
-
-      <div className="stusheet-body">
-      {/**
-        * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
-        * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
-        * 정작 수업 중에는 아무도 몰랐다.
-        */}
-      {(row.student.note || "").trim() && (
-        <div className="notice" style={{ margin: "6px 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
-          <b>특이사항</b> · {row.student.note.trim()}
-        </div>
-      )}
-
+    </>
+  );
+  const ccZone = () => (
+    <>
       {/**
         * 클카 플래너 — **어느 세트가 체크됐는지 여기서** (원장님, 2026-08-17
         * — 「어디에 숙제 체크된 건지 모르겠어」). 줄의 「클카 n/n」 태그는
@@ -1459,141 +1457,16 @@ export default function StudentPanel({
           </div>
         </div>
       )}
-
-      {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
-          순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
-          옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
-          나중에 하기로 하면 나중은 오지 않는다 */}
-      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
-        row.isMakeup ? (
-          /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
-             보강 없음으로 접는다 (원장님 2026-08-21) */
-          <MakeupMissed
-            studentId={row.student.id}
-            date={date}
-            name={row.student.name}
-            makeupOf={row.makeupOf || null}
-          />
-        ) : (
-          <MakeupHere
-            studentId={row.student.id}
-            date={date}
-            name={row.student.name}
-            already={row.makeupOn || null}
-          />
-        )
-      )}
-
-      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
-      <div className="prow" style={{ alignItems: "center" }}>
-        <span className="plabel">등원</span>
-        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
-          {[
-            ["phone", "핸드폰", arr.phone],
-            ["attend", "출석", arr.attend],
-            ["homework", "숙제", arr.homework],
-          ].map(([kind, label, at]) => (
-            <button
-              key={kind}
-              className={`btn btn-sm ${at ? "btn-on" : "btn-ghost"}`}
-              disabled={pending}
-              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
-              onClick={() => {
-                const prev = arr[kind];
-                // 낙관 — 즉시 표시하고 저장은 뒤에서. refresh 없음 (2026-08-21):
-                // 매번 목록이 재정렬되어 열린 학생 줄이 위로 튀었다
-                setArr((a) => ({ ...a, [kind]: prev ? null : new Date().toISOString() }));
-                startTransition(async () => {
-                  const res = await setArrivalFor(row.student.id, date, kind, !at);
-                  if (res?.error) { alert(res.error); setArr((a) => ({ ...a, [kind]: prev })); }
-                });
-              }}
-            >
-              {at ? "✓ " : ""}
-              {label}
-              {at
-                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
-                    timeZone: "Asia/Seoul",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}`
-                : ""}
-            </button>
-          ))}
-          <span className="spacer" />
-          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
-              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
-          <span className="hint" style={{ fontSize: 13 }}>단어시험을 언제</span>
-          {[
-            ["start", "수업 시작에"],
-            ["end", "다 끝내고"],
-          ].map(([k, label]) => (
-            <button
-              key={k}
-              className={`btn btn-sm ${wordWhen === k ? "btn-on" : "btn-ghost"}`}
-              disabled={pending}
-              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
-              style={{ padding: "3px 10px" }}
-              onClick={() => {
-                setWordWhen(k);
-                startTransition(async () => {
-                  const res = await setArrival(row.student.id, date, { wordWhen: k });
-                  if (res?.error) alert(res.error);
-                  // refresh 없음 (2026-08-21) — wordWhen 은 이미 로컬 state 다.
-                  // 매번 페이지 전체를 다시 그려 목록이 튀던 순수 손해였다
-                });
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
-              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/students?s=${row.student.id}`}
-            target="_blank"
-            rel="noreferrer"
-            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-          >
-            재원생 정보
-          </a>
-          <a
-            className="btn btn-ghost btn-sm"
-            href={`/me?s=${row.student.id}`}
-            target="_blank"
-            rel="noreferrer"
-            title="이 학생에게 보이는 화면을 그대로 봅니다"
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-          >
-            학생 화면 보기
-          </a>
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={pending}
-            title="이 학생은 앞으로 계속 이렇게 봅니다"
-            style={{ padding: "3px 8px", fontSize: 12.5 }}
-            onClick={() =>
-              startTransition(async () => {
-                const res = await setWordWhenDefault(row.student.id, wordWhen);
-                if (res?.error) {
-                  alert(res.error);
-                  return;
-                }
-                alert("이 학생 기본값으로 저장했어요.");
-              })
-            }
-          >
-            기본값으로
-          </button>
-        </div>
-      </div>
-
-
+    </>
+  );
+  const subsZone = () => (
+    <>
       {/* 학생이 집에서 낸 것 — 검사하기 전에 먼저 본다 */}
       <SubmissionList rows={row.subs || []} items={items} />
-
+    </>
+  );
+  const sayZone = () => (
+    <>
       {/* 전달할 내용 — 출결 바로 아래에 크게. 말하고 체크하면 흐려진다 */}
       {(row.notices || []).filter((n) => isMemo(n.kind)).length > 0 && (
         <div className="sayblock">
@@ -1632,7 +1505,10 @@ export default function StudentPanel({
           </div>
         </div>
       )}
-
+    </>
+  );
+  const draftZone = () => (
+    <>
       {/* 적다 만 것이 남아 있으면 알려준다. 저장을 안 누른 채 화면을 옮기면
           예전에는 통째로 날아갔다 — 수업 중에는 자주 있는 일이다. */}
       {draft && (
@@ -1657,7 +1533,10 @@ export default function StudentPanel({
           </div>
         </div>
       )}
-
+    </>
+  );
+  const scoreZone = () => (
+    <>
       {/* 테스트 점수 — 채점할 때 세는 건 '틀린 개수' 다.
           전체 개수는 지난번 것을 미리 채워두고, 틀린 개수만 치면 맞은 개수가 계산된다. */}
       <div className="prow">
@@ -1699,66 +1578,10 @@ export default function StudentPanel({
           </button>
         </div>
       </div>
-
-      {/* **단원평가** — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑
-          같은 거야」. 그래서 학생 화면에 따로 만들지 않고 여기에 붙였다.
-          **단원명을 적으신 것만** 성적으로 올라간다 — 그냥 문장 확인은
-          성적표에 줄이 서면 오히려 지저분해진다.
-          통과/재시험이 핵심이다. 원장님이 보시는 것은 점수가 아니라
-          **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을 다섯 번 봤다). */}
-      <div className="prow">
-        <span className="plabel">단원평가</span>
-          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <PickOrType
-              className="input input-sm"
-              style={{ width: 170 }}
-              options={[
-                ...grammarCommon,
-                ...grammarUnitNames.filter((n) => !grammarCommon.includes(n)),
-              ]}
-              placeholder="단원명 (관계대명사)"
-              title="그 학생 문법 교재의 단원에서 고르거나, 없으면 직접 적습니다. 적으면 성적에 단원평가로 쌓입니다"
-              value={form.sent_unit}
-              onChange={(e) => set("sent_unit", e.target.value)}
-            />
-            <button
-              type="button"
-              className={`btn btn-sm ${form.sent_passed === true ? "btn-on" : "btn-ghost"}`}
-              onClick={() => set("sent_passed", form.sent_passed === true ? "" : true)}
-            >
-              통과
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${form.sent_passed === false ? "btn-on" : "btn-ghost"}`}
-              onClick={() => set("sent_passed", form.sent_passed === false ? "" : false)}
-            >
-              재시험
-            </button>
-            {form.sent_unit ? (
-              <span className="hint" style={{ fontSize: 12 }}>성적에 쌓입니다</span>
-            ) : (
-              <span className="hint" style={{ fontSize: 12 }}>
-                단원명을 적으면 성적에 쌓여요 (안 적으면 그날 확인으로만 남습니다)
-              </span>
-            )}
-          </div>
-      </div>
-
-      {/**
-        * 옛 「단원평가 상자」 (0031 · unit_exams) — **이제 적는 자리가 아니다**
-        * (원장님, 2026-08-11 — 「중복정보, 중복입력이 있어」). 같은 시험을
-        * 위 단원평가 줄과 여기 두 군데 적을 수 있었다. 적는 것은 위 한 곳으로
-        * 모으고, 여기는 이미 적어둔 기록을 보여주고 지우는 것만 남는다.
-        * 기록이 없으면 아예 안 그린다. 월간리포트는 두 쪽을 다 읽는다.
-        */}
-      {(row.exams || []).length > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 5 }}>단원평가 기록</span>
-          <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} readOnly />
-        </div>
-      )}
-
+    </>
+  );
+  const checkZone = () => (
+    <>
       {/* 숙제 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>숙제</span>
@@ -1902,6 +1725,286 @@ export default function StudentPanel({
           )}
         </div>
       </div>
+    </>
+  );
+  const footZone = () => (
+    <>
+      {/* 저장 줄 — 판이 길어서 저장하러 바닥까지 내려가야 했다
+          (원장님 2026-08-20). 폰 시트에서는 본문 밖 「발」 이라 키보드가
+          올라와도 가려지지 않는다 */}
+      <div className="stusheet-foot">
+      <div className="row savebar" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
+        {savedDraftAt && (
+          <span className="hint" style={{ fontSize: 13 }}>
+            {savedDraftAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 임시저장됨
+          </span>
+        )}
+        {/* **임시저장** — 적은 것을 서버에 두고 완료로는 안 넘긴다.
+            수업 중간에 끊겨도, 다른 기기에서 열어도 그대로 이어진다 */}
+        <button className="btn btn-ghost btn-sm" onClick={() => save(true)} disabled={pending || saving}>
+          임시저장
+        </button>
+        <button className="btn btn-primary btn-sm" onClick={() => save(false)} disabled={pending || saving}>
+          {pending || saving ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
+        </button>
+      </div>
+      </div>
+    </>
+  );
+
+  if (layout === "sheets") {
+    return (
+      <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
+        {headZone()}
+        <div className="stusheet-body">
+          {/* 3때 탭 (판세분화 v7 §1). 비활성 판은 display:none — 언마운트하면
+              업로드 진행 같은 시트 안 상태가 날아간다 (실행지도 v2 §0-6) */}
+          <div className="row" style={{ gap: 4, margin: "6px 0" }}>
+            {[["check", "검사"], ["lesson", "수업"], ["next", "다음"]].map(([k, label]) => (
+              <button key={k}
+                className={`btn btn-sm ${sheetTab === k ? "btn-on" : "btn-ghost"}`}
+                onClick={() => setSheetTab(k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={sheetTab === "check" ? undefined : { display: "none" }}>
+            {sayZone()}
+            {draftZone()}
+            {ccZone()}
+            {subsZone()}
+            {scoreZone()}
+            {checkZone()}
+          </div>
+          <div style={sheetTab === "lesson" ? undefined : { display: "none" }}>
+            <p className="hint">②수업·하원 판은 C3b 에서 옵니다 — 그때까지는 「새 판」을 끄고 적어주세요.</p>
+          </div>
+          <div style={sheetTab === "next" ? undefined : { display: "none" }}>
+            <p className="hint">③다음 판은 C3b 에서 옵니다.</p>
+          </div>
+        </div>
+        {footZone()}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
+      {headZone()}
+
+      <div className="stusheet-body">
+      {/**
+        * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
+        * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
+        * 정작 수업 중에는 아무도 몰랐다.
+        */}
+      {(row.student.note || "").trim() && (
+        <div className="notice" style={{ margin: "6px 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
+          <b>특이사항</b> · {row.student.note.trim()}
+        </div>
+      )}
+
+      {ccZone()}
+
+      {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
+          순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
+          옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
+          나중에 하기로 하면 나중은 오지 않는다 */}
+      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
+        row.isMakeup ? (
+          /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
+             보강 없음으로 접는다 (원장님 2026-08-21) */
+          <MakeupMissed
+            studentId={row.student.id}
+            date={date}
+            name={row.student.name}
+            makeupOf={row.makeupOf || null}
+          />
+        ) : (
+          <MakeupHere
+            studentId={row.student.id}
+            date={date}
+            name={row.student.name}
+            already={row.makeupOn || null}
+          />
+        )
+      )}
+
+      {/* 등원 체크(학생이 누른 것) · 단어시험 시점 */}
+      <div className="prow" style={{ alignItems: "center" }}>
+        <span className="plabel">등원</span>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", flex: 1 }}>
+          {[
+            ["phone", "핸드폰", arr.phone],
+            ["attend", "출석", arr.attend],
+            ["homework", "숙제", arr.homework],
+          ].map(([kind, label, at]) => (
+            <button
+              key={kind}
+              className={`btn btn-sm ${at ? "btn-on" : "btn-ghost"}`}
+              disabled={pending}
+              title={at ? "다시 누르면 취소돼요" : "학생 대신 찍기"}
+              onClick={() => {
+                const prev = arr[kind];
+                // 낙관 — 즉시 표시하고 저장은 뒤에서. refresh 없음 (2026-08-21):
+                // 매번 목록이 재정렬되어 열린 학생 줄이 위로 튀었다
+                setArr((a) => ({ ...a, [kind]: prev ? null : new Date().toISOString() }));
+                startTransition(async () => {
+                  const res = await setArrivalFor(row.student.id, date, kind, !at);
+                  if (res?.error) { alert(res.error); setArr((a) => ({ ...a, [kind]: prev })); }
+                });
+              }}
+            >
+              {at ? "✓ " : ""}
+              {label}
+              {at
+                ? ` ${new Date(at).toLocaleTimeString("ko-KR", {
+                    timeZone: "Asia/Seoul",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
+                : ""}
+            </button>
+          ))}
+          <span className="spacer" />
+          {/* 무엇을 고르는 칸인지 이름만 보고 알 수 있어야 한다.
+              '수업 시작 / 다 끝내고' 만 있으면 무엇의 순서인지 알 수 없다. */}
+          <span className="hint" style={{ fontSize: 13 }}>단어시험을 언제</span>
+          {[
+            ["start", "수업 시작에"],
+            ["end", "다 끝내고"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              className={`btn btn-sm ${wordWhen === k ? "btn-on" : "btn-ghost"}`}
+              disabled={pending}
+              title="이 학생이 오늘 단어시험을 언제 보는지 — 학생 화면의 순서가 이걸 따라갑니다"
+              style={{ padding: "3px 10px" }}
+              onClick={() => {
+                setWordWhen(k);
+                startTransition(async () => {
+                  const res = await setArrival(row.student.id, date, { wordWhen: k });
+                  if (res?.error) alert(res.error);
+                  // refresh 없음 (2026-08-21) — wordWhen 은 이미 로컬 state 다.
+                  // 매번 페이지 전체를 다시 그려 목록이 튀던 순수 손해였다
+                });
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          {/* 수업 중에 "아 얘 학부모 번호 바뀌었댔지" 가 나온다.
+              메뉴를 다시 타지 않고 **그 학생이 열린 채로** 넘어간다. */}
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/students?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생의 재원생 정보 — 연락처·교재·단어시험·상담일지를 한 판에서 고칩니다"
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
+          >
+            재원생 정보
+          </a>
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/me?s=${row.student.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="이 학생에게 보이는 화면을 그대로 봅니다"
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
+          >
+            학생 화면 보기
+          </a>
+          <button
+            className="btn btn-ghost btn-sm"
+            disabled={pending}
+            title="이 학생은 앞으로 계속 이렇게 봅니다"
+            style={{ padding: "3px 8px", fontSize: 12.5 }}
+            onClick={() =>
+              startTransition(async () => {
+                const res = await setWordWhenDefault(row.student.id, wordWhen);
+                if (res?.error) {
+                  alert(res.error);
+                  return;
+                }
+                alert("이 학생 기본값으로 저장했어요.");
+              })
+            }
+          >
+            기본값으로
+          </button>
+        </div>
+      </div>
+
+
+      {subsZone()}
+
+      {sayZone()}
+
+      {draftZone()}
+
+      {scoreZone()}
+
+      {/* **단원평가** — 원장님: 「단원평가는 현재 오늘 수업에서 적는 그거랑
+          같은 거야」. 그래서 학생 화면에 따로 만들지 않고 여기에 붙였다.
+          **단원명을 적으신 것만** 성적으로 올라간다 — 그냥 문장 확인은
+          성적표에 줄이 서면 오히려 지저분해진다.
+          통과/재시험이 핵심이다. 원장님이 보시는 것은 점수가 아니라
+          **몇 번 만에 통과했나** 다 (왕희연은 문장의 형식을 다섯 번 봤다). */}
+      <div className="prow">
+        <span className="plabel">단원평가</span>
+          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <PickOrType
+              className="input input-sm"
+              style={{ width: 170 }}
+              options={[
+                ...grammarCommon,
+                ...grammarUnitNames.filter((n) => !grammarCommon.includes(n)),
+              ]}
+              placeholder="단원명 (관계대명사)"
+              title="그 학생 문법 교재의 단원에서 고르거나, 없으면 직접 적습니다. 적으면 성적에 단원평가로 쌓입니다"
+              value={form.sent_unit}
+              onChange={(e) => set("sent_unit", e.target.value)}
+            />
+            <button
+              type="button"
+              className={`btn btn-sm ${form.sent_passed === true ? "btn-on" : "btn-ghost"}`}
+              onClick={() => set("sent_passed", form.sent_passed === true ? "" : true)}
+            >
+              통과
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${form.sent_passed === false ? "btn-on" : "btn-ghost"}`}
+              onClick={() => set("sent_passed", form.sent_passed === false ? "" : false)}
+            >
+              재시험
+            </button>
+            {form.sent_unit ? (
+              <span className="hint" style={{ fontSize: 12 }}>성적에 쌓입니다</span>
+            ) : (
+              <span className="hint" style={{ fontSize: 12 }}>
+                단원명을 적으면 성적에 쌓여요 (안 적으면 그날 확인으로만 남습니다)
+              </span>
+            )}
+          </div>
+      </div>
+
+      {/**
+        * 옛 「단원평가 상자」 (0031 · unit_exams) — **이제 적는 자리가 아니다**
+        * (원장님, 2026-08-11 — 「중복정보, 중복입력이 있어」). 같은 시험을
+        * 위 단원평가 줄과 여기 두 군데 적을 수 있었다. 적는 것은 위 한 곳으로
+        * 모으고, 여기는 이미 적어둔 기록을 보여주고 지우는 것만 남는다.
+        * 기록이 없으면 아예 안 그린다. 월간리포트는 두 쪽을 다 읽는다.
+        */}
+      {(row.exams || []).length > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>단원평가 기록</span>
+          <ExamBox studentId={row.student.id} date={date} rows={row.exams || []} readOnly />
+        </div>
+      )}
+
+      {checkZone()}
 
       {/* 오늘 학원에서 할 것 — 학생 화면에 순서대로 뜬다 */}
       <div className="prow" style={{ alignItems: "flex-start" }}>
@@ -2926,26 +3029,7 @@ export default function StudentPanel({
 
       </div>
 
-      {/* 저장 줄 — 판이 길어서 저장하러 바닥까지 내려가야 했다
-          (원장님 2026-08-20). 폰 시트에서는 본문 밖 「발」 이라 키보드가
-          올라와도 가려지지 않는다 */}
-      <div className="stusheet-foot">
-      <div className="row savebar" style={{ justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 }}>
-        {savedDraftAt && (
-          <span className="hint" style={{ fontSize: 13 }}>
-            {savedDraftAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 임시저장됨
-          </span>
-        )}
-        {/* **임시저장** — 적은 것을 서버에 두고 완료로는 안 넘긴다.
-            수업 중간에 끊겨도, 다른 기기에서 열어도 그대로 이어진다 */}
-        <button className="btn btn-ghost btn-sm" onClick={() => save(true)} disabled={pending || saving}>
-          임시저장
-        </button>
-        <button className="btn btn-primary btn-sm" onClick={() => save(false)} disabled={pending || saving}>
-          {pending || saving ? "저장 중…" : unchecked.length > 0 ? `저장 (숙제 ${unchecked.length}개 미검사)` : "저장하고 완료"}
-        </button>
-      </div>
-      </div>
+      {footZone()}
     </div>
   );
 }
