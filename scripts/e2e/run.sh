@@ -103,5 +103,11 @@ OUT=/var/tmp node scripts/e2e/homepage-shot.mjs || exit $?
 # 못 보게. 골든 파일이 커밋에 없으면 빨강, 갱신은 GOLDEN_UPDATE=1 로만
 # (CI 에서는 workflow_dispatch 의 golden_update 입력).
 echo
-E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/golden-dayboard.mjs
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/golden-dayboard.mjs || exit $?
+
+# **폰 폭 가로 넘침** (2026-08-27 — 원장 실물: 수업 탭 가로 스크롤).
+# 골든 씨앗을 재사용하므로 골든 뒤에서만 돈다. 지금은 진단 모드(경고) —
+# 수리 뒤 OVERFLOW_STRICT=1 로 올려 재발을 빨강으로 만든다.
+echo
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/check-overflow.mjs
 exit $?
