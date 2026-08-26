@@ -6,6 +6,7 @@ import { loadSettings } from "@/lib/settings";
 import { loadReportRows } from "@/lib/reportData";
 import { normalizeTime } from "@/lib/lateNotice";
 import { resend } from "@/app/resend/actions";
+import { clearLate as clearLateByIds } from "@/app/report/actions";
 import { noColumn } from "@/lib/sqlError";
 // 리포트 행 만들기는 lib/ensureReport 한 벌 (출결을 아직 안 찍었어도
 // 보낼 수 있어야 한다 — 그 사정은 그대로)
@@ -113,17 +114,23 @@ export async function unsendLate(reportId) {
   return { error: error ? error.message : null };
 }
 
-/** 하원 안내를 없던 것으로 (시간·사유·문구를 모두 비운다) */
+/**
+ * 하원 안내를 없던 것으로.
+ *
+ * 지우는 일 자체는 발송 쪽 clearLate 한 벌이 한다 — 여기서 따로 지우면
+ * 보낸 표시(late_sent_at)와 「안 보내기」 도장이 남아, 발송 화면에서 지운
+ * 학생과 오늘 화면에서 지운 학생이 다르게 남는다. 여기는 (학생, 날짜) 를
+ * 리포트 id 로 바꿔 넘기기만 한다.
+ */
 export async function clearLate(studentId, date) {
   if (!studentId || !date) return { error: null };
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: reps, error } = await supabase
     .from("daily_reports")
-    .update({ late_until: null, late_reason: null, late_text: null })
+    .select("id")
     .eq("student_id", studentId)
     .eq("date", date);
   if (noColumn(error)) return { error: "0027 SQL 을 먼저 실행해주세요." };
-  revalidatePath("/today");
-  revalidatePath("/report");
-  return { error: error ? error.message : null };
+  if (error) return { error: error.message };
+  return clearLateByIds((reps || []).map((r) => r.id));
 }
