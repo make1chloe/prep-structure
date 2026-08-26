@@ -48,7 +48,10 @@ eq(today.includes("unitTestIds"), true, "오늘 수업 — 단원평가를 가�
 // 화면마다 따로 적으면 한 곳을 빠뜨린다 — 두 화면이 같은 함수를 봐야 한다
 eq(today.includes("isNoCheck"), true, "오늘 수업 — 같은 규칙을 쓴다");
 eq(read("app/check/page.jsx").includes("isNoCheck"), true, "숙제 검사 — 같은 규칙을 쓴다");
-eq(/!unitTestIds\.has\(iid\)/.test(today), true, "오늘 수업 — 검사 대상에서 뺀다");
+// 판정 본문은 lib/dayCheck 로 이사했다 (계획서 v2 §2-2) — 화면은 그
+// 집합을 판정에 넘기기만 하고, 빼는 규칙 자체는 lib 에서 본다
+eq(/makeDayCheck\(checkSrc, unitTestIds\)/.test(today), true, "오늘 수업 — 검사 대상에서 뺀다 (판단은 lib/dayCheck)");
+eq(/!unitTestIds\.has\(iid\)/.test(read("lib/dayCheck.js")), true, "lib/dayCheck — 빼는 규칙이 실재한다");
 
 const check = read("app/check/page.jsx");
 eq(check.includes("unitTest"), true, "숙제 검사 — 단원평가를 가려낸다");

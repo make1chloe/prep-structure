@@ -11,6 +11,7 @@ import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
 import { paceMap } from "@/lib/pace";
+import { idsOf, buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/lib/classcard";
 import ActivityBoard from "./ActivityBoard";
 import { cachedProfile } from "@/lib/profileCache";
@@ -346,12 +347,7 @@ export default async function TodayPage(props) {
   const unitIds = new Set();
   const unitOf = new Map(); // `${reportId}|${itemId}` → { unitId, note }
 
-  const idsOf = (x) =>
-    (x.textbook_unit_ids && x.textbook_unit_ids.length
-      ? x.textbook_unit_ids
-      : x.textbook_unit_id
-      ? [x.textbook_unit_id]
-      : []);
+  // idsOf 는 lib/dayCheck 한 곳에 (검사 판정과 같은 규칙을 써야 한다)
 
   /**
    * 파도 2 — 파도 1 의 id 들이 필요한 조회.
@@ -391,22 +387,12 @@ export default async function TodayPage(props) {
     itemsByReport.get(x.daily_report_id)[x.homework_item_id] = x.status;
   });
 
-  // 지난 수업에서 '배정한' 숙제 = 오늘 검사해야 할 항목
-  //
-  // 주의: "가장 최근 리포트" 하나만 보면 사슬이 끊긴다.
-  //   예) 8/3 숙제 냄 → 8/5 결석(출결만 저장, 숙제 없음) → 8/10 검사 대상 0개
-  // 그래서 학생별로 **배정이 있었던 가장 최근 리포트**를 찾고,
-  // 그 뒤에 검사된 적이 없으면 계속 검사 대상으로 남긴다.
-  const prevAssigned = new Map();
-  const prevUnitOf = new Map(); // `${studentId}|${itemId}` → { unitId, note }
-  const prevReportStudent = new Map(
-    (prevReports || []).map((r) => [r.id, r.student_id])
-  );
-  prevAssignedRows.forEach((x) => {
-    idsOf(x).forEach((id) => unitIds.add(id));
-    if (!prevAssigned.has(x.daily_report_id)) prevAssigned.set(x.daily_report_id, []);
-    prevAssigned.get(x.daily_report_id).push(x.homework_item_id);
-  });
+  // 지난 배정 → 오늘 검사 판정은 lib/dayCheck 한 벌 (계획서 v2 §2-2 —
+  // /check 의 1학생판과 같은 판단을 타야 한다). 단원 id 수집(unitIds)만
+  // 화면 몫으로 남는다 — 단원 이름 조회용이라 판정이 아니다.
+  prevAssignedRows.forEach((x) => idsOf(x).forEach((id) => unitIds.add(id)));
+  const checkSrc = buildCheckSource({ prevReports, prevAssignedRows, prevAllRows });
+  const { prevReportStudent } = checkSrc;
 
   /**
    * **「다음 수업에 계속」 이월** (0140) — 학생별 가장 최근 지난 리포트의
@@ -432,47 +418,6 @@ export default async function TodayPage(props) {
     carriedOf.get(sid).push({ id: x.homework_item_id, sort: x.inclass_sort ?? 999 });
   });
 
-  // 학생별: 배정이 있었던 가장 최근 리포트 (날짜 내림차순으로 첫 번째)
-  const lastAssignedReport = new Map();
-  const lastAssignedDate = new Map();
-  (prevReports || []).forEach((r) => {
-    if (lastAssignedReport.has(r.student_id)) return;      // 이미 더 최근 것을 잡았다
-    if (!(prevAssigned.get(r.id) || []).length) return;    // 이 리포트엔 배정이 없다 → 건너뛴다
-    lastAssignedReport.set(r.student_id, r.id);
-    lastAssignedDate.set(r.student_id, r.date);
-  });
-
-  // 그 배정이 이후 수업에서 이미 검사됐는지 확인 (검사됐으면 다시 안 물어본다)
-  const checkedAfter = new Map(); // studentId → Set(itemId)
-  prevAllRows.forEach((x) => {
-    if (x.status === "assigned") return;
-    const sid = prevReportStudent.get(x.daily_report_id);
-    if (!sid) return;
-    const rep = (prevReports || []).find((r) => r.id === x.daily_report_id);
-    const since = lastAssignedDate.get(sid);
-    if (!rep || !since || rep.date <= since) return;       // 배정보다 뒤에 검사한 것만
-    if (!checkedAfter.has(sid)) checkedAfter.set(sid, new Set());
-    checkedAfter.get(sid).add(x.homework_item_id);
-  });
-
-  (prevReports || []).forEach((r) => {
-    const rid = lastAssignedReport.get(r.student_id);
-    if (rid !== r.id) return;
-    (prevAssigned.get(r.id) || []).forEach((iid) => {
-      prevUnitOf.set(`${r.student_id}|${iid}`, prevUnitOf.get(`${r.student_id}|${iid}`) || {});
-    });
-  });
-
-  // 단원·범위 메모는 배정 줄에서 다시 읽는다 (같은 조회를 또 하지 않는다)
-  prevAssignedRows.forEach((x) => {
-    const sid = prevReportStudent.get(x.daily_report_id);
-    if (!sid || lastAssignedReport.get(sid) !== x.daily_report_id) return;
-    prevUnitOf.set(`${sid}|${x.homework_item_id}`, {
-      unitIds: idsOf(x),
-      note: x.range_note || "",
-    });
-  });
-
   /**
    * **단원평가는 검사 대상이 아니다** (원장님, 2026-08-07).
    *
@@ -491,36 +436,9 @@ export default async function TodayPage(props) {
    */
   const unitTestIds = new Set((items || []).filter(isNoCheck).map((i) => i.id));
 
-  /**
-   * @param todayItems 오늘 리포트의 항목별 상태 map (있으면 **오늘 검사한
-   *   것도 목록에 남긴다**, 2026-08-21 — 저장 후 다시 열면 「지난 숙제가
-   *   없어요」 가 떠서 △를 ○로 고치려면 3클릭을 돌아야 했다).
-   *   지난 다른 날 검사한 것은 여전히 뺀다 — 그건 다시 물을 일이 아니다.
-   */
-  const toCheckOf = (sid, todayItems = null) => {
-    const rid = lastAssignedReport.get(sid);
-    if (!rid) return [];
-    const done = checkedAfter.get(sid) || new Set();
-    const base = (prevAssigned.get(rid) || []).filter(
-      (iid) =>
-        !unitTestIds.has(iid) &&
-        (!done.has(iid) || (todayItems && iid in todayItems))
-    );
-    // 오늘 임의로 검사한 항목(대기줄·「다른 항목도 검사」)도 판정이 보여야 한다
-    const extra = Object.keys(todayItems || {}).filter(
-      (iid) => !base.includes(iid) && !unitTestIds.has(iid)
-    );
-    return [...base, ...extra];
-  };
-  const assignedFromOf = (sid) => lastAssignedDate.get(sid) || null;
-  const assignedUnitsOf = (sid) => {
-    const out = {};
-    toCheckOf(sid).forEach((iid) => {
-      const u = prevUnitOf.get(`${sid}|${iid}`);
-      if (u) out[iid] = u;
-    });
-    return out;
-  };
+  // 판정 세 개(toCheckOf·assignedFromOf·assignedUnitsOf)는 lib/dayCheck —
+  // todayItems 규칙(오늘 검사한 것도 남긴다, 2026-08-21)의 「왜」 도 거기에
+  const { toCheckOf, assignedFromOf, assignedUnitsOf } = makeDayCheck(checkSrc, unitTestIds);
   const nextUnitsOf = (rep) => {
     if (!rep) return {};
     const out = {};
