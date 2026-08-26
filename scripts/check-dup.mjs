@@ -56,6 +56,7 @@ const ONE_PLACE = [
   ["cleanClassName", "lib/classLabel.js", "반 이름 속 시간 걷어내기"],
   ["planAssign", "lib/bookAssign.js", "교재 배정을 넣고 빼는 규칙 (학생 쪽 · 교재 쪽 공통)"],
   ["absenceLabel", "lib/absenceLabel.js", "이 결석을 뭐라고 부를까 (지난 것은 「예정」이 아니다)"],
+  ["ensureReport", "lib/ensureReport.js", "그 날 리포트 한 줄 확보 (단건 — 벌크는 plan·import 의 upsert)"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

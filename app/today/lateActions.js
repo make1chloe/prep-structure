@@ -7,24 +7,9 @@ import { loadReportRows } from "@/lib/reportData";
 import { normalizeTime } from "@/lib/lateNotice";
 import { resend } from "@/app/resend/actions";
 import { noColumn } from "@/lib/sqlError";
-
-/** 그 날 리포트 한 줄을 확보한다 (출결을 아직 안 찍었어도 보낼 수 있게) */
-async function ensureReport(supabase, studentId, date) {
-  const { data: found } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .maybeSingle();
-  if (found?.id) return { id: found.id, error: null };
-
-  const { data, error } = await supabase
-    .from("daily_reports")
-    .upsert({ student_id: studentId, date }, { onConflict: "student_id,date" })
-    .select("id")
-    .single();
-  return { id: data?.id || null, error: error ? error.message : null };
-}
+// 리포트 행 만들기는 lib/ensureReport 한 벌 (출결을 아직 안 찍었어도
+// 보낼 수 있어야 한다 — 그 사정은 그대로)
+import { ensureReport } from "@/lib/ensureReport";
 
 /**
  * 하원 예상 시간 · 직접 적은 사유를 저장한다.

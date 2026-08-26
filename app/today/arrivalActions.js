@@ -3,30 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { noColumn } from "@/lib/sqlError";
-
-/** 그 날 리포트 한 줄을 확보한다 (출결보다 폰 제출이 먼저일 수 있다) */
-async function ensureReport(supabase, studentId, date) {
-  const { data: found } = await supabase
-    .from("daily_reports")
-    .select("id")
-    .eq("student_id", studentId)
-    .eq("date", date)
-    .maybeSingle();
-  if (found?.id) return found.id;
-  const { data } = await supabase
-    .from("daily_reports")
-    .upsert({ student_id: studentId, date }, { onConflict: "student_id,date" })
-    .select("id")
-    .single();
-  return data?.id || null;
-}
+// 리포트 행 만들기는 lib/ensureReport 한 벌 (출결보다 폰 제출이 먼저일 수
+// 있다 — 그 사정은 그대로. 예전 이 파일의 사본은 오류 문구를 삼켰다)
+import { ensureReport } from "@/lib/ensureReport";
 
 /** 그날만 단어시험 시점을 바꾼다 */
 export async function setArrival(studentId, date, patch = {}) {
   if (!studentId || !date) return { error: "값이 부족해요." };
   const supabase = await createClient();
-  const id = await ensureReport(supabase, studentId, date);
-  if (!id) return { error: "기록을 만들지 못했어요." };
+  const { id, error: idErr } = await ensureReport(supabase, studentId, date);
+  if (idErr || !id) return { error: idErr || "기록을 만들지 못했어요." };
 
   const row = {};
   if ("wordWhen" in patch) row.word_when = patch.wordWhen || null;
