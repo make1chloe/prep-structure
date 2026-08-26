@@ -48,13 +48,14 @@ const HEAVY = [
     { id: OU1, textbook_id: OT1, name: "본책", sort: 1 },
     { id: OU2, textbook_id: OT2, name: LONG, sort: 1 },
   ]],
+  // 항목 이름은 학원 전체 유니크(homework_items_name_key) — 실제 이름과 안 부딪게 접두어
   ["homework_items", "id", [
-    { id: OH(1), name: "서술형 대비", category: "문법", sort: 111, active: true },
-    { id: OH(2), name: "숙제 검사", category: "기타", sort: 112, active: true },
-    { id: OH(3), name: "문제풀기", category: "문법", sort: 113, active: true },
-    { id: OH(4), name: "단원평가 대비 복습", category: "문법", sort: 114, active: true, unit_test: true },
-    { id: OH(5), name: "클카 문장훈련", category: "단어", sort: 115, active: true },
-    { id: OH(6), name: "테스트북", category: "문법", sort: 116, active: true },
+    { id: OH(1), name: "넘침 서술형 대비", category: "문법", sort: 111, active: true },
+    { id: OH(2), name: "넘침 숙제 검사", category: "기타", sort: 112, active: true },
+    { id: OH(3), name: "넘침 문제풀기", category: "문법", sort: 113, active: true },
+    { id: OH(4), name: "넘침 단원평가 대비 복습", category: "문법", sort: 114, active: true, unit_test: true },
+    { id: OH(5), name: "넘침 클카 문장훈련", category: "단어", sort: 115, active: true },
+    { id: OH(6), name: "넘침 테스트북", category: "문법", sort: 116, active: true },
   ]],
   ["student_textbooks", "student_id,textbook_id", [
     { student_id: OS, textbook_id: OT1, status: "active" },
