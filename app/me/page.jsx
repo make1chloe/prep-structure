@@ -24,7 +24,6 @@ import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
 import LeaveCard from "./LeaveCard";
-import TryoutBar from "./TryoutBar";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
 import DictBar from "./DictBar";
@@ -1270,8 +1269,6 @@ export default async function MePage(props) {
               선생님이 대신 누르면 기록이 거짓이 됩니다.
             </p>
           </div>
-        ) : acting ? (
-          <TryoutBar studentId={student.id} name={student.name} />
         ) : (
           <InstallHint />
         )}

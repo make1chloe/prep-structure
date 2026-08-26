@@ -33,7 +33,6 @@ import { skipWordRetest } from "./lateActions";
 import { waitingChecks, waitingFor } from "@/lib/checkQueue";
 import { draftNotices } from "@/app/ai/actions";
 import { cutOf, verdict } from "@/lib/wordTest";
-import { CC_ITEM_KIND, ccJudge } from "@/lib/classcard";
 import { DOW as DOWN } from "@/lib/day";
 import BookPicker from "@/components/BookPicker";
 
@@ -322,13 +321,6 @@ export default function StudentPanel({
    * 뒤집으면 된다. 안 한 세트 이름은 저장 때 검사 메모(check_note)로
    * 같이 나가서 학생 화면(💬)과 데일리리포트에 병기된다.
    */
-  const ccVerdictOf = (iid) => {
-    // 클카 자동 판정 제거 (원장님 확정 2026-08-26 「클카 자동판정 애매한
-    // 건 없애」) — 세트→항목 대응이 자연어 추정이라 판정이 애매했고,
-    // 그림자 일치율 실험도 함께 종료. 클카 연동(세트·기록 보기)은 남는다.
-    // 학생 신고 기반 1차 판단(clVerdictOf, 8/21 확정)은 그대로.
-    return null;
-  };
   /**
    * **한 달 그림자 모드** (원장님, 2026-08-17 — 「자연어 기반이라 오류
    * 가능성이 높아. 시뮬레이션 한 달간 돌려봐」). 자동 판정을 미리
@@ -382,11 +374,9 @@ export default function StudentPanel({
       const n = { ...m };
       (row.toCheck || []).forEach((iid) => {
         if (n[iid]) return;
-        const v = ccVerdictOf(iid);
-        if (v) { n[iid] = v.status; auto[iid] = v.status; return; }
         const item = items.find((x) => x.id === iid);
         if (item?.in_person) return;   // 직접검사는 눈으로
-        // 클카 우선, 그다음 학생 신고(체크리스트 3단계·기타 제출물)
+        // 학생 신고(체크리스트 3단계·기타 제출물) — 클카 자동 판정은 종료(2026-08-26)
         const c = clVerdictOf(iid);
         if (c) { n[iid] = c.status; auto[iid] = c.status; }
       });
@@ -770,19 +760,6 @@ export default function StudentPanel({
             </button>
           ))}
         </span>
-        {(() => {
-          const v = ccVerdictOf(iid);
-          if (!v) return null;
-          return (
-            <span
-              className={`tag ${v.status === "done" ? "tag-mint" : "tag-amber"}`}
-              title={v.missed.length ? v.missed.join("\n") : "그날 마감 세트 전부 완료"}
-            >
-              클카 {v.total - v.missed.length}/{v.total}
-              {v.missed.length > 0 && ` · ${v.missed[0]}${v.missed.length > 1 ? ` 외 ${v.missed.length - 1}` : ""}`}
-            </span>
-          );
-        })()}
         {/* 안 해온 숙제의 처분 (원장님 2026-08-20 — 「숙제 다시
             옆에 오늘수업으로도. 그렇게 하고도 못하면 다시
             숙제로 나가도록」) */}
@@ -1289,21 +1266,10 @@ export default function StudentPanel({
         checkNotes: Object.fromEntries(
           (row.toCheck || [])
             .map((iid) => {
-              const v = ccVerdictOf(iid);
-              if (v && marks[iid] === v.status && v.missed.length)
-                return [iid, v.missed.join(" · ")];
-              // 클카 근거가 없으면 학생 체크리스트 신고를 근거로 (클카 우선)
+              // 학생 체크리스트 신고가 근거 (클카 자동 판정은 종료 — 2026-08-26)
               const c = clVerdictOf(iid);
               if (c && c.note && marks[iid] === c.status) return [iid, c.note];
               return null;
-            })
-            .filter(Boolean)
-        ),
-        ccShadow: Object.fromEntries(
-          (row.toCheck || [])
-            .map((iid) => {
-              const v = ccVerdictOf(iid);
-              return v ? [iid, { status: v.status, note: v.missed.join(" · ") }] : null;
             })
             .filter(Boolean)
         ),
