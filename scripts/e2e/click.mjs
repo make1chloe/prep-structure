@@ -382,16 +382,18 @@ async function roundTrip() {
     const intro = pp.getByRole("button", { name: /볼 필요 없음/ }).first();
     if (await intro.count()) { await intro.click(); await pp.waitForTimeout(300); }
     // 알림 칸은 접혀 있다 — 늘 펴져 있으면 첫 화면이 입력칸으로 시작한다
-    await pp.getByRole("button", { name: "알리기", exact: true }).first().click();
+    await pp.locator("#blk-request").getByRole("button", { name: "알리기", exact: true }).click();
     await pp.waitForTimeout(400);
-    await pp.getByRole("button", { name: "전달", exact: true }).first().click();
+    await pp.locator("#blk-request").getByRole("button", { name: "전달", exact: true }).click();
     await pp.waitForTimeout(300);
     // **느슨한 선택자 금지** — 위쪽 보강 확인 카드에도 textarea 와
     // 「변경 요청 보내기」 가 있어서, first() 가 그쪽을 잡았다 (7판 실측:
     // 스탬프가 엉뚱한 칸에 들어가고 엉뚱한 단추가 눌려 소리 없이 샜다).
     // 「전달」 의 안내 문구와 정확한 「보내기」 로 표적을 박는다.
     await pp.getByPlaceholder(/무엇인지 적어주세요/).fill(`${stamp} 2학기 시간표입니다`);
-    await pp.getByRole("button", { name: "보내기", exact: true }).click();
+    // 메뉴 칩(sectnav)에도 「보내기」 가 있다 (8판: strict 위반 2개) —
+    // 보내기 구역(#blk-request) 안의 단추로 못박는다
+    await pp.locator("#blk-request").getByRole("button", { name: "보내기", exact: true }).click();
     await pp.waitForTimeout(2000);
     // **보낸 것이 내 목록에 남았나** — 여기 없으면 저장부터 실패한 것이라
     // 대시보드를 보러 갈 이유가 없다 (5판: 대시보드에 안 떠서 갈랐다)
