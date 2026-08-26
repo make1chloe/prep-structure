@@ -1771,7 +1771,11 @@ export default function StudentPanel({
                     * 나는지 알 수 없다. 그리고 성격이 다른 셋(차례 옮기기 ·
                     * 어디로 보내기 · 오늘 빼기)을 사이를 띄워 갈라 놓는다.
                     */}
-                  <span className="stuEnd">
+                  {/* 컨트롤 묶음 — 제 줄을 통째로 쓰고 안에서 줄바꿈한다.
+                      오른쪽 끝 고정(stuEnd 기본)이면 좁은 폰에서 「✕ 오늘
+                      뺌」 이 화면 밖으로 밀려 가로 스크롤을 만든다
+                      (원장님 2026-08-27 새 판 실물 판정) */}
+                  <span className="stuEnd" style={{ flexBasis: "100%", justifyContent: "flex-start", whiteSpace: "normal", marginLeft: 0 }}>
                   <span className="row" style={{ gap: 0, alignItems: "center" }}>
                     <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={idx === 0}
                       style={{ padding: "2px 5px" }}
