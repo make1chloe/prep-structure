@@ -618,7 +618,8 @@ export default function StudentPanel({
   const [pending, startTransition] = useTransition();
   const [savedDraftAt, setSavedDraftAt] = useState(null); // 임시저장 시각 (화면 표시용)
   const [saving, setSaving] = useState(false);
-  const [sheetTab, setSheetTab] = useState("check"); // 3때 — 새 판에서만            // 저장 진짜 잠금 (2026-08-21)
+  const [sheetTab, setSheetTab] = useState("check"); // 3때 — 새 판에서만
+  const [pop, setPop] = useState(null); // 팝오버 A(absence)·B(warn)·C(comments)            // 저장 진짜 잠금 (2026-08-21)
 
   /**
    * **판이 열려 있는 동안은 실시간 갱신을 늦춘다** (원장님 2026-08-23 —
@@ -1354,6 +1355,161 @@ export default function StudentPanel({
     });
   }
 
+
+  // ── C3c 구역 함수 (팝오버 A·B·C 내용물 — 순서 밖 사건) ──
+  const mkGateZone = () => (
+    <>
+      {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
+          순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
+          옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
+          나중에 하기로 하면 나중은 오지 않는다 */}
+      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
+        row.isMakeup ? (
+          /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
+             보강 없음으로 접는다 (원장님 2026-08-21) */
+          <MakeupMissed
+            studentId={row.student.id}
+            date={date}
+            name={row.student.name}
+            makeupOf={row.makeupOf || null}
+          />
+        ) : (
+          <MakeupHere
+            studentId={row.student.id}
+            date={date}
+            name={row.student.name}
+            already={row.makeupOn || null}
+          />
+        )
+      )}
+    </>
+  );
+  const commentsZone = () => (
+    <>
+      {/* 학생·학부모가 남긴 댓글 */}
+      {r.id && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel">댓글</span>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <Comments
+              reportId={r.id}
+              studentId={row.student.id}
+              me="staff"
+              openBy={(row.unreadComments || 0) > 0}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+  const warnZone = () => (
+    <>
+      {/* 경고 · 반성문 — 지난 리포트에서 계산된 것 */}
+      {row.warn && row.warn.count > 0 && (
+        <div className="prow" style={{ alignItems: "flex-start" }}>
+          <span className="plabel" style={{ paddingTop: 5 }}>경고</span>
+          <WarnBox studentId={row.student.id} warn={row.warn} date={date} />
+        </div>
+      )}
+    </>
+  );
+  const mkFormZone = () => (
+    <>
+      {/* 재시험 · 보강 — 검사하다 정해지는 것이라 여기서 바로 잡는다 */}
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>재시험 · 보강</span>
+        <div style={{ flex: 1 }}>
+          {!mk.open ? (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() =>
+                setMk({
+                  open: true,
+                  date: nextMakeupDay(date, rule.makeupDays),
+                  time: "",
+                  // 미제출·미흡이 있으면 무엇 때문인지 미리 적어둔다
+                  reason: unchecked.length === 0
+                    ? Object.entries(marks)
+                        .filter(([, v]) => v === "missing" || v === "weak")
+                        .map(([id]) => nameOf(id))
+                        .filter(Boolean)
+                        .join(", ")
+                    : "",
+                })
+              }
+            >
+              ＋ 날짜 잡기
+            </button>
+          ) : (
+            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+              <input
+                className="input input-sm"
+                type="date"
+                style={{ width: 150 }}
+                value={mk.date}
+                onChange={(e) => setMk({ ...mk, date: e.target.value })}
+              />
+              {/* 보강은 비는 시간에 끼워 넣는 것이라 몇 시인지가 날짜만큼 중요하다.
+                  학부모께도 "금요일에 오세요" 로는 안 되고 "금요일 5시" 라야 한다. */}
+              <input
+                className="input input-sm"
+                type="time"
+                style={{ width: 116 }}
+                title="보강 시각"
+                value={mk.time}
+                onChange={(e) => setMk({ ...mk, time: e.target.value })}
+              />
+              {MAKEUP_TIMES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`btn btn-sm ${mk.time === t ? "btn-on" : "btn-ghost"}`}
+                  style={{ padding: "2px 8px", fontSize: 13 }}
+                  onClick={() => setMk({ ...mk, time: t })}
+                >
+                  {t}
+                </button>
+              ))}
+              <input
+                className="input input-sm"
+                style={{ flex: 1, minWidth: 140 }}
+                placeholder="무엇 때문인지 (단어 재시험 / 결석 보강 …)"
+                value={mk.reason}
+                onChange={(e) => setMk({ ...mk, reason: e.target.value })}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={pending || !mk.date}
+                onClick={() =>
+                  startTransition(async () => {
+                    const res = await bookMakeup(
+                      row.student.id,
+                      mk.date,
+                      mk.reason,
+                      row.isMakeup ? row.makeupOf : null,
+                      mk.time
+                    );
+                    if (res?.error) { alert(res.error); return; }
+                    setMk({ open: false, date: "", time: "", reason: "" });
+                    lazyRefresh();
+                  })
+                }
+              >
+                잡기
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", time: "", reason: "" })}>
+                취소
+              </button>
+            </div>
+          )}
+          <p className="hint" style={{ margin: "4px 0 0" }}>
+            그날 <b>오늘 수업</b> 화면에 이 학생이 보강으로 뜹니다. 일정 화면으로 안 나가도 돼요.
+            {" "}날짜는 <b>다음 보강 요일</b>이 미리 들어가 있습니다 — 바꾸셔도 됩니다.
+          </p>
+        </div>
+      </div>
+    </>
+  );
 
   // ── C3b 구역 함수 (②수업·하원 / ③다음 — 같은 무복제 규칙) ──
   const arriveZone = () => (
@@ -2873,7 +3029,29 @@ export default function StudentPanel({
                 {label}
               </button>
             ))}
+            <span className="spacer" />
+            {/* 순서 밖 사건 — 팝오버 3 (v7 §1). z 59 — 새 버전 띠(60) 아래 */}
+            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "absence" ? null : "absence")}>결석·보강</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "warn" ? null : "warn")}>
+              경고{row.warn?.count > 0 ? ` ${row.warn.count}` : ""}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "comments" ? null : "comments")}>
+              댓글{(row.unreadComments || 0) > 0 ? ` ●` : ""}
+            </button>
           </div>
+          {pop && (
+            <div className="sheetpop card" role="dialog" aria-label="순서 밖 사건">
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <b style={{ fontSize: 15 }}>
+                  {pop === "absence" ? "결석 · 보강 · 재시험" : pop === "warn" ? "경고 · 반성문" : "댓글"}
+                </b>
+                <button className="btn btn-ghost btn-sm" onClick={() => setPop(null)}>닫기</button>
+              </div>
+              {pop === "absence" && (<>{mkGateZone()}{mkFormZone()}</>)}
+              {pop === "warn" && (row.warn?.count > 0 ? warnZone() : <p className="hint">경고가 없어요.</p>)}
+              {pop === "comments" && commentsZone()}
+            </div>
+          )}
           <div style={sheetTab === "check" ? undefined : { display: "none" }}>
             {sayZone()}
             {draftZone()}
@@ -2922,29 +3100,7 @@ export default function StudentPanel({
 
       {ccZone()}
 
-      {/* **결석을 찍은 자리에서 보강까지** (2026-08-07). 「결석」 을 누르는
-          순간 이미 「언제 보강하지」 가 떠오르는데, 잡으려면 출결 화면으로
-          옮겨 가 학생과 날짜를 다시 찾아야 했다 — 수업 중에는 그럴 짬이 없고,
-          나중에 하기로 하면 나중은 오지 않는다 */}
-      {["absent", "online"].includes(form.attendance) && !row.extraClassId && (
-        row.isMakeup ? (
-          /* 보강날의 결석은 보통 결석과 다르다 — 원 결석에 이어 다시 잡거나,
-             보강 없음으로 접는다 (원장님 2026-08-21) */
-          <MakeupMissed
-            studentId={row.student.id}
-            date={date}
-            name={row.student.name}
-            makeupOf={row.makeupOf || null}
-          />
-        ) : (
-          <MakeupHere
-            studentId={row.student.id}
-            date={date}
-            name={row.student.name}
-            already={row.makeupOn || null}
-          />
-        )
-      )}
+      {mkGateZone()}
 
       {arriveZone()}
 
@@ -2976,20 +3132,7 @@ export default function StudentPanel({
 
       {noticeZone()}
 
-      {/* 학생·학부모가 남긴 댓글 */}
-      {r.id && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel">댓글</span>
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <Comments
-              reportId={r.id}
-              studentId={row.student.id}
-              me="staff"
-              openBy={(row.unreadComments || 0) > 0}
-            />
-          </div>
-        </div>
-      )}
+      {commentsZone()}
 
       {stayZone()}
 
@@ -2997,107 +3140,9 @@ export default function StudentPanel({
 
       {lateZone()}
 
-      {/* 경고 · 반성문 — 지난 리포트에서 계산된 것 */}
-      {row.warn && row.warn.count > 0 && (
-        <div className="prow" style={{ alignItems: "flex-start" }}>
-          <span className="plabel" style={{ paddingTop: 5 }}>경고</span>
-          <WarnBox studentId={row.student.id} warn={row.warn} date={date} />
-        </div>
-      )}
+      {warnZone()}
 
-      {/* 재시험 · 보강 — 검사하다 정해지는 것이라 여기서 바로 잡는다 */}
-      <div className="prow" style={{ alignItems: "flex-start" }}>
-        <span className="plabel" style={{ paddingTop: 5 }}>재시험 · 보강</span>
-        <div style={{ flex: 1 }}>
-          {!mk.open ? (
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() =>
-                setMk({
-                  open: true,
-                  date: nextMakeupDay(date, rule.makeupDays),
-                  time: "",
-                  // 미제출·미흡이 있으면 무엇 때문인지 미리 적어둔다
-                  reason: unchecked.length === 0
-                    ? Object.entries(marks)
-                        .filter(([, v]) => v === "missing" || v === "weak")
-                        .map(([id]) => nameOf(id))
-                        .filter(Boolean)
-                        .join(", ")
-                    : "",
-                })
-              }
-            >
-              ＋ 날짜 잡기
-            </button>
-          ) : (
-            <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-              <input
-                className="input input-sm"
-                type="date"
-                style={{ width: 150 }}
-                value={mk.date}
-                onChange={(e) => setMk({ ...mk, date: e.target.value })}
-              />
-              {/* 보강은 비는 시간에 끼워 넣는 것이라 몇 시인지가 날짜만큼 중요하다.
-                  학부모께도 "금요일에 오세요" 로는 안 되고 "금요일 5시" 라야 한다. */}
-              <input
-                className="input input-sm"
-                type="time"
-                style={{ width: 116 }}
-                title="보강 시각"
-                value={mk.time}
-                onChange={(e) => setMk({ ...mk, time: e.target.value })}
-              />
-              {MAKEUP_TIMES.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`btn btn-sm ${mk.time === t ? "btn-on" : "btn-ghost"}`}
-                  style={{ padding: "2px 8px", fontSize: 13 }}
-                  onClick={() => setMk({ ...mk, time: t })}
-                >
-                  {t}
-                </button>
-              ))}
-              <input
-                className="input input-sm"
-                style={{ flex: 1, minWidth: 140 }}
-                placeholder="무엇 때문인지 (단어 재시험 / 결석 보강 …)"
-                value={mk.reason}
-                onChange={(e) => setMk({ ...mk, reason: e.target.value })}
-              />
-              <button
-                className="btn btn-primary btn-sm"
-                disabled={pending || !mk.date}
-                onClick={() =>
-                  startTransition(async () => {
-                    const res = await bookMakeup(
-                      row.student.id,
-                      mk.date,
-                      mk.reason,
-                      row.isMakeup ? row.makeupOf : null,
-                      mk.time
-                    );
-                    if (res?.error) { alert(res.error); return; }
-                    setMk({ open: false, date: "", time: "", reason: "" });
-                    lazyRefresh();
-                  })
-                }
-              >
-                잡기
-              </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setMk({ open: false, date: "", time: "", reason: "" })}>
-                취소
-              </button>
-            </div>
-          )}
-          <p className="hint" style={{ margin: "4px 0 0" }}>
-            그날 <b>오늘 수업</b> 화면에 이 학생이 보강으로 뜹니다. 일정 화면으로 안 나가도 돼요.
-            {" "}날짜는 <b>다음 보강 요일</b>이 미리 들어가 있습니다 — 바꾸셔도 됩니다.
-          </p>
-        </div>
-      </div>
+      {mkFormZone()}
 
       </div>
 
