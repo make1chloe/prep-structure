@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+// 학습항목 화면은 /textbooks?view=items 에 산다 (2026-08-27 교재 탭으로 이사) —
+// 그래서 여기 액션들은 /homework(리다이렉트 껍데기)가 아니라 /textbooks 를 새로 그린다.
 import { createClient } from "@/lib/supabase/server";
 import { BASIC_HOMEWORK, withSort } from "@/lib/basicHomework";
 import { noColumn } from "@/lib/sqlError";
@@ -46,7 +48,7 @@ export async function addHomeworkItem(formData) {
       ({ error } = await supabase.from("homework_items").insert(rest));
     }
   }
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: error?.message || null };
 }
@@ -109,7 +111,7 @@ export async function seedBasicHomework() {
     if (!error) paired += 1;
   }
 
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: null, added, kept: wanted.length - missing.length, paired };
 }
@@ -169,7 +171,7 @@ export async function bulkAddHomeworkItems(rows = []) {
       added += 1;
     }
   }
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   return { error: null, added, updated };
 }
 
@@ -260,7 +262,7 @@ export async function updateHomeworkItem(id, patch) {
       ({ error } = await supabase.from("homework_items").update(rest).eq("id", id));
     }
   }
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
@@ -269,7 +271,7 @@ export async function setHomeworkItemsActive(ids, active) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
   const supabase = await createClient();
   const { error } = await supabase.from("homework_items").update({ active }).in("id", ids);
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
@@ -278,7 +280,7 @@ export async function setHomeworkItemsCategory(ids, category) {
   if (!Array.isArray(ids) || ids.length === 0 || !category) return { error: null };
   const supabase = await createClient();
   const { error } = await supabase.from("homework_items").update({ category }).in("id", ids);
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
@@ -315,7 +317,7 @@ export async function deleteHomeworkItems(ids) {
    */
   await stripItemRefs(supabase, { dead: ids, apply: true });
   const { error } = await supabase.from("homework_items").delete().in("id", ids);
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
@@ -338,7 +340,7 @@ export async function saveGrammarUnits(text) {
     config: { names },
   });
   if (error) return { error: error.message };
-  revalidatePath("/homework");
+  revalidatePath("/textbooks");
   revalidatePath("/today");
   return { error: null, count: names.length };
 }

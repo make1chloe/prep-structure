@@ -26,7 +26,7 @@ export async function saveMissingKeys(listKey, keys) {
     .from("integrations")
     .upsert({ id: "missing", config }, { onConflict: "id" });
   revalidatePath("/students");
+  // 학습항목 화면도 /textbooks 안이다 (2026-08-27 교재 탭으로 이사)
   revalidatePath("/textbooks");
-  revalidatePath("/homework");
   return { error: error ? error.message : null };
 }
