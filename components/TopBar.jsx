@@ -87,7 +87,9 @@ export default async function TopBar({ profile, active }) {
    * 둘을 한꺼번에 묻는다 — 줄줄이 기다리면 **모든 화면**이 그만큼 느려진다.
    */
   const staff = isStaff(profile?.role);
-  const db = staff ? createClient() : null;
+  // createClient 는 async (2026-08-26 f52f704) — await 를 빠뜨리면 Promise 가
+  // 그대로 넘어가 모든 배지 조회가 조용히 죽는다 (8/26~27 실사고)
+  const db = staff ? await createClient() : null;
   /**
    * **안 돌린 SQL 도 배지로** (원장님, 2026-08-14 — 「SQL 이 추가됐을 때도
    * 그걸 표시하게 해줘. 설정 메뉴 말이야」). 설정 화면은 원장만 여니
