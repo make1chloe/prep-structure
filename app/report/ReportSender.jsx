@@ -322,7 +322,11 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
         </div>
       )}
 
-      <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+      {/* PC(≥1100px)는 좌 대상 목록 / 우 열린 문구 판 — 줄마다 전문이 서면
+          한 화면에 두어 명뿐이라, 목록은 왼쪽에 압축하고 문구는 오른쪽에
+          붙여 세운다 (B2, 원장 승인 2026-08-27). 좁으면 세로 그대로. */}
+      <div className="splitview" style={{ marginTop: 12 }}>
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="row" style={{ gap: 8, alignItems: "center", padding: "12px 16px" }}>
           <input type="checkbox" checked={allChecked} onChange={toggleAll} />
           <span className="hint">보이는 {shown.length}명 전체 선택</span>
@@ -401,44 +405,60 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                   </span>
                 </div>
 
-                {editing ? (
-                  <div className="stuPanel">
-                    <textarea
-                      className="input"
-                      rows={Math.max(8, draft.split("\n").length + 1)}
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      style={{ fontSize: 16, lineHeight: 1.6 }}
-                    />
-                    <div className="row" style={{ gap: 6, marginTop: 8 }}>
-                      {savedAt && (
-                        <span className="hint" style={{ fontSize: 12.5, alignSelf: "center" }}>
-                          {savedAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 저장됨 ✓
-                        </span>
-                      )}
-                      <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>
-                        저장
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => copy(draft, r.id)}>
-                        복사
-                      </button>
-                      {r.edited && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => resetEdit(r)} disabled={pending}>
-                          자동 문구로 되돌리기
-                        </button>
-                      )}
-                      <span className="hint" style={{ alignSelf: "center" }}>
-                        저장하면 이후로는 이 문구가 쓰입니다 (재발송 포함)
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <pre className="reportbox">{r.text}</pre>
-                )}
+                {/* 좁은 화면에서는 줄 아래에서 그대로 읽는다. 넓은 화면에서는
+                    오른쪽 판이 대신 보여주므로 접힌다 (.split-hide-wide) */}
+                {!editing && <pre className="reportbox split-hide-wide">{r.text}</pre>}
               </div>
             );
           })
         )}
+      </div>
+
+      {/* 오른쪽(폰은 위) — 열린 학생의 문구. 미리보기이자 편집 칸이다 */}
+      {(() => {
+        const r = view.find((x) => x.id === openId);
+        if (!r) return null;
+        return (
+          <aside className="card split-panel">
+            <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+              <b style={{ fontSize: 15 }}>{r.name}</b>
+              <span className="hint">{r.who}</span>
+              <span className="spacer" />
+              <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
+            </div>
+            <div className="split-body">
+              <textarea
+                className="input"
+                rows={Math.max(8, draft.split("\n").length + 1)}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                style={{ fontSize: 16, lineHeight: 1.6 }}
+              />
+              <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                {savedAt && (
+                  <span className="hint" style={{ fontSize: 12.5, alignSelf: "center" }}>
+                    {savedAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 저장됨 ✓
+                  </span>
+                )}
+                <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>
+                  저장
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => copy(draft, r.id)}>
+                  복사
+                </button>
+                {r.edited && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => resetEdit(r)} disabled={pending}>
+                    자동 문구로 되돌리기
+                  </button>
+                )}
+              </div>
+              <p className="hint" style={{ margin: "6px 0 0" }}>
+                저장하면 이후로는 이 문구가 쓰입니다 (재발송 포함)
+              </p>
+            </div>
+          </aside>
+        );
+      })()}
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>

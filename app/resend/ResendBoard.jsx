@@ -242,7 +242,11 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
         </div>
       )}
 
-      <div className="card" style={{ marginTop: 12, padding: 0, overflow: "hidden" }}>
+      {/* PC(≥1100px)는 좌 대상 목록 / 우 열린 문구 판 (B2, 원장 승인 2026-08-27).
+          줄마다 전문이 서면 한 화면에 두어 명뿐이라, 문구는 오른쪽에 붙여 세운다.
+          좁으면 세로 그대로 — 미디어쿼리는 .splitview 가 처리한다. */}
+      <div className="splitview" style={{ marginTop: 12 }}>
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="row" style={{ gap: 8, alignItems: "center", padding: "12px 16px" }}>
           <input type="checkbox" checked={allChecked} onChange={toggleAll} />
           <span className="hint">보이는 {shown.length}명 전체 선택</span>
@@ -328,36 +332,52 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                   </div>
                 )}
 
-                {editing ? (
-                  <div className="stuPanel">
-                    <textarea
-                      className="input"
-                      rows={Math.max(6, draft.split("\n").length + 1)}
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      style={{ fontSize: 16, lineHeight: 1.6 }}
-                    />
-                    <div className="row" style={{ gap: 6, marginTop: 8 }}>
-                      <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>
-                        저장
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => copy(draft, r.id)}>
-                        복사
-                      </button>
-                      {editedOf(r) && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => resetEdit(r)} disabled={pending}>
-                          자동 문구로 되돌리기
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <pre className="reportbox">{textOf(r)}</pre>
-                )}
+                {/* 좁은 화면에서는 줄 아래에서 그대로 읽는다. 넓은 화면에서는
+                    오른쪽 판이 대신 보여주므로 접힌다 (.split-hide-wide) */}
+                {!editing && <pre className="reportbox split-hide-wide">{textOf(r)}</pre>}
               </div>
             );
           })
         )}
+      </div>
+
+      {/* 오른쪽(폰은 위) — 열린 학생의 문구. 미리보기이자 편집 칸이다 */}
+      {(() => {
+        const r = rows.find((x) => x.id === openId);
+        if (!r) return null;
+        return (
+          <aside className="card split-panel">
+            <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+              <b style={{ fontSize: 15 }}>{r.name}</b>
+              <span className="hint">{r.who}</span>
+              <span className="spacer" />
+              <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
+            </div>
+            <div className="split-body">
+              <textarea
+                className="input"
+                rows={Math.max(6, draft.split("\n").length + 1)}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                style={{ fontSize: 16, lineHeight: 1.6 }}
+              />
+              <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                <button className="btn btn-primary btn-sm" onClick={() => saveEdit(r)} disabled={pending}>
+                  저장
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => copy(draft, r.id)}>
+                  복사
+                </button>
+                {editedOf(r) && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => resetEdit(r)} disabled={pending}>
+                    자동 문구로 되돌리기
+                  </button>
+                )}
+              </div>
+            </div>
+          </aside>
+        );
+      })()}
       </div>
 
       <p className="hint" style={{ marginTop: 10 }}>
