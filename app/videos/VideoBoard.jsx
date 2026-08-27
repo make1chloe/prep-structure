@@ -27,9 +27,21 @@ function when(iso) {
   ).padStart(2, "0")}`;
 }
 
+/**
+ * **PC(≥1101px)는 좌 영상 목록 / 우 배정 판** (B2, 원장 승인 2026-08-27).
+ * 배정 패널이 줄 안에서 열리면 학생 칩 서너 줄만큼 아래 영상들이 밀려나서,
+ * 다음 영상을 배정하려면 닫고 다시 찾아 내려가야 했다 — 재원생·발송·진도·
+ * 월간과 같은 전환이다.
+ *
+ * 폭은 **열 때 한 번만 본다** (진도 ProgressBoard 와 같은 원칙). 미디어쿼리로
+ * 자리를 가르면 같은 패널을 인라인·오른쪽 두 벌로 그려야 하고, 창 폭이
+ * 문턱을 넘는 순간 고르던 패널이 자리를 잃는다. 폰(<1101px)은 지금처럼
+ * 줄 아래 인라인 그대로.
+ */
 export default function VideoBoard({ folders = [], videos = [], students = [], classes = [], roster = [] }) {
   const [pending, startTransition] = useTransition();
   const [openId, setOpenId] = useState(null);      // 배정 패널을 연 영상
+  const [wide, setWide] = useState(false);         // 연 순간의 화면 폭 — 패널을 어디에 그릴지
   const [editId, setEditId] = useState(null);
   const [draft, setDraft] = useState({});
   const [picked, setPicked] = useState(() => new Set());
@@ -58,9 +70,11 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
   }
 
   function openAssign(v) {
-    setOpenId(openId === v.id ? null : v.id);
+    if (openId === v.id) { setOpenId(null); return; }
+    setOpenId(v.id);
     setPicked(new Set(v.rows.map((r) => r.studentId)));
     setDue(v.rows.find((r) => r.dueOn)?.dueOn || "");
+    setWide(typeof window !== "undefined" && window.matchMedia("(min-width: 1101px)").matches);
   }
 
   function toggle(id) {
@@ -81,6 +95,70 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
   );
   // 「전체」는 지금 화면에 보이는 것만이다 (걸러놓고 눌러도 안전하다)
   const bulk = useBulk(shown);
+
+  // 열린 영상이 검색·폴더 필터에 걸러지면 판도 같이 사라진다
+  // (인라인 시절과 같은 결 — 줄이 없으면 배정 패널도 없다)
+  const openVideo = shown.find((v) => v.id === openId) || null;
+  const split = !!openVideo && wide;
+
+  /* 배정 패널 속 — 폰에서는 줄 아래 인라인, PC 에서는 오른쪽 판.
+     같은 패널을 두 벌로 적지 않으려고 한 함수로 뽑았다 (저장 로직 무접촉) */
+  const assignPanel = (v) => (
+    <>
+      <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <b style={{ fontSize: 14.5 }}>볼 사람 {picked.size}명</b>
+        <span className="spacer" />
+        <span className="hint">언제까지</span>
+        <input
+          type="date"
+          className="input input-sm"
+          style={{ width: 150 }}
+          value={due}
+          onChange={(e) => setDue(e.target.value)}
+        />
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={pending}
+          onClick={() =>
+            run(async () => {
+              const r = await setVideoStudents(v.id, [...picked], due || null);
+              if (!r?.error) setOpenId(null);
+              return r;
+            })
+          }
+        >
+          저장
+        </button>
+      </div>
+
+      <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+        {classes.map((c) => (
+          <button
+            key={c.id}
+            className="btn btn-ghost btn-sm"
+            onClick={() => setPicked(new Set([...picked, ...(inClass.get(c.id) || [])]))}
+          >
+            ＋ {c.name} 전체
+          </button>
+        ))}
+        <button className="btn btn-ghost btn-sm" onClick={() => setPicked(new Set())}>
+          전체 해제
+        </button>
+      </div>
+
+      <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+        {students.map((s) => (
+          <button
+            key={s.id}
+            className={`hwchip ${picked.has(s.id) ? "hw-next" : ""}`}
+            onClick={() => toggle(s.id)}
+          >
+            {picked.has(s.id) && <b>＋</b>} {s.name}
+          </button>
+        ))}
+      </div>
+    </>
+  );
 
   return (
     <div className="stack" style={{ gap: 12, marginTop: 12 }}>
@@ -146,7 +224,10 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
         </form>
       </div>
 
-      {/* ---- 목록 ---- */}
+      {/* ---- 목록 ---- (배정을 열면 PC 에서 좌 목록 / 우 배정 판 — B2.
+          검색·정렬 컨트롤도 목록과 같은 왼쪽 칼럼에 함께 선다) */}
+      <div className={split ? "splitview" : undefined}>
+      <div className="stack" style={{ gap: 12 }}>
       <div className="row" style={{ gap: 6, alignItems: "center" }}>
         <input
           className="input input-sm"
@@ -319,7 +400,16 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
         const isOpen = openId === v.id;
         const isEdit = editId === v.id;
         return (
-          <div className="card" key={v.id} style={{ opacity: v.active ? 1 : 0.55 }}>
+          <div
+            className="card"
+            key={v.id}
+            /* 좌우 분할 중에는 패널이 줄 밖(오른쪽)에 있어서, 이 영상이
+               열려 있다는 표시가 배경색뿐이다 */
+            style={{
+              opacity: v.active ? 1 : 0.55,
+              background: isOpen && split ? "var(--surface-2)" : undefined,
+            }}
+          >
             <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
               <input
                 type="checkbox"
@@ -462,66 +552,29 @@ export default function VideoBoard({ folders = [], videos = [], students = [], c
               </div>
             )}
 
-            {/* 배정 패널 */}
-            {isOpen && (
+            {/* 배정 패널 — 폰에서만 줄 안에서 연다. PC 는 오른쪽 판이 대신 */}
+            {isOpen && !split && (
               <div className="card card-tight" style={{ marginTop: 10, background: "var(--surface-2)" }}>
-                <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <b style={{ fontSize: 14.5 }}>볼 사람 {picked.size}명</b>
-                  <span className="spacer" />
-                  <span className="hint">언제까지</span>
-                  <input
-                    type="date"
-                    className="input input-sm"
-                    style={{ width: 150 }}
-                    value={due}
-                    onChange={(e) => setDue(e.target.value)}
-                  />
-                  <button
-                    className="btn btn-primary btn-sm"
-                    disabled={pending}
-                    onClick={() =>
-                      run(async () => {
-                        const r = await setVideoStudents(v.id, [...picked], due || null);
-                        if (!r?.error) setOpenId(null);
-                        return r;
-                      })
-                    }
-                  >
-                    저장
-                  </button>
-                </div>
-
-                <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
-                  {classes.map((c) => (
-                    <button
-                      key={c.id}
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setPicked(new Set([...picked, ...(inClass.get(c.id) || [])]))}
-                    >
-                      ＋ {c.name} 전체
-                    </button>
-                  ))}
-                  <button className="btn btn-ghost btn-sm" onClick={() => setPicked(new Set())}>
-                    전체 해제
-                  </button>
-                </div>
-
-                <div className="row" style={{ gap: 4, marginTop: 8, flexWrap: "wrap" }}>
-                  {students.map((s) => (
-                    <button
-                      key={s.id}
-                      className={`hwchip ${picked.has(s.id) ? "hw-next" : ""}`}
-                      onClick={() => toggle(s.id)}
-                    >
-                      {picked.has(s.id) && <b>＋</b>} {s.name}
-                    </button>
-                  ))}
-                </div>
+                {assignPanel(v)}
               </div>
             )}
           </div>
         );
       })}
+      </div>
+
+      {/* 오른쪽 — 열린 영상의 배정 판. 영상을 바꾸면 key 로 새로 세운다 */}
+      {split && (
+        <aside className="card split-panel">
+          <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+            <b style={{ fontSize: 15 }}>{openVideo.title}</b>
+            <span className="spacer" />
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
+          </div>
+          <div className="split-body" key={openVideo.id}>{assignPanel(openVideo)}</div>
+        </aside>
+      )}
+      </div>
     </div>
   );
 }
