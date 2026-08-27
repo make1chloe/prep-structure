@@ -9,14 +9,9 @@ import { needSql } from "@/lib/sqlError";
 
 const NEED = "0033 SQL 을 먼저 실행해주세요.";
 
-/**
- * 지금 눌러야 할 학생.
- *
- * asId 가 오면 선생님이 학생 화면을 직접 눌러보는 체험 모드다.
- * (선생님이 아니면 무시되고 본인으로 돌아간다 — lib/actAs.js)
- */
-async function meAs(supabase, asId) {
-  const { studentId } = await resolveStudent(supabase, asId);
+/** 지금 눌러야 할 학생 — 신원 판정은 lib/actAs 한 벌 */
+async function meNow(supabase) {
+  const { studentId } = await resolveStudent(supabase);
   return studentId;
 }
 
@@ -24,9 +19,9 @@ async function meAs(supabase, asId) {
  * 시작 — 하던 게 있으면 먼저 멈춘다.
  * 한 번에 하나만 한다. 둘을 동시에 켜두면 시간이 두 배로 잡힌다.
  */
-export async function startStudy(homeworkItemId, stayTaskId, kind = "home", asId = null) {
+export async function startStudy(homeworkItemId, stayTaskId, kind = "home") {
   const supabase = await createClient();
-  const sid = await meAs(supabase, asId);
+  const sid = await meNow(supabase);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const date = todaySeoul();
 
@@ -60,9 +55,9 @@ export async function startStudy(homeworkItemId, stayTaskId, kind = "home", asId
  * **검사가 필요한 항목이면 이게 곧 검사 대기다.** 학생이 따로 부르지 않아도
  * 선생님 화면 대기줄에 올라가고, 선생님은 손이 빌 때 한꺼번에 본다.
  */
-export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind = "home", asId = null) {
+export async function finishStudy(reportItemId, homeworkItemId, stayTaskId, kind = "home") {
   const supabase = await createClient();
-  const sid = await meAs(supabase, asId);
+  const sid = await meNow(supabase);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
 
   // **숙제는 내야 끝난 것이다.**
@@ -181,10 +176,10 @@ async function needsSubmission(supabase, sid, homeworkItemId, reportItemId) {
 }
 
 /** 잘못 눌렀을 때 되돌린다 */
-export async function undoFinish(reportItemId, asId = null) {
+export async function undoFinish(reportItemId) {
   if (!reportItemId) return { error: null };
   const supabase = await createClient();
-  const sid = await meAs(supabase, asId);
+  const sid = await meNow(supabase);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const { data: undone, error } = await supabase
     .from("daily_report_items")
@@ -222,9 +217,9 @@ async function stopRunning(supabase, sid, date) {
 }
 
 /** 멈춤 */
-export async function stopStudy(asId = null) {
+export async function stopStudy() {
   const supabase = await createClient();
-  const sid = await meAs(supabase, asId);
+  const sid = await meNow(supabase);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
   const res = await stopRunning(supabase, sid, todaySeoul());
   revalidatePath("/me");

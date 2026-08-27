@@ -16,7 +16,7 @@ import PhotoView from "./PhotoView";
 export default function RequestPhotos({
   paths = [],
   onChange = null,
-  asId = null,
+  studentId = null,   // 학부모가 올릴 때 어느 아이인지 (아이가 여럿인 집)
   readOnly = false,
   small = false,
 }) {
@@ -60,7 +60,7 @@ export default function RequestPhotos({
         }
         const form = new FormData();
         form.set("file", f);
-        if (asId) form.set("asId", asId);
+        if (studentId) form.set("studentId", studentId);
         const r = await uploadRequestPhoto(form);
         if (r?.error) {
           alert(r.error);

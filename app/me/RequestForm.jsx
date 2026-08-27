@@ -9,7 +9,7 @@ import RequestPhotos from "@/components/RequestPhotos";
 // student=true 면 설명이 한 줄 축약판 — 약봉투·처방전 문단(8/5 확정)은
 // 학부모용 말이라 아이에게 그대로 읽히면 길고 어렵다 (탭 개편 C1b,
 // 문구는 원장 기본안 채택 확정 2026-08-27)
-export default function RequestForm({ studentId, mine = [], asId = null, readOnly = false, student = false }) {
+export default function RequestForm({ studentId, mine = [], readOnly = false, student = false }) {
   /**
    * **끝난 것은 접어 둔다** (원장님, 2026-08-23 — 「선생님이 확인한 건 더
    * 안 보게 해줘 … 답장이 달렸어도 아이 확인 누르면 더보기 눌러야 보이게.
@@ -170,7 +170,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
             onChange={(e) => setBody(e.target.value)}
           />
           {/* 옮겨 적으면 틀린다. 틀리면 그게 더 큰일이다 — 찍어서 그대로 */}
-          <RequestPhotos paths={photos} onChange={setPhotos} asId={asId} readOnly={readOnly} />
+          <RequestPhotos paths={photos} onChange={setPhotos} studentId={studentId} readOnly={readOnly} />
 
           <button className="btn btn-primary btn-sm" onClick={submit}
             disabled={

@@ -25,9 +25,9 @@ import { pushToStaff } from "@/app/push/actions";
  * 수업 중에 선생님이 넣으신 줄도 그렇게 되어 있어서 나란히 놓고 봐야 한다.
  */
 export async function submitUnitTest(input) {
-  const { reportItemId, itemId, term, correct, total, asId } = input || {};
+  const { reportItemId, itemId, term, correct, total } = input || {};
   const supabase = await createClient();
-  const { studentId: sid } = await resolveStudent(supabase, asId);
+  const { studentId: sid } = await resolveStudent(supabase);
   if (!sid) return { error: "학생 계정으로 로그인해주세요." };
 
   const c = Number(correct);

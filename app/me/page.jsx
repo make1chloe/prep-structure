@@ -113,16 +113,9 @@ export default async function MePage(props) {
     areaOrder = (ao?.area_order || []).filter(Boolean);
   }
 
-  // 보기만 할 것인가, 직접 눌러볼 것인가 (?s=학생id&try=1)
-  //   앱을 나눠주기 전에 원장님이 먼저 눌러봐야 한다. 타이머가 어떻게 도는지,
-  //   학습완료를 누르면 오늘 수업에 어떻게 뜨는지는 눌러봐야 안다.
-  // 체험 모드 제거 (원장님 확정 2026-08-26 「체험 없애」) — 「정리」가
-  // 그 아이의 진짜 등원·공부시간·완료 기록까지 지우는 사고 구조였고,
-  // 원장 계정으로 눌러보면 학생 권한 문제(0158류)가 안 보이는 가림막이기도
-  // 했다. 보기 전용(?s=)은 남긴다. 검증은 실제 학생 계정으로.
-  const trying = false;
-  const preview = !!(previewId && student) && !trying;
-  const acting = !!(previewId && student) && trying;
+  // 체험 모드(눌러보기)는 원장님 확정 2026-08-26 「체험 없애」로 제거 —
+  // 보기 전용(?s=)만 남는다. 검증은 실제 학생 계정으로.
+  const preview = !!(previewId && student);
 
   if (!student) {
     const { data: link } = await supabase
@@ -1033,7 +1026,7 @@ export default async function MePage(props) {
                         <span className="hint">{dayLabel(n.date)}</span>
                         {n.title && <b style={{ fontSize: 15 }}>{n.title}</b>}
                         <span className="spacer" />
-                        {!preview && !acting && (
+                        {!preview && (
                           <NoticeDismiss
                             studentId={sid}
                             noticeId={n.id}
@@ -1086,7 +1079,6 @@ export default async function MePage(props) {
             }}
             atAcademy={atAcademy && isClassDay}
             readOnly={preview}
-            asId={acting ? student.id : null}
           />
       </>
     ),
@@ -1123,7 +1115,6 @@ export default async function MePage(props) {
                 ready={timerReady}
                 kind="inclass"
                 readOnly={preview}
-                asId={acting ? student.id : null}
                 subs={subs}
               />
               {inClassLeft === 0 && homeLeft > 0 && (
@@ -1166,7 +1157,6 @@ export default async function MePage(props) {
             atAcademy={atAcademy && isClassDay}
             done={!!arrival.leave_at}
             readOnly={preview}
-            asId={acting ? student.id : null}
           />
       </>
     ),
@@ -1198,7 +1188,6 @@ export default async function MePage(props) {
                 ready={timerReady}
                 kind="home"
                 readOnly={preview}
-                asId={acting ? student.id : null}
                 subs={subs}
                 answers={answers}
                 sid={sid}
@@ -1208,7 +1197,8 @@ export default async function MePage(props) {
 
           {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.
               "왜 안 보이지" 를 앱 밖에서 알아내게 하면 안 된다. */}
-          {todo.length === 0 && (isStaff || preview || acting) && (
+          {/* preview ⇒ isStaff (previewId 정의) — isStaff 하나로 충분하다 */}
+          {todo.length === 0 && isStaff && (
             <div className="notice" style={{ fontSize: 14 }}>
               <b>선생님께만 보이는 안내</b>
               <br />
@@ -1338,12 +1328,12 @@ export default async function MePage(props) {
       <>
         {/* 시험 결과 적기 — 키가 옛 블록 키(myscore)가 아니라 write 인
             것은 이관 안전 때문 (0174 SQL 참고 — 호환층은 C4 에서 제거) */}
-        <MyScoreForm mine={myScores.filter((s) => s.kind !== "unit")} base={specBase} canWrite={!preview && !trying} />
+        <MyScoreForm mine={myScores.filter((s) => s.kind !== "unit")} base={specBase} canWrite={!preview} />
       </>
     ),
     videos: (
       <>
-          <VideoList videos={myVideos} asId={acting ? student.id : null} readOnly={preview} />
+          <VideoList videos={myVideos} readOnly={preview} />
       </>
     ),
     state: (
@@ -1351,14 +1341,14 @@ export default async function MePage(props) {
           {/* **말로 끼어드는 대신 누른다.** 선생님 현황판에 바로 뜬다
               (0084·0085). 선생님 대신 눌러주는 미리보기에서는 안 낸다 —
               그 아이가 누른 것으로 잘못 남는다. 옛 help 블록에서 독립 */}
-          {!preview && !acting && (
+          {!preview && (
             <StateCard mine={myState} unavailable={stateOff} sid={sid} />
           )}
       </>
     ),
     request: (
       <>
-          {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} student />}
+          {!preview && <RequestForm studentId={student.id} mine={myRequests || []} student />}
       </>
     ),
     question: (
@@ -1518,15 +1508,16 @@ export default async function MePage(props) {
           const inner = (
             <>
               {/* 새 공지는 길목에서 — 확인을 눌러야 화면 (원장님, 2026-08-14).
-                  선생님 미리보기에서는 안 띄운다 (원장님 브라우저에 확인이 쌓이면
-                  정작 아이 기기에서 뜰 것이 안 뜬 것처럼 헷갈린다) */}
-              {!preview && !acting && !isStaff && (
+                  선생님 계정에는 안 띄운다 — 미리보기(preview ⇒ isStaff)도
+                  자연히 건너뛴다 (원장님 브라우저에 확인이 쌓이면 정작
+                  아이 기기에서 뜰 것이 안 뜬 것처럼 헷갈린다) */}
+              {!isStaff && (
                 <NoticeGate page="me" notices={notice2} />
               )}
               {/* 안 한 것 팝업 — 해결될 때까지 들어올 때마다 (원장님, 2026-08-14).
                   시험 적기(write) 블록이 숨어 있으면 scores 를 안 넘긴다 —
                   「적으러 가기」 가 막다른 문이 되면 안 된다 (§4-3) */}
-              {!preview && !acting && !isStaff && (
+              {!isStaff && (
                 <PendingGate homework={pendingHw} scores={writeShown ? pendingScores : []} />
               )}
               <ScreenNote text={N("me.top")} tone="card" />
@@ -1552,15 +1543,15 @@ export default async function MePage(props) {
                    * 8/7 의 「맨 밑으로」 는 탭이 생기면서 「어느 탭에서든 맨 밑」
                    * 이 돼 버렸다. 한 번 켜고 나면 다시 볼 일이 없는 칸이라
                    * (그 판단은 그대로다), 화면 소개(📖)처럼 눌러야 열린다.
-                   * 미리보기·눌러보기에서는 전처럼 안 준다 — 원장님 브라우저의
+                   * 미리보기에서는 전처럼 안 준다 — 원장님 브라우저의
                    * 구독 상태가 아이 것인 척 보이면 안 된다.
                    */
-                  alert={!preview && !acting ? <AlertBox brief /> : null}
+                  alert={!preview ? <AlertBox brief /> : null}
                 />
               </div>
             </>
           );
-          return preview || acting ? inner : <AlertGate>{inner}</AlertGate>;
+          return preview ? inner : <AlertGate>{inner}</AlertGate>;
         })()}
 
         {/* 알림 설정 카드는 탭줄의 🔔 팝업으로 올라갔다 (원장님 2026-08-27).

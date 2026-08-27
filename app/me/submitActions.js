@@ -16,8 +16,7 @@ const EXT = {
 /** 사진·녹음 한 건을 낸다 */
 export async function submitFile(formData) {
   const supabase = await createClient();
-  const asId = formData.get("asId") || null;
-  const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 
   const file = formData.get("file");
@@ -92,12 +91,12 @@ export async function submitFile(formData) {
  * 짚은 것만이 아니라 **안 짚은 것도 함께** 남긴다 — 뭘 못 했는지가
  * 뭘 했는지만큼 중요하다.
  */
-export async function submitChecklist(itemId, reportItemId, lines, asId = null) {
+export async function submitChecklist(itemId, reportItemId, lines) {
   const list = (Array.isArray(lines) ? lines : []).filter((x) => x && x.text);
   if (list.length === 0) return { error: "체크할 것이 없어요." };
 
   const supabase = await createClient();
-  const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 
   const { error } = await supabase.from("homework_submissions").insert({
@@ -166,14 +165,13 @@ export async function viewUrl(path, download = false) {
  * **답지 보기** (0148, 원장님 — 「답지 있으면 채점하라는 메시지까지」).
  *
  * 열린 답지의 파일들에 10분짜리 링크를 만든다. 자기 것 + **열린 것만** —
- * RLS 도 같은 규칙이지만, 체험 모드(선생님)는 줄이 다 보이므로 여기서
- * opened_at 을 한 번 더 본다. 어느 배정일 줄인지는 lib/answers 한 곳의
- * 판단(오늘 이하의 가장 최근 배정일)을 그대로 쓴다.
+ * RLS 도 같은 규칙이지만 여기서 opened_at 을 한 번 더 본다. 어느 배정일
+ * 줄인지는 lib/answers 한 곳의 판단(오늘 이하의 가장 최근 배정일)을 그대로 쓴다.
  */
-export async function answerViewUrls(itemId, asId = null) {
+export async function answerViewUrls(itemId) {
   if (!itemId) return { error: "숙제를 찾지 못했어요.", files: [] };
   const supabase = await createClient();
-  const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요.", files: [] };
 
   const row = await latestAnswerRow(supabase, studentId, itemId, todaySeoul());

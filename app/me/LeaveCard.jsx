@@ -17,7 +17,7 @@ import { leaveNow } from "./arrivalActions";
  * 그래도 제 폰에서 로그아웃될 걱정은 없다. **단추가 학원 안(atAcademy)에서만
  * 뜨기 때문이다** — 집에서는 아예 안 보인다.
  */
-export default function LeaveCard({ atAcademy = false, done = false, readOnly = false, asId = null }) {
+export default function LeaveCard({ atAcademy = false, done = false, readOnly = false }) {
   const [left, setLeft] = useState(false);
   const [pending, startTransition] = useTransition();
   const formRef = useRef(null);
@@ -35,7 +35,7 @@ export default function LeaveCard({ atAcademy = false, done = false, readOnly = 
     if (!confirm("하원할게요 — 어머니께 알림이 갑니다.")) return;
     setLeft(true);   // 먼저 화면부터 (원칙 6-3)
     startTransition(async () => {
-      const res = await leaveNow(asId);
+      const res = await leaveNow();
       if (res?.error) {
         setLeft(false);
         alert(res.error);

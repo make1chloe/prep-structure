@@ -157,10 +157,10 @@ export async function setVideoStudents(videoId, studentIds, dueOn) {
  * 영상을 열었다. **아이가 누른 게 아니라 화면이 열리면 저절로 적힌다.**
  * 물어보면 다들 봤다고 하니까, 물어보지 않고 기계가 적는다.
  */
-export async function openVideo(videoId, asId = null) {
+export async function openVideo(videoId) {
   if (!videoId) return { error: null };
   const supabase = await createClient();
-  const { studentId } = await resolveStudent(supabase, asId);
+  const { studentId } = await resolveStudent(supabase);
   if (!studentId) return { error: null };   // 선생님이 미리보기로 여는 것 — 기록하지 않는다
 
   const { data: cur } = await supabase
@@ -185,10 +185,10 @@ export async function openVideo(videoId, asId = null) {
 }
 
 /** 다 봤어요 */
-export async function finishVideo(videoId, asId = null) {
+export async function finishVideo(videoId) {
   if (!videoId) return { error: null };
   const supabase = await createClient();
-  const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 
   const nowIso = new Date().toISOString();
@@ -216,10 +216,10 @@ export async function finishVideo(videoId, asId = null) {
 }
 
 /** 다시 보기 — 「다 봤어요」를 잘못 눌렀을 때 */
-export async function undoFinishVideo(videoId, asId = null) {
+export async function undoFinishVideo(videoId) {
   if (!videoId) return { error: null };
   const supabase = await createClient();
-  const { studentId } = await resolveStudent(supabase, asId);
+  const { studentId } = await resolveStudent(supabase);
   if (!studentId) return { error: null };
   const { error } = await supabase
     .from("video_views")
