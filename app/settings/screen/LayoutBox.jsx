@@ -1,8 +1,22 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { PAGES, DEFAULT_HIDDEN, upgradeLayout } from "@/lib/screenLayout";
+import { PAGES, NAV_GROUPS, DEFAULT_HIDDEN, upgradeLayout } from "@/lib/screenLayout";
 import { listLayouts, resetLayout, saveLayout } from "../layoutActions";
+
+/**
+ * **학생 화면은 탭별 묶음으로 보인다** (탭 개편 C3). 학생 화면(/me)은 네
+ * 탭이 됐고 블록은 제 탭 안에서만 서므로, 여기서도 탭 머리글 아래 묶어
+ * 보여주고 ▲▼ 도 그 탭 안에서만 움직인다 — 탭을 넘는 차례는 화면에
+ * 없는 차례다. 묶음 정의는 NAV_GROUPS 한 곳 (원칙 1).
+ * 학부모 화면은 탭이 아니므로 현행 그대로 (묶음 없음).
+ */
+function tabIndexOf(pageKey) {
+  if (pageKey !== "me") return null;
+  const idx = new Map();
+  (NAV_GROUPS.me || []).forEach((g, i) => g.blocks.forEach((b) => idx.set(b, i)));
+  return idx;
+}
 
 /**
  * 화면 구성 순서 (0095).
@@ -49,7 +63,11 @@ export default function LayoutBox() {
       ? upgradeLayout(key, { order: raw.order || [], hidden: raw.hidden || [] })
       : { order: [], hidden: DEFAULT_HIDDEN[key] || [] };
     const p = PAGES.find((x) => x.key === key) || PAGES[0];
-    setRows(order(p, mine));
+    let rows2 = order(p, mine);
+    // 학생 화면은 탭 차례로 묶어 보인다 — 같은 탭 안에서는 저장된 차례 유지
+    const tIdx = tabIndexOf(key);
+    if (tIdx) rows2 = [...rows2].sort((a, b) => (tIdx.get(a.key) ?? 99) - (tIdx.get(b.key) ?? 99));
+    setRows(rows2);
     setHidden(new Set(mine.hidden || []));
     setDirty(false);
     setDone(false);
@@ -74,6 +92,9 @@ export default function LayoutBox() {
   function move(i, by) {
     const j = i + by;
     if (j < 0 || j >= rows.length) return;
+    // 학생 화면: 탭을 넘는 이동은 안 된다 — 블록은 제 탭 안에서만 선다
+    const tIdx = tabIndexOf(pageKey);
+    if (tIdx && tIdx.get(rows[i].key) !== tIdx.get(rows[j].key)) return;
     const next = [...rows];
     [next[i], next[j]] = [next[j], next[i]];
     setRows(next);
@@ -129,24 +150,52 @@ export default function LayoutBox() {
       </p>
 
       <div className="stack" style={{ gap: 3 }}>
-        {rows.map((b, i) => {
-          const off = hidden.has(b.key);
-          return (
-            <div className="unitrow" key={b.key} style={{ opacity: off ? 0.5 : 1 }}>
-              <span className="hint" style={{ minWidth: 22, textAlign: "right" }}>{i + 1}</span>
-              <span style={{ fontSize: 15, flex: 1 }}>
-                <b>{b.label}</b>
-                {b.desc && <span className="hint"> · {b.desc}</span>}
-              </span>
-              {off && <span className="tag tag-muted">안 보임</span>}
-              <button className="btn btn-ghost btn-sm" disabled={i === 0} onClick={() => move(i, -1)}>▲</button>
-              <button className="btn btn-ghost btn-sm" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>▼</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => toggle(b.key)}>
-                {off ? "보이기" : "숨기기"}
-              </button>
-            </div>
-          );
-        })}
+        {(() => {
+          const tIdx = tabIndexOf(pageKey);
+          return rows.map((b, i) => {
+            const off = hidden.has(b.key);
+            // 학생 화면: 탭이 바뀌는 자리에 탭 머리글 — 위·아래는 탭 안에서만
+            const g = tIdx ? tIdx.get(b.key) : null;
+            const gPrev = tIdx && i > 0 ? tIdx.get(rows[i - 1].key) : null;
+            const gNext = tIdx && i < rows.length - 1 ? tIdx.get(rows[i + 1].key) : null;
+            const head =
+              tIdx && g !== gPrev ? (
+                <div className="tag tag-lav" style={{ marginTop: i === 0 ? 0 : 8 }}>
+                  {(NAV_GROUPS.me || [])[g]?.nav || ""} 탭
+                </div>
+              ) : null;
+            return (
+              <div key={b.key}>
+                {head}
+                <div className="unitrow" style={{ opacity: off ? 0.5 : 1 }}>
+                  <span className="hint" style={{ minWidth: 22, textAlign: "right" }}>{i + 1}</span>
+                  <span style={{ fontSize: 15, flex: 1 }}>
+                    <b>{b.label}</b>
+                    {b.desc && <span className="hint"> · {b.desc}</span>}
+                  </span>
+                  {off && <span className="tag tag-muted">안 보임</span>}
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={i === 0 || (tIdx && g !== gPrev)}
+                    onClick={() => move(i, -1)}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={i === rows.length - 1 || (tIdx && g !== gNext)}
+                    onClick={() => move(i, 1)}
+                  >
+                    ▼
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => toggle(b.key)}>
+                    {off ? "보이기" : "숨기기"}
+                  </button>
+                </div>
+              </div>
+            );
+          });
+        })()}
       </div>
 
       <div className="row" style={{ gap: 6, marginTop: 12, alignItems: "center", flexWrap: "wrap" }}>
