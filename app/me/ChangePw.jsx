@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { pwChanged, setMyPassword } from "./pwActions";
 
 /**
@@ -38,7 +37,10 @@ export default function ChangePw({ name, who = "student" }) {
       if (res?.error) { setErr(res.error); return; }
       if (res?.byServer) { router.refresh(); return; }
 
-      // 열쇠가 아직 없는 동안에는 예전 길로 (아이가 여기서 막히면 안 된다)
+      // 열쇠가 아직 없는 동안에는 예전 길로 (아이가 여기서 막히면 안 된다).
+      // supabase-js 는 215kB — 여기까지 내려온 드문 경우에만 내려받는다.
+      // 화면 뜰 때 미리 받으면 아이 화면이 그만큼 늦게 열린다.
+      const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
       const { error } = await supabase.auth.updateUser({ password: pw });
       if (error) { setErr(error.message); return; }

@@ -1,11 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BrandMark from "@/components/BrandMark";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { sessionUser } from "@/lib/session";
+
+/**
+ * **로그인 판이 먼저 뜨고, 열쇠는 그 뒤에 온다.**
+ *
+ * supabase-js 는 215kB(압축 55kB)다. 파일 맨 위에서 부르면 **아이디 칸이
+ * 그려지기도 전에** 그걸 다 내려받아야 한다 — 로그인은 앱에서 제일 먼저
+ * 보는 화면인데, 첫 화면이 제일 무거웠다.
+ *
+ * 정작 쓰는 자리는 전부 「단추를 누른 뒤」다. 그래서 여기서 불러온다.
+ * 화면이 뜬 직후 미리 한 번 당겨두므로(아래 useEffect), 원장님이 아이디를
+ * 치시는 동안 이미 받아져 있다 — 누를 때 기다리는 일은 없다.
+ */
+async function client() {
+  const { createClient } = await import("@/lib/supabase/client");
+  return createClient();
+}
 
 /**
  * 이 사람이 첫 화면으로 가야 할 곳.
@@ -48,11 +63,14 @@ export default function LoginPage() {
   // 아이디에는 @ 가 없으므로 그것만 보고 갈라서 이메일로 바꿔준다.
   const [mode, setMode] = useState("in");   // in | up
 
+  // 판이 뜬 뒤 미리 당겨둔다 — 첫 그림은 안 막고, 누를 때는 이미 와 있다
+  useEffect(() => { import("@/lib/supabase/client").catch(() => {}); }, []);
+
   async function signIn(e) {
     e.preventDefault();
     setErr("");
     setLoading(true);
-    const supabase = createClient();
+    const supabase = await client();
 
     // 아이디로 들어왔으면 그 아이디의 이메일을 찾아 바꿔 넣는다
     let id = email.trim();
@@ -93,7 +111,7 @@ export default function LoginPage() {
     setErr("");
     setMsg("");
     setLoading(true);
-    const supabase = createClient();
+    const supabase = await client();
     const { data, error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (error) {
@@ -111,7 +129,7 @@ export default function LoginPage() {
 
   async function signInGoogle() {
     setErr("");
-    const supabase = createClient();
+    const supabase = await client();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/auth/callback` },

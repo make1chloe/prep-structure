@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { agoLabel, isCalling } from "@/lib/activity";
 import PushToggle from "@/app/me/PushToggle";
 import { resolveCall, resolveAllCalls } from "./callActions";
@@ -49,7 +48,6 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
 
   useEffect(() => {
     if (unavailable) return;
-    const supabase = createClient();
     // 여러 아이가 한꺼번에 누르면 알림도 한꺼번에 온다. 그때마다 다시 그리면
     // 화면이 떨린다 — 잠깐 모아서 한 번만 다시 센다
     /**
@@ -77,16 +75,38 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
       const wait = panelOpen() ? 20000 : 400;
       timer.current = setTimeout(() => router.refresh(), wait);
     };
-    const ch = supabase
-      .channel("today-activity")
-      .on("postgres_changes", { event: "*", schema: "public", table: "daily_report_items" }, bump)
-      .on("postgres_changes", { event: "*", schema: "public", table: "study_sessions" }, bump)
-      .on("postgres_changes", { event: "*", schema: "public", table: "student_activity" }, bump)
-      .subscribe((status) => {
-        // **연결됐는지 보여준다.** 조용히 안 오면 「안 바뀐다」 로만 보인다
-        setLive(status === "SUBSCRIBED" ? "on" : status === "CLOSED" ? "off" : "…");
-      });
-    return () => { clearTimeout(timer.current); supabase.removeChannel(ch); };
+    /**
+     * **실시간 붙는 일은 화면이 뜬 뒤에** (원장님 2026-08-24 — 「오늘 수업은
+     * 느려」).
+     *
+     * supabase-js 는 215kB(압축 55kB)다. 이걸 파일 맨 위에서 부르면 **오늘
+     * 화면이 그려지기 전에** 그만큼을 내려받아야 한다. 정작 쓰는 자리는 이
+     * useEffect 안 — 화면이 이미 다 그려진 다음이다.
+     *
+     * 그래서 여기서 불러온다. 구독이 수십 ms 늦게 붙지만, 어차피 그리기가
+     * 끝난 뒤에 붙던 것이고 그동안 놓친 변화는 다음 bump 의 router.refresh()
+     * 가 서버에서 통째로 다시 세어 온다 (세는 자리는 그대로 서버 하나다).
+     */
+    let ch = null;
+    let sb = null;
+    let gone = false;
+    (async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      if (gone) return;
+      sb = createClient();
+      ch = sb
+        .channel("today-activity")
+        .on("postgres_changes", { event: "*", schema: "public", table: "daily_report_items" }, bump)
+        .on("postgres_changes", { event: "*", schema: "public", table: "study_sessions" }, bump)
+        .on("postgres_changes", { event: "*", schema: "public", table: "student_activity" }, bump)
+        .subscribe((status) => {
+          // **연결됐는지 보여준다.** 조용히 안 오면 「안 바뀐다」 로만 보인다
+          setLive(status === "SUBSCRIBED" ? "on" : status === "CLOSED" ? "off" : "…");
+        });
+      // 붙기 전에 화면을 떠났으면 바로 뗀다
+      if (gone) { sb.removeChannel(ch); ch = null; }
+    })();
+    return () => { gone = true; clearTimeout(timer.current); if (sb && ch) sb.removeChannel(ch); };
   }, [unavailable, router]);
 
   if (rows.length === 0) return null;
