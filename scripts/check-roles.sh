@@ -39,12 +39,16 @@ ASSI=22222222-2222-2222-2222-222222222222
 STU=33333333-3333-3333-3333-333333333333
 KID=44444444-4444-4444-4444-444444444444   # 학생 계정 (0043 코드 연결용)
 TCHR=55555555-5555-5555-5555-555555555555  # 강사 (자기 강등 회귀용)
+GONE=66666666-6666-6666-6666-666666666666  # 강사 (계정 삭제 cascade 회귀용)
+FRESH=77777777-7777-7777-7777-777777777777 # 계정 만들기 회귀용 (INSERT)
 
 $Q -d chloe >/dev/null 2>&1 <<SQL
-insert into auth.users (id) values ('$BOSS'), ('$ASSI'), ('$KID'), ('$TCHR');
+insert into auth.users (id) values
+  ('$BOSS'), ('$ASSI'), ('$KID'), ('$TCHR'), ('$GONE'), ('$FRESH');
 insert into public.profiles (id, role, name) values
   ('$BOSS','principal','원장'), ('$ASSI','assistant','조교'),
-  ('$KID','student','가영계정'), ('$TCHR','instructor','강사')
+  ('$KID','student','가영계정'), ('$TCHR','instructor','강사'),
+  ('$GONE','instructor','그만둔강사'), ('$FRESH','student','새계정')
 on conflict (id) do update set role = excluded.role;
 insert into public.students (id, name, status) values ('$STU','가영','enrolled')
 on conflict (id) do nothing;
@@ -142,6 +146,59 @@ if [ "$r" = "student" ]; then
   echo "  자기 역할을 스스로 내리는 것은 됩니다"
 else
   echo "  ❌ 자기 강등까지 막혔습니다 (지금: ${r:-?}) — 0043 이 스태프 계정에서 깨집니다"; fail=1
+fi
+
+# ── 자물쇠가 UPDATE 만 잠그면 소용없다 (0176) ────────────────
+#
+# 0175 는 `before update` 뿐이었다. UPDATE 만 피하면 그만이라, 길이 둘 있다 —
+#   · 원장 행을 **지운다** → 원장이 잠긴다
+#   · 행을 지우고 `insert (id, role='principal')` 로 **다시 심는다**
+#     (staff_all 의 with_check 는 「고치는 사람」만 보고 「심는 역할」은 안 본다)
+astry "$ASSI" "delete from public.profiles where id='$BOSS';"
+r=$(roleof "$BOSS")
+if [ "$r" = "principal" ]; then
+  echo "  조교는 원장 행을 지우지 못합니다"
+else
+  echo "  ❌ 조교가 원장 행을 지웠습니다 (남은 것: ${r:-없음}) — 원장이 잠깁니다"; fail=1
+fi
+
+astry "$ASSI" "delete from public.profiles where id='$KID';"
+astry "$ASSI" "insert into public.profiles (id, role, name) values ('$KID','principal','가영계정');"
+r=$(roleof "$KID")
+if [ "$r" != "principal" ]; then
+  echo "  조교는 행을 갈아끼워 원장을 심지 못합니다"
+else
+  echo "  ❌ 조교가 원장 역할을 심었습니다 (지금: $r) — UPDATE 만 잠근 자물쇠입니다"; fail=1
+fi
+
+# 회귀 ③ 계정 만들기(accountActions·parentActions)는 student·parent 를 심는다.
+# 방아쇠가 놓친 자리에서 upsert 가 INSERT 로 떨어지는 길 — 막히면 안 된다.
+$Q -d chloe -c "delete from public.profiles where id='$FRESH';" >/dev/null 2>&1
+astry "$ASSI" "insert into public.profiles (id, role, name) values ('$FRESH','student','새계정');"
+r=$(roleof "$FRESH")
+if [ "$r" = "student" ]; then
+  echo "  학생 계정 만들기는 그대로 됩니다"
+else
+  echo "  ❌ 자물쇠가 학생 계정 만들기를 막았습니다 (지금: ${r:-없음})"; fail=1
+fi
+
+# 회귀 ④ 계정 삭제(Admin API → auth.users 삭제 → profiles 로 cascade)는
+# auth.uid() 가 없는 자리라 비상구로 통과해야 한다. 여기가 막히면 그만둔
+# 선생님 계정을 **아무도 못 지운다**.
+$Q -d chloe -c "delete from auth.users where id = '$GONE';" >/dev/null 2>&1
+r=$(roleof "$GONE")
+if [ -z "$r" ]; then
+  echo "  계정 삭제(cascade)는 그대로 됩니다"
+else
+  echo "  ❌ 자물쇠가 계정 삭제를 막았습니다 (남은 것: $r)"; fail=1
+fi
+
+# 표식이 진실을 말하나 — 상수 true 면 자물쇠를 지워도 초록이 된다 (0176 ①)
+r=$($Q -d chloe -tAc "select public.role_locked_on()::text;" 2>/dev/null | tail -1)
+if [ "$r" = "true" ]; then
+  echo "  role_locked_on() 이 자물쇠를 실제로 보고 있습니다"
+else
+  echo "  ❌ role_locked_on() 이 거짓입니다 ($r) — 표식과 트리거가 어긋났습니다"; fail=1
 fi
 
 exit $fail
