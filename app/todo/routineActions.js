@@ -134,9 +134,13 @@ export async function deleteRoutine(id) {
  *
  * 체크·미루기·메모는 여느 할일과 똑같이 한다. 「이번 달 했나」 를 규칙 쪽에
  * 따로 적어두지 않는다 — 두 군데가 되면 반드시 어긋난다.
+ *
+ * supa — 화면이 응답을 보낸 뒤 `after` 로 돌 때 **렌더 중 만든 클라이언트를
+ * 넣어준다** (after 콜백 안에서는 쿠키 접근이 제약된다). runDueSends 와 같은
+ * 시그니처다.
  */
-export async function syncRoutines() {
-  const supabase = await createClient();
+export async function syncRoutines(supa = null) {
+  const supabase = supa || await createClient();
   let { data, error } = await supabase
     .from("todo_routines")
     .select("id, title, repeat_kind, dows, day_of_month, month, lead_days, lead_units, book_area, todo_category_id, priority, note, checklist, active, created_at")
@@ -151,10 +155,15 @@ export async function syncRoutines() {
   if (error) return { error: missing(error) ? SQL : error.message, added: 0 };
 
   const rules = data || [];
+  // 신규 학생 쪽과 교재 끝나감 쪽은 서로 아무것도 안 물어본다 — 나란히 돈다
+  const [fromStudents, fromBooks] = await Promise.all([
+    newStudentTasks(supabase, rules),
+    bookEndTasks(supabase, rules),
+  ]);
   const want = [
     ...dueTasks(rules, todaySeoul()),
-    ...(await newStudentTasks(supabase, rules)),
-    ...(await bookEndTasks(supabase, rules)),
+    ...fromStudents,
+    ...fromBooks,
   ];
   if (want.length === 0) return { error: null, added: 0 };
 

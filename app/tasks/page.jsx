@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { createClient } from "@/lib/supabase/server";
 import Help from "@/components/Help";
@@ -424,27 +425,42 @@ export default async function TasksPage(props) {
   if (wantTodo) {
     const TODO_COLS =
       "id, title, status, due_on, due_time, no_due, priority, note, todo_category_id, parent_id, category, source";
-    // 되풀이 할일 — 때가 된 것을 **목록보다 먼저** 만들어 둔다 (auto_key 가
-    // 막아줘서 몇 번을 열어도 하나만 생긴다). 그래서 sync → 목록만 순서를
-    // 지키고, 나머지(분류·되풀이 규칙·내신·보강)는 그 옆에서 같이 돈다.
-    const syncP = syncRoutines().catch(() => null);   // **한 번만** 돌린다
+    /**
+     * 되풀이 할일 만들기 — **응답을 보낸 뒤에** 돈다 (`after`).
+     *
+     * 원장님 (2026-08-24): 「일부 빼고 나아졌어」. 할일 화면은 앱에서 조회가
+     * 제일 길게 줄지어 서던 자리였고(11단), 그 중 7단이 이 syncRoutines
+     * 혼자였다 — 규칙 읽기 → 학생/교재 훑기 → 이미 있나 보기 → 넣기.
+     * **화면을 그리는 중에 INSERT 까지** 하고 있었다.
+     *
+     * 이 일은 목록을 그리는 데 필요한 재료가 아니다. 그래서 앞에서 빼고,
+     * 응답이 나간 뒤에 돌린다 — 대시보드의 예약 발송(app/page.jsx)이
+     * 이미 쓰는 그대로다. after 안에서는 쿠키 접근이 제약되므로 **렌더 중
+     * 만든 클라이언트를 넣어준다**.
+     *
+     * **계약이 바뀐다:** 「달력을 열면 때가 된 되풀이 할일이 생긴다」 는
+     * 그대로지만, 생긴 것이 **그 화면에는 안 보이고 다음 새로고침에**
+     * 보인다. 예약 발송과 같은 맞바꿈이다 — auto_key 유일 인덱스가 막아주니
+     * 몇 번을 열어도 하나만 생기고, 화면은 그만큼 빨리 뜬다.
+     */
+    after(async () => {
+      try { await syncRoutines(supabase); } catch { /* 조용히 — 목록은 그대로 선다 */ }
+    });
     const [catQ, rq, todoQ1, prepR, makeupsR] = await Promise.all([
       supabase
         .from("todo_categories")
         .select("id, name, parent_id, color, sort, active")
         .eq("active", true)
         .order("sort", { ascending: true }),
-      syncP.then(() => listRoutines()),
+      listRoutines(),
       // 할일은 끝난 것까지 전부라 무기한 — 쌓이면 1000줄을 넘는다 (B4)
-      syncP.then(() =>
-        fetchAll(() =>
-          supabase
-            .from("tasks")
-            .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done, photos`)
-            .eq("kind", "todo")
-            .order("due_on", { ascending: true })
-            .order("id")
-        )
+      fetchAll(() =>
+        supabase
+          .from("tasks")
+          .select(`${TODO_COLS}, auto_key, started_at, done_at, checklist, checklist_done, photos`)
+          .eq("kind", "todo")
+          .order("due_on", { ascending: true })
+          .order("id")
       ),
       pendingPrep(supabase),
       pendingMakeups(supabase),
