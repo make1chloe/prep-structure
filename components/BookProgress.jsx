@@ -2,6 +2,8 @@
 
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import ProgressPickModal from "@/components/ProgressPickModal";
+import { annotateBigs, groupByParent } from "@/components/unitGroups";
 import {
   listStudentUnits,
   setUnitProgress,
@@ -81,9 +83,23 @@ export default function BookProgress({
    *
    * 순차로 안 나가는 교재는 완료가 띄엄띄엄이다 — 하나씩 세 단계 사이클로
    * 맞추려면 손이 많이 간다. 목록은 전체선택 → 일괄처리 (원칙 5-3).
+   *
+   * 2026-08-27 오후부터는 판 안 모드가 아니라 **팝오버**(ProgressPickModal)
+   * 에서 고른다 (원장님 — 「진도는 상세 단원 선택할 때 모달을 활용하는 게
+   * 낫지 않나」). 단원 수십 개짜리 교재에서 가로로 감긴 칩 바다를 판
+   * 스크롤로 오가며 찾는 대신, 세로 목록 + 글자 필터에서 체크하고 한
+   * 번에 찍는다. pick 이 있으면 열려 있는 것 — ids 는 미리 체크할 단원
+   * (대단원 막대에서 열면 그 대단원), seq 는 막대를 연달아 눌러도 새로
+   * 열리게 하는 열쇠다.
    */
-  const [selMode, setSelMode] = useState(false);
-  const [selUnits, setSelUnits] = useState(() => new Set());
+  const [pick, setPick] = useState(null);   // null | { seq, ids: [unitId…] }
+
+  function openPick(ids = []) {
+    setUptoMode(false);
+    setHwMode(false);
+    setNoteFor(null);
+    setPick((p) => ({ seq: (p?.seq || 0) + 1, ids }));
+  }
   /**
    * **여기까지 완료** (원장님, 2026-08-14 — 「이미 100페이지 진도를
    * 나갔다고 치면 100페이지 내용을 다 일일이 선택해야 하니까 번거로워」).
@@ -188,10 +204,9 @@ export default function BookProgress({
   async function viewPast(r) {
     viewReq.current += 1;
     // 보기 전용으로 들어가며 고치는 모드는 다 끈다 — 지난 회독에 찍는 사고 방지
-    setSelMode(false);
+    setPick(null);
     setUptoMode(false);
     setHwMode(false);
-    setSelUnits(new Set());
     setNoteFor(null);
     if (!r || r === (round || 1)) {  // 지금 회독으로 돌아오기
       setViewRound(null);
@@ -321,15 +336,14 @@ export default function BookProgress({
     });
   }
 
-  function markMany(status) {
-    const ids = [...selUnits];
+  // 팝오버가 돌려준 단원들에 한 상태를 일괄로 — 저장 판단은 여기 한 곳
+  function markMany(ids, status) {
     if (ids.length === 0) return;
+    const idSet = new Set(ids);
     // 화면 먼저 (수업 중 기다리지 않게) — 실패하면 다시 읽어온다
     setUnits((list) =>
-      (list || []).map((u) => (selUnits.has(u.id) ? { ...u, status: status || "" } : u))
+      (list || []).map((u) => (idSet.has(u.id) ? { ...u, status: status || "" } : u))
     );
-    setSelUnits(new Set());
-    setSelMode(false);
     startTransition(async () => {
       const res = await setUnitProgress(studentId, ids, status || null);
       if (res?.error) {
@@ -634,7 +648,7 @@ export default function BookProgress({
                     {onHomework && (
                       <button
                         className={`btn btn-sm ${hwMode ? "btn-on" : "btn-ghost"}`}
-                        onClick={() => { setHwMode(!hwMode); setUptoMode(false); setSelMode(false); setSelUnits(new Set()); }}
+                        onClick={() => { setHwMode(!hwMode); setUptoMode(false); setPick(null); }}
                         title="단원을 누르면 아래 「다음 숙제 배정」 에 담깁니다. ◐ 하다 만 단원도 이어서 낼 수 있어요"
                       >
                         📝 숙제로
@@ -642,15 +656,15 @@ export default function BookProgress({
                     )}
                     <button
                       className={`btn btn-sm ${uptoMode ? "btn-on" : "btn-ghost"}`}
-                      onClick={() => { setUptoMode(!uptoMode); setHwMode(false); setSelMode(false); setSelUnits(new Set()); }}
+                      onClick={() => { setUptoMode(!uptoMode); setHwMode(false); setPick(null); }}
                       title="지금 하는 단원을 누르면 그 앞이 전부 완료로 찍힙니다"
                     >
                       ⏩ 여기까지
                     </button>
                     <button
-                      className={`btn btn-sm ${selMode ? "btn-on" : "btn-ghost"}`}
-                      onClick={() => { setSelMode(!selMode); setUptoMode(false); setSelUnits(new Set()); }}
-                      title="여러 단원을 골라 한 번에 바꿉니다"
+                      className={`btn btn-sm ${pick ? "btn-on" : "btn-ghost"}`}
+                      onClick={() => (pick ? setPick(null) : openPick())}
+                      title="팝업에서 여러 단원을 체크해 완료·하는 중·안 함으로 한 번에 찍습니다"
                     >
                       ☑ 골라서
                     </button>
@@ -691,28 +705,11 @@ export default function BookProgress({
                     ? "숙제로 낼 단원을 누르세요 — 아래 「다음 숙제 배정」 에 담겨요 (◐ 하다 만 것도 이어서)"
                     : uptoMode
                     ? "지금 하는 단원을 누르세요 — 그 단원은 ◐, 그 앞은 전부 ○ 완료"
-                    : selMode
-                    ? "바꿀 단원을 누르고, 아래에서 한 번에 적으세요"
+                    : pick
+                    ? "팝업에서 단원을 체크하고 한 번에 찍으세요"
                     : "누를 때마다 안 함 → ◐ 하는 중 → ○ 완료 — 누르는 순간 저장돼요"}
                 </span>
               </div>
-              {selMode && (
-                <div className="bulkbar" style={{ margin: "0 0 8px" }}>
-                  <b>{selUnits.size}개 골랐어요</b>
-                  <button className="btn btn-primary btn-sm" disabled={pending || selUnits.size === 0} onClick={() => markMany("done")}>
-                    ○ 완료로
-                  </button>
-                  <button className="btn btn-sm" disabled={pending || selUnits.size === 0} onClick={() => markMany("doing")}>
-                    ◐ 하는 중으로
-                  </button>
-                  <button className="btn btn-ghost btn-sm" disabled={pending || selUnits.size === 0} onClick={() => markMany(null)}>
-                    안 함으로
-                  </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setSelMode(false); setSelUnits(new Set()); }}>
-                    취소
-                  </button>
-                </div>
-              )}
               {/**
                 * **빼기** (원장님, 2026-08-19 — 「체크박스의 워크북 나중에
                 * 누르면 그때까지 진도 기록은 유지가 된 상태에서 앞으로의
@@ -758,63 +755,25 @@ export default function BookProgress({
                     {bigStart && (pastView ? (
                       // 지난 회독 보기 — 막대는 구분선일 뿐, 단추가 아니다
                       <div className="unit-bigbar">{big}</div>
-                    ) : selMode ? (
-                      <button
-                        className="unit-bigbar"
-                        title="이 대단원의 단원 전체를 담거나 뺍니다"
-                        onClick={() => {
-                          setSelUnits((prev) => {
-                            const n = new Set(prev);
-                            const all = bigIds.every((x) => n.has(x));
-                            bigIds.forEach((x) => (all ? n.delete(x) : n.add(x)));
-                            return n;
-                          });
-                        }}
-                      >
-                        {bigIds.every((x) => selUnits.has(x)) ? "☑" : "☐"} {big}
-                        <span className="hint" style={{ fontWeight: 600 }}> 통째로</span>
-                      </button>
                     ) : (
                       /**
-                       * 평소에도 막대가 단추다 (원장님, 2026-08-19 —
-                       * 「여기까지 체크를 해놓고 나중에 뺄 거를 대단원으로
-                       * 선택이 안 되어서 너무 불편해」). 골라서를 먼저 켜야만
-                       * 통째 선택이 되니 "안 된다"로 보였다 — 막대를 누르면
-                       * 골라서 모드로 들어가며 그 대단원이 통째로 담긴다.
+                       * 막대가 단추다 (원장님, 2026-08-19 — 「여기까지 체크를
+                       * 해놓고 나중에 뺄 거를 대단원으로 선택이 안 되어서
+                       * 너무 불편해」). 누르면 골라 찍기 팝오버가 그 대단원이
+                       * 통째로 체크된 채 열린다 (2026-08-27 — 판 안 골라서
+                       * 모드를 팝오버로 옮기면서 들어가는 문도 같이 옮겼다).
                        */
                       <button
                         className="unit-bigbar"
-                        title="누르면 이 대단원 전체가 골라져요 — 아래에서 완료·하는 중·안 함으로 한 번에"
-                        onClick={() => {
-                          setSelMode(true);
-                          setUptoMode(false);
-                          setHwMode(false);
-                          setSelUnits(new Set(bigIds));
-                        }}
+                        title="누르면 이 대단원 전체가 체크된 팝업이 열려요 — 완료·하는 중·안 함으로 한 번에"
+                        onClick={() => openPick(bigIds)}
                       >
                         {big} <span className="hint" style={{ fontWeight: 600 }}>▸ 통째로 고르기</span>
                       </button>
                     ))}
                     <div className="hwgroup" style={{ flexWrap: "wrap" }}>
-                    {/* 중단원 — 고르기 모드에서는 이 묶음만 담는 단추 */}
-                    {mid && selMode ? (
-                      <button
-                        className="tag tag-sky hwcat"
-                        style={{ width: "auto", cursor: "pointer", border: 0, fontFamily: "inherit" }}
-                        title="이 중단원 전체를 담거나 뺍니다"
-                        onClick={() => {
-                          const ids = list.map((u) => u.id);
-                          setSelUnits((prev) => {
-                            const n = new Set(prev);
-                            const all = ids.every((x) => n.has(x));
-                            ids.forEach((x) => (all ? n.delete(x) : n.add(x)));
-                            return n;
-                          });
-                        }}
-                      >
-                        {list.every((u) => selUnits.has(u.id)) ? "☑" : "☐"} {mid}
-                      </button>
-                    ) : mid ? (
+                    {/* 중단원 묶음 토글은 팝오버 안에 있다 — 판에서는 라벨만 */}
+                    {mid ? (
                       <span className="tag tag-sky hwcat" style={{ width: "auto" }}>{mid}</span>
                     ) : null}
                     <div className="row" style={{ gap: 4, flex: "1 1 300px", minWidth: 0 }}>
@@ -825,9 +784,7 @@ export default function BookProgress({
                           <span key={u.id} className="unitchip-wrap">
                             <button
                               className={`hwchip ${
-                                selMode && selUnits.has(u.id)
-                                  ? "hw-next"
-                                  : done ? "hw-done" : doing ? "hw-weak" : ""
+                                done ? "hw-done" : doing ? "hw-weak" : ""
                               } ${isSkipped(u) ? "hw-skipoff" : ""}`}
                               onClick={() => {
                                 // 지난 회독도 단건 체크는 고친다 (2026-08-23) —
@@ -835,12 +792,7 @@ export default function BookProgress({
                                 if (pastView) return mark(u.id, NEXT[u.status || ""]);
                                 if (hwMode && onHomework) return onHomework(u);
                                 if (uptoMode) return markUpto(u.id);
-                                if (!selMode) return mark(u.id, NEXT[u.status || ""]);
-                                setSelUnits((prev) => {
-                                  const n = new Set(prev);
-                                  n.has(u.id) ? n.delete(u.id) : n.add(u.id);
-                                  return n;
-                                });
+                                return mark(u.id, NEXT[u.status || ""]);
                               }}
                               title={
                                 [
@@ -852,9 +804,8 @@ export default function BookProgress({
                                   .join(" · ") || undefined
                               }
                             >
-                              {selMode && <b>{selUnits.has(u.id) ? "☑" : "☐"}</b>}
-                              {!selMode && done && <b>○</b>}
-                              {!selMode && doing && <b>◐</b>}
+                              {done && <b>○</b>}
+                              {doing && <b>◐</b>}
                               {hwPicked?.has(u.id) && <b title="다음 숙제로 담김">📝</b>} {u.name}
                               {u.activity ? <span className="hint"> · {u.activity}</span> : null}
                               {u.amount ? <span className="hint"> {u.amount}</span> : null}
@@ -913,6 +864,21 @@ export default function BookProgress({
                   </Fragment>
                 ))}
               </div>
+              {/* 단원 골라 찍기 팝오버 — 순서 밖 사건과 같은 .sheetpop 자리.
+                  판 위에 덧그리는 것이라 판의 입력 중 상태는 그대로 산다.
+                  key=seq — 대단원 막대를 연달아 눌러도 새 체크로 다시 연다 */}
+              {pick && !pastView && (
+                <ProgressPickModal
+                  key={pick.seq}
+                  title={`${book.name} · 단원 골라 찍기`}
+                  units={leaves}
+                  preset={pick.ids}
+                  isSkipped={isSkipped}
+                  pending={pending}
+                  onApply={markMany}
+                  onClose={() => setPick(null)}
+                />
+              )}
             </>
           )}
         </div>
@@ -921,58 +887,5 @@ export default function BookProgress({
   );
 }
 
-// 소단원을 그 위 단원(대/중) 이름으로 묶는다. kw 가 있으면 걸러서 묶는다
-/**
- * 묶음마다 대단원 이름을 붙이고, 한 대단원이 **여러 묶음으로 쪼개졌을 때**
- * 첫 묶음에 bigFirst 표시 + 그 대단원 소단원 전체 id 를 실어준다.
- * (한 묶음뿐이면 묶음 머리 단추가 이미 대단원 전체라 통째 단추가 필요 없다)
- */
-function annotateBigs(groups) {
-  const rows = groups.map(([head, list]) => ({
-    head,
-    list,
-    // 묶음 머리가 「대단원 › 중단원」 이면 쪼개고, 「대단원」 뿐이면 통째로 대단원
-    big: head ? head.split(" › ")[0] : "",
-    mid: head && head.includes(" › ") ? head.split(" › ").slice(1).join(" › ") : "",
-  }));
-  let prev = null;
-  rows.forEach((g) => {
-    // 새 대단원이 시작되는 묶음 — 여기에 대단원 막대를 세운다
-    g.bigStart = !!g.big && g.big !== prev;
-    g.bigIds = g.bigStart
-      ? rows.filter((x) => x.big === g.big).flatMap((x) => x.list.map((u) => u.id))
-      : [];
-    prev = g.big || null;
-  });
-  return rows;
-}
-
-function groupByParent(units = [], kw = "") {
-  const m = new Map();
-  const q = (kw || "").trim().toLowerCase();
-  units
-    .filter((u) => u.leaf)
-    .filter((u) =>
-      !q ||
-      [u.name, u.activity, u.big, u.mid, u.small].some((v) =>
-        (v || "").toString().toLowerCase().includes(q)
-      )
-    )
-    .forEach((u) => {
-      /**
-       * 셋째 층까지 머리에 넣는다 (원장님, 2026-08-19 — 「진도에서 단원과
-       * 교재단원이 달라」). 층이 셋인 교재(기초편 › 개념 정리 › 1 영어의
-       * 8품사 › 진도설명)에서 둘째 층까지만 붙이니, 8품사·문장의 성분…
-       * 마다 하나씩인 「진도설명」 들이 구분 없이 한 묶음에 쏟아져
-       * 전부 중복처럼 보였다. small 이 제 이름(둘째 층짜리 교재)이면 뺀다.
-       */
-      const head = [u.big, u.mid, u.small && u.small !== u.name ? u.small : null]
-        .filter(Boolean)
-        .slice(0, 3)
-        .join(" › ");
-      const key = head === u.name ? "" : head;
-      if (!m.has(key)) m.set(key, []);
-      m.get(key).push(u);
-    });
-  return [...m.entries()];
-}
+// 단원 묶기(groupByParent·annotateBigs)는 components/unitGroups 로 갔다 —
+// 골라 찍기 팝오버(ProgressPickModal)와 같은 위계를 한 벌로 쓰기 위해
