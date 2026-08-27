@@ -29,6 +29,7 @@ export default function MeTabs({
   counts = {},         // { in, hw, grow } — 서버가 센 배지 숫자
   notices = [],        // 일정 배지 재료 — 판정은 이 기기(localStorage)라 여기서 센다
   panels = {},         // { in, hw, cal, grow } — 서버가 그린 패널 조각
+  alert = null,        // 알림 설정(AlertBox) — 🔔 을 눌러야 열린다. 미리보기면 null
 }) {
   const groups = NAV_GROUPS.me;
   const keys = groups.map((g) => g.key);
@@ -37,6 +38,16 @@ export default function MeTabs({
   );
   // 안 본 공지 수 — 붙은 뒤에 이 기기 기준으로 센다 (서버는 기기를 모른다)
   const [calBadge, setCalBadge] = useState(0);
+  /**
+   * **알림 설정은 🔔 뒤에** (원장님 2026-08-27 — 「어플가이드처럼 아이콘으로
+   * 알림설정을 추가해줘. 페이지 맨 밑마다 나오는 건 별로같아」).
+   *
+   * 8/7 에는 「맨 밑으로」 였는데, 탭이 생기면서 그 카드가 **어느 탭에서든**
+   * 맨 아래 상주하게 됐다. 한 번 켜고 나면 다시 볼 일이 없는 칸이라,
+   * 화면 소개(📖)와 같은 관례 — 아이콘을 눌러야 열리는 팝업 — 으로 옮긴다.
+   * 내용물(AlertBox: 켜기·끄기·방해금지·진단)은 서버(page.jsx)가 그대로 준다.
+   */
+  const [alertOpen, setAlertOpen] = useState(false);
 
   // 처음 소개 — SectionNav 의 것을 키(chloe.intro.me)째 계승
   const [intro, setIntro] = useState(false);
@@ -132,7 +143,8 @@ export default function MeTabs({
 
   return (
     <>
-      <div className="sectnav">
+      {/* 살짝 낮은 줄(sectnav-slim) — 원장님 2026-08-27 「메뉴칸을 살짝 줄이고」 */}
+      <div className="sectnav sectnav-slim">
         <div className="sectnav-main">
           <button
             className="sectnav-chip sectnav-help"
@@ -154,6 +166,19 @@ export default function MeTabs({
               )}
             </button>
           ))}
+          {/* data-alertgate — 알림이 꺼져 잔소리 창이 도는 중에도, 그걸
+              고치는 문(설정)만은 게이트가 안 삼킨다 (AlertGate 의 예외 관례) */}
+          {alert && (
+            <button
+              className="sectnav-chip sectnav-help"
+              data-alertgate
+              onClick={() => setAlertOpen(true)}
+              title="알림 설정"
+              aria-label="알림 설정"
+            >
+              🔔
+            </button>
+          )}
         </div>
       </div>
       {keys.map((k) => (
@@ -166,6 +191,28 @@ export default function MeTabs({
         </div>
       ))}
       {overlay}
+      {/* 알림 설정 팝업 — 화면 소개(introwrap)와 같은 관례. AlertBox 가
+          이미 card 라 껍데기 카드를 안 씌운다 (카드 속 카드 금지) */}
+      {alertOpen && alert && (
+        <div
+          className="introwrap"
+          data-alertgate
+          role="dialog"
+          aria-label="알림 설정"
+          onClick={() => setAlertOpen(false)}
+        >
+          <div
+            className="stack"
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 480, maxHeight: "86vh", overflowY: "auto", gap: 8 }}
+          >
+            {alert}
+            <button className="btn btn-block" onClick={() => setAlertOpen(false)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
