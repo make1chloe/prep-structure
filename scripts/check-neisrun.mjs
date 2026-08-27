@@ -573,11 +573,17 @@ console.log("\n== 나이스 원본을 그대로 볼 수 있나 ==");
   const peek = act.slice(act.indexOf("export async function peekNeis"));
   eq(/\.(insert|update|upsert|delete)\(/.test(peek.slice(0, peek.indexOf("\n}"))), false,
      "보기만 하고 저장하지 않는다");
-  const pg = readFileSync("app/neis/page.jsx", "utf8");
-  eq(/<NeisPeek/.test(pg), true, "화면이 있다");
+  // 화면은 「학교 · 시험」 안 접힘 상자로 이사했다 (원장님 확정, 2026-08-27).
+  // 8/9 확정(「장기적으로도 이 페이지는 필요해 보여」)은 기능 존치로 지켜진다 —
+  // 그래서 이 검사는 「메뉴에 있다」 가 아니라 「화면이 살아 있고 옛 주소가
+  // 안 깨진다」 를 본다.
+  const pg = readFileSync("app/schools/page.jsx", "utf8");
+  eq(/<NeisPeek/.test(pg), true, "화면이 있다 (학교 · 시험 안)");
   eq(/키 없음|인증키/.test(act), true, "키가 없으면 무엇을 하라고 말해준다");
   const menu = readFileSync("lib/menu.js", "utf8");
-  eq(/href: "\/neis", key: "neis"/.test(menu), true, "메뉴에 있다");
+  eq(/href: "\/neis", key: "neis"/.test(menu), false, "메뉴 칸은 뺐다 (화면은 학교 · 시험 안에)");
+  eq(/redirect\("\/schools"\)/.test(readFileSync("app/neis/page.jsx", "utf8")), true,
+     "옛 /neis 주소는 학교 · 시험으로 넘긴다");
 }
 
 if (fail) { console.log("\n❌ 일정 합치기에 어긋난 것이 있습니다."); process.exit(1); }

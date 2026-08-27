@@ -4,6 +4,9 @@ import Help from "@/components/Help";
 import ScheduleBoard from "@/app/schedule/ScheduleBoard";
 import NeisBox from "@/app/schedule/NeisBox";
 import SchoolBox from "@/app/schedule/SchoolBox";
+import NeisPeek from "@/app/neis/NeisPeek";
+import { listSchools } from "@/app/schedule/neisActions";
+import { schoolYear } from "@/lib/neis";
 
 import { reviewClass, monthsFrom, addDaysISO } from "@/lib/schedule";
 import { loadClassesWithTerm } from "@/lib/classTerm";
@@ -28,7 +31,7 @@ export default async function SchoolsPage() {
   const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
 
   // **파도** (속도 대원칙 — 원칙 6): 서로 필요한 것이 없는 조회를 한꺼번에
-  const [profileQ, classes0, holidaysQ, membersQ, studentsQ, examQ0, settings, taskQ] =
+  const [profileQ, classes0, holidaysQ, membersQ, studentsQ, examQ0, settings, taskQ, neisSchoolsQ] =
     await Promise.all([
       user
         ? cachedProfile(supabase, user.id)
@@ -53,6 +56,8 @@ export default async function SchoolsPage() {
         .order("from_date", { ascending: true }),
       loadSettings(supabase),
       supabase.from("tasks").select("due_on, title").gte("due_on", from).lte("due_on", to),
+      // 나이스 원본(접힘 상자)이 쓰는 학교 명단 — /neis 화면이 여기로 이사 왔다
+      listSchools(),
     ]);
   const profile = profileQ?.data || null;
 
@@ -131,6 +136,9 @@ export default async function SchoolsPage() {
   const neisLinked = (schoolRows2 || []).filter((x) => x.schul_code).map((x) => x.name);
   const grades = [...new Set((students || []).map((s) => s.grade).filter(Boolean))].sort();
 
+  // 나이스 원본 상자의 기본 기간 — 올해 학년도 전부 (/neis 화면과 같은 셈)
+  const year = schoolYear(todaySeoul());
+
   return (
     <>
       <TopBar profile={profile} active="schools" />
@@ -150,6 +158,33 @@ export default async function SchoolsPage() {
             같은 표를 두 번 보여줘서, 합치기를 어느 쪽에서 하는지 알 수 없었다.
             이름 고치기·직접 추가는 그 목록 안에 접어두었다. */}
         <NeisBox months={months} />
+        {/**
+         * **나이스 원본** — /neis 화면을 통째로 여기 접힘 상자로 이사
+         * (원장님 확정, 2026-08-27). 8/9 확정(「장기적으로도 이 페이지는
+         * 필요해 보여」)은 그대로다 — 화면이 사라진 게 아니라, 나이스를
+         * 받는 자리(위 NeisBox) 옆으로 들어왔다. 옛 /neis 주소는 여기로
+         * 넘어온다.
+         *
+         * 다른 자리는 전부 **우리가 바꾼 뒤**를 보여준다 — 이 상자만은
+         * 바꾸기 전을 본다. 나이스에 그 자리에서 다시 물어보고, 받은 줄을
+         * 하나도 안 버리고 그대로 늘어놓는다. 저장은 하지 않는다.
+         */}
+        <details className="card sect sect-info" style={{ marginTop: 8 }}>
+          <summary className="secthead" style={{ cursor: "pointer" }}>
+            나이스 원본 <span className="tag tag-muted">학교가 올린 그대로</span>
+          </summary>
+          <p className="sub" style={{ marginTop: 6 }}>
+            나이스에 <b>학교가 올려둔 그대로</b>를 봅니다. 다른 화면은 앱이 정리한 뒤의
+            모습이라, 뭔가 없을 때 <b>학교가 안 올린 건지 앱이 못 알아본 건지</b> 알 수가
+            없었습니다. 여기서는 받은 줄을 하나도 안 버리고 보여주고,
+            옆에 <b>앱이 그 줄을 어떻게 봤는지</b>를 적습니다.
+          </p>
+          <NeisPeek
+            from={year.from}
+            to={year.to}
+            schools={(neisSchoolsQ?.rows || []).filter((s) => s.active !== false && s.schul_code)}
+          />
+        </details>
         <div className="row" style={{ marginTop: 8 }}>
           <SchoolBox />
         </div>

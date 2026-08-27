@@ -23,11 +23,21 @@ import { cachedProfile } from "@/lib/profileCache";
 import { fetchAll } from "@/lib/fetchAll";
 import RoutineUpload from "./RoutineUpload";
 import AreaRoutines from "./AreaRoutines";
+import Tabs from "./Tabs";
+import ItemsScreen from "@/app/homework/ItemsScreen";
 
 export const dynamic = "force-dynamic";
 
 export default async function TextbooksPage(props) {
   const searchParams = await props.searchParams;
+
+  /**
+   * **학습 항목 탭** (원장님 확정, 2026-08-27) — 옛 /homework 화면이 통째로
+   * 여기 탭으로 이사했다. 탭은 /tasks 의 ?view= 관례다. 판은 두 벌이 아니라
+   * 서로 다른 것이라, 항목 판일 때는 교재 조회를 아예 안 한다.
+   */
+  if (searchParams?.view === "items") return <ItemsScreen />;
+
   const supabase = await createClient();
   // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
   const {
@@ -209,6 +219,7 @@ export default async function TextbooksPage(props) {
         <div className="page-head">
           <p className="eyebrow">교재 관리</p>
           <h1 className="h1">교재 · 단원</h1>
+          <Tabs view="books" />
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <AddTextbookForm />
             <TextbookUpload />

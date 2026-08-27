@@ -336,7 +336,9 @@ for (const f of pageFiles) {
 // 메뉴 이름과 제목이 같아야 하는 것들 (묶음은 눈썹으로 간다)
 for (const [f, want] of [
   ["app/check/page.jsx", "숙제 검사"],
-  ["app/homework/page.jsx", "학습 항목"],
+  // 학습 항목은 메뉴 칸에서 교재 화면의 탭으로 이사했다 (2026-08-27) —
+  // 이제 「탭 이름과 제목이 같다」 를 본다 (화면은 ItemsScreen 에 그대로 산다)
+  ["app/homework/ItemsScreen.jsx", "학습 항목"],
   ["app/prep/page.jsx", "내신 대비"],
   ["app/monthly/page.jsx", "월간리포트"],
   ["app/tuition/page.jsx", "수강료"],
