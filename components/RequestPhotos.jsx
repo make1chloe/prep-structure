@@ -16,7 +16,6 @@ import PhotoView from "./PhotoView";
 export default function RequestPhotos({
   paths = [],
   onChange = null,
-  asId = null,
   readOnly = false,
   small = false,
 }) {
@@ -60,7 +59,6 @@ export default function RequestPhotos({
         }
         const form = new FormData();
         form.set("file", f);
-        if (asId) form.set("asId", asId);
         const r = await uploadRequestPhoto(form);
         if (r?.error) {
           alert(r.error);

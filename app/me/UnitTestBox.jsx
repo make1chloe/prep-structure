@@ -18,7 +18,7 @@ import { submitUnitTest } from "./unitTestActions";
  * 으로 서버가 판단한다 — 아이가 「통과했어요」 를 고르게 하면 그것은
  * 기록이 아니라 주장이 된다.
  */
-export default function UnitTestBox({ task, readOnly = false, asId = null }) {
+export default function UnitTestBox({ task, readOnly = false }) {
   const [correct, setCorrect] = useState("");
   const [total, setTotal] = useState("");
   const [msg, setMsg] = useState(null);
@@ -36,7 +36,6 @@ export default function UnitTestBox({ task, readOnly = false, asId = null }) {
         term: unitName,
         correct,
         total,
-        asId,
       });
       if (res?.error) { setMsg({ bad: true, text: res.error }); return; }
       setMsg({ bad: false, text: res.note || "냈어요." });

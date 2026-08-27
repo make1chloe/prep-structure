@@ -18,7 +18,7 @@ import { checkArrival } from "./arrivalActions";
  */
 import { STEPS } from "@/lib/arrivalSteps";
 
-export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = false, asId = null }) {
+export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = false }) {
   // 누르는 순간 다음 단계로 — 서버 답을 기다리면 한 박자 늦어 애들이 또 누른다
   // (원장님 2026-08-21 「버튼이 작동이 너무 늦어」). 실패하면 되돌리고 알린다.
   const [doneLocal, setDoneLocal] = useState(() => new Set());
@@ -34,7 +34,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
   function tap(kind) {
     setDoneLocal((prev) => new Set(prev).add(kind));   // 먼저 넘어간다 — 저장은 뒤에서
     startTransition(async () => {
-      const res = await checkArrival(kind, true, asId);
+      const res = await checkArrival(kind, true);
       if (res?.error) {
         setDoneLocal((prev) => { const n = new Set(prev); n.delete(kind); return n; });   // 실패 — 되돌린다
         alert(res.error);
@@ -54,7 +54,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
         </span>
       </div>
 
-      {!atAcademy && !readOnly && !asId && (
+      {!atAcademy && !readOnly && (
         <div className="notice" style={{ margin: "10px 0 0", fontSize: 14 }}>
           <b>학원 와이파이에 연결해주세요.</b> 학원에 도착해야 누를 수 있어요.
         </div>
@@ -65,7 +65,7 @@ export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = fa
       )}
       <button
         className="bigbtn"
-        disabled={pending || (!atAcademy && !asId) || readOnly}
+        disabled={pending || !atAcademy || readOnly}
         onClick={() => tap(now.kind)}
       >
         {now.label}

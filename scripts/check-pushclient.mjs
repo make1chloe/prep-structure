@@ -73,7 +73,7 @@ console.log("\n== 알림이 꺼졌을 때 성가시게 하는 것이 걸려 있�
 const me = readFileSync("app/me/page.jsx", "utf8");
 eq(me.includes("<AlertGate>"), true, "학생 화면이 감싸여 있다");
 // 선생님 미리보기까지 막으면 원장님이 아이 화면을 못 보신다
-eq(/preview \|\| acting \?/.test(me), true, "미리보기·눌러보기는 그대로 열린다");
+eq(/preview \? inner :/.test(me), true, "미리보기는 그대로 열린다");
 
 const gate = readFileSync("app/me/AlertGate.jsx", "utf8");
 // **누를 때마다** 떠야 한다 — 빨간 칸만으로는 아무도 안 켠다 (원장님)

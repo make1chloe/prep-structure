@@ -64,7 +64,6 @@ export default function StudyList({
   ready = true,
   kind = "home",
   readOnly = false,
-  asId = null,
   subs = {},
   answers = {},   // itemId → { opened } — 파일형 답지 (0148, 하원 숙제만 온다)
   sid = "",       // 학생 id — 1회성 설명(HintOnce)의 학생별 키에 쓴다 (C1 #7)
@@ -180,7 +179,7 @@ export default function StudyList({
                 <button
                   className="bigbtn"
                   disabled={pending || readOnly}
-                  onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind, asId))}
+                  onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind))}
                 >
                   다 했어요
                 </button>
@@ -188,7 +187,7 @@ export default function StudyList({
                   className="btn btn-ghost btn-sm"
                   style={{ width: "100%", marginTop: 6 }}
                   disabled={pending || readOnly}
-                  onClick={() => run(() => stopStudy(asId))}
+                  onClick={() => run(() => stopStudy())}
                 >
                   잠깐 멈추기
                 </button>
@@ -203,7 +202,7 @@ export default function StudyList({
                 <button
                   className="bigbtn"
                   disabled={pending || !ready || readOnly}
-                  onClick={() => run(() => startStudy(now.itemId, now.stayId, kind, asId))}
+                  onClick={() => run(() => startStudy(now.itemId, now.stayId, kind))}
                 >
                   {now.seconds > 0 ? "이어서 하기" : "시작하기"}
                 </button>
@@ -219,7 +218,7 @@ export default function StudyList({
                   className="btn btn-ghost btn-sm"
                   style={{ width: "100%", marginTop: 6 }}
                   disabled={pending || readOnly}
-                  onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind, asId))}
+                  onClick={() => run(() => finishStudy(now.reportItemId, now.itemId, now.stayId, kind))}
                 >
                   타이머 없이 다 했어요
                 </button>
@@ -231,7 +230,7 @@ export default function StudyList({
                 적는다. 내면 이 숙제도 같이 끝난 것이 된다 — 두 번 누르게 하면
                 하나는 빠뜨린다 */}
             {now.unitTest && (
-              <UnitTestBox task={now} readOnly={readOnly} asId={asId} />
+              <UnitTestBox task={now} readOnly={readOnly} />
             )}
           </div>
         ) : (
@@ -324,7 +323,7 @@ export default function StudyList({
                     <button
                       className="bigbtn"
                       disabled={pending || readOnly || missing}
-                      onClick={() => run(() => finishStudy(t.reportItemId, t.itemId, t.stayId, kind, asId))}
+                      onClick={() => run(() => finishStudy(t.reportItemId, t.itemId, t.stayId, kind))}
                     >
                       다 했어요
                     </button>
@@ -332,7 +331,7 @@ export default function StudyList({
                       className="btn btn-ghost btn-sm"
                       style={{ width: "100%", marginTop: 6 }}
                       disabled={pending || readOnly}
-                      onClick={() => run(() => stopStudy(asId))}
+                      onClick={() => run(() => stopStudy())}
                     >
                       잠깐 멈추기
                     </button>
@@ -342,7 +341,7 @@ export default function StudyList({
                     <button
                       className="btn btn-primary"
                       disabled={pending || !ready || readOnly}
-                      onClick={() => run(() => startStudy(t.itemId, t.stayId, kind, asId))}
+                      onClick={() => run(() => startStudy(t.itemId, t.stayId, kind))}
                     >
                       {t.seconds > 0 ? "이어서 하기" : "시작하기"}
                     </button>
@@ -355,7 +354,7 @@ export default function StudyList({
                 )}
 
                 {/* 단원평가는 결과(맞은 개수)를 내는 것으로 끝난다 (0106) */}
-                {t.unitTest && <UnitTestBox task={t} readOnly={readOnly} asId={asId} />}
+                {t.unitTest && <UnitTestBox task={t} readOnly={readOnly} />}
 
                 {/* 체크리스트까지 **버튼 없이 바로** 펼친다 (openList) —
                     지워 가면서 하는 것이라 눌러야 보이면 안 짚게 된다 */}
@@ -363,7 +362,6 @@ export default function StudyList({
                   <SubmitBox
                     itemId={t.itemId}
                     reportItemId={t.reportItemId}
-                    asId={asId}
                     readOnly={readOnly}
                     mine={mine}
                     checklist={t.checklist || []}
@@ -414,7 +412,7 @@ export default function StudyList({
                       <button
                         className="btn btn-ghost btn-sm"
                         disabled={pending || readOnly}
-                        onClick={() => run(() => undoFinish(t.reportItemId, asId))}
+                        onClick={() => run(() => undoFinish(t.reportItemId))}
                       >
                         다시
                       </button>
@@ -424,7 +422,6 @@ export default function StudyList({
                         <SubmitBox
                           itemId={t.itemId}
                           reportItemId={t.reportItemId}
-                          asId={asId}
                           readOnly={readOnly}
                           mine={mine}
                           checklist={t.checklist || []}

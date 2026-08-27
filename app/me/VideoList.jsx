@@ -13,7 +13,7 @@ import { embedUrl, thumbUrl } from "@/lib/video";
  *
  * 다 보고 나서 「다 봤어요」를 누른다. 연 것과 다 본 것은 다른 이야기다.
  */
-export default function VideoList({ videos = [], asId = null, readOnly = false }) {
+export default function VideoList({ videos = [], readOnly = false }) {
   const [openId, setOpenId] = useState(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function VideoList({ videos = [], asId = null, readOnly = false }
     setOpenId(openId === v.id ? null : v.id);
     if (openId !== v.id && !readOnly) {
       // 기록은 조용히 남긴다 — 화면이 새로 그려지면 영상이 끊긴다
-      openVideo(v.id, asId);
+      openVideo(v.id);
     }
   }
 
@@ -83,7 +83,7 @@ export default function VideoList({ videos = [], asId = null, readOnly = false }
                 className="btn btn-ghost btn-sm"
                 style={{ width: "100%", marginTop: 8 }}
                 disabled={pending || readOnly}
-                onClick={() => run(() => undoFinishVideo(v.id, asId))}
+                onClick={() => run(() => undoFinishVideo(v.id))}
               >
                 다시 보기로 되돌리기
               </button>
@@ -92,7 +92,7 @@ export default function VideoList({ videos = [], asId = null, readOnly = false }
                 className="bigbtn"
                 style={{ marginTop: 8 }}
                 disabled={pending || readOnly}
-                onClick={() => run(() => finishVideo(v.id, asId))}
+                onClick={() => run(() => finishVideo(v.id))}
               >
                 다 봤어요
               </button>

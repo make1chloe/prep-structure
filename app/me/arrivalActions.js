@@ -17,18 +17,15 @@ import { pushToFamilies } from "@/app/push/actions";
  * 출석 자체는 외부 앱에서 한다. 여기서는 **했는지 짚어줄 뿐**이다 —
  * 아이들이 자꾸 잊어버리기 때문이다.
  */
-export async function checkArrival(kind, on, asId = null) {
+export async function checkArrival(kind, on) {
   const supabase = await createClient();
-  const { studentId, acting, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
   const me = { id: studentId };
 
   // 학원에서 누른 게 맞나 — 오는 길에 미리 누르는 것을 막는다.
   // 등록된 주소가 없으면 안 막는다 (원장님이 안 켰다는 뜻이다).
-  //
-  // 선생님이 체험 모드로 눌러보는 중이면 막지 않는다.
-  // 집에서 미리 눌러봐야 하는데 여기서 막히면 시험 자체를 못 한다.
-  if (on && !acting) {
+  if (on) {
     const nq = await supabase.from("academy_net").select("ip");
     const allowed = (nq.error ? [] : nq.data || []).map((x) => x.ip);
     if (allowed.length > 0 && !sameNet(pickIp(await headers()), allowed)) {
@@ -79,8 +76,7 @@ export async function checkArrival(kind, on, asId = null) {
         .insert({ student_id: me.id, date: today, status: "present" });
       // **어머니께 등원 알림** (원장님 2026-08-23). 방금 등원으로 **새로**
       // 잡혔을 때만 — 이미 잡혀 있으면 두 번 울리지 않는다.
-      // 선생님이 체험 모드로 눌러보는 중이면 안 보낸다.
-      if (!attErr && !acting) {
+      if (!attErr) {
         const { data: who } = await supabase
           .from("students").select("name").eq("id", me.id).maybeSingle();
         await pushToFamilies(
@@ -107,9 +103,9 @@ export async function checkArrival(kind, on, asId = null) {
  * 로그아웃한다 (제 폰에서 로그아웃하면 집에서 숙제를 못 본다).
  * 여기 서버 쪽은 **누른 시각을 적고 어머니께 알리는 것**까지만 한다.
  */
-export async function leaveNow(asId = null) {
+export async function leaveNow() {
   const supabase = await createClient();
-  const { studentId, acting, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "학생 계정으로 로그인해주세요." };
 
   const today = todaySeoul();
@@ -122,17 +118,15 @@ export async function leaveNow(asId = null) {
   }
   if (error) return { error: error.message };
 
-  // 어머니께 하원 알림 — 체험 모드(선생님이 눌러보는 중)면 안 보낸다
-  if (!acting) {
-    const { data: who } = await supabase
-      .from("students").select("name").eq("id", studentId).maybeSingle();
-    await pushToFamilies(
-      [studentId],
-      { title: `${who?.name || "학생"} 하원했어요`, url: "/parent" },
-      "parent",
-      supabase
-    );
-  }
+  // 어머니께 하원 알림
+  const { data: who } = await supabase
+    .from("students").select("name").eq("id", studentId).maybeSingle();
+  await pushToFamilies(
+    [studentId],
+    { title: `${who?.name || "학생"} 하원했어요`, url: "/parent" },
+    "parent",
+    supabase
+  );
 
   revalidatePath("/me");
   revalidatePath("/today");

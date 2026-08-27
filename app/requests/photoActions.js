@@ -28,8 +28,7 @@ function why(error) {
 /** 사진 한 장을 올리고 경로를 돌려준다 */
 export async function uploadRequestPhoto(formData) {
   const supabase = await createClient();
-  const asId = formData.get("asId") || null;
-  const { studentId, error: whoErr } = await resolveStudent(supabase, asId);
+  const { studentId, error: whoErr } = await resolveStudent(supabase);
   if (!studentId) return { error: whoErr || "로그인이 필요해요." };
 
   const file = formData.get("file");

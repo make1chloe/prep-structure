@@ -27,7 +27,7 @@ function seoulToday() {
  * answer — 파일형 답지 (0148). 있으면 열리기 전엔 「제출하면 열려요」 힌트,
  * 열리면 「채점해서 오세요」 + 답지 보기. 없으면 아무 표시 없음 (지금 그대로).
  */
-export default function SubmitBox({ itemId, reportItemId, asId = null, mine = [], readOnly = false, checklist = [], answer = null, openList = false }) {
+export default function SubmitBox({ itemId, reportItemId, mine = [], readOnly = false, checklist = [], answer = null, openList = false }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(null);        // null | "list"
   /**
@@ -116,7 +116,6 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
     form.set("kind", f.type.startsWith("audio") ? "audio" : "photo");
     if (itemId) form.set("itemId", itemId);
     if (reportItemId) form.set("reportItemId", reportItemId);
-    if (asId) form.set("asId", asId);
     send(form);
   }
 
@@ -150,7 +149,6 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
       form.set("seconds", String(sec));
       if (itemId) form.set("itemId", itemId);
       if (reportItemId) form.set("reportItemId", reportItemId);
-      if (asId) form.set("asId", asId);
       send(form);
     };
     mr.start();
@@ -161,7 +159,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
   function toggleAnswer() {
     if (ansFiles) { setAnsFiles(null); return; }
     startTransition(async () => {
-      const res = await answerViewUrls(itemId, asId);
+      const res = await answerViewUrls(itemId);
       if (res?.error) { alert(res.error); return; }
       setAnsFiles(res.files || []);
     });
@@ -295,7 +293,7 @@ export default function SubmitBox({ itemId, reportItemId, asId = null, mine = []
                   done: marks[i] === 2,
                   state: marks[i] === 2 ? "done" : marks[i] === 1 ? "doing" : "missing",
                 }));
-                const res = await submitChecklist(itemId, reportItemId, done, asId);
+                const res = await submitChecklist(itemId, reportItemId, done);
                 if (res?.error) { alert(res.error); return; }
                 // 낸 뒤에는 표시를 비운다 — 낸 것은 아래 줄로 남는데,
                 // 체크가 그대로면 「내기」 가 살아 있어 또 내게 된다
