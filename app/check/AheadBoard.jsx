@@ -5,7 +5,7 @@ import BookPicker from "@/components/BookPicker";
 import { useRouter } from "next/navigation";
 import { assignHomeworkAhead, unassignHomeworkAhead } from "@/app/plan/actions";
 import { createNotice, listUnitOptions } from "@/app/today/actions";
-import { unitOptionText } from "@/lib/unitTree";
+import UnitPickModal from "@/components/UnitPickModal";
 import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
 import { CAT_CLS } from "@/app/homework/categories";
 import { NOTICE_KINDS } from "@/lib/notices";
@@ -49,6 +49,7 @@ export default function AheadBoard({
   const [unitsByBook, setUnitsByBook] = useState({});
   const [loadingBook, setLoadingBook] = useState(null);
   const [cat, setCat] = useState("전체");
+  const [unitPickFor, setUnitPickFor] = useState(null); // 단원 고르기 팝오버가 열린 항목 id
 
   const [kind, setKind] = useState("homework");
   const [body, setBody] = useState("");
@@ -324,35 +325,16 @@ export default function AheadBoard({
                           loadBook(bid);
                         }}
                       />
-                      <select
-                        className="input input-sm"
-                        style={{ flex: 1, minWidth: 180 }}
-                        value=""
-                        onChange={(e) => {
-                          const uid = e.target.value;
-                          e.target.value = "";
-                          if (uid && !v.unitIds.includes(uid)) {
-                            patchItem(iid, { unitIds: [...v.unitIds, uid] });
-                          }
-                        }}
+                      {/* **셀렉트 → 팝오버** (원장님 2026-08-27) — 오늘 수업 판과 같은
+                          UnitPickModal 한 벌. 여러 단원을 체크해 한 번에 담는다 */}
+                      <button
+                        className="btn btn-sm"
                         disabled={!v.textbookId}
+                        title={!v.textbookId ? "교재를 먼저 고르세요" : "이 교재의 단원을 여러 개 체크해 한 번에 담아요"}
+                        onClick={() => { loadBook(v.textbookId); setUnitPickFor(iid); }}
                       >
-                        <option value="">
-                          {!v.textbookId
-                            ? "교재를 먼저 고르세요"
-                            : loadingBook === v.textbookId
-                            ? "단원 불러오는 중…"
-                            : opts.length === 0
-                            ? "등록된 단원이 없어요"
-                            : "단원 추가…"}
-                        </option>
-                        {opts.map((o) => (
-                          <option key={o.id} value={o.id} disabled={v.unitIds.includes(o.id)}>
-                            {" ".repeat(o.depth * 3)}
-                            {unitOptionText(o)}
-                          </option>
-                        ))}
-                      </select>
+                        ＋ 단원 고르기
+                      </button>
                       <input
                         className="input input-sm"
                         style={{ width: 110 }}
@@ -385,6 +367,23 @@ export default function AheadBoard({
                 })}
               </div>
             )}
+
+            {/* 단원 고르기 팝오버 — 오늘 수업 판과 같은 .sheetpop 자리 */}
+            {unitPickFor && picked.has(unitPickFor) && (() => {
+              const v = picked.get(unitPickFor);
+              const item = items.find((x) => x.id === unitPickFor);
+              const book = textbooks.find((t) => t.id === v.textbookId);
+              return (
+                <UnitPickModal
+                  title={`${item?.name || "숙제"} · ${book?.name || "교재"} 단원 고르기`}
+                  options={unitsByBook[v.textbookId] || []}
+                  loading={loadingBook === v.textbookId}
+                  chosen={v.unitIds || []}
+                  onApply={(ids) => patchItem(unitPickFor, { unitIds: ids })}
+                  onClose={() => setUnitPickFor(null)}
+                />
+              );
+            })()}
 
             <div className="row" style={{ gap: 6, marginTop: 12 }}>
               <button
