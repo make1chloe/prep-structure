@@ -177,6 +177,9 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
   // 좁은 화면에서는 판이 위로 올라온다. 목록을 보려면 접을 수 있어야 한다.
   const [folded, setFolded] = useState(false);
   const [tab, setTab] = useState("info");
+  // 형제 연결 — [+연결] 을 눌렀을 때만 고르는 판이 열린다
+  const [famPick, setFamPick] = useState(false);
+  const [famQ, setFamQ] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -191,6 +194,8 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
     setOpenId(s.id);
     setTab(which);
     setFolded(false);   // 접어둔 채로 다른 학생을 누르면 아무 일도 안 난 것처럼 보인다
+    setFamPick(false);  // 다른 학생을 열면 전 학생의 형제 고르기 판은 닫는다
+    setFamQ("");
     const d = {};
     ALL_FIELDS.forEach(({ key }) => (d[key] = s[key] ?? ""));
     setDraft(d);
@@ -629,34 +634,124 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                             </div>
                           )}
 
+                          {/**
+                            * **형제·자매** (원장님 확정 2026-08-27 — 참고 앱의
+                            * 「형제·자매 [이름·학년 ✕] [+연결]」 칩 그대로).
+                            *
+                            * 전에는 묶기가 목록의 여럿 선택에만 있어서, 한 아이를
+                            * 열어놓고는 연결할 길이 없었다. 여기서 [+연결] 로 바로
+                            * 묶는다 — 묶는 규칙은 linkSiblings 한 벌 그대로 (0071
+                            * 의 family_id 하나, 새 표 없음). ✕ 는 그 아이만 뺀다.
+                            *
+                            * **묶는 것만으로 학부모 화면에 같이 뜨지는 않는다** —
+                            * 형제라고 저절로 열면 한쪽 부모만 보아야 하는 집이
+                            * 무너진다 (0071). 계정 탭에서 학부모 계정을 연결할 때
+                            * 형제가 같이 붙는다 (parentActions.createParentLogin).
+                            */}
+                          {(() => {
+                            const kin = students.filter(
+                              (x) => s.family_id && x.family_id === s.family_id && x.id !== s.id
+                            );
+                            // 퇴원생은 후보에 없다 — 형이 그만둔 집에 동생을 묶을 이유가
+                            // 없다 (lib/family joinFamilyByPhone 과 같은 판단)
+                            const cand = overlaid
+                              .filter((x) => x.id !== s.id)
+                              .filter((x) => !s.family_id || x.family_id !== s.family_id)
+                              .filter((x) => x.status !== "withdrawn")
+                              .filter((x) => {
+                                const k = norm(famQ).trim();
+                                if (!k) return true;
+                                return [x.name, x.school, x.grade].some((v) => norm(v).includes(k));
+                              })
+                              .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+                              .slice(0, 20);
+                            return (
+                              <div style={{ marginTop: 12 }}>
+                                <label className="label">형제·자매</label>
+                                <div className="chips" style={{ marginTop: 4, alignItems: "center" }}>
+                                  {kin.map((x) => (
+                                    <span
+                                      key={x.id}
+                                      className="tag tag-lav"
+                                      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}
+                                    >
+                                      {x.name}
+                                      {x.grade && <span style={{ fontSize: 12 }}>{x.grade}</span>}
+                                      <button
+                                        title={`${x.name} 학생만 형제 묶음에서 뺍니다`}
+                                        disabled={pending}
+                                        style={{ background: "none", border: 0, padding: 0, cursor: "pointer", color: "inherit", fontSize: 12 }}
+                                        onClick={() => {
+                                          if (!confirm(`${x.name} 학생을 형제 묶음에서 뺄까요?`)) return;
+                                          run(() => unlinkSibling(x.id));
+                                        }}
+                                      >
+                                        ✕
+                                      </button>
+                                    </span>
+                                  ))}
+                                  {/* 옛 자료 정리 — 묶였는데 형제가 없으면 값만 남은 것이다 */}
+                                  {s.family_id && kin.length === 0 && (
+                                    <button
+                                      className="btn btn-ghost btn-sm"
+                                      disabled={pending}
+                                      onClick={() => run(() => unlinkSibling(s.id))}
+                                    >
+                                      혼자 남은 묶음 정리
+                                    </button>
+                                  )}
+                                  <button
+                                    className={`chip ${famPick ? "on" : ""}`}
+                                    disabled={pending}
+                                    onClick={() => { setFamPick(!famPick); setFamQ(""); }}
+                                  >
+                                    ＋ 연결
+                                  </button>
+                                </div>
+                                {famPick && (
+                                  <div className="card card-tight" style={{ marginTop: 6 }}>
+                                    <input
+                                      className="input input-sm"
+                                      placeholder="이름 · 학교 검색"
+                                      autoFocus
+                                      value={famQ}
+                                      onChange={(e) => setFamQ(e.target.value)}
+                                    />
+                                    <div className="chips" style={{ marginTop: 6 }}>
+                                      {cand.map((x) => (
+                                        <button
+                                          key={x.id}
+                                          className="chip"
+                                          disabled={pending}
+                                          onClick={() => {
+                                            setFamPick(false);
+                                            setFamQ("");
+                                            run(() => linkSiblings([s.id, x.id]));
+                                          }}
+                                        >
+                                          {x.name}
+                                          {x.grade ? ` · ${x.grade}` : ""}
+                                          {x.status !== "enrolled" ? ` (${STATUS[x.status]?.label || x.status})` : ""}
+                                        </button>
+                                      ))}
+                                      {cand.length === 0 && <span className="hint">맞는 학생이 없어요.</span>}
+                                    </div>
+                                    <p className="hint" style={{ margin: "6px 0 0" }}>
+                                      누르면 바로 묶여요. 학부모 화면에 같이 뜨는 것은 계정
+                                      탭에서 학부모 계정을 연결할 때예요 — 형제라고 저절로
+                                      열지는 않아요.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+
                           <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "center" }}>
                             <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={pending}>
                               {pending ? "저장 중…" : "저장"}
                             </button>
                             <span className="hint">고친 뒤 저장을 눌러주세요.</span>
-                            <span className="spacer" />
-                            {/* 형제 묶기는 목록에서 여럿 골라 하고, 푸는 것은 여기서 한 명씩 */}
-                            {s.family_id && (
-                              <>
-                                <span className="hint">
-                                  형제{" "}
-                                  {students
-                                    .filter((x) => x.family_id === s.family_id && x.id !== s.id)
-                                    .map((x) => x.name)
-                                    .join(", ") || "—"}
-                                </span>
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  disabled={pending}
-                                  onClick={() => {
-                                    if (!confirm(`${s.name} 학생만 형제 묶음에서 뺄까요?`)) return;
-                                    run(() => unlinkSibling(s.id));
-                                  }}
-                                >
-                                  형제 풀기
-                                </button>
-                              </>
-                            )}
                           </div>
                         </>
                       )}

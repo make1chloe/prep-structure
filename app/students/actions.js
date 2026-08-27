@@ -475,11 +475,27 @@ export async function linkSiblings(ids) {
   return r;
 }
 
-/** 이 학생만 집에서 뺀다 (나머지 형제는 그대로 묶여 있다) */
+/**
+ * 이 학생만 집에서 뺀다 (나머지 형제는 그대로 묶여 있다).
+ *
+ * 빼고 나서 **혼자 남으면 그 집도 비운다** (0071 — 「혼자면 비어 있어도
+ * 된다」). 혼자인데 family_id 가 남아 있으면 목록의 형제 칸에는 「—」 인데
+ * 값은 차 있어서, 다음에 다른 아이와 묶을 때 옛 집이 따라붙는다.
+ */
 export async function unlinkSibling(id) {
   if (!id) return { error: null };
   const supabase = await createClient();
+  const { data: me } = await supabase
+    .from("students").select("family_id").eq("id", id).maybeSingle();
+  const fam = me?.family_id || null;
   const { error } = await supabase.from("students").update({ family_id: null }).eq("id", id);
+  if (!error && fam) {
+    const { data: rest } = await supabase
+      .from("students").select("id").eq("family_id", fam);
+    if ((rest || []).length === 1) {
+      await supabase.from("students").update({ family_id: null }).eq("id", rest[0].id);
+    }
+  }
   revalidatePath("/students");
   return { error: error ? error.message : null };
 }
