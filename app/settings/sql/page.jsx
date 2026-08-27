@@ -80,7 +80,9 @@ export default async function SqlPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="sql" />
+      {/* "sql" 키는 메뉴에서 뺐다 (2026-08-27) — 설정 아래 칸에서 여는
+          화면이니, 여기 있을 때도 「설정」 이 켜진 것으로 본다 */}
+      <TopBar profile={profile} active="settings" />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">설정</p>
