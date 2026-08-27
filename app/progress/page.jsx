@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/fetchAll";
 import { loadRunningClasses } from "@/lib/classTerm";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import ProgressBoard from "./ProgressBoard";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
@@ -156,10 +157,12 @@ export default async function ProgressPage() {
         <div className="page-head">
           <p className="eyebrow">오늘</p>
           <h1 className="h1">진도</h1>
-          <p className="sub">
-            학생을 열면 쓰는 교재가 나옵니다. 단원을 누르면 <b>안 함 → ◐ 하는 중 → ○ 완료</b>,
-            단원이 없는 교재는 몇 페이지까지인지 적으면 돼요.
-          </p>
+          <Help>
+            <p className="sub">
+              학생을 열면 쓰는 교재가 나옵니다. 단원을 누르면 <b>안 함 → ◐ 하는 중 → ○ 완료</b>,
+              단원이 없는 교재는 몇 페이지까지인지 적으면 돼요.
+            </p>
+          </Help>
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <ProgressUpload />
           </div>

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import PickOrType from "@/components/PickOrType";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
 import UnitUpload from "./UnitUpload";
@@ -219,6 +220,12 @@ export default async function TextbooksPage(props) {
         <div className="page-head">
           <p className="eyebrow">교재 관리</p>
           <h1 className="h1">교재 · 단원</h1>
+          <Help>
+            <p className="sub">
+              학원에서 쓰는 교재와 단원을 정리하는 곳입니다. 교재를 열면 단원과
+              진도루틴을 넣고, <b>학습 항목</b> 탭에서는 숙제의 종류를 관리합니다.
+            </p>
+          </Help>
           <Tabs view="books" />
           <div className="row" style={{ marginTop: 10, gap: 8 }}>
             <AddTextbookForm />

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import TodayBoard from "./TodayBoard";
 import OverflowProbe from "./OverflowProbe";
 import TopNotices from "./TopNotices";
@@ -1589,6 +1590,13 @@ export default async function TodayPage(props) {
         <div className="page-head">
           <p className="eyebrow">오늘 수업</p>
           <h1 className="h1">{label}</h1>
+          <Help>
+            <p className="sub">
+              매일 수업하며 여는 화면입니다. 반을 열면 학생마다 출결 · 단어시험 ·
+              숙제 검사 · 다음 숙제를 <b>한 자리에서</b> 처리하고, 위 날짜를 넘기면
+              지난 날의 공지 · 숙제도 그 자리에서 고칩니다.
+            </p>
+          </Help>
           {/* 날짜 넘기기 — 지난 공지·숙제를 그 자리에서 고친다 (원장님, 2026-08-14) */}
           <DateNav
             date={date}

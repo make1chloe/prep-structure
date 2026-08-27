@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import AddClassForm from "./AddClassForm";
 import ClassUpload from "./ClassUpload";
 import ClassManager from "./ClassManager";
@@ -60,6 +61,12 @@ export default async function ClassesPage(props) {
         <div className="page-head">
           <p className="eyebrow">반 관리</p>
           <h1 className="h1">반 · 학생 배정</h1>
+          <Help>
+            <p className="sub">
+              반을 만들고 학생을 배정합니다. 반을 고르면 요일 · 시간 · 기간과
+              학생 명단을 <b>그 자리에서</b> 고칠 수 있어요.
+            </p>
+          </Help>
           <div className="row" style={{ marginTop: 10 }}>
             <AddClassForm />
             <ClassUpload />

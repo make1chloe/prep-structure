@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import PlanBoard from "./PlanBoard";
 import MakeupInbox from "@/app/MakeupInbox";
 import MakeupAnswers from "@/app/MakeupAnswers";
@@ -149,6 +150,13 @@ export default async function AttendancePage() {
       <main className="wrap-wide">
         <div className="page-head">
           <h1 className="h1">출결</h1>
+          <Help>
+            <p className="sub">
+              결석 예정 · 보강 · 지난 수업 출결을 한 화면에서 봅니다. 앞으로의
+              결석 예정과 잡아둔 보강이 줄로 늘어서고, <b>넣은 자리에서 바로</b>
+              취소할 수 있어요.
+            </p>
+          </Help>
         </div>
         <PlanBoard
           classes={classes || []}
