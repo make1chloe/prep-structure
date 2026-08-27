@@ -153,6 +153,30 @@ console.log("\n== 눌러야 보이는 판이 눌러야 내려오나 ==");
   if (!bad) ok(`${n}곳 — 누를 때 받는다`);
 }
 
+// ── 4-4) 메뉴를 기다리느라 화면이 멈추지 않나 ──────────────────
+//
+// 메뉴가 화면 안에 있을 때는 loading.jsx 가 곧바로 나갔다 — 그 틀이 레이아웃
+// **아래**에 있었기 때문이다. 메뉴를 뿌리로 올리면 그 틀이 메뉴 **밑**으로
+// 들어가서, 배지를 다 셀 때까지 첫 글자 한 자도 안 나간다.
+//
+// 실측 (같은 조건, 메뉴 조회 0.6초 흉내 · Next 16.3.3):
+//   Suspense 없음  첫 바이트 0.611초   Suspense 있음  0.008초 (총 시간은 같다)
+//
+// Suspense 를 걷어내도 화면은 똑같이 나온다 — 조금 늦게 나올 뿐이라 아무도
+// 못 잡는다. 그래서 기계가 본다.
+console.log("\n== 메뉴를 기다리느라 첫 글자가 늦지 않나 ==");
+{
+  const lay = readFileSync("app/layout.jsx", "utf8");
+  if (!/<Suspense[\s\S]{0,200}<TopBar \/>/.test(lay)) {
+    say("app/layout.jsx — <TopBar /> 가 Suspense 밖입니다. 배지를 다 셀 때까지 첫 글자가 안 나갑니다 (원칙 6)");
+  } else ok("메뉴는 흘려보낸다 (Suspense)");
+  // 오늘 수업 — 아흔여덟 조회를 다 기다리기 전에 날짜라도 먼저 나가야 한다
+  const today = readFileSync("app/today/page.jsx", "utf8");
+  if (!/<Suspense[\s\S]{0,900}<TodayBody/.test(today)) {
+    say("app/today/page.jsx — 판이 Suspense 밖입니다. 조회 아흔여덟이 다 끝나야 날짜가 보입니다");
+  } else ok("오늘 수업 — 날짜부터 먼저");
+}
+
 // ── 5) 메뉴를 오갈 때 ────────────────────────────────────────
 console.log("\n== 한 번 갔던 화면이 30초 안에는 즉시 뜨나 ==");
 const cfg = readFileSync("next.config.mjs", "utf8");
