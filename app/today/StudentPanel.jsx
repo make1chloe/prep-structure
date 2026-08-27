@@ -10,7 +10,8 @@ import { uploadAnswerFiles, removeAnswerFiles } from "./answerActions";
 import { quickAddUnits } from "@/app/textbooks/actions";
 import SubmissionList from "./SubmissionList";
 import MakeupHere, { MakeupMissed } from "./MakeupHere";
-import { unitOptionText, volumeLabel, guessMinutes } from "@/lib/unitTree";
+import { volumeLabel, guessMinutes } from "@/lib/unitTree";
+import UnitPickModal from "@/components/UnitPickModal";
 import BookProgress from "@/components/BookProgress";
 import PickOrType from "@/components/PickOrType";
 import WordTest from "./WordTest";
@@ -938,6 +939,7 @@ export default function StudentPanel({
    * 화면까지 갔다 와야 했다 — 이름만 적으면 여기서 만들어지고 바로 골라진다.
    */
   const [quickFor, setQuickFor] = useState(null);   // 지금 단원을 만드는 중인 항목 id
+  const [unitPickFor, setUnitPickFor] = useState(null); // 단원 고르기 팝오버가 열린 항목 id
   const [quickText, setQuickText] = useState("");
   const [quickBusy, setQuickBusy] = useState(false);
   async function reloadBook(bookId) {
@@ -1017,12 +1019,6 @@ export default function StudentPanel({
     return { text: bits.join(" · "), minutes: m };
   }
 
-  function addUnit(itemId, unitId) {
-    if (!unitId) return;
-    const cur = nextUnits[itemId]?.unitIds || [];
-    if (cur.includes(unitId)) return;
-    setUnitField(itemId, { unitIds: [...cur, unitId] });
-  }
   function removeUnit(itemId, unitId) {
     const cur = nextUnits[itemId]?.unitIds || [];
     setUnitField(itemId, { unitIds: cur.filter((x) => x !== unitId) });
@@ -2006,7 +2002,7 @@ export default function StudentPanel({
       <div className="prow" style={{ alignItems: "flex-start" }}>
         <span className="plabel" style={{ paddingTop: 5 }}>다음</span>
         <div style={{ flex: 1 }}>
-          <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 6 }}>
+          <div className="row" style={{ gap: 6, alignItems: "center", marginBottom: 4 }}>
             <p className="hint" style={{ margin: 0, flex: 1 }}>
               다음 수업에 검사할 숙제를 골라두면, 그때 이 항목들이 검사 대상이 돼요.
               {next.size > 0 && <b> · {next.size}개 배정</b>}
@@ -2056,7 +2052,7 @@ export default function StudentPanel({
             * 떨어진다 — 영작 숙제인데 영작 묶음에 없다. 칸을 영역마다 두면
             * 적는 자리가 곧 영역이라 따로 고를 것이 없다. 빈 칸은 안 나간다.
             */}
-          <div className="stack" style={{ gap: 4, margin: "6px 0" }}>
+          <div className="stack" style={{ gap: 4, margin: "4px 0" }}>
             <span className="hint" style={{ fontSize: 13 }}>✍ 급한 숙제 — 한 줄에 하나씩</span>
             {QUICK_AREAS.map((area) => (
               <div className="row" key={area} style={{ gap: 6, alignItems: "center" }}>
@@ -2093,7 +2089,9 @@ export default function StudentPanel({
               이 학생 교재 것만 보기
             </button>
           )}
-          <div className="stack" style={{ gap: 6 }}>
+          {/* 칩 줄 간격 — 성글다는 판정(2026-08-27). .hwgroup 자체 padding
+              4px 이 있어 gap 을 줄여야 판의 .prow 리듬(10px)과 맞는다 */}
+          <div className="stack" style={{ gap: 2 }}>
             {grouped(shown).map(([g, list]) => (
               <div className="hwgroup" key={g}>
                 <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
@@ -2169,29 +2167,17 @@ export default function StudentPanel({
                         loadBook(v);
                       }}
                     />
-                    <select
-                      className="input input-sm"
-                      style={{ flex: 1, minWidth: 200 }}
-                      value=""
-                      onChange={(e) => { addUnit(iid, e.target.value); e.target.value = ""; }}
+                    {/* **셀렉트 → 팝오버** (원장님 2026-08-27, iPad 실물 판정) —
+                        하나씩 고르던 「단원 추가…」 를 걷고, 여러 개 체크해
+                        한 번에 담는다. 팝오버는 UnitPickModal 한 벌 (check 와 공유) */}
+                    <button
+                      className="btn btn-sm"
                       disabled={!bookId}
+                      title={!bookId ? "교재를 먼저 고르세요" : "이 교재의 단원을 여러 개 체크해 한 번에 담아요"}
+                      onClick={() => { loadBook(bookId); setUnitPickFor(iid); }}
                     >
-                      <option value="">
-                        {!bookId
-                          ? "교재를 먼저 고르세요"
-                          : loadingBook === bookId
-                          ? "단원 불러오는 중…"
-                          : opts.length === 0
-                          ? "이 교재에 단원이 없어요 — 교재 › 교재·단원 에서 올려주세요"
-                          : "단원 추가…"}
-                      </option>
-                      {opts.map((o) => (
-                        <option key={o.id} value={o.id} disabled={chosen.includes(o.id)}>
-                          {"\u00a0".repeat(o.depth * 3)}
-                          {unitOptionText(o)}
-                        </option>
-                      ))}
-                    </select>
+                      ＋ 단원 고르기
+                    </button>
                     {/* 「이 교재에 단원이 없어요」 의 답 — 그 자리에서 만든다.
                         (있는 교재에서도 하나 더 만들 일이 있어 늘 보인다) */}
                     {bookId && loadingBook !== bookId && (
@@ -2284,6 +2270,22 @@ export default function StudentPanel({
           )}
         </div>
       </div>
+      {/* 단원 고르기 팝오버 — 순서 밖 사건과 같은 .sheetpop 자리.
+          판 위에 **덧그리는** 것이라 범위 메모 등 입력 중 상태는 그대로 산다 */}
+      {unitPickFor && next.has(unitPickFor) && (() => {
+        const u = nextUnits[unitPickFor] || {};
+        const bid = u.textbookId || defaultBook;
+        return (
+          <UnitPickModal
+            title={`${nameOf(unitPickFor) || "숙제"} · ${bookName(bid) || "교재"} 단원 고르기`}
+            options={unitsByBook[bid] || []}
+            loading={loadingBook === bid}
+            chosen={u.unitIds || []}
+            onApply={(ids) => setUnitField(unitPickFor, { unitIds: ids })}
+            onClose={() => setUnitPickFor(null)}
+          />
+        );
+      })()}
     </>
   );
   const focusZone = () => (
