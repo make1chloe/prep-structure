@@ -56,47 +56,60 @@ export default async function ReportPage(props) {
   // 어느 종류를 볼까 — 기본은 모의고사 (문항별 자료가 여기에 쌓인다)
   const kind = searchParams?.kind || "mock";
 
-  const { data: scores } = await supabase
-    .from("scores")
-    .select("*")
-    .eq("student_id", student.id)
-    .eq("kind", kind)
-    .order("taken_on", { ascending: true });
+  /**
+   * **서로 안 물어보는 것은 나란히** (성능수리 4차 — 6단 → 3단).
+   *
+   * 그 종류의 성적 · 학원 기본 문항표 · 종류별 건수 — 셋은 학생만 알면 되고
+   * 서로의 답은 안 쓴다. 아래 문항별 오답과 회차 문항표도 둘 다 「찾은
+   * 성적」만 알면 된다.
+   */
+  const [scoreQ, baseQ, countQ] = await Promise.all([
+    supabase
+      .from("scores")
+      .select("*")
+      .eq("student_id", student.id)
+      .eq("kind", kind)
+      .order("taken_on", { ascending: true }),
+    // 학원 기본 문항표 (없으면 코드의 표준표를 쓴다)
+    supabase
+      .from("exam_spec_rows")
+      .select("kind, no, area, topic, detail, points")
+      .eq("kind", kind)
+      .order("no", { ascending: true }),
+    // 종류 고르개에 건수를 같이 적는다 — 빈 탭을 눌러보게 두지 않는다
+    supabase.from("scores").select("kind").eq("student_id", student.id),
+  ]);
+  const scores = scoreQ.data;
+  const base = baseQ.data;
+  const counts = countQ.data;
 
   const list = scores || [];
 
-  // 문항별 오답 — 0097 전이면 못 읽는다. 그때는 총점만 보여준다
-  let items = [];
-  let itemsBlocked = false;
-  if (list.length > 0) {
-    const { data, error } = await supabase
-      .from("score_items")
-      .select("score_id, no, wrong, picked, reason")
-      .in("score_id", list.map((s) => s.id));
-    if (error) itemsBlocked = true;
-    else items = data || [];
-  }
-
-  // 학원 기본 문항표 (없으면 코드의 표준표를 쓴다)
-  const { data: base } = await supabase
-    .from("exam_spec_rows")
-    .select("kind, no, area, topic, detail, points")
-    .eq("kind", kind)
-    .order("no", { ascending: true });
-
   // 그 회차만의 문항표
   const examIds = [...new Set(list.map((s) => s.exam_id).filter(Boolean))];
-  let byExam = new Map();
-  if (examIds.length > 0) {
-    const { data: qs } = await supabase
-      .from("exam_questions")
-      .select("exam_id, no, area, topic, detail, answer, points, unit, source")
-      .in("exam_id", examIds);
-    (qs || []).forEach((q) => {
-      if (!byExam.has(q.exam_id)) byExam.set(q.exam_id, []);
-      byExam.get(q.exam_id).push(q);
-    });
-  }
+  const [itemQ, examQ] = await Promise.all([
+    // 문항별 오답 — 0097 전이면 못 읽는다. 그때는 총점만 보여준다
+    list.length > 0
+      ? supabase
+          .from("score_items")
+          .select("score_id, no, wrong, picked, reason")
+          .in("score_id", list.map((s) => s.id))
+      : null,
+    examIds.length > 0
+      ? supabase
+          .from("exam_questions")
+          .select("exam_id, no, area, topic, detail, answer, points, unit, source")
+          .in("exam_id", examIds)
+      : null,
+  ]);
+  const itemsBlocked = !!itemQ?.error;
+  const items = itemsBlocked ? [] : itemQ?.data || [];
+
+  const byExam = new Map();
+  (examQ?.data || []).forEach((q) => {
+    if (!byExam.has(q.exam_id)) byExam.set(q.exam_id, []);
+    byExam.get(q.exam_id).push(q);
+  });
 
   const itemsOf = (id) => items.filter((x) => x.score_id === id);
   const rounds = list.map((s) =>
@@ -105,11 +118,6 @@ export default async function ReportPage(props) {
   const st = stack(rounds);
   const notes = points(st, student.name);
 
-  // 종류 고르개에 건수를 같이 적는다 — 빈 탭을 눌러보게 두지 않는다
-  const { data: counts } = await supabase
-    .from("scores")
-    .select("kind")
-    .eq("student_id", student.id);
   const countOf = (k) => (counts || []).filter((c) => c.kind === k).length;
 
   return (

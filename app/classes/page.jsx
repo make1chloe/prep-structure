@@ -12,29 +12,32 @@ export default async function ClassesPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
 
+  // 반·학생·배정 셋은 서로 안 물어본다 — 나란히 (성능수리 4차, 3단 → 1단)
+  let [clsQ, stuQ, memQ] = await Promise.all([
+    supabase
+      .from("classes")
+      .select(
+        "id, name, days, start_time, end_time, level, category, room, capacity, school_level, starts_on, ends_on, archived_at"
+      )
+      .order("start_time", { ascending: true }),
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .eq("status", "enrolled")
+      .order("name", { ascending: true }),
+    supabase.from("class_students").select("class_id, student_id"),
+  ]);
   // school_level 컬럼이 아직 없는 DB에서도 동작하도록 실패 시 재조회
-  let { data: classes, error } = await supabase
-    .from("classes")
-    .select(
-      "id, name, days, start_time, end_time, level, category, room, capacity, school_level, starts_on, ends_on, archived_at"
-    )
-    .order("start_time", { ascending: true });
-  if (error) {
-    ({ data: classes, error } = await supabase
+  if (clsQ.error) {
+    clsQ = await supabase
       .from("classes")
       .select("id, name, days, start_time, end_time, level, category, room, capacity")
-      .order("start_time", { ascending: true }));
+      .order("start_time", { ascending: true });
   }
-
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("status", "enrolled")
-    .order("name", { ascending: true });
-
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id");
+  const classes = clsQ.data;
+  const error = clsQ.error;
+  const students = stuQ.data;
+  const members = memQ.data;
 
   // 끝난 특강은 목록 아래로 접는다 — 고르고 있던 반이면 그대로 열어둔다
   const today = todaySeoul();

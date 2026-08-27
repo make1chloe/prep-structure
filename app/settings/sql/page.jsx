@@ -49,33 +49,35 @@ export default async function SqlPage() {
   })();
   const projectRef = host.split(".")[0];
 
-  const checks = await checkSchema();
+  /**
+   * **서로 안 물어보는 것은 나란히 세운다** (성능수리 4차).
+   *
+   * 표 검사 · 돌린 기록 · 연동칸 셋 · SETUP_ALL 파일 읽기 — 일곱이 한 줄로
+   * 서 있었다. 서로의 답을 쓰는 것은 하나도 없다.
+   *
+   * 그리고 supabase_admin · supabase_service · neis 는 **같은 integrations
+   * 표의 세 줄**이다 — `.in` 한 번으로 가져온다 (왕복 3→1).
+   *
+   * 권한 갈림(위 :38)은 그대로 앞에 둔다 — 원장이 아니면 아무것도 안 물어본다.
+   */
+  const [checks, steps, intQ, sql] = await Promise.all([
+    checkSchema(),
+    loadSteps(),
+    supabase
+      .from("integrations")
+      .select("id, config")
+      .in("id", ["supabase_admin", "supabase_service", "neis"]),
+    fs
+      .readFile(path.join(process.cwd(), "supabase", "SETUP_ALL.sql"), "utf8")
+      .catch(() => ""),
+  ]);
   const done = checks.filter((c) => c.ok).length;
-  const steps = await loadSteps();
-  const { data: adminRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "supabase_admin")
-    .maybeSingle();
-  const { data: svcRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "supabase_service")
-    .maybeSingle();
-  const { data: neisRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "neis")
-    .maybeSingle();
+  const intById = new Map((intQ.data || []).map((r) => [r.id, r]));
+  const adminRow = intById.get("supabase_admin") || null;
+  const svcRow = intById.get("supabase_service") || null;
+  const neisRow = intById.get("neis") || null;
   const neisSaved = !!neisRow?.config?.key;
   const missing = checks.filter((c) => !c.ok).map((c) => c.id);
-
-  let sql = "";
-  try {
-    sql = await fs.readFile(path.join(process.cwd(), "supabase", "SETUP_ALL.sql"), "utf8");
-  } catch {
-    sql = "";
-  }
 
   return (
     <>

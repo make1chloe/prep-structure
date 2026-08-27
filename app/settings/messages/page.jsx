@@ -44,9 +44,13 @@ export default async function MessagesPage(props) {
   // 화면 안내는 아이·어머니 모두에게 한 번에 보이는 글이라 원장·강사만 (0093)
   const canScreen = isTeacher(profile?.role);
 
-  const { rows, hidden, level, error } = await listMessages();
-  const settings = await loadSettings(supabase);
-  const notes = tab === "screen" && canScreen ? await listNotes() : null;
+  // 서로 안 물어보는 것은 나란히 (성능수리 4차 — 3단 → 1단).
+  // 화면 안내는 그 탭일 때만 여전히 안 부른다
+  const [{ rows, hidden, level, error }, settings, notes] = await Promise.all([
+    listMessages(),
+    loadSettings(supabase),
+    tab === "screen" && canScreen ? listNotes() : null,
+  ]);
 
   return (
     <>

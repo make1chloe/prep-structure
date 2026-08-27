@@ -51,18 +51,23 @@ export default async function AnalysisPage(props) {
   let a = null;
   let notes = [];
   if (exam) {
-    const { data: questions } = await supabase
-      .from("exam_questions")
-      .select("no, area, topic, detail, answer, points, unit, source, note")
-      .eq("exam_id", exam.id)
-      .order("no", { ascending: true });
-
-    // 그 회차 성적 — exam_id 로 못 박힌 것이 우선이고, 없으면 학교·날짜로 찾는다.
-    // **추측으로 찾은 것은 표시한다** (엉뚱한 시험지로 분석하면 전부 어긋난다)
-    let { data: scores } = await supabase
-      .from("scores")
-      .select("id, student_id, kind, term, taken_on, raw_score, full_score, school, exam_id")
-      .eq("exam_id", exam.id);
+    // 문항표와 성적은 둘 다 「고른 회차」만 알면 된다 — 서로는 안 물어본다.
+    // 나란히 세운다 (성능수리 4차)
+    const [qQ, scoreQ] = await Promise.all([
+      supabase
+        .from("exam_questions")
+        .select("no, area, topic, detail, answer, points, unit, source, note")
+        .eq("exam_id", exam.id)
+        .order("no", { ascending: true }),
+      // 그 회차 성적 — exam_id 로 못 박힌 것이 우선이고, 없으면 학교·날짜로 찾는다.
+      // **추측으로 찾은 것은 표시한다** (엉뚱한 시험지로 분석하면 전부 어긋난다)
+      supabase
+        .from("scores")
+        .select("id, student_id, kind, term, taken_on, raw_score, full_score, school, exam_id")
+        .eq("exam_id", exam.id),
+    ]);
+    const questions = qQ.data;
+    let scores = scoreQ.data;
 
     let guessed = false;
     if (!scores || scores.length === 0) {
@@ -81,21 +86,21 @@ export default async function AnalysisPage(props) {
       guessed = scores.length > 0;
     }
 
-    let items = [];
-    if ((scores || []).length > 0) {
-      const { data: its } = await supabase
-        .from("score_items")
-        .select("score_id, no, wrong, reason")
-        .in("score_id", scores.map((s) => s.id));
-      items = its || [];
-    }
-
+    // 틀린 문항과 학생 이름은 둘 다 「찾은 성적」만 알면 된다 — 나란히
     const ids = [...new Set((scores || []).map((s) => s.student_id))];
-    let students = [];
-    if (ids.length > 0) {
-      const { data: st } = await supabase.from("students").select("id, name").in("id", ids);
-      students = st || [];
-    }
+    const [itemQ, stuQ] = await Promise.all([
+      (scores || []).length > 0
+        ? supabase
+            .from("score_items")
+            .select("score_id, no, wrong, reason")
+            .in("score_id", scores.map((s) => s.id))
+        : null,
+      ids.length > 0
+        ? supabase.from("students").select("id, name").in("id", ids)
+        : null,
+    ]);
+    const items = itemQ?.data || [];
+    const students = stuQ?.data || [];
 
     a = analyze(questions || [], scores || [], items, students);
     a.guessed = guessed;

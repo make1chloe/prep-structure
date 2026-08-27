@@ -15,18 +15,22 @@ export default async function NotesPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
 
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .order("name", { ascending: true });
-
-  const { data: notes, error } = await supabase
-    .from("student_notes")
-    .select("id, student_id, date, kind, title, raw, body, with_whom, minutes")
-    .order("date", { ascending: false })
-    // 옮겨온 것만 217건이다. 300 에서 자르면 지난해 것이 조용히 안 보이게 된다 —
-    // 「한눈에 보이게」 를 만들면서 정작 오래된 것을 잘라내면 앞뒤가 안 맞는다
-    .limit(2000);
+  // 학생 목록과 상담일지는 서로 안 물어본다 — 나란히 (성능수리 4차, 2단 → 1단)
+  const [stuQ, noteQ] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .order("name", { ascending: true }),
+    supabase
+      .from("student_notes")
+      .select("id, student_id, date, kind, title, raw, body, with_whom, minutes")
+      .order("date", { ascending: false })
+      // 옮겨온 것만 217건이다. 300 에서 자르면 지난해 것이 조용히 안 보이게 된다 —
+      // 「한눈에 보이게」 를 만들면서 정작 오래된 것을 잘라내면 앞뒤가 안 맞는다
+      .limit(2000),
+  ]);
+  const students = stuQ.data;
+  const { data: notes, error } = noteQ;
 
   return (
     <>

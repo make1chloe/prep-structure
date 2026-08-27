@@ -46,18 +46,24 @@ export default async function SettingsPage() {
   }
   const canEdit = profile?.role === "principal";
 
-  const s = await loadSettings(supabase);
-  const { data: pushRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "push")
-    .maybeSingle();
+  /**
+   * **서로 안 물어보는 것은 나란히 세운다** (성능수리 4차).
+   *
+   * 설정·연동칸·아직 안 돌린 SQL — 셋은 서로의 답을 안 쓴다. 그런데 한 줄로
+   * 세워 두어서 왕복 셋이 차례로 붙었다. 그리고 push·anthropic 은 같은
+   * integrations 표의 두 줄이라 `.in` 한 번이면 된다 (왕복 2→1).
+   *
+   * 무엇을 그릴지 정하는 자리는 아래 그대로다 — 언제 물어보는지만 바꿨다.
+   */
+  const [s, intQ, allChecks] = await Promise.all([
+    loadSettings(supabase),
+    supabase.from("integrations").select("id, config").in("id", ["push", "anthropic"]),
+    checkSchema(),
+  ]);
+  const intById = new Map((intQ.data || []).map((r) => [r.id, r]));
+  const pushRow = intById.get("push") || null;
   const pushReady = !!pushRow?.config?.publicKey;
-  const { data: aiRow } = await supabase
-    .from("integrations")
-    .select("config")
-    .eq("id", "anthropic")
-    .maybeSingle();
+  const aiRow = intById.get("anthropic") || null;
   // 신규 상담 접수 알림은 서버 열쇠가 있어야 나간다 (로그인 없는 화면이라)
   const inquiryAlert = inquiryAlertReady();
   const inquiryAlertVar = inquiryAlertName();
@@ -88,7 +94,7 @@ export default async function SettingsPage() {
    * 아직 안 돌린 SQL 이 있으면 그것만은 눈에 띄어야 한다 — 표가 없으면
    * 그 기능이 **조용히** 안 된다 (「109 안 떠」).
    */
-  const missing = (await checkSchema()).filter((c) => !c.ok);
+  const missing = allChecks.filter((c) => !c.ok);
   const ADMIN_ROWS = [
     {
       href: "/settings/sql",
