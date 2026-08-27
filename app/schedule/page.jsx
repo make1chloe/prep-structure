@@ -18,12 +18,6 @@ export default async function SchedulePage() {
   const supabase = await createClient();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
-
   // **한 해를 통째로 본다** (원장님, 2026-08-05).
   //   「앞으로 3개월」 은 회차를 셈하는 방식이지 화면을 자르는 기준이 아니었다.
   //   1월부터 12월까지 다 놓고, 지나간 달은 아래로 접어 둔다.
@@ -32,37 +26,55 @@ export default async function SchedulePage() {
   const months = monthsFrom(`${year}-01`, 12);
   const from = `${year}-01-01`;
   const to = endOfMonth(months[11]);
+  const nextYm = addMonths(today.slice(0, 7), 1);
 
-  // **특강은 끝난다.** 개강·종강일을 같이 읽어야 그 기간 밖의 달에
-  // 수업이 잡히지 않는다 — 「화목1 특강」 이 종강 뒤에도 계속 나왔다.
-  // 기간 칸을 챙기는 일은 `loadClassesWithTerm` 한 군데에 있다 (0042 되돌리기 포함)
-  let classes = await loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions");
-  if (classes.length === 0) {
-    classes = await loadClassesWithTerm(supabase, "id, name, days, start_time");
-  }
-  classes = [...classes].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
-
-  const { data: holidays } = await supabase
-    .from("holidays")
-    .select("id, date, name, scope, class_id")
-    .gte("date", from)
-    .lte("date", to);
-
-  const { data: members } = await supabase
-    .from("class_students")
-    .select("class_id, student_id");
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, school, grade, status")
-    .eq("status", "enrolled");
-  const studentById = new Map((students || []).map((s) => [s.id, s]));
+  // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
+  const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
 
   /**
-   * **다음 달 회차 확정 판** (0123). 확인 도장 두 벌 + 다음 달 결석 예정
-   * 수를 학생별로 모은다. 표가 아직 없으면(0123 전) 판을 안 그린다.
+   * **1차 파도** (성능수리 v3 커밋 1 — 직렬 11단 → 2단).
+   *
+   * 이 화면의 조회들은 조립(reviews) 전까지 서로 무관하다 (계획서 §1-4) —
+   * 그런데 한 줄씩 await 로 서 있어서, 조회 수는 13개뿐인데 직렬 단수가
+   * 화면 중 최악(11단)이었다. 전부 한꺼번에 띄운다.
+   *
+   * 직렬로 남는 것은 정확히 4곳뿐 — 전부 「실패/빈결과 시에만」 도는
+   * 꼬리라 파도 **뒤**에 조건 실행한다 (사다리는 한 단도 안 없앤다):
+   *   ① classes 빈결과 재조회 (0042 전 base_sessions 없음)
+   *   ② examQ 폴백 사다리 (0073 전 → 그 전)
+   *   ③ attQ 폴백 사다리 (reason·planned 없는 옛 DB)
+   *   ④ month_confirms 폴백 (0152 전 notice_at 없음)
+   * 각 조회의 결과를 쓰는 셈·판정은 그대로다 — await 자리만 옮겼다.
    */
-  const nextYm = addMonths(today.slice(0, 7), 1);
-  const [confirmQ, nextAbsQ] = await Promise.all([
+  const [
+    profileQ,
+    classes0,
+    holidayQ,
+    memberQ,
+    studentQ,
+    confirmQ,
+    nextAbsQ,
+    examQ0,
+    settings,
+    attQ0,
+    taskQ,
+    schoolQ,
+  ] = await Promise.all([
+    user ? cachedProfile(supabase, user.id) : Promise.resolve({ data: null }),
+    // **특강은 끝난다.** 개강·종강일을 같이 읽어야 그 기간 밖의 달에
+    // 수업이 잡히지 않는다 — 「화목1 특강」 이 종강 뒤에도 계속 나왔다.
+    // 기간 칸을 챙기는 일은 `loadClassesWithTerm` 한 군데에 있다 (0042 되돌리기 포함)
+    loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions"),
+    supabase
+      .from("holidays")
+      .select("id, date, name, scope, class_id")
+      .gte("date", from)
+      .lte("date", to),
+    supabase.from("class_students").select("class_id, student_id"),
+    supabase
+      .from("students")
+      .select("id, name, school, grade, status")
+      .eq("status", "enrolled"),
     supabase.from("month_confirms").select("student_id, parent_at, principal_at, notice_at").eq("ym", nextYm),
     supabase
       .from("attendance")
@@ -71,7 +83,48 @@ export default async function SchedulePage() {
       .gte("date", `${nextYm}-01`)
       .lte("date", `${nextYm}-31`)
       .order("date"),
+    supabase
+      .from("exam_periods")
+      .select(`${EXAM}, hidden, cuts, teacher, teachers, source, neis_source_id, neis_from, neis_to, neis_name`)
+      .gte("to_date", from)
+      .order("from_date", { ascending: true }),
+    loadSettings(supabase),
+    // 결석 — 달력에 **누가** 빠지는지 적으려면 이름이 있어야 한다.
+    // (전에는 「결석 예정」 이라고만 떠서, 누구 이야기인지 알려면 다른 화면을
+    //  열어야 했다. 폰에서는 마우스를 올릴 수도 없다)
+    supabase
+      .from("attendance")
+      .select("student_id, date, status, reason, planned")
+      .eq("status", "absent")
+      .gte("date", from)
+      .lte("date", to),
+    // 이미 결정한 날 = 휴강으로 잡았거나, '그냥 수업함' 으로 일정에 남겨둔 날
+    supabase
+      .from("tasks")
+      .select("due_on, title")
+      .gte("due_on", from)
+      .lte("due_on", to),
+    // 「시험 없음」 경고가 학교마다 **왜** 없는지 말해주게 — 코드 유무
+    supabase.from("schools").select("name, schul_code"),
   ]);
+
+  const profile = profileQ?.data || null;
+
+  let classes = classes0;
+  if (classes.length === 0) {
+    classes = await loadClassesWithTerm(supabase, "id, name, days, start_time");
+  }
+  classes = [...classes].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+
+  const { data: holidays } = holidayQ;
+  const { data: members } = memberQ;
+  const { data: students } = studentQ;
+  const studentById = new Map((students || []).map((s) => [s.id, s]));
+
+  /**
+   * **다음 달 회차 확정 판** (0123). 확인 도장 두 벌 + 다음 달 결석 예정
+   * 수를 학생별로 모은다. 표가 아직 없으면(0123 전) 판을 안 그린다.
+   */
   // 0152 전 DB 는 notice_at 칸이 없다 — 그러면 조회가 통째로 실패해 확정 판이
   // 사라진다. 없이 한 번 더 읽는다 (안내 상태만 「안내 전」 으로 보인다)
   let confirmRes = confirmQ;
@@ -103,14 +156,8 @@ export default async function SchedulePage() {
     // 줄이 맨 아래로 내려가 스무 명 확정하는 동안 손가락 자리가 계속 밀렸다
     .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
-  // 숨김 칸이 아직 없는 DB 에서도 시험 목록은 그대로 보여야 한다
-  const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
   // 0073 전이면 등급컷 칸이 없다 — 한 단계씩 물러난다
-  let examQ = await supabase
-    .from("exam_periods")
-    .select(`${EXAM}, hidden, cuts, teacher, teachers, source, neis_source_id, neis_from, neis_to, neis_name`)
-    .gte("to_date", from)
-    .order("from_date", { ascending: true });
+  let examQ = examQ0;
   if (examQ.error) {
     examQ = await supabase
       .from("exam_periods")
@@ -131,18 +178,9 @@ export default async function SchedulePage() {
     eveDate: e.english_on ? addDaysISO(e.english_on, -1) : null,
   }));
 
-  const settings = await loadSettings(supabase);
   const makeupDays = settings.schedule?.makeupDays || [];
 
-  // 결석 — 달력에 **누가** 빠지는지 적으려면 이름이 있어야 한다.
-  // (전에는 「결석 예정」 이라고만 떠서, 누구 이야기인지 알려면 다른 화면을
-  //  열어야 했다. 폰에서는 마우스를 올릴 수도 없다)
-  let attQ = await supabase
-    .from("attendance")
-    .select("student_id, date, status, reason, planned")
-    .eq("status", "absent")
-    .gte("date", from)
-    .lte("date", to);
+  let attQ = attQ0;
   if (attQ.error) {
     attQ = await supabase
       .from("attendance")
@@ -181,12 +219,6 @@ export default async function SchedulePage() {
   // 공휴일 알림 — 수업이 잡혀 있는 날만
   const classDates = new Set();
   reviews.forEach((r) => r.months.forEach((m) => m.all.forEach((d) => classDates.add(d))));
-  // 이미 결정한 날 = 휴강으로 잡았거나, '그냥 수업함' 으로 일정에 남겨둔 날
-  const taskQ = await supabase
-    .from("tasks")
-    .select("due_on, title")
-    .gte("due_on", from)
-    .lte("due_on", to);
   /**
    * 「결정한 날」 은 **원장님이 정한 것만** 이다 (2026-08-21). 전에는 그날
    * tasks 에 뭐든 있으면 결정으로 쳤는데, 나이스 학사일정(공휴일 그 자체)이
@@ -203,8 +235,7 @@ export default async function SchedulePage() {
   const holidayNotes = holidayAlerts(seoulToday, to, classDates, decided);
 
   const schools = [...new Set((students || []).map((s) => s.school).filter(Boolean))].sort();
-  // 「시험 없음」 경고가 학교마다 **왜** 없는지 말해주게 — 코드 유무
-  const { data: schoolRows } = await supabase.from("schools").select("name, schul_code");
+  const { data: schoolRows } = schoolQ;
   const neisLinked = (schoolRows || []).filter((x) => x.schul_code).map((x) => x.name);
   const grades = [...new Set((students || []).map((s) => s.grade).filter(Boolean))].sort();
 
