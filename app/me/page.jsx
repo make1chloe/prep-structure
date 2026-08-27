@@ -1336,8 +1336,8 @@ export default async function MePage(props) {
     ),
     write: (
       <>
-        {/* 시험 결과 적기 — 키가 옛 myscore 가 아니라 write 인 것은 이관
-            안전 때문 (lib/screenLayout LEGACY_KEYS 참고) */}
+        {/* 시험 결과 적기 — 키가 옛 블록 키(myscore)가 아니라 write 인
+            것은 이관 안전 때문 (0174 SQL 참고 — 호환층은 C4 에서 제거) */}
         <MyScoreForm mine={myScores.filter((s) => s.kind !== "unit")} base={specBase} canWrite={!preview && !trying} />
       </>
     ),
