@@ -23,7 +23,7 @@ import { resolveCall, resolveAllCalls } from "./callActions";
  * 세는 일은 **서버가 늘 세던 대로** 한다. 실시간 알림이 오면 다시 세게만
  * 한다(router.refresh) — 여기서 또 세면 두 군데가 되고, 두 군데는 어긋난다.
  */
-export default function ActivityBoard({ rows = [], calls = [], unavailable = false }) {
+export default function ActivityBoard({ rows = [], calls = [], unavailable = false, help = false }) {
   const [now, setNow] = useState(() => Date.now());
   const [live, setLive] = useState(unavailable ? "off" : "…");
   const [busy, setBusy] = useState("");
@@ -118,10 +118,13 @@ export default function ActivityBoard({ rows = [], calls = [], unavailable = fal
             : "○ 연결 중…"}
         </span>
       </div>
-      <p className="hint" style={{ margin: "4px 0 8px" }}>
-        학생이 자기 화면에서 <b>「다 했어요」</b>를 누르면 여기 바로 반영됩니다.
-        선생님이 따로 누르실 것은 없습니다.
-      </p>
+      {/* 1회성 소개 — 설명 스위치(help 쿠키)를 켠 사람에게만 (계획서 v2 §3 B3) */}
+      {help && (
+        <p className="hint" style={{ margin: "4px 0 8px" }}>
+          학생이 자기 화면에서 <b>「다 했어요」</b>를 누르면 여기 바로 반영됩니다.
+          선생님이 따로 누르실 것은 없습니다.
+        </p>
+      )}
 
       {/* **알림 받기 — 워치까지 가려면 여기서 켜야 한다.**
           워치는 따로 붙이는 것이 없다. 폰에 온 알림을 워치가 그대로 보여준다.

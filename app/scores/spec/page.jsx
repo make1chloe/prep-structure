@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import SpecEditor from "./SpecEditor";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
@@ -60,17 +61,19 @@ export default async function SpecPage() {
             <Link className="sky" href="/scores/analysis">출제분석</Link>
           </p>
           <h1 className="h1">문항표</h1>
-          <p className="sub">
-            몇 번이 무슨 유형인지를 적어두는 곳입니다. 이게 있어야
-            <b> 틀린 번호만으로 영역별 정답률</b>이 나옵니다.
-            <br />
-            모의고사는 <b>이미 채워져 있습니다</b> — 45문항 구성이 학년·회차와 거의
-            같아서 앱이 갖고 있습니다. <b>바뀐 해에는 여기서 고치시면 됩니다.</b>
-            <br />
-            <b>내신은 회차를 골라</b> 문항마다 <b>단원</b>과 <b>출처</b>를 적어주세요 —
-            그러면 <Link className="sky" href="/scores/analysis">출제분석</Link> 에
-            「교과서에서 몇 %」 와 「어느 단원에서 우리 애들이 몰려 틀렸나」 가 나옵니다.
-          </p>
+          <Help>
+            <p className="sub">
+              몇 번이 무슨 유형인지를 적어두는 곳입니다. 이게 있어야
+              <b> 틀린 번호만으로 영역별 정답률</b>이 나옵니다.
+              <br />
+              모의고사는 <b>이미 채워져 있습니다</b> — 45문항 구성이 학년·회차와 거의
+              같아서 앱이 갖고 있습니다. <b>바뀐 해에는 여기서 고치시면 됩니다.</b>
+              <br />
+              <b>내신은 회차를 골라</b> 문항마다 <b>단원</b>과 <b>출처</b>를 적어주세요 —
+              그러면 <Link className="sky" href="/scores/analysis">출제분석</Link> 에
+              「교과서에서 몇 %」 와 「어느 단원에서 우리 애들이 몰려 틀렸나」 가 나옵니다.
+            </p>
+          </Help>
         </div>
 
         <SpecEditor

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
+import Help from "@/components/Help";
 import { analyze, advice } from "@/lib/examAnalysis";
 import AnalysisView from "./AnalysisView";
 import { sessionUser } from "@/lib/session";
@@ -120,12 +121,14 @@ export default async function AnalysisPage(props) {
             <Link className="sky" href="/scores">성적</Link>
           </p>
           <h1 className="h1">출제분석</h1>
-          <p className="sub">
-            <b>이번 시험은 어디서 나왔나</b> — 다음 대비가 여기서 정해집니다.
-            <br />
-            <b>우리 애들은 어디서 틀렸나</b> — 한 아이가 틀린 것은 그 아이 일이지만,
-            절반이 틀렸으면 우리가 안 가르친 것입니다.
-          </p>
+          <Help>
+            <p className="sub">
+              <b>이번 시험은 어디서 나왔나</b> — 다음 대비가 여기서 정해집니다.
+              <br />
+              <b>우리 애들은 어디서 틀렸나</b> — 한 아이가 틀린 것은 그 아이 일이지만,
+              절반이 틀렸으면 우리가 안 가르친 것입니다.
+            </p>
+          </Help>
         </div>
 
         {blocked && (

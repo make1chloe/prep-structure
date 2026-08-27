@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
-import Help from "@/components/Help";
+import Help, { helpOn } from "@/components/Help";
 import TodayBoard from "./TodayBoard";
 import OverflowProbe from "./OverflowProbe";
 import TopNotices from "./TopNotices";
@@ -1583,6 +1583,9 @@ export default async function TodayPage(props) {
     }));
   }
 
+  // 카드 안 1회성 설명도 같은 스위치를 탄다 — 클라이언트 판에는 불리언으로 내려준다
+  const help = await helpOn();
+
   return (
     <>
       <TopBar profile={profile} active="today" />
@@ -1624,10 +1627,11 @@ export default async function TodayPage(props) {
           tasks={taskCards}
           unavailable={!noticesAvailable}
           preClass={preClass}
+          help={help}
         />
         {/* **말 걸기 전에 한 번 본다.** 한 반에 여럿이 각자 다른 것을 하고
             있어서, 지금 누가 시험 중인지 눈으로 세고 있어야 했다. */}
-        <ActivityBoard rows={activity} calls={calls} unavailable={activityOff} />
+        <ActivityBoard rows={activity} calls={calls} unavailable={activityOff} help={help} />
         {/* 임시 진단 — 가로 넘침의 범인을 현장에서 지목 (OverflowProbe 머리말) */}
         <OverflowProbe />
         <TodayBoard
@@ -1639,6 +1643,7 @@ export default async function TodayPage(props) {
           rule={{ ...warnRule, makeupDays }}
           grammarCommon={grammarQ?.data?.config?.names || []}
           openStudent={searchParams?.open || null}
+          help={help}
         />
       </main>
     </>

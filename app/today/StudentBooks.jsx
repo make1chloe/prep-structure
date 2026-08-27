@@ -15,7 +15,7 @@ import BookPickPanel from "@/components/BookPickPanel";
  * @param alwaysOpen 재원생 화면의 「교재」 탭처럼 **이미 교재를 보러 들어온 자리**
  *   에서는 접어둘 이유가 없다. 한 번 더 누르게 하면 그만큼 늦어진다.
  */
-export default function StudentBooks({ studentId, myBooks = [], textbooks = [], alwaysOpen = false }) {
+export default function StudentBooks({ studentId, myBooks = [], textbooks = [], alwaysOpen = false, help = false }) {
   const [open, setOpen] = useState(alwaysOpen);
   const [picked, setPicked] = useState(() => new Set(myBooks.map((b) => b.id)));
   /**
@@ -80,10 +80,13 @@ export default function StudentBooks({ studentId, myBooks = [], textbooks = [], 
           )}
         </div>
       </div>
-      <p className="hint" style={{ margin: "6px 0 8px" }}>
-        교재는 학생마다 따로 정합니다. 뺀 교재는 지워지지 않고 <b>중단</b>으로 남아,
-        지금까지 나간 진도가 그대로 보존돼요. 다시 넣으면 이어서 갑니다.
-      </p>
+      {/* 1회성 소개 — 설명 스위치(help 쿠키)를 켠 사람에게만 (계획서 v2 §3 B3) */}
+      {help && (
+        <p className="hint" style={{ margin: "6px 0 8px" }}>
+          교재는 학생마다 따로 정합니다. 뺀 교재는 지워지지 않고 <b>중단</b>으로 남아,
+          지금까지 나간 진도가 그대로 보존돼요. 다시 넣으면 이어서 갑니다.
+        </p>
+      )}
       {/* 고르는 판은 한 벌 (components/BookPickPanel) — 신규 상담도 같은 판을 쓴다 */}
       <BookPickPanel
         books={textbooks}

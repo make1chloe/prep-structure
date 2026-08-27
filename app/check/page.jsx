@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import TopBar from "@/components/TopBar";
-import Help from "@/components/Help";
+import Help, { helpOn } from "@/components/Help";
 import CheckBoard from "./CheckBoard";
 import AheadBoard from "./AheadBoard";
 import { inUseOn } from "@/lib/bookUse";
@@ -305,7 +305,7 @@ export default async function CheckPage(props) {
             </p>
           </Help>
         </div>
-        <CheckBoard date={date} rows={rows} items={itemList} classes={classes} />
+        <CheckBoard date={date} rows={rows} items={itemList} classes={classes} help={await helpOn()} />
 
         {/* **다음 수업 숙제는 검사하면서 정한다** (원장님, 2026-08-07 —
             「수업준비페이지가 필요없나 싶어」). 따로 있던 「수업 준비」 화면을

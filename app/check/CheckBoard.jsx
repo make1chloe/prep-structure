@@ -32,7 +32,7 @@ function parseList(body) {
  *
  * **처리하면 목록에서 빠진다.** 남은 것만 보여야 어디까지 했는지 알 수 있다.
  */
-export default function CheckBoard({ date, rows = [], items = [], classes = [] }) {
+export default function CheckBoard({ date, rows = [], items = [], classes = [], help = false }) {
   const [klass, setKlass] = useState("");        // 반 고르기
   const [q, setQ] = useState("");                 // 학생 이름 찾기
   const [open, setOpen] = useState({});           // 펼친 학생
@@ -190,6 +190,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
           rows={rows}
           items={items}
           classes={classes}
+          help={help}
           klass={klass}
           setKlass={setKlass}
           pickItem={pickItem}
@@ -546,7 +547,7 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [] }
  */
 function ItemMode({
   date, rows, items, classes, klass, setKlass, pickItem, setPickItem,
-  nameOf, mark, markOf, pending,
+  nameOf, mark, markOf, pending, help = false,
 }) {
   // 반을 안 고르면 첫 반으로 — 몰아 찍기는 한 반을 보는 화면이다
   const cid = klass || classes[0]?.id || "";
@@ -636,10 +637,13 @@ function ItemMode({
         </div>
       )}
 
-      <p className="hint" style={{ marginTop: 8, fontSize: 13 }}>
-        클래스카드를 옆 탭에 띄워놓고 위에서 아래로 훑으며 찍으시면 됩니다.
-        찍은 것은 <b>학생별 화면과 리포트에 그대로</b> 들어갑니다.
-      </p>
+      {/* 1회성 조작법 — 설명 스위치(help 쿠키)를 켠 사람에게만 (계획서 v2 §3 B3) */}
+      {help && (
+        <p className="hint" style={{ marginTop: 8, fontSize: 13 }}>
+          클래스카드를 옆 탭에 띄워놓고 위에서 아래로 훑으며 찍으시면 됩니다.
+          찍은 것은 <b>학생별 화면과 리포트에 그대로</b> 들어갑니다.
+        </p>
+      )}
     </>
   );
 }

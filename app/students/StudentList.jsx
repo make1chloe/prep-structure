@@ -117,7 +117,7 @@ const SORTS = [
   ["created_at", "최근 추가순"],
 ];
 
-export default function StudentList({ students = [], textbooks = [], hwItems = [], defaultPass = 90, openStudent = null, classList = [], missKeys = null }) {
+export default function StudentList({ students = [], textbooks = [], hwItems = [], defaultPass = 90, openStudent = null, classList = [], missKeys = null, help = false }) {
   // 「빠진 것」 은 원장님이 고른 칸만 센다 (11-11). 안 정했으면 후보 전부.
   const need = missKeys === null ? NEED : NEED.filter((d) => missKeys.includes(d.key));
   // 어떤 열을 볼지 — 기본은 매일 보는 것만
@@ -667,7 +667,7 @@ export default function StudentList({ students = [], textbooks = [], hwItems = [
                             교재는 <b>학생마다 다릅니다</b> — 같은 반이어도요. 여기서 바꾸면
                             숙제 배정·진도가 이 교재로 갑니다.
                           </p>
-                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} alwaysOpen />
+                          <StudentBooks studentId={s.id} myBooks={s.books || []} textbooks={textbooks} alwaysOpen help={help} />
 
                           {/**
                             * **진도도 여기서 적는다** (원장님, 2026-08-14 —

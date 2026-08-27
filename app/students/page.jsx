@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/fetchAll";
 import TopBar from "@/components/TopBar";
-import Help from "@/components/Help";
+import Help, { helpOn } from "@/components/Help";
 import AddStudentForm from "./AddStudentForm";
 import { schoolNames } from "@/lib/schoolList";
 import ExcelUpload from "./ExcelUpload";
@@ -307,6 +307,7 @@ export default async function StudentsPage(props) {
               classList={(klasses || []).map((c) => ({ id: c.id, name: c.name }))}
               missKeys={missQ?.data?.config?.students ?? null}
               schools={schools}
+              help={await helpOn()}
             />
           )}
         </div>

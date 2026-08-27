@@ -38,7 +38,7 @@ export default async function MenuSection(props) {
         <div className="page-head">
           <p className="eyebrow">묶음</p>
           <h1 className="h1">{section.label}</h1>
-          <p className="sub">이 묶음 안의 화면 {section.items.length}개입니다.</p>
+          {/* 「화면 N개입니다」 는 아래 칸을 세면 보이는 말이라 뗐다 (계획서 v2 §3 B3) */}
         </div>
         {/* 원장님이 적어두신 안내 (0093). 안 적으셨으면 아무것도 안 나온다 —
             할 말이 없는데 자리만 만들어 두면 그 자리가 눈에 걸린다 */}

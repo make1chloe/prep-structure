@@ -40,6 +40,7 @@ export default function TodayBoard({
   rule = {},
   grammarCommon = [],
   openStudent = null,
+  help = false,
 }) {
   // 수업 준비에서 「고치기」 로 넘어오면 그 학생 판을 **열어둔 채로** 시작한다.
   // 날짜만 맞춰놓고 다시 찾아 누르게 하면 두 번 일하는 것이다.
@@ -543,6 +544,7 @@ export default function TodayBoard({
                               unitNames={unitNames}
                               rule={rule}
                               grammarCommon={grammarCommon}
+                              help={help}
                               onClose={() => closeRow(optKey(r.student.id, r.extraClassId))}
                               onSaved={() => {
                                 /**
@@ -637,8 +639,14 @@ export default function TodayBoard({
           >
             <b style={{ fontSize: 15 }}>수업이 끝났는데 늦귀가 과제가 남아 있어요</b>
             <p className="hint" style={{ margin: "4px 0 8px" }}>
-              아직 안 갔거나, 처리를 못 하신 겁니다. <b>끝냈으면 완료로, 집에서 하게 하려면
-              숙제로 넘겨주세요.</b> 그래야 학생 화면도 하원으로 바뀝니다.
+              {/* 앞 문장은 상태 판단이라 늘 보이고, 뒤 조작법만 설명 스위치를 탄다 (계획서 v2 §3 B3) */}
+              아직 안 갔거나, 처리를 못 하신 겁니다.
+              {help && (
+                <>
+                  {" "}<b>끝냈으면 완료로, 집에서 하게 하려면
+                  숙제로 넘겨주세요.</b> 그래야 학생 화면도 하원으로 바뀝니다.
+                </>
+              )}
             </p>
             <div className="stack" style={{ gap: 3 }}>
               {stuck.map((r) => (

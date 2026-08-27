@@ -42,6 +42,7 @@ export default function TopNotices({
   tasks = [],
   unavailable = false,
   preClass = { comments: [], requests: [] },
+  help = false,
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState("memo");
@@ -392,10 +393,13 @@ export default function TopNotices({
             </button>
           </div>
           {sent && <p className="hint" style={{ margin: "6px 0 0" }}>{sent}</p>}
-          <p className="hint" style={{ margin: "6px 0 0" }}>
-            학교에서 나눠준 종이(학사일정 · 시험 시간표 · 가정통신문)는 옮겨 적지 마시고,
-            <b> 먼저 추가한 뒤 아래 목록에서 📷 로 찍어 붙이세요.</b> 받는 사람 화면에 그대로 보입니다.
-          </p>
+          {/* 1회성 조작법 — 설명 스위치(help 쿠키)를 켠 사람에게만 (계획서 v2 §3 B3) */}
+          {help && (
+            <p className="hint" style={{ margin: "6px 0 0" }}>
+              학교에서 나눠준 종이(학사일정 · 시험 시간표 · 가정통신문)는 옮겨 적지 마시고,
+              <b> 먼저 추가한 뒤 아래 목록에서 📷 로 찍어 붙이세요.</b> 받는 사람 화면에 그대로 보입니다.
+            </p>
+          )}
 
           {mine.length > 0 && (
             <div className="stack" style={{ gap: 4, marginTop: 12 }}>

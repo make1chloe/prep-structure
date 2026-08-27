@@ -240,6 +240,7 @@ export default function StudentPanel({
   onSheetTab,
   onSaved,
   onClose,
+  help = false,
 }) {
   const r = row.report || {};
   // 오늘 단어 재시험 건너뛰기 (skip_kinds 'retest' — 원장님 2026-08-19)
@@ -1960,6 +1961,7 @@ export default function StudentPanel({
               studentId={row.student.id}
               myBooks={myBooks}
               textbooks={textbooks}
+              help={help}
             />
           </div>
           {/* 진도 **메모**도 여기 — 따로 「메모」 행으로 떨어져 있어서 무슨
