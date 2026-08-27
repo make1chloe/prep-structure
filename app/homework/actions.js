@@ -287,11 +287,31 @@ export async function deleteHomeworkItems(ids) {
   if (!Array.isArray(ids) || ids.length === 0) return { error: null };
   const supabase = await createClient();
   /**
-   * **지우기 전에 이름표부터 걷는다** (원장님 2026-08-24 — 저장이
-   * `daily_report_items_homework_item_id_fkey` 로 거절당했다).
-   * 항목만 지우면 교재 활동 지도·진도루틴 단계·학생 기본 목록에 그 이름표가
-   * 조용히 남는다. 그 학생 판을 열 때마다 다시 담기고, **적은 것 전체가**
-   * 저장 안 된다. 여기서 안 걷으면 며칠 뒤 수업 중에 터진다.
+   * **기록이 있는 항목은 지우지 않는다 — 숨긴다** (0170, 원장 확정 8/27).
+   * 항목을 지우면 전 학생·전 날짜의 검사행이 함께 사라졌다(#14 —
+   * cascade). 3표를 세어 이력이 하나라도 있으면 삭제를 거절하고 숨김
+   * (active=false)을 안내한다. DB 도 0170 restrict 로 같은 것을 막지만,
+   * 여기 선검사가 있어야 SQL 을 아직 안 돌린 판에서도 같은 동작이고
+   * 안내 문구도 사람 말이 된다.
+   */
+  const [dri, af, cs] = await Promise.all([
+    supabase.from("daily_report_items").select("id", { count: "exact", head: true }).in("homework_item_id", ids),
+    supabase.from("answer_files").select("student_id", { count: "exact", head: true }).in("homework_item_id", ids),
+    supabase.from("classcard_shadow").select("student_id", { count: "exact", head: true }).in("item_id", ids),
+  ]);
+  const used = (dri.count || 0) + (af.count || 0) + (cs.count || 0);
+  if (used > 0) {
+    return {
+      error:
+        `이 항목은 기록 ${used}건에 쓰였어요 — 지우면 과거 검사까지 사라져서 막았어요.\n` +
+        "대신 「숨김」 을 눌러주세요: 목록에서는 빠지고 과거 기록은 이름 그대로 남아요.",
+    };
+  }
+  /**
+   * (기록 0건일 때만 진짜 삭제) **지우기 전에 이름표부터 걷는다**
+   * (원장님 2026-08-24 — 저장이 fkey 로 거절당했다). 교재 활동 지도·
+   * 진도루틴 단계·학생 기본 목록의 이름표를 안 걷으면 판을 열 때마다
+   * 다시 담기고 저장 전체가 거절당한다.
    */
   await stripItemRefs(supabase, { dead: ids, apply: true });
   const { error } = await supabase.from("homework_items").delete().in("id", ids);

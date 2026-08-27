@@ -57,6 +57,7 @@ export async function loadMonth(ym) {
     supabase
       .from("daily_reports")
       .select("id, student_id, date, attendance_kind, word_correct, word_total, sent_unit, sent_correct, sent_total, sent_passed")
+      .is("archived_at", null)
       .gte("date", `${pym}-01`)
       .lte("date", to)
       .order("id")
@@ -67,6 +68,7 @@ export async function loadMonth(ym) {
       supabase
         .from("daily_reports")
         .select("id, student_id, date, attendance_kind, word_correct, word_total")
+        .is("archived_at", null)
         .gte("date", `${pym}-01`)
         .lte("date", to)
         .order("id")

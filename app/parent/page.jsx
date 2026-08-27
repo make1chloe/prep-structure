@@ -158,7 +158,7 @@ export default async function ParentPage(props) {
   ] = await Promise.all([
     supabase
       .from("daily_reports")
-      .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text")
+      .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text, report_written")
       .eq("student_id", pickId)
       .gte("date", from)
       .lte("date", today)
@@ -241,7 +241,10 @@ export default async function ParentPage(props) {
   }
 
   // ── 이번 달 (달이 끝나기 전에도 지금까지를 그대로 센다) ──
-  const { data: reps } = repsQ;
+  // 마감 전 판의 공지·리포트 글은 통째 비노출 (0169 — 원장 확정 8/27)
+  const reps = ((repsQ?.data) || []).map((r) =>
+    r.report_written === false ? { ...r, notice: null, report_text: null } : r
+  );
 
   const repIds = (reps || []).map((r) => r.id);
   const { data: items } = repIds.length

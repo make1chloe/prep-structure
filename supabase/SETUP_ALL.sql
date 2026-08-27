@@ -21,7 +21,7 @@
 --
 -- ⚠ 이 파일은 손으로 고치지 마세요.
 --   supabase/migrations/ 를 고친 뒤  node scripts/build-setup-sql.mjs  로 다시 만듭니다.
---   (2026-08-26 · 0001~0173 · 166개)
+--   (2026-08-27 · 0001~0173 · 171개)
 -- ============================================================
 
 -- ─────────── 0001_core_schema.sql ───────────
@@ -8881,6 +8881,269 @@ comment on column public.notices.extra_label is
 create or replace function public.extra_label_on()
 returns boolean language sql stable as $$ select true $$;
 grant execute on function public.extra_label_on() to authenticated;
+
+-- ─────────── 0168_report_archive.sql ───────────
+-- **판 지우기 → 휴지통** (마이그1 본체 v2 §1-1 — #8. 원장 확정 8/27:
+-- 숨김·자동 부활·30일 뒤 자동 삭제·발송 이력 보존).
+--
+-- 지금 「판 지우기」는 그날 기록(검사행·발송 이력까지)을 통째로,
+-- 되돌릴 수 없게 지운다. 잘못 만들어진 판을 치우는 정당한 용도가
+-- 있으니 지우기를 없애는 게 아니라 **휴지통**으로 바꾼다:
+--   숨김 → 화면·집계에서 사라짐 (기록은 남음)
+--   그 판에 다시 쓰면 → 자동 부활 (트리거 2개 — 판 쓰기·항목 쓰기)
+--   숨긴 지 30일 → 하루 정리 루틴(purge)이 진짜 삭제
+--   발송 이력(report_sends)은 판이 죽어도 남는다 (cascade → set null)
+--
+-- 되돌리기:
+--   drop trigger if exists dri_unarchive on public.daily_report_items;
+--   drop trigger if exists dr_unarchive on public.daily_reports;
+--   drop function if exists public.report_unarchive_items();
+--   drop function if exists public.report_unarchive_row();
+--   alter table public.report_sends drop constraint report_sends_daily_report_id_fkey;
+--   alter table public.report_sends alter column daily_report_id set not null;
+--   alter table public.report_sends add constraint report_sends_daily_report_id_fkey
+--     foreign key (daily_report_id) references public.daily_reports(id) on delete cascade;
+--   alter table public.daily_reports drop column if exists archived_at,
+--     drop column if exists archived_reason;
+
+alter table public.daily_reports
+  add column if not exists archived_at timestamptz,
+  add column if not exists archived_reason text;
+
+-- 발송 이력은 판보다 오래 산다 — 30일 삭제가 이력까지 끌고 가면 안 된다
+alter table public.report_sends alter column daily_report_id drop not null;
+alter table public.report_sends
+  drop constraint if exists report_sends_daily_report_id_fkey;
+alter table public.report_sends
+  add constraint report_sends_daily_report_id_fkey
+  foreign key (daily_report_id) references public.daily_reports(id) on delete set null;
+
+-- 부활 ① — 판 자체에 쓰면 (저장·upsert). 숨기는 그 update(archived_at
+-- 를 직접 만지는 것)는 건드리지 않는다
+create or replace function public.report_unarchive_row()
+returns trigger language plpgsql as $$
+begin
+  if old.archived_at is not null
+     and new.archived_at is not distinct from old.archived_at then
+    new.archived_at := null;
+    new.archived_reason := null;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists dr_unarchive on public.daily_reports;
+create trigger dr_unarchive
+  before update on public.daily_reports
+  for each row execute function public.report_unarchive_row();
+
+-- 부활 ② — 항목(검사·배정)을 쓰면 (check_many·plan_many 경로까지)
+create or replace function public.report_unarchive_items()
+returns trigger language plpgsql as $$
+begin
+  update public.daily_reports
+     set archived_at = null, archived_reason = null
+   where id = new.daily_report_id and archived_at is not null;
+  return new;
+end;
+$$;
+drop trigger if exists dri_unarchive on public.daily_report_items;
+create trigger dri_unarchive
+  after insert or update on public.daily_report_items
+  for each row execute function public.report_unarchive_items();
+
+create or replace function public.report_archive_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.report_archive_on() to authenticated;
+
+-- ─────────── 0169_close_gate.sql ───────────
+-- **적는 중 내용의 잠정 노출 차단** (마이그1 v2 §1-2 — #7. 원장 확정
+-- 8/27: 「할 일은 실시간, 리포트는 마감 전 통째 비노출」·점수는 공개).
+--
+-- 지금은 원장이 판에 적는 순간 검사 결과·공지가 학부모/학생 화면에
+-- 실시간으로 뜬다 — 적다 만 문장·정정 전 판정이 그대로 새는 사고(#7).
+-- 게이트: 학생·학부모에게는
+--   할 일(assigned·inclass·plan_next 화이트리스트) = 항상 보임
+--   검사 3상태(done·weak·missing) = **마감(report_written) 후에만**
+--   숨긴 판(0168 archived) = 아예 안 보임
+-- notice·report_text 칸은 RLS 로 못 가리므로(행 단위) 화면 쪽
+-- (lib/homeworkView loadReports·/parent 조회)에서 같은 게이트를 탄다.
+--
+-- closed_at 칸은 그라운드만 — 마감의 정본을 report_written 에서
+-- closed_at 으로 옮기는 공사는 별도(그때 report_gate 몸통만 교체하면
+-- 정책은 무수정).
+--
+-- 되돌리기:
+--   (구 정책 복원 — 0090/0158 판 원문)
+--   drop function if exists public.report_gate(public.daily_reports);
+--   drop function if exists public.close_gate_on();
+--   alter table public.daily_reports drop column if exists closed_at,
+--     drop column if exists closed_reason;
+--   + 이 파일 아래 두 정책을 0090 원문으로 재생성
+
+alter table public.daily_reports
+  add column if not exists closed_at timestamptz,
+  add column if not exists closed_reason text;
+
+-- 마감 판정 한 곳 — 나중에 closed_at 이관 때 이 몸통만 바꾼다
+create or replace function public.report_gate(r public.daily_reports)
+returns boolean
+language sql stable as $$
+  select r.report_written or r.closed_at is not null
+$$;
+
+drop policy if exists student_self_reports on public.daily_reports;
+create policy student_self_reports on public.daily_reports
+  for select to authenticated
+  using (
+    public.is_staff()
+    or (
+      daily_reports.student_id in (select public.my_student_ids())
+      and daily_reports.archived_at is null            -- 휴지통 판 비노출 (0168)
+    )
+  );
+
+drop policy if exists student_self_items on public.daily_report_items;
+create policy student_self_items on public.daily_report_items
+  for select to authenticated
+  using (
+    public.is_staff()
+    or exists (
+      select 1
+        from public.daily_reports r
+       where r.id = daily_report_items.daily_report_id
+         and r.student_id in (select public.my_student_ids())
+         and r.archived_at is null
+         and (
+           -- 할 일은 실시간 (화이트리스트 — 미래 status 자동 공개 방지)
+           daily_report_items.status in ('assigned','inclass','plan_next')
+           -- 검사 결과는 마감 후에만 (원장 확정 — 리포트 부분 통째)
+           or public.report_gate(r)
+         )
+    )
+  );
+
+create or replace function public.close_gate_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.close_gate_on() to authenticated;
+
+-- ─────────── 0170_items_keep_history.sql ───────────
+-- **학습 항목을 지워도 과거 검사는 산다** (마이그1 v2 §1-3 — #14.
+-- 원장 확정 8/27: 기록 있으면 삭제 거절 → 숨김 안내).
+--
+-- 지금은 항목 하나를 지우면 전 학생·전 날짜의 검사행(daily_report_items)·
+-- 답지 열람 기록(answer_files)·클카 그림자(classcard_shadow)가 cascade 로
+-- 통째 사라진다 — 비가역 소실 1순위(#14). cascade → **restrict**:
+-- DB 가 이력 있는 삭제를 거절하고, 앱은 삭제 전에 3표를 세어 이력이
+-- 있으면 「숨김」(active=false — 이미 있는 칸)을 안내한다. 숨기면 화면
+-- 목록에서 즉시 빠지고(전 화면이 .eq("active", true)) 과거 기록은 이름
+-- 그대로 남는다.
+--
+-- 되돌리기 (cascade 복원):
+--   alter table public.daily_report_items drop constraint daily_report_items_homework_item_id_fkey;
+--   alter table public.daily_report_items add constraint daily_report_items_homework_item_id_fkey
+--     foreign key (homework_item_id) references public.homework_items(id) on delete cascade;
+--   (answer_files·classcard_shadow 동형)
+
+alter table public.daily_report_items
+  drop constraint if exists daily_report_items_homework_item_id_fkey;
+alter table public.daily_report_items
+  add constraint daily_report_items_homework_item_id_fkey
+  foreign key (homework_item_id) references public.homework_items(id) on delete restrict;
+
+alter table public.answer_files
+  drop constraint if exists answer_files_homework_item_id_fkey;
+alter table public.answer_files
+  add constraint answer_files_homework_item_id_fkey
+  foreign key (homework_item_id) references public.homework_items(id) on delete restrict;
+
+alter table public.classcard_shadow
+  drop constraint if exists classcard_shadow_item_id_fkey;
+alter table public.classcard_shadow
+  add constraint classcard_shadow_item_id_fkey
+  foreign key (item_id) references public.homework_items(id) on delete restrict;
+
+create or replace function public.items_keep_history_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.items_keep_history_on() to authenticated;
+
+-- ─────────── 0171_prev_window.sql ───────────
+-- **지난 리포트 조회 창 — 전체 300줄에서 학생별 40판으로** (마이그1 v2
+-- §1-4 — #28. 원장 확정 8/27).
+--
+-- 판·/check 의 지난 배정 사슬이 「전학생 공용 limit(300)」·「고정 21일
+-- 창」 을 썼다 — 인원이 늘면(60명×주5회 ≈ 1주치) 검사 목록이 오류 없이
+-- 조용히 비고, 두 화면의 창이 달라 판정이 갈렸다. 학생별 최근 40판
+-- (≈2~3개월)이면 장기 결석생 사슬도 안 끊긴다 — assignedUnitsFor 가
+-- 이미 쓰는 그 축(lib/dayCheck:156)과 동수.
+--
+-- 되돌리기: drop function public.prev_reports_of(date, int);
+--          drop function public.prev_window_on();
+
+create or replace function public.prev_reports_of(d date, per_n int default 40)
+returns table (
+  id uuid, student_id uuid, date date,
+  own_progress text, word_total int, sent_total int
+)
+language sql stable as $$
+  select id, student_id, date, own_progress, word_total, sent_total
+    from (
+      select r.id, r.student_id, r.date, r.own_progress,
+             r.word_total, r.sent_total,
+             row_number() over (partition by r.student_id order by r.date desc) as rn
+        from public.daily_reports r
+       where r.date < d
+         and r.archived_at is null            -- 휴지통 판 제외 (0168)
+    ) t
+   where rn <= per_n
+$$;
+grant execute on function public.prev_reports_of(date, int) to authenticated;
+
+create or replace function public.prev_window_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.prev_window_on() to authenticated;
+
+-- ─────────── 0172_link_backup_daily.sql ───────────
+-- 0172: 연결 백업 상시화 (2026-08-27)
+--
+-- 0161 은 한 번 뜨는 스냅샷이었다 — 그 뒤에 낸 사진의 연결은 백업에 없다.
+-- 매일 도는 정리 파도(purgeOncePerDay)가 이 함수를 같이 불러, 지금 살아
+-- 있는 연결(report_item_id 가 있는 것)을 백업에 반영한다.
+--
+-- 살아 있는 연결이 null 인 행은 손대지 않는다 — 끊긴 연결을 기억하는 것이
+-- 이 표의 존재 이유라, 끊김이 백업까지 번지면 안 된다. 연결이 새 줄로
+-- 옮겨 붙은 것만 따라간다(백업 = 마지막으로 확인된 살아 있는 연결).
+
+create or replace function public.backup_submission_links()
+returns integer
+language sql
+set search_path = public
+as $$
+  with up as (
+    insert into public.submission_link_backup
+      (submission_id, report_item_id, homework_item_id, student_id, date)
+    select id, report_item_id, homework_item_id, student_id, date
+      from public.homework_submissions
+     where report_item_id is not null
+    on conflict (submission_id) do update set
+      report_item_id   = excluded.report_item_id,
+      homework_item_id = excluded.homework_item_id,
+      student_id       = excluded.student_id,
+      date             = excluded.date,
+      backed_up_at     = now()
+    where submission_link_backup.report_item_id   is distinct from excluded.report_item_id
+       or submission_link_backup.homework_item_id is distinct from excluded.homework_item_id
+    returning 1
+  )
+  select coalesce(count(*), 0)::integer from up;
+$$;
+
+-- 로그인 쿠키 권한 그대로 돈다(security definer 아님) — 표의 staff_all
+-- RLS 가 그대로 지키므로, 학생 계정이 불러도 백업은 못 만진다.
+grant execute on function public.backup_submission_links() to authenticated;
+
+create or replace function public.link_backup_daily_on()
+returns boolean language sql stable as $$ select true $$;
+grant execute on function public.link_backup_daily_on() to authenticated;
 
 -- ─────────── 0173_demote_extra_classes.sql ───────────
 -- 0173: 옛 특강반 일괄 하강 (특강 이행계획서 v2 §9, 9단계).

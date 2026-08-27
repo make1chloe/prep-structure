@@ -90,16 +90,26 @@ export async function dismissSendFails(sendIds) {
 }
 
 /**
- * 리포트를 아예 지운다.
+ * 리포트를 **휴지통에 넣는다** (0168 — 마이그1 v2 §1-1, 원장 확정 8/27).
  *
- * **그날 수업 기록이 통째로 사라진다** — 숙제 검사 결과와 낸 것까지 함께다.
- * 안 보내기만 하려면 skipSend 를 쓴다. 그래서 부르는 쪽에서 한 번 더 묻는다.
+ * 예전에는 delete 였다 — 그날 검사 결과·발송 이력까지 통째로, 되돌릴 수
+ * 없게 사라졌다(#8). 이제는 숨김: 화면·집계에서만 빠지고 기록은 남는다.
+ * 그 학생 그 날짜에 다시 기록하면 자동 부활(0168 트리거), 숨긴 지 30일
+ * 이 지나면 하루 정리 루틴이 진짜 지운다(발송 이력은 남는다 — set null).
+ * 안 보내기만 하려면 skipSend 를 쓴다.
  */
-export async function removeReports(reportIds) {
+export async function removeReports(reportIds, reason = "") {
   const ids = Array.isArray(reportIds) ? reportIds : [reportIds];
   if (ids.length === 0) return { error: null };
   const supabase = await createClient();
-  const { error } = await supabase.from("daily_reports").delete().in("id", ids);
+  const { error } = await supabase
+    .from("daily_reports")
+    .update({
+      archived_at: new Date().toISOString(),
+      archived_reason: (reason || "").trim() || "발송 화면에서 숨김",
+    })
+    .in("id", ids);
+  if (noColumn(error)) return { error: "0168 SQL 을 먼저 실행해주세요." };
   revalidatePath("/report");
   revalidatePath("/today");
   return { error: error ? error.message : null };

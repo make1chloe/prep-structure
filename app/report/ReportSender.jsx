@@ -186,18 +186,23 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
     });
   }
 
-  /** 리포트를 아예 지운다 — 그날 수업 기록이 통째로 사라진다 */
+  /** 리포트를 휴지통에 — 숨김·30일 뒤 자동 삭제 (0168, 원장 확정 8/27) */
   function remove(list) {
     if (list.length === 0) return;
     const who = list.length === 1 ? list[0].name : `${list.length}명`;
     if (
       !confirm(
-        `${who} 의 오늘 리포트를 지울까요?\n\n` +
-          "문자만 안 나가는 게 아니라 그날 수업 기록이 통째로 사라집니다 — " +
-          "숙제 검사 결과와 학생이 낸 것도 함께 지워집니다. 되돌릴 수 없습니다.\n\n" +
+        `${who} 의 오늘 리포트를 숨길까요?\n\n` +
+          "잘못 만들어진 판을 치우는 자리예요. 목록·학부모 화면에서 사라지고, " +
+          "그 학생 그 날짜에 다시 기록하면 자동으로 되살아납니다.\n" +
+          "숨긴 지 30일이 지나면 진짜 지워져요.\n\n" +
           "문자만 안 보내려면 「안 보내기」 를 쓰세요."
       )
     ) return;
+    // 이미 발송된 판이 섞여 있으면 한 번 더 (원장 확정 — 2차 확인)
+    const sent = list.filter((r) => r.sentAt);
+    if (sent.length > 0 &&
+        !confirm(`이미 발송된 판이 ${sent.length}건 있어요 — 그래도 숨길까요?\n(발송 이력은 남습니다)`)) return;
     startTransition(async () => {
       const res = await removeReports(list.map((r) => r.id));
       if (res?.error) { alert(res.error); return; }
