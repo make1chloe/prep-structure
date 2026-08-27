@@ -6,7 +6,7 @@ import CheckBoard from "./CheckBoard";
 import AheadBoard from "./AheadBoard";
 import { inUseOn } from "@/lib/bookUse";
 import { todaySeoul, addDays } from "@/lib/day";
-import { loadRunningClasses } from "@/lib/classTerm";
+import { loadClassesWithTerm, running } from "@/lib/classTerm";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
 import { fetchAll } from "@/lib/fetchAll";
@@ -27,27 +27,78 @@ export default async function CheckPage(props) {
   const supabase = await createClient();
   const user = await sessionUser(supabase);
 
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
-
   const date = searchParams?.d || todaySeoul();
 
-  const [{ data: students }, { data: members }, { data: items }] = await Promise.all([
-    supabase
-      .from("students")
-      .select("id, name, school, grade")
-      .eq("status", "enrolled")
-      .order("name", { ascending: true }),
-    supabase.from("class_students").select("class_id, student_id"),
-    supabase
-      .from("homework_items")
-      .select("id, name, sort, in_person, unit_test, category")
-      .eq("active", true)
-      .order("sort", { ascending: true }),
-  ]);
+  /**
+   * **파도 1** (성능수리 v3 커밋 3 — 직렬 10단 → 3단, §1-5).
+   * 날짜(또는 아무것도) 만 있으면 되는 조회를 전부 한꺼번에 띄운다.
+   * id 의존 2벌(itemRows←repIds, prevItems←prevIds)만 파도 2 로,
+   * 폴백(itemList 빈결과·itemRows 사다리·prev RPC 폴백)은 파도 뒤
+   * 「실패/빈결과 시에만」 자리 그대로.
+   *
+   * **반 목록은 한 번만 읽는다** (전엔 2회 — 오늘 도는 반용·미리 내기용).
+   * 두 호출은 필터 날짜가 달랐다: 검사 목록은 running(date), 미리 내기는
+   * 날짜 인자 없이 running(undefined) — ends_on 을 안 보는 갈래다.
+   * 병합 후에도 **두 조건을 각각 JS 로 재현**한다. 날짜 없는 갈래에서
+   * 종강일 지난 특강이 미리 내기 반 목록에 남는 현행 동작(잠복 버그
+   * 4호, §3-4)도 그대로다 — 수리는 별도 정합 건, 성능 커밋은 판정 무변경.
+   */
+  const [profileQ, studentQ, memberQ, itemQ, classAllQ, reportQ, prevQ0, subQ, stBookQ, bookQ] =
+    await Promise.all([
+      user ? cachedProfile(supabase, user.id) : Promise.resolve({ data: null }),
+      supabase
+        .from("students")
+        .select("id, name, school, grade")
+        .eq("status", "enrolled")
+        .order("name", { ascending: true }),
+      supabase.from("class_students").select("class_id, student_id"),
+      supabase
+        .from("homework_items")
+        .select("id, name, sort, in_person, unit_test, category")
+        .eq("active", true)
+        .order("sort", { ascending: true }),
+      // 기간 칸까지 챙겨 한 번만 — 거르기는 아래에서 조건별로 (classTerm 한 벌)
+      loadClassesWithTerm(supabase, "id, name, days, start_time"),
+      // 오늘 리포트 + 그 안의 항목
+      supabase
+        .from("daily_reports")
+        .select("id, student_id, report_written")
+        .eq("date", date),
+      // 지난 수업에 배정한 것 — **오늘 검사할 것**이 여기 있다
+      // 학생별 최근 40판 (0171) — 판(/today)과 같은 창을 써야 두 화면의
+      // 검사 판정이 한 벌이다 (옛 21일 고정 창은 시험 기간에 밀린 숙제를
+      // /today 와 다르게 잘랐다)
+      supabase.rpc("prev_reports_of", { d: date }),
+      // 학생이 낸 것 (사진 · 녹음 · 체크리스트) — 창은 배정 조회와 **같은
+      // 21일**(0잔여-A #18: 15~21일 전 배정이 「안 냄」으로 오탐되던 것).
+      // 21일이면 1000행 상한에 걸릴 수 있어 fetchAll 로 전부 받는다.
+      fetchAll(() =>
+        supabase
+          .from("homework_submissions")
+          .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id")
+          .gte("date", addDays(date, -21))
+          .lte("date", date)
+          .order("created_at", { ascending: false })),
+      // 끝까지 읽는다 (2026-08-23 전수) — 이 표는 그만둔 학생·끝낸 교재 줄도
+      // 지우지 않고 쌓여서, 천 줄에서 조용히 잘리면 어떤 학생 교재가 통째로
+      // 없는 것처럼 보인다 (2026-08-14 「오늘 진도가 재원생이랑 달라」와 같은 병)
+      fetchAll(() =>
+        supabase
+          .from("student_textbooks")
+          .select("student_id, textbook_id, status, assigned_on, ended_on")
+          .order("student_id")
+          .order("textbook_id")
+      ),
+      supabase
+        .from("textbooks")
+        .select("id, name, area, status")
+        .order("name", { ascending: true }),
+    ]);
+  const profile = profileQ?.data || null;
+  const students = studentQ.data;
+  const members = memberQ.data;
+  const items = itemQ.data;
+
   // 0063 전이면 '직접검사' 없이 (그러면 전부 제출 대상으로 본다)
   const itemList = items?.length
     ? items
@@ -72,39 +123,13 @@ export default async function CheckPage(props) {
    */
   const unitTest = new Set(itemList.filter(isNoCheck).map((i) => i.id));
 
-  const classes = await loadRunningClasses(supabase, "id, name, days, start_time", date);
+  // 오늘 도는 반 — 옛 loadRunningClasses(…, date) 와 같은 거름
+  const classes = running(classAllQ, date);
 
-  // 오늘 리포트 + 그 안의 항목
-  const { data: reports } = await supabase
-    .from("daily_reports")
-    .select("id, student_id, report_written")
-    .eq("date", date);
+  const { data: reports } = reportQ;
   const repIds = (reports || []).map((r) => r.id);
 
-  const ITEM = "id, daily_report_id, homework_item_id, status, student_done_at, range_note";
-  let itemRows = [];
-  if (repIds.length) {
-    // 학생 수 × 항목 수 — 1000줄을 넘으면 뒷 학생 숙제가 안 보인다 (B6)
-    let q = await fetchAll(() =>
-      supabase
-        .from("daily_report_items")
-        .select(`${ITEM}, check_note`)
-        .in("daily_report_id", repIds)
-        .order("id"));
-    if (q.error) {
-      // 0062 전이면 한 줄 없이
-      q = await fetchAll(() =>
-        supabase.from("daily_report_items").select(ITEM).in("daily_report_id", repIds).order("id"));
-    }
-    itemRows = q.error ? [] : q.data || [];
-  }
-
-  // 지난 수업에 배정한 것 — **오늘 검사할 것**이 여기 있다
-  // 학생별 최근 40판 (0171) — 판(/today)과 같은 창을 써야 두 화면의
-  // 검사 판정이 한 벌이다 (옛 21일 고정 창은 시험 기간에 밀린 숙제를
-  // /today 와 다르게 잘랐다)
-  let { data: prevReports, error: prevErr } = await supabase
-    .rpc("prev_reports_of", { d: date });
+  let { data: prevReports, error: prevErr } = prevQ0;
   if (prevErr) {
     // 0171 전 DB — 옛 21일 창으로 폴백
     ({ data: prevReports } = await supabase
@@ -115,27 +140,41 @@ export default async function CheckPage(props) {
       .order("date", { ascending: false }));
   }
   const prevIds = (prevReports || []).map((r) => r.id);
-  // 배정한 것과 **검사한 것을 함께** 읽는다. 배정만 보면 2주 전에 내주고
-  // 아직 못 본 숙제가 영영 안 뜬다 — 시험 기간에 밀린 것이 그렇게 사라진다.
-  const { data: prevItems } = prevIds.length
-    ? await fetchAll(() =>
-        supabase
-          .from("daily_report_items")
-          .select("daily_report_id, homework_item_id, status, range_note")
-          .in("daily_report_id", prevIds)
-          .order("daily_report_id"))
-    : { data: [] };
 
-  // 학생이 낸 것 (사진 · 녹음 · 체크리스트) — 창은 배정 조회와 **같은
-  // 21일**(0잔여-A #18: 15~21일 전 배정이 「안 냄」으로 오탐되던 것).
-  // 21일이면 1000행 상한에 걸릴 수 있어 fetchAll 로 전부 받는다.
-  const { data: subs } = await fetchAll(() =>
-    supabase
-      .from("homework_submissions")
-      .select("id, student_id, kind, path, body, seconds, checked_at, created_at, homework_item_id")
-      .gte("date", addDays(date, -21))
-      .lte("date", date)
-      .order("created_at", { ascending: false }));
+  // ── 파도 2 — id 의존 2벌 ─────────────────────────────
+  const ITEM = "id, daily_report_id, homework_item_id, status, student_done_at, range_note";
+  const [itemQ0, prevItemQ] = await Promise.all([
+    // 학생 수 × 항목 수 — 1000줄을 넘으면 뒷 학생 숙제가 안 보인다 (B6)
+    repIds.length
+      ? fetchAll(() =>
+          supabase
+            .from("daily_report_items")
+            .select(`${ITEM}, check_note`)
+            .in("daily_report_id", repIds)
+            .order("id"))
+      : { data: [] },
+    // 배정한 것과 **검사한 것을 함께** 읽는다. 배정만 보면 2주 전에 내주고
+    // 아직 못 본 숙제가 영영 안 뜬다 — 시험 기간에 밀린 것이 그렇게 사라진다.
+    prevIds.length
+      ? fetchAll(() =>
+          supabase
+            .from("daily_report_items")
+            .select("daily_report_id, homework_item_id, status, range_note")
+            .in("daily_report_id", prevIds)
+            .order("daily_report_id"))
+      : { data: [] },
+  ]);
+  let itemRows = [];
+  if (repIds.length) {
+    let q = itemQ0;
+    if (q.error) {
+      // 0062 전이면 한 줄 없이
+      q = await fetchAll(() =>
+        supabase.from("daily_report_items").select(ITEM).in("daily_report_id", repIds).order("id"));
+    }
+    itemRows = q.error ? [] : q.data || [];
+  }
+  const { data: prevItems } = prevItemQ;
 
   // ── 학생별로 모은다 ──────────────────────────────────
   const repOf = new Map((reports || []).map((r) => [r.student_id, r]));
@@ -185,7 +224,7 @@ export default async function CheckPage(props) {
   });
 
   const subsOf = new Map();
-  (subs || []).forEach((s) => {
+  (subQ.data || []).forEach((s) => {
     if (!subsOf.has(s.student_id)) subsOf.set(s.student_id, []);
     subsOf.get(s.student_id).push(s);
   });
@@ -201,22 +240,14 @@ export default async function CheckPage(props) {
    *
    * 검사 목록은 「오늘 검사할 아이」 만인데, 숙제는 **다음 수업 아무 반**에
    * 낼 수 있어야 한다. 그래서 명단을 따로 만든다. `classes` 는 오늘 도는
-   * 반만이라, 여기서는 전부를 다시 읽는다.
+   * 반만이라, 여기서는 같은 반 목록을 **날짜 없는 거름**으로 다시 거른다
+   * (옛 loadRunningClasses(supabase, …) 무날짜 호출과 같은 갈래 — 위 파도
+   * 주석의 4호 재현 참고).
    */
-  const [{ data: allClasses }, { data: stBooks }] = await Promise.all([
-    // 종강한 특강은 안 보인다 — 반 목록은 classTerm 한 벌 (값-지도 P1-12)
-    loadRunningClasses(supabase, "id, name, days, start_time").then((r) => ({ data: [...r].sort((a, b) => (a.start_time || "").localeCompare(b.start_time || "")) })),
-    // 끝까지 읽는다 (2026-08-23 전수) — 이 표는 그만둔 학생·끝낸 교재 줄도
-    // 지우지 않고 쌓여서, 천 줄에서 조용히 잘리면 어떤 학생 교재가 통째로
-    // 없는 것처럼 보인다 (2026-08-14 「오늘 진도가 재원생이랑 달라」와 같은 병)
-    fetchAll(() =>
-      supabase
-        .from("student_textbooks")
-        .select("student_id, textbook_id, status, assigned_on, ended_on")
-        .order("student_id")
-        .order("textbook_id")
-    ),
-  ]);
+  const allClasses = [...running(classAllQ, undefined)].sort(
+    (a, b) => (a.start_time || "").localeCompare(b.start_time || "")
+  );
+  const stBooks = stBookQ.data;
   const daysOfClass = new Map((allClasses || []).map((c) => [c.id, c.days || []]));
   const cidsOf = new Map();
   (members || []).forEach((m) => {
@@ -240,11 +271,7 @@ export default async function CheckPage(props) {
     };
   });
 
-  const { data: books } = await supabase
-    .from("textbooks")
-    .select("id, name, area, status")
-    .order("name", { ascending: true });
-  const textbooks = (books || [])
+  const textbooks = (bookQ.data || [])
     .filter((b) => !b.status || b.status === "active")
     .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
 
