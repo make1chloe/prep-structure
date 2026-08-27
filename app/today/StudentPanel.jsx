@@ -623,7 +623,10 @@ export default function StudentPanel({
   const [tabState, setTabState] = useState("check"); // 3때 — 새 판에서만
   const sheetTab = typeof sheetTabProp === "string" ? sheetTabProp : tabState;
   const setSheetTab = onSheetTab || setTabState;
-  const [pop, setPop] = useState(null); // 팝오버 A(absence)·B(warn)·C(comments)            // 저장 진짜 잠금 (2026-08-21)
+  // 팝오버 A(absence)·B(warn)·C(comments). 출결 6종 배속 (v7 §5-4):
+  // present·late·makeup·online → 정상 3때 / absent → 팝오버A(✓ 포함)
+  // — 결석생 판을 열면 결석·보강·재시험 자리가 바로 뜬다
+  const [pop, setPop] = useState(() => (row.status === "absent" ? "absence" : null));
 
   /**
    * **판이 열려 있는 동안은 실시간 갱신을 늦춘다** (원장님 2026-08-23 —
@@ -2648,7 +2651,14 @@ export default function StudentPanel({
             <button
               key={a.key}
               className={`btn btn-sm ${(attTouched || arr.attend) && form.attendance === a.key ? "btn-on" : "btn-ghost"}`}
-              onClick={() => { setAttTouched(true); set("attendance", a.key); }}
+              onClick={() => {
+                setAttTouched(true);
+                set("attendance", a.key);
+                // absent → 팝오버A (v7 §5-4 출결 6종 배속) — 결석을 찍는
+                // 순간 보강·재시험 자리가 열린다 (classic 배치에선 pop 을
+                // 안 그리므로 무해)
+                if (a.key === "absent") setPop("absence");
+              }}
             >
               {a.label}
             </button>
@@ -3050,12 +3060,22 @@ export default function StudentPanel({
             {checkZone()}
           </div>
           <div style={sheetTab === "lesson" ? undefined : { display: "none" }}>
+            {/* early_leave → ② 에서 「③ 로 건너뛰기」 안내 (v7 §5-4 —
+                하원 안내만 생략, ✓ 와 숙제 배정은 ③ 에서) */}
+            {form.attendance === "early_leave" && (
+              <div className="notice" style={{ margin: "6px 0", fontSize: 14 }}>
+                <b>조퇴</b> — 하원 안내만 생략해요. 완료(✓)와 숙제 배정은 ③에서 하세요.{" "}
+                <button className="btn btn-ghost btn-sm" onClick={() => setSheetTab("next")}>
+                  ③ 다음으로 건너뛰기
+                </button>
+              </div>
+            )}
             {arriveZone()}
             {utZone()}
             {utLogZone()}
             {inclassZone()}
             {stayZone()}
-            {lateZone()}
+            {form.attendance !== "early_leave" && lateZone()}
           </div>
           <div style={sheetTab === "next" ? undefined : { display: "none" }}>
             {nextHwZone()}

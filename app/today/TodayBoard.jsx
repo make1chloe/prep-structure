@@ -6,6 +6,7 @@ import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
 import { waitingChecks } from "@/lib/checkQueue";
+import { defaultSheetTab } from "@/lib/sheetTab";
 import { isMemo } from "@/lib/notices";
 import CheckQueue from "./CheckQueue";
 import { classLabel } from "@/lib/classLabel";
@@ -514,7 +515,9 @@ export default function TodayBoard({
                                   onClick={() => {
                                     const k = optKey(r.student.id, r.extraClassId);
                                     if (isOpen) closeRow(k);
-                                    else { setRowTab("check"); setOpenId(k); }
+                                    // 「지금 때」 판정식 (v7 §5-4) — 기본값 제안일
+                                    // 뿐, 칩·탭으로 언제든 다른 때로 간다
+                                    else { setRowTab(defaultSheetTab(r)); setOpenId(k); }
                                   }}
                                 >
                                   {isOpen ? "▾ 닫기" : "▸ 열기"}
@@ -807,6 +810,7 @@ export default function TodayBoard({
                       // 그 반이 접혀 있으면 줄 자체가 안 그려져 아무 일도 안 났다
                       // (원장님이 「열기」 를 눌러도 반응 없던 까닭, 2026-08-24)
                       if (r.klassId) setOpenClass(r.klassId);
+                      setRowTab("lesson"); // 늦귀가 과제는 ② 수업 때 소속 — 그 자리로 연다
                       setOpenId(optKey(r.student.id, r.extraClassId));
                     }}
                   >
