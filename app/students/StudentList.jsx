@@ -3,23 +3,43 @@
 import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateStudent, deleteStudents, updateStudentsStatus, linkSiblings, unlinkSibling, setStudentClasses } from "./actions";
-import StudentHistoryPanel from "./StudentHistory";
-import LinkBox from "./LinkBox";
-import ParentBox from "./ParentBox";
-import NoteBox from "./NoteBox";
-import ScoreBox from "./ScoreBox";
+import dynamic from "next/dynamic";
 import StudentBooks from "@/app/today/StudentBooks";
-import StudentBooksProgress from "@/app/progress/StudentBooksProgress";
-import WordTestBox from "./WordTestBox";
-import ScheduleBox from "./ScheduleBox";
-import ExtraBox from "./ExtraBox";
 import { fromLabel } from "@/lib/bookUse";
 import { shortName } from "@/lib/schoolName";
 import { WEEK_ORDER as DOW } from "@/lib/day";
 import { missingIn, hasMissing, countMissing } from "@/lib/listMissing";
 import MissingPicker from "@/components/MissingPicker";
-import RoutineAssign from "./RoutineAssign";
 import { setStudentBookStatus, removeStudentBook } from "@/app/progress/actions";
+
+/**
+ * **탭을 눌러야 오는 것들** (성능수리 3차).
+ *
+ * 한 학생을 펴면 탭이 열 개다 — 교재·진도·루틴·단어·일정·특강·성적·상담일지·
+ * 계정·기록. 그런데 한 번에 보는 것은 **하나**다. 위에서 그냥 import 하면
+ * 열 개가 전부 같은 뭉치로 묶여서, 목록만 훑고 나가는 날에도 다 내려온다.
+ * `tab === "note" && <NoteBox …>` 는 **그리기**만 미루지 **받기**를 안 미룬다.
+ *
+ * 진도판(BookProgress, 891줄)이 그중 제일 크고, 상담일지는 AI 요약까지
+ * 딸려 온다. 처음 그 탭을 누를 때 조각 하나를 더 받는다.
+ *
+ * `ssr: false` — 전부 눌러야 뜨는 것이라 서버가 그릴 일이 없다.
+ * 교재 목록(StudentBooks)은 여기 안 넣는다 — 오늘 수업 판과 같은 부품이라
+ * 이미 그쪽에서 받아둔 것을 다시 쓴다.
+ */
+const wait = () => <p className="hint" style={{ margin: "8px 0" }}>여는 중…</p>;
+const lazy = (load) => dynamic(load, { ssr: false, loading: wait });
+
+const StudentHistoryPanel = lazy(() => import("./StudentHistory"));
+const LinkBox = lazy(() => import("./LinkBox"));
+const ParentBox = lazy(() => import("./ParentBox"));
+const NoteBox = lazy(() => import("./NoteBox"));
+const ScoreBox = lazy(() => import("./ScoreBox"));
+const StudentBooksProgress = lazy(() => import("@/app/progress/StudentBooksProgress"));
+const WordTestBox = lazy(() => import("./WordTestBox"));
+const ScheduleBox = lazy(() => import("./ScheduleBox"));
+const ExtraBox = lazy(() => import("./ExtraBox"));
+const RoutineAssign = lazy(() => import("./RoutineAssign"));
 
 /**
  * **빠진 것** — 이 아이에게 없으면 실제로 일이 안 되는 칸.
