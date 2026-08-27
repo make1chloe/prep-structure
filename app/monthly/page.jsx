@@ -1,24 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import MonthlyBoard from "./MonthlyBoard";
 import { loadMonth } from "./actions";
 import { todaySeoul } from "@/lib/day";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
 export default async function MonthlyPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   const ym = /^\d{4}-\d{2}$/.test(searchParams?.m || "")
     ? searchParams.m
@@ -28,7 +18,6 @@ export default async function MonthlyPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="monthly" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">발송</p>

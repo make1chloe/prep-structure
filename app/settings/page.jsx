@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import SettingsForm from "./SettingsForm";
@@ -43,7 +42,7 @@ export default async function SettingsPage() {
 
   // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
   if (profile?.role !== "principal") {
-    return <PrincipalOnly profile={profile} what="연동 · 설정" />;
+    return <PrincipalOnly what="연동 · 설정" />;
   }
   const canEdit = profile?.role === "principal";
 
@@ -113,7 +112,6 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="settings" />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">설정</p>

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import ThemePicker from "@/components/ThemePicker";
 import MenuBox from "../MenuBox";
 import LayoutBox from "./LayoutBox";
@@ -32,7 +31,6 @@ export default async function ScreenSettingsPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="screen" />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">설정</p>

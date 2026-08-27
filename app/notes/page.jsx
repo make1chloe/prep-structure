@@ -1,9 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import NotesBoard from "./NotesBoard";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +14,6 @@ export const dynamic = "force-dynamic";
 export default async function NotesPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   const { data: students } = await supabase
     .from("students")
@@ -40,7 +30,6 @@ export default async function NotesPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="notes" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">기록</p>

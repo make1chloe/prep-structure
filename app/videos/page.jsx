@@ -1,25 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { loadRunningClasses } from "@/lib/classTerm";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import VideoBoard from "./VideoBoard";
 import { rollup } from "@/lib/video";
 import YoutubeKeyBox from "./YoutubeKeyBox";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
 export default async function VideosPage() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
 
   // **파도** (속도 대원칙 — 원칙 6): 서로 필요한 것이 없는 조회를 한꺼번에
-  const [profileQ, foldersQ, videosQ, asgQ, viewsQ, studentsQ, classesQ, rosterQ, ytQ] =
+  const [foldersQ, videosQ, asgQ, viewsQ, studentsQ, classesQ, rosterQ, ytQ] =
     await Promise.all([
-      user
-        ? cachedProfile(supabase, user.id)
-        : Promise.resolve({ data: null }),
       supabase.from("video_folders").select("id, name, note, sort").order("sort", { ascending: true }),
       supabase
         .from("videos")
@@ -40,7 +33,6 @@ export default async function VideosPage() {
       // 유튜브 키는 넣어뒀는지만 본다 — 키 자체는 화면으로 안 내려간다
       supabase.from("integrations").select("config").eq("id", "youtube").maybeSingle(),
     ]);
-  const profile = profileQ?.data || null;
   const { data: folders, error: fErr } = foldersQ;
   const { data: videos } = videosQ;
   const { data: assignments } = asgQ;
@@ -56,7 +48,6 @@ export default async function VideosPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="videos" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">교재</p>

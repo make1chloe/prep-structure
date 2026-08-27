@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import { findSection } from "@/lib/menu";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -37,19 +34,11 @@ export default async function MenuSection(props) {
   if (!section || section.items.length === 0) notFound();
 
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
-
   const notes = await loadNotes(supabase);
   const note = noteOr(notes, `menu.${section.key}`);
 
   return (
     <>
-      <TopBar profile={profile} active={section.key} />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">묶음</p>

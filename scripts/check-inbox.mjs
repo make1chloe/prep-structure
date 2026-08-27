@@ -57,7 +57,16 @@ eq(await unreadForStaff(ok(2, 3)), { total: 5, requests: 2, comments: 3 }, "결�
 eq(await unreadForStaff(ok(0, 0)), { total: 0, requests: 0, comments: 0 }, "둘 다 없으면");
 
 console.log("\n== 화면이 실제로 쓰고 있나 ==");
-const bar = readFileSync("components/TopBar.jsx", "utf8");
+/**
+ * 위 메뉴는 두 조각이다 (성능수리 3차) — **세는 쪽**(TopBar, 서버)과
+ * **그리는 쪽**(NavGrid, 브라우저). 「지금 여기」 표시가 화면을 옮길 때
+ * 따라와야 해서 갈랐다 (뿌리 레이아웃은 화면을 옮겨도 다시 안 그려진다).
+ * 검사는 **위 메뉴 전체**를 보는 것이 뜻이므로 둘을 붙여서 본다 —
+ * 한쪽만 보면 나머지 반쪽이 사라져도 초록으로 뜬다.
+ */
+const bar =
+  readFileSync("components/TopBar.jsx", "utf8") +
+  readFileSync("components/NavGrid.jsx", "utf8");
 eq(bar.includes("unreadForStaff"), true, "위 메뉴가 센다");
 // 학생·학부모 메뉴에는 대시보드가 없다 — 괜히 물어보면 그만큼 느려진다
 eq(bar.includes("isStaff(profile?.role)"), true, "선생님 계정에서만 센다");

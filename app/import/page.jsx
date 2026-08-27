@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import ImportBoard from "./ImportBoard";
@@ -25,12 +24,11 @@ export default async function ImportPage() {
 
   // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
   if (profile?.role !== "principal") {
-    return <PrincipalOnly profile={profile} what="노션 이관 화면" />;
+    return <PrincipalOnly what="노션 이관 화면" />;
   }
 
   return (
     <>
-      <TopBar profile={profile} active="import" />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">노션 이관</p>

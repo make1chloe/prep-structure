@@ -1,12 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddHomeworkForm from "./AddHomeworkForm";
 import HomeworkList from "./HomeworkList";
 import SeedBasicButton from "./SeedBasicButton";
 import GrammarUnitsCard from "./GrammarUnitsCard";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 import HwUpload from "./HwUpload";
 import Tabs from "@/app/textbooks/Tabs";
 
@@ -18,13 +15,6 @@ import Tabs from "@/app/textbooks/Tabs";
  */
 export default async function ItemsScreen() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   // 항목과 「빠진 것」 기준(11-11)은 서로 필요한 게 없다 — 한 파도 (원칙 6-1)
   let [{ data: items, error }, missQ, guQ, stepsQ, booksQ] = await Promise.all([
@@ -96,7 +86,6 @@ export default async function ItemsScreen() {
 
   return (
     <>
-      <TopBar profile={profile} active="textbooks" />
       {/* wrap(1080) — 학습 항목은 수가 적은 단일 목록이라 분할 이득이 없다.
           1480 은 빈 오른쪽만 남겼다 (B2 재실측 #15) */}
       <main className="wrap">

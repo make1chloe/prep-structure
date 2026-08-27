@@ -353,7 +353,14 @@ eq(badgeText(3), "3", "3");
 eq(badgeText(100), "99+", "세 자리는 잘라낸다 (메뉴가 밀린다)");
 
 console.log("\n== 화면이 실제로 쓰고 있나 ==");
-const bar = read("components/TopBar.jsx");
+/**
+ * 위 메뉴는 두 조각이다 (성능수리 3차) — **세는 쪽**(TopBar, 서버)과
+ * **그리는 쪽**(NavGrid, 브라우저). 「지금 여기」 표시가 화면을 옮길 때
+ * 따라와야 해서 갈랐다 (뿌리 레이아웃은 화면을 옮겨도 다시 안 그려진다).
+ * 검사는 **위 메뉴 전체**를 보는 것이 뜻이므로 둘을 붙여서 본다 —
+ * 한쪽만 보면 나머지 반쪽이 사라져도 초록으로 뜬다.
+ */
+const bar = read("components/TopBar.jsx") + read("components/NavGrid.jsx");
 eq(bar.includes("menuTodos"), true, "위 메뉴가 센다");
 // 소메뉴에 하나씩
 eq(/badgeText\(todos\[it\.key\]\)/.test(bar), true, "화면마다 붙는다");

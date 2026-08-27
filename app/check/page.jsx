@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
-import TopBar from "@/components/TopBar";
 import Help, { helpOn } from "@/components/Help";
 import CheckBoard from "./CheckBoard";
 import AheadBoard from "./AheadBoard";
@@ -8,8 +7,6 @@ import { inUseOn } from "@/lib/bookUse";
 import { todaySeoul, addDays } from "@/lib/day";
 import { buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { loadClassesWithTerm, running } from "@/lib/classTerm";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +23,6 @@ export const dynamic = "force-dynamic";
 export default async function CheckPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
 
   const date = searchParams?.d || todaySeoul();
 
@@ -44,9 +40,8 @@ export default async function CheckPage(props) {
    * 종강일 지난 특강이 미리 내기 반 목록에 남는 현행 동작(잠복 버그
    * 4호, §3-4)도 그대로다 — 수리는 별도 정합 건, 성능 커밋은 판정 무변경.
    */
-  const [profileQ, studentQ, memberQ, itemQ, classAllQ, reportQ, prevQ0, subQ, stBookQ, bookQ] =
+  const [studentQ, memberQ, itemQ, classAllQ, reportQ, prevQ0, subQ, stBookQ, bookQ] =
     await Promise.all([
-      user ? cachedProfile(supabase, user.id) : Promise.resolve({ data: null }),
       supabase
         .from("students")
         .select("id, name, school, grade")
@@ -95,7 +90,6 @@ export default async function CheckPage(props) {
         .select("id, name, area, status")
         .order("name", { ascending: true }),
     ]);
-  const profile = profileQ?.data || null;
   const students = studentQ.data;
   const members = memberQ.data;
   const items = itemQ.data;
@@ -296,7 +290,6 @@ export default async function CheckPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="check" />
       {/* wrap(1080) — 위→아래로 훑으며 ○△✕ 찍는 일괄 화면이라 좌우 분할은
           동선만 늘린다(B2 재실측 §5). 1480 이면 줄만 옆으로 늘어져 눈이 왕복한다 */}
       <main className="wrap">

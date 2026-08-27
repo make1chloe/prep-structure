@@ -3,10 +3,38 @@
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useLazyRefresh } from "@/components/useLazyRefresh";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
-import StudentPanel from "./StudentPanel";
 import { defaultSheetTab } from "@/lib/sheetTab";
 import { classLabel } from "@/lib/classLabel";
+
+/**
+ * **학생 판은 열 때 내려받는다** (성능수리 3차).
+ *
+ * 판(StudentPanel)과 그 아래 딸린 것들은 오늘 수업 화면이 브라우저로 내려보내는
+ * 자바스크립트의 대부분이다 — 3,092줄짜리 한 파일에, 진도판·단원 고르기·댓글·
+ * 사진까지 줄줄이 딸려 온다. 그런데 이건 **「▸ 열기」 를 눌러야** 보이는
+ * 것이다. 원장님이 출결만 찍고 지나가는 날에도 전부 받고 있었다.
+ *
+ * `isOpen && <StudentPanel …>` 는 **그리기**만 미루지 **받기**를 미루지
+ * 않는다 — 위에서 import 한 순간 같은 뭉치에 들어간다. 그래서 next/dynamic 으로
+ * 가른다: 처음 누르는 그때 조각 하나를 더 받는다.
+ *
+ * `ssr: false` — 이 판은 서버가 그릴 일이 없다 (첫 그림에서는 늘 닫혀 있다).
+ *
+ * 기다리는 동안 보이는 자리는 **`.stuPanel` 이 아닌** 다른 이름이어야 한다.
+ * 골든 검사(scripts/e2e/golden-dayboard.mjs)가 `.stuPanel` 이 보이는 것을
+ * 「판이 다 떴다」 로 삼고 그 안의 탭을 누른다 — 같은 이름을 붙이면 빈 자리를
+ * 판으로 착각하고 눌러서, 배치를 안 건드렸는데 골든이 흔들린다.
+ */
+const StudentPanel = dynamic(() => import("./StudentPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="stuPanelWait">
+      <p className="hint" style={{ margin: 0 }}>여는 중…</p>
+    </div>
+  ),
+});
 
 
 const ATT = [

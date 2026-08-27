@@ -97,6 +97,86 @@ if (!/_memo/.test(mb)) say("lib/menuBadges 의 메모가 사라졌습니다 — 
 else if (!/NODE_ENV === "production"/.test(mb)) say("배지 메모가 검사(가짜 DB)까지 기억합니다 — 배포에서만 켜야 합니다");
 else ok("배지 메모 유지 (배포에서만)");
 
+// ── 4-2) 위 메뉴는 뿌리에 한 번, 세는 일은 서버에 ────────────────
+//
+// 서른 화면이 저마다 위 메뉴를 그리고 있었다 — 반·학생 배정은 조회 28 중
+// 22(79%)가 메뉴 몫이었다. 뿌리 레이아웃으로 올려서, 화면을 옮길 때 그
+// 스물두 자리가 통째로 안 돌게 했다 (실측: 소프트 이동 시 layout 재렌더 0회).
+//
+// 무너지는 길이 둘이다. 둘 다 오류가 안 난다.
+//   1) 새 화면에 `<TopBar>` 를 한 줄 붙인다 → 메뉴가 두 줄로 뜨고 그 화면만
+//      다시 스물두 조회 (그건 scripts/check-home.mjs 가 센다)
+//   2) NavGrid(브라우저 몫)에서 세는 함수를 부른다 → lib/menuBadges 계산
+//      뭉치가 통째로 브라우저로 내려간다. 속도를 고치러 와서 늘리는 꼴이다
+console.log("\n== 위 메뉴에서 세는 일이 브라우저로 안 내려갔나 ==");
+{
+  const nav = readFileSync("components/NavGrid.jsx", "utf8");
+  // 설명 주석에도 이름이 나온다 — **가져오는 줄만** 본다
+  const brings = (nav.match(/^import .*$/gm) || []).join("\n");
+  for (const lib of ["menuBadges", "lib/inbox", "sqlBadge", "supabase"]) {
+    if (brings.includes(lib)) say(`components/NavGrid 가 ${lib} 를 가져옵니다 — 세는 일은 TopBar(서버)에 두세요`);
+  }
+  if (!/^"use client"/.test(nav)) say("components/NavGrid 가 브라우저 조각이 아닙니다 — 그러면 「지금 여기」 가 첫 화면에서 굳습니다");
+  if (!bad) ok("NavGrid 는 받은 글자만 그린다");
+}
+
+// ── 4-3) 눌러야 보이는 무거운 판은 눌러야 내려온다 ──────────────
+//
+// `isOpen && <StudentPanel …>` 는 **그리기**만 미루고 **받기**는 안 미룬다 —
+// 위에서 import 한 순간 같은 뭉치다. 오늘 수업은 브라우저로 가는 자바스크립트의
+// 3분의 1이 학생 판이었고, 출결만 찍고 지나가는 날에도 전부 받고 있었다.
+// (실측 raw: 오늘 수업 483 → 360kB, 재원생 208 → 123kB)
+//
+// 되돌아가는 길이 조용하다 — 나중에 「dynamic 이 헷갈린다」 며 평범한 import 로
+// 되돌리면 화면은 똑같이 돌고 크기만 도로 는다. 그래서 못 박는다.
+console.log("\n== 눌러야 보이는 판이 눌러야 내려오나 ==");
+{
+  const LAZY = [
+    ["app/today/TodayBoard.jsx", "./StudentPanel", "오늘 수업 학생 판"],
+    ["app/students/StudentList.jsx", "@/app/progress/StudentBooksProgress", "재원생 진도 판"],
+    ["app/students/StudentList.jsx", "./NoteBox", "재원생 상담일지 탭"],
+  ];
+  let n = 0;
+  for (const [f, mod, what] of LAZY) {
+    const s = readFileSync(f, "utf8");
+    if (new RegExp(`^import .* from "${mod.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}";`, "m").test(s)) {
+      say(`${f} — ${what}(${mod})을 그냥 가져옵니다. next/dynamic 으로 미루세요 (원칙 6)`);
+    } else if (!s.includes(`import("${mod}")`)) {
+      say(`${f} — ${what}(${mod})을 부르는 곳이 없습니다. 이 표를 고쳐주세요`);
+    } else n++;
+  }
+  // 기다리는 자리는 `.stuPanel` 이면 안 된다 — 골든 검사가 빈 자리를 판으로 삼는다
+  const board = readFileSync("app/today/TodayBoard.jsx", "utf8");
+  if (/loading:[\s\S]{0,200}className="stuPanel"/.test(board)) {
+    say("오늘 수업 — 기다리는 자리에 .stuPanel 을 쓰면 골든 검사가 빈 자리를 판으로 착각합니다");
+  }
+  if (!bad) ok(`${n}곳 — 누를 때 받는다`);
+}
+
+// ── 4-4) 메뉴를 기다리느라 화면이 멈추지 않나 ──────────────────
+//
+// 메뉴가 화면 안에 있을 때는 loading.jsx 가 곧바로 나갔다 — 그 틀이 레이아웃
+// **아래**에 있었기 때문이다. 메뉴를 뿌리로 올리면 그 틀이 메뉴 **밑**으로
+// 들어가서, 배지를 다 셀 때까지 첫 글자 한 자도 안 나간다.
+//
+// 실측 (같은 조건, 메뉴 조회 0.6초 흉내 · Next 16.3.3):
+//   Suspense 없음  첫 바이트 0.611초   Suspense 있음  0.008초 (총 시간은 같다)
+//
+// Suspense 를 걷어내도 화면은 똑같이 나온다 — 조금 늦게 나올 뿐이라 아무도
+// 못 잡는다. 그래서 기계가 본다.
+console.log("\n== 메뉴를 기다리느라 첫 글자가 늦지 않나 ==");
+{
+  const lay = readFileSync("app/layout.jsx", "utf8");
+  if (!/<Suspense[\s\S]{0,200}<TopBar \/>/.test(lay)) {
+    say("app/layout.jsx — <TopBar /> 가 Suspense 밖입니다. 배지를 다 셀 때까지 첫 글자가 안 나갑니다 (원칙 6)");
+  } else ok("메뉴는 흘려보낸다 (Suspense)");
+  // 오늘 수업 — 아흔여덟 조회를 다 기다리기 전에 날짜라도 먼저 나가야 한다
+  const today = readFileSync("app/today/page.jsx", "utf8");
+  if (!/<Suspense[\s\S]{0,900}<TodayBody/.test(today)) {
+    say("app/today/page.jsx — 판이 Suspense 밖입니다. 조회 아흔여덟이 다 끝나야 날짜가 보입니다");
+  } else ok("오늘 수업 — 날짜부터 먼저");
+}
+
 // ── 5) 메뉴를 오갈 때 ────────────────────────────────────────
 console.log("\n== 한 번 갔던 화면이 30초 안에는 즉시 뜨나 ==");
 const cfg = readFileSync("next.config.mjs", "utf8");

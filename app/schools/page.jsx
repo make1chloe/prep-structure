@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ScheduleBoard from "@/app/schedule/ScheduleBoard";
 import NeisBox from "@/app/schedule/NeisBox";
@@ -13,14 +12,11 @@ import { loadClassesWithTerm } from "@/lib/classTerm";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
 import { endOfMonth, todaySeoul } from "@/lib/day";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
 export default async function SchoolsPage() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
 
   const startYM = todaySeoul().slice(0, 7);
   const months = monthsFrom(startYM, 3);
@@ -31,11 +27,8 @@ export default async function SchoolsPage() {
   const EXAM = "id, school, grade, name, from_date, to_date, english_on, note";
 
   // **파도** (속도 대원칙 — 원칙 6): 서로 필요한 것이 없는 조회를 한꺼번에
-  const [profileQ, classes0, holidaysQ, membersQ, studentsQ, examQ0, settings, taskQ, neisSchoolsQ] =
+  const [classes0, holidaysQ, membersQ, studentsQ, examQ0, settings, taskQ, neisSchoolsQ] =
     await Promise.all([
-      user
-        ? cachedProfile(supabase, user.id)
-        : Promise.resolve({ data: null }),
       // **기간 칸을 꼭 같이 읽는다** — 안 읽으면 종강한 특강이 여기서도
       // 계속 수업하는 반으로 잡힌다 (2026-08-06)
       loadClassesWithTerm(supabase, "id, name, days, start_time, base_sessions"),
@@ -59,7 +52,6 @@ export default async function SchoolsPage() {
       // 나이스 원본(접힘 상자)이 쓰는 학교 명단 — /neis 화면이 여기로 이사 왔다
       listSchools(),
     ]);
-  const profile = profileQ?.data || null;
 
   let classes = classes0;
   if (classes.length === 0) {
@@ -141,7 +133,6 @@ export default async function SchoolsPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="schools" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">학교</p>

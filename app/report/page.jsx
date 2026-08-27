@@ -1,6 +1,5 @@
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ReportSender from "./ReportSender";
 import NoticeSender from "./NoticeSender";
@@ -16,15 +15,12 @@ import { listScheduled } from "./scheduleActions";
 import { loadSettings } from "@/lib/settings";
 import { channelPlan } from "@/lib/alimtalk";
 import { todaySeoul, addDays } from "@/lib/day";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
 
   const date = searchParams?.d || todaySeoul();
 
@@ -42,10 +38,7 @@ export default async function ReportPage(props) {
   // 테스트 발송 탭 — 학생 전체와, 알림톡이 붙은 문구
   // **파도** (속도 대원칙 — 원칙 6)
   const none = Promise.resolve({ data: [] });
-  const [profileQ, ssQ, ttQ, settings, tplQ] = await Promise.all([
-    user
-      ? cachedProfile(supabase, user.id)
-      : Promise.resolve({ data: null }),
+  const [ssQ, ttQ, settings, tplQ] = await Promise.all([
     // 상태로 거르지 않는다. 테스트용 학생은 **'예비' 로 만들어 두는 게 낫다** —
     // 재원으로 만들면 오늘 수업·월간리포트·수강료에 계속 끼어든다.
     tab === "test"
@@ -171,7 +164,6 @@ export default async function ReportPage(props) {
       mode: settings.mode,
     };
   }
-  const profile = profileQ?.data || null;
   const testStudents = ssQ.data || [];
   const testTemplates = ttQ.data || [];
   const { data: tplRows } = tplQ;
@@ -202,7 +194,6 @@ export default async function ReportPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="report" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">발송</p>

@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
-import TopBar from "@/components/TopBar";
 import Help, { helpOn } from "@/components/Help";
 import TodayBoard from "./TodayBoard";
 import OverflowProbe from "./OverflowProbe";
@@ -16,14 +15,48 @@ import { paceMap } from "@/lib/pace";
 import { idsOf, buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/lib/classcard";
 import ActivityBoard from "./ActivityBoard";
-import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
+import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
 
+/**
+ * **날짜부터 먼저 내보낸다** (성능수리 3차).
+ *
+ * 이 화면은 조회가 아흔여덟 자리다. 그걸 다 기다린 다음에야 그리기 시작하면,
+ * 그때까지 화면에 있는 것은 「불러오는 중…」 한 줄뿐이다 (app/loading.jsx).
+ * 어느 날 것을 여는 중인지도 안 보인다 — 날짜를 넘기다 보면 지금 뭘 기다리는
+ * 건지 모른 채로 서 있게 된다.
+ *
+ * 날짜는 **조회가 아니다** (주소에 적혀 있거나 오늘이다). 그래서 제목만 먼저
+ * 내보내고, 판은 뒤이어 흘려보낸다. 조회 순서도 파도(Promise.all)도 그대로다
+ * — 늦게 오는 것을 늦게 보여줄 뿐, 세는 것은 하나도 안 바뀐다.
+ */
 export default async function TodayPage(props) {
   const searchParams = await props.searchParams;
+  // 오늘(서울) 기준 날짜 — 아래 판도 이 값을 그대로 받는다 (두 번 안 센다)
+  const date = searchParams?.d || todaySeoul();
+  return (
+    <Suspense
+      fallback={
+        <main className="wrap-wide">
+          <div className="page-head">
+            <p className="eyebrow">오늘 수업</p>
+            <h1 className="h1">{longLabel(date)}</h1>
+          </div>
+          <div className="card" style={{ marginTop: 16, padding: 18 }}>
+            <p className="hint" style={{ margin: 0 }}>불러오는 중…</p>
+          </div>
+        </main>
+      }
+    >
+      <TodayBody searchParams={searchParams} date={date} />
+    </Suspense>
+  );
+}
+
+async function TodayBody({ searchParams, date }) {
   const supabase = await createClient();
   // 로그인 확인은 쿠키로 (미들웨어와 같은 까닭 — getUser 는 요청마다
   // 인증 서버 왕복이다). 프로필 조회는 아래 파도 1 에 같이 태운다.
@@ -32,8 +65,7 @@ export default async function TodayPage(props) {
   } = await supabase.auth.getSession();
   const user = session?.user || null;
 
-  // 오늘(서울) 기준 날짜와 요일
-  const date = searchParams?.d || todaySeoul();
+  // 요일 — 날짜는 위(TodayPage)에서 정해 내려온다
   const dow = dowOf(date);
 
   // 한 달 지난 사진·녹음 치우기 — 하루 한 번, 조용히.
@@ -57,7 +89,6 @@ export default async function TodayPage(props) {
    * 기다리느라 매일 여는 화면이 늦어질 이유가 없다.
    */
   const [
-    profileQ,
     ,                 // purge — 결과는 안 쓴다 (실패해도 수업은 열려야 한다)
     allClasses,
     membersQ,
@@ -85,9 +116,6 @@ export default async function TodayPage(props) {
     grammarQ,
     extraSchedQ,
   ] = await Promise.all([
-    user
-      ? cachedProfile(supabase, user.id)
-      : Promise.resolve({ data: null }),
     purgeOncePerDay().catch(() => null),
     // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
     loadRunningClasses(
@@ -187,7 +215,6 @@ export default async function TodayPage(props) {
       .gte("to_date", date),
   ]);
 
-  const profile = profileQ?.data || null;
   const classes = allClasses
     .filter((c) => (c.days || []).includes(dow))
     // 특강은 반이 아니라 재원생 속성이다 (0164 — 이행계획서 v2 §4,
@@ -1588,7 +1615,6 @@ export default async function TodayPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="today" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">오늘 수업</p>

@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import SpecEditor from "./SpecEditor";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export default async function SpecPage() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   const { data: base, error } = await supabase
     .from("exam_spec_rows")
@@ -52,7 +42,6 @@ export default async function SpecPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="scores" />
       {/* wrap(1080) — 회차 고르고 문항 표를 채우는 화면. 표 열이 좁아
           1480 은 오른쪽이 통째로 놀았다 (B2 재실측 #14) */}
       <main className="wrap">
