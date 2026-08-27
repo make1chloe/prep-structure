@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ScoreBoard from "./ScoreBoard";
 import ScoreUpload from "./ScoreUpload";
@@ -91,7 +90,6 @@ export default async function ScoresPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="scores" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">학생</p>

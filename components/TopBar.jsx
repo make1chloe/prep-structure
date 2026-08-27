@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { menuFor, findSection, sectionOf } from "@/lib/menu";
+import { menuFor, findSection } from "@/lib/menu";
 import BrandMark from "./BrandMark";
 import Refresh from "./Refresh";
 import TopBarHeight from "./TopBarHeight";
 import QuickMemo from "./QuickMemo";
 import NavScroll from "./NavScroll";
+import NavGrid from "./NavGrid";
+import TopBarGate from "./TopBarGate";
 import { createClient } from "@/lib/supabase/server";
+import { sessionUser } from "@/lib/session";
+import { cachedProfile } from "@/lib/profileCache";
 import { isStaff } from "@/lib/roles";
 import { unreadForStaff, badgeText } from "@/lib/inbox";
 import { menuTodos, TODO_LABEL } from "@/lib/menuBadges";
@@ -37,8 +41,41 @@ const ROLE_LABEL = {
  *
  * 그래서 전부 위에 늘어놓는다. 지금 보고 있는 화면은 하얗게 떠 있어서
  * 어디 있는지 바로 안다.
+ *
+ * ── **화면마다가 아니라 뿌리에 한 번** (성능수리 3차) ────────
+ *
+ * 이 메뉴는 서른 화면이 저마다 그리고 있었다. 배지를 세느라 조회가
+ * **스물두 자리**인데, 가벼운 화면일수록 그 비중이 압도적이었다 —
+ * 반·학생 배정은 조회 스물여덟 중 스물두 개(79%)가 이 메뉴 몫이었다.
+ *
+ * 이제 app/layout.jsx 가 한 번 그린다. **화면을 옮겨도 다시 안 그려진다**
+ * (실측: 소프트 이동 시 layout 재렌더 0회 · Next 16.3.3) — 오늘 ↔ 재원생 ↔
+ * 달력을 오가는 수업 중 동선에서 스물두 자리가 통째로 빠진다.
+ *
+ * 대신 두 가지가 서버에서 브라우저로 내려왔다. **지금 어느 화면인가**
+ * (NavGrid) 와 **이 화면에 메뉴를 붙이나**(TopBarGate) — 레이아웃이 다시
+ * 안 그려지므로 서버에서 정하면 첫 화면 값으로 굳는다.
+ *
+ * 배지 신선도는 그대로다 (실측): 서버 액션이 revalidatePath 를 **한 번이라도**
+ * 부르면 — 어느 주소든, `"layout"` 인자가 없어도 — 레이아웃까지 다시 그려진다.
+ * ⚠️ 이건 Next 가 「임시」라고 예고해 둔 동작이다 (next.config.mjs 의 같은
+ * 경고). 그날이 오면 배지가 최대 30초(staleTimes) 낡을 수 있다 — Next 를
+ * 올릴 때 「저장 → 다른 화면 → 배지가 줄었나」 를 손으로 확인할 것.
  */
-export default async function TopBar({ profile, active }) {
+export default async function TopBar() {
+  const supabase = await createClient();
+  const user = await sessionUser(supabase);
+  const { data: profile } = user ? await cachedProfile(supabase, user.id) : { data: null };
+
+  /**
+   * **선생님 메뉴다.** 학생·학부모 계정에는 아예 안 그린다 — 전에는 화면마다
+   * 손으로 붙였으니 학생 화면에 붙을 일이 없었지만, 이제 뿌리에서 한 번
+   * 그리므로 여기서 가른다. (원장님이 미리보기로 여신 학생 화면은
+   * TopBarGate 가 주소로 가른다 — 그쪽은 계정이 선생님이라 여기선 안 걸린다)
+   */
+  const staff = isStaff(profile?.role);
+  if (!staff) return null;
+
   const items = menuFor(profile);
 
   /**
@@ -55,6 +92,7 @@ export default async function TopBar({ profile, active }) {
     else rows.push({
       group: it.group,
       label: groupLabel(it.group),
+      href: groupHref(it.group),
       tone: findSection(it.group)?.tone || "navy",
       items: [it],
     });
@@ -86,23 +124,21 @@ export default async function TopBar({ profile, active }) {
    *
    * 둘을 한꺼번에 묻는다 — 줄줄이 기다리면 **모든 화면**이 그만큼 느려진다.
    */
-  const staff = isStaff(profile?.role);
-  // createClient 는 async (2026-08-26 f52f704) — await 를 빠뜨리면 Promise 가
-  // 그대로 넘어가 모든 배지 조회가 조용히 죽는다 (8/26~27 실사고)
-  const db = staff ? await createClient() : null;
+  // 위에서 `await createClient()` 로 받아둔 것을 그대로 쓴다. createClient 는
+  // async 다 (2026-08-26 f52f704) — await 를 빠뜨리면 Promise 가 그대로 넘어가
+  // 모든 배지 조회가 조용히 죽는다 (8/26~27 실사고)
+  const db = supabase;
   /**
    * **안 돌린 SQL 도 배지로** (원장님, 2026-08-14 — 「SQL 이 추가됐을 때도
    * 그걸 표시하게 해줘. 설정 메뉴 말이야」). 설정 화면은 원장만 여니
    * (menu.js 의 only:"principal") 배지도 원장에게만 센다.
    * menuTodos 가 돌려주는 것은 메모된 원본이라 **고치지 않고** 새로 합친다.
    */
-  const [unread, baseTodos, sqlN] = staff
-    ? await Promise.all([
-        unreadForStaff(db),
-        menuTodos(db),
-        profile?.role === "principal" ? pendingSqlCount(db) : 0,
-      ])
-    : [{ total: 0 }, {}, 0];
+  const [unread, baseTodos, sqlN] = await Promise.all([
+    unreadForStaff(db),
+    menuTodos(db),
+    profile?.role === "principal" ? pendingSqlCount(db) : 0,
+  ]);
   const todos = sqlN > 0 ? { ...baseTodos, settings: sqlN } : baseTodos;
   const badge = badgeText(unread.total);
 
@@ -110,8 +146,37 @@ export default async function TopBar({ profile, active }) {
   const groupTodo = (row) =>
     (row.solo ? [row.solo] : row.items).reduce((sum, it) => sum + (todos[it.key] || 0), 0);
 
+  /**
+   * **숫자도 말도 여기서 다 만들어 넘긴다.** NavGrid 는 브라우저 몫이라,
+   * 거기서 badgeText·TODO_LABEL 을 부르면 lib/menuBadges 계산 뭉치가
+   * 통째로 내려간다 — 속도를 고치러 와서 늘리는 꼴이 된다.
+   */
+  const view = rows.map((row) => ({
+    ...row,
+    tagTitle:
+      row.solo?.key === "home" && badge
+        ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
+        : `${row.label} 묶음`,
+    homeBadge: badge,
+    groupBadge: row.solo ? null : badgeText(groupTodo(row)),
+    groupBadgeTitle: row.solo ? null : `${row.label} — 남은 일 ${groupTodo(row)}건`,
+    items: row.items.map((it) => ({
+      key: it.key,
+      href: it.href,
+      label: it.label,
+      badge: badgeText(todos[it.key]),
+      title: todos[it.key]
+        // **숫자만 있으면 「3이 뭐지」 하고 눌러봐야 안다**
+        ? TODO_LABEL[it.key]?.(todos[it.key]) || `남은 일 ${todos[it.key]}건`
+        : it.desc
+        ? `${row.label} · ${it.desc}`
+        : `${row.label} · ${it.label}`,
+    })),
+    solo: row.solo ? { key: row.solo.key, href: row.solo.href, label: row.solo.label } : undefined,
+  }));
+
   return (
-    <header className="topbar">
+    <TopBarGate>
       {/* 붙어 있는 이 메뉴의 높이를 CSS 에 알려준다 — 아래 판이 그만큼 내려가야
           메뉴 뒤로 들어가지 않는다 */}
       <TopBarHeight />
@@ -155,84 +220,12 @@ export default async function TopBar({ profile, active }) {
         *
         * 굴려 내려가면 **각 칸의 아랫부분만** 접힌다. 그러면 남는 것이
         * 이름 여덟 개, 곧 대메뉴 한 줄이다.
+        *
+        * 칸을 그리는 일만 NavGrid(브라우저)로 갈라져 있다 — 「지금 여기」
+        * 표시가 화면을 옮길 때 따라와야 하기 때문이다. 세는 일은 여기 남는다.
         */}
       <NavScroll />
-      <nav className="navgrid-wrap">
-        <div className="navgrid">
-          {rows.map((row) => (
-            /* 묶음마다 제 색 — 아래 소메뉴도 같은 색을 물려받는다 (lib/menu 의 tone) */
-            <div className={`navcol ${row.solo ? "solo" : ""}`} data-tone={row.tone} key={row.group}>
-              {/**
-                * 대메뉴 — **굴려도 이 줄만은 남는다.**
-                * 하위가 없는 묶음(대시보드)은 이 이름이 곧 그 화면이다.
-                */}
-              <Link
-                href={row.solo ? row.solo.href : groupHref(row.group)}
-                className={`navgroup-tag ${
-                  row.solo
-                    ? active === row.solo.key ? "on" : ""
-                    : sectionOf(active) === row.group ? "on" : ""
-                }`}
-                title={
-                  row.solo?.key === "home" && badge
-                    ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
-                    : `${row.label} 묶음`
-                }
-              >
-                {row.label}
-                {/**
-                  * 대시보드는 **저쪽이 걸어온 말**의 수(안 본 알림),
-                  * 나머지 묶음은 **그 안에 남은 일**의 합이다.
-                  *
-                  * 접히면 소메뉴가 안 보이므로, 여기 합계가 없으면 어느
-                  * 묶음에 일이 밀렸는지 알 수가 없다 — 배지를 붙이는 뜻이
-                  * 절반 사라진다.
-                  */}
-                {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
-                {!row.solo && badgeText(groupTodo(row)) && (
-                  <span className="navbadge todo" title={`${row.label} — 남은 일 ${groupTodo(row)}건`}>
-                    {badgeText(groupTodo(row))}
-                  </span>
-                )}
-              </Link>
-
-              {/**
-                * 소메뉴. 굴리면 사라진다.
-                *   폰      이름 **바로 아래로** 세로로
-                *   컴퓨터  이름 **오른쪽으로** 가로로 (칸을 격자에 앉힌다)
-                *
-                * 하위가 없는 묶음(대시보드)은 아예 안 그린다 — 대신 이름이
-                * **두 칸을 차지한다**(.navcol.solo). 빈 칸으로 두면 그 자리에
-                * 다른 묶음 몫의 넓은 여백이 생겨서 혼자 뚝 떨어져 보인다.
-                */}
-              {row.items.length > 0 && (
-              <div className="navitems">
-                {row.items.map((it) => (
-                  <Link
-                    key={it.key}
-                    href={it.href}
-                    className={active === it.key ? "on" : ""}
-                    title={
-                      todos[it.key]
-                        // **숫자만 있으면 「3이 뭐지」 하고 눌러봐야 안다**
-                        ? TODO_LABEL[it.key]?.(todos[it.key]) || `남은 일 ${todos[it.key]}건`
-                        : it.desc
-                        ? `${row.label} · ${it.desc}`
-                        : `${row.label} · ${it.label}`
-                    }
-                  >
-                    {it.label}
-                    {badgeText(todos[it.key]) && (
-                      <span className="navbadge todo">{badgeText(todos[it.key])}</span>
-                    )}
-                  </Link>
-                ))}
-              </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </nav>
-    </header>
+      <NavGrid rows={view} />
+    </TopBarGate>
   );
 }

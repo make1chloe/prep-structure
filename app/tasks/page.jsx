@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddTaskForm from "./AddTaskForm";
 import TaskBoard from "./TaskBoard";
@@ -19,7 +18,6 @@ import { todaySeoul, addDays } from "@/lib/day";
 import { absenceLabel } from "@/lib/absenceLabel";
 import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { hiddenExamIds } from "@/lib/schedule";
-import { cachedProfile } from "@/lib/profileCache";
 import { firstDayEvents } from "@/lib/firstDay";
 import { fetchAll } from "@/lib/fetchAll";
 
@@ -170,15 +168,6 @@ export default async function TasksPage(props) {
   const showPast = searchParams?.past === "1";
 
   const supabase = await createClient();
-  // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user || null;
-  const profileP = user
-    ? cachedProfile(supabase, user.id)
-    : Promise.resolve({ data: null });
-
   // ── 일정 ──────────────────────────────────────────────
   let rows = [];
   let tbdRows = [];
@@ -512,11 +501,8 @@ export default async function TasksPage(props) {
     makeups = makeupsR;
   }
 
-  const profile = (await profileP)?.data || null;
-
   return (
     <>
-      <TopBar profile={profile} active="tasks" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">할일 · 일정</p>

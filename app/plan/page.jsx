@@ -1,13 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PlanBoard from "./PlanBoard";
 import MakeupInbox from "@/app/MakeupInbox";
 import MakeupAnswers from "@/app/MakeupAnswers";
 import { loadMakeupTodo } from "@/lib/makeupTodo";
 import { todaySeoul, addDays } from "@/lib/day";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -41,13 +38,9 @@ export const dynamic = "force-dynamic";
 export default async function AttendancePage() {
   const supabase = await createClient();
   const today = todaySeoul();
-  const user = await sessionUser(supabase);
 
   // **파도** — 서로 필요한 것이 없는 조회를 한꺼번에 (속도 대원칙)
-  const [profileQ, classesQ, membersQ, studentsQ, absQ, makeupTodo, probe] = await Promise.all([
-    user
-      ? cachedProfile(supabase, user.id)
-      : Promise.resolve({ data: null }),
+  const [classesQ, membersQ, studentsQ, absQ, makeupTodo, probe] = await Promise.all([
     supabase
       .from("classes")
       .select("id, name, days, start_time")
@@ -69,7 +62,6 @@ export default async function AttendancePage() {
     loadMakeupTodo(supabase, today),
     supabase.from("attendance").select("planned").limit(1),
   ]);
-  const profile = profileQ?.data || null;
   const { data: classes } = classesQ;
   const { data: members } = membersQ;
   const { data: students } = studentsQ;
@@ -146,7 +138,6 @@ export default async function AttendancePage() {
 
   return (
     <>
-      <TopBar profile={profile} active="plan" />
       <main className="wrap-wide">
         <div className="page-head">
           <h1 className="h1">출결</h1>

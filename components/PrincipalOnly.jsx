@@ -1,18 +1,17 @@
-import TopBar from "@/components/TopBar";
-
 /**
  * **원장님만 여는 화면.**
  *
  * 메뉴에서 감추는 것은 예의일 뿐이다 — 주소를 알면 그냥 열린다. 그래서 화면에서
  * 한 번 더 막는다. 진짜 자물쇠는 DB 쪽 정책이고(0079), 이건 그 앞의 안내판이다.
  *
+ * 위 메뉴는 여기서 안 그린다 — 뿌리 레이아웃이 이미 그렸다 (성능수리 3차).
+ *
  * 「없는 화면」 이라고 하지 않고 **누가 열 수 있는지** 를 알려준다. 강사·조교가
  * 잘못 눌렀을 때 앱이 고장 난 줄 알면 안 되기 때문이다.
  */
-export default function PrincipalOnly({ profile, what = "이 화면" }) {
+export default function PrincipalOnly({ what = "이 화면" }) {
   return (
     <>
-      <TopBar profile={profile} active="" />
       <main className="wrap">
         <div className="card" style={{ marginTop: 20 }}>
           <h1 className="h1" style={{ fontSize: 18.5 }}>원장님만 볼 수 있어요</h1>

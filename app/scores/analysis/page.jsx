@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import { analyze, advice } from "@/lib/examAnalysis";
 import AnalysisView from "./AnalysisView";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -29,13 +26,6 @@ export const dynamic = "force-dynamic";
 export default async function AnalysisPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   // 회차 목록 — 문항표를 적어둔 것이 앞에 오게 (그것이 볼 것이 있는 시험이다)
   const { data: exams } = await supabase
@@ -114,7 +104,6 @@ export default async function AnalysisPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="scores" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">

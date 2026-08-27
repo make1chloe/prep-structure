@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import MonthConfirmBoard from "./MonthConfirmBoard";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ScheduleBoard from "./ScheduleBoard";
 
@@ -9,14 +8,11 @@ import { loadClassesWithTerm } from "@/lib/classTerm";
 import { holidayAlerts } from "@/lib/holidays";
 import { loadSettings } from "@/lib/settings";
 import { endOfMonth, todaySeoul , addMonths} from "@/lib/day";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
 export default async function SchedulePage() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
 
   // **한 해를 통째로 본다** (원장님, 2026-08-05).
   //   「앞으로 3개월」 은 회차를 셈하는 방식이지 화면을 자르는 기준이 아니었다.
@@ -47,7 +43,6 @@ export default async function SchedulePage() {
    * 각 조회의 결과를 쓰는 셈·판정은 그대로다 — await 자리만 옮겼다.
    */
   const [
-    profileQ,
     classes0,
     holidayQ,
     memberQ,
@@ -60,7 +55,6 @@ export default async function SchedulePage() {
     taskQ,
     schoolQ,
   ] = await Promise.all([
-    user ? cachedProfile(supabase, user.id) : Promise.resolve({ data: null }),
     // **특강은 끝난다.** 개강·종강일을 같이 읽어야 그 기간 밖의 달에
     // 수업이 잡히지 않는다 — 「화목1 특강」 이 종강 뒤에도 계속 나왔다.
     // 기간 칸을 챙기는 일은 `loadClassesWithTerm` 한 군데에 있다 (0042 되돌리기 포함)
@@ -108,7 +102,6 @@ export default async function SchedulePage() {
     supabase.from("schools").select("name, schul_code"),
   ]);
 
-  const profile = profileQ?.data || null;
 
   let classes = classes0;
   if (classes.length === 0) {
@@ -241,7 +234,6 @@ export default async function SchedulePage() {
 
   return (
     <>
-      <TopBar profile={profile} active="schedule" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">{year}년</p>

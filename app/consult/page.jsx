@@ -1,25 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { loadRunningClasses } from "@/lib/classTerm";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddInquiryForm from "./AddInquiryForm";
 import ApplyLink from "./ApplyLink";
 import ConsultBoard from "./ConsultBoard";
 import { schoolNames } from "@/lib/schoolList";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConsultPage() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   // 서로 필요한 것이 없는 조회는 한 파도로 (원칙 6-1 — 직렬 3층이었다)
   const [inqQ, classesQ, schools, booksQ] = await Promise.all([
@@ -42,7 +32,6 @@ export default async function ConsultPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="consult" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">운영</p>

@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
-import TopBar from "@/components/TopBar";
 import RequestInbox from "./RequestInbox";
 import QuickBar from "./QuickBar";
 import TodoBar from "./TodoBar";
@@ -96,7 +95,6 @@ export default async function Home() {
 
   return (
     <>
-      <TopBar profile={profile} active="home" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">대시보드</p>

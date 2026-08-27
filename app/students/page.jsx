@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/fetchAll";
-import TopBar from "@/components/TopBar";
 import Help, { helpOn } from "@/components/Help";
 import AddStudentForm from "./AddStudentForm";
 import { schoolNames } from "@/lib/schoolList";
@@ -9,7 +8,6 @@ import BulkAccounts from "./BulkAccounts";
 import StudentList from "./StudentList";
 import { notYet } from "@/lib/bookUse";
 import { todaySeoul } from "@/lib/day";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +31,7 @@ export default async function StudentsPage(props) {
    */
   // 순서 주의: 6번째가 missing 설정, 7번째가 학교 이름 — 2026-08-21 뒤바뀐 채
   // 발견 (schools 에 설정 객체가 들어가 학생 추가 폼이 터졌다)
-  const [profileQ, studentsQ1, warnQ, booksQ, klassesQ, missQ, schoolsList, hwQ] = await Promise.all([
-    user
-      ? cachedProfile(supabase, user.id)
-      : Promise.resolve({ data: null }),
+  const [studentsQ1, warnQ, booksQ, klassesQ, missQ, schoolsList, hwQ] = await Promise.all([
     supabase
       .from("students")
       .select(`${SCOLS}, word_when, word_test_count, word_cut_pct, family_id, classcard_login`)
@@ -66,7 +61,6 @@ export default async function StudentsPage(props) {
       .order("sort", { ascending: true }),
   ]);
   const hwItems = hwQ?.error ? [] : hwQ?.data || [];
-  const profile = profileQ?.data || null;
 
   let { data: students, error } = studentsQ1;
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
@@ -257,7 +251,6 @@ export default async function StudentsPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="students" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">학생 관리</p>

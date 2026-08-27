@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import MessageList from "./MessageList";
 import ChannelPlan from "./ChannelPlan";
@@ -51,7 +50,6 @@ export default async function MessagesPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="messages" />
       <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">설정</p>

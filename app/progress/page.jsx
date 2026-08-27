@@ -1,11 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/fetchAll";
 import { loadRunningClasses } from "@/lib/classTerm";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import ProgressBoard from "./ProgressBoard";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 import { todaySeoul, DOW } from "@/lib/day";
 import { inUseOn } from "@/lib/bookUse";
 import ProgressUpload from "./ProgressUpload";
@@ -27,13 +24,11 @@ export const dynamic = "force-dynamic";
  */
 export default async function ProgressPage() {
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
   const today = todaySeoul();
   const dow = DOW[new Date(`${today}T00:00:00+09:00`).getUTCDay()];
 
   // **파도** (속도 대원칙 — 원칙 6)
-  const [profileQ, studentsQ, classesQ, membersQ, stBooksQ, booksQ, doingQ] = await Promise.all([
-    user ? cachedProfile(supabase, user.id) : Promise.resolve({ data: null }),
+  const [studentsQ, classesQ, membersQ, stBooksQ, booksQ, doingQ] = await Promise.all([
     supabase
       .from("students")
       .select("id, name, school, grade, status")
@@ -55,7 +50,6 @@ export default async function ProgressPage() {
       .eq("status", "doing")
       .order("student_id").order("textbook_unit_id")),
   ]);
-  const profile = profileQ?.data || null;
   const students = studentsQ.data || [];
   const classes = classesQ.data || [];
   const members = membersQ.data || [];
@@ -152,7 +146,6 @@ export default async function ProgressPage() {
 
   return (
     <>
-      <TopBar profile={profile} active="progress" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">오늘</p>

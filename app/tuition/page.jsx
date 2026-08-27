@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/fetchAll";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrincipalOnly from "@/components/PrincipalOnly";
 import TuitionBoard from "./TuitionBoard";
@@ -27,7 +26,7 @@ export default async function TuitionPage(props) {
 
   // 메뉴에서 감추는 것만으로는 부족하다 — 주소를 알면 그냥 열린다 (0079)
   if (profile?.role !== "principal") {
-    return <PrincipalOnly profile={profile} what="수강료 화면" />;
+    return <PrincipalOnly what="수강료 화면" />;
   }
 
   const ym = searchParams?.m || todaySeoul().slice(0, 7);
@@ -216,7 +215,6 @@ export default async function TuitionPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="tuition" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">운영</p>

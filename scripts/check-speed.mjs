@@ -97,6 +97,29 @@ if (!/_memo/.test(mb)) say("lib/menuBadges 의 메모가 사라졌습니다 — 
 else if (!/NODE_ENV === "production"/.test(mb)) say("배지 메모가 검사(가짜 DB)까지 기억합니다 — 배포에서만 켜야 합니다");
 else ok("배지 메모 유지 (배포에서만)");
 
+// ── 4-2) 위 메뉴는 뿌리에 한 번, 세는 일은 서버에 ────────────────
+//
+// 서른 화면이 저마다 위 메뉴를 그리고 있었다 — 반·학생 배정은 조회 28 중
+// 22(79%)가 메뉴 몫이었다. 뿌리 레이아웃으로 올려서, 화면을 옮길 때 그
+// 스물두 자리가 통째로 안 돌게 했다 (실측: 소프트 이동 시 layout 재렌더 0회).
+//
+// 무너지는 길이 둘이다. 둘 다 오류가 안 난다.
+//   1) 새 화면에 `<TopBar>` 를 한 줄 붙인다 → 메뉴가 두 줄로 뜨고 그 화면만
+//      다시 스물두 조회 (그건 scripts/check-home.mjs 가 센다)
+//   2) NavGrid(브라우저 몫)에서 세는 함수를 부른다 → lib/menuBadges 계산
+//      뭉치가 통째로 브라우저로 내려간다. 속도를 고치러 와서 늘리는 꼴이다
+console.log("\n== 위 메뉴에서 세는 일이 브라우저로 안 내려갔나 ==");
+{
+  const nav = readFileSync("components/NavGrid.jsx", "utf8");
+  // 설명 주석에도 이름이 나온다 — **가져오는 줄만** 본다
+  const brings = (nav.match(/^import .*$/gm) || []).join("\n");
+  for (const lib of ["menuBadges", "lib/inbox", "sqlBadge", "supabase"]) {
+    if (brings.includes(lib)) say(`components/NavGrid 가 ${lib} 를 가져옵니다 — 세는 일은 TopBar(서버)에 두세요`);
+  }
+  if (!/^"use client"/.test(nav)) say("components/NavGrid 가 브라우저 조각이 아닙니다 — 그러면 「지금 여기」 가 첫 화면에서 굳습니다");
+  if (!bad) ok("NavGrid 는 받은 글자만 그린다");
+}
+
 // ── 5) 메뉴를 오갈 때 ────────────────────────────────────────
 console.log("\n== 한 번 갔던 화면이 30초 안에는 즉시 뜨나 ==");
 const cfg = readFileSync("next.config.mjs", "utf8");

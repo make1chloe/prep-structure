@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
-import TopBar from "@/components/TopBar";
 import Help, { helpOn } from "@/components/Help";
 import TodayBoard from "./TodayBoard";
 import OverflowProbe from "./OverflowProbe";
@@ -16,7 +15,6 @@ import { paceMap } from "@/lib/pace";
 import { idsOf, buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/lib/classcard";
 import ActivityBoard from "./ActivityBoard";
-import { cachedProfile } from "@/lib/profileCache";
 import DateNav from "./DateNav";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +55,6 @@ export default async function TodayPage(props) {
    * 기다리느라 매일 여는 화면이 늦어질 이유가 없다.
    */
   const [
-    profileQ,
     ,                 // purge — 결과는 안 쓴다 (실패해도 수업은 열려야 한다)
     allClasses,
     membersQ,
@@ -85,9 +82,6 @@ export default async function TodayPage(props) {
     grammarQ,
     extraSchedQ,
   ] = await Promise.all([
-    user
-      ? cachedProfile(supabase, user.id)
-      : Promise.resolve({ data: null }),
     purgeOncePerDay().catch(() => null),
     // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
     loadRunningClasses(
@@ -187,7 +181,6 @@ export default async function TodayPage(props) {
       .gte("to_date", date),
   ]);
 
-  const profile = profileQ?.data || null;
   const classes = allClasses
     .filter((c) => (c.days || []).includes(dow))
     // 특강은 반이 아니라 재원생 속성이다 (0164 — 이행계획서 v2 §4,
@@ -1588,7 +1581,6 @@ export default async function TodayPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="today" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">오늘 수업</p>

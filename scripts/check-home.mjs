@@ -11,7 +11,7 @@
  *
  * 쓰는 법:  node scripts/check-home.mjs
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 let fail = 0;
 const eq = (got, want, what) => {
@@ -47,7 +47,14 @@ console.log("\n== 메뉴 — 가로 두 줄, 내려가면 대메뉴만 ==");
  *   1) 한 줄로 흘리기  → 화면 너비에 따라 **묶음이 줄 중간에서 갈라졌다**
  *   2) 묶음마다 한 줄  → 갈라지진 않는데 **줄이 여덟**이라 붙여둘 수가 없었다
  */
-const bar = read("components/TopBar.jsx");
+/**
+ * 위 메뉴는 두 조각이다 (성능수리 3차) — **세는 쪽**(TopBar, 서버)과
+ * **그리는 쪽**(NavGrid, 브라우저). 「지금 여기」 표시가 화면을 옮길 때
+ * 따라와야 해서 갈랐다 (뿌리 레이아웃은 화면을 옮겨도 다시 안 그려진다).
+ * 검사는 **위 메뉴 전체**를 보는 것이 뜻이므로 둘을 붙여서 본다 —
+ * 한쪽만 보면 나머지 반쪽이 사라져도 초록으로 뜬다.
+ */
+const bar = read("components/TopBar.jsx") + read("components/NavGrid.jsx");
 eq(/className=\{`navcol \$\{row\.solo \? "solo" : ""\}`\}/.test(bar), true, "묶음 하나가 한 칸이다");
 eq(bar.includes('className="navitems"'), true, "그 칸 안에 소메뉴가 들어간다");
 // 「대시보드 대시보드」 — 묶음 안에 화면이 없으면 이름이 두 번 나왔다
@@ -152,6 +159,43 @@ eq(read("app/InquiryInbox.jsx").includes("if (live.length === 0) return null"), 
 for (const p of ["app/UnsentBox.jsx", "app/WarningInbox.jsx"]) {
   eq(read(p).includes("return null"), true, `${p} 도 빈 카드를 안 그린다`);
 }
+
+console.log("\n== 위 메뉴는 뿌리에 한 번 (성능수리 3차) ==");
+/**
+ * 서른 화면이 저마다 `<TopBar>` 를 그리고 있었다 — 가벼운 화면일수록
+ * 조회의 대부분이 메뉴 몫이었다 (반·학생 배정 28 중 22). 뿌리 레이아웃으로
+ * 올리면 화면을 옮길 때 그 스물두 자리가 통째로 안 돈다.
+ *
+ * 되돌아가는 길은 조용하다 — 새 화면을 만들며 `<TopBar>` 를 한 줄 붙이면
+ * **메뉴가 두 줄**로 뜨고, 그 화면만 다시 스물두 조회가 된다.
+ */
+eq(read("app/layout.jsx").includes("<TopBar />"), true, "뿌리 레이아웃이 그린다");
+{
+  const dup = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const q = `${d}/${e.name}`;
+      if (e.isDirectory()) { if (!/node_modules|\.next/.test(e.name)) walk(q); }
+      else if (/\.jsx$/.test(e.name) && q !== "app/layout.jsx" && /<TopBar\b/.test(read(q))) dup.push(q);
+    }
+  };
+  walk("app");
+  eq(dup, [], "화면이 메뉴를 또 붙이지 않는다 (붙이면 두 줄이 된다)");
+}
+/**
+ * **「지금 여기」 와 「메뉴를 붙일 화면인가」 는 브라우저가 판정한다.**
+ * 뿌리 레이아웃은 화면을 옮겨도 다시 안 그려진다 (실측: Next 16.3.3 소프트
+ * 이동 시 layout 재렌더 0회). 서버에서 정해 넣으면 **첫 화면 값으로 굳어서**
+ * 오늘 수업이 계속 하얗게 떠 있고, 원장님이 여신 학생 미리보기 위에
+ * 선생님 메뉴가 얹힌다. 오류는 안 난다.
+ */
+eq(read("components/NavGrid.jsx").includes("usePathname()"), true, "지금 여기는 주소로 판정한다");
+eq(read("components/TopBarGate.jsx").includes("usePathname()"), true, "메뉴를 붙일 화면인가도 주소로");
+// 안 붙일 화면 목록을 두 벌로 적으면 화면 하나 늘릴 때 한쪽만 고치게 된다
+eq(read("components/TopBarGate.jsx").includes("canOpen(null,"), true,
+   "안 붙일 곳은 lib/roles 의 목록 그대로 (두 벌 금지)");
+// 로딩 화면이 메뉴 높이 빈 상자를 다시 그리면 진짜 메뉴 밑에 회색 띠가 하나 더 붙는다
+eq(/height: "var\(--topbar/.test(read("app/loading.jsx")), false, "로딩은 메뉴 흉내를 안 낸다");
 
 if (fail) { console.log("\n❌ 위 항목을 고쳐주세요"); process.exit(1); }
 console.log("\n✅ 첫 화면 · 알림센터 통과");

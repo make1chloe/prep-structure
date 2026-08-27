@@ -1,29 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import AddClassForm from "./AddClassForm";
 import ClassUpload from "./ClassUpload";
 import ClassManager from "./ClassManager";
 import { running } from "@/lib/classTerm";
 import { todaySeoul } from "@/lib/day";
-import { sessionUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClassesPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-    profile = data;
-  }
 
   // school_level 컬럼이 아직 없는 DB에서도 동작하도록 실패 시 재조회
   let { data: classes, error } = await supabase
@@ -56,7 +43,6 @@ export default async function ClassesPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="classes" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">반 관리</p>

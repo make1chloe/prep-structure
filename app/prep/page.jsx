@@ -1,12 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { examTitle, needsPrep } from "@/lib/examList";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import PrepBoard from "./PrepBoard";
 import { schoolNames } from "@/lib/schoolList";
 import { todaySeoul } from "@/lib/day";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 import { fetchAll } from "@/lib/fetchAll";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +17,6 @@ export const dynamic = "force-dynamic";
 export default async function PrepPage(props) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
-
   const bad = (e) =>
     e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "42703");
 
@@ -117,7 +107,6 @@ export default async function PrepPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="prep" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">교재</p>

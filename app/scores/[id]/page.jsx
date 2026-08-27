@@ -1,12 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import TopBar from "@/components/TopBar";
 import { oneRound, stack, points } from "@/lib/report";
 import { KIND_LABEL } from "@/lib/scores";
 import ReportView from "./ReportView";
 import ShareBar from "./ShareBar";
-import { sessionUser } from "@/lib/session";
-import { cachedProfile } from "@/lib/profileCache";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +19,6 @@ export default async function ReportPage(props) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const supabase = await createClient();
-  const user = await sessionUser(supabase);
-
-  let profile = null;
-  if (user) {
-    const { data } = await cachedProfile(supabase, user.id);
-    profile = data;
-  }
 
   // 공개 대상(0101)까지 — 없는 DB 면 「둘 다」 로 본다 (지금까지의 동작)
   let student = null;
@@ -53,7 +43,6 @@ export default async function ReportPage(props) {
   if (!student) {
     return (
       <>
-        <TopBar profile={profile} active="scores" />
         <main className="wrap">
           <div className="card" style={{ marginTop: 16 }}>
             <p>그 학생을 못 찾았어요.</p>
@@ -125,7 +114,6 @@ export default async function ReportPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="scores" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">

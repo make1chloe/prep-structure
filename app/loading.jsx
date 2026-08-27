@@ -12,27 +12,23 @@
  *
  * 이 파일 하나가 자기 loading 이 없는 모든 화면에 쓰인다.
  */
+/**
+ * **메뉴 흉내는 이제 안 낸다** (성능수리 3차).
+ *
+ * 예전에는 여기서 메뉴 높이(--topbar-h)만큼 빈 상자를 그렸다 (2026-08-14 —
+ * 「메뉴 이동할 때 로딩」). 메뉴가 화면마다 그려지고 있었으니, 로딩 화면이
+ * 뜨는 동안은 메뉴도 같이 사라져서 위가 통째로 덜컹였기 때문이다.
+ *
+ * 이제 메뉴는 뿌리 레이아웃(app/layout.jsx)에 산다. 로딩은 **그 아래**
+ * 자리에만 끼므로 **진짜 메뉴가 그대로 서 있는다** — 흉내가 필요 없다.
+ * 빈 상자를 그대로 두면 진짜 메뉴 밑에 회색 띠가 하나 더 붙는다.
+ */
 export default function Loading() {
   return (
-    <>
-      {/**
-        * **메뉴 자리를 지킨다** (2026-08-14 — 「메뉴 이동할 때 로딩」).
-        * 로딩 화면이 메뉴 없이 뜨면 위가 통째로 사라졌다 나타나서, 빨라져도
-        * 덜컹이는 느낌이 남는다. 메뉴 높이(--topbar-h, TopBarHeight 가 재둔
-        * 값)만큼 빈자리를 잡아두면 아래 내용만 바뀌는 것처럼 보인다.
-        */}
-      <div
-        style={{
-          height: "var(--topbar-h, 96px)",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--surface)",
-        }}
-      />
-      <main className="wrap-wide">
-        <div className="card" style={{ marginTop: 16, padding: 18 }}>
-          <p className="hint" style={{ margin: 0 }}>불러오는 중…</p>
-        </div>
-      </main>
-    </>
+    <main className="wrap-wide">
+      <div className="card" style={{ marginTop: 16, padding: 18 }}>
+        <p className="hint" style={{ margin: 0 }}>불러오는 중…</p>
+      </div>
+    </main>
   );
 }

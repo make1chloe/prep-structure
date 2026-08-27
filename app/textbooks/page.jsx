@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import PickOrType from "@/components/PickOrType";
-import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
 import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
@@ -20,7 +19,6 @@ import { dupGroups, pickKeeper } from "@/lib/bookName";
 import { AREA_ORDER as AREAS } from "@/lib/bookSort";
 import { listRoutine } from "./routineActions";
 import { listBookProgress } from "@/app/progress/actions";
-import { cachedProfile } from "@/lib/profileCache";
 import { fetchAll } from "@/lib/fetchAll";
 import RoutineUpload from "./RoutineUpload";
 import AreaRoutines from "./AreaRoutines";
@@ -47,10 +45,7 @@ export default async function TextbooksPage(props) {
   const user = session?.user || null;
 
   // **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층)
-  const [profileQ, tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ, missQ] = await Promise.all([
-    user
-      ? cachedProfile(supabase, user.id)
-      : Promise.resolve({ data: null }),
+  const [tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ, missQ] = await Promise.all([
     supabase
       .from("textbooks")
       .select("id, name, area, target_grade, total_pages, price, word_range, words_irregular, status, purchase_url, feature, created_at")
@@ -79,7 +74,6 @@ export default async function TextbooksPage(props) {
     // 「빠진 것」 기준 — 목록마다 어떤 칸을 셀지 (11-11)
     supabase.from("integrations").select("config").eq("id", "missing").maybeSingle(),
   ]);
-  const profile = profileQ?.data || null;
 
   // word_range 컬럼이 아직 없는 DB에서도 목록이 보이도록, 실패하면 기본 컬럼만 다시 조회
   let { data: textbooks, error: tbError } = tbQ1;
@@ -215,7 +209,6 @@ export default async function TextbooksPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="textbooks" />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">교재 관리</p>
