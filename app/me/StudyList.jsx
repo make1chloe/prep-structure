@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startStudy, stopStudy, finishStudy, undoFinish } from "./timerActions";
 import SubmitBox from "./SubmitBox";
 import UnitTestBox from "./UnitTestBox";
+import HintOnce from "./HintOnce";
 import { toolBadge } from "@/app/homework/categories";
 
 /** 초 → "12분" */
@@ -66,6 +67,7 @@ export default function StudyList({
   asId = null,
   subs = {},
   answers = {},   // itemId → { opened } — 파일형 답지 (0148, 하원 숙제만 온다)
+  sid = "",       // 학생 id — 1회성 설명(HintOnce)의 학생별 키에 쓴다 (C1 #7)
 }) {
   const [pending, startTransition] = useTransition();
   const [openDone, setOpenDone] = useState(false);
@@ -141,9 +143,14 @@ export default function StudyList({
         <div className="progbar" style={{ marginTop: 6 }}>
           <span style={{ width: `${Math.round((done.length / tasks.length) * 100)}%` }} />
         </div>
-        {/* 숙제는 「지금 할 것」 카드가 없다 — 어떻게 하는지는 여기서 말해준다 */}
+        {/* 숙제는 「지금 할 것」 카드가 없다 — 어떻게 하는지는 여기서 말해준다.
+            처음 한 번만 (C1 #7) — 매일 읽힐 말이 아니다. 키는 학생별 (2차 #8).
+            등원(inclass)의 hint 는 「다 했어요」 카드에서 상시 (#3 유지) —
+            완료 시점마다 필요한 행동 예고라 소거하지 않는다 */}
         {kind === "home" && hint && (
-          <p className="hint" style={{ margin: "6px 0 0" }}>{hint}</p>
+          <HintOnce k={`home.${sid}`}>
+            <p className="hint" style={{ margin: "6px 0 0" }}>{hint}</p>
+          </HintOnce>
         )}
       </div>
 

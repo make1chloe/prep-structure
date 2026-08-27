@@ -19,6 +19,7 @@ import { headers } from "next/headers";
 import { pickIp, sameNet } from "@/lib/clientIp";
 import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
+import HintOnce from "./HintOnce";
 import HomeworkSheet from "./HomeworkSheet";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
@@ -942,11 +943,14 @@ export default async function MePage(props) {
                     <span className={`tag ${TONE_CLS[l.tone] || "tag-muted"}`}>{l.text}</span>
                   </div>
                 ))}
-                {/* 내 단어시험 규칙 — 통과선만 알고 몇 개짜리인지는 몰랐다 (값-지도 P1-14) */}
-                <p className="hint" style={{ margin: "4px 0 0" }}>
-                  단어시험은 {myCutRow?.word_test_count ? `${myCutRow.word_test_count}개 중 ` : ""}
-                  {myCut}% 넘으면 통과예요.
-                </p>
+                {/* 내 단어시험 규칙 — 통과선만 알고 몇 개짜리인지는 몰랐다 (값-지도 P1-14).
+                    처음 한 번만 (C1 #9) — 학생별 값이라 키도 학생별로, 제 것만 소거 */}
+                <HintOnce k={`wordcut.${sid}`}>
+                  <p className="hint" style={{ margin: "4px 0 0" }}>
+                    단어시험은 {myCutRow?.word_test_count ? `${myCutRow.word_test_count}개 중 ` : ""}
+                    {myCut}% 넘으면 통과예요.
+                  </p>
+                </HintOnce>
               </div>
             </div>
           )}
@@ -1084,6 +1088,7 @@ export default async function MePage(props) {
                 ? Math.round((Date.parse(today) - Date.parse(assignedFrom.date)) / 86400000)
                 : 0
             }
+            sid={sid}
           />
 
           {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.
@@ -1178,12 +1183,10 @@ export default async function MePage(props) {
       <>
           {stay.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 4px", fontSize: 17.5, fontWeight: 800 }}>
+              {/* 설명 문구는 뺐다 (C1 #4) — 제목과 줄 태그(숙제로·남아서)가 다 말한다 */}
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>
                 {STAY_LABEL} <span className="tag tag-lav">{stay.length}</span>
               </h2>
-              <p className="hint" style={{ margin: "0 0 10px" }}>
-                오늘 채우고 가기로 한 것이에요. 다 못 한 건 숙제로 넘어왔어요.
-              </p>
               <div className="stack" style={{ gap: 6 }}>
                 {stay.map((t) => (
                   <div className="unitrow" key={t.id}>
@@ -1229,17 +1232,15 @@ export default async function MePage(props) {
               도움을 청하는 세 가지(지금 상태 · 보내는 글 · 질문)를 한자리에 모은다.
               급할 때 화면을 뒤지게 하면 안 된다. */}
           {!preview && !acting && (
-            <StateCard mine={myState} unavailable={stateOff} />
+            <StateCard mine={myState} unavailable={stateOff} sid={sid} />
           )}
 
-          {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} />}
+          {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} student />}
 
           {latest && (
             <div className="card">
-              <h2 style={{ margin: "0 0 4px", fontSize: 17.5, fontWeight: 800 }}>선생님께 질문</h2>
-              <p className="hint" style={{ margin: "0 0 8px" }}>
-                숙제나 수업에 대해 궁금한 게 있으면 여기에 남겨주세요. 선생님이 확인합니다.
-              </p>
+              {/* 설명 문구는 뺐다 (C1 #1) — 제목 「선생님께 질문」 이 다 말한다 */}
+              <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>선생님께 질문</h2>
               <Comments reportId={latest.id} studentId={student.id} me={myRole} />
             </div>
           )}

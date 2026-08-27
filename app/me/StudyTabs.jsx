@@ -33,6 +33,7 @@ export default function StudyTabs({
   // 언제 받은 숙제인지 (원장님 2026-08-23 — 몇 주 전 것이 그대로 떠 있었다)
   homeFrom = "",
   homeDays = 0,
+  sid = "",   // 1회성 설명 키(학생별)용 — StudyList 로 내려간다 (C1 #7)
 }) {
   const inClassLeft = inClass.filter((t) => !t.doneAt).length;
   const homeLeft = home.filter((t) => !t.doneAt).length;
@@ -176,6 +177,7 @@ export default function StudyTabs({
             asId={asId}
             subs={subs}
             answers={answers}
+            sid={sid}
           />
           </>
         ))}
