@@ -477,7 +477,7 @@ export default async function ParentPage(props) {
   const hasToday = !!nextClass && nextClass.date === today;
 
   // 원장님이 직접 적어두신 안내 (0093). 안 적으셨으면 원래 문구가 그대로 나온다
-  const N = (key, fallback = "") => noteOr(notes, key, fallback);
+  const N = (key) => noteOr(notes, key);
 
   // 원장님이 정하신 덩어리 차례 (0095). 안 정하셨으면 아래 적힌 차례 그대로
   const blockOrder = arrange("parent", layouts);

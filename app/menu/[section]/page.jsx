@@ -29,7 +29,7 @@ export default async function MenuSection(props) {
   }
 
   const notes = await loadNotes(supabase);
-  const note = noteOr(notes, `menu.${section.key}`, "");
+  const note = noteOr(notes, `menu.${section.key}`);
 
   return (
     <>
