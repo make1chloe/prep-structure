@@ -724,14 +724,18 @@ export default async function ParentPage(props) {
                     </div>
                   ))}
                 </div>
-                <ScreenNote text={N("parent.homework")} style={{ margin: "10px 0 0" }} />
-                <p className="hint" style={{ margin: "10px 0 0", lineHeight: 1.7 }}>
-                  아이 화면에 뜨는 것과 <b>같은 목록</b>입니다.
-                  <b> 완료 표시</b>는 아이가 직접 누른 것이고, 실제 검사는 다음 수업에서 합니다.
-                  {homework.some((c) => c.changedAt) && (
-                    <> <b>바뀜</b> 은 선생님이 나중에 더하거나 고치신 것이에요.</>
-                  )}
-                </p>
+                {/* 원장님이 적으시면 그 말이 대신 나온다 (parent.month 와 같은 관례) */}
+                {notes.has("parent.homework") ? (
+                  <ScreenNote text={N("parent.homework")} style={{ margin: "10px 0 0" }} />
+                ) : (
+                  <p className="hint" style={{ margin: "10px 0 0", lineHeight: 1.7 }}>
+                    아이 화면에 뜨는 것과 <b>같은 목록</b>입니다.
+                    <b> 완료 표시</b>는 아이가 직접 누른 것이고, 실제 검사는 다음 수업에서 합니다.
+                    {homework.some((c) => c.changedAt) && (
+                      <> <b>바뀜</b> 은 선생님이 나중에 더하거나 고치신 것이에요.</>
+                    )}
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -1000,10 +1004,15 @@ export default async function ParentPage(props) {
                       </div>
                     ))}
                   </div>
-                  <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
-                    수업에 쓰기 시작하는 날 전까지 준비해 주세요. 구하기 어려우시면
-                    아래 보내기로 말씀해 주세요.
-                  </p>
+                  {/* 원장님이 적으시면 그 말이 대신 나온다 (parent.month 와 같은 관례) */}
+                  {notes.has("parent.books") ? (
+                    <ScreenNote text={N("parent.books")} style={{ margin: "6px 0 0" }} />
+                  ) : (
+                    <p className="hint" style={{ margin: "6px 0 0", lineHeight: 1.7 }}>
+                      수업에 쓰기 시작하는 날 전까지 준비해 주세요. 구하기 어려우시면
+                      아래 보내기로 말씀해 주세요.
+                    </p>
+                  )}
                 </div>
               )}
               {/* 다음 달 일정 1차 확인 (0123) — 카드가 위 (원장님, 2026-08-15 —
@@ -1032,9 +1041,14 @@ export default async function ParentPage(props) {
           {latest && (
             <div className="card">
               <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>남기실 말씀</h2>
-              <p className="hint" style={{ margin: "0 0 8px" }}>
-                최근 수업({longLabel(latest.date)})에 대해 궁금한 것을 남기시면 선생님이 답합니다.
-              </p>
+              {/* 원장님이 적으시면 그 말이 대신 나온다 (parent.month 와 같은 관례) */}
+              {notes.has("parent.comments") ? (
+                <ScreenNote text={N("parent.comments")} style={{ margin: "0 0 8px" }} />
+              ) : (
+                <p className="hint" style={{ margin: "0 0 8px" }}>
+                  최근 수업({longLabel(latest.date)})에 대해 궁금한 것을 남기시면 선생님이 답합니다.
+                </p>
+              )}
               <Comments reportId={latest.id} studentId={pickId} me={preview ? "staff" : "parent"} />
             </div>
           )}
