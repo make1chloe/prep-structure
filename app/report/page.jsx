@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import Help from "@/components/Help";
@@ -74,8 +75,13 @@ export default async function ReportPage(props) {
    */
   let todoData = null;
   if (tab === "todo") {
-    // 때가 된 예약부터 내보낸다 — 이 화면이 열리는 것이 곧 시계다 (0126)
-    try { await runDueSends(); } catch { /* 보낼 것 화면은 그대로 선다 */ }
+    // 때가 된 예약을 내보낸다 — 이 화면이 열리는 것이 곧 시계다 (0126).
+    // **응답 뒤에** 돈다 (after — §2-2): 발송이 화면 앞을 막지 않게.
+    // after 안은 cookies 가 제약이라 렌더 중 만든 클라이언트를 주입한다.
+    // 이 렌더의 목록은 발송 직전 상태다 — 다음 새로고침에 반영된다.
+    after(async () => {
+      try { await runDueSends(supabase); } catch { /* 보낼 것 화면은 그대로 선다 */ }
+    });
 
     const today = todaySeoul();
     const ym = today.slice(0, 7);

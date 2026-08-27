@@ -1,6 +1,7 @@
 import Link from "next/link";
 import DashCalendar from "./DashCalendar";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isStaff } from "@/lib/roles";
 import TopBar from "@/components/TopBar";
@@ -46,10 +47,20 @@ function Badge({ href, children, tone }) {
 }
 
 export default async function Home() {
-  // 때가 된 예약 발송 — 대시보드가 열리는 것이 곧 시계다 (0126).
-  // 실패해도 대시보드는 그대로 선다.
-  try { await runDueSends(); } catch { /* 조용히 */ }
   const supabase = await createClient();
+  /**
+   * 때가 된 예약 발송 — 대시보드가 열리는 것이 곧 시계다 (0126).
+   * **응답을 보낸 뒤에** 돈다 (`after` — 성능수리 v3 §2-2): 밀린 예약이
+   * 여러 건이면 문자 발송이 화면 앞을 몇 초씩 막고 있었다. 「화면이
+   * 열리면 예약이 나간다」 계약은 after 콜백에서 그대로 이행되고,
+   * 안 돌아도 cron(`/api/cron/send`, vercel.json)이 하루 안에 백스톱.
+   * after 콜백 안에서는 cookies 접근이 제약된다 — **렌더 중 만든
+   * 클라이언트를 주입**한다 (runDueSends(supa) 시그니처, 크론과 공용).
+   * 실패해도 대시보드는 그대로 선다.
+   */
+  after(async () => {
+    try { await runDueSends(supabase); } catch { /* 조용히 */ }
+  });
   const user = await sessionUser(supabase);
 
   let profile = null;
