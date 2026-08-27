@@ -42,6 +42,26 @@ eq(read("app/check/AheadBoard.jsx").includes("createNotice"), true, "공지도 �
 eq(read("app/check/AheadBoard.jsx").includes("if (!open)"), true, "접어둔다");
 eq(board.includes("assignHomeworkAhead"), false, "출결 화면에 숙제가 남아 있다");
 
+console.log("\n== 리포트는 한 화면에 (일일 · 월간) ==");
+/**
+ * 원장님 (2026-08-28) — 「일일과 월간을 합쳐서 리포트로 만들고 아래에서 나누기」
+ *
+ * 하는 일은 하나다 — **보낸다.** 오늘 것이냐 이번 달 것이냐는 그다음
+ * 물음인데, 메뉴에서 먼저 갈라 두면 월말마다 두 칸을 오가며 같은 학생
+ * 목록을 두 번 열게 된다.
+ */
+const menuSrc = read("lib/menu.js");
+eq(menuSrc.includes('label: "리포트"'), true, "메뉴 칸은 「리포트」 하나");
+eq(menuSrc.includes('href: "/monthly"'), false, "메뉴에 월간이 따로 남아 있다");
+eq(read("app/report/SendTabs.jsx").includes('["monthly", "월간리포트"]'), true,
+   "나누는 자리는 화면 안 탭");
+eq(read("app/report/page.jsx").includes("<MonthlyScreen"), true, "그 탭이 월간 판을 그린다");
+// 즐겨찾기·홈 화면 바로가기로 들어오시면 빈 화면이 아니라 옮겨간 자리로
+eq(read("app/monthly/page.jsx").includes("redirect"), true, "옛 /monthly 주소는 데려다준다");
+// 배지도 한 칸 — 없어진 키로 세면 그 숫자는 조용히 아무 데도 안 붙는다
+eq(read("lib/menuBadges.js").includes("monthly: daysToMonthEnd"), false,
+   "월간 배지가 제 칸으로 남아 있다 (리포트에 합쳐져야 한다)");
+
 console.log("\n== 미리 적어두는 말은 한 자리에 ==");
 const menu = read("lib/menu.js");
 // 「문자 문구」 와 「안내 문구」 — 이름이 비슷한 두 칸이 나란히 있었다

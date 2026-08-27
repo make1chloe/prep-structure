@@ -87,7 +87,8 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
     });
   }
 
-  const go = (n) => router.push(`/monthly?m=${addMonths(ym, n)}`);
+  // 월간은 「리포트」 화면의 탭이다 (2026-08-28) — 달을 넘겨도 그 탭에 머문다
+  const go = (n) => router.push(`/report?t=monthly&m=${addMonths(ym, n)}`);
 
   /* 초안 편집 칸 — 폰에서는 줄 아래 인라인, PC 에서는 오른쪽 판.
      같은 칸을 두 벌로 적지 않으려고 한 함수로 뽑았다 (저장 로직 무접촉) */

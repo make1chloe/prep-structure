@@ -8,6 +8,7 @@ import SendTabs from "./SendTabs";
 import SendTodo from "./SendTodo";
 import ResendBoard from "../resend/ResendBoard";
 import TestSender from "./TestSender";
+import MonthlyScreen from "@/app/monthly/MonthlyScreen";
 import { loadReportRows } from "@/lib/reportData";
 import { fill } from "@/lib/noticeFill";
 import { runDueSends } from "./scheduleActions";
@@ -20,6 +21,18 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportPage(props) {
   const searchParams = await props.searchParams;
+
+  /**
+   * **월간리포트 탭** (원장님 확정, 2026-08-28) — 옛 `/monthly` 화면이
+   * 통째로 여기 탭으로 왔다. 탭은 이 화면의 `?t=` 관례 그대로다.
+   *
+   * **아래 조회를 하기 전에 돌려준다** (교재 화면의 `?view=items` 와 같은
+   * 모양). 월간 판은 여기서 만드는 것을 하나도 안 쓴다 — 설정도 문구도
+   * 제 것을 따로 읽는다. 아래로 흘려보내면 월간을 열 때마다 쓰지도 않을
+   * 조회가 얹힌다.
+   */
+  if (searchParams?.t === "monthly") return <MonthlyScreen m={searchParams?.m} />;
+
   const supabase = await createClient();
 
   const date = searchParams?.d || todaySeoul();
@@ -197,7 +210,10 @@ export default async function ReportPage(props) {
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">발송</p>
-          <h1 className="h1">데일리리포트 · 하원 · 안내</h1>
+          {/* 메뉴 칸 이름과 같은 말 (2026-08-28 — 「일일 리포트」·「월간리포트」
+              두 칸이 「리포트」 한 칸이 되었다). 무엇을 보내는 자리인지는
+              바로 아래 탭 줄이 말한다 */}
+          <h1 className="h1">리포트</h1>
           <Help><p className="sub">{SUB[tab]}</p></Help>
         </div>
         <SendTabs tab={tab} date={date} />

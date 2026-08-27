@@ -35,7 +35,7 @@ export async function addUnitExam(studentId, date, { name, wrong, total, note } 
   if (error) return { error: error.message };
 
   revalidatePath("/today");
-  revalidatePath("/monthly");
+  revalidatePath("/report");
   return { error: null };
 }
 
@@ -44,6 +44,6 @@ export async function deleteUnitExam(id) {
   const supabase = await createClient();
   const { error } = await supabase.from("unit_exams").delete().eq("id", id);
   revalidatePath("/today");
-  revalidatePath("/monthly");
+  revalidatePath("/report");
   return { error: error ? error.message : null };
 }

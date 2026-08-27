@@ -520,7 +520,7 @@ export default async function Home() {
               {d.monthlyDue && (
                 <div className="card sect sect-warn">
                   <h2 className="secthead">월간리포트</h2>
-                  <Link className="tag tag-amber" href="/monthly">
+                  <Link className="tag tag-amber" href="/report?t=monthly">
                     {Number(d.monthlyDue.ym.slice(5))}월이 {d.monthlyDue.left === 0 ? "오늘" : `${d.monthlyDue.left}일 뒤`} 끝남 · {d.monthlyDue.count}명분
                   </Link>
                 </div>
