@@ -161,6 +161,16 @@ eq(meTabs.includes("data-alertgate"), true, "게이트가 설정 여는 길목�
 // 꺼져 있을 때는 AlertGate 가 화면 앞에서 막아선다 — 팝업 속이어도 안 놓친다
 eq(me.includes("<AlertGate>"), true, "꺼져 있으면 여전히 막아선다");
 
+// 「학부모도 마찬가지야」 (원장님 2026-08-27) — 어머니 화면도 맨 아래
+// 상시 카드 대신 메뉴 줄(SectionNav)의 🔔 팝업. 어머니 화면에는
+// AlertGate 가 없으니 위쪽 PushToggle(onlyWhenOff)이 「켜세요」 를 맡는다
+const pa2 = read("app/parent/page.jsx");
+eq(pa2.includes("<AlertBox brief />"), true, "학부모도 짧은 판으로");
+eq(pa2.split("<AlertBox").length, 2, "학부모도 상시 카드 없이 한 벌만 (🔔 팝업 속)");
+eq(read("components/SectionNav.jsx").includes('aria-label="알림 설정"'), true,
+   "학부모 메뉴 줄에 🔔 알림 설정 아이콘이 있다");
+eq(pa2.includes("PushToggle onlyWhenOff"), true, "안 켜신 분께는 위에서 한 번 더");
+
 const box = read("components/AlertBox.jsx");
 eq(box.includes("brief = false"), true, "짧은 판이 있다");
 eq(box.includes("방해금지 시간"), true, "방해금지 설정은 남는다");
