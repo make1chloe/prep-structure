@@ -133,7 +133,7 @@ export default async function Home() {
             <Badge href="#requests" tone="warn">학부모 알림 {d.requests.length}건</Badge>
           )}
           {d.makeupNeedTotal > 0 && (
-            <Badge href="/tuition">보강 필요 {d.makeupNeedTotal}회</Badge>
+            <Badge href="/plan">보강 필요 {d.makeupNeedTotal}회</Badge>
           )}
           {d.scheduleAlerts.length > 0 && (
             <Badge href="/schedule">스케줄 특이사항 {d.scheduleAlerts.length}건</Badge>
