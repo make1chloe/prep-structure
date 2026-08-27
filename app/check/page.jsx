@@ -321,7 +321,9 @@ export default async function CheckPage(props) {
   return (
     <>
       <TopBar profile={profile} active="check" />
-      <main className="wrap-wide">
+      {/* wrap(1080) — 위→아래로 훑으며 ○△✕ 찍는 일괄 화면이라 좌우 분할은
+          동선만 늘린다(B2 재실측 §5). 1480 이면 줄만 옆으로 늘어져 눈이 왕복한다 */}
+      <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">오늘</p>
           <h1 className="h1">숙제 검사</h1>

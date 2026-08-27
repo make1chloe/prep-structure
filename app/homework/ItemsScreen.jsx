@@ -97,7 +97,9 @@ export default async function ItemsScreen() {
   return (
     <>
       <TopBar profile={profile} active="textbooks" />
-      <main className="wrap-wide">
+      {/* wrap(1080) — 학습 항목은 수가 적은 단일 목록이라 분할 이득이 없다.
+          1480 은 빈 오른쪽만 남겼다 (B2 재실측 #15) */}
+      <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">교재</p>
           <h1 className="h1">학습 항목</h1>
