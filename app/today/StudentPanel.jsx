@@ -234,8 +234,6 @@ export default function StudentPanel({
   unitNames = {},
   rule = {},
   grammarCommon = [],
-  // "sheets" = 3때 새 판 (실행지도 v2) — 기본은 구판 그대로
-  layout = "classic",
   // C4: 줄 칩이 고른 때를 판이 따른다 (제어형 — 없으면 자체 상태)
   sheetTab: sheetTabProp,
   onSheetTab,
@@ -2616,8 +2614,8 @@ export default function StudentPanel({
   );
 
   // ── 구역 렌더 함수 (checkRow 선례 — 컴포넌트가 아니라 함수: 매
-  //    렌더 새 타입이 되면 입력 상태가 날아간다). classic·sheets 두
-  //    배치가 같은 함수를 그린다 — 실행지도 v2 §0-2 무복제 분해.
+  //    렌더 새 타입이 되면 입력 상태가 날아간다). C6 전환으로 sheets
+  //    배치 하나만 남았다 — 구역은 계속 이 함수들 한 벌이다 (무복제).
   const headZone = () => (
     <>
       {/**
@@ -2655,8 +2653,7 @@ export default function StudentPanel({
                 setAttTouched(true);
                 set("attendance", a.key);
                 // absent → 팝오버A (v7 §5-4 출결 6종 배속) — 결석을 찍는
-                // 순간 보강·재시험 자리가 열린다 (classic 배치에선 pop 을
-                // 안 그리므로 무해)
+                // 순간 보강·재시험 자리가 열린다
                 if (a.key === "absent") setPop("absence");
               }}
             >
@@ -3013,148 +3010,78 @@ export default function StudentPanel({
     </>
   );
 
-  if (layout === "sheets") {
-    return (
-      <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
-        {headZone()}
-        <div className="stusheet-body">
-          {/* 3때 탭 (판세분화 v7 §1). 비활성 판은 display:none — 언마운트하면
-              업로드 진행 같은 시트 안 상태가 날아간다 (실행지도 v2 §0-6) */}
-          <div className="row" style={{ gap: 4, margin: "6px 0" }}>
-            {[["check", "검사"], ["lesson", "수업"], ["next", "다음"]].map(([k, label]) => (
-              <button key={k}
-                className={`btn btn-sm ${sheetTab === k ? "btn-on" : "btn-ghost"}`}
-                onClick={() => setSheetTab(k)}>
-                {label}
-              </button>
-            ))}
-            <span className="spacer" />
-            {/* 순서 밖 사건 — 팝오버 3 (v7 §1). z 59 — 새 버전 띠(60) 아래 */}
-            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "absence" ? null : "absence")}>결석·보강</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "warn" ? null : "warn")}>
-              경고{row.warn?.count > 0 ? ` ${row.warn.count}` : ""}
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "comments" ? null : "comments")}>
-              댓글{(row.unreadComments || 0) > 0 ? ` ●` : ""}
-            </button>
-          </div>
-          {pop && (
-            <div className="sheetpop card" role="dialog" aria-label="순서 밖 사건">
-              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <b style={{ fontSize: 15 }}>
-                  {pop === "absence" ? "결석 · 보강 · 재시험" : pop === "warn" ? "경고 · 반성문" : "댓글"}
-                </b>
-                <button className="btn btn-ghost btn-sm" onClick={() => setPop(null)}>닫기</button>
-              </div>
-              {pop === "absence" && (<>{mkGateZone()}{mkFormZone()}</>)}
-              {pop === "warn" && (row.warn?.count > 0 ? warnZone() : <p className="hint">경고가 없어요.</p>)}
-              {pop === "comments" && commentsZone()}
-            </div>
-          )}
-          <div style={sheetTab === "check" ? undefined : { display: "none" }}>
-            {sayZone()}
-            {draftZone()}
-            {ccZone()}
-            {subsZone()}
-            {scoreZone()}
-            {checkZone()}
-          </div>
-          <div style={sheetTab === "lesson" ? undefined : { display: "none" }}>
-            {/* early_leave → ② 에서 「③ 로 건너뛰기」 안내 (v7 §5-4 —
-                하원 안내만 생략, ✓ 와 숙제 배정은 ③ 에서) */}
-            {form.attendance === "early_leave" && (
-              <div className="notice" style={{ margin: "6px 0", fontSize: 14 }}>
-                <b>조퇴</b> — 하원 안내만 생략해요. 완료(✓)와 숙제 배정은 ③에서 하세요.{" "}
-                <button className="btn btn-ghost btn-sm" onClick={() => setSheetTab("next")}>
-                  ③ 다음으로 건너뛰기
-                </button>
-              </div>
-            )}
-            {arriveZone()}
-            {utZone()}
-            {utLogZone()}
-            {inclassZone()}
-            {stayZone()}
-            {form.attendance !== "early_leave" && lateZone()}
-          </div>
-          <div style={sheetTab === "next" ? undefined : { display: "none" }}>
-            {nextHwZone()}
-            {planNextZone()}
-            {booksZone()}
-            {focusZone()}
-            {kwZone()}
-            {noticeZone()}
-          </div>
-        </div>
-        {footZone()}
-      </div>
-    );
-  }
-
   return (
     <div className={`stuPanel${asSheet ? " stusheet" : ""}`}>
       {headZone()}
-
       <div className="stusheet-body">
-      {/**
-        * **특이사항은 수업 중에 보여야 특이사항이다** (값-지도 P1-2,
-        * 2026-08-15). 알레르기·주의사항을 재원생에 적어두셔도 여기 안 떠서,
-        * 정작 수업 중에는 아무도 몰랐다.
-        */}
-      {(row.student.note || "").trim() && (
-        <div className="notice" style={{ margin: "6px 0", fontSize: 14, whiteSpace: "pre-wrap" }}>
-          <b>특이사항</b> · {row.student.note.trim()}
+        {/* 3때 탭 (판세분화 v7 §1). 비활성 판은 display:none — 언마운트하면
+            업로드 진행 같은 시트 안 상태가 날아간다 (실행지도 v2 §0-6) */}
+        <div className="row" style={{ gap: 4, margin: "6px 0" }}>
+          {[["check", "검사"], ["lesson", "수업"], ["next", "다음"]].map(([k, label]) => (
+            <button key={k}
+              className={`btn btn-sm ${sheetTab === k ? "btn-on" : "btn-ghost"}`}
+              onClick={() => setSheetTab(k)}>
+              {label}
+            </button>
+          ))}
+          <span className="spacer" />
+          {/* 순서 밖 사건 — 팝오버 3 (v7 §1). z 59 — 새 버전 띠(60) 아래 */}
+          <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "absence" ? null : "absence")}>결석·보강</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "warn" ? null : "warn")}>
+            경고{row.warn?.count > 0 ? ` ${row.warn.count}` : ""}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPop(pop === "comments" ? null : "comments")}>
+            댓글{(row.unreadComments || 0) > 0 ? ` ●` : ""}
+          </button>
         </div>
-      )}
-
-      {ccZone()}
-
-      {mkGateZone()}
-
-      {arriveZone()}
-
-
-      {subsZone()}
-
-      {sayZone()}
-
-      {draftZone()}
-
-      {scoreZone()}
-
-      {utZone()}
-
-      {utLogZone()}
-
-      {checkZone()}
-
-      {inclassZone()}
-
-
-      {booksZone()}
-
-      {nextHwZone()}
-
-      {focusZone()}
-
-      {kwZone()}
-
-      {noticeZone()}
-
-      {commentsZone()}
-
-      {stayZone()}
-
-      {planNextZone()}
-
-      {lateZone()}
-
-      {warnZone()}
-
-      {mkFormZone()}
-
+        {pop && (
+          <div className="sheetpop card" role="dialog" aria-label="순서 밖 사건">
+            <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <b style={{ fontSize: 15 }}>
+                {pop === "absence" ? "결석 · 보강 · 재시험" : pop === "warn" ? "경고 · 반성문" : "댓글"}
+              </b>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPop(null)}>닫기</button>
+            </div>
+            {pop === "absence" && (<>{mkGateZone()}{mkFormZone()}</>)}
+            {pop === "warn" && (row.warn?.count > 0 ? warnZone() : <p className="hint">경고가 없어요.</p>)}
+            {pop === "comments" && commentsZone()}
+          </div>
+        )}
+        <div style={sheetTab === "check" ? undefined : { display: "none" }}>
+          {sayZone()}
+          {draftZone()}
+          {ccZone()}
+          {subsZone()}
+          {scoreZone()}
+          {checkZone()}
+        </div>
+        <div style={sheetTab === "lesson" ? undefined : { display: "none" }}>
+          {/* early_leave → ② 에서 「③ 로 건너뛰기」 안내 (v7 §5-4 —
+              하원 안내만 생략, ✓ 와 숙제 배정은 ③ 에서) */}
+          {form.attendance === "early_leave" && (
+            <div className="notice" style={{ margin: "6px 0", fontSize: 14 }}>
+              <b>조퇴</b> — 하원 안내만 생략해요. 완료(✓)와 숙제 배정은 ③에서 하세요.{" "}
+              <button className="btn btn-ghost btn-sm" onClick={() => setSheetTab("next")}>
+                ③ 다음으로 건너뛰기
+              </button>
+            </div>
+          )}
+          {arriveZone()}
+          {utZone()}
+          {utLogZone()}
+          {inclassZone()}
+          {stayZone()}
+          {form.attendance !== "early_leave" && lateZone()}
+        </div>
+        <div style={sheetTab === "next" ? undefined : { display: "none" }}>
+          {nextHwZone()}
+          {planNextZone()}
+          {booksZone()}
+          {focusZone()}
+          {kwZone()}
+          {noticeZone()}
+        </div>
       </div>
-
       {footZone()}
     </div>
   );

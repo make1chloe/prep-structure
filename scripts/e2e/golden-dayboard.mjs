@@ -277,9 +277,7 @@ async function capture() {
   const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox"] });
   try {
     const ctx = await browser.newContext();
-    // sheets 배치로 본다 (C1 스위치 — panel3 쿠키). C6 뒤에는 이 쿠키가
-    // 없어도 sheets 만 남을 것이므로, 쿠키는 그때 걷어내면 된다.
-    await ctx.addCookies([{ name: "panel3", value: "on", url: APP }]);
+    // C6 전환 완료 — sheets 배치만 남아 panel3 쿠키는 걷어냈다 (심어도 무해).
     const page = await ctx.newPage();
     await login(page);
     await page.goto(`${APP}/today?d=${D}`, { waitUntil: "networkidle", timeout: 90000 });

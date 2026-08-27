@@ -5,10 +5,7 @@ import { useLazyRefresh } from "@/components/useLazyRefresh";
 import Link from "next/link";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
 import StudentPanel from "./StudentPanel";
-import { waitingChecks } from "@/lib/checkQueue";
 import { defaultSheetTab } from "@/lib/sheetTab";
-import { isMemo } from "@/lib/notices";
-import CheckQueue from "./CheckQueue";
 import { classLabel } from "@/lib/classLabel";
 
 
@@ -36,9 +33,6 @@ const optKey = (sid, extra) => `${sid}|${extra || ""}`;
 
 export default function TodayBoard({
   date,
-  // 새 판(3때 시트) 스위치 — C1 에서는 받기만 한다. 분기(신 줄·시트
-  // 렌더)는 C3·C4 에서 이 값 뒤에 선다 (판세분화-실행지도 §6)
-  panel3 = false,
   groups = [],
   items = [],
   textbooks = [],
@@ -445,7 +439,7 @@ export default function TodayBoard({
                           className="stuRow"
                           data-row={optKey(r.student.id, r.extraClassId)}
                         >
-                          {panel3 ? (
+                          {
                             /* ── 줄 신판 (C4 — 실행지도 v2) ──
                                div + 칩3(검사·수업·다음 — 진짜 button 36px) +
                                배지2(경고·💬) + 출결·✓(stuEnd). 빈 곳은
@@ -491,6 +485,18 @@ export default function TodayBoard({
                                 )}
                                 {r.isMakeup && <span className="tag tag-lav">보강</span>}
                                 {r.plannedAbsent && <span className="tag tag-amber">결석 예정</span>}
+                                {/* 구판 줄에서 이어받은 한 손짓 (C6 — 기능 소실 금지):
+                                    결석 예정 학생의 리포트를 그 자리에서 만들어
+                                    발송 목록에 「결석 안내」 로 세운다 */}
+                                {r.plannedAbsent && !wrote(r) && (
+                                  <button
+                                    className="btn btn-ghost btn-sm"
+                                    title="결석 안내를 보낼 수 있도록 기록을 만들어 둡니다"
+                                    onClick={() => markAbsent(r.student.id, r.absenceReason, r.extraClassId)}
+                                  >
+                                    결석 기록
+                                  </button>
+                                )}
                               </span>
                               <span className="stuEnd">
                                 {stOf(r) ? (
@@ -524,169 +530,12 @@ export default function TodayBoard({
                                 </button>
                               </span>
                             </div>
-                          ) : (
-                          <button
-                            className="stuLine"
-                            onClick={() => {
-                              const k = optKey(r.student.id, r.extraClassId);
-                              // 다른 학생을 여는 순간 방금 저장한 줄은 완료 묶음으로
-                              if (justSaved && justSaved !== k) setJustSaved(null);
-                              if (isOpen) closeRow(k);
-                              else setOpenId(k);
-                            }}
-                          >
-                            <span className="stuWho">
-                              <span className="stuName">{r.student.name}</span>
-                              <span className="stuSub">
-                                {[r.student.school, r.student.grade].filter(Boolean).join(" ")}
-                              </span>
-                            </span>
-                            <span className="stuTags">
-                            {r.isMakeup && (
-                              <span className="tag tag-lav" title="보강으로 온 학생">
-                                보강
-                                {r.makeupReason
-                                  ? ` · ${r.makeupReason}`
-                                  : r.makeupOf
-                                  ? ` · ${r.makeupOf.slice(5).replace("-", "/")} 결석분`
-                                  : ""}
-                              </span>
-                            )}
-                            {r.plannedAbsent && (
-                              <span className="tag tag-amber">
-                                결석 예정{r.absenceReason ? ` · ${r.absenceReason}` : ""}
-                              </span>
-                            )}
-                            {/* 클카 플래너 — 오늘 마감 세트 완료 여부 (0131).
-                                확장이 15분마다 읽어온다 — 수업 시작에 이미 찍혀 있다 */}
-                            {r.classcard && (
-                              <span
-                                className={`tag ${r.classcard.allDone ? "tag-mint" : "tag-amber"}`}
-                                title={(r.classcard.sets || [])
-                                  .map((x) => `${x.complete ? "✅" : "❌"} ${x.name}`)
-                                  .join("\n")}
-                              >
-                                클카 {r.classcard.done}/{r.classcard.total}
-                              </span>
-                            )}
-                            {r.plannedAbsent && !wrote(r) && (
-                              <span
-                                className="btn btn-ghost btn-sm"
-                                title="결석 안내를 보낼 수 있도록 기록을 만들어 둡니다"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  markAbsent(r.student.id, r.absenceReason, r.extraClassId);
-                                }}
-                              >
-                                결석 기록
-                              </span>
-                            )}
-                            {(() => {
-                              const d = (r.notices || []).filter((n) => isMemo(n.kind));
-                              const left = d.filter((n) => !n.delivered).length;
-                              if (d.length === 0) return null;
-                              return (
-                                <span className={`tag ${left ? "tag-amber" : "tag-mint"}`}>
-                                  전달 {d.length - left}/{d.length}
-                                </span>
-                              );
-                            })()}
-                            {wrote(r) || isDone(r) ? (
-                              <span
-                                className="tag tag-mint"
-                                title={wrote(r) ? "클릭하면 완료를 취소해요" : "방금 저장했어요 — 누르면 다시 열려요"}
-                                onClick={wrote(r) ? (e) => { e.stopPropagation(); reopen(r.student.id, r.extraClassId); } : undefined}
-                                style={wrote(r) ? { cursor: "pointer" } : undefined}
-                              >
-                                완료
-                              </span>
-                            ) : stOf(r) ? (
-                              <span className="tag tag-amber">기록 전</span>
-                            ) : null}
-                            {(() => {
-                              // 아직 말 안 한 전달사항 — 열지 않아도 보이게
-                              const left = (r.notices || []).filter(
-                                (n) => isMemo(n.kind) && !n.delivered
-                              ).length;
-                              return left > 0 ? (
-                                <span className="tag tag-amber" title="학생에게 말할 것">
-                                  말할 것 {left}
-                                </span>
-                              ) : null;
-                            })()}
-                            {waitingChecks(r.doneRows || [], items, r.items || {}).length > 0 && (
-                              <span
-                                className="tag tag-amber"
-                                title="학생이 학습 완료를 눌렀습니다. 검사를 기다리는 중입니다"
-                              >
-                                검사 대기{" "}
-                                {waitingChecks(r.doneRows || [], items, r.items || {}).length}
-                              </span>
-                            )}
-                            {r.warn?.need && (
-                              <span className="tag tag-red" title="경고가 쌓여 반성문 대상입니다">
-                                반성문
-                              </span>
-                            )}
-                            {!r.warn?.need && r.warn?.count > 0 && (
-                              <span className="tag tag-amber" title="쌓인 경고">
-                                경고 {r.warn.count}
-                              </span>
-                            )}
-                            {(r.stay || []).filter((t) => t.status === "todo").length > 0 && (
-                              <span className="tag tag-lav" title="남아서 할 것">
-                                마무리 {(r.stay || []).filter((t) => t.status === "todo").length}
-                              </span>
-                            )}
-                            {r.unreadComments > 0 && (
-                              <span className="tag tag-red" title="학생·학부모가 남긴 댓글">
-                                💬 {r.unreadComments}
-                              </span>
-                            )}
-                            </span>
-                            <span className="stuEnd">
-                            {stOf(r) ? (
-                              <span
-                                className={`tag ${CLS[stOf(r)]}`}
-                                style={{ cursor: "pointer" }}
-                                onClick={(e) => { e.stopPropagation(); undo(r.student.id, r.extraClassId); }}
-                                title={
-                                  r.attendAt
-                                    ? `학생이 ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
-                                        timeZone: "Asia/Seoul",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })} 에 출석 체크를 눌렀습니다 · 누르면 출결이 취소돼요`
-                                    : "누르면 출결이 취소돼요"
-                                }
-                              >
-                                {LABEL[stOf(r)]}
-                                {r.attendAt
-                                  ? ` ${new Date(r.attendAt).toLocaleTimeString("ko-KR", {
-                                      timeZone: "Asia/Seoul",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}`
-                                  : ""}
-                              </span>
-                            ) : (
-                              <span
-                                className="btn btn-ghost btn-sm"
-                                onClick={(e) => { e.stopPropagation(); mark(r.student.id, "present", r.extraClassId); }}
-                              >
-                                등원
-                              </span>
-                            )}
-                              <span className="stuOpen">{isOpen ? "▾" : "▸"}</span>
-                            </span>
-                          </button>
-                          )}
+                          }
 
                           {isOpen && (
                             <StudentPanel
-                              layout={panel3 ? "sheets" : "classic"}
-                              sheetTab={panel3 ? rowTab : undefined}
-                              onSheetTab={panel3 ? setRowTab : undefined}
+                              sheetTab={rowTab}
+                              onSheetTab={setRowTab}
                               row={r}
                               date={date}
                               items={items}

@@ -186,7 +186,7 @@ const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbo
 try {
   for (const width of WIDTHS) {
     const ctx = await browser.newContext({ viewport: { width, height: 844 } });
-    await ctx.addCookies([{ name: "panel3", value: "on", url: APP }]);
+    // C6 전환 완료 — sheets 배치만 남아 panel3 쿠키는 걷어냈다 (심어도 무해).
     const page = await ctx.newPage();
     await login(page);
     console.log(`== 폰 폭 가로 넘침 (${width}px) ==`);
