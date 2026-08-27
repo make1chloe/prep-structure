@@ -14,6 +14,15 @@ import { cleanNote, cleanTitle } from "@/lib/note";
  *
  * **여기서 고치지 않는다.** 누르면 그 화면으로 간다 — 좁은 칸에서 고치게 만들면
  * 잘못 누르기 쉽고, 고치는 곳이 두 군데가 된다.
+ *
+ * **PC(≥1101px)는 좌 달력 / 우 「고른 날」 판** (B2, 원장 승인 2026-08-27).
+ * 고른 날 카드가 달력 아래 전폭이라, 첫 주를 누르면 상세가 ~500px 아래에
+ * 열려 스크롤을 오갔다. 달력(.cal 7열)이 폭을 쓰는 본문이므로 판이 좁은
+ * 오른쪽(sticky)으로 간다 — 재원생·진도·발송과 같은 전환.
+ *
+ * 폭은 **날을 고를 때 한 번만 본다** (components/useSheet 와 같은 원칙).
+ * 미디어쿼리로 자리를 가르면 같은 판을 두 벌 그려야 하고, 창 폭이 문턱을
+ * 넘는 순간 보던 판이 자리를 잃는다. 폰(<1101px)은 지금처럼 달력 아래.
  */
 
 const CAT_CLS = {
@@ -82,6 +91,12 @@ export default function CalendarBoard({
   const [classId, setClassId] = useState("");
   const [studentId, setStudentId] = useState("");
   const [pick, setPick] = useState(null);         // 눌러서 펼친 날
+  const [wide, setWide] = useState(false);        // 고른 순간의 화면 폭 — 판을 어디에 그릴지
+  const pickDay = (d) => {
+    if (pick === d) { setPick(null); return; }
+    setPick(d);
+    setWide(typeof window !== "undefined" && window.matchMedia("(min-width: 1101px)").matches);
+  };
   /**
    * **글자를 잘라 두지 않는다** (원장님, 2026-08-13 — 「내용이 너무 길면,
    * 토글 이용해서 다 볼 수 있게 해줘 잘리지않게」).
@@ -213,8 +228,51 @@ export default function CalendarBoard({
 
   const [y, m] = ym.split("-");
 
+  /**
+   * **누르면 그날이 펼쳐진다.**
+   * 「다른 화면에서 온 일정이 뭔지 왜 있는지 모르겠어」 — 칸은 좁아서
+   * 제목 한 줄이 겨우 들어간다. 어디서 왔고 왜 있는지는 여기 적는다.
+   *
+   * 내용은 **한 벌만** 만든다 — 자리(폰은 달력 아래, PC 는 오른쪽 판)만
+   * 폭에 따라 다르다. 두 벌로 그리면 언젠가 딴소리를 한다.
+   */
+  const picked = pick ? dayList(pick) : [];
+  const split = !!pick && wide;
+  const pickedHead = pick && (
+    <div className={`row${split ? " split-head" : ""}`} style={{ gap: 8, alignItems: "baseline" }}>
+      <b style={{ fontSize: 15 }}>
+        {Number(pick.slice(5, 7))}월 {Number(pick.slice(8, 10))}일
+      </b>
+      <span className="hint">{picked.length}건</span>
+      <span className="spacer" />
+      <button className="btn btn-ghost btn-sm" onClick={() => setPick(null)}>닫기</button>
+    </div>
+  );
+  const pickedBody = pick && (
+    <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+      {picked.map((it) => (
+        <div className="unitrow" key={it.key} style={{ alignItems: "flex-start" }}>
+          <span className={`tag ${it.band === "todo" ? "tag-amber" : "tag-sky"}`}>
+            {it.band === "todo" ? "할일" : "일정"}
+          </span>
+          {/* 출처·까닭 설명은 뺐다 (원장님, 2026-08-16 — 「일정 자체에
+              대한 추가설명 전부 빼줘」). 제목이면 충분하고, 「가기」 가
+              그 화면으로 데려간다 */}
+          <span style={{ fontSize: 14, flex: 1 }}>
+            {it.icon && <span className="cal-ico" aria-hidden="true">{it.icon}</span>}
+            <b>{it.label}</b>
+          </span>
+          <Link className="btn btn-ghost btn-sm" href={it.href}>
+            가기
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="card" style={{ marginBottom: 10 }}>
+    <div className={split ? "splitview" : undefined} style={{ marginBottom: 10 }}>
+    <div className="card">
       <div className="row" style={{ alignItems: "center", gap: 8, marginBottom: 10 }}>
         <Link className="btn btn-ghost btn-sm" href={`/tasks?view=calendar&m=${prev}`}>‹ 지난달</Link>
         <b style={{ fontSize: 15 }}>{y}년 {Number(m)}월</b>
@@ -323,7 +381,7 @@ export default function CalendarBoard({
               className={`cal-cell cal-tap ${d === today ? "cal-today" : ""} ${open ? "cal-open" : ""}`}
               key={d}
               /* 폰에서는 줄이 점이라 못 누른다 — 칸을 누르면 그날 목록 (11-13) */
-              onClick={() => items.length > 0 && setPick(pick === d ? null : d)}
+              onClick={() => items.length > 0 && pickDay(d)}
             >
               <div className={`cal-num ${dow === 0 ? "cal-sun" : dow === 6 ? "cal-sat" : ""}`}>
                 {Number(d.slice(8))}
@@ -333,7 +391,7 @@ export default function CalendarBoard({
                   type="button"
                   className={`cal-item ${it.cls} ${it.done ? "cal-done" : ""}`}
                   key={it.key}
-                  onClick={(e) => { e.stopPropagation(); setPick(pick === d ? null : d); }}
+                  onClick={(e) => { e.stopPropagation(); pickDay(d); }}
                   title={it.label}
                 >
                   {it.icon && <span className="cal-ico" aria-hidden="true">{it.icon}</span>}
@@ -357,40 +415,19 @@ export default function CalendarBoard({
         })}
       </div>
 
-      {/* **누르면 그날이 펼쳐진다.**
-          「다른 화면에서 온 일정이 뭔지 왜 있는지 모르겠어」 — 칸은 좁아서
-          제목 한 줄이 겨우 들어간다. 어디서 왔고 왜 있는지는 여기 적는다. */}
-      {pick && (
+      {pick && !split && (
         <div className="card card-tight" style={{ marginTop: 10 }}>
-          <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-            <b style={{ fontSize: 15 }}>
-              {Number(pick.slice(5, 7))}월 {Number(pick.slice(8, 10))}일
-            </b>
-            <span className="hint">{dayList(pick).length}건</span>
-            <span className="spacer" />
-            <button className="btn btn-ghost btn-sm" onClick={() => setPick(null)}>닫기</button>
-          </div>
-          <div className="stack" style={{ gap: 6, marginTop: 6 }}>
-            {dayList(pick).map((it) => (
-              <div className="unitrow" key={it.key} style={{ alignItems: "flex-start" }}>
-                <span className={`tag ${it.band === "todo" ? "tag-amber" : "tag-sky"}`}>
-                  {it.band === "todo" ? "할일" : "일정"}
-                </span>
-                {/* 출처·까닭 설명은 뺐다 (원장님, 2026-08-16 — 「일정 자체에
-                    대한 추가설명 전부 빼줘」). 제목이면 충분하고, 「가기」 가
-                    그 화면으로 데려간다 */}
-                <span style={{ fontSize: 14, flex: 1 }}>
-                  {it.icon && <span className="cal-ico" aria-hidden="true">{it.icon}</span>}
-                  <b>{it.label}</b>
-                </span>
-                <Link className="btn btn-ghost btn-sm" href={it.href}>
-                  가기
-                </Link>
-              </div>
-            ))}
-          </div>
+          {pickedHead}
+          {pickedBody}
         </div>
       )}
+    </div>
+    {split && (
+      <aside className="card split-panel">
+        {pickedHead}
+        <div className="split-body">{pickedBody}</div>
+      </aside>
+    )}
     </div>
   );
 }
