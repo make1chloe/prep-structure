@@ -14,8 +14,8 @@ import { KEEP_DAYS, cutoff, ranToday } from "@/lib/purge";
  * 매일 여는 화면이라 이게 제일 확실하다. 실패해도 화면은 그냥 열린다 —
  * 정리가 안 됐다고 수업을 못 하면 안 된다.
  */
-export async function purgeOldSubmissions(days = KEEP_DAYS) {
-  const supabase = await createClient();
+export async function purgeOldSubmissions(days = KEEP_DAYS, supa = null) {
+  const supabase = supa || await createClient();
   const before = cutoff(todaySeoul(), days);
 
   const { data: rows, error } = await supabase
@@ -47,8 +47,8 @@ export async function purgeOldSubmissions(days = KEEP_DAYS) {
  * 안 되살린 판만 진짜 지운다. 발송 이력은 set null(0168)이라 남는다.
  * 칸이 없는 DB(0168 전)면 42703 — 조용히 넘어간다 (정리는 다음 기회에).
  */
-async function purgeArchivedReports() {
-  const supabase = await createClient();
+async function purgeArchivedReports(supa = null) {
+  const supabase = supa || await createClient();
   const before = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("daily_reports")
@@ -61,8 +61,10 @@ async function purgeArchivedReports() {
 }
 
 /** 하루에 한 번만 — 마지막으로 돈 날을 integrations 에 적어둔다 */
-export async function purgeOncePerDay(days = KEEP_DAYS) {
-  const supabase = await createClient();
+export async function purgeOncePerDay(days = KEEP_DAYS, supa = null) {
+  // supa — 화면이 응답을 보낸 뒤 `after` 로 돌 때 렌더 중 만든 클라이언트를
+  // 넣어준다 (after 안에서는 쿠키 접근이 제약된다). runDueSends 와 같은 꼴
+  const supabase = supa || await createClient();
   const today = todaySeoul();
 
   const { data, error } = await supabase
@@ -73,12 +75,14 @@ export async function purgeOncePerDay(days = KEEP_DAYS) {
   if (error) return { error: null, count: 0, skipped: true };
   if (ranToday(data?.config?.lastRun, today)) return { error: null, count: 0, skipped: true };
 
-  const res = await purgeOldSubmissions(days);
-  const bin = await purgeArchivedReports();   // 휴지통 30일 (0168)
-
-  // 제출물 ↔ 검사 줄 연결 백업도 같은 파도에서 하루 한 번 (0172).
-  // 함수가 아직 없으면(0172 전) 조용히 넘어간다 — 정리가 막히면 안 된다
-  const link = await supabase.rpc("backup_submission_links");
+  // 사진 치우기 · 휴지통 비우기 · 연결 백업 — 셋은 서로 안 물어본다
+  const [res, bin, link] = await Promise.all([
+    purgeOldSubmissions(days, supabase),
+    purgeArchivedReports(supabase),        // 휴지통 30일 (0168)
+    // 제출물 ↔ 검사 줄 연결 백업도 같은 파도에서 하루 한 번 (0172).
+    // 함수가 아직 없으면(0172 전) 조용히 넘어간다 — 정리가 막히면 안 된다
+    supabase.rpc("backup_submission_links"),
+  ]);
 
   // 실패해도 오늘은 더 안 돈다 — 화면 열 때마다 같은 실패를 반복할 이유가 없다
   await supabase.from("integrations").upsert(

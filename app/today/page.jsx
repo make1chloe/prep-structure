@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
 import Help, { helpOn } from "@/components/Help";
@@ -68,9 +69,25 @@ async function TodayBody({ searchParams, date }) {
   // 요일 — 날짜는 위(TodayPage)에서 정해 내려온다
   const dow = dowOf(date);
 
-  // 한 달 지난 사진·녹음 치우기 — 하루 한 번, 조용히.
-  // 따로 도는 서버가 없으니 매일 여는 이 화면에 붙인다.
-  // 실패해도 수업 화면은 그냥 열려야 한다.
+  /**
+   * 한 달 지난 사진·녹음 치우기 — 하루 한 번, 조용히. 따로 도는 서버가
+   * 없으니 매일 여는 이 화면에 붙인다.
+   *
+   * **응답을 보낸 뒤에 돈다** (`after` — 성능수리 4차). 하루의 첫 열기에는
+   * 이 정리가 혼자 5단(있나 보기 → 목록 → 파일 지우기 → 표시 → 적어두기)
+   * 으로 늘어나서, **파도 1 전체가 그 뒤에 서 있었다.** 나머지 스물몇 개
+   * 조회가 다 끝나도 화면이 안 뜬다는 뜻이다 — 원장님이 아침에 처음 여실
+   * 때가 제일 느렸던 까닭.
+   *
+   * 계약은 그대로다 — 「오늘 화면을 열면 하루 한 번 정리된다」. 다만 그
+   * 화면이 뜬 **직후**에 돈다. after 안에서는 쿠키 접근이 제약되므로 렌더
+   * 중 만든 클라이언트를 넣어준다 (app/page.jsx:60 · runDueSends 와 같은 꼴).
+   * 실패해도 수업 화면은 그냥 열린다.
+   */
+  after(async () => {
+    try { await purgeOncePerDay(undefined, supabase); } catch { /* 조용히 */ }
+  });
+
   /**
    * ── 한 번에 물어본다 (2026-08-14, 원장님 — 「모든 페이지의 로딩 자체가
    *    느려」) ──────────────────────────────────────────────
@@ -80,16 +97,12 @@ async function TodayBody({ searchParams, date }) {
    * 25회 직렬 → 왕복 2번으로 고쳤을 때(A16)와 똑같은 병.
    *
    * 서로 필요한 것이 없는 조회는 **파도(wave)로 묶어 한꺼번에** 보낸다.
-   *   파도 1  날짜만 있으면 되는 것 (여기, 22개 → 왕복 1번)
+   *   파도 1  날짜만 있으면 되는 것 (여기, 26개 → 왕복 1번)
    *   파도 2  파도 1 의 결과(학생 id · 리포트 id …)가 필요한 것
    *   파도 3  로스터가 필요한 것
    * 사다리 폴백(옛 DB용)은 실패했을 때만 그대로 한 단씩 내려간다.
-   *
-   * 파일 정리(purge)도 같은 파도에 태운다 — 하루 한 번짜리 정리를
-   * 기다리느라 매일 여는 화면이 늦어질 이유가 없다.
    */
   const [
-    ,                 // purge — 결과는 안 쓴다 (실패해도 수업은 열려야 한다)
     allClasses,
     membersQ,
     studentsQ1,
@@ -115,8 +128,9 @@ async function TodayBody({ searchParams, date }) {
     actQ1,
     grammarQ,
     extraSchedQ,
+    ccRosterQ,
+    ccDayQ,
   ] = await Promise.all([
-    purgeOncePerDay().catch(() => null),
     // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
     loadRunningClasses(
       supabase,
@@ -213,6 +227,13 @@ async function TodayBody({ searchParams, date }) {
       .select("id, student_id, label, days, start_time, end_time, off_dates")
       .lte("from_date", date)
       .gte("to_date", date),
+    /**
+     * 클래스카드 명단·오늘치 — **날짜만 있으면 되는 것**이라 파도 1 이 제 자리다
+     * (성능수리 4차). 아래 :1106 에서 따로 왕복 한 번을 더 하고 있었는데, 이
+     * 둘은 위의 어떤 답도 안 쓴다. 세는 자리(ccDaySummary·ccTodayGap)는 그대로
+     */
+    supabase.from("classcard_students").select("user_idx, login_id"),
+    supabase.from("classcard_day").select("user_idx, sets, fetched_at").eq("date", date),
   ]);
 
   const classes = allClasses
@@ -933,14 +954,18 @@ async function TodayBody({ searchParams, date }) {
       (r) => r.marked_on === date && (r.status === "done" || r.status === "doing")
     );
     const tIds = [...new Set(touched.map((r) => r.textbook_unit_id))];
-    let tUnits = [];
-    for (let i = 0; i < tIds.length; i += 200) {
-      const { data: part } = await supabase
-        .from("textbook_units")
-        .select("id, name, textbook_id")
-        .in("id", tIds.slice(i, i + 200));
-      tUnits.push(...(part || []));
-    }
+    // 200개씩 잘라 묻는다 (주소 길이 때문에). 조각끼리는 서로 안 물어보므로
+    // **한꺼번에** 보낸다 — 차례로 기다리면 조각 수만큼 왕복이 줄지어 선다
+    // (성능수리 4차). 무엇을 세는지는 그대로다
+    const unitQs = await Promise.all(
+      Array.from({ length: Math.ceil(tIds.length / 200) }, (_, i) =>
+        supabase
+          .from("textbook_units")
+          .select("id, name, textbook_id")
+          .in("id", tIds.slice(i * 200, i * 200 + 200))
+      )
+    );
+    const tUnits = unitQs.flatMap((q) => q.data || []);
     const tuById = new Map(tUnits.map((u) => [u.id, u]));
     const lines = new Map(); // studentId → Map(bookId → [이름+기호])
     touched.forEach((r) => {
@@ -1087,10 +1112,9 @@ async function TodayBody({ searchParams, date }) {
   const ccGapOf = new Map();
   let ccFetchedAt = null;
   {
-    const [rosterQ, dayQ] = await Promise.all([
-      supabase.from("classcard_students").select("user_idx, login_id"),
-      supabase.from("classcard_day").select("user_idx, sets, fetched_at").eq("date", date),
-    ]);
+    // 파도 1 에서 이미 받아 왔다 (여기서 왕복을 또 하지 않는다)
+    const rosterQ = ccRosterQ;
+    const dayQ = ccDayQ;
     if (!rosterQ.error && !dayQ.error) {
       const dayOf = new Map((dayQ.data || []).map((d) => [d.user_idx, d]));
       // 수신 시각은 빈 세트 줄에서도 읽는다 — 공백 검사의 신선도 기준
