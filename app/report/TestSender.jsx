@@ -77,6 +77,11 @@ export default function TestSender({ students = [], templates = [], mode = "copy
         </div>
       )}
 
+      {/* PC(≥1100px)는 좌 고르기(누구·무엇·알림톡) / 우 미리보기 sticky —
+          고르는 칸을 내리는 동안에도 문구가 보인다 (B2, 원장 승인 2026-08-27).
+          좁으면 세로 그대로 — 미디어쿼리는 .splitview 가 처리한다. */}
+      <div className="splitview">
+      <div className="stack" style={{ gap: 12 }}>
       <div className="card">
         <div className="row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
           <b style={{ fontSize: 15 }}>누구에게</b>
@@ -144,42 +149,6 @@ export default function TestSender({ students = [], templates = [], mode = "copy
             </button>
           ))}
         </div>
-
-        {pre?.error && <div className="err" style={{ marginTop: 10 }}>{pre.error}</div>}
-
-        {pre && !pre.error && (
-          <>
-            <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "baseline" }}>
-              <span className="tag tag-muted">{pre.text.length}자</span>
-              <span className={`tag ${pre.real ? "tag-mint" : "tag-amber"}`}>
-                {pre.real ? "오늘 실제 기록으로" : "예시 기록으로"}
-              </span>
-              {!pre.real && (
-                <span className="hint">
-                  이 학생은 오늘 수업 기록이 없어서, 실제와 같은 모양의 예시로 만들었어요.
-                </span>
-              )}
-            </div>
-            <pre
-              style={{
-                whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.55,
-                background: "var(--surface-2)", padding: 12, borderRadius: 10,
-                marginTop: 8, maxHeight: 320, overflowY: "auto",
-              }}
-            >
-              {pre.text}
-            </pre>
-
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={send}
-              disabled={pending || !studentId}
-              style={{ marginTop: 8 }}
-            >
-              {pending ? "보내는 중…" : "보내보기"}
-            </button>
-          </>
-        )}
       </div>
 
       {/* 알림톡은 문구마다 템플릿이 다르다 — 따로 골라 보낸다 */}
@@ -213,23 +182,80 @@ export default function TestSender({ students = [], templates = [], mode = "copy
         </div>
       )}
 
-      {res && (
-        <div className="card" style={{ borderColor: res.error || !res.ok ? "var(--red)" : "var(--mint)" }}>
-          {res.error ? (
-            <div className="err">{res.error}</div>
-          ) : (
-            <div className="stack" style={{ gap: 4 }}>
-              <b style={{ fontSize: 15 }}>{res.ok ? "보냈어요" : "못 보냈어요"}</b>
-              <span className="hint">
-                통로: {res.channel === "sms" ? "문자(솔라피)" : res.channel === "webhook" ? "웹훅" : res.channel === "push" ? "앱 알림" : "직접 발송(기록만)"}
-                {res.to ? ` · ${res.to}` : ""}
-              </span>
-              {/* 왜 안 됐는지를 그대로 보여준다. "실패" 만으로는 고칠 수가 없다 */}
-              <span style={{ fontSize: 14 }}>{res.detail}</span>
+      </div>
+
+      {/* 오른쪽(폰은 위) — 지금 고른 학생·종류로 만든 미리보기와 보낸 결과 */}
+      <aside className="card split-panel">
+        <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+          <b style={{ fontSize: 15 }}>미리보기</b>
+          {student && <span className="hint">{student.name}</span>}
+        </div>
+        <div className="split-body">
+          {pre?.error && <div className="err">{pre.error}</div>}
+
+          {!pre && !studentId && (
+            <p className="hint" style={{ margin: 0 }}>
+              왼쪽에서 학생을 고르면 문구가 여기에 섭니다.
+            </p>
+          )}
+
+          {pre && !pre.error && (
+            <>
+              <div className="row" style={{ gap: 6, alignItems: "baseline", flexWrap: "wrap" }}>
+                <span className="tag tag-muted">{pre.text.length}자</span>
+                <span className={`tag ${pre.real ? "tag-mint" : "tag-amber"}`}>
+                  {pre.real ? "오늘 실제 기록으로" : "예시 기록으로"}
+                </span>
+                {!pre.real && (
+                  <span className="hint">
+                    이 학생은 오늘 수업 기록이 없어서, 실제와 같은 모양의 예시로 만들었어요.
+                  </span>
+                )}
+              </div>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.55,
+                  background: "var(--surface-2)", padding: 12, borderRadius: 10,
+                  marginTop: 8, maxHeight: 320, overflowY: "auto",
+                }}
+              >
+                {pre.text}
+              </pre>
+
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={send}
+                disabled={pending || !studentId}
+                style={{ marginTop: 8 }}
+              >
+                {pending ? "보내는 중…" : "보내보기"}
+              </button>
+            </>
+          )}
+
+          {res && (
+            <div
+              className="card card-tight"
+              style={{ marginTop: 10, borderColor: res.error || !res.ok ? "var(--red)" : "var(--mint)" }}
+            >
+              {res.error ? (
+                <div className="err">{res.error}</div>
+              ) : (
+                <div className="stack" style={{ gap: 4 }}>
+                  <b style={{ fontSize: 15 }}>{res.ok ? "보냈어요" : "못 보냈어요"}</b>
+                  <span className="hint">
+                    통로: {res.channel === "sms" ? "문자(솔라피)" : res.channel === "webhook" ? "웹훅" : res.channel === "push" ? "앱 알림" : "직접 발송(기록만)"}
+                    {res.to ? ` · ${res.to}` : ""}
+                  </span>
+                  {/* 왜 안 됐는지를 그대로 보여준다. "실패" 만으로는 고칠 수가 없다 */}
+                  <span style={{ fontSize: 14 }}>{res.detail}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </aside>
+      </div>
     </div>
   );
 }
