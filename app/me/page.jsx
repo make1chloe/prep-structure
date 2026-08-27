@@ -53,6 +53,7 @@ import SectionNav from "@/components/SectionNav";
 import NoticeGate from "@/components/NoticeGate";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned, isLesson,
+  missedItemIds,
 } from "@/lib/homeworkView";
 
 export const dynamic = "force-dynamic";
@@ -699,9 +700,13 @@ export default async function MePage(props) {
     .map((t, i) => ({ ...t, _ord: i }))
     .sort((a, b) => a.sort - b.sort || a._ord - b._ord);
 
+  // 지난 검사에서 ✕ 받은 항목 — 오늘 할 것 줄이 회색으로 조용히 알린다 (#30).
+  // 셈은 lib/homeworkView 한 곳(missedItemIds), 여기서는 붙이기만 한다.
+  const missedBefore = missedItemIds(reports, dri);
+
   const studyTasks = [
     ...todo.map((c) => {
-      return toTask(c);
+      return toTask(c, { missedBefore: missedBefore.has(c.itemId) });
     }),
     ...stay
       .filter((t) => t.status === "todo")

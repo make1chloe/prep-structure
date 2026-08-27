@@ -287,6 +287,11 @@ export default function StudyList({
                   {t.tool && (
                     <span className="tag tag-sky" style={{ fontSize: 12.5 }}>{toolBadge(t.tool)}</span>
                   )}
+                  {/* 지난 검사에서 ✕ 받은 숙제 (#30) — 다시 봐야 하는 것을
+                      조용히(회색) 알린다. 판정은 lib/homeworkView missedItemIds */}
+                  {t.missedBefore && (
+                    <span className="tag tag-muted" style={{ fontSize: 12.5 }}>지난번 미제출</span>
+                  )}
                   <span className="spacer" />
                   {mine.length > 0 && <span className="tag tag-mint">낸 것 {mine.length}</span>}
                 </div>
