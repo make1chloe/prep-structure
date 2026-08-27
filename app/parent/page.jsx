@@ -1077,14 +1077,18 @@ export default async function ParentPage(props) {
         </p>
       </div>
 
+      {/* **아이 탭은 제목 바로 아래** (원장님 확정 2026-08-27 — 학생 우선
+          계층). 탭 아래 화면 전체가 고른 아이 것이라, 탭이 다른 것들 사이에
+          끼어 있으면 「지금 누구 화면인가」 부터 헷갈린다. 아이가 하나면 안
+          그린다 — 고를 것이 없는 탭은 자리만 차지한다 */}
+      {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
+
       {/* 홈 화면에 담은 앱에는 주소창이 없다 — 여기 없으면 새로고침할 방법이 없다 */}
       {!preview && (
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <Refresh />
         </div>
       )}
-
-      {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
 
       {/* **안 켜신 분께는 위에서 한 번 더.** 알림 칸은 메뉴 줄의 🔔 뒤에
           있는데, 안 켜져 있으면 열어 보실 일이 없다. 켜면 사라진다 */}
