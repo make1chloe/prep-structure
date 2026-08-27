@@ -1359,9 +1359,13 @@ export default async function MePage(props) {
                 <PendingGate homework={pendingHw} scores={pendingScores} />
               )}
               <ScreenNote text={N("me.top")} tone="card" />
-              <div className="blockgrid">
+              {/* 폭 모순 해제 (탭 개편 A0): main 640 안에서 860px 두 단이
+                  발화해 칸당 206px 이 되던 blockgrid 를 뗐다 — 학생 화면은
+                  폰과 같은 한 줄이 원장님 확정(2026-08-24)이다.
+                  .blockgrid 규칙 자체는 /parent 가 그대로 쓴다 */}
+              <div id="me-blocks" className="stack">
                 {blockOrder.map((k) => (
-                  <div key={k} id={`blk-${k}`} className={k === "study" ? "fullrow" : undefined}>
+                  <div key={k} id={`blk-${k}`}>
                     {BLOCKS[k]}
                   </div>
                 ))}
