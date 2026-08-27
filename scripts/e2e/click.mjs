@@ -612,12 +612,40 @@ async function roundTrip() {
 
   if (made) {
     const c3 = await browser.newContext();
+    /**
+     * **AlertGate 를 "on" 으로** (탭 개편 §6-2). e2e 새 컨텍스트는 푸시
+     * 구독이 없어 pushState 가 "off" 고, 그러면 AlertGate 가 캡처 단계에서
+     * 모든 클릭을 삼킨다 (현행 초록은 /me 무클릭 덕이었다). 탭을 누르려면
+     * 구독이 있는 척해야 한다 — pushManager 는 getter 전용이라
+     * defineProperty 로 얹는다. AlertGate 실동작은 check-pushclient(정적)와
+     * 실물 판정 7번이 지킨다.
+     */
+    await c3.addInitScript(() => {
+      try {
+        Object.defineProperty(ServiceWorkerRegistration.prototype, "pushManager", {
+          get: () => ({ getSubscription: async () => ({ endpoint: "e2e" }) }),
+        });
+      } catch { /* 스텁이 안 먹으면 아래 탭 클릭이 AlertGate 안내에 걸린다 — 그게 단서 */ }
+    });
     const p3 = await c3.newPage();
     await login(p3, "student");
     await p3.goto(`${APP}/me`, { waitUntil: "networkidle" });
-    const body = await p3.locator("main").innerText();
-    if (body.includes(note)) console.log("  원장 → 학생 (전달사항이 학생 화면에 떴습니다)");
-    else bad("원장 → 학생", "넣었는데 학생 화면에 안 뜹니다");
+    // ① 새 공지는 길목(NoticeGate)이 먼저 보여준다 — 오버레이에서 판독
+    let body = await p3.locator("main").innerText();
+    if (body.includes(note)) console.log("  원장 → 학생 (전달사항이 길목에 떴습니다)");
+    else bad("원장 → 학생", "넣었는데 학생 길목(NoticeGate)에 안 뜹니다");
+    // ② 겹겹의 오버레이를 있는 것만 차례로 걷는다 (학부모 :527-528 전례):
+    //    처음 소개(z60) → 공지 확인(z55) → 할 일 팝업(z54)
+    for (const name of [/볼 필요 없음/, /확인했어요 — 화면으로/, /이따 할게요/]) {
+      const b = p3.getByRole("button", { name }).first();
+      if (await b.count()) { await b.click().catch(() => {}); await p3.waitForTimeout(300); }
+    }
+    // ③ 공지가 사는 「일정」 탭으로 — 배지가 붙어 있을 수 있어 앞글자로 잡는다
+    const calTab = p3.getByRole("button", { name: /^일정/ }).first();
+    if (await calTab.count()) { await calTab.click(); await p3.waitForTimeout(400); }
+    body = await p3.locator("main").innerText();
+    if (body.includes(note)) console.log("  원장 → 학생 (일정 탭에서도 보입니다)");
+    else bad("원장 → 학생", "일정 탭에 공지가 안 보입니다 (탭 클릭이 AlertGate 에 막혔는지 포함해 확인)");
     await c3.close();
   }
 }

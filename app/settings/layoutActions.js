@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { findPage } from "@/lib/screenLayout";
+import { findPage, upgradeLayout } from "@/lib/screenLayout";
 import { requireTeacher } from "@/lib/guard";
 import { needSql } from "@/lib/sqlError";
 
@@ -38,6 +38,11 @@ export async function listLayouts() {
 export async function saveLayout(pageKey, order = [], hidden = []) {
   const page = findPage(pageKey);
   if (!page) return { error: "모르는 화면이에요." };
+
+  // 옛 키(study·help·myscore)로 온 페이로드는 새 키로 전개 + 성장 기본
+  // 숨김 거울 — 읽기(arrange)와 같은 한 벌이다 (탭 개편 C2, 0174 이관
+  // 확인 후 C4 에서 함께 제거). 새 키만 온 페이로드는 그대로 지나간다.
+  ({ order, hidden } = upgradeLayout(pageKey, { order, hidden }));
 
   const known = new Set(page.blocks.map((b) => b.key));
   const clean = (list) => [...new Set((list || []).filter((k) => known.has(k)))];

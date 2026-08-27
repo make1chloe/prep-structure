@@ -12,17 +12,11 @@ import { checkArrival } from "./arrivalActions";
  * 셋을 한꺼번에 늘어놓으면 습관적으로 세 번 연달아 눌러버린다.
  * 그래서 **한 번에 하나씩만** 크게 보여준다. 하나를 누르면 다음이 나온다.
  * 남은 것은 아래에 흐리게 이름만 둔다 — 뭐가 남았는지는 알아야 하니까.
+ *
+ * 단계 정의·남은 셈은 lib/arrivalSteps 한 벌 — 등원 탭 배지도 같은 것을
+ * 센다 (탭 개편 C2, 원칙 1).
  */
-const STEPS = [
-  { kind: "phone", label: "핸드폰 냈어요", ask: "핸드폰을 선생님께 내고 눌러주세요" },
-  {
-    kind: "attend",
-    label: "출석 체크 했어요",
-    ask: "출석 체크 앱에서 눌렀는지 확인해주세요",
-    note: "누르면 선생님께 등원했다고 표시돼요",
-  },
-  { kind: "homework", label: "숙제 냈어요", ask: "숙제를 선생님께 내고 눌러주세요" },
-];
+import { STEPS } from "@/lib/arrivalSteps";
 
 export default function ArrivalCard({ done = {}, atAcademy = true, readOnly = false, asId = null }) {
   // 누르는 순간 다음 단계로 — 서버 답을 기다리면 한 박자 늦어 애들이 또 누른다

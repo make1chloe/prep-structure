@@ -144,7 +144,8 @@ export async function resend(items, kind, supa = null) {
             : k === "late"
             ? "오늘 늦게 하원합니다. 앱에서 확인해주세요."
             : "오늘 수업 내용이 올라왔어요.",
-          url: forStudent ? "/me" : "/parent",
+          // 아이 갈래(숙제 안내)는 숙제 탭으로 바로 (탭 개편 §5-2)
+          url: forStudent ? "/me?tab=hw" : "/parent",
           tag: `send-${k}`,
         },
         forStudent ? "all" : "parent",

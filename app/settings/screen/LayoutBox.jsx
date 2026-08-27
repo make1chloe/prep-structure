@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { PAGES } from "@/lib/screenLayout";
+import { PAGES, DEFAULT_HIDDEN, upgradeLayout } from "@/lib/screenLayout";
 import { listLayouts, resetLayout, saveLayout } from "../layoutActions";
 
 /**
@@ -41,7 +41,13 @@ export default function LayoutBox() {
   const page = PAGES.find((p) => p.key === pageKey) || PAGES[0];
 
   function load(all, key) {
-    const mine = all?.[key] || { order: [], hidden: [] };
+    // 저장분이 없으면 숨김 초기값 = 코드 기본 (성장 비공개 기본, §4-3) —
+    // 그래야 첫 저장이 기본 숨김을 그대로 실어 화면과 안 어긋난다.
+    // 옛 키 저장분은 새 키로 전개 + 거울 (arrange 와 한 벌 — C4 에서 제거)
+    const raw = all?.[key];
+    const mine = raw
+      ? upgradeLayout(key, { order: raw.order || [], hidden: raw.hidden || [] })
+      : { order: [], hidden: DEFAULT_HIDDEN[key] || [] };
     const p = PAGES.find((x) => x.key === key) || PAGES[0];
     setRows(order(p, mine));
     setHidden(new Set(mine.hidden || []));

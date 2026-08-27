@@ -256,7 +256,7 @@ export async function handleRequest(id, accept, reply, makeup) {
           (accept
             ? `${KIND[req.kind] || "알림"} 확인했습니다.`
             : "선생님 답장을 열어서 확인해주세요."),
-        url: "/me",
+        url: "/me?tab=cal",   // 보내기(결석·전달) 카드는 일정 탭 (탭 개편 §5-2)
       }, "전달사항 답장");
     } catch {
       // 알림이 안 가도 답은 남았다

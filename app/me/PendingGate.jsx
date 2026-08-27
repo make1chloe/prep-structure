@@ -14,12 +14,11 @@ export default function PendingGate({ homework = [], scores = [] }) {
   const [open, setOpen] = useState(homework.length > 0 || scores.length > 0);
   if (!open) return null;
 
-  const go = (blockId) => {
+  const go = (tab, blk) => {
     setOpen(false);
-    // 닫힌 뒤에 그 자리로 — 오버레이가 사라져야 스크롤이 먹는다
-    setTimeout(() => {
-      document.getElementById(blockId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    // 탭 전환·스크롤은 MeTabs 가 한다 (신설 채널 me:go — 탭 개편 C2).
+    // 닫힘 대기 50ms 도 MeTabs 쪽에 있다 — 오버레이가 사라져야 스크롤이 먹는다
+    window.dispatchEvent(new CustomEvent("me:go", { detail: { tab, blk } }));
   };
 
   return (
@@ -35,7 +34,7 @@ export default function PendingGate({ homework = [], scores = [] }) {
               <div className="hint" style={{ marginTop: 4, lineHeight: 1.7 }}>
                 {homework.join(" · ")}
               </div>
-              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={() => go("blk-study")}>
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={() => go("hw", "blk-homework")}>
                 숙제 하러 가기
               </button>
             </div>
@@ -46,7 +45,9 @@ export default function PendingGate({ homework = [], scores = [] }) {
               <div className="hint" style={{ marginTop: 4, lineHeight: 1.7 }}>
                 {scores.join(" · ")}
               </div>
-              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={() => go("blk-myscore")}>
+              {/* write(시험 적기) 블록이 숨어 있으면 scores 자체가 안 온다
+                  (page.jsx — 막다른 문 방지, §4-3) — 이 단추는 늘 도착한다 */}
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 8 }} onClick={() => go("grow", "blk-write")}>
                 시험 결과 적으러 가기
               </button>
             </div>

@@ -326,8 +326,9 @@ export async function sendNotices(items, label, templateId, supa = null) {
             title,
             body: firstLine(x.body),
             // 어머니만 보는 안내는 어머니 화면으로 보낸다 — 아이가 눌렀을 때
-            // 아무것도 없으면 그다음부터 알림을 안 누른다
-            url: toParent ? "/parent" : "/me",
+            // 아무것도 없으면 그다음부터 알림을 안 누른다.
+            // 아이 갈래는 일정 탭으로 바로 (탭 개편 §5-2 — 공지가 사는 곳)
+            url: toParent ? "/parent" : "/me?tab=cal",
             tag: `notice-${kind}`,
           },
           toParent ? "parent" : kindOf === "alert_student" ? "student" : "all",
