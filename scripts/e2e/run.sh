@@ -68,6 +68,13 @@ curl -sf "http://127.0.0.1:$APP_PORT/login" >/dev/null || {
   echo "  앱이 안 떴습니다"; tail -20 /var/tmp/e2e-next.log; exit 1; }
 echo "  떴습니다 :$APP_PORT"
 
+# **페이지 로드 시간** (2026-08-27 진단 — 원장 「원장 어플이 너어어어무
+# 느림」). 숫자만 찍는다 — 판정 없음. click 보다 **앞**에 둔다: 다른 검사가
+# 빨개진 날에도 숫자는 남아야 진단이 선다. CI 는 로컬 PG 라 Supabase 왕복
+# 지연은 안 담기고, 렌더·파도 구조 비용의 바닥값만 보인다 (perf.mjs 머리말).
+echo
+E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/perf.mjs || true
+
 echo
 E2E_APP="http://127.0.0.1:$APP_PORT" node scripts/e2e/click.mjs || exit $?
 
