@@ -34,16 +34,24 @@ const WHO = {
   parent: { id: "parent0001@e2e.test", pw: "e2e-pass", home: "/parent" },
 };
 
-/** 원장이 여는 화면 전부 */
+/**
+ * 원장이 여는 화면 전부.
+ *
+ * **메뉴(lib/menu.js)에 뜨는 것은 여기 다 있어야 한다.** 2026-08-28 에
+ * 대메뉴를 다섯으로 줄이면서 훑어보니 「진도」 와 묶음 화면 넷이 통째로
+ * 빠져 있었다 — 안 눌러본 화면은 터져도 아무도 모른다.
+ */
 const STAFF_PAGES = [
   "/", "/today", "/check", "/plan",
   "/students", "/scores", "/classes",
-  "/textbooks", "/homework", "/prep", "/videos",
-  "/tasks", "/schedule", "/schools",
+  "/textbooks", "/homework", "/prep", "/progress", "/videos",
+  "/tasks", "/tasks?view=todo", "/schedule", "/schools",
   "/report", "/monthly",
   "/tuition", "/notes", "/consult",
   "/settings", "/settings/messages", "/settings/messages?t=screen",
   "/settings/screen", "/settings/admin", "/settings/sql", "/import",
+  // 묶음 화면 (대메뉴를 눌렀을 때) — 대시보드는 「/」 라 위에 이미 있다
+  "/menu/calendar", "/menu/books", "/menu/growth", "/menu/settings",
 ];
 
 let fail = 0;

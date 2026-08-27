@@ -39,7 +39,7 @@ for (const r of routes("app")) {
 }
 
 // 2) 선생님 화면 몇 개는 반드시 막혀 있어야 한다
-for (const r of ["/today", "/students", "/tuition", "/settings", "/report", "/classes", "/import", "/menu/today", "/schools", "/notes", "/prep", "/check", "/videos", "/scores"]) {
+for (const r of ["/today", "/students", "/tuition", "/settings", "/report", "/classes", "/import", "/menu/calendar", "/schools", "/notes", "/prep", "/check", "/videos", "/scores"]) {
   if (canOpen("student", r)) bad.push(`학생에게 열려 있음: ${r}`);
   if (canOpen("parent", r)) bad.push(`학부모에게 열려 있음: ${r}`);
   if (canOpen(null, r)) bad.push(`역할을 모르는 사람에게 열려 있음: ${r}`);

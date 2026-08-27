@@ -61,9 +61,15 @@ const bar = readFileSync("components/TopBar.jsx", "utf8");
 eq(bar.includes("unreadForStaff"), true, "위 메뉴가 센다");
 // 학생·학부모 메뉴에는 대시보드가 없다 — 괜히 물어보면 그만큼 느려진다
 eq(bar.includes("isStaff(profile?.role)"), true, "선생님 계정에서만 센다");
-// 대시보드는 묶음 안에 화면이 없어서 **묶음 이름 칸이 곧 그 화면**이다
-// (2026-08-07, 메뉴를 묶음별 줄로 바꾸면서). 배지도 거기 붙는다
-eq(bar.includes('row.solo?.key === "home" && badge'), true, "「대시보드」 옆에 붙는다");
+/**
+ * 배지는 **「대시보드」 묶음 이름 칸**에 붙는다.
+ *
+ * 2026-08-28 에 대메뉴가 다섯이 되면서 대시보드에도 하위 화면이 생겼다
+ * (오늘 수업 · 재원생 · 일일/월간 리포트 · 숙제 검사). 그전에는 하위가
+ * 없어서 `row.solo` 로 가렸는데, 그대로 두면 **조용히 안 붙는다** — 배지가
+ * 안 뜨는 것은 오류가 아니라서 아무도 못 잡는다. 그래서 묶음 키로 본다.
+ */
+eq(bar.includes('row.group === "home" && badge'), true, "「대시보드」 옆에 붙는다");
 eq(readFileSync("app/globals.css", "utf8").includes(".navbadge"), true, "배지 모양이 있다");
 
 if (fail) { console.log("\n❌ 배지에 어긋난 것이 있습니다."); process.exit(1); }

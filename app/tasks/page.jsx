@@ -516,7 +516,9 @@ export default async function TasksPage(props) {
 
   return (
     <>
-      <TopBar profile={profile} active="tasks" />
+      {/* 메뉴에 「달력」 과 「할일」 이 따로 서 있다 (2026-08-28) — 같은 화면의
+          두 탭이라, 지금 어느 문으로 들어왔는지를 메뉴에 알려줘야 그 칸이 켜진다 */}
+      <TopBar profile={profile} active={view === "todo" ? "todo" : "tasks"} />
       <main className="wrap-wide">
         <div className="page-head">
           <p className="eyebrow">할일 · 일정</p>

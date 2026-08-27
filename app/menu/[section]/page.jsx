@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TopBar from "@/components/TopBar";
 import { findSection } from "@/lib/menu";
@@ -15,8 +15,24 @@ export const dynamic = "force-dynamic";
  * 위에는 큰 이름 다섯 개만 두고, 들어오면 여기서 고른다.
  * 큼직한 카드로 두는 것은 폰에서 손가락으로 누르기 위해서다.
  */
+/**
+ * **없어진 묶음의 옛 주소는 넘긴다** (원칙 C18 — 즐겨찾기·홈 화면 바로가기가
+ * 깨진다). 2026-08-28 에 대메뉴가 여덟에서 다섯이 되면서 네 묶음이 사라졌다.
+ *   오늘 · 학생 · 발송 → 그 안의 화면들이 대부분 대시보드로 갔다
+ *   운영              → 상담일지 · 신규 상담이 「성장」 으로 갔다
+ */
+const MOVED = {
+  today: "/",
+  students: "/",
+  send: "/",
+  manage: "/menu/growth",
+  // 「대시보드」 묶음 이름을 누르면 대시보드로 바로 간다 — 여기 올 일이 없다
+  home: "/",
+};
+
 export default async function MenuSection(props) {
   const params = await props.params;
+  if (MOVED[params.section]) redirect(MOVED[params.section]);
   const section = findSection(params.section);
   if (!section || section.items.length === 0) notFound();
 

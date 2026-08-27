@@ -174,7 +174,7 @@ export default async function TopBar({ profile, active }) {
                     : sectionOf(active) === row.group ? "on" : ""
                 }`}
                 title={
-                  row.solo?.key === "home" && badge
+                  row.group === "home" && badge
                     ? `안 본 알림 ${unread.total}건 (결석·문의 ${unread.requests} · 댓글 ${unread.comments})`
                     : `${row.label} 묶음`
                 }
@@ -187,8 +187,12 @@ export default async function TopBar({ profile, active }) {
                   * 접히면 소메뉴가 안 보이므로, 여기 합계가 없으면 어느
                   * 묶음에 일이 밀렸는지 알 수가 없다 — 배지를 붙이는 뜻이
                   * 절반 사라진다.
+                  *
+                  * **묶음 키로 본다** (2026-08-28). 대메뉴가 다섯이 되면서
+                  * 대시보드에도 하위 화면(오늘 수업 · 재원생 · 리포트 · 검사)이
+                  * 생겼다 — 전처럼 `row.solo` 로 보면 조용히 안 붙는다.
                   */}
-                {row.solo?.key === "home" && badge && <span className="navbadge">{badge}</span>}
+                {row.group === "home" && badge && <span className="navbadge">{badge}</span>}
                 {!row.solo && badgeText(groupTodo(row)) && (
                   <span className="navbadge todo" title={`${row.label} — 남은 일 ${groupTodo(row)}건`}>
                     {badgeText(groupTodo(row))}
