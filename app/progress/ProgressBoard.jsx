@@ -11,12 +11,23 @@ import { sortRows } from "@/lib/listSort";
  * **기본은 「오늘 수업」 학생만.** 이 화면은 수업 중에 죽 훑으며 적는
  * 자리라(유형 A), 오늘 안 오는 아이까지 늘어놓으면 훑는 길이만 는다.
  * 전체는 단추 하나로 편다.
+ *
+ * **PC(≥1101px)는 좌 학생 목록 / 우 열린 학생의 교재 판** (B2, 원장 승인
+ * 2026-08-27). 줄 사이에 판이 끼면 아래 학생들이 화면 밖으로 밀려나서,
+ * 다음 아이를 보려면 닫고 다시 찾아 내려가야 했다 — 재원생·발송과 같은
+ * 전환이다. 판이 본문(넓은 쪽)인 것은 판 안 .bookgrid 2열이 서야 해서다.
+ *
+ * 폭은 **열 때 한 번만 본다** (components/useSheet 와 같은 원칙). 미디어쿼리로
+ * 자리를 가르면 같은 판을 인라인·오른쪽 두 벌로 그려야 하고(단원 왕복도
+ * 두 번, 한쪽에 적은 것이 다른 쪽에 안 보인다), 창 폭이 문턱을 넘나드는
+ * 순간 적던 판이 자리를 잃는다. 폰(<1101px)은 지금처럼 줄 아래 인라인.
  */
 export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }) {
   const [q, setQ] = useState("");
   const [klass, setKlass] = useState("");
   const [todayOnly, setTodayOnly] = useState(() => rows.some((r) => r.todayClass));
   const [openId, setOpenId] = useState(null);
+  const [wide, setWide] = useState(false);   // 연 순간의 화면 폭 — 판을 어디에 그릴지
   const [sortKey, setSortKey] = useState("name");
 
   const kw = q.trim().toLowerCase();
@@ -28,8 +39,18 @@ export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }
     return true;
   });
 
-  return (
-    <>
+  // 열린 학생이 필터에 걸러지면 판도 같이 사라진다 (인라인 시절과 같은 결)
+  const openRow = shown.find((r) => r.id === openId) || null;
+  const split = !!openRow && wide;
+
+  function toggle(r, open) {
+    if (open) { setOpenId(null); return; }
+    setOpenId(r.id);
+    setWide(typeof window !== "undefined" && window.matchMedia("(min-width: 1101px)").matches);
+  }
+
+  const list = (
+    <div className="card" style={{ padding: 0 }}>
       <div className="row" style={{ gap: 6, padding: "12px 16px 0", alignItems: "center" }}>
         <input
           className="input input-sm"
@@ -79,7 +100,13 @@ export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }
             <div key={r.id} className="stuRow">
               {/* 이름 줄 — 교재 이름을 접힌 채로도 보여준다. 몇 권인지만 있으면
                   「무슨 책이더라」 하고 열어봐야 한다 */}
-              <button className="stuLine" onClick={() => setOpenId(open ? null : r.id)}>
+              <button
+                className="stuLine"
+                /* 좌우 분할 중에는 판이 줄 밖(오른쪽)에 있어서, 이 줄이
+                   열려 있다는 표시가 배경색뿐이다 */
+                style={open && split ? { background: "var(--surface-2)" } : undefined}
+                onClick={() => toggle(r, open)}
+              >
                 <span className="stuWho">
                   <span className="stuName">{r.name}</span>
                   <span className="stuSub">{[r.grade, r.school].filter(Boolean).join(" · ")}</span>
@@ -105,7 +132,7 @@ export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }
                   <span className="stuOpen">{open ? "▾" : "▸"}</span>
                 </span>
               </button>
-              {open && (
+              {open && !split && (
                 <div className="stuPanel">
                   <StudentBooksProgress studentId={r.id} books={r.books} allBooks={allBooks} />
                 </div>
@@ -120,6 +147,32 @@ export default function ProgressBoard({ rows = [], classes = [], allBooks = [] }
           </p>
         )}
       </div>
-    </>
+    </div>
+  );
+
+  return (
+    <div className={split ? "splitview splitview-board" : undefined} style={{ marginTop: 12 }}>
+      {list}
+      {split && (
+        <aside className="card split-panel">
+          <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+            <b style={{ fontSize: 15 }}>{openRow.name}</b>
+            <span className="hint">{[openRow.grade, openRow.school].filter(Boolean).join(" · ")}</span>
+            <span className="spacer" />
+            <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
+          </div>
+          <div className="split-body">
+            {/* key — 학생을 바꾸면 판을 새로 세운다. 같은 판을 이어 쓰면
+                🧹 정리에서 골라둔 교재(sel)가 다음 학생까지 따라간다 */}
+            <StudentBooksProgress
+              key={openRow.id}
+              studentId={openRow.id}
+              books={openRow.books}
+              allBooks={allBooks}
+            />
+          </div>
+        </aside>
+      )}
+    </div>
   );
 }

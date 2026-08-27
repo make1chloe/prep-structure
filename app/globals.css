@@ -1292,6 +1292,11 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
    채우는 폼이 들어가지만, 교재의 판에는 단원 **표**가 들어간다 (이름 · 쪽수 ·
    문제번호 · 활동). 440px 에 표를 넣으면 칸마다 글자가 세로로 쪼개진다. */
 .splitview-wide { grid-template-columns: minmax(0, 1fr) minmax(380px, 620px); }
+/* 진도 — 위 둘과 반대로 **오른쪽 판이 본문**이다. 판에는 학생의 교재
+   카드들(.bookgrid)이 서는데, 2열(≥1100px)이 살려면 판이 ~1000px 는
+   되어야 한다. 목록은 좁은 레일로 — 줄의 교재 글자(.stuflow)는
+   말줄임으로 줄고, 자세한 것은 어차피 오른쪽 판이 보여준다 (B2, 2026-08-27) */
+.splitview-board { grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); }
 
 /* 발송 — 넓은 화면에서는 문구가 오른쪽 판에 서므로 줄 안 미리보기는 접는다.
    폰(세로)에서는 판이 없던 자리라 그대로 줄 아래에서 읽는다 (B2, 2026-08-27) */

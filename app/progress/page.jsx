@@ -167,15 +167,15 @@ export default async function ProgressPage() {
             <ProgressUpload />
           </div>
         </div>
-        <div className="card" style={{ marginTop: 12, padding: 0 }}>
-          <ProgressBoard
-            rows={rows}
-            classes={classes.map((c) => ({ id: c.id, name: c.name }))}
-            allBooks={((booksQ && booksQ.data) || [])
-              .filter((b) => !b.status || b.status === "active")
-              .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }))}
-          />
-        </div>
+        {/* 목록 카드는 보드 안에서 그린다 — PC 에서 학생을 열면 좌 목록 /
+            우 교재 판의 좌우 분할(.splitview-board)로 서야 해서다 (B2) */}
+        <ProgressBoard
+          rows={rows}
+          classes={classes.map((c) => ({ id: c.id, name: c.name }))}
+          allBooks={((booksQ && booksQ.data) || [])
+            .filter((b) => !b.status || b.status === "active")
+            .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }))}
+        />
       </main>
     </>
   );
