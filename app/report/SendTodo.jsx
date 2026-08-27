@@ -172,69 +172,21 @@ export default function SendTodo({
     });
   }
 
-  return (
-    <div className="stack" style={{ gap: 10, marginTop: 12 }}>
-      {/* 보내기 · 예약 — 한 줄에 (체크한 것 전체에 적용) */}
-      {(unsentByDate.length > 0 || bookWait.length > 0) && (
-        <div className="card card-tight">
-          <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <b style={{ fontSize: 14.5 }}>
-              체크한 것 — 리포트 {repCount}건 · 교재 안내 {pickedBooks.length}명
-            </b>
-            <span className="spacer" />
-            <button className="btn btn-primary btn-sm" disabled={pending || (repCount === 0 && pickedBooks.length === 0)}
-              onClick={sendAllNow}>
-              지금 보내기
-            </button>
-            <input
-              className="input input-sm"
-              type="datetime-local"
-              style={{ width: 200 }}
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-            />
-            <button className="btn btn-sm" disabled={pending} onClick={schedule}>
-              이 시각에 예약
-            </button>
-          </div>
-          <p className="hint" style={{ margin: "4px 0 0" }}>
-            예약은 그 시각이 지난 뒤 <b>앱을 열 때</b>, 또는 바깥 시계가 한 시간마다
-            서버를 두드릴 때 나갑니다 (설정해두면 앱을 안 열어도 나가요).
-          </p>
-        </div>
-      )}
+  // 보내기·예약과 예약된 발송 — PC 에서는 오른쪽 레일에 붙어 선다
+  const rail = (unsentByDate.length > 0 || bookWait.length > 0 || waiting.length > 0);
 
+  return (
+    // PC(≥1100px)는 좌 대상 목록 / 우 보내기·예약 레일(sticky) — 목록이 길어져도
+    // 보내기 단추가 화면에 남는다 (B2, 원장 승인 2026-08-27). 좁으면 세로 그대로:
+    // .splitview 미디어쿼리가 레일을 맨 위로 되돌려 지금 차례와 같다.
+    <div className={rail ? "splitview" : "stack"} style={{ gap: 10, marginTop: 12 }}>
+      {/* 왼쪽(폰은 레일 아래) — 보낼 대상 목록 */}
+      <div className="stack" style={{ gap: 10 }}>
       {total === 0 && waiting.length === 0 && (
         <div className="card">
           <p className="muted" style={{ margin: 0, fontSize: 15 }}>
             보낼 것이 없어요 👏 리포트를 쓰면 여기에 자동으로 섭니다.
           </p>
-        </div>
-      )}
-
-      {/* 예약된 발송 */}
-      {waiting.length > 0 && (
-        <div className="card">
-          <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>
-            예약된 발송 <span className="tag tag-sky">{waiting.length}건</span>
-          </h2>
-          <div className="stack" style={{ gap: 4 }}>
-            {waiting.map((s) => (
-              <div className="unitrow" key={s.id}>
-                <span className="tag tag-lav">
-                  {new Date(s.due_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </span>
-                {/* 배치 규칙(2026-08-21) — 자동 앱 알림은 다음 :00/:30 까지 여기 선다.
-                    취소를 누르면 그 알림은 안 나간다 */}
-                {s.kind === "push" && <span className="tag tag-mint">앱 알림</span>}
-                <span style={{ fontSize: 14, flex: 1 }}>{s.note || (s.kind === "report" ? "리포트" : s.kind === "push" ? "앱 알림" : "교재 안내")}</span>
-                <button className="btn btn-ghost btn-sm" disabled={pending}
-                  onClick={() => { if (confirm("이 예약을 취소할까요?")) run(() => cancelScheduled(s.id)); }}>
-                  취소
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
@@ -360,6 +312,68 @@ export default function SendTodo({
             ))}
           </div>
         </div>
+      )}
+      </div>
+
+      {/* 오른쪽 레일(폰은 맨 위) — 보내기·예약과 예약된 발송 */}
+      {rail && (
+        <aside className="split-panel stack" style={{ gap: 10 }}>
+          {/* 보내기 · 예약 — 한 줄에 (체크한 것 전체에 적용) */}
+          {(unsentByDate.length > 0 || bookWait.length > 0) && (
+            <div className="card card-tight">
+              <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <b style={{ fontSize: 14.5 }}>
+                  체크한 것 — 리포트 {repCount}건 · 교재 안내 {pickedBooks.length}명
+                </b>
+                <span className="spacer" />
+                <button className="btn btn-primary btn-sm" disabled={pending || (repCount === 0 && pickedBooks.length === 0)}
+                  onClick={sendAllNow}>
+                  지금 보내기
+                </button>
+                <input
+                  className="input input-sm"
+                  type="datetime-local"
+                  style={{ width: 200 }}
+                  value={when}
+                  onChange={(e) => setWhen(e.target.value)}
+                />
+                <button className="btn btn-sm" disabled={pending} onClick={schedule}>
+                  이 시각에 예약
+                </button>
+              </div>
+              <p className="hint" style={{ margin: "4px 0 0" }}>
+                예약은 그 시각이 지난 뒤 <b>앱을 열 때</b>, 또는 바깥 시계가 한 시간마다
+                서버를 두드릴 때 나갑니다 (설정해두면 앱을 안 열어도 나가요).
+              </p>
+            </div>
+          )}
+
+          {/* 예약된 발송 */}
+          {waiting.length > 0 && (
+            <div className="card">
+              <h2 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 800 }}>
+                예약된 발송 <span className="tag tag-sky">{waiting.length}건</span>
+              </h2>
+              <div className="stack" style={{ gap: 4 }}>
+                {waiting.map((s) => (
+                  <div className="unitrow" key={s.id}>
+                    <span className="tag tag-lav">
+                      {new Date(s.due_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    {/* 배치 규칙(2026-08-21) — 자동 앱 알림은 다음 :00/:30 까지 여기 선다.
+                        취소를 누르면 그 알림은 안 나간다 */}
+                    {s.kind === "push" && <span className="tag tag-mint">앱 알림</span>}
+                    <span style={{ fontSize: 14, flex: 1 }}>{s.note || (s.kind === "report" ? "리포트" : s.kind === "push" ? "앱 알림" : "교재 안내")}</span>
+                    <button className="btn btn-ghost btn-sm" disabled={pending}
+                      onClick={() => { if (confirm("이 예약을 취소할까요?")) run(() => cancelScheduled(s.id)); }}>
+                      취소
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
       )}
     </div>
   );

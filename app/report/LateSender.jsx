@@ -125,51 +125,65 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
           )}
         </div>
 
-        {isOpen && (
-          <div style={{ marginTop: 8 }}>
-            <textarea
-              className="input"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              style={{ width: "100%", height: 160, fontSize: 14 }}
-            />
-            <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
-              {r.lateEdited && (
-                <button
-                  className="btn btn-ghost btn-sm"
-                  disabled={pending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      await resetText(r.id, "late");
-                      setOpenId(null);
-                      router.refresh();
-                    })
-                  }
-                >
-                  자동 문구로 되돌리기
-                </button>
-              )}
+      </div>
+    );
+  }
+
+  /** 오른쪽(폰은 위) — 열린 학생의 문구. 미리보기이자 편집 칸이다 (B2) */
+  function panel() {
+    const r = targets.find((x) => x.id === openId);
+    if (!r) return null;
+    return (
+      <aside className="card split-panel">
+        <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+          <b style={{ fontSize: 15 }}>{r.name}</b>
+          <span className="hint">{r.who}</span>
+          <span className="spacer" />
+          <button className="btn btn-ghost btn-sm" onClick={() => setOpenId(null)}>닫기</button>
+        </div>
+        <div className="split-body">
+          <textarea
+            className="input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            style={{ width: "100%", height: 160, fontSize: 14 }}
+          />
+          <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+            {r.lateEdited && (
               <button
-                className="btn btn-sm"
+                className="btn btn-ghost btn-sm"
                 disabled={pending}
                 onClick={() =>
                   startTransition(async () => {
-                    const res = await saveText(r.id, "late", draft);
-                    if (res?.error) {
-                      alert(res.error);
-                      return;
-                    }
+                    await resetText(r.id, "late");
                     setOpenId(null);
                     router.refresh();
                   })
                 }
               >
-                문구 저장
+                자동 문구로 되돌리기
               </button>
-            </div>
+            )}
+            <button
+              className="btn btn-sm"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await saveText(r.id, "late", draft);
+                  if (res?.error) {
+                    alert(res.error);
+                    return;
+                  }
+                  setOpenId(null);
+                  router.refresh();
+                })
+              }
+            >
+              문구 저장
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      </aside>
     );
   }
 
@@ -192,6 +206,10 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
         <p className="hint">오늘은 늦게 가는 학생이 없습니다.</p>
       )}
 
+      {/* PC(≥1100px)는 좌 대상 목록 / 우 열린 문구 판 (B2, 원장 승인 2026-08-27).
+          좁으면 세로 그대로 — 미디어쿼리는 .splitview 가 처리한다. */}
+      <div className="splitview">
+      <div>
       {todo.length > 0 && (
         <>
           <div className="row" style={{ gap: 8, alignItems: "center", marginBottom: 8 }}>
@@ -256,6 +274,9 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
           {sent.map((r) => Row({ r }))}
         </>
       )}
+      </div>
+      {panel()}
+      </div>
     </div>
   );
 }
