@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import NoticePhotos from "@/components/NoticePhotos";
+import { keyOf, stampOf, unseenOf } from "@/lib/noticeStamp";
 
 /**
  * **안 본 공지가 있으면 화면보다 먼저** (원장님, 2026-08-14).
@@ -20,7 +21,7 @@ import NoticePhotos from "@/components/NoticePhotos";
  * 다시 보는 길은 이미 있다 — 화면의 「알림」 덩어리 (2주치가 그대로 있다).
  */
 export default function NoticeGate({ page, notices = [] }) {
-  const KEY = `chloe.noticeSeen.${page}`;
+  const KEY = keyOf(page);
   const [unseen, setUnseen] = useState([]);
 
   /**
@@ -29,21 +30,13 @@ export default function NoticeGate({ page, notices = [] }) {
    * 원장님이 공지를 고치면 시각이 바뀌어 다른 이름이 되고, 확인했던
    * 기기에서도 **새 공지처럼 다시 뜬다.** 그게 재공지다.
    * (옛 저장분 — 시각 없이 id 만 적힌 것 — 도 안 고친 공지에는 그대로 맞는다)
+   *
+   * 판정은 lib/noticeStamp 한 벌 — 학생 화면 일정 탭 배지가 같은 것을
+   * 읽는다 (탭 개편 C2, 원칙 1).
    */
-  const stampOf = (n) => `${n.id}|${n.edited_at || n.editedAt || ""}`;
-
   useEffect(() => {
     try {
-      const seen = new Set(JSON.parse(localStorage.getItem(KEY) || "[]"));
-      setUnseen(
-        notices.filter((n) => {
-          const st = stampOf(n);
-          if (seen.has(st)) return false;
-          // 옛 형식(맨 id) — 고친 적 없는 공지면 그걸로도 확인한 것으로 친다
-          if (!st.split("|")[1] && seen.has(n.id)) return false;
-          return true;
-        })
-      );
+      setUnseen(unseenOf(page, notices));
     } catch {
       /* 사파리 비공개 — 막지 않는다. 공지는 화면의 알림 덩어리에도 있다 */
     }
@@ -56,6 +49,10 @@ export default function NoticeGate({ page, notices = [] }) {
       // 오래된 것은 흘려보낸다 — 무한히 쌓이면 언젠가 저장이 막힌다
       localStorage.setItem(KEY, JSON.stringify([...seen].slice(-200)));
     } catch { /* 무시 */ }
+    // **저장 뒤에** 알린다 (탭 개편 C2) — 같은 창의 localStorage 변경은
+    // storage 이벤트가 안 나므로, 학생 화면 일정 탭 배지(MeTabs)가 이
+    // 신설 채널을 듣고 다시 센다. /parent 의 발행분은 청취자가 없어 무해.
+    try { window.dispatchEvent(new CustomEvent("me:noticeSeen")); } catch { /* 무시 */ }
     // 확인은 **통과만**이다 (원장님, 2026-08-16 — 「한번 확인하고 기억이
     // 안 날 때 다시 어플을 봐야 할 테니」). 목록에는 남아서 다시 볼 수
     // 있고, 영영 치우는 것은 목록의 「더 안 보기」(0129)가 한다.

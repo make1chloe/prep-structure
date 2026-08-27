@@ -15,8 +15,11 @@ import { findPage, NAV_GROUPS } from "@/lib/screenLayout";
  *
  * 묶음과 이름은 lib/screenLayout 의 NAV_GROUPS 한 곳 — 소개도 같은 것을
  * 읽는다 (따로 적으면 화면이 바뀔 때 소개만 낡는다, 원칙 1).
- * **화면을 탭으로 쪼개지 않는다** — 덩어리 차례는 원장님이 정하시고(0095),
- * 이건 그 한 장의 차례표다. 비어서 안 그려진 덩어리는 메뉴에도 없다 (A8).
+ * 「화면을 탭으로 쪼개지 않는다」 는 **학부모 화면에만 남은 말**이다 —
+ * 학생 화면(/me)은 원장 확정(2026-08-27)으로 네 탭이 됐고 MeTabs 가
+ * 이 컴포넌트를 대체했다 (소개 키 chloe.intro.me 도 그쪽이 계승).
+ * 여기는 이제 /parent 전용 — 한 장의 차례표다. 비어서 안 그려진 덩어리는
+ * 메뉴에도 없다 (A8).
  */
 export default function SectionNav({ page, order = [] }) {
   const [present, setPresent] = useState(() => new Set());

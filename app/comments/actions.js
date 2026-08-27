@@ -85,7 +85,8 @@ export async function addComment(reportId, studentId, body) {
         who: "all",
         title: "💬 선생님 댓글",
         body: `${who?.name ? `${who.name} · ` : ""}${text.slice(0, 60)}`,
-        url: "/me",
+        // 질문 카드는 숙제 탭에 산다 (탭 개편 §5-2)
+        url: "/me?tab=hw",
       }, `${who?.name || "학생"} · 댓글 알림`);
     } else {
       const { data: who } = await supabase

@@ -39,10 +39,16 @@ eq(css.includes(".blockgrid .fullrow"), true, "가로로 넓어야 하는 칸을
 console.log("\n== 화면이 실제로 쓰고 있나 ==");
 // css 만 있고 화면이 안 쓰면 아무 일도 안 일어난다
 const me = readFileSync("app/me/page.jsx", "utf8");
-eq(me.includes('className="blockgrid"'), true, "학생 화면이 쓴다");
-// 「지금 할 것」 은 큰 글씨·큰 버튼으로 하나만 보여주는 칸이다. 반쪽으로
-// 접히면 그 뜻이 사라진다
-eq(me.includes('"study" ? "fullrow"'), true, "「지금 할 것」 은 폭을 다 쓴다");
+/**
+ * **학생 화면은 blockgrid 를 안 쓴다** (탭 개편 A0, 2026-08-27).
+ * main 640 안에서 860px 두 단 미디어쿼리가 발화해 칸당 206px 이 되는
+ * 폭 모순이 있었다 — 폰과 같은 한 줄(원장님 2026-08-24)이므로 뗐다.
+ * fullrow 도 같이 소멸 — 한 줄에서는 모든 칸이 폭을 다 쓴다.
+ */
+eq(me.includes('className="blockgrid"'), false, "학생 화면은 blockgrid 를 뗐다 (폭 모순)");
+eq(me.includes('"study" ? "fullrow"'), false, "한 줄에서는 fullrow 분기가 필요 없다");
+// 앵커 여백은 자손 선택자로 — 탭 패널이 한 겹 끼어도 산다
+eq(css.includes('#me-blocks [id^="blk-"]'), true, "학생 화면 앵커 여백이 자손 선택자로 있다");
 /**
  * **학생 화면은 컴퓨터에서도 폰과 같은 한 줄** (원장님 2026-08-24 —
  * 「학생 어플이 PC에서 볼 때 화면구성이 너무 헷갈려」).

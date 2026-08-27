@@ -542,7 +542,7 @@ export async function saveStudentDay(studentId, date, form) {
         body: changed.length
           ? `${changed.join(", ")} — 앱에서 확인해주세요`
           : (list.length ? list.join(", ") : "앱에서 확인해주세요"),
-        url: "/me",
+        url: "/me?tab=hw",   // 숙제 탭으로 바로 (탭 개편 §5-2)
       }, "숙제 알림");
     } catch {
       // 알림 실패는 무시한다
@@ -570,7 +570,7 @@ export async function saveStudentDay(studentId, date, form) {
         who: "student",
         title: "오늘 할 일이 바뀌었어요",
         body: "화면을 열어 새 순서를 확인해 주세요.",
-        url: "/me",
+        url: "/me?tab=in",   // 등원 중 할 일은 등원 탭 (탭 개편 §5-2)
       }, "오늘 할 일 변경");
     }
   } catch { /* 알림 실패는 저장을 막지 않는다 */ }
@@ -758,7 +758,8 @@ export async function createNotice(input) {
   if (isAlert(row.kind)) {
     const title = row.kind === "alert_student" ? "학생 알림" : "학부모 알림";
     const res = row.kind === "alert_student"
-      ? await pushToStudents(targets, { title, body: text || head, url: "/me" })
+      // 공지·전달사항은 일정 탭에 산다 (탭 개편 §5-2)
+      ? await pushToStudents(targets, { title, body: text || head, url: "/me?tab=cal" })
       : await pushToFamilies(targets, { title, body: text || head, url: "/parent" }, "parent");
     sent = res?.sent || 0;
   }

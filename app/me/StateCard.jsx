@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { setMyState } from "./stateActions";
 import { STATES, STUDENT_PICKABLE, stateOf } from "@/lib/activity";
+import HintOnce from "./HintOnce";
 
 /**
  * **선생님 부르기.**
@@ -16,7 +17,7 @@ import { STATES, STUDENT_PICKABLE, stateOf } from "@/lib/activity";
  * **여기에 「다 했어요」 를 또 두지 않는다.** 그건 학습 목록에 이미 있고,
  * 누르면 현황판에 그대로 뜬다. 같은 것을 두 군데 두면 반드시 어긋난다.
  */
-export default function StateCard({ mine = null, unavailable = false }) {
+export default function StateCard({ mine = null, unavailable = false, sid = "" }) {
   const [state, setState] = useState(mine?.state || "");
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -44,13 +45,17 @@ export default function StateCard({ mine = null, unavailable = false }) {
         <span className="spacer" />
         {saved && <span className="hint" style={{ color: "var(--mint)" }}>선생님께 전달됐어요 ✓</span>}
       </div>
-      <p className="hint" style={{ margin: "4px 0 8px" }}>
-        모르는 것이 있으면 <b>말로 부르지 말고</b> 눌러주세요. 선생님 화면 맨 위에
-        뜨고, 하시던 설명을 마치는 대로 오십니다.
-        <br />
-        무엇을 하고 있고 어디까지 했는지는 <b>따로 누르지 않아도</b> 선생님께
-        보입니다 — 학습을 시작하고 「다 했어요」 를 누르는 것으로 충분해요.
-      </p>
+      {/* 처음 한 번만 (C1 #6) — 「말로 부르지 말라」 는 첫 안내 가치.
+          키는 학생별 — 공용 기기에서 남의 ✕ 가 내 안내를 지우면 안 된다 */}
+      <HintOnce k={`state.${sid}`}>
+        <p className="hint" style={{ margin: "4px 0 8px" }}>
+          모르는 것이 있으면 <b>말로 부르지 말고</b> 눌러주세요. 선생님 화면 맨 위에
+          뜨고, 하시던 설명을 마치는 대로 오십니다.
+          <br />
+          무엇을 하고 있고 어디까지 했는지는 <b>따로 누르지 않아도</b> 선생님께
+          보입니다 — 학습을 시작하고 「다 했어요」 를 누르는 것으로 충분해요.
+        </p>
+      </HintOnce>
       <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
         {STUDENT_PICKABLE.map((k) => {
           const s = STATES.find((x) => x.key === k);
@@ -69,11 +74,8 @@ export default function StateCard({ mine = null, unavailable = false }) {
           );
         })}
       </div>
-      {state && (
-        <p className="hint" style={{ margin: "8px 0 0" }}>
-          다 하면 다시 눌러서 끄면 됩니다.
-        </p>
-      )}
+      {/* 「다 하면 다시 눌러서 끄면 됩니다」 는 뺐다 (C1 #2) —
+          켜짐(btn-on) 토글이 그 자체로 말한다 */}
     </div>
   );
 }

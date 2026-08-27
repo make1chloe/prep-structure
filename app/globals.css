@@ -1251,6 +1251,9 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 /* 메뉴를 누르면 그 덩어리 머리가 메뉴 줄 아래로 오게 — 안 잡으면 제목이
    메뉴 뒤로 들어간다 */
 .blockgrid > div { scroll-margin-top: calc(var(--topbar-h, 0px) + 86px); }
+/* 학생 화면은 blockgrid 를 뗐다(폭 모순 — 640 안에서 두 단이 발화해 칸당
+   206px). 앵커 여백은 자손 선택자로 산다 — 탭 패널이 한 겹 끼어도 그대로 */
+#me-blocks [id^="blk-"] { scroll-margin-top: calc(var(--topbar-h, 0px) + 86px); }
 
 /* 처음 열면 나오는 소개 — 「볼 필요 없음」 을 눌러야 화면이 나온다 */
 .introwrap {

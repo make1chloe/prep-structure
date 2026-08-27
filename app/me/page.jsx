@@ -11,14 +11,19 @@ import InstallHint from "./InstallHint";
 import { score, cutOf, passSummary } from "@/lib/wordTest";
 import { summarize } from "@/lib/monthly";
 import { threeLines, TONE_CLS, monthRange } from "@/lib/parentView";
-import StudyTabs from "./StudyTabs";
+import StudyList from "./StudyList";
+import BreakCard from "./BreakCard";
+import MeTabs from "./MeTabs";
+import GoTab from "./GoTab";
 import ArrivalCard from "./ArrivalCard";
 import StateCard from "./StateCard";
+import { leftOf } from "@/lib/arrivalSteps";
 import { trend, avgSeconds } from "@/lib/trend";
 import { headers } from "next/headers";
 import { pickIp, sameNet } from "@/lib/clientIp";
 import { pct } from "@/lib/wordTest";
 import HomeworkCards from "./HomeworkCards";
+import HintOnce from "./HintOnce";
 import HomeworkSheet from "./HomeworkSheet";
 import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
@@ -41,7 +46,7 @@ import { loadStudentCalendar } from "@/lib/studentCalendar";
 import { loadClassesWithTerm, meetsOn } from "@/lib/classTerm";
 import { toTermShape, extraDatesBy } from "@/lib/extraTerm";
 import { loadNotes, noteOr } from "@/lib/screenNotes";
-import { loadLayouts, arrange } from "@/lib/screenLayout";
+import { loadLayouts, arrange, NAV_GROUPS } from "@/lib/screenLayout";
 import { nextRoutine } from "@/app/today/routineActions";
 import ScreenNote from "@/components/ScreenNote";
 import { cleanNote, cleanTitle } from "@/lib/note";
@@ -49,7 +54,6 @@ import { fetchAll } from "@/lib/fetchAll";
 import NoticeDismiss from "@/components/NoticeDismiss";
 // 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
 import { isStaff as isStaffRole } from "@/lib/roles";
-import SectionNav from "@/components/SectionNav";
 import NoticeGate from "@/components/NoticeGate";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned, isLesson,
@@ -909,6 +913,38 @@ export default async function MePage(props) {
   if (stateQ.error) stateOff = true;
   else myState = stateQ.data;
 
+  // ── 탭 재료 (탭 개편 C2) ────────────────────────────────────
+  // 옛 StudyTabs 가 세던 것 — 해체하면서 여기로 올라왔다
+  const inClassLeft = inClass.filter((t) => !t.doneAt).length;
+  const homeLeft = studyTasks.filter((t) => !t.doneAt).length;
+  const homeFrom = assignedFrom ? dayLabel(assignedFrom.date) : "";
+  const homeDays =
+    assignedFrom && assignedFrom.date < today
+      ? Math.round((Date.parse(today) - Date.parse(assignedFrom.date)) / 86400000)
+      : 0;
+  /**
+   * **탭 배지 — 새 조회 0, 판정은 전부 있던 것 재사용** (§3-5).
+   *   등원  등원 절차 남은 수(lib/arrivalSteps 한 벌) + 등원 학습 미완 +
+   *         남아서 할 것 — 학원에 있을 때만
+   *   숙제  안 낸 숙제 + 안 본 영상
+   *   성장  적어야 할 시험 — **시험 적기(write) 블록이 보일 때만** (§4-3,
+   *         숨겨져 있으면 「적으러 가라」 는 배지·팝업 모두 막다른 문이 된다)
+   *   일정  안 본 공지 수 — 이 기기(localStorage) 판정이라 MeTabs 가 센다
+   */
+  const inBadge = atClass
+    ? leftOf({
+        phone: arrival.phone_at,
+        attend: arrival.attend_at,
+        homework: arrival.homework_at,
+      }).length + inClassLeft + stayLeft.length
+    : 0;
+  const hwBadge = pendingHw.length + myVideos.filter((v) => !v.doneAt).length;
+  const writeShown = blockOrder.includes("write");
+  const growBadge = writeShown ? pendingScores.length : 0;
+  // 성장 탭 내용이 전부 숨김인가 — 원장 미리보기 배너에 알려준다 (§4-3 ⑤)
+  const growBlocks = NAV_GROUPS.me.find((g) => g.key === "grow")?.blocks || [];
+  const growAllHidden = !blockOrder.some((k) => growBlocks.includes(k));
+
   /**
    * ── 화면 덩어리 ─────────────────────────────────────────────
    *
@@ -918,6 +954,9 @@ export default async function MePage(props) {
    *
    * **비어 있는 덩어리는 원래도 안 그려진다** — 조건이 그대로 붙어 있어서,
    * 순서를 올린다고 없던 것이 생기지는 않는다.
+   *
+   * 탭 개편(2026-08-27)으로 열아홉 키다 — 어느 탭에 서는지는
+   * lib/screenLayout 의 NAV_GROUPS.me 한 곳이 정한다.
    */
   const BLOCKS = {
     month: (
@@ -942,11 +981,14 @@ export default async function MePage(props) {
                     <span className={`tag ${TONE_CLS[l.tone] || "tag-muted"}`}>{l.text}</span>
                   </div>
                 ))}
-                {/* 내 단어시험 규칙 — 통과선만 알고 몇 개짜리인지는 몰랐다 (값-지도 P1-14) */}
-                <p className="hint" style={{ margin: "4px 0 0" }}>
-                  단어시험은 {myCutRow?.word_test_count ? `${myCutRow.word_test_count}개 중 ` : ""}
-                  {myCut}% 넘으면 통과예요.
-                </p>
+                {/* 내 단어시험 규칙 — 통과선만 알고 몇 개짜리인지는 몰랐다 (값-지도 P1-14).
+                    처음 한 번만 (C1 #9) — 학생별 값이라 키도 학생별로, 제 것만 소거 */}
+                <HintOnce k={`wordcut.${sid}`}>
+                  <p className="hint" style={{ margin: "4px 0 0" }}>
+                    단어시험은 {myCutRow?.word_test_count ? `${myCutRow.word_test_count}개 중 ` : ""}
+                    {myCut}% 넘으면 통과예요.
+                  </p>
+                </HintOnce>
               </div>
             </div>
           )}
@@ -1031,12 +1073,11 @@ export default async function MePage(props) {
           )}
       </>
     ),
-    study: (
+    arrival: (
       <>
-          {/* ── 3~4. 하원 숙제 · 등원 학습 ───────────────────────────
-              등원 절차(폰·출석·숙제 제출)를 먼저 둔다 — 학원에 들어와서
-              제일 먼저 누르는 것이라 학습보다 위에 있어야 한다. */}
-          {/* 수업 요일이 아니면 등원·하원 절차를 아예 안 띄운다 (2026-08-24) */}
+          {/* ── 등원 절차 (폰·출석·숙제 제출) — 학원에 들어와서 제일 먼저
+              누르는 것. 수업 요일이 아니면 아예 안 띄운다 (2026-08-24).
+              옛 study 블록에서 독립 (탭 개편 — 등원 탭) */}
           <ArrivalCard
             done={{
               phone: arrival.phone_at,
@@ -1047,16 +1088,10 @@ export default async function MePage(props) {
             readOnly={preview}
             asId={acting ? student.id : null}
           />
-
-          {/* **하원할게요** (원장님 2026-08-23) — 학원 안에서만 뜬다.
-              공용 기기로 표시해 둔 기기에서는 누르면 로그아웃까지 */}
-          <LeaveCard
-            atAcademy={atAcademy && isClassDay}
-            done={!!arrival.leave_at}
-            readOnly={preview}
-            asId={acting ? student.id : null}
-          />
-
+      </>
+    ),
+    inclass: (
+      <>
           <ScreenNote text={N("me.study")} tone="card" />
 
           {/* 밀림 배너 (0140) — 지난 수업에서 미룬 것이 오늘 목록에 실려 온다 */}
@@ -1066,25 +1101,110 @@ export default async function MePage(props) {
             </p>
           )}
 
-          <StudyTabs
-            areaOrder={areaOrder}
-            inClass={inClass}
-            home={studyTasks}
-            running={running}
-            ready={timerReady}
-            atClass={atClass}
-            stayLeft={stayLeft.length}
+          {/* 옛 StudyTabs 의 등원 갈래 — 탭이 화면 탭(MeTabs)이 되면서
+              여기로 폈다. 언마운트 결함(탭 오갈 때 진행 초기화)도 함께 소멸 */}
+          {inClass.length === 0 ? (
+            <div className="card">
+              <p className="hint" style={{ margin: 0 }}>
+                오늘 학원에서 할 것이 아직 안 올라왔어요.{" "}
+                {atClass ? "선생님이 정해주실 때까지 기다려주세요." : ""}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* 순서 강제 (원장님 2026-08-21) — 「내가 지정한 순서대로
+                  학습을 해야 되기 때문에 그 순서에 맞게 하도록 강제」 */}
+              <StudyList
+                areaOrder={areaOrder}
+                title="등원 중 할 일"
+                hint="위에서부터 순서대로 하면 돼요. 다 하면 학습 완료를 누르고, 선생님이 부르시면 가져가세요."
+                tasks={inClass}
+                running={running}
+                ready={timerReady}
+                kind="inclass"
+                readOnly={preview}
+                asId={acting ? student.id : null}
+                subs={subs}
+              />
+              {inClassLeft === 0 && homeLeft > 0 && (
+                <div className="card card-tight">
+                  <p className="hint" style={{ margin: 0 }}>
+                    학원에서 할 것은 다 했어요. 집에 가서 할 숙제가{" "}
+                    <b>{homeLeft}개</b> 있어요.{" "}
+                    <GoTab tab="hw" blk="blk-homework" style={{ padding: "2px 8px" }}>
+                      보러 가기
+                    </GoTab>
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* **전체 목록** — 위는 누르는 자리(타이머·완료), 여기는 누를 것
+              없이 한 장으로 보이는 자리다. 노트 키는 me.sheet 한 벌 —
+              탭이 두 시트를 갈라놓아 두 자리에 뜨는 것뿐이다 (2차 #10) */}
+          <ScreenNote text={N("me.sheet")} tone="card" />
+          <HomeworkSheet
+            title="등원 학습 전체"
+            items={inClass}
+            dateLabel={latest?.date ? dayLabel(latest.date) : ""}
+          />
+      </>
+    ),
+    break: (
+      <>
+          {/* **등원 탭에 쉬는 시간** (원장님, 2026-08-07). 선생님이 대신
+              보는 자리(preview)에서는 안 낸다 — 옛 StudyTabs 에서 독립 */}
+          {!preview && <BreakCard />}
+      </>
+    ),
+    leave: (
+      <>
+          {/* **하원할게요** (원장님 2026-08-23) — 학원 안에서만 뜬다.
+              공용 기기로 표시해 둔 기기에서는 누르면 로그아웃까지 */}
+          <LeaveCard
+            atAcademy={atAcademy && isClassDay}
+            done={!!arrival.leave_at}
             readOnly={preview}
             asId={acting ? student.id : null}
-            subs={subs}
-            answers={answers}
-            homeFrom={assignedFrom ? dayLabel(assignedFrom.date) : ""}
-            homeDays={
-              assignedFrom && assignedFrom.date < today
-                ? Math.round((Date.parse(today) - Date.parse(assignedFrom.date)) / 86400000)
-                : 0
-            }
           />
+      </>
+    ),
+    homework: (
+      <>
+          {/* 옛 StudyTabs 의 하원 숙제 갈래 — 숙제 탭으로 독립 */}
+          {studyTasks.length === 0 ? (
+            <div className="card">
+              <p className="hint" style={{ margin: 0 }}>지금은 집에서 할 숙제가 없어요.</p>
+            </div>
+          ) : (
+            /* 자유 이동 (원장님 2026-08-21) — 「이 숙제 저 숙제 왔다갔다하면서
+               할 수 있기 때문에 전체 목록과 체크리스트가 한 번에 보이는 게 맞아」 */
+            <>
+              {homeDays > 0 && (
+                <p
+                  className="hint"
+                  style={{ margin: "0 0 6px", fontSize: 13, ...(homeDays >= 7 ? { color: "var(--amber)" } : null) }}
+                >
+                  {homeFrom}에 받은 숙제예요{homeDays >= 7 ? " — 아직 검사 전이에요" : ""}.
+                </p>
+              )}
+              <StudyList
+                areaOrder={areaOrder}
+                title="하원 후 숙제"
+                hint="어느 숙제부터 해도 돼요. 집에서 할 때도 시작을 눌러주세요 — 얼마나 걸렸는지 볼 수 있어요."
+                tasks={studyTasks}
+                running={running}
+                ready={timerReady}
+                kind="home"
+                readOnly={preview}
+                asId={acting ? student.id : null}
+                subs={subs}
+                answers={answers}
+                sid={sid}
+              />
+            </>
+          )}
 
           {/* 숙제가 안 뜨면 **왜 안 뜨는지** 선생님께만 알려준다.
               "왜 안 보이지" 를 앱 밖에서 알아내게 하면 안 된다. */}
@@ -1100,22 +1220,13 @@ export default async function MePage(props) {
             </div>
           )}
 
-          {/* **전체 목록 — 하원 숙제 · 등원 학습 둘 다.**
-              위는 누르는 자리(타이머·완료·제출 — 등원은 순서대로, 숙제는
-              자유롭게)고, 여기는 누를 것 없이 한 장으로 보이는 자리다.
-              집에서 폰을 못 쓰는 아이가 찍어 가거나 적어 간다.
-              (전에는 화면 맨 아래에 있었다. 자기 숙제와 멀리 떨어져 있으면
-               거기까지 안 내려간다 — 그래서 각자 제 자리로 올렸다.) */}
+          {/* **전체 목록** — 집에서 폰을 못 쓰는 아이가 찍어 가거나 적어
+              간다. 노트 키는 me.sheet 한 벌 (등원 시트 위와 같은 키) */}
           <ScreenNote text={N("me.sheet")} tone="card" />
           <HomeworkSheet
             title="하원 숙제 전체"
             items={todo}
             dateLabel={assignedFrom ? dayLabel(assignedFrom.date) : ""}
-          />
-          <HomeworkSheet
-            title="등원 학습 전체"
-            items={inClass}
-            dateLabel={latest?.date ? dayLabel(latest.date) : ""}
           />
       </>
     ),
@@ -1176,14 +1287,21 @@ export default async function MePage(props) {
     ),
     stay: (
       <>
+          {/* 남아서 할 것이 남았으면 먼저 큰 소리로 — 옛 StudyTabs 의
+              stayNotice 가 이 블록으로 왔다 (탭 개편) */}
+          {stayLeft.length > 0 && (
+            <div className="card card-tight" style={{ borderLeft: "3px solid var(--amber, #e0a33e)" }}>
+              <b style={{ fontSize: 15 }}>
+                남아서 채우고 갈 것이 {stayLeft.length}개 있어요. 그것부터 끝내고 가야 해요.
+              </b>
+            </div>
+          )}
           {stay.length > 0 && (
             <div className="card">
-              <h2 style={{ margin: "0 0 4px", fontSize: 17.5, fontWeight: 800 }}>
+              {/* 설명 문구는 뺐다 (C1 #4) — 제목과 줄 태그(숙제로·남아서)가 다 말한다 */}
+              <h2 style={{ margin: "0 0 10px", fontSize: 17.5, fontWeight: 800 }}>
                 {STAY_LABEL} <span className="tag tag-lav">{stay.length}</span>
               </h2>
-              <p className="hint" style={{ margin: "0 0 10px" }}>
-                오늘 채우고 가기로 한 것이에요. 다 못 한 건 숙제로 넘어왔어요.
-              </p>
               <div className="stack" style={{ gap: 6 }}>
                 {stay.map((t) => (
                   <div className="unitrow" key={t.id}>
@@ -1201,10 +1319,12 @@ export default async function MePage(props) {
           )}
       </>
     ),
-    myscore: (
+    growth: (
       <>
         {/* **성장이 먼저, 적는 것이 다음.** 자기 그래프를 보고 나서 적으면
-            「왜 적는지」 를 안다 — 적기부터 시키면 숙제가 된다 */}
+            「왜 적는지」 를 안다 — 적기부터 시키면 숙제가 된다.
+            적기(write)와 딴 블록인 것은 일부러다 — 그래프는 비공개로 두고
+            적기만 여는 부분 공개가 돼야 한다 (원장 확정 2026-08-27, §4-3) */}
         {["mock", "school"].map((k) =>
           growth[k] ? <GrowthCard key={k} st={growth[k]} kindLabel={SCORE_KIND[k]} /> : null
         )}
@@ -1212,6 +1332,12 @@ export default async function MePage(props) {
             한 달에 66건이 쌓이는데 날짜순 66줄로는 「관계사에서 세 번 막혔다」
             를 못 읽는다 */}
         <UnitCard scores={myScores} />
+      </>
+    ),
+    write: (
+      <>
+        {/* 시험 결과 적기 — 키가 옛 myscore 가 아니라 write 인 것은 이관
+            안전 때문 (lib/screenLayout LEGACY_KEYS 참고) */}
         <MyScoreForm mine={myScores.filter((s) => s.kind !== "unit")} base={specBase} canWrite={!preview && !trying} />
       </>
     ),
@@ -1220,29 +1346,37 @@ export default async function MePage(props) {
           <VideoList videos={myVideos} asId={acting ? student.id : null} readOnly={preview} />
       </>
     ),
-    help: (
+    state: (
       <>
-          {/* ── 5. 선생님 도움 · 쉬는 시간 ───────────────────────────
-              **말로 끼어드는 대신 누른다.** 선생님 현황판에 바로 뜬다 (0084·0085).
-              선생님 대신 눌러주는 미리보기(acting)에서는 안 낸다 — 그 아이가
-              누른 것으로 잘못 남는다.
-              도움을 청하는 세 가지(지금 상태 · 보내는 글 · 질문)를 한자리에 모은다.
-              급할 때 화면을 뒤지게 하면 안 된다. */}
+          {/* **말로 끼어드는 대신 누른다.** 선생님 현황판에 바로 뜬다
+              (0084·0085). 선생님 대신 눌러주는 미리보기에서는 안 낸다 —
+              그 아이가 누른 것으로 잘못 남는다. 옛 help 블록에서 독립 */}
           {!preview && !acting && (
-            <StateCard mine={myState} unavailable={stateOff} />
+            <StateCard mine={myState} unavailable={stateOff} sid={sid} />
           )}
-
-          {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} />}
-
+      </>
+    ),
+    request: (
+      <>
+          {!preview && !acting && <RequestForm studentId={student.id} mine={myRequests || []} student />}
+      </>
+    ),
+    question: (
+      <>
           {latest && (
             <div className="card">
-              <h2 style={{ margin: "0 0 4px", fontSize: 17.5, fontWeight: 800 }}>선생님께 질문</h2>
-              <p className="hint" style={{ margin: "0 0 8px" }}>
-                숙제나 수업에 대해 궁금한 게 있으면 여기에 남겨주세요. 선생님이 확인합니다.
-              </p>
+              {/* 설명 문구는 뺐다 (C1 #1) — 제목 「선생님께 질문」 이 다 말한다 */}
+              <h2 style={{ margin: "0 0 8px", fontSize: 17.5, fontWeight: 800 }}>선생님께 질문</h2>
               <Comments reportId={latest.id} studentId={student.id} me={myRole} />
             </div>
           )}
+      </>
+    ),
+    dict: (
+      <>
+          {/* 영어사전 — 숙제하다 모르는 단어가 나오면 바로 (2026-08-16).
+              화면 맨 아래에 있던 것을 숙제 탭으로 (원장 확정 2026-08-27) */}
+          {!preview && <DictBar />}
       </>
     ),
     guide: (
@@ -1316,6 +1450,12 @@ export default async function MePage(props) {
               {student.name} 학생에게 보이는 그대로입니다. <b>여기서는 누를 수 없습니다</b> —
               선생님이 대신 누르면 기록이 거짓이 됩니다.
             </p>
+            {growAllHidden && (
+              <p className="hint" style={{ margin: "4px 0 0" }}>
+                지금 <b>성장 내용은 숨김 중</b>입니다 — 아이에게도 성장 탭이 빈
+                안내로 보여요 (설정 → 화면에서 블록별로 열 수 있습니다).
+              </p>
+            )}
           </div>
         ) : (
           <InstallHint />
@@ -1344,27 +1484,67 @@ export default async function MePage(props) {
            * 「지금 이거 하나」 를 보여주는 칸이라, 반쪽으로 접히면 그 뜻이
            * 사라진다. 나머지는 두 줄·세 줄로 자리를 채운다.
            */
+          /**
+           * **탭→블록 지도 = NAV_GROUPS.me 그 자체** (§3-4 — 별개 상수
+           * 금지, 원칙 1). blockOrder 는 숨긴 블록이 이미 빠져 있으므로,
+           * 한 탭의 보이는 블록이 0개면 짧은 빈 안내를 깐다 — 판정은
+           * **숨김만** 본다. 블록이 보이기로 돼 있으나 내부 조건으로 전부
+           * null 이면 안내 없이 공백이다 (현행 화면의 성질과 동일).
+           */
+          const groupOfBlock = new Map();
+          NAV_GROUPS.me.forEach((g) => g.blocks.forEach((b) => groupOfBlock.set(b, g.key)));
+          const panels = {};
+          NAV_GROUPS.me.forEach((g) => {
+            const mine = blockOrder.filter((k) => groupOfBlock.get(k) === g.key);
+            panels[g.key] = (
+              <Fragment key={g.key}>
+                {blockOrder.map((k) =>
+                  groupOfBlock.get(k) === g.key ? (
+                    <div key={k} id={`blk-${k}`}>
+                      {BLOCKS[k]}
+                    </div>
+                  ) : null
+                )}
+                {mine.length === 0 && (
+                  <div className="card">
+                    <p className="hint" style={{ margin: 0 }}>
+                      아직 준비 중이에요. 선생님이 열어주면 여기에 보여요.
+                    </p>
+                  </div>
+                )}
+              </Fragment>
+            );
+          });
           const inner = (
             <>
-              {/* 위 메뉴 + 처음 소개 (원장님, 2026-08-14) — 갈래가 위에서 보인다 */}
-              <SectionNav page="me" order={blockOrder} />
               {/* 새 공지는 길목에서 — 확인을 눌러야 화면 (원장님, 2026-08-14).
                   선생님 미리보기에서는 안 띄운다 (원장님 브라우저에 확인이 쌓이면
                   정작 아이 기기에서 뜰 것이 안 뜬 것처럼 헷갈린다) */}
               {!preview && !acting && !isStaff && (
                 <NoticeGate page="me" notices={notice2} />
               )}
-              {/* 안 한 것 팝업 — 해결될 때까지 들어올 때마다 (원장님, 2026-08-14) */}
+              {/* 안 한 것 팝업 — 해결될 때까지 들어올 때마다 (원장님, 2026-08-14).
+                  시험 적기(write) 블록이 숨어 있으면 scores 를 안 넘긴다 —
+                  「적으러 가기」 가 막다른 문이 되면 안 된다 (§4-3) */}
               {!preview && !acting && !isStaff && (
-                <PendingGate homework={pendingHw} scores={pendingScores} />
+                <PendingGate homework={pendingHw} scores={writeShown ? pendingScores : []} />
               )}
               <ScreenNote text={N("me.top")} tone="card" />
-              <div className="blockgrid">
-                {blockOrder.map((k) => (
-                  <div key={k} id={`blk-${k}`} className={k === "study" ? "fullrow" : undefined}>
-                    {BLOCKS[k]}
-                  </div>
-                ))}
+              {/* 폭 모순 해제 (탭 개편 A0): main 640 안에서 860px 두 단이
+                  발화해 칸당 206px 이 되던 blockgrid 를 뗐다 — 학생 화면은
+                  폰과 같은 한 줄이 원장님 확정(2026-08-24)이다.
+                  .blockgrid 규칙 자체는 /parent 가 그대로 쓴다 */}
+              <div id="me-blocks" className="stack">
+                {/* 탭 네 개 상존 — 처음 소개(chloe.intro.me)는 옛 SectionNav
+                    에서 키째 계승. 기본 탭: 수업일이면 등원, 아니면 숙제
+                    (원장 확정 2026-08-27 — 판정은 위의 isClassDay 한 벌) */}
+                <MeTabs
+                  defaultTab={isClassDay ? "in" : "hw"}
+                  tab={typeof searchParams?.tab === "string" ? searchParams.tab : ""}
+                  counts={{ in: inBadge, hw: hwBadge, grow: growBadge }}
+                  notices={notice2.map((n) => ({ id: n.id, edited_at: n.edited_at || "" }))}
+                  panels={panels}
+                />
               </div>
             </>
           );
@@ -1380,9 +1560,7 @@ export default async function MePage(props) {
           * 볼 일이 없는 칸**이다 — 꺼져 있을 때는 어차피 AlertGate 가
           * 화면 앞에서 막아선다.
           */}
-        {/* 영어사전 — 숙제하다 모르는 단어가 나오면 여기서 바로 (2026-08-16) */}
-        {!preview && <DictBar />}
-
+        {/* 영어사전은 숙제 탭(dict 블록)으로 올라갔다 (원장 확정 2026-08-27) */}
         {!preview && !acting && <AlertBox brief />}
 
         <form action="/logout" method="post">

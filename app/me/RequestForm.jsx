@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { createRequest, cancelRequest } from "@/app/requests/actions";
 import RequestPhotos from "@/components/RequestPhotos";
 
-// 학생·학부모가 결석을 미리 알리는 칸
-export default function RequestForm({ studentId, mine = [], asId = null, readOnly = false }) {
+// 학생·학부모가 결석을 미리 알리는 칸.
+// student=true 면 설명이 한 줄 축약판 — 약봉투·처방전 문단(8/5 확정)은
+// 학부모용 말이라 아이에게 그대로 읽히면 길고 어렵다 (탭 개편 C1b,
+// 문구는 원장 기본안 채택 확정 2026-08-27)
+export default function RequestForm({ studentId, mine = [], asId = null, readOnly = false, student = false }) {
   /**
    * **끝난 것은 접어 둔다** (원장님, 2026-08-23 — 「선생님이 확인한 건 더
    * 안 보게 해줘 … 답장이 달렸어도 아이 확인 누르면 더보기 눌러야 보이게.
@@ -98,6 +101,11 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
               보내면 된다는 것을 알 수가 없다. 「문의」 는 뺐다 —
               물어보시는 것은 「선생님께 질문」 한 곳으로 모은다 */}
           <b style={{ fontSize: 15 }}>결석 · 학교공지 · 수행평가 · 학교유인물 전달</b>
+          {student ? (
+            <p className="hint" style={{ margin: "4px 0 0" }}>
+              결석·지각은 미리 알려줘요. 학교에서 받은 종이는 찍어서 보내요.
+            </p>
+          ) : (
           <p className="hint" style={{ margin: "4px 0 0" }}>
             결석할 날을 미리 알려주시면 보강을 잡아드립니다.
             <br />
@@ -111,6 +119,7 @@ export default function RequestForm({ studentId, mine = [], asId = null, readOnl
             「전달」</b>로 보내주세요. <b>물어보실 것은 「선생님께 질문」</b>에서 보내주세요.
             <b>글로 적어주셔도 되고, 종이는 찍어서 붙여주셔도 됩니다</b> — 둘 다 보내셔도 돼요.
           </p>
+          )}
         </div>
         <button className="btn btn-sm btn-primary" onClick={() => setOpen(!open)}>
           {open ? "닫기" : "알리기"}
