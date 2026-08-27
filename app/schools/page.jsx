@@ -154,10 +154,37 @@ export default async function SchoolsPage() {
             </p>
           </Help>
         </div>
+        {/* PC(≥901px)는 **좌 학교 목록 / 우 그 학교들 시험** (B2, 원장 승인
+            2026-08-27). 학교 덩이와 시험 덩이가 세로로 쌓여 있어 둘 사이를
+            스크롤로 오갔다 — 내신·반·상담일지와 같은 grid-side 로 나란히.
+            좁으면 grid-side CSS 가 세로로 되돌린다. */}
+        <div className="grid-side" style={{ marginTop: 8 }}>
+        <div className="stack" style={{ gap: 8 }}>
         {/* 학교 목록은 **하나뿐이다.** 예전에는 나이스 목록과 「학교 명단」 이
             같은 표를 두 번 보여줘서, 합치기를 어느 쪽에서 하는지 알 수 없었다.
             이름 고치기·직접 추가는 그 목록 안에 접어두었다. */}
         <NeisBox months={months} />
+        <div className="row">
+          <SchoolBox />
+        </div>
+        </div>
+
+        <div className="stack" style={{ gap: 8 }}>
+        <ScheduleBoard
+          show="exams"
+          months={months}
+          reviews={reviews}
+          exams={exams}
+          roster={students || []}
+          schools={schools}
+          neisLinked={neisLinked}
+          grades={grades}
+          classes={classes || []}
+          unavailable={!ready}
+          holidayNotes={holidayNotes}
+          makeupDays={makeupDays}
+          holidays={(holidays || []).sort((a, b) => a.date.localeCompare(b.date))}
+        />
         {/**
          * **나이스 원본** — /neis 화면을 통째로 여기 접힘 상자로 이사
          * (원장님 확정, 2026-08-27). 8/9 확정(「장기적으로도 이 페이지는
@@ -168,6 +195,9 @@ export default async function SchoolsPage() {
          * 다른 자리는 전부 **우리가 바꾼 뒤**를 보여준다 — 이 상자만은
          * 바꾸기 전을 본다. 나이스에 그 자리에서 다시 물어보고, 받은 줄을
          * 하나도 안 버리고 그대로 늘어놓는다. 저장은 하지 않는다.
+         *
+         * 자리는 우측 하단 — 받은 그대로의 표가 넓어서 좁은 학교 레일에는
+         * 못 들어간다 (B2).
          */}
         <details className="card sect sect-info" style={{ marginTop: 8 }}>
           <summary className="secthead" style={{ cursor: "pointer" }}>
@@ -185,24 +215,8 @@ export default async function SchoolsPage() {
             schools={(neisSchoolsQ?.rows || []).filter((s) => s.active !== false && s.schul_code)}
           />
         </details>
-        <div className="row" style={{ marginTop: 8 }}>
-          <SchoolBox />
         </div>
-        <ScheduleBoard
-          show="exams"
-          months={months}
-          reviews={reviews}
-          exams={exams}
-          roster={students || []}
-          schools={schools}
-          neisLinked={neisLinked}
-          grades={grades}
-          classes={classes || []}
-          unavailable={!ready}
-          holidayNotes={holidayNotes}
-          makeupDays={makeupDays}
-          holidays={(holidays || []).sort((a, b) => a.date.localeCompare(b.date))}
-        />
+        </div>
       </main>
     </>
   );
