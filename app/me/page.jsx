@@ -1544,6 +1544,18 @@ export default async function MePage(props) {
                   counts={{ in: inBadge, hw: hwBadge, grow: growBadge }}
                   notices={notice2.map((n) => ({ id: n.id, edited_at: n.edited_at || "" }))}
                   panels={panels}
+                  /**
+                   * **알림 설정은 탭줄의 🔔 뒤로** (원장님 2026-08-27 —
+                   * 「어플가이드처럼 아이콘으로 알림설정을 추가해줘.
+                   * 페이지 맨 밑마다 나오는 건 별로같아」).
+                   *
+                   * 8/7 의 「맨 밑으로」 는 탭이 생기면서 「어느 탭에서든 맨 밑」
+                   * 이 돼 버렸다. 한 번 켜고 나면 다시 볼 일이 없는 칸이라
+                   * (그 판단은 그대로다), 화면 소개(📖)처럼 눌러야 열린다.
+                   * 미리보기·눌러보기에서는 전처럼 안 준다 — 원장님 브라우저의
+                   * 구독 상태가 아이 것인 척 보이면 안 된다.
+                   */
+                  alert={!preview && !acting ? <AlertBox brief /> : null}
                 />
               </div>
             </>
@@ -1551,18 +1563,8 @@ export default async function MePage(props) {
           return preview || acting ? inner : <AlertGate>{inner}</AlertGate>;
         })()}
 
-        {/**
-          * **알림 설정은 맨 아래** (원장님, 2026-08-07 — 「알림 켜면 끄기랑
-          * 방해금지 모드 설정만 남기고 페이지 맨 밑으로 내려줘」).
-          *
-          * 맨 위에 있으면 아이가 앱을 열 때마다 설명부터 읽게 되고, 정작
-          * 「지금 할 것」 이 한 화면 아래로 밀린다. **한 번 켜고 나면 다시
-          * 볼 일이 없는 칸**이다 — 꺼져 있을 때는 어차피 AlertGate 가
-          * 화면 앞에서 막아선다.
-          */}
-        {/* 영어사전은 숙제 탭(dict 블록)으로 올라갔다 (원장 확정 2026-08-27) */}
-        {!preview && !acting && <AlertBox brief />}
-
+        {/* 알림 설정 카드는 탭줄의 🔔 팝업으로 올라갔다 (원장님 2026-08-27).
+            영어사전도 숙제 탭(dict 블록)으로 — 맨 아래에는 로그아웃만 남는다 */}
         <form action="/logout" method="post">
           <button className="btn btn-ghost btn-block" type="submit">로그아웃</button>
         </form>

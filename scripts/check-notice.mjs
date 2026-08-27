@@ -142,18 +142,34 @@ eq(rt.includes("r.studentNotices"), true, "수업 전달사항은 숙제 안내�
 // 공지(학부모용) → 데일리리포트에
 eq(/notices\.push\(rep\.notice\)/.test(rt), true, "공지는 데일리리포트에 실린다");
 
-console.log("\n== 아이 화면 맨 아래로 ==");
+console.log("\n== 아이 화면의 알림 설정은 탭줄 🔔 뒤로 ==");
+/**
+ * 2026-08-07 에는 「페이지 맨 밑으로」 였다 — 맨 위에 있으면 「지금 할 것」
+ * 이 한 화면 아래로 밀리기 때문이다. 탭(2026-08-27)이 생기자 그 카드가
+ * **어느 탭에서든** 맨 밑에 상주하게 됐고, 원장님이 다시 정하셨다 —
+ * 「어플가이드처럼 아이콘으로 알림설정을 추가해줘. 페이지 맨 밑마다
+ * 나오는 건 별로같아」. 한 번 켜고 나면 다시 볼 일이 없는 칸이라(그 판단은
+ * 그대로), 상시 카드가 아니라 🔔 을 눌러야 열리는 팝업이 됐다.
+ */
 const me = read("app/me/page.jsx");
 eq(me.includes("<AlertBox brief />"), true, "짧은 판으로");
-/**
- * 맨 위에 있으면 앱을 열 때마다 설명부터 읽게 되고, 정작 「지금 할 것」 이
- * 한 화면 아래로 밀린다. 한 번 켜고 나면 다시 볼 일이 없는 칸이다.
- */
-const boxAt = me.indexOf("<AlertBox");
-const blocksAt = me.indexOf("blockOrder.map");
-eq(boxAt > blocksAt, true, "할 일들보다 아래에 있다");
-// 꺼져 있을 때는 AlertGate 가 화면 앞에서 막아선다 — 맨 아래여도 안 놓친다
+eq(me.split("<AlertBox").length, 2, "상시 카드로는 더 안 그린다 (한 벌만 — 🔔 팝업 속)");
+const meTabs = read("app/me/MeTabs.jsx");
+eq(meTabs.includes('aria-label="알림 설정"'), true, "탭줄에 🔔 알림 설정 아이콘이 있다");
+// 잔소리 창이 도는 중에도 그걸 고치는 문(설정)만은 게이트가 안 삼킨다
+eq(meTabs.includes("data-alertgate"), true, "게이트가 설정 여는 길목은 안 삼킨다");
+// 꺼져 있을 때는 AlertGate 가 화면 앞에서 막아선다 — 팝업 속이어도 안 놓친다
 eq(me.includes("<AlertGate>"), true, "꺼져 있으면 여전히 막아선다");
+
+// 「학부모도 마찬가지야」 (원장님 2026-08-27) — 어머니 화면도 맨 아래
+// 상시 카드 대신 메뉴 줄(SectionNav)의 🔔 팝업. 어머니 화면에는
+// AlertGate 가 없으니 위쪽 PushToggle(onlyWhenOff)이 「켜세요」 를 맡는다
+const pa2 = read("app/parent/page.jsx");
+eq(pa2.includes("<AlertBox brief />"), true, "학부모도 짧은 판으로");
+eq(pa2.split("<AlertBox").length, 2, "학부모도 상시 카드 없이 한 벌만 (🔔 팝업 속)");
+eq(read("components/SectionNav.jsx").includes('aria-label="알림 설정"'), true,
+   "학부모 메뉴 줄에 🔔 알림 설정 아이콘이 있다");
+eq(pa2.includes("PushToggle onlyWhenOff"), true, "안 켜신 분께는 위에서 한 번 더");
 
 const box = read("components/AlertBox.jsx");
 eq(box.includes("brief = false"), true, "짧은 판이 있다");

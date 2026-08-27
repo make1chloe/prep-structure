@@ -21,11 +21,18 @@ import { findPage, NAV_GROUPS } from "@/lib/screenLayout";
  * 여기는 이제 /parent 전용 — 한 장의 차례표다. 비어서 안 그려진 덩어리는
  * 메뉴에도 없다 (A8).
  */
-export default function SectionNav({ page, order = [] }) {
+export default function SectionNav({ page, order = [], alert = null }) {
   const [present, setPresent] = useState(() => new Set());
   const [active, setActive] = useState(null);       // 지금 보고 있는 덩어리 key
   const [intro, setIntro] = useState(false);
   const [firstTime, setFirstTime] = useState(false);
+  /**
+   * **알림 설정은 🔔 뒤에** (원장님 2026-08-27 — 「어플가이드처럼 아이콘으로
+   * 알림설정을 추가해줘. 페이지 맨 밑마다 나오는 건 별로같아」 + 「학부모도
+   * 마찬가지야」). 맨 아래 상시 카드 대신, 소개(📖)와 같은 관례로 아이콘을
+   * 눌러야 열린다. 내용물(AlertBox)은 서버(page.jsx)가 prop 으로 준다.
+   */
+  const [alertOpen, setAlertOpen] = useState(false);
   const INTRO_KEY = `chloe.intro.${page}`;
 
   const blocks = findPage(page)?.blocks || [];
@@ -120,11 +127,40 @@ export default function SectionNav({ page, order = [] }) {
     </div>
   );
 
-  if (shownGroups.length < 2) return overlay || null;
+  // 알림 설정 팝업 — 화면 소개(introwrap)와 같은 관례. AlertBox 가 이미
+  // card 라 껍데기 카드를 안 씌운다 (카드 속 카드 금지). /me 의 MeTabs 와
+  // 달리 data-alertgate 는 안 붙인다 — 학부모 화면에는 AlertGate 가 없다
+  const alertPop = alertOpen && alert && (
+    <div
+      className="introwrap"
+      role="dialog"
+      aria-label="알림 설정"
+      onClick={() => setAlertOpen(false)}
+    >
+      <div
+        className="stack"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 480, maxHeight: "86vh", overflowY: "auto", gap: 8 }}
+      >
+        {alert}
+        <button className="btn btn-block" onClick={() => setAlertOpen(false)}>
+          닫기
+        </button>
+      </div>
+    </div>
+  );
+
+  // 메뉴가 하나뿐이면 메뉴가 아니다 — 다만 알림 설정(🔔)이 이 줄에 사는
+  // 이상, 줄을 통째로 접으면 설정 문까지 사라진다 (전에는 맨 아래 카드가
+  // 늘 있었다). 그래서 갈래 칩만 접고 아이콘 줄은 남긴다
+  const few = shownGroups.length < 2;
+  if (few && !alert) return overlay || null;
 
   return (
     <>
-      <div className="sectnav">
+      {/* 살짝 낮은 줄(sectnav-slim) — 원장님 2026-08-27 「메뉴칸을 살짝
+          줄이고 … 학부모도 마찬가지야」 */}
+      <div className="sectnav sectnav-slim">
         {/* 대메뉴 — 칸을 나눠 가져서 **가로 스크롤이 없다** */}
         <div className="sectnav-main">
           {/* 소개 다시 보기 — 「？」 는 눌러도 되는 것인지조차 안 보였다
@@ -138,7 +174,7 @@ export default function SectionNav({ page, order = [] }) {
           >
             📖
           </button>
-          {shownGroups.map((g) => (
+          {!few && shownGroups.map((g) => (
             <button
               key={g.key}
               className={`sectnav-chip ${activeGroup === g.key ? "on" : ""}`}
@@ -147,9 +183,20 @@ export default function SectionNav({ page, order = [] }) {
               {g.nav}
             </button>
           ))}
+          {alert && (
+            <button
+              className="sectnav-chip sectnav-help"
+              style={{ marginLeft: "auto" }}
+              onClick={() => setAlertOpen(true)}
+              title="알림 설정"
+              aria-label="알림 설정"
+            >
+              🔔
+            </button>
+          )}
         </div>
         {/* 소메뉴 — 그 갈래를 보고 있을 때만, 안이 둘 이상일 때만 */}
-        {subItems.length > 1 && (
+        {!few && subItems.length > 1 && (
           <div className="sectnav-sub">
             {subItems.map((k) => (
               <button
@@ -164,6 +211,7 @@ export default function SectionNav({ page, order = [] }) {
         )}
       </div>
       {overlay}
+      {alertPop}
     </>
   );
 }

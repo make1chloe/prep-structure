@@ -1236,6 +1236,17 @@ details.dashfold[open] > summary.dashhead::after { content: "▾"; }
 }
 .sectnav-chip.on { background: var(--lav-soft); color: var(--lav); border-color: transparent; }
 .sectnav-help { flex: 0 0 34px; color: var(--text-faint); border-style: dashed; }
+/* 학생·학부모 메뉴 줄을 살짝 낮게 (원장님 2026-08-27 — 「메뉴칸을 살짝
+   줄이고」 + 「학부모도 마찬가지야」). 글자·안팎 여백만 줄이고, 폰 엄지
+   기준 36px(.stuChip 전례) 아래로는 안 내려간다 — min-height 가 바닥을
+   받친다 */
+.sectnav-slim { padding: 5px 8px 4px; }
+.sectnav-slim .sectnav-chip {
+  min-height: 36px; padding: 3px 2px; line-height: 1.25;
+  font-size: clamp(11.5px, 3.2vw, 13.5px);
+}
+/* 그림 붙은 칸(📖·🔔)은 글자가 아니라 그림이라 한 눈금 크게 */
+.sectnav-slim .sectnav-help { font-size: 15px; }
 /* 소메뉴 — 그 갈래를 보고 있을 때만 아래 줄에. 넘치면 다음 줄로 접는다
    (가로 스크롤 금지는 여기도 같다) */
 .sectnav-sub {

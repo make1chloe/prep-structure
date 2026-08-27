@@ -1086,8 +1086,8 @@ export default async function ParentPage(props) {
 
       {children.length > 1 && <ChildPicker children={children} pick={pickId} />}
 
-      {/* **안 켜신 분께는 위에서 한 번 더.** 알림 칸은 아래에 있는데,
-          안 켜져 있으면 아래까지 내려가 보실 일이 없다. 켜면 사라진다 */}
+      {/* **안 켜신 분께는 위에서 한 번 더.** 알림 칸은 메뉴 줄의 🔔 뒤에
+          있는데, 안 켜져 있으면 열어 보실 일이 없다. 켜면 사라진다 */}
       {/* 어머니 화면에서는 **한 줄만** (2026-08-07). 왜 켜야 하는지·요금
           이야기는 다 맞는 말이지만 첫 화면에서 읽으실 글이 아니다 */}
       {!preview && <div style={{ marginTop: 10 }}><PushToggle onlyWhenOff brief /></div>}
@@ -1103,7 +1103,19 @@ export default async function ParentPage(props) {
         <ScreenNote text={N("parent.top")} tone="card" />
         {/* 「오늘」 은 폭을 다 쓴다 — 어머니가 제일 먼저 보시는 것이라
             반쪽으로 접히면 안 된다 */}
-        <SectionNav page="parent" order={blockOrder} />
+        <SectionNav
+          page="parent"
+          order={blockOrder}
+          /**
+           * **알림 설정은 메뉴 줄의 🔔 뒤로** (원장님 2026-08-27 — 「어플가이드
+           * 처럼 아이콘으로 알림설정을 추가해줘. 페이지 맨 밑마다 나오는 건
+           * 별로같아」 + 「학부모도 마찬가지야」). 8/7 의 「맨 밑으로」 판단
+           * (한 번 켜면 다시 볼 일이 없는 칸)은 그대로 — 그래서 상시 카드가
+           * 아니라 눌러야 열린다. 미리보기에서는 전처럼 안 준다 — 원장님
+           * 브라우저의 구독 상태가 어머니 것인 척 보이면 안 된다.
+           */
+          alert={!preview ? <AlertBox brief /> : null}
+        />
         {!isStaff && <NoticeGate page="parent" notices={notices} />}
         <div className="blockgrid">
           {blockOrder.map((k) => (
@@ -1113,12 +1125,8 @@ export default async function ParentPage(props) {
           ))}
         </div>
 
-        {/* **알림 — 켜고 · 끄고 · 밤에는 안 울리게** (원장님, 2026-08-07).
-            학부모 화면에는 켜는 버튼이 아예 없었다. 알림톡을 끊었으니
-            전달사항이 닿는 길은 이 앱 알림뿐인데 켤 방법이 없었다. */}
-        {/* 어머니 화면도 짧게 (2026-08-07) — 켜기·끄기와 방해금지 시간만 */}
-        {!preview && <AlertBox brief />}
-
+        {/* 알림 설정 카드는 메뉴 줄의 🔔 팝업으로 올라갔다 (원장님 2026-08-27
+            「학부모도 마찬가지야」) — 맨 아래에는 로그아웃만 남는다 */}
         {preview ? (
           <Link className="btn btn-ghost btn-block" href="/students">재원생으로 돌아가기</Link>
         ) : (
