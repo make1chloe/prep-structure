@@ -28,7 +28,13 @@ function why(error) {
 /** 사진 한 장을 올리고 경로를 돌려준다 */
 export async function uploadRequestPhoto(formData) {
   const supabase = await createClient();
-  const { studentId, error: whoErr } = await resolveStudent(supabase);
+  // **학부모도 올린다** (0068 첫 줄 — 결석을 알리는 건 대개 학부모다).
+  // 아이가 여럿인 학부모는 화면(RequestForm)이 studentId 로 어느 아이인지
+  // 말해준다. 남의 아이 id 는 resolveStudent 가 거르고(parent_student 대조),
+  // 최종 방어선은 버킷 RLS(my_student_ids) — 경로 첫 칸이 제 아이가 아니면
+  // DB 가 업로드 자체를 막는다.
+  const wanted = formData.get("studentId") || null;
+  const { studentId, error: whoErr } = await resolveStudent(supabase, wanted);
   if (!studentId) return { error: whoErr || "로그인이 필요해요." };
 
   const file = formData.get("file");

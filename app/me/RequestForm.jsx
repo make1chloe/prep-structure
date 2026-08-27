@@ -170,7 +170,7 @@ export default function RequestForm({ studentId, mine = [], readOnly = false, st
             onChange={(e) => setBody(e.target.value)}
           />
           {/* 옮겨 적으면 틀린다. 틀리면 그게 더 큰일이다 — 찍어서 그대로 */}
-          <RequestPhotos paths={photos} onChange={setPhotos} readOnly={readOnly} />
+          <RequestPhotos paths={photos} onChange={setPhotos} studentId={studentId} readOnly={readOnly} />
 
           <button className="btn btn-primary btn-sm" onClick={submit}
             disabled={
