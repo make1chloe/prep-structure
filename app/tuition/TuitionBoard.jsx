@@ -110,191 +110,22 @@ export default function TuitionBoard({
 
   return (
     <>
-      <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 12 }}>
-        <a className="btn btn-ghost btn-sm" href={`/tuition?m=${shiftMonth(ym, -1)}`}>◂ 지난달</a>
-        <input
-          className="input input-sm"
-          type="month"
-          style={{ width: 140 }}
-          defaultValue={ym}
-          onChange={(e) => e.target.value && router.push(`/tuition?m=${e.target.value}`)}
-        />
-        <a className="btn btn-ghost btn-sm" href={`/tuition?m=${shiftMonth(ym, 1)}`}>다음달 ▸</a>
-        <span className="spacer" />
-        <span className="tag tag-mint" style={{ fontSize: 14.5, padding: "5px 12px" }}>
-          이번 달 합계 <b>{won(total)}</b>
-        </span>
-        {totalUnpaid > 0 && (
-          <span className="tag tag-red" style={{ fontSize: 14.5, padding: "5px 12px" }}>
-            아직 못 받음 <b>{won(totalUnpaid)}</b>
-          </span>
-        )}
-        {totalMakeup > 0 && (
-          <span className="tag tag-amber" style={{ fontSize: 14.5, padding: "5px 12px" }}>
-            보강 필요 <b>{totalMakeup}회</b> · 차액 {won(totalCredit)}
-          </span>
-        )}
-      </div>
-
+      {/* PC(≥1101px)는 **좌 표 본문 / 우 요약·규칙 레일(sticky)** (B2, 원장
+          승인 2026-08-27). 수납 체크는 표를 위에서 아래로 훑는 일괄 작업이라
+          목록/상세 좌우 분할은 금지(클릭만 는다) — 대신 달·합계와 학년별
+          수강료·휴강일 같은 「가끔 만지는」 카드를 옆 레일로 보내, 1480 에서
+          표가 본문 폭을 온전히 쓴다. .splitview 가 이미 「본문 1fr + 우
+          레일(330~440) sticky」 그 자체라 재사용 — 좁으면(<1101px) CSS 가
+          레일을 order:-1 로 올려 지금처럼 요약(위)→표(아래) 세로가 된다. */}
+      <div className="splitview" style={{ marginTop: 12 }}>
+      {/* 좌 — 반별 수강료 표 (본문) */}
+      <div>
       {!payReady && (
         <p className="hint" style={{ marginTop: 8 }}>
           수납 칸을 쓰려면 <b>supabase/migrations/0055_payments.sql</b> 을 먼저 실행해주세요.
           결제선생 엑셀은 <a className="sky" href="/import">노션 이관 · 수납</a> 에서 올립니다.
         </p>
       )}
-
-
-      {/* 학년별 수강료 — 학년이 오르면 금액이 오른다 */}
-      <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>학년별 수강료</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
-          한 반에 학년이 섞여 있어도 학생마다 손으로 고쳐 넣지 않아도 됩니다.
-          <br />
-          금액은 <b>좁은 것이 이깁니다</b> — 학생에게 따로 적은 금액 ▸ 학년별 금액 ▸ 반 금액 순입니다.
-          비워두면 &apos;안 적음&apos; 이라 합계에서 빠집니다 (0원과 다릅니다).
-        </p>
-
-        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
-          {[...new Set([...grades, ...Object.keys(gDraft)])].sort().map((g) => (
-            <div className="field" key={g} style={{ width: 128 }}>
-              <label className="label">{g}</label>
-              <input
-                className="input input-sm"
-                inputMode="numeric"
-                placeholder="안 적음"
-                value={gDraft[g] ?? ""}
-                onChange={(e) => setGDraft({ ...gDraft, [g]: e.target.value })}
-              />
-            </div>
-          ))}
-          {[...new Set([...grades, ...Object.keys(gDraft)])].length === 0 && (
-            <p className="hint" style={{ margin: 0 }}>
-              재원생에 학년이 적혀 있으면 여기 자동으로 칸이 생깁니다.
-            </p>
-          )}
-        </div>
-
-        <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <div className="field" style={{ width: 110 }}>
-            <label className="label">학년 추가</label>
-            {/* 학년은 골라 넣는다 (C2) — 글자로 치면 students.grade 와 안 맞아
-                금액이 조용히 안 걸린다 */}
-            <GradeField
-              name={undefined}
-              value={gRow.grade}
-              onChange={(e) => setGRow({ ...gRow, grade: e.target.value })}
-            />
-          </div>
-          <div className="field" style={{ width: 128 }}>
-            <label className="label">금액</label>
-            <input
-              className="input input-sm"
-              inputMode="numeric"
-              placeholder="250000"
-              value={gRow.amount}
-              onChange={(e) => setGRow({ ...gRow, amount: e.target.value })}
-            />
-          </div>
-          <button
-            className="btn btn-sm"
-            style={{ marginBottom: 1 }}
-            disabled={pending || !gRow.grade.trim()}
-            onClick={() => {
-              setGDraft({ ...gDraft, [gRow.grade.trim()]: gRow.amount });
-              setGRow({ grade: "", amount: "" });
-            }}
-          >
-            칸 만들기
-          </button>
-          <span className="spacer" />
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ marginBottom: 1 }}
-            disabled={pending}
-            onClick={() => run(() => saveGradeTuition(gDraft))}
-          >
-            학년별 수강료 저장
-          </button>
-        </div>
-      </div>
-
-      {/* 휴강일 */}
-      <div className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>휴강일</h2>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
-          휴강으로 넣으면 그 날짜가 회차에서 빠집니다. <b>수강료는 그대로</b>이고,
-          대신 학생마다 <b>보강 필요 횟수</b>와 <b>차액</b>이 계산됩니다.
-        </p>
-        <div className="row" style={{ gap: 6, alignItems: "center" }}>
-          <input
-            className="input input-sm"
-            type="date"
-            style={{ width: 150 }}
-            value={hDate}
-            onChange={(e) => setHDate(e.target.value)}
-          />
-          <input
-            className="input input-sm"
-            style={{ width: 150 }}
-            placeholder="사유 (설날 등)"
-            value={hName}
-            onChange={(e) => setHName(e.target.value)}
-          />
-          <select
-            className="input input-sm"
-            style={{ width: 170 }}
-            value={hClass}
-            onChange={(e) => setHClass(e.target.value)}
-          >
-            <option value="">전체 휴강</option>
-            {/* 특강 가상 그룹은 반 휴강 대상이 아니다 — 비-uuid 가
-                holidays.class_id 에 들어가면 22P02 로 죽는다 (today TopNotices 선례) */}
-            {groups.filter((g) => !isVirtual(g.klass)).map((g) => (
-              <option key={g.klass.id} value={g.klass.id}>{g.klass.name} 만</option>
-            ))}
-          </select>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => run(() => addHoliday(hDate, hName, hClass || null))}
-            disabled={pending}
-          >
-            휴강 추가
-          </button>
-        </div>
-
-        {holidays.length > 0 && (
-          <div className="row" style={{ gap: 4, marginTop: 10 }}>
-            {holidays.map((h) => (
-              <button
-                key={h.id}
-                className={`hwchip ${h.scope === "all" ? "hw-missing" : ""}`}
-                onClick={() => {
-                  if (!confirm("이 휴강을 지울까요?")) return;
-                  run(() => deleteHoliday(h.id));
-                }}
-                title="클릭하면 지웁니다"
-              >
-                {dayShort(h.date)} {h.name || (h.scope === "all" ? "휴강" : "반 휴강")} ✕
-              </button>
-            ))}
-          </div>
-        )}
-        {allOff.length === 0 && (
-          <p className="hint" style={{ marginTop: 8 }}>이번 달 전체 휴강은 없습니다.</p>
-        )}
-      </div>
-
-      {noClass.length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <div className="notice">
-            <b>반이 없는 재원생 {noClass.length}명</b> — {noClass.join(", ")}
-            <br />
-            아래 목록에 <b>안 나오고 합계에도 안 들어갑니다.</b>
-            {" "}<a className="sky" href="/classes">반 · 학생 배정</a> 에서 반에 넣어주세요.
-          </div>
-        </div>
-      )}
-
       {/* **고른 사람을 한 번에 수납 처리한다.**
           받은 날을 고를 수 있어야 한다 — 계좌를 며칠 만에 확인하시는 일이
           흔해서, 오늘로 찍어버리면 실제 받은 날과 어긋난다. */}
@@ -355,7 +186,6 @@ export default function TuitionBoard({
           </button>
         </div>
       )}
-
       {/* 반별 */}
       <div className="stack" style={{ gap: 12, marginTop: 12 }}>
         {groups.map(({ klass, live, off, all, base, rows, sum, makeupSum, creditSum, makeupOnly = [] }) => {
@@ -704,6 +534,186 @@ export default function TuitionBoard({
             </p>
           </div>
         )}
+      </div>
+      </div>
+
+      {/* 우 — 달 넘기기·합계와 규칙 카드 (폰은 지금처럼 표 위) */}
+      <aside className="split-panel">
+      <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 12 }}>
+        <a className="btn btn-ghost btn-sm" href={`/tuition?m=${shiftMonth(ym, -1)}`}>◂ 지난달</a>
+        <input
+          className="input input-sm"
+          type="month"
+          style={{ width: 140 }}
+          defaultValue={ym}
+          onChange={(e) => e.target.value && router.push(`/tuition?m=${e.target.value}`)}
+        />
+        <a className="btn btn-ghost btn-sm" href={`/tuition?m=${shiftMonth(ym, 1)}`}>다음달 ▸</a>
+        <span className="spacer" />
+        <span className="tag tag-mint" style={{ fontSize: 14.5, padding: "5px 12px" }}>
+          이번 달 합계 <b>{won(total)}</b>
+        </span>
+        {totalUnpaid > 0 && (
+          <span className="tag tag-red" style={{ fontSize: 14.5, padding: "5px 12px" }}>
+            아직 못 받음 <b>{won(totalUnpaid)}</b>
+          </span>
+        )}
+        {totalMakeup > 0 && (
+          <span className="tag tag-amber" style={{ fontSize: 14.5, padding: "5px 12px" }}>
+            보강 필요 <b>{totalMakeup}회</b> · 차액 {won(totalCredit)}
+          </span>
+        )}
+      </div>
+
+      {/* 학년별 수강료 — 학년이 오르면 금액이 오른다 */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>학년별 수강료</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14, lineHeight: 1.7 }}>
+          한 반에 학년이 섞여 있어도 학생마다 손으로 고쳐 넣지 않아도 됩니다.
+          <br />
+          금액은 <b>좁은 것이 이깁니다</b> — 학생에게 따로 적은 금액 ▸ 학년별 금액 ▸ 반 금액 순입니다.
+          비워두면 &apos;안 적음&apos; 이라 합계에서 빠집니다 (0원과 다릅니다).
+        </p>
+
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+          {[...new Set([...grades, ...Object.keys(gDraft)])].sort().map((g) => (
+            <div className="field" key={g} style={{ width: 128 }}>
+              <label className="label">{g}</label>
+              <input
+                className="input input-sm"
+                inputMode="numeric"
+                placeholder="안 적음"
+                value={gDraft[g] ?? ""}
+                onChange={(e) => setGDraft({ ...gDraft, [g]: e.target.value })}
+              />
+            </div>
+          ))}
+          {[...new Set([...grades, ...Object.keys(gDraft)])].length === 0 && (
+            <p className="hint" style={{ margin: 0 }}>
+              재원생에 학년이 적혀 있으면 여기 자동으로 칸이 생깁니다.
+            </p>
+          )}
+        </div>
+
+        <div className="row" style={{ gap: 6, marginTop: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="field" style={{ width: 110 }}>
+            <label className="label">학년 추가</label>
+            {/* 학년은 골라 넣는다 (C2) — 글자로 치면 students.grade 와 안 맞아
+                금액이 조용히 안 걸린다 */}
+            <GradeField
+              name={undefined}
+              value={gRow.grade}
+              onChange={(e) => setGRow({ ...gRow, grade: e.target.value })}
+            />
+          </div>
+          <div className="field" style={{ width: 128 }}>
+            <label className="label">금액</label>
+            <input
+              className="input input-sm"
+              inputMode="numeric"
+              placeholder="250000"
+              value={gRow.amount}
+              onChange={(e) => setGRow({ ...gRow, amount: e.target.value })}
+            />
+          </div>
+          <button
+            className="btn btn-sm"
+            style={{ marginBottom: 1 }}
+            disabled={pending || !gRow.grade.trim()}
+            onClick={() => {
+              setGDraft({ ...gDraft, [gRow.grade.trim()]: gRow.amount });
+              setGRow({ grade: "", amount: "" });
+            }}
+          >
+            칸 만들기
+          </button>
+          <span className="spacer" />
+          <button
+            className="btn btn-primary btn-sm"
+            style={{ marginBottom: 1 }}
+            disabled={pending}
+            onClick={() => run(() => saveGradeTuition(gDraft))}
+          >
+            학년별 수강료 저장
+          </button>
+        </div>
+      </div>
+      {/* 휴강일 */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <h2 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 800 }}>휴강일</h2>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 14 }}>
+          휴강으로 넣으면 그 날짜가 회차에서 빠집니다. <b>수강료는 그대로</b>이고,
+          대신 학생마다 <b>보강 필요 횟수</b>와 <b>차액</b>이 계산됩니다.
+        </p>
+        <div className="row" style={{ gap: 6, alignItems: "center" }}>
+          <input
+            className="input input-sm"
+            type="date"
+            style={{ width: 150 }}
+            value={hDate}
+            onChange={(e) => setHDate(e.target.value)}
+          />
+          <input
+            className="input input-sm"
+            style={{ width: 150 }}
+            placeholder="사유 (설날 등)"
+            value={hName}
+            onChange={(e) => setHName(e.target.value)}
+          />
+          <select
+            className="input input-sm"
+            style={{ width: 170 }}
+            value={hClass}
+            onChange={(e) => setHClass(e.target.value)}
+          >
+            <option value="">전체 휴강</option>
+            {/* 특강 가상 그룹은 반 휴강 대상이 아니다 — 비-uuid 가
+                holidays.class_id 에 들어가면 22P02 로 죽는다 (today TopNotices 선례) */}
+            {groups.filter((g) => !isVirtual(g.klass)).map((g) => (
+              <option key={g.klass.id} value={g.klass.id}>{g.klass.name} 만</option>
+            ))}
+          </select>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => run(() => addHoliday(hDate, hName, hClass || null))}
+            disabled={pending}
+          >
+            휴강 추가
+          </button>
+        </div>
+
+        {holidays.length > 0 && (
+          <div className="row" style={{ gap: 4, marginTop: 10 }}>
+            {holidays.map((h) => (
+              <button
+                key={h.id}
+                className={`hwchip ${h.scope === "all" ? "hw-missing" : ""}`}
+                onClick={() => {
+                  if (!confirm("이 휴강을 지울까요?")) return;
+                  run(() => deleteHoliday(h.id));
+                }}
+                title="클릭하면 지웁니다"
+              >
+                {dayShort(h.date)} {h.name || (h.scope === "all" ? "휴강" : "반 휴강")} ✕
+              </button>
+            ))}
+          </div>
+        )}
+        {allOff.length === 0 && (
+          <p className="hint" style={{ marginTop: 8 }}>이번 달 전체 휴강은 없습니다.</p>
+        )}
+      </div>
+      {noClass.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="notice">
+            <b>반이 없는 재원생 {noClass.length}명</b> — {noClass.join(", ")}
+            <br />
+            아래 목록에 <b>안 나오고 합계에도 안 들어갑니다.</b>
+            {" "}<a className="sky" href="/classes">반 · 학생 배정</a> 에서 반에 넣어주세요.
+          </div>
+        </div>
+      )}
+      </aside>
       </div>
     </>
   );

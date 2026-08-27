@@ -53,7 +53,9 @@ export default async function SpecPage() {
   return (
     <>
       <TopBar profile={profile} active="scores" />
-      <main className="wrap-wide">
+      {/* wrap(1080) — 회차 고르고 문항 표를 채우는 화면. 표 열이 좁아
+          1480 은 오른쪽이 통째로 놀았다 (B2 재실측 #14) */}
+      <main className="wrap">
         <div className="page-head">
           <p className="eyebrow">
             <Link className="sky" href="/scores">성적</Link>

@@ -50,6 +50,7 @@ export default function ConsultBoard({
   const bookNameOf = new Map((bookNames ?? textbooks).map((b) => [b.id, b.name]));
   const [sel, setSel] = useState(() => new Set());
   const [editId, setEditId] = useState(null);
+  const [wide, setWide] = useState(false);   // 수정을 연 순간의 화면 폭 — 폼을 어디에 그릴지
   const [draft, setDraft] = useState({});
   const [filter, setFilter] = useState("open");
   const [q, setQ] = useState("");
@@ -76,6 +77,17 @@ export default function ConsultBoard({
   const counts = {};
   STATUS.forEach((s) => (counts[s.key] = view.filter((r) => r.status === s.key).length));
   const openCount = view.filter((r) => !["enrolled", "declined"].includes(r.status)).length;
+
+  /**
+   * PC(≥1101px)는 **좌 문의 목록 / 우 한 건 편집(sticky)** (B2, 원장 승인
+   * 2026-08-27). 편집 폼이 줄 안에서 부풀면 아래 문의들이 화면 밖으로
+   * 밀렸다 — 재원생(.splitview)과 동형. 폭은 **여는 순간 한 번만** 본다
+   * (진도·발송과 같은 원칙 — 미디어쿼리로 가르면 같은 폼을 두 벌 그리고,
+   * 문턱을 넘나드는 순간 적던 폼이 자리를 잃는다). 폰(<1101px)은 지금처럼
+   * 줄 아래 인라인. 편집 중인 문의가 필터에 걸러지면 판도 같이 사라진다.
+   */
+  const editRow = shown.find((r) => r.id === editId) || null;
+  const split = !!editRow && wide;
 
   const allChecked = shown.length > 0 && shown.every((r) => sel.has(r.id));
   function toggleAll() {
@@ -206,6 +218,7 @@ export default function ConsultBoard({
 
   function startEdit(r) {
     setEditId(r.id);
+    setWide(typeof window !== "undefined" && window.matchMedia("(min-width: 1101px)").matches);
     setDraft({
       name: r.name || "",
       phone: r.phone || "",
@@ -239,8 +252,176 @@ export default function ConsultBoard({
     );
   }
 
+  /**
+   * 편집 폼은 **한 벌**이다 — 줄 안(stuPanel)과 우측 판이 같은 것을 그린다
+   * (원칙 1). 두 벌로 베끼면 한쪽에 더한 칸이 다른 쪽에 없다.
+   */
+  function editPanel(r) {
+    return (
+      <>
+                    <div className="editgrid">
+                      <div className="field">
+                        <label className="label">이름</label>
+                        <input className="input input-sm" value={draft.name}
+                          onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">학부모 번호</label>
+                        <input className="input input-sm" value={draft.phone}
+                          onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">학생 번호</label>
+                        <input className="input input-sm" value={draft.student_phone}
+                          onChange={(e) => setDraft({ ...draft, student_phone: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">학교</label>
+                        <SchoolField schools={schools} name={undefined} value={draft.school}
+                          onChange={(e) => setDraft({ ...draft, school: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">학년</label>
+                        <GradeField name={undefined} value={draft.grade}
+                          onChange={(e) => setDraft({ ...draft, grade: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">유입경로</label>
+                        {/* 목록에 없는 값(설문지가 남긴 「기타 (…)」)도 그대로 지킨다 */}
+                        <PickField options={SOURCES} value={draft.source}
+                          onChange={(e) => setDraft({ ...draft, source: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">상태</label>
+                        <select className="input input-sm" value={draft.status}
+                          onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
+                          {STATUS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label className="label">상담 날짜</label>
+                        <input className="input input-sm" type="date" value={draft.consult_on}
+                          onChange={(e) => setDraft({ ...draft, consult_on: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">상담 시간</label>
+                        <input className="input input-sm" type="time" value={draft.consult_at}
+                          onChange={(e) => setDraft({ ...draft, consult_at: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">테스트 날짜</label>
+                        <input className="input input-sm" type="date" value={draft.test_on}
+                          onChange={(e) => setDraft({ ...draft, test_on: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">테스트 시간</label>
+                        <input className="input input-sm" type="time" value={draft.test_at}
+                          onChange={(e) => setDraft({ ...draft, test_at: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">테스트 결과</label>
+                        <input className="input input-sm" value={draft.test_result}
+                          placeholder="예: 중2 기본반 수준"
+                          onChange={(e) => setDraft({ ...draft, test_result: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">희망 시간</label>
+                        <input className="input input-sm" value={draft.want_time}
+                          placeholder="예: 월수 7시 이후"
+                          onChange={(e) => setDraft({ ...draft, want_time: e.target.value })} />
+                      </div>
+                      <div className="field">
+                        <label className="label">배정 예정 반</label>
+                        <select className="input input-sm" value={draft.class_id}
+                          onChange={(e) => setDraft({ ...draft, class_id: e.target.value })}>
+                          <option value="">—</option>
+                          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        {/* 학부모가 고른 희망 시간표에서 반을 제안한다 (원칙 1 —
+                            적은 값을 써먹는다). 반의 요일·시간으로 맞춘 것이라
+                            표가 따로 없다. 누르면 그 반이 골라진다 */}
+                        {r.want_slots?.length > 0 && (() => {
+                          const fits = classesForSlots(r.want_slots, classes)
+                            .filter((c) => c.id !== draft.class_id);
+                          if (fits.length === 0) return null;
+                          return (
+                            <div className="row" style={{ gap: 4, marginTop: 4, flexWrap: "wrap" }}>
+                              <span className="hint" style={{ fontSize: 12 }}>희망 시간표와 맞는 반:</span>
+                              {fits.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  className="hwchip"
+                                  onClick={() => setDraft({ ...draft, class_id: c.id })}
+                                >
+                                  {c.name}
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                    {/**
+                      * **등록 전에 교재 골라두기** (0122, 원장님 2026-08-15 —
+                      * 「신규 상담 정보에 교재 배정이 없음. 아직 등록 안 해도」).
+                      * 고르는 즉시 저장된다 (저장 버튼과 무관) — 교재 안내를
+                      * 보낼 때도 자동으로 적히고, 등록하면 그대로 배정된다.
+                      */}
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">교재 (등록하면 자동 배정 — 아래 저장을 눌러야 저장돼요)</label>
+                      {/* 재원생 교재 배정과 **같은 판** (원장님, 2026-08-15 —
+                          「한 권만 고르는 것도 아니고 검색도 안 됨」) */}
+                      {/**
+                        * **저장을 눌러야 저장된다** (원장님, 2026-08-15 —
+                        * 「하나 선택하면 바로 화면이 바뀌어서 불편」 → 「저장
+                        * 누르기 전에 화면 안 바뀌게」). 고르는 동안은 draft
+                        * 에만 쌓이고, 아래 저장 버튼이 교재까지 같이 저장한다.
+                        */}
+                      <BookPickPanel
+                        books={textbooks}
+                        picked={new Set(draft.book_ids || [])}
+                        onToggle={(bid) => {
+                          const has = (draft.book_ids || []).includes(bid);
+                          setDraft({
+                            ...draft,
+                            book_ids: has
+                              ? (draft.book_ids || []).filter((x) => x !== bid)
+                              : [...(draft.book_ids || []), bid],
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">상담 내용</label>
+                      <textarea className="input input-sm" rows={2} value={draft.memo}
+                        onChange={(e) => setDraft({ ...draft, memo: e.target.value })} />
+                    </div>
+                    <div className="field" style={{ marginTop: 8 }}>
+                      <label className="label">테스트 메모</label>
+                      <textarea className="input input-sm" rows={2} value={draft.test_note}
+                        onChange={(e) => setDraft({ ...draft, test_note: e.target.value })} />
+                    </div>
+                    <div className="row" style={{ gap: 6, marginTop: 10 }}>
+                      <button className="btn btn-primary btn-sm" disabled={pending}
+                        onClick={() => run(async () => {
+                          const res = await updateInquiry(r.id, draft);
+                          if (res?.error) return res;
+                          // 교재도 이 저장 버튼 하나로 (저장 전에는 아무것도 안 바뀐다)
+                          const res2 = await setInquiryBooks(r.id, draft.book_ids || []);
+                          setEditId(null);
+                          return res2;
+                        })}>저장</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
+                    </div>
+      </>
+    );
+  }
+
   return (
-    <>
+    <div className={split ? "splitview" : undefined}>
+    {/* 좌 — 문의 목록 (검색·필터가 목록과 같이 다닌다) */}
+    <div>
       <div className="row" style={{ gap: 4, marginTop: 12, alignItems: "center" }}>
         <input
           className="input input-sm"
@@ -330,7 +511,14 @@ export default function ConsultBoard({
             const editing = editId === r.id;
             return (
               <div className="stuRow" key={r.id}>
-                <div className="stuLine" style={{ cursor: "default" }}>
+                {/* 좌우 분할 중에는 폼이 줄 밖(오른쪽)에 있어서, 이 줄이
+                    열려 있다는 표시가 배경색뿐이다 (진도와 같다) */}
+                <div
+                  className="stuLine"
+                  style={editing && split
+                    ? { cursor: "default", background: "var(--surface-2)" }
+                    : { cursor: "default" }}
+                >
                   <span className="stuWho">
                     <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleOne(r.id)} />
                     <span className="stuName">{r.name}</span>
@@ -538,170 +726,28 @@ export default function ConsultBoard({
                   </div>
                 )}
 
-                {editing && (
-                  <div className="stuPanel">
-                    <div className="editgrid">
-                      <div className="field">
-                        <label className="label">이름</label>
-                        <input className="input input-sm" value={draft.name}
-                          onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">학부모 번호</label>
-                        <input className="input input-sm" value={draft.phone}
-                          onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">학생 번호</label>
-                        <input className="input input-sm" value={draft.student_phone}
-                          onChange={(e) => setDraft({ ...draft, student_phone: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">학교</label>
-                        <SchoolField schools={schools} name={undefined} value={draft.school}
-                          onChange={(e) => setDraft({ ...draft, school: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">학년</label>
-                        <GradeField name={undefined} value={draft.grade}
-                          onChange={(e) => setDraft({ ...draft, grade: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">유입경로</label>
-                        {/* 목록에 없는 값(설문지가 남긴 「기타 (…)」)도 그대로 지킨다 */}
-                        <PickField options={SOURCES} value={draft.source}
-                          onChange={(e) => setDraft({ ...draft, source: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">상태</label>
-                        <select className="input input-sm" value={draft.status}
-                          onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
-                          {STATUS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label className="label">상담 날짜</label>
-                        <input className="input input-sm" type="date" value={draft.consult_on}
-                          onChange={(e) => setDraft({ ...draft, consult_on: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">상담 시간</label>
-                        <input className="input input-sm" type="time" value={draft.consult_at}
-                          onChange={(e) => setDraft({ ...draft, consult_at: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">테스트 날짜</label>
-                        <input className="input input-sm" type="date" value={draft.test_on}
-                          onChange={(e) => setDraft({ ...draft, test_on: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">테스트 시간</label>
-                        <input className="input input-sm" type="time" value={draft.test_at}
-                          onChange={(e) => setDraft({ ...draft, test_at: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">테스트 결과</label>
-                        <input className="input input-sm" value={draft.test_result}
-                          placeholder="예: 중2 기본반 수준"
-                          onChange={(e) => setDraft({ ...draft, test_result: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">희망 시간</label>
-                        <input className="input input-sm" value={draft.want_time}
-                          placeholder="예: 월수 7시 이후"
-                          onChange={(e) => setDraft({ ...draft, want_time: e.target.value })} />
-                      </div>
-                      <div className="field">
-                        <label className="label">배정 예정 반</label>
-                        <select className="input input-sm" value={draft.class_id}
-                          onChange={(e) => setDraft({ ...draft, class_id: e.target.value })}>
-                          <option value="">—</option>
-                          {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        {/* 학부모가 고른 희망 시간표에서 반을 제안한다 (원칙 1 —
-                            적은 값을 써먹는다). 반의 요일·시간으로 맞춘 것이라
-                            표가 따로 없다. 누르면 그 반이 골라진다 */}
-                        {r.want_slots?.length > 0 && (() => {
-                          const fits = classesForSlots(r.want_slots, classes)
-                            .filter((c) => c.id !== draft.class_id);
-                          if (fits.length === 0) return null;
-                          return (
-                            <div className="row" style={{ gap: 4, marginTop: 4, flexWrap: "wrap" }}>
-                              <span className="hint" style={{ fontSize: 12 }}>희망 시간표와 맞는 반:</span>
-                              {fits.map((c) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  className="hwchip"
-                                  onClick={() => setDraft({ ...draft, class_id: c.id })}
-                                >
-                                  {c.name}
-                                </button>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                    {/**
-                      * **등록 전에 교재 골라두기** (0122, 원장님 2026-08-15 —
-                      * 「신규 상담 정보에 교재 배정이 없음. 아직 등록 안 해도」).
-                      * 고르는 즉시 저장된다 (저장 버튼과 무관) — 교재 안내를
-                      * 보낼 때도 자동으로 적히고, 등록하면 그대로 배정된다.
-                      */}
-                    <div className="field" style={{ marginTop: 8 }}>
-                      <label className="label">교재 (등록하면 자동 배정 — 아래 저장을 눌러야 저장돼요)</label>
-                      {/* 재원생 교재 배정과 **같은 판** (원장님, 2026-08-15 —
-                          「한 권만 고르는 것도 아니고 검색도 안 됨」) */}
-                      {/**
-                        * **저장을 눌러야 저장된다** (원장님, 2026-08-15 —
-                        * 「하나 선택하면 바로 화면이 바뀌어서 불편」 → 「저장
-                        * 누르기 전에 화면 안 바뀌게」). 고르는 동안은 draft
-                        * 에만 쌓이고, 아래 저장 버튼이 교재까지 같이 저장한다.
-                        */}
-                      <BookPickPanel
-                        books={textbooks}
-                        picked={new Set(draft.book_ids || [])}
-                        onToggle={(bid) => {
-                          const has = (draft.book_ids || []).includes(bid);
-                          setDraft({
-                            ...draft,
-                            book_ids: has
-                              ? (draft.book_ids || []).filter((x) => x !== bid)
-                              : [...(draft.book_ids || []), bid],
-                          });
-                        }}
-                      />
-                    </div>
-                    <div className="field" style={{ marginTop: 8 }}>
-                      <label className="label">상담 내용</label>
-                      <textarea className="input input-sm" rows={2} value={draft.memo}
-                        onChange={(e) => setDraft({ ...draft, memo: e.target.value })} />
-                    </div>
-                    <div className="field" style={{ marginTop: 8 }}>
-                      <label className="label">테스트 메모</label>
-                      <textarea className="input input-sm" rows={2} value={draft.test_note}
-                        onChange={(e) => setDraft({ ...draft, test_note: e.target.value })} />
-                    </div>
-                    <div className="row" style={{ gap: 6, marginTop: 10 }}>
-                      <button className="btn btn-primary btn-sm" disabled={pending}
-                        onClick={() => run(async () => {
-                          const res = await updateInquiry(r.id, draft);
-                          if (res?.error) return res;
-                          // 교재도 이 저장 버튼 하나로 (저장 전에는 아무것도 안 바뀐다)
-                          const res2 = await setInquiryBooks(r.id, draft.book_ids || []);
-                          setEditId(null);
-                          return res2;
-                        })}>저장</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>취소</button>
-                    </div>
-                  </div>
+                {editing && !split && (
+                  <div className="stuPanel">{editPanel(r)}</div>
                 )}
               </div>
             );
           })
         )}
       </div>
-    </>
+    </div>
+
+    {/* 우 — 편집 중인 한 건 (폰에서는 이 판 대신 줄 아래 인라인) */}
+    {split && (
+      <aside className="card split-panel">
+        <div className="row split-head" style={{ gap: 6, alignItems: "center" }}>
+          <b style={{ fontSize: 15 }}>{editRow.name}</b>
+          <span className="hint">{[editRow.school, editRow.grade].filter(Boolean).join(" · ")}</span>
+          <span className="spacer" />
+          <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>닫기</button>
+        </div>
+        <div className="split-body">{editPanel(editRow)}</div>
+      </aside>
+    )}
+    </div>
   );
 }

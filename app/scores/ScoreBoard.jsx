@@ -252,9 +252,157 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
         * 지우지는 않는다. 따로 세어 보여주지 않을 뿐이다.
         */}
 
-      {/* ---- 넣기 ---- */}
+      {/* PC(≥1101px)는 **좌 성적 목록 / 우 넣기 폼(sticky)** — 상담 중 펴놓는
+          화면인데 목록은 위, 넣는 칸은 아래라 스크롤을 왕복해야 했다 (B2,
+          원장 승인 2026-08-27). 폼이 늘 펴져 있는 화면이라 발송의 테스트
+          발송 탭과 같은 **상시 splitview** — 좁으면(<1101px) CSS 가 판을
+          order:-1 로 올려 지금처럼 폼(위)→목록(아래) 세로가 된다. */}
       {student && (
+      <div className="splitview">
+      {/* 좌 — 성적 목록 (폰은 판 아래) */}
+      <div className="stack" style={{ gap: 12 }}>
+      {/* ---- 목록 ---- */}
+      {student && mine.length > 0 && (
         <div className="card">
+          <BulkBar bulk={bulk} label="성적">
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={pending}
+              onClick={() => {
+                if (!confirm(`고른 성적 ${bulk.count}건을 지울까요?\n틀린 문제 기록도 함께 지워집니다.`)) return;
+                run(() => bulk.run((ids) => removeScores(ids)));
+              }}
+            >
+              삭제
+            </button>
+          </BulkBar>
+
+          {KINDS.map((k) => {
+            const list = groups[k.key] || [];
+            if (list.length === 0) return null;
+            const t = trendOf(list);
+            return (
+              <div key={k.key} style={{ marginTop: 10 }}>
+                <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
+                  <b style={{ fontSize: 15 }}>{k.label}</b>
+                  <span className="hint">{list.length}건</span>
+                  {t && (
+                    <span className={`tag ${t.diff > 0 ? "tag-mint" : t.diff < 0 ? "tag-amber" : "tag-muted"}`}>
+                      {t.text}
+                    </span>
+                  )}
+                </div>
+
+                <div className="stack" style={{ gap: 3, marginTop: 6 }}>
+                  {list.map((s) => (
+                    <div key={s.id} className="stack" style={{ gap: 0 }}>
+                      <div className="unitrow">
+                        <input
+                          type="checkbox"
+                          checked={bulk.has(s.id)}
+                          onChange={() => bulk.toggle(s.id)}
+                        />
+                        <span className="hint" style={{ minWidth: 76 }}>
+                          {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : "날짜 없음"}
+                        </span>
+                        <b style={{ fontSize: 14, minWidth: 120 }}>{s.term || KIND_LABEL[s.kind]}</b>
+                        <span style={{ fontSize: 14, flex: 1 }}>{summary(s, findExam(s, exams, student))}</span>
+                        {s.source === "form" && <span className="tag tag-sky">학생이 냄</span>}
+                        <button className="btn btn-ghost btn-sm" onClick={() => openWrongs(s)}>
+                          {openId === s.id ? "닫기" : "틀린 문제"}
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>수정</button>
+                      </div>
+
+                      {openId === s.id && (
+                        <div className="card card-tight" style={{ background: "var(--surface-2)", margin: "4px 0 8px" }}>
+                          <div className="stack" style={{ gap: 3 }}>
+                            {wrongs.length === 0 && (
+                              <p className="hint" style={{ margin: 0 }}>
+                                아직 적어둔 것이 없어요. 무엇을 왜 틀렸는지 남겨두면
+                                다음 시험 전에 그것만 다시 봅니다.
+                                {" "}<b>번호로 적으시면</b> 리포트에서 영역별 정답률로 계산됩니다
+                                (아이가 스스로 적은 것과 같은 자리입니다).
+                              </p>
+                            )}
+                            {wrongs.map((x) => (
+                              <div className="unitrow" key={x.id}>
+                                {x.question && <span className="tag tag-muted">{x.question}</span>}
+                                <b style={{ fontSize: 14 }}>{x.topic || "—"}</b>
+                                <span className="hint" style={{ flex: 1 }}>{x.reason || ""}</span>
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  disabled={pending}
+                                  onClick={() =>
+                                    run(() => removeWrongs([x.id]), () =>
+                                      setWrongs(wrongs.filter((y) => y.id !== x.id))
+                                    )
+                                  }
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                            <input
+                              className="input input-sm"
+                              style={{ width: 70 }}
+                              placeholder="12번"
+                              title="번호를 적으면 영역별 정답률에 들어갑니다"
+                              value={w.question}
+                              onChange={(e) => setW({ ...w, question: e.target.value })}
+                            />
+                            <input
+                              className="input input-sm"
+                              style={{ width: 150 }}
+                              placeholder="메모 (선택)"
+                              value={w.topic}
+                              onChange={(e) => setW({ ...w, topic: e.target.value })}
+                            />
+                            <input
+                              className="input input-sm"
+                              style={{ flex: 1, minWidth: 160 }}
+                              placeholder="왜 (단어를 몰라서 · 시간 부족)"
+                              value={w.reason}
+                              onChange={(e) => setW({ ...w, reason: e.target.value })}
+                            />
+                            <button
+                              className="btn btn-primary btn-sm"
+                              disabled={pending}
+                              onClick={() =>
+                                run(() => addWrong(s.id, w), () => {
+                                  setW({ question: "", topic: "", reason: "" });
+                                  listWrongs(s.id).then((r) => setWrongs(r?.rows || []));
+                                })
+                              }
+                            >
+                              넣기
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {student && mine.length === 0 && (
+        <div className="card">
+          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
+            {student.name} 학생의 성적이 아직 없습니다. 넣기 칸에서 넣어주세요.
+          </p>
+        </div>
+      )}
+      </div>
+
+        {/* ---- 넣기 — 우측 판 (폰은 CSS order 로 맨 위) ---- */}
+        <aside className="card split-panel">
           <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800 }}>
             {editId ? "성적 고치기" : `${student.name} 성적 넣기`}
           </h2>
@@ -469,147 +617,12 @@ export default function ScoreBoard({ students = [], scores = [], exams = [], pic
               같은 시험인데 등급이 달라질 수 있어요. 적어두면 "1등급까지 3점" 이 보입니다.
             </p>
           )}
-        </div>
+        </aside>
+
+
+      </div>
       )}
 
-      {/* ---- 목록 ---- */}
-      {student && mine.length > 0 && (
-        <div className="card">
-          <BulkBar bulk={bulk} label="성적">
-            <button
-              className="btn btn-ghost btn-sm"
-              disabled={pending}
-              onClick={() => {
-                if (!confirm(`고른 성적 ${bulk.count}건을 지울까요?\n틀린 문제 기록도 함께 지워집니다.`)) return;
-                run(() => bulk.run((ids) => removeScores(ids)));
-              }}
-            >
-              삭제
-            </button>
-          </BulkBar>
-
-          {KINDS.map((k) => {
-            const list = groups[k.key] || [];
-            if (list.length === 0) return null;
-            const t = trendOf(list);
-            return (
-              <div key={k.key} style={{ marginTop: 10 }}>
-                <div className="row" style={{ gap: 6, alignItems: "baseline" }}>
-                  <b style={{ fontSize: 15 }}>{k.label}</b>
-                  <span className="hint">{list.length}건</span>
-                  {t && (
-                    <span className={`tag ${t.diff > 0 ? "tag-mint" : t.diff < 0 ? "tag-amber" : "tag-muted"}`}>
-                      {t.text}
-                    </span>
-                  )}
-                </div>
-
-                <div className="stack" style={{ gap: 3, marginTop: 6 }}>
-                  {list.map((s) => (
-                    <div key={s.id} className="stack" style={{ gap: 0 }}>
-                      <div className="unitrow">
-                        <input
-                          type="checkbox"
-                          checked={bulk.has(s.id)}
-                          onChange={() => bulk.toggle(s.id)}
-                        />
-                        <span className="hint" style={{ minWidth: 76 }}>
-                          {s.taken_on ? s.taken_on.slice(2).replaceAll("-", ".") : "날짜 없음"}
-                        </span>
-                        <b style={{ fontSize: 14, minWidth: 120 }}>{s.term || KIND_LABEL[s.kind]}</b>
-                        <span style={{ fontSize: 14, flex: 1 }}>{summary(s, findExam(s, exams, student))}</span>
-                        {s.source === "form" && <span className="tag tag-sky">학생이 냄</span>}
-                        <button className="btn btn-ghost btn-sm" onClick={() => openWrongs(s)}>
-                          {openId === s.id ? "닫기" : "틀린 문제"}
-                        </button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => startEdit(s)}>수정</button>
-                      </div>
-
-                      {openId === s.id && (
-                        <div className="card card-tight" style={{ background: "var(--surface-2)", margin: "4px 0 8px" }}>
-                          <div className="stack" style={{ gap: 3 }}>
-                            {wrongs.length === 0 && (
-                              <p className="hint" style={{ margin: 0 }}>
-                                아직 적어둔 것이 없어요. 무엇을 왜 틀렸는지 남겨두면
-                                다음 시험 전에 그것만 다시 봅니다.
-                                {" "}<b>번호로 적으시면</b> 리포트에서 영역별 정답률로 계산됩니다
-                                (아이가 스스로 적은 것과 같은 자리입니다).
-                              </p>
-                            )}
-                            {wrongs.map((x) => (
-                              <div className="unitrow" key={x.id}>
-                                {x.question && <span className="tag tag-muted">{x.question}</span>}
-                                <b style={{ fontSize: 14 }}>{x.topic || "—"}</b>
-                                <span className="hint" style={{ flex: 1 }}>{x.reason || ""}</span>
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  disabled={pending}
-                                  onClick={() =>
-                                    run(() => removeWrongs([x.id]), () =>
-                                      setWrongs(wrongs.filter((y) => y.id !== x.id))
-                                    )
-                                  }
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                            <input
-                              className="input input-sm"
-                              style={{ width: 70 }}
-                              placeholder="12번"
-                              title="번호를 적으면 영역별 정답률에 들어갑니다"
-                              value={w.question}
-                              onChange={(e) => setW({ ...w, question: e.target.value })}
-                            />
-                            <input
-                              className="input input-sm"
-                              style={{ width: 150 }}
-                              placeholder="메모 (선택)"
-                              value={w.topic}
-                              onChange={(e) => setW({ ...w, topic: e.target.value })}
-                            />
-                            <input
-                              className="input input-sm"
-                              style={{ flex: 1, minWidth: 160 }}
-                              placeholder="왜 (단어를 몰라서 · 시간 부족)"
-                              value={w.reason}
-                              onChange={(e) => setW({ ...w, reason: e.target.value })}
-                            />
-                            <button
-                              className="btn btn-primary btn-sm"
-                              disabled={pending}
-                              onClick={() =>
-                                run(() => addWrong(s.id, w), () => {
-                                  setW({ question: "", topic: "", reason: "" });
-                                  listWrongs(s.id).then((r) => setWrongs(r?.rows || []));
-                                })
-                              }
-                            >
-                              넣기
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {student && mine.length === 0 && (
-        <div className="card">
-          <p className="muted" style={{ margin: 0, fontSize: 15 }}>
-            {student.name} 학생의 성적이 아직 없습니다. 위에서 넣어주세요.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
