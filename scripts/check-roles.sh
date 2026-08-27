@@ -5,22 +5,9 @@
 # 화면은 주소만 알면 열리고, 서버 동작은 코드를 고치면 뚫린다.
 # 마지막 자물쇠는 RLS 다 — 그게 진짜로 걸려 있는지만 여기서 본다.
 set -u
-PG=/usr/lib/postgresql/16/bin
-export PATH="$PG:$PATH"
-D=/var/tmp/pgrole
-PORT=55439
-
-command -v initdb >/dev/null || { echo "  postgres 가 없어 건너뜁니다"; exit 0; }
-
-cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
-trap cleanup EXIT
-
-rm -rf "$D"; mkdir -p "$D"; chown postgres "$D"; chmod 700 "$D"
-su postgres -c "PATH=$PG:\$PATH initdb -D $D -U postgres -A trust" >/dev/null 2>&1
-su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D -o '-p $PORT -k /var/tmp' -l $D/log start" >/dev/null 2>&1
-sleep 2
-
-Q="psql -h /var/tmp -p $PORT -U postgres -q"
+. "$(dirname "$0")/pg-boot.sh"
+pg_boot pgrole 55439 /var/tmp/pgrole || { pg_skip "조교가 수강료를 볼 수 있나 (역할 자물쇠)"; exit 0; }
+trap pg_stop EXIT
 $Q -c "create database chloe;" >/dev/null 2>&1
 $Q -c "create role anon; create role authenticated; create role service_role;" >/dev/null 2>&1
 # Supabase 흉내 — auth.uid() 는 요청에 실린 사람이다

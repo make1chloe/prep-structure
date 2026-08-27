@@ -19,22 +19,9 @@
 #   · 어머니로 앉아서 표를 훑는다
 #   · 내 아이 것이 안 보이면 실패, 남의 아이 것이 보여도 실패
 set -u
-PG=/usr/lib/postgresql/16/bin
-export PATH="$PG:$PATH"
-D=/var/tmp/pgparent
-PORT=55436
-
-command -v initdb >/dev/null || { echo "  postgres 가 없어 건너뜁니다"; exit 0; }
-
-cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
-trap cleanup EXIT
-
-rm -rf "$D"; mkdir -p "$D"; chown postgres "$D"; chmod 700 "$D"
-su postgres -c "PATH=$PG:\$PATH initdb -D $D -U postgres -A trust" >/dev/null 2>&1
-su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D -o '-p $PORT -k /var/tmp' -l $D/log start" >/dev/null 2>&1
-sleep 2
-
-Q="psql -h /var/tmp -p $PORT -U postgres -q"
+. "$(dirname "$0")/pg-boot.sh"
+pg_boot pgparent 55436 /var/tmp/pgparent || { pg_skip "학부모에게 자기 아이 것이 보이나 (RLS)"; exit 0; }
+trap pg_stop EXIT
 $Q -c "create database chloe;" >/dev/null 2>&1
 $Q -c "create role anon; create role authenticated; create role service_role;" >/dev/null 2>&1
 
@@ -253,7 +240,10 @@ fi
 #    「일정은 해당 학교 학생이거나 일정에 학생이 연결된 경우에 노출」 (원장님)
 SEEN=$($Q -d chloe -tA <<SQL 2>&1
 set role authenticated;
-select string_agg(title, ' / ' order by title) from public.tasks;
+-- 차례는 **바이트 차례(C)** 로 못 박는다. 안 그러면 어느 Postgres 냐에
+-- 따라 한글 정렬이 달라져서, 보이는 것이 똑같아도 이 검사가 틀린다
+-- (2026-08-28 도커로 되살렸더니 그것부터 걸렸다 — 자물쇠 이야기가 아니다)
+select string_agg(title, ' / ' order by title collate "C") from public.tasks;
 SQL
 )
 WANT='[전국] 열어둔 모의고사 / 우리 반 특강 / 우리 아이 보강 / 우리 학교 시험 / 전체 공지 휴강'
@@ -553,7 +543,13 @@ fi
 # 알림 열쇠는 **원장님만** 읽는다 (0015). 강사·조교가 리포트를 올리거나
 # 댓글을 달면 열쇠가 빈 값으로 와서 **조용히 안 보내진다.** 지금은 원장님
 # 혼자 쓰셔서 안 드러날 뿐이다 — 선생님이 한 분 늘면 바로 터진다.
+# **먼저 _who 를 비운다** — 여기 auth.uid() 는 _who 한 줄이다. 바로 위에서
+# 「학원 밖 학생」 을 앉혀둔 채로 강사 행을 심으면 0176 의 역할 자물쇠가
+# 그 INSERT 를 막는다(스태프 3종 심기 금지). 그러면 강사 계정이 아예 안
+# 생겨서 아래가 「강사가 열쇠를 못 얻는다」 로 뜬다 — 자물쇠는 제 일을 한
+# 것이고, 틀린 것은 심는 차례다. 비우면 사람 아닌 자리(비상구)로 들어간다.
 $Q -d chloe -c "
+delete from public._who;
 insert into auth.users (id) values ('e0000000-0000-0000-0000-000000000005') on conflict do nothing;
 insert into public.profiles (id, role, name) values
   ('e0000000-0000-0000-0000-000000000005', 'instructor', '강사')

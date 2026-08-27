@@ -15,6 +15,14 @@ set -u
 cd "$(dirname "$0")/.."
 fail=0
 
+# **건너뛴 검사를 「통과」 로 세지 않는다** (2026-08-28).
+# 진짜 Postgres 가 있어야 도는 검사 여섯이 맥에서 전부 rc=0 으로 끝나고
+# 맨 끝에 「✅ 전부 통과」 가 찍혔다 — 학생 계정 유출·학부모 가시성·조교
+# 차단이 한 번도 안 돌았는데 통과로 보고된 것이다. 이제 그 검사들이
+# 여기에 한 줄씩 남기고, 맨 끝에서 노란 경고로 다시 뜬다.
+export PGSKIP_FILE=/tmp/.pagecheck-skips
+: > "$PGSKIP_FILE"
+
 
 # ── 검사 하나 돌리기 ────────────────────────────────────────
 #
@@ -329,11 +337,17 @@ echo
 echo "== 5-6) 한 달 살아보기 (진짜 Postgres · 원장·학생·학부모 셋의 눈) =="
 # 계산만 돌리는 시뮬레이션으로는 못 잡는 것이 있다 — 읽기 규칙 때문에 화면이
 # 통째로 비는 것, 한 달 치가 쌓여야 보이는 것. 오래 걸려서 마지막 줄만 남긴다
-if out=$(node scripts/live-month.mjs 2>&1 | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings"); then
-  echo "$out" | grep -E "걸린 곳|걸리는 곳" | tail -1
-  echo "$out" | grep -A2 "^[0-9]\+\. \[" | head -20
+# **또 파이프가 실패를 삼키고 있었다** (2026-08-28 — 위 runjs 주석이 적어둔
+# 바로 그 모양으로 되돌아와 있었다). `if out=$(node … | grep -v …)` 의 성패는
+# 마지막 grep 의 것이라, live-month 가 죽어도 통과로 채점됐다. 실제로 맥에서
+# 이 검사는 한 줄도 안 찍고 통과였다. node 를 먼저 돌려 성패를 받아둔다.
+out=$(node scripts/live-month.mjs 2>&1); rc=$?
+out=$(printf '%s\n' "$out" | grep -v "MODULE_TYPELESS\|Reparsing\|eliminate this\|trace-warnings")
+if [ $rc -eq 0 ]; then
+  printf '%s\n' "$out" | grep -E "건너뜀|걸린 곳|걸리는 곳" | tail -2
+  printf '%s\n' "$out" | grep -A2 "^[0-9]\+\. \[" | head -20
 else
-  echo "$out" | tail -20; fail=1
+  printf '%s\n' "$out" | tail -20; fail=1
 fi
 
 echo
@@ -400,8 +414,21 @@ else
 fi
 
 echo
-[ $fail -eq 0 ] && echo "✅ 전부 통과" || echo "❌ 위 항목을 고쳐주세요"
+skipped=$(grep -c . "$PGSKIP_FILE" 2>/dev/null || true)
+skipped=${skipped:-0}
+if [ "$skipped" -gt 0 ]; then
+  echo "⚠️  진짜 Postgres 가 없어 ${skipped}가지를 **건너뛰었습니다** (통과가 아닙니다):"
+  sed 's/^/     · /' "$PGSKIP_FILE"
+  echo "     도커를 켜고 한 번만:  docker pull postgres:16"
+  echo
+fi
+if [ $fail -ne 0 ]; then
+  echo "❌ 위 항목을 고쳐주세요"
+elif [ "$skipped" -gt 0 ]; then
+  echo "✅ 돌린 것은 다 통과 — 다만 위 ${skipped}가지는 안 돌았습니다"
+else
+  echo "✅ 전부 통과"
+fi
 # ❌ 인데 종료코드 0 으로 끝나서 && 뒤의 push 가 나가버렸다 (2026-08-17).
 # 검사를 믿을 수 없으면 없는 것보다 나쁘다 — 실패는 실패 코드로 끝난다.
-exit $fail
 exit $fail

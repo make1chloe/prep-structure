@@ -7,22 +7,9 @@
 # 여기서는 0073 까지 돌려 **prep_exams 에 진짜 줄을 넣어두고**, 그 다음 0074 만
 # 돌려서 범위·자료가 새 시험에 그대로 붙었는지 센다.
 set -u
-PG=/usr/lib/postgresql/16/bin
-export PATH="$PG:$PATH"
-D=/var/tmp/pgmerge
-PORT=55435
-
-command -v initdb >/dev/null || { echo "  postgres 가 없어 건너뜁니다"; exit 0; }
-
-cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
-trap cleanup EXIT
-
-rm -rf "$D"; mkdir -p "$D"; chown postgres "$D"; chmod 700 "$D"
-su postgres -c "PATH=$PG:\$PATH initdb -D $D -U postgres -A trust" >/dev/null 2>&1
-su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D -o '-p $PORT -k /var/tmp' -l $D/log start" >/dev/null 2>&1
-sleep 2
-
-Q="psql -h /var/tmp -p $PORT -U postgres -q"
+. "$(dirname "$0")/pg-boot.sh"
+pg_boot pgmerge 55435 /var/tmp/pgmerge || { pg_skip "옛 시험 자료가 새 모양으로 옮겨지나 (0074)"; exit 0; }
+trap pg_stop EXIT
 $Q -c "create database chloe;" >/dev/null 2>&1
 $Q -c "create role anon; create role authenticated; create role service_role;" >/dev/null 2>&1
 $Q -d chloe -c "

@@ -11,22 +11,9 @@
 #
 # "될 겁니다" 로는 아무것도 확인되지 않는다.
 set -u
-PG=/usr/lib/postgresql/16/bin
-export PATH="$PG:$PATH"
-D=/var/tmp/pgleak
-PORT=55434
-
-command -v initdb >/dev/null || { echo "  postgres 가 없어 건너뜁니다"; exit 0; }
-
-cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
-trap cleanup EXIT
-
-rm -rf "$D"; mkdir -p "$D"; chown postgres "$D"; chmod 700 "$D"
-su postgres -c "PATH=$PG:\$PATH initdb -D $D -U postgres -A trust" >/dev/null 2>&1
-su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D -o '-p $PORT -k /var/tmp' -l $D/log start" >/dev/null 2>&1
-sleep 2
-
-Q="psql -h /var/tmp -p $PORT -U postgres -q"
+. "$(dirname "$0")/pg-boot.sh"
+pg_boot pgleak 55434 /var/tmp/pgleak || { pg_skip "학생 계정에 남의 것이 보이나 (RLS)"; exit 0; }
+trap pg_stop EXIT
 $Q -c "create database chloe;" >/dev/null 2>&1
 $Q -c "create role anon; create role authenticated; create role service_role;" >/dev/null 2>&1
 
