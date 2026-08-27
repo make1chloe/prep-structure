@@ -6,6 +6,7 @@ import CheckBoard from "./CheckBoard";
 import AheadBoard from "./AheadBoard";
 import { inUseOn } from "@/lib/bookUse";
 import { todaySeoul, addDays } from "@/lib/day";
+import { buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { loadClassesWithTerm, running } from "@/lib/classTerm";
 import { sessionUser } from "@/lib/session";
 import { cachedProfile } from "@/lib/profileCache";
@@ -187,41 +188,19 @@ export default async function CheckPage(props) {
   // ── 아직 검사 안 한 숙제 ────────────────────────────
   //
   // "지난 수업에 낸 것" 만 보면 안 된다. 시험 기간에 못 끝낸 숙제, 결석해서
-  // 넘어간 숙제가 그대로 사라진다. **3주 안에 배정한 것 중 아직 안 본 것**을
+  // 넘어간 숙제가 그대로 사라진다. **창 안에 배정한 것 중 아직 안 본 것**을
   // 전부 모은다.
   //
-  // 안 본 것의 뜻: 배정한 날 **뒤에** 그 항목을 ○△✕ 로 찍은 기록이 없다.
-  // (오늘 찍은 것은 남겨둔다 — 방금 잘못 눌렀을 때 고칠 수 있어야 한다)
-  const dateOfRep = new Map((prevReports || []).map((r) => [r.id, r.date]));
-  const stuOfRep = new Map((prevReports || []).map((r) => [r.id, r.student_id]));
-
-  // 학생·항목별로 "언제 검사했나" (지난 리포트에서)
-  const checkedAt = new Map();
-  (prevItems || []).forEach((i) => {
-    if (!["done", "weak", "missing"].includes(i.status)) return;
-    const k = `${stuOfRep.get(i.daily_report_id)}:${i.homework_item_id}`;
-    const d = dateOfRep.get(i.daily_report_id);
-    if (!checkedAt.has(k) || d > checkedAt.get(k)) checkedAt.set(k, d);
+  // 판정은 **판(/today)과 같은 한 벌**을 탄다 (lib/dayCheck — 계획서 v2
+  // §2-2). 여기서 따로 세던 것을 2026-08-28 에 되돌렸다: 이사(B-2) 때
+  // /today 만 옮겨져서, 그때부터 두 화면이 서로 다른 목록을 내고 있었다.
+  const checkSrc = buildCheckSource({
+    prevReports: prevReports || [],
+    prevAssignedRows: (prevItems || []).filter((i) => i.status === "assigned"),
+    prevAllRows: prevItems || [],
   });
-
-  const assignedOf = new Map();
-  (prevItems || []).forEach((i) => {
-    if (i.status !== "assigned") return;
-    const sid = stuOfRep.get(i.daily_report_id);
-    const on = dateOfRep.get(i.daily_report_id);
-    if (!sid || !on) return;
-
-    // 배정한 날 뒤에 검사한 적이 있으면 끝난 것이다
-    const seen = checkedAt.get(`${sid}:${i.homework_item_id}`);
-    if (seen && seen > on) return;
-
-    const cur = assignedOf.get(sid) || { date: on, items: new Map() };
-    // 같은 숙제를 여러 번 냈으면 **가장 최근 것**의 범위를 쓴다
-    const had = cur.items.get(i.homework_item_id);
-    if (!had || on > had.on) cur.items.set(i.homework_item_id, { ...i, on });
-    if (on < cur.date) cur.date = on;     // 제일 오래 밀린 날짜를 적어준다
-    assignedOf.set(sid, cur);
-  });
+  const { toCheckOf, assignedSinceOf, assignedOnOf, assignedNoteOf } =
+    makeDayCheck(checkSrc, unitTest);
 
   const subsOf = new Map();
   (subQ.data || []).forEach((s) => {
@@ -286,7 +265,6 @@ export default async function CheckPage(props) {
         if (i.check_note) notes[i.homework_item_id] = i.check_note;
       }
     });
-    const assigned = assignedOf.get(s.id) || null;
     const doneAt = {};
     mine.forEach((i) => {
       if (i.student_done_at) doneAt[i.homework_item_id] = i.student_done_at;
@@ -299,20 +277,18 @@ export default async function CheckPage(props) {
       marks,
       notes,
       doneAt,
-      assignedOn: assigned?.date || null,
-      // 검사할 것 = 3주 안에 배정했는데 아직 안 본 숙제
-      toCheck: [...(assigned?.items?.values() || [])]
-        .filter((i) => !unitTest.has(i.homework_item_id))
-        .map((i) => ({
-        id: i.homework_item_id,
-        range: i.range_note || "",
-        on: i.on,                    // 언제 낸 숙제인가 (밀린 것을 알 수 있게)
+      assignedOn: assignedSinceOf(s.id),
+      // 검사할 것 = 창 안에 배정했는데 아직 안 본 숙제 (판단은 lib/dayCheck)
+      toCheck: toCheckOf(s.id).map((iid) => ({
+        id: iid,
+        range: assignedNoteOf(s.id, iid),
+        on: assignedOnOf(s.id, iid),   // 언제 낸 숙제인가 (밀린 것을 알 수 있게)
         // 공책처럼 앱에 낼 것이 없는 숙제 — '직접검사' 로 적고 미제출로 세지 않는다
-        inPerson: inPerson.has(i.homework_item_id),
+        inPerson: inPerson.has(iid),
         // 낼 숙제인데 낸 것이 하나도 없다 = 안 낸 것
         noSub:
-          !inPerson.has(i.homework_item_id) &&
-          !(subsOf.get(s.id) || []).some((x) => x.homework_item_id === i.homework_item_id),
+          !inPerson.has(iid) &&
+          !(subsOf.get(s.id) || []).some((x) => x.homework_item_id === iid),
       })),
       subs: subsOf.get(s.id) || [],
     };

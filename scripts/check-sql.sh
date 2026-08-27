@@ -6,12 +6,7 @@
 #   세 번째는 "seed 가 계속 늘어나지 않나" 를 본다.
 #   (실제로 message_templates 와 todo_categories 가 매번 3배로 늘고 있었다)
 set -u
-PG=/usr/lib/postgresql/16/bin
-export PATH="$PG:$PATH"
-D=/var/tmp/pgcheck
-PORT=55433
-
-command -v initdb >/dev/null || { echo "postgres 가 없어 건너뜁니다"; exit 0; }
+. "$(dirname "$0")/pg-boot.sh"
 
 # **SETUP_ALL.sql 이 마이그레이션 폴더보다 오래됐으면 안 된다.**
 #
@@ -26,6 +21,10 @@ command -v initdb >/dev/null || { echo "postgres 가 없어 건너뜁니다"; ex
 # (build-setup-sql.mjs) 어제 찍은 파일은 **내용이 같아도 매일 달라 보인다.**
 # 대신 **가장 최근 마이그레이션 번호가 합본 안에 있는지**만 본다 — 놓친
 # 것을 잡아내는 데는 이걸로 충분하다.
+#
+# **이 검사는 DB 가 필요 없다** (순수 grep). 그런데 initdb 관문 뒤에
+# 있어서 맥에서는 아래 3번 돌리기와 함께 통째로 안 돌았다 (2026-08-28).
+# 그래서 관문 앞으로 올렸다 — DB 가 없어도 이건 매번 돈다.
 echo "== SETUP_ALL.sql 이 최신인가 =="
 LATEST=$(ls supabase/migrations | sort | tail -1 | cut -c1-4)
 if ! grep -q "${LATEST}_" supabase/SETUP_ALL.sql; then
@@ -35,15 +34,9 @@ if ! grep -q "${LATEST}_" supabase/SETUP_ALL.sql; then
 fi
 echo "  ${LATEST} 까지 들어 있습니다"
 
-cleanup() { su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D stop" >/dev/null 2>&1; rm -rf "$D"; }
-trap cleanup EXIT
 
-rm -rf "$D"; mkdir -p "$D"; chown postgres "$D"; chmod 700 "$D"
-su postgres -c "PATH=$PG:\$PATH initdb -D $D -U postgres -A trust" >/dev/null 2>&1
-su postgres -c "PATH=$PG:\$PATH pg_ctl -D $D -o '-p $PORT -k /var/tmp' -l $D/log start" >/dev/null 2>&1
-sleep 2
-
-Q="psql -h /var/tmp -p $PORT -U postgres -q"
+pg_boot pgcheck 55433 /var/tmp/pgcheck || { pg_skip "SETUP_ALL 을 진짜 Postgres 에 세 번 돌리기"; exit 0; }
+trap pg_stop EXIT
 $Q -c "create database chloe;" >/dev/null 2>&1
 # Supabase 흉내 — 로컬에는 없는 역할과 auth 스키마
 $Q -c "create role anon; create role authenticated; create role service_role;" >/dev/null 2>&1

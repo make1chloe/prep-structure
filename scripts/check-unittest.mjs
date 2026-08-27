@@ -55,8 +55,13 @@ eq(/!unitTestIds\.has\(iid\)/.test(read("lib/dayCheck.js")), true, "lib/dayCheck
 
 const check = read("app/check/page.jsx");
 eq(check.includes("unitTest"), true, "숙제 검사 — 단원평가를 가려낸다");
-eq(/\.filter\(\(i\) => !unitTest\.has\(i\.homework_item_id\)\)/.test(check), true,
-   "숙제 검사 — 검사 대상에서 뺀다");
+// 2026-08-28: /check 가 검사 대상을 **따로 세고 있었다** (이사 B-2 때
+// /today 만 옮겨졌다). 규칙이 갈려 두 화면이 다른 목록을 냈다 — 이제
+// 둘 다 makeDayCheck 한 벌을 탄다. 「따로 세지 않는지」 까지 못 박는다
+eq(/makeDayCheck\(checkSrc, unitTest\)/.test(check), true,
+   "숙제 검사 — 검사 대상에서 뺀다 (판단은 lib/dayCheck)");
+eq(/const assignedOf = new Map\(\)/.test(check), false,
+   "숙제 검사 — 배정 사슬을 따로 세지 않는다");
 
 console.log("\n== 아이는 결과만 낸다 ==");
 const box = read("app/me/UnitTestBox.jsx");

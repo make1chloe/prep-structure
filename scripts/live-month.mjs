@@ -23,7 +23,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { summarize } from "../lib/monthly.js";
 import { oneRound, stack, points } from "../lib/report.js";
 import { analyze, advice } from "../lib/examAnalysis.js";
@@ -38,13 +38,36 @@ const DB = "chloe";
 const ENV = { ...process.env, PATH: `${PGBIN}:${process.env.PATH}` };
 
 const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: "utf8", ...opts });
-const psql = (sql) =>
-  sh(`${PGBIN}/psql`, ["-h", "/var/tmp", "-p", PORT, "-U", "postgres", "-d", DB, "-q", "-tA", "-c", sql], { env: ENV });
+
+/**
+ * **맥에도 진짜 Postgres 를 준다** (2026-08-28).
+ *
+ * 이 검사는 `initdb` 가 없으면 「건너뜁니다」 하고 rc=0 으로 끝났다. 맥에는
+ * 없으니 **한 번도 안 돌았는데** check-pages 는 「✅ 전부 통과」 라고 적었다.
+ * (게다가 check-pages 쪽은 파이프로 성패를 삼키고 있어서, 죽어도 통과였다.)
+ * 그래서 initdb 가 없으면 도커의 postgres:16 으로 돌린다 — 셸 검사 다섯이
+ * 쓰는 scripts/pg-boot.sh 와 같은 방식이다.
+ */
+const CT = "pgmonth";                       // 도커로 띄울 때 컨테이너 이름
+const DOCKER = !existsSync(`${PGBIN}/initdb`);
+const runPsql = (args, opts = {}) =>
+  DOCKER
+    ? sh("docker", ["exec", "-i", CT, "psql", "-U", "postgres", ...args], opts)
+    : sh(`${PGBIN}/psql`, ["-h", "/var/tmp", "-p", PORT, "-U", "postgres", ...args],
+         { env: ENV, ...opts });
+const psql = (sql) => runPsql(["-d", DB, "-q", "-tA", "-c", sql]);
 // NOTICE 는 안 본다 — 「이미 있어서 건너뜀」 이 수백 줄이라 진짜 오류가 묻힌다
-const psqlFile = (path) =>
-  sh("sh", ["-c",
+const psqlFile = (path) => {
+  if (DOCKER) {
+    // 컨테이너 안에서 -f 로 읽게 넣어준다 (SETUP_ALL 도, /tmp 에 찍은 씨앗도)
+    sh("docker", ["cp", path, `${CT}:/work/run.sql`], { stdio: "ignore" });
+    return sh("docker", ["exec", "-i", "-e", "PGOPTIONS=-c client_min_messages=warning", CT,
+      "psql", "-U", "postgres", "-d", DB, "-q", "-v", "ON_ERROR_STOP=1", "-f", "/work/run.sql"]);
+  }
+  return sh("sh", ["-c",
     `PGOPTIONS='-c client_min_messages=warning' ${PGBIN}/psql -h /var/tmp -p ${PORT} -U postgres -d ${DB} -q -v ON_ERROR_STOP=1 -f ${path}`],
     { env: ENV });
+};
 
 /**
  * psql 이 뱉은 것을 JSON 으로.
@@ -63,19 +86,47 @@ function jsonOf(out) {
 const rows = (sql) => jsonOf(psql(`select coalesce(json_agg(t), '[]') from (${sql}) t;`));
 const one = (sql) => psql(sql).trim().split("\n").filter(Boolean).pop() || "";
 
+// 진짜로 못 돌렸을 때 — **통과라고 말하지 않는다** (pg-boot.sh 의 pg_skip 과 같은 말)
+function skipNoPg() {
+  console.log("⚠️  건너뜀 (통과가 아닙니다) — 한 달 살아보기: 진짜 Postgres 가 없습니다");
+  console.log("   리눅스면 postgresql-16, 맥이면 도커를 켜고 한 번만:  docker pull postgres:16");
+  if (process.env.PGSKIP_FILE)
+    try { appendFileSync(process.env.PGSKIP_FILE, "한 달 살아보기 (원장·학생·학부모 셋의 눈)\n"); } catch {}
+  process.exit(0);
+}
+
 function startPg() {
-  if (!existsSync(`${PGBIN}/initdb`)) { console.log("postgres 가 없어 건너뜁니다"); process.exit(0); }
-  try { sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} stop`], { stdio: "ignore" }); } catch {}
-  rmSync(DATA, { recursive: true, force: true });
-  mkdirSync(DATA, { recursive: true });
-  sh("chown", ["postgres", DATA]); sh("chmod", ["700", DATA]);
-  sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH initdb -D ${DATA} -U postgres -A trust`], { stdio: "ignore" });
-  sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} -o '-p ${PORT} -k /var/tmp' -l ${DATA}/log start`], { stdio: "ignore" });
-  sh("sleep", ["2"]);
-  sh(`${PGBIN}/psql`, ["-h", "/var/tmp", "-p", PORT, "-U", "postgres", "-q", "-c", `create database ${DB};`], { env: ENV });
-  // Supabase 가 만들어주는 것들 — 우리 SQL 은 이것이 있다고 보고 쓴다
-  sh(`${PGBIN}/psql`, ["-h", "/var/tmp", "-p", PORT, "-U", "postgres", "-q", "-c",
-    "create role anon; create role authenticated; create role service_role;"], { env: ENV });
+  if (DOCKER) {
+    try {
+      sh("docker", ["info"], { stdio: "ignore" });
+      sh("docker", ["image", "inspect", "postgres:16"], { stdio: "ignore" });
+    } catch { skipNoPg(); }
+    try { sh("docker", ["rm", "-f", CT], { stdio: "ignore" }); } catch {}
+    sh("docker", ["run", "-d", "--name", CT,
+      "-e", "POSTGRES_HOST_AUTH_METHOD=trust", "-e", "POSTGRES_PASSWORD=chloe",
+      "postgres:16"], { stdio: "ignore" });
+    let up = false;
+    for (let i = 0; i < 60 && !up; i++) {
+      try { sh("docker", ["exec", CT, "pg_isready", "-U", "postgres"], { stdio: "ignore" }); up = true; }
+      catch { sh("sleep", ["1"]); }
+    }
+    if (!up) { stopPg(); skipNoPg(); }
+    sh("docker", ["exec", CT, "mkdir", "-p", "/work"], { stdio: "ignore" });
+    runPsql(["-q", "-c", `create database ${DB};`]);
+    // Supabase 가 만들어주는 것들 — 우리 SQL 은 이것이 있다고 보고 쓴다
+    runPsql(["-q", "-c", "create role anon; create role authenticated; create role service_role;"]);
+  } else {
+    try { sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} stop`], { stdio: "ignore" }); } catch {}
+    rmSync(DATA, { recursive: true, force: true });
+    mkdirSync(DATA, { recursive: true });
+    sh("chown", ["postgres", DATA]); sh("chmod", ["700", DATA]);
+    sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH initdb -D ${DATA} -U postgres -A trust`], { stdio: "ignore" });
+    sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} -o '-p ${PORT} -k /var/tmp' -l ${DATA}/log start`], { stdio: "ignore" });
+    sh("sleep", ["2"]);
+    runPsql(["-q", "-c", `create database ${DB};`]);
+    // Supabase 가 만들어주는 것들 — 우리 SQL 은 이것이 있다고 보고 쓴다
+    runPsql(["-q", "-c", "create role anon; create role authenticated; create role service_role;"]);
+  }
   psql(`create schema if not exists auth;
 create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
 create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
@@ -85,6 +136,7 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant all on sequences to anon, authenticated;`);
 }
 function stopPg() {
+  if (DOCKER) { try { sh("docker", ["rm", "-f", CT], { stdio: "ignore" }); } catch {} return; }
   try { sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} stop`], { stdio: "ignore" }); } catch {}
   rmSync(DATA, { recursive: true, force: true });
 }
