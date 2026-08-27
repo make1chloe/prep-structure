@@ -294,7 +294,7 @@ export default function SendTodo({
             <span className="tag tag-amber">미작성 {monthlyLeft}명</span>
           </h2>
           <div className="row">
-            <Link className="btn btn-sm" href="/monthly">월간리포트로</Link>
+            <Link className="btn btn-sm" href="/report?t=monthly">월간리포트로</Link>
           </div>
         </div>
       )}

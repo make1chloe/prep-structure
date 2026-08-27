@@ -46,7 +46,9 @@ const STAFF_PAGES = [
   "/students", "/scores", "/classes",
   "/textbooks", "/homework", "/prep", "/progress", "/videos",
   "/tasks", "/tasks?view=todo", "/schedule", "/schools",
-  "/report", "/monthly",
+  // 월간은 「리포트」 화면의 탭이다 (2026-08-28) — 옛 주소(리다이렉트)와
+  // 진짜 판이 사는 자리를 **둘 다** 가본다
+  "/report", "/report?t=monthly", "/monthly",
   "/tuition", "/notes", "/consult",
   "/settings", "/settings/messages", "/settings/messages?t=screen",
   "/settings/screen", "/settings/admin", "/settings/sql", "/import",
@@ -209,7 +211,8 @@ try {
   console.log("\n== 특강 수업일이 월간에 서나 ==");
   try {
     const errs = watch(page);
-    await page.goto(`${APP}/monthly`, { waitUntil: "networkidle", timeout: 30000 });
+    // 월간 판은 「리포트」 화면의 탭으로 이사했다 (2026-08-28)
+    await page.goto(`${APP}/report?t=monthly`, { waitUntil: "networkidle", timeout: 30000 });
     const text = (await page.locator("main").innerText().catch(() => "")) || "";
     if (!text.includes("최특강")) {
       bad("/monthly 특강", "최특강이 월간 명단에 없습니다 (특강일이 총회수에 안 실림)");

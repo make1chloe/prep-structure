@@ -1,35 +1,14 @@
-import { createClient } from "@/lib/supabase/server";
-import Help from "@/components/Help";
-import MonthlyBoard from "./MonthlyBoard";
-import { loadMonth } from "./actions";
-import { todaySeoul } from "@/lib/day";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
+/**
+ * 월간리포트는 「리포트」 화면의 탭으로 이사했다 (원장님 확정, 2026-08-28 —
+ * 「일일과 월간을 합쳐서 리포트로 만들고 아래에서 나누기」).
+ * 화면은 그대로다 (이 폴더의 MonthlyScreen) — 사는 주소만 옮겼다.
+ * 옛 주소·즐겨찾기·홈 화면 바로가기가 안 깨지게 여기서 넘긴다
+ * (보던 달도 그대로 들고 간다 — app/resend 관례).
+ */
 export default async function MonthlyPage(props) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
-
-  const ym = /^\d{4}-\d{2}$/.test(searchParams?.m || "")
-    ? searchParams.m
-    : todaySeoul().slice(0, 7);
-
-  const { rows, ready, mode } = await loadMonth(ym);
-
-  return (
-    <>
-      <main className="wrap-wide">
-        <div className="page-head">
-          <p className="eyebrow">발송</p>
-          <h1 className="h1">월간리포트</h1>
-          <Help>
-            <p className="sub">
-              그 달 수업 기록으로 자동으로 만듭니다. 숙제 성취도·출결·단원평가가 함께 나갑니다.
-            </p>
-          </Help>
-        </div>
-        <MonthlyBoard ym={ym} rows={rows} ready={ready} mode={mode} />
-      </main>
-    </>
-  );
+  const m = searchParams?.m;
+  redirect(m ? `/report?t=monthly&m=${m}` : "/report?t=monthly");
 }

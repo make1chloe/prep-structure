@@ -294,8 +294,11 @@ console.log("\n== 제목은 명사로 ==");
  * 나란히 서면 더 그렇다. 명사로 끊으면 훑어진다.
  */
 eq(TODO_LABEL.scores(3), "성적 미입력 3명", "성적 미입력");
-// 0125 부터 발송 배지는 리포트 미발송 + 교재 안내 미발송의 합이다
-eq(TODO_LABEL.report(2), "발송할 것 2건 (리포트 · 교재 안내)", "발송할 것");
+// 0125 부터 발송 배지는 리포트 미발송 + 교재 안내 미발송의 합이고,
+// 2026-08-28 부터 **월간 미작성**까지 같이 센다 (메뉴가 「리포트」 한 칸이
+// 되면서 — 「보낼 것」 탭이 원래 세던 것과 이제 같은 숫자다)
+eq(TODO_LABEL.report(2), "발송할 것 2건 (리포트 · 교재 안내 · 월간)", "발송할 것");
+eq("monthly" in TODO_LABEL, false, "월간은 리포트 칸에 합쳐졌다 (없는 키로 세면 안 붙는다)");
 eq(TODO_LABEL.plan(1), "보강 필요 1건", "보강 필요");
 for (const [k, f] of Object.entries(TODO_LABEL)) {
   // 「아직」 「안 」 같은 서술 표현이 남아 있으면 명사가 아니다
@@ -340,7 +343,10 @@ for (const [f, want] of [
   // 이제 「탭 이름과 제목이 같다」 를 본다 (화면은 ItemsScreen 에 그대로 산다)
   ["app/homework/ItemsScreen.jsx", "학습 항목"],
   ["app/prep/page.jsx", "내신 대비"],
-  ["app/monthly/page.jsx", "월간리포트"],
+  // 월간리포트도 메뉴 칸에서 「리포트」 화면의 탭으로 이사했다 (2026-08-28) —
+  // 이제 「탭 이름과 제목이 같다」 를 본다 (화면은 MonthlyScreen 에 그대로 산다)
+  ["app/monthly/MonthlyScreen.jsx", "월간리포트"],
+  ["app/report/page.jsx", "리포트"],
   ["app/tuition/page.jsx", "수강료"],
   ["app/consult/page.jsx", "신규 상담"],
 ]) {

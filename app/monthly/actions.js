@@ -240,7 +240,7 @@ export async function saveMonthly(studentId, ym, patch = {}) {
   if (needSql(error)) return { error: NEED };
   if (error) return { error: error.message };
 
-  revalidatePath("/monthly");
+  revalidatePath("/report");
   return { error: null };
 }
 
@@ -301,7 +301,7 @@ export async function sendMonthly(items, ym) {
   }
 
   const failed = list.filter((x) => !byRef.get(x.studentId)?.ok);
-  revalidatePath("/monthly");
+  revalidatePath("/report");
   return {
     error: null,
     channel,
@@ -321,6 +321,6 @@ export async function unsendMonthly(studentId, ym) {
     .update({ sent_at: null })
     .eq("student_id", studentId)
     .eq("ym", ym);
-  revalidatePath("/monthly");
+  revalidatePath("/report");
   return { error: error ? error.message : null };
 }
