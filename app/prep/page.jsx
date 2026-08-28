@@ -20,7 +20,8 @@ export default async function PrepPage(props) {
   const bad = (e) =>
     e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "42703");
 
-  const [exams, scopes, materials, assigns, types, students] = await Promise.all([
+  // 서로 안 물어보는 것은 한꺼번에 — 학교 이름도 아무것도 안 기다린다 (0114)
+  const [exams, scopes, materials, assigns, types, students, schools] = await Promise.all([
     // 시험은 **한 군데**에만 있다 (0074). 예전에는 prep_exams 라는 표가 따로
     // 있어서, 같은 신송중 1학기 기말이 학사일정에도 있고 여기에도 있었다.
     supabase
@@ -33,6 +34,8 @@ export default async function PrepPage(props) {
     fetchAll(() => supabase.from("prep_assignments").select("id, material_id, student_id, handed_at, solved_at, graded_at, result, score, sort").order("id")),
     supabase.from("prep_material_types").select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade").order("sort", { ascending: true }),
     supabase.from("students").select("id, name, school, grade, status").eq("status", "enrolled").order("name", { ascending: true }),
+    // 학교는 골라 넣는다 (0114)
+    schoolNames(supabase).catch(() => []),
   ]);
 
   const missing = [exams, scopes, materials, assigns, types].some((q) => bad(q.error));
@@ -75,18 +78,19 @@ export default async function PrepPage(props) {
       .select("id, name, parent_id, textbook_id, question_no")
       .in("id", unitIds);
     const bookIds = [...new Set((picked || []).map((u) => u.textbook_id))];
+    // 둘 다 bookIds 만 있으면 되니 나란히 — 줄 세워 기다릴 까닭이 없다
     // 교재가 여럿이면 단원 합이 1000줄을 넘는다 — 끝까지 (전수검사 B3)
-    const { data: all } = bookIds.length
-      ? await fetchAll(() =>
-          supabase
-            .from("textbook_units")
-            .select("id, name, parent_id, textbook_id, question_no")
-            .in("textbook_id", bookIds)
-            .order("id"))
-      : { data: [] };
-    const { data: books } = bookIds.length
-      ? await supabase.from("textbooks").select("id, name").in("id", bookIds)
-      : { data: [] };
+    const [{ data: all }, { data: books }] = bookIds.length
+      ? await Promise.all([
+          fetchAll(() =>
+            supabase
+              .from("textbook_units")
+              .select("id, name, parent_id, textbook_id, question_no")
+              .in("textbook_id", bookIds)
+              .order("id")),
+          supabase.from("textbooks").select("id, name").in("id", bookIds),
+        ])
+      : [{ data: [] }, { data: [] }];
     const bookName = new Map((books || []).map((b) => [b.id, b.name]));
     const byId = new Map((all || []).map((u) => [u.id, u]));
     (picked || []).forEach((u) => {
@@ -101,9 +105,6 @@ export default async function PrepPage(props) {
       unitLabel[u.id] = `${bookName.get(u.textbook_id) || ""} › ${chain.join(" › ")}`;
     });
   }
-
-  // 학교는 골라 넣는다 (0114)
-  const schools = await schoolNames(supabase).catch(() => []);
 
   return (
     <>
