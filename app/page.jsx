@@ -15,7 +15,6 @@ import PushSeen from "./PushSeen";
 import DashFix from "./DashFix";
 import BreakWatch from "./BreakWatch";
 import { loadDashboard } from "@/lib/dashboard";
-import { won } from "@/lib/tuition";
 import { dayLabel, longLabel } from "@/lib/day";
 import { cleanClassName } from "@/lib/classLabel";
 import { sessionUser } from "@/lib/session";
@@ -85,14 +84,20 @@ export default async function Home() {
     d.soonAbsent.length === 0 && d.watchList.length === 0 && d.holidays.length === 0 &&
     d.scheduleAlerts.length === 0 && d.engEves.length === 0 && d.holidayNotes.length === 0 &&
     d.newComments.length === 0 && d.examSoon.length === 0 && d.todayMakeups.length === 0 &&
-    d.makeupNeedTotal === 0 && !d.monthlyDue && (d.bookEnding?.length || 0) === 0;
+    (d.bookEnding?.length || 0) === 0;
 
-  // 돈 · 운영 묶음 — 급한 게 있으면 펴진 채로 시작
-  const moneyCount =
-    (d.makeupNeedTotal > 0 ? 1 : 0) + ((d.monthConfirmLeft || 0) > 0 ? 1 : 0) +
-    (d.monthlyDue ? 1 : 0) + ((d.bookEnding?.length || 0) > 0 ? 1 : 0);
-  const moneyUrgent =
-    (d.monthConfirmLeft || 0) > 0 || !!d.monthlyDue || d.makeupNeedTotal > 0;
+  /**
+   * 돈 · 운영 묶음 — 늘 접혀 있다.
+   *
+   * **카드 셋이 「남은 일」 로 갔다** (원장님, 2026-08-28 — 「회차 확정도
+   * 저렇게 나올 거면 그냥 남은 할일 목록에 저런 식의 것들을 다 모아주는
+   * 게 나음」). 보강 필요 · 다음 달 회차 미확정 · 월간리포트는 「누가
+   * 무엇을」 이 아니라 **이번 달 통째로** 라, 카드로 펴 놓아도 그 자리에서
+   * 할 수 있는 일이 없었다 — 결국 링크 한 줄이었다. 링크 한 줄이면
+   * TodoBar 가 이미 같은 셈으로 하고 있다 (lib/menuBadges 의 plan ·
+   * schedule · report).
+   */
+  const moneyCount = (d.bookEnding?.length || 0) > 0 ? 1 : 0;
 
   return (
     <>
@@ -133,9 +138,9 @@ export default async function Home() {
           {d.requests.length > 0 && (
             <Badge href="#requests" tone="warn">학부모 알림 {d.requests.length}건</Badge>
           )}
-          {d.makeupNeedTotal > 0 && (
-            <Badge href="/plan">보강 필요 {d.makeupNeedTotal}회</Badge>
-          )}
+          {/* 「보강 필요」 는 아래 「남은 일」 이 말한다 (2026-08-28).
+              여기서는 회(回), 아래에서는 건(件) 으로 세고 있어서 같은 이름의
+              숫자 둘이 늘 다른 말을 했다 — 두 벌은 언젠가 둘 다 못 믿게 된다 */}
           {d.scheduleAlerts.length > 0 && (
             <Badge href="/schedule">스케줄 특이사항 {d.scheduleAlerts.length}건</Badge>
           )}
@@ -153,8 +158,13 @@ export default async function Home() {
           * 벌로 세고 있었고, 두 벌은 언젠가 서로 다른 말을 한다.
           * 이제 그것들은 아래 「남은 일」 이 **메뉴와 같은 셈**으로 말한다.
           *
+          * **2026-08-28 — 세 가지가 더 여기로 왔다.** 보강 필요 · 다음 달
+          * 회차 미확정 · 월간리포트. 셋 다 「이번 달 통째로」 라 카드로 펴
+          * 놓아도 링크 한 줄이었다 (원장님 — 「그냥 남은 할일 목록에 저런
+          * 식의 것들을 다 모아주는 게 나음」).
+          *
           * 위에 남은 것은 여기서 안 세는 것들이다 — 반성문 · 단원평가 막힘 ·
-          * 발송 실패 · 학부모 알림 · 보강 필요 회차 · 스케줄 특이사항.
+          * 발송 실패 · 학부모 알림 · 스케줄 특이사항.
           */}
         <TodoBar />
 
@@ -538,38 +548,14 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* ── 💰 돈 · 운영 — 매일 볼 것이 아니라 기본 접힘. 급한 게 있으면 펴진 채로 */}
-        <details className="dashfold" open={moneyUrgent || undefined}>
+        {/* ── 💰 돈 · 운영 — 매일 볼 것이 아니라 늘 접힘. 급한 것(보강·회차·월간)은
+            위 「남은 일」 로 갔다 (2026-08-28) */}
+        <details className="dashfold">
           <summary className="dashhead">
             💰 돈 · 운영
             {moneyCount > 0 && <span className="tag tag-amber" style={{ marginLeft: 6 }}>{moneyCount}</span>}
           </summary>
           <div className="grid-side" style={{ marginTop: 4 }}>
-            <div className="stack dashcol">
-              {d.makeupNeedTotal > 0 && (
-                <div className="card sect sect-warn">
-                  <h2 className="secthead">보강 필요</h2>
-                  <Link className="tag tag-amber" href="/tuition">
-                    모두 {d.makeupNeedTotal}회 · 차액 {won(d.creditTotal)}
-                  </Link>
-                </div>
-              )}
-              {/* 다음 달 회차 확정 (0123) — 25일부터, 회차 화면으로 가는 길 */}
-              {(d.monthConfirmLeft || 0) > 0 && (
-                <div className="card sect sect-warn">
-                  <h2 className="secthead">다음 달 회차 미확정 <span className="tag tag-amber">{d.monthConfirmLeft}명</span></h2>
-                  <Link className="tag tag-amber" href="/schedule">회차 화면에서 확정하기 →</Link>
-                </div>
-              )}
-              {d.monthlyDue && (
-                <div className="card sect sect-warn">
-                  <h2 className="secthead">월간리포트</h2>
-                  <Link className="tag tag-amber" href="/report?t=monthly">
-                    {Number(d.monthlyDue.ym.slice(5))}월이 {d.monthlyDue.left === 0 ? "오늘" : `${d.monthlyDue.left}일 뒤`} 끝남 · {d.monthlyDue.count}명분
-                  </Link>
-                </div>
-              )}
-            </div>
             <div className="stack dashcol">
               {/* 곧 끝나는 교재 — 시험지·플래너를 미리 챙기시라고 */}
               {d.bookEnding?.length > 0 && (

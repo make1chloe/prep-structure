@@ -194,10 +194,19 @@ const has = (needle) => PAGE.includes(needle);
 // (2026-08-21 네 묶음 재편: 미발송은 💬묶음 UnsentBox, 상담은 💬묶음 InquiryInbox)
 const UNSENT = fs.readFileSync(new URL("../app/UnsentBox.jsx", import.meta.url), "utf8");
 const INQ = fs.readFileSync(new URL("../app/InquiryInbox.jsx", import.meta.url), "utf8");
+/**
+ * **카드 셋이 「남은 일」 로 갔다** (원장님, 2026-08-28). 보강 필요 · 다음 달
+ * 회차 미확정 · 월간리포트는 대시보드가 따로 세지 않는다 — TodoBar 가
+ * lib/menuBadges 의 plan · schedule · report 로 한 벌만 말한다.
+ * 그래서 이 셋은 page.jsx 가 아니라 **문장 표(TODO_LABEL)** 에서 찾는다.
+ */
+const LABELS = fs.readFileSync(new URL("../lib/menuBadges.js", import.meta.url), "utf8");
+const inTodoBar = (key) =>
+  PAGE.includes("<TodoBar />") && new RegExp(`^\\s*${key}:`, "m").test(LABELS.slice(LABELS.indexOf("TODO_LABEL")));
 
 const CURRENT_RULES = {
   warning: { shows: () => has("반성문 대상"), how: "link" },
-  makeup: { shows: () => has("보강 필요"), how: "link" },
+  makeup: { shows: () => inTodoBar("plan"), how: "link" },
   sendfail: { shows: () => has("발송 실패"), how: "link" },
   // 「지난 미발송」 카드는 없어졌다 — 💬묶음 UnsentBox 가 past={d.unsentPast} 를
   // 받아 「미발송 · 써두고 안 보냄」 줄로 그린다 (골라서 「안 보내기」 정리까지)
@@ -208,9 +217,9 @@ const CURRENT_RULES = {
   // noScope 꼬리표 「· 범위 미등록」 (창도 21→60일: 원장님 2026-08-21
   // 「대비 시작(3~4주 전)보다 재촉이 늦으면 재촉이 아니다」)
   "exam-scope": { shows: () => has("범위 미등록") && has("noScope"), how: "link" },
-  // 「월말 리포트」 → 💰묶음 「월간리포트」 카드 (d.monthlyDue, 급하면 펴짐)
-  monthly: { shows: () => has("월간리포트") && has("d.monthlyDue"), how: "link" },
-  "tuition-makeup": { shows: () => has("보강 필요"), how: "link" },
+  // 「월말 리포트」 → 남은 일의 report 키 (「발송할 것 N건 · 리포트 · 교재 안내 · 월간」)
+  monthly: { shows: () => inTodoBar("report"), how: "link" },
+  "tuition-makeup": { shows: () => inTodoBar("plan"), how: "link" },
   request: { shows: () => has("학부모 알림"), how: "link" },
   // 「남긴 댓글」 → 💬묶음 「학생 · 학부모 댓글」 카드 (d.newComments)
   comment: { shows: () => has("학생 · 학부모 댓글"), how: "link" },
@@ -261,7 +270,7 @@ console.log(`  배지 모양인데 못 누르는 <span className="btn">: ${deadS
 console.log(`  특이사항 태그가 <Link> 인가: ${PAGE.includes('<Link className="tag') ? "예 ✓" : "아니오 ← 고쳐야 함"}`);
 
 console.log(`\n─ T3 중복 ─`);
-console.log(`  · 배지와 카드가 같은 값(d.*)에서 나오는가: ${PAGE.includes("d.makeupRows.length > 0") ? "예 ✓ (한 곳에서 계산)" : "아니오"}`);
+console.log(`  · 보강·회차·월간을 한 곳에서만 세는가: ${!PAGE.includes("d.makeupNeedTotal") && !PAGE.includes("d.monthConfirmLeft") && !PAGE.includes("d.monthlyDue") ? "예 ✓ (남은 일 한 벌)" : "아니오 ← 대시보드가 따로 셈"}`);
 console.log(`  · 할일/일정 두 화면: ${fs.existsSync(new URL("../app/todo/TodoBoard.jsx", import.meta.url)) && fs.readFileSync(new URL("../app/todo/page.jsx", import.meta.url), "utf8").includes("redirect") ? "합쳐짐 ✓" : "아직 둘"}`);
 console.log(`  · 발송/재발송 두 화면: ${fs.readFileSync(new URL("../app/resend/page.jsx", import.meta.url), "utf8").includes("redirect") ? "합쳐짐 ✓" : "아직 둘"}`);
 console.log(`  · 화면 규칙을 시뮬에 옮겨 적기: 없앰 ✓ (page.jsx 를 직접 읽는다)`);

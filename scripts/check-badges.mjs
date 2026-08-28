@@ -416,8 +416,35 @@ for (const [gone, what] of [
   ["d.examSoon.some((e) => e.noScope)", "시험범위 미등록"],
   ["d.inquiries.length > 0 &&", "진행중 상담"],
   ["tasks.overdue.length > 0 &&", "지난 할일"],
+  /**
+   * **카드 셋도 남은 일로 갔다** (원장님, 2026-08-28 — 「회차 확정도 저렇게
+   * 나올 거면 그냥 남은 할일 목록에 저런 식의 것들을 다 모아주는 게 나음」).
+   *
+   * 셋 다 「누가 무엇을」 이 아니라 **이번 달 통째로** 라, 카드로 펴 놓아도
+   * 그 자리에서 할 수 있는 일이 없었다 — 결국 다른 화면으로 가는 링크
+   * 한 줄이었다. 링크 한 줄이면 남은 일 목록이 이미 하고 있다.
+   *
+   * 값 이름으로 막는다 — 카드를 되살리려면 반드시 d.* 를 다시 꺼내야 한다.
+   * (lib/dashboard 에서도 아예 지웠으므로 되살리면 undefined 가 나온다)
+   */
+  ["d.makeupNeedTotal", "보강 필요 회차 (→ 남은 일 plan)"],
+  ["d.monthConfirmLeft", "다음 달 회차 미확정 (→ 남은 일 schedule)"],
+  ["d.monthlyDue", "월간리포트 (→ 남은 일 report)"],
 ]) {
   eq(home.includes(gone), false, `대시보드가 따로 세던 「${what}」 을 뺐다`);
+}
+/**
+ * **뺐으면 남은 일이 대신 말해야 한다.** 카드만 지우고 문장을 안 만들면
+ * 그건 없앤 것이지 옮긴 것이 아니다 — 원장님은 그 일을 영영 못 보신다.
+ */
+const labelSrc = read("lib/menuBadges.js");
+for (const [key, what] of [
+  ["plan", "보강 필요"],
+  ["schedule", "다음 달 회차 미확정"],
+  ["report", "월간리포트 (발송할 것에 합쳐짐)"],
+]) {
+  eq(new RegExp(`^\\s*${key}:`, "m").test(labelSrc.slice(labelSrc.indexOf("TODO_LABEL"))), true,
+     `카드를 뺀 「${what}」 을 남은 일이 문장으로 말한다`);
 }
 // 여기서 안 세는 것은 그대로 남아 있어야 한다
 for (const [stay, what] of [
