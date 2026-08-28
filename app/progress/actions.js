@@ -514,10 +514,35 @@ export async function listBookProgress(textbookId) {
   const hasChild = new Set((units || []).map((u) => u.parent_id).filter(Boolean));
   const leaves = (units || []).filter((u) => !hasChild.has(u.id)).map((u) => u.id);
 
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, name, grade, status")
-    .in("id", active.map((r) => r.student_id));
+  /**
+   * **이름과 진도를 나란히 묻는다** (성능수리 5차 — 직렬 3층이었다).
+   *
+   * 진도는 원래 「재원생만」 으로 좁혀 물었는데, 누가 재원생인지는 이름
+   * 조회가 와야 안다 — 그래서 이름 → 진도로 줄을 서 있었다. 배정된 학생
+   * (active) 으로 넓혀 물으면 앞의 답을 안 기다려도 된다. 퇴원생 줄이
+   * 몇 줄 더 딸려 올 뿐이고, 아래에서 줄을 만들 때 재원생만 도니
+   * **결과는 한 줄도 안 달라진다.**
+   */
+  const activeIds = active.map((r) => r.student_id);
+  const wantProg = leaves.length > 0;
+  const [{ data: students }, progQ] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, name, grade, status")
+      .in("id", activeIds),
+    // 교재 하나 × 배정된 학생 × 회독이라 1000줄을 넘는다 — 끝까지 (lib/fetchAll)
+    wantProg
+      ? fetchAll(() =>
+          supabase
+            .from("student_unit_progress")
+            .select("student_id, textbook_unit_id, status, done_on, round")
+            .in("student_id", activeIds)
+            .in("textbook_unit_id", leaves)
+            .order("student_id")
+            .order("textbook_unit_id")
+        )
+      : { data: [], error: null },
+  ]);
   const nameOf = new Map((students || []).map((s) => [s.id, s]));
 
   /**
@@ -531,33 +556,19 @@ export async function listBookProgress(textbookId) {
     const s = nameOf.get(r.student_id);
     return s && s.status === "enrolled";   // 퇴원생 진도는 여기 볼 일이 없다
   });
-  let allProg = [];
-  if (leaves.length && enrolled.length) {
-    // 교재 하나 × 전 재원생 × 회독이라 1000줄을 넘는다 — 끝까지 (lib/fetchAll)
-    let q = await fetchAll(() =>
+  let allProg = progQ.data || [];
+  if (wantProg && progQ.error && (progQ.error.code === "42703" || progQ.error.code === "PGRST204")) {
+    // 0025 전이면 round 없이 — 전부 1회독으로 본다
+    const q = await fetchAll(() =>
       supabase
         .from("student_unit_progress")
-        .select("student_id, textbook_unit_id, status, done_on, round")
-        .in("student_id", enrolled.map((r) => r.student_id))
+        .select("student_id, textbook_unit_id, status, done_on")
+        .in("student_id", activeIds)
         .in("textbook_unit_id", leaves)
         .order("student_id")
         .order("textbook_unit_id")
     );
-    if (q.error && (q.error.code === "42703" || q.error.code === "PGRST204")) {
-      // 0025 전이면 round 없이 — 전부 1회독으로 본다
-      q = await fetchAll(() =>
-        supabase
-          .from("student_unit_progress")
-          .select("student_id, textbook_unit_id, status, done_on")
-          .in("student_id", enrolled.map((r) => r.student_id))
-          .in("textbook_unit_id", leaves)
-          .order("student_id")
-          .order("textbook_unit_id")
-      );
-      allProg = (q.data || []).map((p) => ({ ...p, round: 1 }));
-    } else {
-      allProg = q.data || [];
-    }
+    allProg = (q.data || []).map((p) => ({ ...p, round: 1 }));
   }
   const rows = enrolled.map((r) => {
     const s = nameOf.get(r.student_id);

@@ -34,6 +34,47 @@ import Tabs from "./Tabs";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * 고른 교재의 단원 — **칸이 덜 갖춰진 DB 에서도** 목록은 나와야 한다.
+ * 새 칸부터 물어보고, 없다고 하면 한 단계씩 물러난다 (0100 → 0070 → 0051).
+ *
+ * 함수로 뺀 것은 파도에 태우기 위해서다 (성능수리 5차) — 루틴·진도와
+ * 나란히 세운다. 물어보는 차례·칸은 하나도 안 바꿨다.
+ */
+async function loadUnits(supabase, textbookId) {
+  const base = "id, name, sort, label, parent_id, page_start, page_end";
+  // 분량·내용(0100)도 같이 — 편집 판이 이 값을 고친다 (값-지도 P2)
+  let { data, error } = await supabase
+    .from("textbook_units")
+    .select(`${base}, question_no, word_count, total_pages, question_count, question_range, summary, minutes`)
+    .eq("textbook_id", textbookId)
+    .order("sort", { ascending: true });
+  if (error) {
+    ({ data, error } = await supabase
+      .from("textbook_units")
+      .select(`${base}, question_no, word_count`)
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
+  if (error) {
+    // 0070 전이면 단어 개수 없이
+    ({ data, error } = await supabase
+      .from("textbook_units")
+      .select(`${base}, question_no`)
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
+  if (error) {
+    // 0051 전이면 문제번호도 없이
+    ({ data } = await supabase
+      .from("textbook_units")
+      .select(base)
+      .eq("textbook_id", textbookId)
+      .order("sort", { ascending: true }));
+  }
+  return data || [];
+}
+
 export default async function TextbooksPage(props) {
   const searchParams = await props.searchParams;
 
@@ -55,6 +96,17 @@ export default async function TextbooksPage(props) {
   } = await supabase.auth.getSession();
   const user = session?.user || null;
 
+  /**
+   * 고른 교재가 없으면 **목록만** (원장님, 2026-08-18 — 「맨 처음에 저
+   * 교재는 왜 뜨는 거야? 목록만 보고 싶어」). 전에는 첫 교재(=가장 최근
+   * 만든 것)를 자동으로 펴서, 엑셀로 새 교재가 생길 때마다 그게 첫
+   * 화면을 차지했다.
+   *
+   * 주소만 보면 알 수 있으니 **조회보다 먼저** 정한다 — 아래 파도가
+   * 이 값에 따라 덜 읽는다.
+   */
+  const selectedId = searchParams?.tb || null;
+
   // **파도 1** — 서로 필요한 것이 없는 조회를 한꺼번에 (직렬 13회 → 3층)
   const [tbQ1, allUnitsQ, assignedQ, hwQ1, studentsQ, missQ] = await Promise.all([
     supabase
@@ -63,7 +115,17 @@ export default async function TextbooksPage(props) {
       .order("created_at", { ascending: false }),
     // 단원은 전 교재 합이라 1000줄을 넘는다 — 잘리면 멀쩡한 교재가
     // 「단원 없음」 으로 보인다 (2026-08-14 실제로 그랬다. lib/fetchAll)
-    fetchAll(() => supabase.from("textbook_units").select("textbook_id, label").order("id")),
+    //
+    // **활동 이름(label)은 교재를 골랐을 때만 읽는다.** 목록에 필요한 것은
+    // 교재별 단원 **개수**뿐이고, label 은 단원 넣는 칸의 「골라 넣기」와
+    // 단원 목록만 쓴다 — 둘 다 교재를 골라야 나오는 자리다. 줄 수는 그대로라
+    // 개수는 한 자리도 안 달라지고, 목록만 보는 첫 화면에서 읽어 나르는
+    // 양이 반으로 준다.
+    fetchAll(() =>
+      supabase
+        .from("textbook_units")
+        .select(selectedId ? "textbook_id, label" : "textbook_id")
+        .order("id")),
     fetchAll(() =>
       supabase
         .from("student_textbooks")
@@ -109,6 +171,8 @@ export default async function TextbooksPage(props) {
   (allUnits || []).forEach((u) => {
     unitCount[u.textbook_id] = (unitCount[u.textbook_id] || 0) + 1;
   });
+  // 교재를 안 골랐으면 label 을 안 읽었으니 자주 쓰는 것만 남는다 — 이 목록을
+  // 쓰는 자리(단원 넣는 칸·단원 목록)는 둘 다 교재를 골라야 나오는 자리다
   const activities = activityList((allUnits || []).map((u) => u.label));
 
   // 같은 교재로 보이는 것 — 엑셀 이름이 조금 달라서 갈라진 것들.
@@ -158,60 +222,23 @@ export default async function TextbooksPage(props) {
   let { data: students, error: stuErr } = studentsQ;
   if (stuErr) students = [];
 
-  /**
-   * 고른 교재가 없으면 **목록만** (원장님, 2026-08-18 — 「맨 처음에 저
-   * 교재는 왜 뜨는 거야? 목록만 보고 싶어」). 전에는 첫 교재(=가장 최근
-   * 만든 것)를 자동으로 펴서, 엑셀로 새 교재가 생길 때마다 그게 첫
-   * 화면을 차지했다.
-   */
-  const selectedId = searchParams?.tb || null;
   const selected = textbooks?.find((t) => t.id === selectedId) || null;
 
   /**
-   * 루틴·진도 탭의 데이터도 **여기서 미리** (원장님, 2026-08-14 — 「루틴
-   * 진도 누르면 엄청나게 느려」). 탭을 누른 뒤에 서버에 다녀오게 두면
-   * 누를 때마다 빈 판 → 왕복 → 내용 순서가 된다. 페이지가 이미 어느
-   * 교재인지 아니까 실어 보낸다 — 탭 전환이 왕복 0 이 된다.
+   * **파도 2** — 고른 교재에 딸린 셋을 나란히. 셋 다 교재 id 하나만 있으면
+   * 되는데 전에는 「루틴·진도」 다음에 「단원」 이 줄을 서 있었다.
+   *
+   * 루틴·진도를 여기서 미리 읽는 까닭 (원장님, 2026-08-14 — 「루틴 진도
+   * 누르면 엄청나게 느려」): 탭을 누른 뒤에 서버에 다녀오게 두면 누를
+   * 때마다 빈 판 → 왕복 → 내용 순서가 된다. 페이지가 이미 어느 교재인지
+   * 아니까 실어 보낸다 — 탭 전환이 왕복 0 이 된다.
    */
-  const [routineInit, progressInit] = await Promise.all([
+  const [routineInit, progressInit, unitsData] = await Promise.all([
     selectedId ? listRoutine(selectedId) : { steps: [], ready: true },
     selectedId ? listBookProgress(selectedId) : { rows: [] },
+    selectedId ? loadUnits(supabase, selectedId) : [],
   ]);
-
-  let units = [];
-  if (selectedId) {
-    const base = "id, name, sort, label, parent_id, page_start, page_end";
-    // 분량·내용(0100)도 같이 — 편집 판이 이 값을 고친다 (값-지도 P2)
-    let { data, error } = await supabase
-      .from("textbook_units")
-      .select(`${base}, question_no, word_count, total_pages, question_count, question_range, summary, minutes`)
-      .eq("textbook_id", selectedId)
-      .order("sort", { ascending: true });
-    if (error) {
-      ({ data, error } = await supabase
-        .from("textbook_units")
-        .select(`${base}, question_no, word_count`)
-        .eq("textbook_id", selectedId)
-        .order("sort", { ascending: true }));
-    }
-    if (error) {
-      // 0070 전이면 단어 개수 없이
-      ({ data, error } = await supabase
-        .from("textbook_units")
-        .select(`${base}, question_no`)
-        .eq("textbook_id", selectedId)
-        .order("sort", { ascending: true }));
-    }
-    if (error) {
-      // 0051 전이면 문제번호도 없이
-      ({ data } = await supabase
-        .from("textbook_units")
-        .select(base)
-        .eq("textbook_id", selectedId)
-        .order("sort", { ascending: true }));
-    }
-    units = data || [];
-  }
+  const units = unitsData || [];
 
   // 상위 단원 후보 (대·중단원까지만)
   const unitOptions = flattenTree(units)
