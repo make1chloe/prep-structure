@@ -163,7 +163,7 @@ export default function RoutineAssign({ studentId, hwItems = [] }) {
             </div>
             {open && (
               <div className="stack" style={{ gap: 6, paddingLeft: 16 }}>
-                <RoutinePick studentId={studentId} book={b} onStamp={load} />
+                <RoutinePick studentId={studentId} book={b} hwItems={hwItems} onStamp={load} />
                 {/* 루틴 **자체**를 고치는 것은 따로 — 다른 학생도 같이 바뀐다 */}
                 <button
                   className="btn btn-ghost btn-sm"

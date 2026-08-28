@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { routineChoices, setRoutinePick } from "./routinePickActions";
-import { toolBadge } from "@/app/homework/categories";
+import { CAT_CLS, toolBadge } from "@/app/homework/categories";
+import { keywordFilter } from "@/lib/pickSearch";
+import { ADD_BUCKETS, normalizeAdd } from "@/lib/routineAdd";
 
 /**
  * **이 학생은 이 교재 루틴에서 무엇을, 어떤 차례로 하나**
@@ -21,12 +23,16 @@ import { toolBadge } from "@/app/homework/categories";
  * 「전부 한다」 인지 「아직 안 봤다」 인지 구별이 안 되기 때문이다.
  * 도장이 없는 교재는 대시보드가 재촉한다.
  */
-export default function RoutinePick({ studentId, book, onStamp }) {
+export default function RoutinePick({ studentId, book, hwItems = [], onStamp }) {
   const [data, setData] = useState(null);
   const [skip, setSkip] = useState(new Set());
   const [order, setOrder] = useState([]);
   const [set, setSet] = useState(false);
   const [pending, startTransition] = useTransition();
+  // 이 학생에게만 더한 항목 (0182) · 고르는 판 · 거르는 글자
+  const [add, setAdd] = useState(() => normalizeAdd(null));
+  const [openAdd, setOpenAdd] = useState(null);   // null | "inclass" | "home" | "next"
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     let live = true;
@@ -36,6 +42,7 @@ export default function RoutinePick({ studentId, book, onStamp }) {
       setSkip(new Set(r.skip || []));
       setOrder(r.order || []);
       setSet(!!r.정함);
+      setAdd(normalizeAdd(r.added));
     });
     return () => { live = false; };
   }, [studentId, book.id]);
@@ -53,14 +60,12 @@ export default function RoutinePick({ studentId, book, onStamp }) {
    * **이름 옆에 준비물을 같이** (원장님 2026-08-28 — 「클래스카드 필수학습이
    * 나와야 하는데 필수학습이라고만 나옴. 이러면 뭔지 모름」).
    * 그림표는 오늘 수업·아이 화면과 **같은 한 벌**(toolBadge)로 만든다.
+   *
+   * 이름표는 서버가 한 자리로 준다(`items`). 전에는 여기서 steps 를 훑었는데,
+   * **이 학생에게만 더한 항목은 steps 에 없어서** 영영 「학습」으로 떴다.
    */
-  const itemOf = (id) => {
-    for (const st of data.steps) {
-      const hit = [...st.inclass, ...st.home, ...(st.next || [])].find((x) => x.id === id);
-      if (hit) return hit;
-    }
-    return { id, name: "학습", tool: "", category: "" };
-  };
+  const itemMap = new Map((data.items || []).map((x) => [x.id, x]));
+  const itemOf = (id) => itemMap.get(id) || { id, name: "학습", tool: "", category: "", dead: false };
   const nameOf = (id) => itemOf(id).name;
 
   /**
@@ -76,12 +81,24 @@ export default function RoutinePick({ studentId, book, onStamp }) {
    * 와 home_items·home_next 를 **각각 따로** 내보낸다(248·249·265줄).
    * 화면도 그 규칙과 같아야 한다. 양쪽에 있는 항목은 **양쪽에 보인다.**
    */
-  const inclassIds = new Set(data.steps.flatMap((st) => st.inclass.map((x) => x.id)));
-  const homeIds = new Set(
+  const routineIn = new Set(data.steps.flatMap((st) => st.inclass.map((x) => x.id)));
+  const routineHome = new Set(
     data.steps.flatMap((st) => [...st.home, ...(st.next || [])].map((x) => x.id))
   );
+  /**
+   * **더한 항목도 같은 목록에 선다** (0182). 차림(nextRoutine)이 루틴 항목과
+   * 더한 항목을 같은 칸에 이어 붙이므로, 화면도 그렇게 보여야 「루틴엔 있는데
+   * 아이한테 안 나간다」 같은 어긋남이 안 생긴다.
+   */
+  const addIn = new Set(add.inclass);
+  const addHome = new Set([...add.home, ...add.next]);
+  const inclassIds = new Set([...routineIn, ...addIn]);
+  const homeIds = new Set([...routineHome, ...addHome]);
   const bothIds = new Set([...inclassIds].filter((id) => homeIds.has(id)));
-  const nextIds = new Set(data.steps.flatMap((st) => (st.next || []).map((x) => x.id)));
+  const nextIds = new Set([
+    ...data.steps.flatMap((st) => (st.next || []).map((x) => x.id)),
+    ...add.next,
+  ]);
 
   function push(nextSkip, nextOrder, stamp) {
     startTransition(async () => {
@@ -103,6 +120,34 @@ export default function RoutinePick({ studentId, book, onStamp }) {
       const res = await setRoutinePick(studentId, book.id, { skip: [...next], order });
       if (res?.error) { setSkip(before); alert(res.error); }
     });
+  }
+
+  /**
+   * **이 학생에게만 더하기·지우기** (0182).
+   *
+   * 담기는 곳이 다르므로 「뺌」과 **뜻이 갈린다**:
+   *   뺌   — 교재 루틴에는 있는데 이 학생만 안 한다 (routine_skip)
+   *   지움 — 이 학생에게만 더했던 것을 도로 없앤다 (routine_add)
+   * 단추 이름도 그렇게 갈라 적는다 (화면 규칙 1 — 이름으로 말한다).
+   */
+  function saveAdd(nextAdd) {
+    const before = add;
+    setAdd(nextAdd);   // 먼저 화면부터 — 이 판은 새로고침을 안 한다
+    startTransition(async () => {
+      const res = await setRoutinePick(studentId, book.id, {
+        skip: [...skip], order, add: nextAdd,
+      });
+      if (res?.error) { setAdd(before); alert(res.error); }
+    });
+  }
+  function addItem(bucket, id) {
+    saveAdd({ ...add, [bucket]: [...new Set([...add[bucket], id])] });
+  }
+  /** 그 무리에서 지운다 — 숙제 무리는 home·next 둘 다 본다 */
+  function dropAdd(id, buckets) {
+    const next = { ...add };
+    buckets.forEach((b) => { next[b] = next[b].filter((x) => x !== id); });
+    saveAdd(next);
   }
 
   /**
@@ -141,7 +186,10 @@ export default function RoutinePick({ studentId, book, onStamp }) {
   const homeList = live.filter((id) => homeIds.has(id));
   const off = skip.size;
 
-  const Row = ({ id, i, group }) => (
+  const Row = ({ id, i, group, buckets }) => {
+    const mine = buckets.some((b) => add[b].includes(id));
+    const gone = itemOf(id).dead;
+    return (
     <div className="stuLine" style={{ padding: "3px 0", cursor: "default" }}>
       <span className="stuWho">
         <span className="hint" style={{ width: 16, textAlign: "right" }}>{i + 1}</span>
@@ -160,6 +208,20 @@ export default function RoutinePick({ studentId, book, onStamp }) {
             예습
           </span>
         )}
+        {/* **글자로 말한다** — 교재 루틴 것인지 이 아이한테만 더한 것인지
+            (색만으로 뜻을 나르지 않는다 · 노안 규칙) */}
+        {mine && (
+          <span className="tag tag-sky" style={{ fontSize: 12 }}
+            title="교재 루틴에는 없고 이 학생에게만 더한 항목이에요 — 다른 학생은 안 바뀝니다">
+            이 학생만
+          </span>
+        )}
+        {gone && (
+          <span className="tag tag-red" style={{ fontSize: 12 }}
+            title="학습 항목에서 지워진 항목이에요 — 아이에게 안 나갑니다. 「지움」 으로 치워주세요">
+            없어진 항목
+          </span>
+        )}
       </span>
       <span className="stuTags" />
       <span className="stuEnd">
@@ -171,19 +233,126 @@ export default function RoutinePick({ studentId, book, onStamp }) {
           style={{ padding: "2px 6px" }} onClick={() => move(id, "down", group)}>↓</button>
         <button className="btn btn-ghost btn-sm" title="맨 아래로" disabled={pending || i === group.length - 1}
           style={{ padding: "2px 5px" }} onClick={() => move(id, "bottom", group)}>⇊</button>
-        <button className="btn btn-ghost btn-sm" title="이 학생은 안 합니다"
-          style={{ padding: "2px 8px" }} onClick={() => toggle(id)}>✕ 뺌</button>
+        {mine ? (
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            title="이 학생에게만 더했던 항목을 도로 없앱니다 (교재 루틴은 안 바뀝니다)"
+            style={{ padding: "2px 8px" }} onClick={() => dropAdd(id, buckets)}>🗑 지움</button>
+        ) : (
+          <button className="btn btn-ghost btn-sm" disabled={pending}
+            title="교재 루틴에는 있지만 이 학생은 안 합니다"
+            style={{ padding: "2px 8px" }} onClick={() => toggle(id)}>✕ 뺌</button>
+        )}
       </span>
+    </div>
+    );
+  };
+
+  const Group = ({ title, ids, buckets }) => (
+    <div className="stack" style={{ gap: 2 }}>
+      <span className="hint" style={{ fontSize: 12.5, fontWeight: 700 }}>{title}</span>
+      {ids.map((id, i) => <Row key={id} id={id} i={i} group={ids} buckets={buckets} />)}
+      {ids.length === 0 && <span className="hint" style={{ fontSize: 12.5 }}>아직 없어요.</span>}
+      <AddBar buckets={buckets} />
     </div>
   );
 
-  const Group = ({ title, ids }) =>
-    ids.length === 0 ? null : (
-      <div className="stack" style={{ gap: 2 }}>
-        <span className="hint" style={{ fontSize: 12.5, fontWeight: 700 }}>{title}</span>
-        {ids.map((id, i) => <Row key={id} id={id} i={i} group={ids} />)}
+  /**
+   * **고르는 판은 등원 학습 고르기와 같은 부품·같은 규칙** (원칙 1 —
+   * 새로 그리지 않는다):
+   *   · 거르기   lib/pickSearch — 한두 글자는 앞머리로 (「E」 가 e 든 것에
+   *              죄다 걸려 묻히던 문제)
+   *   · 준비물   toolBadge, 그리고 **준비물로도 걸린다**. 「필수학습」 만
+   *              뜨면 무엇인지 모른다는 원장 지적(2026-08-28)의 짝이다
+   *   · 이미 있는 항목은 「✓있음」 으로 적고 **다시 안 담기게 막는다**
+   *
+   * 고르는 목록(hwItems)은 교재 화면의 루틴 편집기가 쓰는 **그 한 벌**을
+   * 그대로 받아 쓴다 (재원생 화면이 이미 읽어 내려주는 것) — 조회를 새로
+   * 만들지 않았다.
+   */
+  const AddBar = ({ buckets }) => {
+    const open = buckets.includes(openAdd);
+    return (
+      <div className="stack" style={{ gap: 4, marginTop: 2 }}>
+        <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+          {ADD_BUCKETS.filter((b) => buckets.includes(b.key)).map((b) => (
+            <button
+              key={b.key}
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: 12.5 }}
+              disabled={pending}
+              title={`이 학생에게만 ${b.label} 항목을 더합니다 — ${b.hint}. 다른 학생은 안 바뀝니다`}
+              onClick={() => { setOpenAdd(openAdd === b.key ? null : b.key); setQ(""); }}
+            >
+              {openAdd === b.key ? "접기" : `＋ 이 학생만 · ${b.label}`}
+            </button>
+          ))}
+        </div>
+
+        {open && !data.더하기가능 && (
+          <p className="hint" style={{ margin: 0 }}>
+            관리자 → SQL 확인에서 <b>0182</b> 를 먼저 실행해 주세요 — 아직 더한 항목을 담을 칸이 없어요.
+          </p>
+        )}
+
+        {open && data.더하기가능 && (() => {
+          const bucket = openAdd;
+          const already = new Set([
+            ...add[bucket],
+            ...(bucket === "inclass" ? routineIn : routineHome),
+          ]);
+          const pick = keywordFilter(hwItems, q, (i) => [i.name, i.tool, i.category]);
+          const by = new Map();
+          pick.forEach((i) => {
+            const g = i.category || "기타";
+            if (!by.has(g)) by.set(g, []);
+            by.get(g).push(i);
+          });
+          return (
+            <div className="stack" style={{ gap: 2 }}>
+              <input
+                className="input input-sm"
+                style={{ width: "100%" }}
+                placeholder="항목·준비물로 거르기 (한두 글자는 앞머리로)"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              {pick.length === 0 ? (
+                <p className="hint" style={{ margin: 0 }}>「{q.trim()}」 에 맞는 항목이 없어요.</p>
+              ) : (
+                [...by.entries()].map(([g, list]) => (
+                  <div className="hwgroup" key={g}>
+                    <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                    <div className="row" style={{ gap: 4 }}>
+                      {list.map((i) => {
+                        const on = already.has(i.id);
+                        return (
+                          <button
+                            key={i.id}
+                            className={`hwchip ${on ? "hw-next" : ""}`}
+                            disabled={pending || on}
+                            title={on
+                              ? "이미 이 학생 루틴에 있어요"
+                              : `이 학생에게만 더합니다 (${ADD_BUCKETS.find((b) => b.key === bucket)?.label})`}
+                            onClick={() => addItem(bucket, i.id)}
+                          >
+                            {on && <b>✓있음</b>} {i.name}
+                            {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+              <span className="hint" style={{ fontSize: 12.5 }}>
+                더하면 <b>이 학생의 이 교재 루틴 모든 회차</b>에 나옵니다 — 다른 학생은 안 바뀌어요.
+              </span>
+            </div>
+          );
+        })()}
       </div>
     );
+  };
 
   return (
     <div className="stack" style={{ gap: 8 }}>
@@ -258,8 +427,8 @@ export default function RoutinePick({ studentId, book, onStamp }) {
         </div>
       </details>
 
-      <Group title="등원 학습 — 학원에서 이 차례로" ids={inList} />
-      <Group title="집 숙제 — 아이 화면에 이 차례로" ids={homeList} />
+      <Group title="등원 학습 — 학원에서 이 차례로" ids={inList} buckets={["inclass"]} />
+      <Group title="집 숙제 — 아이 화면에 이 차례로" ids={homeList} buckets={["home", "next"]} />
       {live.length === 0 && <span className="hint">전부 뺐어요 — 이 교재에서는 아무것도 안 나갑니다.</span>}
 
       {off > 0 && (

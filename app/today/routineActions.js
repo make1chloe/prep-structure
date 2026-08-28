@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { normalizeAdd, addIds } from "@/lib/routineAdd";
 import { todaySeoul } from "@/lib/day";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
@@ -25,8 +26,15 @@ export async function nextRoutine(studentId, opts = {}) {
   // 멈춤(pause, 0149)도 여기서 같이 읽는다 — 멈춤 판단은 이 함수 한 곳이다
   let stq = await supabase
     .from("student_textbooks")
-    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order, book_sort")
+    .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order, book_sort, routine_add")
     .eq("student_id", studentId);
+  if (stq.error) {
+    // 0182 전 — 「이 학생에게만 더한 항목」 칸 없이 (루틴에 적힌 것만)
+    stq = await supabase
+      .from("student_textbooks")
+      .select("textbook_id, status, routine_step, routine_step_id, round, assigned_on, ended_on, pause, routine_skip, routine_order, book_sort")
+      .eq("student_id", studentId);
+  }
   if (stq.error) {
     // 0155 전 — 교재 차례 없이
     stq = await supabase
@@ -206,6 +214,12 @@ export async function nextRoutine(studentId, opts = {}) {
       [...(st.inclass_items || []), ...(st.home_items || []), ...(st.home_next || [])]
         .forEach((x) => { if (x && !mySkip.has(x)) myItems.add(x); });
     });
+    /**
+     * **이 학생에게만 더한 항목**(0182)도 「이 학생이 쓸 만한 항목」 이다 —
+     * 오늘 수업 판이 이 집합으로 칩을 좁힌다. 안 넣으면 방금 더한 항목이
+     * 「전체 보기」 뒤에 숨는다.
+     */
+    addIds(r.routine_add).forEach((x) => { if (!mySkip.has(x)) myItems.add(x); });
     if (list.length === 0) return;
     /**
      * **id 가 먼저다** (0120). 번호는 루틴을 중간에 고치면 다른 단계를
@@ -245,8 +259,23 @@ export async function nextRoutine(studentId, opts = {}) {
     const rank = new Map(ord.map((x, i) => [x, i]));
     const inOrder = (arr) =>
       [...arr].sort((a2, b2) => (rank.get(a2) ?? 9e9) - (rank.get(b2) ?? 9e9));
+    /**
+     * **이 학생에게만 더한 항목** (0182, 원장님 2026-08-28 — 「재원생에서
+     * 루틴에 학습항목 추가할 수 있게 해줘」).
+     *
+     * 뜻은 **「이 교재 루틴의 모든 회차에 더한다」** 이므로 지금 회차가
+     * 무엇이든 함께 나간다 — routine_skip·routine_order 가 회차를 안 가리는
+     * 것과 같은 결이다 (원장 확정: 「3회차에만」 은 안 된다).
+     *
+     * 세 갈래는 루틴의 세 칸과 **같은 뜻**이라, 아래에서 각각 그 칸에
+     * 이어 붙이기만 한다 — 붙는 단원(오늘/다음)도 저절로 같아진다.
+     * 빼기(routine_skip)와 숙제멈춤도 루틴 항목과 똑같이 걸린다.
+     */
+    const myAdd = normalizeAdd(r.routine_add);
+    const withAdd = (arr, more) => [...new Set([...(arr || []), ...more])];
+
     inOrder((step.inclass_items || []).filter(keep)).forEach((x) => inclass.add(x));
-    if (!homePaused) inOrder((step.home_items || []).filter(keep)).forEach((x) => {
+    if (!homePaused) inOrder(withAdd(step.home_items, myAdd.home).filter(keep)).forEach((x) => {
       home.add(x);
       // 숙제에는 범위가 붙어야 한다 — 등원 학습은 그 자리에서 하니 안 붙인다
       if (unit?.id)
@@ -262,7 +291,7 @@ export async function nextRoutine(studentId, opts = {}) {
      * 후행인지」). 오늘 단원이 아니라 **다음 단원**이 붙는다.
      * 다음 단원이 없으면(마지막 단원) 범위 없이 항목만 담는다.
      */
-    if (!homePaused) inOrder((step.home_next || []).filter(keep)).forEach((x) => {
+    if (!homePaused) inOrder(withAdd(step.home_next, myAdd.next).filter(keep)).forEach((x) => {
       home.add(x);
       if (unit?.nextId)
         itemUnits[x] = {
@@ -282,8 +311,13 @@ export async function nextRoutine(studentId, opts = {}) {
       // 멈춤 상태 — 화면(오늘 수업 판)이 태그로 보여준다
       pause: r.pause || null,
       // 교재 골라 차리기 (원장님 2026-08-20 「3」) — 화면이 교재별로 거른다
-      inclassItems: inOrder((step.inclass_items || []).filter(keep)),
-      homeItems: homePaused ? [] : inOrder([...(step.home_items || []), ...(step.home_next || [])].filter(keep)),
+      // 「교재 골라 차리기」 가 교재별로 거를 때도 더한 항목이 같이 가야 한다 —
+      // 안 그러면 교재를 골라 차렸을 때만 더한 항목이 조용히 빠진다
+      inclassItems: inOrder(withAdd(step.inclass_items, myAdd.inclass).filter(keep)),
+      homeItems: homePaused ? [] : inOrder(
+        withAdd([...(step.home_items || []), ...(step.home_next || [])],
+                [...myAdd.home, ...myAdd.next]).filter(keep)
+      ),
     });
   });
 

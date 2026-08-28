@@ -211,6 +211,11 @@ echo "== 5-4-10-1) 본보기 루틴이 진짜 있는 항목을 가리키나 =="
 runjs scripts/check-routinetpl.mjs
 
 echo
+echo "== 5-4-10-3) 이 학생에게만 더한 항목 (0182) =="
+# 화면에만 넣고 차림에 안 넣으면 「루틴엔 있는데 아이한테 안 나감」 — 조용하다
+runjs scripts/check-routineadd.mjs
+
+echo
 echo "== 5-4-10-2) 반 이름에 시간이 두 번 나오지 않나 =="
 runjs scripts/check-classlabel.mjs
 

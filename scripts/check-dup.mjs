@@ -77,6 +77,9 @@ const ONE_PLACE = [
   ["learnedEnough", "lib/learned.js", "「오늘 배운 것」 을 적은 것으로 볼까 (하원 길목 잣대)"],
   ["keywordHit", "lib/pickSearch.js", "골라 담는 판의 글자 거르기 (한두 글자는 앞머리로)"],
   ["keywordFilter", "lib/pickSearch.js", "여러 칸 중 하나라도 걸리면 남긴다"],
+  ["normalizeAdd", "lib/routineAdd.js", "이 학생에게만 더한 항목 — 담긴 모양 풀기 (0182)"],
+  ["addIds", "lib/routineAdd.js", "더한 항목 전부 (갈래 상관없이)"],
+  ["pruneAdd", "lib/routineAdd.js", "더한 항목에서 죽은 이름표 걷어내기"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

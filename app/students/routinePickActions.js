@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { inUseOn } from "@/lib/bookUse";
 import { todaySeoul } from "@/lib/day";
+import { normalizeAdd, addIds } from "@/lib/routineAdd";
 
 /**
  * **루틴은 메뉴다 — 학생마다 그중 할 것만 고른다** (원장님 2026-08-24 —
@@ -29,8 +30,16 @@ export async function routineChoices(studentId, textbookId) {
 
   let stq = await supabase
     .from("student_textbooks")
-    .select("round, routine_skip, routine_set_at, routine_order")
+    .select("round, routine_skip, routine_set_at, routine_order, routine_add")
     .eq("student_id", studentId).eq("textbook_id", textbookId).maybeSingle();
+  // 0182 전 — 더한 항목 칸이 아직 없다 (있던 기능은 그대로 돌아가야 한다)
+  let hasAdd = !stq.error;
+  if (stq.error) {
+    stq = await supabase
+      .from("student_textbooks")
+      .select("round, routine_skip, routine_set_at, routine_order")
+      .eq("student_id", studentId).eq("textbook_id", textbookId).maybeSingle();
+  }
   let hasOrder = !stq.error;
   if (stq.error) {
     // 0154 전 — 도장·차례 없이
@@ -77,9 +86,18 @@ export async function routineChoices(studentId, textbookId) {
   const maxR = rounded.length ? Math.max(...rounded.map((x) => x.round)) : null;
   const list = all.filter((x) => x.round == null || x.round === maxR);
 
-  const ids = [...new Set(list.flatMap((x) => [
+  const routineIds = [...new Set(list.flatMap((x) => [
     ...(x.inclass_items || []), ...(x.home_items || []), ...(x.home_next || []),
   ]).filter(Boolean))];
+  /**
+   * **이 학생에게만 더한 것** (0182). 모양 푸는 것은 lib/routineAdd 한 벌 —
+   * 차림(nextRoutine)이 같은 함수로 푼다. 두 벌이면 화면엔 있는데 아이한테
+   * 안 나가는 사고가 난다.
+   */
+  const add = hasAdd ? normalizeAdd(stq.data?.routine_add) : normalizeAdd(null);
+  const added = addIds(add);
+  // 이름·준비물을 붙이고 차례 자리를 받으려면 한 목록에 있어야 한다
+  const ids = [...new Set([...routineIds, ...added])];
   /**
    * **준비물(tool)도 같이 싣는다** (원장님 2026-08-28 — 「루틴 정할 때
    * 클래스카드 필수학습이 나와야 하는데 필수학습이라고만 나옴. 이러면
@@ -100,9 +118,21 @@ export async function routineChoices(studentId, textbookId) {
   if (hq.error) hq = await supabase.from("homework_items").select("id, name, category").in("id", ids);
   if (hq.error) hq = await supabase.from("homework_items").select("id, name").in("id", ids);
   const itemOf = new Map((hq.data || []).map((x) => [x.id, x]));
+  /**
+   * **없어진 항목을 「없다」 고 말한다** (A25 — 「없다」 와 「못 읽었다」 를
+   * 구별한다). 항목을 지워도 이름표는 여러 칸에 남는다(lib/itemRefs 머리말).
+   * 이름만 「(지워진 항목)」 으로 적어두면 화면이 그것을 여느 항목처럼
+   * 그려서, 원장님은 왜 안 나가는지 알 수가 없다. 죽었다는 표를 같이 준다.
+   */
   const shape = (id) => {
     const it = itemOf.get(id);
-    return { id, name: it?.name || "(지워진 항목)", tool: it?.tool || "", category: it?.category || "" };
+    return {
+      id,
+      name: it?.name || "(없어진 항목)",
+      tool: it?.tool || "",
+      category: it?.category || "",
+      dead: !it,
+    };
   };
 
   /**
@@ -133,8 +163,18 @@ export async function routineChoices(studentId, textbookId) {
   const rank = new Map(saved.map((x, i) => [x, i]));
   const order = [...ids].sort((a2, b2) => (rank.get(a2) ?? 9e9) - (rank.get(b2) ?? 9e9));
 
+  /**
+   * **항목 이름표를 한 자리에** — 전에는 화면이 steps 를 훑어 이름을 찾았다.
+   * 더한 항목은 steps 에 없으므로 그 방식으로는 영영 「학습」 으로 뜬다.
+   */
+  const items = ids.map(shape);
+
   return {
     steps,
+    items,
+    // 이 학생에게만 더한 것 (0182). 갈래 그대로 준다 — 화면이 딱지를 붙인다
+    added: add,
+    더하기가능: hasAdd,
     order,
     정함: hasOrder ? !!stq.data?.routine_set_at : false,
     차례있음: hasOrder,
@@ -154,15 +194,32 @@ export async function routineChoices(studentId, textbookId) {
  * 도장이 있어야 한다 (원장님 2026-08-24 「안 되어 있으면 안 되는 정보니까
  * 대시보드 알림이 필요해」).
  */
-export async function setRoutinePick(studentId, textbookId, { skip, order, 정함 } = {}) {
+export async function setRoutinePick(studentId, textbookId, { skip, order, 정함, add } = {}) {
   if (!studentId || !textbookId) return { error: "값이 부족해요." };
   const supabase = await createClient();
   const patch = { routine_skip: [...new Set((skip || []).filter(Boolean))] };
   if (Array.isArray(order)) patch.routine_order = [...new Set(order.filter(Boolean))];
   if (정함) patch.routine_set_at = new Date().toISOString();
+  // 이 학생에게만 더한 항목 (0182) — 모양은 lib/routineAdd 가 정한다
+  const wantAdd = add !== undefined;
+  if (wantAdd) patch.routine_add = normalizeAdd(add);
   let { error } = await supabase
     .from("student_textbooks").update(patch)
     .eq("student_id", studentId).eq("textbook_id", textbookId);
+  /**
+   * **0182 전 DB** — 더한 항목 칸이 없다. 이때 조용히 넘어가면 원장님은
+   * 담긴 줄 아신다. 더하려던 것이면 **분명히 말하고 멈춘다.**
+   */
+  if (error && wantAdd && (error.code === "42703" || error.code === "PGRST204")) {
+    delete patch.routine_add;
+    const probe = await supabase
+      .from("student_textbooks").update(patch)
+      .eq("student_id", studentId).eq("textbook_id", textbookId);
+    if (!probe.error) {
+      return { error: "관리자 → SQL 확인에서 0182 를 먼저 실행해 주세요 — 더한 항목은 저장되지 않았습니다." };
+    }
+    error = probe.error;
+  }
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0154 전 — 뺀 목록만이라도 담는다
     ({ error } = await supabase
