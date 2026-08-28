@@ -115,6 +115,21 @@ insert into public.tasks (id, title, kind, due_on, private, deliver_scope) value
   ('ffffffff-0000-0000-0000-000000000003', '교재 주문',      'todo',     current_date, false, 'all'),
   ('ffffffff-0000-0000-0000-000000000004', '대상 안 적음',   'schedule', current_date, false, null);
 
+-- 내신 자료 수령 (0178) — '나' 가 받았다고 누른 것이 '가' 에게 보이면 안 된다
+insert into public.exam_periods (id, school, name, from_date, to_date) values
+  ('e1110000-0000-0000-0000-0000000000e1', '옥련여고', '1학기기말', current_date, current_date);
+insert into public.prep_scopes (id, exam_id, name) values
+  ('50000000-0000-0000-0000-000000000001', 'e1110000-0000-0000-0000-0000000000e1', '1과');
+insert into public.prep_materials (id, scope_id, name, need_make, need_print, need_card, made_at, printed_at) values
+  ('60000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001', '가 자료', true, true, false, now(), now()),
+  ('60000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000001', '나 자료', true, true, false, now(), now());
+insert into public.prep_assignments (material_id, student_id) values
+  ('60000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001'),
+  ('60000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002');
+insert into public.prep_receipts (material_id, student_id, received_at) values
+  ('60000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', now()),
+  ('60000000-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', now());
+
 insert into public.video_views (video_id, student_id, opens, done_at) values
   ('eeeeeeee-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 1, now()),
   ('eeeeeeee-0000-0000-0000-000000000002', 'bbbbbbbb-0000-0000-0000-000000000002', 1, now());
@@ -150,6 +165,8 @@ select t || ': ' || n from (
   union all select 'tasks(할일·나만보기·대상없음)', count(*) from public.tasks           where id <> 'ffffffff-0000-0000-0000-000000000001'
   union all select 'requests(남의 알림)',   count(*) from public.requests             where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select 'scores(남의 성적)',     count(*) from public.scores               where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select 'prep_materials(안 받은 자료)', count(*) from public.prep_materials   where id <> '60000000-0000-0000-0000-000000000001'
+  union all select 'prep_receipts(남의 수령)', count(*) from public.prep_receipts        where student_id <> 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n > 0 order by 1;
 SQL
 )
@@ -169,6 +186,8 @@ select t || '=' || n from (
   union all select '나눠준 일정', count(*) from public.tasks where id = 'ffffffff-0000-0000-0000-000000000001'
   union all select '내가 보낸 알림', count(*) from public.requests where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
   union all select '내 성적', count(*) from public.scores where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
+  union all select '내 내신자료', count(*) from public.prep_materials where id = '60000000-0000-0000-0000-000000000001'
+  union all select '내 수령기록', count(*) from public.prep_receipts where student_id = 'aaaaaaaa-0000-0000-0000-000000000001'
 ) x where n = 0 order by 1;
 SQL
 )
