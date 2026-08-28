@@ -1,13 +1,9 @@
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Help from "@/components/Help";
-import ReportSender from "./ReportSender";
-import NoticeSender from "./NoticeSender";
-import LateSender from "./LateSender";
 import SendTabs from "./SendTabs";
-import SendTodo from "./SendTodo";
-import ResendBoard from "../resend/ResendBoard";
-import TestSender from "./TestSender";
+// 탭 판 여섯은 **그 탭을 열 때** 내려받는다 (SendPanel — 성능수리 4차)
+import SendPanel from "./SendPanel";
 import MonthlyScreen from "@/app/monthly/MonthlyScreen";
 import { loadReportRows } from "@/lib/reportData";
 import { fill } from "@/lib/noticeFill";
@@ -217,29 +213,18 @@ export default async function ReportPage(props) {
           <Help><p className="sub">{SUB[tab]}</p></Help>
         </div>
         <SendTabs tab={tab} date={date} />
-        {tab === "todo" ? (
-          <SendTodo {...todoData} />
-        ) : tab === "test" ? (
-          <TestSender
-            students={testStudents}
-            templates={testTemplates}
-            mode={settings.mode}
-            date={date}
-          />
-        ) : tab === "notice" ? (
-          <NoticeSender academy={settings.academy.name} mode={settings.mode} msg={settings.message} />
-        ) : tab === "hw" ? (
-          <ResendBoard
-            date={date} rows={rows} ready={resendReady}
-            mode={settings.mode} chans={chans} only="homework"
-          />
-        ) : tab === "late" ? (
-          <LateSender date={date} rows={rows} mode={settings.mode} chans={chans} />
-        ) : tab === "resend" ? (
-          <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} chans={chans} />
-        ) : (
-          <ReportSender date={date} rows={rows} sendReady={sendReady} mode={settings.mode} chans={chans} />
-        )}
+        <SendPanel
+          tab={tab}
+          todoData={todoData}
+          testStudents={testStudents}
+          testTemplates={testTemplates}
+          settings={settings}
+          date={date}
+          rows={rows}
+          chans={chans}
+          sendReady={sendReady}
+          resendReady={resendReady}
+        />
       </main>
     </>
   );
