@@ -688,4 +688,156 @@ else
   echo "  ❌ 학생이 열쇠 표를 읽습니다 ($Z 줄)"; fail=1
 fi
 
+
+# ── 8) 내신 자료 수령 체크 (0178) ────────────────────────────
+#
+# 원장님 (8/28) — 「자료 준비가 끝난 것만 아이 화면에 뜬다」
+#
+# **왜 열 줄이나 되나.** 이 기능의 첫 판(v1)은 정책 안에서 같은 표를 조인해
+# 무한 재귀를 냈다. 그런데 「정책이 서 있나」만 보는 확인은 **전부 초록**이었다 —
+# 재귀는 **조회하는 순간에만** 터지기 때문이다. 그래서 여기서는 반드시
+# **아이로 앉아서 세 표를 실제로 읽어본다** (#2·#3 이 그 구멍이었다).
+# psql 은 재귀 정책에서 ERROR 로 죽으므로, 결과가 숫자가 아니게 되어 잡힌다.
+echo
+echo "  == 내신 자료 수령 체크 (0178) =="
+
+RPARENT='a0000000-0000-0000-0000-000000000001'
+RKID='d0000000-0000-0000-0000-000000000004'
+RMINE='11110000-0000-0000-0000-000000000001'
+ROTHER='22220000-0000-0000-0000-000000000002'
+
+# 시험 하나 · 범위 하나 · 자료 넷 (준비끝 종이 / 준비끝 파일 / 준비중 / 남의 것)
+$Q -d chloe -c "delete from public._who; insert into public._who values ('c0000000-0000-0000-0000-000000000003');" >/dev/null 2>&1
+$Q -d chloe >/dev/null 2>&1 <<'SQL'
+insert into public.exam_periods (id, school, name, from_date, to_date) values
+  ('e1110000-0000-0000-0000-0000000000e1', '옥련여고', '1학기기말', current_date, current_date)
+on conflict (id) do nothing;
+insert into public.prep_scopes (id, exam_id, name) values
+  ('50000000-0000-0000-0000-000000000001', 'e1110000-0000-0000-0000-0000000000e1', '1과')
+on conflict (id) do nothing;
+-- 갈래는 두 겹이다 (0053) — 부모까지 펴지는지 봐야 한다
+insert into public.prep_material_types (id, name) values
+  ('70000000-0000-0000-0000-000000000000', '이그잼') on conflict (id) do nothing;
+insert into public.prep_material_types (id, parent_id, name) values
+  ('70000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000000', '변형문제')
+  on conflict (id) do nothing;
+insert into public.prep_materials
+  (id, scope_id, type_id, name, need_make, need_print, need_card, made_at, printed_at, give_kind) values
+  ('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','70000000-0000-0000-0000-000000000001','준비끝종이',true, true, false, now(), now(), 'paper'),
+  ('60000000-0000-0000-0000-000000000002','50000000-0000-0000-0000-000000000001',null,'준비끝파일',false,false,false, null,  null,  'file'),
+  ('60000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000001',null,'준비중',    true, true, false, now(), null,  'paper'),
+  ('60000000-0000-0000-0000-000000000004','50000000-0000-0000-0000-000000000001',null,'남의자료',  false,false,false, null,  null,  'paper')
+on conflict (id) do nothing;
+insert into public.prep_assignments (material_id, student_id) values
+  ('60000000-0000-0000-0000-000000000001','11110000-0000-0000-0000-000000000001'),
+  ('60000000-0000-0000-0000-000000000002','11110000-0000-0000-0000-000000000001'),
+  ('60000000-0000-0000-0000-000000000003','11110000-0000-0000-0000-000000000001'),
+  ('60000000-0000-0000-0000-000000000004','22220000-0000-0000-0000-000000000002')
+on conflict (material_id, student_id) do nothing;
+insert into public.prep_receipts (material_id, student_id, received_at) values
+  ('60000000-0000-0000-0000-000000000004','22220000-0000-0000-0000-000000000002', now())
+on conflict (material_id, student_id) do nothing;
+SQL
+
+# 아이로 앉는다
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$RKID');" >/dev/null 2>&1
+rq() { $Q -d chloe -tA <<SQL 2>&1
+set role authenticated;
+$1
+SQL
+}
+
+# #1 자료 이름 — 준비 끝난 둘만 (준비중·남의 것은 안 보인다)
+N=$(rq "select count(*) from public.prep_materials;")
+if [ "$N" = "2" ]; then
+  echo "  아이에게 준비 끝난 자료 둘만 보입니다"
+else
+  echo "  ❌ 아이가 보는 자료 수가 2 가 아닙니다 ($N)"; fail=1
+fi
+
+# #2·#3 종류·범위 — **여기가 v1 이 죽던 자리다.** 재귀면 숫자가 아니라 ERROR 가 온다
+T=$(rq "select count(*) from public.prep_material_types;")
+if [ "$T" = "2" ]; then
+  echo "  자료 종류가 부모 갈래까지 읽힙니다 (재귀 없음)"
+else
+  echo "  ❌ 자료 종류가 2 가 아닙니다 ($T) — 무한 재귀거나 정책 누락"; fail=1
+fi
+S=$(rq "select count(*) from public.prep_scopes;")
+if [ "$S" = "1" ]; then
+  echo "  자료 범위가 읽힙니다"
+else
+  echo "  ❌ 자료 범위가 1 이 아닙니다 ($S)"; fail=1
+fi
+
+# #4 남의 수령 기록
+O=$(rq "select count(*) from public.prep_receipts where student_id <> '$RMINE';")
+if [ "$O" = "0" ]; then
+  echo "  남의 수령 기록은 안 보입니다"
+else
+  echo "  ❌ 남의 수령 기록이 보입니다 ($O 줄)"; fail=1
+fi
+
+# #5 준비 안 끝난 자료
+W=$(rq "select count(*) from public.prep_materials where id = '60000000-0000-0000-0000-000000000003';")
+if [ "$W" = "0" ]; then
+  echo "  준비 중인 자료는 아이에게 안 뜹니다 (원장 확정 8/28)"
+else
+  echo "  ❌ 준비도 안 끝난 자료가 아이에게 보입니다"; fail=1
+fi
+
+# #6~#9 네 동사 — 되는 것은 되고, 안 되는 것은 막혀야 한다
+V=$(rq "
+do \$\$
+declare n int;
+begin
+  begin
+    insert into public.prep_receipts (material_id, student_id, received_at)
+      values ('60000000-0000-0000-0000-000000000001','$RMINE', now());
+  exception when others then raise notice 'LEAK 내 것도 못 누른다'; end;
+  begin
+    insert into public.prep_receipts (material_id, student_id, received_at)
+      values ('60000000-0000-0000-0000-000000000001','$ROTHER', now());
+    raise notice 'LEAK 남의 학생 이름으로 누를 수 있다';
+  exception when others then null; end;
+  begin
+    insert into public.prep_receipts (material_id, student_id, received_at)
+      values ('60000000-0000-0000-0000-000000000003','$RMINE', now());
+    raise notice 'LEAK 준비도 안 끝난 자료를 미리 누를 수 있다';
+  exception when others then null; end;
+  begin
+    insert into public.prep_receipts (material_id, student_id, received_at)
+      values ('60000000-0000-0000-0000-000000000004','$RMINE', now());
+    raise notice 'LEAK 배정도 안 된 자료를 누를 수 있다';
+  exception when others then null; end;
+  delete from public.prep_receipts where student_id = '$RMINE';
+  get diagnostics n = row_count;
+  if n > 0 then raise notice 'LEAK 학생이 자기 수령 기록을 지울 수 있다'; end if;
+  update public.prep_receipts set received_at = null where student_id = '$RMINE';
+  get diagnostics n = row_count;
+  if n = 0 then raise notice 'LEAK 되돌리기가 안 된다'; end if;
+  begin
+    update public.prep_receipts set material_id = '60000000-0000-0000-0000-000000000003'
+      where student_id = '$RMINE';
+    raise notice 'LEAK 준비 안 끝난 자료로 갈아끼울 수 있다';
+  exception when others then null; end;
+end \$\$;")
+if echo "$V" | grep -q LEAK; then
+  echo "  ❌ 수령 체크의 쓰기 규칙이 헐겁습니다:"
+  echo "$V" | grep LEAK | sed 's/^.*LEAK/      /'; fail=1
+else
+  echo "  내 것만 누를 수 있고, 되돌릴 수 있고, 지울 수는 없습니다"
+fi
+
+# #10 어머니 — 원장 결정 4 「학부모에게 안 보인다」
+$Q -d chloe -c "delete from public._who; insert into public._who values ('$RPARENT');" >/dev/null 2>&1
+PM=$(rq "select (select count(*) from public.prep_receipts)
+            + (select count(*) from public.prep_materials)
+            + (select count(*) from public.prep_scopes)
+            + (select count(*) from public.prep_material_types);")
+if [ "$PM" = "0" ]; then
+  echo "  어머니께는 내신 자료가 한 줄도 안 보입니다"
+else
+  echo "  ❌ 어머니께 내신 자료가 보입니다 (합 $PM 줄)"; fail=1
+fi
+
 exit $fail
