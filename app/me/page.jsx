@@ -16,6 +16,8 @@ import BreakCard from "./BreakCard";
 import MeTabs from "./MeTabs";
 import GoTab from "./GoTab";
 import ArrivalCard from "./ArrivalCard";
+import PrepReceiptCard from "./PrepReceiptCard";
+import { prepReady } from "@/lib/prepRoutine";
 import StateCard from "./StateCard";
 import { leftOf } from "@/lib/arrivalSteps";
 import { trend, avgSeconds } from "@/lib/trend";
@@ -192,6 +194,8 @@ export default async function MePage(props) {
     monthRepsQ, myWarnQ, myCutQ, pastQ, recQ, asgQ, seenQ, guidesQ,
     notes, layouts, scoresQ, specQ, stateQ, itemById,
     extraQ, exAbsQ, holMonthQ, learnedQ,
+    extraQ, exAbsQ, holMonthQ,
+    prepAsgQ, prepRecvQ, prepScopeQ, prepTypeQ,
   ] = await Promise.all([
     loadReports(supabase, sid, todayStr, 6),
     supabase
@@ -309,6 +313,12 @@ export default async function MePage(props) {
       .eq("student_id", sid)
       .eq("date", todayStr)
       .maybeSingle(),
+    // 받을 자료 (0178) — 자료 이름은 배정 id 가 나온 뒤에 따로 받는다
+    supabase.from("prep_assignments").select("material_id").eq("student_id", sid),
+    supabase.from("prep_receipts").select("material_id, received_at").eq("student_id", sid),
+    supabase.from("prep_scopes").select("id, name"),
+    // 자료 이름은 종류에서 온다 (0053 — 이름 칸이 비어 있을 수 있다)
+    supabase.from("prep_material_types").select("id, parent_id, name"),
   ]);
 
   // 내가 낸 숙제 (0044 전이면 빈 값 — 화면은 그대로 뜬다)
@@ -841,6 +851,46 @@ export default async function MePage(props) {
   }
 
   /**
+   * 받을 내신 자료 (0178) — **준비가 끝난 · 내게 배정된** 것만.
+   *
+   * 잠금(RLS)이 이미 그 둘로 좁혀 주지만, **원장님 미리보기에서는
+   * is_staff() 로 통과해 전 자료가 딸려 온다.** 그래서 반드시 배정된
+   * id 로 좁혀서 읽고, 준비 끝 판정도 여기서 한 번 더 건다 —
+   * 정상인 쪽은 멀쩡하고 미리보기만 이상해지는, 방향이 뒤집힌 버그를
+   * 안 만들려고. (영상도 같은 자리에서 같은 식으로 한 줄 쓴다)
+   */
+  let myPrep = [];
+  {
+    const mineIds = [...new Set((prepAsgQ?.data || []).map((a) => a.material_id))];
+    if (mineIds.length) {
+      const { data: mats } = await supabase
+        .from("prep_materials")
+        .select("id, scope_id, name, type_id, give_kind, need_make, need_print, need_card, made_at, printed_at, card_at")
+        .in("id", mineIds);
+      const gotOf = new Map((prepRecvQ?.data || []).map((r) => [r.material_id, r]));
+      const scopeName = new Map((prepScopeQ?.data || []).map((x) => [x.id, x.name]));
+      // 이름 만들기는 내신 대비 화면과 같은 모양 — 「이그잼 변형문제」
+      const typeById = new Map((prepTypeQ?.data || []).map((t) => [t.id, t]));
+      const typeName = (id) => {
+        const t = typeById.get(id);
+        if (!t) return "";
+        const p = t.parent_id ? typeById.get(t.parent_id) : null;
+        return p ? `${p.name} ${t.name}` : t.name;
+      };
+      myPrep = (mats || [])
+        .filter(prepReady)
+        .map((m) => ({
+          id: m.id,
+          name: typeName(m.type_id) || m.name || "내신 자료",
+          giveKind: m.give_kind === "file" ? "file" : "paper",
+          scopeName: scopeName.get(m.scope_id) || "",
+          receivedAt: gotOf.get(m.id)?.received_at || null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    }
+  }
+
+  /**
    * **학생용 달력** — 수업일 · 시험 · 결석 (원장님, 2026-08-06).
    *
    * 「이번 주에 나 언제 와요?」 를 카톡으로 물어보게 하지 말고 그냥 보이게 한다.
@@ -951,13 +1001,22 @@ export default async function MePage(props) {
    *         숨겨져 있으면 「적으러 가라」 는 배지·팝업 모두 막다른 문이 된다)
    *   일정  안 본 공지 수 — 이 기기(localStorage) 판정이라 MeTabs 가 센다
    */
-  const inBadge = atClass
+  /**
+   * **파일 자료는 학원에 없어도 센다** (0178). 비수업일 기본 탭은 숙제라,
+   * 등원 배지를 atClass 일 때만 켜면 **집에 있는 아이는 파일 자료가 준비돼도
+   * 영영 모른다** — 배지도 안 켜지고 탭도 안 열린다.
+   * 반대로 **종이 자료는 학원에 있을 때만** 센다. 집에서 못 누르는 것을
+   * 재촉하면 끌 수 없는 숫자가 된다 (lib/menuBadges 규칙 ②).
+   */
+  const prepLeftFile = myPrep.filter((r) => !r.receivedAt && r.giveKind === "file").length;
+  const prepLeftPaper = myPrep.filter((r) => !r.receivedAt && r.giveKind !== "file").length;
+  const inBadge = (atClass
     ? leftOf({
         phone: arrival.phone_at,
         attend: arrival.attend_at,
         homework: arrival.homework_at,
-      }).length + inClassLeft + stayLeft.length
-    : 0;
+      }).length + inClassLeft + stayLeft.length + prepLeftPaper
+    : 0) + prepLeftFile;
   const hwBadge = pendingHw.length + myVideos.filter((v) => !v.doneAt).length;
   const writeShown = blockOrder.includes("write");
   const growBadge = writeShown ? pendingScores.length : 0;
@@ -1107,6 +1166,15 @@ export default async function MePage(props) {
             atAcademy={atAcademy && isClassDay}
             readOnly={preview}
           />
+      </>
+    ),
+    prep: (
+      <>
+          {/* ── 받을 자료 (0178) — 준비가 끝난 · 내게 배정된 내신 자료.
+              **수업일 게이트를 안 건다** — 파일 자료는 비수업일에 받는 것이
+              정상이고, 종이 자료는 학원 와이파이 잠금이 이미 「학원에 있을
+              때」를 보장한다. */}
+          <PrepReceiptCard rows={myPrep} atAcademy={atAcademy} readOnly={preview} />
       </>
     ),
     inclass: (
