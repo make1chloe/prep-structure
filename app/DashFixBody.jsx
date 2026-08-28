@@ -6,9 +6,11 @@ import Link from "next/link";
 import BookProgress from "@/components/BookProgress";
 import StudentBooksProgress from "@/app/progress/StudentBooksProgress";
 import RoutinePick from "@/app/students/RoutinePick";
+import CheckBoard from "@/app/check/CheckBoard";
 import { useSheet } from "@/components/useSheet";
 import { studentBookPanel } from "@/app/progress/actions";
 import { addClassHoliday, keepClassOn, listClassChoices } from "@/app/schedule/actions";
+import { checkRowFor } from "@/app/check/oneActions";
 
 /**
  * **대시보드 칩 하나를 그 자리에서 끝내는 판** — 눌렀을 때만 내려온다
@@ -25,6 +27,7 @@ import { addClassHoliday, keepClassOn, listClassChoices } from "@/app/schedule/a
  * 이제 **원판 부품을 그대로 마운트한다.** 축약판을 따로 그리면 두 벌이
  * 되어 언젠가 갈라진다 — 그게 이 지적의 뿌리다 (원칙 1·2).
  *
+ *   숙제검사   app/check/CheckBoard               (원판 그대로, 그 아이 한 줄)
  *   진도      components/BookProgress            (원판 그대로, 그 교재만)
  *   다음교재   app/progress/StudentBooksProgress  (원판 그대로 통째)
  *   루틴      app/students/RoutinePick           (원판 그대로 — 원래도 이것)
@@ -39,6 +42,7 @@ export default function DashFixBody({ kind, item, onClose }) {
   if (kind === "routine") return <FixRoutine item={item} onClose={onClose} />;
   if (kind === "nextbook") return <FixNextBook item={item} onClose={onClose} />;
   if (kind === "holiday") return <FixHoliday item={item} onClose={onClose} />;
+  if (kind === "check") return <FixCheck item={item} onClose={onClose} />;
   return null;
 }
 
@@ -241,6 +245,57 @@ function FixHoliday({ item, onClose }) {
       <div className="row" style={{ marginTop: 8 }}>
         <Link className="btn btn-ghost btn-sm" href="/schedule">
           잡아둔 휴강 보기 · 취소하기 →
+        </Link>
+      </div>
+    </Pop>
+  );
+}
+
+/**
+ * ⑤ **검사 안 한 숙제** (원장님 2026-08-28 — 「첫 번째 꺼 왜 모달 안 붙어?」).
+ *
+ * 앞서 이 칩만 화면 이동으로 뒀다 — 「판이 커서 팝오버가 안 맞는다」는
+ * 판정이었는데 원장님이 받지 않으셨다. **원판(CheckBoard)을 그대로**
+ * 그 아이 한 줄만 넣어 띄운다. ○△✕ · 검사 메모 · 낸 것(사진·녹음·
+ * 체크리스트) 열어보기 · 안 낸 것 미제출로 · 직접검사까지 원판과 같다.
+ *
+ * **다음 배정은 여기 없다 — 원판에도 없다.** 검사 화면(/check)에서도
+ * 다음 배정은 CheckBoard 가 아니라 옆의 「미리 내기」(AheadBoard)가 맡는
+ * 다른 판이다. 한 아이의 다음 숙제까지 한 자리에서 하시려면 오늘 수업
+ * 판이라, 그 길만 한 줄로 둔다.
+ */
+function FixCheck({ item, onClose }) {
+  const router = useRouter();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    checkRowFor(item.studentId, item.date).then((r) => { if (live) setData(r); });
+    return () => { live = false; };
+  }, [item.studentId, item.date]);
+
+  return (
+    <Pop
+      title={`${item.name} · ${item.date} 숙제 검사`}
+      sub={`${item.days}일째 검사가 안 됐어요 — 아이 화면에는 아직 이 숙제가 떠 있습니다.`}
+      /**
+       * 닫을 때 한 번 새로 그린다 — 검사 저장(checkOne)은 /check·/today·/me
+       * 만 되살리고 대시보드는 안 건드린다. 그래서 닫아도 「19명」이 그대로
+       * 남아 있으면 원장님은 저장이 안 된 줄 아신다.
+       */
+      onClose={() => { router.refresh(); onClose(); }}
+      wide
+    >
+      {data === null ? (
+        <Waiting what="검사할 것" />
+      ) : !data.row ? (
+        <p className="hint" style={{ margin: 0 }}>이 학생을 찾지 못했어요 — 대시보드를 새로고침해 주세요.</p>
+      ) : (
+        <CheckBoard date={item.date} rows={[data.row]} items={data.items} classes={[]} />
+      )}
+      <div className="row" style={{ marginTop: 8 }}>
+        <Link className="btn btn-ghost btn-sm" href={`/today?d=${item.date}&open=${item.studentId}`}>
+          다음 숙제까지 배정하기 (오늘 수업 판) →
         </Link>
       </div>
     </Pop>
