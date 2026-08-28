@@ -372,6 +372,30 @@ export async function listWordTestBooks(studentId) {
   };
 }
 
+/**
+ * **아직 안 준 교재만** — 다음 교재를 고를 때 보여줄 목록
+ * (원장님 2026-08-28 — 「곧 끝나는 교재가 있으면 다음 교재 배정이 필요한
+ *  상황. 그걸 위한 장치가 연결되어야 함」 → 대시보드 팝오버가 부른다).
+ *
+ * 새 판단은 없다 — 「지금 쓰는 중인가」 는 inUseOn 한 곳, 「이미 있으면 못
+ * 넣는다」 는 addStudentBookDated 한 곳 그대로다. 여기서는 **이미 쓰는 것을
+ * 목록에서 빼서** 헛클릭을 없앨 뿐이다.
+ */
+export async function nextBookChoices(studentId) {
+  if (!studentId) return { books: [] };
+  const supabase = await createClient();
+  const today = todaySeoul();
+  const [stQ, bQ] = await Promise.all([
+    supabase.from("student_textbooks").select("textbook_id, status, assigned_on, ended_on").eq("student_id", studentId),
+    supabase.from("textbooks").select("id, name, area, status").order("name", { ascending: true }),
+  ]);
+  const using = new Set((stQ.data || []).filter((r) => inUseOn(r, today)).map((r) => r.textbook_id));
+  const books = (bQ.data || [])
+    .filter((b) => (!b.status || b.status === "active") && !using.has(b.id))
+    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
+  return { books };
+}
+
 export async function endStudentBooks(studentId, textbookIds) {
   const ids = [...new Set((textbookIds || []).filter(Boolean))];
   if (!studentId || ids.length === 0) return { error: "교재를 골라주세요." };

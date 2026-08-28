@@ -1654,5 +1654,26 @@ html[data-sheet="open"] .sheettop {
 /* 아이폰 강제 확대 방지 — qmemo 와 같은 이유 */
 .sheetpop textarea, .sheetpop input { font-size: 16px; }
 
+/* 대시보드 「그 자리에서 해결」 칩 — 링크가 아니라 버튼이다 (app/DashFix.jsx).
+   .tag 는 span·a 를 전제로 만든 것이라 button 기본 옷을 벗겨준다 */
+/* ⚠️ font-size 는 건드리지 않는다 — .tag 의 12px 이 살아야 한다
+   (`font: inherit` 로 적으면 그 12px 이 통째로 날아간다) */
+.dashfix-chip {
+  border: 0; font-family: inherit; cursor: pointer;
+  min-height: 32px;                     /* 폰 엄지 — 판 신판 칩(36)보다 한 뼘 작게 */
+  -webkit-appearance: none; appearance: none;
+}
+/* 판이 내려오기를 기다리는 자리. **이름이 .sheetpop 이면 안 된다** —
+   빈 자리를 판으로 착각하는 검사가 있다 (.stuPanel 사고 전례) */
+.dashfix-wait {
+  position: fixed; left: 8px; right: 8px; width: auto;
+  top: calc(var(--topbar-full, 96px) + 6px); z-index: 59;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+  padding: 10px 12px;
+}
+@media (min-width: 701px) {
+  .dashfix-wait { left: auto; right: 24px; width: min(420px, 90vw); }
+}
+
 /* 줄 신판의 칩 — 폰 엄지 기준 36px (판세분화 v7 §1) */
 .stuChip { min-height: 36px; }

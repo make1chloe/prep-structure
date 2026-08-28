@@ -12,6 +12,7 @@ import UnsentBox from "./UnsentBox";
 import WarningInbox from "./WarningInbox";
 import InquiryInbox from "./InquiryInbox";
 import PushSeen from "./PushSeen";
+import DashFix from "./DashFix";
 import BreakWatch from "./BreakWatch";
 import { loadDashboard } from "@/lib/dashboard";
 import { won } from "@/lib/tuition";
@@ -197,11 +198,19 @@ export default async function Home() {
             {(d.backlog || []).length > 0 && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">등원 밀림 <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>다음 수업에 계속이 쌓인 학생 · 숫자는 밀린 항목</span></h2>
+                {/* 눌리지 않는 글자였다 — 밀린 것을 푸는 자리는 오늘 수업의
+                    그 아이 판이니 **그 아이가 펴진 채로** 보낸다 (원장님 8/28) */}
                 <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.backlog.slice(0, 6).map((b) => (
-                    <span className="tag tag-amber" key={b.name} title={`밀린 항목 ${b.count}개`}>
+                    <Link
+                      className="tag tag-amber"
+                      key={b.id || b.name}
+                      href={b.id ? `/today?open=${b.id}` : "/today"}
+                      style={{ textDecoration: "none" }}
+                      title={`밀린 항목 ${b.count}개 — 눌러서 그 학생 판 열기`}
+                    >
                       <b>{b.name}</b> {b.count}
-                    </span>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -210,8 +219,10 @@ export default async function Home() {
               <div className="card sect sect-warn">
                 <h2 className="secthead">숙제가 밀리는 학생 <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>2주</span></h2>
                 <div className="row" style={{ gap: 4 }}>
+                  {/* 그 아이가 펴진 채로 — 「가도 뭘 할지 모른다」 를 없앤다 */}
                   {d.watchList.map((w) => (
-                    <Link className="tag tag-muted" key={w.id} href="/today">
+                    <Link className="tag tag-muted" key={w.id} href={`/today?open=${w.id}`}
+                      title="눌러서 그 학생 판 열기">
                       {w.name} {w.count}건
                     </Link>
                   ))}
@@ -334,14 +345,18 @@ export default async function Home() {
                   아이 화면에는 아직 이 숙제가 떠 있어요 — 검사해서 저장하면 넘어갑니다.
                   숫자는 며칠째인지입니다.
                 </p>
+                {/* **그 날짜 · 그 아이가 펴진 채로** 열려야 한다 — 가서 뭘
+                    해야 할지 모르는 것이 문제였다 (원장님 8/28). 숙제 검사는
+                    판이 커서 팝오버로는 안 된다 (한 아이가 항목 여럿 · ○△✕ ·
+                    메모 · 다음 배정까지 한 판) — 대신 짚어서 보낸다 */}
                 <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.staleHomework.slice(0, 8).map((h) => (
                     <Link
                       className="tag tag-amber"
                       key={`${h.name}|${h.date}`}
-                      href={`/today?d=${h.date}`}
+                      href={`/today?d=${h.date}${h.id ? `&open=${h.id}` : ""}`}
                       style={{ textDecoration: "none" }}
-                      title={`${h.date} 배정 · ${h.count}개 · ${h.days}일째`}
+                      title={`${h.date} 배정 · ${h.count}개 · ${h.days}일째 — 눌러서 그 날 그 학생 판 열기`}
                     >
                       <b>{h.name}</b> {h.days}
                     </Link>
@@ -361,24 +376,26 @@ export default async function Home() {
                 <h2 className="secthead">
                   루틴 안 정한 교재 <span className="tag tag-amber">{d.routineUnset.length}건</span>
                 </h2>
-                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                  {d.routineUnset.slice(0, 8).map((p) => (
-                    <Link
-                      className="tag tag-amber"
-                      key={p.id}
-                      href={`/students?s=${p.studentId}`}
-                      style={{ textDecoration: "none" }}
-                      title={`${p.area ? "[" + p.area + "] " : ""}${p.book}${p.since ? ` · ${p.since} 배정` : ""}`}
-                    >
-                      <b>{p.name}</b> {p.book}
-                    </Link>
-                  ))}
-                  {d.routineUnset.length > 8 && (
-                    <Link className="tag tag-muted" href="/students">
-                      외 {d.routineUnset.length - 8}건
-                    </Link>
-                  )}
-                </div>
+                {/* 누르면 그 학생 그 교재의 루틴 고르기가 그 자리에서 뜬다 */}
+                <DashFix
+                  kind="routine"
+                  items={d.routineUnset.slice(0, 8).map((p) => ({
+                    key: p.id,
+                    studentId: p.studentId,
+                    textbookId: p.textbookId,
+                    name: p.name,
+                    book: p.book,
+                    sub: p.book,
+                    title: `${p.area ? "[" + p.area + "] " : ""}${p.book}${p.since ? ` · ${p.since} 배정` : ""} — 눌러서 루틴 정하기`,
+                  }))}
+                  tail={
+                    d.routineUnset.length > 8 ? (
+                      <Link className="tag tag-muted" href="/students">
+                        외 {d.routineUnset.length - 8}건
+                      </Link>
+                    ) : null
+                  }
+                />
               </div>
             )}
             {(d.progressIdle || []).length > 0 && (
@@ -387,25 +404,29 @@ export default async function Home() {
                   진도 시작 안 한 교재 <span className="tag tag-amber">{d.progressIdle.length}건</span>
                 </h2>
                 {/* 이름 + 교재를 칩 하나로 가로로 흘린다 — 한 줄에 하나씩
-                    세우면 여덟 줄이 되어 옆 칸이 빈다 (원장님 8/28) */}
-                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                  {d.progressIdle.slice(0, 8).map((p) => (
-                    <Link
-                      className="tag tag-amber"
-                      key={`${p.name}|${p.book}`}
-                      href="/progress"
-                      style={{ textDecoration: "none" }}
-                      title={p.since ? `${p.since} 배정` : undefined}
-                    >
-                      <b>{p.name}</b> {p.book}
-                    </Link>
-                  ))}
-                  {d.progressIdle.length > 8 && (
-                    <Link className="hint" href="/progress">
-                      외 {d.progressIdle.length - 8}건 더 보기
-                    </Link>
-                  )}
-                </div>
+                    세우면 여덟 줄이 되어 옆 칸이 빈다 (원장님 8/28).
+                    **누르면 그 자리에서 진도를 찍는다** — 「박윤찬
+                    그래머인사이드가 진도 시작 안 했으면, 박윤찬
+                    그래머인사이드 진도가 새로 떠야지」 (원장님 8/28) */}
+                <DashFix
+                  kind="progress"
+                  items={d.progressIdle.slice(0, 8).map((p) => ({
+                    key: `${p.studentId}|${p.textbookId}`,
+                    studentId: p.studentId,
+                    textbookId: p.textbookId,
+                    name: p.name,
+                    book: p.book,
+                    sub: p.book,
+                    title: p.since ? `${p.since} 배정 — 눌러서 진도 찍기` : "눌러서 진도 찍기",
+                  }))}
+                  tail={
+                    d.progressIdle.length > 8 ? (
+                      <Link className="hint" href="/progress">
+                        외 {d.progressIdle.length - 8}건 더 보기
+                      </Link>
+                    ) : null
+                  }
+                />
               </div>
             )}
           </div>
@@ -559,21 +580,31 @@ export default async function Home() {
                       다음 교재를 정해 주세요
                     </span>
                   </h2>
-                  {/* 줄마다 「끝」 을 되풀이하지 않는다 — 남은 단원만 (원장님 8/28) */}
-                  <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                    {d.bookEnding.slice(0, 12).map((b) => (
-                      <Link className="tag tag-lav" key={b.id} href="/progress"
-                        title={b.left === 0 ? "다 끝냈습니다" : `${b.left}단원 남음`}>
-                        <b>{b.name}</b> {b.book}
-                        {b.left > 0 && ` ${b.left}`}
-                      </Link>
-                    ))}
-                    {d.bookEnding.length > 12 && (
-                      <Link className="tag tag-muted" href="/progress">
-                        외 {d.bookEnding.length - 12}건
-                      </Link>
-                    )}
-                  </div>
+                  {/* 줄마다 「끝」 을 되풀이하지 않는다 — 남은 단원만 (원장님 8/28).
+                      **누르면 다음 교재를 그 자리에서 배정한다** — 「곧 끝나는
+                      교재가 있으면 다음 교재 배정이 필요한 상황. 그걸 위한
+                      장치가 연결되어야 함」 (원장님 8/28) */}
+                  <DashFix
+                    kind="nextbook"
+                    tone="tag-lav"
+                    items={d.bookEnding.slice(0, 12).map((b) => ({
+                      key: b.id,
+                      studentId: b.studentId,
+                      textbookId: b.textbookId,
+                      name: b.name,
+                      book: b.book,
+                      left: b.left,
+                      sub: `${b.book}${b.left > 0 ? ` ${b.left}` : ""}`,
+                      title: `${b.left === 0 ? "다 끝냈습니다" : `${b.left}단원 남음`} — 눌러서 다음 교재 배정`,
+                    }))}
+                    tail={
+                      d.bookEnding.length > 12 ? (
+                        <Link className="tag tag-muted" href="/progress">
+                          외 {d.bookEnding.length - 12}건
+                        </Link>
+                      ) : null
+                    }
+                  />
                 </div>
               )}
             </div>
@@ -638,24 +669,23 @@ export default async function Home() {
             {d.holidayNotes.length > 0 && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">공휴일 — 쉴지 정해주세요</h2>
-                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                  {d.holidayNotes.map((h) => (
-                    <span
-                      key={h.date}
-                      title={h.why}
-                      className={`tag ${
-                        h.kind === "bridge" ? "tag-lav"
-                        : h.kind === "substitute" ? "tag-amber"
-                        : "tag-red"
-                      }`}
-                    >
-                      {dayLabel(h.date)} {h.name}
-                    </span>
-                  ))}
-                </div>
-                <Link className="btn btn-ghost btn-sm" href="/schedule" style={{ marginTop: 6 }}>
-                  휴강으로 지정하기
-                </Link>
+                {/* 「휴강으로 지정하기」 로 스케줄 화면에 가서 그 날을 다시
+                    찾을 일이 아니다 — 누른 그 날의 쉼/수업을 그 자리에서
+                    정한다 (원장님 8/28 「바로 그 자리에서 해결하게」) */}
+                <DashFix
+                  kind="holiday"
+                  items={d.holidayNotes.map((h) => ({
+                    key: h.date,
+                    date: h.date,
+                    name: `${dayLabel(h.date)} ${h.name}`,
+                    raw: h.name,          // 휴강 줄에 적힐 이름 (날짜 앞머리 없이)
+                    title: h.why,
+                    tone:
+                      h.kind === "bridge" ? "tag-lav"
+                      : h.kind === "substitute" ? "tag-amber"
+                      : "tag-red",
+                  }))}
+                />
               </div>
             )}
             {/* 이번 주 생일 (원장님, 2026-08-15 — 「생일 나한테 알려주고」) */}
