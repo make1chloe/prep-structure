@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import RoutineEditor from "./RoutineEditor";
+// 편집기는 **영역을 고른 뒤에야** 필요하다. 여기서 바로 import 하면
+// 이 단추(「영역 진도루틴」)가 교재 화면 머리에 늘 떠 있으니 428줄이
+// 첫 화면마다 따라 내려온다 — 그래서 BookPanels 의 미루는 것을 쓴다.
+import { RoutineEditorLazy as RoutineEditor } from "./BookPanels";
 import { AREA_ORDER } from "@/lib/bookSort";
 
 /**

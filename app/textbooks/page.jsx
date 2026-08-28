@@ -4,15 +4,22 @@ import Help from "@/components/Help";
 import { addUnit } from "./actions";
 import TextbookUpload from "./TextbookUpload";
 import UnitUpload from "./UnitUpload";
-import GenerateUnits from "./GenerateUnits";
 import AddTextbookForm from "./AddTextbookForm";
 import TextbookList from "./TextbookList";
-import UnitList from "./UnitList";
-import WordRangeBox from "./WordRangeBox";
-import RoutineEditor from "./RoutineEditor";
 import DupBooks from "./DupBooks";
-import BookStudents from "./BookStudents";
-import BookProgressBoard from "./BookProgressBoard";
+/**
+ * 고른 교재의 판 여섯은 **그 탭을 열 때** 내려받는다 (성능수리 5차).
+ * 왜 이렇게 하는지는 BookPanels.jsx 에 적어두었다 — 여기서 바로 import 하면
+ * 목록만 보는 첫 화면에도 판이 전부 따라 내려온다.
+ */
+import {
+  UnitListLazy,
+  GenerateUnitsLazy,
+  WordRangeBoxLazy,
+  RoutineEditorLazy,
+  BookProgressBoardLazy,
+  BookStudentsLazy,
+} from "./BookPanels";
 import { flattenTree } from "@/lib/unitTree";
 import { activityList } from "@/lib/activities";
 import { dupGroups, pickKeeper } from "@/lib/bookName";
@@ -284,7 +291,7 @@ export default async function TextbooksPage(props) {
               byBook={byBook}
               routinePanel={
                 selected ? (
-                  <RoutineEditor
+                  <RoutineEditorLazy
                     key={selectedId}
                     textbookId={selectedId}
                     items={hwItems}
@@ -295,7 +302,7 @@ export default async function TextbooksPage(props) {
               }
               progressPanel={
                 selected ? (
-                  <BookProgressBoard
+                  <BookProgressBoardLazy
                     key={selectedId}
                     textbookId={selectedId}
                     initialRows={progressInit.rows || []}
@@ -304,7 +311,7 @@ export default async function TextbooksPage(props) {
               }
               studentsPanel={
                 selected ? (
-                  <BookStudents
+                  <BookStudentsLazy
                     key={selectedId}
                     textbookId={selectedId}
                     bookName={selected.name}
@@ -317,7 +324,7 @@ export default async function TextbooksPage(props) {
                 selected ? (
               <>
                 <div className="row" style={{ margin: "0 0 8px" }}>
-                  <GenerateUnits
+                  <GenerateUnitsLazy
                     textbookId={selectedId}
                     parents={unitOptions}
                     totalPages={selected.total_pages}
@@ -328,7 +335,7 @@ export default async function TextbooksPage(props) {
                 </p>
 
                 {/* 단어 교재만 — 단어시험 개수의 근거가 되는 숫자다 */}
-                {selected.area === "단어" && <WordRangeBox book={selected} />}
+                {selected.area === "단어" && <WordRangeBoxLazy book={selected} />}
 
                 <form action={addUnit} className="row" style={{ alignItems: "flex-end", gap: 8, marginBottom: 12 }}>
                   <input type="hidden" name="textbook_id" value={selected.id} />
@@ -376,7 +383,7 @@ export default async function TextbooksPage(props) {
                   </button>
                 </form>
 
-                <UnitList
+                <UnitListLazy
                   units={units}
                   textbookId={selected.id}
                   textbooks={textbooks || []}
