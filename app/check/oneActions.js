@@ -82,7 +82,14 @@ export async function checkRowFor(studentId, date) {
   const { data: prevItems } = prevIds.length
     ? await supabase
         .from("daily_report_items")
-        .select("daily_report_id, homework_item_id, status, note, check_note, student_done_at")
+        /**
+         * **`note` 는 없는 칸이다** (2026-08-28 실사고). daily_report_items 에
+         * 있는 것은 `range_note`(0008)·`check_note`(0062) 둘뿐이다. 없는 칸을
+         * 고르면 PostgREST 가 42703 을 돌려주고, 이 자리는 오류를 안 보고
+         * `[]` 로 넘어가서 **대시보드 「검사 안 한 숙제」 팝오버가 항목을
+         * 하나도 못 봤다** — 오류도 없이 빈 판이 떴다.
+         */
+        .select("daily_report_id, homework_item_id, status, check_note, student_done_at")
         .in("daily_report_id", prevIds)
     : { data: [] };
 
