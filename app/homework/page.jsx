@@ -6,5 +6,5 @@ import { redirect } from "next/navigation";
  * 옛 주소·즐겨찾기·홈 화면 바로가기가 안 깨지게 여기서 넘긴다 (app/todo 관례).
  */
 export default function HomeworkPage() {
-  redirect("/textbooks?view=items");
+  redirect("/textbooks/items");
 }

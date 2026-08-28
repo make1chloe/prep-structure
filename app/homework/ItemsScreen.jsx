@@ -9,7 +9,7 @@ import Tabs from "@/app/textbooks/Tabs";
 
 /**
  * **학습 항목 판** — 옛 /homework 화면 그대로, 「교재」 화면의 탭으로 이사
- * (원장님 확정, 2026-08-27). /textbooks?view=items 가 이걸 그린다.
+ * (원장님 확정, 2026-08-27). /textbooks/items 가 이걸 그린다.
  * 판단·조회는 하나도 안 바꿨다 — 화면이 사는 주소만 옮겼다.
  * (actions · HomeworkList 들은 이 폴더에 그대로 산다 — app/todo 와 같은 관례)
  */

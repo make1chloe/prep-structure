@@ -22,8 +22,8 @@ import { listBookProgress } from "@/app/progress/actions";
 import { fetchAll } from "@/lib/fetchAll";
 import RoutineUpload from "./RoutineUpload";
 import AreaRoutines from "./AreaRoutines";
+import { redirect } from "next/navigation";
 import Tabs from "./Tabs";
-import ItemsScreen from "@/app/homework/ItemsScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +32,14 @@ export default async function TextbooksPage(props) {
 
   /**
    * **학습 항목 탭** (원장님 확정, 2026-08-27) — 옛 /homework 화면이 통째로
-   * 여기 탭으로 이사했다. 탭은 /tasks 의 ?view= 관례다. 판은 두 벌이 아니라
-   * 서로 다른 것이라, 항목 판일 때는 교재 조회를 아예 안 한다.
+   * 여기 탭으로 이사했다.
+   *
+   * 판은 이제 `/textbooks/items` 에 산다 (성능수리 4차). 한 화면 안에서
+   * `?view=` 로만 갈라놓으면 **두 판이 한 꾸러미로 묶여서**, 교재 판만 열어도
+   * 학습항목 판(916줄)이 같이 내려왔다. 옛 주소는 여기서 넘긴다 —
+   * 즐겨찾기·뒤로가기가 안 깨지게 (app/todo 관례).
    */
-  if (searchParams?.view === "items") return <ItemsScreen />;
+  if (searchParams?.view === "items") redirect("/textbooks/items");
 
   const supabase = await createClient();
   // 로그인 확인은 쿠키로 — getUser 는 요청마다 인증 서버 왕복이다 (2026-08-14)
