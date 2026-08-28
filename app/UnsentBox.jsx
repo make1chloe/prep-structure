@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import { skipSend, dismissSendFails } from "@/app/report/actions";
 import { dayLabel } from "@/lib/day";
+import Mark from "@/components/Mark";
+import { sentMark } from "@/lib/reportMark";
 
 /**
  * 안 나간 문자 — 골라서 한 번에 치운다.
@@ -104,7 +106,8 @@ export default function UnsentBox({ fails = [], past = [] }) {
               </>
             ) : (
               <>
-                <span className="tag tag-amber">미발송</span>
+                {/* 「안 보냄」 은 발송 화면과 같은 아이콘 (lib/reportMark 한 벌) */}
+                <Mark mark={sentMark(null, {})} />
                 <span className="hint" style={{ minWidth: 62 }}>{dayLabel(r.date)}</span>
                 <b style={{ fontSize: 14 }}>{r.name}</b>
                 <span className="hint">써두고 안 보냄</span>

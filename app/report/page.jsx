@@ -186,9 +186,9 @@ export default async function ReportPage(props) {
   // 리포트 본문이 실제로 쓰이는 탭에서만 조립한다 (2026-08-21) —
   // 기본 탭 「보낼 것」 에서는 통째로 버려지는데도 매번 만들고 있었다
   const needRows = ["report", "hw", "late", "resend"].includes(tab);
-  const { rows, sendReady, resendReady } = needRows
+  const { rows, sendReady, resendReady, readReady } = needRows
     ? await loadReportRows(supabase, date, settings.academy.name, settings.message)
-    : { rows: [], sendReady: true, resendReady: true };
+    : { rows: [], sendReady: true, resendReady: true, readReady: true };
 
   // 탭마다 부제가 다르다 — 지금 무엇을 하는 화면인지 위에서 바로 읽히게
   const SUB = {
@@ -224,6 +224,7 @@ export default async function ReportPage(props) {
           chans={chans}
           sendReady={sendReady}
           resendReady={resendReady}
+          readReady={readReady}
         />
       </main>
     </>

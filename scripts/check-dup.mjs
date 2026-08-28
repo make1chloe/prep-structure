@@ -71,6 +71,12 @@ const ONE_PLACE = [
   // 나가기도 안 나가기도 한다 (원장님 「Day 20 을 또 냈다」의 뿌리)
   ["applyCheckProgress", "lib/checkProgress.js", "검사 결과를 진도로 옮기는 규칙 (○ 완료 · △ 하는 중 · ✕ 그날 것만 되돌리기)"],
   ["checkMany", "lib/checkWrite.js", "검사 결과를 쓰는 단 한 문 (0163)"],
+  ["sentMark", "lib/reportMark.js", "보냈나 — 아이콘·말·색 (발송·다시 보내기·월간·하원 안내 공통)"],
+  ["readMark", "lib/reportMark.js", "학부모가 열어봤나 — 아이콘·말·색 (0180)"],
+  ["markTime", "lib/reportMark.js", "보낸/열어본 시각 표기 (M/D HH:MM)"],
+  ["learnedEnough", "lib/learned.js", "「오늘 배운 것」 을 적은 것으로 볼까 (하원 길목 잣대)"],
+  ["keywordHit", "lib/pickSearch.js", "골라 담는 판의 글자 거르기 (한두 글자는 앞머리로)"],
+  ["keywordFilter", "lib/pickSearch.js", "여러 칸 중 하나라도 걸리면 남긴다"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

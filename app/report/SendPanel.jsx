@@ -59,7 +59,7 @@ const ResendBoard = dynamic(() => import("../resend/ResendBoard"), {
  * 어느 탭에 어느 판인지 **고르는 자리는 한 곳**이다 (전에는 page.jsx 의
  * 삼항 사다리 한 벌). 판마다 필요한 것이 달라 자료는 통째로 받아 나눠 준다.
  */
-export default function SendPanel({ tab, todoData, testStudents, testTemplates, settings, date, rows, chans, sendReady, resendReady }) {
+export default function SendPanel({ tab, todoData, testStudents, testTemplates, settings, date, rows, chans, sendReady, resendReady, readReady }) {
   if (tab === "todo") return <SendTodo {...todoData} />;
   if (tab === "test")
     return (
@@ -75,13 +75,13 @@ export default function SendPanel({ tab, todoData, testStudents, testTemplates, 
   if (tab === "hw")
     return (
       <ResendBoard
-        date={date} rows={rows} ready={resendReady}
+        date={date} rows={rows} ready={resendReady} readReady={readReady}
         mode={settings.mode} chans={chans} only="homework"
       />
     );
   if (tab === "late")
     return <LateSender date={date} rows={rows} mode={settings.mode} chans={chans} />;
   if (tab === "resend")
-    return <ResendBoard date={date} rows={rows} ready={resendReady} mode={settings.mode} chans={chans} />;
-  return <ReportSender date={date} rows={rows} sendReady={sendReady} mode={settings.mode} chans={chans} />;
+    return <ResendBoard date={date} rows={rows} ready={resendReady} readReady={readReady} mode={settings.mode} chans={chans} />;
+  return <ReportSender date={date} rows={rows} sendReady={sendReady} readReady={readReady} mode={settings.mode} chans={chans} />;
 }

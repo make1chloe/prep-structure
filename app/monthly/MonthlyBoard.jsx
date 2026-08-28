@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { saveMonthly, sendMonthly, unsendMonthly } from "./actions";
 import { monthlyBriefing } from "@/app/ai/actions";
 import { addMonths } from "@/lib/day";
+import Mark from "@/components/Mark";
+import { sentMark } from "@/lib/reportMark";
 
 /**
  * 월간리포트.
@@ -307,7 +309,7 @@ export default function MonthlyBoard({ ym, rows = [], ready = true, mode = "copy
               <span className="stuEnd">
               {r.sentAt ? (
                 <>
-                  <span className="tag tag-mint">보냄</span>
+                  <Mark mark={sentMark(r.sentAt, { what: "월간리포트" })} />
                   <button
                     className="btn btn-ghost btn-sm"
                     disabled={pending}

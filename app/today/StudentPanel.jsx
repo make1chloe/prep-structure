@@ -20,11 +20,14 @@ import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
 import { addStay } from "./stayActions";
 import { CAT_CLS, toolBadge } from "@/app/homework/categories";
+import { keywordFilter } from "@/lib/pickSearch";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
 import { nextRoutine, advanceRoutine, saveStudentDefaults } from "./routineActions";
-import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions";
+import { setArrival, setArrivalFor, setWordWhenDefault, setItemDoneFor } from "./arrivalActions";
+import { setLearnedFor } from "@/app/me/learnedActions";
+import { learnedEnough } from "@/lib/learned";
 import { STAY_LABEL } from "@/lib/reportText";
 import { isMemo, inHomework } from "@/lib/notices";
 import { lateReasons } from "@/lib/lateNotice";
@@ -542,6 +545,9 @@ export default function StudentPanel({
   const setInClass = (v) => setInClassList([...new Set(v)]);   // 중복만 걸러 순서 유지
   const [carryNext, setCarryNext] = useState(() => new Set(row.inClassCarry || []));
   const [openInClass, setOpenInClass] = useState(false);
+  // 등원 학습 항목 거르기 (원장님 2026-08-28 — 「등원학습 추가할 때 검색
+  // 가능하게 해줘」). 견주는 규칙은 lib/pickSearch 한 벌 (단원 고르기와 같다)
+  const [inClassQ, setInClassQ] = useState("");
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
   // 이 학생 교재의 루틴이 쓰는 항목 (칩을 좁히는 데 쓴다)
   const [myItems, setMyItems] = useState(null);
@@ -653,6 +659,15 @@ export default function StudentPanel({
    * 저장은 뒤에서, 목록 정렬은 다음 자연 새로고침 때 따라온다.
    */
   const [arr, setArr] = useState({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
+  // 오늘 배운 것 (0181) — 아이가 적은 원본, 원장님이 대신 적을 수도 있다
+  const [learned, setLearned] = useState(row.learned || "");
+  /**
+   * **등원 학습 완료를 선생님이 대신 찍기** (원장님 2026-08-28).
+   * 이 판은 일부러 다시 안 그리므로(위 「화면도 안 갈아엎는다」) 누른 것을
+   * 여기서 쥔다 — 서버 값 위에 덮어 그리고, 실패하면 되돌린다
+   * (등원 체크 대행 setArr 과 같은 모양).
+   */
+  const [doneLocal, setDoneLocal] = useState(() => new Map());   // itemId → ISO | null
   useEffect(() => {
     setArr({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
   }, [row.phoneAt, row.attendAt, row.homeworkAt]);
@@ -1722,9 +1737,9 @@ export default function StudentPanel({
           <div className="stack" style={{ gap: 3 }}>
             {inClass.map((iid, idx) => {
               const sec = (row.secOf || {})[iid] || 0;
-              const doneAt = (row.doneRows || []).find(
-                (d) => d.homework_item_id === iid
-              )?.student_done_at;
+              const doneAt = doneLocal.has(iid)
+                ? doneLocal.get(iid)
+                : (row.doneRows || []).find((d) => d.homework_item_id === iid)?.student_done_at;
               const carried = (row.carriedIn || []).includes(iid);
               const willCarry = carryNext.has(iid);
               return (
@@ -1760,6 +1775,39 @@ export default function StudentPanel({
                       뺌」 이 화면 밖으로 밀려 가로 스크롤을 만든다
                       (원장님 2026-08-27 새 판 실물 판정) */}
                   <span className="stuEnd" style={{ flexBasis: "100%", justifyContent: "flex-start", whiteSpace: "normal", marginLeft: 0 }}>
+                  {/**
+                    * **완료를 선생님이 대신 찍는다** (원장님 2026-08-28 —
+                    * 「학생이 안 했거나 잘못하면 내가 해야 하는데」).
+                    * 등원 체크 대행(위 arriveZone)과 **같은 모양** — 같은
+                    * 칸에 쓰고, 다시 누르면 취소된다. 찍으면 아이 화면에서는
+                    * 그 항목이 「한 것」 으로 내려가고 다음 항목이 열린다.
+                    */}
+                  <button
+                    className={`btn btn-sm ${doneAt ? "btn-on" : "btn-ghost"}`}
+                    disabled={pending}
+                    style={{ fontSize: 12.5, marginRight: 8 }}
+                    title={doneAt ? "다시 누르면 완료가 취소돼요" : "학생 대신 완료로 찍기"}
+                    onClick={() => {
+                      const on = !doneAt;
+                      const prevHas = doneLocal.has(iid);
+                      const prev = doneLocal.get(iid);
+                      // 먼저 화면부터 (이 판은 새로고침을 안 한다)
+                      setDoneLocal((m) => new Map(m).set(iid, on ? new Date().toISOString() : null));
+                      startTransition(async () => {
+                        const res = await setItemDoneFor(row.student.id, date, iid, on);
+                        if (res?.error) {
+                          alert(res.error);
+                          setDoneLocal((m) => {
+                            const n = new Map(m);
+                            prevHas ? n.set(iid, prev) : n.delete(iid);
+                            return n;
+                          });
+                        }
+                      });
+                    }}
+                  >
+                    {doneAt ? "✓ 완료" : "완료로"}
+                  </button>
                   <span className="row" style={{ gap: 0, alignItems: "center" }}>
                     <button className="btn btn-ghost btn-sm" title="맨 위로" disabled={idx === 0}
                       style={{ padding: "2px 5px" }}
@@ -1861,8 +1909,12 @@ export default function StudentPanel({
             >
               ⟳ 진도루틴 다음
             </button>
+            {/* **이름으로 말한다** (화면 규칙 1) — 「고르기」 는 무엇을
+                고르는지 안 적혀 있어, 루틴이 차린 것 말고 한 줄 더하는 길이
+                여기 있는 줄을 몰랐다 (원장님 2026-08-28 「등원학습을
+                오늘학습에서 추가할 수 있게 해줘」) */}
             <button className="btn btn-ghost btn-sm" onClick={() => setOpenInClass(!openInClass)}>
-              {openInClass ? "접기" : "고르기"}
+              {openInClass ? "접기" : "＋ 항목 추가"}
             </button>
           </div>
 
@@ -1902,23 +1954,109 @@ export default function StudentPanel({
             </div>
           )}
 
+          {/**
+            * **그날 즉석으로 한 줄 더한다** (원장님 2026-08-28 —
+            * 「등원학습을 오늘학습에서 추가할 수 있게 해줘」).
+            *
+            * 길은 원래 있었다 — 다만 **항목 전체를 한 줄로 늘어놓는 판**이라
+            * 스무 개가 넘으면 벽이었고, 이름도 「고르기」 였다.
+            * 아래 「다음 숙제 배정」 이 이미 쓰는 관례를 그대로 쓴다
+            * (영역으로 묶고 · 이 학생 교재 것만 먼저 · 전체는 눌러서).
+            * 새로 그리지 않는다 — 같은 것을 두 모양으로 두면 원장님이
+            * 자리마다 다시 배운다 (원칙 1).
+            *
+            * 누르면 **목록 맨 아래에 선다.** 차례(inclass_sort)는 목록 순서
+            * 그대로 저장되므로(0140 · actions.js), 위로 올리려면 그 줄의
+            * ↑ 를 쓴다. 잘못 넣었으면 그 줄의 **✕ 오늘 뺌** 으로 빼거나
+            * 여기서 한 번 더 눌러 끈다.
+            */}
           {openInClass && (
-            <div className="chips" style={{ marginTop: 8 }}>
-              {items.map((i) => {
-                const on = inClass.includes(i.id);
-                return (
-                  <button
-                    key={i.id}
-                    className={`chip ${on ? "on" : ""}`}
-                    onClick={() =>
-                      setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
-                    }
-                  >
-                    {i.name}
-                    {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
-                  </button>
-                );
-              })}
+            <div className="stack" style={{ gap: 2, marginTop: 8 }}>
+              {hiddenCount > 0 && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 12.5, alignSelf: "flex-start" }}
+                  onClick={() => setShowAllChips(true)}
+                >
+                  이 학생 교재 것만 보이는 중 · 전체 {items.length}개 보기
+                </button>
+              )}
+              {showAllChips && myItems && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 12.5, alignSelf: "flex-start" }}
+                  onClick={() => setShowAllChips(false)}
+                >
+                  이 학생 교재 것만 보기
+                </button>
+              )}
+              {/**
+                * **이름·준비물로 거른다** (원장님 2026-08-28 — 「등원학습
+                * 추가할 때 검색 가능하게 해줘」). 항목이 수십 개라 영역으로
+                * 묶어도 여전히 눈으로 훑어야 했다.
+                *
+                * 견주는 규칙은 **lib/pickSearch 한 벌** — 단원 고르기와 같다.
+                * 한두 글자는 앞머리로, 세 글자부터는 어디든 (「E」 가 e 든
+                * 것에 죄다 걸려 묻히던 문제, d7ea0a5).
+                *
+                * **준비물(tool)로도 걸린다** — 「필수학습」 같은 이름만으로는
+                * 무엇을 하는 항목인지 모른다는 원장 지적(36d6907)의 짝이다.
+                * 「클래스카드」 라 치면 그 준비물을 쓰는 항목들이 나온다.
+                *
+                * 붙박이 머리(.pickhead)를 쓰지 않는다 — 그 CSS 는 제 안에서
+                * 굴러가는 팝오버(.sheetpop) 전용이고, 이 판은 학생 판과 함께
+                * 통째로 굴러가서 붙일 데가 없다. 목록도 영역으로 묶여 있어
+                * 팝오버만큼 길지 않다.
+                */}
+              <input
+                className="input input-sm"
+                style={{ width: "100%", marginBottom: 4 }}
+                placeholder="항목·준비물로 거르기 (한두 글자는 앞머리로)"
+                value={inClassQ}
+                onChange={(e) => setInClassQ(e.target.value)}
+              />
+              {(() => {
+                const pick = keywordFilter(shown, inClassQ, (i) => [i.name, i.tool, i.category]);
+                if (pick.length === 0) {
+                  return (
+                    <p className="hint" style={{ margin: 0 }}>
+                      「{inClassQ.trim()}」 에 맞는 항목이 없어요.
+                      {!showAllChips && myItems && " — 「전체 보기」 를 눌러보세요."}
+                    </p>
+                  );
+                }
+                return grouped(pick).map(([g, list]) => (
+                  <div className="hwgroup" key={g}>
+                    <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                    <div className="row" style={{ gap: 4 }}>
+                      {list.map((i) => {
+                        const on = inClass.includes(i.id);
+                        return (
+                          <button
+                            key={i.id}
+                            className={`hwchip ${on ? "hw-next" : ""}`}
+                            title={on
+                              ? "이미 오늘 목록에 있어요 — 다시 누르면 빠집니다"
+                              : "오늘 등원 학습 맨 아래에 더합니다"}
+                            onClick={() =>
+                              setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
+                            }
+                          >
+                            {/* 이미 담긴 것은 **말로도** 알린다 — 색만으로
+                                나르지 않는다 (노안 규칙). 두 번 담기지 않고,
+                                한 번 더 누르면 빠진다 */}
+                            {on && <b>✓담김</b>} {i.name}
+                            {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
+              })()}
+              <span className="hint" style={{ fontSize: 12.5 }}>
+                더하면 아래 <b>저장</b> 을 눌러야 아이 화면에 뜹니다 — 저장하면 아이에게 알림이 갑니다.
+              </span>
             </div>
           )}
           {/* 루틴 요약 줄은 없앴다 (원장님 2026-08-24 「두 번째 사진 내용은 왜
@@ -1943,6 +2081,12 @@ export default function StudentPanel({
                 book={b}
                 onHomework={(u) => pickHomework(b, u)}
                 hwPicked={hwPicked}
+                /* **수업 중에는 화면을 안 갈아엎는다** (원장님 2026-08-28 —
+                   「오늘학습에서 진도체크하면 새로고침됨」). 이 판의 성문
+                   규칙(위 「화면도 안 갈아엎는다」)을 진도 칸에도 적용한다.
+                   접거나 떠날 때는 그대로 다시 그린다 — 안 그러면 목록의
+                   ◐ 가 옛날 그대로 남는다 (2026-08-23 시뮬) */
+                refreshOnLeaveOnly
                 /* 멈춤은 이 판이 쥔다 (0149) — 켜는 순간 차려진 항목도 걷어야 해서 */
                 pause={pauseOf[b.id] || null}
                 onPauseToggle={(kind) => togglePause(b.id, kind)}
@@ -2481,6 +2625,49 @@ export default function StudentPanel({
             맨 위 <b>공지</b> 칸에서 반 전체에 적으신 것입니다 (여기서는 못 고칩니다 — 반 전체가 바뀝니다).
             <br />
             수업 중에 <b>말로</b> 전할 것은 위쪽 <b>학생에게 말할 것</b>(수업 메모)에 있습니다.
+          </p>
+        </div>
+      </div>
+    </>
+  );
+  /**
+   * **오늘 배운 것** (0181, 원장님 2026-08-28) — 아이가 하원 전에
+   * 적고 간 **원본**이다. 학부모에게는 안 나간다 (원장 확정).
+   *
+   * 원장님이 **대신 적어줄 수도** 있다 — 등원 체크의 원장 대행
+   * (setArrivalFor, 바로 위 arriveZone)과 같은 관례다. 폰을 안 가져온
+   * 아이·계정이 없는 아이는 하원 길목에 걸려 못 나가므로, 대행 길이
+   * 없으면 원장님이 아이 대신 로그인해야 한다.
+   *
+   * 저장은 **칸 밖으로 나갈 때** (onBlur) — 오늘 수업 화면은 원장님이
+   * 여러 아이를 오가며 쓰는 자리라, 단추를 하나 더 두면 안 누르고 넘어간다.
+   */
+  const learnedZone = () => (
+    <>
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>오늘 배운 것</span>
+        <div style={{ flex: 1 }}>
+          <textarea
+            className="input"
+            rows={2}
+            value={learned}
+            disabled={pending}
+            placeholder="아이가 하원 전에 적고 갑니다. 여기서 대신 적어주셔도 돼요"
+            title="아이가 직접 적은 원본입니다 — 학부모에게는 안 나갑니다"
+            onChange={(e) => setLearned(e.target.value)}
+            onBlur={() => {
+              if (learned === (row.learned || "")) return;
+              startTransition(async () => {
+                const res = await setLearnedFor(row.student.id, date, learned);
+                if (res?.error) { alert(res.error); setLearned(row.learned || ""); }
+              });
+            }}
+            style={{ width: "100%" }}
+          />
+          <p className="hint" style={{ margin: "3px 0 0", fontSize: 12.5 }}>
+            {learnedEnough(learned)
+              ? "적혀 있어요 — 아이가 하원을 누를 수 있어요"
+              : "아직 안 적었어요 — 이걸 적어야 아이 화면에서 하원이 눌립니다"}
           </p>
         </div>
       </div>
@@ -3077,6 +3264,7 @@ export default function StudentPanel({
           {utZone()}
           {utLogZone()}
           {inclassZone()}
+          {learnedZone()}
           {stayZone()}
           {form.attendance !== "early_leave" && lateZone()}
         </div>

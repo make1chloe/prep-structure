@@ -57,6 +57,24 @@ export default function BookProgress({
    */
   pause: pauseCtl = undefined,   // 부모가 쥔 멈춤 값 (오늘 수업)
   onPauseToggle = null,          // (kind) => void — 있으면 부모가 저장까지 한다
+  /**
+   * **수업 중에는 시계를 아예 안 돌린다** (원장님 2026-08-28 —
+   * 「오늘학습에서 진도체크하면 새로고침됨」).
+   *
+   * 2026-08-19 에 「즉시 → 12초 뒤」 로 미뤄뒀는데, **12초는 원장님이 다음
+   * 단원을 고르며 생각하는 시간보다 짧다.** 그래서 수업 중에 화면이 통째로
+   * 다시 그려진다. 오늘 수업 판에는 이미 「화면을 안 갈아엎는다」 가 성문
+   * 규칙으로 있는데(StudentPanel — router.refresh 를 안 부른다) 이 판만
+   * 그 규칙 밖에 있었다.
+   *
+   * 켜면 **떠날 때·접을 때만** 다시 그린다. 그 둘을 지우면 2026-08-23
+   * 시뮬에서 잡은 버그가 되살아난다 — 체크하고 다른 학생을 누르면 목록의
+   * ◐·진도율이 옛날 그대로 남아 「저장이 안 됐나」 로 보인다.
+   *
+   * **기본값은 지금 그대로다** — 진도 화면·대시보드 팝오버는 안 바뀐다.
+   * 특히 대시보드 팝오버는 닫을 때 숫자가 갱신되어야 하므로 그대로 둔다.
+   */
+  refreshOnLeaveOnly = false,
 }) {
   const [open, setOpen] = useState(openFirst);
   const [units, setUnits] = useState(initialUnits);
@@ -145,17 +163,26 @@ export default function BookProgress({
    * 미룬다. 판을 접으면 그 자리에서 바로 새로고침한다.
    */
   const refreshT = useRef(null);
+  /**
+   * **「고친 것이 있나」 를 시계와 따로 쥔다.** 전에는 타이머가 걸려 있는지로
+   * 그것을 대신 알았는데, 시계를 안 돌리는 판(refreshOnLeaveOnly)에서는
+   * 그러면 떠날 때도 안 그려서 2026-08-23 버그가 되살아난다.
+   */
+  const dirty = useRef(false);
   function lazyRefresh() {
+    dirty.current = true;
+    if (refreshOnLeaveOnly) return;   // 수업 중에는 시계를 안 돌린다
     if (refreshT.current) clearTimeout(refreshT.current);
     refreshT.current = setTimeout(() => {
       refreshT.current = null;
+      dirty.current = false;
       router.refresh();
     }, 12000);
   }
   function flushRefresh() {
-    if (!refreshT.current) return;
-    clearTimeout(refreshT.current);
-    refreshT.current = null;
+    if (refreshT.current) { clearTimeout(refreshT.current); refreshT.current = null; }
+    if (!dirty.current) return;
+    dirty.current = false;
     router.refresh();
   }
   /**
@@ -166,9 +193,9 @@ export default function BookProgress({
    * 화면이 정하기로 한 이상, 떠나는 것도 시점의 하나다.)
    */
   useEffect(() => () => {
-    if (!refreshT.current) return;
-    clearTimeout(refreshT.current);
-    refreshT.current = null;
+    if (refreshT.current) { clearTimeout(refreshT.current); refreshT.current = null; }
+    if (!dirty.current) return;
+    dirty.current = false;
     router.refresh();
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
