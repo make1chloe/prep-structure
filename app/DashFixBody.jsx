@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ProgressPickModal from "@/components/ProgressPickModal";
 import BookPickPanel from "@/components/BookPickPanel";
@@ -53,6 +53,12 @@ function FixProgress({ item, onClose }) {
   const router = useRouter();
   const [units, setUnits] = useState(null);
   const [pending, startTransition] = useTransition();
+  /**
+   * ProgressPickModal 은 찍자마자 **스스로 닫는다** (onApply → onClose).
+   * 그대로 두면 저장이 끝나기 전에 이 조각이 사라져서, 저장 실패를 알릴
+   * 자리도 새로고침을 시킬 자리도 없어진다. 저장하는 동안만 닫힘을 잡는다.
+   */
+  const busy = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -75,16 +81,19 @@ function FixProgress({ item, onClose }) {
       title={`${item.name} · ${item.book} 진도`}
       units={units}
       pending={pending}
-      onApply={(ids, status) =>
+      onApply={(ids, status) => {
+        busy.current = true;
         startTransition(async () => {
           // 화면 먼저 (원칙 6-3) — 저장은 뒤따른다
           setUnits((list) => list.map((u) => (ids.includes(u.id) ? { ...u, status: status || "" } : u)));
           const res = await setUnitProgress(item.studentId, ids, status);
+          busy.current = false;
           if (res?.error) { alert(res.error); return; }
           router.refresh();   // 대시보드에서 이 줄이 빠져야 한다
-        })
-      }
-      onClose={onClose}
+          onClose();
+        });
+      }}
+      onClose={() => { if (!busy.current) onClose(); }}
     />
   );
 }
