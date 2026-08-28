@@ -61,6 +61,9 @@ const ONE_PLACE = [
   // (report_written or closed_at is not null). 0169 + 원장 확정 2026-08-28.
   ["isClosed", "lib/closeGate.js", "이 판은 마감되었나 (학생·학부모에게 공개해도 되나)"],
   ["maskUnclosed", "lib/closeGate.js", "마감 전 판에서 안 보일 칸 비우기"],
+  // SQL 쪽 짝은 public.prep_ready(prep_materials) — 아래 절이 둘을 묶어둔다 (0178)
+  ["prepReady", "lib/prepRoutine.js", "자료 준비가 끝났나 (stageOf 한 벌을 쓴다)"],
+  ["receivedState", "lib/prepRoutine.js", "이 자료를 받았나 (안 받음 · 줬는데 안 누름 · 받음)"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");
@@ -135,6 +138,50 @@ for (const f of files) {
   }
 }
 if (!bad) ok("역할 판단이 lib/guard 한 곳에 있습니다");
+
+console.log("\n== 준비 끝 판정이 SQL 과 화면에서 같은 단계를 보나 ==");
+/**
+ * 「자료 준비가 끝났나」는 **몸이 둘**이다 —
+ *   · SQL 쪽  public.prep_ready(prep_materials)  ← RLS 가 쓴다 (0178)
+ *   · 화면 쪽 lib/prepRoutine prepReady()        ← 목록을 그릴 때 쓴다
+ *
+ * RLS 는 SQL 이라 JS 함수를 못 부르므로 어쩔 수 없이 두 곳에 몸이 있다.
+ * 0169 의 report_gate() ↔ lib/closeGate isClosed() 가 같은 모양이다.
+ *
+ * **문제는 둘이 어긋나도 오류가 안 난다는 것이다.** 화면은 「뜬다」는데
+ * REST 는 막거나, 그 반대가 된다. 그래서 여기서 세 쌍을 뽑아 견준다.
+ */
+const PREP_PAIRS = [
+  ["need_make", "made_at"],
+  ["need_print", "printed_at"],
+  ["need_card", "card_at"],
+];
+const mig = readdirSync("supabase/migrations").find((f) => /^0178_/.test(f));
+if (!mig) {
+  say("supabase/migrations 에 0178(내신 자료 수령 체크)이 없습니다");
+} else {
+  const sql = readFileSync(`supabase/migrations/${mig}`, "utf8");
+  const body = sql.split(/create or replace function public\.prep_ready/)[1] || "";
+  const gate = body.split(/\$\$/)[1] || "";      // 함수 본문만
+  for (const [need, at] of PREP_PAIRS) {
+    if (!(gate.includes(need) && gate.includes(at))) {
+      say(`SQL 쪽 prep_ready() 가 ${need}/${at} 를 안 봅니다 (${mig})`);
+    }
+  }
+  // stageOf 의 앞 세 줄 — 화면 쪽이 같은 세 쌍을 본다
+  const routine = src.get("lib/prepRoutine.js") || "";
+  const stage = (routine.split(/export function stageOf/)[1] || "").split(/\n}/)[0];
+  for (const [need, at] of PREP_PAIRS) {
+    if (!(stage.includes(need) && stage.includes(at))) {
+      say(`화면 쪽 stageOf 가 ${need}/${at} 를 안 봅니다 (lib/prepRoutine.js)`);
+    }
+  }
+  // 세 줄을 다시 적지 않고 stageOf 를 불러 쓰는지
+  if (!/NOT_READY\s*=\s*new Set\(\["make",\s*"print",\s*"card"\]\)/.test(routine)) {
+    say("lib/prepRoutine 의 prepReady 가 stageOf 의 make·print·card 를 안 씁니다 (또 두 벌이 됩니다)");
+  }
+  if (!bad) ok("준비 끝 판정이 SQL(prep_ready)과 화면(stageOf)에서 같은 세 단계를 봅니다");
+}
 
 if (bad) { console.log("\n❌ 위 항목을 고쳐주세요"); process.exit(1); }
 console.log("\n✅ 두 벌 검사 통과");
