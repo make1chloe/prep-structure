@@ -7,10 +7,12 @@ import BookProgress from "@/components/BookProgress";
 import StudentBooksProgress from "@/app/progress/StudentBooksProgress";
 import RoutinePick from "@/app/students/RoutinePick";
 import CheckBoard from "@/app/check/CheckBoard";
+import AheadBoard from "@/app/check/AheadBoard";
 import { useSheet } from "@/components/useSheet";
 import { studentBookPanel } from "@/app/progress/actions";
 import { addClassHoliday, keepClassOn, listClassChoices } from "@/app/schedule/actions";
-import { checkRowFor } from "@/app/check/oneActions";
+import { checkRowFor, aheadOneStudent } from "@/app/check/oneActions";
+import { ccAlignPreview, ccAlignApply } from "@/app/progress/ccAlignActions";
 
 /**
  * **대시보드 칩 하나를 그 자리에서 끝내는 판** — 눌렀을 때만 내려온다
@@ -28,6 +30,8 @@ import { checkRowFor } from "@/app/check/oneActions";
  * 되어 언젠가 갈라진다 — 그게 이 지적의 뿌리다 (원칙 1·2).
  *
  *   숙제검사   app/check/CheckBoard               (원판 그대로, 그 아이 한 줄)
+ *   숙제배정   app/check/AheadBoard               (원판 그대로, 그 아이만)
+ *   진도어긋남 플래너에 맞추기 — 미리 보고 원장님이 누를 때만 바뀐다
  *   진도      components/BookProgress            (원판 그대로, 그 교재만)
  *   다음교재   app/progress/StudentBooksProgress  (원판 그대로 통째)
  *   루틴      app/students/RoutinePick           (원판 그대로 — 원래도 이것)
@@ -43,6 +47,8 @@ export default function DashFixBody({ kind, item, onClose }) {
   if (kind === "nextbook") return <FixNextBook item={item} onClose={onClose} />;
   if (kind === "holiday") return <FixHoliday item={item} onClose={onClose} />;
   if (kind === "check") return <FixCheck item={item} onClose={onClose} />;
+  if (kind === "ccalign") return <FixCcAlign item={item} onClose={onClose} />;
+  if (kind === "assign") return <FixAssign item={item} onClose={onClose} />;
   return null;
 }
 
@@ -298,6 +304,205 @@ function FixCheck({ item, onClose }) {
           다음 숙제까지 배정하기 (오늘 수업 판) →
         </Link>
       </div>
+    </Pop>
+  );
+}
+
+/**
+ * ⑥ **클래스카드 진도 어긋남 → 플래너에 맞추기**
+ * (원장님 2026-08-28: 「보고 맞추게 할 때 버튼 누르기」).
+ *
+ * **자동으로 맞추지 않는다.** 무엇이 바뀔지 이름까지 먼저 보여주고,
+ * 원장님이 누른 그때만 바뀐다. 셈은 lib/ccAlign 한 벌 — 보여준 것과
+ * 실제로 바뀌는 것이 같은 함수의 답이다.
+ *
+ * 갈래가 둘인 까닭: **완료 해제는 원장님이 찍어둔 기록을 지우는 일**이다
+ * (앱이 플래너보다 앞선 경우 — 교재로 더 나갔는데 플래너가 안 따라온
+ * 것일 수도 있다). 어느 쪽인지는 원장님만 아시니 고르시게 한다.
+ */
+function FixCcAlign({ item, onClose }) {
+  const router = useRouter();
+  const [pre, setPre] = useState(null);
+  const [pending, startTransition] = useTransition();
+  const [said, setSaid] = useState("");
+  const [done, setDone] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    ccAlignPreview(item.studentId).then((r) => { if (live) setPre(r); });
+    return () => { live = false; };
+  }, [item.studentId]);
+
+  function run(mode) {
+    if (mode === "both") {
+      const n = pre.toClear.length;
+      if (!confirm(
+        `완료 표시를 ${n}개 지웁니다.\n\n` +
+        pre.toClear.map((u) => `· ${u.name}`).join("\n") +
+        `\n\n앱이 플래너보다 앞서 있는 경우예요 — 교재로 더 나가신 것이라면 지우면 안 됩니다.\n계속할까요?`
+      )) return;
+    }
+    startTransition(async () => {
+      const res = await ccAlignApply(item.studentId, mode);
+      if (res?.error) { setSaid(res.error); return; }
+      setDone(res);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Pop title={`${item.name} · 플래너에 맞추기`} onClose={onClose} wide>
+      {pre === null ? (
+        <Waiting what="플래너와 진도" />
+      ) : pre.error ? (
+        <p className="hint" style={{ margin: 0 }}>{pre.error}</p>
+      ) : done ? (
+        <div className="stack" style={{ gap: 6 }}>
+          <p style={{ margin: 0, fontSize: 14 }}>
+            <b>맞췄어요.</b> 완료로 {done.marked.length}개
+            {done.cleared.length > 0 ? ` · 해제 ${done.cleared.length}개` : ""}
+          </p>
+          {done.marked.length > 0 && (
+            <p className="hint" style={{ margin: 0 }}>완료: {done.marked.join(" · ")}</p>
+          )}
+          {done.cleared.length > 0 && (
+            <p className="hint" style={{ margin: 0 }}>해제: {done.cleared.join(" · ")}</p>
+          )}
+          <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+            잘못 눌렀다면 진도 화면(학생 › 성장 또는 진도)에서 그 단원을 다시 찍으면 됩니다.
+          </p>
+        </div>
+      ) : (
+        <div className="stack" style={{ gap: 8 }}>
+          <p className="hint" style={{ margin: 0 }}>
+            플래너는 <b>Day {pre.ccMax}</b>, 앱 진도는 <b>Day {pre.appMax}</b> 입니다.
+            아래대로 바꿉니다 — <b>누르기 전에는 아무것도 안 바뀝니다.</b>
+          </p>
+
+          <div className="stack" style={{ gap: 2 }}>
+            <span className="hint" style={{ fontWeight: 700 }}>
+              완료(○)로 바꿀 단원 {pre.toDone.length}개
+            </span>
+            {pre.toDone.length === 0 ? (
+              <span className="hint">없음</span>
+            ) : (
+              <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                {pre.toDone.map((u) => (
+                  <span className="tag tag-mint" key={u.id} title={u.book}>{u.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="stack" style={{ gap: 2 }}>
+            <span className="hint" style={{ fontWeight: 700, color: pre.toClear.length ? "var(--red)" : undefined }}>
+              완료를 해제할 단원 {pre.toClear.length}개
+            </span>
+            {pre.toClear.length === 0 ? (
+              <span className="hint">없음</span>
+            ) : (
+              <>
+                <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                  {pre.toClear.map((u) => (
+                    <span className="tag tag-red" key={u.id} title={u.book}>{u.name}</span>
+                  ))}
+                </div>
+                <p className="hint" style={{ margin: "2px 0 0", color: "var(--red)", fontSize: 12.5 }}>
+                  ⚠️ 이건 <b>이미 찍어두신 완료 기록을 지우는 일</b>입니다. 앱이 플래너보다
+                  앞서 있다는 뜻이라, <b>교재로 더 나가신 것이라면 지우면 안 됩니다</b> —
+                  그때는 아래 「완료만 채우기」를 쓰세요.
+                </p>
+              </>
+            )}
+          </div>
+
+          {pre.skipped.length > 0 && (
+            <p className="hint" style={{ margin: 0, fontSize: 12.5 }}>
+              이름에 Day 숫자가 없어 건드리지 않는 단원 {pre.skipped.length}개:{" "}
+              {pre.skipped.slice(0, 6).join(" · ")}{pre.skipped.length > 6 ? " …" : ""}
+            </p>
+          )}
+          {said && <p className="hint" style={{ margin: 0, color: "var(--red)" }}>{said}</p>}
+
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              className="btn btn-primary btn-sm"
+              disabled={pending || pre.toDone.length === 0}
+              title="플래너까지 끝낸 것으로 찍습니다 — 지우지 않습니다"
+              onClick={() => run("fill")}
+            >
+              {pending ? "맞추는 중…" : `완료만 채우기 (${pre.toDone.length})`}
+            </button>
+            <button
+              className="btn btn-sm"
+              disabled={pending || (pre.toDone.length === 0 && pre.toClear.length === 0)}
+              style={pre.toClear.length ? { borderColor: "var(--red)", color: "var(--red)" } : undefined}
+              title="플래너와 정확히 같게 맞춥니다 — 앞서간 완료는 해제됩니다"
+              onClick={() => run("both")}
+            >
+              플래너와 똑같이 맞추기{pre.toClear.length ? ` (해제 ${pre.toClear.length})` : ""}
+            </button>
+          </div>
+        </div>
+      )}
+    </Pop>
+  );
+}
+
+/**
+ * ⑦ **다음 숙제가 안 나간 아이 → 그 자리에서 배정**
+ * (원장님 2026-08-28 — 「숙제검사 안 한 아이와 숙제배정 안 된 아이 같이
+ *  보여줘」 그리고 곧바로 「**최초 숙제배정 어디서 해야 해?**」).
+ *
+ * 뒷말이 진짜 요구다 — 배정하는 자리를 못 찾고 계셨다. 알리기만 하는
+ * 카드였으면 문제가 그대로 남는다.
+ *
+ * ── 왜 「미리 내기」(AheadBoard)를 마운트하나 ─────────────
+ *
+ * 배정하는 원판은 둘이다. 오늘 수업 학생 판의 「다음 숙제」와 검사 화면의
+ * 「미리 내기」. **미리 내기 쪽을 쓴다** —
+ *   · 자기 완결적이다 — {classes, students, items, textbooks} 넷이면 서고,
+ *     단원 목록은 스스로 받아온다. 오늘 수업 판은 그 거대한 row 하나를
+ *     오늘 수업 화면 본문이 인라인으로 만들고 있어 떼어 올 수가 없다.
+ *   · **날짜를 고를 수 있다.** 이 카드는 「다음 수업에 나갈 숙제」를 넣는
+ *     일이라 그 칸이 꼭 필요하다.
+ *   · 항목 · 교재 · 단원 범위 · 전달사항까지 원판 그대로다.
+ *
+ * 못 담는 것: **오늘 낸 숙제의 ○△✕ 검사**. 그건 배정이 아니라 검사라
+ * 옆 카드(검사 안 한 숙제)가 맡는다 — 원판에서도 다른 판이다.
+ */
+function FixAssign({ item, onClose }) {
+  const router = useRouter();
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    aheadOneStudent(item.studentId).then((r) => { if (live) setData(r); });
+    return () => { live = false; };
+  }, [item.studentId]);
+
+  return (
+    <Pop
+      title={`${item.name} · 다음 숙제 배정`}
+      sub={`${item.date} 판에 배정된 숙제가 하나도 없어요 — 아이 화면에 나갈 것이 없습니다.`}
+      /* 배정(assignAhead)은 /check·/today·/me 만 되살린다 — 닫을 때 대시보드를
+         다시 그려야 「배정 안 됨」 숫자가 줄어든다 (checkOne 전례) */
+      onClose={() => { router.refresh(); onClose(); }}
+      wide
+    >
+      {data === null ? (
+        <Waiting what="배정 재료" />
+      ) : data.students.length === 0 ? (
+        <p className="hint" style={{ margin: 0 }}>이 학생을 찾지 못했어요 — 대시보드를 새로고침해 주세요.</p>
+      ) : (
+        <AheadBoard
+          classes={[]}
+          students={data.students}
+          items={data.items}
+          textbooks={data.textbooks}
+          defaultOpen
+        />
+      )}
     </Pop>
   );
 }

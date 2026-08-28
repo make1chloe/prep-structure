@@ -283,12 +283,22 @@ export default async function Home() {
                 {d.classcard.mismatch.length > 0 && (
                   <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
                     <span className="hint" style={{ minWidth: 96 }}>진도 어긋남</span>
-                    {d.classcard.mismatch.map((r) => (
-                      <span className="tag tag-red" key={`m-${r.name}`}
-                        title="앱 단어 진도와 플래너가 어긋납니다 — 어느 쪽이 맞는지 봐주세요">
-                        {r.name} {r.app}≠{r.cc}
-                      </span>
-                    ))}
+                    {/* **세 갈래 중 이것만 눌린다** — 플래너를 새로 잡는 일과
+                        오늘 마감을 만드는 일은 클래스카드 사이트에서만 되지만,
+                        어긋남은 **앱 쪽을 맞추면** 되는 일이라 여기서 끝난다.
+                        자동으로는 안 맞춘다 — 무엇이 바뀔지 보여주고, 원장님이
+                        누를 때만 (원장님 8/28 「보고 맞추게 할 때 버튼 누르기」) */}
+                    <DashFix
+                      kind="ccalign"
+                      tone="tag-red"
+                      items={d.classcard.mismatch.map((r) => ({
+                        key: `m-${r.id || r.name}`,
+                        studentId: r.id,
+                        name: r.name,
+                        sub: `${r.app}≠${r.cc}`,
+                        title: `앱 단어 진도 Day ${r.app} · 플래너 Day ${r.cc} — 눌러서 맞추기`,
+                      }))}
+                    />
                   </div>
                 )}
                 {(d.classcard.noPlanner || []).length > 0 && (
@@ -345,15 +355,61 @@ export default async function Home() {
             {/* **아이 화면에 오래 떠 있는 숙제** (원장님 2026-08-23).
                 검사를 안 하면 그 배정이 아이 화면에 계속 떠 있는다 —
                 판단은 lib/dashboard staleHomework 한 곳 */}
-            {(d.staleHomework || []).length > 0 && (
+            {/**
+              * **검사 안 한 아이와 배정 안 된 아이를 한 카드에** (원장님
+              * 2026-08-28 — 「숙제검사 안 한 아이와 숙제배정 안 된 아이 같이
+              * 보여줘」). 둘은 한 아이의 앞뒤 일이라 나란히 서야 한눈에 든다.
+              */}
+            {((d.staleHomework || []).length > 0 || (d.noAssign || []).length > 0) && (
               <div className="card sect sect-warn">
-                <h2 className="secthead">
-                  검사 안 한 숙제{" "}
-                  <span className="tag tag-amber">{d.staleHomework.length}명</span>
-                </h2>
+                <h2 className="secthead">숙제 — 검사 · 배정</h2>
+                {(d.noAssign || []).length > 0 && (() => {
+                  const canAssign = d.noAssign.filter((x) => !x.needBook);
+                  const needBook = d.noAssign.filter((x) => x.needBook);
+                  return (
+                    <div className="stack" style={{ gap: 4, marginBottom: 8 }}>
+                      <p className="hint" style={{ margin: 0 }}>
+                        <b>다음 숙제가 안 나갔어요</b>{" "}
+                        <span className="tag tag-red">{d.noAssign.length}명</span> — 가장 최근 판에
+                        배정된 숙제가 하나도 없습니다. 눌러서 그 자리에서 배정하세요.
+                      </p>
+                      {canAssign.length > 0 && (
+                        <DashFix
+                          kind="assign"
+                          tone="tag-red"
+                          items={canAssign.slice(0, 10).map((x) => ({
+                            key: `na-${x.id}`,
+                            studentId: x.id,
+                            date: x.date,
+                            name: x.name,
+                            sub: x.days > 0 ? String(x.days) : "",
+                            title: `${x.date} 판에 배정 없음 — 눌러서 다음 숙제 배정`,
+                          }))}
+                        />
+                      )}
+                      {/* **배정할 것이 없는 아이는 갈라 놓는다** — 교재가 한 권도
+                          없으면 눌러도 빈 판이 뜬다. 교재부터 넣는 자리로 보낸다 */}
+                      {needBook.length > 0 && (
+                        <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+                          <span className="hint">교재부터</span>
+                          {needBook.slice(0, 8).map((x) => (
+                            <Link className="tag tag-muted" key={`nb-${x.id}`}
+                              href={`/students?s=${x.id}`}
+                              style={{ textDecoration: "none" }}
+                              title="쓰는 교재가 없어서 배정할 것이 없어요 — 교재부터 넣어주세요">
+                              {x.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {(d.staleHomework || []).length > 0 && (<>
                 <p className="hint" style={{ margin: "0 0 6px" }}>
-                  아이 화면에는 아직 이 숙제가 떠 있어요 — 검사해서 저장하면 넘어갑니다.
-                  숫자는 며칠째인지입니다.
+                  <b>검사 안 한 숙제</b>{" "}
+                  <span className="tag tag-amber">{d.staleHomework.length}명</span> — 아이 화면에는
+                  아직 이 숙제가 떠 있어요. 검사해서 저장하면 넘어갑니다. 숫자는 며칠째인지입니다.
                 </p>
                 {/* **그 자리에서 검사한다** (원장님 8/28 — 「첫 번째 꺼 왜
                     모달 안 붙어?」). 앞서 「판이 커서 팝오버가 안 맞는다」로
@@ -371,6 +427,7 @@ export default async function Home() {
                     title: `${h.date} 배정 · ${h.count}개 · ${h.days}일째 — 눌러서 그 자리에서 검사`,
                   }))}
                 />
+                </>)}
               </div>
             )}
             {/**
