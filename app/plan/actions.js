@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { clearMonthNotice } from "@/app/schedule/confirmActions";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
+import { addDays, dowOf, todaySeoul, DOW as DOWN } from "@/lib/day";
 import { pushToFamilies } from "@/app/push/actions";
 import { queuePush } from "@/lib/pushQueue";
 import { noColumn } from "@/lib/sqlError";
@@ -51,11 +51,37 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
     .from("class_students")
     .select("class_id, student_id")
     .in("student_id", sids);
-  const classIds = [...new Set((members || []).map((m) => m.class_id))];
-  const { data: classes } = classIds.length
-    ? await supabase.from("classes").select("id, days").in("id", classIds)
-    : { data: [] };
+  /**
+   * 반을 **전부** 읽는다. 고른 학생의 반만 읽으면 아래 `openDays`(학원이
+   * 도는 요일)가 그 학생 반의 요일과 같아져서, 반을 옮긴 학생의 지난
+   * 날을 여는 구실을 못 한다 (2026-08-28 — 화목→월수로 옮긴 학생의
+   * 화요일이 계속 막히던 자리). 반 수는 열 몇 개라 한 번에 읽어도 싸다.
+   */
+  const { data: classes } = await supabase.from("classes").select("id, days");
   const daysOf = new Map((classes || []).map((c) => [c.id, c.days || []]));
+
+  /**
+   * **지난 날은 지금 반으로 따지지 않는다** (원장님, 2026-08-28 실사고 —
+   * 「서한결이 8/27까지 화목반이었다가 월수반으로 바뀌었는데, 8/25 결석을
+   * 사후에 넣으려니 그날 화요일이라 수업이 없다고 뜬다」).
+   *
+   * 뿌리: `class_students` 에 **기간이 없다**(0001 — PK 는 반·학생 둘뿐).
+   * 반을 옮기면 옛 소속이 통째로 사라지므로, **그 학생이 8월 25일에 어느
+   * 반이었는지 앱은 알 길이 없다.** 그런데 이 함수는 「지금 반의 요일」로
+   * 지난 날을 판정했다 — 반이 한 번이라도 바뀐 학생은 **바뀌기 전 날짜의
+   * 결석을 영영 못 넣는다.**
+   *
+   * 앞일(결석 예정)은 지금 반이 맞으니 그대로 거른다. **지난 날은 원장님이
+   * 보고 넣는 사실**이라 요일 잣대를 들이대지 않는다. 다만 아무 날이나
+   * 열어두면 일요일까지 결석이 생기므로, **학원이 도는 요일**(어느 반이든
+   * 수업이 있는 요일)까지만 연다.
+   *
+   * ⚠️ 이건 뿌리를 고친 것이 아니다. 반 이동 이력(class_students 에 기간)을
+   * 두기 전까지, 지난 날의 수업일수·회차·수강료도 **지금 반 기준**으로
+   * 세어진다. 별건으로 남긴다.
+   */
+  const today = todaySeoul();
+  const openDays = new Set((classes || []).flatMap((c) => c.days || []));
 
     const rows = [];
   for (const sid of sids) {
@@ -65,7 +91,8 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
     let d = from;
     const last = end;
     while (d <= last) {
-      if (myDays.has(dowOf(d))) {
+      const dow = dowOf(d);
+      if (myDays.has(dow) || (d < today && openDays.has(dow))) {
         rows.push({
           student_id: sid,
           date: d,
@@ -77,7 +104,15 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
       d = addDays(d, 1);
     }
   }
-  if (rows.length === 0) return { error: "그 기간에 수업이 없어요.", count: 0 };
+  if (rows.length === 0) {
+    return {
+      error:
+        end < today
+          ? "그 기간에는 학원이 도는 날이 없어요 (주말·전 학원 휴강)."
+          : "그 기간에 수업이 없어요.",
+      count: 0,
+    };
+  }
 
   let { error } = await supabase
     .from("attendance")
