@@ -237,25 +237,51 @@ export default async function Home() {
                     </span>
                   )}
                 </h2>
+                {/**
+                  * **줄에는 이름만** (원장님, 2026-08-28 — 「학생 이름만 나열하면
+                  * 될 걸 쓸데없이 내용이 길어」).
+                  *
+                  * 전에는 칩마다 「김서은 · 플래너 새로 잡기 (마감 없음)」 처럼
+                  * **같은 말을 사람 수만큼 되풀이**했다. 칩 하나가 한 줄을 다
+                  * 먹어서 가로로 흐르라고 만든 자리가 세로 목록이 됐고, 그래서
+                  * 카드가 길어져 옆 칸이 통째로 비었다 — 여백 문제의 진짜 원인.
+                  *
+                  * 무엇을 해야 하는지는 **줄 머리에 한 번만** 적는다.
+                  */}
+                {d.classcard.runningOut.length > 0 && (
+                  <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+                    <span className="hint" style={{ minWidth: 96 }}>플래너 새로 잡기</span>
+                    {d.classcard.runningOut.map((r) => (
+                      <span className="tag tag-amber" key={`o-${r.name}`}
+                        title={r.last ? `마지막 마감 ${r.last}` : "앞으로 잡힌 마감이 없어요"}>
+                        {r.name}{r.last ? "" : " ·"}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {d.classcard.mismatch.length > 0 && (
+                  <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+                    <span className="hint" style={{ minWidth: 96 }}>진도 어긋남</span>
+                    {d.classcard.mismatch.map((r) => (
+                      <span className="tag tag-red" key={`m-${r.name}`}
+                        title="앱 단어 진도와 플래너가 어긋납니다 — 어느 쪽이 맞는지 봐주세요">
+                        {r.name} {r.app}≠{r.cc}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(d.classcard.noPlanner || []).length > 0 && (
+                  <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+                    <span className="hint" style={{ minWidth: 96 }}>오늘 마감 없음</span>
+                    {(d.classcard.noPlanner || []).map((r) => (
+                      <span className="tag tag-red" key={`g-${r.name}`}
+                        title="클카 방식 단어 숙제가 배정된 학생인데 플래너에 오늘 마감 세트가 없어요 — 플래너를 잡아주세요">
+                        {r.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
-                  {d.classcard.runningOut.map((r) => (
-                    <span className="tag tag-amber" key={`o-${r.name}`}
-                      title={r.last ? `마지막 마감 ${r.last}` : "앞으로 잡힌 마감이 없어요"}>
-                      {r.name} · 플래너 새로 잡기{r.last ? "" : " (마감 없음)"}
-                    </span>
-                  ))}
-                  {d.classcard.mismatch.map((r) => (
-                    <span className="tag tag-red" key={`m-${r.name}`}
-                      title="앱 단어 진도와 플래너가 어긋납니다 — 어느 쪽이 맞는지 봐주세요">
-                      {r.name} · 앱 Day {r.app} ≠ 플래너 Day {r.cc}
-                    </span>
-                  ))}
-                  {(d.classcard.noPlanner || []).map((r) => (
-                    <span className="tag tag-red" key={`g-${r.name}`}
-                      title="클카 방식 단어 숙제가 배정된 학생인데 플래너에 오늘 마감 세트가 없어요 — 플래너를 잡아주세요">
-                      {r.name} · 클카 단어 배정인데 오늘 마감 없음
-                    </span>
-                  ))}
                   {d.classcard.gapSkipped && (
                     <span className="hint" style={{ fontSize: 12 }}>
                       클카 수신 12시간 지남 — 오늘 공백 검사 쉼
@@ -363,17 +389,18 @@ export default async function Home() {
                 <h2 className="secthead">
                   진도 시작 안 한 교재 <span className="tag tag-amber">{d.progressIdle.length}건</span>
                 </h2>
-                <div className="stack" style={{ gap: 3 }}>
+                {/* 이름 + 교재를 칩 하나로 가로로 흘린다 — 한 줄에 하나씩
+                    세우면 여덟 줄이 되어 옆 칸이 빈다 (원장님 8/28) */}
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.progressIdle.slice(0, 8).map((p) => (
                     <Link
-                      className="unitrow"
+                      className="tag tag-amber"
                       key={`${p.name}|${p.book}`}
                       href="/progress"
                       style={{ textDecoration: "none" }}
                       title={p.since ? `${p.since} 배정` : undefined}
                     >
-                      <b style={{ fontSize: 14 }}>{p.name}</b>
-                      <span className="hint" style={{ flex: 1 }}>{p.book}</span>
+                      <b>{p.name}</b> {p.book}
                     </Link>
                   ))}
                   {d.progressIdle.length > 8 && (
@@ -530,12 +557,19 @@ export default async function Home() {
               {/* 곧 끝나는 교재 — 시험지·플래너를 미리 챙기시라고 */}
               {d.bookEnding?.length > 0 && (
                 <div className="card sect sect-info">
-                  <h2 className="secthead">곧 끝나는 교재</h2>
-                  <div className="row" style={{ gap: 4 }}>
+                  <h2 className="secthead">
+                    곧 끝나는 교재{" "}
+                    <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>
+                      다음 교재를 정해 주세요
+                    </span>
+                  </h2>
+                  {/* 줄마다 「끝」 을 되풀이하지 않는다 — 남은 단원만 (원장님 8/28) */}
+                  <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                     {d.bookEnding.slice(0, 12).map((b) => (
-                      <Link className="tag tag-lav" key={b.id} href="/progress">
-                        {b.name} · {b.book}
-                        {b.left === 0 ? " 끝" : ` ${b.left}단원`}
+                      <Link className="tag tag-lav" key={b.id} href="/progress"
+                        title={b.left === 0 ? "다 끝냈습니다" : `${b.left}단원 남음`}>
+                        <b>{b.name}</b> {b.book}
+                        {b.left > 0 && ` ${b.left}`}
                       </Link>
                     ))}
                     {d.bookEnding.length > 12 && (
