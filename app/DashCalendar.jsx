@@ -98,8 +98,17 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
               <span className={`cal-day ${c.dow === "일" ? "sun" : c.dow === "토" ? "sat" : ""}`}>
                 {c.day}
               </span>
-              {/* 제목은 두 개까지만 — 더 적으면 칸이 늘어나 한 달이 안 보인다 */}
-              {c.items.slice(0, 2).map((it, k) =>
+              {/**
+                * **접지 않고 그날 것을 다 편다** (원장님, 2026-08-28 —
+                * 「달력에 접힌 거 자동으로 편 상태로 보이게 하는 게 차라리 낫다」).
+                *
+                * 전에는 두 개까지만 그리고 「+n」 으로 접었다. 칸 높이를 고정해
+                * 한 달을 한눈에 담자는 뜻이었는데, 접힌 것을 보려고 결국 아래에
+                * 「이번 주」·「이번 달 남은 일정」 목록을 따로 두게 됐다 —
+                * **같은 일정을 달력과 글 목록 두 벌로 그리고 있었다**(원칙 1 위반).
+                * 그 두 카드를 걷어내고 달력 하나만 남긴다.
+                */}
+              {c.items.map((it, k) =>
                 links ? (
                   <Link
                     key={k}
@@ -118,14 +127,6 @@ export default function DashCalendar({ ym, items = [], today = "", links = true 
                   </span>
                 )
               )}
-              {c.items.length > 2 &&
-                (links ? (
-                  <Link href="/tasks" className="cal-more">
-                    +{c.items.length - 2}
-                  </Link>
-                ) : (
-                  <span className="cal-more">+{c.items.length - 2}</span>
-                ))}
             </div>
           )
         )}

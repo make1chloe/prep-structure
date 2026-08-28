@@ -687,54 +687,24 @@ export default async function Home() {
             {quiet && <p className="hint" style={{ margin: 0 }}>특별히 볼 것이 없습니다 👍</p>}
           </div>
           <div className="stack dashcol">
+            {/**
+              * **달력 하나만 남긴다** (원장님, 2026-08-28 — 「달력이 있는데
+              * 저건 왜 있는지 모르겠음. 달력에 접힌 거 자동으로 편 상태로
+              * 보이게 하는 게 차라리 낫다」).
+              *
+              * 여기 「이번 주」·「이번 달 남은 일정」 두 카드가 있었다. 달력
+              * 칸이 일정을 두 개까지만 그리고 접었기 때문에, 접힌 것을 보라고
+              * 바로 아래에 같은 일정을 글 목록으로 한 벌 더 그린 것이다 —
+              * **같은 값을 두 벌로 내보내지 않는다**(원칙 1)에 정면으로 걸린다.
+              * 게다가 나이스 원본에 중복이 있으면(추석·추석연휴·추석 연휴)
+              * 달력은 합쳐 보여주는데 이 목록은 세 줄로 그대로 뱉었다.
+              *
+              * 달력이 이제 그날 것을 다 편다(app/DashCalendar.jsx). 목록은 뗀다.
+              */}
             <DashCalendar ym={d.today.slice(0, 7)} items={d.calendar || []} today={d.today} />
-
-            <div className="card sect sect-calm">
-              <h2 className="secthead">
-                이번 주{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>
-                  {tasks.week.length}건
-                </span>
-              </h2>
-              {tasks.week.length === 0 ? (
-                <p className="hint" style={{ margin: 0 }}>예정된 일정이 없습니다.</p>
-              ) : (
-                <div className="stack" style={{ gap: 4 }}>
-                  {tasks.week.map((t) => (
-                    <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
-                      <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
-                      <b style={{ fontSize: 14 }}>{t.title}</b>
-                      {t.category && <span className="tag tag-muted">{t.category}</span>}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="card sect sect-calm">
-              <h2 className="secthead">
-                이번 달 남은 일정{" "}
-                <span className="muted" style={{ fontWeight: 600, fontSize: 14.5 }}>
-                  {tasks.month.length}건
-                </span>
-              </h2>
-              {tasks.month.length === 0 ? (
-                <p className="hint" style={{ margin: 0 }}>없습니다.</p>
-              ) : (
-                <div className="stack" style={{ gap: 4 }}>
-                  {tasks.month.map((t) => (
-                    <Link className="unitrow" key={t.id} href="/tasks" style={{ textDecoration: "none" }}>
-                      <span className="hint" style={{ minWidth: 62 }}>{dayLabel(t.due_on)}</span>
-                      <b style={{ fontSize: 14 }}>{t.title}</b>
-                      {t.category && <span className="tag tag-muted">{t.category}</span>}
-                    </Link>
-                  ))}
-                </div>
-              )}
-              <Link className="btn btn-ghost btn-sm" href="/tasks" style={{ marginTop: 8 }}>
-                일정 전체 보기
-              </Link>
-            </div>
+            <Link className="btn btn-ghost btn-sm" href="/tasks">
+              일정 전체 보기
+            </Link>
           </div>
         </div>
       </main>
