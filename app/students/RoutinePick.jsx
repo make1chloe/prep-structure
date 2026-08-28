@@ -56,14 +56,32 @@ export default function RoutinePick({ studentId, book, onStamp }) {
    */
   const itemOf = (id) => {
     for (const st of data.steps) {
-      const hit = [...st.inclass, ...st.home].find((x) => x.id === id);
+      const hit = [...st.inclass, ...st.home, ...(st.next || [])].find((x) => x.id === id);
       if (hit) return hit;
     }
     return { id, name: "학습", tool: "", category: "" };
   };
   const nameOf = (id) => itemOf(id).name;
-  const homeIds = new Set(data.steps.flatMap((st) => st.home.map((x) => x.id)));
-  const isHome = (id) => homeIds.has(id);
+
+  /**
+   * **등원과 숙제는 서로 배타가 아니다** (원장님 2026-08-28 — 「루틴 내용
+   * 내가 작성한 거랑 달라」).
+   *
+   * 전에는 「숙제 목록에 있으면 등원이 아니다」(isHome)로 갈랐다. 그래서
+   * 원장님이 **등원에도 숙제에도 넣어둔 항목**(개념정독·문답노트처럼
+   * 「수업에서 하다 남으면 숙제로」인 것들)이 등원 목록에서 통째로
+   * 사라졌고, 작성한 루틴과 다른 것을 보고 계셨다.
+   *
+   * 실제 차림은 그렇지 않다 — app/today/routineActions.js 는 inclass_items
+   * 와 home_items·home_next 를 **각각 따로** 내보낸다(248·249·265줄).
+   * 화면도 그 규칙과 같아야 한다. 양쪽에 있는 항목은 **양쪽에 보인다.**
+   */
+  const inclassIds = new Set(data.steps.flatMap((st) => st.inclass.map((x) => x.id)));
+  const homeIds = new Set(
+    data.steps.flatMap((st) => [...st.home, ...(st.next || [])].map((x) => x.id))
+  );
+  const bothIds = new Set([...inclassIds].filter((id) => homeIds.has(id)));
+  const nextIds = new Set(data.steps.flatMap((st) => (st.next || []).map((x) => x.id)));
 
   function push(nextSkip, nextOrder, stamp) {
     startTransition(async () => {
@@ -88,8 +106,20 @@ export default function RoutinePick({ studentId, book, onStamp }) {
   }
 
   /**
-   * 차례 옮기기 — **제 무리 안에서만** 움직인다. 등원 항목이 숙제 사이로
-   * 가면 뜻이 없다. 담을 때는 등원 차례 뒤에 숙제 차례를 이어 붙인다.
+   * 차례 옮기기 — **제 무리 안에서만** 움직인다.
+   *
+   * 담기는 곳은 한 줄(routine_order)이지만, 그 줄은 **무리 안에서만 쓰이는
+   * 순위표**다 — 차림(app/today/routineActions.js `inOrder`)이 등원 목록과
+   * 숙제 목록을 **각각** 이 순위로 정렬한다. 그래서 두 무리를 한 줄에 어떤
+   * 차례로 이어 붙이든 결과는 같다. 잃지 않는 것만 지키면 된다.
+   *
+   * 전에는 `order.filter(x => !group.includes(x))` 로 나머지를 골랐다.
+   * 등원·숙제 양쪽에 있는 항목이 생기면 그 방식은 **같은 id 를 두 번 넣거나
+   * 통째로 떨어뜨린다.** 옮긴 무리를 앞에 놓고 나머지는 본래 차례대로 이어
+   * 붙인 뒤 한 번 훑어 중복만 걷는다 — 무엇도 사라지지 않는다.
+   *
+   * ⚠️ 양쪽에 있는 항목은 순위가 **하나뿐**이다 (담는 칸이 한 줄이라).
+   *    등원에서 올리면 숙제 목록에서도 같이 올라간다 — 차림도 같은 한계다.
    */
   function move(id, to, group) {
     const cur = group.filter((x) => x !== id);
@@ -97,9 +127,7 @@ export default function RoutinePick({ studentId, book, onStamp }) {
       : to === "bottom" ? cur.length
       : Math.max(0, Math.min(cur.length, group.indexOf(id) + (to === "up" ? -1 : 1)));
     const moved = [...cur.slice(0, at), id, ...cur.slice(at)];
-    // 두 무리를 합쳐 한 줄로 — 등원 먼저, 숙제 뒤
-    const other = order.filter((x) => !group.includes(x));
-    const next = isHome(id) ? [...other, ...moved] : [...moved, ...other];
+    const next = [...new Set([...moved, ...order])];
     const before = order;
     setOrder(next);
     startTransition(async () => {
@@ -109,8 +137,8 @@ export default function RoutinePick({ studentId, book, onStamp }) {
   }
 
   const live = order.filter((id) => !skip.has(id));
-  const inList = live.filter((id) => !isHome(id));
-  const homeList = live.filter((id) => isHome(id));
+  const inList = live.filter((id) => inclassIds.has(id));
+  const homeList = live.filter((id) => homeIds.has(id));
   const off = skip.size;
 
   const Row = ({ id, i, group }) => (
@@ -120,6 +148,17 @@ export default function RoutinePick({ studentId, book, onStamp }) {
         <span className="stuName" style={{ fontWeight: 600, fontSize: 13.5 }}>{nameOf(id)}</span>
         {itemOf(id).tool && (
           <span className="tag tag-sky" style={{ fontSize: 12 }}>{toolBadge(itemOf(id).tool)}</span>
+        )}
+        {/* 양쪽에 넣어두신 항목 — 「수업에서 하다 남으면 숙제로」 */}
+        {bothIds.has(id) && (
+          <span className="tag tag-muted" style={{ fontSize: 12 }} title="등원에도 숙제에도 들어 있어요">
+            등원＋숙제
+          </span>
+        )}
+        {group === homeList && nextIds.has(id) && (
+          <span className="tag tag-lav" style={{ fontSize: 12 }} title="다음 단원이 붙는 예습 숙제입니다">
+            예습
+          </span>
         )}
       </span>
       <span className="stuTags" />
@@ -149,10 +188,19 @@ export default function RoutinePick({ studentId, book, onStamp }) {
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="row" style={{ gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <span
+          className={`tag ${data.따르는루틴 === "영역" ? "tag-amber" : "tag-muted"}`}
+          title={
+            data.따르는루틴 === "영역"
+              ? "이 교재에는 교재 루틴이 없어서 영역 루틴을 따르고 있어요 — 교재 화면에서 단계를 하나라도 만들면 그때부터 교재 루틴이 우선합니다"
+              : "이 교재에 만들어 둔 교재 루틴입니다"
+          }
+        >
+          {data.따르는루틴 === "영역" ? "영역 루틴을 따르는 중" : "교재 루틴"}
+        </span>
         <span className="hint">
-          {data.따르는루틴 === "영역" ? "영역 루틴" : "교재 루틴"}
-          {data.회독 > 1 ? ` · ${data.회독}회독` : ""}
-          {off > 0 ? ` · ${off}개 뺌` : ""}
+          {data.회독 > 1 ? `${data.회독}회독` : ""}
+          {off > 0 ? `${data.회독 > 1 ? " · " : ""}${off}개 뺌` : ""}
         </span>
         {set ? (
           <span className="tag tag-mint">정함</span>
@@ -167,6 +215,48 @@ export default function RoutinePick({ studentId, book, onStamp }) {
           </button>
         )}
       </div>
+
+      {/**
+        * **원장님이 작성한 루틴 그대로** (원장님 2026-08-28 — 「루틴 내용
+        * 내가 작성한 거랑 달라」).
+        *
+        * 아래 두 목록은 「무엇을 뺄까 · 어떤 차례로 할까」를 정하는 자리라
+        * 회차를 흩어 평탄하게 편다(0154 — 원장님이 그렇게 해달라고 하셨다).
+        * 그런데 그것만 보이면 **작성한 것과 다른 글**로 읽힌다 — 회차도
+        * 단계 이름도 없어졌으니까. 그래서 작성한 원본을 그대로 위에 둔다.
+        * 여기는 읽기만 — 고치는 곳은 교재 화면의 루틴 편집기 한 곳이다.
+        */}
+      <details className="card sect sect-calm" style={{ padding: "6px 8px" }}>
+        <summary className="hint" style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700 }}>
+          작성하신 {data.따르는루틴 === "영역" ? "영역" : "교재"} 루틴 그대로 보기 ({data.steps.length}회차)
+        </summary>
+        <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+          {data.steps.map((st) => (
+            <div className="stack" key={st.id} style={{ gap: 2 }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>
+                {st.no}. {st.label || "(이름 없음)"}
+              </span>
+              <div className="row" style={{ gap: 4, alignItems: "baseline" }}>
+                <span className="tag tag-lav" style={{ minWidth: 34, justifyContent: "center" }}>등원</span>
+                <span style={{ fontSize: 13 }}>{st.inclass.map((x) => x.name).join(" · ") || "—"}</span>
+              </div>
+              <div className="row" style={{ gap: 4, alignItems: "baseline" }}>
+                <span className="tag tag-mint" style={{ minWidth: 34, justifyContent: "center" }}>숙제</span>
+                <span style={{ fontSize: 13 }}>{st.home.map((x) => x.name).join(" · ") || "—"}</span>
+              </div>
+              {(st.next || []).length > 0 && (
+                <div className="row" style={{ gap: 4, alignItems: "baseline" }}>
+                  <span className="tag tag-sky" style={{ minWidth: 34, justifyContent: "center" }}>예습</span>
+                  <span style={{ fontSize: 13 }}>
+                    {st.next.map((x) => x.name).join(" · ")}
+                    <span className="hint"> (다음 단원)</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </details>
 
       <Group title="등원 학습 — 학원에서 이 차례로" ids={inList} />
       <Group title="집 숙제 — 아이 화면에 이 차례로" ids={homeList} />

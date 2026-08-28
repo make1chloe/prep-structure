@@ -355,23 +355,22 @@ export default async function Home() {
                   아이 화면에는 아직 이 숙제가 떠 있어요 — 검사해서 저장하면 넘어갑니다.
                   숫자는 며칠째인지입니다.
                 </p>
-                {/* **그 날짜 · 그 아이가 펴진 채로** 열려야 한다 — 가서 뭘
-                    해야 할지 모르는 것이 문제였다 (원장님 8/28). 숙제 검사는
-                    판이 커서 팝오버로는 안 된다 (한 아이가 항목 여럿 · ○△✕ ·
-                    메모 · 다음 배정까지 한 판) — 대신 짚어서 보낸다 */}
-                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                  {d.staleHomework.slice(0, 8).map((h) => (
-                    <Link
-                      className="tag tag-amber"
-                      key={`${h.name}|${h.date}`}
-                      href={`/today?d=${h.date}${h.id ? `&open=${h.id}` : ""}`}
-                      style={{ textDecoration: "none" }}
-                      title={`${h.date} 배정 · ${h.count}개 · ${h.days}일째 — 눌러서 그 날 그 학생 판 열기`}
-                    >
-                      <b>{h.name}</b> {h.days}
-                    </Link>
-                  ))}
-                </div>
+                {/* **그 자리에서 검사한다** (원장님 8/28 — 「첫 번째 꺼 왜
+                    모달 안 붙어?」). 앞서 「판이 커서 팝오버가 안 맞는다」로
+                    화면 이동만 뒀는데, 원장님이 그 판정을 받지 않으셨다.
+                    검사 원판(CheckBoard)을 그 아이 한 줄만 넣어 띄운다 */}
+                <DashFix
+                  kind="check"
+                  items={d.staleHomework.slice(0, 8).map((h) => ({
+                    key: `${h.id || h.name}|${h.date}`,
+                    studentId: h.id,
+                    date: h.date,
+                    name: h.name,
+                    days: h.days,
+                    sub: String(h.days),
+                    title: `${h.date} 배정 · ${h.count}개 · ${h.days}일째 — 눌러서 그 자리에서 검사`,
+                  }))}
+                />
               </div>
             )}
             {/**

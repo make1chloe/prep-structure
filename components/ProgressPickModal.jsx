@@ -1,7 +1,8 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
-import { annotateBigs, groupByParent } from "@/components/unitGroups";
+import { annotateBigs, groupByParent, bigStat } from "@/components/unitGroups";
+import { useBigFold } from "@/components/useBigFold";
 
 /**
  * **진도 단원 골라 찍기 팝오버** (원장님 2026-08-27 오후 — 「진도는 상세
@@ -38,6 +39,8 @@ export default function ProgressPickModal({
 }) {
   const [checked, setChecked] = useState(() => new Set(preset));
   const [q, setQ] = useState("");
+  // 접힘 규칙은 판과 **같은 한 벌** — 어느 화면에서 열든 같아야 한다
+  const bigFold = useBigFold(q);
 
   // 판과 같은 묶기 — 필터도 판의 「단원 찾기」와 같은 규칙으로 거른다
   const groups = useMemo(() => annotateBigs(groupByParent(units, q)), [units, q]);
@@ -97,15 +100,42 @@ export default function ProgressPickModal({
           {groups.map(({ head, list, mid, big, bigStart, bigIds }) => (
             <Fragment key={head || "_"}>
               {/* 대단원 막대 — 진도 판과 같은 얼굴, 누르면 통째 토글 */}
-              {bigStart && (
-                <button
-                  className="unit-bigbar"
-                  title="이 대단원의 단원 전체를 체크하거나 뺍니다"
-                  onClick={() => toggleMany(bigIds)}
-                >
-                  {bigIds.every((x) => checked.has(x)) ? "☑" : "☐"} {big}
-                </button>
-              )}
+              {/**
+                * 막대의 두 일을 갈랐다 (원장님 2026-08-28 — 「제목 클릭 시
+                * 열리게」). ☑ 칸은 통째 체크, **이름은 펴기·접기**다.
+                * 펴려고 누른 손이 대단원을 통째로 체크해 버리면 사고다.
+                */}
+              {bigStart && (() => {
+                const st = bigStat(units, bigIds);
+                const shut = !bigFold.isOpen(big);
+                const allOn = bigIds.every((x) => checked.has(x));
+                return (
+                  <div className="unit-bigbar unit-bigrow">
+                    <button
+                      type="button"
+                      className="unit-bigbox"
+                      title="이 대단원의 단원 전체를 체크하거나 뺍니다"
+                      onClick={() => toggleMany(bigIds)}
+                    >
+                      {allOn ? "☑" : "☐"}
+                    </button>
+                    <button
+                      type="button"
+                      className="unit-bigname"
+                      aria-expanded={!shut}
+                      title={shut ? "눌러서 펴기" : "눌러서 접기"}
+                      onClick={() => bigFold.toggle(big)}
+                    >
+                      <span className="unit-bigcaret">{shut ? "▸" : "▾"}</span> {big}
+                      <span className="hint" style={{ fontWeight: 600, marginLeft: 6 }}>
+                        {st.done}/{st.total}
+                        {st.doing > 0 ? ` · ◐${st.doing}` : ""}
+                      </span>
+                    </button>
+                  </div>
+                );
+              })()}
+              {bigFold.isOpen(big) && (<>
               {mid && (
                 <button
                   className="tag tag-sky"
@@ -149,6 +179,7 @@ export default function ProgressPickModal({
                   </label>
                 );
               })}
+              </>)}
             </Fragment>
           ))}
         </div>

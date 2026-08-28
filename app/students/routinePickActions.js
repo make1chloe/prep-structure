@@ -105,12 +105,24 @@ export async function routineChoices(studentId, textbookId) {
     return { id, name: it?.name || "(지워진 항목)", tool: it?.tool || "", category: it?.category || "" };
   };
 
+  /**
+   * **셋을 안 뭉갠다** — 등원(inclass) · 숙제(home) · 예습(next)은 오늘 수업
+   * 차림이 각각 다르게 다루는 것이다 (app/today/routineActions.js —
+   * 숙제에는 오늘 단원이, 예습에는 다음 단원이 붙는다).
+   *
+   * 전에는 home 과 next 를 한 덩어리로 합쳐 돌려줬고, 화면은 거기에 더해
+   * 「숙제에 있으면 등원이 아니다」로 갈랐다. 그래서 원장님이 **등원에도
+   * 숙제에도 넣어둔 항목**이 등원 목록에서 사라졌다 — 실제 차림은 양쪽에
+   * 다 내보내는데 화면만 한쪽으로 몰아 보여준 것이다
+   * (원장님 2026-08-28 「루틴 내용 내가 작성한 거랑 달라」).
+   */
   const steps = list.map((x, i) => ({
     id: x.id,
     no: i + 1,
     label: x.label || "",
     inclass: (x.inclass_items || []).filter(Boolean).map(shape),
-    home: [...(x.home_items || []), ...(x.home_next || [])].filter(Boolean).map(shape),
+    home: (x.home_items || []).filter(Boolean).map(shape),
+    next: (x.home_next || []).filter(Boolean).map(shape),
   }));
 
   /**
