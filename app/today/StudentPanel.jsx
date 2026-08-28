@@ -19,7 +19,7 @@ import StudentBooks from "./StudentBooks";
 import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
 import { addStay } from "./stayActions";
-import { CAT_CLS } from "@/app/homework/categories";
+import { CAT_CLS, toolBadge } from "@/app/homework/categories";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
@@ -1915,6 +1915,7 @@ export default function StudentPanel({
                     }
                   >
                     {i.name}
+                    {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
                   </button>
                 );
               })}
@@ -2129,6 +2130,7 @@ export default function StudentPanel({
                       }}
                     >
                       {next.has(i.id) && <b>＋</b>} {i.name}
+                      {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
                     </button>
                   ))}
                 </div>
@@ -2974,6 +2976,7 @@ export default function StudentPanel({
                           title="클릭: 완료 → 미흡 → 미제출 → 없음"
                         >
                           {st && <b>{MARK[st]}</b>} {i.name}
+                          {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
                         </button>
                       );
                     })}

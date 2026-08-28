@@ -253,7 +253,10 @@ export default function StudyList({
                 <span className="tag tag-muted" style={{ minWidth: 24, textAlign: "center" }}>
                   {i + 2}
                 </span>
-                <span style={{ fontSize: 14.5, flex: 1 }}>{t.name}</span>
+                <span style={{ fontSize: 14.5, flex: 1 }}>
+                  {t.name}
+                  {t.tool ? <span className="hint"> {toolBadge(t.tool)}</span> : null}
+                </span>
                 {areaCount > 1 && t.bookArea && (
                   <span className="hint" style={{ fontSize: 12 }}>{t.bookArea}</span>
                 )}

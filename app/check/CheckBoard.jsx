@@ -8,6 +8,7 @@ import Link from "next/link";
 import { viewUrl } from "@/app/me/submitActions";
 import PhotoView from "@/components/PhotoView";
 import { addDays } from "@/lib/day";
+import { toolBadge } from "@/app/homework/categories";
 
 // 색은 오늘 수업 화면과 같은 것을 쓴다 — 같은 뜻이 화면마다 다른 색이면 안 된다
 const MARK = [
@@ -61,7 +62,15 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [], 
   const [optSeen, setOptSeen] = useState({});     // sub.id → 봤는지 (true/false)
   const seenOf = (s) => (s.id in optSeen ? optSeen[s.id] : !!s.checked_at);
 
-  const nameOf = (id) => items.find((i) => i.id === id)?.name || "숙제";
+  /**
+   * 이름 옆에 **준비물**까지 (원장님 2026-08-28 — 이름만으로는 어느
+   * 「필수학습」인지 알 수 없다). 그림표는 toolBadge 한 벌.
+   */
+  const nameOf = (id) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return "숙제";
+    return it.tool ? `${it.name} ${toolBadge(it.tool)}` : it.name;
+  };
 
   // 아직 안 찍은 숙제가 있으면 '남은 학생'
   const left = (r) => r.toCheck.filter((c) => !markOf(r, c.id));
@@ -581,7 +590,7 @@ function ItemMode({
         >
           {choices.length === 0 && <option value="">배정된 숙제가 없어요</option>}
           {choices.map((i) => (
-            <option key={i.id} value={i.id}>{i.name}</option>
+            <option key={i.id} value={i.id}>{i.tool ? `${i.name} ${toolBadge(i.tool)}` : i.name}</option>
           ))}
         </select>
         <span className="spacer" />

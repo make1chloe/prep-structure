@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { routineChoices, setRoutinePick } from "./routinePickActions";
+import { toolBadge } from "@/app/homework/categories";
 
 /**
  * **이 학생은 이 교재 루틴에서 무엇을, 어떤 차례로 하나**
@@ -48,13 +49,19 @@ export default function RoutinePick({ studentId, book, onStamp }) {
     );
   }
 
-  const nameOf = (id) => {
+  /**
+   * **이름 옆에 준비물을 같이** (원장님 2026-08-28 — 「클래스카드 필수학습이
+   * 나와야 하는데 필수학습이라고만 나옴. 이러면 뭔지 모름」).
+   * 그림표는 오늘 수업·아이 화면과 **같은 한 벌**(toolBadge)로 만든다.
+   */
+  const itemOf = (id) => {
     for (const st of data.steps) {
       const hit = [...st.inclass, ...st.home].find((x) => x.id === id);
-      if (hit) return hit.name;
+      if (hit) return hit;
     }
-    return "학습";
+    return { id, name: "학습", tool: "", category: "" };
   };
+  const nameOf = (id) => itemOf(id).name;
   const homeIds = new Set(data.steps.flatMap((st) => st.home.map((x) => x.id)));
   const isHome = (id) => homeIds.has(id);
 
@@ -111,6 +118,9 @@ export default function RoutinePick({ studentId, book, onStamp }) {
       <span className="stuWho">
         <span className="hint" style={{ width: 16, textAlign: "right" }}>{i + 1}</span>
         <span className="stuName" style={{ fontWeight: 600, fontSize: 13.5 }}>{nameOf(id)}</span>
+        {itemOf(id).tool && (
+          <span className="tag tag-sky" style={{ fontSize: 12 }}>{toolBadge(itemOf(id).tool)}</span>
+        )}
       </span>
       <span className="stuTags" />
       <span className="stuEnd">
@@ -170,7 +180,7 @@ export default function RoutinePick({ studentId, book, onStamp }) {
               title="누르면 다시 합니다"
               style={{ textDecoration: "line-through", opacity: 0.6 }}
               onClick={() => toggle(id)}>
-              {nameOf(id)}
+              {nameOf(id)}{itemOf(id).tool ? ` ${toolBadge(itemOf(id).tool)}` : ""}
             </button>
           ))}
         </div>

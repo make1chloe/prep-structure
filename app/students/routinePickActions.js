@@ -80,18 +80,37 @@ export async function routineChoices(studentId, textbookId) {
   const ids = [...new Set(list.flatMap((x) => [
     ...(x.inclass_items || []), ...(x.home_items || []), ...(x.home_next || []),
   ]).filter(Boolean))];
-  const { data: hw } = ids.length
-    ? await supabase.from("homework_items").select("id, name").in("id", ids)
+  /**
+   * **준비물(tool)도 같이 싣는다** (원장님 2026-08-28 — 「루틴 정할 때
+   * 클래스카드 필수학습이 나와야 하는데 필수학습이라고만 나옴. 이러면
+   * 뭔지 모름」).
+   *
+   * 이름이 잘린 것이 아니었다 — 「클래스카드」는 이름의 일부가 아니라
+   * 준비물 칸(homework_items.tool, 0116)이고, 여기서 그 칸을 **안 읽고
+   * 있었다.** 오늘 수업·아이 화면·항목 관리는 이름 옆에 준비물을 늘
+   * 붙여 그리는데(toolBadge 한 벌), 루틴 화면만 이름만 받아서 「필수학습」
+   * 「필수학습」 이 여럿 나란히 서면 무엇인지 알 수 없었다.
+   * 분류(category)도 같이 — 같은 이름이 영역만 다른 경우를 가른다.
+   *
+   * tool 칸이 아직 없는 DB(0116 전)는 한 칸씩 물러난다.
+   */
+  let hq = ids.length
+    ? await supabase.from("homework_items").select("id, name, tool, category").in("id", ids)
     : { data: [] };
-  const nameOf = new Map((hw || []).map((x) => [x.id, x.name]));
+  if (hq.error) hq = await supabase.from("homework_items").select("id, name, category").in("id", ids);
+  if (hq.error) hq = await supabase.from("homework_items").select("id, name").in("id", ids);
+  const itemOf = new Map((hq.data || []).map((x) => [x.id, x]));
+  const shape = (id) => {
+    const it = itemOf.get(id);
+    return { id, name: it?.name || "(지워진 항목)", tool: it?.tool || "", category: it?.category || "" };
+  };
 
   const steps = list.map((x, i) => ({
     id: x.id,
     no: i + 1,
     label: x.label || "",
-    inclass: (x.inclass_items || []).filter(Boolean).map((id) => ({ id, name: nameOf.get(id) || "(지워진 항목)" })),
-    home: [...(x.home_items || []), ...(x.home_next || [])]
-      .filter(Boolean).map((id) => ({ id, name: nameOf.get(id) || "(지워진 항목)" })),
+    inclass: (x.inclass_items || []).filter(Boolean).map(shape),
+    home: [...(x.home_items || []), ...(x.home_next || [])].filter(Boolean).map(shape),
   }));
 
   /**

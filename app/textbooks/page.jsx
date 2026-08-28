@@ -136,7 +136,9 @@ export default async function TextbooksPage(props) {
     ),
     supabase
       .from("homework_items")
-      .select("id, name, sort, category")
+      // 준비물(tool, 0116)까지 — 루틴 편집기가 이름 옆에 그린다. 없는 DB 는
+      // 아래 폴백이 받는다 (원장님 2026-08-28 「필수학습이라고만 나옴」)
+      .select("id, name, sort, category, tool")
       .eq("active", true)
       .order("sort", { ascending: true }),
     supabase

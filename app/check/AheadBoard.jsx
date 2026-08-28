@@ -7,7 +7,7 @@ import { assignHomeworkAhead, unassignHomeworkAhead } from "@/app/plan/actions";
 import { createNotice, listUnitOptions } from "@/app/today/actions";
 import UnitPickModal from "@/components/UnitPickModal";
 import { addDays, dayLabel as fmtDay, dowOf, todaySeoul } from "@/lib/day";
-import { CAT_CLS } from "@/app/homework/categories";
+import { CAT_CLS, toolBadge } from "@/app/homework/categories";
 import { NOTICE_KINDS } from "@/lib/notices";
 
 /** 미리 적는 자리라 「지금 울리는」 갈래는 없다 — 예도 그에 맞춘다 */
@@ -299,6 +299,7 @@ export default function AheadBoard({
                   onClick={() => toggleItem(i.id)}
                 >
                   {picked.has(i.id) && <b>＋</b>} {i.name}
+                  {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
                 </button>
               ))}
             </div>
@@ -311,7 +312,7 @@ export default function AheadBoard({
                   return (
                     <div className="unitrow" key={iid}>
                       <span className={`tag ${CAT_CLS[item?.category] || "tag-muted"}`}>
-                        {item?.name}
+                        {item?.name}{item?.tool ? ` ${toolBadge(item.tool)}` : ""}
                       </span>
                       {/* 교재 고르기 한 벌 (C3) — 오늘 수업과 같은 BookPicker */}
                       <BookPicker

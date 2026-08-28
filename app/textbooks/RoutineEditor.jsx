@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { listRoutine, saveStep, deleteStep, seedRoutine, copyAreaRoutine } from "./routineActions";
-import { CATEGORIES, CAT_CLS } from "@/app/homework/categories";
+import { CATEGORIES, CAT_CLS, toolBadge } from "@/app/homework/categories";
 
 /**
  * 학습 루틴 — 진도를 따라 순서대로.
@@ -59,7 +59,7 @@ function Picker({ label, value, onChange, items = [] }) {
         <div className="pickedbar">
           {picked.map((i) => (
             <button key={i.id} className="chip on" onClick={() => toggle(i.id)} title="빼기">
-              {i.name} ✕
+              {i.name}{i.tool ? ` ${toolBadge(i.tool)}` : ""} ✕
             </button>
           ))}
         </div>
@@ -76,7 +76,7 @@ function Picker({ label, value, onChange, items = [] }) {
                   className={`chip ${value.includes(i.id) ? "on" : ""}`}
                   onClick={() => toggle(i.id)}
                 >
-                  {i.name}
+                  {i.name}{i.tool ? ` ${toolBadge(i.tool)}` : ""}
                 </button>
               ))}
             </div>
@@ -112,7 +112,22 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
   if (!textbookId && !area) return null;
   if (steps === null) return <p className="hint">불러오는 중…</p>;
 
-  const nameOf = (id) => items.find((i) => i.id === id)?.name || "";
+  /**
+   * **이름 옆에 준비물을 같이** (원장님 2026-08-28 — 「클래스카드 필수학습이
+   * 나와야 하는데 필수학습이라고만 나옴. 이러면 뭔지 모름」).
+   *
+   * 이름이 잘린 것이 아니었다 — 「클래스카드」는 이름의 일부가 아니라
+   * 준비물 칸(homework_items.tool, 0116)인데 이 화면이 그것을 안 그렸다.
+   * 「필수학습」 같은 이름은 준비물이 달라도 같은 글자라, 줄에 나란히
+   * 서면 어느 것이 어느 것인지 알 수가 없다. 그림표는 아이 화면·오늘
+   * 수업과 **같은 한 벌**(toolBadge)로 만든다.
+   */
+  const itemOf = (id) => items.find((i) => i.id === id) || null;
+  const nameOf = (id) => {
+    const it = itemOf(id);
+    if (!it) return "";
+    return it.tool ? `${it.name} ${toolBadge(it.tool)}` : it.name;
+  };
 
   function run(fn) {
     startTransition(async () => {

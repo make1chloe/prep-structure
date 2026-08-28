@@ -56,11 +56,24 @@ export default async function StudentsPage(props) {
      */
     supabase
       .from("homework_items")
-      .select("id, name, sort, category")
+      // 준비물(tool)까지 — 교재 화면과 같은 편집기라 재료도 같아야 한다
+      .select("id, name, sort, category, tool")
       .eq("active", true)
       .order("sort", { ascending: true }),
   ]);
-  const hwItems = hwQ?.error ? [] : hwQ?.data || [];
+  /**
+   * 0116 전 DB 는 준비물(tool) 칸이 없어 위 조회가 통째로 실패한다 —
+   * 그러면 루틴 편집기의 항목 목록이 빈칸이 된다. 한 칸 물러나 다시 읽는다.
+   */
+  let hwItems = hwQ?.error ? [] : hwQ?.data || [];
+  if (hwQ?.error) {
+    const { data: hw2 } = await supabase
+      .from("homework_items")
+      .select("id, name, sort, category")
+      .eq("active", true)
+      .order("sort", { ascending: true });
+    hwItems = hw2 || [];
+  }
 
   let { data: students, error } = studentsQ1;
   if (error && (error.code === "42703" || error.code === "PGRST204")) {

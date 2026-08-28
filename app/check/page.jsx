@@ -50,7 +50,7 @@ export default async function CheckPage(props) {
       supabase.from("class_students").select("class_id, student_id"),
       supabase
         .from("homework_items")
-        .select("id, name, sort, in_person, unit_test, category")
+        .select("id, name, sort, in_person, unit_test, category, tool")
         .eq("active", true)
         .order("sort", { ascending: true }),
       // 기간 칸까지 챙겨 한 번만 — 거르기는 아래에서 조건별로 (classTerm 한 벌)
