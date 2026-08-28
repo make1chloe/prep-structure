@@ -6,7 +6,9 @@ import SettingsForm from "./SettingsForm";
 import NetBox from "./NetBox";
 import GuideBox from "./GuideBox";
 import NeisKeyBox from "./NeisKeyBox";
+import StaffBox from "./StaffBox";
 import AiBox from "./sql/AiBox";
+import { listStaffAccounts } from "./staffActions";
 import { checkSchema } from "./sql/status";
 import { loadSettings, maskSecret } from "@/lib/settings";
 import { inquiryAlertReady, inquiryAlertName } from "@/app/apply/notify";
@@ -55,10 +57,12 @@ export default async function SettingsPage() {
    *
    * 무엇을 그릴지 정하는 자리는 아래 그대로다 — 언제 물어보는지만 바꿨다.
    */
-  const [s, intQ, allChecks] = await Promise.all([
+  const [s, intQ, allChecks, staff] = await Promise.all([
     loadSettings(supabase),
     supabase.from("integrations").select("id, config").in("id", ["push", "anthropic"]),
     checkSchema(),
+    // 선생님 계정 목록도 아무것과도 안 물어본다 — 같은 줄에 세운다 (왕복이 안 늘어난다)
+    listStaffAccounts(),
   ]);
   const intById = new Map((intQ.data || []).map((r) => [r.id, r]));
   const pushRow = intById.get("push") || null;
@@ -144,6 +148,17 @@ export default async function SettingsPage() {
               <AiBox saved={!!aiRow?.config?.key} />
             </>
           }
+        />
+
+        {/* **선생님(강사 · 조교) 계정.** 여기 말고 갈 자리가 없다 —
+            열쇠(service_role)를 쓰는 일이고, 원장만 여는 화면이어야 하고,
+            「한 번 맞춰두고 거의 안 여는 것」이다. 셋 다 이 화면의 성질이다.
+            (재원생 화면의 학생·학부모 계정과 나란히 두는 것도 생각했지만,
+             그 화면은 강사도 연다 — 선생님 계정은 원장만 손대야 한다) */}
+        <StaffBox
+          rows={staff.rows}
+          hasKey={staff.hasKey}
+          listError={staff.error}
         />
 
         {/* **다 만들고 나면 안 여는 것들** (원장님, 2026-08-07 — 「노션이관과

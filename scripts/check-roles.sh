@@ -180,6 +180,47 @@ else
   echo "  ❌ 자물쇠가 계정 삭제를 막았습니다 (남은 것: $r)"; fail=1
 fi
 
+# ── 원장은 선생님 계정을 만들 수 있어야 한다 (app/settings/staffActions.js) ──
+#
+# 0176 은 「스태프 3종을 심거나 올리는 것」 을 통째로 막는다. 그 문을 원장에게
+# 열어주는 것은 맨 위의 `is_principal()` 한 줄뿐이다. **그 한 줄이 진짜로
+# 통하는지**를 여기서 본다 — 안 통하면 설정의 「선생님 계정」 카드는 만들 때마다
+# 「선생님 역할은 원장만 줄 수 있어요」 를 뱉고, 계정은 되돌려진다.
+#
+# 자물쇠를 약하게 만들어서 통과시키는 것이 아니다. 자물쇠는 그대로 두고
+# **원장 세션이 그 예외로 들어가는 것**을 확인한다.
+NEW=88888888-8888-8888-8888-888888888888   # 새로 만드는 강사 계정
+$Q -d chloe -c "insert into auth.users (id) values ('$NEW') on conflict do nothing;" >/dev/null 2>&1
+$Q -d chloe -c "delete from public.profiles where id='$NEW';" >/dev/null 2>&1
+
+# ① 원장이 강사 행을 **심는다** (INSERT — 트리거의 insert 갈래)
+astry "$BOSS" "insert into public.profiles (id, role, name, login_id) values ('$NEW','instructor','새강사','dev1');"
+r=$(roleof "$NEW")
+if [ "$r" = "instructor" ]; then
+  echo "  원장은 강사 계정을 만들 수 있습니다"
+else
+  echo "  ❌ 원장이 강사 계정을 못 만듭니다 (지금: ${r:-없음}) — 설정의 선생님 계정 카드가 안 됩니다"; fail=1
+fi
+
+# ② 원장이 강사 → 조교로 **바꾼다** (UPDATE — 「스태프 3종으로 올리기」 갈래)
+astry "$BOSS" "update public.profiles set role='assistant' where id='$NEW';"
+r=$(roleof "$NEW")
+if [ "$r" = "assistant" ]; then
+  echo "  원장은 강사↔조교를 바꿉니다"
+else
+  echo "  ❌ 원장이 역할을 못 바꿉니다 (지금: ${r:-?})"; fail=1
+fi
+
+# ③ 그런데 **조교는 여전히 못 한다** — ①②가 통한 이유가 「원장이라서」인지
+#    「자물쇠가 느슨해져서」인지 갈라 본다. 이 줄이 없으면 ①②는 아무 것도 증명 못 한다
+astry "$ASSI" "insert into public.profiles (id, role, name) values ('99999999-9999-9999-9999-999999999999','instructor','몰래강사');"
+r=$(roleof "99999999-9999-9999-9999-999999999999")
+if [ -z "$r" ]; then
+  echo "  조교는 강사 계정을 못 만듭니다 (자물쇠는 그대로입니다)"
+else
+  echo "  ❌ 조교가 강사 계정을 만들었습니다 (지금: $r) — 자물쇠가 풀렸습니다"; fail=1
+fi
+
 # 표식이 진실을 말하나 — 상수 true 면 자물쇠를 지워도 초록이 된다 (0176 ①)
 r=$($Q -d chloe -tAc "select public.role_locked_on()::text;" 2>/dev/null | tail -1)
 if [ "$r" = "true" ]; then
