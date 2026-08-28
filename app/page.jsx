@@ -196,12 +196,12 @@ export default async function Home() {
             )}
             {(d.backlog || []).length > 0 && (
               <div className="card sect sect-warn">
-                <h2 className="secthead">등원 밀림 <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>다음 수업에 계속이 쌓인 학생</span></h2>
-                <div className="stack" style={{ gap: 3 }}>
+                <h2 className="secthead">등원 밀림 <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>다음 수업에 계속이 쌓인 학생 · 숫자는 밀린 항목</span></h2>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.backlog.slice(0, 6).map((b) => (
-                    <div className="hint" key={b.name}>
-                      <b>{b.name}</b> — 밀린 항목 {b.count}개
-                    </div>
+                    <span className="tag tag-amber" key={b.name} title={`밀린 항목 ${b.count}개`}>
+                      <b>{b.name}</b> {b.count}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -254,7 +254,7 @@ export default async function Home() {
                     {d.classcard.runningOut.map((r) => (
                       <span className="tag tag-amber" key={`o-${r.name}`}
                         title={r.last ? `마지막 마감 ${r.last}` : "앞으로 잡힌 마감이 없어요"}>
-                        {r.name}{r.last ? "" : " ·"}
+                        {r.name}
                       </span>
                     ))}
                   </div>
@@ -293,23 +293,25 @@ export default async function Home() {
             {/* 단원이 없으면 오늘 수업에서 숙제 범위를 고를 수가 없다 */}
             {(d.needUnits || []).length > 0 && (
               <div className="card sect sect-warn">
-                <h2 className="secthead">단원을 넣어야 하는 교재 <span className="tag tag-amber">{d.needUnits.length}권</span></h2>
-                <div className="stack" style={{ gap: 3 }}>
+                <h2 className="secthead">
+                  단원을 넣어야 하는 교재 <span className="tag tag-amber">{d.needUnits.length}권</span>
+                  <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>숫자는 쓰는 학생 수</span>
+                </h2>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.needUnits.slice(0, 8).map((b) => (
                     <Link
-                      className="unitrow"
+                      className="tag tag-amber"
                       key={b.id}
                       href={`/textbooks?tb=${b.id}`}
                       style={{ textDecoration: "none" }}
+                      title={`${b.area ? b.area + " · " : ""}${b.students}명이 씁니다`}
                     >
-                      <b style={{ fontSize: 14, flex: 1 }}>{b.name}</b>
-                      {b.area && <span className="tag tag-muted">{b.area}</span>}
-                      <span className="tag tag-amber">{b.students}명</span>
+                      <b>{b.name}</b> {b.students}
                     </Link>
                   ))}
                   {d.needUnits.length > 8 && (
-                    <Link className="hint" href="/textbooks">
-                      외 {d.needUnits.length - 8}권 더 보기
+                    <Link className="tag tag-muted" href="/textbooks">
+                      외 {d.needUnits.length - 8}권
                     </Link>
                   )}
                 </div>
@@ -330,20 +332,18 @@ export default async function Home() {
                 </h2>
                 <p className="hint" style={{ margin: "0 0 6px" }}>
                   아이 화면에는 아직 이 숙제가 떠 있어요 — 검사해서 저장하면 넘어갑니다.
+                  숫자는 며칠째인지입니다.
                 </p>
-                <div className="stack" style={{ gap: 3 }}>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.staleHomework.slice(0, 8).map((h) => (
                     <Link
-                      className="unitrow"
+                      className="tag tag-amber"
                       key={`${h.name}|${h.date}`}
                       href={`/today?d=${h.date}`}
                       style={{ textDecoration: "none" }}
+                      title={`${h.date} 배정 · ${h.count}개 · ${h.days}일째`}
                     >
-                      <b style={{ fontSize: 14 }}>{h.name}</b>
-                      <span className="hint" style={{ flex: 1 }}>
-                        {h.date} 배정 · {h.count}개
-                      </span>
-                      <span className="tag tag-amber">{h.days}일째</span>
+                      <b>{h.name}</b> {h.days}
                     </Link>
                   ))}
                 </div>
@@ -361,24 +361,21 @@ export default async function Home() {
                 <h2 className="secthead">
                   루틴 안 정한 교재 <span className="tag tag-amber">{d.routineUnset.length}건</span>
                 </h2>
-                <div className="stack" style={{ gap: 3 }}>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.routineUnset.slice(0, 8).map((p) => (
                     <Link
-                      className="unitrow"
+                      className="tag tag-amber"
                       key={p.id}
                       href={`/students?s=${p.studentId}`}
                       style={{ textDecoration: "none" }}
-                      title={p.since ? `${p.since} 배정` : undefined}
+                      title={`${p.area ? "[" + p.area + "] " : ""}${p.book}${p.since ? ` · ${p.since} 배정` : ""}`}
                     >
-                      <b style={{ fontSize: 14 }}>{p.name}</b>
-                      <span className="hint" style={{ flex: 1 }}>
-                        {p.area ? `[${p.area}] ` : ""}{p.book}
-                      </span>
+                      <b>{p.name}</b> {p.book}
                     </Link>
                   ))}
                   {d.routineUnset.length > 8 && (
-                    <Link className="hint" href="/students">
-                      외 {d.routineUnset.length - 8}건 더 보기
+                    <Link className="tag tag-muted" href="/students">
+                      외 {d.routineUnset.length - 8}건
                     </Link>
                   )}
                 </div>
@@ -462,17 +459,16 @@ export default async function Home() {
                   </div>
                 ))}
 
-                <div className="stack" style={{ gap: 4 }}>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.unitStuck.people.map((p, i) => (
                     <Link
-                      className="unitrow"
+                      className="tag tag-amber"
                       key={`${p.student?.id}-${p.unit}-${i}`}
                       href={`/scores/${p.student?.id}`}
                       style={{ textDecoration: "none" }}
+                      title={`${p.unit} ${p.tries}번째${p.last != null ? ` · 마지막 ${p.last}점` : ""}`}
                     >
-                      <b style={{ fontSize: 14 }}>{p.student?.name}</b>
-                      <span className="tag tag-amber">{p.unit} {p.tries}번째</span>
-                      {p.last != null && <span className="hint">마지막 {p.last}점</span>}
+                      <b>{p.student?.name}</b> {p.unit} {p.tries}
                     </Link>
                   ))}
                 </div>
@@ -590,8 +586,10 @@ export default async function Home() {
           <div className="stack dashcol">
             {d.examSoon.length > 0 && (
               <div className="card sect sect-warn">
+                {/* 「범위 미등록」 을 여기서 세면 메뉴 배지와 두 벌이 된다
+                    (scripts/check-badges.mjs 가 막는다) — 줄 안에만 적는다 */}
                 <h2 className="secthead">다가오는 내신 시험</h2>
-                <div className="row" style={{ gap: 4 }}>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.examSoon.map((e) => (
                     <Link className={`tag ${e.noScope ? "tag-red" : "tag-mint"}`} key={e.id} href="/prep">
                       D-{e.dday} {e.label}{e.noScope ? " · 범위 미등록" : ""}
@@ -640,20 +638,19 @@ export default async function Home() {
             {d.holidayNotes.length > 0 && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">공휴일 — 쉴지 정해주세요</h2>
-                <div className="stack" style={{ gap: 4 }}>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.holidayNotes.map((h) => (
-                    <div className="hint" key={h.date}>
-                      <span
-                        className={`tag ${
-                          h.kind === "bridge" ? "tag-lav"
-                          : h.kind === "substitute" ? "tag-amber"
-                          : "tag-red"
-                        }`}
-                      >
-                        {dayLabel(h.date)} {h.name}
-                      </span>{" "}
-                      {h.why}
-                    </div>
+                    <span
+                      key={h.date}
+                      title={h.why}
+                      className={`tag ${
+                        h.kind === "bridge" ? "tag-lav"
+                        : h.kind === "substitute" ? "tag-amber"
+                        : "tag-red"
+                      }`}
+                    >
+                      {dayLabel(h.date)} {h.name}
+                    </span>
                   ))}
                 </div>
                 <Link className="btn btn-ghost btn-sm" href="/schedule" style={{ marginTop: 6 }}>
@@ -664,12 +661,12 @@ export default async function Home() {
             {/* 이번 주 생일 (원장님, 2026-08-15 — 「생일 나한테 알려주고」) */}
             {(d.birthdays || []).length > 0 && (
               <div className="card sect sect-calm">
-                <h2 className="secthead">이번 주 생일</h2>
-                <div className="row" style={{ gap: 4 }}>
+                <h2 className="secthead">🎂 이번 주 생일</h2>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   {d.birthdays.map((b) => (
-                    <span className="tag tag-lav" key={b.id}>
-                      🎂 {b.name} · {b.m}/{b.d}
-                      {b.inDays === 0 ? " (오늘!)" : b.inDays === 1 ? " (내일)" : ""}
+                    <span className="tag tag-lav" key={b.id} title={`${b.m}월 ${b.d}일`}>
+                      <b>{b.name}</b>{" "}
+                      {b.inDays === 0 ? "오늘!" : b.inDays === 1 ? "내일" : `${b.m}/${b.d}`}
                     </span>
                   ))}
                 </div>
