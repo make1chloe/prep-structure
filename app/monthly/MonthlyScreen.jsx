@@ -1,6 +1,7 @@
 import Help from "@/components/Help";
 import SendTabs from "@/app/report/SendTabs";
-import MonthlyBoard from "./MonthlyBoard";
+// 판은 이 탭을 열 때 받는다 — 까닭은 MonthlyBoardLazy.jsx 에
+import MonthlyBoard from "./MonthlyBoardLazy";
 import { loadMonth } from "./actions";
 import { todaySeoul } from "@/lib/day";
 

@@ -489,6 +489,8 @@ button.stuLine:hover { background: var(--surface-2); }
 .peekWait { padding: 14px 2px; }
 /* 교재 판을 그 탭에서 처음 열 때 (app/textbooks/BookPanels.jsx) */
 .bookPanelWait { padding: 14px 2px; }
+/* 월간리포트 탭을 처음 열 때 (app/monthly/MonthlyBoardLazy.jsx) */
+.monthlyWait { padding: 14px 16px; }
 .prow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 5px 0; }
 .plabel { width: 34px; flex: none; font-size: 13px; font-weight: 700; color: var(--text-muted); }
 /* 골라 담는 알약 — 숙제 상태(.hwchip)와 **고르는 것**(.chip)이 같은 모양이다.
