@@ -3,7 +3,7 @@ import Help from "@/components/Help";
 import ScheduleBoard from "@/app/schedule/ScheduleBoard";
 import NeisBox from "@/app/schedule/NeisBox";
 import SchoolBox from "@/app/schedule/SchoolBox";
-import NeisPeek from "@/app/neis/NeisPeek";
+import NeisPeekPanel from "./NeisPeekPanel";
 import { listSchools } from "@/app/schedule/neisActions";
 import { schoolYear } from "@/lib/neis";
 
@@ -189,23 +189,15 @@ export default async function SchoolsPage() {
          *
          * 자리는 우측 하단 — 받은 그대로의 표가 넓어서 좁은 학교 레일에는
          * 못 들어간다 (B2).
+         *
+         * 접힘 상자와 그 안을 **펼칠 때 받기**는 NeisPeekPanel 이 맡는다
+         * (성능수리 5차) — 접혀 있어도 받고 있었다.
          */}
-        <details className="card sect sect-info" style={{ marginTop: 8 }}>
-          <summary className="secthead" style={{ cursor: "pointer" }}>
-            나이스 원본 <span className="tag tag-muted">학교가 올린 그대로</span>
-          </summary>
-          <p className="sub" style={{ marginTop: 6 }}>
-            나이스에 <b>학교가 올려둔 그대로</b>를 봅니다. 다른 화면은 앱이 정리한 뒤의
-            모습이라, 뭔가 없을 때 <b>학교가 안 올린 건지 앱이 못 알아본 건지</b> 알 수가
-            없었습니다. 여기서는 받은 줄을 하나도 안 버리고 보여주고,
-            옆에 <b>앱이 그 줄을 어떻게 봤는지</b>를 적습니다.
-          </p>
-          <NeisPeek
-            from={year.from}
-            to={year.to}
-            schools={(neisSchoolsQ?.rows || []).filter((s) => s.active !== false && s.schul_code)}
-          />
-        </details>
+        <NeisPeekPanel
+          from={year.from}
+          to={year.to}
+          schools={(neisSchoolsQ?.rows || []).filter((s) => s.active !== false && s.schul_code)}
+        />
         </div>
         </div>
       </main>
