@@ -70,6 +70,8 @@ const ONE_PLACE = [
   ["readMark", "lib/reportMark.js", "학부모가 열어봤나 — 아이콘·말·색 (0180)"],
   ["markTime", "lib/reportMark.js", "보낸/열어본 시각 표기 (M/D HH:MM)"],
   ["learnedEnough", "lib/learned.js", "「오늘 배운 것」 을 적은 것으로 볼까 (하원 길목 잣대)"],
+  ["keywordHit", "lib/pickSearch.js", "골라 담는 판의 글자 거르기 (한두 글자는 앞머리로)"],
+  ["keywordFilter", "lib/pickSearch.js", "여러 칸 중 하나라도 걸리면 남긴다"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { keywordFilter } from "@/lib/pickSearch";
 import { volumeLabel } from "@/lib/unitTree";
 
 /**
@@ -46,26 +47,15 @@ export default function UnitPickModal({
 
   /**
    * **한두 글자는 앞머리로 찾는다** (원장님 2026-08-28 — 「E단원 검색하면
-   * 안 나옴」).
-   *
-   * 전에는 어디든 그 글자가 들어가면 걸렸다. 「E」 를 치면 `정관사 the`·
-   * `be동사` 처럼 **e 가 든 단원이 죄다** 나와서, 정작 찾던 대단원 「E …」
-   * 는 그 속에 묻혔다. 한글은 두 글자만 돼도 뜻이 좁혀지지만 알파벳 한
-   * 글자는 안 좁혀진다.
-   *
-   * 그래서 **두 글자 이하면 「그 말로 시작하는가」** 로 본다 — 대단원
-   * 이름이 `E 동사의 활용` 이면 「E」 로 걸리고, `be동사` 는 안 걸린다.
-   * 세 글자부터는 종전대로 어디든 들어가면 걸린다.
+   * 안 나옴」). 규칙과 그 까닭은 **lib/pickSearch** 에 옮겨 적어 뒀다 —
+   * 등원 학습 항목 고르기(오늘 수업)가 같은 규칙을 쓰기 때문이다.
    */
   const rows = useMemo(() => {
     if (!kw) return options;
-    const short = kw.length <= 2;
-    const hit = (v) => {
-      const s = String(v).toLowerCase();
-      return short ? s.startsWith(kw) : s.includes(kw);
-    };
-    const keep = options.filter((o) =>
-      [o.big, o.mid, o.small, o.name, o.activity, o.summary].filter(Boolean).some(hit)
+    // 견주는 규칙은 lib/pickSearch 한 벌 — 등원 학습 항목 고르기가 같은
+    // 것을 쓴다 (원칙 1). 두 벌이면 한쪽에서만 「E」 가 안 나온다
+    const keep = keywordFilter(options, kw, (o) =>
+      [o.big, o.mid, o.small, o.name, o.activity, o.summary]
     );
     /**
      * 대단원이 걸렸으면 **그 안의 것도 같이** 보여준다 — 대단원만 덩그러니

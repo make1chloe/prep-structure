@@ -9843,3 +9843,36 @@ returns boolean language sql stable as $$
   ) = 4;
 $$;
 grant execute on function public.learned_today_on() to authenticated;
+
+-- ────────────────────────────────────────────────────────────────
+-- **원장님 확인용** (0180 · 0181 을 돌린 **뒤에** 이것만 따로 실행)
+--
+-- 표식이 초록인 것만으로는 모자란다 — 표는 섰는데 정책이 빠져 있으면
+-- 화면이 오류 없이 조용히 빈다 (0090 · 0166). 그래서 숫자를 눈으로 본다.
+-- **두 번 돌려도 숫자가 그대로여야 한다** (재실행 감지 — 2026-08-28 확인).
+--
+-- select '표' 무엇, count(*) 숫자, '2 여야 맞아요' 기대
+--   from information_schema.tables
+--  where table_schema='public' and table_name in ('report_reads','learned_notes')
+-- union all
+-- select '정책', count(*), '6 여야 맞아요 (열람 2 + 배운것 4)'
+--   from pg_policies
+--  where schemaname='public' and tablename in ('report_reads','learned_notes')
+-- union all
+-- select '트리거', count(*), '2 여야 맞아요'
+--   from pg_trigger t join pg_class c on c.oid=t.tgrelid
+--  where c.relname in ('report_reads','learned_notes') and not t.tgisinternal
+-- union all
+-- select '함수', count(*), '5 여야 맞아요'
+--   from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+--  where n.nspname='public' and p.proname in
+--    ('my_child_ids','report_student','guard_report_read','report_read_on','learned_today_on')
+-- union all
+-- select '표식(둘 다 켜졌나)',
+--        case when public.report_read_on() and public.learned_today_on() then 1 else 0 end,
+--        '1 이어야 맞아요'
+-- union all
+-- select '잠금(RLS 켜짐)', count(*), '2 여야 맞아요'
+--   from pg_class c join pg_namespace n on n.oid=c.relnamespace
+--  where n.nspname='public' and c.relname in ('report_reads','learned_notes')
+--    and c.relrowsecurity;

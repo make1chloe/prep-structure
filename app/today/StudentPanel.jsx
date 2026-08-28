@@ -20,6 +20,7 @@ import Comments from "@/app/comments/Comments";
 import StayBox from "./StayBox";
 import { addStay } from "./stayActions";
 import { CAT_CLS, toolBadge } from "@/app/homework/categories";
+import { keywordFilter } from "@/lib/pickSearch";
 import WarnBox from "./WarnBox";
 import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
@@ -544,6 +545,9 @@ export default function StudentPanel({
   const setInClass = (v) => setInClassList([...new Set(v)]);   // 중복만 걸러 순서 유지
   const [carryNext, setCarryNext] = useState(() => new Set(row.inClassCarry || []));
   const [openInClass, setOpenInClass] = useState(false);
+  // 등원 학습 항목 거르기 (원장님 2026-08-28 — 「등원학습 추가할 때 검색
+  // 가능하게 해줘」). 견주는 규칙은 lib/pickSearch 한 벌 (단원 고르기와 같다)
+  const [inClassQ, setInClassQ] = useState("");
   const [routine, setRoutine] = useState(null);   // 지금 차례인 루틴 단계
   // 이 학생 교재의 루틴이 쓰는 항목 (칩을 좁히는 데 쓴다)
   const [myItems, setMyItems] = useState(null);
@@ -1986,29 +1990,70 @@ export default function StudentPanel({
                   이 학생 교재 것만 보기
                 </button>
               )}
-              {grouped(shown).map(([g, list]) => (
-                <div className="hwgroup" key={g}>
-                  <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
-                  <div className="row" style={{ gap: 4 }}>
-                    {list.map((i) => {
-                      const on = inClass.includes(i.id);
-                      return (
-                        <button
-                          key={i.id}
-                          className={`hwchip ${on ? "hw-next" : ""}`}
-                          title={on ? "다시 누르면 오늘 목록에서 빠져요" : "오늘 등원 학습 맨 아래에 더합니다"}
-                          onClick={() =>
-                            setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
-                          }
-                        >
-                          {on && <b>＋</b>} {i.name}
-                          {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
-                        </button>
-                      );
-                    })}
+              {/**
+                * **이름·준비물로 거른다** (원장님 2026-08-28 — 「등원학습
+                * 추가할 때 검색 가능하게 해줘」). 항목이 수십 개라 영역으로
+                * 묶어도 여전히 눈으로 훑어야 했다.
+                *
+                * 견주는 규칙은 **lib/pickSearch 한 벌** — 단원 고르기와 같다.
+                * 한두 글자는 앞머리로, 세 글자부터는 어디든 (「E」 가 e 든
+                * 것에 죄다 걸려 묻히던 문제, d7ea0a5).
+                *
+                * **준비물(tool)로도 걸린다** — 「필수학습」 같은 이름만으로는
+                * 무엇을 하는 항목인지 모른다는 원장 지적(36d6907)의 짝이다.
+                * 「클래스카드」 라 치면 그 준비물을 쓰는 항목들이 나온다.
+                *
+                * 붙박이 머리(.pickhead)를 쓰지 않는다 — 그 CSS 는 제 안에서
+                * 굴러가는 팝오버(.sheetpop) 전용이고, 이 판은 학생 판과 함께
+                * 통째로 굴러가서 붙일 데가 없다. 목록도 영역으로 묶여 있어
+                * 팝오버만큼 길지 않다.
+                */}
+              <input
+                className="input input-sm"
+                style={{ width: "100%", marginBottom: 4 }}
+                placeholder="항목·준비물로 거르기 (한두 글자는 앞머리로)"
+                value={inClassQ}
+                onChange={(e) => setInClassQ(e.target.value)}
+              />
+              {(() => {
+                const pick = keywordFilter(shown, inClassQ, (i) => [i.name, i.tool, i.category]);
+                if (pick.length === 0) {
+                  return (
+                    <p className="hint" style={{ margin: 0 }}>
+                      「{inClassQ.trim()}」 에 맞는 항목이 없어요.
+                      {!showAllChips && myItems && " — 「전체 보기」 를 눌러보세요."}
+                    </p>
+                  );
+                }
+                return grouped(pick).map(([g, list]) => (
+                  <div className="hwgroup" key={g}>
+                    <span className={`tag ${CAT_CLS[g] || "tag-muted"} hwcat`}>{g}</span>
+                    <div className="row" style={{ gap: 4 }}>
+                      {list.map((i) => {
+                        const on = inClass.includes(i.id);
+                        return (
+                          <button
+                            key={i.id}
+                            className={`hwchip ${on ? "hw-next" : ""}`}
+                            title={on
+                              ? "이미 오늘 목록에 있어요 — 다시 누르면 빠집니다"
+                              : "오늘 등원 학습 맨 아래에 더합니다"}
+                            onClick={() =>
+                              setInClass(on ? inClass.filter((x) => x !== i.id) : [...inClass, i.id])
+                            }
+                          >
+                            {/* 이미 담긴 것은 **말로도** 알린다 — 색만으로
+                                나르지 않는다 (노안 규칙). 두 번 담기지 않고,
+                                한 번 더 누르면 빠진다 */}
+                            {on && <b>✓담김</b>} {i.name}
+                            {i.tool ? <span className="hint"> {toolBadge(i.tool)}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
               <span className="hint" style={{ fontSize: 12.5 }}>
                 더하면 아래 <b>저장</b> 을 눌러야 아이 화면에 뜹니다 — 저장하면 아이에게 알림이 갑니다.
               </span>
