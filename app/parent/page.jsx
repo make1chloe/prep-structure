@@ -18,6 +18,7 @@ import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, isLesson,
   makeCard, pickAssigned, checkCounts,
 } from "@/lib/homeworkView";
+import { maskRows, GATE_COLS, GATE_COLS_OLD } from "@/lib/closeGate";
 import Comments from "@/app/comments/Comments";
 import RequestForm from "@/app/me/RequestForm";
 import NoticePhotos from "@/components/NoticePhotos";
@@ -156,13 +157,22 @@ export default async function ParentPage(props) {
     monthlyQ, scoresQ, examsQ1, recQ, reqQ1, notes, layouts, confirmQ, stbQ,
     extraQ, exAbsQ, holMonthQ,
   ] = await Promise.all([
-    supabase
-      .from("daily_reports")
-      .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text, report_written")
-      .eq("student_id", pickId)
-      .gte("date", from)
-      .lte("date", today)
-      .order("date", { ascending: false }),
+    // 마감 판정 칸(lib/closeGate GATE_COLS)을 꼭 같이 읽는다 — 안 읽으면
+    // 게이트가 조용히 열린다. 0169 전 DB 면 closed_at 이 없어 한 칸 물러난다
+    (async () => {
+      const MONTH_COLS =
+        "id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text";
+      const q = (cols) =>
+        supabase
+          .from("daily_reports")
+          .select(cols)
+          .eq("student_id", pickId)
+          .gte("date", from)
+          .lte("date", today)
+          .order("date", { ascending: false });
+      const r = await q(`${MONTH_COLS}, ${GATE_COLS}`);
+      return r.error ? await q(`${MONTH_COLS}, ${GATE_COLS_OLD}`) : r;
+    })(),
     supabase.from("settings").select("config").eq("key", "warning").maybeSingle(),
     supabase.from("students").select("word_cut_pct").eq("id", pickId).maybeSingle(),
     loadReports(supabase, pickId, today, 6),
@@ -241,10 +251,10 @@ export default async function ParentPage(props) {
   }
 
   // ── 이번 달 (달이 끝나기 전에도 지금까지를 그대로 센다) ──
-  // 마감 전 판의 공지·리포트 글은 통째 비노출 (0169 — 원장 확정 8/27)
-  const reps = ((repsQ?.data) || []).map((r) =>
-    r.report_written === false ? { ...r, notice: null, report_text: null } : r
-  );
+  // **마감 전 판은 리포트 부분을 통째로 비운다** — 공지·리포트 글뿐 아니라
+  // 점수·진도까지 (원장 확정 8/28, 8/27 의 「점수는 공개」 를 뒤집음).
+  // 판정은 lib/closeGate 한 벌 — SQL report_gate() 와 같은 뜻이다.
+  const reps = maskRows(repsQ?.data);
 
   const repIds = (reps || []).map((r) => r.id);
   const { data: items } = repIds.length

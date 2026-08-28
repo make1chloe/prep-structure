@@ -148,5 +148,45 @@ eq(toggle.includes('"켜두시길 권합니다."'), true, "권한다는 한 줄"
 eq(/brief[\s\S]{0,400}차단되어 있어요/.test(toggle) || toggle.includes("차단되어 있어요"), true,
    "차단된 경우 안내는 짧게 해도 남는다");
 
+console.log("\n== 마감 전 내용이 화면으로 안 새나 ==");
+/**
+ * 원장 확정 2026-08-28 — **「무조건 마감된 것만 학생·학부모에게 공개한다」.**
+ * (0169 의 8/27 확정 「점수는 공개」 를 뒤집은 것 — 그 머리말에 적어 두었다.)
+ *
+ * 점수·진도·공지는 daily_reports 의 **칸**이라 RLS(행 단위)로는 못 가린다.
+ * 그래서 읽는 자리에서 가리는데, 부르는 곳이 넷이라 **한 곳만 빠져도** 그게
+ * 사고가 된다 — 잠금화면 본문을 한 군데(pushToFamilies)에서 지우는 것과 같은
+ * 이유로, 여기서는 「그 네 곳이 게이트를 타는가」 를 못 박아 둔다.
+ *
+ * 잠금화면 검사와 한 파일에 두는 이유: 지키는 것이 같다 —
+ * **아직 우리 것인 내용이 집으로 새지 않는다.**
+ */
+const gate = read("lib/closeGate.js");
+eq(/report_written !== false/.test(gate) && /r\.closed_at/.test(gate), true,
+   "마감 판정이 SQL report_gate() 와 같은 뜻 (report_written or closed_at)");
+eq(/"word_correct", "word_total", "sent_correct", "sent_total"/.test(gate), true,
+   "점수를 가린다 (8/27 「점수는 공개」 를 8/28 이 뒤집었다)");
+eq(/"own_progress", "notice", "report_text"/.test(gate), true, "진도·공지·리포트 글도 가린다");
+// 출결은 안 가린다 — 등원하는 순간 이미 알림이 나간 실시간 사실이다
+eq(/attendance_kind/.test(gate.slice(gate.indexOf("const HIDDEN"), gate.indexOf("export function maskUnclosed"))),
+   false, "출결은 안 가린다 (등원 알림과 어긋나면 안 된다)");
+
+// 읽는 자리 네 곳이 그 한 벌을 탄다
+eq(/maskRows\(data\)/.test(read("lib/homeworkView.js")), true,
+   "학생·학부모 수업 기록 읽기(loadReports)가 게이트를 탄다");
+eq(/maskRows\(repsQ\?\.data\)/.test(read("app/parent/page.jsx")), true,
+   "어머니 화면 이번 달이 게이트를 탄다");
+const mon = read("lib/monthly.js");
+eq(/isClosed\(r\) \? r : \{ \.\.\.maskUnclosed\(r\), items: \[\] \}/.test(mon), true,
+   "한 달 셈(summarize)이 마감 안 한 판의 점수·검사를 안 센다");
+// 월간리포트는 원장 눈이라 RLS 가 안 막는다 — 판정 칸을 꼭 읽어와야 한다
+const monA = read("app/monthly/actions.js");
+eq(/GATE_COLS/.test(monA), true, "월간리포트가 마감 판정 칸을 읽어온다");
+eq(/isClosed\(r\) && \(r\.sent_unit/.test(monA), true, "마감 안 한 판의 단원평가는 문구에 안 넣는다");
+const me = read("app/me/page.jsx");
+eq(/GATE_COLS/.test(me), true, "아이 화면 이번 달도 판정 칸을 읽어온다");
+// 단어시험 통과 셈(passSummary)은 summarize 를 안 거치고 이 줄을 그대로 센다
+eq(/maskRows\(monthRepsQ\?\.data\)/.test(me), true, "아이 화면 이번 달 줄도 게이트를 탄다");
+
 if (bad) { console.log("\n❌ 위 항목을 고쳐주세요"); process.exit(1); }
 console.log("\n✅ 잠금화면 미리보기 통과");

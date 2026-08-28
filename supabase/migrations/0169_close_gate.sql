@@ -14,6 +14,24 @@
 -- closed_at 으로 옮기는 공사는 별도(그때 report_gate 몸통만 교체하면
 -- 정책은 무수정).
 --
+-- ── 2026-08-28: 위의 「점수는 공개」 를 원장이 뒤집었다 ──────────
+--
+-- 원장 확정 8/28 — **「무조건 마감된 것만 학생·학부모에게 공개한다」.**
+-- 위 8/27 확정 문구는 그때의 판단이라 지우지 않고 그대로 남긴다.
+--
+-- 이 파일(SQL)은 **안 고친다.** 남아 있던 구멍은 전부 **칸 단위**라
+-- 행 단위인 RLS 로는 가릴 수가 없기 때문이다:
+--   · 단어·문법 점수(word_*·sent_*) · 진도(own_progress) — daily_reports 의 칸
+--   · 월간리포트 문구 — 원장 눈(is_staff)으로 세던 것이라 정책이 안 걸린다
+-- 행을 통째로 막는 길은 없다 — 그 행에 오늘 나간 숙제(assigned)와 출결이
+-- 같이 붙어 있어서, 막으면 아이 화면에서 오늘 숙제가 통째로 사라진다.
+--
+-- 그래서 같은 뜻의 판정을 화면 쪽에 **한 벌**로 두었다 — `lib/closeGate.js`
+-- 의 `isClosed()` 가 아래 report_gate() 와 같은 뜻이다. 셈하는 자리
+-- (lib/monthly summarize)와 읽는 자리(lib/homeworkView loadReports,
+-- /parent · /monthly 조회)가 그것을 탄다. 마감의 정본을 closed_at 으로
+-- 옮길 때는 **아래 report_gate 몸통과 lib/closeGate 둘 다** 고친다.
+--
 -- 되돌리기:
 --   (구 정책 복원 — 0090/0158 판 원문)
 --   drop function if exists public.report_gate(public.daily_reports);

@@ -25,6 +25,7 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { summarize } from "../lib/monthly.js";
+import { isClosed, maskRows } from "../lib/closeGate.js";
 import { oneRound, stack, points } from "../lib/report.js";
 import { analyze, advice } from "../lib/examAnalysis.js";
 import { consultText } from "../lib/consultText.js";
@@ -48,7 +49,10 @@ const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: "utf8",
  * 그래서 initdb 가 없으면 도커의 postgres:16 으로 돌린다 — 셸 검사 다섯이
  * 쓰는 scripts/pg-boot.sh 와 같은 방식이다.
  */
-const CT = "pgmonth";                       // 도커로 띄울 때 컨테이너 이름
+// 도커로 띄울 때 컨테이너 이름. 이 검사는 시작할 때 같은 이름을 **지우고**
+// 새로 띄우므로, 여러 갈래를 나란히 돌릴 때는 LIVE_PG_NAME 으로 갈라 준다
+// (남의 컨테이너를 지워버리면 그쪽 검사가 조용히 죽는다)
+const CT = process.env.LIVE_PG_NAME || "pgmonth";
 const DOCKER = !existsSync(`${PGBIN}/initdb`);
 const runPsql = (args, opts = {}) =>
   DOCKER
@@ -535,6 +539,29 @@ function check() {
   if (closedSeen === 0)
     problem("학생 화면 · 마감 게이트", "마감한 판의 검사 결과까지 아이가 못 읽는다", "게이트가 너무 넓게 막고 있습니다.");
 
+  /**
+   * **점수도 안 보이는가** (원장 확정 2026-08-28 — 「무조건 마감된 것만
+   * 학생·학부모에게 공개한다」. 8/27 의 「점수는 공개」 를 뒤집은 것).
+   *
+   * 8/27 판에서는 검사 3상태만 막았다. 단어·문법 점수와 진도는 판 **칸**이라
+   * RLS 가 못 가려서, 「적는 중」 인 판의 단어 89% · 문법 87% 가 아이 화면에
+   * 그대로 떴다 — 정정하기 전의 잠정 점수를 아이와 어머니가 먼저 본 것이다.
+   *
+   * 여기서는 화면이 읽는 그대로를 흉내 낸다: RLS 를 탄 행을 lib/closeGate 의
+   * maskRows 에 먹인다 (lib/homeworkView loadReports 가 하는 일). 부르는
+   * 자리가 안 빠졌는지는 static 검사(scripts/check-preview.mjs)가 본다.
+   */
+  const seen = maskRows(mine);
+  const openScored = seen.filter((r) => !isClosed(r))
+    .filter((r) => r.word_total || r.sent_total || r.own_progress).length;
+  const closedScored = seen.filter(isClosed).filter((r) => r.word_total).length;
+  console.log(`  마감 게이트 · 점수 — 마감한 판 ${closedScored}건 점수 보임 · 적는 중인 판 ${openScored}건 보임(0이어야)`);
+  if (openScored > 0)
+    problem("학생 화면 · 마감 게이트", "적는 중인 판의 점수·진도가 아이에게 보인다",
+      "lib/closeGate maskUnclosed 를 확인하세요 (원장 확정 8/28).");
+  if (closedScored === 0)
+    problem("학생 화면 · 마감 게이트", "마감한 판의 점수까지 아이가 못 본다", "게이트가 너무 넓게 막고 있습니다.");
+
   // summarize(reports, exams) — 리포트마다 items 를 물려서 준다 (화면이 그렇게 한다)
   const sum = summarize(
     mine.map((r) => ({ ...r, items: myItems.filter((i) => i.daily_report_id === r.id) })), []
@@ -566,6 +593,40 @@ function check() {
   if (pRep.length === 0) problem("학부모 화면", "우리 아이 수업 기록이 안 보인다", "화면이 통째로 빕니다.");
   if (pSco.length === 0) problem("학부모 화면", "우리 아이 성적이 안 보인다", "");
   if (pOther.length > 0) problem("학부모 화면", "남의 아이 것이 보인다", `${pOther.length}건`);
+
+  /**
+   * **월간 숫자 = 학부모 숫자 = 아이 숫자** (원장 확정 2026-08-28).
+   *
+   * 월간리포트(/monthly)는 **원장 눈(is_staff)** 으로 읽는다 — RLS 가 아무것도
+   * 안 막으니 마감 안 한 판까지 그대로 세었다. 어머니 화면은 RLS 가 검사줄을
+   * 막아 마감된 것만 세고 있었고, 그래서 같은 달 숙제 성취도가 문자와 앱에서
+   * 서로 다른 숫자로 나갔다. 집에서 나란히 놓고 보시면 그때부터 둘 다 못 믿게
+   * 된다 — 셋이 같아야 한다 (셈은 lib/monthly summarize 한 곳이 게이트를 탄다).
+   *
+   * 원장 눈은 여기서 psql 을 그냥 쓴다(슈퍼유저 = RLS 통과) — /monthly 가
+   * loadMonth 에서 하는 것과 같은 자리다.
+   */
+  const momItems = seeAs(momP,
+    `select dri.daily_report_id, dri.status from public.daily_report_items dri
+      join public.daily_reports r on r.id = dri.daily_report_id where r.student_id = ${q(kid.id)}`);
+  const momSum = summarize(
+    pRep.map((r) => ({ ...r, items: momItems.filter((i) => i.daily_report_id === r.id) })), []);
+  const bossReps = rows(`select * from public.daily_reports where student_id = ${q(kid.id)}`);
+  const bossItems = rows(`select dri.daily_report_id, dri.status from public.daily_report_items dri
+      join public.daily_reports r on r.id = dri.daily_report_id where r.student_id = ${q(kid.id)}`);
+  const monthlySum = summarize(
+    bossReps.map((r) => ({ ...r, items: bossItems.filter((i) => i.daily_report_id === r.id) })), []);
+  const shape = (s) => `수업 ${s.days}일 · 숙제 ${s.homework?.rate} · 단어 ${s.word?.rate} · 문법 ${s.sent?.rate}`;
+  console.log(`  이번 달 — 아이 [${shape(sum)}]`);
+  console.log(`           어머니 [${shape(momSum)}]`);
+  console.log(`           월간리포트 [${shape(monthlySum)}]`);
+  if (shape(sum) !== shape(momSum))
+    problem("이번 달 현황", "아이가 보는 숫자와 어머니가 보시는 숫자가 다르다",
+      `아이 [${shape(sum)}] · 어머니 [${shape(momSum)}]`);
+  if (shape(momSum) !== shape(monthlySum))
+    problem("월간리포트", "문자로 나가는 숫자가 어머니 화면과 다르다",
+      `어머니 [${shape(momSum)}] · 월간 [${shape(monthlySum)}] — ` +
+      "월간은 원장 눈이라 마감 안 한 판까지 셉니다 (lib/monthly summarize 의 게이트를 확인하세요).");
 
   const pItems = seeAs(momP, `select score_id, no, wrong, reason from public.score_items where score_id in (select id from public.scores where student_id = ${q(kid.id)})`);
   const rounds = pSco.filter((s) => s.kind === "school")

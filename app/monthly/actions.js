@@ -5,6 +5,7 @@ import { fetchAll } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings, loadMessageParts } from "@/lib/settings";
 import { summarize, buildMonthlyText, monthLabel, offScheduleAbsences } from "@/lib/monthly";
+import { isClosed, GATE_COLS, GATE_COLS_OLD } from "@/lib/closeGate";
 import { IN_APP_DETAIL } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { endOfMonth, todaySeoul } from "@/lib/day";
@@ -53,25 +54,32 @@ export async function loadMonth(ym) {
   // 단원평가(0099 — sent_unit)도 여기서 같이 읽는다: **daily_reports 가 원본**이다
   // 두 달 × 전 재원생이라 1000줄을 막 넘는 크기다 — 잘리면 월말 학생들
   // 리포트가 조용히 빈다 (A5)
-  let { data: all, error: allErr } = await fetchAll(() =>
+  /**
+   * 마감 판정 칸(lib/closeGate GATE_COLS)을 꼭 같이 읽는다.
+   *
+   * **이 화면은 원장 눈(is_staff)이라 RLS 가 아무것도 안 막는다.** 그래서
+   * 마감 안 한 판까지 그대로 세어, 학부모 화면(마감된 것만)과 같은 달의
+   * 숫자가 어긋났다. 여기서 칸을 읽어주면 summarize 가 게이트를 탄다.
+   */
+  const MONTH_COLS =
+    "id, student_id, date, attendance_kind, word_correct, word_total, sent_unit, sent_correct, sent_total, sent_passed";
+  const monthQ = (cols) => fetchAll(() =>
     supabase
       .from("daily_reports")
-      .select("id, student_id, date, attendance_kind, word_correct, word_total, sent_unit, sent_correct, sent_total, sent_passed")
+      .select(cols)
       .is("archived_at", null)
       .gte("date", `${pym}-01`)
       .lte("date", to)
-      .order("id")
-  );
+      .order("id"));
+  let { data: all, error: allErr } = await monthQ(`${MONTH_COLS}, ${GATE_COLS}`);
+  if (allErr) {
+    // 0169 전이면 closed_at 이 없다 — report_written 만으로도 게이트는 산다
+    ({ data: all, error: allErr } = await monthQ(`${MONTH_COLS}, ${GATE_COLS_OLD}`));
+  }
   if (allErr) {
     // 0099 전이면 단원평가 칸 없이
-    ({ data: all } = await fetchAll(() =>
-      supabase
-        .from("daily_reports")
-        .select("id, student_id, date, attendance_kind, word_correct, word_total")
-        .is("archived_at", null)
-        .gte("date", `${pym}-01`)
-        .lte("date", to)
-        .order("id")
+    ({ data: all } = await monthQ(
+      `id, student_id, date, attendance_kind, word_correct, word_total, ${GATE_COLS_OLD}`
     ));
   }
   const reports = (all || []).filter((r) => r.date >= from);
@@ -113,7 +121,9 @@ export async function loadMonth(ym) {
     examsOf.get(e.student_id).push(e);
   };
   reports
-    .filter((r) => (r.sent_unit || "").trim())
+    // 마감 안 한 판의 단원평가는 문구에 안 넣는다 (원장 확정 8/28) —
+    // summarize 의 점수·검사와 같은 잣대여야 한 글 안에서 안 어긋난다
+    .filter((r) => isClosed(r) && (r.sent_unit || "").trim())
     .forEach((r) => putExam({
       student_id: r.student_id,
       date: r.date,

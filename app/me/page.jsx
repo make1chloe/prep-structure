@@ -55,6 +55,7 @@ import NoticeDismiss from "@/components/NoticeDismiss";
 // 이 화면은 「선생님인가」 를 boolean 으로 들고 다닌다 — 이름이 겹쳐 딴 이름으로 불러온다
 import { isStaff as isStaffRole } from "@/lib/roles";
 import NoticeGate from "@/components/NoticeGate";
+import { maskRows, GATE_COLS, GATE_COLS_OLD } from "@/lib/closeGate";
 import {
   loadReports, loadReportItems, loadHomeworkItems, loadUnitLabels, makeCard, pickAssigned, isLesson,
   missedItemIds,
@@ -229,12 +230,22 @@ export default async function MePage(props) {
       .select("id, homework_item_id, stay_task_id, started_at, ended_at, seconds")
       .eq("student_id", sid)
       .eq("date", todayStr),
-    supabase
-      .from("daily_reports")
-      .select("id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total")
-      .eq("student_id", sid)
-      .gte("date", myFrom)
-      .lte("date", todayStr),
+    // 마감 판정 칸(lib/closeGate GATE_COLS)을 꼭 같이 읽는다 — 안 읽으면
+    // summarize 가 마감 안 한 판까지 세어서 어머니 화면과 숫자가 어긋난다.
+    // 0169 전 DB 면 closed_at 이 없어 한 칸 물러난다
+    (async () => {
+      const MONTH_COLS =
+        "id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total";
+      const q = (cols) =>
+        supabase
+          .from("daily_reports")
+          .select(cols)
+          .eq("student_id", sid)
+          .gte("date", myFrom)
+          .lte("date", todayStr);
+      const r = await q(`${MONTH_COLS}, ${GATE_COLS}`);
+      return r.error ? await q(`${MONTH_COLS}, ${GATE_COLS_OLD}`) : r;
+    })(),
     supabase.from("settings").select("config").eq("key", "warning").maybeSingle(),
     supabase.from("students").select("word_cut_pct, word_test_count").eq("id", sid).maybeSingle(),
     supabase
@@ -550,7 +561,10 @@ export default async function MePage(props) {
   // 세 줄(출결·숙제·단어)은 **그대로** 쓴다. 말을 따로 지어내면 그것이 곧
   // 두 번째 진실이 되어, 어느 쪽이 맞는지 아무도 모르게 된다.
   // 다른 것은 제목뿐이다 — 학부모에게는 "이번 달", 아이에게는 "이번 달 나".
-  const { data: monthReps } = monthRepsQ;
+  // 마감 전 판의 점수는 여기서도 비운다 (원장 확정 8/28). summarize 는 제 안에서
+  // 게이트를 타지만, 아래 passSummary(「6번 중 4번 통과」)는 이 줄을 그대로
+  // 받아 세기 때문에 — 안 가리면 적는 중인 판의 단어시험이 한 번으로 세어진다
+  const monthReps = maskRows(monthRepsQ?.data);
   const mIds = (monthReps || []).map((r) => r.id);
   const { data: mItems } = mIds.length
     ? await fetchAll(() =>
