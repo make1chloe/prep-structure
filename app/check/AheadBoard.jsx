@@ -36,8 +36,15 @@ export default function AheadBoard({
   students = [],
   items = [],
   textbooks = [],
+  /**
+   * 처음부터 펴진 채로 열까 (기본은 종전 그대로 접힘).
+   * 대시보드 「숙제 배정 안 됨」 팝오버는 **배정하러 연 판**이라 접혀 있으면
+   * 한 번 더 눌러야 한다 — 원장님이 배정할 자리를 못 찾으셨던 그 문제로
+   * 되돌아간다 (2026-08-28). 화면을 갈라 베끼지 않고 이 칸 하나로 연다.
+   */
+  defaultOpen = false,
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [tab, setTab] = useState("homework");
   const [sel, setSel] = useState(() => new Set());
   const [q, setQ] = useState("");

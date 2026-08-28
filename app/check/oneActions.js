@@ -2,9 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isNoCheck } from "@/app/homework/categories";
-import { addDays } from "@/lib/day";
+import { addDays, todaySeoul } from "@/lib/day";
 import { buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { fetchAll } from "@/lib/fetchAll";
+import { inUseOn } from "@/lib/bookUse";
 
 /**
  * **한 학생·한 날의 검사 판 재료** — 대시보드 「검사 안 한 숙제」 칩이
@@ -133,4 +134,62 @@ export async function checkRowFor(studentId, date) {
     subs,
   };
   return { row, items: itemList };
+}
+
+/**
+ * **한 학생의 「미리 내기」 재료** — 대시보드 「숙제 배정 안 됨」 칩이
+ * 원판(app/check/AheadBoard)을 그대로 띄우기 위해 부른다.
+ *
+ * 원장님 (2026-08-28): 「최초 숙제배정 어디서 해야 해?」 — 배정하는 자리를
+ * 못 찾고 계셨다. 그러니 알리는 데서 끝내지 않고 **그 자리에 배정 판**을 연다.
+ *
+ * 학생 줄의 모양은 app/check/page.jsx 의 aheadStudents 와 같다 —
+ * AheadBoard 가 그 모양을 먹는다. 새 판단은 없다.
+ */
+export async function aheadOneStudent(studentId) {
+  if (!studentId) return { students: [], items: [], textbooks: [] };
+  const supabase = await createClient();
+
+  const [stQ, memberQ, classQ, itemQ, bookQ, myBookQ] = await Promise.all([
+    supabase.from("students").select("id, name, school, grade").eq("id", studentId).maybeSingle(),
+    supabase.from("class_students").select("class_id, student_id").eq("student_id", studentId),
+    supabase.from("classes").select("id, name, days"),
+    supabase
+      .from("homework_items")
+      .select("id, name, sort, in_person, unit_test, category, tool")
+      .eq("active", true)
+      .order("sort", { ascending: true }),
+    supabase.from("textbooks").select("id, name, area, status").order("name", { ascending: true }),
+    supabase.from("student_textbooks").select("textbook_id, status, assigned_on, ended_on").eq("student_id", studentId),
+  ]);
+
+  const student = stQ.data;
+  if (!student) return { students: [], items: [], textbooks: [] };
+
+  // 0116(tool) 전 DB — 한 칸 물러난다
+  let itemList = itemQ.error ? null : itemQ.data;
+  if (!itemList) {
+    const { data } = await supabase
+      .from("homework_items").select("id, name, sort, category")
+      .eq("active", true).order("sort", { ascending: true });
+    itemList = data || [];
+  }
+
+  const cids = (memberQ.data || []).map((m) => m.class_id);
+  const daysOf = new Map((classQ.data || []).map((c) => [c.id, c.days || []]));
+  const today = todaySeoul();
+  const bookIds = (myBookQ.data || []).filter((r) => inUseOn(r, today)).map((r) => r.textbook_id);
+
+  return {
+    students: [{
+      id: student.id, name: student.name, school: student.school, grade: student.grade,
+      classIds: cids,
+      days: [...new Set(cids.flatMap((cid) => daysOf.get(cid) || []))],
+      bookIds,
+    }],
+    items: itemList,
+    textbooks: (bookQ.data || [])
+      .filter((b) => !b.status || b.status === "active")
+      .map((b) => ({ id: b.id, name: b.name, area: b.area || "" })),
+  };
 }
