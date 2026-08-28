@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parentLoginId } from "@/lib/studentId";
-import { SUPABASE_URL } from "@/lib/supabase/env";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
 import { requireTeacher } from "@/lib/guard";
+import { makePw, emailOf, serviceKey, admin, keyMissing } from "@/lib/authAdmin";
 
 /**
  * 학생 계정을 원장님이 직접 만들어 준다.
@@ -23,61 +23,12 @@ import { requireTeacher } from "@/lib/guard";
  * 화면에도 대화에도 나오지 않는다.
  */
 
-const DOMAIN = "chloe-eng.internal";     // 실제로 메일이 가는 곳이 아니다
 /**
- * **첫 비밀번호는 학생·학부모 모두 0000** (원장님, 2026-08-06).
- *
- * 하루는 계정마다 다른 네 자리를 뽑아 준 적이 있다. 아이디가 규칙으로
- * 만들어지니 비번이라도 달라야 한다는 생각이었는데, 나눠주는 자리에서
- * 무너졌다 — 스무 명에게 스무 개의 번호를 각각 불러드려야 하고, 잘못
- * 적어 가면 그 아이는 아예 못 들어온다. 결국 원장님이 종이에 적어
- * 들고 다니시게 된다. **적어 다니는 비번은 안 바뀐 비번보다 위험하다.**
- *
- * 그래서 0000 하나로 통일한다. 대신 **0000 으로는 아무것도 못 한다** —
- * 로그인하면 곧바로 비밀번호 정하는 화면이 뜨고, 자기 것을 정하기 전에는
- * 그 화면을 지나갈 수 없다 (must_change_pw · app/me/ChangePw).
- * 안전은 「첫 비번이 무엇인가」가 아니라 「0000 인 채로 쓸 수 있는가」로 지킨다.
+ * 도메인 · 첫 비밀번호 · 열쇠 읽기 · Admin API 호출은 **lib/authAdmin 하나**다.
+ * 선생님 계정을 만드는 자리(app/settings/staffActions.js)가 생기면서 같은
+ * 다섯을 두 벌로 적을 뻔했다 — 도메인이 한쪽만 바뀌면 그 계정들은 영영 못
+ * 들어온다 (원칙 1). 하는 일은 안 바뀌었다. 왜 0000 인지도 거기 적어뒀다.
  */
-const INIT_PW = "0000";
-
-function makePw() {
-  return INIT_PW;
-}
-
-function emailOf(loginId) {
-  return `${(loginId || "").trim().toLowerCase()}@${DOMAIN}`;
-}
-
-/** 설정에 넣어둔 service_role 키 */
-async function serviceKey(supabase) {
-  const { data } = await supabase
-    .from("integrations").select("config").eq("id", "supabase_service").maybeSingle();
-  return (data?.config?.key || "").trim();
-}
-
-async function admin(key, path, method, body) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin${path}`, {
-    method,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
-  let json = null;
-  try { json = await res.json(); } catch { /* 본문이 없을 수도 있다 */ }
-  return { ok: res.ok, status: res.status, json };
-}
-
-function keyMissing() {
-  return {
-    error:
-      "학생 계정을 만들려면 Supabase service_role 키가 필요해요. " +
-      "설정 → 학생 계정 키 에 넣어주세요 (대화창에는 절대 붙여넣지 마세요).",
-  };
-}
 
 /**
  * 아이디를 정한다 — chloe + 전화 뒷자리 (lib/studentId.js 의 규칙 그대로).

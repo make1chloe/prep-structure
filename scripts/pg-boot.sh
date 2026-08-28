@@ -64,8 +64,16 @@ pg_boot() {
   fi
 
   # 도커 — 이미지를 미리 받아둔 경우에만 (검사 도중에 몇 백 MB 를 받지 않는다)
+  #
+  # **이름을 두 가지로 물어본다** (2026-08-28, 원장님 맥에서 실측).
+  # `docker images` 에는 `postgres:16` 이 멀쩡히 보이는데
+  # `docker image inspect postgres:16` 만 「No such image」 였다 —
+  # 요즘 Docker Desktop(containerd 이미지 저장소)에서 짧은 이름을 못 찾는 경우다.
+  # 그래서 이 한 줄 때문에 **이미지를 받아두고도 여섯 검사가 통째로 건너뛰었다.**
+  # 그게 바로 이 파일이 없애려던 그 일이다. 긴 이름으로 한 번 더 물어본다.
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 \
-     && docker image inspect postgres:16 >/dev/null 2>&1; then
+     && { docker image inspect postgres:16 >/dev/null 2>&1 \
+          || docker image inspect docker.io/library/postgres:16 >/dev/null 2>&1; }; then
     PGMODE=docker; PG_NAME=$name
     docker rm -f "$name" >/dev/null 2>&1
     docker run -d --name "$name" \

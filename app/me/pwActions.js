@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sessionUser } from "@/lib/session";
+import { SUPABASE_URL } from "@/lib/supabase/env";
+// 0000 이 무엇인지도, 열쇠를 어디서 읽는지도 **lib/authAdmin 하나**가 안다 (원칙 1)
+import { INIT_PW, serviceKey } from "@/lib/authAdmin";
 
 /**
  * 학생이 처음 들어와서 비밀번호를 정한다.
@@ -19,15 +22,6 @@ import { sessionUser } from "@/lib/session";
  * service_role 열쇠가 없는 동안에는 예전 방식으로 돌아간다 — 아이가 화면
  * 앞에서 막혀버리면 안 되기 때문이다.
  */
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const INIT_PW = "0000";
-
-async function serviceKey(supabase) {
-  const { data } = await supabase
-    .from("integrations").select("config").eq("id", "supabase_service").maybeSingle();
-  return (data?.config?.key || "").trim();
-}
 
 /** 서버에서 바로 바꾼다. 열쇠가 없으면 못 했다고 알려준다 */
 export async function setMyPassword(newPw) {

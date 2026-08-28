@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { SUPABASE_URL } from "@/lib/supabase/env";
 import { requireTeacher } from "@/lib/guard";
+import { INIT_PW, emailOf, serviceKey, admin, keyMissing as keyMissingFor } from "@/lib/authAdmin";
+
+const keyMissing = () => keyMissingFor("학부모 계정");
 
 /**
  * 학부모 계정.
@@ -20,41 +22,12 @@ import { requireTeacher } from "@/lib/guard";
  * 아이디를 두 개 알려드려야 한다.
  */
 
-const DOMAIN = "chloe-eng.internal";     // 실제로 메일이 가는 곳이 아니다
-const INIT_PW = "0000";
-
-function emailOf(loginId) {
-  return `${(loginId || "").trim().toLowerCase()}@${DOMAIN}`;
-}
-
-async function serviceKey(supabase) {
-  const { data } = await supabase
-    .from("integrations").select("config").eq("id", "supabase_service").maybeSingle();
-  return (data?.config?.key || "").trim();
-}
-
-function keyMissing() {
-  return {
-    error:
-      "학부모 계정을 만들려면 설정 → Supabase · AI 키 에서 service_role 키를 한 번 넣어주셔야 해요.",
-  };
-}
-
-async function admin(key, path, method, body) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin${path}`, {
-    method,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
-  let json = null;
-  try { json = await res.json(); } catch { /* 본문이 없을 수도 있다 */ }
-  return { ok: res.ok, status: res.status, json };
-}
+/**
+ * 도메인 · 0000 · 열쇠 읽기 · Admin API 호출은 **lib/authAdmin 하나**다
+ * (원칙 1). 여기에도 같은 다섯이 따로 적혀 있었고, 그중 「열쇠를 어디에
+ * 넣나」 안내는 **옛 화면 이름**(「Supabase · AI 키」)을 가리키고 있었다 —
+ * 그 상자는 이제 「학생 계정 키」다. 두 벌로 적으면 이렇게 한쪽만 늙는다.
+ */
 
 /** 이 아이와 **한 집인 아이들** — 형제로 묶여 있으면 전부 (0071) */
 async function familyOf(supabase, studentId) {
