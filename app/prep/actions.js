@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { toTeachers } from "@/lib/exams";
 import { needSql } from "@/lib/sqlError";
+import { requireStaff } from "@/lib/guard";
 
 const SQL = "0052~0054 SQL 을 먼저 실행해주세요.";
 
@@ -29,7 +30,7 @@ export async function listTypes() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("prep_material_types")
-    .select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade")
+    .select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade, give_kind")
     .order("sort", { ascending: true });
   if (needSql(error)) return { rows: [], error: SQL };
   return { rows: data || [], error: error ? error.message : null };
@@ -51,6 +52,8 @@ export async function saveType(t = {}) {
     need_hand: !!t.need_hand,
     need_solve: !!t.need_solve,
     need_grade: !!t.need_grade,
+    // 종이냐 파일이냐 (0178) — 여기 정해두면 이 종류로 만든 자료가 물려받는다
+    give_kind: t.give_kind === "file" ? "file" : "paper",
   };
   const q = t.id
     ? await supabase.from("prep_material_types").update(row).eq("id", t.id)
@@ -158,6 +161,8 @@ export async function setTypesFlags(ids, patch = {}) {
   const ALLOW = ["need_make", "need_print", "need_card", "need_hand", "need_solve", "need_grade", "active"];
   const row = {};
   for (const k of ALLOW) if (patch[k] !== undefined) row[k] = !!patch[k];
+  // 종이·파일은 참거짓이 아니라 글자다 (0178)
+  if (patch.give_kind !== undefined) row.give_kind = patch.give_kind === "file" ? "file" : "paper";
   if (Object.keys(row).length === 0) return { error: "바꿀 것을 골라주세요." };
 
   const supabase = await createClient();
@@ -392,18 +397,20 @@ export async function addMaterial(scopeId, typeId, name) {
   const supabase = await createClient();
 
   // 종류에 정해둔 단계를 그대로 가져온다 — 매번 체크할 일이 없게
-  let base = { need_make: true, need_print: true, need_card: false, need_hand: true, need_solve: true, need_grade: true };
+  // give_kind 도 같은 길에 태운다 (0178) — 종이인지 파일인지도 종류가 정한다
+  let base = { need_make: true, need_print: true, need_card: false, need_hand: true, need_solve: true, need_grade: true, give_kind: "paper" };
   let sort = 0;
   if (typeId) {
     const { data: t } = await supabase
       .from("prep_material_types")
-      .select("sort, need_make, need_print, need_card, need_hand, need_solve, need_grade")
+      .select("sort, need_make, need_print, need_card, need_hand, need_solve, need_grade, give_kind")
       .eq("id", typeId)
       .maybeSingle();
     if (t) {
       base = {
         need_make: t.need_make, need_print: t.need_print, need_card: t.need_card,
         need_hand: t.need_hand, need_solve: t.need_solve, need_grade: t.need_grade,
+        give_kind: t.give_kind === "file" ? "file" : "paper",
       };
       sort = t.sort ?? 0;
     }
@@ -434,6 +441,7 @@ export async function updateMaterial(id, patch = {}) {
   if ("name" in patch) row.name = (patch.name || "").trim() || null;
   if ("sort" in patch) row.sort = Number.isFinite(+patch.sort) ? +patch.sort : 0;
   if ("note" in patch) row.note = (patch.note || "").trim() || null;
+  if ("give_kind" in patch) row.give_kind = patch.give_kind === "file" ? "file" : "paper";
 
   const { error } = await supabase.from("prep_materials").update(row).eq("id", id);
   if (needSql(error)) return { error: SQL };
@@ -488,10 +496,58 @@ export async function setAssignees(materialId, studentIds = []) {
     if (needSql(error)) return { error: SQL };
     if (error) return { error: error.message };
   }
-  if (drop.length) await supabase.from("prep_assignments").delete().in("id", drop);
+  if (drop.length) {
+    /**
+     * **수령 기록도 같이 지운다 (0178).** 안 지우면 배정을 껐다 켠 아이가
+     * 누른 적도 없는데 「받음」으로 뜬다 — 배정을 끊는 순간 그 자료를 받았다는
+     * 사실도 없던 일이 되어야 앞뒤가 맞는다.
+     * (자료를 통째로 지우는 쪽은 on delete cascade 가 이미 맡는다)
+     */
+    const gone = [...was.entries()].filter(([sid]) => !now.has(sid)).map(([sid]) => sid);
+    await supabase.from("prep_assignments").delete().in("id", drop);
+    await supabase
+      .from("prep_receipts")
+      .delete()
+      .eq("material_id", materialId)
+      .in("student_id", gone);
+  }
 
   revalidatePath("/prep");
   return { error: null };
+}
+
+/**
+ * **수령을 원장이 대신 찍는다** (0178).
+ *
+ * 원래는 아이가 자기 화면에서 누르는 것이다. 그런데 종이 자료는 학원
+ * 와이파이일 때만 눌리고, LTE 만 쓰는 아이·폰을 안 가져온 아이·아직 계정이
+ * 없는 재원생은 영영 못 누른다. 그러면 원장님 화면의 「안 받음」이 **끌 수
+ * 없는 숫자**가 된다 — 그 화면에서 지금 할 수 있는 일만 재촉한다는 규칙에
+ * 어긋난다. 등원 체크를 선생님이 대신 찍는 것(setArrivalFor)과 같은 결이다.
+ *
+ * 누가 눌렀는지는 by_staff 로 남긴다 — 화면에는 안 그리지만, 칸을 안 두면
+ * 「아이가 눌렀다」와 「원장이 대신 찍었다」가 한 칸에 뭉개져 되돌릴 수 없다.
+ */
+export async function markReceiptFor(materialId, studentId, on = true) {
+  if (!materialId || !studentId) return { error: "값이 부족해요." };
+  const supabase = await createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { error: guard.error };
+
+  const { error } = await supabase.from("prep_receipts").upsert(
+    {
+      material_id: materialId,
+      student_id: studentId,
+      received_at: on ? new Date().toISOString() : null,
+      by_staff: true,
+    },
+    { onConflict: "material_id,student_id" }
+  );
+  if (needSql(error)) return { error: "0178 SQL 을 먼저 실행해주세요." };
+  revalidatePath("/prep");
+  revalidatePath("/today");
+  revalidatePath("/me");
+  return { error: error ? error.message : null };
 }
 
 /** 학생 한 명의 단계 (배부 · 풀이 · 채점) */

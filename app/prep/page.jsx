@@ -21,7 +21,7 @@ export default async function PrepPage(props) {
     e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "42703");
 
   // 서로 안 물어보는 것은 한꺼번에 — 학교 이름도 아무것도 안 기다린다 (0114)
-  const [exams, scopes, materials, assigns, types, students, schools] = await Promise.all([
+  const [exams, scopes, materials, assigns, types, students, schools, receipts] = await Promise.all([
     // 시험은 **한 군데**에만 있다 (0074). 예전에는 prep_exams 라는 표가 따로
     // 있어서, 같은 신송중 1학기 기말이 학사일정에도 있고 여기에도 있었다.
     supabase
@@ -29,13 +29,15 @@ export default async function PrepPage(props) {
       .select("id, school, grade, name, from_date, to_date, english_on, teacher, teachers, note, cuts, hidden")
       .order("english_on", { ascending: true, nullsFirst: false }),
     supabase.from("prep_scopes").select("id, exam_id, name, unit_ids, note, sort").order("sort", { ascending: true }),
-    supabase.from("prep_materials").select("id, scope_id, type_id, name, sort, note, need_make, need_print, need_card, need_hand, need_solve, need_grade, made_at, printed_at, card_at").order("sort", { ascending: true }),
+    supabase.from("prep_materials").select("id, scope_id, type_id, name, sort, note, need_make, need_print, need_card, need_hand, need_solve, need_grade, made_at, printed_at, card_at, give_kind").order("sort", { ascending: true }),
     // fetchAll — 자료×학생이라 금방 1000줄을 넘는다 (잘리면 배정이 안 된 것처럼 보인다)
     fetchAll(() => supabase.from("prep_assignments").select("id, material_id, student_id, handed_at, solved_at, graded_at, result, score, sort").order("id")),
-    supabase.from("prep_material_types").select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade").order("sort", { ascending: true }),
+    supabase.from("prep_material_types").select("id, parent_id, name, sort, active, need_make, need_print, need_card, need_hand, need_solve, need_grade, give_kind").order("sort", { ascending: true }),
     supabase.from("students").select("id, name, school, grade, status").eq("status", "enrolled").order("name", { ascending: true }),
     // 학교는 골라 넣는다 (0114)
     schoolNames(supabase).catch(() => []),
+    // 아이가 「받았어요」 하고 누른 것 (0178) — 자료×학생이라 배정과 같은 크기다
+    fetchAll(() => supabase.from("prep_receipts").select("material_id, student_id, received_at, by_staff").order("material_id")),
   ]);
 
   const missing = [exams, scopes, materials, assigns, types].some((q) => bad(q.error));
@@ -117,6 +119,16 @@ export default async function PrepPage(props) {
               시험범위는 <b>교재DB에서 단원·문제를 골라</b> 담습니다. 자료는 범위마다
               만들고, <b>배정은 학생마다 다르게</b> 합니다.
             </p>
+            <p className="sub">
+              자료 줄의 <b>종이 / 파일</b> 단추는 아이가 「받았어요」를 어디서 누를 수
+              있는지입니다 — <b>종이는 학원 안에서만</b>, 파일은 집에서도. 만들기·인쇄·
+              클래스카드를 <b>다 끝낸 자료만</b> 아이 화면에 뜹니다. 아이 대신 찍어주실
+              때는 이름 칩을 누르세요.
+            </p>
+            <p className="sub">
+              <b>메모에는 아이가 보면 안 될 말을 적지 마세요.</b> 준비가 끝난 자료는
+              아이 화면에도 넘어가는데, 잠금은 줄 단위라 메모 칸만 따로 가릴 수가 없습니다.
+            </p>
           </Help>
         </div>
 
@@ -136,6 +148,7 @@ export default async function PrepPage(props) {
             assigns={assigns.data || []}
             types={types.data || []}
             students={students.data || []}
+            receipts={receipts.data || []}
             unitLabel={unitLabel}
             pick={searchParams?.e || ""}
           />

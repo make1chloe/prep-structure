@@ -34,6 +34,8 @@ const BLANK = {
   need_hand: true,
   need_solve: true,
   need_grade: true,
+  // 종이냐 파일이냐 (0178) — 엄한 쪽이 기본이라야 「집에서 잘못 눌렀다」가 안 생긴다
+  give_kind: "paper",
 };
 
 export default function TypeBox({ types = [] }) {
@@ -119,6 +121,16 @@ export default function TypeBox({ types = [] }) {
                 />
                 지금 씀
               </label>
+              {/* 아이가 어디서 「받았어요」를 누를 수 있나 (0178) */}
+              <select
+                className="input input-sm"
+                style={{ width: 84, fontSize: 12.5 }}
+                value={draft.give_kind === "file" ? "file" : "paper"}
+                onChange={(e) => setDraft({ ...draft, give_kind: e.target.value })}
+              >
+                <option value="paper">종이</option>
+                <option value="file">파일</option>
+              </select>
             </div>
           </td>
           <td style={{ whiteSpace: "nowrap" }}>
@@ -282,6 +294,20 @@ export default function TypeBox({ types = [] }) {
                 </button>
               </span>
             ))}
+            {/* 종이·파일도 여기서 한 번에 (0178) */}
+            <span className="row" style={{ gap: 2, alignItems: "center" }}>
+              <span className="hint" style={{ fontSize: 12.5 }}>받는 곳 —</span>
+              <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: 12.5 }}
+                disabled={pending}
+                onClick={() => run(() => setTypesFlags([...sel], { give_kind: "paper" }))}>
+                종이
+              </button>
+              <button className="btn btn-ghost btn-sm" style={{ padding: "2px 6px", fontSize: 12.5, opacity: 0.75 }}
+                disabled={pending}
+                onClick={() => run(() => setTypesFlags([...sel], { give_kind: "file" }))}>
+                파일
+              </button>
+            </span>
           </div>
           <div className="row" style={{ gap: 6, marginTop: 6, alignItems: "center", flexWrap: "wrap" }}>
             <button className="btn btn-ghost btn-sm" disabled={pending}
@@ -363,6 +389,18 @@ export default function TypeBox({ types = [] }) {
             이 종류에 필요한 단계 — 여기서 켜 둔 것만 나중에 체크할 것으로 뜹니다
           </p>
           <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+            <label className="row" style={{ gap: 4, fontSize: 14 }}>
+              받는 곳
+              <select
+                className="input input-sm"
+                style={{ width: 92 }}
+                value={draft.give_kind === "file" ? "file" : "paper"}
+                onChange={(e) => setDraft({ ...draft, give_kind: e.target.value })}
+              >
+                <option value="paper">종이</option>
+                <option value="file">파일</option>
+              </select>
+            </label>
             {NEEDS.map((n) => (
               <label key={n.key} className="row" style={{ gap: 4, fontSize: 14 }}>
                 <input
