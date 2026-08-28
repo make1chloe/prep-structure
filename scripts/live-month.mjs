@@ -312,10 +312,27 @@ function livingSql() {
           if (passed) { retest.delete(s.id); unitAt.set(s.id, Math.min(idx + 1, UNITS.length - 1)); }
           else retest.set(s.id, idx);
         }
-        L.push(`insert into public.daily_reports (id, student_id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress)
+        /**
+         * **판을 닫는다** (`report_written = true`).
+         *
+         * 아래에서 이 판의 숙제를 전부 검사 상태(done·weak·missing)로 넣는다.
+         * 진짜 앱은 그 경우 판을 **자동으로 닫는다** —
+         * `app/today/actions.js:194` 의 `report_written: complete` 이고
+         * `complete = 안 검사한 것이 없다` 다. 그런데 여기 씨앗만 이 칸을
+         * 안 적어서 기본값 false 로 들어갔고, 앱이 만들 수 없는 상태
+         * (「검사는 다 됐는데 판은 안 닫힌 판」)를 한 달 내내 쌓고 있었다.
+         *
+         * 그 상태는 0169 마감 게이트에 그대로 걸린다 — 검사 3상태는 마감
+         * 뒤에만 아이/학부모에게 보인다. 그래서 아이가 자기 검사줄을
+         * **한 줄도** 못 읽었고, summarize 의 숙제 성취도가 null 이 되어
+         * 「이번 달 현황」의 숙제 줄이 통째로 사라졌다. 없는 값은 줄을
+         * 조용히 빼는 규칙(lib/parentView threeLines)이라 오류도 안 났다.
+         * `supabase/seed/더미데이터.sql:169` 의 지난 수업 씨앗도 true 다.
+         */
+        L.push(`insert into public.daily_reports (id, student_id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, sent_unit, sent_passed, own_progress, report_written)
           values (${q(reportId)}, ${q(s.id)}, ${q(d)}, ${q(chance(0.08) ? "지각" : "정시출석")}, ${wc}, ${wt},
                   ${sc == null ? "null" : sc}, ${st == null ? "null" : st}, ${q(unitName)},
-                  ${passed == null ? "null" : passed}, ${q(examWeek ? "내신 대비" : unitName + " 진도")})
+                  ${passed == null ? "null" : passed}, ${q(examWeek ? "내신 대비" : unitName + " 진도")}, true)
           on conflict (student_id, date) do nothing;`);
         if (unitName) {
           L.push(`insert into public.scores (student_id, kind, term, taken_on, raw_score, full_score, note, source)
@@ -331,6 +348,20 @@ function livingSql() {
       });
     });
   });
+
+  /**
+   * **마지막 판 하나는 아직 적는 중으로 둔다** (`report_written = false`).
+   *
+   * 판을 전부 닫아버리면 0169 마감 게이트가 **한 번도 안 걸리는** 씨앗이
+   * 된다 — 게이트를 통째로 없애도 이 검사는 초록이다. 다른 검사도 이
+   * 게이트를 안 본다 (check-parent 의 숙제줄은 'assigned' 라 늘 보이는
+   * 화이트리스트다). 그래서 마지막 수업 판만 열어둔다 — 원장님이 오늘 판을
+   * 아직 안 닫은, 매일 실제로 생기는 그 모양 그대로다. 아래 5)에서
+   * 「그 판의 검사 결과는 안 보이고, 마감한 날들의 성취도는 나온다」 를
+   * 둘 다 확인한다.
+   */
+  L.push(`update public.daily_reports r set report_written = false
+     where r.date = (select max(d2.date) from public.daily_reports d2 where d2.student_id = r.student_id);`);
 
   absences.forEach(({ s, d }) => {
     const mk = addDays(d, 7);
@@ -483,6 +514,27 @@ function check() {
   const myItems = seeAs(kidP,
     `select dri.daily_report_id, dri.homework_item_id, dri.status from public.daily_report_items dri
       join public.daily_reports r on r.id = dri.daily_report_id where r.student_id = ${q(kid.id)}`);
+  /**
+   * **마감 게이트(0169)** — 아직 적는 중인 판의 검사 결과는 아이에게 안 보여야
+   * 한다. 「안 보인다」만 보면 게이트가 아니라 **아무것도 안 보이는 것**과
+   * 구별이 안 된다 (실제로 그 구별을 못 해서, 아이가 자기 검사줄을 한 줄도
+   * 못 읽는 것을 한동안 못 잡았다). 그래서 두 쪽을 같이 본다.
+   */
+  const openIds = new Set(
+    rows(`select id from public.daily_reports where student_id = ${q(kid.id)} and report_written = false`).map((r) => r.id)
+  );
+  const openHas = rows(`select 1 as x from public.daily_report_items
+      where daily_report_id in (select id from public.daily_reports
+        where student_id = ${q(kid.id)} and report_written = false)
+        and status in ('done','weak','missing')`).length;
+  const openSeen = myItems.filter((i) => openIds.has(i.daily_report_id)).length;
+  const closedSeen = myItems.length - openSeen;
+  console.log(`  마감 게이트 — 마감한 판의 검사 ${closedSeen}줄 보임 · 적는 중인 판 ${openSeen}줄 보임(0이어야)`);
+  if (openHas > 0 && openSeen > 0)
+    problem("학생 화면 · 마감 게이트", "아직 적는 중인 판의 검사 결과가 아이에게 보인다", "0169 student_self_items 를 확인하세요.");
+  if (closedSeen === 0)
+    problem("학생 화면 · 마감 게이트", "마감한 판의 검사 결과까지 아이가 못 읽는다", "게이트가 너무 넓게 막고 있습니다.");
+
   // summarize(reports, exams) — 리포트마다 items 를 물려서 준다 (화면이 그렇게 한다)
   const sum = summarize(
     mine.map((r) => ({ ...r, items: myItems.filter((i) => i.daily_report_id === r.id) })), []
