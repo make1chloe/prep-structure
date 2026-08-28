@@ -41,6 +41,7 @@ import { STAFF_ROLES as STAFF } from "@/lib/roles";
 import { sessionUser } from "@/lib/session";
 import SectionNav from "@/components/SectionNav";
 import NoticeGate from "@/components/NoticeGate";
+import ReportSeen from "./ReportSeen";
 
 export const dynamic = "force-dynamic";
 
@@ -160,8 +161,10 @@ export default async function ParentPage(props) {
     // 마감 판정 칸(lib/closeGate GATE_COLS)을 꼭 같이 읽는다 — 안 읽으면
     // 게이트가 조용히 열린다. 0169 전 DB 면 closed_at 이 없어 한 칸 물러난다
     (async () => {
+      // sent_at 을 같이 읽는다 — **보낸 판에만** 열람 도장을 찍기 위해서다
+      // (0180 · ReportSeen). 조회가 늘지 않는 한 칸이다
       const MONTH_COLS =
-        "id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text";
+        "id, date, attendance_kind, word_correct, word_total, sent_correct, sent_total, notice, report_text, sent_at";
       const q = (cols) =>
         supabase
           .from("daily_reports")
@@ -314,6 +317,7 @@ export default async function ParentPage(props) {
       ...r,
       attendance: month?.attendance_kind || null,
       reportText: month?.report_text || null,
+      sentAt: month?.sent_at || null,
       check: checkCounts(mine),
       checked: mine.length,
     };
@@ -832,6 +836,14 @@ export default async function ParentPage(props) {
                         </div>
                       </details>
                     )}
+
+                    {/* **열람 도장** (0180) — 이 카드가 화면에 잠시 머무르면
+                        찍힌다. 미리보기(원장님)에서는 안 찍는다: 위 미리보기
+                        딱지가 「여기서 누르는 것은 기록되지 않아요」 라고
+                        약속하고 있고, 선생님은 staff_all 로 RLS 를 통과하므로
+                        막지 않으면 원장님이 보실 때마다 「어머니가 보셨다」 가
+                        된다 (0090·0158 과 같은 종류의 거짓) */}
+                    {!preview && <ReportSeen reportId={r.id} sent={!!r.sentAt} />}
                   </div>
                 ))}
               </div>

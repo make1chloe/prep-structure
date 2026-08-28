@@ -4,18 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveText, resetText, resend, listSends } from "./actions";
 import { addDays } from "@/lib/day";
+import Mark from "@/components/Mark";
+import { sentMark, readMark, markTime } from "@/lib/reportMark";
 
 const shiftDate = addDays;
 
 // 재발송은 발송 화면의 '다시 보내기' 탭이다 (따로 있던 /resend 를 합쳤다).
 // 날짜를 옮겨도 탭이 풀리지 않게 여기로 돌아온다.
-function timeLabel(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}`;
-}
+// 시각 표기는 lib/reportMark 의 markTime 한 벌 — 「보냄」 딱지와 같은 모양이어야 한다
 
 const KINDS = [
   { key: "homework", label: "숙제 문자", hint: "다음 수업 숙제만 담은 짧은 문자예요." },
@@ -26,7 +22,7 @@ const KINDS = [
  * @param only "homework" 처럼 한 종류만 다루는 화면으로 쓸 때. 종류 고르는 단추를
  *             숨기고 「다시 보내기」 대신 그냥 「보내기」 로 말한다.
  */
-export default function ResendBoard({ date, rows = [], ready = true, mode = "copy", chans = {}, only = null }) {
+export default function ResendBoard({ date, rows = [], ready = true, readReady = true, mode = "copy", chans = {}, only = null }) {
   const [kind, setKind] = useState(only || "homework");
   const HERE = `/report?t=${only === "homework" ? "hw" : "resend"}`;
   const [sel, setSel] = useState(() => new Set());
@@ -280,10 +276,11 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                   )}
                   {isHw && r.nextCount === 0 && <span className="tag tag-muted">숙제 없음</span>}
                   {editedOf(r) && <span className="tag tag-lav">수정함</span>}
-                  {sent ? (
-                    <span className="tag tag-mint">{timeLabel(sent)} 보냄{n > 1 ? ` · ${n}회` : ""}</span>
-                  ) : (
-                    <span className="tag tag-amber">안 보냄</span>
+                  {/* 보냈나 · 학부모가 열어봤나 — lib/reportMark 한 벌
+                      (발송 탭·월간·하원 안내가 같은 아이콘을 쓴다) */}
+                  <Mark mark={sentMark(sent, { count: n, what: isHw ? "숙제 안내" : "리포트" })} />
+                  {!isHw && (
+                    <Mark mark={readMark(r.readAt, { sentAt: sent, known: readReady })} />
                   )}
                   </span>
                   <span className="stuEnd">
@@ -320,7 +317,7 @@ export default function ResendBoard({ date, rows = [], ready = true, mode = "cop
                             <span className={`tag ${h.kind === "homework" ? "tag-sky" : "tag-lav"}`}>
                               {h.kind === "homework" ? "숙제" : "리포트"}
                             </span>
-                            <span className="hint" style={{ minWidth: 84 }}>{timeLabel(h.sent_at)}</span>
+                            <span className="hint" style={{ minWidth: 84 }}>{markTime(h.sent_at)}</span>
                             <span style={{ flex: 1, fontSize: 14, whiteSpace: "pre-wrap" }}>
                               {h.body.split("\n").slice(0, 3).join("\n")}
                               {h.body.split("\n").length > 3 ? " …" : ""}

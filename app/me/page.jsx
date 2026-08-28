@@ -29,6 +29,7 @@ import Comments from "@/app/comments/Comments";
 import { STAY_LABEL } from "@/lib/reportText";
 import RequestForm from "./RequestForm";
 import LeaveCard from "./LeaveCard";
+import LearnedBox from "./LearnedBox";
 import LinkCode from "./LinkCode";
 import ChangePw from "./ChangePw";
 import DictBar from "./DictBar";
@@ -190,7 +191,7 @@ export default async function MePage(props) {
     reports, subQ, reqQ1, stayQ, aq, attq, mineQ, nq, sessQ,
     monthRepsQ, myWarnQ, myCutQ, pastQ, recQ, asgQ, seenQ, guidesQ,
     notes, layouts, scoresQ, specQ, stateQ, itemById,
-    extraQ, exAbsQ, holMonthQ,
+    extraQ, exAbsQ, holMonthQ, learnedQ,
   ] = await Promise.all([
     loadReports(supabase, sid, todayStr, 6),
     supabase
@@ -301,6 +302,13 @@ export default async function MePage(props) {
       .eq("student_id", sid),
     supabase.from("student_extra_absences").select("schedule_id, date, status"),
     supabase.from("holidays").select("date, scope").gte("date", myFrom).lte("date", todayStr),
+    // **오늘 배운 것** (0181) — 하원 길목이 이 값을 본다. 파도에 태운다
+    supabase
+      .from("learned_notes")
+      .select("body")
+      .eq("student_id", sid)
+      .eq("date", todayStr)
+      .maybeSingle(),
   ]);
 
   // 내가 낸 숙제 (0044 전이면 빈 값 — 화면은 그대로 뜬다)
@@ -449,6 +457,11 @@ export default async function MePage(props) {
       .maybeSingle();
   }
   const arrival = arrivalQ.error ? {} : arrivalQ.data || {};
+  // 오늘 배운 것 (0181). 0181 전 DB 면 조회가 실패한다 — 그때는 빈 값이라
+  // 길목이 하원을 막게 된다. 그래서 **표가 없으면 길목을 안 세운다**
+  // (선생님이 SQL 을 안 돌렸다고 아이가 집에 못 가면 안 된다)
+  const learnedReady = !learnedQ?.error;
+  const learned = learnedQ?.data?.body || "";
 
   // 지금 등원 중인가.
   //   등원 중이면 화면은 **등원 중 할 일**로 열려야 한다. 집 숙제를 먼저
@@ -1165,12 +1178,23 @@ export default async function MePage(props) {
     ),
     leave: (
       <>
+          {/* **오늘 배운 것 → 하원** (0181, 원장님 2026-08-28).
+              등원 절차의 homework_at 뒤 · leave_at 앞이 이 자리다
+              (lib/arrivalSteps). 적는 칸과 막는 단추가 붙어 있어야
+              「왜 안 눌리지」 하고 화면을 뒤지지 않는다.
+              하원 카드가 안 뜨는 때(집·수업 없는 날)에는 이 칸도 안 뜬다 —
+              집에 가서 적으라고 하는 칸이 아니다 (A11) */}
+          {learnedReady && atAcademy && isClassDay && !arrival.leave_at && (
+            <LearnedBox saved={learned} readOnly={preview} />
+          )}
           {/* **하원할게요** (원장님 2026-08-23) — 학원 안에서만 뜬다.
               공용 기기로 표시해 둔 기기에서는 누르면 로그아웃까지 */}
           <LeaveCard
             atAcademy={atAcademy && isClassDay}
             done={!!arrival.leave_at}
             readOnly={preview}
+            learned={learned}
+            gate={learnedReady}
           />
       </>
     ),

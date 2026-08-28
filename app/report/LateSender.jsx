@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { saveText, resetText, resend } from "@/app/resend/actions";
 import { unsendLate } from "@/app/today/lateActions";
 import { clearLate } from "./actions";
+import Mark from "@/components/Mark";
+import { sentMark } from "@/lib/reportMark";
 
 /**
  * 하원 안내 모아보기.
@@ -86,16 +88,8 @@ export default function LateSender({ date, rows = [], mode = "copy", chans = {} 
             <span className="tag tag-muted">시간 미정</span>
           )}
           {!r.phone && <span className="tag tag-red">번호 없음</span>}
-          {r.lateSentAt && (
-            <span className="tag tag-mint">
-              {new Date(r.lateSentAt).toLocaleTimeString("ko-KR", {
-                timeZone: "Asia/Seoul",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              보냄
-            </span>
-          )}
+          {/* 「보냄」 은 lib/reportMark 한 벌 — 리포트·숙제 안내·월간과 같은 아이콘 */}
+          {r.lateSentAt && <Mark mark={sentMark(r.lateSentAt, { what: "하원 안내" })} />}
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => {

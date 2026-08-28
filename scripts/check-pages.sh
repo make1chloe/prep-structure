@@ -395,6 +395,16 @@ else
 fi
 echo
 
+echo "== 8-3) 열람 도장·오늘 배운 것 (진짜 Postgres) =="
+# 0180·0181 은 학부모·학생이 **쓰는** 표다. 미리보기(is_staff)로는 구멍이
+# 안 잡힌다 (0090·0158·0166). 세 동사를 전부 눌러본다 (0175 반쪽 사고)
+if [ -f scripts/check-seen.sh ]; then
+  bash scripts/check-seen.sh || fail=1
+else
+  echo "  건너뜀"
+fi
+echo
+
 echo "== 9) 조교가 수강료를 볼 수 있나 (진짜 Postgres) =="
 # 메뉴에서 감추는 것과 데이터를 막는 것은 다른 이야기다 (0079)
 if [ -f scripts/check-roles.sh ]; then

@@ -6,6 +6,8 @@ import {
   saveReportText, resetReportText, sendReports, unsend, skipSend, removeReports,
 } from "./actions";
 import { addDays } from "@/lib/day";
+import Mark from "@/components/Mark";
+import { sentMark, readMark } from "@/lib/reportMark";
 
 const shiftDate = addDays;
 
@@ -19,7 +21,7 @@ function contentLines(text = "") {
     .filter((l) => !/^· 출결:/.test(l)).length;
 }
 
-export default function ReportSender({ date, rows = [], sendReady = true, mode = "copy", chans = {} }) {
+export default function ReportSender({ date, rows = [], sendReady = true, readReady = true, mode = "copy", chans = {} }) {
   const [sel, setSel] = useState(() => new Set());
   const [openId, setOpenId] = useState(null);
   const [draft, setDraft] = useState("");
@@ -361,15 +363,14 @@ export default function ReportSender({ date, rows = [], sendReady = true, mode =
                       내용 없음
                     </span>
                   )}
-                  {r.sentAt ? (
-                    <span className="tag tag-mint">보냄</span>
-                  ) : skipped(r) ? (
-                    <span className="tag tag-muted">안 보냄</span>
-                  ) : r.written ? (
-                    <span className="tag tag-sky">보낼 것</span>
-                  ) : (
-                    <span className="tag tag-amber">기록 전</span>
-                  )}
+                  {/* 보냈나 · 학부모가 열어봤나 — 아이콘 규칙은 lib/reportMark
+                      한 벌 (다시 보내기 탭·월간·하원 안내가 같은 것을 쓴다) */}
+                  <Mark mark={sentMark(r.sentAt, {
+                    count: r.sendCount?.report,
+                    skip: skipped(r),
+                    written: r.written,
+                  })} />
+                  <Mark mark={readMark(r.readAt, { sentAt: r.sentAt, known: readReady })} />
                   </span>
                   <span className="stuEnd">
                   <button className="btn btn-ghost btn-sm" onClick={() => copy(r.text, r.id)}>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useLazyRefresh } from "@/components/useLazyRefresh";
 import { saveLate, previewLate, sendLateNow, unsendLate, clearLate } from "./lateActions";
 import { TIME_PRESETS, normalizeTime } from "@/lib/lateNotice";
+import Mark from "@/components/Mark";
+import { sentMark } from "@/lib/reportMark";
 
 /**
  * 늦은 귀가 안내 한 학생 분.
@@ -217,14 +219,8 @@ export default function LateBox({
 
         {sent && (
           <>
-            <span className="tag tag-mint">
-              {new Date(sent).toLocaleTimeString("ko-KR", {
-                timeZone: "Asia/Seoul",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              보냄
-            </span>
+            {/* 오늘 수업 학생 판에도 같은 아이콘으로 (lib/reportMark 한 벌) */}
+            <Mark mark={sentMark(sent, { what: "하원 안내" })} />
             <button
               className="btn btn-ghost btn-sm"
               disabled={pending}

@@ -66,6 +66,10 @@ const ONE_PLACE = [
   // (report_written or closed_at is not null). 0169 + 원장 확정 2026-08-28.
   ["isClosed", "lib/closeGate.js", "이 판은 마감되었나 (학생·학부모에게 공개해도 되나)"],
   ["maskUnclosed", "lib/closeGate.js", "마감 전 판에서 안 보일 칸 비우기"],
+  ["sentMark", "lib/reportMark.js", "보냈나 — 아이콘·말·색 (발송·다시 보내기·월간·하원 안내 공통)"],
+  ["readMark", "lib/reportMark.js", "학부모가 열어봤나 — 아이콘·말·색 (0180)"],
+  ["markTime", "lib/reportMark.js", "보낸/열어본 시각 표기 (M/D HH:MM)"],
+  ["learnedEnough", "lib/learned.js", "「오늘 배운 것」 을 적은 것으로 볼까 (하원 길목 잣대)"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

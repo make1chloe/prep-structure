@@ -609,7 +609,7 @@ async function TodayBody({ searchParams, date }) {
   const none = { data: [] };
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ, learnedQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -694,6 +694,14 @@ async function TodayBody({ searchParams, date }) {
       ? supabase
           .from("answer_files")
           .select("student_id, homework_item_id, paths, opened_at")
+          .eq("date", date)
+          .in("student_id", studentIds)
+      : none,
+    // 아이가 하원 전에 적고 간 「오늘 배운 것」 (0181) — 0181 전이면 조용히 빈다
+    studentIds.length
+      ? supabase
+          .from("learned_notes")
+          .select("student_id, body")
           .eq("date", date)
           .in("student_id", studentIds)
       : none,
@@ -1086,6 +1094,14 @@ async function TodayBody({ searchParams, date }) {
     });
   }
 
+  /**
+   * **오늘 배운 것** (0181) — 아이가 하원 전에 적고 간 원본.
+   * 학부모에게는 안 나간다 (원장 확정) — 원장님만 여기서 보신다.
+   * 0181 전 DB 면 조용히 빈다 (다른 화면들과 같은 태도).
+   */
+  const learnedOf = new Map();
+  (learnedQ?.error ? [] : learnedQ?.data || []).forEach((x) => learnedOf.set(x.student_id, x.body || ""));
+
   // 학생이 직접 누른 등원 체크 (폰·숙제)
   const arrivalOf = new Map();
   {
@@ -1294,6 +1310,7 @@ async function TodayBody({ searchParams, date }) {
           phoneAt: arrivalOf.get(s.id)?.phone_at || null,
           attendAt: arrivalOf.get(s.id)?.attend_at || null,
           homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
+          learned: learnedOf.get(s.id) || "",
           wordWhen: rep?.word_when || s.word_when || "start",
           classcard: ccOf.get(s.id) || null,
           ccGap: ccGapOf.get(s.id) || null,
@@ -1372,6 +1389,7 @@ async function TodayBody({ searchParams, date }) {
         phoneAt: arrivalOf.get(s.id)?.phone_at || null,
         attendAt: arrivalOf.get(s.id)?.attend_at || null,
         homeworkAt: arrivalOf.get(s.id)?.homework_at || null,
+        learned: learnedOf.get(s.id) || "",
         wordWhen: rep?.word_when || s.word_when || "start",
         classcard: ccOf.get(s.id) || null,
         ccGap: ccGapOf.get(s.id) || null,

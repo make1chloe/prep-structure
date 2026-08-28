@@ -25,6 +25,8 @@ import LateBox from "./LateBox";
 import ExamBox from "./ExamBox";
 import { nextRoutine, advanceRoutine, saveStudentDefaults } from "./routineActions";
 import { setArrival, setArrivalFor, setWordWhenDefault } from "./arrivalActions";
+import { setLearnedFor } from "@/app/me/learnedActions";
+import { learnedEnough } from "@/lib/learned";
 import { STAY_LABEL } from "@/lib/reportText";
 import { isMemo, inHomework } from "@/lib/notices";
 import { lateReasons } from "@/lib/lateNotice";
@@ -653,6 +655,8 @@ export default function StudentPanel({
    * 저장은 뒤에서, 목록 정렬은 다음 자연 새로고침 때 따라온다.
    */
   const [arr, setArr] = useState({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
+  // 오늘 배운 것 (0181) — 아이가 적은 원본, 원장님이 대신 적을 수도 있다
+  const [learned, setLearned] = useState(row.learned || "");
   useEffect(() => {
     setArr({ phone: row.phoneAt, attend: row.attendAt, homework: row.homeworkAt });
   }, [row.phoneAt, row.attendAt, row.homeworkAt]);
@@ -2486,6 +2490,49 @@ export default function StudentPanel({
       </div>
     </>
   );
+  /**
+   * **오늘 배운 것** (0181, 원장님 2026-08-28) — 아이가 하원 전에
+   * 적고 간 **원본**이다. 학부모에게는 안 나간다 (원장 확정).
+   *
+   * 원장님이 **대신 적어줄 수도** 있다 — 등원 체크의 원장 대행
+   * (setArrivalFor, 바로 위 arriveZone)과 같은 관례다. 폰을 안 가져온
+   * 아이·계정이 없는 아이는 하원 길목에 걸려 못 나가므로, 대행 길이
+   * 없으면 원장님이 아이 대신 로그인해야 한다.
+   *
+   * 저장은 **칸 밖으로 나갈 때** (onBlur) — 오늘 수업 화면은 원장님이
+   * 여러 아이를 오가며 쓰는 자리라, 단추를 하나 더 두면 안 누르고 넘어간다.
+   */
+  const learnedZone = () => (
+    <>
+      <div className="prow" style={{ alignItems: "flex-start" }}>
+        <span className="plabel" style={{ paddingTop: 5 }}>오늘 배운 것</span>
+        <div style={{ flex: 1 }}>
+          <textarea
+            className="input"
+            rows={2}
+            value={learned}
+            disabled={pending}
+            placeholder="아이가 하원 전에 적고 갑니다. 여기서 대신 적어주셔도 돼요"
+            title="아이가 직접 적은 원본입니다 — 학부모에게는 안 나갑니다"
+            onChange={(e) => setLearned(e.target.value)}
+            onBlur={() => {
+              if (learned === (row.learned || "")) return;
+              startTransition(async () => {
+                const res = await setLearnedFor(row.student.id, date, learned);
+                if (res?.error) { alert(res.error); setLearned(row.learned || ""); }
+              });
+            }}
+            style={{ width: "100%" }}
+          />
+          <p className="hint" style={{ margin: "3px 0 0", fontSize: 12.5 }}>
+            {learnedEnough(learned)
+              ? "적혀 있어요 — 아이가 하원을 누를 수 있어요"
+              : "아직 안 적었어요 — 이걸 적어야 아이 화면에서 하원이 눌립니다"}
+          </p>
+        </div>
+      </div>
+    </>
+  );
   const stayZone = () => (
     <>
       {/* 늦귀가 과제 — 미흡·미제출을 찍으면 여기 자동으로 제안된다 */}
@@ -3077,6 +3124,7 @@ export default function StudentPanel({
           {utZone()}
           {utLogZone()}
           {inclassZone()}
+          {learnedZone()}
           {stayZone()}
           {form.attendance !== "early_leave" && lateZone()}
         </div>
