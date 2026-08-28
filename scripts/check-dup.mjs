@@ -54,6 +54,11 @@ const ONE_PLACE = [
   ["noTable", "lib/sqlError.js", "표가 없다"],
   ["noColumn", "lib/sqlError.js", "칸이 없다"],
   ["cleanClassName", "lib/classLabel.js", "반 이름 속 시간 걷어내기"],
+  // 재는 자와 고치는 자가 같아야 한다 — 대시보드가 「어긋났다」고 재는 잣대와
+  // 「플래너에 맞추기」가 무엇을 찍을지 고르는 잣대가 두 벌이 되면, 눌러도
+  // 재촉이 안 없어지거나 안 어긋난 것을 고친다 (2026-08-28)
+  ["dayNum", "lib/classcard.js", "단원·세트 이름에서 Day 숫자 뽑기"],
+  ["ccAlignPlan", "lib/ccAlign.js", "플래너에 맞추면 무엇이 바뀌나 (미리보기와 저장이 같은 답)"],
   ["planAssign", "lib/bookAssign.js", "교재 배정을 넣고 빼는 규칙 (학생 쪽 · 교재 쪽 공통)"],
   ["absenceLabel", "lib/absenceLabel.js", "이 결석을 뭐라고 부를까 (지난 것은 「예정」이 아니다)"],
   ["ensureReport", "lib/ensureReport.js", "그 날 리포트 한 줄 확보 (단건 — 벌크는 plan·import 의 upsert)"],
