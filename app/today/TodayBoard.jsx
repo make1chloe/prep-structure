@@ -573,6 +573,13 @@ export default function TodayBoard({
                                 {(r.unreadComments || 0) > 0 && (
                                   <span className="tag tag-lav">💬 {r.unreadComments}</span>
                                 )}
+                                {/* 아직 안 받아 간 종이 자료 (0178) — 0 이면 안 그린다.
+                                    파일 자료는 집에서 받는 것이라 여기서 재촉하지 않는다 */}
+                                {(r.prepDue || 0) > 0 && (
+                                  <span className="tag tag-amber" title="아직 안 받아 간 내신 자료입니다 (내신 대비 화면에서 대신 찍어주실 수 있어요)">
+                                    자료 {r.prepDue}
+                                  </span>
+                                )}
                                 {r.isMakeup && <span className="tag tag-lav">보강</span>}
                                 {r.plannedAbsent && <span className="tag tag-amber">결석 예정</span>}
                                 {/* 구판 줄에서 이어받은 한 손짓 (C6 — 기능 소실 금지):

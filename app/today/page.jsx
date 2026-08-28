@@ -12,6 +12,7 @@ import { loadRunningClasses, isExtra } from "@/lib/classTerm";
 import { purgeOncePerDay } from "./purgeActions";
 import { inUseOn } from "@/lib/bookUse";
 import { fetchAll } from "@/lib/fetchAll";
+import { prepReady } from "@/lib/prepRoutine";
 import { paceMap } from "@/lib/pace";
 import { idsOf, buildCheckSource, makeDayCheck } from "@/lib/dayCheck";
 import { ccUserIdxOf, ccDaySummary, ccWordItem, ccStale, ccTodayGap } from "@/lib/classcard";
@@ -131,6 +132,7 @@ async function TodayBody({ searchParams, date }) {
     extraAbsQ,
     ccRosterQ,
     ccDayQ,
+    prepMatQ,
   ] = await Promise.all([
     // 오늘 요일에 수업이 있는 반 (끝난 특강은 여기서 이미 빠진다)
     loadRunningClasses(
@@ -243,6 +245,11 @@ async function TodayBody({ searchParams, date }) {
      */
     supabase.from("classcard_students").select("user_idx, login_id"),
     supabase.from("classcard_day").select("user_idx, sets, fetched_at").eq("date", date),
+    // 내신 자료 (0178) — 날짜도 학생 id 도 안 쓰므로 여기가 제 자리다.
+    // 선생님 세션이라 전 자료가 오지만, 자료 자체는 몇 백 줄이라 가볍다.
+    supabase
+      .from("prep_materials")
+      .select("id, need_make, need_print, need_card, made_at, printed_at, card_at, give_kind"),
   ]);
 
   const classes = allClasses
@@ -619,6 +626,7 @@ async function TodayBody({ searchParams, date }) {
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
   const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ, learnedQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ, prepAssignQ, prepRecvQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -713,9 +721,46 @@ async function TodayBody({ searchParams, date }) {
           .select("student_id, body")
           .eq("date", date)
           .in("student_id", studentIds)
+    // 내신 자료 배정·수령 (0178) — 자료×학생이라 금방 1000줄을 넘는다
+    studentIds.length
+      ? fetchAll(() =>
+          supabase
+            .from("prep_assignments")
+            .select("material_id, student_id, handed_at")
+            .in("student_id", studentIds)
+            .order("material_id"))
+      : none,
+    studentIds.length
+      ? fetchAll(() =>
+          supabase
+            .from("prep_receipts")
+            .select("material_id, student_id, received_at")
+            .in("student_id", studentIds)
+            .order("material_id"))
       : none,
   ]);
   const { data: receipts } = receiptsQ;
+
+  /**
+   * **오늘 온 아이가 아직 안 받아 간 종이 자료** (0178).
+   *
+   * 종이만 센다. 파일 자료는 아이가 집에서 받는 것이라 이 자리에서 원장님이
+   * 해줄 수 있는 일이 없다 — 「그 화면에서 지금 할 수 있는 일만」(lib/menuBadges).
+   * 준비가 안 끝난 자료도 뺀다. 아직 물어볼 단계가 아닌 것을 「안 받았다」고
+   * 재촉하면 끌 수 없는 숫자가 된다.
+   */
+  const prepPaperReady = new Set(
+    (prepMatQ?.data || []).filter((m) => prepReady(m) && m.give_kind !== "file").map((m) => m.id)
+  );
+  const prepGot = new Set(
+    (prepRecvQ?.data || []).filter((r) => r.received_at).map((r) => `${r.material_id}|${r.student_id}`)
+  );
+  const prepDueBy = new Map();
+  (prepAssignQ?.data || []).forEach((a) => {
+    if (!prepPaperReady.has(a.material_id)) return;
+    if (prepGot.has(`${a.material_id}|${a.student_id}`)) return;
+    prepDueBy.set(a.student_id, (prepDueBy.get(a.student_id) || 0) + 1);
+  });
 
   const noticeById = new Map((noticeRows || []).map((n) => [n.id, n]));
   const noticesOfStudent = new Map(); // studentId → [{ id, kind, body, delivered }]
@@ -1313,6 +1358,7 @@ async function TodayBody({ searchParams, date }) {
           subs: subsOf.get(s.id) || [],
           reportWritten: !!rep?.report_written,
           unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
+          prepDue: prepDueBy.get(s.id) || 0,
           stay: stayOf.get(s.id) || [],
           warn: warnOf.get(s.id) || null,
           late: lateOf(rep),
@@ -1392,6 +1438,7 @@ async function TodayBody({ searchParams, date }) {
         books: progressOf(s.id),
         reportWritten: !!rep?.report_written,
         unreadComments: rep ? unreadByReport.get(rep.id) || 0 : 0,
+        prepDue: prepDueBy.get(s.id) || 0,
         stay: stayOf.get(s.id) || [],
         warn: warnOf.get(s.id) || null,
         late: lateOf(rep),
