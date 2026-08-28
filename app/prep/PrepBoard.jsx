@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   saveExam, removeExam, saveScope, removeScope,
   addMaterial, updateMaterial, removeMaterial, markStage,
-  setAssignees, markAssign,
+  setAssignees, markAssign, markReceiptFor,
   markStages, removeMaterials, removeScopes,
   splitExamByGrade, removeExams,
 } from "./actions";
@@ -17,7 +17,7 @@ import { sameSchool } from "@/lib/who";
 import { useBulk, BulkBar } from "@/components/Bulk";
 import TypeBox from "./TypeBox";
 import ScopePicker from "./ScopePicker";
-import { stageOf } from "@/lib/prepRoutine";
+import { stageOf, rollupPrep, PREP_RECV_LABEL, PREP_RECV_CLS } from "@/lib/prepRoutine";
 import { SchoolField, GradeField } from "@/components/PickField";
 
 const STAGES = [
@@ -39,7 +39,7 @@ function dLeft(examDate, today) {
 
 export default function PrepBoard({
   today, exams = [], scopes = [], materials = [], assigns = [], types = [],
-  students = [], unitLabel = {}, pick = "", schools = [],
+  students = [], unitLabel = {}, pick = "", schools = [], receipts = [],
 }) {
   /**
    * **지난 시험은 접어 둔다 · 시험날 순으로 세운다** (원장님 2026-08-23 —
@@ -127,6 +127,15 @@ export default function PrepBoard({
   const [pickType, setPickType] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  /**
+   * **누가 받아 갔나** (0178) — 판단은 lib/prepRoutine 한 벌이 한다.
+   * 여기서는 자료 id 로 찾아 쓰기만 한다.
+   */
+  const recvBy = useMemo(
+    () => new Map(rollupPrep(materials, assigns, receipts, students).map((r) => [r.id, r])),
+    [materials, assigns, receipts, students]
+  );
 
   const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
   const typeName = (id) => {
@@ -593,6 +602,13 @@ export default function PrepBoard({
                                 {m[s.at] ? "✓ " : ""}{s.label}
                               </button>
                             ))}
+                            <button className="btn btn-ghost btn-sm"
+                              style={{ padding: "2px 8px", fontSize: 12.5 }}
+                              disabled={pending}
+                              title="종이는 학원에서만, 파일은 집에서도 아이가 받았다고 누를 수 있습니다"
+                              onClick={() => run(() => updateMaterial(m.id, { give_kind: m.give_kind === "file" ? "paper" : "file" }))}>
+                              {m.give_kind === "file" ? "파일" : "종이"}
+                            </button>
                             <span className="spacer" />
                             <button className="btn btn-ghost btn-sm"
                               onClick={() => setAssignFor(assignFor === m.id ? null : m.id)}>
@@ -603,6 +619,41 @@ export default function PrepBoard({
                               ✕
                             </button>
                           </div>
+
+                          {/* 아이가 받았나 (0178) — 준비가 끝난 자료만 물어본다 */}
+                          {(() => {
+                            const r = recvBy.get(m.id);
+                            if (!r) return null;
+                            if (!r.ready) {
+                              return (
+                                <div className="hint" style={{ fontSize: 12.5, paddingLeft: 24 }}>
+                                  준비 중 — {r.stage?.label || ""} (아이 화면에는 아직 안 뜹니다)
+                                </div>
+                              );
+                            }
+                            if (r.total === 0) return null;
+                            return (
+                              <div className="row" style={{ gap: 4, flexWrap: "wrap", paddingLeft: 24 }}>
+                                {r.rows.map((row) => (
+                                  <button
+                                    key={row.studentId}
+                                    className={`tag ${PREP_RECV_CLS[row.state]}`}
+                                    style={{ cursor: "pointer", border: 0 }}
+                                    disabled={pending}
+                                    title={
+                                      row.state === "received"
+                                        ? "눌러서 되돌립니다" + (row.byStaff ? " (선생님이 대신 찍은 것)" : "")
+                                        : "눌러서 대신 받았다고 찍습니다"
+                                    }
+                                    onClick={() =>
+                                      run(() => markReceiptFor(m.id, row.studentId, row.state !== "received"))}
+                                  >
+                                    {row.name} · {PREP_RECV_LABEL[row.state]}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
 
                           {assignFor === m.id && (
                             <div className="card card-tight" style={{ background: "var(--surface-2)" }}>
