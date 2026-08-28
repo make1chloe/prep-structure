@@ -66,6 +66,11 @@ const ONE_PLACE = [
   // (report_written or closed_at is not null). 0169 + 원장 확정 2026-08-28.
   ["isClosed", "lib/closeGate.js", "이 판은 마감되었나 (학생·학부모에게 공개해도 되나)"],
   ["maskUnclosed", "lib/closeGate.js", "마감 전 판에서 안 보일 칸 비우기"],
+  // 검사 세 경로(판 저장·/check 한 건·안 낸 것 한 번에 ✕)가 같은 답을
+  // 내야 한다 — 여기가 두 벌이 되면 「어느 화면에서 찍었느냐」로 진도가
+  // 나가기도 안 나가기도 한다 (원장님 「Day 20 을 또 냈다」의 뿌리)
+  ["applyCheckProgress", "lib/checkProgress.js", "검사 결과를 진도로 옮기는 규칙 (○ 완료 · △ 하는 중 · ✕ 그날 것만 되돌리기)"],
+  ["checkMany", "lib/checkWrite.js", "검사 결과를 쓰는 단 한 문 (0163)"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

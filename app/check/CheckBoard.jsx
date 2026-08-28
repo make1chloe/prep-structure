@@ -98,10 +98,18 @@ export default function CheckBoard({ date, rows = [], items = [], classes = [], 
    * 맞추는 일일 뿐이라 늦어도 된다.
    */
   const { lazy } = useLazyRefresh();
+  /**
+   * 검사는 저장됐는데 **진도를 못 옮긴** 경우(warn)를 여기서 흘리고 있었다.
+   * 판 저장(/today)은 같은 warn 을 원장님께 보여주는데(app/today/actions
+   * 의 progressWarn) 이 화면·대시보드 팝오버는 조용히 삼켰다 — 같은
+   * 판단(lib/checkProgress)인데 **어느 화면에서 찍었느냐로 결과가 갈리는**
+   * 그 병이다. 오류가 아니라 알림이라 되돌리지는 않고, 알리기만 한다.
+   */
   function run(fn) {
     startTransition(async () => {
       const res = await fn();
       if (res?.error) { alert(res.error); return; }
+      if (res?.warn) alert(res.warn);
       lazy();
     });
   }
