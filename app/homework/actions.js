@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 // 껍데기)가 아니라 그 두 자리를 새로 그린다.
 import { createClient } from "@/lib/supabase/server";
 import { BASIC_HOMEWORK, withSort } from "@/lib/basicHomework";
-import { noColumn } from "@/lib/sqlError";
+import { noColumn, isDupName } from "@/lib/sqlError";
 import { stripItemRefs } from "@/lib/itemRefs";
 
 
@@ -49,6 +49,46 @@ export async function addHomeworkItem(formData) {
       ({ error } = await supabase.from("homework_items").insert(rest));
     }
   }
+  /**
+   * **이름이 이미 있을 때** (원장님 실사고 2026-08-28 — 학습 항목 추가가
+   * 안 되고 `duplicate key value violates unique constraint
+   * "homework_items_name_key"` 라는 DB 말이 그대로 튀어나왔다).
+   *
+   * `homework_items.name` 은 유일해야 한다(0005:61). 이름으로 항목을
+   * 찾아 쓰는 곳들(노션 이관·본보기 루틴)이 그 유일함에 기대고 있어
+   * 제약 자체는 그대로 둔다.
+   *
+   * 문제는 **숨긴 항목**이다. 안 쓰는 항목을 끄면(active=false) 목록에서
+   * 사라지므로, 원장님 눈에는 없는 이름인데 DB 에는 있다 — 그래서 새로
+   * 만들려다 알 수 없는 말을 보게 된다. 그 경우 **끈 것을 되살리고**
+   * 방금 적으신 내용으로 맞춘다(원장님이 지금 원하시는 것이 그것이다).
+   * 켜져 있는 항목이면 되살릴 것이 없으니 **사람 말로 알린다.**
+   */
+  if (isDupName(error)) {
+    const { data: hit } = await supabase
+      .from("homework_items")
+      .select("id, name, active")
+      .eq("name", name)
+      .maybeSingle();
+    if (hit && hit.active === false) {
+      const { error: upErr } = await supabase
+        .from("homework_items")
+        .update({ category, method, prep_task, tool, active: true })
+        .eq("id", hit.id);
+      error = upErr || null;
+      if (!error) {
+        revalidatePath("/textbooks");
+        revalidatePath("/textbooks/items");
+        revalidatePath("/today");
+        return { error: null, revived: true, name };
+      }
+    } else {
+      return {
+        error: `「${name}」 은(는) 이미 있는 학습 항목이에요. 목록에서 그 항목을 고쳐 쓰시거나, 다른 이름으로 지어주세요.`,
+      };
+    }
+  }
+
   revalidatePath("/textbooks");
   revalidatePath("/textbooks/items");
   revalidatePath("/today");
