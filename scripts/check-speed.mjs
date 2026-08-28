@@ -81,6 +81,7 @@ const OPTIMISTIC = [
   ["app/today/TodayBoard.jsx", /paint\(/, "출결 찍기"],
   ["app/check/CheckBoard.jsx", /setOptMark\(/, "숙제 검사 ○△✕"],
   ["components/BookProgress.jsx", /setUnits\(\(list\)/, "진도 칩"],
+  ["app/me/PrepReceiptCard.jsx", /setLocal\(/, "받을 자료 체크"],
 ];
 for (const [f, re, what] of OPTIMISTIC) {
   if (!existsSync(f)) { say(`${f} 가 없습니다 — 이 표를 고쳐주세요`); continue; }
