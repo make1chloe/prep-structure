@@ -121,3 +121,42 @@ insert into public.integrations (id, enabled, config) values
   ('academy', true, '{"name":"검사학원"}'::jsonb),
   ('message', true, '{"phone":"032-000-0000","address":"인천 연수구 검사로 1"}'::jsonb)
 on conflict (id) do update set config = excluded.config, enabled = true;
+
+-- ── 내신 자료 수령 체크 (0178) ───────────────────────────
+--
+-- 자료를 셋 심는다 — **준비 중 하나가 꼭 있어야** 「준비 전에는 아이에게
+-- 안 보인다」가 e2e 에 걸린다. 골든(dayboard)이 박제하는 학생은 따로
+-- 심으므로(golden-dayboard.mjs 의 SEED) 여기 자료는 골든에 안 닿는다.
+insert into public.exam_periods (id, school, grade, name, from_date, to_date)
+values ('eeeeeee1-0000-0000-0000-000000000001',
+        '해송고등학교', '고1', '1학기 기말', current_date + 10, current_date + 13)
+on conflict (id) do nothing;
+
+insert into public.prep_scopes (id, exam_id, name)
+values ('eeeeeee2-0000-0000-0000-000000000001',
+        'eeeeeee1-0000-0000-0000-000000000001', '1과~3과')
+on conflict (id) do nothing;
+
+insert into public.prep_materials
+  (id, scope_id, name, need_make, need_print, need_card, made_at, printed_at, give_kind) values
+  -- 준비 끝 · 종이 → 아이 화면에 뜨고, /today 의 「자료 n」 이 이걸 센다
+  ('eeeeeee3-0000-0000-0000-000000000001', 'eeeeeee2-0000-0000-0000-000000000001',
+   '변형문제', true, true, false, now(), now(), 'paper'),
+  -- 준비 끝 · 파일 → 아이 화면에는 뜨지만 /today 는 안 센다 (집에서 받는 것)
+  ('eeeeeee3-0000-0000-0000-000000000002', 'eeeeeee2-0000-0000-0000-000000000001',
+   '분석지', false, false, false, null, null, 'file'),
+  -- **준비 중** (인쇄를 아직 안 했다) → 아이에게 안 보여야 한다
+  ('eeeeeee3-0000-0000-0000-000000000003', 'eeeeeee2-0000-0000-0000-000000000001',
+   '워크북', true, true, false, now(), null, 'paper')
+on conflict (id) do nothing;
+
+insert into public.prep_assignments (material_id, student_id) values
+  ('eeeeeee3-0000-0000-0000-000000000001', 'aaaaaaa1-0000-0000-0000-000000000001'),
+  ('eeeeeee3-0000-0000-0000-000000000002', 'aaaaaaa1-0000-0000-0000-000000000001'),
+  ('eeeeeee3-0000-0000-0000-000000000003', 'aaaaaaa1-0000-0000-0000-000000000001')
+on conflict (material_id, student_id) do nothing;
+
+-- 하나는 이미 받았다고 눌러 둔다 (「받았어요 ✓ / 되돌리기」 쪽도 그려지게)
+insert into public.prep_receipts (material_id, student_id, received_at) values
+  ('eeeeeee3-0000-0000-0000-000000000002', 'aaaaaaa1-0000-0000-0000-000000000001', now())
+on conflict (material_id, student_id) do nothing;
