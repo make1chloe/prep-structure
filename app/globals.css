@@ -778,6 +778,29 @@ button.unit-bigbar:hover { background: var(--lav-soft); }
   letter-spacing: -0.3px; display: flex; align-items: center; gap: 6px;
 }
 .dashcol { gap: 18px; }
+
+/**
+ * **대시보드는 같은 폭 두 칸** (원장님 2026-08-28 — 「불필요한 여백 별로임.
+ * 가운데로 몰고, 한쪽은 펼쳐지고 다른쪽은 안 펼쳐지고 하는 디자인도 별로임」).
+ *
+ * 여태 `.grid-side`(왼쪽 300~380px 고정 + 오른쪽 1fr)를 썼다. 그래서
+ * **왼쪽 카드는 좁고 오른쪽 카드는 화면 끝까지** 늘어나 폭이 제각각이었고,
+ * 오른쪽에 한 줄짜리 카드가 서면 그 아래가 통째로 비었다 — 원장님이
+ * 「한쪽은 펼쳐지고 다른쪽은 안 펼쳐진다」고 한 것이 이것이다.
+ *
+ * 대시보드만 같은 폭 두 칸으로 바꾼다. `.grid-side` 자체는 안 건드린다 —
+ * 아홉 화면이 더 쓰고 있어서, 여기서 고치면 그 아홉이 같이 흔들린다.
+ * (그 아홉도 같은 문제가 있을 수 있으나 한 번에 하나씩 확인하고 옮긴다.)
+ *
+ * 좁으면 한 줄, 넓으면 두 칸 — 미디어 쿼리는 **넓어질 때만** 켠다
+ * (반대로 짜면 옛 브라우저에서 폰이 두 줄이 된다 — check-layout 의 규칙).
+ */
+.dashgrid {
+  display: grid; gap: 10px; grid-template-columns: 1fr; align-items: start;
+}
+@media (min-width: 900px) {
+  .dashgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 details.dashfold > summary.dashhead { cursor: pointer; list-style: none; }
 details.dashfold > summary.dashhead::-webkit-details-marker { display: none; }
 details.dashfold > summary.dashhead::after { content: "▸"; font-size: 15px; opacity: .6; }

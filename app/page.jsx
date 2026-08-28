@@ -189,7 +189,7 @@ export default async function Home() {
 
         {/* ── 🎯 오늘 수업 ─────────────────────────────── */}
         <h2 className="dashhead" id="g-class">🎯 오늘 수업</h2>
-        <div className="grid-side">
+        <div className="dashgrid">
           <div className="stack dashcol">
             {/* 오늘 쉬는 시간이 눈에 띄는 아이 (0106) — 규칙에 걸릴 때만 */}
             <BreakWatch />
@@ -566,7 +566,7 @@ export default async function Home() {
 
         {/* ── 💬 소통 · 알림 ───────────────────────────── */}
         <h2 className="dashhead" id="g-talk">💬 소통 · 알림</h2>
-        <div className="grid-side">
+        <div className="dashgrid">
           <div className="stack dashcol">
             <UnsentBox fails={d.sendFails} past={d.unsentPast} />
             <InquiryInbox rows={d.inquiries} />
@@ -611,7 +611,7 @@ export default async function Home() {
             💰 돈 · 운영
             {moneyCount > 0 && <span className="tag tag-amber" style={{ marginLeft: 6 }}>{moneyCount}</span>}
           </summary>
-          <div className="grid-side" style={{ marginTop: 4 }}>
+          <div className="dashgrid" style={{ marginTop: 4 }}>
             <div className="stack dashcol">
               {/* 곧 끝나는 교재 — 시험지·플래너를 미리 챙기시라고 */}
               {d.bookEnding?.length > 0 && (
@@ -655,7 +655,7 @@ export default async function Home() {
 
         {/* ── 📅 달력 · 앞일 ───────────────────────────── */}
         <h2 className="dashhead" id="g-cal">📅 달력 · 앞일</h2>
-        <div className="grid-side">
+        <div className="dashgrid">
           <div className="stack dashcol">
             {d.examSoon.length > 0 && (
               <div className="card sect sect-warn">
