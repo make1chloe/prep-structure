@@ -529,6 +529,25 @@ button.stuLine:hover { background: var(--surface-2); }
   font-size: 13.5px; font-weight: 800; color: var(--text);
 }
 .unit-bigbar:first-child { margin-top: 0; }
+/* **막대 안에서 자리를 가른다** — 이름은 펴기, 오른쪽은 통째로 고르기
+   (원장님 2026-08-28: 펴려고 눌렀는데 진도가 통째로 찍히면 사고다) */
+.unit-bigrow {
+  display: flex; align-items: center; gap: 6px;
+  padding-top: 3px; padding-bottom: 3px;
+}
+.unit-bigname {
+  flex: 1; min-width: 0; text-align: left;
+  background: none; border: 0; padding: 3px 0; cursor: pointer;
+  font-family: inherit; font-size: inherit; font-weight: inherit; color: inherit;
+  min-height: 32px;                     /* 폰 엄지 */
+}
+.unit-bigname:hover { text-decoration: underline; }
+.unit-bigcaret { display: inline-block; width: 12px; opacity: .7; }
+.unit-bigbox {
+  background: none; border: 0; cursor: pointer; padding: 3px 4px;
+  font-family: inherit; font-size: inherit; color: inherit;
+  min-height: 32px; min-width: 28px;
+}
 button.unit-bigbar { cursor: pointer; }
 button.unit-bigbar:hover { background: var(--lav-soft); }
 /* 막대 아래 묶음은 살짝 들여쓴다 — 층이 눈에 보이게 */

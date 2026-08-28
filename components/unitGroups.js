@@ -60,3 +60,20 @@ export function groupByParent(units = [], kw = "") {
     });
   return [...m.entries()];
 }
+
+/**
+ * 한 대단원 안에서 **얼마나 끝났나** — 접힌 막대에 적어준다.
+ * 접혀 있으면 안이 안 보이므로, 무엇을 펼지 고를 근거가 막대에 있어야 한다.
+ * (세는 규칙은 판의 진도율과 같다 — done 은 끝, doing 은 하는 중)
+ */
+export function bigStat(units = [], ids = []) {
+  const want = new Set(ids);
+  let done = 0, doing = 0, total = 0;
+  for (const u of units) {
+    if (!want.has(u.id)) continue;
+    total++;
+    if (u.status === "done") done++;
+    else if (u.status === "doing") doing++;
+  }
+  return { done, doing, total };
+}

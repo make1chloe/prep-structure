@@ -3,7 +3,8 @@
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ProgressPickModal from "@/components/ProgressPickModal";
-import { annotateBigs, groupByParent } from "@/components/unitGroups";
+import { annotateBigs, groupByParent, bigStat } from "@/components/unitGroups";
+import { useBigFold } from "@/components/useBigFold";
 import {
   listStudentUnits,
   setUnitProgress,
@@ -76,6 +77,8 @@ export default function BookProgress({
   const [pastUnits, setPastUnits] = useState(null); // 보는 회독의 단원들 (null = 불러오는 중)
   const viewReq = useRef(0);                        // 칩을 빨리 갈아눌러도 마지막 것만
   const [q, setQ] = useState("");                // 단원 검색
+  // 대단원 접힘 — 규칙은 components/useBigFold 한 벌 (어느 화면에서 열든 같다)
+  const bigFold = useBigFold(q);
   const [noteFor, setNoteFor] = useState(null);  // 메모를 적는 중인 단원
   /**
    * **골라서 한 번에** (원장님, 2026-08-14 — 「체크박스를 이용한 완료
@@ -752,25 +755,51 @@ export default function BookProgress({
                       * 고르기 모드에서는 막대가 「통째로」 단추다 (2026-08-14
                       * 「대단원 자체를 통째로 선택하는 게 안 돼」).
                       */}
-                    {bigStart && (pastView ? (
-                      // 지난 회독 보기 — 막대는 구분선일 뿐, 단추가 아니다
-                      <div className="unit-bigbar">{big}</div>
-                    ) : (
-                      /**
-                       * 막대가 단추다 (원장님, 2026-08-19 — 「여기까지 체크를
-                       * 해놓고 나중에 뺄 거를 대단원으로 선택이 안 되어서
-                       * 너무 불편해」). 누르면 골라 찍기 팝오버가 그 대단원이
-                       * 통째로 체크된 채 열린다 (2026-08-27 — 판 안 골라서
-                       * 모드를 팝오버로 옮기면서 들어가는 문도 같이 옮겼다).
-                       */
-                      <button
-                        className="unit-bigbar"
-                        title="누르면 이 대단원 전체가 체크된 팝업이 열려요 — 완료·하는 중·안 함으로 한 번에"
-                        onClick={() => openPick(bigIds)}
-                      >
-                        {big} <span className="hint" style={{ fontWeight: 600 }}>▸ 통째로 고르기</span>
-                      </button>
-                    ))}
+                    {/**
+                      * **막대의 두 일을 갈랐다** (원장님 2026-08-28 —
+                      * 「대단원은 무조건 접힌 상태로 두고, 제목 클릭 시
+                      *  열리게 해줘」).
+                      *
+                      * 여태 막대 전체가 「통째로 고르기」 단추였다. 거기에
+                      * 펴기를 얹으면, 펴려고 누른 손이 진도를 통째로 찍는
+                      * 팝업을 연다 — 원장님이 원한 것과 정반대다.
+                      * 그래서 **이름은 펴기 · 오른쪽 작은 단추는 통째로
+                      * 고르기**로 자리를 나눈다.
+                      */}
+                    {bigStart && (() => {
+                      const st = bigStat(shownUnits, bigIds);
+                      const shut = !bigFold.isOpen(big);
+                      return (
+                        <div className="unit-bigbar unit-bigrow">
+                          <button
+                            type="button"
+                            className="unit-bigname"
+                            aria-expanded={!shut}
+                            title={shut ? "눌러서 펴기" : "눌러서 접기"}
+                            onClick={() => bigFold.toggle(big)}
+                          >
+                            <span className="unit-bigcaret">{shut ? "▸" : "▾"}</span> {big}
+                            {/* 접혀 있어도 무엇을 펼지 알 수 있게 — 판의 진도율과 같은 셈 */}
+                            <span className="hint" style={{ fontWeight: 600, marginLeft: 6 }}>
+                              {st.done}/{st.total}
+                              {st.doing > 0 ? ` · ◐${st.doing}` : ""}
+                            </span>
+                          </button>
+                          {!pastView && (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              style={{ padding: "2px 8px", whiteSpace: "nowrap" }}
+                              title="이 대단원 전체가 체크된 팝업이 열려요 — 완료·하는 중·안 함으로 한 번에"
+                              onClick={() => openPick(bigIds)}
+                            >
+                              통째로 고르기
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {!bigFold.isOpen(big) ? null : (
                     <div className="hwgroup" style={{ flexWrap: "wrap" }}>
                     {/* 중단원 묶음 토글은 팝오버 안에 있다 — 판에서는 라벨만 */}
                     {mid ? (
@@ -861,6 +890,7 @@ export default function BookProgress({
                       })}
                     </div>
                     </div>
+                    )}
                   </Fragment>
                 ))}
               </div>
