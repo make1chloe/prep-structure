@@ -1675,5 +1675,22 @@ html[data-sheet="open"] .sheettop {
   .dashfix-wait { left: auto; right: 24px; width: min(420px, 90vw); }
 }
 
+/* 대시보드 팝오버의 껍데기 — **z 는 58, 판(.sheetpop)보다 한 칸 아래**.
+   안에 마운트한 원판(BookProgress)이 「골라서」 로 제 팝오버를 띄우므로,
+   같은 층이면 어느 것이 위인지가 DOM 순서 운에 달린다 */
+.dashfix-pop {
+  position: fixed; left: 8px; right: 8px; width: auto;
+  top: calc(var(--topbar-full, 96px) + 6px); z-index: 58;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+  max-height: 78vh; overflow: auto;
+}
+/* 원판을 통째로 담는 판(진도 · 교재)은 넓어야 한다 — 좁으면 단추가
+   네 줄로 접혀서 「기능이 제한적」 이라는 인상이 그대로 돌아온다 */
+@media (min-width: 701px) {
+  .dashfix-pop { left: auto; right: 24px; width: min(460px, 92vw); }
+  .dashfix-pop.dashfix-wide { width: min(760px, 94vw); }
+}
+.dashfix-pop textarea, .dashfix-pop input { font-size: 16px; }
+
 /* 줄 신판의 칩 — 폰 엄지 기준 36px (판세분화 v7 §1) */
 .stuChip { min-height: 36px; }

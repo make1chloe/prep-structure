@@ -6,6 +6,7 @@ import { isMockExam } from "@/lib/examList";
 import { createClient } from "@/lib/supabase/server";
 import { toTeachers } from "@/lib/exams";
 import { sessionUser } from "@/lib/session";
+import { loadRunningClasses } from "@/lib/classTerm";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -308,6 +309,20 @@ export async function makeExamEveSession(input) {
 }
 
 // ---------- 회차 많은 달 → 휴강 지정 ----------
+/**
+ * **쉬기 드롭다운에 세울 반 목록** — 스케줄 화면의 「쉬기 (휴강 지정)…」 이
+ * 「전체 휴강」 말고 **반 하나만** 쉬는 길을 주는데, 대시보드 팝오버에는
+ * 그 길이 없어 기능이 반쪽이었다 (원장님 2026-08-28 「원판에 비해 너무
+ * 기능이 제한적임. 그대로 재현할 것」).
+ *
+ * 반 목록은 classTerm 한 벌(loadRunningClasses)로 — 종강한 특강은 안 뜬다.
+ */
+export async function listClassChoices() {
+  const supabase = await createClient();
+  const rows = await loadRunningClasses(supabase, "id, name");
+  return { classes: (rows || []).map((c) => ({ id: c.id, name: c.name })) };
+}
+
 export async function addClassHoliday(date, name, classId) {
   if (!date) return { error: "날짜를 골라주세요." };
   const supabase = await createClient();

@@ -5,6 +5,7 @@ import Help from "@/components/Help";
 import ProgressBoard from "./ProgressBoard";
 import { todaySeoul, DOW } from "@/lib/day";
 import { inUseOn } from "@/lib/bookUse";
+import { bookPanelRow, pickableBooks } from "@/lib/bookPanel";
 import ProgressUpload from "./ProgressUpload";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +58,6 @@ export default async function ProgressPage() {
   // 절판·중단 교재도 **배정이 살아 있으면 보여준다** (2026-08-14 — 숨기면
   // 오늘 수업과 다른 말을 하고, 🧹 로 끝냄 처리할 길도 없다). 대신 표시한다.
   const bookById = new Map((booksQ.data || []).map((b) => [b.id, b]));
-  const deadBook = (b) => !!(b.status && b.status !== "active");
 
   /**
    * ◐ 단원의 이름 — 이름 줄(접힌 상태)에서 바로 보여준다.
@@ -110,21 +110,12 @@ export default async function ProgressPage() {
     if (!b) return;
     if (!booksOf.has(r.student_id)) booksOf.set(r.student_id, []);
     const round = r.round || 1;
-    booksOf.get(r.student_id).push({
-      id: b.id,
-      name: b.name,
-      area: b.area || "",
-      dead: deadBook(b),
-      bookPages: b.total_pages || 0,
-      curPage: r.current_page ?? "",
-      skipActs: r.skip_acts || "",
-      // 멈춤 (0149) — 진도 판(BookProgress)이 태그·토글로 보여준다
-      pause: r.pause || null,
-      round,
-      doing: (doingOf.get(`${r.student_id}|${b.id}`) || [])
+    // 모양은 lib/bookPanel 한 벌 — 대시보드 팝오버도 같은 것을 쓴다 (원칙 1)
+    booksOf.get(r.student_id).push(
+      bookPanelRow(r, b, (doingOf.get(`${r.student_id}|${b.id}`) || [])
         .filter((d) => d.round === round)
-        .map((d) => d.name),
-    });
+        .map((d) => d.name))
+    );
   });
 
   const classesOf = new Map();
@@ -165,9 +156,7 @@ export default async function ProgressPage() {
         <ProgressBoard
           rows={rows}
           classes={classes.map((c) => ({ id: c.id, name: c.name }))}
-          allBooks={((booksQ && booksQ.data) || [])
-            .filter((b) => !b.status || b.status === "active")
-            .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }))}
+          allBooks={pickableBooks((booksQ && booksQ.data) || [])}
         />
       </main>
     </>

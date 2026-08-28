@@ -135,6 +135,9 @@ console.log("\n== 눌러야 보이는 판이 눌러야 내려오나 ==");
     ["app/today/TodayBoard.jsx", "./StudentPanel", "오늘 수업 학생 판"],
     ["app/students/StudentList.jsx", "@/app/progress/StudentBooksProgress", "재원생 진도 판"],
     ["app/students/StudentList.jsx", "./NoteBox", "재원생 상담일지 탭"],
+    // 대시보드는 하루에 제일 많이 열리는 화면인데, 그 자리 해결 판에는
+    // 진도 판·교재 배정 판·루틴 고르기가 통째로 들어 있다 (대개 안 열린다)
+    ["app/DashFix.jsx", "./DashFixBody", "대시보드 그 자리 해결 판"],
   ];
   let n = 0;
   for (const [f, mod, what] of LAZY) {

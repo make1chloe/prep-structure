@@ -6,6 +6,7 @@ import { unitOptions } from "@/lib/unitTree";
 import { todaySeoul } from "@/lib/day";
 import { planAssign } from "@/lib/bookAssign";
 import { inUseOn } from "@/lib/bookUse";
+import { bookPanelRow, pickableBooks } from "@/lib/bookPanel";
 import { fetchAll } from "@/lib/fetchAll";
 import { sessionUser } from "@/lib/session";
 import { requireStaff } from "@/lib/guard";
@@ -373,27 +374,73 @@ export async function listWordTestBooks(studentId) {
 }
 
 /**
- * **아직 안 준 교재만** — 다음 교재를 고를 때 보여줄 목록
- * (원장님 2026-08-28 — 「곧 끝나는 교재가 있으면 다음 교재 배정이 필요한
- *  상황. 그걸 위한 장치가 연결되어야 함」 → 대시보드 팝오버가 부른다).
+ * **한 학생의 진도 판 재료 한 벌** — 진도 화면(/progress)이 전교생에게
+ * 주는 것과 **똑같은 모양**을, 대시보드 팝오버가 한 아이에게만 받는다.
  *
- * 새 판단은 없다 — 「지금 쓰는 중인가」 는 inUseOn 한 곳, 「이미 있으면 못
- * 넣는다」 는 addStudentBookDated 한 곳 그대로다. 여기서는 **이미 쓰는 것을
- * 목록에서 빼서** 헛클릭을 없앨 뿐이다.
+ * ── 왜 이게 필요했나 (원장님 2026-08-28) ─────────────────
+ * 「원판에 비해 너무 기능이 제한적임. 그대로 재현할 것.」
+ *
+ * 팝오버가 원판(BookProgress · StudentBooksProgress)을 **그대로 마운트**
+ * 하려면 그 판이 먹는 재료가 그대로 있어야 한다 — 현재 페이지 · 회독 ·
+ * 멈춤 · 건너뛸 활동 · 절판 표시 · ◐ 단원 이름. 축약판을 따로 그리면
+ * 두 벌이 되어 언젠가 갈라진다 (원칙 1).
+ *
+ * 모양은 lib/bookPanel 한 벌, 「지금 쓰는 중인가」는 inUseOn 한 벌 —
+ * **여기에 새 판단은 없다.** 조회만 「한 학생」으로 좁혔다.
  */
-export async function nextBookChoices(studentId) {
-  if (!studentId) return { books: [] };
+export async function studentBookPanel(studentId) {
+  if (!studentId) return { books: [], allBooks: [] };
   const supabase = await createClient();
   const today = todaySeoul();
-  const [stQ, bQ] = await Promise.all([
-    supabase.from("student_textbooks").select("textbook_id, status, assigned_on, ended_on").eq("student_id", studentId),
-    supabase.from("textbooks").select("id, name, area, status").order("name", { ascending: true }),
+
+  // 파도 (원칙 6-1) — 셋은 서로 필요한 것이 없다
+  const COLS = "textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts, pause";
+  const [stQ0, bQ, doQ] = await Promise.all([
+    supabase.from("student_textbooks").select(COLS).eq("student_id", studentId),
+    supabase.from("textbooks").select("id, name, area, status, total_pages").order("name", { ascending: true }),
+    supabase.from("student_unit_progress").select("textbook_unit_id, round").eq("student_id", studentId).eq("status", "doing"),
   ]);
-  const using = new Set((stQ.data || []).filter((r) => inUseOn(r, today)).map((r) => r.textbook_id));
-  const books = (bQ.data || [])
-    .filter((b) => (!b.status || b.status === "active") && !using.has(b.id))
-    .map((b) => ({ id: b.id, name: b.name, area: b.area || "" }));
-  return { books };
+  // 0149(pause) → 0133(skip_acts) 없는 DB 는 한 칸씩 물러난다 — 진도 화면과 같은 사다리
+  let stQ = stQ0;
+  if (stQ.error) {
+    stQ = await supabase.from("student_textbooks")
+      .select("textbook_id, status, assigned_on, ended_on, current_page, round, skip_acts")
+      .eq("student_id", studentId);
+  }
+  if (stQ.error) {
+    stQ = await supabase.from("student_textbooks")
+      .select("textbook_id, status, assigned_on, ended_on, current_page, round")
+      .eq("student_id", studentId);
+  }
+
+  const bookById = new Map((bQ.data || []).map((b) => [b.id, b]));
+
+  // ◐ 인 단원 이름 — 접힌 줄에서 「오늘 위치」를 보여준다 (진도 화면과 같다)
+  const doRows = doQ.error ? [] : doQ.data || [];
+  const doIds = [...new Set(doRows.map((r) => r.textbook_unit_id))];
+  const { data: doUnits } = doIds.length
+    ? await supabase.from("textbook_units").select("id, name, textbook_id").in("id", doIds)
+    : { data: [] };
+  const unitById = new Map((doUnits || []).map((u) => [u.id, u]));
+  const doingOf = new Map();
+  doRows.forEach((r) => {
+    const u = unitById.get(r.textbook_unit_id);
+    if (!u) return;
+    if (!doingOf.has(u.textbook_id)) doingOf.set(u.textbook_id, []);
+    doingOf.get(u.textbook_id).push({ name: u.name, round: r.round || 1 });
+  });
+
+  const books = (stQ.data || [])
+    .filter((r) => inUseOn(r, today))
+    .map((r) => {
+      const b = bookById.get(r.textbook_id);
+      if (!b) return null;
+      const round = r.round || 1;
+      return bookPanelRow(r, b, (doingOf.get(b.id) || []).filter((d) => d.round === round).map((d) => d.name));
+    })
+    .filter(Boolean);
+
+  return { books, allBooks: pickableBooks(bQ.data || []) };
 }
 
 export async function endStudentBooks(studentId, textbookIds) {
