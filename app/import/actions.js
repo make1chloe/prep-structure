@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind } from "@/lib/attendKind";
 import { fetchAll } from "@/lib/fetchAll";
 import { isRealDate } from "@/lib/importNotion";
 import { noTable } from "@/lib/sqlError";
@@ -311,6 +313,8 @@ export async function importAbsences(rows) {
       ));
   }
   if (error) return { error: error.message, saved: 0, skipped };
+  // 들여온 결석·보강도 수업일이다 — 판이 없으면 월간에서 통째로 빠진다 (0184)
+  await mirrorKind(supabase, payload);
 
   revalidatePath("/today");
   revalidatePath("/tuition");

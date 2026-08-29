@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { clearMonthNotice } from "./confirmActions";
 import { isMockExam } from "@/lib/examList";
 import { createClient } from "@/lib/supabase/server";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind } from "@/lib/attendKind";
 import { toTeachers } from "@/lib/exams";
 import { sessionUser } from "@/lib/session";
 import { loadRunningClasses } from "@/lib/classTerm";
@@ -265,6 +267,8 @@ export async function markExamAbsence(pairs, reason) {
     .from("attendance")
     .upsert(rows, { onConflict: "student_id,date" });
   if (error) return { error: error.message, count: 0 };
+  // 시험 기간 결석도 수업일이다 — 판이 없으면 월간에서 통째로 빠진다 (0184)
+  await mirrorKind(supabase, rows);
   revalidatePath("/schedule");
   revalidatePath("/today");
   return { error: null, count: rows.length };

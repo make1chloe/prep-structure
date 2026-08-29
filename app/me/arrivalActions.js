@@ -7,6 +7,10 @@ import { todaySeoul } from "@/lib/day";
 import { pickIp, sameNet } from "@/lib/clientIp";
 import { resolveStudent } from "@/lib/actAs";
 import { pushToFamilies } from "@/app/push/actions";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184).
+// 아이 권한에는 daily_reports 쓰기 정책이 없어서 이 한 벌이 security
+// definer 함수를 지난다 — 안 그러면 아이가 스스로 찍은 등원만 조용히 빠진다
+import { mirrorKind } from "@/lib/attendKind";
 
 /**
  * 등원 체크 — **학생이 누른다.**
@@ -74,6 +78,7 @@ export async function checkArrival(kind, on) {
       const { error: attErr } = await supabase
         .from("attendance")
         .insert({ student_id: me.id, date: today, status: "present" });
+      if (!attErr) await mirrorKind(supabase, [{ student_id: me.id, date: today, status: "present" }]);
       // **어머니께 등원 알림** (원장님 2026-08-23). 방금 등원으로 **새로**
       // 잡혔을 때만 — 이미 잡혀 있으면 두 번 울리지 않는다.
       if (!attErr) {

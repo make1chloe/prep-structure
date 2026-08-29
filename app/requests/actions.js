@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind } from "@/lib/attendKind";
 import { comingDates } from "@/lib/roster";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
 import { queuePush } from "@/lib/pushQueue";
@@ -159,6 +161,8 @@ export async function handleRequest(id, accept, reply, makeup) {
         .from("attendance")
         .upsert(rows, { onConflict: "student_id,date" });
       if (aErr) return { error: aErr.message };
+      // 학부모 요청으로 반영한 결석도 수업일이다 (0184)
+      await mirrorKind(supabase, rows);
     }
 
     /**
@@ -186,6 +190,7 @@ export async function handleRequest(id, accept, reply, makeup) {
           .upsert(noTime, { onConflict: "student_id,date" }));
       }
       if (mErr) return { error: `결석은 반영했는데 보강을 못 잡았어요: ${mErr.message}` };
+      await mirrorKind(supabase, [{ student_id: req.student_id, date: on, status: "makeup" }]);
     }
   }
 

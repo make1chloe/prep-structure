@@ -32,6 +32,16 @@ export async function loadMonth(ym) {
   const supabase = await createClient();
   const from = `${ym}-01`;
   const to = endOfMonth(ym);
+  /**
+   * **이번 달은 오늘까지만** — 아래 특강 셈이 쓰던 잣대를 판에도 똑같이 댄다.
+   *
+   * 0184 로 결석 예정·시험 결석·할일 결석·학부모 요청이 **앞날 판**까지
+   * 만들게 됐다. 그대로면 아직 오지도 않은 날이 「총 N회 수업」 에 미리
+   * 들어간다 (다음 주 가족여행 결석이 오늘 벌써 한 회로 잡히는 식).
+   * 학생(/me)·학부모(/parent) 화면은 원래 오늘까지만 읽는다 — 여기만
+   * 달 끝까지 읽고 있었다. 셋이 같은 숫자여야 한다.
+   */
+  const capTo = to < todaySeoul() ? to : todaySeoul();
 
   const settings = await loadSettings(supabase);
   const parts = await loadMessageParts(supabase, settings.message);
@@ -83,7 +93,7 @@ export async function loadMonth(ym) {
       `id, student_id, date, attendance_kind, word_correct, word_total, ${GATE_COLS_OLD}`
     ));
   }
-  const reports = (all || []).filter((r) => r.date >= from);
+  const reports = (all || []).filter((r) => r.date >= from && r.date <= capTo);
   const prevReports = (all || []).filter((r) => r.date < from);
 
   const ids = (all || []).map((r) => r.id);
@@ -179,8 +189,7 @@ export async function loadMonth(ym) {
   const exScheds = exSchedQ.error ? [] : exSchedQ.data || [];
   const exHols = exHolQ.error ? [] : exHolQ.data || [];
   const exAbs = exAbsQ.error ? [] : exAbsQ.data || [];
-  // 이번 달은 **오늘까지만** — 리포트도 오늘까지만 있으니 같은 잣대여야 한다
-  const capTo = to < todaySeoul() ? to : todaySeoul();
+  // 이번 달은 **오늘까지만** — 잣대는 위에서 한 번만 정한다 (capTo)
   const extraDatesOf = extraDatesBy(exScheds, ym, exHols, exAbs, { from, to: capTo });
   const prevExtraDatesOf = extraDatesBy(exScheds, pym, exHols, exAbs, {
     from: `${pym}-01`,

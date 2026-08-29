@@ -212,6 +212,97 @@ const read = (p) => readFileSync(p, "utf8");
   }
 }
 
+// ── 7) 출결을 찍은 날은 판도 생긴다 (원장님 확정 2026-08-29) ──
+// 같은 「오늘 왔나」 가 attendance 와 daily_reports.attendance_kind 두 곳에
+// 산다. 월간 수업일수·지각 경고·학부모 3줄·마감 판정은 뒤엣것만 읽는데,
+// 앞엣것에 쓰는 갈래가 여덟이다. **한 갈래만 빠져도** 「어떤 날은 세고
+// 어떤 날은 안 세는」 병이 그대로 남는다 — 그래서 전수로 훑는다.
+{
+  const { readdirSync, statSync } = await import("node:fs");
+  const walk = (dir, out = []) => {
+    for (const f of readdirSync(dir)) {
+      if (f === "node_modules" || f === ".next" || f.startsWith(".")) continue;
+      const p = `${dir}/${f}`;
+      if (statSync(p).isDirectory()) walk(p, out);
+      else if (/\.(js|jsx)$/.test(f)) out.push(p);
+    }
+    return out;
+  };
+
+  /**
+   * 여기 적힌 자리는 **일부러** 안 부르는 곳이다. 새 자리가 생기면
+   * 목록에 없으니 빨개진다 — 그때 「왜 안 불러도 되는지」 를 적고 더한다.
+   */
+  const EXEMPT = new Map([
+    // 판을 통째로 쓰면서 attendance_kind 를 제 손으로 적는다 (두 번 적을 일 없다)
+    ["app/today/actions.js:saveStudentDay", "판이 attendance_kind 를 직접 쓴다"],
+  ]);
+
+  const files = walk("app").concat(walk("lib"));
+  const hits = [];
+  for (const p of files) {
+    const src = read(p);
+    if (!/from\("attendance"\)/.test(src)) continue;
+    // 파일을 export 함수 단위로 자른다 (한 함수 안에 쓰기와 부름이 같이 있어야 한다)
+    const marks = [...src.matchAll(/export (?:async )?function (\w+)/g)];
+    for (let i = 0; i < marks.length; i += 1) {
+      const from = marks[i].index;
+      const to = i + 1 < marks.length ? marks[i + 1].index : src.length;
+      const body = src.slice(from, to);
+      // 쓰는 자리인가 — 조회만 하는 곳은 안 본다
+      const writes = /from\("attendance"\)[\s\S]{0,200}?\.(upsert|insert|delete)\(/.test(body);
+      if (!writes) continue;
+      const key = `${p}:${marks[i][1]}`;
+      if (EXEMPT.has(key)) continue;
+      if (!/mirrorKind\(|clearKind\(/.test(body)) hits.push(key);
+    }
+  }
+  if (hits.length) {
+    bad.push(
+      "출결을 쓰면서 그날 판을 안 만드는 자리가 있습니다 — 그 날은 월간 수업일수·" +
+        "지각 경고·학부모 3줄에서 통째로 빠집니다 (0184 · lib/attendKind): " +
+        hits.join(" · ")
+    );
+  }
+  // 여덟 갈래가 실제로 이 한 벌을 지나는가 (위 훑기가 조용히 0건이 되는 것 방지)
+  const EIGHT = [
+    ["app/today/actions.js", "빠른 출결 찍기·지우기·보강 잡기"],
+    ["app/today/arrivalActions.js", "선생님이 대신 찍는 등원"],
+    ["app/me/arrivalActions.js", "학생이 스스로 찍는 등원"],
+    ["app/plan/actions.js", "결석 예정·보강 화면"],
+    ["app/requests/actions.js", "학부모 요청 처리"],
+    ["app/tasks/actions.js", "할일 결석 반영"],
+    ["app/schedule/actions.js", "시험 기간 결석"],
+    ["app/import/actions.js", "엑셀 결석 들여오기"],
+  ];
+  EIGHT.forEach(([p, what]) => {
+    if (!read(p).includes("@/lib/attendKind")) {
+      bad.push(`${p} — ${what} 가 lib/attendKind 를 안 지납니다 (0184)`);
+    }
+  });
+  // 한 벌 자체가 판을 만드는가
+  const ak = read("lib/attendKind.js");
+  if (!ak.includes("mirror_attendance_kind")) {
+    bad.push("lib/attendKind.js — 0184 함수를 안 부릅니다");
+  }
+  // 반대 방향 — 판에서 출결을 지우면 attendance 줄도 지운다
+  const ta = read("app/today/actions.js");
+  const sv = ta.slice(ta.indexOf("export async function saveStudentDay"));
+  if (!/"attendance" in form/.test(sv.slice(0, sv.indexOf("\nexport async function", 1)))) {
+    bad.push(
+      "app/today/actions.js — 판에서 출결을 지워도 attendance 줄이 남습니다 " +
+        "(반대 방향 어긋남 · 2026-08-29)"
+    );
+  }
+  const sp = read("app/today/StudentPanel.jsx");
+  if (!/attTouched \|\| arr\.attend \? form\.attendance : row\.status/.test(sp)) {
+    bad.push(
+      "app/today/StudentPanel.jsx — 판을 저장할 때 줄에 찍힌 출결을 null 로 덮습니다. " +
+        "빠르게 찍은 출결이 판 저장 한 번에 지워집니다 (2026-08-29)"
+    );
+  }
+}
+
 // 판단 자체가 맞게 도는지 — 모양만 보는 검사는 이름만 남기고 속을 비울 수 있다
 {
   const { madeKeys, unitScored, isStudentUnit, unitExamName, toExamShape } =

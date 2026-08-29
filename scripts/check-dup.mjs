@@ -83,6 +83,11 @@ const ONE_PLACE = [
   // 아이디는 표의 글자와 진짜 계정 **둘**을 같이 바꿔야 한다. 두 벌이 되면
   // 한쪽 길로 고친 아이만 로그인이 막힌다 (감사 ⑥-8, 2026-08-29)
   ["renameStudentLogin", "app/students/accountActions.js", "로그인 아이디 바꾸기 (표 + 진짜 계정)"],
+  // 출결이 attendance 와 daily_reports.attendance_kind 두 곳에 산다. 옮기는
+  // 규칙이 갈래마다 따로 서면 「어떤 날은 세고 어떤 날은 안 세는」 상태로
+  // 돌아간다 — 여덟 갈래가 이 한 벌만 지난다 (0184, 원장 확정 2026-08-29)
+  ["mirrorKind", "lib/attendKind.js", "출결을 그날 판에 옮기기 (여덟 갈래 공통)"],
+  ["clearKind", "lib/attendKind.js", "그날 판에서 출결 지우기"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

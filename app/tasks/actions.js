@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind } from "@/lib/attendKind";
 import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
 import { loadRunningClasses } from "@/lib/classTerm";
 import { rosterOn } from "@/lib/roster";
@@ -438,6 +440,8 @@ export async function applyTaskAbsence(taskId) {
     .from("attendance")
     .upsert(rows, { onConflict: "student_id,date" });
   if (aErr) return { error: aErr.message };
+  // 할일에서 반영한 결석도 수업일이다 (0184)
+  await mirrorKind(supabase, rows);
 
   await supabase
     .from("tasks")

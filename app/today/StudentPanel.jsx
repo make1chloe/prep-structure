@@ -1264,7 +1264,17 @@ export default function StudentPanel({
       const res = await saveStudentDay(row.student.id, date, {
         ...form,
         draft: asDraft,
-        attendance: !attTouched && !arr.attend ? null : form.attendance,
+        /**
+         * **안 건드렸으면 이미 찍힌 것을 그대로 둔다** (2026-08-29).
+         *
+         * 종전에는 손대지 않으면 null 을 보냈고, 판이 그 null 로
+         * attendance_kind 를 덮었다 — 원장님이 줄에서 「정시」 를 빠르게
+         * 찍어두고 판을 열어 진도만 적고 저장하면, 그 순간 그날 출결이
+         * 판에서 지워져 월간 수업일수에서 빠졌다 (출결 줄은 그대로 남아
+         * 화면상으로는 「정시」 라 아무도 몰랐다).
+         * 이제 안 건드렸으면 줄에 찍힌 것(row.status)을 그대로 되돌려준다.
+         */
+        attendance: attTouched || arr.attend ? form.attendance : row.status || null,
         items: marks,
         /**
          * 그림자 모드(0132): 자동 판정·미달 상세를 **기록만** 한다.

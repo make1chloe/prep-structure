@@ -17,6 +17,8 @@ import { noColumn } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
 // 회독·되돌리기 금지 규칙째로 재사용한다 (원칙 1 — 같은 판단을 두 벌 안 만든다)
 import { applyCheckProgress } from "@/lib/checkProgress";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind, clearKind } from "@/lib/attendKind";
 
 // 교재 하나의 단원을 숙제 배정용 선택지로 내려준다 (교재DB의 단원명과 연동)
 export async function listUnitOptions(textbookId) {
@@ -56,6 +58,10 @@ export async function setAttendance(studentId, date, status, note) {
       { student_id: studentId, date, status, note: note || null },
       { onConflict: "student_id,date" }
     );
+  // 판을 안 열고 빠르게 찍은 날도 **수업으로 센다** (원장님 2026-08-29 —
+  // 8/27 의 「출결 찍힌 판만 센다」 를 바꾸신 것). 여기서 판을 안 만들면
+  // 그날은 월간 수업일수·지각 경고·학부모 3줄 어디에도 안 잡힌다.
+  if (!error) await mirrorKind(supabase, [{ student_id: studentId, date, status }]);
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
@@ -68,6 +74,8 @@ export async function clearAttendance(studentId, date) {
     .delete()
     .eq("student_id", studentId)
     .eq("date", date);
+  // 지우면 판의 출결도 같이 지운다 — 안 지우면 취소한 날이 계속 세어진다
+  if (!error) await clearKind(supabase, [{ student_id: studentId, date }]);
   revalidatePath("/today");
   return { error: error ? error.message : null };
 }
@@ -134,12 +142,32 @@ export async function saveStudentDay(studentId, date, form) {
   const supabase = await createClient();
 
   // 1) 출결
+  //
+  // **여기만은 mirrorKind 를 안 부른다** — 바로 아래 row 가
+  // `attendance_kind: form.attendance` 로 판을 통째로 쓴다. 한 번 더
+  // 부르면 같은 값을 두 번 적는 것이다 (원칙 1).
   if (form.attendance) {
     const { error } = await supabase.from("attendance").upsert(
       { student_id: studentId, date, status: form.attendance },
       { onConflict: "student_id,date" }
     );
     if (error) return { error: error.message };
+  } else if ("attendance" in form) {
+    /**
+     * **반대 방향** — 판에서 출결을 지우면 attendance 줄도 같이 지운다
+     * (2026-08-29). 판만 지우면 attendance 에는 그대로 남아, 출결
+     * 화면·보강 필요·대시보드는 「왔다」 고 하는데 월간에는 안 잡히는
+     * 어긋남이 생긴다. 아래 row 가 attendance_kind 를 null 로 쓰므로
+     * 여기서 clearKind 를 또 부르지 않는다.
+     *
+     * `"attendance" in form` 으로 가른다 — 그 칸을 아예 안 보내는
+     * 부분 저장(TodayBoard 의 결석 기록 등)까지 지우면 안 된다.
+     */
+    await supabase
+      .from("attendance")
+      .delete()
+      .eq("student_id", studentId)
+      .eq("date", date);
   }
 
   // 1.5) 월간용 키워드 메모 (0146) — 원장만 읽는 표. 빈 값도 upsert 해
@@ -891,6 +919,8 @@ export async function bookMakeup(studentId, makeupDate, reason, absentDate, make
       .upsert(bare, { onConflict: "student_id,date" }));
   }
   if (error) return { error: error.message };
+  // 보강도 수업이다 — 그날 판이 없으면 월간에서 통째로 빠진다 (0184)
+  await mirrorKind(supabase, [{ student_id: studentId, date: makeupDate, status: "makeup" }]);
 
   revalidatePath("/today");
   revalidatePath("/plan");

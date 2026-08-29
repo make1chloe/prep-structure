@@ -8,6 +8,8 @@ import { pushToFamilies } from "@/app/push/actions";
 import { queuePush } from "@/lib/pushQueue";
 import { noColumn } from "@/lib/sqlError";
 import { syncPrepTasks } from "@/app/today/actions";
+// 출결을 찍든 지우든 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind, clearKind } from "@/lib/attendKind";
 
 function ok(error) {
   return { error: error ? error.message : null };
@@ -30,6 +32,8 @@ export async function setPlannedAbsence(studentId, date, reason) {
   if (noColumn(error)) {
     return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼)." };
   }
+  // 결석도 수업일이다 — 판이 없으면 월간 「총 N회」·결석 횟수에서 통째로 빠진다
+  if (!error) await mirrorKind(supabase, [{ student_id: studentId, date, status: "absent" }]);
   // 결석이 바뀌면 그 달 안내는 「다시 보내야 함」 으로 (0152)
   await clearMonthNotice((date || "").slice(0, 7));
   revalidatePath("/plan");
@@ -120,6 +124,7 @@ export async function setPlannedAbsenceRange(studentIds, from, to, reason) {
   if (noColumn(error)) {
     return { error: "0017 SQL을 먼저 실행해주세요 (planned/reason 컬럼).", count: 0 };
   }
+  if (!error) await mirrorKind(supabase, rows);
   await clearMonthNotice((from || "").slice(0, 7));
   revalidatePath("/plan");
   revalidatePath("/today");
@@ -131,12 +136,16 @@ export async function clearPlannedAbsenceRange(studentIds, from, to) {
   const sids = Array.isArray(studentIds) ? studentIds : [studentIds];
   if (sids.length === 0 || !from) return { error: null };
   const supabase = await createClient();
-  const { error } = await supabase
+  // **지워진 줄을 돌려받아** 그 판의 출결도 지운다 — 안 지우면
+  // 「출결은 취소했는데 월간에는 그대로」 가 된다
+  const { data: gone, error } = await supabase
     .from("attendance")
     .delete()
     .in("student_id", sids)
     .gte("date", from)
-    .lte("date", to || from);
+    .lte("date", to || from)
+    .select("student_id, date");
+  if (!error) await clearKind(supabase, gone || []);
   await clearMonthNotice((from || "").slice(0, 7));
   revalidatePath("/plan");
   revalidatePath("/today");
@@ -146,11 +155,13 @@ export async function clearPlannedAbsenceRange(studentIds, from, to) {
 export async function clearPlannedAbsence(studentId, date) {
   if (!studentId || !date) return { error: null };
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: gone, error } = await supabase
     .from("attendance")
     .delete()
     .eq("student_id", studentId)
-    .eq("date", date);
+    .eq("date", date)
+    .select("student_id, date");
+  if (!error) await clearKind(supabase, gone || []);
   // 결석이 바뀌면 그 달 안내는 「다시 보내야 함」 으로 (0152)
   await clearMonthNotice((date || "").slice(0, 7));
   revalidatePath("/plan");
@@ -187,6 +198,8 @@ export async function setMakeup(studentId, makeupDate, absentDate, makeupTime, r
       .from("attendance")
       .upsert(noTime, { onConflict: "student_id,date" }));
   }
+  // 보강도 수업이다 (0184)
+  if (!error) await mirrorKind(supabase, [{ student_id: studentId, date: makeupDate, status: "makeup" }]);
   revalidatePath("/");
   revalidatePath("/plan");
   revalidatePath("/today");
@@ -234,10 +247,14 @@ export async function moveMakeup(studentId, fromDate, toDate, toTime) {
     .maybeSingle();
   if (!old) return { error: "그 날짜의 보강을 못 찾았어요." };
 
-  const { error: delErr } = await supabase
+  const { data: gone, error: delErr } = await supabase
     .from("attendance").delete()
-    .eq("student_id", studentId).eq("date", fromDate).eq("status", "makeup");
+    .eq("student_id", studentId).eq("date", fromDate).eq("status", "makeup")
+    .select("student_id, date");
   if (delErr) return { error: delErr.message };
+  // 옮기면 **옛 날짜의 판**에서도 출결을 지운다 — 안 지우면 옮긴 뒤에도
+  // 그날이 수업으로 세어져 한 번의 보강이 두 번이 된다
+  await clearKind(supabase, gone || []);
   const row = {
     student_id: studentId,
     date: toDate,
@@ -253,6 +270,7 @@ export async function moveMakeup(studentId, fromDate, toDate, toTime) {
     ({ error } = await supabase.from("attendance").upsert(bare, { onConflict: "student_id,date" }));
   }
   if (error) return { error: error.message };
+  await mirrorKind(supabase, [{ student_id: studentId, date: toDate, status: "makeup" }]);
 
   try {
     const { data: me } = await supabase
@@ -276,13 +294,17 @@ export async function cancelMakeup(studentId, date, why, notify = true) {
   if (!studentId || !date) return { error: "어느 보강인지 모르겠어요." };
   const supabase = await createClient();
 
-  const { error } = await supabase
+  // **진짜 지워진 줄만** 판에서 지운다 (.select). 그날이 보강이 아니었으면
+  // 0줄이 지워지는데, 그때도 판을 지우면 멀쩡한 출석이 사라진다
+  const { data: gone, error } = await supabase
     .from("attendance")
     .delete()
     .eq("student_id", studentId)
     .eq("date", date)
-    .eq("status", "makeup");        // 결석·출석 줄은 안 건드린다
+    .eq("status", "makeup")         // 결석·출석 줄은 안 건드린다
+    .select("student_id, date");
   if (error) return ok(error);
+  await clearKind(supabase, gone || []);
 
   /**
    * **알리지 않고 무르는 길도 있다** (원장님, 2026-08-07 —
@@ -336,12 +358,15 @@ export async function cancelMakeup(studentId, date, why, notify = true) {
 export async function cancelAbsence(studentId, date) {
   if (!studentId || !date) return { error: "어느 결석인지 모르겠어요." };
   const supabase = await createClient();
-  const { error } = await supabase
+  // 진짜 지워진 줄만 판에서 지운다 (cancelMakeup 과 같은 까닭)
+  const { data: gone, error } = await supabase
     .from("attendance")
     .delete()
     .eq("student_id", studentId)
     .eq("date", date)
-    .eq("status", "absent");       // 보강·출석 줄은 건드리지 않는다
+    .eq("status", "absent")        // 보강·출석 줄은 건드리지 않는다
+    .select("student_id, date");
+  if (!error) await clearKind(supabase, gone || []);
   revalidatePath("/");
   revalidatePath("/plan");
   revalidatePath("/today");

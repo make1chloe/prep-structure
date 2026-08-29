@@ -6,6 +6,8 @@ import { noColumn } from "@/lib/sqlError";
 // 리포트 행 만들기는 lib/ensureReport 한 벌 (출결보다 폰 제출이 먼저일 수
 // 있다 — 그 사정은 그대로. 예전 이 파일의 사본은 오류 문구를 삼켰다)
 import { ensureReport } from "@/lib/ensureReport";
+// 출결을 찍으면 그날 판까지 같이 — 여덟 갈래가 지나는 한 벌 (0184)
+import { mirrorKind } from "@/lib/attendKind";
 
 /** 그날만 단어시험 시점을 바꾼다 */
 export async function setArrival(studentId, date, patch = {}) {
@@ -65,6 +67,8 @@ export async function setArrivalFor(studentId, date, kind, on) {
       await supabase
         .from("attendance")
         .upsert({ student_id: studentId, date, status: "present" }, { onConflict: "student_id,date" });
+      // 선생님이 대신 찍어준 등원도 수업이다 (0184)
+      await mirrorKind(supabase, [{ student_id: studentId, date, status: "present" }]);
     }
   }
 
