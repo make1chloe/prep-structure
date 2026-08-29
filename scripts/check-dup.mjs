@@ -80,6 +80,9 @@ const ONE_PLACE = [
   ["normalizeAdd", "lib/routineAdd.js", "이 학생에게만 더한 항목 — 담긴 모양 풀기 (0182)"],
   ["addIds", "lib/routineAdd.js", "더한 항목 전부 (갈래 상관없이)"],
   ["pruneAdd", "lib/routineAdd.js", "더한 항목에서 죽은 이름표 걷어내기"],
+  // 아이디는 표의 글자와 진짜 계정 **둘**을 같이 바꿔야 한다. 두 벌이 되면
+  // 한쪽 길로 고친 아이만 로그인이 막힌다 (감사 ⑥-8, 2026-08-29)
+  ["renameStudentLogin", "app/students/accountActions.js", "로그인 아이디 바꾸기 (표 + 진짜 계정)"],
 ];
 
 console.log("== 규칙이 한 곳에만 적혀 있나 ==");

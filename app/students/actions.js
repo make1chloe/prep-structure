@@ -7,7 +7,7 @@ import { todaySeoul } from "@/lib/day";
 import { attachSchool } from "@/app/consult/actions";
 import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
-import { autoCreateLogins } from "./accountActions";
+import { autoCreateLogins, renameStudentLogin } from "./accountActions";
 import { requireStaff } from "@/lib/guard";
 import { fetchAll } from "@/lib/fetchAll";
 import { schoolIdOf } from "@/lib/schoolLink";
@@ -135,7 +135,9 @@ export async function updateStudent(id, patch) {
   const allow = [
     "name", "school", "grade", "birth_year", "gender",
     "student_phone", "parent_phone", "status", "enrolled_on",
-    "electives", "note", "login_id", "classcard_login",
+    // login_id 는 여기 없다 — 진짜 계정까지 같이 바꿔야 해서
+    // renameStudentLogin 한 곳으로 보낸다 (바로 아래)
+    "electives", "note", "classcard_login",
     // 단어시험 — 학생마다 한 번 정하면 잘 안 바뀌는 것들 (0070)
     "word_test_count", "word_cut_pct", "word_when",
   ];
@@ -146,7 +148,22 @@ export async function updateStudent(id, patch) {
       row[k] = typeof v === "string" ? v.trim() || null : v ?? null;
     }
   });
-  if (Object.keys(row).length === 0) return { error: null };
+
+  /**
+   * **아이디는 진짜 계정까지 같이 바꾼다** (⑥-8).
+   * 표에서 고치든 한 판에서 고치든 renameStudentLogin 한 벌을 지난다.
+   * 계정 바꾸기가 실패하면 **글자도 안 바꾼다** — 표에는 새 아이디가
+   * 보이는데 그 아이디로 못 들어오는 것이 제일 위험하다.
+   */
+  if ("login_id" in (patch || {})) {
+    const r = await renameStudentLogin(id, patch.login_id);
+    if (r?.error) return { error: r.error };
+  }
+
+  if (Object.keys(row).length === 0) {
+    revalidatePath("/students");
+    return { error: null };
+  }
 
   const supabase = await createClient();
   let { error } = await supabase.from("students").update(row).eq("id", id);

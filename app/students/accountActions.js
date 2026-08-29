@@ -121,6 +121,100 @@ export async function createStudentLogin(studentId, wantId) {
   return { error: null, loginId, password: pw };
 }
 
+/**
+ * **아이디를 바꾼다 — 표의 글자와 진짜 계정을 같이.**
+ *
+ * 로그인 아이디는 두 곳에 있다: 재원생 표의 `students.login_id` (원장님이
+ * 보는 글자)와 진짜 계정의 이메일 `아이디@도메인` (아이가 들어올 때 쓰는
+ * 것). 예전에는 표만 고쳐졌다 — 원장님 화면에는 새 아이디가 보이는데
+ * **그 아이디로는 못 들어왔다.** 원칙 1(같은 값 두 벌 금지)이 깨진 자리다.
+ *
+ * 그래서 아이디를 고치는 길은 이 함수 **한 곳**이다. updateStudent 도
+ * login_id 가 오면 여기로 넘긴다 — 표에서 고치든 한 판에서 고치든 같다.
+ *
+ * 계정이 아직 없는 학생(profile_id 가 빈 학생)은 바꿀 계정이 없으니
+ * 글자만 고친다 — 나중에 계정을 만들 때 그 글자로 만들어진다.
+ */
+export async function renameStudentLogin(studentId, wantId) {
+  if (!studentId) return { error: "학생이 없어요." };
+  const supabase = await createClient();
+  const guard = await requireTeacher(supabase);
+  if (guard.error) return guard;
+
+  const next = (wantId || "").trim().toLowerCase();
+
+  const { data: s } = await supabase
+    .from("students")
+    .select("id, name, login_id, profile_id")
+    .eq("id", studentId)
+    .maybeSingle();
+  if (!s) return { error: "학생을 찾을 수 없어요." };
+
+  const now = (s.login_id || "").trim().toLowerCase();
+  if (next === now) return { error: null, loginId: s.login_id };
+
+  // 비우기 — 계정이 있는데 아이디만 지우면 그 아이는 영영 못 들어온다
+  if (!next) {
+    if (s.profile_id) {
+      return { error: "계정이 있는 학생은 아이디를 비울 수 없어요. 계정 칸에서 지워주세요." };
+    }
+    const { error } = await supabase
+      .from("students").update({ login_id: null }).eq("id", studentId);
+    revalidatePath("/students");
+    return { error: error ? error.message : null };
+  }
+
+  if (!/^[a-z0-9._-]{4,30}$/.test(next)) {
+    return { error: "아이디는 영문·숫자로 4~30자여야 해요." };
+  }
+  // 학원 안에서 겹치면 안 된다 (소문자 기준). 계정 쪽도 이메일이 겹쳐 실패한다
+  const taken = await usedIds(supabase);
+  if (taken.has(next)) {
+    return { error: `이미 쓰고 있는 아이디예요 (${next}). 다른 아이디로 해주세요.` };
+  }
+
+  // 계정이 없으면 바꿀 계정도 없다 — 글자만
+  if (!s.profile_id) {
+    const { error } = await supabase
+      .from("students").update({ login_id: next }).eq("id", studentId);
+    revalidatePath("/students");
+    return { error: error ? error.message : null, loginId: next };
+  }
+
+  const key = await serviceKey(supabase);
+  if (!key) return keyMissing();
+
+  // **계정을 먼저 바꾼다.** 계정이 실패했는데 표만 바뀌면 원장님은 바뀐 줄
+  // 아는데 아이는 못 들어온다 — 그 순서로는 안 된다.
+  const res = await admin(key, `/users/${s.profile_id}`, "PUT", {
+    email: emailOf(next),
+    email_confirm: true,
+    user_metadata: { name: s.name, login_id: next },
+  });
+  if (!res.ok) {
+    const msg = res.json?.msg || res.json?.message || `HTTP ${res.status}`;
+    if (/already|registered|exists/i.test(msg)) {
+      return { error: `이미 쓰고 있는 아이디예요 (${next}). 다른 아이디로 해주세요.` };
+    }
+    return { error: `아이디를 바꾸지 못했어요: ${msg}` };
+  }
+
+  const { error } = await supabase
+    .from("students").update({ login_id: next }).eq("id", studentId);
+  if (error) {
+    // 계정은 바뀌었는데 표가 안 바뀌었다 — 계정을 되돌려 둘을 맞춘다
+    await admin(key, `/users/${s.profile_id}`, "PUT", {
+      email: emailOf(now || next),
+      email_confirm: true,
+      user_metadata: { name: s.name, login_id: now || next },
+    });
+    return { error: error.message };
+  }
+
+  revalidatePath("/students");
+  return { error: null, loginId: next };
+}
+
 /** 비밀번호를 새로 만든다 (아이가 잊었을 때). 다시 0000 이 되고, 들어오면 바로 바꾼다 */
 export async function resetStudentPassword(studentId) {
   if (!studentId) return { error: "학생이 없어요." };
