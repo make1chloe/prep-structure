@@ -400,19 +400,27 @@ async function retestTasks(supabase, rules) {
         if (u.tries < RETEST_WARN_AT) continue;
         out.push({
           auto_key: retestKey(r.id, s.id, u.unit, u.tries),
-          // 눌러서 무엇을 할지 알 수 있게 — 누구 · 어느 단원 · 몇 번째
-          title: `${s.name} · ${u.unit} ${u.tries}번째 — ${r.title}`,
+          /**
+           * **적을 것만 적는다** (원장님 2026-08-29 — 「이름 단원 날짜 점수
+           * 재시험 횟수 할일, 이것만 생성」).
+           *
+           * 전에는 「○○ 학생이 「△△」 을 n번 봤는데 아직 못 넘었습니다」
+           * 처럼 설명 문장을 붙였다. 할일 목록은 줄줄이 서는 자리라
+           * 문장이 길면 무엇이 무엇인지 눈으로 못 가른다.
+           * 여섯 가지를 **가운뎃점으로 끊어** 한 줄에 세운다.
+           */
+          title: [
+            s.name,
+            u.unit,
+            u.lastOn || null,
+            u.last != null ? `${u.last}점` : null,
+            `${u.tries}번째`,
+            r.title,
+          ].filter(Boolean).join(" · "),
           due_on: today,
           todo_category_id: r.todo_category_id || null,
           priority: r.priority || 0,
-          // 마지막 점수까지 — 몇 점에서 걸렸는지가 문제를 고르는 근거다
-          note: [
-            `${s.name} 학생이 「${u.unit}」 을 ${u.tries}번 봤는데 아직 못 넘었습니다.`,
-            u.last != null
-              ? `마지막 ${u.last}점${u.lastOn ? ` (${u.lastOn})` : ""}.`
-              : (u.lastOn ? `마지막 ${u.lastOn}.` : ""),
-            r.note || "",
-          ].filter(Boolean).join(" "),
+          note: r.note || null,
         });
       }
     }
