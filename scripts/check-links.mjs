@@ -83,6 +83,32 @@ const read = (p) => readFileSync(p, "utf8");
   }
 }
 
+// ── 3) 결석 요청 수락 → 출결 (⑥-5) ────────────────────────
+// 「그 아이가 언제 오나」 를 여기서 따로 세면 특강만 다니는 아이가 빠진다.
+// lib/roster 의 comingDates 한 곳을 지나야 한다.
+{
+  const req = read("app/requests/actions.js");
+  if (!req.includes("comingDates(")) {
+    bad.push(
+      "app/requests/actions.js — 결석 요청을 수락할 때 comingDates 를 안 부릅니다. " +
+        "특강만 다니는 아이는 수락해도 출결이 한 줄도 안 생깁니다 (⑥-5)"
+    );
+  }
+  // 반 요일을 여기서 직접 세면 그 순간 판단이 두 벌이 된다
+  if (/from\("class_students"\)/.test(req)) {
+    bad.push(
+      "app/requests/actions.js — 반 배정을 직접 읽고 있습니다. " +
+        "「그 아이가 언제 오나」 는 lib/roster 한 곳입니다 (⑥-5)"
+    );
+  }
+  const ros = read("lib/roster.js");
+  if (!/export async function comingDates/.test(ros)) {
+    bad.push("lib/roster.js — comingDates 가 없습니다 (⑥-5)");
+  } else if (!ros.includes("student_extra_schedules")) {
+    bad.push("lib/roster.js — comingDates 가 특강(student_extra_schedules)을 안 봅니다 (⑥-5)");
+  }
+}
+
 if (bad.length) {
   console.log("❌ 이어져 있어야 하는 자리가 끊어졌습니다:");
   bad.forEach((b) => console.log("   ·", b));

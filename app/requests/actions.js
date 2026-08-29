@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, dowOf, DOW as DOWN } from "@/lib/day";
+import { comingDates } from "@/lib/roster";
 import { pushToStaff, pushToFamilies } from "@/app/push/actions";
 import { queuePush } from "@/lib/pushQueue";
 import { sessionUser } from "@/lib/session";
@@ -138,32 +138,22 @@ export async function handleRequest(id, accept, reply, makeup) {
   if (error) return { error: error.message };
 
   if (accept && req.kind === "absence" && req.from_date) {
-    // 그 학생이 실제로 수업 있는 날만 결석 예정으로
-    const { data: members } = await supabase
-      .from("class_students")
-      .select("class_id")
-      .eq("student_id", req.student_id);
-    const classIds = (members || []).map((m) => m.class_id);
-    const { data: classes } = classIds.length
-      ? await supabase.from("classes").select("id, days").in("id", classIds)
-      : { data: [] };
-    const myDays = new Set((classes || []).flatMap((c) => c.days || []));
-
-        const rows = [];
-    let d = req.from_date;
-    const end = req.to_date || req.from_date;
-    while (d <= end) {
-      if (myDays.has(dowOf(d))) {
-        rows.push({
-          student_id: req.student_id,
-          date: d,
-          status: "absent",
-          planned: true,
-          reason: req.body || "학부모 사전 연락",
-        });
-      }
-      d = addDays(d, 1);
-    }
+    /**
+     * 그 학생이 실제로 오는 날만 결석 예정으로.
+     *
+     * **판단은 lib/roster 한 곳**이다 (감사 ⑥-5, 2026-08-29). 전에는 여기서
+     * 정규반 요일(class_students + classes.days)만 세었다 — 정규반이 없고
+     * 특강만 다니는 아이는 수락해도 출결이 한 줄도 안 생겼고, 반이 종강했는데
+     * 요일만 맞으면 결석이 깔렸다. comingDates 가 특강과 기간까지 같이 본다.
+     */
+    const days = await comingDates(supabase, req.student_id, req.from_date, req.to_date);
+    const rows = days.map((d) => ({
+      student_id: req.student_id,
+      date: d,
+      status: "absent",
+      planned: true,
+      reason: req.body || "학부모 사전 연락",
+    }));
     if (rows.length > 0) {
       const { error: aErr } = await supabase
         .from("attendance")
