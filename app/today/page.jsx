@@ -128,6 +128,7 @@ async function TodayBody({ searchParams, date }) {
     actQ1,
     grammarQ,
     extraSchedQ,
+    extraAbsQ,
     ccRosterQ,
     ccDayQ,
   ] = await Promise.all([
@@ -227,6 +228,14 @@ async function TodayBody({ searchParams, date }) {
       .select("id, student_id, label, days, start_time, end_time, off_dates")
       .lte("from_date", date)
       .gte("to_date", date),
+    // 오늘 「특강만 빠짐」 (0164 student_extra_absences).
+    // **정규 출결(attendance)과 다른 표다** — 하루 한 줄인 attendance 로는
+    // 「정규 출석 + 특강 결석」 을 적을 수 없어서 이 표가 따로 있다.
+    // 0164 전 DB 면 error 로 오고, 그때는 표시가 안 뜰 뿐이다.
+    supabase
+      .from("student_extra_absences")
+      .select("schedule_id, status")
+      .eq("date", date),
     /**
      * 클래스카드 명단·오늘치 — **날짜만 있으면 되는 것**이라 파도 1 이 제 자리다
      * (성능수리 4차). 아래 :1106 에서 따로 왕복 한 번을 더 하고 있었는데, 이
@@ -1427,6 +1436,11 @@ async function TodayBody({ searchParams, date }) {
   const extraScheds = (extraSchedQ?.data || []).filter(
     (x) => (x.days || []).includes(dow) && !(x.off_dates || []).includes(date)
   );
+  // 오늘 「특강만 빠짐」 으로 찍힌 특강 (0164). status 'makeup' 은 예외적으로
+  // 채워 준 날이라 수업일로 남는다 — 결석 표시는 'absent' 만.
+  const extraAbsentOf = new Map(
+    (extraAbsQ?.data || []).map((a) => [a.schedule_id, a.status])
+  );
   {
     const byLabel = new Map();
     extraScheds.forEach((x) => {
@@ -1444,13 +1458,19 @@ async function TodayBody({ searchParams, date }) {
           end_time: first.end_time,
         };
         const rows = scheds
-          .map((x) => studentById.get(x.student_id))
-          .filter(Boolean)
-          .map((s) =>
-            memberIds.has(s.id)
+          .map((x) => ({ sched: x, s: studentById.get(x.student_id) }))
+          .filter((p) => p.s)
+          .map(({ sched: x, s }) => ({
+            // 「특강만 빠짐」 을 적는 자리 — 이 두 칸이 있는 줄에만 단추가 뜬다.
+            // refOnly 줄(오늘 정규 반에도 있는 아이)에도 반드시 달아야 한다:
+            // 「정규는 왔는데 특강만 빠짐」 이 바로 그 줄이다.
+            extraScheduleId: x.id,
+            extraLabel: label,
+            extraAbsence: extraAbsentOf.get(x.id) || null,
+            ...(memberIds.has(s.id)
               ? { student: s, refOnly: true }   // 기록은 정규 줄에서
-              : buildRow(klass, s)
-          )
+              : buildRow(klass, s)),
+          }))
           .sort((a, b) => a.student.name.localeCompare(b.student.name, "ko"));
         if (rows.length) groups.push({ klass, rows });
       });

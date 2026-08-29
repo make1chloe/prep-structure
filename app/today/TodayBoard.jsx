@@ -5,6 +5,7 @@ import { useLazyRefresh } from "@/components/useLazyRefresh";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { setAttendance, clearAttendance, reopenReport, saveStudentDay } from "./actions";
+import { setExtraAbsence } from "@/app/students/extraActions";
 import { defaultSheetTab } from "@/lib/sheetTab";
 import { classLabel } from "@/lib/classLabel";
 
@@ -216,6 +217,64 @@ export default function TodayBoard({
       lazy();
     });
   }
+  /**
+   * **특강만 빠짐** (0164 student_extra_absences — 원장님 확인 2026-08-29
+   * 「정규는 왔는데 특강만 빠지는 일이 실제로 있다」).
+   *
+   * 정규 출결(attendance)은 **하루 한 줄**이라 「정규 출석 + 특강 결석」 을
+   * 못 적는다. 그래서 이 단추는 attendance 를 절대 안 건드린다 — 눌러도
+   * 위의 등원·지각·결석 표시는 그대로다. 화면에도 **「특강 결석」 이라고
+   * 글자로** 드러낸다 (정규 결석과 헷갈리면 그날 리포트가 통째로 틀어진다).
+   *
+   * 같은 것을 다시 누르면 취소된다 — 위 mark() 와 같은 손짓.
+   */
+  const [exOpt, setExOpt] = useState({});
+  const exOf = (r) =>
+    r.extraScheduleId && r.extraScheduleId in exOpt
+      ? exOpt[r.extraScheduleId]
+      : r.extraAbsence || null;
+  function toggleExtraAbsent(r) {
+    const id = r.extraScheduleId;
+    if (!id) return;
+    const on = exOf(r) !== "absent";           // 이미 결석이면 되돌린다
+    const before = exOf(r);
+    setExOpt((m) => ({ ...m, [id]: on ? "absent" : null }));   // 먼저 그린다
+    startTransition(async () => {
+      const res = await setExtraAbsence(id, date, on);
+      if (res?.error) {
+        setExOpt((m) => ({ ...m, [id]: before }));             // 실패 — 되돌린다
+        alert(res.error);
+        return;
+      }
+      lazy();
+    });
+  }
+  /** 특강 줄 꼬리 — 참조 줄이든 기록 줄이든 **같은 markup 한 벌** */
+  const extraAbsTail = (r) =>
+    r.extraScheduleId ? (
+      exOf(r) === "absent" ? (
+        <span
+          className="tag tag-red"
+          style={{ cursor: "pointer" }}
+          onClick={() => toggleExtraAbsent(r)}
+          title="누르면 특강 결석이 취소돼요"
+        >
+          특강 결석
+        </span>
+      ) : exOf(r) === "makeup" ? (
+        <span className="tag tag-lav">특강 보강</span>
+      ) : (
+        <button
+          className="btn btn-ghost btn-sm"
+          disabled={pending}
+          onClick={() => toggleExtraAbsent(r)}
+          title="정규 출결은 그대로 두고, 이 특강만 빠진 것으로 적어요"
+        >
+          특강 결석
+        </button>
+      )
+    ) : null;
+
   function undo(studentId, extraClassId = null) {
     paint(studentId, extraClassId, null);                  // 먼저 그린다
     startTransition(async () => {
@@ -457,6 +516,8 @@ export default function TodayBoard({
                               <span className="stuTags">
                                 <span className="tag">기록은 정규 반 줄에서</span>
                               </span>
+                              {/* 「정규는 왔는데 특강만 빠짐」 — 바로 이 줄이다 */}
+                              <span className="stuEnd">{extraAbsTail(r)}</span>
                             </div>
                           </div>
                         );
@@ -528,6 +589,8 @@ export default function TodayBoard({
                                 )}
                               </span>
                               <span className="stuEnd">
+                                {/* 특강 줄에만 뜬다 — 정규 출결과 별개 (0164) */}
+                                {extraAbsTail(r)}
                                 {stOf(r) ? (
                                   <span
                                     className={`tag ${CLS[stOf(r)]}`}

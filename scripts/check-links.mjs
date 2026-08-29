@@ -157,6 +157,61 @@ const read = (p) => readFileSync(p, "utf8");
   }
 }
 
+// ── 6) 특강만 빠짐 — 적는 자리가 있나 (원장님 확인 2026-08-29) ──
+// 0164 가 student_extra_absences 표를 깔면서 「화면·백필은 다음 커밋들」 이라
+// 적었는데 그 커밋이 안 왔다 — 읽는 곳 셋(월간·학생·학부모)이 **영영 빈 표**를
+// 읽고 있었다. 적는 자리가 사라지면 그 상태로 되돌아간다.
+{
+  const ex = read("app/students/extraActions.js");
+  if (!/export async function setExtraAbsence/.test(ex)) {
+    bad.push(
+      "app/students/extraActions.js — setExtraAbsence 가 없습니다. " +
+        "특강만 빠진 날을 적을 곳이 없어 student_extra_absences 가 영영 빕니다 (①)"
+    );
+  } else {
+    const fn = ex.slice(ex.indexOf("export async function setExtraAbsence"));
+    const body = fn.slice(0, fn.indexOf("\nexport async function", 1));
+    // attendance 를 건드리면 정규 출결이 특강 때문에 뒤집힌다
+    if (/from\("attendance"\)/.test(body)) {
+      bad.push(
+        "app/students/extraActions.js — setExtraAbsence 가 attendance 를 건드립니다. " +
+          "특강 결석은 정규 출결을 바꾸면 안 됩니다 (①)"
+      );
+    }
+    if (!body.includes("student_extra_absences")) {
+      bad.push("app/students/extraActions.js — setExtraAbsence 가 student_extra_absences 에 안 씁니다 (①)");
+    }
+    // 되돌릴 수 없으면 안 눌러보게 된다
+    if (!/\.delete\(\)/.test(body)) {
+      bad.push("app/students/extraActions.js — setExtraAbsence 로 되돌리기(지우기)가 없습니다 (①)");
+    }
+  }
+  const pg = read("app/today/page.jsx");
+  if (!pg.includes("student_extra_absences") || !pg.includes("extraScheduleId")) {
+    bad.push(
+      "app/today/page.jsx — 특강 줄이 extraScheduleId·오늘 특강 결석을 안 들고 갑니다. " +
+        "판에서 「특강만 빠짐」 을 찍을 수 없습니다 (①)"
+    );
+  }
+  const tb = read("app/today/TodayBoard.jsx");
+  if (!tb.includes("setExtraAbsence(") || !tb.includes("특강 결석")) {
+    bad.push(
+      "app/today/TodayBoard.jsx — 「특강 결석」 단추가 없습니다. " +
+        "정규 출결과 헷갈리지 않게 글자로 드러나야 합니다 (①)"
+    );
+  }
+  // 정규 반에도 오는 아이의 참조 줄(refOnly)에 단추가 없으면 정작 「정규는
+  // 왔는데 특강만 빠짐」 을 못 찍는다 — 이 기능의 이유 그 자체다
+  const refAt = tb.indexOf("if (r.refOnly) {");
+  const ref = refAt < 0 ? "" : tb.slice(refAt, tb.indexOf("const isOpen =", refAt));
+  if (!ref.includes("extraAbsTail(")) {
+    bad.push(
+      "app/today/TodayBoard.jsx — 참조 줄(refOnly)에 특강 결석 단추가 없습니다. " +
+        "「정규는 왔는데 특강만 빠짐」 을 못 찍습니다 (①)"
+    );
+  }
+}
+
 // 판단 자체가 맞게 도는지 — 모양만 보는 검사는 이름만 남기고 속을 비울 수 있다
 {
   const { madeKeys, unitScored, isStudentUnit, unitExamName, toExamShape } =
@@ -174,6 +229,25 @@ const read = (p) => readFileSync(p, "utf8");
   t(unitExamName({ term: "Day 3", note: "재시험 · 10문제 중 3개 틀림" }), "Day 3 (재시험)", "판과 같은 이름이어야 합니다");
   t(toExamShape({ student_id: "a", taken_on: "2026-08-29", term: "Day 3", note: "통과", raw_score: 90, full_score: 100 }),
     { student_id: "a", date: "2026-08-29", name: "Day 3", score: 90, total: 100 }, "월간 모양으로 바꿔야 합니다");
+}
+
+// 특강 결석 한 줄이 진짜로 「총 N회」 를 줄이나 (①) — 모양만 봐서는 모른다
+{
+  const { extraDatesBy } = await import("../lib/extraTerm.js");
+  const sched = {
+    id: "S1", student_id: "a", label: "여름 특강", days: ["월"],
+    from_date: "2026-08-01", to_date: "2026-08-31", off_dates: [],
+  };
+  const all = extraDatesBy([sched], "2026-08", [], []).get("a") || [];
+  const off = extraDatesBy([sched], "2026-08", [],
+    [{ schedule_id: "S1", date: all[0], status: "absent" }]).get("a") || [];
+  const mk = extraDatesBy([sched], "2026-08", [],
+    [{ schedule_id: "S1", date: all[0], status: "makeup" }]).get("a") || [];
+  if (all.length === 0) bad.push("lib/extraTerm — 특강 수업일이 하나도 안 나옵니다 (①)");
+  if (off.length !== all.length - 1)
+    bad.push("lib/extraTerm — 특강 결석을 적어도 「총 N회」 가 안 줄어듭니다 (①)");
+  if (mk.length !== all.length)
+    bad.push("lib/extraTerm — 특강 보강(makeup)은 수업일로 남아야 합니다 (0164 · ①)");
 }
 
 if (bad.length) {

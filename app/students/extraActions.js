@@ -71,6 +71,50 @@ export async function addExtra(studentId, form = {}) {
   return { error: null };
 }
 
+/**
+ * **「이 아이 오늘 특강만 빠짐」 을 적는 한 곳** (0164 student_extra_absences).
+ *
+ * 정규 출결(attendance)은 하루 한 줄이라 「정규는 왔는데 특강만 빠짐」 을
+ * 못 적는다 — 그래서 0164 가 이 표를 따로 깔았다. 그런데 **쓰는 코드가
+ * 없어서** 표가 빈 채로 반년을 지났다 (0164 머리말: 「화면·백필은 다음
+ * 커밋들」 — 그 커밋이 안 왔다). 여기가 그 자리다.
+ *
+ * 원장님 확인 2026-08-29: 「정규는 왔는데 특강만 빠지는 일이 실제로 있다」.
+ *
+ * 읽는 쪽은 이미 셋이 있다 — 월간(app/monthly/actions.js)·학생(/me)·
+ * 학부모(/parent) 가 lib/extraTerm 의 extraDatesBy 로 이 줄을 뺀다.
+ * 그래서 읽는 코드는 새로 만들지 않는다 (원칙 1).
+ *
+ * 특강비는 정액이라 **돈에는 영향이 없다** — 「이번 달 총 N회」 숫자에만
+ * 영향이 있다 (0164 주석).
+ *
+ * @param on true = 결석으로 적는다 / false = 그 기록을 지운다(되돌리기)
+ */
+export async function setExtraAbsence(scheduleId, date, on) {
+  if (!scheduleId || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || "")))
+    return { error: "특강·날짜가 없어요." };
+  const supabase = await createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return { error: guard.error };
+
+  const { error } = on
+    ? await supabase
+        .from("student_extra_absences")
+        // 같은 날 두 번 눌러도 한 줄 (unique(schedule_id, date) — 0164)
+        .upsert({ schedule_id: scheduleId, date, status: "absent" },
+                { onConflict: "schedule_id,date" })
+    : await supabase
+        .from("student_extra_absences")
+        .delete()
+        .eq("schedule_id", scheduleId)
+        .eq("date", date);
+  if (noTable(error)) return { error: NEED_SQL };
+  if (error) return { error: error.message };
+
+  revalidatePath("/today");
+  return { error: null };
+}
+
 export async function removeExtra(id) {
   if (!id) return { error: null };
   const supabase = await createClient();
