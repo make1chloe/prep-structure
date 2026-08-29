@@ -109,6 +109,45 @@ const read = (p) => readFileSync(p, "utf8");
   }
 }
 
+// ── 4) 아이가 낸 단원평가 (⑥-3) ────────────────────────────
+// 아이는 판을 못 쓰니 scores 에만 들어간다. sent_* 만 보면 냈는데도
+// 배지가 안 꺼지고 월간리포트 문구에도 안 실린다.
+{
+  const bg = read("lib/menuBadges.js");
+  if (!bg.includes("unitScored(")) {
+    bad.push(
+      "lib/menuBadges.js — 「단원평가 점수 안 적힘」 이 unitScored 를 안 씁니다. " +
+        "아이가 냈는데도 배지가 안 꺼집니다 (⑥-3)"
+    );
+  }
+  const mo = read("app/monthly/actions.js");
+  if (!mo.includes("isStudentUnit") || !mo.includes("toExamShape")) {
+    bad.push(
+      "app/monthly/actions.js — 월간리포트가 아이가 낸 단원평가(scores·source='form')를 " +
+        "안 모읍니다 (⑥-3)"
+    );
+  }
+}
+
+// 판단 자체가 맞게 도는지 — 모양만 보는 검사는 이름만 남기고 속을 비울 수 있다
+{
+  const { madeKeys, unitScored, isStudentUnit, unitExamName, toExamShape } =
+    await import("../lib/unitScore.js");
+  const made = madeKeys([
+    { student_id: "a", taken_on: "2026-08-29", kind: "unit", source: "form" },
+    { student_id: "b", taken_on: "2026-08-29", kind: "unit", source: "class" },
+  ]);
+  const t = (got, want, what) => { if (JSON.stringify(got) !== JSON.stringify(want)) bad.push(`lib/unitScore — ${what} (나온 것 ${JSON.stringify(got)})`); };
+  t(unitScored({ student_id: "a", date: "2026-08-29" }, made), true, "아이가 낸 것을 적힌 것으로 세야 합니다");
+  t(unitScored({ student_id: "b", date: "2026-08-29" }, made), false, "선생님 사본(class)은 아이가 낸 것이 아닙니다");
+  t(unitScored({ student_id: "c", date: "2026-08-29", sent_unit: "Day 3" }, made), true, "판에 적힌 것도 적힌 것입니다");
+  t(unitScored({ student_id: "c", date: "2026-08-29" }, made), false, "아무 데도 없으면 안 적힌 것입니다");
+  t(isStudentUnit({ kind: "school", source: "form" }), false, "학교 시험은 단원평가가 아닙니다");
+  t(unitExamName({ term: "Day 3", note: "재시험 · 10문제 중 3개 틀림" }), "Day 3 (재시험)", "판과 같은 이름이어야 합니다");
+  t(toExamShape({ student_id: "a", taken_on: "2026-08-29", term: "Day 3", note: "통과", raw_score: 90, full_score: 100 }),
+    { student_id: "a", date: "2026-08-29", name: "Day 3", score: 90, total: 100 }, "월간 모양으로 바꿔야 합니다");
+}
+
 if (bad.length) {
   console.log("❌ 이어져 있어야 하는 자리가 끊어졌습니다:");
   bad.forEach((b) => console.log("   ·", b));

@@ -10,6 +10,7 @@ import { IN_APP_DETAIL } from "@/lib/notify";
 import { pushToFamilies } from "@/app/push/actions";
 import { endOfMonth, todaySeoul } from "@/lib/day";
 import { extraDatesBy } from "@/lib/extraTerm";
+import { isStudentUnit, toExamShape } from "@/lib/unitScore";
 import { takesExam } from "@/lib/who";
 import { needSql } from "@/lib/sqlError";
 import { sessionUser } from "@/lib/session";
@@ -132,6 +133,31 @@ export async function loadMonth(ym) {
       total: r.sent_total ?? null,
     }));
   (eq.error ? [] : eq.data || []).forEach((e) => putExam(e));
+
+  /**
+   *   3) **아이가 학생 화면에서 직접 낸 것** (0106 — 감사 ⑥-3).
+   *      아이는 판을 못 쓰니 scores 에만 들어간다(source='form'). 여기를
+   *      안 보면 아이가 낸 단원평가가 월간리포트 문구에 영영 안 실렸다 —
+   *      「이번 달 단원평가를 한 번도 안 봤다」 로 읽힌다.
+   *      판에도 같은 것이 적혀 있으면 위에서 이미 담겨 하나로 센다
+   *      (이름을 판과 같은 규칙으로 맞춘다 — lib/unitScore).
+   *      source 칸이 없는 옛 DB 면 조회가 error → 조용히 예전 그대로.
+   */
+  const sq = await supabase
+    .from("scores")
+    .select("student_id, taken_on, kind, term, raw_score, full_score, note, source")
+    .eq("kind", "unit")
+    .gte("taken_on", from)
+    .lte("taken_on", to);
+  // 마감한 날만 — 판 쪽과 **같은 잣대**여야 한 글 안에서 안 어긋난다
+  // (원장 확정 8/28). 아이가 낸 것도 그날 판이 마감되어야 문구에 실린다
+  const closedDay = new Set(
+    reports.filter((r) => isClosed(r)).map((r) => `${r.student_id}|${r.date}`)
+  );
+  (sq.error ? [] : sq.data || [])
+    .filter(isStudentUnit)
+    .filter((s) => closedDay.has(`${s.student_id}|${s.taken_on}`))
+    .forEach((s) => putExam(toExamShape(s)));
 
   // 특강(0164) 수업일 — 「총 N회 수업」 에 들어간다 (정규와 겹친 날은
   // summarize 가 뺀다). 0164 전 DB 면 조회가 error → 조용히 정규만 센다.
