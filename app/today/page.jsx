@@ -625,8 +625,7 @@ async function TodayBody({ searchParams, date }) {
   const none = { data: [] };
   const warnRepIds = (warnRepQ.error ? [] : warnRepQ.data || []).map((r) => r.id);
   const pendingTaskIds0 = (todayTasksQ.data || []).filter((t) => t.deliver_body).map((t) => t.id);
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ, learnedQ] = await Promise.all([
-  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ, prepAssignQ, prepRecvQ] = await Promise.all([
+  const [stBooksQ, stProgQ, wtQ, examQ, arrQ, secQ, receiptsQ, wItemsQ, madeNoticesQ, pickedQ, paceQ, kwQ, ansQ, learnedQ, prepAssignQ, prepRecvQ] = await Promise.all([
     studentIds.length
       ? supabase
           .from("student_textbooks")
@@ -721,6 +720,7 @@ async function TodayBody({ searchParams, date }) {
           .select("student_id, body")
           .eq("date", date)
           .in("student_id", studentIds)
+      : none,
     // 내신 자료 배정·수령 (0178) — 자료×학생이라 금방 1000줄을 넘는다
     studentIds.length
       ? fetchAll(() =>

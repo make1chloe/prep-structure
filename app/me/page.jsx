@@ -194,7 +194,6 @@ export default async function MePage(props) {
     monthRepsQ, myWarnQ, myCutQ, pastQ, recQ, asgQ, seenQ, guidesQ,
     notes, layouts, scoresQ, specQ, stateQ, itemById,
     extraQ, exAbsQ, holMonthQ, learnedQ,
-    extraQ, exAbsQ, holMonthQ,
     prepAsgQ, prepRecvQ, prepScopeQ, prepTypeQ,
   ] = await Promise.all([
     loadReports(supabase, sid, todayStr, 6),
