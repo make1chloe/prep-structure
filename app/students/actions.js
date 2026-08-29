@@ -166,6 +166,19 @@ export async function updateStudent(id, patch) {
   }
 
   const supabase = await createClient();
+
+  /**
+   * **상태를 바꾸면 퇴원일도 따라간다** (⑥-7). 바꾸기 **전에** 지금 상태를
+   * 읽어둔다 — 다른 칸만 고치면서 상태가 그대로 실려 오는 일이 흔한데,
+   * 그때까지 퇴원일을 다시 만지면 안 된다.
+   */
+  let wasStatus = null;
+  if ("status" in row) {
+    const { data: before } = await supabase
+      .from("students").select("status").eq("id", id).maybeSingle();
+    wasStatus = before?.status ?? null;
+  }
+
   let { error } = await supabase.from("students").update(row).eq("id", id);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // 0070 전이면 단어시험 칸 없이 — 나머지는 그대로 저장된다
@@ -183,6 +196,10 @@ export async function updateStudent(id, patch) {
       const sid2 = await schoolIdOf(supabase, row.school);
       await supabase.from("students").update({ school_id: sid2 }).eq("id", id);
     } catch { /* 잇기는 덤 */ }
+  }
+  // 낱개로 상태를 바꿔도 여럿 골라 바꿀 때와 **똑같은** 일이 일어난다 (⑥-7)
+  if (!error && "status" in row && row.status !== wasStatus) {
+    await afterStatusChange(supabase, [id], row.status);
   }
   revalidatePath("/students");
   revalidatePath("/today");
@@ -203,25 +220,28 @@ export async function deleteStudents(ids) {
 // 등원시작일을 그 자리에서 읽는다 (lib/firstDay, 2026-08-15 「신규생
 // 첫등원은 달력에 안떠」 — 복사 방식은 기능 이전 등록생이 영영 빠졌다).
 
-// 선택한 학생 상태 일괄 변경
-export async function updateStudentsStatus(ids, status) {
-  if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
-  const supabase = await createClient();
-  const { error } = await supabase.from("students").update({ status }).in("id", ids);
-  /**
-   * 상태가 바뀌면 따라와야 하는 것들 (값-지도 P0-2 · 전수검사 A19).
-   * 퇴원 → 퇴원일(ended_on)이 있어야 그 달 수강료가 일할된다.
-   * 재원 → 시작일이 비어 있으면 오늘로, 퇴원일은 지우고, 계정도 만든다
-   *        (예비→재원 전환은 어느 등록 경로도 안 지나서 계정이 없었다).
-   * 0018 전 DB 면 칸이 없어 실패한다 — 상태 변경은 이미 됐으니 조용히 넘어간다.
-   */
-  if (!error && status === "withdrawn") {
+/**
+ * **재원 상태가 바뀌면 따라와야 하는 것들** (값-지도 P0-2 · 전수검사 A19).
+ *
+ *   퇴원 → 퇴원일(ended_on)이 있어야 그 달 수강료가 일할된다 (lib/tuition:118)
+ *   재원 → 시작일이 비어 있으면 오늘로, 퇴원일은 지우고, 계정도 만든다
+ *          (예비→재원 전환은 어느 등록 경로도 안 지나서 계정이 없었다)
+ *
+ * **한 벌이다** (2026-08-29, 감사 ⑥-7). 예전에는 여럿을 골라 바꿀 때만
+ * 이 일이 일어나고, 표에서 한 명만 퇴원으로 바꾸면 상태만 바뀌었다 —
+ * 그 아이의 그 달 수강료가 한 달 치로 청구됐다. 낱개든 여럿이든 여기를 지난다.
+ *
+ * 0018 전 DB 면 칸이 없어 실패한다 — 상태 변경은 이미 됐으니 조용히 넘어간다.
+ */
+async function afterStatusChange(supabase, ids, status) {
+  if (!Array.isArray(ids) || ids.length === 0 || !status) return;
+  if (status === "withdrawn") {
     try {
       await supabase.from("students").update({ ended_on: todaySeoul() })
         .in("id", ids).is("ended_on", null);
     } catch { /* 0018 전 */ }
   }
-  if (!error && status === "enrolled") {
+  if (status === "enrolled") {
     try {
       await supabase.from("students").update({ enrolled_on: todaySeoul() })
         .in("id", ids).is("enrolled_on", null);
@@ -229,6 +249,14 @@ export async function updateStudentsStatus(ids, status) {
     } catch { /* 0018 전 */ }
     try { await autoCreateLogins(ids); } catch { /* 계정은 재원생에서 다시 */ }
   }
+}
+
+// 선택한 학생 상태 일괄 변경
+export async function updateStudentsStatus(ids, status) {
+  if (!Array.isArray(ids) || ids.length === 0 || !status) return { error: null };
+  const supabase = await createClient();
+  const { error } = await supabase.from("students").update({ status }).in("id", ids);
+  if (!error) await afterStatusChange(supabase, ids, status);
   revalidatePath("/students");
   return { error: error ? error.message : null };
 }

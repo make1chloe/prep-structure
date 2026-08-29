@@ -53,6 +53,36 @@ const read = (p) => readFileSync(p, "utf8");
   }
 }
 
+// ── 2) 퇴원일 (⑥-7) ──────────────────────────────────────
+// 상태만 바꾸고 퇴원일(ended_on)이 안 들어가면 그 달 수강료가 일할되지 않는다.
+// 낱개로 바꾸든 여럿을 골라 바꾸든 afterStatusChange 한 벌을 지나야 한다.
+{
+  const act = read("app/students/actions.js");
+  if (!/async function afterStatusChange\(/.test(act)) {
+    bad.push("app/students/actions.js — afterStatusChange 가 없습니다 (⑥-7)");
+  }
+  for (const [fn, what] of [
+    ["updateStudent", "표에서 한 명의 상태를 바꿀 때"],
+    ["updateStudentsStatus", "여럿을 골라 상태를 바꿀 때"],
+  ]) {
+    const at = act.indexOf(`export async function ${fn}(`);
+    if (at < 0) { bad.push(`app/students/actions.js — ${fn} 이 없습니다`); continue; }
+    const body = act.slice(at, act.indexOf("\nexport async function", at + 1));
+    if (!body.includes("afterStatusChange(")) {
+      bad.push(
+        `app/students/actions.js — ${fn} 이 afterStatusChange 를 안 부릅니다. ` +
+          `${what} 퇴원일이 안 들어가 그 달 수강료가 일할되지 않습니다 (⑥-7)`
+      );
+    }
+  }
+  // 퇴원일을 여기 말고 딴 데서 몰래 채우면 또 두 벌이 된다
+  const fnAt = act.indexOf("async function afterStatusChange(");
+  const fnBody = fnAt < 0 ? "" : act.slice(fnAt, act.indexOf("\n}", fnAt));
+  if (fnAt >= 0 && !/ended_on: todaySeoul\(\)/.test(fnBody)) {
+    bad.push("app/students/actions.js — afterStatusChange 가 퇴원일을 오늘로 안 채웁니다 (⑥-7)");
+  }
+}
+
 if (bad.length) {
   console.log("❌ 이어져 있어야 하는 자리가 끊어졌습니다:");
   bad.forEach((b) => console.log("   ·", b));
