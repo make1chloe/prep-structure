@@ -127,11 +127,6 @@ export default async function Home() {
           {d.warnings.length > 0 && (
             <Badge href="/today" tone="bad">반성문 대상 {d.warnings.length}명</Badge>
           )}
-          {d.unitStuck?.people?.length > 0 && (
-            <Badge href="/scores" tone="warn">
-              단원평가 막힘 {d.unitStuck.people.length}명
-            </Badge>
-          )}
           {d.sendFails.length > 0 && (
             <Badge href="/report?t=resend" tone="bad">발송 실패 {d.sendFails.length}건</Badge>
           )}
@@ -205,26 +200,10 @@ export default async function Home() {
                 </div>
               </div>
             )}
-            {(d.backlog || []).length > 0 && (
-              <div className="card sect sect-warn">
-                <h2 className="secthead">등원 밀림 <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>다음 수업에 계속이 쌓인 학생 · 숫자는 밀린 항목</span></h2>
-                {/* 눌리지 않는 글자였다 — 밀린 것을 푸는 자리는 오늘 수업의
-                    그 아이 판이니 **그 아이가 펴진 채로** 보낸다 (원장님 8/28) */}
-                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                  {d.backlog.slice(0, 6).map((b) => (
-                    <Link
-                      className="tag tag-amber"
-                      key={b.id || b.name}
-                      href={b.id ? `/today?open=${b.id}` : "/today"}
-                      style={{ textDecoration: "none" }}
-                      title={`밀린 항목 ${b.count}개 — 눌러서 그 학생 판 열기`}
-                    >
-                      <b>{b.name}</b> {b.count}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* 「등원 밀림」 카드는 없앴다 (원장님 2026-08-29). 밀린 항목은
+                다음 수업 판의 「오늘 학원」 목록으로 저절로 올라오므로
+                (app/today/page.jsx 의 carry_next), 그 아이 수업을 여는 순간
+                이미 펴져 있다 — 여기서 한 번 더 세면 두 벌이 된다. */}
             {d.watchList.length > 0 && (
               <div className="card sect sect-warn">
                 <h2 className="secthead">숙제가 밀리는 학생 <span className="hint" style={{ fontWeight: 400, fontSize: 12.5 }}>2주</span></h2>
@@ -529,38 +508,17 @@ export default async function Home() {
             {/* 반성문 문턱 — 여기서 바로 정리한다 (유예 · 초기화) */}
             <WarningInbox rows={d.warnings} />
 
-            {/* 단원평가 세 번째부터 올린다 (두 번은 흔하다) */}
-            {(d.unitStuck?.people?.length > 0 || d.unitStuck?.units?.length > 0) && (
-              <div className="card sect sect-warn">
-                <h2 className="secthead">
-                  단원평가에 막힘{" "}
-                  {d.unitStuck.people.length > 0 && (
-                    <span className="tag tag-amber">{d.unitStuck.people.length}명</span>
-                  )}
-                </h2>
+            {/* 「단원평가에 막힘」 카드는 없앴다 (원장님 2026-08-29).
+                여기서 하실 일은 재시험지를 만드는 것 하나인데 카드는 체크가
+                안 돼서, 만들어 드린 뒤에도 다음 시험 때까지 그대로 떠 있었다.
+                이제 할일이 대신 말한다 — 「○○ · 관계대명사 3번째 — 재시험지
+                만들기」 (0183 · lib/todoRoutine 의 retest 갈래).
 
-                {/* 같은 단원에서 여럿이 막혔으면 수업에서 다시 짚을 일이다 */}
-                {d.unitStuck.units.map((u) => (
-                  <div className="notice" key={u.unit} style={{ fontSize: 14, marginBottom: 6 }}>
-                    <b>{u.unit}</b> · <b>{u.n}명</b> — {u.names.join(" · ")}
-                  </div>
-                ))}
-
-                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-                  {d.unitStuck.people.map((p, i) => (
-                    <Link
-                      className="tag tag-amber"
-                      key={`${p.student?.id}-${p.unit}-${i}`}
-                      href={`/scores/${p.student?.id}`}
-                      style={{ textDecoration: "none" }}
-                      title={`${p.unit} ${p.tries}번째${p.last != null ? ` · 마지막 ${p.last}점` : ""}`}
-                    >
-                      <b>{p.student?.name}</b> {p.unit} {p.tries}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+                같은 단원에서 여럿이 막힌 줄(units)도 같이 없앴다. 그것은
+                「우리가 그 단원을 잘못 가르쳤다」 는 관찰이지 **누가 무엇을
+                하면 끝나는 일**이 아니라, 할일로도 카드로도 끌 방법이 없었다.
+                그리고 같은 단원 이름이 할일 목록에 세 줄 나란히 뜨면 그
+                사실은 그대로 보인다 — 한 번 더 세지 않는다 (원칙 1). */}
           </div>
         </div>
 
@@ -721,7 +679,11 @@ export default async function Home() {
                     date: h.date,
                     name: `${dayLabel(h.date)} ${h.name}`,
                     raw: h.name,          // 휴강 줄에 적힐 이름 (날짜 앞머리 없이)
-                    title: h.why,
+                    // 「까닭」(h.why) 은 여기서 안 붙인다 (원장님 2026-08-29).
+                    // 대시보드에서는 마우스를 올려야 나오는 글이라 폰에서는
+                    // 아예 안 보였고, 카드 제목이 이미 「쉴지 정해주세요」 다.
+                    // 만드는 쪽(lib/holidays)은 그대로 둔다 — 일정·학교 화면이
+                    // 그 한 줄을 눈에 보이는 글로 쓴다 (ScheduleBoard).
                     tone:
                       h.kind === "bridge" ? "tag-lav"
                       : h.kind === "substitute" ? "tag-amber"

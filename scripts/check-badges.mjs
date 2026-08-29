@@ -430,9 +430,38 @@ for (const [gone, what] of [
   ["d.makeupNeedTotal", "보강 필요 회차 (→ 남은 일 plan)"],
   ["d.monthConfirmLeft", "다음 달 회차 미확정 (→ 남은 일 schedule)"],
   ["d.monthlyDue", "월간리포트 (→ 남은 일 report)"],
+  /**
+   * **카드 둘을 더 뺐다** (원장님, 2026-08-29).
+   *
+   * · 단원평가에 막힘 → **할일**로 갔다. 카드에서 하실 일은 재시험지를
+   *   만드는 것 하나인데 카드는 체크가 안 돼서, 만들어 드린 뒤에도 다음
+   *   시험 때까지 그대로 떠 있었다. 끌 수 없는 알림은 배경이 된다.
+   *   (같은 단원에 여럿 막힌 줄 `units` 도 같이 뺐다 — 「누가 무엇을 하면
+   *    끝나는 일」 이 아니라 끌 방법이 없었고, 같은 단원 이름이 할일에 세
+   *    줄 나란히 뜨면 그 사실은 그대로 보인다)
+   * · 등원 밀림 → **없앴다.** 밀린 항목은 다음 수업 판의 「오늘 학원」
+   *   목록으로 저절로 올라온다 (carry_next) — 대시보드가 그것을 한 번 더
+   *   세던 자리였다.
+   *
+   * 값 이름으로 막는다 — 되살리려면 반드시 d.* 를 다시 꺼내야 하는데
+   * lib/dashboard 에서도 아예 지웠으므로 되살리면 undefined 가 나온다.
+   */
+  ["d.unitStuck", "단원평가에 막힘 (→ 할일 「재시험지 만들기」)"],
+  ["d.backlog", "등원 밀림 (→ 오늘 수업의 「오늘 학원」 이 이미 편다)"],
 ]) {
   eq(home.includes(gone), false, `대시보드가 따로 세던 「${what}」 을 뺐다`);
 }
+/**
+ * **한 줄만 뺀 것도 같이 지킨다** (원장님, 2026-08-29).
+ *
+ * 공휴일 카드는 그대로 두고 「까닭」(lib/holidays 의 why) 만 뺐다 —
+ * 대시보드에서는 마우스를 올려야 나오는 글이라 폰에서는 아예 안 보였고,
+ * 카드 제목이 이미 「쉴지 정해주세요」 다. **만드는 쪽은 안 지웠다** —
+ * 일정·학교 화면(ScheduleBoard)이 그 한 줄을 눈에 보이는 글로 쓴다.
+ */
+eq(home.includes("title: h.why"), false, "대시보드에서 공휴일 「까닭」 한 줄을 뺐다");
+eq(read("app/schedule/ScheduleBoard.jsx").includes("{h.why}"), true,
+   "까닭은 일정 화면이 눈에 보이는 글로 말한다 (만드는 쪽을 지우면 안 된다)");
 /**
  * **뺐으면 남은 일이 대신 말해야 한다.** 카드만 지우고 문장을 안 만들면
  * 그건 없앤 것이지 옮긴 것이 아니다 — 원장님은 그 일을 영영 못 보신다.
@@ -446,6 +475,30 @@ for (const [key, what] of [
   eq(new RegExp(`^\\s*${key}:`, "m").test(labelSrc.slice(labelSrc.indexOf("TODO_LABEL"))), true,
      `카드를 뺀 「${what}」 을 남은 일이 문장으로 말한다`);
 }
+/**
+ * **단원평가 막힘은 「남은 일」 이 아니라 진짜 할일이 대신 말한다.**
+ *
+ * 남은 일(TODO_LABEL)은 숫자 하나라 「누구의 어느 단원」 을 못 담는데,
+ * 원장님이 하실 일은 **그 아이 그 단원의 재시험지 만들기**다. 그래서
+ * 되풀이 할일의 사건 갈래로 넣었다 (교재 끝나감과 같은 관례, 0183) —
+ * 제목에 누구·단원·몇 번째가 들어가고, 체크하면 사라지고 안 되살아난다.
+ *
+ * 여기 셋 중 하나라도 비면 **카드만 사라지고 아무도 말을 안 한다.**
+ */
+const kindSrc = read("lib/todoRoutine.js");
+eq(/key: "retest"/.test(kindSrc), true, "되풀이 할일에 「단원평가 막힘」 갈래가 있다");
+eq(/export function retestKey\(/.test(kindSrc), true, "그 할일의 열쇠가 있다 (두 번 안 생기게)");
+// 열쇠에 **몇 번째**가 들어가야 4번째 재시험 때 새 재시험지 할일이 생긴다
+eq(/:r:\$\{studentId\}:\$\{unit\}:\$\{tries\}/.test(kindSrc), true,
+   "열쇠가 학생·단원·몇 번째로 유일하다");
+eq(/retestKey\(r\.id/.test(read("app/todo/routineActions.js")), true,
+   "그 갈래가 실제로 할일을 만든다");
+// 판정(세 번째부터)은 여전히 lib/unitStreak 한 곳 — 할일 쪽이 다시 안 적는다
+eq(read("app/todo/routineActions.js").includes("RETEST_WARN_AT"), true,
+   "몇 번째부터인지는 lib/unitStreak 것을 그대로 쓴다");
+// 규칙 줄이 깔려 있어야 할일이 생긴다 — 안 돌린 SQL 은 설정 화면이 재촉한다
+eq(read("lib/sqlChecks.js").includes("retest_routine_on"), true,
+   "규칙 줄(0183)을 돌렸는지 설정 화면이 묻는다");
 // 여기서 안 세는 것은 그대로 남아 있어야 한다
 for (const [stay, what] of [
   ["d.warnings.length > 0 &&", "반성문 대상"],

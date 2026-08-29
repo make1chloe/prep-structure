@@ -98,6 +98,8 @@ export default function RoutineBox({ rows = [], categories = [], error = null })
               <b>신규 학생</b> 교재 안내 보내기 · 반 배정 · 계정 만들기
               <br />
               <b>단어 교재가 2단원 남으면</b> 시험지 인쇄 · 클래스카드 플래너 설정
+              <br />
+              <b>단원평가를 세 번째 못 넘으면</b> 재시험지 만들기
             </p>
           )}
 

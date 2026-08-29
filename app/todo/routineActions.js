@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { fetchAll } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
-import { todaySeoul } from "@/lib/day";
-import { dueTasks, KINDS, byDate, studentKey, bookKey, nearEnd } from "@/lib/todoRoutine";
+import { todaySeoul, addDays } from "@/lib/day";
+import { dueTasks, KINDS, byDate, studentKey, bookKey, retestKey, nearEnd } from "@/lib/todoRoutine";
+import { unitProgress, RETEST_WARN_AT } from "@/lib/unitStreak";
 import { inUseOn } from "@/lib/bookUse";
 
 const SQL = "supabase/migrations/0082_todo_routines.sql 을 먼저 실행해주세요.";
@@ -155,15 +156,17 @@ export async function syncRoutines(supa = null) {
   if (error) return { error: missing(error) ? SQL : error.message, added: 0 };
 
   const rules = data || [];
-  // 신규 학생 쪽과 교재 끝나감 쪽은 서로 아무것도 안 물어본다 — 나란히 돈다
-  const [fromStudents, fromBooks] = await Promise.all([
+  // 사건짜리 셋은 서로 아무것도 안 물어본다 — 나란히 돈다
+  const [fromStudents, fromBooks, fromRetests] = await Promise.all([
     newStudentTasks(supabase, rules),
     bookEndTasks(supabase, rules),
+    retestTasks(supabase, rules),
   ]);
   const want = [
     ...dueTasks(rules, todaySeoul()),
     ...fromStudents,
     ...fromBooks,
+    ...fromRetests,
   ];
   if (want.length === 0) return { error: null, added: 0 };
 
@@ -333,6 +336,85 @@ async function bookEndTasks(supabase, rules) {
         priority: r.priority || 0,
         note: r.note || null,
       });
+    }
+  }
+  return out;
+}
+
+/**
+ * **단원평가에서 막혔을 때 생기는 할일** (2026-08-29).
+ *
+ * 여태는 대시보드 카드였다 — 「누구가 어느 단원 몇 번째」 를 호박색 딱지로
+ * 늘어놓고, 누르면 그 아이 성적 화면으로 갔다. 그런데 원장님이 거기서
+ * 하실 일은 **재시험지를 만드는 것** 하나다. 카드는 그 일을 말해줄 뿐
+ * 체크할 수가 없어서, 만들어 드린 뒤에도 다음 시험을 볼 때까지 계속 떠
+ * 있었다 — 끌 수 없는 알림은 며칠 안에 배경이 된다.
+ *
+ * 그래서 **할일로 옮긴다** (원장님 2026-08-29, 선택 B). 되풀이 할일의
+ * 사건 갈래를 그대로 쓴다 (교재 끝나감과 같은 관례) — 새 장치를 만들지
+ * 않는다. 규칙 한 줄은 0183 이 깔아둔다.
+ *
+ * ── 언제 생기나 ────────────────────────────────────────────
+ * 같은 단원을 **세 번째** 다시 봐도 못 넘었을 때 (RETEST_WARN_AT).
+ * 두 번은 흔하다 — 판정은 lib/unitStreak 한 곳에 있고 여기서는 부른다.
+ *
+ * ── 네 번째·다섯 번째는 ────────────────────────────────────
+ * **또 생긴다.** 열쇠에 「몇 번째」 가 들어가기 때문이다 (retestKey).
+ * 세 번째에 만든 재시험지로 네 번째를 봤는데 또 못 넘었으면 재시험지를
+ * 또 만들어야 하니, 그건 되살아난 것이 아니라 **새로 생긴 일**이다.
+ * 통과하면 그 단원은 stuck 에서 빠져 더 안 생긴다.
+ *
+ * ── 얼마나 거슬러 보나 ─────────────────────────────────────
+ * 최근 120일 (대시보드 카드가 보던 창 그대로). 한 학기를 놓아버린 옛
+ * 단원이 오늘 새 할일로 되살아나면 안 된다.
+ */
+async function retestTasks(supabase, rules) {
+  const mine = rules.filter((r) => r.repeat_kind === "retest");
+  if (mine.length === 0) return [];
+
+  const today = todaySeoul();
+  const [sq, scq] = await Promise.all([
+    supabase.from("students").select("id, name, status").eq("status", "enrolled"),
+    // 끝까지 읽는다 — 잘리면 뒤쪽 학생의 막힘이 통째로 안 뜬다 (교재 끝나감과 같은 사연)
+    fetchAll(() => supabase
+      .from("scores")
+      .select("student_id, kind, term, taken_on, raw_score, full_score, note")
+      .eq("kind", "unit")
+      .gte("taken_on", addDays(today, -120))
+      .order("student_id").order("taken_on")),
+  ]);
+  if (sq.error || scq.error) return [];
+
+  const scoresOf = new Map();
+  (scq.data || []).forEach((s) => {
+    if (!scoresOf.has(s.student_id)) scoresOf.set(s.student_id, []);
+    scoresOf.get(s.student_id).push(s);
+  });
+
+  const out = [];
+  for (const r of mine) {
+    for (const s of sq.data || []) {
+      const scores = scoresOf.get(s.id);
+      if (!scores) continue;
+      for (const u of unitProgress(scores).stuck) {
+        if (u.tries < RETEST_WARN_AT) continue;
+        out.push({
+          auto_key: retestKey(r.id, s.id, u.unit, u.tries),
+          // 눌러서 무엇을 할지 알 수 있게 — 누구 · 어느 단원 · 몇 번째
+          title: `${s.name} · ${u.unit} ${u.tries}번째 — ${r.title}`,
+          due_on: today,
+          todo_category_id: r.todo_category_id || null,
+          priority: r.priority || 0,
+          // 마지막 점수까지 — 몇 점에서 걸렸는지가 문제를 고르는 근거다
+          note: [
+            `${s.name} 학생이 「${u.unit}」 을 ${u.tries}번 봤는데 아직 못 넘었습니다.`,
+            u.last != null
+              ? `마지막 ${u.last}점${u.lastOn ? ` (${u.lastOn})` : ""}.`
+              : (u.lastOn ? `마지막 ${u.lastOn}.` : ""),
+            r.note || "",
+          ].filter(Boolean).join(" "),
+        });
+      }
     }
   }
   return out;
