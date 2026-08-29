@@ -7,7 +7,7 @@ import { todaySeoul } from "@/lib/day";
 import { attachSchool } from "@/app/consult/actions";
 import { createClient } from "@/lib/supabase/server";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
-import { autoCreateLogins, renameStudentLogin } from "./accountActions";
+import { autoCreateLogins, renameStudentLogin, syncAccountName } from "./accountActions";
 import { requireStaff } from "@/lib/guard";
 import { fetchAll } from "@/lib/fetchAll";
 import { schoolIdOf } from "@/lib/schoolLink";
@@ -173,10 +173,12 @@ export async function updateStudent(id, patch) {
    * 그때까지 퇴원일을 다시 만지면 안 된다.
    */
   let wasStatus = null;
-  if ("status" in row) {
+  let wasName = null;
+  if ("status" in row || "name" in row) {
     const { data: before } = await supabase
-      .from("students").select("status").eq("id", id).maybeSingle();
+      .from("students").select("status, name").eq("id", id).maybeSingle();
     wasStatus = before?.status ?? null;
+    wasName = before?.name ?? null;
   }
 
   let { error } = await supabase.from("students").update(row).eq("id", id);
@@ -200,6 +202,23 @@ export async function updateStudent(id, patch) {
   // 낱개로 상태를 바꿔도 여럿 골라 바꿀 때와 **똑같은** 일이 일어난다 (⑥-7)
   if (!error && "status" in row && row.status !== wasStatus) {
     await afterStatusChange(supabase, [id], row.status);
+  }
+  /**
+   * **이름을 고치면 로그인 계정의 이름도 따라간다** (⑥-12).
+   * 안 따라가면 아이·학부모가 로그인했을 때 옛 이름이 보인다.
+   */
+  if (!error && "name" in row && row.name && row.name !== wasName) {
+    try { await syncAccountName(id, row.name, wasName); } catch { /* 이름 맞추기는 덤 */ }
+  }
+  /**
+   * **학부모 전화를 고치면 형제 묶음을 다시 센다** (⑥-9).
+   * 등록할 때만 묶고 있어서, 번호를 나중에 맞춰 넣어도 family_id 는 그대로였다
+   * (학부모 계정 잇기·수강료 합산이 이 값을 본다). 등록 때와 **같은 한 벌**을
+   * 부른다. 갈라놓는 일은 안 한다 — 번호가 달라도 형제인 집이 있어서,
+   * 자동으로 떼면 원장님이 손으로 묶어두신 집이 조용히 풀린다.
+   */
+  if (!error && "parent_phone" in row && row.parent_phone) {
+    try { await joinFamilyByPhone(supabase, id, row.parent_phone); } catch { /* 묶기는 덤 */ }
   }
   revalidatePath("/students");
   revalidatePath("/today");

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parentLoginId } from "@/lib/studentId";
 import { baseLoginId, resolveLoginId } from "@/lib/studentId";
-import { requireTeacher } from "@/lib/guard";
+import { requireTeacher, requireStaff } from "@/lib/guard";
 import { makePw, emailOf, serviceKey, admin, keyMissing } from "@/lib/authAdmin";
 
 /**
@@ -119,6 +119,52 @@ export async function createStudentLogin(studentId, wantId) {
 
   revalidatePath("/students");
   return { error: null, loginId, password: pw };
+}
+
+/**
+ * **이름을 바꾸면 로그인 계정의 이름도 따라간다** (감사 ⑥-12, 2026-08-29).
+ *
+ * 이름이 두 곳에 있다 — 재원생의 이름(students.name)과 로그인 계정의
+ * 이름(profiles.name). 계정을 만들 때 한 번 복사해 넣고 그것으로 끝이었다.
+ * 그래서 재원생 화면에서 이름을 고쳐도 아이·학부모가 로그인하면 **옛 이름**이
+ * 보였다 (학생 화면 인사말 · 학부모 화면 · 리포트 댓글 작성자 · 알림 확인).
+ *
+ * 학부모 계정 이름은 「○○○ 학부모」 다. **옛 이름으로 지어진 것일 때만**
+ * 고친다 — 형제가 있는 집은 다른 아이 이름으로 지어져 있을 수 있고,
+ * 그것까지 덮으면 엉뚱한 집 이름이 된다.
+ *
+ * 이름 맞추기는 **덤**이다 — 실패해도 이름 저장 자체는 그대로 둔다.
+ */
+export async function syncAccountName(studentId, newName, oldName) {
+  const name = (newName || "").trim();
+  if (!studentId || !name || name === (oldName || "").trim()) return { error: null };
+  const supabase = await createClient();
+  const guard = await requireStaff(supabase);
+  if (guard.error) return guard;
+
+  try {
+    const { data: s } = await supabase
+      .from("students").select("profile_id").eq("id", studentId).maybeSingle();
+    if (s?.profile_id) {
+      await supabase.from("profiles").update({ name }).eq("id", s.profile_id);
+    }
+
+    // 학부모 계정 — 「옛이름 학부모」 로 지어져 있을 때만
+    const was = (oldName || "").trim();
+    if (was) {
+      const { data: link } = await supabase
+        .from("parent_student").select("parent_profile_id").eq("student_id", studentId);
+      const pids = (link || []).map((x) => x.parent_profile_id).filter(Boolean);
+      if (pids.length) {
+        await supabase
+          .from("profiles").update({ name: `${name} 학부모` })
+          .in("id", pids).eq("name", `${was} 학부모`);
+      }
+    }
+  } catch { /* 이름 맞추기는 덤 — 저장이 먼저다 */ }
+
+  revalidatePath("/students");
+  return { error: null };
 }
 
 /**

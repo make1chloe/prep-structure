@@ -129,6 +129,34 @@ const read = (p) => readFileSync(p, "utf8");
   }
 }
 
+// ── 5) 이름·학부모 전화가 따라가나 (⑥-12 · ⑥-9) ────────────
+// 이름은 students.name 과 profiles.name 두 곳에 있고, 형제 묶음(family_id)은
+// 학부모 전화가 같은 아이를 묶는다. 고쳐도 안 따라가면 아이는 로그인해서
+// 옛 이름을 보고, 형제는 영영 따로 남는다.
+{
+  const act = read("app/students/actions.js");
+  const at = act.indexOf("export async function updateStudent(");
+  const body = at < 0 ? "" : act.slice(at, act.indexOf("\nexport async function", at + 1));
+  if (!body.includes("syncAccountName(")) {
+    bad.push(
+      "app/students/actions.js — 이름을 고칠 때 syncAccountName 을 안 부릅니다. " +
+        "아이·학부모가 로그인하면 옛 이름이 보입니다 (⑥-12)"
+    );
+  }
+  if (!body.includes("joinFamilyByPhone(")) {
+    bad.push(
+      "app/students/actions.js — 학부모 전화를 고칠 때 joinFamilyByPhone 을 안 부릅니다. " +
+        "번호를 맞춰 넣어도 형제로 안 묶입니다 (⑥-9)"
+    );
+  }
+  const acc = read("app/students/accountActions.js");
+  if (!/export async function syncAccountName/.test(acc)) {
+    bad.push("app/students/accountActions.js — syncAccountName 이 없습니다 (⑥-12)");
+  } else if (!acc.includes('from("profiles").update({ name })')) {
+    bad.push("app/students/accountActions.js — syncAccountName 이 profiles.name 을 안 고칩니다 (⑥-12)");
+  }
+}
+
 // 판단 자체가 맞게 도는지 — 모양만 보는 검사는 이름만 남기고 속을 비울 수 있다
 {
   const { madeKeys, unitScored, isStudentUnit, unitExamName, toExamShape } =
