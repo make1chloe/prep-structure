@@ -270,6 +270,32 @@ export default function RoutineEditor({ textbookId = null, area = null, items = 
             <span className="hint" style={{ flex: 1 }}>
               한 줄이 한 수업 회차입니다. 진도를 따라 순서대로 돌아갑니다.
             </span>
+            {/**
+              * **교재에 붙일 종이** (원장님 2026-08-31 — 「학습항목 적어놓은
+              * 걸, 교재에 붙일 인쇄 자료로 만들려고 해」).
+              *
+              * 판을 여기 안에 열지 않고 **딴 주소**로 보낸다. 인쇄물에는
+              * 학습 방법·체크리스트가 필요한데 이 화면은 그것을 안 읽어와서
+              * (이름·분류·준비물뿐), 여기서 그리려면 교재 화면을 여는
+              * 모든 사람이 매번 그 글을 같이 받아야 한다. 까닭은
+              * app/textbooks/print/page.jsx 머리에 다 적어두었다.
+              *
+              * `target="_blank"` — 교재를 바꿔가며 여러 장 뽑으시니, 보던
+              * 목록이 그대로 남아 있어야 다음 교재로 넘어가기가 쉽다.
+              * 영역 루틴 편집기(textbookId 없음)에는 안 단다 — 종이는
+              * **책에** 붙는 것이라 붙일 책이 있어야 한다.
+              */}
+            {textbookId ? (
+              <a
+                className="btn btn-sm"
+                href={`/textbooks/print?tb=${textbookId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="이 교재의 학습 순서를 종이로 — 교재 앞장에 붙이시면 됩니다"
+              >
+                🖨 인쇄용으로 보기
+              </a>
+            ) : null}
             <button className="btn btn-sm" onClick={inherited ? copyThenAdd : addStep}>＋ 단계 추가</button>
           </div>
 

@@ -1756,3 +1756,118 @@ html[data-sheet="open"] .sheettop {
 
 /* 줄 신판의 칩 — 폰 엄지 기준 36px (판세분화 v7 §1) */
 .stuChip { min-height: 36px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   종이 — 인쇄 (2026-08-31, 교재에 붙이는 학습 순서표가 처음)
+
+   이 저장소에 인쇄용 CSS 가 여태 하나도 없었다. 그래서 여기서 관례를
+   세 줄로 못 박는다. 다음에 뽑을 것이 생기면 이 세 줄을 따른다.
+
+   ① **종이에 안 나갈 것에는 `.noprint` 를 붙인다.**
+      화면 조각을 하나하나 이름으로 지우면(`.tabs`, `.btn`, …) 새 조각이
+      늘 때마다 지우는 목록도 같이 늘어야 하고, 빠뜨리는 날 종이에
+      단추가 찍힌다. 지울 것을 **만드는 쪽**이 표시한다.
+      뿌리에 늘 붙어 있는 둘(.topbar · .ptr)만 여기서 직접 지운다 —
+      그 둘은 화면이 아니라 layout 이 붙이는 것이라 화면이 못 만진다.
+   ② **종이 판은 화면에서도 같은 모양으로 보인다.**
+      미리보기와 나온 종이가 다르면 뽑아보기 전에는 알 수가 없다.
+      그래서 `.bp-*` 는 화면·종이 공용이고, `@media print` 는 **크기와
+      쪽 나눔만** 손본다 (색을 빼고, px 을 pt 로).
+   ③ **종이 글씨는 pt 로 잰다.**
+      화면의 노안 규칙(12px 바닥, scripts/check-fontsize.mjs)은 종이에
+      그대로 안 맞는다 — 종이는 눈에서 30cm 이고 화소가 아니라 잉크다.
+      대신 바닥을 다시 못 박는다: **9pt(≈12px) 아래로 안 내려간다.**
+      본문은 10.5pt, 항목 이름은 12pt — 초등 저학년 교과서 본문이 대략
+      이 크기다. 아이가 책상에 붙여놓고 읽는 종이라 화면보다 크게 간다.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 종이 판 — 화면에서 보는 미리보기 */
+.bookprint { padding-top: 16px; padding-bottom: 40px; }
+.bp-sheet {
+  background: #fff; color: #111;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px 24px; max-width: 820px; margin: 0 auto;
+}
+.bp-head { border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 14px; }
+.bp-eyebrow { margin: 0 0 2px; font-size: 13px; font-weight: 700; letter-spacing: .02em; color: #444; }
+.bp-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: #111; }
+.bp-sub { margin: 4px 0 0; font-size: 13px; color: #444; }
+.bp-name-line { margin: 8px 0 0; font-size: 14px; color: #111; }
+.bp-blank { display: inline-block; width: 160px; border-bottom: 1px solid #111; }
+
+.bp-step { margin-top: 16px; }
+.bp-stephead {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 8px; font-size: 15px; font-weight: 700; color: #111;
+  background: #eceff5; border-left: 4px solid #111; padding: 5px 10px;
+}
+.bp-stepno { font-weight: 800; }
+.bp-steplabel { font-weight: 600; }
+/* 회독은 학생마다 다르다 — 「해당 없으면 건너뛰세요」 가 읽히도록 테두리로 */
+.bp-round { font-size: 13px; font-weight: 700; border: 1px solid #111; border-radius: 999px; padding: 1px 8px; }
+
+.bp-group { margin: 0 0 8px; }
+/* 갈래(등원·숙제·예습)는 뜻이 다르다 — 뭉치면 집에서 등원 학습을 하려 든다 */
+.bp-grouphead { margin: 8px 0 4px; font-size: 14px; font-weight: 800; color: #111; }
+.bp-grouphint { font-weight: 500; font-size: 13px; color: #555; }
+
+.bp-rows { list-style: none; margin: 0; padding: 0; }
+.bp-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  border: 1px solid #111; border-radius: 6px;
+  padding: 8px 10px; margin-bottom: 6px;
+}
+.bp-no { flex: 0 0 auto; min-width: 22px; font-size: 15px; font-weight: 800; color: #111; }
+.bp-body { flex: 1 1 auto; min-width: 0; }
+.bp-itemname { margin: 0; font-size: 16px; font-weight: 700; color: #111; line-height: 1.35; }
+/* 준비물은 **글자로** — 흑백 복사에서 📕 과 📓 은 같은 얼룩이 된다 */
+.bp-tool { margin-left: 6px; font-size: 13px; font-weight: 700; border: 1px solid #111; border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.bp-method { margin: 3px 0 0; font-size: 14px; color: #222; line-height: 1.5; white-space: pre-wrap; }
+.bp-note { margin: 3px 0 0; font-size: 14px; font-weight: 700; color: #111; line-height: 1.5; }
+.bp-check { list-style: none; margin: 5px 0 0; padding: 0; }
+.bp-check li { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; color: #111; line-height: 1.5; margin-top: 2px; }
+/* 줄마다 작은 네모 — 체크리스트가 없으면 이 자리를 아예 안 그린다 */
+.bp-box { flex: 0 0 auto; width: 12px; height: 12px; margin-top: 3px; border: 1px solid #111; border-radius: 2px; }
+/* 아이가 하고 나서 직접 그리는 칸 */
+.bp-circle { flex: 0 0 auto; width: 34px; height: 34px; border: 1.5px solid #111; border-radius: 6px; }
+.bp-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #111; font-size: 13px; color: #444; }
+
+@media print {
+  /* ① 화면에만 있는 것 — 만든 쪽이 붙인 표시 + 뿌리가 붙이는 둘 */
+  .noprint, .topbar, .ptr { display: none !important; }
+
+  /* 배경색·그림자를 뺀다. 잉크를 아끼는 것이기도 하지만, 학원 복합기는
+     흑백이라 옅은 회색 바탕이 글자를 잡아먹는다 */
+  html, body {
+    padding-top: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .bookprint { padding: 0 !important; }
+  .bp-sheet {
+    border: 0 !important; border-radius: 0 !important;
+    box-shadow: none !important; padding: 0 !important;
+    max-width: none !important; width: auto !important;
+  }
+  .bp-stephead { background: transparent !important; border-left: 3pt solid #000; }
+
+  /* ③ 종이 글씨는 pt — 9pt 바닥, 본문 10.5pt, 항목 이름 12pt */
+  .bp-eyebrow { font-size: 9.5pt; }
+  .bp-title { font-size: 19pt; }
+  .bp-sub, .bp-name-line { font-size: 9.5pt; }
+  .bp-stephead { font-size: 11.5pt; }
+  .bp-round, .bp-grouphint, .bp-tool, .bp-foot { font-size: 9pt; }
+  .bp-grouphead { font-size: 11pt; }
+  .bp-no { font-size: 11.5pt; }
+  .bp-itemname { font-size: 12pt; }
+  .bp-method, .bp-note, .bp-check li { font-size: 10.5pt; }
+
+  /* 쪽이 넘어갈 때 **한 항목이 두 쪽에 걸치지 않게.** 방법 글만 다음 장으로
+     넘어가면 아이는 이름 없는 설명을 읽게 된다. A4 한 장에 담기는 것이
+     목표지만 루틴이 길면 넘어갈 수밖에 없어서, 넘어가는 자리를 정해둔다 */
+  .bp-row, .bp-group, .bp-head { break-inside: avoid; page-break-inside: avoid; }
+  .bp-stephead { break-after: avoid; page-break-after: avoid; }
+  .bp-step { break-before: auto; }
+
+  @page { size: A4 portrait; margin: 12mm 12mm 12mm 12mm; }
+}
