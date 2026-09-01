@@ -87,6 +87,45 @@ must("원장도 감사 기록을 지우는가",
 must("원장이 아이를 고치는가",
   await as(P.원장, `update v2.students set grade=3 where id=$1`, [S.내아이]), 1);
 
+/* ───── 진도 — 새 앱이 전부 매다는 자리 ───── */
+const U = (await c.query(`select id from v2.units limit 1`)).rows[0]?.id;
+if (U) {
+  const 열기 = async v => c.query(`update v2.progress_edit set is_open=$1, opened_on=case when $1 then current_date end where scope='academy'`,[v]);
+
+  await 열기(false);
+  must("[닫힘] 아이가 진도를 찍는가",
+    await as(P.학생, `insert into v2.progress(student_id,unit_id,round,status,last_by,confirmed)
+      values($1,$2,1,'done','student',false)`, [S.내아이, U]), 0);
+
+  await 열기(true);
+  must("[열림] 아이가 진도를 찍는가",
+    await as(P.학생, `insert into v2.progress(student_id,unit_id,round,status,last_by,confirmed)
+      values($1,$2,1,'done','student',false)`, [S.내아이, U]), 1);
+  must("[열림] 아이가 **확인 끝난 것처럼** 찍는가",
+    await as(P.학생, `insert into v2.progress(student_id,unit_id,round,status,last_by,confirmed)
+      values($1,$2,1,'done','staff',true)`, [S.내아이, U]), 0);
+  must("[열림] 아이가 남의 진도를 찍는가",
+    await as(P.학생, `insert into v2.progress(student_id,unit_id,round,status,last_by,confirmed)
+      values($1,$2,1,'done','student',false)`, [S.남의아이, U]), 0);
+
+  // 원장이 찍어 둔 줄
+  await c.query(`insert into v2.progress(student_id,unit_id,round,status,last_by,confirmed)
+    values($1,$2,1,'done','staff',true) on conflict (student_id,unit_id,round)
+    do update set last_by='staff', confirmed=true, status='done'`,[S.내아이,U]);
+  must("[열림] ⭐ 아이가 **원장님이 찍은 줄**을 덮는가",
+    await as(P.학생, `update v2.progress set status='none' where student_id=$1 and unit_id=$2`, [S.내아이,U]), 0);
+  must("[열림] 아이가 진도를 지우는가",
+    await as(P.학생, `delete from v2.progress where student_id=$1`, [S.내아이]), 0, true);
+  must("[열림] 아이가 ❗ 를 다는가",
+    await as(P.학생, `insert into v2.progress_flag(student_id,unit_id,kind,said)
+      values($1,$2,'not_done','아직 안 했어요')`, [S.내아이,U]), 1);
+  must("[열림] 아이가 ❗ 를 **스스로 처리**하는가",
+    await as(P.학생, `insert into v2.progress_flag(student_id,unit_id,kind,outcome)
+      values($1,$2,'not_done','changed')`, [S.내아이,U]), 0);
+  await 열기(false);
+  await c.query(`delete from v2.progress where student_id=$1`,[S.내아이]);
+}
+
 console.log("■ 통과"); ok.forEach(x=>console.log("  ",x));
 console.log("\n■ 새는 자리"); bad.length ? bad.forEach(x=>console.log("  ",x)) : console.log("   없음");
 console.log(`\n합계 — 통과 ${ok.length} · 샘 ${bad.length}`);
