@@ -46,7 +46,7 @@ const st2=(await c.query(`select v2.style_text(id) t from v2.quiz_style
 t("1회독 방식", st1, "객관식 뜻 50% · 주관식 뜻 50%");
 t("2회독 방식 — **더 어렵다**", st2, "주관식 뜻 100%");
 t("문장 1회독", (await c.query(`select v2.style_text(id) t from v2.quiz_style
-  where student_id is null and round=1 and kind='sentence'`)).rows[0].t, "구두");
+  where student_id is null and round=1 and kind='sentence'`)).rows[0].t, "받아쓰기");
 
 // ⑥ 비율 합이 100이 아니면 막힌다
 await c.query("savepoint sp3");
