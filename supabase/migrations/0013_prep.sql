@@ -10,7 +10,7 @@ create table v2.prep_scope (              -- 시험 범위 — **교재 단원�
   book_id uuid references v2.books(id) on delete restrict,
   unit_id uuid references v2.units(id) on delete restrict,
   free_note text,                          -- 단원으로 못 고르는 것만
-  added_on date not null default current_date,
+  added_on date not null default v2.today(),
   removed_on date,                         -- 학교가 빼면 **지우지 않고** 날짜를 찍는다
   created_at timestamptz not null default now()
 );
