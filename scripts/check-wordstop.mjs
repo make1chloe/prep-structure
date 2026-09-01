@@ -25,10 +25,23 @@ t("교재멈춤 — 오늘 시험 목록에서 빠지나", (await c.query(`selec
 await c.query(`insert into v2.day_sheet(id,student_id,date) values
   ('00000000-0000-4000-d000-000000000001',$1,v2.today()) on conflict do nothing`,[S]);
 let blocked=false;
-try { await c.query(`insert into v2.word_test(sheet_id,book_id,total,correct)
-  values('00000000-0000-4000-d000-000000000001',$1,20,18)`,[B]); }
-catch(e){ blocked = /멈춘 교재/.test(e.message); }
+await c.query("savepoint sp1");
+try { await c.query(`insert into v2.quiz(student_id,kind,source,book_id,assigned_sheet_id,total)
+  values($1,'word','book',$2,'00000000-0000-4000-d000-000000000001',20)`,[S,B]); }
+catch(e){ blocked = /멈춘 교재/.test(e.message); await c.query("rollback to savepoint sp1"); }
 t("멈춘 교재로 시험을 억지로 넣으면 막히나", blocked, true);
+
+// ⭐ 내신 범위로 낸 시험은 **교재멈춤과 상관없다**
+let prepOk=false;
+await c.query("savepoint sp2");
+try {
+  const ex=(await c.query(`insert into v2.exams(scope,name,source) values('national','zz시험','manual') returning id`)).rows[0].id;
+  const sc=(await c.query(`insert into v2.prep_scope(exam_id,free_note) values($1,'2과 본문') returning id`,[ex])).rows[0].id;
+  await c.query(`insert into v2.quiz(student_id,kind,source,scope_id,total,way)
+    values($1,'sentence','prep',$2,10,'구두')`,[S,sc]);
+  prepOk=true;
+} catch(e){ prepOk=false; console.log("      (왜:", e.message.split("\n")[0].slice(0,60)+")"); await c.query("rollback to savepoint sp2"); }
+t("⭐ 내신 범위로 **문장시험**을 낼 수 있나", prepOk, true);
 await c.query("rollback");
 console.log("■ 단어시험 멈춤");
 [...ok,...bad].forEach(x=>console.log("  ",x));
