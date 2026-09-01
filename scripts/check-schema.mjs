@@ -20,7 +20,7 @@ j("파기 목록에 없는 개인정보 칸", (await c.query(`
   select col.table_name||'.'||col.column_name v from information_schema.columns col
   where col.table_schema='v2'
     and (col.column_name in ('name','phone','comment','body','said','note','reason','staff_note','orig_name','title')
-         and col.table_name not in ('purge_map','books','units','learn_items','material_type','grammar_topics',
+         and col.table_name not in ('purge_map','import_check','area_map','import_skip','books','units','learn_items','material_type','grammar_topics',
              'schools','video','msg_template','auto_rule','notice','todo','material','file_bin','exams','classes'))
     and not exists (select 1 from v2.purge_map p
       where p.tbl=col.table_name and p.col=col.column_name)`)).rows,
