@@ -15,9 +15,11 @@ begin
          case t.status when 'active' then 'active' when 'paused' then 'paused' else 'stopped' end,
          'import'
   from public.textbooks t
+  where t.id::text not in (select old_id from v2.import_skip where old_table='textbooks')
   on conflict (id) do update set name=excluded.name, area=excluded.area, state=excluded.state;
   insert into v2.import_map(old_table, old_id, new_table, new_id)
   select 'textbooks', t.id::text, 'books', t.id from public.textbooks t
+  where t.id::text not in (select old_id from v2.import_skip where old_table='textbooks')
   on conflict (old_table, old_id) do nothing;
   -- ⚠️ 접을 데가 없는 영역은 **보류**로 남긴다 (계획: 「보류 0 이 아니면 전환하지 않는다」)
   update v2.import_map m set skip_why = '⚠️ 영역이 안 접힌다 — 옛 영역: '||coalesce(t.area,'(빈칸)')

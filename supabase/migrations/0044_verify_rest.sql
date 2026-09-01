@@ -1,6 +1,7 @@
 -- 0044 · 대조에 나머지를 더한다 — **업무 사실**로
-drop function if exists v2.import_verify();
-create or replace function v2.import_verify() returns table(topic text, who text, old_val numeric, new_val numeric, ok boolean, expected text)
+-- ⚠️ 대조를 **채우는 쪽**이다. 읽는 쪽(import_verify)은 0046 에 있다
+drop function if exists v2.import_verify_base();
+create function v2.import_verify_base() returns void
 language plpgsql security definer set search_path = v2, public as $$
 begin
   delete from v2.import_check;
@@ -73,7 +74,5 @@ begin
      (select count(*) from v2.parent_student where import_batch='import'), null),
    ('교재 수', null, (select count(*) from public.textbooks),
      (select count(*) from v2.books where import_batch='import'), null);
-  return query select c.topic, c.who, c.old_val, c.new_val, c.ok, c.expected
-               from v2.import_check c order by c.ok, c.topic, c.who;
 end $$;
-grant execute on function v2.import_verify() to service_role;
+grant execute on function v2.import_verify_base() to service_role;
