@@ -35,6 +35,7 @@ const when = (v) => (v ? new Date(v).toLocaleString("ko-KR", { dateStyle: "short
 export default function Screen(props) {
   const {
     on, today, daily = [], late = [], notice = [], sched = [], reads = [], facts = {},
+    readWin = { days: 0, cap: 0, total: 0 },
     text = {}, sink = "off", ready = null, lockBody = "", queries = 0, cap = 6, why = [],
   } = props;
 
@@ -377,7 +378,14 @@ export default function Screen(props) {
         </details>
 
         <details className="sn-fold">
-          <summary className="sn-foldhd">📖 읽음 <span className="num">자취 {facts.logs ?? 0}줄</span></summary>
+          {/* ⚠️ 머리에 **안 자른 총수**를 적으면 몸통(잘린 목록)과 갈린다 — 속도-4 가 난 자리다.
+            *    보는 창과 같은 수를 적고, 창 밖에 더 있으면 그것도 말한다 */}
+          <summary className="sn-foldhd">
+            📖 읽음 <span className="num">{readWin.total}줄</span>
+            <span className="muted">최근 {readWin.days}일 · 오늘 명단</span>
+            {(facts.logs ?? 0) > readWin.total
+              ? <span className="chip">창 밖에 {(facts.logs ?? 0) - readWin.total}줄 더</span> : null}
+          </summary>
           <div className="sn-foldbd">
             <label className="sn-pick">
               <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
@@ -390,8 +398,19 @@ export default function Screen(props) {
               위 묶음에 그대로 보입니다.
               ⚠️ 그리고 <b>「만든 때」 칸도 없어</b> 안 나간 줄은 언제 누른 것인지 모릅니다.
             </p>
+            {/* ⚠️ 안전망에 닿으면 **말한다.** 조용히 자르면 「안 읽은 줄이 없습니다」가 거짓이 된다 */}
+            {readWin.total > reads.length ? (
+              <p className="sn-why">
+                ⚠️ 이 창 안에 <b>{readWin.total}줄</b>이 있는데 <b>{reads.length}줄</b>만 그렸습니다
+                (한 번에 {readWin.cap}줄까지). <b>「안 읽은 집만 보기」도 이 {reads.length}줄 안에서만</b> 거릅니다.
+              </p>
+            ) : null}
             {shownReads.length === 0
-              ? <p className="sn-kv">{unreadOnly ? "안 읽은 줄이 없습니다." : "자취가 아직 없습니다."}</p> : null}
+              ? <p className="sn-kv">
+                  {unreadOnly
+                    ? `최근 ${readWin.days}일 · 오늘 명단 안에는 안 읽은 줄이 없습니다.`
+                    : `최근 ${readWin.days}일 · 오늘 명단에는 자취가 없습니다.`}
+                </p> : null}
             {shownReads.map((l) => (
               <p className="sn-list" key={l.id}>
                 <b className="sn-main">{l.studentName ?? "—"}</b>

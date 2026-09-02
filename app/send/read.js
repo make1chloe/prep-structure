@@ -25,6 +25,22 @@ import { KINDS } from "./kinds.js";
 export const QUERY_CAP = 6;
 
 /**
+ * 「읽음」이 보는 **창** (속도-4).
+ *
+ * ⚠️ 속도-4 는 「줄 수 상한을 안 건다 — **학생·날짜로 좁혀 읽는다**」다.
+ *    그래서 좁히는 것은 **그날 명단 + 이 날 수**이고, 아래 `READ_CAP` 은
+ *    그 안에서도 터무니없이 많을 때를 위한 **안전망**이지 좁히는 수단이 아니다.
+ * ⚠️ 상한에 닿으면 **화면이 그 사실을 말한다**(`readWin`). 조용히 자르지 않는다 —
+ *    예전에는 머리의 총수와 몸통의 줄 수가 갈린 채 아무도 안 밝혔다.
+ *
+ * ⚠️ **14일은 지어낸 값이 아니라 「정한 값」이다.** 계획에 날 수가 안 적혀 있어
+ *    원장님께 여쭐 것으로 `docs/원장님-정하실-것.md` 에 올렸다. 그때까지 이 값으로 돈다 —
+ *    학부모가 며칠 뒤에 여는 일이 있어 그날 하루만 보면 「안 읽음」이 틀리게 굳는다.
+ */
+export const READ_DAYS = 14;
+export const READ_CAP = 500;
+
+/**
  * 그 갈래로 **진짜 나갈 글**.
  *
  * ⚠️⚠️ **문구가 없으면 여기서 기본값을 지어내지 않는다.** 데일리·하원의 기본 글은
@@ -92,7 +108,7 @@ export function blockOf(row, kind, text) {
  * @returns 화면이 바로 그릴 수 있는 모양 + `sink`(발송 스위치) + `ready`(열쇠가 있나)
  */
 export async function loadBoard(db, on = null) {
-  const j = (await db.query(Q_BOARD, [on || null])).rows[0]?.j ?? {};
+  const j = (await db.query(Q_BOARD, [on || null, READ_DAYS, READ_CAP])).rows[0]?.j ?? {};
   const tpl = j.tpl ?? [];
   const text = Object.fromEntries(KINDS.filter((k) => k !== "notice").map((k) => [k, textFor(tpl, k)]));
 
@@ -108,6 +124,8 @@ export async function loadBoard(db, on = null) {
     }),
     sched: j.sched ?? [],
     reads: j.reads ?? [],
+    // ⚠️ **자른 사실을 화면까지 들고 간다** (속도-4). 안 들고 가면 화면이 조용히 잘린 목록을 그린다
+    readWin: j.readWin ?? { days: READ_DAYS, cap: READ_CAP, total: 0 },
     facts: j.facts ?? {},
     text,
     // ⚠️ 스위치를 읽는 곳은 `lib/notify.js` 하나뿐이다 (자동 검사 ⑦). 여기서는 그 답만 받는다

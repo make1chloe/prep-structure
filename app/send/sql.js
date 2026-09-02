@@ -107,15 +107,36 @@ select json_build_object(
     from v2.scheduled_send sd left join v2.students s on s.id = sd.student_id
    where sd.sent_at is null and sd.cancelled_at is null),
 
+ -- ⚠️⚠️ **줄 수 상한을 안 건다** (속도-4). 예전에는 order by id desc limit 200 이
+ --    **전 학생 공용**이었다 — 학생으로도 날짜로도 안 좁힌 순수 절단이라 규칙 문면 그대로다.
+ --    200 을 넘는 순간 접기 머리의 「자취 N줄」(안 자른 총수)과 몸통(200줄)이 갈리고,
+ --    「안 읽은 집만 보기」가 그 200줄 안에서만 걸러 **「안 읽은 줄이 없습니다」를 오류 없이** 띄웠다.
+ --    데일리 한 번에 ~21줄이 쌓이므로 발송이 돌기 시작하면 **열흘 남짓에** 그 자리에 닿는다.
+ -- → **그날 명단 + 날짜 창**으로 좁힌다. 상한($3)은 그래도 남기되 **자른 사실을 화면이 말한다**.
+ -- ⚠️ 학생이 안 붙은 줄(집 전체에 간 것)은 **빼지 않는다** — 빼면 그 갈래가 통째로 안 보인다.
+ -- ⚠️ sent_at 은 스위치가 off 면 null 이다. 그래서 created_at(0075)로 받쳐 센다 —
+ --    안 그러면 **안 나간 줄이 창 밖으로 통째로 밀려난다.**
  'reads', (select coalesce(json_agg(json_build_object(
       'id', l.id, 'kind', l.kind, 'title', l.title, 'sink', l.sink, 'tag', l.tag,
       'studentName', s.name, 'toName', p.name, 'toRole', p.role,
       'sentAt', l.sent_at, 'deliveredAt', l.delivered_at,
       'firstAt', l.opened_at, 'opens', l.open_count,
       'failedAt', l.failed_at, 'failWhy', l.fail_why) order by l.id desc),'[]'::json)
-    from (select * from v2.notify_log order by id desc limit 200) l
+    from (select * from v2.notify_log l
+           where (l.student_id in (select student_id from who) or l.student_id is null)
+             and coalesce(l.sent_at, l.created_at)
+                 >= ((select d from t) - ($2::int || ' days')::interval)
+           order by l.id desc limit $3::int) l
     left join v2.students s on s.id = l.student_id
     left join v2.profiles p on p.id = l.profile_id),
+
+ -- 화면이 **자른 사실을 말할 수 있게** 같은 술어로 한 번 더 센다
+ 'readWin', json_build_object(
+    'days', $2::int, 'cap', $3::int,
+    'total', (select count(*)::int from v2.notify_log l
+               where (l.student_id in (select student_id from who) or l.student_id is null)
+                 and coalesce(l.sent_at, l.created_at)
+                     >= ((select d from t) - ($2::int || ' days')::interval))),
 
  'tpl', (select coalesce(json_agg(json_build_object(
       'kind', m.kind, 'title', m.title, 'body', m.body)),'[]'::json) from v2.msg_template m),
