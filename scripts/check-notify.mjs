@@ -68,11 +68,22 @@ const walk = (d, out=[]) => { for (const f of readdirSync(d)) {
   const p=join(d,f); statSync(p).isDirectory() ? walk(p,out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const files = walk(".");
-const pushers = files.filter(f => !f.endsWith("lib/notify.js") && !f.includes("check-notify")
-  && /require\(["']web-push|from ["']web-push|webpush\.send|sendNotification\(/.test(readFileSync(f,"utf8")));
-ok("web-push 를 lib/notify.js 밖에서 부르지 않는다", pushers.length===0, pushers.join(" "));
-const sinkers = files.filter(f => !f.endsWith("lib/notify.js") && !f.includes("check-notify")
-  && /NOTIFY_SINK/.test(readFileSync(f,"utf8")));
+/** ⚠️ **주석은 코드가 아니다.** 통째로 훑으면 「여기서 NOTIFY_SINK 를 읽으면 안 된다」고
+ *  적어 둔 **경고 주석**이 위반으로 잡힌다 (실제로 app/send/actions.js 가 그렇게 걸렸다).
+ *  그러면 담당자는 규칙을 지키는 대신 **경고를 지운다** — 검사가 문서를 갉아먹는 꼴이다.
+ *  → 주석만 있는 줄은 뺀다. 코드 줄은 그대로 두므로 **진짜로 읽는 자리는 그대로 걸린다.** */
+const codeOf = (f) => readFileSync(f, "utf8").split("\n")
+  .filter(l => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n");
+// ⚠️ **실제로 쏘는 손은 `lib/push.js` 다** (2026-09-02 신설). `notify` 는 판단만 하고
+//    `opts.push` 로 손을 받는다 — 그래서 web-push 를 부르는 **한 자리**는 그 파일이다.
+//    두 자리가 되면 한쪽만 잠금화면 글을 갈아 끼우게 되므로 여기서 하나로 묶어 둔다.
+const pushers = files.filter(f => !f.endsWith("lib/push.js") && !/check-(notify|push)\.mjs$/.test(f)
+  && /require\(["']web-push|from ["']web-push|webpush\.send|sendNotification\(/.test(codeOf(f)));
+ok("web-push 를 부르는 곳은 lib/push.js 하나뿐이다", pushers.length===0, pushers.join(" "));
+// ⚠️ **검사는 앱이 아니다.** `scripts/check-push.mjs` 는 스위치를 켠 판을 진짜 DB 로 돌려 봐야 해서
+//    가짜 env 에 이 이름을 쓴다. 앱 코드(`lib/`·`app/`)에서 읽는 곳은 여전히 notify 뿐이어야 한다.
+const sinkers = files.filter(f => !f.endsWith("lib/notify.js") && !/check-(notify|push)\.mjs$/.test(f)
+  && /NOTIFY_SINK/.test(codeOf(f)));
 ok("NOTIFY_SINK 를 읽는 곳도 lib/notify.js 뿐이다", sinkers.length===0, sinkers.join(" "));
 
 // ⚠️⚠️ **진짜 DB 로 한 번 돌린다.** 가짜 DB 는 제약이 없어서 원리적으로 못 잡는 사고가 있다 —
