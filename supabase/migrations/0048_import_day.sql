@@ -46,8 +46,26 @@ begin
   join v2.day_sheet d on d.student_id = r.student_id and d.date = r.date
   where d.import_batch='import'
   on conflict (id) do nothing;
-  insert into v2.import_map(old_table, old_id, new_table, new_id)
-  select 'daily_report_items', i.id::text, 'day_item', i.id from public.daily_report_items i
+  -- ⚠️⚠️ **매핑을 데이터와 같은 조건으로 좁힌다.** 안 좁히면 **안 옮긴 옛 줄에도**
+  --    「새 줄 X 가 되었다」가 적힌다 — 실측으로 19줄이 그랬다(전부 「테스트계정」 아이 것).
+  --    매핑표는 「이게 새 앱 어디로 갔지」를 되짚는 장부다. 거기에 없는 줄을 가리키면
+  --    되짚을 때 **빈 곳을 가리키고**, 재적재가 「이미 옮겼다」로 읽어 영영 안 옮긴다.
+  -- ⚠️ 안 옮긴 줄도 **버리지 않는다** — `new_table` 을 비우고 **사유를 적어** 남긴다
+  --    (계획 1-3 「옮기지 않기로 한 것은 사유와 함께 매핑표에 남긴다」).
+  insert into v2.import_map(old_table, old_id, new_table, new_id, skip_why)
+  select 'daily_report_items', i.id::text,
+         case when d.id is null then null else 'day_item' end,
+         case when d.id is null then null else i.id end,
+         case when d.id is null
+              then '그 아이를 안 옮겼다 — ' ||
+                   coalesce((select k.why from v2.import_skip k
+                              where k.old_table='students' and k.old_id=r.student_id::text),
+                            '판이 안 섰다')
+              else null end
+  from public.daily_report_items i
+  join public.daily_reports r on r.id = i.daily_report_id
+  left join v2.day_sheet d on d.student_id = r.student_id and d.date = r.date
+                          and d.import_batch='import'
   on conflict (old_table, old_id) do nothing;
   what:='day_item'; n:=(select count(*)::int from v2.day_item t join v2.day_sheet d on d.id=t.sheet_id
         where d.import_batch='import'); return next;
@@ -63,8 +81,21 @@ begin
   where exists (select 1 from v2.students x where x.id=s.student_id)
     and s.student_id::text not in (select old_id from v2.import_skip where old_table='students')
   on conflict (id) do nothing;
-  insert into v2.import_map(old_table, old_id, new_table, new_id)
-  select 'scores', s.id::text, 'score', s.id from public.scores s
+  -- ⚠️ 위와 같은 병 — 데이터 insert 는 「v2 에 있는 아이 · 안 거른 아이」로 좁히는데
+  --    매핑만 안 좁히면 **안 옮긴 성적에도 짝이 적힌다.** (지금은 짝 없는 줄이 0이지만
+  --    걸러지는 아이가 하나만 늘어도 그날 생긴다 — 잠복이다)
+  insert into v2.import_map(old_table, old_id, new_table, new_id, skip_why)
+  select 'scores', s.id::text,
+         case when v.id is null then null else 'score' end,
+         case when v.id is null then null else s.id end,
+         case when v.id is null
+              then '그 아이를 안 옮겼다 — ' ||
+                   coalesce((select k.why from v2.import_skip k
+                              where k.old_table='students' and k.old_id=s.student_id::text),
+                            '학생이 v2 에 없다')
+              else null end
+  from public.scores s
+  left join v2.score v on v.id = s.id
   on conflict (old_table, old_id) do nothing;
   what:='score'; n:=(select count(*)::int from v2.score where import_batch='import'); return next;
 
