@@ -527,7 +527,11 @@ if (!CHROME) {
   <div class="card"><div class="cardhd">📊 진도 · 영역 메모</div>
     <div class="td-kv"><span class="grow">${esc(longBook)}</span><span class="chip">문법</span>
       <span class="num">119/203</span><span class="pill pilloff">숙제멈춤</span></div>
-    <p class="td-note">영역 메모를 담을 칸이 DB 에 없습니다.</p></div>
+    <div class="td-areas">
+      ${["단어","독해","문법","영작"].map((a)=>`<label class="td-area"><span class="lbl">${a}</span>
+        <input class="fld" type="text" style="font-size:16px" value=""></label>`).join("")}
+    </div>
+    <p class="muted">⚠️ 이 줄은 아이·학부모에게 그대로 나갑니다 — 마감해야 보입니다.</p></div>
   <div class="card"><div class="cardhd">✉️ 부모님께 나갈 글</div>
     <label class="lbl">부모님께 나갈 글 — 마감하면 이 글이 그대로 보입니다</label>
     <textarea class="fld" rows="5"></textarea>

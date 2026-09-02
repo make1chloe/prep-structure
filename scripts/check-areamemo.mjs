@@ -22,7 +22,18 @@ try {
     `insert into v2.day_sheet (student_id, date, attend, import_batch)
      values ($1::uuid, v2.today(), 'present', 'fixture') returning id`, [st.id])).rows[0];
 
-  // ① 적기
+  // ⚠️⚠️ **원장님 손으로 돈다.** 여기가 이 검사가 거짓 초록이던 자리다 —
+  //    `postgres`(표 주인)로만 돌아 **`authenticated` 권한 벽을 한 번도 안 밟았다.**
+  //    그래서 「지우기는 안 준다(대전제-6)」와 「빈 줄은 지운다」를 **동시에 초록**으로 줬다.
+  //    화면이 실제로 도는 손씨 그대로 건다(`app/today/db.js` 와 같은 두 줄).
+  const 원장 = (await c.query(
+    `select id from v2.profiles where role in ('principal','instructor') and state = 'active'
+      order by (role = 'principal') desc limit 1`)).rows[0];
+  ok("원장 계정을 찾았다 (검사도 화면과 같은 손으로 돈다)", !!원장);
+  await c.query(`select set_config('request.jwt.claims', '{"sub":"${원장.id}","role":"authenticated"}', true)`);
+  await c.query("set local role authenticated");
+
+  // ① 적기 — **여기부터는 authenticated 다**
   const a = await putAreaMemos(db, sh.id, { 문법: "간접의문문 어순", 독해: "빈칸 2개 놓침" });
   ok("두 영역이 들어갔다", a.wrote === 2, JSON.stringify(a));
   ok("읽으면 그대로 나온다", (await areaMemos(db, sh.id)).문법 === "간접의문문 어순");
@@ -38,9 +49,31 @@ try {
   const s = await putAreaMemos(db, sh.id, { 문법: "관계대명사" });
   ok("같은 값이면 안 쓰고, 그것을 실패로 세지 않는다", s.wrote === 0 && s.same === 1, JSON.stringify(s));
 
-  // ④ 빈 줄은 지운다
-  const d = await putAreaMemos(db, sh.id, { 독해: "  " });
-  ok("빈 줄은 지운다", d.removed === 1 && (await areaMemos(db, sh.id)).독해 === undefined);
+  // ④ ⚠️ 빈 줄은 **내린다 — 지우지 않는다** (대전제-6)
+  // ⚠️ 여기서 `delete` 를 쓰면 **permission denied 로 터진다**(authenticated 는 DELETE 가 0개).
+  //    터지게 두면 스택 트레이스가 나와 무엇이 문제인지 안 보인다 — 사람 말로 바꿔 준다.
+  let d = null, 지우려했나 = null;
+  await c.query("savepoint clr");
+  try { d = await putAreaMemos(db, sh.id, { 독해: "  " }); await c.query("release savepoint clr"); }
+  catch (e) { await c.query("rollback to clr"); 지우려했나 = String(e?.message ?? e).split("\n")[0]; }
+  ok("⚠️⚠️ 비우기가 **지우려 들지 않는다** (화면은 DELETE 권한이 0개다)",
+     지우려했나 === null,
+     `${지우려했나} — lib/day.js 가 delete 를 쓰면 화면에서 첫 저장부터 터진다`);
+  if (지우려했나) throw new Error("비우기가 막혔다 — 아래 검사는 뜻이 없다");
+  ok("빈 줄은 읽는 쪽에서 사라진다", d.removed === 1 && (await areaMemos(db, sh.id)).독해 === undefined);
+  await c.query("reset role");
+  const 남았나 = (await c.query(
+    `select memo from v2.day_area_memo where sheet_id = $1::uuid and area = '독해'`, [sh.id])).rows;
+  ok("⚠️⚠️ **줄은 그대로 있다 — 지운 것이 아니다** (대전제-6)",
+     남았나.length === 1 && 남았나[0].memo === "", JSON.stringify(남았나));
+  await c.query(`select set_config('request.jwt.claims', '{"sub":"${원장.id}","role":"authenticated"}', true)`);
+  await c.query("set local role authenticated");
+  const d2 = await putAreaMemos(db, sh.id, { 독해: "" });
+  ok("이미 내려간 것을 또 내려도 「내렸다」로 안 센다", d2.removed === 0, JSON.stringify(d2));
+  ok("다시 적으면 되살아난다",
+     (await putAreaMemos(db, sh.id, { 독해: "다시 적음" })).wrote === 1
+     && (await areaMemos(db, sh.id)).독해 === "다시 적음");
+  await putAreaMemos(db, sh.id, { 독해: "" });
 
   // ⑤ 영역 목록 — 없는 영역은 DB 가 막는다 (0단계 7번)
   // ⚠️ 일부러 내는 오류는 **세이브포인트 안**에서 낸다. 안 그러면 그 오류가 판을 통째로
@@ -55,12 +88,16 @@ try {
   const 아이 = (await c.query(
     `select p.id from v2.profiles p join v2.students s on s.profile_id = p.id
       where s.id = $1::uuid`, [st.id])).rows[0];
+  await c.query("reset role");
   const 아이눈 = async () => {
     await c.query("savepoint v");
     await c.query("select set_config('request.jwt.claims',$1,true)",
       [JSON.stringify({ sub: 아이.id, role: "authenticated" })]);
     await c.query("set local role authenticated");
-    const r = await c.query(`select count(*)::int n from v2.day_area_memo where sheet_id = $1::uuid`, [sh.id]);
+    // ⚠️ **내린 줄(memo='')은 안 센다** — 줄은 남지만 아이에게 닿는 말은 없다.
+    //    `areaMemos` 가 읽는 것과 **같은 술어**로 세야 화면과 검사가 안 갈린다
+    const r = await c.query(
+      `select count(*)::int n from v2.day_area_memo where sheet_id = $1::uuid and memo <> ''`, [sh.id]);
     await c.query("rollback to v");
     return r.rows[0].n;
   };

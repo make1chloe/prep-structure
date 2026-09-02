@@ -20,6 +20,7 @@
  *    줄이는 길은 화면이 아니라 DB 쪽이다 — 보고의 `needsDb` 에 적었다.
  */
 import { routineNext, loadOf, saysOf, memoCovers, STOP } from "../../lib/routine.js";
+import { areaMemos } from "../../lib/day.js";
 import { testsToday, reportLines, failedToday, lateReasonText } from "../../lib/word.js";
 
 /**
@@ -42,7 +43,7 @@ import { testsToday, reportLines, failedToday, lateReasonText } from "../../lib/
 const CAN_WRITE = `(select json_object_agg(t, json_build_object(
         'ins', has_table_privilege('v2.'||t, 'insert'),
         'upd', has_table_privilege('v2.'||t, 'update')))
-     from unnest(array['day_sheet','day_item','late_stay','quiz','unit_test','progress']) t)`;
+     from unnest(array['day_sheet','day_item','late_stay','quiz','unit_test','progress','day_area_memo']) t)`;
 
 const Q_ROSTER = `/* today:roster */
 with t as (select coalesce($1::date, v2.today()) as d),
@@ -203,10 +204,12 @@ export async function loadOne(db, { studentId, on, adjust = {}, memo = {} }) {
   // 단어시험 — 판정도 거르기도 SQL 이 한다. 여기서 세지 않는다
   const wordBooks = await testsToday(db, studentId, on);
   const wordLines = sheetId ? await reportLines(db, sheetId) : [];
+  // 영역 메모 — **판이 서 있어야 적을 수 있다**(판에 매달린 줄이다). 판이 없으면 빈 것으로 준다
+  const areaMemo = sheetId ? await areaMemos(db, sheetId) : {};
   const failed = sheetId ? await failedToday(db, sheetId) : [];
 
   return {
-    one, sheets, sheetId, plan,
+    one, sheets, sheetId, plan, areaMemo,
     // `plan.load`·`plan.says` 는 routineNext 가 이미 붙여 준다. 없을 때만 다시 부른다
     load: plan.load ?? loadOf(plan),
     says: plan.says ?? saysOf(plan),

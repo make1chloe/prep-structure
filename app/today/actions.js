@@ -33,7 +33,7 @@ import { fromCheck } from "../../lib/progress.js";
 import { attendanceWrite } from "../../lib/attend.js";
 import { closeGate, closeSheet } from "../../lib/close.js";
 import { routineNext } from "../../lib/routine.js";
-import { freezeDay } from "../../lib/day.js";
+import { freezeDay, putAreaMemos } from "../../lib/day.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-fA-F-]{36}$/;
@@ -283,5 +283,31 @@ export async function previewFreeze({ studentId, on, adjust = {}, memo = {}, cla
     if (classId !== undefined) opts.classId = classId;
     const r = await freezeDay(db, plan, opts);
     return { ok: r?.ok !== false, ...r };
+  });
+}
+
+/**
+ * 영역 메모 한 줄 (단어 · 독해 · 문법 · 영작 — 목업 31 · 0079).
+ *
+ * ⚠️ **판단은 `lib/day.js` 의 `putAreaMemos` 한 벌**이다. 여기는 부르기만 한다(대전제-4).
+ *    「준 영역만 건드린다」도 「빈 줄은 **내린다**(안 지운다)」도 거기 있다.
+ * ⚠️ **판이 서 있어야 적을 수 있다.** 판을 세우는 것은 `attendanceWrite` 다 —
+ *    여기서 판을 만들면 출결이 안 찍힌 아이가 「왔다」로 서 버린다.
+ * ⚠️ 이 줄은 **아이·학부모에게 그대로 나간다**(마감해야). 원장님만 볼 말은 판의 staff_note 다.
+ */
+export async function saveAreaMemo({ sheetId, area, text }) {
+  if (!UUID.test(String(sheetId ?? ""))) {
+    return { ok: false, msg: "판이 없습니다 — 먼저 출결을 찍어야 판이 섭니다" };
+  }
+  if (!area) return { ok: false, msg: "어느 영역인지 모릅니다" };
+  return run(async (db) => {
+    try {
+      const r = await putAreaMemos(db, sheetId, { [area]: text ?? "" });
+      // ⚠️ 「같은 값이라 안 바뀜」은 실패가 아니다 — `putAreaMemos` 가 `same` 으로 갈라 준다
+      return { ok: true, saved: (r.wrote + r.removed) > 0, same: r.same > 0 };
+    } catch (e) {
+      // 없는 영역은 DB(도메인)가 막는다 — 사람 말로 올린다
+      return { ok: false, why: "threw", msg: String(e?.message ?? e).slice(0, 200) };
+    }
   });
 }

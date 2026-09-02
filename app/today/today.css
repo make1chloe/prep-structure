@@ -97,3 +97,12 @@
 /* @이름 .td-cant   앱이 **판정 못 하는 것** 목록 (대전제 0 — 검증하는 척하지 않는다) */
 .td-cant { margin: var(--s2) 0 0; padding-left: var(--s3); list-style: none; }
 .td-cant li { margin: var(--s1) 0; word-break: keep-all; }
+
+/* @이름 .td-areas  영역 메모 넷이 서는 자리
+ * @이름 .td-area   영역 한 줄
+ * ⚠️ 교재 메모(「조절」 안)와 **다른 것**이다 — 이건 그날 그 아이의 총평이다(⑨-a). */
+.td-areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+            gap: var(--s2); margin: var(--s2) 0 0; }
+.td-area { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; min-width: 0; }
+.td-area .lbl { flex: 0 0 auto; }
+.td-area .fld { flex: 1 1 160px; min-width: 0; }

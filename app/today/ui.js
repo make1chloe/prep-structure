@@ -11,7 +11,7 @@
  */
 import { useState, useTransition } from "react";
 import { markCheck, setAttend, saveComment, saveLate, previewClose, closeDay,
-         previewFreeze, freezeToday } from "./actions.js";
+         previewFreeze, freezeToday, saveAreaMemo } from "./actions.js";
 // ⚠️ 늦귀가 단추 값(+20·40·60분)도 「평소 하원 + N분」 셈도 **lib/attend.js 한 곳**이다.
 //    화면이 숫자를 다시 적으면 그날부터 두 벌이 된다 (원칙 1).
 import { LATE_STAY_PRESETS, lateStayUntil } from "@/lib/attend";
@@ -357,5 +357,52 @@ export function Freeze({ studentId, on, classId, adjust, memo, canWrite }) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 영역 메모 한 줄 — **단어 · 독해 · 문법 · 영작** (목업 31 · ⑨-a).
+ *
+ * ⚠️ **교재 메모와 다른 것이다.** 교재 메모는 「그 교재 그 회차」에 붙고(「조절」 안),
+ *    이것은 **그날 그 아이의 총평**이다. 둘 다 있어야 한다.
+ * ⚠️ **이 줄은 아이·학부모에게 그대로 나간다**(마감해야). 원장님만 볼 말은 아래 「원장 메모」다.
+ * ⚠️ 칸을 떠날 때 저장한다 — 글자마다 보내면 수업 중에 그만큼 왕복이 는다(§속도).
+ *    되돌릴 수 있는 자리라 **먼저 바꾸고 뒤에서 보낸다**. 실패하면 그 칸만 되돌린다.
+ */
+export function AreaMemo({ sheetId, area, value, canWrite }) {
+  const [글, set글] = useState(value ?? "");
+  const [굳은값, set굳은값] = useState(value ?? "");
+  const [said, setSaid] = useState(null);
+  const [busy, start] = useTransition();
+
+  function 떠날때() {
+    const t = 글.trim();
+    if (t === 굳은값.trim()) return;               // 안 바뀌었으면 안 보낸다
+    if (!canWrite) { setSaid({ bad: true, msg: "권한이 없어 못 씁니다" }); set글(굳은값); return; }
+    const 전 = 굳은값;
+    set굳은값(t); setSaid(null);
+    start(async () => {
+      const r = await saveAreaMemo({ sheetId, area, text: t });
+      if (!r?.ok) { set글(전); set굳은값(전); setSaid({ bad: true, msg: r?.msg ?? "저장 못 했습니다" }); }
+    });
+  }
+
+  if (!sheetId) {
+    return (
+      <label className="td-area">
+        <span className="lbl">{area}</span>
+        <span className="muted">판이 아직 없습니다 — 출결을 찍으면 적을 수 있습니다</span>
+      </label>
+    );
+  }
+  return (
+    <label className="td-area">
+      <span className="lbl">{area}</span>
+      <input className="fld" type="text" value={글} disabled={!canWrite}
+             onChange={(e) => set글(e.target.value)} onBlur={떠날때}
+             placeholder={`${area} 한 줄 — 아이·학부모에게 그대로 나갑니다`} />
+      {busy ? <span className="chip">보내는 중</span> : null}
+      {said ? <span className="pill pillbad" role="status">⚠️ {said.msg}</span> : null}
+    </label>
   );
 }

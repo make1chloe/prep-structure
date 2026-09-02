@@ -22,12 +22,14 @@
  */
 // ⚠️ 클래스카드 판정은 **lib 한 벌**이다 (확정 ⑱ · 원칙 1)
 import { judgeSet, MODE_NAME, setTypeName, CANNOT_JUDGE } from "@/lib/classcard";
+// ⚠️ 영역 메모를 받는 넷 — 원장님 확정(목업 31). 화면이 이 목록을 다시 적지 않게 여기 한 줄로 둔다
+const AREAS = Object.freeze(["단어", "독해", "문법", "영작"]);
 import Link from "next/link";
 import "./today.css";
 import { staffOnly } from "./who.js";
 import { openAs, QUERY_CAP } from "./db.js";
 import { loadRoster, loadOne } from "./read.js";
-import { Marks, Attend, Comment, Late, Close, Freeze } from "./ui.js";
+import { Marks, Attend, Comment, Late, Close, Freeze, AreaMemo } from "./ui.js";
 import { routineOf } from "../../lib/routine.js";
 
 // ⚠️ 판은 날마다 다르다. 캐시되면 어제 판이 오늘 화면에 그대로 뜬다
@@ -269,7 +271,7 @@ function Student({ roster, who, data, routines, sp, can, adjust }) {
 
       {/* ㉝ 다섯째 줄 — 마무리 */}
       <div className="td-pair">
-        <ProgressCard o={o} plan={plan} />
+        <ProgressCard o={o} plan={plan} sheetId={sheetId} areaMemo={data.areaMemo} can={can} />
         <CommentCard sheet={sheet} sheetId={sheetId} o={o} can={can} />
       </div>
 
@@ -614,7 +616,7 @@ function UnitTestCard({ o }) {
 
 /* ── 📊 진도 · 영역 메모 ──────────────────────────────────────── */
 
-function ProgressCard({ o, plan }) {
+function ProgressCard({ o, plan, sheetId, areaMemo, can }) {
   const books = o.books ?? [];
   return (
     <div className="card">
@@ -631,12 +633,19 @@ function ProgressCard({ o, plan }) {
         </div>
       ))}
       {plan.stale ? <Why>지난 날짜 판이라 진도는 오늘 기준입니다 — 그날 것과 다를 수 있습니다.</Why> : null}
-      <Why>
-        영역 메모(단어 · 독해 · 문법 · 영작 <b>한 줄씩</b>, 오류 31·48)를 담을 칸이 DB 에 없습니다 —
-        <code className="mono">v2.day_sheet</code> 에는 부모님께 나갈 글과 원장 전용 메모 <b>둘</b>뿐이고
-        영역이라는 축이 없습니다. 그래서 입력칸을 <b>만들지 않았습니다</b>.
+      {/* ⚠️ 영역 메모 — **교재 메모와 다른 것이다.** 교재 메모는 「그 교재 그 회차」에 붙고(「조절」 안),
+        *    이것은 **그날 그 아이의 총평**이다(⑨-a). 담는 곳은 `v2.day_area_memo`(0079) 다 */}
+      <div className="td-areas">
+        {AREAS.map((a) => (
+          <AreaMemo key={a} sheetId={sheetId} area={a} value={areaMemo?.[a] ?? ""}
+                    canWrite={!!can?.day_area_memo?.ins} />
+        ))}
+      </div>
+      <p className="muted">
+        ⚠️ 이 줄은 <b>아이·학부모에게 그대로 나갑니다</b> — 마감해야 보입니다.
+        원장님만 볼 말은 아래 「원장 메모」에 적으세요.
         교재마다의 학습·숙제 메모는 위 「조절」에 있습니다.
-      </Why>
+      </p>
     </div>
   );
 }
