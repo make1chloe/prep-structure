@@ -1,0 +1,95 @@
+/* ══════════════════════════════════════════════════════════════════════
+ * 오늘 화면만의 자리. **토큰은 `app/globals.css` 것을 그대로 쓴다** —
+ * 여기서 새 색·새 글씨 크기를 만들지 않는다 (오류 106·107 이 그렇게 났다).
+ * `scripts/check-screen-today.mjs` 가 이 파일을 훑어서 지킨다:
+ *   · `#색` 리터럴 0건 · `font-size` 는 `var(--fsN)` 만 · `opacity` 0건
+ *   · 늘어나는 칸에 basis 가 있다 (`flex:1` 금지 — 오류 94)
+ *   · grid 는 `minmax(0,…)` (맨 `1fr` 은 내용보다 안 작아진다 — ㉜)
+ *   · 한 낱말 상태 클래스 금지 (`.open`·`.on`·`.sel` — 오류 49·92, **세 번** 터졌다)
+ *   · 여기 정의한 클래스는 화면이 **다 쓰고**, 화면이 쓰는 `td-` 는 여기 **다 있다**
+ *
+ * ── 이름 대장 (globals.css 의 대장과 겹치지 않게 전부 `td-` 로 시작한다)
+ * @이름 .td-head    화면 머리 — 날짜와 「무엇이 없어서 비었나」
+ * @이름 .td-roster  오늘 수업하는 사람 명단 줄
+ * @이름 .td-who     명단의 한 사람 (누르면 그 아이 판이 열린다)
+ * @이름 .td-pair    좌우로 붙인 짝 — **900px 이하에서 위아래로** (㉝)
+ * @이름 .td-book    ②③ 안의 교재 한 덩어리 (머리 + 좌우)
+ * @이름 .td-bookhd  그 교재의 머리 줄 (이름·회차·진도·멈춤)
+ * @이름 .td-side    한 교재 안의 좌우 — **왼쪽이 학원, 오른쪽이 집** (⑨-a)
+ * @이름 .td-slot    그 한쪽 묶음 (오늘 학습 / 오늘 숙제)
+ * @이름 .td-item    항목 한 줄
+ * @이름 .td-unit    항목에 붙는 단원 이름 — ⚠️ **안 줄인다** (오류 32)
+ * @이름 .td-marks   ○△✕ 단추 줄
+ * @이름 .td-mark    ○△✕ 단추 하나
+ * @이름 .td-note    밝히는 줄 — 「왜 비었나」·「무엇이 없나」
+ * @이름 .td-fold    접기 상자 (다시 조회하지 않는다 — §속도 1)
+ * @이름 .td-foldhd  그 접기의 손잡이
+ * @이름 .td-foldbd  그 접기의 속 — ⚠️ globals 의 `.accbd` 를 빌려 쓰지 않는다 (아래 까닭)
+ * @이름 .td-kv      이름 → 값 한 줄
+ * ────────────────────────────────────────────────────────────────────── */
+
+.td-head { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: baseline; }
+
+/* 명단 — 옆으로 넘겨 보지 않고 **접어서** 늘어놓는다. 23명이 한눈에 들어와야 한다 */
+.td-roster { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.td-who {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 0 1 auto; min-height: var(--tap);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r2);
+  background: var(--surface); color: var(--fg);
+  font-family: inherit; font-size: var(--fs3); text-align: left;
+  text-decoration: none; cursor: pointer;
+}
+.td-who.is-sel { border-color: var(--accent); border-width: 2px; color: var(--accent); font-weight: 700; }
+
+/* ㉝ — 성격이 같은 것끼리 좌우로. ⚠️ 맨 `1fr` 은 내용보다 안 작아진다 */
+.td-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); align-items: start; }
+
+.td-book { border: 1px solid var(--line); border-radius: var(--r2); background: var(--sunk); padding: var(--s3); }
+.td-bookhd { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; margin-bottom: var(--s2); }
+
+/* ⚠️ 같은 교재 같은 회차라 **한 덩어리로** 보여야 한다 (오류 46) */
+.td-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s2); }
+.td-slot { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r1); padding: var(--s2) var(--s3); }
+
+.td-item { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+           padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+/* ⚠️ 단원 이름은 **안 줄인다** (오류 32). 낱말 단위로 접히게만 둔다 */
+.td-unit { flex: 1 1 160px; color: var(--mid); font-size: var(--fs2); white-space: normal; }
+
+.td-marks { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.td-mark {
+  min-width: var(--tap); min-height: var(--tap); padding: 0 var(--s2);
+  border: 1px solid var(--line); border-radius: var(--r2);
+  background: var(--surface); color: var(--fg);
+  font-family: inherit; font-size: var(--fs6); font-weight: 700; cursor: pointer;
+}
+.td-mark.is-sel { border-color: var(--accent); border-width: 2px; background: var(--info-bg); color: var(--info-fg); }
+
+/* 「무엇이 없어서 비었나」 — ⚠️ 빈 화면을 예쁘게 만들지 않는다 (대전제 0) */
+.td-note { background: var(--warn-bg); color: var(--warn-fg); border-radius: var(--r1);
+           padding: var(--s2) var(--s3); font-size: var(--fs3); }
+
+/* 접기 — 탭 대신이다. **펴도 다시 조회하지 않는다** (§속도 1) */
+.td-fold { border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface); }
+.td-foldhd { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center;
+             min-height: var(--tap); padding: var(--s2) var(--s3);
+             font-size: var(--fs4); font-weight: 600; cursor: pointer; list-style: none; }
+.td-foldhd::-webkit-details-marker { display: none; }
+.td-foldhd::before { content: "▸"; color: var(--mute); }
+.td-fold[open] > .td-foldhd::before { content: "▾"; }
+/* ⚠️⚠️ 처음에 globals 의 `.accbd` 를 빌려 썼다가 **오류 없이 그냥 안 보였다.**
+ *    그 클래스는 `display:none` 이 기본이고 `.acc.is-open > .accbd` 일 때만 펴진다 —
+ *    `<details>` 로 접는 여기서는 그 조건이 영영 안 맞는다. 화면 검사도 「안 보이는 것」은
+ *    잴 것이 없어 0건으로 지나갔다. **한 이름은 한 뜻만 가진다** — 그래서 내 이름을 쓴다.
+ *    (`scripts/check-screen-today.mjs` 5부가 「펴면 진짜 보이나」를 브라우저로 잰다) */
+.td-foldbd { padding: var(--s3); border-top: 1px solid var(--line); }
+
+.td-kv { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; padding: var(--s1) 0; }
+
+/* ⚠️ 좁은 화면 규칙은 **맨 끝**에 둔다 — 뒤에 같은 특정도 규칙이 오면 밀린다 (오류 100) */
+@media (min-width: 901px) {
+  .td-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .td-side { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}

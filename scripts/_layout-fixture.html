@@ -80,6 +80,28 @@
 .xwrap { overflow-x: auto; height: 1400px; border: 1px solid #999; }
 .xwrap .xstk { position: sticky; top: 0; background: #ddd; }
 
+/* ⚠️ 잘못 17 — 잘못 16 과 **똑같은 사고인데 상자가 키가 작다**.
+       `.calwrap`·`.snaprow` 가 바로 이 모양이다 (실측: 진짜 globals.css 로
+       `.calwrap > .cal > .calday.hdstick` 을 만들고 페이지를 700px 내리니
+       th 의 top 이 73 → **-627** · 상자 높이 461px · boxScrollable 0).
+       검사 ⑨ 가 「상자 높이가 화면의 60% 를 넘을 때만」 보던 탓에 461px < 540px 라
+       **그냥 빠져나갔다.** 키가 크든 작든 상자가 안 구르면 머리는 안 붙는다.
+       ⚠️ 여기에 height 를 주지 마라 — 키가 작아야 이 사고가 재현된다 */
+.swrap { overflow-x: auto; border: 1px solid #999; }
+.swrap .sstk { position: sticky; top: 0; background: #ddd; }
+
+/* ⚠️ 잘못 18 — 오류 107 을 `font:` 줄임말에 **토큰으로** 숨겼다.
+       C9 는 「글씨 크기는 토큰만 써라」라고 시킨다. 그 말대로 쓰면 크기를 리터럴로만
+       물어보던 검사가 글꼴 목록을 못 갈라 내 C10 이 눈을 감았다 (실측 「C10 0건」).
+       규칙을 지키며 쓰는 순간 검사가 눈을 감으면 그 검사는 없는 것이다 */
+:root { --fs3: 13px; }
+.fsvar { font: 700 var(--fs3)/1.4 Menlo, monospace; }
+
+/* ⚠️ 잘못 19 — 고정폭 글꼴을 **토큰으로** 걸었다. 값을 실제 글꼴 목록으로 풀지 않으면
+       C10 이 `var(--code-font)` 라는 글자만 보고 지나간다 */
+:root { --code-font: ui-monospace, Menlo, monospace; }
+.monotok { font-family: var(--code-font); }
+
 /* 아래는 화면을 실제로 깨뜨리는 자리들 */
 body { margin: 0; font-family: sans-serif; font-size: 14px; }
 .box  { width: 300px; border: 1px solid #999; }          /* 스크롤 상자가 아니다 → 표가 삐져나온다 */
@@ -129,6 +151,10 @@ body { margin: 0; font-family: sans-serif; font-size: 14px; }
 <!-- ⑨-b 조상이 overflow-x:auto 라 **세로도 auto** 로 계산되어 붙박이를 가두는데,
      그 상자는 세로로 안 굴러 머리가 그냥 흘러 나간다 (오류 하나 안 난다) -->
 <div class="xwrap"><div class="xstk">⑨-b 붙는 줄 — 가로 스크롤 상자에 갇혔다</div><p>표 자리</p></div>
+
+<!-- ⑨-c 잘못 16 과 같은 사고인데 **상자 키가 작다** (.calwrap·.snaprow 모양).
+     461px 짜리 상자라 「화면의 60% 넘을 때만」 보던 ⑨ 를 그냥 빠져나갔다 -->
+<div class="swrap"><div class="sstk">⑨-c 붙는 줄 — 키 작은 가로 스크롤 상자에 갇혔다</div><p>달력 자리</p></div>
 
 <!-- 달력 — 맨 1fr 이라 부모 밖으로 나간다 -->
 <div class="cal7"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토요일이 길다</div></div>

@@ -170,6 +170,11 @@ await sec("■ ② 화면이 `lib/` 을 지나는가 — 제 손으로 세지 �
      "화면이 lib 을 안 지나면 그날부터 규칙이 두 벌이다");
   for (const want of ["session", "progress", "todo", "queue"])
     ok(`lib/${want}.js 를 부른다`, lib.includes(want));
+  // ⚠️ 마감 전·후 글자는 `lib/close.js` 한 벌이다 — 베껴 적으면 lib 을 고치는 날 여기만 옛 글을 말한다
+  ok("마감 전·후 글자를 지어내지 않는다 (lib/close.js 의 PREPARING·NOTHING 을 쓴다)",
+     /from\s+["']\.\.\/lib\/close\.js["']/.test(code.page) &&
+     /\{PREPARING\}/.test(code.page) && /\{NOTHING\}/.test(code.page) &&
+     !/"아직 정리 중이에요"|'아직 정리 중이에요'/.test(code.page));
 
   // ⚠️ 같은 판단을 다시 짜는 자리 — **이름으로 잡는다.** lib 에 있는 셈을 화면이 또 만들면 여기서 걸린다
   const 두벌 = [
@@ -182,10 +187,11 @@ await sec("■ ② 화면이 `lib/` 을 지나는가 — 제 손으로 세지 �
        `${무엇} 는 lib 의 것을 ${부름} 로 부르기만 한다`);
 
   // v2. 함수도 「이미 있는 것」이다 — 부르는지 본다
+  // ⚠️ **주석을 지운 코드**로 본다 — 「왜 안 쓰는지」를 주석에 적었다고 빨개지면 그 설명을 지우게 된다
   for (const f of ["v2.book_progress", "v2.memo_only_streak", "v2.book_stop", "v2.progress_open_days"])
-    ok(`${f}() 를 부른다`, src.read.includes(f), "DB 에 이미 있는 판단을 화면이 다시 짜면 두 벌이다");
+    ok(`${f}() 를 부른다`, code.read.includes(f), "DB 에 이미 있는 판단을 화면이 다시 짜면 두 벌이다");
   ok("v2.session_count() 를 안 부른다",
-     !src.read.includes("v2.session_count"),
+     !code.read.includes("v2.session_count"),
      "lib/session.js 가 「그건 join 이라 이력 두 줄이 겹치면 하루를 두 번 센다」고 못 박았다 — 8회 반이 16회가 된다");
 });
 
@@ -228,7 +234,7 @@ await sec("■ ⑤ 절 ㊶ — 진도 체크 한 줄과 크론 한 줄", async (
   ok("그 줄에 「끄기」가 있다", /끄기/.test(code.parts) && /turnProgressEditOff/.test(code.parts));
   ok("열려 있을 때만 뜬다", /f\.editOpen && <EditOpenLine/.test(code.page));
   ok("「며칠째」를 화면에서 세지 않는다 (v2.progress_open_days 가 센다)",
-     !/Date\.now\(\)|new Date\(\)/.test(code.parts) && src.read.includes("v2.progress_open_days"),
+     !/Date\.now\(\)|new Date\(\)/.test(code.parts) && code.read.includes("v2.progress_open_days"),
      "세어 나오는 값은 저장도 재계산도 하지 않는다 (원칙 5)");
   ok("크론 줄이 **안 돌 때만** 뜬다",
      /gap <= 2\) return null/.test(code.page),
@@ -298,7 +304,11 @@ const 상한 = { 조회: 20, 직렬: 5 };
  *    화면에서 그것을 다시 짜면 「할 일이 무엇인가」가 두 벌이 된다(원칙 1) — 그래서 안 짰다.
  *    `lib/todo.js` 가 겹쳐 묻게 고쳐지면 **이 숫자를 지워라.** 보고의 needsDb 에 적어 두었다.
  */
-const 아는_초과 = { todos: 6 };
+const 아는_초과 = { todos: 4 };   // 실측 9단 − 상한 5. 고쳐지면 이 줄을 지워라
+
+/** ⚠️ **코드로는 못 고치는 것** — 검사가 초록이어도 이게 남아 있으면 화면이 제대로 안 산다.
+ *    `scripts/check-loginpage.mjs` 와 같은 손씨다. 이 줄들을 지우지 마라. */
+const 막힌것 = [];
 
 let dbURL = null;
 try { dbURL = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)?.[1]?.trim() ?? null; }
@@ -308,6 +318,9 @@ if (!dbURL) {
   console.log("\n■ ⚠️ DATABASE_URL 이 없어 **얕은 검사만** 돌았다");
   console.log("   조회 수·접근 규칙·SQL 은 **한 건도 못 봤다.** 초록을 믿지 마라.");
 } else {
+  // ⚠️ `app/_home/read.js` 는 `process.env.DATABASE_URL` 을 본다. 검사만 `.env.local` 을 읽으면
+  //    「DATABASE_URL 이 없다」로 8건이 빨개진다 — 화면 탈이 아니라 **검사 탈**이다.
+  process.env.DATABASE_URL ??= dbURL;
   const { Client } = await import("pg");
   const conn = async () => {
     const c = new Client({ connectionString: dbURL, ssl: { rejectUnauthorized: false },
@@ -345,21 +358,31 @@ if (!dbURL) {
   await sec("■ ⑪ 조회 수와 직렬 단 — **진짜로 센다** (상한 조회 20 · 직렬 5)", async () => {
     const t0 = Date.now();
     const frame = await R.readFrame(P.원장);
+    const 첫그림 = Date.now() - t0;
     ok(`맨 위 줄을 읽었다 (${frame.why || "ok"})`, frame.ok, frame.why);
     const today = frame.value?.today ?? null;
-    const [waiting, calls, todos] = await Promise.all([
-      R.readWaiting(P.원장), R.readCalls(P.원장, today), R.readTodos(P.원장, today),
+    const [waiting, sessions, books, todos] = await Promise.all([
+      R.readWaiting(P.원장), R.readSessions(P.원장, today),
+      R.readBooks(P.원장), R.readTodos(P.원장, today),
     ]);
     const ms = Date.now() - t0;
-    잰것 = { frame, waiting, calls, todos, today };
+    잰것 = { frame, waiting, sessions, books, todos, today };
 
-    const 문 = { frame, waiting, calls, todos };
+    const 문 = { frame, waiting, sessions, books, todos };
     const 합 = Object.values(문).reduce((s, x) => s + x.n, 0);
     for (const [k, x] of Object.entries(문))
       ok(`문 「${k}」 가 읽혔다 (조회 ${x.n})`, x.ok, x.why);
 
     console.log(`   · 문마다 조회 — ${Object.entries(문).map(([k, x]) => `${k} ${x.n}`).join(" · ")}`);
-    console.log(`   · 걸린 시간 ${ms}ms (합격선 500ms — 원장님 말씀 「2초면 진짜 오래 걸린다」)`);
+    console.log(`   · 걸린 시간 — 첫 그림 ${첫그림}ms · 마지막 카드까지 ${ms}ms`);
+    // ⚠️ 합격선 0.5초는 **첫 그림**의 것이다. 배지는 뒤에 채우기로 했으니(계획 「속도」 2)
+    //    마지막 카드까지의 시간은 **재서 말하되 막지는 않는다.** 막으면 배지를 빼는 쪽으로 도망가게 된다.
+    ok(`첫 그림이 500ms 안이다 (${첫그림}ms)`, 첫그림 <= 500,
+       "원장님 말씀 「2초면 진짜 오래 걸린다」 — 첫 그림은 맨 위 줄 하나만 기다린다");
+    if (ms > 500)
+      console.log(`      ⚠️ 마지막 카드까지 ${ms}ms 다. 실측으로 느린 자리는 **교재 카드**이고, ` +
+                  "까닭은 접근 규칙이 켜지면 v2.book_progress 가 30→403ms · v2.memo_only_streak 가 " +
+                  "86→259ms 로 느려지기 때문이다 (같은 SQL·같은 76줄). 보고의 needsDb 에 적었다.");
 
     ok(`조회 합이 ${상한.조회} 안이다 (${합})`, 합 <= 상한.조회,
        "배지 숫자 때문에 표 열댓 개를 전수 재계산하면 여기서 걸린다");
@@ -367,8 +390,9 @@ if (!dbURL) {
        "화면을 먼저 그리고 배지는 뒤에 채운다");
 
     // ⚠️ 한 문 안의 조회는 **차례로** 돈다 — 그래서 그 문의 조회 수가 곧 직렬 단이다.
-    //    calls·todos 는 맨 위 줄의 `today` 를 기다리므로 frame 을 앞에 더한다.
-    const 단 = { waiting: waiting.n, calls: frame.n + calls.n, todos: frame.n + todos.n };
+    //    sessions·todos 는 맨 위 줄의 `today` 를 기다리므로 frame 을 앞에 더한다.
+    const 단 = { waiting: waiting.n, books: books.n,
+                 sessions: frame.n + sessions.n, todos: frame.n + todos.n };
     for (const [k, d] of Object.entries(단)) {
       const 봐줌 = 아는_초과[k] ?? 0;
       ok(`문 「${k}」 직렬 ${d}단 (상한 ${상한.직렬}${봐줌 ? ` +아는 초과 ${봐줌}` : ""})`,
@@ -380,13 +404,12 @@ if (!dbURL) {
 
   await sec("■ ⑫ 접근 규칙 — 학생·학부모로 열면 원장 자료가 안 나오는가 (진짜로 열어 본다)", async () => {
     const 원장판 = 잰것?.waiting?.value?.sheet?.allN ?? null;
-    const 오늘 = 잰것?.today ?? null;
     ok(`원장은 판을 본다 (${원장판}줄)`, 원장판 != null && 원장판 > 0,
        "원장이 0줄이면 아래 「학생은 0줄」이 초록이어도 아무 뜻이 없다");
 
     for (const who of ["학생", "학부모"]) {
       const w = await R.readWaiting(P[who]);
-      const c = await R.readCalls(P[who], 오늘);
+      const c = await R.readBooks(P[who]);
       ok(`${who} 는 판을 한 줄도 못 본다 (${w.ok ? w.value.sheet.allN : w.why})`,
          w.ok && w.value.sheet.allN === 0,
          "⚠️ 마감 안 한 판이 밖으로 새는 자리 — 사고 #7 이 바로 이것이다");
@@ -394,12 +417,50 @@ if (!dbURL) {
          w.ok && w.value.marks.length === 0);
       ok(`${who} 는 남의 아이 교재를 못 본다 (${c.ok ? c.value.books.length : c.why} 줄)`,
          c.ok && c.value.books.every((b) => !b.studentName || b.studentName.length > 0) &&
-         c.value.books.length < (잰것?.calls?.value?.books?.length ?? 0),
+         c.value.books.length < (잰것?.books?.value?.books?.length ?? 0),
          "원장이 보는 것보다 적어야 한다");
       ok(`${who} 는 수강료를 못 본다 (재원생 ${c.ok ? c.value.fee.activeN : c.why}명으로 보인다)`,
          c.ok && c.value.fee.activeN <= 1,
          "학부모가 학원 전체 재원생 수를 셀 수 있으면 새는 것이다");
     }
+  });
+
+  await sec("■ ⑬-b 쓰는 자리가 **진짜로 써지는가** (트랜잭션 안에서 하고 되돌린다)", async () => {
+    const c = await conn();
+    /** ⚠️ 「막힘」을 통과로 세면 안 된다 — **권한이 없어서** 막힌 것과 **접근 규칙이** 막은 것은 다르다.
+     *    권한이 없으면 아무도 못 쓰는데 검사는 초록으로 지나간다 (check-v2-rls 가 겪은 자리). */
+    const 써본다 = async (sql, params = []) => {
+      await c.query("begin");
+      await c.query("select set_config('request.jwt.claims',$1,true)",
+                    [JSON.stringify({ sub: P.원장, role: "authenticated" })]);
+      await c.query("set local role authenticated");
+      let out = { n: 0, err: null };
+      try { const r = await c.query(sql, params); out.n = r.rowCount ?? 0; }
+      catch (e) { out.err = e.message.split("\n")[0]; }
+      finally { await c.query("rollback"); }
+      return out;
+    };
+    try {
+      const SQLS = Object.fromEntries([...src.actions.matchAll(/const (\w+) = `([^`]+)`/g)].map((m) => [m[1], m[2]]));
+
+      // 카드 차례 — 여기는 권한도 규칙도 열려 있어야 한다
+      const ord = await 써본다(SQLS.ORDER, [["books", "fee"]]);
+      ok(`카드 차례를 원장이 저장할 수 있다 (${ord.err ?? ord.n + "줄"})`, !ord.err && ord.n === 1,
+         "권한이나 규칙이 막으면 ▲▼ 를 눌러도 다음에 열 때 도로 돌아간다");
+
+      // 진도 체크 끄기 — **먼저 켜 놓고** 꺼 본다 (이미 꺼져 있으면 0줄이라 뜻이 없다)
+      const onoff = await 써본다(
+        "update v2.progress_edit set is_open = true where scope = 'academy'");
+      if (onoff.err && /permission denied|권한/.test(onoff.err)) {
+        막힌것.push(
+          "v2.progress_edit 에 authenticated 의 UPDATE 권한이 없다 (실측: SELECT 뿐) → " +
+          "절 ㊶ 의 「끄기」 단추가 눌러도 **안 꺼진다.** 규칙(staff_all)은 이미 있으니 권한 한 줄만 모자라다. " +
+          "→ grant update on v2.progress_edit to authenticated;");
+        console.log("   · 진도 체크 끄기 — ⚠️ 권한이 없어 못 쓴다. 아래 「코드로는 못 고치는 것」 참고");
+      } else {
+        ok(`진도 체크를 원장이 켜고 끌 수 있다 (${onoff.err ?? onoff.n + "줄"})`, !onoff.err && onoff.n === 1);
+      }
+    } finally { await c.end(); }
   });
 
   await sec("■ ⑬ 화면이 한 글자도 못 쓰는가 (읽기 문으로 쓰기를 해 본다)", async () => {
@@ -413,6 +474,21 @@ if (!dbURL) {
   });
 }
 
-console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${fail}`);
+/* ⚠️ 코드 밖에 있는 것 — 이 화면은 **지금 아예 못 열린다.** 지어낸 말이 아니라 실측이다 */
+if (!/NEXT_PUBLIC_SUPABASE_ANON_KEY|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/.test(
+      (() => { try { return readFileSync(".env.local", "utf8"); } catch { return ""; } })()))
+  막힌것.push(
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY 가 없다 → 문지기(middleware)가 **모든 주소를 /login 으로 되돌린다.** " +
+    "원장님은 대시보드를 아예 못 보신다 (화면 탈이 아니라 환경변수 탈이다)");
+if (!/"pg"\s*:/.test(readFileSync("package.json", "utf8").split('"dependencies"')[1]?.split("}")[0] ?? ""))
+  막힌것.push(
+    "pg 가 package.json 의 devDependencies 에 있다 → Vercel 에서 화면이 DB 에 못 붙을 수 있다. " +
+    "⚠️ 확인 안 됨 — 크론도 같은 자리라 크론이 도는 것이 확인되면 이 줄은 지워도 된다");
+
+console.log("\n■ 코드로는 못 고치는 것 (검사가 초록이어도 아래가 남으면 화면이 제대로 안 산다)");
+막힌것.length ? 막힌것.forEach((x) => console.log(`   ⚠️ ${x}`))
+             : console.log("   ✅ 없음");
+
+console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${fail} · 못 고치는 것 ${막힌것.length}건`);
 if (!dbURL) console.log("   ⚠️ DB 없이 돌았다 — 조회 수·접근 규칙은 안 봤다");
 process.exit(fail ? 1 : 0);

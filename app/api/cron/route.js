@@ -361,19 +361,38 @@ async function stepPurgeFiles(ctx) {
       ...(밝힘 ? { 밝힘 } : {}),
     };
 
-  const r = await tx(ctx.db, () => purgeFiles(ctx.db, ctx.today, { due }));
-
-  // ⚠️⚠️ 지우개에 넘기는 것은 「기한이 온 파일 전부」가 **아니다.**
-  //    자료함 묶음에 걸린 파일은 줄이 일부러 안 내려간다(lib/purge.js 의 exceptRow).
-  //    그 경로를 버킷에서 지우면 DB 는 초록인 채 **다른 아이 화면만 깨진다.**
-  //    → **정말로 줄이 내려간 것**만 다시 읽어 그 경로를 넘긴다.
-  const st = await ctx.db.query(SQL.fileState, [due.map((d) => d.id)]);
-  const 내려간 = new Set((st.rows ?? []).filter((x) => x.state === "purged").map((x) => x.id));
-  const 지울경로 = due.filter((d) => 내려간.has(d.id)).map((d) => d.path);
+  // ⚠️⚠️ **버킷 먼저 → DB 나중.** 앞판은 이 차례가 바로 위 주석과 **정반대**였다(DB 먼저).
+  //    그러면 지우개가 한 번 503 이 나는 날, 줄은 이미 무덤값(`purged:…`)으로 덮인 뒤인데
+  //    버킷 파일은 그대로 남는다 — **그 파일이 어디 있는지 아는 유일한 값이 사라진다.**
+  //    되돌릴 길이 없다. 이 차례면 지우개가 터져도 DB 는 한 글자도 안 바뀌어 **다음 날 다시 돈다.**
+  // ⚠️ 지우개에 넘기는 것은 「기한이 온 파일 전부」가 **아니다.**
+  //    자료함 묶음에 걸린 파일은 줄이 일부러 안 내려간다. 그 경로를 버킷에서 지우면
+  //    DB 는 초록인 채 **다른 아이 화면만 깨진 링크가 된다.**
+  //    → 그 판단은 `filesDue` 가 준 `in_bin` **한 곳**에서 온다. 여기서 다시 세지 않는다 (원칙 1)
+  // ⚠️⚠️ 그 칸이 참·거짓으로 안 오면(칸이 빠지거나 null 로 오는 날) **한 장도 안 지우고 운다.**
+  //    「없으면 자료함이 아니겠지」로 읽으면 남의 안내문을 버킷에서 지운다. 모르면 안 지운다(대전제 0).
+  //    조용히 0 으로 넘어가도 안 된다 — 줄만 내려가 버킷 파일이 미아가 된다
+  if (due.some((d) => typeof d.in_bin !== "boolean"))
+    return {
+      ok: false, 기한온것: due.length, 버킷에남은것: due.length, 파기된줄: 0,
+      why: "⚠️ 기한 온 파일 질문이 `in_bin` 을 참·거짓으로 안 준다 (lib/purge.js 의 filesDueSql) — "
+         + "자료함 묶음에 걸린 파일을 가릴 수가 없어 **한 장도 안 지웠다**",
+      ...(밝힘 ? { 밝힘 } : {}),
+    };
+  const 지울경로 = due.filter((d) => d.in_bin === false).map((d) => d.path);
   const 지움 = 지울경로.length ? await ctx.removeStorage(지울경로) : 0;
 
+  const r = await tx(ctx.db, () => purgeFiles(ctx.db, ctx.today, { due }));
+
+  // ⚠️ 「버킷 먼저」가 사 온 **새 위험** — 버킷에서는 지웠는데 줄이 안 내려간 것.
+  //    (읽은 뒤에 자료함 묶음에 붙으면 난다.) DB 는 「살아 있다」인데 파일이 없어
+  //    누르면 404 인데 오류는 아무 데도 안 남는다 → **세어서 판을 붉힌다.**
+  const st = await ctx.db.query(SQL.fileState, [due.map((d) => d.id)]);
+  const 내려간 = new Set((st.rows ?? []).filter((x) => x.state === "purged").map((x) => x.id));
+  const 어긋난 = due.filter((d) => d.in_bin === false && !내려간.has(d.id)).length;
+
   return {
-    ok: r.blocked.length === 0,
+    ok: r.blocked.length === 0 && 어긋난 === 0,
     기한온것: due.length,
     // ⚠️ **문장 수가 아니라 줄 수다.** 문장 수는 파일이 1장이든 500장이든 늘 같아서
     //    몇 장이 진짜로 파기됐는지 보고만 봐서는 알 길이 없었다
@@ -383,6 +402,9 @@ async function stepPurgeFiles(ctx) {
     // ⚠️ 경로에 아이 이름이 들어갈 수 있다 — **개수만** 내놓는다
     버킷에서지움: 지움,
     버킷에남은것: due.length - 지울경로.length,
+    어긋난줄: 어긋난,
+    ...(어긋난 ? { why: `⚠️ 버킷에서는 지웠는데 줄이 안 내려간 것이 ${어긋난}장이다 — `
+      + "DB 는 「살아 있다」인데 파일이 없어 누르면 404 다. 자료함 묶음을 확인해라" } : {}),
     ...(밝힘 ? { 밝힘 } : {}),
   };
 }

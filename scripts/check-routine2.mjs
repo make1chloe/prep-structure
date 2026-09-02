@@ -633,8 +633,17 @@ console.log("\n■ ⑪ 판단이 한 곳뿐인가 — 파일을 훑는다");
     const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
       : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
   const files = walk(".").filter((f) => !f.endsWith("lib/routine.js") && !f.endsWith("check-routine2.mjs"));
-  const cursorers = files.filter((f) => /v2\.cursor_of/.test(readFileSync(f, "utf8")));
-  ok("커서 SQL 을 lib/routine.js 밖에서 부르지 않는다", cursorers.length === 0, cursorers.join(" "));
+  // ⚠️ **주석은 빼고 본다.** 안 빼면 「커서는 v2.cursor_of 한 벌이 정한다」고 **적어 둔 것**이
+  //    위반으로 잡힌다 — 실제로 셋 중 둘이 그랬다.
+  const code = (f) => readFileSync(f, "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ \t]*\/\/.*$/gm, " ");
+  // ⚠️ **DB 함수를 부르는 것은 위반이 아니다.** `v2.cursor_of` 가 곧 그 한 벌이다(원칙 1).
+  //    막아야 하는 것은 **커서 차례를 JS·SQL 로 다시 만드는 것** — 그러면 규칙이 두 벌이 된다.
+  //    (계획 ㊻: 정렬 셋 「대단원 차례 → 갈래 → 줄 차례」 중 하나만 빠져도 조용히 틀린 차례로 나간다)
+  const REDO = /min\s*\(\s*[\w.]*sort\s*\)\s*over|is_workbook\s+then\s+1|ch_sort/i;
+  const redoers = files.filter((f) => REDO.test(code(f)));
+  ok("커서 차례를 **다시 만드는** 자리가 lib/routine.js 밖에 없다", redoers.length === 0,
+     redoers.join(" ") + " — DB 함수를 부르는 것은 괜찮다. 차례를 다시 짜는 것이 두 벌이다");
   const src = readFileSync("lib/routine.js", "utf8");
   ok("쪽 셈을 다시 만들지 않는다 — chunk.js 의 pageCount 를 부른다",
      !/page_end\s*-\s*.*page_start|pageEnd\s*-\s*.*pageStart/.test(src));

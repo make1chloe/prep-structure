@@ -77,8 +77,15 @@ register("data:text/javascript," + encodeURIComponent(`
   const ROOT=${JSON.stringify(ROOT)};
   export function resolve(spec, ctx, next){
     if (spec.startsWith("@/")) return next(new URL(spec.slice(2) + ".js", ROOT).href, ctx);
-    // 노드는 next 의 하위 이름을 못 푼다 — 확장자를 붙여 준다
-    if (/^next\/(headers|cache|navigation|server)$/.test(spec)) return next(spec + ".js", ctx);
+    // 노드는 next 의 하위 이름을 못 푼다 — 확장자를 붙여 준다.
+    // ⚠️ 여기서 정규식을 쓰지 마라 — 이 글은 template literal 안이라 역슬래시가 먹힌다
+    if (["next/headers","next/cache","next/navigation","next/server"].includes(spec))
+      return next(spec + ".js", ctx);
+    // 옆 파일을 확장자 없이 부르는 것도 풀어 준다 — 번들러는 되고 노드는 안 된다.
+    // ⚠️ 이 글은 template literal 안이다. backtick 을 쓰면 문자열이 끊겨 검사가 통째로 죽는다
+    if (spec.startsWith(".") && !spec.endsWith(".js")) {
+      try { return next(spec + ".js", ctx); } catch { /* 없으면 원래대로 */ }
+    }
     return next(spec, ctx);
   }
 `));
@@ -249,6 +256,7 @@ const TODAY = "2026-09-15";
 
 /** PostgREST 흉내 — 이어 부르기(chain)를 받고 마지막에 줄을 돌려준다 */
 function 가짜Supabase(rows, opts = {}) {
+  const rows_ = rows;
   let hits = 0;
   const 표 = (t) => {
     const st = { filters: {}, single: false };
@@ -273,7 +281,20 @@ function 가짜Supabase(rows, opts = {}) {
   };
   const sb = {
     from: (t) => { hits++; return 표(t); },
-    rpc: (f) => { hits++; return Promise.resolve({ data: f === "today" ? (opts.today ?? TODAY) : null, error: null }); },
+    rpc: (f, args = {}) => {
+      hits++;
+      if (f === "today") return Promise.resolve({ data: opts.today ?? TODAY, error: null });
+      // ⚠️ 명단은 v2.student_classes() 한 벌을 지난다 (자동 검사 ⑮) — 가짜도 그 문으로만 준다
+      if (f === "student_classes") {
+        const on = String(args.p_on ?? "");
+        const rows = (rows_.class_member ?? [])
+          .filter((m) => m.student_id === args.p_student &&
+                         m.from_date <= on && (m.to_date == null || m.to_date >= on))
+          .map((m) => ({ class_id: m.class_id }));
+        return Promise.resolve({ data: rows, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    },
   };
   return {
     auth: { getUser: async () => ({ data: { user: { id: opts.uid ?? "P1" } }, error: null }) },
@@ -354,9 +375,12 @@ await sec("\n■ ⑥ 달력 — 계획 ⑯ 세 가지를 지키는가", async ()
 
   const 칸 = new Map(m.months.flatMap((mo) => mo.days).map((d) => [d.date, d]));
 
-  ok("지난 것은 **재원 기간만** (9/5 등록 → 9/4 는 안 그린다)",
-     칸.get("2026-09-04")?.state === "out" && 칸.get("2026-09-04")?.attend == null,
-     "퇴원생 학부모가 계속 보면 개인정보 파기와 부딪힌다");
+  // ⚠️ 9/5 등록 → **지난 창 첫날(7/1)에는 반이 없었다** → 그 앞 달은 통째로 안 그린다
+  ok("지난 것은 재원 기간만 — 지난 달은 아예 안 그린다",
+     m.from === "2026-09-01" && (m.limits ?? []).some((t) => /등록 전/.test(t)),
+     `from=${m.from} — 퇴원생 학부모가 계속 보면 개인정보 파기와 부딪힌다`);
+  ok("등록 전 날짜는 달력에서 out 이다 (9/1 화 = 수업 요일이지만 등록 전)",
+     칸.get("2026-09-01")?.attend == null);
   ok("마감한 수업일은 출결이 보인다 (9/9 수)", 칸.get("2026-09-09")?.state === "closed");
   ok(`마감 안 한 수업일이 「${DAY_OPEN}」 이다 (9/11 금)`,
      칸.get("2026-09-11")?.state === "open" && 칸.get("2026-09-11")?.label === DAY_OPEN,

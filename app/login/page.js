@@ -17,7 +17,10 @@
  *    · `position:fixed` 스크롤 잠금 · `history.pushState` · `createPortal` · `alert`/`confirm` **안 쓴다**
  */
 import { useActionState } from "react";
-import { signIn, signOut } from "./actions";
+import { signIn } from "./actions";
+// ⚠️ 로그아웃 단추는 **앱 전체에 한 벌뿐이다** (원칙 1). 여기에 다시 짓지 마라 —
+//    두 벌이 되면 한쪽만 고쳐져, `/parent`·`/me` 의 닫는 길이 조용히 달라진다.
+import LogoutButton from "../logout-button";
 
 const 처음 = { error: "", id: "" };
 
@@ -119,14 +122,13 @@ export default function LoginPage() {
         </p>
       </details>
 
-      {/* ⚠️ 다른 화면(`/me`·`/parent`)에 아직 로그아웃 단추가 없다. 계정이 꼬인 폰의 유일한 탈출구다.
-          · **역할을 못 읽은 사람**은 이제 문지기가 여기 세워 두므로 이 단추까지 온다 (404 에 안 갇힌다).
-          · **역할이 제대로 있는 사람**은 여전히 제 첫 화면으로 되돌아가서, 홈 화면에 깐 앱에서는
-            `/login?switch=1` 을 칠 주소창이 없어(대전제 10) **계정을 못 바꾼다.**
-            그 자리는 `/me`·`/parent` 에 로그아웃 단추가 들어가야 풀린다 — 그 화면 담당 몫이다. */}
-      <form action={signOut} className="out">
-        <button type="submit">이 기기에 다른 사람이 로그인되어 있나요? · 로그아웃</button>
-      </form>
+      {/* ⚠️ 계정이 꼬인 폰의 탈출구.
+          · **역할을 못 읽은 사람**은 문지기가 여기 세워 두므로 이 단추까지 온다 (404 에 안 갇힌다).
+          · **역할이 제대로 있는 사람**은 여기까지 못 온다 — 문지기가 `/login` 에서 제 첫 화면으로
+            되돌린다(303, 실측). 그래서 2026-09-02 에 `/parent`·`/me` 에도 **같은 단추 한 벌**을
+            놓았다 (`app/logout-button.js`). 두 화면 중 하나에서 이 단추를 빼면 그 집은 다시
+            계정을 못 바꾼다 — `scripts/check-loginpage.mjs` ⑬ 이 그 자리에서 잡는다. */}
+      <LogoutButton label="이 기기에 다른 사람이 로그인되어 있나요? · 로그아웃" />
     </main>
   );
 }
@@ -168,9 +170,8 @@ html,body{background:#ffffff}
 .help p{margin:.5rem 0 0}
 .help .why{color:#4a5561;font-size:.88rem}
 .help code{background:#eef1f5;border-radius:.3rem;padding:.05rem .35rem;font-size:.95em}
-.out{margin-top:2rem;text-align:center}
-.out button{background:none;border:0;color:#6b7683;font-size:.85rem;text-decoration:underline;
-  cursor:pointer;padding:.6rem;min-height:44px}
+/* ⚠️ 로그아웃 단추 모양은 여기 없다 — app/logout-button.js 한 벌뿐이다 (원칙 1).
+   여기에 .out 을 다시 만들면 그 화면만 모양이 달라진다. */
 /* ⚠️ 폰(손가락)에서 16px 밑으로 내려가면 사파리가 화면을 확대하고, 닫아도 확대가 남는다 */
 @media (pointer:coarse){
   .card input{font-size:17px}
@@ -188,6 +189,5 @@ html,body{background:#ffffff}
   .err{background:#3a1a17;color:#ffb9b0;border-color:#6b2b24}
   .help{border-top-color:#28313b}
   .help code{background:#232c36}
-  .out button{color:#8d99a6}
 }
 `;
