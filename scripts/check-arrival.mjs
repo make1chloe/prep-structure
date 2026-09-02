@@ -299,8 +299,21 @@ console.log("\n■ 반이 없는 날 · 휴강 · 반이 둘인 날");
       weekdays: [3], start_time: "17:00:00", end_time: null },
   ] });
   const c = await classOfDay(db, { studentId: "S1" });
-  ok("반이 둘이면 **가장 이른 시각의 반**에 찍는다", c.pick?.classId === "K2", JSON.stringify(c.pick));
-  ok("나머지를 숨기지 않고 others 로 밝힌다", c.others.length === 1 && c.others[0].classId === "K1");
+  // ⚠️⚠️ **원장님 2026-09-03 정정** — 「학생에게 출결하면서 **바로 연달아 고르게** 해」.
+  //    예전에는 **가장 이른 반**으로 짐작했다. 그러면 7시 특강만 오는 날에도 5시 정규에 찍혀
+  //    **특강 회차가 안 차고 보강이 잘못 뜬다.** 이제 앱이 안 고른다.
+  ok("⚠️⚠️ 반이 둘이면 **앱이 안 고른다** (아이가 고른다)", c.pick === null, JSON.stringify(c.pick));
+  ok("물어야 한다고 밝힌다", c.mustPick === true);
+  ok("고를 목록을 **둘 다** 준다", c.all.length === 2
+     && c.all.map((x) => x.classId).sort().join() === "K1,K2", JSON.stringify(c.all.map((x) => x.classId)));
+  ok("나머지를 숨기지 않고 others 로도 밝힌다", c.others.length === 1 && c.others[0].classId === "K1");
+
+  // ⚠️ 아이가 고르면 **그 반으로** 선다 — 그리고 **목록에 없는 반은 안 받는다**
+  const v1 = await arrivalView(db, { studentId: "S1", classId: "K1" });
+  ok("아이가 고른 반으로 선다", v1.cls?.classId === "K1" && v1.mustPick === false, JSON.stringify(v1.cls));
+  const v2 = await arrivalView(db, { studentId: "S1", classId: "없는반" });
+  ok("⚠️ **목록에 없는 반은 안 받는다** (남의 반 출결을 못 만든다)",
+     v2.cls === null && v2.mustPick === true, JSON.stringify(v2.cls));
 }
 {
   const db = fakeDb({ sched: [
@@ -584,6 +597,17 @@ if (!url) {
 
     await c.end();
   }
+}
+
+/* ══ 고르는 길이 화면까지 이어져 있나 (원장님 2026-09-03) ═══════════════════
+ * ⚠️ lib 이 되물어도 **화면이 그 답을 안 보내면** 아이는 영영 못 고른다.
+ *    이음이 끊기면 오류가 안 나고 「반이 둘입니다」만 계속 뜬다.                     */
+{
+  const 코드만 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  const api = 코드만(readFileSync("app/api/arrival/route.js", "utf8"));
+  ok("⚠️ 찍는 길이 **아이가 고른 반**을 넘긴다 (classId)", /classId:\s*body\?\.classId/.test(api),
+     "안 넘기면 아이가 골라도 lib 이 못 받아 계속 되묻는다");
+  ok("⚠️ 보는 길도 고른 반을 받는다 (?class=)", /searchParams\.get\("class"\)/.test(api));
 }
 
 console.log(`\n■ 등원 찍기 검사 ${n}건 · 실패 ${fail}${skipped ? " · ⚠️ 진짜 DB 못 봄" : ""}`);

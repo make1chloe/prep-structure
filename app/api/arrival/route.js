@@ -113,7 +113,10 @@ export async function GET(req) {
           gate, steps: STEPS }, 400);
       }
     }
-    const view = await arrivalView(door.db, { studentId, graceMin: net.graceMin });
+    // ⚠️ 아이가 반을 골라 두었으면 그 반으로 그린다 (원장님 2026-09-03 — 앱이 짐작 안 한다)
+    const view = await arrivalView(door.db, {
+      studentId, graceMin: net.graceMin,
+      classId: new URL(req.url).searchParams.get("class") || null });
     return json({
       ok: true, gate, view,
       netReady: gateDoor.ok ? undefined : gateDoor.why,
@@ -177,6 +180,8 @@ export async function POST(req) {
     try {
       r = await markArrival(door.db, {
         gate, studentId, step: body?.step, ip, date, by, graceMin: gateDoor.net.graceMin,
+        // ⚠️ 반이 둘인 날 아이가 고른 반. **안 보내면 판을 안 세우고 되묻는다**(why: pick-class)
+        classId: body?.classId ?? null,
       });
     } catch (e) {
       return json({ ok: false, why: "bad", msg: String(e?.message ?? e).slice(0, 200), gate }, 400);
