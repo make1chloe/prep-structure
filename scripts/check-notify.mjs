@@ -75,5 +75,36 @@ const sinkers = files.filter(f => !f.endsWith("lib/notify.js") && !f.includes("c
   && /NOTIFY_SINK/.test(readFileSync(f,"utf8")));
 ok("NOTIFY_SINK 를 읽는 곳도 lib/notify.js 뿐이다", sinkers.length===0, sinkers.join(" "));
 
+// ⚠️⚠️ **진짜 DB 로 한 번 돌린다.** 가짜 DB 는 제약이 없어서 원리적으로 못 잡는 사고가 있다 —
+//    `notify_log.sent_at` 이 not null 이던 시절, 막힌 발송(off·self)이 **그 자리에서 터졌다.**
+//    기본값이 off 이므로 **모든 발송이 실패했다.** 검사 11건은 전부 초록이었다.
+console.log("\n■ 진짜 DB 로 — 막힌 발송이 자취를 남길 수 있나 (한 글자도 안 쓰고 되돌린다)");
+try {
+  const { Client } = await import("pg");
+  const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+  const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
+  await c.connect();
+  const db = { query: (q, p) => c.query(q, p) };
+  const who = (await c.query("select id from v2.profiles limit 1")).rows[0]?.id;
+  await c.query("begin");
+  const msg = { kind: "test", title: "검사", body: "내용", tag: "t",
+                targets: [{ profileId: who, role: "parent" }] };
+  for (const [label, env] of [["환경변수 없음(기본 off)", {}], ["self", { NOTIFY_SINK: "self" }],
+                              ["live", { NOTIFY_SINK: "live" }]]) {
+    let threw = null;
+    try { await notify(db, msg, { env, push: async () => {} }); } catch (e) { threw = e.message.split("\n")[0]; }
+    ok(`진짜 DB — ${label} 에서 발송이 **안 터진다**`, threw === null, threw ?? "");
+  }
+  const rows = (await c.query(
+    "select sink, sent_at is null as blocked from v2.notify_log where kind = 'test' order by id")).rows;
+  ok("막힌 것은 「안 보냄」으로 남는다 (off·self 는 sent_at 이 비어 있다)",
+     rows.filter(r => r.sink !== "live").every(r => r.blocked), JSON.stringify(rows));
+  ok("live 만 보낸 때가 찍힌다", rows.some(r => r.sink === "live" && !r.blocked));
+  await c.query("rollback");
+  await c.end();
+} catch (e) {
+  fail++; console.log("   ❌ 진짜 DB 로 못 돌렸다 —", String(e.message).split("\n")[0]);
+}
+
 console.log(`\n■ 발송 검사 ${n}건 · 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

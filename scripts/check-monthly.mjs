@@ -376,9 +376,12 @@ console.log("\n■ ⭐ 굳히기 — frozen 은 학부모가 그대로 읽는 �
     sent_at: "2026-08-01T00:00:00Z" });
   const r = await sentView(fakeDb(fx), S1, "2026-07");
   ok("⭐ 옛 판으로 굳은 글은 **옛 판이라고 밝힌다** (새 뜻으로 조용히 안 읽는다)",
-     r.oldShape === true && r.frozenV === 1 && /1판으로 굳은 글/.test(r.why ?? ""), JSON.stringify(r.why));
+     r.oldShape === true && r.frozenV === 1, JSON.stringify({ oldShape: r.oldShape, frozenV: r.frozenV }));
   ok("⚠️ 그래도 그때 나간 줄은 그대로 보인다 (숫자를 지어 고치지 않는다)",
      (r.lines ?? []).length === 1 && r.lines[0].asOf === "today", JSON.stringify(r.lines));
+  // ⚠️ 밝히는 것은 **숫자뿐**이다 — 학부모 화면이 그대로 읽는 자리라 안쪽 말을 담으면 그게 그대로 뜬다
+  ok("⚠️ 밝히는 자리에 경고 표시(⚠️)나 안쪽 말이 안 들어간다", !JSON.stringify(r).includes("⚠"),
+     JSON.stringify(r).slice(0, 120));
   const now = await sentView(fakeDb((() => {
     const f2 = base();
     f2.mr.set(`${S1}|2026-07`, { id: "new2", student_id: S1, ym: "2026-07", body: null,

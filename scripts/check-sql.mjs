@@ -36,7 +36,7 @@ for (const f of readdirSync("lib").filter(x => x.endsWith(".js"))) {
 }
 
 let fail = 0, okN = 0, skip = 0;
-const bad = [], held = [];
+const bad = [], held = [], swallowed = [];
 console.log(`■ lib 에서 뽑은 SQL ${found.length}개 — 진짜 스키마에 물어본다`);
 
 let i = 0;
@@ -56,6 +56,10 @@ for (const q of found) {
     const real = /does not exist|없|relation|column|function|type .* does not/i.test(msg)
               && !/syntax error/i.test(msg);
     if (real) { fail++; bad.push({ ...q, msg }); }
+    // ⚠️ **삼키지 않는다.** 자리를 메우다 난 문법 오류는 우리 잘못이 아니지만,
+    //    「물어봤다」로 세면 **거짓 초록**이 된다 — 실제로는 그 문을 한 번도 안 본 것이다.
+    //    (내가 그렇게 짰다가 135 ≠ 121+12 로 두 개가 어디에도 안 세어지는 것을 잡혔다)
+    else swallowed.push({ ...q, msg });
   }
 }
 
@@ -64,6 +68,11 @@ bad.forEach(b => {
   console.log(`        ${b.sql.replace(/\s+/g, " ").trim().slice(0, 110)}`);
 });
 if (!bad.length) console.log(`   ✅ 없는 칸·표·함수를 읽는 SQL 이 없다 (물어본 것 ${okN})`);
+if (swallowed.length) {
+  console.log(`\n   ⚠️ **못 본 것 ${swallowed.length}개** — 자리를 메우다 문법이 깨져 물어보지 못했다.`);
+  console.log(`        「물어봤다」로 세면 거짓 초록이 된다 — 이 줄이 보이면 그 SQL 은 **검사를 안 지난 것**이다.`);
+  swallowed.slice(0, 6).forEach(h => console.log(`        ${h.file}:${h.line} — ${h.msg.slice(0, 70)}`));
+}
 if (skip) {
   console.log(`\n   ⚠️ 못 물어본 것 ${skip}개 — 표 이름이 실행할 때 정해져서 물어볼 수가 없다`);
   held.slice(0, 8).forEach(h => console.log(`        ${h.file}:${h.line}`));
@@ -71,5 +80,11 @@ if (skip) {
 }
 
 await c.end();
-console.log(`\n■ SQL 검사 ${found.length}개 (물어봄 ${okN} · 못 물어봄 ${skip}) · 실패 ${fail}`);
-process.exit(fail ? 1 : 0);
+// ⚠️ 셈이 맞는지 스스로 본다 — 안 맞으면 어딘가로 샌 것이다
+const seen = okN + skip + swallowed.length + bad.length;
+if (seen !== found.length)
+  console.log(`\n   ❌ **셈이 안 맞는다** — 뽑은 것 ${found.length} 인데 ${seen} 만 세었다. ${found.length - seen}개가 샜다`);
+console.log(`\n■ SQL 검사 ${found.length}개 (물어봄 ${okN} · 이름 자리라 못 물어봄 ${skip} · **못 본 것 ${swallowed.length}**) · 실패 ${fail}`);
+// ⚠️ 「못 본 것」은 실패로 세지 않는다 — 자리를 메우다 난 문법 오류라 코드 잘못이 아니다.
+//    다만 **화면에 반드시 뜬다.** 조용히 초록으로 지나가는 것이 이 검사가 한 번 저지른 잘못이다.
+process.exit(fail || seen !== found.length ? 1 : 0);
