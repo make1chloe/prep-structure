@@ -234,7 +234,11 @@ function auditCss(raw, { wantRegistry }) {
           add("C6", `늘어나는 칸에 basis 가 없다 → 390px 에서 한 글자씩 쌓인다: ${r.sel} { flex: ${val} }`);
       }
       /* C8 투명도로 흐리게 — 「끄는 중」 한 자리만 봐준다 */
-      if (prop === "opacity" && Number(val) < 1 && !/\.is-drag\b/.test(r.sel))
+      // ⚠️ **2026-09-03 원장님 정정** — 「그건 **글씨** 얘기고 아이콘은 괜찮아.
+      //    **낮은 투명도 자체가 정보**인 거야」. 아이콘은 투명도로 뜻을 담는다(읽음 정도 등).
+      //    → 이름이 `-ic`·`-icon` 으로 끝나거나 `.ic` 인 자리는 뺀다. **글씨는 그대로 금지.**
+      if (prop === "opacity" && Number(val) < 1
+          && !/\.is-drag\b/.test(r.sel) && !/(^|[.\s])[\w-]*(-ic|-icon|\bic)\b/.test(r.sel))
         add("C8", `투명도로 흐리게 했다. 「덜 중요함」은 색으로: ${at}`);
       /* C9 글씨 크기 — 토큰만 쓴다. 0.5px 단 금지 */
       if (prop === "font-size" && !/^:root/.test(r.sel)) {
@@ -456,8 +460,10 @@ const AUDIT = `(() => {
     if (own && KOR.test(own) && MONO.test(s.fontFamily))
       put(7, e, "한글인데 고정폭 글꼴: " + s.fontFamily.split(",")[0]);
     // ⑧ 투명도로 흐리게 (계획 ㉑) — 「끄는 중」만 봐준다
-    if (Number(s.opacity) < 1 && !e.classList.contains("is-drag"))
-      put(8, e, "opacity " + s.opacity + " — 「덜 중요함」은 색으로 말한다");
+    // ⚠️ 아이콘은 예외다(확정-㉖ 정정) — 투명도가 곧 뜻이다. **글씨는 그대로 금지**
+    if (Number(s.opacity) < 1 && !e.classList.contains("is-drag")
+        && !/(^|\s)[\w-]*(-ic|-icon)(\s|$)|(^|\s)ic(\s|$)/.test(e.className || ""))
+      put(8, e, "opacity " + s.opacity + " — **글씨를** 흐리게 하지 않는다 (아이콘은 예외)");
     // ⑨ 붙박이가 조용히 안 붙는다
     // ⚠️ 전에는 조상의 overflow 가 **hidden 일 때만** 봤다. 그래서 .tblwrap 의
     //    overflow-x:auto 한 줄로 표 머리가 **한 번도 안 붙는** 것을 네 폭 전부 0건으로 통과시켰다.
