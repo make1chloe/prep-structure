@@ -58,8 +58,21 @@ async function run(fn) {
 
 /**
  * 검사 ○△✕ 한 칸.
- * ⚠️ **0줄이면 실패다** (자동 검사 ⑪) — 접근 규칙이 막았는데 「저장됨」이라 말하지 않는다.
- * ⚠️ 진도를 여기서 안 올린다. `fromCheck` 가 예습 예외·덮음·지난 완료 자물쇠를 다 본다.
+ *
+ * ⚠️⚠️ **한 덩어리다** (0-4). 한 번 누르면 표 셋을 건드린다 —
+ *    `v2.day_item`(표시) · `v2.progress_part`(조각) · `v2.progress`(진도).
+ *    묶지 않으면 진도 쓰기가 터졌을 때 **조각만 남은 반쪽**이 굳는다.
+ *    `fromCheck` 에 `{ tx: false }` 를 주는 것은 **이 트랜잭션이 주인이기 때문**이다 —
+ *    안쪽이 또 begin 하면 저장점이 겹친다.
+ *
+ * ⚠️⚠️ **진도가 안 올라갔으면 「저장됨」이라 말하지 않는다.**
+ *    예전에는 `fromCheck` 가 `why` 를 줘도 여기서 `ok:true` 를 돌려주어
+ *    **○ 이 켜진 채 아무 말도 안 떴다.** 진도가 하나도 안 올라가도 화면은 조용했다.
+ *    한 함수 안에 잣대가 둘이었다 — `day_item` 0줄은 실패로 되돌리면서(검사-⑪)
+ *    바로 아래 진도 실패는 안 봤다. 이제 **같은 잣대**로 본다.
+ *
+ * ⚠️ 「단원이 안 붙어 못 올린다」는 **실패가 아니다.** 표시는 남아야 한다 —
+ *    되돌리면 원장님이 찍은 ○ 이 사라진다. 그래서 `ok:true` 로 주되 **까닭을 말한다**.
  */
 export async function markCheck({ itemId, studentId, on, mark }) {
   if (!UUID.test(String(itemId ?? ""))) return { ok: false, msg: "어느 줄인지 모릅니다" };
@@ -67,28 +80,46 @@ export async function markCheck({ itemId, studentId, on, mark }) {
   if (!DATE.test(String(on ?? ""))) return { ok: false, msg: "날짜가 없습니다 — 날짜를 지어내지 않습니다" };
 
   return run(async (db) => {
-    const w = await db.query(
-      `/* today:mark */ update v2.day_item set status = $2, updated_at = now()
-        where id = $1::uuid returning id, unit_id, sheet_id, range_note, slot`,
-      [itemId, mark]);
-    const row = (w.rows ?? [])[0];
-    if (!row) {
-      return { ok: false, why: "no_rows",
-        msg: "한 줄도 안 바뀌었습니다 — 접근 규칙이 막았거나 그 줄이 없습니다" };
+    await db.query("begin");
+    try {
+      const w = await db.query(
+        `/* today:mark */ update v2.day_item set status = $2, updated_at = now()
+          where id = $1::uuid returning id, unit_id, sheet_id, range_note, slot`,
+        [itemId, mark]);
+      const row = (w.rows ?? [])[0];
+      if (!row) {
+        await db.query("rollback");
+        return { ok: false, why: "no_rows",
+          msg: "한 줄도 안 바뀌었습니다 — 접근 규칙이 막았거나 그 줄이 없습니다" };
+      }
+      if (!row.unit_id) {
+        // ⚠️ 실측 — 지금 DB 의 검사 줄 3,994개가 **전부** 단원이 안 붙어 있다.
+        //    그러면 진도를 올릴 곳이 없다. **올린 척하지 않는다.**
+        await db.query("commit");
+        return { ok: true, saved: true, raised: null, note: true,
+          msg: "표시는 남았지만 이 줄에 **단원이 안 붙어** 진도는 안 올라갑니다" };
+      }
+      const r = await fromCheck(db, {
+        studentId, on,
+        marks: [{ unitId: row.unit_id, mark, slot: row.slot, range: row.range_note,
+                  itemId: row.id, sheetId: row.sheet_id }],
+      }, { tx: false });
+
+      // ⚠️ **여기가 그 자리다.** `fromCheck` 는 실패를 `why` 로만 준다(`ok` 를 안 붙인다).
+      //    `lib/close.js` 의 `progress_failed` 와 **같은 잣대**로 본다.
+      if (r?.ok !== true) {
+        await db.query("rollback");
+        return { ok: false, why: "progress_failed",
+          msg: r?.why ?? "진도를 못 올렸습니다 — 표시도 되돌렸습니다" };
+      }
+      await db.query("commit");
+      return { ok: true, saved: true, raised: r?.applied?.length ?? 0,
+               skipped: r?.skipped ?? [], notes: r?.notes ?? [], msg: null };
+    } catch (e) {
+      // ⚠️ 되돌리고 나서 다시 던진다 — `run()` 이 사람 말로 바꿔 준다
+      await db.query("rollback").catch(() => {});
+      throw e;
     }
-    if (!row.unit_id) {
-      // ⚠️ 실측 — 지금 DB 의 검사 줄 3,994개가 **전부** 단원이 안 붙어 있다.
-      //    그러면 진도를 올릴 곳이 없다. **올린 척하지 않는다.**
-      return { ok: true, saved: true, raised: null,
-        msg: "표시는 남았지만 이 줄에 **단원이 안 붙어** 진도는 안 올라갑니다" };
-    }
-    const r = await fromCheck(db, {
-      studentId, on,
-      marks: [{ unitId: row.unit_id, mark, slot: row.slot, range: row.range_note,
-                itemId: row.id, sheetId: row.sheet_id }],
-    }, { tx: false });
-    return { ok: true, saved: true, raised: r?.applied?.length ?? 0,
-             skipped: r?.skipped ?? [], notes: r?.notes ?? [], msg: null };
   });
 }
 

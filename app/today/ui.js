@@ -25,21 +25,38 @@ const MARKS = [
   ["none", "—", "미검사로 되돌린다"],
 ];
 
-/** 검사 한 줄의 ○△✕ */
+/**
+ * 검사 한 줄의 ○△✕.
+ *
+ * ⚠️⚠️ **「안 됐다」와 「됐지만 알아 두실 것」을 가른다** (0-4 · 대전제-0).
+ *    둘을 같은 빨간 알약으로 띄우면 원장님이 어느 쪽인지 못 가린다.
+ *    · 안 됐다 → **그 단추를 되돌리고** 빨갛게. 표시가 남아 있으면 「됐다」로 읽힌다
+ *    · 됐지만 알림 → 표시는 **그대로 두고** 노랗게 (예: 단원이 안 붙어 진도만 못 올림)
+ *
+ * ⚠️ 실패 글은 **지워지지 않는다.** 다음에 누를 때만 지운다 —
+ *    잠깐 떴다 사라지면 원장님이 못 보고 지나간다.
+ */
 export function Marks({ itemId, studentId, on, value, canWrite }) {
   const [mark, setMark] = useState(value ?? "none");
-  const [msg, setMsg] = useState(null);
+  const [said, setSaid] = useState(null);          // { bad, msg }
   const [busy, start] = useTransition();
 
   function press(v) {
-    if (!canWrite) { setMsg("권한이 없어 못 씁니다 — 아래 「지금 못 하는 것」을 보세요"); return; }
+    if (!canWrite) {
+      setSaid({ bad: true, msg: "권한이 없어 못 씁니다 — 아래 「지금 못 하는 것」을 보세요" });
+      return;
+    }
     const before = mark;
     setMark(v);                       // ⚠️ 먼저 바뀐다. 기다리지 않는다
-    setMsg(null);
+    setSaid(null);
     start(async () => {
       const r = await markCheck({ itemId, studentId, on, mark: v });
-      if (!r?.ok) { setMark(before); setMsg(r?.msg ?? "저장 못 했습니다"); }   // 그 단추만 되돌린다
-      else if (r.msg) setMsg(r.msg);
+      if (!r?.ok) {
+        setMark(before);                                          // 그 단추만 되돌린다
+        setSaid({ bad: true, msg: r?.msg ?? "저장 못 했습니다" });
+      } else if (r.msg) {
+        setSaid({ bad: false, msg: r.msg });                      // 표시는 그대로 둔다
+      }
     });
   }
 
@@ -51,7 +68,11 @@ export function Marks({ itemId, studentId, on, value, canWrite }) {
                 onClick={() => press(v)}>{glyph}</button>
       ))}
       {busy ? <span className="chip">보내는 중</span> : null}
-      {msg ? <span className="pill pillbad">{msg}</span> : null}
+      {said ? (
+        <span className={"pill " + (said.bad ? "pillbad" : "pillwarn")} role="status">
+          {said.bad ? "⚠️ " : "· "}{said.msg}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -81,7 +102,11 @@ export function Attend({ studentId, on, classId, attend, canWrite }) {
                 onClick={() => press(v)}>{t}</button>
       ))}
       {busy ? <span className="chip">보내는 중</span> : null}
-      {msg ? <span className="pill pillbad">{msg}</span> : null}
+      {said ? (
+        <span className={"pill " + (said.bad ? "pillbad" : "pillwarn")} role="status">
+          {said.bad ? "⚠️ " : "· "}{said.msg}
+        </span>
+      ) : null}
     </div>
   );
 }
