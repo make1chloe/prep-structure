@@ -42,6 +42,49 @@ const NOW = new Date("2026-09-02T05:00:00Z");
 const req = (h = {}) => new Request("https://x.test/api/cron", { headers: h });
 
 // ─────────────────────────────────────────────────────────────
+// 이 파일의 SQL 을 **전부** 뽑는 자
+//
+// ⚠️⚠️ 겪은 사고(S4): 앞판은 백틱(`)만 보는 정규식이었다. `scripts/check-sql.mjs` 는
+//    `lib` 만 훑어 `app/` 을 **원리적으로 안 보므로**, 따옴표로 쓴 SQL 한 줄은
+//    두 검사 어디에도 안 걸렸다 — 「없는 칸」이 다시 들어오는 문이 절반만 막혀 있었다.
+//    → 세 따옴표(` ' ")를 **다 본다.** 주석 안은 안 본다 (거기 적힌 예시 SQL 은 SQL 이 아니다).
+// ─────────────────────────────────────────────────────────────
+export function 문자열뽑기(src) {
+  const out = [];
+  for (let i = 0; i < src.length; ) {
+    const ch = src[i];
+    if (ch === "/" && src[i + 1] === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
+    if (ch === "/" && src[i + 1] === "*") {
+      i += 2; while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++; i += 2; continue; }
+    if (ch === "`" || ch === "'" || ch === '"') {
+      let j = i + 1, buf = "";
+      while (j < src.length) {
+        if (src[j] === "\\") { buf += src[j] + (src[j + 1] ?? ""); j += 2; continue; }
+        if (src[j] === ch) break;
+        // ⚠️ 따옴표 문자열은 줄을 못 넘는다 — 안 막으면 짝이 어긋난 따옴표 하나가 파일 끝까지 먹는다
+        if (ch !== "`" && src[j] === "\n") { j = -1; break; }
+        buf += src[j]; j++;
+      }
+      if (j > 0 && j < src.length) { out.push(buf); i = j + 1; continue; }
+      i++; continue;
+    }
+    i++;
+  }
+  return out;
+}
+
+/** 그 중 **SQL 로 시작하는 것**만 — 어느 따옴표로 썼든 걸린다 */
+export const sql뽑기 = (src) =>
+  문자열뽑기(src).filter((s) => /^\s*(with|select|insert|update|delete)\b/i.test(s));
+
+/** 되풀이 할일 규칙 한 줄 — **여러 마당이 함께 깐다.**
+ *  ⚠️⚠️ 이걸 안 깐 씨앗으로 「크론이 쓸 수 있는 표」를 세면 되풀이가 0건이라
+ *     크론이 `v2.todo` 에 쓰는 것을 그 마당이 **한 번도 못 본다** — 겪은 사고다.
+ *     그래서 그 두 마당은 반드시 이 규칙을 깔고, 「정말 todo 에 썼나」를 따로 확인한다. */
+const 되풀이규칙 = { id: "r1", kind: "repeat", name: "교재 점검", cron: "매주",
+                  threshold: null, active: true };
+
+// ─────────────────────────────────────────────────────────────
 // 가짜 DB — 크론이 부르는 표만 흉내낸다.
 // ⚠️ 흉내가 기대는 구절이 진짜 SQL 에 있는지 `must()` 로 확인한다.
 //    안 그러면 SQL 을 몰래 뒤집어도 검사가 초록으로 통과한다 (실제로 겪은 사고다).
@@ -165,10 +208,14 @@ function fakeDb(seed = {}) {
       return { rows: [], rowCount: nn };
     }
     if (s.includes("from v2.file")) {              // filesDueSql
-      must(s, "기한 온 파일", "purge_on is not null", "purge_on <= $1");
+      // ⚠️ `as in_bin` 을 믿는다 — 크론이 **버킷에 넘길 경로를 그 한 칸으로 고른다.**
+      //    빠지면 자료함 묶음에 걸린 파일까지 버킷에서 지워져 다른 아이 화면이 깨진다
+      must(s, "기한 온 파일", "purge_on is not null", "purge_on <= $1", "as in_bin");
       const rows = files.filter((f) => f.state === "active" && f.purge_on && f.purge_on <= p[0])
         .map((f) => ({ id: f.id, path: f.path, orig_name: f.orig_name,
-                       student_id: f.student_id, purge_on: f.purge_on }));
+                       student_id: f.student_id, purge_on: f.purge_on, in_bin: !!f.bin }));
+      // ⚠️ **읽은 뒤에 자료함에 묶이는 경합**을 흉내낸다 — 「버킷 먼저」가 사 온 새 위험이다
+      for (const f of files) if (f.binLater) f.bin = true;
       return { rows, rowCount: rows.length };
     }
     if (s.includes("from v2.day_sheet")) return { rows: seed.planned ?? [], rowCount: 0 };
@@ -223,7 +270,9 @@ ok("오늘은 v2.today() 에서 받는다 (new Date() 가 아니다)",
 // ─────────────────────────────────────────────────────────────
 console.log("\n■ ⑨ 크론은 **새 셈을 만들지 않는다** — lib 의 셈을 부르기만 한다");
 
-{ const db = fakeDb();
+{ // ⚠️⚠️ 씨앗에 **되풀이 규칙 한 줄을 반드시 깐다.** 안 깔면 되풀이가 0건이라
+  //    아래 「쓸 수 있는 표」가 크론의 v2.todo 쓰기를 **한 번도 못 보고 늘 초록**이었다
+  const db = fakeDb({ rules: [되풀이규칙] });
   const called = [];
   const checks = [{ kind: "가짜셈", count: async (t, d) => { called.push(t);
     // ⚠️ 셈이 DB 에 쓰려 들면 그 자리에서 터져야 한다
@@ -241,11 +290,19 @@ console.log("\n■ ⑨ 크론은 **새 셈을 만들지 않는다** — lib 의 
   //    ⚠️ 규칙은 **둘로 나눠 읽어라** (앞판은 「셋뿐」이라고만 적어 사실과 어긋났다):
   //      · **셈**은 아무 데도 못 쓴다 — `guardDb` 가 첫 줄에서 터뜨린다
   //      · **파기**는 파기 목록 표(`lib/purge.js`)가 정한 표에만 쓴다 — file · excel_row · excel_run
-  //    아래 씨앗에는 파일도 파기 목록도 안 깔려 있어서 **뼈대 셋만** 나와야 한다.
+  //    아래 씨앗에는 파일도 파기 목록도 안 깔려 있어서 **자동화 뼈대 넷만** 나와야 한다:
+  //      day_ran(도장) · job_queue(다시 집을 일감) · auto_key(되풀이 자물쇠) · **todo(되풀이 할일)**.
+  //    ⚠️⚠️ todo 가 빠져 있던 것이 겪은 사고다 — 되풀이를 붙이면서 크론이 v2.todo 에 쓰게 됐는데
+  //       이 목록엔 없고, 씨앗에 규칙이 없어 그 쓰기를 **한 번도 못 봐서** 늘 초록이었다.
   //    파기가 깔린 씨앗은 「파기」 마당에서 따로 센다 — 안 그러면 그 쓰기를 **한 번도 못 본다**
-  const 쓸수있는표 = new Set(["day_ran", "job_queue", "auto_key"]);
+  const 쓸수있는표 = new Set(["day_ran", "job_queue", "auto_key", "todo"]);
   ok("셈만 도는 판은 자동화 뼈대 말고 아무 표에도 안 쓴다 (셈 결과를 저장하지 않는다)",
      db.writes.every((t) => 쓸수있는표.has(t)), db.writes.join(" "));
+  // ⚠️ 위 검사가 **거짓 초록이 아닌지**를 여기서 지킨다 — 되풀이 쓰기를 정말 보고 통과한 것인가
+  ok("⚠️ 그 판이 v2.todo 에 정말 썼다 (안 썼으면 위 검사가 거짓 초록이다)",
+     db.writes.includes("todo") && db.todos.length === 1, db.writes.join(" "));
+  ok("v2.auto_key 도장도 함께 찍혔다 (되풀이가 진짜로 돌았다는 뜻)",
+     db.writes.includes("auto_key"), db.writes.join(" "));
   ok("셈이 돈 표(day_sheet·students·progress)에는 한 글자도 안 쓴다",
      !db.writes.some((t) => ["day_sheet", "students", "progress", "notify_log"].includes(t)),
      db.writes.join(" "));
@@ -492,7 +549,58 @@ const 파일씨 = (files) => ({ files, map: 파일목록, cols: 파일칸, cons:
   ok("그 줄은 그대로 살아 있다", db.files[1].state === "active" && db.files[1].path === 자료함안내.path);
   ok("⚠️ 보고의 셈은 **문장 수가 아니라 줄 수**다 (파일이 500장이어도 문장은 늘 둘이다)",
      f.파기된줄 === 1 && f.안내려간줄 === 1, JSON.stringify(f));
-  ok("버킷에 남은 것도 센다", f.버킷에서지움 === 1 && f.버킷에남은것 === 1, JSON.stringify(f)); }
+  ok("버킷에 남은 것도 센다", f.버킷에서지움 === 1 && f.버킷에남은것 === 1, JSON.stringify(f));
+  // ⚠️ 차례를 **오간 자취로** 확인한다 — 버킷을 먼저 지우고 그 뒤에 줄이 내려가야 한다
+  ok("⚠️ 버킷을 **줄 내리기보다 먼저** 지웠다 (뒤집히면 지우개가 터지는 날 경로가 사라진다)",
+     db.sqls.findIndex((s) => s.startsWith("update v2.file") && s.includes("state = 'purged'")) > -1
+       && 지운것.length > 0, JSON.stringify(지운것)); }
+
+{ // ⚠️⚠️ 겪은 사고(S2) — 지우개가 **있을 때**의 차례가 주석과 정반대였다(DB 먼저 → 버킷 나중).
+  //    지우개가 한 번 503 이면 줄은 이미 무덤값인데 버킷 파일은 남아
+  //    **그 파일이 어디 있는지 아는 유일한 값이 사라진다.** 되돌릴 길이 없다
+  const db = fakeDb(파일씨([{ ...숙제사진 }]));
+  const out = await runCron({ db, today: TODAY, now: NOW,
+    deps: { checks: [], removeStorage: async () => { throw new Error("Storage: 503"); } } });
+  const f = out.steps.find((s) => s.name === "파일정리");
+  ok("⚠️ 지우개가 터지면 **DB 줄이 그대로다** (버킷 먼저 → DB 나중이라 다음 날 다시 돈다)",
+     db.files[0].state === "active" && db.files[0].path === 숙제사진.path,
+     JSON.stringify(db.files[0]));
+  ok("그 판은 v2.file 에 한 글자도 안 썼다", !db.writes.includes("file"), db.writes.join(" "));
+  ok("그 판은 초록이 아니다 (조용한 200 이 제일 무섭다)",
+     f.ok === false && out.ok === false && /503/.test(f.why ?? ""), JSON.stringify(f));
+  ok("그래도 뒤 일(보고)은 돈다", out.steps.find((s) => s.name === "보고")?.ok === true); }
+
+{ // ⚠️ 「버킷 먼저」가 사 온 **새 위험** — 읽은 뒤에 자료함에 묶이면
+  //    버킷에서는 지웠는데 줄은 안 내려간다. DB 는 「살아 있다」인데 누르면 404 다
+  const db = fakeDb(파일씨([{ ...숙제사진, binLater: true }]));
+  const out = await runCron({ db, today: TODAY, now: NOW,
+    deps: { checks: [], removeStorage: async (ps) => ps.length } });
+  const f = out.steps.find((s) => s.name === "파일정리");
+  ok("⚠️ 버킷에서 지웠는데 줄이 안 내려간 것이 있으면 **세어서 판을 붉힌다**",
+     f.어긋난줄 === 1 && f.ok === false && out.ok === false, JSON.stringify(f));
+  ok("까닭에 「누르면 404」가 적힌다 (개수만 200 본문에 두면 아무도 안 본다)",
+     /404/.test(f.why ?? ""), f.why); }
+
+{ // ⚠️⚠️ 「버킷 먼저」는 **자료함인지 아닌지를 미리 알아야** 돈다 — 그 한 칸(`in_bin`)이
+  //    안 오는 날 「없으면 자료함이 아니겠지」로 읽으면 **남의 안내문을 버킷에서 지운다.**
+  //    조용히 0 으로 넘어가도 안 된다 — 줄만 내려가 버킷 파일이 미아가 된다
+  const 지운것 = [];
+  const db = fakeDb(파일씨([{ ...숙제사진 }, { ...자료함안내 }]));
+  const base = db.query.bind(db);
+  db.query = async (sql, p) => {                     // in_bin 칸이 빠진 날을 흉내낸다
+    const r = await base(sql, p);
+    if (String(sql).includes("as in_bin"))
+      return { ...r, rows: r.rows.map(({ in_bin, ...rest }) => rest) };
+    return r; };
+  const out = await runCron({ db, today: TODAY, now: NOW,
+    deps: { checks: [], removeStorage: async (ps) => { 지운것.push(...ps); return ps.length; } } });
+  const f = out.steps.find((s) => s.name === "파일정리");
+  ok("⚠️ in_bin 이 안 오면 **버킷에서 한 장도 안 지운다** (모르면 안 지우는 쪽 — 대전제 0)",
+     지운것.length === 0, JSON.stringify(지운것));
+  ok("⚠️ 줄도 안 내린다 (줄만 내려가면 버킷 파일이 미아가 된다)",
+     db.files.every((x) => x.state === "active"), JSON.stringify(db.files.map((x) => x.state)));
+  ok("조용히 0 으로 안 넘어가고 **판을 붉힌다**", f.ok === false && out.ok === false, JSON.stringify(f));
+  ok("까닭에 어느 함수를 고쳐야 하는지 적힌다", /filesDueSql/.test(f.why ?? ""), f.why); }
 
 { // ⚠️ 「기한이 온 것 0」이 **깨끗해서인지 아무도 안 적어서인지** 가른다
   const db = fakeDb(파일씨([{ id: "f9", path: "hw/옛것.jpg", orig_name: "옛것.jpg", purge_on: null }]));
@@ -504,17 +612,50 @@ const 파일씨 = (files) => ({ files, map: 파일목록, cols: 파일칸, cons:
 { // ⚠️⚠️ 앞판의 「쓸수있는표」 검사는 **파일도 파기 목록도 안 깔린 가짜 DB** 로만 돌아서
   //    크론이 v2.file · v2.excel_row 에 쓰는 것을 **한 번도 못 봤다** — 늘 초록이었다.
   //    여기서 파기까지 깔고 한 번 더 센다. 파기 목록 밖의 표가 나오면 빨갛게
+  //    ⚠️ 되풀이 규칙도 **같이 깐다** — 안 깔면 v2.todo 쓰기를 여기서도 못 본다(겪은 사고)
   const db = fakeDb({ ...파일씨([{ ...숙제사진 }]),
+    rules: [되풀이규칙],
     map: [...파일목록,
           { schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 },
           { schema_name: "v2", tbl: "excel_run", col: "note",   how: "expire", after_days: 90 }] });
   await runCron({ db, today: TODAY, now: NOW,
     deps: { checks: [], removeStorage: async (ps) => ps.length } });
-  const 파기가쓰는표 = new Set(["day_ran", "job_queue", "auto_key", "file", "excel_row", "excel_run"]);
+  const 파기가쓰는표 = new Set(["day_ran", "job_queue", "auto_key", "todo",
+                            "file", "excel_row", "excel_run"]);
   ok("파기가 도는 판도 **파기 목록이 정한 표에만** 쓴다",
      db.writes.every((t) => 파기가쓰는표.has(t)), db.writes.join(" "));
   ok("그 판이 v2.file 에 정말 썼다 (안 썼으면 위 검사가 거짓 초록이다)",
-     db.writes.includes("file"), db.writes.join(" ")); }
+     db.writes.includes("file"), db.writes.join(" "));
+  ok("⚠️ 그 판이 v2.todo 에도 정말 썼다 (되풀이가 안 돌면 위 검사가 거짓 초록이다)",
+     db.writes.includes("todo"), db.writes.join(" ")); }
+
+{ // ⚠️⚠️ 겪은 사고(N1) 를 그대로 재현하는 줄 — 「크론이 쓸 수 있는 표」 목록이
+  //    **크론이 실제로 쓰는 표를 다 담고 있나.** 목록에 없는 표가 하나라도 나오면 빨갛게.
+  //    앞판은 todo 가 목록 두 곳 다 빠져 있었는데 씨앗에 규칙이 없어 못 잡았다
+  const db = fakeDb({ ...파일씨([{ ...숙제사진 }]),
+    rules: [되풀이규칙],
+    map: [...파일목록,
+          { schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 },
+          { schema_name: "v2", tbl: "excel_run", col: "note",   how: "expire", after_days: 90 }],
+    queue: [{ id: 1, kind: "되는셈", payload: JSON.stringify({ ran_on: "2026-08-30" }),
+              state: "wait", tries: 0, next_at: "2026-09-02T00:00:00.000Z", locked_at: null }] });
+  await runCron({ db, today: TODAY, now: NOW,
+    deps: { checks: [{ kind: "되는셈", count: async () => 1 }],
+            removeStorage: async (ps) => ps.length } });
+  // 크론이 쓸 수 있는 표 — **여기가 하나뿐인 목록이다.** 늘려야 할 일이 생기면 까닭을 옆에 적어라
+  const 크론이쓰는표 = new Set([
+    "day_ran",    // 「그날 이거 돌았다」 도장
+    "job_queue",  // 다시 집을 일감
+    "auto_key",   // 되풀이 자물쇠
+    "todo",       // 되풀이 할일 (lib/todo.js 의 planRepeats)
+    "file", "excel_row", "excel_run",  // 파기 목록이 정한 표
+  ]);
+  const 밖 = [...new Set(db.writes)].filter((t) => !크론이쓰는표.has(t));
+  ok("⚠️ 크론이 실제로 쓴 표가 **전부 목록 안**이다 (한 판에 되풀이·파기·큐를 다 깔고 센다)",
+     밖.length === 0, "목록 밖: " + 밖.join(" "));
+  ok("그 판이 되풀이·파기를 **정말로** 돌렸다 (안 돌면 위 검사가 거짓 초록이다)",
+     ["todo", "auto_key", "file", "excel_row"].every((t) => db.writes.includes(t)),
+     [...new Set(db.writes)].join(" ")); }
 
 { const src = readFileSync("app/api/cron/route.js", "utf8");
   // ⚠️ 승인 단추는 안심을 하나도 더 사 주지 않으면서 **눌러야 하는 것만 하나 늘린다**(대전제 3).
@@ -615,6 +756,31 @@ console.log("\n■ 나가는 길·설정 — 파일을 훑는다");
   const 문 = others.filter((f) => /\/api\/cron\//.test(f));
   ok("크론이 부르는 문은 하나뿐이다", 문.length === 0, 문.join(" ")); }
 
+{ // ⚠️⚠️ 겪은 사고(S4) — SQL 뽑는 자가 **백틱만** 봤다. `scripts/check-sql.mjs` 는 `lib` 만 훑어
+  //    `app/` 을 원리적으로 안 보므로, 따옴표로 쓴 SQL 한 줄은 두 검사 어디에도 안 걸렸다.
+  //    아래는 그 사고를 그대로 재현한다 — 세 따옴표를 다 잡아야 통과한다
+  const 시험소스 = [
+    'const a = `select 백틱칸 from v2.day_sheet limit 1`;',
+    'db.query("select 큰따옴표칸 from v2.day_sheet limit 1", []);',
+    "db.query('select 홑따옴표칸 from v2.day_sheet limit 1', []);",
+    'const ok = "begin";',                                  // SQL 로 안 센다
+    '// select 주석칸 from v2.day_sheet',                    // 주석은 안 본다
+    '/* select 블록주석칸 from v2.day_sheet */',
+    'const msg = "이건 그냥 글이다";',
+  ].join("\n");
+  const 뽑힌 = sql뽑기(시험소스);
+  ok("⚠️ 백틱으로 쓴 SQL 을 뽑는다", 뽑힌.some((q) => q.includes("백틱칸")), JSON.stringify(뽑힌));
+  ok("⚠️ **큰따옴표**로 쓴 SQL 도 뽑는다 (앞판은 여기가 통째로 빠져나갔다)",
+     뽑힌.some((q) => q.includes("큰따옴표칸")), JSON.stringify(뽑힌));
+  ok("⚠️ **홑따옴표**로 쓴 SQL 도 뽑는다", 뽑힌.some((q) => q.includes("홑따옴표칸")), JSON.stringify(뽑힌));
+  ok("주석에 적어 둔 예시 SQL 은 안 뽑는다 (설명을 못 쓰게 되면 아무도 안 적는다)",
+     !뽑힌.some((q) => q.includes("주석칸") || q.includes("블록주석칸")), JSON.stringify(뽑힌));
+  ok("SQL 이 아닌 글은 안 뽑는다", 뽑힌.length === 3, JSON.stringify(뽑힌));
+  // ⚠️ 짝이 어긋난 따옴표 하나가 파일 끝까지 먹으면 그 뒤 SQL 을 통째로 놓친다
+  const 어긋난 = sql뽑기('const bad = "짝이 없다;\nconst q = `select 뒤에있는칸 from v2.day_sheet`;');
+  ok("따옴표 짝이 어긋나도 **그 뒤 SQL 을 놓치지 않는다**",
+     어긋난.some((q) => q.includes("뒤에있는칸")), JSON.stringify(어긋난)); }
+
 // ─────────────────────────────────────────────────────────────
 // ⚠️⚠️ 여기부터가 핵심이다 — **진짜 스키마에 물어본다.**
 //     가짜 DB 는 없는 칸을 원리적으로 못 잡는다. 화면을 켜는 순간 터진다.
@@ -645,15 +811,8 @@ try {
   // ⚠️⚠️ `scripts/check-sql.mjs` 는 `lib` 만 훑는다 — **`app/` 의 SQL 은 원리적으로 안 본다.**
   //    SQL 객체만 물어보면 앞으로 누가 **함수 안에 SQL 한 줄**을 직접 쓸 때 두 검사 어디에도 안 걸린다.
   //    앞 판에서 크게 다친 「없는 칸」이 다시 들어올 문이라, 이 파일의 **모든** SQL 을 뽑아 물어본다
-  { const 소스 = readFileSync("app/api/cron/route.js", "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-      .replace(/^\s*\/\/[^\n]*$/gm, "");
-    const 시작 = /^\s*(with|select|insert|update|delete)\b/i;
-    const 뽑은 = [];
-    for (const m of 소스.matchAll(/`([^`\\]|\\.)*`/g)) {
-      const raw = m[0].slice(1, -1);
-      if (시작.test(raw)) 뽑은.push(raw);
-    }
+  //    ⚠️ 뽑는 자는 **따옴표 세 가지를 다 본다** (S4 — 앞판은 백틱만 봤다)
+  { const 뽑은 = sql뽑기(readFileSync("app/api/cron/route.js", "utf8"));
     const 값 = new Set(Object.values(SQL));
     const 밖에있는것 = 뽑은.filter((q) => !값.has(q));
     ok("이 파일의 SQL 은 전부 SQL 객체 안에 있다 (함수 안에 흩어지면 검사가 못 본다)",
@@ -691,6 +850,22 @@ try {
   ok("파일 파기에 막힌 자리가 없다", fp.blocked.length === 0, JSON.stringify(fp.blocked));
   for (const s of fp.steps) await ask(`파일파기 ${s.tbl}.${s.col}`, s.sql);
   await ask("기한 온 파일 찾기", filesDueSql());
+  // ⚠️ 아직 못 고침 — `filesDueSql()` 이 `state = 'active'` 만 본다 (`state <> 'purged'` 여야 맞다).
+  //    원장님이 「숨김」으로 내려둔 아이 녹음·사진은 기한이 몇 해 지나도 안 지워지는데 크론은 초록이다.
+  //    고칠 곳은 lib/purge.js — 남의 담당 파일이라 안 고쳤다(재현은 했다. 보고에 적었다).
+  //    ⚠️ 고쳐지면 저절로 사라지는 알림이다 — **검사를 빨갛게 만들지 않는다**
+  if (/state\s*=\s*'active'/.test(filesDueSql()))
+    console.log("   ⚠️ 아직 못 고침 — lib/purge.js 의 filesDueSql() 이 state = 'active' 만 본다. " +
+                "「숨김」으로 내려둔 파일은 기한이 몇 해가 지나도 안 지워지는데 크론은 초록이다");
+  { // ⚠️⚠️ 크론은 **버킷에 넘길 경로를 `in_bin` 한 칸으로 고른다** — 그 칸이 안 오면
+    //    자료함 묶음에 걸린 남의 안내문까지 버킷에서 지워질 자리다(크론은 그때 한 장도 안 지우고 운다).
+    //    칸이 정말 오는지 **진짜 DB 에 물어본다.** 옛날 날짜라 줄은 0 개다 — 읽기만 한다
+    const r = await c.query(filesDueSql(), ["1900-01-01"]);
+    const 칸 = (r.fields ?? []).map((f) => f.name);
+    ok("⚠️ 기한 온 파일 질문이 `in_bin` 칸을 준다 (없으면 크론이 파일 정리를 아예 안 돌린다)",
+       칸.includes("in_bin"), 칸.join(" "));
+    ok("경로와 이름도 같이 온다 (버킷에서 지울 때 쓴다)",
+       칸.includes("path") && 칸.includes("id"), 칸.join(" ")); }
 
   // 크론이 진짜로 도는 셈 둘 — **읽기만 하므로 진짜 DB 에서 돌려 본다**
   const today = await todayFrom(db);

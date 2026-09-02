@@ -76,6 +76,8 @@ function fake(seed = {}) {
         case "progress":return { rows: st.progress.filter((r) => has(p[1], r.unit_id)) };
         case "parts":   return { rows: st.parts.filter((r) => has(p[1], r.unit_id)) };
         case "siblings":return { rows: st.items.filter((i) => has(p[0], i.sheet_id)) };
+        // 아이 찍기가 그날 판의 slot 을 찾아 붙이는 자리 (S1)
+        case "daySlots": return { rows: st.items.filter((i) => has(p[2], i.unit_id)) };
         case "memoItems": {
           const bk = new Set(st.units.filter((u) => u.book_id === p[2]).map((u) => u.id));
           return { rows: st.items.filter((i) => bk.has(i.unit_id)) };
@@ -273,6 +275,92 @@ console.log("\n■ ⚠️ **같은 판·같은 단원에 항목이 여럿** — 
   const w2 = winner([{ unitId: "U5", mark: "done", slot: "class" }, { unitId: "U5", mark: "done", slot: "next" }]);
   ok("⚠️ 등원과 예습이 같은 단원에 같이 오면 **늘 등원**이 이긴다 (순서와 무관)",
      w1[0].slot === "class" && w2[0].slot === "class", `${w1[0].slot} / ${w2[0].slot}`);
+}
+
+// ⚠️⚠️ 2026-09-02 **2차** 사고 — 「범위를 다 모으기」로 고치면서 **예습의 범위까지 모았다.**
+//    「반드시 막는 것 ①」이 상태가 아니라 **범위**로 다시 샜다. 아래 다섯이 그 사고다
+{
+  const w = winner([{ unitId: "U5", mark: "done", slot: "class", range: "p.35-40" },
+                    { unitId: "U5", mark: "done", slot: "next",  range: null }]);
+  ok("⚠️⚠️ winner 가 **예습의 범위 메모를 안 모은다** (범위 없는 예습 ○ 이 「통째」로 접히면 안 된다)",
+     JSON.stringify(w[0].notes) === '["p.35-40"]', JSON.stringify(w[0].notes));
+}
+{
+  // 진짜 DB 재현 그대로 — 한 판에 등원 ○ 'p.35-40' 과 **범위 안 적은 예습 ○** 이 같이 깔려 있고
+  // 부르는 쪽은 등원 것만 넘긴다(gather 가 예습을 긁어 온다)
+  const db = fake({ items: [
+    { id: "i1", sheet_id: "sh1", slot: "class", unit_id: "u-wb", range_note: "p.35-40", status: "done" },
+    { id: "i2", sheet_id: "sh1", slot: "next",  unit_id: "u-wb", range_note: null,      status: "done" }] });
+  const r = await fromCheck(db, { studentId: S, on: ON,
+    marks: [{ unitId: "u-wb", mark: "done", slot: "class", range: "p.35-40", itemId: "i1", sheetId: "sh1" }] });
+  ok("⚠️⚠️ 범위 안 적은 **예습 ○ 하나 때문에** 6쪽만 낸 단원이 완료가 되면 안 된다",
+     got(db, "u-wb").status === "doing", JSON.stringify(got(db, "u-wb")) + " / " + r.applied[0]?.why);
+  ok("실제로 낸 p.35~40 조각은 **그대로 남는다**",
+     db.st.parts.length === 1 && db.st.parts[0].page_from === 35 && db.st.parts[0].page_to === 40,
+     JSON.stringify(db.st.parts));
+
+  // 같은 판에서 예습 줄만 지우면 답이 달라지면 안 된다 — 그게 이 사고의 냄새였다
+  const db2 = fake({ items: [
+    { id: "i1", sheet_id: "sh1", slot: "class", unit_id: "u-wb", range_note: "p.35-40", status: "done" }] });
+  await fromCheck(db2, { studentId: S, on: ON,
+    marks: [{ unitId: "u-wb", mark: "done", slot: "class", range: "p.35-40", itemId: "i1", sheetId: "sh1" }] });
+  ok("⚠️ 예습 줄이 **있으나 없으나 같은 답**이다", got(db, "u-wb").status === got(db2, "u-wb").status,
+     `${got(db, "u-wb").status} vs ${got(db2, "u-wb").status}`);
+}
+{
+  // 예습이 **범위를 적은** 경우도 같다 — 등원 p.35-40 + 예습 p.41-52 는 18쪽을 다 덮지 않은 것이다
+  const db = fake();
+  await fromCheck(db, { studentId: S, on: ON, marks: [
+    { unitId: "u-wb", mark: "done", slot: "class", range: "p.35-40", itemId: "i1", sheetId: "sh1" },
+    { unitId: "u-wb", mark: "done", slot: "next",  range: "p.41-52", itemId: "i2", sheetId: "sh1" }] });
+  ok("⚠️⚠️ 예습이 범위를 적어도 그 쪽수는 **완료 판정에 안 섞인다**",
+     got(db, "u-wb").status === "doing", JSON.stringify(got(db, "u-wb")));
+  ok("예습이 낸다고 한 쪽은 조각으로도 안 남는다 (남기면 rollup 이 완료로 올린다)",
+     db.st.parts.length === 1 && db.st.parts[0].page_to === 40, JSON.stringify(db.st.parts));
+}
+{
+  // ③ 으로 새는 길 — 예습 ○ 이 단원을 다 덮는 범위를 들고 오면 조각이 남아 rollup 이 완료로 올렸다
+  const db = fake();
+  await fromCheck(db, { studentId: S, on: ON,
+    marks: [{ unitId: "u-wb", mark: "done", slot: "next", range: "p.35-52", itemId: "i1", sheetId: "sh1" }] });
+  ok("⚠️⚠️ 예습 ○ 의 범위는 **조각으로 안 남는다**", db.st.parts.length === 0, JSON.stringify(db.st.parts));
+  await rollup(db, { studentId: S, unitIds: ["u-wb"], on: ON });
+  ok("⚠️⚠️ 그래서 rollup 도 예습만 깔린 단원을 완료로 못 올린다",
+     got(db, "u-wb").status === "doing", JSON.stringify(got(db, "u-wb")));
+}
+
+// ⚠️⚠️ 2026-09-02 **2차** 사고 — 형제 중 하나가 못 읽는 메모면 **읽히는 형제의 범위까지 통째로 버렸다.**
+//    18쪽을 다 냈다는 기록이 progress_part 에 한 줄도 안 남아 이튿날 rollup 으로도 영영 ◐ 이었다
+{
+  const db = fake();
+  const r = await fromCheck(db, { studentId: S, on: ON, marks: [
+    { unitId: "u-wb", mark: "done", slot: "class", range: "짝수만",  itemId: "i1", sheetId: "sh1" },
+    { unitId: "u-wb", mark: "done", slot: "home",  range: "p.35-52", itemId: "i2", sheetId: "sh1" }] });
+  ok("못 읽는 형제가 섞이면 상태는 그대로 ◐ + 물음이다 (덮었다고 지어내지 않는다)",
+     got(db, "u-wb").status === "doing" && r.applied[0].ask === true, JSON.stringify(r.applied[0]));
+  ok("⚠️⚠️ 그래도 **읽힌 형제의 범위는 조각으로 남는다**",
+     db.st.parts.length === 1 && db.st.parts[0].page_from === 35 && db.st.parts[0].page_to === 52,
+     JSON.stringify(db.st.parts));
+  await rollup(db, { studentId: S, unitIds: ["u-wb"], on: "2026-09-03" });
+  ok("⚠️⚠️ 그 조각으로 이튿날 rollup 이 덮는다 (기록이 사라지지 않았다)",
+     got(db, "u-wb").status === "done", JSON.stringify(got(db, "u-wb")));
+}
+{
+  // 읽힌 것이 하나도 없으면 **지어내지 않는다** — 조각도 안 남는다
+  const db = fake();
+  await fromCheck(db, { studentId: S, on: ON,
+    marks: [{ unitId: "u-wb", mark: "done", slot: "home", range: "짝수만", itemId: "i1", sheetId: "sh1" }] });
+  ok("못 읽는 메모 하나뿐이면 조각도 안 남긴다 (쪽수를 지어내지 않는다)",
+     db.st.parts.length === 0, JSON.stringify(db.st.parts));
+}
+{
+  // 축이 엇갈리는 것만 있을 때도 (page + q) — 어느 자인지 모르니 조각을 안 남긴다
+  const db = fake();
+  await fromCheck(db, { studentId: S, on: ON, marks: [
+    { unitId: "u-wb", mark: "done", slot: "class", range: "p.35-40", itemId: "i1", sheetId: "sh1" },
+    { unitId: "u-wb", mark: "done", slot: "home",  range: "1-30번",  itemId: "i2", sheetId: "sh1" }] });
+  ok("쪽과 문항이 한 단원에 같이 오면 ◐ 이고 조각도 안 남긴다",
+     got(db, "u-wb").status === "doing" && db.st.parts.length === 0, JSON.stringify(db.st.parts));
 }
 
 console.log("\n■ ⚠️③ 항목을 1건씩 넘겨도 ○ 이 안 지워진다 (옛 앱 사고 — /check 「한 번에 ✕」)");
@@ -543,6 +631,32 @@ console.log("\n■ ⑤ 아이가 찍기(절 ㊶) — 세 겹");
   await fromStudent(db, { studentId: S, on: ON, marks: [{ unitId: "u-wb", mark: "done", slot: "next" }] });
   ok("⚠️ 그날 예습으로만 깔린 단원은 아이가 눌러도 완료가 아니다", got(db, "u-wb").status === "doing");
 }
+// ⚠️⚠️ 2026-09-02 **2차** 사고 — 위 검사는 slot 을 **손으로 넣어** 통과하고 있었다.
+//    아이 화면은 slot 을 안 보낸다. 형제 긁기(gather)는 by==='check' 일 때만 돌아
+//    fromStudent 는 그날 판의 slot 을 **원리적으로 못 봤다** → 예습만 깔린 단원이 통째로 완료가 됐다
+{
+  const db = fake({ items: [
+    { id: "i1", sheet_id: "sh1", slot: "next", unit_id: "u-wb", range_note: null, status: "none" }] });
+  const r = await fromStudent(db, { studentId: S, on: ON, marks: [{ unitId: "u-wb", mark: "done" }] });
+  ok("⚠️⚠️ **slot 을 안 넘겨도** 그날 예습으로만 깔린 단원은 아이가 눌러 완료가 안 된다",
+     got(db, "u-wb").status === "doing", JSON.stringify(got(db, "u-wb")));
+  ok("왜 그런지도 예습이라고 말한다", /예습/.test(r.applied[0]?.why ?? ""), r.applied[0]?.why);
+}
+{
+  // 같은 단원이 등원으로도 깔려 있으면 예습이 아니다 — 등원이 이긴다
+  const db = fake({ items: [
+    { id: "i1", sheet_id: "sh1", slot: "next",  unit_id: "u-wb", range_note: null, status: "none" },
+    { id: "i2", sheet_id: "sh1", slot: "class", unit_id: "u-wb", range_note: null, status: "none" }] });
+  await fromStudent(db, { studentId: S, on: ON, marks: [{ unitId: "u-wb", mark: "done" }] });
+  ok("등원으로도 깔린 단원은 아이가 눌러 완료가 된다 (예습만 막는 것이다)",
+     got(db, "u-wb").status === "done", JSON.stringify(got(db, "u-wb")));
+}
+{
+  // 그날 판에 아예 없는 단원 — 진도판에서 찍는 길이다. 예습으로 치지 않는다
+  const db = fake({ items: [] });
+  await fromStudent(db, { studentId: S, on: ON, marks: [{ unitId: "u-wb", mark: "done" }] });
+  ok("그날 판에 없는 단원은 예습으로 치지 않는다", got(db, "u-wb").status === "done");
+}
 {
   const db = fake({ progress: [
     P("u-wb", { status: "done", last_by: "student", confirmed: false }),
@@ -651,20 +765,11 @@ console.log("\n■ ⚠️ **진도에 쓰는 문이 하나뿐인가** — 파일
 {
   // 읽기(from · join)는 괜찮다 — 커서와 진도율이 읽는다. **쓰기**만 막는다.
   const WRITE = /(insert\s+into|update)\s+v2\.progress(_part|_flag)?\b/i;
-  const known = new Map([
-    // ⚠️⚠️ **아직 열려 있는 옆문.** lib/close.js:94 `Q_PROG_UP` 이 마감 때 v2.progress 에
-    //    바로 `status='done'` 을 박는다 — 덮음 판정도, 지난 완료 자물쇠도, 「그날 이미 ✕ 로
-    //    찍어 둔 줄」도 안 지난다. (예습은 close.js 의 previewClose 가 따로 거른다)
-    //
-    //    ⚠️ 2026-09-02 — **갈아타 보았고, 되는 것까지 확인했다.** close.js 의 그 한 자리를
-    //    `fromMemo(db, {studentId, on:day(sheet.date), bookId, by:'staff'}, {tx:false,
-    //    slots:['class','home','check']})` 로 바꾸면 ✕ 로 찍은 줄이 안 뒤집히고, 덜 덮은 배정이
-    //    ◐ 에서 서고, 회독도 그대로였다. **막은 것은 scripts/check-close.mjs 다** —
-    //    거기 가짜 DB 가 `q:units`·`q:progress`·`q:parts`·`q:partSeen`·`q:partAdd` 를 몰라
-    //    `closeSheet` 가 터진다(그 파일은 마감 담당의 것이라 안 고쳤다). 그 다섯 갈래를 더하면
-    //    바로 갈아탈 수 있다. **그때까지 이 줄을 지우지 마라.**
-    ["lib/close.js", "메모 마감이 v2.progress 에 바로 쓴다 → fromMemo() 로 갈아타야 한다 (막는 것은 check-close.mjs 의 가짜 DB)"],
-  ]);
+  // ⚠️ **봐주는 목록은 비어 있다.** 2026-09-02 에 마지막 옆문(lib/close.js 의 옛 `Q_PROG_UP` —
+  //    마감이 v2.progress 에 바로 `status='done'` 을 박던 자리)이 `fromMemo()` 로 갈아탔다.
+  //    이제 「마감으로 올라간 진도」와 「진도판에서 올린 진도」가 **한 벌**이다.
+  //    ⚠️ 여기에 줄을 다시 더하지 마라 — 더하는 순간 규칙이 두 벌이 된다.
+  const known = new Map();
   const files = [];
   const walk = (d) => { for (const e of readdirSync(d, { withFileTypes: true })) {
     if (e.name === "node_modules" || e.name.startsWith(".")) continue;
@@ -696,13 +801,18 @@ try {
   await c.query("begin");
 
   const stu = (await c.query(`select id from v2.students where state='active' order by created_at limit 1`)).rows[0];
+  // ⚠️ **쪽이 두 장 넘는** 단원만 고른다 — 한 쪽짜리로는 「일부만 냈다」를 만들 수가 없어
+  //    N1(예습 범위가 완료 판정에 섞인다)을 진짜 DB 로 재현할 수 없다
   const bk = (await c.query(
     `select b.id, count(*) n from v2.books b join v2.units u on u.book_id=b.id
       where u.state='active' and u.page_start is not null
-      group by b.id having count(*) >= 2 order by count(*) desc limit 1`)).rows[0];
+        and coalesce(u.page_end, u.page_start) > u.page_start + 1
+      group by b.id having count(*) >= 3 order by count(*) desc limit 1`)).rows[0];
   const units = (await c.query(
     `select id, chapter, page_start, page_end, q_count from v2.units
-      where book_id=$1 and state='active' and page_start is not null order by sort limit 2`, [bk.id])).rows;
+      where book_id=$1 and state='active' and page_start is not null
+        and coalesce(page_end, page_start) > page_start + 1
+      order by sort limit 3`, [bk.id])).rows;
   await c.query(`insert into v2.student_book(student_id,book_id,from_date,round)
                  values($1,$2,v2.today()-1,3)
                  on conflict (student_id,book_id,from_date) do update set round=3`, [stu.id, bk.id]);
@@ -735,6 +845,48 @@ try {
   ok("⚠️⚠️ 조각이 0줄인 ◐ 은 rollup 이 완료로 못 올린다 (진짜 DB)",
      partsN === 0 && after1?.status === "doing", `조각 ${partsN}줄 / ${JSON.stringify(after1)}`);
   ok("만진 날(marked_on)이 진짜 칸에 써진다 (0065)", after1?.m === on, String(after1?.m));
+
+  /* ⚠️⚠️ N1 (2026-09-02 2차) — 한 판에 **등원 ○(일부 쪽) + 범위 안 적은 예습 ○** 이 같이 깔린다.
+     예습의 「범위 없음」이 완료 판정에 섞여 6쪽만 낸 단원이 통째로 완료가 됐다 */
+  const sheet = (await c.query(
+    `insert into v2.day_sheet(student_id, date) values($1,$2::date)
+     on conflict (student_id, date, class_id) do update set updated_at=now() returning id`,
+    [stu.id, on])).rows[0];
+  const half = `p.${units[1].page_start}-${units[1].page_start + 1}`;
+  const it = (await c.query(
+    `insert into v2.day_item(sheet_id, slot, unit_id, range_note, status) values
+       ($1,'class',$2,$3,'done'), ($1,'next',$2,null,'done')
+     on conflict (sheet_id, slot, item_id, unit_id) do update set range_note=excluded.range_note,
+       status=excluded.status returning id, slot`, [sheet.id, units[1].id, half])).rows;
+  const cls = it.find((x) => x.slot === "class");
+  const r2 = await checkProgress(db, { studentId: stu.id, on, by: "check", marks: [
+    { unitId: units[1].id, mark: "done", slot: "class", range: half, itemId: cls.id, sheetId: sheet.id }],
+  }, { tx: false });
+  const n1 = (await c.query(
+    `select status, done_on from v2.progress where student_id=$1 and unit_id=$2 and round=3`,
+    [stu.id, units[1].id])).rows[0];
+  ok("⚠️⚠️ 범위 안 적은 **예습 ○** 이 옆에 있어도 일부만 낸 단원은 ◐ 이다 (진짜 DB)",
+     n1?.status === "doing", JSON.stringify(n1) + " / " + (r2.applied[0]?.why ?? r2.why));
+  const n1p = (await c.query(
+    `select page_from, page_to from v2.progress_part where student_id=$1 and unit_id=$2 and round=3`,
+    [stu.id, units[1].id])).rows;
+  ok("⚠️ 실제로 낸 그 쪽은 조각으로 **남는다** (진짜 DB)",
+     n1p.length === 1 && n1p[0].page_from === units[1].page_start, JSON.stringify(n1p));
+
+  /* ⚠️⚠️ S1 (2026-09-02 2차) — 아이 화면은 slot 을 안 보낸다.
+     그날 **예습으로만** 깔린 단원을 아이가 누르면 통째로 완료가 됐다 */
+  await c.query(`update v2.students set progress_edit='on' where id=$1`, [stu.id]);
+  await c.query(
+    `insert into v2.day_item(sheet_id, slot, unit_id, status) values($1,'next',$2,'none')
+     on conflict (sheet_id, slot, item_id, unit_id) do nothing`, [sheet.id, units[2].id]);
+  const r3 = await fromStudent(db, { studentId: stu.id, on,
+    marks: [{ unitId: units[2].id, mark: "done" }] }, { tx: false });
+  const s1 = (await c.query(
+    `select status, last_by, confirmed from v2.progress where student_id=$1 and unit_id=$2 and round=3`,
+    [stu.id, units[2].id])).rows[0];
+  ok("⚠️⚠️ 아이가 slot 없이 눌러도 **그날 예습으로만 깔린 단원**은 완료가 아니다 (진짜 DB)",
+     s1?.status === "doing", JSON.stringify(s1) + " / " + (r3.applied[0]?.why ?? r3.why));
+  ok("아이가 찍은 줄로만 선다", s1?.last_by === "student" && s1?.confirmed === false, JSON.stringify(s1));
 
   // ✕ — 지우지 않고 내린다
   await checkProgress(db, { studentId: stu.id, on, by: "check",

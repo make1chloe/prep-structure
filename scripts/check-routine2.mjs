@@ -173,6 +173,61 @@ console.log("\n■ ② 워크북은 **대단원 통째** (0062) — 안 지키�
      /\(6줄\)/.test(lumpsOf(UNITS.filter((u) => u.is_workbook), { orderBasis: "chapter", chunkDepth: "sub" })[0].label),
      lumpsOf(UNITS.filter((u) => u.is_workbook), { orderBasis: "chapter", chunkDepth: "sub" })[0].label);
 }
+{
+  /** ⚠️⚠️ **2026-09-02 확인자가 되짚은 자리 — 「고쳤다」고 했는데 아직 깨져 있었다.**
+   *  `lumpsOf` 는 **걸러진 목록에서 맞닿았는지**로만 덩어리를 끊었다. 그래서 사이에 낀 줄이
+   *  한 줄이라도 done/skip 이면 **다른 중단원의 같은 이름이 다시 뭉쳤다.**
+   *  실측 재현(이시은 · 어법끝스타트 PART 2 · per_session 2): 원장님이
+   *  「UNIT 01 동사 밑줄 › UNIT Exercise (p.154~156)」 한 줄을 건너뜀으로 내리면
+   *  한 회차에 **3줄**(UNIT 01 PtR + UNIT 02 PtR + UNIT 02 UE · 7쪽)이 나갔다 —
+   *  아직 안 배운 UNIT 02 가 섞여 나가고 done:true 라 쪽수도 안 떴다.
+   *  ⚠️ 이 줄을 지우면 그 사고가 그대로 다시 난다. */
+  const W = (id, mid, sub, sort, a, b, prog = null) => ({ id, chapter: "PART 2 밑줄 어법", mid, sub,
+    activity: null, is_workbook: false, sort, page_start: a, page_end: b, q_count: null, q_range: null,
+    label: `PART 2 밑줄 어법 › ${sub}`, prog });
+  const part2 = [
+    W("p50", "UNIT 01 동사 밑줄", "Points to Remember", 50, 150, 153),
+    W("p51", "UNIT 01 동사 밑줄", "UNIT Exercise", 51, 154, 156, "skip"),   // ← 원장님이 건너뜀
+    W("p52", "UNIT 02 명사/대명사 밑줄", "Points to Remember", 52, 158, 159),
+    W("p53", "UNIT 02 명사/대명사 밑줄", "UNIT Exercise", 53, 160, 160),
+  ];
+  const todo = part2.filter((u) => u.prog !== "done" && u.prog !== "skip");
+  const opt = { orderBasis: "sub", chunkDepth: "sub" };
+  // ① 걸러지기 **전** 줄 차례(seq)를 넘기면 끊김이 보인다
+  const l1 = lumpsOf(todo, { ...opt, seq: part2 });
+  ok("⚠️ 가운데 줄이 skip 이라 빠져도 **다른 중단원의 같은 이름이 안 뭉친다** (seq)",
+     l1.length === 3 && l1[0].unitIds.join() === "p50",
+     `덩어리 ${l1.length}개 · 첫 덩어리 [${l1[0]?.unitIds}]`);
+  ok("⚠️ 한 회차(per_session 2)가 **3줄로 부풀지 않는다** — 7쪽 p.150~153, p.158~160 이 아니다",
+     l1.slice(0, 2).flatMap((x) => x.units).length === 2 &&
+     amountOf(l1.slice(0, 2).flatMap((x) => x.units), {}).pages === 6,
+     `${l1.slice(0, 2).flatMap((x) => x.units).length}줄 ${amountOf(l1.slice(0, 2).flatMap((x) => x.units), {}).pages}쪽`);
+  // ② seq 를 못 받는 자리(✕ 되돌림 등)에서도 **중단원이 바뀌면 끊는다**
+  const l2 = lumpsOf(todo, opt);
+  ok("⚠️ seq 를 안 줘도 **중단원(mid)이 바뀌면 끊는다** — 두 겹으로 막는다",
+     l2.length === 3 && l2[0].unitIds.join() === "p50",
+     `덩어리 ${l2.length}개 · 첫 덩어리 [${l2[0]?.unitIds}]`);
+  // ③ 이름이 겹쳐 하나로 줄면 **몇 줄인지 띄운다** — 안 띄우면 두 UNIT 이 나가는 줄 모른다
+  ok("⚠️ 이름이 글자까지 같은 줄이 둘이면 이름에 **(2줄)** 이 붙는다",
+     /\(2줄\)/.test(lumpLabel([part2[0], part2[2]])), lumpLabel([part2[0], part2[2]]));
+}
+{
+  // ⚠️ ㉙ 이 안 깨지는가 — 소단원 기준에서 **본책+워크북은 갈래가 다르므로 mid 로 안 끊는다**
+  const l = lumpsOf(UNITS, { orderBasis: "sub", chunkDepth: "sub", seq: UNITS });
+  ok("⚠️ mid 로 끊어도 ㉙(소단원 기준 본책+워크북 나란히)이 안 깨진다",
+     l.length === 6 && l[0].unitIds.length === 2, `덩어리 ${l.length} · 첫 덩어리 ${l[0]?.unitIds.length}줄`);
+  /** ⚠️⚠️ **중단원으로 끊는 것이 「대단원 통째」를 깨뜨리면 안 된다.** 지금 교재 162권이 전부
+   *  `chunk_depth = sub` 라 이 길은 안 쓰이지만, 원장님이 한 권을 「대단원 통째」로 바꾸시는 날
+   *  중단원마다 끊기면 **원장님이 하지 말라고 한 잘게 쪼개기**가 조용히 켜진다 (0062 · 쓰작2). */
+  const byCh = lumpsOf(UNITS.filter((u) => !u.is_workbook),
+                       { orderBasis: "sub", chunkDepth: "chapter", seq: UNITS.filter((u) => !u.is_workbook) });
+  ok("⚠️ 「대단원 통째」(chunkDepth=chapter) 교재는 중단원이 달라도 **한 덩어리**다",
+     byCh.length === 1 && byCh[0].unitIds.length === 6, `덩어리 ${byCh.length} · ${byCh[0]?.unitIds.length}줄`);
+  const byMid = lumpsOf(UNITS.filter((u) => !u.is_workbook),
+                        { orderBasis: "sub", chunkDepth: "mid", seq: UNITS.filter((u) => !u.is_workbook) });
+  ok("⚠️ 「중단원 통째」(chunkDepth=mid) 교재도 중단원마다 한 덩어리다 (더 잘게 안 쪼갠다)",
+     byMid.length === 6, `덩어리 ${byMid.length}개`);
+}
 
 console.log("\n■ ③ 대단원 기준 차례 — **본책 전부 → 워크북 전부** (㊻ 검사 Q)");
 {
@@ -348,6 +403,39 @@ console.log("\n■ ⑤-b ⚠️ 지난 날짜 판 — 커서는 **오늘 것뿐*
   ok("원장님 화면에도 「참고용」이 뜬다", past.says.some((t) => /참고용/.test(t)), JSON.stringify(past.says));
   const now = await routineNext(fakeDb(fx), { studentId: "s1", on: "2026-09-02" });
   ok("오늘 판은 그대로 「갈아탈 교재」다", now.stale === false && /갈아탈 교재/.test(now.books[0].why), now.books[0].why);
+}
+{
+  /** ⚠️⚠️ **2026-09-02 확인자가 되짚은 자리 — 알림을 붙였다고 했는데 카드에 하나도 안 붙었다.**
+   *  `routineNext` 가 card.notes 에 넣은 줄을 그 뒤의 `Object.assign(card, layout(...))` 이
+   *  layout() 이 새로 만든 **빈 notes 배열**로 통째로 덮어썼다. 실측(김서은 · on 2026-08-27):
+   *  커서가 살아 있는 「어법 서술형 제패 2권」 카드가 notes = [] 였고, 교재멈춤 카드도
+   *  「교재멈춤 …」 한 줄뿐이라 **카드 어디에도 그날 것이 아니라는 표시가 없었다.**
+   *  plan.says 에만 한 줄 남아 화면이 카드만 보면 거짓말을 한다.
+   *  ⚠️ 이 줄을 지우면 그 사고가 그대로 다시 난다. */
+  const has = (b) => (b.notes || []).some((t) => /지난 날짜/.test(t) && /참고용/.test(t));
+  // (1) 커서가 **살아 있는** 카드 — 여기가 실제로 비어 있던 자리다
+  const live = await routineNext(fakeDb({ books: [ROW()], cursor: CUR(), units: UNITS, routine: GRAMMAR }),
+                                 { studentId: "s1", on: "2026-08-27" });
+  ok("⚠️ 커서가 살아 있는 카드에도 「지난 날짜 판입니다(참고용)」이 **붙는다**",
+     has(live.books[0]), JSON.stringify(live.books[0].notes));
+  ok("그러면서 오늘 학습 줄은 그대로 깔린다 (알림 때문에 판이 비지 않는다)",
+     live.books[0].class.length > 0, String(live.books[0].class.length));
+  // (2) 교재멈춤 카드 — layout() 이 제 알림을 넣는 자리라 덮어쓰기가 제일 잘 드러난다
+  const off = await routineNext(fakeDb({ books: [ROW({ stop_mode: "book_off" })], cursor: CUR(),
+                                         units: UNITS, routine: GRAMMAR }), { studentId: "s1", on: "2026-08-27" });
+  ok("⚠️ 교재멈춤 카드도 「지난 날짜」와 「교재멈춤」을 **둘 다** 띄운다",
+     has(off.books[0]) && off.books[0].notes.some((t) => /교재멈춤/.test(t)),
+     JSON.stringify(off.books[0].notes));
+  // (3) 목록에서 내려간 교재 — 커서가 살아 있으면 이 줄도 같이 지워졌다
+  const gone = await routineNext(fakeDb({ books: [ROW({ book_state: "paused" })], cursor: CUR(),
+                                          units: UNITS, routine: GRAMMAR }), { studentId: "s1", on: "2026-09-02" });
+  ok("⚠️ 「목록에서 내려간 교재입니다(paused)」도 커서가 살아 있는 카드에서 **안 지워진다**",
+     gone.books[0].notes.some((t) => /내려간 교재/.test(t)), JSON.stringify(gone.books[0].notes));
+  // (4) 루틴이 없는 영역 — 이 알림도 같은 자리에서 지워졌다
+  const noR = await routineNext(fakeDb({ books: [ROW()], cursor: CUR(), units: UNITS, routine: [] }),
+                                { studentId: "s1", on: "2026-09-02" });
+  ok("⚠️ 「영역에 루틴이 한 줄도 없습니다」도 **안 지워진다**",
+     noR.books[0].notes.some((t) => /루틴이 한 줄도 없/.test(t)), JSON.stringify(noR.books[0].notes));
 }
 
 console.log("\n■ ⑥ 멈춤 — **조용히 0줄로 비우지 않는다** (⑬)");

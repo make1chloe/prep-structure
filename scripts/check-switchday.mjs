@@ -25,6 +25,12 @@ ok("auth.users 트리거가 **안 던진다** (던지면 구앱의 계정 발급
 const swCode = sw.split("\n").filter(l => !/^\s*--/.test(l)).join("\n");
 ok("옛 public 트리거를 안 끈다 (되돌릴 때 필요하다)", !/drop\s+trigger[\s\S]{0,60}auth\.users/i.test(swCode));
 
+// ⚠️ 9001 이 **이관 원본을 먼저 지우는 것**을 막는 자물쇠가 있나.
+//    파기 목록의 표 중 11개를 이관이 읽는다 — 먼저 지우면 이관이 통째로 못 한다.
+const pg = readFileSync("supabase/migrations/9001_purge_public.sql", "utf8");
+ok("9001 이 **전환 전에는 안 돈다** (이관 원본을 먼저 지우는 것을 막는다)",
+   /9000_switch_day\.sql/.test(pg) && /raise exception/.test(pg));
+
 const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
 for (let i = 1; ; i++) { try { await c.connect(); break; }

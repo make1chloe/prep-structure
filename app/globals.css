@@ -1,0 +1,485 @@
+/* ══════════════════════════════════════════════════════════════════════
+ * 배색과 레이아웃의 바닥 — 모든 화면이 이 파일을 딛고 선다.
+ *
+ * 계획 절 ㉖(배색을 고를 수 있게) · ㉑(투명도로 흐리게 하지 않는다) ·
+ * ㉜(폰에서 깨진 다섯) · 「폰 화면에서 이미 치른 값」
+ * 오류 대장 49·50·92·93·94·100·103·104·105·106·107 을 전부 여기서 막는다.
+ *
+ * ⚠️ 이 파일을 고치면 `node scripts/check-layout.mjs` 를 반드시 다시 돌린다.
+ *    안 돌리면 폰에서 깨진 것을 원장님이 사진으로 잡아 주실 때까지 아무도 모른다.
+ *
+ * ✅ `app/layout.js` 가 이 파일을 불러온다 (2026-09-02 이음).
+ *
+ * ✅ 배색 되살리기 한 줄도 layout.js <head> 맨 앞에 들어갔다 —
+ *    없으면 첫 그림이 흰 화면으로 번쩍인다.
+ *
+ *      <script dangerouslySetInnerHTML={{__html:
+ *        `try{var s=localStorage.getItem('skin');if(s)document.documentElement.dataset.skin=s}catch(e){}`
+ *      }} />
+ *
+ *    고를 때는 `document.documentElement.dataset.skin = 값` + `localStorage.setItem('skin', 값)`.
+ *    값은 다섯 — auto · deep · warm · paper · bright.
+ * ────────────────────────────────────────────────────────────────────── */
+
+
+/* ── 이름 대장 ─────────────────────────────────────────────────────────
+ * ⚠️ 클래스 이름 겹침이 **세 번** 터졌다 (`.v` → `.q` → `.open`. 오류 49·92).
+ *    한 이름은 한 뜻만 가진다. 새 클래스를 만들기 전에 여기에 먼저 적는다.
+ *    여기 없는 이름을 규칙에 쓰면 `check-layout.mjs` 가 실패한다.
+ *    한 글자 이름(`.v`·`.q`)과 한 낱말 상태 이름(`.open`·`.on`·`.sel`)은 금지다 —
+ *    상태는 `is-` 를 붙인다.
+ *
+ * @이름 .wrap     페이지 바깥 여백 상자 (한 화면에 하나)
+ * @이름 .stack    세로로 일정한 간격을 두고 쌓는 상자
+ * @이름 .card     카드 한 장
+ * @이름 .cardhd   카드 머리 (제목 줄)
+ * @이름 .row      가로로 늘어놓는 줄 — 좁아지면 저절로 접힌다
+ * @이름 .col      세로로 쌓는 줄
+ * @이름 .grow     남는 폭을 먹는 칸 (⚠️ basis 가 있다 — 오류 94)
+ * @이름 .tblwrap  표를 감싸는 **가로·세로** 스크롤 상자 (붙박이 머리의 기준 상자다.
+ *                 ⚠️ 세로도 굴러야 머리가 붙는다 — 가로만 주면 조용히 안 붙는다)
+ * @이름 .tbl      표 (⚠️ min-width:max-content — 칸이 짜부라져 한글이 쌓이는 것을 막는다)
+ * @이름 .hdstick  표 머리를 위에 붙인다 (폰에서는 안 붙인다 — ㉜ 1)
+ * @이름 .btn      단추
+ * @이름 .btnmain  주 단추 (한 화면에 하나)
+ * @이름 .btnghost 테두리만 있는 단추
+ * @이름 .fld      입력칸 (input·select·textarea 를 감싼 것이 아니라 그 자신)
+ * @이름 .lbl      입력칸 이름
+ * @이름 .pill     상태 알약 — 「덜 중요함」을 흐리게가 아니라 **색으로** 말한다
+ * @이름 .pillok   좋은 상태 (통과·재시험 없음). ⚠️ 흐리게 하지 않는다 — 오류 74
+ * @이름 .pillwarn 살펴야 하는 상태
+ * @이름 .pillbad  나쁜 상태
+ * @이름 .pillinfo 그냥 알림
+ * @이름 .pilloff  꺼진 상태 (멈춤·해당 없음)
+ * @이름 .muted    덜 중요한 글씨 — 색으로 낮춘다 (투명도 아님)
+ * @이름 .sunk     가라앉은 배경 자리
+ * @이름 .num      숫자 자리 — 같은 폭 숫자 + 안 접힘. ⚠️ 글꼴은 안 바꾼다 (오류 107)
+ * @이름 .mono     진짜 코드·SQL 자리. ⚠️ 한글을 넣지 마라 — 검사가 잡는다
+ * @이름 .chip     작은 꼬리표
+ * @이름 .acc      접었다 펴는 상자
+ * @이름 .accbd    접었다 펴는 상자의 속
+ * @이름 .calwrap  큰 달력의 가로 스크롤 상자 (칸 폭을 지킨다 — ㉜ 2)
+ * @이름 .cal      달력 격자
+ * @이름 .calday   달력 한 칸
+ * @이름 .mdl      덮개 판 (모달)
+ * @이름 .mdlf     덮개 판 바닥 단추 줄 (⚠️ 접힌다 — ㉜ 3)
+ * @이름 .snaprow  옆으로 넘겨 보는 줄 (칸반 따위)
+ * @이름 .snapcol  그 줄의 칸 하나 (⚠️ 폰에서 잘리지 않는다 — 오류 105)
+ * @이름 .skinpick 배색 고르는 줄
+ * @이름 .skinbtn  배색 하나를 고르는 단추
+ * @이름 .barfix   화면 아래 붙는 줄 (홈 인디케이터를 피한다)
+ * @이름 .sronly   눈에는 안 보이고 읽어주기만 하는 글
+ * @이름 .is-open  펴져 있다
+ * @이름 .is-sel   골라져 있다
+ * @이름 .is-drag  끄는 중 — ⚠️ **이 앱에서 opacity 를 쓰는 유일한 자리다**
+ * ────────────────────────────────────────────────────────────────────── */
+
+
+/* ══ 1. 배색 토큰 ═════════════════════════════════════════════════════
+ * ⚠️ 색을 미디어 조건 **안에서만** 정하지 않는다. 바깥 `:root` 에 한 벌이 다 있고,
+ *    어두운 쪽·다른 배색은 그 위에 덮는다. 안 그러면 배색을 하나 고르는 순간
+ *    안 덮인 토큰이 비어 글씨가 사라진다.
+ * 기본(auto)은 밝은 쪽이고, 기계가 어두우면 저절로 어두워진다. */
+:root,
+:root[data-skin="auto"] {
+  /* 바탕 */
+  --bg:      #EDF0F5;   /* 페이지 바탕 */
+  --surface: #FFFFFF;   /* 카드 */
+  --sunk:    #E3E8F0;   /* 가라앉은 자리 — 「덜 중요함」의 배경 */
+  --line:    #CFD7E2;   /* 선 */
+  /* 글씨 — 셋뿐이다. 넷째를 만들지 마라 */
+  --fg:      #10151C;   /* 본문 */
+  --mid:     #3B4655;   /* 조금 약한 글 */
+  --mute:    #5A6578;   /* 가장 약한 글 — ⚠️ 그래도 **읽힌다** */
+  /* 강조 */
+  --accent:    #1B4FBE;
+  --accent-fg: #FFFFFF;
+  /* 상태 — 색으로 말한다 */
+  --ok:      #0C6136;  --ok-bg:   #D7F1E3;  --ok-fg:   #084C2A;
+  --warn:    #7E4B00;  --warn-bg: #FAE7C6;  --warn-fg: #5F3800;
+  --bad:     #A81C1C;  --bad-bg:  #FADCDC;  --bad-fg:  #841616;
+  --info:    #1B4FBE;  --info-bg: #DBE6FC;  --info-fg: #143C90;
+  --off-bg:  #DDE3EC;  --off-fg:  #4C5666;  /* 꺼짐 — 흐리게가 아니라 회색 「색」 */
+
+  /* 글씨 크기 — **열 종뿐이다** (오류 106: 24종이 2,432곳에 흩어져 있었다).
+   * 0.5px 단은 없다. 여기 없는 크기를 쓰면 검사가 잡는다. */
+  --fs1: 11px;  /* 칩·꼬리표 */
+  --fs2: 12px;  /* 보조 글 */
+  --fs3: 13px;  /* 표 안 */
+  --fs4: 14px;  /* 본문 (PC 기본) */
+  --fs5: 15px;
+  --fs6: 16px;  /* 작은 제목 · ⚠️ 손가락 기계의 입력칸 */
+  --fs7: 18px;
+  --fs8: 20px;
+  --fs9: 24px;
+  --fs10: 30px;
+
+  /* 사이 */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --r1: 6px; --r2: 10px; --r3: 14px;
+  --shadow: 0 1px 2px rgba(16,21,28,.10), 0 6px 18px rgba(16,21,28,.06);
+
+  /* 글꼴 — ⚠️ 한글에 고정폭을 걸지 않는다 (오류 107).
+   * 숫자 줄맞춤은 글꼴을 바꾸지 않고 `font-variant-numeric` 으로 한다. */
+  --sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+          "Noto Sans KR", "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 손가락 기계에서 눌러야 하는 것의 최소 크기 */
+  --tap: 44px;
+  color-scheme: light;
+
+  /* ── 어두운 한 벌 — ⚠️ **어두운 색이 적히는 유일한 자리다** (원칙 1) ─────
+   * 전에는 「기계가 어두울 때」와 「딥네이비」가 **똑같은 열 줄을 두 벌** 적고 있었다.
+   * 그런데 미디어 쪽 선택자는 `:not()` 셋이라 특정도 (0,4,0), 딥네이비는 (0,2,0) —
+   * **뒤에 온 딥네이비가 졌다.** 그래서 딥네이비의 `--bg` 를 고쳐도
+   * 다크 맥(원장님 기계)에서는 옛 값이 그대로 보였다 — 「고쳤다고 말할 뻔했다」(오류 100).
+   * 이제 두 자리가 **여기 한 벌을 가리키기만** 한다. 어두운 색은 여기서만 고친다. */
+  --d-bg:      #0D1219;
+  --d-surface: #1B2432;
+  --d-sunk:    #141C27;
+  --d-line:    #2E3A4C;
+  --d-fg:      #EFF4FA;
+  --d-mid:     #C3CEDC;
+  --d-mute:    #94A3B7;
+  --d-accent:    #8FB8FF;
+  --d-accent-fg: #0D1219;
+  --d-ok:   #5FDCA0;   --d-ok-bg:   #10321F;  --d-ok-fg:   #86E9B7;
+  --d-warn: #F2C36A;   --d-warn-bg: #35280D;  --d-warn-fg: #F6D391;
+  --d-bad:  #FF938E;   --d-bad-bg:  #3A1717;  --d-bad-fg:  #FFB2AE;
+  --d-info: #8FB8FF;   --d-info-bg: #14243D;  --d-info-fg: #ADCCFF;
+  --d-off-bg: #232E3E; --d-off-fg:  #9BA9BC;
+  --d-shadow: 0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.35);
+}
+
+/* 기본 배색인데 기계가 어두울 때 — ⚠️ 여기서 **처음 정하는 토큰은 없다.** 덮기만 한다.
+ * ⚠️ `:not([data-skin="deep"])` 이 붙은 까닭 — 딥네이비는 **제 규칙만** 맞는다.
+ *    안 붙이면 이 규칙(0,4,0)이 딥네이비(0,2,0)를 이겨 특정도 경주가 다시 난다. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-skin="paper"]):not([data-skin="bright"]):not([data-skin="warm"]):not([data-skin="deep"]) {
+    --bg: var(--d-bg); --surface: var(--d-surface); --sunk: var(--d-sunk); --line: var(--d-line);
+    --fg: var(--d-fg); --mid: var(--d-mid); --mute: var(--d-mute);
+    --accent: var(--d-accent); --accent-fg: var(--d-accent-fg);
+    --ok:   var(--d-ok);   --ok-bg:   var(--d-ok-bg);   --ok-fg:   var(--d-ok-fg);
+    --warn: var(--d-warn); --warn-bg: var(--d-warn-bg); --warn-fg: var(--d-warn-fg);
+    --bad:  var(--d-bad);  --bad-bg:  var(--d-bad-bg);  --bad-fg:  var(--d-bad-fg);
+    --info: var(--d-info); --info-bg: var(--d-info-bg); --info-fg: var(--d-info-fg);
+    --off-bg: var(--d-off-bg); --off-fg: var(--d-off-fg);
+    --shadow: var(--d-shadow);
+    color-scheme: dark;
+  }
+}
+
+/* 딥네이비 — 늘 어둡다. ⚠️ 바탕을 더 깊게, 카드를 더 띄운다 (계획 ㉖).
+ * 어중간한 밝기가 제일 안 예쁘다는 것이 원장님 말씀이었다.
+ * ⚠️ 값을 여기 다시 적지 마라 — 위 `--d-*` 한 벌만 가리킨다. */
+:root[data-skin="deep"] {
+  --bg: var(--d-bg); --surface: var(--d-surface); --sunk: var(--d-sunk); --line: var(--d-line);
+  --fg: var(--d-fg); --mid: var(--d-mid); --mute: var(--d-mute);
+  --accent: var(--d-accent); --accent-fg: var(--d-accent-fg);
+  --ok:   var(--d-ok);   --ok-bg:   var(--d-ok-bg);   --ok-fg:   var(--d-ok-fg);
+  --warn: var(--d-warn); --warn-bg: var(--d-warn-bg); --warn-fg: var(--d-warn-fg);
+  --bad:  var(--d-bad);  --bad-bg:  var(--d-bad-bg);  --bad-fg:  var(--d-bad-fg);
+  --info: var(--d-info); --info-bg: var(--d-info-bg); --info-fg: var(--d-info-fg);
+  --off-bg: var(--d-off-bg); --off-fg: var(--d-off-fg);
+  --shadow: var(--d-shadow);
+  color-scheme: dark;
+}
+
+/* 따뜻하게 — 어두운 쪽인데 파랑기를 뺀 것. 밤에 오래 보는 눈에 편하다 */
+:root[data-skin="warm"] {
+  --bg: #14100B; --surface: #241C14; --sunk: #1B1610; --line: #3D3124;
+  --fg: #F7EFE4; --mid: #D9C9B4; --mute: #AC9A82;
+  --accent: #F2B96E; --accent-fg: #1A1209;
+  --ok:   #7CD79A; --ok-bg:   #17301C; --ok-fg:   #9DE4B4;
+  --warn: #F2C36A; --warn-bg: #362613; --warn-fg: #F7D69A;
+  --bad:  #FF9C8E; --bad-bg:  #3B1C15; --bad-fg:  #FFBAAF;
+  --info: #F2B96E; --info-bg: #33260F; --info-fg: #F7CE97;
+  --off-bg: #2B2317; --off-fg: #A8977F;
+  --shadow: 0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.30);
+  color-scheme: dark;
+}
+
+/* 종이 — 미색 종이. 흰 화면이 눈부실 때 */
+:root[data-skin="paper"] {
+  --bg: #E9E2D3; --surface: #FBF6EC; --sunk: #DED5C2; --line: #C9BFA9;
+  --fg: #201B12; --mid: #473E2F; --mute: #665A46;
+  --accent: #1B4FBE; --accent-fg: #FFFFFF;
+  --ok:   #0C6136;  --ok-bg:   #D7EDD9;  --ok-fg:   #084C2A;
+  --warn: #7E4B00;  --warn-bg: #F3E4C2;  --warn-fg: #5F3800;
+  --bad:  #A81C1C;  --bad-bg:  #F3DCD6;  --bad-fg:  #841616;
+  --info: #1B4FBE;  --info-bg: #DDE3EF;  --info-fg: #143C90;
+  --off-bg: #DED5C2; --off-fg: #4E4536;
+  --shadow: 0 1px 2px rgba(32,27,18,.12), 0 6px 18px rgba(32,27,18,.07);
+  color-scheme: light;
+}
+
+/* 밝게 — 흰 바탕에 대비를 최대로. 낮에 밝은 교실에서 */
+:root[data-skin="bright"] {
+  --bg: #FFFFFF; --surface: #FFFFFF; --sunk: #EEF1F5; --line: #A9B3C1;
+  --fg: #000000; --mid: #1C2530; --mute: #444E5C;
+  --accent: #0B3FA8; --accent-fg: #FFFFFF;
+  --ok:   #07512C;  --ok-bg:   #D2F0DF;  --ok-fg:   #06401F;
+  --warn: #6B3F00;  --warn-bg: #F8E2BC;  --warn-fg: #503000;
+  --bad:  #941414;  --bad-bg:  #F9D6D6;  --bad-fg:  #741010;
+  --info: #0B3FA8;  --info-bg: #D7E3FB;  --info-fg: #093184;
+  --off-bg: #E4E8EE; --off-fg: #3B4553;
+  --shadow: 0 0 0 1px var(--line);
+  color-scheme: light;
+}
+
+
+/* ══ 2. 바닥 규칙 — 폰에서 깨진 다섯의 「뿌리 셋」을 여기서 뽑는다 ══════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ⚠️ 뿌리 2 — flex·grid 자식의 기본값 `min-width:auto` 가 부모를 밀어낸다.
+ *    표·입력칸·긴 글이 넘치던 것의 대부분이 이 한 줄로 없어졌다 (계획 ㉜).
+ *    `:where()` 라 특정도가 0 이다 — 어디서든 덮어쓸 수 있다. */
+:where(*) { min-width: 0; min-height: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: var(--fs4);
+  line-height: 1.55;
+  /* ⚠️ 뿌리 3 — 한글은 기본값이면 아무 데서나 끊어 **한 글자씩 세로로 쌓인다**.
+   *    낱말 단위로 끊는다. 긴 영문·주소만 어쩔 수 없을 때 끊는다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+img, svg, video, canvas { max-width: 100%; height: auto; }
+
+/* ⚠️ 표는 **반드시** `.tblwrap` 안에 넣는다. 안 그러면 폰에서 부모를 밀어낸다 */
+.tblwrap {
+  position: relative;      /* ⚠️ 붙박이 표 머리가 이 상자를 넘어 다른 카드를 덮던 사고 (㉜ 1) */
+  /* ⚠️ 여기가 함정이었다 — 전에는 `overflow-x: auto` **한 줄뿐**이었다.
+   *    CSS 규정상 한 축이 visible 이 아니면 다른 축은 **auto 로 계산된다.**
+   *    그래서 이 상자가 붙박이 표 머리(`.hdstick`)의 기준 스크롤 상자가 되는데,
+   *    세로로는 안 움직이는 상자라 머리가 **오류 하나 없이 그냥 흘러 나갔다**
+   *    (실측: 페이지를 700px 내리면 th 의 top 이 74 → -626. 한 번도 안 붙었다).
+   *    계획이 「sticky 는 오류 없이 그냥 안 붙는다」고 경고한 바로 그 자리다.
+   *    → 세로로도 **진짜** 스크롤 상자로 만든다. 표는 상자 안에서 구르고 머리는 붙는다. */
+  overflow: auto;
+  max-height: 70vh;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
+  background: var(--surface);
+}
+/* ⚠️ `min-width: max-content` 가 없으면 칸이 많은 진짜 표에서 표가 상자 폭까지 짜부라져
+ *    한글이 한 줄에 2자씩 세로로 쌓인다 (계획 ㉜ 뿌리 3 이 표 안에서 재발).
+ *    실측(9칸·학생 8명): 없을 때 320·390·768px 에서 8건 · 줄 높이 198px,
+ *    있을 때 0건 · 줄 높이 61px. 넘치는 폭은 `.tblwrap` 이 가로로 굴려 준다. */
+.tbl { width: 100%; min-width: max-content; border-collapse: collapse; font-size: var(--fs3); }
+.tbl th, .tbl td { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); text-align: left; }
+.tbl th { background: var(--sunk); color: var(--mid); font-weight: 600; }
+.tbl tr:last-child td { border-bottom: 0; }
+.hdstick { position: sticky; top: 0; z-index: 2; }
+
+
+/* ══ 3. 늘어놓기 — 늘어나는 칸에는 **basis 를 준다** ══════════════════
+ * ⚠️ 오류 94 — `flex:1`(basis 0)이면 390px 에서 26px 로 눌려 한 글자씩 쌓였다(40곳).
+ *    그래서 이 파일에는 basis 없는 `flex:1` 이 하나도 없다. 검사가 확인한다. */
+.row { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.col { display: flex; flex-direction: column; gap: var(--s2); }
+.grow { flex: 1 1 170px; }
+.stack { display: flex; flex-direction: column; gap: var(--s3); }
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s4);
+  padding-left: max(var(--s4), env(safe-area-inset-left));
+  padding-right: max(var(--s4), env(safe-area-inset-right));
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r3);
+  padding: var(--s4);
+  box-shadow: var(--shadow);
+}
+.cardhd {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+  margin-bottom: var(--s3);
+  font-size: var(--fs7); font-weight: 700;
+}
+
+/* 옆으로 넘겨 보는 줄 — ⚠️ 오류 105: 칸을 고정폭으로 두면 폰에서 잘려 **없는 것이 된다** */
+.snaprow {
+  display: flex; gap: var(--s3);
+  overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--s2);
+}
+.snapcol { flex: 0 0 min(86%, 260px); scroll-snap-align: start; }
+
+
+/* ══ 4. 글씨 ═════════════════════════════════════════════════════════ */
+h1 { font-size: var(--fs9); line-height: 1.3; margin: 0 0 var(--s3); }
+h2 { font-size: var(--fs8); line-height: 1.35; margin: 0 0 var(--s3); }
+h3 { font-size: var(--fs7); line-height: 1.4; margin: 0 0 var(--s2); }
+p  { margin: 0 0 var(--s3); }
+small { font-size: var(--fs2); white-space: normal; }  /* ⚠️ ㉜ 5 — 안 접혀 잘리던 자리 */
+
+/* 「덜 중요함」은 **색으로** 말한다 (계획 ㉑) */
+.muted { color: var(--mute); }
+.sunk  { background: var(--sunk); border-radius: var(--r1); padding: var(--s2) var(--s3); }
+
+/* ⚠️ 숫자 줄맞춤에 **글꼴을 바꾸지 않는다** (오류 107).
+ *    고정폭 글꼴에 한글이 없어서 한 줄 안에서 숫자와 한글이 갈렸다 — 561곳. */
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; white-space: nowrap; }
+/* ⚠️ 여기에만 고정폭을 건다. **한글을 넣지 마라** — 검사가 잡는다 */
+.mono { font-family: var(--mono); font-size: var(--fs3); }
+
+.sronly {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+
+/* ══ 5. 상태 알약 — 흐리게가 아니라 색 ═══════════════════════════════
+ * ⚠️ 오류 74 — 「통과라 재시험 없음」을 흐리게 했더니 나쁜 상태처럼 보였다.
+ *    좋은 상태는 **초록**이다. 꺼진 것만 회색이고, 그것도 읽힌다. */
+.pill {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: 2px var(--s2); border-radius: 999px;
+  font-size: var(--fs1); font-weight: 700; line-height: 1.6;
+}
+.pillok   { background: var(--ok-bg);   color: var(--ok-fg); }
+.pillwarn { background: var(--warn-bg); color: var(--warn-fg); }
+.pillbad  { background: var(--bad-bg);  color: var(--bad-fg); }
+.pillinfo { background: var(--info-bg); color: var(--info-fg); }
+.pilloff  { background: var(--off-bg);  color: var(--off-fg); }
+.chip {
+  display: inline-block; padding: 2px var(--s2); border-radius: var(--r1);
+  background: var(--sunk); color: var(--mid); font-size: var(--fs1);
+}
+
+
+/* ══ 6. 단추와 입력칸 ════════════════════════════════════════════════ */
+.btn {
+  /* ⚠️ 오류 92 — `nowrap` 을 상태 클래스에 걸었다가 문단이 556px 로 뻗었다.
+   *    여기서는 **단추에만** 건다. */
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s1);
+  min-height: var(--tap); padding: 0 var(--s4);
+  border: 1px solid var(--line); border-radius: var(--r2);
+  background: var(--surface); color: var(--fg);
+  font-family: inherit; font-size: var(--fs4); font-weight: 600;
+  white-space: nowrap;   /* 단추 글은 안 접는다 — 접히면 세로로 늘어난다 (검사 ⑥) */
+  cursor: pointer;
+}
+.btnmain  { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btnghost { background: transparent; }
+.btn:disabled { background: var(--off-bg); color: var(--off-fg); border-color: var(--line); cursor: default; }
+
+.lbl { display: block; font-size: var(--fs2); color: var(--mid); margin-bottom: var(--s1); }
+/* ⚠️ 아래 §10 손가락 규칙은 `.fld, input, select, textarea` **넷 다**를 올린다.
+ *    여기만 `.fld` 하나면 클래스 없는 `<input>` 이 PC 에서 브라우저 기본값으로 남는다 —
+ *    실측 13.3px · Arial · 폭 153px 고정이라 `.grow` 안에서 부모 밖으로 8px 나갔다.
+ *    **두 규칙의 대상이 다른 것이 제일 나쁘다.** 그래서 여기서도 넷 다 잡는다.
+ *    체크박스·라디오·슬라이더는 폭을 100% 로 늘리면 안 되므로 뺀다.
+ * ⚠️ 뺄 때 `:where()` 로 감싼다 — 맨 `:not()` 셋이면 특정도가 (0,3,1) 이 되어
+ *    아래 §10 손가락 규칙(`input` = 0,0,1)을 **이겨 버린다.** 그러면 아이폰에서
+ *    입력칸이 14px 로 남아 누를 때마다 강제 확대된다 (실측 [14,14,14,16,14,16]).
+ *    `:where()` 는 특정도가 0 이라 손가락 규칙이 제대로 덮는다. */
+.fld,
+input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])),
+select,
+textarea {
+  width: 100%; min-height: var(--tap);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r2);
+  background: var(--surface); color: var(--fg);
+  font-family: inherit;
+  /* ⚠️ 오류 103 — PC 에서도 16px 로 키웠더니 둘레보다 커 보여 화면이 들쭉날쭉했다.
+   *    PC 는 14px 이고, 16px 은 **아이폰 확대를 막으려는 것**이라 아래 손가락 규칙에서만 올린다. */
+  font-size: var(--fs4);
+}
+.fld:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+
+/* ══ 7. 접기 · 덮개 판 · 달력 ════════════════════════════════════════ */
+.acc { border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface); }
+/* ⚠️ 상태는 `is-` 를 붙인다. `.open` 은 금지다 — 오류 92 가 바로 그것이었다 */
+.accbd { display: none; padding: var(--s3); border-top: 1px solid var(--line); }
+.acc.is-open > .accbd { display: block; }
+
+.mdl {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r3); padding: var(--s4);
+  max-width: 560px; width: 100%;
+}
+/* ⚠️ ㉜ 3 — 안 접혀 단추가 세로로 254px 가 되던 자리. 줄은 접고 단추는 안 접는다 */
+.mdlf { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: flex-end; margin-top: var(--s4); }
+
+/* ⚠️ ㉜ 2 — 폰에서 칸이 41px 로 줄어 글자가 한 자씩 세로로 쌓였다.
+ *    큰 달력은 **가로 스크롤 상자**에 넣고 칸 폭을 지킨다. */
+.calwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* ⚠️ grid 의 맨 `1fr` 은 내용보다 **안 작아진다** — 달력이 부모 밖으로 69px 나갔다.
+ *    `minmax(0,1fr)` 이 맞다 (계획 ㉜ 「추가로 잡힌 것」). */
+/* ⚠️ 칸 폭만 세고 **사이(gap)를 빼먹으면** 딱 그만큼 삐져나온다 — 검사가 6px 을 잡았다.
+ *    7칸 × 92px + 사이 6개 × 1px = 650px. 손으로 650 이라 적지 말고 세게 둔다. */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(92px, 1fr)); gap: 1px; background: var(--line); min-width: calc(92px * 7 + 1px * 6); }
+.calday { background: var(--surface); padding: var(--s2); min-height: 76px; font-size: var(--fs2); }
+
+.barfix {
+  position: sticky; bottom: 0; z-index: 5;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding: var(--s2) var(--s3);
+  padding-bottom: calc(var(--s2) + env(safe-area-inset-bottom));
+}
+
+
+/* ══ 8. 배색 고르기 ══════════════════════════════════════════════════ */
+.skinpick { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.skinbtn {
+  min-height: var(--tap); padding: 0 var(--s3);
+  border: 2px solid var(--line); border-radius: var(--r2);
+  background: var(--surface); color: var(--fg);
+  font-family: inherit; font-size: var(--fs3); cursor: pointer;
+}
+.skinbtn.is-sel { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+
+/* ══ 9. 투명도 ══════════════════════════════════════════════════════
+ * ⚠️ 계획 ㉑ — 「투명도 조절 방식이 너무 많아 눈을 가늘게 떠야 하는 느낌」.
+ *    **이 앱에서 opacity 로 흐리게 하는 자리는 아래 하나뿐이다.**
+ *    「덜 중요함」은 `.muted`(색)로, 「좋은 상태」는 `.pillok`(초록)으로 말한다. */
+.is-drag { opacity: .55; }
+
+
+/* ══ 10. 손가락 기계 ════════════════════════════════════════════════
+ * ⚠️ 오류 104 — 이 조건을 `max-width:760px` 로 걸었더니 **아이패드(768px)가 빠졌다.**
+ *    폭이 아니라 **기계**로 가른다. 폭은 아이패드를 자르고, 손가락은 안 자른다. */
+@media (pointer: coarse) {
+  /* 16px 미만이면 아이폰이 입력칸을 누를 때 **강제로 확대하고 닫아도 확대가 남는다** */
+  .fld, input, select, textarea { font-size: var(--fs6); }
+  .btn, .skinbtn { min-height: var(--tap); }
+}
+
+
+/* ══ 11. 좁은 화면 ══════════════════════════════════════════════════
+ * ⚠️ 오류 100 — 폰 규칙을 가운데에 뒀더니 **뒤에 오는 같은 특정도 규칙에 밀려 안 먹었다.**
+ *    그래서 좁은 화면 규칙은 이 파일 **맨 끝**에 둔다. 뒤에 아무것도 오지 않는다. */
+@media (max-width: 700px) {
+  .wrap { padding: var(--s3); }
+  .card { padding: var(--s3); border-radius: var(--r2); }
+  /* ⚠️ ㉜ 1 — 붙박이 표 머리가 표 밖으로 튀어나와 다른 카드를 덮었다. 폰에서는 안 붙인다.
+   *    붙일 것이 없으니 상자 안 세로 스크롤도 없앤다 — 좁은 화면에서 두 겹 스크롤이 더 나쁘다.
+   *    (이 둘은 짝이다. 하나만 지우면 폰에서 표가 상자 안에 갇힌다) */
+  .tblwrap { max-height: none; }
+  .hdstick { position: static; }
+  /* ⚠️ 오류 94 — 좁을수록 basis 를 낮춰 잡는다. 0 으로 두면 26px 로 눌린다 */
+  .grow { flex: 1 1 150px; }
+  .cardhd { font-size: var(--fs6); }
+  h1 { font-size: var(--fs8); }
+  h2 { font-size: var(--fs7); }
+}

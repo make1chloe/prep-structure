@@ -13,11 +13,13 @@
  *    ⑩ **진짜 DB 로** — v2.profiles 의 role 값이 내 표와 같은가
  *    ⑪ ⚠️ **진짜 `middleware()` 를 노드로 돌린다** — 2026-09-02 에 잡힌 사고 셋을 그대로 재현한다
  *    ⑫ 화면 글이 **실측과 어긋나지 않는가** (지어낸 까닭 · 예외 빠진 아이디 규칙)
+ *    ⑬ ⚠️ **닫는 길** — 로그인한 사람이 서는 화면마다 로그아웃 단추가 있는가 (대전제 10)
+ *    ⑭ `homeFor` 의 null 이 주소로 새지 않는가 (부르는 자리마다 `knownRole` 로 먼저 가르는가)
  *
  *  ⚠️ 이 검사가 초록이어도 **지금 로그인은 실제로 안 된다.** 코드 밖의 두 가지가 비어 있다.
  *     끝에 「■ 코드로는 못 고치는 것」 으로 매번 세워 준다 — 그 줄을 지우지 마라.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
 import { Client } from "pg";
@@ -48,6 +50,18 @@ const read = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "");
 /** ⚠️ 주석 속의 경고 글까지 「위반」으로 세면 경고를 적을수록 검사가 빨개진다 — 주석은 지우고 본다 */
 const 코드만 = (s) =>
   s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+
+/** `const css = ...` 로 적은 css 의 몸통. 못 찾으면 null (⑫·⑬ 이 같이 쓴다 — 판단은 한 벌) */
+const css몸통 = (s) => {
+  const 머리 = "const css = `";
+  const 시작 = s.indexOf(머리), 끝 = s.lastIndexOf("`;");
+  return 시작 >= 0 && 끝 > 시작 ? s.slice(시작 + 머리.length, 끝) : null;
+};
+
+/** app/ 밑의 .js 를 전부 훑는다 (「그 자리가 앱에 하나뿐인가」를 세려면 전수를 봐야 한다) */
+const 앱파일 = (dir = "app") =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? 앱파일(`${dir}/${e.name}`) : e.name.endsWith(".js") ? [`${dir}/${e.name}`] : []);
 
 const src = Object.fromEntries(Object.entries(FILES).map(([k, p]) => [k, read(p)]));
 const code = Object.fromEntries(Object.entries(src).map(([k, s]) => [k, 코드만(s)]));
@@ -312,6 +326,19 @@ await sec("■ ⑪ 진짜 문지기를 돌린다 (2026-09-02 사고 재현)", as
     ok(`학부모는 /login 에서 제 화면으로 (${r.s} ${r.loc})`, r.s === 303 && /\/parent$/.test(r.loc ?? ""));
   }
   {
+    // ⚠️⚠️ **사고 ④ — 2026-09-02, 확인자가 「재현 못 했다」를 뒤집은 자리.**
+    //    「역할이 **제대로 있는** 사람」은 `/login` 에 **설 수가 없다.** 아래처럼 전부 되돌려진다.
+    //    그러니 로그아웃 단추가 로그인 화면에만 있으면 그 사람에겐 **닫는 길이 없는 것과 같다**
+    //    (홈 화면에 깐 앱엔 주소창도 뒤로가기도 없다 — 대전제 10).
+    //    → 그래서 ⑬ 이 「첫 화면마다 로그아웃 단추」를 요구한다. 두 검사는 한 사고의 앞뒤다.
+    for (const [role, addr] of HOME) {
+      const r = await 돌린다("/login", { user: 나, row: { data: { role, state: "active" }, error: null } });
+      ok(`${role} 는 /login 에 못 선다 → 첫 화면 ${addr} 에 닫는 길이 있어야 한다 (${r.s} ${r.loc})`,
+         r.s === 303 && new RegExp(addr === "/" ? "/$" : `${addr}$`).test(r.loc ?? ""),
+         "여기가 303 이 아니게 되면 ⑬ 의 요구도 다시 봐야 한다");
+    }
+  }
+  {
     // ⚠️⚠️ **사고 ③** — 307 이면 브라우저가 **POST 를 그대로 다시 보낸다.** 실측 응답 500
     //    (`Failed to find Server Action …`). 뒤로가기로 되살아난 로그인 화면에서 한 번 더 누르면 난다.
     const r = await 돌린다("/login", { user: 나, row: 학부모, method: "POST" });
@@ -344,7 +371,8 @@ await sec("■ ⑫ 화면 글이 실측과 어긋나지 않는가", async () => 
   //    이 안내가 없으면 그 아이들은 형·누나 아이디를 치고, 오류 글이 틀린 규칙을 다시 가리킨다.
   ok("형제·자매 `-2` 아이디 예외를 적어 뒀다", /-2/.test(p) && /형제/.test(p),
      "뒤 4자리가 겹치는 아이가 실제로 있다 (chloe8729-2)");
-  ok("로그아웃(탈출구) 단추가 화면에 있다", /signOut/.test(code.page) && /로그아웃/.test(p));
+  ok("로그아웃(탈출구) 단추가 화면에 있다", /<LogoutButton/.test(p) && /로그아웃/.test(p),
+     "한 벌짜리 단추(app/logout-button.js)를 이 화면에서도 그려야 한다 — ⑬ 참고");
 
   // ⚠️ 화면이 「-2 를 쳐 보세요」라고 시켰으면 **판단이 그걸 받아야** 한다.
   //    안 받으면 안내대로 쳤는데도 안 들어가고, 그 집은 길이 완전히 막힌다.
@@ -355,12 +383,88 @@ await sec("■ ⑫ 화면 글이 실측과 어긋나지 않는가", async () => 
 
   // ⚠️ 2026-09-02 사고 — 위 css 는 template literal 이라, 그 안에 backtick 을 하나라도 쓰면
   //    문자열이 거기서 끊겨 **빌드가 깨진다.** 검사는 글자만 훑어서 초록이었는데 빌드가 죽었다.
-  const 머리 = "const css = `";
-  const 시작 = src.page.indexOf(머리), 끝 = src.page.lastIndexOf("`;");
-  const 몸통 = 시작 >= 0 && 끝 > 시작 ? src.page.slice(시작 + 머리.length, 끝) : null;
+  const 몸통 = css몸통(src.page);
   ok("css 문자열 안에 backtick 이 없다 (있으면 문자열이 끊겨 빌드가 깨진다)",
       몸통 !== null && !몸통.includes("`"),
      몸통 === null ? "css 문자열을 못 찾았다" : "css 주석에 backtick 을 쓰지 마라");
+});
+
+/** ⑬ ⚠️⚠️ **닫는 길** — 대전제 10: 홈 화면에 깐 앱에는 주소창도 뒤로가기도 없다.
+ *
+ *  2026-09-02 사고 — 로그아웃 단추가 `/login` 에**만** 있었다. 그런데 문지기는
+ *  **역할이 제대로 있는 사람을 `/login` 에서 제 첫 화면으로 되돌린다**(303).
+ *  진짜 next 서버로 재현(`next build && next start -p 3111`, 가짜 인증서버로 role=parent):
+ *      curl -H 'Cookie: sb-…-auth-token=…' /login  → `303 See Other · location: /parent`
+ *      curl -H 'Cookie: …'                /parent  → 글자는 「우리 아이 / 준비 중입니다.」뿐,
+ *                                                    `로그아웃` **0개**
+ *      grep -rn 'switch=1'                         → 주석 두 줄뿐, 화면에 링크 0개
+ *  → 어머니 폰 하나로 두 아이를 보는 집은 **계정을 바꿀 길이 아예 없었다.**
+ *  이 자리는 「/me·/parent 담당이 하겠지」로 미룰 수 없다 — 미룬 판에서 그대로 안 고쳐졌다.
+ */
+await sec("■ ⑬ ⚠️ 닫는 길 — 서는 화면마다 로그아웃 단추가 있는가 (대전제 10)", async () => {
+  const BTN = "app/logout-button.js";
+  const btnSrc = read(BTN);
+  const btn = 코드만(btnSrc);
+  ok(`${BTN} 이 있다 (로그아웃 단추 한 벌이 사는 자리)`, btnSrc.length > 0, "없다");
+  ok("그 단추가 서버 동작 signOut 을 부른다 (제 손으로 로그아웃을 짓지 않는다)",
+     /from\s+["']\.\/login\/actions["']/.test(btn) && /action=\{signOut\}/.test(btn),
+     "쿠키를 여기서 직접 지우면 두 벌이 된다");
+
+  // ⚠️⚠️ 사고 재현 — HOME 표에 있는 **모든 첫 화면**에 닫는 길이 있어야 한다.
+  //    표에 역할이 늘면 이 검사도 저절로 늘어난다 (검사에 주소를 두 벌로 적지 않는다).
+  for (const [role, addr] of HOME) {
+    const f = `app${addr === "/" ? "" : addr}/page.js`;
+    if (!existsSync(f)) {
+      console.log(`   · ${role} → ${addr} — ${f} 가 아직 없다. **놓는 날 이 단추부터 넣어라**`);
+      continue;
+    }
+    const s = 코드만(read(f));
+    ok(`${role} 첫 화면 ${f} 에 닫는 길이 있다`,
+       /<LogoutButton/.test(s) && /logout-button/.test(s),
+       "여기 없으면 그 사람은 홈 화면에 깐 앱에서 계정을 못 바꾼다 — 실측으로 그랬다");
+  }
+
+  // 원칙 1 — 로그아웃 **폼을 그리는 자리**가 앱 전체에 하나뿐이어야 한다.
+  //          두 벌이 되면 한쪽만 고쳐져, 화면마다 닫는 길이 조용히 달라진다.
+  const 그리는곳 = 앱파일().filter((f) => /action=\{signOut\}/.test(코드만(read(f))));
+  ok(`로그아웃 폼을 그리는 자리가 하나뿐이다 (${그리는곳.join(" ") || "없음"})`,
+     그리는곳.length === 1 && 그리는곳[0] === BTN, "두 벌이면 원칙 1 위반이다");
+
+  // ⚠️ 폰 규칙 — 이 단추는 로그인 화면 밖(글씨 규칙이 없는 화면)에도 놓인다. 스스로 지켜야 한다.
+  const px = [...btn.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)].map((m) => Number(m[1]));
+  ok(`단추 글씨가 16px 이상 (${px.join("/") || "없음"})`, px.length > 0 && px.every((v) => v >= 16),
+     "16 밑이면 사파리가 화면을 확대하고 닫아도 확대가 남는다");
+  const mh = [...btn.matchAll(/min-height\s*:\s*(\d+)px/g)].map((m) => Number(m[1]));
+  ok(`단추 높이가 44px 이상 (${mh.join("/") || "없음"})`, mh.length > 0 && mh.every((v) => v >= 44),
+     "44 밑이면 손가락으로 못 누른다");
+  // ⚠️ 색을 지어내면 그 화면 바탕과 안 맞아 **다크모드에서 흰 바탕에 흰 글씨**가 된다.
+  //    (2026-09-02 에 로그인 화면에서 실제로 났던 사고 — 대비 1.19:1)
+  ok("단추 색을 지어내지 않는다 (color:inherit)",
+     /color\s*:\s*inherit/.test(btn) && !/(^|[^-])color\s*:\s*#/.test(btn),
+     "놓이는 화면의 글자색을 따라가야 한다 — app/globals.css 값을 베끼면 두 벌이다");
+  ok(`${BTN} 에 첫 화면 주소가 박혀 있지 않다 (원칙 1)`,
+     !["/parent", "/me"].some((s) => new RegExp(`["'\`]${s}["'\`]`).test(btn)));
+  const 몸통2 = css몸통(btnSrc);
+  ok("단추 css 문자열 안에 backtick 이 없다 (있으면 문자열이 끊겨 빌드가 깨진다)",
+     몸통2 !== null && !몸통2.includes("`"),
+     몸통2 === null ? "css 문자열을 못 찾았다" : "css 주석에 backtick 을 쓰지 마라");
+});
+
+/** ⑭ `homeFor` 는 모르는 역할에 **null** 을 준다 (⑦). 그 null 이 주소 자리로 새면
+ *  `url.pathname = null` 이 `/null` 이 되어 엉뚱한 404 로 날아간다.
+ *  → 부르는 자리마다 `knownRole` 로 먼저 가르거나, 받는 쪽이 주소인지 확인해야 한다.
+ *  지난 판에서 내가 「새로 생긴 위험」으로 적어만 두고 못 막았던 자리다 — 여기서 막는다.
+ */
+await sec("■ ⑭ homeFor 의 null 이 주소로 새지 않는가", async () => {
+  const 후보 = [...앱파일(), "middleware.js", ...readdirSync("lib").filter((f) => f.endsWith(".js")).map((f) => `lib/${f}`)];
+  const 부르는곳 = 후보.filter((f) => /homeFor\s*\(/.test(코드만(read(f))) && f !== "lib/supabase-server.js");
+  ok(`homeFor 를 부르는 자리 (${부르는곳.join(" ") || "없음"})`, 부르는곳.length > 0, "아무도 안 부른다");
+  for (const f of 부르는곳)
+    ok(`${f} 이 knownRole 로 먼저 가른다`, /knownRole\s*\(/.test(코드만(read(f))),
+       "모르는 역할에 null 이 나오는데 그걸 그냥 주소로 쓰면 /null 로 날아간다");
+  // 마지막 방벽 — 받는 쪽(go)이 주소가 아닌 값을 막는다
+  ok("middleware 의 go() 가 「/ 로 시작하는 문자열」이 아니면 아무 데도 안 보낸다",
+     /typeof\s+to\s*!==\s*["']string["']/.test(code.mw) && /startsWith\s*\(\s*["']\/["']\s*\)/.test(code.mw));
 });
 
 await sec("■ ⑩ 진짜 DB — v2.profiles 의 role 값이 내 표와 같은가", async () => {
@@ -426,7 +530,9 @@ try {
   }
 } catch { /* 인터넷이 없으면 그냥 넘어간다 — 이건 검사가 아니다 */ }
 if (!existsSync("app/page.js"))
-  막힌것.push("app/page.js 가 없다 → 원장이 로그인하면 첫 화면 `/` 가 404 다 (대시보드 담당 자리)");
+  막힌것.push(
+    "app/page.js 가 없다 → 원장이 로그인하면 첫 화면 `/` 가 404 다 (대시보드 담당 자리). " +
+    "⚠️ 놓는 날 `<LogoutButton/>` 을 같이 넣어라 — 안 넣으면 원장님도 계정을 못 바꾼다 (⑬)");
 
 console.log("\n■ 코드로는 못 고치는 것 (이 검사는 초록이어도 아래가 남아 있으면 로그인이 안 된다)");
 막힌것.length
