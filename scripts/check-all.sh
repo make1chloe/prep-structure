@@ -16,6 +16,17 @@ for f in scripts/check-*.mjs; do
     fail=$((fail+1)); failed+=("$name")
   fi
 done
+# ⚠️ 빌드도 검사다 — 계획의 `check-pages.sh` 는 「검사 N종 **+ 빌드**」였다.
+#    빌드가 깨진 채로 초록을 보면 그날 배포가 안 나간다.
+if [ "${SKIP_BUILD:-}" != "1" ]; then
+  if out=$(npx next build --webpack 2>&1); then
+    echo "   ✅ 빌드"; pass=$((pass+1))
+  else
+    echo "   ❌ 빌드"; echo "$out" | tail -15 | sed 's/^/        /'
+    fail=$((fail+1)); failed+=("빌드")
+  fi
+fi
+
 echo
 echo "■ 합계 — 통과 $pass · 실패 $fail"
 [ $fail -eq 0 ] || { echo "   실패: ${failed[*]}"; exit 1; }
