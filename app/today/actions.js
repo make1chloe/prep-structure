@@ -34,6 +34,7 @@ import { attendanceWrite } from "../../lib/attend.js";
 import { closeGate, closeSheet } from "../../lib/close.js";
 import { routineNext } from "../../lib/routine.js";
 import { freezeDay, putAreaMemos } from "../../lib/day.js";
+import { setLeaveTime } from "../../lib/arrival.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-fA-F-]{36}$/;
@@ -162,8 +163,12 @@ export async function saveComment({ sheetId, text }) {
 
 /**
  * 늦귀가 한 줄 (⑭). 판마다 한 줄이다.
- * ⚠️ **예상 귀가 시각은 약속이 된다** — 실제 하원(`left_at`)을 같이 남겨야
+ * ⚠️ **예상 귀가 시각은 약속이 된다** — 실제 하원을 같이 남겨야
  *    「10시라더니 10시 40분」이 어디엔가 남는다.
+ * ⚠️⚠️ **실제 하원은 이 표에 안 적는다** (0083, 원칙-1). `v2.arrival` 걸음 4 하나뿐이고
+ *    아이가 「집에 가요」로 찍은 것과 **같은 줄**이다 — 여기서 적으면 그 줄을 고치는 것이다.
+ *    그래서 이 함수는 표 둘을 만진다: 사유·예상은 `late_stay`, 하원은 `lib/arrival.js`.
+ * ⚠️ **하원을 지우는 길은 없다**(대전제-6) — 비워서 저장해도 안 지운다. 고쳐 적어야 한다.
  * ⚠️ 보내는 것은 여기 없다 (파일 머리 ② 참고). 안 보내면 마감이 한 번 묻는다.
  * ⚠️ **「판마다 한 줄」이 표 주석에는 있는데 DB 제약이 없다** (실측 — `late_stay` 에 sheet_id 유일
  *    인덱스가 없다). 그래서 `on conflict` 를 못 쓴다 — 있는 줄을 고치고, 없을 때만 넣는다.
@@ -176,19 +181,35 @@ export async function saveLate({ sheetId, reason, untilAt, leftAt }) {
       `/* today:late */
        with up as (
          update v2.late_stay
-            set reason = $2, until_at = nullif($3,'')::time, left_at = nullif($4,'')::time
+            set reason = $2, until_at = nullif($3,'')::time
           where sheet_id = $1::uuid returning id, sent_at),
        ins as (
-         insert into v2.late_stay (sheet_id, reason, until_at, left_at)
-         select $1::uuid, $2, nullif($3,'')::time, nullif($4,'')::time
+         insert into v2.late_stay (sheet_id, reason, until_at)
+         select $1::uuid, $2, nullif($3,'')::time
           where not exists (select 1 from up)
          returning id, sent_at)
        select id, sent_at from up union all select id, sent_at from ins`,
-      [sheetId, reason || null, untilAt || "", leftAt || ""]);
+      [sheetId, reason || null, untilAt || ""]);
     const row = (w.rows ?? [])[0];
     if (!row) return { ok: false, why: "no_rows", msg: "한 줄도 안 바뀌었습니다" };
+
+    // ── 실제 하원 — **다른 표다**(v2.arrival 걸음 4). 아이가 찍은 그 줄을 고친다
+    let 하원말 = null;
+    const t = String(leftAt ?? "").trim();
+    if (t) {
+      const who = await db.query(
+        `/* today:late-who */ select student_id, date::text as date from v2.day_sheet where id = $1::uuid`,
+        [sheetId]);
+      const one = (who.rows ?? [])[0];
+      if (!one) 하원말 = "⚠️ 판을 못 찾아 하원은 못 적었습니다";
+      else {
+        const r = await setLeaveTime(db, { studentId: one.student_id, date: one.date, hm: t });
+        하원말 = r.ok ? `하원 ${r.leftAt}` : `⚠️ 하원은 못 적었습니다 — ${r.msg}`;
+      }
+    }
+    const 안보냄 = row.sent_at ? null : "⚠️ 아직 **안 보냈습니다** — 마감할 때 한 번 묻습니다";
     return { ok: true, id: row.id, sentAt: row.sent_at ?? null,
-             msg: row.sent_at ? null : "⚠️ 아직 **안 보냈습니다** — 마감할 때 한 번 묻습니다" };
+             msg: [하원말, 안보냄].filter(Boolean).join(" · ") || null };
   });
 }
 

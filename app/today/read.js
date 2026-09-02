@@ -144,7 +144,12 @@ select json_build_object(
  'topics', (select count(*)::int from v2.grammar_topics),
  'late', (select coalesce(json_agg(json_build_object(
                 'id',l.id,'sheet_id',l.sheet_id,'reason',l.reason,'until_at',l.until_at,
-                'left_at',l.left_at,'sent_at',l.sent_at)),'[]'::json)
+                -- ⚠️ 실제 하원은 **v2.arrival 걸음 4** 하나뿐이다(0083, 원칙-1).
+                --    late_stay 에 두 벌로 두면 같은 날 하원이 두 시각이 된다
+                'left_at',(select to_char(a.at at time zone 'Asia/Seoul','HH24:MI')
+                             from v2.arrival a
+                            where a.student_id = x.student_id and a.date = x.date and a.step = 4),
+                'sent_at',l.sent_at)),'[]'::json)
               from v2.late_stay l join v2.day_sheet x on x.id = l.sheet_id
              where x.student_id = $1::uuid and x.date = $2::date),
  'books', (select coalesce(json_agg(json_build_object(

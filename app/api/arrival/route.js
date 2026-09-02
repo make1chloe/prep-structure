@@ -19,6 +19,12 @@
  *   POST /api/arrival { step: 1 }        → 아이가 한 걸음 찍는다 (1·2·3 또는 phone/attend/homework)
  *   POST /api/arrival { act:"mark", student:"<uuid>", step:1, date:"YYYY-MM-DD" }
  *                                        → **원장님이 손으로** 대신 찍는다 (폰 없음·와이파이 안 됨)
+ *   POST /api/arrival { act:"leave" }    → 아이가 **하원**을 찍는다 (집에 감 · 0083)
+ *   POST /api/arrival { act:"leave", student:"<uuid>", date:"YYYY-MM-DD" }
+ *                                        → 원장님이 대신 하원을 찍는다
+ *   POST /api/arrival { act:"leaveTime", student:"<uuid>", hm:"22:10", date:"..." }
+ *                                        → **원장님이 하원 시각을 손으로 적는다**(고친다).
+ *                                          ⚠️ 지우는 길은 없다 — 고치기만 한다(대전제-6)
  *   POST /api/arrival { act:"allow", note:"학원 와이파이" }
  *                                        → **원장님이 학원에서 한 번 눌러** 지금 IP 를 등록한다
  *
@@ -31,6 +37,7 @@ import { serverClientFromStore, roleOf } from "../../../lib/supabase-server.js";
 import { openAs } from "../../today/db.js";
 import {
   STEPS, pickIp, netGate, readNet, allowThisIp, whoAmI, arrivalView, markArrival,
+  LEAVE, markLeave, setLeaveTime,
 } from "../../../lib/arrival.js";
 
 export const runtime = "nodejs";
@@ -121,7 +128,8 @@ export async function GET(req) {
       ok: true, gate, view,
       netReady: gateDoor.ok ? undefined : gateDoor.why,
       // ⚠️ 화면이 셈을 다시 하지 않게 **그릴 값을 그대로** 준다
-      can: { tap: gate.ok && !!view.next, register: me.isStaff },
+      // ⚠️ 화면이 셈을 다시 하지 않게 — 하원도 여기서 정한다(0083)
+      can: { tap: gate.ok && !!view.next, leave: gate.ok && view.canLeave, register: me.isStaff },
     });
   } finally { await door.end(); }
 }
@@ -146,6 +154,25 @@ export async function POST(req) {
     } finally { await door.end(); }
   }
 
+  // ── 원장님이 하원 시각을 손으로 적는다 (관문을 안 지난다 — 원장님은 학원 밖에서도 적는다) ──
+  if (act === "leaveTime") {
+    if (!me.isStaff) return json({ ok: false, why: "not-staff", msg: "하원 시각을 적는 것은 원장·강사만 합니다" }, 403);
+    const s2 = String(body?.student ?? "");
+    if (!UUID.test(s2)) return json({ ok: false, why: "bad-student", msg: "학생 아이디 모양이 아닙니다" }, 400);
+    const d2 = body?.date ?? null;
+    if (d2 != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(d2))) {
+      return json({ ok: false, why: "bad-date", msg: "날짜는 'YYYY-MM-DD' 글자여야 합니다" }, 400);
+    }
+    const door2 = await openAs(me.profileId);
+    if (!door2.ok) return json({ ok: false, why: "no-db", msg: door2.why }, 500);
+    try {
+      const r2 = await setLeaveTime(door2.db, { studentId: s2, date: d2, hm: body?.hm ?? null });
+      return json(r2, r2.ok ? 200 : 400);
+    } catch (e) {
+      return json({ ok: false, why: "bad", msg: String(e?.message ?? e).slice(0, 200) }, 400);
+    } finally { await door2.end(); }
+  }
+
   // ── 찍는다 ────────────────────────────────────────────────────────────────
   const gateDoor = await openGate();
   if (!gateDoor.ok) return json({ ok: false, why: "no-net", msg: gateDoor.why }, 500);
@@ -155,7 +182,8 @@ export async function POST(req) {
   if (!door.ok) return json({ ok: false, why: "no-db", msg: door.why }, 500);
   try {
     let studentId = null, by = "student", date = null;
-    if (act === "mark") {
+    // ⚠️ 하원도 **원장님이 대신** 찍을 수 있다 — 아이가 그냥 가 버린 날이 있다
+    if (act === "mark" || (act === "leave" && body?.student != null)) {
       // 원장님이 **손으로** 대신 찍는다 — 아이가 못 찍은 날이 있다
       if (!me.isStaff) return json({ ok: false, why: "not-staff", msg: "대신 찍기는 원장·강사만 합니다" }, 403);
       const s = String(body?.student ?? "");
@@ -173,6 +201,17 @@ export async function POST(req) {
       if (!studentId) {
         return json({ ok: false, why: "not-student", gate,
           msg: "학생 계정으로 로그인해 주세요 — 등원은 아이가 제 손으로 찍습니다" }, 403);
+      }
+    }
+
+    // ── 하원 (0083) — **판은 안 세운다.** 등원에서 이미 섰다
+    if (act === "leave") {
+      try {
+        const rl = await markLeave(door.db, {
+          gate, studentId, ip, date, graceMin: gateDoor.net.graceMin, classId: body?.classId ?? null });
+        return json({ ...rl, step: LEAVE, gate }, rl.ok ? 200 : 400);
+      } catch (e) {
+        return json({ ok: false, why: "bad", msg: String(e?.message ?? e).slice(0, 200), gate }, 400);
       }
     }
 

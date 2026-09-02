@@ -23,6 +23,7 @@ import LogoutButton from "../logout-button";
 import { DOW_NAME, monthRange, countDates } from "@/lib/session";
 import { css } from "./style";
 import { 다했어요, 진도찍기, 이의달기, 카드차례저장 } from "./actions";
+import 등원카드 from "./arrival-card";
 import {
   차례대로, 끝난줄, 센다, 카드어떻게, 카드들, 순서입히기, 한칸옮기기, 끌어옮기기,
   대단원묶기, 아이가덮을수있나, 확인기다리는중, 누가찍었나, 표시들,
@@ -108,6 +109,9 @@ export default function Screen(props) {
 
   /* ── 카드 하나하나 ────────────────────────────────────────────── */
   const 카드그리기 = {
+    // ⚠️ 이 카드만 **제 손으로 문(`/api/arrival`)에 묻는다** — 관문이 요청 주소를 봐야 해서
+    //    서버가 미리 받아 둘 수가 없다. 판단은 전부 lib/arrival.js 에 있다
+    arrival: () => <등원카드 저장중={저장중} />,
     today: () => (
       <오늘카드
         글={글} 마감됐나={마감됐나} 오늘수업날={오늘수업날} 빈카드숨김={빈카드숨김}
@@ -600,6 +604,7 @@ function 달력카드({ 오늘, 달력, 글 }) {
       오늘, first, last,
       판들: (달력.판들 ?? []).filter((s) => String(s.date).slice(0, 7) === ym),
       수업이력: 달력.수업이력 ?? [],
+      등하원: 달력.등하원 ?? [],
       시험들: 달력.시험들 ?? [],
       재원시작: 달력.재원시작 ?? null,
     });
@@ -629,6 +634,12 @@ function 달력카드({ 오늘, 달력, 글 }) {
                 <span className="me-dnum num">{Number(c.date.slice(8))}</span>
                 {c.date === 오늘 && <span className="pill pillinfo">오늘</span>}
                 <span className="me-dot">{칸글(c, 글)}</span>
+                {/* ⚠️ 등원·하원은 **찍힌 그대로**다 — 날짜별 기록(0083 · 원장님 ⑩) */}
+                {c.등하원 && (
+                  <span className="me-dot num">
+                    {c.등하원.등원 ?? "—"}{c.등하원.하원 ? ` → ${c.등하원.하원}` : ""}
+                  </span>
+                )}
                 {c.시험들.map((e) => <span key={e.id} className="pill pillbad">{e.name}</span>)}
               </div>
             )

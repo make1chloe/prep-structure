@@ -14,6 +14,7 @@
 import {
   STEPS, stepOf, pickIp, expandIp6, sameNet, netGate, lateOf,
   readNet, allowThisIp, whoAmI, classOfDay, arrivalView, markArrival,
+  LEAVE, markLeave, setLeaveTime, lateStayGap,
 } from "../lib/arrival.js";
 import { WRITE_PATHS } from "../lib/attend.js";
 import { readFileSync, existsSync } from "node:fs";
@@ -48,6 +49,19 @@ ok("걸음은 셋이다", STEPS.length === 3, String(STEPS.length));
 ok("차례가 ① 핸드폰 ② 출석체크 ③ 숙제다 (옛 0039 주석 그대로)",
    STEPS.map((s) => s.key).join(",") === "phone,attend,homework", STEPS.map((s) => s.key).join(","));
 ok("번호로도 이름으로도 같은 걸음을 가리킨다", stepOf(1).key === "phone" && stepOf("phone").step === 1);
+
+// ── 하원 (0083 · 원장님 2026-09-03 ⑩ 「재원생 출결정보에 날짜별 기록」) ──────────
+ok("⚠️ 하원은 **걸음이 아니다** — STEPS 에 안 든다", STEPS.every((s) => s.step !== LEAVE.step));
+ok("⚠️ 등원 찍기가 하원 번호를 **안 받는다** (stepOf(4) 는 던진다)",
+   (() => { try { stepOf(4); return false; } catch { return true; } })());
+ok("하원은 걸음 4 다 (옛 public.arrival_checks 의 네 번째 칸 leave_at 자리)", LEAVE.step === 4);
+{
+  const g = lateStayGap({ untilAt: "22:00", leftAt: "22:40" });
+  ok("⚠️ 약속과 실제의 차이를 **센다** — 저장하지 않는다(원칙-5)",
+     g.minutes === 40 && g.late === true && g.sure === true, JSON.stringify(g));
+  ok("⚠️ 못 세는 것을 「0분」으로 눕히지 않는다",
+     lateStayGap({ untilAt: "22:00", leftAt: null }).sure === false);
+}
 ok("글자로 온 번호도 받는다", stepOf("2").key === "attend");
 await throws("네 번째 걸음은 없다 — 던진다", () => stepOf(4), "세 걸음뿐");
 await throws("모르는 이름은 던진다", () => stepOf("leave"), "모르는 걸음");
@@ -532,6 +546,60 @@ if (!url) {
         ok("⚠️ 아이 자격으로는 학원 회선 설정이 안 읽힌다 (평문 열쇠가 든 표다)",
            asKid.has === false && asKid.ips.length === 0, JSON.stringify(asKid));
         console.log("      (그래서 문이 접근 규칙을 걸기 **전에** 그 한 줄만 읽는다 — openGate)");
+
+        // ── ⑤ 하원 (0083) — **등원과 같은 자리에 날짜별로** ──────────────
+        console.log("\n■ 하원 — 등원과 같은 자리 (원장님 2026-09-03 ⑩)");
+        // ⚠️ 지우기는 **서버 자격**으로 한다 — v2.arrival 은 authenticated 에게 DELETE 를
+        //    아예 안 준다(그것이 「하원을 못 지운다」의 뿌리다). 원장 자격으로 지우면 여기서 터진다
+        const 비우기 = async (where = "") => { await c.query("reset role");
+          await c.query(`delete from v2.arrival where student_id = $1 ${where}`, [FX.student]);
+          await as(FX.pProf); };
+        await 비우기();
+        const 문 = { ok: true, why: "staff" };
+
+        const 먼저 = await markLeave(db, { gate: 문, studentId: FX.student });
+        ok("⚠️ 등원을 안 찍은 날은 **하원도 못 찍는다** (거꾸로 된 자취를 안 만든다)",
+           먼저.ok === false && 먼저.why === "not-arrived", JSON.stringify(먼저.why));
+
+        await c.query(`insert into v2.arrival (student_id, date, step) values ($1, v2.today(), 1)`, [FX.student]);
+        const 하원1 = await markLeave(db, { gate: 문, studentId: FX.student });
+        ok("등원을 찍은 뒤에는 하원이 남는다", 하원1.ok === true && !!하원1.view?.leftAt, JSON.stringify(하원1.why));
+        const 하원2 = await markLeave(db, { gate: 문, studentId: FX.student });
+        ok("⚠️ 두 번 눌러도 **한 줄**이고 먼저 찍은 시각을 지킨다",
+           하원2.why === "already" && 하원2.view?.leftAt === 하원1.view?.leftAt);
+        const 줄수 = (await c.query(
+          "select count(*)::int n from v2.arrival where student_id=$1 and step=4", [FX.student])).rows[0].n;
+        ok("⚠️ 하루에 하원 한 줄 — **DB 열쇠가 지킨다**", 줄수 === 1, `${줄수}줄`);
+
+        const 고침 = await setLeaveTime(db, { studentId: FX.student, hm: "22:10" });
+        ok("원장님이 하원 시각을 손으로 고친다", 고침.ok === true && 고침.leftAt === "22:10", JSON.stringify(고침.why));
+        ok("⚠️ 하원을 **지우는 길은 없다**(대전제-6) — 빈 값은 거절한다",
+           (await setLeaveTime(db, { studentId: FX.student, hm: "" })).why === "no-time");
+
+        // ⚠️⚠️ 하원이 **도착 시각으로 새어 들어오면** 지각 셈이 통째로 틀어진다
+        await 비우기("and step <= 3");
+        const 하원만 = await arrivalView(db, { studentId: FX.student });
+        ok("⚠️⚠️ 하원만 있는 날 **도착 시각이 null 이다** — 하원을 등원으로 안 읽는다",
+           하원만.arrivedAt === null && 하원만.leftAt === "22:10",
+           `도착 ${하원만.arrivedAt} · 하원 ${하원만.leftAt}`);
+        ok("등원이 없으면 「집에 가요」를 안 연다", 하원만.canLeave === false);
+
+        // ⚠️ 표-10 — **아이가 보낸 시각·날짜를 서버가 덮는다** (0083 문지기)
+        await 비우기();
+        await as(FX.sProf);
+        await c.query(`insert into v2.arrival (student_id, date, step, at)
+                       values ($1, '2020-01-01', 4, '2020-01-01 08:00+09')`, [FX.student]);
+        await as(FX.pProf);
+        const 남은 = (await c.query(
+          `select date::text d, to_char(at at time zone 'Asia/Seoul','HH24:MI') t
+             from v2.arrival where student_id = $1`, [FX.student])).rows[0];
+        ok("⚠️⚠️ 아이가 보낸 **시각·날짜를 서버가 덮는다** (표-10 · 0083 문지기)",
+           남은 && !남은.d.startsWith("2020") && 남은.t !== "08:00", JSON.stringify(남은));
+        await as(FX.sProf);
+        const 고쳐짐 = (await c.query(
+          "update v2.arrival set at = now() where student_id = $1", [FX.student])).rowCount;
+        await as(FX.pProf);
+        ok("⚠️ 아이는 찍은 시각을 **못 고친다** (0줄)", 고쳐짐 === 0, `${고쳐짐}줄`);
       } catch (e) {
         // ⚠️ **터진 것을 초록으로 넘기지 않는다.** 진짜 DB 앞에서 터지면 그 자체가 실패다
         //    (일부러 `on conflict do nothing` 을 `do update` 로 바꿔 보니 여기서 터졌다 —
@@ -566,6 +634,9 @@ if (!url) {
     const TYPES = {   // ⚠️ SQL 을 더하면 여기 타입도 더해야 한다. 안 더하면 이 검사가 깨진다
       mark: "(uuid,text,int,text)", day: "(uuid,text)", sched: "(uuid,text)",
       holiday: "(uuid,text)", net: "()", allow: "(text)", me: "()",
+      // 하원 (0083) — ⚠️ 손잡이에 **하이픈을 쓰지 마라.** 위 정규식이 \w+ 라
+      //    `arrival:leave-set` 은 **한 번도 안 걸려** 그 문장이 검사에서 통째로 사라진다
+      leave: "(uuid,text,text)", leaveset: "(uuid,text,text)",
     };
     const src = readFileSync(join(ROOT, "lib/arrival.js"), "utf8");
     const found = [...src.matchAll(/`(\/\* arrival:(\w+) \*\/[\s\S]*?)`/g)].map((m) => ({ sql: m[1], tag: m[2] }));
@@ -608,6 +679,27 @@ if (!url) {
   ok("⚠️ 찍는 길이 **아이가 고른 반**을 넘긴다 (classId)", /classId:\s*body\?\.classId/.test(api),
      "안 넘기면 아이가 골라도 lib 이 못 받아 계속 되묻는다");
   ok("⚠️ 보는 길도 고른 반을 받는다 (?class=)", /searchParams\.get\("class"\)/.test(api));
+
+  // ── 하원까지 화면이 이어져 있나 (0083) ──────────────────────────────────
+  ok("⚠️ 찍는 길에 **하원 갈래**가 있다 (act:\"leave\")", /act === "leave"/.test(api));
+  ok("⚠️ 원장님이 하원 시각을 적는 갈래가 있다 (act:\"leaveTime\")", /act === "leaveTime"/.test(api));
+
+  const card = 코드만(readFileSync(join(ROOT, "app/me/arrival-card.js"), "utf8"));
+  ok("⚠️ 아이 화면에 **「집에 가요」**가 있다", /act: "leave"/.test(card) && /집에 가요/.test(card));
+  ok("⚠️ 아이 화면이 **반을 고른다** (원장님 ⑫) — mustPick 을 그린다", /mustPick/.test(card));
+  const cards = 코드만(readFileSync(join(ROOT, "lib/screens.js"), "utf8"));
+  ok("⚠️ 아이 화면 카드 목록에 등원·하원이 서 있다 — 없으면 **아이는 이 화면을 못 본다**",
+     /me:\s*Object\.freeze\(\[[^\]]*"arrival"/.test(cards));
+
+  // ⚠️⚠️ **하원이 두 벌이 되지 않았나** (원칙-1) — 옛 집(late_stay.left_at)을 아무도 안 읽는다
+  for (const f of ["lib/close.js", "app/today/read.js", "app/send/sql.js", "app/today/actions.js"]) {
+    const t = 코드만(readFileSync(join(ROOT, f), "utf8"));
+    // ⚠️ 잡는 것은 **칸을 읽는 글자**다(`l.left_at` · `late_stay.left_at`).
+    //    json 의 이름표 `'left_at'` 은 화면과의 약속이라 그대로 둔다 — 값은 arrival 에서 온다
+    ok(`⚠️ ${f} 가 **late_stay 의 옛 하원 칸을 안 읽는다** (0083 · 원칙-1)`,
+       !/\bl\.left_at\b/.test(t) && !/late_stay\.left_at/.test(t) &&
+       !/left_at\s*(=|,)\s*nullif/.test(t));
+  }
 }
 
 console.log(`\n■ 등원 찍기 검사 ${n}건 · 실패 ${fail}${skipped ? " · ⚠️ 진짜 DB 못 봄" : ""}`);

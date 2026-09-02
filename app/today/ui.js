@@ -171,8 +171,11 @@ export function Late({ sheetId, reason, untilAt, leftAt, sentAt, endTime, sugges
           <input id="late-until" className="fld" type="time" value={until} onChange={(e) => setUntil(e.target.value)} />
         </div>
         <div className="grow">
+          {/* ⚠️ 이 칸은 `v2.arrival` 걸음 4 를 고친다 — 아이가 「집에 가요」로 찍은 **그 줄**이다(0083).
+              비워서 저장해도 **안 지워진다**(대전제-6). 고쳐 적어야 한다 */}
           <label className="lbl" htmlFor="late-left">실제 하원 — 차이를 같이 남깁니다</label>
           <input id="late-left" className="fld" type="time" value={left} onChange={(e) => setLeft(e.target.value)} />
+          <span className="muted">아이가 「집에 가요」를 누르면 저절로 찹니다 · 지울 수는 없고 고칠 수만 있습니다</span>
         </div>
       </div>
       {endTime

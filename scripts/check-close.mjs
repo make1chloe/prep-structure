@@ -160,14 +160,14 @@ console.log("■ 마감 전 가리기 — 값에 안 싣는다 (사고 #7)");
 console.log("\n■ 마감할 수 있나 — 막지 않고 묻는다");
 {
   const db = fakeDb({ sheet: sheet(), items: twoBooks(), sb: sbBoth,
-    late: [{ id: "L1", reason: "재시험 남음", until_at: "22:00", left_at: null, sent_at: null }] });
+    late: [{ id: "L1", reason: "재시험 남음", until_at: "22:00", sent_at: null }] });
   const g = await closeGate(db, S);
   ok("⚠️ 늦귀가를 안 보냈으면 **반드시 묻는** 물음이 선다", g.mustAsk.includes(ASK.LATE_UNSENT), g.mustAsk.join(","));
   ok("늦귀가 물음이 몇 건인지 말한다", g.asks.find((a) => a.code === ASK.LATE_UNSENT)?.n === 1);
 }
 {
   const db = fakeDb({ sheet: sheet(), items: twoBooks(), sb: sbBoth,
-    late: [{ id: "L1", reason: "x", until_at: "22:00", left_at: "22:10", sent_at: "2026-09-02T20:00:00+09:00" }] });
+    late: [{ id: "L1", reason: "x", until_at: "22:00", sent_at: "2026-09-02T20:00:00+09:00" }] });
   const g = await closeGate(db, S);
   ok("늦귀가를 보냈으면 그 물음은 안 뜬다", g.mustAsk.length === 0, g.mustAsk.join(","));
 }
@@ -223,7 +223,7 @@ console.log("\n■ 메모 자동완료 — 누르기 전에 보여준다 (㊳)")
 console.log("\n■ 마감한다 — 되돌릴 수 없는 자리라 서버 답을 기다린다");
 {
   const db = fakeDb({ sheet: sheet(), items: twoBooks(), sb: sbBoth,
-    late: [{ id: "L1", reason: "x", until_at: "22:00", left_at: null, sent_at: null }] });
+    late: [{ id: "L1", reason: "x", until_at: "22:00", sent_at: null }] });
   const r = await attempt(() => closeSheet(db, S, { by: "me" }));
   ok("⚠️ 늦귀가를 안 물으면 마감이 거절된다", r.ok === false && r.why === "ask", JSON.stringify(r.need ?? r.why));
   ok("거절이면 판이 안 닫힌다", db.st.sheet.closed_at === null);
@@ -231,7 +231,7 @@ console.log("\n■ 마감한다 — 되돌릴 수 없는 자리라 서버 답을
 }
 {
   const db = fakeDb({ sheet: sheet(), items: twoBooks(), sb: sbBoth,
-    late: [{ id: "L1", reason: "x", until_at: "22:00", left_at: null, sent_at: null }] });
+    late: [{ id: "L1", reason: "x", until_at: "22:00", sent_at: null }] });
   const r = await closeSheet(db, S, { by: "me", confirm: [ASK.LATE_UNSENT] });
   ok("물으면 마감된다", r.ok === true, JSON.stringify(r.why ?? ""));
   ok("판이 닫혔다", !!db.st.sheet.closed_at);

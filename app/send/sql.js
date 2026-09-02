@@ -82,7 +82,9 @@ select json_build_object(
 
  'late', (select coalesce(json_agg(json_build_object(
       'id', l.id, 'sheetId', x.id, 'studentId', x.student_id, 'name', s.name,
-      'reason', l.reason, 'untilAt', l.until_at::text, 'leftAt', l.left_at::text,
+      'reason', l.reason, 'untilAt', l.until_at::text,
+      'leftAt', (select to_char(a.at at time zone 'Asia/Seoul','HH24:MI') from v2.arrival a
+                  where a.student_id = x.student_id and a.date = x.date and a.step = 4),
       'sentAt', l.sent_at, 'closedAt', x.closed_at,
       'parents', coalesce(rc.parents, 0), 'devices', coalesce(rc.devices, 0)) order by s.name),'[]'::json)
     from v2.late_stay l

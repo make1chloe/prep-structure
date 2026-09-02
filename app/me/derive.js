@@ -284,8 +284,10 @@ export function 요일(날) {
  *
  * @returns [{ date, dow, 이달, 판, 상태, 시험들, 지남 }]
  */
-export function 달력칸({ 오늘, first, last, 판들 = [], 수업이력 = [], 시험들 = [], 재원시작 = null } = {}) {
+export function 달력칸({ 오늘, first, last, 판들 = [], 수업이력 = [], 시험들 = [], 재원시작 = null,
+                         등하원 = [] } = {}) {
   const 판맵 = new Map(판들.map((s) => [String(s.date).slice(0, 10), s]));
+  const 등하원맵 = 등하원날짜별(등하원);
   const 수업날 = new Set(countDates({ schedules: 수업이력, holidays: [], first, last, today: last }).dates);
 
   const 칸 = [];
@@ -307,6 +309,8 @@ export function 달력칸({ 오늘, first, last, 판들 = [], 수업이력 = [],
       판: s,
       상태,
       시험들: 시험들.filter((e) => 시험날인가(e, 날)),
+      // ⚠️ 그날 **찍힌 사실 그대로**다 — 지각인지는 여기서 안 센다(반 시각이 달력에 없다)
+      등하원: 등하원맵.get(날) ?? null,
       지남,
     });
   }
@@ -331,4 +335,36 @@ export function 달옮기기(ym, n) {
   const [y, m] = String(ym).split("-").map(Number);
   const t = new Date(Date.UTC(y, m - 1 + n, 1));
   return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * 등원·하원을 **날짜별 한 줄**로 접는다 (0083 · 원장님 2026-09-03 ⑩).
+ *
+ * ⚠️ **도착 시각은 걸음 1~3 중 가장 이른 것**이고 하원은 걸음 4 다.
+ *    `lib/arrival.js` 의 `arrivalView` 와 **같은 규칙**이어야 한다 — 다르게 접으면
+ *    오늘 화면과 달력이 같은 날 다른 시각을 말한다(원칙-1).
+ * ⚠️ 시각은 DB 가 서울로 바꿔 준 것이 아니다(여기는 PostgREST 로 읽는다) — 그래서 여기서 바꾼다.
+ *    **그 셈이 이 한 곳뿐이어야** 화면마다 다른 시각이 안 뜬다.
+ */
+export function 등하원날짜별(줄들 = []) {
+  const 맵 = new Map();
+  for (const r of 줄들 ?? []) {
+    const 날 = String(r?.date ?? "").slice(0, 10);
+    if (!날 || r?.at == null) continue;
+    const 시각 = 서울시각(r.at);
+    if (!시각) continue;
+    const 한줄 = 맵.get(날) ?? { 등원: null, 하원: null };
+    if (Number(r.step) === 4) 한줄.하원 = 시각;
+    else if (한줄.등원 == null || 시각 < 한줄.등원) 한줄.등원 = 시각;   // 가장 이른 걸음
+    맵.set(날, 한줄);
+  }
+  return 맵;
+}
+
+/** timestamptz → 'HH:MM' (Asia/Seoul). ⚠️ `new Date()` 로 **지금**을 읽는 것이 아니다 */
+export function 서울시각(v) {
+  const t = new Date(v);
+  if (Number.isNaN(t.getTime())) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false }).format(t);
 }
