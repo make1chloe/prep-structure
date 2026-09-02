@@ -223,14 +223,19 @@ await sec("■ ⑬ 차례대로 — 앞엣것을 끝내야 다음이 열린다 (
     { id: 1, status: "none" }, { id: 2, status: "none" }, { id: 3, status: "none" },
   ]);
   ok("첫째만 열린다", r[0].열림 === true && r[1].열림 === false && r[2].열림 === false);
-  const r2 = D.차례대로([{ id: 1, status: "done" }, { id: 2, status: "none" }, { id: 3, status: "none" }]);
+  // ⚠️ 아이 화면의 「끝남」은 **아이가 「다 했어요」를 누른 것**이다(0082) —
+  //    `status` 는 원장님 검사 결과라 아이 화면의 차례를 열지 않는다
+  const r2 = D.차례대로([{ id: 1, said_done_at: "2026-09-03T00:00:00Z" },
+                        { id: 2, status: "none" }, { id: 3, status: "none" }]);
   ok("첫째를 끝내면 둘째가 열린다", r2[1].열림 === true && r2[2].열림 === false);
   ok("끝낸 줄은 늘 열려 있다 (되돌려 볼 수 있어야 한다)", r2[0].열림 === true);
   ok("차례 번호가 붙는다", r2.map((x) => x.차례).join() === "1,2,3");
 });
 
 await sec("■ ⑭ ⚠️ 접힌 것도 **분자에 그대로 든다** (절 ⑮-2)", async () => {
-  const 줄 = [{ status: "done" }, { status: "done" }, { status: "none" }];
+  // ⚠️ 아이 화면의 「끝남」은 **아이가 누른 것**이다(0082) — 원장님 검사(status)가 아니다
+  const 줄 = [{ said_done_at: "2026-09-03T00:00:00Z" },
+              { said_done_at: "2026-09-03T00:00:00Z" }, { status: "none" }];
   const s = D.센다(줄);
   ok(`끝 ${s.끝} / 전체 ${s.전체}`, s.끝 === 2 && s.전체 === 3 && s.남음 === 1,
      "접기는 **보이는 것만** 바꾸지 세는 것을 안 바꾼다");

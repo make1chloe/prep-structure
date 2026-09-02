@@ -126,7 +126,7 @@ export async function 학생화면읽기() {
   const 오늘것 = await 물어본다("오늘 수업", () =>
     q().from("day_sheet")
       .select("id,date,attend,closed_at,comment," +
-        "day_item(id,slot,unit_id,range_note,status,done_note,memo,sort," +
+        "day_item(id,slot,unit_id,range_note,status,said_done_at,done_note,memo,sort," +
         "learn_items(name,method,tool,checks)," +
         "units(id,chapter,mid,sub,activity,page_start,page_end,q_count,books(name)))")
       .eq("student_id", sid).eq("date", 오늘));
@@ -190,7 +190,7 @@ export async function 학생화면읽기() {
   const first = monthRange(앞달).first, last = monthRange(뒷달).last;
 
   const 달판 = await 물어본다("달력의 지난 수업", () =>
-    q().from("day_sheet").select("id,date,attend,closed_at,comment,day_item(id,slot,status)")
+    q().from("day_sheet").select("id,date,attend,closed_at,comment,day_item(id,slot,status,said_done_at)")
       .eq("student_id", sid).gte("date", first).lte("date", last).order("date"));
 
   const 수업이력 = await 물어본다("내 수업 요일", () =>

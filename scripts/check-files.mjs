@@ -677,9 +677,20 @@ try {
                     : " (아직 `with check (true)` — 아이가 day_item_id 를 지울 수 있다)"),
        RLS_NOT_YET.has("file_link.child_seen") === !seenTight, `with_check=${childCheck}`);
     // 대조 — 바로 옆 정책은 제대로 조여 놨다. ⚠️ 앞 판에는 이 줄이 `void` 라 **아무것도 안 봤다**
-    const doneCheck = String(P("day_item", "child_done").with_check ?? "");
-    ok("대조: `day_item/child_done` 의 with check 는 `true` 가 아니다 (붙임도 이래야 한다)",
-       doneCheck !== "" && doneCheck !== "true" && /status/.test(doneCheck), `with_check=${doneCheck}`);
+    // ⚠️ 대조 — 바로 옆 정책은 **줄 범위를 조여 놨다.** (0082 로 `child_done` → `child_said` 가 됐다:
+    //    「무엇을 바꿨나」는 이제 정책이 아니라 **문지기 트리거**가 본다 — RLS 의 with check 는
+    //    옛 값을 못 보므로 「그 칸만 바뀌었나」를 물을 수가 없다. 정책은 **줄**만 지킨다.)
+    const said = P("day_item", "child_said");
+    const doneCheck = String(said?.with_check ?? "");
+    ok("대조: `day_item/child_said` 의 with check 가 `true` 가 아니다 (붙임도 이래야 한다)",
+       doneCheck !== "" && doneCheck !== "true" && /slot/.test(doneCheck), `with_check=${doneCheck}`);
+    // ⚠️ 그리고 **문지기가 실제로 붙어 있는가** — 정책만 보면 절반만 본 것이다(0082)
+    const guard = (await c.query(
+      `select count(*)::int n from pg_trigger
+        where tgrelid = 'v2.day_item'::regclass and not tgisinternal
+          and tgname = 'day_item_child_guard' and tgenabled <> 'D'`)).rows[0].n;
+    ok("⚠️ 아이가 무엇을 바꿨나를 보는 **문지기가 켜져 있다** (day_item_child_guard)",
+       guard === 1, `${guard}개 — 없거나 꺼져 있으면 아이가 원장님 ○ 을 스스로 준다`);
 
     // ⚠️⚠️ **사고를 그대로 재현한다** — 정책 글자만 보면 절반만 본 것이다.
     //    `with check` 는 **새 줄만** 본다. 옛 줄과 못 견주므로 「seen_by_child 말고는 그대로일 것」을

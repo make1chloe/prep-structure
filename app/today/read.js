@@ -54,7 +54,7 @@ select to_char(t.d,'YYYY-MM-DD')        as on_date,
        cs.class_id, cs.start_time::text as start_time, cs.end_time::text as end_time,
        false as by_makeup,
        sh.id as sheet_id, sh.attend, sh.closed_at, sh.sent_at, sh.n as sheets,
-       sh.checks, sh.checks_left
+       sh.checks, sh.checks_left, sh.said
   from t
   join v2.class_schedule cs
     on cs.from_date <= t.d and (cs.to_date is null or cs.to_date >= t.d)
@@ -66,6 +66,8 @@ select to_char(t.d,'YYYY-MM-DD')        as on_date,
            (select count(*)::int from v2.day_item i
              where i.sheet_id = x.id and i.slot = 'check') as checks,
            (select count(*)::int from v2.day_item i
+             where i.sheet_id = x.id and i.said_done_at is not null) as said,
+           (select count(*)::int from v2.day_item i
              where i.sheet_id = x.id and i.slot = 'check'
                and (i.status is null or i.status = 'none')) as checks_left
       from v2.day_sheet x
@@ -76,13 +78,15 @@ union all
 select to_char(t.d,'YYYY-MM-DD'), to_char(v2.today(),'YYYY-MM-DD'),
        s.id, s.name, s.grade, s.state,
        null::uuid, null, null, true,
-       sh.id, sh.attend, sh.closed_at, sh.sent_at, sh.n, sh.checks, sh.checks_left
+       sh.id, sh.attend, sh.closed_at, sh.sent_at, sh.n, sh.checks, sh.checks_left, sh.said
   from t
   join v2.students s on s.state = 'active' and v2.is_makeup_day(s.id, t.d)
   left join lateral (
     select x.id, x.attend, x.closed_at, x.sent_at, count(*) over () as n,
            (select count(*)::int from v2.day_item i
              where i.sheet_id = x.id and i.slot = 'check') as checks,
+           (select count(*)::int from v2.day_item i
+             where i.sheet_id = x.id and i.said_done_at is not null) as said,
            (select count(*)::int from v2.day_item i
              where i.sheet_id = x.id and i.slot = 'check'
                and (i.status is null or i.status = 'none')) as checks_left
@@ -179,6 +183,8 @@ export async function loadRoster(db, on = null) {
     byMakeup: r.by_makeup === true,
     sheetId: r.sheet_id, attend: r.attend, closedAt: r.closed_at, sentAt: r.sent_at,
     sheets: r.sheets ?? 0, checks: r.checks ?? 0, checksLeft: r.checks_left ?? 0,
+    // ⚠️ 아이의 「다 했어요」 — 검사 셈과 **따로** 나른다(합치면 안 찍은 줄이 찍힌 것처럼 보인다)
+    said: r.said ?? 0,
   }));
   // ⚠️ 명단이 0줄이면 `can_write` 도 안 온다 — 그때는 **모른다.** 「쓸 수 있다」로 치지 않는다
   return { today, on: onDate, people, canWrite };

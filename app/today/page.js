@@ -204,6 +204,9 @@ function Roster({ roster, picked, sp }) {
                 {p.startTime ? p.startTime.slice(0, 5) : "시각 모름"}
                 {p.sheetId ? ` · 검사 ${p.checks - p.checksLeft}/${p.checks}` : " · 판 없음"}
               </span>
+              {/* ⚠️ 아이의 「다 했어요」는 **검사가 아니다** — 검사해 달라는 신호다(0082).
+                *    그래서 검사 셈과 **따로** 띄운다. 합치면 안 찍은 줄이 찍힌 것처럼 보인다 */}
+              {p.said ? <span className="pill pillinfo">아이: 다 했대요 {p.said}</span> : null}
               {p.closedAt ? <span className="pill pillok">마감함</span>
                 : p.attend === "absent" ? <span className="pill pillbad">결석</span>
                 : p.attend === "late" ? <span className="pill pillwarn">지각</span>
@@ -389,6 +392,7 @@ function Goal({ r }) {
 
 function CheckCard({ o, plan, who, on, can }) {
   const rows = (o.items ?? []).filter((i) => i.slot === "check");
+  // ⚠️ 아이가 「다 했어요」를 누른 줄 — **검사 목록에서 안 뺀다.** 신호일 뿐이다(0082)
   return (
     <div className="card">
       <div className="cardhd">
