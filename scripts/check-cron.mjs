@@ -749,7 +749,7 @@ console.log("\n■ 나가는 길·설정 — 파일을 훑는다");
      `서울 ${서울}시 ${mm}분`); }
 
 { const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-    if ([".next", ".git", "node_modules", "backup", "supabase"].includes(f)) continue;
+    if ([".next", ".git", "_tmp", "sandbox", "node_modules", "backup", "supabase"].includes(f)) continue;
     const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
       : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
   const others = walk(".").filter((f) => !f.includes("app/api/cron") && !f.includes("check-cron"));

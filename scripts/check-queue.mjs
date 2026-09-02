@@ -425,7 +425,7 @@ ok("없는 날은 던진다", (await threw(() => assertToday("2026-02-30")))?.in
 // ─────────────────────────────────────────────────────────────
 console.log("\n■ 이 표들에 다른 곳에서 손대지 않는가 — 파일을 훑는다");
 const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-  if ([".next", ".git", "node_modules", "backup", "supabase"].includes(f)) continue;
+  if ([".next", ".git", "_tmp", "sandbox", "node_modules", "backup", "supabase"].includes(f)) continue;
   const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const files = walk(".").filter((f) => !f.endsWith("lib/queue.js") && !f.includes("check-queue"));

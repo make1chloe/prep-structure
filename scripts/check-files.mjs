@@ -72,6 +72,46 @@ ok("⚠️ 흰 목록의 확장자 전부에 mime 이 있다 (하나라도 빠�
    [...OK_EXT].filter((e) => !MIME_FOR[e]).join(" "));
 ok("사진 확장자는 image/ 로 나간다", contentTypeFor("a.HEIC") === "image/heic");
 
+// ── ⚠️⚠️ 축이 다른 두 목록을 **진짜 SQL 파일을 읽어** 맞대 본다 ─────────────
+//   흰 목록은 **확장자**, 버킷 `allowed_mime_types` 는 **mime** 이다. 짝이 안 맞아도
+//   **아무 데서도 안 터진다** — 앱은 「받았습니다」, Storage 는 400, 화면엔 아무것도 안 뜬다.
+//   실측(2026-09-02): `.hwpx` 하나가 어긋나 있었다(`application/hwp+zip` vs
+//   `application/vnd.hancom.hwpx`) → 한글 hwpx 가정통신문이 통째로 안 올라갔다.
+//   ⚠️ 버킷이 mime 을 **안 걸게** 되면(needsDb) 이 검사는 그것도 초록으로 받는다.
+console.log("\n■ ⚠️⚠️ 버킷 mime 목록과 흰 목록이 **짝이 맞는가** (안 맞으면 조용히 400)");
+{
+  const SW = "supabase/migrations/9000_switch_day.sql";
+  let sql = "";
+  try { sql = readFileSync(SW, "utf8"); } catch { sql = ""; }
+  ok(`${SW} 을 진짜로 읽었다 (못 읽으면 아래가 헛돈다)`, sql.length > 0);
+
+  const bucketLine = sql.match(/allowed_mime_types[\s\S]*?array\[([\s\S]*?)\]/);
+  const gates = !!bucketLine;                       // 버킷이 mime 을 거나
+  const allowed = new Set(gates ? [...bucketLine[1].matchAll(/'([^']+)'/g)].map((m) => m[1]) : []);
+  ok(gates ? `버킷이 mime 을 건다 — 목록 ${allowed.size}개를 읽었다 (글자까지 맞아야 한다)`
+           : "버킷이 mime 을 **안 건다** (needsDb 가 들어갔다 — 축이 하나로 줄었다)",
+     !gates || allowed.size > 0, [...allowed].join(" "));
+
+  // 흰 목록을 지난 파일이 낼 수 있는 mime 은 **전부** 버킷이 받아야 한다
+  const missing = gates ? [...OK_EXT].filter((e) => !allowed.has(contentTypeFor("x." + e))) : [];
+  ok("⚠️⚠️ 흰 목록의 확장자가 내는 mime 을 버킷이 **전부** 받는다"
+     + " (하나라도 빠지면 그 확장자만 조용히 400 — 학부모는 올린 줄 안다)",
+     missing.length === 0,
+     missing.map((e) => `.${e} → ${contentTypeFor("x." + e)}`).join(" · "));
+  // 사고 그대로: 한글 hwpx 가정통신문 한 장
+  ok("⚠️ 재현: 「2학기 가정통신문.hwpx」 한 장이 흰 목록도 지나고 **버킷도 지난다**",
+     refuseReason(F("2학기 가정통신문.hwpx", { mime: "text/plain;charset=UTF-8" })) === null
+     && (!gates || allowed.has(contentTypeFor("2학기 가정통신문.hwpx"))),
+     contentTypeFor("2학기 가정통신문.hwpx"));
+  // 흰 목록에 없는 것이 버킷 목록에만 있는 것은 **사고가 아니다** — 못 지나가므로. 세어만 둔다
+  if (gates) {
+    const spare = [...allowed].filter((a) => ![...OK_EXT].some((e) => contentTypeFor("x." + e) === a));
+    if (spare.length)
+      warn.push(`버킷 목록에만 있고 앱이 안 내는 mime ${spare.length}개 (${spare.join(" · ")}) — `
+              + "사고는 아니다(확장자 흰 목록을 못 지나간다). 버킷이 mime 을 안 걸게 되면 같이 없어진다.");
+  }
+}
+
 console.log("\n■ 진짜 학교 자료는 받는다");
 ok("수행평가안내.pdf", refuseReason(F("수행평가안내.pdf", { mime: "application/pdf" })) === null);
 ok("가정통신문.HWP — 대문자도 같다", refuseReason(F("가정통신문.HWP", { mime: "" })) === null);
@@ -278,10 +318,23 @@ console.log("\n■ ⚠️ 공지 — **보낸 뒤에 붙이면 먼저 본 집은
 
 // ── ⑧ 누가 보나 — 말로만 한다 ──────────────────────────────────────────
 console.log("\n■ 누가 보나");
-ok("자료함에 든 것은 원장님만", seenByLabel({ bin_id: "b1" }) === "원장님만");
-ok("숙제 붙임은 그 아이와 그 집만", /숙제를 받는/.test(seenByLabel({ day_item_id: "d1" })));
-ok("아직 아무 데도 안 붙은 것은 원장님만 (「방금 온 것」)",
-   /아직 아무 데도/.test(seenByLabel({})), seenByLabel({}));
+// ⚠️⚠️ 되풀이(recursion)가 살아 있는 동안은 **아무도 못 연다** — 그때 「누가 보나」는 뜻이 없다.
+//    그 말을 앞에 안 붙이면 원장님은 「원장님만 봅니다」를 읽고 눌렀다가 오류를 본다(대전제 0).
+const RECUR = RLS_NOT_YET.has("file.recursion");
+ok(RECUR ? "⚠️⚠️ 되풀이가 살아 있으므로 **어느 자리든 「못 엽니다」라고 먼저 말한다**"
+         : "자료함에 든 것은 원장님만",
+   RECUR ? /못 엽니다/.test(seenByLabel({ bin_id: "b1" })) && /못 엽니다/.test(seenByLabel({}))
+         : seenByLabel({ bin_id: "b1" }) === "원장님만",
+   seenByLabel({ bin_id: "b1" }));
+ok(RECUR ? "⚠️ (되풀이가 풀리면) 숙제 붙임은 그 아이와 그 집만"
+         : "숙제 붙임은 그 아이와 그 집만",
+   RECUR ? /못 엽니다/.test(seenByLabel({ day_item_id: "d1" }))
+         : /숙제를 받는/.test(seenByLabel({ day_item_id: "d1" })),
+   seenByLabel({ day_item_id: "d1" }));
+ok(RECUR ? "⚠️ (되풀이가 풀리면) 아직 아무 데도 안 붙은 것은 원장님만 (「방금 온 것」)"
+         : "아직 아무 데도 안 붙은 것은 원장님만 (「방금 온 것」)",
+   RECUR ? /못 엽니다/.test(seenByLabel({})) : /아직 아무 데도/.test(seenByLabel({})),
+   seenByLabel({}));
 ok("⚠️ 이 함수는 boolean 을 안 돌려준다 — 막는 것은 접근 규칙 한 벌이다 (원칙 1)",
    typeof seenByLabel({ bin_id: "b1" }) === "string");
 
@@ -289,18 +342,23 @@ ok("⚠️ 이 함수는 boolean 을 안 돌려준다 — 막는 것은 접근 �
 //    하필 제일 좁게 말하는 `bin_id` 가 맨 앞이라 자료함+공지 한 줄을 「원장님만」이라고 했다.
 //    `linkInsertSql()` 이 두 자리를 한 줄에 받으므로 **실제로 생기는 모양**이다 —
 //    학교에서 온 학사일정을 자료함에 넣고 그대로 공지로 보내는, 이 기능의 본래 흐름이다.
+//    ⚠️ 되풀이가 풀리면 이 줄이 **다시 진짜 판단을 본다** — 그때 좁게 말하면 여기서 빨개진다.
 ok("⚠️ 자료함 **+ 공지** 한 줄은 「원장님만」이 아니다 (제일 넓은 쪽을 말한다)",
    seenByLabel({ bin_id: "b1", notice_id: "n1" }) !== "원장님만",
    seenByLabel({ bin_id: "b1", notice_id: "n1" }));
-ok("⚠️ 자료함 **+ 숙제** 한 줄도 「원장님만」이 아니다",
-   /숙제를 받는/.test(seenByLabel({ bin_id: "b1", day_item_id: "d1" })),
+ok(RECUR ? "⚠️ (되풀이가 풀리면) 자료함 **+ 숙제** 한 줄도 「원장님만」이 아니다"
+         : "⚠️ 자료함 **+ 숙제** 한 줄도 「원장님만」이 아니다",
+   RECUR ? seenByLabel({ bin_id: "b1", day_item_id: "d1" }) !== "원장님만"
+         : /숙제를 받는/.test(seenByLabel({ bin_id: "b1", day_item_id: "d1" })),
    seenByLabel({ bin_id: "b1", day_item_id: "d1" }));
 // ⚠️ 공지 붙임 규칙이 아직 안 조여진 동안 「이 공지를 받는 사람만」은 **거짓말**이다.
 //    RLS_NOT_YET 과 화면 글이 한 벌인지 본다 (진짜 정책과의 대조는 아래 ⑫).
-ok(RLS_NOT_YET.has("file.notice")
+ok(RECUR ? "⚠️ 되풀이가 먼저다 — 공지 붙임도 「못 엽니다」라고 말한다"
+   : RLS_NOT_YET.has("file.notice")
      ? "⚠️ 규칙이 안 조여져 있으므로 화면이 「이 공지를 받는 사람만」이라고 **안 한다**"
      : "공지 붙임은 그 공지를 받는 사람만",
-   RLS_NOT_YET.has("file.notice")
+   RECUR ? /못 엽니다/.test(seenByLabel({ notice_id: "n1" }))
+   : RLS_NOT_YET.has("file.notice")
      ? /로그인한 사람 전원/.test(seenByLabel({ notice_id: "n1" }))
      : seenByLabel({ notice_id: "n1" }) === "이 공지를 받는 사람만",
    seenByLabel({ notice_id: "n1" }));
@@ -532,17 +590,75 @@ try {
   //     「누가 보나는 규칙 한 벌이 정한다」고 해 놓고 그 한 벌을 아무도 안 봤다.
   console.log("\n■ ⚠️ 접근 규칙 — **화면이 하는 말과 진짜 규칙이 한 벌인가**");
   {
+    // ⚠️⚠️ **정책 글자를 읽기 전에, 로그인한 사람인 척하고 진짜로 한 줄 읽어 본다.**
+    //    앞 판의 이 검사는 `pg_policies` 의 **글자만** 봤다. 글자는 멀쩡했고 전부 초록이었는데,
+    //    실제로 읽어 보면 `infinite recursion detected in policy for relation "file"` 로 터진다 —
+    //    `own_file` 이 `file_link` 를 읽고 `own_link` 가 다시 `file` 을 읽기 때문이다.
+    //    **자료함이 통째로 안 열린다(원장님도 포함).** 읽기만 하고 곧바로 되돌린다.
+    const tryRead = async (tbl) => {
+      await c.query("begin");
+      try {
+        await c.query(`select set_config('request.jwt.claims',$1,true)`,
+          [JSON.stringify({ sub: "00000000-0000-4000-8000-000000000000", role: "authenticated" })]);
+        await c.query("set local role authenticated");
+        await c.query(`select 1 from v2.${tbl} limit 1`);
+        return "";
+      } catch (e) { return String(e.message).split("\n")[0]; }
+      finally { await c.query("rollback").catch(() => {}); }
+    };
+    const errFile = await tryRead("file");
+    const errLink = await tryRead("file_link");
+    const readable = errFile === "" && errLink === "";
+    ok("⚠️⚠️ `RLS_NOT_YET` 이 **진짜로 읽어 본 결과**와 안 어긋난다 — 자료함을 열 수 있나"
+       + (readable ? " (열린다 → lib/files.js 의 RLS_NOT_YET 에서 'file.recursion' 을 빼라)"
+                   : " (아직 터진다 — needsDb 의 SQL 을 넣어야 한다)"),
+       RLS_NOT_YET.has("file.recursion") === !readable,
+       `file=${errFile || "ok"} / file_link=${errLink || "ok"}`);
+    if (!readable)
+      warn.push("⚠️⚠️ **자료함이 지금 아무에게도 안 열린다 — 원장님도 포함.** "
+              + `실측: 로그인한 사람으로 \`select 1 from v2.file limit 1\` → ${errFile}. `
+              + "`own_file` 이 `v2.file_link` 를 직접 읽고 `own_link` 가 다시 `v2.file` 을 직접 읽어 "
+              + "정책이 서로를 부른다. **정책 글자는 멀쩡해서 글자만 보는 검사로는 안 잡힌다.** "
+              + "표를 건너 읽는 자리를 security definer 함수로 빼면 풀린다 — needsDb 로 냈다.");
+
     const pol = (await c.query(
       `select tablename, policyname, cmd, qual, with_check from pg_policies
-        where schemaname = 'v2' and tablename in ('file','file_link','notice')`)).rows;
+        where schemaname = 'v2' and tablename in ('file','file_link','notice','day_item')`)).rows;
     const P = (t, name) => pol.find((r) => r.tablename === t && r.policyname === name) ?? {};
 
     const ownFile = String(P("file", "own_file").qual ?? "");
     const ownLink = String(P("file_link", "own_link").qual ?? "");
     ok("공지 붙임 규칙을 진짜로 읽었다 (못 읽으면 아래가 헛돈다)", ownFile !== "" && ownLink !== "");
 
+    // ⚠️ 술어를 **함수 안에 넣어** 고칠 수도 있다 (`using (v2.notice_visible(notice_id))`).
+    //    그러면 정책 글자에는 sent_at·to_role 이 없어 **고쳐 놓고도 「아직 안 고쳤다」로 읽힌다** —
+    //    검사는 초록인데 화면은 계속 「⚠️ 로그인한 사람 전원」이라고 거짓말한다(대전제 0).
+    //    → 정책이 부르는 v2 함수의 몸통까지 **끝까지 따라가며** 편다.
+    // ⚠️ **한 겹만 펴면 안 된다.** 함수가 또 함수를 부르면(정책 → file_shown → notice_shown →
+    //    notice_ok) 술어는 세 겹 아래에 있다. 한 겹만 보면 「안 조여졌다」로 잘못 읽는다.
+    const fnBody = new Map(
+      (await c.query(
+        `select p.proname, string_agg(pg_get_functiondef(p.oid), ' ') body
+           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'v2' group by p.proname`)).rows.map((r) => [r.proname, r.body]));
+    const expand = (q) => {
+      const seen = new Set();
+      let out = String(q), todo = [String(q)];
+      while (todo.length) {
+        const cur = todo.pop();
+        for (const m of cur.matchAll(/\bv2\.([a-z_][a-z0-9_]*)\s*\(/gi)) {
+          const nm = m[1].toLowerCase();
+          if (seen.has(nm)) continue;            // ⚠️ 서로 부르는 함수에서 안 맴돌게
+          seen.add(nm);
+          const body = fnBody.get(nm);
+          if (body) { out += " " + body; todo.push(body); }
+        }
+      }
+      return out;
+    };
+
     // 공지 가지가 조여졌나 — 보낸 것만(sent_at) · 받는 역할만(to_role)
-    const tight = (q) => /sent_at/.test(q) && /to_role/.test(q);
+    const tight = (q) => /sent_at/.test(expand(q)) && /to_role/.test(expand(q));
     const noticeTight = tight(ownFile) && tight(ownLink);
     ok("⚠️ `RLS_NOT_YET` 이 진짜 정책과 안 어긋난다 — 공지 붙임"
        + (noticeTight ? " (조여졌다 → lib/files.js 의 RLS_NOT_YET 에서 'file.notice' 를 빼라)"
@@ -560,18 +676,45 @@ try {
        + (seenTight ? " (조여졌다 → RLS_NOT_YET 에서 'file_link.child_seen' 을 빼라)"
                     : " (아직 `with check (true)` — 아이가 day_item_id 를 지울 수 있다)"),
        RLS_NOT_YET.has("file_link.child_seen") === !seenTight, `with_check=${childCheck}`);
-    // 대조 — 바로 옆 정책은 제대로 조여 놨다
+    // 대조 — 바로 옆 정책은 제대로 조여 놨다. ⚠️ 앞 판에는 이 줄이 `void` 라 **아무것도 안 봤다**
     const doneCheck = String(P("day_item", "child_done").with_check ?? "");
+    ok("대조: `day_item/child_done` 의 with check 는 `true` 가 아니다 (붙임도 이래야 한다)",
+       doneCheck !== "" && doneCheck !== "true" && /status/.test(doneCheck), `with_check=${doneCheck}`);
+
+    // ⚠️⚠️ **사고를 그대로 재현한다** — 정책 글자만 보면 절반만 본 것이다.
+    //    `with check` 는 **새 줄만** 본다. 옛 줄과 못 견주므로 「seen_by_child 말고는 그대로일 것」을
+    //    정책만으로는 못 쓴다. 아이가 `file_id` 를 **남의 파일 id 로 바꾸면**, 그 줄이 자기 숙제 줄에
+    //    붙어 있으므로 `own_file` 이 「보여도 된다」고 답한다 → **다른 집 자료를 그대로 연다.**
+    //    → 막는 길은 둘 중 하나다: 그 칸들의 update 권한을 빼거나, before update 방아쇠로 되돌리거나.
+    //      (칸 권한을 빼면 **원장님도 같이 막힌다** — 원장님도 authenticated 다. 방아쇠 쪽이 낫다)
+    const moveCols = (await c.query(
+      `select column_name,
+              has_column_privilege('authenticated','v2.file_link',column_name,'update') u
+         from information_schema.columns
+        where table_schema='v2' and table_name='file_link'
+          and column_name in ('file_id','bin_id','day_item_id','notice_id','consult_id')`)).rows;
+    const canMove = moveCols.filter((r) => r.u).map((r) => r.column_name);
+    const guardTrg = (await c.query(
+      `select tgname from pg_trigger
+        where tgrelid = 'v2.file_link'::regclass and not tgisinternal
+          and (tgtype & 1) = 1 and (tgtype & 2) = 2 and (tgtype & 16) = 16`)).rows.map((r) => r.tgname);
+    ok("붙은 자리 칸의 권한을 진짜로 읽었다 (못 읽으면 아래가 헛돈다)", moveCols.length === 5);
+    const moveBlocked = canMove.length === 0 || guardTrg.length > 0;
+    ok("⚠️⚠️ `RLS_NOT_YET` 이 **붙은 자리 칸**과도 안 어긋난다 — 아이가 `file_id` 를 남의 것으로 옮길 수 있나"
+       + (moveBlocked ? " (막혔다)" : " (아직 열려 있다 — 정책만 고치고 여기를 안 고치면 반만 고친 것이다)"),
+       RLS_NOT_YET.has("file_link.child_seen") === !moveBlocked,
+       `바꿀 수 있는 칸=[${canMove.join(",")}] before-update 방아쇠=[${guardTrg.join(",")}]`);
     if (!seenTight)
       warn.push("⚠️ `file_link/child_seen` 의 with check 가 `true` 다 — 아이가 자기 JWT 로 "
               + "`update v2.file_link set day_item_id = null` 을 보내면 **원장님이 붙인 자료가 사라지고**, "
-              + "줄은 남아 `inboxSql()` 에도 안 걸려 **어느 화면에서도 안 보인다.** needsDb 로 냈다.");
+              + "줄은 남아 `inboxSql()` 에도 안 걸려 **어느 화면에서도 안 보인다.** "
+              + `더 나쁜 것: 같은 길로 \`file_id\` 를 남의 파일 id 로 바꾸면(지금 [${canMove.join(",")}] 칸이 다 열려 있다) `
+              + "그 줄이 자기 숙제 줄에 붙어 있으므로 `own_file` 이 통과시켜 **다른 집 자료를 그대로 연다.** needsDb 로 냈다.");
     if (!noticeTight)
       warn.push("⚠️ `own_file`·`own_link` 의 공지 가지가 `notice_id is not null` 하나뿐이라 "
               + "**로그인한 사람 전원**이 공지 붙임을 본다 — 학부모 전용 공지를 학생이 보고, "
               + "**아직 안 보낸 초안 공지의 붙임도 미리 본다.** needsDb 로 냈다. "
               + "그때까지 `seenByLabel` 은 「이 공지를 받는 사람만」이라고 **말하지 않는다.**");
-    void doneCheck;
   }
 
   // (사) ⚠️ `pathFor()` 와 `fileInsertSql()` 이 **서로 물리는가**

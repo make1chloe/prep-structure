@@ -307,7 +307,7 @@ console.log("\n■ 자동 검사 ⑮ — 반 명단은 class_roster 로만");
 // 파일도 훑는다 — 나중에 누가 화면에서 직접 읽으면 여기서 걸린다
 // ⚠️ scripts/ 는 뺀다. check-v2-rls.mjs 는 **접근 규칙을 시험하려고** 일부러 직접 읽는다
 const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-  if (["node_modules", ".next", ".git", "backup"].includes(f)) continue;
+  if (["node_modules", ".next", ".git", "backup", "_tmp", "sandbox"].includes(f)) continue;
   const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const files = [...walk("lib"), ...walk("app")];

@@ -103,17 +103,24 @@ function fakeDb(fx, opts = {}) {
       case "check":  return { rows: fx.check };
       case "books":  return { rows: fx.books };
       case "progress": {
-        // ⚠️ 교재를 **배열로 한 번에** 묻는다 ($2 = 교재 배열 · $3 = 그 달 회독 배열)
+        // ⚠️ 교재를 **배열로 한 번에** 묻는다 ($2 = 교재 배열 · $3 = 그 달 회독 배열 · $4 = 그 달 마지막날)
+        // ⚠️⚠️ 진짜 SQL 은 교재마다가 아니라 **배정 줄마다** 한 줄을 돌려준다 —
+        //    같은 교재가 그 달에 두 줄이면(1회독 끝내고 2회독) 두 줄이다. `with ordinality` 의
+        //    번호(`idx`, 1부터)로 맞대므로 여기서도 그 번호를 붙인다.
+        //    ⚠️ 그리고 **되돌아오는 차례는 보장이 없다.** 진짜로 안 보장되는 것을 흉내내려고
+        //       `fx.progressShuffle` 이면 줄을 뒤집어 준다 — 번호로 안 맞대면 그 자리에서 걸린다
         const ids = p[1] ?? [], rounds = p[2] ?? [];
         const out = [];
         ids.forEach((id, i) => {
-          const v = fx.progressBy?.[id] ?? fx.progress;
-          if (!v) return;                                   // 그 교재는 줄이 아예 안 온다
-          out.push({ book_id: id, done: v.done, skipped: v.skipped, total: v.total,
+          const v = fx.progressByRound?.[`${id}|${rounds[i]}`] ?? fx.progressBy?.[id] ?? fx.progress;
+          if (!v) return;                                   // 그 배정 줄은 답이 아예 안 온다
+          out.push({ idx: String(i + 1), book_id: id, done: v.done, skipped: v.skipped, total: v.total,
                      today_round: "today_round" in v ? v.today_round : rounds[i],
-                     marks: "marks" in v ? v.marks : 1 });
+                     marks: "marks" in v ? v.marks : 1,
+                     // ⚠️ 그 달이 끝난 뒤에 찍힌 `done` 줄 수. 안 적으면 0 (=그 달 것이 맞다)
+                     after_month: "after_month" in v ? v.after_month : 0 });
         });
-        return { rows: out };
+        return { rows: fx.progressShuffle ? out.reverse() : out };
       }
       case "rosterOn": return { rows: [{ at_first: fx.atFirst ?? 1, at_now: fx.atNow ?? 1,
                                          came_before: fx.cameBefore === true }] };
@@ -358,6 +365,30 @@ console.log("\n■ ⭐ 굳히기 — frozen 은 학부모가 그대로 읽는 �
   const r = await sentView(fakeDb(fx), S1, "2026-07");
   ok("⚠️ 굳은 글이 없는 옛 줄은 **지어서 채우지 않는다**", r.frozen === null && /모른다/.test(r.why), JSON.stringify(r.why));
 }
+{
+  // ⚠️⚠️ **옛 모양으로 굳은 글** — `FROZEN_V` 를 올리는 까닭이 이것인데 앞서는 올려 놓고
+  //    읽는 쪽이 번호를 안 봤다. 뜻이 달라진 칸을 조용히 새 뜻으로 그리면 아무도 못 알아챈다.
+  //    ⚠️ 막지 않는다 — 그때 나간 글은 그대로 보여야 한다(대전제 6). **밝히기만** 한다
+  const fx = base();
+  fx.mr.set(`${S1}|2026-07`, { id: "old2", student_id: S1, ym: "2026-07", body: null,
+    frozen: JSON.stringify({ v: 1, studentId: S1, ym: "2026-07", monthLabel: "2026년 7월",
+                             lines: [{ key: "progress", label: "교재 진도", asOf: "today", books: [] }] }),
+    sent_at: "2026-08-01T00:00:00Z" });
+  const r = await sentView(fakeDb(fx), S1, "2026-07");
+  ok("⭐ 옛 판으로 굳은 글은 **옛 판이라고 밝힌다** (새 뜻으로 조용히 안 읽는다)",
+     r.oldShape === true && r.frozenV === 1 && /1판으로 굳은 글/.test(r.why ?? ""), JSON.stringify(r.why));
+  ok("⚠️ 그래도 그때 나간 줄은 그대로 보인다 (숫자를 지어 고치지 않는다)",
+     (r.lines ?? []).length === 1 && r.lines[0].asOf === "today", JSON.stringify(r.lines));
+  const now = await sentView(fakeDb((() => {
+    const f2 = base();
+    f2.mr.set(`${S1}|2026-07`, { id: "new2", student_id: S1, ym: "2026-07", body: null,
+      frozen: JSON.stringify({ v: FROZEN_V, studentId: S1, ym: "2026-07", lines: [] }),
+      sent_at: "2026-08-01T00:00:00Z" });
+    return f2;
+  })()), S1, "2026-07");
+  ok("⚠️ 지금 판으로 굳은 글에는 그 말이 안 붙는다 (원장 일이 안 는다)",
+     !("oldShape" in now) && !("why" in now), Object.keys(now).join(","));
+}
 
 {
   // ⚠️ **목록 자체를 지킨다** — 목록이 줄면 위 검사가 눈이 먼다
@@ -386,6 +417,31 @@ console.log("\n■ 막지 않는다. 묻는다 — 굳히는 것은 되돌릴 �
   ok("안 물으면 안 나간다", r.ok === false && r.why === "ask", JSON.stringify(r.why));
   ok("무엇을 물어야 하는지 돌려준다", r.need.includes(ASK.OPEN_SHEETS));
   ok("안 나갔으면 알림도 없다", db.shot.length === 0);
+}
+{
+  // ⚠️ **화면이 확인 단추로 받아야 하는 물음이 몇 개인가** — 안 받으면 `sendMonthly` 가
+  //    `{ok:false, why:'ask'}` 로 **조용히** 안 나간다. 발송 화면이 아직 없어 지금은 안 걸리지만,
+  //    지을 때 이 셋을 다 받아야 한다. must 가 늘면 여기서 한 번 멈춘다
+  //    ⚠️ 글자로 세지 않고 **실제로 셋을 하나씩 일으켜** 모은다 (셋은 서로 같이 못 난다 —
+  //       판이 없어야 no_lines 인데 그러면 안 마감한 판도 없다)
+  const 열린판 = await sendGate(fakeDb(base()), S1, "2026-08");
+  const 빈달 = await sendGate(fakeDb((() => {
+    const f = base(); f.sheets = []; f.check = []; f.books = []; f.quiz = {}; f.member = []; f.schedule = [];
+    return f;
+  })()), S1, "2026-08");
+  const 앞달 = await sendGate(fakeDb((() => {
+    const f = base(); f.sheets = f.sheets.filter((s) => s.closed_at); return f;
+  })()), S1, "2026-09");
+  const 모은것 = [...new Set([...열린판.mustAsk, ...빈달.mustAsk, ...앞달.mustAsk])].sort();
+  const must = [ASK.OPEN_SHEETS, ASK.NO_LINES, ASK.MONTH_OPEN].sort();
+  ok("⚠️ 화면이 확인 단추로 받아야 하는 must 물음은 **셋뿐이다** (늘면 화면도 같이 고쳐야 한다)",
+     JSON.stringify(모은것) === JSON.stringify(must), JSON.stringify(모은것));
+  // ⚠️ 위 셋 말고 **또 다른 must** 가 조용히 생기지 않았나 — `sendGate` 안의 `true` 자리를 센다.
+  //    늘었는데 화면이 안 받으면 `sendMonthly` 가 {ok:false, why:'ask'} 로 **조용히** 안 나간다
+  const gate = /export async function sendGate[\s\S]*?\n}/.exec(readFileSync("lib/monthly.js", "utf8"))?.[0] ?? "";
+  const trueN = (gate.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ").match(/,\s*true,/g) ?? []).length;
+  ok("⚠️ `sendGate` 안에 must 자리가 셋뿐이다 (넷째가 생기면 여기서 한 번 멈춘다)",
+     trueN === 3, String(trueN));
 }
 {
   const fx = base();
@@ -429,7 +485,7 @@ console.log("\n■ 밖으로 나가는 길이 하나뿐인가");
 }
 {
   const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-    if (["node_modules", ".next", ".git", "backup"].includes(f)) continue;
+    if (["node_modules", ".next", ".git", "backup", "_tmp", "sandbox"].includes(f)) continue;
     const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
       : /\.(js|jsx|mjs)$/.test(f) && out.push(p); } return out; };
   const src = readFileSync("lib/monthly.js", "utf8");
@@ -469,8 +525,35 @@ console.log("\n■ ⭐ 안 보낸 학생 세어 주기 — 학생을 하나씩 �
      !("ready" in b) && b.students.every((s) => !("ready" in s)), Object.keys(b).join(","));
   const src2 = readFileSync("lib/monthly.js", "utf8");
   const boardFn = /export async function monthlyBoard[\s\S]*$/.exec(src2)?.[0] ?? "";
-  ok("⚠️ `monthlyBoard` 안에 `ready` 라는 칸이 다시 생기지 않았다",
-     !/\bready\s*[:=]/.test(boardFn.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ")));
+  const boardCode = boardFn.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+  ok("⚠️ `monthlyBoard` 안에 `ready` 라는 칸이 다시 생기지 않았다", !/\bready\s*[:=]/.test(boardCode));
+  // ⚠️⚠️ **이름만 바꾸고 옛 판정식을 그대로 두던 자리.** `ready`(보낼 수 있나)를 `allClosed`(마감 다 됐나)로
+  //    고칠 때 `!r.sent_at` 이 그대로 남아 있었다 — 「보낸 것」은 마감과 아무 상관이 없다
+  ok("⭐⭐ `allClosed` 판정식에 `sent_at` 이 안 섞였다 (이름만 바꾸고 옛 식을 두면 여기서 걸린다)",
+     !/allClosed:[^,\n]*sent_at/.test(boardCode),
+     (/allClosed:[^,\n]*/.exec(boardCode) ?? [""])[0]);
+}
+{
+  // ⭐⭐ 사고 재현 — **판을 다 마감한 아이의 리포트를 보내면 「마감 안 됨」으로 뒤집히던 자리.**
+  //    실측(2026-09-02, 진짜 DB) — 왕희연의 2026-08 판 7개를 전부 마감하면
+  //    {sheets:7, closed:7, open:0, allClosed:true}·집계 1명인데, 그 아이 리포트를 **보내기만 하면**
+  //    마감은 그대로인데 allClosed:false·집계 0명이 됐다. 원장님이 다 마감한 아이를 못 찾는다
+  const fx = base(); fx.sheets = fx.sheets.filter((s) => s.closed_at);
+  const db = fakeDb(fx);
+  const before = await monthlyBoard(db, "2026-08");
+  ok("보내기 전 — 마감이 다 된 아이 1명", before.allClosed === 1 && before.notSent === 1,
+     JSON.stringify({ allClosed: before.allClosed, notSent: before.notSent }));
+  const sent = await sendMonthly(db, S1, "2026-08", db.opts);
+  ok("보냈다", sent.ok === true, JSON.stringify(sent.why ?? sent.need));
+  const after = await monthlyBoard(db, "2026-08");
+  const me = after.students.find((s) => s.studentId === S1);
+  ok("⭐⭐ **보냈다고 「마감 안 됨」으로 뒤집히지 않는다** (보낸 것과 마감은 상관이 없다)",
+     me?.allClosed === true && after.allClosed === 1,
+     JSON.stringify({ me, 집계: after.allClosed }));
+  ok("⚠️ 판 수는 그대로다 (마감 7/7 을 그대로 읽는다)",
+     me?.sheets === 2 && me?.closed === 2 && me?.open === 0, JSON.stringify(me));
+  ok("⭐ 「안 보낸 아이」는 옆 칸이 따로 센다 — 한 칸이 두 가지를 말하지 않는다",
+     after.sent === 1 && after.notSent === 0, JSON.stringify({ sent: after.sent, notSent: after.notSent }));
 }
 // ── ⑩ ⭐ 검증자가 캔 사고 여덟 — **그 사고를 그대로 다시 일으켜 본다** ─────
 //    ⚠️ 여기 줄은 「고쳤다」를 지키는 것이 아니라 **그 사고가 다시 나는지**를 본다.
@@ -514,6 +597,95 @@ console.log("\n■ ⭐ 캔 사고 다시 일으켜 보기");
   ok("⭐ 교재가 둘이어도 진도는 **한 번만** 묻는다 (교재마다 한 왕복이 아니다)",
      db.log.filter((x) => x === "progress").length === 1 && pg?.books?.length === 2,
      `${db.log.filter((x) => x === "progress").length}회 · 교재 ${pg?.books?.length}권`);
+}
+// ── ⭐⭐ 한 교재에 그 달 배정 줄이 **둘** — 남의 줄 값을 읽던 자리 ────────────
+//    `student_book` 의 유일키가 (student_id, book_id, from_date) 라
+//    「1회독 끝내고 2회독 시작」이면 같은 교재가 그 달에 두 줄이다 — 스키마가 허락하는 정상 모양이다.
+//    앞서는 받는 쪽이 `book_id` 로만 맞대 **뒤엣것이 앞엣것을 덮었다.**
+//    실측 재현(진짜 DB, 2026-09-02) — 구도은·「일관성 있는 기준 영문법」을
+//    1회독 08-02~08-14(진도 27줄) + 2회독 08-15~(진도 0줄)로 갈라 넣고 `2회독 줄을 먼저` 넣으면,
+//    2회독 줄이 1회독의 `marks=27` 을 읽어 `marks === 0` 방벽을 그냥 지나
+//    학부모 줄에 **{round:2, done:0, total:47, pct:0}** 이 실렸다. 굳으면 못 고친다.
+//    ⚠️ 되돌아오는 차례는 보장이 없다 — 차례를 뒤집어도 같은 답이 나와야 한다
+for (const 뒤집기 of [false, true]) {
+  const 말 = 뒤집기 ? "차례 뒤집힘" : "차례 그대로";
+  const fx = base();
+  fx.books = [{ book_id: B1, book_name: "일관성 있는 기준 영문법", round: 1, book_state: "active" },
+              { book_id: B1, book_name: "일관성 있는 기준 영문법", round: 2, book_state: "active" }];
+  fx.progressShuffle = 뒤집기;
+  fx.progressByRound = {
+    // 1회독 — 27줄 찍혔다. 그런데 오늘 배정은 2회독이라 이 답은 그 달 이야기가 아니다
+    [`${B1}|1`]: { done: 27, skipped: 0, total: 47, today_round: 2, marks: 27 },
+    // 2회독 — **아직 한 줄도 안 찍었다.** 이 줄이 남의 27 을 읽으면 0% 가 학부모에게 나간다
+    [`${B1}|2`]: { done: 0, skipped: 0, total: 47, today_round: 2, marks: 0 },
+  };
+  const r = await buildReport(fakeDb(fx), S1, "2026-08");
+  ok(`⭐⭐ 같은 교재 두 배정 줄 — 2회독 줄이 **남의 marks 를 읽어 0% 로 안 나간다** (${말})`,
+     !r.lines.find((l) => l.key === "progress"),
+     JSON.stringify(r.lines.find((l) => l.key === "progress")));
+  ok(`⚠️ 두 줄 다 까닭이 남는다 — 한 줄이 다른 줄을 덮지 않는다 (${말})`,
+     r.hidden.filter((h) => h.key === "progress:일관성 있는 기준 영문법").length === 2,
+     JSON.stringify(r.hidden.map((h) => h.key)));
+}
+{
+  // 그리고 **셀 수 있는 쪽은 제대로 나가야 한다** — 입 다무는 것이 목적이 아니다.
+  // 오늘 배정이 1회독이면 1회독 줄이 제 값으로 나가고 2회독 줄만 빠진다
+  const fx = base();
+  fx.books = [{ book_id: B1, book_name: "일관성 있는 기준 영문법", round: 1, book_state: "active" },
+              { book_id: B1, book_name: "일관성 있는 기준 영문법", round: 2, book_state: "active" }];
+  fx.progressByRound = {
+    [`${B1}|1`]: { done: 27, skipped: 0, total: 47, today_round: 1, marks: 27 },
+    [`${B1}|2`]: { done: 27, skipped: 0, total: 47, today_round: 1, marks: 0 },
+  };
+  const pg = (await buildReport(fakeDb(fx), S1, "2026-08")).lines.find((l) => l.key === "progress");
+  ok("⭐ 같은 교재 두 줄이어도 **셀 수 있는 회독은 제 값으로 나간다** (한 줄만, 27/47)",
+     pg?.books?.length === 1 && pg.books[0].round === 1 && pg.books[0].done === 27 && pg.books[0].pct === 57,
+     JSON.stringify(pg?.books));
+}
+{
+  // ⚠️ SQL 이 배정 줄마다 번호를 붙여 돌려주는가 — 빼면 위 자리가 그대로 다시 열린다
+  const one = new RegExp("monthly:progress[\\s\\S]*?`", "").exec(readFileSync("lib/monthly.js", "utf8"))?.[0] ?? "";
+  ok("⭐ 진도 SQL 이 배정 줄마다 **번호**(`with ordinality`)를 붙인다",
+     /with ordinality/.test(one) && /b\.i as idx/.test(one), one.replace(/\s+/g, " ").slice(0, 120));
+  const 받는쪽 = readFileSync("lib/monthly.js", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+  ok("⚠️ 받는 쪽이 `book_id` 로 다시 맞대지 않는다 (그 순간 뒤엣것이 앞엣것을 덮는다)",
+     !/new Map\(prog\.map\([^)]*book_id/.test(받는쪽),
+     (/new Map\(prog\.map\([^)]*\)/.exec(받는쪽) ?? [""])[0]);
+}
+// ── ⭐⭐ 「그 달에 있지도 않았던 진도」가 지난 달 리포트에 실리던 자리 ──────────
+//    `v2.book_progress()` 는 날짜를 안 받아 **오늘 누적**을 돌려준다. 회독만 보는 방벽으로는 못 막는다.
+//    실측(2026-09-02, 진짜 DB) — 2026-07 진도 줄 5개 중 4개 · 2026-06 은 3개 중 3개가 그 달 것이 아니었다.
+//    김소현·「기적의 영어문장 트레이닝」은 리포트에 60/130(46%) 인데 2026-07-31 까지 실제로는 **0단원**이었다
+{
+  const fx = base();
+  fx.progressBy = { [B1]: { done: 60, skipped: 0, total: 130, marks: 60, after_month: 60 } };
+  const r = await buildReport(fakeDb(fx), S1, "2026-08");
+  ok("⭐⭐ 그 달이 끝난 뒤에 찍힌 진도가 있으면 **숫자를 안 낸다** (오늘 누적을 그 달 것처럼 안 싣는다)",
+     !r.lines.find((l) => l.key === "progress"),
+     JSON.stringify(r.lines.find((l) => l.key === "progress")));
+  ok("⚠️ 몇 줄이 그랬는지 원장님께 남긴다 (소리 없이 사라지지 않는다)",
+     /그 달이 끝난 뒤에 찍힌 진도가 60줄/.test(r.hidden.find((h) => h.key === "progress:그래머인사이드3")?.why ?? ""),
+     JSON.stringify(r.hidden.map((h) => h.why)));
+}
+{
+  // ⚠️ 언제 찍었는지 **모르는** 줄도 같다 — 모르면 그 달 것인지도 모른다 (대전제 0).
+  //    SQL 의 `done_on is null` 이 그것을 `after_month` 로 넘긴다
+  const fx = base();
+  fx.progressBy = { [B1]: { done: 3, skipped: 1, total: 4, marks: 4, after_month: 1 } };
+  ok("⚠️ 날짜를 모르는 진도 줄이 하나라도 있으면 안 낸다",
+     !(await buildReport(fakeDb(fx), S1, "2026-08")).lines.find((l) => l.key === "progress"));
+}
+{
+  // 평소 길 — 그 달 뒤에 찍힌 것이 없으면 그대로 나가되 **어디까지인지**를 밝힌다.
+  // ⚠️ 「오늘 기준」이라 얼버무리면 지난 달 리포트에서 그 말이 거짓말이 된다
+  const pg = (await buildReport(fakeDb(base()), S1, "2026-08")).lines.find((l) => l.key === "progress");
+  ok("⭐ 그 달 것이 맞으면 진도가 그대로 나간다 (입 다무는 것이 목적이 아니다)",
+     pg?.books?.[0]?.pct === 75, JSON.stringify(pg?.books));
+  ok("⭐ 진도 줄이 **그 달 마지막날까지**라고 밝힌다 (「오늘 기준」이 아니다)",
+     pg?.asOf === "2026-08-31" && pg?.from === "2026-08-31 까지",
+     JSON.stringify({ asOf: pg?.asOf, from: pg?.from }));
+  ok("⚠️ 학부모가 읽는 글자에 「오늘 기준」이 안 남았다", !/오늘 기준/.test(JSON.stringify(pg)), JSON.stringify(pg?.from));
 }
 {
   // ⓑ 지금 멈춘 교재를 지난 달 리포트에서 소리 없이 자르지 않는다 (대전제 6)
@@ -697,6 +869,127 @@ try {
        어긋남.length === 0, 어긋남.slice(0, 4).join(" | "));
     ok("⭐⭐ **다 끝낸 교재가 0% 로 학부모에게 나가는 자리가 없다** (굳으면 못 고친다)",
        거짓0.length === 0, 거짓0.slice(0, 4).join(" | "));
+  }
+
+  // ⓒ-2b ⭐⭐ **「그 달에 있지도 않았던 진도」가 지난 달 리포트에 실리던 자리 — 진짜 줄로.**
+  //    ⚠️ 위 ⓒ-2 는 **오늘 누적**끼리 맞대므로 이 사고를 원리적으로 못 잡는다.
+  //       여기서는 리포트가 실은 `done` 을 **그 달 마지막날까지의 진짜 줄 수**와 맞댄다.
+  //    실측(2026-09-02) — 고치기 전 2026-07 진도 줄 5개 중 4개 · 2026-06 은 3개 중 3개가 그 달 것이 아니었다.
+  //    김소현·「기적의 영어문장 트레이닝」은 리포트에 60/130(46%) 인데 7월 말까지 실제로는 0단원이었다
+  {
+    const 재원생 = (await c.query(`select id, name from v2.students where state='active' order by name`)).rows;
+    for (const [ym, 끝날] of [["2026-06", "2026-06-30"], ["2026-07", "2026-07-31"], ["2026-08", "2026-08-31"]]) {
+      const 그달아님 = []; let 줄 = 0;
+      for (const s of 재원생) {
+        const rr = await buildReport(real, s.id, ym, { today: 끝날 });
+        const pg = rr.lines.find((l) => l.key === "progress");
+        if (pg) {
+          // ⚠️ 굳은 글은 학부모가 그대로 읽는다 — 「오늘 기준」이면 지난 달 리포트에서 그 말이 거짓말이다
+          if (pg.asOf !== 끝날) 그달아님.push(`${s.name}·asOf=${pg.asOf}`);
+          for (const b of pg.books ?? []) {
+            줄++;
+            const 그달 = (await c.query(
+              `select count(*)::int n from v2.progress p join v2.units u on u.id = p.unit_id
+                where p.student_id = $1::uuid and u.book_id = $2::uuid and p.round = $3::smallint
+                  and p.status = 'done' and p.done_on is not null and p.done_on <= $4::date`,
+              [s.id, b.bookId, b.round, 끝날])).rows[0].n;
+            if (b.done !== 그달) 그달아님.push(`${s.name}·${b.name} 리포트${b.done}≠그달${그달}`);
+          }
+        }
+      }
+      ok(`⭐⭐ ${ym} — 학부모에게 실린 진도 줄 ${줄}개가 **전부 그 달 것이다** (오늘 누적이 안 섞였다)`,
+         그달아님.length === 0, 그달아님.slice(0, 4).join(" | "));
+    }
+  }
+
+  // ⓒ-2c ⭐⭐ **한 교재에 그 달 배정 줄이 둘일 때 남의 줄 값을 읽던 자리 — 진짜 DB 로.**
+  //    ⚠️ 가짜 DB 로는 `with ordinality` 가 진짜로 도는지를 원리적으로 못 본다.
+  //    `begin … rollback` 이라 자료는 안 바뀐다. 실측 재현 — 구도은·「일관성 있는 기준 영문법」을
+  //    1회독(진도 27줄) + 2회독(진도 0줄)로 갈라 넣고 **2회독 줄을 먼저 넣으면**
+  //    2회독 줄이 1회독의 marks=27 을 읽어 학부모 줄에 {round:2, done:0, total:47, pct:0} 이 실렸다
+  {
+    const 감 = (await c.query(
+      `select p.student_id, u.book_id, b.name, p.round, count(*)::int n
+         from v2.progress p
+         join v2.units u on u.id = p.unit_id
+         join v2.books b on b.id = u.book_id
+         join v2.students st on st.id = p.student_id
+        where p.status = 'done' and st.state = 'active' and b.state = 'active'
+        group by 1,2,3,4 having count(*) > 3
+        order by count(*) desc limit 1`)).rows[0];
+    ok("두 회독으로 갈라 볼 (학생·교재)를 찾았다", !!감, "없다");
+    if (감) {
+      await c.query("begin");
+      try {
+        const 뒤 = Number(감.round) + 1;
+        // ⚠️ **2회독 줄을 먼저 넣는다** — 사고가 났던 그 차례다
+        await c.query(`update v2.student_book set to_date = '2026-08-14'
+                        where student_id=$1::uuid and book_id=$2::uuid`, [감.student_id, 감.book_id]);
+        await c.query(`insert into v2.student_book (student_id, book_id, from_date, to_date, round)
+                       values ($1::uuid, $2::uuid, '2026-08-15', null, $3::smallint)`,
+                      [감.student_id, 감.book_id, 뒤]);
+        const rr = await buildReport(real, 감.student_id, "2026-08", { today: "2026-08-31" });
+        const 실린 = (rr.lines.find((l) => l.key === "progress")?.books ?? [])
+          .filter((b) => String(b.bookId) === String(감.book_id));
+        ok(`⭐⭐ 같은 교재 두 배정 줄 — **아직 한 줄도 안 찍은 ${뒤}회독이 0% 로 안 나간다** (${감.name})`,
+           실린.length === 0, JSON.stringify(실린));
+        ok("⚠️ 두 배정 줄 다 까닭이 남는다 (한 줄이 다른 줄을 덮지 않는다)",
+           rr.hidden.filter((h) => h.key === `progress:${감.name}`).length === 2,
+           JSON.stringify(rr.hidden.filter((h) => h.key.startsWith("progress:")).map((h) => h.key)));
+      } finally { await c.query("rollback"); }
+    }
+  }
+
+  // ⓒ-2d ⭐⭐ **보냈다고 「마감 안 됨」으로 뒤집히던 자리 — 진짜 DB 로.**
+  //    실측 재현 — 왕희연의 2026-08 판 7개를 전부 마감하면 집계 「마감 다 됨」 1명인데,
+  //    그 아이 리포트를 **보내기만 하면** 마감은 그대로인데 0명이 됐다
+  {
+    const 감 = (await c.query(
+      `select st.id, st.name, count(*)::int n from v2.students st
+         join v2.day_sheet s on s.student_id = st.id and s.date between '2026-08-01' and '2026-08-31'
+        where st.state = 'active' group by 1,2 order by 3 desc limit 1`)).rows[0];
+    ok("8월 판이 가장 많은 아이를 찾았다", !!감, "없다");
+    if (감) {
+      await c.query("begin");
+      try {
+        await c.query(`update v2.day_sheet set closed_at = now()
+                        where student_id = $1::uuid and date between '2026-08-01' and '2026-08-31'`, [감.id]);
+        const b1 = await monthlyBoard(real, "2026-08");
+        const 전 = b1.students.find((s) => String(s.studentId) === String(감.id));
+        ok(`판 ${감.n}개를 다 마감하니 「마감 다 됨」이다 (${감.name})`, 전?.allClosed === true, JSON.stringify(전));
+        await c.query(`insert into v2.monthly_report (student_id, ym, body, frozen, sent_at)
+                       values ($1::uuid, '2026-08', null, '{}'::jsonb, now())
+                       on conflict (student_id, ym) do update set sent_at = now()`, [감.id]);
+        const b2 = await monthlyBoard(real, "2026-08");
+        const 후 = b2.students.find((s) => String(s.studentId) === String(감.id));
+        ok("⭐⭐ **보냈다고 「마감 안 됨」으로 뒤집히지 않는다** (보낸 것은 마감과 상관이 없다)",
+           후?.allClosed === true && b2.allClosed === b1.allClosed,
+           JSON.stringify({ 전: b1.allClosed, 후: b2.allClosed, 그아이: 후 }));
+        ok("⭐ 줄어드는 것은 「안 보낸 아이」쪽이다 (한 칸이 두 가지를 말하지 않는다)",
+           b2.notSent === b1.notSent - 1, `${b1.notSent} → ${b2.notSent}`);
+      } finally { await c.query("rollback"); }
+    }
+  }
+
+  // ⓒ-2e ⚠️ **`scripts/check-sql.mjs` 는 문법 오류를 판정 없이 삼킨다** —
+  //    `${…}` 를 메우다 난 오류와 진짜 문법 오류를 못 가려서다. 내 SQL 은 여기서 직접 물어본다.
+  //    돌리지 않고 PREPARE 만 하므로 자료는 안 바뀐다
+  {
+    const sqls = [...readFileSync("lib/monthly.js", "utf8").matchAll(/`\/\* monthly:[^`]*`/g)]
+      .map((m) => m[0].slice(1, -1));
+    const 나쁨 = [];
+    for (let k = 0; k < sqls.length; k++) {
+      try {
+        await c.query("begin");
+        await c.query(`prepare mchk_${k} as ${sqls[k]}`);
+        await c.query("rollback");
+      } catch (e) {
+        await c.query("rollback").catch(() => {});
+        나쁨.push(`${/monthly:(\w+)/.exec(sqls[k])?.[1]}: ${String(e.message).split("\n")[0]}`);
+      }
+    }
+    ok(`⭐ monthly SQL ${sqls.length}개가 진짜 스키마에 **문법까지** 통과한다 (check-sql 은 문법 오류를 삼킨다)`,
+       sqls.length === 11 && 나쁨.length === 0, 나쁨.join(" | ") || `뽑은 것 ${sqls.length}개`);
   }
 
   // ⓒ-3 ⭐⭐ **이관 첫 달 거짓 문구** — 실측 2026-09 에 재원생 25명 중 20명이 밟던 자리.

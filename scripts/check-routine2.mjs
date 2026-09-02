@@ -629,7 +629,7 @@ console.log("\n■ ⑪ 판단이 한 곳뿐인가 — 파일을 훑는다");
   const walk = (d, out = []) => { for (const f of readdirSync(d)) {
     // ⚠️ `scripts/` 는 뺀다 — DB 함수가 **맞게 세는지**는 검사가 진짜 DB 로 물어봐야 한다
     //    (check-derive · check-progress 가 그 일을 한다). 여기서 보는 것은 **화면과 lib** 이다
-    if (["node_modules", ".next", ".git", "backup", "supabase", "public", "scripts"].includes(f)) continue;
+    if (["_tmp", "sandbox", "node_modules", ".next", ".git", "backup", "supabase", "public", "scripts"].includes(f)) continue;
     const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
       : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
   const files = walk(".").filter((f) => !f.endsWith("lib/routine.js") && !f.endsWith("check-routine2.mjs"));

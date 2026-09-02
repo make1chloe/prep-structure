@@ -28,8 +28,16 @@ const FIXTURE = "scripts/_layout-fixture.html";
 const WIDTHS = [320, 390, 768, 1400];          // 계획 ㉜ 의 네 폭 그대로
 const COARSE = new Set([320, 390, 768]);       // ⚠️ 아이패드(768)도 **손가락 기계**다 (오류 104)
 /** ⚠️ 브라우저 없이 초록을 보고 싶으면 **사람이 일부러** 이걸 켜야 한다.
- *    거짓 초록은 검사가 없는 것보다 나쁘다 — 지난 판에서 크게 다친 자리다. */
-const ALLOW_SHALLOW = process.env.ALLOW_SHALLOW === "1";
+ *    거짓 초록은 검사가 없는 것보다 나쁘다 — 지난 판에서 크게 다친 자리다.
+ *
+ * ⚠️ CI 에서는 **안 통한다.** 이건 「지금 이 기계에 크롬이 없다」는 사람의 한 번짜리 변명이지
+ *    설정 파일에 박아 두는 스위치가 아니다. 누가 CI 에 `ALLOW_SHALLOW=1` 을 넣어 두면
+ *    브라우저 검사 여섯이 통째로 안 도는 채로 영원히 초록이 뜬다 — 바로 그 사고를 막으려고
+ *    이 검사를 실패로 끝내게 만들었는데 그 스위치가 되돌려 놓는다.
+ *    그래서 CI 표시가 보이면 켜져 있어도 **무시하고 실패시킨다.** */
+const SHALLOW_ASKED = process.env.ALLOW_SHALLOW === "1";
+const IN_CI = Boolean(process.env.CI || process.env.GITHUB_ACTIONS || process.env.VERCEL || process.env.BUILD_ID);
+const ALLOW_SHALLOW = SHALLOW_ASKED && !IN_CI;
 
 let fail = 0, n = 0;
 const ok = (t, cond, why = "") => {
@@ -103,23 +111,62 @@ function decls(body) {
 const stripAttrSel = (sel) => sel.replace(/\[[^\]]*\]/g, " ").replace(/"[^"]*"|'[^']*'/g, " ");
 const classesIn = (sel) => [...stripAttrSel(sel).matchAll(/\.(-?[A-Za-z_][A-Za-z0-9_-]*)/g)].map((m) => m[1]);
 
+/** `font:` 줄임말에서 크기 자리에 올 수 있는 것.
+ *  ⚠️ `var(--fs3)` 을 빼먹으면 안 된다 — C9 가 「크기는 토큰만 써라」라고 시키므로
+ *     **규칙을 지켜 쓴 줄**이 전부 이 통로로 빠져나간다 (실측 C10 0건). */
+const FONT_SIZE = "(?:var\\(\\s*--[A-Za-z0-9_-]+\\s*(?:,[^()]*)?\\)|[\\d.]+(?:px|rem|em|%|pt)"
+                + "|xx?-(?:small|large)|small|medium|large|larger|smaller)";
+const FONT_RE = new RegExp(`(^|\\s)(${FONT_SIZE}(?:\\s*/\\s*\\S+)?)\\s+(.+)$`);
+
 /** 줄임말을 풀어 준다 — ⚠️ `font: 700 12.5px/1.4 Menlo, monospace` 한 줄이
  *    C9(0.5px 단)·C10(한글에 고정폭)을 **동시에** 빠져나갔다(실측 「어긴 것 0건」).
- *    오류 106 과 107 을 한 줄에 같이 저지르면 검사가 통과시키던 통로다. */
+ *    오류 106 과 107 을 한 줄에 같이 저지르면 검사가 통과시키던 통로다.
+ *
+ * ⚠️ 여기서 `grid:` 를 풀지 않는다. 전에는 `grid`·`grid-template`·`grid-auto-rows` 를
+ *    전부 `grid-template-columns` 로 밀어 넣었는데, 그것은 **축을 바꿔치기하는 짓**이라
+ *    `grid: 1fr / auto`(줄=1fr·칸=auto)와 `grid-auto-rows: 1fr`(세로축)에 거짓 실패했고,
+ *    파일에 없는 속성 이름을 찍어 고치는 사람이 자리를 못 찾았다.
+ *    가로축 값 골라내기는 아래 `columnTrack()` 이 **원래 속성 이름을 그대로 둔 채** 한다. */
 function expandShorthand(d) {
   const out = [d];
   if (d.prop === "font" && !/^(caption|icon|menu|message-box|small-caption|status-bar|inherit|initial|unset)\b/.test(d.val.trim())) {
     // `[스타일 무게] 크기[/줄높이] 글꼴목록` — 크기와 글꼴목록만 떼어 낸다
-    const m = /(^|\s)((?:[\d.]+(?:px|rem|em|%|pt)|xx?-(?:small|large)|small|medium|large|larger|smaller)(?:\s*\/\s*\S+)?)\s+(.+)$/.exec(d.val.trim());
+    const m = FONT_RE.exec(d.val.trim());
     if (m) {
-      out.push({ prop: "font-size", val: m[2].split("/")[0].trim() });
-      out.push({ prop: "font-family", val: m[3].trim() });
+      /* ⚠️ `from` 은 **원래 줄**이다. 이게 없으면 메시지가 파일에 없는
+       *    `font-family: Menlo` 를 찍어, 고치는 사람이 grep 해도 그 줄을 못 찾는다. */
+      out.push({ prop: "font-size", val: m[2].split("/")[0].trim(), from: d });
+      out.push({ prop: "font-family", val: m[3].trim(), from: d });
     }
   }
-  // `grid:`·`grid-auto-columns:` 도 맨 `fr` 을 담을 수 있다 — C4 가 보게 넘긴다
-  if (/^(grid|grid-template|grid-auto-columns|grid-auto-rows)$/.test(d.prop))
-    out.push({ prop: "grid-template-columns", val: d.val });
   return out;
+}
+
+/** 괄호 밖의 첫 `/` 자리. `repeat(2, 1fr)` 안의 것에 안 속는다 */
+function topSlash(v) {
+  let par = 0;
+  for (let i = 0; i < v.length; i++) {
+    const c = v[i];
+    if (c === "(") par++; else if (c === ")") par--;
+    else if (c === "/" && par === 0) return i;
+  }
+  return -1;
+}
+
+/** 이 선언이 정하는 **칸(가로축)** 트랙 값. 세로축뿐이면 null.
+ *
+ * ⚠️ C4 는 가로축만 본다 — 이 검사가 생긴 사고가 「칸이 내용보다 안 작아져 달력이
+ *    부모 밖으로 69px 나갔다」이기 때문이다. 세로축(`grid-template-rows`·`grid-auto-rows`)에
+ *    같은 메시지를 붙이면 **거짓 실패**다. 거짓 실패는 거짓 초록만큼 나쁘다.
+ *    `grid`·`grid-template` 은 `줄 / 칸` 이라 **슬래시 뒤**가 칸이다.
+ *    슬래시가 없으면(`grid: auto-flow 1fr` 따위) 칸을 정하는 것이 아니다. */
+function columnTrack(prop, val) {
+  if (prop === "grid-template-columns" || prop === "grid-auto-columns") return val;
+  if (prop === "grid" || prop === "grid-template") {
+    const i = topSlash(val);
+    return i < 0 ? null : val.slice(i + 1).trim();
+  }
+  return null;
 }
 
 /** `var(--x)` 를 실제 값으로 푼다 — ⚠️ C7 이 `var(--fs6)` 을 못 읽어서,
@@ -164,11 +211,19 @@ function auditCss(raw, { wantRegistry }) {
     /* C2 금지된 이름 */
     for (const c of classesIn(r.sel)) if (BAD_NAME.test(c)) add("C2", `한 글자·한 낱말 상태 이름: .${c}  (${r.sel})`);
 
-    for (const { prop, val } of r.d) {
-      /* C4 grid 의 맨 1fr — minmax 를 먼저 지우고 본다 */
-      if (/^grid-template(-columns|-rows)?$/.test(prop)) {
-        const v = val.replace(/minmax\([^)]*\)/g, " ");
-        if (/(^|[\s,(])[\d.]*fr\b/.test(v)) add("C4", `grid 에 맨 fr — 내용보다 안 작아진다. minmax(0,1fr) 로: ${r.sel} { ${prop}: ${val} }`);
+    for (const dcl of r.d) {
+      const { prop, val } = dcl;
+      /* ⚠️ 메시지에 적을 자리 — 줄임말을 푼 것이면 **원래 줄**을 적는다.
+       *    파일에 없는 속성 이름을 찍으면 고치는 사람이 자리를 못 찾는다 (N1 이 그 사고였다). */
+      const at = dcl.from ? `${r.sel} { ${dcl.from.prop}: ${dcl.from.val} }` : `${r.sel} { ${prop}: ${val} }`;
+      /* C4 grid **칸(가로축)** 의 맨 1fr — minmax 를 먼저 지우고 본다.
+       * ⚠️ 메시지에는 **파일에 진짜 있는 속성 이름과 값**을 그대로 적는다.
+       *    없는 이름(`grid-template-columns`)을 찍으면 고치는 사람이 grep 해도 그 줄을 못 찾는다. */
+      const colTrack = columnTrack(prop, val);
+      if (colTrack != null) {
+        const v = colTrack.replace(/minmax\([^)]*\)/g, " ");
+        if (/(^|[\s,(])[\d.]*fr\b/.test(v))
+          add("C4", `grid 의 **칸**에 맨 fr — 내용보다 안 작아져 옆으로 넘친다. minmax(0,1fr) 로: ${at}`);
       }
       /* C6 늘어나는 칸에 basis 가 없다 (줄임말만. longhand 는 규칙 단위로 아래에서 본다) */
       if (prop === "flex") {
@@ -180,24 +235,26 @@ function auditCss(raw, { wantRegistry }) {
       }
       /* C8 투명도로 흐리게 — 「끄는 중」 한 자리만 봐준다 */
       if (prop === "opacity" && Number(val) < 1 && !/\.is-drag\b/.test(r.sel))
-        add("C8", `투명도로 흐리게 했다. 「덜 중요함」은 색으로: ${r.sel} { opacity: ${val} }`);
+        add("C8", `투명도로 흐리게 했다. 「덜 중요함」은 색으로: ${at}`);
       /* C9 글씨 크기 — 토큰만 쓴다. 0.5px 단 금지 */
       if (prop === "font-size" && !/^:root/.test(r.sel)) {
-        if (/\d\.\d*5px/.test(val)) add("C9", `0.5px 단 글씨: ${r.sel} { font-size: ${val} }`);
-        else if (/\d/.test(val) && !/var\(--fs\d/.test(val)) add("C9", `토큰 아닌 글씨 크기: ${r.sel} { font-size: ${val} }`);
+        if (/\d\.\d*5px/.test(val)) add("C9", `0.5px 단 글씨: ${at}`);
+        else if (/\d/.test(val) && !/var\(--fs\d/.test(val)) add("C9", `토큰 아닌 글씨 크기: ${at}`);
       }
-      /* C10 한글 자리에 고정폭 글꼴 */
-      if (prop === "font-family" && MONO_RE.test(val) && !/(^|[\s,>])(code|pre|kbd)\b|\.mono\b/.test(r.sel))
-        add("C10", `고정폭 글꼴이 한글에 걸릴 자리에 있다: ${r.sel} { font-family: ${val} }`);
+      /* C10 한글 자리에 고정폭 글꼴
+       * ⚠️ 값을 **실제 글꼴 목록으로 풀어서** 본다. `var(--code-font)` 라는 글자만 보면
+       *    토큰으로 적은 순간 눈을 감는다 — C9 가 시키는 대로 쓰면 C7 이 눈감던 것과 같은 통로다. */
+      if (prop === "font-family" && MONO_RE.test(resolveVar(val, TOK)) && !/(^|[\s,>])(code|pre|kbd)\b|\.mono\b/.test(r.sel))
+        add("C10", `고정폭 글꼴이 한글에 걸릴 자리에 있다: ${at}`);
       /* C7-c PC 입력칸이 14px 보다 작으면 못 읽는다
        * ⚠️ 값을 **px 로 풀어서** 본다. 전에는 `val.match(/(\d+)px/)` 라
        *    `font-size: var(--fs6)` 을 못 읽었다 — C9 가 「토큰으로 쓰라」고 시키는 대로
        *    쓰는 순간 C7 이 눈을 감아, 규칙을 지키며 쓴 오류 104 는 영원히 안 잡혔다(실측). */
       if (prop === "font-size" && INPUTISH.test(r.sel) && !/pointer\s*:\s*coarse/.test(r.media)) {
         const size = px(val);
-        if (size && size < 14) add("C7", `입력칸 글씨가 14px 미만: ${r.sel} { font-size: ${val} }`);
+        if (size && size < 14) add("C7", `입력칸 글씨가 14px 미만: ${at}`);
         if (size >= 16 && /max-width/.test(r.media))
-          add("C7", `⚠️ 입력칸 16px 를 **폭**으로 걸었다 — 아이패드(768px)가 빠진다. (pointer:coarse) 로: ${r.media} { ${r.sel} { font-size: ${val} } }`);
+          add("C7", `⚠️ 입력칸 16px 를 **폭**으로 걸었다 — 아이패드(768px)가 빠진다. (pointer:coarse) 로: ${r.media} { ${at} }`);
       }
     }
 
@@ -407,7 +464,8 @@ const AUDIT = `(() => {
     //    CSS 규정상 한 축이 visible 이 아니면 다른 축은 auto 로 계산되므로,
     //    auto·scroll 도 hidden 과 똑같이 붙박이를 가둔다. 갇힌 상자가
     //    세로로 안 구르면 머리는 페이지와 함께 그냥 흘러 나간다 (실측 top 74 → -626).
-    if (s.position === "sticky" && s.top !== "auto") {
+    // ⚠️ 세로로 붙는 것(top)뿐 아니라 **아래에 붙는 줄(bottom)** 도 같은 사고를 낸다 (.barfix).
+    if (s.position === "sticky" && (s.top !== "auto" || s.bottom !== "auto")) {
       let box = null;
       for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
         const as = S(a);
@@ -419,7 +477,12 @@ const AUDIT = `(() => {
         const doesScroll = box.scrollHeight - box.clientHeight > 1;
         if (!userCanScroll)
           put(9, e, "조상 " + nm(box) + " 이 overflow-y:" + bs.overflowY + " 라 **오류 없이 그냥 안 붙는다**");
-        else if (!doesScroll && box.getBoundingClientRect().height > innerHeight * 0.6)
+        // ⚠️ 전에는 여기에 「상자 높이가 화면의 60% 를 넘을 때만」이라는 문지기가 있었다.
+        //    그래서 .calwrap (실측 461px < 540px) 이 그냥 빠져나갔다 — 진짜 globals.css 로
+        //    재 보면 붙박이 top 이 73 → **-627** 로 흘러 나간다. 키가 크든 작든
+        //    **상자가 안 구르면 머리는 안 붙는다.** 높이는 상관이 없으므로 문지기를 없앴다.
+        //    ⚠️ 이 글은 template literal 안이라 역따옴표를 쓰면 안 된다 (한 번 터졌다).
+        else if (!doesScroll)
           put(9, e, "조상 " + nm(box) + " 이 붙박이를 가두는데 세로로 안 구른다(" + box.scrollHeight + " ≤ " + box.clientHeight
                   + ") — 머리가 페이지와 함께 흘러 나간다. **오류 없이 그냥 안 붙는다**");
       }
@@ -686,6 +749,13 @@ ok("본보기의 「font: 줄임말에 숨긴 0.5px·고정폭」을 잡았다",
    "`font: 700 12.5px/1.4 Menlo` 를 못 잡았다 — 오류 106·107 을 한 줄에 같이 저지르면 통과한다");
 ok("본보기의 「토큰으로 적은 입력칸 16px 를 폭으로」를 잡았다", /var\(--fs6\)/.test(why("C7")),
    "`font-size: var(--fs6)` 을 못 잡았다 — C9 가 시키는 대로 쓰는 순간 C7 이 눈을 감는다");
+/* ⚠️ 위 줄과 **같은 잘못을 토큰으로** 적었을 때. 크기를 리터럴로만 물어보면
+ *    `font: 700 var(--fs3)/1.4 Menlo, monospace` 에서 글꼴 목록을 못 갈라 내
+ *    C10 이 눈을 감는다 (실측 「C10 0건」). 규칙(C9)을 지키며 쓰는 순간 눈감는 검사는 없는 것이다. */
+ok("본보기의 「font: 줄임말에 **토큰으로** 적은 크기 + 고정폭」을 잡았다", /--fs3/.test(why("C10")),
+   "`font: 700 var(--fs3)/1.4 Menlo` 를 못 잡았다 — C9 대로 토큰을 쓰면 C10 이 눈을 감는다");
+ok("본보기의 「글꼴을 **토큰으로** 적은 고정폭」을 잡았다", /--code-font/.test(why("C10")),
+   "`font-family: var(--code-font)` 를 못 잡았다 — 값을 실제 글꼴 목록으로 안 풀었다");
 
 /* ⚠️ 이름 대장에 있는데 본보기가 **한 번도 안 그리는** 클래스가 있으면,
  *    그 클래스에 대해서는 브라우저 검사 아홉이 통과시켜도 아무 뜻이 없다.
@@ -704,6 +774,39 @@ const falseAlarm = auditCss(rawCss.replace(/\n\.tbl \{/, '\na[href$=".pdf"] { co
 ok("속성 선택자의 점(`a[href$=\".pdf\"]`)을 클래스로 안 읽는다",
    !falseAlarm.bad.some((b) => b.code === "C1" && /\.pdf/.test(b.why)),
    "`.pdf` 를 「대장에 없는 클래스」로 읽었다 — 거짓 실패다");
+
+/* ⚠️ C4 는 **가로축(칸)만** 본다 — 이 검사가 생긴 사고가 「칸이 내용보다 안 작아져
+ *    달력이 부모 밖으로 69px 나갔다」이기 때문이다. 줄임말을 통째로
+ *    `grid-template-columns` 로 밀어 넣던 판은 `grid: 1fr / auto`(줄=1fr·칸=auto)와
+ *    `grid-auto-rows: 1fr`(세로축)에 **거짓 실패**했고, 게다가 파일에 없는
+ *    `grid-template-columns` 라는 속성 이름을 찍어 고치는 사람이 자리를 못 찾았다.
+ *    **거짓 실패는 거짓 초록만큼 나쁘다** — 사람이 검사를 안 믿게 된다. */
+{
+  const inject = (rule) => rawCss.replace(/\n\.cal \{/, `\n${rule}\n.cal {`);
+  const c4 = (rule) => auditCss(inject(rule), { wantRegistry: false }).bad.filter((b) => b.code === "C4");
+  const show = (l) => l.map((b) => b.why).join(" | ") || "(0건)";
+  const noFalse = [
+    [".gridsh { display: grid; grid: 1fr / auto; }", "`grid: 1fr / auto` 는 **줄**이 1fr 이고 칸은 auto 다"],
+    [".gridar { display: grid; grid-auto-rows: 1fr; }", "`grid-auto-rows` 는 **세로축**이라 옆으로 안 넘친다"],
+    [".gridtr { display: grid; grid-template-rows: 1fr; }", "`grid-template-rows` 는 **세로축**이라 옆으로 안 넘친다"],
+  ];
+  for (const [rule, what] of noFalse)
+    ok(`C4 가 ${what} — **거짓 실패 안 한다**`, c4(rule).length === 0, `거짓 실패: ${show(c4(rule))}`);
+
+  const mustCatch = [
+    [".gridcol { display: grid; grid: auto / 1fr; }", "grid", "`grid: auto / 1fr` 의 **칸** 1fr"],
+    [".gridac { display: grid; grid-auto-columns: 1fr; }", "grid-auto-columns", "`grid-auto-columns: 1fr`"],
+    [".gridtc { display: grid; grid-template-columns: repeat(3, 1fr); }", "grid-template-columns", "`grid-template-columns` 의 맨 1fr"],
+  ];
+  for (const [rule, prop, what] of mustCatch) {
+    const hit = c4(rule);
+    ok(`C4 가 ${what} 를 잡는다`, hit.length === 1, show(hit));
+    /* ⚠️ 메시지에 **파일에 진짜 있는 속성 이름**이 있어야 한다. 없는 이름을 찍으면
+     *    고치는 사람이 파일을 grep 해도 그 줄을 못 찾는다. */
+    ok(`C4 메시지가 파일에 진짜 있는 속성 이름(\`${prop}\`)을 찍는다`,
+       hit.length === 1 && new RegExp(`${prop}\\s*:`).test(hit[0].why), show(hit));
+  }
+}
 
 /* ── 2부 ── */
 let deep = false;
@@ -806,6 +909,13 @@ if (chromePath) {
       ok("본보기의 「붙박이가 안 붙음」 중 **overflow:hidden 판**을 잡았다", stickyWhy.some((s) => /overflow-y:hidden/.test(s)));
       ok("본보기의 「붙박이가 안 붙음」 중 **가로 스크롤 상자(auto) 판**을 잡았다", stickyWhy.some((s) => /세로로 안 구른다/.test(s)),
          "`overflow-x:auto` 만 걸린 상자를 못 잡았다 — 표 머리가 조용히 안 붙는 그 자리다");
+      /* ⚠️ 그리고 **키 작은 상자**도 잡아야 한다. 「상자 높이가 화면의 60% 넘을 때만」이라는
+       *    문지기가 있던 판은 `.calwrap`(실측 461px < 540px) 을 그냥 통과시켰다 —
+       *    진짜 globals.css 로 재 보면 붙박이 top 이 73 → -627 로 흘러 나간다.
+       *    키가 크든 작든 **상자가 안 구르면 머리는 안 붙는다.** 높이는 상관이 없다. */
+      ok("본보기의 「붙박이가 안 붙음」 중 **키 작은 상자 판**(.calwrap·.snaprow 모양)을 잡았다",
+         stickyWhy.some((s) => /sstk/.test(s)),
+         "키 작은 `overflow-x:auto` 상자를 못 잡았다 — 지적 1·6 과 똑같은 사고가 그대로 난다");
     } finally { br.close(); }
   }
 } else {
@@ -826,7 +936,11 @@ if (!deep && !ALLOW_SHALLOW) {
   fail++; n++;
   console.log("\n   ❌ **깊은 검사(진짜 브라우저)를 못 돌렸다 — 실패로 끝낸다.**");
   console.log(`      까닭: ${chromePath ? "본보기 화면을 못 그렸다 (위 ❌ 참고)" : "크롬·크로미엄·엣지를 못 찾았다"}`);
-  console.log("      정말 얕게만 돌려야 하면 `ALLOW_SHALLOW=1 node scripts/check-layout.mjs`");
+  if (SHALLOW_ASKED && IN_CI)
+    console.log("      ⚠️ `ALLOW_SHALLOW=1` 이 켜져 있지만 **CI 라 무시했다.** 설정에 박아 둔 그 줄을 지워라 —"
+              + " 그게 거짓 초록이 돌아오는 통로다.");
+  else
+    console.log("      정말 얕게만 돌려야 하면 `ALLOW_SHALLOW=1 node scripts/check-layout.mjs`");
 }
 
 console.log(`\n■ 배색·레이아웃 검사 ${n}건 · 실패 ${fail}${deep ? "" : "   ⚠️ 얕은 검사만 돌았다" + (ALLOW_SHALLOW ? " (ALLOW_SHALLOW=1 로 봐줬다)" : "")}`);

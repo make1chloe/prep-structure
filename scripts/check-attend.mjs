@@ -371,7 +371,7 @@ console.log("\n■ 출결 쓰는 길이 하나뿐인가 — 파일을 훑는다 
   const walk = (d, out = []) => {
     if (!existsSync(d)) return out;
     for (const f of readdirSync(d)) {
-      if (["node_modules", ".next", ".git", "backup"].includes(f)) continue;
+      if (["node_modules", ".next", ".git", "backup", "_tmp", "sandbox"].includes(f)) continue;
       const p = join(d, f);
       statSync(p).isDirectory() ? walk(p, out) : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p);
     }

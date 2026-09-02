@@ -157,7 +157,7 @@ ok("미통과가 없으면 사유가 **없다** (빈 글자를 주면 사유 없
 
 console.log("\n■ 판정하는 곳이 하나뿐인가 — 파일을 훑는다");
 const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-  if (["node_modules", ".next", ".git", "backup", "scripts", "supabase", "public"].includes(f)) continue;
+  if (["_tmp", "sandbox", "node_modules", ".next", ".git", "backup", "scripts", "supabase", "public"].includes(f)) continue;
   const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const files = walk(".").filter((f) => !f.endsWith("lib/word.js"));

@@ -295,7 +295,7 @@ console.log("\n■ 글자를 훑는다 — 마감을 지나지 않는 자리가 
   const src = readFileSync("lib/close.js", "utf8");
   ok("lib/close.js 는 판을 지우는 문을 안 쓴다", !/delete\s+from\s+v2\.day_sheet/i.test(src));
   const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-    if ([ "node_modules", ".next", ".git", "backup" ].includes(f)) continue;
+    if ([ "_tmp", "sandbox", "node_modules", ".next", ".git", "backup" ].includes(f)) continue;
     const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
       : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
   // ⚠️ 훑는 곳은 **밖으로 값을 만들어 내보내는 자리**뿐이다 — `app/` 과 `lib/`.

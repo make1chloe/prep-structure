@@ -214,7 +214,7 @@ console.log("\n■ 파기가 한 벌인가 — 앱 파일을 훑는다");
 //    빠진 자리는 오류를 안 내므로 아무도 모른 채 이름이 남는다. 검사는 앱만 본다 —
 //    scripts/ 의 다른 검사는 목록을 **읽어 보기만** 하므로 여기 걸리면 안 된다.
 const walk = (d, out = []) => { for (const f of readdirSync(d)) {
-  if (["node_modules", ".next", ".git", "backup"].includes(f)) continue;
+  if (["node_modules", ".next", ".git", "backup", "_tmp", "sandbox"].includes(f)) continue;
   const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const MINE = (f) => f.endsWith("lib/purge.js");

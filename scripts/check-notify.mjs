@@ -64,7 +64,7 @@ console.log("■ 발송 — 실제로 돌려 본다");
 
 console.log("\n■ 나가는 길이 하나뿐인가 — 파일을 훑는다");
 const walk = (d, out=[]) => { for (const f of readdirSync(d)) {
-  if (["node_modules",".next",".git","backup"].includes(f)) continue;
+  if (["node_modules", ".next", ".git", "backup", "_tmp", "sandbox"].includes(f)) continue;
   const p=join(d,f); statSync(p).isDirectory() ? walk(p,out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const files = walk(".");

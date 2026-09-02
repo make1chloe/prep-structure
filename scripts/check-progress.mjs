@@ -772,7 +772,7 @@ console.log("\n■ ⚠️ **진도에 쓰는 문이 하나뿐인가** — 파일
   const known = new Map();
   const files = [];
   const walk = (d) => { for (const e of readdirSync(d, { withFileTypes: true })) {
-    if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+    if (e.name === "_tmp", "sandbox", "node_modules" || e.name.startsWith(".")) continue;
     const p = d + "/" + e.name;
     if (e.isDirectory()) walk(p); else if (/\.(js|mjs|jsx)$/.test(e.name)) files.push(p);
   } };

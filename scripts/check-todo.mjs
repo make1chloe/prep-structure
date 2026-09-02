@@ -15,6 +15,7 @@ import {
   mergeSame, board, passesFilter, trimAdvice,
   loadTodos, loadMaterials, retestCards, loadScoreLeft, loadExams, academyDays,
   addTodo, planRepeats, myTodos, countedCards, sheetsOn, REPEAT_KINDS,
+  MATERIAL_CARD_STEPS, stuckKind,
 } from "../lib/todo.js";
 import { ymd } from "../lib/session.js";
 import { addDays } from "../lib/queue.js";
@@ -552,6 +553,181 @@ console.log("\n■ 사고 재현 ⑪ 창 때문에 **오래 밀린 일과 주말
      todoP[3] === null, JSON.stringify(todoP[3]));
 }
 
+
+// ⚠️ myTodos 가 묻는 표를 **한 자리에서** 답하는 가짜 DB. 물어본 SQL·값도 그대로 들고 있다
+function fakeAll({ todos = [], materials = [], schedules = [], holidays = [],
+                   sheets = [], exams = [], scoreLeft = [] } = {}) {
+  const seen = [];
+  return { seen, async query(sql, p) {
+    seen.push([sql, p]);
+    if (/from v2\.todo t/.test(sql)) return { rows: todos };
+    if (/from v2\.material m/.test(sql)) return { rows: materials };
+    if (/from v2\.students st/.test(sql)) return { rows: scoreLeft };
+    if (/from v2\.exams e/.test(sql)) return { rows: exams };
+    if (/from v2\.class_schedule/.test(sql)) return { rows: schedules };
+    if (/from v2\.holiday/.test(sql)) return { rows: holidays };
+    if (/from v2\.day_sheet/.test(sql)) return { rows: sheets };
+    return { rows: [] };
+  } };
+}
+/** SQL_MATERIALS 가 내는 한 줄의 모양 — 칸 이름을 그대로 쓴다 */
+const mat = (o = {}) => ({
+  id: "m1", title: "자료", state: "todo", made_at: null, printed_at: null, reuse_of: null,
+  exam_id: null, scope_id: null, exam_scope: null, school_id: null, exam_name: null,
+  english_on: null, school_name: null, type_id: "mt", type_name: "변형문제",
+  steps: ["make", "print", "hand", "solve", "score"], sort: 0,
+  book_id: null, unit_id: null, removed_on: null, reuse_book_id: null,
+  give_n: 0, handed_n: 0, got_n: 0, done_n: 0, ...o,
+});
+
+console.log("\n■ 사고 재현 ⑫ **자료 걸음 카드**가 학교·전국 거르개 어디에도 안 잡혔다 (N1)");
+{
+  // 신정중 2학기 중간고사 자료 한 장 — 학교를 고르는 순간 통째로 사라졌다
+  const db = fakeAll({ materials: [mat({
+    id: "m-신정", title: "신정중 중간 변형문제", exam_id: "e-신정", exam_scope: "school",
+    school_id: "s-신정중", exam_name: "2학기 중간고사", school_name: "신정중",
+    english_on: "2026-10-14" })] });
+  const card = (await countedCards(db, { today: "2026-09-02" }))
+    .find((c) => c.material_id === "m-신정");
+  ok("⚠️ 자료 카드가 **시험의 학교를 싣는다** (안 실으면 학교 거르개에서 통째로 사라진다)",
+     card?.school_id === "s-신정중", JSON.stringify(card));
+  ok("⚠️ 자료 카드가 **시험의 범위(전국/학교)도 싣는다**",
+     card?.exam_scope === "school", String(card?.exam_scope));
+  ok("학교 거르개가 그 카드를 지난다", passesFilter(card, "s-신정중") === true);
+  ok("「시험 없는 것」에는 안 뜬다 — 시험이 붙어 있다", passesFilter(card, "noexam") === false);
+  const n = async (f) => (await myTodos(db, { today: "2026-09-02", filter: f }))
+                           .groups.find((g) => g.key === "make").n;
+  ok("전체에서 만들기 칸에 선다", (await n("all")) === 1, String(await n("all")));
+  ok("⚠️ **신정중으로 좁혀도 그대로 선다** (실측 2026-09-02: 예전엔 **모든 칸이 0** 이었다)",
+     (await n("s-신정중")) === 1, String(await n("s-신정중")));
+  ok("전국 거르개에는 안 뜬다 (학교 시험이다)", (await n("national")) === 0);
+}
+{
+  // 전국 시험(학평) 자료 — 제약이 school_id 를 NULL 로 못 박는다. scope 를 안 실으면 또 사라진다
+  const db = fakeAll({ materials: [mat({
+    id: "m-학평", title: "2409 학평 변형문제", exam_id: "e-전국", exam_scope: "national",
+    school_id: null, exam_name: "전국연합", english_on: "2026-10-14" })] });
+  const at = async (f) => (await myTodos(db, { today: "2026-09-02", filter: f }))
+                            .groups.reduce((x, g) => x + g.n, 0);
+  ok("⚠️ 전국 시험 자료 카드가 **'전국' 거르개에 잡힌다**", (await at("national")) === 1,
+     String(await at("national")));
+  ok("전체에서도 보인다", (await at("all")) === 1);
+  ok("학교 거르개에는 안 뜬다 (학교가 안 붙은 시험이다)", (await at("s-신정중")) === 0);
+  ok("「시험 없는 것」에도 안 뜬다 — 시험이 있으니까", (await at("noexam")) === 0);
+}
+
+console.log("\n■ 사고 재현 ⑬ **모르는 걸음에 선 자료**가 화면 어디에도 안 떴다 (N2 — 카드도 경보도 없이 사라졌다)");
+{
+  const db = fakeAll({ materials: [mat({
+    id: "m-up", title: "고등 클카 업로드 자료", made_at: "x", printed_at: "x",
+    steps: ["make", "print", "upload", "hand", "solve", "score"] })] });
+  const c = (await countedCards(db, { today: "2026-09-02" })).find((x) => x.material_id === "m-up");
+  ok("⚠️ 모르는 걸음(upload)에 선 자료도 **카드로 선다** (걸음 셋만 세우던 때는 0개였다)",
+     !!c, JSON.stringify(c));
+  ok("⚠️ 그 카드가 **경보(⚠️ 확인 안 됨)를 화면까지 들고 간다**",
+     /⚠️/.test(c.title) && /확인 안 됨/.test(c.why), `${c.title} / ${c.why}`);
+  ok("⚠️⚠️ 갈래가 일곱에 **안 겹친다** — 「그 밖」으로 간다",
+     c.kind === stuckKind("upload") && groupOf(c.kind) === OTHER.key,
+     `${c.kind} → ${groupOf(c.kind)}`);
+  const b = await myTodos(db, { today: "2026-09-02" });
+  ok("⚠️ 화면에 **제목이 뜬다** (실측: 예전엔 결과 어디에도 그 글자가 없었다)",
+     JSON.stringify(b).includes("고등 클카 업로드 자료"));
+  ok("「그 밖」 칸에 한 장 선다", b.groups.find((g) => g.key === "other").n === 1,
+     String(b.groups.find((g) => g.key === "other").n));
+}
+{
+  // 채점 — 찍을 칸(material_give.scored_at)이 없어 「모른다」다. 안 세우면 자료가 끝도 할 일도 아닌 자리로 사라진다
+  const db = fakeAll({ materials: [mat({
+    id: "m-sc", title: "채점 못 찍는 자료", made_at: "x", printed_at: "x",
+    give_n: 3, handed_n: 3, got_n: 3, done_n: 3 })] });
+  const b = await myTodos(db, { today: "2026-09-02" });
+  ok("⚠️ 채점 칸이 없는 자료도 **안 사라진다** (「그 밖」에 경보로 선다)",
+     b.groups.find((g) => g.key === "other").n === 1,
+     JSON.stringify(b.groups.map((g) => [g.key, g.n])));
+  ok("⚠️⚠️ 걸음의 `score`(채점)가 **성적 받기 칸에 안 선다** (그 칸이 어지러워지면 성적 카드가 묻힌다)",
+     b.groups.find((g) => g.key === "score").n === 0,
+     String(b.groups.find((g) => g.key === "score").n));
+  ok("걸음 셋만 일곱 칸에 그대로 선다 (make·print·hand)",
+     MATERIAL_CARD_STEPS.join(",") === "make,print,hand", MATERIAL_CARD_STEPS.join(","));
+}
+{
+  // ⚠️ 걸음표가 아예 없는 자료 — stepNow() 는 ⚠️ 로 답하는데 at 이 null 이라 끝난 자료와 똑같이 사라졌다
+  const db = fakeAll({ materials: [mat({ id: "m-0", title: "걸음 안 적힌 자료", steps: [] })] });
+  const b = await myTodos(db, { today: "2026-09-02" });
+  const r = b.groups.find((g) => g.key === "other").rows[0];
+  ok("⚠️ 걸음표가 없는 자료도 **안 사라지고 「그 밖」에 경보로 선다** (끝난 자료와 안 섞인다)",
+     r?.material_id === "m-0" && /걸음이 안 적혀/.test(r?.title ?? ""), JSON.stringify(r));
+}
+{
+  // 걸음을 다 밟은 자료는 카드가 안 선다 — 끝난 것은 할 일이 아니다
+  const db = fakeAll({ materials: [mat({ id: "m-fin", made_at: "x", printed_at: "x",
+    steps: ["make", "print"], give_n: 0 })] });
+  const b = await myTodos(db, { today: "2026-09-02" });
+  ok("걸음을 다 밟은 자료는 카드가 안 선다 (끝난 것은 할 일이 아니다)",
+     b.groups.reduce((x, g) => x + g.n, 0) === 0,
+     JSON.stringify(b.groups.filter((g) => g.n).map((g) => [g.key, g.n])));
+}
+{
+  // solve 는 찍을 칸(material_give.stage)이 있어 「모른다」가 아니다 — 아이가 푸는 중은 원장님 손이 갈 일이 아니다
+  const db = fakeAll({ materials: [mat({
+    id: "m-sv", title: "아이가 푸는 중", made_at: "x", printed_at: "x",
+    give_n: 3, handed_n: 3, got_n: 3, done_n: 0 })] });
+  const b = await myTodos(db, { today: "2026-09-02" });
+  ok("아이가 푸는 중(solve)인 자료는 카드로 안 선다 (모르는 것이 아니다 — 대전제 3)",
+     b.groups.reduce((x, g) => x + g.n, 0) === 0,
+     JSON.stringify(b.groups.filter((g) => g.n).map((g) => [g.key, g.n])));
+}
+{
+  // ⚠️ 세어 나온 카드는 **DB 줄이 아니다** — 화면이 눌러도 아무 일이 안 나는 체크 단추를 안 붙이게 표시한다
+  const db = fakeAll({
+    materials: [mat({ id: "m-c", title: "자료", made_at: null })],
+    sheets: [{ id: "sh1", student_id: "st1", date: "2026-09-02", student_name: "강민서" }] });
+  const cards = await countedCards(db, { today: "2026-09-02" });
+  ok("⚠️ 세어 나온 카드는 전부 `counted: true` 로 표가 난다 (v2.todo 줄이 아니다)",
+     cards.length > 0 && cards.every((c) => c.counted === true),
+     JSON.stringify(cards.map((c) => [c.id, c.counted])));
+}
+
+console.log("\n■ 사고 재현 ⑭ **오래 밀린 토·일 마감**에 「수업일만 7일 넓게」가 안 닿았다 (N3)");
+{
+  // 월·목 수업. 2026-06-06 은 토요일이고 앞 수업일은 06-04(목)이다
+  const db = fakeAll({
+    todos: [{ id: "old1", kind: "make", title: "오래 밀린 토요일 마감",
+              due_on: "2026-06-06", state: "todo" }],
+    schedules: [{ from_date: "2026-01-01", to_date: null, weekdays: [1, 4] }] });
+  const b = await myTodos(db, { today: "2026-09-02", counted: false });
+  const row = b.groups.find((g) => g.key === "make").rows[0];
+  ok("⚠️ 창(오늘−14)보다 훨씬 오래된 토요일 마감도 **앞 수업일로 당겨진다**",
+     row.due_on === "2026-06-04" && row.pulled?.moved === true,
+     JSON.stringify({ due_on: row.due_on, pulled: row.pulled }));
+  ok("당긴 까닭이 카드에 남는다", /앞 수업일\(2026-06-04\)/.test(row.pulled.why), row.pulled.why);
+  const schedP = db.seen.find(([s]) => /class_schedule/.test(s))[1];
+  ok("⚠️ 수업일 창의 **왼쪽 끝을 「가장 오래 밀린 마감」이 정한다** (창이 정하지 않는다)",
+     schedP[0] === addDays("2026-06-06", -7), String(schedP[0]));
+  ok("`moved` 가 그 줄을 센다", b.moved === 1, String(b.moved));
+}
+{
+  // 밀린 줄이 없으면 예전 그대로 — 목록 창보다 7일 앞선다 (재현 ⑪ 이 못 박은 것을 안 깬다)
+  const db = fakeAll({});
+  await myTodos(db, { today: "2026-09-05" });
+  const todoP = db.seen.find(([s]) => /from v2\.todo/.test(s))[1];
+  const schedP = db.seen.find(([s]) => /class_schedule/.test(s))[1];
+  ok("밀린 줄이 없으면 수업일 창은 그대로 목록 창보다 7일 앞선다",
+     schedP[0] === addDays(todoP[1], -7), `${schedP[0]} vs ${todoP[1]}`);
+}
+{
+  // 앞 7일에 수업일이 정말 없으면 — **못 당긴 까닭이 카드에 남는다**
+  const db = fakeAll({
+    todos: [{ id: "w1", kind: "make", title: "방학 토요일", due_on: "2026-08-15", state: "todo" }],
+    schedules: [] });
+  const b = await myTodos(db, { today: "2026-09-02", counted: false });
+  const row = b.groups.find((g) => g.key === "make").rows[0];
+  ok("⚠️ 못 당겼으면 **그 까닭이 카드에 남는다** (사유조차 없이 주말에 그냥 서지 않는다)",
+     /수업일이 없다/.test(row.pullWarn ?? ""), JSON.stringify(row.pullWarn));
+  ok("못 당겼으니 `pulled` 는 비어 있고 `moved` 도 안 센다",
+     row.pulled === null && b.moved === 0, JSON.stringify({ pulled: row.pulled, moved: b.moved }));
+}
+
 // ─────────────────────────────────────────────────────────────
 console.log("\n■ ⚠️ 진짜 DB 에 물어본다 — 가짜 DB 는 **죽은 칸을 원리적으로 못 잡는다**");
 try {
@@ -629,6 +805,85 @@ try {
   await c.end();
 } catch (e) {
   fail++; console.log("   ❌ 진짜 DB 로 못 돌렸다 —", String(e.message).split("\n")[0]);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ⚠️⚠️ **진짜 DB 에 자료를 넣어 보고 되돌린다**(begin … rollback). 가짜 DB 는 SQL 이 안 뽑는 칸
+//      (자료에 붙은 시험의 school_id·scope)을 **원리적으로 못 잡는다** — 아래 셋이 그래서 샜다.
+console.log("\n■ ⚠️ 진짜 DB 에 **넣어 보고 되돌린다** — N1·N2·N3 을 그대로 재현한다");
+{
+  let c2 = null;
+  try {
+    const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+    c2 = new Client({ connectionString: url, ssl: { rejectUnauthorized: false },
+                      connectionTimeoutMillis: 20000 });
+    await c2.connect();
+    await c2.query("begin");                       // ⚠️ 끝에 **반드시 rollback** — 자료를 안 남긴다
+    const db = { query: (sql, p) => c2.query(sql, p) };
+    const T = "2026-09-02";
+
+    // ── N1. 신정중 시험 자료가 「신정중 것만」에서 통째로 사라졌다 ──────────
+    const sch = (await c2.query(
+      `insert into v2.schools(name, level) values ('__검사신정중', 'middle') returning id`)).rows[0].id;
+    const ex = (await c2.query(
+      `insert into v2.exams(scope, school_id, name, english_on, state, source, source_key)
+       values ('school', $1, '2학기 중간고사', '2026-10-14', 'active', 'manual', '__검사todo')
+       returning id`, [sch])).rows[0].id;
+    const mt5 = (await c2.query(
+      `insert into v2.material_type(name, steps)
+       values ('__검사종류5', '{make,print,hand,solve,score}') returning id`)).rows[0].id;
+    const m1 = (await c2.query(
+      `insert into v2.material(exam_id, type_id, title)
+       values ($1, $2, '신정중 중간 변형문제') returning id`, [ex, mt5])).rows[0].id;
+
+    const card = (await countedCards(db, { today: T })).find((x) => x.material_id === m1);
+    ok("⚠️ 진짜 SQL 이 자료에 붙은 **시험의 학교·범위를 뽑는다** (안 뽑아서 거르개가 다 놓쳤다)",
+       card?.school_id === sch && card?.exam_scope === "school", JSON.stringify(card));
+    const nMake = async (f) => (await myTodos(db, { today: T, filter: f }))
+                                 .groups.find((g) => g.key === "make").n;
+    ok("진짜 자료로 만들기 칸에 선다 (전체)", (await nMake("all")) >= 1, String(await nMake("all")));
+    ok("⚠️⚠️ **신정중으로 좁혀도 안 사라진다** (실측 2026-09-02: 예전엔 모든 칸이 0 이었다)",
+       (await nMake(sch)) === 1, String(await nMake(sch)));
+
+    // ── N2. 모르는 걸음(upload)에 선 자료가 화면 어디에도 안 떴다 ─────────
+    const mt6 = (await c2.query(
+      `insert into v2.material_type(name, steps)
+       values ('__검사종류6', '{make,print,upload,hand,solve,score}') returning id`)).rows[0].id;
+    const m2 = (await c2.query(
+      `insert into v2.material(type_id, title, made_at, printed_at)
+       values ($1, '고등 클카 업로드 자료', now(), now()) returning id`, [mt6])).rows[0].id;
+    const step = (await loadMaterials(db, { on: T })).find((m) => m.id === m2)?.step;
+    ok("진짜 자료의 걸음이 upload 에 서고 ⚠️ 를 답한다",
+       step?.at === "upload" && /확인 안 됨/.test(step?.why ?? ""), JSON.stringify(step));
+    const b2 = await myTodos(db, { today: T });
+    ok("⚠️⚠️ 그 자료가 **화면에 뜬다** (실측: 예전엔 결과 어디에도 그 글자가 없었다)",
+       JSON.stringify(b2).includes("고등 클카 업로드 자료"));
+    ok("「그 밖」 칸에 경보로 선다 · 성적 받기 칸은 안 어지럽힌다",
+       b2.groups.find((g) => g.key === "other").rows.some((r) => r.material_id === m2) &&
+       !b2.groups.find((g) => g.key === "score").rows.some((r) => r.material_id === m2),
+       JSON.stringify(b2.groups.map((g) => [g.key, g.n])));
+
+    // ── N3. 창 밖으로 오래 밀린 토요일 마감에 주말 당기기가 안 닿았다 ──────
+    const DUE = "2026-06-06";                       // 토요일 · today−14 창보다 훨씬 오래됐다
+    const t3 = (await c2.query(
+      `insert into v2.todo(kind, title, due_on, state)
+       values ('make', '오래 밀린 토요일 마감', $1::date, 'todo') returning id`, [DUE])).rows[0].id;
+    const b3 = await myTodos(db, { today: T });
+    const row = b3.groups.flatMap((g) => g.rows).find((r) => r.ids?.includes(t3));
+    const want = pullBack(DUE, await academyDays(db, addDays(DUE, -7), T));
+    ok("⚠️⚠️ 창 밖으로 밀린 토요일 마감이 **넓게 본 것과 같은 날**에 선다 (창이 잘라서 안 당겨졌다)",
+       row?.due_on === want.on, `화면 ${row?.due_on} vs 넓게 ${want.on} (${want.why})`);
+    ok("당겼으면 그 사실이 카드에 남고, 못 당겼으면 그 까닭이 남는다",
+       want.moved ? row?.pulled?.moved === true : /수업일이 없다/.test(row?.pullWarn ?? ""),
+       JSON.stringify({ pulled: row?.pulled, pullWarn: row?.pullWarn }));
+
+    await c2.query("rollback");
+    await c2.end();
+  } catch (e) {
+    fail++; console.log("   ❌ 진짜 DB 에 넣어 보다 걸렸다 —", String(e.message).split("\n")[0]);
+    try { await c2?.query("rollback"); } catch {}
+    try { await c2?.end(); } catch {}
+  }
 }
 
 console.log(`\n■ 할 일 검사 ${n}건 · 실패 ${fail}`);
