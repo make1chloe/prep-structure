@@ -7,7 +7,7 @@
  *     뒷부분은 진짜 DB 를 **읽기만** 한다 — insert/update/delete 를 한 줄도 안 쓴다.
  */
 import {
-  planFor, purgeStudent, purgeFiles, filesDueSql, beatsKeep, maskExpr,
+  planFor, purgeStudent, purgeFiles, filesDueSql, beatsKeep, maskExpr, residue, stampGate,
   coverageGaps, handWork, columnFacts, REACH, SHAPED, MASK_CHAR,
 } from "../lib/purge.js";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -82,8 +82,11 @@ ok("⚠️ 모양 제약이 걸린 아이디는 **가리지 않고 비운다** (
    stepFor(r1, "profiles", "login_id")?.as === "null"
    && !sqlFor(db1, "profiles", "login_id").includes(MASK_CHAR),
    JSON.stringify(stepFor(r1, "profiles", "login_id")));
-ok("안 지운 줄은 안 건드린다 — 모든 문장에 `is not null` 이나 `state <> 'purged'` 가 붙는다",
-   ups(db1).every((s) => /is not null|state <> 'purged'/.test(s.sql)));
+// ⚠️ 도장(`v2_masked_at is null`)도 **같은 뜻의 자물쇠**다 — 이미 찍힌 줄은 안 건드린다.
+//    그래야 두 번 돌려도 **첫 파기일이 안 바뀐다.** 안 넣으면 다시 돌릴 때마다 날짜가 바뀐다
+ok("안 지운 줄은 안 건드린다 — 모든 문장에 `is not null` · `state <> 'purged'` · `v2_masked_at is null` 중 하나가 붙는다",
+   ups(db1).every((s) => /is not null|state <> 'purged'|v2_masked_at is null/.test(s.sql)),
+   ups(db1).filter((s) => !/is not null|state <> 'purged'|v2_masked_at is null/.test(s.sql)).map((s) => s.sql).join(" | "));
 
 console.log("\n■ 남의 아이 · 남의 집을 안 건드리는가");
 ok("학생으로 닿는 문장은 그 아이만 겨눈다",
@@ -226,6 +229,64 @@ ok("파기 목록 표를 읽는 곳도 lib/purge.js 뿐이다", readers.length =
 // ⚠️ `○` 글자 자체는 진도 표시(○△✕)에도 쓴다 — **가리는 식**만 겨눈다
 const maskers = app.filter((f) => new RegExp(`repeat\\('${MASK_CHAR}'`).test(readFileSync(f, "utf8")));
 ok("이름을 가리는 식이 lib/purge.js 뿐이다", maskers.length === 0, maskers.join(" "));
+
+/* ══ 「파기한 날」 도장 (처음-3 · 0080) ═══════════════════════════════════
+ * ⚠️ **진짜 DB 로, 트랜잭션 안에서 돌고 되돌린다.** 가짜 DB 로는 「이름이 진짜로 남았나」를
+ *    원리적으로 못 본다 — 그게 이 도장이 지키는 바로 그것이다.
+ * ⚠️ 각 단언은 **일부러 어겨 보고 빨개지는 것**을 확인한 것만 남긴다(폰-5).            */
+{
+  const url2 = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+  const rc = new Client({ connectionString: url2, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
+  await rc.connect();
+  const rdb = { query: (q, p) => rc.query(q, p) };
+  console.log("\n■ 「파기한 날」 도장 — 진짜 DB");
+  await rc.query("begin");
+  try {
+    const st = (await rc.query(`select id, name from v2.students where import_batch = 'fixture' limit 1`)).rows[0];
+    ok("리허설 학생을 찾았다 (진짜 아이를 안 건드린다)", !!st);
+
+    // ① 가리기 전에는 이름이 실제로 남아 있다 — 훑기가 **정말 훑는지**부터 본다
+    const 전 = await residue(rdb, st.name);
+    ok("⚠️ 훑기가 **진짜로 훑는다** — 가리기 전에는 이름이 나온다",
+       전.length > 0, "0자리면 훑기가 아무것도 안 보고 있다는 뜻이라 게이트가 늘 열린다");
+
+    // ② 파기 → 도장
+    const r = await purgeStudent(rdb, st.id);
+    ok("파기가 돌았다 (문장 " + r.ran.length + "개)", r.ran.length > 0);
+    ok("⚠️ 가린 뒤에는 이름이 **한 자리도 안 남는다**", r.residue.length === 0, JSON.stringify(r.residue));
+    ok("⚠️⚠️ 날짜로 지우는 줄(expire)이 막혀 있어도 **도장은 찍힌다**",
+       r.gate.ok === true && r.stamped !== null,
+       `막힘 ${r.blocked.length}개 · 게이트 ${JSON.stringify(r.gate.why)} — 남의 표 사정으로 이 아이 파기일이 비면 안 된다`);
+    ok("학생과 학부모 둘 다 찍혔다", (r.stamped?.students ?? 0) === 1 && (r.stamped?.profiles ?? 0) >= 1,
+       JSON.stringify(r.stamped));
+
+    // ③ 두 번 돌려도 **첫 파기일**이 진실이다
+    const 첫 = (await rc.query(`select v2_masked_at a from v2.students where id = $1`, [st.id])).rows[0].a;
+    const r2 = await purgeStudent(rdb, st.id);
+    const 둘 = (await rc.query(`select v2_masked_at a from v2.students where id = $1`, [st.id])).rows[0].a;
+    ok("⚠️ 두 번 돌려도 **첫 파기일이 안 바뀐다**",
+       String(첫) === String(둘) && (r2.stamped?.students ?? 0) === 0,
+       `${첫} → ${둘} · 두 번째가 고친 줄 ${r2.stamped?.students}`);
+    await rc.query("rollback"); await rc.query("begin");
+
+    // ④ ⚠️⚠️ **이름이 남아 있으면 안 찍는다** — 목록에 없는 칸에 일부러 심는다
+    const st2 = (await rc.query(`select id, name from v2.students where import_batch = 'fixture' limit 1`)).rows[0];
+    const one = (await rc.query(`select id from v2.todo limit 1`)).rows[0];
+    await rc.query(`update v2.todo set title = $1 where id = $2`, [st2.name + " 프린트", one.id]);
+    const r3 = await purgeStudent(rdb, st2.id);
+    ok("⚠️⚠️ 이름이 남아 있으면 **도장을 안 찍는다** (반쪽 파기에 「파기함」은 거짓말이다)",
+       r3.stamped === null && r3.gate.ok === false, JSON.stringify(r3.gate));
+    ok("못 찍은 **까닭을 말한다** — 조용히 넘어가지 않는다",
+       r3.gate.why.some((w) => /이름이 남았다/.test(w)) && r3.residue.some((x) => x.tbl === "todo"),
+       JSON.stringify(r3.gate.why));
+  } finally {
+    await rc.query("rollback").catch(() => {});
+    // ⚠️ 되돌렸는지 **믿지 말고 센다** — 앞서 시험이 진짜 DB 에 흔적을 남긴 적이 있다
+    const 남 = (await rc.query(`select count(*)::int n from v2.students where v2_masked_at is not null`)).rows[0].n;
+    ok("⚠️ 검사가 흔적을 안 남겼다 (도장 찍힌 학생 0명)", 남 === 0, `${남}명`);
+    await rc.end();
+  }
+}
 
 console.log(`\n■ 파기 검사 ${n}건 · 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
