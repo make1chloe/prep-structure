@@ -611,6 +611,17 @@ function sampleHtml(css, r) {
   <button class="nv-a nv-quick" type="button"><span class="nv-i">✏️</span><span class="nv-t">퀵메모</span></button>
   <a class="nv-a nv-out" href="#"><span class="nv-i">🚪</span><span class="nv-t">나가기</span></a>
 </div></nav>
+<!-- 퀵메모 — 메뉴 바로 밑, **화면 흐름 안**에 선다(대전제-9: fixed·portal 안 쓴다) -->
+<div class="card qk" role="dialog" aria-label="퀵메모">
+  <div class="cardhd"><span>✏️ 퀵메모</span>
+    <span class="muted qk-hint">지금 적어 두면 할 일에 섭니다</span>
+    <button class="btn btnghost qk-x" type="button">닫기</button></div>
+  <textarea class="fld qk-ta" style="font-size:16px" placeholder="한 줄 적어 두면 할 일에 섭니다"></textarea>
+  <div class="row"><button class="btn btnmain" type="button">할 일에 세우기</button>
+    <span class="muted num">0/300</span>
+    <span class="sunk qk-say qk-ok" role="status">✅ 할 일에 세웠습니다</span>
+    <span class="sunk qk-say qk-bad" role="status">⚠️ 원장·강사만 적을 수 있습니다</span></div>
+</div>
 <div class="wrap"><div class="stack">
 
 <h1>오늘 수업</h1>

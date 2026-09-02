@@ -530,3 +530,23 @@ textarea {
 @media (max-width: 560px) { .nv-t { position: absolute; width: 1px; height: 1px;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .nv-a { padding: 8px 11px; } }
+
+/* ── 퀵메모 (0-10 · QUICK) ────────────────────────────────────────────────
+ * ⚠️ **떠 있는 창이 아니다.** `position:fixed` 도 `createPortal` 도 안 쓴다(대전제-9) —
+ *    메뉴 바로 밑, 화면 흐름 **안**에 선다. 그래서 가로로 돌려도 안 얼어붙고,
+ *    닫기 단추가 언제나 화면 안에 있다(대전제-10).
+ * @이름 .qk       퀵메모 카드
+ * @이름 .qk-hint  머리의 한 줄 설명
+ * @이름 .qk-x     닫기 단추 (대전제-10 — 닫는 길은 언제나 화면 안에)
+ * @이름 .qk-ta    적는 칸
+ * @이름 .qk-say   결과 한 줄
+ * @이름 .qk-ok    됐다
+ * @이름 .qk-bad   안 됐다 */
+.qk { margin: var(--s3) auto 0; max-width: 720px;
+      width: calc(100% - var(--s3) * 2); }
+.qk-hint { flex: 1 1 120px; min-width: 0; word-break: keep-all; }
+.qk-x { flex: 0 0 auto; }
+.qk-ta { min-height: 88px; width: 100%; resize: vertical; }
+.qk-say { flex: 1 1 200px; min-width: 0; word-break: keep-all; }
+.qk-ok  { background: var(--ok-bg);  color: var(--ok-fg); }
+.qk-bad { background: var(--bad-bg); color: var(--bad-fg); }
