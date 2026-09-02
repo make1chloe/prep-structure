@@ -607,5 +607,39 @@ if (!CHROME) {
   }
 }
 
+/* ══ 굳히기 — ②③ 을 판으로 (2026-09-02 신설) ═══════════════════════════
+ * ⚠️ 오래 「굳히는 단추가 없다」였다. lib 에 `freezeDay` 가 생긴 뒤에도
+ *    **화면이 아무도 안 불러서** 하루 동선이 저장되지 않고 있었다.
+ *    여기서 그 이음을 지킨다 — 끊기면 오류 없이 그냥 아무것도 안 남는다.               */
+{
+  const A = stripComments(readFileSync("app/today/actions.js", "utf8"));
+  const U = stripComments(readFileSync("app/today/ui.js", "utf8"));
+  const P = stripComments(readFileSync("app/today/page.js", "utf8"));
+
+  ok("굳히는 손이 있다", /export async function freezeToday/.test(A));
+  ok("미리보기 손이 있다 (되돌릴 수 없는 자리라 먼저 보여준다)",
+     /export async function previewFreeze/.test(A));
+  ok("⚠️ 줄 세우기는 **lib/day.js 의 freezeDay** 를 부른다 (화면이 제 손으로 안 넣는다)",
+     /freezeDay\s*\(/.test(A) && !/insert\s+into\s+v2\.day_item/i.test(A),
+     "화면이 직접 insert 하면 「무엇을 몇 줄로 어떤 차례로」가 두 벌이 된다");
+  ok("⚠️⚠️ **화면이 보낸 줄을 그대로 안 적는다** — 서버가 routineNext 로 다시 차린다",
+     /routineNext\s*\(\s*db\s*,/.test(A),
+     "화면 값을 믿고 적으면 아이 화면에 아무 숙제나 밀어 넣을 수 있다");
+  ok("굳히기가 받는 것은 조절·메모뿐이다 (줄을 안 받는다)",
+     /freezeToday\(\{\s*studentId,\s*on,\s*adjust[^)]*memo/.test(A),
+     "rows·items 를 받으면 화면이 내용을 정하는 것이 된다");
+  ok("미리보기는 아무것도 안 만든다 (dryRun)", /dryRun:\s*true/.test(A));
+
+  ok("단추가 있다", /export function Freeze\(/.test(U));
+  ok("⚠️ 되돌릴 수 없는 자리라 **낙관 갱신을 안 쓴다** (서버 답을 기다린다)",
+     /await\s+freezeToday\(/.test(U) && !/set됨\(\{/.test(U));
+  ok("미리 안 보면 못 굳힌다", /disabled=\{busy \|\| !본것\}/.test(U));
+  ok("실패하면 까닭을 화면에 적는다 (조용히 넘어가지 않는다)", /굳히지 못했습니다/.test(U));
+  ok("화면에 붙어 있고 수입도 돼 있다",
+     /<Freeze\b/.test(P) && /import \{[^}]*\bFreeze\b[^}]*\} from "\.\/ui\.js"/.test(P));
+  ok("⚠️ 「단추가 없습니다」라는 옛 안내가 안 남아 있다",
+     !/굳히는 단추를 안 만들었습니다/.test(P), "고쳐 놓고 안내만 남으면 원장님이 못 쓰는 줄 안다");
+}
+
 console.log(`\n■ 오늘 화면 검사 ${n}건 · 실패 ${fail}`);
 process.exit(fail ? 1 : 0);

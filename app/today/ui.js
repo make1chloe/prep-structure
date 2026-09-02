@@ -10,7 +10,8 @@
  *    덮개 판은 `<details>` 로 편다. **닫는 길이 언제나 화면 안에 있다** (대전제 10).
  */
 import { useState, useTransition } from "react";
-import { markCheck, setAttend, saveComment, saveLate, previewClose, closeDay } from "./actions.js";
+import { markCheck, setAttend, saveComment, saveLate, previewClose, closeDay,
+         previewFreeze, freezeToday } from "./actions.js";
 // ⚠️ 늦귀가 단추 값(+20·40·60분)도 「평소 하원 + N분」 셈도 **lib/attend.js 한 곳**이다.
 //    화면이 숫자를 다시 적으면 그날부터 두 벌이 된다 (원칙 1).
 import { LATE_STAY_PRESETS, lateStayUntil } from "@/lib/attend";
@@ -252,6 +253,83 @@ export function Close({ sheetId, closedAt, canWrite }) {
             <button type="button" className="btn btnmain" onClick={shut} disabled={busy}>마감한다</button>
           </div>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * ②③ 을 **판으로 굳히는 단추** (⑨ · ⑨-a).
+ *
+ * ⚠️⚠️ **미리보기를 먼저 보여준다.** 굳히면 그 줄이 아이 화면으로 나가므로 되돌릴 수 없는 쪽이다
+ *    → 낙관 갱신을 **안 쓴다.** 서버 답을 기다리고, 무엇이 몇 줄 서는지 **누르기 전에** 보인다
+ *    (§속도 5 의 「되돌릴 수 없는 낙관 갱신은 하지 않는다」).
+ *
+ * ⚠️ **화면이 줄을 안 보낸다.** 보내는 것은 학생·날짜와 **조절·메모**뿐이고,
+ *    무엇을 낼지는 서버가 `routineNext` 로 다시 차린다(원칙 1).
+ *
+ * ⚠️ 이미 굳힌 뒤 또 눌러도 된다 — 아이가 낸 것과 찍어 둔 ○△✕ 는 안 지워진다(`lib/day.js`).
+ */
+export function Freeze({ studentId, on, classId, adjust, memo, canWrite }) {
+  const [본것, set본것] = useState(null);
+  const [됨, set됨] = useState(null);
+  const [왜, set왜] = useState("");
+  const [busy, start] = useTransition();
+
+  const 인자 = { studentId, on, adjust: adjust ?? {}, memo: memo ?? {} };
+  if (classId != null) 인자.classId = classId;
+
+  function 미리() {
+    set왜(""); set됨(null);
+    start(async () => {
+      const r = await previewFreeze(인자);
+      if (r?.ok === false) { set본것(null); set왜(r.msg || r.why || "까닭을 모릅니다"); return; }
+      set본것(r);
+    });
+  }
+  function 굳히기() {
+    set왜("");
+    start(async () => {
+      const r = await freezeToday(인자);
+      if (r?.ok === false) { set됨(null); set왜(r.msg || r.why || "까닭을 모릅니다"); return; }
+      set됨(r); set본것(null);
+    });
+  }
+
+  if (!canWrite) return <p className="muted">권한이 없어 굳힐 수 없습니다.</p>;
+
+  return (
+    <div className="col">
+      <div className="row">
+        <button type="button" className="btn" disabled={busy} onClick={미리}>
+          굳히면 어떻게 되나 보기
+        </button>
+        <button type="button" className="btn btnmain" disabled={busy || !본것} onClick={굳히기}>
+          {busy ? "…" : "판으로 굳히기"}
+        </button>
+        {!본것 && !됨 ? <span className="muted">먼저 미리 보셔야 굳힐 수 있습니다</span> : null}
+      </div>
+
+      {본것 ? (
+        <p className="sunk">
+          굳히면 <b>{본것.expected ?? 본것.changed ?? 0}줄</b>이 섭니다
+          {본것.sheetMade === false && 본것.sheetId == null ? " (그날 판을 먼저 세웁니다)" : ""}
+          {본것.msg ? ` — ${본것.msg}` : ""}
+        </p>
+      ) : null}
+
+      {됨 ? (
+        <p className="sunk" style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}>
+          ✅ <b>{됨.changed ?? 0}줄</b>을 굳혔습니다.
+          {됨.kept ? ` 이미 검사한 ${됨.kept}줄은 안 건드렸습니다.` : ""}
+          {됨.msg ? ` ${됨.msg}` : ""}
+        </p>
+      ) : null}
+
+      {왜 ? (
+        <p className="sunk" style={{ background: "var(--bad-bg)", color: "var(--bad-fg)" }}>
+          ⚠️ 굳히지 못했습니다 — {왜}
+        </p>
       ) : null}
     </div>
   );

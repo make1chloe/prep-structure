@@ -11,10 +11,11 @@
  *    마감      `lib/close.js` 의 `closeGate()` 로 **먼저 보여주고** `closeSheet()` 로 닫는다.
  *
  * ── ⚠️ 여기 **없는** 것과 그 까닭 (지어내지 않는다)
- *    ① **초안(②③)을 판으로 굳히는 단추가 없다.** `v2.day_item` 에 줄을 만드는 한 벌이
- *       `lib/` 에 **하나도 없다** (실측 2026-09-02 — `insert into v2.day_item` 이 0곳).
- *       화면이 만들면 「무엇을 몇 줄로 어떤 차례로 남기나」가 **두 벌째 규칙**이 된다(원칙 1).
- *       → 보고의 `notes` 에 적었다. 그 한 벌이 서면 이 파일에 단추 하나만 붙이면 된다.
+ *    ① ✅ **굳히는 단추가 생겼다** (2026-09-02). 한 벌은 `lib/day.js` 의 `freezeDay` 이고
+ *       이 파일은 **부르기만** 한다 — 「무엇을 몇 줄로 어떤 차례로 남기나」는 거기 한 곳에 있다.
+ *       ⚠️ **화면이 보낸 줄을 그대로 안 적는다.** 초안을 여기서 `routineNext` 로 **다시 차려**
+ *          굳힌다. 화면 값을 믿고 적으면 아이 화면에 아무 숙제나 넣을 수 있게 된다.
+ *          화면에서 받는 것은 **조절(갯수·범위·뺄 항목)과 메모**뿐이다.
  *    ② **늦귀가 「보내기」가 없다.** 발송은 `lib/notify.js` 한 곳을 지나야 하는데
  *       그 함수는 실제로 쏘는 손(`opts.push`)을 **밖에서 받는다.** 화면이 그 손을 만들면
  *       발송이 두 벌이 되고(대전제 7 · `scripts/check-notify.mjs`), 빈 손을 넘기면
@@ -31,6 +32,8 @@ import { staffOnly } from "./who.js";
 import { fromCheck } from "../../lib/progress.js";
 import { attendanceWrite } from "../../lib/attend.js";
 import { closeGate, closeSheet } from "../../lib/close.js";
+import { routineNext } from "../../lib/routine.js";
+import { freezeDay } from "../../lib/day.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-fA-F-]{36}$/;
@@ -195,5 +198,59 @@ export async function closeDay({ sheetId, confirm = [], expect = null }) {
       : r.why === "progress_failed" ? `진도가 안 올라가 마감을 되돌렸습니다 — ${r.said ?? ""}`
       : `마감하지 못했습니다 (${r.why})`;
     return { ok: false, why: r.why, msg };
+  });
+}
+
+/**
+ * ②③ 을 **판으로 굳힌다** (⑨ · ⑨-a).
+ *
+ * ⚠️⚠️ **화면이 보낸 줄을 그대로 적지 않는다.** 여기서 `routineNext` 로 초안을 **다시 차려**
+ *    그것을 굳힌다. 화면 값을 믿고 적으면 아이 화면에 아무 숙제나 밀어 넣을 수 있고,
+ *    「무엇을 낼지 정하는 것」이 두 벌이 된다(원칙 1 — 그 판단은 `lib/routine.js` 하나다).
+ *    화면에서 받는 것은 **조절(갯수·범위·뺄 항목)과 메모**뿐이다 — 「안 누르면 보이는 그대로」.
+ *
+ * ⚠️ **판이 먼저 서 있어야 한다.** 판을 세우는 것은 `lib/attend.js` 의 `attendanceWrite` 다
+ *    (「출결을 어디서 찍든 그날 판이 선다」). 여기서 판을 만들지 않는다 — 만들면 쓰는 길이 두 벌이다.
+ *
+ * ⚠️ **되돌릴 수 없는 것은 서버 답을 기다린다.** 굳히면 아이 화면에 나가므로 낙관 갱신을 안 쓴다.
+ *
+ * ⚠️ 아이가 이미 낸 것과 원장님이 이미 찍은 ○△✕ 는 `freezeDay` 가 안 건드린다
+ *    (그 파일의 「다시 굳힐 때 아이가 낸 것을 지우지 않는다」).
+ */
+export async function freezeToday({ studentId, on, adjust = {}, memo = {}, classId }) {
+  if (!UUID.test(String(studentId ?? ""))) return { ok: false, msg: "학생이 없습니다" };
+  if (!DATE.test(String(on ?? ""))) return { ok: false, msg: "날짜가 이상합니다" };
+  return run(async (db) => {
+    // ① 초안을 **여기서** 다시 차린다 (화면 값을 안 믿는다)
+    const plan = await routineNext(db, { studentId, on, adjust, memo });
+
+    // ② 굳힌다. 「범위가 빈 숙제」는 `freezeDay` 가 통째로 거절한다(넷째 길목)
+    const opts = {};
+    if (classId !== undefined) opts.classId = classId;
+    const r = await freezeDay(db, plan, opts);
+
+    // ③ ⚠️ 「바뀔 줄이 애초에 없었다」와 「막혀서 0줄」은 다르다 — freezeDay 가 갈라 준다
+    if (r?.ok === false) return { ok: false, why: r.why ?? "freeze", msg: r.msg ?? "굳히지 못했습니다" };
+    return { ok: true, ...r };
+  });
+}
+
+/**
+ * 굳히기 **미리보기** — 아무것도 안 만든다 (`freezeDay` 의 `dryRun`).
+ *
+ * ⚠️ 굳히기는 **되돌릴 수 없는 쪽**이다 — 굳히면 그 줄이 아이 화면으로 간다.
+ *    그래서 「무엇이 몇 줄 서는지」를 **누르기 전에** 보인다(대전제 8 · §속도 5).
+ * ⚠️ 미리보기는 **판을 안 세운다.** 판을 세우는 것은 「왔다」를 찍는 일이라
+ *    미리 눌러 보다가 출결이 찍히면 안 된다.
+ */
+export async function previewFreeze({ studentId, on, adjust = {}, memo = {}, classId }) {
+  if (!UUID.test(String(studentId ?? ""))) return { ok: false, msg: "학생이 없습니다" };
+  if (!DATE.test(String(on ?? ""))) return { ok: false, msg: "날짜가 이상합니다" };
+  return run(async (db) => {
+    const plan = await routineNext(db, { studentId, on, adjust, memo });
+    const opts = { dryRun: true };
+    if (classId !== undefined) opts.classId = classId;
+    const r = await freezeDay(db, plan, opts);
+    return { ok: r?.ok !== false, ...r };
   });
 }

@@ -27,7 +27,7 @@ import "./today.css";
 import { staffOnly } from "./who.js";
 import { openAs, QUERY_CAP } from "./db.js";
 import { loadRoster, loadOne } from "./read.js";
-import { Marks, Attend, Comment, Late, Close } from "./ui.js";
+import { Marks, Attend, Comment, Late, Close, Freeze } from "./ui.js";
 import { routineOf } from "../../lib/routine.js";
 
 // ⚠️ 판은 날마다 다르다. 캐시되면 어제 판이 오늘 화면에 그대로 뜬다
@@ -426,7 +426,7 @@ function CheckCard({ o, plan, who, on, can }) {
 
 /* ── ②③ 오늘 학습 · 오늘 숙제 ─────────────────────────────────── */
 
-function PlanCard({ plan, load, o, routines, sp, adjust }) {
+function PlanCard({ plan, load, o, routines, sp, adjust }) {   /* Freeze 가 o·sp·adjust 를 쓴다 */
   const facts = new Map((o.books ?? []).map((b) => [b.book_id, b]));
   return (
     <div className="card">
@@ -491,11 +491,9 @@ function PlanCard({ plan, load, o, routines, sp, adjust }) {
         </div>
       ))}
 
-      <p className="muted">
-        ⚠️ 이 초안을 판으로 굳히는 단추를 안 만들었습니다 — <code className="mono">v2.day_item</code> 에
-        줄을 세우는 한 벌이 <code className="mono">lib/</code> 에 아직 없어서, 화면이 만들면
-        「무엇을 몇 줄로 어떤 차례로 남기나」가 두 벌째 규칙이 됩니다(원칙 1).
-      </p>
+      {/* ⚠️ 굳히기는 되돌릴 수 없는 쪽이다 — **미리보기를 먼저** 보여준다(§속도 5) */}
+      <Freeze studentId={plan.studentId} on={plan.date} classId={o.sheets?.[0]?.class_id ?? null}
+              adjust={adjust} memo={sp?.memo} canWrite={sp?.canWrite !== false} />
     </div>
   );
 }
