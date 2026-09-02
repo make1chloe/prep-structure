@@ -25,6 +25,9 @@ function fakeDb(w = {}) {
   const st = {
     sheet: w.sheet ?? null, items: w.items ?? [], late: w.late ?? [],
     quiz: w.quiz ?? [], sb: w.sb ?? [], streak: w.streak ?? [],
+    // ⚠️ 마감이 이제 lib/progress.js 의 fromMemo() 를 부른다 — 그 문 다섯을 여기서도 받아야 한다.
+    //    안 받으면 「가짜 DB 가 모르는 문」으로 검사가 통째로 죽는다.
+    units: w.units ?? [], prog: w.prog ?? [], parts: w.parts ?? [],
   };
   const calls = [], progress = [];
   return { calls, progress, st,
@@ -34,14 +37,55 @@ function fakeDb(w = {}) {
       if (/^(begin|commit|rollback)$/i.test(s)) return { rows: [] };
       if (s.includes("bool_and")) return { rows: st.streak };
       if (s.includes("from v2.day_sheet where id")) return { rows: st.sheet ? [st.sheet] : [] };
+      // ⚠️ q:memoItems 는 **그 교재만** 골라 온다 ($3 = book_id). 안 거르면
+      //    「메모 자동완료가 그 교재에만 걸린다」가 가짜 DB 탓에 거짓으로 빨개진다
+      if (s.includes("q:memoItems")) {
+        return { rows: st.items.filter((i) => i.unit_id && i.book_id === p[2]) };
+      }
+      if (s.includes("q:canEdit")) return { rows: [{ ok: true }] };
       if (s.includes("from v2.day_item i")) return { rows: st.items };
       if (s.includes("from v2.late_stay")) return { rows: st.late };
       if (s.includes("from v2.quiz")) return { rows: st.quiz };
       if (s.includes("from v2.student_book")) return { rows: st.sb };
-      if (s.includes("insert into v2.progress")) {
-        const [stu, ids, round, on] = p;
-        for (const u of ids) progress.push({ student: stu, unit_id: u, round, done_on: on });
-        return { rows: ids.map((u) => ({ unit_id: u })) };
+      // ── lib/progress.js 가 부르는 문 다섯 (마감이 진도를 그 파일에 맡긴다) ──
+      if (s.includes("q:units")) {
+        const ids = new Set(p[0] ?? []);
+        // 판에 깔린 줄에서 만들어 준다 — 검사가 단원을 따로 안 적어도 되게
+        const made = st.items.filter((i) => i.unit_id && ids.has(i.unit_id)).map((i) => ({
+          id: i.unit_id, book_id: i.book_id, chapter: i.unit_chapter, sub: i.unit_sub,
+          activity: i.unit_activity, is_workbook: false, sort: i.sort,
+          page_start: null, page_end: null, q_count: null, q_range: null, state: "active" }));
+        return { rows: st.units.length ? st.units.filter((u) => ids.has(u.id)) : made };
+      }
+      if (s.includes("q:progress")) {
+        const ids = new Set(p[1] ?? []);
+        return { rows: st.prog.filter((x) => ids.has(x.unit_id)) };
+      }
+      if (s.includes("q:parts")) {
+        const ids = new Set(p[1] ?? []);
+        return { rows: st.parts.filter((x) => ids.has(x.unit_id)) };
+      }
+      if (s.includes("q:partSeen")) {
+        return { rows: st.parts.some((x) => x.unit_id === p[1] && x.round === p[2]) ? [{ "?column?": 1 }] : [] };
+      }
+      if (s.includes("q:partAdd")) {
+        st.parts.push({ unit_id: p[1], round: p[2], q_from: p[3], q_to: p[4],
+                        page_from: p[5], page_to: p[6] });
+        return { rows: [], rowCount: 1 };
+      }
+      if (s.includes("q:round")) {
+        const ids = new Set(p[1] ?? []);
+        return { rows: st.sb.filter((x) => !ids.size || ids.has(x.book_id)) };
+      }
+      if (s.includes("q:siblings")) {
+        const ids = new Set(p[1] ?? []);
+        return { rows: st.items.filter((i) => i.unit_id && ids.has(i.unit_id)) };
+      }
+      if (s.includes("insert into v2.progress")) {   // q:write — 진도가 실제로 올라간 자리
+        // ⚠️ 칸 차례: $1 학생 · $2 단원 · $3 회독 · $4 상태 · **$5 완료날** · $6 누가 · $7 확인 · $8 만진날
+        const [stu, unit, round, status, on, by, confirmed, marked] = p;
+        progress.push({ student: stu, unit_id: unit, round, status, done_on: on, by, confirmed, marked });
+        return { rows: [{ unit_id: unit, status }], rowCount: 1 };
       }
       if (s.includes("set closed_at = null")) {                       // 되돌리기
         if (!st.sheet?.closed_at) return { rows: [] };
