@@ -1046,12 +1046,22 @@ try {
     const 샌칸 = 새면_안_되는_칸.filter((k) => v && k in v);
     ok("⭐ 진짜 DB 에 굳은 것에도 원장 칸이 없다", 샌칸.length === 0, 샌칸.join(","));
     // ⓕ ⭐⭐ **「굳었는데 아무에게도 안 갔고 다시 못 보내는 자리」를 진짜 DB 로 눌러 본다.**
-    //    발송 스위치가 꺼진 채로(=기본값) 부르면 `lib/notify.js` 가 `notify_log.sent_at` 에
-    //    null 을 넣는데 그 칸은 **not null** 이다(0012) → 던진다. 실서비스에서 첫 발송을 누르면
-    //    100% 이 길로 간다. 앞 판에서는 굳은 채 커밋되고 다시 누르면 `already_sent` 였다.
+    //    ⚠️ 앞 판에서는 **진짜 버그에 기대어** 실패를 일으켰다 — `notify_log.sent_at` 이 not null 이라
+    //       막힌 발송이 그 자리에서 터졌다. **그 버그는 0069 에서 고쳤다**(기본값이 off 라
+    //       실서비스 첫 발송부터 100% 터지던 자리다). 검사가 버그에 기대면 버그를 고치는 순간
+    //       검사가 빨개지고, 더 나쁘게는 **버그를 안 고치게 만든다.**
+    //    → 이제 **자취 넣기가 터지게 만들어** 같은 길을 흉내낸다. 요구는 그대로다:
+    //       알림이 터지면 굳힌 것을 도로 내리고, 성공이라 말하지 않고, 다시 보낼 수 있어야 한다.
     //    ⚠️ 실서비스는 autocommit 이라 **질의마다 savepoint** 를 걸어 그 모양을 흉내낸다 —
     //       한 트랜잭션으로 묶으면 던진 뒤 연결이 통째로 죽어 「되돌리기」가 도는지를 못 본다
+    // ⚠️ **한 번만** 터뜨린다 — 늘 터지면 「다시 보낼 수 있다」까지 못 본다.
+    //    밖이 잠깐 죽었다가 살아난 모양이고, 그게 진짜로 일어나는 모양이다.
+    let 한번더 = true;
     const auto = { query: async (sql, p) => {
+      if (한번더 && String(sql).includes("insert into v2.notify_log")) {
+        한번더 = false;
+        throw new Error("알림 자취를 못 남겼다 (검사가 일부러 한 번 터뜨림)");
+      }
       await c.query("savepoint one");
       try { const r = await c.query(sql, p); await c.query("release savepoint one"); return r; }
       catch (e) { await c.query("rollback to savepoint one"); throw e; }
