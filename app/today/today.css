@@ -93,3 +93,7 @@
   .td-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .td-side { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
+
+/* @이름 .td-cant   앱이 **판정 못 하는 것** 목록 (대전제 0 — 검증하는 척하지 않는다) */
+.td-cant { margin: var(--s2) 0 0; padding-left: var(--s3); list-style: none; }
+.td-cant li { margin: var(--s1) 0; word-break: keep-all; }

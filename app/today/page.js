@@ -20,6 +20,8 @@
  *    (`middleware.js` 주석의 실측 — 학생 세션으로 `/parent` 가 200 이었다).
  * ── ⚠️ **빈 화면을 예쁘게 만들지 않는다.** 비었으면 「무엇이 없어서 비었나」를 밝힌다 (대전제 0).
  */
+// ⚠️ 클래스카드 판정은 **lib 한 벌**이다 (확정 ⑱ · 원칙 1)
+import { judgeSet, MODE_NAME, setTypeName, CANNOT_JUDGE } from "@/lib/classcard";
 import Link from "next/link";
 import "./today.css";
 import { staffOnly } from "./who.js";
@@ -340,29 +342,45 @@ function ClassCard({ o }) {
           {rows.map((r) => (
             <div key={r.set_name} className="td-kv">
               <span className="grow">{r.set_name}</span>
-              <span className="chip">{r.set_type === 2 ? "문장" : "단어"}</span>
+              <span className="chip">{setTypeName(r.set_type)}</span>
               <span className="num">{r.cards ?? "?"}장</span>
-              <span className="num">{fmtGoal(r.goals, r.got)}</span>
+              <Goal r={r} />
             </div>
           ))}
         </div>
       )}
       <p className="muted">
-        ⚠️ 「목표 미달」을 여기서 판정하지 않습니다 — 그 판단이 <code className="mono">lib/</code> 에 아직 없어서,
-        화면에서 만들면 규칙이 두 벌이 됩니다(원칙 1). 받은 목표·실제를 그대로 보입니다.
-        「3초훈련」은 <b>앱도 클래스카드도 못 봅니다</b> — 체크만 하고 판정하지 않습니다(⑩).
+        ⚠️ 「목표 미달」은 <code className="mono">lib/classcard.js</code> 한 곳이 판정합니다 —
+        <b>원장님이 켜 두신 모드만</b> 봅니다(안 켠 모드를 0점으로 읽지 않습니다).
+        <b>미달이어도 앱이 넘기지 않습니다</b> — 넘기기는 원장님이 누르십니다.
       </p>
+      <ul className="muted td-cant">
+        {CANNOT_JUDGE.map((x) => (
+          <li key={x.what}>· <b>{x.what}</b> — {x.why}</li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-/** 확장이 보낸 목표·실제를 **그대로** 잇는다 — 세거나 판정하지 않는다 */
-function fmtGoal(goals, got) {
-  const g = goals && typeof goals === "object" ? goals : {};
-  const a = got && typeof got === "object" ? got : {};
-  const keys = [...new Set([...Object.keys(g), ...Object.keys(a)])];
-  if (!keys.length) return "점수 안 옴";
-  return keys.map((k) => `${k} ${a[k] ?? "?"}/${g[k] ?? "?"}`).join(" · ");
+/**
+ * 목표·실제를 그린다. **판정은 `lib/classcard.js` 가 한다** — 여기서 만들지 않는다(원칙 1).
+ * ⚠️ 안 켠 모드를 「0점이라 미달」로 읽지 않는 것도 그 lib 이 지킨다.
+ */
+function Goal({ r }) {
+  const j = judgeSet(r);
+  if (j.state === "nogoal") return <span className="muted">목표 안 걸림</span>;
+  if (j.state === "undone") return <span className="pill pilloff">아직 안 끝냄</span>;
+  const 이름 = (m) => MODE_NAME[m] ?? m;
+  const 줄 = j.judged.map((m) => `${이름(m)} ${r.got?.[m] ?? 0}/${r.goals?.[m]}`).join(" · ");
+  return (
+    <>
+      <span className="num">{줄}</span>
+      {j.state === "short"
+        ? <span className="pill pillwarn">목표 미달 {j.short.length}</span>
+        : <span className="pill pillok">넘김</span>}
+    </>
+  );
 }
 
 /* ── ① 숙제 검사 ──────────────────────────────────────────────── */
