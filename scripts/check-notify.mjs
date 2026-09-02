@@ -2,7 +2,7 @@
  *  계획 자동 검사 ① 밖으로 나가는 길이 notify 한 곳을 지나는가
  *                ⑦ NOTIFY_SINK 를 안 보고 쏘는 자리가 없는가
  *                ⑤ 잠금화면에 내용이 안 실리는가 (서비스워커 계약서 ⑤) */
-import { notify, sinkOf, findHole, pushPayload, OPEN_TO_SEE } from "../lib/notify.js";
+import { notify, sinkOf, findHole, pushPayload, OPEN_TO_SEE, JUST_ACADEMY } from "../lib/notify.js";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -49,6 +49,19 @@ console.log("■ 발송 — 실제로 돌려 본다");
     { env:{NOTIFY_SINK:"live"}, push:(s,p)=>shot.push(p) });
   const got = JSON.parse(shot[0]);
   ok("잠금화면에 내용이 안 실린다", got.body===OPEN_TO_SEE, JSON.stringify(got.body));
+  // ⚠️ 제목도 본다 — 본문만 막고 제목을 두면 「김서은 데일리리포트」가 잠금화면에 뜬다
+  ok("⚠️ **잠금화면 제목에 아이 이름이 안 실린다** (원장님: 「그냥 공지사항 전달사항」)",
+     got.title === JUST_ACADEMY, JSON.stringify(got.title)); }
+{ const db=fakeDb(); const shot=[];
+  await notify(db, {kind:"daily",title:"김서은 데일리리포트",body:"x",targets:T("parent")},
+    { env:{NOTIFY_SINK:"live"}, push:(s,p)=>shot.push(p) });
+  ok("학부모에게 이름이 든 제목을 넘겨도 안 나간다",
+     JSON.parse(shot[0]).title === JUST_ACADEMY, JSON.parse(shot[0]).title);
+  const db2=fakeDb(); const shot2=[];
+  await notify(db2, {kind:"daily",title:"김서은 결석",body:"x",targets:T("staff")},
+    { env:{NOTIFY_SINK:"live"}, push:(s,p)=>shot2.push(p) });
+  ok("선생님께는 제목이 그대로 간다 (원장님 폰이다)",
+     JSON.parse(shot2[0]).title === "김서은 결석", JSON.parse(shot2[0]).title);
   ok("옛 SW 가 읽는 다섯 칸이 다 있다",
      ["title","body","tag","url","r"].every(k=>k in got), Object.keys(got).join(",")); }
 
