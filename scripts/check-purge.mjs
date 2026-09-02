@@ -169,7 +169,7 @@ try {
 } catch (e) { c = null; ok("DB 에 붙는다 (못 붙으면 목록 정합성을 **확인 못 한 것**이다)", false, String(e.message)); }
 
 if (c) {
-  const map = (await c.query(`select schema_name, tbl, col, how, note from v2.purge_map order by tbl, col`)).rows;
+  const map = (await c.query(`select schema_name, tbl, col, how, after_days, note from v2.purge_map order by tbl, col`)).rows;
   const v2rows = map.filter((r) => r.schema_name === "v2");
   const gaps = coverageGaps(map);
   ok(`파기 목록의 v2 줄 ${v2rows.length}개가 전부 닿는 길을 갖는다`,
