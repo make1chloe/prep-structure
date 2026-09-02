@@ -31,14 +31,12 @@
  *    회차를 다시 세는 것은 원장님이 **직접** 누르신다(화면의 「회차 다시 세기」).
  */
 import { openAs, staffOnly } from "./db.js";
-import { attendanceWrite, attendanceClear, LATE_PRESETS } from "../../lib/attend.js";
+import { attendanceWrite, attendanceClear } from "../../lib/attend.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^\d{2}:\d{2}$/;
 const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-export { LATE_PRESETS };
 
 /** 문을 열고 → 하고 → 반드시 닫는다 */
 async function run(fn) {
@@ -54,10 +52,12 @@ async function run(fn) {
 /* ══ ㉔ 결석·지각 예정은 달력에서 고른다 ═══════════════════════════════
  * ⚠️ **한 달 뒤를 미리 말하는 아이가 있다.** 그래서 앞날에도 찍힌다 —
  *    막는 것은 **세는 자리**지 쓰는 자리가 아니다(`lib/attend.js` 주석).
- * ⚠️ **지각에는 「얼마나」가 있다** — 10·20·30·60분이나 도착 시각. `lib/attend.js` 가 따진다.
+ * ⚠️ **지각에 「얼마나」는 없다** (원장님 2026-09-02 「지각은 시간이 필요없을 듯」) —
+ *    아이가 등원을 찍은 그 시각이 곧 도착 시각이다. 손으로 고를 것도, 담을 칸도 없다.
+ *    몇 분 늦었는지는 `lib/attend.js` 의 `lateFromStamp()` 가 **세어 준다.**
  * ⚠️ **결석은 회차에서 안 빠진다.** 여기서 회차를 건드리지 않는 까닭이 그것이다.
  * ═══════════════════════════════════════════════════════════════════ */
-export async function planAttend({ studentId, date, classId = null, attend, late = null } = {}) {
+export async function planAttend({ studentId, date, classId = null, attend } = {}) {
   if (!UUID.test(String(studentId ?? ""))) return { ok: false, msg: "학생을 못 골랐습니다" };
   if (!DATE.test(String(date ?? ""))) return { ok: false, msg: "날짜가 'YYYY-MM-DD' 가 아닙니다" };
   if (attend !== "absent" && attend !== "late")
@@ -66,10 +66,9 @@ export async function planAttend({ studentId, date, classId = null, attend, late
     // ⚠️ `classId` 는 **생략 금지**다 — 빠뜨리면 특강 줄이 정규 줄을 덮는다(lib/attend.js `keyOf`)
     const r = await attendanceWrite(db, {
       via: "plan", studentId, date, classId: classId || null, attend,
-      late: attend === "late" ? late : null,
     });
     return r.ok
-      ? { ok: true, sheetId: r.sheetId, attend: r.attend, late: r.late ?? null, warn: r.warn ?? null }
+      ? { ok: true, sheetId: r.sheetId, attend: r.attend }
       : { ok: false, why: r.why, msg: r.msg };
   });
 }

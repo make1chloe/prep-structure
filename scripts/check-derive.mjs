@@ -51,7 +51,7 @@ t("진도율 — 3/4", [p.done,p.total], [3,4]);
 // ④ 「며칠째 열려 있나」
 await c.query(`update v2.progress_edit set is_open=true, opened_on=v2.today()-12 where scope='academy'`);
 const d=(await c.query(`select v2.progress_open_days() n`)).rows[0].n;
-t("진도 체크 — 12일째", d, 12);
+t("진도 체크 — 켠 날이 1일째라 13일째", d, 13);
 await c.query("rollback");
 
 console.log("■ 세어 나오는 값");

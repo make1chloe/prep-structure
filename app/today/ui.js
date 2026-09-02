@@ -11,6 +11,9 @@
  */
 import { useState, useTransition } from "react";
 import { markCheck, setAttend, saveComment, saveLate, previewClose, closeDay } from "./actions.js";
+// ⚠️ 늦귀가 단추 값(+20·40·60분)도 「평소 하원 + N분」 셈도 **lib/attend.js 한 곳**이다.
+//    화면이 숫자를 다시 적으면 그날부터 두 벌이 된다 (원칙 1).
+import { LATE_STAY_PRESETS, lateStayUntil } from "@/lib/attend";
 
 /** ○△✕ 와 「학원에서 함」·「미검사」. 낱말은 `v2.day_item.status` 가 받는 그대로다 */
 const MARKS = [
@@ -118,12 +121,10 @@ export function Late({ sheetId, reason, untilAt, leftAt, sentAt, endTime, sugges
   const [msg, setMsg] = useState(null);
   const [busy, start] = useTransition();
 
-  /** 평소 하원 + N분. 평소 하원을 모르면 **버튼을 안 만든다** (지어내지 않는다) */
+  /** 평소 하원 + N분 — **셈은 `lateStayUntil()` 이 한다.** 모르면 null 이라 단추를 안 만든다 */
   function plus(mins) {
-    if (!endTime) return;
-    const [h, m] = String(endTime).split(":").map(Number);
-    const t = h * 60 + m + mins;
-    setUntil(`${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`);
+    const t = lateStayUntil(endTime, mins);
+    if (t) setUntil(t);
   }
   function save() {
     if (!canWrite) { setMsg("`v2.late_stay` 에 쓸 권한이 없습니다"); return; }
@@ -151,13 +152,13 @@ export function Late({ sheetId, reason, untilAt, leftAt, sentAt, endTime, sugges
       {endTime
         ? <div className="row">
             <span className="muted">평소 하원 {String(endTime).slice(0, 5)} +</span>
-            {[20, 40, 60].map((m) => (
+            {LATE_STAY_PRESETS.map((m) => (
               <button key={m} type="button" className="btn btnghost" onClick={() => plus(m)}>
                 {m === 60 ? "1시간" : `${m}분`}
               </button>
             ))}
           </div>
-        : <p className="muted">평소 하원 시각을 몰라 「+20분」 단추를 안 만들었습니다 — 시각을 직접 적어 주세요.</p>}
+        : <p className="muted">평소 하원 시각을 몰라 「+{LATE_STAY_PRESETS[0]}분」 단추를 안 만들었습니다 — 시각을 직접 적어 주세요.</p>}
       <div className="row">
         <button type="button" className="btn btnmain" onClick={save} disabled={busy || !sheetId}>저장</button>
         {busy ? <span className="chip">보내는 중</span> : null}

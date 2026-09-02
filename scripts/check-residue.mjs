@@ -58,7 +58,19 @@ const fresh = (await c.query(`
 ok("30분 안에 진짜 학생 판에 새로 선 줄이 없다", fresh.map(x => `${x.name} — ${x.n}줄`),
    "검사가 도는 중이면 잠깐 뜬다. 검사가 끝났는데도 남아 있으면 **되돌리기가 실패한 것**이다");
 
-// ⑤ 검사가 리허설 학생을 쓰는가 — 글자로 훑는다
+// ⑤ ⚠️ **이관 뒤에 생긴 줄** — 판·진도·조각을 다 본다.
+//    앞 판에서 이 검사가 **진도를 안 봐서** 장원우에게 남은 8줄을 놓쳤다.
+//    「앞날 날짜」만 보면 **오늘 날짜로 남은 것**이 통째로 새어 나간다.
+for (const [name, tbl] of [["진도", "progress"], ["조각", "progress_part"],
+                           ["판 항목", "day_item"], ["시험", "quiz"]]) {
+  const r = (await c.query(`
+    select count(*)::int n from v2.${tbl}
+     where created_at > (select min(created_at) from v2.${tbl}) + interval '1 hour'`)).rows[0].n;
+  ok(`${name} — 이관 뒤에 생긴 줄이 없다`, r ? [`${r}줄`] : [],
+     "검사가 되돌리기에 실패하면 여기 남는다. 리허설이 아닌 진짜 자료 옆에 굳는다");
+}
+
+// ⑥ 검사가 리허설 학생을 쓰는가 — 글자로 훑는다
 const dayChk = readFileSync("scripts/check-day.mjs", "utf8");
 ok("check-day 가 **리허설 학생**으로만 쓴다",
    /import_batch\s*=\s*'fixture'/.test(dayChk) ? [] : ["state='active' 로 진짜 학생을 고른다"],

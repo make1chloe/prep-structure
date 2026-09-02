@@ -15,7 +15,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   planAttend, clearPlan, saveMakeup, waiveMakeup, saveHoliday,
-  saveEnglishOn, stampMonth, setTodoState, LATE_PRESETS,
+  saveEnglishOn, stampMonth, setTodoState,
 } from "./actions.js";
 
 /** 요일 — `lib/session.js` 의 `DOW_NAME` 과 같은 차례다(0=일). 화면 글자만 여기서 쓴다 */
@@ -140,14 +140,13 @@ function PickedDay({ date, onClose, who, load, classes, students, makeups, plann
 
 /**
  * 결석·지각 **예정** (㉔).
- * ⚠️ **지각에는 「얼마나」가 있다** — 10·20·30·60분 또는 도착 시각. `lib/attend.js` 가 따진다.
+ * ⚠️ **지각에 「얼마나」는 없다** (원장님 2026-09-02 「지각은 시간이 필요없을 듯」) —
+ *    아이가 등원을 찍은 그 시각이 곧 도착 시각이라 미리 고를 것이 없다. 담을 칸도 없었다.
  * ⚠️ **결석은 회차에서 안 빠진다.** 그래서 여기서 회차를 안 건드린다.
  */
 function PlanForm({ date, who, canWrite }) {
   const [pick, setPick] = useState("");
   const [kind, setKind] = useState("absent");
-  const [mins, setMins] = useState(String(LATE_PRESETS[1] ?? 20));
-  const [at, setAt] = useState("");
   const [msg, setMsg] = useState(null);
   const [busy, start] = useTransition();
   const one = who.find((w) => w.id === pick) ?? null;
@@ -157,11 +156,9 @@ function PlanForm({ date, who, canWrite }) {
     if (!one) { setMsg({ bad: true, text: "아이를 골라 주세요" }); return; }
     setMsg(null);
     start(async () => {
-      // ⚠️ 도착 시각을 적었으면 그것이 이깁니다 — 「몇 분」과 「도착 시각」은 같은 사실의 두 단위입니다
-      const late = kind === "late" ? (at ? at : Number(mins)) : null;
-      const r = await planAttend({ studentId: one.id, date, classId: one.classId ?? null, attend: kind, late });
+      const r = await planAttend({ studentId: one.id, date, classId: one.classId ?? null, attend: kind });
       setMsg(r?.ok
-        ? { text: r.warn ? r.warn : (kind === "late" ? "지각 예정으로 적었습니다" : "결석 예정으로 적었습니다"), bad: !!r.warn }
+        ? { text: kind === "late" ? "지각 예정으로 적었습니다" : "결석 예정으로 적었습니다" }
         : { bad: true, text: r?.msg ?? "못 적었습니다" });
     });
   }
@@ -183,24 +180,10 @@ function PlanForm({ date, who, canWrite }) {
         ))}
       </div>
       {kind === "late" ? (
-        <div className="col">
-          <div className="row">
-            <span className="muted">얼마나</span>
-            {LATE_PRESETS.map((m) => (
-              <button key={m} type="button" aria-pressed={!at && String(m) === mins}
-                      className={"btn" + (!at && String(m) === mins ? " btnmain" : " btnghost")}
-                      onClick={() => { setMins(String(m)); setAt(""); }}>
-                {m === 60 ? "1시간" : `${m}분`}
-              </button>
-            ))}
-          </div>
-          <label className="lbl" htmlFor={`p-at-${date}`}>또는 도착 시각을 직접</label>
-          <input id={`p-at-${date}`} className="fld" type="time" value={at} onChange={(e) => setAt(e.target.value)} />
-          <p className="sc-note">
-            ⚠️ 「얼마나」는 아직 <b>저장되지 않습니다</b> — `v2.day_sheet` 에 담을 칸이 없습니다.
-            저장된 척하지 않으려고 그대로 밝힙니다.
-          </p>
-        </div>
+        <p className="sc-note">
+          ⚠️ <b>몇 분 늦는지는 안 받습니다</b>(원장님) — 아이가 등원을 찍은 그 시각이 곧 도착 시각입니다.
+          몇 분 늦었는지는 반 시각과 견주어 <b>저절로 셉니다.</b>
+        </p>
       ) : null}
       <div className="row">
         <button type="button" className="btn btnmain" onClick={save} disabled={busy}>적기</button>

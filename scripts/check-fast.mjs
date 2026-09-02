@@ -79,7 +79,10 @@ sec("■ ① 못 알아보는 조회는 **옛 길로 간다** (앱이 멈추지 
   const asked2 = [];
   const fake2 = { query: async (sql, p) => {
     asked2.push(String(sql));
-    if (/from v2\.student_book sb\s+cross join lateral v2\.cursor_of/i.test(String(sql)))
+    // ⚠️ 0071 로 `v2.cursors_of(학생, 날짜)` 가 서서 lib 이 그쪽으로 갈아탔다 —
+    //    옛 모양(lateral)도 같이 받는다. 한쪽만 보면 갈아타는 날 이 시험이 **헛돈다.**
+    if (/from v2\.cursors_of/i.test(String(sql))
+        || /from v2\.student_book sb\s+cross join lateral v2\.cursor_of/i.test(String(sql)))
       return { rows: [{ book_id: 책, round: 1, chapter: "CH 1", is_workbook: false, left_in_chapter: 3 }] };
     return { rows: [] };
   } };

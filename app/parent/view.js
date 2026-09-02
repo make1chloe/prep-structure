@@ -17,7 +17,6 @@
  */
 import { useActionState, useMemo, useRef, useState } from "react";
 import { acceptBatch, isImage, MAX_FILES, MAX_EDGE } from "@/lib/files";
-import { LATE_PRESETS } from "@/lib/attend";
 import { CELL, DOW, PREPARING, NOTHING } from "./shape";
 import { FIRST_TIME, LEAVE_NOTE, PLAN_NOTE, REQUEST_NAME } from "./words";
 
@@ -344,10 +343,14 @@ function PickedDay({ day, sheet, student, tellPlan, onClose }) {
   );
 }
 
-/** 결석·지각 예정 — ⚠️ 지각은 **몇 분까지** 적는다 (10·20·30·60 또는 도착 시각) */
+/**
+ * 결석·지각 예정.
+ * ⚠️ **지각에 「몇 분」을 안 묻는다** (원장님 2026-09-02 「지각은 시간이 필요없을 듯」) —
+ *    아이가 등원을 찍은 그 시각이 곧 도착 시각이라 미리 골라 봐야 담을 칸이 없다.
+ *    늦는 시각을 아시면 **까닭 한 줄**에 적으시면 그 글이 원장님께 그대로 간다.
+ */
 function PlanForm({ date, student, tellPlan }) {
   const [what, setWhat] = useState("absent");
-  const [preset, setPreset] = useState(String(LATE_PRESETS[0]));
   const [state, action, pending] = useActionState(tellPlan, null);
 
   return (
@@ -363,29 +366,16 @@ function PlanForm({ date, student, tellPlan }) {
       </div>
 
       {what === "late" && (
-        <div className="stack">
-          <span className="lbl">얼마나 늦으시나요</span>
-          <div className="row">
-            {LATE_PRESETS.map((m) => (
-              <label key={m} className="btn"><input type="radio" name="preset" value={String(m)}
-                className="pr-radio" checked={preset === String(m)}
-                onChange={() => setPreset(String(m))} /> {m}분</label>
-            ))}
-            <label className="btn"><input type="radio" name="preset" value="time" className="pr-radio"
-              checked={preset === "time"} onChange={() => setPreset("time")} /> 도착 시각</label>
-          </div>
-          {preset === "time" && (
-            <label className="col">
-              <span className="lbl">도착 시각</span>
-              <input type="time" name="arriveAt" className="fld" />
-            </label>
-          )}
-        </div>
+        <p className="muted pr-small">
+          몇 분 늦으시는지는 안 여쭙습니다 — 아이가 학원에서 등원을 찍는 그 시각이 도착 시각이 됩니다.
+          아시는 시각이 있으면 아래 까닭에 적어 주세요.
+        </p>
       )}
 
       <label className="col">
         <span className="lbl">까닭 (안 적으셔도 됩니다)</span>
-        <input type="text" name="reason" className="fld" maxLength={100} placeholder="예: 병원 진료" />
+        <input type="text" name="reason" className="fld" maxLength={100}
+               placeholder={what === "late" ? "예: 병원 진료 · 7시 20분쯤 도착합니다" : "예: 병원 진료"} />
       </label>
 
       <p className="muted pr-small">{PLAN_NOTE}</p>

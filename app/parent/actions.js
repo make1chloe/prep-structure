@@ -11,16 +11,16 @@
  *    학부모 계정은 `notify_log`·`job_queue` 에 쓸 권한이 아예 없다(0017 grants).
  *    → 원장님은 이 요청을 **화면에서** 본다. 「보냈습니다」라고 말하지 않는다.
  *
- * ⚠️ 지각 「얼마나」의 규칙은 **`lib/attend.js` 의 `lateMinutes()` 한 곳**이다.
- *    10·20·30·60분과 도착 시각을 오가는 셈을 여기서 다시 짜지 마라.
+ * ⚠️ **지각 「얼마나」를 안 받는다** (원장님 2026-09-02 「지각은 시간이 필요없을 듯」).
+ *    아이가 등원을 찍은 그 시각이 곧 도착 시각이라 미리 고를 것이 없고, 담을 칸도 없었다.
+ *    늦는 시각을 아시면 **까닭 한 줄에** 적으시면 그 글이 원장님께 그대로 간다.
  *
  * ⚠️ **되돌릴 수 없는 것은 서버 답을 기다린다**(대전제 8). 원장님께 가는 말이라 낙관적 갱신을 안 쓴다.
  */
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { serverClientFromStore, roleOf, keys, SCHEMA } from "@/lib/supabase-server";
-import { lateMinutes, LATE_PRESETS } from "@/lib/attend";
-import { countDates, eachDate, ymd, monthRange } from "@/lib/session";
+import { countDates, ymd, monthRange } from "@/lib/session";
 import { ROLE, MONTHS_AHEAD, addMonth, ymOf } from "./shape";
 import { PLAN_TAG } from "./words";
 import { readClasses } from "./read";
@@ -71,29 +71,23 @@ async function futureClassDays(sb, studentId) {
   return { today, days: new Set(dates), schedules };
 }
 
-/** 그날 그 반의 수업 시작 시각 'HH:MM' — 없으면 null (지어내지 않는다) */
-function startTimeOn(schedules, date) {
-  const dow = eachDate(date, date)[0]?.dow;
-  const hit = (schedules ?? []).find((s) =>
-    ymd(s.from_date) <= date && (s.to_date == null || ymd(s.to_date) >= date) &&
-    (s.weekdays ?? []).map(Number).includes(dow));
-  const t = String(hit?.start_time ?? "").slice(0, 5);
-  return /^\d{2}:\d{2}$/.test(t) ? t : null;
-}
+// ⚠️ 여기 있던 `startTimeOn()`(그날 그 반의 수업 시작 시각)을 **지웠다** —
+//    지각 「얼마나」를 안 받게 되면서 부르는 곳이 없어졌다. 죽은 채로 두면 다음 사람이
+//    「이걸 왜 안 쓰지」로 되살린다. 시작 시각이 다시 필요해지면 `lib/attend.js` 의
+//    `lateFromStamp(startTime, stampedAt)` 이 받는 자리이고, 그 시각을 **어디서 읽는가**는
+//    등원 한 벌(`lib/arrival.js`)의 몫이다 — 학부모 화면의 몫이 아니다.
 
 /**
  * **결석·지각 예정을 알린다** (계획 ㉔).
  *
  * ⚠️ 날짜는 **수업일만** 받는다. 화면이 그렇게 그렸어도 서버가 다시 본다 —
  *    화면 값을 믿으면 아무 날이나 들어온다.
- * ⚠️ 지각이면 「얼마나」가 **반드시** 있다. 없으면 `lateMinutes()` 가 그 자리에서 거절한다.
+ * ⚠️ **「얼마나」를 안 묻는다**(원장님 2026-09-02) — 물어도 담을 칸이 없었다.
  */
 export async function tellPlan(prev, form) {
   const studentId = String(form?.get("studentId") ?? "") || null;
   const date = String(form?.get("date") ?? "");
   const what = String(form?.get("what") ?? "");        // 'absent' | 'late'
-  const preset = String(form?.get("preset") ?? "");    // '10'|'20'|'30'|'60'|'time'
-  const arriveAt = String(form?.get("arriveAt") ?? "").trim();
   const reason = String(form?.get("reason") ?? "").trim();
 
   const who = await whoAmI(studentId);
@@ -106,34 +100,13 @@ export async function tellPlan(prev, form) {
   if (date < cal.today) return say("지난 날짜는 미리 알릴 수 없습니다. 원장님께 직접 말씀해 주세요.");
   if (!cal.days.has(date)) return say("그날은 수업이 있는 날이 아닙니다. 달력에서 수업일을 골라 주세요.");
 
-  let late = null;
-  if (what === "late") {
-    const startTime = startTimeOn(cal.schedules, date);
-    const given =
-      preset === "time" ? { arriveAt } :
-      LATE_PRESETS.includes(Number(preset)) ? Number(preset) : null;
-    if (given === null)
-      return say(`얼마나 늦는지 골라 주세요 — ${LATE_PRESETS.join("·")}분, 또는 도착 시각을 적어 주세요.`);
-    try {
-      // ⚠️ **여기서 분을 세지 않는다.** 규칙은 `lib/attend.js` 의 `lateMinutes()` 한 곳이다
-      late = lateMinutes(given, startTime ? { startTime } : {});
-    } catch (e) {
-      return say(String(e?.message ?? "지각 「얼마나」를 못 읽었습니다."));
-    }
-  }
-
-  // ⚠️ **모르는 것은 지어내지 않는다**(대전제 0). 수업 시작 시각을 몰라 분으로 못 바꿨으면
-  //    그 사실을 원장님께 그대로 적어 보낸다 — 「약 null분」이라고 쓰지 않는다
-  const howLate = !late ? null
-    : late.minutes != null
-      ? `약 ${late.minutes}분 늦습니다${late.arriveAt ? ` (도착 ${late.arriveAt})` : ""}`
-      : `${late.arriveAt} 에 도착합니다`;
-
+  // ⚠️ **몇 분 늦는지 안 적는다**(원장님 2026-09-02). 찍은 시각이 곧 도착 시각이라
+  //    미리 받아 봐야 담을 칸이 없다 — 「약 20분」이라 적어 놓고 아무 데도 안 남기는 것이 제일 나쁘다.
+  //    늦는 시각을 아시면 학부모가 **까닭 한 줄에** 적으시고, 그 글이 그대로 원장님께 간다.
   const body = [
     PLAN_TAG[what], date,
-    what === "late" ? howLate : "결석합니다",
+    what === "late" ? "늦습니다" : "결석합니다",
     reason ? `사유: ${reason}` : null,
-    late?.why || null,
   ].filter(Boolean).join(" · ");
 
   // ⚠️ `seen_at`·`answered_at` 은 **넣지 않는다.** 접근 규칙(`mine_rq`)이 둘 다 비어 있기를 요구한다 —
