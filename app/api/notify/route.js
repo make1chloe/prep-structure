@@ -21,7 +21,7 @@
  *    발송이 꺼져 있으면(기본값) `ok:false · why:"sink_off"` 로 온다 — **그게 정상이다.**
  *    자취에는 남고 폰에는 안 간 것을 「보냈습니다」로 그리면 안 된다.
  */
-import { sendLate, sendDaily, pushReady } from "@/lib/push";
+import { sendLate, sendDaily, pushReady, vapidSaved } from "@/lib/push";
 import { staffOnly } from "../../today/who.js";
 import { openAs } from "../../today/db.js";
 
@@ -45,7 +45,8 @@ const WHAT = new Map([
 export async function GET() {
   const me = await staffOnly();
   if (!me.ok) return json({ ok: false, why: me.why, msg: me.msg, how: me.how ?? [] }, 403);
-  const ready = pushReady();
+  // ⚠️ 열쇠는 **DB 에 있다**(0072) — 환경변수만 보면 늘 「없다」가 된다
+  const ready = pushReady(process.env, await vapidSaved(db));
   return json({ ok: true, ready });
 }
 
@@ -75,7 +76,8 @@ export async function POST(req) {
   try {
     const r = await pick.run(door.db, { [pick.key]: id, again: body?.again === true });
     // ⚠️ 열쇠가 없어 한 대도 못 간 것인지 화면이 알아야 한다 — 까닭을 같이 싣는다
-    const ready = pushReady();
+    // ⚠️ 열쇠는 **DB 에 있다**(0072) — 환경변수만 보면 늘 「없다」가 된다
+  const ready = pushReady(process.env, await vapidSaved(db));
     return json({ ...r, what: pick.what, ready });
   } catch (e) {
     return json({ ok: false, why: "threw",

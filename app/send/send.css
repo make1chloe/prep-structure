@@ -1,0 +1,111 @@
+/* ══════════════════════════════════════════════════════════════════════
+ * 발송 화면만의 자리. **토큰은 `app/globals.css` 것을 그대로 쓴다** —
+ * 여기서 새 색·새 글씨 크기를 만들지 않는다 (오류 106·107 이 그렇게 났다).
+ * `scripts/check-screen-send.mjs` 가 이 파일을 훑어서 지킨다:
+ *   · `#색` 리터럴 0건 · `font-size` 는 `var(--fsN)` 만 · `opacity` 0건
+ *   · 늘어나는 칸에 basis 가 있다 (`flex:1` 금지 — 오류 94)
+ *   · grid 는 `minmax(0,…)` (맨 `1fr` 은 내용보다 안 작아진다 — ㉜)
+ *   · 한 낱말 상태 클래스 금지 (`.open`·`.on`·`.sel` — 오류 49·92, **세 번** 터졌다)
+ *   · `position:fixed` 0건 (닫는 길은 언제나 화면 안에 — 대전제 10)
+ *   · 여기 정의한 클래스는 화면이 **다 쓰고**, 화면이 쓰는 `sn-` 는 여기 **다 있다**
+ *
+ * ── 이름 대장 (globals.css·today.css 의 대장과 겹치지 않게 전부 `sn-` 로 시작한다)
+ * @이름 .sn-head    화면 머리 — 날짜 · 닫는 길
+ * @이름 .sn-reach   ⚠️ **닿는 길** — 맨 위에 늘 서 있다. 「보내도 대부분 안 닿는다」를 밝힌다
+ * @이름 .sn-bar     아래에 붙는 줄 속 — 고른 수 · 지금 보내기 · 예약 (globals 의 `.barfix` 위에 얹는다)
+ * @이름 .sn-count   고른 수 — ⚠️ **늘 보인다**
+ * @이름 .sn-group   묶음 하나 (데일리 · 하원 · 안내)
+ * @이름 .sn-grouphd 묶음 머리 — 묶음 전체 선택이 여기 있다
+ * @이름 .sn-row     보낼 것 한 줄
+ * @이름 .sn-pick    고르는 네모 — ⚠️ 못 고르는 줄은 **끄지 않고 까닭을 적는다**
+ * @이름 .sn-main    그 줄에서 제일 먼저 읽을 것 (이름 · 제목)
+ * @이름 .sn-side    그 줄의 값들 (닿는 집 · 읽음)
+ * @이름 .sn-why     못 나가는 까닭 · 밝히는 줄
+ * @이름 .sn-edit    나갈 글을 고치는 자리
+ * @이름 .sn-fold    접기 상자 — 탭 대신이다. **펴도 다시 조회하지 않는다**
+ * @이름 .sn-foldhd  그 접기의 손잡이
+ * @이름 .sn-foldbd  그 접기의 속
+ * @이름 .sn-kv      이름 → 값 한 줄
+ * @이름 .sn-when    예약 시각 고르는 줄
+ * @이름 .sn-list    읽음·예약 목록 한 줄
+ * @이름 .sn-said    방금 한 일의 답 (보냄 · 못 보냄)
+ * ────────────────────────────────────────────────────────────────────── */
+
+.sn-head { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: baseline; }
+
+/* ⚠️ 실측을 맨 위에 세운다 — 안 세우면 원장님이 「보냈는데 왜 답이 없지」로 저녁을 보낸다 */
+.sn-reach {
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: baseline;
+  background: var(--warn-bg); color: var(--warn-fg);
+  border: 1px solid var(--warn); border-radius: var(--r2);
+  padding: var(--s2) var(--s3); font-size: var(--fs3);
+}
+
+/* 아래 붙는 줄 — ⚠️ `position:fixed` 가 아니다. globals 의 `.barfix`(sticky)가 자리를 잡는다 */
+.sn-bar { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.sn-count { flex: 0 0 auto; font-size: var(--fs6); font-weight: 700; white-space: nowrap; }
+
+.sn-group { border: 1px solid var(--line); border-radius: var(--r2); background: var(--sunk); padding: var(--s3); }
+.sn-grouphd { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin-bottom: var(--s2); }
+
+.sn-row {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r1);
+  padding: var(--s2) var(--s3); margin-bottom: var(--s2);
+}
+/* ⚠️ 누르는 자리는 손가락 크기 아래로 안 내려간다.
+ * ⚠️ `flex: 0 0 auto` 로 두면 글이 긴 라벨(「이 묶음 다 고르기 (12)」)이 **안 줄어들어 부모를 밀어낸다** —
+ *    320px 에서 그대로 삐져나온다. 줄어들 수는 있게 두고 안에서 접히게 한다 */
+.sn-pick { display: flex; flex: 0 1 auto; flex-wrap: wrap; gap: var(--s2); align-items: center; min-height: var(--tap); }
+/* ⚠️ 이름은 **안 줄인다** (오류 32). 낱말 단위로 접히게만 둔다 */
+.sn-main { flex: 1 1 150px; font-size: var(--fs4); font-weight: 600; white-space: normal; }
+/* ⚠️ basis 를 준다 — 0 으로 두면 390px 에서 26px 로 눌려 글자가 한 자씩 쌓인다 (오류 94) */
+.sn-side { display: flex; flex: 1 1 220px; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+           font-size: var(--fs2); color: var(--mid); }
+
+/* 「왜 못 나가나」 — ⚠️ 빈 화면·막힌 줄을 예쁘게 만들지 않는다 (대전제 0) */
+.sn-why {
+  flex: 1 1 100%;
+  background: var(--warn-bg); color: var(--warn-fg); border-radius: var(--r1);
+  padding: var(--s1) var(--s2); font-size: var(--fs2);
+}
+
+.sn-edit { flex: 1 1 100%; display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+
+/* 접기 — 탭 대신이다. **펴도 다시 조회하지 않는다** (§속도 1) */
+.sn-fold { border: 1px solid var(--line); border-radius: var(--r2); background: var(--surface); }
+.sn-foldhd {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center;
+  min-height: var(--tap); padding: var(--s2) var(--s3);
+  font-size: var(--fs4); font-weight: 600; cursor: pointer; list-style: none;
+}
+.sn-foldhd::-webkit-details-marker { display: none; }
+.sn-foldhd::before { content: "▸"; color: var(--mute); }
+.sn-fold[open] > .sn-foldhd::before { content: "▾"; }
+/* ⚠️ globals 의 `.accbd` 를 빌려 쓰지 않는다 — 그것은 `display:none` 이 기본이고
+ *    `.acc.is-open > .accbd` 일 때만 펴진다. `<details>` 로 접는 여기서는 그 조건이 영영 안 맞아
+ *    **오류 하나 없이 그냥 안 보인다.** 한 이름은 한 뜻만 가진다 */
+.sn-foldbd { padding: var(--s3); border-top: 1px solid var(--line); }
+
+.sn-kv { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline; padding: var(--s1) 0; }
+.sn-when { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+
+.sn-list {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+  padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-size: var(--fs3);
+}
+
+/* 방금 한 일의 답 — ⚠️ `alert` 를 안 쓴다. 화면 안에서 말한다 */
+.sn-said {
+  background: var(--info-bg); color: var(--info-fg); border: 1px solid var(--info);
+  border-radius: var(--r2); padding: var(--s2) var(--s3); font-size: var(--fs3);
+}
+
+/* ⚠️ 좁은 화면 규칙은 **맨 끝**에 둔다 — 뒤에 같은 특정도 규칙이 오면 밀린다 (오류 100) */
+@media (max-width: 700px) {
+  .sn-main { flex: 1 1 130px; }
+  .sn-side { flex: 1 1 100%; }
+  .sn-count { font-size: var(--fs5); }
+  .sn-group { padding: var(--s2); }
+  .sn-row { padding: var(--s2); }
+}
