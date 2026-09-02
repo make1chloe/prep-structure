@@ -2,7 +2,10 @@
  *
  *  계획 자동 검사 ② 출결 쓰는 길 여덟이 전부 `attendanceWrite` 를 부르는가
  *                ⑪ 저장·삭제가 「몇 줄이 실제로 바뀌었나」를 보고 0줄이면 실패로 되돌리는가
- *  계획 ㉔        결석·지각 예정은 앞날에도 찍힌다 · 지각에는 「얼마나」가 있다
+ *  계획 ㉔        결석·지각 예정은 앞날에도 찍힌다
+ *  원장님 2026-09-02 **지각에 「얼마나」가 없다** — 아이가 등원을 찍은 그 시각이 곧 도착 시각이다.
+ *                 그래서 아래 「지각」 절은 **지운 줄이 아니라 뒤집은 줄**이다 —
+ *                 앞서 「반드시 고르게 하는가」를 지키던 자리가 「정말 안 묻는가」를 지킨다.
  *  0047           attend 는 넷(makeup 없음) · 열쇠는 (학생,날짜,반) nulls not distinct
  *
  *  ⚠️ 가짜 DB 는 **Postgres 를 흉내낸다** — 특히 `nulls not distinct` 열쇠와
@@ -10,9 +13,10 @@
  */
 import {
   attendanceWrite, attendanceWriteMany, attendanceClear,
-  dayView, countAttend, plannedAttend, lateMinutes, keyOf, todayOf,
-  ATTEND, WRITE_PATHS, LATE_PRESETS,
+  dayView, countAttend, plannedAttend, lateStayUntil, keyOf, todayOf,
+  ATTEND, WRITE_PATHS, LATE_STAY_PRESETS,
 } from "../lib/attend.js";
+import { Client } from "pg";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -219,45 +223,91 @@ console.log("\n■ 복합키 (학생 + 날짜 + 반) — ⚠️ 이미 난 사�
      db2.sheets.length === 1 && db2.sheets[0].attend === "absent", `${db2.sheets.length}줄`);
 }
 
-console.log("\n■ 지각에는 「얼마나」가 있다 (계획 ㉔)");
+console.log("\n■ 지각에 「얼마나」는 없다 — 찍은 시각이 곧 도착 시각이다 (원장님 2026-09-02)");
 {
-  ok("버튼은 10·20·30·60분", LATE_PRESETS.join(",") === "10,20,30,60", LATE_PRESETS.join(","));
-  ok("20분", lateMinutes(20).minutes === 20);
-  ok("도착 시각 → 분 (수업 시작을 알면)",
-     lateMinutes({ arriveAt: "19:20" }, { startTime: "19:00" }).minutes === 20);
-  ok("분 → 도착 시각", lateMinutes(20, { startTime: "19:00" }).arriveAt === "19:20");
+  // ⚠️ 아래 열세 줄은 **지운 줄이 아니라 뒤집은 줄**이다. 앞서는 「10·20·30·60분을 반드시 고르는가」를
+  //    지켰고, 지금은 **그 요구가 정말 사라졌는가**와 **그 셈이 한 곳뿐인가**를 지킨다.
+  //    지우면 되살아나도 아무도 모른다.
+  const lib = await import("../lib/attend.js");
+  const 출결src = readFileSync(join(ROOT, "lib/attend.js"), "utf8");
 
-  const 몰라 = lateMinutes({ arriveAt: "19:20" });
-  ok("수업 시작을 모르면 분을 **못 냈다고 말한다** (지어내지 않는다)",
-     몰라.minutes === null && String(몰라.why).includes("확인 안 됨"), JSON.stringify(몰라));
+  ok("① 지각 단추가 **없다** — 지각용이라 지웠다",
+     lib[["LATE", "PRESETS"].join("_")] === undefined);
+  ok("② 손으로 「얼마나」를 받던 한 벌이 **없다** — 이제 묻지 않는다",
+     lib["late" + "Minutes"] === undefined);
 
-  ok("정말 모르면 {unknown:true} 로 받는다", lateMinutes({ unknown: true }).unknown === true);
-  let bad = null;
-  try { lateMinutes(null); } catch (e) { bad = String(e.message); }
-  ok("지각인데 「얼마나」가 비면 거절한다", bad !== null && bad.includes("얼마나"), String(bad));
+  /* ⚠️⚠️ 「몇 분 늦었나」는 **등원 한 벌(`lib/arrival.js` 의 `lateOf()`) 한 곳**이다.
+   *    출결 한 벌은 그 셈을 **안 가진다** — 뺄셈도, 유예 분도, 「몇 분이면 결석인가」도.
+   *    양쪽에 있으면 유예를 한쪽만 고치는 날 화면의 지각 표시와 리포트의 지각 횟수가 어긋난다. */
+  ok("③ 지각 **정책**(유예 · 「몇 분이면 결석」)이 출결 한 벌에 **없다**",
+     !/grace/i.test(출결src) && !/\b600\b/.test(출결src),
+     "정책이 두 곳에 있으면 한쪽만 고치는 날이 온다 (원칙 1)");
 
-  bad = null;
-  try { lateMinutes({ minutes: 20, arriveAt: "19:40" }, { startTime: "19:00" }); } catch (e) { bad = String(e.message); }
-  ok("분과 도착 시각이 어긋나면 거절한다 (같은 사실은 같아야 한다)", bad !== null && bad.includes("안 맞는다"));
+  const libDir = join(ROOT, "lib");
+  const 셈파일 = readdirSync(libDir).filter((f) => /\.js$/.test(f))
+    .filter((f) => /export function late(Of|FromStamp|Minutes)\b/.test(readFileSync(join(libDir, f), "utf8")));
+  ok(`④ 「몇 분 늦었나」 셈이 lib/ 에 **한 곳**뿐이다 (${셈파일.join(" ") || "없음"})`,
+     셈파일.length === 1 && 셈파일[0] === "arrival.js", 셈파일.join(" "));
 
-  bad = null;
-  try { lateMinutes(700); } catch (e) { bad = String(e.message); }
-  ok("700분은 지각이 아니라 결석이라고 말한다", bad !== null && bad.includes("결석"));
+  // ⑤~⑨ **그 한 곳이 제대로 세는가.** 여기서 다시 세지 않고 그것을 부른다
+  const 등원 = join(ROOT, "lib/arrival.js");
+  if (existsSync(등원)) {
+    const { lateOf } = await import("../lib/arrival.js");
+    ok("⑤ 반 시각과 찍은 시각을 견주어 **20분 늦었다고 센다** (원칙 5 — 저장하지 않는다)",
+       lateOf({ startTime: "19:00", atHm: "19:20" }).minutes === 20,
+       JSON.stringify(lateOf({ startTime: "19:00", atHm: "19:20" })));
+    ok("⑥ 그래서 갈래가 'late' 다 — **앱이 센 것이고 아이가 고른 것이 아니다**",
+       lateOf({ startTime: "19:00", atHm: "19:20" }).attend === "late");
+    ok("⑦ `time` 칸이 주는 'HH:MM:SS' 도 읽는다 (v2.class_schedule.start_time)",
+       lateOf({ startTime: "19:00:00", atHm: "19:20" }).minutes === 20);
+    const 몰라 = lateOf({ atHm: "19:20" });
+    ok("⑧ 반 시각을 모르면 **못 셌다고 말한다** — 정시라고 우기지 않는다",
+       몰라.sure === false && 몰라.minutes === null && String(몰라.why).includes("확인 안 됨"),
+       JSON.stringify(몰라));
+    ok("⑨ 수업 시작보다 일찍 왔으면 **지각이 아니다**",
+       lateOf({ startTime: "19:00", atHm: "18:40" }).attend === "present",
+       JSON.stringify(lateOf({ startTime: "19:00", atHm: "18:40" })));
+  } else {
+    console.log("   ⚠️ 확인 안 됨 — lib/arrival.js 가 아직 없어 **그 셈이 도는지 못 봤다** (5줄)");
+  }
 
-  bad = null;
-  try { lateMinutes({ arriveAt: "18:40" }, { startTime: "19:00" }); } catch (e) { bad = String(e.message); }
-  ok("수업 시작보다 일찍 왔으면 지각이 아니라고 말한다", bad !== null && bad.includes("지각이 아니다"));
-
-  await throws("지각을 찍는데 late 를 안 주면 거절한다",
-    () => attendanceWrite(fakeDb(), { via: "quick", studentId: S1, date: "2026-06-02", classId: null, attend: "late" }),
-    "얼마나");
+  await throws("⑩ ⚠️ 지각에 「얼마나」를 **주면 거절한다** — 담을 칸이 없는데 받으면 값이 사라진다",
+    () => attendanceWrite(fakeDb(),
+      { via: "quick", studentId: S1, date: "2026-06-02", classId: null, attend: "late", late: 20 }),
+    "「얼마나」는 없다");
+  await throws("⑪ 「도착 시각」 꼴로 넘겨도 마찬가지다 (샛길을 안 둔다)",
+    () => attendanceWrite(fakeDb(),
+      { via: "quick", studentId: S1, date: "2026-06-02", classId: null, attend: "late",
+        late: { arriveAt: "19:20" } }),
+    "「얼마나」는 없다");
 
   const db = fakeDb();
   const r = await attendanceWrite(db,
-    { via: "plan", studentId: S1, date: "2026-09-20", classId: CR, attend: "late", late: 20, startTime: "19:00" });
-  ok("판은 선다", r.ok && r.late.minutes === 20 && r.late.arriveAt === "19:20");
-  ok("⚠️ 지각 분은 **저장 못 했다고 말한다** (담을 칸이 없다 — needsDb)",
-     r.lateSaved === false && String(r.warn).includes("저장 안 됐다"), JSON.stringify([r.lateSaved, r.warn]));
+    { via: "plan", studentId: S1, date: "2026-09-20", classId: CR, attend: "late" });
+  const v = await dayView(db, { studentId: S1, date: "2026-09-20" });
+  ok("⑫ 「얼마나」 **없이** 지각 판이 선다 (앞서는 여기서 거절당했다)",
+     r.ok === true && v.rows[0].attend === "late", JSON.stringify([r.ok, r.why, r.msg]));
+  ok("⑬ 「저장 못 했다」는 경고도 **없다** — 요구도 저장도 안 하니 할 말이 없다",
+     r.late === undefined && r.lateSaved === undefined && r.warn === undefined,
+     JSON.stringify([r.late, r.lateSaved, r.warn]));
+}
+
+console.log("\n■ 늦귀가 시간 단추 — **한 곳에 둔다** (원장님 「같게 맞춰」)");
+{
+  ok("단추는 +20·+40·+60분", LATE_STAY_PRESETS.join(",") === "20,40,60", LATE_STAY_PRESETS.join(","));
+  ok("예상 귀가 = 평소 하원 + N분", lateStayUntil("21:00", 40) === "21:40", String(lateStayUntil("21:00", 40)));
+  ok("`time` 칸이 주는 'HH:MM:SS' 도 읽는다", lateStayUntil("21:00:00", 20) === "21:20");
+  ok("자정을 넘겨도 안 터진다", lateStayUntil("23:30", 60) === "00:30", String(lateStayUntil("23:30", 60)));
+  ok("평소 하원을 모르면 **null** — 화면이 단추를 안 만들고 직접 적게 한다",
+     lateStayUntil(null, 20) === null && lateStayUntil("", 20) === null);
+  let bad = null;
+  try { lateStayUntil("21:00", 0); } catch (e) { bad = String(e.message); }
+  ok("「+0분」 같은 값은 거절한다 (누르나 마나가 되면 원장님이 눌러 놓고 안 눌린 줄 안다)",
+     bad !== null && bad.includes("이상하다"), String(bad));
+
+  const ui = readFileSync(join(ROOT, "app/today/ui.js"), "utf8");
+  ok("⚠️ 화면(app/today/ui.js)이 숫자를 **스스로 안 적는다** — lib 을 부른다",
+     /LATE_STAY_PRESETS/.test(ui) && /lateStayUntil/.test(ui) && !/\[\s*20\s*,\s*40\s*,\s*60\s*\]/.test(ui));
 }
 
 console.log("\n■ 몇 줄이 실제로 바뀌었나 — 0줄이면 실패다 (자동 검사 ⑪)");
@@ -343,9 +393,9 @@ console.log("\n■ 앞날에도 찍힌다 · **세는 자리는 「오늘까지�
     { student_id: S1, on_date: "2026-08-20", state: "waived" }, // 물린 보강은 안 센다
   ] });
   await attendanceWrite(db, { via: "quick",  studentId: S1, date: "2026-09-01", classId: CR, attend: "present" });
-  await attendanceWrite(db, { via: "quick",  studentId: S1, date: "2026-09-02", classId: CR, attend: "late", late: 10 });
+  await attendanceWrite(db, { via: "quick",  studentId: S1, date: "2026-09-02", classId: CR, attend: "late" });
   await attendanceWrite(db, { via: "plan",   studentId: S1, date: "2026-09-20", classId: CR, attend: "absent" });
-  await attendanceWrite(db, { via: "plan",   studentId: S1, date: "2026-09-25", classId: CS, attend: "late", late: { unknown: true } });
+  await attendanceWrite(db, { via: "plan",   studentId: S1, date: "2026-09-25", classId: CS, attend: "late" });
 
   ok("앞날에도 판이 선다 (결석·지각 예정)", db.sheets.length === 4, `${db.sheets.length}줄`);
 
@@ -426,6 +476,19 @@ console.log("\n■ 출결 쓰는 길이 하나뿐인가 — 파일을 훑는다 
   }
   ok("화면이 쓰는 via 가 전부 여덟 길 안에 있다", strange.length === 0, strange.join(" "));
   console.log(`      (화면에 붙은 길 ${seen.size}/8${seen.size ? ": " + [...seen].join(" ") : " — 아직 화면이 없다"})`);
+
+  /* ⚠️ **지운 이름이 정말 안 쓰이는가.** 지각 「얼마나」를 없앨 때 부르던 자리를 안 고치면
+   *    빌드가 깨진다 — 실제로 app/schedule · app/parent 두 화면이 부르고 있었다.
+   *    ⚠️ `scripts/` 는 안 본다: 검사는 「이제 안 쓴다」를 말하느라 그 이름을 적을 수밖에 없다.
+   *       대신 검사가 그 이름을 **들여오면** ESM 이 그 자리에서 터진다(없는 export 라서). */
+  const 지운이름 = [["LATE", "PRESETS"].join("_"), "late" + "Minutes"];
+  const 진짜코드 = [...walk(join(ROOT, "app")), ...walk(join(ROOT, "lib"))];
+  const 남은 = 진짜코드.filter((f) => {
+    const t = readFileSync(f, "utf8");
+    return 지운이름.some((w) => new RegExp(`\\b${w}\\b`).test(t));
+  });
+  ok(`지운 이름(${지운이름.join(" · ")})을 부르는 자리가 app/·lib/ 에 없다`,
+     남은.length === 0, 남은.map(rel).join(" "));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -473,6 +536,91 @@ let skipped = 0;
       ok(`SQL ${found.length}문이 v2 의 진짜 칸 이름으로 서 있다`, bad.length === 0, bad.join(" / "));
       await c.end();
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚠️⚠️ 가짜 DB 는 **죽은 칸도 제약 위반도 못 잡는다.** 진짜 v2 에 한 번은 써 본다.
+//    ⚠️ 쓰는 것은 **리허설 학생(`import_batch='fixture'`, zz_시험_)뿐이다.**
+//       앞 판에서 `state='active'` 로 진짜 학생을 골라 **장원우의 오늘 판에 52줄**이 굳었다.
+//    ⚠️ 트랜잭션 안에서만 쓰고 **끝에 반드시 되돌린다.** 되돌렸는지도 눈으로 센다.
+console.log("\n■ 진짜 DB — 리허설 학생에게 쓰고 되돌린다");
+{
+  const env = join(ROOT, ".env.local");
+  const url = existsSync(env) ? (readFileSync(env, "utf8").match(/DATABASE_URL=(.+)/) || [])[1]?.trim() : null;
+  let c = null;
+  if (!url) {
+    skipped += 1;
+    console.log("   ⚠️ 확인 안 됨 — .env.local 의 DATABASE_URL 이 없어 **진짜 DB 로 못 돌렸다**");
+  } else try {
+    c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
+    for (let i = 1; ; i++) { try { await c.connect(); break; }
+      catch (e) { if (i >= 4) throw e; await new Promise((r) => setTimeout(r, 3000)); } }
+
+    // ⚠️ 진짜 재원생에게 쓰지 마라. 리허설 계정으로만 쓴다
+    const stu = (await c.query(
+      `select id, name from v2.students where import_batch = 'fixture' order by name limit 1`)).rows[0];
+    if (!stu) throw new Error("리허설 학생(zz_시험_)이 없다 — 진짜 학생으로는 안 돌린다");
+    // ⚠️ 진짜 자료를 안 스치도록 **아무 판도 없는 앞날**을 쓴다
+    const day = (await c.query(`select (v2.today() + 400)::text d`)).rows[0].d;
+    const nSheet = async () => (await c.query(
+      `select count(*)::int n from v2.day_sheet where student_id=$1 and date=$2::date`, [stu.id, day])).rows[0].n;
+
+    await c.query("begin");
+    const db = { query: (q, p) => c.query(q, p) };
+    ok("리허설 학생을 찾았고 그 앞날에 판이 하나도 없다",
+       !!stu && (await nSheet()) === 0, `${stu?.name} · ${await nSheet()}줄`);
+
+    // ① 「얼마나」 없이 지각이 찍히는가 — 진짜 제약·트리거·규칙을 지난다
+    const r = await attendanceWrite(db,
+      { via: "quick", studentId: stu.id, date: day, classId: null, attend: "late" });
+    ok("⚠️ 진짜 DB 에 **「얼마나」 없이** 지각 판이 선다", r.ok === true && r.changed === 1,
+       JSON.stringify([r.ok, r.why, r.msg]));
+    const back = (await c.query(
+      `select attend from v2.day_sheet where student_id=$1 and date=$2::date`, [stu.id, day])).rows[0];
+    ok("판에 'late' 가 그대로 적혔다", back?.attend === "late", JSON.stringify(back));
+
+    // ② ⚠️ 「담을 칸이 없다」는 말이 정말인가 — 칸 이름을 세어 본다
+    const cols = (await c.query(
+      `select column_name from information_schema.columns
+        where table_schema='v2' and table_name='day_sheet'`)).rows.map((x) => x.column_name);
+    const 지각칸 = cols.filter((x) => /late|arriv|min/i.test(x));
+    ok(`v2.day_sheet 칸 ${cols.length}개에 지각 「몇 분」을 담을 칸이 **없다** (그래서 안 묻는다)`,
+       지각칸.length === 0, 지각칸.join(" "));
+
+    // ③ 그래도 넘기면 **한 줄도 안 쓰고** 거절하는가
+    const 전 = await nSheet();
+    await throws("「얼마나」를 넘기면 진짜 DB 앞에서도 거절한다",
+      () => attendanceWrite(db, { via: "quick", studentId: stu.id, date: day, classId: null,
+                                  attend: "late", late: 20 }), "「얼마나」는 없다");
+    ok("거절당한 뒤 판이 **한 줄도 안 늘었다**", (await nSheet()) === 전, `${전} → ${await nSheet()}`);
+
+    // ④ 진짜 반 시각으로 센다 — 17분 뒤를 **DB 가** 만들고, 몇 분인지는 **lib 이** 센다
+    const sch = (await c.query(
+      `select start_time::text as st, (start_time + interval '17 minutes')::time::text as stamp
+         from v2.class_schedule where start_time < '23:00' order by start_time limit 1`)).rows[0];
+    if (sch && existsSync(join(ROOT, "lib/arrival.js"))) {
+      // ⚠️ 17분 뒤를 만드는 것은 **DB** 이고, 몇 분인지 세는 것은 **등원 한 벌**이다.
+      //    같은 자리에서 두 번 세지 않으므로 서로를 맞춰 보는 뜻이 있다.
+      const { lateOf } = await import("../lib/arrival.js");
+      const 셈 = lateOf({ startTime: sch.st, atHm: sch.stamp.slice(0, 5) });
+      ok(`진짜 반 시각(${sch.st.slice(0, 5)})으로 17분 늦은 것을 **17분이라 센다**`,
+         셈.attend === "late" && 셈.minutes === 17, JSON.stringify(셈));
+    } else {
+      skipped += 1;
+      console.log("   ⚠️ 확인 안 됨 — 반 시각이 없거나 등원 한 벌이 아직 없어 **셈을 진짜 값으로 못 봤다**");
+    }
+
+    // ⑤ ⚠️ 되돌린다. **되돌렸는지도 센다** — 한 번 실패하면 그대로 굳는다
+    await c.query("rollback");
+    ok("⚠️ 되돌린 뒤 그 판이 **없다** — 리허설 판에도 자국을 안 남긴다",
+       (await nSheet()) === 0, `${await nSheet()}줄`);
+  } catch (e) {
+    fail++; n++;
+    console.log("   ❌ 진짜 DB 로 못 돌렸다 —", String(e?.message ?? e).split("\n")[0]);
+    try { await c?.query("rollback"); } catch { /* 이미 닫혔으면 그만 */ }
+  } finally {
+    try { await c?.end(); } catch { /* 그만 */ }
   }
 }
 

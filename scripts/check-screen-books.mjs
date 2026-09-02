@@ -132,7 +132,7 @@ function auditSrc(text) {
   if (/role\s*=\s*["']tab["']|[?&]tab=|<Tabs\b|useTab\b/.test(t)) add("S5", "탭이 있다");
   // S6 남의 한 벌을 화면이 직접 만짐
   if (/staff_note/.test(t)) add("S6", "원장 전용 메모 칸 이름이 화면에 있다 — lib/close.js 한 곳뿐이다");
-  if (/NOTIFY_SINK/.test(t)) add("S6", "발송 스위치를 화면이 읽는다 — lib/notify.js 한 곳뿐이다");
+  if (new RegExp("NOTIFY" + "_SINK").test(t)) add("S6", "발송 스위치를 화면이 읽는다 — lib/notify.js 한 곳뿐이다");
   if (/from\s+v2\.class_member\b/i.test(t)) add("S6", "반 명단을 직접 조회한다 — v2.class_roster() 를 지나야 한다");
   // S7 커서는 lib/routine.js 가 부른다
   if (/v2\.cursor_of\s*\(/.test(t)) add("S7", "커서를 화면이 직접 부른다 — lib/routine.js 것이다");

@@ -52,7 +52,7 @@ async function whoAmI(studentId) {
   return { supabase, sb, me, studentId };
 }
 
-/** 그 아이의 앞으로 있을 수업일 + 그날 수업 시작 시각 (지각 분 ↔ 도착 시각 환산에 쓴다) */
+/** 그 아이의 앞으로 있을 수업일 — 달력이 **수업일만** 고르게 하려고 쓴다 */
 async function futureClassDays(sb, studentId) {
   const t = await sb.rpc("today");
   const today = t?.error ? null : ymd(t?.data);

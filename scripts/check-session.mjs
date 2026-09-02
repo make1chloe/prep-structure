@@ -300,7 +300,12 @@ console.log("\n■ 자동 검사 ⑮ — 반 명단은 class_roster 로만");
   await studentSessions(db, S1, "2026-10");
   ok("아이의 반을 물을 때 v2.student_classes 를 지나간다", db.sqls.some((s) => s.includes("v2.student_classes")));
   // 이 검사가 돌면서 **한 번이라도** 명단 표를 직접 물었으면 여기서 걸린다
-  const direct = everySql().filter((s) => /v2\.class_member/i.test(s));
+  // ⚠️ **막는 것은 「읽기」다. 「쓰기」는 명단이 생기는 유일한 길이다.**
+  //    등록 전환이 `insert into v2.class_member … from_date` 로 소속을 만든다 —
+  //    그것까지 잡으면 반에 아이를 넣을 방법이 없어지고, 담당자는 규칙이 아니라 **검사를 끈다.**
+  //    ⑮가 지키려는 것은 「명단을 **세는** 자리가 두 벌이 되는 것」이다(회차가 부풀어 수강료가 틀린다).
+  const 쓰기 = (q) => /\b(insert\s+into|update|delete\s+from)\s+v2\.class_member\b/i.test(q);
+  const direct = everySql().filter((s) => /v2\.class_member/i.test(s) && !쓰기(s));
   ok("v2.class_member 를 직접 조회하지 않는다 (전수)", direct.length === 0,
      [...new Set(direct.map((s) => s.replace(/\s+/g, " ").trim().slice(0, 70)))].join(" | ")); }
 
@@ -311,7 +316,20 @@ const walk = (d, out = []) => { for (const f of readdirSync(d)) {
   const p = join(d, f); statSync(p).isDirectory() ? walk(p, out)
     : /\.(js|jsx|ts|tsx|mjs)$/.test(f) && out.push(p); } return out; };
 const files = [...walk("lib"), ...walk("app")];
-const peekers = files.filter((f) => /v2\.class_member|from\(["']class_member|["']class_member["']/.test(readFileSync(f, "utf8")));
+// ⚠️ **주석을 먼저 지운다.** 안 지우면 「`v2.class_member` 를 직접 읽지 마라」고 적어 둔
+//    주석 자체가 위반으로 잡힌다 — 규칙을 적은 사람이 잡히는 꼴이고, 실제로 셋 중 하나가 그랬다.
+// ⚠️ 그리고 **쓰기와 「표 이름을 늘어놓은 목록」은 뺀다** — `unnest(array['…','class_member'])` 는
+//    권한을 물어보는 목록이지 명단을 세는 자리가 아니다. `from('class_member'` 만 진짜 조회다.
+const 코드만 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const 읽나 = (t) => {
+  if (/from\(["'`]class_member["'`]/.test(t)) return true;              // supabase-js 조회
+  const 자리 = [...t.matchAll(/v2\.class_member\b/gi)];
+  return 자리.some((m) => {
+    const 앞 = t.slice(Math.max(0, m.index - 60), m.index);
+    return !/\b(insert\s+into|update|delete\s+from)\s+$/i.test(앞);   // 쓰기가 아니면 읽기다
+  });
+};
+const peekers = files.filter((f) => 읽나(코드만(readFileSync(f, "utf8"))));
 ok("lib·app 어디서도 반 명단 표를 직접 안 읽는다", peekers.length === 0, peekers.join(" "));
 
 // ── ⑩ 순수 함수도 따로 ──────────────────────────────────────────

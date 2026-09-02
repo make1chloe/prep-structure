@@ -12,7 +12,7 @@
  *      · 수업일 세기          → `lib/session.js` (countDates · monthRange · eachDate · ymd)
  *      · 「학원의 오늘」       → DB 의 `v2.today()` (여기서 `new Date()` 로 세지 않는다)
  *      · 월간 리포트 굳은 글  → `lib/monthly.js` 의 `sentView()`
- *      · 지각 「얼마나」       → `lib/attend.js` 의 `lateMinutes()` (actions.js 에서 부른다)
+ *      · 지각 「얼마나」       → **없앴다** (원장님 2026-09-02) — 찍은 시각이 곧 도착 시각이다
  *      · 자료 받을까 말까     → `lib/files.js` (upload/route.js 에서 부른다)
  *
  * ⚠️ **서비스 열쇠를 쓰지 않는다.** `lib/db.js` 의 `serviceDb()` 는 접근 규칙을 지나쳐 버려서,

@@ -5,7 +5,7 @@
  *    ① 파일이 제자리에 있는가
  *    ② ⚠️⚠️ **사고 #7** — 마감 전 그날 내용이 학부모 값에 실리지 않는가.
  *       원장 메모를 심은 가짜 판을 **진짜로 돌려** 「키째로 없는가」까지 본다
- *    ③ 화면이 **lib 을 지나는가** — 마감·수업일·지각 분·자료 판단을 제 손으로 짓지 않는가
+ *    ③ 화면이 **lib 을 지나는가** — 마감·수업일·자료 판단을 제 손으로 짓지 않는가
  *    ④ ⚠️ 탭이 없는가 · 폰 규칙(fixed 잠금·pushState·portal·alert·투명도·새 색·새 글씨)
  *    ⑤ ⚠️ **조회 수가 상한 안인가** — 가짜 Supabase 를 끼워 `loadParent()` 를 실제로 돌린다
  *    ⑥ 달력 — 마감 안 한 날이 **「수업함 · 정리 중」**인가 · 앞날은 다음 달까지인가 ·
@@ -30,7 +30,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileInsertSql, acceptBatch, MAX_FILES } from "../lib/files.js";
 import { PREPARING, NOTHING, DAY_OPEN } from "../lib/close.js";
-import { LATE_PRESETS } from "../lib/attend.js";
 
 let fail = 0, n = 0;
 const ok = (t, c, why = "") => {
@@ -160,7 +159,12 @@ await sec("\n■ ③ 화면이 lib 을 지나는가 (판단을 제 손으로 짓
   부른다("read", "hideEmptyCards", "@/lib/close");
   부른다("read", "countDates", "@/lib/session");
   부른다("read", "sentView", "@/lib/monthly");
-  부른다("actions", "lateMinutes", "@/lib/attend");
+  // ⚠️ 여기 있던 `부른다("actions","lateMinutes",…)` 줄은 **지우지 않고 뒤집었다.**
+  //    원장님 2026-09-02 「지각은 시간이 필요없을 듯」 — 손으로 분을 고르던 한 벌을 없앴다.
+  //    「부르는가」를 지키던 자리가 이제 **「정말 안 부르는가」**를 지킨다.
+  ok("서버 동작이 지각 「얼마나」를 **더는 안 센다** (그 한 벌을 없앴다)",
+     !/lateMinutes/.test(화면코드) && !/arriveAt/.test(화면코드),
+     "없앤 값을 되살리면 학부모께 물어보고 값은 아무 데도 안 남는다 — 담을 칸이 없다");
   부른다("upload", "acceptBatch", "@/lib/files");
   부른다("upload", "refuseReason", "@/lib/files");
   부른다("upload", "pathFor", "@/lib/files");
@@ -187,9 +191,9 @@ await sec("\n■ ③ 화면이 lib 을 지나는가 (판단을 제 손으로 짓
   ok("화면이 알림을 직접 보내지 않는다", !/\bnotify\s*\(/.test(화면코드) && !/lib\/notify/.test(화면코드),
      "학부모 계정은 notify_log·job_queue 에 쓸 권한도 없다");
 
-  // ⚠️ 지각 분·수업일을 화면이 세지 않는다
+  // ⚠️ 시각 셈·수업일을 화면이 세지 않는다
   ok("화면이 분 셈을 제 손으로 안 짠다 (`/ 60`·`* 60` 없음)",
-     !/[/*]\s*60\b/.test(화면코드), "지각 「얼마나」는 lateMinutes() 한 곳이다");
+     !/[/*]\s*60\b/.test(화면코드), "시각을 오가는 셈은 `lib/attend.js` 한 곳이다");
   ok("화면이 「학원의 오늘」을 `new Date()` 로 세지 않는다",
      !/new Date\(\s*\)/.test(화면코드),
      "서버가 UTC 면 밤 9시부터 하루가 어긋난다 — v2.today() 를 읽는다");
@@ -399,11 +403,13 @@ await sec("\n■ ⑥ 달력 — 계획 ⑯ 세 가지를 지키는가", async ()
      (m.limits ?? []).some((t) => /휴강/.test(t)),
      "밝히지 않으면 휴강일에 「왜 수업이 있다고 하나」로 전화가 온다");
 
-  // 지각 「얼마나」의 버튼은 lib 의 한 벌이다
-  ok(`지각 버튼이 lib 의 ${LATE_PRESETS.join("·")}분 그대로다`,
-     LATE_PRESETS.every((v) => new RegExp(`\\b${v}\\b`).test(code.view) || /LATE_PRESETS/.test(code.view)) &&
-     /LATE_PRESETS/.test(code.view));
-  ok("지각에 「도착 시각 직접」 자리가 있다", /arriveAt/.test(code.view) && /type="time"/.test(code.view));
+  // ⚠️ 이 두 줄도 **뒤집은 줄**이다 (원장님 2026-09-02 「지각은 시간이 필요없을 듯」).
+  //    앞서는 「10·20·30·60분 단추가 lib 그대로인가」·「도착 시각 칸이 있는가」를 지켰다.
+  //    지금은 **둘 다 없어야 맞다** — 아이가 등원을 찍은 그 시각이 곧 도착 시각이다.
+  ok("지각 「몇 분」 단추가 **없다** (학부모께 안 여쭙는다)",
+     !/LATE_PRESETS/.test(code.view) && !/name="preset"/.test(code.view));
+  ok("「도착 시각 직접」 칸도 **없다** — 대신 늦는 시각은 **까닭 한 줄**에 적어 원장님께 그대로 간다",
+     !/arriveAt/.test(code.view) && /name="reason"/.test(code.view));
 });
 
 /* ══════════════════════════════════════════════════════════════════════ */
@@ -638,8 +644,8 @@ if (!/NEXT_PUBLIC_SUPABASE_ANON_KEY/.test(env))
             "자료 보내기는 「저장 공간 미개설」로 정직하게 실패한다");
 막힌것.push("`v2.holiday` 에 학부모 읽기 규칙이 없어 **휴강한 날이 달력에 수업일로 보인다** — " +
             "화면이 그 사실을 밝히지만, 규칙 한 줄이면 없어진다");
-막힌것.push("`v2.request` 에 날짜·지각 분 칸이 없어 결석·지각 예정이 **글로만** 남는다 — " +
-            "원장 화면이 기계로 읽으려면 칸이 필요하다");
+막힌것.push("`v2.request` 에 **날짜 칸**이 없어 결석·지각 예정이 **글로만** 남는다 — " +
+            "원장 화면이 기계로 읽으려면 칸이 필요하다 (「지각 몇 분」은 이제 안 받는다)");
 
 console.log("\n■ 코드로는 못 고치는 것 (이 검사는 초록이어도 아래가 남아 있으면 화면이 빈다)");
 막힌것.forEach((x) => console.log(`   ⚠️ ${x}`));

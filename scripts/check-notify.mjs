@@ -51,7 +51,9 @@ console.log("■ 발송 — 실제로 돌려 본다");
   ok("잠금화면에 내용이 안 실린다", got.body===OPEN_TO_SEE, JSON.stringify(got.body));
   // ⚠️ 제목도 본다 — 본문만 막고 제목을 두면 「김서은 데일리리포트」가 잠금화면에 뜬다
   ok("⚠️ **잠금화면 제목에 아이 이름이 안 실린다** (원장님: 「그냥 공지사항 전달사항」)",
-     got.title === JUST_ACADEMY, JSON.stringify(got.title)); }
+     got.title === JUST_ACADEMY, JSON.stringify(got.title));
+  ok("옛 SW 가 읽는 다섯 칸이 다 있다",
+     ["title","body","tag","url","r"].every(k=>k in got), Object.keys(got).join(",")); }
 { const db=fakeDb(); const shot=[];
   await notify(db, {kind:"daily",title:"김서은 데일리리포트",body:"x",targets:T("parent")},
     { env:{NOTIFY_SINK:"live"}, push:(s,p)=>shot.push(p) });
@@ -61,9 +63,7 @@ console.log("■ 발송 — 실제로 돌려 본다");
   await notify(db2, {kind:"daily",title:"김서은 결석",body:"x",targets:T("staff")},
     { env:{NOTIFY_SINK:"live"}, push:(s,p)=>shot2.push(p) });
   ok("선생님께는 제목이 그대로 간다 (원장님 폰이다)",
-     JSON.parse(shot2[0]).title === "김서은 결석", JSON.parse(shot2[0]).title);
-  ok("옛 SW 가 읽는 다섯 칸이 다 있다",
-     ["title","body","tag","url","r"].every(k=>k in got), Object.keys(got).join(",")); }
+     JSON.parse(shot2[0]).title === "김서은 결석", JSON.parse(shot2[0]).title); }
 
 { const db=fakeDb(); const shot=[];
   await notify(db, {kind:"daily",title:"t",body:"b",targets:[
@@ -90,12 +90,16 @@ const codeOf = (f) => readFileSync(f, "utf8").split("\n")
 // ⚠️ **실제로 쏘는 손은 `lib/push.js` 다** (2026-09-02 신설). `notify` 는 판단만 하고
 //    `opts.push` 로 손을 받는다 — 그래서 web-push 를 부르는 **한 자리**는 그 파일이다.
 //    두 자리가 되면 한쪽만 잠금화면 글을 갈아 끼우게 되므로 여기서 하나로 묶어 둔다.
-const pushers = files.filter(f => !f.endsWith("lib/push.js") && !/check-(notify|push)\.mjs$/.test(f)
+// ⚠️ **검사 파일은 뺀다.** 검사는 이 이름들을 **일부러** 들고 있다 —
+//    ① 「일부러 어기는 본보기」 안에 글자로  ② 위반을 찾는 무늬로.
+//    안 빼면 검사가 서로를 위반으로 잡고, 담당자는 규칙이 아니라 **검사를 끄게** 된다.
+//    규칙이 지키려는 것은 **lib/ 와 app/** 이다 — 거기서 읽으면 그대로 잡힌다(아래에서 깨서 확인).
+const pushers = files.filter(f => !f.endsWith("lib/push.js") && !/scripts[/\\]check-/.test(f)   /* ⚠️ 검사 파일은 뺀다 — 아래 주석 */
   && /require\(["']web-push|from ["']web-push|webpush\.send|sendNotification\(/.test(codeOf(f)));
 ok("web-push 를 부르는 곳은 lib/push.js 하나뿐이다", pushers.length===0, pushers.join(" "));
 // ⚠️ **검사는 앱이 아니다.** `scripts/check-push.mjs` 는 스위치를 켠 판을 진짜 DB 로 돌려 봐야 해서
 //    가짜 env 에 이 이름을 쓴다. 앱 코드(`lib/`·`app/`)에서 읽는 곳은 여전히 notify 뿐이어야 한다.
-const sinkers = files.filter(f => !f.endsWith("lib/notify.js") && !/check-(notify|push)\.mjs$/.test(f)
+const sinkers = files.filter(f => !f.endsWith("lib/notify.js") && !/scripts[/\\]check-/.test(f)   /* ⚠️ 검사 파일은 뺀다 — 아래 주석 */
   && /NOTIFY_SINK/.test(codeOf(f)));
 ok("NOTIFY_SINK 를 읽는 곳도 lib/notify.js 뿐이다", sinkers.length===0, sinkers.join(" "));
 

@@ -71,7 +71,13 @@ console.log("\n■ 손 — 받은 글을 그대로 쏘나");
      JSON.stringify(shot[0].s));
   ok("열쇠와 살아 있는 시간을 같이 싣는다",
      shot[0].o.TTL === TTL_SEC && shot[0].o.vapidDetails.publicKey === KEY.publicKey);
-  ok("쏘기만 하고 DB 는 안 건드린다", db.asked.length === 0, JSON.stringify(db.asked)); }
+  // ⚠️ **열쇠를 읽는 한 줄은 된다** — 옛 앱이 VAPID 를 환경변수가 아니라 DB 에 넣어 뒀고(0072),
+  //    그 열쇠라야 폰에 박힌 구독이 산다. 그 밖에는 한 글자도 안 건드려야 한다.
+  const other = db.asked.filter((q) => !/from v2\.integration/i.test(String(q.sql ?? q)));
+  ok("쏘기만 하고 DB 는 **열쇠 읽기 말고** 안 건드린다", other.length === 0, JSON.stringify(other));
+  ok("열쇠는 **한 번만** 읽는다 (한 통에 기기가 여럿이다)",
+     db.asked.filter((q) => /from v2\.integration/i.test(String(q.sql ?? q))).length <= 1,
+     String(db.asked.length)); }
 
 console.log("\n■ 죽은 구독 — 끄나 (그리고 잠깐 탈에는 안 끄나)");
 for (const code of [410, 404]) {

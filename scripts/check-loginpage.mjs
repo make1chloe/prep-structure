@@ -459,9 +459,26 @@ await sec("■ ⑭ homeFor 의 null 이 주소로 새지 않는가", async () =>
   const 후보 = [...앱파일(), "middleware.js", ...readdirSync("lib").filter((f) => f.endsWith(".js")).map((f) => `lib/${f}`)];
   const 부르는곳 = 후보.filter((f) => /homeFor\s*\(/.test(코드만(read(f))) && f !== "lib/supabase-server.js");
   ok(`homeFor 를 부르는 자리 (${부르는곳.join(" ") || "없음"})`, 부르는곳.length > 0, "아무도 안 부른다");
-  for (const f of 부르는곳)
-    ok(`${f} 이 knownRole 로 먼저 가른다`, /knownRole\s*\(/.test(코드만(read(f))),
+  // ⚠️ **위험한 것은 「부르는 것」이 아니라 「주소로 쓰는 것」이다.**
+  //    `homeFor(role) === "/"` 처럼 **견주기만** 하는 자리는 null 이 그냥 거짓이 되어
+  //    **막히는 쪽으로** 떨어진다 — 안전하다. 여기까지 잡으면 검사가 헛짚고,
+  //    헛짚는 검사는 결국 꺼진다(폰 절의 「글자로 훑는 검사는 헛짚고 헛통과한다」).
+  //    → 견주기만 하는 파일은 그 사실을 확인하고 지나간다.
+  const 견주기만 = (t) => {
+    const 자리 = [...t.matchAll(/homeFor\s*\(/g)];
+    if (!자리.length) return false;
+    return 자리.every((m) => {
+      let i = m.index + m[0].length, 깊이 = 1;
+      while (i < t.length && 깊이 > 0) { if (t[i] === "(") 깊이++; else if (t[i] === ")") 깊이--; i++; }
+      return /^\s*(===|!==|==|!=)/.test(t.slice(i));   // 닫는 괄호 바로 뒤가 견주기인가
+    });
+  };
+  for (const f of 부르는곳) {
+    const t = 코드만(read(f));
+    if (견주기만(t)) { ok(`${f} 은 homeFor 를 **견주기만** 한다 (null 이면 거짓 → 막힌다)`, true); continue; }
+    ok(`${f} 이 knownRole 로 먼저 가른다`, /knownRole\s*\(/.test(t),
        "모르는 역할에 null 이 나오는데 그걸 그냥 주소로 쓰면 /null 로 날아간다");
+  }
   // 마지막 방벽 — 받는 쪽(go)이 주소가 아닌 값을 막는다
   ok("middleware 의 go() 가 「/ 로 시작하는 문자열」이 아니면 아무 데도 안 보낸다",
      /typeof\s+to\s*!==\s*["']string["']/.test(code.mw) && /startsWith\s*\(\s*["']\/["']\s*\)/.test(code.mw));

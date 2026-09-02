@@ -680,7 +680,15 @@ try {
     let sawWb = false, bad = null;
     for (const x of all) { if (x.isWorkbook) sawWb = true; else if (sawWb) bad = x.label; }
     ok("⚠️ 검사 Q — 워크북 뒤에 같은 대단원 본책이 안 나온다", bad === null, bad || "");
-    ok("단원 이름은 DB(v2.unit_label)가 준 것을 쓴다", /Chapter 04 부정사 ›/.test(all[0].label), all[0].label);
+    // ⚠️ **생김새를 글자로 박지 않는다.** 여기 `Chapter 04 부정사 ›` 를 박아 뒀더니
+    //    0073·0074 로 약자를 넣는 순간(원장님 확정 — 「약자가 좋을듯」) 이 줄이 깨졌다.
+    //    검사가 봐야 하는 것은 **생김새가 아니라 「DB 가 준 그것을 쓰는가」** 다.
+    //    → 같은 줄에 v2.unit_label 을 다시 물어 **글자까지 같은지** 본다.
+    //      lumpsOf 가 제 손으로 이름을 짓기 시작하면 (원칙 1 — 두 벌) 이 줄이 그날 걸린다.
+    const 첫줄 = rows.find((r) => r.id === all[0].unitId) ?? rows[0];
+    const dbLabel = (await c.query(`select v2.unit_label($1, true) as l`, [첫줄.id])).rows[0].l;
+    ok("단원 이름은 DB(v2.unit_label)가 준 것을 **글자까지 그대로** 쓴다",
+       all[0].label === dbLabel, `${all[0].label} vs ${dbLabel}`);
   }
 
   // ⓐ-2 ⚠️ 날짜가 하루 밀리지 않는가 — node-pg 는 date 를 **그 기계 자정** Date 로 준다

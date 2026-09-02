@@ -80,7 +80,7 @@ console.log("\n■ ② 지난 판에서 **갯수 · 분량 · 뺄 항목**을 �
   ok("그때 갯수는 2회차", s.count === 2, String(s.count));
 }
 {
-  const s = sameFrom([past({ range_note: "17번만" })], { items: [item(1, "home", "문답노트")] });
+  const s = sameFrom([past({ range_note: "1-30번" })], { items: [item(1, "home", "문답노트")] });
   ok("⚠️ 범위가 쪽이 아니라 문항이면 **분량을 안 지어낸다**", s.pages === null && s.kind === "q",
      JSON.stringify({ pages: s.pages, kind: s.kind }));
   ok("그 사실을 글로 남긴다", s.notes.some((t) => /문항/.test(t)), JSON.stringify(s.notes));
@@ -266,9 +266,13 @@ try {
   const db = { query: (s, p) => c.query(s, p) };
 
   // ⚠️⚠️ **진짜 재원생에게 쓰지 마라.** `state='active'` 로 고르면 원장님 판에 없는 숙제가 남는다
+  //    ⚠️ **교재를 든 리허설 학생**을 고른다 — 이름 차례로 집으면 배정 없는 계정이 잡힌다(실측)
   const stu = (await c.query(
-    `select id, name from v2.students where import_batch = 'fixture' order by name limit 1`)).rows[0];
-  if (!stu) throw new Error("리허설 학생(zz_시험_)이 없다 — 진짜 학생으로는 안 돌린다");
+    `select s.id, s.name from v2.students s
+      where s.import_batch = 'fixture'
+        and exists (select 1 from v2.student_book sb where sb.student_id = s.id)
+      order by s.name limit 1`)).rows[0];
+  if (!stu) throw new Error("교재를 든 리허설 학생(zz_시험_)이 없다 — 진짜 학생으로는 안 돌린다");
   const sb = (await c.query(
     `select sb.book_id, b.name, b.area, sb.per_session, sb.round
        from v2.student_book sb join v2.books b on b.id = sb.book_id
