@@ -19,6 +19,9 @@
 
 import { useState, useTransition } from "react";
 import { turnProgressEditOff, saveCardOrder } from "./actions.js";
+// ⚠️ 차례 판단은 **lib 한 벌**이다 (원칙 1). 여기 다시 적지 않는다 —
+//    같은 판단이 `app/me/derive.js` 에도 있어 두 벌이었다.
+import { applyOrder, moveOne, canUp, canDown, CARDS } from "../../lib/screens.js";
 
 /* ══ 1. 접기 ══════════════════════════════════════════════════════════
  * ⚠️ 「끝낸 것은 아래로 접고 개수만 띄운다」(⑮ 2). **접힌 것도 분자에 그대로 들어간다** —
@@ -105,16 +108,13 @@ export function EditOpenLine({ days, from }) {
  *    다시 그리면 그 카드가 서버를 또 부른다(계획 「속도」 5).                        */
 export function CardDeck({ ids, labels, initial, children }) {
   const known = ids.map(String);
-  const start0 = (initial ?? []).filter((k) => known.includes(k));
-  const [order, setOrder] = useState([...start0, ...known.filter((k) => !start0.includes(k))]);
+  const [order, setOrder] = useState(() => applyOrder(initial, known));
   const [why, setWhy] = useState("");
   const [busy, start] = useTransition();
 
   const move = (id, d) => {
-    const i = order.indexOf(id), j = i + d;
-    if (i < 0 || j < 0 || j >= order.length) return;
-    const next = [...order];
-    next[i] = next[j]; next[j] = id;
+    const next = moveOne(order, id, d < 0 ? "up" : "down");
+    if (next === order) return;                            // 끝에서 더 밀면 아무 일도 안 한다
     setOrder(next);                                        // 먼저 바꾸고
     setWhy("");
     start(async () => {
@@ -135,12 +135,12 @@ export function CardDeck({ ids, labels, initial, children }) {
           <div className="cardhd">
             <span style={{ flex: "1 1 160px", whiteSpace: "normal" }}>{labels[id]}</span>
             <span className="row" style={{ gap: "var(--s1)" }}>
-              <button type="button" className="btn btnghost" disabled={busy || order.indexOf(id) === 0}
+              <button type="button" className="btn btnghost" disabled={busy || !canUp(order, id)}
                       onClick={() => move(id, -1)} style={{ padding: "0 var(--s3)" }}>
                 <span aria-hidden="true">▲</span><span className="sronly">위로</span>
               </button>
               <button type="button" className="btn btnghost"
-                      disabled={busy || order.indexOf(id) === known.length - 1}
+                      disabled={busy || !canDown(order, id)}
                       onClick={() => move(id, 1)} style={{ padding: "0 var(--s3)" }}>
                 <span aria-hidden="true">▼</span><span className="sronly">아래로</span>
               </button>

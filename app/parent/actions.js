@@ -24,6 +24,7 @@ import { countDates, ymd, monthRange } from "@/lib/session";
 import { ROLE, MONTHS_AHEAD, addMonth, ymOf } from "./shape";
 import { PLAN_TAG } from "./words";
 import { readClasses } from "./read";
+import { orderToSave, SCREENS } from "@/lib/screens";
 
 
 const say = (error) => ({ ok: false, error });
@@ -157,4 +158,30 @@ function 사람말로(error, what) {
   if (code === "42501" || /row-level security/i.test(String(error?.message ?? "")))
     return "권한이 없어 저장하지 못했습니다. 원장님께 알려주세요.";
   return `${what}을(를) 저장하지 못했습니다 (${code || "까닭 모름"}). 원장님께 알려주세요.`;
+}
+
+/* ── 카드 차례 (계획 ⑮ 1) ───────────────────────────────────────────────
+ * ⚠️ **사람마다 따로다.** 그래서 안내 글에서 「세 번째 칸을 보세요」를 못 쓴다 —
+ *    이름으로 가리켜야 한다(계획 ⑮ 1 의 「대가」).
+ * ⚠️ 여기서는 **되돌릴 수 있는 것**이라 낙관적 갱신을 쓴다(대전제 8 의 반대편) —
+ *    화면이 먼저 바뀌고, 실패하면 그 자리만 되돌린다.
+ * ⚠️ 판단(모르는 이름 버리기·빠진 것 붙이기)은 `lib/screens.js` 한 벌이다.  */
+export async function saveCardOrder(order) {
+  if (!keys().ok) return say("앱 설정이 아직 덜 됐습니다. 원장님께 알려주세요.");
+  const supabase = serverClientFromStore(await cookies());
+  const me = await roleOf(supabase);
+  if (!me.user) return say("로그인이 풀렸습니다. 다시 로그인해 주세요.");
+  if (me.role !== ROLE) return say(me.msg || "학부모 계정에서만 바꿀 수 있습니다.");
+
+  const 걸러진 = orderToSave(order, SCREENS.parent);
+  if (!걸러진.ok) return say(걸러진.why);
+
+  const r = await supabase.schema(SCHEMA).from("screen_pref")
+    .upsert({ profile_id: me.user.id, screen: SCREENS.parent, layout: { order: 걸러진.order } },
+            { onConflict: "profile_id,screen" })
+    .select("screen");
+  // ⚠️ **몇 줄이 바뀌었는지 본다** (자동 검사 ⑪). 접근 규칙이 막았는데 「저장됨」이라 하면 안 된다
+  if (r.error) return say(r.error.message);
+  if (!r.data?.length) return say("한 줄도 안 바뀌었습니다 — 저장되지 않았습니다.");
+  return { ok: true, order: 걸러진.order };
 }

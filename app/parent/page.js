@@ -17,7 +17,7 @@
 import LogoutButton from "../logout-button";
 import ParentView from "./view";
 import { loadParent } from "./read";
-import { tellPlan, leaveWord } from "./actions";
+import { tellPlan, leaveWord, saveCardOrder } from "./actions";
 
 // ⚠️ 사람마다 다른 값을 그린다 — 통째로 굳히면 남의 아이 화면이 캐시로 나간다
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export default async function Parent({ searchParams }) {
   return (
     <main className="wrap stack">
       <h1>{model.student?.name ? `${model.student.name} 학생` : "우리 아이"}</h1>
-      <ParentView model={model} tellPlan={tellPlan} leaveWord={leaveWord} />
+      <ParentView model={model} tellPlan={tellPlan} leaveWord={leaveWord} saveCardOrder={saveCardOrder} />
       <LogoutButton />
     </main>
   );

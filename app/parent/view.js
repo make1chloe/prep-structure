@@ -15,7 +15,9 @@
  *     학부모에게 순위가 보이면 중하위권 가정에서 불만이 나온다.
  *   · 되돌릴 수 없는 것(원장님께 가는 말·자료)은 **서버 답을 기다린다.** 낙관적 갱신을 안 쓴다.
  */
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useActionState, useMemo, useRef, useState, useTransition } from "react";
+// ⚠️ 카드 차례 판단은 **lib 한 벌**이다 (원칙 1 · 계획 ⑮ 1)
+import { applyOrder, moveOne, canUp, canDown, CARDS } from "@/lib/screens";
 import { acceptBatch, isImage, MAX_FILES, MAX_EDGE } from "@/lib/files";
 import { CELL, DOW, PREPARING, NOTHING } from "./shape";
 import { FIRST_TIME, LEAVE_NOTE, PLAN_NOTE, REQUEST_NAME } from "./words";
@@ -26,13 +28,35 @@ const SLOT_NAME = { check: "검사", class: "학원에서", home: "숙제", next
 const STATUS_NAME = { none: "아직", done: "다 함", weak: "조금 더", missing: "안 했음", inclass: "학원에서 함" };
 const STATUS_PILL = { none: "pillinfo", done: "pillok", weak: "pillwarn", missing: "pillbad", inclass: "pilloff" };
 
-export default function ParentView({ model, tellPlan, leaveWord }) {
+export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }) {
   const [picked, setPicked] = useState(null);
   const [open, setOpen] = useState({
     intro: true, recent: true, homework: true, next: false,
     files: false, word: true, reports: false, sent: false,
   });
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+
+  /* ── 카드 차례 (계획 ⑮ 1) — **사람마다 따로** ────────────────────────
+   * ⚠️ 판단은 `lib/screens.js` 한 벌이다. 여기 다시 적지 않는다(원칙 1).
+   * ⚠️ 저장은 **뒤에서** 보낸다 — 차례는 되돌릴 수 있는 것이라 낙관적 갱신을 쓴다.
+   *    실패하면 **그 자리만** 되돌리고 왜인지 화면에 적는다(조용히 넘어가지 않는다).  */
+  const [순서, set순서] = useState(() => applyOrder(model.cardOrder, CARDS.parent));
+  const [차례못함, set차례못함] = useState("");
+  const [옮기는중, 옮기기시작] = useTransition();
+  const 옮기기 = (id, 어디로) => {
+    const 다음 = moveOne(순서, id, 어디로);
+    if (다음 === 순서) return;                 // 끝에서 더 밀면 아무 일도 안 한다
+    const 전 = 순서;
+    set순서(다음); set차례못함("");
+    옮기기시작(async () => {
+      const r = await saveCardOrder(다음);
+      if (!r?.ok) { set순서(전); set차례못함(r?.error || "까닭을 모릅니다"); }
+    });
+  };
+  const 차례 = (id) => ({
+    id, at: 순서.indexOf(id), first: 옮기는중 || !canUp(순서, id),
+    last: 옮기는중 || !canDown(순서, id), onMove: 옮기기,
+  });
 
   const dayOf = useMemo(() => {
     const m = new Map();
@@ -81,8 +105,16 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
         </nav>
       )}
 
+      {차례못함 && (
+        <p className="sunk" style={{ margin: 0, color: "var(--bad-fg)", background: "var(--bad-bg)" }}>
+          ⚠️ 카드 차례를 못 바꿨습니다 — {차례못함} (지금 보이는 차례는 이 화면에서만 그렇습니다)
+        </p>
+      )}
+
+      {/* ⚠️ **여기가 flex 여야 카드의 `order` 가 먹는다.** 아니면 차례를 눌러도 아무 일도 안 난다 */}
+      <div className="pr-deck">
       {/* ── ① 처음 오신 분께 ──────────────────────────────────────────── */}
-      <Card title="처음 오셨나요" open={open.intro} onToggle={() => toggle("intro")}>
+      <Card title="처음 오셨나요" {...차례("intro")} open={open.intro} onToggle={() => toggle("intro")}>
         <ul className="pr-list">
           {FIRST_TIME.map((t, i) => <li key={i}>{strong(t)}</li>)}
         </ul>
@@ -95,7 +127,7 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
 
       {/* ── ② 최근 수업 ───────────────────────────────────────────────── */}
       {show(model, model.recent) && (
-        <Card title="최근 수업" open={open.recent} onToggle={() => toggle("recent")}
+        <Card title="최근 수업" {...차례("recent")} open={open.recent} onToggle={() => toggle("recent")}
               count={model.recent.length}>
           {model.recent.slice(0, 5).map((d) => <DayBlock key={d.id ?? d.date} d={d} />)}
         </Card>
@@ -103,7 +135,7 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
 
       {/* ── ③ 과제 ────────────────────────────────────────────────────── */}
       {show(model, model.homework) && (
-        <Card title="과제" open={open.homework} onToggle={() => toggle("homework")}
+        <Card title="과제" {...차례("homework")} open={open.homework} onToggle={() => toggle("homework")}
               count={model.homework.length}>
           <p className="muted pr-small">
             ⚠️ <b>앞으로 할 것도 같이 있습니다.</b> 「다음에 할 것」은 아직 안 한 것이 아니라 다음 시간에 할 것입니다.
@@ -139,7 +171,7 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
             <Legend />
           </section>
         ) : (
-          <Card key={mo.ym} title={mo.label} open={open.next} onToggle={() => toggle("next")}>
+          <Card key={mo.ym} title={mo.label} {...차례("next")} open={open.next} onToggle={() => toggle("next")}>
             <Calendar mo={mo} picked={picked} onPick={setPicked} />
           </Card>
         )
@@ -155,18 +187,18 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
       )}
 
       {/* ── ⑥ 자료 보내기 (계획 ㊸) ───────────────────────────────────── */}
-      <Card title="자료 보내기" open={open.files} onToggle={() => toggle("files")}>
+      <Card title="자료 보내기" {...차례("files")} open={open.files} onToggle={() => toggle("files")}>
         <SendFiles model={model} />
       </Card>
 
       {/* ── ⑦ 남기실 말 ──────────────────────────────────────────────── */}
-      <Card title="남기실 말" open={open.word} onToggle={() => toggle("word")}>
+      <Card title="남기실 말" {...차례("word")} open={open.word} onToggle={() => toggle("word")}>
         <LeaveWord model={model} leaveWord={leaveWord} />
       </Card>
 
       {/* ── ⑧ 월간 리포트 — **보내야 보인다** ─────────────────────────── */}
       {show(model, model.reports) && (
-        <Card title="월간 리포트" open={open.reports} onToggle={() => toggle("reports")}
+        <Card title="월간 리포트" {...차례("reports")} open={open.reports} onToggle={() => toggle("reports")}
               count={model.reports.length}>
           {model.reports.map((r) => (
             <div key={r.ym} className="pr-block">
@@ -183,7 +215,7 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
 
       {/* ── ⑨ 보내신 것 — 「원장님이 보셨나」를 같이 보여 준다 ─────────── */}
       {show(model, model.requests) && (
-        <Card title="보내신 것" open={open.sent} onToggle={() => toggle("sent")}
+        <Card title="보내신 것" {...차례("sent")} open={open.sent} onToggle={() => toggle("sent")}
               count={model.requests.length}>
           <ul className="pr-list">
             {model.requests.map((r) => (
@@ -202,6 +234,8 @@ export default function ParentView({ model, tellPlan, leaveWord }) {
           </ul>
         </Card>
       )}
+
+      </div>
 
       {/* ⚠️ 하나도 없을 때 — **예쁜 빈 화면을 만들지 않는다.** 무엇이 없어서 비었는지를 적는다 */}
       {!hasAny && (
@@ -225,16 +259,37 @@ function show(model, list) {
   return (list?.length ?? 0) > 0 || !model.hideEmpty;
 }
 
-/** 접었다 펴는 카드. ⚠️ 접기는 **다시 조회하지 않는다** — 값은 이미 다 받아 왔다 */
-function Card({ title, count, open, onToggle, children }) {
+/**
+ * 접었다 펴는 카드. ⚠️ 접기는 **다시 조회하지 않는다** — 값은 이미 다 받아 왔다.
+ *
+ * ⚠️⚠️ **머리를 통째로 단추로 두지 않는다.** 차례 옮기는 ▲▼ 를 붙여야 하는데
+ *    단추 안에 단추는 못 넣는다(브라우저가 바깥 것만 누른 것으로 친다).
+ *    → 펴고 접는 단추와 ▲▼ 를 **나란히** 둔다.
+ * ⚠️ 차례를 바꿔도 **카드 속을 다시 안 그린다** — flex 의 `order` 만 바꾼다(계획 「속도」 5).
+ */
+function Card({ id, title, count, open, onToggle, at, first, last, onMove, children }) {
   return (
-    <section className={`card acc ${open ? "is-open" : ""}`}>
-      <button type="button" className="pr-acchd" onClick={onToggle} aria-expanded={open}>
-        <span className="cardhd pr-acctitle">{title}</span>
-        {count != null && <span className="chip num">{count}</span>}
-        <span className="pr-caret" aria-hidden="true">{open ? "▲" : "▼"}</span>
-        <span className="sronly">{open ? "접기" : "펴기"}</span>
-      </button>
+    <section className={`card acc ${open ? "is-open" : ""}`} style={at == null ? undefined : { order: at }}>
+      <div className="pr-acchd">
+        <button type="button" className="pr-accbtn" onClick={onToggle} aria-expanded={open}>
+          <span className="cardhd pr-acctitle">{title}</span>
+          {count != null && <span className="chip num">{count}</span>}
+          <span className="pr-caret" aria-hidden="true">{open ? "▲" : "▼"}</span>
+          <span className="sronly">{open ? "접기" : "펴기"}</span>
+        </button>
+        {onMove && (
+          <span className="row pr-move">
+            <button type="button" className="btn btnghost" disabled={first}
+                    onClick={() => onMove(id, "up")}>
+              <span aria-hidden="true">▲</span><span className="sronly">{title} 위로</span>
+            </button>
+            <button type="button" className="btn btnghost" disabled={last}
+                    onClick={() => onMove(id, "down")}>
+              <span aria-hidden="true">▼</span><span className="sronly">{title} 아래로</span>
+            </button>
+          </span>
+        )}
+      </div>
       <div className="accbd">{children}</div>
     </section>
   );
@@ -545,6 +600,10 @@ const css = `
 .pr-radio{width:auto;min-height:0;margin-right:var(--s1)}
 .pr-on{border-color:var(--accent);color:var(--accent);font-weight:700}
 
+.pr-deck{display:flex;flex-direction:column;gap:var(--s3)}
+.pr-accbtn{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;flex:1 1 160px;
+  min-width:0;background:none;border:0;text-align:left;padding:0;color:inherit;cursor:pointer}
+.pr-move{flex:0 0 auto;gap:var(--s1)}
 .pr-acchd{display:flex;flex-wrap:wrap;gap:var(--s2);align-items:center;width:100%;
   min-height:var(--tap);padding:0;border:0;background:none;color:inherit;
   font-family:inherit;font-size:var(--fs4);text-align:left;cursor:pointer}

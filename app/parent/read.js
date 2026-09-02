@@ -21,6 +21,7 @@
  * ⚠️ **조회 수에 상한을 둔다** (`MAX_READS`). 지금 앱에서 화면 하나가 30건을 조회해 느려졌다.
  *    한 건 더 붙일 때마다 이 숫자를 봐야 하고, 넘으면 그 자리에서 던진다.
  */
+import { applyOrder, orderInLayout, CARDS, SCREENS } from "@/lib/screens";
 import { cookies } from "next/headers";
 import { serverClientFromStore, roleOf, keys, SCHEMA } from "@/lib/supabase-server";
 import { hideEmptyCards } from "@/lib/close";
@@ -265,6 +266,13 @@ export async function loadParent(opts = {}) {
     seen: Boolean(r.seen_at), answered: Boolean(r.answered_at), answer: r.answer ?? null,
   }));
 
+  // ⚠️ 자기 줄만 읽는다 (`own_sp` 정책이 profile_id = auth.uid() 로 막는다).
+  //    없으면 null 이고 그것이 정상이다 — 한 번도 안 바꾼 사람이다.
+  // ⚠️ 조회가 실패해도 **화면을 죽이지 않는다** — 차례는 곁가지다. 기본 차례로 그린다.
+  const prefRes = await sb.from("screen_pref")
+    .select("layout").eq("profile_id", me.user.id).eq("screen", SCREENS.parent).limit(1);
+  const pref = prefRes?.data?.[0] ?? null;
+
   return {
     ok: true,
     reads: cnt.n,
@@ -275,6 +283,9 @@ export async function loadParent(opts = {}) {
     today, from, to: toClamped,
     months, recent, homework, reports, requests,
     hideEmpty: hideEmptyCards(ROLE),   // ⚠️ 아이·학부모 화면에서만 빈 카드를 숨긴다 (계획 ⑮ 3번)
+    // 카드 차례 — **사람마다 따로**(계획 ⑮ 1). 판단은 `lib/screens.js` 한 벌이다.
+    // ⚠️ 저장값을 그대로 쓰지 않는다 — 카드를 더하거나 없앤 날 어긋난다. applyOrder 가 고쳐 준다.
+    cardOrder: applyOrder(orderInLayout(pref?.layout), CARDS.parent),
     startTimes: schedules.map((s) => String(s.start_time ?? "").slice(0, 5)).filter(Boolean),
   };
 }

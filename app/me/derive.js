@@ -15,6 +15,8 @@
  * ⚠️ 세어 나오는 값은 **저장하지 않는다**(원칙 5). 아래는 전부 그때그때 센다.
  */
 
+// ⚠️ 차례 판단은 **lib/screens.js 한 벌**이다 (원칙 1) — 여기 이름만 우리말로 붙인다
+import { applyOrder, moveOne, moveTo, CARDS } from "../../lib/screens.js";
 import { addDays, daysBetween } from "@/lib/queue";
 import { countDates } from "@/lib/session";
 
@@ -97,40 +99,20 @@ export function 카드어떻게(있나, 마감됐나) {
  *    그것이 패파에서 실제로 난 사고다 — 「같은 숙제가 세 군데에 보여 아이가 어디를 봐야 할지 모른다」.
  *    진도 체크는 설정이 열렸을 때 **로드맵 줄에 ○◐· 가 붙는 것**으로 나타난다.
  */
-export const 카드들 = Object.freeze(["today", "books", "flags"]);
+export const 카드들 = CARDS.me;   // ⚠️ 목록도 lib 한 벌 — 화면에 다시 적지 않는다
 
 /**
  * 저장해 둔 순서를 입힌다.
  * ⚠️ 저장값을 **믿지 않는다** — 카드를 하나 더 만든 날 저장값에는 그 이름이 없다.
  *    모르는 이름은 버리고, 빠진 이름은 기본 차례로 뒤에 붙인다. 그래야 카드가 안 사라진다.
  */
-export function 순서입히기(저장값, 기본 = 카드들) {
-  const 목록 = Array.isArray(저장값) ? 저장값 : [];
-  const 살아있는 = 목록.filter((k) => 기본.includes(k));
-  const 남은 = 기본.filter((k) => !살아있는.includes(k));
-  return [...new Set([...살아있는, ...남은])];
-}
+export const 순서입히기 = (저장값, 기본 = 카드들) => applyOrder(저장값, 기본);
 
 /** ▲▼ 한 칸 옮기기. 끝에서 더 밀면 **그대로 둔다**(고리처럼 돌면 아이가 어디로 갔는지 못 찾는다) */
-export function 한칸옮기기(순서 = [], key, 어디로) {
-  const i = 순서.indexOf(key);
-  const j = i + (어디로 === "up" ? -1 : 1);
-  if (i < 0 || j < 0 || j >= 순서.length) return 순서;
-  const 새 = [...순서];
-  새[i] = 새[j];
-  새[j] = key;
-  return 새;
-}
+export const 한칸옮기기 = (순서 = [], key, 어디로) => moveOne(순서, key, 어디로);
 
 /** 끌어다 놓기 — `from` 을 빼서 `to` 자리에 끼운다 */
-export function 끌어옮기기(순서 = [], from, to) {
-  const i = 순서.indexOf(from), j = 순서.indexOf(to);
-  if (i < 0 || j < 0 || i === j) return 순서;
-  const 새 = [...순서];
-  새.splice(i, 1);
-  새.splice(j, 0, from);
-  return 새;
-}
+export const 끌어옮기기 = (순서 = [], from, to) => moveTo(순서, from, to);
 
 /* ══ 5. 교재 로드맵 — 전 대단원 (보드 C) ═════════════════════════════ */
 
