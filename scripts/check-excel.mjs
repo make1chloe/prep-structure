@@ -88,6 +88,13 @@ function fakeDb(seed = {}) {
 
     m = /^select \* from v2\.excel_row where run_id = \$1/.exec(s);
     if (m) return { rows: T.excel_row.filter((r) => r.run_id === p[0]).sort((a, b) => b.id - a.id) };
+    m = /^select id, undone_at from v2\.excel_run where id = \$1$/.exec(s);
+    if (m) return { rows: T.excel_run.filter((r) => r.id === p[0]) };
+    if (s.startsWith("update v2.excel_run set undone_at")) {
+      const r = T.excel_run.find((x) => x.id === p[0]);
+      if (r) r.undone_at = new Date();
+      return { rows: [], rowCount: r ? 1 : 0 };
+    }
 
     if (s.startsWith("insert into v2.excel_run")) {
       const id = ++runId; T.excel_run.push({ id, sheet: p[0], tbl: p[1] });
@@ -522,6 +529,11 @@ console.log("\n■ 규칙 8 — 올린 묶음 번호 · 되돌리기 (지우지 
      db.T.material_type[1].state === "retired" && db.T.material_type.length === 2,
      JSON.stringify(db.T.material_type[1]));
   ok("되돌린 수를 말한다", u.back === 1 && u.downed === 1, JSON.stringify(u));
+  // ⚠️ 두 번 되돌리면 그 사이에 앱에서 고친 값을 옛 값으로 덮는다
+  db.T.material_type[0].sort = 77;
+  const again = await undo(db, r.runId);
+  ok("두 번은 안 되돌린다 (그 사이에 앱에서 고친 값을 안 덮는다)",
+     again.back === 0 && db.T.material_type[0].sort === 77, JSON.stringify(again));
 
   // 상태 칸이 없는 표는 **못 되돌린다**고 정직하게 말한다
   const db2 = fakeDb({ learn_items: [{ id: "i1", name: "구두테스트", state: "active" }],
