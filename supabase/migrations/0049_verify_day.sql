@@ -93,18 +93,30 @@ begin
     (select count(*) from v2.day_sheet d where d.import_batch='import'
        and exists (select 1 from public.daily_reports r
                    where r.student_id=d.student_id and r.date=d.date)), null),
+   -- ⚠️⚠️ **양쪽이 똑같은 질의였다.** 옛 것을 세고 새 것도 **옛 것을 세어** 늘 908 = 908 이었다 —
+   --    원리적으로 못 틀리는 줄이다(이 파일 머리말이 경고한 바로 그 함정인데 여기서 다시 밟았다).
+   --    → 새 쪽은 **진짜 새 값**을 센다: 그날 판이 실제로 `present` 로 섰는가.
    ('출결·판에 안 적힌 날', '→ present 로 봤다',
     (select count(*) from public.daily_reports r join v2.students x on x.id=r.student_id
        where x.import_batch='import' and r.attendance_kind is null),
-    (select count(*) from public.daily_reports r join v2.students x on x.id=r.student_id
-       where x.import_batch='import' and r.attendance_kind is null),
-    '판이 있다는 것이 곧 그날 수업했다는 뜻이다'),
-   ('검사 줄', null,
-    (select count(*) from public.daily_report_items i
-       join public.daily_reports r on r.id=i.daily_report_id
-       join v2.students x on x.id=r.student_id where x.import_batch='import'),
+    (select count(*) from public.daily_reports r
+       join v2.students x on x.id=r.student_id
+       join v2.day_sheet d on d.student_id=r.student_id and d.date=r.date
+                          and d.import_batch='import'
+      where x.import_batch='import' and r.attendance_kind is null and d.attend='present'),
+    '판이 있다는 것이 곧 그날 수업했다는 뜻이다 — 그래서 present 로 섰는지를 센다'),
+   -- ⚠️⚠️ **양쪽을 같은 조건으로 좁혀 4,131 = 4,131 이었다.** 옛 쪽을 「옮긴 아이만」으로
+   --    좁히면 **안 옮긴 아이 줄이 양쪽에서 똑같이 사라져** 없어진 것을 원리적으로 못 잡는다.
+   --    실제로 매핑표가 없는 줄 19개를 가리키고 있었는데 이 대조는 초록이었다(검사-⑱).
+   --    → 옛 쪽은 **통째로** 세고, 새 쪽은 **옮긴 것 + 사유와 함께 안 옮긴 것**을 센다.
+   --      「옛 전체 = 옮긴 것 + 까닭이 적힌 것」이라야 한 줄도 조용히 안 사라진다(계획 1-3).
+   ('검사 줄', '옛 전체 = 옮긴 것 + 사유와 함께 안 옮긴 것',
+    (select count(*) from public.daily_report_items),
     (select count(*) from v2.day_item t join v2.day_sheet d on d.id=t.sheet_id
-       where d.import_batch='import'), null);
+       where d.import_batch='import')
+    + (select count(*) from v2.import_map m
+        where m.old_table='daily_report_items' and m.new_table is null and m.skip_why is not null),
+    '안 옮긴 줄은 매핑표에 사유와 함께 남는다 — 사유 없이 사라지면 여기서 걸린다');
 end $$;
 grant execute on function v2.import_verify_day() to service_role;
 

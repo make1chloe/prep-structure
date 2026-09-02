@@ -7,7 +7,7 @@
  *     그래서 이 검사는 「문서에 있나」가 아니라 **「문서가 지금 DB 와 같나」**를 본다 —
  *     표를 더하고 문서를 안 다시 만들면 여기서 걸린다. */
 import { Client } from "pg";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const DOC = "docs/표-유도.md";
@@ -45,5 +45,25 @@ ok("문서가 지금 DB 와 같다 (안 같으면 `node scripts/build-doc.mjs` �
    rebuilt !== "" && rebuilt === doc,
    rebuilt === "" ? "다시 만들다 터졌다" : "문서가 낡았다 — 방금 다시 만들었으니 커밋해라");
 
+/* ══ 규칙 문서의 「지킴:」이 **진짜 검사 이름**인가 ═══════════════════════════
+ * `docs/규칙.md` 가 스스로 요구한다 — 「규칙을 지키는 검사가 생기면 그 이름을 규칙 옆에 적는다」.
+ * ⚠️ 적어만 두면 **이름이 썩는다** — 검사 파일 이름을 바꾸는 날 문서만 옛 이름을 들고 남는다.
+ *    그러면 원장님은 「이건 지켜지고 있다」고 읽는데 그 검사는 없다(대전제-0).                */
+{
+  const rules = readFileSync("docs/규칙.md", "utf8");
+  const 있는것 = new Set(readdirSync("scripts").filter((f) => /^check-.*\.mjs$/.test(f))
+    .map((f) => f.replace(/\.mjs$/, "")));
+  const 적힌것 = [...new Set([...rules.matchAll(/\*\*지킴:\*\* `([^`]+)`/g)]
+    .flatMap((m) => m[1].split(" · ").map((x) => x.trim())))];
+  const 없는 = 적힌것.filter((x) => !x.endsWith("*") && !있는것.has(x));
+  ok("규칙 문서의 「지킴:」이 **진짜 있는 검사 이름**이다", 없는.length === 0,
+     `없는 이름: ${없는.join(" ")} — 검사 이름을 바꿨으면 docs/규칙.md 도 같이 고친다`);
+  const 빈칸 = (rules.match(/\*\*지킴:\*\* —/g) ?? []).length;
+  const 전체 = (rules.match(/\*\*지킴:\*\*/g) ?? []).length;
+  ok(`규칙 ${전체}개 중 **지키는 검사가 없는 것 ${빈칸}개** — 여기가 다음에 어긋날 자리다`,
+     전체 > 0, "「지킴:」이 한 줄도 없다 — 규칙 문서가 낡았다");
+}
+
 console.log(`\n■ 표 유도 검사 ${n}건 · 실패 ${fail}`);
+
 process.exit(fail ? 1 : 0);

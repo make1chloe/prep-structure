@@ -53,5 +53,38 @@ const hides = walk("app").filter((f) => /nav|menu|메뉴/i.test(readFileSync(f, 
 ok("**스크롤로 메뉴를 접는 자리가 없다** — 접히면 짧은 화면에서 다시 펼 길이 없다",
    hides.length === 0, hides.join(" "));
 
+/* ══ ⚠️⚠️ **메뉴가 진짜로 화면에 붙어 있나** ══════════════════════════════
+ * 이 검사는 오래 **상수와 파일 존재만** 보았다. 그래서 `<Nav>` 를 부르는 곳이
+ * **0곳**이던 동안에도 18/18 초록이었다 — 대시보드에서 밖으로 나가는 링크가 하나도 없고
+ * /today·/schedule 은 들어가면 못 나오는 상태였는데 아무도 안 잡았다(2026-09-02 전수 훑기).
+ * → 이제 **그려지는 자리**를 본다. 상수가 아니라 붙어 있는지를.                        */
+console.log("\n■ 메뉴가 **진짜로 붙어 있나** (0-10)");
+const 코드만 = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+const 앱 = walk("app").filter((f) => /\.jsx?$/.test(f));
+const 그리는곳 = 앱.filter((f) => /<Nav\b/.test(코드만(readFileSync(f, "utf8"))));
+ok("⚠️ `<Nav>` 를 **그리는 자리가 있다**", 그리는곳.length > 0,
+   "0곳이면 메뉴가 아무 화면에도 안 붙는다 — 대시보드에서 아무 데도 못 간다");
+
+// ⚠️ 화면마다 붙이면 **새 화면을 만든 날 그 화면만 메뉴가 없다.** layout 이 한 번 그려야 한다
+const 껍데기 = 앱.filter((f) => /app\/(layout|_nav\/)/.test(f) && /<Nav\b/.test(코드만(readFileSync(f, "utf8"))));
+ok("⚠️ 메뉴는 **layout 쪽에서 한 번** 그린다 (화면마다 붙이면 새 화면만 빠진다)",
+   껍데기.length > 0, `그리는 곳: ${그리는곳.join(" ") || "없음"}`);
+
+// ⚠️ layout 이 그 껍데기를 실제로 쓰는가 — 부품만 있고 안 쓰면 앞 단언이 헛돈다
+const lay = existsSync("app/layout.js") ? 코드만(readFileSync("app/layout.js", "utf8")) : "";
+ok("⚠️ `app/layout.js` 가 그 껍데기를 **실제로 그린다**",
+   /<Nav\b/.test(lay) || /<Shell\b/.test(lay), "layout 이 안 그리면 어느 화면에도 안 붙는다");
+
+// ⚠️ `nav.js` 는 `{onQuick && …}` 이라 **안 넘기면 퀵메모 단추가 아예 안 그려진다**
+const nav = existsSync("app/nav.js") ? 코드만(readFileSync("app/nav.js", "utf8")) : "";
+const 조건부 = /onQuick\s*&&/.test(nav);
+const 넘기는곳 = 앱.filter((f) => /onQuick\s*=\s*\{/.test(코드만(readFileSync(f, "utf8"))));
+ok(`⚠️ 퀵메모를 **넘기는 자리가 있다** (nav 가 ${조건부 ? "조건부라 안 넘기면 단추가 안 그려진다" : "무조건 그린다"})`,
+   !조건부 || 넘기는곳.length > 0, "onQuick 을 안 넘기면 0-10 의 퀵메모가 화면에 없는 것과 같다");
+
+// ⚠️ 나가는 길 — 홈에 깐 앱에는 주소창도 뒤로가기도 없다(대전제-10)
+ok("⚠️ 메뉴에 **나가는 길**이 있다 (홈에 깐 앱엔 주소창이 없다)",
+   /\/login/.test(nav), "app/nav.js 에 로그인/나가기 링크가 없다");
+
 console.log(`\n■ 메뉴 검사 ${n}건 · 실패 ${fail}`);
 process.exit(fail ? 1 : 0);
