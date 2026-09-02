@@ -597,7 +597,21 @@ function sampleHtml(css, r) {
   const rows = Array.from({ length: 24 }, (_, i) => row(r.studs[i % r.studs.length], i)).join("");
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>본보기</title>
-<style>${css}</style></head><body><div class="wrap"><div class="stack">
+<style>${css}</style></head><body>
+<!-- 메뉴 — 어느 화면에서든 늘 손에 닿는 자리 (0단계 10번) -->
+<nav class="nv"><div class="nv-in">
+  <a class="nv-a nv-here" href="#"><span class="nv-i">🏠</span><span class="nv-t">대시보드</span></a>
+  <a class="nv-a" href="#"><span class="nv-i">📋</span><span class="nv-t">오늘</span></a>
+  <a class="nv-a" href="#"><span class="nv-i">✉️</span><span class="nv-t">발송</span></a>
+  <a class="nv-a" href="#"><span class="nv-i">🗓</span><span class="nv-t">일정</span></a>
+  <a class="nv-a" href="#"><span class="nv-i">📚</span><span class="nv-t">교재</span></a>
+  <a class="nv-a" href="#"><span class="nv-i">💳</span><span class="nv-t">운영</span></a>
+  <a class="nv-a" href="#"><span class="nv-i">⚙️</span><span class="nv-t">설정</span></a>
+  <span class="nv-gap"></span>
+  <button class="nv-a nv-quick" type="button"><span class="nv-i">✏️</span><span class="nv-t">퀵메모</span></button>
+  <a class="nv-a nv-out" href="#"><span class="nv-i">🚪</span><span class="nv-t">나가기</span></a>
+</div></nav>
+<div class="wrap"><div class="stack">
 
 <h1>오늘 수업</h1>
 <h2 class="sronly">숙제 검사 표</h2>
