@@ -6,9 +6,9 @@
  *  ⚠️ 앞부분은 **가짜 DB** 로 돈다 (진짜 DB 를 안 건드린다).
  *     뒷부분은 진짜 DB 를 **읽기만** 한다 — insert/update/delete 를 한 줄도 안 쓴다.
  */
-import {
+import { expireGate, readExpireGate,
   planFor, purgeStudent, purgeFiles, filesDueSql, beatsKeep, maskExpr, residue, stampGate,
-  coverageGaps, handWork, columnFacts, REACH, SHAPED, MASK_CHAR,
+  coverageGaps, handWork, columnFacts, purgeMap, isExpire, REACH, SHAPED, MASK_CHAR,
 } from "../lib/purge.js";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -172,7 +172,16 @@ try {
 } catch (e) { c = null; ok("DB 에 붙는다 (못 붙으면 목록 정합성을 **확인 못 한 것**이다)", false, String(e.message)); }
 
 if (c) {
-  const map = (await c.query(`select schema_name, tbl, col, how, after_days, note from v2.purge_map order by tbl, col`)).rows;
+  /* ══ ⚠️⚠️ 목록은 **`purgeMap()` 을 불러서** 받는다 — 제 SQL 로 읽지 않는다. ══════════════
+   * 2026-09-03 까지 이 자리는 제 select 를 썼고 거기엔 `after_days` 가 있었다.
+   * 그래서 **이 검사는 날마다 초록**인데 `lib/purge.js` 의 `purgeMap()` 은 그 칸을 안 물어,
+   * 진짜 크론에서는 expire 두 줄이 「기한이 없다」로 막혀 **밤 8시마다 터졌다**(어긋난곳 ⑲).
+   * ⚠️ 검사가 제 SQL 로 읽으면 **lib 이 무엇을 안 읽는지 원리적으로 못 본다** —
+   *    오늘 같은 사고를 영영 못 잡는다. 부르는 함수를 그대로 부르는 것이 요점이다.
+   * ⚠️ `c` 는 pg Client 라 `{query}` 를 이미 갖췄지만, 어댑터 모양을 분명히 하려고 감싼다.
+   * ══════════════════════════════════════════════════════════════════════════════════ */
+  const db = { query: (sql, p = []) => c.query(sql, p) };
+  const map = await purgeMap(db);
   const v2rows = map.filter((r) => r.schema_name === "v2");
   const gaps = coverageGaps(map);
   ok(`파기 목록의 v2 줄 ${v2rows.length}개가 전부 닿는 길을 갖는다`,
@@ -202,6 +211,34 @@ if (c) {
   const plan = planFor({ map, facts, target: { kind: "student", studentId: STU, profileIds: [] } });
   ok("진짜 목록으로 계획을 세워도 막히는 자리가 없다", plan.blocked.length === 0,
      plan.blocked.map((b) => `${b.tbl}.${b.col}(${b.why})`).join(" · "));
+
+  /* ══ 날짜로 지우는 갈래(kind=expire) — **크론이 밤마다 도는 바로 그 길** ═══════════════
+   * ⚠️ 위 `kind: "student"` 만 봐서는 부족하다. 사람 파기 계획에서는 expire 줄이
+   *    `expired` 로 빠져나가 `steps` 에 안 실리므로, 기한이 null 이어도 **막힘으로만** 남고
+   *    사람 파기는 멀쩡히 돈다. 크론만 터진다 — 그 자리를 여기서 따로 문다.
+   * ⚠️ 안 하면 무엇이 터지나 — `purgeMap()` 이 다시 `after_days` 를 빠뜨려도
+   *    이 검사가 초록이고, 밤 8시 크론만 날마다 조용히 운다(어긋난곳 ⑲ 그대로).       */
+  const 기한줄 = map.filter(isExpire);
+  ok("파기 목록에 날짜로 지우는 줄이 있다 (0줄이면 아래 단언이 헛통과한다)",
+     기한줄.length > 0, `${기한줄.length}줄`);
+  ok("⚠️⚠️ purgeMap() 이 **기한(after_days)을 실어 온다** — 빠지면 크론이 날마다 터진다",
+     기한줄.every((m) => m.after_days != null),
+     기한줄.map((m) => `${m.tbl}.${m.col}=${m.after_days}`).join(" · "));
+  const 기한계획 = planFor({ map, facts, target: { kind: "expire" } });
+  ok("⚠️⚠️ kind=expire 로 계획해도 **막힌 자리가 0** 이다 (크론의 「기한파기」가 도는 조건)",
+     기한계획.blocked.length === 0,
+     기한계획.blocked.map((b) => `${b.tbl}.${b.col}(${b.why})`).join(" · "));
+  ok("기한 파기 문장이 목록 줄 수만큼 만들어진다",
+     기한계획.expired.length === 기한줄.length,
+     `${기한계획.expired.length} ≠ ${기한줄.length}`);
+  // ⚠️ 만들어진 문장을 **진짜 DB 에 PREPARE 해 본다** — 표·칸 이름이 실행할 때 정해져
+  //    `scripts/check-sql.mjs` 가 「못 물어봄」으로 건너뛴 자리다 (돌려 보지는 않는다)
+  for (const s of 기한계획.expired) {
+    let e = null;
+    try { await c.query(`prepare zz_expire_chk as ${s.sql}`); await c.query("deallocate zz_expire_chk"); }
+    catch (err) { e = err; await c.query("deallocate all").catch(() => {}); }
+    ok(`기한파기 문장이 진짜 스키마에 선다 — ${s.tbl}.${s.col} (${s.afterDays}일)`, !e, String(e?.message).split("\n")[0]);
+  }
 
   console.log("\n   — 검사가 아니라 **알림** (고칠 사람이 봐야 하는 것) —");
   note(`학생으로 안 닿아 **나이로 돌아야 하는데 기한이 없는** 자리 ${plan.notReached.length}칸: `
@@ -254,9 +291,16 @@ ok("이름을 가리는 식이 lib/purge.js 뿐이다", maskers.length === 0, ma
     const r = await purgeStudent(rdb, st.id);
     ok("파기가 돌았다 (문장 " + r.ran.length + "개)", r.ran.length > 0);
     ok("⚠️ 가린 뒤에는 이름이 **한 자리도 안 남는다**", r.residue.length === 0, JSON.stringify(r.residue));
-    ok("⚠️⚠️ 날짜로 지우는 줄(expire)이 막혀 있어도 **도장은 찍힌다**",
+    // ⚠️ 게이트는 **남의 표 사정으로 이 아이 파기일이 비면 안 된다**는 규칙을 지킨다.
+    //    날짜로 지우는 줄(expire)이 막혀도 도장은 찍혀야 한다 — `stampGate` 가 `isExpire` 를 걸러 낸다.
+    //    (2026-09-03 `purgeMap()` 이 기한을 실어 오게 고친 뒤로 이 자리 막힘은 **0개**다.
+    //     그래도 단언은 남긴다 — 언젠가 expire 줄 하나가 다시 막혀도 아이 도장이 같이 막히면 안 된다.)
+    ok("⚠️⚠️ 날짜로 지우는 줄(expire)이 막혀도 **도장은 찍힌다**",
        r.gate.ok === true && r.stamped !== null,
        `막힘 ${r.blocked.length}개 · 게이트 ${JSON.stringify(r.gate.why)} — 남의 표 사정으로 이 아이 파기일이 비면 안 된다`);
+    ok("사람 파기 계획에 expire 줄이 안 섞인다 (남의 되돌리기 자료를 같이 날리지 않는다)",
+       !r.ran.some((s) => s.tbl === "excel_row" || s.tbl === "excel_run"),
+       JSON.stringify(r.ran.map((s) => `${s.tbl}.${s.col}`)));
     ok("학생과 학부모 둘 다 찍혔다", (r.stamped?.students ?? 0) === 1 && (r.stamped?.profiles ?? 0) >= 1,
        JSON.stringify(r.stamped));
 
@@ -286,6 +330,33 @@ ok("이름을 가리는 식이 lib/purge.js 뿐이다", maskers.length === 0, ma
     ok("⚠️ 검사가 흔적을 안 남겼다 (도장 찍힌 학생 0명)", 남 === 0, `${남}명`);
     await rc.end();
   }
+}
+
+/* ══ 기한 파기 스위치 — **원장님이 켜기 전에는 한 줄도 안 지운다** (0087) ════════════
+ * ⚠️ 원장님 답은 **조건부 승낙**이었다: 「백업 따로 만들면 지워」. 백업을 못 지었으므로
+ *    조건이 안 채워졌고, 그러면 안 지운다. 이 스위치를 **기본 켜짐으로 바꾸면 빨개진다.**  */
+console.log("\n■ 기한 파기 스위치 (0087 — 원장님 조건이 아직 안 채워졌다)");
+ok("⚠️⚠️ 값이 없으면 **꺼진 것으로 본다** — 지어내서 켜지 않는다", expireGate(null).on === false);
+ok("⚠️ 글자 'true' 로는 안 켜진다 (참 하나만 켠다)", expireGate({ expire_on: "true" }).on === false);
+ok("켜면 켜진다", expireGate({ expire_on: true }).on === true);
+ok("꺼졌을 때 **왜 꺼졌는지**를 말한다 (원장님이 「고장」으로 안 읽으시게)",
+   /백업/.test(expireGate(null).why ?? ""));
+{
+  const cronSrc = readFileSync("app/api/cron/route.js", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok("⚠️ 크론의 기한파기 걸음이 **그 스위치를 지난다**",
+     /readExpireGate\s*\(/.test(cronSrc) && /gate\.on/.test(cronSrc));
+  ok("⚠️ 꺼졌다고 **던지지 않는다** — 「고장」과 「안 켜심」은 다른 일이다",
+     /if\s*\(!gate\.on\)\s*return/.test(cronSrc));
+}
+{
+  const url2 = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+  const { Client: C2 } = await import("pg");
+  const c2 = new C2({ connectionString: url2, ssl: { rejectUnauthorized: false } });
+  await c2.connect();
+  const g = await readExpireGate({ query: (q, p) => c2.query(q, p) });
+  ok("⚠️ **진짜 DB 에서도 꺼져 있다** — 배포되어도 한 줄도 안 지운다", g.on === false, JSON.stringify(g.on));
+  await c2.end();
 }
 
 console.log(`\n■ 파기 검사 ${n}건 · 실패 ${fail}`);

@@ -31,8 +31,17 @@ import { serverClientFromStore, roleOf } from "../../lib/supabase-server.js";
 import { setupSql } from "./read.js";
 import { turnProgressEditOff } from "../_home/actions.js";
 
-/** 원장·강사만. ⚠️ 문지기는 v2 를 못 읽을 때 아무도 안 옮긴다 — **여기서 스스로 본다** */
-const STAFF = new Set(["principal", "instructor"]);
+/**
+ * **설정은 원장만 연다** — 원장님 2026-09-03: 「아니 강사는 수강료 설정 못보게」.
+ *
+ * ⚠️ 판단은 `lib/menu.js` 의 `canSettings` 한 곳이다(대전제-4 · 원칙-1). 메뉴에서 「설정」을
+ *    빼는 것도 **같은 판단**을 쓴다 — 두 벌이면 메뉴엔 없는데 주소로는 열리는 날이 온다.
+ * ⚠️ 안 하면 무엇이 터지나: 문지기(`middleware.js`)는 첫 화면만 고르고 역할로 화면을 안 지킨다.
+ *    메뉴에서만 빼면 강사가 `/settings` 를 그대로 열어 배색·문구·진도 스위치를 고친다.
+ * ⚠️⚠️ **이것도 화면 가리개일 뿐이다.** 설정 표들의 접근 규칙은 `staff_all(is_staff())` 라
+ *    강사에게 DB 쪽은 열려 있다(2026-09-03 실측 · 보고에 올렸다).
+ */
+import { canSettings } from "../../lib/menu.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -96,7 +105,7 @@ async function staffId() {
   const supabase = serverClientFromStore(await cookies());
   const { user, role, msg } = await roleOf(supabase);
   if (!user) return { id: null, why: "로그인이 풀렸다 — 다시 로그인해 주세요" };
-  if (!STAFF.has(String(role))) return { id: null, why: msg || "원장·강사만 할 수 있다" };
+  if (!canSettings(role)) return { id: null, why: msg || "설정은 원장님만 고칠 수 있다" };
   return { id: user.id, why: "" };
 }
 

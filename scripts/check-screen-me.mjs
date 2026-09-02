@@ -54,6 +54,26 @@ const 읽기 = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "");
 /** ⚠️ 주석 속 경고 글을 「위반」으로 세면 **경고를 적을수록 검사가 빨개진다.** 주석은 지우고 본다 */
 const 코드만 = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
 
+/**
+ * `child_said` 정책이 여는 slot 목록을 **마이그레이션 전체에서** 읽는다.
+ * ⚠️ 마지막으로 그 정책을 만든 파일이 진짜다 — 0016(child_done) → 0082 → 0084 로 갈아 끼워졌다.
+ *    한 파일만 읽으면 갈아 끼운 다음 날부터 **거짓 초록**이 된다(규칙-어긋난곳의 네 번째 자리).
+ */
+function 정책칸읽기(sql) {
+  const m = /create\s+policy\s+child_said\s+on\s+v2\.day_item[\s\S]*?slot\s+in\s*\(([^)]*)\)/i.exec(sql);
+  return m ? m[1].split(",").map((x) => x.trim().replace(/'/g, "")).sort() : null;
+}
+function 마지막정책칸() {
+  let 마지막 = null;
+  for (const f of readdirSync("supabase/migrations").filter((x) => x.endsWith(".sql")).sort()) {
+    // ⚠️ 주석 줄을 먼저 지운다(폰-5 ①) — 되돌리기 안내에 적힌 옛 정책이 진짜로 오해된다
+    const 본문 = 읽기("supabase/migrations/" + f).split("\n").filter((l) => !/^\s*--/.test(l)).join("\n");
+    const 칸들 = 정책칸읽기(본문);
+    if (칸들) 마지막 = { 파일: f, 칸들 };
+  }
+  return 마지막;
+}
+
 const 내파일 = () =>
   readdirSync("app/me", { withFileTypes: true })
     .filter((e) => e.isFile() && e.name.endsWith(".js"))
@@ -189,14 +209,27 @@ await sec("■ ⑪ ⚠️ 진도 쓰기가 접근 규칙과 **같은 잣대**인
   ok("confirmed: false 를 반드시 싣는다 (= 확인 기다리는 중)", /confirmed:\s*false/.test(몸통));
   ok("회독을 지어내지 않는다 (없으면 거절한다)", /Number\.isInteger/.test(몸통) && /회독/.test(몸통));
 
-  // ⚠️ 화면의 목록과 **접근 규칙 원문**을 맞대어 본다. 두 벌이 갈리면 여기서 잡힌다
-  const rls = 읽기("supabase/migrations/0016_rls_rest.sql");
-  const m = /child_done[\s\S]*?slot in \(([^)]*)\)/.exec(rls);
-  const 규칙칸 = m ? m[1].split(",").map((s) => s.trim().replace(/'/g, "")).sort() : null;
-  const { 아이가_찍는_칸 } = await import(new URL("app/me/derive.js", ROOT).href);
+  // ⚠️ 화면의 목록과 **접근 규칙 원문**을 맞대어 본다. 두 벌이 갈리면 여기서 잡힌다.
+  //    ⚠️⚠️ 전에는 `0016` 한 파일만 읽었다 — 0082·0084 가 그 정책을 갈아 끼운 뒤에도
+  //    **옛 파일을 보고 초록**을 줬다. 이제 **마이그레이션 전체에서 마지막으로 정한 것**을 읽는다.
+  const 정책칸 = 마지막정책칸();
+  ok(`child_said 정책을 마이그레이션에서 찾았다 (${정책칸?.파일 ?? "못 찾음"})`, !!정책칸,
+     "정책 이름이 바뀌었으면 여기 이름도 같이 고쳐라 — 못 찾으면 맞댈 근거가 없다");
+  const 규칙칸 = 정책칸?.칸들 ?? null;
+  const { 아이가_찍는_칸, 학원_칸 } = await import(new URL("app/me/derive.js", ROOT).href);
   ok(`아이가 찍는 칸이 접근 규칙과 같다 (규칙 ${규칙칸?.join("·") ?? "못 읽음"} · 화면 ${[...아이가_찍는_칸].sort().join("·")})`,
      !!규칙칸 && JSON.stringify(규칙칸) === JSON.stringify([...아이가_찍는_칸].sort()),
      "화면이 더 열면 눌러도 거절당하고, 더 닫으면 아이가 못 찍는다");
+  // ⚠️ ⑱ — 학원 줄이 빠지면 「학원에서 할 것」이 **둘째 줄부터 영영 안 열린다**
+  ok(`학원 줄(${학원_칸})도 아이가 찍는다 (원장님 「o면 숙제인데 한 숙제를 왜 할것으로 열어??」)`,
+     아이가_찍는_칸.includes(학원_칸),
+     "빠지면 아이는 원장님이 여덟 줄 다 ○ 을 줘도 0 / 8 을 본다");
+
+  // ⚠️ 4부 — **일부러 어긴 본보기**를 같은 자에 넣어 본다. 못 잡으면 검사가 없는 것과 같다(폰-5)
+  const 헛것 = 정책칸읽기("create policy child_said on v2.day_item for update to authenticated\n" +
+                          "  using (v2.sheet_mine(sheet_id) and slot in ('home'))");
+  ok("본보기의 「정책이 학원 줄을 안 연다」를 잡았다",
+     JSON.stringify(헛것) !== JSON.stringify([...아이가_찍는_칸].sort()), JSON.stringify(헛것));
 
   const rls2 = 읽기("supabase/migrations/0052_progress_fix.sql");
   ok("「원장이 찍은 줄은 아이가 못 덮는다」가 규칙에 있다 (절 ㊶ ③)",
@@ -230,6 +263,42 @@ await sec("■ ⑬ 차례대로 — 앞엣것을 끝내야 다음이 열린다 (
   ok("첫째를 끝내면 둘째가 열린다", r2[1].열림 === true && r2[2].열림 === false);
   ok("끝낸 줄은 늘 열려 있다 (되돌려 볼 수 있어야 한다)", r2[0].열림 === true);
   ok("차례 번호가 붙는다", r2.map((x) => x.차례).join() === "1,2,3");
+
+  // ⚠️⚠️ **`slot` 이 있는 가짜 줄로 돈다.** slot 이 없으면 학원 칸 경로가 **아예 안 돈다** —
+  //    그것이 ⑱ 이 여기까지 안 잡힌 까닭이다(폰-5 ②: 앞뒤를 정확히 문다).
+  const 하루 = D.오늘줄나누기([
+    { id: "c1", slot: "class", said_done_at: "2026-09-03T00:00:00Z" },
+    { id: "c2", slot: "class", status: "done" },   // ⚠️ 원장님 ○ 은 학원 줄의 차례를 **안 연다**
+    { id: "c3", slot: "class" },
+    { id: "h1", slot: "home" },
+    { id: "n1", slot: "next" },
+    { id: "k1", slot: "check", status: "weak" },
+  ]);
+  ok(`학원 줄 ${하루.학원것.length}개가 차례를 받았다`,
+     하루.학원것.length === 3 && 하루.학원것.map((x) => x.차례).join() === "1,2,3");
+  ok("⚠️ 원장님 ○(status)은 학원 줄의 다음 차례를 **안 연다** (원장님 2026-09-03)",
+     하루.학원것[1].열림 === true && 하루.학원것[2].열림 === false,
+     "아이가 c1 을 끝냈으니 c2 가 열린 것이지, c2 의 status='done' 때문이 아니다");
+  ok("아이가 끝낸 학원 줄 하나가 셈에 든다", D.센다(하루.학원것).끝 === 1);
+  ok("학원 줄이 **두 번 그려지지 않는다** (내가찍는것에서 빠진다)",
+     하루.내가찍는것.every((g) => g.칸 !== D.학원_칸) &&
+     하루.내가찍는것.map((g) => g.칸).join() === "home,next",
+     "학원 칸이 아이가_찍는_칸 에 들어왔으므로 가르는 자리에서 한 번만 빼내야 한다");
+  ok("검사 줄은 따로 선다", 하루.검사것.length === 1 && 하루.검사것[0].id === "k1");
+});
+
+await sec("■ ⑬-2 ⚠️ 덮개가 채우는 칸이 **화면이 보는 칸**과 같은가 (⑰)", async () => {
+  const 자 = (s) => /set덮개숙제\([^;]*said_done_at/.test(s) && !/set덮개숙제\([^;]*status\s*:/.test(s);
+  ok("screen.js 의 덮개가 said_done_at 을 채운다", 자(code["app/me/screen.js"] ?? ""),
+     "화면은 said_done_at 을 보는데 덮개가 status 를 채우면 눌러도 단추도 숫자도 안 움직인다(⑰)");
+  ok("덮개를 입히는 자리도 같은 칸이다",
+     /덮개숙제\[r\.id\]\s*\?\s*\{\s*\.\.\.r,\s*said_done_at:/.test(code["app/me/screen.js"] ?? ""));
+  ok("actions.js 가 said_done_at 을 **돌려준다** (받아 놓고 버리지 않는다)",
+     /return\s*\{\s*ok:\s*true,\s*said_done_at/.test(code["app/me/actions.js"] ?? ""));
+  // ⚠️ 4부 — 일부러 어긴 본보기를 같은 자에 넣어 본다(폰-5)
+  ok("본보기의 「덮개가 status 를 채운다」를 잡았다",
+     자('if (r?.ok) set덮개숙제((m) => ({ ...m, [item.id]: "done" }));') === false);
+  ok("본보기의 「덮개가 아무것도 안 채운다」를 잡았다", 자("set덮개숙제({});") === false);
 });
 
 await sec("■ ⑭ ⚠️ 접힌 것도 **분자에 그대로 든다** (절 ⑮-2)", async () => {
@@ -319,13 +388,23 @@ await sec("■ ⑱ 카드 차례 — 카드가 사라지지 않는다", async ()
 await sec("■ ⑲ 달력 — 마감 안 한 날을 **빈 칸으로 두지 않는다** (절 ⑯ 1번)", async () => {
   const 칸 = D.달력칸({
     오늘: "2026-09-02", first: "2026-09-01", last: "2026-09-30",
-    판들: [{ date: "2026-09-01", attend: "present", closed_at: "x", day_item: [] }],
+    // ⚠️ 0084 뒤로 **마감 안 한 판도 아이에게 내려온다** — 그래서 둘을 같이 넣어 가르는지 본다
+    판들: [{ date: "2026-09-01", attend: "present", closed_at: "x", day_item: [] },
+            { date: "2026-08-31", attend: "present", closed_at: null, day_item: [] }],
     수업이력: [{ from_date: "2026-01-01", to_date: null, weekdays: [1, 2, 3] }],
     시험들: [{ id: "e1", name: "2학기 중간", english_on: "2026-09-15" }],
     재원시작: "2026-08-01",
   });
   const 찾기 = (d) => 칸.find((c) => c && c.date === d);
   ok("마감한 날은 closed", 찾기("2026-09-01")?.상태 === "closed");
+  // ⚠️ 이 줄이 없으면 마감 안 한 오늘이 달력에 「왔음 · 숙제 0」으로 **굳어** 보인다(0084)
+  ok("⚠️ 판은 왔는데 **마감을 안 한 날**은 「정리 중」이다",
+     D.달력칸({ 오늘: "2026-09-02", first: "2026-09-01", last: "2026-09-30",
+                판들: [{ date: "2026-09-02", attend: "present", closed_at: null, day_item: [] }],
+                수업이력: [{ from_date: "2026-01-01", to_date: null, weekdays: [1, 2, 3] }],
+                시험들: [], 재원시작: "2026-08-01" })
+      .find((c) => c && c.date === "2026-09-02")?.상태 === "open",
+     "판이 있으면 무조건 closed 로 치면 마감 전 오늘이 「왔음 · 숙제 N」으로 보인다");
   ok("수업했는데 판이 안 온 날은 「정리 중」", 찾기("2026-09-02")?.상태 === "open");
   ok("앞날 수업일은 「예정」", 찾기("2026-09-08")?.상태 === "plan");
   ok("시험날이 그 칸에 붙는다", 찾기("2026-09-15")?.시험들.length === 1);
@@ -436,16 +515,17 @@ const 화면본 = (깨진스타일 = "") => `<!doctype html><html lang="ko"><hea
     <p class="sunk">오늘은 관계사를 했고, 숙제는 워크북 2쪽입니다. 다음 시간에 단어시험이 있어요.</p>
     <section class="me-group">
       <div class="me-cardhd"><span class="me-ttl me-ttl2">학원에서 할 것</span><span class="pill pilloff num">0 / 2</span></div>
-      <p class="me-sub">위에서부터 하나씩 해요. 앞엣것을 끝내야 다음 것이 열립니다.</p>
+      <p class="me-sub">위에서부터 하나씩 해요. 하나를 끝내고 ○ 을 누르면 다음 것이 열립니다. ⚠️ 한 번 누르면 되돌릴 수 없어요.</p>
+      <!-- ⚠️ 0084 — 학원 줄도 **아이가 누른다.** 전에는 여기가 pill 이었다(⑱) -->
       <ul class="me-list">
         <li class="me-item"><span class="me-seq num">1</span><span class="me-body">
           <span class="me-name">숙제채점하고 오답 고치기</span>
           <span class="me-sub"><b>${긴교재}</b> · ${긴단원} · p.150~153</span>
           <span class="me-sub">이번 범위 · 12~19p, 짝수만</span></span>
-          <span class="me-act"><span class="pill pilloff">학원에서 하는 것은 쌤이 확인합니다.</span></span></li>
+          <span class="me-act"><button class="me-sq">○ 다 했어요</button></span></li>
         <li class="me-item is-later"><span class="me-seq num">2</span><span class="me-body">
           <span class="me-name">클래스카드 문장훈련</span><span class="me-sub">앞엣것을 끝내면 열려요.</span></span>
-          <span class="me-act"><span class="pill pilloff">학원에서 하는 것은 쌤이 확인합니다.</span></span></li>
+          <span class="me-act"><button class="me-sq" disabled>○ 다 했어요</button></span></li>
       </ul>
       <details class="me-fold" open><summary>다 한 것 2개 — 눌러서 보기</summary>
         <ul class="me-list me-mt"><li class="me-item is-done"><span class="me-seq num">3</span>

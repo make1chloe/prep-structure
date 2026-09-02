@@ -19,12 +19,20 @@ console.log("\n■ 카드 차례 (⑮ 1 — 사람마다 따로)");
 /* ── ① ⚠️ 목록이 화면과 같은가 — 실물에서 뽑아 맞춘다 */
 {
   const page = 코드만(readFileSync("app/page.js", "utf8"));
-  const m = /const\s+ids\s*=\s*\[([^\]]+)\]/.exec(page);
-  const 화면 = m ? [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]) : null;
-  ok("app/page.js 에서 카드 이름을 뽑았다", !!화면);
-  ok(`⚠️ 대시보드 목록이 화면과 **글자까지 같다** (${화면?.length}개)`,
-     JSON.stringify(화면) === JSON.stringify([...CARDS.home]),
-     `화면 ${JSON.stringify(화면)} vs lib ${JSON.stringify([...CARDS.home])}`);
+  // ⚠️⚠️ 예전에는 「화면에 손으로 적힌 목록이 lib 과 **글자까지 같은가**」를 봤다.
+  //    그 단언은 **두 벌인 것을 굳히는 것**이었다(원칙-1). 이제 화면이 lib 에서 뽑으므로
+  //    봐야 하는 것은 둘이다: ㉮ 화면이 목록을 **다시 적지 않는가** ㉯ 화면이 **진짜 그리는 카드**가 목록과 같은가
+  ok("⚠️ 대시보드가 카드 목록을 **다시 적지 않는다** (원칙-1 — lib 한 벌에서 뽑는다)",
+     /cardsOf\(\s*["']home["']\s*\)/.test(page) &&
+     !/const\s+ids\s*=\s*\[\s*["']waiting["']/.test(page),
+     "화면에 목록을 손으로 적으면 카드를 하나 더한 날 조용히 어긋난다");
+  // ⚠️ `CardDeck` 은 children[ids.indexOf(id)] 로 짝을 짓는다 —
+  //    그리는 것과 목록이 어긋나면 **카드 이름과 속이 뒤바뀐다.** 오류는 안 난다
+  const 그리는것 = [...page.matchAll(/<Suspense\s+key="([^"]+)"/g)].map((x) => x[1]);
+  ok("app/page.js 가 그리는 카드를 뽑았다", 그리는것.length > 0, JSON.stringify(그리는것));
+  ok(`⚠️ 대시보드가 **진짜 그리는 카드**가 lib 목록과 같다 (${그리는것.length}개)`,
+     JSON.stringify([...그리는것].sort()) === JSON.stringify([...CARDS.home].sort()),
+     `그리는 것 ${JSON.stringify(그리는것)} vs lib ${JSON.stringify([...CARDS.home])}`);
 
   // ⚠️ **상수끼리 견주지 않는다.** 목록이 lib 한 벌이 된 뒤로는 상수 비교가 늘 참이라
   //    검사가 헛돈다. 봐야 하는 것은 **화면이 진짜 그리는 카드**다 —

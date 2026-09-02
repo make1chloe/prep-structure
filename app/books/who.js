@@ -9,24 +9,20 @@
  * ⚠️ 서비스 열쇠를 안 쓴다. 로그인 열쇠(anon)로 만든 클라이언트가
  *    `v2.profiles` 의 **자기 줄만** 읽어 역할을 답한다.
  *
- * ⚠️ **원장·강사 목록을 여기 다시 적지 않는다**(원칙 1).
- *    `lib/supabase-server.js` 의 `HOME` 표가 유일한 한 벌이고, 「첫 화면이 원장·강사의
- *    첫 화면(`lib/menu.js` 의 `HOME.staff`)인 사람」이 곧 원장·강사다.
- *    여기에 `["principal","instructor"]` 를 적어 두면 역할이 하나 늘어난 날
- *    이 화면만 옛말을 한다.
+ * ⚠️ **원장·강사 목록을 여기 다시 적지 않는다**(원칙 1 · 어긋난 곳 ⑯).
+ *    `lib/menu.js` 의 `isStaff` 가 유일한 한 벌이다 — 그 함수는 DB `v2.profiles.role` 의
+ *    CHECK 에 실제로 있는 낱말(`principal`·`instructor`)로 만들어져 있다.
+ *
+ * ⚠️ 옛 코드는 `homeFor(role) === HOME.staff` 로 견줬다. 그런데 `HOME.staff` 는
+ *    **DB 에 없는 낱말**이라 `undefined` 였고, `homeFor` 도 모르는 역할에 `undefined` 를 줘서
+ *    **아무도 원장이 아니거나 아무나 원장이 될 수 있는** 아슬아슬한 자리였다.
+ *    안 하면 무엇이 터지나: 이 화면만 옛말을 해 교재·루틴 화면이 통째로 잠기거나 열린다.
  */
 import { cookies } from "next/headers";
-import { serverClientFromStore, roleOf, homeFor, knownRole, keys } from "../../lib/supabase-server.js";
-import { HOME } from "../../lib/menu.js";
+import { serverClientFromStore, roleOf, keys } from "../../lib/supabase-server.js";
+import { isStaff } from "../../lib/menu.js";
 
-/**
- * 원장·강사인가 — 목록이 아니라 **lib 의 표**에 물어본다.
- *
- * ⚠️ `knownRole` 로 **먼저 가른다**(자동 검사 ⑭). `homeFor` 는 모르는 역할에 `null` 을 주는데,
- *    그 `null` 이 주소 자리로 새면 `/null` 로 날아간다. 여기서는 견주기만 하므로 지금은 안전하지만,
- *    「모르는 역할은 여기서 끝난다」를 **코드가 말하게** 둔다.
- */
-export const isStaff = (role) => knownRole(role) && homeFor(role) === HOME.staff;
+export { isStaff };
 
 /**
  * @returns { ok:true, profileId, role } | { ok:false, why, msg, how:[줄] }

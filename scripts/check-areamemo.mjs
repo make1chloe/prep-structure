@@ -105,6 +105,34 @@ try {
   if (아이) {
     ok("⚠️⚠️ **마감 전에는 아이에게 한 줄도 안 보인다**", (await 아이눈()) === 0,
        "옛 앱 사고 #7 — 접근 규칙이 판 존재만 보고 마감 술어가 없어 마감 전 내용이 그대로 나갔다");
+
+    // ⚠️⚠️ **여기가 0084 와 0086 이 갈리는 자리다** (원장님 2026-09-03 「출석하면 바로」).
+    //    아이는 마감 전에도 **할 것**(day_item)을 본다. 그러나 **총평**(영역 메모)은 마감 뒤다.
+    //    두 잣대를 한 함수로 묶으면 둘 중 하나가 반드시 틀린다 —
+    //    실제로 0084 가 sheet_visible() 몸통을 갈면서 이 검사가 빨개졌고, 0086 이 되좁혔다.
+    const 아이할것 = async () => {
+      await c.query("savepoint v2");
+      await c.query("select set_config('request.jwt.claims',$1,true)",
+        [JSON.stringify({ sub: 아이.id, role: "authenticated" })]);
+      await c.query("set local role authenticated");
+      const r = await c.query(
+        `select count(*)::int n from v2.day_item where sheet_id = $1::uuid`, [sh.id]);
+      await c.query("rollback to v2");
+      return r.rows[0].n;
+    };
+    const 할것수 = (await c.query(
+      `select count(*)::int n from v2.day_item where sheet_id = $1::uuid`, [sh.id])).rows[0].n;
+    ok("⚠️ 마감 전에도 아이는 **제 할 것**은 본다 (「출석하면 바로」 — 0084)",
+       할것수 === 0 || (await 아이할것()) === 할것수,
+       `줄 ${할것수}개 중 아이 눈에 ${await 아이할것()}개`);
+    ok("⚠️ 「할 것」과 「총평」의 잣대가 **다른 함수**다 (한 함수로 묶으면 둘 중 하나가 틀린다)",
+       (await c.query(`select count(*)::int n from pg_proc
+          where pronamespace='v2'::regnamespace and proname='sheet_closed_visible'`)).rows[0].n === 1);
+    const dam = (await c.query(`select qual from pg_policies
+       where schemaname='v2' and tablename='day_area_memo' and policyname='own_read_dam'`)).rows[0]?.qual ?? "";
+    ok("⚠️ 영역 메모 규칙이 **마감 잣대**를 쓴다 (느슨한 것으로 바꾸면 쓰다 만 총평이 아이에게 나간다)",
+       /sheet_closed_visible/.test(dam), dam);
+
     await c.query(`update v2.day_sheet set closed_at = now() where id = $1::uuid`, [sh.id]);
     ok("마감하면 보인다", (await 아이눈()) === 1);
   }

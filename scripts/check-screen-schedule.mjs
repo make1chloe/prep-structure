@@ -139,8 +139,10 @@ ok("문을 열자마자 **그 사람으로 갈아탄다** (`set role authenticat
    /set role authenticated/.test(allBare));
 
 // ⑦ 역할을 스스로 본다
+// ⚠️ 「principal 이라는 글자가 있나」로 보던 것을 **규칙**으로 바꿨다 (대전제-4).
+//    역할 낱말이 lib 한 곳으로 모이면서 화면에서는 그 글자가 사라지는 것이 **옳다**
 ok("역할을 **스스로** 본다 (`staffOnly`) — 문지기는 첫 화면만 고른다",
-   /staffOnly\s*\(/.test(bare["page.js"] ?? "") && /principal/.test(allBare));
+   /staffOnly\s*\(/.test(bare["page.js"] ?? "") && /\bisStaff\s*\(|lib\/menu/.test(allBare));
 
 // ⑧ 지각 「얼마나」 (없앴다) · 보강 시각
 // ⚠️ 이 줄도 **뒤집은 줄**이다. 앞서는 「분 단추와 도착 시각 둘 다 있는가」를 지켰다.

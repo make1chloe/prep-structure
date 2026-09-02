@@ -1,5 +1,11 @@
 /**
- * 배색·레이아웃 검사 — `app/globals.css` 가 폰에서 버티는지 **진짜 브라우저로** 확인한다.
+ * 배색·레이아웃 검사 — 앱의 CSS 가 폰에서 버티는지 **진짜 브라우저로** 확인한다.
+ *
+ * ⚠️ 2026-09-03 — 「앱의 CSS」는 `app/globals.css` **한 파일이 아니다.**
+ *    `app/` 밑 `.js` 안에 `const css = 백틱…백틱` 으로 적힌 css-in-js 도 화면에 그대로 나간다.
+ *    이 검사는 오래도록 globals.css 만 봤고, 그래서 `app/logout-button.js` 의
+ *    `.closeout button{…opacity:.75…}` 를 **한 번도 안 봤다** — 폰-9·확정-㉖ 위반인데
+ *    아무도 못 잡았다. 아래 **1부-나**가 그 문자열들까지 같은 자로 잰다.
  *
  * 왜 이 검사가 있나
  *   원장님이 사진 셋으로 잡아 주시기 전까지 아무도 몰랐다 (계획 ㉜).
@@ -16,13 +22,14 @@
  *
  * 돌리는 법:  node scripts/check-layout.mjs
  */
-import { readFileSync, writeFileSync, existsSync, mkdtempSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, readdirSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "pg";
 
 const CSS_PATH = "app/globals.css";
+const APP_DIR = "app";                         // ⚠️ css-in-js 는 이 밑 어느 폴더에나 생긴다 (1부-나)
 const LAYOUT_PATH = "app/layout.js";
 const FIXTURE = "scripts/_layout-fixture.html";
 const WIDTHS = [320, 390, 768, 1400];          // 계획 ㉜ 의 네 폭 그대로
@@ -110,6 +117,66 @@ function decls(body) {
  *    `:not()`·`:where()` 안의 클래스는 **남겨야** 하므로 괄호는 안 건드린다. */
 const stripAttrSel = (sel) => sel.replace(/\[[^\]]*\]/g, " ").replace(/"[^"]*"|'[^']*'/g, " ");
 const classesIn = (sel) => [...stripAttrSel(sel).matchAll(/\.(-?[A-Za-z_][A-Za-z0-9_-]*)/g)].map((m) => m[1]);
+
+/* ── css-in-js 를 찾아내는 자리 (1부-나가 쓴다) ──────────────────────────
+ * 왜 이렇게 했나 — 화면에 나가는 CSS 가 `.css` 파일에만 있다고 믿은 것이 구멍이었다.
+ * 안 하면 무엇이 터지나 — `app/*.js` 안 백틱 문자열에 무엇을 적어도 검사가 눈을 감는다.
+ */
+
+/** `app/` 밑 `.js` 를 전수로 훑는다 — 한 폴더만 적어 두면 새 폴더가 생길 때 조용히 빠진다 */
+const 앱js = (dir = APP_DIR) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+  e.isDirectory() ? 앱js(`${dir}/${e.name}`) : e.name.endsWith(".js") ? [`${dir}/${e.name}`] : []);
+
+/** `app/` 밑 `.css` 파일 전수 — 「어느 검사도 안 보는 CSS」를 세려고 쓴다 */
+const 앱css = (dir = APP_DIR) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+  e.isDirectory() ? 앱css(`${dir}/${e.name}`) : e.name.endsWith(".css") ? [`${dir}/${e.name}`] : []);
+
+/** 파일 안의 `const css = 백틱…백틱` 몸통을 **전부** 뽑는다 (한 파일에 여럿일 수 있다).
+ *
+ * ⚠️ 정규식 하나로 `백틱([\s\S]*?)백틱` 를 물면 안 된다 — 파일 안의 **다른** 백틱 문자열에서
+ *    끊겨 엉뚱한 토막을 CSS 로 읽는다. 그래서 여는 백틱부터 **한 글자씩** 세어 닫는 짝을 찾는다.
+ * ⚠️ 이름에 `css` 가 들어간 것만 본다. 아무 백틱 문자열이나 CSS 로 읽으면 SQL·HTML 토막에
+ *    거짓 실패가 뜨고, **거짓 실패는 거짓 초록만큼 나쁘다** (사람이 검사를 꺼 버린다).
+ */
+function cssInJs(src) {
+  const out = [];
+  const 머리 = /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*`/g;
+  let m;
+  while ((m = 머리.exec(src))) {
+    if (!/css/i.test(m[1])) continue;
+    let i = 머리.lastIndex, body = "", 닫힘 = false;
+    while (i < src.length) {
+      if (src[i] === "\\") { body += src.slice(i, i + 2); i += 2; continue; }
+      if (src[i] === "`") { 닫힘 = true; break; }
+      body += src[i++];
+    }
+    // ⚠️ 못 닫은 문자열은 **빌드가 이미 깨진** 파일이다. 여기서 판단하지 않고 넘긴다
+    //    (`check-loginpage` ⑫·⑬ 이 「css 문자열 안에 backtick 이 없다」로 그 자리를 지킨다).
+    if (!닫힘) continue;
+    out.push({ name: m[1], body });
+    머리.lastIndex = i + 1;
+  }
+  return out;
+}
+
+/** ⚠️ css-in-js 에는 **모든 규칙을 걸지 않는다.** 지어낸 판단이 아니라 **재 보고** 골랐다 —
+ *  전부 걸어서 네 파일에 돌려 보니 **24건**이 떴고 그중 진짜 잘못은 **0건**이었다(2026-09-03 실측):
+ *    · C3(min-width:0 없음) 3건 · C5(word-break:keep-all 없음) 4건 · C7((pointer:coarse) 규칙 없음) 3건
+ *      → 이 셋은 **몸통에 한 벌만 있으면 되는 규칙**이고 `app/globals.css` 가 이미 준다.
+ *        조각 CSS 마다 다시 요구하면 원칙-1(같은 값 두 벌)을 검사가 **시키는** 꼴이 된다.
+ *    · C9(글씨 크기는 토큰만) 13건 — `app/login/page.js` 11건은 그 화면이 globals 토큰을
+ *      **일부러 안 쓰기** 때문이고(로그인 화면은 혼자 서야 한다 — 그 파일 주석에 까닭이 있다),
+ *      `app/logout-button.js` 2건은 `check-loginpage.mjs` ⑬ 이 **16px 리터럴을 요구**한다.
+ *      곧 C9 를 여기 걸면 **두 검사가 서로 반대를 시킨다.**
+ *  → 여기서는 「어느 화면에서든 **값 자체가** 틀린 것」만 건다. 거짓 실패는 거짓 초록만큼 나쁘다.
+ *  ⚠️ 이 목록을 고치려거든 그 규칙이 여기서 왜 통하는지/안 통하는지를 **재서** 같이 적어라. */
+const INJS_CODES = new Set([
+  "C2",   // 한 글자·한 낱말 상태 이름 — 어느 화면에서든 이름이 겹치면 터진다 (0-1)
+  "C4",   // grid 칸의 맨 1fr — 폰에서 옆으로 넘친다 (폰-9)
+  "C6",   // 늘어나는 칸에 basis 없음 — 390px 에서 한 글자씩 쌓인다 (폰-9)
+  "C8",   // **글씨를 투명도로 흐리게** — 폰-9 · 확정-㉖ (아이콘은 예외, auditCss 가 가른다)
+  "C10",  // 한글 자리에 고정폭 글꼴
+]);
 
 /** `font:` 줄임말에서 크기 자리에 올 수 있는 것.
  *  ⚠️ `var(--fs3)` 을 빼먹으면 안 된다 — C9 가 「크기는 토큰만 써라」라고 시키므로
@@ -732,6 +799,83 @@ const fsVals = fs.map((d) => d.val.trim());
 ok("글씨 크기 토큰이 **열 종**이다 (오류 106)", new Set(fs.map((d) => d.prop)).size === 10, `${new Set(fs.map((d) => d.prop)).size}종`);
 ok("토큰에 0.5px 단이 없다", !fsVals.some((v) => /\.\d/.test(v)), fsVals.filter((v) => /\.\d/.test(v)).join(" "));
 ok("토큰 값이 서로 다르다", new Set(fsVals).size === fsVals.length);
+
+/* ══════════════════════════════════════════════════════════════════════
+ * 1부-나 — app 밑 css-in-js 문자열도 **같은 자로** 잰다
+ *
+ * 왜 생겼나 — 2026-09-03 실측. 이 검사는 오래도록 `app/globals.css` 한 파일만 봤다.
+ *   그래서 `app/logout-button.js` 안 `const css = 백틱…` 문자열은 **한 번도 안 봤고**,
+ *   거기 `.closeout button` 에 `opacity:.75` 가 있었다 — 폰-9·확정-㉖ 위반인데,
+ *   하필 **홈 화면에 깐 앱에서 유일하게 나가는 자리**다(대전제-10).
+ *   재현해서 확인함: 그 값을 `.05`(대비 1.11:1, 거의 안 보임)로 낮춰 놓고
+ *   check-layout·check-loginpage·check-screen-me 를 돌려도 **341건 전부 초록**이었다.
+ *   검사가 안 보는 자리는 결국 어긋난다 — 그래서 훑는 자리를 넓힌다.
+ *
+ * ⚠️ **글자 훑기만** 넓혔다. 브라우저로 그려 보지는 않는다 —
+ *    화면을 몇 벌 더 띄우면 검사가 느려지고 잘 깨진다.
+ *    그러니 여기가 초록이어도 「그려 봤다」는 뜻이 **아니다.**
+ * ══════════════════════════════════════════════════════════════════════ */
+console.log("\n■ 1부-나 — app 밑 css-in-js 문자열도 글자로 훑는다");
+
+/* ⚠️ 폰-5 — 먼저 **일부러 어기는 본보기**로 이 새 훑기가 진짜 잡는지 본다.
+ *    안 그러면 「0건·초록」이 「깨끗하다」인지 「아무것도 안 봤다」인지 구별이 안 된다. */
+{
+  const 본보기 = [
+    "export const css = `",
+    "/* 주석 안의 opacity:.3 은 세면 안 된다 */",
+    ".zz-txt{color:var(--mute);opacity:.4}",
+    ".zz-ic{opacity:.5}",
+    ".zz-row{display:flex}",
+    ".zz-row > span{flex:1}",
+    "`;",
+    "const sql = `select 1 from zz`;",
+  ].join("\n");
+  const 뽑은 = cssInJs(본보기);
+  ok("본보기에서 css 몸통만 뽑아낸다 (옆의 sql 백틱에 안 속는다)",
+     뽑은.length === 1 && /zz-txt/.test(뽑은[0].body) && !/select 1/.test(뽑은[0].body),
+     `${뽑은.length}개 뽑았다`);
+  const 잡은 = 뽑은.length ? auditCss(뽑은[0].body, { wantRegistry: false }).bad.filter((b) => INJS_CODES.has(b.code)) : [];
+  const 말 = 잡은.map((b) => `${b.code} ${b.why}`).join(" | ");
+  ok("본보기의 「**글씨를** 투명도로 흐리게」를 잡았다", /C8/.test(말) && /zz-txt/.test(말),
+     `못 잡았다 — 넓힌 훑기에 구멍이 있다: ${말 || "(0건)"}`);
+  ok("본보기의 「basis 없는 flex:1」을 잡았다", /C6/.test(말), `못 잡았다: ${말 || "(0건)"}`);
+  /* ⚠️ 거짓 실패도 검사의 고장이다 — 아이콘 투명도는 원장님이 **허용하신 것**이다(확정-㉖ 정정).
+   *    여기서 빨개지면 고치는 사람이 뜻이 담긴 투명도를 지워 정보를 없앤다. */
+  ok("본보기의 **아이콘** 투명도는 안 잡는다 (낮은 투명도 자체가 정보 — 확정-㉖ 정정)",
+     !/zz-ic/.test(말), `거짓 실패: ${말}`);
+  ok("css 주석 안의 `opacity` 는 안 센다 (폰-5 ①)",
+     잡은.filter((b) => b.code === "C8").length === 1, `C8 이 ${잡은.filter((b) => b.code === "C8").length}건`);
+}
+
+/* ── 진짜 파일들 ── */
+const injs = [];
+for (const f of 앱js()) for (const c of cssInJs(readFileSync(f, "utf8"))) injs.push({ file: f, ...c });
+ok("app 밑에서 css-in-js 를 찾았다", injs.length > 0,
+   "한 개도 못 찾았다 — 뽑는 법이 깨졌거나 파일이 옮겨 갔다. **0건 초록**을 「깨끗하다」로 읽지 마라");
+console.log(`   · 훑은 자리 ${injs.length}곳: ${injs.map((c) => c.file).join(" · ") || "없음"}`);
+/* ⚠️ 이 한 줄이 이 절이 생긴 까닭이다 — 여기를 안 훑으면 나가는 단추가 다시 흐려져도 아무도 못 잡는다 */
+ok("`app/logout-button.js` 의 css 를 **실제로** 훑었다 (규칙-어긋난곳 ⑳ 이 난 자리)",
+   injs.some((c) => c.file === "app/logout-button.js"),
+   "나가는 단추(대전제-10)의 css 가 다시 검사 밖으로 나갔다");
+for (const c of injs) {
+  const bad = auditCss(c.body, { wantRegistry: false }).bad.filter((b) => INJS_CODES.has(b.code));
+  ok(`${c.file} 의 css 가 규칙을 안 어긴다`, bad.length === 0);
+  bad.forEach((b) => console.log(`        [${b.code}] ${b.why}`));
+}
+
+/* ⚠️ 「여기서 안 보는 CSS」가 **아무 검사에도 안 걸린 채** 남지 않게 한다.
+ *    이 검사는 globals.css 말고 다른 `.css` 파일은 안 본다 — 화면마다 제 검사가 본다
+ *    (`app/today/today.css` → `scripts/check-screen-today.mjs` 처럼).
+ *    ⚠️ 이것이 증명하는 것은 **「그 파일 이름을 부르는 검사가 있다」**까지다.
+ *       그 검사가 무엇을 얼마나 보는지는 증명하지 않는다 — 지어내지 않으려고 밝혀 둔다. */
+{
+  const 딴css = 앱css().filter((f) => f !== CSS_PATH);
+  const 검사파일 = readdirSync("scripts").filter((s) => /^check-.*\.mjs$/.test(s))
+    .map((s) => [s, readFileSync(`scripts/${s}`, "utf8")]);
+  const 고아 = 딴css.filter((f) => !검사파일.some(([s, t]) => s !== "check-layout.mjs" && t.includes(f.split("/").pop())));
+  ok(`app 밑 다른 .css ${딴css.length}개를 부르는 검사가 각각 있다`, 고아.length === 0,
+     `아무 검사도 안 부르는 CSS: ${고아.join(" · ")}`);
+}
 
 // 대비 — ⚠️ 값을 지어내지 않는다. 파일의 진짜 색으로 **재서** 적는다
 console.log("\n■ 대비 — 투명도를 없앤 자리를 색이 실제로 메우는지 (계획 ㉑)");

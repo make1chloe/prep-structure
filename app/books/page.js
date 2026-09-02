@@ -27,7 +27,10 @@ import { staffOnly } from "./who.js";
 import { openAs, QUERY_CAP } from "./db.js";
 import { loadAll, treeOf, byArea, byStudent, SHEET_KEYS, sheetTitle, sheetOwner,
          STEPS, stepLabel, nameOf } from "./read.js";
-import { HOME } from "../../lib/menu.js";
+// ⚠️ 옛 `HOME.staff` 는 **DB 에 없는 낱말**이라 없어졌다(어긋난 곳 ⑯).
+//    `HOME` 은 이제 `lib/supabase-server.js` 와 **같은 Map** 이라 `.staff` 가 undefined 다 —
+//    그대로 두면 「← 대시보드」 단추가 `href` 없이 서서 아무 데도 못 간다(대전제-10).
+import { STAFF_HOME } from "../../lib/menu.js";
 import { BookForm, Tree, Items, AreaRoutine, MaterialTypes, Videos, Excel } from "./ui.js";
 
 // ⚠️ 오늘 날짜와 멈춤이 날마다 다르다. 캐시되면 어제 판정이 오늘 화면에 그대로 뜬다
@@ -55,7 +58,7 @@ export default async function Books({ searchParams }) {
             <div className="cardhd">이 화면을 못 엽니다</div>
             <Why>{me.msg}</Why>
             {me.how?.length ? <ul>{me.how.map((h) => <li key={h}>{h}</li>)}</ul> : null}
-            <p><Link className="btn btnghost" href={HOME.staff}>← 대시보드</Link></p>
+            <p><Link className="btn btnghost" href={STAFF_HOME}>← 대시보드</Link></p>
           </div>
         </div>
       </main>
@@ -69,7 +72,7 @@ export default async function Books({ searchParams }) {
         <div className="stack">
           <h1>교재</h1>
           <div className="card"><div className="cardhd">DB 에 못 붙었습니다</div><Why>{conn.why}</Why></div>
-          <p><Link className="btn btnghost" href={HOME.staff}>← 대시보드</Link></p>
+          <p><Link className="btn btnghost" href={STAFF_HOME}>← 대시보드</Link></p>
         </div>
       </main>
     );
@@ -91,7 +94,7 @@ export default async function Books({ searchParams }) {
             <h1>교재</h1>
             <span className="num muted">{d.today}</span>
             <span className="grow" />
-            <Link className="btn btnghost" href={HOME.staff}>← 대시보드</Link>
+            <Link className="btn btnghost" href={STAFF_HOME}>← 대시보드</Link>
           </div>
 
           <Empty empty={d.empty} books={d.books} />

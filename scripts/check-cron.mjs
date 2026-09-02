@@ -89,6 +89,35 @@ const 되풀이규칙 = { id: "r1", kind: "repeat", name: "교재 점검", cron:
 // ⚠️ 흉내가 기대는 구절이 진짜 SQL 에 있는지 `must()` 로 확인한다.
 //    안 그러면 SQL 을 몰래 뒤집어도 검사가 초록으로 통과한다 (실제로 겪은 사고다).
 // ─────────────────────────────────────────────────────────────
+
+/**
+ * **진짜 select 가 물은 칸만** 돌려준다 — 씨앗에 있어도 안 물었으면 안 준다.
+ *
+ * ⚠️⚠️ 왜 이게 있나 — 2026-09-03 사고. 가짜 DB 가 `v2.purge_map` 씨앗을 **통째로** 돌려줘서
+ *    `lib/purge.js` 의 `purgeMap()` 이 select 에서 `after_days` 를 빠뜨렸는데도
+ *    가짜 DB 앞에서는 기한이 멀쩡히 도착했다. 그래서 **이 검사는 초록**인데
+ *    진짜 DB 에서는 기한이 null 로 와 밤 8시 크론이 날마다 터졌다 (어긋난곳 ⑲).
+ * ⚠️ 안 하면 무엇이 터지나 — 가짜 DB 가 lib 보다 **후해서**, lib 이 안 읽는 칸을 lib 이 읽는 척한다.
+ *    가짜는 진짜보다 **너그러우면 안 된다.**
+ * ⚠️ `*` 나 함수 호출(`count(*)` 등)이 섞이면 **손대지 않는다** — 여기서 헛똑똑해지면
+ *    엉뚱한 흉내가 되어 검사가 거짓으로 빨개진다.
+ */
+function 물은칸만(sql, rows) {
+  const m = /^select\s+([\s\S]*?)\s+from\s/i.exec(String(sql).replace(/\s+/g, " ").trim());
+  if (!m) return rows;
+  const list = m[1];
+  if (/[*()]/.test(list)) return rows;                 // `*` · 함수가 섞이면 그대로 준다
+  // ⚠️ 고르는 열쇠는 **나오는 이름**(별칭)이다 — 씨앗은 「돌아온 줄」을 흉내낸 것이라
+  //    `column_name c` 를 `c` 로 갖고 있지 `column_name` 으로 갖고 있지 않다.
+  //    온 곳 이름으로 고르면 씨앗이 통째로 비어 검사가 엉뚱하게 빨개진다.
+  const 이름들 = list.split(",").map((x) => {
+    const t = x.trim().split(/\s+as\s+|\s+/i).filter(Boolean);
+    return t.length ? t[t.length - 1].replace(/^.*\./, "") : null;
+  }).filter(Boolean);
+  if (!이름들.length) return rows;
+  return rows.map((r) => Object.fromEntries(
+    이름들.filter((k) => k in r).map((k) => [k, r[k]])));
+}
 function fakeDb(seed = {}) {
   const days = [];                       // v2.day_ran
   const q = seed.queue ?? [];            // v2.job_queue
@@ -116,6 +145,10 @@ function fakeDb(seed = {}) {
     const w = /\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?v2\.([a-z0-9_]+)/i.exec(s);
     if (w) writes.push(w[1]);
 
+    // ⚠️ 기한 파기 스위치 (0087) — **가짜 DB 도 진짜와 같이 기본 꺼짐**이어야 한다.
+    //    켜진 것으로 두면 「원장님이 안 켜셨는데 지운다」를 이 검사가 영영 못 잡는다
+    if (s.includes("from v2.integration where id = 'purge'"))
+      return { rows: [{ config: { expire_on: seed.expireOn === true } }], rowCount: 1 };
     if (s.includes("v2.today()::text")) return { rows: [{ d: seed.today ?? TODAY }], rowCount: 1 };
     if (s.includes("coalesce($1::date, v2.today())::text"))       // lib/attend.js todayOf
       return { rows: [{ d: p[0] ?? seed.today ?? TODAY }], rowCount: 1 };
@@ -179,9 +212,14 @@ function fakeDb(seed = {}) {
       todos.push(row); return { rows: [row], rowCount: 1 };
     }
 
-    if (s.includes("from v2.purge_map")) return { rows: seed.map ?? [], rowCount: (seed.map ?? []).length };
-    if (s.includes("information_schema.columns")) return { rows: seed.cols ?? [], rowCount: (seed.cols ?? []).length };
-    if (s.includes("pg_constraint")) return { rows: seed.cons ?? [], rowCount: (seed.cons ?? []).length };
+    // ⚠️ 셋 다 **물은 칸만** 준다 — 씨앗이 더 갖고 있어도 select 에 없으면 안 준다.
+    //    (`purge_map.after_days` 를 그냥 줬다가 밤 8시 크론이 날마다 터진 자리다 — 위 주석)
+    if (s.includes("from v2.purge_map"))
+      return { rows: 물은칸만(s, seed.map ?? []), rowCount: (seed.map ?? []).length };
+    if (s.includes("information_schema.columns"))
+      return { rows: 물은칸만(s, seed.cols ?? []), rowCount: (seed.cols ?? []).length };
+    if (s.includes("pg_constraint"))
+      return { rows: 물은칸만(s, seed.cons ?? []), rowCount: (seed.cons ?? []).length };
 
     // ── 파일 ──────────────────────────────────────────────
     if (s.includes("count(purge_on)")) {          // SQL.filePlan
@@ -458,7 +496,7 @@ console.log("\n■ 파기 — 파일 정리와 기한 파기는 **한 트랜잭�
 { const db = fakeDb({ map: [
     { schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 },
     { schema_name: "v2", tbl: "excel_run", col: "note",   how: "expire", after_days: 90 },
-  ], expiredRows: 4 });
+  ], expiredRows: 4, expireOn: true });
   const out = await runCron({ db, today: TODAY, now: NOW, deps: { checks: [] } });
   const e = out.steps.find((s) => s.name === "기한파기");
   ok("기한이 지난 줄을 비운다", e.돈줄 === 2 && e.비운줄 === 8, JSON.stringify(e));
@@ -467,7 +505,8 @@ console.log("\n■ 파기 — 파일 정리와 기한 파기는 **한 트랜잭�
 
 { // ⚠️ 이것이 제일 무서운 자리다 — **한 줄도 안 도는데 초록**이면
   //    90일 지난 excel_row 에 아이 이름·전화가 해가 지나도 남는다
-  const db = fakeDb({ map: [{ schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: null }] });
+  const db = fakeDb({ map: [{ schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: null }],
+                      expireOn: true });   // ⭐ 켠 채로 — 「막힘이 터지는가」를 보는 시험이다
   const out = await runCron({ db, today: TODAY, now: NOW, deps: { checks: [] } });
   const e = out.steps.find((s) => s.name === "기한파기");
   ok("⚠️ 기한 파기가 한 줄도 못 돌면 **조용히 넘어가지 않고 터진다**", e.ok === false, JSON.stringify(e));
@@ -481,7 +520,7 @@ console.log("\n■ 파기 — 파일 정리와 기한 파기는 **한 트랜잭�
   const db = fakeDb({ map: [
     { schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 },
     { schema_name: "v2", tbl: "excel_run", col: "note",   how: "expire", after_days: null },
-  ] });
+  ], expireOn: true });   // ⭐ 켠 채로 — 「일부만 막혀도 우는가」를 보는 시험이다
   const out = await runCron({ db, today: TODAY, now: NOW, deps: { checks: [] } });
   const e = out.steps.find((s) => s.name === "기한파기");
   ok("⚠️ 기한 파기가 **한 줄이라도 막히면** 운다 (일부만 막혀도 조용히 안 넘어간다)",
@@ -491,7 +530,8 @@ console.log("\n■ 파기 — 파일 정리와 기한 파기는 **한 트랜잭�
      !db.sqls.some((x) => x.startsWith("update v2.excel_row")), db.sqls.filter((x) => x.startsWith("update")).join(" | ")); }
 
 { // 기한 파기가 도는 중에 터지면 되돌린다
-  const db = fakeDb({ map: [{ schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 }] });
+  const db = fakeDb({ map: [{ schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 }],
+                      expireOn: true });   // ⭐ 켠 채로
   const base = db.query.bind(db);
   db.query = async (sql, p) => {
     if (String(sql).startsWith("update v2.excel_row")) throw new Error("일부러 터뜨림");
@@ -637,6 +677,7 @@ const 파일씨 = (files) => ({ files, map: 파일목록, cols: 파일칸, cons:
     map: [...파일목록,
           { schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 },
           { schema_name: "v2", tbl: "excel_run", col: "note",   how: "expire", after_days: 90 }],
+    expireOn: true,   // ⭐ 켠 채로 — 「크론이 파기까지 정말로 돌리나」를 보는 시험이다
     queue: [{ id: 1, kind: "되는셈", payload: JSON.stringify({ ran_on: "2026-08-30" }),
               state: "wait", tries: 0, next_at: "2026-09-02T00:00:00.000Z", locked_at: null }] });
   await runCron({ db, today: TODAY, now: NOW,
@@ -669,6 +710,23 @@ const 파일씨 = (files) => ({ files, map: 파일목록, cols: 파일칸, cons:
      out.steps.find((s) => s.name === "파일정리").기한온것 === 1); }
 
 // ─────────────────────────────────────────────────────────────
+
+// ── ⚠️⚠️ 스위치가 **꺼져 있을 때** (0087 — 지금 진짜 DB 가 이 모습이다)
+//    원장님 답은 조건부 승낙이었다: 「백업 따로 만들면 지워」. 백업을 못 지었으므로 안 지운다.
+{ const db = fakeDb({ map: [
+    { schema_name: "v2", tbl: "excel_row", col: "before", how: "expire", after_days: 90 },
+  ], expiredRows: 4 });                      // ⭐ expireOn 을 안 준다 = 꺼짐
+  const out = await runCron({ db, today: TODAY, now: NOW, deps: { checks: [] } });
+  const e = out.steps.find((s) => s.name === "기한파기");
+  ok("⚠️⚠️ 원장님이 안 켜셨으면 **한 줄도 안 지운다** (0087 — 조건이 안 채워졌다)",
+     e.꺼짐 === true && e.비운줄 === 0, JSON.stringify(e));
+  ok("⚠️ 꺼졌다고 **터지지 않는다** — 「고장」과 「안 켜심」은 다르다 (어긋난 곳 ⑲)",
+     e.ok !== false && !/막혔다/.test(String(e.why ?? "")), JSON.stringify(e.why));
+  ok("⚠️ 꺼졌으면 **왜 꺼졌는지**를 크론 보고에 적는다", /백업/.test(String(e.why ?? "")));
+  ok("⚠️ 꺼졌으면 v2 표에 **한 글자도 안 쓴다**",
+     !db.writes.includes("excel_row"), JSON.stringify(db.writes));
+}
+
 console.log("\n■ 크론이 멈춘 것을 앱이 알아챈다 — **안 돌 때만 부른다**");
 
 { const db = fakeDb({ lastRan: null });
@@ -828,18 +886,14 @@ try {
   ok("기한으로 지울 줄이 진짜 목록에 있다", map.filter(isExpire).length > 0,
      String(map.filter(isExpire).length));
 
-  // ⚠️ **여기서 진짜 사고를 하나 잡았다.** `lib/purge.js` 의 `purgeMap()` 이
-  //    `v2.purge_map.after_days` 를 select 에서 빠뜨려 기한이 늘 null 로 온다
-  //    → planFor 가 expire 줄을 **전부 막고**, 크론이 한 줄도 못 돈다.
-  //    고칠 곳은 lib/purge.js (내 담당 파일이 아니라 안 고쳤다 — 보고에 적었다).
-  //    그동안에도 **생성되는 SQL 이 진짜 칸을 읽는지**는 봐야 하므로, 기한을 직접 읽어 붙인다.
-  const 기한 = (await c.query(
-    `select schema_name, tbl, col, how, note, after_days from v2.purge_map where how = 'expire'`)).rows;
-  // ⚠️ 고쳐지면 저절로 사라지는 알림이다 — **검사를 빨갛게 만들지 않는다**
-  //    (남이 고친 것 때문에 내 검사가 깨지면 그 다음부터 아무도 안 본다)
-  if (map.filter(isExpire).some((m) => m.after_days === undefined))
-    console.log("   ⚠️ 아직 못 고침 — lib/purge.js 의 purgeMap() select 에 after_days 가 없다. " +
-                "그래서 크론의 기한 파기가 날마다 운다 (조용히 안 도는 것보다 낫다)");
+  // ⚠️⚠️ 기한은 **`purgeMap()` 이 실어 온 것만** 쓴다 — 여기서 제 SQL 로 다시 읽지 않는다.
+  //    2026-09-03 까지 이 자리가 제 SQL 로 기한을 읽어 붙였고, 그래서 이 검사는 초록인데
+  //    진짜 크론은 기한이 null 로 와 날마다 터졌다 (어긋난곳 ⑲). 그 우회를 걷어냈다.
+  //    ⚠️ 안 하면 무엇이 터지나 — 검사가 lib 보다 후해져서 **lib 이 안 읽는 칸을 못 본다.**
+  const 기한 = map.filter(isExpire);
+  ok("⚠️⚠️ purgeMap() 이 기한(after_days)을 실어 온다 — 빠지면 크론이 날마다 터진다",
+     기한.length > 0 && 기한.every((m) => m.after_days != null),
+     기한.map((m) => `${m.tbl}.${m.col}=${m.after_days}`).join(" · ") || "expire 줄이 0개다");
   const exp = planFor({ map: 기한, facts, target: { kind: "expire" } });
   ok("기한을 제대로 읽으면 막히는 자리가 없다", exp.blocked.length === 0, JSON.stringify(exp.blocked));
   ok("기한 파기 문장이 만들어진다", exp.expired.length === 기한.length, String(exp.expired.length));

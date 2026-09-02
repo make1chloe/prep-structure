@@ -19,6 +19,14 @@
  *    (`middleware.js` 주석의 실측 — 학생 세션으로 `/parent` 가 200 이었다).
  *    이 화면은 **수강료·상담일지·학부모 전화**를 읽는다. 앱에서 제일 민감한 자리다.
  *
+ * ── ⚠️⚠️ **강사에게는 수강료 부분만 안 보인다** (원장님 2026-09-03: 「아니 강사는 수강료 설정 못보게」).
+ *    상담일지·신규 문의는 **강사도 본다** — 원장님이 그 둘은 안 집으셨다.
+ *    그래서 화면을 통째로 막지 않고 **수강료 카드 하나만** 뺀다.
+ *    ⚠️ 안 그리는 것으로 끝내지 않고 **조회 자체를 안 한다**(`loadFee`·`loadSpecial`) —
+ *       안 보일 자료를 읽어 오면 조회 상한만 먹고, 다음 사람이 「이미 읽었으니 그리자」로 되돌린다.
+ *    ⚠️⚠️ **이것은 화면 가리개일 뿐이다.** `v2.fee_rule`·`v2.payment` 의 접근 규칙은
+ *       `staff_all … using (v2.is_staff())` 하나뿐이고 `is_staff()` 에 강사가 든다(2026-09-03 실측).
+ *       강사가 PostgREST 로 직접 물으면 수강료가 그대로 나온다 — **DB 쪽은 아직 안 막혔다.**
  * ── ⚠️ **빈 화면을 예쁘게 만들지 않는다.** 비었으면 「무엇이 없어서 비었나」를 밝힌다 (대전제 0).
  * ── ⚠️ **퇴원생은 재원 기간만 보인다** (파기와 부딪힌다). 못 그린 줄은 **개수를 밝힌다.**
  */
@@ -26,6 +34,9 @@ import Link from "next/link";
 import "./ops.css";
 import LogoutButton from "../logout-button";
 import { staffOnly } from "./who.js";
+// ⚠️ 「강사에게 수강료를 보이나」는 `lib/menu.js` 한 곳이 판단한다 (대전제-4 · 원칙-1).
+//    메뉴에서 가리는 것과 화면에서 가리는 것이 **같은 함수**여야 두 벌이 안 된다.
+import { canSeeFees } from "../../lib/menu.js";
 import { openAs, QUERY_CAP, SPECIAL_BUDGET } from "./db.js";
 import { loadHead, loadFee, loadInquiry, loadConsult, loadSpecial } from "./read.js";
 import { PayLine, FeeRules, InquiryBox, InquiryLine, ConsultBox } from "./ui.js";
@@ -58,14 +69,18 @@ export default async function Ops({ searchParams }) {
     const asked = String(one(sp.m) ?? "");
     const head = await loadHead(conn.db, YM.test(asked) ? asked : null);
 
-    const fee = await loadFee(conn.db, head.ym);
+    // ⚠️ 강사면 수강료를 **아예 안 읽는다.** 판단은 `lib/menu.js` 한 곳(대전제-4)
+    const 수강료 = canSeeFees(me.role);
+
+    const fee = 수강료 ? await loadFee(conn.db, head.ym) : null;
     const inquiries = await loadInquiry(conn.db);
     const pickedId = UUID.test(String(one(sp.s) ?? "")) ? one(sp.s) : null;
     const consult = await loadConsult(conn.db, pickedId);
 
     // 특강 아이만 회차를 센다 (`lib/session.js`). 정규는 월정액이라 안 부른다
-    const special = await loadSpecial(conn.db, fee.people, head.ym, head.today,
-                                      { budget: SPECIAL_BUDGET });
+    const special = 수강료
+      ? await loadSpecial(conn.db, fee.people, head.ym, head.today, { budget: SPECIAL_BUDGET })
+      : null;
 
     const can = head.canWrite ?? {};
     const canPay = can.payment?.ins === true && can.payment?.upd === true;
@@ -92,7 +107,8 @@ export default async function Ops({ searchParams }) {
                     canEnroll={can.students?.ins === true} />
           </section>
 
-          {/* ② 한 달에 한 번 */}
+          {/* ② 한 달에 한 번 — ⚠️ **강사에게는 이 카드가 통째로 없다**(원장님 2026-09-03) */}
+          {수강료 ? (
           <section className="card">
             <div className="cardhd">💳 수강료 <span className="num">{head.label}</span></div>
             <Months head={head} sp={sp} />
@@ -126,6 +142,14 @@ export default async function Ops({ searchParams }) {
                 줄은 <b>그대로 있습니다</b> — 지우지 않았습니다.
               </p>) : null}
           </section>
+          ) : (
+            /* ⚠️ **숨긴 것을 숨기지 않는다**(대전제-0). 왜 안 보이는지 한 줄로 밝힌다 —
+                  안 그러면 강사가 「화면이 고장 났나」 하고 원장님께 묻는다 */
+            <p className="op-note">
+              💳 수강료는 <b>원장님만</b> 보십니다 — 이 화면에서 안 그렸습니다.
+              상담일지와 신규 문의는 그대로 보실 수 있습니다.
+            </p>
+          )}
 
           {/* ③ 아이마다 모아 본다 */}
           <section className="card">

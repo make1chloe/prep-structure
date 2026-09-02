@@ -195,10 +195,13 @@ await sec("■ ③ 서비스 열쇠가 없는가 · 접근 규칙 안에서 읽�
      /UUID\.test\(id\)/.test(code.read) && /UUID\s*=\s*\/\^\[0-9a-f\]\{8\}/.test(code.read));
   ok("누구인지는 lib/supabase-server.js 한 곳에서 묻는다",
      /from\s+["']\.\.\/\.\.\/lib\/supabase-server\.js["']/.test(code.page) && /roleOf\s*\(/.test(code.page));
+  // ⚠️ 철자가 아니라 **규칙**을 본다 (대전제-4). 위 check-screen-home 주석과 같은 까닭이다
   ok("원장·강사가 아니면 자료를 안 읽는다",
-     /const STAFF = new Set\(\["principal", "instructor"\]\)/.test(code.page) &&
-     /const STAFF = new Set\(\["principal", "instructor"\]\)/.test(code.actions) &&
-     /STAFF\.has/.test(code.page) && /STAFF\.has/.test(code.actions));
+     /\bisStaff\s*\(|\bcanSettings\s*\(/.test(code.page) &&
+     /\bisStaff\s*\(|\bcanSettings\s*\(/.test(code.actions));
+  ok("⚠️ 화면이 **제 손으로 역할 목록을 만들지 않는다** (대전제-4)",
+     !/new Set\(\s*\[[^\]]*(principal|instructor)/.test(code.page) &&
+     !/new Set\(\s*\[[^\]]*(principal|instructor)/.test(code.actions));
   ok("쓰는 자리가 0줄이면 실패로 되돌린다 (자동 검사 ⑪)",
      /rowCount \?\? 0/.test(code.actions) && /rollback/.test(code.actions) &&
      /한 줄도 안 바뀌었다/.test(code.actions),

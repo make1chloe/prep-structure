@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { menuFor, currentOf, QUICK } from "@/lib/menu";
+import { menuFor, currentOf, showNav, QUICK, EXIT } from "@/lib/menu";
 
 /**
  * **어느 화면에서든 늘 손에 닿는 자리** (계획 0단계 10번).
@@ -17,7 +17,11 @@ import { menuFor, currentOf, QUICK } from "@/lib/menu";
 export default function Nav({ role, onQuick }) {
   const path = usePathname();
   const items = menuFor(role);
-  if (!items.length) return null;          // ⚠️ 역할을 모르면 안 그린다 (짐작해서 열지 않는다)
+  // ⚠️⚠️ 어긋난 곳 ⑯ — 옛 코드는 `if (!items.length) return null` 이었다.
+  //    그래서 메뉴가 0칸이 되는 순간 **나가는 길까지 같이 사라졌다**(대전제-10 · 0-10).
+  //    안 그리는 경우는 **아직 아무도 아닌 때(로그인 전)** 하나뿐이다 — 판단은 `lib/menu.js`(대전제-4).
+  //    안 하면 무엇이 터지나: 홈 화면에 깐 앱엔 주소창도 뒤로가기도 없어 **앱에 갇힌다.**
+  if (!showNav(role)) return null;
   const now = currentOf(path, items);
 
   return (
@@ -38,9 +42,10 @@ export default function Nav({ role, onQuick }) {
             <span className="nv-t">{QUICK.name}</span>
           </button>
         )}
-        <Link href="/login?switch=1" className="nv-a nv-out" title="다른 사람으로 들어가기">
-          <span className="nv-i" aria-hidden="true">🚪</span>
-          <span className="nv-t">나가기</span>
+        {/* ⚠️ 나가는 길은 **조건이 하나도 없다.** 역할을 못 읽어도 그린다(대전제-10 · ⑯) */}
+        <Link href={EXIT.href} className="nv-a nv-out" title={EXIT.title}>
+          <span className="nv-i" aria-hidden="true">{EXIT.icon}</span>
+          <span className="nv-t">{EXIT.name}</span>
         </Link>
       </div>
     </nav>

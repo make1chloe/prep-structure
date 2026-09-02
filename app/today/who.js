@@ -10,9 +10,11 @@
  */
 import { cookies } from "next/headers";
 import { serverClientFromStore, roleOf, keys } from "../../lib/supabase-server.js";
+import { isStaff } from "../../lib/menu.js";
 
-/** 이 화면을 여는 역할 — 원장·강사뿐이다 */
-const STAFF = new Set(["principal", "instructor"]);
+/** 이 화면을 여는 역할 — 원장·강사뿐이다. **낱말은 `lib/menu.js` 한 곳에 있다** */
+// ⚠️ 「원장·강사」 낱말을 여기 다시 적지 않는다 (원칙-1 · 어긋난 곳 ⑯).
+//    안 하면 무엇이 터지나: 역할 낱말이 바뀌는 날 이 파일만 옛말을 해 문이 잘못 열리거나 잠긴다.
 
 /**
  * @returns { ok:true, profileId, role, name } | { ok:false, why, msg, how:[줄] }
@@ -47,7 +49,7 @@ export async function staffOnly() {
     // ⚠️ 모르면 **지어내지 않는다.** `lib/supabase-server.js` 가 준 까닭을 그대로 보여준다
     return { ok: false, why: who.why, msg: who.msg || "역할을 못 읽었습니다.", how: [] };
   }
-  if (!STAFF.has(who.role)) {
+  if (!isStaff(who.role)) {
     return {
       ok: false, why: "not-staff",
       msg: "이 화면은 원장·강사만 엽니다.",

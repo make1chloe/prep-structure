@@ -21,9 +21,10 @@
 import { cookies } from "next/headers";
 import { serverClientFromStore, roleOf } from "../../lib/supabase-server.js";
 import { setupSql } from "./read.js";
-
 /** 원장·강사만. ⚠️ 문지기는 v2 를 못 읽을 때 아무도 안 옮긴다 — **여기서 스스로 본다** */
-const STAFF = new Set(["principal", "instructor"]);
+// ⚠️ 「원장·강사」 낱말을 여기 다시 적지 않는다 (원칙-1 · 어긋난 곳 ⑯).
+//    안 하면 무엇이 터지나: 역할 낱말이 바뀌는 날 이 파일만 옛말을 해 문이 잘못 열리거나 잠긴다.
+import { isStaff } from "../../lib/menu.js";
 
 /** 쓰기 문 하나 — 열고, 쓰고, 닫는다. `begin read only` 가 **아니다** */
 async function writeAs(profileId, sql, params) {
@@ -60,7 +61,7 @@ async function staffId() {
   const supabase = serverClientFromStore(await cookies());
   const { user, role, msg } = await roleOf(supabase);
   if (!user) return { id: null, why: "로그인이 풀렸다 — 다시 로그인해 주세요" };
-  if (!STAFF.has(String(role))) return { id: null, why: msg || "원장·강사만 할 수 있다" };
+  if (!isStaff(role)) return { id: null, why: msg || "원장·강사만 할 수 있다" };
   return { id: user.id, why: "" };
 }
 

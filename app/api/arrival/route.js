@@ -34,6 +34,7 @@
 import { cookies, headers } from "next/headers";
 import { Client } from "pg";
 import { serverClientFromStore, roleOf } from "../../../lib/supabase-server.js";
+import { isStaff } from "../../../lib/menu.js";
 import { openAs } from "../../today/db.js";
 import {
   STEPS, pickIp, netGate, readNet, allowThisIp, whoAmI, arrivalView, markArrival,
@@ -43,7 +44,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STAFF = new Set(["principal", "instructor"]);
+// ⚠️ 「원장·강사」 낱말을 여기 다시 적지 않는다 (원칙-1 · 어긋난 곳 ⑯).
+//    안 하면 무엇이 터지나: 역할 낱말이 바뀌는 날 이 파일만 옛말을 해 문이 잘못 열리거나 잠긴다.
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 const json = (body, status = 200) =>
@@ -90,7 +92,7 @@ async function whoIsIt() {
   catch (e) { return { ok: false, why: "read-failed", msg: `로그인을 못 읽었습니다 — ${String(e?.message ?? e).slice(0, 160)}` }; }
   if (!who.user) return { ok: false, why: "no-user", msg: "로그인하지 않았습니다." };
   if (who.role == null) return { ok: false, why: who.why, msg: who.msg || "역할을 못 읽었습니다." };
-  return { ok: true, profileId: who.user.id, role: who.role, isStaff: STAFF.has(who.role) };
+  return { ok: true, profileId: who.user.id, role: who.role, isStaff: isStaff(who.role) };
 }
 
 export async function GET(req) {

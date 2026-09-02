@@ -121,8 +121,11 @@ export async function 학생화면읽기() {
   const sid = 학생.id;
 
   // ── ② 오늘 판 ───────────────────────────────────────────────────
-  // ⚠️ 아이에게는 **마감한 판만** 내려온다(0016 `own_sheet`). 안 내려온 날은 「없는 날」이 아니라
+  // ⚠️⚠️ 0084 — 아이는 **제 판을 마감 전에도 읽는다**(원장님 2026-09-03 「출석하면 바로」).
+  //    가르는 잣대는 `v2.sheet_visible_to()` 한 벌이다 — 학부모는 **마감한 판만** 본다(사고 #7).
+  //    그래서 여기서 `closed_at` 을 다시 거르지 않는다. 판이 아예 안 온 날은 「없는 날」이 아니라
   //    「아직 정리 중」이다 — 그 가름은 `lib/close.js` 의 글을 그대로 쓴다.
+  // ⚠️ 마감 전에도 `closed_at` 을 **같이 읽는다** — 화면이 「더 늘어날 수 있어요」를 그 값으로 판단한다.
   const 오늘것 = await 물어본다("오늘 수업", () =>
     q().from("day_sheet")
       .select("id,date,attend,closed_at,comment," +
@@ -189,6 +192,8 @@ export async function 학생화면읽기() {
   const 앞달 = 달옮기기(이달, -1), 뒷달 = 달옮기기(이달, 1);
   const first = monthRange(앞달).first, last = monthRange(뒷달).last;
 
+  // ⚠️ 0084 뒤로 여기에 **마감 안 한 판도** 섞여 온다 — `달력칸()` 이 `closed_at` 으로 갈라
+  //    「수업함 · 정리 중」으로 세운다. 안 가르면 오늘이 「왔음 · 숙제 2」로 굳어 보인다
   const 달판 = await 물어본다("달력의 지난 수업", () =>
     q().from("day_sheet").select("id,date,attend,closed_at,comment,day_item(id,slot,status,said_done_at)")
       .eq("student_id", sid).gte("date", first).lte("date", last).order("date"));

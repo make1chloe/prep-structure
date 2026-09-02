@@ -18,6 +18,24 @@
  * ⚠️ 색을 여기서 지어내지 않는다 — `color:inherit` 다. 어느 화면에 놓이든 그 화면 글자색을
  *    따라가므로 다크모드에서 **흰 바탕에 흰 글씨**가 되는 자리가 없다.
  *    (`app/globals.css` 는 남의 담당이라 여기서 그 값을 베끼지 않는다 — 베끼면 두 벌이 된다.)
+ *    `color:inherit` 는 결국 몸통의 `color: var(--fg)` 를 그대로 물려받는다 —
+ *    **색 토큰 한 벌**로 말하는 것이지 값을 지어내는 것이 아니다.
+ *
+ * ⚠️⚠️ **`opacity` 로 흐리게 하지 않는다** (폰-9 · 확정-㉖).
+ *    2026-09-03 까지 여기 `opacity:.75` 가 있었다. 「덜 중요한 것」처럼 보이게 하려던 것인데,
+ *    이 단추는 **홈 화면에 깐 앱에서 유일하게 나가는 자리**다(대전제-10) — 덜 중요하지 않다.
+ *    안 빼면 무엇이 터지나 — 재서 적는다(글자색 `--fg` 를 페이지 바탕 `--bg` 위에 놓고 잰 값):
+ *        배색        그냥        opacity:.75 를 씌우면
+ *        기본(밝을 때) 16.04:1  →  7.59:1
+ *        기본(어두울 때)16.99:1  →  9.83:1
+ *        따뜻하게     16.62:1  →  9.54:1
+ *        종이         13.27:1  →  **6.52:1**   ← 이 검사가 본문에 요구하는 7:1 아래로 내려간다
+ *        밝게         21.00:1  →  10.37:1
+ *    「덜 중요함」은 색으로 말한다. 그런데 여기는 덜 중요하지도 않으므로 **몸통 글자색 그대로** 둔다.
+ *    ⚠️ 확정-㉖ 의 예외(아이콘)에 기대지 마라 — 이 단추는 아이콘이 하나도 없는 **순수 글씨**다.
+ *    `scripts/check-layout.mjs` 의 **1부-나**가 이 파일의 css 문자열을 훑어 그것을 잡는다
+ *    (그 전에는 어느 검사도 이 문자열을 안 봤다 — 그래서 아무도 못 잡았다).
+ *
  * ⚠️ 글씨 16px · 높이 44px 아래로 내리지 마라 — 16 밑이면 사파리가 화면을 확대하고
  *    닫아도 확대가 남는다. 44 밑이면 손가락으로 못 누른다.
  */
@@ -35,7 +53,7 @@ export default function LogoutButton({ label = "다른 사람으로 로그인 ·
 /* ⚠️ 여기는 template literal 이다 — 안에 홑따옴표 기울임표(backtick)를 쓰면 문자열이 끊겨 빌드가 깨진다 */
 const css = `
 .closeout{margin:2.5rem 0 calc(1rem + env(safe-area-inset-bottom));text-align:center}
-.closeout button{background:none;border:0;color:inherit;opacity:.75;
+.closeout button{background:none;border:0;color:inherit;
   font-family:inherit;font-size:16px;line-height:1.4;text-decoration:underline;
   cursor:pointer;min-height:44px;padding:.6rem 1rem}
 @media (pointer:coarse){ .closeout button{font-size:16px} }

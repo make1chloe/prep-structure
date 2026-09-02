@@ -21,6 +21,7 @@
 import { cookies } from "next/headers";
 import { Client } from "pg";
 import { serverClientFromStore, roleOf, keys } from "../../lib/supabase-server.js";
+import { isStaff } from "../../lib/menu.js";
 
 /** 아이디 모양 — ⚠️ 글자를 SQL 에 끼워 넣기 전에 **반드시** 여기를 지난다 */
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -28,8 +29,9 @@ const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a
 /** 이 화면의 조회 상한 (계획 §속도 표 — `/schedule` 은 **조회 8 · 2단**) */
 export const QUERY_CAP = 8;
 
-/** 이 화면을 여는 역할 — 원장·강사뿐이다 */
-const STAFF = new Set(["principal", "instructor"]);
+/** 이 화면을 여는 역할 — 원장·강사뿐이다. **낱말은 `lib/menu.js` 한 곳에 있다** */
+// ⚠️ 「원장·강사」 낱말을 여기 다시 적지 않는다 (원칙-1 · 어긋난 곳 ⑯).
+//    안 하면 무엇이 터지나: 역할 낱말이 바뀌는 날 이 파일만 옛말을 해 문이 잘못 열리거나 잠긴다.
 
 /**
  * **이 화면을 열 수 있는 사람인가.**
@@ -64,7 +66,7 @@ export async function staffOnly() {
   if (!who.user) return { ok: false, why: "no-user", msg: "로그인하지 않았습니다.", how: [] };
   // ⚠️ 모르면 **지어내지 않는다.** lib 이 준 까닭을 그대로 보여준다
   if (who.role == null) return { ok: false, why: who.why, msg: who.msg || "역할을 못 읽었습니다.", how: [] };
-  if (!STAFF.has(who.role)) {
+  if (!isStaff(who.role)) {
     return { ok: false, why: "not-staff", msg: "이 화면은 원장·강사만 엽니다.",
              how: ["학생은 `/me`, 학부모는 `/parent` 가 첫 화면입니다."] };
   }

@@ -44,7 +44,7 @@ import {
 // ⚠️ 되풀이 할일을 **여기서 만들지 않는다.** 줄을 세우는 셈은 lib/todo.js, 열쇠·따라잡기는
 //    lib/queue.js 에 이미 있다 — 크론은 그 둘을 부르기만 한다 (⑨ · 원칙 1)
 import { planRepeats, academyDays } from "../../../lib/todo.js";
-import {
+import { readExpireGate,
   purgeFiles, filesDue, purgeMap, columnFacts, planFor, isExpire,
 } from "../../../lib/purge.js";
 import { plannedAttend } from "../../../lib/attend.js";
@@ -430,8 +430,27 @@ async function 기한을안적었나(ctx) {
  *    `scripts/check-purge.mjs` 가 **글자로 훑어** 다른 파일에 이름이 있으면 깨진다.
  * ⚠️ 사람 파기와 **같이 안 돈다** — 한 아이를 지운다고 남의 되돌리기 자료를 날리면 안 된다.
  *    `excel_row.before` 는 어느 표의 줄이든 통째로 담아 「이 아이 것만」을 원리적으로 못 고른다.
+ *
+ * ⚠️⚠️ **원장님 조건이 아직 안 채워졌다 (2026-09-03).**
+ *    원장님 답은 「백업 따로 만들면 지워」 — **조건부 승낙**이다. 그런데 백업이 **없다.**
+ *    셋 다 못 짓는 것을 확인했다:
+ *      ① 파일로 떨구기 — 이 걸음은 Vercel 크론(`vercel.json` `0 20 * * *` → 서버리스)에서 돈다.
+ *         쓸 수 있는 곳이 없고, 있어도 원장님이 꺼낼 길이 없다. 레포에 파일 쓰는 자리가 0곳이다.
+ *      ② `v2` 안 다른 표로 옮겨 담기 — 개인정보가 같은 DB 에 같은 권한으로 그대로 남아
+ *         **파기가 아니게 된다.** 그 표에도 기한이 붙어야 하니 끝이 없다.
+ *      ③ Storage 버킷 — `v2` 밖이고(0-9), 버킷·정책 마이그레이션은 검사-⑥(`check-v2only`)이 막는다.
+ *         그리고 ② 와 같은 까닭으로 파기가 아니다.
+ *    → **지어낸 백업을 두지 않는다.** 대신 이 자리에 사실을 적어 둔다 (대전제-0).
+ *    → 지금 비우는 것은 **되돌리기 자료**다. 원본 줄은 제 표에 그대로 있고, 여기서 잃는 것은
+ *       「90일보다 오래된 엑셀 올림을 되돌리는 힘」이다. 그래도 **원장님이 아신 그 조건과 다르다.**
  */
 async function stepPurgeExpired(ctx) {
+  // ⚠️⚠️ **원장님이 켜기 전에는 한 줄도 안 지운다** (0087). 조건부 승낙이었고 조건이 안 채워졌다.
+  //    ⚠️ 여기서 **던지지 않는다** — 「막혀서 고장」과 「원장님이 아직 안 켜심」은 다른 일이고,
+  //       섞으면 날마다 빨간 줄이 서서 진짜 고장을 가린다(규칙-어긋난곳 ⑲ 가 그 사고였다).
+  const gate = await readExpireGate(ctx.db);
+  if (!gate.on) return { 돈줄: 0, 비운줄: 0, 꺼짐: true, why: gate.why };
+
   const map = (await purgeMap(ctx.db)).filter(isExpire);
   if (!map.length) return { 돈줄: 0, why: "기한으로 지울 줄이 목록에 없다" };
   const facts = await columnFacts(ctx.db);
@@ -442,9 +461,9 @@ async function stepPurgeExpired(ctx) {
   //    크론은 날마다 초록인데 그 칸의 아이 이름·전화가 **해가 지나도 그대로 남았다.**
   //    (`막힌것: 1` 을 200 응답 본문에만 적어 두면 아무도 안 본다.)
   //    ⚠️ 흘려도 되는 막힘이 생기면 그때 **흰 목록으로 좁힌다** — 조건을 다시 느슨하게 하지 마라.
-  //    ⚠️ 지금 실제로 이 자리가 막혀 있다 — `lib/purge.js` 의 `purgeMap()` 이
-  //       파기 목록 표의 `after_days` 칸을 **select 에서 빠뜨려** 기한이 늘 null 로 온다.
-  //       고치는 법: purgeMap() 의 select 에 `after_days` 를 더한다 (내 담당 파일이 아니라 안 고쳤다).
+  //    ⚠️ 2026-09-03 까지 이 자리가 **날마다 실제로 막혀 있었다** — `lib/purge.js` 의 `purgeMap()` 이
+  //       파기 목록 표의 `after_days` 칸을 select 에서 빠뜨려 기한이 늘 null 로 왔다.
+  //       고쳤다(select 에 after_days 를 더했다). 아래 오류 글은 **다시 빠뜨렸을 때를 위해** 남긴다.
   if (plan.blocked.length)
     throw new Error(
       "⚠️ 기한 파기가 막혔다 — 개인정보가 안 지워지고 있다. " +

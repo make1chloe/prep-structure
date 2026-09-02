@@ -29,6 +29,8 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 import LogoutButton from "./logout-button";
 import { serverClientFromStore, roleOf } from "../lib/supabase-server.js";
+import { isStaff, canSeeFees } from "../lib/menu.js";
+import { cardsOf } from "../lib/screens.js";
 // ⚠️ 마감 전·후에 아이 화면에 뜨는 **글자를 여기서 지어내지 않는다.** `lib/close.js` 한 벌이다 —
 //    베껴 적으면 lib 쪽 문구를 고치는 날 대시보드만 옛 글을 말한다 (원칙 1).
 import { PREPARING, NOTHING } from "../lib/close.js";
@@ -40,9 +42,6 @@ export const runtime = "nodejs";
 // ⚠️ 알림센터가 캐시되면 **어제 숫자를 오늘 것처럼** 보여 준다. 그리고 「실패한 것은 캐시하지 않는다」
 export const dynamic = "force-dynamic";
 
-/** ⚠️ 문지기는 **v2 를 못 읽을 때 아무도 안 옮긴다** (middleware.js 의 ⚠️ 그대로).
- *    그러면 학생·학부모가 `/` 에 그대로 선다 — **이 화면이 스스로 봐야 한다.** */
-const STAFF = new Set(["principal", "instructor"]);
 
 export default async function Home() {
   const gate = await who();
@@ -74,7 +73,18 @@ export default async function Home() {
     fee: "수강료",
     todos: "내 할 일",
   };
-  const ids = ["waiting", "sheets", "sessions", "books", "fee", "todos"];
+
+  /* ⚠️⚠️ **강사에게는 수강료 카드를 안 그린다** (원장님 2026-09-03: 「강사는 수강료 … 못보게」).
+   *    판단은 `lib/menu.js` 의 `canSeeFees` 한 곳이다 — `/ops` 도 같은 것을 부른다(원칙-1).
+   *    ⚠️ `CardDeck` 은 `children[ids.indexOf(id)]` 로 짝을 짓는다 —
+   *       **ids 와 children 을 같은 조건으로 걸러야** 카드와 속이 어긋나지 않는다.
+   *    ⚠️ 이것은 **화면 가리개일 뿐이다.** `v2.payment` 의 접근 규칙은 `is_staff()` 하나뿐이라
+   *       강사가 PostgREST 로 직접 물으면 그대로 나온다(2026-09-03 실측 · 보고에 올렸다). */
+  const 수강료 = canSeeFees(gate.role);
+  // ⚠️⚠️ **목록을 여기 다시 적지 않는다** (원칙-1). `lib/screens.js` 의 CARDS.home 한 벌에서 뽑는다 —
+  //    예전에는 여기 손으로 적어 두어 lib 과 두 벌이었고, 카드를 하나 더한 날 조용히 어긋났다.
+  //    수강료만 역할로 거른다 (원장님 2026-09-03 — 「강사는 수강료 설정 못보게」)
+  const ids = cardsOf("home").filter((id) => id !== "fee" || 수강료);
 
   return (
     <main className="wrap stack">
@@ -86,13 +96,20 @@ export default async function Home() {
       {/* ⚠️ 크론이 이틀 넘게 안 돌면 한 줄. **안 돌 때만 부른다** */}
       <CronLine on={f.cronOn} gap={f.cronGap} />
 
+      {/* ⚠️ **배열 하나로 넘긴다.** `{수강료 ? <…/> : null}` 로 쓰면 안 그릴 때도 자리가 `null` 로
+          남아 children 길이가 그대로다 — `CardDeck` 이 `children[ids.indexOf(id)]` 로 짝을 지으므로
+          그 순간 **카드 제목과 속이 한 칸씩 어긋난다**(수강료를 뺀 자리에 할 일이 들어간다). */}
       <CardDeck ids={ids} labels={labels} initial={f.order}>
-        <Suspense fallback={<Loading what="아이가 찍은 진도" />}><Waiting p={waiting} /></Suspense>
-        <Suspense fallback={<Loading what="판" />}><Sheets p={waiting} /></Suspense>
-        <Suspense fallback={<Loading what="회차" />}><Sessions p={sessions} /></Suspense>
-        <Suspense fallback={<Loading what="교재" />}><Books p={books} /></Suspense>
-        <Suspense fallback={<Loading what="수강료" />}><Fee p={books} /></Suspense>
-        <Suspense fallback={<Loading what="할 일" />}><Todos p={todos} /></Suspense>
+        {[
+          <Suspense key="waiting" fallback={<Loading what="아이가 찍은 진도" />}><Waiting p={waiting} /></Suspense>,
+          <Suspense key="sheets" fallback={<Loading what="판" />}><Sheets p={waiting} /></Suspense>,
+          <Suspense key="sessions" fallback={<Loading what="회차" />}><Sessions p={sessions} /></Suspense>,
+          <Suspense key="books" fallback={<Loading what="교재" />}><Books p={books} /></Suspense>,
+          ...(수강료
+            ? [<Suspense key="fee" fallback={<Loading what="수강료" />}><Fee p={books} /></Suspense>]
+            : []),
+          <Suspense key="todos" fallback={<Loading what="할 일" />}><Todos p={todos} /></Suspense>,
+        ]}
       </CardDeck>
 
       {/* ⚠️ 대전제 10 — 홈 화면에 깐 앱엔 주소창도 뒤로가기도 없다. 닫는 길은 **늘 화면 안에** */}
@@ -108,14 +125,17 @@ async function who() {
     const { user, role, msg, why } = await roleOf(supabase);
     if (!user)
       return { ok: false, why: "로그인이 안 돼 있습니다 — 로그인 화면으로 가 주세요." };
-    if (!STAFF.has(String(role)))
+    // ⚠️ 문지기는 **v2 를 못 읽을 때 아무도 안 옮긴다** (middleware.js 의 ⚠️ 그대로).
+    //    그러면 학생·학부모가 `/` 에 그대로 선다 — **이 화면이 스스로 봐야 한다.**
+    //    낱말 목록은 `lib/menu.js` 한 곳뿐이다(원칙-1 · 어긋난 곳 ⑯).
+    if (!isStaff(role))
       return {
         ok: false,
         why: role
           ? `이 화면은 원장·강사 것입니다 (지금 역할: ${role}).`
           : `역할을 못 읽었습니다 — ${msg || why || "까닭을 모릅니다"}`,
       };
-    return { ok: true, id: user.id };
+    return { ok: true, id: user.id, role };
   } catch (e) {
     // ⚠️ 실측 2026-09-02 — `.env.local` 에 **NEXT_PUBLIC_SUPABASE_ANON_KEY 가 없어서**
     //    로그인 클라이언트를 아예 못 만든다. 여기로 온다. 지어내지 말고 그 말을 그대로 띄운다.

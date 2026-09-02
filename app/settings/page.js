@@ -32,8 +32,17 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const metadata = { title: "설정 · 클로이영어" };
 
-/** 이 화면을 여는 역할 — 원장·강사뿐이다 */
-const STAFF = new Set(["principal", "instructor"]);
+/**
+ * **설정은 원장만 연다** — 원장님 2026-09-03: 「아니 강사는 수강료 설정 못보게」.
+ *
+ * ⚠️ 판단은 `lib/menu.js` 의 `canSettings` 한 곳이다(대전제-4 · 원칙-1). 메뉴에서 「설정」을
+ *    빼는 것도 **같은 판단**을 쓴다 — 두 벌이면 메뉴엔 없는데 주소로는 열리는 날이 온다.
+ * ⚠️ 안 하면 무엇이 터지나: 문지기(`middleware.js`)는 첫 화면만 고르고 역할로 화면을 안 지킨다.
+ *    메뉴에서만 빼면 강사가 `/settings` 를 그대로 열어 배색·문구·진도 스위치를 고친다.
+ * ⚠️⚠️ **이것도 화면 가리개일 뿐이다.** 설정 표들의 접근 규칙은 `staff_all(is_staff())` 라
+ *    강사에게 DB 쪽은 열려 있다(2026-09-03 실측 · 보고에 올렸다).
+ */
+import { canSettings } from "../../lib/menu.js";
 
 /** 카드 한 장 — 제목 · 왜 여기 있나 · 속 */
 function Card({ title, why, children }) {
@@ -54,7 +63,7 @@ export default async function SettingsPage() {
     try { who = await roleOf(serverClientFromStore(await cookies())); }
     catch (e) { who = { user: null, role: null, why: "threw", msg: String(e?.message ?? e).slice(0, 200) }; }
   }
-  const staff = Boolean(who.user) && STAFF.has(String(who.role));
+  const staff = Boolean(who.user) && canSettings(who.role);
 
   /* ── 읽는다 (문 하나 · 조회 5) ─────────────────────────────────────── */
   const r = staff ? await readSettings(who.user.id) : { ok: false, value: null, why: "", n: 0 };
@@ -90,11 +99,13 @@ export default async function SettingsPage() {
             <p className="muted">{who.msg || "로그인한 뒤에 다시 열어 주세요."}</p>
           </Card>
         ) : !staff ? (
-          <Card title="이 화면은 원장·강사만 엽니다">
+          <Card title="이 화면은 원장님만 엽니다">
             <p className="muted">
               {who.role == null
                 ? (who.msg || "역할을 못 읽었습니다 — 지어내지 않습니다.")
-                : "학생은 `/me`, 학부모는 `/parent` 가 첫 화면입니다."}
+                : who.role === "instructor"
+                  ? "강사는 설정을 안 봅니다 (원장님이 정하신 것입니다). 다른 화면은 그대로 쓰실 수 있습니다."
+                  : "학생은 `/me`, 학부모는 `/parent` 가 첫 화면입니다."}
             </p>
           </Card>
         ) : !r.ok ? (

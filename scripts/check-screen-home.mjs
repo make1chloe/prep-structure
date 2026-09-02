@@ -210,9 +210,14 @@ await sec("■ ③ 서비스 열쇠가 화면에 없는가 (접근 규칙을 지
      /UUID\s*=\s*\/\^\[0-9a-f\]\{8\}/.test(code.read) && /UUID\.test/.test(code.read));
   ok("누구인지는 lib/supabase-server.js 한 곳에서 묻는다",
      /from\s+["']\.\.\/lib\/supabase-server\.js["']/.test(code.page) && /roleOf\s*\(/.test(code.page));
+  // ⚠️⚠️ 예전에는 `new Set(["principal","instructor"])` 라는 **철자**를 찾았다.
+  //    철자를 찾는 단언은 **고치면 빨개지고 안 고치면 초록**이라 규칙을 지키는 것이 아니라
+  //    글자를 굳히는 것이었다. 지금은 **규칙**을 본다 (대전제-4 — 판단은 lib 한 곳):
+  //    ① lib/menu.js 의 판단을 부르나  ② 화면이 제 손으로 역할 목록을 만들지 않나
   ok("원장·강사가 아니면 자료를 안 읽는다 (문지기가 v2 를 못 읽을 때 학생이 여기 선다)",
-     /const STAFF = new Set\(\["principal", "instructor"\]\)/.test(code.page) &&
-     /STAFF\.has/.test(code.page));
+     /\bisStaff\s*\(/.test(code.page) && /lib\/menu(\.js)?["']/.test(code.page));
+  ok("⚠️ 화면이 **제 손으로 역할 목록을 만들지 않는다** (대전제-4 — 판단은 lib 한 곳)",
+     !/new Set\(\s*\[[^\]]*(principal|instructor)/.test(code.page));
 });
 
 await sec("■ ④ 탭이 없는가 · 접기로 줄이는가 (계획 「속도」 1)", async () => {
@@ -269,7 +274,8 @@ await sec("■ ⑧ 쓰는 자리 — 몇 줄이 바뀌었나를 본다 (자동 �
      /rowCount \?\? 0/.test(code.actions) && /rollback/.test(code.actions) && /한 줄도 안 바뀌었다/.test(code.actions),
      "접근 규칙이 막았는데 화면이 「성공」이라 하면 원장님은 껐다고 믿고 화면은 그대로다");
   ok("쓰는 자리도 그 사람이 되어 쓴다", /setupSql\(/.test(code.actions));
-  ok("쓰는 자리도 원장·강사만", /STAFF\.has/.test(code.actions));
+  // ⚠️ 철자(STAFF.has)가 아니라 **규칙**을 본다 (대전제-4)
+  ok("쓰는 자리도 원장·강사만", /\bisStaff\s*\(/.test(code.actions));
   ok("켠 날짜를 지우지 않는다", !/opened_on\s*=\s*null/.test(code.actions),
      "지우면 「몇 일째」의 뿌리가 사라진다");
 });
