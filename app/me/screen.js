@@ -27,8 +27,14 @@ import { DOW_NAME, monthRange, countDates } from "@/lib/session";
 import { css } from "./style";
 import { 다했어요, 진도찍기, 이의달기, 카드차례저장 } from "./actions";
 import 등원카드 from "./arrival-card";
+/* ⚠️⚠️ **차례와 열림은 다른 일이다**(원칙-4).
+ *    `순서입히기`(= `lib/screens.js` 의 `applyOrder`)는 **사람마다 차례**,
+ *    `visibleCards`(= `lib/perm.js`)는 **역할마다 열림**이다.
+ *    한 함수에 섞으면 「차례를 저장했는데 꺼진 카드가 되살아난다」·「끈 카드가 차례에서 사라져
+ *    다시 켜도 맨 뒤로 간다」가 된다. 그래서 **차례를 먼저 입히고 그다음 거른다.**  */
+import { visibleCards, blockedBy } from "@/lib/perm";
 import {
-  끝난줄, 센다, 카드어떻게, 카드들, 순서입히기, 한칸옮기기, 끌어옮기기,
+  끝난줄, 센다, 카드어떻게, 카드들, 순서입히기, 끌어옮기기,   // ⚠️ `한칸옮기기` 는 안 쓴다 — ▲▼ 가 **보이는 이웃**과 바꾸므로 `끌어옮기기`(moveTo) 하나면 된다
   대단원묶기, 아이가덮을수있나, 확인기다리는중, 누가찍었나, 표시들,
   언제끝나나, 다닌날수, 달력칸, 달옮기기, 요일, 칸이름, 학원_칸, 오늘줄나누기,
 } from "./derive";
@@ -39,9 +45,14 @@ export default function Screen(props) {
   const {
     오늘, 학생, 오늘판, 오늘줄 = [], 빈카드숨김,
     교재들 = [], 진도줄 = [], 이의들 = [], 진도체크열림, 달력, 글, 왜들 = [],
+    역할, 권한 = null, 권한왜 = null,
   } = props;
 
   const [순서, set순서] = useState(() => 순서입히기(props.카드순서, 카드들));
+  /* ⚠️ **차례를 먼저 입히고(위) 그다음 거른다(여기).** 순서를 바꾸지 마라 —
+   *    거르고 나서 차례를 입히면 꺼진 카드가 차례 목록에서 빠져, 원장님이 다시 켜신 날
+   *    그 카드가 **맨 뒤로 밀린다.** 저장값(`순서`)에는 꺼진 카드도 그대로 남아 있어야 한다. */
+  const 보이는 = useMemo(() => visibleCards(역할, "me", 순서, 권한), [역할, 순서, 권한]);
   // ⚠️ itemId → **said_done_at 시각**(서버가 정한 값). `'done'` 같은 글자를 넣지 마라 —
   //    화면이 보는 칸은 `said_done_at` 이라 다른 이름을 넣으면 **아무 일도 안 일어난다**(⑰)
   const [덮개숙제, set덮개숙제] = useState({});
@@ -159,10 +170,30 @@ export default function Screen(props) {
         </p>
       )}
 
+      {/* ⚠️⚠️ **아이 화면이 통째로 비면 「고장 났다」로 읽힌다.** 지금 `v2.role_access` 는 0줄이라
+          정말로 그렇게 된다. 왜 빈지 **크게** 말한다(대전제-0) — 안 그러면 아이가 앱을 지운다.
+          ⚠️ 「권한 없음」으로 끝내지 않는다. 무엇을 하면 되는지까지 적는다. */}
+      {보이는.length === 0 && (
+        <div className="card me-why" role="status">
+          <b>{권한왜 ? "지금은 화면을 열 수 없어요" : "원장님이 아직 안 정하셨습니다"}</b>
+          <ul>{(권한왜
+                ? [권한왜, "잠깐 뒤에 다시 열어 보고, 그래도 같으면 선생님께 말씀해 주세요."]
+                : [
+                    "이 화면에 무엇을 보여 줄지가 아직 한 번도 정해지지 않았어요 — 막힌 것이 아니에요.",
+                    "선생님(원장님)께 「내 화면을 켜 주세요」라고 말씀해 주세요.",
+                    "아래 달력과 로그아웃은 그대로 쓸 수 있어요.",
+                  ]).map((w, i) => <li key={i}>{w}</li>)}</ul>
+        </div>
+      )}
+
       <div className="me-cards">
-        {순서.map((key, i) => {
+        {보이는.map((key, i) => {
           const 속 = 카드그리기[key]?.();
           if (!속) return null;
+          /* ⚠️ ▲▼ 는 **보이는 이웃**과 자리를 바꾼다. 저장값(`순서`)에는 꺼진 카드가 섞여 있어서,
+           *    한 칸씩 밀면 안 보이는 카드와 자리를 바꿔 **눌러도 아무 일도 안 일어난다.**
+           *    `끌어옮기기`(moveTo)로 이웃 자리에 끼우면 두 방향 다 정확하다. */
+          const 위 = 보이는[i - 1], 아래 = 보이는[i + 1];
           return (
             <div
               key={key}
@@ -179,10 +210,10 @@ export default function Screen(props) {
             >
               <div className="me-tool me-right">
                 <span className="me-sub me-grip">⠿ 끌어서 옮기기</span>
-                <button type="button" className="me-sq" disabled={i === 0 || 저장중}
-                  onClick={() => 차례바꾸기(한칸옮기기(순서, key, "up"))} aria-label="이 칸을 위로">▲</button>
-                <button type="button" className="me-sq" disabled={i === 순서.length - 1 || 저장중}
-                  onClick={() => 차례바꾸기(한칸옮기기(순서, key, "down"))} aria-label="이 칸을 아래로">▼</button>
+                <button type="button" className="me-sq" disabled={!위 || 저장중}
+                  onClick={() => 위 && 차례바꾸기(끌어옮기기(순서, key, 위))} aria-label="이 칸을 위로">▲</button>
+                <button type="button" className="me-sq" disabled={!아래 || 저장중}
+                  onClick={() => 아래 && 차례바꾸기(끌어옮기기(순서, key, 아래))} aria-label="이 칸을 아래로">▼</button>
               </div>
               {속}
             </div>

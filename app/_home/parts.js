@@ -17,6 +17,7 @@
  * ⚠️ 한 낱말 상태 클래스(`open`·`on`·`sel`)를 쓰지 않는다 — `is-open` · `is-sel` 뿐이다.
  */
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { turnProgressEditOff, saveCardOrder } from "./actions.js";
 // ⚠️ 차례 판단은 **lib 한 벌**이다 (원칙 1). 여기 다시 적지 않는다 —
@@ -239,6 +240,45 @@ function TodoRows({ rows }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ══ 6. 맨 위 한 줄 — 「누가 무엇을 보나」를 아직 안 정하셨다 ══════════
+ *
+ * 원장님 2026-09-03: 「그런 권한기본값을 니가 미리 정해서 코드에 박아 놓는 게 아니라
+ *   내가 웹상에서 설정 할 수 있게 해」 → 코드에는 켬/끔 값이 한 줄도 없다.
+ *
+ * ⚠️⚠️ **그래서 이 줄이 없으면 조용히 사라진다.** 안 정한 칸은 막는 쪽이라
+ *    (돈·개인정보가 걸린 자리라 그렇게 뒀다) 강사·조교·아이·학부모 화면이 그냥 빈다.
+ *    오류도 안 나고 아무도 까닭을 모른다. **원장님을 부르는 장치가 이 한 줄뿐이다.**
+ *
+ * ⚠️ **0개면 안 띄운다.** 다 정하신 뒤에도 매일 한 줄이 서면 그 줄을 아무도 안 읽게 된다
+ *    (크론 줄과 같은 까닭).
+ * ⚠️ **못 셌으면 0 이라고 말하지 않는다** (대전제-0). 못 센 것과 다 정하신 것은 다른 사실이다.
+ * ⚠️ 여기서 **세지 않는다** — `lib/perm.js` 의 `unsetCount()` 가 센 값을 받아 그린다(원칙-5).
+ * ⚠️ 첫 그림을 안 늦춘다 — 부르는 쪽이 `<Suspense>` 로 흘려 보낸다(속도-2).            */
+export function UnsetCall({ n = 0, why = "" }) {
+  if (why)
+    return (
+      <p className="sunk" style={{ margin: 0, color: "var(--bad-fg)", background: "var(--bad-bg)" }}>
+        ⚠️ <strong>「누가 무엇을 보나」를 못 셌습니다</strong> — {why}{" "}
+        그동안 안 정한 칸은 <strong>막힌 채</strong>입니다.{" "}
+        <Link className="btn" href="/settings">설정 열기</Link>
+      </p>
+    );
+  if (!n) return null;                          // 다 정하셨다 — 아무 말도 안 한다
+
+  return (
+    <div className="row"
+         style={{ background: "var(--warn-bg)", color: "var(--warn-fg)",
+                  border: "1px solid var(--warn)", borderRadius: "var(--r2)",
+                  padding: "var(--s2) var(--s3)" }}>
+      <strong style={{ flex: "1 1 220px", whiteSpace: "normal" }}>
+        아직 안 정한 것 <span className="num">{n}</span>개 — 그동안 강사·조교·아이·학부모에게는
+        그 자리가 <strong>안 보입니다.</strong>
+      </strong>
+      <Link className="btn" href="/settings">누가 무엇을 보나 정하러 가기</Link>
     </div>
   );
 }

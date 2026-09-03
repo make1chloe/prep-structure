@@ -28,14 +28,21 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import LogoutButton from "./logout-button";
-import { serverClientFromStore, roleOf } from "../lib/supabase-server.js";
-import { isStaff, canSeeFees } from "../lib/menu.js";
+import { serverClientFromStore, roleOf, SCHEMA } from "../lib/supabase-server.js";
+import { isStaff, canSeeFees, isPrincipal } from "../lib/menu.js";
+import { loadPerm, blockedBy, PRINCIPAL } from "../lib/perm.js";
 import { cardsOf } from "../lib/screens.js";
 // ⚠️ 마감 전·후에 아이 화면에 뜨는 **글자를 여기서 지어내지 않는다.** `lib/close.js` 한 벌이다 —
 //    베껴 적으면 lib 쪽 문구를 고치는 날 대시보드만 옛 글을 말한다 (원칙 1).
 import { PREPARING, NOTHING } from "../lib/close.js";
 import { readFrame, readWaiting, readSessions, readBooks, readTodos } from "./_home/read.js";
-import { CardDeck, EditOpenLine, Fold, TodoBoard } from "./_home/parts.js";
+import { CardDeck, EditOpenLine, Fold, TodoBoard, UnsetCall } from "./_home/parts.js";
+/**
+ * ⚠️ 「누가 무엇을 보나」를 읽는 자리는 **설정 화면 것 한 벌**이다 (`app/settings/read.js`).
+ *    여기서 같은 조회를 한 벌 더 짜면 원칙-1 위반이고, 한쪽만 고치는 날
+ *    대시보드와 설정 화면이 **다른 숫자**를 말한다.
+ */
+import { readUnset } from "./settings/read.js";
 
 // ⚠️ `pg` 를 쓰므로 edge 가 아니라 node 여야 한다
 export const runtime = "nodejs";
@@ -49,6 +56,11 @@ export default async function Home() {
 
   // ⚠️ 판 카드는 오늘 날짜가 필요 없다 — **먼저 띄워 두고** 맨 위 줄과 같이 달리게 한다
   const waiting = readWaiting(gate.id);
+  /* ⚠️⚠️ **원장님께만 묻는다.** 강사·조교는 접근 규칙(`own_read_ra`)이 **제 역할 줄만** 주므로
+   *    여기서 세면 숫자가 거짓이 되고, 게다가 강사는 그 값을 고칠 수도 없다.
+   *    판단은 `lib/menu.js` 의 `isPrincipal` 한 곳이다 — 화면이 역할 목록을 안 만든다(대전제-4).
+   * ⚠️ **await 하지 않는다.** 첫 그림은 맨 위 줄 하나만 기다린다(속도-2). */
+  const 안정한것 = isPrincipal(gate.role) ? readUnset(gate.id) : null;
   const frame = await readFrame(gate.id);       // 첫 그림이 기다리는 유일한 조회
 
   if (!frame.ok)
@@ -78,9 +90,11 @@ export default async function Home() {
    *    판단은 `lib/menu.js` 의 `canSeeFees` 한 곳이다 — `/ops` 도 같은 것을 부른다(원칙-1).
    *    ⚠️ `CardDeck` 은 `children[ids.indexOf(id)]` 로 짝을 짓는다 —
    *       **ids 와 children 을 같은 조건으로 걸러야** 카드와 속이 어긋나지 않는다.
-   *    ⚠️ 이것은 **화면 가리개일 뿐이다.** `v2.payment` 의 접근 규칙은 `is_staff()` 하나뿐이라
-   *       강사가 PostgREST 로 직접 물으면 그대로 나온다(2026-09-03 실측 · 보고에 올렸다). */
-  const 수강료 = canSeeFees(gate.role);
+   *    ⚠️ 이제 **DB 도 막는다** — `v2.payment`·`v2.fee_rule` 규칙이 `v2.can('ops.fee')` 를 탄다(0088).
+   *       화면 가리개와 접근 규칙이 **같은 열쇠**를 본다(원칙-1). */
+  // ⚠️⚠️ **저장값(rows)을 끝까지 넘긴다.** 안 넘기면 `canFor` 가 늘 「아직 안 정함」으로 읽어
+  //    원장님이 화면에서 켜셔도 이 카드만 영영 안 뜬다 — 오류도 안 나서 아무도 못 짚는다.
+  const 수강료 = canSeeFees(gate.role, gate.perm);
   // ⚠️⚠️ **목록을 여기 다시 적지 않는다** (원칙-1). `lib/screens.js` 의 CARDS.home 한 벌에서 뽑는다 —
   //    예전에는 여기 손으로 적어 두어 lib 과 두 벌이었고, 카드를 하나 더한 날 조용히 어긋났다.
   //    수강료만 역할로 거른다 (원장님 2026-09-03 — 「강사는 수강료 설정 못보게」)
@@ -89,6 +103,15 @@ export default async function Home() {
   return (
     <main className="wrap stack">
       <Head today={f.today} />
+
+      {/* ⚠️⚠️ **안 정하면 강사·조교·아이·학부모가 아무것도 못 본다** (원장님 2026-09-03 —
+          켬/끔 기본값을 코드에 안 두기로 했다). 부르는 줄이 없으면 아무도 까닭을 모른다.
+          ⚠️ 첫 그림을 안 늦춘다 — 뒤에 채운다(속도-2). ⚠️ 0개면 저 줄이 스스로 안 뜬다. */}
+      {안정한것 && (
+        <Suspense fallback={null}>
+          <UnsetLine p={안정한것} />
+        </Suspense>
+      )}
 
       {/* ⚠️⚠️ 절 ㊶ — **켜 놓고 잊는 것을 막는 장치가 이 한 줄뿐이다.** 맨 위에 선다 */}
       {f.editOpen && <EditOpenLine days={f.editDays} from={f.editFrom} />}
@@ -118,6 +141,16 @@ export default async function Home() {
   );
 }
 
+/**
+ * 「아직 안 정한 것 N개」 한 줄.
+ * ⚠️ **못 셌으면 0 이라고 안 한다** (대전제-0) — 못 센 것과 다 정하신 것은 다른 사실이다.
+ *    그리는 것은 `app/_home/parts.js` 의 `UnsetCall` 이고, 세는 것은 `lib/perm.js` 다.
+ */
+async function UnsetLine({ p }) {
+  const r = await p;
+  return <UnsetCall n={r.ok ? r.value.n : 0} why={r.ok ? "" : r.why} />;
+}
+
 /* ══ 문지기 — 「누구인가」는 `lib/supabase-server.js` 한 곳을 지난다 ═══════════════ */
 async function who() {
   try {
@@ -135,7 +168,16 @@ async function who() {
           ? `이 화면은 원장·강사 것입니다 (지금 역할: ${role}).`
           : `역할을 못 읽었습니다 — ${msg || why || "까닭을 모릅니다"}`,
       };
-    return { ok: true, id: user.id, role };
+    /* ⚠️⚠️ **대메뉴 일곱 중 여기만 문지기가 없었다.** 메뉴에서 빼도 주소를 치면 그대로 열렸다 —
+     *    두 갈래로 나눠 짓다가 경계에 떨어진 자리다(원칙-4 — 고치기 전에 전체를 본다).
+     *    안 하면 무엇이 터지나: 원장님이 「대시보드」를 꺼도 강사가 `/` 를 치면 그대로 들어가고,
+     *    수강료 카드만 빼고 나머지는 다 보인다. 켜고 끄는 칸만 있고 걸리는 데가 없다.
+     * ⚠️ 원장은 묻지 않는다(스스로를 잠글 자리를 안 만든다). 글은 `blockedBy()` 한 벌이 짓는다. */
+    const 권한 = role === PRINCIPAL ? { rows: null, why: null } : await loadPerm(supabase.schema(SCHEMA));
+    const 문 = blockedBy(role, "page.home", 권한.rows, 권한.why);
+    if (!문.ok) return { ok: false, why: 문.msg, how: 문.how };
+
+    return { ok: true, id: user.id, role, perm: 권한.rows, permWhy: 권한.why };
   } catch (e) {
     // ⚠️ 실측 2026-09-02 — `.env.local` 에 **NEXT_PUBLIC_SUPABASE_ANON_KEY 가 없어서**
     //    로그인 클라이언트를 아예 못 만든다. 여기로 온다. 지어내지 말고 그 말을 그대로 띄운다.

@@ -27,7 +27,7 @@
  */
 
 import { cookies } from "next/headers";
-import { serverClientFromStore, roleOf } from "../../lib/supabase-server.js";
+import { serverClientFromStore, roleOf, SCHEMA} from "../../lib/supabase-server.js";
 import { setupSql } from "./read.js";
 import { turnProgressEditOff } from "../_home/actions.js";
 
@@ -41,7 +41,16 @@ import { turnProgressEditOff } from "../_home/actions.js";
  * ⚠️⚠️ **이것도 화면 가리개일 뿐이다.** 설정 표들의 접근 규칙은 `staff_all(is_staff())` 라
  *    강사에게 DB 쪽은 열려 있다(2026-09-03 실측 · 보고에 올렸다).
  */
-import { canSettings } from "../../lib/menu.js";
+import { canSettings, isPrincipal } from "../../lib/menu.js";
+/**
+ * ⚠️⚠️ **항목 목록과 「어느 역할에 묻나」는 `lib/perm.js` 한 벌뿐이다** (원칙-1 · 검사-⑲).
+ *    여기서 열쇠를 손으로 적으면, 항목을 하나 더한 날 화면엔 뜨는데 저장이 거절되거나
+ *    그 반대가 된다 — **오류는 안 나고** 원장님은 껐다고 믿으신다.
+ * ⚠️⚠️ **켬/끔 값은 여기 한 줄도 없다** (원장님 2026-09-03 —
+ *    「그런 권한기본값을 니가 미리 정해서 코드에 박아 놓는 게 아니라 내가 웹상에서 설정 할 수 있게 해」).
+ *    이 파일이 아는 것은 **무엇을 물을 수 있나**뿐이고, 켤지 끌지는 원장님이 누르신 값이 그대로 온다.
+ */
+import { ROLE_LIST, ITEMS, itemOf, itemsFor } from "../../lib/perm.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -105,7 +114,12 @@ async function staffId() {
   const supabase = serverClientFromStore(await cookies());
   const { user, role, msg } = await roleOf(supabase);
   if (!user) return { id: null, why: "로그인이 풀렸다 — 다시 로그인해 주세요" };
-  if (!canSettings(role)) return { id: null, why: msg || "설정은 원장님만 고칠 수 있다" };
+  /* ⚠️⚠️ **저장값을 읽어서 넘긴다.** 안 넘기면 `canFor` 가 늘 「아직 안 정함」이라
+   *    원장님이 켜 주셔도 강사는 영영 못 고친다 — 오류도 안 나서 아무도 못 짚는다.
+   * ⚠️ 원장은 묻지 않는다. 그리고 DB 규칙(`v2.can('page.settings')`)이 두 번째 자물쇠다. */
+  const 권한 = role === PRINCIPAL ? { rows: null, why: null } : await loadPerm(supabase.schema(SCHEMA));
+  if (!canSettings(role, 권한.rows))
+    return { id: null, why: 권한.why || msg || "설정은 원장님만 고칠 수 있다" };
   return { id: user.id, why: "" };
 }
 
@@ -215,4 +229,108 @@ export async function saveRule({ id: rowId, threshold, active } = {}) {
     }
   }
   return writeAs(id, RULE, [rowId, t || null, active === true]);
+}
+
+/* ── ⑥ 누가 무엇을 보나 (원장님 2026-09-03) ────────────────────────
+ * 「역할별로 페이지를 따로 만들지말고 원장이 학부모·학생·강사·조교에게 각각 페이지를
+ *   어디까지 오픈할지 온오프 및 세부목록 관리하는 페이지 추가해.」
+ *
+ * ⚠️⚠️ **「끄기」는 줄을 지우는 것이 아니라 `allowed = false` 로 두는 것이다** (대전제-6).
+ *    지우면 「끔」과 「아직 안 정함」이 구별이 안 되고, 그 순간 대시보드의
+ *    「아직 안 정한 것 N개」가 껐던 칸까지 세어 원장님을 헛부른다.
+ * ⚠️ `updated_by` 는 **서버가 정한다** (표-10) — `v2.me()` 다. 화면이 보낸 사람 번호를 안 믿는다.
+ *    안 믿는 까닭: 화면 값을 그대로 적으면 「누가 눌렀나」가 뜻을 잃는다.
+ * ⚠️ 쓰는 문장이 **하나뿐이다.** 한 칸·역할 전부·「말씀대로」가 전부 이 문장을 지난다 —
+ *    두 벌이면 한쪽만 고치는 날 「전부 끄기」만 자취를 안 남긴다.                          */
+const PUT_ACCESS = `/* q:set-access */
+  insert into v2.role_access (role, key, allowed, updated_by)
+  select t.r, t.k, $3::boolean, v2.me()
+    from unnest($1::text[], $2::text[]) as t(r, k)
+  on conflict (role, key) do update
+     set allowed    = excluded.allowed,
+         updated_at = now(),
+         updated_by = excluded.updated_by`;
+
+/** 물어보는 역할인가 — 목록은 `lib/perm.js` 것이다. 원장은 이 표에 안 든다(늘 참이므로) */
+const 물어보는역할 = (role) => ROLE_LIST.some((x) => x.id === String(role ?? ""));
+
+/**
+ * **원장인가** — 「누가 무엇을 보나」는 원장님만 고치신다 (원장님 2026-09-03).
+ *
+ * ⚠️⚠️ DB 접근 규칙(`principal_edit_ra`)이 이미 막지만 **앱도 본다 — 두 겹이다**.
+ *    안 하면 무엇이 터지나: 원장님이 강사에게 「설정」을 켜 주시는 날, 강사가 이 화면에서
+ *    **제 권한을 스스로 켤 수 있게 된다.** 그날도 DB 는 막지만 화면은 영어 오류만 뱉는다.
+ * ⚠️ 역할 낱말을 여기서 만들지 않는다 — `lib/menu.js` 의 `isPrincipal` 한 곳이다(대전제-4).
+ */
+async function principalId() {
+  const supabase = serverClientFromStore(await cookies());
+  const { user, role, msg } = await roleOf(supabase);
+  if (!user) return { id: null, why: "로그인이 풀렸다 — 다시 로그인해 주세요" };
+  if (!isPrincipal(role))
+    return { id: null, why: msg || "「누가 무엇을 보나」는 원장님만 고치실 수 있습니다" };
+  return { id: user.id, why: "" };
+}
+
+/**
+ * 칸 여럿을 한 문장으로 저장한다.
+ *
+ * ⚠️ **0줄이면 「저장했습니다」라고 말하지 않는다** (검사-⑪) — 접근 규칙이 막은 것이다.
+ *    `writeAs` 가 이미 0줄을 실패로 돌려주고 되돌린다.
+ * @param pairs [{ role, key }] — **서버가 만든 것만** 온다
+ */
+async function putAccess(pairs, allowed) {
+  const { id, why } = await principalId();
+  if (!id) return { ok: false, n: 0, why };
+  if (allowed !== true && allowed !== false)
+    return { ok: false, n: 0, why: "⚠️ 켬인지 끔인지가 안 왔다 — 아무것도 안 바꾼다" };
+
+  // ⚠️ 물어보지 않는 칸은 **저장하지 않는다.** 짐작해서 열지도 닫지도 않는다(대전제-0).
+  const 쓸것 = (Array.isArray(pairs) ? pairs : []).filter((p) => {
+    const role = String(p?.role ?? ""), key = String(p?.key ?? "");
+    return 물어보는역할(role) && (itemOf(key)?.roles.includes(role) === true);
+  });
+  if (!쓸것.length)
+    return { ok: false, n: 0, why: "⚠️ 저장할 칸이 없다 — 모르는 역할이거나 그 역할에게 안 묻는 항목이다" };
+
+  const r = await writeAs(id, PUT_ACCESS,
+    [쓸것.map((p) => String(p.role)), 쓸것.map((p) => String(p.key)), allowed]);
+  if (r.ok) return { ...r, cells: 쓸것, allowed };
+  // ⚠️ Postgres 의 영어 접근 규칙 오류를 그대로 보여 드리면 무엇을 해야 할지 모르신다
+  if (/row-level security/i.test(String(r.why)))
+    return { ok: false, n: 0, why: "원장님만 저장할 수 있습니다 (DB 접근 규칙이 막았습니다) — 한 줄도 안 바뀌었습니다" };
+  return r;
+}
+
+/**
+ * 칸 하나 — 원장님이 그 칸을 누르셨을 때.
+ * @param allowed true 면 켬 · false 면 **끔(줄은 남는다)**
+ */
+export async function setRoleAccess(role, key, allowed) {
+  return putAccess([{ role, key }], allowed);
+}
+
+/**
+ * 역할 하나를 **전부 켜거나 전부 끈다** (대전제-3 — 원장 일이 적어지는 쪽).
+ *
+ * ⚠️ **열쇠 목록을 화면에서 받지 않는다.** `itemsFor(role)` 로 서버가 만든다 —
+ *    화면이 보낸 목록을 믿으면 화면이 낡은 날 새 항목만 조용히 안 바뀐다.
+ */
+export async function setRoleAll(role, allowed) {
+  return putAccess(itemsFor(role).map((it) => ({ role, key: it.key })), allowed);
+}
+
+/**
+ * **원장님이 앞서 하신 말씀을 그대로 저장한다** — 원장님이 단추를 누르셨을 때만 돈다.
+ *
+ * ⚠️⚠️ **이것은 기본값이 아니다.** 아무도 안 누르면 **한 줄도 안 생긴다** —
+ *    그 칸은 「아직 안 정함」 그대로다. 코드가 미리 정해 두는 것을 걷어낸 것이 이번 일이다
+ *    (원장님 2026-09-03 정정).
+ * ⚠️ **어느 항목인지는 `lib/perm.js` 의 `decided` 가 정한다.** 여기 열쇠를 손으로 적지 않는다
+ *    (원칙-1) — 적으면 lib 과 두 벌이 되어, 말씀은 셋인데 단추는 둘만 저장하는 날이 온다.
+ * ⚠️ 「못 보게」라고 하셨으므로 **끔**으로 저장한다. 그 방향이 곧 말씀의 내용이다.
+ */
+export async function applyDecided() {
+  const 말씀칸 = ITEMS.filter((it) => it.decided)
+    .flatMap((it) => it.roles.map((role) => ({ role, key: it.key })));
+  return putAccess(말씀칸, false);
 }

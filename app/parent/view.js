@@ -17,7 +17,12 @@
  */
 import { useActionState, useMemo, useRef, useState, useTransition } from "react";
 // ⚠️ 카드 차례 판단은 **lib 한 벌**이다 (원칙 1 · 계획 ⑮ 1)
-import { applyOrder, moveOne, canUp, canDown, CARDS } from "@/lib/screens";
+import { applyOrder, moveTo, CARDS } from "@/lib/screens";
+/* ⚠️⚠️ **차례와 열림은 다른 일이다**(원칙-4).
+ *    `applyOrder`(lib/screens) = **사람마다 차례**, `visibleCards`(lib/perm) = **역할마다 열림**.
+ *    섞으면 「차례를 저장했는데 꺼진 카드가 되살아난다」·「끈 카드가 차례에서 사라져 다시 켜도
+ *    맨 뒤로 간다」가 된다. **차례를 먼저 입히고 그다음 거른다.** */
+import { visibleCards } from "@/lib/perm";
 import { acceptBatch, isImage, MAX_FILES, MAX_EDGE } from "@/lib/files";
 import { CELL, DOW, PREPARING, NOTHING } from "./shape";
 import { FIRST_TIME, LEAVE_NOTE, PLAN_NOTE, REQUEST_NAME } from "./words";
@@ -43,9 +48,21 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
   const [순서, set순서] = useState(() => applyOrder(model.cardOrder, CARDS.parent));
   const [차례못함, set차례못함] = useState("");
   const [옮기는중, 옮기기시작] = useTransition();
+  /* ⚠️ **차례를 먼저 입히고(위) 그다음 거른다(여기).** 저장값(`순서`)에는 꺼진 카드도 그대로
+   *    남아 있어야 원장님이 다시 켜신 날 제자리로 돌아온다. */
+  const 보이는 = useMemo(
+    () => visibleCards(model.me?.role ?? "parent", "parent", 순서, model.perm),
+    [model.me?.role, model.perm, 순서]);
+  const 보임 = (id) => 보이는.includes(id);
+
+  /* ⚠️ ▲▼ 는 **보이는 이웃**과 자리를 바꾼다. 저장값에는 꺼진 카드가 섞여 있어서 한 칸씩 밀면
+   *    안 보이는 카드와 바꿔 **눌러도 아무 일도 안 일어난다.** `moveTo` 로 이웃 자리에 끼운다. */
   const 옮기기 = (id, 어디로) => {
-    const 다음 = moveOne(순서, id, 어디로);
-    if (다음 === 순서) return;                 // 끝에서 더 밀면 아무 일도 안 한다
+    const i = 보이는.indexOf(id);
+    const 이웃 = 보이는[어디로 === "up" ? i - 1 : i + 1];
+    if (i < 0 || !이웃) return;                // 끝에서 더 밀면 아무 일도 안 한다
+    const 다음 = moveTo(순서, id, 이웃);
+    if (다음 === 순서) return;
     const 전 = 순서;
     set순서(다음); set차례못함("");
     옮기기시작(async () => {
@@ -53,10 +70,11 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
       if (!r?.ok) { set순서(전); set차례못함(r?.error || "까닭을 모릅니다"); }
     });
   };
-  const 차례 = (id) => ({
-    id, at: 순서.indexOf(id), first: 옮기는중 || !canUp(순서, id),
-    last: 옮기는중 || !canDown(순서, id), onMove: 옮기기,
-  });
+  const 차례 = (id) => {
+    const i = 보이는.indexOf(id);
+    return { id, at: 순서.indexOf(id), first: 옮기는중 || i <= 0,
+             last: 옮기는중 || i < 0 || i === 보이는.length - 1, onMove: 옮기기 };
+  };
 
   const dayOf = useMemo(() => {
     const m = new Map();
@@ -111,9 +129,30 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
         </p>
       )}
 
+      {/* ⚠️⚠️ **학부모 화면이 통째로 비면 「고장 났다」로 읽힌다.** 지금 `v2.role_access` 는 0줄이라
+          정말로 그렇게 된다. 왜 빈지 **크게** 말한다(대전제-0). 「권한 없음」으로 끝내지 않는다.
+          ⚠️ 달력과 로그아웃은 그대로 남는다 — 나가는 길은 늘 화면 안에 있다(대전제-10). */}
+      {보이는.length === 0 && (
+        <div className="card pr-bad" role="status">
+          <div className="cardhd">
+            {model.permWhy ? "지금은 화면을 열 수 없습니다" : "원장님이 아직 안 정하셨습니다"}
+          </div>
+          <ul className="pr-list">
+            {(model.permWhy
+              ? [model.permWhy, "잠깐 뒤에 다시 열어 보시고, 그래도 같으면 원장님께 알려주세요."]
+              : [
+                  "학부모님께 무엇을 보여 드릴지가 아직 한 번도 정해지지 않았습니다 — 막힌 것이 아닙니다.",
+                  "원장님께 「학부모 화면을 켜 주세요」라고 말씀해 주세요 (설정 → 누가 무엇을 보나).",
+                  "아래 달력은 그대로 보실 수 있습니다.",
+                ]).map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+        </div>
+      )}
+
       {/* ⚠️ **여기가 flex 여야 카드의 `order` 가 먹는다.** 아니면 차례를 눌러도 아무 일도 안 난다 */}
       <div className="pr-deck">
       {/* ── ① 처음 오신 분께 ──────────────────────────────────────────── */}
+      {보임("intro") && (
       <Card title="처음 오셨나요" {...차례("intro")} open={open.intro} onToggle={() => toggle("intro")}>
         <ul className="pr-list">
           {FIRST_TIME.map((t, i) => <li key={i}>{strong(t)}</li>)}
@@ -124,9 +163,10 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
           </ul>
         )}
       </Card>
+      )}
 
       {/* ── ② 최근 수업 ───────────────────────────────────────────────── */}
-      {show(model, model.recent) && (
+      {보임("recent") && show(model, model.recent) && (
         <Card title="최근 수업" {...차례("recent")} open={open.recent} onToggle={() => toggle("recent")}
               count={model.recent.length}>
           {model.recent.slice(0, 5).map((d) => <DayBlock key={d.id ?? d.date} d={d} />)}
@@ -134,7 +174,7 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
       )}
 
       {/* ── ③ 과제 ────────────────────────────────────────────────────── */}
-      {show(model, model.homework) && (
+      {보임("homework") && show(model, model.homework) && (
         <Card title="과제" {...차례("homework")} open={open.homework} onToggle={() => toggle("homework")}
               count={model.homework.length}>
           <p className="muted pr-small">
@@ -171,9 +211,11 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
             <Legend />
           </section>
         ) : (
+          !보임("next") ? null : (
           <Card key={mo.ym} title={mo.label} {...차례("next")} open={open.next} onToggle={() => toggle("next")}>
             <Calendar mo={mo} picked={picked} onPick={setPicked} />
           </Card>
+          )
         )
       ))}
 
@@ -187,17 +229,21 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
       )}
 
       {/* ── ⑥ 자료 보내기 (계획 ㊸) ───────────────────────────────────── */}
+      {보임("files") && (
       <Card title="자료 보내기" {...차례("files")} open={open.files} onToggle={() => toggle("files")}>
         <SendFiles model={model} />
       </Card>
+      )}
 
       {/* ── ⑦ 남기실 말 ──────────────────────────────────────────────── */}
+      {보임("word") && (
       <Card title="남기실 말" {...차례("word")} open={open.word} onToggle={() => toggle("word")}>
         <LeaveWord model={model} leaveWord={leaveWord} />
       </Card>
+      )}
 
       {/* ── ⑧ 월간 리포트 — **보내야 보인다** ─────────────────────────── */}
-      {show(model, model.reports) && (
+      {보임("reports") && show(model, model.reports) && (
         <Card title="월간 리포트" {...차례("reports")} open={open.reports} onToggle={() => toggle("reports")}
               count={model.reports.length}>
           {model.reports.map((r) => (
@@ -214,7 +260,7 @@ export default function ParentView({ model, tellPlan, leaveWord, saveCardOrder }
       )}
 
       {/* ── ⑨ 보내신 것 — 「원장님이 보셨나」를 같이 보여 준다 ─────────── */}
-      {show(model, model.requests) && (
+      {보임("sent") && show(model, model.requests) && (
         <Card title="보내신 것" {...차례("sent")} open={open.sent} onToggle={() => toggle("sent")}
               count={model.requests.length}>
           <ul className="pr-list">

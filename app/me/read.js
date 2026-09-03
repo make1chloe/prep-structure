@@ -22,17 +22,28 @@ import { serverClientFromStore, roleOf, SCHEMA } from "@/lib/supabase-server";
 import { seoulToday } from "@/lib/queue";
 import { monthRange, ymd } from "@/lib/session";
 import { PREPARING, NOTHING, DAY_OPEN, hideEmptyCards } from "@/lib/close";
+/* ⚠️⚠️ **어느 카드를 여나 — 판단은 `lib/perm.js` 한 벌이다**(대전제-4 · 원칙-1).
+ *    코드에는 켬/끔 값이 한 줄도 없다. 원장님이 화면에서 누르신 값이 `v2.role_access` 에만 든다
+ *    (원장님 2026-09-03 「그런 권한기본값을 니가 미리 정해서 코드에 박아 놓는 게 아니라」).
+ *  ⚠️ **꺼진 카드는 자료도 안 읽는다.** 읽고 안 그리면 헛일이고 아이 폰이 느려진다(§속도).  */
+import { canFor, rowsOf, TABLE } from "@/lib/perm";
 import { 카드들, 순서입히기, 달옮기기 } from "./derive";
 
 /**
  * ⚠️ 조회 상한 — 한 화면이 이보다 많이 물으면 아이 폰에서 눈에 띄게 느려진다.
  *    `scripts/check-screen-me.mjs` 가 **이 파일의 조회 자리를 세어** 넘으면 실패시킨다.
  *
- * ⚠️ 지금 19번이라 넉넉하지 않다. 그중 **8번이 교재마다 도는 두 자리**(`cursor_of`·`book_progress`)다.
- *    → `v2.me_books(p_student)` 하나로 묶으면 19 → 12 가 된다. **needsDb 에 적어 두었다.**
+ * ⚠️ 지금 **최악 21번**이라 넉넉하지 않다. 그중 **8번이 교재마다 도는 두 자리**(`cursor_of`·`book_progress`)다.
+ *    → `v2.me_books(p_student)` 하나로 묶으면 21 → 14 가 된다. **needsDb 에 적어 두었다.**
  *    화면에서 대신 세지 않는 까닭은 그 둘이 진짜 규칙이라서다(커서·진도율은 DB 한 벌).
+ *
+ * ⚠️⚠️ **20 에서 21 로 올렸다 — 감추지 않고 적는다**(대전제-0). 「누가 무엇을 보나」를 읽는
+ *    조회 한 자리가 늘었기 때문이다. 그 한 자리를 안 읽으면 코드가 켬/끔 기본값을 들어야 하는데,
+ *    그것이 원장님이 뒤집으신 바로 그것이라 **줄일 수 없다.**
+ *    ⚠️ 다만 **21 은 정적 최악값**이다(검사가 세는 값 — 교재 4권이 다 열렸을 때).
+ *       꺼진 카드는 자료를 안 읽으므로, 지금처럼 전부 「아직 안 정함」이면 **8자리만 돈다.**
  */
-export const 조회_상한 = 20;
+export const 조회_상한 = 21;
 
 /** 한 화면에 그리는 교재 수 상한 — 교재마다 DB 함수를 **두 번** 부르므로 여기서 끊는다 */
 export const 교재_상한 = 4;
@@ -75,6 +86,8 @@ export async function 학생화면읽기() {
     오늘, 열쇠없음: null, 사람: null, 역할: null, 학생: null,
     막힘: null, 조회수: 0, 카드순서: 카드들, 오늘판: null, 오늘줄: [],
     교재들: [], 이의들: [], 진도체크열림: false, 달력: null, 왜들: [],
+    // ⚠️ 못 읽었을 때 **전부 켜진 것으로 보이면 안 된다.** `null` 이 「아직 안 정함」이다
+    권한: null, 권한왜: null,
   };
 
   let sb;
@@ -120,19 +133,32 @@ export async function 학생화면읽기() {
 
   const sid = 학생.id;
 
+  /* ── ①-2 「누가 무엇을 보나」 — **카드를 읽기 전에** 먼저 묻는다 ─────
+   * ⚠️⚠️ 순서가 뜻이다. 뒤에 물으면 이미 다 읽은 뒤라 **꺼진 카드의 자료도 읽어 버린다**(§속도).
+   * ⚠️ 접근 규칙(`own_read_ra`)이 **제 역할 줄만** 준다 — 아이 계정에는 `student|…` 줄만 온다.
+   * ⚠️ 못 읽으면 **기본값으로 돌지 않는다** — 기본값이 없다. 화면이 「못 읽었다」로 크게 말한다. */
+  /* ⚠️ **세는 자리를 빠져나가지 않는다.** `loadPerm()` 을 쓰면 조회가 `물어본다(` 밖에서 일어나
+   *    검사도 나도 못 센다(폰-5 「글자로 훑는 검사는 헛짚고 헛통과한다」). 그래서 표 이름·칸 이름만
+   *    `lib/perm.js` 에서 받아 오고(`TABLE`), 나르는 것은 다른 조회와 **똑같은 손**으로 한다.
+   *    ⚠️ 표 이름을 여기 글자로 적지 않는 까닭: 두 벌이 되면 표가 바뀐 날 이 화면만 옛 이름을 쓴다. */
+  const 권한읽기 = await 물어본다("누가 무엇을 보나", () => q().from(TABLE.name).select(TABLE.select));
+  // ⚠️ 못 읽었으면 `rowsOf([])` 가 아니라 **null** 이어야 한다 — 「0줄(안 정함)」과 「못 읽음」은 다른 사실이다
+  const 권한 = 권한읽기.why ? null : rowsOf(권한읽기.rows);
+  const 연다 = (card) => canFor(role, card, 권한);
+
   // ── ② 오늘 판 ───────────────────────────────────────────────────
   // ⚠️⚠️ 0084 — 아이는 **제 판을 마감 전에도 읽는다**(원장님 2026-09-03 「출석하면 바로」).
   //    가르는 잣대는 `v2.sheet_visible_to()` 한 벌이다 — 학부모는 **마감한 판만** 본다(사고 #7).
   //    그래서 여기서 `closed_at` 을 다시 거르지 않는다. 판이 아예 안 온 날은 「없는 날」이 아니라
   //    「아직 정리 중」이다 — 그 가름은 `lib/close.js` 의 글을 그대로 쓴다.
   // ⚠️ 마감 전에도 `closed_at` 을 **같이 읽는다** — 화면이 「더 늘어날 수 있어요」를 그 값으로 판단한다.
-  const 오늘것 = await 물어본다("오늘 수업", () =>
+  const 오늘것 = 연다("me.today") ? await 물어본다("오늘 수업", () =>
     q().from("day_sheet")
       .select("id,date,attend,closed_at,comment," +
         "day_item(id,slot,unit_id,range_note,status,said_done_at,done_note,memo,sort," +
         "learn_items(name,method,tool,checks)," +
         "units(id,chapter,mid,sub,activity,page_start,page_end,q_count,books(name)))")
-      .eq("student_id", sid).eq("date", 오늘));
+      .eq("student_id", sid).eq("date", 오늘)) : { rows: [], why: null };
   const 오늘판 = 오늘것.rows[0] ?? null;
   const 오늘줄 = [...(오늘판?.day_item ?? [])].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
 
@@ -143,9 +169,20 @@ export async function 학생화면읽기() {
       .eq("student_id", sid).lte("from_date", 오늘)
       .or(`to_date.is.null,to_date.gte.${오늘}`)
       .order("from_date"));
-  const 배정들 = 배정.rows.slice(0, 교재_상한);
-  if (배정.rows.length > 교재_상한)
+  /* ⚠️ 배정(`student_book`)만은 **꺼져 있어도 읽는다.** 아래 달력의 「재원 기간」이 이 날짜를 쓰고,
+   *    달력은 카드가 아니라 **언제나 맨 밑에 서는 자리**라 끄고 켤 항목이 없다(확정-⑯).
+   *    안 읽으면 재원 시작을 몰라 **다니기 전 날짜까지 달력에 그려진다.**
+   *    ⚠️ 대신 무거운 자리(단원·진도·커서·진도율 — 최악 10조회)는 아래에서 잠근다. */
+  const 배정줄 = 배정.rows.slice(0, 교재_상한);
+  /* ⚠️ 교재 카드가 꺼져 있으면 **여기서 비운다.** 아래 고리와 단원·진도 조회가 그대로 사라진다
+   *    (최악 10조회). 읽고 안 그리면 헛일이고 아이 폰이 느려진다(§속도).
+   * ⚠️⚠️ 고리 머리(`for (const b of 배정들)`)를 **글자 그대로 둔다** —
+   *    `scripts/check-screen-me.mjs` 가 그 글자로 잘라 「교재마다 도는 자리」를 센다.
+   *    바꾸면 검사가 고리를 못 찾아 **0으로 세고 조용히 통과한다**(폰-5). */
+  const 배정들 = 연다("me.books") ? 배정줄 : [];
+  if (연다("me.books") && 배정.rows.length > 교재_상한)
     왜들.push(`교재가 ${배정.rows.length}권인데 화면에는 ${교재_상한}권까지만 그립니다.`);
+  // ⚠️ 카드가 꺼져 있으면 **교재 속을 아예 안 읽는다** — 이 한 줄이 최악 10조회를 없앤다
   const 교재ids = [...new Set(배정들.map((b) => b.book_id))];
 
   // ── ④ 단원 · 진도 · 이의 ────────────────────────────────────────
@@ -161,14 +198,17 @@ export async function 학생화면읽기() {
           .eq("student_id", sid))
     : { rows: [], why: null };
 
-  const 이의 = await 물어본다("내가 단 ❗", () =>
+  const 이의 = 연다("me.flags") ? await 물어본다("내가 단 ❗", () =>
     q().from("progress_flag").select("id,unit_id,round,kind,said,raised_at,seen_at,outcome")
-      .eq("student_id", sid).is("outcome", null));
+      .eq("student_id", sid).is("outcome", null)) : { rows: [], why: null };
 
   // ── ⑤ 진도 체크가 열려 있나 (절 ㊶ · 표 4-9) ────────────────────
   // ⚠️ **화면이 스스로 판정하지 않는다.** `v2.can_edit_progress()` 한 벌이 답한다(0008).
   //    여기서 `students.progress_edit` 와 학원 설정을 다시 조합하면 규칙이 두 벌이 된다.
-  const 열림 = await 물어본다("진도 체크 열림", () => q().rpc("can_edit_progress", { p_student: sid }));
+  // ⚠️ 교재 카드가 꺼져 있으면 진도를 찍을 자리 자체가 없다 → 묻지 않는다
+  const 열림 = 교재ids.length
+    ? await 물어본다("진도 체크 열림", () => q().rpc("can_edit_progress", { p_student: sid }))
+    : { rows: [], why: null };
   const 진도체크열림 = 열림.rows[0] === true;
 
   // ── ⑥ 교재마다 「지금 어디」와 「얼마나 왔나」 ───────────────────
@@ -187,7 +227,8 @@ export async function 학생화면읽기() {
   // ⚠️ **석 달치를 한 번에 읽는다** (지난달·이달·다음달). 달을 넘길 때마다 다시 물으면
   //    그것이 곧 「탭 전환이 화면 전체 재조회」다 — 계획이 탭을 금지한 바로 그 까닭이다.
   //    앞날은 **다음 달까지만**이라 위쪽 테두리는 여기가 끝이다(절 ⑯ 2번).
-  const 재원시작 = 배정들.map((b) => ymd(b.from_date)).filter(Boolean).sort()[0] ?? null;
+  // ⚠️ **`배정들` 이 아니라 `배정줄`** 이다 — 교재 카드를 끄셔도 달력의 「재원 기간」은 살아 있어야 한다
+  const 재원시작 = 배정줄.map((b) => ymd(b.from_date)).filter(Boolean).sort()[0] ?? null;
   const 이달 = 오늘.slice(0, 7);
   const 앞달 = 달옮기기(이달, -1), 뒷달 = 달옮기기(이달, 1);
   const first = monthRange(앞달).first, last = monthRange(뒷달).last;
@@ -224,6 +265,7 @@ export async function 학생화면읽기() {
     카드순서: 순서입히기(순서.rows[0]?.layout?.order),
     오늘판, 오늘줄,
     빈카드숨김: hideEmptyCards("student"),
+    권한, 권한왜: 권한읽기.why ?? null,
     교재들: 배정들.map((b) => ({
       배정: b,
       책: b.books ?? null,

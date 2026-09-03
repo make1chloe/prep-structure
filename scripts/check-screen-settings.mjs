@@ -196,9 +196,12 @@ await sec("■ ③ 서비스 열쇠가 없는가 · 접근 규칙 안에서 읽�
   ok("누구인지는 lib/supabase-server.js 한 곳에서 묻는다",
      /from\s+["']\.\.\/\.\.\/lib\/supabase-server\.js["']/.test(code.page) && /roleOf\s*\(/.test(code.page));
   // ⚠️ 철자가 아니라 **규칙**을 본다 (대전제-4). 위 check-screen-home 주석과 같은 까닭이다
+  /* ⚠️ 화면이 `blockedBy()` 한 벌로 막게 바뀌었다(0088 · 원장님 2026-09-03) —
+   *    이제 `canSettings` 라는 **이름**이 화면에 없을 수도 있다. 이름이 아니라 **규칙**을 본다:
+   *    「lib 의 판단을 지나는가」. 안 그러면 화면이 제 손으로 역할을 가르게 된다(대전제-4). */
   ok("원장·강사가 아니면 자료를 안 읽는다",
-     /\bisStaff\s*\(|\bcanSettings\s*\(/.test(code.page) &&
-     /\bisStaff\s*\(|\bcanSettings\s*\(/.test(code.actions));
+     /\bisStaff\s*\(|\bcanSettings\s*\(|\bblockedBy\s*\(|\bcanFor\s*\(/.test(code.page) &&
+     /\bisStaff\s*\(|\bcanSettings\s*\(|\bblockedBy\s*\(|\bcanFor\s*\(/.test(code.actions));
   ok("⚠️ 화면이 **제 손으로 역할 목록을 만들지 않는다** (대전제-4)",
      !/new Set\(\s*\[[^\]]*(principal|instructor)/.test(code.page) &&
      !/new Set\(\s*\[[^\]]*(principal|instructor)/.test(code.actions));
@@ -271,9 +274,18 @@ await sec("■ ⑥ 절 ㊺-b — 교재 멈춤 고등 6주 · 중등 4주", asyn
 });
 
 await sec("■ ⑦ 「표에 줄을 더하면 채워진다」는 착각을 안 만드는가 (계획 (e) ⑧)", async () => {
-  ok("설정 화면이 줄을 **만들지** 않는다 (insert 가 0곳)",
-     !/insert\s+into/i.test(code.actions),
-     "갈래(kind)를 읽는 코드가 없으면 만들어도 한 번도 안 돈다 — 「고쳤다」는 착각만 남는다");
+  /* ⚠️ 이 규칙의 뜻은 「**코드가 채우는 표**에 화면이 줄을 만들지 마라」다(계획 (e) ⑧) —
+   *    만들어 봤자 그 갈래를 읽는 코드가 없으면 한 번도 안 돌고 「고쳤다」는 착각만 남는다.
+   * ⚠️⚠️ `v2.role_access` 는 **그 반대다.** 원장님이 웹에서 정하시는 값이고
+   *    (원장님 2026-09-03 「내가 웹상에서 설정 할 수 있게 해」), 채우는 것이 **화면의 일**이다.
+   *    그래서 그 표만 뺀다 — **표 이름을 여기 손으로 적어 뺀 것**이라, 다른 표를 더하면 다시 빨개진다. */
+  const 만드는표 = [...code.actions.matchAll(/insert\s+into\s+v2\.([a-z0-9_]+)/gi)].map((m) => m[1]);
+  const 안될표 = 만드는표.filter((t) => t !== "role_access");
+  ok("설정 화면이 **코드가 채우는 표**에는 줄을 안 만든다 (role_access 만 예외)",
+     안될표.length === 0,
+     `만드는 표: ${안될표.join(" · ")} — 갈래를 읽는 코드가 없으면 만들어도 한 번도 안 돈다`);
+  ok("⚠️ 그 예외가 **원장님이 웹에서 정하시는 표** 하나뿐이다",
+     만드는표.every((t) => t === "role_access"), 만드는표.join(" · "));
   ok("**채우는 것은 코드다**를 화면이 말한다", /채우는 것은 코드/.test(src.page));
   ok("지우는 자리가 없다 (대전제 6)", !/delete\s+from/i.test(code.actions));
 });

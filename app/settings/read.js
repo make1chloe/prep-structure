@@ -33,6 +33,12 @@
 
 import { guardDb, cycleOf } from "../../lib/queue.js";
 import { findHole } from "../../lib/notify.js";
+/**
+ * ⚠️ **「누가 무엇을 보나」의 판단은 한 줄도 여기 없다** (대전제-4).
+ *    `rowsOf` 는 DB 줄을 납작하게 펴는 손이고, `unsetCount` 는 「아직 안 정한 칸이 몇 개인가」를
+ *    세는 lib 의 셈이다. 여기서 다시 세면 대시보드와 설정 화면이 **다른 숫자**를 말한다.
+ */
+import { rowsOf, unsetCount, TABLE } from "../../lib/perm.js";
 
 /** 아이디 모양 — 글자를 세우는 글에 끼우기 전에 **반드시** 여기를 지난다 */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -114,7 +120,40 @@ export const SQL = {
     select id, kind, name, cron, threshold, active, updated_at::text as updated_at
       from v2.auto_rule
      order by name`,
+
+  /**
+   * 누가 무엇을 보나 — **원장님이 화면에서 누르신 것만** 들어 있다.
+   *
+   * ⚠️⚠️ **줄이 없는 칸은 「끔」이 아니라 「아직 안 정함」이다.** 여기서 없는 칸을 채워
+   *    보내면 그 순간 화면이 셋을 둘로 뭉개고, 원장님이 안 정하신 것이 정하신 것처럼 보인다.
+   *    셋을 가르는 것은 `lib/perm.js` 의 `stateOf()` 한 곳이다.
+   * ⚠️ `where` 를 안 건다 — 접근 규칙(`own_read_ra`)이 이미 **제 역할 줄만** 준다.
+   *    원장은 전부 본다. 여기서 또 거르면 규칙이 두 벌이 된다.
+   */
+  perm: `/* q:set-perm */
+    select a.role, a.key, a.allowed
+      from v2.role_access a
+     order by a.role, a.key`,
 };
+
+/**
+ * DB 줄 → `lib/perm.js` 의 `rowsOf()` 가 읽는 모양으로 **옮겨 담는다.**
+ *
+ * ⚠️⚠️ **칸 이름을 글자로 박지 않는다.** `TABLE.cols` 에서 받아 옮긴다 —
+ *    lib 이 칸 이름을 고치는 날 이 줄이 **저절로 따라간다.**
+ *    (실제로 2026-09-03 이 자리가 하루 안에 `is_on` → `allowed` 로 바뀌었다.)
+ * ⚠️ 안 하면 무엇이 터지나: `rowsOf()` 가 이름이 다른 줄을 **말없이 버려서**
+ *    32칸이 전부 「아직 안 정함」으로 보이고, 원장님이 켜 두신 것이 화면에서 조용히 사라진다.
+ *    **오류는 안 난다** — 그래서 아무도 모른다.
+ * ⚠️ lib 의 `loadPerm()` 을 안 쓰는 까닭: 그쪽은 supabase-js 문이고, 이 화면은
+ *    `begin read only` + `set local role authenticated` 의 pg 문 하나로 읽는다(조회를 센다).
+ */
+const permRowsOf = (raw) =>
+  rowsOf((Array.isArray(raw) ? raw : []).map((r) => ({
+    [TABLE.cols.role]: r.role,
+    [TABLE.cols.key]: r.key,
+    [TABLE.cols.on]: r.allowed,
+  })));
 
 /* ═══════════════════════════════════════════════════════════════════
  * 1. 문 — 그 사람이 되어 연다
@@ -177,7 +216,7 @@ export async function openAs(profileId, fn) {
  * 2. 읽어서 화면 모양으로 — **부르기만 한다**
  * ═══════════════════════════════════════════════════════════════════ */
 
-/** 설정 전부 (문1 · 조회 5) */
+/** 설정 전부 (문1 · 조회 6) */
 export async function readSettings(me) {
   return openAs(me, async (db) => {
     const f = (await db.query(SQL.frame, [])).rows[0] ?? {};
@@ -185,9 +224,14 @@ export async function readSettings(me) {
     const stop = (await db.query(SQL.stop, [])).rows;
     const msg = (await db.query(SQL.msg, [])).rows;
     const rules = (await db.query(SQL.rules, [])).rows;
+    const perm = permRowsOf((await db.query(SQL.perm, [])).rows);
 
     return {
       today: f.today ?? null,
+
+      // ⚠️ 켬/끔을 **여기서 채우지 않는다.** 저장된 줄만 그대로 올려 보내고,
+      //    셋(켬·끔·아직 안 정함)을 가르는 것은 `lib/perm.js` 의 stateOf() 한 곳이다.
+      perm,
       // 진도 체크 — 「며칠째」는 세어서 왔다. 여기서 손대지 않는다
       editOpen: f.edit_open === true,
       editDays: f.edit_days == null ? null : Number(f.edit_days),
@@ -219,4 +263,28 @@ export async function readSettings(me) {
       })),
     };
   });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 3. 대시보드가 부르는 자리 — **「아직 안 정한 것 N개」 한 줄뿐이다**
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * 아직 안 정한 칸이 몇 개인가.
+ *
+ * ⚠️⚠️ **이 한 줄이 없으면 원장님이 안 정한 채로 두신다.** 그러면 강사·조교·아이·학부모가
+ *    아무것도 못 보는데 아무도 까닭을 모른다 — 안 정한 칸은 막는 쪽이라서(fail closed)
+ *    화면이 그냥 비어 보인다. 부르는 줄이 그것을 막는 유일한 장치다.
+ *
+ * ⚠️ **세는 것은 `lib/perm.js` 의 `unsetCount()` 다.** 여기서 세면 설정 화면과
+ *    대시보드가 다른 숫자를 말하는 날이 온다(원칙-1).
+ * ⚠️ 문을 따로 여는 까닭: 대시보드의 읽는 자리(`app/_home/read.js`)는 다른 사람 담당이다.
+ *    조회 하나짜리 문이고, 대시보드는 이것을 **첫 그림 뒤에** 부른다(속도-2).
+ *
+ * @returns { ok, value:{ n }, why, n }  — `ok:false` 면 **셈을 못 한 것**이지 0 이 아니다
+ */
+export async function readUnset(me) {
+  return openAs(me, async (db) => ({
+    n: unsetCount(permRowsOf((await db.query(SQL.perm, [])).rows)),
+  }));
 }

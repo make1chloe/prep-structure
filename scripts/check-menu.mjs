@@ -18,7 +18,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   SECTIONS, FAMILY, HOME, QUICK, EXIT, ROLES, STAFF_ROLES, STAFF_HOME,
-  HIDDEN_FROM_INSTRUCTOR, currentOf, menuFor, showNav, canQuick, canSeeFees, canSettings,
+  currentOf, menuFor, showNav, canQuick, canSeeFees, canSettings,
   isStaff, isPrincipal,
 } from "../lib/menu.js";
 import { HOME as SRV_HOME, homeFor } from "../lib/supabase-server.js";
@@ -35,7 +35,7 @@ const 읽기 = (p) => (existsSync(p) ? readFileSync(p, "utf8") : "");
  *    ⑯ 이 정확히 그랬다: `menuFor("staff")` 만 물어 23건 전부 초록, 원장님은 메뉴 0칸.        */
 console.log("■ DB 에 실제로 있는 역할 낱말 (지어낸 낱말로 안 묻는다)");
 
-let 있는역할 = [], 받는역할 = [], db붙었나 = false, db왜 = "";
+let 있는역할 = [], 받는역할 = [], 디비학원사람 = [], db붙었나 = false, db왜 = "";
 try {
   const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
   const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
@@ -52,6 +52,15 @@ try {
   받는역할 = [...def.matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]);
   console.log(`   · v2.profiles 실측: ${rows.map((r) => `${r.role} ${r.n}`).join(" · ")}`);
   console.log(`   · role CHECK 가 받는 낱말: ${받는역할.join(" · ") || "(못 읽음)"}`);
+  /* ⚠️⚠️ **DB 의 `v2.is_staff()` 가 무엇을 학원 사람으로 보나** — 앱과 여기가 갈리면
+   *    앱은 화면을 열어 주는데 DB 가 자료를 안 준다(또는 그 반대). 오류도 안 나고 화면만 빈다.
+   *    ⑯ 이 정확히 그 병이었다 — **DB 에 물어서 대조한다.** */
+  const staffSrc = (await c.query(
+    `select prosrc from pg_proc where pronamespace = 'v2'::regnamespace and proname = 'is_staff'`
+  )).rows[0]?.prosrc ?? "";
+  디비학원사람 = [...staffSrc.matchAll(/'([a-z_]+)'/g)].map((m) => m[1])
+    .filter((r) => 받는역할.includes(r));
+  console.log(`   · v2.is_staff() 가 보는 낱말: ${디비학원사람.join(" · ") || "(못 읽음)"}`);
   await c.end();
 } catch (e) { db왜 = String(e?.message ?? e).split("\n")[0]; }
 
@@ -76,9 +85,19 @@ for (const r of 있는역할) {
   const m = menuFor(r);
   console.log(`   · ${r.padEnd(11)} ${String(m.length).padStart(2)}칸  ${m.map((x) => x.name).join(" · ") || "(없음)"}`);
 }
-ok("⚠️⚠️ **DB 에 있는 역할은 하나도 빠짐없이 메뉴가 있다** (⑯ 이 여기서 빨개졌어야 했다)",
-   있는역할.length > 0 && 있는역할.every((r) => menuFor(r).length > 0),
-   있는역할.filter((r) => menuFor(r).length === 0).map((r) => `${r} → 0칸`).join(" · "));
+/* ⚠️⚠️ 앞판은 「모든 역할이 한 칸 이상」을 단언했다 — 어긋난 곳 ⑯(메뉴 0칸)을 잡으려던 줄이다.
+ *   그런데 원장님 2026-09-03 정정 뒤로 **강사·조교가 0칸인 것이 맞는 상태**다
+ *   (원장님이 아직 안 정하셨으니까 · fail closed). 그대로 두면 이 검사가 **옳은 상태를 빨갛게** 만든다.
+ *   → 잣대를 바꾼다: **원장은 언제나 한 칸 이상**이고, 나머지는 **저장값을 켜면 늘어난다.**
+ *   ⑯ 을 잡는 자리는 아래 「저장값을 켜면 뜬다」와 `showNav` 단언이 대신 맡는다. */
+ok("⚠️⚠️ **원장은 저장값이 없어도 메뉴가 있다** (⑯ — 원장님이 앱에 갇히던 사고)",
+   menuFor(ROLES.PRINCIPAL, null).length > 0, `${menuFor(ROLES.PRINCIPAL, null).length}칸`);
+{
+  // 아이·학부모는 저장값과 무관하게 제 화면 하나 — 원장님이 끄시면 그때 사라진다
+  const 가족 = [ROLES.STUDENT, ROLES.PARENT].filter((r) => 있는역할.includes(r));
+  ok("아이·학부모는 제 화면 한 칸이 있다 (메뉴가 아니라 자기 화면이다)",
+     가족.every((r) => menuFor(r, null).length === 1), 가족.join(" · "));
+}
 ok("DB 에 있는 역할은 첫 화면도 다 있다 (`homeFor` 가 null 을 안 준다)",
    있는역할.every((r) => typeof homeFor(r) === "string" && homeFor(r).startsWith("/")),
    있는역할.filter((r) => !homeFor(r)).join(" · "));
@@ -94,11 +113,22 @@ const 강사칸 = menuFor(ROLES.INSTRUCTOR).map((s) => s.href);
 const 원장이봐야할것 = ["/", "/today", "/send", "/schedule", "/books", "/ops", "/settings"];
 ok(`원장은 대메뉴를 **다 본다** (지금 ${원장이봐야할것.length}칸)`,
    원장칸.join("|") === 원장이봐야할것.join("|"), `지금: ${원장칸.join(" ")}`);
-ok(`강사는 **설정만 빠진 ${원장이봐야할것.length - 1}칸**을 본다`,
-   강사칸.join("|") === 원장이봐야할것.filter((h) => h !== "/settings").join("|"),
-   `지금: ${강사칸.join(" ")}`);
-ok("강사 메뉴에 「설정」이 없다", !강사칸.includes("/settings"));
-ok("⚠️ 강사도 「운영」은 본다 — 원장님이 상담일지는 안 집으셨다", 강사칸.includes("/ops"));
+/* ⚠️ 앞판은 「강사는 설정만 빠진 6칸」을 단언했다 — **그것이 코드에 박힌 기본값**이었고
+ *   원장님이 걷어내라 하신 바로 그것이다. 지금 강사 칸은 **원장님이 켜신 만큼**이다.
+ *   → 「몇 칸인가」가 아니라 **「저장값을 따라가는가」**를 단언한다. */
+ok("⚠️⚠️ 강사는 저장값이 없으면 **0칸**이다 (코드가 켜 주지 않는다)",
+   강사칸.length === 0, `지금: ${강사칸.join(" ")}`);
+{
+  const 여섯 = Object.fromEntries(
+    원장이봐야할것.filter((h) => h !== "/settings")
+      .map((h) => [`instructor|${SECTIONS.find((s) => s.href === h) ? "page." + (h === "/" ? "home" : h.slice(1)) : ""}`, true]));
+  const 켠뒤 = menuFor(ROLES.INSTRUCTOR, 여섯).map((m) => m.href);
+  ok("⚠️ 원장님이 여섯을 켜시면 **그 여섯이 그대로 뜬다** (설정만 빼고)",
+     켠뒤.join("|") === 원장이봐야할것.filter((h) => h !== "/settings").join("|"),
+     `켠 뒤: ${켠뒤.join(" ")}`);
+  ok("그때도 강사 메뉴에 「설정」은 없다 (안 켠 것은 안 뜬다)", !켠뒤.includes("/settings"));
+  ok("⚠️ 「운영」도 원장님이 켜시면 뜬다 — 원장님이 상담일지는 안 집으셨다", 켠뒤.includes("/ops"));
+}
 ok("아이는 자기 화면 하나", menuFor(ROLES.STUDENT).length === 1 && menuFor(ROLES.STUDENT)[0].href === "/me");
 ok("학부모는 자기 화면 하나", menuFor(ROLES.PARENT).length === 1 && menuFor(ROLES.PARENT)[0].href === "/parent");
 ok("⚠️ **역할을 모르면 0칸** (짐작해서 열지 않는다)",
@@ -106,20 +136,48 @@ ok("⚠️ **역할을 모르면 0칸** (짐작해서 열지 않는다)",
    && menuFor("__proto__").length === 0);
 ok("⚠️ 아이 메뉴에 원장 화면이 하나도 안 섞였다",
    !menuFor(ROLES.STUDENT).some((m) => SECTIONS.some((s) => s.href === m.href && s.href !== "/me")));
-// ⚠️ 없는 주소를 「가린다」고 적어 두면 아무것도 안 가려진 채 초록이 된다
-ok("강사에게서 가리는 주소가 **대메뉴에 실제로 있는 주소**다",
-   HIDDEN_FROM_INSTRUCTOR.every((h) => SECTIONS.some((s) => s.href === h)),
-   HIDDEN_FROM_INSTRUCTOR.filter((h) => !SECTIONS.some((s) => s.href === h)).join(" · "));
+/* ⚠️⚠️ **여기 있던 `HIDDEN_FROM_INSTRUCTOR` 단언을 걷어냈다** (원장님 2026-09-03):
+ *   「그런 권한기본값을 니가 미리 정해서 코드에 박아 놓는 게 아니라 내가 웹상에서 설정 할 수 있게 해」
+ *   「강사에게 가리는 주소」라는 **박힌 목록 자체가 없어졌다.** 그 목록을 단언하던 이 줄은
+ *   목록이 살아 있어야만 뜻이 있으므로 같이 걷어낸다 — 대신 아래를 단언한다:
+ *   **저장값이 없으면 강사·조교 메뉴가 0칸**이고(fail closed), **원장은 늘 일곱 칸**이다. */
+console.log("\n■ 메뉴는 저장값에서 나온다 (코드에 박힌 켬/끔이 없다)");
+ok("⚠️⚠️ 저장값이 없으면 **강사·조교 메뉴가 0칸**이다 (원장님이 아직 안 정하셨다)",
+   menuFor(ROLES.INSTRUCTOR, null).length === 0 && menuFor("assistant", null).length === 0,
+   `강사 ${menuFor(ROLES.INSTRUCTOR, null).length} · 조교 ${menuFor("assistant", null).length}`);
+ok("⚠️ 그래도 **원장은 일곱 칸 그대로**다 (스스로 잠길 자리가 없다)",
+   menuFor(ROLES.PRINCIPAL, null).length === SECTIONS.length,
+   `${menuFor(ROLES.PRINCIPAL, null).length} / ${SECTIONS.length}`);
+{
+  // 원장님이 켜신 것만 뜬다 — 켜 보고 확인한다
+  const 켬 = { "instructor|page.today": true, "instructor|page.books": true };
+  const 뜬것 = menuFor(ROLES.INSTRUCTOR, 켬).map((m) => m.href).sort();
+  ok("⚠️ 원장님이 켜신 것만 뜬다 (둘을 켜면 둘)",
+     JSON.stringify(뜬것) === JSON.stringify(["/books", "/today"]), JSON.stringify(뜬것));
+}
 
-console.log("\n■ 수강료·설정 — 강사에게 막혔나 (판단이 한 벌인가)");
-ok("수강료는 원장만", canSeeFees(ROLES.PRINCIPAL) && !canSeeFees(ROLES.INSTRUCTOR)
-   && !canSeeFees(ROLES.STUDENT) && !canSeeFees(ROLES.PARENT) && !canSeeFees(null));
-ok("설정도 원장만", canSettings(ROLES.PRINCIPAL) && !canSettings(ROLES.INSTRUCTOR)
-   && !canSettings(ROLES.STUDENT) && !canSettings(null));
-ok("원장·강사 묶음은 **DB 낱말 둘로** 만든다 (지어낸 값이 아니다)",
-   STAFF_ROLES.length === 2 && STAFF_ROLES.every((r) => 받는역할.includes(r)),
+console.log("\n■ 수강료·설정 — 판단이 한 벌인가 (값은 저장값에서 온다)");
+ok("⚠️ 수강료·설정은 **원장이면 저장값 없이도** 참이다",
+   canSeeFees(ROLES.PRINCIPAL, null) && canSettings(ROLES.PRINCIPAL, null));
+ok("⚠️⚠️ 강사는 **저장값이 없으면 거짓**이다 (코드가 켜 주지 않는다)",
+   !canSeeFees(ROLES.INSTRUCTOR, null) && !canSettings(ROLES.INSTRUCTOR, null)
+   && !canSeeFees("assistant", null) && !canSettings("assistant", null));
+ok("⚠️ 원장님이 켜시면 강사도 참이 된다 (끄고 켜는 것이 실제로 걸린다)",
+   canSeeFees(ROLES.INSTRUCTOR, { "instructor|ops.fee": true })
+   && !canSeeFees(ROLES.INSTRUCTOR, { "instructor|ops.fee": false }));
+ok("아이·학부모에게는 어느 쪽도 안 묻는다 (짐작해서 열지 않는다)",
+   !canSeeFees(ROLES.STUDENT, null) && !canSeeFees(ROLES.PARENT, null) && !canSettings(null, null));
+/* ⚠️ **셋이다** — 조교(assistant)가 들어왔다(0088). 개수를 못 박지 않고
+ *   **DB 가 받는 낱말인가**만 본다 — 개수를 박으면 역할이 늘 때마다 여기가 빨개진다.
+ * ⚠️ 그리고 **DB 의 `v2.is_staff()` 와 같은 낱말**이어야 한다 — 다르면 앱은 여는데 DB 가 막는다. */
+ok("학원 사람 묶음이 **DB 가 받는 낱말로만** 만들어졌다 (지어낸 값이 아니다)",
+   STAFF_ROLES.length >= 2 && STAFF_ROLES.every((r) => 받는역할.includes(r)),
    STAFF_ROLES.join(" · "));
-ok("isStaff 는 원장·강사만 참", isStaff(ROLES.PRINCIPAL) && isStaff(ROLES.INSTRUCTOR)
+ok("⚠️ 앱의 학원사람 묶음이 **DB 의 v2.is_staff() 와 같다**",
+   JSON.stringify([...STAFF_ROLES].sort()) === JSON.stringify([...디비학원사람].sort()),
+   `앱 ${[...STAFF_ROLES].sort().join(",")} vs DB ${[...디비학원사람].sort().join(",")}`);
+ok("isStaff 는 원장·강사·조교만 참", isStaff(ROLES.PRINCIPAL) && isStaff(ROLES.INSTRUCTOR)
+   && isStaff("assistant")
    && !isStaff(ROLES.STUDENT) && !isStaff(ROLES.PARENT) && !isStaff("staff") && !isStaff(null));
 ok("isPrincipal 은 원장만 참", isPrincipal(ROLES.PRINCIPAL) && !isPrincipal(ROLES.INSTRUCTOR));
 ok("퀵메모는 원장·강사만 (`v2.todo` 정책이 `staff_all` 하나뿐이다)",

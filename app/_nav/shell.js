@@ -16,7 +16,8 @@ import Nav from "../nav.js";
 import { QUICK, canQuick } from "@/lib/menu";
 import { saveQuick } from "./actions.js";
 
-export default function Shell({ role, children }) {
+// ⚠️ `perm` 은 **그대로 물려주기만** 한다. 여기서 켬/끔을 다시 판단하지 않는다(대전제-4).
+export default function Shell({ role, perm, children }) {
   const 쓸수있나 = canQuick(role);
   const [열림, set열림] = useState(false);
   const [글, set글] = useState("");
@@ -44,7 +45,7 @@ export default function Shell({ role, children }) {
 
   return (
     <>
-      <Nav role={role} onQuick={쓸수있나 ? 열기 : undefined} />
+      <Nav role={role} perm={perm} onQuick={쓸수있나 ? 열기 : undefined} />
 
       {열림 && (
         <div className="card qk" role="dialog" aria-label={QUICK.name}>

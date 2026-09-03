@@ -34,9 +34,12 @@ import Link from "next/link";
 import "./ops.css";
 import LogoutButton from "../logout-button";
 import { staffOnly } from "./who.js";
-// ⚠️ 「강사에게 수강료를 보이나」는 `lib/menu.js` 한 곳이 판단한다 (대전제-4 · 원칙-1).
-//    메뉴에서 가리는 것과 화면에서 가리는 것이 **같은 함수**여야 두 벌이 안 된다.
-import { canSeeFees } from "../../lib/menu.js";
+/* ⚠️⚠️ **「강사는 수강료 못 본다」를 코드가 들고 있지 않다** (원장님 2026-09-03 정정:
+ *    「그런 권한기본값을 니가 미리 정해서 코드에 박아 놓는 게 아니라 내가 웹상에서 설정 할 수 있게 해」).
+ *    답은 `v2.role_access` 에 들고, 판단은 `lib/perm.js` 의 `canFor` 한 벌이다(대전제-4 · 원칙-1).
+ *    ⚠️ 저장값(`me.perm`)은 **`who.js` 가 이미 읽어 왔다** — 여기서 다시 읽지 않는다(§속도).
+ *    ⚠️ 안 하면 무엇이 터지나: 화면이 제 손으로 또 판정하면 메뉴에는 없는데 카드는 뜨는 날이 온다. */
+import { canFor, blockedBy } from "../../lib/perm.js";
 import { openAs, QUERY_CAP, SPECIAL_BUDGET } from "./db.js";
 import { loadHead, loadFee, loadInquiry, loadConsult, loadSpecial } from "./read.js";
 import { PayLine, FeeRules, InquiryBox, InquiryLine, ConsultBox } from "./ui.js";
@@ -69,13 +72,23 @@ export default async function Ops({ searchParams }) {
     const asked = String(one(sp.m) ?? "");
     const head = await loadHead(conn.db, YM.test(asked) ? asked : null);
 
-    // ⚠️ 강사면 수강료를 **아예 안 읽는다.** 판단은 `lib/menu.js` 한 곳(대전제-4)
-    const 수강료 = canSeeFees(me.role);
+    /* ⚠️ 꺼져 있으면 **아예 안 읽는다.** 읽고 안 그리면 헛일이고 느려진다(§속도).
+     *    ⚠️ 세 카드를 **따로** 묻는다 — 원장님이 수강료만 끄고 상담일지는 두실 수 있다. */
+    const 수강료 = canFor(me.role, "ops.fee", me.perm);
+    const 상담 = canFor(me.role, "ops.consult", me.perm);
+    const 문의 = canFor(me.role, "ops.inquiry", me.perm);
+    // ⚠️ 「왜 안 보이나」 글은 `lib/perm.js` 한 벌이 짓는다 — 화면이 다시 짓지 않는다(원칙-1).
+    //    「아직 안 정하셨습니다」와 「꺼 두셨습니다」가 여기서 갈린다.
+    const 수강료막힘 = blockedBy(me.role, "ops.fee", me.perm, me.permWhy);
+    const 상담막힘 = blockedBy(me.role, "ops.consult", me.perm, me.permWhy);
+    const 문의막힘 = blockedBy(me.role, "ops.inquiry", me.perm, me.permWhy);
 
     const fee = 수강료 ? await loadFee(conn.db, head.ym) : null;
-    const inquiries = await loadInquiry(conn.db);
+    const inquiries = 문의 ? await loadInquiry(conn.db) : [];
     const pickedId = UUID.test(String(one(sp.s) ?? "")) ? one(sp.s) : null;
-    const consult = await loadConsult(conn.db, pickedId);
+    const consult = 상담
+      ? await loadConsult(conn.db, pickedId)
+      : { rows: [], byStudent: [], hidden: 0, noStudent: 0 };
 
     // 특강 아이만 회차를 센다 (`lib/session.js`). 정규는 월정액이라 안 부른다
     const special = 수강료
@@ -91,7 +104,8 @@ export default async function Ops({ searchParams }) {
         <div className="stack">
           <Head head={head} can={can} />
 
-          {/* ① 전화 끊고 바로 — 맨 위 */}
+          {/* ① 전화 끊고 바로 — 맨 위. ⚠️ 원장님이 끄시면 통째로 없다(자료도 안 읽었다) */}
+          {문의 ? (
           <section className="card">
             <div className="cardhd">
               🆕 신규 문의
@@ -106,6 +120,7 @@ export default async function Ops({ searchParams }) {
                     canWrite={can.inquiry?.upd === true}
                     canEnroll={can.students?.ins === true} />
           </section>
+          ) : <Shut title="🆕 신규 문의" gate={문의막힘} />}
 
           {/* ② 한 달에 한 번 — ⚠️ **강사에게는 이 카드가 통째로 없다**(원장님 2026-09-03) */}
           {수강료 ? (
@@ -143,15 +158,15 @@ export default async function Ops({ searchParams }) {
               </p>) : null}
           </section>
           ) : (
-            /* ⚠️ **숨긴 것을 숨기지 않는다**(대전제-0). 왜 안 보이는지 한 줄로 밝힌다 —
-                  안 그러면 강사가 「화면이 고장 났나」 하고 원장님께 묻는다 */
-            <p className="op-note">
-              💳 수강료는 <b>원장님만</b> 보십니다 — 이 화면에서 안 그렸습니다.
-              상담일지와 신규 문의는 그대로 보실 수 있습니다.
-            </p>
+            /* ⚠️ **숨긴 것을 숨기지 않는다**(대전제-0). 왜 안 보이는지 밝힌다 —
+                  안 그러면 강사가 「화면이 고장 났나」 하고 원장님께 묻는다.
+               ⚠️ 옛 글은 「수강료는 **원장님만** 보십니다」였다 — 그것도 **코드에 박힌 규칙**이라 걷어냈다.
+                  이제 「아직 안 정하셨습니다」와 「꺼 두셨습니다」를 갈라 말한다. */
+            <Shut title="💳 수강료" gate={수강료막힘} />
           )}
 
-          {/* ③ 아이마다 모아 본다 */}
+          {/* ③ 아이마다 모아 본다. ⚠️ 꺼지면 자료도 안 읽는다 */}
+          {상담 ? (
           <section className="card">
             <div className="cardhd">
               🗒 상담일지
@@ -174,6 +189,7 @@ export default async function Ops({ searchParams }) {
               <p className="op-note">아이가 안 붙은 상담 줄이 <b>{consult.noStudent}개</b> 있습니다 — 여기서는 못 찾습니다.</p>
               ) : null}
           </section>
+          ) : <Shut title="🗒 상담일지" gate={상담막힘} />}
 
           <Speed n={conn.count()} log={conn.log()} />
 
@@ -332,6 +348,22 @@ function Speed({ n, log }) {
 }
 
 /* ── 못 열었을 때 — 「무엇이 없어서 비었나」 ────────────────────── */
+
+/**
+ * 꺼졌거나 아직 안 정한 **카드 한 장 자리**.
+ * ⚠️ 「권한 없음」으로 끝내지 않는다(대전제-0). 글은 `lib/perm.js` 의 `blockedBy()` 가 짓는다 —
+ *    화면이 다시 지으면 한쪽만 「아직 안 정하셨습니다」를 말하게 된다(원칙-1).
+ * ⚠️ 자리를 **비워 두지 않는다.** 비우면 카드가 원래 없는 것처럼 보여 아무도 못 켠다.
+ */
+function Shut({ title, gate }) {
+  return (
+    <section className="card">
+      <div className="cardhd">{title}</div>
+      <p className="op-note">{gate.msg}</p>
+      {gate.how?.length ? <ul>{gate.how.map((h, i) => <li key={i}>{h}</li>)}</ul> : null}
+    </section>
+  );
+}
 
 function Blocked({ title, msg, how = [] }) {
   return (

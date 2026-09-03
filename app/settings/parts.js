@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import {
   setAcademyProgressEdit, setStudentProgressEdit,
   saveStopWeeks, saveTemplate, saveRule,
+  setRoleAccess, setRoleAll, applyDecided,
 } from "./actions.js";
 
 /** 한 줄 알림 — 좋은 소식은 초록, 나쁜 소식은 빨강 (흐리게 하지 않는다 · 계획 ㉑) */
@@ -368,6 +369,237 @@ export function Rules({ rows = [] }) {
               <button type="button" className="btn" disabled={busy === r.id}
                       onClick={() => save(r.id)}>저장</button>
               <Said ok={said[r.id]?.ok} text={said[r.id]?.text} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * ⑦ 누가 무엇을 보나 (원장님 2026-09-03)
+ *
+ * 「역할별로 페이지를 따로 만들지말고 원장이 학부모·학생·강사·조교에게 각각 페이지를
+ *   어디까지 오픈할지 온오프 및 세부목록 관리하는 페이지 추가해.」
+ * 그리고 곧바로 정정 —
+ * 「그런 권한기본값을 니가 미리 정해서 코드에 박아 놓는 게 아니라 내가 웹상에서 설정 할 수 있게 해」
+ *
+ * ⚠️⚠️ **켬/끔 값이 이 파일에 한 줄도 없다.** 칸의 상태는 전부 서버가 준 `cells` 에서 온다.
+ *    안 하면 무엇이 터지나: 여기 하나라도 박아 두면 원장님이 화면에서 끄셔도 다음 배포에
+ *    되살아나고, 원장님은 껐다고 믿으신 채로 강사가 수강료를 계속 본다.
+ *
+ * ⚠️⚠️ **항목 목록을 여기 다시 적지 않는다** (원칙-1 · 검사-⑲). 이름·열쇠·「끄면 무엇이
+ *    사라지나」는 전부 `lib/perm.js` 에서 받아 그린다. 적으면 항목을 더한 날 두 벌이 된다.
+ *
+ * ⚠️ 「아직 안 정함」을 **흐린 글씨로 말하지 않는다** (폰-9 — 글씨에 opacity 금지).
+ *    색(노랑)과 글자(「아직 안 정하셨습니다」) 둘 다로 말한다.
+ *
+ * ⚠️ 폰 — 역할 넷을 **가로로 늘어놓지 않는다.** 역할 하나씩 접었다 편다.
+ *    표로 늘어놓으면 폰에서 오른쪽이 잘리고, **잘린 칸은 없는 칸**이 된다.
+ *    sticky 도 안 쓴다 — 조상에 overflow 가 있으면 오류 없이 그냥 안 붙는다(폰-3).
+ *
+ * ⚠️ `confirm()` 을 안 쓴다 (대전제-10). 「전부 끄기」는 **화면 안에서** 한 번 묻는다.
+ * ══════════════════════════════════════════════════════════════════ */
+
+/** 칸 하나를 가리키는 이름 — `lib/perm.js` 의 저장값 열쇠와 **같은 모양**이다 */
+const 칸이름 = (role, key) => `${role}|${key}`;
+
+/** 세 상태를 **눈으로** 가른다 — 색과 글자 둘 다로 말한다(폰-9) */
+const 상태알약 = {
+  on: { cls: "pill pillok", text: "켬 — 보입니다" },
+  off: { cls: "pill pilloff", text: "끔 — 안 보입니다" },
+  unset: { cls: "pill pillwarn", text: "아직 안 정하셨습니다" },
+};
+
+export function WhoSees({ roles = [], cells = [] }) {
+  // ⚠️ 서버가 준 것으로만 시작한다. `?? "on"` 같은 것을 여기 두면 그것이 곧 박아 둔 기본값이다
+  const [state, setState] = useState(() => {
+    const m = {};
+    for (const c of cells) m[칸이름(c.role, c.key)] = c.state;
+    return m;
+  });
+  const [said, setSaid] = useState({});
+  const [busy, setBusy] = useState("");
+  const [펼친역할, set펼친역할] = useState("");
+  const [묻는역할, set묻는역할] = useState("");     // 「전부 끄기」를 누르기 전에 한 번 묻는 자리
+
+  const 그역할칸 = (role) => cells.filter((c) => c.role === role);
+  const 세기 = (role, want) =>
+    그역할칸(role).filter((c) => state[칸이름(c.role, c.key)] === want).length;
+
+  /** 여러 칸을 한 번에 바꾼다. **실패하면 그 칸들만 되돌리고 까닭을 그 자리에 띄운다**(속도-5) */
+  const 저장 = async (자리, 칸들, allowed, 부르기) => {
+    const 되돌릴것 = {};
+    for (const c of 칸들) 되돌릴것[칸이름(c.role, c.key)] = state[칸이름(c.role, c.key)];
+    setBusy(자리);
+    setSaid((s) => ({ ...s, [자리]: null }));
+    setState((m) => {
+      const next = { ...m };
+      for (const c of 칸들) next[칸이름(c.role, c.key)] = allowed ? "on" : "off";
+      return next;
+    });
+    const r = await 부르기();
+    setBusy("");
+    if (r?.ok) {
+      setSaid((s) => ({ ...s, [자리]: { ok: true, text: `${r.n ?? 칸들.length}칸 저장했습니다` } }));
+      return;
+    }
+    setState((m) => ({ ...m, ...되돌릴것 }));
+    setSaid((s) => ({ ...s, [자리]: { ok: false, text: r?.why || "저장하지 못했습니다 — 값은 그대로입니다" } }));
+  };
+
+  const 한칸 = (c, allowed) =>
+    저장(칸이름(c.role, c.key), [c], allowed, () => setRoleAccess(c.role, c.key, allowed));
+
+  const 역할전부 = (role, allowed) => {
+    set묻는역할("");
+    return 저장(`전부:${role}`, 그역할칸(role), allowed, () => setRoleAll(role, allowed));
+  };
+
+  /* ── 원장님이 앞서 하신 말씀 — **안내와 단추일 뿐이다** ─────────────
+   * ⚠️⚠️ 안 누르시면 **아무 일도 안 일어난다.** 그 값을 코드에 박는 것을 걷어낸 것이 이번 일이다.
+   * ⚠️ 어느 항목인지·무슨 말씀이었는지는 `lib/perm.js` 의 `decided` 에서 온다 — 여기 손으로 안 적는다 */
+  const 말씀칸 = cells.filter((c) => c.item?.decided);
+  const 말씀 = 말씀칸[0]?.item?.decided ?? "";
+  const 말씀남음 = 말씀칸.filter((c) => state[칸이름(c.role, c.key)] !== "off").length;
+
+  if (!cells.length)
+    return (
+      <p className="muted">
+        물어볼 칸이 <span className="num">0</span>개입니다 — <span className="mono">lib/perm.js</span> 의
+        항목 목록이 비었다는 뜻입니다. 여기서 지어내지 않습니다.
+      </p>
+    );
+
+  return (
+    <div className="stack">
+      {말씀칸.length > 0 && (
+        <div className="sunk stack">
+          <p style={{ margin: 0 }}>
+            <b>{말씀}</b> 라고 하셨습니다.
+          </p>
+          <p className="muted" style={{ margin: 0 }}>
+            누르시면 {말씀칸.map((c) => `${roles.find((r) => r.id === c.role)?.name ?? c.role}의 「${c.item.name}」`).join(" · ")}
+            {" "}를 <b>끔</b>으로 저장합니다 (<span className="num">{말씀칸.length}</span>칸).
+            ⚠️ 「켜기」는 <b>그 말씀을 켠다</b>는 뜻이지 화면을 연다는 뜻이 아닙니다.
+            <b> 안 누르시면 아무 일도 안 일어납니다.</b>
+          </p>
+          <div className="row">
+            <button type="button" className="btn" disabled={busy === "말씀"}
+                    onClick={() => 저장("말씀", 말씀칸, false, () => applyDecided())}>
+              그대로 켜기
+            </button>
+            {말씀남음 === 0
+              ? <span className="pill pillok">이미 그렇게 정해져 있습니다</span>
+              : <span className="pill pillwarn">아직 <span className="num">{말씀남음}</span>칸이 그 말씀과 다릅니다</span>}
+            <Said ok={said["말씀"]?.ok} text={said["말씀"]?.text} />
+          </div>
+        </div>
+      )}
+
+      {roles.map((역할) => {
+        const 칸들 = 그역할칸(역할.id);
+        if (!칸들.length) return null;
+        const 펴짐 = 펼친역할 === 역할.id;
+        const 안정함 = 세기(역할.id, "unset");
+        return (
+          <div className={펴짐 ? "acc is-open" : "acc"} key={역할.id}>
+            {/* ⚠️ `.btn` 은 글을 안 접는다(nowrap) — 그대로 두면 320px 에서 요약이 **화면 밖으로**
+                나간다(검사-㉓). 그래서 이 단추만 접히게 하고 속 글자도 접게 한다.
+                ⚠️ 요약을 알약 셋으로 늘어놓지 않는다 — 좁은 폰에서 줄이 세 줄로 뛴다. */}
+            <button type="button" className="btn btnghost" aria-expanded={펴짐}
+                    onClick={() => set펼친역할(펴짐 ? "" : 역할.id)}
+                    style={{ width: "100%", justifyContent: "flex-start", gap: "var(--s2)",
+                             flexWrap: "wrap", whiteSpace: "normal",
+                             border: 0, borderRadius: "var(--r2)", textAlign: "left" }}>
+              <span aria-hidden="true" style={{ color: "var(--mute)" }}>{펴짐 ? "▾" : "▸"}</span>
+              <span style={{ whiteSpace: "normal", flex: "1 1 120px" }}>{역할.name}</span>
+              <span className="chip">
+                켬 <span className="num">{세기(역할.id, "on")}</span> ·
+                끔 <span className="num">{세기(역할.id, "off")}</span>
+              </span>
+              {안정함 > 0
+                ? <span className="pill pillwarn">아직 안 정함 <span className="num">{안정함}</span></span>
+                : <span className="pill pillok">다 정하셨습니다</span>}
+            </button>
+
+            <div className="accbd">
+              <div className="stack">
+              {/* ⚠️ 역할마다 「지금 이게 진짜로 걸리나」를 `lib/perm.js` 가 적어 둔다.
+                  ⚠️⚠️ **`inDb` 로만 가르지 않는다.** 그러면 lib 이 `inDb:true` 로 고치는 날
+                  「조교 계정이 아직 한 줄도 없다」 같은 정직한 경고가 **말없이 사라진다**
+                  (2026-09-03 에 실제로 그렇게 바뀌었다). 적힌 말이 있으면 그대로 띄운다. */}
+              {역할.note ? (
+                <p className="sunk" style={{ margin: 0, color: "var(--warn-fg)", background: "var(--warn-bg)" }}>
+                  ⚠️ {역할.note}
+                </p>
+              ) : null}
+
+              {/* ── 전부 켜기 / 전부 끄기 (대전제-3 — 32칸을 하나씩 누르게 하지 않는다) ── */}
+              <div className="row">
+                <button type="button" className="btn" disabled={busy === `전부:${역할.id}`}
+                        onClick={() => 역할전부(역할.id, true)}>
+                  {역할.name} 전부 켜기 (<span className="num">{칸들.length}</span>칸)
+                </button>
+                <button type="button" className="btn btnghost" disabled={busy === `전부:${역할.id}`}
+                        onClick={() => set묻는역할(묻는역할 === 역할.id ? "" : 역할.id)}>
+                  {역할.name} 전부 끄기…
+                </button>
+                <Said ok={said[`전부:${역할.id}`]?.ok} text={said[`전부:${역할.id}`]?.text} />
+              </div>
+
+              {/* ⚠️ 되돌리기 어려운 쪽이라 **누르기 전에 몇 칸이 꺼지는지** 보여 준다.
+                  ⚠️ confirm() 을 안 쓴다 (대전제-10) — 묻는 자리가 화면 안에 선다 */}
+              {묻는역할 === 역할.id && (
+                <div className="sunk stack">
+                  <p style={{ margin: 0 }}>
+                    <b>{역할.name}의 <span className="num">{칸들.length}</span>칸이 모두 꺼집니다.</b>{" "}
+                    지금 켬 <span className="num">{세기(역할.id, "on")}</span>칸 ·
+                    아직 안 정함 <span className="num">{안정함}</span>칸.
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>
+                    끄면 {역할.name}은(는) 아래 항목을 하나도 못 봅니다. 되돌리시려면 「전부 켜기」를 누르시면 됩니다.
+                  </p>
+                  <div className="row">
+                    <button type="button" className="btn" disabled={busy === `전부:${역할.id}`}
+                            onClick={() => 역할전부(역할.id, false)}>
+                      네, {칸들.length}칸을 끕니다
+                    </button>
+                    <button type="button" className="btn btnghost" onClick={() => set묻는역할("")}>
+                      그만두기
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── 칸 하나씩 ─────────────────────────────────────────── */}
+              {칸들.map((c) => {
+                const 자리 = 칸이름(c.role, c.key);
+                const 알약 = 상태알약[state[자리]] ?? 상태알약.unset;
+                return (
+                  <div className="sunk stack" key={자리}>
+                    <div className="row">
+                      <b style={{ flex: "1 1 140px", whiteSpace: "normal" }}>{c.item.name}</b>
+                      <span className="mono">{c.key}</span>
+                      <span className={알약.cls}>{알약.text}</span>
+                    </div>
+                    <div className="row">
+                      <button type="button" className="btn" disabled={busy === 자리}
+                              aria-label={`${c.item.name} 켜기`}
+                              onClick={() => 한칸(c, true)}>켜기</button>
+                      <button type="button" className="btn btnghost" disabled={busy === 자리}
+                              aria-label={`${c.item.name} 끄기`}
+                              onClick={() => 한칸(c, false)}>끄기</button>
+                      <Said ok={said[자리]?.ok} text={said[자리]?.text} />
+                    </div>
+                    {/* ⚠️ 「끄면 무엇이 사라지나」를 **그 자리에** 띄운다 —
+                        모르고 끄면 강사가 일을 못 하는데 아무도 까닭을 모른다 */}
+                    <small className="muted" style={{ whiteSpace: "normal" }}>{c.item.cost}</small>
+                  </div>
+                );
+              })}
+              </div>
             </div>
           </div>
         );

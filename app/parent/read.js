@@ -25,6 +25,12 @@ import { applyOrder, orderInLayout, CARDS, SCREENS } from "@/lib/screens";
 import { cookies } from "next/headers";
 import { serverClientFromStore, roleOf, keys, SCHEMA } from "@/lib/supabase-server";
 import { hideEmptyCards } from "@/lib/close";
+/* ⚠️⚠️ **어느 카드를 여나 — 판단은 `lib/perm.js` 한 벌이다**(대전제-4 · 원칙-1).
+ *    코드에 켬/끔 값이 한 줄도 없다. 원장님이 화면에서 누르신 값만 `v2.role_access` 에 든다.
+ *  ⚠️ **꺼진 카드는 자료도 안 읽는다** — 읽고 안 그리면 헛일이고 느려진다(§속도 · MAX_READS).  */
+// ⚠️ 이 파일에는 이미 `rowsOf`(supabase 응답 풀기)가 있다 — 이름이 겹치므로 `권한줄` 로 받는다.
+//    두 함수는 하는 일이 다르다: 아래 `rowsOf` 는 오류를 사람 말로 모으고, `권한줄` 은 켬/끔 줄을 납작하게 편다.
+import { canFor, rowsOf as 권한줄, TABLE } from "@/lib/perm";
 import { ymd, monthRange, countDates } from "@/lib/session";
 import { sentView } from "@/lib/monthly";
 // ⚠️ 순수한 자리는 `shape.js` 한 벌이다 — 화면(client)도 검사도 같은 것을 본다 (원칙 1)
@@ -111,6 +117,20 @@ export async function loadParent(opts = {}) {
     return empty(problems, cnt.n, { me });
   }
 
+  /* ②-2 「누가 무엇을 보나」 — **카드를 읽기 전에** 먼저 묻는다.
+   * ⚠️ 순서가 뜻이다. 뒤에 물으면 이미 다 읽은 뒤라 꺼진 카드의 자료도 읽어 버린다.
+   * ⚠️ 접근 규칙(`own_read_ra`)이 **제 역할 줄만** 준다 — 학부모 계정엔 `parent|…` 줄만 온다.
+   * ⚠️ 못 읽으면 **기본값으로 돌지 않는다**(기본값이 없다). `perm` 이 `null` 이면 전부 닫힌다. */
+  cnt.hit("role_access(누가 무엇을 보나)");
+  const permRes = await sb.from(TABLE.name).select(TABLE.select);
+  const permWhy = permRes?.error
+    ? `⚠️ 「누가 무엇을 보나」를 못 읽었습니다 (${permRes.error.code || permRes.error.message}) — ` +
+      "그래서 아무 칸도 열지 않습니다. 원장님께 알려주세요."
+    : null;
+  if (permWhy) problems.push(permWhy);
+  const perm = permWhy ? null : 권한줄(permRes?.data);
+  const 연다 = (card) => canFor(ROLE, card, perm);
+
   // ③ 내 아이들 — ⚠️ **형제가 있으면 누구 것인지 먼저 묻는다** (계획 ㊸)
   cnt.hit("parent_student");
   const links = rowsOf(await sb.from("parent_student").select("student_id")
@@ -154,8 +174,13 @@ export async function loadParent(opts = {}) {
     .eq("student_id", student.id).gte("date", from).lte("date", toClamped).order("date"),
     "수업 기록", problems);
 
+  /* ⚠️ 판 줄(`day_sheet`)은 **꺼져 있어도 읽는다** — 달력의 출결·「정리 중」이 그 값을 쓴다.
+   *    이 달 달력은 카드가 아니라 언제나 서는 자리라 끄고 켤 항목이 없다(확정-⑯).
+   * ⚠️ 반대로 **속(`day_item`)은 두 카드가 다 꺼지면 안 읽는다** — 여기가 제일 무겁고,
+   *    「최근 수업」과 「과제」 말고는 쓰는 데가 없다. 읽고 안 그리면 헛일이다. */
   let itemRows = [];
-  const sheetIds = sheetRows.map((s) => s.id);
+  const 속필요 = 연다("parent.recent") || 연다("parent.homework");
+  const sheetIds = 속필요 ? sheetRows.map((s) => s.id) : [];
   if (sheetIds.length) {
     cnt.hit("day_item");
     itemRows = rowsOf(await sb.from("day_item")
@@ -166,19 +191,27 @@ export async function loadParent(opts = {}) {
   }
 
   // ⑥ 월간 리포트 — **보내야 보인다** (접근 규칙 `own_mr` 이 `sent_at is not null` 을 요구한다)
-  cnt.hit("monthly_report");
-  const reportRows = rowsOf(await sb.from("monthly_report")
-    .select("id,ym,sent_at,body,frozen").eq("student_id", student.id)
-    .not("sent_at", "is", null).order("ym", { ascending: false }).limit(12),
-    "월간 리포트", problems);
+  // ⚠️ 카드가 꺼져 있으면 **아예 안 읽는다** (조회 한 자리 + 아래 `sentView` 고리가 통째로 사라진다)
+  let reportRows = [];
+  if (연다("parent.reports")) {
+    cnt.hit("monthly_report");
+    reportRows = rowsOf(await sb.from("monthly_report")
+      .select("id,ym,sent_at,body,frozen").eq("student_id", student.id)
+      .not("sent_at", "is", null).order("ym", { ascending: false }).limit(12),
+      "월간 리포트", problems);
+  }
 
   // ⑦ 내가 보낸 것 — 결석·지각 예정 · 남기신 말. ⚠️ 「원장님이 봤나」를 같이 보여 준다.
   //    ⚠️ 아이로 안 거른다 — **형제 둘의 것을 한 자리에서 본다.** 대신 누구 것인지 이름을 붙인다
-  cnt.hit("request");
-  const requestRows = rowsOf(await sb.from("request")
-    .select("id,student_id,kind,body,at,seen_at,answered_at,answer,state")
-    .eq("by_profile", me.user.id).order("at", { ascending: false }).limit(30),
-    "보내신 말", problems);
+  // ⚠️ 「보낸 것」 카드가 꺼져 있으면 안 읽는다
+  let requestRows = [];
+  if (연다("parent.sent")) {
+    cnt.hit("request");
+    requestRows = rowsOf(await sb.from("request")
+      .select("id,student_id,kind,body,at,seen_at,answered_at,answer,state")
+      .eq("by_profile", me.user.id).order("at", { ascending: false }).limit(30),
+      "보내신 말", problems);
+  }
 
   // ── 여기서부터는 **판단이 아니라 정리**다 ────────────────────────────────
   const itemsBySheet = new Map();
@@ -281,6 +314,9 @@ export async function loadParent(opts = {}) {
     children: children.map((c) => ({ id: c.id, name: c.name, grade: c.grade, state: c.state })),
     student: { id: student.id, name: student.name, grade: student.grade, state: student.state },
     today, from, to: toClamped,
+    // ⚠️ 화면이 카드를 거를 때 쓴다. **여기서 거르지 않는다** — 차례를 입힌 뒤 거르는 것이
+    //    화면 쪽 일이고, 두 곳에서 거르면 한쪽만 고쳐지는 날이 온다(원칙-1).
+    perm, permWhy,
     months, recent, homework, reports, requests,
     hideEmpty: hideEmptyCards(ROLE),   // ⚠️ 아이·학부모 화면에서만 빈 카드를 숨긴다 (계획 ⑮ 3번)
     // 카드 차례 — **사람마다 따로**(계획 ⑮ 1). 판단은 `lib/screens.js` 한 벌이다.
@@ -355,6 +391,8 @@ function monthlyRowDb(rows) {
 function empty(problems, reads, extra = {}) {
   return {
     ok: false, reads, problems, limits: [],
+    // ⚠️ 못 읽었을 때 **전부 켜진 것으로 보이면 안 된다.** `null` 이 「아직 안 정함」이다
+    perm: null, permWhy: null,
     me: null, children: [], student: null,
     today: null, from: null, to: null,
     months: [], recent: [], homework: [], reports: [], requests: [],

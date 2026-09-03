@@ -16,9 +16,15 @@
  *    `v2.profiles` 의 **자기 줄만** 읽어 역할을 답한다 (`self_read`).
  */
 import { cookies } from "next/headers";
-import { serverClientFromStore, roleOf, keys, homeFor } from "../../lib/supabase-server.js";
+import { serverClientFromStore, roleOf, keys, homeFor, SCHEMA } from "../../lib/supabase-server.js";
+// ⚠️⚠️ **누가 무엇을 보나 — 판단은 `lib/perm.js` 한 벌이다**(대전제-4 · 원칙-1).
+//    여기서 「강사는 …」을 다시 적지 않는다. 코드에는 켬/끔 값이 한 줄도 없다 —
+//    켤지 끌지는 원장님이 화면에서 누르셔서 `v2.role_access` 에만 든다(원장님 2026-09-03).
+import { loadPerm, blockedBy, PRINCIPAL } from "../../lib/perm.js";
 
-/** 첫 화면이 `/` 인 역할 = 원장·강사. **표는 lib 에 한 벌뿐이다** */
+/** 첫 화면이 `/` 인 역할 = 원장·강사·조교. **표는 lib 에 한 벌뿐이다**
+ * ⚠️ 2026-09-03 — `HOME` 에 조교가 들어가면서 이 줄이 **저절로 조교까지 받는다.**
+ *    그것이 이 꼴을 고른 까닭이다: 역할이 하나 느는 날 이 파일을 안 고쳐도 된다(원칙-1). */
 const isStaff = (role) => homeFor(role) === "/";
 
 /**
@@ -40,9 +46,12 @@ export async function staffOnly() {
     };
   }
 
-  let who;
+  let who, sb;
   try {
-    who = await roleOf(serverClientFromStore(await cookies()));
+    // ⚠️ 클라이언트를 **붙잡아 둔다.** 아래에서 「누가 무엇을 보나」를 같은 문으로 읽는다 —
+    //    새로 만들면 쿠키를 두 번 풀고 조회도 한 번 더 는다(§속도).
+    sb = serverClientFromStore(await cookies());
+    who = await roleOf(sb);
   } catch (e) {
     return { ok: false, why: "read-failed", msg: `로그인을 못 읽었습니다 — ${String(e?.message ?? e).slice(0, 160)}`, how: [] };
   }
@@ -55,10 +64,23 @@ export async function staffOnly() {
   if (!isStaff(who.role)) {
     return {
       ok: false, why: "not-staff",
-      msg: "이 화면은 원장·강사만 엽니다.",
+      msg: "이 화면은 원장·강사·조교만 엽니다.",
       how: ["학생은 `/me`, 학부모는 `/parent` 가 첫 화면입니다."],
     };
   }
-  return { ok: true, profileId: who.user.id, role: who.role };
+  /* ⚠️⚠️ **메뉴에서 빼는 것만으로는 못 막는다 — 주소를 치면 그대로 열린다.**
+   *    문지기(`middleware.js`)는 첫 화면만 고르고 역할로 화면을 안 지킨다. 그래서 여기서 본다.
+   *  ⚠️ 원장은 묻지 않는다(`canFor` 가 늘 참) → **조회를 아예 안 한다**(§속도).
+   *  ⚠️ 못 읽으면 **기본값으로 돌지 않는다** — 기본값이 없다. 「못 읽었다」로 막고 그대로 말한다.
+   *  ⚠️ 「아직 안 정하셨습니다」(unset)와 「꺼 두셨습니다」(off)를 **다르게** 말한다 —
+   *     글은 `lib/perm.js` 의 `blockedBy()` 한 벌이 짓는다(원칙-1).
+   *  ⚠️ 막힌 화면에도 **나가는 길**이 있다(대전제-10): 메뉴 줄의 「🚪 나가기」는 늘 그려지고,
+   *     `how` 줄에도 그 길을 적는다. */
+  const 권한 = who.role === PRINCIPAL ? { rows: null, why: null } : await loadPerm(sb.schema(SCHEMA));
+  const 문 = blockedBy(who.role, "page.send", 권한.rows, 권한.why);
+  if (!문.ok)
+    return { ok: false, why: `perm-${문.state}`, msg: 문.msg, how: 문.how, role: who.role };
+
+  return { ok: true, profileId: who.user.id, role: who.role, perm: 권한.rows, permWhy: 권한.why };
 }
 
