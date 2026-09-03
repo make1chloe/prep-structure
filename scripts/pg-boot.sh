@@ -28,8 +28,30 @@
 # 도커일 때는 저장소의 supabase/ 를 컨테이너 /work 안에 넣어두므로
 # `-f supabase/SETUP_ALL.sql` 같은 **상대 경로가 그대로 통한다.**
 
-PG=${PG:-/usr/lib/postgresql/16/bin}
-export PATH="$PG:$PATH"
+# ── postgres 가 어디 있나 — **맥과 리눅스가 다르다** (2026-09-03) ────────────
+#
+# 앞판은 리눅스 자리 하나만 봤다: /usr/lib/postgresql/16/bin.
+# 맥에 postgresql@16 을 깔아도 그것은 **keg-only** 라 기본 PATH 에 안 올라온다
+# (/opt/homebrew/opt/postgresql@16/bin). 그래서 `command -v initdb` 가 계속 빈손이고
+# **검사 일곱이 그대로 건너뛰었다** — 이 파일이 없애려던 바로 그 일이다.
+# → 있을 만한 자리를 차례로 물어본다. 못 찾으면 그때 도커로 간다.
+_pg_bin() {
+  local c
+  for c in "${PG:-}" /usr/lib/postgresql/16/bin \
+           /opt/homebrew/opt/postgresql@16/bin /usr/local/opt/postgresql@16/bin; do
+    [ -n "$c" ] && [ -x "$c/initdb" ] && { echo "$c"; return 0; }
+  done
+  # brew 가 다른 자리에 깔았을 수도 있다 — 사람에게 묻지 말고 brew 에게 묻는다
+  if command -v brew >/dev/null 2>&1; then
+    c=$(brew --prefix postgresql@16 2>/dev/null)/bin
+    [ -x "$c/initdb" ] && { echo "$c"; return 0; }
+  fi
+  # 마지막으로 이미 PATH 에 있으면 그것을 쓴다
+  c=$(command -v initdb 2>/dev/null) && [ -n "$c" ] && { dirname "$c"; return 0; }
+  return 1
+}
+PG=$(_pg_bin || echo "")
+[ -n "$PG" ] && export PATH="$PG:$PATH"
 # 부르는 쪽은 모두 저장소 뿌리에서 도는 것을 전제로 `supabase/…` 를 적는다
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
@@ -53,14 +75,42 @@ pg_skip() {
 pg_boot() {
   local name=$1 port=$2 data=$3 i
 
-  if command -v initdb >/dev/null 2>&1; then
+  # ── 그 자리 postgres 로 띄운다 ────────────────────────────────────────
+  #
+  # ⚠️⚠️ **두 갈래다** (2026-09-03).
+  #   리눅스 CI 는 root 로 돌고, postgres 는 root 로 못 뜬다 → `su postgres` 로 내려간다.
+  #   맥은 제 계정으로 돌고 **`postgres` 라는 사용자가 아예 없다** → 그대로 띄운다.
+  #   앞판은 리눅스 갈래 하나뿐이라, 맥에서는 initdb 를 깔아도 `chown postgres` 에서
+  #   죽고 **아무 말 없이 건너뛰었다.**
+  # ⚠️ 그리고 **떴는지 실제로 물어보고** 아니면 거짓을 준다 — 앞판은 `sleep 2` 뒤
+  #   무조건 성공이라 했다. 안 떴는데 성공이라 하면 뒤따르는 psql 이 줄줄이 터진다.
+  if [ -n "$PG" ] && command -v initdb >/dev/null 2>&1; then
     PGMODE=native; PG_DATA=$data
-    rm -rf "$data"; mkdir -p "$data"; chown postgres "$data"; chmod 700 "$data"
-    su postgres -c "PATH=$PG:\$PATH initdb -D $data -U postgres -A trust" >/dev/null 2>&1
-    su postgres -c "PATH=$PG:\$PATH pg_ctl -D $data -o '-p $port -k /var/tmp' -l $data/log start" >/dev/null 2>&1
-    sleep 2
+    rm -rf "$data"; mkdir -p "$data"
+
+    if [ "$(id -u)" = "0" ] && id postgres >/dev/null 2>&1; then
+      chown postgres "$data"; chmod 700 "$data"
+      su postgres -c "PATH=$PG:\$PATH initdb -D $data -U postgres -A trust" >/dev/null 2>&1
+      su postgres -c "PATH=$PG:\$PATH pg_ctl -D $data -o '-p $port -k /var/tmp' -l $data/log start" >/dev/null 2>&1
+    else
+      # ⚠️⚠️ **맥에서는 LC_ALL 을 반드시 준다** (2026-09-03 실측).
+      #   안 주면 initdb 는 되는데 pg_ctl 이 이렇게 죽는다:
+      #     「포스트마스터가 시작하면서 멀티쓰레드 환경이 되었습니다」
+      #     「LC_ALL 환경 설정값으로 알맞은 로케일 이름을 지정하세요」
+      #   Homebrew 안내문도 같은 말을 한다. 이 한 줄이 없으면 **일곱이 그대로 건너뛴다.**
+      chmod 700 "$data"
+      LC_ALL="${LC_ALL:-en_US.UTF-8}" initdb -D "$data" -U postgres -A trust >/dev/null 2>&1
+      LC_ALL="${LC_ALL:-en_US.UTF-8}" \
+        pg_ctl -D "$data" -o "-p $port -k /var/tmp" -l "$data/log" start >/dev/null 2>&1
+    fi
+
     Q="psql -h /var/tmp -p $port -U postgres -q"
-    return 0
+    for i in $(seq 1 30); do
+      pg_isready -h /var/tmp -p "$port" -U postgres >/dev/null 2>&1 && return 0
+      sleep 1
+    done
+    # 안 떴다 — **성공이라 말하지 않는다.** 치운 뒤 도커 갈래로 넘어간다
+    pg_stop; PGMODE=""; Q=""
   fi
 
   # 도커 — 이미지를 미리 받아둔 경우에만 (검사 도중에 몇 백 MB 를 받지 않는다)
@@ -99,7 +149,34 @@ pg_boot() {
 pg_stop() {
   case "$PGMODE" in
     docker) docker rm -f "$PG_NAME" >/dev/null 2>&1 ;;
-    native) su postgres -c "PATH=$PG:\$PATH pg_ctl -D $PG_DATA stop" >/dev/null 2>&1
+    native) if [ "$(id -u)" = "0" ] && id postgres >/dev/null 2>&1; then
+              su postgres -c "PATH=$PG:\$PATH pg_ctl -D $PG_DATA stop" >/dev/null 2>&1
+            else
+              pg_ctl -D "$PG_DATA" stop >/dev/null 2>&1
+            fi
             rm -rf "$PG_DATA" ;;
   esac
 }
+
+# ── 이 파일을 **직접 불렀을 때** (source 가 아니라) ─────────────────────────
+#
+# ⚠️⚠️ 왜 이 자리가 생겼나 (2026-09-03)
+#   `scripts/live-month.mjs` 는 노드라서 이 파일을 source 못 한다. 그래서
+#   **postgres 를 띄우는 일을 제 손으로 한 벌 더** 갖고 있었다(`startPg`/`stopPg`).
+#   그 두 벌이 실제로 갈렸다 — 여기는 맥 갈래를 넣었는데 저기는 `su postgres` 뿐이라
+#   **여섯은 돌고 「한 달 살아보기」만 계속 건너뛰었다.** 같은 값 두 벌이 하는 일이 그것이다(원칙 1).
+#   → 노드가 이 문으로 물어보게 한다. 띄우는 법은 **이 파일 한 곳**에만 산다.
+#
+#   scripts/pg-boot.sh --bin                     → postgres 가 깔린 자리 (없으면 빈 줄)
+#   scripts/pg-boot.sh --start <이름> <포트> <자료방>  → PGMODE=… / Q=… 두 줄. 못 띄우면 1
+#   scripts/pg-boot.sh --stop  <모드> <이름> <자료방>  → 치운다
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  case "${1:-}" in
+    --bin)   echo "${PG:-}" ;;
+    --start) pg_boot "${2:?이름}" "${3:?포트}" "${4:?자료방}" || exit 1
+             echo "PGMODE=$PGMODE"; echo "Q=$Q" ;;
+    --stop)  PGMODE="${2:-}"; PG_NAME="${3:-}"; PG_DATA="${4:-}"; pg_stop ;;
+    *)       echo "쓰는 법: $0 --bin | --start <이름> <포트> <자료방> | --stop <모드> <이름> <자료방>" >&2
+             exit 2 ;;
+  esac
+fi

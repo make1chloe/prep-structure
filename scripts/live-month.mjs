@@ -32,7 +32,16 @@ import { consultText } from "../lib/consultText.js";
 import { volumeLabel } from "../lib/unitTree.js";
 import { unitProgress, stuckAcross } from "../lib/unitStreak.js";
 
-const PGBIN = "/usr/lib/postgresql/16/bin";
+/* ⚠️⚠️ **postgres 가 어디 있는지 여기서 정하지 않는다** (2026-09-03).
+ *   앞판은 `/usr/lib/postgresql/16/bin` 을 박아 두고 거기 initdb 가 없으면 도커라고 봤다.
+ *   맥에 postgresql@16 을 깔아도 그 자리가 아니라(keg-only) **늘 도커로 갈리고,
+ *   도커도 없으니 「한 달 살아보기」가 계속 건너뛰었다.**
+ *   → 띄우는 법은 `scripts/pg-boot.sh` **한 곳**에 산다. 여기서는 물어보기만 한다(원칙 1). */
+const askBoot = (...a) => {
+  try { return execFileSync("bash", ["scripts/pg-boot.sh", ...a], { encoding: "utf8" }).trim(); }
+  catch { return ""; }
+};
+const PGBIN = askBoot("--bin");
 const DATA = "/var/tmp/pgmonth";
 const PORT = "55437";
 const DB = "chloe";
@@ -53,7 +62,7 @@ const sh = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: "utf8",
 // 새로 띄우므로, 여러 갈래를 나란히 돌릴 때는 LIVE_PG_NAME 으로 갈라 준다
 // (남의 컨테이너를 지워버리면 그쪽 검사가 조용히 죽는다)
 const CT = process.env.LIVE_PG_NAME || "pgmonth";
-const DOCKER = !existsSync(`${PGBIN}/initdb`);
+const DOCKER = !(PGBIN && existsSync(`${PGBIN}/initdb`));
 const runPsql = (args, opts = {}) =>
   DOCKER
     ? sh("docker", ["exec", "-i", CT, "psql", "-U", "postgres", ...args], opts)
@@ -120,13 +129,10 @@ function startPg() {
     // Supabase 가 만들어주는 것들 — 우리 SQL 은 이것이 있다고 보고 쓴다
     runPsql(["-q", "-c", "create role anon; create role authenticated; create role service_role;"]);
   } else {
-    try { sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} stop`], { stdio: "ignore" }); } catch {}
-    rmSync(DATA, { recursive: true, force: true });
-    mkdirSync(DATA, { recursive: true });
-    sh("chown", ["postgres", DATA]); sh("chmod", ["700", DATA]);
-    sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH initdb -D ${DATA} -U postgres -A trust`], { stdio: "ignore" });
-    sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} -o '-p ${PORT} -k /var/tmp' -l ${DATA}/log start`], { stdio: "ignore" });
-    sh("sleep", ["2"]);
+    /* ⚠️ 띄우는 법을 여기 다시 적지 않는다 — `pg-boot.sh --start` 한 곳이다(원칙 1).
+     *    맥·리눅스 갈래도, LC_ALL 도, 「진짜 떴는지 물어보기」도 전부 저기 있다. */
+    askBoot("--stop", "native", CT, DATA);
+    if (!askBoot("--start", CT, PORT, DATA).includes("PGMODE=")) skipNoPg();
     runPsql(["-q", "-c", `create database ${DB};`]);
     // Supabase 가 만들어주는 것들 — 우리 SQL 은 이것이 있다고 보고 쓴다
     runPsql(["-q", "-c", "create role anon; create role authenticated; create role service_role;"]);
@@ -141,8 +147,7 @@ alter default privileges in schema public grant all on sequences to anon, authen
 }
 function stopPg() {
   if (DOCKER) { try { sh("docker", ["rm", "-f", CT], { stdio: "ignore" }); } catch {} return; }
-  try { sh("su", ["postgres", "-c", `PATH=${PGBIN}:$PATH pg_ctl -D ${DATA} stop`], { stdio: "ignore" }); } catch {}
-  rmSync(DATA, { recursive: true, force: true });
+  askBoot("--stop", "native", CT, DATA);   // 치우는 법도 pg-boot.sh 한 곳이다
 }
 
 /* ════════════════════════════════════════════════════════════

@@ -428,6 +428,12 @@ else
 fi
 
 echo
+echo "== 9-2) 안 돈 검사를 통과로 세지 않는가 (2026-09-03) =="
+# ⚠️ 이 검사만은 **DB 가 없어도 돈다.** 없을 때가 바로 잡아야 하는 때다
+if out=$(bash scripts/check-skip.sh 2>&1); then echo "$out" | tail -3
+else echo "$out"; fail=1; fi
+
+echo
 echo "== 10) 빌드 =="
 if npx next build >/tmp/.pagecheck-build.log 2>&1; then
   echo "  통과"
@@ -437,21 +443,5 @@ else
 fi
 
 echo
-skipped=$(grep -c . "$PGSKIP_FILE" 2>/dev/null || true)
-skipped=${skipped:-0}
-if [ "$skipped" -gt 0 ]; then
-  echo "⚠️  진짜 Postgres 가 없어 ${skipped}가지를 **건너뛰었습니다** (통과가 아닙니다):"
-  sed 's/^/     · /' "$PGSKIP_FILE"
-  echo "     도커를 켜고 한 번만:  docker pull postgres:16"
-  echo
-fi
-if [ $fail -ne 0 ]; then
-  echo "❌ 위 항목을 고쳐주세요"
-elif [ "$skipped" -gt 0 ]; then
-  echo "✅ 돌린 것은 다 통과 — 다만 위 ${skipped}가지는 안 돌았습니다"
-else
-  echo "✅ 전부 통과"
-fi
-# ❌ 인데 종료코드 0 으로 끝나서 && 뒤의 push 가 나가버렸다 (2026-08-17).
-# 검사를 믿을 수 없으면 없는 것보다 나쁘다 — 실패는 실패 코드로 끝난다.
-exit $fail
+# 판정은 **한 곳**이다 — scripts/pg-verdict.sh (검사가 그 파일만 따로 돌려 본다)
+exec bash "$(dirname "$0")/pg-verdict.sh" "$fail"
