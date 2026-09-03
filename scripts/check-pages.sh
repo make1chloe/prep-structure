@@ -308,6 +308,9 @@ runjs scripts/check-kanban.mjs
 runjs scripts/check-pick.mjs
 runjs scripts/check-who.mjs
 runjs scripts/check-dup.mjs
+# 되짚기 옮김표(docs/프롬프트-되짚기.md)가 없는 파일·함수를 가리키고 있지 않나.
+# 문서라서 어긋나도 오류가 안 난다 — 그날부터 나는 원장님께 없는 자리를 되짚어 드린다
+runjs scripts/check-prompt.mjs
 # 툴바에서 단추 하나만 내려앉는 것 (원장님: 「자꾸 줄이 안 맞아」)
 runjs scripts/check-align.mjs
 # 목록이면 검색·정렬이 있어야 한다 (원장님: 「목록이라는건 다 정렬 필터가」)
