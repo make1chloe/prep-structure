@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -46,5 +46,14 @@ ok("진행중·그대로 → 안 뺀다", offFor({ slot: "home", required: false
 ok("필수만 → 필수 아닌 줄만 뺀다", offFor({ slot: "class", required: false }, { stop: "running", mode: "required" }) === true && offFor({ slot: "class", required: true }, { stop: "running", mode: "required" }) === false);
 ok("숙제멈춤 → 숙제 줄만", offFor({ slot: "home", required: true }, { stop: "hw_off", mode: "all" }) === true && offFor({ slot: "class", required: true }, { stop: "hw_off", mode: "all" }) === false);
 ok("교재멈춤 → 다", offFor({ slot: "class", required: true }, { stop: "book_off", mode: "all" }) === true);
+console.log("■ 조절(02) — 갯수는 안 한 차례에서, 뺀 칩은 건너뛰고, 대단원을 안 넘는다 · 화면엔 문항·쪽 합계(확정-㉓)");
+const big = U("대비", "CH1", 7); big.q_count = 62; big.page_start = 30; big.page_end = 38;
+const t2 = [ { ...todo[0], q_count: 15, page_start: 13, page_end: 13 }, { ...todo[1], q_count: 13, page_start: 14, page_end: 14 }, big, todo[2] ];
+ok("3개 → 1-4 · 1-5 · 대비 (2-1 은 다음 대단원이라 안 든다)", tuneUnits(t2, 3).map((u) => u.unit_id).join() === "1-4,1-5,대비");
+ok("1-5 를 빼면 → 1-4 · 대비", tuneUnits(t2, 2, ["1-5"]).map((u) => u.unit_id).join() === "1-4,대비");
+ok("0개면 빈 것", tuneUnits(t2, 0).length === 0);
+ok("합계 — 3개면 90문항 · 11쪽", (() => { const l = loadOf(tuneUnits(t2, 3)); return l.questions === 90 && l.pages === 11; })());
+ok("62문항 → 이번에 눈금 1-20번 · 1-31번 · 전체(목업 02)", splitPresets(62).map((x) => x.name).join(" · ") === "1-20번 · 1-31번 · 전체");
+ok("문항 수가 없으면 눈금이 없다", splitPresets(0).length === 0);
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

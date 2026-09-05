@@ -81,3 +81,7 @@ insert into v2.quiz (id, student_id, kind, source, book_id, unit_from, assigned_
          '99999999-0000-4000-c000-000000000001', v2.today() - 1, 20, 90,
          (select id from v2.quiz_style where student_id is null and book_id is null and round = 1 and kind = 'word' limit 1), 'planned'
   where not exists (select 1 from v2.quiz where id = '99999999-0000-4000-f000-000000000001');
+-- ── 조절(02) 눌러보기 — 한 줄짜리 긴 소단원(62문항, 「이번에 낼 번호」가 뜬다)
+insert into v2.units (id, book_id, chapter, sub, activity, is_workbook, sort, page_start, page_end, q_count, import_batch) values
+  ('99999999-0000-4000-e100-000000000007', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', '중간·기말 대비문제', '문제', false, 7, 30, 38, 62, 'fixture')
+on conflict (id) do nothing;
