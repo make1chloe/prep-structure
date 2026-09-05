@@ -6,6 +6,7 @@ import { today, roster } from "@/lib/day";
 import Row from "./row.js";
 import { isUnchecked } from "@/lib/status";
 export const dynamic = "force-dynamic";
+const minutesOf = (a, b) => { const m = (t) => { const [h, mi] = String(t ?? "").split(":").map(Number); return h * 60 + (mi || 0); }; return a && b ? Math.max(0, m(b) - m(a)) : 0; };   // 반 시간(분) — 「90분이면 한 항목에 6.0분」
 const frame = (children) => <main className="frame" style={{ maxWidth: 960, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Today() {
   const { sb, me } = await guard();
@@ -24,7 +25,7 @@ export default async function Today() {
       <section key={c.id} aria-label={c.nickname || c.start}>
         {r.classes.length > 1 && <div className="hh" style={{ margin: "8px 0" }}>{c.nickname || (c.kind === "special" ? "특강" : "정규")} · {c.start}</div>}
         {!c.students.length && <div className="card"><p className="note">이 반에 오늘 오는 아이가 없습니다.</p></div>}
-        {c.students.map((s, i) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} date={date} defaultOpen={i === 0 && !s.sheet?.closed} />)}
+        {c.students.map((s, i) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} date={date} minutes={minutesOf(c.start, c.end)} defaultOpen={i === 0 && !s.sheet?.closed} />)}
       </section>
     ))}
   </>);

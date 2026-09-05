@@ -8,6 +8,7 @@ import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
 import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
+import { setMode, setStop, pickWave, setMemo } from "@/lib/routine";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 
@@ -21,3 +22,8 @@ export const late = done(async (form) => { const { sb } = await staff(); await s
 export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });
 export const comment = done(async (form) => { const { sb } = await staff(); await saveComment(sb, String(form.get("sheetId")), String(form.get("comment") ?? "")); });
 export const close = done(async (form) => { const { sb, user } = await staff(); await closeSheet(sb, String(form.get("sheetId")), String(form.get("comment") ?? ""), user.id); });
+// 오늘 학습·숙제 — 저절로 깔린 것을 손보는 손(확정-⑨a): 줄이기 · 교재 상태 · 회차 · 교재마다 메모. 판단은 lib/routine.js
+export const mode = done(async (sheetId, m) => { const { sb } = await staff(); await setMode(sb, sheetId, m); });
+export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = await staff(); await setStop(sb, sheetId, studentBookId, m); });
+export const wave = done(async (sheetId, bookId, slot, unitIds) => { const { sb } = await staff(); await pickWave(sb, sheetId, bookId, slot, unitIds); });
+export const memo = done(async (form) => { const { sb } = await staff(); await setMemo(sb, String(form.get("sheetId")), String(form.get("bookId")), String(form.get("slot")), String(form.get("text") ?? "")); });

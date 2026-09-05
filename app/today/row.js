@@ -2,8 +2,9 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo } from "./actions.js";
 import { isUnchecked, CHECK } from "@/lib/status";
+import { STOP, MODE, stopOn } from "@/lib/routine-plan";
 const ATTEND = [["present", "왔음"], ["late", "지각"], ["absent", "결석"], ["early", "조퇴"], ["online", "온라인"]];
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
@@ -11,7 +12,7 @@ const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
-export default function Row({ student, sheet, classId, date, defaultOpen }) {
+export default function Row({ student, sheet, classId, date, minutes, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -41,7 +42,7 @@ export default function Row({ student, sheet, classId, date, defaultOpen }) {
           {!sheet && <div className="card"><p className="note">아직 판이 없습니다 — 출결을 누르면 섭니다.</p></div>}
           {sheet && <>
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
-            <WorkCard sheet={sheet} closed={closed} fail={fail} start={start} />
+            <WorkCard sheet={sheet} books={student.books ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <CommentCard sheet={sheet} closed={closed} fail={fail} />
           </>}
@@ -84,23 +85,81 @@ function CheckItem({ it, closed, fail, start }) {
     </div>
   );
 }
-function WorkCard({ sheet, closed, fail, start }) {
+/** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
+function WorkCard({ sheet, books, date, minutes, closed, fail, start }) {
+  const laid = sheet.books.some((b) => b.laid_at);
+  const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
+  const unitless = (slot) => sheet[slot].filter((it) => !it.unit_id);
   return (
     <div className="card">
-      <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집</div>
+      <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto">{laid ? "검사에서 저절로 깔림" : sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다"}</span></div>
       <div className="load">
-        <div className="ldn"><span>학원</span><b>{sheet.class.length}</b><small>오늘 여기서 할 것</small></div>
+        <div className="ldn"><span>학원</span><b>{sheet.class.length}</b><small>{per ? <>{minutes}분이면 한 항목에 <b>{per}분</b></> : "오늘 여기서 할 것"}</small></div>
         <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b><small>집에서 할 것 — 다음 시간 검사</small></div>
+        {laid && <div className="ldw">{books.length > 1 ? <>⚠️ <b>교재 {books.length}권이라 항목이 {sheet.class.length + sheet.home.length}개입니다.</b></> : <b>교재 {books.length}권 · 항목 {sheet.class.length + sheet.home.length}개</b>}
+          <div className="wv" style={{ margin: "4px 0 0" }}><span className="fl" style={{ margin: 0 }}>줄이기</span>
+            <div className="seg sm" data-g="mode">{MODE.map(([k, name]) => <button key={k} type="button" aria-pressed={(sheet.load_mode ?? "all") === k} disabled={closed} onClick={() => start(async () => { fail(await setMode(sheet.id, k)); })}>{name}</button>)}</div>
+          </div>
+        </div>}
       </div>
+      {books.map((b) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} />)}
       <div className="two">
-        {[["class", "오늘 학습 · 학원", sheet.class, "home", "⏭ 숙제로 미루기"], ["home", "오늘 숙제 · 집", sheet.home, "class", "↩ 학원에서"]].map(([slot, title, items, other, moveLabel]) => (
+        {[["class", "그 밖에 · 학원", "home", "⏭ 숙제로 미루기"], ["home", "그 밖에 · 집", "class", "↩ 학원에서"]].map(([slot, title, other, moveLabel]) => (
           <div className="half" key={slot}>
-            <div className="hh">{title}<span className="cnt">{items.length}개</span></div>
-            {items.map((it, i) => <div className="li" key={it.id}><span className="n">{i + 1}</span><div><b>{it.range_note || "(이름 없음)"}</b>{it.carry_of && <small>지난 숙제의 나머지</small>}</div>{!closed && <button type="button" className="btn sm" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>}</div>)}
+            <div className="hh">{title}<span className="cnt">{unitless(slot).length}개</span></div>
+            {unitless(slot).map((it, i) => <div className="li" key={it.id}><span className="n">{i + 1}</span><div><b>{it.range_note || it.learn_items?.name || "(이름 없음)"}</b>{it.carry_of && <small>지난 숙제의 나머지</small>}</div>{!closed && <button type="button" className="btn sm" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>}</div>)}
             {!closed && <form className="wv" action={async (f) => { fail(await add(f)); }}><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="slot" value={slot} /><input type="text" name="text" placeholder="항목 더하기 — 예: 워크북 p.10 1-18" style={{ flex: "1 1 160px", minWidth: 0 }} /><button className="btn sm" type="submit">항목 더하기</button></form>}
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+const pages = (u) => u?.page_start ? `p.${u.page_start}${u.page_end && u.page_end !== u.page_start ? `-${u.page_end}` : ""}` : null;
+/** 교재 하나 — 머리(이름 · N회독 · 대단원 · 진행중/숙제멈춤/교재멈춤) + 학습·숙제 좌우. 줄은 루틴 항목마다 하나, 소단원이 둘이면 이름을 잇는다 */
+function BookBlock({ b, sheet, date, closed, fail, start }) {
+  const stop = stopOn(b, date);
+  const mark = sheet.books.find((x) => x.book_id === b.book_id);
+  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id);
+  const chapter = rows("class")[0]?.units?.chapter ?? rows("home")[0]?.units?.chapter ?? null;
+  const pickStop = (m) => start(async () => { fail(await setStop(sheet.id, b.id, m)); });
+  return (
+    <div className={"bk" + (stop === "book_off" ? " stopped" : "")} data-book={b.book_id}>
+      <div className="bkh">
+        <b>{b.books.name}</b>
+        <span className="tag type">{b.round}회독 · 단원 진행</span>
+        {chapter && <span className="tag">{chapter}</span>}
+        <span className="spacer" />
+        <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
+      </div>
+      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b> — {b.stop_until ? `${b.stop_until} 에 저절로 풀립니다` : "진행중을 누르면 다시 나갑니다"}</div>
+      : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
+      : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b> — 진도는 교재 화면에서 봅니다</div>
+      : <div className="two">
+          <Half slot="class" title="오늘 학습 · 학원" b={b} sheet={sheet} mark={mark} rows={rows("class")} closed={closed} fail={fail} start={start} />
+          {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제멈춤</span></div><div className="stopnote"><b>숙제 없음</b> — 수업에서만 씁니다</div></div>
+          : <Half slot="home" title="오늘 숙제 · 집" b={b} sheet={sheet} mark={mark} rows={rows("home")} closed={closed} fail={fail} start={start} />}
+        </div>}
+    </div>
+  );
+}
+function Half({ slot, title, b, sheet, mark, rows, closed, fail, start }) {
+  const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: it.learn_items?.name ?? it.range_note ?? "(이름 없음)", units: [], carry: it.carry_of }; lines.push(l); } if (it.units) l.units.push(it.units); }
+  const cur = new Set(rows.map((it) => it.unit_id));
+  const opts = mark.waves?.[slot] ?? [];
+  const same = (o) => o.units.length === cur.size && o.units.every((u) => cur.has(u.unit_id));
+  const memoText = slot === "class" ? mark.class_memo : mark.home_memo;
+  return (
+    <div className="half">
+      <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
+      {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>회차</span>
+        <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
+      {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>
+        <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div></div>)}
+      <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
+        <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
+        <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "이 교재 오늘 학습 메모 — 아이 화면에 그대로" : "이 교재 숙제 메모 — 아이 화면에 그대로"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
+      </form>
     </div>
   );
 }
