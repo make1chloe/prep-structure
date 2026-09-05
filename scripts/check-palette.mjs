@@ -20,7 +20,7 @@ for (const [k,v] of Object.entries(tok)) { const [h,l]=hsl(v); if (h>=20 && h<=7
 const pairs = [["fg","bg"],["fg","surface"],["mid","surface"],["mute","surface"],["mute","bg"],["accent-fg","accent"],["accent","surface"],
   ["ok-fg","ok-bg"],["warn-fg","warn-bg"],["bad-fg","bad-bg"],["info-fg","info-bg"],["off-fg","off-bg"],["ok","surface"],["bad","surface"],["info","surface"],
   ["d-fg","d-bg"],["d-fg","d-surface"],["d-mid","d-surface"],["d-mute","d-surface"],["d-accent-fg","d-accent"],["d-accent","d-surface"],
-  ["d-ok-fg","d-ok-bg"],["d-warn-fg","d-warn-bg"],["d-bad-fg","d-bad-bg"],["d-info-fg","d-info-bg"],["d-off-fg","d-off-bg"],["d-ok","d-surface"],["d-bad","d-surface"]];
+  ["violet-fg","violet-bg"],["pink-fg","pink-bg"],["cyan-fg","cyan-bg"],["violet","surface"],["pink","surface"],["cyan","surface"],["d-violet-fg","d-violet-bg"],["d-pink-fg","d-pink-bg"],["d-cyan-fg","d-cyan-bg"],["d-ok-fg","d-ok-bg"],["d-warn-fg","d-warn-bg"],["d-bad-fg","d-bad-bg"],["d-info-fg","d-info-bg"],["d-off-fg","d-off-bg"],["d-ok","d-surface"],["d-bad","d-surface"]];
 for (const [f,b] of pairs) { if(!tok[f]||!tok[b]) { bad.push(`토큰 없음: --${f} / --${b}`); continue; } const r=cr(tok[f],tok[b]); if (r<4.5) bad.push(`대비 ${r.toFixed(2)}: --${f} on --${b}`); }
 if (bad.length) { console.error("check-palette ✗\n  " + bad.join("\n  ")); process.exit(1); }
 console.log(`check-palette ✓ 토큰 ${Object.keys(tok).length} · 갈색 0 · 대비 ${pairs.length}쌍 4.5 이상`);

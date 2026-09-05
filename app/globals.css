@@ -101,23 +101,27 @@
 :root,
 :root[data-skin="auto"] {
   /* 바탕 */
-  --bg:      #F3F8FF;   /* 페이지 바탕 */
+  --bg:      #EEF5FF;   /* 페이지 바탕 */
   --surface: #FFFFFF;   /* 카드 */
-  --sunk:    #EAF2FE;   /* 가라앉은 자리 — 「덜 중요함」의 배경 */
-  --line:    #C7D9F2;   /* 선 */
+  --sunk:    #E6F0FF;   /* 가라앉은 자리 — 「덜 중요함」의 배경 */
+  --line:    #CFE0FF;   /* 선 */
   /* 글씨 — 셋뿐이다. 넷째를 만들지 마라 */
-  --fg:      #14213D;   /* 본문 */
-  --mid:     #3A4A6B;   /* 조금 약한 글 */
-  --mute:    #5F7194;   /* 가장 약한 글 — ⚠️ 그래도 **읽힌다** */
+  --fg:      #111C3D;   /* 본문 */
+  --mid:     #2F3F6B;   /* 조금 약한 글 */
+  --mute:    #5A6B95;   /* 가장 약한 글 — ⚠️ 그래도 **읽힌다** */
   /* 강조 */
-  --accent:    #1A5FD0;
+  --accent:    #2458E8;
   --accent-fg: #FFFFFF;
   /* 상태 — 색으로 말한다 */
-  --ok:      #0F7A42;  --ok-bg:   #D9F6E5;  --ok-fg:   #0B5A31;
-  --warn:    #F97316;  --warn-bg: #FFEDD5;  --warn-fg: #14213D;  /* ⚠️ 주황·노랑은 글씨로 안 쓴다 — 어둡게 누르면 갈색(원장님 9/5 「이 색 금지」). 테두리·바탕만, 글씨는 --warn-fg(남색) */
-  --bad:     #C41E3A;  --bad-bg:  #FFE3E6;  --bad-fg:  #A6122B;
-  --info:    #1A5FD0;  --info-bg: #E3EEFF;  --info-fg: #154BA6;
-  --off-bg:  #E3EBF7;  --off-fg:  #4C5D7C;  /* 꺼짐 — 흐리게가 아니라 회색 「색」 */
+  --ok:      #15803D;  --ok-bg:   #DCFCE7;  --ok-fg:   #166534;
+  --warn:    #FF8A00;  --warn-bg: #FFE8CC;  --warn-fg: #111C3D;  /* ⚠️ 주황·노랑은 글씨로 안 쓴다 — 어둡게 누르면 갈색(원장님 9/5 「이 색 금지」). 테두리·바탕만, 글씨는 --warn-fg(남색) */
+  --bad:     #B91C1C;  --bad-bg:  #FEE2E2;  --bad-fg:  #991B1B;
+  --info:    #2458E8;  --info-bg: #E3ECFF;  --info-fg: #1D4ED8;
+  --off-bg:  #E6F0FF;  --off-fg:  #4A5B85;  /* 꺼짐 — 흐리게가 아니라 회색 「색」 */
+  /* 갈래 색 셋 (원장님 2026-09-05 「칙칙」) — 시험 보라 · 학부모 분홍 · 출결 청록. 글씨는 -fg, 바탕은 -bg */
+  --violet: #7C3AED; --violet-bg: #EDE9FE; --violet-fg: #6D28D9;
+  --pink:   #BE185D; --pink-bg:   #FCE7F3; --pink-fg:   #9D174D;
+  --cyan:   #0E7490; --cyan-bg:   #CFFAFE; --cyan-fg:   #155E75;
 
   /* 글씨 크기 — **열 종뿐이다** (오류 106: 24종이 2,432곳에 흩어져 있었다).
    * 0.5px 단은 없다. 여기 없는 크기를 쓰면 검사가 잡는다. */
@@ -135,7 +139,7 @@
   /* 사이 */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --r1: 6px; --r2: 10px; --r3: 14px;
-  --shadow: 0 1px 2px rgba(26,95,208,.10), 0 6px 18px rgba(26,95,208,.08);
+  --shadow: 0 1px 2px rgba(36,88,232,.10), 0 8px 22px rgba(36,88,232,.10);
 
   /* 글꼴 — ⚠️ 한글에 고정폭을 걸지 않는다 (오류 107).
    * 숫자 줄맞춤은 글꼴을 바꾸지 않고 `font-variant-numeric` 으로 한다. */
@@ -153,20 +157,23 @@
    * **뒤에 온 딥네이비가 졌다.** 그래서 딥네이비의 `--bg` 를 고쳐도
    * 다크 맥(원장님 기계)에서는 옛 값이 그대로 보였다 — 「고쳤다고 말할 뻔했다」(오류 100).
    * 이제 두 자리가 **여기 한 벌을 가리키기만** 한다. 어두운 색은 여기서만 고친다. */
-  --d-bg:      #0F1B2D;
-  --d-surface: #182742;
-  --d-sunk:    #13203A;
-  --d-line:    #33507A;
-  --d-fg:      #F2F7FF;
-  --d-mid:     #C9D8F0;
-  --d-mute:    #9FB3D3;
-  --d-accent:    #7CB3FF;
-  --d-accent-fg: #0B1730;
-  --d-ok:   #5CE0A0;   --d-ok-bg:   #12402B;  --d-ok-fg:   #8FEBBE;
-  --d-warn: #FB923C;   --d-warn-bg: #4A2A0F;  --d-warn-fg: #F2F7FF;
-  --d-bad:  #FF8A7E;   --d-bad-bg:  #4A1F1C;  --d-bad-fg:  #FFB0A8;
-  --d-info: #7CB3FF;   --d-info-bg: #1F3A66;  --d-info-fg: #AFCFFF;
-  --d-off-bg: #22344F; --d-off-fg:  #A3B5D0;
+  --d-bg:      #0B1630;
+  --d-surface: #142147;
+  --d-sunk:    #0F1A3A;
+  --d-line:    #2B3F7A;
+  --d-fg:      #F1F5FF;
+  --d-mid:     #C7D3F2;
+  --d-mute:    #98A8D6;
+  --d-accent:    #6EA8FF;
+  --d-accent-fg: #0B1630;
+  --d-ok:   #4ADE80;   --d-ok-bg:   #103B26;  --d-ok-fg:   #86EFAC;
+  --d-warn: #FFA94D;   --d-warn-bg: #4A2A0F;  --d-warn-fg: #F1F5FF;
+  --d-bad:  #FF7B7B;   --d-bad-bg:  #4A1C1C;  --d-bad-fg:  #FFB4B4;
+  --d-info: #6EA8FF;   --d-info-bg: #1B2F66;  --d-info-fg: #B9D2FF;
+  --d-off-bg: #1F2F5E; --d-off-fg:  #A9B8DE;
+  --d-violet: #B197FC; --d-violet-bg: #2E2359; --d-violet-fg: #D4C4FF;
+  --d-pink:   #F783AC; --d-pink-bg:   #4A1B33; --d-pink-fg:   #FFB3CD;
+  --d-cyan:   #66D9E8; --d-cyan-bg:   #0F3A44; --d-cyan-fg:   #9BE9F2;
   --d-shadow: 0 1px 2px rgba(0,0,0,.45), 0 8px 22px rgba(0,0,0,.35);
 }
 
@@ -183,6 +190,9 @@
     --bad:  var(--d-bad);  --bad-bg:  var(--d-bad-bg);  --bad-fg:  var(--d-bad-fg);
     --info: var(--d-info); --info-bg: var(--d-info-bg); --info-fg: var(--d-info-fg);
     --off-bg: var(--d-off-bg); --off-fg: var(--d-off-fg);
+    --violet: var(--d-violet); --violet-bg: var(--d-violet-bg); --violet-fg: var(--d-violet-fg);
+    --pink: var(--d-pink); --pink-bg: var(--d-pink-bg); --pink-fg: var(--d-pink-fg);
+    --cyan: var(--d-cyan); --cyan-bg: var(--d-cyan-bg); --cyan-fg: var(--d-cyan-fg);
     --shadow: var(--d-shadow);
     color-scheme: dark;
   }
@@ -200,6 +210,9 @@
   --bad:  var(--d-bad);  --bad-bg:  var(--d-bad-bg);  --bad-fg:  var(--d-bad-fg);
   --info: var(--d-info); --info-bg: var(--d-info-bg); --info-fg: var(--d-info-fg);
   --off-bg: var(--d-off-bg); --off-fg: var(--d-off-fg);
+  --violet: var(--d-violet); --violet-bg: var(--d-violet-bg); --violet-fg: var(--d-violet-fg);
+  --pink: var(--d-pink); --pink-bg: var(--d-pink-bg); --pink-fg: var(--d-pink-fg);
+  --cyan: var(--d-cyan); --cyan-bg: var(--d-cyan-bg); --cyan-fg: var(--d-cyan-fg);
   --shadow: var(--d-shadow);
   color-scheme: dark;
 }
