@@ -23,10 +23,10 @@ for (let i = 1; ; i++) { try { await c.connect(); break; }
 const rows = (await c.query(`
   select c.relname tbl, obj_description(c.oid) note
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname in ('v2','v3') and c.relkind = 'r' order by n.nspname, c.relname`)).rows;
+   where n.nspname = 'v2' and c.relkind = 'r' order by c.relname`)).rows;
 await c.end();
 
-console.log(`■ v2·v3 의 표 ${rows.length}개`);
+console.log(`■ v2 의 표 ${rows.length}개`);
 ok(`${DOC} 가 있다`, existsSync(DOC), "계획 1단계 6번 — 첫 마이그레이션보다 먼저 나왔어야 한다");
 const doc = existsSync(DOC) ? readFileSync(DOC, "utf8") : "";
 

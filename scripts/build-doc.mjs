@@ -12,14 +12,14 @@ const t = (await c.query(`
             join pg_attribute a on a.attrelid=i.indrelid and a.attnum=k.att
            where i.indrelid=c.oid and i.indisprimary) pk
     from pg_class c join pg_namespace n on n.oid=c.relnamespace
-   where n.nspname in ('v2','v3') and c.relkind='r' order by n.nspname, c.relname`)).rows;
+   where n.nspname='v2' and c.relkind='r' order by c.relname`)).rows;
 await c.end();
 
 const noNote = t.filter(x => !x.note);
-const v2 = t.filter(x => x.sch === 'v2'), v3 = t.filter(x => x.sch === 'v3');
+const v2 = t;
 const row = x => `| \`${x.tbl}\` | ${(x.note || "⚠️ **안 적혔다**").replace(/\|/g,"\\|").replace(/\n/g," ").slice(0,150)} | ${(Array.isArray(x.pk) ? x.pk.join(" + ") : String(x.pk ?? "").replace(/[{}]/g,"").split(",").join(" + ")) || "—"} | ${x.cols} | ${x.pol} |`;
 // ⚠️ 줄 수(n_live_tup)는 **통계**라 돌릴 때마다 달라진다 — 문서에 넣으면 검사가 헛되이 깨진다
-const out = `# 표 유도 — v2 의 표 ${v2.length}개 · v3(새 앱) 의 표 ${v3.length}개가 어디서 나왔나
+const out = `# 표 유도 — v2 의 표 ${v2.length}개가 어디서 나왔나 (새 앱도 이 표를 그대로 쓴다 — 2026-09-05)
 
 > ⚠️ **이 문서가 자동 검사의 근거다** (계획 자동 검사 ⑳).
 > 마이그레이션이 만드는 표 이름이 여기 없으면 \`scripts/check-tables.mjs\` 가 깨진다.
@@ -32,11 +32,6 @@ const out = `# 표 유도 — v2 의 표 ${v2.length}개 · v3(새 앱) 의 표 
 | 표 | 한 줄이 무엇인가 | 열쇠 | 칸 | 규칙 |
 |---|---|---|---|---|
 ${v2.map(row).join("\n")}
-## v3 — 새 앱 (2026-09-05 밤부터 · 0100_v3_skeleton.sql)
-원장님 「데이터는 버리는 거 아니야」 — 코드는 새로, 표는 v3 에, 사람·권한은 \`v3.import_people()\` 로 v2 에서 옮긴다. 어느 걸음에서 나왔나는 표 주석에 적혀 있다(뼈대-n · 목업 nn).
-| 표 | 한 줄이 무엇인가 | 열쇠 | 칸 | 규칙 |
-|---|---|---|---|---|
-${v3.map(row).join("\n")}
 
 ## ⚠️ 「한 줄이 무엇인가」가 안 적힌 표 ${noNote.length}개
 

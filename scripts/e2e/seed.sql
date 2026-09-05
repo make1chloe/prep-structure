@@ -17,5 +17,5 @@ do $$ begin
   insert into v2.profiles (id, role, name, import_batch) values ('55555555-5555-5555-5555-555555555555', 'assistant', 'zz_시험_조교', 'rehearsal') on conflict (id) do nothing;
 exception when check_violation then raise notice 'assistant 없음 — 건너뜀'; end $$;
 
--- v2 에 심은 사람·권한을 v3 로 옮긴다 — 마이그레이션이 한 번 불렀지만 그때는 v2 가 비어 있었다(멱등)
-select * from v3.import_people();
+-- 리허설 학생·학부모도 처음 비밀번호 문을 지난다(0100 의 표시 줄은 마이그레이션 때 이미 섰으니 여기서 켠다)
+update v2.profiles set must_change_pw = true where role in ('student','parent') and name like 'zz_시험_%';

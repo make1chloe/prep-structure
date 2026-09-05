@@ -21,7 +21,7 @@ j("파기 목록에 없는 개인정보 칸", (await c.query(`
   where col.table_schema='v2'
     and (col.column_name in ('name','phone','comment','body','said','note','reason','staff_note','orig_name','title')
          and col.table_name not in ('purge_map','import_check','area_map','import_skip','books','units','learn_items','material_type','grammar_topics',
-             'schools','video','msg_template','auto_rule','notice','todo','material','file_bin','exams','classes'))
+             'schools','video','msg_template','auto_rule','rule','notice','todo','material','file_bin','exams','classes'))   -- rule: 임계값 설명(0100), 사람 이야기가 아니다
     and not exists (select 1 from v2.purge_map p
       where p.tbl=col.table_name and p.col=col.column_name)`)).rows,
   "파기가 여기를 안 지나간다 (자동 검사 ⑨)");

@@ -1,5 +1,5 @@
 "use server";
-/** 켜고 끄기 — 원장만. 표(v3.role_access)의 RLS 도 원장만 받으니 여기서 한 번 더 막는 것은 「말」을 위해서다 */
+/** 켜고 끄기 — 원장만. 표(v2.role_access)의 RLS 도 원장만 받으니 여기서 한 번 더 막는 것은 「말」을 위해서다 */
 import { revalidatePath } from "next/cache";
 import { guard } from "@/lib/session";
 import { db } from "@/lib/supabase";

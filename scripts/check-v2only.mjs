@@ -7,7 +7,6 @@
  *  Storage 정책은 **파일은 그대로인데 접근만 막혀** 원인 찾기가 제일 어렵다.
  *  ⚠️ 이 셋은 **도메인 원복으로 못 되돌린다** — 공사 중 평일 저녁 사고다.
  */
-// ⚠️ 2026-09-05 밤부터 새 표는 v3 에 선다 — v2·v3 둘 다 「안」이다. 밖은 여전히 auth·storage·public 셋.
 import { readdirSync, readFileSync } from "node:fs";
 const 예외 = new Set(["9000_switch_day.sql","9001_purge_public.sql"]);
 const 밖 = "(auth|storage|public)";

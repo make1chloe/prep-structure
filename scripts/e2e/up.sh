@@ -9,7 +9,7 @@ set -u
 cd "$(dirname "$0")/../.."
 PG=/usr/lib/postgresql/16/bin; export PATH="$PG:$PATH"
 D=/var/tmp/e2e-pg; PORT=55440; PGRST_PORT=55441; API_PORT=55442
-SCHEMAS=${E2E_SCHEMAS:-v3,v2}       # 앞의 것이 기본 — 새 앱은 v3, 옮기는 원본이 v2
+SCHEMAS=${E2E_SCHEMAS:-v2}          # 새 앱도 v2 — 표는 하나
 command -v initdb >/dev/null || { echo "postgres 가 없습니다"; exit 1; }
 [ -s scripts/e2e/jwt-secret.txt ] || head -c 32 /dev/urandom | base64 | tr -d '\n=' | head -c 40 > scripts/e2e/jwt-secret.txt
 [ -x /tmp/postgrest ] || { echo "PostgREST 가 없습니다 (bash scripts/e2e/fetch.sh 먼저)"; exit 1; }

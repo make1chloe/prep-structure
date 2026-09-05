@@ -1,5 +1,5 @@
 "use server";
-/** 처음 들어오면 비밀번호 바꾸기 — 목업 00. 최소 글자 수는 v3.rule password.min_len(코드에 안 박는다). 0000 은 못 쓴다 */
+/** 처음 들어오면 비밀번호 바꾸기 — 목업 00. 최소 글자 수는 v2.rule password.min_len(코드에 안 박는다). 0000 은 못 쓴다 */
 import { redirect } from "next/navigation";
 import { guard } from "@/lib/session";
 import { db } from "@/lib/supabase";
