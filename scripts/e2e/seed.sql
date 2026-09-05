@@ -2,8 +2,8 @@
 insert into auth.users (id, email, encrypted_password) values
   ('11111111-1111-1111-1111-111111111111', 'zz_principal@e2e.test',  'e2e-pass'),
   ('22222222-2222-2222-2222-222222222222', 'zz_instructor@e2e.test', 'e2e-pass'),
-  ('33333333-3333-3333-3333-333333333333', 'zz_student@e2e.test',    'e2e-pass'),
-  ('44444444-4444-4444-4444-444444444444', 'zz_parent@e2e.test',     'e2e-pass'),
+  ('33333333-3333-3333-3333-333333333333', 'chloe0000@chloe-eng.internal',    'e2e-pass'),
+  ('44444444-4444-4444-4444-444444444444', '01000000000@chloe-eng.internal',     'e2e-pass'),
   ('55555555-5555-5555-5555-555555555555', 'zz_assistant@e2e.test',  'e2e-pass')
 on conflict (id) do nothing;
 insert into v2.profiles (id, role, name, import_batch) values
@@ -16,3 +16,6 @@ on conflict (id) do nothing;
 do $$ begin
   insert into v2.profiles (id, role, name, import_batch) values ('55555555-5555-5555-5555-555555555555', 'assistant', 'zz_시험_조교', 'rehearsal') on conflict (id) do nothing;
 exception when check_violation then raise notice 'assistant 없음 — 건너뜀'; end $$;
+
+-- v2 에 심은 사람·권한을 v3 로 옮긴다 — 마이그레이션이 한 번 불렀지만 그때는 v2 가 비어 있었다(멱등)
+select * from v3.import_people();

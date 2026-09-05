@@ -23,3 +23,6 @@ export const VIEWS = [
 
 /** 바깥망을 막는다 — 글꼴 서버(fonts.googleapis) 는 검사 환경에서 안 닿고, 닿아도 검사가 볼 것이 아니다. 기다림만 는다 */
 export const offline = (ctx) => ctx.route(/fonts\.g(oogleapis|static)\.com|google\.com/, r => r.abort());
+
+/** 로그인한 채로 열기 — scripts/e2e/screens.mjs 가 남긴 쿠키 상태(CHECK_STATE=.tmp/state-*.json). 없으면 손님으로 */
+export const stateOpts = () => (process.env.CHECK_STATE && fs.existsSync(process.env.CHECK_STATE) ? { storageState: process.env.CHECK_STATE } : {});

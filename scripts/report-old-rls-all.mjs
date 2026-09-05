@@ -3,7 +3,7 @@
  * 읽기만 한다.
  */
 import { Client } from "pg"; import { readFileSync } from "node:fs";
-const url = readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString:url, ssl:{rejectUnauthorized:false}, connectionTimeoutMillis:15000 });
 // 무료 요금제 pooler 가 가끔 튕긴다 — 세 번 시도
 for (let i=1;;i++) { try { await c.connect(); break; }

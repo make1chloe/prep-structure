@@ -1,13 +1,13 @@
 /** 대비 검사 — 화면의 **글씨 전부**를 진짜 브라우저에서 재서 바탕과의 대비를 본다(디자인-5).
  *  배색 다섯 벌 × 밝음·어두움 = 열 자리. 글씨 3.5 아래면 실패(4.5 아래는 보조 글씨로 세어 보고만), 갈색(확정-㊽)이 그려지면 실패.
  *  기본은 앱 CSS 로 그린 목업, CHECK_URLS 로 앱 화면도. */
-import { launch, offline } from "./_browser.mjs";
+import { launch, offline, stateOpts } from "./_browser.mjs";
 import { build } from "./_mockup-page.mjs";
 const SKINS = ["", "paper", "bright", "ink", "warm"];
 const urls = process.env.CHECK_URLS ? process.env.CHECK_URLS.split(",") : [build().app];
 const b = await launch(); let bad = 0;
 for (const url of urls) {
-  const p = await b.newPage({ viewport: { width: 1280, height: 900 } }); await offline(p.context()); await p.goto(url); await p.waitForTimeout(300);
+  const p = await b.newPage({ viewport: { width: 1280, height: 900 }, ...stateOpts() }); await offline(p.context()); await p.goto(url); await p.waitForTimeout(300);
   for (const scheme of ["light", "dark"]) for (const skin of SKINS) {
     await p.emulateMedia({ colorScheme: scheme });
     const r = await p.evaluate((skin) => {

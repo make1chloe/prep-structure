@@ -1,7 +1,7 @@
 /** 치수 검사 — 화면의 부품을 종류별로 재서 **높이가 하나**인지(지침 8절 치수 한 벌) · 틀 밖 넘침 0 · 글씨>상자 0 · 형제 겹침 0.
  *  PC 1280 · 폰 390(손가락) 둘 다. 기본은 앱 CSS 로 그린 목업(.tmp/mockup-app.html) — 앱 화면이 생기면 CHECK_URLS 로 그 주소도 본다.
  *  검사 결과는 사람이 거르지 않는다 — 어긋나면 종료 코드 1 (목업 ㊲ 교훈). */
-import { launch, offline, VIEWS } from "./_browser.mjs";
+import { launch, offline, stateOpts, VIEWS } from "./_browser.mjs";
 import { build } from "./_mockup-page.mjs";
 const GROUPS = {
   "칩(알약·태그)": ".tag,.pill,.nb-pill,.stag,.v,.auto,.unit,.ms,.ut,.sel,.tags>span,.tags>button",
@@ -14,7 +14,7 @@ const ONE = ["단추 보통", "단추 작은", "○△✕", "스테퍼", "입력
 const urls = process.env.CHECK_URLS ? process.env.CHECK_URLS.split(",") : [build().app];
 const b = await launch(); let bad = 0;
 for (const url of urls) for (const v of VIEWS) {
-  const ctx = await b.newContext({ viewport: v.viewport, hasTouch: v.hasTouch, isMobile: v.isMobile }); await offline(ctx);
+  const ctx = await b.newContext({ viewport: v.viewport, hasTouch: v.hasTouch, isMobile: v.isMobile, ...stateOpts() }); await offline(ctx);
   const p = await ctx.newPage(); await p.goto(url); await p.waitForTimeout(300);
   const r = await p.evaluate((GROUPS) => {
     const roots = [...document.querySelectorAll("section.screen:not(#notes)")]; const R = roots.length ? roots : [document.body];

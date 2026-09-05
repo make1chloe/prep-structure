@@ -8,7 +8,7 @@
  */
 import { Client } from "pg";
 import { readFileSync } from "node:fs";
-const url = readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl:{rejectUnauthorized:false} });
 
 const bad = [];

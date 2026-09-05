@@ -1,12 +1,12 @@
 /** 글꼴 검사 — 글자 있는 요소 전부의 **글꼴이 하나**(Noto Sans KR) · **크기가 열 단계 안** · **입력칸 = 본문**(PC 15 · 폰 16).
  *  체크박스·라디오는 글자가 없어 입력칸 비교에서 뺀다. 기본은 앱 CSS 로 그린 목업, CHECK_URLS 로 앱 화면도. */
-import { launch, offline, VIEWS } from "./_browser.mjs";
+import { launch, offline, stateOpts, VIEWS } from "./_browser.mjs";
 import { build } from "./_mockup-page.mjs";
 const SCALE = new Set([9, 11, 12, 13, 14, 15, 16, 17, 21, 28]);
 const urls = process.env.CHECK_URLS ? process.env.CHECK_URLS.split(",") : [build().app];
 const b = await launch(); let bad = 0;
 for (const url of urls) for (const v of VIEWS) {
-  const ctx = await b.newContext({ viewport: v.viewport, hasTouch: v.hasTouch, isMobile: v.isMobile }); await offline(ctx);
+  const ctx = await b.newContext({ viewport: v.viewport, hasTouch: v.hasTouch, isMobile: v.isMobile, ...stateOpts() }); await offline(ctx);
   const p = await ctx.newPage(); await p.goto(url); await p.waitForTimeout(300);
   const r = await p.evaluate(() => {
     const roots = [...document.querySelectorAll("section.screen:not(#notes)")]; const R = roots.length ? roots : [document.body];
