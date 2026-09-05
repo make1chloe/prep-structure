@@ -2,7 +2,9 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend } from "./actions.js";
+import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
+import { weekdayName } from "@/lib/day-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
@@ -23,11 +25,12 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
   const closed = Boolean(sheet?.closed);
   const fail = (r) => { if (r && !r.ok) setErr(r.msg); return r?.ok; };
   // 출결 — 낙관적
-  const [attend, setAttendLocal] = useState(sheet?.attend ?? "present");
+  const [attend, setAttendLocal] = useState(sheet?.attend ?? (student.plan?.absent ? "absent" : student.plan?.late ? "late" : "present"));
+  const [plan, setPlan] = useState(false);
   const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr("");
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
-  const status = closed ? "마감됨" : attend === "absent" ? "결석 · 보강 안 잡힘" : nLeft ? `검사 ${nLeft}/${nCheck} 남음` : null;
+  const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? `검사 ${nLeft}/${nCheck} 남음` : null;
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
       <div className="rowtop">
@@ -39,8 +42,10 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
         {sheet && <span className="pill hw">학원 {sheet.class.length} · 숙제 {sheet.home.length}</span>}
         {student.warn?.count > 0 && <span className={"pill" + (student.warn.due || student.warn.today_disposal ? " bad" : "")} data-warn="1">경고 {student.warn.count}{student.warn.due || student.warn.today_disposal ? " · 반성문" : ""}</span>}
         {status && <span className={"pill" + (closed ? "" : attend === "absent" ? " bad" : " warn")}>{status}</span>}
+        <button type="button" className="btn sm" data-act="plan" onClick={() => setPlan(true)}>📅 예정</button>
         <button type="button" className="open" onClick={() => setOpen(!open)}>{open ? "닫기" : "펴기"}</button>
       </div>
+      {plan && <PlanModal student={student} date={date} fail={fail} start={start} onClose={() => setPlan(false)} />}
       {open && (
         <div className="panel">
           {err && <div className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
@@ -373,4 +378,72 @@ function ProgressModal({ b, sheet, closed, fail, start, onClose }) {
     </div>
     <div className="mdlf"><button type="button" className="btn gho" onClick={onClose}>닫기</button><span className="spacer" /><span className="note" style={{ margin: 0 }}>찍으면 바로 저장됩니다 · 메모로 대신한 날은 마감이 ○ 로 올립니다(그 교재만)</span></div>
   </>);
+}
+/** 02c 결석·지각 예정 — 수업일만 고를 수 있는 좁은 달력 · 고른 날의 결석(사유 · 보강 날짜·시각 직접 · 안 잡음) / 지각(얼마나 · 사유) · 📨 학부모께 알림. 보강 시각은 앱이 제안하지 않는다(확정-㉔) */
+function PlanModal({ student, date, fail, start, onClose }) {
+  const [ym, setYm] = useState(date.slice(0, 7));
+  const [data, setData] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [form, setForm] = useState({ kind: "none", reason: "", makeupOn: "", makeupAt: "", waived: false, minutes: "" });
+  const [mk, setMk] = useState(false);
+  const load = async (m) => { const r = await planView(student.id, m); if (fail(r)) setData(r.plan); };
+  useEffect(() => { load(ym); }, [ym]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const grid = monthGrid(ym);
+  const mark = (d) => markOf(d, data ?? {});
+  const pick = (d) => { const m = mark(d); if (!m.pick && m.kind !== "absent" && m.kind !== "late") return; setSel(d); setMk(false);
+    if (m.kind === "absent") setForm({ kind: "absent", reason: m.plan.reason ?? "", makeupOn: m.plan.on_date ?? "", makeupAt: String(m.plan.at_time ?? "").slice(0, 5), waived: m.plan.state === "waived", minutes: "" });
+    else if (m.kind === "late") setForm({ kind: "late", reason: m.plan.reason ?? "", makeupOn: "", makeupAt: "", waived: false, minutes: m.plan.minutes ?? "" });
+    else setForm({ kind: "absent", reason: "", makeupOn: "", makeupAt: "", waived: false, minutes: "" }); };
+  const save = () => start(async () => { const r = await planPut(student.id, sel, form); if (fail(r)) { await load(ym); } });
+  const send = () => start(async () => { const r = await planSend(student.id, sel); if (fail(r)) await load(ym); });
+  const K = (d) => ({ class: "·", absent: "✕", late: "⏰", makeup: "↻", off: "🚫" })[mark(d).kind];
+  const I = (d) => ({ class: "i-cls", absent: "i-abs", late: "i-late", makeup: "i-mk", off: "i-off" })[mark(d).kind];
+  const label = (d) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일 ${weekdayName(d)}`;
+  const cur = sel ? mark(sel) : null;
+  return (
+    <div className="mdlov" role="dialog" aria-modal="true" aria-label="결석·지각 예정" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mdl" style={{ width: "min(540px,100%)" }}>
+        <div className="mdlh"><b>📅 {student.name} · 결석·지각 예정</b>{data?.label && <span className="pill">{data.label}</span>}<span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+        <div className="mdlb">
+          <div className="calhead"><button type="button" className="btn sm gho" onClick={() => setYm(nextYm(ym, -1))}>◂</button><b>{ym.slice(0, 4)}년 {Number(ym.slice(5, 7))}월</b><button type="button" className="btn sm gho" onClick={() => setYm(nextYm(ym, 1))}>▸</button>
+            <span className="spacer" /><span className="pill">수업일만 고를 수 있습니다</span></div>
+          <div className="cal pick" data-g="plancal">
+            {["월", "화", "수", "목", "금", "토", "일"].map((w) => <div key={w} className="cdow">{w}</div>)}
+            {grid.map((g) => { const m = mark(g.date); const can = m.pick || m.kind === "absent" || m.kind === "late"; return (
+              <div key={g.date} className={"cd" + (g.out ? " out" : can ? " cls" : m.kind === "off" ? " cls off" : " no") + (sel === g.date ? (m.kind === "late" ? " sel-l" : " sel-x") : "")} data-date={g.date} role={can ? "button" : undefined} tabIndex={can ? 0 : undefined} onClick={() => !g.out && pick(g.date)}>
+                {g.out ? g.day : <><span className="dn">{g.day}</span>{K(g.date) && <i className={"cm " + I(g.date)}>{K(g.date)}</i>}</>}
+              </div>); })}
+          </div>
+          {sel && <div className={"pk " + (form.kind === "late" ? "late" : "abs")} data-g="plan-pick">
+            <div className="pkh"><i className={"cm " + (form.kind === "late" ? "i-late" : "i-abs")}>{form.kind === "late" ? "⏰" : "✕"}</i><b>{label(sel)} · {form.kind === "late" ? "지각" : "결석"}</b><span className="spacer" />
+              <div className="seg sm" data-g="plankind">{PLAN_KIND.map(([k, name]) => <button key={k} type="button" aria-pressed={form.kind === k} onClick={() => setForm({ ...form, kind: k })}>{name}</button>)}</div></div>
+            {form.kind === "absent" && <>
+              <div className="wv"><span className="fl" style={{ margin: 0 }}>사유</span><input type="text" value={form.reason} placeholder="예: 가족 여행" style={{ flex: "1 1 150px" }} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
+              <div className="wv"><span className="fl" style={{ margin: 0 }}>보강</span>
+                <input type="text" value={form.makeupOn} placeholder="2026-10-18" style={{ maxWidth: 130 }} disabled={form.waived} onChange={(e) => setForm({ ...form, makeupOn: e.target.value })} />
+                <input type="text" value={form.makeupAt} placeholder="14:00" style={{ maxWidth: 80 }} disabled={form.waived} onChange={(e) => setForm({ ...form, makeupAt: e.target.value })} />
+                <button type="button" className="btn sm" data-act="mkcal" disabled={form.waived} onClick={() => setMk(!mk)}>📅 달력에서 고르기</button>
+                <label className="ckl"><input type="checkbox" className="ck" checked={form.waived} onChange={(e) => setForm({ ...form, waived: e.target.checked })} />안 잡음</label></div>
+              {mk && <div className="mkcal open"><div className="calhead"><b>{ym.slice(0, 4)}년 {Number(ym.slice(5, 7))}월</b><span className="spacer" /><span className="pill">아무 날이나 고를 수 있습니다 — 앱은 제안하지 않습니다</span></div>
+                <div className="cal" data-g="mkcal">{["월", "화", "수", "목", "금", "토", "일"].map((w) => <div key={w} className="cdow">{w}</div>)}
+                  {grid.map((g) => <div key={g.date} className={"cd" + (g.out ? " out" : "") + (form.makeupOn === g.date ? " pickd" : "")} role={g.out ? undefined : "button"} onClick={() => !g.out && setForm({ ...form, makeupOn: g.date })}>{g.out ? g.day : <><span className="dn">{g.day}</span>{K(g.date) && <i className={"cm " + I(g.date)}>{K(g.date)}</i>}</>}</div>)}</div>
+                <div className="wv" style={{ margin: "8px 0 0" }}><span className="fl" style={{ margin: 0 }}>시각</span><input type="text" value={form.makeupAt} placeholder="14:00" style={{ maxWidth: 90 }} onChange={(e) => setForm({ ...form, makeupAt: e.target.value })} />
+                  <div className="seg sm">{["10:00", "11:00", "14:00", "16:00"].map((t) => <button key={t} type="button" aria-pressed={form.makeupAt === t} onClick={() => setForm({ ...form, makeupAt: t })}>{t}</button>)}</div>
+                  <span className="note" style={{ margin: 0 }}>칸이 차 있어도 넣을 수 있습니다</span></div></div>}
+            </>}
+            {form.kind === "late" && <>
+              <div className="wv"><span className="fl" style={{ margin: 0 }}>얼마나</span>
+                <div className="seg sm" data-g="latemin">{LATE_PRESET.map(([m, name]) => <button key={m} type="button" aria-pressed={Number(form.minutes) === m} onClick={() => setForm({ ...form, minutes: m })}>{name}</button>)}</div>
+                <input type="text" inputMode="numeric" value={form.minutes} placeholder="분" style={{ maxWidth: 90 }} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></div>
+              <div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>사유</span><input type="text" value={form.reason} placeholder="예: 학교 보충수업" style={{ flex: "1 1 150px" }} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
+            </>}
+            {form.kind === "none" && <p className="note" style={{ margin: "8px 0 0" }}>저장하면 이날 예정을 물립니다 — 지우는 것이 아니라 「온다」로 되돌리는 것입니다.</p>}
+            {cur?.plan?.notified_at && <p className="note" style={{ margin: "8px 0 0" }}>📨 학부모께 알림 보냄 {String(cur.plan.notified_at).slice(0, 16).replace("T", " ")}</p>}
+          </div>}
+          <div className="clegend"><span><i className="cm i-cls">·</i>수업일</span><span><i className="cm i-abs">✕</i>결석 예정</span><span><i className="cm i-late">⏰</i>지각 예정</span><span><i className="cm i-mk">↻</i>보강</span><span><i className="cm i-off">🚫</i>휴강</span></div>
+        </div>
+        <div className="mdlf"><button type="button" className="btn pri" disabled={!sel} onClick={save}>저장</button><button type="button" className="btn" disabled={!sel || !cur?.plan} onClick={send}>📨 학부모께 알림</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
+      </div>
+    </div>
+  );
 }

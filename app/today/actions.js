@@ -12,6 +12,7 @@ import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, skipChapter } from "@/lib/progress";
+import { planOpen, planSave, planNotify } from "@/lib/plan";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 
@@ -47,3 +48,7 @@ export const progressOpen = done(async (sheetId, bookId) => { const { sb } = awa
 export const progressSet = done(async (sheetId, unitId, status) => { const { sb } = await staff(); return setUnit(sb, sheetId, unitId, status); });
 export const progressSkip = done(async (sheetId, bookId, chapter) => { const { sb } = await staff(); return skipChapter(sb, sheetId, bookId, chapter); });
 export const warnLimit = done(async (studentId, n) => { const { sb } = await staff(); await setLimit(sb, studentId, n); });
+// 결석·지각 예정(02c) — 달력은 읽기, 저장·알림은 손. 판단은 lib/plan.js
+export const planView = done(async (studentId, ym) => { const { sb } = await staff(); return { plan: await planOpen(sb, studentId, ym) }; });
+export const planPut = done(async (studentId, date, payload) => { const { sb, user } = await staff(); return planSave(sb, studentId, date, payload, user.id); });
+export const planSend = done(async (studentId, date) => { const { sb } = await staff(); await planNotify(sb, studentId, date); });
