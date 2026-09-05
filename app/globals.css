@@ -114,8 +114,8 @@
   --accent-fg: #FFFFFF;
   /* 상태 — 색으로 말한다 */
   --ok:      #0F7A42;  --ok-bg:   #D9F6E5;  --ok-fg:   #0B5A31;
-  --warn:    #B04E06;  --warn-bg: #FFEBD3;  --warn-fg: #7F3804;
-  --bad:     #BD2C1C;  --bad-bg:  #FFE4E0;  --bad-fg:  #8F2115;
+  --warn:    #F97316;  --warn-bg: #FFEDD5;  --warn-fg: #14213D;  /* ⚠️ 주황·노랑은 글씨로 안 쓴다 — 어둡게 누르면 갈색(원장님 9/5 「이 색 금지」). 테두리·바탕만, 글씨는 --warn-fg(남색) */
+  --bad:     #C41E3A;  --bad-bg:  #FFE3E6;  --bad-fg:  #A6122B;
   --info:    #1A5FD0;  --info-bg: #E3EEFF;  --info-fg: #154BA6;
   --off-bg:  #E3EBF7;  --off-fg:  #4C5D7C;  /* 꺼짐 — 흐리게가 아니라 회색 「색」 */
 
@@ -163,7 +163,7 @@
   --d-accent:    #7CB3FF;
   --d-accent-fg: #0B1730;
   --d-ok:   #5CE0A0;   --d-ok-bg:   #12402B;  --d-ok-fg:   #8FEBBE;
-  --d-warn: #FFB84D;   --d-warn-bg: #4A3312;  --d-warn-fg: #FFD08A;
+  --d-warn: #FB923C;   --d-warn-bg: #4A2A0F;  --d-warn-fg: #F2F7FF;
   --d-bad:  #FF8A7E;   --d-bad-bg:  #4A1F1C;  --d-bad-fg:  #FFB0A8;
   --d-info: #7CB3FF;   --d-info-bg: #1F3A66;  --d-info-fg: #AFCFFF;
   --d-off-bg: #22344F; --d-off-fg:  #A3B5D0;
