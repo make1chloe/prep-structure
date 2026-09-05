@@ -1090,6 +1090,8 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
 .attrow .cm{width:var(--icon-sm);height:var(--icon-sm);border-radius:6px}
 /* ㊲ 기록 줄의 값(.rl .v)은 칩이 아니다 — 칩 규칙의 높이 22 를 되돌린다 (폰에서 글씨 겹침) */
 .rl .v{display:block;height:auto;min-height:0;padding:0;border:0;border-radius:0;gap:0;font-size:var(--fs-4);font-weight:400;line-height:1.6;white-space:normal}
+/* 세로 글자 막기(검사-㉓ · check-sizes 2026-09-05) — 좁은 줄에서 짧은 낱말이 접히던 자리: 학생 화면 단계 이름 · 자료 카드의 「마지막」 */
+.sv b,.kv span,.lenrow .fl{white-space:nowrap}
 </style>
 
 <div class="wrap">
@@ -1597,7 +1599,7 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
               <label class="fl">키워드만 적으세요</label>
               <input type="text" value="간접의문문, 어순 스스로 설명, 워크북 오답 3개 다음시간">
               <div class="lenrow">
-                <span class="fl" style="margin:0;width:30px">상황</span>
+                <span class="fl" style="margin:0;min-width:30px;white-space:nowrap">상황</span>
                 <div class="seg" data-act="sit">
                   <button aria-pressed="true"  data-len="100자">보통</button>
                   <button aria-pressed="false" data-len="200자">숙제안함</button>
@@ -1607,7 +1609,7 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
                 </div>
               </div>
               <div class="lenrow">
-                <span class="fl" style="margin:0;width:30px">길이</span>
+                <span class="fl" style="margin:0;min-width:30px;white-space:nowrap">길이</span>
                 <div class="seg" data-g="len">
                   <button aria-pressed="false" data-cap="50">50자 이하</button><button aria-pressed="true" data-cap="100">100자</button><button aria-pressed="false" data-cap="200">200자</button><button aria-pressed="false" data-cap="300">300자</button>
                 </div>

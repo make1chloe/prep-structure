@@ -1,10 +1,11 @@
 "use client";
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
-import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft } from "./actions.js";
+import { useState, useRef, useTransition } from "react";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName } from "@/lib/day-plan";
+import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
@@ -31,16 +32,18 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
   const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr("");
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
-  const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? `검사 ${nLeft}/${nCheck} 남음` : null;
+  const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? (unseenPill(sheet.check, date) || `검사 ${nLeft}/${nCheck} 남음`) : null;
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
       <div className="rowtop">
-        <span className="who">{student.name}</span><span className="meta">{student.grade ? `${student.grade}학년` : ""}</span>
+        <span className="who">{student.name}</span><span className="meta">{whoMeta(student)}</span>
+        <span className="marks">{marks(sheet?.check ?? []).map((m, i) => <i key={i} className={"dot" + (m.cls ? " " + m.cls : "")}>{m.ch}</i>)}</span>
         <div className="seg sm" data-g="att" aria-label={`${student.name} 출결`}>
           {ATTEND.map(([v, name]) => <button key={v} type="button" aria-pressed={attend === v} disabled={closed} onClick={() => pickAttend(v)}>{name}</button>)}
         </div>
         <span className="spacer" />
         {sheet && <span className="pill hw">학원 {sheet.class.length} · 숙제 {sheet.home.length}</span>}
+        {roundPill(student.books) && <span className="pill">{roundPill(student.books)}</span>}
         {student.warn?.count > 0 && <span className={"pill" + (student.warn.due || student.warn.today_disposal ? " bad" : "")} data-warn="1">경고 {student.warn.count}{student.warn.due || student.warn.today_disposal ? " · 반성문" : ""}</span>}
         {status && <span className={"pill" + (closed ? "" : attend === "absent" ? " bad" : " warn")}>{status}</span>}
         <button type="button" className="btn sm" data-act="plan" onClick={() => setPlan(true)}>📅 예정</button>
@@ -55,8 +58,10 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
             {(student.quizzes?.today?.length ?? 0) > 0 && <QuizCard sheet={sheet} quizzes={student.quizzes.today} closed={closed} fail={fail} start={start} />}
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <WorkCard sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
+            {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
+            <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} studentId={student.id} closed={closed} fail={fail} start={start} />
-            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg} />
+            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} />
           </>}
         </div>
       )}
@@ -275,6 +280,42 @@ function LateCard({ sheet, warn, studentId, closed, fail, start }) {
           {l?.sent_at ? <span className="pill">보냄</span> : l?.until_at ? <span className="pill warn">보내야 함</span> : null}
         </div>
       </form>
+    </div>
+  );
+}
+/** 🗺 진도 · 영역별 메모(목업 01) — 오늘 한 단원(검사 결과대로 ○◐✕ · 오늘 학습 ◐) · 영역 넷 한 마디(칸을 떠나면 저장 · 아이에게 그대로 나가고 브리핑 재료). 표 v2.day_area_memo(0079) */
+function AreaMemoCard({ sheet, books, closed, fail, start }) {
+  const units = todayUnits(sheet, books);
+  const init = Object.fromEntries(MEMO_AREAS.map((a) => [a, sheet.memos?.find((m) => m.area === a)?.memo ?? ""]));
+  const [vals, setVals] = useState(init);
+  const last = useRef(init);
+  const save = (a) => { if ((vals[a] ?? "") === (last.current[a] ?? "")) return; last.current = { ...last.current, [a]: vals[a] }; start(async () => { fail(await areaMemo(sheet.id, a, vals[a])); }); };
+  return (
+    <div className="card" data-card="areamemo">
+      <div className="ctitle"><span className="cemo">🗺</span>진도 · 영역별 메모</div>
+      <label className="fl">오늘 한 단원</label>
+      <div className="tags" style={{ marginBottom: 12 }} data-g="today-units">{units.length ? units.map((u) => <span key={u.id} className={"tag" + (u.on ? " on" : "")}>{u.label} {u.mark}</span>) : <span className="note" style={{ margin: 0 }}>아직 없습니다 — 검사하면 여기 섭니다</span>}</div>
+      <div className="areas">{MEMO_AREAS.map((a) => <div key={a}><label className="fl">{a}</label><input type="text" name={`memo-${a}`} value={vals[a]} disabled={closed} placeholder="(오늘 안 함)" onChange={(e) => setVals({ ...vals, [a]: e.target.value })} onBlur={() => save(a)} /></div>)}</div>
+      <p className="note" style={{ margin: 0 }}>이 메모는 <b>아이에게 그대로 나가고</b>, 부모님께 글의 ✨ 브리핑 재료가 됩니다</p>
+    </div>
+  );
+}
+/** 📝 단원평가(목업 01) — 이 아이에게 출제한 것이 있을 때만 선다(없으면 안 엶). 교재와 무관, 원장님이 따로 출제. 맞은 개수만 적는다 → 통과선(규칙 unit_test.pass_pct)으로 통과/미달 */
+function UnitTestCard({ t, passPct, date, closed, fail, start }) {
+  const [n, setN] = useState(t.correct ?? "");
+  const res = unitResult(n, t.q_count, passPct);
+  const put = (v) => { const x = Math.max(0, Math.min(Number(t.q_count ?? 0), Number(v) || 0)); setN(x); start(async () => { fail(await unitScore(t.id, x, date)); }); };
+  const state = { todo: "낼 것", made: "출제함", taken: "봤음", scored: "채점함" }[t.state] ?? t.state;
+  return (
+    <div className="card" data-card="unit-test">
+      <div className="ctitle"><span className="cemo">📝</span>단원평가 · {t.grammar_topics?.name ?? "—"}<span className="auto">{state}</span></div>
+      <div className="wtrow">
+        <div className="wtset"><b>원장님이 출제한 {t.q_count}문항</b><div className="tags"><span className="tag type">교재 문제가 아닙니다</span>{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
+        <div className="wtscore"><label className="fl">맞은 개수</label>
+          <div className="stepper" data-g="unit"><button type="button" data-s="-" disabled={closed} onClick={() => put((Number(n) || 0) - 1)}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(e.target.value.replace(/\D/g, ""))} onBlur={() => { if (n !== "") put(n); }} /><button type="button" data-s="+" disabled={closed} onClick={() => put((Number(n) || 0) + 1)}>+</button></div>
+          {res && <div className={"wtres " + (res.pass ? "pass" : "fail")} data-g="unit-res"><b>{n} / {t.q_count}</b><span>{res.pct}% {res.pass ? "통과" : "미달"}</span></div>}
+        </div>
+      </div>
     </div>
   );
 }

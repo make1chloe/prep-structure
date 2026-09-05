@@ -6,6 +6,8 @@ import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
 import { commentRules, draftComment } from "@/lib/comment";
+import { saveAreaMemo } from "@/lib/area-memo";
+import { scoreUnitTest } from "@/lib/unit-test";
 import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
@@ -54,3 +56,5 @@ export const warnLimit = done(async (studentId, n) => { const { sb } = await sta
 export const planView = done(async (studentId, ym) => { const { sb } = await staff(); return { plan: await planOpen(sb, studentId, ym) }; });
 export const planPut = done(async (studentId, date, payload) => { const { sb, user } = await staff(); return planSave(sb, studentId, date, payload, user.id); });
 export const planSend = done(async (studentId, date) => { const { sb } = await staff(); await planNotify(sb, studentId, date); });
+export const areaMemo = done(async (sheetId, area, memo) => { const { sb } = await staff(); await saveAreaMemo(sb, String(sheetId), String(area), String(memo ?? "")); });   // 🗺 영역별 메모 — 칸을 떠나면 저장
+export const unitScore = done(async (id, correct, date) => { const { sb } = await staff(); await scoreUnitTest(sb, String(id), Number(correct), String(date)); });   // 📝 단원평가 맞은 개수
