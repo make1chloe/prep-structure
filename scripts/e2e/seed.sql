@@ -41,3 +41,36 @@ insert into v2.day_item (id, sheet_id, slot, range_note, sort) values
   ('99999999-0000-4000-d000-000000000001', '99999999-0000-4000-c000-000000000001', 'home', '워크북 복습 · PSS 1-3 · p.10 · 문항 1-18', 1),
   ('99999999-0000-4000-d000-000000000002', '99999999-0000-4000-c000-000000000001', 'home', '클카 문장훈련 · PSS 1-3 간접의문문 Ⅰ', 2)
 on conflict (id) do nothing;
+
+-- ── 루틴 깔기 눌러보기 — 리허설 문법책 한 권(소단원 5 + 다음 대단원 1) · 루틴 4줄(학원 2 · 둘 다 1 · 숙제 1, 필수 3) · 배정(1회독, 한 수업 1덩어리) · 1-1~1-3 은 한 것
+insert into v2.books (id, code, name, area, order_basis, chunk_depth, state, import_batch) values
+  ('99999999-0000-4000-e000-000000000001', 'ZZ001', 'zz_리허설 문법책', '문법', 'sub', 'sub', 'active', 'fixture')
+on conflict (id) do nothing;
+insert into v2.units (id, book_id, chapter, sub, activity, is_workbook, sort, page_start, page_end, q_count, import_batch) values
+  ('99999999-0000-4000-e100-000000000001', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', 'PSS 1-1 문장의 형식', '본책', false, 1, 10, 10, 16, 'fixture'),
+  ('99999999-0000-4000-e100-000000000002', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', 'PSS 1-2 의문사', '본책', false, 2, 11, 11, 14, 'fixture'),
+  ('99999999-0000-4000-e100-000000000003', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', 'PSS 1-3 간접의문문 Ⅰ', '본책', false, 3, 12, 12, 12, 'fixture'),
+  ('99999999-0000-4000-e100-000000000004', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', 'PSS 1-4 간접의문문 Ⅱ', '본책', false, 4, 13, 13, 15, 'fixture'),
+  ('99999999-0000-4000-e100-000000000005', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', 'PSS 1-5 부정의문문', '본책', false, 5, 14, 14, 13, 'fixture'),
+  ('99999999-0000-4000-e100-000000000006', '99999999-0000-4000-e000-000000000001', 'CHAPTER 2', 'PSS 2-1 시제', '본책', false, 6, 20, 21, 18, 'fixture')
+on conflict (id) do nothing;
+insert into v2.learn_items (id, name, method, sort, import_batch) values
+  ('99999999-0000-4000-e200-000000000001', 'zz_의미덩어리 구두테스트', '소단원 문장을 입으로', 1, 'fixture'),
+  ('99999999-0000-4000-e200-000000000002', 'zz_클카 문장훈련', '클래스카드 문장훈련', 2, 'fixture'),
+  ('99999999-0000-4000-e200-000000000003', 'zz_교재 풀기', '본책 문제', 3, 'fixture'),
+  ('99999999-0000-4000-e200-000000000004', 'zz_워크북 복습', '워크북', 4, 'fixture')
+on conflict (id) do nothing;
+insert into v2.area_routine (area, item_id, place, required, sort, import_batch) values
+  ('문법', '99999999-0000-4000-e200-000000000001', 'class', true,  1, 'fixture'),
+  ('문법', '99999999-0000-4000-e200-000000000002', 'both',  true,  2, 'fixture'),
+  ('문법', '99999999-0000-4000-e200-000000000003', 'class', false, 3, 'fixture'),
+  ('문법', '99999999-0000-4000-e200-000000000004', 'home',  true,  4, 'fixture')
+on conflict do nothing;
+insert into v2.student_book (id, student_id, book_id, from_date, round, per_session, stop_mode, import_batch) values
+  ('99999999-0000-4000-e300-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e000-000000000001', '2026-01-01', 1, 1, 'running', 'fixture')
+on conflict (id) do nothing;
+insert into v2.progress (student_id, unit_id, round, status, done_on, marked_on, last_by) values
+  ('99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e100-000000000001', 1, 'done', '2026-08-01', '2026-08-01', 'staff'),
+  ('99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e100-000000000002', 1, 'done', '2026-08-03', '2026-08-03', 'staff'),
+  ('99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e100-000000000003', 1, 'done', '2026-08-05', '2026-08-05', 'staff')
+on conflict do nothing;

@@ -48,14 +48,15 @@ create table if not exists auth.users (
  * PostgREST 는 요청마다 JWT 를 풀어 `request.jwt.claims` 에 넣어준다.
  * 진짜 Supabase 와 같은 자리다 — 그래서 RLS 규칙을 하나도 안 고치고 쓴다.
  */
+-- ⚠️ 진짜 Supabase 처럼 빈 글자를 먼저 거른다 — 트랜잭션 안 set_config 가 되돌려지면 값이 NULL 이 아니라 '' 로 남아 ''::json 이 터진다(2026-09-05 check-v2-rls 가 audit_row 안에서 죽었다)
 create or replace function auth.uid() returns uuid
 language sql stable as $$
-  select nullif(current_setting('request.jwt.claims', true)::json ->> 'sub', '')::uuid
+  select nullif(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub', '')::uuid
 $$;
 
 create or replace function auth.role() returns text
 language sql stable as $$
-  select coalesce(current_setting('request.jwt.claims', true)::json ->> 'role', 'anon')
+  select coalesce(nullif(current_setting('request.jwt.claims', true), '')::json ->> 'role', 'anon')
 $$;
 
 create or replace function auth.jwt() returns jsonb
