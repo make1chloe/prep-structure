@@ -25,7 +25,7 @@ for (const url of urls) for (const v of VIEWS) {
       for (const el of document.querySelectorAll(sel)) { if (!inRoot(el)) continue; const rc = el.getBoundingClientRect(); if (!rc.width || !rc.height) continue; const cs = getComputedStyle(el); if (cs.display === "none") continue; const h = Math.round(rc.height); hs[h] = (hs[h] || 0) + 1; }
       out[name] = Object.entries(hs).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}×${v}`);
     }
-    const over = [], tall = [], lap = [], clip = [];
+    const over = [], tall = [], lap = [], clip = [], vert = [];
     const skip = el => el.closest("script,style,svg,pre.mermaid,.shead");
     const frames = [...document.querySelectorAll("section.screen .frame")]; const F = frames.length ? frames : [document.body];
     for (const f of F) { const fr = f.getBoundingClientRect(); for (const el of f.querySelectorAll("*")) { const rc = el.getBoundingClientRect(); let e = el.parentElement, sc = false; while (e && e !== f) { const o = getComputedStyle(e).overflowX; if (o === "auto" || o === "scroll") { sc = true; break; } e = e.parentElement; } if (!sc && rc.width && rc.right > fr.right + 1 && getComputedStyle(el).position !== "absolute") { over.push(`${(f.closest("section") || {}).id || ""} ${el.tagName}.${String(el.className).split(" ")[0]} +${Math.round(rc.right - fr.right)}`); if (over.length > 12) break; } } }
@@ -35,19 +35,21 @@ for (const url of urls) for (const v of VIEWS) {
       // 잘림 — ① 세그먼트가 제 칸보다 넓다(overflow hidden 이라 잘려도 조용하다) ② 단추 글씨가 단추보다 넓거나 높다(flex 로 눌린 단추는 scrollWidth 가 안 늘어 못 잡았다 — 2026-09-05 회차 세그먼트). 입력칸 값이 흐르는 것은 정상이라 안 본다
       if (el.classList.contains("seg") && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 3 && clip.length < 12) clip.push(`${(el.closest("section") || {}).id || ""} ${el.tagName}.${String(el.className).split(" ")[0]} ${el.clientWidth}<${el.scrollWidth}`);
       if (el.tagName === "BUTTON" && own(el) && el.clientWidth > 0 && clip.length < 12) { const rg = document.createRange(); rg.selectNodeContents(el); const tb = rg.getBoundingClientRect(); const eb = el.getBoundingClientRect(); if (tb.width > eb.width + 2 || tb.height > eb.height + 2) clip.push(`${(el.closest("section") || {}).id || ""} BUTTON.${String(el.className).split(" ")[0]} 「${el.textContent.trim().slice(0, 16)}」 글씨 ${Math.round(tb.width)}×${Math.round(tb.height)} > 상자 ${Math.round(eb.width)}×${Math.round(eb.height)}`); }
+      // 세로 글자(검사-㉓) — 띄어쓰기 없는 짧은 낱말이 두 줄 이상으로 꺾였다(「상황」이 상/황). 줄 조각(getClientRects)으로 센다 — 상자 높이는 단추 여백에 속는다
+      if (own(el) && vert.length < 12) { const t = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim(); if (t && !/\s/.test(t) && [...t].length <= 8) { const rg = document.createRange(); rg.selectNodeContents(el); const ln = [...rg.getClientRects()].filter(r => r.width > 0 && r.height > 0); if (ln.length > 1 && Math.abs(ln[0].top - ln[ln.length - 1].top) > 4) vert.push(`${(el.closest("section") || {}).id || ""} ${el.tagName}.${String(el.className).split(" ")[0]} 「${t}」 ${ln.length}줄`); } }
       if (cs.overflowY === "visible" && el.clientHeight > 0 && el.scrollHeight > el.clientHeight + 3 && own(el) && tall.length < 12) tall.push(`${(el.closest("section") || {}).id || ""} ${el.tagName}.${String(el.className).split(" ")[0]} ${el.clientHeight}<${el.scrollHeight}`);
       const kids = [...el.children].filter(k => !skip(k) && !/^(inline|none)$/.test(getComputedStyle(k).display) && !/absolute|fixed/.test(getComputedStyle(k).position));
       for (let i = 0; i + 1 < kids.length; i++) { const r1 = kids[i].getBoundingClientRect(), r2 = kids[i + 1].getBoundingClientRect(); if (!r1.height || !r2.height) continue; const xo = Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left); if (xo > 4 && r2.top < r1.bottom - 2 && r2.top > r1.top && lap.length < 12) lap.push(`${(el.closest("section") || {}).id || ""} ${kids[i].tagName}.${String(kids[i].className).split(" ")[0]}→${kids[i + 1].tagName}.${String(kids[i + 1].className).split(" ")[0]} ${Math.round(r1.bottom - r2.top)}px`); }
     }
-    return { out, over, tall, lap, clip };
+    return { out, over, tall, lap, clip, vert };
   }, GROUPS);
   const fails = [];
   for (const g of ONE) if ((r.out[g] || []).length > 1) fails.push(`${g} 높이가 둘 이상: ${r.out[g].join(" ")}`);
-  if (r.over.length) fails.push("넘침: " + r.over.join(" | ")); if (r.tall.length) fails.push("글씨>상자: " + r.tall.join(" | ")); if (r.lap.length) fails.push("형제 겹침: " + r.lap.join(" | ")); if (r.clip.length) fails.push("잘림(세그먼트가 칸보다 넓다 · 단추 글씨가 단추보다 크다): " + r.clip.join(" | "));
+  if (r.over.length) fails.push("넘침: " + r.over.join(" | ")); if (r.tall.length) fails.push("글씨>상자: " + r.tall.join(" | ")); if (r.lap.length) fails.push("형제 겹침: " + r.lap.join(" | ")); if (r.clip.length) fails.push("잘림(세그먼트가 칸보다 넓다 · 단추 글씨가 단추보다 크다): " + r.clip.join(" | ")); if (r.vert.length) fails.push("세로 글자: " + r.vert.join(" | "));
   const tag = `${v.name}${urls.length > 1 ? " " + url : ""}`;
   if (fails.length) { bad++; console.log(`✗ ${tag}\n    ${fails.join("\n    ")}`); } else console.log(`✓ ${tag} — ${ONE.map(g => `${g} ${r.out[g]?.[0] ?? "없음"}`).join(" · ")} · 넘침 0 · 겹침 0`);
   await ctx.close();
 }
 await b.close();
 if (bad) { console.log(`check-sizes ✗ 어긋남 ${bad}`); process.exit(1); }
-console.log("check-sizes ✓ 높이 한 벌 · 넘침 0 · 글씨>상자 0 · 겹침 0");
+console.log("check-sizes ✓ 높이 한 벌 · 넘침 0 · 글씨>상자 0 · 겹침 0 · 세로 글자 0");

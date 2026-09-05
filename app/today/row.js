@@ -310,10 +310,10 @@ function CommentCard({ sheet, student, closed, fail, start, cfg }) {
       {!closed && <>
         <label className="fl">키워드만 적으세요</label>
         <input type="text" name="keys" value={keys} onChange={(e) => setKeys(e.target.value)} placeholder="예: 간접의문문, 어순 스스로 설명, 워크북 오답 3개 다음시간" style={{ width: "100%" }} />
-        <div className="lenrow"><span className="fl" style={{ margin: 0, width: 30 }}>상황</span>
+        <div className="lenrow"><span className="fl" style={{ margin: 0, whiteSpace: "nowrap" }}>상황</span>
           <div className="seg sm" data-g="kind">{CKIND.map(([k, name]) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => pick(k)}>{name}</button>)}</div>
           {kind === autoKind && <span className="note" style={{ margin: 0 }}>오늘 상태에서 저절로</span>}</div>
-        <div className="lenrow"><span className="fl" style={{ margin: 0, width: 30 }}>길이</span>
+        <div className="lenrow"><span className="fl" style={{ margin: 0, whiteSpace: "nowrap" }}>길이</span>
           <div className="seg sm" data-g="cap">{CAPS.map((c) => <button key={c} type="button" aria-pressed={cap === c} onClick={() => setCap(c)}>{capName(c)}</button>)}</div>
           <button type="button" className="btn sm" data-act="brief" onClick={brief}>✨ 브리핑 만들기</button>
           <span className={"cap" + (over ? " over" : "")} data-g="count">{n} / {capName(cap)}</span></div>
