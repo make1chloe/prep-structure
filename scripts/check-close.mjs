@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 const bad = [];
-for (const f of ["lib/day.js", "lib/homework.js", "lib/late.js", "lib/routine.js", "lib/quiz.js", "lib/warn.js", "lib/progress.js", "lib/plan.js"]) {
+for (const f of ["lib/day.js", "lib/homework.js", "lib/late.js", "lib/routine.js", "lib/quiz.js", "lib/warn.js", "lib/progress.js", "lib/plan.js", "lib/comment.js"]) {
   const s = strip(readFileSync(f, "utf8"));
   for (const m of s.matchAll(/export (?:async )?function (\w+)\s*\([^)]*\)\s*\{/g)) {
     const name = m[1]; let d = 0, i = m.index + m[0].length - 1, j = i;
