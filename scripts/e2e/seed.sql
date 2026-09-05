@@ -74,3 +74,10 @@ insert into v2.progress (student_id, unit_id, round, status, done_on, marked_on,
   ('99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e100-000000000002', 1, 'done', '2026-08-03', '2026-08-03', 'staff'),
   ('99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e100-000000000003', 1, 'done', '2026-08-05', '2026-08-05', 'staff')
 on conflict do nothing;
+
+-- ── 시험 카드 눌러보기 — 어제 낸 단어 시험(1-3 · 전체 20 · 통과 90 · 학원 기본 방식) — 오늘 「시험 · 시작하자마자」에 선다
+insert into v2.quiz (id, student_id, kind, source, book_id, unit_from, assigned_sheet_id, assigned_on, total, cut_pct, style_id, state)
+  select '99999999-0000-4000-f000-000000000001', '99999999-0000-4000-9000-000000000001', 'word', 'book', '99999999-0000-4000-e000-000000000001', '99999999-0000-4000-e100-000000000003',
+         '99999999-0000-4000-c000-000000000001', v2.today() - 1, 20, 90,
+         (select id from v2.quiz_style where student_id is null and book_id is null and round = 1 and kind = 'word' limit 1), 'planned'
+  where not exists (select 1 from v2.quiz where id = '99999999-0000-4000-f000-000000000001');
