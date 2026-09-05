@@ -10,7 +10,7 @@ import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
-import { reflect, resetWarnings } from "@/lib/warn";
+import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, skipChapter } from "@/lib/progress";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
@@ -46,3 +46,4 @@ export const warnReset = done(async (month, action) => { const { sb, user } = aw
 export const progressOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { tree: await tree(sb, sheetId, bookId) }; });
 export const progressSet = done(async (sheetId, unitId, status) => { const { sb } = await staff(); return setUnit(sb, sheetId, unitId, status); });
 export const progressSkip = done(async (sheetId, bookId, chapter) => { const { sb } = await staff(); return skipChapter(sb, sheetId, bookId, chapter); });
+export const warnLimit = done(async (studentId, n) => { const { sb } = await staff(); await setLimit(sb, studentId, n); });

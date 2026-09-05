@@ -2,7 +2,7 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, progressOpen, progressSet, progressSkip } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip } from "./actions.js";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
@@ -49,7 +49,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
             {(student.quizzes?.today?.length ?? 0) > 0 && <QuizCard sheet={sheet} quizzes={student.quizzes.today} closed={closed} fail={fail} start={start} />}
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <WorkCard sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
-            <LateCard sheet={sheet} warn={student.warn} closed={closed} fail={fail} start={start} />
+            <LateCard sheet={sheet} warn={student.warn} studentId={student.id} closed={closed} fail={fail} start={start} />
             <CommentCard sheet={sheet} closed={closed} fail={fail} />
           </>}
         </div>
@@ -242,7 +242,7 @@ function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
     </div>
   );
 }
-function LateCard({ sheet, warn, closed, fail, start }) {
+function LateCard({ sheet, warn, studentId, closed, fail, start }) {
   const ask = warn && (warn.due || warn.today_disposal);
   const l = sheet.late;
   const [until, setUntil] = useState(l?.until_at ? String(l.until_at).slice(0, 5) : "");
@@ -251,7 +251,10 @@ function LateCard({ sheet, warn, closed, fail, start }) {
       <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}</span>}</div>
       {ask && <div className="lf warn" style={{ margin: "8px 0 0" }} data-reflect="1"><span className="ln">⚠️</span>
         <div><b>경고 {warn.count}회째 — 반성문{warn.pending && !warn.today_disposal ? " (유예했던 것을 다시 묻습니다)" : ""}</b>
-          <small>{warn.days} — 앱은 세기만 하고 <span style={{ fontWeight: 700 }}>정하는 것은 원장님</span> · 경고는 저장하지 않고 리포트에서 매달 셉니다</small></div></div>}
+          <small>{warn.days} — 앱은 세기만 하고 <span style={{ fontWeight: 700 }}>정하는 것은 원장님</span> · 경고는 저장하지 않고 리포트에서 매달 셉니다 · 지난 반성문 뒤 {warn.since_written}회째</small></div></div>}
+      {warn?.count > 0 && <div className="lenrow" style={{ marginTop: 8 }} data-limit="1"><span className="fl" style={{ margin: 0, width: "auto" }}>반성문 기준</span>
+        <div className="stepper" data-g="limit"><button type="button" data-s="-" disabled={closed || warn.report_at <= 1} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at - 1)); })}>−</button><input type="text" inputMode="numeric" aria-label="반성문 기준 횟수" value={warn.report_at} readOnly /><button type="button" data-s="+" disabled={closed} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at + 1)); })}>+</button></div>
+        <span className="note" style={{ margin: 0 }}>{warn.own_limit ? "이 아이만 · " : "학원 기본 · "}쓴 뒤로 다시 {warn.report_at}회째에 묻습니다(지금 {warn.since_written}회째)</span></div>}
       {ask && <div className="lenrow" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0, width: "auto" }}>처분</span>
         <div className="seg sm" data-g="refl">{DISPOSAL.map(([k, name]) => <button key={k} type="button" aria-pressed={warn.today_disposal === k} disabled={closed} onClick={() => start(async () => { fail(await reflectAs(sheet.id, k)); })}>{name}</button>)}</div>
         <span className="note" style={{ margin: 0 }}>남아서 쓰면 늦귀가 사유에 서고, 숙제면 다음 시간 검사 줄에 섭니다. 유예는 지운 것이 아니라 미룬 것 — 다음 경고에 다시 묻습니다</span></div>}

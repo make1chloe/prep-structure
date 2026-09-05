@@ -137,6 +137,13 @@ console.log("■ 경고 · 반성문(확정-㊼) — 지난달 지각 이틀 + �
 ok("학생 줄 알약 「경고 3 · 반성문」", (await row.locator(".pill[data-warn]").textContent()) === "경고 3 · 반성문");
 const refl = row.locator("[data-reflect]");
 ok("늦귀가 카드에 「경고 3회째 — 반성문」 + 지난 날들", (await refl.count()) === 1 && (await refl.textContent()).includes("오늘 지각"));
+ok("반성문 기준 — 3 · 학원 기본 · 지금 3회째", (await row.locator(".stepper[data-g=limit] input").inputValue()) === "3" && (await row.locator("[data-limit] .note").textContent()).startsWith("학원 기본"));
+await row.locator(".stepper[data-g=limit] button[data-s='+']").click(); await p.waitForTimeout(1200);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("기준을 4로 올리면 이 아이만 4 — 지난 반성문 뒤 3회째라 오늘은 안 묻는다(블록 내려감 · 알약 「경고 3」)", (await row.locator(".stepper[data-g=limit] input").inputValue()) === "4" && (await row.locator("[data-limit] .note").textContent()).startsWith("이 아이만") && (await row.locator("[data-reflect]").count()) === 0 && (await row.locator(".pill[data-warn]").textContent()) === "경고 3");
+await row.locator(".stepper[data-g=limit] button[data-s='-']").click(); await p.waitForTimeout(1200);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("3으로 내리면 다시 묻는다", (await row.locator("[data-reflect]").count()) === 1);
 await row.locator(".seg[data-g=refl] button", { hasText: "오늘 남아서 쓰기" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("처분 「오늘 남아서 쓰기」 → 늦귀가 사유에 「반성문 — 오늘 남아서」", (await row.locator(".seg[data-g=refl] button", { hasText: "오늘 남아서 쓰기" }).getAttribute("aria-pressed")) === "true" && (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("반성문 — 오늘 남아서"));

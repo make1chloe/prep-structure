@@ -1,5 +1,5 @@
 /** 경고·반성문 검사(확정-㊼ · 검사-㊱) — 경고는 사실에서 센다(SQL 한 곳). 진짜 DB, 트랜잭션 안에서 쓰고 되돌린다. 리허설 학생(0004 fixture)으로만.
- *  하루 1회(지각+미제출 같은 날 = 1) · 미흡은 규칙 건수부터 · 단어 미통과(재시험·문장은 안 셈) · 정리하면 그 달 1일부터 · 3회째(배수째)와 유예 중이면 묻는다 · 월초 띠 */
+ *  하루 1회(지각+미제출 같은 날 = 1) · 미흡은 규칙 건수부터 · 단어 미통과(재시험·문장은 안 셈) · 정리하면 그 달 1일부터 · 마지막으로 쓴 반성문 뒤 N회째(아이 기준 → 학원 기본)와 유예 중이면 묻는다(확정-63) · 월초 띠 */
 import { Client } from "pg"; import { readFileSync } from "node:fs";
 const url = (process.env.DATABASE_URL ?? readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 15000 });
@@ -39,16 +39,22 @@ try {
   await c.query(`insert into v2.reflection(student_id, sheet_id, asked_on, count_at, disposal) values ($1, $2, '2026-11-10', 4, 'stay')`, [S, s5]);
   await sheet("2026-11-11", "late");
   w = await state("2026-11-11");
-  ok("처분한 뒤 5회째는 안 묻는다(3의 배수가 아니다)", w.count === 5 && w.due === false && w.pending === null);
+  ok("한 번 쓴 뒤(11/10) — 5회째는 지난 반성문 뒤 1회째라 안 묻는다(확정-63)", w.count === 5 && w.since_written === 1 && w.due === false && w.pending === null, JSON.stringify(w));
   await sheet("2026-11-12", "late");
-  ok("6회째는 다시 묻는다(배수째)", (await state("2026-11-12")).due === true);
+  ok("6회째 = 지난 반성문 뒤 2회째 — 아직(기준 3)", (await state("2026-11-12")).due === false);
+  await sheet("2026-11-13", "late");
+  ok("7회째 = 지난 반성문 뒤 3회째 — 다시 묻는다(1번 쓰면 다시 N번 센 뒤 1번)", (await state("2026-11-13")).due === true && (await state("2026-11-13")).since_written === 3);
+  await c.query(`update v2.students set warn_report_at = 2 where id = $1`, [S]);
+  ok("아이마다 따로 — 이 아이 기준 2 면 6회째(지난 반성문 뒤 2회째)에 묻는다", (await state("2026-11-12")).due === true && (await state("2026-11-12")).report_at === 2 && (await state("2026-11-12")).own_limit === 2);
+  await c.query(`update v2.students set warn_report_at = null where id = $1`, [S]);
+  ok("비우면 학원 기본(3)으로 돌아간다", (await state("2026-11-12")).report_at === 3 && (await state("2026-11-12")).own_limit === null);
   console.log("■ 달 정리 — 횟수만 0, 기록은 남는다 · 월초 띠");
   let band = (await c.query(`select month::text as month, prev_month::text as prev_month, need from v2.warn_band('2026-12-02')`)).rows[0];
   ok("12월 초 — 11월 경고가 있고 정리를 안 정했으면 띠가 뜬다", band.need === true && band.month === "2026-12-01" && band.prev_month === "2026-11-30", JSON.stringify(band));
   await c.query(`insert into v2.warn_reset(student_id, month, action) values (null, '2026-12-01', 'keep')`);
-  ok("「그냥 두기」면 띠만 내려가고 횟수는 그대로(6)", (await c.query(`select * from v2.warn_band('2026-12-02')`)).rows[0].need === false && (await state("2026-12-02")).count === 6);
+  ok("「그냥 두기」면 띠만 내려가고 횟수는 그대로(7)", (await c.query(`select * from v2.warn_band('2026-12-02')`)).rows[0].need === false && (await state("2026-12-02")).count === 7);
   await c.query(`update v2.warn_reset set action = 'reset' where student_id is null and month = '2026-12-01'`);
-  ok("「정리」면 12월 1일부터 센다 — 횟수 0, 11월 기록은 그대로 남는다", (await state("2026-12-02")).count === 0 && (await days("2026-11-01", "2026-11-30")).length === 6);
+  ok("「정리」면 12월 1일부터 센다 — 횟수 0, 11월 기록은 그대로 남는다", (await state("2026-12-02")).count === 0 && (await days("2026-11-01", "2026-11-30")).length === 7);
   let blocked = false; try { await c.query("savepoint m"); await c.query(`insert into v2.warn_reset(student_id, month, action) values (null, '2026-12-15', 'reset')`); await c.query("release savepoint m"); } catch (e) { blocked = true; await c.query("rollback to savepoint m"); }
   ok("달의 1일이 아니면 DB 가 막는다", blocked);
 } finally { await c.query("rollback"); await c.end(); }
