@@ -11,6 +11,7 @@ import { setLate, sendLate } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
 import { reflect, resetWarnings } from "@/lib/warn";
+import { tree, setUnit, skipChapter } from "@/lib/progress";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 
@@ -41,3 +42,7 @@ export const tuneApply = done(async (sheetId, bookId, payload) => { const { sb }
 // 경고 · 반성문(확정-㊼) — 경고는 세기만, 원장님이 정하는 것 둘: 처분 · 달 정리
 export const reflectAs = done(async (sheetId, disposal) => { const { sb, user } = await staff(); return reflect(sb, sheetId, disposal, user.id); });
 export const warnReset = done(async (month, action) => { const { sb, user } = await staff(); await resetWarnings(sb, month, action, user.id); });
+// 진도 체크(02b) — 나무는 읽기(마감된 판도) · 찍기·건너뛰기는 손. 판단은 lib/progress.js
+export const progressOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { tree: await tree(sb, sheetId, bookId) }; });
+export const progressSet = done(async (sheetId, unitId, status) => { const { sb } = await staff(); return setUnit(sb, sheetId, unitId, status); });
+export const progressSkip = done(async (sheetId, bookId, chapter) => { const { sb } = await staff(); return skipChapter(sb, sheetId, bookId, chapter); });

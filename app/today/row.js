@@ -2,7 +2,8 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, progressOpen, progressSet, progressSkip } from "./actions.js";
+import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
@@ -95,7 +96,8 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start }) {
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
-  const unitless = (slot) => sheet[slot].filter((it) => !it.unit_id);
+  const isAuto = (it) => Boolean(it.item_id && !it.carry_of && it.unit_id);   // 루틴이 깐 줄 — 교재 반쪽에. 손으로 더한 줄·나머지 줄은 단원이 있어도 「그 밖에」
+  const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
   return (
     <div className="card">
       <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto">{laid ? "검사에서 저절로 깔림" : sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다"}</span></div>
@@ -128,7 +130,8 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
   const stop = stopOn(b, date);
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
   const [tune, setTune] = useState(false);
-  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id);
+  const [prog, setProg] = useState(false);
+  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id && it.item_id && !it.carry_of);   // 루틴이 깐 줄만 — 나머지 줄(carry_of)은 「그 밖에」
   const chapter = rows("class")[0]?.units?.chapter ?? rows("home")[0]?.units?.chapter ?? null;
   const pickStop = (m) => start(async () => { fail(await setStop(sheet.id, b.id, m)); });
   return (
@@ -140,8 +143,10 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
         <span className="spacer" />
         <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
         <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절 ↗</button>
+        <button type="button" className="btn sm" data-act="progress" onClick={() => setProg(true)}>진도 체크 ↗</button>
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
+      {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
       {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b> — {b.stop_until ? `${b.stop_until} 에 저절로 풀립니다` : "진행중을 누르면 다시 나갑니다"}</div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
       : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b> — 진도는 교재 화면에서 봅니다</div>
@@ -332,4 +337,37 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
       </div>
     </div>
   );
+}
+/** 02b 진도 체크 — 진도 나무는 표 하나 · 보기 넷(확정-51). 대단원 접기 · 소단원 ○◐· (되돌리기 한 자리, 확정-㊶) · 이 대단원 건너뛰기 · ✍ 메모로 자동 ○ 후보(확정-㊳). 찍으면 바로 저장 — 저장 단추가 따로 없다 */
+function ProgressModal({ b, sheet, closed, fail, start, onClose }) {
+  const [t, setT] = useState(null);
+  const [open, setOpen] = useState(null);
+  const load = async () => { const r = await progressOpen(sheet.id, b.book_id); if (!fail(r)) { onClose(); return; } setT(r.tree); setOpen((o) => o ?? r.tree.now ?? r.tree.chapters[0]?.chapter ?? null); };
+  useEffect(() => { load(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const shell = (body) => <div className="mdlov" role="dialog" aria-modal="true" aria-label="진도 체크" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(560px,100%)" }}>{body}</div></div>;
+  if (!t) return shell(<div className="mdlb"><p className="note">읽는 중…</p></div>);
+  const set = (u, st) => start(async () => { if (fail(await progressSet(sheet.id, u.id, st))) await load(); });
+  const skip = (chapter) => start(async () => { if (fail(await progressSkip(sheet.id, b.book_id, chapter))) await load(); });
+  const undone = t.chapters.reduce((n, c) => n + (c.total - c.done - c.skip), 0);
+  return shell(<>
+    <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+    <div className="mdlb">
+      <div className="tags" style={{ marginBottom: 8 }}><span className="tag on">끝낸 대단원 {t.finished} / {t.chapters.length}</span>{t.now && <span className="tag act">지금 {t.now}</span>}<span className="tag">안 끝난 소단원 {undone}</span></div>
+      {t.chapters.map((c) => { const isOpen = open === c.chapter; const fin = c.done + c.skip === c.total && c.total > 0; return (
+        <div key={c.chapter} className={"acc" + (isOpen ? " open" : "")} data-chapter={c.chapter}>
+          <button type="button" className="acch" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : c.chapter)}><span className="ar">›</span><b>{c.chapter}</b><span className="spacer" />
+            {fin ? <span className="tag on">{c.done}/{c.total} 끝냄{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : c.chapter === t.now ? <span className="tag act">지금 · {c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span> : <span className="tag">{c.done}/{c.total}{c.skip ? ` · 건너뜀 ${c.skip}` : ""}</span>}</button>
+          {isOpen && <div className="accb">
+            {c.units.map((u) => { const auto = t.today.includes(u.id) && t.memo; return (
+              <div key={u.id} className="ur" style={auto ? { background: "var(--sunk)", borderLeft: "3px solid var(--amber)", margin: "0 -8px", padding: "8px 8px", borderRadius: 8 } : undefined}>
+                <span className="nm">{auto ? <b>{u.short}</b> : u.short}<small>{u.activity}{pages(u) ? ` · ${pages(u)}` : ""}{u.q_count ? ` · ${u.q_count}문항` : ""}{u.status === "skip" ? " · 건너뜀" : ""}{auto ? <> · <b style={{ color: "var(--navy)" }}>✍ 메모로 자동 ○</b></> : null}</small></span>
+                <div className="tri" data-g={u.id}>{TRI.map(([k, mark]) => <button key={k} type="button" data-p={k} aria-pressed={(u.status === "skip" ? "none" : u.status) === k} disabled={closed} onClick={() => u.status !== k && set(u, k)}>{mark}</button>)}</div>
+              </div>); })}
+            <div style={{ marginTop: 12 }}><label className="fl">교재 없이 한 날 — 무엇을 했나(01 의 학습 메모와 같은 값)</label><input type="text" value={t.memo} readOnly placeholder="01 의 이 교재 학습 메모에 적으면 마감 때 오늘 학습 소단원이 ○ 가 됩니다" /></div>
+            {!fin && !closed && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm" onClick={() => skip(c.chapter)}>이 대단원 건너뛰기</button><span className="note" style={{ margin: 0 }}>안 한 채로 넘어간 것으로 남습니다 — 지운 것이 아닙니다(월간 리포트에서 구별)</span></div>}
+          </div>}
+        </div>); })}
+    </div>
+    <div className="mdlf"><button type="button" className="btn gho" onClick={onClose}>닫기</button><span className="spacer" /><span className="note" style={{ margin: 0 }}>찍으면 바로 저장됩니다 · 메모로 대신한 날은 마감이 ○ 로 올립니다(그 교재만)</span></div>
+  </>);
 }
