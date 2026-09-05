@@ -158,7 +158,7 @@ section.screen{margin:0 0 64px}
 .pair>.pc{flex:1 1 520px;min-width:0}
 .pair>.ph{flex:0 1 auto;max-width:100%;min-width:0}
 
-.frame{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.frame{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:clip} /* hidden 이 아니라 clip — hidden 은 스크롤 상자가 돼서 안의 sticky(줄 끝 저장줄)가 화면에 안 붙는다(폰-3 · 2026-09-05 밤 걷기가 잡음). clip 은 모서리만 자르고 스크롤 상자가 아니다 */
 .chrome{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sunk);border-bottom:1px solid var(--hair);font-size:var(--fs-2);color:var(--faint);font-family:var(--sans)}
 .dots{display:flex;gap:4px}.dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
 .phone{width:375px;max-width:100%}
@@ -506,6 +506,9 @@ td.sch{font-weight:700;white-space:nowrap}
 .ckl{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-2);color:var(--mid);flex-shrink:0}
 .ck{width:16px;height:16px;accent-color:var(--navy);margin:0;flex-shrink:0}
 .sendbar{position:sticky;bottom:0;gap:8px}
+.rowbar{position:sticky;bottom:0;z-index:5;border-radius:0 0 12px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))} /* 01·03 줄 끝 저장줄 — 줄을 열면 화면 아래(폰은 홈 표시줄 위)에 붙어 따라온다: 판 끝까지 안 내려가도 마감한다. 흐름 안(sticky)이라 visualViewport 로 높이를 잴 일이 없다(폰-6 · viewportFit cover 는 layout.js · 조상에 overflow hidden 없음, 폰-3) */
+.rowbar [data-act=collapse]{display:none}
+@media(max-width:760px),(pointer:coarse){.rowbar [data-act=collapse]{display:inline-flex}.rowbar .note{display:none}} /* 폰: 「닫기」가 저장줄에(머리의 닫기는 위로 멀다) · 설명은 접는다 */
 .srow>.ckl{margin-top:4px}
 .rt2{display:grid;grid-template-columns:1fr 1.15fr;gap:12px;align-items:start}
 @media(max-width:820px){.rt2{grid-template-columns:1fr}}
@@ -1622,7 +1625,7 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
             </div></div>
             </div>
           </div>
-          <div class="savebar">
+          <div class="savebar rowbar">
             <button class="btn pri">저장하고 마감</button>
             <button class="btn">임시 저장</button>
             <a class="btn" href="#s1" title="다음 수업 날짜의 이 아이 판 — 같은 화면, 날짜만 넘깁니다">📅 다음 시간 ↗</a>
@@ -1988,10 +1991,10 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
                 </div>
 
               </div>
-              <div class="savebar" style="padding:8px 12px;gap:8px">
+              <div class="savebar rowbar">
                 <button class="btn pri">저장·마감</button>
                 <button class="btn">임시</button>
-                <button class="btn gho">닫기</button>
+                <button class="btn gho" data-act="collapse">닫기</button>
               </div>
             </div>
             <div class="row"><div class="rowtop" style="padding:8px 8px;gap:8px">

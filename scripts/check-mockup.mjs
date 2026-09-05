@@ -20,7 +20,7 @@ for (const v of VIEWS) {
   const ctx = await b.newContext({ viewport: v.viewport, hasTouch: v.hasTouch, isMobile: v.isMobile, deviceScaleFactor: 1 }); await offline(ctx);
   const [p1, p2] = [await ctx.newPage(), await ctx.newPage()];
   await p1.goto(orig); await p2.goto(app); await p1.waitForTimeout(300); await p2.waitForTimeout(300);
-  for (const p of [p1, p2]) await p.addStyleTag({ content: ".shead{display:none!important}" });
+  for (const p of [p1, p2]) await p.addStyleTag({ content: ".shead{display:none!important} .rowbar,.sendbar{position:static!important}" });   // 붙는 줄(sticky)은 캡처 때 스크롤 위치에 따라 다른 자리에 붙어 헛잡힌다(2026-09-05 밤 #s1 폰 1.29%) — 화소 비교에서만 풀어 둔다. 붙나는 e2e/today 가 본다
   const ids = await p1.evaluate(() => [...document.querySelectorAll("section.screen:not(#notes)")].map(s => s.id));
   const diffPage = await ctx.newPage();
   for (const id of ids) {

@@ -31,6 +31,15 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("지각이 저장돼 있다", (await row.locator(".seg[data-g=att] button", { hasText: "지각" }).getAttribute("aria-pressed")) === "true");
 console.log("■ 숙제 검사 △ → 어디까지 → 나머지는 다음 숙제로");
 if (!(await row.locator(".panel").count())) await row.locator("button.open").click();
+console.log("■ 폰 03 — 줄 끝 저장줄이 화면 아래(홈 표시줄 위)에 붙어 따라온다(폰-6 · 목업 01·03)");
+await p.setViewportSize({ width: 390, height: 700 });
+const rb = row.locator(".savebar.rowbar");
+const stick = await rb.evaluate((el) => { el.closest(".row").scrollIntoView({ block: "start" }); const r = el.getBoundingClientRect(); return { pos: getComputedStyle(el).position, bottom: r.bottom, h: innerHeight, rowBottom: el.closest(".row").getBoundingClientRect().bottom, env: [...document.styleSheets].some((s) => { try { return [...s.cssRules].some((x) => x.selectorText === ".rowbar" && /safe-area-inset-bottom/.test(x.style.paddingBottom)); } catch { return false; } }) }; });
+ok("저장줄이 sticky 로 화면 아래에 붙는다(줄이 화면보다 길 때) · 「저장하고 마감 · 임시 저장 · 닫기」", stick.pos === "sticky" && stick.rowBottom > stick.h && Math.abs(stick.bottom - stick.h) < 2 && (await rb.locator("button").allTextContents()).join(",") === "저장하고 마감,임시 저장,닫기", JSON.stringify(stick));
+ok("padding-bottom 에 env(safe-area-inset-bottom) — 홈 표시줄에 안 깔린다(viewportFit cover 는 check-sw)", stick.env === true);
+ok("폰에서는 「닫기」가 저장줄에 보인다", await rb.locator("button[data-act=collapse]").isVisible());
+await p.setViewportSize({ width: 1280, height: 900 });
+ok("PC 에서는 저장줄의 「닫기」가 숨는다(머리의 닫기가 있다)", !(await rb.locator("button[data-act=collapse]").isVisible()));
 const first = row.locator(".panel .hw").first();
 if (!(await first.locator(".chk button[data-v=w]").count())) { console.log("   ⚠️ △ 단추가 없다 — row html:", (await row.innerHTML()).replace(/\s+/g, " ").slice(0, 900)); }
 await first.locator(".chk button[data-v=w]").click({ timeout: 5000 }); await p.waitForTimeout(300);
