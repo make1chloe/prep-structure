@@ -55,6 +55,7 @@ db-anon-role = "anon"
 server-port = $PGRST_PORT
 jwt-secret = "$(cat scripts/e2e/jwt-secret.txt)"
 db-pre-request = "public.e2e_noop"
+log-level = "info"
 CONF
 (/tmp/postgrest /var/tmp/e2e-pgrst.conf >/var/tmp/e2e-pgrst.log 2>&1 &)
 for i in $(seq 1 15); do curl -sf "http://127.0.0.1:$PGRST_PORT/" >/dev/null && break; sleep 2; done

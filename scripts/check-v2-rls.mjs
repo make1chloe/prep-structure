@@ -63,8 +63,11 @@ must("학부모가 자기 아이를 보는가",
   await as(P.학부모, `select count(*)::int n from v2.students where id=$1`, [S.내아이]), 1);
 must("학부모가 남의 아이를 보는가",
   await as(P.학부모, `select count(*)::int n from v2.students where id=$1`, [S.남의아이]), 0);
+// 「다」 = 검사용 학생 전부(0004 의 둘 + 눌러보기 seed 의 리허설 학생) — 숫자를 박아 두면 seed 가 늘 때마다 어긋난다. RLS 를 안 타는 이 연결로 센 것과 견준다
+const fixtureStudents = Number((await c.query(`select count(*)::int n from v2.students where import_batch='fixture'`)).rows[0].n);
+if (fixtureStudents < 2) bad.push(`❌ 검사용 학생이 ${fixtureStudents}명 — 0004_fixture 가 안 돌았다`);
 must("강사가 아이를 다 보는가",
-  await as(P.강사, `select count(*)::int n from v2.students where import_batch='fixture'`), 2);
+  await as(P.강사, `select count(*)::int n from v2.students where import_batch='fixture'`), fixtureStudents);
 
 // ── 쓰기 ────────────────────────────────────────────────
 must("학생이 자기를 원장으로 올리는가",

@@ -32,7 +32,7 @@ ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 = 지은 화면 전부(대시보드·설정)", tabs.join(",") === "대시보드,설정", tabs.join(","));
+ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·설정)", tabs.join(",") === "대시보드,오늘,설정", tabs.join(","));
 const leftBefore = (await p.locator("main .card .ctitle b").first().textContent()).trim();
 ok("안 정한 권한 칸 수가 뜬다(32칸 중)", /^\d+$/.test(leftBefore), leftBefore);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-home-${v.viewport.width}.png`, fullPage: true }); }
