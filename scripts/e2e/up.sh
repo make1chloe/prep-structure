@@ -45,7 +45,10 @@ grant execute on all functions in schema public to anon, authenticated, service_
 grant select on auth.users to anon, authenticated, service_role;
 grant all on all tables in schema storage to anon, authenticated, service_role;" >/dev/null 2>&1
 echo "== 리허설 계정 심기 =="
-$Q -d chloe -v ON_ERROR_STOP=1 -f scripts/e2e/seed.sql 2>&1 | grep -E "^psql.*(ERROR|치명적|오류):" | head -5; echo "  됐습니다"
+# ⚠️ seed 가 중간에 멈추면 그 뒤 줄(교재·루틴·배정·시험…)이 통째로 빠져 눌러보기가 엉뚱한 데서 빨개진다(2026-09-05 실측) — 오류면 여기서 멈춘다
+err=$($Q -d chloe -v ON_ERROR_STOP=1 -f scripts/e2e/seed.sql 2>&1 | grep -E "^psql.*(ERROR|치명적|오류):" | head -5)
+[ -n "$err" ] && { echo "  seed 실패:"; echo "$err"; exit 1; }
+echo "  됐습니다"
 echo "== PostgREST =="
 pkill -f "^/tmp/postgrest " 2>/dev/null; sleep 1
 cat > /var/tmp/e2e-pgrst.conf <<CONF

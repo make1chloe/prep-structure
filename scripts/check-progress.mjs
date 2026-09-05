@@ -1,0 +1,25 @@
+/** 진도 검사(확정-⑳·㊳·㊶ · 검사-⑭) — 순수 판단 lib/progress-plan.js 를 본보기로. 예습·조각에 ○ 을 줘도 완료가 안 되나 · done 은 검사로 안 내려가나 · 메모 자동 ○ 은 학습 줄만(조각은 doing) · 대단원 요약 */
+import { fromCheck, merge, memoDone, chapterSummary } from "../lib/progress-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+console.log("■ 검사 ○△✕ → 단원 진도");
+ok("○ → done", fromCheck({ status: "done", slot: "check", unit_id: "u" }) === "done");
+ok("△ → doing", fromCheck({ status: "weak", slot: "check", unit_id: "u" }) === "doing");
+ok("✕ → 손대지 않는다", fromCheck({ status: "missing", slot: "check", unit_id: "u" }) === null);
+ok("단원이 없는 줄(손으로 적은 것)은 손대지 않는다", fromCheck({ status: "done", slot: "check", unit_id: null }) === null);
+ok("예습(next)에 ○ 을 줘도 완료가 안 된다(검사-⑭)", fromCheck({ status: "done", slot: "next", unit_id: "u" }) === null);
+ok("조각(이번에 1-20번)에 ○ 을 줘도 doing 까지(확정-⑳ · 검사-⑭)", fromCheck({ status: "done", slot: "check", unit_id: "u", range_note: "1-20번" }) === "doing");
+console.log("■ 합치기 — done·skip 은 검사로 안 내려간다");
+ok("done + doing → done", merge("done", "doing") === "done");
+ok("skip + done → skip (건너뛴 것은 검사로 안 되살아난다)", merge("skip", "done") === "skip");
+ok("doing + done → done", merge("doing", "done") === "done");
+ok("none + null → none", merge("none", null) === "none");
+console.log("■ 마감 때 메모로 대신한 교재 — 학습 줄의 소단원만, 조각은 doing(확정-㊳)");
+const m = memoDone([{ unit_id: "a", slot: "class" }, { unit_id: "b", slot: "class", range_note: "1-20번" }, { unit_id: "c", slot: "home" }, { unit_id: "d", slot: "class", off: true }, { unit_id: null, slot: "class" }]);
+ok("a done · b doing · 숙제 c 와 뺀 d 와 단원 없는 줄은 안 든다", m.get("a") === "done" && m.get("b") === "doing" && !m.has("c") && !m.has("d") && m.size === 2);
+console.log("■ 대단원 요약");
+const units = [{ id: "1", chapter: "CH1" }, { id: "2", chapter: "CH1" }, { id: "3", chapter: "CH2" }];
+const s = chapterSummary(units, [{ unit_id: "1", status: "done" }, { unit_id: "2", status: "skip" }, { unit_id: "3", status: "doing" }]);
+ok("CH1 끝냄(1 done + 1 skip = 2/2) · 지금은 CH2 · 끝낸 대단원 1", s.chapters[0].done === 1 && s.chapters[0].skip === 1 && s.now === "CH2" && s.finished === 1);
+console.log(`\n■ 진도 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

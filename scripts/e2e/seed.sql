@@ -37,9 +37,9 @@ on conflict do nothing;
 insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
   select '99999999-0000-4000-c000-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', v2.today() - 1, 'present', now() - interval '1 day', 'fixture'
   where not exists (select 1 from v2.day_sheet where id = '99999999-0000-4000-c000-000000000001');
-insert into v2.day_item (id, sheet_id, slot, range_note, sort) values
-  ('99999999-0000-4000-d000-000000000001', '99999999-0000-4000-c000-000000000001', 'home', '워크북 복습 · PSS 1-3 · p.10 · 문항 1-18', 1),
-  ('99999999-0000-4000-d000-000000000002', '99999999-0000-4000-c000-000000000001', 'home', '클카 문장훈련 · PSS 1-3 간접의문문 Ⅰ', 2)
+insert into v2.day_item (id, sheet_id, slot, range_note, unit_id, sort) values
+  ('99999999-0000-4000-d000-000000000001', '99999999-0000-4000-c000-000000000001', 'home', '워크북 복습 · PSS 1-3 · p.10 · 문항 1-18', null, 1),
+  ('99999999-0000-4000-d000-000000000002', '99999999-0000-4000-c000-000000000001', 'home', '클카 문장훈련 · PSS 1-3 간접의문문 Ⅰ', null, 2)
 on conflict (id) do nothing;
 
 -- ── 루틴 깔기 눌러보기 — 리허설 문법책 한 권(소단원 5 + 다음 대단원 1) · 루틴 4줄(학원 2 · 둘 다 1 · 숙제 1, 필수 3) · 배정(1회독, 한 수업 1덩어리) · 1-1~1-3 은 한 것
@@ -93,3 +93,6 @@ insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, imp
 insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
   select '99999999-0000-4000-c000-000000000003', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', date_trunc('month', v2.today())::date - 5, 'late', now() - interval '5 day', 'fixture'
   where not exists (select 1 from v2.day_sheet where id = '99999999-0000-4000-c000-000000000003');
+
+-- ── 어제 숙제 첫 줄은 소단원 1-4 를 가리킨다(단원이 위에서 선 뒤에 잇는다 — 앞에 두면 FK 에 걸려 seed 가 거기서 멈춘다) — △ 를 주면 진도 ◐, 깔기(안 한 차례)에는 영향이 없다
+update v2.day_item set unit_id = '99999999-0000-4000-e100-000000000004' where id = '99999999-0000-4000-d000-000000000001' and unit_id is null;
