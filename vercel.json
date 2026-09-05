@@ -1,6 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
-    { "path": "/api/cron", "schedule": "0 20 * * *" }
-  ]
+    {
+      "path": "/api/cron",
+      "schedule": "0 20 * * *"
+    }
+  ],
+  "ignoreCommand": "if [ \"$VERCEL_ENV\" = \"production\" ] && [ \"$V2_PRODUCTION_OK\" != \"1\" ]; then echo \"전환일 전 — v2 는 운영(Production)으로 짓지 않는다. Vercel 환경변수 V2_PRODUCTION_OK=1 이면 짓는다 (docs/미리보기-켜기.md)\"; exit 0; fi; exit 1"
 }
