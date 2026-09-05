@@ -21,8 +21,11 @@ exception when check_violation then raise notice 'assistant 없음 — 건너뜀
 update v2.profiles set must_change_pw = true where role in ('student','parent') and name like 'zz_시험_%';
 
 -- ── 오늘 수업 눌러보기 — 리허설 학생에게 반·시간표(매일)·어제 숙제 둘
-insert into v2.students (id, profile_id, name, grade, state, import_batch) values
-  ('99999999-0000-4000-9000-000000000001', '33333333-3333-3333-3333-333333333333', 'zz_시험_학생', 2, 'active', 'fixture')
+insert into v2.schools (id, name, level, import_batch) values
+  ('99999999-0000-4000-d000-000000000001', 'zz_시험_중학교', 'middle', 'fixture')
+on conflict (id) do nothing;
+insert into v2.students (id, profile_id, name, grade, state, school_id, import_batch) values
+  ('99999999-0000-4000-9000-000000000001', '33333333-3333-3333-3333-333333333333', 'zz_시험_학생', 2, 'active', '99999999-0000-4000-d000-000000000001', 'fixture')
 on conflict (id) do nothing;
 insert into v2.classes (id, kind, nickname, state, import_batch) values
   ('99999999-0000-4000-a000-000000000001', 'regular', '매일 5:00 리허설', 'active', 'fixture')
@@ -107,3 +110,12 @@ on conflict do nothing;
 insert into v2.makeup (id, student_id, of_date, state, reason)
   select '99999999-0000-4000-f100-000000000001', '99999999-0000-4000-9000-000000000002', v2.today(), 'todo', '가족 여행'
   where not exists (select 1 from v2.makeup where id = '99999999-0000-4000-f100-000000000001');
+-- 학생둘 — 같은 교재를 3회독째(학생 줄 머리 「3회독째」 알약)
+insert into v2.student_book (id, student_id, book_id, from_date, round, per_session, stop_mode, import_batch) values
+  ('99999999-0000-4000-e300-000000000002', '99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e000-000000000001', '2026-01-01', 3, 1, 'running', 'fixture')
+on conflict (id) do nothing;
+-- 단원평가 — 원장님이 따로 출제한 25문항(교재와 무관, 문법 분류로)
+insert into v2.grammar_topics (id, name, sort) values ('99999999-0000-4000-d100-000000000001', 'zz_시험_관계사', 999) on conflict (id) do nothing;
+insert into v2.unit_test (id, student_id, topic_id, assigned_on, q_count, state)
+  select '99999999-0000-4000-d200-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-d100-000000000001', v2.today() - 1, 25, 'made'
+  where not exists (select 1 from v2.unit_test where id = '99999999-0000-4000-d200-000000000001');
