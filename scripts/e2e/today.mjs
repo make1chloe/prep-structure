@@ -119,6 +119,16 @@ ok("전체 개수를 안 적으면 「리포트에 안 나갑니다」", (await 
 await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().fill("20"); await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().blur(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("전체 20 을 적으면 경고가 사라진다", (await row.locator("[data-card=next-quiz] .lf.warn").count()) === 0 && (await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().inputValue()) === "20");
+console.log("■ 경고 · 반성문(확정-㊼) — 지난달 지각 이틀 + 오늘 지각 = 3회째 → 반성문을 묻는다");
+ok("학생 줄 알약 「경고 3 · 반성문」", (await row.locator(".pill[data-warn]").textContent()) === "경고 3 · 반성문");
+const refl = row.locator("[data-reflect]");
+ok("늦귀가 카드에 「경고 3회째 — 반성문」 + 지난 날들", (await refl.count()) === 1 && (await refl.textContent()).includes("오늘 지각"));
+await row.locator(".seg[data-g=refl] button", { hasText: "오늘 남아서 쓰기" }).click(); await p.waitForTimeout(1200);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("처분 「오늘 남아서 쓰기」 → 늦귀가 사유에 「반성문 — 오늘 남아서」", (await row.locator(".seg[data-g=refl] button", { hasText: "오늘 남아서 쓰기" }).getAttribute("aria-pressed")) === "true" && (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("반성문 — 오늘 남아서"));
+await row.locator(".seg[data-g=refl] button", { hasText: "다음 시간 숙제" }).click(); await p.waitForTimeout(1200);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("처분을 「다음 시간 숙제」로 바꾸면 사유에서 빠지고 숙제 줄 「반성문 쓰기」가 선다", !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("반성문") && (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li", { hasText: "반성문 쓰기" }).count()) === 1);
 console.log("■ 늦귀가");
 await row.locator("form.lategrid input[name=reason]").fill("워크북 나머지 10-18번");
 await row.locator("form.lategrid .seg button", { hasText: "+20분" }).click();
@@ -137,6 +147,11 @@ ok("마감됨이 뜬다", (await closedRow.locator(".pill", { hasText: "마감�
 if (!(await closedRow.locator(".panel").count())) await closedRow.locator("button.open").click();
 ok("마감 뒤엔 출결이 잠긴다", await closedRow.locator(".seg[data-g=att] button").first().isDisabled());
 ok("마감 뒤엔 글을 못 고친다", await closedRow.locator("textarea[name=comment]").isDisabled());
+console.log("■ 월초 정리 띠 — 지난달 경고가 있고 이 달 정리를 안 정했으면 뜬다 · 전원 정리하면 횟수만 0");
+ok("띠가 떠 있다(「N월이 시작됐습니다 — N월 경고를 정리할까요?」)", (await p.locator("[data-band=warn]").count()) === 1 && (await p.locator("[data-band=warn] b").textContent()).includes("정리할까요"));
+await p.locator("[data-band=warn] button", { hasText: "전원 정리하기" }).click(); await p.waitForTimeout(1200);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("정리하면 띠가 내려가고 오늘 것만 남아 「경고 1 · 반성문」(오늘 처분한 것은 그대로)", (await p.locator("[data-band=warn]").count()) === 0 && (await p.locator(".row").first().locator(".pill[data-warn]").textContent()) === "경고 1 · 반성문");
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

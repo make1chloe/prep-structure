@@ -3,14 +3,14 @@
 import { readFileSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 const bad = [];
-for (const f of ["lib/day.js", "lib/homework.js", "lib/late.js", "lib/routine.js", "lib/quiz.js"]) {
+for (const f of ["lib/day.js", "lib/homework.js", "lib/late.js", "lib/routine.js", "lib/quiz.js", "lib/warn.js"]) {
   const s = strip(readFileSync(f, "utf8"));
   for (const m of s.matchAll(/export (?:async )?function (\w+)\s*\([^)]*\)\s*\{/g)) {
     const name = m[1]; let d = 0, i = m.index + m[0].length - 1, j = i;
     do { if (s[j] === "{") d++; else if (s[j] === "}") d--; j++; } while (d > 0 && j < s.length);
     const body = s.slice(i, j);
     const writes = /\.(update|insert|upsert)\(/.test(body);
-    if (writes && !["ensureSheet", "assertOpen"].includes(name) && !/assertOpen\(|sheetOf\(|sheetRow\(/.test(body)) bad.push(`${f} ${name}(): 판에 쓰면서 마감을 안 본다`);
+    if (writes && !["ensureSheet", "assertOpen", "resetWarnings"].includes(name) && !/assertOpen\(|sheetOf\(|sheetRow\(/.test(body)) bad.push(`${f} ${name}(): 판에 쓰면서 마감을 안 본다`);
   }
 }
 const act = strip(readFileSync("app/today/actions.js", "utf8"));

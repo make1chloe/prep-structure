@@ -85,3 +85,11 @@ insert into v2.quiz (id, student_id, kind, source, book_id, unit_from, assigned_
 insert into v2.units (id, book_id, chapter, sub, activity, is_workbook, sort, page_start, page_end, q_count, import_batch) values
   ('99999999-0000-4000-e100-000000000007', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', '중간·기말 대비문제', '문제', false, 7, 30, 38, 62, 'fixture')
 on conflict (id) do nothing;
+
+-- ── 경고·반성문 눌러보기 — 지난달 끝자락에 경고 이틀(지각). 오늘 지각까지 3회째면 반성문을 묻고, 「전원 정리하기」 뒤엔 오늘 것 1회만 남는다 (어제 판 today-1 과 안 겹치게 1일-3 · 1일-5)
+insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
+  select '99999999-0000-4000-c000-000000000002', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', date_trunc('month', v2.today())::date - 3, 'late', now() - interval '3 day', 'fixture'
+  where not exists (select 1 from v2.day_sheet where id = '99999999-0000-4000-c000-000000000002');
+insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
+  select '99999999-0000-4000-c000-000000000003', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', date_trunc('month', v2.today())::date - 5, 'late', now() - interval '5 day', 'fixture'
+  where not exists (select 1 from v2.day_sheet where id = '99999999-0000-4000-c000-000000000003');
