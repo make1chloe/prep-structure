@@ -2,7 +2,8 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs } from "./actions.js";
+import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets } from "@/lib/routine-plan";
@@ -35,6 +36,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
         </div>
         <span className="spacer" />
         {sheet && <span className="pill hw">학원 {sheet.class.length} · 숙제 {sheet.home.length}</span>}
+        {student.warn?.count > 0 && <span className={"pill" + (student.warn.due || student.warn.today_disposal ? " bad" : "")} data-warn="1">경고 {student.warn.count}{student.warn.due || student.warn.today_disposal ? " · 반성문" : ""}</span>}
         {status && <span className={"pill" + (closed ? "" : attend === "absent" ? " bad" : " warn")}>{status}</span>}
         <button type="button" className="open" onClick={() => setOpen(!open)}>{open ? "닫기" : "펴기"}</button>
       </div>
@@ -46,7 +48,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
             {(student.quizzes?.today?.length ?? 0) > 0 && <QuizCard sheet={sheet} quizzes={student.quizzes.today} closed={closed} fail={fail} start={start} />}
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <WorkCard sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
-            <LateCard sheet={sheet} closed={closed} fail={fail} start={start} />
+            <LateCard sheet={sheet} warn={student.warn} closed={closed} fail={fail} start={start} />
             <CommentCard sheet={sheet} closed={closed} fail={fail} />
           </>}
         </div>
@@ -235,12 +237,19 @@ function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
     </div>
   );
 }
-function LateCard({ sheet, closed, fail, start }) {
+function LateCard({ sheet, warn, closed, fail, start }) {
+  const ask = warn && (warn.due || warn.today_disposal);
   const l = sheet.late;
   const [until, setUntil] = useState(l?.until_at ? String(l.until_at).slice(0, 5) : "");
   return (
     <div className="card">
       <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}</span>}</div>
+      {ask && <div className="lf warn" style={{ margin: "8px 0 0" }} data-reflect="1"><span className="ln">⚠️</span>
+        <div><b>경고 {warn.count}회째 — 반성문{warn.pending && !warn.today_disposal ? " (유예했던 것을 다시 묻습니다)" : ""}</b>
+          <small>{warn.days} — 앱은 세기만 하고 <span style={{ fontWeight: 700 }}>정하는 것은 원장님</span> · 경고는 저장하지 않고 리포트에서 매달 셉니다</small></div></div>}
+      {ask && <div className="lenrow" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0, width: "auto" }}>처분</span>
+        <div className="seg sm" data-g="refl">{DISPOSAL.map(([k, name]) => <button key={k} type="button" aria-pressed={warn.today_disposal === k} disabled={closed} onClick={() => start(async () => { fail(await reflectAs(sheet.id, k)); })}>{name}</button>)}</div>
+        <span className="note" style={{ margin: 0 }}>남아서 쓰면 늦귀가 사유에 서고, 숙제면 다음 시간 검사 줄에 섭니다. 유예는 지운 것이 아니라 미룬 것 — 다음 경고에 다시 묻습니다</span></div>}
       <form className="lategrid" action={async (f) => { fail(await late(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
         <div><label className="fl">사유</label><input type="text" name="reason" defaultValue={l?.reason ?? ""} placeholder="예: 워크북 나머지 10-18번" disabled={closed} /></div>

@@ -10,6 +10,7 @@ import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
+import { reflect, resetWarnings } from "@/lib/warn";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 
@@ -37,3 +38,6 @@ export const quizSkip = done(async (sheetId, quizId, skip) => { const { sb } = a
 // 조절 모달(02) — 열 때 읽고(tunePool), 적용은 한 손(applyTune). 판단은 lib/routine.js
 export const tuneOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { pool: await tunePool(sb, sheetId, bookId) }; });
 export const tuneApply = done(async (sheetId, bookId, payload) => { const { sb } = await staff(); return applyTune(sb, sheetId, bookId, payload); });
+// 경고 · 반성문(확정-㊼) — 경고는 세기만, 원장님이 정하는 것 둘: 처분 · 달 정리
+export const reflectAs = done(async (sheetId, disposal) => { const { sb, user } = await staff(); return reflect(sb, sheetId, disposal, user.id); });
+export const warnReset = done(async (month, action) => { const { sb, user } = await staff(); await resetWarnings(sb, month, action, user.id); });

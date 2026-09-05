@@ -3,6 +3,8 @@
 import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today, roster } from "@/lib/day";
+import { warnBand } from "@/lib/warn";
+import Band from "./band.js";
 import Row from "./row.js";
 import { isUnchecked } from "@/lib/status";
 export const dynamic = "force-dynamic";
@@ -12,10 +14,11 @@ export default async function Today() {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📋</span>오늘 수업은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role]} 화면은 곧 열립니다.` : "역할 줄이 없습니다."}</p></div>);
   const date = await today(sb);
-  const r = await roster(sb, date);                                  // 반·아이 → 판(없으면 세운다 — 검사 줄이 따라온다)
+  const [r, band] = await Promise.all([roster(sb, date), warnBand(sb, date)]);   // 반·아이 → 판(없으면 세운다 — 검사 줄이 따라온다) ∥ 월초 정리 띠
   const unchecked = r.classes.flatMap((c) => c.students).reduce((n, s) => n + (s.sheet?.check.filter(isUnchecked).length ?? 0), 0);
   if (!r.classes.length) return frame(<div className="card"><div className="ctitle"><span className="cemo">📋</span>오늘 수업 없음 · {date}</div><p className="note">오늘 도는 반이 없습니다. 반 시간표는 반 화면에서 봅니다.</p></div>);
   return frame(<>
+    <Band band={band} />
     <div className="wv" style={{ marginBottom: 8 }}>
       <span className="pill">{date}</span>
       {r.classes.map((c) => <span key={c.id} className="pill">{c.nickname || (c.kind === "special" ? "특강" : "정규")} {c.start}{c.end ? `–${c.end}` : ""} · {c.students.length}명</span>)}
