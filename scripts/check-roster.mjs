@@ -1,0 +1,25 @@
+/** 학생 줄 머리 검사(검사-㊶) — 순수 판단 lib/roster-plan.js: 학년·학교 글자 · 진도 점 · N회독째 · N일째 안 봄 · 🗺 오늘 한 단원 · 영역 네 칸 */
+import { gradeLabel, schoolShort, whoMeta, marks, roundPill, unseenDays, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "../lib/roster-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+console.log("■ 학년 · 학교");
+ok("급이 있으면 「중2」 · 없으면 「2학년」 · 학년이 없으면 빈 글", gradeLabel("middle", 2) === "중2" && gradeLabel("high", 1) === "고1" && gradeLabel("elem", 6) === "초6" && gradeLabel(null, 2) === "2학년" && gradeLabel("middle", null) === "");
+ok("학교 이름 줄이기 — 신정중학교→신정중 · 옥련여자고등학교→옥련여고 · 서울초등학교→서울초 · 그 밖은 그대로", schoolShort("신정중학교") === "신정중" && schoolShort("옥련여자고등학교") === "옥련여고" && schoolShort("서울초등학교") === "서울초" && schoolShort("국제학교") === "국제학교" && schoolShort(null) === "");
+ok("「중2 · 신정중」 · 학교 없으면 「2학년」", whoMeta({ grade: 2, schools: { level: "middle", name: "신정중학교" } }) === "중2 · 신정중" && whoMeta({ grade: 2, schools: null }) === "2학년");
+console.log("■ 진도 점 · 회독 · 안 봄");
+const ms = marks([{ status: "done" }, { status: "weak" }, { status: "missing" }, { status: "none" }, {}, { status: "done" }]);
+ok("검사 줄 하나에 점 하나 — ○△✕·, 다섯까지", ms.map((m) => m.ch).join("") === "○△✕··" && ms[0].cls === "ok" && ms[1].cls === "weak" && ms[2].cls === "miss" && ms[3].cls === "");
+ok("2회독째부터 말한다 · 첫 교재 기준", roundPill([{ round: 3 }, { round: 1 }]) === "3회독째" && roundPill([{ round: 1 }]) === "" && roundPill([]) === "");
+const chk = [{ status: "none", carry: { day_sheet: { date: "2026-09-03" } } }, { status: "done", carry: { day_sheet: { date: "2026-09-01" } } }, { status: "none" }];
+ok("안 본 줄 중 가장 오래된 숙제가 며칠 전 것인가 — 9/3 것을 9/5 에 → 2 · 본 줄·날짜 없는 줄은 안 센다", unseenDays(chk, "2026-09-05") === 2 && unseenPill(chk, "2026-09-05") === "2일째 안 봄");
+ok("어제 낸 숙제는 아직 「안 봄」이 아니다(1) · 다 봤으면 0", unseenPill([{ status: "none", carry: { day_sheet: { date: "2026-09-04" } } }], "2026-09-05") === "" && unseenDays([{ status: "done", carry: { day_sheet: { date: "2026-08-01" } } }], "2026-09-05") === 0);
+console.log("■ 🗺 오늘 한 단원 · 영역 네 칸");
+const books = [{ book_id: "b1", books: { name: "PSS" } }];
+const sheet = { check: [{ status: "done", units: { id: "u3", book_id: "b1", label: "1-3 간접의문문 Ⅰ" } }, { status: "weak", units: { id: "u4", book_id: "b1", label: "1-4 간접의문문 Ⅱ" } }, { status: "none", units: null }], class: [{ units: { id: "u4", book_id: "b1", label: "1-4 간접의문문 Ⅱ" } }, { units: { id: "u5", book_id: "b1", label: "1-5" } }] };
+const tu = todayUnits(sheet, books);
+ok("검사 단원은 결과대로(○ ◐) · 오늘 학습 단원은 ◐ · 같은 단원은 하나 · 단원 없는 줄은 빠진다", tu.map((u) => `${u.label} ${u.mark}`).join(" / ") === "PSS 1-3 간접의문문 Ⅰ ○ / PSS 1-4 간접의문문 Ⅱ ◐ / PSS 1-5 ◐" && tu[0].on && !tu[1].on, tu.map((u) => `${u.label} ${u.mark}`).join(" / "));
+ok("영역 네 칸 — 단어·문법·독해·영작(v2.area_name 일곱 중 매일 적는 넷)", MEMO_AREAS.join(",") === "단어,문법,독해,영작");
+console.log("■ 📝 단원평가 결과");
+ok("21/25 = 84% · 통과선 80 이면 통과 · 19/25 = 76% 미달 · 안 적었으면 없음", unitResult(21, 25, 80)?.pct === 84 && unitResult(21, 25, 80).pass && !unitResult(19, 25, 80).pass && unitResult(null, 25, 80) === null && unitResult("", 25, 80) === null);
+console.log(`\n■ 학생 줄 머리 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

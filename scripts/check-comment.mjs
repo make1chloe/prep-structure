@@ -35,6 +35,7 @@ ok("글이 없으면 붙는 줄만", preview("  ", ls).startsWith("다음 시간
 console.log("■ AI 재료 · 지시문");
 const f = facts({ student: { name: "zz", grade: 2 }, sheet: { attend: "late", check: [{ learn_items: { name: "워크북" }, status: "missing" }], class: [{ units: { label: "1-4" }, learn_items: { name: "교재 풀기" } }], home: [], late: { until_at: "18:40:00" } }, quizzes: [{ kind: "word", source: "manual", free_note: "Day 3", pct: 85, passed: false }], keys: "어순 스스로", lines: ls });
 ok("사실만 한 줄에 하나 — 출결·검사·학원·시험·늦귀가·키워드·붙는 줄", f.some((x) => x.startsWith("출결: 지각")) && f.some((x) => x.includes("워크북 ✕ 안 해옴")) && f.some((x) => x.includes("교재 풀기 1-4")) && f.some((x) => x.includes("85%") && x.includes("재시험")) && f.some((x) => x.includes("18:40까지")) && f.some((x) => x.includes("어순 스스로")) && f.filter((x) => x.startsWith("글 밑에 앱이 붙이는 줄")).length === 3, f.join(" | "));
+ok("영역 메모가 재료에 든다(아이에게 그대로 나감) · 빈 메모는 빠진다", facts({ sheet: { memos: [{ area: "단어", memo: "Day 38-40 통과" }, { area: "독해", memo: " " }] } }).filter((x) => x.includes("메모(아이에게 그대로 나감)")).length === 1);
 const pr = promptFor({ kind: "no_homework", cap: 200, samples: ["[보통] 오늘 잘했어요"], rules: "존댓말", factLines: f });
 ok("지시문 — 길이 상한 · 상황 안내 · 본보기 · 원장님 조건 · 지어내지 말 것", pr.user.includes("200자 이내") && pr.user.includes("숙제안함") && pr.system.includes("오늘 잘했어요") && pr.system.includes("존댓말") && pr.system.includes("주어진 사실만"));
 console.log(`\n■ 부모님께 글 검사 ${n}건 · 실패 ${bad}`);
