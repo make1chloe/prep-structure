@@ -119,3 +119,12 @@ insert into v2.grammar_topics (id, name, sort) values ('99999999-0000-4000-d100-
 insert into v2.unit_test (id, student_id, topic_id, assigned_on, q_count, state)
   select '99999999-0000-4000-d200-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-d100-000000000001', v2.today() - 1, 25, 'made'
   where not exists (select 1 from v2.unit_test where id = '99999999-0000-4000-d200-000000000001');
+-- 늦귀가 되풀이 눌러보기(확정-⑭ · 0113) — 그저께 판과 어제 판에 예상 귀가(약속)가 있었다. 오늘 적으면 21일 안 3번째 → 「3주 안 3번째 남습니다 — 숙제량을 볼까요?」(규칙 late.repeat_count 3 · late.repeat_days 21)
+-- 그저께(today-2)는 경고 씨앗(1일-3 · 1일-5)과 어느 달에도 안 겹친다(오늘 ≥ 1일이라 today-2 ≥ 1일-2)
+insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
+  select '99999999-0000-4000-c000-000000000004', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', v2.today() - 2, 'present', now() - interval '2 day', 'fixture'
+  where not exists (select 1 from v2.day_sheet where id = '99999999-0000-4000-c000-000000000004');
+insert into v2.late_stay (id, sheet_id, reason, until_at, sent_at) values
+  ('99999999-0000-4000-c100-000000000001', '99999999-0000-4000-c000-000000000001', '워크북 나머지', '21:40', now() - interval '1 day'),
+  ('99999999-0000-4000-c100-000000000004', '99999999-0000-4000-c000-000000000004', '문장훈련 녹음', '21:20', now() - interval '2 day')
+on conflict (id) do nothing;

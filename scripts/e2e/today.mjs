@@ -221,8 +221,15 @@ const untilTyped = await row.locator("form.lategrid input[name=untilAt]").inputV
 ok("+20분이 시각을 채운다", /^\d\d:\d\d$/.test(untilTyped), untilTyped);
 await row.locator("form.lategrid button[type=submit]").click(); await p.waitForTimeout(800);
 ok("적어 두면 「보내야 함」", (await row.locator(".pill.warn", { hasText: "보내야 함" }).count()) === 1);
+ok("되풀이 — 그저께·어제 약속 + 오늘 = 21일 안 3번째 → 앱이 먼저 「3주 안 3번째 남습니다 — 숙제량을 볼까요?」(규칙 late.repeat_count 3 · repeat_days 21) + 날들에 「오늘」", (await row.locator("[data-g=repeat] b").count()) === 1 && (await row.locator("[data-g=repeat] b").textContent()) === "3주 안 3번째 남습니다 — 숙제량을 볼까요?" && (await row.locator("[data-g=repeat] small").textContent()).includes("오늘"), (await row.locator("[data-card=late]").textContent()).slice(0, 200));
+await row.locator("[data-g=repeat] button[data-act=repeat-tune]").first().click(); await p.waitForTimeout(1500);
+ok("띠의 「조절 ↗」 → 02 조절 모달이 그 자리에서 열린다(숙제량을 보는 자리)", (await p.locator(".mdlov[aria-label=조절]").count()) === 1);
+await p.locator(".mdlov[aria-label=조절] .mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
+const [uh, um] = untilTyped.split(":").map(Number); const lt = uh * 60 + um + 25; const leftTyped = `${String(Math.floor(lt / 60) % 24).padStart(2, "0")}:${String(lt % 60).padStart(2, "0")}`; const crossesMidnight = lt >= 24 * 60;
+await row.locator("[data-g=left] input").fill(leftTyped); await row.locator("[data-g=left] button[data-act=left]").click(); await p.waitForTimeout(800);
+ok(`실제 하원을 찍으면(등원 걸음 4 와 같은 줄) 「실제 하원 ${leftTyped} · 예상보다 25분 늦게」 — 차이는 세어 나온다`, (await row.locator("[data-g=left-out]").count()) === 1 && (crossesMidnight || (await row.locator("[data-g=left-out]").textContent()) === `실제 하원 ${leftTyped} · 예상보다 25분 늦게`), (await row.locator("[data-g=left]").textContent()).slice(0, 160));
 await row.locator("button", { hasText: "학부모에게 지금 보내기" }).click(); await p.waitForTimeout(800);
-ok("보내기가 오류 없이 큐에 들어간다", (await row.locator("[role=alert]").count()) === 0);
+ok("보내기 → 큐에 들고 「보냄 HH:MM」(누른 때 — 학부모 화면은 이때부터 보인다)", (await row.locator("[role=alert]").count()) === 0 && /^보냄 \d\d:\d\d$/.test(await row.locator("[data-card=late] .pill", { hasText: "보냄" }).first().textContent()), (await row.locator("[data-card=late] .pill").allTextContents()).join(" | "));
 console.log("■ 부모님께 글 — 갈래 다섯 · 상황이 길이를 먼저 고른다 · 붙는 줄 · 미리보기 · ✨ 브리핑(목업 01 ✉️)");
 const cc = row.locator("[data-card=comment]");
 ok("상황 다섯 — 보통·숙제안함·시험전·시험후·늦은밤 · 길이 넷", (await cc.locator(".seg[data-g=kind] button").allTextContents()).join(",") === "보통,숙제안함,시험전,시험후,늦은밤" && (await cc.locator(".seg[data-g=cap] button").allTextContents()).join(",") === "50자 이하,100자,200자,300자");
@@ -254,6 +261,28 @@ if (!(await closedRow.locator(".panel").count())) await closedRow.locator("butto
 ok("마감 뒤엔 출결이 잠긴다", await closedRow.locator(".seg[data-g=att] button").first().isDisabled());
 ok("마감 뒤엔 글을 못 고친다", await closedRow.locator("textarea[name=comment]").isDisabled());
 ok("마감 뒤엔 꼬리표 「300자 · 숙제안함」(09·10 이 같은 것을 보인다)", (await closedRow.locator("[data-card=comment] .tag").allTextContents()).join(",") === "300자,숙제안함", (await closedRow.locator("[data-card=comment] .tag").allTextContents()).join(","));
+console.log("■ 안 보낸 채 마감(확정-⑭) — 학생둘: 예상 귀가만 적고 마감 → 한 번 묻고(막지 않는다) 「📨 보내고 마감」");
+const two2 = p.locator(".row[data-student='99999999-0000-4000-9000-000000000002']");
+if (!(await two2.locator(".panel").count())) await two2.locator("button.open").click();
+if (!(await two2.locator("form.lategrid").count())) {   // 오늘 결석 예정이라 판이 없다 — 왔으면 출결을 누른다 → 판이 선다(02c: 결석 예정은 판을 안 세운다)
+  await two2.locator(".seg[data-g=att] button", { hasText: "왔음" }).click(); await p.waitForTimeout(2500);
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  if (!(await two2.locator(".panel").count())) await two2.locator("button.open").click();
+}
+ok("학생둘 — 결석 예정이었지만 왔다: 출결을 누르니 판이 선다", (await two2.locator("form.lategrid").count()) === 1, (await two2.locator(".pill").allTextContents()).join(" | "));
+await two2.locator("form.lategrid input[name=reason]").fill("문장훈련 녹음 남아서");
+await two2.locator("form.lategrid .seg button", { hasText: "+40분" }).click();
+await two2.locator("form.lategrid button[type=submit]").click(); await p.waitForTimeout(800);
+ok("학생둘 — 적어 두면 「보내야 함」 · 되풀이 띠는 없다(처음 남는다)", (await two2.locator("[data-card=late] .pill.warn", { hasText: "보내야 함" }).count()) === 1 && (await two2.locator("[data-g=repeat]").count()) === 0);
+await two2.locator("[data-card=comment] textarea[name=comment]").fill("오늘 문장훈련 녹음을 남아서 마쳤습니다.");
+await two2.locator("button", { hasText: "저장하고 마감" }).click(); await p.waitForTimeout(500);
+ok("마감이 한 번 묻는다 — 「늦귀가를 아직 안 보냈습니다」 · 「그대로 마감」도 있다(막지 않는다) · 아직 마감 안 됨", (await two2.locator("[data-g=ask] b", { hasText: "아직 안 보냈습니다" }).count()) === 1 && (await two2.locator("[data-g=ask] button[data-act=close-anyway]").count()) === 1 && (await two2.locator(".pill", { hasText: "마감됨" }).count()) === 0, (await two2.locator("[data-card=comment]").textContent()).slice(0, 200));
+await two2.locator("[data-g=ask] button[data-act=send-close]").click(); await p.waitForTimeout(1500);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+const two3 = p.locator(".row[data-student='99999999-0000-4000-9000-000000000002']");
+if (!(await two3.locator(".panel").count())) await two3.locator("button.open").click();
+ok("「📨 보내고 마감」 → 보냄 + 마감됨", (await two3.locator(".pill", { hasText: "마감됨" }).count()) === 1 && (await two3.locator("[data-card=late] .pill", { hasText: "보냄" }).count()) === 1, (await two3.locator(".pill").allTextContents()).join(" | "));
+if (!(await closedRow.locator(".panel").count())) await closedRow.locator("button.open").click();   // 다시 읽어 접힌 첫 줄을 다시 편다 — 아래 걸음이 그 줄의 단추를 누른다
 console.log("■ 마감이 방아쇠 — 학습 메모가 있는 교재의 오늘 학습 소단원이 ○, 조각(이번에 1-20번)은 ◐ (확정-㊳ · 검사-⑭)");
 await closedRow.locator("button[data-act=progress]").first().click(); await p.waitForTimeout(1500);
 const pm2 = p.locator(".mdlov .mdl");
