@@ -1,0 +1,23 @@
+"use server";
+/** 오늘 수업의 손 — 전부 guard(학원 사람) → lib 의 판단 한 벌 → 다시 그리기. 판단은 여기 없다.
+ *  ⚠️ 마감된 판은 lib 의 assertOpen 이 막는다(검사-⑤). 실패는 던지지 않고 {ok:false, msg} 로 돌려 화면이 그 자리에서 말한다 */
+import { revalidatePath } from "next/cache";
+import { guard } from "@/lib/session";
+import { isStaff } from "@/lib/roles";
+import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
+import { attendanceWrite } from "@/lib/attend";
+import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
+import { setLate, sendLate } from "@/lib/late";
+async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
+const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
+
+export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
+export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
+export const check = done(async (itemId, status, doneNote) => { const { sb } = await staff(); await checkItem(sb, itemId, status, doneNote); });
+export const rest = done(async (itemId, where) => { const { sb } = await staff(); const r = await carryRest(sb, itemId, where); if (r.stay) await setLate(sb, r.item.sheet_id, { reason: `숙제 나머지 — ${r.item.range_note ?? ""}`.trim() }); });
+export const add = done(async (form) => { const { sb } = await staff(); await addItem(sb, String(form.get("sheetId")), String(form.get("slot")), String(form.get("text") ?? "")); });
+export const move = done(async (itemId, slot) => { const { sb } = await staff(); await moveItem(sb, itemId, slot); });
+export const late = done(async (form) => { const { sb } = await staff(); await setLate(sb, String(form.get("sheetId")), { reason: String(form.get("reason") ?? "") || null, untilAt: String(form.get("untilAt") ?? "") || null }); });
+export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });
+export const comment = done(async (form) => { const { sb } = await staff(); await saveComment(sb, String(form.get("sheetId")), String(form.get("comment") ?? "")); });
+export const close = done(async (form) => { const { sb, user } = await staff(); await closeSheet(sb, String(form.get("sheetId")), String(form.get("comment") ?? ""), user.id); });
