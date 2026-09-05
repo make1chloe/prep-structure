@@ -2,10 +2,11 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply } from "./actions.js";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
-import { STOP, MODE, stopOn } from "@/lib/routine-plan";
+import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets } from "@/lib/routine-plan";
+import { useEffect } from "react";
 const ATTEND = [["present", "왔음"], ["late", "지각"], ["absent", "결석"], ["early", "조퇴"], ["online", "온라인"]];
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
@@ -124,6 +125,7 @@ const pages = (u) => u?.page_start ? `p.${u.page_start}${u.page_end && u.page_en
 function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
   const stop = stopOn(b, date);
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
+  const [tune, setTune] = useState(false);
   const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id);
   const chapter = rows("class")[0]?.units?.chapter ?? rows("home")[0]?.units?.chapter ?? null;
   const pickStop = (m) => start(async () => { fail(await setStop(sheet.id, b.id, m)); });
@@ -135,7 +137,9 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
         {chapter && <span className="tag">{chapter}</span>}
         <span className="spacer" />
         <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
+        <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절 ↗</button>
       </div>
+      {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b> — {b.stop_until ? `${b.stop_until} 에 저절로 풀립니다` : "진행중을 누르면 다시 나갑니다"}</div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
       : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b> — 진도는 교재 화면에서 봅니다</div>
@@ -149,7 +153,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
   );
 }
 function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = null }) {
-  const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: it.learn_items?.name ?? it.range_note ?? "(이름 없음)", units: [], carry: it.carry_of }; lines.push(l); } if (it.units) l.units.push(it.units); }
+  const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: it.learn_items?.name ?? it.range_note ?? "(이름 없음)", units: [], notes: [], carry: it.carry_of }; lines.push(l); } if (it.units) { l.units.push(it.units); if (it.range_note && !l.notes.includes(it.range_note)) l.notes.push(it.range_note); } }
   const cur = new Set(rows.map((it) => it.unit_id));
   const opts = mark.waves?.[slot] ?? [];
   const same = (o) => o.units.length === cur.size && o.units.every((u) => cur.has(u.unit_id));
@@ -160,7 +164,7 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>회차</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
       {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>
-        <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div></div>)}
+        <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}{l.notes.length ? ` · 이번에 ${l.notes.join(" · ")}` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div></div>)}
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
         <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "이 교재 오늘 학습 메모 — 아이 화면에 그대로" : "이 교재 숙제 메모 — 아이 화면에 그대로"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
@@ -264,6 +268,59 @@ function CommentCard({ sheet, closed, fail }) {
           <span className="note" style={{ margin: 0 }}>마감하면 학부모 화면에 보입니다 — 되돌리기는 원장님께</span>
         </div>}
       </form>
+    </div>
+  );
+}
+/** 02 조절 — 교재마다 갯수 · 뺄 칩 · 긴 줄의 「이번에」 · 도는 차례(읽기만) · 메모 둘. 기본값대로 나가는 날은 안 연다(클릭 0). 화면엔 개수가 아니라 문항·쪽 합계(확정-㉓) */
+function TuneModal({ b, sheet, closed, fail, start, onClose }) {
+  const [pool, setPool] = useState(null);
+  const [n, setN] = useState(1);
+  const [excluded, setExcluded] = useState([]);
+  const [ranges, setRanges] = useState({});
+  const [memo, setMemo] = useState({ class: "", home: "" });
+  useEffect(() => { let alive = true; (async () => { const r = await tuneOpen(sheet.id, b.book_id); if (!alive) return; if (!fail(r)) { onClose(); return; }
+    // 지금 나가는 소단원 그대로 열린다 — 차례에서 건너뛴 것은 「뺀 칩」으로, 갯수는 지금 나가는 수로
+    const cur = new Set(r.pool.current.class.length ? r.pool.current.class : r.pool.current.home), ids = r.pool.pool.map((u) => u.unit_id), last = ids.reduce((m, id, i) => (cur.has(id) ? i : m), -1);
+    setPool(r.pool); setExcluded(ids.slice(0, last + 1).filter((id) => !cur.has(id))); setN(Math.max(1, ids.filter((id) => cur.has(id)).length || 1)); setRanges(r.pool.ranges ?? {}); setMemo(r.pool.memos); })(); return () => { alive = false; }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!pool) return <div className="mdlov" role="dialog" aria-modal="true"><div className="mdl" style={{ width: "min(520px,100%)" }}><div className="mdlb"><p className="note">읽는 중…</p></div></div></div>;
+  const selected = tuneUnits(pool.pool, n, excluded), sel = new Set(selected.map((u) => u.unit_id));
+  const sum = loadOf(selected), first = pool.pool[0];
+  const toggle = (u) => { if (sel.has(u.unit_id)) setExcluded([...excluded, u.unit_id]); else if (excluded.includes(u.unit_id)) setExcluded(excluded.filter((x) => x !== u.unit_id)); else setN(pool.pool.filter((x) => !excluded.includes(x.unit_id)).findIndex((x) => x.unit_id === u.unit_id) + 1); };
+  const apply = () => start(async () => { const r = await tuneApply(sheet.id, b.book_id, { unitIds: selected.map((u) => u.unit_id), ranges: Object.fromEntries(selected.filter((u) => ranges[u.unit_id]).map((u) => [u.unit_id, ranges[u.unit_id]])), classMemo: memo.class, homeMemo: memo.home }); if (fail(r)) onClose(); });
+  const basis = pool.orderBasis === "chapter" ? "대단원 기준" : "소단원 기준";
+  return (
+    <div className="mdlov" role="dialog" aria-modal="true" aria-label="조절" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mdl" style={{ width: "min(520px,100%)" }}>
+        <div className="mdlh"><b>{b.books.name} · {pool.chapter ?? "안 한 대단원 없음"}</b><span className="tag type">{pool.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+        <div className="mdlb">
+          <div className="hw">
+            <div className="hwname"><b>소단원 갯수</b><small>안 한 소단원 {pool.pool.length}개 중에서 — 칩을 눌러 뺍니다</small>
+              <div className="units unitcol">{pool.pool.map((u) => <button key={u.unit_id} type="button" className="unit" aria-pressed={sel.has(u.unit_id)} disabled={closed} onClick={() => toggle(u)}>{u.short}<i>{pages(u) ?? ""}{u.q_count ? ` · ${u.q_count}문항` : ""}</i></button>)}</div>
+            </div>
+            <div className="stepper"><button type="button" data-s="-" disabled={closed} onClick={() => setN(Math.max(1, n - 1))}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(Math.max(1, Math.min(pool.pool.length, Number(e.target.value) || 1)))} /><button type="button" data-s="+" disabled={closed} onClick={() => setN(Math.min(pool.pool.length, n + 1))}>+</button></div>
+          </div>
+          <div className="lf warn" style={{ margin: "2px 0 8px" }}><span className="ln">📐</span>
+            <div><b>{selected.length}개면 오늘 <span style={{ color: "var(--navy)" }}>{sum.questions}문항 · {sum.pages}쪽</span></b>
+              <small>{selected.map((u) => `${u.short} ${u.q_count ?? 0}문항`).join(" · ") || "고른 소단원 없음"} — 교재 {pool.books}권 합치면 <b>{pool.load.questions}문항 · {pool.load.pages}쪽</b>(지금 깔린 것)</small></div>
+            {first && <span className="lm">1개면 {first.q_count ?? 0}문항</span>}</div>
+          <div className="lf ok" style={{ margin: "2px 0 8px" }}><span className="ln">🔀</span>
+            <div><b>도는 차례 — 지금 <span style={{ color: "var(--ok)" }}>{basis}</span></b>
+              <small>{pool.orderBasis === "chapter" ? "본책을 다 하고 → 워크북" : "소단원마다 본책+워크북 나란히"} · 고치는 자리는 <b>11 학생 루틴 한 곳</b> — 여기서는 읽기만(11 은 다음에)</small></div></div>
+          {selected.filter((u) => (u.q_count ?? 0) >= pool.splitFrom).map((u) => (
+            <div key={u.unit_id} style={{ margin: "4px 0 12px" }}>
+              <div className="hw"><div className="hwname"><b>{u.short}</b><small>{u.q_count}문항{pages(u) ? ` · ${pages(u)}` : ""} · 한 줄짜리 — 한 번에 다 못 냅니다</small></div></div>
+              <div className="wv"><span className="fl" style={{ margin: 0 }}>이번에</span>
+                <div className="seg sm" data-g="qrange">{splitPresets(u.q_count).map((o) => <button key={o.key} type="button" aria-pressed={(ranges[u.unit_id] ?? null) === o.range} disabled={closed} onClick={() => setRanges({ ...ranges, [u.unit_id]: o.range })}>{o.name}</button>)}</div>
+                <input type="text" value={ranges[u.unit_id] ?? ""} placeholder="전체" disabled={closed} style={{ flex: "1 1 100px", minWidth: 100 }} onChange={(e) => setRanges({ ...ranges, [u.unit_id]: e.target.value || null })} /></div>
+            </div>))}
+          <div className="tune" style={{ marginTop: 12 }}>
+            <div><label className="fl">이 교재 학습 메모</label><input type="text" value={memo.class} disabled={closed} onChange={(e) => setMemo({ ...memo, class: e.target.value })} /></div>
+            <div><label className="fl">이 교재 숙제 메모</label><input type="text" value={memo.home} disabled={closed} onChange={(e) => setMemo({ ...memo, home: e.target.value })} /></div>
+          </div>
+        </div>
+        <div className="mdlf"><button type="button" className="btn pri" disabled={closed || !selected.length} onClick={apply}>적용</button><button type="button" className="btn gho" onClick={onClose}>닫기</button>
+          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn">같은 조절 {pool.tuned + 1}번째 — 루틴을 고칠까요?</span>}</div>
+      </div>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
 import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
-import { setMode, setStop, pickWave, setMemo } from "@/lib/routine";
+import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
@@ -34,3 +34,6 @@ export const quizSet = done(async (sheetId, quizId, patch) => { const { sb } = a
 export const quizTake = done(async (sheetId, quizId, wrong, total) => { const { sb } = await staff(); return takeQuiz(sb, sheetId, quizId, { wrong, total }); });
 export const quizRetest = done(async (sheetId, quizId) => { const { sb } = await staff(); await retest(sb, sheetId, quizId); });
 export const quizSkip = done(async (sheetId, quizId, skip) => { const { sb } = await staff(); await skipRetest(sb, sheetId, quizId, skip); });
+// 조절 모달(02) — 열 때 읽고(tunePool), 적용은 한 손(applyTune). 판단은 lib/routine.js
+export const tuneOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { pool: await tunePool(sb, sheetId, bookId) }; });
+export const tuneApply = done(async (sheetId, bookId, payload) => { const { sb } = await staff(); return applyTune(sb, sheetId, bookId, payload); });
