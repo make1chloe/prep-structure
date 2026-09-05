@@ -1,0 +1,25 @@
+/** 결석·지각 예정 검사(확정-㉔ · 검사-㊳) — 순수 판단 lib/plan-plan.js: 달력 칸(월요일부터 42칸) · 날마다 표시의 우선(휴강 > 결석 > 지각 > 보강 > 수업) · 수업일만 고를 수 있나 · 보강 글 */
+import { monthGrid, nextYm, markOf, makeupText } from "../lib/plan-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+console.log("■ 달력 칸");
+const g = monthGrid("2026-10");
+ok("2026-10 은 42칸 · 첫 칸은 9/28(월) · 1일은 넷째 칸", g.length === 42 && g[0].date === "2026-09-28" && g[0].out && g[3].date === "2026-10-01" && !g[3].out);
+ok("다음 달·지난 달", nextYm("2026-12", 1) === "2027-01" && nextYm("2026-01", -1) === "2025-12");
+console.log("■ 날마다 표시 — 우선 순위");
+const days = [{ date: "2026-10-05", kind: "class" }, { date: "2026-10-21", kind: "class" }, { date: "2026-10-21", kind: "off" }, { date: "2026-10-18", kind: "makeup" }];
+const absences = [{ of_date: "2026-10-14", state: "set", on_date: "2026-10-18", at_time: "14:00:00" }, { of_date: "2026-10-05", state: "cancelled" }];
+const lates = [{ date: "2026-10-05", minutes: 30 }, { date: "2026-10-07", minutes: 10, cancelled_at: "x" }];
+ok("수업일 · 고를 수 있다", markOf("2026-10-05", { days, absences, lates }).pick === true);
+ok("지각 예정이 수업일 위에 뜬다", markOf("2026-10-05", { days, absences, lates }).kind === "late");
+ok("물린 결석(cancelled)은 안 뜬다 → 지각이 보인다", markOf("2026-10-05", { days, absences, lates }).kind !== "absent");
+ok("휴강은 결석·지각보다 앞선다 · 못 고른다", markOf("2026-10-21", { days, absences, lates }).kind === "off" && markOf("2026-10-21", { days, absences, lates }).pick === false);
+ok("결석 예정(수업일이 아니어도 줄이 있으면 뜬다)", markOf("2026-10-14", { days, absences, lates }).kind === "absent");
+ok("보강 날은 ↻ · 고르는 날이 아니다", markOf("2026-10-18", { days, absences, lates }).kind === "makeup" && markOf("2026-10-18", { days, absences, lates }).pick === false);
+ok("수업일이 아닌 날은 없음 · 못 고른다", markOf("2026-10-06", { days, absences, lates }).kind === "none" && markOf("2026-10-06", { days, absences, lates }).pick === false);
+ok("물린 지각(cancelled_at)은 안 뜬다", markOf("2026-10-07", { days, absences, lates }).kind === "none");
+console.log("■ 보강 글");
+ok("잡음 → 「보강 10/18 14:00」", makeupText(absences[0]) === "보강 10/18 14:00");
+ok("안 잡음 / 아직", makeupText({ state: "waived" }) === "보강 안 잡음" && makeupText({ state: "todo" }) === "보강 안 잡힘");
+console.log(`\n■ 결석·지각 예정 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

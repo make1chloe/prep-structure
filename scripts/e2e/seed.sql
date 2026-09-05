@@ -96,3 +96,14 @@ insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, imp
 
 -- ── 어제 숙제 첫 줄은 소단원 1-4 를 가리킨다(단원이 위에서 선 뒤에 잇는다 — 앞에 두면 FK 에 걸려 seed 가 거기서 멈춘다) — △ 를 주면 진도 ◐, 깔기(안 한 차례)에는 영향이 없다
 update v2.day_item set unit_id = '99999999-0000-4000-e100-000000000004' where id = '99999999-0000-4000-d000-000000000001' and unit_id is null;
+
+-- ── 결석·지각 예정 눌러보기 — 둘째 리허설 학생은 오늘 결석 예정(보강 줄 todo) → 판이 안 서고 숙제가 안 나간다
+insert into v2.students (id, profile_id, name, grade, state, import_batch) values
+  ('99999999-0000-4000-9000-000000000002', null, 'zz_시험_학생둘', 1, 'active', 'fixture')
+on conflict (id) do nothing;
+insert into v2.class_member (class_id, student_id, from_date, import_batch) values
+  ('99999999-0000-4000-a000-000000000001', '99999999-0000-4000-9000-000000000002', '2026-01-01', 'fixture')
+on conflict do nothing;
+insert into v2.makeup (id, student_id, of_date, state, reason)
+  select '99999999-0000-4000-f100-000000000001', '99999999-0000-4000-9000-000000000002', v2.today(), 'todo', '가족 여행'
+  where not exists (select 1 from v2.makeup where id = '99999999-0000-4000-f100-000000000001');
