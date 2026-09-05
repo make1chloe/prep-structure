@@ -10,7 +10,7 @@ import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
-import { setLate, sendLate } from "@/lib/late";
+import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
@@ -27,6 +27,7 @@ export const add = done(async (form) => { const { sb } = await staff(); await ad
 export const move = done(async (itemId, slot) => { const { sb } = await staff(); await moveItem(sb, itemId, slot); });
 export const late = done(async (form) => { const { sb } = await staff(); await setLate(sb, String(form.get("sheetId")), { reason: String(form.get("reason") ?? "") || null, untilAt: String(form.get("untilAt") ?? "") || null }); });
 export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });
+export const lateLeft = done(async (studentId, date, hhmm) => { const { sb } = await staff(); await setLeft(sb, String(studentId), String(date), String(hhmm ?? "").trim()); });   // 실제 하원 — 등원 표 걸음 4(판이 아니라 마감과 무관)
 export const comment = done(async (sheetId, payload) => { const { sb } = await staff(); await saveComment(sb, String(sheetId), String(payload?.comment ?? ""), payload); });
 export const close = done(async (sheetId, payload) => { const { sb, user } = await staff(); await closeSheet(sb, String(sheetId), String(payload?.comment ?? ""), user.id, payload); });
 export const commentDraft = done(async (sheetId, payload) => { const { sb } = await staff(); const cfg = await commentRules(sb); return { draft: await draftComment(sb, String(sheetId), payload, cfg) }; });   // ✨ 브리핑 — 열쇠는 서버에서만
