@@ -1,0 +1,63 @@
+/* 목업의 겉껍질(메뉴 · 화면 머리 · 기록 페이지 · 9/5 딱지)에만 닿는 규칙 — 앱에는 안 들어간다.
+ * node scripts/mockup-css.mjs 가 만든다(2026-09-05). 검사가 목업을 앱 CSS 로 그릴 때 이것을 함께 씌운다. */
+.wrap{display:grid;grid-template-columns:minmax(0,1fr);max-width:1500px;margin:0 auto;padding:0 20px}
+@media(min-width:1080px){
+  .wrap{grid-template-columns:216px minmax(0,1fr);gap:48px;padding:0 32px}
+}
+html[data-wide="1"] .wrap{max-width:none}
+nav{display:none}
+@media(min-width:1080px){
+  nav{display:block;position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding:40px 0}
+}
+nav .lab{font-size:var(--fs-1);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:12px}
+nav a{display:block;padding:4px 0 4px 12px;margin-left:-12px;color:var(--mid);text-decoration:none;font-size:var(--fs-3);border-left:2px solid transparent}
+nav a:hover{color:var(--ink);border-left-color:var(--navy)}
+nav .grp{margin-bottom:24px}
+main{padding:40px 0 100px;min-width:0}
+header.top{padding:8px 0 34px;border-bottom:1px solid var(--line);margin-bottom:38px}
+.eyebrow{font-size:var(--fs-2);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.lede{color:var(--mid);max-width:64ch;font-size:var(--fs-5)}
+section.screen{margin:0 0 64px}
+.shead{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-bottom:8px}
+.snum{font-size:var(--fs-2);color:var(--faint);font-weight:500}
+.shead h2{font-size:var(--fs-7);font-weight:700;letter-spacing:-.015em}
+.stag{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border-radius:6px;font-size:var(--fs-2);font-weight:600;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;background:var(--violet-fill);color:var(--on-violet)}
+.stag.q{background:var(--amber-fill);color:var(--on-amber)}
+.look{color:var(--mid);font-size:var(--fs-4);margin:0 0 16px;max-width:70ch}
+.look b{color:var(--ink);font-weight:500}
+/* 오늘 화면 접기 — 열림·닫힘·잠김. 투명도는 안 쓴다(원장님 규칙) */
+.card>.ctitle .fx{margin-left:auto;font-size:var(--fs-1);font-weight:500;padding:2px 8px;border-radius:20px;
+  background:var(--sunk);color:var(--mid);white-space:nowrap}
+.card.lock .fx{background:transparent;color:var(--mute)}
+.card.shut .fx{background:var(--navy);color:var(--on-navy)}
+.card.always .fx{background:var(--ok-fill);color:var(--on-ok)}
+/* 9/5 검토로 고친 자리 딱지 — 확인 끝나면 뗀다 */
+.tag.fx{background:transparent;border:1px dashed var(--amber);color:var(--mid);font-weight:600;font-size:var(--fs-1);padding:1px 8px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+.ask{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:12px 16px;margin-top:16px}
+.ask b{display:block;color:var(--navy);font-size:var(--fs-2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.ask p{margin:0;font-size:var(--fs-4);color:var(--mid)}
+.ask p+p{margin-top:8px}
+.opts{display:grid;gap:8px;margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+.opt{border:1px solid var(--line);border-radius:8px;padding:12px 12px;background:var(--sunk)}
+.opt b{display:block;font-size:var(--fs-3);margin-bottom:4px}
+.opt span{font-size:var(--fs-2);color:var(--mid);line-height:1.5}
+.real{border-collapse:collapse;width:100%;min-width:700px;font-size:var(--fs-3)}
+.real th,.real td{padding:8px 8px;text-align:left;border-bottom:1px solid var(--hair);vertical-align:top}
+.real th{background:var(--sunk);font-size:var(--fs-1);text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700}
+.real td.g{font-weight:500;white-space:nowrap}
+/* 제목 아이콘 — 화면이 무슨 일을 하는지 글자 앞에서 먼저 말한다 */
+.hemo{margin-right:8px;font-size:.78em;width:1.55em;height:1.55em;border-radius:12px;display:inline-grid;place-items:center;background:var(--sunk);vertical-align:-.28em}
+.notewrap{display:flex;flex-direction:column;gap:24px}
+.nsec{border-top:2px solid var(--line);padding-top:16px}
+.nh{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.nh b{font-size:var(--fs-6)}
+.snum.sm{width:auto;min-width:30px;height:24px;font-size:var(--fs-2);padding:0 8px;border-radius:6px}
+.ng{margin-left:auto;font-size:var(--fs-2);color:var(--navy);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:4px 8px}
+.nb{margin-bottom:8px}
+.nb.e>.card{margin:0}
+.nb .look{margin:0 0 8px}
+.ph1{display:block}
+.rules{border-top:1px solid var(--line);margin-top:40px;padding-top:24px}
+.rules h2{font-size:var(--fs-6);margin-bottom:16px}
+.tag.fx{border-style:dashed;border-color:var(--amber)}
+.hemo{width:var(--icon-lg);height:var(--icon-lg);border-radius:8px;font-size:var(--fs-5);vertical-align:-.3em}

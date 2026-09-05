@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "check": "bash scripts/check-pages.sh"
+    "check": "bash scripts/check-all.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",

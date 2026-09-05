@@ -17,3 +17,9 @@ NODE_PATH=$(npm root -g) node fonts.cjs       # 글꼴 1 · 크기 열 단계 ·
 
 전역 playwright 와 크로미움(`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`)을 쓴다. 어긋나면 종료 코드 1.
 새 앱을 지을 때 이 넷을 `scripts/check-*` 로 옮겨 앱 화면에 돌린다 — 목업과 앱이 같은 자로 재어진다.
+
+## 앱과의 관계
+
+- **이 파일이 원본이다.** 아티팩트는 이 파일을 올린 것이고, `app/globals.css` 는 이 파일의 `<style>` 에서 `node scripts/mockup-css.mjs` 가 갈라낸 것이다(겉껍질 규칙은 `chrome.css`).
+- 목업을 고친 날은 ① `node scripts/mockup-css.mjs` ② `bash scripts/check-all.sh` ③ 아티팩트 다시 올리기. `check-mockup` 이 앱과 목업이 같은지 화소로 잰다.
+- 검사가 목업을 고치게 한 것은 `docs/목업보다-나아진-것.md` 에 적는다.
