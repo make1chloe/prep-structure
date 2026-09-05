@@ -1,23 +1,25 @@
 import { Client } from "pg";
 import { readFileSync, writeFileSync } from "node:fs";
-const url = readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString:url, ssl:{rejectUnauthorized:false} }); await c.connect();
 
 const t = (await c.query(`
-  select c.relname tbl, obj_description(c.oid) note,
+  select n.nspname sch, c.relname tbl, obj_description(c.oid) note,
          (select count(*) from pg_attribute a where a.attrelid=c.oid and a.attnum>0 and not a.attisdropped) cols,
-         (select count(*) from pg_policies p where p.schemaname='v2' and p.tablename=c.relname) pol,
+         (select count(*) from pg_policies p where p.schemaname=n.nspname and p.tablename=c.relname) pol,
          (select array_agg(a.attname order by k.ord)
             from pg_index i join lateral unnest(i.indkey) with ordinality k(att,ord) on true
             join pg_attribute a on a.attrelid=i.indrelid and a.attnum=k.att
            where i.indrelid=c.oid and i.indisprimary) pk
     from pg_class c join pg_namespace n on n.oid=c.relnamespace
-   where n.nspname='v2' and c.relkind='r' order by c.relname`)).rows;
+   where n.nspname in ('v2','v3') and c.relkind='r' order by n.nspname, c.relname`)).rows;
 await c.end();
 
 const noNote = t.filter(x => !x.note);
+const v2 = t.filter(x => x.sch === 'v2'), v3 = t.filter(x => x.sch === 'v3');
+const row = x => `| \`${x.tbl}\` | ${(x.note || "⚠️ **안 적혔다**").replace(/\|/g,"\\|").replace(/\n/g," ").slice(0,150)} | ${(Array.isArray(x.pk) ? x.pk.join(" + ") : String(x.pk ?? "").replace(/[{}]/g,"").split(",").join(" + ")) || "—"} | ${x.cols} | ${x.pol} |`;
 // ⚠️ 줄 수(n_live_tup)는 **통계**라 돌릴 때마다 달라진다 — 문서에 넣으면 검사가 헛되이 깨진다
-const out = `# 표 유도 — v2 의 표 ${t.length}개가 어디서 나왔나
+const out = `# 표 유도 — v2 의 표 ${v2.length}개 · v3(새 앱) 의 표 ${v3.length}개가 어디서 나왔나
 
 > ⚠️ **이 문서가 자동 검사의 근거다** (계획 자동 검사 ⑳).
 > 마이그레이션이 만드는 표 이름이 여기 없으면 \`scripts/check-tables.mjs\` 가 깨진다.
@@ -29,7 +31,12 @@ const out = `# 표 유도 — v2 의 표 ${t.length}개가 어디서 나왔나
 
 | 표 | 한 줄이 무엇인가 | 열쇠 | 칸 | 규칙 |
 |---|---|---|---|---|
-${t.map(x => `| \`${x.tbl}\` | ${(x.note || "⚠️ **안 적혔다**").replace(/\|/g,"\\|").replace(/\n/g," ").slice(0,150)} | ${(Array.isArray(x.pk) ? x.pk.join(" + ") : String(x.pk ?? "").replace(/[{}]/g,"").split(",").join(" + ")) || "—"} | ${x.cols} | ${x.pol} |`).join("\n")}
+${v2.map(row).join("\n")}
+## v3 — 새 앱 (2026-09-05 밤부터 · 0100_v3_skeleton.sql)
+원장님 「데이터는 버리는 거 아니야」 — 코드는 새로, 표는 v3 에, 사람·권한은 \`v3.import_people()\` 로 v2 에서 옮긴다. 어느 걸음에서 나왔나는 표 주석에 적혀 있다(뼈대-n · 목업 nn).
+| 표 | 한 줄이 무엇인가 | 열쇠 | 칸 | 규칙 |
+|---|---|---|---|---|
+${v3.map(row).join("\n")}
 
 ## ⚠️ 「한 줄이 무엇인가」가 안 적힌 표 ${noNote.length}개
 

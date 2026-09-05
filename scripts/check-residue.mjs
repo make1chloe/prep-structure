@@ -7,7 +7,7 @@
  *  검사는 트랜잭션 안에서 쓰고 되돌리기로 되어 있지만, **한 번 실패하면 그대로 굳는다.**
  *  그래서 「되돌렸겠지」를 믿지 않고 **남은 것을 직접 센다.** */
 import { Client } from "pg";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 let fail = 0, n = 0;
 const ok = (t, bad, why = "") => { n++;
@@ -16,7 +16,7 @@ const ok = (t, bad, why = "") => { n++;
     if (why) console.log(`        → ${why}`); }
   else console.log(`   ✅ ${t}`); };
 
-const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
 for (let i = 1; ; i++) { try { await c.connect(); break; }
   catch (e) { if (i >= 4) throw e; await new Promise(r => setTimeout(r, 3000)); } }
@@ -71,9 +71,9 @@ for (const [name, tbl] of [["진도", "progress"], ["조각", "progress_part"],
 }
 
 // ⑥ 검사가 리허설 학생을 쓰는가 — 글자로 훑는다
-const dayChk = readFileSync("scripts/check-day.mjs", "utf8");
+const dayChk = (existsSync("scripts/check-day.mjs") ? readFileSync("scripts/check-day.mjs", "utf8") : "");
 ok("check-day 가 **리허설 학생**으로만 쓴다",
-   /import_batch\s*=\s*'fixture'/.test(dayChk) ? [] : ["state='active' 로 진짜 학생을 고른다"],
+   !existsSync("scripts/check-day.mjs") ? [] : /import_batch\s*=\s*'fixture'/.test(dayChk) ? [] : ["state='active' 로 진짜 학생을 고른다"],   // 옛 검사는 0단계에서 지웠다 — 오늘 화면을 다시 지을 때 그 검사가 리허설 학생만 쓰는지 여기서 다시 본다
    "진짜 학생 판에 쓰면 원장님이 없는 숙제를 본다");
 
 await c.end();

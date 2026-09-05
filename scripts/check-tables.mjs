@@ -15,7 +15,7 @@ let fail = 0, n = 0;
 const ok = (t, c, why = "") => { n++; if (!c) { fail++; console.log(`   ❌ ${t}${why ? " — " + why : ""}`); }
                                  else console.log(`   ✅ ${t}`); };
 
-const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
 for (let i = 1; ; i++) { try { await c.connect(); break; }
   catch (e) { if (i >= 4) throw e; await new Promise(r => setTimeout(r, 3000)); } }
@@ -23,10 +23,10 @@ for (let i = 1; ; i++) { try { await c.connect(); break; }
 const rows = (await c.query(`
   select c.relname tbl, obj_description(c.oid) note
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'v2' and c.relkind = 'r' order by c.relname`)).rows;
+   where n.nspname in ('v2','v3') and c.relkind = 'r' order by n.nspname, c.relname`)).rows;
 await c.end();
 
-console.log(`■ v2 의 표 ${rows.length}개`);
+console.log(`■ v2·v3 의 표 ${rows.length}개`);
 ok(`${DOC} 가 있다`, existsSync(DOC), "계획 1단계 6번 — 첫 마이그레이션보다 먼저 나왔어야 한다");
 const doc = existsSync(DOC) ? readFileSync(DOC, "utf8") : "";
 
@@ -55,7 +55,7 @@ ok("문서가 지금 DB 와 같다 (안 같으면 `node scripts/build-doc.mjs` �
     .map((f) => f.replace(/\.mjs$/, "")));
   const 적힌것 = [...new Set([...rules.matchAll(/\*\*지킴:\*\* `([^`]+)`/g)]
     .flatMap((m) => m[1].split(" · ").map((x) => x.trim())))];
-  const 없는 = 적힌것.filter((x) => !x.endsWith("*") && !있는것.has(x));
+  const 없는 = 적힌것.filter((x) => !x.endsWith("*") && !있는것.has(x) && !existsSync("scripts/" + x + ".mjs"));   // e2e/screens 처럼 눌러보기 검사는 scripts/ 아래 경로로 적는다
   ok("규칙 문서의 「지킴:」이 **진짜 있는 검사 이름**이다", 없는.length === 0,
      `없는 이름: ${없는.join(" ")} — 검사 이름을 바꿨으면 docs/규칙.md 도 같이 고친다`);
   const 빈칸 = (rules.match(/\*\*지킴:\*\* —/g) ?? []).length;

@@ -10,7 +10,7 @@
 import { Client } from "pg";
 import { readFileSync, readdirSync } from "node:fs";
 
-const url = readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 20000 });
 for (let i = 1; ; i++) { try { await c.connect(); break; }
   catch (e) { if (i >= 4) throw e; await new Promise(r => setTimeout(r, 3000)); } }

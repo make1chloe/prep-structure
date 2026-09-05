@@ -8,7 +8,7 @@ pass=0; fail=0; failed=()
 echo "■ 새 앱 검사  (scripts/check-*.mjs 를 훑어서 돈다 — 새로 만들면 저절로 들어온다)"
 # ⚠️ DB 열쇠(.env.local 의 DATABASE_URL)가 없는 자리에서는 DB 검사를 **건너뛴 것으로 센다** — 초록으로 세지 않는다.
 #    빨간 것은 앱이 틀린 것이고, 열쇠가 없는 것은 자리가 다른 것이다. 둘을 섞으면 둘 다 못 믿는다.
-has_db=0; grep -q "DATABASE_URL=" .env.local 2>/dev/null && has_db=1
+has_db=0; { [ -n "${DATABASE_URL:-}" ] || grep -q "DATABASE_URL=" .env.local 2>/dev/null; } && has_db=1
 skip=0; skipped=()
 for f in scripts/check-*.mjs; do
   [ -e "$f" ] || continue

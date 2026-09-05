@@ -1,6 +1,6 @@
 /** 스키마 짝 검사 — 트리거·칸·파기 목록·CASCADE 가 맞물리는가 */
 import { Client } from "pg"; import { readFileSync } from "node:fs";
-const url = readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1].trim();
+const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString:url, ssl:{rejectUnauthorized:false}, connectionTimeoutMillis:15000 });
 for(let i=1;;i++){try{await c.connect();break}catch(e){if(i>=4)throw e;await new Promise(r=>setTimeout(r,3000))}}
 const bad=[], ok=[];
