@@ -2,9 +2,10 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useTransition } from "react";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName } from "@/lib/day-plan";
+import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
@@ -18,7 +19,7 @@ const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
-export default function Row({ student, sheet, classId, date, minutes, defaultOpen }) {
+export default function Row({ student, sheet, classId, date, minutes, defaultOpen, cfg }) {
   const [open, setOpen] = useState(defaultOpen);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -55,7 +56,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <WorkCard sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} studentId={student.id} closed={closed} fail={fail} start={start} />
-            <CommentCard sheet={sheet} closed={closed} fail={fail} />
+            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg} />
           </>}
         </div>
       )}
@@ -277,19 +278,58 @@ function LateCard({ sheet, warn, studentId, closed, fail, start }) {
     </div>
   );
 }
-function CommentCard({ sheet, closed, fail }) {
+/** ✉️ 부모님께 나갈 글(목업 01 · 03 폰) — 키워드 → 상황(갈래 다섯, 그날 상태에서 저절로) → 길이(상황이 먼저 고른다) → ✨ 브리핑(AI 초안 · 넘으면 문장 끝에서 자름 · 원장님 글은 덮지 않는다) → 글.
+ *  글 밑에 저절로 붙는 줄과 👁 학부모 화면 미리보기(09·10 과 같은 판단). AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를 한 번 묻는다 — 막지 않는다(목업 9/5 ⑥) */
+function CommentCard({ sheet, student, closed, fail, start, cfg }) {
+  const lines = attached({ next: student.quizzes?.next ?? [], late: sheet.late, warn: student.warn });
+  const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check });
+  const [kind, setKind] = useState(sheet.comment_kind ?? autoKind);
+  const [cap, setCap] = useState(sheet.comment_cap ?? capOf(sheet.comment_kind ?? autoKind, cfg?.caps));
+  const [keys, setKeys] = useState(sheet.comment_keys ?? "");
+  const [text, setText] = useState(sheet.comment ?? "");
+  const [draft, setDraft] = useState(sheet.comment_ai ?? "");
+  const [offer, setOffer] = useState("");   // 초안이 나왔지만 지금 글이 있어 안 덮은 것
+  const [ask, setAsk] = useState(false);     // 「그대로 보낼까요?」
+  const [show, setShow] = useState(false);   // 👁 미리보기
+  const [made, setMade] = useState(null);    // 방금 만든 초안의 사정(다시 시킴 · 잘림)
+  const n = countChars(text), over = n > cap;
+  const payload = () => ({ comment: text, kind, cap, keys });
+  const pick = (k) => { setKind(k); setCap(capOf(k, cfg?.caps)); };
+  const brief = () => start(async () => {
+    const r = await commentDraft(sheet.id, { kind, cap, keys });
+    if (fail(r)) { setDraft(r.draft.text); setMade(r.draft); if (r.draft.replaced) { setText(r.draft.text); setOffer(""); } else setOffer(r.draft.text); }   // fail() 은 ok 를 돌려준다(이름과 반대) — 실패면 그 자리에 말하고 끝
+  });
+  const save = () => start(async () => { fail(await comment(sheet.id, payload())); });
+  const finish = (force) => { if (!force && sameAsDraft(text, draft)) { setAsk(true); return; } setAsk(false); start(async () => { fail(await close(sheet.id, payload())); }); };
   return (
-    <div className="card">
+    <div className="card" data-card="comment">
       <div className="ctitle"><span className="cemo">✉️</span>부모님께 나갈 글{closed && <span className="auto">마감됨</span>}</div>
-      <form action={async (f) => { fail(await (f.get("how") === "close" ? close(f) : comment(f))); }}>
-        <input type="hidden" name="sheetId" value={sheet.id} />
-        <textarea name="comment" defaultValue={sheet.comment ?? ""} rows={3} placeholder="오늘 한 것 · 잘한 것 · 다음 시간에 할 것" disabled={closed} style={{ width: "100%" }} />
-        {!closed && <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}>
-          <button className="btn sm" type="submit" name="how" value="save">임시 저장</button>
-          <button className="btn sm pri" type="submit" name="how" value="close">저장하고 마감</button>
-          <span className="note" style={{ margin: 0 }}>마감하면 학부모 화면에 보입니다 — 되돌리기는 원장님께</span>
-        </div>}
-      </form>
+      {lines.length > 0 && <div className="lf ok" style={{ marginBottom: 8 }} data-g="attached"><span className="ln">📝</span>
+        <div><b>글 밑에 저절로 붙습니다</b><small>{lines.map((l, i) => <span key={l.key} style={l.on ? undefined : { color: "var(--mute)" }}>{i ? " | " : ""}{l.text}</span>)}</small></div><span className="lm">따로 안 씀</span></div>}
+      {closed && <div className="tags" style={{ marginBottom: 8 }}><span className="tag">{capName(cap)}</span><span className="tag type">{kindName(kind)}</span>{draft && sameAsDraft(text, draft) && <span className="tag">AI 초안 그대로</span>}</div>}
+      {!closed && <>
+        <label className="fl">키워드만 적으세요</label>
+        <input type="text" name="keys" value={keys} onChange={(e) => setKeys(e.target.value)} placeholder="예: 간접의문문, 어순 스스로 설명, 워크북 오답 3개 다음시간" style={{ width: "100%" }} />
+        <div className="lenrow"><span className="fl" style={{ margin: 0, width: 30 }}>상황</span>
+          <div className="seg sm" data-g="kind">{CKIND.map(([k, name]) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => pick(k)}>{name}</button>)}</div>
+          {kind === autoKind && <span className="note" style={{ margin: 0 }}>오늘 상태에서 저절로</span>}</div>
+        <div className="lenrow"><span className="fl" style={{ margin: 0, width: 30 }}>길이</span>
+          <div className="seg sm" data-g="cap">{CAPS.map((c) => <button key={c} type="button" aria-pressed={cap === c} onClick={() => setCap(c)}>{capName(c)}</button>)}</div>
+          <button type="button" className="btn sm" data-act="brief" onClick={brief}>✨ 브리핑 만들기</button>
+          <span className={"cap" + (over ? " over" : "")} data-g="count">{n} / {capName(cap)}</span></div>
+      </>}
+      <textarea name="comment" value={text} onChange={(e) => { setText(e.target.value); setAsk(false); }} rows={3} placeholder="오늘 한 것 · 잘한 것 · 다음 시간에 할 것" disabled={closed} style={{ width: "100%", marginTop: 8 }} />
+      {made && !closed && <p className="note" style={{ margin: "4px 0 0" }}>✨ 초안 {made.chars}자{made.retried ? ` · ${made.retried}번 다시 시킴` : ""}{made.cut ? " · 넘어서 문장 끝에서 잘랐습니다" : ""}</p>}
+      {offer && <div className="lf" data-g="offer"><span className="ln">✨</span><div><b>초안이 나왔습니다 — 지금 글이 있어 덮지 않았습니다</b><small style={{ whiteSpace: "pre-wrap" }}>{offer}</small></div><button type="button" className="btn sm" onClick={() => { setText(offer); setOffer(""); }}>이 초안으로 바꾸기</button></div>}
+      {show && <div className="lf" data-g="preview"><span className="ln">👁</span><div><b>학부모 화면에 이렇게 보입니다</b><small style={{ whiteSpace: "pre-wrap" }}>{preview(text, lines) || "(아직 글이 없습니다)"}</small></div></div>}
+      {ask && <div className="lf warn" data-g="same"><span className="ln">?</span><div><b>AI 초안을 안 고치셨습니다 — 그대로 보낼까요?</b></div><button type="button" className="btn sm pri" onClick={() => finish(true)}>그대로 마감</button><button type="button" className="btn sm" onClick={() => setAsk(false)}>고치기</button></div>}
+      {!closed && <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}>
+        <button className="btn sm" type="button" onClick={save}>임시 저장</button>
+        <button className="btn sm pri" type="button" data-act="close" onClick={() => finish(false)}>저장하고 마감</button>
+        <button className="btn sm gho" type="button" data-act="preview" aria-pressed={show} onClick={() => setShow((v) => !v)}>👁 미리보기</button>
+        <span className="note" style={{ margin: 0 }}>마감하면 학부모 화면에 보입니다 — 되돌리기는 원장님께</span>
+      </div>}
+      {!closed && <p className="note" style={{ margin: "6px 0 0" }}>AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를 한 번 묻습니다 — 막지는 않습니다</p>}
     </div>
   );
 }

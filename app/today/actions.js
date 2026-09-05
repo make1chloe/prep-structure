@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
+import { commentRules, draftComment } from "@/lib/comment";
 import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
 import { setLate, sendLate } from "@/lib/late";
@@ -24,8 +25,9 @@ export const add = done(async (form) => { const { sb } = await staff(); await ad
 export const move = done(async (itemId, slot) => { const { sb } = await staff(); await moveItem(sb, itemId, slot); });
 export const late = done(async (form) => { const { sb } = await staff(); await setLate(sb, String(form.get("sheetId")), { reason: String(form.get("reason") ?? "") || null, untilAt: String(form.get("untilAt") ?? "") || null }); });
 export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });
-export const comment = done(async (form) => { const { sb } = await staff(); await saveComment(sb, String(form.get("sheetId")), String(form.get("comment") ?? "")); });
-export const close = done(async (form) => { const { sb, user } = await staff(); await closeSheet(sb, String(form.get("sheetId")), String(form.get("comment") ?? ""), user.id); });
+export const comment = done(async (sheetId, payload) => { const { sb } = await staff(); await saveComment(sb, String(sheetId), String(payload?.comment ?? ""), payload); });
+export const close = done(async (sheetId, payload) => { const { sb, user } = await staff(); await closeSheet(sb, String(sheetId), String(payload?.comment ?? ""), user.id, payload); });
+export const commentDraft = done(async (sheetId, payload) => { const { sb } = await staff(); const cfg = await commentRules(sb); return { draft: await draftComment(sb, String(sheetId), payload, cfg) }; });   // ✨ 브리핑 — 열쇠는 서버에서만
 // 오늘 학습·숙제 — 저절로 깔린 것을 손보는 손(확정-⑨a): 줄이기 · 교재 상태 · 회차 · 교재마다 메모. 판단은 lib/routine.js
 export const mode = done(async (sheetId, m) => { const { sb } = await staff(); await setMode(sb, sheetId, m); });
 export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = await staff(); await setStop(sb, sheetId, studentBookId, m); });
