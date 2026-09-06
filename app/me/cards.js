@@ -1,7 +1,8 @@
 "use client";
 /** 아이 화면의 누르는 카드 — 등원·하원(걸음 셋 · 반 고르기 · 집에 가요) · 「다 했어요」. 되돌릴 수 없는 것(등원 찍기)은 서버 답을 기다린다 */
 import { useState, useTransition } from "react";
-import { arrive, said, stage as setStageAct, due as setDueAct } from "./actions.js";
+import { arrive, said, stage as setStageAct, due as setDueAct, submitScore } from "./actions.js";
+import { md } from "@/lib/dash-plan";
 import { STAGES, dueText, dueBad } from "@/lib/material-plan";
 import { STEPS, LEAVE } from "@/lib/arrival-plan";
 import { seoulTime } from "@/lib/day-plan";
@@ -64,4 +65,22 @@ export function MaterialCard({ gives, today }) {
       {err && <div className="lf warn" role="alert" style={{ marginTop: 8 }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
     </div>
   );
+}
+
+/** 📈 성적 — 원장님이 공개한 시험만 보인다 · 내가 넣은 것은 「확인 기다리는 중」 · 본 회차가 있으면 원점수·틀린 번호를 넣는다(목업 16 「아이가 넣고 원장님이 확인」 · 9/5 ⑯) */
+export function ScoreCard({ scores = [], entry = [] }) {
+  const [err, setErr] = useState(""); const [msg, setMsg] = useState(""); const [pending, start] = useTransition(); const [f, setF] = useState({});
+  if (!scores.length && !entry.length) return null;   // 빈 카드는 숨긴다(확정-⑮)
+  const v = (id, k, d = "") => f[id]?.[k] ?? d, setV = (id, k, val) => setF({ ...f, [id]: { ...(f[id] ?? {}), [k]: val } });
+  const go = (e) => start(async () => { setErr(""); setMsg(""); const r = await submitScore(e.id, v(e.id, "raw"), v(e.id, "full", "100"), v(e.id, "wrongs")); if (!r.ok) { setErr(r.msg); return; } setMsg(`넣었어요 — 선생님이 확인하면 굳어요`); setF({}); });
+  return <div className="task" data-card="scores"><div className="h"><b><span className="cemo">📈</span>성적</b><span className="spacer" />{scores.length > 0 && <span className="pill">{scores[0].title}</span>}</div>
+    {scores.map((s) => <div className="li" key={s.id} data-g="score-line" data-pending={s.pending ? "1" : "0"}><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div>{s.pending && <span className="tag act">확인 기다리는 중</span>}</div>)}
+    {entry.map((e) => <div className="li" key={e.id} data-g="score-entry" data-exam={e.id}><div><b>{e.school} {e.name} — 점수를 넣어요</b><small>{md(e.on)} 본 시험 · 원점수와 틀린 번호(눌러도 적어도 같은 값)</small>
+      <div className="wv" style={{ marginTop: 6 }}><input type="text" inputMode="numeric" className="scr" placeholder="원점수" aria-label="원점수" value={v(e.id, "raw")} onChange={(x) => setV(e.id, "raw", x.target.value)} /><span className="note" style={{ margin: 0 }}>/</span><input type="text" inputMode="numeric" className="scr sm2" placeholder="100" aria-label="만점" value={v(e.id, "full")} onChange={(x) => setV(e.id, "full", x.target.value)} />
+        <input type="text" placeholder="틀린 번호 (예: 3, 7, 11)" aria-label="틀린 번호" value={v(e.id, "wrongs")} onChange={(x) => setV(e.id, "wrongs", x.target.value)} style={{ flex: "1 1 160px" }} />
+        <button className="btn sm pri" type="button" disabled={pending || !String(v(e.id, "raw")).trim()} data-act="score-submit" onClick={() => go(e)}>넣기</button></div></div></div>)}
+    {err && <p className="note" role="alert" style={{ margin: "6px 0 0", color: "var(--miss)" }}>{err}</p>}
+    {msg && <p className="note" data-g="score-msg" style={{ margin: "6px 0 0", color: "var(--on-ok)" }}>{msg}</p>}
+    {scores.length > 0 && <p className="note k" style={{ margin: "6px 0 0" }}>원장님이 공개한 시험만 보여요.</p>}
+  </div>;
 }

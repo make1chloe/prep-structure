@@ -61,6 +61,7 @@ function ExamCard({ e, b, today, pending, run, stName }) {
       <span className="tag" data-g="takers">{takers.length}명</span>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}
       <span className="spacer" /><span className="pill">{SOURCE_TEXT[e.source] ?? "손으로 넣음"}</span>
+      <a className="btn sm" href={`/scores?e=${e.id}`} data-act="scores">📈 성적</a>
       <button className="btn sm" type="button" disabled={pending} data-act="hide" onClick={() => run(() => hiddenAct(e.id, true), "숨겼습니다 — 대비·재촉·교재 멈춤에서 빠집니다")}>🙈 숨김</button></div>
     <div className="note" style={{ margin: "0 0 8px" }}>{e.name} · 시험 기간 {mdDot(e.term_from)}{e.term_to && e.term_to !== e.term_from ? `~${mdDot(e.term_to)}` : ""}{e.source === "neis" ? " · 나이스가 주인(덮지 않습니다)" : ""}</div>
     {!e.english_on && <div className="lf over"><span className="ln">!</span><div><b>영어 시험일을 넣어 주세요</b><small>나이스는 기간만 줍니다 — 모르면 루틴(교재 멈춤)을 안 세웁니다</small></div>

@@ -50,6 +50,9 @@ export default async function Parent({ searchParams }) {
       <p className="note k" style={{ margin: "4px 0 0" }}>숙제와 같이 왔습니다. 다음 수업 시작하자마자 봅니다. 개수를 안 정한 시험은 여기 안 옵니다.</p></Card>}
     {can(PARENT.next) && d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
       {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>}
+    {can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" pill={d.scores[0].title}>
+      {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div></div>)}
+      <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 시험만 보입니다.</p></Card>}
     {can(PARENT.recent) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card>}
     {can(PARENT.recent) && <a className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></a>}

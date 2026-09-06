@@ -9,7 +9,7 @@ import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
-import { ArrivalCard, SaidButton, MaterialCard } from "./cards.js";
+import { ArrivalCard, SaidButton, MaterialCard, ScoreCard } from "./cards.js";
 import AskCard from "../_shell/askcard.js";
 import BellCard from "../_shell/bell.js";
 import { ask } from "./actions.js";
@@ -59,6 +59,7 @@ export default async function Me() {
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>}
       <a className="task" href="/me/cal" data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></a>
     </>}
+    <ScoreCard scores={d.scores} entry={d.entry} />
     {can(ME.books) && <MaterialCard gives={d.gives} today={date} />}
     {can(ME.books) && <Card emo="🗺" title="내 교재" id="books" pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
