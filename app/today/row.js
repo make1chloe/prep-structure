@@ -247,8 +247,8 @@ function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
         </div>); })}
       {!closed && <form className="wv" style={{ marginTop: 8 }} action={async (f) => { fail(await quizAdd(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
-        <select name="kind" className="sel" aria-label="시험 갈래">{KIND.map(([k, name]) => <option key={k} value={k}>{name}</option>)}</select>
-        <select name="bookId" className="sel" aria-label="범위 교재" onChange={(e) => { const f = e.target.form; f.unitId.value = unitOf(e.target.value) ?? ""; f.round.value = books.find((b) => b.book_id === e.target.value)?.round ?? 1; }}>
+        <select name="kind" style={{ width: "auto" }} aria-label="시험 갈래">{KIND.map(([k, name]) => <option key={k} value={k}>{name}</option>)}</select>
+        <select name="bookId" style={{ width: "auto" }} aria-label="범위 교재" onChange={(e) => { const f = e.target.form; f.unitId.value = unitOf(e.target.value) ?? ""; f.round.value = books.find((b) => b.book_id === e.target.value)?.round ?? 1; }}>
           {books.map((b) => <option key={b.id} value={b.book_id}>{b.books.name}</option>)}<option value="">직접 적기</option></select>
         <input type="hidden" name="unitId" defaultValue={books[0] ? unitOf(books[0].book_id) ?? "" : ""} /><input type="hidden" name="round" defaultValue={books[0]?.round ?? 1} />
         <input type="text" name="freeNote" placeholder="직접 적을 때 범위" style={{ flex: "1 1 120px", minWidth: 0 }} />

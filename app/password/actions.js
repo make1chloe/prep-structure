@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { guard } from "@/lib/session";
 import { db } from "@/lib/supabase";
 import { ruleInt } from "@/lib/rule";
+import { homeFor } from "@/lib/menu";
 export async function changePassword(form) {
-  const { sb } = await guard({ allowMustChange: true });
+  const { sb, me } = await guard({ allowMustChange: true });
   const a = String(form.get("pw") ?? ""), b = String(form.get("pw2") ?? "");
   const min = await ruleInt(sb, "password.min_len");
   const bad = a !== b ? "두 칸이 다릅니다" : a.length < min ? `${min}자 이상이어야 합니다` : /^0+$/.test(a) ? "0000 처럼 같은 숫자만은 안 됩니다" : "";
@@ -13,5 +14,5 @@ export async function changePassword(form) {
   const { error } = await sb.auth.updateUser({ password: a });
   if (error) redirect(`/password?e=${encodeURIComponent("바꾸지 못했습니다: " + error.message)}`);
   await db(sb).rpc("password_changed");
-  redirect("/");
+  redirect(homeFor(me?.role));   // 아이는 /me
 }

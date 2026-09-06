@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toLoginEmail } from "@/lib/roles";
+import { whoami } from "@/lib/session";
+import { homeFor } from "@/lib/menu";
 export async function signIn(form) {
   const kind = String(form.get("kind") ?? ""), id = String(form.get("id") ?? ""), password = String(form.get("password") ?? "");
   const conv = toLoginEmail(kind, id);
@@ -13,5 +15,6 @@ export async function signIn(form) {
     const m = /invalid login|invalid_grant|credentials/i.test(error.message) ? "아이디 또는 비밀번호가 맞지 않습니다" : /email not confirmed/i.test(error.message) ? "계정이 아직 열리지 않았습니다. 원장님께 알려 주세요" : "들어갈 수 없습니다. 잠시 뒤 다시 해 보세요";
     redirect(`/login?e=${encodeURIComponent(m)}&k=${kind}`);
   }
-  redirect("/");
+  const w = await whoami();
+  redirect(homeFor(w.me?.role));   // 역할마다 제 첫 화면(아이는 /me) — 첫 화면에서 한 번 더 도는 일이 없게
 }
