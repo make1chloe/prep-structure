@@ -7,6 +7,7 @@ import { warnBand } from "@/lib/warn";
 import Band from "./band.js";
 import Row from "./row.js";
 import { isUnchecked } from "@/lib/status";
+import { classLabel } from "@/lib/dash-plan";
 export const dynamic = "force-dynamic";
 const minutesOf = (a, b) => { const m = (t) => { const [h, mi] = String(t ?? "").split(":").map(Number); return h * 60 + (mi || 0); }; return a && b ? Math.max(0, m(b) - m(a)) : 0; };   // 반 시간(분) — 「90분이면 한 항목에 6.0분」
 const frame = (children) => <main className="frame" style={{ maxWidth: 960, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
@@ -24,7 +25,7 @@ export default async function Today() {
     <Band band={band} />
     <div className="wv" style={{ marginBottom: 8 }}>
       <span className="pill">{date}</span>
-      {r.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <span key={c.id ?? "makeup"} className="pill">{c.nickname || (c.kind === "special" ? "특강" : c.kind === "makeup" ? "보강" : "정규")} {c.start}{c.end ? `–${c.end}` : ""} · {c.students.length}명{c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}</span>; })}
+      {r.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <span key={c.id ?? "makeup"} className="pill">{classLabel(c)} · {c.students.length}명{c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}</span>; })}
       {unchecked > 0 && <span className="pill warn">검사 안 본 것 {unchecked}</span>}
     </div>
     {r.classes.map((c) => (
