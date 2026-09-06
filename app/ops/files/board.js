@@ -61,8 +61,8 @@ export default function Board({ d }) {
       {!sent.length && <p className="note" style={{ margin: "4px 0" }}>보낸 것이 없습니다 — 📤 보내기로 오늘 숙제에 붙입니다</p>}
       {sent.map((f) => <div className="lf" key={f.id} data-g="sent-row" data-file={f.id}><span className="ln">{f.icon}</span>
         <div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.note ? ` · 💬 「${f.note}」` : ""}{f.by_name ? ` · ${f.by_name}` : ""}</small>
-          {f.links.map((l, i) => <div className="kv" key={i} data-g="sent-link" data-seen={l.seen_by_child ?? "none"}><span>{l.target}</span>{l.seen}{l.seen_at ? ` ${md(seoulDate(l.seen_at))}` : ""}</div>)}
-          {!f.links.length && <div className="kv"><span>안 붙임</span>📤 보내기에서 숙제 줄에 붙입니다</div>}</div>
+          {f.links.map((l, i) => <small key={i} data-g="sent-link" data-seen={l.seen_by_child ?? "none"} style={{ color: "var(--mid)" }}>{l.target} · {l.seen}{l.seen_at ? ` ${md(seoulDate(l.seen_at))}` : ""}</small>)}
+          {!f.links.length && <small>안 붙임 — 📤 보내기에서 숙제 줄에 붙입니다</small>}</div>
         <span className="lm" data-g="sent-done">{f.done}/{f.total}</span><a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer">열기</a></div>)}
     </div>}
     <div className="savebar" style={{ marginTop: 12 }} data-g="bar"><span className="pill" data-g="counts">받은 것 {c.received} · 보낸 것 {c.sent} · 안 본 것 {c.unsorted}</span><span className="spacer" /><span className="pill">지우지 않습니다 — 아이 화면의 붙임만 {days}일 뒤 안 보입니다</span></div>
