@@ -170,5 +170,16 @@ on conflict do nothing;
 insert into v2.role_access (role, key, allowed) values ('parent', 'parent.intro', true), ('parent', 'parent.recent', true), ('parent', 'parent.homework', true), ('parent', 'parent.next', true), ('parent', 'parent.sent', true), ('parent', 'parent.reports', true)
 on conflict (role, key) do nothing;
 
+-- 자료함 20 · 영상 19 눌러보기(3단계-9) — 학부모가 보낸 사진 하나(갈래 안 고름 → 「방금 온 것」) · 원장이 어제 숙제 첫 줄에 붙인 pdf(아이 화면 📎 · 학부모는 마감한 판이라 보인다) · 영상 하나(300초) 배정 + 지나간 구간 [0,30)·[60,90) = 60초 → 20% · 학부모 자료 카드 켬. 보관함 파일 자체는 걷기가 /var/tmp/e2e-storage 에 쓴다
+insert into v2.file (id, by_profile, student_id, orig_name, mime, bytes, path, shrunk, note, uploaded_at) values
+  ('99999999-0000-4000-f500-000000000001', '44444444-4444-4444-4444-444444444444', '99999999-0000-4000-9000-000000000001', 'zz_수행평가.jpg', 'image/jpeg', 12000, 'e2e/zz-parent.jpg', true, '수행평가 안내문이에요', now() - interval '2 hour'),
+  ('99999999-0000-4000-f500-000000000002', '11111111-1111-1111-1111-111111111111', '99999999-0000-4000-9000-000000000001', 'zz_어순정리.pdf', 'application/pdf', 3000, 'e2e/zz-staff.pdf', false, '어순 정리 — 오답 다시 풀 곳', now() - interval '1 day')
+on conflict (id) do nothing;
+insert into v2.file_link (file_id, day_item_id) values ('99999999-0000-4000-f500-000000000002', '99999999-0000-4000-d000-000000000001') on conflict do nothing;
+insert into v2.video (id, title, url, folder, seconds) values ('99999999-0000-4000-f600-000000000001', 'zz_간접의문문 정리', 'https://www.youtube.com/watch?v=zzzzzzzzzzz', 'zz_문법', 300) on conflict (id) do nothing;
+insert into v2.video_assign (video_id, student_id, due_on) values ('99999999-0000-4000-f600-000000000001', '99999999-0000-4000-9000-000000000001', v2.today() + 3) on conflict do nothing;
+insert into v2.video_view (video_id, student_id, spans, last_pos) values ('99999999-0000-4000-f600-000000000001', '99999999-0000-4000-9000-000000000001', array[int4range(0, 30), int4range(60, 90)], 90) on conflict do nothing;
+insert into v2.role_access (role, key, allowed) values ('parent', 'parent.files', true) on conflict (role, key) do nothing;
+
 -- 발송 10 눌러보기 — 리허설은 방해금지 없음(시작=끝). 걷기가 밤에 돌아도 알림이 미뤄지지 않게. 진짜 DB 는 0118 씨앗(23:00~09:00) 그대로
 update v2.rule set value = '00:00' where key in ('send.quiet_from', 'send.quiet_to');

@@ -1,0 +1,40 @@
+/** 자료함 판단 검사(검사-62) — lib/files-plan.js 순수 셈: 갈래 여섯 · 종류 목록(버킷과 같은 벌) · 크기 글 · 확장자·경로 · 사진 줄이기 계획 · 한 번에 N장 · 파일 하나 검사(종류·크기) · 누가 보냈나 · 저절로 꼬리표 · 방금 온 것 줄 · 갈래별 칸(학교·학년 · 아이별 · 빈 묶음 없음) · 가장 또렷 · 보낸 것 줄(N/M) · 아이 쪽 1달(규칙) · 숫자 셋 · 보내기 양식 */
+import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets } from "../lib/files-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+console.log("■ 자료함 판단(순수)");
+ok("갈래 여섯 — 수행평가 · 시험 안내 · 수업자료 · 학사일정 · 가정통신문 · 그 밖(0015 의 check 와 같다)", KINDS.join() === "수행평가,시험 안내,수업자료,학사일정,가정통신문,그 밖");
+ok("종류 목록 — 사진·pdf·한글·워드·엑셀·파워포인트·글 22가지(9000 버킷과 같은 벌) · 사진 판별 · 아이콘", ALLOWED_MIME.length === 22 && isImage("image/heic") && !isImage("application/pdf") && icon("image/png") === "📷" && icon("application/pdf") === "📄");
+ok("크기 글 — 480KB · 2.1MB · 0 은 1KB", sizeText(480 * 1024) === "480KB" && sizeText(2.1 * 1048576) === "2.1MB" && sizeText(0) === "1KB");
+ok("확장자 — 이름에서(대문자도) · 없으면 종류에서 · 모르면 bin · 경로는 연/월/아이디.확장자(사람 이름 없음)", extOf("안내문.JPG", "image/jpeg") === "jpg" && extOf("사진", "image/png") === "png" && extOf("x", "application/x-hwp") === "bin" && pathFor("2026-09-06", "abc", "jpg") === "2026/09/abc.jpg");
+ok("사진 줄이기 — 4000×3000 → 1600×1200 · 1200×800 은 그대로 · 세로 사진도 긴 변 기준", JSON.stringify(shrinkPlan(4000, 3000, 1600)) === JSON.stringify({ w: 1600, h: 1200, shrink: true }) && shrinkPlan(1200, 800, 1600).shrink === false && shrinkPlan(900, 3200, 1600).h === 1600);
+ok("한 번에 — 30장은 되고 31장은 「나눠 올려 주세요」 · 0장은 고르라고", acceptBatch(30, 30).ok && !acceptBatch(31, 30).ok && acceptBatch(31, 30).msg.includes("나눠") && !acceptBatch(0, 30).ok);
+ok("파일 하나 — 안 받는 종류(zip) · 빈 파일 · 4MB 넘는 pdf 는 걸리고 사진은 줄인 뒤라 안 걸린다", checkFile({ name: "a.zip", mime: "application/zip", bytes: 10 }, {}) !== null && checkFile({ name: "a.jpg", mime: "image/jpeg", bytes: 0 }, {}) !== null && checkFile({ name: "a.pdf", mime: "application/pdf", bytes: 5 * 1048576 }, { maxMb: 4 }).includes("4MB") && checkFile({ name: "a.jpg", mime: "image/jpeg", bytes: 700000 }, { maxMb: 4 }) === null);
+const parentF = { id: "f1", by_role: "parent", by_name: "zz 학부모", student_name: "강민서", student_grade: 1, school_name: "옥련여고", term: "26-2", mime: "image/jpeg", bytes: 2100000, note: "수행평가 안내문이에요", uploaded_at: "2026-09-02T08:14:00+09:00" };
+ok("누가 보냈나 — 학부모 계정은 「강민서 학부모가 보냄」 · 아이는 「한지우가 보냄」·「강민석이 보냄」(받침) · 학원 사람은 이름", whoText(parentF) === "강민서 학부모가 보냄" && whoText({ by_role: "student", student_name: "한지우" }) === "한지우가 보냄" && whoText({ by_role: "student", student_name: "강민석" }) === "강민석이 보냄" && whoText({ by_role: "principal", by_name: "원장" }) === "원장이 보냄");
+ok("저절로 꼬리표 — 「🏫 옥련여고 1 · 26-2」 · 학교 없으면 「그 밖」으로 가라고", autoTag(parentF) === "🏫 옥련여고 1 · 26-2" && autoTag({ school_name: null }).includes("그 밖"));
+const ib = inboxRows([parentF]);
+ok("방금 온 것 줄 — 누가 · 꼬리표 · 📷 · 2.0MB · 9/2", ib[0].who === "강민서 학부모가 보냄" && ib[0].icon === "📷" && ib[0].size === "2.0MB" && ib[0].when === "9/2", JSON.stringify(ib[0]));
+const bins = [
+  { id: "b1", school_id: "s1", school: "옥련여고", grade: 1, term: "26-1", kind: "수행평가", files: [{ id: "x1", mime: "image/jpeg", bytes: 1400000, uploaded_at: "2026-09-02T00:00:00Z", student_id: "k1" }, { id: "x2", mime: "image/jpeg", bytes: 300000, uploaded_at: "2026-09-01T00:00:00Z", student_id: "k2" }, { id: "x3", mime: "application/pdf", bytes: 500000, uploaded_at: "2026-08-30T00:00:00Z", student_id: "k3" }] },
+  { id: "b2", school_id: "s1", school: "옥련여고", grade: 1, term: null, kind: "학사일정", files: [{ id: "x4", mime: "application/pdf", bytes: 480000, uploaded_at: "2026-03-02T00:00:00Z" }] },
+  { id: "b3", school_id: "s2", school: "신정중", grade: 2, term: "26-2", kind: "시험 안내", files: [] },
+  { id: "b4", school_id: null, school: null, grade: null, term: null, kind: "그 밖", files: [{ id: "x5", mime: "image/jpeg", bytes: 100, uploaded_at: "2026-09-03T00:00:00Z", student_id: "k1", student_name: "강민서" }, { id: "x6", mime: "image/jpeg", bytes: 100, uploaded_at: "2026-09-04T00:00:00Z", student_id: "k9", student_name: "서예린" }] },
+];
+const cols = columns(bins);
+ok("갈래별 칸 — 옥련여고 1(4개 · 카드 둘: 「26-1 수행평가 사진 2 · 문서 1 · 2.1MB · 같은 것 2장 · 마지막 9/2」 · 「학사일정」) · 빈 묶음(신정중)은 없다 · 🧑‍🎓 아이별(강민서·서예린 · 학교와 상관없는 것)", cols.length === 2 && cols[0].title === "🏫 옥련여고 1" && cols[0].n === 4 && cols[0].cards[0].title === "26-1 수행평가" && cols[0].cards[0].sub === "사진 2 · 문서 1 · 2.1MB" && cols[0].cards[0].same === 2 && cols[0].cards[0].last === "9/2" && cols[0].cards[1].title.includes("학사일정") && cols[1].key === "kids" && cols[1].cards.length === 2 && cols[1].cards[0].why === "학교와 상관없는 것", JSON.stringify(cols.map((c) => [c.title, c.n, c.cards.map((x) => [x.title, x.sub, x.same, x.last])])));
+ok("가장 또렷 — 사진 중 가장 큰 것(1.4MB) · 사진이 하나면 없음", sharpest(bins[0].files) === "x1" && sharpest(bins[1].files) === null);
+const sent = sentRows([{ id: "f9", orig_name: "어순 정리.pdf", mime: "application/pdf", bytes: 200000, uploaded_at: "2026-09-02T00:00:00Z", links: [{ day_item_id: "i1", student_name: "강민서", sheet_date: "2026-09-02", item_name: "CH5 부정사", seen_by_child: "saved", seen_at: "2026-09-02T10:00:00Z" }, { day_item_id: "i2", student_name: "윤도현", sheet_date: "2026-09-02", item_name: "CH5 부정사", seen_by_child: "skip" }, { day_item_id: "i3", student_name: "한지우", sheet_date: "2026-09-02", item_name: "CH5 부정사", seen_by_child: null }] }]);
+ok("보낸 것 줄 — 붙인 자리 「강민서 · 9/2 숙제 · CH5 부정사」 · 💾 저장 · ✓ 안 보기 · 아직 · 2/3", sent[0].links[0].target === "강민서 · 9/2 숙제 · CH5 부정사" && sent[0].links.map((l) => l.seen).join() === "💾 저장,✓ 안 보기,아직" && sent[0].done === 2 && sent[0].total === 3);
+const links = [
+  { file_id: "a", day_item_id: "i1", seen_by_child: null, created_at: "2026-09-05T00:00:00Z", file: { orig_name: "a.jpg", mime: "image/jpeg", bytes: 1000 }, day_item: { range_note: "워크북", day_sheet: { date: "2026-09-05" } } },
+  { file_id: "b", day_item_id: "i1", seen_by_child: "saved", created_at: "2026-08-20T00:00:00Z", file: { orig_name: "b.pdf", mime: "application/pdf", bytes: 1000 }, day_item: { learn_items: { name: "PSS" }, day_sheet: { date: "2026-08-20" } } },
+  { file_id: "c", day_item_id: "i2", seen_by_child: "skip", created_at: "2026-07-01T00:00:00Z", file: { orig_name: "c.jpg", mime: "image/jpeg", bytes: 1000 }, day_item: {} },
+];
+const cl = childLinks(links, "2026-09-06", 30);
+ok("아이 쪽 1달 — 아직 1(9/5 · 10/5까지 보여요) · 지난 것 1(💾 저장 · PSS) · 1달 지난 것 1은 개수만 · 규칙 60일이면 셋 다", cl.pending.length === 1 && cl.pending[0].until === "10/5" && cl.pending[0].item === "워크북" && cl.past.length === 1 && cl.past[0].seen === "💾 저장" && cl.past[0].item === "PSS" && cl.hidden === 1 && childLinks(links, "2026-09-06", 70).hidden === 0, JSON.stringify(cl));
+ok("숫자 셋 — 받은 것 = 방금 온 것 + 묶음의 파일 · 보낸 것 · 안 본 것 = 방금 온 것", JSON.stringify(counts({ inbox: [1, 2], bins, sent: [1] })) === JSON.stringify({ received: 8, sent: 1, unsorted: 2 }));
+const st = [{ id: "k1", name: "강민서", sheet: { id: "s", date: "2026-09-06", items: [{ id: "i1", name: "CH5 부정사" }] } }, { id: "k2", name: "윤도현", sheet: { id: "s2", date: "2026-09-04", items: [] } }, { id: "k3", name: "한지우", sheet: null }];
+ok("보내기 양식 — 아이 → 마지막 판의 숙제 줄 · 숙제 줄이 없으면 「N/D 판에 숙제 줄이 없습니다」 · 판이 없으면 그렇게 · 안 고르면 고르라고", sendTargets(st, "k1").items.length === 1 && sendTargets(st, "k2").why.startsWith("9/4 판에 숙제 줄이 없습니다") && sendTargets(st, "k3").why.startsWith("이 아이의 숙제 판이 없습니다") && sendTargets(st, "").why === "아이를 고르세요");
+console.log(`\n■ 자료함 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

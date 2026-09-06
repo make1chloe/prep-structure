@@ -6,7 +6,8 @@
  *
  *   /auth/v1/*      이 파일이 흉내 낸다 (로그인 · 나 누구야 · 로그아웃)
  *   /rest/v1/*      PostgREST 로 넘긴다 (표 · RPC)
- *   /storage/v1/*   없다 — 사진은 이 검사 밖이다. 501 로 정직하게 답한다
+ *   /storage/v1/*   이 파일이 흉내 낸다 — 올리기(POST object/<버킷>/<경로>) · 읽기(GET) 만, 파일은 /var/tmp/e2e-storage 에(3단계-9 자료함).
+ *                   진짜와 다른 점: 버킷 규칙(RLS · allowed_mime_types)을 안 본다 — 앱이 v2.file 로 접근을 정하고(9000 이 그 규칙을 빌린다) 종류는 lib/files-plan 이 본다. 그 밖(지우기 · 서명 주소 · 목록)은 501
  *
  * **앱 코드에는 손대지 않는다.** 앱은 자기가 진짜 Supabase 에 붙는 줄 알고
  * 그대로 돈다 — 그래야 검사한 것이 실제로 도는 것과 같다.
@@ -18,6 +19,10 @@
  */
 import http from "node:http";
 import { execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { dirname, join, normalize } from "node:path";
+const STORE = process.env.E2E_STORAGE_DIR || "/var/tmp/e2e-storage";
+const readRaw = (req) => new Promise((ok) => { const chunks = []; req.on("data", (c) => chunks.push(c)); req.on("end", () => ok(Buffer.concat(chunks))); });
 import { sign, verify } from "./token.mjs";
 
 const PG_PORT = process.env.E2E_PG_PORT || "55440";
@@ -225,9 +230,30 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── 사진 — 없다. 조용히 빈 답을 주면 「왜 안 보이지」 가 된다 ──
+  // ── 보관함 흉내 — 올리기 · 읽기만. 서버 자신(service role)만 닿는다(앱이 그렇게 쓴다) ──
   if (path.startsWith("/storage/v1")) {
-    return json(res, 501, { message: "e2e: 사진 보관함은 이 검사에 없습니다" });
+    const m = /^\/storage\/v1\/object\/([\w-]+)\/(.+)$/.exec(path);
+    if (!m) return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다 — " + path });
+    const auth = req.headers.authorization || "";
+    if (!auth.startsWith("Bearer ")) return json(res, 401, { message: "e2e: 보관함은 열쇠가 있어야 합니다" });
+    const rel = normalize(decodeURIComponent(m[2])).replace(/^(\.\.[/\\])+/, ""); const file = join(STORE, m[1], rel);
+    if (req.method === "POST" || req.method === "PUT") {
+      if (existsSync(file) && req.headers["x-upsert"] !== "true") return json(res, 400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });
+      let body = await readRaw(req);
+      const ct = String(req.headers["content-type"] || "");
+      if (ct.startsWith("multipart/form-data")) {   // supabase-js 가 Blob 을 주면 multipart 로 온다 — 마지막 조각의 본문만 꺼낸다
+        const b = ct.split("boundary=")[1]; const parts = body.toString("latin1").split(`--${b}`); const last = parts.filter((x) => /filename=/.test(x)).at(-1) || parts.at(-2) || "";
+        const i = last.indexOf("\r\n\r\n"); body = Buffer.from(last.slice(i + 4).replace(/\r\n$/, ""), "latin1");
+      }
+      mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, body);
+      return json(res, 200, { Key: `${m[1]}/${rel}`, Id: rel });
+    }
+    if (req.method === "GET") {
+      if (!existsSync(file)) return json(res, 400, { statusCode: "404", error: "not_found", message: "Object not found" });
+      const bytes = readFileSync(file);
+      res.writeHead(200, { "content-type": "application/octet-stream", "content-length": String(bytes.length), "access-control-allow-origin": "*" }); res.end(bytes); return;
+    }
+    return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다 — " + req.method + " " + path });
   }
 
   return json(res, 404, { message: `e2e: 모르는 길 — ${path}` });

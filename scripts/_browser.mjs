@@ -22,7 +22,7 @@ export const VIEWS = [
 ];
 
 /** 바깥망을 막는다 — 글꼴 서버(fonts.googleapis) 는 검사 환경에서 안 닿고, 닿아도 검사가 볼 것이 아니다. 기다림만 는다 */
-export const offline = (ctx) => ctx.route(/fonts\.g(oogleapis|static)\.com|google\.com/, r => r.abort());
+export const offline = (ctx) => ctx.route(/fonts\.g(oogleapis|static)\.com|google\.com|youtube\.com|ytimg\.com/, r => r.abort());   // 유튜브도 — 재생기는 실물 리허설, 검사는 「앱 안에서 못 틀어요 → 유튜브에서 보기」 길을 본다
 
 /** 로그인한 채로 열기 — scripts/e2e/screens.mjs 가 남긴 쿠키 상태(CHECK_STATE=.tmp/state-*.json). 없으면 손님으로 */
 export const stateOpts = () => (process.env.CHECK_STATE && fs.existsSync(process.env.CHECK_STATE) ? { storageState: process.env.CHECK_STATE } : {});

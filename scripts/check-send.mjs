@@ -44,7 +44,7 @@ ok("오늘 나간 것 — 읽음(2번 열어봄) · 리허설 🧪 · 못 보냄
 ok("읽음 셈 — 읽음 1 · 안 읽음 1 · 못 보냄 1 · 리허설 1", JSON.stringify(readCounts(logs)) === JSON.stringify({ read: 1, unread: 1, failed: 1, rehearsal: 1 }), JSON.stringify(readCounts(logs)));
 ok("자취 상태 — 스위치 off 로 안 나간 것은 「리허설 — 실제로는 안 나감」(대전제-0)", logStatus(logs[1]).text.startsWith("리허설(off) — 실제로는 안 나감"));
 console.log("■ 알림 판단(순수)");
-ok("제목 — [클로이영어] 수업 안내 · 이미 붙어 있으면 다시 안 붙인다 · 갈래 아홉(첫 등원 안내는 3단계-8 등록 전환에서)", titleFor("daily", "클로이영어") === "[클로이영어] 수업 안내" && titleFor("late", "클로이영어") === "[클로이영어] 늦은 귀가 안내" && titleFor("welcome", "클로이영어") === "[클로이영어] 첫 등원 안내" && Object.keys(LABEL).length === 9);
+ok("제목 — [클로이영어] 수업 안내 · 이미 붙어 있으면 다시 안 붙인다 · 갈래 열(첫 등원 안내는 3단계-8 등록 전환 · 영상 안내는 3단계-9 재촉)", titleFor("daily", "클로이영어") === "[클로이영어] 수업 안내" && titleFor("late", "클로이영어") === "[클로이영어] 늦은 귀가 안내" && titleFor("welcome", "클로이영어") === "[클로이영어] 첫 등원 안내" && titleFor("video", "클로이영어") === "[클로이영어] 영상 안내" && Object.keys(LABEL).length === 10);
 threw = false; try { titleFor("nope"); } catch { threw = true; } ok("모르는 갈래는 던진다", threw);
 const pl = payloadFor({ kind: "daily", academy: "클로이영어", tag: "daily-s1", r: 77 });
 ok("짐 다섯 칸(sw.js 계약) — 본문은 늘 「앱에서 확인해주세요.」(잠금화면에 내용 없음)", JSON.stringify(Object.keys(pl)) === JSON.stringify(["title", "body", "tag", "url", "r"]) && pl.body === OPEN_TO_SEE && pl.url === "/parent" && pl.r === 77);
