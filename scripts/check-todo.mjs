@@ -1,0 +1,64 @@
+/** 할 일 · 내신 자료 판단 검사(검사-57) — lib/todo-plan.js 순수 셈: 카드 목록(한 벌 → 종류가 바깥 축 · 성적 받기는 회차에서 세어 나온다) · 마감 줄(D-N 은 시험까지 · 지남은 마감 기준) · 칸(인쇄는 장수) · 숨긴 그룹 · 알약 · 학교 거르개 · 차례 ·
+ *  🔥 못 따라갑니다 · 한 번에 뽑기 · 자료 단계 체크·흐름(자료 하나 안에서만 순서, 확정-㉟) · ♻️(체크된 채로, 확정-㊵) · 되풀이 글·읽기 · 04 나무(자료·갈래·항목) · 학생별 표(진도를 알아야 냅니다) · 새 자료 읽기 */
+import { cardsOf, dueLine, ddayText, overdueText, columnsOf, hiddenOf, counts, filterSchool, sortCards, behindOf, printAllOf, stepChecks, flowOf, pagesOf, repeatText, parseRepeat, treeOf, materialTags, studentRows, reuseRows, parseMaterial, todoLine, schoolTag, isOverdue, KINDS } from "../lib/todo-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const J = (x) => JSON.stringify(x);
+const T = "2026-10-09";
+const exam = { id: "e1", name: "2학기 중간", school: "옥련여고", school_id: "s1", level: "high", grade: 1, english_on: "2026-10-14", term_from: "2026-10-12", term_to: "2026-10-15" };
+const mat = (over) => ({ id: "m1", title: "2409 학평 22-24", type: "변형문제", source: "이그잼", steps: ["make", "print", "hand", "solve", "score"], state: "todo", reuse_of: null, items: 4, gives: 5, handed: 0, got: 0, solved: 0, ...over });
+const board = { today: T, rules: { "todo.score_days": "3", "todo.behind_per_day": "1" },
+  todos: [
+    { id: "t1", kind: "make", title: "변형문제 · 2409 학평 22-24", due_on: "2026-10-04", state: "todo", why: "시험 회차 옥련여고 2학기 중간에서 저절로", created_at: "2026-09-01T00:00:00Z", exam, material: mat() },
+    { id: "t2", kind: "print", title: "변형문제 · 2409 학평 22-24", due_on: "2026-10-07", state: "todo", created_at: "2026-09-01T00:00:01Z", exam, material: mat() },
+    { id: "t3", kind: "hand", title: "변형문제 · 2409 학평 22-24", due_on: "2026-10-09", state: "todo", created_at: "2026-09-01T00:00:02Z", exam, material: mat() },
+    { id: "t4", kind: "make", title: "분석지 · 공영2 2과", due_on: "2026-10-13", state: "done", done_at: "2026-10-01T00:00:00Z", why: "♻️ 지난번 것", created_at: "2026-09-02T00:00:00Z", exam: { ...exam, id: "e2", school: "신정중학교", school_id: "s2", level: "middle", grade: 2, english_on: "2026-10-16" }, material: mat({ id: "m2", reuse_of: "m0", state: "made", items: 4, gives: 4 }) },
+    { id: "t5", kind: "note", title: "zz_수납 안내", due_on: "2026-09-25", state: "todo", created_at: "2026-09-03T00:00:00Z", student: null, exam: null, material: null },
+    { id: "t6", kind: "repeat", title: "수납 안내 보내기", due_on: "2026-10-25", state: "todo", why: "매달 25일 — 저절로", rule: "수납 안내 보내기", created_at: "2026-09-04T00:00:00Z", exam: null, material: null },
+    { id: "t7", kind: "make", title: "워크북 · 뺀 것", due_on: "2026-10-13", state: "dropped", created_at: "2026-09-05T00:00:00Z", exam, material: mat({ id: "m3", state: "dropped" }) }],
+  unit_tests: [{ id: "u1", student_id: "a", student: "김서은", school: "신정중학교", school_id: "s2", topic: "관계사", q_count: 25, assigned_on: null, state: "todo", next_class: "2026-10-13" }],
+  retests: [{ id: "q1", student_id: "b", student: "강민서", school: "신정중학교", school_id: "s2", kind: "word", total: 20, assigned_on: T, book: "중등3800제3", unit: "CH5", style: "객관식 뜻 → 주관식 영어", pct: 83 }],
+  scores: [{ id: "e3", name: "1학기 기말", school: "신정중학교", school_id: "s2", level: "middle", grade: 2, english_on: "2026-10-16", takers: 4, scored: 1 }, { id: "e4", name: "다 낸 것", school: "옥련여고", school_id: "s1", level: "high", english_on: "2026-09-20", takers: 5, scored: 5 }] };
+console.log("■ 카드 목록 — 한 벌에서 한 번 · 종류가 바깥 축 · 성적 받기는 회차에서 세어 나온다");
+const cards = cardsOf(board);
+ok("카드 10장 = 할 일 7 + 단원평가 1 + 재시험 1 + 성적 받기 1(다 낸 회차는 안 선다) · 종류 여덟", cards.length === 10 && cards.filter((c) => c.kind === "score").length === 1 && cards.find((c) => c.kind === "score").title === "신정중 · 중2 — 3명" && KINDS.length === 8, J(cards.map((c) => c.kind)));
+const c1 = cards.find((c) => c.id === "t:t1"), c4 = cards.find((c) => c.id === "t:t4"), cu = cards.find((c) => c.kind === "unit_test"), cq = cards.find((c) => c.kind === "retest"), cs = cards.find((c) => c.kind === "score");
+ok("마감 줄 — 「마감 10월 4일 · D-5 · 5일 지남」(D-N 은 영어일까지 · 지남은 마감 기준) · 단원평가 「다음 수업 · 10월 13일」 · 재시험 「오늘 — 그날 남아서 봅니다」 · 성적 받기 마감 = 영어일 + 3", dueLine(c1, T) === "마감 10월 4일 · D-5 · 5일 지남" && dueLine(cu, T) === "다음 수업 · 10월 13일" && dueLine(cq, T) === "오늘 — 그날 남아서 봅니다" && cs.due === "2026-10-19" && dueLine(cs, T) === "마감 10월 19일 · D-7", [dueLine(c1, T), dueLine(cu, T), dueLine(cq, T), dueLine(cs, T)].join(" | "));
+ok("D-day 글 · 지남 글 — D-day · D-3 · D+2 · 「오늘까지」 · 「하루 지남」 · 아직이면 빈 글", ddayText(T, T) === "D-day" && ddayText(T, "2026-10-12") === "D-3" && ddayText(T, "2026-10-07") === "D+2" && overdueText(T, T) === "오늘까지" && overdueText("2026-10-08", T) === "하루 지남" && overdueText("2026-10-20", T) === "");
+ok("학교 알약 「옥련여고 1」(여고는 그대로) · 「신정중학교 2」 → 「신정중 2」 · 「인천여자고등학교」 → 「인천여고」 · 회차 없는 메모는 빈 글", schoolTag(c1) === "옥련여고 1" && schoolTag({ school: "인천여자고등학교", grade: 1 }) === "인천여고 1" && schoolTag(c4) === "신정중 2" && schoolTag(cards.find((c) => c.id === "t:t5")) === "");
+console.log("■ 칸 · 숨긴 그룹 · 알약 · 거르개 · 차례");
+const cols = columnsOf(cards, T);
+ok("칸 여덟 — 자료 만들기 1(하는 것만) · 인쇄 「20장」(4항목 × 5명) · 배부 1 · 단원평가 1 · 재시험 1 · 성적 받기 1 · 되풀이 1 · 메모 1 · 만들기 칸의 🔥 1", cols.length === 8 && cols[0].count === "1" && cols[1].count === "20장" && cols[2].count === "1" && cols[3].count === "1" && cols[4].count === "1" && cols[5].count === "1" && cols[6].count === "1" && cols[7].count === "1" && cols[0].hot === 1, J(cols.map((c) => c.count)));
+const hid = hiddenOf(cards), cnt = counts(cards, T);
+ok("숨긴 그룹 — ✓ 끝냄 1 · ♻️ 이미 있는 것 1(만들기가 끝난 채로) · 뺀 것 1 · 알약 「할 일 8 · 마감 지남 3 · 이미 있음 1」", hid.done.length === 1 && hid.reuse.length === 1 && hid.dropped.length === 1 && J(cnt) === J({ open: 8, overdue: 3, reuse: 1, done: 1 }), J(cnt));
+ok("학교 거르개 — 옥련여고 4(만들기·인쇄·배부 + 뺀 것) · 신정중 4(♻️ 끝냄 · 단원평가 · 재시험(아이의 학교) · 성적) · 내신 아닌 것 4(메모 · 되풀이 · 단원평가 · 재시험 — 회차가 없는 것) · 전체 10", filterSchool(cards, "s1").length === 4 && filterSchool(cards, "s2").length === 4 && filterSchool(cards, "none").length === 4 && filterSchool(cards, "all").length === 10, [filterSchool(cards, "s1").length, filterSchool(cards, "s2").length, filterSchool(cards, "none").length].join());
+ok("차례 — 마감 순은 9/25 메모가 맨 앞 · 마감 없는 것은 뒤 · 만든 순은 t1 이 맨 앞", sortCards(cards, "due")[0].id === "t:t5" && sortCards(cards, "made")[0].id === "t:t1" && sortCards([{ id: "x", due: null, createdAt: "2026-01-01" }, { id: "y", due: "2026-10-01", createdAt: "2026-02-01" }], "due")[0].id === "y");
+console.log("■ 🔥 못 따라갑니다 · 🖨 한 번에 뽑기");
+const bh = behindOf(cards, T, 1);
+ok("옥련여고 — 남은 자료 1(만들기·인쇄·배부는 같은 자료 하나) ≤ 남은 날 5 × 1 이면 안 뜨고 · 하루 0.1개면 뜬다(1 > 0.5) · 영어일 없는 회차는 못 센다", bh.length === 0 && behindOf(cards, T, 0.1).length === 1 && behindOf(cards, T, 0.1)[0].title === "옥련여고 · 고1 — 못 따라갑니다" && behindOf(cards, T, 0.1)[0].remaining === 1 && behindOf(cards.map((c) => c.exam ? { ...c, exam: { ...c.exam, english_on: null, term_from: null } } : c), T, 0).length === 0, J(behindOf(cards, T, 0.1).map((x) => [x.title, x.remaining, x.daysLeft])));
+const pa = printAllOf(cards);
+ok("한 번에 뽑기 — 인쇄 칸 1자료 · 20장 · 자료 id", pa.list.length === 1 && pa.pages === 20 && J(pa.ids) === J(["m1"]));
+console.log("■ 자료 단계 — 자료 하나 안에서만 순서(확정-㉟) · ♻️ 는 만들기가 체크된 채로(확정-㊵)");
+const ck = stepChecks(mat({ state: "printed", handed: 3, gives: 4 }));
+ok("printed · 3/4 배부 → 만들기 ✓ 인쇄 ✓ 배부 ✗(3/4) 풀이 ✗ 채점 ✗ · 흐름은 배부가 「지금」", J(ck.map((s) => [s.step, s.done, s.text])) === J([["make", true, null], ["print", true, null], ["hand", false, "3/4"], ["solve", false, "0/4"], ["score", false, null]]) && flowOf(mat({ state: "printed", handed: 3, gives: 4 })).map((s) => s.state).join() === "done,done,now,todo,todo", J(ck));
+ok("♻️ 지난번 것 — state todo 여도 만들기 ✓ · 클카(인쇄 없음)는 단계 셋 · 장수 = 항목 × 아이(항목 0이면 아이 수)", stepChecks(mat({ reuse_of: "m0" }))[0].done === true && stepChecks(mat({ steps: ["make", "hand", "solve"] })).length === 3 && pagesOf(mat()) === 20 && pagesOf(mat({ items: 0, gives: 3 })) === 3);
+console.log("■ 되풀이 — 글 · 읽기");
+ok("「매달 25일 · 3일 전부터」 · 「매주 월」 · 읽기(31 · lead 0) · 틀린 것은 막는다", repeatText({ day: 25, lead: 3 }) === "매달 25일 · 3일 전부터" && repeatText({ weekday: 1 }) === "매주 월" && J(parseRepeat({ every: "month", day: "31", lead: "0" })) === J({ day: 31, lead: 0 }) && J(parseRepeat({ every: "week", weekday: "0", lead: "" })) === J({ weekday: 0 }) && (() => { try { parseRepeat({ every: "month", day: "32" }); return false; } catch { return true; } })());
+console.log("■ 04 나무 · 학생별 표 · ♻️ · 새 자료");
+const m1 = { id: "a", type: "분석지", source: "이그잼", title: "분석지", state: "todo", reuse_of: null, items: [{ id: 1, name: "동사 형 변형" }, { id: 2, name: "어순" }], gives: [{ student_id: "s1", handed_at: null, stage: "none" }, { student_id: "s2", handed_at: null, stage: "none" }] };
+const m2 = { id: "b", type: "워크북", source: "이그잼", title: "워크북", state: "printed", reuse_of: null, items: [{ id: 3, name: "본문 빈칸" }], gives: [{ student_id: "s1", handed_at: null, stage: "none" }] };
+const m3 = { id: "c", type: "단어 세트", source: "클래스카드", title: "2과 단어", state: "done", reuse_of: "z", items: [{ id: 4, name: "2과 단어" }], gives: [{ student_id: "s1", handed_at: "2026-10-01", stage: "done" }] };
+const m4 = { id: "d", type: "뺀 것", source: "직접", title: "x", state: "dropped", items: [{ id: 5, name: "x" }], gives: [] };
+const tree = treeOf([m1, m2, m3, m4]);
+ok("나무 — 자료(출처) 2 · 갈래 3 · 항목 4(뺀 것은 안 센다) · 이그잼 배정 2명 · 클래스카드 🃏", J(tree.counts) === J({ sources: 2, materials: 3, items: 4, dropped: 1 }) && tree.groups[0].source === "이그잼" && tree.groups[0].students === 2 && tree.groups[1].emo === "🃏", J(tree.counts));
+ok("갈래 꼬리표 — 「2가지 · 아직 안 만듦」 · 「1가지 · 인쇄함」 · 「1가지 · ♻️ 지난번 것 · 배부 끝」", materialTags(m1).join() === "2가지,아직 안 만듦" && materialTags(m2).join() === "1가지,인쇄함" && materialTags(m3).join() === "1가지,♻️ 지난번 것,배부 끝");
+const rows = studentRows([{ id: "s1", name: "강민서", school: "신정중", school_prog: "2과 본문 3단락까지" }, { id: "s2", name: "한지우", school: "신송중", school_prog: null }], [m1, m2, m3, m4]);
+ok("학생별 — 강민서: 오늘 낼 것 「워크북 · 워크북」(인쇄한 것 중 안 준 것) · 남은 것 2(끝낸 것 뺌) · 한지우: 진도 모름 → 오늘 낼 것 없음 · 「진도를 알아야 냅니다」", rows[0].today.join() === "워크북 · 워크북" && rows[0].left === 2 && rows[0].known === true && rows[1].known === false && rows[1].today.length === 0 && rows[1].left === 1, J(rows));
+const ru = reuseRows([{ id: "r1", type: "변형문제", source: "이그잼", title: "2409 학평", made_on: "2026-04-03", used: 5, overlap: 3, exam: { school: "옥련여고", name: "1학기 중간" }, already: false, items: 6 }, { id: "r2", type: "분석지", source: "직접", title: "x", made_on: "2025-10-01", used: 3, overlap: 1, exam: { school: "신정중", name: "2학기 중간" }, already: true, items: 2 }]);
+ok("♻️ 줄 — 「변형문제 · 2409 학평」 · 「2026-04 만듦 · 5명이 썼음 · 옥련여고 1학기 중간 · 범위 겹침 3」 · 체크된 채로 / 이미 가져옴", ru[0].title === "변형문제 · 2409 학평" && ru[0].small === "2026-04 만듦 · 5명이 썼음 · 옥련여고 1학기 중간 · 범위 겹침 3" && ru[0].tag.startsWith("✓ 만들기 체크된 채로") && ru[1].already === true && ru[1].tag === "이미 가져왔습니다", ru[0].small);
+const types = [{ id: "ty1", name: "분석지", steps: ["make", "print", "hand"] }], takers = [{ id: "s1" }, { id: "s2" }];
+const pm = parseMaterial({ typeId: "ty1", title: "  ", items: "동사 형 변형, 어순\n어순 · 접속사", studentIds: [], takers, types });
+ok("새 자료 읽기 — 제목이 비면 종류 이름 · 항목은 쉼표·줄·가운뎃점으로 갈라 겹침 하나로(3) · 아이가 비면 보는 아이 전부(2) · 보는 아이 아닌 id 는 버린다 · 종류가 없으면 막는다", pm.title === "분석지" && J(pm.items) === J(["동사 형 변형", "어순", "접속사"]) && pm.studentIds.length === 2 && parseMaterial({ typeId: "ty1", items: "", studentIds: ["s1", "zz"], takers, types }).studentIds.join() === "s1" && (() => { try { parseMaterial({ typeId: "no", takers, types }); return false; } catch { return true; } })(), J(pm));
+ok("할 일 한 줄 — 「📄 자료 만들기 · 분석지 · 2과」 · 「10월 13일 · D-4」 · 끝낸 것은 「끝냄」 · 지난 것은 「3일 지남」", todoLine({ id: 1, kind: "make", title: "분석지 · 2과", due_on: "2026-10-13", state: "todo" }, T).small === "10월 13일 · D-4" && todoLine({ id: 2, kind: "print", title: "x", due_on: "2026-10-06", state: "todo" }, T).small === "10월 6일 · 3일 지남" && todoLine({ id: 3, kind: "hand", title: "x", due_on: "2026-10-06", state: "done" }, T).small === "10월 6일 · 끝냄" && isOverdue({ state: "todo", due: "2026-10-01" }, T) === true && isOverdue({ state: "done", due: "2026-10-01" }, T) === false);
+console.log(`\ncheck-todo ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);
