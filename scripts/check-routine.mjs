@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, moveSort, previewUnits, projectEnd, parseChecks, AREAS } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -55,5 +55,22 @@ ok("0개면 빈 것", tuneUnits(t2, 0).length === 0);
 ok("합계 — 3개면 90문항 · 11쪽", (() => { const l = loadOf(tuneUnits(t2, 3)); return l.questions === 90 && l.pages === 11; })());
 ok("62문항 → 이번에 눈금 1-20번 · 1-31번 · 전체(목업 02)", splitPresets(62).map((x) => x.name).join(" · ") === "1-20번 · 1-31번 · 전체");
 ok("문항 수가 없으면 눈금이 없다", splitPresets(0).length === 0);
+console.log("■ 루틴 화면 11 — 내린 줄은 셈에서 빠진다(확정-㊷) · 영역 머리 알약 · 아이의 한 영역(확정-㉒) · ▲▼ · 예습(확정-57) · 이대로면");
+const L = (id, item, place, required, sort, extra = {}) => ({ id, item_id: item, name: item, place, required, sort, state: "active", ...extra });
+const areaLines = [L("a1", "구두", "class", true, 1), L("a2", "문장", "both", true, 2), L("a3", "풀기", "class", false, 3, { state: "retired" }), L("a4", "워크북", "home", true, 4), L("a5", "죽은 항목", "home", true, 5, { item_state: "retired" }), L("a6", "교재예습", "next", true, 6)];
+ok("살아 있는 줄만 — 내린 줄(retired)·내린 항목은 빠진다", alive(areaLines).map((l) => l.id).join() === "a1,a2,a4,a6");
+ok("영역 머리 — 학원 2(구두·문장) · 숙제 2(문장·워크북) · 예습 1(교재예습, place next) · 필수 4", JSON.stringify(areaStats(areaLines)) === JSON.stringify({ class: 2, home: 2, next: 1, required: 4 }));
+const v0 = studentAreaView(areaLines, []);
+ok("아이 줄이 없으면 「학원 기본 그대로」 — 영역 줄 넷 · 뺀 것 없음", v0.custom === false && v0.lines.map((l) => l.id).join() === "a1,a2,a4,a6" && v0.removed.length === 0);
+const v1 = studentAreaView(areaLines, [L("s1", "문장", "home", true, 1), L("s2", "구두", "class", true, 2), L("s3", "워크북", "home", true, 3, { state: "retired" })]);
+ok("아이 줄이 있으면 「이 아이만 고침」 — 아이 차례대로(문장·구두) · 뺀 것 = 워크북(내린 아이 줄)·교재예습", v1.custom === true && v1.lines.map((l) => l.name).join() === "문장,구두" && v1.removed.map((l) => l.name).join() === "워크북,교재예습");
+ok("▲▼ — 내린 줄은 건너뛰고 이웃과 sort 를 맞바꾼다(a4 ▲ → a2 와) · 맨 위에서 ▲ 는 빈 것", JSON.stringify(moveSort(areaLines, "a4", "up")) === JSON.stringify([{ id: "a4", sort: 2 }, { id: "a2", sort: 4 }]) && moveSort(areaLines, "a1", "up").length === 0);
+ok("예습 소단원(확정-57) — 오늘 덩어리 다음 것 · 대단원을 넘어도 다음 것이 다음 것", previewUnits(todo, [todo[0]], 1).map((u) => u.unit_id).join() === "1-5" && previewUnits(todo, [todo[0], todo[1]], 1).map((u) => u.unit_id).join() === "2-1");
+const pp = planBook({ lines: [...lines, { item_id: "e", name: "교재예습", place: "next", required: true, sort: 5 }], todo, sb: { stop_mode: "running", per_session: 1 }, date });
+ok("계획 — 예습 줄(place next)은 따로 서고 그 소단원은 다음 것(1-4 오늘 · 1-5 예습) · 숙제 자리로 나간다(lib/routine.js) · 숙제멈춤이면 예습도 빠진다", pp.units[0].unit_id === "1-4" && pp.next.map((l) => l.item_id).join() === "e" && pp.home.map((l) => l.item_id).join() === "b,d" && pp.preview.map((u) => u.unit_id).join() === "1-5" && planBook({ lines: [...lines, { item_id: "e", name: "교재예습", place: "next", required: true, sort: 5 }], todo, sb: { stop_mode: "hw_off", per_session: 1 }, date }).next.length === 0);
+const days = ["2026-09-07", "2026-09-09", "2026-09-11", "2026-09-14", "2026-09-16"];
+ok("이대로면 — 남은 5 ÷ 회차 2 = 수업 3회 → 세 번째 수업일 9/11 · 0.2개월", JSON.stringify(projectEnd({ remaining: 5, perSession: 2, days, from: "2026-09-06" })) === JSON.stringify({ sessions: 3, endDate: "2026-09-11", months: 0.2 }));
+ok("남은 것이 없으면 「다 했다」(수업 0회 · 오늘) · 수업일이 모자라면 endDate 없음", projectEnd({ remaining: 0, perSession: 2, days, from: "2026-09-06" }).sessions === 0 && projectEnd({ remaining: 40, perSession: 1, days, from: "2026-09-06" }).endDate === null);
+ok("체크리스트 글 — 쉼표·가운뎃점·줄바꿈으로 가른다 · 영역은 일곱(v2.area_name)", parseChecks("입해석, 낭독 · 녹음\n").join("|") === "입해석|낭독|녹음" && AREAS.length === 7);
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

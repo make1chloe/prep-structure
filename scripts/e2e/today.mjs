@@ -413,6 +413,12 @@ await sm.locator("[data-card=scheduled] button[data-act=cancel]").click(); await
 ok("예약 취소 → 예약된 것 0 · 그 판은 다시 나간 것(지우지 않고 cancelled_at)", (await sm.locator("[data-card=scheduled] [data-g=sch-row]").count()) === 0 && (await sm.locator("[data-g=daily-row][data-state=sent]").count()) === 2);
 const cr = await p.request.get(APP + "/api/cron"); const cj = cr.ok() ? await cr.json() : {};
 ok("크론 — 학원의 오늘을 받고 한 바퀴(뼈대-9·10) · 손이 다 있어 실패 0", cr.ok() && cj.today === todayText && typeof cj.claimed === "number" && cj.bad === 0, JSON.stringify(cj));
+console.log("■ 루틴 11 — + 교재 잇기(맨 끝: 오늘 판에 안 닿게)");
+await p.goto(APP + "/settings/routine?s=99999999-0000-4000-9000-000000000001"); await p.waitForLoadState("networkidle").catch(() => {});
+const rm2 = p.locator("main");
+const freeOpt = await rm2.locator("[data-g=book-pick] option").allTextContents();
+await rm2.locator("[data-g=book-pick]").selectOption({ label: freeOpt.find((t) => t.includes("독해책")) }); await rm2.locator("button[data-act=assign]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("독해책을 이으면 교재 줄이 서고 「독해 루틴이 없습니다 — 위에서 만드세요」(대시보드 빵꾸와 같은 판단) · 이대로면 남은 소단원 N/N · 오늘부터", (await rm2.locator("[data-g=book]").count()) === 2 && (await rm2.locator("[data-g=book-gap]").count()) === 1 && (await rm2.locator("[data-g=book-gap]").textContent()).includes("독해 루틴이 없습니다") && (await rm2.locator("[data-g=book]").filter({ hasText: "독해책" }).textContent()).includes(`${todayText}부터`), (await rm2.locator("[data-g=books]").textContent()).replace(/\s+/g, " ").slice(0, 300));
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
