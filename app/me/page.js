@@ -9,7 +9,7 @@ import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
-import { ArrivalCard, SaidButton } from "./cards.js";
+import { ArrivalCard, SaidButton, MaterialCard, AskCard } from "./cards.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
@@ -54,12 +54,15 @@ export default async function Me() {
         <p className="note" style={{ margin: "4px 0 0" }}>{d.sheet.late.reason || "남아서 하고 갑니다"}</p></Card>}
       {d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>}
+      <a className="task" href="/me/cal" data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></a>
     </>}
+    {can(ME.books) && <MaterialCard gives={d.gives} today={date} />}
     {can(ME.books) && <Card emo="🗺" title="내 교재" id="books" pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
       {d.books.map((b) => <div className="li" key={b.id}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""}</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</div>)}
     </Card>}
     {can(ME.today) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card>}
+    {can(ME.today) && <AskCard asks={d.asks} />}
   </>);
 }

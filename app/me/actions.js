@@ -9,6 +9,8 @@ import { db, serviceClient } from "@/lib/supabase";
 import { today, rosterPeople } from "@/lib/day";
 import { myStudent, stamp } from "@/lib/arrival";
 import { clientIp, classChoice } from "@/lib/arrival-plan";
+import { setStage, setDue } from "@/lib/material";
+import { ask as askRequest } from "@/lib/request";
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/me"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 async function child() { const w = await guard(); if (w.me?.role !== ROLES.STUDENT) throw new Error("아이 계정만 찍습니다"); return w; }
 /** 걸음을 찍는다(1 핸드폰 · 2 출석 · 3 숙제 · 4 집에 가요). 반이 둘인 날은 아이가 고른 반(classId)으로 */
@@ -25,6 +27,11 @@ export const arrive = done(async (step, classId = null) => {
   if (Number(step) === 2 && pick.none) throw new Error("오늘은 수업이 없어요");
   return stamp(sb, svc, { studentId: st.id, step: Number(step), classId: cls?.id ?? pick.classId ?? null, date, ip, start: cls?.start ?? pick.start ?? null });
 });
+/** 📚 받을 학습지 — 단계 · 스스로 정한 마감(DB 문지기 0117 이 그 두 칸만 연다) */
+export const stage = done(async (materialId, value) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); await setStage(sb, String(materialId), st.id, String(value)); });
+export const due = done(async (materialId, dueOn) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); await setDue(sb, String(materialId), st.id, dueOn ? String(dueOn) : null); });
+/** 💬 남기실 말 — 원장님께 한 줄(대시보드 답할 것에 뜬다) */
+export const ask = done(async (body) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); await askRequest(sb, { profileId: user.id, studentId: st.id, body }); });
 /** 「다 했어요」 — 켜고 무른다(답 ⑧). 시각은 DB 문지기가 서버 시계로 */
 export const said = done(async (itemId, on) => {
   const { sb } = await child();
