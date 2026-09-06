@@ -11,9 +11,9 @@ export async function holidayAct(f) { return wrap(async () => { const { sb } = a
 export async function undoHolidayAct(id) { return wrap(async () => { const { sb } = await staff(); await undoHoliday(sb, id); return {}; }); }
 export async function todoAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addTodo(sb, { title: f.title, dueOn: f.dueOn, dueTime: f.dueTime || null, note: f.note }) }; }); }
 export async function doneTodoAct(id) { return wrap(async () => { const { sb } = await staff(); await doneTodo(sb, id); return {}; }); }
-export async function examAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addExam(sb, { scope: f.scope, schoolId: f.schoolId || null, grade: f.grade, name: f.name, termFrom: f.termFrom, termTo: f.termTo || null, englishOn: f.englishOn || null }) }; }); }
-export async function englishOnAct(id, date) { return wrap(async () => { const { sb } = await staff(); await setEnglishOn(sb, id, date || null); return {}; }); }
-export async function cancelExamAct(id) { return wrap(async () => { const { sb } = await staff(); await cancelExam(sb, id); return {}; }); }
+export async function examAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addExam(sb, { scope: f.scope, schoolId: f.schoolId || null, grade: f.grade, name: f.name, termFrom: f.termFrom, termTo: f.termTo || null, englishOn: f.englishOn, date: await today(sb) || null }) }; }); }
+export async function englishOnAct(id, date) { return wrap(async () => { const { sb } = await staff(); await setEnglishOn(sb, id, date || null, await today(sb)); return {}; }); }
+export async function cancelExamAct(id) { return wrap(async () => { const { sb } = await staff(); await cancelExam(sb, id, await today(sb)); return {}; }); }
 export async function classMakeupAct(f) { return wrap(async () => { const { sb } = await staff(); return classMakeupDay(sb, { classId: f.classId, onDate: f.onDate, atTime: f.atTime || null, reason: f.reason, date: await today(sb) }); }); }
 export async function cancelClassMakeupAct(ids) { return wrap(async () => { const { sb } = await staff(); return { n: await cancelClassMakeupDay(sb, { ids }) }; }); }
 export async function makeupAct(f) { return wrap(async () => { const { sb, user } = await staff(); return setMakeup(sb, { studentId: f.studentId, ofDate: f.ofDate, onDate: f.onDate || null, atTime: f.atTime || null, reason: f.reason ?? null, waived: Boolean(f.waived) }, user.id); }); }

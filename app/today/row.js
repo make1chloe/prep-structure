@@ -9,6 +9,7 @@ import { weekdayName, seoulTime } from "@/lib/day-plan";
 import { hhmm, leftText, repeatBand, askBeforeClose } from "@/lib/late-plan";
 import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
+import { examPhase } from "@/lib/exam-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
@@ -64,7 +65,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} closed={closed} fail={fail} start={start} />
-            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} barHost={barHost} onCollapse={() => setOpen(false)} />
+            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} onCollapse={() => setOpen(false)} />
           </>}
         </div>
       )}
@@ -343,9 +344,9 @@ function UnitTestCard({ t, passPct, date, closed, fail, start }) {
 }
 /** ✉️ 부모님께 나갈 글(목업 01 · 03 폰) — 키워드 → 상황(갈래 다섯, 그날 상태에서 저절로) → 길이(상황이 먼저 고른다) → ✨ 브리핑(AI 초안 · 넘으면 문장 끝에서 자름 · 원장님 글은 덮지 않는다) → 글.
  *  글 밑에 저절로 붙는 줄과 👁 학부모 화면 미리보기(09·10 과 같은 판단). AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를 한 번 묻는다 — 막지 않는다(목업 9/5 ⑥) */
-function CommentCard({ sheet, student, closed, fail, start, cfg, barHost, onCollapse }) {
+function CommentCard({ sheet, student, closed, fail, start, cfg, phase, date, barHost, onCollapse }) {
   const lines = attached({ next: student.quizzes?.next ?? [], late: sheet.late, warn: student.warn });
-  const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check });
+  const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check, exam: examPhase(student.exams ?? [], date, phase) });   // 시험전·시험후는 이 아이의 회차에서(06b)
   const [kind, setKind] = useState(sheet.comment_kind ?? autoKind);
   const [cap, setCap] = useState(sheet.comment_cap ?? capOf(sheet.comment_kind ?? autoKind, cfg?.caps));
   const [keys, setKeys] = useState(sheet.comment_keys ?? "");
