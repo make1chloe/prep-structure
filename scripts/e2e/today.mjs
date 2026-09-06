@@ -534,6 +534,47 @@ await ppg.goto(APP + "/parent"); await ppg.waitForLoadState("networkidle").catch
 const paM = ppg.locator("main");
 ok("학부모 — 📈 성적 카드(parent.reports 켬 · 공개 학부모 ✓)에 「… 76 · C」 · 「독해 2 · 어법 1 · zz_시험_중학교」 · 원장님이 공개한 시험만", (await paM.locator("[data-card=scores]").count()) === 1 && (await paM.locator("[data-card=scores] [data-g=score-line]").textContent()).includes("76 · C") && (await paM.locator("[data-card=scores]").textContent()).includes("독해 2 · 어법 1") && (await paM.locator("[data-card=scores]").textContent()).includes("원장님이 공개한 시험만"), (await paM.textContent()).replace(/\s+/g, " ").slice(0, 300));
 await pctx.close();
+console.log("■ 교재 15 · 엑셀 15b — 목록 · 고른 교재(교재ID · 영역 · 배정 겹 · 다른 이름 · 활동 차례 · 단원 · 문법 분류) · 엑셀 미리보기(덮어쓰기 · 지우고 새로 · 보류) · 저장 · + 교재 · ⬇ 엑셀");
+await p.goto(`${APP}/books`); await p.waitForLoadState("networkidle").catch(() => {});
+const bk15 = p.locator("main");
+const grammarRow = () => bk15.locator("[data-g=book-row]").filter({ hasText: "zz_리허설 문법책" }).first();
+ok("목록 — 교재 2권 · 문법책 7단원(씨앗 6 + 02 조절에서 생긴 대비문제) · 2명(학생·학생둘) · 단원 없음 0 · 영역 고르기(전체 + 일곱)", (await bk15.locator("[data-g=count]").textContent()) === "교재 2권" && (await grammarRow().textContent()).includes("7단원") && (await grammarRow().textContent()).includes("2명") && (await bk15.locator("[data-g=no-units]").textContent()) === "단원 없음 0" && (await bk15.locator("select[data-g=areas] option").count()) >= 8, (await bk15.locator("[data-g=list]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+await grammarRow().click(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("고른 교재 — 「zz_리허설 문법책」 · 교재ID ZZ001 · 영역 문법 · 배정 겹 소단원 · 활동 차례 「본책 → 문제」(줄 차례에서 저절로) · 단원 7줄 · 쓰는 학생 2명 — 지우지 못합니다", (await bk15.locator("[data-g=book-name]").textContent()) === "zz_리허설 문법책" && (await bk15.locator("input[aria-label=교재ID]").inputValue()) === "ZZ001" && (await bk15.locator("select[data-g=area]").inputValue()) === "문법" && (await bk15.locator("[data-g=chunk] button[aria-pressed=true]").textContent()) === "소단원" && (await bk15.locator("[data-g=acts] .tag").allTextContents()).join() === "본책,문제" && (await bk15.locator("[data-g=unit-row]").count()) === 7 && (await bk15.locator("[data-g=students]").textContent()).includes("쓰는 학생 2명"), (await bk15.locator("[data-g=detail]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+await bk15.locator("[data-g=chunk] button", { hasText: "대단원" }).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("배정 겹 → 대단원 눌림(저장됨)", (await bk15.locator("[data-g=chunk] button[aria-pressed=true]").textContent()) === "대단원");
+await bk15.locator("[data-g=chunk] button", { hasText: "소단원" }).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+await bk15.locator("input[aria-label='다른 이름']").fill("zz 문법책 별명"); await bk15.locator("button[data-act=alias-add]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("다른 이름 「zz 문법책 별명」 → 꼬리표(어느 이름도 다른 것을 덮지 않는다)", (await bk15.locator("[data-g=alias]", { hasText: "zz 문법책 별명" }).count()) === 1 && (await bk15.locator("[data-g=book-name]").textContent()) === "zz_리허설 문법책");
+await bk15.locator("input[aria-label='문법 분류 이름']").fill("zz_관계사"); await bk15.locator("button[data-act=topic-add]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+const firstUnit = () => bk15.locator("[data-g=unit-row]").first();
+const topicOpts = await firstUnit().locator("select[data-g=topic-pick] option").allTextContents();
+await firstUnit().locator("select[data-g=topic-pick]").selectOption({ label: topicOpts.find((t) => t === "zz_관계사") }); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("문법 분류 「zz_관계사」를 더하고 첫 단원에 잇기 → 줄에 분류 꼬리표(단원평가의 단원 = 문법 분류)", (await firstUnit().locator(".um.hit").count()) === 1 && (await firstUnit().locator(".um.hit").textContent()).includes("zz_관계사"), (await firstUnit().textContent()).replace(/\s+/g, " "));
+const XLSX15 = await import("xlsx"); const XL15 = XLSX15.default ?? XLSX15;
+const aoa15 = [["교재명", "대단원", "중단원", "소단원", "활동명", "시작페이지", "끝페이지", "문항수", "문항범위"],
+  ["zz 문법책 별명", "CHAPTER 1", "", "PSS 1-1 문장의 형식", "본책", 10, 10, 16, ""],
+  ["", "CHAPTER 1", "", "PSS 1-2 의문사", "본책", 11, 11, 15, ""],
+  ["", "CHAPTER 3", "", "PSS 3-1 조동사", "본책", 30, 31, "", "1-20"],
+  ["", "CHAPTER 3", "", "PSS 3-1 조동사", "워크북", 60, 61, 10, ""],
+  ["zz_없는책", "UNIT 1", "", "1-1", "본책", 1, 2, 5, ""]];
+const wb15 = XL15.utils.book_new(); XL15.utils.book_append_sheet(wb15, XL15.utils.aoa_to_sheet(aoa15), "units"); XL15.writeFile(wb15, ".tmp/units-upload.xlsx");
+await bk15.locator("button[data-act=upload-open]").click();
+const md15 = p.locator("[data-g=upload]");
+await md15.locator("[data-g=upload-form] input[type=file]").setInputFiles(".tmp/units-upload.xlsx"); await md15.locator("button[data-act=upload-read]").click(); await p.waitForSelector("[data-g=plan-book]", { timeout: 20000 });
+ok("미리보기 — 5줄 · 문법책이 「다른 이름」으로 맞았다 · 새로 생김 2 · 바뀜 1(1-2: 14 → 15) · 손대지 않음 1 · 파일에 없는 기존 줄 5 · 보류 1줄(zz_없는책) · 덮어쓰기가 기본", (await md15.locator("[data-g=lines]").textContent()) === "5줄" && (await md15.locator("[data-g=plan-book]").count()) === 1 && (await md15.locator("[data-g=plan-book]").textContent()).includes("다른 이름") && (await md15.locator("[data-g=sum-added]").textContent()).includes("새로 생김 2줄") && (await md15.locator("[data-g=sum-changed]").textContent()).includes("바뀜 1줄") && (await md15.locator("[data-g=sum-same]").textContent()).includes("손대지 않음 1줄") && (await md15.locator("[data-g=sum-untouched]").textContent()).includes("기존 줄 5개") && (await md15.locator("[data-g=sum-holds]").textContent()).includes("보류 1줄") && (await md15.locator("[data-g=hold]").count()) === 1 && (await md15.locator("[data-g=mode] button[aria-pressed=true]").textContent()) === "덮어쓰기", (await md15.locator(".mdlb").textContent()).replace(/\s+/g, " ").slice(0, 500));
+await md15.locator("[data-g=mode] button", { hasText: "지우고 새로 올리기" }).click();
+ok("②를 고르면 「이만큼이 같이 사라집니다」 — 단원 7 · 쓰는 학생 2명 · 파일에 없는 기존 줄 0", (await md15.locator("[data-g=danger]").count()) === 1 && (await md15.locator("[data-g=danger]").textContent()).includes("2명") && (await md15.locator("[data-g=sum-untouched]").textContent()).includes("기존 줄 0개"), (await md15.locator("[data-g=danger]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+await md15.locator("[data-g=mode] button", { hasText: "덮어쓰기" }).click();
+await md15.locator("button[data-act=upload-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 20000 }); await p.waitForTimeout(1500);
+const row12 = bk15.locator("[data-g=unit-row]").filter({ hasText: "PSS 1-2" }), row31 = bk15.locator("[data-g=unit-row]").filter({ hasText: "PSS 3-1" });
+ok("보류 1줄을 뺀 나머지 저장 → 「교재 1권 · 줄 9 · 보류 1권」(덮어쓰기는 전체 차례를 다시 매긴다) · 단원 9줄(CHAPTER 3 둘이 끝에) · 활동 차례 「본책 → 문제 → 워크북」 · 1-2 문항 15 · 3-1 본책 문항 20(범위에서 셈) · 학습유형 워크북", (await bk15.locator("[data-g=msg]").textContent()).includes("교재 1권 · 줄 9") && (await bk15.locator("[data-g=msg]").textContent()).includes("보류 1권") && (await bk15.locator("[data-g=unit-row]").count()) === 9 && (await bk15.locator("[data-g=acts] .tag").allTextContents()).join() === "본책,문제,워크북" && (await row12.locator("td.num").nth(1).textContent()) === "15" && (await row31.first().locator("td.num").nth(1).textContent()) === "20" && (await row31.nth(1).locator(".tag", { hasText: "워크북" }).count()) === 1 && (await bk15.locator("[data-g=unit-row]").last().textContent()).includes("CHAPTER 3"), (await bk15.locator("[data-g=msg]").textContent()) + " | " + (await bk15.locator("[data-g=unit-table]").textContent()).replace(/\s+/g, " ").slice(0, 400));
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-books-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
+await bk15.locator("button[data-act=add-open]").click(); await bk15.locator("input[name=book-name]").fill("zz_새 교재"); await bk15.locator("[data-g=add-form] select[aria-label=영역]").selectOption("독해"); await bk15.locator("button[data-act=add-save]").click(); await p.waitForFunction(() => document.querySelector("[data-g=book-name]")?.textContent === "zz_새 교재", null, { timeout: 20000 }); await p.waitForLoadState("networkidle").catch(() => {});
+ok("+ 교재 「zz_새 교재」(독해) → 목록 3권 · 단원 없음 1 · 그 교재가 열린다(단원 0)", (await bk15.locator("[data-g=count]").textContent()) === "교재 3권" && (await bk15.locator("[data-g=no-units]").textContent()) === "단원 없음 1" && (await bk15.locator("[data-g=book-name]").textContent()) === "zz_새 교재" && (await bk15.locator("[data-g=unit-count]").textContent()) === "0단원", (await bk15.locator("[data-g=head]").textContent()).replace(/\s+/g, " "));
+const xr15 = await p.request.get(`${APP}/api/books/xlsx`);
+ok("⬇ 엑셀 — /api/books/xlsx 가 xlsx 를 준다(200 · 올리기 양식과 같은 열)", xr15.status() === 200 && String(xr15.headers()["content-type"] ?? "").includes("spreadsheetml"), `${xr15.status()}`);
 console.log("■ 운영 13 — 수강료(넣고 체크만) · 금액을 적으면 단가 줄이 이 달부터 · 다음 달엔 그 금액이 미리 · 엑셀로");
 await p.goto(`${APP}/ops`); await p.waitForLoadState("networkidle").catch(() => {});
 const fe = p.locator("main");
