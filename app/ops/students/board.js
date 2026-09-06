@@ -1,0 +1,102 @@
+"use client";
+/** 학생 판(목업 14) — 목록(재원생 N · 퇴원생 N · 찾기 · 줄: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태) · 고른 아이: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 고치기) · KPI 여섯 · 교재 진도(막대) · 성적(약한 영역) · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담(+ 상담 적기) · 저장줄.
+ *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/잇기 · 비밀번호 0000 초기화 — 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { addAct, setAct, stateAct, classAct, feeAct, consultAct, siblingAct, showAct, studentAccountAct, parentAccountAct, resetAct } from "./actions.js";
+import { kpis, bookLines, scoreRows, weakText, attendRow, unitChips, historyLines, listRows, siblingText, tenureText, gradeText2, classLine, suggestLoginId, canReset, STATE } from "@/lib/student-plan";
+import { SHOW, showText } from "@/lib/score-plan";
+import { md } from "@/lib/dash-plan";
+const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
+export default function Board({ d }) {
+  const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
+  const b = d.board, today = d.date, st = b.student ?? null;
+  const [q, setQ] = useState(""); const [show, setShow] = useState("active"); const [edit, setEdit] = useState(false); const [addOpen, setAddOpen] = useState(false); const [consultOpen, setConsultOpen] = useState(false);
+  const [f, setF] = useState(null); const [nf, setNf] = useState({ name: "", grade: "", schoolId: "", phone: "", parentPhone: "", joinedOn: today, memo: "" }); const [cf, setCf] = useState({ way: "전화", at: "", body: "" });
+  const [acc, setAcc] = useState({ loginId: "", parentPhone: "" }); const [cls, setCls] = useState({ classId: "", from: today }); const [fee, setFee] = useState({ amount: "", from: today }); const [sib, setSib] = useState(""); const [leave, setLeave] = useState(today);
+  const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
+  const list = useMemo(() => listRows(b.list ?? [], { q, show }), [b, q, show]);
+  const pick = (id) => { window.location.href = `/ops/students?s=${id}`; };
+  const K = st ? kpis(b.kpi ?? {}, b.rules ?? {}) : []; const books = st ? bookLines(b.books ?? [], today) : []; const scores = st ? scoreRows(b.scores ?? []) : []; const weak = weakText(scores); const att = st ? attendRow(b.attend ?? []) : []; const uts = st ? unitChips(b.unit_tests ?? [], parseInt(b.rules?.["unit_test.pass_pct"] ?? "80", 10) || 80) : []; const hist = st ? historyLines(b.history ?? {}, st) : [];
+  const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
+  const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
+  return <>
+    <div className="lf" style={{ margin: "0 0 8px" }} data-g="list-head"><span className="ln">🧑‍🎓</span><div><b data-g="counts">재원생 {list.active} · 퇴원생 {list.left}{list.paused ? ` · 쉼 ${list.paused}` : ""} — {st ? "이 화면은 그 목록에서 한 아이를 연 것입니다" : "아래 목록에서 한 아이를 여세요"}</b><small>목록 칸: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태. 퇴원해도 줄은 남습니다(원장님 9/3). 「✎ 고치기」 안: 이름·연락처 · <span style={{ fontWeight: 700 }}>계정(비밀번호 0000으로 초기화 — 앱이 발급한 계정만)</span> · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리</small></div>
+      <input type="text" value={q} placeholder="찾기 (이름·학교·반)" aria-label="찾기" onChange={(x) => setQ(x.target.value)} style={{ maxWidth: 180 }} />
+      <div className="seg sm" data-g="show">{[["active", "재원"], ["left", "퇴원"], ["all", "전체"]].map(([k, nm]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{nm}</button>)}</div>
+      <button className="btn sm pri" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 학생</button><a className="btn sm" href="/ops/inquiry">☎️ 신규 상담 ↗</a></div>
+    {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
+    {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
+    {addOpen && <div className="card" data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>학생 — 이름 · 학년 · 학교 · 전화 · 들어온 날(반·교재·계정은 열고 나서 ✎ 고치기에서)</div>
+      <div className="wv"><input type="text" value={nf.name} placeholder="이름" aria-label="이름" onChange={(x) => setNf({ ...nf, name: x.target.value })} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={nf.grade} placeholder="학년" aria-label="학년" onChange={(x) => setNf({ ...nf, grade: x.target.value.replace(/\D/g, "") })} />
+        <select value={nf.schoolId} aria-label="학교" onChange={(x) => setNf({ ...nf, schoolId: x.target.value })} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <input type="text" inputMode="numeric" value={nf.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setNf({ ...nf, parentPhone: x.target.value })} style={{ maxWidth: 150 }} /><input type="date" className="dt" value={nf.joinedOn} aria-label="들어온 날" onChange={(x) => setNf({ ...nf, joinedOn: x.target.value })} style={{ width: "auto" }} />
+        <button className="btn pri sm" type="button" disabled={pending || !nf.name.trim()} data-act="add-save" onClick={() => run(() => addAct(nf), (r) => { pick(r.id); return "넣었습니다 — 여는 중"; })}>저장</button></div></div>}
+    <div className="tblwrap" data-g="list"><table><thead><tr><th>이름</th><th>학년·학교</th><th>반</th><th>교재</th><th>마지막 상담</th><th>상태</th></tr></thead><tbody>
+      {list.rows.map((s) => <tr key={s.id} className={st?.id === s.id ? "hi" : ""} data-g="student-row" data-student={s.id} data-state={s.state} onClick={() => pick(s.id)} style={{ cursor: "pointer" }}><td className="sch">{s.name}</td><td>{[s.gradeText, s.school].filter(Boolean).join(" · ") || "—"}</td><td>{s.classText}</td><td>{s.booksText}</td><td>{s.lastConsult}</td><td><span className={"tag" + (s.state === "active" ? " on" : "")}>{s.stateName}</span></td></tr>)}
+      {!list.rows.length && <tr><td colSpan={6} className="note">없습니다</td></tr>}
+    </tbody></table></div>
+    {st && <div data-g="student" data-student={st.id} style={{ marginTop: 12 }}>
+      <div className="wv" style={{ marginBottom: 8 }} data-g="head">
+        <b style={{ fontSize: "var(--fs-6)" }} data-g="name">{st.name}</b><span className="pill" data-g="grade">{[gradeText2(st.level, st.grade), st.school].filter(Boolean).join(" · ") || "학교 없음"}</span><span className="pill" data-g="class">{classLine(st.class)}</span><span className="pill" data-g="tenure">{tenureText(st, today)}</span>
+        {st.state !== "active" && <span className="tag act" data-g="state">{STATE.find(([k]) => k === st.state)?.[1]}</span>}
+        <span className="spacer" />{st.siblings?.length > 0 && <span className="pill" data-g="siblings">{siblingText(st.siblings)}</span>}
+        <button className="btn sm" type="button" data-act="edit-open" title="이름·연락처 · 계정(아이디 · 비밀번호 0000으로 초기화) · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리" onClick={() => { setEdit(!edit); setF(null); }}>✎ 고치기</button></div>
+      {edit && <div className="card" data-g="edit"><div className="ctitle"><span className="cemo">✎</span>고치기 — {st.name}</div>
+        <div className="wv"><input type="text" value={form.name} aria-label="이름" onChange={(x) => setForm("name", x.target.value)} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={form.grade} placeholder="학년" aria-label="학년" onChange={(x) => setForm("grade", x.target.value.replace(/\D/g, ""))} />
+          <select value={form.schoolId} aria-label="학교" onChange={(x) => setForm("schoolId", x.target.value)} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+          <input type="text" inputMode="numeric" value={form.phone} placeholder="아이 전화" aria-label="아이 전화" onChange={(x) => setForm("phone", x.target.value)} style={{ maxWidth: 150 }} /><input type="text" inputMode="numeric" value={form.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setForm("parentPhone", x.target.value)} style={{ maxWidth: 150 }} />
+          <input type="date" className="dt" value={form.joinedOn} aria-label="들어온 날" onChange={(x) => setForm("joinedOn", x.target.value)} style={{ width: "auto" }} />
+          <button className="btn pri sm" type="button" disabled={pending || !f} data-act="edit-save" onClick={() => run(() => setAct(st.id, form), "고쳤습니다", () => setF(null))}>저장</button></div>
+        <div className="wv" style={{ marginTop: 6 }}><textarea value={form.memo} placeholder="메모(등원 때 레벨 · 특이사항)" aria-label="메모" onChange={(x) => setForm("memo", x.target.value)} style={{ flex: "1 1 300px", minHeight: 48 }} /></div>
+        <div className="left" style={{ marginTop: 8 }}>
+          <div className="lf" data-g="account"><span className="ln">🔑</span><div><b>계정 — 학생</b><small>{st.login_id ? `아이디 ${st.login_id}${st.must_change_pw ? " · 첫 비밀번호(0000) 아직 안 바꿈" : ""}${st.issued_by_app ? " · 앱이 발급" : " · 이관된 계정(전환일까지 비밀번호를 안 건드립니다)"}` : "아직 없음 — 아이디(chloe + 숫자 넷)를 정해 발급합니다(첫 비밀번호 0000 · 첫 로그인에 바꿉니다)"}</small></div>
+            {!st.login_id && <><input type="text" value={acc.loginId || suggestLoginId(st, today)} aria-label="학생 아이디" onChange={(x) => setAcc({ ...acc, loginId: x.target.value })} style={{ maxWidth: 160 }} /><button className="btn sm pri" type="button" disabled={pending} data-act="student-account" onClick={() => run(() => studentAccountAct(st.id, acc.loginId || suggestLoginId(st, today)), (r) => `학생 계정 ${r.login_id} · 첫 비밀번호 ${r.password}`)}>발급</button></>}
+            {st.login_id && canReset({ issued_by_app: st.issued_by_app }) && <button className="btn sm" type="button" disabled={pending} data-act="reset-student" onClick={() => run(() => resetAct(st.profile_id), (r) => `${r.login_id} — 0000 으로 초기화(첫 로그인에 바꿉니다)`)}>비밀번호 0000</button>}</div>
+          <div className="lf" data-g="parent-account"><span className="ln">👨‍👩‍👧</span><div><b>계정 — 학부모</b><small>{st.parents?.length ? st.parents.map((p) => `${p.login_id ?? p.name}${p.rel ? `(${p.rel})` : ""}${p.issued_by_app ? " · 앱이 발급" : ""}`).join(" · ") : "아직 없음 — 전화번호가 아이디입니다(같은 번호가 있으면 형제로 잇습니다)"}</small></div>
+            <input type="text" inputMode="numeric" value={acc.parentPhone || st.parent_phone || ""} placeholder="학부모 전화" aria-label="학부모 계정 전화" onChange={(x) => setAcc({ ...acc, parentPhone: x.target.value })} style={{ maxWidth: 150 }} /><button className="btn sm pri" type="button" disabled={pending} data-act="parent-account" onClick={() => run(() => parentAccountAct(st.id, acc.parentPhone || st.parent_phone), (r) => r.created ? `학부모 계정 ${r.login_id} · 첫 비밀번호 ${r.password}` : `있던 학부모 계정 ${r.login_id}에 이었습니다(형제)`)}>발급·잇기</button>
+            {st.parents?.filter((p) => canReset(p)).map((p) => <button key={p.profile_id} className="btn sm" type="button" disabled={pending} data-act="reset-parent" onClick={() => run(() => resetAct(p.profile_id), (r) => `${r.login_id} — 0000 으로 초기화`)}>{p.login_id} 0000</button>)}</div>
+          <div className="lf" data-g="sibling"><span className="ln">👥</span><div><b>형제 묶기</b><small>다른 아이의 학부모 계정을 이 아이에게도 잇습니다(같은 집)</small></div>
+            <select value={sib} aria-label="형제" onChange={(x) => setSib(x.target.value)} style={{ width: "auto" }}><option value="">아이 고르기</option>{(b.list ?? []).filter((s) => s.id !== st.id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><button className="btn sm" type="button" disabled={pending || !sib} data-act="sibling-save" onClick={() => run(() => siblingAct(st.id, sib), (r) => `형제로 묶었습니다 — 학부모 계정 ${r.linked}`, () => setSib(""))}>묶기</button></div>
+          <div className="lf" data-g="class-edit"><span className="ln">🏫</span><div><b>반 — {classLine(st.class)}</b><small>옮기면 그날부터 회차·수강료가 갈립니다(이력이 남습니다)</small></div>
+            <select value={cls.classId} aria-label="반" onChange={(x) => setCls({ ...cls, classId: x.target.value })} style={{ width: "auto" }}><option value="">반 고르기</option>{(b.classes ?? []).map((c) => <option key={c.id} value={c.id}>{classLine(c)}</option>)}</select><input type="date" className="dt" value={cls.from} aria-label="반 시작일" onChange={(x) => setCls({ ...cls, from: x.target.value })} style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !cls.classId} data-act="class-save" onClick={() => run(() => classAct(st.id, cls.classId, cls.from), "반을 옮겼습니다 — 그날부터", () => setCls({ classId: "", from: today }))}>옮기기</button></div>
+          <div className="lf" data-g="fee-edit"><span className="ln">💳</span><div><b>학생별 금액</b><small>「언제부터 얼마」 — 13 수강료의 단가 줄과 같은 표</small></div>
+            <input type="text" inputMode="numeric" className="fee" value={fee.amount} placeholder="금액" aria-label="학생별 금액" onChange={(x) => setFee({ ...fee, amount: x.target.value.replace(/\D/g, "") })} /><input type="date" className="dt" value={fee.from} aria-label="금액 시작일" onChange={(x) => setFee({ ...fee, from: x.target.value })} style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !fee.amount} data-act="fee-save" onClick={() => run(() => feeAct(st.id, fee.amount, fee.from), (r) => `${r.amount.toLocaleString()}원 — ${fee.from} 부터`, () => setFee({ amount: "", from: today }))}>저장</button></div>
+          <div className="lf" data-g="show-edit"><span className="ln">📈</span><div><b>성적 공개</b><small>확인하는 순간 줄의 공개가 이 값으로 붙습니다(16)</small></div>
+            <select value={st.score_show ?? "both"} aria-label="성적 공개" data-g="score-show" onChange={(x) => run(() => showAct(st.id, x.target.value), `성적 공개 — ${showText(x.target.value)}`)} style={{ width: "auto" }}>{SHOW.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select></div>
+          <div className="lf" data-g="leave"><span className="ln">{st.state === "left" ? "↩" : "🚪"}</span><div><b>{st.state === "left" ? "복귀" : "퇴원 처리"}</b><small>{st.state === "left" ? "다시 재원으로 — 나간 날은 지웁니다" : "나간 날을 찍습니다 · 줄은 남습니다(9/3) · 반 줄도 그날로 닫힙니다"}</small></div>
+            {st.state !== "left" && <input type="date" className="dt" value={leave} aria-label="나간 날" onChange={(x) => setLeave(x.target.value)} style={{ width: "auto" }} />}
+            <button className="btn sm" type="button" disabled={pending} data-act={st.state === "left" ? "return" : "leave"} onClick={() => run(() => stateAct(st.id, st.state === "left" ? "active" : "left", leave), st.state === "left" ? "재원으로 돌렸습니다" : "퇴원 처리했습니다 — 줄은 남습니다")}>{st.state === "left" ? "복귀" : "퇴원"}</button></div>
+        </div></div>}
+      <div className="kpi" data-g="kpi">{K.map((k) => <div className={"k1" + (k.bad ? " bad" : "")} key={k.key} data-g="k1" data-key={k.key}><span className="ki">{k.emo}</span><b>{k.big}</b><small>{k.small}</small></div>)}</div>
+      <div className="stw">
+        <div className="stcol">
+          <div className="card" style={{ margin: "0 0 8px" }} data-g="books"><div className="ctitle"><span className="cemo">📚</span>교재 진도</div>
+            {!books.length && <p className="note" style={{ margin: 0 }}>배정된 교재가 없습니다 — 루틴 11 에서 잇습니다</p>}
+            {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div>
+          <div className="card" style={{ margin: "0 0 8px" }} data-g="scores"><div className="ctitle"><span className="cemo">📈</span>성적</div>
+            <div className="tblwrap"><table><thead><tr><th>시험</th><th>원점수</th><th>등급</th><th>틀린 영역</th></tr></thead><tbody>
+              {scores.map((s) => <tr key={s.id} data-g="score-row"><td className="sch">{s.title}{s.pending ? <span className="tag act" style={{ marginLeft: 4 }}>확인 전</span> : null}</td><td className="num">{s.raw}{s.full !== 100 ? `/${s.full}` : ""}</td><td className="num">{s.grade}</td><td>{s.sum.slice(0, 3).map((x, i) => <span key={x.kind} className="tag" style={i === 0 ? MISS : undefined}>{x.kind} {x.n}</span>)}{!s.sum.length && <span className="mute">—</span>}</td></tr>)}
+              {!scores.length && <tr><td colSpan={4} className="note">아직 없습니다</td></tr>}
+            </tbody></table></div>
+            {weak && <div className="weak" data-g="weak"><b>⚠️ {weak.text}</b><span className="tag act">{weak.hint}</span></div>}</div>
+        </div>
+        <div className="stcol">
+          <div className="card" style={{ margin: "0 0 8px" }} data-g="attend"><div className="ctitle"><span className="cemo">🕘</span>이번 달 출결 <span className="tag">{md(`${b.month}-01`).replace(/\/.*/, "")}월</span></div>
+            <div className="attrow">{att.map((a) => <i key={a.date} className={"cm " + a.cls} title={a.title} data-g="att" data-attend={a.attend}>{a.icon}</i>)}{!att.length && <span className="note" style={{ margin: 0 }}>이 달 수업 기록이 없습니다</span>}</div>
+            {att.some((a) => a.arrived || a.left) && <p className="note k" style={{ margin: "6px 0 0" }} data-g="att-times">{att.filter((a) => a.arrived || a.left).map((a) => `${md(a.date)} ${a.arrived ? `등원 ${a.arrived}` : ""}${a.left ? ` 하원 ${a.left}` : ""}`).join(" · ")}</p>}</div>
+          <div className="card" style={{ margin: "0 0 8px" }} data-g="unit-tests"><div className="ctitle"><span className="cemo">📝</span>단원평가</div>
+            <div className="utrow">{uts.map((u) => <span key={u.id} className={"ut " + (u.ok ? "ok" : "bad")}>{u.text}</span>)}{!uts.length && <span className="note" style={{ margin: 0 }}>채점한 단원평가가 없습니다</span>}</div></div>
+          <div className="card" style={{ margin: "0 0 8px" }} data-g="history"><div className="ctitle"><span className="cemo">🧾</span>지나온 것 — 다 남아 있습니다</div>
+            <div className="hist">{hist.map((h, i) => <div className="h1" key={i} data-g="h1"><span className="hd">{h.ym}</span><div><b>{h.title}</b><small>{h.small}</small></div>{h.tag && <span className="tag act">{h.tag}</span>}</div>)}{!hist.length && <p className="note" style={{ margin: 0 }}>아직 없습니다</p>}</div></div>
+          {d.consult && <div className="card" style={{ margin: "0 0 8px" }} data-g="consults"><div className="ctitle"><span className="cemo">💬</span>상담</div>
+            {(b.history?.consults ?? []).map((c) => <div className="dayrow" key={c.id} data-g="consult-row"><i className="cm i-hw">💬</i><div><b>{String(c.at).slice(0, 10).replace(/-/g, ".")}{c.way ? ` · ${c.way}` : ""}</b><small>{c.body}</small></div></div>)}
+            {!(b.history?.consults ?? []).length && <p className="note" style={{ margin: 0 }}>아직 없습니다</p>}
+            {consultOpen && <div className="wv" style={{ marginTop: 8 }} data-g="consult-form"><select value={cf.way} aria-label="상담 갈래" onChange={(x) => setCf({ ...cf, way: x.target.value })} style={{ width: "auto" }}>{["전화", "정기 상담", "방문", "문자"].map((w) => <option key={w} value={w}>{w}</option>)}</select><input type="text" value={cf.body} placeholder="내용" aria-label="상담 내용" onChange={(x) => setCf({ ...cf, body: x.target.value })} style={{ flex: "1 1 200px" }} /><button className="btn sm pri" type="button" disabled={pending || !cf.body.trim()} data-act="consult-save" onClick={() => run(() => consultAct(st.id, cf), "상담을 적었습니다", () => { setCf({ way: "전화", at: "", body: "" }); setConsultOpen(false); })}>저장</button></div>}
+            <button className="btn sm" type="button" style={{ width: "100%", marginTop: 8 }} data-act="consult-open" onClick={() => setConsultOpen(!consultOpen)}>+ 상담 적기</button></div>}
+        </div>
+      </div>
+      <div className="savebar" data-g="bar"><a className="btn" href="/send">📨 월간 리포트 미리 보기</a><a className="btn" href="/today">📅 오늘 화면으로</a><span className="spacer" /><span className="pill" data-g="show-pill">성적 공개 — {showText(st.score_show ?? "both")}</span></div>
+    </div>}
+  </>;
+}

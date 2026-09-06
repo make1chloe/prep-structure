@@ -19,6 +19,7 @@ export default async function Ops({ searchParams }) {
   catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>운영을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 아직 없는 DB 면 0121 까지의 마이그레이션을 먼저 돌립니다(docs/원장님-정하실-것 ㉖).</p></div>); }
   return frame(<>
     {d.fee ? <Fee d={{ date: d.date, ym: d.ym, rows: d.rows }} /> : <div className="card" data-card="fee-closed"><div className="ctitle"><span className="cemo">💳</span>수강료</div><p className="note">이 계정에는 수강료가 안 열려 있습니다 — 원장님이 「누가 무엇을 보나」에서 켜십니다(답 ⑮ 「강사는 수강료 못 보게」).</p></div>}
-    <div className="card" style={{ marginTop: 12 }} data-card="ops-later"><div className="ctitle"><span className="cemo">🗂</span>상담일지 · 신규 문의</div><p className="note">신규 상담 18 을 지을 때 여기 섭니다(표 `consult` · `inquiry` 는 있다). 대시보드 「답할 것」에 신규 문의 수가 이미 뜹니다.</p></div>
+    <a className="card" href="/ops/students" data-card="students" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🧑‍🎓</span>학생 — 재원생 · 퇴원생 · 한 아이의 성장(14)</div><p className="note">목록에서 한 아이를 열면 KPI 여섯 · 교재 진도 · 성적 · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담. 퇴원해도 줄은 남습니다(9/3)</p></a>
+    <a className="card" href="/ops/inquiry" data-card="inquiry" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">☎️</span>신규 상담 — 전화 끊고 바로 · 등록 전환 일곱(18)</div><p className="note">🔥 오늘 답할 것 · 상담 잡힘 · 레벨 봄 · 등록 · 안 옴 — 「누가 무엇을 보나」의 신규 문의 칸으로 엽니다</p></a>
   </>);
 }
