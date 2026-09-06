@@ -50,7 +50,7 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건(속도-1 의 예외, 원장님 9/5) · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a></div>
+    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건(속도-1 의 예외, 원장님 9/5) · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/grid">표 보기(06c) ↗</a></div>
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>

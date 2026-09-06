@@ -30,7 +30,7 @@ export default async function Schedule({ searchParams }) {
       <div className="seg sm" data-g="classes"><a className="btn sm" aria-pressed={!d.classId} href={`/schedule?m=${d.ym}&d=${d.sel}`} style={{ border: 0, borderRadius: 0 }}>전체</a>{(b.classes ?? []).map((c) => <a key={c.id} className="btn sm" aria-pressed={d.classId === c.id} href={`/schedule?m=${d.ym}&d=${d.sel}&c=${c.id}`} style={{ border: 0, borderRadius: 0 }}>{classText(c)}</a>)}</div>
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
-      <a className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a>
+      <a className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a><a className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</a>
     </div>
     <div className="cnt8" data-g="cnt8">
       {(b.classes ?? []).map((c) => { const s = sessionsOf(c, target); return <div key={c.id} className={"c8" + (s.ok === false ? " short" : "")} data-g="c8" data-class={c.id}><b>{classText(c)}</b><span className={"c8n" + (s.ok === true ? " ok" : s.ok === false ? " bad" : "")}>{s.n}회</span><small>{s.text}{c.members != null ? ` · ${c.members}명` : ""}</small>{s.ok === false && <Panel.ClassMakeup classId={c.id} ym={d.ym} short={s.short} />}</div>; })}
