@@ -66,12 +66,27 @@ ok("비밀번호 바꾸기 화면으로 보낸다", new URL(p.url()).pathname ==
 await p.goto(APP + "/"); ok("안 바꾸면 첫 화면으로 못 간다", new URL(p.url()).pathname === "/password");
 await p.fill("#pw", "0000"); await p.fill("#pw2", "0000"); await p.click("form.card button[type=submit]"); await p.waitForLoadState("networkidle").catch(() => {});
 { const n = await p.locator("main [role=alert]:visible").count(); ok("0000 은 거절한다", n === 1, `url=${p.url()} alert ${n} · ${(await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 160)}`); }
-await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"); await Promise.all([p.waitForURL((u) => u.pathname === "/"), p.click("form.card button[type=submit]")]);
-ok("바꾸면 첫 화면", new URL(p.url()).pathname === "/");
-ok("학생에게는 「곧 열립니다」", (await p.locator("main").textContent()).includes("곧 열립니다"));
+await p.fill("#pw", "새비밀번호1"); await p.fill("#pw2", "새비밀번호1"); await Promise.all([p.waitForURL((u) => u.pathname === "/me"), p.click("form.card button[type=submit]")]);   // 아이는 바꾸자마자 제 화면(/me)
+ok("바꾸면 「나」 화면(/me — 아이는 제 화면 하나)", new URL(p.url()).pathname === "/me", p.url());
+console.log("■ 아이 화면 07 — 아침: 등원 전에도 「오늘 낼 숙제」가 보인다 → 출석을 찍으면 판이 선다(원장 손과 같은 길)");
+const meMain = p.locator("main");
+ok("메뉴 없음(아이는 제 화면 하나) · 등원·하원 카드", (await p.locator("header.appbar nav.tabs a").count()) === 0 && (await meMain.locator("[data-card=arrival]").count()) === 1, `tabs ${await p.locator("header.appbar nav.tabs a").count()} · arrival ${await meMain.locator("[data-card=arrival]").count()}`);
+ok("「오늘 낼 숙제 2」 — 어제 숙제 둘, 등원 전엔 지난 판에서 · 「9/N 에 받은 숙제」", (await meMain.locator("[data-card=due] .h .pill").textContent()) === "2" && (await meMain.locator("[data-card=due]").textContent()).includes("에 받은 숙제"), (await meMain.locator("[data-card=due]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+ok("오늘 할 것은 「선생님이 오늘 수업을 열면」", (await meMain.locator("[data-card=todo]").textContent()).includes("오늘 수업을 열면"), (await meMain.locator("[data-card=todo]").textContent()).slice(0, 120));
+ok("등원 전 — 알약 「아직」 · 집에 가요 단추 없음", (await meMain.locator("[data-g=arrival-pill]").textContent()) === "아직" && (await meMain.locator("[data-card=arrival] button[data-step='4']").count()) === 0);
+await meMain.locator("[data-card=arrival] button[data-step='2']").click(); await p.waitForTimeout(3000);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("「출석」 → 「HH:MM 왔음」 · ✓ 출석 · 두 번은 못 찍는다(단추가 사라진다) · 집에 가요 단추가 열린다", /^\d\d:\d\d 왔음$/.test(await meMain.locator("[data-g=arrival-pill]").textContent()) && (await meMain.locator("[data-card=arrival] .tag.on", { hasText: "출석" }).count()) === 1 && (await meMain.locator("[data-card=arrival] button[data-step='2']").count()) === 0 && (await meMain.locator("[data-card=arrival] button[data-step='4']").count()) === 1, (await meMain.locator("[data-card=arrival]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+ok("판이 섰다(원장 손과 같은 길) — 「오늘 낼 숙제 2」는 이제 검사 줄에서 · 오늘 할 것은 「선생님이 검사하면」", (await meMain.locator("[data-card=due] .h .pill").textContent()) === "2" && !(await meMain.locator("[data-card=due]").textContent()).includes("에 받은 숙제") && (await meMain.locator("[data-card=todo]").textContent()).includes("검사하면"), (await meMain.locator("[data-card=due]").textContent()).replace(/\s+/g, " ").slice(0, 200) + " / " + (await meMain.locator("[data-card=todo]").textContent()).slice(0, 100));
+await meMain.locator("[data-card=arrival] button[data-step='1']").click(); await p.waitForTimeout(2000); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("「핸드폰 냈어요」도 찍힌다 — 도착 시각은 가장 이른 걸음 그대로(출석이 먼저였다)", (await meMain.locator("[data-card=arrival] .tag.on").count()) === 2);
+ok("내 교재 — 「zz_리허설 문법책 · 1회독 · 남은 소단원」", (await meMain.locator("[data-card=books]").textContent()).includes("zz_리허설 문법책") && (await meMain.locator("[data-card=books]").textContent()).includes("1회독 · 남은 소단원"), (await meMain.locator("[data-card=books]").textContent()).slice(0, 120));
+await ctx.storageState({ path: ".tmp/state-student.json" });   // 치수·글꼴·대비 검사가 아이 자격으로 /me 를 연다
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-me-morning-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
 await login(p, "student", "chloe0000", "새비밀번호1");
-ok("새 비밀번호로 들어가고 다시 안 묻는다", new URL(p.url()).pathname === "/", p.url());
+ok("새 비밀번호로 들어가고 다시 안 묻는다 — 「나」 화면으로", new URL(p.url()).pathname === "/me", p.url());
 await b.close();
 console.log(`\n■ 화면 걷기 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -29,6 +29,10 @@ const rows = (await c.query(`
     has_table_privilege('authenticated','v2.'||quote_ident(t.relname),'insert') ins,
     has_table_privilege('authenticated','v2.'||quote_ident(t.relname),'update') upd,
     has_table_privilege('authenticated','v2.'||quote_ident(t.relname),'delete') del,
+    has_table_privilege('service_role','v2.'||quote_ident(t.relname),'select') ssel,
+    has_table_privilege('service_role','v2.'||quote_ident(t.relname),'insert') sins,
+    has_table_privilege('service_role','v2.'||quote_ident(t.relname),'update') supd,
+    has_table_privilege('service_role','v2.'||quote_ident(t.relname),'delete') sdel,
     t.relrowsecurity rls, t.relforcerowsecurity forced
   from pg_class t join pg_namespace n on n.oid = t.relnamespace
   where n.nspname = 'v2' and t.relkind = 'r' order by t.relname`)).rows;
@@ -56,6 +60,12 @@ ok("**권한은 있는데 쓰라는 규칙이 없는** 표가 없다",
 ok("접근 규칙이 **켜져 있고 강제**된다 (enable + force)",
    rows.filter(x => !x.rls || !x.forced).map(x => `${x.tbl} (enable ${x.rls ? "○" : "✕"} · force ${x.forced ? "○" : "✕"})`),
    "force 가 없으면 표 주인은 규칙을 그냥 지나간다");
+
+// ⚠️ 서버 자신(service_role)은 규칙을 지나치지만 **권한은 따로**다 — 2026-09-06 실측: 아이의 등원이 「permission denied for table integration」(0116). 크론도 같은 자리
+ok("**서버 자신(service_role)이 못 읽거나 못 쓰는 표가 없다** (크론·등원 — 0116)",
+   rows.filter(x => !x.ssel || !x.sins || !x.supd).map(x => `${x.tbl} (select ${x.ssel ? "○" : "✕"} · insert ${x.sins ? "○" : "✕"} · update ${x.supd ? "○" : "✕"})`),
+   "bypassrls 는 규칙을 지나칠 뿐 권한을 주지 않는다 — Supabase 는 public 에만 기본 권한을 준다");
+ok("**서버 자신도 지울 권한이 없다** (대전제 6)", rows.filter(x => x.sdel).map(x => x.tbl));
 
 // ⚠️ 감사와 이관은 **사람이 쓰면 안 된다**
 ok("감사·이관 표에 **사람이 쓸 권한이 없다**",

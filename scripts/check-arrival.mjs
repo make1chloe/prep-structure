@@ -1,0 +1,25 @@
+/** 등원·하원 검사(검사-㊺ · 목업 07 🕘 · 0078·0083) — 순수 판단 lib/arrival-plan.js: 걸음 셋 + 집에 가요 · 도착은 가장 이른 등원 걸음 · 지각 분은 반 시작과 견줘(유예 분) · 학원 회선(IPv4 그대로 · IPv6 앞 4덩어리 · ::ffff: · 빈 목록은 아무도 못 찍음) · 요청 주소 읽기 · 반 고르기(하나·둘·보강·없음) · 「앞으로」 줄 · 학원 줄의 차례 */
+import { STEPS, LEAVE, stepName, arrivalState, lateMinutes, ipKey, ipAllowed, clientIp, classChoice, futureLines, classSteps } from "../lib/arrival-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+console.log("■ 걸음");
+ok("걸음 셋 핸드폰·출석·숙제 + 집에 가요(4)", STEPS.map(([, v]) => v).join(",") === "핸드폰 냈어요,출석,숙제 냈어요" && LEAVE === 4 && stepName(4) === "집에 가요" && stepName(2) === "출석");
+const rows = [{ step: 2, at: "2026-09-06T08:02:00Z" }, { step: 1, at: "2026-09-06T08:00:30Z" }, { step: 4, at: "2026-09-06T13:10:00Z" }];
+const st = arrivalState(rows);
+ok("도착은 가장 이른 등원 걸음(핸드폰 17:00) · 하원은 4 · 찍은 걸음 집합", st.arrivedAt === "2026-09-06T08:00:30Z" && st.leftAt === "2026-09-06T13:10:00Z" && st.arrived && st.left && st.done.has(2) && !st.done.has(3));
+ok("아무것도 안 찍었으면 아직", !arrivalState([]).arrived && arrivalState([]).arrivedAt === null && !arrivalState([{ step: 4, at: "x" }]).arrived);
+console.log("■ 지각 분 — 세어 나온다(원칙-5)");
+ok("17:12 도착 · 17:00 시작 · 유예 0 → 12분 · 유예 15 → 0 · 정시 → 0 · 시작 모르면 0", lateMinutes("2026-09-06T08:12:00Z", "17:00", 0) === 12 && lateMinutes("2026-09-06T08:12:00Z", "17:00", 15) === 0 && lateMinutes("2026-09-06T08:00:00Z", "17:00:00", 0) === 0 && lateMinutes("2026-09-06T08:12:00Z", null, 0) === 0);
+console.log("■ 학원 회선");
+ok("IPv4 그대로 · IPv6 앞 4덩어리 · ::ffff: 꼴은 v4", ipKey("1.2.3.4") === "1.2.3.4" && ipKey("2001:db8:1:2:aaaa:bbbb:cccc:dddd") === "2001:db8:1:2" && ipKey("::ffff:10.0.0.9") === "10.0.0.9");
+ok("목록에 있으면 통과 · 같은 /64 도 통과 · 없으면 막힘 · 빈 목록은 아무도 못 찍음 · 주소 없으면 막힘", ipAllowed("1.2.3.4", ["1.2.3.4"]) && ipAllowed("2001:db8:1:2:1:1:1:1", ["2001:db8:1:2:9:9:9:9"]) && !ipAllowed("1.2.3.5", ["1.2.3.4"]) && !ipAllowed("1.2.3.4", []) && !ipAllowed(null, ["1.2.3.4"]));
+const H = (m) => (k) => m[k] ?? null;
+ok("요청 주소 — x-forwarded-for 의 첫 것 · 없으면 x-real-ip · 없으면 null", clientIp(H({ "x-forwarded-for": "5.6.7.8, 10.0.0.1" })) === "5.6.7.8" && clientIp(H({ "x-real-ip": "9.9.9.9" })) === "9.9.9.9" && clientIp(H({})) === null);
+console.log("■ 반 고르기 · 앞으로 · 차례");
+ok("반 하나면 그것 · 둘이면 고른다(답 ⑫) · 보강뿐이면 반 없음 · 아무것도 없으면 none", classChoice([{ id: "a", kind: "regular", start: "17:00" }]).classId === "a" && classChoice([{ id: "a", kind: "regular" }, { id: "b", kind: "regular" }]).pick === true && classChoice([{ id: null, kind: "makeup", start: "14:00" }]).makeup === true && classChoice([]).none === true);
+const fut = futureLines({ absences: [{ of_date: "2026-10-14", state: "set", on_date: "2026-10-18", at_time: "14:00:00" }, { of_date: "2026-09-01", state: "todo" }, { of_date: "2026-10-20", state: "cancelled" }], lates: [{ date: "2026-10-19", minutes: 30 }], today: "2026-09-06" });
+ok("「10/14 수 결석 예정 · 보강 10/18 14:00」 · 「10/19 월 30분 지각 예정」 — 지난 것·물린 것은 뺀다 · 날짜 차례", fut.map((f) => f.text).join(" | ") === "10/14 수 결석 예정 · 보강 10/18 14:00 | 10/19 월 30분 지각 예정", fut.map((f) => f.text).join(" | "));
+const steps = classSteps([{ id: "c", sort: 3 }, { id: "a", sort: 1, said_done_at: "x" }, { id: "b", sort: 2 }]);
+ok("학원 줄 차례 — 끝낸 것 done · 첫 안 끝낸 줄 now · 그 뒤 locked(0084 ⑱)", steps.map((s) => `${s.id}:${s.state}`).join(",") === "a:done,b:now,c:locked");
+console.log(`\n■ 등원·하원 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

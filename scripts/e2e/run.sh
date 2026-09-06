@@ -9,6 +9,7 @@ echo; echo "== 앱 띄우기 =="
 pkill -9 -f "next-server" 2>/dev/null; pkill -9 -f "next start -p $APP_PORT" 2>/dev/null; sleep 1
 ANON="$(node scripts/e2e/token.mjs anon)"
 export NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:$API_PORT" NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON" NEXT_TELEMETRY_DISABLED=1
+export SUPABASE_SERVICE_ROLE_KEY="$(node scripts/e2e/token.mjs service_role)"   # 서버 자신 — 아이의 등원이 판을 세울 때(lib/arrival.js) 쓴다
 npx next build --webpack > /var/tmp/e2e-build.log 2>&1 || { echo "  빌드 실패"; tail -30 /var/tmp/e2e-build.log; exit 1; }
 npx next start -p "$APP_PORT" > /var/tmp/e2e-next.log 2>&1 &
 for i in $(seq 1 60); do curl -sf "http://127.0.0.1:$APP_PORT/" >/dev/null && break; sleep 2; done
@@ -23,4 +24,11 @@ export CHECK_URLS="http://127.0.0.1:$APP_PORT/login,http://127.0.0.1:$APP_PORT/,
 node scripts/check-sizes.mjs || exit 1
 node scripts/check-fonts.mjs || exit 1
 node scripts/check-contrast.mjs || exit 1
+# ── 아이 화면(07)은 아이 자격으로 — screens.mjs 가 남긴 아이 쿠키 상태로 연다
+if [ -f .tmp/state-student.json ]; then
+  export CHECK_STATE=.tmp/state-student.json CHECK_URLS="http://127.0.0.1:$APP_PORT/me"
+  node scripts/check-sizes.mjs || exit 1
+  node scripts/check-fonts.mjs || exit 1
+  node scripts/check-contrast.mjs || exit 1
+fi
 echo; echo "눌러보기 끝. 내리려면 bash scripts/e2e/down.sh"

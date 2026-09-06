@@ -230,6 +230,17 @@ const untilTyped = await row.locator("form.lategrid input[name=untilAt]").inputV
 ok("+20분이 시각을 채운다", /^\d\d:\d\d$/.test(untilTyped), untilTyped);
 await row.locator("form.lategrid button[type=submit]").click(); await p.waitForTimeout(800);
 ok("적어 두면 「보내야 함」", (await row.locator(".pill.warn", { hasText: "보내야 함" }).count()) === 1);
+console.log("■ 아이 화면 07 — 저녁: 「오늘은 남아서 HH:MM 예정」 · 오늘 할 것이 깔려 있다 · 「집에 가요」를 찍으면 원장님 화면 「실제 하원」과 같은 줄(등원 걸음 4)");
+{ const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/login"); await cp.fill("#id-student", "chloe0000"); await cp.fill("#pw-student", "새비밀번호1");
+  await Promise.all([cp.waitForURL((u) => u.pathname === "/me", { timeout: 15000 }), cp.click("form:has(#id-student) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
+  const mm = cp.locator("main");
+  ok("아이 화면 — 「오늘은 남아서 HH:MM 예정」 + 사유 · 「오늘 할 것」에 학원·숙제 줄이 깔려 있다(선생님이 검사한 뒤)", (await mm.locator("[data-card=stay] .pill").textContent()) === `${untilTyped} 예정` && (await mm.locator("[data-card=stay]").textContent()).includes("워크북 나머지 10-18번") && (await mm.locator("[data-card=todo] .li").count()) >= 2, (await mm.textContent()).replace(/\s+/g, " ").slice(0, 400));
+  await mm.locator("[data-card=arrival] button[data-step='4']").click(); await cp.waitForTimeout(2500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("「집에 가요」 → 「HH:MM 집에 감」 · 단추는 사라진다(하루 한 번)", /집에 감$/.test(await mm.locator("[data-g=arrival-pill]").textContent()) && (await mm.locator("[data-card=arrival] button[data-step='4']").count()) === 0, await mm.locator("[data-g=arrival-pill]").textContent());
+  await cs.close(); }
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("원장님 화면 — 아이가 찍은 실제 하원이 같은 줄로 보인다(등원 걸음 4 · 0083)", (await row.locator("[data-g=left-out]").count()) === 1 && (await row.locator("[data-g=left-out]").textContent()).startsWith("실제 하원 "), (await row.locator("[data-g=left]").textContent()).slice(0, 160));
 ok("되풀이 — 그저께·어제 약속 + 오늘 = 21일 안 3번째 → 앱이 먼저 「3주 안 3번째 남습니다 — 숙제량을 볼까요?」(규칙 late.repeat_count 3 · repeat_days 21) + 날들에 「오늘」", (await row.locator("[data-g=repeat] b").count()) === 1 && (await row.locator("[data-g=repeat] b").textContent()) === "3주 안 3번째 남습니다 — 숙제량을 볼까요?" && (await row.locator("[data-g=repeat] small").textContent()).includes("오늘"), (await row.locator("[data-card=late]").textContent()).slice(0, 200));
 await row.locator("[data-g=repeat] button[data-act=repeat-tune]").first().click(); await p.waitForTimeout(1500);
 ok("띠의 「조절 ↗」 → 02 조절 모달이 그 자리에서 열린다(숙제량을 보는 자리)", (await p.locator(".mdlov[aria-label=조절]").count()) === 1);
@@ -302,6 +313,20 @@ ok("띠가 떠 있다(「N월이 시작됐습니다 — N월 경고를 정리할
 await p.locator("[data-band=warn] button", { hasText: "전원 정리하기" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("정리하면 띠가 내려가고 오늘 것만 남아 「경고 1 · 반성문」(오늘 처분한 것은 그대로)", (await p.locator("[data-band=warn]").count()) === 0 && (await p.locator(".row").first().locator(".pill[data-warn]").textContent()) === "경고 1 · 반성문");
+console.log("■ 아이 화면 07 — 마감 뒤: 「다 했어요」(학원 줄은 차례대로 · 무를 수 있다, 답 ⑧) · 선생님 한 마디(마감해야) · 시험 결과 · 「집에 감」 그대로");
+{ const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/login"); await cp.fill("#id-student", "chloe0000"); await cp.fill("#pw-student", "새비밀번호1");
+  await Promise.all([cp.waitForURL((u) => u.pathname === "/me", { timeout: 15000 }), cp.click("form:has(#id-student) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
+  const mm = cp.locator("main");
+  const cls = mm.locator("[data-card=todo] .li");
+  ok("학원 줄 — 첫 줄만 「다 했어요」, 다음 줄은 「앞엣것부터」(0084 ⑱)", (await cls.first().locator("button[data-act=said]").count()) === 1 && (await mm.locator("[data-card=todo] [data-g=locked]").count()) >= 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  await cls.first().locator("button[data-act=said]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("누르면 「했어요 ✓ · 무르기」 · 다음 줄이 열린다(마감 뒤에도 — 숙제는 저녁에 한다)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 1 && (await mm.locator("[data-card=todo] .li").nth(1).locator("button[data-act=said]").count()) === 1, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("무르면 다시 「다 했어요」 — 문지기가 막지 않는다(답 ⑧ · 0115)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 0, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+  ok("선생님 한 마디 — 단어 「Day 38-40 통과. 스크램블 6200점」(마감해야 보인다) · 시험 결과 85% · 「집에 감」 그대로", (await mm.locator("[data-card=memo]").textContent()).includes("스크램블 6200점") && (await mm.locator("[data-card=quiz]").textContent()).includes("85%") && /집에 감$/.test(await mm.locator("[data-g=arrival-pill]").textContent()), (await mm.textContent()).replace(/\s+/g, " ").slice(0, 400));
+  for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-me-${v.viewport.width}.png`, fullPage: true }); }
+  await cs.close(); }
 console.log("■ 대시보드(목업 17) — 빵꾸 막이가 맨 위 · 카드 여섯 · 조회 ≤ 20");
 at = mark(); await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {});
 const dashQ = requestsSince(at);

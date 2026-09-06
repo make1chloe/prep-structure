@@ -144,3 +144,7 @@ insert into v2.request (id, student_id, kind, body, at, state)
 insert into v2.inquiry (id, name, phone, school, grade, way, stage, body) values
   ('99999999-0000-4000-f300-000000000001', 'zz_시험_문의', '010-0000-0000', 'zz_시험_중학교', 1, 'phone', 'new', '레벨테스트 문의')
 on conflict (id) do nothing;
+-- 아이 화면 07 눌러보기 — 학원 회선에 로컬 주소(눌러보기는 127.0.0.1 로 들어온다) · 아이 화면 카드 넷은 켬(원장님이 실제 DB 에선 32칸을 다 정하셨다 — 리허설도 켜 둔다)
+update v2.integration set config = jsonb_set(coalesce(config, '{}'::jsonb), '{ips}', '["127.0.0.1", "::1"]'::jsonb) where id = 'arrival';
+insert into v2.role_access (role, key, allowed) values ('student', 'me.arrival', true), ('student', 'me.today', true), ('student', 'me.books', true), ('student', 'me.flags', true)
+on conflict (role, key) do nothing;
