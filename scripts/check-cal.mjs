@@ -1,0 +1,25 @@
+/** 달력 검사(검사-㊻ · 목업 09b) — 순수 판단 lib/cal-plan.js: 달 범위(월요일부터 42칸) · 날마다 표시의 우선(휴강 › 결석(보강) › 지각·늦귀가 › 정시 › 보강 › 앞날 수업 예정 + 숙제·시험) · 날 하나의 줄들(출·수·숙·시·휴) · 달 글 */
+import { monthRange, monthLabel, dayMarks, dayDetail, dayTitle, isExamDay, nextYm } from "../lib/cal-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const today = "2026-09-10";
+const M = (date, ctx) => dayMarks(date, { today, ...ctx }).map(([, ch]) => ch).join("");
+console.log("■ 달 범위 · 글");
+const r = monthRange("2026-09");
+ok("2026-09 는 8/31(월)~10/11 · 42칸 · 「2026년 9월」 · 다음 달 2026-10", r.from === "2026-08-31" && r.to === "2026-10-11" && r.grid.length === 42 && monthLabel("2026-09") === "2026년 9월" && nextYm("2026-09", 1) === "2026-10");
+ok("날 제목 — 「9월 10일 목 · 오늘」 · 다른 날은 「9월 8일 화」", dayTitle("2026-09-10", today) === "9월 10일 목 · 오늘" && dayTitle("2026-09-08", today) === "9월 8일 화");
+console.log("■ 날마다 표시");
+const days = [{ date: "2026-09-10", kind: "class" }, { date: "2026-09-15", kind: "class" }, { date: "2026-09-17", kind: "off" }, { date: "2026-09-13", kind: "makeup" }];
+ok("지각 판 + 숙제 → ⏰📘 · 정시 판 + 숙제 → ✓📘 · 늦귀가(예상 귀가 있음)면 정시여도 ⏰", M("2026-09-10", { days, sheet: { attend: "late", home_count: 2 } }) === "⏰📘" && M("2026-09-03", { sheet: { attend: "present", home_count: 1 } }) === "✓📘" && M("2026-09-03", { sheet: { attend: "present", home_count: 0, late: { until_at: "22:20:00" } } }) === "⏰");
+ok("결석 예정(보강 잡힘) → ✕↻ · 보강 안 잡힘 → ✕ · 결석 판 → ✕", M("2026-09-08", { absences: [{ of_date: "2026-09-08", state: "set", on_date: "2026-09-13" }] }) === "✕↻" && M("2026-09-08", { absences: [{ of_date: "2026-09-08", state: "todo" }] }) === "✕" && M("2026-09-01", { sheet: { attend: "absent" } }) === "✕");
+ok("휴강은 무엇보다 앞선다 – · 앞날 수업 예정 · · 앞날 지각 예정 ⏰ · 보강 날 ↻ · 지난 수업일에 판이 없으면 아무 표시 없음", M("2026-09-17", { days, sheet: { attend: "present" } }) === "–" && M("2026-09-15", { days }) === "·" && M("2026-09-15", { days, lates: [{ date: "2026-09-15", minutes: 30 }] }) === "⏰" && M("2026-09-13", { days }) === "↻" && M("2026-09-01", { days: [{ date: "2026-09-01", kind: "class" }] }) === "");
+ok("시험 본 날 📝 · 학교 시험일 📝(영어일 없으면 기간 시작) · 물린 결석은 안 뜬다", M("2026-09-10", { quizzes: [{ taken_on: "2026-09-10" }] }) === "📝" && isExamDay("2026-09-19", [{ english_on: "2026-09-19" }]) && isExamDay("2026-09-21", [{ english_on: null, term_from: "2026-09-21" }]) && M("2026-09-08", { absences: [{ of_date: "2026-09-08", state: "cancelled" }] }) === "");
+console.log("■ 날 하나의 줄");
+const det = dayDetail("2026-09-10", { today, days, sheet: { attend: "late", closed_at: "x", comment: "간접의문문 어순을 스스로 설명했습니다.", home_count: 2, home_names: ["PSS 1-4", "대비문제 1-20번"], late: { until_at: "22:20:00", reason: "워크북을 못 해와서" } }, arrival: [{ date: "2026-09-10", step: 2, at: "2026-09-10T08:02:00Z" }, { date: "2026-09-10", step: 4, at: "2026-09-10T13:25:00Z" }], quizzes: [{ kind: "word", total: 20, wrong: 3, taken_on: "2026-09-10", pct: 85, passed: false }] });
+ok("오늘 — 「17:02 등원 · 22:25 하원」+사유 · 수업일지 글 · 숙제 2개(이름) · 단어 시험 17/20 · 85% 못 넘음", det.rows.map((r) => r.n).join("") === "출수숙시" && det.rows[0].b === "17:02 등원 · 22:25 하원" && det.rows[0].small === "워크북을 못 해와서" && det.rows[1].small.startsWith("간접의문문") && det.rows[2].b === "숙제 2개" && det.rows[2].small === "PSS 1-4 · 대비문제 1-20번" && det.rows[3].b === "단어 시험 17/20" && det.rows[3].small === "85% · 못 넘음", JSON.stringify(det.rows));
+ok("하원 전이면 「17:02 등원 · 22:20 예정」 · 마감 전이면 수업일지 「아직 마감 전이에요」", dayDetail("2026-09-10", { today, sheet: { attend: "present", closed_at: null, home_count: 0, late: { until_at: "22:20:00" } }, arrival: [{ date: "2026-09-10", step: 2, at: "2026-09-10T08:02:00Z" }] }).rows.map((r) => r.b + "|" + r.small).join(" / ") === "17:02 등원 · 22:20 예정| / 수업일지|아직 마감 전이에요");
+const absD = dayDetail("2026-09-08", { today, days: [{ date: "2026-09-08", kind: "class" }], absences: [{ of_date: "2026-09-08", state: "set", on_date: "2026-09-13", at_time: "14:00:00", reason: "가족 일정", notified_at: "x" }] });
+ok("결석한 날 — 「결석 · 보강 9/13 14:00」 · 「가족 일정 — 미리 알려 주셨습니다」 · 「수업일지 없음 — 결석한 날은 일지가 안 생깁니다」", absD.rows[0].b === "결석 · 보강 9/13 14:00" && absD.rows[0].small === "가족 일정 — 미리 알려 주셨습니다" && absD.rows[1].b === "수업일지 없음" && absD.rows[1].small.includes("결석한 날"), JSON.stringify(absD.rows));
+ok("휴강 날 — 사유가 보인다(답 ①) · 앞날 수업일 — 「수업 예정 17:00」 · 적힌 것 없는 날은 줄 0", dayDetail("2026-09-17", { today, days, holidays: [{ date: "2026-09-17", reason: "추석" }] }).rows[0].small === "추석" && dayDetail("2026-09-15", { today, days: [{ date: "2026-09-15", kind: "class", start_time: "17:00:00" }] }).rows[0].b === "수업 예정 17:00" && dayDetail("2026-09-12", { today }).rows.length === 0);
+console.log(`\n■ 달력 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

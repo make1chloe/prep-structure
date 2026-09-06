@@ -148,3 +148,18 @@ on conflict (id) do nothing;
 update v2.integration set config = jsonb_set(coalesce(config, '{}'::jsonb), '{ips}', '["127.0.0.1", "::1"]'::jsonb) where id = 'arrival';
 insert into v2.role_access (role, key, allowed) values ('student', 'me.arrival', true), ('student', 'me.today', true), ('student', 'me.books', true), ('student', 'me.flags', true)
 on conflict (role, key) do nothing;
+-- 받을 교재·학습지 눌러보기(07-2 ①) — 자료 갈래 둘 · 학생에게 나눠 준 것 셋(하나는 끝냄)
+insert into v2.material_type (id, name, steps, sort) values
+  ('99999999-0000-4000-a100-000000000001', 'zz_클카 문장훈련', '{make,hand,solve}', 901),
+  ('99999999-0000-4000-a100-000000000002', 'zz_너른터', '{make,print,hand,solve,score}', 902)
+on conflict (id) do nothing;
+insert into v2.material (id, type_id, title, state) values
+  ('99999999-0000-4000-a200-000000000001', '99999999-0000-4000-a100-000000000001', '2과 단어', 'printed'),
+  ('99999999-0000-4000-a200-000000000002', '99999999-0000-4000-a100-000000000002', '대의파악', 'printed'),
+  ('99999999-0000-4000-a200-000000000003', '99999999-0000-4000-a100-000000000001', '1과 단어', 'done')
+on conflict (id) do nothing;
+insert into v2.material_give (material_id, student_id, handed_at, got_at, stage) values
+  ('99999999-0000-4000-a200-000000000001', '99999999-0000-4000-9000-000000000001', now() - interval '1 day', null, 'none'),
+  ('99999999-0000-4000-a200-000000000002', '99999999-0000-4000-9000-000000000001', now() - interval '3 day', now() - interval '3 day', 'doing'),
+  ('99999999-0000-4000-a200-000000000003', '99999999-0000-4000-9000-000000000001', now() - interval '10 day', now() - interval '10 day', 'done')
+on conflict do nothing;

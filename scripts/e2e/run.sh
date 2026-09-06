@@ -26,7 +26,7 @@ node scripts/check-fonts.mjs || exit 1
 node scripts/check-contrast.mjs || exit 1
 # ── 아이 화면(07)은 아이 자격으로 — screens.mjs 가 남긴 아이 쿠키 상태로 연다
 if [ -f .tmp/state-student.json ]; then
-  export CHECK_STATE=.tmp/state-student.json CHECK_URLS="http://127.0.0.1:$APP_PORT/me"
+  export CHECK_STATE=.tmp/state-student.json CHECK_URLS="http://127.0.0.1:$APP_PORT/me,http://127.0.0.1:$APP_PORT/me/cal"
   node scripts/check-sizes.mjs || exit 1
   node scripts/check-fonts.mjs || exit 1
   node scripts/check-contrast.mjs || exit 1

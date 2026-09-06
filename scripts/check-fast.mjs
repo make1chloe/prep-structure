@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 const bad = [];
 // [화면, 층 상한(머리의 await 수), 까닭]
-const CAPS = [["app/today/page.js", 3, "로그인 확인 · 오늘 · 판(반·아이 → 판) = 4단"], ["app/page.js", 3, "로그인 확인 · 오늘 · 대시보드(반·아이 → 나머지 파도) = 5단"], ["app/me/page.js", 3, "로그인 확인 · 오늘 · 내 하루(제 학생 줄 → 파도) = 4단"]];
+const CAPS = [["app/today/page.js", 3, "로그인 확인 · 오늘 · 판(반·아이 → 판) = 4단"], ["app/page.js", 3, "로그인 확인 · 오늘 · 대시보드(반·아이 → 나머지 파도) = 5단"], ["app/me/page.js", 3, "로그인 확인 · 오늘 · 내 하루(제 학생 줄 → 파도) = 4단"], ["app/me/cal/page.js", 5, "로그인 확인 · 주소 인자 · 오늘 · 달력(제 학생 줄 → 파도) · 권한 = 5단"]];
 for (const [f, cap, why] of CAPS) {
   const s = strip(readFileSync(f, "utf8"));
   if (/\bdb\(|\.from\(|\.rpc\(/.test(s)) bad.push(`${f}: 표를 직접 읽는다 — 판단은 lib 한 벌(대전제-4)`);

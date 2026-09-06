@@ -326,6 +326,30 @@ console.log("■ 아이 화면 07 — 마감 뒤: 「다 했어요」(학원 줄
   ok("무르면 다시 「다 했어요」 — 문지기가 막지 않는다(답 ⑧ · 0115)", (await mm.locator("[data-card=todo] button[data-act=said][aria-pressed=true]").count()) === 0, (await mm.locator("[data-card=todo]").textContent()).replace(/\s+/g, " ").slice(0, 200));
   ok("선생님 한 마디 — 단어 「Day 38-40 통과. 스크램블 6200점」(마감해야 보인다) · 시험 결과 85% · 「집에 감」 그대로", (await mm.locator("[data-card=memo]").textContent()).includes("스크램블 6200점") && (await mm.locator("[data-card=quiz]").textContent()).includes("85%") && /집에 감$/.test(await mm.locator("[data-g=arrival-pill]").textContent()), (await mm.textContent()).replace(/\s+/g, " ").slice(0, 400));
   for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-me-${v.viewport.width}.png`, fullPage: true }); }
+  console.log("■ 07-2 ① 받을 교재·학습지(단계 넷 · 내가 정한 마감) · ⑤ 선생님께 남기실 말");
+  const mat = mm.locator("[data-card=material]");
+  const M1 = "[data-material='99999999-0000-4000-a200-000000000001']";
+  ok("받을 학습지 — 「2과 단어」 아직 · 「대의파악」 하는 중 · 끝낸 것 1 은 접힘 · 알약 1/3 · 갈래 이름", (await mat.locator(`${M1} .stage button[aria-pressed=true]`).textContent()) === "아직" && (await mat.locator("[data-material='99999999-0000-4000-a200-000000000002'] .stage button[aria-pressed=true]").textContent()) === "하는 중" && (await mat.locator("details summary").textContent()).includes("끝낸 것 1") && (await mat.locator(".h .pill").first().textContent()) === "1/3" && (await mat.textContent()).includes("zz_클카 문장훈련") && (await mat.textContent()).includes("zz_너른터"), (await mat.textContent()).replace(/\s+/g, " ").slice(0, 300));
+  await mat.locator(`${M1} .stage button`, { hasText: "받음" }).click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("「받음」 → 저장(받았다고 찍은 때는 서버가, 0117) · 다시 열어도 받음", (await mm.locator(`${M1} .stage button[aria-pressed=true]`).textContent()) === "받음");
+  await mm.locator(`${M1} input[type=date]`).fill(d3); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("내가 정한 마감 → 「M/D까지」 알약(달력에도 🚩)", (await mm.locator(`${M1} [data-g=due]`).textContent()) === `${Number(d3.slice(5, 7))}/${Number(d3.slice(8, 10))}까지`, await mm.locator(`${M1}`).textContent());
+  const askc = mm.locator("[data-card=ask]");
+  await askc.locator("textarea[name=ask]").fill("다음 주 수요일 병원이라 늦어요"); await askc.locator("button[data-act=ask]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("남기실 말을 보내면 아래에 「보냄 · 답 기다리는 중」 — 원장님 대시보드 답할 것에 뜬다", (await mm.locator("[data-card=ask] .li", { hasText: "다음 주 수요일 병원이라 늦어요" }).count()) === 1 && (await mm.locator("[data-card=ask] .li").first().textContent()).includes("답 기다리는 중"), (await askc.textContent()).replace(/\s+/g, " ").slice(0, 200));
+  console.log("■ 아이 달력 09b — 날마다 표시 · 칸을 누르면 그날의 줄(출·수·숙·시)");
+  await cp.setViewportSize(VIEWS[1].viewport);
+  await cp.locator("[data-card=cal]").click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  const cell = (dt) => cp.locator(`.cal a.cd[data-date='${dt}']`);
+  const marks = async (dt) => (await cell(dt).locator(".cm").allTextContents()).join("");
+  ok("달력이 열리고 이 달 · 오늘 칸 ⏰(지각·늦귀가) 📘(숙제) 📝(시험 본 날) · 어제 ⏰📘(정시였지만 늦귀가 약속이 있던 날 — 씨앗) · 그저께 ⏰(늦귀가) · 내일 ✕(결석 예정) · 글피 ⏰(지각 예정)", new URL(cp.url()).pathname === "/me/cal" && (await cp.locator("[data-g=month]").textContent()).includes("월") && (await marks(todayText)).includes("⏰") && (await marks(todayText)).includes("📘") && (await marks(todayText)).includes("📝") && (await marks(plus(-1))) === "⏰📘" && (await marks(plus(-2))).startsWith("⏰") && (await marks(d1)).startsWith("✕") && (await marks(d3)).includes("⏰") && (await marks(d3)).includes("🚩"), `오늘 ${await marks(todayText)} · 어제 ${await marks(plus(-1))} · 내일 ${await marks(d1)} · 글피 ${await marks(d3)}`);
+  const day = cp.locator("[data-g=day]");
+  ok("오늘의 줄 — 「HH:MM 등원 · HH:MM 하원」 · 수업일지(마감한 글) · 숙제 N개 · 단어 시험 17/20 · 85% 못 넘음", /\d\d:\d\d 등원 · \d\d:\d\d 하원/.test(await day.textContent()) && (await day.textContent()).includes("워크북 나머지는 남아서 마쳤습니다") && /숙제 \d+개/.test(await day.textContent()) && (await day.textContent()).includes("17/20") && (await day.textContent()).includes("85%"), (await day.textContent()).replace(/\s+/g, " ").slice(0, 300));
+  await cell(plus(-1)).click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("어제 칸을 누르면 그날 — 「왔음」 · 수업일지 (글 없음) · 숙제 2개", (await day.textContent()).includes("왔음") && (await day.textContent()).includes("(글 없음)") && (await day.textContent()).includes("숙제 2개"), (await day.textContent()).replace(/\s+/g, " ").slice(0, 200));
+  await cell(d1).click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("내일 칸 — 「결석 · 보강 안 잡힘」 · 결석 예정", (await day.textContent()).includes("결석 · 보강 안 잡힘"), (await day.textContent()).replace(/\s+/g, " ").slice(0, 200));
+  for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-cal-${v.viewport.width}.png`, fullPage: true }); }
   await cs.close(); }
 console.log("■ 대시보드(목업 17) — 빵꾸 막이가 맨 위 · 카드 여섯 · 조회 ≤ 20");
 at = mark(); await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {});
@@ -343,7 +367,7 @@ ok("📨 발송 — 「데일리리포트 2 / 2」(마감한 것만) · 🔥 오
 ok("⚠️ 안 돌고 있는 것 — 클래스카드 수신 기록 없음 · 하루 정리가 한 번도 안 돌았음(둘 다 ✕)", (await cards.nth(3).textContent()).includes("클래스카드 수신 기록이 없습니다") && (await cards.nth(3).textContent()).includes("하루 정리가 한 번도 안 돌았습니다") && (await cards.nth(3).locator(".cm.i-abs").count()) === 2, (await cards.nth(3).textContent()).slice(0, 200));
 const mkRow = cards.nth(4).locator(".dayrow", { hasText: "보강 안 잡힘" });   // 학생둘(오늘 결석) + 02c 걷기가 남긴 학생의 내일 결석(보강 안 잡음) — 수는 걷기 따라 다르니 이름만 본다
 ok("📅 이 달 — 보강 안 잡힘 N명(학생둘 · 오늘 결석 …) + 잡기 · 영어일 없음 — zz_시험_중학교(시험 06 에 넣어야)", (await mkRow.count()) === 1 && (await mkRow.textContent()).includes("zz_시험_학생둘") && /보강 안 잡힘 [12]명/.test(await mkRow.textContent()) && (await cards.nth(4).locator(".dayrow a[href='/today']").count()) === 1 && (await cards.nth(4).locator(".dayrow", { hasText: "영어일 없음" }).textContent()).includes("zz_시험_중학교"), (await cards.nth(4).textContent()).slice(0, 200));
-ok("💬 답할 것 — 남기실 말 1(어제 · 「다음 주 수요일 병원이라…」) · 신규 상담 1건(아직 답 안 함)", (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 1" }).textContent()).includes("어제") && (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 1" }).textContent()).includes("병원이라") && (await cards.nth(5).locator(".dayrow", { hasText: "신규 상담 1건" }).textContent()).includes("아직 답 안 함"), (await cards.nth(5).textContent()).slice(0, 200));
+ok("💬 답할 것 — 남기실 말 2(씨앗 어제 「…병원이라…」 + 아이가 방금 남긴 것) · 신규 상담 1건(아직 답 안 함)", (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 2" }).textContent()).includes("어제") && (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 2" }).textContent()).includes("병원이라") && (await cards.nth(5).locator(".dayrow", { hasText: "신규 상담 1건" }).textContent()).includes("아직 답 안 함"), (await cards.nth(5).textContent()).slice(0, 200));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-dash-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport); await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
