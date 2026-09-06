@@ -15,5 +15,6 @@ export default async function Settings() {
         <div className="tags" data-g="ips">{cfg.ips.length ? cfg.ips.map((ip) => <span key={ip} className="tag on">{ip}</span>) : <span className="tag">아직 없음</span>}</div>
         <IpCard /></>}
     </div>}
+    <a className="card" href="/settings/routine" data-card="routine" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🔁</span>루틴 — 학원 기본 루틴 · 아이마다 고른 것 · 교재 잇기</div><p className="note">영역마다 한 벌(교재가 늘어도 안 늡니다). 항목 더하기·고치기·차례·내리기(지우지 않습니다) · 아이별로 고른 줄 · 교재의 기준·회차·「이대로면」</p></a>
   </main>;
 }
