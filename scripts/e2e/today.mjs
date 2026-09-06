@@ -1,4 +1,4 @@
-/** 오늘 수업 걷기(목업 01) — 원장으로: 판이 서고 지난 숙제가 검사 줄로 오나 · 출결(낙관) · △→어디까지→나머지 · 항목 더하기·미루기 · 결석·지각 예정(02c) · 늦귀가·보내기 · 글·마감 · 마감 뒤 읽기만 */
+/** 오늘 수업 걷기(목업 01 … 13) — 원장으로: 판이 서고 지난 숙제가 검사 줄로 오나 · 출결(낙관) · △→어디까지→나머지 · 항목 더하기·미루기 · 결석·지각 예정(02c) · 늦귀가·보내기 · 글·마감 · 마감 뒤 읽기만 */
 import { launch, offline, VIEWS } from "../_browser.mjs";
 const APP = process.env.E2E_APP || "http://127.0.0.1:3300";
 let n = 0, bad = 0;
@@ -451,6 +451,25 @@ await im.locator("[data-g=school-line] input[name=site]").fill("https://zz.examp
 ok("🔗 학교 홈페이지 주소 저장 → 「홈페이지 ↗」 링크", (await im.locator("[data-g=school-line] a[data-g=site-link]").count()) === 1 && (await im.locator("[data-g=school-line] a[data-g=site-link]").getAttribute("href")) === "https://zz.example.school");
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-import-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
+console.log("■ 운영 13 — 수강료(넣고 체크만) · 금액을 적으면 단가 줄이 이 달부터 · 다음 달엔 그 금액이 미리 · 엑셀로");
+await p.goto(`${APP}/ops`); await p.waitForLoadState("networkidle").catch(() => {});
+const fe = p.locator("main");
+const S1 = "99999999-0000-4000-9000-000000000001";
+const feeRow = (id) => fe.locator(`[data-g=fee-row][data-student='${id}']`);
+const activeN = await fe.locator("[data-g=fee-row]").count();
+ok(`이 달 — 머리 「${Number(ymNow.slice(0, 4))}년 ${Number(ymNow.slice(5, 7))}월」 · 재원생 줄 ${activeN} ≥ 2 · 단가 줄·학년 기준이 없어 전부 「금액 없음」(0원이 아니다) · 합계 0원 · 저장 잠김 · 상담일지 자리`, (await fe.locator("[data-g=month]").textContent()) === `${Number(ymNow.slice(0, 4))}년 ${Number(ymNow.slice(5, 7))}월` && activeN >= 2 && (await fe.locator("[data-g=fee-row][data-state=none]").count()) === activeN && (await fe.locator("[data-g=none-count]").textContent()) === `금액 없음 ${activeN}` && (await fe.locator("[data-g=sum] b").textContent()) === "0원" && (await fe.locator("button[data-act=save]").isDisabled()) && (await fe.locator("[data-card=ops-later]").count()) === 1, (await fe.textContent()).replace(/\s+/g, " ").slice(0, 300));
+await feeRow(S1).locator("input.fee").fill("300000"); await feeRow(S1).locator("input.dt").fill(todayText);
+ok("금액·받은 날을 적으면 화면이 먼저 센다(저장 전) — 그 줄 받음 · 합계 300,000원 · 안 받음 0원 · 저장 열림", (await feeRow(S1).getAttribute("data-state")) === "paid" && (await fe.locator("[data-g=sum] b").textContent()) === "300,000원" && (await fe.locator("[data-g=unpaid-sum]").textContent()) === "안 받음 0원" && !(await fe.locator("button[data-act=save]").isDisabled()), `${await feeRow(S1).getAttribute("data-state")} · ${await fe.locator("[data-g=fee-bar]").textContent()}`);
+await fe.locator("button[data-act=save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 });
+const feeMsg = await fe.locator("[data-g=msg]").textContent();
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok(`저장 → 「저장했습니다 — 1줄 · 단가 줄 1(이 달부터)」 · 다시 열어도 받음 300,000 · 받은 날 ${todayText} · 금액 없음 ${activeN - 1}`, feeMsg === "저장했습니다 — 1줄 · 단가 줄 1(이 달부터)" && (await feeRow(S1).getAttribute("data-state")) === "paid" && (await feeRow(S1).locator("input.fee").inputValue()) === "300,000" && (await feeRow(S1).locator("input.dt").inputValue()) === todayText && (await fe.locator("[data-g=none-count]").textContent()) === `금액 없음 ${activeN - 1}` && (await fe.locator("[data-g=unpaid-sum]").textContent()) === "안 받음 0원", feeMsg + " | " + (await feeRow(S1).textContent()).replace(/\s+/g, " "));
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-ops-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
+await p.goto(`${APP}/ops?m=${ymNext}`); await p.waitForLoadState("networkidle").catch(() => {});
+ok("다음 달 — 단가 줄이 살아 300,000 이 미리 선다(「학생 단가」) · 받은 날은 비어 「안 받음」 · 안 받음 1 · 안 받음 300,000원", (await feeRow(S1).locator("input.fee").inputValue()) === "300,000" && (await feeRow(S1).getAttribute("data-state")) === "unpaid" && (await feeRow(S1).textContent()).includes("학생 단가") && (await feeRow(S1).locator("input.dt").inputValue()) === "" && (await fe.locator("[data-g=unpaid-count]").textContent()) === "안 받음 1" && (await fe.locator("[data-g=unpaid-sum]").textContent()) === "안 받음 300,000원", (await feeRow(S1).textContent()).replace(/\s+/g, " ") + " | " + (await fe.locator("[data-g=fee-bar]").textContent()));
+const xr = await p.request.get(`${APP}/api/ops/fee?m=${ymNow}`);
+ok(`엑셀로 — /api/ops/fee 가 xlsx 를 준다(200 · spreadsheet · fee-${ymNow}.xlsx) · 달이 아니면 400`, xr.status() === 200 && String(xr.headers()["content-type"] ?? "").includes("spreadsheetml") && String(xr.headers()["content-disposition"] ?? "").includes(`fee-${ymNow}.xlsx`) && (await p.request.get(`${APP}/api/ops/fee?m=abc`)).status() === 400, `${xr.status()} ${xr.headers()["content-type"]}`);
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();

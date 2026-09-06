@@ -1,4 +1,4 @@
-/** 치수 검사 — 화면의 부품을 종류별로 재서 **높이가 하나**인지(지침 8절 치수 한 벌) · 틀 밖 넘침 0 · 글씨>상자 0 · 형제 겹침 0 · 가로 잘림 0(overflow hidden 안에서 글씨가 상자보다 넓은 것 — 회차 세그먼트가 잘렸는데 초록이던 2026-09-05).
+/** 치수 검사 — 화면의 부품을 종류별로 재서 **높이가 하나**인지(지침 8절 치수 한 벌) · 틀 밖 넘침 0 · 글씨>상자 0 · 형제 겹침 0 · 가로 잘림 0(overflow hidden 안에서 글씨가 상자보다 넓은 것 — 회차 세그먼트가 잘렸는데 초록이던 2026-09-05) · 눌린 입력칸 0(60px 미만 — 13 수강료 금액 칸이 폰에서 20px 이던 2026-09-06).
  *  PC 1280 · 폰 390(손가락) 둘 다. 기본은 앱 CSS 로 그린 목업(.tmp/mockup-app.html) — 앱 화면이 생기면 CHECK_URLS 로 그 주소도 본다.
  *  검사 결과는 사람이 거르지 않는다 — 어긋나면 종료 코드 1 (목업 ㊲ 교훈). */
 import { launch, offline, stateOpts, VIEWS } from "./_browser.mjs";
@@ -41,10 +41,14 @@ for (const url of urls) for (const v of VIEWS) {
       const kids = [...el.children].filter(k => !skip(k) && !/^(inline|none)$/.test(getComputedStyle(k).display) && !/absolute|fixed|sticky/.test(getComputedStyle(k).position));   // 붙는 줄(sticky 저장줄)은 겹치라고 있는 것
       for (let i = 0; i + 1 < kids.length; i++) { const r1 = kids[i].getBoundingClientRect(), r2 = kids[i + 1].getBoundingClientRect(); if (!r1.height || !r2.height) continue; const xo = Math.min(r1.right, r2.right) - Math.max(r1.left, r2.left); if (xo > 4 && r2.top < r1.bottom - 2 && r2.top > r1.top && lap.length < 12) lap.push(`${(el.closest("section") || {}).id || ""} ${kids[i].tagName}.${String(kids[i].className).split(" ")[0]}→${kids[i + 1].tagName}.${String(kids[i + 1].className).split(" ")[0]} ${Math.round(r1.bottom - r2.top)}px`); }
     }
-    return { out, over, tall, lap, clip, vert };
+    // 눌린 입력칸(2026-09-06 13 수강료 — 폰에서 표 안의 금액 칸이 20px 로 눌려 값이 안 보였는데 초록이었다) — 글자를 받는 입력칸이 60px 보다 좁으면 값이 안 보인다. 점수칸·스테퍼 안의 칸은 일부러 좁다
+    const narrow = [];
+    for (const el of document.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not(.scr):not(.stepper input)")) { if (!inRoot(el) || skip(el)) continue; const cs = getComputedStyle(el); if (cs.display === "none") continue; const rc = el.getBoundingClientRect(); if (rc.width > 0 && rc.height > 0 && rc.width < 60 && narrow.length < 12) narrow.push(`${(el.closest("section") || {}).id || ""} input.${String(el.className).split(" ")[0] || el.type}[${el.getAttribute("aria-label") || el.name || ""}] ${Math.round(rc.width)}px`); }
+    return { out, over, tall, lap, clip, vert, narrow };
   }, GROUPS);
   const fails = [];
   for (const g of ONE) if ((r.out[g] || []).length > 1) fails.push(`${g} 높이가 둘 이상: ${r.out[g].join(" ")}`);
+  if (r.narrow.length) fails.push("눌린 입력칸(60px 미만 — 값이 안 보인다): " + r.narrow.join(" | "));
   if (r.over.length) fails.push("넘침: " + r.over.join(" | ")); if (r.tall.length) fails.push("글씨>상자: " + r.tall.join(" | ")); if (r.lap.length) fails.push("형제 겹침: " + r.lap.join(" | ")); if (r.clip.length) fails.push("잘림(세그먼트가 칸보다 넓다 · 단추 글씨가 단추보다 크다): " + r.clip.join(" | ")); if (r.vert.length) fails.push("세로 글자: " + r.vert.join(" | "));
   const tag = `${v.name}${urls.length > 1 ? " " + url : ""}`;
   if (fails.length) { bad++; console.log(`✗ ${tag}\n    ${fails.join("\n    ")}`); } else console.log(`✓ ${tag} — ${ONE.map(g => `${g} ${r.out[g]?.[0] ?? "없음"}`).join(" · ")} · 넘침 0 · 겹침 0`);
@@ -52,4 +56,4 @@ for (const url of urls) for (const v of VIEWS) {
 }
 await b.close();
 if (bad) { console.log(`check-sizes ✗ 어긋남 ${bad}`); process.exit(1); }
-console.log("check-sizes ✓ 높이 한 벌 · 넘침 0 · 글씨>상자 0 · 겹침 0 · 세로 글자 0");
+console.log("check-sizes ✓ 높이 한 벌 · 넘침 0 · 글씨>상자 0 · 겹침 0 · 세로 글자 0 · 눌린 입력칸 0");

@@ -32,7 +32,7 @@ ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·일정·설정)", tabs.join(",") === "대시보드,오늘,발송,일정,설정", tabs.join(","));
+ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·일정·운영·설정)", tabs.join(",") === "대시보드,오늘,발송,일정,운영,설정", tabs.join(","));
 const leftBefore = (await p.locator("main .card .ctitle b").first().textContent()).trim();
 ok("안 정한 권한 칸 수가 뜬다(32칸 중)", /^\d+$/.test(leftBefore), leftBefore);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-home-${v.viewport.width}.png`, fullPage: true }); }
@@ -97,6 +97,8 @@ console.log("■ 강사 — 켠 만큼만");
 await login(p, "staff", "zz_instructor@e2e.test", PW);
 const tabs2 = await p.locator("header.appbar nav.tabs a").allTextContents();
 ok("강사 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs2.join(",") === "대시보드", tabs2.join(","));
+await p.goto(APP + "/ops"); await p.waitForLoadState("networkidle").catch(() => {});
+ok("강사가 /ops 를 열면 수강료는 닫혀 있다(ops.fee 안 정함 = 막힘 — 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
 console.log("■ 학생 — 처음 비밀번호는 바꿔야 들어간다");
 await login(p, "student", "chloe0000", PW);
