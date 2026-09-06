@@ -390,7 +390,30 @@ console.log("■ 학부모 09 — 마감 뒤: 늦귀가 안내(보낸 것 · 실
   await cp.locator(".calhead a[aria-label='다음 달']").click(); await cp.waitForLoadState("networkidle").catch(() => {});
   ok("다음 달에서는 ▸ 가 막힌다(앞날은 다음 달까지)", (await cp.locator(".calhead a[aria-label='다음 달']").count()) === 0 && (await cp.locator(".calhead a[aria-label='지난 달']").count()) === 1);
   await cs.close(); }
-await p.setViewportSize(VIEWS[0].viewport); await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
+console.log("■ 발송 10 — 늦귀가는 01 에서 보냄 표시만(확정-㊿) · 마감한 판만 보낼 것 · 지금 보내기 · 예약·취소(확정-㉕) · 저절로 나가는 것은 백스톱이 · 오늘 나간 것(리허설이라 안 나감) · 크론");
+await p.setViewportSize(VIEWS[0].viewport);
+await p.goto(APP + "/send"); await p.waitForLoadState("networkidle").catch(() => {}); await p.waitForTimeout(3000);   // 첫 열기 — 렌더 뒤 백스톱이 기다리던 큐(늦귀가·등원·하원·예정 알림)를 한 바퀴 돈다
+at = mark(); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+const sendQ = requestsSince(at);
+ok(`발송 조회 ≤ 6 + 백스톱 2 — ${sendQ}(속도-상한 발송 6: 껍질·로그인·오늘·오늘 판·send_board 한 벌 · 렌더 뒤 백스톱이 2 를 더한다)`, sendQ >= 0 && sendQ <= 8);
+const sm = p.locator("main");
+ok("🕘 지금 — 늦귀가 안내 둘 다 「HH:MM에 보냄 · 🧪 리허설(off)」 + 「✓ 오늘 카드에서 보냄」(보내는 단추 없음, 확정-㊿) · 🌙 지금 보낼 것 0", (await sm.locator("[data-card=now] [data-g=late-row].done").count()) === 2 && /\d\d:\d\d에 보냄 · 리허설\(off\) — 실제로는 안 나감/.test(await sm.locator("[data-card=now] [data-g=late-row]").first().textContent()) && (await sm.locator("[data-card=now] .tag", { hasText: "오늘 카드에서 보냄" }).count()) === 2 && (await sm.locator("[data-card=now] button").count()) === 0 && (await sm.locator("[data-g=now-count]").textContent()) === "🌙 지금 보낼 것 0", (await sm.locator("[data-card=now]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+ok("📨 마감하면 — 마감한 판 둘 다 「보낼 것」(기본 고름 · 마감됨·글자 수·갈래 꼬리표 「300자 · 숙제안함」) · 알약 2 / 2 · 선택 2건(마감 전 판 ⏳ 은 아침 걷기에서)", (await sm.locator("[data-g=daily-row][data-state=ready]").count()) === 2 && (await sm.locator("[data-g=daily-row][data-state=ready] input.ck").first().isChecked()) && (await sm.locator("[data-g=daily-row][data-state=ready] .tag", { hasText: "마감됨" }).count()) === 2 && (await sm.locator("[data-g=daily-row][data-state=ready] .tag", { hasText: "숙제안함" }).count()) === 1 && (await sm.locator("[data-g=daily-row][data-state=open]").count()) === 0 && (await sm.locator("[data-g=closed-count]").textContent()) === "2 / 2" && (await sm.locator("[data-g=sel-count]").textContent()) === "선택 2건", (await sm.locator("[data-card=daily]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+const sentN = Number(await sm.locator("[data-g=sent-head] b").first().textContent());
+await sm.locator("[data-g=sent-head]").click();
+ok(`🔔 저절로 나가는 것 — 백스톱이 돌아 기다리는 것 0 · 오늘 나간 것 ${sentN} ≥ 4(늦귀가 둘·등원·하원·예정 알림) · 학생의 것은 🧪 리허설(스위치 off — 학부모 폰에 안 뜸) · 학생둘은 ⚠️ 「학부모 계정이 이어져 있지 않습니다」 · ✅ 보냄은 0`, (await sm.locator("[data-card=auto] [data-g=auto-row]").count()) === 0 && sentN >= 4 && (await sm.locator("[data-g=sent-row]").count()) === sentN && (await sm.locator("[data-g=sent-row] .si", { hasText: "🧪" }).count()) >= 3 && (await sm.locator("[data-g=sent-row]", { hasText: "학부모 계정이 이 아이와 이어져 있지 않습니다" }).count()) >= 1 && (await sm.locator("[data-g=sent-row] .si", { hasText: "✅" }).count()) === 0, (await sm.locator("[data-card=sent]").textContent()).replace(/\s+/g, " ").slice(0, 500));
+await sm.locator("[data-act=send-now]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+ok("📨 선택한 것 지금 보내기 → 「보냈습니다 — 큐 2건 보냄 · 실패 0건」 · 학생 판은 🧪 「리허설(off)」 · 학생둘 판은 ⚠️(학부모 없음) · 오늘 나간 것 +2 · 다시 보내기 단추 둘", (await sm.locator("[data-g=msg]").textContent()).includes("큐 2건 보냄 · 실패 0건") && (await sm.locator("[data-g=daily-row][data-state=sent]").count()) === 2 && (await sm.locator("[data-g=daily-row][data-state=sent]").first().textContent()).includes("리허설(off)") && (await sm.locator("[data-g=daily-row][data-state=sent]").nth(1).textContent()).includes("학부모 계정이") && Number(await sm.locator("[data-g=sent-head] b").first().textContent()) === sentN + 2 && (await sm.locator("[data-g=daily-row][data-state=sent] button[data-act=resend]").count()) === 2, (await sm.locator("[data-g=msg]").textContent()) + " | " + (await sm.locator("[data-card=daily]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+await sm.locator("[data-g=daily-row][data-state=sent] input.ck").first().check();
+await sm.locator("[data-g=when] button", { hasText: "내일" }).click(); await sm.locator("[data-act=schedule]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+ok("⏰ 예약 「내일 09:00」 → 「예약했습니다 — 1건 · 내일 09:00」 · 📢 예약된 것 1(취소 단추) · 그 판은 ⏰ 예약", (await sm.locator("[data-g=msg]").textContent()).includes("예약했습니다 — 1건 · 내일 09:00") && (await sm.locator("[data-card=scheduled] [data-g=sch-row]").count()) === 1 && (await sm.locator("[data-card=scheduled] [data-g=sch-row]").textContent()).includes("내일 09:00") && (await sm.locator("[data-g=daily-row][data-state=scheduled]").count()) === 1, (await sm.locator("[data-card=scheduled]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-send-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
+await sm.locator("[data-card=scheduled] button[data-act=cancel]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+ok("예약 취소 → 예약된 것 0 · 그 판은 다시 나간 것(지우지 않고 cancelled_at)", (await sm.locator("[data-card=scheduled] [data-g=sch-row]").count()) === 0 && (await sm.locator("[data-g=daily-row][data-state=sent]").count()) === 2);
+const cr = await p.request.get(APP + "/api/cron"); const cj = cr.ok() ? await cr.json() : {};
+ok("크론 — 학원의 오늘을 받고 한 바퀴(뼈대-9·10) · 손이 다 있어 실패 0", cr.ok() && cj.today === todayText && typeof cj.claimed === "number" && cj.bad === 0, JSON.stringify(cj));
+await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

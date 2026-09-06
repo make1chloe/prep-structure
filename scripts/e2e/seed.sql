@@ -169,3 +169,6 @@ insert into v2.parent_student (parent_profile_id, student_id, rel, import_batch)
 on conflict do nothing;
 insert into v2.role_access (role, key, allowed) values ('parent', 'parent.intro', true), ('parent', 'parent.recent', true), ('parent', 'parent.homework', true), ('parent', 'parent.next', true), ('parent', 'parent.sent', true)
 on conflict (role, key) do nothing;
+
+-- 발송 10 눌러보기 — 리허설은 방해금지 없음(시작=끝). 걷기가 밤에 돌아도 알림이 미뤄지지 않게. 진짜 DB 는 0118 씨앗(23:00~09:00) 그대로
+update v2.rule set value = '00:00' where key in ('send.quiet_from', 'send.quiet_to');

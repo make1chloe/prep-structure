@@ -32,10 +32,16 @@ ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·설정)", tabs.join(",") === "대시보드,오늘,설정", tabs.join(","));
+ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·설정)", tabs.join(",") === "대시보드,오늘,발송,설정", tabs.join(","));
 const leftBefore = (await p.locator("main .card .ctitle b").first().textContent()).trim();
 ok("안 정한 권한 칸 수가 뜬다(32칸 중)", /^\d+$/.test(leftBefore), leftBefore);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-home-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
+console.log("■ 발송 10 — 아침: 늦게 가는 아이 없음 · 마감한 판 0 · 나간 것 0 · 리허설 스위치");
+await p.goto(APP + "/send"); await p.waitForLoadState("networkidle").catch(() => {});
+const sm = p.locator("main");
+ok("발송 — 묶음 넷 + 오늘 나간 것 · 🌙 지금 보낼 것 0 · 「오늘 늦게 가는 아이가 없습니다」 · 마감 「0 / N」(판이 있으면 전부 ⏳ 안 나갑니다) · 나간 것 0 · 🧪 리허설(off) 알약 · 보내기 단추 잠김", (await sm.locator("[data-card=now], [data-card=daily], [data-card=auto], [data-card=scheduled], [data-card=sent]").count()) === 5 && (await sm.locator("[data-g=now-count]").textContent()) === "🌙 지금 보낼 것 0" && (await sm.locator("[data-card=now]").textContent()).includes("오늘 늦게 가는 아이가 없습니다") && /^0 \/ \d+$/.test(await sm.locator("[data-g=closed-count]").textContent()) && (await sm.locator("[data-g=daily-row][data-state=open]").count()) === Number((await sm.locator("[data-g=closed-count]").textContent()).split("/")[1]) && (await sm.locator("[data-g=sent-head] b").first().textContent()) === "0" && (await sm.locator("[data-g=sink]").textContent()).includes("리허설(off)") && (await sm.locator("[data-g=sendbar] button[data-act=send-now]").isDisabled()), (await sm.textContent()).replace(/\s+/g, " ").slice(0, 300));
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-send-morning-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 누가 무엇을 보나 — 강사에게 대시보드를 켠다");
 await p.goto(APP + "/settings/access");
