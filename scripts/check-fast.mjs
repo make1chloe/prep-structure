@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 const bad = [];
 // [화면, 층 상한(머리의 await 수), 까닭]
-const CAPS = [["app/today/page.js", 3, "로그인 확인 · 오늘 · 판(반·아이 → 판) = 4단"]];
+const CAPS = [["app/today/page.js", 3, "로그인 확인 · 오늘 · 판(반·아이 → 판) = 4단"], ["app/page.js", 3, "로그인 확인 · 오늘 · 대시보드(반·아이 → 나머지 파도) = 5단"]];
 for (const [f, cap, why] of CAPS) {
   const s = strip(readFileSync(f, "utf8"));
   if (/\bdb\(|\.from\(|\.rpc\(/.test(s)) bad.push(`${f}: 표를 직접 읽는다 — 판단은 lib 한 벌(대전제-4)`);
@@ -17,4 +17,7 @@ if (!/Promise\.all\(/.test(day)) bad.push("lib/day.js: 파도(Promise.all)가 �
 if (!/\bfunction roster\b/.test(day)) bad.push("lib/day.js: roster() 가 없다 — 화면이 조회를 제 손으로 하게 된다");
 if (!/\bawait\b/.test(strip("// x\nconst a = await b();"))) { console.log("⚠️ 검사 자신이 고장났다"); process.exit(1); }
 if (bad.length) { console.log("check-fast ✗\n  " + bad.join("\n  ")); process.exit(1); }
-console.log(`check-fast ✓ 화면 ${CAPS.length} — 표 직접 읽기 0 · 층 상한 안 · lib/day 파도 있음`);
+const dash = strip(readFileSync("lib/dash.js", "utf8"));
+if ((dash.match(/Promise\.all\(/g) ?? []).length < 1) bad.push("lib/dash.js: 파도(Promise.all)가 사라졌다 — 대시보드 조회가 층으로 쌓인다");
+if (bad.length) { console.log("check-fast ✗\n  " + bad.join("\n  ")); process.exit(1); }
+console.log(`check-fast ✓ 화면 ${CAPS.length} — 표 직접 읽기 0 · 층 상한 안 · lib/day·dash 파도 있음`);

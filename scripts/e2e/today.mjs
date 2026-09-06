@@ -302,6 +302,25 @@ ok("띠가 떠 있다(「N월이 시작됐습니다 — N월 경고를 정리할
 await p.locator("[data-band=warn] button", { hasText: "전원 정리하기" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("정리하면 띠가 내려가고 오늘 것만 남아 「경고 1 · 반성문」(오늘 처분한 것은 그대로)", (await p.locator("[data-band=warn]").count()) === 0 && (await p.locator(".row").first().locator(".pill[data-warn]").textContent()) === "경고 1 · 반성문");
+console.log("■ 대시보드(목업 17) — 빵꾸 막이가 맨 위 · 카드 여섯 · 조회 ≤ 20");
+at = mark(); await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {});
+const dashQ = requestsSince(at);
+ok(`대시보드 조회 ≤ 20 — ${dashQ}`, dashQ >= 0 && dashQ <= 20);
+const pills = await p.locator("main > .wv .pill").allTextContents();
+ok("알약 — 「N월 N일 요일」 · 「🚨 빌 아이 1」 · 「오늘 2명 · 17:00」", /^\d+월 \d+일 [일월화수목금토]$/.test(pills[0] ?? "") && (await p.locator("[data-g=gap-count]").textContent()) === "🚨 빌 아이 1" && pills.includes("오늘 2명 · 17:00"), pills.join(" | "));
+const gap = p.locator("[data-g=gap]");
+ok("빵꾸 막이 — 학생둘 · 독해책 「독해 영역 루틴이 아직 안 만들어졌습니다」 · 「루틴 없음」 · 나머지 1명은 다 차 있다 · 오늘 수업 열기 ↗", (await gap.locator(".gapr").count()) === 1 && (await gap.locator(".gapr b").first().textContent()) === "zz_시험_학생둘 · zz_리허설 독해책" && (await gap.locator(".gapr small").first().textContent()).includes("독해 영역 루틴이 아직") && (await gap.locator(".gapr .tag", { hasText: "루틴 없음" }).count()) === 1 && (await gap.locator(".gapok").textContent()).includes("나머지 1명") && (await gap.locator("a[href='/today']").count()) >= 1, (await gap.textContent()).slice(0, 300));
+const cards = p.locator(".dash .dcard");
+ok("카드 여섯 — 오늘 수업 · 발송 · 오늘 안 · 안 돌고 있는 것 · 이 달 · 답할 것", (await cards.evaluateAll((els) => els.map((e) => e.dataset.card))).join(",") === "today,send,soon,ops,month,answer");
+const c0 = cards.nth(0);
+ok("📚 오늘 수업 — 반 줄(매일 5:00 리허설 17:00–18:30 · 2명 · 결석 예정 1명) + 열기 · 늦귀가 예정 2명 모두 보냄(보내야 함 없음) · 반성문 1명(오늘 처분한 것)", (await c0.locator(".dayrow").first().textContent()).includes("매일 5:00 리허설 17:00–18:30") && (await c0.locator(".dayrow").first().textContent()).includes("2명 · 결석 예정 1명") && (await c0.locator(".dayrow a[href='/today']").count()) === 1 && (await c0.locator(".dayrow", { hasText: "늦귀가 예정 2명" }).count()) === 1 && (await c0.locator(".tag.now").count()) === 0 && (await c0.locator(".dayrow", { hasText: "반성문 1명" }).count()) === 1, (await c0.textContent()).slice(0, 300));
+ok("📨 발송 — 「데일리리포트 2 / 2」(마감한 것만) · 🔥 오늘 안 — 할 것 없음(단원평가는 채점함 · 재시험은 건너뜀)", (await cards.nth(1).textContent()).includes("데일리리포트 2 / 2") && (await cards.nth(2).textContent()).includes("오늘 안에 할 것 없음"), (await cards.nth(1).textContent()).slice(0, 120) + " / " + (await cards.nth(2).textContent()).slice(0, 120));
+ok("⚠️ 안 돌고 있는 것 — 클래스카드 수신 기록 없음 · 하루 정리가 한 번도 안 돌았음(둘 다 ✕)", (await cards.nth(3).textContent()).includes("클래스카드 수신 기록이 없습니다") && (await cards.nth(3).textContent()).includes("하루 정리가 한 번도 안 돌았습니다") && (await cards.nth(3).locator(".cm.i-abs").count()) === 2, (await cards.nth(3).textContent()).slice(0, 200));
+const mkRow = cards.nth(4).locator(".dayrow", { hasText: "보강 안 잡힘" });   // 학생둘(오늘 결석) + 02c 걷기가 남긴 학생의 내일 결석(보강 안 잡음) — 수는 걷기 따라 다르니 이름만 본다
+ok("📅 이 달 — 보강 안 잡힘 N명(학생둘 · 오늘 결석 …) + 잡기 · 영어일 없음 — zz_시험_중학교(시험 06 에 넣어야)", (await mkRow.count()) === 1 && (await mkRow.textContent()).includes("zz_시험_학생둘") && /보강 안 잡힘 [12]명/.test(await mkRow.textContent()) && (await cards.nth(4).locator(".dayrow a[href='/today']").count()) === 1 && (await cards.nth(4).locator(".dayrow", { hasText: "영어일 없음" }).textContent()).includes("zz_시험_중학교"), (await cards.nth(4).textContent()).slice(0, 200));
+ok("💬 답할 것 — 남기실 말 1(어제 · 「다음 주 수요일 병원이라…」) · 신규 상담 1건(아직 답 안 함)", (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 1" }).textContent()).includes("어제") && (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 1" }).textContent()).includes("병원이라") && (await cards.nth(5).locator(".dayrow", { hasText: "신규 상담 1건" }).textContent()).includes("아직 답 안 함"), (await cards.nth(5).textContent()).slice(0, 200));
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-dash-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport); await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

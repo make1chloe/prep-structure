@@ -128,3 +128,19 @@ insert into v2.late_stay (id, sheet_id, reason, until_at, sent_at) values
   ('99999999-0000-4000-c100-000000000001', '99999999-0000-4000-c000-000000000001', '워크북 나머지', '21:40', now() - interval '1 day'),
   ('99999999-0000-4000-c100-000000000004', '99999999-0000-4000-c000-000000000004', '문장훈련 녹음', '21:20', now() - interval '2 day')
 on conflict (id) do nothing;
+-- 대시보드 눌러보기(목업 17) — 학생둘에게 독해책을 배정했는데 독해 영역 루틴이 없다 → 「🚨 빌 아이 1 · 루틴 없음」(문법책이 먼저 오게 from_date 는 더 옛날). 남기실 말 1 · 신규 문의 1
+insert into v2.books (id, code, name, area, order_basis, chunk_depth, state, import_batch) values
+  ('99999999-0000-4000-e000-000000000002', 'ZZ002', 'zz_리허설 독해책', '독해', 'sub', 'sub', 'active', 'fixture')
+on conflict (id) do nothing;
+insert into v2.units (id, book_id, chapter, sub, activity, is_workbook, sort, page_start, page_end, q_count, import_batch) values
+  ('99999999-0000-4000-e100-000000000011', '99999999-0000-4000-e000-000000000002', 'UNIT 1', '1-1 주제 찾기', '본책', false, 1, 8, 9, 10, 'fixture')
+on conflict (id) do nothing;
+insert into v2.student_book (id, student_id, book_id, from_date, round, per_session, stop_mode, import_batch) values
+  ('99999999-0000-4000-e300-000000000012', '99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e000-000000000002', '2025-12-01', 1, 1, 'running', 'fixture')
+on conflict (id) do nothing;
+insert into v2.request (id, student_id, kind, body, at, state)
+  select '99999999-0000-4000-f200-000000000001', '99999999-0000-4000-9000-000000000001', 'question', '다음 주 수요일 병원이라 늦을 것 같아요', now() - interval '1 day', 'open'
+  where not exists (select 1 from v2.request where id = '99999999-0000-4000-f200-000000000001');
+insert into v2.inquiry (id, name, phone, school, grade, way, stage, body) values
+  ('99999999-0000-4000-f300-000000000001', 'zz_시험_문의', '010-0000-0000', 'zz_시험_중학교', 1, 'phone', 'new', '레벨테스트 문의')
+on conflict (id) do nothing;

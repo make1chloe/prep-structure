@@ -1,0 +1,33 @@
+/** 대시보드 검사(목업 17 · 검사-㊹) — 순수 판단 lib/dash-plan.js: 빵꾸 막이 세 까닭(루틴 없음 › 회차 없음 › 안 한 소단원 없음 · 학생 루틴이 영역 루틴을 이긴다 · 멈춘 교재는 뺀다) · 빈 아이/찬 아이 셈 · 날짜 글 · D-day · 시험 줄(가까운 차례 · 영어일 없는 학교) · 클래스카드 수신 · 하루 정리 · 「어제 21:40」 */
+import { bookGaps, gapSummary, gapText, areaCount, dateLabel, classLabel, dday, examLines, ccText, queueText, whenText, daysBetween, md } from "../lib/dash-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const date = "2026-09-06";
+const bk = (student_id, book_id, area, extra = {}) => ({ student_id, book_id, per_session: 1, stop_mode: "running", stop_until: null, books: { name: `${area}책`, area }, ...extra });
+const books = [bk("s1", "b1", "문법"), bk("s2", "b2", "독해"), bk("s2", "b1", "문법"), bk("s3", "b3", "영작", { per_session: 0 }), bk("s4", "b4", "단어"), bk("s5", "b5", "독해", { stop_mode: "book_off" })];
+const routines = [{ student_id: null, area: "문법" }, { student_id: null, area: "영작" }, { student_id: null, area: "단어" }];   // v2.routine_areas 모양 — student_id 없으면 영역 루틴
+const todo = [{ student_id: "s1", book_id: "b1", n: 3 }, { student_id: "s2", book_id: "b1", n: 2 }, { student_id: "s3", book_id: "b3", n: 5 }, { student_id: "s4", book_id: "b4", n: 0 }];
+console.log("■ 빵꾸 막이 — 오늘 0줄로 나갈 까닭");
+const gaps = bookGaps({ books, routines, todo, date });
+const kinds = Object.fromEntries(gaps.map((g) => [`${g.student_id}|${g.book_id}`, g.kind]));
+ok("독해 루틴이 없으면 「루틴 없음」 · 회차 0 이면 「회차 없음」 · 남은 소단원 0 이면 「남은 소단원 없음」", kinds["s2|b2"] === "no_routine" && kinds["s3|b3"] === "no_round" && kinds["s4|b4"] === "no_units", JSON.stringify(kinds));
+ok("멀쩡한 교재(s1·s2 문법)는 안 잡힌다 · 멈춘 교재(s5)는 빵꾸가 아니다", !kinds["s1|b1"] && !kinds["s2|b1"] && !kinds["s5|b5"] && gaps.length === 3);
+ok("학생 루틴이 그 영역에 있으면 영역 루틴이 없어도 된다(확정-㉒)", bookGaps({ books: [bk("s2", "b2", "독해")], routines: [{ student_id: "s2", area: "독해" }], todo: [{ student_id: "s2", book_id: "b2", n: 4 }], date }).length === 0 && bookGaps({ books: [bk("s7", "b2", "독해")], routines: [{ student_id: "s2", area: "독해" }], todo: [{ student_id: "s7", book_id: "b2", n: 4 }], date }).length === 1);
+ok("루틴 없음이 회차 없음보다 먼저(한 교재에 까닭 하나)", bookGaps({ books: [bk("s9", "b9", "독해", { per_session: 0 })], routines: [], todo: [], date })[0].kind === "no_routine");
+ok("빈 아이 3 · 찬 아이 2(s1·s5) — 아이 수로 센다(교재 수가 아니라)", JSON.stringify(gapSummary(gaps, ["s1", "s2", "s3", "s4", "s5"])) === JSON.stringify({ bad: 3, ok: 2 }));
+ok("말 — 「독해 영역 루틴이 아직 안 만들어졌습니다」 · 같은 영역 오늘 교재 수(독해 2권, 멈춘 것 포함)", gapText(gaps[0]) === "독해 영역 루틴이 아직 안 만들어졌습니다" && areaCount(gaps[0], books) === 2 && areaCount(gaps[1], books) === 0);
+console.log("■ 날짜 · D-day · 반 줄");
+ok("2026-09-06 → 「9월 6일 일」 · md → 9/6 · 날수 셈", dateLabel("2026-09-06") === "9월 6일 일" && md("2026-09-06") === "9/6" && daysBetween("2026-09-06", "2026-10-21") === 45);
+ok("D-45 · 오늘은 D-day · 지난 날은 null · 없으면 null", dday(date, "2026-10-21") === "D-45" && dday(date, date) === "D-day" && dday(date, "2026-09-01") === null && dday(date, null) === null);
+ok("반 줄 — 별명 「월수 5시 17:00–18:30」 · 별명 없으면 갈래 이름 · 끝 시각 없으면 시작만", classLabel({ nickname: "월수 5시", kind: "regular", start: "17:00", end: "18:30" }) === "월수 5시 17:00–18:30" && classLabel({ nickname: "", kind: "makeup", start: "14:00", end: "" }) === "보강 14:00");
+console.log("■ 시험 줄");
+const exams = [{ id: "e1", name: "2학기 중간", state: "active", school_id: "A", english_on: "2026-10-21", term_from: "2026-10-15", schools: { name: "신정중" } }, { id: "e2", name: "학평", state: "active", school_id: "B", english_on: null, term_from: "2026-09-16", schools: { name: "옥련여고" } }, { id: "e3", name: "지난 것", state: "active", school_id: "C", english_on: "2026-09-01" }, { id: "e4", name: "먼 것", state: "active", school_id: "A", english_on: "2026-12-20" }];
+const ex = examLines({ exams, schools: [{ id: "A", name: "신정중" }, { id: "C", name: "연수여고" }, { id: "C", name: "연수여고" }, null], today: date });
+ok("가까운 차례 · 영어일 없으면 기간 시작 · 지난 것·60일 넘은 것은 뺀다", ex.soon.map((e) => e.text).join(",") === "옥련여고 학평 D-10,신정중 2학기 중간 D-45", ex.soon.map((e) => e.text).join(","));
+ok("아이들 학교 중 시험 없는 학교 「연수여고」 하나(겹치지 않게 · 빈 것 뺀다)", ex.missing.map((s) => s.name).join(",") === "연수여고");
+console.log("■ 클래스카드 수신 · 하루 정리 · 때 글");
+ok("수신 기록 없음 → ✕ · 2일째 없음 → ✕ 「2일째」 · 어제 받았으면 정상", ccText(null, date).bad && ccText("2026-09-04T12:14:00Z", date).text === "클래스카드 수신이 2일째 없습니다" && ccText("2026-09-05T12:14:00Z", date).bad === false);
+ok("하루 정리 — 한 번도 안 돎 ✕ · 오늘 돎 ✓ · 어제가 마지막인데 새벽 3시면 아직 ✓ · 낮이면 ✕ · 실패가 있으면 ✕", queueText(null, date).bad && !queueText({ queue_ran_on: date, queue_failed: 0 }, date, 12).bad && !queueText({ queue_ran_on: "2026-09-05", queue_failed: 0 }, date, 3).bad && queueText({ queue_ran_on: "2026-09-05", queue_failed: 0 }, date, 12).bad && queueText({ queue_ran_on: date, queue_failed: 2 }, date, 12).sub.startsWith("실패로 남은 일 2"));
+ok("「오늘 21:40」 · 「어제 21:40」 · 「9/3 21:40」 — 서울 시각", whenText("2026-09-06T12:40:00Z", date) === "오늘 21:40" && whenText("2026-09-05T12:40:00Z", date) === "어제 21:40" && whenText("2026-09-03T12:40:00Z", date) === "9/3 21:40");
+console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);
