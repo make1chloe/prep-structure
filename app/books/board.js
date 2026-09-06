@@ -20,6 +20,7 @@ export default function Board({ d }) {
       <span className="spacer" />
       <span className={"pill" + (c.noUnits ? " warn" : "")} data-g="no-units">단원 없음 {c.noUnits}</span>
       {c.noArea > 0 && <span className="pill warn" data-g="no-area">영역 없음 {c.noArea}</span>}
+      <a className="btn sm" href="/books/videos" data-act="videos">🎬 영상</a>
       <a className="btn sm" href="/api/books/xlsx" data-act="export-all">⬇ 엑셀</a>
       <button className="btn sm" type="button" data-act="upload-open" onClick={() => setUp(true)}>⬆ 올리기</button>
       <button className="btn pri sm" type="button" data-act="add-open" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 교재</button>

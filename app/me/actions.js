@@ -13,6 +13,8 @@ import { setStage, setDue } from "@/lib/material";
 import { ask as askRequest } from "@/lib/request";
 import { studentSubmit } from "@/lib/score";
 import { studentMark, raiseFlag } from "@/lib/road";
+import { markSeen } from "@/lib/files";
+import { markSpan, fillDuration } from "@/lib/video";
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/me"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 async function child() { const w = await guard(); if (w.me?.role !== ROLES.STUDENT) throw new Error("아이 계정만 찍습니다"); return w; }
 /** 걸음을 찍는다(1 핸드폰 · 2 출석 · 3 숙제 · 4 집에 가요). 반이 둘인 날은 아이가 고른 반(classId)으로 */
@@ -45,3 +47,9 @@ export const submitScore = done(async (examId, raw, full, wrongs) => { const { s
 /** 🛤️ 로드맵 08 — 내 교재 진도를 찍는다(열려 있을 때 · 원장님 줄은 못 덮는다 · 확인 기다리는 중으로) · ❗ 이의(진도는 안 바뀐다). 판단은 lib/road 한 벌 */
 export const markUnit = done(async (unitId, round, status) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); const r = await studentMark(sb, { studentId: st.id, unitId: String(unitId), round: Number(round) || 1, status: String(status), date: await today(sb) }); revalidatePath("/me/book"); return r; });
 export const flagUnit = done(async (unitId, round, kind, said) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); const id = await raiseFlag(sb, { studentId: st.id, unitId: String(unitId), round: Number(round) || 1, kind: String(kind), said }); revalidatePath("/me/book"); return { id }; });
+/** 📎 붙은 파일을 처리했다 — 💾 저장(폰에 내려받음) · ✓ 안 보기(그 줄에서만 치움). 둘 다 「지난 것 보기」에서 1달간(목업 20) */
+export const seen = done(async (fileId, itemId, how) => { const { sb } = await child(); await markSeen(sb, String(fileId), String(itemId), String(how)); });
+/** 🎬 지나간 구간을 찍는다(재생기가 20초마다·멈출 때) — 다시 그리지 않는다(재생 중이다). 겹침·「다 봄」은 SQL(0128 video_mark) */
+export async function span(videoId, from, to, pos) { try { const { sb } = await child(); return { ok: true, r: await markSpan(sb, String(videoId), Number(from), Number(to), Number(pos)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+/** 🎬 길이를 모르는 영상은 재생기가 처음 알려 준다(비어 있을 때만 — SQL 이 지킨다) */
+export async function duration(videoId, seconds) { try { const { sb } = await child(); return { ok: true, set: await fillDuration(sb, String(videoId), Number(seconds)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }

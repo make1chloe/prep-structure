@@ -20,6 +20,7 @@ export default async function Ops({ searchParams }) {
   return frame(<>
     {d.fee ? <Fee d={{ date: d.date, ym: d.ym, rows: d.rows }} /> : <div className="card" data-card="fee-closed"><div className="ctitle"><span className="cemo">💳</span>수강료</div><p className="note">이 계정에는 수강료가 안 열려 있습니다 — 원장님이 「누가 무엇을 보나」에서 켜십니다(답 ⑮ 「강사는 수강료 못 보게」).</p></div>}
     <a className="card" href="/ops/students" data-card="students" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🧑‍🎓</span>학생 — 재원생 · 퇴원생 · 한 아이의 성장(14)</div><p className="note">목록에서 한 아이를 열면 KPI 여섯 · 교재 진도 · 성적 · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담. 퇴원해도 줄은 남습니다(9/3)</p></a>
+    <a className="card" href="/ops/files" data-card="files" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">📎</span>자료함 — 주고받기(20)</div><p className="note">학교가 주는 종이가 여기로 모입니다 — 아이·학부모가 찍어 보내면 학교·학년·학기가 저절로 붙고 원장님은 갈래만 고릅니다 · 오늘 숙제에 붙이기 · 아이가 처리했나</p></a>
     <a className="card" href="/ops/inquiry" data-card="inquiry" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">☎️</span>신규 상담 — 전화 끊고 바로 · 등록 전환 일곱(18)</div><p className="note">🔥 오늘 답할 것 · 상담 잡힘 · 레벨 봄 · 등록 · 안 옴 — 「누가 무엇을 보나」의 신규 문의 칸으로 엽니다</p></a>
   </>);
 }

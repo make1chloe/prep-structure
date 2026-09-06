@@ -703,7 +703,7 @@ input.sprog{padding:4px 8px;min-width:160px}
 .vinfo{display:flex;gap:8px;margin-top:8px;font-size:var(--fs-2);color:var(--mid)}
 .vrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--hair)}
 .vrow:last-of-type{border-bottom:0}
-.vn{flex:0 0 64px;font-size:var(--fs-3)}
+.vn{flex:0 0 auto;min-width:64px;white-space:nowrap;font-size:var(--fs-3)}
 .pcard{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}
 .pcard>.pc1{min-width:0}
 .pcard>.pc1>.card{margin:0 0 8px}

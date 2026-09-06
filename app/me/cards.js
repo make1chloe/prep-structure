@@ -1,7 +1,9 @@
 "use client";
 /** 아이 화면의 누르는 카드 — 등원·하원(걸음 셋 · 반 고르기 · 집에 가요) · 「다 했어요」. 되돌릴 수 없는 것(등원 찍기)은 서버 답을 기다린다 */
 import { useState, useTransition } from "react";
-import { arrive, said, stage as setStageAct, due as setDueAct, submitScore } from "./actions.js";
+import { useRouter } from "next/navigation";
+import { arrive, said, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct } from "./actions.js";
+import Upload from "../_shell/upload.js";
 import { md } from "@/lib/dash-plan";
 import { STAGES, dueText, dueBad } from "@/lib/material-plan";
 import { STEPS, LEAVE } from "@/lib/arrival-plan";
@@ -83,4 +85,31 @@ export function ScoreCard({ scores = [], entry = [] }) {
     {msg && <p className="note" data-g="score-msg" style={{ margin: "6px 0 0", color: "var(--on-ok)" }}>{msg}</p>}
     {scores.length > 0 && <p className="note k" style={{ margin: "6px 0 0" }}>원장님이 공개한 시험만 보여요.</p>}
   </div>;
+}
+
+/** 📎 숙제 줄에 붙은 파일 — 💾 저장(폰에 내려받는다 · 앱 안에 두면 1달 뒤 사라져서 「저장」이 아니게 된다) · ✓ 안 보기(그 줄에서만 치운다). 둘 다 「지난 것 보기」에서 1달간(목업 20) */
+export function AttachLines({ links = [] }) {
+  const router = useRouter(); const [err, setErr] = useState(""); const [pending, start] = useTransition();
+  if (!links.length) return null;
+  const mark = (l, how) => start(async () => { setErr(""); const r = await seenAct(l.file_id, l.day_item_id, how); if (!r.ok) { setErr(r.msg); return; } router.refresh(); });
+  return (<>
+    {links.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="attach" data-file={l.file_id} style={{ marginTop: 4 }}><span className="ln">{l.icon}</span>
+      <div><b>📎 {l.name}</b><small>{l.size}{l.file?.note ? ` · 💬 ${l.file.note}` : ""} · {l.until}까지 보여요</small></div>
+      <a className="btn sm pri" href={`/api/files/${l.file_id}?dl=1`} data-act="save" onClick={() => mark(l, "saved")}>💾 저장</a>
+      <button type="button" className="btn sm" data-act="skip" disabled={pending} onClick={() => mark(l, "skip")}>✓ 안 보기</button></div>)}
+    {err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}
+  </>);
+}
+/** 📎 자료 — 사진 보내기(학교 종이를 찍어 원장님께 · 원장님만 본다) · 지난 것 보기(1달 안에 처리한 붙임) · 1달 지난 것은 개수만 */
+export function FilesCard({ past = [], hidden = 0, rules = {} }) {
+  const router = useRouter();
+  return (
+    <div className="task" data-card="files">
+      <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : "보내기"}</span></div>
+      <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="학교에서 받은 종이를 찍어 보내면 원장님만 봐요" compact onDone={() => router.refresh()} />
+      {past.length > 0 && <details style={{ marginTop: 8 }} data-g="past"><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>지난 것 보기 <b>{past.length}</b><span className="spacer" /><span className="tag on">1달간</span></summary>
+        {past.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="past-row" data-file={l.file_id}><span className="ln">{l.icon}</span><div><b>{l.name}</b><small>{l.seen}{l.on ? ` · ${md(l.on)} 숙제` : ""}{l.item ? ` · ${l.item}` : ""} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}?dl=1`}>⬇</a></div>)}</details>}
+      {hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{hidden}개는 1달이 지나 안 보여요 — 원장님 자료함에는 그대로 있어요</p>}
+    </div>
+  );
 }
