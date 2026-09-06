@@ -169,6 +169,24 @@ const server = http.createServer(async (req, res) => {
     if (path === "/auth/v1/settings") {
       return json(res, 200, { external: {}, disable_signup: false, mailer_autoconfirm: true, autoconfirm: true });
     }
+    // 서버 자신(service role)이 계정을 발급·초기화하는 길 — supabase-js auth.admin.createUser / updateUserById 가 치는 주소(3단계-8 등록 전환 · 비밀번호 0000)
+    if (path === "/auth/v1/admin/users" && req.method === "POST") {
+      const body = await readBody(req);
+      if (!body.email) return json(res, 422, { message: "email 이 없습니다" });
+      const dup = db.query("select id from auth.users where lower(email) = lower($1)", [body.email]);
+      if (dup.rows[0]) return json(res, 422, { code: "email_exists", message: "A user with this email address has already been registered" });
+      db.exec("insert into auth.users (email, encrypted_password, raw_user_meta_data) values ($1, $2, $3::jsonb)", [body.email, body.password || "", JSON.stringify(body.user_metadata || {})]);
+      const r = db.query("select id, email, raw_user_meta_data from auth.users where lower(email) = lower($1)", [body.email]);
+      return json(res, 200, shape(r.rows[0]));
+    }
+    const adm = path.match(/^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/);
+    if (adm && req.method === "PUT") {
+      const body = await readBody(req); const u = userRow(adm[1]);
+      if (!u) return json(res, 404, { message: "user not found" });
+      if (body.password) db.exec("update auth.users set encrypted_password = $1 where id = $2", [body.password, u.id]);
+      return json(res, 200, shape(userRow(u.id)));
+    }
+    if (adm && req.method === "GET") { const u = userRow(adm[1]); return u ? json(res, 200, shape(u)) : json(res, 404, { message: "user not found" }); }
     if (path === "/auth/v1/signup") {
       const body = await readBody(req);
       db.exec("insert into auth.users (email, encrypted_password) values ($1, $2)", [body.email, body.password]);
