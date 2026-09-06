@@ -7,6 +7,7 @@ import { today } from "@/lib/day";
 import { myChildren, parentDay } from "@/lib/parent";
 import { md } from "@/lib/dash-plan";
 import AskCard from "../_shell/askcard.js";
+import BellCard from "../_shell/bell.js";
 import { ask } from "./actions.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export default async function Parent({ searchParams }) {
       <p className="note" style={{ margin: "4px 0 0" }}>{d.todayClass ? "오늘 수업이 있는 날입니다" : "오늘은 수업이 없는 날입니다"}</p></Card>}
     {can(PARENT.sent) && d.sent.length > 0 && <Card emo="📨" title="보낸 것" id="sent" pill={String(d.sent.length)}>
       {d.sent.map((s) => <div className="li" key={s.id}><div><b>{s.text}</b><small>{s.small}</small></div></div>)}</Card>}
+    <BellCard />
     {anyCard && <AskCard asks={d.asks} send={sendFor} note="결석 예정을 미리 알려 주시면 수업을 준비하는 데에 큰 도움이 됩니다. 병원 진료가 아닌 당일 결석은 보강이 불가합니다." placeholder="선생님께 한마디" />}
   </>);
 }

@@ -423,7 +423,7 @@ td.sch{font-weight:700;white-space:nowrap}
 .mine.sortable>.task{transition:transform .12s}
 .ord{display:inline-flex;gap:2px;flex-shrink:0}
 .ord button{width:22px;height:22px;border:1px solid var(--line);background:var(--surface);border-radius:6px;font-size:var(--fs-icon);color:var(--faint);padding:0;line-height:1}
-.donehead{display:flex;align-items:center;gap:8px;width:100%;margin-top:8px;padding:8px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--sunk);font-size:var(--fs-2);color:var(--mid)}
+.donehead{display:flex;align-items:center;gap:8px;width:100%;margin-top:8px;padding:8px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--sunk);font-size:var(--fs-2);color:var(--mid);flex-wrap:wrap}
 .donehead b{color:var(--ink)}
 .donehead .ar{transition:transform .15s;color:var(--faint)}
 .donehead[aria-expanded="true"] .ar{transform:rotate(90deg)}

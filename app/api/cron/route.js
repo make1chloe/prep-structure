@@ -2,6 +2,7 @@
  *  새 셈을 만들지 않는다 — lib/queue.js 의 runDue 를 부르기만(뼈대-9). 열쇠(CRON_SECRET)가 안 맞으면 401. */
 import { serviceClient, db } from "@/lib/supabase";
 import { runDue } from "@/lib/queue";
+import "@/lib/send";   // 손 다섯(데일리리포트·늦귀가·등원·하원·예정 알림)과 「예약 → 큐」를 등록한다 — 부르기만 한다(뼈대-9)
 export const dynamic = "force-dynamic";
 export async function GET(req) {
   const want = process.env.CRON_SECRET;
