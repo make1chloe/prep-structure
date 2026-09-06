@@ -31,4 +31,10 @@ if [ -f .tmp/state-student.json ]; then
   node scripts/check-fonts.mjs || exit 1
   node scripts/check-contrast.mjs || exit 1
 fi
+if [ -f .tmp/state-parent.json ]; then
+  export CHECK_STATE=.tmp/state-parent.json CHECK_URLS="http://127.0.0.1:$APP_PORT/parent,http://127.0.0.1:$APP_PORT/parent/cal"
+  node scripts/check-sizes.mjs || exit 1
+  node scripts/check-fonts.mjs || exit 1
+  node scripts/check-contrast.mjs || exit 1
+fi
 echo; echo "눌러보기 끝. 내리려면 bash scripts/e2e/down.sh"

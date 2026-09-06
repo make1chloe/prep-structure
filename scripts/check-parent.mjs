@@ -1,0 +1,22 @@
+/** 학부모 화면 검사(검사-㊽ · 목업 09) — 순수 판단 lib/parent-plan.js: 숙제 % · 오늘 수업 꼬리표(시험 N/N · 숙제 %) · 오늘 늦게 갑니다(보낸 것만 · 실제 하원이 찍히면 바뀐다) · 보낸 것 줄 · 오늘 등원·하원 한 줄 · 다음 시간 시험(개수 정한 것만) */
+import { homeworkPct, sheetTags, todayLate, sentLines, todayArrival, nextQuizLines } from "../lib/parent-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const today = "2026-09-06";
+console.log("■ 오늘 수업 꼬리표");
+ok("숙제 % — ○ 2 · △ 1 → 67 · 검사한 줄이 없으면 null(아직·none 은 안 센다)", homeworkPct([{ status: "done" }, { status: "done" }, { status: "weak" }, { status: "none" }, {}]) === 67 && homeworkPct([{ status: "none" }]) === null);
+const sheet = { date: "2026-09-06", check: [{ status: "done" }, { status: "done" }, { status: "done" }, { status: "done" }, { status: "missing" }] };
+const tags = sheetTags(sheet, [{ kind: "word", total: 20, wrong: 3, taken_on: "2026-09-06", passed: false }, { kind: "sentence", total: 14, wrong: 0, taken_on: "2026-09-05", passed: true }, { kind: "word", total: null, taken_on: "2026-09-06" }]);
+ok("「단어 17/20」(그날 본 것만 · 개수 없는 것 제외) · 「숙제 80%」(80 부터 on) · 못 넘은 시험은 on 아님", tags.map((t) => `${t.text}${t.on ? "*" : ""}`).join(",") === "단어 17/20,숙제 80%*", JSON.stringify(tags));
+console.log("■ 늦귀가 안내 · 보낸 것");
+const fam = [{ id: "a", on_date: "2026-09-06", until_at: "22:20:00", reason: "워크북 나머지", sent_at: "2026-09-06T10:41:00Z", left_at: null }, { id: "b", on_date: "2026-09-03", until_at: "21:40:00", reason: "문장훈련", sent_at: "2026-09-03T10:00:00Z", left_at: "21:52:00" }];
+ok("오늘 것 — 「22:20 예정」 · 사유 · 「19:41에 받았습니다」 · 아직 하원 안 함", JSON.stringify(todayLate(fam, today)) === JSON.stringify({ until: "22:20", reason: "워크북 나머지", sentAt: "19:41", left: null }));
+ok("실제 하원이 찍히면 left 에 시각 · 오늘 것이 없으면 null", todayLate([{ ...fam[0], left_at: "22:31:00" }], today).left === "22:31" && todayLate(fam, "2026-09-07") === null);
+ok("보낸 것 — 오늘 것은 빼고 최근 것부터 「9/3 늦귀가 안내 — 21:40 예정 · 21:52 하원」", sentLines(fam, today).map((s) => s.text).join(" | ") === "9/3 늦귀가 안내 — 21:40 예정 · 21:52 하원");
+console.log("■ 오늘 등원·하원 · 다음 시간 시험");
+ok("등원 찍힘 · 하원 전 → 「정시 등원」 「17:02 도착 · 하원 아직」 · 지각 판이면 알약 「지각」", todayArrival([{ step: 2, at: "2026-09-06T08:02:00Z" }], { attend: "present" }).text === "17:02 도착 · 하원 아직" && todayArrival([{ step: 2, at: "2026-09-06T08:02:00Z" }], { attend: "present" }).pillOn && todayArrival([{ step: 2, at: "2026-09-06T08:12:00Z" }], { attend: "late" }).pill === "지각");
+ok("등원도 판도 없으면 null(카드 숨김 · 확정-⑮)", todayArrival([], null) === null);
+const nq = nextQuizLines([{ id: "q1", kind: "word", total: 20, cut_pct: 90, source: "book", books: { name: "중등3800제3" }, units: { chapter: "CH5", short: "부정사" } }, { id: "q2", kind: "sentence", total: null }]);
+ok("다음 시간 시험 — 「단어 20개」 「중등3800제3 · CH5 › 부정사 · 통과 90%」 · 개수 없는 것은 안 보낸다", nq.length === 1 && nq[0].b === "단어 20개" && nq[0].small === "중등3800제3 · CH5 › 부정사 · 통과 90%", JSON.stringify(nq));
+console.log(`\n■ 학부모 화면 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);

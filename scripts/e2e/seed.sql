@@ -163,3 +163,9 @@ insert into v2.material_give (material_id, student_id, handed_at, got_at, stage)
   ('99999999-0000-4000-a200-000000000002', '99999999-0000-4000-9000-000000000001', now() - interval '3 day', now() - interval '3 day', 'doing'),
   ('99999999-0000-4000-a200-000000000003', '99999999-0000-4000-9000-000000000001', now() - interval '10 day', now() - interval '10 day', 'done')
 on conflict do nothing;
+-- 학부모 화면 09 눌러보기 — 리허설 학부모 ↔ 학생 잇기 · 학부모 카드 다섯 켬(자료·단어·리포트는 안 정함 = 숨김)
+insert into v2.parent_student (parent_profile_id, student_id, rel, import_batch) values
+  ('44444444-4444-4444-4444-444444444444', '99999999-0000-4000-9000-000000000001', '어머니', 'fixture')
+on conflict do nothing;
+insert into v2.role_access (role, key, allowed) values ('parent', 'parent.intro', true), ('parent', 'parent.recent', true), ('parent', 'parent.homework', true), ('parent', 'parent.next', true), ('parent', 'parent.sent', true)
+on conflict (role, key) do nothing;

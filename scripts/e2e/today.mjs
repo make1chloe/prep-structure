@@ -369,6 +369,27 @@ const mkRow = cards.nth(4).locator(".dayrow", { hasText: "보강 안 잡힘" });
 ok("📅 이 달 — 보강 안 잡힘 N명(학생둘 · 오늘 결석 …) + 잡기 · 영어일 없음 — zz_시험_중학교(시험 06 에 넣어야)", (await mkRow.count()) === 1 && (await mkRow.textContent()).includes("zz_시험_학생둘") && /보강 안 잡힘 [12]명/.test(await mkRow.textContent()) && (await cards.nth(4).locator(".dayrow a[href='/today']").count()) === 1 && (await cards.nth(4).locator(".dayrow", { hasText: "영어일 없음" }).textContent()).includes("zz_시험_중학교"), (await cards.nth(4).textContent()).slice(0, 200));
 ok("💬 답할 것 — 남기실 말 2(씨앗 어제 「…병원이라…」 + 아이가 방금 남긴 것) · 신규 상담 1건(아직 답 안 함)", (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 2" }).textContent()).includes("어제") && (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 2" }).textContent()).includes("병원이라") && (await cards.nth(5).locator(".dayrow", { hasText: "신규 상담 1건" }).textContent()).includes("아직 답 안 함"), (await cards.nth(5).textContent()).slice(0, 200));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-dash-${v.viewport.width}.png`, fullPage: true }); }
+console.log("■ 학부모 09 — 마감 뒤: 늦귀가 안내(보낸 것 · 실제 하원) · 오늘 수업일지 + 꼬리표 · 다음 숙제 · 앞으로 · 선생님 한 마디 · 남기실 말 · 달력");
+{ const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/login"); await cp.fill("#id-parent", "01000000000"); await cp.fill("#pw-parent", "새비밀번호2");
+  await Promise.all([cp.waitForURL((u) => u.pathname === "/parent", { timeout: 15000 }), cp.click("form:has(#id-parent) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
+  const pm = cp.locator("main");
+  at = mark(); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  const parentQ = requestsSince(at);
+  ok(`학부모 화면 조회 ≤ 20 — ${parentQ}`, parentQ >= 0 && parentQ <= 20);
+  ok("🌙 오늘은 늦게 갑니다 — 보낸 것이라 보인다 · 사유 · 「HH:MM에 받았습니다」 · 실제 하원이 찍혀 「HH:MM 에 갔습니다」", (await pm.locator("[data-card=late]").textContent()).includes("워크북 나머지 10-18번") && /\d\d:\d\d에 받았습니다/.test(await pm.locator("[data-card=late]").textContent()) && /\d\d:\d\d 에 갔습니다/.test(await pm.locator("[data-card=late] .h .pill").textContent()), (await pm.locator("[data-card=late]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+  ok("📋 오늘 수업 — 마감한 수업일지 글 · 꼬리표 「단어 17/20」 「숙제 N%」 · 🌙 귀가 예정 줄", (await pm.locator("[data-card=recent] .h b").textContent()).includes("오늘 수업") && (await pm.locator("[data-card=recent]").textContent()).includes("워크북 나머지는 남아서 마쳤습니다") && (await pm.locator("[data-card=recent] .tag", { hasText: "단어 17/20" }).count()) === 1 && (await pm.locator("[data-card=recent] .tag", { hasText: "숙제" }).count()) === 1, (await pm.locator("[data-card=recent]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+  ok("📘 다음 숙제(오늘 낸 것) · 📝 다음 시간 시험 · 📅 앞으로(결석 예정 · 지각 예정) · 💬 선생님 한 마디 · 🕘 오늘 「도착 · 하원」", (await pm.locator("[data-card=homework] .li").count()) >= 2 && (await pm.locator("[data-card=nextquiz]").textContent()).includes("단어 20개") && (await pm.locator("[data-card=future]").textContent()).includes("결석 예정") && (await pm.locator("[data-card=memo]").textContent()).includes("스크램블 6200점") && /\d\d:\d\d 도착 · \d\d:\d\d 하원/.test(await pm.locator("[data-card=today]").textContent()), (await pm.textContent()).replace(/\s+/g, " ").slice(0, 500));
+  await pm.locator("[data-card=ask] textarea[name=ask]").fill("다음 주 금요일은 학교 행사라 못 갑니다"); await pm.locator("[data-card=ask] button[data-act=ask]").click(); await cp.waitForTimeout(2000); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("학부모 남기실 말 → 「보냄 · 답 기다리는 중」", (await pm.locator("[data-card=ask] .li", { hasText: "학교 행사라" }).count()) === 1);
+  for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-parent-${v.viewport.width}.png`, fullPage: true }); }
+  await cp.setViewportSize(VIEWS[1].viewport);
+  await pm.locator("[data-card=cal]").click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  const pcell = (dt) => cp.locator(`.cal a.cd[data-date='${dt}']`);
+  ok("학부모 달력 — 같은 그림: 오늘 ⏰📘📝 · 내일 ✕ · 오늘의 줄에 수업일지(마감한 글) · 다음 달 ▸ 까지만(확정-⑯)", new URL(cp.url()).pathname === "/parent/cal" && (await pcell(todayText).locator(".cm").allTextContents()).join("").includes("📘") && (await pcell(d1).locator(".cm").allTextContents()).join("").startsWith("✕") && (await cp.locator("[data-g=day]").textContent()).includes("워크북 나머지는 남아서 마쳤습니다") && (await cp.locator(".calhead a[aria-label='다음 달']").count()) === 1, (await cp.locator("[data-g=day]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+  await cp.locator(".calhead a[aria-label='다음 달']").click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("다음 달에서는 ▸ 가 막힌다(앞날은 다음 달까지)", (await cp.locator(".calhead a[aria-label='다음 달']").count()) === 0 && (await cp.locator(".calhead a[aria-label='지난 달']").count()) === 1);
+  await cs.close(); }
 await p.setViewportSize(VIEWS[0].viewport); await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
