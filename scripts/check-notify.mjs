@@ -5,7 +5,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 const files = (dir) => readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? files(p) : /\.(js|mjs)$/.test(f) ? [p] : []; });
-const all = [...files("lib"), ...files("app")].map((p) => [p.replace(/\\/g, "/"), readFileSync(p, "utf8")]);
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 주석을 먼저 지운다 — 주석의 낱말로 헛짚고 헛통과하지 않게
+const all = [...files("lib"), ...files("app")].map((p) => [p.replace(/\\/g, "/"), strip(readFileSync(p, "utf8"))]);
 const bad = [];
 const where = (re, except = []) => all.filter(([p, s]) => re.test(s) && !except.includes(p)).map(([p]) => p);
 let w = where(/sendNotification\(/, ["lib/push.js"]); if (w.length) bad.push(`① 알림 서버를 lib/push.js 밖에서 부른다: ${w.join(", ")}`);
@@ -14,14 +15,14 @@ w = where(/from\("notify_log"\)\.(insert|update|upsert|delete)/, ["lib/notify.js
 w = where(/(process\.env|\benv)\.NOTIFY_SINK|\[["']NOTIFY_SINK["']\]/, ["lib/notify-plan.js"]); if (w.length) bad.push(`⑦ 스위치를 lib/notify-plan.js 밖에서 읽는다: ${w.join(", ")}`);
 w = where(/["']late_notice["']/, ["lib/late.js", "lib/send-plan.js"]).filter((p) => !/^scripts\//.test(p)); if (w.length) bad.push(`확정-㊿ 늦귀가 알림을 lib/late.js 밖에서 넣는다: ${w.join(", ")}`);
 // 큐에 넣는 갈래 ⊆ 손이 있는 갈래
-const send = readFileSync("lib/send.js", "utf8"), plan = readFileSync("lib/send-plan.js", "utf8");
+const send = strip(readFileSync("lib/send.js", "utf8")), plan = strip(readFileSync("lib/send-plan.js", "utf8"));
 const kinds = Object.fromEntries([...plan.matchAll(/(\w+): "([a-z_]+)"/g)].filter(([, k]) => /^(daily|late|arrival|leave|plan)$/.test(k)).map(([, k, v]) => [k, v]));
 const handled = new Set([...send.matchAll(/handlers\[KINDS\.(\w+)\]/g)].map((m) => kinds[m[1]]));
 const enqueued = new Set(all.flatMap(([, s]) => [...s.matchAll(/enqueue\(\w+, "([a-z_]+)"/g)].map((m) => m[1])));
 for (const k of enqueued) if (!handled.has(k)) bad.push(`큐에 넣는 갈래에 손이 없다: ${k} (lib/send.js)`);
 if (!/unfilled\(s\.comment\)/.test(send)) bad.push("뼈대-11 데일리리포트 손이 치환 자리를 안 본다(lib/send.js)");
-if (!/import "@\/lib\/send"/.test(readFileSync("app/api/cron/route.js", "utf8"))) bad.push("크론이 손(lib/send.js)을 안 들여온다 — 손이 없는 일로 전부 실패한다");
-const page = readFileSync("app/send/page.js", "utf8");
+if (!/import "@\/lib\/send"/.test(strip(readFileSync("app/api/cron/route.js", "utf8")))) bad.push("크론이 손(lib/send.js)을 안 들여온다 — 손이 없는 일로 전부 실패한다");
+const page = strip(readFileSync("app/send/page.js", "utf8"));
 if (!/after\(backstop\)/.test(page) || /await backstop/.test(page)) bad.push("속도-3 발송 화면이 백스톱을 렌더 뒤(after)로 안 돌린다");
 if (!/OPEN_TO_SEE/.test(readFileSync("lib/notify-plan.js", "utf8"))) bad.push("잠금화면 문구(OPEN_TO_SEE)가 없다 — 알림에 내용이 실린다");
 if (bad.length) { console.log("check-notify ✗\n  " + bad.join("\n  ")); process.exit(1); }

@@ -82,7 +82,7 @@ for (const [what, p] of [
       ? "「읽음」이 영영 안 쌓인다" : what.startsWith("/api") ? "아이콘 없는 알림이 뜬다" : "눌렀을 때 404"}`);
 
 console.log("\n■ 폰에서 저장 단추가 홈 인디케이터에 깔리지 않는가");
-const layout = readFileSync("app/layout.js", "utf8");
+const layout = readFileSync("app/layout.js", "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 주석을 먼저 지운다
 ok('viewportFit: "cover" 가 있다 — 없으면 safe-area 가 늘 0 이다',
    /viewportFit:\s*["']cover["']/.test(layout));
 

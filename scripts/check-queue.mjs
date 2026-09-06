@@ -1,7 +1,8 @@
 /** 자동화 뼈대 검사(뼈대-1·3·5·6·9·10) — 큐는 v2.job_queue 하나(0012), 자물쇠는 locked_at, 임계값은 v2.rule(0100), 크론은 오늘을 받고 day_ran 을 보며 runDue 만 부른다 */
 import { readFileSync } from "node:fs";
 const q12 = readFileSync("supabase/migrations/0012_notify.sql", "utf8"), s100 = readFileSync("supabase/migrations/0100_new_app_skeleton.sql", "utf8");
-const q = readFileSync("lib/queue.js", "utf8"), cron = readFileSync("app/api/cron/route.js", "utf8");
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 주석을 먼저 지운다
+const q = strip(readFileSync("lib/queue.js", "utf8")), cron = strip(readFileSync("app/api/cron/route.js", "utf8"));
 const bad = [];
 const queue = q12.slice(q12.indexOf("create table v2.job_queue"), q12.indexOf("comment on table v2.job_queue"));
 for (const c of ["state", "tries", "next_at", "locked_at", "last_error"]) if (!new RegExp(`\\b${c}\\b`).test(queue)) bad.push(`v2.job_queue 에 ${c} 칸이 없다(뼈대-1)`);

@@ -117,7 +117,7 @@ html[data-skin="bright"]{
 .skinb[aria-pressed="true"]{border-color:var(--navy);color:var(--ink);box-shadow:0 0 0 2px var(--navy)}
 .sw{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid rgba(128,128,128,.35)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:var(--fs-5);font-variant-numeric:tabular-nums;line-height:1.6;-webkit-font-smoothing:antialiased}
+body{margin:0;overscroll-behavior-y:contain;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:var(--fs-5);font-variant-numeric:tabular-nums;line-height:1.6;-webkit-font-smoothing:antialiased}
 h1,h2,h3{text-wrap:balance;margin:0}
 button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}code,kbd{font-family:inherit;background:var(--sunk);padding:0 4px;border-radius:4px}
 :focus-visible{outline:2px solid var(--navy);outline-offset:2px;border-radius:3px}
@@ -185,6 +185,7 @@ section.screen{margin:0 0 64px}
 
 .roster{display:flex;flex-direction:column;gap:8px}
 .row{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:visible}
+.row{scroll-margin-top:12px}   /* 폰-8 줄을 열고 닫을 때 목록 자리를 지킨다 */
 .rowtop{display:flex;align-items:center;gap:8px;padding:8px 12px;flex-wrap:wrap}
 .who{font-weight:700;font-size:var(--fs-4);min-width:52px}
 .meta{font-size:var(--fs-2);color:var(--faint);font-family:var(--sans)}
