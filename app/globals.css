@@ -214,7 +214,7 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
 .note b{color:var(--ink);font-weight:700}
 .tag b,.pill b,.stag b,.nb-pill b,.ce b,.dot b,.note .tag b,.note .pill b,[class*="fill"] b{color:inherit}
 .pill.warn b,.tag.act b,.stag.q b{color:var(--on-amber)}
-input[type=text],textarea,select{font-family:var(--sans);font-size:var(--fs-5);font-weight:400;line-height:1.5;width:100%;padding:8px 8px;border:1px solid var(--edge);border-radius:8px;background:var(--surface);color:var(--ink)}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=password],textarea,select{font-family:var(--sans);font-size:var(--fs-5);font-weight:400;line-height:1.5;width:100%;padding:8px 8px;border:1px solid var(--edge);border-radius:8px;background:var(--surface);color:var(--ink)}
 input[type=text]::placeholder,textarea::placeholder{color:var(--mute);font-weight:400}
 /* 폰에서만 16px — 그보다 작으면 아이폰이 강제로 확대하고 닫아도 확대가 남는다.
    PC에서까지 16px 로 두면 둘레 글씨보다 커 보여 화면이 들쭉날쭉해진다 */
@@ -566,7 +566,7 @@ tr.hi{background:var(--sunk)}
 .c8.short small{color:var(--miss)}
 input.fee,input.dt{padding:4px 8px}
 input.fee{max-width:120px;text-align:right}
-input.dt{max-width:90px}
+input.dt{max-width:150px}
 input.sprog{padding:4px 8px;min-width:160px}
 .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:8px;margin-bottom:12px}
 .k1{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--surface)}
@@ -874,7 +874,10 @@ td .tag,th .tag{white-space:nowrap;word-break:break-word}
 .two>*,.stw>*,.rt2>*,.rt>*,.bkw>*,.schwrap>*,.pair>*,.feex>*,.tune>*,.wtrow>*,
 .lategrid>*,.mtree>*,.arw>*,.dash>*,.kpi>*,.cnt8>*,.seven>*,.ovr>*,.bkset>*{min-width:0}
 .tblwrap,.half,.stcol,.rcol2,.bkdet,.mt1,.card,.bs,.dcard,.fex,.gn,.sn,.hwname,.li>div,.bkn,.nm,.ldw{min-width:0}
-input[type=text],textarea{min-width:0;max-width:100%}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=password],textarea{min-width:0;max-width:100%}
+/* 표 안의 입력칸(13 금액·받은 날 · 04 진도)은 눌리지 않게 — 위 min-width:0 뒤에 둬야 이긴다(폰에서 23px 로 눌려 값이 안 보였다, check-sizes 눌린 입력칸) */
+input.fee,input.dt{min-width:120px}
+input.sprog{min-width:160px}
 .frame,.body,.panel,.mdl,.mdlb{min-width:0}
 .stopnote,.stopnote.big{min-width:0;overflow-wrap:anywhere}
 input.scr{max-width:74px;padding:4px 8px;text-align:center}
@@ -1052,7 +1055,7 @@ input.dt2{max-width:120px;padding:4px 8px}
 .stepper{height:var(--h-md);border-radius:8px}
 .stepper button{width:32px;height:calc(var(--h-md) - 2px)}
 .stepper input[type=text]{height:calc(var(--h-md) - 2px);padding:0;font-size:var(--fs-5)}
-input[type=text],input.scr,select{height:var(--h-md);padding:0 10px;border-radius:8px;line-height:1.2}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=password],input.scr,select{height:var(--h-md);padding:0 10px;border-radius:8px;line-height:1.2}
 textarea{min-height:72px;padding:8px 10px;border-radius:8px}
 /* 아이콘 자리 — 줄 안 16 · 점 20 · 카드 24 · 화면 제목 28 */
 .cm{width:var(--icon-xs);height:var(--icon-xs);border-radius:4px}

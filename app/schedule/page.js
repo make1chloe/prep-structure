@@ -5,7 +5,7 @@ import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { scheduleBoard } from "@/lib/schedule";
 import { ymOf } from "@/lib/cal-plan";
-import { monthTitle, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, LEGEND, W } from "@/lib/schedule-plan";
+import { monthLabel, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, LEGEND, W } from "@/lib/schedule-plan";
 import Panel from "./panel.js";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
@@ -26,7 +26,7 @@ export default async function Schedule({ searchParams }) {
   const rows = dayRows(d.sel, b, d.classId), unsched = unscheduled(b, d.ym);
   return frame(<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <a className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthTitle(d.ym)}</b><a className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</a>
+      <a className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><a className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</a>
       <div className="seg sm" data-g="classes"><a className="btn sm" aria-pressed={!d.classId} href={`/schedule?m=${d.ym}&d=${d.sel}`} style={{ border: 0, borderRadius: 0 }}>전체</a>{(b.classes ?? []).map((c) => <a key={c.id} className="btn sm" aria-pressed={d.classId === c.id} href={`/schedule?m=${d.ym}&d=${d.sel}&c=${c.id}`} style={{ border: 0, borderRadius: 0 }}>{classText(c)}</a>)}</div>
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
