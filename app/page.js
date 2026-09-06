@@ -40,6 +40,7 @@ export default async function Home() {
         <a className="btn sm" href="/settings/access">정하러 가기 →</a>
       </div>
     )}
+    {d.progress?.show && <div className="lf warn" style={{ marginBottom: 8 }} data-g="progress-band" data-open={d.progress.open ? "1" : "0"}><span className="ln">✎</span><div><b>{d.progress.text}</b><small>{d.progress.small}</small></div><a className="btn sm pri" href="/settings/progress">진도 체크 ↗</a></div>}
     <div className="gap" data-g="gap">
       <div className="gaph"><span className="gi">🚨</span><b>{d.gaps.length ? `오늘 수업 전에 — 배정이 빌 아이 ${d.summary.bad}명` : "오늘 수업 전에 — 배정이 빈 아이 없음"}</b><span className="spacer" />{d.gaps.length > 0 && <span className="pill warn">고치지 않으면 그 교재는 오늘 0줄로 나갑니다</span>}</div>
       {d.gaps.map((g) => (
@@ -64,6 +65,7 @@ export default async function Home() {
         {!d.unitTodo.length && !d.retests.length && <Row icon="✓" cls="i-ok" b="오늘 안에 할 것 없음" />}
         {d.unitTodo.map((u) => <Row key={u.id} icon="📝" cls="i-ex" b={`단원평가 출제 · ${u.name}`} small={`${u.topic} ${u.n}문항 · ${md(u.on)} 낼 것`} />)}
         {d.retests.map((q) => <Row key={q.id} icon="📄" cls="i-ex" b={`${qkind(q.kind)} 재시험 · ${q.name}`} small={`${q.total ?? "?"}개 — 재시험지는 할 일(05)에서`} />)}
+        <Row icon="🗂️" cls="i-cls" b="내 할 일 — 자료 만들기 · 인쇄 · 배부 · 단원평가 출제 · 재시험지 · 성적 받기 · 되풀이" small="표 하나에 보기 둘(표 · 보드)"><a className="btn sm" href="/schedule/todo">열기</a></Row>
       </Card>
       <Card emo="⚠️" title="안 돌고 있는 것" id="ops">
         <Row icon={d.ops.cc.bad ? "✕" : "✓"} cls={d.ops.cc.bad ? "i-abs" : "i-ok"} b={d.ops.cc.text} small={d.ops.cc.sub} />

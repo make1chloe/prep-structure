@@ -58,7 +58,7 @@ function ExamCard({ e, b, today, pending, run, stName }) {
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
     <div className="exh"><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
       {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어일 없음</span>}
-      <span className="tag" data-g="takers">{takers.length}명</span>
+      <span className="tag" data-g="takers">{takers.length}명</span><a className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</a>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}
       <span className="spacer" /><span className="pill">{SOURCE_TEXT[e.source] ?? "손으로 넣음"}</span>
       <a className="btn sm" href={`/scores?e=${e.id}`} data-act="scores">📈 성적</a>

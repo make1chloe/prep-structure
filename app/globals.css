@@ -243,7 +243,8 @@ label.fl{display:block;font-size:var(--fs-2);font-weight:700;color:var(--faint);
 .kc .why{font-size:var(--fs-2);color:var(--navy);margin-top:4px}
 /* ── 노션식 보드 (원장님 9/3 「칸반보드는 노션처럼」) — 접두 nb- 만 쓴다. .nb(설명 페이지)와는 다른 선택자 */
 .nb-viewbar{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--hair);margin:0 0 8px;flex-wrap:wrap}
-.nb-tab{display:inline-flex;align-items:center;gap:4px;padding:8px 8px;font-size:var(--fs-3);color:var(--faint);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--sans);white-space:nowrap}
+.nb-tab{display:inline-flex;align-items:center;gap:4px;padding:8px 8px;font-size:var(--fs-3);color:var(--faint);background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--sans);white-space:nowrap}
+/* 앱에선 단추다 — 브라우저 기본 단추 바탕(회색)이 어두운 벌에서 글씨를 묻는다(check-contrast 3단계-6) */
 .nb-tab[aria-current="true"]{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
 .nb-tab .nb-ic{font-size:var(--fs-2);color:var(--mute)}
 .nb-tab[aria-current="true"] .nb-ic{color:var(--ink)}
@@ -286,7 +287,8 @@ label.fl{display:block;font-size:var(--fs-2);font-weight:700;color:var(--faint);
 .nb-add:hover{background:var(--sunk);color:var(--mid)}
 .nb-hidden{flex:0 0 190px;padding-top:2px}
 .nb-hh{font-size:var(--fs-2);color:var(--mute);padding:0 2px 8px}
-.nb-hg{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;font-size:var(--fs-2);color:var(--faint)}
+.nb-hg{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px;font-size:var(--fs-2);color:var(--faint);background:transparent;border:0;width:100%;text-align:left;font-family:var(--sans)}
+/* 앱에선 단추다(숨긴 그룹 펴기) — 같은 까닭 */
 .nb-hg:hover{background:var(--sunk)}
 .nb-empty{border:1px dashed var(--line);border-radius:6px;padding:8px;color:var(--mute);text-align:center;font-size:var(--fs-2)}
 .steps{display:flex;flex-wrap:wrap;gap:4px}

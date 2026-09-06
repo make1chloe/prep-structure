@@ -63,7 +63,7 @@ export default async function Me() {
     {can(ME.books) && <MaterialCard gives={d.gives} today={date} />}
     {can(ME.books) && <Card emo="🗺" title="내 교재" id="books" pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
-      {d.books.map((b) => <div className="li" key={b.id}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""}</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</div>)}
+      {d.books.map((b) => <a className="li" key={b.id} href={`/me/book?b=${b.book_id}`} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</a>)}
     </Card>}
     {can(ME.today) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card>}
