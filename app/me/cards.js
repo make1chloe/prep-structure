@@ -1,7 +1,7 @@
 "use client";
 /** 아이 화면의 누르는 카드 — 등원·하원(걸음 셋 · 반 고르기 · 집에 가요) · 「다 했어요」. 되돌릴 수 없는 것(등원 찍기)은 서버 답을 기다린다 */
 import { useState, useTransition } from "react";
-import { arrive, said, stage as setStageAct, due as setDueAct, ask as askAct } from "./actions.js";
+import { arrive, said, stage as setStageAct, due as setDueAct } from "./actions.js";
 import { STAGES, dueText, dueBad } from "@/lib/material-plan";
 import { STEPS, LEAVE } from "@/lib/arrival-plan";
 import { seoulTime } from "@/lib/day-plan";
@@ -61,20 +61,6 @@ export function MaterialCard({ gives, today }) {
       {!total && <p className="note" style={{ margin: "8px 0 0" }}>아직 받을 학습지가 없어요</p>}
       {gives.groups.map((g, i) => <div key={g.name}><div style={{ marginTop: i ? 12 : 8, fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{i + 1} {g.name}</div>{g.items.map((it) => <Item key={it.material_id} it={it} />)}</div>)}
       {gives.done.length > 0 && <details style={{ marginTop: 8 }}><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>끝낸 것 <b>{gives.done.length}</b><span className="spacer" /><span className="tag on">눌러서 펴기</span></summary>{gives.done.map((it) => <Item key={it.material_id} it={it} dim />)}</details>}
-      {err && <div className="lf warn" role="alert" style={{ marginTop: 8 }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
-    </div>
-  );
-}
-/** 💬 남기실 말 — 원장님께 한 줄. 보낸 것과 답이 아래에 */
-export function AskCard({ asks }) {
-  const [text, setText] = useState(""); const [err, setErr] = useState(""); const [pending, start] = useTransition();
-  const send = () => start(async () => { setErr(""); const r = await askAct(text); if (r.ok) setText(""); else setErr(r.msg); });
-  return (
-    <div className="task" data-card="ask">
-      <div className="h"><b><span className="cemo">💬</span>선생님께 남기실 말</b><span className="spacer" />{asks.length > 0 && <span className="pill">{asks.length}</span>}</div>
-      <textarea name="ask" rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="예: 다음 주 수요일 병원이라 늦어요" style={{ marginTop: 8 }} />
-      <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><button type="button" className="btn sm pri" data-act="ask" disabled={pending || !text.trim()} onClick={send}>보내기</button><span className="note" style={{ margin: 0 }}>원장님 대시보드 「답할 것」에 뜹니다</span></div>
-      {asks.map((a) => <div className="li" key={a.id}><div><b>{a.body}</b><small>{a.answered_at ? `답 — ${a.answer ?? ""}` : "답 기다리는 중"}</small></div>{!a.answered_at && <span className="tag">보냄</span>}</div>)}
       {err && <div className="lf warn" role="alert" style={{ marginTop: 8 }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
     </div>
   );

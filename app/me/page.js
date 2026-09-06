@@ -9,7 +9,9 @@ import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
 import { KIND as QKIND, scopeText } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
-import { ArrivalCard, SaidButton, MaterialCard, AskCard } from "./cards.js";
+import { ArrivalCard, SaidButton, MaterialCard } from "./cards.js";
+import AskCard from "../_shell/askcard.js";
+import { ask } from "./actions.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
@@ -63,6 +65,6 @@ export default async function Me() {
     </Card>}
     {can(ME.today) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card>}
-    {can(ME.today) && <AskCard asks={d.asks} />}
+    {can(ME.today) && <AskCard asks={d.asks} send={ask} />}
   </>);
 }

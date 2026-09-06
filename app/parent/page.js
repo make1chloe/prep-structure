@@ -1,0 +1,61 @@
+/** 학부모 화면 09 — 형제 고르기 → 🌙 오늘 늦게 갑니다(보낸 것만) → 🕘 오늘(등원·하원) → 📋 오늘 수업(마감한 수업일지 + 꼬리표) → 📘 다음 숙제 → 📝 다음 시간 시험 → 📅 앞으로 → 💬 선생님 한 마디 → 📅 달력 → 💬 남기실 말.
+ *  마감한 판만 보인다(사고 #7 · 0084 sheet_visible_to). 빈 카드는 숨긴다(확정-⑮). 카드는 원장님이 켠 parent.* 만 */
+import { guard } from "@/lib/session";
+import { ROLES } from "@/lib/roles";
+import { decide, PARENT } from "@/lib/perm";
+import { today } from "@/lib/day";
+import { myChildren, parentDay } from "@/lib/parent";
+import { md } from "@/lib/dash-plan";
+import AskCard from "../_shell/askcard.js";
+import { ask } from "./actions.js";
+import { redirect } from "next/navigation";
+export const dynamic = "force-dynamic";
+const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
+const Card = ({ emo, title, id, pill, pillCls = "", children }) => <div className="task" data-card={id}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className={"pill " + pillCls}>{pill}</span>}</div>{children}</div>;
+const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}` : "";
+export default async function Parent({ searchParams }) {
+  const { sb, me, user } = await guard();
+  if (me?.role !== ROLES.PARENT) redirect("/");
+  const q = await searchParams;
+  let date, kids, d;
+  try {
+    [date, kids] = await Promise.all([today(sb), myChildren(sb)]);
+    const pick = kids.find((k) => k.id === String(q?.s ?? "")) ?? kids[0];
+    d = pick ? await parentDay(sb, user, pick, date) : null;
+  } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 화면을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
+  if (!d) return frame(<div className="task"><div className="h"><b>👨‍👩‍👧 아이가 아직 이어지지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「재원생」에서 이 계정을 아이와 이어야 합니다.</p></div>);
+  const can = (k) => decide(ROLES.PARENT, d.access, k) === true;
+  const sendFor = ask.bind(null, d.student.id);
+  const anyCard = [PARENT.sent, PARENT.recent, PARENT.homework, PARENT.next, PARENT.intro].some(can);
+  return frame(<>
+    <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>학부모</b>
+      {kids.length > 1 ? <div className="seg sm" data-g="kids">{kids.map((k) => <a key={k.id} className={"btn sm"} aria-pressed={k.id === d.student.id} href={`/parent?s=${k.id}`} style={{ border: 0 }}>{k.name}</a>)}</div> : <span className="pill" data-g="kid">{d.student.name}</span>}
+      <span className="spacer" /><span className="pill">{md(date)}</span></div>
+    {!anyCard && <div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 학부모 화면 카드를 켜면 보입니다.</p></div>}
+    {can(PARENT.sent) && d.late && <Card emo="🌙" title="오늘은 늦게 갑니다" id="late" pill={d.late.left ? `${d.late.left} 에 갔습니다` : `${d.late.until} 예정`} pillCls={d.late.left ? "hw" : "warn"}>
+      <p className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{d.late.reason || "남아서 하고 갑니다"}</p>
+      <p className="note" style={{ margin: "4px 0 0" }}>{d.late.sentAt ? `${d.late.sentAt}에 받았습니다` : ""}{d.late.left ? "" : " · 실제 하원을 찍으면 여기가 바뀝니다"}</p></Card>}
+    {can(PARENT.recent) && d.arrival && <Card emo="🕘" title="오늘" id="today" pill={d.arrival.pill} pillCls={d.arrival.pillOn ? "hw" : d.arrival.pill === "결석" ? "bad" : "warn"}>
+      <p className="note" style={{ margin: "4px 0 0" }}>{d.arrival.text}</p></Card>}
+    {can(PARENT.recent) && d.last && <Card emo="📋" title={d.last.date === date ? "오늘 수업" : `${md(d.last.date)} 수업`} id="recent">
+      <p className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{d.last.comment || "(수업일지 글이 없습니다)"}</p>
+      {d.tags.length > 0 && <div className="tags" style={{ marginTop: 8 }}>{d.tags.map((t) => <span key={t.text} className={"tag" + (t.on ? " on" : "")}>{t.text}</span>)}</div>}
+      {d.last.late?.until_at && <p className="note" style={{ margin: "4px 0 0" }}>🌙 {String(d.last.late.until_at).slice(0, 5)} 귀가 예정 — {d.last.late.reason ?? ""}</p>}</Card>}
+    {can(PARENT.homework) && d.last?.home.length > 0 && <Card emo="📘" title="다음 숙제" id="homework" pill={String(d.last.home.length)}>
+      {d.last.home.map((it) => <div className="li" key={it.id}><div><b>{it.learn_items?.name ?? it.range_note ?? ""}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null].filter(Boolean).join(" · ")}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>)}
+      {d.last.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ {b.home_memo}</p>)}</Card>}
+    {can(PARENT.next) && d.nextQuizzes.length > 0 && <Card emo="📝" title="다음 시간 시험" id="nextquiz" pill={String(d.nextQuizzes.length)}>
+      {d.nextQuizzes.map((l) => <div className="lf" key={l.id} style={{ marginTop: 4 }}><span className="ln">{l.emo}</span><div><b>{l.b}</b><small>{l.small}</small></div></div>)}
+      <p className="note k" style={{ margin: "4px 0 0" }}>숙제와 같이 왔습니다. 다음 수업 시작하자마자 봅니다. 개수를 안 정한 시험은 여기 안 옵니다.</p></Card>}
+    {can(PARENT.next) && d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
+      {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>}
+    {can(PARENT.recent) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
+      {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card>}
+    {can(PARENT.recent) && <a className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></a>}
+    {can(PARENT.intro) && <Card emo="🎒" title={d.student.name} id="intro" pill={d.student.schools ? `${d.student.schools.name}` : null}>
+      <p className="note" style={{ margin: "4px 0 0" }}>{d.todayClass ? "오늘 수업이 있는 날입니다" : "오늘은 수업이 없는 날입니다"}</p></Card>}
+    {can(PARENT.sent) && d.sent.length > 0 && <Card emo="📨" title="보낸 것" id="sent" pill={String(d.sent.length)}>
+      {d.sent.map((s) => <div className="li" key={s.id}><div><b>{s.text}</b><small>{s.small}</small></div></div>)}</Card>}
+    {anyCard && <AskCard asks={d.asks} send={sendFor} note="결석 예정을 미리 알려 주시면 수업을 준비하는 데에 큰 도움이 됩니다. 병원 진료가 아닌 당일 결석은 보강이 불가합니다." placeholder="선생님께 한마디" />}
+  </>);
+}
