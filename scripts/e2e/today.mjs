@@ -120,6 +120,7 @@ const pm = p.locator(".mdlov .mdl");
 ok("나무 — 1회독 · 끝낸 대단원 0 / 2 · 지금 CHAPTER 1", (await pm.locator(".mdlh .pill").textContent()).includes("1회독") && (await pm.locator(".tag.on").first().textContent()) === "끝낸 대단원 0 / 2" && (await pm.locator(".tag.act").first().textContent()).includes("CHAPTER 1"));
 ok("어제 숙제 1-4 에 △ 를 줬으니 1-4 는 ◐ · 1-1~1-3 은 ○(seed)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000001'] button[aria-pressed=true]").getAttribute("data-p")) === "done");
 ok("오늘 학습 소단원(1-4·대비문제)에 「✍ 메모로 자동 ○」 후보 표시", (await pm.locator(".ur", { hasText: "메모로 자동" }).count()) === 2);
+ok("02b 머리 — 아직 메모로 마감한 적이 없어 「✍ 메모로만 N회 연속」 없음(5단계-① · 규칙 3회부터 ⚠️)", (await pm.locator("[data-g=memo-streak]").count()) === 0 && (await pm.locator("[data-g=memo-warn]").count()) === 0);
 await pm.locator(".acch", { hasText: "CHAPTER 2" }).click(); await p.waitForTimeout(300);
 await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[data-p=done]").click(); await p.waitForTimeout(1200);
 ok("CHAPTER 2 의 2-1 에 ○ → 「1/1 끝냄」 · 끝낸 대단원 1 / 2", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("1/1 끝냄") && (await pm.locator(".tag.on").first().textContent()) === "끝낸 대단원 1 / 2");
@@ -330,6 +331,7 @@ console.log("■ 마감이 방아쇠 — 학습 메모가 있는 교재의 오�
 await closedRow.locator("button[data-act=progress]").first().click(); await p.waitForTimeout(1500);
 const pm2 = p.locator(".mdlov .mdl");
 ok("1-4 ○ (메모로 자동) · 대비문제 ◐ (조각) · 마감된 판이라 단추는 잠김", (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm2.locator(".tri button").first().isDisabled()));
+ok("02b 머리 — 메모로 마감했지만 같은 날 02b 에서 손으로 ○·되돌리기·건너뛰기를 했으니 「메모로만」이 아니다(손 표시가 끊는다 · 검사만 있는 날은 세지도 끊지도 않는다) → 알약 없음", (await pm2.locator("[data-g=memo-streak]").count()) === 0 && (await pm2.locator("[data-g=memo-warn]").count()) === 0, await pm2.locator(".tags").first().textContent());
 await pm2.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 console.log("■ 월초 정리 띠 — 지난달 경고가 있고 이 달 정리를 안 정했으면 뜬다 · 전원 정리하면 횟수만 0");
 ok("띠가 떠 있다(「N월이 시작됐습니다 — N월 경고를 정리할까요?」)", (await p.locator("[data-band=warn]").count()) === 1 && (await p.locator("[data-band=warn] b").textContent()).includes("정리할까요"));
@@ -396,7 +398,8 @@ ok("📨 카드 — 「안 읽은 집 0」(자취 opened_at — 리허설(off)�
 const pills = await p.locator("main > .wv .pill").allTextContents();
 ok("알약 — 「N월 N일 요일」 · 「🚨 빌 아이 1」 · 「오늘 2명 · 17:00」", /^\d+월 \d+일 [일월화수목금토]$/.test(pills[0] ?? "") && (await p.locator("[data-g=gap-count]").textContent()) === "🚨 빌 아이 1" && pills.includes("오늘 2명 · 17:00"), pills.join(" | "));
 const gap = p.locator("[data-g=gap]");
-ok("빵꾸 막이 — 학생둘 · 독해책 「독해 영역 루틴이 아직 안 만들어졌습니다」 · 「루틴 없음」 · 나머지 1명은 다 차 있다 · 오늘 수업 열기 ↗", (await gap.locator(".gapr").count()) === 1 && (await gap.locator(".gapr b").first().textContent()) === "zz_시험_학생둘 · zz_리허설 독해책" && (await gap.locator(".gapr small").first().textContent()).includes("독해 영역 루틴이 아직") && (await gap.locator(".gapr .tag", { hasText: "루틴 없음" }).count()) === 1 && (await gap.locator(".gapok").textContent()).includes("나머지 1명") && (await gap.locator("a[href='/today']").count()) >= 1, (await gap.textContent()).slice(0, 300));
+ok("빵꾸 막이 — 학생둘 · 독해책 「독해 영역 루틴이 아직 안 만들어졌습니다」 「루틴 없음」 · 학생둘 · 문법책 「N주째 진도가 안 움직였습니다」 「커서 잠김」 + 진도 체크 ↗(5단계-① — 1월부터 표시가 없다) · 빌 아이는 1명 · 나머지 1명은 다 차 있다 · 오늘 수업 열기 ↗", (await gap.locator(".gapr").count()) === 2 && (await gap.locator(".gapr[data-gap=no_routine] b").textContent()) === "zz_시험_학생둘 · zz_리허설 독해책" && (await gap.locator(".gapr[data-gap=no_routine] small").textContent()).includes("독해 영역 루틴이 아직") && (await gap.locator(".gapr[data-gap=no_routine] .tag", { hasText: "루틴 없음" }).count()) === 1 && (await gap.locator(".gapr[data-gap=cursor_stuck] b").textContent()) === "zz_시험_학생둘 · zz_리허설 문법책" && /\d+주째 진도가 안 움직였습니다/.test(await gap.locator(".gapr[data-gap=cursor_stuck] small").textContent()) && (await gap.locator(".gapr[data-gap=cursor_stuck] .tag", { hasText: "커서 잠김" }).count()) === 1 && (await gap.locator(".gapr[data-gap=cursor_stuck] a[href='/today']").count()) === 1 && (await gap.locator(".gapok").textContent()).includes("나머지 1명") && (await gap.locator(".gapok a[href='/today']").count()) === 1, await gap.textContent());
+ok("진도 신호(5단계-①) — 「메모로만 진도가 올라간 교재」 블록 없음(메모 마감은 1회 · 규칙 3회) · 학생의 문법책은 오늘 표시가 있어 커서 잠김이 아니다", (await p.locator("[data-g=memo-calls]").count()) === 0 && (await gap.locator(".gapr[data-gap=cursor_stuck]").count()) === 1);
 const cards = p.locator(".dash .dcard");
 ok("카드 여섯 — 오늘 수업 · 발송 · 오늘 안 · 안 돌고 있는 것 · 이 달 · 답할 것", (await cards.evaluateAll((els) => els.map((e) => e.dataset.card))).join(",") === "today,send,soon,ops,month,answer");
 const c0 = cards.nth(0);
