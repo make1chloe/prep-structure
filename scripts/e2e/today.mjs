@@ -636,6 +636,16 @@ ok("📨 안 낸 아이 재촉 → 「1명에게 재촉 — 🧪 리허설(off):
 await sm16.locator("input[aria-label=등급컷]").fill("90, 80, 70, 60"); await sm16.locator("button[data-act=cuts-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 await sm16.locator("input[aria-label=문항표]").fill("1-10 독해, 11-16 어법, 17-20 서술형"); await sm16.locator("button[data-act=questions-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("등급컷 「A 90 · B 80 · C 70 · D 60」 · 문항표 「1-10 독해, 11-16 어법, 17-20 서술형」(글로 적으면 줄로 · 다시 글로)", (await sm16.locator("[data-g=cuts-text]").textContent()) === "A 90 · B 80 · C 70 · D 60" && (await sm16.locator("[data-g=questions-text]").textContent()) === "1-10 독해, 11-16 어법, 17-20 서술형", (await sm16.locator("[data-g=cuts-text]").textContent()) + " | " + (await sm16.locator("[data-g=questions-text]").textContent()));
+// 5단계-⑤ — 문항표 엑셀(확정-⑤): 글로 「1-20 기타」를 적어 두고 → 번호·영역 엑셀(1-10 독해 · 11-16 문법→어법 · 17-20 서술형 · 「스물」은 고칠 줄)을 올리면 통째로 바뀐다 · ⬇ 문항표 · ⬇ 성적 양식 200 · 회차가 아니면 400
+await sm16.locator("input[aria-label=문항표]").fill("1-20 기타"); await sm16.locator("button[data-act=questions-save]").click(); await p.waitForFunction(() => document.querySelector("[data-g=questions-text]")?.textContent === "1-20 기타", null, { timeout: 15000 }); await p.waitForTimeout(600);
+const XLQ = await import("xlsx"); const XQ = XLQ.default ?? XLQ;
+const aoaQ = [["번호", "영역"], ["1-10", "독해"], ["11-16", "문법"], ["17-20", "서술형"], ["스물", "듣기"]];
+const wbQ = XQ.utils.book_new(); XQ.utils.book_append_sheet(wbQ, XQ.utils.aoa_to_sheet(aoaQ), "q"); XQ.writeFile(wbQ, ".tmp/questions-upload.xlsx");
+await sm16.locator("[data-g=questions-import] input[type=file]").setInputFiles(".tmp/questions-upload.xlsx"); await sm16.locator("button[data-act=questions-import]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("(엑셀)"), null, { timeout: 20000 }); await p.waitForTimeout(1200);
+ok("문항표 엑셀 — 「1-20 기타」를 엑셀(번호 「1-10」 범위 · 「문법」 → 어법 · 「스물」은 고칠 줄)로 올리면 통째로 「1-10 독해, 11-16 어법, 17-20 서술형」 · 글 「문항표 20문항(엑셀) · 고칠 줄 1: 5행 번호가 아닙니다: 스물」(머리줄이 1행) · data-from=exam", (await sm16.locator("[data-g=questions-text]").textContent()) === "1-10 독해, 11-16 어법, 17-20 서술형" && /문항표 20문항\(엑셀\) · 고칠 줄 1: 5행 번호가 아닙니다: 스물/.test(await sm16.locator("[data-g=msg]").textContent()) && (await sm16.locator("[data-g=questions]").getAttribute("data-from")) === "exam", (await sm16.locator("[data-g=msg]").textContent()) + " | " + (await sm16.locator("[data-g=questions-text]").textContent()));
+const exId16 = new URL(p.url()).searchParams.get("e");
+const xrQ = await p.request.get(`${APP}/api/scores/xlsx?e=${exId16}&q=1`), xrS = await p.request.get(`${APP}/api/scores/xlsx?e=${exId16}`);
+ok("⬇ 문항표 · ⬇ 성적 양식 — /api/scores/xlsx?e=&q=1 · ?e= 둘 다 xlsx 200(questions-… · scores-…) · 회차가 아니면 400", xrQ.status() === 200 && String(xrQ.headers()["content-disposition"] ?? "").includes("questions-") && xrS.status() === 200 && String(xrS.headers()["content-disposition"] ?? "").includes("scores-") && String(xrS.headers()["content-type"] ?? "").includes("spreadsheetml") && (await p.request.get(`${APP}/api/scores/xlsx?e=abc`)).status() === 400, `${xrQ.status()} ${xrS.status()}`);
 const sctx = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-student.json" }); await offline(sctx); const spg = await sctx.newPage();
 await spg.goto(APP + "/me"); await spg.waitForLoadState("networkidle").catch(() => {});
 const meM = spg.locator("main"); const entry = meM.locator("[data-g=score-entry]").first();
@@ -666,6 +676,29 @@ await ppg.goto(APP + "/parent"); await ppg.waitForLoadState("networkidle").catch
 const paM = ppg.locator("main");
 ok("학부모 — 📈 성적 카드(parent.reports 켬 · 공개 학부모 ✓)에 「… 78 · C」(풀고 고친 뒤 다시 확인한 값) · 「독해 2 · 어법 1 · zz_시험_중학교」 · 원장님이 공개한 시험만", (await paM.locator("[data-card=scores]").count()) === 1 && (await paM.locator("[data-card=scores] [data-g=score-line]").textContent()).includes("78 · C") && (await paM.locator("[data-card=scores]").textContent()).includes("독해 2 · 어법 1") && (await paM.locator("[data-card=scores]").textContent()).includes("원장님이 공개한 시험만"), (await paM.textContent()).replace(/\s+/g, " ").slice(0, 300));
 await pctx.close();
+// 5단계-⑤ — 성적 추이: 두 달 전 회차를 하나 더(손으로) → 16 대신 넣기 70 → 확인 → 07·09 최근 줄에 「▲ 8」(78 − 70 · 같은 갈래 내신 · 100점 기준) · 옛 줄엔 없음 · 14 표에도(한 벌 withTrend)
+const ymPrev2 = (() => { const [y, m] = ymNow.split("-").map(Number); const dd = new Date(Date.UTC(y, m - 3, 1)); return `${dd.getUTCFullYear()}-${String(dd.getUTCMonth() + 1).padStart(2, "0")}`; })();
+const r10 = `${ymPrev2}-10`, r12 = `${ymPrev2}-12`, r13 = `${ymPrev2}-13`;
+await p.goto(`${APP}/schedule?m=${ymPrev2}&d=${r10}`); await p.waitForLoadState("networkidle").catch(() => {});
+await sc.locator("button[data-act=open-exam]").click(); await sc.locator("[data-g=exam-form] input[name=exam-name]").fill("zz_지지난 중간"); await sc.locator("[data-g=exam-form] input[aria-label=학년]").fill("2"); await sc.locator("[data-g=exam-form] input[aria-label=끝]").fill(r13); await sc.locator("[data-g=exam-form] input[aria-label='영어 시험일']").fill(r12); await sc.locator("button[data-act=exam-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+await p.goto(`${APP}/scores`); await p.waitForLoadState("networkidle").catch(() => {});
+const optPrev2 = (await sm16.locator("select[data-g=exam-pick] option").allTextContents()).find((t) => t.includes("zz_지지난 중간"));
+await Promise.all([p.waitForURL(/\/scores\?e=/), sm16.locator("select[data-g=exam-pick]").selectOption({ label: optPrev2 })]); await p.waitForLoadState("networkidle").catch(() => {});
+const srowP = sm16.locator("[data-g=score-row]").first();
+await srowP.locator("input.scr").fill("70"); await srowP.locator("button[data-act=save]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("넣었습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+await srowP.locator("button[data-act=confirm]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("확인했습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("두 달 전 회차 「zz_지지난 중간」 — 대신 넣기 70 → 확인됨(성적 추이의 지난 회차)", (await srowP.getAttribute("data-state")) === "confirmed" && (await srowP.locator("input.scr").inputValue()) === "70", (await srowP.textContent()).replace(/\s+/g, " ").slice(0, 160));
+const sctx2 = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-student.json" }); await offline(sctx2); const spg2 = await sctx2.newPage();
+await spg2.goto(APP + "/me"); await spg2.waitForLoadState("networkidle").catch(() => {});
+const meM2 = spg2.locator("main");
+ok("아이 「나」 📈 — 줄 둘(최근 것 먼저) · 최근 「zz_지난 기말 78 · C」에 「▲ 8」(같은 갈래 지난 회차 70 대비 · 100점 기준) · 옛 줄엔 추이 없음", (await meM2.locator("[data-g=score-line]").count()) === 2 && (await meM2.locator("[data-g=score-line]").first().textContent()).includes("78 · C") && (await meM2.locator("[data-g=score-line]").first().locator("[data-g=score-delta]").textContent()) === "▲ 8" && (await meM2.locator("[data-g=score-line]").nth(1).locator("[data-g=score-delta]").count()) === 0, (await meM2.locator("[data-card=scores]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+await sctx2.close();
+const pctx2 = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-parent.json" }); await offline(pctx2); const ppg2 = await pctx2.newPage();
+await ppg2.goto(APP + "/parent"); await ppg2.waitForLoadState("networkidle").catch(() => {});
+ok("학부모 📈 — 같은 한 벌: 줄 둘 · 최근 줄에 「▲ 8」", (await ppg2.locator("main [data-g=score-line]").count()) === 2 && (await ppg2.locator("main [data-g=score-line]").first().locator("[data-g=score-delta]").textContent()) === "▲ 8", (await ppg2.locator("main [data-card=scores]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+await pctx2.close();
+await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000001`); await p.waitForLoadState("networkidle").catch(() => {});
+ok("학생 14 「zz_시험_학생」 성적 표 — 줄 둘 · 최근 줄 원점수 칸에 「▲ 8」(07·09 와 같은 withTrend)", (await p.locator("main [data-g=score-row]").count()) === 2 && (await p.locator("main [data-g=score-row]").first().locator("[data-g=score-delta]").textContent()) === "▲ 8", (await p.locator("main [data-g=scores]").textContent()).replace(/\s+/g, " ").slice(0, 200));
 console.log("■ 교재 15 · 엑셀 15b — 목록 · 고른 교재(교재ID · 영역 · 배정 겹 · 다른 이름 · 활동 차례 · 단원 · 문법 분류) · 엑셀 미리보기(덮어쓰기 · 지우고 새로 · 보류) · 저장 · 📦 묶음 되돌리기 · + 교재 · 교재 시트 올리기·되돌리기 · ⬇ 엑셀·교재 시트(5단계-④)");
 await p.goto(`${APP}/books`); await p.waitForLoadState("networkidle").catch(() => {});
 const bk15 = p.locator("main");
