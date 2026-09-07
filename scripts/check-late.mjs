@@ -2,7 +2,7 @@
  *  예상(약속)과 실제 하원의 차이(세어 나온다 · 저장 안 함) · 「실제 하원 22:05 · 예상보다 25분 늦게」 · 되풀이 띠(3주 안 N번째 — 숙제량을 볼까요) · 안 보낸 채인가 · 마감 전에 한 번 묻는 것(둘 다면 한 상자) ·
  *  서울 시각 읽기·찍기가 프로세스 시간대와 무관한가(UTC 로 다시 돈다 — 검사-㊴와 같은 결) */
 import { spawnSync } from "node:child_process";
-import { diffMinutes, diffText, leftText, repeatBand, unsentLate, askBeforeClose, hhmm } from "../lib/late-plan.js";
+import { diffMinutes, diffText, leftText, repeatBand, unsentLate, askBeforeClose, hhmm, reasonChips, toggleReason } from "../lib/late-plan.js";
 import { seoulTime, seoulStamp } from "../lib/day-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -29,6 +29,13 @@ ok("모양이 아니면 던진다(25:00 · 9:05 · 날짜 아님 · 22:60)", thr
 if (process.env.TZ !== "UTC" && !process.env.CHECK_LATE_INNER) {   // 같은 검사를 UTC 로 한 번 더 — Vercel 이 그렇게 돈다
   const r = spawnSync(process.execPath, [process.argv[1]], { env: { ...process.env, TZ: "UTC", CHECK_LATE_INNER: "1" }, encoding: "utf8" });
   ok("UTC 로 돌려도 전부 같다(검사-㊴와 같은 결)", r.status === 0, (r.stdout || "").split("\n").filter((l) => l.includes("❌")).join(" / "));
+}
+console.log("■ 3b 사유 칩(목업 01 — 원본은 사유 한 줄 · 칩은 조각을 넣고 뺀다)");
+{ const checks = [{ id: 1, status: "missing", learn_items: { name: "워크북" } }, { id: 2, status: "done", learn_items: { name: "단어" } }, { id: 3, status: "missing", range_note: "CHAPTER 1 · 10-18번", learn_items: { name: "교재" } }, { id: 4, status: "missing", learn_items: { name: "워크북" } }];
+  const ch = reasonChips({ checks, warn: { today_disposal: "stay" }, reason: "워크북 미제출 · 늦게 와서" });
+  ok("✕ 인 항목만 「이름 미제출」(검사 카드가 보이는 이름 — range_note 먼저 · 같은 이름은 하나) + 처분이 남아서면 「반성문 — 오늘 남아서」(고정) · 글에 든 조각은 on", ch.map((c) => c.text).join("|") === "워크북 미제출|CHAPTER 1 · 10-18번 미제출|반성문 — 오늘 남아서" && ch[0].on === true && ch[1].on === false && ch[2].fixed === true, JSON.stringify(ch));
+  ok("✕ 도 처분도 없으면 칩 없음 · 처분이 숙제면 반성문 칩 없음", reasonChips({ checks: [checks[1]], warn: { today_disposal: "homework" } }).length === 0 && reasonChips().length === 0);
+  ok("누르면 넣고(「 · 」로 잇는다) · 다시 누르면 뺀다 · 빈 글에 넣으면 조각만 · 손으로 쓴 글은 그대로 · 조각 안에 「 · 」가 있어도(범위 글) 글자 그대로 찾아 뺀다", toggleReason("늦게 와서", "워크북 미제출") === "늦게 와서 · 워크북 미제출" && toggleReason("늦게 와서 · 워크북 미제출", "워크북 미제출") === "늦게 와서" && toggleReason("", "워크북 미제출") === "워크북 미제출" && toggleReason("워크북 미제출", "워크북 미제출") === "" && toggleReason("늦게 와서 · CHAPTER 1 · 10-18번 미제출 · 반성문", "CHAPTER 1 · 10-18번 미제출") === "늦게 와서 · 반성문" && toggleReason("", "CHAPTER 1 · 10-18번 미제출") === "CHAPTER 1 · 10-18번 미제출");
 }
 console.log(`\n■ 늦귀가 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

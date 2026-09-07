@@ -5,6 +5,8 @@ let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const mdOf9 = (d) => `${Number(String(d).slice(5, 7))}/${Number(String(d).slice(8, 10))}`; const plusD9 = (d, n) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };   // 날짜 손 둘 — 일정 12 · 자료함 20 이 쓴다(맨 위에: 아래에 두면 TDZ)
 const b = await launch(); const ctx = await b.newContext({ viewport: VIEWS[0].viewport }); await offline(ctx); const p = await ctx.newPage();
+const pageErrs = []; p.on("pageerror", (e) => pageErrs.push(String(e?.message ?? e).slice(0, 200)));   // 화면 안 JS 오류 — 걷기 끝에 센다(조용히 삼키지 않는다)
+p.on("console", (m) => { if (m.type() === "error" && !/ERR_FAILED|net::/.test(m.text())) pageErrs.push("console: " + m.text().slice(0, 200)); });   // React 가 console.error 로 말하는 것(수화 어긋남 등)도 — 바깥 주소 실패(offline)는 뺀다
 await p.goto(APP + "/login"); await p.fill("#id-staff", "zz_principal@e2e.test"); await p.fill("#pw-staff", "e2e-pass");
 await Promise.all([p.waitForURL((u) => u.pathname === "/"), p.click("form:has(#id-staff) button[type=submit]")]);
 // ── 조회 수(속도-상한 오늘 20) — PostgREST 요청 로그(up.sh 가 log-level info 로 켠다)를 화면 한 번 여는 동안 센다. 층(4단)은 여기서 못 재고 check-fast 가 글자로 본다
@@ -88,7 +90,13 @@ await md.locator(".mdlf button", { hasText: "적용" }).click(); await p.waitFor
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("적용 — 학습 줄 소단원이 1-4 · 대비문제, 「이번에 1-20번」이 붙는다", (await bk.locator(".half").nth(0).locator(".li small").first().textContent()).includes("대비문제") && (await bk.locator(".half").nth(0).locator(".li small").first().textContent()).includes("이번에 1-20번") && !(await bk.locator(".half").nth(0).locator(".li small").first().textContent()).includes("1-5"));
 ok("모달이 닫혔다 · 학원 항목 수는 줄×소단원 = 6 그대로", (await p.locator(".mdlov").count()) === 0 && (await row.locator(".load .ldn").first().locator("> b").textContent()) === "6");
-console.log("■ 줄이기 — 필수만 (검사-⑩: 지우지 않고 off)");
+console.log("■ 줄이기 — 필수만 (검사-⑩: 지우지 않고 off) · 세그먼트에 숫자 「그대로 N · 필수만 M」 · 📣 오늘 좀 많습니다(씨앗 문턱 1쪽)");
+const modeLabels = await row.locator(".seg[data-g=mode] button").allTextContents();
+ok("줄이기 세그먼트 「그대로 N · 필수만 M」 — 판 안에서 센다(day_item.required · 조회 0) · N ≥ M ≥ 1", /^그대로 \d+$/.test(modeLabels[0] ?? "") && /^필수만 \d+$/.test(modeLabels[1] ?? "") && Number(modeLabels[0].slice(4)) >= Number(modeLabels[1].slice(4)) && Number(modeLabels[1].slice(4)) >= 1, modeLabels.join(" | "));
+ok("📣 오늘 좀 많습니다 — 합쳐 N쪽 · 「보통 1쪽쯤입니다 · 문법책가 N쪽」 · 「조절 ↗」(확정-㊺a: 앱은 말만)", /오늘 좀 많습니다 — 합쳐 \d+쪽/.test(await row.locator("[data-g=heavy]").textContent().catch(() => "")) && (await row.locator("[data-g=heavy]").textContent()).includes("보통 1쪽쯤입니다") && (await row.locator("[data-g=heavy] button[data-act=heavy-tune]").count()) === 1, (await row.locator("[data-g=heavy]").textContent().catch(() => "띠 없음")).replace(/\s+/g, " ").slice(0, 200));
+await row.locator("[data-g=heavy] button[data-act=heavy-tune]").click(); await p.waitForTimeout(800);
+ok("띠의 「조절 ↗」 가 그 교재의 조절 모달을 그 자리에서 연다", (await p.locator(".mdlov .mdl").count()) === 1);
+await p.keyboard.press("Escape"); await p.waitForTimeout(300); if (await p.locator(".mdlov").count()) await p.locator(".mdlov .mdlf button", { hasText: "닫기" }).first().click().catch(() => {}); await p.waitForTimeout(300);
 await row.locator(".seg[data-g=mode] button", { hasText: "필수만" }).click(); await p.waitForTimeout(1000);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("학습 줄 둘(교재 풀기는 필수가 아님) · 숙제 줄 둘 그대로", (await bk.locator(".half").nth(0).locator(".li").count()) === 2 && (await bk.locator(".half").nth(1).locator(".li").count()) === 2);
@@ -225,7 +233,17 @@ await pickDay(d3); await pl.locator("[data-g=plan-pick] .seg[data-g=plankind] bu
 ok("지각 예정도 물렸다가 다시 잡을 수 있다(late_plan_one_live)", (await markAt(d3)) === "⏰" && (await row.locator("[role=alert]").count()) === 0, (await row.locator("[role=alert]").allTextContents()).join());
 await pl.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 ok("모달이 닫혔다", (await p.locator(".mdlov").count()) === 0);
-console.log("■ 늦귀가");
+console.log("■ 늦귀가 — 사유 칩(검사 ✕ → 「＋ … 미제출」 → 누르면 사유에 · 다시 누르면 뺌) · 사유 한 줄 · +20분 · 보내기");
+{ const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);
+  await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  const chipBtn = row.locator("[data-g=reason-chips] button[data-act=reason-chip]");
+  ok("검사에 ✕ 를 찍으면 3b 에 사유 칩 「＋ … 미제출」(사유 후보 — 원본은 사유 한 줄)", (await chipBtn.count()) >= 1 && /미제출$/.test((await chipBtn.first().textContent()).trim()) && (await chipBtn.first().getAttribute("aria-pressed")) === "false", (await row.locator("[data-g=reason-chips]").textContent().catch(() => "칩 없음")).replace(/\s+/g, " "));
+  await chipBtn.first().click(); await p.waitForTimeout(200);
+  ok("누르면 사유 글에 조각이 들어가고 ✓", (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출") && (await chipBtn.first().getAttribute("aria-pressed")) === "true");
+  await chipBtn.first().click(); await p.waitForTimeout(200);
+  ok("다시 누르면 빠진다", !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출"));
+  if (prevV) { await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); }   // 검사 표시를 되돌린다(뒤 걷기가 같은 판을 본다)
+}
 await row.locator("form.lategrid input[name=reason]").fill("워크북 나머지 10-18번");
 await row.locator("form.lategrid .seg button", { hasText: "+20분" }).click();
 const untilTyped = await row.locator("form.lategrid input[name=untilAt]").inputValue();
@@ -258,8 +276,9 @@ ok("상황 다섯 — 보통·숙제안함·시험전·시험후·늦은밤 · �
 const capMap = { 보통: "100자", 숙제안함: "200자", 시험전: "100자", 시험후: "300자", 늦은밤: "50자 이하" };
 const autoK = await cc.locator(".seg[data-g=kind] button[aria-pressed=true]").textContent();
 ok(`그날 상태에서 저절로 고른 「${autoK}」 → 길이 ${capMap[autoK]} · 「오늘 상태에서 저절로」`, ["보통", "늦은밤"].includes(autoK) && (await cc.locator(".seg[data-g=cap] button[aria-pressed=true]").textContent()) === capMap[autoK] && (await cc.locator(".note", { hasText: "오늘 상태에서 저절로" }).count()) === 1);
-await cc.locator(".seg[data-g=kind] button", { hasText: "숙제안함" }).click();
-ok("「숙제안함」을 누르면 길이가 200자로 따라온다", (await cc.locator(".seg[data-g=cap] button[aria-pressed=true]").textContent()) === "200자");
+// 줄 끝 저장줄(sticky · z-index 5)이 화면 아래를 덮는다 — 딱 그 아래로 스크롤된 단추는 마우스가 저장줄을 누른다(4단계-1 걷기가 잡음 · 사람은 조금 더 내리면 된다). 누를 것은 화면 가운데로
+const kb = cc.locator(".seg[data-g=kind] button", { hasText: "숙제안함" }); await kb.evaluate((el) => el.scrollIntoView({ block: "center" })); await kb.click();
+ok("「숙제안함」을 누르면 길이가 200자로 따라온다", (await cc.locator(".seg[data-g=cap] button[aria-pressed=true]").textContent()) === "200자", `갈래 ${await cc.locator(".seg[data-g=kind] button[aria-pressed=true]").textContent().catch(() => "?")} · 길이 ${await cc.locator(".seg[data-g=cap] button[aria-pressed=true]").textContent().catch(() => "?")} · 오류 ${pageErrs.slice(-3).join(" | ") || "없음"} · 세그먼트 ${(await cc.locator(".seg[data-g=kind]").evaluate((e) => e.outerHTML).catch(() => "?")).slice(0, 400)} · 카드 수 ${await p.locator("[data-card=comment]").count()}`);
 await cc.locator("textarea[name=comment]").fill("가".repeat(201));
 ok("201자면 세는 자리가 빨갛다 — 「201 / 200자」", (await cc.locator("[data-g=count]").getAttribute("class")).includes("over") && (await cc.locator("[data-g=count]").textContent()) === "201 / 200자");
 await cc.locator(".seg[data-g=cap] button", { hasText: "300자" }).click();
@@ -959,5 +978,6 @@ ok(`엑셀로 — /api/ops/fee 가 xlsx 를 준다(200 · spreadsheet · fee-${y
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
+ok(`화면 안 JS 오류 0 — ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

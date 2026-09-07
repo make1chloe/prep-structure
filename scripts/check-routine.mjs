@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, moveSort, previewUnits, projectEnd, parseChecks, AREAS } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -72,5 +72,19 @@ const days = ["2026-09-07", "2026-09-09", "2026-09-11", "2026-09-14", "2026-09-1
 ok("이대로면 — 남은 5 ÷ 회차 2 = 수업 3회 → 세 번째 수업일 9/11 · 0.2개월", JSON.stringify(projectEnd({ remaining: 5, perSession: 2, days, from: "2026-09-06" })) === JSON.stringify({ sessions: 3, endDate: "2026-09-11", months: 0.2 }));
 ok("남은 것이 없으면 「다 했다」(수업 0회 · 오늘) · 수업일이 모자라면 endDate 없음", projectEnd({ remaining: 0, perSession: 2, days, from: "2026-09-06" }).sessions === 0 && projectEnd({ remaining: 40, perSession: 1, days, from: "2026-09-06" }).endDate === null);
 ok("체크리스트 글 — 쉼표·가운뎃점·줄바꿈으로 가른다 · 영역은 일곱(v2.area_name)", parseChecks("입해석, 낭독 · 녹음\n").join("|") === "입해석|낭독|녹음" && AREAS.length === 7);
+console.log("■ 줄이기 숫자 「그대로 N · 필수만 M」 · 📣 오늘 좀 많습니다(4단계-1)");
+{ const u = (id, book, ps, pe) => ({ id, book_id: book, page_start: ps, page_end: pe, q_count: 10 });
+  const it = (id, slot, item, unit, req, off = false, extra = {}) => ({ id, slot, item_id: item, unit_id: unit.id, units: unit, required: req, off, carry_of: null, ...extra });
+  const u1 = u("u1", "b1", 10, 12), u2 = u("u2", "b1", 13, 13), u3 = u("u3", "b2", 40, 49);
+  const items = [it(1, "class", "i1", u1, true), it(2, "class", "i2", u1, false), it(3, "home", "i1", u2, true), it(4, "home", "i3", u2, false, true), it(5, "class", "i9", u3, false), it(6, "check", "i1", u1, true), it(7, "home", null, u1, false, false, { carry_of: 9 })];
+  const sheet = { items, class: items.filter((x) => x.slot === "class" && !x.off), home: items.filter((x) => x.slot === "home" && !x.off) };
+  const c = trimCounts(sheet);
+  ok("그대로 5(학습·숙제 자동 줄 — 뺀 줄도 센다 · 검사 줄·나머지 줄은 안 센다) · 필수만 3(b1 필수 둘 + b2 는 필수가 없어 다 필수)", c.all === 5 && c.required === 3, JSON.stringify(c));
+  ok("빈 판이면 0 · 0", JSON.stringify(trimCounts({ items: [] })) === JSON.stringify({ all: 0, required: 0 }) && trimCounts(null).all === 0);
+  const books = [{ book_id: "b1", books: { name: "문법책" } }, { book_id: "b2", books: { name: "독해책" } }];
+  const h = heavyBand(sheet, 10, books);
+  ok("쪽수 — b1 3+1(같은 소단원은 한 번) · b2 10 = 14쪽 > 10 → 띠 「오늘 좀 많습니다 — 합쳐 14쪽」 · 「보통 10쪽쯤입니다 · 독해책가 10쪽」 · top 은 독해책", h && h.total === 14 && h.title === "오늘 좀 많습니다 — 합쳐 14쪽" && h.small === "보통 10쪽쯤입니다 · 독해책가 10쪽" && h.top.book_id === "b2", JSON.stringify(h));
+  ok("문턱 안이면 없음(14 ≤ 14) · 문턱 0 이면 없음 · 뺀 줄(off)은 안 센다", heavyBand(sheet, 14, books) === null && heavyBand(sheet, 0, books) === null && heavyBand({ class: [], home: [it(4, "home", "i3", u3, false, true)] }, 1, books) === null);
+}
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

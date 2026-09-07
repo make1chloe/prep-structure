@@ -197,3 +197,4 @@ insert into v2.role_access (role, key, allowed) values ('parent', 'parent.files'
 
 -- 발송 10 눌러보기 — 리허설은 방해금지 없음(시작=끝). 걷기가 밤에 돌아도 알림이 미뤄지지 않게. 진짜 DB 는 0118 씨앗(23:00~09:00) 그대로
 update v2.rule set value = '00:00' where key in ('send.quiet_from', 'send.quiet_to');
+update v2.rule set value = '1' where key = 'day.heavy_pages';   -- 📣 「오늘 좀 많습니다」 띠를 걷기에서 보려고 문턱을 1쪽으로(실제 기본은 30)
