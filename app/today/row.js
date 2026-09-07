@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime } from "@/lib/day-plan";
-import { hhmm, leftText, repeatBand, askBeforeClose } from "@/lib/late-plan";
+import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason } from "@/lib/late-plan";
 import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
 import { examPhase } from "@/lib/exam-plan";
@@ -14,7 +14,7 @@ import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
-import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets } from "@/lib/routine-plan";
+import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
 import { useEffect } from "react";
 const ATTEND = [["present", "왔음"], ["late", "지각"], ["absent", "결석"], ["early", "조퇴"], ["online", "온라인"]];
 const UPTO = ["시작만", "절반", "거의 다"];
@@ -61,7 +61,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
           {sheet && <>
             {(student.quizzes?.today?.length ?? 0) > 0 && <QuizCard sheet={sheet} quizzes={student.quizzes.today} closed={closed} fail={fail} start={start} />}
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
-            <WorkCard sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
+            <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} closed={closed} fail={fail} start={start} />
@@ -108,7 +108,9 @@ function CheckItem({ it, closed, fail, start }) {
   );
 }
 /** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
-function WorkCard({ sheet, books, next, date, minutes, closed, fail, start }) {
+function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0 }) {
+  const counts = trimCounts(sheet), heavy = heavyBand(sheet, heavyPages, books);   // 줄이기 숫자 · 📣 많습니다(목업 01)
+  const [tuneBook, setTuneBook] = useState(null);   // 📣 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
@@ -122,10 +124,14 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start }) {
         <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b><small>집에서 할 것 — 다음 시간 검사</small></div>
         {laid && <div className="ldw">{books.length > 1 ? <>⚠️ <b>교재 {books.length}권이라 항목이 {sheet.class.length + sheet.home.length}개입니다.</b></> : <b>교재 {books.length}권 · 항목 {sheet.class.length + sheet.home.length}개</b>}
           <div className="wv" style={{ margin: "4px 0 0" }}><span className="fl" style={{ margin: 0 }}>줄이기</span>
-            <div className="seg sm" data-g="mode">{MODE.map(([k, name]) => <button key={k} type="button" aria-pressed={(sheet.load_mode ?? "all") === k} disabled={closed} onClick={() => start(async () => { fail(await setMode(sheet.id, k)); })}>{name}</button>)}</div>
+            <div className="seg sm" data-g="mode">{MODE.map(([k, name]) => <button key={k} type="button" aria-pressed={(sheet.load_mode ?? "all") === k} disabled={closed} onClick={() => start(async () => { fail(await setMode(sheet.id, k)); })}>{name}{counts.all ? ` ${k === "all" ? counts.all : counts.required}` : ""}</button>)}</div>
           </div>
         </div>}
       </div>
+      {heavy && <div className="lf warn" style={{ margin: "0 0 8px" }} data-g="heavy"><span className="ln">📣</span>
+        <div><b>{heavy.title}</b><small>{heavy.small} · <b>줄이시려면 조절에서 갯수를 내리세요</b></small></div>
+        {heavy.top && <button type="button" className="btn sm" data-act="heavy-tune" disabled={closed} onClick={() => setTuneBook(books.find((b) => b.book_id === heavy.top.book_id) ?? null)}>조절 ↗</button>}</div>}
+      {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {books.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} extra={i === 0 ? nextQuiz : null} />)}
       <div className="two">
         {[["class", "그 밖에 · 학원", "home", "⏭ 숙제로 미루기"], ["home", "그 밖에 · 집", "class", "↩ 학원에서"]].map(([slot, title, other, moveLabel]) => (
@@ -263,6 +269,9 @@ function LateCard({ sheet, warn, stay, books, studentId, date, closed, fail, sta
   const ask = warn && (warn.due || warn.today_disposal);
   const l = sheet.late;
   const [until, setUntil] = useState(l?.until_at ? String(l.until_at).slice(0, 5) : "");
+  const [reason, setReason] = useState(l?.reason ?? "");   // 사유 한 줄이 원본(확정-㊿) — 칩은 조각을 넣고 뺀다
+  useEffect(() => { setReason(l?.reason ?? ""); }, [l?.reason]);   // 처분·재시험이 사유를 적으면(SQL) 화면이 따라온다
+  const chips = reasonChips({ checks: sheet.check, warn, reason });
   const [left, setLeft] = useState(stay?.left_at ? hhmm(stay.left_at) : "");
   const [tuneBook, setTuneBook] = useState(null);   // 되풀이 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
   const band = repeatBand(stay);
@@ -287,7 +296,9 @@ function LateCard({ sheet, warn, stay, books, studentId, date, closed, fail, sta
         <span className="note" style={{ margin: 0 }}>남아서 쓰면 늦귀가 사유에 서고, 숙제면 다음 시간 검사 줄에 섭니다. 유예는 지운 것이 아니라 미룬 것 — 다음 경고에 다시 묻습니다</span></div>}
       <form className="lategrid" action={async (f) => { fail(await late(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
-        <div><label className="fl">사유</label><input type="text" name="reason" defaultValue={l?.reason ?? ""} placeholder="예: 워크북 나머지 10-18번" disabled={closed} /></div>
+        <div><label className="fl">사유</label>
+          {chips.length > 0 && <div className="tags" style={{ margin: "0 0 4px" }} data-g="reason-chips">{chips.map((c) => c.fixed ? <span key={c.key} className="tag on" data-g="reason-fixed">✓ {c.text}</span> : <button key={c.key} type="button" className={"tag" + (c.on ? " on" : "")} aria-pressed={c.on} data-act="reason-chip" disabled={closed} onClick={() => setReason(toggleReason(reason, c.text))}>{c.on ? "✓ " : "＋ "}{c.text}</button>)}</div>}
+          <input type="text" name="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예: 워크북 나머지 10-18번" disabled={closed} /></div>
         <div><label className="fl">예상 귀가 시각</label><input type="text" name="untilAt" value={until} onChange={(e) => setUntil(e.target.value)} placeholder="예: 18:40" inputMode="numeric" disabled={closed} />
           <div className="seg sm" style={{ marginTop: 4 }}>{PLUS.map(([m, name]) => <button key={m} type="button" disabled={closed} onClick={() => setUntil(plus(m))}>{name}</button>)}</div></div>
         <div className="wv" style={{ marginBottom: 0 }}>
