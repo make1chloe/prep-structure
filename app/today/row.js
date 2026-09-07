@@ -13,7 +13,7 @@ import { examPhase } from "@/lib/exam-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
-import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
+import { KIND, SOURCE, S_WAY, scopeText, quizPosOf, quizPosEnd, quizPosName } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
 import { useEffect } from "react";
@@ -37,6 +37,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr("");
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
+  const quizEnd = quizPosEnd(student), quizCard = sheet && (student.quizzes?.today?.length ?? 0) > 0 ? <QuizCard sheet={sheet} quizzes={student.quizzes.today} at={quizPosOf(student)} closed={closed} fail={fail} start={start} /> : null;   // 🔤 카드 자리는 아이마다(0143 · 목업 01 「자리가 아이마다 다릅니다」) — 「다 끝내고」면 학습·숙제 아래. 정하는 곳은 루틴 11
   const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? (unseenPill(sheet.check, date) || `검사 ${nLeft}/${nCheck} 남음`) : null;
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
@@ -60,9 +61,10 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
           {err && <div className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
           {!sheet && <div className="card"><p className="note">아직 판이 없습니다 — 출결을 누르면 섭니다.</p></div>}
           {sheet && <>
-            {(student.quizzes?.today?.length ?? 0) > 0 && <QuizCard sheet={sheet} quizzes={student.quizzes.today} closed={closed} fail={fail} start={start} />}
+            {!quizEnd && quizCard}
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
+            {quizEnd && quizCard}
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} closed={closed} fail={fail} start={start} />
@@ -118,7 +120,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const isAuto = (it) => Boolean(it.item_id && !it.carry_of && it.unit_id);   // 루틴이 깐 줄 — 교재 반쪽에. 손으로 더한 줄·나머지 줄은 단원이 있어도 「그 밖에」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
   return (
-    <div className="card">
+    <div className="card" data-card="work">
       <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto">{laid ? "검사에서 저절로 깔림" : sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다"}</span></div>
       <div className="load">
         <div className="ldn"><span>학원</span><b>{sheet.class.length}</b><small>{per ? <>{minutes}분이면 한 항목에 <b>{per}분</b></> : "오늘 여기서 할 것"}</small></div>
@@ -205,15 +207,15 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
 }
 const kindOf = (k) => KIND.find(([x]) => x === k) ?? ["", k, "?"];
 const numOr = (v) => (v === null || v === undefined ? "" : String(v));
-/** 🔤 시험 · 시작하자마자 — 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 늦귀가 사유가 저절로 */
-function QuizCard({ sheet, quizzes, closed, fail, start }) {
+/** 🔤 시험 · 시작하자마자 / 다 끝내고(자리는 아이마다 — 0143 · 루틴 11) — 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 늦귀가 사유가 저절로 */
+function QuizCard({ sheet, quizzes, at, closed, fail, start }) {
   const failed = quizzes.filter((q) => q.passed === false && !q.retry_of);
   const retryOf = (q) => quizzes.find((r) => r.retry_of === q.id);
   const taken = quizzes.filter((q) => q.passed !== null && q.passed !== undefined && !q.retry_of);
   const save = (q, form) => start(async () => { fail(await quizTake(sheet.id, q.id, form.wrong.value, form.total.value)); });
   return (
-    <div className="card" data-card="quiz">
-      <div className="ctitle"><span className="cemo">🔤</span>시험 · 시작하자마자<span className="auto">지난 시간에 낸 범위 그대로</span></div>
+    <div className="card" data-card="quiz" data-pos={at}>
+      <div className="ctitle"><span className="cemo">🔤</span>시험 · {quizPosName(at)}<span className="auto">지난 시간에 낸 범위 그대로</span></div>
       {quizzes.map((q) => { const [, kname, icon] = kindOf(q.kind); const res = q.passed === true ? "ok" : q.passed === false ? "warn" : ""; return (
         <form key={q.id} className={"lf" + (res ? " " + res : "")} style={{ marginBottom: 8 }} onSubmit={(e) => { e.preventDefault(); save(q, e.currentTarget); }}>
           <span className="ln">{icon}</span>
