@@ -166,6 +166,18 @@ ok("전체 개수를 안 적으면 「리포트에 안 나갑니다」", (await 
 await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().fill("20"); await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().blur(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("전체 20 을 적으면 경고가 사라진다", (await row.locator("[data-card=next-quiz] .lf.warn").count()) === 0 && (await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().inputValue()) === "20");
+{ const nqc = row.locator("[data-card=next-quiz]");   // 5단계-③ — 내신 범위 · 방식 고치기 · 문장 시험 방식
+  ok("「내신」 범위는 이 아이가 보는 시험의 범위가 있어야 고른다 — 리허설엔 아직 없어 잠김(제목에 까닭)", (await nqc.locator("[data-g=source] button", { hasText: "내신" }).first().isDisabled()) === true && ((await nqc.locator("[data-g=source] button", { hasText: "내신" }).first().getAttribute("title")) ?? "").includes("범위가 아직 없습니다"));
+  ok("⚙️ 방식 줄 — 「1회독 학원 기본값을 따릅니다」 · 「객관식 뜻 50% · 주관식 뜻 50%」 + 「방식 고치기」", (await nqc.locator("[data-g=style-text]").first().textContent()).includes("객관식 뜻 50% · 주관식 뜻 50%") && (await nqc.locator("button[data-act=style-open]").count()) >= 1 && (await nqc.locator("[data-g=style-mine]").count()) === 0);
+  await nqc.locator("button[data-act=style-open]").first().click(); await p.waitForTimeout(600);
+  const sm = p.locator("[data-g=style-modal]");
+  ok("「방식 고치기」 모달 — 학원 기본값이 채워져 있다(50 · 50 · 힌트 없음 · 통과선 90) · 합 100", (await sm.count()) === 1 && (await sm.locator("input[name=mc_meaning]").inputValue()) === "50" && (await sm.locator("input[name=sa_meaning]").inputValue()) === "50" && (await sm.locator("input[name=cut_pct]").inputValue()) === "90" && (await sm.locator("[data-g=style-sum]").textContent()) === "합 100");
+  await sm.locator("input[name=mc_meaning]").fill("60"); await sm.locator("input[name=sa_meaning]").fill("30");
+  ok("합이 100 이 아니면 저장이 잠긴다(합 90)", (await sm.locator("[data-g=style-sum]").textContent()) === "합 90" && (await sm.locator("button[data-act=style-save]").isDisabled()) === true);
+  await sm.locator("input[name=sa_meaning]").fill("40"); await sm.locator("input[name=first_hint]").check(); await sm.locator("input[name=cut_pct]").fill("85"); await sm.locator("button[data-act=style-save]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("저장 → 이 아이만의 줄(학생 × 교재 × 1회독 × 단어) — ⚙️ 「객관식 뜻 60% · 주관식 뜻 40% · 첫글자 힌트」 · 「이 아이만」 · 낸 시험의 통과선도 85 로 따라온다", (await row.locator("[data-card=next-quiz] [data-g=style-text]").first().textContent()).includes("객관식 뜻 60% · 주관식 뜻 40% · 첫글자 힌트") && (await row.locator("[data-card=next-quiz] [data-g=style-mine]").count()) >= 1 && (await row.locator("[data-card=next-quiz] input[name=cut_pct]").first().inputValue()) === "85", await row.locator("[data-card=next-quiz] .lf", { hasText: "방식" }).first().textContent());
+  const addF = row.locator("[data-card=next-quiz] form"); await addF.locator("select[name=kind]").selectOption("sentence"); await addF.locator("select[name=bookId]").selectOption(""); await addF.locator("input[name=freeNote]").fill("zz_문장 범위"); await addF.locator("button", { hasText: "+ 시험 더하기" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("문장 시험을 직접 범위로 더하면 — 방식은 학원 기본값(구두·받아쓰기·녹음 중 하나 — 0040·씨앗) · 직접 적은 범위", (await row.locator("[data-card=next-quiz] .lf", { hasText: "문장" }).first().count()) >= 1 && /구두|받아쓰기|녹음/.test(await row.locator("[data-card=next-quiz] [data-g=style-text]").nth(1).textContent()) && (await row.locator("[data-card=next-quiz]").textContent()).includes("zz_문장 범위"), await row.locator("[data-card=next-quiz]").textContent()); }
 console.log("■ 경고 · 반성문(확정-㊼) — 지난달 지각 이틀 + 오늘 지각 = 3회째 → 반성문을 묻는다");
 ok("학생 줄 알약 「경고 3 · 반성문」", (await row.locator(".pill[data-warn]").textContent()) === "경고 3 · 반성문");
 const refl = row.locator("[data-reflect]");
@@ -299,11 +311,11 @@ ok("201자면 세는 자리가 빨갛다 — 「201 / 200자」", (await cc.loca
 await cc.locator(".seg[data-g=cap] button", { hasText: "300자" }).click();
 ok("길이를 300자로 올리면 넘지 않는다", !(await cc.locator("[data-g=count]").getAttribute("class")).includes("over"));
 const att = await cc.locator("[data-g=attached]").textContent();
-ok("글 밑에 저절로 붙는 줄 — 다음 시간 단어 시험 20개 · 통과 90% · 오늘 귀가 예정 · 따로 안 씀", att.includes("20개 · 통과 90%") && att.includes("귀가 예정") && att.includes("따로 안 씀"), att);
+ok("글 밑에 저절로 붙는 줄 — 다음 시간 단어 시험 20개 · 통과 85%(방식 고치기가 옮긴 통과선) · 오늘 귀가 예정 · 따로 안 씀", att.includes("20개 · 통과 85%") && att.includes("귀가 예정") && att.includes("따로 안 씀"), att);
 await cc.locator("textarea[name=comment]").fill("오늘 PSS 1-4 했고 워크북 나머지는 남아서 마쳤습니다.");
 await cc.locator("button[data-act=preview]").click(); await p.waitForTimeout(200);
 const pv = await cc.locator("[data-g=preview]").textContent();
-ok("👁 미리보기 — 글 + 붙는 줄이 학부모 화면 그대로", pv.includes("워크북 나머지는 남아서") && pv.includes("20개 · 통과 90%") && pv.includes("귀가 예정"), pv);
+ok("👁 미리보기 — 글 + 붙는 줄이 학부모 화면 그대로", pv.includes("워크북 나머지는 남아서") && pv.includes("20개 · 통과 85%") && pv.includes("귀가 예정"), pv);
 await cc.locator("button[data-act=brief]").click(); await p.waitForTimeout(2500);
 ok("✨ 브리핑 — 열쇠가 없으면 그 자리에서 말한다(대전제-0): 「AI 열쇠가 없습니다」", (await row.locator("[role=alert]").count()) === 1 && (await row.locator("[role=alert]").textContent()).includes("AI 열쇠가 없습니다"), (await row.locator("[role=alert]").allTextContents()).join());
 await row.locator("[role=alert] button", { hasText: "닫기" }).click();
@@ -533,7 +545,7 @@ await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 반 화면(4단계-3a) — /schedule/classes: + 반 만들기(요일 · 시각 · 이 날부터) → 명단 넣기 → 반 단가 줄(다음 달부터) → 시간표 바꾸기(다음 달 1일부터 → 다음 시간표 알약) → 빼기 → 반 닫기");
 await p.goto(`${APP}/schedule/classes`); await p.waitForLoadState("networkidle").catch(() => {});
 const cb = p.locator("main"); const liveBefore = Number((await cb.locator("[data-g=live-count]").textContent()).replace(/\D/g, ""));
-const W9 = ["일", "월", "화", "수", "목", "금", "토"], dow9 = new Date(`${todayText}T00:00:00Z`).getUTCDay(), wd3 = W9[(dow9 + 3) % 7], wd5 = W9[(dow9 + 5) % 7];   // 오늘·내일·모레를 피한 요일(오늘 화면·02c 걷기에 안 닿게)
+const W9 = ["일", "월", "화", "수", "목", "금", "토"], dow9 = new Date(`${todayText}T00:00:00Z`).getUTCDay(), wd3 = W9[(dow9 + 3) % 7], wd5 = W9[(dow9 + 5) % 7], wdPair = [(dow9 + 3) % 7, (dow9 + 5) % 7].sort((x, y) => x - y).map((i) => W9[i]).join("·");   // 오늘·내일·모레를 피한 요일(오늘 화면·02c 걷기에 안 닿게) · 알약은 앱처럼 일~토 차례(9/8 실측 — 화요일이면 금·일이 「일·금」)
 await cb.locator("button[data-act=add-open]").click(); await p.waitForTimeout(200);
 await cb.locator("[data-g=add-form] input[aria-label='반 이름']").fill("zz_새 반"); await cb.locator("[data-g=add-form] [data-g=weekdays] button", { hasText: wd3 }).click();
 await cb.locator("[data-g=add-form] input[aria-label=시작]").fill("16:00"); await cb.locator("[data-g=add-form] input[aria-label=끝]").fill("17:30");
@@ -547,7 +559,7 @@ ok("+ 아이 넣기(학생둘 · 오늘부터) → 명단 1 · 줄 「1명」 ·
 await newC.locator("input[aria-label=금액]").fill("150000"); await newC.locator("input[aria-label='단가 이 날부터']").fill(`${ymNext}-01`); await newC.locator("button[data-act=fee-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok(`반 단가 150,000 / 달 · ${ymNext}-01부터(fee_rule.class_id — 13 과 같은 표) → 아직 이 달엔 없음`, (await newC.locator("[data-g=fee-edit]").textContent()).includes("단가 없음") || (await newC.locator("[data-g=fee-edit]").textContent()).includes("150,000원 / 달"), (await newC.locator("[data-g=fee-edit] b").textContent()));
 await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] input[aria-label='이 날부터']").fill(`${ymNext}-01`); await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] [data-g=weekdays] button", { hasText: wd5 }).click(); await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] button[data-act=schedule-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok(`다음 달 1일부터 요일 하나 더(${wd3}·${wd5}) → 「M/1부터 ${wd3}·${wd5} 16:00~17:30」 알약 · 지금 줄은 그대로(옛 회차는 옛 시간표)`, (await newC.locator("[data-g=next-schedule]").textContent()).includes(`${wd3}·${wd5} 16:00~17:30`) && (await newC.locator("[data-g=line]").textContent()).includes(`${wd3} 16:00~17:30`), await newC.locator("[data-g=next-schedule]").textContent().catch(() => "알약 없음"));
+ok(`다음 달 1일부터 요일 하나 더(${wd3}·${wd5}) → 「M/1부터 ${wdPair} 16:00~17:30」 알약(일~토 차례) · 지금 줄은 그대로(옛 회차는 옛 시간표)`, (await newC.locator("[data-g=next-schedule]").textContent()).includes(`${wdPair} 16:00~17:30`) && (await newC.locator("[data-g=line]").textContent()).includes(`${wd3} 16:00~17:30`), await newC.locator("[data-g=next-schedule]").textContent().catch(() => "알약 없음"));
 await newC.locator("[data-g=member] button[data-act=member-remove]").click(); await p.waitForFunction(() => /명단에서 뺐습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("빼기 → 명단 0(오늘부터 안 나온다 — 줄은 어제까지로 남는다)", (await newC.locator("[data-g=member]").count()) === 0 && (await newC.locator("[data-g=line]").textContent()).endsWith("0명"));
 p.once("dialog", (dg) => dg.accept()); await newC.locator("button[data-act=close-class]").click(); await p.waitForFunction(() => /반을 닫았습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);

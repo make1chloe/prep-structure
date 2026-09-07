@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 /** 손 → 까닭. 한 덩어리로 묶지 않아도 되는 까닭이 적혀 있다 */
 const KNOWN = {
+  "lib/quiz.js:setStyle": "방식 줄(quiz_style) + 아직 안 본 같은 시험의 style_id·통과선 — 방식 줄이 서면 시험은 다음 저장·style_for 로 다시 맞출 수 있다(반쯤 돼도 이어진다 · 5단계-③)",
   "lib/student.js:setState": "퇴원 = 학생 상태 + 반 줄 닫기 — 반 줄은 학생 상태를 보고 다시 닫을 수 있다",
   "lib/student.js:issueStudentAccount": "auth 계정 + profiles + 학생 잇기 — 계정이 서고 줄이 안 서면 다음 발급이 「이미 있는 아이디」로 말한다",
   "lib/student.js:issueParentAccount": "auth 계정 + profiles + parent_student — 같은 결",
