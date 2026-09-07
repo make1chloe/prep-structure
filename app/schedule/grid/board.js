@@ -4,7 +4,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct } from "./actions.js";
-import { TEMPLATES, COL_TYPES, PICK_OF, typeName, pickName, parseCol, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, alive, liveOf, counts, jumpTargets, boardOf, nextOption, cardTitle, watchSummary, visibleGrids } from "@/lib/grid-plan";
+import { TEMPLATES, COL_TYPES, PICK_OF, typeName, pickName, parseCol, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, alive, liveOf, counts, jumpTargets, jumpStep, boardOf, nextOption, cardTitle, watchSummary, visibleGrids } from "@/lib/grid-plan";
 function Cell({ r, col, ctx }) {
   const { pending, save, val, setV, edit, setEdit, chk, setChk, chkNew, setChkNew, units, loadUnits, refs } = ctx;
     const v = val(r, col);
@@ -52,6 +52,8 @@ export default function Board({ d }) {
   const loadUnits = (bookId) => { if (!bookId || units[bookId]) return; run(async () => { const r = await unitsAct(bookId); if (r.ok) setUnits((u) => ({ ...u, [bookId]: r.units })); return r; }); };
   const ctx = { pending, run, g, cols, save, val, setV, edit, setEdit, chk, setChk, chkNew, setChkNew, units, loadUnits: (id) => loadUnits(id), refs };
   const jumpTo = (id) => { const el = document.querySelector(`[data-col='${id}']`); if (el) el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); };
+  const [jumpAt, setJumpAt] = useState(null); const cur = jumps.find((j) => j.id === jumpAt) ?? jumps[0] ?? null;   // 「칸으로 이동」의 지금 칸 — ◀ ▶ 가 한 칸씩((가)-③ · 목업 06c)
+  const jumpGo = (j) => { if (!j) return; setJumpAt(j.id); jumpTo(j.id); };
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }}>🗂️ 학교별 표</span>
@@ -99,7 +101,7 @@ export default function Board({ d }) {
         {colForm.type === "select" && <input type="text" value={colForm.options} placeholder="선택지 — 만들기, 인쇄, 배부" aria-label="선택지" onChange={(x) => setColForm({ ...colForm, options: x.target.value })} style={{ flex: "1 1 200px" }} />}
         {colForm.type === "pick" && <select value={colForm.of ?? "book"} aria-label="무엇을 고르나" onChange={(x) => setColForm({ ...colForm, of: x.target.value })} style={{ width: "auto" }}>{PICK_OF.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select>}
         <button className="btn pri sm" type="button" disabled={pending || !colForm.label.trim()} data-act="col-save" onClick={() => { try { const f = parseCol({ label: colForm.label, type: colForm.type, options: colForm.type === "pick" ? { of: colForm.of ?? "book" } : colForm.options }); run(() => colAddAct(g.id, f), `${f.label} 칸을 더했습니다`, () => setColForm(null)); } catch (e) { setErr(String(e.message)); } }}>더하기</button></div></div>}
-      {jumps.length > 0 && <div className="jump" data-g="jump">📍 칸으로 이동 {jumps.map((j) => <button key={j.id} type="button" className="jb" data-act="jump" onClick={() => jumpTo(j.id)}>{j.n} {j.label}</button>)}<span>한 줄만 크게 고치려면 줄의 ▣</span></div>}
+      {jumps.length > 0 && <div className="jump" data-g="jump">📍 칸으로 이동 <button type="button" className="jn" data-act="jump-prev" aria-label="앞 칸" disabled={!jumpStep(jumps, cur?.id, "prev")} onClick={() => jumpGo(jumpStep(jumps, cur?.id, "prev"))}>◀</button>{jumps.map((j) => <button key={j.id} type="button" className="jb" data-act="jump" aria-current={cur?.id === j.id} style={cur?.id === j.id ? { textDecoration: "underline" } : undefined} onClick={() => jumpGo(j)}>{j.n} {j.label}</button>)}<button type="button" className="jn" data-act="jump-next" aria-label="뒤 칸" disabled={!jumpStep(jumps, cur?.id, "next")} onClick={() => jumpGo(jumpStep(jumps, cur?.id, "next"))}>▶</button><span>넓은 표에서 한 칸씩 · 한 줄만 크게 고치려면 줄의 ▣</span></div>}
       {view === "table" && <div className="tblwrap" data-g="table"><table style={{ minWidth: 700 }}><thead><tr><th style={{ minWidth: 150 }}>{g.rows === "school" ? "학교" : g.rows === "student" ? "학생" : "줄"}</th>{cols.map((col, i) => <Head key={col.id} col={col} i={i} ctx={ctx} />)}<th className="addc">+ 칸</th></tr></thead><tbody>
         {rows.map((r, i) => <tr key={r.id} data-g="row" data-row={r.id} className={focus === r.id ? "hi" : ""}>
           <td className="stu"><span className="sgrip">⠿</span><b>{rowTitle(r)}</b><small>{rowSub(r) || (g.rows === "school" ? "🏫" : "")} <button className="lnk" type="button" aria-label="이 줄만 크게" data-act="row-focus" aria-pressed={focus === r.id} onClick={() => setFocus(focus === r.id ? null : r.id)}>▣</button> <button className="lnk" type="button" aria-label="위로" disabled={pending || i === 0} data-act="row-up" onClick={() => run(() => rowMoveAct(g.id, r.id, "up"), null)}>▲</button> <button className="lnk" type="button" aria-label="아래로" disabled={pending || i === rows.length - 1} data-act="row-down" onClick={() => run(() => rowMoveAct(g.id, r.id, "down"), null)}>▼</button> <button className="lnk" type="button" aria-label="줄 내리기" disabled={pending} data-act="row-retire" onClick={() => run(() => rowRetireAct(r.id), `${rowTitle(r)} 줄을 내렸습니다(지우지 않았습니다)`)}>✕</button></small></td>

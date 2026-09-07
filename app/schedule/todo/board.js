@@ -4,7 +4,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct } from "./actions.js";
-import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS } from "@/lib/todo-plan";
+import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 export default function Board({ d }) {
@@ -23,7 +23,7 @@ export default function Board({ d }) {
     <span className="nb-title">{c.title}{c.extra ? <span className="tag" style={{ marginLeft: 6 }}>{c.extra}</span> : null}</span>
     <div className={"nb-prop" + (isOverdue(c, today) ? " nb-over" : "")}><span className="nb-pi">📅</span><span className="nb-pv" data-g="due">{dueLine(c, today)}</span></div>
     {(c.school || c.n != null) && <div className="nb-prop"><span className="nb-pi">🏫</span><span className="nb-pv">{c.school && <span className={"nb-pill " + (c.level === "high" ? "nb-blue" : c.level === "middle" ? "nb-green" : "")}>{schoolTag(c)}</span>}{c.n != null && <span className="nb-pill">{c.kind === "print" ? `${c.pages}장 · ` : ""}{c.n}명</span>}</span></div>}
-    {c.checks && <div className="nb-prop"><span className="nb-pi">☑</span><span className="nb-pv" data-g="checks">{c.checks.filter((s) => ["make", "print", "hand"].includes(s.step)).map((s) => <span key={s.step} className={"nb-check" + (s.done ? " nb-done" : "")} data-step={s.step} data-done={s.done ? "1" : "0"}><i>{s.done ? "✓" : "·"}</i>{s.name}{s.text ? ` ${s.text}` : ""}</span>)}</span></div>}
+    {c.checks && <div className="nb-prop"><span className="nb-pi">☑</span><span className="nb-pv" data-g="checks">{c.checks.filter((s) => ["make", "print", "hand"].includes(s.step)).map((s) => { const tid = stepTodoOf(all, c.material?.id, s.step); return <button key={s.step} type="button" className={"nb-check" + (s.done ? " nb-done" : "")} data-step={s.step} data-done={s.done ? "1" : "0"} disabled={pending || !tid} title={tid ? (s.done ? "누르면 무릅니다 — 카드가 제 칸으로" : "누르면 끝냄 — 카드가 다음 칸으로(끌지 않습니다)") : "켜 둔 단계가 아닙니다"} style={{ border: 0, background: "none", padding: 0, font: "inherit", cursor: tid ? "pointer" : "default" }} onClick={(x) => { x.stopPropagation(); if (!tid) return; run(() => (s.done ? undoAct(tid) : doneAct(tid)), s.done ? `${s.name} 무름 — 카드가 제 칸으로 돌아갑니다` : `${s.name} ✓ — 카드가 다음 칸으로 갑니다`); }}><i>{s.done ? "✓" : "·"}</i>{s.name}{s.text ? ` ${s.text}` : ""}</button>; })}</span></div>}
     {c.book && <div className="nb-prop"><span className="nb-pi">📚</span><span className="nb-pv">{c.book}</span></div>}
     {c.style && <div className="nb-prop"><span className="nb-pi">🧪</span><span className="nb-pv">{c.style}</span></div>}
     {c.kind === "score" && <div className="nb-prop"><span className="nb-pi">👧</span><span className="nb-pv">아이가 넣습니다</span></div>}
