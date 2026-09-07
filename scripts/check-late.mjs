@@ -2,7 +2,7 @@
  *  예상(약속)과 실제 하원의 차이(세어 나온다 · 저장 안 함) · 「실제 하원 22:05 · 예상보다 25분 늦게」 · 되풀이 띠(3주 안 N번째 — 숙제량을 볼까요) · 안 보낸 채인가 · 마감 전에 한 번 묻는 것(둘 다면 한 상자) ·
  *  서울 시각 읽기·찍기가 프로세스 시간대와 무관한가(UTC 로 다시 돈다 — 검사-㊴와 같은 결) */
 import { spawnSync } from "node:child_process";
-import { diffMinutes, diffText, leftText, repeatBand, unsentLate, askBeforeClose, hhmm, reasonChips, toggleReason } from "../lib/late-plan.js";
+import { diffMinutes, diffText, leftText, repeatBand, unsentLate, askBeforeClose, hhmm, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "../lib/late-plan.js";
 import { seoulTime, seoulStamp } from "../lib/day-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -37,5 +37,9 @@ console.log("■ 3b 사유 칩(목업 01 — 원본은 사유 한 줄 · 칩은 
   ok("✕ 도 처분도 없으면 칩 없음 · 처분이 숙제면 반성문 칩 없음", reasonChips({ checks: [checks[1]], warn: { today_disposal: "homework" } }).length === 0 && reasonChips().length === 0);
   ok("누르면 넣고(「 · 」로 잇는다) · 다시 누르면 뺀다 · 빈 글에 넣으면 조각만 · 손으로 쓴 글은 그대로 · 조각 안에 「 · 」가 있어도(범위 글) 글자 그대로 찾아 뺀다", toggleReason("늦게 와서", "워크북 미제출") === "늦게 와서 · 워크북 미제출" && toggleReason("늦게 와서 · 워크북 미제출", "워크북 미제출") === "늦게 와서" && toggleReason("", "워크북 미제출") === "워크북 미제출" && toggleReason("워크북 미제출", "워크북 미제출") === "" && toggleReason("늦게 와서 · CHAPTER 1 · 10-18번 미제출 · 반성문", "CHAPTER 1 · 10-18번 미제출") === "늦게 와서 · 반성문" && toggleReason("", "CHAPTER 1 · 10-18번 미제출") === "CHAPTER 1 · 10-18번 미제출");
 }
+// ── 5단계-②(0141) — 「평소 21:40」 · 3b 「남」 줄
+ok("「평소 21:40」 — 반 끝 시각에서 · 없으면 null", usualText("21:40:00") === "평소 21:40" && usualText(null) === null);
+const sr = stayRows([{ id: "a", slot: "stay", sort: 2, range_note: null, learn_items: { name: "클카 낭독" }, units: { chapter: "CHAPTER 1", short: "PSS 1-3" }, carry_of: "x", status: null }, { id: "b", slot: "stay", sort: 1, range_note: "워크북 복습 · 못 한 만큼", carry_of: null, status: "done" }, { id: "c", slot: "home", range_note: "숙제" }, { id: "d", slot: "stay", sort: 3, range_note: "단어", carry_of: "y", status: "missing" }]);
+ok("「남」 줄 — stay 만 · sort 차례 · 이름(적은 글 › 항목 이름 › 단원) · 「숙제에서 옮겨옴」은 조각만 · 상태(아직·다 함·넘김) · 셈 「남 3 · 다 함 1 · 넘김 1 · 아직 1」", sr.length === 3 && sr[0].text === "워크북 복습 · 못 한 만큼" && sr[0].from === null && sr[0].state === "done" && sr[1].text === "클카 낭독" && sr[1].sub === "CHAPTER 1 › PSS 1-3" && sr[1].from === "숙제에서 옮겨옴" && sr[1].state === "open" && sr[2].state === "missing" && JSON.stringify(stayCounts(sr)) === JSON.stringify({ total: 3, done: 1, missing: 1, open: 1 }));
 console.log(`\n■ 늦귀가 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

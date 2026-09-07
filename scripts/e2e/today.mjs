@@ -247,6 +247,17 @@ console.log("■ 늦귀가 — 사유 칩(검사 ✕ → 「＋ … 미제출」
   ok("다시 누르면 빠진다", !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출"));
   if (prevV) { await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); }   // 검사 표시를 되돌린다(뒤 걷기가 같은 판을 본다)
 }
+{ const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);   // 5단계-② 3b 「남」 줄(0141 · 목업 01)
+  ok("3b 머리 — 「평소 HH:MM」(반 끝 시각 · 목업 「평소 9:40 → 10:20」) · 「남」 줄은 아직 없음(✕·△ 준 항목이 후보 — 고르는 것은 원장님)", /평소 \d{2}:\d{2}/.test(await row.locator("[data-g=stay-note]").textContent()) && (await row.locator("[data-g=stay-row]").count()) === 0, await row.locator("[data-g=stay-note]").textContent());
+  await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1200); await row.locator(".hw").last().locator("[data-g=rest] button", { hasText: "남아서" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("검사 ✕ → 「나머지는 → 남아서」 → 3b 「남」 줄 하나 「숙제에서 옮겨옴」(조각이 원본을 가리킨다 · 자리 stay) · 사유 글엔 「숙제 나머지」가 안 적힌다(칩이 있다)", (await row.locator("[data-g=stay-row]").count()) === 1 && (await row.locator("[data-g=stay-row] small").textContent()).includes("숙제에서 옮겨옴") && !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("숙제 나머지"), await row.locator("[data-g=stay]").textContent());
+  await row.locator("[data-g=stay-add] input").fill("zz_남아서 항목"); await row.locator("button[data-act=stay-add]").click(); await p.waitForTimeout(1500);
+  ok("항목 더하기 → 「남」 줄 둘 · 「남 2 · 다 함 0 · 넘김 0」", (await row.locator("[data-g=stay-row]").count()) === 2 && (await row.locator("[data-g=stay-note]").textContent()).includes("남 2 · 다 함 0 · 넘김 0"), await row.locator("[data-g=stay-note]").textContent());
+  await row.locator("[data-g=stay-row]", { hasText: "zz_남아서 항목" }).locator("button[data-act=stay-done]").click(); await p.waitForTimeout(1500);
+  ok("「다 함」 → 그 줄만 다 함(줄 긋기) · 「다 함 1」", (await row.locator("[data-g=stay-row][data-state=done]").count()) === 1 && (await row.locator("[data-g=stay-note]").textContent()).includes("다 함 1"));
+  await row.locator("button[data-act=stay-carry]").click(); await p.waitForTimeout(1500);
+  ok("「⏭ 남은 것 다음 숙제로 넘기기」 → 남은 줄은 「넘김」(missing — 남아서 하려다 못 한 것으로 센다) · 숙제 자리에 조각 · 남은 것이 없어 단추 둘 사라짐", (await row.locator("[data-g=stay-row][data-state=missing]").count()) === 1 && (await row.locator("button[data-act=stay-carry]").count()) === 0 && (await row.locator("button[data-act=stay-all-done]").count()) === 0 && (await row.locator("[data-g=stay-note]").textContent()).includes("넘김 1"), await row.locator("[data-g=stay]").textContent());
+  if (prevV) { await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); } }
 await row.locator("form.lategrid input[name=reason]").fill("워크북 나머지 10-18번");
 await row.locator("form.lategrid .seg button", { hasText: "+20분" }).click();
 const untilTyped = await row.locator("form.lategrid input[name=untilAt]").inputValue();
@@ -259,6 +270,7 @@ console.log("■ 아이 화면 07 — 저녁: 「오늘은 남아서 HH:MM 예�
   await Promise.all([cp.waitForURL((u) => u.pathname === "/me", { timeout: 15000 }), cp.click("form:has(#id-student) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
   const mm = cp.locator("main");
   ok("아이 화면 — 「오늘은 남아서 HH:MM 예정」 + 사유 · 「오늘 할 것」에 학원·숙제 줄이 깔려 있다(선생님이 검사한 뒤)", (await mm.locator("[data-card=stay] .pill").textContent()) === `${untilTyped} 예정` && (await mm.locator("[data-card=stay]").textContent()).includes("워크북 나머지 10-18번") && (await mm.locator("[data-card=todo] .li").count()) >= 2, (await mm.textContent()).replace(/\s+/g, " ").slice(0, 400));
+  ok("아이 화면 「오늘은 남아서」 — 3b 「남」 줄이 아이에게도(✓ 다 함 · ⏭ 넘김)", (await mm.locator("[data-card=stay] [data-g=stay-line]").count()) === 2 && (await mm.locator("[data-card=stay] [data-g=stay-line][data-state=done]").count()) === 1 && (await mm.locator("[data-card=stay] [data-g=stay-line][data-state=missing]").count()) === 1, await mm.locator("[data-card=stay]").textContent());
   await mm.locator("[data-card=arrival] button[data-step='4']").click(); await cp.waitForTimeout(2500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
   ok("「집에 가요」 → 「HH:MM 집에 감」 · 단추는 사라진다(하루 한 번)", /집에 감$/.test(await mm.locator("[data-g=arrival-pill]").textContent()) && (await mm.locator("[data-card=arrival] button[data-step='4']").count()) === 0, await mm.locator("[data-g=arrival-pill]").textContent());
   await cs.close(); }
