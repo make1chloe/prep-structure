@@ -1,5 +1,5 @@
 /** 자료함 판단 검사(검사-62) — lib/files-plan.js 순수 셈: 갈래 여섯 · 종류 목록(버킷과 같은 벌) · 크기 글 · 확장자·경로 · 사진 줄이기 계획 · 한 번에 N장 · 파일 하나 검사(종류·크기) · 누가 보냈나 · 저절로 꼬리표 · 방금 온 것 줄 · 갈래별 칸(학교·학년 · 아이별 · 빈 묶음 없음) · 가장 또렷 · 보낸 것 줄(N/M) · 아이 쪽 1달(규칙) · 숫자 셋 · 보내기 양식 */
-import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets, AUTO_REPLY, isAutoReply, replyText, myUploads } from "../lib/files-plan.js";
+import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets, AUTO_REPLY, isAutoReply, replyText, myUploads, pickRows, withoutPick } from "../lib/files-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 console.log("■ 자료함 판단(순수)");
@@ -39,5 +39,7 @@ ok("보내기 양식 — 아이 → 마지막 판의 숙제 줄 · 숙제 줄이
 ok("② 원장님 답 — 자동 글 「받았어요 — 「수행평가」로 넣었어요」(SQL file_sort 와 같은 꼴) · 자동 글 판별 · 고쳐 쓴 글은 자동이 아님 · 없으면 「아직 안 봤어요」", AUTO_REPLY("수행평가") === "받았어요 — 「수행평가」로 넣었어요" && isAutoReply(AUTO_REPLY("그 밖")) && !isAutoReply("잘 받았어요 — 월요일에 볼게요") && replyText({}) === "아직 안 봤어요" && replyText({ reply: "네" }) === "네");
 const mine = myUploads([{ id: "u1", orig_name: "a.jpg", mime: "image/jpeg", bytes: 2048, uploaded_at: "2026-09-06T01:00:00Z", reply: null, students: { name: "강민서" } }, { id: "u2", orig_name: "b.pdf", mime: "application/pdf", bytes: 1024, uploaded_at: "2026-09-05T01:00:00Z", reply: AUTO_REPLY("수행평가"), students: null }]);
 ok("내가 보낸 것 줄 — 새것 그대로 · 사진은 미리보기 · 아이 이름(학부모 카드) · 답 없으면 ⏳ 「아직 안 봤어요」 · 답 있으면 replied", mine[0].photo === true && mine[0].kid === "강민서" && mine[0].replied === false && mine[0].reply === "아직 안 봤어요" && mine[0].when === "9/6" && mine[1].photo === false && mine[1].replied === true && mine[1].reply.includes("수행평가"), JSON.stringify(mine));
+const picks = [{ name: "a.jpg", size: 2048, type: "image/jpeg" }, { name: "b.pdf", size: 1024, type: "application/pdf" }];
+ok("⑦ 보내기 전 고른 파일 줄 — 사진은 미리보기 · 크기 · 하나를 빼면 나머지만 보낸다", pickRows(picks)[0].photo === true && pickRows(picks)[1].photo === false && pickRows(picks)[1].size === "1KB" && withoutPick(picks, 0).map((f) => f.name).join() === "b.pdf" && withoutPick(picks, 9).length === 2);
 console.log(`\n■ 자료함 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

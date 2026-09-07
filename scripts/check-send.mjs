@@ -1,5 +1,5 @@
 /** 발송 판단 검사(검사-㊾) — lib/send-plan.js · lib/notify-plan.js 순수 셈: 치환 자리(뼈대-11) · 예약 때(확정-㉕) · 묶음 넷의 상태 · 읽음 셈 · 자취 상태(리허설은 그렇게 말한다) · 방해금지 · 잠금화면 문구 · 기기 고르기 · 스위치 기본 off */
-import { unfilled, whenAt, whenLabel, lateRows, dailyRows, autoRows, scheduledRows, sentRows, logStatus, readCounts, nowCount, closedCount, KINDS } from "../lib/send-plan.js";
+import { unfilled, whenAt, whenLabel, lateRows, dailyRows, autoRows, scheduledRows, sentRows, logStatus, readCounts, nowCount, closedCount, KINDS, placeholderRows } from "../lib/send-plan.js";
 import { titleFor, payloadFor, OPEN_TO_SEE, sinkOf, mayPush, pickDevices, inQuiet, quietUntil, LABEL } from "../lib/notify-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -54,5 +54,7 @@ const subs = [{ id: 1, profile_id: "p1", student_id: null, endpoint: "e1", revok
 ok("기기 고르기 — 학부모 기기만 · 끈 기기 빠짐 · 같은 endpoint 한 번 · who=all 이면 아이 기기도", pickDevices({ subs, parents: ["p1", "p2"], studentId: "st1" }).map((d) => d.id).join() === "1" && pickDevices({ subs, parents: ["p1"], studentId: "st1", who: "all" }).map((d) => d.id).join() === "1,4");
 ok("방해금지 — 23:30·08:59 는 안 · 09:00·12:00 은 밖 · 시작=끝이면 없음 · 낮 창(12:00~13:00)도", inQuiet("23:30", "23:00", "09:00") && inQuiet("08:59", "23:00", "09:00") && !inQuiet("09:00", "23:00", "09:00") && !inQuiet("12:00", "23:00", "09:00") && !inQuiet("23:30", "00:00", "00:00") && inQuiet("12:30", "12:00", "13:00"));
 ok("미룰 때 — 서울 09:00 전이면 오늘 09:00 · 지났으면 내일 09:00", quietUntil("2026-09-05T15:30:00Z", "2026-09-06", "09:00") === "2026-09-06T00:00:00.000Z" && quietUntil("2026-09-06T14:30:00Z", "2026-09-06", "09:00") === "2026-09-07T00:00:00.000Z");
+const phr = placeholderRows([{ key: "학생명", note: "아이 이름", example: "강민서" }, { key: "내용", note: "안내 본문", example: "" }]);
+ok("뼈대-8 치환 자리 줄 — 표의 설명을 「{{학생명}} — 아이 이름(예: 강민서)」 꼴로 · 예가 없으면 설명만 · unfilled 가 같은 {{ }} 를 잡는다", phr[0].tag === "{{학생명}}" && phr[0].text === "{{학생명}} — 아이 이름(예: 강민서)" && phr[1].text === "{{내용}} — 안내 본문" && unfilled(phr[0].tag)[0] === "학생명");
 console.log(`\n■ 발송 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

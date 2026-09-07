@@ -1,5 +1,5 @@
 /** 영상 판단 검사(검사-63) — lib/video-plan.js 순수 셈: 분:초 · 유튜브 아이디 · 길이 읽기 · + 영상 양식 · 배정 양식 · 상태(다 봄 · N% 봄 · 초 봄 · 아직 — 규칙 video.done_pct) · 셈(다 봄·보다 맒·안 봄 · 내린 배정 뺌) · 마감 글 · 아이 화면 줄(차례 · 지났어요 · 이어 볼 자리) · 재생기 구간 셈(잇기 · 뛰면 새 구간 · 20초마다 · 멈추면 닫기) */
-import { mmss, youtubeId, parseLength, parseVideo, parseAssign, statusOf, counts, dueText, myRows, stepSpan, segments } from "../lib/video-plan.js";
+import { mmss, youtubeId, parseLength, parseVideo, parseAssign, statusOf, counts, dueText, myRows, stepSpan, segments, nextOf, opensText } from "../lib/video-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const threw = (fn) => { try { fn(); return false; } catch { return true; } };
@@ -34,5 +34,6 @@ ok("뒤로 뛰어도 새 구간(지나간 것만 센다)", s.from === 299 && s.t
 const sg = segments([[0, 30], [60, 90]], 300, 90);
 ok("③ 본 구간 막대 — [0,30)·[60,90) / 300초 → 조각 둘(0%·10% · 20%·10%) · 머리 30% · 길이 모르면 빈 막대 · 길이 넘는 구간은 100 에서 자른다 · 빈 구간은 뺀다", JSON.stringify(sg) === JSON.stringify({ parts: [{ left: 0, width: 10 }, { left: 20, width: 10 }], head: 30 }) && segments([[0, 30]], 0, 10).parts.length === 0 && segments([[290, 400]], 300, 0).parts[0].width === 3.3 && segments([[5, 5]], 100, 0).parts.length === 0, JSON.stringify(sg));
 ok("아이 화면 줄에 막대가 실린다(myRows → bar)", JSON.stringify(rows[0].bar) === JSON.stringify(segments([], 484, 372)) && rows[0].bar.parts.length === 0 && rows[0].bar.head === 76.9, JSON.stringify(rows[0].bar));
+ok("⑥ 다음 영상 — 지금 것 뒤의 안 본 것 · 뒤에 없으면 앞에서 · 다 봤으면 null · ④ 「N번 열어봄」(0이면 빈 글)", nextOf(rows, "v2")?.video_id === "v1" && nextOf(rows, "v1")?.video_id === "v2" && nextOf(rows.filter((r) => r.status.key === "done"), "v3") === null && opensText(2) === "2번 열어봄" && opensText(0) === "" && rows[0].opens === 0, JSON.stringify(nextOf(rows, "v2")?.video_id));
 console.log(`\n■ 영상 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

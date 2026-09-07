@@ -413,6 +413,7 @@ for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot
 await p.setViewportSize(VIEWS[0].viewport);
 await sm.locator("[data-card=scheduled] button[data-act=cancel]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
 ok("예약 취소 → 예약된 것 0 · 그 판은 다시 나간 것(지우지 않고 cancelled_at)", (await sm.locator("[data-card=scheduled] [data-g=sch-row]").count()) === 0 && (await sm.locator("[data-g=daily-row][data-state=sent]").count()) === 2);
+ok("뼈대-8 치환 낱말 표 — 발송 화면 「{{ }} 치환 자리」 13개(표 v2.placeholder · 설명·보기는 title) · {{학생명}} · {{학원명}}", (await sm.locator("[data-g=placeholders] .tag").count()) >= 13 && (await sm.locator("[data-g=placeholders]").textContent()).includes("{{학생명}}") && (await sm.locator("[data-g=placeholders]").textContent()).includes("{{학원명}}"), (await sm.locator("[data-card=placeholders]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
 const cr = await p.request.get(APP + "/api/cron"); const cj = cr.ok() ? await cr.json() : {};
 ok("크론 — 학원의 오늘을 받고 한 바퀴(뼈대-9·10) · 손이 다 있어 실패 0", cr.ok() && cj.today === todayText && typeof cj.claimed === "number" && cj.bad === 0, JSON.stringify(cj));
 console.log("■ 루틴 11 — + 교재 잇기(맨 끝: 오늘 판에 안 닿게)");
@@ -505,7 +506,7 @@ console.log("■ 성적 16 — 지난달 회차(손으로) → 등급컷·문항
 const ymPrev = (() => { const [y, m] = ymNow.split("-").map(Number); const dd = new Date(Date.UTC(y, m - 2, 1)); return `${dd.getUTCFullYear()}-${String(dd.getUTCMonth() + 1).padStart(2, "0")}`; })();
 const q10 = `${ymPrev}-10`, q12 = `${ymPrev}-12`, q13 = `${ymPrev}-13`;
 await p.goto(`${APP}/schedule?m=${ymPrev}&d=${q10}`); await p.waitForLoadState("networkidle").catch(() => {});
-await sc.locator("button[data-act=open-exam]").click(); await sc.locator("[data-g=exam-form] input[name=exam-name]").fill("zz_지난 기말"); await sc.locator("[data-g=exam-form] input[aria-label=끝]").fill(q13); await sc.locator("[data-g=exam-form] input[aria-label='영어 시험일']").fill(q12); await sc.locator("button[data-act=exam-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+await sc.locator("button[data-act=open-exam]").click(); await sc.locator("[data-g=exam-form] input[name=exam-name]").fill("zz_지난 기말"); await sc.locator("[data-g=exam-form] input[aria-label=학년]").fill("2"); await sc.locator("[data-g=exam-form] input[aria-label=끝]").fill(q13); await sc.locator("[data-g=exam-form] input[aria-label='영어 시험일']").fill(q12); await sc.locator("button[data-act=exam-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok(`지난달 회차를 손으로 — ${ymPrev} 10~13 · 영어 12 → 칸에 📝 영어 시험일`, (await cellOf(q12).textContent()).includes("📝 영어 시험일"), await cellOf(q12).textContent());
 await p.goto(`${APP}/scores`); await p.waitForLoadState("networkidle").catch(() => {});
 const sm16 = p.locator("main");
@@ -599,6 +600,9 @@ await ex04.locator("[data-g=exam-card]").filter({ hasText: "zz_지난 기말" })
 const pr = p.locator("main");
 const pastId = new URL(p.url()).searchParams.get("e");
 ok("지난 회차의 내신 자료 — 회차 고르기에 그 회차 · 대상 1명 · D+N(지난 시험) · 자료 없음 안내 · 학생 줄 「진도를 알아야 냅니다」 · ♻️ 없음(같은 범위 자료가 아직 없다)", new URL(p.url()).pathname === "/schedule/exams/prep" && (await pr.locator("[data-g=takers]").textContent()) === "대상 1명" && /^D\+\d+$/.test(await pr.locator("[data-g=dday]").textContent()) && (await pr.locator("[data-g=no-material]").count()) === 1 && (await pr.locator("[data-g=student-row][data-known='0']").count()) === 1 && (await pr.locator("[data-g=no-reuse]").count()) === 1, (await pr.locator("[data-g=head]").textContent()).replace(/\s+/g, " "));
+ok("처음-8 학교 교과서 — 회차의 학교·학년·해로 「📚 학교 교과서를 아직 안 적었습니다(YYYY · 2학년)」 + 더하기 고르개(교재 목록)", /아직 안 적었습니다\(\d{4} · 2학년\)/.test(await pr.locator("[data-g=school-book-text]").textContent().catch(() => "")) && (await pr.locator("select[data-g=school-book-pick] option").count()) >= 2, (await pr.locator("[data-g=school-book]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
+await pr.locator("select[data-g=school-book-pick]").selectOption({ label: (await pr.locator("select[data-g=school-book-pick] option").allTextContents()).find((t) => t.includes("문법책")) }); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("교과서를 고르면 「학교 교과서 YYYY: zz_리허설 문법책」 — 학교의 속성(그 학교·학년 아이 모두 · 표 v2.school_book) · 고르개에서는 빠진다", /학교 교과서 \d{4}: zz_리허설 문법책/.test(await pr.locator("[data-g=school-book-text]").textContent()) && !(await pr.locator("select[data-g=school-book-pick] option").allTextContents()).some((t) => t.includes("zz_리허설 문법책")), await pr.locator("[data-g=school-book-text]").textContent());
 await pr.locator("button[data-act=add-open]").click();
 const addM = p.locator("[data-g=add]");
 const tyOpts = await addM.locator("select[aria-label='자료 종류'] option").allTextContents();
@@ -772,6 +776,16 @@ await openEdit14(); await su.locator("button[data-act=leave]").click(); await p.
 ok("퇴원 처리 → 「퇴원」 꼬리표 · 재원생 N−1 · 퇴원생 1(줄은 남는다) · 재원 기간 「~ YYYY.MM 퇴원」", (await su.locator("[data-g=state]").textContent()) === "퇴원" && (await cnt14()).join() === `${c14[0] - 1},1` && /퇴원$/.test(await su.locator("[data-g=tenure]").textContent()), (await su.locator("[data-g=counts]").textContent()));
 await openEdit14(); await su.locator("button[data-act=return]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("복귀 → 재원생 N", (await cnt14()).join() === `${c14[0]},0`);
+{ const p2 = await ctx.newPage(); await p2.goto(p.url()); await p2.waitForLoadState("networkidle").catch(() => {});   // 0-3 읽은 줄 대조 — 다른 창(같은 원장)이 먼저 고친다
+  const su2 = p2.locator("main"); await su2.locator("button[data-act=edit-open]").click(); await p2.waitForTimeout(300);
+  await su2.locator("[data-g=edit] input[aria-label='아이 전화']").fill("01055550001"); await su2.locator("button[data-act=edit-save]").click(); await p2.waitForSelector("[data-g=msg]", { timeout: 15000 });
+  ok("다른 창이 아이 전화를 고쳐 저장 → 「고쳤습니다」(읽은 줄이 그대로라 통과 — updated_at 대조)", (await su2.locator("[data-g=msg]").textContent()) === "고쳤습니다", await su2.locator("[data-g=msg]").textContent());
+  await p2.close();
+  await openEdit14(); await su.locator("[data-g=edit] input[aria-label='아이 전화']").fill("01055550002"); await su.locator("button[data-act=edit-save]").click();
+  await p.waitForFunction(() => /다른 사람이 먼저 고쳤습니다/.test(document.querySelector("main [role=alert]")?.textContent ?? ""), null, { timeout: 15000 }).catch(() => {});
+  ok("0-3 옛 화면에서 저장 → 「다른 사람이 먼저 고쳤습니다 — 새로고침 뒤 다시 적어 주세요」(덮어쓰지 않는다)", (await su.locator("[role=alert]").textContent().catch(() => "")).includes("다른 사람이 먼저 고쳤습니다"), await su.locator("[role=alert]").textContent().catch(() => "알림 없음"));
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await openEdit14();
+  ok("새로고침하면 다른 창이 적은 전화(01055550001)가 그대로 — 내 것(…0002)은 안 들어갔다", (await su.locator("[data-g=edit] input[aria-label='아이 전화']").inputValue()) === "01055550001", await su.locator("[data-g=edit] input[aria-label='아이 전화']").inputValue()); }
 await su.locator("[data-g=student-row][data-student='99999999-0000-4000-9000-000000000001']").click();   // 이름이 같은 줄이 둘(학생둘 · 이관 리허설) — 줄은 id 로 await p.waitForURL((u) => u.searchParams.get("s") === "99999999-0000-4000-9000-000000000001", { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
 ok("zz_시험_학생 — 늦귀가 KPI 「3회」(21일 안 셋 · bad) · 출석 n/N · 교재 진도 2(문법책 · 독해책) · 성적 줄 ≥ 1(16 에서 확인한 것) · 이 달 출결에 하원 시각(답 ⑩ — 07 「집에 가요」) · 단원평가 알약 ≥ 1", (await su.locator("[data-g=k1][data-key=late] b").textContent()) === "3회" && (await su.locator("[data-g=k1][data-key=late]").evaluate((el) => el.classList.contains("bad"))) && /^\d+\/\d+$/.test(await su.locator("[data-g=k1][data-key=att] b").textContent()) && (await su.locator("[data-g=bkline]").count()) === 2 && (await su.locator("[data-g=score-row]").count()) >= 1 && (await su.locator("[data-g=att-times]").textContent()).includes("하원") && (await su.locator("[data-g=unit-tests] .ut").count()) >= 1, (await su.locator("[data-g=kpi]").textContent()).replace(/\s+/g, " ") + " | " + (await su.locator("[data-g=att-times]").textContent().catch(() => "하원 없음")));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-students-${v.viewport.width}.png`, fullPage: true }); }
@@ -784,7 +798,7 @@ await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 자료함 20 — 방금 온 것(학부모가 보낸 사진) → 갈래 고르기 → 갈래별 칸 · 열기 200 · 갈래 옮기기 → 아이별 · 📤 보내기(아이 → 숙제 줄 → 파일, 폰이 줄여 보낸다) → 보낸 것 「아직」 0/1");
 const STORE9 = process.env.E2E_STORAGE_DIR || "/var/tmp/e2e-storage"; mkdirSync(`${STORE9}/files/e2e`, { recursive: true });
 const PNG9 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
-writeFileSync(`${STORE9}/files/e2e/zz-parent.jpg`, PNG9); writeFileSync(`${STORE9}/files/e2e/zz-staff.pdf`, Buffer.from("%PDF-1.4\n%zz\n")); writeFileSync(".tmp/e2e-up.png", PNG9);   // 씨앗 파일의 실물 — 보관함 흉내(/storage/v1) 가 여기서 읽는다 · 올릴 파일은 ASCII 이름(한글 경로는 setInputFiles 가 조용히 실패한다)
+writeFileSync(`${STORE9}/files/e2e/zz-parent.jpg`, PNG9); writeFileSync(`${STORE9}/files/e2e/zz-staff.pdf`, Buffer.from("%PDF-1.4\n%zz\n")); writeFileSync(".tmp/e2e-up.png", PNG9); writeFileSync(".tmp/e2e-up2.png", PNG9);   // 씨앗 파일의 실물 — 보관함 흉내(/storage/v1) 가 여기서 읽는다 · 올릴 파일은 ASCII 이름(한글 경로는 setInputFiles 가 조용히 실패한다)
 const F_PARENT9 = "99999999-0000-4000-f500-000000000001", F_STAFF9 = "99999999-0000-4000-f500-000000000002", V9 = "99999999-0000-4000-f600-000000000001", S1_9 = "99999999-0000-4000-9000-000000000001", S2_9 = "99999999-0000-4000-9000-000000000002";
 const term9 = (() => { const y = todayText.slice(2, 4), m = Number(todayText.slice(5, 7)); return m >= 3 && m <= 8 ? `${y}-1` : m >= 9 ? `${y}-2` : `${String(Number(y) - 1).padStart(2, "0")}-2`; })();
 await p.goto(`${APP}/ops/files`); await p.waitForLoadState("networkidle").catch(() => {});
@@ -834,7 +848,11 @@ console.log("■ 아이 화면 07 · 영상 19 — 숙제 줄의 📎(어제 pdf
   ok("💾 저장을 누르면 그 줄에서 없어지고 「지난 것 보기 1 · 💾 저장」(1달간 다시 꺼낼 수 있다)", (await mm.locator("[data-g=attach]").count()) === 1 && (await mm.locator("[data-g=past-row]").count()) === 1 && (await mm.locator("[data-g=past-row]").textContent()).includes("💾 저장"), `attach ${await mm.locator("[data-g=attach]").count()} past ${await mm.locator("[data-g=past-row]").count()}`);
   await mm.locator("[data-g=attach] button[data-act=skip]").click(); await cp.waitForTimeout(1500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
   ok("✓ 안 보기 → 남은 📎 0 · 지난 것 2(✓ 안 보기)", (await mm.locator("[data-g=attach]").count()) === 0 && (await mm.locator("[data-g=past-row]").count()) === 2 && (await mm.locator("[data-g=past-row]").allTextContents()).join().includes("✓ 안 보기"));
-  await mm.locator("[data-card=files] input[type=file]").setInputFiles(".tmp/e2e-up.png"); await mm.locator("[data-card=files] button[data-act=upload]").click(); await cp.waitForSelector("[data-card=files] [data-g=upload-out]", { timeout: 20000 });
+  await mm.locator("[data-card=files] input[type=file]").setInputFiles([".tmp/e2e-up.png", ".tmp/e2e-up2.png"]); await cp.waitForTimeout(400);
+  ok("⑦ 고른 사진이 보내기 전에 줄로 — 2줄(미리보기 img · 이름 · 크기 · ✕)", (await mm.locator("[data-card=files] [data-g=pick-row]").count()) === 2 && (await mm.locator("[data-card=files] [data-g=pick-row] img").count()) === 2 && (await mm.locator("[data-card=files] [data-g=pick-row]").allTextContents()).join().includes("e2e-up2.png"), (await mm.locator("[data-card=files] [data-g=picks]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
+  await mm.locator("[data-card=files] [data-g=pick-row]").nth(1).locator("button[data-act=pick-remove]").click(); await cp.waitForTimeout(200);
+  ok("✕ 로 하나 빼면 줄 1(e2e-up.png) — 보내기는 남은 것만", (await mm.locator("[data-card=files] [data-g=pick-row]").count()) === 1 && !(await mm.locator("[data-card=files] [data-g=picks]").textContent()).includes("e2e-up2.png"), await mm.locator("[data-card=files] [data-g=picks]").textContent().catch(() => "없음"));
+  await mm.locator("[data-card=files] button[data-act=upload]").click(); await cp.waitForSelector("[data-card=files] [data-g=upload-out]", { timeout: 20000 });
   ok("📷 사진 보내기 → 「1장 보냈어요」(아이는 제 것만 · 숙제에 못 붙인다 · 원장님만 본다)", (await mm.locator("[data-card=files] [data-g=upload-out] b").textContent()) === "1장 보냈어요", await mm.locator("[data-card=files] [data-g=upload-out]").textContent());
   await cp.waitForTimeout(1200);
   ok("② 📎 카드 「내가 보낸 것」 — 방금 보낸 사진 1(미리보기 · ⏳ 아직 안 봤어요)", (await mm.locator("[data-g=mine]").count()) === 1 && (await mm.locator("[data-g=mine] [data-g=thumb]").count()) === 1 && (await mm.locator("[data-g=mine] [data-g=reply]").textContent()).includes("아직 안 봤어요"), (await mm.locator("[data-card=files]").textContent()).replace(/\s+/g, " ").slice(0, 200));
@@ -848,6 +866,8 @@ console.log("■ 아이 화면 07 · 영상 19 — 숙제 줄의 📎(어제 pdf
   const pstate9 = await cp.locator("[data-g=player]").getAttribute("data-state");
   ok(`▶ 보기 → 앱 안 재생기 카드(20% 봄 · 막대 조각 둘) · 유튜브에 못 닿는 검사 자리라 「앱 안에서 못 틀어요 → 유튜브에서 보기」로 정직하게(대전제-0) — ${pstate9}`, (await cp.locator("[data-card=player]").count()) === 1 && (await cp.locator("[data-card=player] [data-g=pct]").textContent()) === "20% 봄" && (await cp.locator("[data-card=player] [data-g=vbar] .vseen").count()) === 2 && pstate9 === "fail" && (await cp.locator("[data-g=player-fail] a").count()) === 1, (await cp.locator("[data-card=player]").textContent()).replace(/\s+/g, " ").slice(0, 200));
   await cp.screenshot({ path: ".tmp/e2e-videos-390.png", fullPage: true });
+  await cp.goto(APP + "/me/videos"); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("④ 재생기를 열면 연 횟수 +1 — 줄에 「1번 열어봄」(서버가 센다 · v2.video_open · 새로고침해도 그대로)", (await cp.locator("[data-g=video-row]").textContent()).includes("1번 열어봄"), (await cp.locator("[data-g=video-row]").textContent()).replace(/\s+/g, " ").slice(0, 200));
   await cs.close(); }
 console.log("■ 학부모 09 — 📎 자료 카드(parent.files 켬): 형제 하나라 「누구 학교 것인가요」를 안 묻는다 · 아이에게 보낸 자료(마감한 판의 숙제에 붙은 것 · 아이가 처리했나) · 📷 사진 보내기");
 { const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
@@ -855,6 +875,7 @@ console.log("■ 학부모 09 — 📎 자료 카드(parent.files 켬): 형제 �
   await Promise.all([cp.waitForURL((u) => u.pathname === "/parent", { timeout: 15000 }), cp.click("form:has(#id-parent) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
   const pm = cp.locator("main");
   ok("📎 자료 — 받은 것 2(어제 pdf 「아이가 💾 저장」 · 오늘 jpg 「✓ 안 보기」) · 형제가 하나라 물음 없음 · 열기 단추", (await pm.locator("[data-card=files]").count()) === 1 && (await pm.locator("[data-g=sent-file]").count()) === 2 && (await pm.locator("[data-g=kid-pick]").count()) === 0 && (await pm.locator("[data-g=sent-file]").allTextContents()).join().includes("💾 저장") && (await pm.locator("[data-g=sent-file]").allTextContents()).join().includes("✓ 안 보기"), (await pm.locator("[data-card=files]").textContent().catch(() => "카드 없음")).replace(/\s+/g, " ").slice(0, 300));
+  ok("⑤ 학부모 🎬 영상 카드 — 「1개 남음」 · 줄 「zz_간접의문문 정리 · 20% 봄 · 1번 열어봄」(원장님이 배정한 영상과 아이가 어디까지 봤나를 학부모도 본다)", (await pm.locator("[data-card=videos]").count()) === 1 && (await pm.locator("[data-card=videos]").textContent()).includes("1개 남음") && (await pm.locator("[data-g=video-line]").count()) === 1 && (await pm.locator("[data-g=video-line]").textContent()).includes("20% 봄") && (await pm.locator("[data-g=video-line]").textContent()).includes("1번 열어봄"), (await pm.locator("[data-card=videos]").textContent().catch(() => "카드 없음")).replace(/\s+/g, " ").slice(0, 200));
   ok("② 학부모 「내가 보낸 것」 — 씨앗 사진 1(미리보기 · 아이 이름 · ✓ 원장님이 고쳐 쓴 답 「잘 받았어요 — 월요일에 볼게요」)", (await pm.locator("[data-g=mine]").count()) === 1 && (await pm.locator("[data-g=mine][data-replied='1']").count()) === 1 && (await pm.locator("[data-g=mine] [data-g=reply]").textContent()).includes("잘 받았어요 — 월요일에 볼게요") && (await pm.locator("[data-g=mine]").textContent()).includes("zz_시험_학생") && (await pm.locator("[data-g=mine] [data-g=thumb]").count()) === 1, (await pm.locator("[data-g=mine]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
   await pm.locator("[data-g=sent-file] [data-g=thumb]").first().click(); await cp.waitForTimeout(300);
   ok("① 학부모도 붙임 사진을 그 자리에서 크게 본다(폰)", (await cp.locator("[data-g=lightbox] img").count()) === 1);
@@ -875,7 +896,7 @@ await p.goto(`${APP}/books`); await p.waitForLoadState("networkidle").catch(() =
 ok("교재 15 머리에 「🎬 영상」 단추", (await p.locator("main a[data-act=videos]").count()) === 1);
 await p.goto(`${APP}/books/videos`); await p.waitForLoadState("networkidle").catch(() => {});
 const vb = p.locator("main");
-ok("머리 — 안 본 아이 1 · 카드 1(zz_간접의문문 정리 · 5:00 · 📁 zz_문법) · 줄 「zz_시험_학생 20% 봄」 · 다 봄 0 · 보다 맒 1 · 안 봄 0", (await vb.locator("[data-g=unwatched]").textContent()) === "안 본 아이 1" && (await vb.locator("[data-g=video]").count()) === 1 && (await vb.locator("[data-g=video] [data-g=len]").textContent()) === "5:00" && (await vb.locator("[data-g=vrow][data-status=part] [data-g=bkv]").textContent()) === "20% 봄" && (await vb.locator("[data-g=vcounts]").textContent()) === "다 봄 0 · 보다 맒 1 · 안 봄 0", (await vb.textContent()).replace(/\s+/g, " ").slice(0, 300));
+ok("머리 — 안 본 아이 1 · 카드 1(zz_간접의문문 정리 · 5:00 · 📁 zz_문법) · 줄 「zz_시험_학생 20% 봄」 · 다 봄 0 · 보다 맒 1 · 안 봄 0 · 줄에 「1번 열어봄」(④)", (await vb.locator("[data-g=vrow][data-status=part]").textContent()).includes("1번 열어봄") && (await vb.locator("[data-g=unwatched]").textContent()) === "안 본 아이 1" && (await vb.locator("[data-g=video]").count()) === 1 && (await vb.locator("[data-g=video] [data-g=len]").textContent()) === "5:00" && (await vb.locator("[data-g=vrow][data-status=part] [data-g=bkv]").textContent()) === "20% 봄" && (await vb.locator("[data-g=vcounts]").textContent()) === "다 봄 0 · 보다 맒 1 · 안 봄 0", (await vb.textContent()).replace(/\s+/g, " ").slice(0, 300));
 await vb.locator("button[data-act=assign-open]").click(); await p.waitForTimeout(300);
 await vb.locator(`[data-g=assign-form] input[data-g=pick][data-student='${S2_9}']`).check(); await vb.locator("[data-g=assign-form] input[type=date]").fill(plusD9(todayText, 5)); await vb.locator("button[data-act=assign-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok(`+ 배정 학생둘(마감 ${mdOf9(plusD9(todayText, 5))}) → 줄 2 · 안 봄 1 · 안 본 아이 2`, (await vb.locator("[data-g=vrow]").count()) === 2 && (await vb.locator("[data-g=vcounts]").textContent()) === "다 봄 0 · 보다 맒 1 · 안 봄 1" && (await vb.locator("[data-g=unwatched]").textContent()) === "안 본 아이 2" && (await vb.locator(`[data-g=vrow][data-student='${S2_9}']`).textContent()).includes(`마감 ${mdOf9(plusD9(todayText, 5))}`), (await vb.locator("[data-g=video]").textContent()).replace(/\s+/g, " ").slice(0, 300));
@@ -890,10 +911,30 @@ ok("유튜브 주소면 카드 2(길이 5:00 · 배정한 아이 없음)", (awai
 await vb.locator(`[data-g=video][data-video='${V9}'] [data-g=vrow][data-student='${S2_9}'] button[data-act=retire]`).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("✕ 배정 내리기(학생둘) → 줄 1 · 안 본 아이 1(내린 배정은 안 센다)", (await vb.locator(`[data-g=video][data-video='${V9}'] [data-g=vrow]`).count()) === 1 && (await vb.locator("[data-g=unwatched]").textContent()) === "안 본 아이 1");
 const newV9 = (await vb.locator("[data-g=video]").filter({ hasText: "zz_분사구문" }).getAttribute("data-video"));
+await vb.locator(`[data-g=video][data-video='${newV9}'] button[data-act=assign-open]`).click(); await p.waitForTimeout(300);
+await vb.locator(`[data-g=video][data-video='${newV9}'] [data-g=assign-form] input[data-g=pick][data-student='${S1_9}']`).check(); await vb.locator(`[data-g=video][data-video='${newV9}'] [data-g=assign-form] input[type=date]`).fill(plusD9(todayText, 12)); await vb.locator(`[data-g=video][data-video='${newV9}'] button[data-act=assign-save]`).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("새 영상에 + 배정(zz_시험_학생) → 안 본 아이 2 · 그 카드 줄 1(안 봄)", (await vb.locator("[data-g=unwatched]").textContent()) === "안 본 아이 2" && (await vb.locator(`[data-g=video][data-video='${newV9}'] [data-g=vrow][data-status=none]`).count()) === 1, await vb.locator("[data-g=unwatched]").textContent());
+{ const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();   // ⑥ 다음 영상 — 아이 쪽
+  await cp.goto(APP + "/login"); await cp.fill("#id-student", "chloe0000"); await cp.fill("#pw-student", "새비밀번호1");
+  await Promise.all([cp.waitForURL((u) => u.pathname === "/me", { timeout: 15000 }), cp.click("form:has(#id-student) button[type=submit]")]);
+  await cp.goto(APP + "/me/videos"); await cp.waitForLoadState("networkidle").catch(() => {});
+  const rowIds = await cp.locator("[data-g=video-row]").evaluateAll((els) => els.map((e) => e.dataset.video));
+  ok("⑥ 아이 나 › 영상 — 2개 남음 · 줄 2(마감 순: 간접의문문 → 분사구문)", (await cp.locator("[data-g=left]").textContent()) === "2개 남음" && rowIds.join() === [V9, newV9].join(), `${await cp.locator("[data-g=left]").textContent()} ${rowIds.join()}`);
+  await cp.locator(`[data-g=video-row][data-video='${V9}'] a[data-act=open]`).click(); await cp.waitForURL((u) => u.searchParams.get("v") === V9, { timeout: 15000 }); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("재생기 아래 「다음 영상 ▶ zz_분사구문 5분 정리」 — 아직 안 본 다음 것(nextOf)", (await cp.locator("[data-act=next-video]").textContent().catch(() => "")).includes("zz_분사구문 5분 정리"), await cp.locator("[data-act=next-video]").textContent().catch(() => "단추 없음"));
+  await cp.locator("[data-act=next-video]").click(); await cp.waitForURL((u) => u.searchParams.get("v") === newV9, { timeout: 15000 }); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("누르면 그 영상의 재생기(zz_분사구문 5분 정리 · 아직) — 다음은 다시 첫 영상(안 본 것끼리 돈다)", (await cp.locator("[data-card=player] b").first().textContent()) === "zz_분사구문 5분 정리" && (await cp.locator("[data-card=player] [data-g=pct]").textContent()) === "아직" && (await cp.locator("[data-act=next-video]").textContent().catch(() => "")).includes("zz_간접의문문 정리"), (await cp.locator("[data-card=player]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
+  await cs.close(); }
 await vb.locator(`[data-g=video][data-video='${newV9}'] button[data-act=hide]`).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("내리기 → 카드 1 · 「내린 영상 1」(지우지 않는다 · 되살리기)", (await vb.locator("[data-g=video]").count()) === 1 && (await vb.locator("button[data-act=show-hidden]").textContent()) === "내린 영상 1");
 await vb.locator("button[data-act=show-hidden]").click(); await p.waitForTimeout(200);
 ok("내린 영상을 펴면 되살리기 단추", (await vb.locator("[data-g=video][data-state=hidden] button[data-act=unhide]").count()) === 1);
+{ const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/login"); await cp.fill("#id-student", "chloe0000"); await cp.fill("#pw-student", "새비밀번호1");
+  await Promise.all([cp.waitForURL((u) => u.pathname === "/me", { timeout: 15000 }), cp.click("form:has(#id-student) button[type=submit]")]);
+  await cp.goto(APP + "/me/videos"); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("내린 영상은 아이 목록에서도 빠진다 — 1개 남음 · 줄 1(배정은 남아 되살리면 돌아온다)", (await cp.locator("[data-g=left]").textContent()) === "1개 남음" && (await cp.locator("[data-g=video-row]").count()) === 1, `${await cp.locator("[data-g=left]").textContent()} ${await cp.locator("[data-g=video-row]").count()}`);
+  await cs.close(); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-videos-staff-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 운영 13 — 수강료(넣고 체크만) · 금액을 적으면 단가 줄이 이 달부터 · 다음 달엔 그 금액이 미리 · 엑셀로");
