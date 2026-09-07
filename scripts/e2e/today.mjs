@@ -208,6 +208,8 @@ await pl.locator("[data-g=plan-pick] input[placeholder='예: 가족 여행']").f
 await pl.locator("[data-g=plan-pick] input[placeholder='2026-10-18']").fill(d2);
 await pl.locator(".mkcal .seg button", { hasText: "14:00" }).click();
 ok("시각 눈금을 누르면 보강 시각 칸이 14:00", (await pl.locator("[data-g=plan-pick] input[placeholder='14:00']").first().inputValue()) === "14:00");
+await p.waitForFunction(() => /그 시각/.test(document.querySelector("[data-g=slot]")?.textContent ?? ""), null, { timeout: 8000 }).catch(() => {});
+ok("빈 자리 셈(확정-㉔ · 4단계-3a) — 날짜·시각을 고르면 「그 시각 N명 — … · 막지 않습니다」 또는 「그 시각 비어 있습니다」(보여만 준다)", /그 시각 (\d+명 — .* · 막지 않습니다|비어 있습니다)/.test(await pl.locator("[data-g=slot]").textContent().catch(() => "")), await pl.locator("[data-g=slot]").textContent().catch(() => "없음"));
 await pl.locator(".mdlf button", { hasText: "저장" }).click(); await p.waitForTimeout(1500);
 ok("저장 — 내일 ✕(결석 예정) · 모레 ↻(보강) · 오류 없음", (await markAt(d1)) === "✕" && (await markAt(d2)) === "↻" && (await row.locator("[role=alert]").count()) === 0, `${await markAt(d1)} ${await markAt(d2)}`);
 await pickDay(d1);
@@ -482,6 +484,29 @@ await sc.locator("[data-g=day-row][data-kind=hol] button[data-act=holiday-undo]"
 ok("휴강 무르기 → 칸에서 사라진다(지우지 않고 off)", !(await cellOf(d10).textContent()).includes("🚫"));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-schedule-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
+console.log("■ 반 화면(4단계-3a) — /schedule/classes: + 반 만들기(요일 · 시각 · 이 날부터) → 명단 넣기 → 반 단가 줄(다음 달부터) → 시간표 바꾸기(다음 달 1일부터 → 다음 시간표 알약) → 빼기 → 반 닫기");
+await p.goto(`${APP}/schedule/classes`); await p.waitForLoadState("networkidle").catch(() => {});
+const cb = p.locator("main"); const liveBefore = Number((await cb.locator("[data-g=live-count]").textContent()).replace(/\D/g, ""));
+const W9 = ["일", "월", "화", "수", "목", "금", "토"], dow9 = new Date(`${todayText}T00:00:00Z`).getUTCDay(), wd3 = W9[(dow9 + 3) % 7], wd5 = W9[(dow9 + 5) % 7];   // 오늘·내일·모레를 피한 요일(오늘 화면·02c 걷기에 안 닿게)
+await cb.locator("button[data-act=add-open]").click(); await p.waitForTimeout(200);
+await cb.locator("[data-g=add-form] input[aria-label='반 이름']").fill("zz_새 반"); await cb.locator("[data-g=add-form] [data-g=weekdays] button", { hasText: wd3 }).click();
+await cb.locator("[data-g=add-form] input[aria-label=시작]").fill("16:00"); await cb.locator("[data-g=add-form] input[aria-label=끝]").fill("17:30");
+await cb.locator("[data-g=add-form] button[data-act=schedule-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+const newC = cb.locator("[data-g=class-row]").filter({ hasText: "zz_새 반" });
+ok(`+ 반 만들기(zz_새 반 · ${wd3} 16:00~17:30 · 오늘부터) → 줄 「zz_새 반 · 정규 · ${wd3} 16:00~17:30 · 0명」 · 이 달 회차 N회(시간표에서 세어 나온다) · 반 ${liveBefore + 1}`, (await newC.count()) === 1 && (await newC.locator("[data-g=line]").textContent()) === `zz_새 반 · 정규 · ${wd3} 16:00~17:30 · 0명` && /이 달 \d+회/.test(await newC.locator("[data-g=sessions]").textContent()) && Number((await cb.locator("[data-g=live-count]").textContent()).replace(/\D/g, "")) === liveBefore + 1, (await newC.textContent().catch(() => "줄 없음")).replace(/\s+/g, " ").slice(0, 200));
+await newC.locator("button[data-act=open]").click(); await p.waitForTimeout(300);
+const optS2 = (await newC.locator("select[data-g=member-pick] option").allTextContents()).find((t) => t.startsWith("zz_시험_학생둘"));
+await newC.locator("select[data-g=member-pick]").selectOption({ label: optS2 }); await newC.locator("button[data-act=member-add]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("+ 아이 넣기(학생둘 · 오늘부터) → 명단 1 · 줄 「1명」 · 고르개에서 빠진다", (await newC.locator("[data-g=member]").count()) === 1 && (await newC.locator("[data-g=line]").textContent()).endsWith("1명") && !(await newC.locator("select[data-g=member-pick] option").allTextContents()).some((t) => t.startsWith("zz_시험_학생둘")));
+await newC.locator("input[aria-label=금액]").fill("150000"); await newC.locator("input[aria-label='단가 이 날부터']").fill(`${ymNext}-01`); await newC.locator("button[data-act=fee-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok(`반 단가 150,000 / 달 · ${ymNext}-01부터(fee_rule.class_id — 13 과 같은 표) → 아직 이 달엔 없음`, (await newC.locator("[data-g=fee-edit]").textContent()).includes("단가 없음") || (await newC.locator("[data-g=fee-edit]").textContent()).includes("150,000원 / 달"), (await newC.locator("[data-g=fee-edit] b").textContent()));
+await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] input[aria-label='이 날부터']").fill(`${ymNext}-01`); await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] [data-g=weekdays] button", { hasText: wd5 }).click(); await newC.locator("[data-g=schedule-edit] + [data-g=schedule-form] button[data-act=schedule-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok(`다음 달 1일부터 요일 하나 더(${wd3}·${wd5}) → 「M/1부터 ${wd3}·${wd5} 16:00~17:30」 알약 · 지금 줄은 그대로(옛 회차는 옛 시간표)`, (await newC.locator("[data-g=next-schedule]").textContent()).includes(`${wd3}·${wd5} 16:00~17:30`) && (await newC.locator("[data-g=line]").textContent()).includes(`${wd3} 16:00~17:30`), await newC.locator("[data-g=next-schedule]").textContent().catch(() => "알약 없음"));
+await newC.locator("[data-g=member] button[data-act=member-remove]").click(); await p.waitForFunction(() => /명단에서 뺐습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("빼기 → 명단 0(오늘부터 안 나온다 — 줄은 어제까지로 남는다)", (await newC.locator("[data-g=member]").count()) === 0 && (await newC.locator("[data-g=line]").textContent()).endsWith("0명"));
+p.once("dialog", (dg) => dg.accept()); await newC.locator("button[data-act=close-class]").click(); await p.waitForFunction(() => /반을 닫았습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+await cb.locator("button[data-act=show-closed]").click(); await p.waitForTimeout(200);
+ok(`반 닫기 → 반 ${liveBefore} · 닫은 반에 「zz_새 반」(지우지 않는다 — 시간표·명단·단가 줄을 어제까지로 · 다음 달부터인 단가 줄은 시작일 하루로 — fee_rule 제약)`, Number((await cb.locator("[data-g=live-count]").textContent()).replace(/\D/g, "")) === liveBefore && (await cb.locator("[data-g=closed-class]").allTextContents()).some((t) => t.startsWith("zz_새 반")) && (await cb.locator("[data-g=class-row]").filter({ hasText: "zz_새 반" }).count()) === 0);
 console.log("■ 학사일정 받아오기 12b — 전국·학교별 · 낱말 더하기 · 영어 시험일 · 홈페이지 주소 · 열쇠 없으면 다시 받기 잠김");
 await p.goto(`${APP}/schedule/import`); await p.waitForLoadState("networkidle").catch(() => {});
 const im = p.locator("main");

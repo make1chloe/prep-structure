@@ -20,6 +20,8 @@ const KNOWN = {
   "lib/student.js:resetPassword": "auth 비밀번호 0000 이 먼저 · profiles.must_change_pw 표시가 안 서면 첫 로그인에 안 물을 뿐 — 다시 초기화하면 선다(대전제-12 는 issued_by_app 이 지킨다)",
   "lib/todo.js:dropMaterial": "자료 내림 + 할 일 내림 — sync_material_todos(SQL) 가 다시 맞춘다",
   "lib/todo.js:handOut": "나눠 줌 + 할 일 hand 끝 — 같은 결(sync)",
+  "lib/classes.js:addClass": "반 줄 + 첫 시간표 — 시간표가 안 서면 「시간표 없음」으로 보여 다시 적는다(반은 남는다)",
+  "lib/classes.js:closeClass": "반 닫기 = 상태 + 시간표·명단·단가 줄을 전날까지로 닫기(뒤에 시작하는 줄은 빈 기간으로) — 상태가 먼저 닫혀 화면·회차에서 빠지고, 줄 하나가 안 닫히면 다시 닫으면 선다(지우지 않는다)",
   "lib/warn.js:reflect": "반성문(원본) + 그날 판 항목(보이는 표시) — 항목이 안 서면 3b 카드가 반성문 줄을 원본으로 안다",
 };
 const files = (d) => readdirSync(d).filter((f) => f.endsWith(".js")).map((f) => `${d}/${f}`);
