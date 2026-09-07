@@ -60,6 +60,9 @@ export default async function Parent({ searchParams }) {
       <p className="note k" style={{ margin: "4px 0 0" }}>숙제와 같이 왔습니다. 다음 수업 시작하자마자 봅니다. 개수를 안 정한 시험은 여기 안 옵니다.</p></Card>}
     {can(PARENT.next) && d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
       {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>}
+    {can(PARENT.reports) && d.report && <Card emo="📊" title={d.report.title} id="report" pill={d.report.pill}>
+      <div className="tags" style={{ margin: "0 0 6px" }} data-g="report-lines">{d.report.lines.map((l) => <span className="tag" key={l.key}>{l.text}</span>)}</div>
+      {d.report.body && <div className="li" data-g="report-body"><div><b>원장님 한마디</b><small style={{ whiteSpace: "pre-wrap" }}>{d.report.body}</small></div></div>}</Card>}
     {can(PARENT.reports) && d.fee && <Card emo="💰" title="수강료" id="fee" pill={d.fee.pill} pillCls={d.fee.paid ? "hw" : "warn"}>
       <div className="li" data-g="fee-line" data-paid={d.fee.paid ? "1" : "0"}><div><b>{d.fee.text}</b><small>{d.fee.small}</small></div></div></Card>}
     {can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" pill={d.scores[0].title}>
