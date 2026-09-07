@@ -8,6 +8,8 @@ import { myChildren, parentDay } from "@/lib/parent";
 import { md } from "@/lib/dash-plan";
 import { childLinks } from "@/lib/files-plan";
 import Upload from "../_shell/upload.js";
+import Photo from "../_shell/photo.js";
+import { myUploads } from "@/lib/files-plan";
 import AskCard from "../_shell/askcard.js";
 import BellCard from "../_shell/bell.js";
 import { ask } from "./actions.js";
@@ -32,6 +34,7 @@ export default async function Parent({ searchParams }) {
   const anyCard = [PARENT.sent, PARENT.recent, PARENT.homework, PARENT.next, PARENT.intro, PARENT.files].some(can);
   const fl = childLinks(d.links, date, d.rules?.["file.child_days"]), sentFiles = [...fl.pending, ...fl.past];   // 📎 아이 숙제에 붙은 것(마감한 판만 · 1달 안)
   const kidsForUpload = [d.student, ...kids.filter((k) => k.id !== d.student.id)];
+  const mine = myUploads(d.uploads);   // 📎 내가 보낸 것 — 원장님 답 한 줄(d.sent 는 📨 보낸 것 — 알림 자취)
   return frame(<>
     <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>학부모</b>
       {kids.length > 1 ? <div className="seg sm" data-g="kids">{kids.map((k) => <a key={k.id} className={"btn sm"} aria-pressed={k.id === d.student.id} href={`/parent?s=${k.id}`} style={{ border: 0 }}>{k.name}</a>)}</div> : <span className="pill" data-g="kid">{d.student.name}</span>}
@@ -62,7 +65,9 @@ export default async function Parent({ searchParams }) {
     {can(PARENT.files) && <Card emo="📎" title="자료" id="files" pill={sentFiles.length ? `받은 것 ${sentFiles.length}` : "보내기"}>
       <Upload rules={d.rules} kids={kidsForUpload} label="📷 사진 · 📄 파일 보내기" hint="학교에서 받은 종이(수행평가·시험 안내·가정통신문)를 찍어 보내 주세요 — 원장님만 봅니다" onDone={null} />
       {sentFiles.length > 0 && <div className="hh" style={{ marginTop: 8 }}>아이에게 보낸 자료 · 숙제에 붙은 것</div>}
-      {sentFiles.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="sent-file" data-file={l.file_id}><span className="ln">{l.icon}</span><div><b>{l.name}</b><small>{l.on ? `${md(l.on)} 숙제 · ` : ""}{l.item} · 아이가 {l.seen === "아직" ? "아직 안 봄" : l.seen} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}`} target="_blank" rel="noreferrer">열기</a></div>)}
+      {sentFiles.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="sent-file" data-file={l.file_id}>{/^image\//.test(l.file?.mime ?? "") ? <Photo id={l.file_id} name={l.name} /> : <span className="ln">{l.icon}</span>}<div><b>{l.name}</b><small>{l.on ? `${md(l.on)} 숙제 · ` : ""}{l.item} · 아이가 {l.seen === "아직" ? "아직 안 봄" : l.seen} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}`} target="_blank" rel="noreferrer">열기</a></div>)}
+      {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
+      {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}<div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.kid ? ` · ${f.kid}` : ""}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
       {fl.hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{fl.hidden}개는 1달이 지나 안 보입니다</p>}
     </Card>}
     {can(PARENT.recent) && <a className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></a>}

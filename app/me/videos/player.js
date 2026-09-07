@@ -3,11 +3,12 @@
  *  임베드가 막혔거나 유튜브에 못 닿으면 6초 안에 「유튜브에서 보기」로 정직하게 말한다(대전제-0) */
 import { useEffect, useRef, useState } from "react";
 import { span as spanAct, duration as durationAct } from "../actions.js";
-import { stepSpan, mmss } from "@/lib/video-plan";
+import { stepSpan, mmss, segments } from "@/lib/video-plan";
 export default function Player({ row }) {
-  const [ready, setReady] = useState(false); const [fail, setFail] = useState(false); const [pos, setPos] = useState(row.lastPos || 0); const [dur, setDur] = useState(row.video?.seconds || 0); const [pct, setPct] = useState(row.pct); const [secs, setSecs] = useState(row.secs || 0);
+  const [ready, setReady] = useState(false); const [fail, setFail] = useState(false); const [pos, setPos] = useState(row.lastPos || 0); const [dur, setDur] = useState(row.video?.seconds || 0); const [pct, setPct] = useState(row.pct); const [secs, setSecs] = useState(row.secs || 0); const [spans, setSpans] = useState(row.spans ?? []);
   const st = useRef({ from: null, to: null }); const yt = useRef(null); const el = useRef(null); const readyRef = useRef(false);
-  const flush = async (s, t) => { const r = await spanAct(row.video_id, s.from, s.to, t); if (r.ok && r.r) { setPct(r.r.pct); setSecs(r.r.secs); } };
+  const flush = async (s, t) => { const r = await spanAct(row.video_id, s.from, s.to, t); if (r.ok && r.r) { setPct(r.r.pct); setSecs(r.r.secs); if (Array.isArray(r.r.spans)) setSpans(r.r.spans); } };
+  const bar = segments(spans, dur, pos);
   useEffect(() => {
     let gone = false;
     const boot = () => { if (gone || !el.current) return; try {
@@ -28,6 +29,7 @@ export default function Player({ row }) {
         {!fail && <div ref={el} style={{ width: "100%", height: "100%" }} />}
         {fail && <div className="lf warn" data-g="player-fail" style={{ margin: 8 }}><span className="ln">!</span><div><b>앱 안에서 못 틀어요</b><small>임베드가 막혔거나 유튜브에 못 닿았어요 — 이 영상은 유튜브로 나가는 수밖에 없어요(그러면 본 구간은 안 세요)</small></div><a className="btn sm pri" href={row.video?.url} target="_blank" rel="noreferrer">유튜브에서 보기 ↗</a></div>}
       </div>
+      <div className="vbar" data-g="vbar" style={{ marginTop: 10 }}>{bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{bar.head != null && <div className="vhead" style={{ left: `${bar.head}%` }} />}</div>
       <div className="vinfo" style={{ marginTop: 6 }}><span data-g="pstate">{fail ? "밖에서 봐요" : ready ? "▶︎ 재생 준비" : "불러오는 중…"}</span><span className="spacer" /><span className="mono" data-g="clock">{mmss(pos)} / {dur ? mmss(dur) : "?:??"}</span></div>
       <p className="note k" style={{ margin: "4px 0 0" }}>건너뛴 구간은 <b>안 센 구간</b>이에요 · 화면을 끄거나 앱을 바꾸면 재생이 멎어요 · 「몇 %」는 대략이에요</p>
     </div>

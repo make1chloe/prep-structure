@@ -65,7 +65,7 @@ export default async function Me() {
     </>}
     <ScoreCard scores={d.scores} entry={d.entry} />
     {can(ME.books) && <MaterialCard gives={d.gives} today={date} />}
-    {can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} />}
+    {can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} sent={d.uploads} />}
     {can(ME.books) && d.videos.length > 0 && <a className="task" href="/me/videos" data-card="videos" style={{ display: "block", textDecoration: "none", color: "inherit", borderStyle: videosLeft ? undefined : "dashed" }}><div className="h"><b><span className="cemo">🎬</span>영상</b><span className="spacer" /><span className={"pill" + (videosLeft ? " warn" : " hw")} data-g="videos-left">{videosLeft ? `${videosLeft}개 남음` : "다 봤어요"}</span></div>
       {d.videos.slice(0, 3).map((v) => <div className="li" key={v.id} data-g="video-line"><div><b>{v.video?.title}</b><small>{[v.due || null, v.status.key === "part" ? "보다 맒" : null].filter(Boolean).join(" · ") || "앱 안에서 봐요"}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
       <p className="note" style={{ margin: "4px 0 0" }}>앱 안에서 봐요 · 지나간 구간만 세요 · 열기 ↗</p></a>}

@@ -2,10 +2,15 @@
 /** 자료함 판(목업 20) — 머리(📥 안 본 것 · 받은 것/보낸 것 · 📤 보내기) · 방금 온 것(갈래만 고른다 — 학교·학년·학기는 저절로) · 갈래별 칸(학교·학년마다 · 🧑‍🎓 아이별) · 묶음 열기(⭐ 가장 또렷 · 열기 · 갈래 옮기기) · 보낸 것(붙인 자리 · 아이가 처리했나 N/M) · 📤 보내기 모달(아이 → 마지막 판의 숙제 줄 → 파일) · 정한 것. 세는 것은 화면이 센다(원칙-5) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { sortAct } from "./actions.js";
-import { inboxRows, columns, sharpest, sentRows, counts, sendTargets, whoText, icon, sizeText } from "@/lib/files-plan";
+import { sortAct, replyAct } from "./actions.js";
+import Photo from "../../_shell/photo.js";
+import { inboxRows, columns, sharpest, sentRows, counts, sendTargets, whoText, icon, sizeText, isImage, replyText } from "@/lib/files-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
 import Upload from "../../_shell/upload.js";
+/** ② 원장님 답 한 줄 — 손 떼면 저장. 비우면 자동 답 자리로(갈래를 고르면 다시 채워진다) */
+function Reply({ f, pending, run }) {
+  return <input type="text" defaultValue={f.reply ?? ""} placeholder={f.reply ? "" : "아이·학부모에게 답 한 줄(갈래를 고르면 저절로)"} aria-label={`${f.orig_name} 답`} data-g="reply" disabled={pending} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (f.reply ?? "")) run(() => replyAct(f.id, e.target.value), "답을 적었습니다 — 보낸 사람 화면에 뜹니다"); }} style={{ flex: "1 1 220px" }} />;
+}
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, kinds = b.kinds ?? [], rules = b.rules ?? {}, days = Number(rules["file.child_days"] ?? 30);
@@ -14,7 +19,7 @@ export default function Board({ d }) {
   const inbox = inboxRows(b.inbox), cols = columns(b.bins), sent = sentRows(b.sent), c = counts(b);
   const openCard = open ? cols.flatMap((x) => x.cards).find((x) => (x.bin?.id ?? x.title) === open) : null; const star = openCard ? sharpest(openCard.files) : null;
   const tg = sendTargets(b.students, sid);
-  const FileRow = ({ f, bin }) => <div className="lf" data-g="bin-file" data-file={f.id}><span className="ln">{icon(f.mime)}</span><div><b>{star === f.id ? "⭐ " : ""}{f.orig_name}</b><small>{whoText(f)} · {md(seoulDate(f.uploaded_at))} · {sizeText(f.bytes)}{star === f.id ? " · 가장 또렷" : ""}{f.note ? ` · 💬 「${f.note}」` : ""}</small></div>
+  const FileRow = ({ f, bin }) => <div className="lf" data-g="bin-file" data-file={f.id}>{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{icon(f.mime)}</span>}<div><b>{star === f.id ? "⭐ " : ""}{f.orig_name}</b><small>{whoText(f)} · {md(seoulDate(f.uploaded_at))} · {sizeText(f.bytes)}{star === f.id ? " · 가장 또렷" : ""}{f.note ? ` · 💬 「${f.note}」` : ""}</small>{f.by_role !== "principal" && f.by_role !== "instructor" && f.by_role !== "assistant" && <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div>}</div>
     <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a>
     {bin && <select value={bin.kind} aria-label={`${f.orig_name} 갈래 옮기기`} disabled={pending} data-g="move" onChange={(e) => run(() => sortAct(f.id, e.target.value), `${e.target.value} 로 옮겼습니다`, () => setOpen(null))} style={{ width: "auto" }}>{kinds.map((k) => <option key={k} value={k}>{k}</option>)}</select>}</div>;
   return <>
@@ -31,8 +36,8 @@ export default function Board({ d }) {
         <div className="exh"><span className="ai">📥</span><b>방금 온 것 — 갈래만 골라 주세요</b><span className="tag act" data-g="inbox-n">{inbox.length}</span><span className="spacer" /><span className="pill">학교·학년·학기는 <b>아이에게서 저절로</b> 붙습니다</span></div>
         <div className="left">
           {!inbox.length && <p className="note" style={{ margin: "8px 0 0" }}>방금 온 것이 없습니다 — 아이·학부모가 찍어 보내면 여기 뜹니다</p>}
-          {inbox.map((f) => <div className="lf" key={f.id} data-g="inbox-row" data-file={f.id}><span className="ln">{f.icon}</span>
-            <div><b>{f.who} — {f.orig_name}</b><small>{f.when} · {f.note ? <><i className="ic">💬</i> 「{f.note}」 · </> : null}{f.size}{f.shrunk ? " · 줄임" : ""} · {f.tag}</small></div>
+          {inbox.map((f) => <div className="lf" key={f.id} data-g="inbox-row" data-file={f.id}>{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
+            <div><b>{f.who} — {f.orig_name}</b><small>{f.when} · {f.note ? <><i className="ic">💬</i> 「{f.note}」 · </> : null}{f.size}{f.shrunk ? " · 줄임" : ""} · {f.tag}</small><div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div></div>
             <div className="seg sm" data-g="kind">{kinds.map((k) => <button key={k} type="button" aria-pressed={false} disabled={pending} onClick={() => run(() => sortAct(f.id, k), `「${k}」 로 넣었습니다`)}>{k}</button>)}</div>
             <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a></div>)}
         </div>

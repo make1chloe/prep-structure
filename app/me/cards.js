@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { arrive, said, stage as setStageAct, due as setDueAct, submitScore, seen as seenAct } from "./actions.js";
 import Upload from "../_shell/upload.js";
+import Photo from "../_shell/photo.js";
+import { myUploads } from "@/lib/files-plan";
 import { md } from "@/lib/dash-plan";
 import { STAGES, dueText, dueBad } from "@/lib/material-plan";
 import { STEPS, LEAVE } from "@/lib/arrival-plan";
@@ -93,7 +95,7 @@ export function AttachLines({ links = [] }) {
   if (!links.length) return null;
   const mark = (l, how) => start(async () => { setErr(""); const r = await seenAct(l.file_id, l.day_item_id, how); if (!r.ok) { setErr(r.msg); return; } router.refresh(); });
   return (<>
-    {links.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="attach" data-file={l.file_id} style={{ marginTop: 4 }}><span className="ln">{l.icon}</span>
+    {links.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="attach" data-file={l.file_id} style={{ marginTop: 4 }}>{/^image\//.test(l.file?.mime ?? "") ? <Photo id={l.file_id} name={l.name} /> : <span className="ln">{l.icon}</span>}
       <div><b>📎 {l.name}</b><small>{l.size}{l.file?.note ? ` · 💬 ${l.file.note}` : ""} · {l.until}까지 보여요</small></div>
       <a className="btn sm pri" href={`/api/files/${l.file_id}?dl=1`} data-act="save" onClick={() => mark(l, "saved")}>💾 저장</a>
       <button type="button" className="btn sm" data-act="skip" disabled={pending} onClick={() => mark(l, "skip")}>✓ 안 보기</button></div>)}
@@ -101,12 +103,15 @@ export function AttachLines({ links = [] }) {
   </>);
 }
 /** 📎 자료 — 사진 보내기(학교 종이를 찍어 원장님께 · 원장님만 본다) · 지난 것 보기(1달 안에 처리한 붙임) · 1달 지난 것은 개수만 */
-export function FilesCard({ past = [], hidden = 0, rules = {} }) {
-  const router = useRouter();
+export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [] }) {
+  const router = useRouter(); const mine = myUploads(sent);
   return (
     <div className="task" data-card="files">
-      <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : "보내기"}</span></div>
+      <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : mine.length ? `보낸 것 ${mine.length}` : "보내기"}</span></div>
       <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="학교에서 받은 종이를 찍어 보내면 원장님만 봐요" compact onDone={() => router.refresh()} />
+      {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
+      {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"} style={{ marginTop: 4 }}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
+        <div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
       {past.length > 0 && <details style={{ marginTop: 8 }} data-g="past"><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>지난 것 보기 <b>{past.length}</b><span className="spacer" /><span className="tag on">1달간</span></summary>
         {past.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="past-row" data-file={l.file_id}><span className="ln">{l.icon}</span><div><b>{l.name}</b><small>{l.seen}{l.on ? ` · ${md(l.on)} 숙제` : ""}{l.item ? ` · ${l.item}` : ""} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}?dl=1`}>⬇</a></div>)}</details>}
       {hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{hidden}개는 1달이 지나 안 보여요 — 원장님 자료함에는 그대로 있어요</p>}
