@@ -1,5 +1,6 @@
 /** 문서 숫자 검사(대전제-0 「숫자는 센 것만 쓴다 · 어디서 셌는지 밝힌다」 · 2026-09-07 개발자 지적) — docs/개발자-인수인계.md 「한 장 요약」의 숫자를 그 「근거」 칸에 적힌 셈법 그대로 다시 세어 대조한다. 문서가 코드보다 늦으면 빨개진다.
  *  글자로 셀 수 있는 것만 센다: 마이그레이션 파일 · 0100~ 개수 · 판(*_board 이름 — 다시 낸 것은 하나로) · lib 모듈(판단/손) · 화면·주소 · 검사 종 · 규칙(「지킴:」 줄 · 「지킴: —」) · 목업 화면 수(목업 h2 · README · 인수인계 · check-mockup 주석 — 넷이 같아야 한다) · 4절 머리의 모듈 수.
+ *  본문의 「0100~NNNN」 범위는 어디에 적혔든 마지막 번호여야 한다(3절 붙여넣기 · 7절 답 · 9절 체크리스트 — 요약만 고치고 본문을 안 고친 채 나간 일이 있었다).
  *  DB·눌러보기 숫자(함수·정책 · 통과/실패 · 걷기)는 여기서 못 세므로 **건너뜀**으로 센다(초록이 아니다 — check-all 과 게이트가 그 자리를 맡는다).
  *  쓰기: node scripts/check-doc-numbers.mjs [인수인계 경로] — 경로를 주면 그 파일을 본다(일부러 틀린 사본으로 빨개지는 것을 보일 때) */
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -34,6 +35,9 @@ if ((v = grab(/\| 규칙 \| \*\*(\d+)\*\*/, "규칙"))) ok(`규칙 ${v[0]}(규�
 if ((v = grab(/「지킴: —」 \*\*(\d+)\*\*/, "지킴: —"))) ok(`「지킴: —」 ${v[0]}`, v[0] === dash, `실측 ${dash}`);
 if ((v = grab(/\| 목업 \| (\d+)화면/, "목업"))) ok(`목업 ${v[0]}화면(인수인계)`, v[0] === screens, `실측 ${screens}(section id=s…)`);
 if ((v = grab(/## 4\. 판단은 `lib\/` 한 곳 — 모듈 (\d+)/, "4절 머리"))) ok(`4절 머리 「모듈 ${v[0]}」`, v[0] === libs.length, `실측 ${libs.length}`);
+console.log("■ 인수인계 본문 — 「0100~NNNN」 은 어디에 적혔든 마지막 번호다(한 장 요약만 고치고 3절·7절·9절을 안 고친 채 나간 일 — 2026-09-07)");
+const ranges = [...doc.matchAll(/0100~\*{0,2}(0\d{3})/g)].map((m) => m[1]), stale = ranges.filter((x) => x !== last01);
+ok(`인수인계의 「0100~NNNN」 ${ranges.length}곳 모두 ${last01}`, ranges.length > 0 && stale.length === 0, stale.length ? `낡은 것 ${stale.length}곳: ${stale.join(" ")}` : "한 곳도 없음");
 console.log("■ 목업 화면 수 — 넷이 같아야 한다(목업 h2 · README · check-mockup 주석 · 인수인계)");
 const h2 = /<h2><span class="hemo">🔎<\/span>[^<]*— 화면 (\d+)개<\/h2>/.exec(mock), rd = /(\d+)화면\(s0~s\d+\)/.exec(readme), cm = /목업 (\d+)화면/.exec(chk);
 ok(`목업 h2 「화면 ${h2?.[1] ?? "?"}개」 · README ${rd?.[1] ?? "?"}화면 · check-mockup 주석 ${cm?.[1] ?? "?"}화면 = ${screens}`, Number(h2?.[1]) === screens && Number(rd?.[1]) === screens && Number(cm?.[1]) === screens, `실측 ${screens}`);
