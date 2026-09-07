@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -85,6 +85,16 @@ console.log("■ 줄이기 숫자 「그대로 N · 필수만 M」 · 📣 오�
   const h = heavyBand(sheet, 10, books);
   ok("쪽수 — b1 3+1(같은 소단원은 한 번) · b2 10 = 14쪽 > 10 → 띠 「오늘 좀 많습니다 — 합쳐 14쪽」 · 「보통 10쪽쯤입니다 · 독해책가 10쪽」 · top 은 독해책", h && h.total === 14 && h.title === "오늘 좀 많습니다 — 합쳐 14쪽" && h.small === "보통 10쪽쯤입니다 · 독해책가 10쪽" && h.top.book_id === "b2", JSON.stringify(h));
   ok("문턱 안이면 없음(14 ≤ 14) · 문턱 0 이면 없음 · 뺀 줄(off)은 안 센다", heavyBand(sheet, 14, books) === null && heavyBand(sheet, 0, books) === null && heavyBand({ class: [], home: [it(4, "home", "i3", u3, false, true)] }, 1, books) === null);
+}
+console.log("■ 교재 예외(4단계-5) — 교재 줄 › 아이 영역 줄 › 학원 영역 줄 · 살아 있는 줄만 · 뺀 것");
+{
+  const areaL = [L("a1", "구두", "class", true, 1), L("a2", "문장", "both", true, 2), L("a4", "워크북", "home", true, 4)];
+  const mineL = [L("s1", "문장", "home", true, 1), L("s2", "구두", "class", true, 2)];
+  const bookL = [L("k1", "워크북", "home", true, 1, { gate_prev: true }), L("k2", "문장", "both", true, 2), L("k3", "구두", "class", true, 3, { state: "retired" })];
+  const r0 = resolveLines(areaL, [], []), r1 = resolveLines(areaL, mineL, []), r2 = resolveLines(areaL, mineL, bookL), r3 = resolveLines(areaL, mineL, [bookL[2]]);
+  ok("아이 줄도 교재 줄도 없으면 학원 영역 줄(source area) · 아이 줄이 있으면 그것(student) · 교재 줄이 살아 있으면 그것만(book — 내린 교재 줄 k3 은 빠진다) · 교재 줄이 전부 내려졌으면 아이 줄로 돌아간다", r0.source === "area" && r0.lines.map((l) => l.id).join() === "a1,a2,a4" && r1.source === "student" && r1.lines.map((l) => l.id).join() === "s1,s2" && r2.source === "book" && r2.lines.map((l) => l.id).join() === "k1,k2" && r2.lines[0].gate_prev === true && r3.source === "student", JSON.stringify([r0.source, r1.source, r2.source, r3.source]));
+  const b0 = bookView(areaL, mineL, []), b1 = bookView(areaL, mineL, bookL), b2 = bookView(areaL, [], bookL);
+  ok("11 교재 칸 — 교재 줄이 없으면 바탕(아이 영역 줄) 그대로 · 있으면 「이 교재만 고침」 + 뺀 것 = 바탕 중 교재 줄에 없는 항목(바탕이 아이 줄이면 없음 · 학원 줄이면 없음 — 워크북·문장·구두가 다 있다)", b0.custom === false && b0.lines.map((l) => l.id).join() === "s1,s2" && b1.custom === true && b1.lines.map((l) => l.id).join() === "k1,k2" && b1.removed.map((l) => l.name).join() === "구두" && b2.custom === true && b2.removed.map((l) => l.name).join() === "구두", JSON.stringify([b0.lines.map((l) => l.id), b1.removed.map((l) => l.name), b2.removed.map((l) => l.name)]));
 }
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
