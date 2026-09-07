@@ -1,6 +1,6 @@
 import { Client } from "pg"; import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
-export const sha = (f) => createHash("sha256").update(readFileSync("supabase/migrations/"+f)).digest("hex").slice(0,16);
+export { sha } from "./_sha.mjs";                 // 지문은 _sha.mjs 한 곳에서만 센다(원칙-1)
+import { sha } from "./_sha.mjs";
 const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString:url, ssl:{rejectUnauthorized:false}, connectionTimeoutMillis:15000 });
 for(let i=1;;i++){try{await c.connect();break}catch(e){if(i>=4)throw e;await new Promise(r=>setTimeout(r,3000))}}
