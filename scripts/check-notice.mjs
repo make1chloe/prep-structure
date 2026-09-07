@@ -1,0 +1,25 @@
+/** 📢 공지 · 카드 순서 · 영상 폴더 판단 검사(4단계-6) — lib/notice-plan.js(양식 읽기 · 받는 쪽 글 · 상태 글 · 보낼 수 있나 · 07·09 카드 줄 · 안 읽은 것) · lib/pref-plan.js(저장한 차례가 앞, 모르는 카드는 기본 차례 · ▲▼ · 양식 읽기) · lib/video-plan.js(폴더로 묶기 · 폴더 목록). DB 없이 돈다 */
+import { parseNotice, targetText, statusText, sendable, counts, noticeLines, unreadIds, TO_ROLE } from "../lib/notice-plan.js";
+import { orderCards, moveId, parseLayout, SCREENS } from "../lib/pref-plan.js";
+import { groupByFolder, folders } from "../lib/video-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const J = (x) => JSON.stringify(x);
+const throws = (f) => { try { f(); return false; } catch { return true; } };
+console.log("■ 공지 — 양식 · 받는 쪽 · 상태 · 보낼 수 있나");
+ok("양식 — 제목은 다듬고 · 본문 비면 null · 받는 쪽 기본 both · 반·학교 비면 null · 울림 기본 켬", J(parseNotice({ title: " 10월 휴강 안내 ", body: "", class_id: "", school_id: "" })) === J({ title: "10월 휴강 안내", body: null, to_role: "both", class_id: null, school_id: null, ring: true }), J(parseNotice({ title: " 10월 휴강 안내 " })));
+ok("막는 것 — 빈 제목 · 81자 제목 · 모르는 받는 쪽 · 받는 쪽 셋", throws(() => parseNotice({ title: "" })) && throws(() => parseNotice({ title: "가".repeat(81) })) && throws(() => parseNotice({ title: "x", to_role: "teacher" })) && TO_ROLE.length === 3);
+ok("받는 쪽 글 — 「학생·학부모 · 전체」 · 「학부모 · 반 월수 5시」 · 「학생 · 반 A · 학교 신정중」", targetText({ to_role: "both" }) === "학생·학부모 · 전체" && targetText({ to_role: "parent", class: "월수 5시" }) === "학부모 · 반 월수 5시" && targetText({ to_role: "student", class: "A", school: "신정중" }) === "학생 · 반 A · 학교 신정중", targetText({ to_role: "parent", class: "월수 5시" }));
+ok("상태 글 — 안 보냄(📎 2) · 보냄 M/D · 읽음 3/12 · 📎 1 — 보낼 수 있는 것은 안 보낸 것만", statusText({ files: [{}, {}] }) === "안 보냄 · 📎 2" && statusText({ sent_at: "2026-09-07T03:00:00Z", reads: 3, targets: 12, files: [{}] }) === "보냄 9/7 · 읽음 3/12 · 📎 1" && sendable({ id: "n1" }) === true && sendable({ id: "n1", sent_at: "x" }) === false && J(counts([{ sent_at: "x" }, {}])) === J({ total: 2, unsent: 1, sent: 1 }), statusText({ sent_at: "2026-09-07T03:00:00Z", reads: 3, targets: 12, files: [{}] }));
+const lines = noticeLines([{ id: "a", title: "휴강", body: "10/3", sent_at: "2026-09-07T03:00:00Z", class: "월수", files: [{ id: "f1", orig_name: "달력.png" }], read_at: null }, { id: "b", title: "준비물", sent_at: "2026-09-06T03:00:00Z", read_at: "2026-09-06T04:00:00Z", files: [] }]);
+ok("07·09 카드 줄 — 「9/7 · 반 월수」 · 📎 1 · 안 읽음 / 「9/6 · 전체」 읽음 · 안 읽은 것 [a]", lines[0].small === "9/7 · 반 월수" && lines[0].files.length === 1 && lines[0].unread === true && lines[1].small === "9/6 · 전체" && lines[1].unread === false && J(unreadIds(lines)) === J(["a"]), J(lines.map((l) => [l.small, l.unread])));
+console.log("■ 카드 순서(확정-⑮) — 저장한 차례가 앞 · 모르는 카드는 기본 차례 · ▲▼ · 양식");
+const cards = ["todo", "due", "quiz", "books", "memo"].map((id) => ({ id }));
+ok("저장 [memo, quiz] → memo · quiz · todo · due · books(나머지는 기본 차례 그대로) · 저장 없음이면 기본 차례 · 모르는 id 는 무시", orderCards(cards, { order: ["memo", "quiz"] }).map((c) => c.id).join() === "memo,quiz,todo,due,books" && orderCards(cards, null).map((c) => c.id).join() === "todo,due,quiz,books,memo" && orderCards(cards, { order: ["zzz", "books"] }).map((c) => c.id).join() === "books,todo,due,quiz,memo", orderCards(cards, { order: ["memo", "quiz"] }).map((c) => c.id).join());
+ok("▲▼ — 이웃과 맞바꾼다 · 끝에서는 그대로 · 없는 id 는 그대로", moveId(["a", "b", "c"], "b", "up").join() === "b,a,c" && moveId(["a", "b", "c"], "c", "down").join() === "a,b,c" && moveId(["a", "b", "c"], "x", "up").join() === "a,b,c");
+ok("양식 — 글자만 · 겹침 하나로 · 40개까지 · 화면 셋(아이 · 학부모 · 대시보드)", J(parseLayout({ order: ["a", "a", " b ", "", 7] })) === J({ order: ["a", "b", "7"] }) && parseLayout({ order: Array.from({ length: 50 }, (_, i) => `c${i}`) }).order.length === 40 && J(parseLayout({})) === J({ order: [] }) && Object.keys(SCREENS).join() === "me,parent,dash");
+console.log("■ 영상 폴더로 묶기");
+const g = groupByFolder([{ title: "나", folder: "문법" }, { title: "가", folder: "문법" }, { title: "다", folder: null }, { title: "라", folder: " 독해 " }]);
+ok("폴더 이름 차례(독해 · 문법) · 폴더 없는 것은 「폴더 없음」 맨 뒤 · 안에서는 제목 차례(가 · 나) · 폴더 목록 [독해, 문법]", g.map((x) => x.folder).join() === "독해,문법,폴더 없음" && g[1].videos.map((v) => v.title).join() === "가,나" && g[2].empty === true && folders([{ folder: "문법" }, { folder: " 독해 " }, { folder: "" }]).join() === "독해,문법", J(g.map((x) => [x.folder, x.videos.map((v) => v.title)])));
+console.log(`\n■ 공지·카드 순서·영상 폴더 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);
