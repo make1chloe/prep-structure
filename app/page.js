@@ -83,10 +83,13 @@ export default async function Home() {
         <div className="gapr" key={`${g.student_id}|${g.book_id}`} data-gap={g.kind}><span className="gt">{g.at}</span>
           <div className="gn"><b>{g.name} · {g.book}</b><small>{g.text}</small>
             <div className="tags"><span className="tag">{g.tag}</span>{g.areaBooks > 1 && <span className="tag act">이 영역 교재 {g.areaBooks}권이 다 멈춥니다</span>}{g.absent && <span className="tag">오늘 결석 예정</span>}</div></div>
-          {g.kind === "no_units" ? <a className="btn pri sm" href="/today">진도 체크 ↗</a> : <span className="note" style={{ margin: 0 }}>{g.kind === "no_routine" ? "루틴 화면(11)은 아직 — 영역 루틴을 넣으면 저절로 풀립니다" : "교재 화면(13)은 아직"}</span>}
+          {g.kind === "no_units" || g.kind === "cursor_stuck" ? <a className="btn pri sm" href="/today">진도 체크 ↗</a> : <span className="note" style={{ margin: 0 }}>{g.kind === "no_routine" ? "루틴 화면(11)은 아직 — 영역 루틴을 넣으면 저절로 풀립니다" : "교재 화면(13)은 아직"}</span>}
         </div>))}
       <div className="gapok"><span className="gi">✅</span>{d.gaps.length ? <>나머지 <b>{d.summary.ok}명</b>은 오늘 낼 것이 다 차 있습니다</> : <>오늘 <b>{d.people.students}명</b> 모두 낼 것이 차 있습니다</>}<span className="spacer" /><a className="btn sm" href="/today">오늘 수업 열기 ↗</a></div>
     </div>
+    {d.calls.length > 0 && <div className="card warn" style={{ marginBottom: 8 }} data-g="memo-calls"><div className="ctitle"><span className="cemo">✍</span>메모로만 진도가 올라간 교재 <b>{d.calls.length}</b></div>
+      {d.calls.map((c) => <Row key={`${c.student_id}|${c.book_id}`} icon="✍" cls="i-abs" b={`${c.name} · ${c.book}`} small={c.text}><a className="btn sm pri" href="/today">진도 체크 ↗</a></Row>)}
+    </div>}
     <div className="dash">
       {cards.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
     </div>
