@@ -14,7 +14,7 @@ import { ask as askRequest } from "@/lib/request";
 import { studentSubmit } from "@/lib/score";
 import { studentMark, raiseFlag } from "@/lib/road";
 import { markSeen } from "@/lib/files";
-import { markSpan, fillDuration } from "@/lib/video";
+import { markSpan, fillDuration, openVideo } from "@/lib/video";
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/me"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
 async function child() { const w = await guard(); if (w.me?.role !== ROLES.STUDENT) throw new Error("아이 계정만 찍습니다"); return w; }
 /** 걸음을 찍는다(1 핸드폰 · 2 출석 · 3 숙제 · 4 집에 가요). 반이 둘인 날은 아이가 고른 반(classId)으로 */
@@ -53,3 +53,5 @@ export const seen = done(async (fileId, itemId, how) => { const { sb } = await c
 export async function span(videoId, from, to, pos) { try { const { sb } = await child(); return { ok: true, r: await markSpan(sb, String(videoId), Number(from), Number(to), Number(pos)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 /** 🎬 길이를 모르는 영상은 재생기가 처음 알려 준다(비어 있을 때만 — SQL 이 지킨다) */
 export async function duration(videoId, seconds) { try { const { sb } = await child(); return { ok: true, set: await fillDuration(sb, String(videoId), Number(seconds)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+/** 🎬 재생기를 열었다 — 연 횟수 +1(④ 「N번 열어봄」). 다시 그리지 않는다 */
+export async function opened(videoId) { try { const { sb } = await child(); return { ok: true, n: await openVideo(sb, String(videoId)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }

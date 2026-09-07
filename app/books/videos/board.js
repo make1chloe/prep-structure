@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, setAct, assignAct, postponeAct, retireAct, remindAct } from "./actions.js";
-import { statusOf, counts, mmss, dueText } from "@/lib/video-plan";
-import { md } from "@/lib/dash-plan";
+import { statusOf, counts, mmss, dueText, opensText } from "@/lib/video-plan";
+import { md, seoulDate } from "@/lib/dash-plan";
 const fillColor = (s) => (s.key === "done" ? "var(--ok)" : s.key === "part" ? "var(--weak)" : "var(--miss)");
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -19,7 +19,7 @@ export default function Board({ d }) {
         {v.state === "active" ? <button type="button" className="btn sm gho" disabled={pending} data-act="hide" onClick={() => run(() => setAct(v.id, { state: "hidden" }), "내렸습니다(지우지 않습니다)")}>내리기</button> : <button type="button" className="btn sm" disabled={pending} data-act="unhide" onClick={() => run(() => setAct(v.id, { state: "active" }), "되살렸습니다")}>되살리기</button>}</div>
       {!rows.length && <p className="note" style={{ margin: "4px 0" }}>배정한 아이가 없습니다 — + 배정</p>}
       {rows.map((a) => { const s = statusOf(a, cut); return <div className="vrow" key={a.id} data-g="vrow" data-student={a.student_id} data-status={s.key}><span className="vn">{a.student_name}</span><div className="bar"><div className="fill" style={{ width: `${s.key === "done" ? 100 : a.pct ?? 0}%`, background: fillColor(s) }} /></div><span className="bkv" style={{ color: s.key === "none" ? "var(--miss)" : undefined }} data-g="bkv">{s.text}</span>
-        <small className="note" style={{ margin: 0 }}>{a.due_on ? dueText(a.due_on, today) : "마감 없음"}{a.done_at ? ` · ${md(String(a.done_at).slice(0, 10))} 다 봄` : ""}</small><button type="button" className="btn sm gho" disabled={pending} data-act="retire" aria-label={`${a.student_name} 배정 내리기`} onClick={() => run(() => retireAct(a.id), "배정을 내렸습니다")}>✕</button></div>; })}
+        <small className="note" style={{ margin: 0 }}>{a.due_on ? dueText(a.due_on, today) : "마감 없음"}{a.done_at ? ` · ${md(seoulDate(a.done_at))} 다 봄` : ""}{opensText(a.opens) ? ` · ${opensText(a.opens)}` : ""}</small><button type="button" className="btn sm gho" disabled={pending} data-act="retire" aria-label={`${a.student_name} 배정 내리기`} onClick={() => run(() => retireAct(a.id), "배정을 내렸습니다")}>✕</button></div>; })}
       <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }} data-g="vbar">
         <button type="button" className="btn sm" disabled={pending || !c.unwatched} data-act="remind" onClick={() => run(() => remindAct(v.id), (r) => `${r.n}명에게 재촉 — ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`)}>📨 안 본 아이 재촉</button>
         <span className="wv" style={{ gap: 4 }}><input type="date" value={post[v.id] ?? ""} aria-label="미룰 마감" onChange={(e) => setPost({ ...post, [v.id]: e.target.value })} style={{ width: "auto" }} /><button type="button" className="btn sm gho" disabled={pending || !post[v.id] || !rows.length} data-act="postpone" onClick={() => run(() => postponeAct(v.id, post[v.id]), (r) => `마감을 ${md(post[v.id])} 로 — ${r.n}명`)}>마감 미루기</button></span>

@@ -18,6 +18,6 @@ export async function boardColAct(gridId, colId) { return wrap(async () => { con
 export async function rowAddAct(gridId, f) { return wrap(async () => { const { sb } = await staff(); return { id: await addRow(sb, gridId, f ?? {}) }; }); }
 export async function rowMoveAct(gridId, rowId, dir) { return wrap(async () => { const { sb } = await staff(); return moveRow(sb, gridId, rowId, dir); }); }
 export async function rowRetireAct(rowId) { return wrap(async () => { const { sb } = await staff(); await retireRow(sb, rowId); return {}; }); }
-export async function cellAct(rowId, colId, raw) { return wrap(async () => { const { sb } = await staff(); return setCell(sb, rowId, colId, raw); }); }
+export async function cellAct(rowId, colId, raw, seenAt = null) { return wrap(async () => { const { sb } = await staff(); return setCell(sb, rowId, colId, raw, seenAt); }); }   // seenAt: 읽어 둔 고친 때(0-3) — 다르면 덮지 않는다
 export async function watchAct(studentId, note) { return wrap(async () => { const { sb } = await staff(); return setWatch(sb, studentId, note); }); }
 export async function unitsAct(bookId) { return wrap(async () => { const { sb } = await staff(); return { units: await unitsOf(sb, bookId) }; }); }

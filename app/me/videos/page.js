@@ -4,9 +4,9 @@ import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { myStudent } from "@/lib/arrival";
-import { myAssigns, myProgress } from "@/lib/video";
+import { mineBoard } from "@/lib/files";
 import { ruleMap } from "@/lib/rule";
-import { myRows, mmss } from "@/lib/video-plan";
+import { myRows, mmss, nextOf, opensText } from "@/lib/video-plan";
 import Player from "./player.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
@@ -21,18 +21,19 @@ export default async function MyVideos({ searchParams }) {
   let d;
   try {
     const [date, st] = await Promise.all([today(sb), myStudent(sb, user.id)]);
-    const [aR, pR, rules] = await Promise.all([myAssigns(sb, st.id), myProgress(sb, st.id), ruleMap(sb, ["video."])]);
-    const list = myRows(rows(aR, "영상 배정"), rows(pR, "영상 구간"), Number(rules["video.done_pct"] ?? 95), date);
-    d = { date, list, open: list.find((r) => r.video_id === String(sp?.v ?? "")) ?? null };
+    const [mine, rules] = await Promise.all([mineBoard(sb, st.id, date), ruleMap(sb, ["video."])]);   // 📎·🎬 한 판(붙임은 안 쓴다 — 조회 하나)
+    const list = myRows(mine.assigns, mine.progress, Number(rules["video.done_pct"] ?? 95), date);
+    const open = list.find((r) => r.video_id === String(sp?.v ?? "")) ?? null;
+    d = { date, list, open, next: open ? nextOf(list, open.video_id) : null };   // ⑥ 다음 영상(안 본 것 차례)
   } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 영상을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
   const left = d.list.filter((r) => r.status.key !== "done").length;
   return frame(<>
     <div className="wv" style={{ margin: "0 0 4px" }}><a className="btn sm gho" href="/me">← 나</a><b style={{ fontSize: "var(--fs-6)" }}>🎬 영상</b><span className="spacer" /><span className={"pill" + (left ? " warn" : "")} data-g="left">{left ? `${left}개 남음` : d.list.length ? "다 봤어요" : "없음"}</span></div>
-    {d.open && <Player row={d.open} />}
+    {d.open && <Player row={d.open} next={d.next} />}
     {!d.list.length && <div className="task"><div className="h"><b>배정된 영상이 없어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>선생님이 영상을 배정하면 여기 떠요.</p></div>}
     {d.list.map((r) => <div className="task" key={r.id} data-g="video-row" data-video={r.video_id} data-status={r.status.key} style={{ borderStyle: r.status.key === "none" ? "dashed" : undefined }}>
       <div className="h"><b>{r.video?.title}</b><span className="spacer" /><span className={"pill " + r.status.cls} data-g="status">{r.status.text}</span></div>
-      <p className="note k" style={{ margin: "4px 0 0" }}>{[r.video?.folder, r.video?.seconds ? mmss(r.video.seconds) : null, r.due || null].filter(Boolean).join(" · ")}{r.late ? " — 지났어요" : ""}</p>
+      <p className="note k" style={{ margin: "4px 0 0" }}>{[r.video?.folder, r.video?.seconds ? mmss(r.video.seconds) : null, r.due || null, opensText(r.opens) || null].filter(Boolean).join(" · ")}{r.late ? " — 지났어요" : ""}</p>
       {r.bar.parts.length > 0 && <div className="vbar" data-g="vbar" style={{ marginTop: 8 }}>{r.bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{r.bar.head != null && r.status.key !== "done" && <div className="vhead" style={{ left: `${r.bar.head}%` }} />}</div>}
       {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 자리 {mmss(r.lastPos)} · 건너뛴 구간은 <b>안 센 구간</b>이에요</p>}
       <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><a className={"btn sm" + (r.status.key === "done" ? "" : " pri")} href={`/me/videos?v=${r.video_id}`} data-act="open">▶ {r.status.key === "done" ? "다시 보기" : r.lastPos > 0 ? "이어 보기" : "보기"}</a></div>

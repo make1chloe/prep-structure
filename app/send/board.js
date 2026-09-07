@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sendSelected, scheduleSelected, cancelSchedule, resendLog } from "./actions.js";
-import { whenChoices, whenLabel, nowCount, closedCount } from "@/lib/send-plan";
+import { whenChoices, whenLabel, nowCount, closedCount, placeholderRows } from "@/lib/send-plan";
 const Row = ({ icon = null, cls = "", check = null, right = null, children, ...rest }) => (
   <div className={"srow" + (cls ? " " + cls : "")} {...rest}>{check}{icon != null && <span className="si">{icon}</span>}<div className="sn">{children}</div>{right}</div>
 );
@@ -81,6 +81,9 @@ export default function Board({ d }) {
         {d.sent.map((r) => <Row key={r.id} icon={r.status.icon} cls="done" data-g="sent-row" right={r.resendable && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.id), (x) => `다시 보냈습니다 — ${ranText(x.r)}`)}>다시 보내기</button>}><b>{r.name} · {r.what}</b><small>{r.status.text}</small></Row>)}
       </div>
     </div>
+    {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 자리 — 글에 적으면 앱이 채웁니다</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
+      <div className="tags" data-g="placeholders">{placeholderRows(d.placeholders).map((r) => <span key={r.key} className="tag" title={r.text}>{r.tag}</span>)}</div>
+      <p className="note k" style={{ margin: "4px 0 0" }}>{placeholderRows(d.placeholders).slice(0, 4).map((r) => r.text).join(" · ")} … 설명은 표(v2.placeholder)에 있습니다 · 안 채운 자리는 못 나갑니다(뼈대-11)</p></div>}
 
     <div className="savebar sendbar" data-g="sendbar">
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>

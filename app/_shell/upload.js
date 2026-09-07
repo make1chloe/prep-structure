@@ -1,8 +1,8 @@
 "use client";
 /** 📤 올리기 한 벌 — 원장(자료함 보내기) · 아이 · 학부모가 같은 부품. 사진은 폰에서 긴 변을 줄여 보낸다(규칙 file.photo_px) · 한 번에 N장(file.batch_max) · 파일마다 /api/files 한 번(서버가 종류·크기·자격을 본다).
  *  실패는 파일마다 그 자리에서 말한다 — 조용히 빠뜨리지 않는다(대전제-0) */
-import { useRef, useState } from "react";
-import { acceptBatch, checkFile, isImage, shrinkPlan, sizeText } from "@/lib/files-plan";
+import { useEffect, useRef, useState } from "react";
+import { acceptBatch, checkFile, isImage, shrinkPlan, sizeText, pickRows, withoutPick } from "@/lib/files-plan";
 async function shrinkImage(file, maxPx) {
   try {
     const bmp = await createImageBitmap(file);
@@ -15,7 +15,8 @@ async function shrinkImage(file, maxPx) {
   } catch { return { blob: file, shrunk: false, mime: file.type, name: file.name }; }   // 못 읽는 사진(HEIC 등)은 그대로 — 서버가 종류를 본다
 }
 export default function Upload({ rules = {}, studentId = null, kids = null, itemId = null, onDone = null, label = "📷 사진 · 📄 파일 보내기", hint = "학교에서 받은 종이를 찍어 보내면 원장님만 봅니다", compact = false }) {
-  const [files, setFiles] = useState([]); const [note, setNote] = useState(""); const [kid, setKid] = useState(kids?.[0]?.id ?? ""); const [busy, setBusy] = useState(false); const [out, setOut] = useState(null); const ref = useRef(null);
+  const [files, setFiles] = useState([]); const [urls, setUrls] = useState([]);   // ⑦ 고른 사진의 미리보기 주소(지우면 같이 지운다)
+  useEffect(() => { const u = files.map((f) => (isImage(f.type) ? URL.createObjectURL(f) : null)); setUrls(u); return () => u.forEach((x) => x && URL.revokeObjectURL(x)); }, [files]); const [note, setNote] = useState(""); const [kid, setKid] = useState(kids?.[0]?.id ?? ""); const [busy, setBusy] = useState(false); const [out, setOut] = useState(null); const ref = useRef(null);
   const maxPx = Number(rules["file.photo_px"] ?? 1600), batchMax = Number(rules["file.batch_max"] ?? 30), maxMb = Number(rules["file.max_mb"] ?? 4);
   const target = kids ? kid : studentId;
   const go = async () => {
@@ -39,6 +40,7 @@ export default function Upload({ rules = {}, studentId = null, kids = null, item
         {!compact && <input type="text" value={note} placeholder="한 마디 (예: 수행평가 안내문이에요)" aria-label="한 마디" onChange={(e) => setNote(e.target.value)} style={{ flex: "1 1 160px" }} />}
         <button type="button" className="btn sm pri" data-act="upload" disabled={busy || !files.length} onClick={go}>{busy ? "보내는 중…" : `보내기${files.length ? ` ${files.length}장` : ""}`}</button>
       </div>
+      {files.length > 0 && <div className="tags" style={{ marginTop: 8 }} data-g="picks">{pickRows(files).map((r) => <span key={r.i} className="tag" data-g="pick-row" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{r.photo && urls[r.i] ? <img src={urls[r.i]} alt={r.name} style={{ width: 28, height: 28, objectFit: "cover", borderRadius: 4 }} /> : "📄"} {r.name} <small>{r.size}</small><button type="button" className="btn sm gho" data-act="pick-remove" aria-label={`${r.name} 빼기`} onClick={() => setFiles(withoutPick(files, r.i))} style={{ padding: "0 6px" }}>✕</button></span>)}</div>}
       <p className="note k" style={{ margin: "4px 0 0" }}>{hint} · 한 번에 {batchMax}장까지 · 사진은 긴 변 {maxPx}px 로 줄여 보냅니다(pdf·문서는 그대로 · {maxMb}MB 까지){files.length ? ` · 고른 것 ${files.length}장 ${sizeText(files.reduce((n, f) => n + f.size, 0))}` : ""}</p>
       {out && <div className={"lf " + (out.fails.length ? "warn" : "ok")} role={out.fails.length ? "alert" : undefined} data-g="upload-out" style={{ marginTop: 8 }}><span className="ln">{out.fails.length ? "!" : "✓"}</span><div><b>{out.sent ? `${out.sent}장 보냈어요` : "못 보냈어요"}</b>{out.fails.map((f, i) => <small key={i}>{f}</small>)}</div></div>}
     </div>

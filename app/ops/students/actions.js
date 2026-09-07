@@ -9,7 +9,7 @@ import { setStudentShow } from "@/lib/score";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
-export async function setAct(id, f) { return wrap(async () => { const { sb } = await staff(); await setStudent(sb, id, f ?? {}); return {}; }); }
+export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); await setStudent(sb, id, f ?? {}, seenAt); return {}; }); }   // seenAt: 읽어 둔 고친 때(0-3)
 export async function stateAct(id, state, on = null) { return wrap(async () => { const { sb } = await staff(); await setState(sb, id, state, on); return {}; }); }
 export async function classAct(id, classId, fromDate) { return wrap(async () => { const { sb } = await staff(); return setClass(sb, id, classId, fromDate); }); }
 export async function feeAct(id, amount, fromDate) { return wrap(async () => { const { sb } = await staff(); return setFee(sb, id, amount, fromDate); }); }

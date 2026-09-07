@@ -2,13 +2,14 @@
 /** 앱 안 재생기(목업 19 왼쪽) — 유튜브 IFrame API 로 앱 안에서 튼다. 1초마다 자리를 읽어 **지나간 구간만** 잇는다(lib/video-plan stepSpan — 뛰면 새 구간) · 20초마다·멈출 때·떠날 때 서버에 찍는다(video_mark) · 길이를 모르는 영상은 처음 알려 준다.
  *  임베드가 막혔거나 유튜브에 못 닿으면 6초 안에 「유튜브에서 보기」로 정직하게 말한다(대전제-0) */
 import { useEffect, useRef, useState } from "react";
-import { span as spanAct, duration as durationAct } from "../actions.js";
+import { span as spanAct, duration as durationAct, opened as openedAct } from "../actions.js";
 import { stepSpan, mmss, segments } from "@/lib/video-plan";
-export default function Player({ row }) {
+export default function Player({ row, next = null }) {
   const [ready, setReady] = useState(false); const [fail, setFail] = useState(false); const [pos, setPos] = useState(row.lastPos || 0); const [dur, setDur] = useState(row.video?.seconds || 0); const [pct, setPct] = useState(row.pct); const [secs, setSecs] = useState(row.secs || 0); const [spans, setSpans] = useState(row.spans ?? []);
   const st = useRef({ from: null, to: null }); const yt = useRef(null); const el = useRef(null); const readyRef = useRef(false);
   const flush = async (s, t) => { const r = await spanAct(row.video_id, s.from, s.to, t); if (r.ok && r.r) { setPct(r.r.pct); setSecs(r.r.secs); if (Array.isArray(r.r.spans)) setSpans(r.r.spans); } };
   const bar = segments(spans, dur, pos);
+  useEffect(() => { openedAct(row.video_id); }, [row.video_id]);   // ④ 연 횟수 +1 — 재생기를 열 때 한 번
   useEffect(() => {
     let gone = false;
     const boot = () => { if (gone || !el.current) return; try {
@@ -32,6 +33,7 @@ export default function Player({ row }) {
       <div className="vbar" data-g="vbar" style={{ marginTop: 10 }}>{bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{bar.head != null && <div className="vhead" style={{ left: `${bar.head}%` }} />}</div>
       <div className="vinfo" style={{ marginTop: 6 }}><span data-g="pstate">{fail ? "밖에서 봐요" : ready ? "▶︎ 재생 준비" : "불러오는 중…"}</span><span className="spacer" /><span className="mono" data-g="clock">{mmss(pos)} / {dur ? mmss(dur) : "?:??"}</span></div>
       <p className="note k" style={{ margin: "4px 0 0" }}>건너뛴 구간은 <b>안 센 구간</b>이에요 · 화면을 끄거나 앱을 바꾸면 재생이 멎어요 · 「몇 %」는 대략이에요</p>
+      {next && <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><a className={"btn sm" + (pct != null && pct >= 95 ? " pri" : "")} href={`/me/videos?v=${next.video_id}`} data-act="next-video">다음 영상 ▶ {next.video?.title}</a><span className="note k" style={{ margin: 0 }}>{next.due || "마감 없음"}</span></div>}
     </div>
   );
 }

@@ -2,14 +2,15 @@
 /** 내신 자료 판(목업 04) — 회차 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct } from "./actions.js";
-import { treeOf, materialTags, studentRows, reuseRows, todoLine, ddayText } from "@/lib/todo-plan";
+import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct, schoolBookAct } from "./actions.js";
+import { treeOf, materialTags, studentRows, reuseRows, todoLine, ddayText, schoolBooksOf } from "@/lib/todo-plan";
 import { examHead, examOn, groupScopes, mdDot } from "@/lib/exam-plan";
 import { md } from "@/lib/dash-plan";
 const WEAK = { background: "var(--weak-fill)", color: "var(--on-weak)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, e = b.exam, today = d.date;
+  const sbk = schoolBooksOf(b.school_books, e, today);   // 처음-8 학교 교과서(학교 × 학년 × 연도)
   const [add, setAdd] = useState(false); const [f, setF] = useState({ typeId: "", title: "", items: "", studentIds: null }); const [prog, setProg] = useState({}); const [revised, setRevised] = useState({});
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const pick = (id) => { window.location.href = `/schedule/exams/prep?e=${id}`; };
@@ -34,6 +35,9 @@ export default function Board({ d }) {
       {e && <button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAdd(true)}>+ 자료</button>}
       <a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a>
     </div>
+    {e && sbk.applicable && <div className="wv" style={{ marginBottom: 8 }} data-g="school-book"><span className="pill" data-g="school-book-text">📚 {sbk.text}</span>
+      <select value="" aria-label="학교 교과서 더하기" data-g="school-book-pick" disabled={pending} onChange={(x) => x.target.value && run(() => schoolBookAct({ schoolId: e.school_id, grade: e.grade, year: sbk.year, bookId: x.target.value }), "학교 교과서를 적었습니다 — 학교의 속성이라 그 학교 아이 모두에게")} style={{ width: "auto" }}><option value="">+ 교과서 더하기</option>{(b.books ?? []).filter((bk) => !sbk.rows.some((r) => r.bookId === bk.id)).map((bk) => <option key={bk.id} value={bk.id}>{bk.name}</option>)}</select>
+      <span className="note k" style={{ margin: 0 }}>교과서는 학교의 속성(처음-8) — 아이마다 안 적습니다</span></div>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {!e && <p className="note" data-g="empty">회차를 고르면 그 회차의 자료가 섭니다 — 회차와 범위는 🏫 시험 회차에서.</p>}
