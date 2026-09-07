@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, applyBookSheet, undoRun, setUnit, setUnitState } from "@/lib/book";
+import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, applyBookSheet, undoRun, setUnit, setUnitState, moveActivityOrder } from "@/lib/book";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
@@ -13,6 +13,7 @@ export async function setBookAct(id, patch) { return wrap(async () => { const { 
 export async function aliasAct(id, alias) { return wrap(async () => { const { sb } = await staff(); return { added: await addAlias(sb, id, alias) }; }); }
 export async function topicsAct(unitId, ids) { return wrap(async () => { const { sb } = await staff(); return { n: await setUnitTopics(sb, unitId, ids) }; }); }
 export async function unitAct(unitId, f) { return wrap(async () => { const { sb } = await staff(); await setUnit(sb, String(unitId), f); return {}; }); }
+export async function activityMoveAct(bookId, activity, dir) { return wrap(async () => { const { sb } = await staff(); return moveActivityOrder(sb, String(bookId), String(activity), dir === "left" ? "left" : "right"); }); }   // 활동 차례 ◀ ▶((가)-②)
 export async function unitStateAct(unitId, state) { return wrap(async () => { const { sb } = await staff(); await setUnitState(sb, String(unitId), String(state)); return {}; }); }
 export async function addTopicAct(name) { return wrap(async () => { const { sb } = await staff(); return { id: await addTopic(sb, name) }; }); }
 export async function previewAct(formData, modes = {}) {

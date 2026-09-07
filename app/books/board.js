@@ -2,7 +2,7 @@
 /** 교재 판(목업 15) + 엑셀 올리기 모달(15b — 저장 전에 보여준다). 목록(영역 거르기 · 단원 수 · 쓰는 아이) · 고른 교재(교재ID · 영역 · 배정 겹 · 차례 기준 · 단원평가 · 다른 이름 · 활동 차례 · 단원 표 · 문법 분류) · + 교재 · ⬇ 엑셀 · ⬆ 올리기. 세는 것은 화면이 센다(원칙-5) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct } from "./actions.js";
+import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, activityMoveAct } from "./actions.js";
 import { AREA_NAMES, CHUNK, BASIS, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
@@ -14,6 +14,7 @@ export default function Board({ d }) {
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(r); router.refresh(); });
   const q = (bid, area = d.area) => `/books?${[bid ? `b=${bid}` : "", area ? `a=${encodeURIComponent(area)}` : ""].filter(Boolean).join("&")}`;
   const acts = book ? activityOrder(book.units ?? []) : [];
+  const actMsg = (r) => `활동 차례 — ${r.order.join(" → ")} (단원 줄 ${r.moved}개를 다시 세움 · 오늘 학습·진도도 이 차례)`;   // ◀ ▶((가)-②) — 칸이 아니라 줄 차례
   const topicsOf = (uid) => (book?.topics ?? []).filter((t) => t.unit_id === uid);
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
@@ -59,9 +60,11 @@ export default function Board({ d }) {
           <input value={alias} onChange={(x) => setAlias(x.target.value)} placeholder="+ 이름 더하기" aria-label="다른 이름" style={{ width: 160 }} /><button className="btn sm" type="button" disabled={pending || !alias.trim()} data-act="alias-add" onClick={() => run(() => aliasAct(book.id, alias), (r) => (r.added ? "다른 이름을 더했습니다" : "이미 있는 이름입니다"), () => setAlias(""))}>더하기</button>
           <span className="note k" style={{ margin: 0 }}>잇는 것은 언제나 <b>교재ID</b>입니다 — 이름은 어느 것도 다른 것을 덮지 않습니다</span></div>
         <div className="wv" style={{ marginTop: 8 }} data-g="acts"><span className="fl" style={{ margin: 0 }}>활동 차례</span>
-          {acts.map((a, i) => <span key={a} className="wv" style={{ gap: 4 }}>{i > 0 && <span className="uma">→</span>}<span className="tag">{a}</span></span>)}
+          {acts.map((a, i) => <span key={a} className="wv" style={{ gap: 2 }} data-g="act" data-activity={a}>{i > 0 && <span className="uma">→</span>}<span className="tag">{a}</span>
+            <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="act-left" aria-label={`${a} 앞으로`} onClick={() => run(() => activityMoveAct(book.id, a, "left"), actMsg)}>◀</button>
+            <button className="btn sm gho" type="button" disabled={pending || i === acts.length - 1} data-act="act-right" aria-label={`${a} 뒤로`} onClick={() => run(() => activityMoveAct(book.id, a, "right"), actMsg)}>▶</button></span>)}
           {!acts.length && <span className="note" style={{ margin: 0 }}>단원이 없습니다</span>}
-          <span className="note k" style={{ margin: 0 }}>엑셀 줄 순서에서 <b>저절로 나왔습니다</b></span></div>
+          <span className="note k" style={{ margin: 0 }}>엑셀 줄 순서에서 <b>저절로 나왔습니다</b> — ◀ ▶ 로 바꾸면 대단원 안의 단원 줄이 그 차례로 서고, 학습 깔기·진도도 따라갑니다</span></div>
         <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧱</span>단원 · 대 › 중 › 소<span className="spacer" /><span className="tag" data-g="unit-count">{(book.units ?? []).length}단원</span></div>
         <div className="tblwrap"><table data-g="unit-table"><thead><tr><th>대단원</th><th>중단원</th><th>소단원</th><th>활동명</th><th>학습유형</th><th>쪽</th><th>문항</th><th>문법 분류</th><th>손질</th></tr></thead><tbody>
           {(book.units ?? []).map((u) => <tr key={u.id} data-g="unit-row" data-unit={u.id} data-state={u.state} style={u.state === "hidden" ? { opacity: 0.55 } : undefined}><td className="sch">{u.chapter}</td><td>{u.mid ?? "—"}</td><td>{u.sub ?? "—"}</td><td>{u.activity}</td><td><span className={"tag" + (u.is_workbook ? "" : " type")}>{u.is_workbook ? "워크북" : "본책"}</span></td>
