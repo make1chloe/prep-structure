@@ -436,6 +436,19 @@ ok("예약 취소 → 예약된 것 0 · 그 판은 다시 나간 것(지우지 
 ok("뼈대-8 치환 낱말 표 — 발송 화면 「{{ }} 치환 자리」 13개(표 v2.placeholder · 설명·보기는 title) · {{학생명}} · {{학원명}}", (await sm.locator("[data-g=placeholders] .tag").count()) >= 13 && (await sm.locator("[data-g=placeholders]").textContent()).includes("{{학생명}}") && (await sm.locator("[data-g=placeholders]").textContent()).includes("{{학원명}}"), (await sm.locator("[data-card=placeholders]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
 const cr = await p.request.get(APP + "/api/cron"); const cj = cr.ok() ? await cr.json() : {};
 ok("크론 — 학원의 오늘을 받고 한 바퀴(뼈대-9·10) · 손이 다 있어 실패 0", cr.ok() && cj.today === todayText && typeof cj.claimed === "number" && cj.bad === 0, JSON.stringify(cj));
+console.log("■ 월간 리포트(4단계-2b) — /send/monthly: 재원생마다 마감한 판의 숫자 · 한마디(손 떼면 저장) · 📨 보내기(숫자를 굳힌다) → 학부모 📊 카드");
+await p.goto(`${APP}/send/monthly`); await p.waitForLoadState("networkidle").catch(() => {});
+const mr = p.locator("main"), mrow = mr.locator("[data-g=report-row][data-student='99999999-0000-4000-9000-000000000001']");
+ok("머리 「N년 N월 리포트」 · 안 보냄 ≥ 1 · zz_시험_학생 줄은 마감한 판이 있어 「아직 안 보냄」 · 줄에 「출석 N/N회」", /^\d{4}년 \d{1,2}월 리포트$/.test(await mr.locator("[data-g=month]").textContent()) && Number((await mr.locator("[data-g=todo-count]").textContent()).replace(/\D/g, "")) >= 1 && (await mrow.getAttribute("data-state")) === "ready" && /출석 \d+\/\d+회/.test(await mrow.locator("[data-g=lines]").textContent()), (await mrow.textContent().catch(() => "줄 없음")).replace(/\s+/g, " ").slice(0, 200));
+await mrow.locator("textarea").fill("이번 달 간접의문문을 스스로 설명할 만큼 익혔습니다"); await mrow.locator("textarea").blur(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 });
+ok("한마디 — 손을 떼면 「한마디를 적었습니다」", (await mr.locator("[data-g=msg]").textContent()) === "한마디를 적었습니다");
+await mrow.locator("button[data-act=send-one]").click(); await p.waitForFunction(() => /월간 리포트/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 20000 }).catch(() => {}); await p.waitForTimeout(1200);
+ok("📨 보내기 → 「1명에게 월간 리포트 — 🧪 리허설(off)」 · 줄이 「보냄 M/D」로 · 한마디 잠김(학부모가 본 글은 안 고친다)", (await mr.locator("[data-g=msg]").textContent()).startsWith("1명에게 월간 리포트 — 🧪 리허설(off)") && (await mrow.getAttribute("data-state")) === "sent" && /^보냄 \d+\/\d+$/.test(await mrow.locator("[data-g=sent]").textContent()) && (await mrow.locator("textarea").isDisabled()), `${await mr.locator("[data-g=msg]").textContent()} · ${await mrow.getAttribute("data-state")}`);
+{ const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/login"); await cp.fill("#id-parent", "01000000000"); await cp.fill("#pw-parent", "새비밀번호2");
+  await Promise.all([cp.waitForURL((u) => u.pathname === "/parent", { timeout: 15000 }), cp.click("form:has(#id-parent) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("학부모 📊 카드 — 「N년 N월 리포트」 · 「M/D 받음」 · 굳힌 숫자 줄(출석 …) · 「원장님 한마디」 그대로(정책 own_mr — 보낸 것만)", (await cp.locator("[data-card=report]").count()) === 1 && /\d{4}년 \d{1,2}월 리포트/.test(await cp.locator("[data-card=report]").textContent()) && /출석 \d+\/\d+회/.test(await cp.locator("[data-card=report] [data-g=report-lines]").textContent()) && (await cp.locator("[data-card=report] [data-g=report-body]").textContent()).includes("간접의문문을 스스로 설명할 만큼"), (await cp.locator("[data-card=report]").textContent().catch(() => "카드 없음")).replace(/\s+/g, " ").slice(0, 200));
+  await cs.close(); }
 console.log("■ 루틴 11 — + 교재 잇기(맨 끝: 오늘 판에 안 닿게)");
 await p.goto(APP + "/settings/routine?s=99999999-0000-4000-9000-000000000001"); await p.waitForLoadState("networkidle").catch(() => {});
 const rm2 = p.locator("main");

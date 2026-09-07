@@ -1,0 +1,21 @@
+/** 월간 리포트 판단 검사(4단계-2b) — lib/report-plan.js 순수 셈: 달 글 · 줄(있는 것만) · 요약 · 학부모 카드(보낸 것만) · 보낼 줄(안 보낸 + 마감한 날 있음) · 보냄 글 */
+import { isYm, ymLabel, pct, reportLines, reportSummary, reportCard, sendable, sentText } from "../lib/report-plan.js";
+let n = 0, bad = 0;
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const J = (x) => JSON.stringify(x);
+console.log("■ 달 · 비율");
+ok("달 글 — 「2026년 9월」 · 달이 아니면 그대로 · isYm", ymLabel("2026-09") === "2026년 9월" && isYm("2026-13") === false && isYm("2026-09") === true && ymLabel("x") === "x");
+ok("비율 — 11/12 = 92 · 분모 0 이면 null", pct(11, 12) === 92 && pct(0, 0) === null);
+console.log("■ 줄 — 있는 것만(0 은 안 쓴다) · 출석은 늘");
+const num = { att_present: 8, att_total: 9, att_absent: 1, att_late: 2, hw_done: 11, hw_total: 12, word_pass: 3, word_total: 4, ut_pass: 1, ut_total: 1, late_n: 2, warn_count: 0, scores: [{ exam: "2학기 중간", school: "zz_시험_중학교", raw: 92, full: 100, grade: 1, on: "2026-09-12" }] };
+const ls = reportLines(num);
+ok("출석 8/9회 · 결석 1 · 지각 2 / 숙제 11/12 (92%) / 단어시험 통과 3/4 / 단원평가 통과 1/1 / 늦게 간 날 2 / 경고 0 은 안 씀 / 성적 「zz_시험_중학교 2학기 중간 92/100 · 1등급」", ls.map((l) => l.text).join(" | ") === "출석 8/9회 · 결석 1 · 지각 2 | 숙제 11/12 (92%) | 단어시험 통과 3/4 | 단원평가 통과 1/1 | 늦게 간 날 2 | zz_시험_중학교 2학기 중간 92/100 · 1등급", J(ls));
+ok("빈 달 — 「출석 0/0회」 한 줄만", reportLines({}).length === 1 && reportLines({}).at(0).text === "출석 0/0회");
+ok("요약 — 「출석 8/9 · 숙제 92%」 · 검사 없으면 출석만", reportSummary(num) === "출석 8/9 · 숙제 92%" && reportSummary({ att_present: 3, att_total: 3 }) === "출석 3/3");
+console.log("■ 학부모 카드 · 보낼 줄");
+const card = reportCard({ ym: "2026-09", body: " 잘했어요 ", frozen: num, sent_at: "2026-09-30T10:00:00+00:00" });
+ok("보낸 것만 카드 — 「2026년 9월 리포트」 · 「9/30 받음」 · 줄은 굳힌 숫자로 · 한마디는 다듬어서 · 안 보낸 것은 null", card.title === "2026년 9월 리포트" && card.pill === "9/30 받음" && card.lines.length === 6 && card.body === "잘했어요" && reportCard({ ym: "2026-09", sent_at: null }) === null && reportCard(null) === null, J(card));
+const rows = [{ student_id: "a", numbers: { closed_days: 3 }, report: null }, { student_id: "b", numbers: { closed_days: 0 }, report: null }, { student_id: "c", numbers: { closed_days: 2 }, report: { sent_at: "2026-09-30T10:00:00+00:00" } }];
+ok("보낼 줄 — 안 보냈고 마감한 날이 있는 아이만(a) · 보냄 글 「보냄 9/30」 · 「아직 안 보냄」 · 「마감한 날 없음」", sendable(rows).map((r) => r.student_id).join() === "a" && sentText(rows[2]) === "보냄 9/30" && sentText(rows[0]) === "아직 안 보냄" && sentText(rows[1]) === "마감한 날 없음");
+console.log(`\n■ 월간 리포트 검사 ${n}건 · 실패 ${bad}`);
+process.exit(bad ? 1 : 0);
