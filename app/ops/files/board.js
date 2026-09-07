@@ -77,7 +77,7 @@ export default function Board({ d }) {
         <div className="wv"><label className="fl" style={{ margin: 0 }}>누구에게</label><select value={sid} aria-label="누구에게" data-g="send-student" onChange={(e) => { setSid(e.target.value); setItem(""); }} style={{ width: "auto" }}><option value="">아이를 고르세요</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.school ? ` · ${s.school} ${s.grade ?? ""}` : ""}</option>)}</select></div>
         {tg.student && <div className="wv" style={{ marginTop: 8 }}><label className="fl" style={{ margin: 0 }}>어느 숙제에</label>{tg.items.length ? <select value={item} aria-label="어느 숙제에" data-g="send-item" onChange={(e) => setItem(e.target.value)} style={{ width: "auto", maxWidth: 360 }}><option value="">{md(tg.student.sheet.date)} 숙제 줄을 고르세요</option>{tg.items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}</select> : <span className="note" style={{ margin: 0 }} data-g="send-why">{tg.why}</span>}</div>}
         {tg.student && item && <Upload rules={rules} studentId={tg.student.id} itemId={item} label="📎 붙일 파일" hint={`아이 화면의 그 숙제 줄에 📎 로 붙습니다 — 아이가 💾 저장 · ✓ 안 보기로 처리하고 ${days}일 뒤 아이 화면에서 사라집니다(여기엔 그대로)`} onDone={() => router.refresh()} />}
-        {(!tg.student || !item) && <p className="note k" style={{ margin: "8px 0 0" }}>아이 → 숙제 줄을 고르면 파일 칸이 열립니다 · 공지에 붙이기는 공지 화면을 지을 때</p>}
+        {(!tg.student || !item) && <p className="note k" style={{ margin: "8px 0 0" }}>아이 → 숙제 줄을 고르면 파일 칸이 열립니다 · 공지에 붙이기는 <a href="/send/notice" data-act="to-notice">📢 공지 화면</a>에서(자료함의 파일을 골라 붙입니다)</p>}
       </div>
       <div className="mdlf"><span className="spacer" /><button className="btn" type="button" onClick={() => setSend(false)}>닫기</button></div>
     </div></div>}

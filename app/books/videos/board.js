@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, setAct, assignAct, postponeAct, retireAct, remindAct } from "./actions.js";
-import { statusOf, counts, mmss, dueText, opensText } from "@/lib/video-plan";
+import { statusOf, counts, mmss, dueText, opensText, groupByFolder, folders } from "@/lib/video-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
 const fillColor = (s) => (s.key === "done" ? "var(--ok)" : s.key === "part" ? "var(--weak)" : "var(--miss)");
 export default function Board({ d }) {
@@ -40,13 +40,13 @@ export default function Board({ d }) {
     {adding && <div className="card" style={{ marginBottom: 8 }} data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>영상 — 제목 · 유튜브 주소 · 폴더 · 길이(비면 아이 폰이 처음 알려 줍니다)</div><div className="wv">
       <input value={nv.title} onChange={(x) => setNv({ ...nv, title: x.target.value })} placeholder="제목 (예: 간접의문문 정리)" aria-label="제목" style={{ flex: "1 1 200px" }} />
       <input value={nv.url} onChange={(x) => setNv({ ...nv, url: x.target.value })} placeholder="유튜브 주소" aria-label="유튜브 주소" style={{ flex: "1 1 220px" }} />
-      <input value={nv.folder} onChange={(x) => setNv({ ...nv, folder: x.target.value })} placeholder="폴더 (예: 문법)" aria-label="폴더" style={{ width: 140 }} />
+      <input value={nv.folder} onChange={(x) => setNv({ ...nv, folder: x.target.value })} placeholder="폴더 (예: 문법)" aria-label="폴더" list="video-folders" style={{ width: 140 }} />
       <input value={nv.length} onChange={(x) => setNv({ ...nv, length: x.target.value })} placeholder="길이 8:04" aria-label="길이" style={{ width: 100 }} />
       <button className="btn pri sm" type="button" disabled={pending || !nv.title.trim() || !nv.url.trim()} data-act="add-save" onClick={() => run(() => addAct(nv), "영상을 더했습니다 — + 배정으로 아이에게", () => { setAdding(false); setNv({ title: "", url: "", folder: "", length: "" }); })}>저장</button>
-      <button className="btn sm" type="button" onClick={() => setAdding(false)}>닫기</button></div>
+      <button className="btn sm" type="button" onClick={() => setAdding(false)}>닫기</button><datalist id="video-folders">{folders(b.videos ?? []).map((x) => <option key={x} value={x} />)}</datalist></div>
       <p className="note k" style={{ margin: "4px 0 0" }}>앱 안에서 트는 것은 유튜브뿐입니다 · 저작권자가 임베드를 막은 영상은 아이 폰에서 「유튜브에서 보기」로 나갑니다 · 「몇 % 봤나」는 대략치 — 아이를 판단할 숫자가 아닙니다</p></div>}
     {!live.length && <div className="card" data-g="empty"><p className="note" style={{ margin: 0 }}>영상이 없습니다 — + 영상. 영상은 루틴 밖입니다: 못하는 아이에게만 따로 배정합니다</p></div>}
-    {live.map((v) => <Video key={v.id} v={v} />)}
+    {groupByFolder(live).map((g) => <div key={g.folder} data-g="folder" data-folder={g.empty ? "" : g.folder}>{(live.some((v) => String(v.folder ?? "").trim()) || !g.empty) && <div className="hh" style={{ margin: "8px 0 4px" }} data-g="folder-head">📁 {g.folder} <span className="cnt">{g.videos.length}개</span></div>}{g.videos.map((v) => <Video key={v.id} v={v} />)}</div>)}
     {hidden.length > 0 && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm gho" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>내린 영상 {hidden.length}</button></div>}
     {showHidden && hidden.map((v) => <Video key={v.id} v={v} />)}
     <div className="card" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">✅</span>이 화면이 지키는 것</div>

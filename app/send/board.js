@@ -30,7 +30,7 @@ export default function Board({ d }) {
       <span className="pill" data-g="sel-count">선택 {ids.length}건</span>
       <span className={"pill" + (d.sink === "live" ? " hw" : "")} data-g="sink">{d.sink === "live" ? "앱 알림만" : `🧪 리허설(${d.sink}) — 실제로는 안 나감`}</span>
       {d.reach && <span className="pill" data-g="reach">닿는 길 — 학부모 {d.reach.parents}명 · 로그인한 집 {d.reach.signed_in} · 알림 켠 기기 {d.reach.devices}대</span>}
-      <span className="spacer" /><a className="btn sm" href="/send/monthly" data-act="monthly">📊 월간 리포트 ↗</a>
+      <span className="spacer" /><a className="btn sm" href="/send/monthly" data-act="monthly">📊 월간 리포트 ↗</a><a className="btn sm" href="/send/notice" data-act="notice">📢 공지 ↗</a>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}

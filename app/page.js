@@ -9,6 +9,9 @@ import { dateLabel, classLabel, whenText, md } from "@/lib/dash-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { KIND as QKIND } from "@/lib/quiz-plan";
 import { redirect } from "next/navigation";
+import { Fragment } from "react";
+import { orderCards } from "@/lib/pref-plan";
+import CardOrder from "./_shell/cardorder.js";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 const Card = ({ emo, title, id, children }) => <div className="dcard" data-card={id}><div className="ctitle"><span className="cemo">{emo}</span>{title}</div>{children}</div>;
@@ -26,6 +29,38 @@ export default async function Home() {
     return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>대시보드를 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 없다는 말이면 새 앱 마이그레이션(0100~)을 이 DB 에 아직 안 돌린 것입니다 — `docs/미리보기-켜기.md`</p></div>);
   }
   const left = d.undecided, first = d.people.classes[0], unsent = d.late.filter((l) => !l.sent);
+  const cards = orderCards([
+    { id: 'today', name: '오늘 수업', node: <Card emo="📚" title="오늘 수업" id="today">
+        {!d.people.classes.length && <Row icon="·" b="오늘 수업 없음" small="오늘 도는 반이 없습니다" />}
+        {d.people.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <Row key={c.id ?? "makeup"} icon="·" b={classLabel(c)} small={`${c.students.length}명${c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}`}><a className="btn sm" href="/today">열기</a></Row>; })}
+        {d.late.length > 0 && <Row icon="🌙" cls="i-late" b={`늦귀가 예정 ${d.late.length}명`} small={d.late.map((l) => `${l.name} ${l.until}${l.sent ? " · 보냄" : " — 아직 안 보냄"}`).join(" · ")}>{unsent.length > 0 && <span className="tag now">보내야 함 {unsent.length}</span>}</Row>}
+        {d.reflect.length > 0 && <Row icon="⚠️" cls="i-abs" b={`반성문 ${d.reflect.length}명`} small={d.reflect.map((r) => `${r.name} — 이달 경고 ${r.count}회째 · ${dispName(r.disposal)}`).join(" · ")} />}
+      </Card> },
+    { id: 'send', name: '발송', node: <Card emo="📨" title="발송" id="send">
+        <Row icon="📨" cls="i-hw" b={`데일리리포트 ${d.sheets.closed} / ${d.sheets.total}`} small={<>마감한 것만 나갑니다 · <span data-g="unread">안 읽은 집 {d.unread}</span></>}><a className="btn sm" href="/send">발송 ↗</a></Row>
+      </Card> },
+    { id: 'soon', name: '오늘 안', node: <Card emo="🔥" title="오늘 안" id="soon">
+        {!d.unitTodo.length && !d.retests.length && <Row icon="✓" cls="i-ok" b="오늘 안에 할 것 없음" />}
+        {d.unitTodo.map((u) => <Row key={u.id} icon="📝" cls="i-ex" b={`단원평가 출제 · ${u.name}`} small={`${u.topic} ${u.n}문항 · ${md(u.on)} 낼 것`} />)}
+        {d.retests.map((q) => <Row key={q.id} icon="📄" cls="i-ex" b={`${qkind(q.kind)} 재시험 · ${q.name}`} small={`${q.total ?? "?"}개 — 재시험지는 할 일(05)에서`} />)}
+        <Row icon="🗂️" cls="i-cls" b="내 할 일 — 자료 만들기 · 인쇄 · 배부 · 단원평가 출제 · 재시험지 · 성적 받기 · 되풀이" small="표 하나에 보기 둘(표 · 보드)"><a className="btn sm" href="/schedule/todo">열기</a></Row>
+      </Card> },
+    { id: 'ops', name: '안 돌고 있는 것', node: <Card emo="⚠️" title="안 돌고 있는 것" id="ops">
+        <Row icon={d.ops.cc.bad ? "✕" : "✓"} cls={d.ops.cc.bad ? "i-abs" : "i-ok"} b={d.ops.cc.text} small={d.ops.cc.sub} />
+        <Row icon={d.ops.queue.bad ? "✕" : "✓"} cls={d.ops.queue.bad ? "i-abs" : "i-ok"} b={d.ops.queue.text} small={d.ops.queue.sub} />
+      </Card> },
+    { id: 'month', name: '이 달', node: <Card emo="📅" title="이 달" id="month">
+        {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
+        {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><a className="btn sm" href="/today">잡기</a></Row>}
+        {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 — ${e.text}`} />)}
+        {d.exams.missing.length > 0 && <Row icon="📝" cls="i-ex" b={`영어일 없음 — ${d.exams.missing.map((s) => s.name).join(" · ")}`} small="시험(06)에 넣어야 시험전·시험후 루틴이 섭니다" />}
+      </Card> },
+    { id: 'answer', name: '답할 것', node: <Card emo="💬" title="답할 것" id="answer">
+        {!d.requests.length && !d.inquiries.length && <Row icon="✓" cls="i-ok" b="답할 것 없음" />}
+        {d.requests.length > 0 && <Row icon="💬" cls="i-hw" b={`남기실 말 ${d.requests.length}`} small={d.requests.map((r) => `${r.name} · ${whenText(r.at, date)} 「${r.body.slice(0, 40)}」`).join(" · ")} />}
+        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")} />}
+      </Card> },
+  ], d.pref);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref dash · 4단계-6)
   return frame(<>
     <div className="wv" style={{ marginBottom: 8 }}>
       <span className="pill">{dateLabel(date)}</span>
@@ -52,36 +87,8 @@ export default async function Home() {
       <div className="gapok"><span className="gi">✅</span>{d.gaps.length ? <>나머지 <b>{d.summary.ok}명</b>은 오늘 낼 것이 다 차 있습니다</> : <>오늘 <b>{d.people.students}명</b> 모두 낼 것이 차 있습니다</>}<span className="spacer" /><a className="btn sm" href="/today">오늘 수업 열기 ↗</a></div>
     </div>
     <div className="dash">
-      <Card emo="📚" title="오늘 수업" id="today">
-        {!d.people.classes.length && <Row icon="·" b="오늘 수업 없음" small="오늘 도는 반이 없습니다" />}
-        {d.people.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <Row key={c.id ?? "makeup"} icon="·" b={classLabel(c)} small={`${c.students.length}명${c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}`}><a className="btn sm" href="/today">열기</a></Row>; })}
-        {d.late.length > 0 && <Row icon="🌙" cls="i-late" b={`늦귀가 예정 ${d.late.length}명`} small={d.late.map((l) => `${l.name} ${l.until}${l.sent ? " · 보냄" : " — 아직 안 보냄"}`).join(" · ")}>{unsent.length > 0 && <span className="tag now">보내야 함 {unsent.length}</span>}</Row>}
-        {d.reflect.length > 0 && <Row icon="⚠️" cls="i-abs" b={`반성문 ${d.reflect.length}명`} small={d.reflect.map((r) => `${r.name} — 이달 경고 ${r.count}회째 · ${dispName(r.disposal)}`).join(" · ")} />}
-      </Card>
-      <Card emo="📨" title="발송" id="send">
-        <Row icon="📨" cls="i-hw" b={`데일리리포트 ${d.sheets.closed} / ${d.sheets.total}`} small={<>마감한 것만 나갑니다 · <span data-g="unread">안 읽은 집 {d.unread}</span></>}><a className="btn sm" href="/send">발송 ↗</a></Row>
-      </Card>
-      <Card emo="🔥" title="오늘 안" id="soon">
-        {!d.unitTodo.length && !d.retests.length && <Row icon="✓" cls="i-ok" b="오늘 안에 할 것 없음" />}
-        {d.unitTodo.map((u) => <Row key={u.id} icon="📝" cls="i-ex" b={`단원평가 출제 · ${u.name}`} small={`${u.topic} ${u.n}문항 · ${md(u.on)} 낼 것`} />)}
-        {d.retests.map((q) => <Row key={q.id} icon="📄" cls="i-ex" b={`${qkind(q.kind)} 재시험 · ${q.name}`} small={`${q.total ?? "?"}개 — 재시험지는 할 일(05)에서`} />)}
-        <Row icon="🗂️" cls="i-cls" b="내 할 일 — 자료 만들기 · 인쇄 · 배부 · 단원평가 출제 · 재시험지 · 성적 받기 · 되풀이" small="표 하나에 보기 둘(표 · 보드)"><a className="btn sm" href="/schedule/todo">열기</a></Row>
-      </Card>
-      <Card emo="⚠️" title="안 돌고 있는 것" id="ops">
-        <Row icon={d.ops.cc.bad ? "✕" : "✓"} cls={d.ops.cc.bad ? "i-abs" : "i-ok"} b={d.ops.cc.text} small={d.ops.cc.sub} />
-        <Row icon={d.ops.queue.bad ? "✕" : "✓"} cls={d.ops.queue.bad ? "i-abs" : "i-ok"} b={d.ops.queue.text} small={d.ops.queue.sub} />
-      </Card>
-      <Card emo="📅" title="이 달" id="month">
-        {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
-        {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><a className="btn sm" href="/today">잡기</a></Row>}
-        {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 — ${e.text}`} />)}
-        {d.exams.missing.length > 0 && <Row icon="📝" cls="i-ex" b={`영어일 없음 — ${d.exams.missing.map((s) => s.name).join(" · ")}`} small="시험(06)에 넣어야 시험전·시험후 루틴이 섭니다" />}
-      </Card>
-      <Card emo="💬" title="답할 것" id="answer">
-        {!d.requests.length && !d.inquiries.length && <Row icon="✓" cls="i-ok" b="답할 것 없음" />}
-        {d.requests.length > 0 && <Row icon="💬" cls="i-hw" b={`남기실 말 ${d.requests.length}`} small={d.requests.map((r) => `${r.name} · ${whenText(r.at, date)} 「${r.body.slice(0, 40)}」`).join(" · ")} />}
-        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")} />}
-      </Card>
+      {cards.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
     </div>
+    <CardOrder screen="dash" cards={cards.map((c) => ({ id: c.id, name: c.name }))} />
   </>);
 }

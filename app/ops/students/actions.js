@@ -1,6 +1,7 @@
 "use server";
 /** 학생 14 의 손 — 학원 사람만. 판단·쓰기는 lib/student.js 한 벌(+ 학생 · 고치기 · 퇴원·복귀 · 반 · 금액 · 상담 · 형제 · 계정 발급 · 비밀번호 초기화). 계정은 서버 자신(service role)이 auth 에 만든다 */
 import { guard } from "@/lib/session";
+import { attachConsult } from "@/lib/files";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
@@ -13,6 +14,7 @@ export async function setAct(id, f, seenAt = null) { return wrap(async () => { c
 export async function stateAct(id, state, on = null) { return wrap(async () => { const { sb } = await staff(); await setState(sb, id, state, on); return {}; }); }
 export async function classAct(id, classId, fromDate) { return wrap(async () => { const { sb } = await staff(); return setClass(sb, id, classId, fromDate); }); }
 export async function feeAct(id, amount, fromDate) { return wrap(async () => { const { sb } = await staff(); return setFee(sb, id, amount, fromDate); }); }
+export async function consultAttachAct(fileId, consultId) { return wrap(async () => { const { sb } = await staff(); await attachConsult(sb, String(fileId), String(consultId)); return {}; }); }   // 상담에 붙이기(4단계-6)
 export async function consultAct(id, f) { return wrap(async () => { const { sb, user } = await staff(); return { id: await addConsult(sb, { studentId: id, at: f?.at || null, way: f?.way, body: f?.body }, user.id) }; }); }
 export async function siblingAct(id, otherId) { return wrap(async () => { const { sb } = await staff(); return linkSibling(sb, id, otherId); }); }
 export async function showAct(id, show) { return wrap(async () => { const { sb } = await staff(); await setStudentShow(sb, id, show); return {}; }); }
