@@ -45,7 +45,7 @@ export default async function Me() {
         {d.sheet && !d.classSteps.length && !d.sheet.home.length && <p className="note" style={{ margin: "8px 0 0" }}>선생님이 숙제를 검사하면 오늘 학습·숙제가 뜹니다.</p>}
         {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div>{d.classSteps.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} />)}
           {d.sheet.books.filter((b) => b.class_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 — {b.class_memo}</p>)}</>}
-        {d.sheet?.home.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div>{d.sheet.home.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} />} attach={att(it)} />)}
+        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div>{d.homeSteps.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} attach={att(it)} />)}
           {d.sheet.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 — {b.home_memo}</p>)}</>}
       </Card>
       <Card emo="📘" title="오늘 낼 숙제" id="due" pill={String(d.due.length)}>

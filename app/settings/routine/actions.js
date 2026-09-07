@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addItem, editItem, setLine, moveLine, customizeStudent, resetStudent, reviveStudentLine, setBook, assignBook } from "@/lib/routine";
+import { addItem, editItem, setLine, moveLine, customizeStudent, resetStudent, reviveStudentLine, setBook, assignBook, customizeBook, resetBook, endBook } from "@/lib/routine";
 import { parseChecks } from "@/lib/routine-plan";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
@@ -15,4 +15,8 @@ export async function customizeAct(studentId, area) { return wrap(async () => { 
 export async function resetAct(studentId, area) { return wrap(async () => { const { sb } = await staff(); return { n: await resetStudent(sb, studentId, area) }; }); }
 export async function reviveAct(studentId, area, itemId) { return wrap(async () => { const { sb } = await staff(); await reviveStudentLine(sb, studentId, area, itemId); return {}; }); }
 export async function setBookAct(id, patch) { return wrap(async () => { const { sb } = await staff(); await setBook(sb, id, patch); return {}; }); }
-export async function assignBookAct(studentId, bookId) { return wrap(async () => { const { sb } = await staff(); return { id: await assignBook(sb, studentId, bookId, await today(sb)) }; }); }
+export async function assignBookAct(studentId, bookId, date = null) { return wrap(async () => { const { sb } = await staff(); return { id: await assignBook(sb, studentId, bookId, date || await today(sb)) }; }); }   // 시작일을 고른다(비면 오늘)
+export async function bookCustomizeAct(studentId, bookId) { return wrap(async () => { const { sb } = await staff(); return { n: await customizeBook(sb, studentId, bookId) }; }); }
+export async function bookResetAct(studentId, bookId) { return wrap(async () => { const { sb } = await staff(); return { n: await resetBook(sb, studentId, bookId) }; }); }
+export async function bookReviveAct(studentId, area, itemId, bookId) { return wrap(async () => { const { sb } = await staff(); await reviveStudentLine(sb, studentId, area, itemId, bookId); return {}; }); }
+export async function endBookAct(studentBookId) { return wrap(async () => { const { sb } = await staff(); return endBook(sb, studentBookId, await today(sb)); }); }

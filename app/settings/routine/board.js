@@ -2,8 +2,8 @@
 /** 루틴 판(목업 11) — 학원 기본 루틴(영역 일곱) · 아이마다 고른 것 · 교재는 잇기만. 판단은 lib/routine-plan(순수) — 여기는 그린다. 드문 손이라 낙관 갱신 없이 서버 답 뒤에 새로 읽는다 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addItemAct, editItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct } from "./actions.js";
-import { AREAS, PLACE, alive, areaStats, studentAreaView, projectEnd } from "@/lib/routine-plan";
+import { addItemAct, editItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
+import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
 function ItemForm({ init = {}, onSave, onClose, pending, areaPick = null }) {
   const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required) });
@@ -27,7 +27,7 @@ export default function Board({ d }) {
   const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const [adding, setAdding] = useState(null);   // 영역 이름 — + 항목 폼이 열린 영역
   const [editing, setEditing] = useState(null); // 항목 id — ✎ 폼
-  const [bookPick, setBookPick] = useState("");
+  const [bookPick, setBookPick] = useState(""); const [assignDate, setAssignDate] = useState(d.date);   // 잇기 시작일(비면 오늘 — 4단계-5)
   const b = d.board, sid = b.student, student = (b.students ?? []).find((s) => s.id === sid) ?? null;
   const run = (fn, okMsg = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); setAdding(null); setEditing(null); router.refresh(); });
   const linesOf = (area) => (b.area_lines ?? []).filter((l) => l.area === area);
@@ -61,6 +61,7 @@ export default function Board({ d }) {
                   <span className="rn2">{i + 1}</span>
                   <div style={{ flex: "1 1 170px", minWidth: 0 }}><b>{l.name}</b>{l.method && <small>{l.method}{l.checks?.length ? ` · ${l.checks.join(" · ")}` : ""}</small>}</div>
                   <button type="button" className={"tag" + (l.required ? " on" : "")} disabled={pending} data-act="required" aria-pressed={l.required} onClick={() => run(() => setLineAct("area", l.id, { required: !l.required }))}>필수</button>
+                  {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="agate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만(확정-㉒) · 이 영역을 쓰는 아이 전부 · 아이 화면의 숙제 줄" onClick={() => run(() => setLineAct("area", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
                   <Seg value={l.place} disabled={pending} g="place" onPick={(k) => run(() => setLineAct("area", l.id, { place: k }))} />
                   <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
                     <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="up" aria-label="위로" onClick={() => run(() => moveLineAct("area", l.id, "up"))}>▲</button>
@@ -91,7 +92,7 @@ export default function Board({ d }) {
     {student && !myAreas.length && <p className="note">이 아이에게 이은 교재가 없습니다 — 아래 「+ 교재 잇기」로 이으면 그 영역 루틴이 저절로 붙습니다.</p>}
     <div className="rt2 rall" data-g="student-areas">
       {myAreas.map((area) => {
-        const v = studentAreaView(linesOf(area), (b.student_lines ?? []).filter((l) => l.area === area));
+        const v = studentAreaView(linesOf(area), (b.student_lines ?? []).filter((l) => l.area === area && !l.book_id));
         const books = myBooks.filter((x) => x.area === area).map((x) => x.name).join(" · ");
         return (
           <div key={area} className={"rcol2" + (v.custom ? " pick2" : "")} data-g="student-area" data-area={area} data-custom={v.custom}>
@@ -105,6 +106,7 @@ export default function Board({ d }) {
                 <span className="rn2">{i + 1}</span><b style={{ flex: "1 1 120px", minWidth: 0 }}>{l.name}</b>
                 {v.custom && <input type="number" min="0" value={l.count_n ?? ""} placeholder="N개" aria-label="갯수" data-g="count" style={{ width: 64 }} onChange={() => {}} onBlur={(e) => { const val = e.target.value; if (String(l.count_n ?? "") !== val) run(() => setLineAct("student", l.id, { count_n: val })); }} />}
                 {v.custom && <input value={l.criterion ?? ""} placeholder="기준(비면 검사받으면 끝)" aria-label="통과 기준" data-g="criterion" style={{ width: 150 }} onChange={() => {}} onBlur={(e) => { const val = e.target.value; if (String(l.criterion ?? "") !== val) run(() => setLineAct("student", l.id, { criterion: val })); }} />}
+                {v.custom && i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="gate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만(확정-㉒) · 아이 화면의 숙제 줄" onClick={() => run(() => setLineAct("student", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
                 <Seg value={l.place} disabled={pending || !v.custom} g="splace" onPick={(k) => run(() => setLineAct("student", l.id, { place: k }))} />
                 {v.custom && <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
                   <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="sup" aria-label="위로" onClick={() => run(() => moveLineAct("student", l.id, "up"))}>▲</button>
@@ -119,14 +121,32 @@ export default function Board({ d }) {
     <div className="ctitle" style={{ marginTop: 16 }}><span className="cemo">📚</span>교재는 잇기만 — 기준과 회차</div>
     <div className="bkset" data-g="books">
       {myBooks.map((x) => {
-        const areaLines = alive(linesOf(x.area ?? "")), custom = alive((b.student_lines ?? []).filter((l) => l.area === x.area)).length > 0;
+        const areaLines = alive(linesOf(x.area ?? "")), custom = alive((b.student_lines ?? []).filter((l) => l.area === x.area && !l.book_id)).length > 0;
+        const bv = bookView(linesOf(x.area ?? ""), (b.student_lines ?? []).filter((l) => l.area === x.area && !l.book_id), (b.student_lines ?? []).filter((l) => l.book_id === x.book_id));   // 교재 › 아이 영역 › 학원 영역(4단계-5)
         const pj = projectEnd({ remaining: Number(x.remaining ?? 0), perSession: Number(x.per_session ?? 1), days: b.days ?? [], from: d.date });
         const ut = x.unit_test ?? "off";
         return (
           <div key={x.id} className="bs" data-g="book" data-book={x.book_id}>
             <div className="bsh"><span className="tag mono">{x.code ?? "—"}</span><b>{x.name}</b><span className="tag type">{x.area}</span><span className="spacer" />
               {!areaLines.length && !custom ? <span className="tag" style={{ background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" }} data-g="book-gap">{x.area} 루틴이 없습니다 — 위에서 만드세요</span>
-                : custom ? <span className="tag act">이 아이만 고친 {x.area} 루틴</span> : <span className="tag on">{x.area} 루틴을 씁니다</span>}</div>
+                : bv.custom ? <span className="tag act" data-g="book-routine">이 교재만 고친 루틴</span> : custom ? <span className="tag act">이 아이만 고친 {x.area} 루틴</span> : <span className="tag on">{x.area} 루틴을 씁니다</span>}
+              {bv.custom ? <button className="btn sm gho" type="button" disabled={pending} data-act="book-reset" onClick={() => run(() => bookResetAct(sid, x.book_id), "영역 루틴으로 돌렸습니다(교재 줄은 내렸을 뿐 지우지 않았습니다)")}>영역 루틴으로</button>
+                         : <button className="btn sm" type="button" disabled={pending || !bv.lines.length} data-act="book-customize" title="이 교재에만 다른 줄·차례·잠금을 쓴다(교재 › 아이 영역 › 학원 영역)" onClick={() => run(() => bookCustomizeAct(sid, x.book_id), "이 교재만의 줄을 만들었습니다 — 자리·차례·🔒·빼기를 따로 정합니다")}>이 교재만 다르게</button>}
+              <button className="btn sm gho" type="button" disabled={pending} data-act="book-end" title="오늘부터 이 교재를 안 쓴다(줄은 남는다 — 지난 판·회독 기록)" onClick={() => { if (window.confirm(`${x.name} — 오늘부터 안 씁니다(줄은 남습니다). 끝낼까요?`)) run(() => endBookAct(x.id), (r) => `끝냈습니다 — ${r.to}까지 쓴 것으로(줄은 남습니다)`); }}>끝내기</button></div>
+            {bv.custom && <div className="bsr" style={{ flexDirection: "column", alignItems: "stretch" }} data-g="book-lines">
+              {bv.lines.map((l, i) => (
+                <div key={l.id} className="ritem on" data-g="bline">
+                  <span className="rn2">{i + 1}</span><b style={{ flex: "1 1 120px", minWidth: 0 }}>{l.name}</b>
+                  <input type="number" min="0" value={l.count_n ?? ""} placeholder="N개" aria-label="갯수" data-g="bcount" style={{ width: 64 }} onChange={() => {}} onBlur={(e) => { const val = e.target.value; if (String(l.count_n ?? "") !== val) run(() => setLineAct("student", l.id, { count_n: val })); }} />
+                  {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="bgate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만(확정-㉒)" onClick={() => run(() => setLineAct("student", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
+                  <Seg value={l.place} disabled={pending} g="bplace" onPick={(k) => run(() => setLineAct("student", l.id, { place: k }))} />
+                  <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
+                    <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="bup" aria-label="위로" onClick={() => run(() => moveLineAct("student", l.id, "up"))}>▲</button>
+                    <button className="btn sm gho" type="button" disabled={pending || i === bv.lines.length - 1} data-act="bdown" aria-label="아래로" onClick={() => run(() => moveLineAct("student", l.id, "down"))}>▼</button>
+                    <button className="btn sm gho" type="button" disabled={pending} data-act="bretire" aria-label="빼기" onClick={() => run(() => setLineAct("student", l.id, { state: "retired" }), "뺐습니다 — 되살릴 수 있습니다")}>🗑</button></span>
+                </div>))}
+              {bv.removed.length > 0 && <div className="rout" data-g="bremoved"><b>뺐습니다</b>{bv.removed.map((r) => <span key={r.id} className="wv" style={{ display: "inline-flex", margin: "0 0 0 6px" }}><span className="tag" style={{ color: "var(--mute)", textDecoration: "line-through" }}>{r.name}</span><button className="btn sm gho" type="button" disabled={pending} data-act="brevive" onClick={() => run(() => bookReviveAct(sid, x.area, r.item_id, x.book_id), "되살렸습니다")}>＋</button></span>)}</div>}
+            </div>}
             <div className="bsr"><span className="fl">기준</span>
               <div className="seg sm" data-g="basis">{[["chapter", "대단원"], ["sub", "소단원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={x.order_basis === k} disabled={pending} onClick={() => run(() => setBookAct(x.id, { order_basis: k }))}>{name}</button>)}</div>
               <span className="fl" style={{ width: "auto", margin: "0 0 0 8px" }}>회차</span>
@@ -135,12 +155,13 @@ export default function Board({ d }) {
               <div className="endd" data-g="endd"><small>이대로면</small><b>{pj.sessions === 0 ? "다 했습니다" : pj.endDate ?? "수업일이 모자랍니다"}</b><span>남은 소단원 {x.remaining}/{x.total} · 수업 {pj.sessions}회{pj.months != null ? ` · ${pj.months}개월` : ""}</span></div></div>
             <div className="bsr"><label className="ckl"><input type="checkbox" className="ck" checked={ut !== "off"} disabled={pending} data-g="ut" onChange={(e) => run(() => setBookAct(x.id, { unit_test: e.target.checked ? "per_chapter" : "off" }))} />단원평가 본다</label>
               {ut !== "off" && <div className="seg sm" data-g="ut-seg">{[["per_chapter", null, "대단원마다"], ["per_n_sub", 5, "소단원 5개마다"], ["per_n_sub", 10, "소단원 10개마다"]].map(([k, n, name]) => <button key={name} type="button" aria-pressed={ut === k && (n == null || Number(x.unit_test_n) === n)} disabled={pending} onClick={() => run(() => setBookAct(x.id, { unit_test: k, unit_test_n: n }))}>{name}</button>)}</div>}
-              <span className="spacer" /><span className="note" style={{ margin: 0 }}>{x.round}회독 · {x.from_date}부터{x.stop_mode !== "running" ? ` · ${x.stop_mode === "hw_off" ? "숙제멈춤" : "교재멈춤"}` : ""}</span></div>
+              <span className="spacer" /><span className="note" style={{ margin: 0 }} data-g="book-span">{x.round}회독 · {x.from_date}부터{x.to_date ? ` · ${x.to_date}까지` : ""}{x.stop_mode !== "running" ? ` · ${x.stop_mode === "hw_off" ? "숙제멈춤" : "교재멈춤"}` : ""}</span></div>
           </div>);
       })}
       {student && <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }} data-g="assign">
         <select value={bookPick} aria-label="이을 교재" data-g="book-pick" style={{ width: "auto" }} onChange={(e) => setBookPick(e.target.value)}><option value="">이을 교재 고르기</option>{(b.books_free ?? []).map((x) => <option key={x.id} value={x.id}>{x.area ?? "—"} · {x.name}{x.code ? ` (${x.code})` : ""}</option>)}</select>
-        <button className="btn pri sm" type="button" disabled={pending || !bookPick} data-act="assign" onClick={() => run(() => assignBookAct(sid, bookPick), "이었습니다 — 그 교재의 영역 루틴이 저절로 붙습니다")}>+ 교재 잇기</button>
+        <input type="date" className="dt" value={assignDate} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setAssignDate(e.target.value)} />
+        <button className="btn pri sm" type="button" disabled={pending || !bookPick || !assignDate} data-act="assign" onClick={() => run(() => assignBookAct(sid, bookPick, assignDate), `이었습니다 — ${assignDate}부터 · 그 교재의 영역 루틴이 저절로 붙습니다`)}>+ 교재 잇기</button>
         <span className="note k" style={{ margin: 0 }}>교재를 이으면 <b>그 교재의 영역 루틴이 저절로 붙습니다</b> — 따로 짜지 않습니다</span></div>}
     </div>
     <div className="savebar" style={{ marginTop: 12 }}><span className="pill">루틴 <b>{areasWithLines}벌</b> · 교재 예외 <b>0</b></span><span className="spacer" /><span className="pill">교재를 들여도 <b>루틴 일은 0</b>입니다</span></div>

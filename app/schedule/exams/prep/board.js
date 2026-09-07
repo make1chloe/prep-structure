@@ -2,7 +2,7 @@
 /** 내신 자료 판(목업 04) — 회차 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct, schoolBookAct } from "./actions.js";
+import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct, schoolBookAct, itemUnitAct } from "./actions.js";
 import { treeOf, materialTags, studentRows, reuseRows, todoLine, ddayText, schoolBooksOf } from "@/lib/todo-plan";
 import { examHead, examOn, groupScopes, mdDot } from "@/lib/exam-plan";
 import { md } from "@/lib/dash-plan";
@@ -10,6 +10,7 @@ const WEAK = { background: "var(--weak-fill)", color: "var(--on-weak)", borderCo
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, e = b.exam, today = d.date;
+  const unitOpts = (() => { const seen = new Set(); return (e?.scopes ?? []).filter((s) => s.unit_id && !s.removed_on && !seen.has(s.unit_id) && seen.add(s.unit_id)); })();   // 항목을 이을 범위의 단원(4단계-5)
   const sbk = schoolBooksOf(b.school_books, e, today);   // 처음-8 학교 교과서(학교 × 학년 × 연도)
   const [add, setAdd] = useState(false); const [f, setF] = useState({ typeId: "", title: "", items: "", studentIds: null }); const [prog, setProg] = useState({}); const [revised, setRevised] = useState({});
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
@@ -51,7 +52,7 @@ export default function Board({ d }) {
               {materialTags(m).map((t) => <span key={t} className={"tag" + (t === "아직 안 만듦" ? " act" : t.startsWith("♻️") ? " on" : "")} data-g="mtag">{t}</span>)}
               {["made", "printed"].includes(m.state) && left > 0 && <button className="btn sm pri" type="button" disabled={pending} data-act="hand" onClick={() => run(() => handAct(m.id), (r) => `나눠 줬습니다 — ${r.handed}명${r.left ? ` · 아직 ${r.left}명` : " · 배부 끝"}`)}>📤 배부 {left}명</button>}
               <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => run(() => dropMaterialAct(m.id, "04 에서 뺌"), "뺐습니다(지우지 않았습니다)")}>빼기</button></div>
-            <div className="mt3">{(m.items ?? []).map((it) => <span key={it.id} className={"ms" + (m.state === "todo" && !m.reuse_of ? " dim" : "")} data-g="ms">{it.name}</span>)}{!(m.items ?? []).length && <span className="ms dim">항목 없음</span>}</div>
+            <div className="mt3">{(m.items ?? []).map((it) => <span key={it.id} className={"ms" + (m.state === "todo" && !m.reuse_of ? " dim" : "")} data-g="ms" data-unit={it.unit_id ?? ""}>{it.name}{unitOpts.length > 0 && <select value={it.unit_id ?? ""} aria-label={`${it.name} 단원`} data-g="ms-unit" disabled={pending} style={{ width: "auto", marginLeft: 4 }} onChange={(x) => run(() => itemUnitAct(it.id, x.target.value), x.target.value ? "항목을 단원에 이었습니다" : "단원을 뗐습니다")}><option value="">단원 —</option>{unitOpts.map((u) => <option key={u.unit_id} value={u.unit_id}>{u.book} › {u.short}</option>)}</select>}</span>)}{!(m.items ?? []).length && <span className="ms dim">항목 없음</span>}</div>
           </div>; })}
         </div>)}
       </div>

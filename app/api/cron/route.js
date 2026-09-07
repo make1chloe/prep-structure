@@ -3,6 +3,7 @@
 import { serviceClient, db } from "@/lib/supabase";
 import { runDue } from "@/lib/queue";
 import "@/lib/send";   // 손 다섯(데일리리포트·늦귀가·등원·하원·예정 알림)과 「예약 → 큐」를 등록한다 — 부르기만 한다(뼈대-9)
+import "@/lib/todo";   // 「오늘 되풀이 돌리기」를 한 바퀴 앞에 등록한다(4단계-5 · 05 첫 열기와 같은 손 · 하루 한 번)
 export const dynamic = "force-dynamic";
 export async function GET(req) {
   const want = process.env.CRON_SECRET;

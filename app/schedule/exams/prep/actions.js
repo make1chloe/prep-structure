@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { prepBoard, addMaterial, reuseMaterial, setSchoolProg, handOut, dropMaterial, finishTodo, setSchoolBook } from "@/lib/todo";
+import { prepBoard, addMaterial, reuseMaterial, setSchoolProg, handOut, dropMaterial, finishTodo, setSchoolBook, setItemUnit } from "@/lib/todo";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function addMaterialAct(examId, f) { return wrap(async () => { const { sb } = await staff(); const b = await prepBoard(sb, examId, await today(sb)); return addMaterial(sb, { examId, typeId: f?.typeId, title: f?.title, items: f?.items, studentIds: f?.studentIds ?? [], takers: b.takers ?? [], types: b.types ?? [] }); }); }
@@ -12,4 +12,5 @@ export async function schoolProgAct(examId, studentId, text) { return wrap(async
 export async function handAct(materialId, studentIds = null) { return wrap(async () => { const { sb } = await staff(); return handOut(sb, materialId, studentIds); }); }
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
 export async function schoolBookAct(f) { return wrap(async () => { const { sb } = await staff(); return setSchoolBook(sb, f ?? {}); }); }   // 처음-8 학교 × 학년 × 연도의 교과서
+export async function itemUnitAct(itemId, unitId) { return wrap(async () => { const { sb } = await staff(); await setItemUnit(sb, itemId, unitId || null); return {}; }); }   // 항목을 단원으로(4단계-5)
 export async function todoDoneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }

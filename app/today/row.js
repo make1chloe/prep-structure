@@ -183,7 +183,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
   );
 }
 function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = null }) {
-  const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: it.learn_items?.name ?? it.range_note ?? "(이름 없음)", units: [], notes: [], carry: it.carry_of }; lines.push(l); } if (it.units) { l.units.push(it.units); if (it.range_note && !l.notes.includes(it.range_note)) l.notes.push(it.range_note); } }
+  const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: it.learn_items?.name ?? it.range_note ?? "(이름 없음)", units: [], notes: [], carry: it.carry_of, gate: false }; lines.push(l); } if (it.gate_prev) l.gate = true; if (it.units) { l.units.push(it.units); if (it.range_note && !l.notes.includes(it.range_note)) l.notes.push(it.range_note); } }
   const cur = new Set(rows.map((it) => it.unit_id));
   const opts = mark.waves?.[slot] ?? [];
   const same = (o) => o.units.length === cur.size && o.units.every((u) => cur.has(u.unit_id));
@@ -193,7 +193,7 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>회차</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
-      {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>
+      {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>{l.gate && <span className="tag" data-g="gate" title="앞엣것을 끝내야 열린다(아이 화면 숙제 줄 · 루틴 11)" style={{ marginLeft: 4 }}>🔒</span>}
         <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}{l.notes.length ? ` · 이번에 ${l.notes.join(" · ")}` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div></div>)}
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
