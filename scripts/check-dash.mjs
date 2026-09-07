@@ -1,5 +1,5 @@
 /** 대시보드 검사(목업 17 · 검사-㊹) — 순수 판단 lib/dash-plan.js: 빵꾸 막이 세 까닭(루틴 없음 › 회차 없음 › 안 한 소단원 없음 · 학생 루틴이 영역 루틴을 이긴다 · 멈춘 교재는 뺀다) · 빈 아이/찬 아이 셈 · 날짜 글 · D-day · 시험 줄(가까운 차례 · 영어일 없는 학교) · 클래스카드 수신 · 하루 정리 · 「어제 21:40」 */
-import { bookGaps, gapSummary, gapText, areaCount, dateLabel, classLabel, dday, examLines, ccText, queueText, whenText, daysBetween, md } from "../lib/dash-plan.js";
+import { bookGaps, gapSummary, gapText, areaCount, dateLabel, classLabel, dday, examLines, ccText, queueText, whenText, daysBetween, md, confirmLine } from "../lib/dash-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const date = "2026-09-06";
@@ -30,5 +30,9 @@ console.log("■ 클래스카드 수신 · 하루 정리 · 때 글");
 ok("수신 기록 없음 → ✕ · 2일째 없음 → ✕ 「2일째」 · 어제 받았으면 정상", ccText(null, date).bad && ccText("2026-09-04T12:14:00Z", date).text === "클래스카드 수신이 2일째 없습니다" && ccText("2026-09-05T12:14:00Z", date).bad === false);
 ok("하루 정리 — 한 번도 안 돎 ✕ · 오늘 돎 ✓ · 어제가 마지막인데 새벽 3시면 아직 ✓ · 낮이면 ✕ · 실패가 있으면 ✕", queueText(null, date).bad && !queueText({ queue_ran_on: date, queue_failed: 0 }, date, 12).bad && !queueText({ queue_ran_on: "2026-09-05", queue_failed: 0 }, date, 3).bad && queueText({ queue_ran_on: "2026-09-05", queue_failed: 0 }, date, 12).bad && queueText({ queue_ran_on: date, queue_failed: 2 }, date, 12).sub.startsWith("실패로 남은 일 2"));
 ok("「오늘 21:40」 · 「어제 21:40」 · 「9/3 21:40」 — 서울 시각", whenText("2026-09-06T12:40:00Z", date) === "오늘 21:40" && whenText("2026-09-05T12:40:00Z", date) === "어제 21:40" && whenText("2026-09-03T12:40:00Z", date) === "9/3 21:40");
+// ── 다음 달 확정 줄(4단계-3b · ㉚ 9/7) — 풀렸으면 늘 · 아직이면 규칙 20일부터 · 다 찍혔거나 반 없으면 안 띄움
+const cn = (ok, undone, all = 2) => ({ ym: "2026-10", all, ok, undone, from_day: "20" });
+ok("다음 달 확정 줄 — 풀렸으면 날짜와 상관없이 · 아직이면 20일부터 · 다 찍혔으면 안 띄움 · 반 없으면 안 띄움", confirmLine(cn(0, 2), "2026-09-06").show === true && confirmLine(cn(0, 0), "2026-09-06").show === false && confirmLine(cn(0, 0), "2026-09-20").show === true && confirmLine(cn(2, 0), "2026-09-25").show === false && confirmLine(cn(0, 0, 0), "2026-09-25").show === false && confirmLine(null, "2026-09-25").show === false);
+ok("줄 글 — 「📅 10월 일정 확정이 풀렸습니다 — 휴강이 들어왔습니다」 · 「📅 10월 일정 아직 확정 안 함 — 반 2 중 1」 · 일정 링크는 그 달", confirmLine(cn(1, 1), "2026-09-06").text === "📅 10월 일정 확정이 풀렸습니다 — 휴강이 들어왔습니다" && confirmLine(cn(1, 0), "2026-09-21").text === "📅 10월 일정 아직 확정 안 함 — 반 2 중 1" && confirmLine(cn(1, 0), "2026-09-21").ym === "2026-10");
 console.log(`\n■ 대시보드 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

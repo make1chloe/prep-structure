@@ -1,5 +1,5 @@
 /** 일정 판단 검사(검사-52) — lib/schedule-plan.js 순수 셈: 칸의 일들과 차례(휴강 › 결석 › 영어일 › 시험 › 보강 › 지각 › 할 일) · 반 고르기 · 회차(8회 채우기 · 특강) · 보강 안 잡힘 · 하루의 줄 · 42칸 */
-import { eventsOf, monthCells, dayRows, sessionsOf, unscheduled, classText, dayTitle, LEGEND, EVENT } from "../lib/schedule-plan.js";
+import { eventsOf, monthCells, dayRows, sessionsOf, unscheduled, classText, dayTitle, confirmState, confirmText, canConfirm, LEGEND, EVENT } from "../lib/schedule-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const b = {
@@ -28,5 +28,12 @@ const rows = dayRows("2026-10-14", b);
 ok("14일 줄 — 결석(아이마다 사유 → 보강 잡힘/안 잡힘 · 잡을 아이 목록) · 시험 둘(기간 · 영어일 · 출처 나이스) · 날 제목 「10월 14일 수」", rows[0].kind === "abs" && rows[0].small === "강민서 가족 여행 → 보강 10/18 14:00 · 구도은 학교 행사 → 보강 안 잡힘" && rows[0].items.length === 2 && rows.filter((r) => r.kind === "exam" || r.kind === "exam2").length === 2 && rows.find((r) => r.kind === "exam").tag === "나이스" && dayTitle("2026-10-14") === "10월 14일 수", JSON.stringify(rows.map((r) => [r.kind, r.title])));
 ok("29일 줄 — 반 보강일 한 줄(아이 이름들 · 물릴 id 들)", dayRows("2026-10-29", b)[0].ids.join() === "m3" && dayRows("2026-10-29", b)[0].small === "강민서");
 ok("범례 일곱 · 일의 갈래 일곱(차례)", LEGEND.length === 7 && EVENT.map(([k]) => k).join() === "hol,abs,exam2,exam,mk,late,todo");
+// ── 그 달 확정 도장(4단계-3b · 원장님 9/7 ㉚ 「예상수업일정보내기 기능 필요없음 무조건확정후 알림」) — 도장 하나 · 반마다 · 휴강이 푼다
+const cls2 = [{ id: "c1" }, { id: "c2" }], at1 = "2026-09-20T05:00:00Z", at2 = "2026-09-21T05:00:00Z", un = "2026-09-22T01:00:00Z";
+ok("확정 도장 — 도장 없으면 none · 반 둘 다 살아 있으면 ok(가장 늦은 때)", confirmState([], cls2).state === "none" && (() => { const s = confirmState([{ class_id: "c1", at: at1, undone_at: null }, { class_id: "c2", at: at2, undone_at: null }], cls2); return s.state === "ok" && s.ok === 2 && s.all === 2 && s.at === at2; })());
+ok("휴강이 들어와 풀리면 undone(푼 때) · 한 반만 찍혔으면 partial · 닫힌 반의 도장은 안 센다 · 반이 없으면 all 0", (() => { const s = confirmState([{ class_id: "c1", at: at1, undone_at: un }, { class_id: "c2", at: at1, undone_at: un }], cls2); return s.state === "undone" && s.undone_at === un && s.ok === 0; })() && confirmState([{ class_id: "c1", at: at1, undone_at: null }], cls2).state === "partial" && confirmState([{ class_id: "zz", at: at1, undone_at: null }], cls2).state === "none" && confirmState([{ class_id: "c1", at: at1, undone_at: null }], []).all === 0);
+ok("글 — 아직이면 「10월 일정 아직 확정 안 함」+「✅ 10월 일정 확정 → 학부모 알림」 · ok 면 「✅ 10월 일정 확정 9/21 14:00 · 알림 3명」 단추 없음", (() => { const a = confirmText(confirmState([], cls2), "2026-10"), b = confirmText(confirmState([{ class_id: "c1", at: at1, undone_at: null }, { class_id: "c2", at: at2, undone_at: null }], cls2), "2026-10", 3); return a.text === "10월 일정 아직 확정 안 함" && a.bad && a.button === "✅ 10월 일정 확정 → 학부모 알림" && b.text === "✅ 10월 일정 확정 9/21 14:00 · 알림 3명" && !b.bad && b.button === null && b.state === "ok"; })());
+ok("글 — undone 「⚠️ 휴강이 들어와 10월 확정이 풀렸습니다(9/22 10:00) — 다시 확정」+「다시 확정 → 학부모 알림」 · partial 「⚠️ 10월 — 반 2 중 1 아직 확정 안 함」 · 반 없으면 「10월 — 반이 없습니다」 단추 없음", (() => { const u = confirmText(confirmState([{ class_id: "c1", at: at1, undone_at: un }], cls2), "2026-10"), p = confirmText(confirmState([{ class_id: "c1", at: at1, undone_at: null }], cls2), "2026-10"), z = confirmText(confirmState([], []), "2026-10"); return u.text === "⚠️ 휴강이 들어와 10월 확정이 풀렸습니다(9/22 10:00) — 다시 확정" && u.button === "다시 확정 → 학부모 알림" && p.text === "⚠️ 10월 — 반 2 중 1 아직 확정 안 함" && p.button === "다시 확정 → 학부모 알림" && z.text === "10월 — 반이 없습니다" && z.button === null; })());
+ok("지난 달은 확정 못 한다 · 이 달·다음 달은 된다", !canConfirm("2026-08", "2026-09-07") && canConfirm("2026-09", "2026-09-07") && canConfirm("2026-10", "2026-09-07"));
 console.log(`\n■ 일정 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

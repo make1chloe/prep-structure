@@ -44,8 +44,8 @@ ok("오늘 나간 것 — 읽음(2번 열어봄) · 리허설 🧪 · 못 보냄
 ok("읽음 셈 — 읽음 1 · 안 읽음 1 · 못 보냄 1 · 리허설 1", JSON.stringify(readCounts(logs)) === JSON.stringify({ read: 1, unread: 1, failed: 1, rehearsal: 1 }), JSON.stringify(readCounts(logs)));
 ok("자취 상태 — 스위치 off 로 안 나간 것은 「리허설 — 실제로는 안 나감」(대전제-0)", logStatus(logs[1]).text.startsWith("리허설(off) — 실제로는 안 나감"));
 console.log("■ 알림 판단(순수)");
-ok("제목 — [클로이영어] 수업 안내 · 이미 붙어 있으면 다시 안 붙인다 · 갈래 열(첫 등원 안내는 3단계-8 등록 전환 · 영상 안내는 3단계-9 재촉)", titleFor("daily", "클로이영어") === "[클로이영어] 수업 안내" && titleFor("late", "클로이영어") === "[클로이영어] 늦은 귀가 안내" && titleFor("welcome", "클로이영어") === "[클로이영어] 첫 등원 안내" && titleFor("video", "클로이영어") === "[클로이영어] 영상 안내" && Object.keys(LABEL).length === 12);
-ok("갈래 열둘 — + score 「성적 입력 안내」(16 재촉 · 아이 기기도) · fee 「수강료 안내」(13 안내) — 4단계-2a · 제약(0133)과 같은 열", Object.keys(LABEL).length === 12 && titleFor("score", "클로이영어") === "[클로이영어] 성적 입력 안내" && titleFor("fee", "클로이영어") === "[클로이영어] 수강료 안내");
+ok("제목 — [클로이영어] 수업 안내 · 이미 붙어 있으면 다시 안 붙인다 · 갈래 열(첫 등원 안내는 3단계-8 등록 전환 · 영상 안내는 3단계-9 재촉)", titleFor("daily", "클로이영어") === "[클로이영어] 수업 안내" && titleFor("late", "클로이영어") === "[클로이영어] 늦은 귀가 안내" && titleFor("welcome", "클로이영어") === "[클로이영어] 첫 등원 안내" && titleFor("video", "클로이영어") === "[클로이영어] 영상 안내" && Object.keys(LABEL).length === 13);
+ok("갈래 열셋 — + score 「성적 입력 안내」(16 재촉 · 아이 기기도) · fee 「수강료 안내」(13 안내) — 4단계-2a · schedule 「수업 일정 안내」(12 확정 → 학부모 · 4단계-3b ㉚) · 제약(0139)과 같은 열", Object.keys(LABEL).length === 13 && titleFor("schedule", "클로이영어") === "[클로이영어] 수업 일정 안내" && titleFor("score", "클로이영어") === "[클로이영어] 성적 입력 안내" && titleFor("fee", "클로이영어") === "[클로이영어] 수강료 안내");
 threw = false; try { titleFor("nope"); } catch { threw = true; } ok("모르는 갈래는 던진다", threw);
 const pl = payloadFor({ kind: "daily", academy: "클로이영어", tag: "daily-s1", r: 77 });
 ok("짐 다섯 칸(sw.js 계약) — 본문은 늘 「앱에서 확인해주세요.」(잠금화면에 내용 없음)", JSON.stringify(Object.keys(pl)) === JSON.stringify(["title", "body", "tag", "url", "r"]) && pl.body === OPEN_TO_SEE && pl.url === "/parent" && pl.r === 77);
