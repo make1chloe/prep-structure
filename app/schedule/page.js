@@ -28,6 +28,7 @@ export default async function Schedule({ searchParams }) {
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <a className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><a className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</a>
       <div className="seg sm" data-g="classes"><a className="btn sm" aria-pressed={!d.classId} href={`/schedule?m=${d.ym}&d=${d.sel}`} style={{ border: 0, borderRadius: 0 }}>전체</a>{(b.classes ?? []).map((c) => <a key={c.id} className="btn sm" aria-pressed={d.classId === c.id} href={`/schedule?m=${d.ym}&d=${d.sel}&c=${c.id}`} style={{ border: 0, borderRadius: 0 }}>{classText(c)}</a>)}</div>
+      <a className="btn sm" href="/schedule/classes" data-act="classes">🏫 반 ↗</a>
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
       <a className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a><a className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</a>

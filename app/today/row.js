@@ -3,7 +3,7 @@
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useRef, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime } from "@/lib/day-plan";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason } from "@/lib/late-plan";
@@ -12,6 +12,7 @@ import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, at
 import { examPhase } from "@/lib/exam-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
+import { slotText } from "@/lib/class-plan";
 import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
@@ -511,6 +512,9 @@ function PlanModal({ student, date, fail, start, onClose }) {
   const [data, setData] = useState(null);
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState({ kind: "none", reason: "", makeupOn: "", makeupAt: "", waived: false, minutes: "" });
+  const [slot, setSlot] = useState("");   // 그 시각 아이 수(확정-㉔ — 보여만 주고 막지 않는다 · 4단계-3a)
+  useEffect(() => { const on = form.makeupOn, at = form.makeupAt; if (!/^\d{4}-\d{2}-\d{2}$/.test(on) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(at) || form.waived) { setSlot(""); return; }
+    let alive = true; const t = setTimeout(async () => { const r = await slotView(on, at); if (alive && r?.ok) setSlot(slotText(r.slot)); }, 400); return () => { alive = false; clearTimeout(t); }; }, [form.makeupOn, form.makeupAt, form.waived]);
   const [mk, setMk] = useState(false);
   const load = async (m) => { const r = await planView(student.id, m); if (fail(r)) setData(r.plan); };
   useEffect(() => { load(ym); }, [ym]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -555,7 +559,7 @@ function PlanModal({ student, date, fail, start, onClose }) {
                   {grid.map((g) => <div key={g.date} className={"cd" + (g.out ? " out" : "") + (form.makeupOn === g.date ? " pickd" : "")} role={g.out ? undefined : "button"} onClick={() => !g.out && setForm({ ...form, makeupOn: g.date })}>{g.out ? g.day : <><span className="dn">{g.day}</span>{K(g.date) && <i className={"cm " + I(g.date)}>{K(g.date)}</i>}</>}</div>)}</div>
                 <div className="wv" style={{ margin: "8px 0 0" }}><span className="fl" style={{ margin: 0 }}>시각</span><input type="text" value={form.makeupAt} placeholder="14:00" style={{ maxWidth: 90 }} onChange={(e) => setForm({ ...form, makeupAt: e.target.value })} />
                   <div className="seg sm">{["10:00", "11:00", "14:00", "16:00"].map((t) => <button key={t} type="button" aria-pressed={form.makeupAt === t} onClick={() => setForm({ ...form, makeupAt: t })}>{t}</button>)}</div>
-                  <span className="note" style={{ margin: 0 }}>칸이 차 있어도 넣을 수 있습니다</span></div></div>}
+                  <span className="note" style={{ margin: 0 }} data-g="slot">{slot || "칸이 차 있어도 넣을 수 있습니다"}</span></div></div>}
             </>}
             {form.kind === "late" && <>
               <div className="wv"><span className="fl" style={{ margin: 0 }}>얼마나</span>
