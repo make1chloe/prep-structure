@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { decide, OPS } from "@/lib/perm";
-import { feeBoard, savePayments, importPayments, remindFees } from "@/lib/fee";
+import { feeBoard, savePayments, importPayments, remindFees, setByGrade } from "@/lib/fee";
 import { serviceClient } from "@/lib/supabase";
 import { parseSheet } from "@/lib/fee-plan";
 import * as XLSX from "xlsx";
@@ -15,6 +15,7 @@ async function feeStaff(ym) {
 }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function saveAct(ym, edits) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return savePayments(sb, ym, edits, board); }); }
+export async function byGradeAct(ym, f) { return wrap(async () => { const { sb } = await feeStaff(ym); return setByGrade(sb, f); }); }
 export async function remindAct(ym) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return remindFees(serviceClient(), sb, ym, board); }); }
 export async function importAct(ym, formData) {
   return wrap(async () => {

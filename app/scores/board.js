@@ -2,7 +2,7 @@
 /** 성적 판(목업 16) — 회차 고르기 · 등급컷 · 문항표 · 표(학생 · 원점수 · 등급(세어 나옴) · 틀린 문항 · 낸 때 · 공개 · 확인/대신 넣기) · 틀린 문항 판(눌러도 되고 적어도 된다 — 같은 값) · 영역 셈 · 저장줄. 세는 것은 화면이 센다(원칙-5) — lib/score-plan 한 벌 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cutsAct, questionsAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct } from "./actions.js";
+import { cutsAct, questionsAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct } from "./actions.js";
 import { counts, cutsText, questionsText, parseWrong, wrongSummary, summaryText, gradeByCuts, gradeText, cutsFor, SHOW, showText, examShort } from "@/lib/score-plan";
 import { mdDot } from "@/lib/exam-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
@@ -17,7 +17,7 @@ export default function Board({ d }) {
   const val = (r, k, fallback) => (edit[r.student_id] && k in edit[r.student_id] ? edit[r.student_id][k] : fallback);
   const setV = (r, k, v) => setEdit({ ...edit, [r.student_id]: { ...(edit[r.student_id] ?? {}), [k]: v } });
   const nQ = Math.max(e?.questions?.length ?? 0, 20, ...rows.flatMap((r) => r.wrongs));
-  const save = (r) => run(() => saveAct(e.id, r.student_id, { raw: val(r, "raw", r.raw ?? ""), full: val(r, "full", r.full ?? 100), wrongs: val(r, "wrongs", r.wrongs.join(",")) }), (x) => `${r.name} — 넣었습니다(틀린 문항 ${x.wrongs})`, () => setEdit((s) => { const n = { ...s }; delete n[r.student_id]; return n; }));
+  const save = (r) => run(() => saveAct(e.id, r.student_id, { raw: val(r, "raw", r.raw ?? ""), full: val(r, "full", r.full ?? 100), wrongs: val(r, "wrongs", r.wrongs.join(",")), ...(e.scope === "national" ? { percentile: val(r, "percentile", r.score?.percentile ?? "") } : {}) }), (x) => `${r.name} — 넣었습니다(틀린 문항 ${x.wrongs})`, () => setEdit((s) => { const n = { ...s }; delete n[r.student_id]; return n; }));
   const openRow = rows.find((r) => r.student_id === open) ?? null;
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
@@ -49,11 +49,11 @@ export default function Board({ d }) {
         {rows.map((r) => { const raw = val(r, "raw", r.raw ?? ""), g = gradeByCuts(raw, cutsFor(e)), dirty = Boolean(edit[r.student_id]); return <tr key={r.student_id} className={r.state === "pending" ? "hi" : ""} data-g="score-row" data-student={r.student_id} data-state={r.state}>
           <td className="sch">{r.name}</td>
           <td><input type="text" inputMode="numeric" className={"scr" + (raw !== "" && Number(raw) < 60 ? " warnin" : "")} value={raw} placeholder="—" aria-label={`${r.name} 원점수`} onChange={(x) => setV(r, "raw", x.target.value)} disabled={r.state === "confirmed"} /></td>
-          <td data-g="grade">{r.score?.grade != null ? `${gradeText(e.level, r.score.grade)} (학교)` : gradeText(e.level, g) || "—"}</td>
+          <td data-g="grade">{r.score?.grade != null ? `${gradeText(e.level, r.score.grade)} (학교)` : gradeText(e.level, g) || "—"}{e.scope === "national" && <span className="wv" style={{ gap: 4, marginTop: 4, marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>백분위</span><input type="text" inputMode="numeric" className="scr" value={val(r, "percentile", r.score?.percentile ?? "")} aria-label={`${r.name} 백분위`} placeholder="—" style={{ width: 52 }} disabled={r.state === "confirmed"} onChange={(x) => setV(r, "percentile", x.target.value.replace(/\D/g, ""))} /></span>}</td>
           <td>{r.state === "none" && !dirty ? <span className="note" style={{ margin: 0 }}>—</span> : <button className="lnk" type="button" data-act="wrong-open" aria-pressed={open === r.student_id} onClick={() => setOpen(open === r.student_id ? null : r.student_id)}>{parseWrong(val(r, "wrongs", r.wrongs.join(","))).join(",") || "번호 안 넣음"}</button>}</td>
           <td data-g="at">{r.at ? `${md(seoulDate(r.at))} ${seoulTime(r.at)}${r.byWho === "student" ? " · 아이가 넣음" : ""}` : <span className="note" style={{ margin: 0 }}>아직 안 냄</span>}</td>
           <td data-g="show">{r.state === "confirmed" ? <select value={r.score.show_to} aria-label={`${r.name} 공개`} onChange={(x) => run(() => showAct(r.score.id, x.target.value), `${r.name} — ${showText(x.target.value)}`)} style={{ width: "auto" }}>{SHOW.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select> : "—"}</td>
-          <td>{r.state === "confirmed" ? <span className="v y" data-g="state">확인됨</span>
+          <td>{r.state === "confirmed" ? <span className="wv" style={{ gap: 4, marginBottom: 0 }}><span className="v y" data-g="state">확인됨</span><button className="btn sm gho" type="button" disabled={pending} data-act="unconfirm" title="확인을 풀고 고친다 — 공개는 원장만으로 돌아갑니다" onClick={() => run(() => unconfirmAct(r.score.id), `${r.name} — 확인을 풀었습니다 · 고친 뒤 다시 확인하세요`)}>풀기</button></span>
               : dirty ? <button className="btn pri sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>{r.state === "none" ? "대신 넣기" : "고쳐 저장"}</button>
               : r.state === "pending" ? <button className="btn pri sm" type="button" disabled={pending} data-act="confirm" onClick={() => run(() => confirmAct(r.score.id), (x) => `${r.name} — 확인했습니다 · 공개 ${showText(x.show)}`)}>확인</button>
               : <button className="btn sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>대신 넣기</button>}</td>

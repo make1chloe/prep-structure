@@ -4,14 +4,15 @@ import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
-import { scoreBoard, setCuts, setQuestions, saveScore, confirmScore, confirmAll, setShow, importScores, remindScores } from "@/lib/score";
+import { scoreBoard, setCuts, setQuestions, saveScore, confirmScore, confirmAll, setShow, importScores, remindScores, unconfirmScore } from "@/lib/score";
 import { parseSheet } from "@/lib/score-plan";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function cutsAct(examId, text) { return wrap(async () => { const { sb } = await staff(); return { cuts: await setCuts(sb, examId, text) }; }); }
 export async function questionsAct(examId, text) { return wrap(async () => { const { sb } = await staff(); return setQuestions(sb, examId, text); }); }
-export async function saveAct(examId, studentId, f) { return wrap(async () => { const { sb } = await staff(); return saveScore(sb, { examId, studentId, raw: f?.raw, full: f?.full ?? 100, wrongs: f?.wrongs ?? "", note: f?.note ?? null, byWho: "staff" }, await today(sb)); }); }
+export async function saveAct(examId, studentId, f) { return wrap(async () => { const { sb } = await staff(); return saveScore(sb, { examId, studentId, raw: f?.raw, full: f?.full ?? 100, wrongs: f?.wrongs ?? "", note: f?.note ?? null, byWho: "staff", percentile: f?.percentile }, await today(sb)); }); }
+export async function unconfirmAct(scoreId) { return wrap(async () => { const { sb } = await staff(); await unconfirmScore(sb, scoreId); return {}; }); }
 export async function confirmAct(scoreId, showTo = null) { return wrap(async () => { const { sb } = await staff(); return confirmScore(sb, scoreId, showTo); }); }
 export async function confirmAllAct(examId) { return wrap(async () => { const { sb } = await staff(); return confirmAll(sb, examId); }); }
 export async function remindAct(examId) { return wrap(async () => { const { sb } = await staff(); return remindScores(serviceClient(), sb, String(examId), await today(sb)); }); }
