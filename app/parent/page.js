@@ -67,7 +67,7 @@ export default async function Parent({ searchParams }) {
     { id: 'fee', name: '수강료', node: can(PARENT.reports) && d.fee && <Card emo="💰" title="수강료" id="fee" pill={d.fee.pill} pillCls={d.fee.paid ? "hw" : "warn"}>
       <div className="li" data-g="fee-line" data-paid={d.fee.paid ? "1" : "0"}><div><b>{d.fee.text}</b><small>{d.fee.small}</small></div></div></Card> },
     { id: 'scores', name: '성적', node: can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" pill={d.scores[0].title}>
-      {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div></div>)}
+      {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</div>)}
       <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 시험만 보입니다.</p></Card> },
     { id: 'memo', name: '선생님 한 마디', node: can(PARENT.recent) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card> },

@@ -2,8 +2,8 @@
 /** 성적 판(목업 16) — 회차 고르기 · 등급컷 · 문항표 · 표(학생 · 원점수 · 등급(세어 나옴) · 틀린 문항 · 낸 때 · 공개 · 확인/대신 넣기) · 틀린 문항 판(눌러도 되고 적어도 된다 — 같은 값) · 영역 셈 · 저장줄. 세는 것은 화면이 센다(원칙-5) — lib/score-plan 한 벌 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cutsAct, questionsAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct } from "./actions.js";
-import { counts, cutsText, questionsText, parseWrong, wrongSummary, summaryText, gradeByCuts, gradeText, cutsFor, SHOW, showText, examShort } from "@/lib/score-plan";
+import { cutsAct, questionsAct, questionsSheetAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct } from "./actions.js";
+import { counts, cutsText, questionsText, questionsFor, questionsFrom, parseWrong, wrongSummary, summaryText, gradeByCuts, gradeText, cutsFor, SHOW, showText, examShort } from "@/lib/score-plan";
 import { mdDot } from "@/lib/exam-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
 import { seoulTime } from "@/lib/day-plan";
@@ -31,6 +31,7 @@ export default function Board({ d }) {
       <span className="spacer" />
       {e && <form action={(fd) => run(() => importAct(e.id, fd), (r) => `올렸습니다 — ${r.put}줄(바로 확인됨)${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
         <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="성적 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">⬆ 엑셀로 한꺼번에</button></form>}
+      {e && <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}`} data-act="scores-export" title="올리기와 같은 열 · 보는 아이 이름이 채워져 나옵니다">⬇ 성적 양식</a>}
       <a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
@@ -41,10 +42,13 @@ export default function Board({ d }) {
         <div><b>이 회차 등급컷 — 한 번 적으면 등급은 세어 나옵니다</b><small data-g="cuts-text">{cutsText(e) || "아직 없음"}{!e.cuts?.length && e.level === "middle" ? " — 중학교 절대평가(90·80·70·60)로 셉니다" : ""}{e.scope === "national" ? " · 모의고사는 전국 등급이 옵니다(컷 없음)" : ""}</small></div>
         <input value={cuts} onChange={(x) => setCutsT(x.target.value)} placeholder={e.cuts?.length ? e.cuts.join(", ") : "90, 84, 77"} aria-label="등급컷" style={{ width: 160 }} />
         <button className="btn sm pri" type="button" disabled={pending || !cuts.trim()} data-act="cuts-save" onClick={() => run(() => cutsAct(e.id, cuts), (r) => `등급컷 ${r.cuts.join(" · ")} — 등급을 다시 셉니다`, () => setCutsT(""))}>저장</button></div>
-      <div className="lf" style={{ margin: "0 0 8px" }} data-g="questions"><span className="ln">표</span>
-        <div><b>시험지 문항표 — 번호마다 영역</b><small data-g="questions-text">{e.questions?.length ? questionsText(e.questions) : "아직 없음 — 틀린 번호의 영역을 못 셉니다(확정-⑤ 문항표는 엑셀 · 지금은 글로)"}</small></div>
+      <div className="lf" style={{ margin: "0 0 8px" }} data-g="questions" data-from={questionsFrom(e)}><span className="ln">표</span>
+        <div><b>시험지 문항표 — 번호마다 영역</b><small data-g="questions-text">{questionsFrom(e) === "exam" ? questionsText(e.questions) : questionsFrom(e) === "standard" ? `표준 문항표로 셉니다 — ${questionsText(questionsFor(e))}(옛 앱 그대로 · 이번 회차가 다르면 엑셀로 올리세요)` : "아직 없음 — 틀린 번호의 영역을 못 셉니다(엑셀로 올리거나 글로 적으세요)"}</small></div>
         <input value={qtext} onChange={(x) => setQ(x.target.value)} placeholder="1-5 듣기, 6-20 독해, 21-25 어법, 26-28 서술형" aria-label="문항표" style={{ flex: "1 1 260px" }} />
-        <button className="btn sm pri" type="button" disabled={pending || !qtext.trim()} data-act="questions-save" onClick={() => run(() => questionsAct(e.id, qtext), (r) => `문항표 ${r.saved}문항`, () => setQ(""))}>저장</button></div>
+        <button className="btn sm pri" type="button" disabled={pending || !qtext.trim()} data-act="questions-save" onClick={() => run(() => questionsAct(e.id, qtext), (r) => `문항표 ${r.saved}문항`, () => setQ(""))}>저장</button>
+        <form action={(fd) => run(() => questionsSheetAct(e.id, fd), (r) => `문항표 ${r.saved}문항(엑셀)${r.bad?.length ? ` · 고칠 줄 ${r.bad.length}: ${r.bad.slice(0, 3).map((x) => `${x.line}행 ${x.why}`).join(" / ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="questions-import">
+          <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="문항표 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="questions-import">⬆ 엑셀</button></form>
+        <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}&q=1`} data-act="questions-export" title="번호 · 영역 두 열 — 고쳐서 다시 올리면 됩니다">⬇ 문항표</a></div>
       <div className="tblwrap"><table data-g="score-table"><thead><tr><th>학생</th><th>원점수</th><th>등급(세어 나옴)</th><th>틀린 문항</th><th>낸 때</th><th>공개</th><th></th></tr></thead><tbody>
         {rows.map((r) => { const raw = val(r, "raw", r.raw ?? ""), g = gradeByCuts(raw, cutsFor(e)), dirty = Boolean(edit[r.student_id]); return <tr key={r.student_id} className={r.state === "pending" ? "hi" : ""} data-g="score-row" data-student={r.student_id} data-state={r.state}>
           <td className="sch">{r.name}</td>
