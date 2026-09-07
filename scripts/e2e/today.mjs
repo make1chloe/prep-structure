@@ -879,6 +879,12 @@ await handCard.locator("button[data-act=done]").click(); await p.waitForSelector
 ok("배부 끝냄 → 배부 칸 2 · 저장줄 「할 일 N · 마감 지남 N · 이미 있음 1」", (await colCount("hand")) === "2" && /할 일 \d+ · 마감 지남 \d+ · 이미 있음 1/.test(await td.locator("[data-g=bar-count]").textContent()), await td.locator("[data-g=bar-count]").textContent());
 await td.locator("button[data-act=show-done]").click(); await p.waitForTimeout(300);
 ok("숨긴 그룹 ✓ 끝냄을 펴면 끝낸 카드가 보인다(되돌리기 단추)", (await td.locator("[data-g=hidden] [data-g=card][data-state=done]").count()) >= 3 && (await td.locator("[data-g=hidden] button[data-act=undo]").count()) >= 3);
+console.log("■ 내 할 일 05 — ☑ 체크하면 카드가 저절로 다음 칸으로((가)-③ · 목업 「끌어 옮기지 않습니다 — 폰에서 어렵고 손이 더 갑니다」)");
+const mkCard = td.locator("[data-g=col][data-kind=make] [data-g=card]").first(); const mkTitle = (await mkCard.locator(".nb-title").textContent()).trim();
+await mkCard.locator("button.nb-check[data-step=make]").click(); await p.waitForFunction(() => (document.querySelector("[data-g=msg]")?.textContent ?? "").includes("다음 칸"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("만들기 칸 카드의 ☑ 만들기를 누르면 「만들기 ✓ — 카드가 다음 칸으로 갑니다」 · 만들기 칸 0 · 그 카드는 ✓ 끝냄 그룹에", (await colCount("make")) === "0" && (await td.locator("[data-g=hidden] [data-g=card][data-state=done]").filter({ hasText: mkTitle }).count()) >= 1, (await td.locator("[data-g=msg]").textContent()) + " / " + mkTitle);
+await td.locator("[data-g=hidden] [data-g=card][data-state=done]").filter({ hasText: mkTitle }).first().locator("button.nb-check[data-step=make]").click(); await p.waitForFunction(() => (document.querySelector("[data-g=msg]")?.textContent ?? "").includes("무름"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("끝낸 카드의 ☑ 만들기를 다시 누르면 「만들기 무름 — 카드가 제 칸으로 돌아갑니다」 · 만들기 칸 1", (await colCount("make")) === "1", await td.locator("[data-g=msg]").textContent());
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-todo-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 진도 체크 열기(원장 쪽 · 확정-㊶) — 학원 전체 켬 → 「1일째」 · 대시보드 띠");
@@ -935,6 +941,11 @@ ok("셀 — 교재(문법책 · 앱에서 고르기, 확정-56) · 배부 예 ·
 await gr.locator("button[data-act=col-open]").click(); await gr.locator("[data-g=col-form] input[aria-label='칸 이름']").fill("비고"); await gr.locator("button[data-act=col-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 await grow.locator("input[aria-label='zz_시험_중학교 비고']").fill("영어 10.16 · 나이스에서"); await grow.locator("input[aria-label='zz_시험_중학교 비고']").blur(); await p.waitForFunction(() => (document.querySelector("[data-g=msg]")?.textContent ?? "").includes("비고 — 저장"), null, { timeout: 15000 }); await p.waitForTimeout(800);
 ok("+ 칸(비고 · 글) → 머리칸 6 · 칸으로 이동 6 · 글 셀에 적고 손을 떼면 저장 · 「학교 1곳 · 칸 6개」", (await gr.locator("[data-g=col]").count()) === 6 && (await gr.locator("[data-g=jump] .jb").count()) === 6 && (await gr.locator("[data-g=msg]").textContent()).includes("비고 — 저장") && (await gr.locator("[data-g=grid-count]").textContent()) === "학교 1곳 · 칸 6개", (await gr.locator("[data-g=msg]").textContent()));
+ok("칸으로 이동 ◀ ▶((가)-③ — 넓은 표에서 한 칸씩): 처음엔 1번이 지금 · ◀ 잠김", (await gr.locator("[data-g=jump] .jb[aria-current=true]").textContent()).startsWith("1 ") && await gr.locator("[data-g=jump] button[data-act=jump-prev]").isDisabled(), await gr.locator("[data-g=jump]").textContent());
+await gr.locator("[data-g=jump] button[data-act=jump-next]").click(); await p.waitForTimeout(300);
+const jumpTwo = (await gr.locator("[data-g=jump] .jb[aria-current=true]").textContent()).startsWith("2 ") && !(await gr.locator("[data-g=jump] button[data-act=jump-prev]").isDisabled());
+await gr.locator("[data-g=jump] button[data-act=jump-prev]").click(); await p.waitForTimeout(300);
+ok("▶ → 2번이 지금 · ◀ 풀림 → ◀ → 다시 1번", jumpTwo && (await gr.locator("[data-g=jump] .jb[aria-current=true]").textContent()).startsWith("1 "), await gr.locator("[data-g=jump]").textContent());
 // 5단계-⑥ — 칸 종류를 바꾸면 값을 옮겨 담는다: 비고(글 「영어 10.16 · 나이스에서」) → 선택(예정/진행/끝)이면 못 옮김 1(그대로 둠 · 셀은 「—」) → 다시 글이면 옮겨 담음 1 · 값이 되살아난다(지우지 않았다)
 const bigo06 = () => gr.locator("[data-g=col][data-col]").last();
 await bigo06().locator("select[data-g=ctype]").selectOption("select"); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("비고 — 선택"), null, { timeout: 15000 }); await p.waitForTimeout(1200);

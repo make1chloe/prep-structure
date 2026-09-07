@@ -1,6 +1,6 @@
 /** 학교별 표 판단 검사(검사-59) — lib/grid-plan.js 순수 셈: 본 여섯 · 칸 종류 여섯(확정-56 「앱에서 고르기」) · 칸 읽기 · 값 읽기·글(종류마다 · 비면 없음) · 체크 목록 손 · 줄 이름 · 셈 · 칸으로 이동 · 차례 옮기기 · 보드(선택 칸으로 묶기 · 없음은 숨긴 그룹 · ◀ ▶) · 카드 제목 · 따로 챙길 아이들 · 내 표/전체 표 ·
  *  종류 바꿀 때 값 옮겨 담기(되는 것만 · 안 되는 것은 그대로 · 못 옮긴 값이 남아도 화면이 거짓말을 안 한다) · 체크 목록 항목 빼기(5단계-⑥) */
-import { TEMPLATES, COL_TYPES, colsFromTemplate, parseCol, parseCell, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, counts, jumpTargets, moveIn, boardOf, nextOption, cardTitle, watchSummary, visibleGrids, templateOf, convertCell, convertMany } from "../lib/grid-plan.js";
+import { TEMPLATES, COL_TYPES, colsFromTemplate, parseCol, parseCell, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, counts, jumpTargets, jumpStep, moveIn, boardOf, nextOption, cardTitle, watchSummary, visibleGrids, templateOf, convertCell, convertMany } from "../lib/grid-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -39,5 +39,6 @@ const cm = convertMany(T("text"), T("select", ["인쇄"]), [{ row_id: "r1", valu
 ok("여럿 — 옮긴 것만 고친다(1) · 못 옮긴 줄 이름(연송고) · 빈 값은 안 센다", J(cm.updates) === J([{ row_id: "r1", value: "인쇄" }]) && cm.moved === 1 && J(cm.unmoved) === J(["연송고"]), J(cm));
 ok("못 옮긴 값이 남아도 화면이 거짓말을 안 한다 — 예/아니오 칸의 글 → 「」 · 날짜 칸의 글 → 「」 · 고르기 칸의 글 → 「」 · 체크 목록 칸의 글 → 「」 · 맞는 값은 그대로", cellText(T("yn"), "예정") === "" && cellText(T("date"), "곧") === "" && cellText(T("pick", { of: "book" }), "문법책") === "" && cellText(T("checklist"), "본책") === "" && cellText(T("yn"), true) === "예" && cellText(T("text"), "글") === "글");
 ok("체크 목록 항목 빼기 — 둘째를 빼면 하나 · 없는 번호는 그대로", J(removeItem([{ name: "a", done: false }, { name: "b", done: true }], 1)) === J([{ name: "a", done: false }]) && removeItem([{ name: "a", done: false }], 5).length === 1);
+ok("칸으로 이동 ◀ ▶((가)-③) — 지금 칸에서 한 칸씩 · 끝이면 null · 지금 칸을 모르면 첫 칸 · 내린 칸은 건너뜀 · 칸이 없으면 null", (() => { const js = jumpTargets([{ id: "a", label: "A", state: "active", sort: 1 }, { id: "x", label: "X", state: "retired", sort: 2 }, { id: "b", label: "B", state: "active", sort: 3 }]); return js.length === 2 && jumpStep(js, "a", "next")?.id === "b" && jumpStep(js, "b", "next") === null && jumpStep(js, "a", "prev") === null && jumpStep(js, "zz", "next")?.id === "a" && jumpStep([], "a", "next") === null; })());
 console.log(`\ncheck-grid ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
