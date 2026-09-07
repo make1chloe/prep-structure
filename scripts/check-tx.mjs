@@ -5,6 +5,8 @@ import { readFileSync, readdirSync } from "node:fs";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 /** 손 → 까닭. 한 덩어리로 묶지 않아도 되는 까닭이 적혀 있다 */
 const KNOWN = {
+  "lib/book.js:applyUpload": "묶음(excel_run)이 먼저 서고 교재마다 단원 줄을 올리며 바꾼 줄(excel_row · before = 줄 전체)을 적는다 — 반쯤 돼도 그 묶음까지 되돌릴 수 있다(되돌리기가 곧 이어지는 길 · 0142) · ②는 SQL 한 곳(replace_book_units)이 지운 줄·새 줄을 적는다",
+  "lib/book.js:applyBookSheet": "같은 결(교재 시트) — 교재 한 줄 + 묶음 줄 · 반쯤 돼도 묶음으로 되돌린다(5단계-④)",
   "lib/quiz.js:setStyle": "방식 줄(quiz_style) + 아직 안 본 같은 시험의 style_id·통과선 — 방식 줄이 서면 시험은 다음 저장·style_for 로 다시 맞출 수 있다(반쯤 돼도 이어진다 · 5단계-③)",
   "lib/student.js:setState": "퇴원 = 학생 상태 + 반 줄 닫기 — 반 줄은 학생 상태를 보고 다시 닫을 수 있다",
   "lib/student.js:issueStudentAccount": "auth 계정 + profiles + 학생 잇기 — 계정이 서고 줄이 안 서면 다음 발급이 「이미 있는 아이디」로 말한다",
