@@ -13,8 +13,8 @@
  *        node scripts/build-real-db-sql.mjs 0134_… 0135_…  골라서
  *
  *  조각으로 나눠도 안전한 까닭 — 조각마다 **제 트랜잭션**이고, 맨 앞 문지기가
- *  ① 이 조각이 이미 들어갔나 ② **앞 조각이 다 들어갔나** 를 먼저 본다.
- *  그래서 차례를 건너뛰거나 두 번 돌리는 사고가 안 난다. */
+ *  ① 이 조각이 이미 들어갔나 ② **앞 파일(0100~ 이 조각 앞까지 전부)이 다 들어갔나** 를 먼저 본다 —
+ *  골라 만든 파일(0139 하나 등)도 같다. 그래서 차례를 건너뛰거나 두 번 돌리는 사고가 안 난다. */
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { sha } from "./_sha.mjs";
 
@@ -75,7 +75,7 @@ function 벌(몫, before, 번, 총) {
 ...(before.length ? [
 `  select count(*) into 앞것 from v2.migration where file = any(array[${before.map(q).join(", ")}]);`,
 `  if 앞것 <> ${before.length} then`,
-`    raise exception '앞 조각이 아직 다 안 들어갔습니다 (${before.length}개 중 %개) — 앞 조각부터 차례로 돌려 주세요.', 앞것;`,
+`    raise exception '앞 파일 ${before[0].slice(0, 4)}~${before[before.length - 1].slice(0, 4)} 이 아직 다 안 들어갔습니다 (${before.length}개 중 %개) — 앞 것부터 차례로 돌려 주세요.', 앞것;`,
 `  end if;`] : []),
 `end`,
 `$guard$;`,
@@ -102,7 +102,7 @@ if (조각) for (let i = 0; i < files.length; i += 조각) 뭉치.push(files.sli
 else 뭉치.push(files);
 
 뭉치.forEach((몫, i) => {
-  const before = files.slice(0, files.indexOf(몫[0]));
+  const before = all.filter(f => /^01\d\d_/.test(f) && f < 몫[0]);   // 이 조각 앞의 01xx **전부**(고른 파일 밖의 것도) — 0139 만 골라 만든 파일이 0100~ 없는 DB 에서 「v2.rule 이 없다」로 터졌다(2026-09-07 원장님 실측). 문지기가 사람 말로 막아야 한다
   const 자리 = 뭉치.length > 1
     ? `.tmp/실DB-마이그레이션-${온폭}-${i + 1}of${뭉치.length}.sql`
     : `.tmp/실DB-마이그레이션-${온폭}.sql`;
