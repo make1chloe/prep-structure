@@ -43,6 +43,27 @@ insert into v2.rule (key, value, note) values
   ('password.min_len',      '6',              '비밀번호 최소 글자 수 — 처음 비밀번호 0000 은 못 쓴다')
 on conflict (key) do nothing;
 
+-- 아이디 꼴 검사(0033·0034)를 **실제에 맞춘다** — 옛 앱(lib/studentId.js resolveLoginId)은 폰 뒤 4자리가 겹치는 형제에게 -2·-3 을 붙인다.
+-- 실 DB 에 그런 아이가 있어(chloe8729-2 · 2026-09-07 실측) 아래 「전원 must_change_pw」 갱신이 검사에 걸려 **0100 이 통째로 되돌아갔다**(NOT VALID 도 갱신되는 줄은 검사한다).
+-- 아이는 chloe + 숫자 넷 (+ -2·-3 …) · 학부모는 전화번호 11자리 그대로. 한 번 더 돌려도 같다
+alter table v2.profiles drop constraint if exists profiles_login_id_shape;
+alter table v2.profiles add constraint profiles_login_id_shape check (
+  login_id is null
+  or (role = 'student' and login_id ~ '^chloe[0-9]{4}(-[0-9]{1,2})?$')
+  or (role = 'parent'  and login_id ~ '^01[0-9]{8,9}$')
+) not valid;
+create or replace function v2.login_id_odd()
+returns table (id uuid, role text, name text, login_id text, why text)
+language sql stable as $$
+  select p.id, p.role, p.name, p.login_id,
+    case when p.role='student' then '학생인데 chloe+4자리(형제는 -2)가 아니다'
+         else '학부모인데 전화번호(11자리)가 아니다' end
+  from v2.profiles p
+  where p.login_id is not null and p.role in ('student','parent')
+    and ((p.role='student' and p.login_id !~ '^chloe[0-9]{4}(-[0-9]{1,2})?$')
+      or (p.role='parent'  and p.login_id !~ '^01[0-9]{8,9}$'))
+$$;
+
 -- 아이·학부모는 처음 비밀번호(0000)일 수 있다(실측 39/41) — 한 번은 바꾸게 한다. 딱 한 번만(표시 줄로 막는다)
 do $$ begin
   if not exists (select 1 from v2.rule where key = 'app.must_change_pw_seeded') then
