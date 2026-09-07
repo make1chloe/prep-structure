@@ -36,6 +36,20 @@ insert into v2.class_schedule (id, class_id, from_date, weekdays, start_time, en
 insert into v2.class_member (class_id, student_id, from_date, import_batch) values
   ('99999999-0000-4000-a000-000000000001', '99999999-0000-4000-9000-000000000001', '2026-01-01', 'fixture')
 on conflict do nothing;
+-- 회차가 모자란 반 하나(요일 없음 · 아이 없음) — 일정 12 의 「⚠️ N회 모자람 — 보강 필요 · 📅 보강일 잡기」 길을 걷는다(2026-09-07: 그 길이 처음 그려지며 숨어 있던 버그가 나왔다 — 늘 걷는다)
+insert into v2.classes (id, kind, nickname, state, import_batch) values
+  ('99999999-0000-4000-a000-000000000002', 'regular', 'zz_토요 정규', 'active', 'fixture')
+on conflict (id) do nothing;
+insert into v2.class_schedule (id, class_id, from_date, weekdays, start_time, end_time)
+  select '99999999-0000-4000-b000-000000000002', '99999999-0000-4000-a000-000000000002', '2026-01-01', array[]::smallint[], '19:00', '20:00'   -- 요일이 비어 있다(아직 안 정한 반) — 어느 날의 명단에도 안 서고 회차는 늘 0 → 요일을 안 탄다
+  where not exists (select 1 from v2.class_schedule where id = '99999999-0000-4000-b000-000000000002');
+-- 그 반의 아이 하나(다른 반엔 없다 — 반 보강일은 아이마다 줄이 서므로 아이가 있어야 잡힌다 · 학교 없음)
+insert into v2.students (id, profile_id, name, grade, state, import_batch) values
+  ('99999999-0000-4000-9000-000000000003', null, 'zz_시험_학생셋', 3, 'active', 'fixture')
+on conflict (id) do nothing;
+insert into v2.class_member (class_id, student_id, from_date, import_batch) values
+  ('99999999-0000-4000-a000-000000000002', '99999999-0000-4000-9000-000000000003', '2026-01-01', 'fixture')
+on conflict do nothing;
 -- 어제 판 + 숙제 둘 (오늘 열면 검사 줄로 끌려온다)
 insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
   select '99999999-0000-4000-c000-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', v2.today() - 1, 'present', now() - interval '1 day', 'fixture'

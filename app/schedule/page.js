@@ -6,7 +6,7 @@ import { today } from "@/lib/day";
 import { scheduleBoard } from "@/lib/schedule";
 import { ymOf } from "@/lib/cal-plan";
 import { monthLabel, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, LEGEND, W } from "@/lib/schedule-plan";
-import Panel from "./panel.js";
+import Panel, { ClassMakeup } from "./panel.js";   // ⚠️ 클라이언트 부품의 정적 속성(Panel.ClassMakeup)은 서버 쪽에 안 넘어온다 — 이름으로 들여온다(2026-09-07 실측: 회차가 모자란 반이 처음 생기자 /schedule 이 500)
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Schedule({ searchParams }) {
@@ -33,7 +33,7 @@ export default async function Schedule({ searchParams }) {
       <a className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a><a className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</a>
     </div>
     <div className="cnt8" data-g="cnt8">
-      {(b.classes ?? []).map((c) => { const s = sessionsOf(c, target); return <div key={c.id} className={"c8" + (s.ok === false ? " short" : "")} data-g="c8" data-class={c.id}><b>{classText(c)}</b><span className={"c8n" + (s.ok === true ? " ok" : s.ok === false ? " bad" : "")}>{s.n}회</span><small>{s.text}{c.members != null ? ` · ${c.members}명` : ""}</small>{s.ok === false && <Panel.ClassMakeup classId={c.id} ym={d.ym} short={s.short} />}</div>; })}
+      {(b.classes ?? []).map((c) => { const s = sessionsOf(c, target); return <div key={c.id} className={"c8" + (s.ok === false ? " short" : "")} data-g="c8" data-class={c.id}><b>{classText(c)}</b><span className={"c8n" + (s.ok === true ? " ok" : s.ok === false ? " bad" : "")}>{s.n}회</span><small>{s.text}{c.members != null ? ` · ${c.members}명` : ""}</small>{s.ok === false && <ClassMakeup classId={c.id} ym={d.ym} short={s.short} />}</div>; })}
       {!(b.classes ?? []).length && <div className="c8"><b>반이 없습니다</b><small>반은 재원생 14 에서</small></div>}
     </div>
     <div className="calwrap" style={{ marginTop: 8 }}><div className="cal big2" data-g="cal">

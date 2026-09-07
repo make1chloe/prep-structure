@@ -13,7 +13,7 @@ function useRun() {
 }
 const Note = ({ err, msg }) => <>{err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}{msg && <p className="note" data-g="msg" style={{ margin: "4px 0 0", color: "var(--on-ok)" }}>{msg}</p>}</>;
 /** 반 보강일 잡기(8회 채우기) — 회차가 모자란 반 카드 아래 */
-function ClassMakeup({ classId, ym, short }) {
+export function ClassMakeup({ classId, ym, short }) {
   const { run, pending, err, msg } = useRun(); const [open, setOpen] = useState(false); const [on, setOn] = useState(`${ym}-`); const [at, setAt] = useState("");
   return <div style={{ marginTop: 4 }}>
     <button className="btn sm" type="button" data-act="class-makeup-open" onClick={() => setOpen(!open)}>📅 보강일 잡기</button>
@@ -68,4 +68,3 @@ export default function Panel({ d }) {
     <Note err={err} msg={msg} />
   </>;
 }
-Panel.ClassMakeup = ClassMakeup;
