@@ -1,12 +1,13 @@
 "use server";
-/** 교재 손 — 학원 사람만. 판단·쓰기는 lib/book.js 한 벌(+ 교재 · 고치기 · 다른 이름 · 문법 분류 · 엑셀 미리보기·저장). 지우는 손이 없다(대전제-6) */
+/** 교재 손 — 학원 사람만. 판단·쓰기는 lib/book.js 한 벌(+ 교재 · 고치기 · 다른 이름 · 문법 분류 · 엑셀 미리보기·저장(단원 시트 · 교재 시트) · 📦 묶음 되돌리기). 지우는 손이 없다(대전제-6 — 되돌리기도 걸린 줄은 숨긴다) */
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, setUnit, setUnitState } from "@/lib/book";
+import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, applyBookSheet, undoRun, setUnit, setUnitState } from "@/lib/book";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+const sheetName = (s) => (s ? String(s).slice(0, 120) : null);
 export async function addBookAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addBook(sb, { name: f?.name, area: f?.area || null, code: f?.code || null, chunkDepth: f?.chunkDepth || "sub", orderBasis: f?.orderBasis || "sub" }) }; }); }
 export async function setBookAct(id, patch) { return wrap(async () => { const { sb } = await staff(); await setBook(sb, id, patch); return {}; }); }
 export async function aliasAct(id, alias) { return wrap(async () => { const { sb } = await staff(); return { added: await addAlias(sb, id, alias) }; }); }
@@ -21,4 +22,6 @@ export async function previewAct(formData, modes = {}) {
     return { name: f.name ?? "", ...(await previewUpload(sb, XLSX.utils.sheet_to_json(ws, { defval: "" }), await today(sb), modes)) };
   });
 }
-export async function applyAct(rows, decisions) { return wrap(async () => { const { sb } = await staff(); return applyUpload(sb, rows, await today(sb), decisions ?? {}); }); }
+export async function applyAct(rows, decisions, sheet = null) { return wrap(async () => { const { sb, me } = await staff(); return applyUpload(sb, rows, await today(sb), { ...(decisions ?? {}), sheet: sheetName(sheet), who: me.id }); }); }
+export async function applyBooksAct(rows, sheet = null) { return wrap(async () => { const { sb, me } = await staff(); return applyBookSheet(sb, rows, { sheet: sheetName(sheet), who: me.id }); }); }
+export async function undoRunAct(runId) { return wrap(async () => { const { sb } = await staff(); return { res: await undoRun(sb, runId) }; }); }

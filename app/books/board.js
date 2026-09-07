@@ -2,8 +2,8 @@
 /** 교재 판(목업 15) + 엑셀 올리기 모달(15b — 저장 전에 보여준다). 목록(영역 거르기 · 단원 수 · 쓰는 아이) · 고른 교재(교재ID · 영역 · 배정 겹 · 차례 기준 · 단원평가 · 다른 이름 · 활동 차례 · 단원 표 · 문법 분류) · + 교재 · ⬇ 엑셀 · ⬆ 올리기. 세는 것은 화면이 센다(원칙-5) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, unitAct, unitStateAct } from "./actions.js";
-import { AREA_NAMES, CHUNK, BASIS, MODES, listRows, counts, activityOrder, pagesText } from "@/lib/book-plan";
+import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct } from "./actions.js";
+import { AREA_NAMES, CHUNK, BASIS, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -24,6 +24,7 @@ export default function Board({ d }) {
       {c.noArea > 0 && <span className="pill warn" data-g="no-area">영역 없음 {c.noArea}</span>}
       <a className="btn sm" href="/books/videos" data-act="videos">🎬 영상</a>
       <a className="btn sm" href="/api/books/xlsx" data-act="export-all">⬇ 엑셀</a>
+      <a className="btn sm" href="/api/books/xlsx?s=books" data-act="export-books">⬇ 교재 시트</a>
       <button className="btn sm" type="button" data-act="upload-open" onClick={() => setUp(true)}>⬆ 올리기</button>
       <button className="btn pri sm" type="button" data-act="add-open" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 교재</button>
     </div>
@@ -44,6 +45,7 @@ export default function Board({ d }) {
       </div>
       {book ? <div className="bkdet" data-g="detail" data-book={book.id}>
         <div className="ctitle"><span className="cemo">📕</span><span data-g="book-name">{book.name}</span><span className="spacer" /><span className="tag">{book.import_batch === "import" ? "이관" : book.import_batch === "excel" ? "엑셀" : book.import_batch ?? ""}</span></div>
+        <p className="note k" style={{ margin: "0 0 6px" }} data-g="book-meta">{[book.publisher, book.pub_year ? `${book.pub_year}년` : null, book.level ? `레벨 ${book.level}` : null, book.price != null ? `교재비 ${Number(book.price).toLocaleString("ko-KR")}원` : null].filter(Boolean).join(" · ") || "출판사 · 연도 · 레벨 · 교재비 없음"}{book.buy_url ? <> · <a href={book.buy_url} target="_blank" rel="noreferrer">구매 링크</a></> : null} — 교재 시트(⬆ 올리기)로 고칩니다</p>
         <div className="tune" style={{ marginBottom: 8 }} data-g="tune">
           <div><label className="fl">교재ID</label><div className="wv"><input value={code ?? book.code ?? ""} onChange={(x) => setCode(x.target.value)} aria-label="교재ID" style={{ width: 120 }} /><button className="btn sm" type="button" disabled={pending || code == null || code === (book.code ?? "")} data-act="code-save" onClick={() => run(() => setBookAct(book.id, { code }), "교재ID 를 적었습니다", () => setCode(null))}>저장</button></div></div>
           <div><label className="fl">영역</label><select value={book.area ?? ""} aria-label="영역" data-g="area" disabled={pending} onChange={(x) => run(() => setBookAct(book.id, { area: x.target.value || null }), x.target.value ? `영역 ${x.target.value}` : "영역 없음")} style={{ width: "auto" }}><option value="">영역 없음</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a}</option>)}</select></div>
@@ -81,21 +83,36 @@ export default function Board({ d }) {
         </div>
       </div> : <div className="bkdet"><p className="note" style={{ margin: 0 }}>왼쪽에서 교재를 고르세요.</p></div>}
     </div>
+    <Runs runs={b.runs ?? []} run={run} pending={pending} />
     {up && <Upload close={() => setUp(false)} run={run} pending={pending} />}
   </>;
+}
+/** 📦 올린 묶음(0057 · 0142) — 최근 8 · 되돌릴 수 있는 것(같은 표의 마지막 살아 있는 묶음 — SQL 이 정한다)만 「되돌리기」 · 두 번 눌러야 한다(되돌릴 수 없는 낙관 갱신은 안 한다 — 속도-5) */
+function Runs({ runs, run, pending }) {
+  const [arm, setArm] = useState(null);
+  if (!runs.length) return null;
+  return <div className="card" style={{ marginTop: 8 }} data-g="runs">
+    <div className="ctitle"><span className="cemo">📦</span>올린 묶음<span className="spacer" /><span className="note k" style={{ margin: 0 }}>잘못 올렸으면 묶음째 되돌립니다 — 같은 표는 마지막 것부터 · 진도가 걸린 줄은 지우지 않고 숨깁니다</span></div>
+    {runs.map((r) => { const l = runLine(r); return <div key={r.id} className="wv" style={{ padding: "4px 0", opacity: l.state === "undone" ? 0.6 : 1 }} data-g="run" data-run={r.id} data-state={l.state}>
+      <b data-g="run-title">{l.title}</b><span className="note k" style={{ margin: 0 }}>{l.when}</span><span data-g="run-note">{l.note}</span>
+      {l.state === "undone" && <span className="tag" data-g="run-undone">되돌림 {l.undoneAt}</span>}
+      {l.canUndo && <button className={"btn sm" + (arm === r.id ? " pri" : " gho")} type="button" disabled={pending} data-act="run-undo" aria-pressed={arm === r.id} onClick={() => { if (arm !== r.id) { setArm(r.id); return; } run(() => undoRunAct(r.id), (x) => undoText(x.res), () => setArm(null)); }}>{arm === r.id ? "정말 되돌리기" : "되돌리기"}</button>}
+    </div>; })}
+  </div>;
 }
 /** 15b — 저장 전에 보여줍니다: 파일 읽기 → 맞은 교재마다 덮어쓰기/지우고 새로/건너뛰기 → 올리면 이렇게 됩니다 → 보류 풀기(다른 이름 등록 · 새 교재 · 건너뛰기) → 저장 */
 function Upload({ close, run, pending }) {
   const [plan, setPlan] = useState(null); const [modes, setModes] = useState({}); const [holds, setHolds] = useState({}); const [err, setErr] = useState("");
   const read = (fd) => run(async () => { const r = await previewAct(fd); if (r.ok) { setPlan(r); setModes({}); setHolds({}); } return r; });
   const t = plan ? totalsFor(plan.perBook, modes) : null;
-  const holdsLeft = plan ? plan.holds.filter((h) => !holds[h.key] || holds[h.key].act === "skip").reduce((n, h) => n + h.lines, 0) : 0;
+  const holdsLeft = plan?.holds ? plan.holds.filter((h) => !holds[h.key] || holds[h.key].act === "skip").reduce((n, h) => n + h.lines, 0) : 0;   // 교재 시트 계획엔 보류 목록이 없다(줄마다 act)
   return <div className="mdlov" data-g="upload"><div className="mdl" style={{ width: "min(640px, 100%)" }}>
     <div className="mdlh"><b>⬆ 엑셀 올리기 — 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
     <div className="mdlb">
       {!plan && <form action={read} className="wv" data-g="upload-form"><input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="단원 엑셀" style={{ width: "auto" }} /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button>
-        <span className="note k" style={{ margin: 0 }}>열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위 — ⬇ 엑셀 양식과 같습니다</span></form>}
-      {plan && <>
+        <span className="note k" style={{ margin: 0 }}>단원 시트 열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위(⬇ 엑셀 양식) — 교재 시트(교재명 · 영역 · 출판사 · 연도 · 레벨 · 교재비 · 구매링크 — ⬇ 교재 시트 양식)도 여기로. <b>첫 줄 열 이름</b>으로 알아봅니다</span></form>}
+      {plan && plan.kind === "books" && <BooksPlan plan={plan} />}
+      {plan && plan.kind !== "books" && <>
         <div className="ctitle"><span className="cemo">❓</span>이미 있는 교재를 어떻게 할까요</div>
         <div className="ovr" data-g="books">{plan.perBook.map((p) => { const m = modes[p.book_id] ?? "overwrite"; const u = plan.usage?.[p.book_id]; return <div key={p.book_id} className={"ovl" + (m !== "skip" ? " on" : "")} data-g="plan-book" data-book={p.book_id}>
           <div style={{ flex: 1, minWidth: 0 }}><b>{p.name}{p.file_name !== p.name ? ` ← 「${p.file_name}」(${p.how})` : ""}</b><small>파일 {p.rows.length || p.added + p.changed + p.same}줄 · 기존 {p.existing}줄</small>
@@ -120,8 +137,19 @@ function Upload({ close, run, pending }) {
       </>}
       {err && <p className="note" role="alert" style={{ margin: "8px 0 0", color: "var(--miss)" }}>{err}</p>}
     </div>
-    <div className="mdlf">{plan && <button className="btn pri" type="button" disabled={pending} data-act="upload-save" onClick={() => run(() => applyAct(plan.rows, { modes, holds }), (r) => `저장했습니다 — 교재 ${r.books}권 · 줄 ${r.put + r.replaced}${r.skipped ? ` · 건너뜀 ${r.skipped}권` : ""}${r.holds ? ` · 보류 ${r.holds}권` : ""}${r.failed.length ? ` · 실패: ${r.failed.join(" / ")}` : ""}`, close)}>{holdsLeft ? `보류 ${holdsLeft}줄을 뺀 나머지 저장` : "저장"}</button>}
-      <button className="btn gho" type="button" onClick={close}>닫기</button><span className="spacer" /><span className="pill">지우지 않습니다 — ②만 지우고, 그것도 진도가 걸리면 막힙니다</span></div>
+    <div className="mdlf">{plan && plan.kind === "books" && <button className="btn pri" type="button" disabled={pending || !plan.rows.length} data-act="upload-save" onClick={() => run(() => applyBooksAct(plan.rows, plan.name), (r) => `저장했습니다 — ${r.note}${r.held ? ` · 보류 ${r.held}` : ""}${r.failed.length ? ` · 실패: ${r.failed.join(" / ")}` : ""} · 묶음 #${r.run}(아래 「올린 묶음」에서 되돌릴 수 있습니다)`, close)}>{plan.bad.length ? `고칠 줄 ${plan.bad.length}을 뺀 나머지 저장` : "저장"}</button>}
+      {plan && plan.kind !== "books" && <button className="btn pri" type="button" disabled={pending} data-act="upload-save" onClick={() => run(() => applyAct(plan.rows, { modes, holds }, plan.name), (r) => `저장했습니다 — 교재 ${r.books}권 · 줄 ${r.put + r.replaced}${r.skipped ? ` · 건너뜀 ${r.skipped}권` : ""}${r.holds ? ` · 보류 ${r.holds}권` : ""}${r.failed.length ? ` · 실패: ${r.failed.join(" / ")}` : ""} · 묶음 #${r.run}(아래 「올린 묶음」에서 되돌릴 수 있습니다)`, close)}>{holdsLeft ? `보류 ${holdsLeft}줄을 뺀 나머지 저장` : "저장"}</button>}
+      <button className="btn gho" type="button" onClick={close}>닫기</button><span className="spacer" /><span className="pill">지우지 않습니다 — ②만 지우고, 그것도 진도가 걸리면 막힙니다 · 묶음 번호로 되돌릴 수 있습니다</span></div>
   </div></div>;
+}
+/** 교재 시트 미리보기 — 줄마다 새로 만듦 · 고침(어느 칸) · 같음 · 보류(후보 둘) · 고칠 줄(영역 밖 · 링크 꼴 · 같은 교재 두 줄) — 판단은 lib/book-plan planBookUpload·parseBookRows */
+function BooksPlan({ plan }) {
+  const ACT = { new: ["＋", "새로 만듦", "ok"], update: ["✎", "고침", "ok"], same: ["=", "같음", "keep"], hold: ["⏸", "보류", "warn"] };
+  return <>
+    <div className="ctitle"><span className="cemo">📕</span>교재 시트 — 올리면 이렇게 됩니다<span className="spacer" /><span className="pill" data-g="books-totals">새로 {plan.totals.new} · 고침 {plan.totals.update} · 같음 {plan.totals.same}{plan.totals.hold ? ` · 보류 ${plan.totals.hold}` : ""}{plan.bad.length ? ` · 고칠 줄 ${plan.bad.length}` : ""}</span></div>
+    {plan.perRow.map((p) => { const [i, nm, cls] = ACT[p.act]; return <div key={p.line} className={"upr " + cls} data-g="book-plan" data-kind={p.act}><i>{i}</i><div><b>{p.name}{p.book && p.book.name !== p.name ? ` ← 「${p.book.name}」(${p.how})` : ""} — {nm}{p.act === "update" ? `: ${p.labels.join(" · ")}` : ""}</b><small>{p.line}행{p.act === "hold" ? ` · 후보가 ${p.candidates.length}입니다 — ${p.candidates.map((c) => c.name).join(" / ")} · 교재ID 열로 가르세요` : p.act === "new" ? ` · ${[p.area ?? "영역 없음", p.level, p.price != null ? `${p.price}원` : null].filter(Boolean).join(" · ")}` : p.act === "same" ? " · 시트와 같습니다(빈 칸은 지우지 않습니다)" : ""}</small></div></div>; })}
+    {plan.bad.map((x) => <div key={x.line} className="upr warn" data-g="book-bad"><i>✕</i><div><b>{x.name} — 고칠 줄</b><small>{x.line}행 · {x.why} — 이 줄은 저장하지 않습니다</small></div></div>)}
+    {plan.unknown.length > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>모르는 열은 무시했습니다 — {plan.unknown.join(" · ")}</p>}
+  </>;
 }
 function totalsFor(perBook = [], modes = {}) { const live = perBook.filter((p) => (modes[p.book_id] ?? "overwrite") !== "skip"); return { added: live.reduce((n, p) => n + p.added, 0), changed: live.reduce((n, p) => n + p.changed, 0), same: live.reduce((n, p) => n + p.same, 0), untouched: live.reduce((n, p) => n + ((modes[p.book_id] ?? "overwrite") === "overwrite" ? p.untouched : 0), 0) }; }
