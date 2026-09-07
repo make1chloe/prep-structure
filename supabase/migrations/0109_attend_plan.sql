@@ -11,6 +11,13 @@ insert into v2.purge_map(tbl, col, how, note) values ('makeup', 'reason', 'null'
 -- 결석 예정을 물리면 지우지 않고 cancelled 로(대전제-6) — 온다는 뜻. 옛 넷(todo·set·done·waived)은 그대로
 alter table v2.makeup drop constraint if exists makeup_state_check;
 alter table v2.makeup add constraint makeup_state_check check (state in ('todo', 'set', 'done', 'waived', 'cancelled'));
+-- ⚠️ 실 DB 지뢰(2026-09-07 미리보기 실측: 같은 결석에 살아 있는 보강 줄이 둘 이상인 짝 **15**) — 옛 앱에서 보강을 다시 잡으며 옛 계획을 안 지운 것(0042 이관이 그대로 옮겼다).
+--    아래 유일키를 걸기 전에 **가장 늦은 보강일 하나만 남기고** 나머지는 cancelled 로(지우지 않는다 · 대전제-6 — 날짜 같으면 늦게 만든 것 · 그것도 같으면 id 큰 것). 리허설 DB 엔 없어 못 잡았던 것. 한 번 더 돌려도 같다
+update v2.makeup m set state = 'cancelled'
+ where m.of_date is not null and m.state not in ('done', 'cancelled')
+   and exists (select 1 from v2.makeup x
+                where x.student_id = m.student_id and x.of_date = m.of_date and x.id <> m.id and x.state not in ('done', 'cancelled')
+                  and (coalesce(x.on_date, '0001-01-01'), x.created_at, x.id) > (coalesce(m.on_date, '0001-01-01'), m.created_at, m.id));
 create unique index if not exists makeup_one_per_absence on v2.makeup (student_id, of_date) where of_date is not null and state not in ('done', 'cancelled');
 -- 0043 의 유일키 makeup_key(학생·보강 날·빠지는 날, 이관 멱등용)에 물린 줄(cancelled)도 걸려 같은 날을 다시 결석 예정으로 못 잡았다(걷기가 잡음). **물린 줄은 유일성에서 빠진다** — 살아 있는 줄만 세는 부분 유일 색인으로(이름은 그대로). 이관 ⑤ 의 충돌 대상은 0110 이 여기에 맞춘다
 alter table v2.makeup drop constraint if exists makeup_key;

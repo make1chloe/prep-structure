@@ -2,6 +2,7 @@
 -- 0100~0139 를 붙여넣기 **전에** 한 번 돌린다. 리허설 DB 엔 없고 실 DB 에만 있는 「데이터 지뢰」를 센다.
 -- 2026-09-07 실측: 형제 아이디 chloe8729-2 가 0034 의 꼴 검사(chloe+숫자 넷)에 걸려 0100 이 통째로 되돌아갔다 — 그런 것을 미리 보려는 것.
 -- 결과 한 줄의 숫자를 그대로 보내 주시면 된다. 0 이 아니면 그 자리를 붙여넣기 전에 손본다.
+-- 단 「보강_같은결석에둘_0109」 는 0 이 아니어도 된다 — 0109 가 늦은 보강일 하나만 남기고 나머지를 cancelled 로 정리한다(2026-09-07 실 DB 실측 15 → 그렇게 고쳤다).
 -- ⚠️ 여기서 읽는 칸은 0088 까지의 DB 에 있는 것만(profiles.login_id · makeup.of_date/on_date/state · migration.file) — 새 앱이 더하는 칸(book_id 등)을 읽으면 42703 으로 터진다(2026-09-07 실측).
 select
   (select count(*) from v2.profiles p where p.role = 'student' and p.login_id is not null and p.login_id !~ '^chloe[0-9]{4}(-[0-9]{1,2})?$') as 학생아이디_꼴밖,
