@@ -12,7 +12,7 @@ import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem, stayDone, stayAllDone, stayCarry } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
-import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
+import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
 import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
@@ -41,10 +41,11 @@ export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = a
 export const wave = done(async (sheetId, bookId, slot, unitIds) => { const { sb } = await staff(); await pickWave(sb, sheetId, bookId, slot, unitIds); });
 export const memo = done(async (form) => { const { sb } = await staff(); await setMemo(sb, String(form.get("sheetId")), String(form.get("bookId")), String(form.get("slot")), String(form.get("text") ?? "")); });
 // 시험(🔤 오늘 볼 것 · 📝 다음 시간에 낼 것) — 판정은 SQL, 여기는 손만. 판단은 lib/quiz.js
-export const quizAdd = done(async (form) => { const { sb } = await staff(); const r = await addQuiz(sb, String(form.get("sheetId")), { kind: String(form.get("kind")), bookId: String(form.get("bookId") || "") || null, unitId: String(form.get("unitId") || "") || null, freeNote: String(form.get("freeNote") ?? ""), round: Number(form.get("round") || 1) }); return r; });
+export const quizAdd = done(async (form) => { const { sb } = await staff(); const r = await addQuiz(sb, String(form.get("sheetId")), { kind: String(form.get("kind")), scopeId: String(form.get("scopeId") || "") || null, bookId: String(form.get("bookId") || "") || null, unitId: String(form.get("unitId") || "") || null, freeNote: String(form.get("freeNote") ?? ""), round: Number(form.get("round") || 1) }); return r; });
 export const quizSet = done(async (sheetId, quizId, patch) => { const { sb } = await staff(); await setQuiz(sb, sheetId, quizId, patch); });
 export const quizTake = done(async (sheetId, quizId, wrong, total) => { const { sb } = await staff(); return takeQuiz(sb, sheetId, quizId, { wrong, total }); });
 export const quizRetest = done(async (sheetId, quizId) => { const { sb } = await staff(); await retest(sb, sheetId, quizId); });
+export const quizStyle = done(async (sheetId, quizId, form) => { const { sb } = await staff(); return setStyle(sb, sheetId, quizId, form); });   // 방식 고치기 — 이 아이만(5단계-③)
 export const quizSkip = done(async (sheetId, quizId, skip) => { const { sb } = await staff(); await skipRetest(sb, sheetId, quizId, skip); });
 // 조절 모달(02) — 열 때 읽고(tunePool), 적용은 한 손(applyTune). 판단은 lib/routine.js
 export const tuneOpen = done(async (sheetId, bookId) => { const { sb } = await staff(); return { pool: await tunePool(sb, sheetId, bookId) }; });

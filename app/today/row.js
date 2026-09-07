@@ -3,7 +3,7 @@
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useRef, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime } from "@/lib/day-plan";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -13,7 +13,7 @@ import { examPhase } from "@/lib/exam-plan";
 import { TRI } from "@/lib/progress-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
-import { KIND, SOURCE, scopeText } from "@/lib/quiz-plan";
+import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
 import { useEffect } from "react";
@@ -62,7 +62,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
           {sheet && <>
             {(student.quizzes?.today?.length ?? 0) > 0 && <QuizCard sheet={sheet} quizzes={student.quizzes.today} closed={closed} fail={fail} start={start} />}
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
-            <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
+            <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} closed={closed} fail={fail} start={start} />
@@ -109,10 +109,10 @@ function CheckItem({ it, closed, fail, start }) {
   );
 }
 /** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
-function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0 }) {
+function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [] }) {
   const counts = trimCounts(sheet), heavy = heavyBand(sheet, heavyPages, books);   // 줄이기 숫자 · 📣 많습니다(목업 01)
   const [tuneBook, setTuneBook] = useState(null);   // 📣 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
-  const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} closed={closed} fail={fail} start={start} />;
+  const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} scopes={scopes} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
   const isAuto = (it) => Boolean(it.item_id && !it.carry_of && it.unit_id);   // 루틴이 깐 줄 — 교재 반쪽에. 손으로 더한 줄·나머지 줄은 단원이 있어도 「그 밖에」
@@ -236,7 +236,8 @@ function QuizCard({ sheet, quizzes, closed, fail, start }) {
   );
 }
 /** 📝 다음 시간 시험 — 숙제와 같이 나간다. 범위는 교재(오늘 학습 소단원)거나 직접 · 전체 개수를 적어야 리포트에 나간다(원장님 9/2) · 방식·통과선은 학생×교재×회독 한 곳(style_for) */
-function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
+function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
+  const [styleQ, setStyleQ] = useState(null);   // 방식 고치기 모달(5단계-③)
   const unitOf = (bookId) => sheet.class.find((it) => it.units?.book_id === bookId)?.unit_id ?? sheet.home.find((it) => it.units?.book_id === bookId)?.unit_id ?? null;
   const patch = (q, p) => start(async () => { fail(await quizSet(sheet.id, q.id, p)); });
   return (
@@ -246,12 +247,13 @@ function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
         <div key={q.id}>
           <div className="lf" style={{ marginTop: 4 }}><span className="ln">{icon}</span>
             <div><b>{kname}</b><small>{scopeText(q)}</small></div>
-            <div className="seg sm" data-g="source">{SOURCE.map(([k, name]) => <button key={k} type="button" aria-pressed={q.source === k} disabled={closed || k === "prep" || (k === "book" && !q.book_id)} title={k === "prep" ? "내신 범위는 시험 화면을 지을 때" : undefined} onClick={() => k !== q.source && patch(q, { source: k, freeNote: q.free_note ?? "" })}>{name}</button>)}</div>
-            <span className="qlab">전체 개수</span><input className="scr" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="—" disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.total)) patch(q, { total: e.target.value }); }} />
-            <span className="qlab">통과선</span><input className="scr" type="text" inputMode="numeric" defaultValue={numOr(q.cut_pct)} style={{ maxWidth: 52 }} disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.cut_pct)) patch(q, { cutPct: e.target.value }); }} /><b className="qof">%</b></div>
+            <div className="seg sm" data-g="source">{SOURCE.map(([k, name]) => <button key={k} type="button" aria-pressed={q.source === k} disabled={closed || (k === "prep" && !scopes.length) || (k === "book" && !q.book_id)} title={k === "prep" && !scopes.length ? "이 아이가 보는 시험의 범위가 아직 없습니다 — 시험 회차(06b)·내신 자료(04)에서 범위를 넣으면 고를 수 있습니다" : undefined} onClick={() => k !== q.source && (k === "prep" ? patch(q, { scopeId: scopes[0].id }) : patch(q, { source: k, freeNote: q.free_note ?? "" }))}>{name}</button>)}</div>
+            {q.source === "prep" && scopes.length > 0 && <select data-g="scope" value={q.scope_id ?? ""} aria-label="내신 범위" style={{ width: "auto", maxWidth: 260 }} disabled={closed} onChange={(e) => patch(q, { scopeId: e.target.value })}>{scopes.map((sc) => <option key={sc.id} value={sc.id}>{sc.text}</option>)}</select>}
+            <span className="qlab">전체 개수</span><input className="scr" name="total" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="—" disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.total)) patch(q, { total: e.target.value }); }} />
+            <span className="qlab">통과선</span><input className="scr" name="cut_pct" type="text" inputMode="numeric" defaultValue={numOr(q.cut_pct)} style={{ maxWidth: 52 }} disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.cut_pct)) patch(q, { cutPct: e.target.value }); }} /><b className="qof">%</b></div>
           {q.source === "manual" && <div className="lf" style={{ marginTop: 4 }}><span className="ln">✎</span><input type="text" defaultValue={q.free_note ?? ""} placeholder="범위를 직접 — 예: 2409 학평 22-24번" disabled={closed} style={{ flex: 1, minWidth: 0 }} onBlur={(e) => { if (e.target.value !== (q.free_note ?? "")) patch(q, { freeNote: e.target.value }); }} /></div>}
           {q.total == null && <div className="lf warn" style={{ marginTop: 4 }}><span className="ln">!</span><div><b>{kname} 시험은 리포트에 안 나갑니다</b><small>전체 개수를 아직 안 적으셨습니다 — 적으면 바로 붙습니다</small></div></div>}
-          <div className="lf" style={{ marginTop: 4, background: "var(--sunk)" }}><span className="ln">⚙️</span><div><b>방식 — {q.quiz_style?.round ?? 1}회독 기본값을 따릅니다</b><small>{q.quiz_style?.text ?? "방식 줄 없음"} — 이 아이만 다르게도 됩니다(방식 고치기는 다음에)</small></div></div>
+          <div className="lf" style={{ marginTop: 4, background: "var(--sunk)" }}><span className="ln">⚙️</span><div><b>방식 — {q.quiz_style?.round ?? 1}회독 {q.quiz_style?.student_id ? <span className="tag act" data-g="style-mine">이 아이만</span> : q.quiz_style?.book_id ? "교재 기본값" : "학원 기본값"}을 따릅니다</b><small data-g="style-text">{q.quiz_style?.text ?? "방식 줄 없음"}{q.quiz_style?.units_per ? ` · ${q.quiz_style.units_per}단원씩` : ""} — 이 아이만 다르게도 됩니다</small></div>{!closed && <button type="button" className="btn sm" data-act="style-open" onClick={() => setStyleQ(q)}>방식 고치기</button>}</div>
         </div>); })}
       {!closed && <form className="wv" style={{ marginTop: 8 }} action={async (f) => { fail(await quizAdd(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
@@ -262,8 +264,28 @@ function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
         <input type="text" name="freeNote" placeholder="직접 적을 때 범위" style={{ flex: "1 1 120px", minWidth: 0 }} />
         <button className="btn sm" type="submit">+ 시험 더하기</button>
       </form>}
+      {styleQ && <StyleModal q={styleQ} sheet={sheet} fail={fail} start={start} onClose={() => setStyleQ(null)} />}
     </div>
   );
+}
+/** 방식 고치기(5단계-③ · 목업 01 「이 아이만 다르게도 됩니다 — 방식 고치기」) — 학생 × 교재 × 회독 × 갈래 한 줄: 단어는 네 비율(합 100) · 첫글자 힌트 · 몇 단원씩, 문장은 방식(구두·받아쓰기·녹음) · 통과선. 저장하면 아직 안 본 같은 짝의 시험이 따라온다 */
+function StyleModal({ q, sheet, fail, start, onClose }) {
+  const st = q.quiz_style ?? {}, [f, setF] = useState({ mc_meaning: st.mc_meaning ?? 0, sa_meaning: st.sa_meaning ?? 0, mc_word: st.mc_word ?? 0, sa_word: st.sa_word ?? 0, first_hint: Boolean(st.first_hint), units_per: st.units_per ?? "", s_way: st.s_way ?? "dictation", cut_pct: st.cut_pct ?? q.cut_pct ?? 90 });
+  const set = (k, v) => setF((o) => ({ ...o, [k]: v }));
+  const sum = Number(f.mc_meaning || 0) + Number(f.sa_meaning || 0) + Number(f.mc_word || 0) + Number(f.sa_word || 0);
+  const N = ({ k, label }) => <label className="wv" style={{ gap: 4, margin: 0 }}><span className="fl" style={{ margin: 0, width: "auto" }}>{label}</span><input className="scr" name={k} type="text" inputMode="numeric" value={f[k]} onChange={(e) => set(k, e.target.value)} style={{ maxWidth: 56 }} /></label>;
+  return <div className="mdlov" role="dialog" aria-modal="true" aria-label="방식 고치기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(520px,100%)" }} data-g="style-modal">
+    <div className="mdlh"><b>방식 고치기 — 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+    <div className="mdlb">
+      <p className="note" style={{ marginTop: 0 }}>지금은 <b>{st.student_id ? "이 아이만의 줄" : st.book_id ? "교재 기본값" : "학원 기본값"}</b> — {st.text ?? "방식 줄 없음"}. 저장하면 이 아이 · 이 교재 · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1]} 시험만 이 방식을 따르고, 아직 안 본 같은 시험도 따라옵니다.</p>
+      {q.kind === "word" ? <>
+        <div className="wv" style={{ gap: 10 }}><N k="mc_meaning" label="객관식 뜻 %" /><N k="sa_meaning" label="주관식 뜻 %" /><N k="mc_word" label="객관식 영어 %" /><N k="sa_word" label="주관식 영어 %" /><span className={"pill" + (sum === 100 ? " ok" : " warn")} data-g="style-sum">합 {sum}</span></div>
+        <div className="wv" style={{ gap: 10, marginTop: 6 }}><label className="wv" style={{ gap: 4, margin: 0 }}><input type="checkbox" name="first_hint" checked={f.first_hint} onChange={(e) => set("first_hint", e.target.checked)} /> 첫글자 힌트</label><N k="units_per" label="몇 단원씩(비면 안 씀)" /></div>
+      </> : <div className="seg sm" data-g="s-way">{S_WAY.map(([k, name]) => <button key={k} type="button" aria-pressed={f.s_way === k} onClick={() => set("s_way", k)}>{name}</button>)}</div>}
+      <div className="wv" style={{ gap: 10, marginTop: 6 }}><N k="cut_pct" label="통과선 %" /></div>
+      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><span className="note" style={{ margin: 0 }}>시험 방식·통과선은 학생 × 교재 × 회독마다 미리 정해 둡니다 — 오늘 고르지 않습니다(목업 01)</span><span className="spacer" />
+        <button type="button" className="btn sm pri" data-act="style-save" disabled={q.kind === "word" && sum !== 100} onClick={() => start(async () => { if (fail(await quizStyle(sheet.id, q.id, { ...f, first_hint: f.first_hint ? "on" : "" }))) onClose(); })}>저장</button></div>
+    </div></div></div>;
 }
 /** 3b 늦귀가(목업 01) — 사유 한 줄이 원본(확정-㊿) · 예상 귀가 = 약속 · 📨 지금 보내기(큐 + 보냄 때) · 실제 하원은 등원 걸음 4 와 같은 줄(0083 — 차이는 세어 나온다) · 되풀이(3주 안 3번)면 앱이 먼저 「숙제량을 볼까요」(확정-⑭) · 경고 3회째면 처분 셋(확정-㊼) */
 function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", closed, fail, start }) {
