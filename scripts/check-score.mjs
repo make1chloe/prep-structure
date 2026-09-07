@@ -1,5 +1,5 @@
-/** 성적 판단 검사(검사-55) — lib/score-plan.js 순수 셈: 등급은 회차의 컷으로 세어 나온다(중학교 절대평가 A~E · 학교가 준 등급이 이긴다) · 다음 등급까지 · 컷 글 · 문항표 글 ↔ 줄 · 틀린 번호 글 · 영역 셈 · 그 회차의 줄(없음·기다림·확인됨) · 알약 · 짧은 이름 · 카드 한 줄 · 넣을 회차 · 엑셀 한 줄 */
-import { gradeByCuts, gradeText, toNextGrade, parseCuts, cutsText, cutsFor, parseQuestions, questionsText, parseWrong, wrongSummary, summaryText, rowsOf, counts, examShort, scoreLine, examsForEntry, parseScoreRow, parseSheet, showText, SHOW, MIDDLE_CUTS } from "../lib/score-plan.js";
+/** 성적 판단 검사(검사-55) — lib/score-plan.js 순수 셈: 등급은 회차의 컷으로 세어 나온다(중학교 절대평가 A~E · 학교가 준 등급이 이긴다) · 다음 등급까지 · 컷 글 · 문항표 글 ↔ 줄 · 틀린 번호 글 · 영역 셈 · 그 회차의 줄(없음·기다림·확인됨) · 알약 · 짧은 이름 · 카드 한 줄 · 넣을 회차 · 엑셀 한 줄 · 모의고사 백분위 읽기(0~100 정수 · 빈 것 null) */
+import { gradeByCuts, gradeText, toNextGrade, parseCuts, cutsText, cutsFor, parseQuestions, questionsText, parseWrong, wrongSummary, summaryText, rowsOf, counts, examShort, scoreLine, examsForEntry, parseScoreRow, parseSheet, showText, parsePercentile, SHOW, MIDDLE_CUTS } from "../lib/score-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -30,5 +30,7 @@ ok("넣을 회차 — 오늘 10/6: 지난 중간만(다음 기말은 아직 · 6
 console.log("■ 엑셀 한 줄");
 const r1 = parseScoreRow({ "학생 이름": "강민서", "원점수": "88점", "만점": "100", "등급": "2", "틀린 문항": "3, 7, 11" });
 ok("한 줄 — 이름 · 88 · 100 · 등급 2 · 틀린 [3,7,11] · 이름·점수 없는 줄은 버린다", r1.name === "강민서" && r1.raw === 88 && r1.full === 100 && r1.grade === 2 && J(r1.wrongs) === J([3, 7, 11]) && parseSheet([{ 이름: "구도은", 점수: "76" }, { 이름: "", 점수: "1" }, { 비고: "합계" }]).length === 1, J(r1));
+console.log("■ 모의고사 백분위(4단계-4)");
+ok("백분위 — 「92」 → 92 · 「 0 」 → 0 · 「100」 → 100 · 빈 것 null · 「101」·「-1」·「9.5」·「높음」은 막음", parsePercentile("92") === 92 && parsePercentile(" 0 ") === 0 && parsePercentile("100") === 100 && parsePercentile("") === null && parsePercentile(undefined) === null && ["101", "-1", "9.5", "높음"].every((v) => { try { parsePercentile(v); return false; } catch { return true; } }));
 console.log(`\n■ 성적 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

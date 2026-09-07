@@ -1,5 +1,5 @@
-/** 교재 · 단원 판단 검사(검사-56) — lib/book-plan.js 순수 셈: 같은 교재 열쇠(판·연도·기호만 없앤다) · 활동 차례(줄 순서에서 저절로) · 목록 줄·알약 · 엑셀 읽기(열 이름 후보 · 교재명 이어받기 · 워크북 · 문항범위 → 개수 · 날짜로 바뀐 것 짚기) · 교재 맞추기(교재ID › 이름 › 다른 이름 › 비슷한 이름 · 후보 둘이면 보류) · 올리면 이렇게 됩니다(새로·바뀜·같음·파일에 없는 기존 줄 · 덮어쓰기 차례 · 지우고 새로 · 건너뛰기 · 묶음은 교재를 따른다) · 엑셀로 */
-import { bookKey, activityOrder, listRows, counts, mapHeaders, parseUnitRows, rangeMangled, countRange, matchBooks, planUpload, mergeOrder, batchFor, exportRows, pagesText, AREA_NAMES, MODES } from "../lib/book-plan.js";
+/** 교재 · 단원 판단 검사(검사-56) — lib/book-plan.js 순수 셈: 단원 한 줄 손질(쪽 「10-12」·문항·핵심 · 막는 것) · 단원 상태 둘 · 같은 교재 열쇠(판·연도·기호만 없앤다) · 활동 차례(줄 순서에서 저절로) · 목록 줄·알약 · 엑셀 읽기(열 이름 후보 · 교재명 이어받기 · 워크북 · 문항범위 → 개수 · 날짜로 바뀐 것 짚기) · 교재 맞추기(교재ID › 이름 › 다른 이름 › 비슷한 이름 · 후보 둘이면 보류) · 올리면 이렇게 됩니다(새로·바뀜·같음·파일에 없는 기존 줄 · 덮어쓰기 차례 · 지우고 새로 · 건너뛰기 · 묶음은 교재를 따른다) · 엑셀로 */
+import { bookKey, activityOrder, listRows, counts, mapHeaders, parseUnitRows, rangeMangled, countRange, matchBooks, planUpload, mergeOrder, batchFor, exportRows, pagesText, parseUnitEdit, AREA_NAMES, MODES, UNIT_STATE } from "../lib/book-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -35,5 +35,9 @@ ok("새 대단원은 끝에 · 지우고 새로는 파일 줄만 · 건너뛰기
 console.log("■ 엑셀로");
 const ex = exportRows(existing, { name: "중등3800제3", code: "G023" });
 ok("내보낼 줄 — 올리기 양식과 같은 열 · 차례대로 · 워크북 Y/빈칸 · 「p.96」", Object.keys(ex[0]).join() === "교재명,교재ID,대단원,중단원,소단원,활동명,워크북,시작페이지,끝페이지,문항수,문항범위,핵심내용" && ex[0].교재ID === "G023" && ex[0].워크북 === "" && pagesText(existing[0]) === "p.96" && pagesText({ page_start: 99, page_end: 101 }) === "p.99-101", J(ex[0]));
+console.log("■ 단원 한 줄 손질(4단계-4)");
+ok("쪽 「10-12」 → 10·12 · 「p.10」 → 10·10 · 빈 쪽 null · 문항 「14」 → 14 · 빈 문항 null · 핵심은 다듬어서(빈 것 null)", J(parseUnitEdit({ pages: "10-12", qCount: "14", gist: " 관계대명사 " })) === J({ page_start: 10, page_end: 12, q_count: 14, gist: "관계대명사" }) && J(parseUnitEdit({ pages: "p.10" })) === J({ page_start: 10, page_end: 10, q_count: null, gist: null }) && J(parseUnitEdit({})) === J({ page_start: null, page_end: null, q_count: null, gist: null }), J(parseUnitEdit({ pages: "10-12", qCount: "14", gist: " 관계대명사 " })));
+ok("막는 것 — 쪽 「십쪽」 · 끝 쪽이 앞 쪽보다 작음 「12-10」 · 문항 「-1」 · 문항 「1.5」", [() => parseUnitEdit({ pages: "십쪽" }), () => parseUnitEdit({ pages: "12-10" }), () => parseUnitEdit({ qCount: "-1" }), () => parseUnitEdit({ qCount: "1.5" })].every((f) => { try { f(); return false; } catch { return true; } }));
+ok("단원 상태 둘 — 쓰는 중 · 숨김(지우지 않는다 · 아이 진도 줄이 붙어 있을 수 있다)", UNIT_STATE.map((s) => s[0]).join() === "active,hidden" && UNIT_STATE.map((s) => s[1]).join() === "쓰는 중,숨김");
 console.log(`\n■ 교재 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

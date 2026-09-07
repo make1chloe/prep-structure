@@ -1,5 +1,5 @@
-/** 수강료 판단 검사(검사-53) — lib/fee-plan.js 순수 셈: 단가 줄(학생 › 반 › 학년 기준 · 그 달에 걸친 것만) · 특강은 단가 × 회차(일정 12 와 같은 셈) · 그 달 줄(받은 금액이 있으면 그것) · 상태 셋 · 합계 · 금액을 바꾸면 이 달부터 새 단가 줄(지난달 소급 없음, 처음-1) · 결제선생 엑셀 읽기(열 이름 후보) · 엑셀로 내보낼 줄 */
-import { won, parseWon, gradeKey, ruleFor, suggested, rowsOf, totals, ruleChanges, parseDate, parsePaymentRow, parseSheet, exportRows, STATE } from "../lib/fee-plan.js";
+/** 수강료 판단 검사(검사-53) — lib/fee-plan.js 순수 셈: 단가 줄(학생 › 반 › 학년 기준 · 그 달에 걸친 것만) · 특강은 단가 × 회차(일정 12 와 같은 셈) · 그 달 줄(받은 금액이 있으면 그것) · 상태 셋 · 합계 · 금액을 바꾸면 이 달부터 새 단가 줄(지난달 소급 없음, 처음-1) · 결제선생 엑셀 읽기(열 이름 후보) · 엑셀로 내보낼 줄 · 학년별 기준 양식(초1~고3 · 빈 칸은 안 적음 · 0·음수는 막음) · 수납 방법 넷 · 지난달 안 받음 알약 글 */
+import { won, parseWon, gradeKey, ruleFor, suggested, rowsOf, totals, ruleChanges, parseDate, parsePaymentRow, parseSheet, exportRows, parseByGrade, prevUnpaidText, STATE, GRADE_KEYS, METHODS } from "../lib/fee-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -45,5 +45,10 @@ ok("시트 — 이름 없는 줄(합계 줄 따위)은 버린다", parseSheet([{
 console.log("■ 엑셀로");
 const ex = exportRows(rows, "2026-10");
 ok("화면이 세는 줄 그대로 — 열 「월 · 학생 · 반 · 금액 · 받은 날 · 상태」 · 강민서 받음 · 서예린 빈 금액", Object.keys(ex[0]).join() === "월,학생,반,금액,받은 날,상태" && ex[0].상태 === "받음" && ex[0].금액 === 360000 && ex[3].금액 === "" && ex[3].상태 === "금액 없음", J(ex));
+console.log("■ 학년별 기준 양식 · 수납 방법 · 지난달 안 받음(4단계-4)");
+ok("학년 열쇠 12 — 초1 … 고3 · 옛 설정 tuition.byGrade 의 열쇠와 같은 글(gradeKey 가 만드는 것)", GRADE_KEYS.length === 12 && GRADE_KEYS[0] === "초1" && GRADE_KEYS[11] === "고3" && GRADE_KEYS.includes(gradeKey("middle", 2)) && GRADE_KEYS.includes(gradeKey("elem", 6)));
+ok("양식 읽기 — 「250,000」 → 250000 · 「380000원」 → 380000 · 빈 칸은 안 적음(지우는 게 아니라 안 건드림) · 0·「abc」는 막음", J(parseByGrade({ "초1": "250,000", "중3": "380000원", "고1": "" })) === J({ "초1": 250000, "중3": 380000 }) && J(parseByGrade({})) === "{}" && [() => parseByGrade({ "초1": "0" }), () => parseByGrade({ "고3": "abc" })].every((f) => { try { f(); return false; } catch { return true; } }), J(parseByGrade({ "초1": "250,000", "중3": "380000원", "고1": "" })));
+ok("수납 방법 넷 — 계좌 · 카드 · 현금 · 기타(결제선생 엑셀이 적는 말과 같다)", METHODS.join() === "계좌,카드,현금,기타");
+ok("지난달 안 받음 알약 — 1명 200,000 → 「지난달 안 받음 1명 · 200,000원」 · 0명이면 빈 글(알약 안 뜸) · 없으면 빈 글", prevUnpaidText({ n: 1, sum: 200000 }) === "지난달 안 받음 1명 · 200,000원" && prevUnpaidText({ n: 0, sum: 0 }) === "" && prevUnpaidText(null) === "", prevUnpaidText({ n: 1, sum: 200000 }));
 console.log(`\n■ 수강료 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
