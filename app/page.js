@@ -59,7 +59,7 @@ export default async function Home() {
         {d.reflect.length > 0 && <Row icon="⚠️" cls="i-abs" b={`반성문 ${d.reflect.length}명`} small={d.reflect.map((r) => `${r.name} — 이달 경고 ${r.count}회째 · ${dispName(r.disposal)}`).join(" · ")} />}
       </Card>
       <Card emo="📨" title="발송" id="send">
-        <Row icon="📨" cls="i-hw" b={`데일리리포트 ${d.sheets.closed} / ${d.sheets.total}`} small="마감한 것만 나갑니다 — 발송 화면(10)은 아직"><a className="btn sm" href="/today">보기</a></Row>
+        <Row icon="📨" cls="i-hw" b={`데일리리포트 ${d.sheets.closed} / ${d.sheets.total}`} small={<>마감한 것만 나갑니다 · <span data-g="unread">안 읽은 집 {d.unread}</span></>}><a className="btn sm" href="/send">발송 ↗</a></Row>
       </Card>
       <Card emo="🔥" title="오늘 안" id="soon">
         {!d.unitTodo.length && !d.retests.length && <Row icon="✓" cls="i-ok" b="오늘 안에 할 것 없음" />}

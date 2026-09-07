@@ -3,7 +3,8 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { scoreBoard, setCuts, setQuestions, saveScore, confirmScore, confirmAll, setShow, importScores } from "@/lib/score";
+import { serviceClient } from "@/lib/supabase";
+import { scoreBoard, setCuts, setQuestions, saveScore, confirmScore, confirmAll, setShow, importScores, remindScores } from "@/lib/score";
 import { parseSheet } from "@/lib/score-plan";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
@@ -13,6 +14,7 @@ export async function questionsAct(examId, text) { return wrap(async () => { con
 export async function saveAct(examId, studentId, f) { return wrap(async () => { const { sb } = await staff(); return saveScore(sb, { examId, studentId, raw: f?.raw, full: f?.full ?? 100, wrongs: f?.wrongs ?? "", note: f?.note ?? null, byWho: "staff" }, await today(sb)); }); }
 export async function confirmAct(scoreId, showTo = null) { return wrap(async () => { const { sb } = await staff(); return confirmScore(sb, scoreId, showTo); }); }
 export async function confirmAllAct(examId) { return wrap(async () => { const { sb } = await staff(); return confirmAll(sb, examId); }); }
+export async function remindAct(examId) { return wrap(async () => { const { sb } = await staff(); return remindScores(serviceClient(), sb, String(examId), await today(sb)); }); }
 export async function showAct(scoreId, showTo) { return wrap(async () => { const { sb } = await staff(); await setShow(sb, scoreId, showTo); return {}; }); }
 export async function importAct(examId, formData) {
   return wrap(async () => {

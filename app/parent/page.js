@@ -60,6 +60,8 @@ export default async function Parent({ searchParams }) {
       <p className="note k" style={{ margin: "4px 0 0" }}>숙제와 같이 왔습니다. 다음 수업 시작하자마자 봅니다. 개수를 안 정한 시험은 여기 안 옵니다.</p></Card>}
     {can(PARENT.next) && d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
       {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>}
+    {can(PARENT.reports) && d.fee && <Card emo="💰" title="수강료" id="fee" pill={d.fee.pill} pillCls={d.fee.paid ? "hw" : "warn"}>
+      <div className="li" data-g="fee-line" data-paid={d.fee.paid ? "1" : "0"}><div><b>{d.fee.text}</b><small>{d.fee.small}</small></div></div></Card>}
     {can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" pill={d.scores[0].title}>
       {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div></div>)}
       <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 시험만 보입니다.</p></Card>}
@@ -76,8 +78,9 @@ export default async function Parent({ searchParams }) {
     {can(PARENT.recent) && <a className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></a>}
     {can(PARENT.intro) && <Card emo="🎒" title={d.student.name} id="intro" pill={d.student.schools ? `${d.student.schools.name}` : null}>
       <p className="note" style={{ margin: "4px 0 0" }}>{d.todayClass ? "오늘 수업이 있는 날입니다" : "오늘은 수업이 없는 날입니다"}</p></Card>}
-    {can(PARENT.sent) && d.sent.length > 0 && <Card emo="📨" title="보낸 것" id="sent" pill={String(d.sent.length)}>
-      {d.sent.map((s) => <div className="li" key={s.id}><div><b>{s.text}</b><small>{s.small}</small></div></div>)}</Card>}
+    {can(PARENT.sent) && d.sent.length + d.notices.length > 0 && <Card emo="📨" title="보낸 것" id="sent" pill={String(d.sent.length + d.notices.length)}>
+      {d.sent.map((s) => <div className="li" key={s.id}><div><b>{s.text}</b><small>{s.small}</small></div></div>)}
+      {d.notices.map((s) => <div className="li" key={s.id} data-g="notice-line"><div><b>{s.text}</b><small>{s.small}</small></div><a className="btn sm" href={s.url}>보기</a></div>)}</Card>}
     <BellCard />
     {anyCard && <AskCard asks={d.asks} send={sendFor} note="결석 예정을 미리 알려 주시면 수업을 준비하는 데에 큰 도움이 됩니다. 병원 진료가 아닌 당일 결석은 보강이 불가합니다." placeholder="선생님께 한마디" />}
   </>);

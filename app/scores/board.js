@@ -2,7 +2,7 @@
 /** 성적 판(목업 16) — 회차 고르기 · 등급컷 · 문항표 · 표(학생 · 원점수 · 등급(세어 나옴) · 틀린 문항 · 낸 때 · 공개 · 확인/대신 넣기) · 틀린 문항 판(눌러도 되고 적어도 된다 — 같은 값) · 영역 셈 · 저장줄. 세는 것은 화면이 센다(원칙-5) — lib/score-plan 한 벌 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { cutsAct, questionsAct, saveAct, confirmAct, confirmAllAct, showAct, importAct } from "./actions.js";
+import { cutsAct, questionsAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct } from "./actions.js";
 import { counts, cutsText, questionsText, parseWrong, wrongSummary, summaryText, gradeByCuts, gradeText, cutsFor, SHOW, showText, examShort } from "@/lib/score-plan";
 import { mdDot } from "@/lib/exam-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
@@ -71,7 +71,8 @@ export default function Board({ d }) {
         <button className="btn pri" type="button" disabled={pending || !c.unconfirmed} data-act="confirm-all" onClick={() => run(() => confirmAllAct(e.id), (r) => `${r.n}명 확인했습니다 — 성적이 굳고 공개 기본값이 붙었습니다`)}>모두 확인</button>
         <span className="pill">확인해야 성적이 굳고 공개를 켤 수 있습니다</span>
         <span className="spacer" />
-        <span className="pill" style={c.missing ? MISS : undefined} data-g="missing-sum">안 낸 아이 {c.missing}명{c.missing ? " — 재촉은 발송 10 에서(다음)" : ""}</span>
+        <span className="pill" style={c.missing ? MISS : undefined} data-g="missing-sum">안 낸 아이 {c.missing}명</span>
+        {c.missing > 0 && <button type="button" className="btn sm" disabled={pending} data-act="remind-scores" onClick={() => run(() => remindAct(e.id), (r) => `${r.n}명에게 재촉 — ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`)}>📨 안 낸 아이 재촉</button>}
       </div>
     </>}
   </>;

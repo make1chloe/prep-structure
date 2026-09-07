@@ -2,7 +2,7 @@
 /** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생 엑셀 올리기 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveAct, importAct } from "./actions.js";
+import { saveAct, importAct, remindAct } from "./actions.js";
 import { won, parseWon, totals, STATE } from "@/lib/fee-plan";
 import { monthLabel, nextYm } from "@/lib/schedule-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
@@ -19,6 +19,7 @@ export default function Fee({ d }) {
       <a className="btn sm" href={`/ops?m=${nextYm(d.ym, -1)}`} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><a className="btn sm" href={`/ops?m=${nextYm(d.ym, 1)}`} aria-label="다음 달">▸</a>
       <span className={"pill" + (t.unpaidCount ? " warn" : "")} data-g="unpaid-count">안 받음 {t.unpaidCount}</span>
       {t.noneCount > 0 && <span className="pill" data-g="none-count">금액 없음 {t.noneCount}</span>}
+      <button type="button" className="btn sm" disabled={pending || !t.unpaidCount} data-act="remind-fees" title="이 달 금액을 적어 저장한 줄 중 아직 안 받은 집의 학부모에게 — 적지 않은 금액은 학부모 화면에 없어 안 나갑니다" onClick={() => run(() => remindAct(d.ym), (r) => `${r.n}집에 수강료 안내 — ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`)}>💰 안 받은 집에 안내</button>
       <span className="spacer" />
       <form action={(fd) => run(() => importAct(d.ym, fd), (r) => `올렸습니다 — ${r.put}줄${r.skipped ? ` · 건너뜀 ${r.skipped}` : ""}${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
         <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="결제선생 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">📄 결제선생 엑셀 올리기</button></form>
