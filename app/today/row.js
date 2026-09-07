@@ -3,10 +3,10 @@
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useRef, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { setAttend, check, rest, add, move, late, lateSend, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime } from "@/lib/day-plan";
-import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason } from "@/lib/late-plan";
+import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
 import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
 import { examPhase } from "@/lib/exam-plan";
@@ -24,7 +24,7 @@ const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
-export default function Row({ student, sheet, classId, date, minutes, defaultOpen, cfg }) {
+export default function Row({ student, sheet, classId, classEnd = "", date, minutes, defaultOpen, cfg }) {
   const [open, setOpen] = useState(defaultOpen);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -65,7 +65,7 @@ export default function Row({ student, sheet, classId, date, minutes, defaultOpe
             <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
-            <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} closed={closed} fail={fail} start={start} />
+            <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} closed={closed} fail={fail} start={start} />
             <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} onCollapse={() => setOpen(false)} />
           </>}
         </div>
@@ -266,8 +266,10 @@ function NextQuiz({ sheet, books, quizzes, closed, fail, start }) {
   );
 }
 /** 3b 늦귀가(목업 01) — 사유 한 줄이 원본(확정-㊿) · 예상 귀가 = 약속 · 📨 지금 보내기(큐 + 보냄 때) · 실제 하원은 등원 걸음 4 와 같은 줄(0083 — 차이는 세어 나온다) · 되풀이(3주 안 3번)면 앱이 먼저 「숙제량을 볼까요」(확정-⑭) · 경고 3회째면 처분 셋(확정-㊼) */
-function LateCard({ sheet, warn, stay, books, studentId, date, closed, fail, start }) {
+function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", closed, fail, start }) {
   const ask = warn && (warn.due || warn.today_disposal);
+  const rows = stayRows(sheet.stay ?? []), sc = stayCounts(rows), usual = usualText(classEnd);   // 3b 「남」 줄(0141 · 5단계-②) · 「평소 21:40」
+  const [stayText, setStayText] = useState("");
   const l = sheet.late;
   const [until, setUntil] = useState(l?.until_at ? String(l.until_at).slice(0, 5) : "");
   const [reason, setReason] = useState(l?.reason ?? "");   // 사유 한 줄이 원본(확정-㊿) — 칩은 조각을 넣고 뺀다
@@ -280,7 +282,17 @@ function LateCard({ sheet, warn, stay, books, studentId, date, closed, fail, sta
   const leftLine = leftText(l, stay?.left_at);
   return (
     <div className="card" data-card="late">
-      <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}</span>}</div>
+      <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}</div>
+      <div data-g="stay" style={{ marginTop: 8 }}>
+        {rows.map((r) => <div key={r.id} className="dayrow" data-g="stay-row" data-state={r.state}><span className="tag on">남</span>
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}><b style={{ textDecoration: r.state === "done" ? "line-through" : "none" }}>{r.text}</b><small>{[r.sub, r.from].filter(Boolean).join(" · ")}{r.state === "done" ? " · 다 함" : r.state === "missing" ? " · ⏭ 다음 숙제로 넘김" : ""}</small></div>
+          {r.state === "open" && <button type="button" className="btn sm" data-act="stay-done" disabled={closed} onClick={() => start(async () => { fail(await stayDoneAct(r.id)); })}>다 함</button>}</div>)}
+        {!closed && <div className="wv" style={{ marginTop: 4 }} data-g="stay-add"><input type="text" value={stayText} onChange={(e) => setStayText(e.target.value)} placeholder="항목 더하기 (예: 워크북 복습 · 못 한 만큼)" aria-label="남아서 할 항목" style={{ flex: "1 1 200px" }} />
+          <button type="button" className="btn sm" data-act="stay-add" disabled={!stayText.trim()} onClick={() => start(async () => { const f = new FormData(); f.set("sheetId", sheet.id); f.set("slot", "stay"); f.set("text", stayText); if (fail(await add(f))) setStayText(""); })}>항목 더하기</button>
+          {sc.open > 0 && <button type="button" className="btn sm" data-act="stay-carry" onClick={() => start(async () => { fail(await stayCarryAct(sheet.id)); })}>⏭ 남은 것 다음 숙제로 넘기기</button>}
+          {sc.open > 0 && <button type="button" className="btn sm pri" data-act="stay-all-done" onClick={() => start(async () => { fail(await stayAllDoneAct(sheet.id)); })}>남아서 다 합니다</button>}</div>}
+        <p className="note" style={{ margin: "4px 0 0" }} data-g="stay-note">{rows.length ? `남 ${sc.total} · 다 함 ${sc.done} · 넘김 ${sc.missing}` : "✕·△ 준 항목이 후보로 올라옵니다(검사 줄의 「나머지는 → 남아서」) — 고르는 것은 원장님"}{!l?.until_at && usual ? ` · ${usual}` : ""}</p>
+      </div>
       {band && <div className="lf warn" style={{ margin: "8px 0 0" }} data-g="repeat"><span className="ln">🌙</span>
         <div><b>{band.title}</b><small>{band.days} — 앱이 셉니다(규칙 late.repeat_count · late.repeat_days), 원장님이 세지 않습니다</small></div>
         {books.filter(laid).map((b) => <button key={b.book_id} type="button" className="btn sm" data-act="repeat-tune" disabled={closed} onClick={() => setTuneBook(b)}>{b.books.name} 조절 ↗</button>)}

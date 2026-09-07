@@ -58,8 +58,9 @@ export default async function Me() {
         {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 — {scopeText(q)}</b><small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}{q.retry_of ? " · 재시험" : ""}</small></div>{q.state === "skipped" && <span className="tag">오늘 건너뜀</span>}</div>)}
         {d.quizzes.next.map((q) => <div className="li" key={q.id}><div><b>다음 시간 {qname(q.kind)} 시험 — {scopeText(q)}</b><small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}</small></div></div>)}
       </Card>) },
-    { id: 'stay', name: '오늘은 남아서', node: can(ME.today) && (d.sheet?.late?.until_at && <Card emo="🌙" title="오늘은 남아서" id="stay" pill={`${hhmm(d.sheet.late.until_at)} 예정`}>
-        <p className="note" style={{ margin: "4px 0 0" }}>{d.sheet.late.reason || "남아서 하고 갑니다"}</p></Card>) },
+    { id: 'stay', name: '오늘은 남아서', node: can(ME.today) && (Boolean(d.sheet?.late?.until_at || d.stayRows?.length) && <Card emo="🌙" title="오늘은 남아서" id="stay" pill={d.sheet?.late?.until_at ? `${hhmm(d.sheet.late.until_at)} 예정` : "시간 미정"}>
+        <p className="note" style={{ margin: "4px 0 0" }}>{d.sheet?.late?.reason || "남아서 하고 갑니다"}</p>
+        {d.stayRows?.length > 0 && <div style={{ marginTop: 6 }}>{d.stayRows.map((r) => <div key={r.id} className="li" data-g="stay-line" data-state={r.state}><span className="n">{r.state === "done" ? "✓" : r.state === "missing" ? "⏭" : "남"}</span><div><b>{r.text}</b>{r.sub && <small>{r.sub}</small>}</div></div>)}</div>}</Card>) },
     { id: 'future', name: '앞으로', node: can(ME.today) && (d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>) },
     { id: 'cal', name: '달력', node: can(ME.today) && (<a className="task" href="/me/cal" data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></a>) },

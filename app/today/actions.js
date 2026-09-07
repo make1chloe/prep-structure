@@ -9,7 +9,7 @@ import { commentRules, draftComment } from "@/lib/comment";
 import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { attendanceWrite } from "@/lib/attend";
-import { checkItem, carryRest, addItem, moveItem } from "@/lib/homework";
+import { checkItem, carryRest, addItem, moveItem, stayDone, stayAllDone, stayCarry } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest } from "@/lib/quiz";
@@ -23,7 +23,10 @@ const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidat
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
 export const check = done(async (itemId, status, doneNote) => { const { sb } = await staff(); await checkItem(sb, itemId, status, doneNote); });
-export const rest = done(async (itemId, where) => { const { sb } = await staff(); const r = await carryRest(sb, itemId, where); if (r.stay) await setLate(sb, r.item.sheet_id, { reason: `숙제 나머지 — ${r.item.range_note ?? ""}`.trim() }); });
+export const rest = done(async (itemId, where) => { const { sb } = await staff(); await carryRest(sb, itemId, where); });   // 남아서도 조각으로 3b 「남」 줄에 선다(0141) — 사유 글엔 더 안 적는다(칩이 있다)
+export const stayDoneAct = done(async (itemId) => { const { sb } = await staff(); await stayDone(sb, itemId); });
+export const stayAllDoneAct = done(async (sheetId) => { const { sb } = await staff(); return stayAllDone(sb, sheetId); });
+export const stayCarryAct = done(async (sheetId) => { const { sb } = await staff(); return stayCarry(sb, sheetId); });
 export const add = done(async (form) => { const { sb } = await staff(); await addItem(sb, String(form.get("sheetId")), String(form.get("slot")), String(form.get("text") ?? "")); });
 export const move = done(async (itemId, slot) => { const { sb } = await staff(); await moveItem(sb, itemId, slot); });
 export const late = done(async (form) => { const { sb } = await staff(); await setLate(sb, String(form.get("sheetId")), { reason: String(form.get("reason") ?? "") || null, untilAt: String(form.get("untilAt") ?? "") || null }); });

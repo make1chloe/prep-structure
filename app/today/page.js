@@ -32,7 +32,7 @@ export default async function Today() {
       <section key={c.id ?? "makeup"} aria-label={c.nickname || c.start}>
         {r.classes.length > 1 && <div className="hh" style={{ margin: "8px 0" }}>{c.nickname || (c.kind === "special" ? "특강" : "정규")} · {c.start}</div>}
         {!c.students.length && <div className="card"><p className="note">이 반에 오늘 오는 아이가 없습니다.</p></div>}
-        {c.students.map((s, i) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} date={date} minutes={minutesOf(c.start, c.end)} defaultOpen={i === 0 && !s.sheet?.closed && !s.plan?.absent} cfg={cfg} />)}
+        {c.students.map((s, i) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} classEnd={c.end} date={date} minutes={minutesOf(c.start, c.end)} defaultOpen={i === 0 && !s.sheet?.closed && !s.plan?.absent} cfg={cfg} />)}
       </section>
     ))}
   </>);
