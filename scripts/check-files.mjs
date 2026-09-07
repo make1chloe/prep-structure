@@ -1,5 +1,5 @@
 /** 자료함 판단 검사(검사-62) — lib/files-plan.js 순수 셈: 갈래 여섯 · 종류 목록(버킷과 같은 벌) · 크기 글 · 확장자·경로 · 사진 줄이기 계획 · 한 번에 N장 · 파일 하나 검사(종류·크기) · 누가 보냈나 · 저절로 꼬리표 · 방금 온 것 줄 · 갈래별 칸(학교·학년 · 아이별 · 빈 묶음 없음) · 가장 또렷 · 보낸 것 줄(N/M) · 아이 쪽 1달(규칙) · 숫자 셋 · 보내기 양식 */
-import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets } from "../lib/files-plan.js";
+import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets, AUTO_REPLY, isAutoReply, replyText, myUploads } from "../lib/files-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 console.log("■ 자료함 판단(순수)");
@@ -36,5 +36,8 @@ ok("아이 쪽 1달 — 아직 1(9/5 · 10/5까지 보여요) · 지난 것 1(�
 ok("숫자 셋 — 받은 것 = 방금 온 것 + 묶음의 파일 · 보낸 것 · 안 본 것 = 방금 온 것", JSON.stringify(counts({ inbox: [1, 2], bins, sent: [1] })) === JSON.stringify({ received: 8, sent: 1, unsorted: 2 }));
 const st = [{ id: "k1", name: "강민서", sheet: { id: "s", date: "2026-09-06", items: [{ id: "i1", name: "CH5 부정사" }] } }, { id: "k2", name: "윤도현", sheet: { id: "s2", date: "2026-09-04", items: [] } }, { id: "k3", name: "한지우", sheet: null }];
 ok("보내기 양식 — 아이 → 마지막 판의 숙제 줄 · 숙제 줄이 없으면 「N/D 판에 숙제 줄이 없습니다」 · 판이 없으면 그렇게 · 안 고르면 고르라고", sendTargets(st, "k1").items.length === 1 && sendTargets(st, "k2").why.startsWith("9/4 판에 숙제 줄이 없습니다") && sendTargets(st, "k3").why.startsWith("이 아이의 숙제 판이 없습니다") && sendTargets(st, "").why === "아이를 고르세요");
+ok("② 원장님 답 — 자동 글 「받았어요 — 「수행평가」로 넣었어요」(SQL file_sort 와 같은 꼴) · 자동 글 판별 · 고쳐 쓴 글은 자동이 아님 · 없으면 「아직 안 봤어요」", AUTO_REPLY("수행평가") === "받았어요 — 「수행평가」로 넣었어요" && isAutoReply(AUTO_REPLY("그 밖")) && !isAutoReply("잘 받았어요 — 월요일에 볼게요") && replyText({}) === "아직 안 봤어요" && replyText({ reply: "네" }) === "네");
+const mine = myUploads([{ id: "u1", orig_name: "a.jpg", mime: "image/jpeg", bytes: 2048, uploaded_at: "2026-09-06T01:00:00Z", reply: null, students: { name: "강민서" } }, { id: "u2", orig_name: "b.pdf", mime: "application/pdf", bytes: 1024, uploaded_at: "2026-09-05T01:00:00Z", reply: AUTO_REPLY("수행평가"), students: null }]);
+ok("내가 보낸 것 줄 — 새것 그대로 · 사진은 미리보기 · 아이 이름(학부모 카드) · 답 없으면 ⏳ 「아직 안 봤어요」 · 답 있으면 replied", mine[0].photo === true && mine[0].kid === "강민서" && mine[0].replied === false && mine[0].reply === "아직 안 봤어요" && mine[0].when === "9/6" && mine[1].photo === false && mine[1].replied === true && mine[1].reply.includes("수행평가"), JSON.stringify(mine));
 console.log(`\n■ 자료함 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
