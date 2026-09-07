@@ -3,7 +3,7 @@
  *  보강 시각을 앱이 제안하지 않는다(확정-㉔) — 날짜·시각을 직접 적는다. 되돌릴 수 없는 손은 서버 답을 기다린다(속도-5) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { holidayAct, undoHolidayAct, todoAct, doneTodoAct, examAct, englishOnAct, cancelExamAct, classMakeupAct, cancelClassMakeupAct, makeupAct } from "./actions.js";
+import { holidayAct, undoHolidayAct, todoAct, doneTodoAct, examAct, englishOnAct, cancelExamAct, classMakeupAct, cancelClassMakeupAct, makeupAct, confirmMonthAct } from "./actions.js";
 import { dayTitle, classText } from "@/lib/schedule-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 function useRun() {
@@ -19,6 +19,15 @@ export function ClassMakeup({ classId, ym, short }) {
     <button className="btn sm" type="button" data-act="class-makeup-open" onClick={() => setOpen(!open)}>📅 보강일 잡기</button>
     {open && <div className="wv" style={{ marginTop: 4 }} data-g="class-makeup"><input type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="보강 날짜" style={{ width: "auto" }} /><input type="time" value={at} onChange={(e) => setAt(e.target.value)} aria-label="보강 시각" style={{ width: "auto" }} />
       <button className="btn pri sm" type="button" disabled={pending} data-act="class-makeup-save" onClick={() => run(() => classMakeupAct({ classId, onDate: on, atTime: at || null }), (r) => `반 보강일을 잡았습니다 — ${r.made}명(이미 있던 ${r.had}명) · ${short}회 중 1회`, () => setOpen(false))}>잡기</button></div>}
+    <Note err={err} msg={msg} />
+  </div>;
+}
+/** 그 달 일정 확정(4단계-3b · ㉚ 9/7 「무조건 확정 후 알림」) — 도장 하나 · 확정하면 반 아이들의 학부모에게 「수업 일정 안내」 · 휴강이 들어오면 풀려서 「다시 확정」. 되돌릴 수 없는 손이라 물어보고 서버 답을 기다린다 */
+export function MonthConfirm({ ym, ct, can }) {
+  const { run, pending, err, msg } = useRun(); const m = Number(String(ym).slice(5, 7));
+  return <div className="wv" style={{ gap: 6 }} data-g="confirm" data-state={ct.state}>
+    <span className={"pill" + (ct.bad ? " warn" : "")} data-g="confirm-text">{ct.text}</span>
+    {can && ct.button && <button className="btn pri sm" type="button" disabled={pending} data-act="confirm-month" onClick={() => { if (window.confirm(`${m}월 일정을 확정하고 반 아이들의 학부모에게 알림을 보낼까요?${ct.state === "undone" ? " (휴강이 들어와 풀렸던 것을 다시 확정합니다)" : ""}`)) run(() => confirmMonthAct(ym), (r) => `${m}월 일정 확정 — 반 ${r.classes} · 학부모 ${r.n}명에게 알림${r.sink === "off" ? "(🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다)" : ` · 보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }}>{ct.button}</button>}
     <Note err={err} msg={msg} />
   </div>;
 }

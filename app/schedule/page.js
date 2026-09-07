@@ -5,8 +5,8 @@ import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { scheduleBoard } from "@/lib/schedule";
 import { ymOf } from "@/lib/cal-plan";
-import { monthLabel, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, LEGEND, W } from "@/lib/schedule-plan";
-import Panel, { ClassMakeup } from "./panel.js";   // ⚠️ 클라이언트 부품의 정적 속성(Panel.ClassMakeup)은 서버 쪽에 안 넘어온다 — 이름으로 들여온다(2026-09-07 실측: 회차가 모자란 반이 처음 생기자 /schedule 이 500)
+import { monthLabel, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, confirmState, confirmText, canConfirm, LEGEND, W } from "@/lib/schedule-plan";
+import Panel, { ClassMakeup, MonthConfirm } from "./panel.js";   // ⚠️ 클라이언트 부품의 정적 속성(Panel.ClassMakeup)은 서버 쪽에 안 넘어온다 — 이름으로 들여온다(2026-09-07 실측: 회차가 모자란 반이 처음 생기자 /schedule 이 500)
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Schedule({ searchParams }) {
@@ -24,6 +24,7 @@ export default async function Schedule({ searchParams }) {
   const q = (m, day = null) => `/schedule?m=${m}${day ? `&d=${day}` : ""}${d.classId ? `&c=${d.classId}` : ""}`;
   const cells = monthCells(d.ym, b, { classId: d.classId, today: d.date, sel: d.sel });
   const rows = dayRows(d.sel, b, d.classId), unsched = unscheduled(b, d.ym);
+  const ct = confirmText(confirmState(b.confirm ?? [], b.classes ?? []), d.ym, b.confirm_sent ?? 0);   // 그 달 확정 도장(4단계-3b · ㉚) — 판단은 plan, 여기는 가져다 그린다
   return frame(<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <a className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><a className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</a>
@@ -31,6 +32,7 @@ export default async function Schedule({ searchParams }) {
       <a className="btn sm" href="/schedule/classes" data-act="classes">🏫 반 ↗</a>
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
+      <MonthConfirm ym={d.ym} ct={ct} can={canConfirm(d.ym, d.date)} />
       <a className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a><a className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</a>
     </div>
     <div className="cnt8" data-g="cnt8">

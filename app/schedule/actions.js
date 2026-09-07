@@ -3,7 +3,8 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addHoliday, undoHoliday, addTodo, doneTodo, addExam, setEnglishOn, cancelExam, classMakeupDay, cancelClassMakeupDay, setMakeup, setSiteUrl, addExamWord } from "@/lib/schedule";
+import { addHoliday, undoHoliday, addTodo, doneTodo, addExam, setEnglishOn, cancelExam, classMakeupDay, cancelClassMakeupDay, setMakeup, setSiteUrl, addExamWord, confirmMonth } from "@/lib/schedule";
+import { serviceClient } from "@/lib/supabase";
 import { importExams, searchSchools, setSchoolCode } from "@/lib/neis";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
@@ -22,3 +23,4 @@ export async function examWordAct(word) { return wrap(async () => { const { sb }
 export async function importAct() { return wrap(async () => { const { sb } = await staff(); return { r: await importExams(sb, await today(sb)) }; }); }
 export async function searchSchoolsAct(name) { return wrap(async () => { const { sb } = await staff(); return { rows: await searchSchools(sb, name) }; }); }
 export async function schoolCodeAct(schoolId, atpt, schul) { return wrap(async () => { const { sb } = await staff(); await setSchoolCode(sb, schoolId, atpt, schul); return {}; }); }
+export async function confirmMonthAct(ym) { return wrap(async () => { const { sb } = await staff(); return confirmMonth(serviceClient(), sb, String(ym), await today(sb)); }); }   // 4단계-3b ㉚ — 확정 도장 + 학부모 알림(나가는 길은 notify 한 곳)
