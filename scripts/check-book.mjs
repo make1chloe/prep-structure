@@ -1,6 +1,6 @@
 /** 교재 · 단원 판단 검사(검사-56) — lib/book-plan.js 순수 셈: 단원 한 줄 손질(쪽 「10-12」·문항·핵심 · 막는 것) · 단원 상태 둘 · 같은 교재 열쇠(판·연도·기호만 없앤다) · 활동 차례(줄 순서에서 저절로) · 목록 줄·알약 · 엑셀 읽기(열 이름 후보 · 교재명 이어받기 · 워크북 · 문항범위 → 개수 · 날짜로 바뀐 것 짚기) · 교재 맞추기(교재ID › 이름 › 다른 이름 › 비슷한 이름 · 후보 둘이면 보류) · 올리면 이렇게 됩니다(새로·바뀜·같음·파일에 없는 기존 줄 · 덮어쓰기 차례 · 지우고 새로 · 건너뛰기 · 묶음은 교재를 따른다) · 엑셀로 ·
  *  시트 갈래(단원/교재 — 첫 줄 열 이름) · 교재 시트(머리줄 · 읽기 · 고칠 줄 · 계획 새로/고침/같음/보류 · 고칠 칸 · ⬇ 열) · 묶음(덮어쓰기가 적을 것 · 글 · 📦 줄 · 되돌린 글)(5단계-④) */
-import { bookKey, activityOrder, listRows, counts, mapHeaders, parseUnitRows, rangeMangled, countRange, matchBooks, planUpload, mergeOrder, batchFor, exportRows, pagesText, parseUnitEdit, AREA_NAMES, MODES, UNIT_STATE,
+import { bookKey, activityOrder, reorderByActivity, moveActivity, listRows, counts, mapHeaders, parseUnitRows, rangeMangled, countRange, matchBooks, planUpload, mergeOrder, batchFor, exportRows, pagesText, parseUnitEdit, AREA_NAMES, MODES, UNIT_STATE,
          sheetKind, mapBookHeaders, parseBookRows, planBookUpload, bookPatch, exportBookRows, BOOK_HEADERS, splitUnitWrite, runNote, bookRunNote, runLine, undoText } from "../lib/book-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -67,5 +67,13 @@ ok("묶음 글 — 「교재 1권 · 새로 2 · 바뀜 1 · 차례만 6」 · �
 const rl = runLine({ id: 12, tbl: "units", sheet: "units.xlsx", note: "교재 1권 · 새로 2 · 바뀜 1", at: "2026-09-07T14:10:00+00:00", who: "원장", undone_at: null, can_undo: true });
 ok("📦 묶음 줄 — 「#12 단원 · units.xlsx」 · 서울 시각 「09-07 23:10 · 원장」 · 글 · 살아 있음 · 되돌릴 수 있나는 SQL 값 그대로 · 되돌린 줄은 undone + 시각(자정 넘김) · 글이 없으면 셈으로", rl.title === "#12 단원 · units.xlsx" && rl.when === "09-07 23:10 · 원장" && rl.state === "live" && rl.canUndo === true && runLine({ id: 3, tbl: "books", at: "2026-09-07T14:10:00+00:00", undone_at: "2026-09-07T15:00:00+00:00", can_undo: false }).state === "undone" && runLine({ id: 3, tbl: "books", n_insert: 1, n_update: 2 }).note === "새로 1 · 고침 2" && runLine({ id: 3, tbl: "books", undone_at: "2026-09-07T15:00:00+00:00" }).undoneAt === "09-08 00:00" && runLine({ id: 3, tbl: "books", can_undo: false }).canUndo === false, J(rl));
 ok("되돌린 글 — 되살림 = 고침 + 되살린 것 · 지움 · 숨김은 있을 때만", undoText({ run: 12, tbl: "units", restored: 7, revived: 0, removed: 2, hidden: 0 }) === "되돌렸습니다 — #12 단원 · 되살림 7 · 지움 2" && undoText({ run: 13, tbl: "units", restored: 0, revived: 3, removed: 0, hidden: 1 }).includes("되살림 3 · 지움 0 · 숨김 1"));
+console.log("■ 활동 차례 바꾸기((가)-②) — 칸이 아니라 줄 차례 · 대단원 안에서만 · 합친 차례");
+const U = [{ id: "a", chapter: "1", activity: "본책", sort: 10 }, { id: "b", chapter: "1", activity: "문제", sort: 20 }, { id: "c", chapter: "2", activity: "본책", sort: 30 }, { id: "d", chapter: "2", activity: "워크북", sort: 40 }, { id: "e", chapter: "2", activity: "문제", sort: 50 }, { id: "f", chapter: "2", activity: "문제", sort: 60 }];
+ok("합친 차례 — 1과 본책→문제 · 2과 본책→워크북→문제 → 본책 → 워크북 → 문제(2과가 워크북을 문제 앞에 둔다 — 처음 나온 차례만 보면 틀린다)", activityOrder(U).join(",") === "본책,워크북,문제");
+ok("어긋난 자료(1과 A→B · 2과 B→A)는 먼저 나온 것부터 — 던지지 않는다", activityOrder([{ chapter: "1", activity: "A", sort: 1 }, { chapter: "1", activity: "B", sort: 2 }, { chapter: "2", activity: "B", sort: 3 }, { chapter: "2", activity: "A", sort: 4 }]).join(",") === "A,B");
+ok("하나 옮기기 — 문제 ◀ → 본책·문제·워크북 · 맨 앞 ◀ · 맨 뒤 ▶ 는 null · 없는 활동은 던진다", moveActivity(U, "문제", "left").join(",") === "본책,문제,워크북" && moveActivity(U, "본책", "left") === null && moveActivity(U, "문제", "right") === null && (() => { try { moveActivity(U, "듣기", "left"); return false; } catch { return true; } })());
+const ch = reorderByActivity(U, ["본책", "문제", "워크북"]);
+ok("줄 세우기 — 대단원 차례 그대로(1과는 안 건드림) · 2과만 본책·문제·문제·워크북 · 같은 활동끼리 차례 그대로(e 앞 f 뒤) · 바뀐 줄만 셋 · 10씩", J(ch) === J([{ id: "e", sort: 40 }, { id: "f", sort: 50 }, { id: "d", sort: 60 }]));
+ok("세운 뒤 다시 읽은 활동 차례가 고른 차례와 같다(◀ ▶ 가 헛돌지 않는다) · 차례에 없는 활동은 뒤로", activityOrder(U.map((u) => ({ ...u, sort: ch.find((x) => x.id === u.id)?.sort ?? u.sort }))).join(",") === "본책,문제,워크북" && J(reorderByActivity(U, ["문제"])) === J([{ id: "b", sort: 10 }, { id: "a", sort: 20 }, { id: "e", sort: 30 }, { id: "f", sort: 40 }, { id: "c", sort: 50 }, { id: "d", sort: 60 }]));
 console.log(`\n■ 교재 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
