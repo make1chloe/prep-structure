@@ -1,10 +1,10 @@
 "use client";
 /** 학교별 표 판(목업 06c) — 머리(내 표/전체 표 · + 새 표) · 따로 챙길 아이들 띠 · 표 알약(shtabs) · 고른 표: 이름 · 표 삭제(내림) · 칸으로 이동 · 보기 둘(⊞표 · ▦보드 — 조회 0) · 표(머리칸 ⠿·◀▶✕·종류 ⌄ · 줄 ⠿·▣·✕ · 셀 종류대로 · + 칸 · + 줄) · 보드(선택 칸으로 묶기 · 카드 ◀ ▶) · 저장줄.
  *  값의 뜻·셈은 lib/grid-plan 한 벌. 셀은 손을 떼면 저장(저장 단추 없음) */
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct } from "./actions.js";
-import { TEMPLATES, COL_TYPES, PICK_OF, typeName, pickName, parseCol, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, alive, liveOf, counts, jumpTargets, jumpStep, boardOf, nextOption, cardTitle, watchSummary, visibleGrids } from "@/lib/grid-plan";
+import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct, unitsAllAct } from "./actions.js";
+import { TEMPLATES, COL_TYPES, PICK_OF, typeName, pickName, parseCol, cellText, toggleItem, addItem, removeItem, checkText, rowTitle, rowSub, alive, liveOf, counts, jumpTargets, jumpStep, unitGroups, unitPick, boardOf, nextOption, cardTitle, watchSummary, visibleGrids } from "@/lib/grid-plan";
 function Cell({ r, col, ctx }) {
   const { pending, save, val, setV, edit, setEdit, chk, setChk, chkNew, setChkNew, units, loadUnits, refs } = ctx;
     const v = val(r, col);
@@ -22,9 +22,9 @@ function Cell({ r, col, ctx }) {
     if (col.type === "pick") { const of = col.options?.of ?? "book"; const cur = v ?? {};
       if (of === "book") return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { id: x.target.value } : null)} style={{ width: "auto" }}><option value="">교재 고르기</option>{refs.books.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>;
       if (of === "exam") return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { id: x.target.value } : null)} style={{ width: "auto" }}><option value="">회차 고르기</option>{refs.exams.map((x) => <option key={x.id} value={x.id}>{x.school ?? "전국"} {x.name}</option>)}</select>;
-      const bookId = edit[`${r.id}|${col.id}|book`] ?? cur.book_id ?? ""; if (bookId) loadUnits(bookId);
-      return <div className="wv" style={{ gap: 4 }}><select value={bookId} aria-label={`${rowTitle(r)} ${col.label} 교재`} onChange={(x) => setEdit({ ...edit, [`${r.id}|${col.id}|book`]: x.target.value })} style={{ width: "auto" }}><option value="">교재</option>{refs.books.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
-        {bookId && <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { id: x.target.value, book_id: bookId } : null)} style={{ width: "auto" }}><option value="">단원</option>{(units[bookId] ?? []).map((u) => <option key={u.id} value={u.id}>{u.chapter} › {u.short}</option>)}</select>}</div>; }
+      // 단원 — 교재 → 단원 두 단이 아니라 한 고르개((가)-⑤): 교재마다 묶은 목록(단원 전부는 이 칸이 보일 때 한 번 읽는다) · 교재는 단원에서 나온다
+      const groups = unitGroups(refs.books, refs.units);
+      return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} disabled={!units.all} onChange={(x) => save(r, col, unitPick(refs.units, x.target.value))} style={{ width: "auto", maxWidth: 220 }}><option value="">{units.all ? (groups.length ? "단원 고르기" : "단원이 없습니다") : "단원 읽는 중"}</option>{groups.map((gp) => <optgroup key={gp.book.id} label={gp.book.name}>{gp.units.map((u) => <option key={u.id} value={u.id}>{u.chapter} › {u.short ?? u.label}</option>)}</optgroup>)}</select>; }
     return null;
 }
 function Head({ col, i, ctx }) {
@@ -44,12 +44,14 @@ export default function Board({ d }) {
   const retired = (b.grids ?? []).filter((g) => g.state === "retired");
   const g = grids.find((x) => x.id === sel) ?? grids[0] ?? null;
   const { cols, rows } = liveOf(g); const c = counts(b.grids ?? []); const jumps = jumpTargets(cols); const ws = watchSummary(b.watch ?? [], b.students ?? []);
-  const refs = { books: b.books ?? [], exams: b.exams ?? [], units: Object.values(units).flat() };
+  const refs = { books: b.books ?? [], exams: b.exams ?? [], units: Object.values(units).flat() };   // units.all(전부) 과 교재마다 읽은 것이 섞여도 id 로 찾으니 같다
   const bd = g ? boardOf(g) : null;
   const val = (r, col) => (edit[`${r.id}|${col.id}`] !== undefined ? edit[`${r.id}|${col.id}`] : r.cells?.[col.id] ?? null);
   const setV = (r, col, v) => setEdit({ ...edit, [`${r.id}|${col.id}`]: v });
   const save = (r, col, v, what = null) => run(() => cellAct(r.id, col.id, v, r.cells_at?.[col.id] ?? null), what ?? `${rowTitle(r)} · ${col.label} — 저장`, () => setEdit((s) => { const n = { ...s }; delete n[`${r.id}|${col.id}`]; return n; }));
   const loadUnits = (bookId) => { if (!bookId || units[bookId]) return; run(async () => { const r = await unitsAct(bookId); if (r.ok) setUnits((u) => ({ ...u, [bookId]: r.units })); return r; }); };
+  const hasUnitCol = cols.some((c) => c.type === "pick" && c.options?.of === "unit");   // 「앱에서 고르기 → 단원」 칸이 있으면 단원 전부를 한 번((가)-⑤) — 새로고침 없이 상태만
+  useEffect(() => { if (!hasUnitCol || units.all) return; let on = true; unitsAllAct().then((r) => { if (on && r.ok) setUnits((u) => ({ ...u, all: r.units })); }); return () => { on = false; }; }, [hasUnitCol, units.all]);
   const ctx = { pending, run, g, cols, save, val, setV, edit, setEdit, chk, setChk, chkNew, setChkNew, units, loadUnits: (id) => loadUnits(id), refs };
   const jumpTo = (id) => { const el = document.querySelector(`[data-col='${id}']`); if (el) el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); };
   const [jumpAt, setJumpAt] = useState(null); const cur = jumps.find((j) => j.id === jumpAt) ?? jumps[0] ?? null;   // 「칸으로 이동」의 지금 칸 — ◀ ▶ 가 한 칸씩((가)-③ · 목업 06c)
