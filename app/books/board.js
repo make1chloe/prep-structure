@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, activityMoveAct } from "./actions.js";
-import { AREA_NAMES, CHUNK, BASIS, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
+import { AREA_NAMES, CHUNK, BASIS, MODE, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -50,6 +50,7 @@ export default function Board({ d }) {
         <div className="tune" style={{ marginBottom: 8 }} data-g="tune">
           <div><label className="fl">교재ID</label><div className="wv"><input value={code ?? book.code ?? ""} onChange={(x) => setCode(x.target.value)} aria-label="교재ID" style={{ width: 120 }} /><button className="btn sm" type="button" disabled={pending || code == null || code === (book.code ?? "")} data-act="code-save" onClick={() => run(() => setBookAct(book.id, { code }), "교재ID 를 적었습니다", () => setCode(null))}>저장</button></div></div>
           <div><label className="fl">영역</label><select value={book.area ?? ""} aria-label="영역" data-g="area" disabled={pending} onChange={(x) => run(() => setBookAct(book.id, { area: x.target.value || null }), x.target.value ? `영역 ${x.target.value}` : "영역 없음")} style={{ width: "auto" }}><option value="">영역 없음</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a}</option>)}</select></div>
+          <div><label className="fl">진행 방식</label><div className="seg sm" data-g="mode">{MODE.map(([k, nm]) => <button key={k} type="button" aria-pressed={(book.mode ?? "unit") === k} disabled={pending} onClick={() => run(() => setBookAct(book.id, { mode: k }), `진행 방식 — ${nm}`)}>{nm}</button>)}</div></div>
           <div><label className="fl">배정 겹 — 한 번에 나가는 덩어리</label><div className="seg sm" data-g="chunk">{CHUNK.map(([k, nm]) => <button key={k} type="button" aria-pressed={book.chunk_depth === k} disabled={pending} onClick={() => run(() => setBookAct(book.id, { chunk_depth: k }), `배정 겹 ${nm}`)}>{nm}</button>)}</div></div>
           <div><label className="fl">도는 차례</label><div className="seg sm" data-g="basis">{BASIS.map(([k, nm]) => <button key={k} type="button" aria-pressed={book.order_basis === k} disabled={pending} onClick={() => run(() => setBookAct(book.id, { order_basis: k }), `${nm}`)}>{nm}</button>)}</div></div>
           <div><label className="fl">단원평가 · 상태</label><div className="wv"><label className="ckl"><input type="checkbox" className="ck" checked={Boolean(book.unit_test)} disabled={pending} data-g="unit-test" onChange={(x) => run(() => setBookAct(book.id, { unit_test: x.target.checked }), x.target.checked ? "단원평가를 보는 교재" : "단원평가 없음")} /> 단원평가</label>
