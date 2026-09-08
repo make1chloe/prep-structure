@@ -27,7 +27,7 @@ export async function showAct(scoreId, showTo) { return wrap(async () => { const
 export async function importAct(examId, formData) {
   return wrap(async () => {
     const { sb } = await staff(); const date = await today(sb); const board = await scoreBoard(sb, examId, date);
-    const parsed = parseSheet(await sheetOf(formData));
+    const parsed = parseSheet(await sheetOf(formData), board?.exam?.level ?? null);   // 등급 열은 회차의 학교급으로 읽는다(중 A~E · (가)-⑩)
     if (!parsed.length) throw new Error("읽을 줄이 없습니다 — 이름 열(학생명·이름·성명)과 원점수 열이 있어야 합니다");
     return importScores(sb, examId, parsed, board, date);
   });

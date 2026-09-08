@@ -21,5 +21,5 @@ export async function GET(req) {
   if (!board?.exam) return new Response("회차가 없습니다", { status: 404 });
   const tag = e.slice(0, 8);   // 파일 이름은 ASCII 로 — 헤더(Content-Disposition)는 한글을 못 싣는다(9/7 게이트: ByteString 500)
   if (q) return file(exportQuestionRows(questionsFor(board.exam)), QUESTION_HEADERS, "문항표", `questions-${tag}.xlsx`);
-  return file(exportScoreRows(rowsOf(board)), SCORE_HEADERS, "성적", `scores-${tag}.xlsx`);
+  return file(exportScoreRows(rowsOf(board), board.exam?.level ?? null), SCORE_HEADERS, "성적", `scores-${tag}.xlsx`);   // 등급은 학교 것만 · 학교급의 꼴로(중 「B」 · 고 「2등급」 — (가)-⑩)
 }

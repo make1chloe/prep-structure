@@ -1,10 +1,11 @@
 "use client";
-/** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생 엑셀 올리기 */
+/** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생 엑셀 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveAct, importAct, remindAct, byGradeAct } from "./actions.js";
-import { won, parseWon, totals, STATE, GRADE_KEYS, METHODS, prevUnpaidText } from "@/lib/fee-plan";
+import { won, parseWon, totals, STATE, GRADE_KEYS, METHODS, prevUnpaidText, payAllEdits } from "@/lib/fee-plan";
 import { monthLabel, nextYm } from "@/lib/schedule-plan";
+import { md } from "@/lib/dash-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Fee({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -45,6 +46,7 @@ export default function Fee({ d }) {
     </tbody></table></div>
     <div className="savebar" style={{ marginTop: 8 }} data-g="fee-bar">
       <button className="btn pri" type="button" disabled={pending || !rows.some((r) => r.dirty)} data-act="save" onClick={save}>저장</button>
+      <button className="btn" type="button" disabled={pending || !t.unpaidCount} data-act="pay-all" title="이 달 「안 받음」 줄 전부에 받은 날을 오늘로 적어 저장합니다 — 금액 없음 줄은 그대로 · 한 집만 빼려면 그 줄의 받은 날을 지우고 저장" onClick={() => { if (!confirm(`안 받음 ${t.unpaidCount}줄을 오늘(${md(d.date)}) 받은 것으로 적을까요?`)) return; run(() => saveAct(d.ym, payAllEdits(rows, d.date)), (r) => `${r.saved}줄 받음(${md(d.date)}) — 저장했습니다${r.ruled ? ` · 단가 줄 ${r.ruled}(이 달부터)` : ""}`); }}>✔ 안 받음 {t.unpaidCount}줄 다 받음</button>
       <span className="pill" data-g="sum">{Number(d.ym.slice(5, 7))}월 합계 <b>{won(t.sum)}</b></span>
       <span className="pill" style={MISS} data-g="unpaid-sum">안 받음 {won(t.unpaid)}</span>
       <span className="spacer" />

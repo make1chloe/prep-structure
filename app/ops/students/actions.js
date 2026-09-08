@@ -5,7 +5,7 @@ import { attachConsult } from "@/lib/files";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
-import { addStudent, setStudent, setState, setClass, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword } from "@/lib/student";
+import { addStudent, setStudent, setState, setClass, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
 import { setStudentShow } from "@/lib/score";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
@@ -20,4 +20,5 @@ export async function siblingAct(id, otherId) { return wrap(async () => { const 
 export async function showAct(id, show) { return wrap(async () => { const { sb } = await staff(); await setStudentShow(sb, id, show); return {}; }); }
 export async function studentAccountAct(id, loginId) { return wrap(async () => { const { sb } = await staff(); return issueStudentAccount(serviceClient(), sb, id, loginId); }); }
 export async function parentAccountAct(id, phone, rel = null) { return wrap(async () => { const { sb } = await staff(); return issueParentAccount(serviceClient(), sb, id, phone, rel); }); }
+export async function parentNameAct(id, profileId, name) { return wrap(async () => { const { sb } = await staff(); return setParentName(sb, id, profileId, name); }); }   // 학부모 계정 이름((가)-⑩)
 export async function resetAct(profileId) { return wrap(async () => { const { sb } = await staff(); return resetPassword(serviceClient(), sb, profileId); }); }
