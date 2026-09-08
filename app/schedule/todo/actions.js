@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { finishTodo, undoTodo, setTodoDue, dropTodo, addUnitTest, unitTestMade, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper } from "@/lib/todo";
+import { finishTodo, undoTodo, setTodoDue, dropTodo, addUnitTest, unitTestMade, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored } from "@/lib/todo";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
@@ -17,4 +17,5 @@ export async function quizPaperAct(quizId, on) { return wrap(async () => { const
 export async function repeatAct(f) { return wrap(async () => { const { sb } = await staff(); return addRepeat(sb, { name: f?.name, every: f?.every, day: f?.day, weekday: f?.weekday, lead: f?.lead, days: f?.days, left: f?.left }, await today(sb)); }); }
 export async function repeatActiveAct(id, active) { return wrap(async () => { const { sb } = await staff(); await setRepeatActive(sb, id, active); return {}; }); }
 export async function printAllAct(materialIds) { return wrap(async () => { const { sb } = await staff(); return printAll(sb, materialIds); }); }
+export async function scoredAct(materialId, studentId, on) { return wrap(async () => { const { sb } = await staff(); return setScored(sb, String(materialId), String(studentId), Boolean(on)); }); }   // ✅ 채점 아이마다((가)-⑧)
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
