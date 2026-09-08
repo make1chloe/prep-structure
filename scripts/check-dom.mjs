@@ -25,4 +25,8 @@ const op = src.filter(([p]) => p.startsWith("app/")).filter(([, s]) => /\bopacit
 ok("폰-9·확정-㉖ 글씨를 opacity 로 흐리게 0 — 색(--mute·--faint)으로 말한다 · 아이콘 투명도는 목업 CSS 몫", op.length === 0, op.join(", "));
 const modals = src.filter(([, s]) => /className="mdlov"|className=\{[^}]*mdlov/.test(s)); const noClose = modals.filter(([, s]) => !/닫기|data-act="close"/.test(s)).map(([p]) => p);
 ok(`대전제-10 전면 화면(mdlov ${modals.length}파일)마다 닫는 길이 화면 안에 있다(「닫기」)`, modals.length > 0 && noClose.length === 0, noClose.join(", "));
+const css = readFileSync("app/globals.css", "utf8");
+const ALLOW = [".sortrow .sel"];   /* 목업이 정한 자손 규칙 — 그 안에 같은 이름의 다른 부품이 안 들어간다 */
+const desc = [...css.matchAll(/([^,{}\n]*?) \.(open|on|act|sel|hi|closed|done)\b[^{,]*\{/g)].map((m) => m[0].replace(/\{$/, "").trim()).filter((s) => !ALLOW.includes(s));
+ok("폰-9 클래스 이름 겹침 — 자손 선택자 끝이 맨 상태 이름(.open .on .act .sel .hi .closed .done)인 규칙 0(상태 이름은 요소에 붙인다: button.open · .acc.open — 9/8 원장님 폰이 잡음: 02b 펼친 대단원이 줄의 펴기 단추 규칙에 물려 파랗게 칠해졌다)", desc.length === 0, desc.join(" | "));
 console.log(`\n■ 화면 DOM 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

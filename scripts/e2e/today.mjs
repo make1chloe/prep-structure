@@ -118,6 +118,9 @@ console.log("■ 진도 체크 02b — 검사 △ 가 ◐ 로 · 손으로 ○ �
 await bk.locator("button[data-act=progress]").click(); await p.waitForTimeout(1500);
 const pm = p.locator(".mdlov .mdl");
 ok("나무 — 1회독 · 끝낸 대단원 0 / 2 · 지금 CHAPTER 1", (await pm.locator(".mdlh .pill").textContent()).includes("1회독") && (await pm.locator(".tag.on").first().textContent()) === "끝낸 대단원 0 / 2" && (await pm.locator(".tag.act").first().textContent()).includes("CHAPTER 1"));
+{ const cs = await p.evaluate(() => { const el = document.querySelector(".mdlov .acc.open"); const st = getComputedStyle(el), root = getComputedStyle(document.documentElement); const hex = (v) => { const m = String(v).trim().match(/^#([0-9a-f]{6})$/i); return m ? `rgb(${parseInt(m[1].slice(0, 2), 16)}, ${parseInt(m[1].slice(2, 4), 16)}, ${parseInt(m[1].slice(4, 6), 16)})` : String(v).trim(); }; return { color: st.color, bg: st.backgroundColor, onNavy: hex(root.getPropertyValue("--on-navy")), navy: hex(root.getPropertyValue("--navy")) }; });   /* (아) 9/8 원장님 폰: 펼친 대단원이 줄의 펴기 단추 규칙(.row[data-open] .open)에 물려 파랗게 — 클래스 이름 겹침(폰-9) */
+  ok("(아) 02b 펼친 대단원은 바탕이 파랑(--navy)이 아니고 글씨가 흰색(--on-navy)이 아니다 — 줄의 「펴기」 단추 규칙에 안 물린다(폰-9 클래스 이름 겹침 · 원장님 폰이 잡음)", cs.bg !== cs.navy && cs.color !== cs.onNavy, `color ${cs.color} · bg ${cs.bg} · navy ${cs.navy}`);
+  await p.screenshot({ path: ".tmp/e2e-02b.png" }); }
 ok("어제 숙제 1-4 에 △ 를 줬으니 1-4 는 ◐ · 1-1~1-3 은 ○(seed)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000001'] button[aria-pressed=true]").getAttribute("data-p")) === "done");
 ok("오늘 학습 소단원(1-4·대비문제)에 「✍ 메모로 자동 ○」 후보 표시", (await pm.locator(".ur", { hasText: "메모로 자동" }).count()) === 2);
 ok("02b 머리 — 아직 메모로 마감한 적이 없어 「✍ 메모로만 N회 연속」 없음(5단계-① · 규칙 3회부터 ⚠️)", (await pm.locator("[data-g=memo-streak]").count()) === 0 && (await pm.locator("[data-g=memo-warn]").count()) === 0);
