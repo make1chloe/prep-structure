@@ -144,7 +144,8 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
 .dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
 .phone{width:375px;max-width:100%}
 .phone .chrome{justify-content:center}
-.appbar{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
+.appbar{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap;background:var(--ground)}
+/* (자) 앱은 이 띠를 sticky 로 위에 붙인다 — 바탕이 없으면 굴릴 때 내용이 띠를 뚫고 보인다(모달 캡처가 잡음) */
 .brand{font-weight:700;font-size:var(--fs-4);letter-spacing:-.01em;color:var(--navy)}
 .tabs{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
 .tab{padding:4px 12px;border-radius:8px;font-size:var(--fs-2);color:var(--mid);background:none;border:0}
@@ -355,6 +356,8 @@ td.sch{font-weight:700;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--navy);color:var(--on-navy);font-weight:700}
 .units{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .unit{font-size:var(--fs-2);padding:4px 8px;border-radius:6px;background:var(--navy);color:var(--on-navy);border:0;display:inline-flex;gap:4px;align-items:center;font-weight:500}
+.unit[aria-pressed="false"]{background:var(--surface);color:var(--mid);border-color:var(--line)}
+/* (자) 02 조절 — 목업은 칩을 지우고 앱은 끄기만 한다(aria-pressed=false). 끈 칩이 고른 칩과 똑같이 파랬다 */
 .unit i{font-style:normal;color:var(--mid)}
 .bk{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;overflow:hidden;background:var(--surface)}
 .bkh{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:8px 8px;background:var(--sunk);border-bottom:1px solid var(--hair)}
@@ -1043,7 +1046,8 @@ input.dt2{max-width:120px;padding:4px 8px}
 .tag,.pill{border-color:var(--hair)}
 .tag[class*=" "],.pill[class*=" "]{border-color:transparent}
 .tag.dim,.pill.dim,.tag.fx{border-color:var(--hair)}
-.note .tag,.note .pill,.stopnote .tag,.stopnote .pill,.savebar .pill,.sgh .pill,.mdlf .pill{white-space:normal;height:auto;min-height:var(--h-chip);line-height:1.4;padding:1px 8px}
+.note .tag,.note .pill,.stopnote .tag,.stopnote .pill,.savebar .pill,.sgh .pill,.mdlf .pill,.mdlh .pill{white-space:normal;height:auto;min-height:var(--h-chip);line-height:1.4;padding:1px 8px}
+/* (자) .mdlh .pill 도 — 폰에서 02c 요일 알약 · 방식 고치기 교재 알약이 닫기 단추 뒤로 잘렸다 */
 .tags{gap:6px}
 .tags>button.btn{height:var(--h-sm)}
 /* 단추 — 보통 36 · 작은 28 */
@@ -1090,6 +1094,12 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
 .chk button,.tri button{width:var(--h-sm)!important;height:var(--h-sm)!important;padding:0!important;font-size:var(--fs-3)!important}
 .seg.sm>button{font-size:var(--fs-2)!important;padding:0 10px!important}
 /* 치수 한 벌은 예외 없음 — 그래서 !important */
+@media(max-width:760px){
+  .seg,.seg.sm{height:auto}
+  .seg{min-height:var(--h-md)}
+  .seg.sm{min-height:var(--h-sm)}
+}
+/* (자) 폰에서 세그먼트가 줄을 바꾸는데(위 760 규칙) 치수 한 벌의 고정 높이가 둘째 줄을 잘랐다 — 15 시트 모드 셋째 「이 교재는 건너뛰기」가 안 보였다 */
 .nb-pi,.si{display:inline-grid;place-items:center;width:var(--icon-xs);height:var(--icon-xs);flex:0 0 var(--icon-xs);line-height:1}
 .attrow .cm{width:var(--icon-sm);height:var(--icon-sm);border-radius:6px}
 /* ㊲ 기록 줄의 값(.rl .v)은 칩이 아니다 — 칩 규칙의 높이 22 를 되돌린다 (폰에서 글씨 겹침) */
