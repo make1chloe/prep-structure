@@ -46,9 +46,10 @@ export default function Board({ d }) {
       <div className="mtree" data-g="tree">
         {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다 — 「+ 자료」로 갈래(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 할 일이 저절로 섭니다(영어일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
         {tree.groups.map((g) => <div className="mt1" key={g.source} data-g="mt1" data-source={g.source}>
-          <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><a className="btn sm" href="/schedule/todo">단계 ↗</a></div>
+          <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><a className="btn sm" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계 ↗</a></div>
           {g.materials.map((m) => { const left = (m.gives ?? []).filter((x) => !x.handed_at).length; return <div className="mt2" key={m.id} data-g="mt2" data-material={m.id} data-state={m.state}>
             <div className="mth2"><b>{m.type}{m.title && m.title !== m.type ? ` · ${m.title}` : ""}</b><span className="spacer" />
+              <a className="btn sm" href={`/schedule/todo?m=${m.id}`} data-act="steps">단계 ↗</a>
               {materialTags(m).map((t) => <span key={t} className={"tag" + (t === "아직 안 만듦" ? " act" : t.startsWith("♻️") ? " on" : "")} data-g="mtag">{t}</span>)}
               {["made", "printed"].includes(m.state) && left > 0 && <button className="btn sm pri" type="button" disabled={pending} data-act="hand" onClick={() => run(() => handAct(m.id), (r) => `나눠 줬습니다 — ${r.handed}명${r.left ? ` · 아직 ${r.left}명` : " · 배부 끝"}`)}>📤 배부 {left}명</button>}
               <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => run(() => dropMaterialAct(m.id, "04 에서 뺌"), "뺐습니다(지우지 않았습니다)")}>빼기</button></div>

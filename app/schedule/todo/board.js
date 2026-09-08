@@ -4,7 +4,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct } from "./actions.js";
-import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf } from "@/lib/todo-plan";
+import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 export default function Board({ d }) {
@@ -14,9 +14,10 @@ export default function Board({ d }) {
   const [ut, setUt] = useState({ studentId: "", topicId: "", qCount: "25" }); const [note, setNote] = useState({ title: "", dueOn: today, dueTime: "", studentId: "" }); const [rp, setRp] = useState({ name: "", every: "month", day: "25", weekday: "1", lead: String(b.rules?.["todo.repeat_lead"] ?? 3), days: "7", left: "5" });
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const all = useMemo(() => cardsOf(b), [b]);                       // 한 번 센다 — 보기·거르개·차례는 이 목록을 다르게 그릴 뿐(재조회 0)
-  const cards = useMemo(() => sortCards(filterSchool(all, school), sort), [all, school, sort]);
+  const [only, setOnly] = useState(d.only ?? []);   // 04 「단계 ↗」 — 그 자료만((가)-④) · 「전체 보기 ✕」로 푼다
+  const cards = useMemo(() => sortCards(filterSchool(filterMaterials(all, only), school), sort), [all, only, school, sort]);
   const cols = columnsOf(cards, today), hidden = hiddenOf(cards), c = counts(cards, today), behind = behindOf(cards, today, parseInt(b.rules?.["todo.behind_per_day"] ?? "1", 10) || 1), pa = printAllOf(cards);
-  const selCard = sel ? all.find((x) => x.id === sel) ?? null : null;
+  const selCard = (sel ? all.find((x) => x.id === sel) : only.length ? all.find((x) => only.includes(x.material?.id)) : null) ?? null;   // 자료만 걸러 열었으면 📦 흐름도 그 자료로
   const schools = b.schools ?? [];
   const schoolPick = (v) => setSchool(v);
   const Card = ({ c }) => <div className={"nb-card" + (isOverdue(c, today) ? " nb-hot" : "") + (c.state === "done" ? " nb-done" : "")} data-g="card" data-kind={c.kind} data-state={c.state} data-id={c.id} onClick={() => setSel(c.id)} aria-pressed={sel === c.id}>
@@ -46,6 +47,7 @@ export default function Board({ d }) {
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }} data-g="count">내 할 일 {c.open}</span>
       <span className={"pill" + (c.overdue ? " warn" : "")} data-g="overdue">🔥 마감 지남 {c.overdue}</span>
+      {only.length > 0 && <span className="pill warn" data-g="only">📄 {onlyText(all, only)} 만 <button type="button" className="lnk" data-act="only-off" onClick={() => { setOnly([]); router.replace("/schedule/todo"); }}>전체 보기 ✕</button></span>}
       <span className="spacer" />
       {schools.length <= 2 ? <div className="seg sm" data-g="school">{[["all", "전체"], ...schools.map((s) => [s.id, s.name.replace(/(중학교|고등학교|초등학교)$/, (m) => ({ 중학교: "중", 고등학교: "고", 초등학교: "초" })[m])]), ["none", "내신 아닌 것"]].map(([k, nm]) => <button key={k} type="button" aria-pressed={school === k} onClick={() => schoolPick(k)}>{nm}</button>)}</div>
         : <select value={school} aria-label="학교" data-g="school" onChange={(x) => schoolPick(x.target.value)} style={{ width: "auto" }}><option value="all">전체</option>{schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}<option value="none">내신 아닌 것</option></select>}

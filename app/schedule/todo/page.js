@@ -7,11 +7,11 @@ import { todoBoard } from "@/lib/todo";
 import Board from "./board.js";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1180, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
-export default async function Todo() {
+export default async function Todo({ searchParams }) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🗂️</span>할 일은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다.` : "로그인이 필요합니다."}</p></div>);
   let d;
-  try { const date = await today(sb); d = { date, board: await todoBoard(sb, date) }; }
+  try { const [sp, date] = await Promise.all([searchParams, today(sb)]); d = { date, only: String(sp?.m ?? "").split(",").map((x) => x.trim()).filter(Boolean), board: await todoBoard(sb, date) }; }   // 04 「단계 ↗」가 넘긴 자료 id(?m=) — 그 자료만 걸러 연다((가)-④) · 주소 인자는 오늘과 같은 파도(층을 안 늘린다 — check-fast 3단)
   catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>할 일을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 아직 없는 DB 면 0125 까지의 마이그레이션을 먼저 돌립니다(docs/원장님-정하실-것 ㉖).</p></div>); }
   return frame(<Board d={d} />);
 }
