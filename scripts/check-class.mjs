@@ -1,5 +1,7 @@
 /** 반 판단 검사(4단계-3a) — lib/class-plan.js 순수 셈: 양식 읽기(이름·갈래·요일·시각·이 날부터) · 단가 읽기 · 요일·시각 글 · 반 한 줄 · 단가 글 · 넣을 아이 후보 · 그 시각 아이 수 글 */
 import { parseClass, parseSchedule, parseClassFee, weekdayText, timeText, classLine, feeText, candidates, slotText, kindName } from "../lib/class-plan.js";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const threw = (fn) => { try { fn(); return false; } catch { return true; } };
@@ -15,5 +17,11 @@ ok("요일·시각 글 「월·수 16:00~17:30」 · 반 한 줄 「매일 5:00 
 ok("단가 글 — 「150,000원 × 회차 · 2026-10-01부터」 · 달마다 「/ 달」 · 없으면 안내", feeText({ amount: 150000, per_session: true, from_date: "2026-10-01" }) === "150,000원 × 회차 · 2026-10-01부터" && feeText({ amount: 300000, per_session: false, from_date: "2026-09-01" }) === "300,000원 / 달 · 2026-09-01부터" && feeText(null).startsWith("단가 없음"));
 ok("넣을 아이 후보 — 재원생 중 이 반에 없는 아이", candidates([{ id: "a" }, { id: "b" }], [{ student_id: "a" }]).map((s) => s.id).join() === "b");
 ok("그 시각 아이 수 — 「그 시각 4명 — 매일 반 3 · 보강 1 · 막지 않습니다」 · 비면 「그 시각 비어 있습니다」 · null 이면 빈 글", slotText({ classes: [{ nickname: "매일 반", n: 3 }], makeups: 1 }) === "그 시각 4명 — 매일 반 3 · 보강 1 · 막지 않습니다" && slotText({ classes: [], makeups: 0 }) === "그 시각 비어 있습니다" && slotText(null) === "");
+console.log("■ 검사-⑮ 반 명단(class_member)을 직접 조회하는 자리 — 화면(app) 0 · lib 는 넷뿐((차) 2026-09-08 밤 — 옛 검사 check-session 은 0단계에서 지웠고 반 화면이 다시 선 뒤 여기서 다시 잰다)");
+{ const walk = (dir, out = []) => { for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) walk(p, out); else if (f.endsWith(".js")) out.push(p); } return out; };
+  const hits = (files) => files.filter((f) => /from\("class_member"\)/.test(readFileSync(f, "utf8")));
+  const inApp = hits(walk("app")), inLib = hits(walk("lib")).map((f) => f.replace(/^lib\//, "")).sort();
+  ok("화면(app)에서 class_member 를 직접 조회하는 곳 0 — 명단은 lib 손과 판 SQL 만 읽는다", inApp.length === 0, inApp.join(", "));
+  ok("lib 에서 class_member 를 읽는 파일은 넷뿐(cal.js 재원 시작 · classes.js 반 명단 · plan.js 이 아이의 반 · student.js 반 옮기기) — 다섯째가 생기면 그 넷 중 하나를 쓴다(원칙-1)", inLib.join(",") === "cal.js,classes.js,plan.js,student.js", inLib.join(", ")); }
 console.log(`\n■ 반 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
