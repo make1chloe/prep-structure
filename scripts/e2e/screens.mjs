@@ -33,6 +33,22 @@ ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first(
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
 ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·일정·교재·운영·설정)", tabs.join(",") === "대시보드,오늘,발송,일정,교재,운영,설정", tabs.join(","));
+// ⚠️ 탭 걷기는 /today 를 누르지 않는다 — 원장이 오늘 수업을 열면 아이의 오늘 판이 서서(「선생님이 오늘 수업을 열면」) 뒤의 아이 화면 걷기(등원 전 = 지난 판)가 어긋난다(게이트 64). 부작용 없는 발송·반 화면으로 밟는다
+console.log("■ 누른 즉시 표시(다) — 지금 탭이 파랗다 · 누르면 서버 답 전에 그 탭이 파랗고 상단 띠가 켜진다 · 답이 오면 띠가 꺼진다");
+const curTab = async () => (await p.locator("header.appbar nav.tabs a[aria-current='true']").allTextContents()).join(",");
+const goingOn = async () => p.locator("[data-g=going]").getAttribute("data-on");
+ok("대시보드(/)에서 「대시보드」 탭만 파랗다(aria-current)", (await curTab()) === "대시보드", await curTab());
+{ const isSend = (u) => u.pathname === "/send"; const slow = async (route) => { await new Promise((r) => setTimeout(r, 1200)); await route.continue(); };   // 서버 답을 1.2초 붙들어 「답 전」을 만든다
+  await p.route(isSend, slow);
+  await p.locator("header.appbar nav.tabs a", { hasText: "발송" }).click();
+  const early = await p.waitForFunction(() => document.querySelector("header.appbar nav.tabs a[aria-current='true']")?.textContent === "발송" && document.querySelector("[data-g=going]")?.dataset.on === "1", null, { timeout: 900 }).then(() => true).catch(() => false);
+  ok("누르자마자(주소가 아직 / 인 채) 「발송」 탭이 파랗고 상단 띠가 켜진다(data-on=1)", early && new URL(p.url()).pathname === "/", `early ${early} · url ${p.url()} · cur ${await curTab()} · on ${await goingOn()}`);
+  await p.waitForURL(isSend, { timeout: 15000 }); await p.unroute(isSend, slow); await p.waitForLoadState("networkidle").catch(() => {});
+  await p.waitForFunction(() => document.querySelector("[data-g=going]")?.dataset.on === "0", null, { timeout: 5000 }).catch(() => {});
+  ok("답이 오면 띠가 꺼지고(data-on=0) 「발송」이 지금 탭", (await goingOn()) === "0" && (await curTab()) === "발송", `on ${await goingOn()} · cur ${await curTab()}`);
+  await p.goto(APP + "/schedule/classes"); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("아래 화면(/schedule/classes)에서는 「일정」 탭이 파랗다(currentTab — 가장 긴 앞머리)", (await curTab()) === "일정", await curTab());
+  await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {}); }
 const leftBefore = (await p.locator("main .card .ctitle b").first().textContent()).trim();
 ok("안 정한 권한 칸 수가 뜬다(32칸 중)", /^\d+$/.test(leftBefore), leftBefore);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-home-${v.viewport.width}.png`, fullPage: true }); }
