@@ -82,7 +82,7 @@ export default function Board({ d }) {
               {scores.map((s) => <tr key={s.id} data-g="score-row"><td className="sch">{s.title}{s.pending ? <span className="tag act" style={{ marginLeft: 4 }}>확인 전</span> : null}</td><td className="num">{s.raw}{s.full !== 100 ? `/${s.full}` : ""}{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} style={{ marginLeft: 4 }} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</td><td className="num">{s.grade}</td><td>{s.sum.slice(0, 3).map((x, i) => <span key={x.kind} className="tag" style={i === 0 ? MISS : undefined}>{x.kind} {x.n}</span>)}{!s.sum.length && <span className="mute">—</span>}</td></tr>)}
               {!scores.length && <tr><td colSpan={4} className="note">아직 없습니다</td></tr>}
             </tbody></table></div>
-            {weak && <div className="weak" data-g="weak"><b>⚠️ {weak.text}</b><span className="tag act">{weak.hint}</span></div>}</div>
+            {weak && <div className="weak" data-g="weak"><b>⚠️ {weak.text}</b><Link prefetch={false} className="tag act" href={`/settings/routine?s=${st.id}`} data-act="weak-book" title="루틴 11 — 이 아이의 교재 잇기">{weak.hint} ↗</Link></div>}</div>
         </div>
         <div className="stcol">
           <div className="card" style={{ margin: "0 0 8px" }} data-g="attend"><div className="ctitle"><span className="cemo">🕘</span>이번 달 출결 <span className="tag">{md(`${b.month}-01`).replace(/\/.*/, "")}월</span></div>
