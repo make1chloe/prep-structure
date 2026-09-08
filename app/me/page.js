@@ -7,7 +7,7 @@ import { today } from "@/lib/day";
 import { meDay } from "@/lib/me";
 import { hhmm } from "@/lib/late-plan";
 import { classLabel, md } from "@/lib/dash-plan";
-import { KIND as QKIND, scopeText } from "@/lib/quiz-plan";
+import { KIND as QKIND, scopeText, quizTag } from "@/lib/quiz-plan";
 import { STOP } from "@/lib/routine-plan";
 import { ArrivalCard, SaidButton, MaterialCard, ScoreCard, AttachLines, FilesCard } from "./cards.js";
 import { childLinks } from "@/lib/files-plan";
@@ -55,7 +55,7 @@ export default async function Me() {
         {d.dueFrom && d.dueFrom !== "check" && <p className="note" style={{ margin: "4px 0 0" }}>{md(d.dueFrom)} 에 받은 숙제 — 오늘 검사받아요</p>}
       </Card>) },
     { id: 'quiz', name: '시험', node: can(ME.today) && ((d.quizzes.today.length > 0 || d.quizzes.next.length > 0) && <Card emo="🔤" title="시험" id="quiz" pill={String(d.quizzes.today.length + d.quizzes.next.length)}>
-        {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 — {scopeText(q)}</b><small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}{q.retry_of ? " · 재시험" : ""}</small></div>{q.state === "skipped" && <span className="tag">오늘 건너뜀</span>}</div>)}
+        {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 — {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}
         {d.quizzes.next.map((q) => <div className="li" key={q.id}><div><b>다음 시간 {qname(q.kind)} 시험 — {scopeText(q)}</b><small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}</small></div></div>)}
       </Card>) },
     { id: 'stay', name: '오늘은 남아서', node: can(ME.today) && (Boolean(d.sheet?.late?.until_at || d.stayRows?.length) && <Card emo="🌙" title="오늘은 남아서" id="stay" pill={d.sheet?.late?.until_at ? `${hhmm(d.sheet.late.until_at)} 예정` : "시간 미정"}>

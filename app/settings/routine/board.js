@@ -2,11 +2,11 @@
 /** 루틴 판(목업 11) — 학원 기본 루틴(영역 일곱) · 아이마다 고른 것 · 교재는 잇기만. 판단은 lib/routine-plan(순수) — 여기는 그린다. 드문 손이라 낙관 갱신 없이 서버 답 뒤에 새로 읽는다 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addItemAct, editItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct, quizPosAct } from "./actions.js";
+import { addItemAct, editItemAct, retireItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct, quizPosAct } from "./actions.js";
 import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
 import { QUIZ_POS, quizPosOf } from "@/lib/quiz-plan";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
-function ItemForm({ init = {}, onSave, onClose, pending, areaPick = null }) {
+function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
   const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required) });
   const up = (k) => (e) => setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
   return (
@@ -19,6 +19,7 @@ function ItemForm({ init = {}, onSave, onClose, pending, areaPick = null }) {
         {areaPick && <><Seg value={f.place} onPick={(k) => setF({ ...f, place: k })} g="form-place" /><label className="ckl"><input type="checkbox" className="ck" checked={f.required} onChange={up("required")} />필수</label></>}
         <button className="btn pri sm" type="button" disabled={pending} data-act="item-save" onClick={() => onSave(f)}>{init.id ? "저장" : "더하기"}</button>
         <button className="btn sm gho" type="button" onClick={onClose}>닫기</button>
+        {init.id && onRetire && <button className="btn sm gho" type="button" disabled={pending} data-act="item-retire" title="이 항목을 쓰는 줄이 모든 영역·아이에서 사라집니다 — 지우지 않습니다 · + 항목에 같은 이름을 넣으면 되살아납니다" onClick={() => { if (confirm(`「${f.name}」 항목을 내립니다 — 이 항목을 쓰는 줄이 모든 영역·아이에서 사라집니다(지우지 않습니다 · + 항목에 같은 이름을 넣으면 되살아납니다). 내릴까요?`)) onRetire(); }}>항목 내리기</button>}
       </div>
     </div>);
 }
@@ -71,7 +72,7 @@ export default function Board({ d }) {
                     <button className="btn sm gho" type="button" disabled={pending} data-act="retire" aria-label="내리기" onClick={() => run(() => setLineAct("area", l.id, { state: "retired" }), "내렸습니다 — 지우지 않았습니다(아래 「내린 것」에서 되살립니다)")}>🗑</button>
                   </span>
                 </div>
-                {editing === l.id && <ItemForm init={{ id: l.item_id, name: l.name, method: l.method ?? "", checks: l.checks ?? [] }} pending={pending} onClose={() => setEditing(null)} onSave={(f) => run(() => editItemAct(l.item_id, f), "고쳤습니다 — 이 항목을 쓰는 영역 전부")} />}
+                {editing === l.id && <ItemForm init={{ id: l.item_id, name: l.name, method: l.method ?? "", checks: l.checks ?? [] }} pending={pending} onClose={() => setEditing(null)} onSave={(f) => run(() => editItemAct(l.item_id, f), "고쳤습니다 — 이 항목을 쓰는 영역 전부")} onRetire={() => run(() => retireItemAct(l.item_id), (r) => `항목을 내렸습니다 — 「${r.name}」을 쓰는 줄이 모든 영역·아이에서 빠집니다(+ 항목에 같은 이름을 넣으면 되살아납니다)`)} />}
               </div>))}
             {retired.length > 0 && <details className="rout" data-g="retired"><summary style={{ cursor: "pointer" }}><b>내린 것 {retired.length}</b></summary>
               {retired.map((l) => <span key={l.id} className="wv" style={{ margin: "4px 0 0" }}><span className="tag" style={{ color: "var(--mute)", textDecoration: "line-through" }}>{l.name}</span><button className="btn sm gho" type="button" disabled={pending} data-act="revive" onClick={() => run(() => setLineAct("area", l.id, { state: "active" }), "되살렸습니다")}>되살리기</button></span>)}

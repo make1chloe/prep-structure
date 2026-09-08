@@ -3,9 +3,9 @@
  *  세는 것(N명 · N줄 · 영어일 없음 N)은 화면이 센다(원칙-5) — lib/exam-plan 한 벌 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { scopeAct, removeScopeAct, skipAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct } from "./actions.js";
+import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct } from "./actions.js";
 import { englishOnAct } from "../actions.js";
-import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, unitsByChapter, LEVEL_NAME, LEVELS, WEEK_CHOICES } from "@/lib/exam-plan";
+import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, unitsByChapter, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES } from "@/lib/exam-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -54,7 +54,7 @@ function ExamCard({ e, b, today, pending, run, stName }) {
   const pickBook = (id) => { setBookId(id); setUnits([]); setPicked({}); if (id) run(async () => { const r = await unitsAct(id); if (r.ok) setUnits(r.units); return r; }); };
   const chosen = chapters.filter((ch) => picked[ch.chapter]).flatMap((ch) => ch.units.map((u) => u.id));
   const takers = e.takers ?? [], skipped = new Set((e.skips ?? []).map((k) => k.student_id));
-  const pickable = (b.students ?? []).filter((s) => takers.includes(s.id) && !skipped.has(s.id));
+  const pickable = skipCandidates(b.students, takers, e.skips);   // 안 봄 후보 — 한 명씩 · 한 번에((가)-⑨) 같은 목록
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
     <div className="exh"><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
       {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어일 없음</span>}
@@ -88,7 +88,9 @@ function ExamCard({ e, b, today, pending, run, stName }) {
     <div className="wv" style={{ marginTop: 8 }} data-g="skip-line"><span className="fl" style={{ margin: 0 }}>안 봄</span>
       {(e.skips ?? []).map((k) => <span key={k.student_id} className="tag" style={MISS} data-g="skip-tag">{k.name} <button className="btn sm" type="button" disabled={pending} data-act="unskip" onClick={() => run(() => skipAct(e.id, k.student_id, false), `${k.name} — 다시 봅니다`)}>본다</button></span>)}
       <select value={skipPick} onChange={(x) => setSkipPick(x.target.value)} aria-label="안 볼 아이" data-g="skip-pick" style={{ width: "auto" }}><option value="">아이 고르기</option>{pickable.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-      <button className="btn sm" type="button" disabled={pending || !skipPick} data-act="skip" onClick={() => run(() => skipAct(e.id, skipPick, true), `${stName(skipPick)} — 안 봄(대비·재촉·멈춤에서 빠집니다)`, () => setSkipPick(""))}>안 봄</button></div>
+      <button className="btn sm" type="button" disabled={pending || !skipPick} data-act="skip" onClick={() => run(() => skipAct(e.id, skipPick, true), `${stName(skipPick)} — 안 봄(대비·재촉·멈춤에서 빠집니다)`, () => setSkipPick(""))}>안 봄</button>
+      {pickable.length > 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" title="보는 아이 가운데 아직 안 봄이 아닌 아이 전부 — 이 학년이 다 안 볼 때(한 명씩 되돌릴 수 있습니다)" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 한 명씩 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 {pickable.length}명 다 안 봄</button>}
+      {pickable.length === 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 1명 다 안 봄</button>}</div>
   </div>;
 }
 function StopCard({ b, today, pending, run }) {
