@@ -969,6 +969,11 @@ await p.waitForFunction(() => { const s = document.querySelector("select[aria-la
 ok("단원 하나를 고르면 손 떼자마자 저장(교재는 단원에서 나온다) · 다시 열어도 그 단원 · 보드 카드 글도 「CHAPTER 1 › 1-2 …」", (await grow.locator("select[aria-label='zz_시험_중학교 단원'] option:checked").textContent()).includes("1-2"), await grow.locator("select[aria-label='zz_시험_중학교 단원'] option:checked").textContent());
 await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("단원 칸 ✕ → 내림(값은 남는다 — 대전제-6) · 머리칸 6(뒤 걷기는 비고 칸이 마지막)", (await gr.locator("[data-g=msg]").textContent()).includes("단원 칸을 내렸습니다") && (await gr.locator("[data-g=col]").count()) === 6, await gr.locator("[data-g=msg]").textContent());
+console.log("■ 학교별 표 06c — 「한 학교만 크게」 ▣((가)-⑦): 표에 그 줄만 남고 아래에 카드(칸마다 한 줄 · 고치기)가 편다");
+await grow.locator("button[data-act=row-focus]").click(); await p.waitForTimeout(300);
+ok("▣ → 표는 그 줄만(data-focus 1) · 카드 「zz_시험_중학교 — 한 줄만 크게」 · 칸마다 한 줄(6) · 「← 전체 1줄」", (await gr.locator("[data-g=table][data-focus='1']").count()) === 1 && (await gr.locator("[data-g=row]").count()) === 1 && (await gr.locator("[data-g=focus]").count()) === 1 && (await gr.locator("[data-g=focus] .lf").count()) === 6 && (await gr.locator("[data-g=focus] button[data-act=row-unfocus]").textContent()).includes("전체 1줄"), (await gr.locator("[data-g=focus] .ctitle").textContent()));
+await gr.locator("[data-g=focus] button[data-act=row-unfocus]").click(); await p.waitForTimeout(300);
+ok("← 전체 → 카드 닫힘 · 표 전부(data-focus 0)", (await gr.locator("[data-g=focus]").count()) === 0 && (await gr.locator("[data-g=table][data-focus='0']").count()) === 1 && (await gr.locator("[data-g=row]").count()) === 1);
 // 5단계-⑥ — 칸 종류를 바꾸면 값을 옮겨 담는다: 비고(글 「영어 10.16 · 나이스에서」) → 선택(예정/진행/끝)이면 못 옮김 1(그대로 둠 · 셀은 「—」) → 다시 글이면 옮겨 담음 1 · 값이 되살아난다(지우지 않았다)
 const bigo06 = () => gr.locator("[data-g=col][data-col]").last();
 await bigo06().locator("select[data-g=ctype]").selectOption("select"); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("비고 — 선택"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
