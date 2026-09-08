@@ -412,9 +412,9 @@ console.log("■ 아이 화면 07 — 마감 뒤: 「다 했어요」(학원 줄
   ok("달력이 열리고 이 달 · 오늘 칸 ⏰(지각·늦귀가) 📘(숙제) 📝(시험 본 날) · 어제 ⏰📘(정시였지만 늦귀가 약속이 있던 날 — 씨앗) · 그저께 ⏰(늦귀가) · 내일 ✕(결석 예정) · 글피 ⏰(지각 예정)", new URL(cp.url()).pathname === "/me/cal" && (await cp.locator("[data-g=month]").textContent()).includes("월") && (await marks(todayText)).includes("⏰") && (await marks(todayText)).includes("📘") && (await marks(todayText)).includes("📝") && (await marks(plus(-1))) === "⏰📘" && (await marks(plus(-2))).startsWith("⏰") && (await marks(d1)).startsWith("✕") && (await marks(d3)).includes("⏰") && (await marks(d3)).includes("🚩"), `오늘 ${await marks(todayText)} · 어제 ${await marks(plus(-1))} · 내일 ${await marks(d1)} · 글피 ${await marks(d3)}`);
   const day = cp.locator("[data-g=day]");
   ok("오늘의 줄 — 「HH:MM 등원 · HH:MM 하원」 · 수업일지(마감한 글) · 숙제 N개 · 단어 시험 17/20 · 85% 못 넘음", /\d\d:\d\d 등원 · \d\d:\d\d 하원/.test(await day.textContent()) && (await day.textContent()).includes("워크북 나머지는 남아서 마쳤습니다") && /숙제 \d+개/.test(await day.textContent()) && (await day.textContent()).includes("17/20") && (await day.textContent()).includes("85%"), (await day.textContent()).replace(/\s+/g, " ").slice(0, 300));
-  await cell(plus(-1)).click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  await cell(plus(-1)).click(); await cp.waitForFunction(() => document.querySelector("[data-g=day]")?.textContent?.includes("왔음"), null, { timeout: 15000 });   // <Link> 부분 전환 — 그날 내용이 뜰 때까지((나)-①)
   ok("어제 칸을 누르면 그날 — 「왔음」 · 수업일지 (글 없음) · 숙제 2개", (await day.textContent()).includes("왔음") && (await day.textContent()).includes("(글 없음)") && (await day.textContent()).includes("숙제 2개"), (await day.textContent()).replace(/\s+/g, " ").slice(0, 200));
-  await cell(d1).click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  await cell(d1).click(); await cp.waitForFunction(() => document.querySelector("[data-g=day]")?.textContent?.includes("결석 · 보강 안 잡힘"), null, { timeout: 15000 });
   ok("내일 칸 — 「결석 · 보강 안 잡힘」 · 결석 예정", (await day.textContent()).includes("결석 · 보강 안 잡힘"), (await day.textContent()).replace(/\s+/g, " ").slice(0, 200));
   for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-cal-${v.viewport.width}.png`, fullPage: true }); }
   await cs.close(); }
@@ -456,7 +456,7 @@ console.log("■ 학부모 09 — 마감 뒤: 늦귀가 안내(보낸 것 · 실
   await pm.locator("[data-card=cal]").click(); await cp.waitForLoadState("networkidle").catch(() => {});
   const pcell = (dt) => cp.locator(`.cal a.cd[data-date='${dt}']`);
   ok("학부모 달력 — 같은 그림: 오늘 ⏰📘📝 · 내일 ✕ · 오늘의 줄에 수업일지(마감한 글) · 다음 달 ▸ 까지만(확정-⑯)", new URL(cp.url()).pathname === "/parent/cal" && (await pcell(todayText).locator(".cm").allTextContents()).join("").includes("📘") && (await pcell(d1).locator(".cm").allTextContents()).join("").startsWith("✕") && (await cp.locator("[data-g=day]").textContent()).includes("워크북 나머지는 남아서 마쳤습니다") && (await cp.locator(".calhead a[aria-label='다음 달']").count()) === 1, (await cp.locator("[data-g=day]").textContent()).replace(/\s+/g, " ").slice(0, 200));
-  await cp.locator(".calhead a[aria-label='다음 달']").click(); await cp.waitForLoadState("networkidle").catch(() => {});
+  await cp.locator(".calhead a[aria-label='다음 달']").click(); await cp.waitForFunction(() => !document.querySelector(".calhead a[aria-label='다음 달']"), null, { timeout: 15000 });   // <Link> — 다음 달로 넘어가 ▸ 가 사라질 때까지
   ok("다음 달에서는 ▸ 가 막힌다(앞날은 다음 달까지)", (await cp.locator(".calhead a[aria-label='다음 달']").count()) === 0 && (await cp.locator(".calhead a[aria-label='지난 달']").count()) === 1);
   await cs.close(); }
 console.log("■ 발송 10 — 늦귀가는 01 에서 보냄 표시만(확정-㊿) · 마감한 판만 보낼 것 · 지금 보내기 · 예약·취소(확정-㉕) · 저절로 나가는 것은 백스톱이 · 오늘 나간 것(리허설이라 안 나감) · 크론");
