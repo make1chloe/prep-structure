@@ -3,6 +3,7 @@
  *  보강 시각을 앱이 제안하지 않는다(확정-㉔) — 날짜·시각을 직접 적는다. 되돌릴 수 없는 손은 서버 답을 기다린다(속도-5) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Sure, { useSure } from "../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { holidayAct, undoHolidayAct, todoAct, doneTodoAct, examAct, englishOnAct, cancelExamAct, classMakeupAct, cancelClassMakeupAct, makeupAct, confirmMonthAct } from "./actions.js";
 import { dayTitle, classText } from "@/lib/schedule-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
@@ -24,10 +25,11 @@ export function ClassMakeup({ classId, ym, short }) {
 }
 /** 그 달 일정 확정(4단계-3b · ㉚ 9/7 「무조건 확정 후 알림」) — 도장 하나 · 확정하면 반 아이들의 학부모에게 「수업 일정 안내」 · 휴강이 들어오면 풀려서 「다시 확정」. 되돌릴 수 없는 손이라 물어보고 서버 답을 기다린다 */
 export function MonthConfirm({ ym, ct, can }) {
-  const { run, pending, err, msg } = useRun(); const m = Number(String(ym).slice(5, 7));
+  const { run, pending, err, msg } = useRun(); const sure = useSure(); const m = Number(String(ym).slice(5, 7));
   return <div className="wv" style={{ gap: 6 }} data-g="confirm" data-state={ct.state}>
     <span className={"pill" + (ct.bad ? " warn" : "")} data-g="confirm-text">{ct.text}</span>
-    {can && ct.button && <button className="btn pri sm" type="button" disabled={pending} data-act="confirm-month" onClick={() => { if (window.confirm(`${m}월 일정을 확정하고 반 아이들의 학부모에게 알림을 보낼까요?${ct.state === "undone" ? " (휴강이 들어와 풀렸던 것을 다시 확정합니다)" : ""}`)) run(() => confirmMonthAct(ym), (r) => `${m}월 일정 확정 — 반 ${r.classes} · 학부모 ${r.n}명에게 알림${r.sink === "off" ? "(🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다)" : ` · 보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }}>{ct.button}</button>}
+    {can && ct.button && <button className="btn pri sm" type="button" disabled={pending} data-act="confirm-month" onClick={() => sure.ask("month")}>{ct.button}</button>}
+    <Sure on={sure.is("month")} text={`${m}월 일정을 확정하고 반 아이들의 학부모에게 알림을 보낼까요?${ct.state === "undone" ? " (휴강이 들어와 풀렸던 것을 다시 확정합니다)" : ""}`} yes="확정" pending={pending} onYes={() => { sure.off(); run(() => confirmMonthAct(ym), (r) => `${m}월 일정 확정 — 반 ${r.classes} · 학부모 ${r.n}명에게 알림${r.sink === "off" ? "(🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다)" : ` · 보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
     <Note err={err} msg={msg} />
   </div>;
 }

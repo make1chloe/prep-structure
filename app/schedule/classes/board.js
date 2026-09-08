@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Sure, { useSure } from "../../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { addAct, scheduleAct, nameAct, closeAct, memberAct, removeAct, feeAct } from "./actions.js";
 import { KIND, kindName, weekdayText, timeText, feeText, candidates, classLine } from "@/lib/class-plan";
 import { W, sessionsOf } from "@/lib/schedule-plan";
@@ -20,7 +21,7 @@ function ScheduleForm({ init, on, disabled, onSave, label = "이 날부터 바�
     <button type="button" className="btn sm pri" disabled={disabled} data-act="schedule-save" onClick={() => onSave(f)}>{label}</button></div>;
 }
 export default function Board({ d }) {
-  const router = useRouter();
+  const router = useRouter(); const sure = useSure();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState(""); const [err, setErr] = useState("");
   const [add, setAdd] = useState(false); const [nf, setNf] = useState({ nickname: "", kind: "regular" });
@@ -65,7 +66,7 @@ export default function Board({ d }) {
             <label className="ckl"><input type="checkbox" className="ck" checked={Boolean(fee[c.id]?.perSession)} onChange={(e) => setFee({ ...fee, [c.id]: { ...(fee[c.id] ?? {}), perSession: e.target.checked } })} />회차제</label>
             <input type="date" className="dt" value={fee[c.id]?.fromDate ?? d.on} aria-label="단가 이 날부터" style={{ width: "auto" }} onChange={(e) => setFee({ ...fee, [c.id]: { ...(fee[c.id] ?? {}), fromDate: e.target.value } })} />
             <button type="button" className="btn sm" disabled={pending || !fee[c.id]?.amount} data-act="fee-save" onClick={() => run(() => feeAct(c.id, { ...fee[c.id], fromDate: fee[c.id]?.fromDate ?? d.on }), "단가 줄을 적었습니다 — 13 에서 이 달부터 셉니다", () => setFee({ ...fee, [c.id]: undefined }))}>단가 줄 적기</button></div>
-          <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><span className="spacer" /><button type="button" className="btn sm" disabled={pending} data-act="close-class" onClick={() => { if (confirm(`「${c.nickname}」 반을 오늘부터 없는 반으로 닫을까요? 시간표·명단·단가 줄이 어제까지로 닫히고 옛 기록은 남습니다.`)) run(() => closeAct(c.id, d.on), "반을 닫았습니다", () => setOpen(null)); }}>반 닫기</button></div>
+          <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><span className="spacer" /><button type="button" className="btn sm" disabled={pending} data-act="close-class" onClick={() => sure.ask("close:" + c.id)}>반 닫기</button><Sure on={sure.is("close:" + c.id)} text={`「${c.nickname}」 반을 오늘부터 없는 반으로 닫을까요? 시간표·명단·단가 줄이 어제까지로 닫히고 옛 기록은 남습니다.`} yes="반 닫기" pending={pending} onYes={() => { sure.off(); run(() => closeAct(c.id, d.on), "반을 닫았습니다", () => setOpen(null)); }} onNo={sure.off} style={{ flexBasis: "100%" }} /></div>
         </>}
       </div>); })}
     {closed.length > 0 && <div className="card" data-g="closed"><div className="ctitle"><span className="cemo">🗂</span>닫은 반 {closed.length}<span className="spacer" /><button type="button" className="btn sm" data-act="show-closed" aria-pressed={showClosed} onClick={() => setShowClosed(!showClosed)}>{showClosed ? "접기" : "보기"}</button></div>

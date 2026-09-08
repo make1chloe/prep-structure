@@ -1,6 +1,7 @@
 "use client";
 /** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생 엑셀 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
 import Link from "next/link";
+import Sure, { useSure } from "../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveAct, importAct, remindAct, byGradeAct } from "./actions.js";
@@ -9,7 +10,7 @@ import { monthLabel, nextYm } from "@/lib/schedule-plan";
 import { md } from "@/lib/dash-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Fee({ d }) {
-  const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
+  const router = useRouter(); const [pending, start] = useTransition(); const sure = useSure();   /* 한 번 더 묻기(다 받음) */ const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const [edit, setEdit] = useState({});   // student_id → { amount, paid_on, method }
   const [gradeOpen, setGradeOpen] = useState(false); const [grade, setGrade] = useState(null);   // 학년별 기준(4단계-4)
   const rows = d.rows.map((r) => { const e = edit[r.student_id]; if (!e) return r; const amount = "amount" in e ? parseWon(e.amount) : r.amount; const paid_on = "paid_on" in e ? (e.paid_on || null) : r.paid_on; const method = "method" in e ? (e.method || null) : (r.method ?? null); return { ...r, amount, paid_on, method, state: amount == null ? "none" : paid_on ? "paid" : "unpaid", dirty: true }; });
@@ -47,11 +48,12 @@ export default function Fee({ d }) {
     </tbody></table></div>
     <div className="savebar" style={{ marginTop: 8 }} data-g="fee-bar">
       <button className="btn pri" type="button" disabled={pending || !rows.some((r) => r.dirty)} data-act="save" onClick={save}>저장</button>
-      <button className="btn" type="button" disabled={pending || !t.unpaidCount} data-act="pay-all" title="이 달 「안 받음」 줄 전부에 받은 날을 오늘로 적어 저장합니다 — 금액 없음 줄은 그대로 · 한 집만 빼려면 그 줄의 받은 날을 지우고 저장" onClick={() => { if (!confirm(`안 받음 ${t.unpaidCount}줄을 오늘(${md(d.date)}) 받은 것으로 적을까요?`)) return; run(() => saveAct(d.ym, payAllEdits(rows, d.date)), (r) => `${r.saved}줄 받음(${md(d.date)}) — 저장했습니다${r.ruled ? ` · 단가 줄 ${r.ruled}(이 달부터)` : ""}`); }}>✔ 안 받음 {t.unpaidCount}줄 다 받음</button>
+      <button className="btn" type="button" disabled={pending || !t.unpaidCount} data-act="pay-all" title="이 달 「안 받음」 줄 전부에 받은 날을 오늘로 적어 저장합니다 — 금액 없음 줄은 그대로 · 한 집만 빼려면 그 줄의 받은 날을 지우고 저장" onClick={() => sure.ask("pay-all")}>✔ 안 받음 {t.unpaidCount}줄 다 받음</button>
       <span className="pill" data-g="sum">{Number(d.ym.slice(5, 7))}월 합계 <b>{won(t.sum)}</b></span>
       <span className="pill" style={MISS} data-g="unpaid-sum">안 받음 {won(t.unpaid)}</span>
       <span className="spacer" />
       <a className="btn" href={`/api/ops/fee?m=${d.ym}`} data-act="export">엑셀로</a>
+      <Sure on={sure.is("pay-all")} text={`안 받음 ${t.unpaidCount}줄을 오늘(${md(d.date)}) 받은 것으로 적을까요?`} yes="다 받음" pending={pending} onYes={() => { sure.off(); run(() => saveAct(d.ym, payAllEdits(rows, d.date)), (r) => `${r.saved}줄 받음(${md(d.date)}) — 저장했습니다${r.ruled ? ` · 단가 줄 ${r.ruled}(이 달부터)` : ""}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
     </div>
   </>;
 }

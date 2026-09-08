@@ -44,7 +44,7 @@ export default function Board({ d }) {
           {q.stage === "joined" && q.student_id && <Link prefetch={false} className="btn sm" style={{ marginTop: 8, width: "100%", display: "block", textAlign: "center" }} href={`/ops/students?s=${q.student_id}`} data-act="open-student">학생 화면 ↗</Link>}
           {q.stage === "dropped" && <div className="wv" style={{ marginTop: 6, gap: 4 }}><input type="text" value={v(q.id, "why", q.why ?? "")} placeholder="사유 — 다른 학원 · 시간이 안 맞음" aria-label={`${q.name} 사유`} onChange={(x) => setV(q.id, "why", x.target.value)} style={{ flex: "1 1 160px" }} /><button className="btn sm" type="button" disabled={pending} data-act="why-save" onClick={() => run(() => setAct(q.id, { why: v(q.id, "why") }, q.updated_at ?? null), "사유를 적었습니다")}>사유</button></div>}
         </div>)}
-        {!col.cards.length && <div className="kc" style={{ opacity: 0.6 }}><div className="sub">없음</div></div>}
+        {!col.cards.length && <div className="kc" data-empty="1"><div className="sub">없음</div></div>}
       </div>)}
     </div>
     {convCard && <div className="mdlov" data-g="convert" onClick={(x) => { if (x.target === x.currentTarget) setConv(null); }}><div className="mdl" style={{ maxWidth: 560 }}>

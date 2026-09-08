@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
+import Sure, { useSure } from "../../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { addItemAct, editItemAct, retireItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct, quizPosAct } from "./actions.js";
 import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
 import { QUIZ_POS, quizPosOf } from "@/lib/quiz-plan";
@@ -10,6 +11,7 @@ const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-
 function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
   const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required) });
   const up = (k) => (e) => setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
+  const sure = useSure();
   return (
     <div className="card" style={{ marginTop: 8 }} data-g="item-form">
       <div className="wv">
@@ -20,12 +22,13 @@ function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPi
         {areaPick && <><Seg value={f.place} onPick={(k) => setF({ ...f, place: k })} g="form-place" /><label className="ckl"><input type="checkbox" className="ck" checked={f.required} onChange={up("required")} />필수</label></>}
         <button className="btn pri sm" type="button" disabled={pending} data-act="item-save" onClick={() => onSave(f)}>{init.id ? "저장" : "더하기"}</button>
         <button className="btn sm gho" type="button" onClick={onClose}>닫기</button>
-        {init.id && onRetire && <button className="btn sm gho" type="button" disabled={pending} data-act="item-retire" title="이 항목을 쓰는 줄이 모든 영역·아이에서 사라집니다 — 지우지 않습니다 · + 항목에 같은 이름을 넣으면 되살아납니다" onClick={() => { if (confirm(`「${f.name}」 항목을 내립니다 — 이 항목을 쓰는 줄이 모든 영역·아이에서 사라집니다(지우지 않습니다 · + 항목에 같은 이름을 넣으면 되살아납니다). 내릴까요?`)) onRetire(); }}>항목 내리기</button>}
+        {init.id && onRetire && <button className="btn sm gho" type="button" disabled={pending} data-act="item-retire" title="이 항목을 쓰는 줄이 모든 영역·아이에서 사라집니다 — 지우지 않습니다 · + 항목에 같은 이름을 넣으면 되살아납니다" onClick={() => sure.ask("retire")}>항목 내리기</button>}
       </div>
+      <Sure on={sure.is("retire")} text={`「${f.name}」 항목을 내립니다 — 이 항목을 쓰는 줄이 모든 영역·아이에서 사라집니다(지우지 않습니다 · + 항목에 같은 이름을 넣으면 되살아납니다). 내릴까요?`} yes="내리기" pending={pending} onYes={() => { sure.off(); onRetire(); }} onNo={sure.off} />
     </div>);
 }
 export default function Board({ d }) {
-  const router = useRouter(); const { go } = useGo();
+  const router = useRouter(); const { go } = useGo(); const sure = useSure();
   const [pending, start] = useTransition();
   const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const [adding, setAdding] = useState(null);   // 영역 이름 — + 항목 폼이 열린 영역
@@ -137,7 +140,8 @@ export default function Board({ d }) {
                 : bv.custom ? <span className="tag act" data-g="book-routine">이 교재만 고친 루틴</span> : custom ? <span className="tag act">이 아이만 고친 {x.area} 루틴</span> : <span className="tag on">{x.area} 루틴을 씁니다</span>}
               {bv.custom ? <button className="btn sm gho" type="button" disabled={pending} data-act="book-reset" onClick={() => run(() => bookResetAct(sid, x.book_id), "영역 루틴으로 돌렸습니다(교재 줄은 내렸을 뿐 지우지 않았습니다)")}>영역 루틴으로</button>
                          : <button className="btn sm" type="button" disabled={pending || !bv.lines.length} data-act="book-customize" title="이 교재에만 다른 줄·차례·잠금을 쓴다(교재 › 아이 영역 › 학원 영역)" onClick={() => run(() => bookCustomizeAct(sid, x.book_id), "이 교재만의 줄을 만들었습니다 — 자리·차례·🔒·빼기를 따로 정합니다")}>이 교재만 다르게</button>}
-              <button className="btn sm gho" type="button" disabled={pending} data-act="book-end" title="오늘부터 이 교재를 안 쓴다(줄은 남는다 — 지난 판·회독 기록)" onClick={() => { if (window.confirm(`${x.name} — 오늘부터 안 씁니다(줄은 남습니다). 끝낼까요?`)) run(() => endBookAct(x.id), (r) => `끝냈습니다 — ${r.to}까지 쓴 것으로(줄은 남습니다)`); }}>끝내기</button></div>
+              <button className="btn sm gho" type="button" disabled={pending} data-act="book-end" title="오늘부터 이 교재를 안 쓴다(줄은 남는다 — 지난 판·회독 기록)" onClick={() => sure.ask("end:" + x.id)}>끝내기</button></div>
+              <Sure on={sure.is("end:" + x.id)} text={`${x.name} — 오늘부터 안 씁니다(줄은 남습니다). 끝낼까요?`} yes="끝내기" pending={pending} onYes={() => { sure.off(); run(() => endBookAct(x.id), (r) => `끝냈습니다 — ${r.to}까지 쓴 것으로(줄은 남습니다)`); }} onNo={sure.off} />
             {bv.custom && <div className="bsr" style={{ flexDirection: "column", alignItems: "stretch" }} data-g="book-lines">
               {bv.lines.map((l, i) => (
                 <div key={l.id} className="ritem on" data-g="bline">
