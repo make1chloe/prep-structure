@@ -817,6 +817,14 @@ await addM.locator("select[aria-label='자료 종류']").selectOption({ label: t
 await addM.locator("input[aria-label='갈래 이름']").fill("zz_분석지"); await addM.locator("textarea[aria-label=항목]").fill("동사 형 변형, 어순, 접속사");
 await addM.locator("button[data-act=add-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("+ 자료(zz_너른터 · zz_분석지 · 항목 셋 · 배정 1명) → 「항목 3 · 배정 1명 · 할 일 3」 · 나무 「자료 1 · 갈래 1 · 항목 3」 · 갈래 꼬리표 「3가지 · 아직 안 만듦」 · 여기서 생긴 할 일 3(만들기·인쇄·배부 — 지난 시험이라 「N일 지남」)", (await pr.locator("[data-g=msg]").textContent()).includes("항목 3 · 배정 1명 · 할 일 3") && (await pr.locator("[data-g=tree-count]").textContent()) === "자료 1 · 갈래 1 · 항목 3" && (await pr.locator("[data-g=mt2] [data-g=mtag]").allTextContents()).join() === "3가지,아직 안 만듦" && (await pr.locator("[data-g=todo-row]").count()) === 3 && (await pr.locator("[data-g=todo-row]").first().textContent()).includes("지남"), (await pr.locator("[data-g=todos]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+console.log("■ 내신 자료 04 → 05 — 「단계 ↗」가 그 자료만 걸러 연다((가)-④ · 남긴 것 21)");
+const url04 = p.url();
+await pr.locator("[data-g=mt2] a[data-act=steps]").first().click(); await p.waitForLoadState("networkidle").catch(() => {});
+const td4 = p.locator("main");
+ok("05 가 「📄 zz_분석지 만」 알약으로 열린다 · 내 할 일 3(만들기·인쇄·배부) · 📦 흐름이 그 자료", /zz_분석지 만/.test(await td4.locator("[data-g=only]").textContent()) && (await td4.locator("[data-g=count]").textContent()) === "내 할 일 3" && (await td4.locator("[data-g=flow] .ctitle").textContent()).includes("zz_분석지"), (await td4.locator("[data-g=head]").textContent()) + " / " + (await td4.locator("[data-g=flow] .ctitle").textContent()));
+await td4.locator("button[data-act=only-off]").click(); await p.waitForTimeout(800);
+ok("「전체 보기 ✕」 → 알약 없음 · 내 할 일이 3보다 많다 · 주소에서 m 이 빠진다", (await td4.locator("[data-g=only]").count()) === 0 && Number((await td4.locator("[data-g=count]").textContent()).replace(/\D/g, "")) > 3 && !p.url().includes("m="), p.url() + " / " + (await td4.locator("[data-g=count]").textContent()));
+await p.goto(url04); await p.waitForLoadState("networkidle").catch(() => {});
 const ms1 = pr.locator("[data-g=ms]").first();
 ok("항목 알약에 「단원 —」 고르개(범위의 단원 — 4단계-5) · 아직 안 이음", (await ms1.locator("select[data-g=ms-unit]").count()) === 1 && (await ms1.getAttribute("data-unit")) === "", `${await ms1.locator("select[data-g=ms-unit]").count()}`);
 await ms1.locator("select[data-g=ms-unit]").selectOption({ index: 1 }); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("단원에 이었습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
