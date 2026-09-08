@@ -1,5 +1,5 @@
 /** 시험 회차 판단 검사(검사-54) — lib/exam-plan.js 순수 셈: 보는 아이(학교·학년·안 봄·전국은 고등) · 그날·끝나는 날 · 몇 주 전부터(아이 따로 › 학교급 규칙) · 멈춤 창(영어일 − N주 ~ 끝) · 시험전·시험후 · 범위 묶음 · 알약 · 머리 · 멈춤 글 · 단원 묶기 + routine-plan stopOn 의 「시작 전이면 진행중」 */
-import { takes, examOn, examEnd, weeksFor, stopWindow, examPhase, groupScopes, counts, examHead, stopText, unitsByChapter, manualKey, LEVELS, WEEK_CHOICES } from "../lib/exam-plan.js";
+import { takes, skipCandidates, examOn, examEnd, weeksFor, stopWindow, examPhase, groupScopes, counts, examHead, stopText, unitsByChapter, manualKey, LEVELS, WEEK_CHOICES } from "../lib/exam-plan.js";
 import { stopOn } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -40,5 +40,6 @@ const win = stopWindow(mid, 4);
 ok("멈춤 글 — 아직(9/18부터 멈춤 · 10/17에 저절로 풀림) · 중(멈춤 중) · 지남(10/17에 풀림) · 창 없으면 null", stopText(win, "2026-09-01").state === "soon" && stopText(win, "2026-09-01").text === "9/18부터 멈춤 · 10/17에 저절로 풀림" && stopText(win, "2026-10-01").state === "on" && stopText(win, "2026-10-18").state === "past" && stopText(win, "2026-10-18").text === "10/17에 풀림" && stopText(null, "2026-10-01") === null);
 ok("손으로 넣은 회차의 출처 열쇠 — 학교·학년·이름·시작날로(둘째 회차가 (manual, null) 에 걸리던 사고) · 학년·학교 비면 all", manualKey({ scope: "school", schoolId: "s1", grade: 2, name: " 2학기 중간 ", termFrom: "2026-10-14" }) === "manual:school:s1:2:2학기 중간:2026-10-14" && manualKey({ scope: "national", name: "10월 학평", termFrom: "2026-10-14" }) === "manual:national:all:all:10월 학평:2026-10-14" && manualKey({ scope: "school", schoolId: "s1", name: "a", termFrom: "d" }) !== manualKey({ scope: "school", schoolId: "s1", name: "b", termFrom: "d" }));
 ok("단원 묶기 — 대단원마다 · 차례 그대로 · 학교급 셋 · 주 후보 넷", J(unitsByChapter([{ id: 1, chapter: "A" }, { id: 2, chapter: "A" }, { id: 3, chapter: "B" }]).map((x) => [x.chapter, x.units.length])) === J([["A", 2], ["B", 1]]) && LEVELS.join() === "high,middle,elem" && WEEK_CHOICES.join() === "3,4,6,8");
+ok("안 봄 후보((가)-⑨ 한 번에도 같은 목록) — 보는 아이 가운데 아직 안 봄이 아닌 아이만 · 안 보는 학교 아이는 빠짐 · 빈 것", J(skipCandidates([{ id: "a" }, { id: "b" }, { id: "c" }], ["a", "b"], [{ student_id: "b" }]).map((s) => s.id)) === J(["a"]) && skipCandidates([{ id: "a" }], [], []).length === 0 && skipCandidates(undefined, undefined, undefined).length === 0);
 console.log(`\n■ 시험 회차 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

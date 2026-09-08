@@ -1,6 +1,6 @@
 /** 시험 검사 — 판정과 리포트 문이 SQL 한 곳에서 맞게 도나(0038~0041, 원장님 9/2) · lib 이 그 판정을 다시 만들지 않나.
  *  진짜 DB(눌러보기 또는 실제)로 트랜잭션 안에서 쓰고 되돌린다. 리허설 학생(fixture)으로만 쓴다(대전제-12). */
-import { parseStyle, scopeLabel, scopeText, S_WAY, QUIZ_POS, quizPosOf, quizPosEnd, quizPosName } from "../lib/quiz-plan.js";
+import { parseStyle, scopeLabel, scopeText, S_WAY, QUIZ_POS, quizPosOf, quizPosEnd, quizPosName, quizTag } from "../lib/quiz-plan.js";
 import { Client } from "pg"; import { readFileSync } from "node:fs";
 const url = (process.env.DATABASE_URL ?? readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 15000 });
@@ -61,5 +61,6 @@ ok("내신 범위 글 — 「2학기 중간 내신 범위 — 교재 · CH5 › 
 // ── 순수((가)-①) — 카드 자리
 ok("카드 자리 둘(시작하자마자 · 다 끝내고) — 모르는 값·빈 값은 시작하자마자 · 「다 끝내고」인 아이만 아래 · 이름은 01 제목·11 세그가 같은 글(0143)", QUIZ_POS.length === 2 && quizPosOf({ quiz_pos: "end" }) === "end" && quizPosOf({ quiz_pos: "middle" }) === "start" && quizPosOf(null) === "start" && quizPosEnd({ quiz_pos: "end" }) && !quizPosEnd({}) && quizPosName("end") === "다 끝내고" && quizPosName("start") === "시작하자마자" && quizPosName(undefined) === "시작하자마자");
 ok("자리 판단은 quiz-plan 한 곳 — 오늘 01 줄·루틴 11 화면에 「quiz_pos === 'end'」 같은 견주기가 없다 · 오늘 조회(반 lib/day · 보강 lib/plan)가 quiz_pos 을 읽는다", ["app/today/row.js", "app/settings/routine/board.js"].every((f) => !/quiz_pos\s*[!=]==?\s*["']/.test(strip(readFileSync(f, "utf8")))) && ["lib/day.js", "lib/plan.js"].every((f) => /students!inner\([^)]*quiz_pos/.test(readFileSync(f, "utf8"))));
+ok("아이 화면 꼬리표((가)-⑨) — 건너뛴 재시험 「오늘 건너뜀」 · 재시험 「재시험」 · 보통 시험은 없음", quizTag({ state: "skipped", retry_of: "x" }) === "오늘 건너뜀" && quizTag({ state: "planned", retry_of: "x" }) === "재시험" && quizTag({ state: "planned" }) === null && quizTag(null) === null);
 console.log(`\n■ 시험 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
