@@ -4,7 +4,7 @@ import { dayMarks, dayDetail } from "../lib/cal-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const today = "2026-09-06";
-ok("단계 넷 — 아직·받음·하는 중·완료 · 다른 값은 아니다", STAGES.map(([, v]) => v).join(",") === "아직,받음,하는 중,완료" && stageName("doing") === "하는 중" && isStage("got") && !isStage("lost"));
+ok("단계 넷 — 아직·받음·하는 중·완료 · 다른 값은 아니다", STAGES.map(([, v]) => v).join(",") === "아직,받음,하는 중,제출" && stageName("doing") === "하는 중" && isStage("got") && !isStage("lost"));
 const rows = [
   { material_id: "a", stage: "none", material: { title: "2과 단어", material_type: { name: "클카 문장훈련", sort: 1 } } },
   { material_id: "b", stage: "doing", due_on: "2026-09-05", material: { title: "대의파악", material_type: { name: "너른터", sort: 2 } } },
