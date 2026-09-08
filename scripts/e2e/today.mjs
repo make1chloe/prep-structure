@@ -954,6 +954,18 @@ await gr.locator("[data-g=jump] button[data-act=jump-next]").click(); await p.wa
 const jumpTwo = (await gr.locator("[data-g=jump] .jb[aria-current=true]").textContent()).startsWith("2 ") && !(await gr.locator("[data-g=jump] button[data-act=jump-prev]").isDisabled());
 await gr.locator("[data-g=jump] button[data-act=jump-prev]").click(); await p.waitForTimeout(300);
 ok("▶ → 2번이 지금 · ◀ 풀림 → ◀ → 다시 1번", jumpTwo && (await gr.locator("[data-g=jump] .jb[aria-current=true]").textContent()).startsWith("1 "), await gr.locator("[data-g=jump]").textContent());
+console.log("■ 학교별 표 06c — 「앱에서 고르기 → 단원」 두 단을 한 번에((가)-⑤ · 남긴 것 22)");
+await gr.locator("button[data-act=col-open]").click(); await gr.locator("[data-g=col-form] input[aria-label='칸 이름']").fill("단원"); await gr.locator("[data-g=col-form] select[aria-label='칸 종류']").selectOption("pick"); await gr.locator("[data-g=col-form] select[aria-label='무엇을 고르나']").selectOption("unit"); await gr.locator("button[data-act=col-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500);
+await p.waitForFunction(() => { const s = document.querySelector("select[aria-label='zz_시험_중학교 단원']"); return s && !s.disabled; }, null, { timeout: 15000 });
+const unitSel = grow.locator("select[aria-label='zz_시험_중학교 단원']");
+ok("+ 칸(단원 · 앱에서 고르기 → 단원) → 고르개 하나에 교재마다 묶인 단원(optgroup 문법책·독해책 …) — 교재를 먼저 고르는 단이 없다", (await unitSel.locator("optgroup").count()) >= 2 && (await unitSel.locator("optgroup[label*='문법책'] option").count()) >= 5 && (await gr.locator("[data-g=jump] .jb").count()) === 7, (await unitSel.locator("optgroup").evaluateAll((els) => els.map((e) => e.label).join(","))));
+const unitOpt = await unitSel.locator("optgroup[label*='문법책'] option").filter({ hasText: "1-2" }).first().getAttribute("value");
+await unitSel.selectOption(unitOpt); await p.waitForFunction(() => (document.querySelector("[data-g=msg]")?.textContent ?? "").includes("단원 — 저장"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await p.waitForFunction(() => { const s = document.querySelector("select[aria-label='zz_시험_중학교 단원']"); return s && !s.disabled; }, null, { timeout: 15000 });
+ok("단원 하나를 고르면 손 떼자마자 저장(교재는 단원에서 나온다) · 다시 열어도 그 단원 · 보드 카드 글도 「CHAPTER 1 › 1-2 …」", (await grow.locator("select[aria-label='zz_시험_중학교 단원'] option:checked").textContent()).includes("1-2"), await grow.locator("select[aria-label='zz_시험_중학교 단원'] option:checked").textContent());
+await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+ok("단원 칸 ✕ → 내림(값은 남는다 — 대전제-6) · 머리칸 6(뒤 걷기는 비고 칸이 마지막)", (await gr.locator("[data-g=msg]").textContent()).includes("단원 칸을 내렸습니다") && (await gr.locator("[data-g=col]").count()) === 6, await gr.locator("[data-g=msg]").textContent());
 // 5단계-⑥ — 칸 종류를 바꾸면 값을 옮겨 담는다: 비고(글 「영어 10.16 · 나이스에서」) → 선택(예정/진행/끝)이면 못 옮김 1(그대로 둠 · 셀은 「—」) → 다시 글이면 옮겨 담음 1 · 값이 되살아난다(지우지 않았다)
 const bigo06 = () => gr.locator("[data-g=col][data-col]").last();
 await bigo06().locator("select[data-g=ctype]").selectOption("select"); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("비고 — 선택"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
