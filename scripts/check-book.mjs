@@ -1,6 +1,8 @@
 /** 교재 · 단원 판단 검사(검사-56) — lib/book-plan.js 순수 셈: 단원 한 줄 손질(쪽 「10-12」·문항·핵심 · 막는 것) · 단원 상태 둘 · 같은 교재 열쇠(판·연도·기호만 없앤다) · 활동 차례(줄 순서에서 저절로) · 목록 줄·알약 · 엑셀 읽기(열 이름 후보 · 교재명 이어받기 · 워크북 · 문항범위 → 개수 · 날짜로 바뀐 것 짚기) · 교재 맞추기(교재ID › 이름 › 다른 이름 › 비슷한 이름 · 후보 둘이면 보류) · 올리면 이렇게 됩니다(새로·바뀜·같음·파일에 없는 기존 줄 · 덮어쓰기 차례 · 지우고 새로 · 건너뛰기 · 묶음은 교재를 따른다) · 엑셀로 ·
  *  시트 갈래(단원/교재 — 첫 줄 열 이름) · 교재 시트(머리줄 · 읽기 · 고칠 줄 · 계획 새로/고침/같음/보류 · 고칠 칸 · ⬇ 열) · 묶음(덮어쓰기가 적을 것 · 글 · 📦 줄 · 되돌린 글)(5단계-④) */
-import { bookKey, activityOrder, reorderByActivity, moveActivity, listRows, counts, mapHeaders, parseUnitRows, rangeMangled, countRange, matchBooks, planUpload, mergeOrder, batchFor, exportRows, pagesText, parseUnitEdit, AREA_NAMES, MODES, UNIT_STATE,
+import { readFileSync } from "node:fs";
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 글자를 훑을 땐 주석을 먼저 지운다(폰-5)
+import { bookKey, activityOrder, reorderByActivity, moveActivity, MODE, modeName, listRows, counts, mapHeaders, parseUnitRows, rangeMangled, countRange, matchBooks, planUpload, mergeOrder, batchFor, exportRows, pagesText, parseUnitEdit, AREA_NAMES, MODES, UNIT_STATE,
          sheetKind, mapBookHeaders, parseBookRows, planBookUpload, bookPatch, exportBookRows, BOOK_HEADERS, splitUnitWrite, runNote, bookRunNote, runLine, undoText } from "../lib/book-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -75,5 +77,6 @@ ok("하나 옮기기 — 문제 ◀ → 본책·문제·워크북 · 맨 앞 ◀
 const ch = reorderByActivity(U, ["본책", "문제", "워크북"]);
 ok("줄 세우기 — 대단원 차례 그대로(1과는 안 건드림) · 2과만 본책·문제·문제·워크북 · 같은 활동끼리 차례 그대로(e 앞 f 뒤) · 바뀐 줄만 셋 · 10씩", J(ch) === J([{ id: "e", sort: 40 }, { id: "f", sort: 50 }, { id: "d", sort: 60 }]));
 ok("세운 뒤 다시 읽은 활동 차례가 고른 차례와 같다(◀ ▶ 가 헛돌지 않는다) · 차례에 없는 활동은 뒤로", activityOrder(U.map((u) => ({ ...u, sort: ch.find((x) => x.id === u.id)?.sort ?? u.sort }))).join(",") === "본책,문제,워크북" && J(reorderByActivity(U, ["문제"])) === J([{ id: "b", sort: 10 }, { id: "a", sort: 20 }, { id: "e", sort: 30 }, { id: "f", sort: 40 }, { id: "c", sort: 50 }, { id: "d", sort: 60 }]));
+ok("진행 방식 넷(단원 · 지문 · 세트 · 단어 — 목업 15 · 0144) · 모르면 단원 · lib/book setBook 이 넷 밖을 막는다(글자 검사)", MODE.length === 4 && modeName("passage") === "지문" && modeName(undefined) === "단원" && /"mode" in patch/.test(strip(readFileSync("lib/book.js", "utf8"))) && /books_mode_choice/.test(readFileSync("supabase/migrations/0144_book_mode.sql", "utf8")));
 console.log(`\n■ 교재 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
