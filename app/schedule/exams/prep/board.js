@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGo } from "../../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct, schoolBookAct, itemUnitAct } from "./actions.js";
 import { treeOf, materialTags, studentRows, reuseRows, todoLine, ddayText, schoolBooksOf } from "@/lib/todo-plan";
 import { examHead, examOn, groupScopes, mdDot } from "@/lib/exam-plan";
@@ -15,7 +16,7 @@ export default function Board({ d }) {
   const sbk = schoolBooksOf(b.school_books, e, today);   // 처음-8 학교 교과서(학교 × 학년 × 연도)
   const [add, setAdd] = useState(false); const [f, setF] = useState({ typeId: "", title: "", items: "", studentIds: null }); const [prog, setProg] = useState({}); const [revised, setRevised] = useState({});
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
-  const pick = (id) => { router.push(`/schedule/exams/prep?e=${id}`); };
+  const { go } = useGo(); const pick = (id) => { go(`/schedule/exams/prep?e=${id}`); };
   const tree = treeOf(b.materials ?? []), rows = studentRows(b.takers ?? [], b.materials ?? []), reuse = reuseRows(b.reuse ?? []);
   const scopes = e ? groupScopes(e.scopes ?? [], today).filter((g) => g.state !== "del") : [];
   const scopeText = scopes.length ? scopes.map((g) => g.title).join(" · ") : "범위 없음";

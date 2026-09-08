@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import { addAct, setAct, stateAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct } from "./actions.js";
 import { kpis, bookLines, scoreRows, weakText, attendRow, unitChips, historyLines, listRows, siblingText, tenureText, gradeText2, classLine, suggestLoginId, canReset, STATE } from "@/lib/student-plan";
 import { SHOW, showText } from "@/lib/score-plan";
@@ -17,7 +18,7 @@ export default function Board({ d }) {
   const [acc, setAcc] = useState({ loginId: "", parentPhone: "" }); const [pn, setPn] = useState({}); /* pn: 학부모 계정 이름 칸(profile_id → 글 · (가)-⑩) */ const [cls, setCls] = useState({ classId: "", from: today }); const [fee, setFee] = useState({ amount: "", from: today }); const [sib, setSib] = useState(""); const [leave, setLeave] = useState(today);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const list = useMemo(() => listRows(b.list ?? [], { q, show }), [b, q, show]);
-  const pick = (id) => { router.push(`/ops/students?s=${id}`); };
+  const { go, pressed } = useGo(d); const pick = (id) => { go(`/ops/students?s=${id}`, id); };   /* 누른 줄은 서버 답 전에 켜진다(다) — 판(d)이 오면 서버 것으로 */
   const K = st ? kpis(b.kpi ?? {}, b.rules ?? {}) : []; const books = st ? bookLines(b.books ?? [], today) : []; const scores = st ? scoreRows(b.scores ?? []) : []; const weak = weakText(scores); const att = st ? attendRow(b.attend ?? []) : []; const uts = st ? unitChips(b.unit_tests ?? [], parseInt(b.rules?.["unit_test.pass_pct"] ?? "80", 10) || 80) : []; const hist = st ? historyLines(b.history ?? {}, st) : [];
   const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
   const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
@@ -34,7 +35,7 @@ export default function Board({ d }) {
         <input type="text" inputMode="numeric" value={nf.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setNf({ ...nf, parentPhone: x.target.value })} style={{ maxWidth: 150 }} /><input type="date" className="dt" value={nf.joinedOn} aria-label="들어온 날" onChange={(x) => setNf({ ...nf, joinedOn: x.target.value })} style={{ width: "auto" }} />
         <button className="btn pri sm" type="button" disabled={pending || !nf.name.trim()} data-act="add-save" onClick={() => run(() => addAct(nf), (r) => { pick(r.id); return "넣었습니다 — 여는 중"; })}>저장</button></div></div>}
     <div className="tblwrap" data-g="list"><table><thead><tr><th>이름</th><th>학년·학교</th><th>반</th><th>교재</th><th>마지막 상담</th><th>상태</th></tr></thead><tbody>
-      {list.rows.map((s) => <tr key={s.id} className={st?.id === s.id ? "hi" : ""} data-g="student-row" data-student={s.id} data-state={s.state} onClick={() => pick(s.id)} style={{ cursor: "pointer" }}><td className="sch">{s.name}</td><td>{[s.gradeText, s.school].filter(Boolean).join(" · ") || "—"}</td><td>{s.classText}</td><td>{s.booksText}</td><td>{s.lastConsult}</td><td><span className={"tag" + (s.state === "active" ? " on" : "")}>{s.stateName}</span></td></tr>)}
+      {list.rows.map((s) => <tr key={s.id} className={(pressed ?? st?.id) === s.id ? "hi" : ""} data-g="student-row" data-student={s.id} data-state={s.state} onClick={() => pick(s.id)} style={{ cursor: "pointer" }}><td className="sch">{s.name}</td><td>{[s.gradeText, s.school].filter(Boolean).join(" · ") || "—"}</td><td>{s.classText}</td><td>{s.booksText}</td><td>{s.lastConsult}</td><td><span className={"tag" + (s.state === "active" ? " on" : "")}>{s.stateName}</span></td></tr>)}
       {!list.rows.length && <tr><td colSpan={6} className="note">없습니다</td></tr>}
     </tbody></table></div>
     {st && <div data-g="student" data-student={st.id} style={{ marginTop: 12 }}>

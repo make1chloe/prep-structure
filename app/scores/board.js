@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import { cutsAct, questionsAct, questionsSheetAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct } from "./actions.js";
 import { counts, cutsText, questionsText, questionsFor, questionsFrom, parseWrong, wrongSummary, summaryText, gradeByCuts, gradeText, cutsFor, SHOW, showText, examShort } from "@/lib/score-plan";
 import { mdDot } from "@/lib/exam-plan";
@@ -14,7 +15,7 @@ export default function Board({ d }) {
   const b = d.board, e = b.exam, rows = d.rows, c = counts(rows);
   const [cuts, setCutsT] = useState(""); const [qtext, setQ] = useState(""); const [edit, setEdit] = useState({}); const [open, setOpen] = useState(null);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
-  const pick = (id) => { router.push(`/scores?e=${id}`); };
+  const { go } = useGo(); const pick = (id) => { go(`/scores?e=${id}`); };
   const val = (r, k, fallback) => (edit[r.student_id] && k in edit[r.student_id] ? edit[r.student_id][k] : fallback);
   const setV = (r, k, v) => setEdit({ ...edit, [r.student_id]: { ...(edit[r.student_id] ?? {}), [k]: v } });
   const nQ = Math.max(e?.questions?.length ?? 0, 20, ...rows.flatMap((r) => r.wrongs));

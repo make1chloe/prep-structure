@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, activityMoveAct } from "./actions.js";
 import { AREA_NAMES, CHUNK, BASIS, MODE, MODES, listRows, counts, activityOrder, pagesText, runLine, undoText } from "@/lib/book-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
-  const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
+  const router = useRouter(); const { go } = useGo(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, book = b.book ?? null, rows = listRows(b.books ?? [], d.area), c = counts(b.books ?? []);
   const [adding, setAdding] = useState(false); const [nb, setNb] = useState({ name: "", area: "", code: "" }); const [alias, setAlias] = useState(""); const [code, setCode] = useState(null); const [topicName, setTopicName] = useState(""); const [up, setUp] = useState(false);
   const [uedit, setUedit] = useState({});   // 단원 한 줄 손질(쪽·문항) — 저장 전 값(4단계-4)
@@ -20,7 +21,7 @@ export default function Board({ d }) {
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }} data-g="count">교재 {c.total}권</span>
-      <select value={d.area ?? ""} onChange={(x) => { router.push(q(book?.id, x.target.value || null)); }} aria-label="영역으로 거르기" data-g="areas" style={{ width: "auto" }}><option value="">전체 {c.total}</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a} {c.byArea[a] ?? 0}</option>)}</select>
+      <select value={d.area ?? ""} onChange={(x) => { go(q(book?.id, x.target.value || null)); }} aria-label="영역으로 거르기" data-g="areas" style={{ width: "auto" }}><option value="">전체 {c.total}</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a} {c.byArea[a] ?? 0}</option>)}</select>
       <span className="spacer" />
       <span className={"pill" + (c.noUnits ? " warn" : "")} data-g="no-units">단원 없음 {c.noUnits}</span>
       {c.noArea > 0 && <span className="pill warn" data-g="no-area">영역 없음 {c.noArea}</span>}
@@ -36,7 +37,7 @@ export default function Board({ d }) {
       <input value={nb.name} onChange={(x) => setNb({ ...nb, name: x.target.value })} placeholder="교재 이름" aria-label="교재 이름" name="book-name" style={{ flex: "1 1 200px" }} />
       <select value={nb.area} onChange={(x) => setNb({ ...nb, area: x.target.value })} aria-label="영역" style={{ width: "auto" }}><option value="">영역 없음</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a}</option>)}</select>
       <input value={nb.code} onChange={(x) => setNb({ ...nb, code: x.target.value })} placeholder="교재ID (예: G023)" aria-label="교재ID" style={{ width: 150 }} />
-      <button className="btn pri sm" type="button" disabled={pending || !nb.name.trim()} data-act="add-save" onClick={() => run(() => addBookAct(nb), "교재를 더했습니다 — 단원은 엑셀로 올리세요", (r) => { setAdding(false); setNb({ name: "", area: "", code: "" }); router.push(q(r.id)); })}>저장</button>
+      <button className="btn pri sm" type="button" disabled={pending || !nb.name.trim()} data-act="add-save" onClick={() => run(() => addBookAct(nb), "교재를 더했습니다 — 단원은 엑셀로 올리세요", (r) => { setAdding(false); setNb({ name: "", area: "", code: "" }); go(q(r.id)); })}>저장</button>
       <button className="btn sm" type="button" onClick={() => setAdding(false)}>닫기</button></div></div>}
     <div className="bkw">
       <div className="bklist" data-g="list">
