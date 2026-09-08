@@ -1,5 +1,6 @@
 /** 🎬 영상 19 — 아이 쪽: 배정된 영상(마감 · 아직/N% 봄/다 봄 · 이어 볼 자리) · ▶ 보기는 앱 안 재생(유튜브 IFrame — 지나간 구간만 센다 · 임베드가 막힌 영상은 「유튜브에서 보기」).
  *  층: 로그인 확인 → 주소 인자 → 오늘∥제 학생 줄 → 배정∥구간∥규칙 = 4단. 판단은 lib/video-plan(순수) */
+import Link from "next/link";
 import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
@@ -28,7 +29,7 @@ export default async function MyVideos({ searchParams }) {
   } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 영상을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
   const left = d.list.filter((r) => r.status.key !== "done").length;
   return frame(<>
-    <div className="wv" style={{ margin: "0 0 4px" }}><a className="btn sm gho" href="/me">← 나</a><b style={{ fontSize: "var(--fs-6)" }}>🎬 영상</b><span className="spacer" /><span className={"pill" + (left ? " warn" : "")} data-g="left">{left ? `${left}개 남음` : d.list.length ? "다 봤어요" : "없음"}</span></div>
+    <div className="wv" style={{ margin: "0 0 4px" }}><Link prefetch={false} className="btn sm gho" href="/me">← 나</Link><b style={{ fontSize: "var(--fs-6)" }}>🎬 영상</b><span className="spacer" /><span className={"pill" + (left ? " warn" : "")} data-g="left">{left ? `${left}개 남음` : d.list.length ? "다 봤어요" : "없음"}</span></div>
     {d.open && <Player row={d.open} next={d.next} />}
     {!d.list.length && <div className="task"><div className="h"><b>배정된 영상이 없어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>선생님이 영상을 배정하면 여기 떠요.</p></div>}
     {d.list.map((r) => <div className="task" key={r.id} data-g="video-row" data-video={r.video_id} data-status={r.status.key} style={{ borderStyle: r.status.key === "none" ? "dashed" : undefined }}>
@@ -36,7 +37,7 @@ export default async function MyVideos({ searchParams }) {
       <p className="note k" style={{ margin: "4px 0 0" }}>{[r.video?.folder, r.video?.seconds ? mmss(r.video.seconds) : null, r.due || null, opensText(r.opens) || null].filter(Boolean).join(" · ")}{r.late ? " — 지났어요" : ""}</p>
       {r.bar.parts.length > 0 && <div className="vbar" data-g="vbar" style={{ marginTop: 8 }}>{r.bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{r.bar.head != null && r.status.key !== "done" && <div className="vhead" style={{ left: `${r.bar.head}%` }} />}</div>}
       {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 자리 {mmss(r.lastPos)} · 건너뛴 구간은 <b>안 센 구간</b>이에요</p>}
-      <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><a className={"btn sm" + (r.status.key === "done" ? "" : " pri")} href={`/me/videos?v=${r.video_id}`} data-act="open">▶ {r.status.key === "done" ? "다시 보기" : r.lastPos > 0 ? "이어 보기" : "보기"}</a></div>
+      <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><Link prefetch={false} className={"btn sm" + (r.status.key === "done" ? "" : " pri")} href={`/me/videos?v=${r.video_id}`} data-act="open">▶ {r.status.key === "done" ? "다시 보기" : r.lastPos > 0 ? "이어 보기" : "보기"}</Link></div>
     </div>)}
     <p className="note k" style={{ margin: "8px 0 0" }}>앱 안에서 봐요 — 유튜브로 나가지 않아요 · 지나간 구간만 세고, 끌어다 놓은 자리는 안 세요 · 「몇 %」는 대략이에요</p>
   </>);

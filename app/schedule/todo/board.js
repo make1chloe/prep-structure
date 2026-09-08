@@ -1,6 +1,7 @@
 "use client";
 /** 내 할 일 판(목업 05 · 노션 보드 모양 9/3) — 머리(🔥 마감 지남 · 학교 거르개) · 보기줄(⊞표 · ▦보드 · 묶기 고정 · 마감 순 · 새로 만들기 한 곳) · 보드(종류마다 칸 · 카드 📅🏫☑🧾) · 숨긴 그룹(✓ 끝냄 · ♻️ 이미 있는 것 · 뺀 것) ·
  *  📦 자료 하나 안에서만 순서 · 🔥 못 따라갑니다 — 줄이기 · 저장줄. 카드 목록은 한 번 세고(cardsOf) 표·보드가 같은 목록을 그린다 — 보기를 바꿔도 조회 0(속도-1 예외). 세는 것은 lib/todo-plan 한 벌 */
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
@@ -40,9 +41,9 @@ export default function Board({ d }) {
       {c.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={(x) => { x.stopPropagation(); run(() => unitTestMadeAct(c.unitTestId), "출제했습니다 — 오늘 수업 카드에 섭니다"); }}>출제함</button>}
       {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={(x) => { x.stopPropagation(); run(() => quizPaperAct(c.quizId, true), "재시험지 만들었음 — 시험을 보면 카드가 사라집니다"); }}>🖨 재시험지 만들었음</button>}
       {c.quizId && c.paperAt && <><span className="tag on" data-g="paper">🖨 종이 ✓</span><button className="btn sm" type="button" disabled={pending} data-act="paper-undo" onClick={(x) => { x.stopPropagation(); run(() => quizPaperAct(c.quizId, false), "무렀습니다"); }}>무르기</button></>}
-      {c.quizId && <a className="btn sm" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업 ↗</a>}
-      {c.kind === "score" && <a className="btn sm" href={`/scores?e=${c.examId}`} onClick={(x) => x.stopPropagation()}>📈 성적 ↗</a>}
-      {c.exam && c.material && <a className="btn sm" href={`/schedule/exams/prep?e=${c.exam.id}`} onClick={(x) => x.stopPropagation()}>📄 자료 ↗</a>}
+      {c.quizId && <Link prefetch={false} className="btn sm" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업 ↗</Link>}
+      {c.kind === "score" && <Link prefetch={false} className="btn sm" href={`/scores?e=${c.examId}`} onClick={(x) => x.stopPropagation()}>📈 성적 ↗</Link>}
+      {c.exam && c.material && <Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${c.exam.id}`} onClick={(x) => x.stopPropagation()}>📄 자료 ↗</Link>}
     </div>
   </div>;
   return <>
@@ -56,7 +57,7 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건(속도-1 의 예외, 원장님 9/5) · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/grid">표 보기(06c) ↗</a></div>
+    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건(속도-1 의 예외, 원장님 9/5) · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/grid">표 보기(06c) ↗</Link></div>
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -74,7 +75,7 @@ export default function Board({ d }) {
       <button className="btn sm" type="button" data-act="new-repeat" onClick={() => setNw("repeat")}>⏰ 되풀이</button>
       <span className="spacer" /><button className="btn sm" type="button" onClick={() => setNw(null)}>닫기</button></div></div>}
     {nw === "material" && <div className="card" data-g="new-material" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📄</span>자료는 회차에서 세웁니다 — 회차를 고르세요</div>
-      <div className="tags">{(b.exams_soon ?? []).map((e) => <a key={e.id} className="tag on" href={`/schedule/exams/prep?e=${e.id}`}>{e.school ?? "전국"} {e.name} · {monthDay(examOn(e))} · 자료 {e.materials}</a>)}{!(b.exams_soon ?? []).length && <span className="note" style={{ margin: 0 }}>다가오는 회차가 없습니다 — 🏫 시험 회차에서 넣으세요</span>}</div></div>}
+      <div className="tags">{(b.exams_soon ?? []).map((e) => <Link prefetch={false} key={e.id} className="tag on" href={`/schedule/exams/prep?e=${e.id}`}>{e.school ?? "전국"} {e.name} · {monthDay(examOn(e))} · 자료 {e.materials}</Link>)}{!(b.exams_soon ?? []).length && <span className="note" style={{ margin: 0 }}>다가오는 회차가 없습니다 — 🏫 시험 회차에서 넣으세요</span>}</div></div>}
     {nw === "unit_test" && <div className="card" data-g="new-unit-test" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📝</span>단원평가 출제 — 아이 · 문법 분류 · 문항 수</div>
       <div className="wv"><select value={ut.studentId} aria-label="아이" onChange={(x) => setUt({ ...ut, studentId: x.target.value })} style={{ width: "auto" }}><option value="">아이</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.school ? ` · ${s.school}` : ""}</option>)}</select>
         <select value={ut.topicId} aria-label="문법 분류" onChange={(x) => setUt({ ...ut, topicId: x.target.value })} style={{ width: "auto" }}><option value="">문법 분류</option>{(b.topics ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>

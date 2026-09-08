@@ -1,6 +1,7 @@
 "use client";
 /** 학생 판(목업 14) — 목록(재원생 N · 퇴원생 N · 찾기 · 줄: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태) · 고른 아이: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 고치기) · KPI 여섯 · 교재 진도(막대) · 성적(약한 영역) · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담(+ 상담 적기) · 저장줄.
  *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/잇기 · 학부모 계정 이름 · 비밀번호 0000 초기화 — 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, setAct, stateAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct } from "./actions.js";
@@ -16,7 +17,7 @@ export default function Board({ d }) {
   const [acc, setAcc] = useState({ loginId: "", parentPhone: "" }); const [pn, setPn] = useState({}); /* pn: 학부모 계정 이름 칸(profile_id → 글 · (가)-⑩) */ const [cls, setCls] = useState({ classId: "", from: today }); const [fee, setFee] = useState({ amount: "", from: today }); const [sib, setSib] = useState(""); const [leave, setLeave] = useState(today);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const list = useMemo(() => listRows(b.list ?? [], { q, show }), [b, q, show]);
-  const pick = (id) => { window.location.href = `/ops/students?s=${id}`; };
+  const pick = (id) => { router.push(`/ops/students?s=${id}`); };
   const K = st ? kpis(b.kpi ?? {}, b.rules ?? {}) : []; const books = st ? bookLines(b.books ?? [], today) : []; const scores = st ? scoreRows(b.scores ?? []) : []; const weak = weakText(scores); const att = st ? attendRow(b.attend ?? []) : []; const uts = st ? unitChips(b.unit_tests ?? [], parseInt(b.rules?.["unit_test.pass_pct"] ?? "80", 10) || 80) : []; const hist = st ? historyLines(b.history ?? {}, st) : [];
   const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
   const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
@@ -24,7 +25,7 @@ export default function Board({ d }) {
     <div className="lf" style={{ margin: "0 0 8px" }} data-g="list-head"><span className="ln">🧑‍🎓</span><div><b data-g="counts">재원생 {list.active} · 퇴원생 {list.left}{list.paused ? ` · 쉼 ${list.paused}` : ""} — {st ? "이 화면은 그 목록에서 한 아이를 연 것입니다" : "아래 목록에서 한 아이를 여세요"}</b><small>목록 칸: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태. 퇴원해도 줄은 남습니다(원장님 9/3). 「✎ 고치기」 안: 이름·연락처 · <span style={{ fontWeight: 700 }}>계정(비밀번호 0000으로 초기화 — 앱이 발급한 계정만)</span> · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리</small></div>
       <input type="text" value={q} placeholder="찾기 (이름·학교·반)" aria-label="찾기" onChange={(x) => setQ(x.target.value)} style={{ maxWidth: 180 }} />
       <div className="seg sm" data-g="show">{[["active", "재원"], ["left", "퇴원"], ["all", "전체"]].map(([k, nm]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{nm}</button>)}</div>
-      <button className="btn sm pri" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 학생</button><a className="btn sm" href="/ops/inquiry">☎️ 신규 상담 ↗</a></div>
+      <button className="btn sm pri" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 학생</button><Link prefetch={false} className="btn sm" href="/ops/inquiry">☎️ 신규 상담 ↗</Link></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {addOpen && <div className="card" data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>학생 — 이름 · 학년 · 학교 · 전화 · 들어온 날(반·교재·계정은 열고 나서 ✎ 고치기에서)</div>
@@ -60,7 +61,7 @@ export default function Board({ d }) {
           <div className="lf" data-g="sibling"><span className="ln">👥</span><div><b>형제 묶기</b><small>다른 아이의 학부모 계정을 이 아이에게도 잇습니다(같은 집)</small></div>
             <select value={sib} aria-label="형제" onChange={(x) => setSib(x.target.value)} style={{ width: "auto" }}><option value="">아이 고르기</option>{(b.list ?? []).filter((s) => s.id !== st.id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><button className="btn sm" type="button" disabled={pending || !sib} data-act="sibling-save" onClick={() => run(() => siblingAct(st.id, sib), (r) => `형제로 묶었습니다 — 학부모 계정 ${r.linked}`, () => setSib(""))}>묶기</button></div>
           <div className="lf" data-g="class-edit"><span className="ln">🏫</span><div><b>반 — {classLine(st.class)}</b><small>옮기면 그날부터 회차·수강료가 갈립니다(이력이 남습니다)</small></div>
-            <select value={cls.classId} aria-label="반" onChange={(x) => setCls({ ...cls, classId: x.target.value })} style={{ width: "auto" }}><option value="">반 고르기</option>{(b.classes ?? []).map((c) => <option key={c.id} value={c.id}>{classLine(c)}</option>)}</select><a className="btn sm gho" href="/schedule/classes" data-act="classes">반 만들기 ↗</a><input type="date" className="dt" value={cls.from} aria-label="반 시작일" onChange={(x) => setCls({ ...cls, from: x.target.value })} style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !cls.classId} data-act="class-save" onClick={() => run(() => classAct(st.id, cls.classId, cls.from), "반을 옮겼습니다 — 그날부터", () => setCls({ classId: "", from: today }))}>옮기기</button></div>
+            <select value={cls.classId} aria-label="반" onChange={(x) => setCls({ ...cls, classId: x.target.value })} style={{ width: "auto" }}><option value="">반 고르기</option>{(b.classes ?? []).map((c) => <option key={c.id} value={c.id}>{classLine(c)}</option>)}</select><Link prefetch={false} className="btn sm gho" href="/schedule/classes" data-act="classes">반 만들기 ↗</Link><input type="date" className="dt" value={cls.from} aria-label="반 시작일" onChange={(x) => setCls({ ...cls, from: x.target.value })} style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !cls.classId} data-act="class-save" onClick={() => run(() => classAct(st.id, cls.classId, cls.from), "반을 옮겼습니다 — 그날부터", () => setCls({ classId: "", from: today }))}>옮기기</button></div>
           <div className="lf" data-g="fee-edit"><span className="ln">💳</span><div><b>학생별 금액</b><small>「언제부터 얼마」 — 13 수강료의 단가 줄과 같은 표</small></div>
             <input type="text" inputMode="numeric" className="fee" value={fee.amount} placeholder="금액" aria-label="학생별 금액" onChange={(x) => setFee({ ...fee, amount: x.target.value.replace(/\D/g, "") })} /><input type="date" className="dt" value={fee.from} aria-label="금액 시작일" onChange={(x) => setFee({ ...fee, from: x.target.value })} style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !fee.amount} data-act="fee-save" onClick={() => run(() => feeAct(st.id, fee.amount, fee.from), (r) => `${r.amount.toLocaleString()}원 — ${fee.from} 부터`, () => setFee({ amount: "", from: today }))}>저장</button></div>
           <div className="lf" data-g="show-edit"><span className="ln">📈</span><div><b>성적 공개</b><small>확인하는 순간 줄의 공개가 이 값으로 붙습니다(16)</small></div>
@@ -104,7 +105,7 @@ export default function Board({ d }) {
             <button className="btn sm" type="button" style={{ width: "100%", marginTop: 8 }} data-act="consult-open" onClick={() => setConsultOpen(!consultOpen)}>+ 상담 적기</button></div>}
         </div>
       </div>
-      <div className="savebar" data-g="bar"><a className="btn" href="/send">📨 월간 리포트 미리 보기</a><a className="btn" href="/today">📅 오늘 화면으로</a><span className="spacer" /><span className="pill" data-g="show-pill">성적 공개 — {showText(st.score_show ?? "both")}</span></div>
+      <div className="savebar" data-g="bar"><Link prefetch={false} className="btn" href="/send">📨 월간 리포트 미리 보기</Link><Link prefetch={false} className="btn" href="/today">📅 오늘 화면으로</Link><span className="spacer" /><span className="pill" data-g="show-pill">성적 공개 — {showText(st.score_show ?? "both")}</span></div>
     </div>}
   </>;
 }

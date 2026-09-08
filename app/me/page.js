@@ -1,5 +1,6 @@
 /** 아이 화면 07 「나」 — 하루 동선대로: 등원 → 오늘 할 것(학원·숙제) → 오늘 낼 숙제 → 시험 → 남아서 → 앞으로 → 내 교재 → 선생님 한 마디 → 집에 가요.
  *  전부 아이 자격으로 읽는다(RLS 가 제 것만 준다). 카드는 원장님이 「누가 무엇을 보나」에서 켠 것만(me.*) — 안 정한 칸은 막혀 있다. 판단은 lib/me · lib/arrival-plan, 여기는 가져다 그린다 */
+import Link from "next/link";
 import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { decide, ME } from "@/lib/perm";
@@ -63,16 +64,16 @@ export default async function Me() {
         {d.stayRows?.length > 0 && <div style={{ marginTop: 6 }}>{d.stayRows.map((r) => <div key={r.id} className="li" data-g="stay-line" data-state={r.state}><span className="n">{r.state === "done" ? "✓" : r.state === "missing" ? "⏭" : "남"}</span><div><b>{r.text}</b>{r.sub && <small>{r.sub}</small>}</div></div>)}</div>}</Card>) },
     { id: 'future', name: '앞으로', node: can(ME.today) && (d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>) },
-    { id: 'cal', name: '달력', node: can(ME.today) && (<a className="task" href="/me/cal" data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></a>) },
+    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href="/me/cal" data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></Link>) },
     { id: 'scores', name: '성적', node: <ScoreCard scores={d.scores} entry={d.entry} /> },
     { id: 'material', name: '받을 교재·학습지', node: can(ME.books) && <MaterialCard gives={d.gives} today={date} /> },
     { id: 'files', name: '자료', node: can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} sent={d.uploads} /> },
-    { id: 'videos', name: '영상', node: can(ME.books) && d.videos.length > 0 && <a className="task" href="/me/videos" data-card="videos" style={{ display: "block", textDecoration: "none", color: "inherit", borderStyle: videosLeft ? undefined : "dashed" }}><div className="h"><b><span className="cemo">🎬</span>영상</b><span className="spacer" /><span className={"pill" + (videosLeft ? " warn" : " hw")} data-g="videos-left">{videosLeft ? `${videosLeft}개 남음` : "다 봤어요"}</span></div>
+    { id: 'videos', name: '영상', node: can(ME.books) && d.videos.length > 0 && <Link prefetch={false} className="task" href="/me/videos" data-card="videos" style={{ display: "block", textDecoration: "none", color: "inherit", borderStyle: videosLeft ? undefined : "dashed" }}><div className="h"><b><span className="cemo">🎬</span>영상</b><span className="spacer" /><span className={"pill" + (videosLeft ? " warn" : " hw")} data-g="videos-left">{videosLeft ? `${videosLeft}개 남음` : "다 봤어요"}</span></div>
       {d.videos.slice(0, 3).map((v) => <div className="li" key={v.id} data-g="video-line"><div><b>{v.video?.title}</b><small>{[v.due || null, v.status.key === "part" ? "보다 맒" : null].filter(Boolean).join(" · ") || "앱 안에서 봐요"}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
-      <p className="note" style={{ margin: "4px 0 0" }}>앱 안에서 봐요 · 지나간 구간만 세요 · 열기 ↗</p></a> },
+      <p className="note" style={{ margin: "4px 0 0" }}>앱 안에서 봐요 · 지나간 구간만 세요 · 열기 ↗</p></Link> },
     { id: 'books', name: '내 교재', node: can(ME.books) && <Card emo="🗺" title="내 교재" id="books" pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
-      {d.books.map((b) => <a className="li" key={b.id} href={`/me/book?b=${b.book_id}`} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</a>)}
+      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={`/me/book?b=${b.book_id}`} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</Link>)}
     </Card> },
     { id: 'memo', name: '선생님 한 마디', node: can(ME.today) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card> },

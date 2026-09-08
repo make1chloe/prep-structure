@@ -1,6 +1,7 @@
 "use client";
 /** 학교별 표 판(목업 06c) — 머리(내 표/전체 표 · + 새 표) · 따로 챙길 아이들 띠 · 표 알약(shtabs) · 고른 표: 이름 · 표 삭제(내림) · 칸으로 이동 · 보기 둘(⊞표 · ▦보드 — 조회 0) · 표(머리칸 ⠿·◀▶✕·종류 ⌄ · 줄 ⠿·▣·✕ · 셀 종류대로 · + 칸 · + 줄) · 보드(선택 칸으로 묶기 · 카드 ◀ ▶) · 저장줄.
  *  값의 뜻·셈은 lib/grid-plan 한 벌. 셀은 손을 떼면 저장(저장 단추 없음) */
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct, unitsAllAct } from "./actions.js";
@@ -63,7 +64,7 @@ export default function Board({ d }) {
       <span className="spacer" />
       {d.principal && <div className="seg sm" data-g="mine"><button type="button" aria-pressed={mine} onClick={() => { setMine(true); setSel(null); }}>내 표</button><button type="button" aria-pressed={!mine} onClick={() => { setMine(false); setSel(null); }}>전체 표(원장)</button></div>}
       <button className="btn pri sm" type="button" data-act="new-open" onClick={() => setNewOpen(!newOpen)}>+ 새 표</button>
-      <a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a>
+      <Link prefetch={false} className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</Link>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}

@@ -1,5 +1,6 @@
 "use client";
 /** 반 판(4단계-3a) — + 반 만들기 · 반마다: 이름·갈래 · 시간표(이 날부터 바꾸기 · 다음 시간표 예약) · 명단(넣기·빼기) · 반 단가 줄 · 닫기. 닫은 반은 아래 접어 둔다(지우지 않는다) */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, scheduleAct, nameAct, closeAct, memberAct, removeAct, feeAct } from "./actions.js";
@@ -30,7 +31,7 @@ export default function Board({ d }) {
   const live = d.classes.filter((c) => c.state === "active"), closed = d.classes.filter((c) => c.state !== "active");
   return (<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <a className="btn sm gho" href="/schedule">← 일정</a><b style={{ fontSize: "var(--fs-5)" }}>🏫 반</b>
+      <Link prefetch={false} className="btn sm gho" href="/schedule">← 일정</Link><b style={{ fontSize: "var(--fs-5)" }}>🏫 반</b>
       <span className="pill" data-g="live-count">반 {live.length}</span>{closed.length > 0 && <span className="pill" data-g="closed-count">닫은 반 {closed.length}</span>}
       <span className="spacer" /><button type="button" className="btn sm pri" data-act="add-open" aria-pressed={add} onClick={() => setAdd(!add)}>+ 반 만들기</button>
     </div>

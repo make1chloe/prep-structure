@@ -1,5 +1,6 @@
 "use client";
 /** 월간 리포트 판(4단계-2b) — 달 고르기 · 아이마다 숫자 줄(마감한 판만) · 덧붙일 한마디(손 떼면 저장 · 보낸 달은 잠김) · 📨 보내기(하나 · 안 보낸 아이 모두). 되돌릴 수 없는 보내기는 서버 답을 기다린다(속도-5) */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { bodyAct, sendAct } from "./actions.js";
@@ -14,8 +15,8 @@ export default function Board({ d }) {
   const todo = sendable(d.rows), sentN = d.rows.filter((r) => r.report?.sent_at).length;
   return (<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <a className="btn sm gho" href="/send">← 발송</a>
-      <a className="btn sm" href={`/send/monthly?m=${nextYm(d.ym, -1)}`} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{ymLabel(d.ym)} 리포트</b><a className="btn sm" href={`/send/monthly?m=${nextYm(d.ym, 1)}`} aria-label="다음 달">▸</a>
+      <Link prefetch={false} className="btn sm gho" href="/send">← 발송</Link>
+      <Link prefetch={false} className="btn sm" href={`/send/monthly?m=${nextYm(d.ym, -1)}`} aria-label="지난 달">◂</Link><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{ymLabel(d.ym)} 리포트</b><Link prefetch={false} className="btn sm" href={`/send/monthly?m=${nextYm(d.ym, 1)}`} aria-label="다음 달">▸</Link>
       <span className="pill" data-g="sent-count">보냄 {sentN}</span><span className={"pill" + (todo.length ? " warn" : "")} data-g="todo-count">안 보냄 {todo.length}</span>
       <span className="spacer" />
       <button type="button" className="btn sm pri" disabled={pending || !todo.length} data-act="send-all" onClick={() => run(() => sendAct(d.ym, null), (r) => `${r.n}명에게 월간 리포트 — ${sinkText(r)}`)}>📨 안 보낸 아이 모두 보내기</button>

@@ -5,10 +5,10 @@ export default function CalView({ d, base, extra = "", backHref, backLabel }) {
   const link = (m, day) => `${base}?m=${m}${day ? `&d=${day}` : ""}${extra}`;
   return (<>
     <div className="calhead">
-      {d.canPrev ? <Link className="btn sm" href={link(d.prev)} aria-label="지난 달">◂</Link> : <span className="btn sm dim" aria-disabled="true">◂</span>}
+      {d.canPrev ? <Link prefetch={false} className="btn sm" href={link(d.prev)} aria-label="지난 달">◂</Link> : <span className="btn sm dim" aria-disabled="true">◂</span>}
       <b data-g="month">{d.label}</b>
-      {d.canNext ? <Link className="btn sm" href={link(d.next)} aria-label="다음 달">▸</Link> : <span className="btn sm dim" aria-disabled="true">▸</span>}
-      <span className="spacer" /><span className="pill">{d.student.name}</span><Link className="btn sm gho" href={backHref}>{backLabel}</Link></div>
+      {d.canNext ? <Link prefetch={false} className="btn sm" href={link(d.next)} aria-label="다음 달">▸</Link> : <span className="btn sm dim" aria-disabled="true">▸</span>}
+      <span className="spacer" /><span className="pill">{d.student.name}</span><Link prefetch={false} className="btn sm gho" href={backHref}>{backLabel}</Link></div>
     <div className="cal" data-g="cal">
       {["월", "화", "수", "목", "금", "토", "일"].map((w) => <div key={w} className="cdow">{w}</div>)}
       {d.cells.map((c) => <Link prefetch={false} key={c.date} className={"cd" + (c.out ? " out" : "") + (c.fut ? " fut" : "") + (c.today ? " today" : "") + (c.exam ? " exam" : "") + (c.sel && !c.today ? " cls" : "")} data-date={c.date} href={link(d.ym, c.date)}><span className="dn">{c.day}</span>{c.marks.map(([cls, ch], i) => <i key={i} className={"cm " + cls}>{ch}</i>)}</Link>)}

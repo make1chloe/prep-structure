@@ -1,5 +1,6 @@
 /** 학부모 화면 09 — 형제 고르기 → 🌙 오늘 늦게 갑니다(보낸 것만) → 🕘 오늘(등원·하원) → 📋 오늘 수업(마감한 수업일지 + 꼬리표) → 📘 다음 숙제 → 📝 다음 시간 시험 → 📅 앞으로 → 💬 선생님 한 마디 → 📅 달력 → 💬 남기실 말.
  *  마감한 판만 보인다(사고 #7 · 0084 sheet_visible_to). 빈 카드는 숨긴다(확정-⑮). 카드는 원장님이 켠 parent.* 만 */
+import Link from "next/link";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
 import { decide, PARENT } from "@/lib/perm";
@@ -79,16 +80,16 @@ export default async function Parent({ searchParams }) {
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}<div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.kid ? ` · ${f.kid}` : ""}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
       {fl.hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{fl.hidden}개는 1달이 지나 안 보입니다</p>}
     </Card> },
-    { id: 'cal', name: '달력', node: can(PARENT.recent) && <a className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></a> },
+    { id: 'cal', name: '달력', node: can(PARENT.recent) && <Link prefetch={false} className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></Link> },
     { id: 'intro', name: '아이', node: can(PARENT.intro) && <Card emo="🎒" title={d.student.name} id="intro" pill={d.student.schools ? `${d.student.schools.name}` : null}>
       <p className="note" style={{ margin: "4px 0 0" }}>{d.todayClass ? "오늘 수업이 있는 날입니다" : "오늘은 수업이 없는 날입니다"}</p></Card> },
     { id: 'sent', name: '보낸 것', node: can(PARENT.sent) && d.sent.length + d.notices.length > 0 && <Card emo="📨" title="보낸 것" id="sent" pill={String(d.sent.length + d.notices.length)}>
       {d.sent.map((s) => <div className="li" key={s.id}><div><b>{s.text}</b><small>{s.small}</small></div></div>)}
-      {d.notices.map((s) => <div className="li" key={s.id} data-g="notice-line"><div><b>{s.text}</b><small>{s.small}</small></div><a className="btn sm" href={s.url}>보기</a></div>)}</Card> },
+      {d.notices.map((s) => <div className="li" key={s.id} data-g="notice-line"><div><b>{s.text}</b><small>{s.small}</small></div><Link prefetch={false} className="btn sm" href={s.url}>보기</Link></div>)}</Card> },
   ].filter((c) => c.node), d.prefs?.parent);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref parent · 4단계-6)
   return frame(<>
     <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>학부모</b>
-      {kids.length > 1 ? <div className="seg sm" data-g="kids">{kids.map((k) => <a key={k.id} className={"btn sm"} aria-pressed={k.id === d.student.id} href={`/parent?s=${k.id}`} style={{ border: 0 }}>{k.name}</a>)}</div> : <span className="pill" data-g="kid">{d.student.name}</span>}
+      {kids.length > 1 ? <div className="seg sm" data-g="kids">{kids.map((k) => <Link prefetch={false} key={k.id} className={"btn sm"} aria-pressed={k.id === d.student.id} href={`/parent?s=${k.id}`} style={{ border: 0 }}>{k.name}</Link>)}</div> : <span className="pill" data-g="kid">{d.student.name}</span>}
       <span className="spacer" /><span className="pill">{md(date)}</span></div>
     {!anyCard && <div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 학부모 화면 카드를 켜면 보입니다.</p></div>}
     {cards.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}

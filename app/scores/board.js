@@ -1,5 +1,6 @@
 "use client";
 /** 성적 판(목업 16) — 회차 고르기 · 등급컷 · 문항표 · 표(학생 · 원점수 · 등급(세어 나옴) · 틀린 문항 · 낸 때 · 공개 · 확인/대신 넣기) · 틀린 문항 판(눌러도 되고 적어도 된다 — 같은 값) · 영역 셈 · 저장줄. 세는 것은 화면이 센다(원칙-5) — lib/score-plan 한 벌 */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cutsAct, questionsAct, questionsSheetAct, saveAct, confirmAct, confirmAllAct, showAct, importAct, remindAct, unconfirmAct } from "./actions.js";
@@ -13,7 +14,7 @@ export default function Board({ d }) {
   const b = d.board, e = b.exam, rows = d.rows, c = counts(rows);
   const [cuts, setCutsT] = useState(""); const [qtext, setQ] = useState(""); const [edit, setEdit] = useState({}); const [open, setOpen] = useState(null);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
-  const pick = (id) => { window.location.href = `/scores?e=${id}`; };
+  const pick = (id) => { router.push(`/scores?e=${id}`); };
   const val = (r, k, fallback) => (edit[r.student_id] && k in edit[r.student_id] ? edit[r.student_id][k] : fallback);
   const setV = (r, k, v) => setEdit({ ...edit, [r.student_id]: { ...(edit[r.student_id] ?? {}), [k]: v } });
   const nQ = Math.max(e?.questions?.length ?? 0, 20, ...rows.flatMap((r) => r.wrongs));
@@ -32,7 +33,7 @@ export default function Board({ d }) {
       {e && <form action={(fd) => run(() => importAct(e.id, fd), (r) => `올렸습니다 — ${r.put}줄(바로 확인됨)${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
         <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="성적 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">⬆ 엑셀로 한꺼번에</button></form>}
       {e && <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}`} data-act="scores-export" title="올리기와 같은 열 · 보는 아이 이름이 채워져 나옵니다">⬇ 성적 양식</a>}
-      <a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a>
+      <Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}

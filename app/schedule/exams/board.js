@@ -1,6 +1,7 @@
 "use client";
 /** 시험 회차 판(목업 06b) — 학교 회차 카드(보는 아이 · 영어일 · 범위 칩 · + 범위(교재 단원에서 고른다 · 글) · 학교가 뺌 · 시험 기간 · 교재 멈춤 줄 · 안 봄 · 숨김) · 교재 멈춤 — 언제부터(학교급 규칙 · 아이 따로) · 전국 · 숨긴 회차.
  *  세는 것(N명 · N줄 · 영어일 없음 N)은 화면이 센다(원칙-5) — lib/exam-plan 한 벌 */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct } from "./actions.js";
@@ -23,7 +24,7 @@ export default function Board({ d }) {
       <span className="pill" data-g="scopes">범위 {c.scopes}줄</span>
       {c.hidden > 0 && <button className="btn sm" type="button" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>🙈 숨긴 회차 {c.hidden}</button>}
       <span className="spacer" />
-      <a className="btn sm" href="/schedule">📅 일정 ↗</a><a className="btn sm" href="/schedule/import">📡 받아오기 · + 회차 ↗</a>
+      <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 받아오기 · + 회차 ↗</Link>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
@@ -58,10 +59,10 @@ function ExamCard({ e, b, today, pending, run, stName }) {
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
     <div className="exh"><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
       {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어일 없음</span>}
-      <span className="tag" data-g="takers">{takers.length}명</span><a className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</a>
+      <span className="tag" data-g="takers">{takers.length}명</span><Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</Link>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}
       <span className="spacer" /><span className="pill">{SOURCE_TEXT[e.source] ?? "손으로 넣음"}</span>
-      <a className="btn sm" href={`/scores?e=${e.id}`} data-act="scores">📈 성적</a>
+      <Link prefetch={false} className="btn sm" href={`/scores?e=${e.id}`} data-act="scores">📈 성적</Link>
       <button className="btn sm" type="button" disabled={pending} data-act="hide" onClick={() => run(() => hiddenAct(e.id, true), "숨겼습니다 — 대비·재촉·교재 멈춤에서 빠집니다")}>🙈 숨김</button></div>
     <div className="note" style={{ margin: "0 0 8px" }}>{e.name} · 시험 기간 {mdDot(e.term_from)}{e.term_to && e.term_to !== e.term_from ? `~${mdDot(e.term_to)}` : ""}{e.source === "neis" ? " · 나이스가 주인(덮지 않습니다)" : ""}</div>
     {!e.english_on && <div className="lf over"><span className="ln">!</span><div><b>영어 시험일을 넣어 주세요</b><small>나이스는 기간만 줍니다 — 모르면 루틴(교재 멈춤)을 안 세웁니다</small></div>

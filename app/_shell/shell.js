@@ -8,9 +8,9 @@ export default function Shell({ me, rows, children }) {
   return (
     <>
       <header className="appbar" style={{ position: "sticky", top: 0, zIndex: 5 }}>
-        <Link className="brand" href="/">클로이영어</Link>
+        <Link prefetch={false} className="brand" href="/">클로이영어</Link>
         {me && <span className="pill">{me.name} · {ROLE_NAME[me.role] ?? "역할 없음"}</span>}
-        {items.length > 0 && <nav className="tabs" aria-label="메뉴">{items.map((m) => <Link key={m.key} className="tab" href={m.href}>{m.name}</Link>)}</nav>}
+        {items.length > 0 && <nav className="tabs" aria-label="메뉴">{items.map((m) => <Link prefetch={false} key={m.key} className="tab" href={m.href}>{m.name}</Link>)}</nav>}
         <span style={{ flex: 1 }} />
         {me && <form action="/logout" method="post"><button className="btn sm" type="submit">로그아웃</button></form>}
       </header>

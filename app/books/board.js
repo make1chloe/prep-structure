@@ -1,5 +1,6 @@
 "use client";
 /** 교재 판(목업 15) + 엑셀 올리기 모달(15b — 저장 전에 보여준다). 목록(영역 거르기 · 단원 수 · 쓰는 아이) · 고른 교재(교재ID · 영역 · 배정 겹 · 차례 기준 · 단원평가 · 다른 이름 · 활동 차례 · 단원 표 · 문법 분류) · + 교재 · ⬇ 엑셀 · ⬆ 올리기. 세는 것은 화면이 센다(원칙-5) */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addBookAct, setBookAct, aliasAct, topicsAct, addTopicAct, previewAct, applyAct, applyBooksAct, undoRunAct, unitAct, unitStateAct, activityMoveAct } from "./actions.js";
@@ -19,11 +20,11 @@ export default function Board({ d }) {
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }} data-g="count">교재 {c.total}권</span>
-      <select value={d.area ?? ""} onChange={(x) => { window.location.href = q(book?.id, x.target.value || null); }} aria-label="영역으로 거르기" data-g="areas" style={{ width: "auto" }}><option value="">전체 {c.total}</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a} {c.byArea[a] ?? 0}</option>)}</select>
+      <select value={d.area ?? ""} onChange={(x) => { router.push(q(book?.id, x.target.value || null)); }} aria-label="영역으로 거르기" data-g="areas" style={{ width: "auto" }}><option value="">전체 {c.total}</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a} {c.byArea[a] ?? 0}</option>)}</select>
       <span className="spacer" />
       <span className={"pill" + (c.noUnits ? " warn" : "")} data-g="no-units">단원 없음 {c.noUnits}</span>
       {c.noArea > 0 && <span className="pill warn" data-g="no-area">영역 없음 {c.noArea}</span>}
-      <a className="btn sm" href="/books/videos" data-act="videos">🎬 영상</a>
+      <Link prefetch={false} className="btn sm" href="/books/videos" data-act="videos">🎬 영상</Link>
       <a className="btn sm" href="/api/books/xlsx" data-act="export-all">⬇ 엑셀</a>
       <a className="btn sm" href="/api/books/xlsx?s=books" data-act="export-books">⬇ 교재 시트</a>
       <button className="btn sm" type="button" data-act="upload-open" onClick={() => setUp(true)}>⬆ 올리기</button>
@@ -35,14 +36,14 @@ export default function Board({ d }) {
       <input value={nb.name} onChange={(x) => setNb({ ...nb, name: x.target.value })} placeholder="교재 이름" aria-label="교재 이름" name="book-name" style={{ flex: "1 1 200px" }} />
       <select value={nb.area} onChange={(x) => setNb({ ...nb, area: x.target.value })} aria-label="영역" style={{ width: "auto" }}><option value="">영역 없음</option>{AREA_NAMES.map((a) => <option key={a} value={a}>{a}</option>)}</select>
       <input value={nb.code} onChange={(x) => setNb({ ...nb, code: x.target.value })} placeholder="교재ID (예: G023)" aria-label="교재ID" style={{ width: 150 }} />
-      <button className="btn pri sm" type="button" disabled={pending || !nb.name.trim()} data-act="add-save" onClick={() => run(() => addBookAct(nb), "교재를 더했습니다 — 단원은 엑셀로 올리세요", (r) => { setAdding(false); setNb({ name: "", area: "", code: "" }); window.location.href = q(r.id); })}>저장</button>
+      <button className="btn pri sm" type="button" disabled={pending || !nb.name.trim()} data-act="add-save" onClick={() => run(() => addBookAct(nb), "교재를 더했습니다 — 단원은 엑셀로 올리세요", (r) => { setAdding(false); setNb({ name: "", area: "", code: "" }); router.push(q(r.id)); })}>저장</button>
       <button className="btn sm" type="button" onClick={() => setAdding(false)}>닫기</button></div></div>}
     <div className="bkw">
       <div className="bklist" data-g="list">
         {!rows.length && <p className="note" style={{ margin: 8 }}>교재가 없습니다 — + 교재 또는 ⬆ 올리기</p>}
-        {rows.map((r) => <a key={r.id} className={"bkr" + (book?.id === r.id ? " on" : "") + (r.noUnits || r.noArea ? " warn" : "")} href={q(r.id)} data-g="book-row" data-book={r.id} style={{ textDecoration: "none", color: "inherit" }}>
+        {rows.map((r) => <Link prefetch={false} key={r.id} className={"bkr" + (book?.id === r.id ? " on" : "") + (r.noUnits || r.noArea ? " warn" : "")} href={q(r.id)} data-g="book-row" data-book={r.id} style={{ textDecoration: "none", color: "inherit" }}>
           <div><b>{r.name}{r.state !== "active" ? ` (${r.state === "paused" ? "쉼" : "안 씀"})` : ""}</b><small>{r.sub}{r.noArea ? <> · <b className="warnv">영역 없음</b></> : ""}</small></div>
-          {r.noUnits ? <span className="tag" style={MISS}>단원 0</span> : <span className="tag on">{r.units}단원</span>}<span className="tag">{r.students}명</span></a>)}
+          {r.noUnits ? <span className="tag" style={MISS}>단원 0</span> : <span className="tag on">{r.units}단원</span>}<span className="tag">{r.students}명</span></Link>)}
       </div>
       {book ? <div className="bkdet" data-g="detail" data-book={book.id}>
         <div className="ctitle"><span className="cemo">📕</span><span data-g="book-name">{book.name}</span><span className="spacer" /><span className="tag">{book.import_batch === "import" ? "이관" : book.import_batch === "excel" ? "엑셀" : book.import_batch ?? ""}</span></div>

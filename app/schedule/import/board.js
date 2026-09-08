@@ -1,5 +1,6 @@
 "use client";
 /** 받아오기 판(목업 12b) — 전국(학교를 안 붙인다) · 학교별(학교 × 학년 · 영어 시험일은 손으로) · 나이스에 없는 학교(찾아서 코드 붙이기 · 홈페이지 주소) · 손으로 넣기 · 덮지 않는다 */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { importAct, examWordAct, siteUrlAct, englishOnAct, examAct, searchSchoolsAct, schoolCodeAct, cancelExamAct } from "../actions.js";
@@ -22,7 +23,7 @@ export default function Board({ d }) {
       <span className="pill" style={{ fontWeight: 700 }} data-g="last">나이스 · {b.last_neis_at ? `${md(seoulDate(b.last_neis_at))} 받음` : "아직 안 받음"}</span>
       <span className="pill">학교 {(b.schools ?? []).length}곳</span>
       <span className="spacer" />
-      <a className="btn sm" href="/schedule">📅 일정 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a>
+      <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
       <button className="btn sm pri" type="button" disabled={pending || !b.neis_key} data-act="import" title={b.neis_key ? "코드 있는 학교 전부 · 이 학년도" : "나이스 열쇠가 없습니다 — 연동(neis)의 key"} onClick={() => run(() => importAct(), (r) => `받았습니다 — 학교 ${r.r.schools}곳 · 회차 ${r.r.put}줄 · 건너뜀(쉬는 날 ${r.r.skipped.off} · 행사 ${r.r.skipped.event} · 평가 ${r.r.skipped.assess})${r.r.failed.length ? ` · 못 받음: ${r.r.failed.join(" / ")}` : ""}`)}>🔄 다시 받기</button>
     </div>
     {!b.neis_key && <p className="note" data-g="no-key">나이스 열쇠가 없습니다 — 연동(v2.integration)의 neis 줄에 key 를 넣으면 「다시 받기」가 켜집니다(0072 가 옛 앱 설정에서 옮겼습니다).</p>}

@@ -1,5 +1,6 @@
 "use client";
 /** 내신 자료 판(목업 04) — 회차 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct, schoolBookAct, itemUnitAct } from "./actions.js";
@@ -14,7 +15,7 @@ export default function Board({ d }) {
   const sbk = schoolBooksOf(b.school_books, e, today);   // 처음-8 학교 교과서(학교 × 학년 × 연도)
   const [add, setAdd] = useState(false); const [f, setF] = useState({ typeId: "", title: "", items: "", studentIds: null }); const [prog, setProg] = useState({}); const [revised, setRevised] = useState({});
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
-  const pick = (id) => { window.location.href = `/schedule/exams/prep?e=${id}`; };
+  const pick = (id) => { router.push(`/schedule/exams/prep?e=${id}`); };
   const tree = treeOf(b.materials ?? []), rows = studentRows(b.takers ?? [], b.materials ?? []), reuse = reuseRows(b.reuse ?? []);
   const scopes = e ? groupScopes(e.scopes ?? [], today).filter((g) => g.state !== "del") : [];
   const scopeText = scopes.length ? scopes.map((g) => g.title).join(" · ") : "범위 없음";
@@ -34,7 +35,7 @@ export default function Board({ d }) {
       <span className="spacer" />
       {e && <a className="btn sm" href={`/api/prep/xlsx?e=${e.id}`} data-act="export">⬇ 엑셀</a>}
       {e && <button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAdd(true)}>+ 자료</button>}
-      <a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a>
+      <Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</Link>
     </div>
     {e && sbk.applicable && <div className="wv" style={{ marginBottom: 8 }} data-g="school-book"><span className="pill" data-g="school-book-text">📚 {sbk.text}</span>
       <select value="" aria-label="학교 교과서 더하기" data-g="school-book-pick" disabled={pending} onChange={(x) => x.target.value && run(() => schoolBookAct({ schoolId: e.school_id, grade: e.grade, year: sbk.year, bookId: x.target.value }), "학교 교과서를 적었습니다 — 학교의 속성이라 그 학교 아이 모두에게")} style={{ width: "auto" }}><option value="">+ 교과서 더하기</option>{(b.books ?? []).filter((bk) => !sbk.rows.some((r) => r.bookId === bk.id)).map((bk) => <option key={bk.id} value={bk.id}>{bk.name}</option>)}</select>
@@ -46,10 +47,10 @@ export default function Board({ d }) {
       <div className="mtree" data-g="tree">
         {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다 — 「+ 자료」로 갈래(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 할 일이 저절로 섭니다(영어일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
         {tree.groups.map((g) => <div className="mt1" key={g.source} data-g="mt1" data-source={g.source}>
-          <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><a className="btn sm" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계 ↗</a></div>
+          <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계 ↗</Link></div>
           {g.materials.map((m) => { const left = (m.gives ?? []).filter((x) => !x.handed_at).length; return <div className="mt2" key={m.id} data-g="mt2" data-material={m.id} data-state={m.state}>
             <div className="mth2"><b>{m.type}{m.title && m.title !== m.type ? ` · ${m.title}` : ""}</b><span className="spacer" />
-              <a className="btn sm" href={`/schedule/todo?m=${m.id}`} data-act="steps">단계 ↗</a>
+              <Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${m.id}`} data-act="steps">단계 ↗</Link>
               {materialTags(m).map((t) => <span key={t} className={"tag" + (t === "아직 안 만듦" ? " act" : t.startsWith("♻️") ? " on" : "")} data-g="mtag">{t}</span>)}
               {["made", "printed"].includes(m.state) && left > 0 && <button className="btn sm pri" type="button" disabled={pending} data-act="hand" onClick={() => run(() => handAct(m.id), (r) => `나눠 줬습니다 — ${r.handed}명${r.left ? ` · 아직 ${r.left}명` : " · 배부 끝"}`)}>📤 배부 {left}명</button>}
               <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => run(() => dropMaterialAct(m.id, "04 에서 뺌"), "뺐습니다(지우지 않았습니다)")}>빼기</button></div>

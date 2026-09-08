@@ -1,5 +1,6 @@
 "use client";
 /** 영상 배정 판(목업 19 오른쪽) — 머리(안 본 아이 N · + 영상 · ← 교재) · + 영상 양식(제목 · 유튜브 주소 · 폴더 · 길이) · 영상 카드(아이마다 막대와 상태 · 마감 · 📨 재촉 · 마감 미루기 · + 배정 · 내리기). 세는 것은 화면이 센다(원칙-5) */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, setAct, assignAct, postponeAct, retireAct, remindAct } from "./actions.js";
@@ -31,7 +32,7 @@ export default function Board({ d }) {
     </div>); };
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <a className="btn sm gho" href="/books">← 교재</a><span className="pill" style={{ fontWeight: 700 }}>🎬 영상 배정</span>
+      <Link prefetch={false} className="btn sm gho" href="/books">← 교재</Link><span className="pill" style={{ fontWeight: 700 }}>🎬 영상 배정</span>
       <span className={"pill" + (unwatched ? " warn" : "")} data-g="unwatched">안 본 아이 {unwatched}</span>
       <span className="spacer" />
       <button type="button" className="btn sm" data-act="add-open" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 영상</button></div>

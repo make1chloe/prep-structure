@@ -1,5 +1,6 @@
 /** 📅 일정 — 목업 12(원장 달력 · 8회 채우기). 판단은 lib/schedule-plan(순수) · 손은 lib/schedule, 여기는 가져다 그린다.
  *  층: 로그인 확인 → 주소 인자 → 오늘 → 일정 판 한 벌(schedule_board, 속도-상한 일정 8 · 2단) = 4단. 정상 수업은 안 띄운다 — 당연한 것이니까 */
+import Link from "next/link";
 import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today } from "@/lib/day";
@@ -27,13 +28,13 @@ export default async function Schedule({ searchParams }) {
   const ct = confirmText(confirmState(b.confirm ?? [], b.classes ?? []), d.ym, b.confirm_sent ?? 0);   // 그 달 확정 도장(4단계-3b · ㉚) — 판단은 plan, 여기는 가져다 그린다
   return frame(<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <a className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><a className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</a>
-      <div className="seg sm" data-g="classes"><a className="btn sm" aria-pressed={!d.classId} href={`/schedule?m=${d.ym}&d=${d.sel}`} style={{ border: 0, borderRadius: 0 }}>전체</a>{(b.classes ?? []).map((c) => <a key={c.id} className="btn sm" aria-pressed={d.classId === c.id} href={`/schedule?m=${d.ym}&d=${d.sel}&c=${c.id}`} style={{ border: 0, borderRadius: 0 }}>{classText(c)}</a>)}</div>
-      <a className="btn sm" href="/schedule/classes" data-act="classes">🏫 반 ↗</a>
+      <Link prefetch={false} className="btn sm" href={q(nextYm(d.ym, -1))} aria-label="지난 달">◂</Link><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><Link prefetch={false} className="btn sm" href={q(nextYm(d.ym, 1))} aria-label="다음 달">▸</Link>
+      <div className="seg sm" data-g="classes"><Link prefetch={false} className="btn sm" aria-pressed={!d.classId} href={`/schedule?m=${d.ym}&d=${d.sel}`} style={{ border: 0, borderRadius: 0 }}>전체</Link>{(b.classes ?? []).map((c) => <Link prefetch={false} key={c.id} className="btn sm" aria-pressed={d.classId === c.id} href={`/schedule?m=${d.ym}&d=${d.sel}&c=${c.id}`} style={{ border: 0, borderRadius: 0 }}>{classText(c)}</Link>)}</div>
+      <Link prefetch={false} className="btn sm" href="/schedule/classes" data-act="classes">🏫 반 ↗</Link>
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
       <MonthConfirm ym={d.ym} ct={ct} can={canConfirm(d.ym, d.date)} />
-      <a className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</a><a className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</a><a className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</a><a className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</a>
+      <Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</Link>
     </div>
     <div className="cnt8" data-g="cnt8">
       {(b.classes ?? []).map((c) => { const s = sessionsOf(c, target); return <div key={c.id} className={"c8" + (s.ok === false ? " short" : "")} data-g="c8" data-class={c.id}><b>{classText(c)}</b><span className={"c8n" + (s.ok === true ? " ok" : s.ok === false ? " bad" : "")}>{s.n}회</span><small>{s.text}{c.members != null ? ` · ${c.members}명` : ""}</small>{s.ok === false && <ClassMakeup classId={c.id} ym={d.ym} short={s.short} />}</div>; })}
@@ -41,7 +42,7 @@ export default async function Schedule({ searchParams }) {
     </div>
     <div className="calwrap" style={{ marginTop: 8 }}><div className="cal big2" data-g="cal">
       {["월", "화", "수", "목", "금", "토", "일"].map((w) => <div key={w} className="cdow">{w}</div>)}
-      {cells.map((c) => <a key={c.date} className={"cd" + (c.out ? " out" : "") + (c.sel ? " sel" : "") + (c.isToday ? " today" : "")} href={q(d.ym, c.date)} data-date={c.date} aria-label={c.date}><span className="dn">{c.day}</span>{c.events.slice(0, 3).map((e, i) => <span key={i} className={"ce " + e.kind}>{e.text}</span>)}{c.events.length > 3 && <span className="ce">+{c.events.length - 3}</span>}</a>)}
+      {cells.map((c) => <Link prefetch={false} key={c.date} className={"cd" + (c.out ? " out" : "") + (c.sel ? " sel" : "") + (c.isToday ? " today" : "")} href={q(d.ym, c.date)} data-date={c.date} aria-label={c.date}><span className="dn">{c.day}</span>{c.events.slice(0, 3).map((e, i) => <span key={i} className={"ce " + e.kind}>{e.text}</span>)}{c.events.length > 3 && <span className="ce">+{c.events.length - 3}</span>}</Link>)}
     </div></div>
     <div className="schday" style={{ marginTop: 12 }} data-g="day">
       <Panel d={{ date: d.date, ym: d.ym, sel: d.sel, classId: d.classId, rows, classes: b.classes ?? [], schools: b.schools ?? [] }} />

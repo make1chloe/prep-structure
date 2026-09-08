@@ -1,5 +1,6 @@
 "use client";
 /** 진도 체크 열기 판(목업 08 「원장님 쪽 — 같은 자리에서 보입니다」) — 열기(학원 전체 · 아이마다) · 아이가 찍은 것 — 확인 안 함 N(한 번에 확인 · 줄마다 확인/되돌리기) · 아이가 단 ❗ — 안 본 것 N(아직 안 함으로 · 끝냄으로 · 그대로 둠). 세는 것은 lib/road-plan 한 벌 */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { academyAct, studentEditAct, confirmAct, revertAct, confirmAllAct, flagAct } from "./actions.js";
@@ -11,7 +12,7 @@ export default function Board({ d }) {
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const ptext = pendingText(students);
   return <>
-    <div className="wv" style={{ marginBottom: 8 }} data-g="head"><span className="pill" style={{ fontWeight: 700 }} data-g="open-pill">{edit.is_open ? `✎ 열림 · ${daysOpenText(edit.opened_on, today)}` : "✎ 닫힘"}</span><span className={"pill" + (rows.length ? " warn" : "")} data-g="pending-count">아이가 찍은 것 {rows.length}</span><span className={"pill" + (flags.length ? " warn" : "")} data-g="flag-count">❗ {flags.length}</span><span className="spacer" /><a className="btn sm" href="/settings">⚙️ 설정 ↗</a><a className="btn sm" href="/today">📋 오늘 수업(02b 진도 체크) ↗</a></div>
+    <div className="wv" style={{ marginBottom: 8 }} data-g="head"><span className="pill" style={{ fontWeight: 700 }} data-g="open-pill">{edit.is_open ? `✎ 열림 · ${daysOpenText(edit.opened_on, today)}` : "✎ 닫힘"}</span><span className={"pill" + (rows.length ? " warn" : "")} data-g="pending-count">아이가 찍은 것 {rows.length}</span><span className={"pill" + (flags.length ? " warn" : "")} data-g="flag-count">❗ {flags.length}</span><span className="spacer" /><Link prefetch={false} className="btn sm" href="/settings">⚙️ 설정 ↗</Link><Link prefetch={false} className="btn sm" href="/today">📋 오늘 수업(02b 진도 체크) ↗</Link></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <div className="lf warn" data-g="pending-band"><span className="ln">{rows.length}</span><div><b>아이가 찍은 것 — 확인 안 함</b><small>{ptext || "없음"} — 아이 화면 08 에는 <b>노란 테두리</b>로 뜹니다 · 확인하면 굳고, 되돌리면 「아직」으로</small></div>

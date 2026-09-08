@@ -1,5 +1,6 @@
 "use client";
 /** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생 엑셀 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveAct, importAct, remindAct, byGradeAct } from "./actions.js";
@@ -19,10 +20,10 @@ export default function Fee({ d }) {
   const gradeForm = grade ?? Object.fromEntries(GRADE_KEYS.map((k) => [k, d.by_grade?.[k] != null ? String(d.by_grade[k]) : ""]));
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <a className="btn sm" href={`/ops?m=${nextYm(d.ym, -1)}`} aria-label="지난 달">◂</a><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><a className="btn sm" href={`/ops?m=${nextYm(d.ym, 1)}`} aria-label="다음 달">▸</a>
+      <Link prefetch={false} className="btn sm" href={`/ops?m=${nextYm(d.ym, -1)}`} aria-label="지난 달">◂</Link><b style={{ fontSize: "var(--fs-5)" }} data-g="month">{monthLabel(d.ym)}</b><Link prefetch={false} className="btn sm" href={`/ops?m=${nextYm(d.ym, 1)}`} aria-label="다음 달">▸</Link>
       <span className={"pill" + (t.unpaidCount ? " warn" : "")} data-g="unpaid-count">안 받음 {t.unpaidCount}</span>
       {t.noneCount > 0 && <span className="pill" data-g="none-count">금액 없음 {t.noneCount}</span>}
-      {prevUnpaidText(d.prev_unpaid) && <a className="pill warn" data-g="prev-unpaid" href={`/ops?m=${nextYm(d.ym, -1)}`} title={(d.prev_unpaid?.names ?? []).join(", ")}>{prevUnpaidText(d.prev_unpaid)} ↗</a>}
+      {prevUnpaidText(d.prev_unpaid) && <Link prefetch={false} className="pill warn" data-g="prev-unpaid" href={`/ops?m=${nextYm(d.ym, -1)}`} title={(d.prev_unpaid?.names ?? []).join(", ")}>{prevUnpaidText(d.prev_unpaid)} ↗</Link>}
       <button type="button" className="btn sm" data-act="grade-open" aria-pressed={gradeOpen} onClick={() => setGradeOpen(!gradeOpen)}>학년별 기준</button>
       <button type="button" className="btn sm" disabled={pending || !t.unpaidCount} data-act="remind-fees" title="이 달 금액을 적어 저장한 줄 중 아직 안 받은 집의 학부모에게 — 적지 않은 금액은 학부모 화면에 없어 안 나갑니다" onClick={() => run(() => remindAct(d.ym), (r) => `${r.n}집에 수강료 안내 — ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`)}>💰 안 받은 집에 안내</button>
       <span className="spacer" />

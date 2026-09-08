@@ -1,5 +1,6 @@
 "use client";
 /** 📢 공지 판(4단계-6) — 새 공지(제목 · 본문 · 받는 쪽 · 반 · 학교) → 📎 자료함에서 붙이기(보내기 전만 — 보낸 뒤에 붙이면 먼저 본 집은 못 본다, 목업 20) → 보내기(받는 쪽대로 기기 · 자취 notify_log) · 보낸 것은 읽음 a/b. 세는 것은 lib/notice-plan */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, attachAct, sendAct } from "./actions.js";
@@ -11,7 +12,7 @@ export default function Board({ d }) {
   const [open, setOpen] = useState(false); const [f, setF] = useState(EMPTY); const [pick, setPick] = useState({});   // 공지 id → 붙일 파일 id
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   return <>
-    <div className="wv" style={{ marginBottom: 8 }} data-g="head"><b style={{ fontSize: "var(--fs-5)" }}>📢 공지</b><span className={"pill" + (c.unsent ? " warn" : "")} data-g="unsent">안 보냄 {c.unsent}</span><span className="pill" data-g="sent">보냄 {c.sent}</span><span className="spacer" /><a className="btn sm" href="/send">📨 발송 ↗</a><button type="button" className="btn pri sm" data-act="add-open" aria-pressed={open} onClick={() => setOpen(!open)}>+ 공지</button></div>
+    <div className="wv" style={{ marginBottom: 8 }} data-g="head"><b style={{ fontSize: "var(--fs-5)" }}>📢 공지</b><span className={"pill" + (c.unsent ? " warn" : "")} data-g="unsent">안 보냄 {c.unsent}</span><span className="pill" data-g="sent">보냄 {c.sent}</span><span className="spacer" /><Link prefetch={false} className="btn sm" href="/send">📨 발송 ↗</Link><button type="button" className="btn pri sm" data-act="add-open" aria-pressed={open} onClick={() => setOpen(!open)}>+ 공지</button></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {open && <div className="card" data-g="add-form" style={{ marginBottom: 8 }}><div className="ctitle"><span className="cemo">＋</span>공지 — 제목 · 본문 · 받는 쪽 · 반/학교(비면 전체)</div>
