@@ -1,12 +1,12 @@
 "use client";
-/** 시험 회차 판(목업 06b) — 학교 회차 카드(보는 아이 · 영어일 · 범위 칩 · + 범위(교재 단원에서 고른다 · 글) · 학교가 뺌 · 시험 기간 · 교재 멈춤 줄 · 안 봄 · 숨김) · 교재 멈춤 — 언제부터(학교급 규칙 · 아이 따로) · 전국 · 숨긴 회차.
+/** 시험 회차 판(목업 06b) — 학교 회차 카드(보는 아이 · 영어일 · 범위 칩 · + 범위(교재 단원에서 고른다 · 글) · 학교가 뺌 · 시험 기간 · 교재 멈춤 줄 · 안 봄 · 숨김 · (저) 📡 날짜 바뀜 → 봤음) · 교재 멈춤 — 언제부터(학교급 규칙 · 아이 따로) · 전국 · 숨긴 회차.
  *  세는 것(N명 · N줄 · 영어일 없음 N)은 화면이 센다(원칙-5) — lib/exam-plan 한 벌 */
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct } from "./actions.js";
+import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct, changeSeenAct } from "./actions.js";
 import { englishOnAct } from "../actions.js";
-import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, unitsByChapter, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES } from "@/lib/exam-plan";
+import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, unitsByChapter, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -34,7 +34,7 @@ export default function Board({ d }) {
     <div className="exr" style={{ marginTop: 8 }} data-g="national">
       <div className="exh"><span className="ai">🌏</span><b>전국 — 학교를 안 붙입니다</b><span className="spacer" /><span className="pill">고등 아이 전부에게(학년이 적혔으면 그 학년)</span></div>
       {!nat.length && <p className="note" style={{ margin: 0 }}>아직 없습니다 — 받아오기에서 전국 낱말로 판정됩니다.</p>}
-      <div className="left">{nat.map((e, i) => <div key={e.id} className="lf" data-g="nat-row"><span className="ln">{i + 1}</span><div><b>{e.name}</b><small>{e.grade ? `고${e.grade}` : "고1·2·3"} · {e.takers.length}명</small></div><span className="lm">{mdDot(examOn(e))}</span></div>)}</div>
+      <div className="left">{nat.map((e, i) => <div key={e.id} className="lf" data-g="nat-row"><span className="ln">{i + 1}</span><div><b>{e.name}</b><small>{e.grade ? `고${e.grade}` : "고1·2·3"} · {e.takers.length}명</small><ChangedTag e={e} pending={pending} run={run} /></div><span className="lm">{mdDot(examOn(e))}</span></div>)}</div>
     </div>
     {showHidden && hidden.length > 0 && <div className="exr" style={{ marginTop: 8 }} data-g="hidden">
       <div className="exh"><span className="ai">🙈</span><b>숨긴 회차 — 통째로 안 보는 시험</b><span className="spacer" /><span className="pill">대비 · 범위 재촉 · 교재 멈춤에서 빠집니다</span></div>
@@ -58,7 +58,7 @@ function ExamCard({ e, b, today, pending, run, stName }) {
   const pickable = skipCandidates(b.students, takers, e.skips);   // 안 봄 후보 — 한 명씩 · 한 번에((가)-⑨) 같은 목록
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
     <div className="exh"><span className="ai">🏫</span><b data-g="exam-head">{examHead(e)}</b>
-      {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어일 없음</span>}
+      {e.english_on ? <span className="tag on">영어 {mdDot(e.english_on)}</span> : <span className="tag act">영어일 없음</span>}<ChangedTag e={e} pending={pending} run={run} />
       <span className="tag" data-g="takers">{takers.length}명</span><Link prefetch={false} className="btn sm" href={`/schedule/exams/prep?e=${e.id}`} data-act="prep">📄 자료 ↗</Link>
       {(e.skips ?? []).length > 0 && <span className="tag" data-g="skips">안 봄 {e.skips.length}</span>}
       <span className="spacer" /><span className="pill">{SOURCE_TEXT[e.source] ?? "손으로 넣음"}</span>
@@ -93,6 +93,11 @@ function ExamCard({ e, b, today, pending, run, stName }) {
       {pickable.length > 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" title="보는 아이 가운데 아직 안 봄이 아닌 아이 전부 — 이 학년이 다 안 볼 때(한 명씩 되돌릴 수 있습니다)" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 한 명씩 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 {pickable.length}명 다 안 봄</button>}
       {pickable.length === 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 1명 다 안 봄</button>}</div>
   </div>;
+}
+/** (저) 「📡 날짜 바뀜 M/D~M/D → M/D~M/D · 봤음」 — 나이스가 기간을 옮긴 회차(0152 · 확정-69) · 학교 카드와 전국 줄이 같은 꼬리표 · 영어일이 있으면 「다시 보기」(안 건드렸다) */
+function ChangedTag({ e, pending, run }) {
+  if (!dateChanged(e)) return null;
+  return <span className="tag act" data-g="changed">📡 날짜 바뀜 {changeText(e)}{e.english_on ? " · 영어일 다시 보기" : ""} <button className="btn sm" type="button" disabled={pending} data-act="change-seen" onClick={() => run(() => changeSeenAct(e.id), "봤음 — 대시보드에서 내려갑니다(이전 기간은 남습니다)")}>봤음</button></span>;
 }
 function StopCard({ b, today, pending, run }) {
   const [sid, setSid] = useState(""); const [w, setW] = useState("");

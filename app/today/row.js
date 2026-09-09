@@ -565,8 +565,8 @@ function PlanModal({ student, date, fail, start, onClose }) {
     else setForm({ kind: "absent", reason: "", makeupOn: "", makeupAt: "", waived: false, minutes: "" }); };
   const save = () => start(async () => { const r = await planPut(student.id, sel, form); if (fail(r)) { await load(ym); } });
   const send = () => start(async () => { const r = await planSend(student.id, sel); if (fail(r)) await load(ym); });
-  const K = (d) => ({ class: "·", absent: "✕", late: "⏰", makeup: "↻", off: "🚫" })[mark(d).kind];
-  const I = (d) => ({ class: "i-cls", absent: "i-abs", late: "i-late", makeup: "i-mk", off: "i-off" })[mark(d).kind];
+  const K = (d) => ({ class: "·", absent: "✕", late: "⏰", makeup: "↻", off: "🚫", exam: "📝" })[mark(d).kind];   // exam: (저) 시험 기간 — 결석 예상(표시만 · 0152)
+  const I = (d) => ({ class: "i-cls", absent: "i-abs", late: "i-late", makeup: "i-mk", off: "i-off", exam: "i-ex" })[mark(d).kind];
   const label = (d) => `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일 ${weekdayName(d)}`;
   const cur = sel ? mark(sel) : null;
   return (
@@ -609,7 +609,7 @@ function PlanModal({ student, date, fail, start, onClose }) {
             {form.kind === "none" && <p className="note" style={{ margin: "8px 0 0" }}>저장하면 이날 예정을 물립니다 — 지우는 것이 아니라 「온다」로 되돌리는 것입니다.</p>}
             {cur?.plan?.notified_at && <p className="note" style={{ margin: "8px 0 0" }}>📨 학부모께 알림 보냄 {String(cur.plan.notified_at).slice(0, 16).replace("T", " ")}</p>}
           </div>}
-          <div className="clegend"><span><i className="cm i-cls">·</i>수업일</span><span><i className="cm i-abs">✕</i>결석 예정</span><span><i className="cm i-late">⏰</i>지각 예정</span><span><i className="cm i-mk">↻</i>보강</span><span><i className="cm i-off">🚫</i>휴강</span></div>
+          <div className="clegend"><span><i className="cm i-cls">·</i>수업일</span><span><i className="cm i-abs">✕</i>결석 예정</span><span><i className="cm i-late">⏰</i>지각 예정</span><span><i className="cm i-mk">↻</i>보강</span><span><i className="cm i-off">🚫</i>휴강</span><span><i className="cm i-ex">📝</i>시험 기간 — 결석 예상(표시만)</span></div>
         </div>
         <div className="mdlf"><button type="button" className="btn pri" disabled={!sel} onClick={save}>저장</button><button type="button" className="btn" disabled={!sel || !cur?.plan} onClick={send}>📨 학부모께 알림</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
       </div>

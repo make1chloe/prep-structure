@@ -51,9 +51,10 @@ export default async function Home() {
         <Row icon={d.ops.queue.bad ? "✕" : "✓"} cls={d.ops.queue.bad ? "i-abs" : "i-ok"} b={d.ops.queue.text} small={d.ops.queue.sub} />
       </Card> },
     { id: 'month', name: '이 달', node: <Card emo="📅" title="이 달" id="month">
-        {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && !d.confirm?.show && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
+        {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && !d.exams.changed.length && !d.confirm?.show && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
         {d.confirm?.show && <Row icon="📅" cls="i-abs" b={<span data-g="confirm-line">{d.confirm.text}</span>} small={d.confirm.small}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${d.confirm.ym}`} data-act="confirm-go">일정 ↗</Link></Row>}
         {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><Link prefetch={false} className="btn sm" href="/today">잡기</Link></Row>}
+        {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요 — {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다 — 시험 회차에서 보고 「봤음」` : "시험 회차에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 ↗</Link></Row>)}
         {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 — ${e.text}`} />)}
         {d.exams.missing.length > 0 && <Row icon="📝" cls="i-ex" b={`영어일 없음 — ${d.exams.missing.map((s) => s.name).join(" · ")}`} small="시험(06)에 넣어야 시험전·시험후 루틴이 섭니다" />}
       </Card> },

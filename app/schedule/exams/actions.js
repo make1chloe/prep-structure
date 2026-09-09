@@ -3,7 +3,7 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { addScope, removeScope, setSkip, setSkipAll, setHidden, setStopWeeks, setStudentWeeks, stopNow, releaseStops, unitsOf } from "@/lib/exam";
+import { addScope, removeScope, setSkip, setSkipAll, setHidden, setStopWeeks, setStudentWeeks, stopNow, releaseStops, unitsOf, setChangeSeen } from "@/lib/exam";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function unitsAct(bookId) { return wrap(async () => { const { sb } = await staff(); return { units: await unitsOf(sb, bookId) }; }); }
@@ -16,3 +16,4 @@ export async function stopWeeksAct(level, weeks) { return wrap(async () => { con
 export async function studentWeeksAct(studentId, weeks) { return wrap(async () => { const { sb } = await staff(); return setStudentWeeks(sb, studentId, weeks, await today(sb)); }); }
 export async function stopNowAct(examId) { return wrap(async () => { const { sb } = await staff(); return stopNow(sb, examId, await today(sb)); }); }
 export async function releaseAct(examId) { return wrap(async () => { const { sb } = await staff(); return releaseStops(sb, examId); }); }
+export async function changeSeenAct(examId) { return wrap(async () => { const { sb } = await staff(); return setChangeSeen(sb, examId); }); }   // (저) 「봤음」 — 나이스가 옮긴 기간을 봤다(0152)

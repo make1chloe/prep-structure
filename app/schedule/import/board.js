@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { importAct, examWordAct, siteUrlAct, englishOnAct, examAct, searchSchoolsAct, schoolCodeAct, cancelExamAct } from "../actions.js";
-import { md, seoulDate } from "@/lib/dash-plan";
+import { md, seoulDate, changeText } from "@/lib/dash-plan";
 import { weekdayName } from "@/lib/day-plan";
 import { LEVEL_CHAR } from "@/lib/neis-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
@@ -24,7 +24,7 @@ export default function Board({ d }) {
       <span className="pill">학교 {(b.schools ?? []).length}곳</span>
       <span className="spacer" />
       <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
-      <button className="btn sm pri" type="button" disabled={pending || !b.neis_key} data-act="import" title={b.neis_key ? "코드 있는 학교 전부 · 이 학년도" : "나이스 열쇠가 없습니다 — 연동(neis)의 key"} onClick={() => run(() => importAct(), (r) => `받았습니다 — 학교 ${r.r.schools}곳 · 회차 ${r.r.put}줄 · 건너뜀(쉬는 날 ${r.r.skipped.off} · 행사 ${r.r.skipped.event} · 평가 ${r.r.skipped.assess})${r.r.failed.length ? ` · 못 받음: ${r.r.failed.join(" / ")}` : ""}`)}>🔄 다시 받기</button>
+      <button className="btn sm pri" type="button" disabled={pending || !b.neis_key} data-act="import" title={b.neis_key ? "코드 있는 학교 전부 · 이 학년도" : "나이스 열쇠가 없습니다 — 연동(neis)의 key"} onClick={() => run(() => importAct(), (r) => `받았습니다 — 학교 ${r.r.schools}곳 · 회차 ${r.r.put}줄${r.r.changed?.length ? ` · 📡 날짜 바뀐 회차 ${r.r.changed.length}(${r.r.changed.map((c) => `${c.school ? c.school + " " : ""}${c.name} ${changeText(c)}`).join(" / ")}) — 시험 회차에서 보고 「봤음」` : ""} · 건너뜀(쉬는 날 ${r.r.skipped.off} · 행사 ${r.r.skipped.event} · 평가 ${r.r.skipped.assess})${r.r.failed.length ? ` · 못 받음: ${r.r.failed.join(" / ")}` : ""}`)}>🔄 다시 받기</button>
     </div>
     {!b.neis_key && <p className="note" data-g="no-key">나이스 열쇠가 없습니다 — 연동(v2.integration)의 neis 줄에 key 를 넣으면 「다시 받기」가 켜집니다(0072 가 옛 앱 설정에서 옮겼습니다).</p>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
