@@ -6,6 +6,7 @@ import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { decide, OPS } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { feeBoard } from "@/lib/fee";
+import { ruleMap } from "@/lib/rule";
 import { rowsOf } from "@/lib/fee-plan";
 import { ymOf } from "@/lib/cal-plan";
 import Fee from "./fee.js";
@@ -16,7 +17,7 @@ export default async function Ops({ searchParams }) {
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🧾</span>운영은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다.` : "로그인이 필요합니다."}</p></div>);
   const sp = await searchParams;
   let d;
-  try { const date = await today(sb); const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date); const board = await feeBoard(sb, ym); d = { date, ym, board, rows: rowsOf(board, ym), fee: decide(me.role, board.access ?? [], OPS.fee) === true }; }
+  try { const date = await today(sb); const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date); const [board, sendRules] = await Promise.all([feeBoard(sb, ym), ruleMap(sb, ["send."])]); d = { date, ym, board, rows: rowsOf(board, ym), fee: decide(me.role, board.access ?? [], OPS.fee) === true, sendRules }; }   // 예약 때 규칙(send.*)은 같은 파도((어))
   catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>운영을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 아직 없는 DB 면 0121 까지의 마이그레이션을 먼저 돌립니다(docs/원장님-정하실-것 ㉖).</p></div>); }
   return frame(<>
     {d.fee ? <Fee d={{ date: d.date, ym: d.ym, rows: d.rows, by_grade: d.board.by_grade ?? {}, prev_unpaid: d.board.prev_unpaid ?? null }} /> : <div className="card" data-card="fee-closed"><div className="ctitle"><span className="cemo">💳</span>수강료</div><p className="note">이 계정에는 수강료가 안 열려 있습니다 — 원장님이 「누가 무엇을 보나」에서 켜십니다(답 ⑮ 「강사는 수강료 못 보게」).</p></div>}

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sendSelected, scheduleSelected, cancelSchedule, resendLog } from "./actions.js";
-import { whenChoices, whenLabel, nowCount, closedCount, placeholderRows } from "@/lib/send-plan";
+import { whenLabel, nowCount, closedCount, placeholderRows } from "@/lib/send-plan";
+import When, { customOf } from "./when.js";   // ⏰ 예약 때 고르기 — 월간·수강료와 같은 부품((어))
 const Row = ({ icon = null, cls = "", check = null, right = null, children, ...rest }) => (
   <div className={"srow" + (cls ? " " + cls : "")} {...rest}>{check}{icon != null && <span className="si">{icon}</span>}<div className="sn">{children}</div>{right}</div>
 );
@@ -91,9 +92,8 @@ export default function Board({ d }) {
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>
       <span className="pill">선택 <b>{ids.length}</b>건</span>
       <button className="btn pri" type="button" data-act="send-now" disabled={pending || !ids.length} onClick={() => run(() => sendSelected(ids), (x) => `보냈습니다 — ${ranText(x.r)}`)}>📨 선택한 것 지금 보내기</button>
-      <button className="btn" type="button" data-act="schedule" disabled={pending || !ids.length} onClick={() => run(() => scheduleSelected(ids, when, when === "custom" ? { date: cDate, time: cTime } : null), (x) => `예약했습니다 — ${x.n}건 · ${whenLabel(x.at, d.date)}`)}>⏰ 예약</button>
-      <div className="seg sm" data-g="when">{whenChoices(d.rules).map(([k, name]) => <button key={k} type="button" aria-pressed={when === k} onClick={() => setWhen(k)}>{name}</button>)}</div>
-      {when === "custom" && <><input type="date" value={cDate} min={d.date} onChange={(e) => setCDate(e.target.value)} style={{ width: "auto" }} aria-label="예약 날짜" /><input type="time" value={cTime} onChange={(e) => setCTime(e.target.value)} style={{ width: "auto" }} aria-label="예약 시각" /></>}
+      <button className="btn" type="button" data-act="schedule" disabled={pending || !ids.length} onClick={() => run(() => scheduleSelected(ids, when, customOf(when, cDate, cTime)), (x) => `예약했습니다 — ${x.n}건 · ${whenLabel(x.at, d.date)}`)}>⏰ 예약</button>
+      <When rules={d.rules} date={d.date} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
       <span className="spacer" />
       <span className="pill" style={{ background: "var(--ok-fill)", color: "var(--on-ok)", borderColor: "transparent" }}>앱 알림만</span>
     </div>

@@ -4,6 +4,7 @@ import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { monthlyBoard } from "@/lib/report";
+import { ruleMap } from "@/lib/rule";
 import { isYm } from "@/lib/report-plan";
 import Board from "./board.js";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function Monthly({ searchParams }) {
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📊</span>월간 리포트는 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다` : "로그인하세요"}</p></div>);
   const sp = await searchParams;
   let d;
-  try { const date = await today(sb); const ym = isYm(sp?.m) ? String(sp.m) : String(date).slice(0, 7); d = { ...(await monthlyBoard(sb, ym)), today: date }; }
+  try { const date = await today(sb); const ym = isYm(sp?.m) ? String(sp.m) : String(date).slice(0, 7); const [board, rules] = await Promise.all([monthlyBoard(sb, ym), ruleMap(sb, ["send."])]); d = { ...board, today: date, rules }; }   // 예약 때 규칙(send.*)은 같은 파도((어))
   catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>월간 리포트를 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p></div>); }
   return frame(<Board d={d} />);
 }
