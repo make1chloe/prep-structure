@@ -39,8 +39,8 @@ ok("「검사 안 본 것 3」", (await p.locator(".pill.warn", { hasText: "검�
 ok("학생 줄 머리 — 「중2 · zz_시험_중」(학교 이름 줄임) · 진도 점 셋(어제 숙제 둘 + 그저께 하나, 아직 ·)", (await row.locator(".meta").textContent()) === "중2 · zz_시험_중" && (await row.locator(".marks .dot").allTextContents()).join("") === "···", `${await row.locator(".meta").textContent()} ${(await row.locator(".marks .dot").allTextContents()).join("")}`);
 ok("(카) 줄 머리 「2일째 안 봄」 — 안 본 줄 중 가장 오래된 숙제(그저께 것)가 이틀 전(어제 것만이면 아직 말하지 않는다 · 검사-㊶)", (await row.locator(".pill", { hasText: "2일째 안 봄" }).count()) === 1, (await row.locator(".pill").allTextContents()).join(" | "));
 { if (!(await row.locator(".panel").count())) await row.locator("button.open").click();
-  await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
-  ok("(카) 그저께 것을 ○ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ○ 하나", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "○").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
+  await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=m]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(카) 그저께 것을 ✕ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ✕ 하나((머) 이 ✕ 가 깔기의 기본을 「1-3 다시」로 만든다)", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
 console.log("■ 출결 — 낙관적");
 await row.locator(".seg[data-g=att] button", { hasText: "지각" }).click(); await p.waitForTimeout(600);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
@@ -80,6 +80,12 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 const bk = row.locator(".bk").first();
 ok("교재 한 권이 깔렸다(리허설 문법책 · 1회독 · CHAPTER 1)", (await row.locator(".bk").count()) === 1 && (await bk.locator(".bkh .tag", { hasText: "CHAPTER 1" }).count()) === 1);
 const bkC = bk.locator(".half").nth(0), bkH = bk.locator(".half").nth(1);
+ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 — 학습 회차 「1-3 다시」 눌림 · 학원 줄 소단원 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-3 다시" && (await bkC.locator(".li small").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "1-3 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator(".li small").first().textContent().catch(() => "?")}`);
+await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^1-4$/ }).click(); await p.waitForTimeout(1000);
+await bkH.locator(".seg[data-g=wave-home] button", { hasText: "1-4 복습" }).click(); await p.waitForTimeout(1000);
+await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
+await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-4" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);
 ok("학원 줄 셋(구두테스트·문장훈련·교재 풀기) · 소단원 1-4", (await bkC.locator(".li").count()) === 3 && (await bkC.locator(".li small").first().textContent()).includes("PSS 1-4"));
 ok("숙제 줄 둘(문장훈련·워크북 복습) — 오늘 것 복습", (await bkH.locator(".li").count()) === 2 && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()).includes("복습"));
 ok("검사 안 본 것 알약이 사라졌다", (await p.locator(".pill.warn", { hasText: "검사 안 본 것" }).count()) === 0);
@@ -95,6 +101,7 @@ const md = p.locator(".mdlov .mdl");
 await snapModal("02-tune");
 { const h = await p.evaluate(() => { const h = document.querySelector("header.appbar"); const bg = getComputedStyle(h).backgroundColor; const t = h.querySelector("a"); const r = t.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { bg, covered: !!el?.closest(".mdlov"), top: Math.round(r.top) }; });
   ok("(자) 상단 띠 — 바탕이 있다(굴려도 내용이 띠를 뚫고 안 보인다) · 모달이 열리면 띠도 덮인다(탭 자리가 .mdlov)", h.bg !== "rgba(0, 0, 0, 0)" && h.covered, JSON.stringify(h)); }
+ok("(머) 「같은 조절 3번째 — 루틴을 고칠까요?」 알약(어제·그저께도 조절 · 규칙 tune.ask_after 3) + 「11 에서 회차 고치기 ↗」 링크(답은 루틴 11 에 적힌다 — 확정-62)", ((await md.locator("[data-g=ask-routine]").textContent().catch(() => "")) ?? "").startsWith("같은 조절 3번째 — 루틴을 고칠까요?") && ((await md.locator("[data-g=ask-routine] a").getAttribute("href").catch(() => "")) ?? "").startsWith(`/settings/routine?s=${S1_ROW}#book-`), (await md.locator("[data-g=ask-routine]").textContent().catch(() => "없음")));
 ok("모달 — 안 한 소단원 3개 중에서 · 지금 2개(1-4·1-5) = 28문항 · 2쪽", (await md.locator(".hwname small").first().textContent()).includes("3개") && (await md.locator(".lf.warn b").first().textContent()).includes("28문항 · 2쪽"));
 await md.locator(".stepper button[data-s='+']").click(); await p.waitForTimeout(200);
 ok("3개면 90문항 · 11쪽 · 62문항 대비문제엔 「이번에」 눈금 1-20번·1-31번·전체", (await md.locator(".lf.warn b").first().textContent()).includes("90문항 · 11쪽") && (await md.locator(".seg[data-g=qrange] button").allTextContents()).join(" · ") === "1-20번 · 1-31번 · 전체");

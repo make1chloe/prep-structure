@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneUnits, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -39,8 +39,15 @@ ok("안 한 소단원이 없으면 까닭 「안 한 소단원이 없다」", pl
 console.log("■ 회차 고르기(목업 01) — 학습: 다시·오늘·하나 더 / 숙제: 복습·하나 더·다음만");
 const w = waves({ units: [todo[0]], todo, done: U("1-3", "CH1", 3) });
 ok("학습 셋: 1-3 다시 · 1-4 · 1-4·1-5", w.class.map((x) => x.key).join() === "again,now,more" && w.class[2].units.map((u) => u.unit_id).join() === "1-4,1-5" && w.class.map((x) => x.name).join(" / ") === "1-3 다시 / 1-4 / 1-4·1-5");
-ok("숙제 셋: 1-4 복습 · 1-4·1-5 · 1-5만", w.home.map((x) => x.key).join() === "review,more,next" && w.home[2].units[0].unit_id === "1-5");
+ok("숙제 넷: 1-3 다시 · 1-4 복습 · 1-4·1-5 · 1-5만((머) 숙제에도 「다시」)", w.home.map((x) => x.key).join() === "again,review,more,next" && w.home[3].units[0].unit_id === "1-5");
 ok("마지막 소단원이면 「하나 더」가 없다", waves({ units: [todo[2]], todo: [todo[2]] }).class.length === 1);
+console.log("■ (머) ✕ 받은 단원은 「그 단원 다시」가 기본 — redoUnits · waves 의 done 은 여럿도 된다");
+const checks = [{ status: "missing", unit_id: "1-3", units: { book_id: "B" } }, { status: "done", unit_id: "1-2", units: { book_id: "B" } }, { status: "missing", unit_id: "9-1", units: { book_id: "OTHER" } }, { status: "missing", unit_id: null }, { status: "missing", unit_id: "1-3", units: { book_id: "B" } }];
+ok("redoUnits — ✕ 이고 단원이 있고 이 교재인 것만 · 같은 단원은 하나", redoUnits(checks, "B").join() === "1-3");
+ok("교재를 안 주면 교재를 안 가린다 · ✕ 가 없으면 빈 것", redoUnits(checks).join() === "1-3,9-1" && redoUnits([{ status: "done", unit_id: "1-3" }], "B").length === 0);
+const w2 = waves({ units: [todo[0]], todo, done: [U("1-2", "CH1", 2), U("1-3", "CH1", 3)] });
+ok("✕ 둘이면 「1-2·1-3 다시」가 학습·숙제 둘 다 맨 앞 · 오늘 것(1-4)은 그대로", w2.class[0].name === "1-2·1-3 다시" && w2.class[0].units.length === 2 && w2.home[0].key === "again" && w2.home[1].name === "1-4 복습");
+ok("✕ 받은 것이 오늘 것과 같으면 「다시」를 따로 안 세운다 · done 이 없으면 숙제는 복습부터", waves({ units: [todo[0]], todo, done: [todo[0]] }).class[0].key === "now" && waves({ units: [todo[0]], todo }).home[0].key === "review");
 console.log("■ 뺀 줄(off) — 지우지 않고 내린다(대전제-6)");
 ok("진행중·그대로 → 안 뺀다", offFor({ slot: "home", required: false }, { stop: "running", mode: "all" }) === false);
 ok("필수만 → 필수 아닌 줄만 뺀다", offFor({ slot: "class", required: false }, { stop: "running", mode: "required" }) === true && offFor({ slot: "class", required: true }, { stop: "running", mode: "required" }) === false);

@@ -140,8 +140,14 @@ insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, imp
   where not exists (select 1 from v2.day_sheet where id = '99999999-0000-4000-c000-000000000004');
 -- (카) 그저께 판의 숙제 하나 — 오늘 열면 30일 안 안 본 숙제 전부가 검사 줄로 끌려오므로(lib/day.js unchecked) 셋이 서고, 가장 오래된 것이 이틀 전이라 줄 머리에 「2일째 안 봄」(lib/roster-plan unseenPill · 검사-㊶ — 걷기에서 한 번도 안 떴었다)
 insert into v2.day_item (id, sheet_id, slot, range_note, unit_id, sort) values
-  ('99999999-0000-4000-d000-000000000003', '99999999-0000-4000-c000-000000000004', 'home', 'zz_그저께 단어 20개', null, 1)
+  ('99999999-0000-4000-d000-000000000003', '99999999-0000-4000-c000-000000000004', 'home', 'zz_그저께 단어 20개', '99999999-0000-4000-e100-000000000003', 1)
 on conflict (id) do nothing;
+-- (머) 그저께 숙제의 단원은 PSS 1-3(끝낸 단원) — 걷기가 ✕ 로 보면 오늘 학습·숙제의 기본이 「1-3 다시」로 깔린다(lib/routine-plan redoUnits · 남긴 것 4)
+-- (머) 같은 조절 3번째 — 어제·그저께 판에서 이 교재를 조절했었다(tuned_at) → 오늘 02 를 열면 「같은 조절 3번째 — 루틴을 고칠까요?」(규칙 tune.ask_after 3 · 확정-62)
+insert into v2.sheet_book (sheet_id, book_id, tuned_at) values
+  ('99999999-0000-4000-c000-000000000001', '99999999-0000-4000-e000-000000000001', now() - interval '1 day'),
+  ('99999999-0000-4000-c000-000000000004', '99999999-0000-4000-e000-000000000001', now() - interval '2 day')
+on conflict (sheet_id, book_id) do nothing;
 insert into v2.late_stay (id, sheet_id, reason, until_at, sent_at) values
   ('99999999-0000-4000-c100-000000000001', '99999999-0000-4000-c000-000000000001', '워크북 나머지', '21:40', now() - interval '1 day'),
   ('99999999-0000-4000-c100-000000000004', '99999999-0000-4000-c000-000000000004', '문장훈련 녹음', '21:20', now() - interval '2 day')
