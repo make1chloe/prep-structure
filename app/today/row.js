@@ -3,6 +3,7 @@
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useRef, useTransition } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime } from "@/lib/day-plan";
@@ -504,7 +505,7 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
           </div>
         </div>
         <div className="mdlf"><button type="button" className="btn pri" disabled={closed || !selected.length} onClick={apply}>적용</button><button type="button" className="btn gho" onClick={onClose}>닫기</button>
-          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn">같은 조절 {pool.tuned + 1}번째 — 루틴을 고칠까요?</span>}</div>
+          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 — 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">11 에서 회차 고치기 ↗</Link></span>}</div>
       </div>
     </div>
   );

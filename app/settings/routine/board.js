@@ -134,7 +134,7 @@ export default function Board({ d }) {
         const pj = projectEnd({ remaining: Number(x.remaining ?? 0), perSession: Number(x.per_session ?? 1), days: b.days ?? [], from: d.date });
         const ut = x.unit_test ?? "off";
         return (
-          <div key={x.id} className="bs" data-g="book" data-book={x.book_id}>
+          <div key={x.id} id={`book-${x.book_id}`} className="bs" data-g="book" data-book={x.book_id}>
             <div className="bsh"><span className="tag mono">{x.code ?? "—"}</span><b>{x.name}</b><span className="tag type">{x.area}</span><span className="spacer" />
               {!areaLines.length && !custom ? <span className="tag" style={{ background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" }} data-g="book-gap">{x.area} 루틴이 없습니다 — 위에서 만드세요</span>
                 : bv.custom ? <span className="tag act" data-g="book-routine">이 교재만 고친 루틴</span> : custom ? <span className="tag act">이 아이만 고친 {x.area} 루틴</span> : <span className="tag on">{x.area} 루틴을 씁니다</span>}
