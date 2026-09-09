@@ -164,7 +164,7 @@ insert into v2.inquiry (id, name, phone, school, grade, way, stage, body) values
 on conflict (id) do nothing;
 -- 아이 화면 07 눌러보기 — 학원 회선에 로컬 주소(눌러보기는 127.0.0.1 로 들어온다) · 아이 화면 카드 넷은 켬(원장님이 실제 DB 에선 32칸을 다 정하셨다 — 리허설도 켜 둔다)
 update v2.integration set config = jsonb_set(coalesce(config, '{}'::jsonb), '{ips}', '["127.0.0.1", "::1"]'::jsonb) where id = 'arrival';
-insert into v2.role_access (role, key, allowed) values ('student', 'me.arrival', true), ('student', 'me.today', true), ('student', 'me.books', true), ('student', 'me.flags', true)
+insert into v2.role_access (role, key, allowed) values ('student', 'me.arrival', true), ('student', 'me.today', true), ('student', 'me.books', true), ('student', 'me.flags', true), ('student', 'me.grid', true)
 on conflict (role, key) do nothing;
 -- 받을 교재·학습지 눌러보기(07-2 ①) — 자료 갈래 둘 · 학생에게 나눠 준 것 셋(하나는 끝냄)
 insert into v2.material_type (id, name, steps, sort) values
@@ -185,7 +185,7 @@ on conflict do nothing;
 insert into v2.parent_student (parent_profile_id, student_id, rel, import_batch) values
   ('44444444-4444-4444-4444-444444444444', '99999999-0000-4000-9000-000000000001', '어머니', 'fixture')
 on conflict do nothing;
-insert into v2.role_access (role, key, allowed) values ('parent', 'parent.intro', true), ('parent', 'parent.recent', true), ('parent', 'parent.homework', true), ('parent', 'parent.next', true), ('parent', 'parent.sent', true), ('parent', 'parent.reports', true)
+insert into v2.role_access (role, key, allowed) values ('parent', 'parent.intro', true), ('parent', 'parent.recent', true), ('parent', 'parent.homework', true), ('parent', 'parent.next', true), ('parent', 'parent.sent', true), ('parent', 'parent.reports', true), ('parent', 'parent.grid', true)
 on conflict (role, key) do nothing;
 
 -- 자료함 20 · 영상 19 눌러보기(3단계-9) — 학부모가 보낸 사진 하나(갈래 안 고름 → 「방금 온 것」) · 원장이 어제 숙제 첫 줄에 붙인 pdf(아이 화면 📎 · 학부모는 마감한 판이라 보인다) · 영상 하나(300초) 배정 + 지나간 구간 [0,30)·[60,90) = 60초 → 20% · 학부모 자료 카드 켬. 보관함 파일 자체는 걷기가 /var/tmp/e2e-storage 에 쓴다

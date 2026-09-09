@@ -1053,6 +1053,22 @@ ok("✕ 빼기 → 「단어 — 뺐습니다」 · 항목 0 · 셀은 「+」",
 await gr.locator("[data-g=col][data-col]").last().locator("button[data-act=col-retire]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("체크 칸을 내렸습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 await gr.locator("[data-g=watch-chips] .schip").first().click(); await gr.locator("[data-g=watch-new] input").fill("숙제 안 내는 날이 늘었다"); await gr.locator("[data-g=watch-new] input").blur(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("따로 챙길 아이 — 이름을 누르고 메모를 적으면 손 뗄 때 저장 · 「1명」 · 줄 하나 · 그 아이는 이름 알약에서 빠진다", (await gr.locator("[data-g=msg]").textContent()) === "메모를 적었습니다" && (await gr.locator("[data-g=watch-noted]").textContent()) === "1명" && (await gr.locator("[data-g=watch-row]").count()) === 1, (await gr.locator("[data-g=watch]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+console.log("■ (너) 학교별 표 → 아이·학부모 「우리 학교」 카드 — 표마다 공개 스위치(기본 끔) · 학교 줄 표만 · 그 아이 학교 줄만(원장님 9/9 「강사조교는 다 봐도 되고 학생학부모는 따로 권한두기」)");
+await gr.locator(".shtab").filter({ hasText: "학교별 교재" }).first().click(); await p.waitForTimeout(300);
+{ const cs = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-student.json" }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/me"); await cp.waitForLoadState("networkidle").catch(() => {});
+  ok("(너) 공개 끔(기본)이면 아이 화면에 「우리 학교」 카드가 없다(열쇠 me.grid 는 씨앗이 켬 — 무엇을 보이나는 표마다)", (await cp.locator("[data-card=school]").count()) === 0 && (await gr.locator("[data-g=share] button[data-act=share-off]").getAttribute("aria-pressed")) === "true");
+  await gr.locator("[data-g=share] button[data-act=share-on]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(800);
+  ok("(너) 「아이·학부모 공개」 켬 → 스위치가 켜져 있다 · 「우리 학교 줄이 보입니다」", (await gr.locator("[data-g=share] button[data-act=share-on]").getAttribute("aria-pressed")) === "true" && (await gr.locator("[data-g=msg]").textContent()).includes("우리 학교"));
+  await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+  const sc = cp.locator("[data-card=school]");
+  ok("(너) 아이 「우리 학교」 카드 — 알약 zz_시험_중학교 · 표 「학교별 교재」 · 줄 「zz_시험_중학교 …」 · 값 있는 칸만", (await sc.count()) === 1 && (await sc.locator(".h .pill").textContent()) === "zz_시험_중학교" && (await sc.locator("[data-g=school-grid]").first().textContent()).includes("학교별 교재") && (await sc.locator("[data-g=school-row]").first().textContent()).includes("zz_시험_중학교"), (await sc.textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 200));
+  await cs.close(); }
+{ const cs = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-parent.json" }); await offline(cs); const cp = await cs.newPage();
+  await cp.goto(APP + "/parent"); await cp.waitForLoadState("networkidle").catch(() => {});
+  const sc = cp.locator("[data-card=school]");
+  ok("(너) 학부모 「우리 학교」 카드 — 같은 한 벌(parent.grid 켬 · 그 아이 학교 줄)", (await sc.count()) === 1 && (await sc.locator("[data-g=school-row]").first().textContent()).includes("zz_시험_중학교"), (await sc.textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 200));
+  await cs.close(); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-grid-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 await gr.locator("button[data-act=grid-retire]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
