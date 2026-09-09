@@ -532,7 +532,7 @@ function ProgressModal({ b, sheet, closed, fail, start, onClose }) {
           {isOpen && <div className="accb">
             {c.units.map((u) => { const auto = t.today.includes(u.id) && t.memo; return (
               <div key={u.id} className="ur" style={auto ? { background: "var(--sunk)", borderLeft: "3px solid var(--amber)", margin: "0 -8px", padding: "8px 8px", borderRadius: 8 } : undefined}>
-                <span className="nm">{auto ? <b>{u.short}</b> : u.short}<small>{u.activity}{pages(u) ? ` · ${pages(u)}` : ""}{u.q_count ? ` · ${u.q_count}문항` : ""}{u.status === "skip" ? " · 건너뜀" : ""}{auto ? <> · <b style={{ color: "var(--navy)" }}>✍ 메모로 자동 ○</b></> : null}</small></span>
+                <span className="nm">{auto ? <b>{u.short}</b> : u.short}<small>{u.activity}{pages(u) ? ` · ${pages(u)}` : ""}{u.q_count ? ` · ${u.q_count}문항` : ""}{u.status === "skip" ? " · 건너뜀" : ""}{t.partsOf?.[u.id] ? <> · <span data-g="parts">{t.partsOf[u.id]}</span></> : null}{auto ? <> · <b style={{ color: "var(--navy)" }}>✍ 메모로 자동 ○</b></> : null}</small></span>
                 <div className="tri" data-g={u.id}>{TRI.map(([k, mark]) => <button key={k} type="button" data-p={k} aria-pressed={(u.status === "skip" ? "none" : u.status) === k} disabled={closed} onClick={() => u.status !== k && set(u, k)}>{mark}</button>)}</div>
               </div>); })}
             <div style={{ marginTop: 12 }}><label className="fl">교재 없이 한 날 — 무엇을 했나(01 의 학습 메모와 같은 값)</label><input type="text" value={t.memo} readOnly placeholder="01 의 이 교재 학습 메모에 적으면 마감 때 오늘 학습 소단원이 ○ 가 됩니다" /></div>
