@@ -235,7 +235,8 @@ await row.locator("button[data-act=plan]").click(); await p.waitForTimeout(1500)
 const pl = p.locator(".mdlov .mdl");
 await snapModal("02c-plan");
 const headOf = (ym) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5, 7))}월`;
-const goTo = async (date) => { for (let i = 0; i < 3; i++) { const h = await pl.locator(".calhead b").first().textContent(); if (h === headOf(date.slice(0, 7))) return; await pl.locator(".calhead button", { hasText: h < headOf(date.slice(0, 7)) ? "▸" : "◂" }).first().click(); await p.waitForTimeout(800); } };
+const ymNum = (t) => { const m = String(t).match(/(\d{4})년 (\d{1,2})월/); return m ? Number(m[1]) * 12 + Number(m[2]) : 0; };   // 「2026년 9월」 < 「2026년 10월」 — 글자 견줌이면 9 > 1 이라 거꾸로 간다(게이트 92 가 잡았다)
+const goTo = async (date) => { for (let i = 0; i < 3; i++) { const h = await pl.locator(".calhead b").first().textContent(); if (h === headOf(date.slice(0, 7))) return; await pl.locator(".calhead button", { hasText: ymNum(h) < ymNum(headOf(date.slice(0, 7))) ? "▸" : "◂" }).first().click(); await p.waitForTimeout(800); } };
 const markAt = async (date) => { await goTo(date); const c = pl.locator(`[data-g=plancal] .cd[data-date='${date}'] .cm`); return (await c.count()) ? c.textContent() : ""; };
 const pickDay = async (date) => { await goTo(date); await pl.locator(`[data-g=plancal] .cd[data-date='${date}']`).click(); await p.waitForTimeout(300); };
 ok("모달 — 아이 이름 · 반 요일·시각(매일 17:00) · 「수업일만 고를 수 있습니다」", (await pl.locator(".mdlh b").textContent()).includes("zz_시험_학생") && (await pl.locator(".mdlh .pill").textContent()).includes("17:00") && (await pl.locator(".calhead .pill", { hasText: "수업일만" }).count()) === 1);
@@ -466,6 +467,7 @@ ok("📨 발송 — 「데일리리포트 2 / 2」(마감한 것만) · 🔥 오
 ok("⚠️ 안 돌고 있는 것 — 클래스카드 수신 기록 없음 · 하루 정리가 한 번도 안 돌았음(둘 다 ✕)", (await cards.nth(3).textContent()).includes("클래스카드 수신 기록이 없습니다") && (await cards.nth(3).textContent()).includes("하루 정리가 한 번도 안 돌았습니다") && (await cards.nth(3).locator(".cm.i-abs").count()) === 2, (await cards.nth(3).textContent()).slice(0, 200));
 const mkRow = cards.nth(4).locator(".dayrow", { hasText: "보강 안 잡힘" });   // 학생둘(오늘 결석) + 02c 걷기가 남긴 학생의 내일 결석(보강 안 잡음) — 수는 걷기 따라 다르니 이름만 본다
 ok("📅 이 달 — 보강 안 잡힘 N명(학생둘 · 오늘 결석 …) + 잡기 · 영어일 없음 — zz_시험_중학교(시험 06 에 넣어야)", (await mkRow.count()) === 1 && (await mkRow.textContent()).includes("zz_시험_학생둘") && /보강 안 잡힘 [12]명/.test(await mkRow.textContent()) && (await cards.nth(4).locator(".dayrow a[href='/today']").count()) === 1 && (await cards.nth(4).locator(".dayrow", { hasText: "영어일 없음" }).textContent()).includes("zz_시험_중학교"), (await cards.nth(4).textContent()).slice(0, 200));
+ok("(저) 📅 「학교 일정이 바뀌었어요 — 전국 zz_시험_모의고사 M/D → M/D」(씨앗 — 받아오기가 이틀 뒤로 옮긴 회차 · 봤음 전) + 「시험 ↗」", (await cards.nth(4).locator("[data-g=exam-changed]").count()) === 1 && /^학교 일정이 바뀌었어요 — 전국 zz_시험_모의고사 \d+\/\d+ → \d+\/\d+$/.test(await cards.nth(4).locator("[data-g=exam-changed]").textContent()) && (await cards.nth(4).locator("a[data-act=exam-changed-go]").count()) === 1, await cards.nth(4).locator("[data-g=exam-changed]").textContent().catch(() => "없음"));
 ok("💬 답할 것 — 남기실 말 2(씨앗 어제 「…병원이라…」 + 아이가 방금 남긴 것) · 신규 상담 1건(아직 답 안 함)", (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 2" }).textContent()).includes("어제") && (await cards.nth(5).locator(".dayrow", { hasText: "남기실 말 2" }).textContent()).includes("병원이라") && (await cards.nth(5).locator(".dayrow", { hasText: "신규 상담 1건" }).textContent()).includes("아직 답 안 함"), (await cards.nth(5).textContent()).slice(0, 200));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-dash-${v.viewport.width}.png`, fullPage: true }); }
 console.log("■ 학부모 09 — 마감 뒤: 늦귀가 안내(보낸 것 · 실제 하원) · 오늘 수업일지 + 꼬리표 · 다음 숙제 · 앞으로 · 선생님 한 마디 · 남기실 말 · 달력");
@@ -596,6 +598,12 @@ await sc.locator("[data-g=day-row][data-kind=hol] button[data-act=holiday-undo]"
 ok("휴강 무르기 → 칸에서 사라진다(지우지 않고 off)", !(await cellOf(d10).textContent()).includes("🚫"));
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-schedule-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
+console.log("■ (저) 02c 시험 기간 = 결석 예상(표시만) — 12 에서 넣은 2학기 중간(다음 달 10~13)이 zz_시험_학생 달력에 📝(0152 student_exams · 보는 아이는 exam_takers 한 곳 · 확정-69)");
+await p.goto(`${APP}/today`); await p.waitForLoadState("networkidle").catch(() => {});
+await row.locator("button[data-act=plan]").click(); await p.waitForTimeout(1500);
+await goTo(`${ymNext}-11`); for (let i = 0; i < 16 && !(await pl.locator(`[data-g=plancal] .cd[data-date='${ymNext}-09'] .cm`).count()); i++) await p.waitForTimeout(500);   // 달을 넘기면 그 달을 다시 읽는다 — 표시가 설 때까지(게이트 91 이 경주를 잡았다)
+ok("다음 달 11일 📝(수업일이면서 시험 기간 · 고를 수 있다) · 9일은 그대로 「·」 · 범례 「📝 시험 기간 — 결석 예상(표시만)」", (await markAt(`${ymNext}-11`)) === "📝" && (await pl.locator(`[data-g=plancal] .cd[data-date='${ymNext}-11']`).getAttribute("role")) === "button" && (await markAt(`${ymNext}-09`)) === "·" && (await pl.locator(".clegend").textContent()).includes("시험 기간 — 결석 예상(표시만)"), `${await markAt(`${ymNext}-11`)} / ${await markAt(`${ymNext}-09`)}`);
+await pl.locator("button.x[aria-label=닫기]").click(); await p.waitForTimeout(300);
 console.log("■ 반 화면(4단계-3a) — /schedule/classes: + 반 만들기(요일 · 시각 · 이 날부터) → 명단 넣기 → 반 단가 줄(다음 달부터) → 시간표 바꾸기(다음 달 1일부터 → 다음 시간표 알약) → 빼기 → 반 닫기");
 await p.goto(`${APP}/schedule/classes`); await p.waitForLoadState("networkidle").catch(() => {});
 const cb = p.locator("main"); const liveBefore = Number((await cb.locator("[data-g=live-count]").textContent()).replace(/\D/g, ""));
@@ -634,6 +642,10 @@ await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").c
 const ex = p.locator("main");
 const ecard = () => ex.locator("[data-g=exam-card]").filter({ hasText: "zz_시험_중 · 전 학년" }).first();
 ok(`회차 카드 — 「zz_시험_중 · 전 학년」(12 에서 손으로 넣은 것) · 영어 ${Number(d12.slice(5, 7))}.12 · 1명(학교가 있는 리허설 학생만 — 학생둘은 학교 없음) · 손으로 넣음 · 범위 없음 · 멈춘 교재 2(영어일을 넣을 때 문법책·11 에서 이은 독해책이 묶였다 · 내신 교재는 안 묶는다) · 「저절로 풀림」 · 영어일 없음 0`, (await ecard().count()) === 1 && (await ecard().locator(".tag", { hasText: `영어 ${Number(d12.slice(5, 7))}.12` }).count()) === 1 && (await ecard().locator("[data-g=takers]").textContent()) === "1명" && (await ecard().locator("[data-g=no-scope]").count()) === 1 && (await ecard().locator("[data-g=stopped]").textContent()) === "멈춘 교재 2" && (await ecard().locator("[data-g=stop-line]").textContent()).includes("저절로 풀림") && (await ex.locator("[data-g=missing]").textContent()) === "영어일 없음 0", (await ex.locator("[data-g=exam-head]").allTextContents()).join(",") + " | " + (await ecard().textContent()).replace(/\s+/g, " ").slice(0, 400));
+{ const nrow = () => ex.locator("[data-g=nat-row]").filter({ hasText: "zz_시험_모의고사" });
+  ok("(저) 전국 줄 zz_시험_모의고사 — 「📡 날짜 바뀜 M/D → M/D」 꼬리표 + 「봤음」(0152 · 씨앗은 받아오기가 이틀 뒤로 옮긴 것 · 0명 — 고등 아이 없음)", (await nrow().count()) === 1 && /📡 날짜 바뀜 \d+\/\d+ → \d+\/\d+/.test(await nrow().locator("[data-g=changed]").textContent()) && (await nrow().locator("button[data-act=change-seen]").count()) === 1, await nrow().textContent().catch(() => "없음"));
+  await nrow().locator("button[data-act=change-seen]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+  ok("봤음 → 꼬리표가 내려간다(이전 기간은 남는다 · 대시보드 📅 줄도 내려간다) · 「봤음 — 대시보드에서 내려갑니다」", (await nrow().locator("[data-g=changed]").count()) === 0 && (await ex.locator("[data-g=msg]").textContent()).includes("봤음")); }
 await ecard().locator("button[data-act=scope-open]").click();
 const bookOpts = await ecard().locator("select[data-g=scope-book] option").allTextContents();
 await ecard().locator("select[data-g=scope-book]").selectOption({ label: bookOpts.find((t) => t.includes("문법책")) });
@@ -652,6 +664,8 @@ await ecard().locator("button[data-act=skip-all]").click(); await p.waitForSelec
 ok("「남은 1명 다 안 봄」((가)-⑨ 이 학년 안 봄 한 번에) → 「1명 — 안 봄 …」 · 0명 · 안 봄 1 · 멈춘 교재 0 · 단추는 사라진다(후보 0)", (await p.locator("[data-g=msg]").first().textContent()).startsWith("1명 — 안 봄") && (await ecard().locator("[data-g=takers]").textContent()) === "0명" && (await ecard().locator("[data-g=skips]").textContent()) === "안 봄 1" && (await ecard().locator("button[data-act=skip-all]").count()) === 0, await p.locator("[data-g=msg]").first().textContent());
 await ecard().locator("button[data-act=unskip]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("본다 → 다시 1명 · 멈춘 교재 2", (await ecard().locator("[data-g=takers]").textContent()) === "1명" && (await ecard().locator("[data-g=stopped]").textContent()) === "멈춘 교재 2");
+{ const cr2 = await p.request.get(APP + "/api/cron"); const cj2 = cr2.ok() ? await cr2.json() : {}; await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(저) 새벽 정리 — 크론 한 바퀴(서버 자신)가 회차 멈춤을 다시 맞춰도 묶인 교재 2 그대로(exam_takers 0152 — 보는 아이를 못 읽으면 다 풀렸을 것) · 실패 0", cr2.ok() && cj2.bad === 0 && (await ecard().locator("[data-g=stopped]").textContent()) === "멈춘 교재 2", JSON.stringify(cj2) + " · " + (await ecard().locator("[data-g=stopped]").textContent().catch(() => "?"))); }
 await ecard().locator("button[data-act=stop-now]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("지금 멈춤 → 「지금 멈췄습니다 — 교재 2권」(문법책 · 독해책)", (await ex.locator("[data-g=msg]").textContent()).includes("지금 멈췄습니다 — 교재 2권"), await ex.locator("[data-g=msg]").textContent());
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
@@ -673,7 +687,7 @@ await ex.locator("[data-g=weeks-middle] button", { hasText: "4주" }).click(); a
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-exams-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 await ecard().locator("button[data-act=hide]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("숨김 → 카드가 사라지고 「숨긴 회차 1」 · 시험 회차 0", (await ecard().count()) === 0 && (await ex.locator("button[data-act=show-hidden]").textContent()).includes("숨긴 회차 1") && (await ex.locator("[data-g=count]").textContent()) === "시험 회차 0");
+ok("숨김 → 카드가 사라지고 「숨긴 회차 1」 · 시험 회차 1(전국 zz_시험_모의고사 — (저) 씨앗)", (await ecard().count()) === 0 && (await ex.locator("button[data-act=show-hidden]").textContent()).includes("숨긴 회차 1") && (await ex.locator("[data-g=count]").textContent()) === "시험 회차 1");
 await ex.locator("button[data-act=show-hidden]").click(); await ex.locator("[data-g=hidden-row] button[data-act=unhide]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("보이기 → 카드가 돌아온다(지우지 않았다)", (await ecard().count()) === 1);
 console.log("■ 성적 16 — 지난달 회차(손으로) → 등급컷·문항표 → 아이가 넣고(07) → 원장님이 확인(16) → 학부모 카드(09)");

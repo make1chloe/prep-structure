@@ -1,4 +1,4 @@
-/** 결석·지각 예정 검사(확정-㉔ · 검사-㊳) — 순수 판단 lib/plan-plan.js: 달력 칸(월요일부터 42칸) · 날마다 표시의 우선(휴강 > 결석 > 지각 > 보강 > 수업) · 수업일만 고를 수 있나 · 보강 글 */
+/** 결석·지각 예정 검사(확정-㉔ · 검사-㊳) — 순수 판단 lib/plan-plan.js: 달력 칸(월요일부터 42칸) · 날마다 표시의 우선(휴강 > 결석 > 지각 > 보강 > 수업) · 수업일만 고를 수 있나 · 보강 글 · (저) 시험 기간 📝(수업일만 · 표시만 · 지각·결석이 먼저) */
 import { monthGrid, nextYm, markOf, makeupText } from "../lib/plan-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -18,6 +18,9 @@ ok("결석 예정(수업일이 아니어도 줄이 있으면 뜬다)", markOf("2
 ok("보강 날은 ↻ · 고르는 날이 아니다", markOf("2026-10-18", { days, absences, lates }).kind === "makeup" && markOf("2026-10-18", { days, absences, lates }).pick === false);
 ok("수업일이 아닌 날은 없음 · 못 고른다", markOf("2026-10-06", { days, absences, lates }).kind === "none" && markOf("2026-10-06", { days, absences, lates }).pick === false);
 ok("물린 지각(cancelled_at)은 안 뜬다", markOf("2026-10-07", { days, absences, lates }).kind === "none");
+console.log("■ (저) 시험 기간 — 결석 예상(표시만 · 0152 · 확정-69)");
+const exams = [{ id: "x1", name: "2학기 중간", term_from: "2026-10-05", term_to: "2026-10-07" }];
+ok("시험 기간의 수업일은 📝(exam · 고를 수 있다) · 지각 예정이 있으면 지각이 먼저 · 수업일이 아닌 날은 그대로 없음 · 결석 예정이면 결석 · 휴강은 휴강 · 기간 밖은 수업일 · 끝이 비면 시작 하루", markOf("2026-10-05", { days: [{ date: "2026-10-05", kind: "class" }], exams }).kind === "exam" && markOf("2026-10-05", { days: [{ date: "2026-10-05", kind: "class" }], exams }).pick === true && markOf("2026-10-05", { days, absences, lates, exams }).kind === "late" && markOf("2026-10-06", { days, absences, lates, exams }).kind === "none" && markOf("2026-10-07", { days: [{ date: "2026-10-07", kind: "class" }], absences: [{ of_date: "2026-10-07", state: "todo" }], exams }).kind === "absent" && markOf("2026-10-21", { days, absences, lates, exams }).kind === "off" && markOf("2026-10-08", { days: [{ date: "2026-10-08", kind: "class" }], exams }).kind === "class" && markOf("2026-10-06", { days: [{ date: "2026-10-06", kind: "class" }], exams: [{ term_from: "2026-10-06", term_to: null }] }).kind === "exam");
 console.log("■ 보강 글");
 ok("잡음 → 「보강 10/18 14:00」", makeupText(absences[0]) === "보강 10/18 14:00");
 ok("안 잡음 / 아직", makeupText({ state: "waived" }) === "보강 안 잡음" && makeupText({ state: "todo" }) === "보강 안 잡힘");

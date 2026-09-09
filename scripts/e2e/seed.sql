@@ -218,3 +218,8 @@ insert into v2.role_access (role, key, allowed) values ('parent', 'parent.files'
 -- 발송 10 눌러보기 — 리허설은 방해금지 없음(시작=끝). 걷기가 밤에 돌아도 알림이 미뤄지지 않게. 진짜 DB 는 0118 씨앗(23:00~09:00) 그대로
 update v2.rule set value = '00:00' where key in ('send.quiet_from', 'send.quiet_to');
 update v2.rule set value = '1' where key = 'day.heavy_pages';   -- 📣 「오늘 좀 많습니다」 띠를 걷기에서 보려고 문턱을 1쪽으로(실제 기본은 30)
+
+-- (저) 받아오기가 기간을 옮긴 회차(0152 · 확정-69 — 나이스 줄과 같은 꼴 · 출처는 site: 나이스 줄이면 12b 머리가 「M/D 받음」이 돼 「아직 안 받음」 걷기가 깨진다) — 전국 하루짜리(고등 아이가 없어 0명 · 이틀 뒤로 옮겨졌다) → 대시보드 📅 「학교 일정이 바뀌었어요」 · 06b 전국 줄 「📡 날짜 바뀜 … 봤음」
+insert into v2.exams (id, scope, school_id, grade, name, term_from, term_to, english_on, source, source_key, state, prev_term_from, prev_term_to, changed_at, import_batch)
+  select '99999999-0000-4000-e600-000000000001', 'national', null, null, 'zz_시험_모의고사', current_date + 50, current_date + 50, null, 'site', 'site:zz_시험_모의고사', 'active', current_date + 48, current_date + 48, now() - interval '1 day', 'fixture'
+  where not exists (select 1 from v2.exams where id = '99999999-0000-4000-e600-000000000001');
