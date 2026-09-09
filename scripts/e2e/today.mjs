@@ -522,6 +522,11 @@ await mrow.locator("textarea").fill("이번 달 간접의문문을 스스로 설
 ok("한마디 — 손을 떼면 「한마디를 적었습니다」", (await mr.locator("[data-g=msg]").textContent()) === "한마디를 적었습니다");
 await mrow.locator("button[data-act=send-one]").click(); await p.waitForFunction(() => /월간 리포트/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 20000 }).catch(() => {}); await p.waitForTimeout(1200);
 ok("📨 보내기 → 「1명에게 월간 리포트 — 🧪 리허설(off)」 · 줄이 「보냄 M/D」로 · 한마디 잠김(학부모가 본 글은 안 고친다)", (await mr.locator("[data-g=msg]").textContent()).startsWith("1명에게 월간 리포트 — 🧪 리허설(off)") && (await mrow.getAttribute("data-state")) === "sent" && /^보냄 \d+\/\d+$/.test(await mrow.locator("[data-g=sent]").textContent()) && (await mrow.locator("textarea").isDisabled()), `${await mr.locator("[data-g=msg]").textContent()} · ${await mrow.getAttribute("data-state")}`);
+await mr.locator("[data-g=when] button", { hasText: "내일" }).click();
+await mr.locator("[data-g=report-row][data-student='99999999-0000-4000-9000-000000000002'] button[data-act=schedule-one]").click(); await p.waitForFunction(() => /예약했습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(600);
+ok("(어) ⏰ 예약(학생둘 · 내일 09:00) → 「예약했습니다 — 1명 · 내일 09:00」 · 그 줄은 아직 「아직 안 보냄」(때가 되면 그때 상태로 보낸다)", (await mr.locator("[data-g=msg]").textContent()).startsWith("예약했습니다 — 1명 · 내일 09:00") && (await mr.locator("[data-g=report-row][data-student='99999999-0000-4000-9000-000000000002'] [data-g=sent]").textContent()).includes("아직 안 보냄"), await mr.locator("[data-g=msg]").textContent());
+await mr.locator("[data-g=report-row][data-student='99999999-0000-4000-9000-000000000002'] button[data-act=schedule-one]").click(); await p.waitForTimeout(1500);
+ok("(어) 같은 아이·같은 달을 또 예약하면 막힌다(0151 색인) — 「이미 예약된 아이가 있습니다」", ((await mr.locator("[role=alert]").textContent().catch(() => "")) ?? "").includes("이미 예약된 아이"), (await mr.locator("[role=alert]").textContent().catch(() => "없음")));
 { const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();
   await cp.goto(APP + "/login"); await cp.fill("#id-parent", "01000000000"); await cp.fill("#pw-parent", "새비밀번호2");
   await Promise.all([cp.waitForURL((u) => u.pathname === "/parent", { timeout: 15000 }), cp.click("form:has(#id-parent) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});
@@ -1395,6 +1400,15 @@ ok("학생둘 — 금액만 적고 저장(받은 날 없음) → 그 줄 「안 
   ok("올린 뒤 — 학생둘 줄은 그대로 안 받음 200,000(미납 줄은 받은 날 없이) · 수납 방법만 엑셀의 「카드」(payment 한 줄에 덮어씀 · source excel) · 안 받음 200,000원", (await feeRow(S2_9).getAttribute("data-state")) === "unpaid" && (await feeRow(S2_9).locator("select[data-g=method]").inputValue()) === "카드" && (await fe.locator("[data-g=unpaid-sum]").textContent()).includes("200,000"), `${await feeRow(S2_9).getAttribute("data-state")} · ${await feeRow(S2_9).locator("select[data-g=method]").inputValue()} · ${await fe.locator("[data-g=unpaid-sum]").textContent()}`); }
 await fe.locator("button[data-act=remind-fees]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 20000 }); await p.waitForTimeout(300);
 ok("💰 안 받은 집에 안내 → 「1집에 수강료 안내 — 🧪 리허설(off)」(갈래 fee · 금액을 적어 저장한 줄만 · 학부모 기기 — 4단계-2a)", (await fe.locator("[data-g=msg]").textContent()).startsWith("1집에 수강료 안내 — 🧪 리허설(off)"), await fe.locator("[data-g=msg]").textContent());
+await fe.locator("[data-g=when] button", { hasText: "내일" }).click(); await fe.locator("button[data-act=schedule-fees]").click(); await p.waitForFunction(() => /예약했습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? ""), null, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(600);
+ok("(어) ⏰ 안 받은 집 예약(내일 09:00) → 「예약했습니다 — 1집 · 내일 09:00」", (await fe.locator("[data-g=msg]").textContent()).startsWith("예약했습니다 — 1집 · 내일 09:00"), await fe.locator("[data-g=msg]").textContent());
+{ await p.goto(`${APP}/send`); await p.waitForLoadState("networkidle").catch(() => {});   // (어) 발송 10 「예약된 것」에 월간·수강료 예약이 아이 이름·달로 서고 취소된다
+  const sm2 = p.locator("main"), rows2 = sm2.locator("[data-card=scheduled] [data-g=sch-row]");
+  const texts = (await rows2.allTextContents()).map((t) => t.replace(/\s+/g, " "));
+  ok("(어) 📢 예약된 것 2 — 「zz_시험_학생둘 · 월간 리포트 N년 N월 · 내일 09:00」 「zz_시험_학생둘 · 수강료 안내 N년 N월 · 내일 09:00」(판 없이도 이름이 선다 — send_board student_name)", (await rows2.count()) === 2 && texts.some((t) => t.includes("zz_시험_학생둘") && /월간 리포트 \d{4}년 \d{1,2}월/.test(t) && t.includes("내일 09:00")) && texts.some((t) => t.includes("zz_시험_학생둘") && /수강료 안내 \d{4}년 \d{1,2}월/.test(t)), texts.join(" | "));
+  for (let i = 0; i < 2; i++) { await sm2.locator("[data-card=scheduled] [data-g=sch-row] button[data-act=cancel]").first().click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(800); }
+  ok("(어) 둘 다 취소 → 예약된 것 0(지우지 않고 cancelled_at)", (await sm2.locator("[data-card=scheduled] [data-g=sch-row]").count()) === 0);
+  await p.goto(`${APP}/ops?m=${ymNow}`); await p.waitForLoadState("networkidle").catch(() => {}); }
 { const cs = await b.newContext({ viewport: VIEWS[1].viewport, hasTouch: true, isMobile: true }); await offline(cs); const cp = await cs.newPage();   // 학부모 💰 카드(S1 · 받음)
   await cp.goto(APP + "/login"); await cp.fill("#id-parent", "01000000000"); await cp.fill("#pw-parent", "새비밀번호2");
   await Promise.all([cp.waitForURL((u) => u.pathname === "/parent", { timeout: 15000 }), cp.click("form:has(#id-parent) button[type=submit]")]); await cp.waitForLoadState("networkidle").catch(() => {});

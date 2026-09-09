@@ -22,7 +22,9 @@ const logs = [
   { id: 3, kind: "arrival", student_name: "가", sink: "live", created_at: "2026-09-06T08:00:00Z", sent_at: null, failed_at: "2026-09-06T08:00:00Z", fail_why: "알림을 켠 기기가 없습니다", open_count: 0 },
   { id: 4, kind: "leave", student_name: "가", sink: "live", created_at: "2026-09-06T13:00:00Z", sent_at: "2026-09-06T13:00:00Z", opened_at: null, open_count: 0 },
 ];
-const sch = [{ id: "c1", kind: "daily", sheet_id: "s4", at: "2026-09-07T00:00:00Z", sent_at: null, cancelled_at: null }];
+const sch = [{ id: "c1", kind: "daily", sheet_id: "s4", at: "2026-09-07T00:00:00Z", sent_at: null, cancelled_at: null },
+  { id: "c2", kind: "monthly", student_id: "s9", student_name: "마", body: "2026-09", at: "2026-09-08T00:00:00Z", sent_at: null, cancelled_at: null },   // (어) 월간 예약 — 판이 없어 이름은 send_board 가 준다
+  { id: "c3", kind: "fee", student_id: "s9", student_name: "마", body: "2026-09", at: "2026-09-08T01:00:00Z", sent_at: null, cancelled_at: null }];
 const jobs = [
   { id: 11, kind: KINDS.plan, state: "wait", tries: 0, next_at: "2026-09-06T11:00:00Z", payload: { student_id: "x", date: "2026-09-10", kind: "absent" }, student_name: "가" },
   { id: 12, kind: KINDS.leave, state: "wait", tries: 1, next_at: "2026-09-07T00:00:00Z", last_error: "방해금지(23:00~09:00)라 미룸", payload: { student_id: "x" }, student_name: "가" },
@@ -38,7 +40,8 @@ ok("📨 알약 — 마감 4 / 5", JSON.stringify(closedCount(daily)) === JSON.s
 const auto = autoRows(jobs, now);
 ok("🔔 저절로 — 안 끝난 것만(대기 · 미룸 · 실패), 끝난 것은 빠진다 · 결석 예정은 ✕ 9/10", auto.length === 3 && auto[0].icon === "✕" && auto[0].what === "9/10 결석 예정 안내" && auto[0].state.text.startsWith("대기") && auto[1].state.text.includes("에 나감") && auto[2].state.cls === "bad", JSON.stringify(auto.map((a) => [a.icon, a.what, a.state.text])));
 const scheduled = scheduledRows(sch, jobs, sheets, now, "2026-09-06");
-ok("📢 예약된 것 — 예약 표(취소 가능) + 방해금지로 미뤄진 일(취소 못 함) · 때 순서", scheduled.length === 2 && scheduled[0].cancellable === true && scheduled[0].when === "내일 09:00" && scheduled[0].name === "라" && scheduled[1].cancellable === false && scheduled[1].when.includes("방해금지"), JSON.stringify(scheduled));
+ok("📢 예약된 것 — 예약 표(취소 가능) + 방해금지로 미뤄진 일(취소 못 함) · 때 순서", scheduled.length === 4 && scheduled[0].cancellable === true && scheduled[0].when === "내일 09:00" && scheduled[0].name === "라" && scheduled[1].cancellable === false && scheduled[1].when.includes("방해금지"), JSON.stringify(scheduled));
+ok("(어) 월간·수강료 예약 줄 — 이름은 student_name · 무엇은 「월간 리포트 2026년 9월」 「수강료 안내 2026년 9월」 · 취소 가능", scheduled[2].name === "마" && scheduled[2].what === "월간 리포트 2026년 9월" && scheduled[3].what === "수강료 안내 2026년 9월" && scheduled[2].cancellable === true && scheduled[3].cancellable === true, JSON.stringify(scheduled.slice(2)));
 const sent = sentRows(logs);
 ok("오늘 나간 것 — 읽음(2번 열어봄) · 리허설 🧪 · 못 보냄 ⚠️ · 안 읽음(다시 보내기 가능)", sent[0].status.text === "📨 21:10 보냄 · 👁️ 21:20 읽음 · 🔁 2번 열어봄" && sent[0].resendable === false && sent[1].status.rehearsal && sent[1].status.icon === "🧪" && sent[2].status.bad && sent[3].status.unread && sent[3].resendable, JSON.stringify(sent.map((s) => s.status.text)));
 ok("읽음 셈 — 읽음 1 · 안 읽음 1 · 못 보냄 1 · 리허설 1", JSON.stringify(readCounts(logs)) === JSON.stringify({ read: 1, unread: 1, failed: 1, rehearsal: 1 }), JSON.stringify(readCounts(logs)));
