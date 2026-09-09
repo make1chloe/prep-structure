@@ -33,6 +33,7 @@ if ((v = grab(/주소 \*\*(\d+)\*\*\(`route\.js`\)/, "주소"))) ok(`주소 ${v[
 if ((v = grab(/\| 검사 \| \*\*(\d+)종\*\*/, "검사"))) ok(`검사 ${v[0]}종(scripts/check-*.mjs)`, v[0] === checks, `실측 ${checks}`);
 if ((v = grab(/\| 규칙 \| \*\*(\d+)\*\*/, "규칙"))) ok(`규칙 ${v[0]}(규칙.md 「지킴:」 줄)`, v[0] === keep, `실측 ${keep}`);
 if ((v = grab(/「지킴: —」 \*\*(\d+)\*\*/, "지킴: —"))) ok(`「지킴: —」 ${v[0]}`, v[0] === dash, `실측 ${dash}`);
+{ const ids = [...rules.matchAll(/^\| \*\*([^*|]+)\*\* \|/gm)].map((m) => m[1]); const dup = [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))]; ok(`규칙 번호가 겹치지 않는다(${ids.length}개 — 번호로 부르는 규칙이라 겹치면 다른 것을 가리킨다 · 확정-64 가 둘이던 것을 2026-09-09 에 잡음)`, dup.length === 0, "겹침: " + dup.join(" ")); }
 if ((v = grab(/\| 목업 \| (\d+)화면/, "목업"))) ok(`목업 ${v[0]}화면(인수인계)`, v[0] === screens, `실측 ${screens}(section id=s…)`);
 if ((v = grab(/## 4\. 판단은 `lib\/` 한 곳 — 모듈 (\d+)/, "4절 머리"))) ok(`4절 머리 「모듈 ${v[0]}」`, v[0] === libs.length, `실측 ${libs.length}`);
 console.log("■ 인수인계 본문 — 「0100~NNNN」 은 어디에 적혔든 마지막 번호다(한 장 요약만 고치고 3절·7절·9절을 안 고친 채 나간 일 — 2026-09-07)");
