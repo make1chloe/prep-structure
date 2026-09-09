@@ -27,6 +27,10 @@ at = mark();
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 const steady = requestsSince(at);
 ok(`다시 열기(판이 있다) 조회 ≤ 20 — ${steady}`, steady >= 0 && steady <= 20, steady < 0 ? "로그 없음 " + LOG : "");
+{ await p.setViewportSize(VIEWS[1].viewport); await p.waitForTimeout(300);   // (거) 폰 상단 띠 — 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」
+  const h = await p.evaluate(() => { const r = (q) => document.querySelector(q)?.getBoundingClientRect(); const b = r("header.appbar .brand"), o = r("header.appbar form button"), t = r("header.appbar nav.tabs"), last = r("header.appbar nav.tabs a:last-child"), first = r("header.appbar nav.tabs a:first-child"); return b && o && t && last && first ? { sameRow: Math.abs(b.top - o.top) < 4, logoutRight: o.right > innerWidth - 40, tabsBelow: t.top >= b.bottom - 1, tabsWide: t.width > innerWidth * 0.8, tabsOneRow: Math.abs(first.top - last.top) < 4, hdr: Math.round(r("header.appbar").height) } : null; });
+  await p.setViewportSize(VIEWS[0].viewport); await p.waitForTimeout(200);
+  ok("(거) 폰 상단 띠 — 로그아웃이 첫 줄(이름·칩) 오른끝 · 탭은 둘째 줄에 꽉 차게 · 390 에 탭 일곱이 한 줄(빈 셋째 줄 없음)", !!h && h.sameRow && h.logoutRight && h.tabsBelow && h.tabsWide && h.tabsOneRow, JSON.stringify(h)); }
 const S1_ROW = "99999999-0000-4000-9000-000000000001";   // 리허설 학생 줄은 id 로 — 이름이 같은 fixture 줄(0004)이 있고, 요일에 따라 줄 차례가 다르다(2026-09-07 월요일 실측)
 const row = p.locator(`.row[data-student='${S1_ROW}']`);
 ok("리허설 학생 줄이 선다", (await row.count()) === 1, String(await p.locator(".row").count()));
