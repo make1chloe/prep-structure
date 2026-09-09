@@ -1,5 +1,5 @@
 /** 부모님께 글 검사(검사-㊵) — 순수 판단 lib/comment-plan.js: 갈래 다섯·길이 넷 · 상황이 길이를 먼저 고른다 · 그날 상태에서 저절로 · 글자 세기 · 넘으면 문장 끝에서 자른다 · 붙는 줄·미리보기 · AI 초안 그대로인가 · 지시문에 길이 상한 */
-import { KIND, CAPS, capName, capOf, pickKind, countChars, isOver, cutAtSentence, sameAsDraft, attached, preview, facts, promptFor } from "../lib/comment-plan.js";
+import { KIND, CAPS, capName, capOf, pickKind, countChars, isOver, cutAtSentence, sameAsDraft, attached, preview, previewLines, facts, promptFor } from "../lib/comment-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const caps = { normal: 100, no_homework: 200, before_exam: 100, after_exam: 300, late_night: 50 };
@@ -32,11 +32,13 @@ ok("개수를 안 적은 시험은 안 붙고 까닭을 말한다", !ls[1].on &&
 ok("늦귀가 예상 귀가 · 반성문 처분이 붙는다", ls[2].text === "오늘 18:40 귀가 예정 — 워크북 나머지" && ls[3].text.includes("오늘 남아서"));
 ok("미리보기 = 글 + 켜진 줄만", preview("오늘 잘했습니다.", ls) === "오늘 잘했습니다.\n다음 시간 단어 시험 — PSS · CH1 › 1-4 20개 · 통과 90%\n오늘 18:40 귀가 예정 — 워크북 나머지\n반성문 — 오늘 남아서 씁니다");
 ok("글이 없으면 붙는 줄만", preview("  ", ls).startsWith("다음 시간"));
+ok("(서) 09 수업 카드의 줄 = previewLines(켜진 줄만 · 01 미리보기와 같은 한 벌) — 셋 · 미리보기 = 글 + 그 줄들", previewLines(ls).length === 3 && previewLines(ls)[1] === "오늘 18:40 귀가 예정 — 워크북 나머지" && preview("오늘 잘했습니다.", ls) === ["오늘 잘했습니다.", ...previewLines(ls)].join("\n"));
 console.log("■ AI 재료 · 지시문");
 const f = facts({ student: { name: "zz", grade: 2 }, sheet: { attend: "late", check: [{ learn_items: { name: "워크북" }, status: "missing" }], class: [{ units: { label: "1-4" }, learn_items: { name: "교재 풀기" } }], home: [], late: { until_at: "18:40:00" } }, quizzes: [{ kind: "word", source: "manual", free_note: "Day 3", pct: 85, passed: false }], keys: "어순 스스로", lines: ls });
 ok("사실만 한 줄에 하나 — 출결·검사·학원·시험·늦귀가·키워드·붙는 줄", f.some((x) => x.startsWith("출결: 지각")) && f.some((x) => x.includes("워크북 ✕ 안 해옴")) && f.some((x) => x.includes("교재 풀기 1-4")) && f.some((x) => x.includes("85%") && x.includes("재시험")) && f.some((x) => x.includes("18:40까지")) && f.some((x) => x.includes("어순 스스로")) && f.filter((x) => x.startsWith("글 밑에 앱이 붙이는 줄")).length === 3, f.join(" | "));
 ok("영역 메모가 재료에 든다(아이에게 그대로 나감) · 빈 메모는 빠진다", facts({ sheet: { memos: [{ area: "단어", memo: "Day 38-40 통과" }, { area: "독해", memo: " " }] } }).filter((x) => x.includes("메모(아이에게 그대로 나감)")).length === 1);
 const pr = promptFor({ kind: "no_homework", cap: 200, samples: ["[보통] 오늘 잘했어요"], rules: "존댓말", factLines: f });
 ok("지시문 — 길이 상한 · 상황 안내 · 본보기 · 원장님 조건 · 지어내지 말 것", pr.user.includes("200자 이내") && pr.user.includes("숙제안함") && pr.system.includes("오늘 잘했어요") && pr.system.includes("존댓말") && pr.system.includes("주어진 사실만"));
+ok("(서) 「[이 아이 · M/D] …」 본보기가 있으면 지시문에 「이 아이에게 지난번에 보낸 글 — 호칭·톤만 잇는다」 · 없으면 그 줄 없음", promptFor({ kind: "normal", cap: 100, samples: ["[이 아이 · 9/1] 오늘도 잘했어요"], factLines: f }).system.includes("지난번에 보낸 글") && !promptFor({ kind: "normal", cap: 100, samples: ["[보통] 잘했어요"], factLines: f }).system.includes("지난번에 보낸 글"));
 console.log(`\n■ 부모님께 글 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
