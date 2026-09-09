@@ -13,12 +13,15 @@ import { redirect } from "next/navigation";
 import { Fragment } from "react";
 import { orderCards } from "@/lib/pref-plan";
 import CardOrder from "./_shell/cardorder.js";
+import Answer from "./_shell/answer.js";   // (처) 💬 남기실 말 「답하기」
+import { KINDS as RKINDS } from "@/lib/request";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 const Card = ({ emo, title, id, children }) => <div className="dcard" data-card={id}><div className="ctitle"><span className="cemo">{emo}</span>{title}</div>{children}</div>;
 const Row = ({ icon, cls = "i-cls", b, small, children }) => <div className="dayrow"><i className={"cm " + cls}>{icon}</i><div><b>{b}</b>{small && <small>{small}</small>}</div>{children}</div>;
 const dispName = (k) => DISPOSAL.find(([x]) => x === k)?.[1] ?? "처분 아직";
 const qkind = (k) => QKIND.find(([x]) => x === k)?.[1] ?? k;
+const rkind = (k) => RKINDS.find(([x]) => x === k)?.[1] ?? k;
 export default async function Home() {
   const { sb, me, user } = await guard();
   if (!me) return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>사람 줄이 없습니다</div><p className="note">로그인은 됐는데 <b>{user.email}</b> 의 역할 줄(v2.profiles)이 없습니다. 원장님이 「누가 누구인가」에서 넣어야 합니다.</p></div>);
@@ -51,8 +54,9 @@ export default async function Home() {
         <Row icon={d.ops.queue.bad ? "✕" : "✓"} cls={d.ops.queue.bad ? "i-abs" : "i-ok"} b={d.ops.queue.text} small={d.ops.queue.sub} />
       </Card> },
     { id: 'month', name: '이 달', node: <Card emo="📅" title="이 달" id="month">
-        {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && !d.exams.changed.length && !d.confirm?.show && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
+        {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && !d.exams.changed.length && !d.short.length && !d.confirm?.show && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
         {d.confirm?.show && <Row icon="📅" cls="i-abs" b={<span data-g="confirm-line">{d.confirm.text}</span>} small={d.confirm.small}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${d.confirm.ym}`} data-act="confirm-go">일정 ↗</Link></Row>}
+        {d.short.map((s) => <Row key={`short-${s.id}`} icon="📅" cls="i-abs" b={<span data-g="short-class">{s.text}</span>} small="12 반 회차 카드와 같은 셈(요일 × 달 − 휴강 + 반 보강일) — 보강일을 잡거나 특강으로"><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${s.ym}`} data-act="short-go">보강일 잡기 ↗</Link></Row>)}
         {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><Link prefetch={false} className="btn sm" href="/today">잡기</Link></Row>}
         {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요 — {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다 — 시험 회차에서 보고 「봤음」` : "시험 회차에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 ↗</Link></Row>)}
         {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 — ${e.text}`} />)}
@@ -60,8 +64,9 @@ export default async function Home() {
       </Card> },
     { id: 'answer', name: '답할 것', node: <Card emo="💬" title="답할 것" id="answer">
         {!d.requests.length && !d.inquiries.length && <Row icon="✓" cls="i-ok" b="답할 것 없음" />}
-        {d.requests.length > 0 && <Row icon="💬" cls="i-hw" b={`남기실 말 ${d.requests.length}`} small={d.requests.map((r) => `${r.name} · ${whenText(r.at, date)} 「${r.body.slice(0, 40)}」`).join(" · ")} />}
-        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")} />}
+        {d.requests.length > 0 && <Row icon="💬" cls="i-hw" b={`남기실 말 ${d.requests.length}`} small="답하면 아이 07 · 학부모 09 의 남기실 말 카드에 「답 — …」 로 보입니다" />}
+        {d.requests.map((r) => <Row key={r.id} icon="·" cls="i-hw" b={<span data-g="req-row" data-req={r.id}>{r.name} · {whenText(r.at, date)} 「{r.body.slice(0, 60)}」</span>} small={rkind(r.kind)}><Answer id={r.id} /></Row>)}
+        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")}><Link prefetch={false} className="btn sm" href="/ops/inquiry" data-act="inquiry-go">보기 ↗</Link></Row>}
       </Card> },
   ], d.pref);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref dash · 4단계-6)
   return frame(<>
