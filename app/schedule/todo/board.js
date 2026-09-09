@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
+import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, unitTestDueAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
 import { cardsOf, filterSchool, sortCards, columnsOf, hiddenOf, counts, behindOf, printAllOf, dueLine, isOverdue, kindName, schoolTag, flowOf, repeatText, monthDay, REPEAT_EVENTS, stepTodoOf, filterMaterials, onlyText } from "@/lib/todo-plan";
 import { examOn } from "@/lib/exam-plan";
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -39,6 +39,7 @@ export default function Board({ d }) {
       {c.todoId && (c.state === "done" || c.state === "dropped") && <button className="btn sm" type="button" disabled={pending} data-act="undo" onClick={(x) => { x.stopPropagation(); run(() => undoAct(c.todoId), "되돌렸습니다"); }}>되돌리기</button>}
       {c.todoId && (c.state === "todo" || c.state === "doing") && <input type="date" className="dt" value={c.due ?? ""} aria-label={`${c.title} 마감`} onClick={(x) => x.stopPropagation()} onChange={(x) => run(() => dueAct(c.todoId, x.target.value), "마감을 바꿨습니다")} style={{ width: "auto" }} />}
       {c.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={(x) => { x.stopPropagation(); run(() => unitTestMadeAct(c.unitTestId), "출제했습니다 — 오늘 수업 카드에 섭니다"); }}>출제함</button>}
+      {c.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={(x) => { x.stopPropagation(); run(() => unitTestDueAct(c.dueUnitTest), "출제했습니다 — 오늘 수업 카드에 섭니다(같은 묶음은 다시 안 섭니다)"); }}>출제함</button>}
       {c.quizId && !c.paperAt && <button className="btn sm pri" type="button" disabled={pending} data-act="paper" onClick={(x) => { x.stopPropagation(); run(() => quizPaperAct(c.quizId, true), "재시험지 만들었음 — 시험을 보면 카드가 사라집니다"); }}>🖨 재시험지 만들었음</button>}
       {c.quizId && c.paperAt && <><span className="tag on" data-g="paper">🖨 종이 ✓</span><button className="btn sm" type="button" disabled={pending} data-act="paper-undo" onClick={(x) => { x.stopPropagation(); run(() => quizPaperAct(c.quizId, false), "무렀습니다"); }}>무르기</button></>}
       {c.quizId && <Link prefetch={false} className="btn sm" href="/today" onClick={(x) => x.stopPropagation()}>오늘 수업 ↗</Link>}
@@ -118,7 +119,7 @@ export default function Board({ d }) {
       {cards.filter((x) => x.state === "todo" || x.state === "doing").map((x) => <tr key={x.id} className={isOverdue(x, today) ? "hi" : ""} data-g="row" data-kind={x.kind} data-id={x.id}>
         <td><span className={"nb-pill " + (cols.find((cl) => cl.kind === x.kind)?.cls ?? "")}>{kindName(x.kind)}</span></td><td className="sch">{x.title}{x.extra ? ` · ${x.extra}` : ""}</td><td>{dueLine(x, today)}</td><td>{x.school ? schoolTag(x) : "—"}</td><td className="num">{x.n ?? "—"}</td>
         <td>{x.checks ? x.checks.filter((s) => ["make", "print", "hand"].includes(s.step)).map((s) => `${s.done ? "✓" : "·"}${s.name}`).join(" ") : "—"}</td><td>{x.why ?? ""}</td>
-        <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), `끝냈습니다 — ${x.title}`)}>✓ 끝냄</button>}{x.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => run(() => unitTestMadeAct(x.unitTestId), "출제했습니다")}>출제함</button>}</td>
+        <td>{x.todoId && <button className="btn sm pri" type="button" disabled={pending} data-act="done" onClick={() => run(() => doneAct(x.todoId), `끝냈습니다 — ${x.title}`)}>✓ 끝냄</button>}{x.unitTestId && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-made" onClick={() => run(() => unitTestMadeAct(x.unitTestId), "출제했습니다")}>출제함</button>}{x.dueUnitTest && <button className="btn sm pri" type="button" disabled={pending} data-act="ut-make" onClick={() => run(() => unitTestDueAct(x.dueUnitTest), "출제했습니다")}>출제함</button>}</td>
       </tr>)}
       {!cards.filter((x) => x.state === "todo" || x.state === "doing").length && <tr><td colSpan={8} className="note">할 일이 없습니다</td></tr>}
     </tbody></table></div>}

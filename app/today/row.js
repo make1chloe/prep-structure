@@ -381,6 +381,7 @@ function UnitTestCard({ t, passPct, date, closed, fail, start }) {
   return (
     <div className="card" data-card="unit-test">
       <div className="ctitle"><span className="cemo">📝</span>단원평가 · {t.grammar_topics?.name ?? "—"}<span className="auto">{state}</span></div>
+      {t.books?.name && <p className="note" style={{ margin: "0 0 6px" }} data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 묶음`} → 단원평가 단원 · {t.grammar_topics?.name ?? "분류 없음"}</p>}
       <div className="wtrow">
         <div className="wtset"><b>원장님이 출제한 {t.q_count}문항</b><div className="tags"><span className="tag type">교재 문제가 아닙니다</span>{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
         <div className="wtscore"><label className="fl">맞은 개수</label>
