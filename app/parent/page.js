@@ -49,8 +49,8 @@ export default async function Parent({ searchParams }) {
     { id: 'notice', name: '공지', node: can(PARENT.sent) && d.board.length > 0 && <NoticeCard Card={Card} lines={d.board} unread={d.unread} /> },
     { id: 'recent', name: '수업', node: can(PARENT.recent) && d.last && <Card emo="📋" title={d.last.date === date ? "오늘 수업" : `${md(d.last.date)} 수업`} id="recent">
       <p className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{d.last.comment || "(수업일지 글이 없습니다)"}</p>
-      {d.tags.length > 0 && <div className="tags" style={{ marginTop: 8 }}>{d.tags.map((t) => <span key={t.text} className={"tag" + (t.on ? " on" : "")}>{t.text}</span>)}</div>}
-      {d.last.late?.until_at && <p className="note" style={{ margin: "4px 0 0" }}>🌙 {String(d.last.late.until_at).slice(0, 5)} 귀가 예정 — {d.last.late.reason ?? ""}</p>}</Card> },
+      {d.lastLines.map((t) => <p key={t} className="note" style={{ margin: "4px 0 0" }} data-g="attached">{t}</p>)}
+      {d.tags.length > 0 && <div className="tags" style={{ marginTop: 8 }}>{d.tags.map((t) => <span key={t.text} className={"tag" + (t.on ? " on" : "")}>{t.text}</span>)}</div>}</Card> },
     { id: 'homework', name: '다음 숙제', node: can(PARENT.homework) && d.last?.home.length > 0 && <Card emo="📘" title="다음 숙제" id="homework" pill={String(d.last.home.length)}>
       {d.last.home.map((it) => <div className="li" key={it.id}><div><b>{it.learn_items?.name ?? it.range_note ?? ""}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null].filter(Boolean).join(" · ")}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>)}
       {d.last.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ {b.home_memo}</p>)}</Card> },
