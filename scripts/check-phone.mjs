@@ -13,6 +13,7 @@ console.log("■ 폰 규칙(글자)");
 ok("폰-2 열릴 때 autoFocus 를 안 건다(앱 전체 0)", where(/\bautoFocus\b/).length === 0, where(/\bautoFocus\b/).join(", "));
 ok("폰-4 당김 새로고침이 적던 것을 안 날린다 — body{overscroll-behavior-y:contain}(목업 규칙에서 갈라낸 것)", /body\{[^}]*overscroll-behavior-y:contain/.test(css));
 ok("폰-8 줄을 열고 닫을 때 목록 자리를 지킨다 — .row{scroll-margin-top}", /\.row\{[^}]*scroll-margin-top/.test(css));
+ok("폰-1 입력칸 글씨 16 은 기계(pointer:coarse)로 가른다 — 본문 토큰 --fs-5 를 16px 로 올리는 미디어 규칙에 (pointer:coarse) 가 있다(폭만 보면 아이패드 768 이 빠진다 · 크기 자체는 check-fonts 가 브라우저에서 잰다)", /@media\s*\([^{]*max-width[^{]*\)\s*,\s*\(pointer:\s*coarse\)\s*\{\s*:root\s*\{[^}]*--fs-5:\s*16px/.test(css), "globals.css 에 @media(max-width:…),(pointer:coarse){:root{--fs-5:16px}} 가 없다");
 const ls = src.flatMap(([p, s]) => [...s.matchAll(/(localStorage|sessionStorage)\.(getItem|setItem)\(\s*["']([^"']+)["']/g)].map((m) => `${p}:${m[3]}`));
 ok("폰-7·속도-6 임시저장은 DB 판(day_sheet)에 — 브라우저 저장은 배색(chloe-skin)뿐이라 당김 새로고침·새 버전 띠가 적던 것을 못 날린다", ls.every((k) => k.endsWith(":chloe-skin")), ls.join(", "));
 const checks = readdirSync("scripts").filter((f) => /^check-.*\.mjs$/.test(f)).map((f) => [f, readFileSync(join("scripts", f), "utf8")]);
