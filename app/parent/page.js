@@ -70,6 +70,9 @@ export default async function Parent({ searchParams }) {
     { id: 'scores', name: '성적', node: can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" pill={d.scores[0].title}>
       {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</div>)}
       <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 시험만 보입니다.</p></Card> },
+    { id: 'school', name: '우리 학교', node: can(PARENT.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" pill={d.student.schools?.name ?? ""}>
+        {d.school.map((g) => <div key={g.id} data-g="school-grid"><div className="hh" style={{ marginTop: 8 }}>{g.label}</div>{g.rows.map((r) => <div className="li" key={r.id} data-g="school-row"><div><b>{r.title}</b><small>{r.cells.map((c) => `${c.label} ${c.text}`).join(" · ")}</small></div></div>)}</div>)}
+        <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 표의 이 아이 학교 줄만 보입니다.</p></Card>) },
     { id: 'memo', name: '선생님 한 마디', node: can(PARENT.recent) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card> },
     { id: 'files', name: '자료', node: can(PARENT.files) && <Card emo="📎" title="자료" id="files" pill={sentFiles.length ? `받은 것 ${sentFiles.length}` : "보내기"}>
