@@ -167,6 +167,7 @@ section.screen{margin:0 0 64px}
 .appbar{display:flex;align-items:center;gap:16px;padding:12px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap;background:var(--ground)} /* (자) 앱은 이 띠를 sticky 로 위에 붙인다 — 바탕이 없으면 굴릴 때 내용이 띠를 뚫고 보인다(모달 캡처가 잡음) */
 .brand{font-weight:700;font-size:var(--fs-4);letter-spacing:-.01em;color:var(--navy)}
 .tabs{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
+@media(max-width:760px){.appbar{gap:8px 16px}.appbar .tabs{order:1;flex-basis:100%;margin-left:0}.appbar .tabs .tab{padding-left:8px;padding-right:8px}} /* (거) 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」 — 폰에선 첫 줄에 이름·칩·로그아웃(탭을 order 로 뒤로 보내면 빈 자리(flex:1)가 로그아웃을 오른끝으로 민다), 둘째 줄에 탭 꽉 차게 · 빈 셋째 줄 없음 · 줄 사이 8 · 탭 좌우 8(390 에 일곱이 한 줄) */
 .tab{padding:4px 12px;border-radius:8px;font-size:var(--fs-2);color:var(--mid);background:none;border:0}
 .tab[aria-current="true"]{background:var(--navy);color:var(--on-navy);font-weight:500}
 .pill{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border-radius:6px;font-size:var(--fs-2);font-weight:600;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;font-family:var(--sans);background:var(--sunk);color:var(--mid);border:1px solid var(--hair)}
