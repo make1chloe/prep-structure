@@ -125,11 +125,21 @@ insert into v2.makeup (id, student_id, of_date, state, reason)
   select '99999999-0000-4000-f100-000000000001', '99999999-0000-4000-9000-000000000002', v2.today(), 'todo', '가족 여행'
   where not exists (select 1 from v2.makeup where id = '99999999-0000-4000-f100-000000000001');
 -- 학생둘 — 같은 교재를 3회독째(학생 줄 머리 「3회독째」 알약)
-insert into v2.student_book (id, student_id, book_id, from_date, round, per_session, stop_mode, import_batch) values
-  ('99999999-0000-4000-e300-000000000002', '99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e000-000000000001', '2026-01-01', 3, 1, 'running', 'fixture')
-on conflict (id) do nothing;
+insert into v2.student_book (id, student_id, book_id, from_date, round, per_session, stop_mode, unit_test, unit_test_n, import_batch) values
+  ('99999999-0000-4000-e300-000000000002', '99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e000-000000000001', '2026-01-01', 3, 1, 'running', 'per_n_sub', 3, 'fixture')
+on conflict (id) do nothing;   -- (버) 단원평가 「소단원 3개마다」 — 3회독에서 끝낸 1-1·1-2·1-3 이 한 묶음 → 05 에 「📝 단원평가 출제」가 저절로(0149 unit_test_due). 11 화면 걷기는 학생하나 교재를 켜고 끄므로 학생둘에 둔다
+insert into v2.progress (student_id, unit_id, round, status, done_on, marked_on, last_by) values
+  ('99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e100-000000000001', 3, 'done', '2026-08-01', '2026-08-01', 'staff'),
+  ('99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e100-000000000002', 3, 'done', '2026-08-01', '2026-08-01', 'staff'),
+  ('99999999-0000-4000-9000-000000000002', '99999999-0000-4000-e100-000000000003', 3, 'done', '2026-08-01', '2026-08-01', 'staff')
+on conflict do nothing;   -- 8/1 에 끝냄 → 대시보드 「커서 잠김」(21일 넘게 그대로)은 그대로 선다
 -- 단원평가 — 원장님이 따로 출제한 25문항(교재와 무관, 문법 분류로)
 insert into v2.grammar_topics (id, name, sort) values ('99999999-0000-4000-d100-000000000001', 'zz_시험_관계사', 999) on conflict (id) do nothing;
+-- (버) 교재 단원 ↔ 문법 분류(unit_topic) — 1-2·1-3 이 관계사 → 저절로 선 단원평가 카드의 「단원」이 이 분류로(1-1 은 15 걷기가 zz_관계사를 잇는다)
+insert into v2.unit_topic (unit_id, topic_id) values
+  ('99999999-0000-4000-e100-000000000002', '99999999-0000-4000-d100-000000000001'),
+  ('99999999-0000-4000-e100-000000000003', '99999999-0000-4000-d100-000000000001')
+on conflict do nothing;
 insert into v2.unit_test (id, student_id, topic_id, assigned_on, q_count, state)
   select '99999999-0000-4000-d200-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-d100-000000000001', v2.today() - 1, 25, 'made'
   where not exists (select 1 from v2.unit_test where id = '99999999-0000-4000-d200-000000000001');
