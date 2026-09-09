@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
 const Card = ({ emo, title, id, pill, children }) => <div className="task" data-card={id}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className="pill">{pill}</span>}</div>{children}</div>;
 const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}${it.units.page_start ? ` · p.${it.units.page_start}${it.units.page_end && it.units.page_end !== it.units.page_start ? `-${it.units.page_end}` : ""}` : ""}` : "";
-const Line = ({ it, right, attach = null }) => <><div className="li"><div><b>{it.learn_items?.name ?? it.range_note ?? "(이름 없음)"}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null, it.memo].filter(Boolean).join(" · ")}</small></div>{right}</div>{attach}</>;
+const Line = ({ it, right, attach = null }) => <><div className="li"><div><b>{it.learn_items?.name ?? it.range_note ?? "(이름 없음)"}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null, it.memo, it.received ? `${md(it.received)} 에 받음` : null].filter(Boolean).join(" · ")}</small></div>{right}</div>{attach}</>;
 const qname = (k) => QKIND.find(([x]) => x === k)?.[1] ?? k;
 export default async function Me() {
   const { sb, me, user } = await guard();
@@ -53,7 +53,7 @@ export default async function Me() {
     { id: 'due', name: '오늘 낼 숙제', node: can(ME.today) && (<Card emo="📘" title="오늘 낼 숙제" id="due" pill={String(d.due.length)}>
         {!d.due.length && <p className="note" style={{ margin: "8px 0 0" }}>낼 숙제가 없어요</p>}
         {d.due.map((it) => <Line key={it.id} it={it} attach={att(it)} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {it.status === "done" ? "○" : it.status === "weak" ? "△" : "✕"}</span> : it.said_done_at ? <span className="tag on">했어요 ✓</span> : null} />)}
-        {d.dueFrom && d.dueFrom !== "check" && <p className="note" style={{ margin: "4px 0 0" }}>{md(d.dueFrom)} 에 받은 숙제 — 오늘 검사받아요</p>}
+        {!d.sheet && d.due.length > 0 && <p className="note" style={{ margin: "4px 0 0" }}>오늘 검사받아요 — 아직 검사 안 받은 지난 숙제 전부예요</p>}
       </Card>) },
     { id: 'quiz', name: '시험', node: can(ME.today) && ((d.quizzes.today.length > 0 || d.quizzes.next.length > 0) && <Card emo="🔤" title="시험" id="quiz" pill={String(d.quizzes.today.length + d.quizzes.next.length)}>
         {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 — {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}
