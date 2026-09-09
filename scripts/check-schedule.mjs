@@ -1,5 +1,5 @@
-/** 일정 판단 검사(검사-52) — lib/schedule-plan.js 순수 셈: 칸의 일들과 차례(휴강 › 결석 › 영어일 › 시험 › 보강 › 지각 › 할 일) · 반 고르기 · 회차(8회 채우기 · 특강) · 보강 안 잡힘 · 하루의 줄 · 42칸 */
-import { eventsOf, monthCells, dayRows, sessionsOf, unscheduled, classText, dayTitle, confirmState, confirmText, canConfirm, LEGEND, EVENT } from "../lib/schedule-plan.js";
+/** 일정 판단 검사(검사-52) — lib/schedule-plan.js 순수 셈: 칸의 일들과 차례(휴강 › 결석 › 영어일 › 시험 › 보강 › 지각 › 할 일) · 반 고르기 · 회차(8회 채우기 · 특강) · 보강 안 잡힘 · 하루의 줄 · 42칸 · (처) 대시보드 「8회를 못 채웁니다」 */
+import { eventsOf, monthCells, dayRows, sessionsOf, unscheduled, classText, dayTitle, confirmState, confirmText, canConfirm, LEGEND, EVENT, shortClasses } from "../lib/schedule-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const b = {
@@ -35,5 +35,9 @@ ok("휴강이 들어와 풀리면 undone(푼 때) · 한 반만 찍혔으면 par
 ok("글 — 아직이면 「10월 일정 아직 확정 안 함」+「✅ 10월 일정 확정 → 학부모 알림」 · ok 면 「✅ 10월 일정 확정 9/21 14:00 · 알림 3명」 단추 없음", (() => { const a = confirmText(confirmState([], cls2), "2026-10"), b = confirmText(confirmState([{ class_id: "c1", at: at1, undone_at: null }, { class_id: "c2", at: at2, undone_at: null }], cls2), "2026-10", 3); return a.text === "10월 일정 아직 확정 안 함" && a.bad && a.button === "✅ 10월 일정 확정 → 학부모 알림" && b.text === "✅ 10월 일정 확정 9/21 14:00 · 알림 3명" && !b.bad && b.button === null && b.state === "ok"; })());
 ok("글 — undone 「⚠️ 휴강이 들어와 10월 확정이 풀렸습니다(9/22 10:00) — 다시 확정」+「다시 확정 → 학부모 알림」 · partial 「⚠️ 10월 — 반 2 중 1 아직 확정 안 함」 · 반 없으면 「10월 — 반이 없습니다」 단추 없음", (() => { const u = confirmText(confirmState([{ class_id: "c1", at: at1, undone_at: un }], cls2), "2026-10"), p = confirmText(confirmState([{ class_id: "c1", at: at1, undone_at: null }], cls2), "2026-10"), z = confirmText(confirmState([], []), "2026-10"); return u.text === "⚠️ 휴강이 들어와 10월 확정이 풀렸습니다(9/22 10:00) — 다시 확정" && u.button === "다시 확정 → 학부모 알림" && p.text === "⚠️ 10월 — 반 2 중 1 아직 확정 안 함" && p.button === "다시 확정 → 학부모 알림" && z.text === "10월 — 반이 없습니다" && z.button === null; })());
 ok("지난 달은 확정 못 한다 · 이 달·다음 달은 된다", !canConfirm("2026-08", "2026-09-07") && canConfirm("2026-09", "2026-09-07") && canConfirm("2026-10", "2026-09-07"));
+console.log("■ (처) 대시보드 「8회를 못 채웁니다」 — dash_ops.classes 로 12 와 같은 셈(sessionsOf)");
+{ const cls = { ym: "2026-09", target: "8", rows: [{ id: "c1", nickname: "화·목반", kind: "regular", weekdays: [2, 4], sessions: 7, extra: 0 }, { id: "c2", nickname: "", kind: "regular", weekdays: [1], start_time: "17:00:00", sessions: 4, extra: 1 }, { id: "c3", nickname: "특강", kind: "special", sessions: 2, extra: 0 }, { id: "c4", nickname: "월수", kind: "regular", sessions: 8, extra: 0 }] };
+  const r = shortClasses(cls);
+  ok("정규반 가운데 회차 + 반 보강일 < 기준 → 「화·목반 7회 — 8회를 못 채웁니다」 「월 17:00 5회 — …」(별명 없으면 요일·시각) · 특강·8회 채운 반은 없다 · 달·모자란 수 · 기준이 6 이면 그 셈 · 비면 []", r.map((x) => x.text).join(",") === "화·목반 7회 — 8회를 못 채웁니다,월 17:00 5회 — 8회를 못 채웁니다" && r[0].ym === "2026-09" && r[0].short === 1 && r[1].n === 5 && shortClasses(null).length === 0 && shortClasses({ ...cls, target: "6" }).map((x) => x.text).join(",") === "월 17:00 5회 — 6회를 못 채웁니다", JSON.stringify(r)); }
 console.log(`\n■ 일정 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
