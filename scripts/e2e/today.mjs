@@ -377,6 +377,7 @@ console.log("■ 마감이 방아쇠 — 학습 메모가 있는 교재의 오�
 await closedRow.locator("button[data-act=progress]").first().click(); await p.waitForTimeout(1500);
 const pm2 = p.locator(".mdlov .mdl");
 ok("1-4 ○ (메모로 자동) · 대비문제 ◐ (조각) · 마감된 판이라 단추는 잠김", (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm2.locator(".tri button").first().isDisabled()));
+ok("(러) 조각 줄 밑에 「낸 것 1-20 · 남은 것 21-62」 — 마감 메모가 조각(이번에 1-20번)을 progress_part 에 남겼다(확정-⑳ · 다 덮이면 저절로 ○)", (await pm2.locator(".ur", { hasText: "대비문제" }).locator("[data-g=parts]").textContent().catch(() => "")) === "낸 것 1-20 · 남은 것 21-62", (await pm2.locator(".ur", { hasText: "대비문제" }).textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
 ok("02b 머리 — 메모로 마감했지만 같은 날 02b 에서 손으로 ○·되돌리기·건너뛰기를 했으니 「메모로만」이 아니다(손 표시가 끊는다 · 검사만 있는 날은 세지도 끊지도 않는다) → 알약 없음", (await pm2.locator("[data-g=memo-streak]").count()) === 0 && (await pm2.locator("[data-g=memo-warn]").count()) === 0, await pm2.locator(".tags").first().textContent());
 await pm2.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 console.log("■ 월초 정리 띠 — 지난달 경고가 있고 이 달 정리를 안 정했으면 뜬다 · 전원 정리하면 횟수만 0");

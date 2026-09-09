@@ -1,5 +1,5 @@
 /** 진도 검사(확정-⑳·㊳·㊶ · 검사-⑭) — 순수 판단 lib/progress-plan.js 를 본보기로. 예습·조각에 ○ 을 줘도 완료가 안 되나 · done 은 검사로 안 내려가나 · 메모 자동 ○ 은 학습 줄만(조각은 doing) · 대단원 요약 */
-import { fromCheck, merge, memoDone, chapterSummary } from "../lib/progress-plan.js";
+import { fromCheck, merge, memoDone, chapterSummary, parsePart, coverage, partsText } from "../lib/progress-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 console.log("■ 검사 ○△✕ → 단원 진도");
@@ -21,5 +21,11 @@ console.log("■ 대단원 요약");
 const units = [{ id: "1", chapter: "CH1" }, { id: "2", chapter: "CH1" }, { id: "3", chapter: "CH2" }];
 const s = chapterSummary(units, [{ unit_id: "1", status: "done" }, { unit_id: "2", status: "skip" }, { unit_id: "3", status: "doing" }]);
 ok("CH1 끝냄(1 done + 1 skip = 2/2) · 지금은 CH2 · 끝낸 대단원 1", s.chapters[0].done === 1 && s.chapters[0].skip === 1 && s.now === "CH2" && s.finished === 1);
+console.log("■ (러) 조각이 원본을 가리킨다(확정-⑳) — 조각 읽기 · 덮임 · 다 덮이면 done · 줄 밑 글");
+ok("조각 읽기 — 「1-20번」 문항 · 「21번」 하나 · 「p.10-12」 쪽 · 「전체」·빈 글은 null", JSON.stringify(parsePart("1-20번")) === JSON.stringify({ q_from: 1, q_to: 20, page_from: null, page_to: null }) && parsePart("21번").q_to === 21 && parsePart("p.10-12").page_to === 12 && parsePart("전체") === null && parsePart("") === null);
+const cv = coverage({ q_count: 62 }, [{ q_from: 1, q_to: 20 }, { q_from: 15, q_to: 31 }]);
+ok("겹친 조각은 한 번만 — 1-20 + 15-31 = 31/62 · 남은 것 32-62 · 아직 doing", cv.covered === 31 && cv.total === 62 && !cv.done && JSON.stringify(cv.missing) === "[[32,62]]");
+ok("다 덮이면 done — 1-31 + 32-62 · 쪽 단원(p.10-12)도 p.10-12 로 덮인다 · 문항·쪽이 없는 단원은 못 덮는다", coverage({ q_count: 62 }, [{ q_from: 1, q_to: 31 }, { q_from: 32, q_to: 62 }]).done && coverage({ page_start: 10, page_end: 12 }, [{ page_from: 10, page_to: 12 }]).done && !coverage({}, [{ q_from: 1, q_to: 5 }]).done);
+ok("줄 밑 글 — 「낸 것 1-20 · 남은 것 21-62」 · 다 덮이면 「· 다 덮음」 · 조각 없으면 빈 글", partsText(coverage({ q_count: 62 }, [{ q_from: 1, q_to: 20 }])) === "낸 것 1-20 · 남은 것 21-62" && partsText(coverage({ q_count: 5 }, [{ q_from: 1, q_to: 5 }])) === "낸 것 1-5 · 다 덮음" && partsText(coverage({ q_count: 5 }, [])) === "");
 console.log(`\n■ 진도 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
