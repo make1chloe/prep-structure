@@ -4,9 +4,9 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveTemplateAct } from "./actions.js";
-import { lenText, templateName } from "@/lib/sms-plan";
-export default function Templates({ items = [], ready = false, placeholders = [] }) {
+import { saveTemplateAct, smsKindsAct } from "./actions.js";
+import { lenText, templateName, SMS_ALSO } from "@/lib/sms-plan";
+export default function Templates({ items = [], ready = false, placeholders = [], kinds = [] }) {
   const router = useRouter(); const [open, setOpen] = useState(null); const [text, setText] = useState(""); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const edit = (t) => { setOpen(open === t.kind ? null : t.kind); setText(t.body ?? ""); setErr(""); setMsg(""); };
   const save = (kind) => start(async () => { setErr(""); setMsg(""); const r = await saveTemplateAct(kind, text); if (!r.ok) { setErr(r.msg); return; } setMsg(`${templateName(kind)} 문구를 저장했습니다`); setOpen(null); router.refresh(); });
@@ -16,6 +16,13 @@ export default function Templates({ items = [], ready = false, placeholders = []
     <div className="sgh"><b>✉️ 문자 문구 — 고쳐서 쓰십니다</b><span className="spacer" />
       {ready ? <span className="pill" data-g="sms-ready">문자 길 켜짐(솔라피)</span>
              : <Link prefetch={false} className="pill warn" href="/settings#keys" data-g="sms-ready" data-act="to-keys">문자 길 없음 — 설정에서 넣기 ↗</Link>}</div>
+    <div className="wv" style={{ margin: "0 0 8px" }} data-g="sms-kinds">
+      <span className="note" style={{ margin: 0 }}>앱 알림과 <b>함께 문자로도</b> 보낼 것 —</span>
+      {SMS_ALSO.map(([k, name]) => { const on = kinds.includes(k);
+        return <button key={k} className={"btn sm" + (on ? " pri" : "")} type="button" data-act="sms-kind" data-kind={k} aria-pressed={on} disabled={pending}
+          onClick={() => start(async () => { setErr(""); setMsg(""); const next = on ? kinds.filter((x) => x !== k) : [...kinds, k];
+            const r = await smsKindsAct(next); if (!r.ok) { setErr(r.msg); return; } setMsg(r.kinds.length ? `문자로도: ${r.kinds.map((x) => SMS_ALSO.find(([y]) => y === x)?.[1] ?? x).join(" · ")}` : "문자로도 보내는 갈래가 없습니다(앱 알림만)"); router.refresh(); })}>{on ? "✓ " : ""}{name}</button>; })}
+      <span className="note k" style={{ margin: 0 }}>학부모 전화가 있고 문자 길이 켜져 있을 때만 나갑니다 · 앱 알림은 늘 그대로</span></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="tpl-msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {!items.length && <p className="note" style={{ margin: 0 }}>문구가 없습니다 — 표 0154 를 넣으면 기본 틀이 섭니다.</p>}

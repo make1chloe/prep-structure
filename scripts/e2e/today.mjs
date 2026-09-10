@@ -1233,6 +1233,17 @@ ok("등록 칸 1 · 카드에 「학생 화면 ↗」 · 레벨 봄 0", (await i
 await p.goto(`${APP}/send`); await p.waitForLoadState("networkidle").catch(() => {});
 { const sm2 = p.locator("main"), h = sm2.locator("[data-g=sent-head]"); if ((await h.getAttribute("aria-expanded")) !== "true") { await h.click(); await p.waitForTimeout(400); }
   ok("(커) 발송 10 「오늘 나간 것」에 문자 자취 둘 — 「zz_문의_아이 · 첫 등원 안내 · 문자 010-****-0000」 · 「상담 안내 · 문자 010-****-0000」(리허설 off 라 안 나감 · 다시 보내기 없음)", (await sm2.locator("[data-g=sent-row]", { hasText: "첫 등원 안내 · 문자 010-****-0000" }).count()) === 1 && (await sm2.locator("[data-g=sent-row]", { hasText: "상담 안내 · 문자 010-****-0000" }).count()) === 1 && (await sm2.locator("[data-g=sent-row]", { hasText: "첫 등원 안내 · 문자" }).locator("button[data-act=resend]").count()) === 0, (await sm2.locator("[data-g=sent-row]").allTextContents()).join(" | ").slice(0, 300)); }
+// (뎌-2) 앱 알림과 **함께 문자로도** — 발송 10 ✉️ 문자 문구 카드의 갈래 토글 셋(규칙 send.sms_kinds 한 줄에 적힌다 · 코드에 안 박힌다)
+{ const sk = p.locator("main [data-g=sms-kinds]"), btn = (k) => sk.locator(`button[data-act=sms-kind][data-kind=${k}]`);
+  ok("(뎌-2) 갈래 토글 셋(늦은 귀가 · 수강료 · 월간 리포트) · 처음엔 다 꺼짐(규칙이 비어 있다 — 지금까지처럼 등록·상담 안내만 문자로)", (await sk.locator("button[data-act=sms-kind]").count()) === 3 && (await btn("late").getAttribute("aria-pressed")) === "false" && (await btn("fee").getAttribute("aria-pressed")) === "false" && (await btn("monthly").getAttribute("aria-pressed")) === "false", (await sk.textContent()).replace(/\s+/g, " ").slice(0, 200));
+  await btn("late").click(); await p.waitForFunction(() => document.querySelector("[data-g=tpl-msg]")?.textContent === "문자로도: 늦은 귀가", null, { timeout: 15000 }); await p.waitForTimeout(1200);
+  ok("늦은 귀가를 켠다 → 「문자로도: 늦은 귀가」 · 단추 ✓ · 새로 읽어도 켜져 있다(규칙에 적혔다)", (await btn("late").getAttribute("aria-pressed")) === "true" && (await btn("late").textContent()).startsWith("✓"), await sk.locator("button[data-act=sms-kind]").allTextContents().then((x) => x.join(" | ")));
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("새로고침 뒤에도 늦은 귀가만 켜짐", (await btn("late").getAttribute("aria-pressed")) === "true" && (await btn("fee").getAttribute("aria-pressed")) === "false");
+  await btn("late").click(); await p.waitForFunction(() => document.querySelector("[data-g=tpl-msg]")?.textContent === "문자로도 보내는 갈래가 없습니다(앱 알림만)", null, { timeout: 15000 }); await p.waitForTimeout(1200);
+  ok("다시 눌러 끈다 → 「문자로도 보내는 갈래가 없습니다(앱 알림만)」 · 단추 ✕(걷기 뒤를 원래대로 돌려놓는다)", (await btn("late").getAttribute("aria-pressed")) === "false", await p.locator("[data-g=tpl-msg]").textContent());
+  { const tr = p.locator("main [data-card=templates] [data-g=tpl-row]"), kinds5 = await tr.evaluateAll((ns) => ns.map((n) => n.dataset.kind).sort());
+    ok("문구 다섯 — 첫 등원·상담 안내 + 늦은 귀가·수강료·월간 리포트(0157 이 세운 처음 한 벌 · 원장님이 화면에서 고친다)", kinds5.join(",") === "sms_fee,sms_guide,sms_late,sms_monthly,sms_welcome", kinds5.join(",")); } }
 await p.goto(`${APP}/ops/inquiry`); await p.waitForLoadState("networkidle").catch(() => {});
 await iq.locator("[data-g=col][data-stage=joined] a[data-act=open-student]").click(); await p.waitForURL((u) => u.pathname === "/ops/students", { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
 const cnt14 = async () => { const t = await su.locator("[data-g=counts]").textContent(); const m = t.match(/재원생 (\d+) · 퇴원생 (\d+)/); return m ? [Number(m[1]), Number(m[2])] : [-1, -1]; };
