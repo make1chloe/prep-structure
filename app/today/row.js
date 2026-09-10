@@ -4,7 +4,7 @@
 import { useState, useRef, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime } from "@/lib/day-plan";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -12,6 +12,7 @@ import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResu
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
 import { examPhase } from "@/lib/exam-plan";
 import { TRI } from "@/lib/progress-plan";
+import { plannerLine, shortText, SET_TYPE } from "@/lib/cc-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
 import { KIND, SOURCE, S_WAY, scopeText, quizPosOf, quizPosEnd, quizPosName } from "@/lib/quiz-plan";
@@ -66,6 +67,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
             <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
             <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
             {quizEnd && quizCard}
+            <CcCard rows={student.cc ?? []} closed={closed} fail={fail} start={start} />
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} closed={closed} fail={fail} start={start} />
@@ -81,7 +83,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
 function CheckCard({ sheet, closed, fail, start }) {
   const left = sheet.check.filter(isUnchecked).length;
   return (
-    <div className="card">
+    <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">1</span> 숙제 검사 · 집에서 해온 것{sheet.check.length ? <span className="auto">{left ? `${left}/${sheet.check.length} 남음` : "다 봤습니다"}</span> : null}</div>
       {!sheet.check.length && <p className="note">검사할 지난 숙제가 없습니다.</p>}
       {sheet.check.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} />)}
@@ -235,6 +237,42 @@ function QuizCard({ sheet, quizzes, at, closed, fail, start }) {
         <span className="spacer" />
         <span className="note" style={{ margin: 0 }}>틀린 개수만 셉니다 — 맞은 개수·%·통과는 <b>세어 나옵니다.</b> 건너뛰면 <b>오늘만</b> 빠집니다(늦귀가 사유·리포트에서도) — 점수는 그대로</span>
       </div>
+    </div>
+  );
+}
+/** 🃏 클래스카드 플래너(목업 01 · (뎌-4)) — **확장이 받아 적은 것을 그대로 보인다.**
+ *  확정-⑱ 목표·실제는 확장이 보낸 값이고 **앱이 다시 셈하지 않는다** · 미달이어도 **앱이 안 넘긴다**(원장님이 「⏭」를 누르신다).
+ *  확정-⑩ 3초훈련은 짐에서 이미 버려져 여기 안 온다. 판단(줄 글·모드 줄·못 넘긴 것)은 lib/cc-plan.js 한 벌 */
+function CcCard({ rows = [], closed, fail, start }) {
+  if (!rows.length) return null;   // 확장이 아직 안 보냈으면 카드가 아예 안 선다(빈 카드로 자리를 먹지 않는다)
+  const got = rows.reduce((t, r) => (r.fetched_at > t ? r.fetched_at : t), "");
+  return (
+    <div className="card" data-card="cc">
+      <div className="ctitle"><span className="cemo">🃏</span>클래스카드 플래너<span className="auto ext">확장이 15분마다 받아 적음</span>
+        {got && <span className="auto" data-g="cc-got">{seoulTime(got)} 받음</span>}</div>
+      {rows.map((r) => { const p = plannerLine(r), skipped = Boolean(r.skipped_at), out = shortText(p.lines); return (
+        <div key={r.id} data-g="cc-set" data-id={r.id} data-skipped={skipped ? "1" : "0"}>
+          <div className="hw">
+            <div className="hwname"><b>{r.set_name}</b><small>마감 오늘</small>
+              <div className="tags">
+                <span className={"tag" + (r.complete === true ? " on" : "")}>{r.complete === true ? "완료" : r.complete === false ? "아직" : "모름"}</span>
+                {r.set_type && SET_TYPE[r.set_type] && <span className="tag type">{SET_TYPE[r.set_type]} 세트</span>}
+                {Number(r.cards) > 0 && <span className="tag">{Number(r.cards).toLocaleString("ko-KR")}장</span>}
+                {p.lines.length > 0 && <span className="tag">필수 모드 {p.lines.length}개</span>}
+              </div></div>
+          </div>
+          {p.lines.length > 0 && <div className="ccg" data-g="cc-modes">
+            {p.lines.map((l) => <div key={l.key} className={"ccm" + (l.ok === false && !skipped ? " bad" : "")} data-g="cc-mode" data-mode={l.key}>
+              <span>{l.name}</span><b>{l.actualText}</b>{l.goalText && <i className={l.ok === true ? "ok" : l.ok === false ? "no" : ""}>{l.goalText}</i>}</div>)}
+          </div>}
+          <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}>
+            {p.short.length > 0 && <button type="button" className="btn sm" data-act="cc-skip" aria-pressed={skipped} disabled={closed}
+              onClick={() => start(async () => { fail(await ccSkipAct(r.id, !skipped)); })}>{skipped ? "⏭ 넘긴 것 되돌리기" : "⏭ 목표 미달 넘기기"}</button>}
+            {out && <span className={"pill" + (skipped ? "" : p.short.length ? " warn" : " ok")} data-g="cc-out">{skipped ? "넘겼습니다 — 오늘은 안 셉니다" : out}</span>}
+            <span className="spacer" />
+            <span className="note" style={{ margin: 0 }}>목표는 <b>아이마다 다릅니다</b> — 클래스카드에 적어 둔 그 값을 그대로 씁니다. <b>앱이 스스로 넘기지 않습니다.</b></span>
+          </div>
+        </div>); })}
     </div>
   );
 }

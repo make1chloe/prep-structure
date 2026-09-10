@@ -8,6 +8,7 @@ import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
 import { commentRules, draftComment } from "@/lib/comment";
 import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
+import { ccSkip } from "@/lib/cc";
 import { attendanceWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, moveItem, stayDone, stayAllDone, stayCarry } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
@@ -65,3 +66,4 @@ export const planPut = done(async (studentId, date, payload) => { const { sb, us
 export const planSend = done(async (studentId, date) => { const { sb } = await staff(); await planNotify(sb, studentId, date); });
 export const areaMemo = done(async (sheetId, area, memo) => { const { sb } = await staff(); await saveAreaMemo(sb, String(sheetId), String(area), String(memo ?? "")); });   // 🗺 영역별 메모 — 칸을 떠나면 저장
 export const unitScore = done(async (id, correct, date) => { const { sb } = await staff(); await scoreUnitTest(sb, String(id), Number(correct), String(date)); });   // 📝 단원평가 맞은 개수
+export const ccSkipAct = done(async (id, on) => { const { sb, user } = await staff(); return ccSkip(sb, Number(id), Boolean(on), user?.id ?? null); });   // (뎌-4) 🃏 「⏭ 목표 미달 넘기기」 — 앱이 스스로 안 넘긴다(확정-⑱)

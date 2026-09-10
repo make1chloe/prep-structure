@@ -2,7 +2,7 @@
  *  ① 3초훈련은 판정하지 않는다(확정-⑩ — 짐에 와도 버린다) ② 목표·실제는 확장이 보낸 그대로 보이고 **앱이 안 넘긴다**(확정-⑱)
  *  ③ 스크램블·드릴도 같은 줄(확정-55) ④ 못 쓸 줄은 막지 않고 버린다(한 줄이 나빠도 나머지는 들어간다) ⑤ 한 번에 받는 양 상한
  *  ⑥ 받는 길은 app/api/cc/route.js 하나 · 쓰는 손은 lib/cc.js 하나 · 열쇠는 답에 안 실린다(대전제-9) */
-import { MODES, MODE_NAME, DROPPED, SET_TYPE, ALIAS, modeKey, tidyScores, readRow, parsePayload, modeLines, shortOf, plannerLine, MAX_ROWS, MAX_STUDENTS } from "../lib/cc-plan.js";
+import { MODES, MODE_NAME, DROPPED, SET_TYPE, ALIAS, modeKey, tidyScores, readRow, parsePayload, modeLines, shortOf, shortText, plannerLine, MAX_ROWS, MAX_STUDENTS } from "../lib/cc-plan.js";
 import { readFileSync } from "node:fs";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -44,5 +44,22 @@ console.log("■ 받는 길 — 하나인가 · 열쇠가 새지 않나");
   ok("cc_planner·cc_due·cc_student 에 쓰는 곳은 lib/cc.js 하나(대전제-4 · 화면은 손을 부른다)",
     /from\(["']cc_planner["']\)\s*\.upsert/.test(hand) && !/from\(["']cc_planner["']\)\s*\.(insert|update|upsert|delete)/.test(src("app/ops/students/board.js")));
   ok("순수 판단(lib/cc-plan.js)은 DB·열쇠를 모른다 — 화면도 가져다 쓸 수 있어야 한다", !/supabase|node:crypto|process\.env/.test(plan)); }
+console.log("■ (뎌-4) 오늘 수업 01 의 🃏 카드 — 확장이 보낸 그대로 · 앱이 안 넘긴다(확정-⑱)");
+ok("모드 칸은 값과 목표를 **따로** 낸다(화면이 다시 꾸미지 않는다) — 개수는 세 자리 쉼표 · 백분율은 반올림 · 목표가 없으면 목표 줄이 없다",
+  (() => { const l = modeLines({ match: 3000 }, { match: 3240, memorize: 99.6 });
+    const m = l.find((x) => x.key === "match"), me = l.find((x) => x.key === "memorize");
+    return m.actualText === "3,240" && m.goalText === "목표 3,000" && me.actualText === "100%" && me.goalText === null && me.ok === null; })(),
+  JSON.stringify(modeLines({ match: 3000 }, { match: 3240, memorize: 99.6 }).map((x) => [x.key, x.actualText, x.goalText])));
+ok("못 넘긴 것만 말한다 — 「스펠 다시 돌립니다」 · 다 넘었으면 「다 넘었습니다」 · **잴 것이 없으면 아무 말도 안 한다**(거짓말 안 함)",
+  shortText(modeLines({ spell: 100, match: 3000 }, { spell: 82, match: 3240 })) === "스펠 다시 돌립니다"
+  && shortText(modeLines({ spell: 100 }, { spell: 100 })) === "다 넘었습니다" && shortText(modeLines({}, { spell: 82 })) === null && shortText([]) === null);
+{ const row = src("app/today/row.js"), act = src("app/today/actions.js"), day = src("lib/day.js");
+  ok("🃏 카드는 **판단을 안 한다** — 목표 대 실제·못 넘긴 것 글을 lib/cc-plan.js 에서 가져다 쓴다(원칙-1)",
+    /plannerLine|shortText/.test(row) && !/목표 \$\{/.test(row) && !/toLocaleString\("ko-KR"\)[^;]*목표/.test(row));
+  ok("**앱이 스스로 안 넘긴다**(확정-⑱) — 넘기기는 원장님이 누른 것만 적는다(손 하나 · 자동 부름이 없다)",
+    /data-act="cc-skip"/.test(row) && /ccSkipAct/.test(act) && !/ccSkip\(/.test(day));
+  ok("플래너 줄은 **화면 파도에 태운다**(속도-1) — lib/day.js 의 Promise.all 안에서 한 조회", /ccDay\(sb, p\.studentIds, date\)/.test(day) && /Promise\.all\(\[[\s\S]{0,4000}ccDay\(/.test(day));
+  ok("걷기가 🃏 카드를 눌러본다 — 목표 대 실제 · 3초훈련 없음 · ⏭ 넘기고 되돌리기", (() => { const w = src("scripts/e2e/today.mjs");
+    return /data-card=cc\]/.test(w) && /스펠 다시 돌립니다/.test(w) && /넘겼습니다 — 오늘은 안 셉니다/.test(w); })()); }
 console.log(`\n■ 클래스카드 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

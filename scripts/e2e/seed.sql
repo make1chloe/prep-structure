@@ -235,3 +235,18 @@ insert into v2.integration (id, config) values ('solapi', '{"key": "zz_test_key"
 
 -- (터) 연동 열쇠를 앱에서 고치는 걷기 — 나이스는 **비워 둔다**(설정 화면에서 넣는 걸 걷는다) · 솔라피는 (커) 가 넣어 둔 흉내 열쇠
 delete from v2.integration where id = 'neis';
+
+-- (뎌-4) 🃏 클래스카드 플래너 — 확장이 오늘치를 보낸 것처럼 심는다(줄 둘: 스펠만 목표 미달 · 다 넘긴 문장 세트).
+--   목표·실제는 **확장이 보낸 그대로**라 앱이 다시 셈하지 않는다(확정-⑱) · 3초훈련(speed)은 짐에서 이미 버려져 여기 없다(확정-⑩).
+--   ⚠️ cc_student(아이 ↔ 클래스카드 아이디)는 **안 심는다** — 학생 14 걷기가 「아직 안 이었다」에서 시작해 잇는 것을 눌러 본다((녀)).
+--   🃏 카드는 이은 것과 상관없이 cc_planner 줄을 그대로 그린다(잇기는 확장이 보낸 짐에서 아이를 찾을 때 쓴다).
+insert into v2.cc_planner (student_id, date, set_name, set_type, complete, learn_status, cards, goals, got, fetched_at)
+  select '99999999-0000-4000-9000-000000000001', v2.today(), 'zz_능률보카 Day 38-40', 1, true, 3, 60,
+         '{"memorize":100,"recall":100,"match":3000,"spell":100}'::jsonb, '{"memorize":100,"recall":100,"match":3240,"spell":82}'::jsonb, now() - interval '10 minutes'
+  where not exists (select 1 from v2.cc_planner where student_id = '99999999-0000-4000-9000-000000000001' and date = v2.today() and set_name = 'zz_능률보카 Day 38-40');
+insert into v2.cc_planner (student_id, date, set_name, set_type, complete, learn_status, cards, goals, got, fetched_at)
+  select '99999999-0000-4000-9000-000000000001', v2.today(), 'zz_문장 2과', 2, true, 3, 20,
+         '{"read":100,"sent":100}'::jsonb, '{"read":100,"sent":100}'::jsonb, now() - interval '10 minutes'
+  where not exists (select 1 from v2.cc_planner where student_id = '99999999-0000-4000-9000-000000000001' and date = v2.today() and set_name = 'zz_문장 2과');
+insert into v2.cc_due (student_id, date) select '99999999-0000-4000-9000-000000000001', v2.today()
+  where not exists (select 1 from v2.cc_due where student_id = '99999999-0000-4000-9000-000000000001' and date = v2.today());
