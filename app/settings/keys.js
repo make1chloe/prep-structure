@@ -9,6 +9,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { fieldNag } from "@/lib/integration-plan";
+import { md, seoulDate } from "@/lib/dash-plan";
+import { seoulTime } from "@/lib/day-plan";   // 「고침 9/10 23:41」 — 저장이 됐는지 줄에서 바로 보이게(원장님 9/10 「저장눌러도 저장안됨」 — 사실은 저장돼 있었다)
 import { saveKeysAct, testSmsAct } from "./actions.js";
 /** 자동완성 끄기 한 벌 — 크롬·사파리(autoComplete) · 1Password · LastPass · 대시레인 */
 const NOFILL = { autoComplete: "off", spellCheck: false, autoCorrect: "off", autoCapitalize: "off", "data-lpignore": "true", "data-1p-ignore": "true", "data-form-type": "other" };
@@ -26,6 +28,7 @@ export default function Keys({ rows = [] }) {
       <div className="lf"><span className="ln">{r.emo}</span>
         <div><b>{r.name}</b><small data-g="key-sum">{r.ready ? r.fields.map((f) => `${f.label} ${f.shown}`).join(" · ") : `아직: ${r.missing.join(" · ")}`}</small>
           {r.bad?.length > 0 && <small data-g="key-bad" role="alert" style={{ color: "var(--miss)" }}>{r.bad.join(" · ")}</small>}</div>
+        {r.updated_at && <span className="tag" data-g="key-saved" title="마지막으로 저장한 때">고침 {md(seoulDate(r.updated_at))} {seoulTime(r.updated_at)}</span>}
         <span className={"tag" + (r.bad?.length ? "" : r.ready ? " on" : "")} data-g="key-state" style={r.bad?.length ? { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" } : undefined}>{r.bad?.length ? "고쳐야 함" : r.ready ? "켜짐" : "안 켜짐"}</span>
         <button className="btn sm" type="button" data-act="key-edit" aria-pressed={open === r.id} onClick={() => edit(r)}>{open === r.id ? "닫기" : "고치기"}</button></div>
       {open === r.id && <div className="card" style={{ margin: "4px 0 8px" }} data-g="key-form">
