@@ -32,6 +32,23 @@ ok(`다시 열기(판이 있다) 조회 ≤ 20 — ${steady}`, steady >= 0 && st
   await p.setViewportSize(VIEWS[0].viewport); await p.waitForTimeout(200);
   ok("(거)(려) 폰 상단 띠 — 로그아웃이 첫 줄(이름·칩) 오른끝 · 탭은 둘째 줄에 꽉 차게 · **탭 아홉이 한 줄**(390 을 넘으면 줄을 바꾸지 않고 옆으로 굴린다 — 빈 셋째 줄 없음)", !!h && h.sameRow && h.logoutRight && h.tabsBelow && h.tabsWide && h.tabsOneRow && h.tabs === 9, JSON.stringify(h)); }
 const S1_ROW = "99999999-0000-4000-9000-000000000001";   // 리허설 학생 줄은 id 로 — 이름이 같은 fixture 줄(0004)이 있고, 요일에 따라 줄 차례가 다르다(2026-09-07 월요일 실측)
+// (머2) 날짜 고르개 — 원장님 2026-09-10 「오늘 수업에 진짜 오늘 수업이 아니어도 캘린더에서 선택하면 … 과거내역 고치거나 미래내용 미리 임시저장하게」
+{ const dp = p.locator("main [data-g=daypick]");
+  const shiftDay = (d, k) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + k); return x.toISOString().slice(0, 10); };
+  const t0 = await dp.locator("input[type=date]").inputValue(), yesterdayText = shiftDay(t0, -1), tomorrowText = shiftDay(t0, 1);
+  ok("(머2) 오늘 수업 머리에 날짜 고르개 — ◂ · 날짜 칸(오늘) · ▸ · 오늘은 「오늘로」가 없다", (await dp.count()) === 1 && /^\d{4}-\d{2}-\d{2}$/.test(t0) && (await dp.locator("button[data-act=day-today]").count()) === 0, await dp.textContent());
+  await dp.locator("button[data-act=day-prev]").click(); await p.waitForURL((u) => u.searchParams.get("d") === yesterdayText, { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("◂ 를 누르면 어제 판 — 주소에 ?d=어제 · 「오늘로」가 생긴다 · 「지난 날을 보고 있습니다」", (await p.locator("main [data-g=daypick] input[type=date]").inputValue()) === yesterdayText && (await p.locator("main [data-g=daypick] button[data-act=day-today]").count()) === 1 && (await p.locator("main [data-g=other-day]").textContent()).includes("지난 날"), (await p.locator("main [data-g=other-day]").textContent().catch(() => "없음")).slice(0, 120));
+  await p.locator("main [data-g=daypick] button[data-act=day-today]").click(); await p.waitForURL((u) => u.pathname === "/today" && !u.searchParams.get("d"), { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("「오늘로」를 누르면 맨 주소(/today)로 돌아온다 — 즐겨찾기가 늘 오늘을 연다", (await p.locator("main [data-g=other-day]").count()) === 0);
+  await p.locator("main [data-g=daypick] button[data-act=day-next]").click(); await p.waitForURL((u) => u.searchParams.get("d") === tomorrowText, { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("▸ 를 누르면 내일 판 — 「앞으로 올 날」 · 「마감은 그 날에」", (await p.locator("main [data-g=other-day]").textContent()).includes("앞으로 올 날") && (await p.locator("main [data-g=other-day]").textContent()).includes("마감은 그 날에"), (await p.locator("main [data-g=other-day]").textContent()).slice(0, 160));
+  { const r2 = p.locator(`.row[data-student='${S1_ROW}']`);
+    if (await r2.count()) { if ((await r2.getAttribute("data-open")) !== "1") { await r2.locator("button.open").click(); await p.waitForTimeout(400); }
+      const closeBtn = r2.locator("button[data-act=close]");
+      ok("내일 판에서는 **마감이 잠겨** 있다(임시 저장은 열려 있다) · 왜 잠겼는지 그 자리에서 말한다", !(await closeBtn.count()) || ((await closeBtn.isDisabled()) && (await r2.locator("[data-g=close-note]").textContent()).includes("마감이 잠겨")), (await r2.locator("[data-g=close-note]").textContent().catch(() => "글 없음")).slice(0, 100));
+    } else ok("내일은 그 반이 안 돌아 아이 줄이 없다(그 날 도는 반만 뜬다 — 맞는 동작)", true); }
+  await p.goto(`${APP}/today`); await p.waitForLoadState("networkidle").catch(() => {}); }
 const row = p.locator(`.row[data-student='${S1_ROW}']`);
 ok("리허설 학생 줄이 선다", (await row.count()) === 1, String(await p.locator(".row").count()));
 ok("어제 숙제 둘 + 그저께 하나 — 30일 안 안 본 숙제 전부가 검사 줄로 왔다(셋 · (카))", (await row.locator(".panel .chk").count()) === 3, String(await row.locator(".panel .chk").count()));

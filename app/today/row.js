@@ -26,7 +26,7 @@ const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
-export default function Row({ student, sheet, classId, classEnd = "", date, minutes, defaultOpen, cfg }) {
+export default function Row({ student, sheet, classId, classEnd = "", date, minutes, defaultOpen, cfg, future = false }) {
   const [open, setOpen] = useState(defaultOpen);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -71,7 +71,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} closed={closed} fail={fail} start={start} />
-            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} onCollapse={() => setOpen(false)} />
+            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} />
           </>}
         </div>
       )}
@@ -432,7 +432,7 @@ function UnitTestCard({ t, passPct, date, closed, fail, start }) {
 }
 /** ✉️ 부모님께 나갈 글(목업 01 · 03 폰) — 키워드 → 상황(갈래 다섯, 그날 상태에서 저절로) → 길이(상황이 먼저 고른다) → ✨ 브리핑(AI 초안 · 넘으면 문장 끝에서 자름 · 원장님 글은 덮지 않는다) → 글.
  *  글 밑에 저절로 붙는 줄과 👁 학부모 화면 미리보기(09·10 과 같은 판단). AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를 한 번 묻는다 — 막지 않는다(목업 9/5 ⑥) */
-function CommentCard({ sheet, student, closed, fail, start, cfg, phase, date, barHost, onCollapse }) {
+function CommentCard({ sheet, student, closed, fail, start, cfg, phase, date, barHost, future = false, onCollapse }) {
   const lines = attached({ next: student.quizzes?.next ?? [], late: sheet.late, warn: student.warn });
   const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check, exam: examPhase(student.exams ?? [], date, phase) });   // 시험전·시험후는 이 아이의 회차에서(06b)
   const [kind, setKind] = useState(sheet.comment_kind ?? autoKind);
@@ -488,10 +488,10 @@ function CommentCard({ sheet, student, closed, fail, start, cfg, phase, date, ba
         <button className="btn sm gho" type="button" data-act="preview" aria-pressed={show} onClick={() => setShow((v) => !v)}>👁 미리보기</button>
         <span className="note" style={{ margin: 0 }}>AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를, 늦귀가를 안 보낸 채 마감하면 「보내고 마감할까요?」를 한 번 묻습니다 — 막지는 않습니다</span></div>}
       {!closed && barHost && createPortal(<>
-        <button className="btn sm pri" type="button" data-act="close" onClick={() => finish(false)}>저장하고 마감</button>
+        <button className="btn sm pri" type="button" data-act="close" disabled={future} onClick={() => finish(false)}>저장하고 마감</button>
         <button className="btn sm" type="button" data-act="save" onClick={save}>임시 저장</button>
         <button className="btn sm gho" type="button" data-act="collapse" onClick={onCollapse}>닫기</button>
-        <span className="note" style={{ margin: 0 }}>마감하면 학부모 화면에 보입니다 — 되돌리기는 원장님께</span>
+        <span className="note" style={{ margin: 0 }} data-g="close-note">{future ? "앞으로 올 날이라 마감이 잠겨 있습니다 — 적어 두는 것(임시 저장)은 다 됩니다. 마감은 그 날에(마감이 곧 부모님께 나가는 문입니다)" : "마감하면 학부모 화면에 보입니다 — 되돌리기는 원장님께"}</span>
       </>, barHost)}
     </div>
   );
