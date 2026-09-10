@@ -74,7 +74,7 @@ ok("처음-8 school_book — (school_id, grade, year, book_id) 유니크 · 학�
 const tu = (await col(`select pg_get_functiondef('v2.todo_units(uuid,uuid,date)'::regprocedure)`))[0] ?? "";
 ok("확정-㊻ todo_units — 대단원 기준(ob = chapter)이면 is_workbook 을 뒤로(본책 전부 → 워크북 전부) · 소단원 기준은 (대,소)", /ob = 'chapter' and is_workbook then 1 else 0/.test(tu) && /order by ch_sort/.test(tu));
 // 0-3 읽은 줄 대조 — 판이 고친 때를 싣는다(셀 cells_at · 학생·문의 updated_at) — 손은 그 값이 그대로일 때만 덮는다(lib/grid·student·inquiry STALE)
-for (const [fn, key] of [["v2.grid_board(date)", "cells_at"], ["v2.student_board(uuid,date)", "'updated_at', st.updated_at"], ["v2.inquiry_board(date)", "'updated_at', q.updated_at"]]) {
+for (const [fn, key] of [["v2.grid_board(date)", "cells_at"], ["v2.student_board(uuid,date,date)", "'updated_at', st.updated_at"], ["v2.inquiry_board(date)", "'updated_at', q.updated_at"]]) {
   const body = (await col(`select pg_get_functiondef('${fn}'::regprocedure)`))[0] ?? "";
   ok(`0-3 ${fn} 이 고친 때(${key})를 싣는다`, body.includes(key));
 }
