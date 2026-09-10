@@ -1,6 +1,7 @@
 "use client";
 /** ✉️ 문자 문구(발송 10 · (커) 원장님 2026-09-10 「기본 틀은 너가 짜 돼 내가 자유롭게 내용을 추가 수정 할 수 있게 해 줘」 · 확정-71) —
  *  틀을 펼쳐 고치고 저장한다. 글자 수·갈래(SMS/LMS)는 서버와 같은 셈(lib/sms-plan) · 치환 자리는 눌러서 넣는다 · 「덧붙임」은 비면 그 줄이 사라진다 */
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveTemplateAct } from "./actions.js";
@@ -13,7 +14,8 @@ export default function Templates({ items = [], ready = false, placeholders = []
   const len = lenText(text);
   return (<div className="sgrp" data-card="templates">
     <div className="sgh"><b>✉️ 문자 문구 — 고쳐서 쓰십니다</b><span className="spacer" />
-      <span className={"pill" + (ready ? "" : " warn")} data-g="sms-ready">{ready ? "문자 길 켜짐(솔라피)" : "문자 길 없음 — 연동 solapi"}</span></div>
+      {ready ? <span className="pill" data-g="sms-ready">문자 길 켜짐(솔라피)</span>
+             : <Link prefetch={false} className="pill warn" href="/settings#keys" data-g="sms-ready" data-act="to-keys">문자 길 없음 — 설정에서 넣기 ↗</Link>}</div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="tpl-msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {!items.length && <p className="note" style={{ margin: 0 }}>문구가 없습니다 — 표 0154 를 넣으면 기본 틀이 섭니다.</p>}

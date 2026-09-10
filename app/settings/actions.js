@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
 import { allowIp } from "@/lib/arrival";
+import { saveKeys, testSms } from "@/lib/integration";   // (터) 연동 열쇠 — 원장만
 import { clientIp } from "@/lib/arrival-plan";
 export async function allowThisIp() {
   try {
@@ -17,3 +18,7 @@ export async function allowThisIp() {
     return { ok: true, ip, ...r };
   } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; }
 }
+/** (터) 연동 열쇠 — **원장만**. 판단·쓰기는 lib/integration.js 한 벌 · 화면으로는 가린 것만 나간다(확정-72) */
+async function principal() { const w = await guard(); if (w.me?.role !== ROLES.PRINCIPAL) throw new Error("원장님만 쓰는 자리입니다"); return w; }
+export async function saveKeysAct(id, form) { try { await principal(); return { ok: true, ...(await saveKeys(id, form ?? {})) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+export async function testSmsAct(to) { try { await principal(); return { ok: true, ...(await testSms(to)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
