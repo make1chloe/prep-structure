@@ -32,7 +32,7 @@ ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·일정·교재·운영·설정)", tabs.join(",") === "대시보드,오늘,발송,일정,교재,운영,설정", tabs.join(","));
+ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·일정·**내신**·**할 일**·교재·운영·설정 — (려) 원장님 9/10 「일정에 학교별표를 내신으로 할일을 따로 할일로」)", tabs.join(",") === "대시보드,오늘,발송,일정,내신,할 일,교재,운영,설정", tabs.join(","));
 // ⚠️ 탭 걷기는 /today 를 누르지 않는다 — 원장이 오늘 수업을 열면 아이의 오늘 판이 서서(「선생님이 오늘 수업을 열면」) 뒤의 아이 화면 걷기(등원 전 = 지난 판)가 어긋난다(게이트 64). 부작용 없는 발송·반 화면으로 밟는다
 console.log("■ 누른 즉시 표시(다) — 지금 탭이 파랗다 · 누르면 서버 답 전에 그 탭이 파랗고 상단 띠가 켜진다 · 답이 오면 띠가 꺼진다");
 const curTab = async () => (await p.locator("header.appbar nav.tabs a[aria-current='true']").allTextContents()).join(",");

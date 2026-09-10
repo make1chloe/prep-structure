@@ -25,5 +25,15 @@ ok("띠(going.js) — 문서 click 하나로 듣고(a[href] 내부만) · go() �
 ok("탭(tabs.js) — 지금 탭은 lib/menu currentTab 한 곳 · 누르면 먼저 aria-current · LIMIT_MS 뒤 내린다", /^"use client"/.test(tabs) && /currentTab\b.*from "@\/lib\/menu"/.test(tabs) && /aria-current=/.test(tabs) && /setPressed\(m\.href\)/.test(tabs) && /LIMIT_MS/.test(tabs));
 ok("껍질(shell.js) — <Tabs> 와 <Going>(Suspense 안 · useSearchParams) 을 상단바에 그린다", /<Tabs items=/.test(shell) && /<Suspense fallback=\{null\}><Going \/><\/Suspense>/.test(shell));
 const items = menuFor("principal", []);
-ok("currentTab 판단 — / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 가장 긴 앞머리(/schedule/todo → 일정 · /ops/students → 운영) · 메뉴에 없는 화면(/scores)·아이 화면(/me)은 null", items.length === 7 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/todo") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/students") === "/ops" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/scores") === null && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/todo", "/scores"].map((p) => currentTab(items, p)).join(",")}`);
+ok("currentTab 판단 — / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 가장 긴 앞머리(/ops/students → 운영 · /schedule/exams → 일정) · 메뉴에 없는 화면(/scores)·아이 화면(/me)은 null", items.length === 9 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/exams") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/students") === "/ops" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/scores") === null && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/exams", "/scores"].map((p) => currentTab(items, p)).join(",")}`);
+ok("(려) 탭 아홉 — 일정 뒤에 **내신**(학교별 표)과 **할 일**이 따로 선다(원장님 2026-09-10 「일정에 학교별표를 내신으로 할일을 따로 할일로」) · 그 화면에서는 그 탭이 파랗다",
+  items.map((m) => m.name).join(",") === "대시보드,오늘,발송,일정,내신,할 일,교재,운영,설정"
+  && currentTab(items, "/schedule/grid") === "/schedule/grid" && currentTab(items, "/schedule/todo") === "/schedule/todo",
+  items.map((m) => `${m.name}(${m.href})`).join(" · "));
+ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** — 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 열쇠는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
+  items.filter((m) => m.href.startsWith("/schedule")).every((m) => m.key === "page.schedule")
+  && !/page\.(prep|grid|todo)/.test(readFileSync("lib/perm.js", "utf8")));
+ok("(려) 폰에서 탭이 아홉이어도 **띠가 세 줄이 안 된다** — 줄을 바꾸지 않고 옆으로 굴린다(원장님 9/9 「여백없이」가 안 무너지게)",
+  (() => { const css = readFileSync("app/globals.css", "utf8");
+    return /\.appbar \.tabs\{[^}]*flex-wrap:nowrap/.test(css) && /\.appbar \.tabs\{[^}]*overflow-x:auto/.test(css); })());
 console.log(`\n■ 화면 이동 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

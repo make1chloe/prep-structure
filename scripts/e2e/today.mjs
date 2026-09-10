@@ -28,9 +28,9 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 const steady = requestsSince(at);
 ok(`다시 열기(판이 있다) 조회 ≤ 20 — ${steady}`, steady >= 0 && steady <= 20, steady < 0 ? "로그 없음 " + LOG : "");
 { await p.setViewportSize(VIEWS[1].viewport); await p.waitForTimeout(300);   // (거) 폰 상단 띠 — 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」
-  const h = await p.evaluate(() => { const r = (q) => document.querySelector(q)?.getBoundingClientRect(); const b = r("header.appbar .brand"), o = r("header.appbar form button"), t = r("header.appbar nav.tabs"), last = r("header.appbar nav.tabs a:last-child"), first = r("header.appbar nav.tabs a:first-child"); return b && o && t && last && first ? { sameRow: Math.abs(b.top - o.top) < 4, logoutRight: o.right > innerWidth - 40, tabsBelow: t.top >= b.bottom - 1, tabsWide: t.width > innerWidth * 0.8, tabsOneRow: Math.abs(first.top - last.top) < 4, hdr: Math.round(r("header.appbar").height) } : null; });
+  const h = await p.evaluate(() => { const r = (q) => document.querySelector(q)?.getBoundingClientRect(); const b = r("header.appbar .brand"), o = r("header.appbar form button"), t = r("header.appbar nav.tabs"), last = r("header.appbar nav.tabs a:last-child"), first = r("header.appbar nav.tabs a:first-child"); return b && o && t && last && first ? { sameRow: Math.abs(b.top - o.top) < 4, logoutRight: o.right > innerWidth - 40, tabsBelow: t.top >= b.bottom - 1, tabsWide: t.width > innerWidth * 0.8, tabsOneRow: Math.abs(first.top - last.top) < 4, tabsScroll: document.querySelector("header.appbar nav.tabs").scrollWidth > document.querySelector("header.appbar nav.tabs").clientWidth, tabs: document.querySelectorAll("header.appbar nav.tabs a").length, hdr: Math.round(r("header.appbar").height) } : null; });
   await p.setViewportSize(VIEWS[0].viewport); await p.waitForTimeout(200);
-  ok("(거) 폰 상단 띠 — 로그아웃이 첫 줄(이름·칩) 오른끝 · 탭은 둘째 줄에 꽉 차게 · 390 에 탭 일곱이 한 줄(빈 셋째 줄 없음)", !!h && h.sameRow && h.logoutRight && h.tabsBelow && h.tabsWide && h.tabsOneRow, JSON.stringify(h)); }
+  ok("(거)(려) 폰 상단 띠 — 로그아웃이 첫 줄(이름·칩) 오른끝 · 탭은 둘째 줄에 꽉 차게 · **탭 아홉이 한 줄**(390 을 넘으면 줄을 바꾸지 않고 옆으로 굴린다 — 빈 셋째 줄 없음)", !!h && h.sameRow && h.logoutRight && h.tabsBelow && h.tabsWide && h.tabsOneRow && h.tabs === 9, JSON.stringify(h)); }
 const S1_ROW = "99999999-0000-4000-9000-000000000001";   // 리허설 학생 줄은 id 로 — 이름이 같은 fixture 줄(0004)이 있고, 요일에 따라 줄 차례가 다르다(2026-09-07 월요일 실측)
 const row = p.locator(`.row[data-student='${S1_ROW}']`);
 ok("리허설 학생 줄이 선다", (await row.count()) === 1, String(await p.locator(".row").count()));
@@ -1096,6 +1096,16 @@ ok("(허) 설정에서 확인·처분하면 14 카드도 곧바로 빈다 — �
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-progress-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 학교별 표 06c — + 새 표(본에서) · 줄(학교) · 셀 종류마다(손 떼면 저장) · + 칸 · 표 ↔ 보드 조회 0 · 카드 ▶ = 선택 칸 값 · 칸 내리기 · 따로 챙길 아이 · 표 삭제 = 내림 · 되살리기");
+// (려) 상단 탭에서 바로 — 원장님 2026-09-10 「일정에 학교별표를 내신으로 할일을 따로 할일로 메뉴를 나누는게 어떤가 싶어」
+{ await p.goto(`${APP}/`); await p.waitForLoadState("networkidle").catch(() => {});
+  const tabs = p.locator("header.appbar nav.tabs a");
+  ok("(려) 상단 탭 아홉 — 대시보드 · 오늘 · 발송 · 일정 · **내신** · **할 일** · 교재 · 운영 · 설정", (await tabs.allTextContents()).map((t) => t.trim()).join(",") === "대시보드,오늘,발송,일정,내신,할 일,교재,운영,설정", (await tabs.allTextContents()).join(" · "));
+  await tabs.filter({ hasText: "내신" }).click(); await p.waitForURL((u) => u.pathname === "/schedule/grid", { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("「내신」을 누르면 학교별 표(06c) · 그 탭이 파랗다(주소는 /schedule/grid 그대로 — 안 옮겼다)", (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === "내신", await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent());
+  await p.locator("header.appbar nav.tabs a").filter({ hasText: "할 일" }).click(); await p.waitForURL((u) => u.pathname === "/schedule/todo", { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("「할 일」을 누르면 내 할 일(05) · 그 탭이 파랗다", (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === "할 일", await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent());
+  await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("시험 회차(12b)는 그대로 「일정」 아래 — 얹은 탭이 남의 화면을 뺏지 않는다", (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === "일정", await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()); }
 await p.goto(`${APP}/schedule/grid`); await p.waitForLoadState("networkidle").catch(() => {});
 const gr = p.locator("main");
 ok("표가 없을 때 — 「+ 새 표」 안내 · 따로 챙길 아이들 0명 · 전체 N", (await gr.locator("[data-g=empty]").count()) === 1 && (await gr.locator("[data-g=watch-noted]").textContent()) === "0명" && (await gr.locator("[data-g=watch-chips] .schip").count()) >= 2, (await gr.locator("[data-g=head]").textContent()).replace(/\s+/g, " "));

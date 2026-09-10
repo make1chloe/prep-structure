@@ -45,6 +45,10 @@ ok("「한 줄」과 「덧붙임」은 비면 그 줄이 통째로 사라진다
     return /SMS_ALSO/.test(tpl) && /SMS_ALSO/.test(send) && !/\[\s*\[\s*"late"/.test(tpl); })());
   ok("걷기가 갈래 토글을 눌러본다 — 켜고 · 새로 읽어도 켜져 있고 · 다시 눌러 끈다", (() => { const w = strip(readFileSync("scripts/e2e/today.mjs", "utf8"));
     return /data-act=sms-kind/.test(w) && /문자로도: 늦은 귀가/.test(w) && /문자로도 보내는 갈래가 없습니다/.test(w); })());
+  ok("(려) 스위치 값이 이상해도 **화면은 열린다** — 안 나가는 쪽(off)으로 잠근 채 그 자리에서 빨갛게 말한다(원장님 9/10 밤 값을 `1` 로 넣으셨더니 발송 10 이 통째로 안 열렸다) · 보내는 자리는 sinkOf 가 그대로 던져 막는다",
+    (() => { const np = strip(readFileSync("lib/notify-plan.js", "utf8")), sd = strip(readFileSync("lib/send.js", "utf8")), b = strip(readFileSync("app/send/board.js", "utf8")), nt = strip(readFileSync("lib/notify.js", "utf8"));
+      return /export function sinkSafe/.test(np) && /sinkSafe\(env\)/.test(sd) && /sinkBad/.test(sd) && /data-g="sink-bad"/.test(b)
+        && /sinkOf\(env\)/.test(nt) && !/sinkSafe/.test(nt); })());
   ok("리허설이면 **켜는 법**을 화면이 그 자리에서 말한다(원장님 9/10 「문자 안보내져」 — 앱이 아니라 Vercel 스위치였다 · 문서에만 적으면 원장님이 문서를 찾으셔야 한다)",
     (() => { const b = strip(readFileSync("app/send/board.js", "utf8")), w = strip(readFileSync("scripts/e2e/today.mjs", "utf8"));
       return /data-g="sink-how"/.test(b) && /NOTIFY_SINK/.test(b) && /Redeploy/.test(b) && /Production/.test(b) && /data-g=sink-how/.test(w); })()); }
