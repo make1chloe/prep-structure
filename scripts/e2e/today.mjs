@@ -1128,6 +1128,18 @@ ok("빈 표 하나 더 → 알약 둘 「학교별 교재 · 빈 표」 · 빈 �
   ok("(라) 취소하면 이름 그대로 · 입력칸 없음", (await gr.locator("[data-g=grid-label]").first().textContent()) === gl && (await gr.locator("input[data-g=rename]").count()) === 0, await gr.locator("[data-g=grid-label]").first().textContent()); }
 await gr.locator("button[data-act=grid-left]").click(); await p.waitForFunction(() => document.querySelector("[data-g=msg]")?.textContent?.includes("표 차례를 바꿨습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("표 ◀ → 알약 차례 「빈 표 · 학교별 교재」(sort 10씩 · 판이 sort 차례로 준다) · 이제 ◀ 잠김 · ▶ 열림", (await gr.locator("[data-g=tabs] button[data-act=tab]").allTextContents()).map((t) => t.replace(/\s*\d+$/, "").trim()).join(" · ") === "빈 표 · 학교별 교재" && (await gr.locator("button[data-act=grid-left]").isDisabled()) && !(await gr.locator("button[data-act=grid-right]").isDisabled()), (await gr.locator("[data-g=tabs]").textContent()).replace(/\s+/g, " "));
+console.log("■ (터) 설정 🔌 연동 열쇠 — 원장이 앱에서 넣고 고친다(확정-72) · 넣어 둔 것은 가려서만 · 빈 칸은 그대로");
+await p.goto(`${APP}/settings`); await p.waitForLoadState("networkidle").catch(() => {});
+{ const st = p.locator("[data-card=keys]"), sol = st.locator("[data-g=key-row][data-key=solapi]"), neis = st.locator("[data-g=key-row][data-key=neis]");
+  ok("카드 — 갈래 셋(솔라피·나이스·앤트로픽) · 씨앗 솔라피는 「켜짐」 + 가린 값(API Key 앞 넉 자 · Secret 은 ●●●●) · 나이스는 「안 켜짐」", (await st.locator("[data-g=key-row]").count()) === 3 && (await sol.getAttribute("data-ready")) === "1" && (await sol.locator("small").textContent()).includes("●●●●") && !(await sol.locator("small").textContent()).includes("zz_test_secret") && (await neis.getAttribute("data-ready")) === "0", (await sol.locator("small").textContent()).slice(0, 120));
+  await neis.locator("button[data-act=key-edit]").click(); await p.waitForTimeout(300);
+  await neis.locator("input[name=key-key]").fill("zz_나이스_열쇠"); await neis.locator("button[data-act=key-save]").click(); await p.waitForTimeout(2500); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("나이스 인증키를 넣으면 「인증키 고쳤습니다」 · 그 줄이 「켜짐」 · 값은 ●●●● 로만 보인다(SQL 없이 앱에서)", (await st.locator("[data-g=keys-msg]").textContent()).includes("고쳤습니다") && (await st.locator("[data-g=key-row][data-key=neis]").getAttribute("data-ready")) === "1" && (await st.locator("[data-g=key-row][data-key=neis] small").textContent()).includes("●●●●"), await st.locator("[data-g=keys-msg]").textContent().catch(() => "없음"));
+  await st.locator("[data-g=key-row][data-key=solapi] input[name=test-to]").fill("010-9999-1234");
+  await st.locator("button[data-act=sms-test]").click(); await p.waitForTimeout(2500);
+  ok("✉️ 시험 한 통 — 리허설(NOTIFY_SINK=off)이라 자취만 · 가린 번호 010-****-1234", (await st.locator("[data-g=keys-msg]").textContent()).includes("자취만 — 010-****-1234"), await st.locator("[data-g=keys-msg]").textContent().catch(() => "없음")); }
+await p.goto(`${APP}/schedule/import`); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(터) 12b — 열쇠를 넣었으니 「🔄 다시 받기」가 켜지고 「열쇠 없음」 줄이 사라진다", !(await p.locator("main button[data-act=import]").isDisabled()) && (await p.locator("[data-g=no-key]").count()) === 0);
 console.log("■ 신규 상담 18 — + 전화 문의 → 🔥 오늘 답할 것 · 📨 안내 보냄 · 방문 잡기 → 상담 잡힘 · 점수 → 레벨 봄 · 제안 · 등록 전환(반 · 교재 · 아이디) → 일곱이 저절로(학생 · 계정 둘 · 반 · 교재 · 루틴 · 결제선생 할 일 · 첫 등원 안내)");
 await p.goto(`${APP}/ops/inquiry`); await p.waitForLoadState("networkidle").catch(() => {});
 const iq = p.locator("main");
