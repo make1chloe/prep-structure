@@ -26,7 +26,12 @@ ok("비밀번호는 어디에도 안 적는다 — 크롬에 이미 로그인된
 ok("type=password 를 안 쓴다 — 브라우저 자동완성이 열쇠를 덮던 사고((퍼) 9/10)와 같은 자리다", !/type=["']password/.test(html) && /data-1p-ignore/.test(html));
 
 console.log("■ 받는 길 하나 · 앱과 같은 상한(대전제-7)");
-ok("앱을 부르는 자리는 /api/cc 하나뿐이다", (bg.match(/\/api\//g) ?? []).length === 1 && /\/api\/cc/.test(bg));
+ok("앱을 부르는 자리는 **둘**뿐이다 — /api/cc(클래스카드) · /api/site((버2) 학교 홈페이지). 그 밖의 주소를 안 부른다",
+  (bg.match(/\/api\//g) ?? []).length === 2 && /\/api\/cc/.test(bg) && /\/api\/site/.test(bg));
+ok("(버2) 학교 홈페이지도 **확장은 판정하지 않는다** — 날짜 꼴·시험 낱말 규칙이 확장에 없다(학교마다 생김새가 달라, 규칙을 확장에 넣으면 학교 수만큼 흩어진다)",
+  !/중간고사|기말고사|학사일정.*정규|\d\{4\}\)?\s*[-.]\s*\(\?/.test(bg) && !/readDate|kindOf|examName/.test(bg));
+ok("(버2) 홈페이지에서는 **지금 열린 화면**만 읽는다 — 남의 탭을 돌아다니지 않는다(activeTab · currentWindow)",
+  /currentWindow: true/.test(bg) && /active: true/.test(bg) && !/chrome\.tabs\.query\(\{\}\)/.test(bg));
 ok(`한 번에 보내는 양이 앱 상한과 같은 수(아이 ${MAX_STUDENTS} · 줄 ${MAX_ROWS}) — 넘겨 보내면 앱이 짐 전체를 되돌린다`,
   new RegExp(`MAX_ROWS = ${MAX_ROWS}\\b`).test(bg) && new RegExp(`MAX_STUDENTS = ${MAX_STUDENTS}\\b`).test(bg));
 ok("상한을 넘으면 짐을 나눠 보낸다(chunk) — 한 아이의 줄이 많아도 나눈다", /function chunk\(/.test(bg) && /MAX_ROWS - rows/.test(bg));
@@ -37,8 +42,9 @@ ok("한 아이가 막혀도 나머지는 보낸다(그 아이의 줄이 없는 �
 ok("15분마다 저절로 돈다(alarms) · 크롬을 켤 때도 다시 잡는다", /periodInMinutes/.test(bg) && /onStartup/.test(bg));
 
 console.log("■ manifest");
-ok("MV3 · 쿠키를 쓰는 곳은 클래스카드와 앱 둘뿐 · 여분 권한이 없다", man.manifest_version === 3
+ok("MV3 · 쿠키를 쓰는 곳은 클래스카드와 앱 둘뿐 · 권한은 넷뿐이다(alarms·storage · (버2) scripting·activeTab — 지금 열린 화면 글을 읽으려면 필요) · 여분 없다",
+  man.manifest_version === 3
   && man.host_permissions.some((h) => h.includes("classcard.net")) && man.host_permissions.some((h) => h.includes("chloe-english"))
-  && JSON.stringify(man.permissions) === JSON.stringify(["alarms", "storage"]), JSON.stringify(man.permissions));
+  && JSON.stringify(man.permissions) === JSON.stringify(["alarms", "storage", "scripting", "activeTab"]), JSON.stringify(man.permissions));
 console.log(`\n■ 클래스카드 확장 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

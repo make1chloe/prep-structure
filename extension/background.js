@@ -141,11 +141,51 @@ async function safeRun() {
   }
 }
 
+/** (버2) 🏫 학교 홈페이지 — 지금 열려 있는 화면의 **글을 그대로** 앱에 보낸다.
+ *  학교마다 생김새가 달라 **여기서 판정하지 않는다**: 날짜가 어느 것인지·무엇이 시험인지는 앱이 정한다(고칠 곳이 앱 한 곳).
+ *  기계 날짜(data-date · datetime · time[datetime])가 있으면 그것도 같이 보낸다 — 달력 꼴이면 그것만이 날짜다. */
+async function sendSite(schoolName) {
+  const c = await cfg();
+  if (!c.token) throw new Error("팝업에서 확장 열쇠를 먼저 넣어 주세요");
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("보낼 화면이 없습니다 — 학교 학사일정 화면을 열고 눌러 주세요");
+  const [got] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => {
+    const out = [], seen = new Set();
+    for (const el of document.querySelectorAll("td, li, tr, .day, [data-date], time")) {
+      const text = (el.innerText ?? "").replace(/\s+/g, " ").trim();
+      if (!text || text.length > 200) continue;
+      const date = el.getAttribute?.("data-date") ?? el.getAttribute?.("datetime") ?? el.querySelector?.("[data-date],time[datetime]")?.getAttribute("data-date") ?? el.querySelector?.("time[datetime]")?.getAttribute("datetime") ?? null;
+      const key = `${date ?? ""}|${text}`;
+      if (seen.has(key)) continue; seen.add(key);
+      out.push(date ? { text, date: String(date).slice(0, 10) } : { text });
+      if (out.length >= 2000) break;
+    }
+    return { rows: out, url: location.href, title: document.title };
+  } });
+  const rows = got?.result?.rows ?? [];
+  if (!rows.length) throw new Error("화면에서 글을 못 읽었습니다 — 학사일정이 보이는 화면에서 눌러 주세요");
+  const res = await fetch(`${String(c.appUrl).replace(/\/+$/, "")}/api/site`, {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${c.token}` },
+    body: JSON.stringify({ school: schoolName, url: got?.result?.url ?? "", rows }),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.error || `앱이 안 받았습니다(HTTP ${res.status})`);
+  if (json?.ok === false) throw new Error(json.why || "앱이 못 읽었습니다");
+  return json;
+}
 const arm = () => chrome.alarms.create("cc-sync", { periodInMinutes: PERIOD_MIN, delayInMinutes: 1 });
 chrome.runtime.onInstalled.addListener(arm);
 chrome.runtime.onStartup.addListener(arm);
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === "cc-sync") safeRun(); });
 chrome.runtime.onMessage.addListener((msg, _s, reply) => {
   if (msg === "run-now") { safeRun().then(() => reply({ ok: true })); return true; }   // 결과는 저장소에서 읽는다
+  if (msg?.kind === "site") {   // (버2) 학교 홈페이지 — 지금 화면을 보낸다(결과·실패도 저장소에)
+    chrome.storage.local.set({ busy: true, progress: "홈페이지를 읽는 중…", lastError: null });
+    sendSite(msg.school)
+      .then((r) => chrome.storage.local.set({ busy: false, progress: null, lastRun: new Date().toISOString(), lastError: null, lastSite: r }))
+      .catch((e) => chrome.storage.local.set({ busy: false, progress: null, lastRun: new Date().toISOString(), lastError: String(e?.message ?? e).slice(0, 300) }))
+      .finally(() => reply({ ok: true }));
+    return true;
+  }
   return false;
 });

@@ -1,11 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "클로이영어 — 클래스카드",
-  "version": "2.0",
-  "description": "원장님 크롬에 이미 로그인된 클래스카드로 플래너를 읽어 클로이영어 앱에 보냅니다. 비밀번호는 어디에도 저장하지 않습니다.",
-  "permissions": ["alarms", "storage"],
-  "host_permissions": ["https://www.classcard.net/*", "https://chloe-english.vercel.app/*"],
-  "optional_host_permissions": ["https://*/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_popup": "popup.html", "default_title": "클로이영어 — 클래스카드" }
+  "name": "클로이영어 — 클래스카드 · 학교 홈페이지",
+  "version": "2.1",
+  "description": "클래스카드 플래너와 학교 홈페이지 학사일정을 클로이영어 앱에 보냅니다. 비밀번호는 어디에도 저장하지 않습니다.",
+  "permissions": [
+    "alarms",
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.classcard.net/*",
+    "https://chloe-english.vercel.app/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "클로이영어 — 클래스카드 · 학교 홈페이지"
+  }
 }

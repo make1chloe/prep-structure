@@ -7,6 +7,7 @@ import { importAct, examWordAct, siteUrlAct, englishOnAct, examAct, searchSchool
 import { md, seoulDate, changeText } from "@/lib/dash-plan";
 import { weekdayName } from "@/lib/day-plan";
 import { LEVEL_CHAR } from "@/lib/neis-plan";
+import { staleText } from "@/lib/site-plan";   // (버2) 「N일째 못 받았습니다」 — 학교가 홈페이지를 바꾸면 조용히 멈춘다
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 const srcTag = (e) => (e.source === "neis" ? <span className="tag on">나이스</span> : e.source === "site" ? <span className="tag act">홈페이지에서</span> : <span className="tag" style={MISS}>손으로</span>);
 export default function Board({ d }) {
@@ -48,7 +49,7 @@ export default function Board({ d }) {
     </div>
     <div className="card" style={{ marginTop: 8 }} data-g="no-neis">
       <div className="ctitle"><span className="cemo">🧩</span>나이스에 없는 것 — 학교 찾기 · 홈페이지 주소 · 손으로 넣기</div>
-      {(b.schools ?? []).map((s) => <div key={s.id} className="li" data-g="school-line" data-school={s.id}><span className="n">{s.neis_code ? "✓" : "?"}</span><div style={{ flex: "1 1 auto", minWidth: 0 }}><b>{s.name}</b><small>{s.students}명 · {s.neis_code ? `나이스 코드 ${s.neis_code} · 받은 시험 ${s.neis_exams}` : "나이스 코드 없음 — 찾아서 붙이세요"}{s.site_url ? <> · <a href={s.site_url} target="_blank" rel="noreferrer" data-g="site-link">홈페이지 ↗</a></> : " · 홈페이지 주소 없음"}</small>
+      {(b.schools ?? []).map((s) => <div key={s.id} className="li" data-g="school-line" data-school={s.id}><span className="n">{s.neis_code ? "✓" : "?"}</span><div style={{ flex: "1 1 auto", minWidth: 0 }}><b>{s.name}</b><small>{s.students}명 · {s.neis_code ? `나이스 코드 ${s.neis_code} · 받은 시험 ${s.neis_exams}` : "나이스 코드 없음 — 찾아서 붙이세요"}{s.site_exams > 0 ? ` · 홈페이지에서 받은 시험 ${s.site_exams}` : ""}{s.site_url ? <> · <span data-g="site-seen">{s.site_seen_at ? `${md(seoulDate(s.site_seen_at))} 받음` : "아직 한 번도 못 받음"}</span></> : null}{s.site_url && staleText(s.site_seen_at, d.date) ? <> · <b data-g="site-stale" style={{ color: "var(--miss)" }}>{staleText(s.site_seen_at, d.date)}</b></> : null}{s.site_url ? <> · <a href={s.site_url} target="_blank" rel="noreferrer" data-g="site-link">홈페이지 ↗</a></> : " · 홈페이지 주소 없음"}</small>
         <div className="wv" style={{ marginTop: 4 }}>
           <input value={urls[s.id] ?? s.site_url ?? ""} onChange={(e) => setUrls({ ...urls, [s.id]: e.target.value })} placeholder="https:// 학교 홈페이지" aria-label="홈페이지 주소" name="site" style={{ flex: "1 1 200px" }} /><button className="btn sm" type="button" disabled={pending} data-act="site-save" onClick={() => run(() => siteUrlAct(s.id, urls[s.id] ?? ""), "주소를 적었습니다")}>🔗 주소 저장</button>
           <button className="btn sm gho" type="button" disabled={pending || !b.neis_key} data-act="find-open" title={b.neis_key ? "" : "나이스 열쇠가 없습니다"} onClick={() => setFind({ schoolId: s.id, q: s.name, rows: null })}>학교 찾기</button></div>
@@ -73,7 +74,7 @@ export default function Board({ d }) {
       <div className="rl"><span className="k">손으로 넣은 것</span><span className="v">출처가 「손으로」인 줄은 받아오기가 <b>안 건드립니다</b> — 원장님이 고친 것을 지우지 않습니다</span></div>
       <div className="rl"><span className="k">학년이 빈 채로</span><span className="v">나이스는 <b>학년을 안 주는 일이 많습니다.</b> 한 학년만 보는 회차에만 학년을 적습니다</span></div>
       <div className="rl"><span className="k">영어 시험일</span><span className="v"><b>안 옵니다.</b> 위에서 한 줄 넣으면 전날 등원·안내·마감이 한꺼번에 섭니다(다음 단계)</span></div>
-      <div className="rl"><span className="k">브라우저 확장</span><span className="v">학교 홈페이지에서 날짜를 찾아 보내는 확장은 <b>아직</b> — 그때까지는 홈페이지 주소를 열어 손으로 넣습니다</span></div>
+      <div className="rl"><span className="k">브라우저 확장</span><span className="v">(버2) 홈페이지 주소를 넣어 둔 학교는 <b>확장이 그 화면 글을 앱에 보내고 앱이 날짜를 뽑습니다</b> — 학교마다 생김새가 달라 <b>확장은 판정하지 않습니다</b>(고칠 곳이 앱 한 곳). 학교가 홈페이지를 바꾸면 조용히 멈추므로, 학교 줄에 <b>마지막으로 받은 때</b>를 적어 두었습니다 · 확장이 없으면 지금처럼 손으로 넣으셔도 됩니다</span></div>
     </div>
   </>;
 }

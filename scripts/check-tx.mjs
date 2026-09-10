@@ -26,6 +26,7 @@ const KNOWN = {
   "lib/todo.js:handOut": "나눠 줌 + 할 일 hand 끝 — 같은 결(sync)",
   "lib/classes.js:addClass": "반 줄 + 첫 시간표 — 시간표가 안 서면 「시간표 없음」으로 보여 다시 적는다(반은 남는다)",
   "lib/classes.js:closeClass": "반 닫기 = 상태 + 시간표·명단·단가 줄을 전날까지로 닫기(뒤에 시작하는 줄은 빈 기간으로) — 상태가 먼저 닫혀 화면·회차에서 빠지고, 줄 하나가 안 닫히면 다시 닫으면 선다(지우지 않는다)",
+  "lib/site.js:receiveSite": "회차(exams — source,source_key 로 멱등한 upsert)가 먼저 서고 **맨 끝에** schools.site_seen_at 에 받은 때를 찍는다 — 때가 안 찍히면 12b 가 「아직 한 번도 못 받음」이라고 오히려 **더 세게** 말할 뿐이라 조용히 어긋나지 않고(대전제-0), 확장이 다시 보내면 source_key 가 같아 회차는 그대로고 때만 찍힌다((버2))",
   "lib/warn.js:reflect": "반성문(원본) + 그날 판 항목(보이는 표시) — 항목이 안 서면 3b 카드가 반성문 줄을 원본으로 안다",
 };
 const files = (d) => readdirSync(d).filter((f) => f.endsWith(".js")).map((f) => `${d}/${f}`);

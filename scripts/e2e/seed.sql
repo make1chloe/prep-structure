@@ -250,3 +250,8 @@ insert into v2.cc_planner (student_id, date, set_name, set_type, complete, learn
   where not exists (select 1 from v2.cc_planner where student_id = '99999999-0000-4000-9000-000000000001' and date = v2.today() and set_name = 'zz_문장 2과');
 insert into v2.cc_due (student_id, date) select '99999999-0000-4000-9000-000000000001', v2.today()
   where not exists (select 1 from v2.cc_due where student_id = '99999999-0000-4000-9000-000000000001' and date = v2.today());
+
+-- (버2) 확장 열쇠 — 🃏 클래스카드와 🏫 학교 홈페이지가 **같은 열쇠 한 벌**을 쓴다(원장님이 열쇠를 하나만 챙기신다).
+--   걷기가 이 열쇠로 POST /api/site 를 눌러 본다 · 틀린 열쇠면 401.
+insert into v2.integration (id, config) values ('classcard', '{"token": "zz_ext_key_1234567890"}'::jsonb)
+  on conflict (id) do update set config = v2.integration.config || '{"token": "zz_ext_key_1234567890"}'::jsonb;
