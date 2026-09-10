@@ -6,6 +6,7 @@ import { decide, ME } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { myStudent } from "@/lib/arrival";
 import { roadBoard } from "@/lib/road";
+import { accessQuery } from "@/lib/access";
 import Board from "./board.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
@@ -16,9 +17,11 @@ export default async function Road({ searchParams }) {
   const q = await searchParams;
   let d;
   try {
-    const [date, st] = await Promise.all([today(sb), myStudent(sb, user.id)]);
+    const [date, st, acc] = await Promise.all([today(sb), myStudent(sb, user.id), accessQuery(sb, ROLES.STUDENT)]);   // 권한은 파도에 태운다 — 층이 안 는다(속도-1)
     const b = /^[0-9a-f-]{36}$/.test(String(q?.b ?? "")) ? String(q.b) : null;
-    d = { date, board: await roadBoard(sb, st.id, b, date), studentId: st.id };
+    d = { date, board: await roadBoard(sb, st.id, b, date), studentId: st.id, access: acc?.data ?? [] };
   } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 로드맵을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
-  return frame(<Board d={d} />);
+  // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 — 07 의 「내 교재」 카드와 **같은 열쇠**다(달력 09b 와 같은 꼴)
+  if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 「내 교재」를 켜면 보입니다.</p></div>);
+  return frame(<Board d={d} canFlag={decide(ROLES.STUDENT, d.access, ME.flags) === true} />);
 }

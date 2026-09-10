@@ -5,6 +5,8 @@ import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { myStudent } from "@/lib/arrival";
+import { accessQuery } from "@/lib/access";
+import { decide, ME } from "@/lib/perm";
 import { mineBoard } from "@/lib/files";
 import { ruleMap } from "@/lib/rule";
 import { myRows, mmss, nextOf, opensText } from "@/lib/video-plan";
@@ -22,11 +24,13 @@ export default async function MyVideos({ searchParams }) {
   let d;
   try {
     const [date, st] = await Promise.all([today(sb), myStudent(sb, user.id)]);
-    const [mine, rules] = await Promise.all([mineBoard(sb, st.id, date), ruleMap(sb, ["video."])]);   // 📎·🎬 한 판(붙임은 안 쓴다 — 조회 하나)
+    const [mine, rules, acc] = await Promise.all([mineBoard(sb, st.id, date), ruleMap(sb, ["video."]), accessQuery(sb, ROLES.STUDENT)]);   // 📎·🎬 한 판 + 권한(같은 파도 — 층이 안 는다)
     const list = myRows(mine.assigns, mine.progress, Number(rules["video.done_pct"] ?? 95), date);
     const open = list.find((r) => r.video_id === String(sp?.v ?? "")) ?? null;
-    d = { date, list, open, next: open ? nextOf(list, open.video_id) : null };   // ⑥ 다음 영상(안 본 것 차례)
+    d = { date, list, open, next: open ? nextOf(list, open.video_id) : null, access: acc?.data ?? [] };   // ⑥ 다음 영상(안 본 것 차례)
   } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 영상을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
+  // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 — 07 의 영상 카드와 **같은 열쇠**다
+  if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 「내 교재」를 켜면 보입니다.</p></div>);
   const left = d.list.filter((r) => r.status.key !== "done").length;
   return frame(<>
     <div className="wv" style={{ margin: "0 0 4px" }}><Link prefetch={false} className="btn sm gho" href="/me">← 나</Link><b style={{ fontSize: "var(--fs-6)" }}>🎬 영상</b><span className="spacer" /><span className={"pill" + (left ? " warn" : "")} data-g="left">{left ? `${left}개 남음` : d.list.length ? "다 봤어요" : "없음"}</span></div>

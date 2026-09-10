@@ -1,4 +1,5 @@
 /** 학부모 화면 검사(검사-㊽ · 목업 09) — 순수 판단 lib/parent-plan.js: 숙제 % · 오늘 수업 꼬리표(시험 N/N · 숙제 %) · 오늘 늦게 갑니다(보낸 것만 · 실제 하원이 찍히면 바뀐다) · 보낸 것 줄 · 오늘 등원·하원 한 줄 · 다음 시간 시험(개수 정한 것만) */
+import { readFileSync } from "node:fs";
 import { homeworkPct, sheetTags, todayLate, sentLines, todayArrival, nextQuizLines, feeLine, noticeLines } from "../lib/parent-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -24,5 +25,11 @@ ok("수납 줄이 있으면 「9월 수강료 300,000원」 · 받음 9/7 · 작
 ok("아직 안 받았으면 알약 「아직」 · 안내 글", feeLine({ ym: "2026-09", amount: 200000, paid_on: null }, "2026-09").pill === "아직" && feeLine({ amount: 200000 }, "2026-10").text === "10월 수강료 200,000원");
 const nl = noticeLines([{ id: 1, kind: "daily", url: "/parent", sent_at: "2026-09-06T12:30:00+00:00", opened_at: "2026-09-06T13:05:00+00:00" }, { id: 2, kind: "fee", url: "/parent#fee", sent_at: "2026-09-07T01:00:00+00:00", opened_at: null }, { id: 3, kind: "late", url: null, sent_at: null }]);
 ok("실제로 나간 것만(sent_at) · 「9/6 데일리리포트 · 읽음 13:05」 · 「9/7 수강료 안내 · 안 읽음」 · url 없으면 /parent · 자취만 남은 것(리허설)은 빠진다", nl.length === 2 && nl[0].text === "9/6 데일리리포트" && nl[0].small === "읽음 13:05" && nl[1].text === "9/7 수강료 안내" && nl[1].small === "안 읽음" && nl[1].url === "/parent#fee" && noticeLines().length === 0, JSON.stringify(nl));
+console.log("■ (서2) 형제 — 달력 안에서 바로 바꾼다(글자 검사)");
+{ const strip = (x) => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 — 주석 속 글자를 읽지 않는다
+  const cal = strip(readFileSync("app/_shell/calview.js", "utf8")), pcal = strip(readFileSync("app/parent/cal/page.js", "utf8")), me = strip(readFileSync("app/me/cal/page.js", "utf8"));
+  ok("학부모 달력이 CalView 에 형제(kids)를 넘긴다 — 없으면 「달력 → 학부모 → 칩 → 달력」 네 걸음이 된다", /<CalView[^>]*\bkids=\{kids\}/.test(pcal), pcal.match(/<CalView[^>]*>/)?.[0]?.slice(0, 120) ?? "없음");
+  ok("달력 머리는 형제가 둘 이상일 때만 세그 · 하나면 이름 알약 그대로(아이 달력은 형제가 없다)", /kids\.length > 1/.test(cal) && /data-g="cal-kids"/.test(cal) && !/kids=/.test(me));
+  ok("형제 링크는 보던 달·날을 그대로 들고 간다(?m · ?d · ?s) — 아이를 바꾸면 그 달 처음으로 튕기지 않는다", /kidLink\s*=\s*\(id\)\s*=>\s*`\$\{base\}\?m=\$\{d\.ym\}[\s\S]{0,60}&s=\$\{id\}`/.test(cal), cal.match(/const kidLink[^\n]*/)?.[0]?.slice(0, 160) ?? "없음"); }
 console.log(`\n■ 학부모 화면 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

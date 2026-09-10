@@ -1,16 +1,16 @@
 /** 「누가 무엇을 보나」 — 원장님이 켜고 끄신다(원장님 9/3). 기본값은 코드에 없다: 안 정한 칸은 막혀 있고 여기서 정하신다.
  *  열쇠 목록은 lib/perm.js 한 벌. 옛 앱에서 정하신 32칸이 그대로 옮겨 와 있다 */
 import { guard } from "@/lib/session";
-import { db } from "@/lib/supabase";
 import { ROLES, ROLE_NAME } from "@/lib/roles";
 import { KEYS, GROUP_NAME, decide } from "@/lib/perm";
 import { setAccess } from "./actions.js";
+import { accessAllQuery } from "@/lib/access";
 export const dynamic = "force-dynamic";
 const ROLE_ORDER = [ROLES.INSTRUCTOR, ROLES.ASSISTANT, ROLES.STUDENT, ROLES.PARENT];
 export default async function Access() {
   const { sb, me } = await guard();
   if (me?.role !== ROLES.PRINCIPAL) return <main className="frame" style={{ maxWidth: 720, margin: "24px auto", padding: "0 16px" }}><div className="card"><div className="ctitle"><span className="cemo">🔐</span>원장님만 여는 자리입니다</div></div></main>;
-  const rows = (await db(sb).from("role_access").select("role,key,allowed")).data ?? [];
+  const rows = (await accessAllQuery(sb)).data ?? [];   // 읽는 자리는 lib/access.js 한 곳(원칙-1)
   const groups = [...new Set(KEYS.map((k) => k.group))];
   return (
     <main className="frame" style={{ maxWidth: 900, margin: "24px auto", padding: "0 16px" }}>
@@ -23,7 +23,7 @@ export default async function Access() {
               <thead><tr><th>{GROUP_NAME[g]}</th>{ROLE_ORDER.filter((r) => KEYS.some((k) => k.group === g && k.roles.includes(r))).map((r) => <th key={r}>{ROLE_NAME[r]}</th>)}</tr></thead>
               <tbody>
                 {KEYS.filter((k) => k.group === g).map((k) => (
-                  <tr key={k.key}><td><b>{k.name}</b> <small className="note" style={{ display: "inline" }}>{k.key}</small></td>
+                  <tr key={k.key} data-key={k.key} data-unused={k.unused ? "1" : "0"}><td><b>{k.name}</b> <small className="note" style={{ display: "inline" }}>{k.key}</small>{k.unused && <small className="note" data-g="unused" style={{ color: "var(--miss)" }}>⚠️ {k.unused}</small>}</td>
                     {ROLE_ORDER.filter((r) => KEYS.some((x) => x.group === g && x.roles.includes(r))).map((r) => {
                       if (!k.roles.includes(r)) return <td key={r}>—</td>;
                       const v = decide(r, rows, k.key);

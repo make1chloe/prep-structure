@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { markUnit, markChapter, flagUnit } from "../actions.js";
 import { roadOf, headTags, bookTags, flagLines, editBand, TRI, FLAG_KIND } from "@/lib/road-plan";
 import { md } from "@/lib/dash-plan";
-export default function Board({ d }) {
+export default function Board({ d, canFlag = true }) {   // canFlag — 「누가 무엇을 보나」의 me.flags(「표시」). 끄면 ❗ 를 못 단다(자꾸 잘못 누르는 아이 · 목업 08 의 진도 체크 끄기와 같은 결)
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, round = b.sb?.round ?? 1;
   const [open, setOpen] = useState({}); const [flag, setFlag] = useState(null); const [ff, setFf] = useState({ unitId: "", kind: "not_done", said: "" });
@@ -41,8 +41,8 @@ export default function Board({ d }) {
       <div className="rcol" data-g="col-doing"><div className="colh">하는 중 <span className="n">{road.doing.length}</span></div>{road.doing.map((c) => <Chapter key={c.chapter} c={c} col="doing" />)}{!road.doing.length && <p className="note" style={{ margin: 0 }}>{road.total ? "다 끝냈어요" : "소단원이 없어요"}</p>}</div>
       <div className="rcol" data-g="col-todo"><div className="colh">아직 <span className="n">{road.todo.length}</span></div>{road.todo.map((c) => <Chapter key={c.chapter} c={c} col="todo" />)}{!road.todo.length && <p className="note" style={{ margin: 0 }}>없어요</p>}</div>
     </div>
-    <div className="lf warn" style={{ marginTop: 8 }} data-g="flag-band"><span className="ln">❗</span><div><b>이거 잘못된 것 같아요</b><small>원장님이 찍으신 줄에도 <b>❗를 달 수 있어요</b> — 안 했는데 끝냄으로 되어 있거나 그 반대일 때. 진도는 안 바뀌고 원장님께 말만 갑니다</small></div><button className="btn sm" type="button" data-act="flag-open" onClick={() => setFlag(!flag)}>❗ 달기</button></div>
-    {flag && <div className="task" data-g="flag-form" style={{ marginTop: 6 }}>
+    {canFlag && <div className="lf warn" style={{ marginTop: 8 }} data-g="flag-band"><span className="ln">❗</span><div><b>이거 잘못된 것 같아요</b><small>원장님이 찍으신 줄에도 <b>❗를 달 수 있어요</b> — 안 했는데 끝냄으로 되어 있거나 그 반대일 때. 진도는 안 바뀌고 원장님께 말만 갑니다</small></div><button className="btn sm" type="button" data-act="flag-open" onClick={() => setFlag(!flag)}>❗ 달기</button></div>}
+    {canFlag && flag && <div className="task" data-g="flag-form" style={{ marginTop: 6 }}>
       <div className="wv"><select value={ff.unitId} aria-label="소단원" onChange={(x) => setFf({ ...ff, unitId: x.target.value })} style={{ width: "auto", maxWidth: 260 }}><option value="">어느 소단원?</option>{(b.units ?? []).map((u) => <option key={u.id} value={u.id}>{u.chapter} › {u.short}</option>)}</select>
         <div className="seg sm" data-g="flag-kind">{FLAG_KIND.map(([k, nm]) => <button key={k} type="button" aria-pressed={ff.kind === k} onClick={() => setFf({ ...ff, kind: k })}>{nm}</button>)}</div></div>
       <div className="wv" style={{ marginTop: 6 }}><input type="text" value={ff.said} placeholder={ff.kind === "other" ? "무엇이 잘못됐는지 한 줄" : "한 마디(비워도 돼요)"} aria-label="한 마디" onChange={(x) => setFf({ ...ff, said: x.target.value })} style={{ flex: "1 1 200px" }} />

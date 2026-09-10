@@ -14,9 +14,10 @@ export default async function ParentCal({ searchParams }) {
   const { sb, me } = await guard();
   if (me?.role !== ROLES.PARENT) redirect("/");
   const q = await searchParams;
-  let d, kid;
+  let d, kid, kids = [];
   try {
-    const [tday, kids] = await Promise.all([today(sb), myChildren(sb)]);
+    const [tday, ks] = await Promise.all([today(sb), myChildren(sb)]);
+    kids = ks;
     kid = kids.find((k) => k.id === String(q?.s ?? "")) ?? kids[0];
     if (!kid) return frame(<div className="task"><div className="h"><b>👨‍👩‍👧 아이가 아직 이어지지 않았어요</b></div></div>);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(q?.d ?? "")) ? String(q.d) : tday;
@@ -24,5 +25,5 @@ export default async function ParentCal({ searchParams }) {
     d = await calendar(sb, kid, ym, date, tday, ROLES.PARENT);
   } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 달력을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
   if (decide(ROLES.PARENT, d.access, PARENT.recent) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div></div>);
-  return frame(<CalView d={d} base="/parent/cal" extra={`&s=${kid.id}`} backHref={`/parent?s=${kid.id}`} backLabel="학부모 ↗" />);
+  return frame(<CalView d={d} base="/parent/cal" extra={`&s=${kid.id}`} kids={kids} backHref={`/parent?s=${kid.id}`} backLabel="학부모 ↗" />);
 }

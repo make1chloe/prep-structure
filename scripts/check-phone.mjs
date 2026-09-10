@@ -22,7 +22,7 @@ const noStrip = reads.filter(([, s]) => !/strip\(|replace\(\/\\\/\\\*\[\\s\\S\]\
 ok(`폰-5 lib·app 글자를 훑는 검사 ${reads.length}개는 주석을 먼저 지운다(strip)`, noStrip.length === 0, noStrip.join(", "));
 console.log("■ 속도 규칙(글자)");
 const layout = strip(readFileSync("app/layout.js", "utf8"));
-ok("속도-2 껍질(app/layout.js)은 배지를 안 센다 — rpc 0 · 표 읽기는 메뉴 권한(role_access) 하나", !/\.rpc\(/.test(layout) && (layout.match(/\.from\(/g) ?? []).length <= 1 && /role_access/.test(layout), `from ${(layout.match(/\.from\(/g) ?? []).length}`);
+ok("속도-2 껍질(app/layout.js)은 배지를 안 센다 — rpc 0 · 읽는 것은 메뉴 권한 하나(accessQuery — lib/access.js 한 곳, (서2))", !/\.rpc\(/.test(layout) && (layout.match(/\.from\(/g) ?? []).length === 0 && (layout.match(/accessQuery\(/g) ?? []).length === 1, `from ${(layout.match(/\.from\(/g) ?? []).length} · accessQuery ${(layout.match(/accessQuery\(/g) ?? []).length}`);
 const shell = src.filter(([p]) => p.startsWith("app/_shell/")).filter(([, s]) => /db\(|\.rpc\(|\.from\(/.test(s)).map(([p]) => p);
 ok("속도-2 껍질 부품(app/_shell/*)은 표를 안 읽는다", shell.length === 0, shell.join(", "));
 ok("속도-5 useOptimistic 0 — 낙관 갱신은 손으로 되돌리는 자리(출결 · ○△✕ · 진도)뿐", where(/useOptimistic/).length === 0, where(/useOptimistic/).join(", "));

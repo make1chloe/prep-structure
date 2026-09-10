@@ -1,7 +1,7 @@
 import "./globals.css";
 import Shell from "./_shell/shell.js";
 import { whoami } from "@/lib/session";
-import { db } from "@/lib/supabase";
+import { accessQuery } from "@/lib/access";
 
 export const metadata = { title: "클로이영어" };
 
@@ -18,7 +18,7 @@ async function 누구() {
     const w = await whoami();
     if (!w.me) return { me: null, rows: [] };
     const needRows = w.me.role !== "principal" && w.me.role !== "student" && w.me.role !== "parent";   // 원장은 안 묻고, 아이·학부모는 제 화면이 따로 읽는다
-    const rows = needRows ? (await db(w.sb).from("role_access").select("role,key,allowed").eq("role", w.me.role)).data ?? [] : [];
+    const rows = needRows ? (await accessQuery(w.sb, w.me.role)).data ?? [] : [];   // 읽는 자리는 lib/access.js 한 곳(원칙-1)
     return { me: w.me, rows };
   } catch { return { me: null, rows: [] }; }
 }
