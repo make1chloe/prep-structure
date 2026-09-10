@@ -7,7 +7,8 @@ import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
 import { addStudent, setStudent, setState, setClass, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
 import { setStudentShow } from "@/lib/score";
-import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
+import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";
+import { linkCc } from "@/lib/cc";   // (녀) 🃏 아이 ↔ 클래스카드 아이디 — 확장이 보낸 짐은 이 아이디로 아이를 찾는다   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
@@ -29,3 +30,5 @@ export async function confirmMarkAct(studentId, unitId, round) { return wrap(asy
 export async function revertMarkAct(studentId, unitId, round) { return wrap(async () => { const { sb } = await staff(); await revertMark(sb, { studentId, unitId, round, date: await today(sb) }); return {}; }); }
 export async function confirmAllAct(studentId) { return wrap(async () => { const { sb } = await staff(); return confirmAllMarks(sb, studentId); }); }
 export async function flagAct(flagId, status = null) { return wrap(async () => { const { sb, user } = await staff(); return resolveFlag(sb, flagId, { status, date: await today(sb), by: user.id }); }); }
+/** (녀) 🃏 클래스카드 아이디 — 이어야 확장이 보낸 것이 그 아이 줄로 들어간다 */
+export async function ccLinkAct(studentId, ccUserIdx, ccLoginId) { return wrap(async () => { const { sb } = await staff(); return linkCc(sb, studentId, ccUserIdx, ccLoginId); }); }
