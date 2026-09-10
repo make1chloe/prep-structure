@@ -1031,6 +1031,30 @@ console.log("■ 로드맵 08(아이) — 내 교재 카드 → 로드맵 · 열
   ok("❗ 달기(이거 아직 안 했어요) → 줄 1 「기다리는 중」 · 진도는 안 바뀐다", (await rd.locator("[data-g=flag-row][data-waiting='1']").count()) === 1 && (await rd.locator("[data-g=flag-row]").textContent()).includes("이거 아직 안 했어요") && (await mine.getAttribute("data-status")) === "doing", (await rd.locator("[data-g=flag-row]").textContent()).replace(/\s+/g, " "));
   for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-road-${v.viewport.width}.png`, fullPage: true }); }
   await cs.close(); }
+console.log("■ (뎌) 학생 14 = 재원생 화면 — 달을 넘겨 가며 날짜별 출결 · 목록에 그 달 요약 · (녀) 🃏 클래스카드 아이디 잇기");
+await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000001`); await p.waitForLoadState("networkidle").catch(() => {});
+{ const at = p.locator("[data-g=attend]");
+  const ym = (await at.locator("[data-g=att-month]").textContent()) ?? "";
+  ok("(뎌) 출결 카드에 달 넘기기(◂ ▸)와 그 달 요약 — 목록에도 「N월 출결」 칸이 선다", Boolean(ym) && (await at.locator("a[data-act=att-prev]").count()) === 1 && (await at.locator("a[data-act=att-next]").count()) === 1
+    && Boolean(await at.locator("[data-g=att-sum]").textContent()) && (await p.locator("[data-g=list] th[data-g=col-att]").count()) === 1 && (await p.locator("[data-g=list] td[data-g=row-att]").count()) >= 1,
+    `${ym} · ${await at.locator("[data-g=att-sum]").textContent().catch(() => "없음")} · 줄 ${await p.locator("[data-g=list] td[data-g=row-att]").count()}`);
+  await at.locator("a[data-act=att-prev]").click(); await p.waitForURL((u) => u.searchParams.has("m"), { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(뎌) ◂ → 지난 달(주소에 m=YYYY-MM) · 머리 달이 바뀐다 · 「이번 달」로 돌아오는 길이 생긴다", (await p.locator("[data-g=attend] [data-g=att-month]").textContent()) !== ym && (await p.locator("[data-g=attend] a[data-act=att-today]").count()) === 1,
+    `${ym} → ${await p.locator("[data-g=attend] [data-g=att-month]").textContent().catch(() => "없음")}`);
+  await p.locator("[data-g=attend] a[data-act=att-today]").click(); await p.waitForURL((u) => !u.searchParams.has("m"), { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {}); }
+{ const cc = p.locator("[data-g=cc-link]");
+  ok("(녀) 🃏 클래스카드 아이디 — 아직 안 이었다", (await cc.count()) === 1 && (await cc.locator("[data-g=cc-none]").count()) === 1);
+  await cc.locator("input[aria-label='클래스카드 아이디']").fill("zz_cc_1234");
+  await cc.locator("input[aria-label='클래스카드 로그인 아이디']").fill("zz_chloe");
+  await cc.locator("button[data-act=cc-link]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(녀) 잇기 → 줄이 선다(로그인 아이디 · 아이디 · 이은 날) — 확장이 보낸 것은 이 아이디로 아이를 찾는다", (await p.locator("[data-g=cc-link] [data-g=cc-row]").count()) === 1 && (await p.locator("[data-g=cc-link] [data-g=cc-row]").textContent()).includes("zz_cc_1234"),
+    await p.locator("[data-g=cc-link]").textContent().catch(() => "없음"));
+  await p.locator("[data-g=cc-link] input[aria-label='클래스카드 아이디']").fill("zz_cc_5678");
+  await p.locator("[data-g=cc-link] button[data-act=cc-link]").click();
+  await Promise.race([p.waitForSelector("[data-g=msg]", { timeout: 15000 }), p.waitForSelector("main p[role=alert]", { timeout: 15000 })]).catch(() => {});
+  const said = (await p.locator("main p[role=alert]").first().textContent().catch(() => "")) || (await p.locator("[data-g=msg]").first().textContent().catch(() => ""));
+  await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(녀) 잘못 이었으면 **바른 아이디로 다시 이어** 덮어쓴다 — 줄을 지우는 길은 없다(대전제-6 · 아이마다 한 줄)", (await p.locator("[data-g=cc-link] [data-g=cc-row]").count()) === 1 && (await p.locator("[data-g=cc-link] [data-g=cc-row]").textContent()).includes("zz_cc_5678"), said); }
 console.log("■ (허) 학생 14 — 그 아이의 진도 체크(설정 진도 체크와 같은 손 · 남긴 것 21)");
 await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000001`); await p.waitForLoadState("networkidle").catch(() => {});
 { const pc = p.locator("[data-g=progress-edit]");
@@ -1158,7 +1182,7 @@ ok("표 ◀ → 알약 차례 「빈 표 · 학교별 교재」(sort 10씩 · �
 console.log("■ (터) 설정 🔌 연동 열쇠 — 원장이 앱에서 넣고 고친다(확정-72) · 넣어 둔 것은 가려서만 · 빈 칸은 그대로");
 await p.goto(`${APP}/settings`); await p.waitForLoadState("networkidle").catch(() => {});
 { const st = p.locator("[data-card=keys]"), sol = st.locator("[data-g=key-row][data-key=solapi]"), neis = st.locator("[data-g=key-row][data-key=neis]");
-  ok("카드 — 갈래 셋(솔라피·나이스·앤트로픽) · 씨앗 솔라피는 「켜짐」 + 가린 값(API Key 앞 넉 자 · Secret 은 ●●●●) · 나이스는 「안 켜짐」", (await st.locator("[data-g=key-row]").count()) === 3 && (await sol.getAttribute("data-ready")) === "1" && (await sol.locator("[data-g=key-sum]").textContent()).includes("●●●●") && !(await sol.locator("[data-g=key-sum]").textContent()).includes("zz_test_secret") && (await neis.getAttribute("data-ready")) === "0", (await sol.locator("[data-g=key-sum]").textContent()).slice(0, 120));
+  ok("카드 — 갈래 넷(솔라피·나이스·앤트로픽·클래스카드 확장) · 씨앗 솔라피는 「켜짐」 + 가린 값(API Key 앞 넉 자 · Secret 은 ●●●●) · 나이스는 「안 켜짐」", (await st.locator("[data-g=key-row]").count()) === 4 && (await sol.getAttribute("data-ready")) === "1" && (await sol.locator("[data-g=key-sum]").textContent()).includes("●●●●") && !(await sol.locator("[data-g=key-sum]").textContent()).includes("zz_test_secret") && (await neis.getAttribute("data-ready")) === "0", (await sol.locator("[data-g=key-sum]").textContent()).slice(0, 120));
   await neis.locator("button[data-act=key-edit]").click(); await p.waitForTimeout(300);
   await neis.locator("input[name=key-key]").fill("zz_나이스_열쇠"); await neis.locator("button[data-act=key-save]").click(); await p.waitForTimeout(2500); await p.waitForLoadState("networkidle").catch(() => {});
   ok("나이스 인증키를 넣으면 「인증키 고쳤습니다」 · 그 줄이 「켜짐」 · 값은 ●●●● 로만 보인다(SQL 없이 앱에서)", (await st.locator("[data-g=keys-msg]").textContent()).includes("고쳤습니다") && (await st.locator("[data-g=key-row][data-key=neis]").getAttribute("data-ready")) === "1" && (await st.locator("[data-g=key-row][data-key=neis] [data-g=key-sum]").textContent()).includes("●●●●"), await st.locator("[data-g=keys-msg]").textContent().catch(() => "없음"));

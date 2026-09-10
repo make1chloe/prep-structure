@@ -1,4 +1,6 @@
 /** 학생 판단 검사(검사-60) — lib/student-plan.js 순수 셈: 재원 기간 글 · 학년 글 · 반 글 · KPI 여섯(재료 0이면 —) · 교재 막대(stopOn 한 곳) · 성적 줄(등급은 학교 것 › 컷) · 약한 영역(세 번 연속) · 이 달 출결(하원 시각, 답 ⑩) · 단원평가 알약(통과선) · 지나온 것(새것부터) · 목록 줄(재원·퇴원 · 찾기) · 형제 글 · 고치기 양식 읽기 · 아이디 제안·읽기 · 초기화는 앱이 발급한 계정만(대전제-12) · 학부모 계정 이름 읽기((가)-⑩) */
+import { attendSummary } from "../lib/student-plan.js";
+import { readFileSync } from "node:fs";
 import { tenureText, gradeText2, classLine, kpis, bookLines, scoreRows, weakText, attendRow, unitChips, historyLines, listRows, siblingText, parseStudent, suggestLoginId, parseLoginId, canReset, parseParentName } from "../lib/student-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -34,5 +36,16 @@ ok("형제 글 「👨‍👩‍👦 강민준(고1)」 · 없으면 빈 글", s
 ok("양식 읽기 — 전화는 숫자만 · 학년 7 은 막음 · 이름 없음 막음 · 날짜 꼴", J(parseStudent({ name: " 강민서 ", grade: "2", schoolId: "s1", phone: "010-1234-5678", parentPhone: "", memo: "", joinedOn: "2024-03-02" })) === J({ name: "강민서", grade: 2, school_id: "s1", phone: "01012345678", parent_phone: null, memo: null, joined_on: "2024-03-02" }) && thr(() => parseStudent({ name: "x", grade: "7" })) && thr(() => parseStudent({ name: "" })) && thr(() => parseStudent({ name: "x", joinedOn: "2024.03" })));
 ok("아이디 제안 — 전화 뒤 4자리 「chloe5678」 · 없으면 오늘 MMDD · 읽기(소문자 · chloe + 숫자 넷 — 숫자 넷만 치면 chloe 를 붙인다 · 형제 -2 는 된다(실 DB chloe8729-2) · 다른 꼴은 막는다) · 이관된 계정은 초기화 못 함(대전제-12)", suggestLoginId({ phone: "01012345678" }, T) === "chloe5678" && suggestLoginId({}, T) === "chloe1009" && parseLoginId(" Chloe0515 ") === "chloe0515" && parseLoginId("0515") === "chloe0515" && parseLoginId("chloe0515-2") === "chloe0515-2" && thr(() => parseLoginId("chloe0515-")) && thr(() => parseLoginId("chloe0515-123")) && thr(() => parseLoginId("한글")) && thr(() => parseLoginId("zznew01")) && canReset({ issued_by_app: true }) === true && canReset({ issued_by_app: false }) === false);
 ok("학부모 계정 이름 읽기((가)-⑩ — 발급 때 「OO 학부모」를 14 에서 고친다) — 앞뒤 공백 버리고 사이는 하나 · 빈 것·null 막음 · 20자는 되고 21자는 막는다", parseParentName("  김민서   엄마 ") === "김민서 엄마" && thr(() => parseParentName("  ")) && thr(() => parseParentName(null)) && parseParentName("가".repeat(20)) === "가".repeat(20) && thr(() => parseParentName("가".repeat(21))), parseParentName("  김민서   엄마 "));
+console.log("■ (뎌) 재원생 화면 — 달을 넘겨 가며 날짜별 출결(원장님 답 ⑩)");
+ok("그 달 출결 요약 한 벌 — 「왔음 6 · 지각 1 · 결석 1 · 보강 1」 · 0 인 갈래는 안 적는다 · 결석이 있으면 나쁨 · 기록이 없으면 「수업 기록 없음」",
+  (() => { const a = attendSummary({ came: 6, late: 1, absent: 1, makeup: 1, days: 9 }); const b = attendSummary({ came: 3, days: 3 }); const c = attendSummary({});
+    return a.text === "왔음 6 · 지각 1 · 결석 1 · 보강 1" && a.bad === true && b.text === "왔음 3" && b.bad === false && c.text === "수업 기록 없음"; })(), attendSummary({ came: 6, late: 1, absent: 1, makeup: 1 }).text);
+ok("판이 센 것(줄)과 날짜 배열(카드) 어느 쪽을 줘도 같은 셈 — 목록 줄도 카드 머리도 이 한 벌을 쓴다(원칙-1)",
+  attendSummary([{ attend: "present" }, { attend: "online" }, { attend: "late" }, { attend: "absent" }, { attend: null }]).text === attendSummary({ came: 2, late: 1, absent: 1, days: 4 }).text);
+ok("목록 줄에 그 달 요약이 붙는다(listRows att)", listRows([{ id: "a", name: "가", state: "active", att: { came: 2, days: 2 } }]).rows[0].att.text === "왔음 2");
+{ const strip = (z) => z.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 주석 먼저(폰-5)
+  const hand = strip(readFileSync("lib/student.js", "utf8")), page = strip(readFileSync("app/ops/students/page.js", "utf8")), scr = strip(readFileSync("app/ops/students/board.js", "utf8"));
+  ok("달은 판에 넘겨서 센다 — 화면이 따로 세지 않는다(p_month · 안 주면 오늘의 달 · 0156)", /p_month/.test(hand) && /studentBoard\(sb, sel, date, ym/.test(page) && !/from\(["']day_sheet["']\)/.test(scr));
+  ok("달 넘기기는 12 달력과 같은 한 벌(nextYm · monthLabel) — 두 벌로 안 만든다", /nextYm|monthLabel/.test(scr) && /from "@\/lib\/plan-plan"/.test(scr)); }
 console.log(`\ncheck-student ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

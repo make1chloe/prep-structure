@@ -7,7 +7,7 @@ import { join } from "node:path";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 console.log("■ 판단 — 가리기 · 다 찼나 · 합치기");
-ok("갈래 셋 — 솔라피(문자) · 나이스(학사일정) · 앤트로픽(AI 초안) · 열쇠 이름은 v2.integration 의 id 그대로", KEYS.map((k) => k.id).join() === "solapi,neis,anthropic" && keyDef("solapi").fields.map((f) => f.k).join() === "key,secret,from" && keyDef("nope") === null);
+ok("갈래 넷 — 솔라피(문자) · 나이스(학사일정) · 앤트로픽(AI 초안) · 클래스카드 확장(받는 길 열쇠) · 열쇠 이름은 v2.integration 의 id 그대로", KEYS.map((k) => k.id).join() === "solapi,neis,anthropic,classcard" && keyDef("solapi").fields.map((f) => f.k).join() === "key,secret,from" && keyDef("nope") === null);
 const sol = keyDef("solapi");
 ok("비밀(secret)은 길이만 · 알아보기(peek)는 앞 넉 자 · 발신번호는 그대로 · 빈 것은 빈 글", (() => { const r = keyRow(sol, { key: "NCSABCD1234EFGH", secret: "s3cr3tvalue", from: "01012345678" }); const v = Object.fromEntries(r.fields.map((f) => [f.k, f.shown])); return v.key === "NCSA…GH (15자)" && v.secret === "●●●● (11자)" && v.from === "01012345678" && maskValue({ secret: true }, "") === ""; })(), JSON.stringify(keyRow(sol, { key: "NCSABCD1234EFGH", secret: "s3cr3tvalue", from: "01012345678" }).fields.map((f) => f.shown)));
 ok("가린 값에 진짜 열쇠가 없다 — 비밀 칸은 어떤 글자도 안 내보낸다", (() => { const secret = "supersecretvalue"; const r = keyRow(sol, { key: "K", secret, from: "010" }); return !r.fields.some((f) => f.secret && String(f.shown).includes(secret.slice(0, 6))); })());
@@ -26,8 +26,8 @@ const lib = files("lib").map((p) => [p.replace(/\\/g, "/"), strip(readFileSync(p
 const readsTable = app.filter(([, s]) => /from\(["']integration["']\)/.test(s)).map(([p]) => p);
 ok("화면(app/**)이 연동 표를 직접 읽지 않는다 — 손(lib)만 읽는다", readsTable.length === 0, readsTable.join(", "));
 const KEY_IDS = KEYS.map((k) => k.id);   // 같은 표에 설정값 줄(arrival 학원 회선 · tuition 학년별 기준)도 산다 — 그건 제 손이 쓴다
-const badWriters = [...lib, ...app].filter(([p, s]) => p !== "lib/integration.js" && /from\(["']integration["']\)\s*\.(insert|update|upsert|delete)/.test(s) && KEY_IDS.some((id) => new RegExp(`["']${id}["']`).test(s))).map(([p]) => p);
-ok("**열쇠 줄**(solapi · neis · anthropic)에 쓰는 곳은 lib/integration.js 하나 — 열쇠를 고치는 길이 하나다(확정-72)", badWriters.length === 0, badWriters.join(", "));
+const badWriters = [...lib, ...app].filter(([p, s]) => p !== "lib/integration.js" && /from\(["']integration["']\)\s*\.(insert|update|upsert|delete)/.test(s) && KEY_IDS.some((id) => new RegExp(`["']${id}["']`).test(s)) && /from\(["']integration["']\)\s*\.(insert|update|upsert)\(\s*\{[^}]*\bconfig\b/.test(s)).map(([p]) => p);
+ok("**열쇠 값**(config)을 쓰는 곳은 lib/integration.js 하나 — 열쇠를 고치는 길이 하나다(확정-72). 받은 때·까닭(last_ok_at · last_error)은 그 길의 손도 적는다(문자 시험 · 클래스카드 받기)", badWriters.length === 0, badWriters.join(", "));
 const clientKeys = app.filter(([p, s]) => /^app\/settings\/keys\.js$/.test(p) && /\bconfig\b/.test(s)).map(([p]) => p);
 ok("설정 카드(app/settings/keys.js)는 가린 줄(rows)만 받는다 — config 를 안 만진다", clientKeys.length === 0, clientKeys.join(", "));
 const hard = [...lib, ...app].filter(([, s]) => /(sk-ant-[A-Za-z0-9_-]{10,}|NCSSOLAPI[A-Za-z0-9]{6,}|(secret|apikey|api_key)\s*[:=]\s*["'][A-Za-z0-9_-]{16,}["'])/i.test(s)).map(([p]) => p);
