@@ -2,7 +2,7 @@
  *  ① 3초훈련은 판정하지 않는다(확정-⑩ — 짐에 와도 버린다) ② 목표·실제는 확장이 보낸 그대로 보이고 **앱이 안 넘긴다**(확정-⑱)
  *  ③ 스크램블·드릴도 같은 줄(확정-55) ④ 못 쓸 줄은 막지 않고 버린다(한 줄이 나빠도 나머지는 들어간다) ⑤ 한 번에 받는 양 상한
  *  ⑥ 받는 길은 app/api/cc/route.js 하나 · 쓰는 손은 lib/cc.js 하나 · 열쇠는 답에 안 실린다(대전제-9) */
-import { MODES, MODE_NAME, DROPPED, SET_TYPE, tidyScores, readRow, parsePayload, modeLines, shortOf, plannerLine, MAX_ROWS, MAX_STUDENTS } from "../lib/cc-plan.js";
+import { MODES, MODE_NAME, DROPPED, SET_TYPE, ALIAS, modeKey, tidyScores, readRow, parsePayload, modeLines, shortOf, plannerLine, MAX_ROWS, MAX_STUDENTS } from "../lib/cc-plan.js";
 import { readFileSync } from "node:fs";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -14,6 +14,12 @@ ok("모드는 단어 넷(암기·리콜·매칭·스펠) · 문장 셋(낭독·�
 ok("**3초훈련은 판정하지 않는다**(확정-⑩) — 짐에 와도 버린다 · 숫자가 아닌 값도 버린다(확장이 「-」 를 보낼 때가 있다)",
   DROPPED.includes("speed") && !("speed" in tidyScores({ speed: 3, memorize: 100 })) && JSON.stringify(tidyScores({ memorize: 100, spell: "-", match: 3240 })) === JSON.stringify({ memorize: 100, match: 3240 }),
   JSON.stringify(tidyScores({ speed: 3, memorize: 100, spell: "-" })));
+ok("(뎌-3) 클래스카드가 쓰는 이름을 우리 열쇠로 옮기는 곳은 **여기 한 곳**(ALIAS) — 확장은 긁은 이름을 그대로 보낸다(원칙-1)",
+  modeKey("mem") === "memorize" && modeKey("speaking") === "read" && modeKey("matching") === "match" && modeKey("MEM") === "memorize"
+  && modeKey("memorize") === "memorize" && modeKey("speed") === null && modeKey("zzz") === null
+  && JSON.stringify(tidyScores({ mem: 100, speaking: 80, speed: 3, nope: 5 })) === JSON.stringify({ memorize: 100, read: 80 })
+  && MODES.every(([k]) => ALIAS[k] === k),
+  JSON.stringify(tidyScores({ mem: 100, speaking: 80, speed: 3, nope: 5 })));
 ok("못 쓸 줄은 **막지 않고 버린다** — 날짜가 아니거나 세트 이름이 없으면 그 줄만 빠지고 까닭이 남는다",
   Boolean(readRow({ date: "어제", set_name: "가" }).bad) && Boolean(readRow({ date: "2026-09-10" }).bad) && Boolean(readRow({ date: "2026-09-10", set_name: "능률보카" }).row));
 { const p = parsePayload({ students: [{ cc_user_idx: "123", cc_login_id: "chloe_min", rows: [{ date: "2026-09-10", set_name: " 능률보카  Day 38-40 ", set_type: 1, complete: true, cards: 60, goals: { memorize: 100, spell: 100, speed: 9 }, got: { memorize: 100, spell: 82, speed: 3 } }, { date: "어제", set_name: "x" }] }, { cc_login_id: "아이디 없음" }] });
