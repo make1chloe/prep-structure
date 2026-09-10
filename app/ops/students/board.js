@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
-import { addAct, setAct, stateAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct } from "./actions.js";
+import { addAct, setAct, stateAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct, editModeAct, confirmMarkAct, revertMarkAct, confirmAllAct, flagAct } from "./actions.js";
 import { kpis, bookLines, scoreRows, weakText, attendRow, unitChips, historyLines, listRows, siblingText, tenureText, gradeText2, classLine, suggestLoginId, canReset, STATE } from "@/lib/student-plan";
 import { SHOW, showText } from "@/lib/score-plan";
+import { staffFlagLine, EDIT_MODE, daysOpenText } from "@/lib/road-plan";   /* (허) 진도 체크 — 설정 진도 체크와 같은 판단 한 벌 */
 import { md, seoulDate } from "@/lib/dash-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
@@ -19,6 +20,7 @@ export default function Board({ d }) {
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const list = useMemo(() => listRows(b.list ?? [], { q, show }), [b, q, show]);
   const { go, pressed } = useGo(d); const pick = (id) => { go(`/ops/students?s=${id}`, id); };   /* 누른 줄은 서버 답 전에 켜진다(다) — 판(d)이 오면 서버 것으로 */
+  const pe = b.progress_edit ?? {}, pend = st ? (b.progress_pending ?? []) : [], peFlags = st ? (b.progress_flags ?? []).map((x) => staffFlagLine({ ...x, student: st.name })) : [];   /* (허) 진도 체크 — 판단은 road-plan 한 벌 */
   const K = st ? kpis(b.kpi ?? {}, b.rules ?? {}) : []; const books = st ? bookLines(b.books ?? [], today) : []; const scores = st ? scoreRows(b.scores ?? []) : []; const weak = weakText(scores); const att = st ? attendRow(b.attend ?? []) : []; const uts = st ? unitChips(b.unit_tests ?? [], parseInt(b.rules?.["unit_test.pass_pct"] ?? "80", 10) || 80) : []; const hist = st ? historyLines(b.history ?? {}, st) : [];
   const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
   const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
@@ -77,6 +79,22 @@ export default function Board({ d }) {
           <div className="card" style={{ margin: "0 0 8px" }} data-g="books"><div className="ctitle"><span className="cemo">📚</span>교재 진도</div>
             {!books.length && <p className="note" style={{ margin: 0 }}>배정된 교재가 없습니다 — 루틴 11 에서 잇습니다</p>}
             {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div>
+          <div className="card" style={{ margin: "0 0 8px" }} data-g="progress-edit"><div className="ctitle"><span className="cemo">✎</span>진도 체크 — 이 아이</div>
+            <div className="wv" style={{ marginBottom: 6 }}><span className="pill" data-g="pe-open">{pe.academy_open ? `학원 열림 · ${daysOpenText(pe.opened_on, today)}` : "학원 닫힘"}</span>
+              <div className="seg sm" data-g="pe-mode">{EDIT_MODE.map(([k, nm]) => <button key={k} type="button" aria-pressed={(pe.mode ?? "follow") === k} disabled={pending} onClick={() => run(() => editModeAct(st.id, k), `이 아이 진도 체크 — ${nm}`)}>{nm}</button>)}</div>
+              <span className={"tag" + (pe.can_edit ? " on" : "")} data-g="pe-can">{pe.can_edit ? "지금 아이가 찍을 수 있음" : "지금은 못 찍음"}</span><span className="spacer" />
+              <Link prefetch={false} className="btn sm" href="/settings/progress">✎ 진도 체크 열기 ↗</Link></div>
+            <div className="lf warn" data-g="pe-pending-band"><span className="ln">{pend.length}</span><div><b>아이가 찍은 것 — 확인 안 함</b><small>확인하면 굳고, 되돌리면 「아직」으로 — 아이 화면 08 에는 <b>노란 테두리</b>로 뜹니다</small></div>
+              <span className="lm">한 번에</span><button className="btn sm pri" type="button" disabled={pending || !pend.length} data-act="pe-confirm-all" onClick={() => run(() => confirmAllAct(st.id), (r) => `확인했습니다 — ${r.confirmed}줄`)}>확인</button></div>
+            {pend.map((p) => <div className="lf" key={`${p.unit_id}|${p.round}`} data-g="pe-row" data-status={p.status}><span className="ln">{p.status === "done" ? "○" : p.status === "doing" ? "◐" : "·"}</span>
+              <div><b>{p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {p.marked_on ? `${md(p.marked_on)} 찍음` : "찍은 날 없음"} · {p.status === "done" ? "끝냄" : p.status === "doing" ? "하는 중" : "아직"}</small></div>
+              <button className="btn sm pri" type="button" disabled={pending} data-act="pe-confirm" onClick={() => run(() => confirmMarkAct(st.id, p.unit_id, p.round), "확인했습니다")}>확인</button>
+              <button className="btn sm" type="button" disabled={pending} data-act="pe-revert" onClick={() => run(() => revertMarkAct(st.id, p.unit_id, p.round), "되돌렸습니다(아직)")}>되돌리기</button></div>)}
+            {peFlags.length > 0 && <div className="left" style={{ marginTop: 6 }} data-g="pe-flags">{peFlags.map((f2) => <div className="lf warn" key={f2.id} data-g="pe-flag"><span className="ln">❗</span>
+              <div><b>{f2.title}</b><small>{f2.small}</small></div>
+              {f2.action && <button className="btn sm pri" type="button" disabled={pending} data-act="pe-flag-do" onClick={() => run(() => flagAct(f2.id, f2.action.status), "고쳤습니다 — ❗ 는 본 것으로")}>{f2.action.label}</button>}
+              <button className="btn sm" type="button" disabled={pending} data-act="pe-flag-keep" onClick={() => run(() => flagAct(f2.id, null), "그대로 두기로 했습니다")}>그대로</button></div>)}</div>}
+          </div>
           <div className="card" style={{ margin: "0 0 8px" }} data-g="scores"><div className="ctitle"><span className="cemo">📈</span>성적</div>
             <div className="tblwrap"><table><thead><tr><th>시험</th><th>원점수</th><th>등급</th><th>틀린 영역</th></tr></thead><tbody>
               {scores.map((s) => <tr key={s.id} data-g="score-row"><td className="sch">{s.title}{s.pending ? <span className="tag act" style={{ marginLeft: 4 }}>확인 전</span> : null}</td><td className="num">{s.raw}{s.full !== 100 ? `/${s.full}` : ""}{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} style={{ marginLeft: 4 }} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</td><td className="num">{s.grade}</td><td>{s.sum.slice(0, 3).map((x, i) => <span key={x.kind} className="tag" style={i === 0 ? MISS : undefined}>{x.kind} {x.n}</span>)}{!s.sum.length && <span className="mute">—</span>}</td></tr>)}

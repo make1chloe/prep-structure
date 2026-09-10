@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { markUnit, flagUnit } from "../actions.js";
+import { markUnit, markChapter, flagUnit } from "../actions.js";
 import { roadOf, headTags, bookTags, flagLines, editBand, TRI, FLAG_KIND } from "@/lib/road-plan";
 import { md } from "@/lib/dash-plan";
 export default function Board({ d }) {
@@ -16,12 +16,16 @@ export default function Board({ d }) {
   const road = roadOf(b), head = headTags(b, road), books = bookTags(b.books ?? [], today), flags = flagLines(b.flags ?? []), band = editBand(b.edit, b.student);
   const ic = (s) => s.status === "done" ? "✅" : s.status === "doing" ? "◐" : s.status === "skip" ? "⏭" : "⬜";
   const Sub = ({ s }) => <div className={"sr" + (s.own ? " own" : "")} data-g="sub" data-unit={s.id} data-status={s.status} data-pending={s.pending ? "1" : "0"}>
-    <i className={"ic" + (s.status === "none" ? " no" : "")}>{ic(s)}</i><span>{s.short}{s.is_workbook ? " · 워크북" : ""}</span>
+    <i className={"ic" + (s.status === "none" ? " no" : "")}>{ic(s)}</i><span>{s.short}{s.is_workbook ? " · 워크북" : ""}{s.parts && <small data-g="sub-parts" style={{ marginLeft: 6, color: "var(--mute)" }}>{s.parts}</small>}</span>
     {s.by && <b className={"by" + (s.own ? " me" : "")} data-g="by">{s.pending ? `${s.by} · 확인 기다리는 중` : s.by}</b>}
     {s.can && <div className="tri sm" data-g="tri">{TRI.map(([k, ch]) => <button key={k} type="button" data-p={k} aria-pressed={s.status === k} disabled={pending} onClick={() => run(() => markUnit(s.id, round, k), k === "none" ? "아직으로 되돌렸어요" : "찍었어요 — 선생님이 확인하면 굳어요")}>{ch}</button>)}</div>}
   </div>;
   const Chapter = ({ c, col }) => <div className={"ru" + (c.now ? " now" : "")} key={c.chapter} data-g="chapter" data-col={col} data-chapter={c.chapter} style={c.pending && !c.now ? { borderColor: "var(--amber)" } : undefined}>
-    {c.chapter}<small>{col === "done" ? `소단원 ${c.total} ✓${c.skip ? ` · 건너뜀 ${c.skip}` : ""}` : c.pending ? <b style={{ color: "var(--navy)" }}>✎ 내가 찍음 — 확인 기다리는 중 {c.pending}</b> : col === "doing" ? <>소단원 {c.total}개 중 <b>{c.done + c.skip}개 끝냄</b></> : b.edit?.can_edit ? "내가 찍기 ○ ◐ ·" : `소단원 ${c.total}`}</small>
+    {c.chapter}<small>{col === "done" ? `소단원 ${c.total} ✓${c.skip ? ` · 건너뜀 ${c.skip}` : ""}` : c.pending ? <b style={{ color: "var(--navy)" }}>✎ 내가 찍음 — 확인 기다리는 중 {c.pending}</b> : col === "doing" ? <>소단원 {c.total}개 중 <b>{c.done + c.skip}개 끝냄</b></> : b.edit?.can_edit && c.markable.length ? `내가 찍기 — 소단원 ${c.markable.length}개 한 번에` : `소단원 ${c.total}`}</small>
+    {b.edit?.can_edit && c.markable.length > 0 && <div className="wv" style={{ gap: 4, margin: "2px 0 0" }}><small style={{ color: "var(--mute)" }}>이 단원 {c.markable.length}개 한 번에</small>
+      <div className="tri sm" data-g="chapter-tri" data-chapter={c.chapter}>{TRI.map(([k, ch]) =>
+      <button key={k} type="button" data-p={k} disabled={pending} onClick={() => run(() => markChapter(c.markable, round, k),
+        (r) => k === "none" ? `${c.chapter} — ${r.marked}개를 아직으로 되돌렸어요` : `${c.chapter} — ${r.marked}개를 찍었어요${r.skipped ? ` · 쌤이 찍으신 ${r.skipped}개는 그대로예요` : ""} · 선생님이 확인하면 굳어요`)}>{ch}</button>)}</div></div>}
     {(c.now || open[c.chapter]) && <div className="sub2">{c.subs.map((s) => <Sub key={s.id} s={s} />)}</div>}
     {!c.now && <button className="lnk" type="button" data-act="toggle-chapter" aria-pressed={Boolean(open[c.chapter])} onClick={() => setOpen({ ...open, [c.chapter]: !open[c.chapter] })} style={{ marginTop: 4 }}>{open[c.chapter] ? "접기" : "소단원 보기"}</button>}
   </div>;

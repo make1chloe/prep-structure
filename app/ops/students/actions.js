@@ -7,6 +7,7 @@ import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
 import { addStudent, setStudent, setState, setClass, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
 import { setStudentShow } from "@/lib/score";
+import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
@@ -22,3 +23,9 @@ export async function studentAccountAct(id, loginId) { return wrap(async () => {
 export async function parentAccountAct(id, phone, rel = null) { return wrap(async () => { const { sb } = await staff(); return issueParentAccount(serviceClient(), sb, id, phone, rel); }); }
 export async function parentNameAct(id, profileId, name) { return wrap(async () => { const { sb } = await staff(); return setParentName(sb, id, profileId, name); }); }   // 학부모 계정 이름((가)-⑩)
 export async function resetAct(profileId) { return wrap(async () => { const { sb } = await staff(); return resetPassword(serviceClient(), sb, profileId); }); }
+/** (허) 그 아이의 진도 체크 — 열림 모드 · 아이가 찍은 줄 확인·되돌리기·한 번에 · ❗ 처분. 판단·쓰기는 lib/progress.js 한 벌 */
+export async function editModeAct(studentId, mode) { return wrap(async () => { const { sb } = await staff(); await setStudentEdit(sb, studentId, mode); return {}; }); }
+export async function confirmMarkAct(studentId, unitId, round) { return wrap(async () => { const { sb } = await staff(); await confirmMark(sb, { studentId, unitId, round }); return {}; }); }
+export async function revertMarkAct(studentId, unitId, round) { return wrap(async () => { const { sb } = await staff(); await revertMark(sb, { studentId, unitId, round, date: await today(sb) }); return {}; }); }
+export async function confirmAllAct(studentId) { return wrap(async () => { const { sb } = await staff(); return confirmAllMarks(sb, studentId); }); }
+export async function flagAct(flagId, status = null) { return wrap(async () => { const { sb, user } = await staff(); return resolveFlag(sb, flagId, { status, date: await today(sb), by: user.id }); }); }

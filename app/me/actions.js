@@ -12,7 +12,7 @@ import { clientIp, classChoice } from "@/lib/arrival-plan";
 import { setStage, setDue } from "@/lib/material";
 import { ask as askRequest } from "@/lib/request";
 import { studentSubmit } from "@/lib/score";
-import { studentMark, raiseFlag } from "@/lib/road";
+import { studentMark, studentMarkMany, raiseFlag } from "@/lib/road";
 import { markSeen } from "@/lib/files";
 import { markSpan, fillDuration, openVideo } from "@/lib/video";
 const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/me"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
@@ -46,6 +46,7 @@ export const said = done(async (itemId, on) => {
 export const submitScore = done(async (examId, raw, full, wrongs) => { const { sb, user } = await child(); return studentSubmit(sb, user, { examId, raw, full: full || 100, wrongs }, await today(sb)); });
 /** 🛤️ 로드맵 08 — 내 교재 진도를 찍는다(열려 있을 때 · 원장님 줄은 못 덮는다 · 확인 기다리는 중으로) · ❗ 이의(진도는 안 바뀐다). 판단은 lib/road 한 벌 */
 export const markUnit = done(async (unitId, round, status) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); const r = await studentMark(sb, { studentId: st.id, unitId: String(unitId), round: Number(round) || 1, status: String(status), date: await today(sb) }); revalidatePath("/me/book"); return r; });
+export const markChapter = done(async (unitIds, round, status) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); const r = await studentMarkMany(sb, { studentId: st.id, unitIds: Array.isArray(unitIds) ? unitIds : [], round: Number(round) || 1, status: String(status), date: await today(sb) }); revalidatePath("/me/book"); return r; });   // (허) 08 칸에서 대단원 통째로
 export const flagUnit = done(async (unitId, round, kind, said) => { const { sb, user } = await child(); const st = await myStudent(sb, user.id); const id = await raiseFlag(sb, { studentId: st.id, unitId: String(unitId), round: Number(round) || 1, kind: String(kind), said }); revalidatePath("/me/book"); return { id }; });
 /** 📎 붙은 파일을 처리했다 — 💾 저장(폰에 내려받음) · ✓ 안 보기(그 줄에서만 치움). 둘 다 「지난 것 보기」에서 1달간(목업 20) */
 export const seen = done(async (fileId, itemId, how) => { const { sb } = await child(); await markSeen(sb, String(fileId), String(itemId), String(how)); });
