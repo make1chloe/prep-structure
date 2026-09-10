@@ -1018,18 +1018,45 @@ console.log("■ 로드맵 08(아이) — 내 교재 카드 → 로드맵 · 열
   await noneSub.locator("[data-g=tri] button[data-p=doing]").click(); await cp.waitForSelector("[data-g=msg]", { timeout: 15000 }); await cp.waitForTimeout(1500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
   const mine = rd.locator(`[data-g=sub][data-unit='${unitId}']`);
   ok("◐ 를 찍으면 → 「찍었어요 — 선생님이 확인하면 굳어요」 · 다시 열어도 ◐ · 「내가 · 확인 기다리는 중」 · 줄이 own", (await mine.getAttribute("data-status")) === "doing" && (await mine.getAttribute("data-pending")) === "1" && (await mine.locator("[data-g=by]").textContent()) === "내가 · 확인 기다리는 중" && (await mine.evaluate((el) => el.classList.contains("own"))), (await mine.textContent()).replace(/\s+/g, " "));
+  ok("(허) 소단원 줄에 조각 글 — 「낸 것 1-5 · 남은 것 6-13」(씨앗 조각 · 02b 와 같은 셈 · 확정-⑳)", (await rd.locator("[data-g=sub-parts]").first().textContent()) === "낸 것 1-5 · 남은 것 6-13", await rd.locator("[data-g=sub-parts]").first().textContent().catch(() => "없음"));
+  { const todoCh = rd.locator("[data-g=chapter]").filter({ has: cp.locator("[data-g=chapter-tri]") }).first();
+    const chName = (await todoCh.getAttribute("data-chapter")) ?? "", chCol = await todoCh.getAttribute("data-col"), chSmall = (await todoCh.locator("small").first().textContent()) ?? "";
+    ok("(허) 접힌 칸에 ○ ◐ · 가 바로 있다 — 「소단원 보기」를 펴지 않아도 된다(남긴 것 21) · 「아직」 칸이면 글도 「내가 찍기 — 소단원 N개 한 번에」", Boolean(chName) && (await todoCh.locator("[data-g=chapter-tri] button").count()) === 3 && (chCol !== "todo" || chSmall.includes("내가 찍기 — 소단원")), `${chCol} · ${chName} | ${chSmall}`);
+    await todoCh.locator("[data-g=chapter-tri] button[data-p=doing]").click(); await cp.waitForSelector("[data-g=msg]", { timeout: 15000 }); await cp.waitForTimeout(1500);
+    const said = await rd.locator("[data-g=msg]").textContent();
+    await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+    const after = rd.locator(`[data-g=chapter][data-chapter='${chName}']`).first();
+    ok("(허) 칸에서 ◐ → 그 대단원의 「내가 찍을 수 있는」 소단원이 한 번에 「확인 기다리는 중」 · 「N개를 찍었어요」 · 다시 열면 그 칸이 「✎ 내가 찍음」(하는 중으로 옮겨간다)", /\d+개를 찍었어요/.test(said ?? "") && (await after.textContent()).includes("내가 찍음"), `${said} | ${await after.textContent().catch(() => "없음")}`); }
   await rd.locator("button[data-act=flag-open]").click(); await rd.locator("[data-g=flag-form] select[aria-label=소단원]").selectOption({ index: 1 }); await rd.locator("button[data-act=flag-save]").click(); await cp.waitForSelector("[data-g=msg]", { timeout: 15000 }); await cp.waitForTimeout(1500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
   ok("❗ 달기(이거 아직 안 했어요) → 줄 1 「기다리는 중」 · 진도는 안 바뀐다", (await rd.locator("[data-g=flag-row][data-waiting='1']").count()) === 1 && (await rd.locator("[data-g=flag-row]").textContent()).includes("이거 아직 안 했어요") && (await mine.getAttribute("data-status")) === "doing", (await rd.locator("[data-g=flag-row]").textContent()).replace(/\s+/g, " "));
   for (const v of VIEWS) { await cp.setViewportSize(v.viewport); await cp.screenshot({ path: `.tmp/e2e-road-${v.viewport.width}.png`, fullPage: true }); }
   await cs.close(); }
+console.log("■ (허) 학생 14 — 그 아이의 진도 체크(설정 진도 체크와 같은 손 · 남긴 것 21)");
+await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000001`); await p.waitForLoadState("networkidle").catch(() => {});
+{ const pc = p.locator("[data-g=progress-edit]");
+  ok("(허) 14 에 「✎ 진도 체크 — 이 아이」 카드 — 학원 열림 · 모드 세그(끔·켬·학원 따라감) · 지금 찍을 수 있음 · 아이가 찍은 줄이 그대로 보인다(08 원장 쪽과 같은 셈)",
+    (await pc.count()) === 1 && (await pc.locator("[data-g=pe-open]").textContent()).includes("학원 열림") && (await pc.locator("[data-g=pe-mode] button").count()) === 3
+    && (await pc.locator("[data-g=pe-can]").textContent()) === "지금 아이가 찍을 수 있음" && (await pc.locator("[data-g=pe-row]").count()) >= 1
+    && (await pc.locator("[data-g=pe-row]").first().textContent()).includes("zz_리허설"), `${await pc.locator("[data-g=pe-open]").textContent().catch(() => "없음")} · 줄 ${await pc.locator("[data-g=pe-row]").count()}`);
+  ok("(허) ❗ 도 같은 카드에 — 「이거 아직 안 했어요」 · 처분 단추 둘(아직 안 함으로 · 그대로)", (await pc.locator("[data-g=pe-flag]").count()) === 1
+    && (await pc.locator("[data-g=pe-flag]").textContent()).includes("이거 아직 안 했어요") && (await pc.locator("[data-g=pe-flag] button[data-act=pe-flag-do]").count()) === 1, await pc.locator("[data-g=pe-flag]").textContent().catch(() => "없음"));
+  ok("(허) 줄마다 확인·되돌리기 단추가 있다(설정 진도 체크와 같은 손 — lib/progress.js · 여기서 눌러도 그 화면에서 눌러도 같은 줄이 움직인다)",
+    (await pc.locator("[data-g=pe-row] button[data-act=pe-confirm]").count()) >= 1 && (await pc.locator("[data-g=pe-row] button[data-act=pe-revert]").count()) >= 1);
+  await pc.locator("[data-g=pe-mode] button", { hasText: "켬" }).first().click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
+  ok("(허) 모드를 「켬」으로 → 이 아이만 열린다(학원이 닫혀도) · 다시 「학원 따라감」으로 돌린다", (await p.locator("[data-g=progress-edit] [data-g=pe-mode] button[aria-pressed=true]").textContent()) === "켬");
+  await p.locator("[data-g=progress-edit] [data-g=pe-mode] button", { hasText: "학원 따라감" }).first().click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200); }
 console.log("■ 진도 체크(원장 쪽) — 아이가 찍은 것 확인 · ❗ 처분(아직 안 함으로) · 끔");
 await p.goto(`${APP}/settings/progress`); await p.waitForLoadState("networkidle").catch(() => {});
-ok("아이가 찍은 것 1(zz_시험_학생 · ◐ 하는 중) · ❗ 1(「이거 아직 안 했어요」 · 처분 단추 「아직 안 함으로」)", (await pe.locator("[data-g=pending-count]").textContent()) === "아이가 찍은 것 1" && (await pe.locator("[data-g=pending-row][data-status=doing]").count()) === 1 && (await pe.locator("[data-g=flag-count]").textContent()) === "❗ 1" && (await pe.locator("[data-g=flag-row] button[data-act=flag-change]").textContent()) === "아직 안 함으로", (await pe.locator("[data-g=pending-list]").textContent().catch(() => "")).replace(/\s+/g, " ") + " | " + (await pe.locator("[data-g=flags]").textContent()).replace(/\s+/g, " ").slice(0, 200));
+ok("아이가 찍은 것 N(zz_시험_학생 · ◐ 하는 중 · (허) 칸에서 통째로 찍은 줄까지) · ❗ 1(「이거 아직 안 했어요」 · 처분 단추 「아직 안 함으로」)", /아이가 찍은 것 [1-9]\d*/.test(await pe.locator("[data-g=pending-count]").textContent()) && (await pe.locator("[data-g=pending-row][data-status=doing]").count()) === 1 && (await pe.locator("[data-g=flag-count]").textContent()) === "❗ 1" && (await pe.locator("[data-g=flag-row] button[data-act=flag-change]").textContent()) === "아직 안 함으로", (await pe.locator("[data-g=pending-list]").textContent().catch(() => "")).replace(/\s+/g, " ") + " | " + (await pe.locator("[data-g=flags]").textContent()).replace(/\s+/g, " ").slice(0, 200));
 await pe.locator("button[data-act=confirm-all]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 await pe.locator("[data-g=flag-row] button[data-act=flag-change]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("한 번에 확인 → 「확인했습니다 — 1줄」 · 처분 → 0 · 0", (await pe.locator("[data-g=pending-count]").textContent()) === "아이가 찍은 것 0" && (await pe.locator("[data-g=flag-count]").textContent()) === "❗ 0");
+ok("한 번에 확인 → 「확인했습니다 — N줄」 · 처분 → 0 · 0", (await pe.locator("[data-g=pending-count]").textContent()) === "아이가 찍은 것 0" && (await pe.locator("[data-g=flag-count]").textContent()) === "❗ 0");
 await pe.locator("[data-g=academy-seg] button", { hasText: "끔" }).click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("끔 → 「✎ 닫힘」", (await pe.locator("[data-g=open-pill]").textContent()) === "✎ 닫힘");
+await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000001`); await p.waitForLoadState("networkidle").catch(() => {});
+ok("(허) 설정에서 확인·처분하면 14 카드도 곧바로 빈다 — 두 화면이 **같은 판**을 본다(원칙-1) · 학원이 닫혔으니 「지금은 못 찍음」",
+  (await p.locator("[data-g=progress-edit] [data-g=pe-row]").count()) === 0 && (await p.locator("[data-g=progress-edit] [data-g=pe-flag]").count()) === 0
+  && (await p.locator("[data-g=progress-edit] [data-g=pe-can]").textContent()) === "지금은 못 찍음", `줄 ${await p.locator("[data-g=progress-edit] [data-g=pe-row]").count()} · ❗ ${await p.locator("[data-g=progress-edit] [data-g=pe-flag]").count()}`);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-progress-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 console.log("■ 학교별 표 06c — + 새 표(본에서) · 줄(학교) · 셀 종류마다(손 떼면 저장) · + 칸 · 표 ↔ 보드 조회 0 · 카드 ▶ = 선택 칸 값 · 칸 내리기 · 따로 챙길 아이 · 표 삭제 = 내림 · 되살리기");

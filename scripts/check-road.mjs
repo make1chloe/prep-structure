@@ -1,6 +1,7 @@
 /** 로드맵 판단 검사(검사-58) — lib/road-plan.js 순수 셈: 세 칸(끝냄 · 하는 중 · 아직 — 진도가 조금이라도 있는 대단원은 하는 중 · 없으면 커서) · 소단원 줄(쌤/내가/검사 · 확인 기다리는 중 · 찍을 수 있나 = RLS 0052 ② 와 같은 판단) ·
  *  머리 꼬리표(회독 · 소단원씩 · 끝낸 대단원 · 이대로면 — 앞으로의 수업일에서) · 내 교재 상태 글(진행중 · 숙제멈춤(수업만) · 교재멈춤 — M/D에 풀림 · 기한 지나면 진행중) · ❗ 줄 · 열림 띠 · 원장 쪽(N일째 · 아이별 셈 · ❗ 처분 후보) */
-import { roadOf, headTags, bookTags, flagLines, editBand, canMark, endText, pendingText, daysOpenText, staffFlagLine, EDIT_MODE, FLAG_KIND } from "../lib/road-plan.js";
+import { roadOf, headTags, bookTags, flagLines, editBand, canMark, rowMarkable, endText, pendingText, daysOpenText, staffFlagLine, EDIT_MODE, FLAG_KIND } from "../lib/road-plan.js";
+import { readFileSync } from "node:fs";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -28,6 +29,30 @@ ok("교재 글 — 「중등3800제3 · 진행중」 · 「수능딥독1 · 숙�
 const fl = flagLines([{ id: "f1", chapter: "CH4", short: "PSS 4-2", kind: "not_done", said: null, raised_at: "2026-09-01T09:00:00+09:00", seen_at: null }, { id: "f2", chapter: "CH3", short: "3-1", kind: "other", said: "두 번 나왔어요", raised_at: "2026-08-30T09:00:00+09:00", seen_at: "2026-09-02T00:00:00Z", outcome: "kept" }, { id: "f3", chapter: "CH1", short: "1-1", kind: "already_done", raised_at: "2026-08-30T09:00:00+09:00", seen_at: "2026-09-02T00:00:00Z", outcome: "changed" }]);
 ok("❗ 줄 — 「CH4 › PSS 4-2」 「이거 아직 안 했어요」 · 9/1에 달았어요 · 기다리는 중 / 그 밖에는 적은 말 · 그대로 두기로 했어요 / 바꿨어요", fl[0].title === "CH4 › PSS 4-2" && fl[0].said === "이거 아직 안 했어요" && fl[0].when === "9/1에 달았어요" && fl[0].waiting === true && fl[0].state === "기다리는 중" && fl[1].said === "두 번 나왔어요" && fl[1].state === "그대로 두기로 했어요" && fl[2].state === "바꿨어요", J(fl));
 ok("띠 — 열림 · 닫힘(학원) · 닫힘(이 아이만) · 갈래 셋 · 모드 셋", editBand({ can_edit: true }).open === true && editBand({ can_edit: false }, { progress_edit: "follow" }).small.includes("원장님이 열면") && editBand({ can_edit: false }, { progress_edit: "off" }).small.includes("내 것만") && FLAG_KIND.length === 3 && EDIT_MODE.length === 3);
+console.log("■ (허) 조각 · 칸에서 바로 찍기 — 남긴 것 21");
+{
+  const units = [{ ...u("u1", "CH1 문장의 기초", "PSS 1-1"), q_count: 62 }, { ...u("u2", "CH1 문장의 기초", "PSS 1-2"), page_start: 10, page_end: 15 }, u("u3", "CH2 시제", "PSS 2-1"), u("u4", "CH2 시제", "PSS 2-2")];
+  const b = { units, progress: [{ unit_id: "u3", status: "done", last_by: "staff", confirmed: true }], edit: { can_edit: true },
+              parts: [{ unit_id: "u1", q_from: 1, q_to: 20 }, { unit_id: "u2", page_from: 10, page_to: 12 }] };
+  const r = roadOf(b), byId = Object.fromEntries(r.chapters.flatMap((c) => c.subs.map((x) => [x.id, x])));
+  ok("조각 글이 소단원 줄에 붙는다 — 문항이면 「낸 것 1-20 · 남은 것 21-62」 · 쪽이면 「낸 것 p.10-12 · 남은 것 p.13-15」 · 조각이 없으면 빈 글(02b 와 같은 셈 — progress-plan coverage·partsText 한 벌)",
+    byId.u1.parts === "낸 것 1-20 · 남은 것 21-62" && byId.u2.parts === "낸 것 p.10-12 · 남은 것 p.13-15" && byId.u3.parts === "" && byId.u4.parts === "", `${byId.u1.parts} / ${byId.u2.parts}`);
+  const ch1 = r.chapters.find((c) => c.chapter === "CH1 문장의 기초"), ch2 = r.chapters.find((c) => c.chapter === "CH2 시제");
+  ok("칸마다 「한 번에 찍을 소단원」(markable) — 쌤이 찍은 줄(u3)은 빠지고 나머지만 · 닫혀 있으면 하나도 없다", ch1.markable.join() === "u1,u2" && ch2.markable.join() === "u4" && roadOf({ ...b, edit: { can_edit: false } }).chapters.every((c) => c.markable.length === 0), `${ch1.markable} / ${ch2.markable}`);
+  ok("줄 하나 판단(rowMarkable)은 한 벌 — canMark 는 열림 + rowMarkable(손 lib/road.js 통째 찍기가 같은 것을 쓴다 · RLS 0052 ②)",
+    rowMarkable(null) === true && rowMarkable({ last_by: "student", status: "done" }) === true && rowMarkable({ last_by: "staff", status: "none" }) === true && rowMarkable({ last_by: "staff", status: "done" }) === false
+    && canMark({ can_edit: true }, null) === true && canMark({ can_edit: false }, null) === false);
+}
+{
+  const strip = (x) => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 주석은 먼저 지운다(폰-5) — 주석에 적힌 글이 검사를 속이지 않게
+  const src = (f) => strip(readFileSync(f, "utf8"));
+  const road = src("lib/road.js"), me = src("app/me/book/board.js"), ops = src("app/ops/students/actions.js"), opsB = src("app/ops/students/board.js");
+  ok("통째로 찍기는 읽기 한 번 · 쓰기 한 번(줄마다 부르지 않는다 — 속도 대원칙 1) · 쌤이 찍은 줄은 막지 않고 건너뛴다(몇 줄인지 돌려준다)",
+    /studentMarkMany/.test(road) && /\.upsert\(/.test(road) && /rowMarkable/.test(road) && /skipped: ids\.length - mine\.length/.test(road) && !/for \(const id of mine\)/.test(road));
+  ok("08 칸에 진짜 단추가 있다(「소단원 보기」를 펴지 않아도) · 소단원 줄엔 조각 글", /data-g="chapter-tri"/.test(me) && /markChapter\(c\.markable/.test(me) && /data-g="sub-parts"/.test(me));
+  ok("14 의 진도 체크는 **같은 손**(lib/progress.js)과 **같은 판단**(road-plan staffFlagLine · EDIT_MODE) — 두 벌로 안 그린다(원칙-1)",
+    /from "@\/lib\/progress"/.test(ops) && /confirmAllMarks|confirmMark/.test(ops) && /staffFlagLine/.test(opsB) && /EDIT_MODE/.test(opsB) && !/from\(["']progress["']\)/.test(opsB));
+}
 console.log("■ 원장 쪽");
 ok("「강민서 6 · 윤도현 4」(0 은 뺀다) · 9/28 켬 → 10/9 는 「12일째」 · 안 켰으면 빈 글", pendingText([{ name: "강민서", pending: 6 }, { name: "구도은", pending: 0 }, { name: "윤도현", pending: 4 }]) === "강민서 6 · 윤도현 4" && daysOpenText("2026-09-28", T) === "12일째" && daysOpenText(null, T) === "");
 const sf = staffFlagLine({ id: "f1", student: "강민서", book: "중등3800제3", chapter: "CH4 수동태", short: "PSS 4-2", kind: "not_done", raised_at: "2026-09-01T09:00:00+09:00", status: "done" });

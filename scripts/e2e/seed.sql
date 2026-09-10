@@ -103,6 +103,12 @@ insert into v2.units (id, book_id, chapter, sub, activity, is_workbook, sort, pa
   ('99999999-0000-4000-e100-000000000007', '99999999-0000-4000-e000-000000000001', 'CHAPTER 1', '중간·기말 대비문제', '문제', false, 7, 30, 38, 62, 'fixture')
 on conflict (id) do nothing;
 
+-- ── (허) 조각 하나 심기 — 08 로드맵의 소단원 줄에 「낸 것 1-5 · 남은 것 6-13」이 뜬다(확정-⑳ · 02b 와 같은 셈).
+--    PSS 1-5 부정의문문(문항 13개) 중 1-5번만 낸 자국. 진도(progress)는 안 건드린다 — 조각은 조각일 뿐이다.
+insert into v2.progress_part (id, student_id, unit_id, round, q_from, q_to, note, done_on)
+  select '99999999-0000-4000-e400-000000000001', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-e100-000000000005', 1, 1, 5, '1-5번', v2.today()
+  where not exists (select 1 from v2.progress_part where id = '99999999-0000-4000-e400-000000000001');
+
 -- ── 경고·반성문 눌러보기 — 지난달 끝자락에 경고 이틀(지각). 오늘 지각까지 3회째면 반성문을 묻고, 「전원 정리하기」 뒤엔 오늘 것 1회만 남는다 (어제 판 today-1 과 안 겹치게 1일-3 · 1일-5)
 insert into v2.day_sheet (id, student_id, class_id, date, attend, closed_at, import_batch)
   select '99999999-0000-4000-c000-000000000002', '99999999-0000-4000-9000-000000000001', '99999999-0000-4000-a000-000000000001', date_trunc('month', v2.today())::date - 3, 'late', now() - interval '3 day', 'fixture'
