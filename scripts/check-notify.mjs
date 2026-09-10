@@ -13,6 +13,9 @@ let w = where(/sendNotification\(/, ["lib/push.js"]); if (w.length) bad.push(`�
 w = where(/from ["'](\.\/push\.js|@\/lib\/push)["']/, ["lib/notify.js"]); if (w.length) bad.push(`① lib/push.js 를 lib/notify.js 밖에서 들여온다: ${w.join(", ")}`);
 w = where(/from\("notify_log"\)\.(insert|update|upsert|delete)/, ["lib/notify.js"]); if (w.length) bad.push(`① notify_log 에 lib/notify.js 밖에서 쓴다: ${w.join(", ")}`);
 w = where(/(process\.env|\benv)\.NOTIFY_SINK|\[["']NOTIFY_SINK["']\]/, ["lib/notify-plan.js"]); if (w.length) bad.push(`⑦ 스위치를 lib/notify-plan.js 밖에서 읽는다: ${w.join(", ")}`);
+w = where(/from ["'](\.\/solapi\.js|@\/lib\/solapi)["']/, ["lib/notify.js"]); if (w.length) bad.push(`① 문자 서버(lib/solapi.js)를 lib/notify.js 밖에서 들여온다: ${w.join(", ")}`);   // (커) 문자도 같은 길 한 곳
+w = where(/solapi\.com/, ["lib/solapi.js"]); if (w.length) bad.push(`① 문자 서버 주소를 lib/solapi.js 밖에서 쓴다: ${w.join(", ")}`);
+if (/node:crypto/.test(readFileSync("lib/sms-plan.js", "utf8"))) bad.push("① lib/sms-plan.js 는 화면도 가져온다 — node:crypto 를 쓰면 빌드가 깨진다(게이트 96)");
 w = where(/["']late_notice["']/, ["lib/late.js", "lib/send-plan.js"]).filter((p) => !/^scripts\//.test(p)); if (w.length) bad.push(`확정-㊿ 늦귀가 알림을 lib/late.js 밖에서 넣는다: ${w.join(", ")}`);
 // 큐에 넣는 갈래 ⊆ 손이 있는 갈래
 const send = strip(readFileSync("lib/send.js", "utf8")), plan = strip(readFileSync("lib/send-plan.js", "utf8"));

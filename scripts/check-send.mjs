@@ -1,5 +1,5 @@
 /** 발송 판단 검사(검사-㊾) — lib/send-plan.js · lib/notify-plan.js 순수 셈: 치환 자리(뼈대-11) · 예약 때(확정-㉕) · 묶음 넷의 상태 · 읽음 셈 · 자취 상태(리허설은 그렇게 말한다) · 방해금지 · 잠금화면 문구 · 기기 고르기 · 스위치 기본 off */
-import { unfilled, whenAt, whenLabel, lateRows, dailyRows, autoRows, scheduledRows, sentRows, logStatus, readCounts, nowCount, closedCount, KINDS, placeholderRows } from "../lib/send-plan.js";
+import { unfilled, whenAt, whenLabel, lateRows, dailyRows, autoRows, scheduledRows, sentRows, logStatus, logName, readCounts, nowCount, closedCount, KINDS, placeholderRows } from "../lib/send-plan.js";
 import { titleFor, payloadFor, OPEN_TO_SEE, sinkOf, mayPush, pickDevices, inQuiet, quietUntil, LABEL } from "../lib/notify-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -42,13 +42,14 @@ ok("🔔 저절로 — 안 끝난 것만(대기 · 미룸 · 실패), 끝난 것
 const scheduled = scheduledRows(sch, jobs, sheets, now, "2026-09-06");
 ok("📢 예약된 것 — 예약 표(취소 가능) + 방해금지로 미뤄진 일(취소 못 함) · 때 순서", scheduled.length === 4 && scheduled[0].cancellable === true && scheduled[0].when === "내일 09:00" && scheduled[0].name === "라" && scheduled[1].cancellable === false && scheduled[1].when.includes("방해금지"), JSON.stringify(scheduled));
 ok("(어) 월간·수강료 예약 줄 — 이름은 student_name · 무엇은 「월간 리포트 2026년 9월」 「수강료 안내 2026년 9월」 · 취소 가능", scheduled[2].name === "마" && scheduled[2].what === "월간 리포트 2026년 9월" && scheduled[3].what === "수강료 안내 2026년 9월" && scheduled[2].cancellable === true && scheduled[3].cancellable === true, JSON.stringify(scheduled.slice(2)));
+ok("(커) 자취 갈래 이름이 열쇠 그대로인 것이 없다 — LOG_NAME 에 없으면 LABEL 의 말로(welcome 「첫 등원 안내」 · schedule 「수업 일정 안내」 · guide 「상담 안내」)", Object.keys(LABEL).every((k) => logName(k) !== k) && logName("welcome") === "첫 등원 안내" && logName("guide") === "상담 안내" && logName("daily") === "데일리리포트", Object.keys(LABEL).filter((k) => logName(k) === k).join());
 const sent = sentRows(logs);
 ok("오늘 나간 것 — 읽음(2번 열어봄) · 리허설 🧪 · 못 보냄 ⚠️ · 안 읽음(다시 보내기 가능)", sent[0].status.text === "📨 21:10 보냄 · 👁️ 21:20 읽음 · 🔁 2번 열어봄" && sent[0].resendable === false && sent[1].status.rehearsal && sent[1].status.icon === "🧪" && sent[2].status.bad && sent[3].status.unread && sent[3].resendable, JSON.stringify(sent.map((s) => s.status.text)));
 ok("읽음 셈 — 읽음 1 · 안 읽음 1 · 못 보냄 1 · 리허설 1", JSON.stringify(readCounts(logs)) === JSON.stringify({ read: 1, unread: 1, failed: 1, rehearsal: 1 }), JSON.stringify(readCounts(logs)));
 ok("자취 상태 — 스위치 off 로 안 나간 것은 「리허설 — 실제로는 안 나감」(대전제-0)", logStatus(logs[1]).text.startsWith("리허설(off) — 실제로는 안 나감"));
 console.log("■ 알림 판단(순수)");
-ok("제목 — [클로이영어] 수업 안내 · 이미 붙어 있으면 다시 안 붙인다 · 갈래 열(첫 등원 안내는 3단계-8 등록 전환 · 영상 안내는 3단계-9 재촉)", titleFor("daily", "클로이영어") === "[클로이영어] 수업 안내" && titleFor("late", "클로이영어") === "[클로이영어] 늦은 귀가 안내" && titleFor("welcome", "클로이영어") === "[클로이영어] 첫 등원 안내" && titleFor("video", "클로이영어") === "[클로이영어] 영상 안내" && Object.keys(LABEL).length === 13);
-ok("갈래 열셋 — + score 「성적 입력 안내」(16 재촉 · 아이 기기도) · fee 「수강료 안내」(13 안내) — 4단계-2a · schedule 「수업 일정 안내」(12 확정 → 학부모 · 4단계-3b ㉚) · 제약(0139)과 같은 열", Object.keys(LABEL).length === 13 && titleFor("schedule", "클로이영어") === "[클로이영어] 수업 일정 안내" && titleFor("score", "클로이영어") === "[클로이영어] 성적 입력 안내" && titleFor("fee", "클로이영어") === "[클로이영어] 수강료 안내");
+ok("제목 — [클로이영어] 수업 안내 · 이미 붙어 있으면 다시 안 붙인다 · 갈래 열넷(첫 등원 안내는 3단계-8 등록 전환 · 영상 안내는 3단계-9 재촉)", titleFor("daily", "클로이영어") === "[클로이영어] 수업 안내" && titleFor("late", "클로이영어") === "[클로이영어] 늦은 귀가 안내" && titleFor("welcome", "클로이영어") === "[클로이영어] 첫 등원 안내" && titleFor("video", "클로이영어") === "[클로이영어] 영상 안내" && Object.keys(LABEL).length === 14);
+ok("갈래 열넷 — + score 「성적 입력 안내」(16 재촉 · 아이 기기도) · fee 「수강료 안내」(13 안내) — 4단계-2a · schedule 「수업 일정 안내」(12 확정 → 학부모 · 4단계-3b ㉚) · guide 「상담 안내」((커) 18 안내 문자 · 솔라피) · 제약(0154)과 같은 열", Object.keys(LABEL).length === 14 && titleFor("guide", "클로이영어") === "[클로이영어] 상담 안내" && titleFor("schedule", "클로이영어") === "[클로이영어] 수업 일정 안내" && titleFor("score", "클로이영어") === "[클로이영어] 성적 입력 안내" && titleFor("fee", "클로이영어") === "[클로이영어] 수강료 안내");
 threw = false; try { titleFor("nope"); } catch { threw = true; } ok("모르는 갈래는 던진다", threw);
 const pl = payloadFor({ kind: "daily", academy: "클로이영어", tag: "daily-s1", r: 77 });
 ok("짐 다섯 칸(sw.js 계약) — 본문은 늘 「앱에서 확인해주세요.」(잠금화면에 내용 없음)", JSON.stringify(Object.keys(pl)) === JSON.stringify(["title", "body", "tag", "url", "r"]) && pl.body === OPEN_TO_SEE && pl.url === "/parent" && pl.r === 77);

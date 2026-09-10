@@ -223,3 +223,6 @@ update v2.rule set value = '1' where key = 'day.heavy_pages';   -- 📣 「오�
 insert into v2.exams (id, scope, school_id, grade, name, term_from, term_to, english_on, source, source_key, state, prev_term_from, prev_term_to, changed_at, import_batch)
   select '99999999-0000-4000-e600-000000000001', 'national', null, null, 'zz_시험_모의고사', current_date + 50, current_date + 50, null, 'site', 'site:zz_시험_모의고사', 'active', current_date + 48, current_date + 48, now() - interval '1 day', 'fixture'
   where not exists (select 1 from v2.exams where id = '99999999-0000-4000-e600-000000000001');
+
+-- (커) 문자 길(솔라피) 흉내 — 열쇠는 가짜 · 리허설은 NOTIFY_SINK 가 off 라 자취만 남고 나가지 않는다(18 안내 문자 · 등록 전환 첫 등원 안내)
+insert into v2.integration (id, config) values ('solapi', '{"key": "zz_test_key", "secret": "zz_test_secret", "from": "01000000000"}'::jsonb) on conflict (id) do nothing;

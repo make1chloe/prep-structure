@@ -81,5 +81,13 @@ for (const [fn, key] of [["v2.grid_board(date)", "cells_at"], ["v2.student_board
 // 표-6 새로 건 것 11(0131 · NOT VALID — 새 줄부터) — 코드의 값 목록과 같다
 const chk = await col(`select conname from pg_constraint where connamespace='v2'::regnamespace and conname like '%_choice'`);
 ok(`표-6 0131 이 건 고르는 값 check ${chk.length} ≥ 11(notify_log kind·sink · job_queue · scheduled_send · todo · inquiry.way · payment.source · 영역 넷)`, chk.length >= 11, chk.join(","));
+// (커) 갈래 열이 세 곳에서 같은가 — lib/notify-plan LABEL · notify_log_kind_choice · scheduled_send_kind_choice.
+// 2026-09-10 사고: LABEL 에 guide 를 더하고 예약 제약만 고쳐, 문자를 보내려다 「자취를 못 남김 … notify_log_kind_choice」로 막혔다(게이트 97 이 잡음)
+const { LABEL } = await import("../lib/notify-plan.js");
+const kinds = Object.keys(LABEL).sort().join(",");
+const defOf = async (name) => (await col(`select pg_get_constraintdef(oid) from pg_constraint where conname='${name}'`))[0] ?? "";
+const inDef = (d) => [...String(d).matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]).sort().join(",");
+const logDef = await defOf("notify_log_kind_choice"), schDef = await defOf("scheduled_send_kind_choice");
+ok(`갈래 열이 셋 다 같다 — LABEL ${Object.keys(LABEL).length}개 = notify_log · scheduled_send 의 check((커) 확정-71: 하나만 고치면 보내다 막힌다)`, inDef(logDef) === kinds && inDef(schDef) === kinds, `LABEL ${kinds}\n     notify_log ${inDef(logDef)}\n     scheduled_send ${inDef(schDef)}`);
 console.log(`\n■ 표·뼈대 규칙 DB 검사 ${n}건 · 실패 ${bad}`);
 await c.end(); process.exit(bad ? 1 : 0);
