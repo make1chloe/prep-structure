@@ -3,9 +3,28 @@
  *    2. 화소: 목업 27화면을 (a) 목업 <style> 로 (b) app/globals.css + chrome.css 로 그려 화면마다 화소를 견준다 — PC 1280 · 폰 390
  *  목업을 고쳤으면 node scripts/mockup-css.mjs 로 다시 갈라낸다. 손으로 globals.css 를 고치면 여기서 잡힌다. */
 import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
 import { tokens, parse } from "./_css.mjs";
 import { launch, offline, VIEWS } from "./_browser.mjs";
-import { build, styleOf, MOCKUP } from "./_mockup-page.mjs";
+import { build, styleOf, MOCKUP, ROOT } from "./_mockup-page.mjs";
+
+// ── 안 바뀌었으면 다시 안 잰다 (검사-79 · 2026-09-10)
+// ⚠️ 이 검사 하나가 검사 한 바퀴의 대부분을 쓴다 — 목업 27화면 × 2자리 × 2벌 = 스크린샷 108장을 찍어 화소를 견준다.
+//    그런데 답을 정하는 것은 아래 일곱 파일뿐이다 — 목업 · globals.css · chrome.css 와 이 검사 넷.
+//    앱 코드(app/·lib/·SQL)만 고친 날에는 일곱이 다 그대로다 → 다시 찍어도 같은 답이 나온다.
+// ⚠️ 초록을 헐하게 주는 것이 아니다: 일곱 중 한 글자만 달라도 해시가 달라져 **통째로 다시 돈다**.
+//    지난번 통과 자취는 .tmp/ 라 저장소에 없다 — 새로 받은 자리는 늘 통째로 돈다.
+//    손으로 통째로 돌리려면 CHECK_MOCKUP_FULL=1 (브라우저를 갈아 끼웠을 때).
+const INPUTS = ["docs/목업/클로이영어-화면-목업.html", "app/globals.css", "docs/목업/chrome.css",
+                "scripts/check-mockup.mjs", "scripts/_mockup-page.mjs", "scripts/_css.mjs", "scripts/_browser.mjs"];
+const STAMP = path.join(ROOT, ".tmp/check-mockup.pass");
+const key = INPUTS.reduce((h, f) => h.update(f).update(fs.readFileSync(path.join(ROOT, f))), crypto.createHash("sha256")).digest("hex");
+if (!process.env.CHECK_MOCKUP_FULL && fs.existsSync(STAMP)) {
+  const [k, ...msg] = fs.readFileSync(STAMP, "utf8").split("\n");
+  if (k === key) { console.log(msg.join("\n") + "  ⏭ 건너뜀 — 목업·CSS 가 지난번 통과 그대로 (통째로 돌리려면 CHECK_MOCKUP_FULL=1)"); process.exit(0); }
+}
+
 const bad = [];
 // 1. 토큰
 const m = tokens(styleOf(fs.readFileSync(MOCKUP, "utf8"))), a = tokens(fs.readFileSync("app/globals.css", "utf8"));
@@ -41,5 +60,8 @@ for (const v of VIEWS) {
   await ctx.close();
 }
 await b.close();
-if (bad.length) { console.log("check-mockup ✗\n  " + bad.join("\n  ")); process.exit(1); }
-console.log(`check-mockup ✓ 토큰 ${ntok} 같음 · 화면 ${nshot / VIEWS.length}장 × ${VIEWS.length}자리 화소 같음`);
+if (bad.length) { fs.rmSync(STAMP, { force: true }); console.log("check-mockup ✗\n  " + bad.join("\n  ")); process.exit(1); }
+const ok = `check-mockup ✓ 토큰 ${ntok} 같음 · 화면 ${nshot / VIEWS.length}장 × ${VIEWS.length}자리 화소 같음`;
+fs.mkdirSync(path.dirname(STAMP), { recursive: true });   // 통과한 것만 자취를 남긴다 — 빨간 것은 위에서 지운다
+fs.writeFileSync(STAMP, key + "\n" + ok);
+console.log(ok);
