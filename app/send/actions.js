@@ -3,10 +3,11 @@
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { sendNow, schedule, cancelScheduled, resend } from "@/lib/send";
+import { sendNow, schedule, cancelScheduled, resend, saveTemplate } from "@/lib/send";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
 export async function sendSelected(ids) { return wrap(async () => { const { sb } = await staff(); return { r: await sendNow(sb, ids) }; }); }
 export async function scheduleSelected(ids, choice, custom) { return wrap(async () => { const { sb, user } = await staff(); return schedule(sb, ids, choice, custom, user.id, await today(sb)); }); }
 export async function cancelSchedule(id) { return wrap(async () => { const { sb } = await staff(); await cancelScheduled(sb, id); return {}; }); }
 export async function resendLog(id) { return wrap(async () => { const { sb } = await staff(); return { r: await resend(sb, id) }; }); }
+export async function saveTemplateAct(kind, body) { return wrap(async () => { const { sb } = await staff(); return saveTemplate(sb, kind, body); }); }   // (커) ✉️ 문자 문구 고치기
