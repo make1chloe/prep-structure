@@ -38,6 +38,7 @@ ok("열쇠 칸에 type=password 를 **안** 쓴다 — 짝(아이디+비밀번�
 ok("칸마다 자동완성 끄기가 붙는다(autoComplete off · 1Password · LastPass · 대시레인) — 한 벌(NOFILL)로만 적어 칸마다 어긋나지 않는다", /const NOFILL = \{/.test(keysCode) && /data-1p-ignore/.test(keysCode) && /data-lpignore/.test(keysCode) && /\{\.\.\.NOFILL\}/.test(keysCode) && (keysCode.match(/autoComplete/g) || []).length === 1);
 ok("틀린 꼴은 **적는 그 자리에서** 말한다 — 화면이 fieldNag 를 쓴다(판단은 순수 모듈 한 벌)", /fieldNag\(/.test(keysCode) && !/fieldWhyBad/.test(keysCode));
 ok("(퍼) 넣어 둔 값이 틀린 꼴이면 꼬리표가 「고쳐야 함」 · 까닭을 그 줄에 적는다(key-bad · 값은 안 적는다)", /고쳐야 함/.test(keysCode) && /data-g="key-bad"/.test(keysCode) && /r\.bad/.test(keysCode));
+ok("(퍼) 저장한 때가 줄에 보인다 — 「고침 9/10 23:41」(비밀 칸은 값을 안 돌려주니, 저장이 됐는지 알 길이 이것뿐이다 · 원장님 9/10 「저장눌러도 저장안됨」)", /data-g="key-saved"/.test(keysCode) && /r\.updated_at/.test(keysCode) && /seoulTime/.test(keysCode));
 ok("줄 요약과 빨간 글을 걷기가 갈라 볼 수 있다 — 요약에 data-g=key-sum 표시(둘 다 small 이라 「둘이 잡힌다」로 걷기가 멈췄다 · 게이트 102)", /data-g="key-sum"/.test(keysCode) && /data-g="key-why"/.test(keysCode));
 console.log(`\n■ 연동 열쇠 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

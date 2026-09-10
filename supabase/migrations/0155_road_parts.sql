@@ -130,3 +130,7 @@ language sql stable security definer set search_path = v2, public as $$
 $$;
 comment on function v2.student_board(uuid, date) is '학생 14 가 읽는 한 벌 — 목록·한 아이(머리 · KPI 여섯 · 교재 진도 · 성적 · 이 달 출결 · 단원평가 · 지나온 것 · 상담 · 자료 · 영상 · (허) 그 아이의 진도 체크 셋). 학원 사람만';
 grant execute on function v2.student_board(uuid, date) to authenticated, service_role;
+
+-- 표 모양이 바뀌었으니 API 쪽(PostgREST)의 기억도 새로 읽게 한다 — 안 하면 「Could not find the ... column ... in the schema cache」
+-- (원장님 2026-09-10 밤: 0154 를 돌리신 뒤 문자 시험에서 그 오류가 났다). 여러 번 돌려도 탈 없다.
+notify pgrst, 'reload schema';

@@ -28,5 +28,9 @@ if (!/import "@\/lib\/send"/.test(strip(readFileSync("app/api/cron/route.js", "u
 const page = strip(readFileSync("app/send/page.js", "utf8"));
 if (!/after\(backstop\)/.test(page) || /await backstop/.test(page)) bad.push("속도-3 발송 화면이 백스톱을 렌더 뒤(after)로 안 돌린다");
 if (!/OPEN_TO_SEE/.test(readFileSync("lib/notify-plan.js", "utf8"))) bad.push("잠금화면 문구(OPEN_TO_SEE)가 없다 — 알림에 내용이 실린다");
+// (퍼) 원장님 9/10 밤 — 「자취를 못 남김: Could not find the 'channel' column of 'notify_log' in the schema cache」가 영어 그대로 화면에 떴다.
+//     DB 가 하는 말 중 **원장님이 고칠 수 있는 것**은 우리 말로 옮겨서 보여야 한다(옮기는 자리는 lib/sqlError.js 하나 — 원칙-1).
+if (!/saidBy\(/.test(strip(readFileSync("lib/notify.js", "utf8")))) bad.push("자취 남기기의 DB 오류가 우리 말로 안 옮겨진다(lib/sqlError.js saidBy)");
+if (!/reload schema/.test(readFileSync("lib/sqlError.js", "utf8"))) bad.push("lib/sqlError.js 가 「schema cache」 오류의 고칠 길을 안 말한다");
 if (bad.length) { console.log("check-notify ✗\n  " + bad.join("\n  ")); process.exit(1); }
 console.log(`check-notify ✓ 나가는 길 한 곳(lib/notify.js → lib/push.js) · 스위치 한 곳 · 손 ${handled.size}개가 큐 갈래 ${enqueued.size}개를 다 받는다 · 늦귀가는 lib/late.js 만 · 치환 자리 문 · 백스톱은 렌더 뒤`);

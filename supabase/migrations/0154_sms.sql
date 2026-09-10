@@ -115,3 +115,7 @@ language sql stable security invoker set search_path = v2, public as $$
     'progress', (select coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb) from v2.video_progress(p_student) p)
   );
 $$;
+
+-- 표 모양이 바뀌었으니 API 쪽(PostgREST)의 기억도 새로 읽게 한다 — 안 하면 「Could not find the ... column ... in the schema cache」
+-- (원장님 2026-09-10 밤: 0154 를 돌리신 뒤 문자 시험에서 그 오류가 났다). 여러 번 돌려도 탈 없다.
+notify pgrst, 'reload schema';
