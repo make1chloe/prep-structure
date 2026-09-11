@@ -191,8 +191,10 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
       : <div className="two">
           <Half slot="class" title="오늘 학습 · 학원" b={b} sheet={sheet} mark={mark} rows={rows("class")} closed={closed} fail={fail} start={start} />
           {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제멈춤</span></div><div className="stopnote"><b>숙제 없음</b> — 수업에서만 씁니다</div></div>
-          : <Half slot="home" title="오늘 숙제 · 집" b={b} sheet={sheet} mark={mark} rows={rows("home")} closed={closed} fail={fail} start={start} extra={extra} />}
+          : <Half slot="home" title="오늘 숙제 · 집" b={b} sheet={sheet} mark={mark} rows={rows("home")} closed={closed} fail={fail} start={start} />}
         </div>}
+      {extra}{/* 📝 다음 시간 시험 — **어느 갈래에서도 보인다.** 2026-09-11 첫 주 돌려보기에서 잡힘: 교재가 멈추거나
+                   할 것이 없으면 이 카드가 통째로 사라져, 정작 시험이 제일 중요한 내신 기간에 시험을 낼 자리가 없었다 */}
       {stop !== "running" && extra}
     </div>
   );

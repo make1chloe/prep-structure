@@ -172,6 +172,7 @@ else {
 
 // ══ 5. 한 주 — 정규 사흘 → 「지금 멈춤」 → 내신 나흘 ════════════════════════
 const 출결표 = ["왔음", "왔음", "지각", "왔음", "결석", "왔음", "왔음"];
+let 지난숙제 = 0;   // 지난 「온 날」에 낸 숙제 수 — 오늘 검사 줄이 0인 것이 잘못인지 아닌지 가른다
 const 마감표 = [true, true, true, true, false, true, true];
 for (let i = 0; i < 7; i++) {
   const D = 날(첫날 + i), 갈래 = i < 3 ? "정규" : "내신";
@@ -198,7 +199,9 @@ for (let i = 0; i < 7; i++) {
   // 숙제 검사 — 있으면 ○(첫날은 없다)
   const hw = row.locator(".card[data-card=check] .hw");
   const n = await hw.count();
-  if (!n) { if (i === 0) console.log("   숙제 검사: 없음(첫 수업 — 맞습니다)"); else 적기("빈화면", `01 ${i + 1}일째`, "어제 숙제를 냈는데 오늘 검사 줄이 0개입니다"); }
+  if (!n) { if (i === 0) console.log("   숙제 검사: 없음(첫 수업 — 맞습니다)");
+            else if (지난숙제 === 0) console.log("   숙제 검사: 없음(지난 수업 숙제가 0개였습니다 — 맞습니다)");
+            else 적기("빈화면", `01 ${i + 1}일째`, `지난 수업에 숙제 ${지난숙제}개를 냈는데 오늘 검사 줄이 0개입니다`); }
   else { console.log(`   숙제 검사 ${n}줄`);
          for (let k = 0; k < n; k++) { const v = i === 4 ? "△" : k === 0 ? "○" : "○"; await 누름(p, hw.nth(k).locator(`.chk button[data-v]`).filter({ hasText: v }).first(), `01 ${i + 1}일째`, `검사 ${v}`); } }
   await p.waitForTimeout(600);
@@ -208,6 +211,7 @@ for (let i = 0; i < 7; i++) {
   const 숙제수 = await work.locator(".load > .ldn").nth(1).locator("b").first().textContent().catch(() => "?");
   const 깔림 = (await work.locator(".ctitle .auto").textContent().catch(() => "")).trim();
   console.log(`   학습 ${학원수} · 숙제 ${숙제수} · ${깔림}`);
+  지난숙제 = Number(숙제수) || 0;
   if (학원수 === "0" && 숙제수 === "0") {   // 0개인 것이 잘못은 아니다 — **까닭을 화면이 말하나**를 본다(대전제-0)
     const 까닭 = (await work.locator(".stopnote").allTextContents()).join(" · ").replace(/\s+/g, " ").trim();
     if (까닭 || /0개/.test(깔림)) console.log(`   (0개 — 까닭: ${깔림}${까닭 ? ` · ${까닭}` : ""})`);
@@ -221,10 +225,10 @@ for (let i = 0; i < 7; i++) {
       await f.locator("input[name=total]").blur(); await p.waitForTimeout(500); } }
   else if (i >= 3) 적기("빈화면", `01 ${i + 1}일째 내신`, "🔤 시험 카드가 없습니다 — 지난 시간에 낸 범위가 없어서");
   // 📝 다음 시간 시험 — 오늘 내야 **다음 수업에 🔤 시험 카드**가 선다. 내신 날은 범위를 「내신」으로 바꿔 본다
-  const nq = row.locator("[data-card=next-quiz]");
+  const nq = row.locator("[data-card=next-quiz]").first();   // 교재가 여럿이면 첫 교재 칸에 선다 — 걷기는 하나만 눌러 본다
   if (await nq.count()) {
     if (!(await nq.locator(".lf .ln").count())) {   // 아직 낸 것이 없으면 하나 낸다
-      await 누름(p, nq.locator("button", { hasText: "+ 시험 더하기" }), `01 ${i + 1}일째`, "+ 시험 더하기"); }
+      await 누름(p, nq.locator("button", { hasText: "+ 시험 더하기" }).first(), `01 ${i + 1}일째`, "+ 시험 더하기"); }
     const src = nq.locator("[data-g=source] button", { hasText: "내신" }).first();
     if (갈래 === "내신" && await src.count()) {
       if (await src.isDisabled()) 적기("막힘", `01 ${i + 1}일째 내신`, `「내신」 범위를 못 고릅니다 — ${(await src.getAttribute("title")) ?? "까닭 없음"}`);

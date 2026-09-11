@@ -215,7 +215,7 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("건너뛰면 재시험 줄은 「오늘 건너뜀」 · 사유에서 빠진다 · 점수는 그대로(85%)", (await row.locator("[data-card=quiz] .lf", { hasText: "오늘 건너뜀" }).count()) === 1 && !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("재시험이 남음") && (await row.locator("[data-card=quiz] .lf").first().locator(".lm").textContent()).includes("85%"));
 console.log("■ 다음 시간 시험 — 숙제와 같이 나간다 · 전체 개수를 적어야 리포트에");
 const nq = row.locator("[data-card=next-quiz]");
-ok("다음 시간 시험 자리가 첫 교재의 숙제 반쪽에 있다", (await nq.count()) === 1 && (await bk.locator("[data-card=next-quiz]").count()) === 1);
+ok("다음 시간 시험 자리가 첫 교재 칸 안에 하나 — 교재가 멈춰도 할 것이 없어도 **늘 선다**((어3) 첫 주 돌려보기: 내신 기간에 이 카드가 통째로 사라졌다)", (await nq.count()) === 1 && (await bk.locator("[data-card=next-quiz]").count()) === 1);
 await nq.locator("button", { hasText: "+ 시험 더하기" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("단어 시험 한 줄 — 교재 · 오늘 학습 소단원(1-4) · 통과선 90(학원 기본)", (await row.locator("[data-card=next-quiz] .lf").first().textContent()).includes("PSS 1-4") && (await row.locator("[data-card=next-quiz] input[inputmode=numeric]").nth(1).inputValue()) === "90");
