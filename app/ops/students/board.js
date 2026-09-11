@@ -53,6 +53,11 @@ export default function Board({ d }) {
         {st.state !== "active" && <span className="tag act" data-g="state">{STATE.find(([k]) => k === st.state)?.[1]}</span>}
         <span className="spacer" />{st.siblings?.length > 0 && <span className="pill" data-g="siblings">{siblingText(st.siblings)}</span>}
         <button className="btn sm" type="button" data-act="edit-open" title="이름·연락처 · 계정(아이디 · 비밀번호 0000으로 초기화) · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리" onClick={() => { setEdit(!edit); setF(null); }}>✎ 고치기</button></div>
+      {/* 👁 이 아이·이 집이 보는 화면을 그대로 — 읽기만(lib/asview). 원장님 2026-09-11 「학생 학부모기능 없고」: 화면은 있었는데 원장님이 열 길이 없었다 */}
+      <div className="wv" style={{ marginBottom: 8 }} data-g="as-view-links">
+        <Link prefetch={false} className="btn sm gho" href={`/me?as=${st.id}`} data-act="as-me">👁 아이 화면</Link>
+        <Link prefetch={false} className="btn sm gho" href={`/parent?as=${st.id}`} data-act="as-parent">👁 학부모 화면</Link>
+        <span className="note" style={{ margin: 0 }}>{st.name} 이(가) 보는 화면을 그대로 봅니다 — <b>읽기만</b> 됩니다</span></div>
       {edit && <div className="card" data-g="edit"><div className="ctitle"><span className="cemo">✎</span>고치기 — {st.name}</div>
         <div className="wv"><input type="text" value={form.name} aria-label="이름" onChange={(x) => setForm("name", x.target.value)} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={form.grade} placeholder="학년" aria-label="학년" onChange={(x) => setForm("grade", x.target.value.replace(/\D/g, ""))} />
           <select value={form.schoolId} aria-label="학교" onChange={(x) => setForm("schoolId", x.target.value)} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>

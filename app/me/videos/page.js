@@ -6,6 +6,8 @@ import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { myStudent } from "@/lib/arrival";
+import { asView, screenStudent } from "@/lib/asview";
+import AsBand from "../../_shell/asband.js";
 import { accessQuery } from "@/lib/access";
 import { decide, ME } from "@/lib/perm";
 import { mineBoard } from "@/lib/files";
@@ -20,11 +22,12 @@ export default async function MyVideos({ searchParams }) {
   const { sb, me, user } = await guard();
   if (!me) redirect("/");
   if (isStaff(me.role)) return frame(<div className="task"><div className="h"><b>🎬 아이 화면입니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원 사람은 교재 › 영상에서 배정합니다.</p></div>);
-  if (me.role !== ROLES.STUDENT) redirect("/");
   const sp = await searchParams;
+  const seeing = asView(me, sp);   // 👁 (lib/asview)
+  if (!seeing && me.role !== ROLES.STUDENT) redirect("/");
   let d;
   try {
-    const [date, st] = await Promise.all([today(sb), myStudent(sb, user.id)]);
+    const [date, st] = await Promise.all([today(sb), screenStudent(sb, me, user, sp)]);
     const [mine, rules, acc] = await Promise.all([mineBoard(sb, st.id, date), ruleMap(sb, ["video."]), accessQuery(sb, ROLES.STUDENT)]);   // 📎·🎬 한 판 + 권한(같은 파도 — 층이 안 는다)
     const list = myRows(mine.assigns, mine.progress, Number(rules["video.done_pct"] ?? 95), date);
     const open = list.find((r) => r.video_id === String(sp?.v ?? "")) ?? null;

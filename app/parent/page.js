@@ -7,6 +7,8 @@ import { ROLES } from "@/lib/roles";
 import { decide, PARENT } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { myChildren, parentDay } from "@/lib/parent";
+import { asView, screenStudent, keepAs } from "@/lib/asview";
+import AsBand from "../_shell/asband.js";
 import { md } from "@/lib/dash-plan";
 import { childLinks } from "@/lib/files-plan";
 import Upload from "../_shell/upload.js";
@@ -27,14 +29,16 @@ const Card = ({ emo, title, id, pill, pillCls = "", fold = null, folded = false,
 const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}` : "";
 export default async function Parent({ searchParams }) {
   const { sb, me, user } = await guard();
-  if (me?.role !== ROLES.PARENT) redirect("/");
   const q = await searchParams;
+  const seeing = asView(me, q);   // 👁 원장님이 그 집 화면을 보는 중(lib/asview 한 곳에서 정한다)
+  if (!seeing && me?.role !== ROLES.PARENT) redirect("/");
   let date, kids, d;
   try {
-    [date, kids] = await Promise.all([today(sb), myChildren(sb)]);
+    // 보는 중이면 형제 고르기 없이 그 아이 하나 — **파도에 태운다**(층을 안 더한다 · 속도-1)
+    [date, kids] = await Promise.all([today(sb), seeing ? screenStudent(sb, me, user, q).then((x) => [x]) : myChildren(sb)]);
     const pick = kids.find((k) => k.id === String(q?.s ?? "")) ?? kids[0];
-    d = pick ? await parentDay(sb, user, pick, date) : null;
-  } catch (e) { { console.error("[화면] 화면 못 엶:", e); return frame(<Oops what="화면" e={e} kind="task" />); } }
+    d = pick ? await parentDay(sb, user, pick, date, seeing) : null;
+  } catch (e) { { console.error("[화면] 화면 못 엶:", e); return frame(<Oops what={seeing ? "그 집 학부모 화면" : "화면"} e={e} kind="task" />); } }
   if (!d) return frame(<div className="task"><div className="h"><b>👨‍👩‍👧 아이가 아직 이어지지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「재원생」에서 이 계정을 아이와 이어야 합니다.</p></div>);
   const can = (k) => decide(ROLES.PARENT, d.access, k) === true;
   const sendFor = ask.bind(null, d.student.id);
@@ -87,14 +91,14 @@ export default async function Parent({ searchParams }) {
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}<div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.kid ? ` · ${f.kid}` : ""}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
       {fl.hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{fl.hidden}개는 1달이 지나 안 보입니다</p>}
     </Card> },
-    { id: 'cal', name: '달력', node: can(PARENT.recent) && <Link prefetch={false} className="task" href={`/parent/cal?s=${d.student.id}`} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></Link> },
+    { id: 'cal', name: '달력', node: can(PARENT.recent) && <Link prefetch={false} className="task" href={keepAs(`/parent/cal?s=${d.student.id}`, me, q)} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></Link> },
     { id: 'intro', name: '아이', node: can(PARENT.intro) && <Card emo="🎒" title={d.student.name} id="intro" {...fold("intro")} pill={d.student.schools ? `${d.student.schools.name}` : null}>
       <p className="note" style={{ margin: "4px 0 0" }}>{d.todayClass ? "오늘 수업이 있는 날입니다" : "오늘은 수업이 없는 날입니다"}</p></Card> },
     { id: 'sent', name: '보낸 것', node: can(PARENT.sent) && d.sent.length + d.notices.length > 0 && <Card emo="📨" title="보낸 것" id="sent" {...fold("sent")} pill={String(d.sent.length + d.notices.length)}>
       {d.sent.map((s) => <div className="li" key={s.id}><div><b>{s.text}</b><small>{s.small}</small></div></div>)}
       {d.notices.map((s) => <div className="li" key={s.id} data-g="notice-line"><div><b>{s.text}</b><small>{s.small}</small></div><Link prefetch={false} className="btn sm" href={s.url}>보기</Link></div>)}</Card> },
   ].filter((c) => c.node), d.prefs?.parent);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref parent · 4단계-6)
-  return frame(<>
+  const body = (<>
     <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>학부모</b>
       {kids.length > 1 ? <div className="seg sm" data-g="kids">{kids.map((k) => <Link prefetch={false} key={k.id} className={"btn sm"} aria-pressed={k.id === d.student.id} href={`/parent?s=${k.id}`} style={{ border: 0 }}>{k.name}</Link>)}</div> : <span className="pill" data-g="kid">{d.student.name}</span>}
       <span className="spacer" /><span className="pill">{md(date)}</span></div>
@@ -104,4 +108,8 @@ export default async function Parent({ searchParams }) {
     <BellCard />
     {anyCard && <AskCard asks={d.asks} send={sendFor} note="결석 예정을 미리 알려 주시면 수업을 준비하는 데에 큰 도움이 됩니다. 병원 진료가 아닌 당일 결석은 보강이 불가합니다." placeholder="선생님께 한마디" />}
   </>);
+  // 👁 보는 중에는 아무것도 눌리지 않는다 — fieldset disabled(브라우저가 잠근다) + 손도 역할을 본다(두 겹 · lib/asview)
+  return frame(seeing
+    ? <><AsBand name={d.student.name} kind="parent" /><fieldset disabled style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-g="as-locked">{body}</fieldset></>
+    : body);
 }

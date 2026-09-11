@@ -5,6 +5,7 @@ import { ROLES } from "@/lib/roles";
 import { decide, PARENT } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { myChildren } from "@/lib/parent";
+import { asView, screenStudent } from "@/lib/asview";
 import { calendar } from "@/lib/cal";
 import { ymOf } from "@/lib/cal-plan";
 import CalView from "../../_shell/calview.js";
@@ -13,11 +14,12 @@ export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}>{children}</main>;
 export default async function ParentCal({ searchParams }) {
   const { sb, me } = await guard();
-  if (me?.role !== ROLES.PARENT) redirect("/");
   const q = await searchParams;
+  const seeing = asView(me, q);   // 👁 (lib/asview)
+  if (!seeing && me?.role !== ROLES.PARENT) redirect("/");
   let d, kid, kids = [];
   try {
-    const [tday, ks] = await Promise.all([today(sb), myChildren(sb)]);
+    const [tday, ks] = await Promise.all([today(sb), seeing ? screenStudent(sb, me, user, q).then((x) => [x]) : myChildren(sb)]);
     kids = ks;
     kid = kids.find((k) => k.id === String(q?.s ?? "")) ?? kids[0];
     if (!kid) return frame(<div className="task"><div className="h"><b>👨‍👩‍👧 아이가 아직 이어지지 않았어요</b></div></div>);

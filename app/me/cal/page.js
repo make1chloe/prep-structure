@@ -5,6 +5,8 @@ import { ROLES } from "@/lib/roles";
 import { decide, ME } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { myStudent } from "@/lib/arrival";
+import { asView, screenStudent } from "@/lib/asview";
+import AsBand from "../../_shell/asband.js";
 import { calendar } from "@/lib/cal";
 import { ymOf } from "@/lib/cal-plan";
 import CalView from "../../_shell/calview.js";
@@ -13,11 +15,12 @@ export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}>{children}</main>;
 export default async function Cal({ searchParams }) {
   const { sb, me, user } = await guard();
-  if (me?.role !== ROLES.STUDENT) redirect("/");
   const q = await searchParams;
+  const seeing = asView(me, q);   // 👁 (lib/asview)
+  if (!seeing && me?.role !== ROLES.STUDENT) redirect("/");
   let d;
   try {
-    const [tday, st] = await Promise.all([today(sb), myStudent(sb, user.id)]);
+    const [tday, st] = await Promise.all([today(sb), screenStudent(sb, me, user, q)]);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(q?.d ?? "")) ? String(q.d) : tday;
     const ym = /^\d{4}-\d{2}$/.test(String(q?.m ?? "")) ? String(q.m) : ymOf(date);
     d = await calendar(sb, st, ym, date, tday, ROLES.STUDENT);

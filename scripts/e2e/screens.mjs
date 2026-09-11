@@ -178,6 +178,33 @@ ok("빈 카드는 숨긴다(확정-⑮) — 오늘 늦귀가·앞으로 없음 �
 await ctx.storageState({ path: ".tmp/state-parent.json" });
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-parent-morning-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
+
+console.log("■ 👁 그 아이 화면을 그대로 본다 — 원장님만 · 읽기만(원장님 2026-09-11 「학생 학부모기능 없고」)");
+const KID = "99999999-0000-4000-9000-000000000001";   // 씨앗의 zz_시험_학생
+// ① 학부모가 ?as= 를 붙여도 남의 화면이 안 열린다 — 조용히(오류도 안 낸다)
+await p.goto(APP + `/me?as=${KID}`);
+ok("학부모가 /me?as= 를 붙여도 「보는 중」 띠가 없다 — 남의 화면이 안 샌다", (await p.locator("[data-g=as-view]").count()) === 0, p.url());
+await p.goto(APP + `/parent?as=${KID}`);
+ok("학부모가 /parent?as= 를 붙여도 제 아이 화면 그대로(띠 없음)", (await p.locator("[data-g=as-view]").count()) === 0 && (await p.locator("main [data-g=kid], main [data-g=kids]").count()) === 1, p.url());
+await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
+// ② 원장님은 열린다 — 띠 + 통째 잠금
+await login(p, "staff", "zz_principal@e2e.test", PW);
+await p.goto(APP + `/me?as=${KID}`);
+const asMe = p.locator("main");
+ok("원장님이 /me?as= 로 아이 화면을 연다 — 👁 띠에 아이 이름 · 「읽기만」", (await p.locator("[data-g=as-view]").count()) === 1 && (await p.locator("[data-g=as-view]").textContent()).includes("zz_시험_학생") && (await p.locator("[data-g=as-view]").textContent()).includes("읽기만"), (await p.locator("[data-g=as-view]").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
+ok("아이 화면 속이 그대로 그려진다(카드가 있다) — 「없는 화면」이 아니었다", (await asMe.locator("[data-card]").count()) >= 1, `카드 ${await asMe.locator("[data-card]").count()}`);
+ok("보는 중에는 안의 단추·칸이 통째로 잠긴다(fieldset disabled) — 눌러도 저장되지 않는다", (await p.locator("fieldset[data-g=as-locked]").count()) === 1 && (await asMe.locator("button:enabled").count()) === 0, `살아 있는 단추 ${await asMe.locator("button:enabled").count()} (「[disabled] 속성」이 아니라 :enabled 로 본다 — fieldset 은 속성을 안 붙이고 상태로 잠근다)`);
+await p.goto(APP + `/parent?as=${KID}`);
+ok("원장님이 /parent?as= 로 그 집 화면을 연다 — 띠 「학부모님이 보는 화면」 · 통째 잠김", (await p.locator("[data-g=as-view]").textContent()).includes("학부모님") && (await p.locator("fieldset[data-g=as-locked]").count()) === 1, (await p.locator("[data-g=as-view]").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
+for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-asview-parent-${v.viewport.width}.png`, fullPage: true }); }
+await p.setViewportSize(VIEWS[0].viewport);
+// ③ 들어오는 길 — 14 재원생에 👁 둘
+await p.goto(APP + "/ops/students");
+await p.locator("[data-g=student-row]").first().click(); await p.waitForSelector("[data-g=student]", { timeout: 15000 });
+ok("운영 › 재원생의 아이마다 「👁 아이 화면」·「👁 학부모 화면」 둘이 있다", (await p.locator("[data-act=as-me]").count()) === 1 && (await p.locator("[data-act=as-parent]").count()) === 1);
+await Promise.all([p.waitForURL(/\/me\?as=/), p.locator("[data-act=as-me]").click()]);
+ok("「👁 아이 화면」을 누르면 그 아이 화면이 열린다", (await p.locator("[data-g=as-view]").count()) === 1, p.url());
+
 await b.close();
 console.log(`\n■ 화면 걷기 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

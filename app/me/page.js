@@ -19,6 +19,8 @@ import { ask } from "./actions.js";
 import { redirect } from "next/navigation";
 import { Fragment } from "react";
 import { orderCards, foldedOf } from "@/lib/pref-plan";
+import { asView, asId, keepAs } from "@/lib/asview";
+import AsBand from "../_shell/asband.js";
 import Fold from "../_shell/fold.js";
 import CardOrder from "../_shell/cardorder.js";
 import NoticeCard from "../_shell/noticecard.js";
@@ -28,20 +30,24 @@ const Card = ({ emo, title, id, pill, fold = null, folded = false, children }) =
 const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}${it.units.page_start ? ` · p.${it.units.page_start}${it.units.page_end && it.units.page_end !== it.units.page_start ? `-${it.units.page_end}` : ""}` : ""}` : "";
 const Line = ({ it, right, attach = null }) => <><div className="li"><div><b>{it.learn_items?.name ?? it.range_note ?? "(이름 없음)"}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null, it.memo, it.received ? `${md(it.received)} 에 받음` : null].filter(Boolean).join(" · ")}</small></div>{right}</div>{attach}</>;
 const qname = (k) => QKIND.find(([x]) => x === k)?.[1] ?? k;
-export default async function Me() {
+export default async function Me({ searchParams }) {
   const { sb, me, user } = await guard();
   if (!me) redirect("/");
-  if (isStaff(me.role)) return frame(<div className="task"><div className="h"><b>🎒 아이 화면입니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원 사람은 오늘 수업·대시보드에서 봅니다.</p></div>);
-  if (me.role !== ROLES.STUDENT) redirect("/");
-  let date, d;
-  try { date = await today(sb); d = await meDay(sb, user, date); }
+  let sp, date, d;
+  try { [sp, date] = await Promise.all([searchParams, today(sb)]); }   // 주소 인자와 오늘을 **한 파도로** — 👁 를 더하며 층이 늘지 않게(속도-1 · check-fast 가 잡아 줬다)
   catch (e) { { console.error("[화면] 내 화면 못 엶:", e); return frame(<Oops what="내 화면" e={e} kind="task" />); } }
+  const seeing = asView(me, sp);   // 👁 원장님이 그 아이 화면을 보는 중(lib/asview 한 곳에서 정한다)
+  if (isStaff(me.role) && !seeing) return frame(<div className="task"><div className="h"><b>🎒 아이 화면입니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원 사람은 오늘 수업·대시보드에서 봅니다. 어느 아이가 보는 화면인지는 <b>운영 › 재원생</b>에서 「👁 아이 화면」으로 여십니다.</p></div>);
+  if (!seeing && me.role !== ROLES.STUDENT) redirect("/");   // 직원은 위에서 이미 돌아갔다 — 여기 오는 직원은 보는 중인 사람뿐
+  try { d = await meDay(sb, user, date, seeing ? asId(sp) : null); }
+  catch (e) { { console.error("[화면] 내 화면 못 엶:", e); return frame(<Oops what={seeing ? "그 아이 화면" : "내 화면"} e={e} kind="task" />); } }
   const can = (k) => decide(ROLES.STUDENT, d.access, k) === true;
   const shown = [ME.arrival, ME.today, ME.books].filter(can);
   const fl = childLinks(d.links, date, d.rules?.["file.child_days"]);   // 📎 붙임 — 1달 안의 것만(규칙)
   const att = (it) => <AttachLines links={fl.pending.filter((l) => l.day_item_id === it.id || (it.carry_of && l.day_item_id === it.carry_of))} />;   // 검사 줄은 어제 숙제 줄을 가리킨다(carry_of) — 붙임이 따라온다
   const videosLeft = d.videos.filter((v) => v.status.key !== "done").length;
   const first = d.classes[0];
+  const K = (h) => keepAs(h, me, sp);   // 👁 보는 중이면 안쪽 링크에도 as= 를 잇는다 — 눌렀더니 제 화면으로 튀지 않게(lib/asview)
   const fdd = foldedOf(d.prefs?.me);   // 접은 카드 — 사람마다(확정-⑮ · (어2))
   const fold = (id) => ({ fold: <Fold screen="me" id={id} folded={fdd.has(id)} />, folded: fdd.has(id) });   // 카드마다 ▾ 와 지금 접혀 있나 — 한 번에
   const cards = orderCards([
@@ -68,11 +74,11 @@ export default async function Me() {
         {d.stayRows?.length > 0 && <div style={{ marginTop: 6 }}>{d.stayRows.map((r) => <div key={r.id} className="li" data-g="stay-line" data-state={r.state}><span className="n">{r.state === "done" ? "✓" : r.state === "missing" ? "⏭" : "남"}</span><div><b>{r.text}</b>{r.sub && <small>{r.sub}</small>}</div></div>)}</div>}</Card>) },
     { id: 'future', name: '앞으로', node: can(ME.today) && (d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" {...fold("future")} pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>) },
-    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href="/me/cal" data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></Link>) },
+    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href={K("/me/cal")} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업·숙제·시험과 앞으로의 수업·결석 예정을 날짜로 봅니다 — 등원·하원 시각도 날마다</p></Link>) },
     { id: 'scores', name: '성적', node: <ScoreCard scores={d.scores} entry={d.entry} {...fold("scores")} /> },
     { id: 'material', name: '받을 교재·학습지', node: can(ME.books) && <MaterialCard gives={d.gives} today={date} {...fold("material")} /> },
     { id: 'files', name: '자료', node: can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} sent={d.uploads} {...fold("files")} /> },
-    { id: 'videos', name: '영상', node: can(ME.books) && d.videos.length > 0 && <Link prefetch={false} className="task" href="/me/videos" data-card="videos" style={{ display: "block", textDecoration: "none", color: "inherit", borderStyle: videosLeft ? undefined : "dashed" }}><div className="h"><b><span className="cemo">🎬</span>영상</b><span className="spacer" /><span className={"pill" + (videosLeft ? " warn" : " hw")} data-g="videos-left">{videosLeft ? `${videosLeft}개 남음` : "다 봤어요"}</span></div>
+    { id: 'videos', name: '영상', node: can(ME.books) && d.videos.length > 0 && <Link prefetch={false} className="task" href={K("/me/videos")} data-card="videos" style={{ display: "block", textDecoration: "none", color: "inherit", borderStyle: videosLeft ? undefined : "dashed" }}><div className="h"><b><span className="cemo">🎬</span>영상</b><span className="spacer" /><span className={"pill" + (videosLeft ? " warn" : " hw")} data-g="videos-left">{videosLeft ? `${videosLeft}개 남음` : "다 봤어요"}</span></div>
       {d.videos.slice(0, 3).map((v) => <div className="li" key={v.id} data-g="video-line"><div><b>{v.video?.title}</b><small>{[v.due || null, v.status.key === "part" ? "보다 맒" : null].filter(Boolean).join(" · ") || "앱 안에서 봐요"}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
       <p className="note" style={{ margin: "4px 0 0" }}>앱 안에서 봐요 · 지나간 구간만 세요 · 열기 ↗</p></Link> },
     { id: 'school', name: '우리 학교', node: can(ME.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
@@ -80,12 +86,12 @@ export default async function Me() {
         <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 표의 우리 학교 줄만 보여요.</p></Card>) },
     { id: 'books', name: '내 교재', node: can(ME.books) && <Card emo="🗺" title="내 교재" id="books" {...fold("books")} pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
-      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={`/me/book?b=${b.book_id}`} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</Link>)}
+      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={K(`/me/book?b=${b.book_id}`)} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</Link>)}
     </Card> },
     { id: 'memo', name: '선생님 한 마디', node: can(ME.today) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" {...fold("memo")} pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card> },
   ].filter((c) => c.node), d.prefs?.me);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref me · 4단계-6). 조건은 그대로, 차례만 저장한 대로
-  return frame(<>
+  const body = (<>
     <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>{d.student.name}</b>{first && <span className="pill">{classLabel(first)}</span>}<span className="spacer" /><span className="pill">{md(date)}</span></div>
     {!shown.length && <div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 아이 화면 카드를 켜면 보입니다.</p></div>}
     {can(ME.arrival) && <ArrivalCard arrival={d.arrival} choice={d.choice} off={d.off} />}
@@ -94,4 +100,9 @@ export default async function Me() {
     <BellCard />
     {can(ME.today) && <AskCard asks={d.asks} send={ask} />}
   </>);
+  // 👁 보는 중에는 **아무것도 눌리지 않는다** — fieldset disabled 가 안의 단추·칸을 통째로 잠근다(브라우저가 한다 · 손도 역할을 봐서 한 번 더 막는다).
+  //    링크는 안 잠긴다 — 「내 교재 ↗」처럼 그 아이의 다음 화면으로 계속 갈 수 있어야 한다(주소의 as= 는 keepAs 가 잇는다).
+  return frame(seeing
+    ? <><AsBand name={d.student.name} kind="me" /><fieldset disabled style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-g="as-locked">{body}</fieldset></>
+    : body);
 }

@@ -939,6 +939,11 @@ input.scr.warnin{border-color:var(--weak);background:var(--surface)}
 .wtres.pass b{color:var(--ok)} .wtres.pass span{background:var(--ok-fill);color:var(--on-ok)}
 .wtres.fail b{color:var(--miss)} .wtres.fail span{background:var(--miss-fill);color:var(--on-miss)}
 .btn.dim{color:var(--mute);border-color:var(--hair)}
+/* 못 누르는 단추는 **못 누르게 보인다**(화면은 거짓말 안 한다 · 대전제-0). 여기 없어서, 저장 중이거나
+   👁 남의 화면을 읽기만 할 때도 단추가 멀쩡히 눌릴 것처럼 보였다(2026-09-11 (어6) 캡처에서 눈으로 봄) */
+.btn:disabled,.seg button:disabled,.stepper button:disabled{color:var(--mute);background:var(--sunk);border-color:var(--hair);cursor:not-allowed}
+.btn.pri:disabled{color:var(--mute);background:var(--sunk);border-color:var(--hair)}
+fieldset:disabled input,fieldset:disabled textarea,fieldset:disabled select{background:var(--sunk);color:var(--mute);cursor:not-allowed}
 .pill.dim{color:var(--mute);border-color:var(--hair);background:transparent}
 .sgrp{border:1px solid var(--line);border-radius:8px;background:var(--surface);margin-bottom:8px;overflow:hidden}
 .sgrp.now{border-color:var(--line);border-left:3px solid var(--amber);box-shadow:0 0 0 2px var(--amber)}
