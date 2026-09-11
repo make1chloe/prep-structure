@@ -46,7 +46,7 @@ export function SaidButton({ item, state = "now" }) {   // 마감 뒤에도 누�
 }
 
 /** 📚 받을 교재·학습지 — 갈래별 · 단계 넷(아직·받음·하는 중·완료) · 스스로 정한 마감(선생님 달력에도) · 끝낸 것은 접힘 */
-export function MaterialCard({ gives, today }) {
+export function MaterialCard({ gives, today, fold = null, folded = false }) {
   const [err, setErr] = useState(""); const [pending, start] = useTransition();
   const total = gives.groups.reduce((n, g) => n + g.items.length, 0) + gives.done.length;
   const run = (fn) => start(async () => { setErr(""); const r = await fn(); if (!r.ok) setErr(r.msg); });
@@ -61,8 +61,8 @@ export function MaterialCard({ gives, today }) {
         <span className="note" style={{ margin: 0 }}>내가 정한 날짜예요 — 선생님 달력에도 떠 있어요</span></div>}
     </div>);
   return (
-    <div className="task" data-card="material">
-      <div className="h"><b><span className="cemo">📚</span>받을 교재·학습지</b><span className="spacer" /><span className="pill">{total ? `${gives.done.length}/${total}` : "없음"}</span></div>
+    <div className="task" data-card="material" data-folded={folded ? "1" : "0"}>
+      <div className="h"><b><span className="cemo">📚</span>받을 교재·학습지</b><span className="spacer" /><span className="pill">{total ? `${gives.done.length}/${total}` : "없음"}</span>{fold}</div>
       {!total && <p className="note" style={{ margin: "8px 0 0" }}>아직 받을 학습지가 없어요</p>}
       {gives.groups.map((g, i) => <div key={g.name}><div style={{ marginTop: i ? 12 : 8, fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{i + 1} {g.name}</div>{g.items.map((it) => <Item key={it.material_id} it={it} />)}</div>)}
       {gives.done.length > 0 && <details style={{ marginTop: 8 }}><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>끝낸 것 <b>{gives.done.length}</b><span className="spacer" /><span className="tag on">눌러서 펴기</span></summary>{gives.done.map((it) => <Item key={it.material_id} it={it} dim />)}</details>}
@@ -72,12 +72,12 @@ export function MaterialCard({ gives, today }) {
 }
 
 /** 📈 성적 — 원장님이 공개한 시험만 보인다 · 내가 넣은 것은 「확인 기다리는 중」 · 본 회차가 있으면 원점수·틀린 번호를 넣는다(목업 16 「아이가 넣고 원장님이 확인」 · 9/5 ⑯) */
-export function ScoreCard({ scores = [], entry = [] }) {
+export function ScoreCard({ scores = [], entry = [], fold = null, folded = false }) {
   const [err, setErr] = useState(""); const [msg, setMsg] = useState(""); const [pending, start] = useTransition(); const [f, setF] = useState({});
   if (!scores.length && !entry.length) return null;   // 빈 카드는 숨긴다(확정-⑮)
   const v = (id, k, d = "") => f[id]?.[k] ?? d, setV = (id, k, val) => setF({ ...f, [id]: { ...(f[id] ?? {}), [k]: val } });
   const go = (e) => start(async () => { setErr(""); setMsg(""); const r = await submitScore(e.id, v(e.id, "raw"), v(e.id, "full", "100"), v(e.id, "wrongs")); if (!r.ok) { setErr(r.msg); return; } setMsg(`넣었어요 — 선생님이 확인하면 굳어요`); setF({}); });
-  return <div className="task" data-card="scores"><div className="h"><b><span className="cemo">📈</span>성적</b><span className="spacer" />{scores.length > 0 && <span className="pill">{scores[0].title}</span>}</div>
+  return <div className="task" data-card="scores" data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">📈</span>성적</b><span className="spacer" />{scores.length > 0 && <span className="pill">{scores[0].title}</span>}{fold}</div>
     {scores.map((s) => <div className="li" key={s.id} data-g="score-line" data-pending={s.pending ? "1" : "0"}><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}{s.pending && <span className="tag act">확인 기다리는 중</span>}</div>)}
     {entry.map((e) => <div className="li" key={e.id} data-g="score-entry" data-exam={e.id}><div><b>{e.school} {e.name} — 점수를 넣어요</b><small>{md(e.on)} 본 시험 · 원점수와 틀린 번호(눌러도 적어도 같은 값)</small>
       <div className="wv" style={{ marginTop: 6 }}><input type="text" inputMode="numeric" className="scr" placeholder="원점수" aria-label="원점수" value={v(e.id, "raw")} onChange={(x) => setV(e.id, "raw", x.target.value)} /><span className="note" style={{ margin: 0 }}>/</span><input type="text" inputMode="numeric" className="scr sm2" placeholder="100" aria-label="만점" value={v(e.id, "full")} onChange={(x) => setV(e.id, "full", x.target.value)} />
@@ -103,11 +103,11 @@ export function AttachLines({ links = [] }) {
   </>);
 }
 /** 📎 자료 — 사진 보내기(학교 종이를 찍어 원장님께 · 원장님만 본다) · 지난 것 보기(1달 안에 처리한 붙임) · 1달 지난 것은 개수만 */
-export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [] }) {
+export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [], fold = null, folded = false }) {
   const router = useRouter(); const mine = myUploads(sent);
   return (
-    <div className="task" data-card="files">
-      <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : mine.length ? `보낸 것 ${mine.length}` : "보내기"}</span></div>
+    <div className="task" data-card="files" data-folded={folded ? "1" : "0"}>
+      <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : mine.length ? `보낸 것 ${mine.length}` : "보내기"}</span>{fold}</div>
       <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="학교에서 받은 종이를 찍어 보내면 원장님만 봐요" compact onDone={() => router.refresh()} />
       {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"} style={{ marginTop: 4 }}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}

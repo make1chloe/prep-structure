@@ -18,6 +18,7 @@ import { statSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "no
 const LOG = process.env.E2E_PGRST_LOG || "/var/tmp/e2e-pgrst.log";
 const mark = () => (existsSync(LOG) ? statSync(LOG).size : -1);
 const requestsSince = (at) => at < 0 ? -1 : readFileSync(LOG, "utf8").slice(at).split("\n").filter((l) => /"(GET|POST|PATCH|DELETE) \//.test(l)).length;
+const boardsSince = (at) => at < 0 ? -1 : readFileSync(LOG, "utf8").slice(at).split("\n").filter((l) => /"(GET|POST) \/rpc\//.test(l)).length;   // 판(board RPC)을 다시 읽었나 — 접기·보기 전환이 화면을 다시 세우면 여기가 는다(속도-1)
 console.log("■ 오늘 수업");
 let at = mark();
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
@@ -1411,6 +1412,15 @@ console.log("■ 아이 화면 07 · 영상 19 — 숙제 줄의 📎(어제 pdf
   await mm.locator("button[data-act=order-save]").click(); await cp.waitForTimeout(1500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
   const after07 = await cardOrder();
   ok("⇅ 카드 순서(확정-⑮) — 공지를 ▼ 로 맨 아래에 두고 저장 → 다시 열어도 공지가 오늘 할 것 뒤(screen_pref · 사람마다) · 처음엔 공지가 앞이었다", before07.indexOf("notice") < before07.indexOf("todo") && after07.indexOf("notice") > after07.indexOf("todo") && after07.indexOf("notice") > after07.indexOf("books"), `${before07.join(">")} → ${after07.join(">")}`);
+  // (어2) ▾ 접기 — 누른 그 자리에서 접히고(조회 0 · 속도-1), 다시 열어도 접힌 채다. 접혀도 머리·알약(개수)은 보인다(확정-⑮)
+  { const due = mm.locator("[data-card=due]"); const atF = mark();
+    await due.locator("button[data-act=fold]").click(); await cp.waitForTimeout(400);
+    ok("(어2) ▾ 를 누르면 그 자리에서 접힌다 — data-folded=1 · **판을 다시 안 읽는다**(판 RPC 0 — 속도-1 「접기는 다시 조회하지 않는다」 · 접힘만 뒤에서 저장된다) · 속은 안 보이고 머리·알약은 그대로", (await due.getAttribute("data-folded")) === "1" && boardsSince(atF) === 0 && (await due.locator(".h").isVisible()) && (await due.locator(".h .pill").isVisible()) && !(await due.locator(".li").first().isVisible().catch(() => false)), `판 다시 읽기 ${boardsSince(atF)} · folded ${await due.getAttribute("data-folded")}`);
+    await cp.waitForTimeout(1200); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+    const due2 = mm.locator("[data-card=due]");
+    ok("(어2) 다시 열어도 접힌 채 — 저장은 뒤에서 되고(screen_pref folded) **차례는 그대로다**(⇅ 로 맨 아래 둔 공지가 안 되돌아왔다 · 부분만 보내도 나머지가 안 지워진다)", (await due2.getAttribute("data-folded")) === "1" && (await cardOrder()).indexOf("notice") > (await cardOrder()).indexOf("todo"), `folded ${await due2.getAttribute("data-folded")} · ${(await cardOrder()).join(",")}`);
+    await due2.locator("button[data-act=fold]").click(); await cp.waitForTimeout(400);
+    ok("(어2) 한 번 더 누르면 펴진다 · 속이 다시 보인다", (await due2.getAttribute("data-folded")) === "0" && (await due2.locator(".li").first().isVisible())); }
   ok("숙제 줄에 📎 2 — 검사 줄에 어제 pdf 「zz_어순정리.pdf」(carry_of) · 오늘 숙제에 새 jpg · 「N/D까지 보여요」 · 📎 자료 카드(보내기 · 지난 것 0)", (await mm.locator("[data-g=attach]").count()) === 2 && (await mm.locator("[data-g=attach]").allTextContents()).join().includes("zz_어순정리.pdf") && /까지 보여요/.test((await mm.locator("[data-g=attach]").first().textContent())) && (await mm.locator("[data-card=files]").count()) === 1 && (await mm.locator("[data-g=past-row]").count()) === 0, (await mm.locator("[data-g=attach]").allTextContents()).join(" | ").slice(0, 300));
   const dl9 = await cp.request.get(`${APP}/api/files/${F_STAFF9}?dl=1`);
   ok("💾 저장의 길 — /api/files/id?dl=1 → 200 · attachment · application/pdf(내 숙제에 붙은 것 — 접근 규칙 own_file)", dl9.status() === 200 && String(dl9.headers()["content-disposition"]).startsWith("attachment") && String(dl9.headers()["content-type"]).startsWith("application/pdf"), `${dl9.status()} ${dl9.headers()["content-type"]} ${dl9.headers()["content-disposition"]}`);
