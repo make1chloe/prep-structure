@@ -1,6 +1,7 @@
 /** 🧾 운영 — 목업 13 수강료(넣고 체크만 가볍게). 상담일지·신규 문의(18)는 다음. 판단은 lib/fee-plan(순수) · 손은 lib/fee, 여기는 가져다 그린다.
  *  층: 로그인 확인 → 주소 인자 → 오늘 → 수강료 판 한 벌(fee_board) = 4단. 강사는 「수강료 못 보게」(원장님 답 ⑮) — ops.fee 열쇠로 가린다 */
 import Link from "next/link";
+import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { decide, OPS } from "@/lib/perm";
@@ -18,7 +19,7 @@ export default async function Ops({ searchParams }) {
   const sp = await searchParams;
   let d;
   try { const date = await today(sb); const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date); const [board, sendRules] = await Promise.all([feeBoard(sb, ym), ruleMap(sb, ["send."])]); d = { date, ym, board, rows: rowsOf(board, ym), fee: decide(me.role, board.access ?? [], OPS.fee) === true, sendRules }; }   // 예약 때 규칙(send.*)은 같은 파도((어))
-  catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>운영을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 아직 없는 DB 면 0121 까지의 마이그레이션을 먼저 돌립니다(docs/원장님-정하실-것 ㉖).</p></div>); }
+  catch (e) { { console.error("[화면] 운영 못 엶:", e); return frame(<Oops what="운영" e={e} />); } }
   return frame(<>
     {d.fee ? <Fee d={{ date: d.date, ym: d.ym, rows: d.rows, by_grade: d.board.by_grade ?? {}, prev_unpaid: d.board.prev_unpaid ?? null }} /> : <div className="card" data-card="fee-closed"><div className="ctitle"><span className="cemo">💳</span>수강료</div><p className="note">이 계정에는 수강료가 안 열려 있습니다 — 원장님이 「누가 무엇을 보나」에서 켜십니다(답 ⑮ 「강사는 수강료 못 보게」).</p></div>}
     <Link prefetch={false} className="card" href="/ops/students" data-card="students" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🧑‍🎓</span>학생 — 재원생 · 퇴원생 · 한 아이의 성장(14)</div><p className="note">목록에서 한 아이를 열면 KPI 여섯 · 교재 진도 · 성적 · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담. 퇴원해도 줄은 남습니다(9/3)</p></Link>

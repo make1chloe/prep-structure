@@ -58,8 +58,8 @@ export default function Board({ d }) {
         <div className="rl"><span className="k">한 번에</span><span className="v"><b>{rules["file.batch_max"] ?? 30}장까지.</b> 넘으면 나눠 올리라고 말합니다 — 조용히 잘라 넣지 않습니다</span></div>
         <div className="rl"><span className="k">사진 크기</span><span className="v">올릴 때 폰에서 <b>긴 변 {rules["file.photo_px"] ?? 1600}px 로 줄입니다.</b> pdf·문서는 안 줄입니다({rules["file.max_mb"] ?? 4}MB 까지)</span></div>
         <div className="rl"><span className="k">누가 보나</span><span className="v">받은 것은 <b>원장님만</b>. 아이가 올린 것을 다른 아이가 못 봅니다 · 보낸 것은 붙인 그 숙제를 <b>받는 아이(와 그 학부모)만</b></span></div>
-        <div className="rl"><span className="k">아이 쪽 보관</span><span className="v">아이에게 보낸 것은 <b>{days}일</b>(원장님 9/2 「1달」). 지나면 아이 화면에서 안 보이고 — <b>여기엔 그대로 있어</b> 다시 보내면 됩니다. 💾 저장은 아이 폰에 내려받고 ✓ 안 보기는 그 줄에서만 치웁니다</span></div>
-        <div className="rl"><span className="k">언제 지워지나</span><span className="v"><b>지우지 않습니다</b> — 원장님 9/3 「그냥 둬. 지우지 마 수정하지 마」. 퇴원해도 그대로 · 학기가 바뀌어도 그대로</span></div>
+        <div className="rl"><span className="k">아이 쪽 보관</span><span className="v">아이에게 보낸 것은 <b>{days}일</b>. 지나면 아이 화면에서 안 보이고 — <b>여기엔 그대로 있어</b> 다시 보내면 됩니다. 💾 저장은 아이 폰에 내려받고 ✓ 안 보기는 그 줄에서만 치웁니다</span></div>
+        <div className="rl"><span className="k">언제 지워지나</span><span className="v"><b>지우지 않습니다</b> — 지우지도 고치지도 않습니다. 퇴원해도 그대로 · 학기가 바뀌어도 그대로</span></div>
         <div className="rl"><span className="k">형제</span><span className="v"><b>학부모가 보낼 때만</b> 「누구 학교 것인가요」를 묻습니다(아이 계정은 그 아이 하나 · 형제가 한 명뿐이면 안 묻습니다)</span></div>
       </div>
     </>}

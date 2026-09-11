@@ -28,7 +28,7 @@ export default function Board({ d }) {
   const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
   const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
   return <>
-    <div className="lf" style={{ margin: "0 0 8px" }} data-g="list-head"><span className="ln">🧑‍🎓</span><div><b data-g="counts">재원생 {list.active} · 퇴원생 {list.left}{list.paused ? ` · 쉼 ${list.paused}` : ""} — {st ? "이 화면은 그 목록에서 한 아이를 연 것입니다" : "아래 목록에서 한 아이를 여세요"}</b><small>목록 칸: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태. 퇴원해도 줄은 남습니다(원장님 9/3). 「✎ 고치기」 안: 이름·연락처 · <span style={{ fontWeight: 700 }}>계정(비밀번호 0000으로 초기화 — 앱이 발급한 계정만)</span> · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리</small></div>
+    <div className="lf" style={{ margin: "0 0 8px" }} data-g="list-head"><span className="ln">🧑‍🎓</span><div><b data-g="counts">재원생 {list.active} · 퇴원생 {list.left}{list.paused ? ` · 쉼 ${list.paused}` : ""} — {st ? "이 화면은 그 목록에서 한 아이를 연 것입니다" : "아래 목록에서 한 아이를 여세요"}</b><small>목록 칸: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태. 퇴원해도 줄은 남습니다. 「✎ 고치기」 안: 이름·연락처 · <span style={{ fontWeight: 700 }}>계정(비밀번호 0000으로 초기화 — 앱이 발급한 계정만)</span> · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리</small></div>
       <input type="text" value={q} placeholder="찾기 (이름·학교·반)" aria-label="찾기" onChange={(x) => setQ(x.target.value)} style={{ maxWidth: 180 }} />
       <div className="seg sm" data-g="show">{[["active", "재원"], ["left", "퇴원"], ["all", "전체"]].map(([k, nm]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{nm}</button>)}</div>
       <button className="btn sm pri" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 학생</button><Link prefetch={false} className="btn sm" href="/ops/inquiry">☎️ 신규 상담 ↗</Link></div>
@@ -83,7 +83,7 @@ export default function Board({ d }) {
             {!books.length && <p className="note" style={{ margin: 0 }}>배정된 교재가 없습니다 — 루틴 11 에서 잇습니다</p>}
             {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div>
           <div className="card" style={{ margin: "0 0 8px" }} data-g="cc-link"><div className="ctitle"><span className="cemo">🃏</span>클래스카드 아이디</div>
-            <p className="note" style={{ marginTop: 0 }}>확장이 보낸 것은 <b>이 아이디로 아이를 찾습니다</b> — 안 이어 두면 그 아이 것은 안 들어오고, 설정 🔌 연동 열쇠의 🃏 줄에 「안 이은 아이디」로 뜹니다. <b>줄은 지우지 않습니다</b>(대전제-6) — 잘못 이었으면 바른 아이디로 다시 이으면 덮어씁니다.</p>
+            <p className="note" style={{ marginTop: 0 }}>확장이 보낸 것은 <b>이 아이디로 아이를 찾습니다</b> — 안 이어 두면 그 아이 것은 안 들어오고, 설정 🔌 연동 열쇠의 🃏 줄에 「안 이은 아이디」로 뜹니다. <b>줄은 지우지 않습니다</b>— 잘못 이었으면 바른 아이디로 다시 이으면 덮어씁니다.</p>
             {d.cc ? <div className="lf" data-g="cc-row"><span className="ln">🃏</span><div><b>{d.cc.cc_login_id || d.cc.cc_user_idx}</b><small>아이디 {d.cc.cc_user_idx}{d.cc.updated_at ? ` · ${md(seoulDate(d.cc.updated_at))} 이음` : ""}</small></div>
               <span className="lm">바꾸려면 아래에 새 아이디를 적고 잇기</span></div>
               : <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-none">아직 안 이었습니다</p>}

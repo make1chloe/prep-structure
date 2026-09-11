@@ -1,6 +1,7 @@
 "use server";
 /** 성적 손 — 학원 사람만. 판단·쓰기는 lib/score.js 한 벌(등급컷 · 문항표(글 · 엑셀) · 대신 넣기 · 확인 · 공개 · 엑셀). 지우는 손이 없다(대전제-6) */
 import { guard } from "@/lib/session";
+import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
@@ -8,7 +9,7 @@ import { scoreBoard, setCuts, setQuestions, setQuestionSheet, saveScore, confirm
 import { parseSheet } from "@/lib/score-plan";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+const wrap = (fn) => act(fn, "성적 16");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 /** 엑셀 파일(formData 의 file) → 첫 시트의 줄들 */
 async function sheetOf(formData) {
   const f = formData?.get?.("file"); if (!f || typeof f.arrayBuffer !== "function") throw new Error("엑셀 파일을 고르세요");

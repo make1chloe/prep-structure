@@ -1,6 +1,7 @@
 /** 🎬 영상 19 — 아이 쪽: 배정된 영상(마감 · 아직/N% 봄/다 봄 · 이어 볼 자리) · ▶ 보기는 앱 안 재생(유튜브 IFrame — 지나간 구간만 센다 · 임베드가 막힌 영상은 「유튜브에서 보기」).
  *  층: 로그인 확인 → 주소 인자 → 오늘∥제 학생 줄 → 배정∥구간∥규칙 = 4단. 판단은 lib/video-plan(순수) */
 import Link from "next/link";
+import { Oops } from "../../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
@@ -28,7 +29,7 @@ export default async function MyVideos({ searchParams }) {
     const list = myRows(mine.assigns, mine.progress, Number(rules["video.done_pct"] ?? 95), date);
     const open = list.find((r) => r.video_id === String(sp?.v ?? "")) ?? null;
     d = { date, list, open, next: open ? nextOf(list, open.video_id) : null, access: acc?.data ?? [] };   // ⑥ 다음 영상(안 본 것 차례)
-  } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 영상을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
+  } catch (e) { { console.error("[화면] 영상 못 엶:", e); return frame(<Oops what="영상" e={e} kind="task" />); } }
   // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 — 07 의 영상 카드와 **같은 열쇠**다
   if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 「내 교재」를 켜면 보입니다.</p></div>);
   const left = d.list.filter((r) => r.status.key !== "done").length;

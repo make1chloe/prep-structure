@@ -1,11 +1,12 @@
 "use server";
 /** 신규 상담 18 의 손 — 학원 사람만(권한 ops.inquiry 는 화면이 가린다). 판단·쓰기는 lib/inquiry.js 한 벌(+ 문의 · 고치기 · 안내 보냄 · 단계 · 등록 전환 일곱) */
 import { guard } from "@/lib/session";
+import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { inquiryBoard, addInquiry, setInquiry, answerInquiry, setStage, convertInquiry } from "@/lib/inquiry";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+const wrap = (fn) => act(fn, "신규 상담 18");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addInquiry(sb, f ?? {}) }; }); }
 export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); return setInquiry(sb, id, f ?? {}, seenAt); }); }   // seenAt: 읽어 둔 고친 때(0-3)
 export async function answerAct(id) { return wrap(async () => { const { sb } = await staff(); return answerInquiry(sb, id); }); }   // (커) { sms } — 문자 결과(없으면 null)

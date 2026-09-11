@@ -1,6 +1,7 @@
 "use client";
 /** 내신 자료 판(목업 04) — 회차 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
 import Link from "next/link";
+import Sibs from "@/app/_shell/sibs";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
@@ -36,7 +37,7 @@ export default function Board({ d }) {
       <span className="spacer" />
       {e && <a className="btn sm" href={`/api/prep/xlsx?e=${e.id}`} data-act="export">⬇ 엑셀</a>}
       {e && <button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAdd(true)}>+ 자료</button>}
-      <Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</Link>
+      <Sibs here="/schedule/exams/prep" />
     </div>
     {e && sbk.applicable && <div className="wv" style={{ marginBottom: 8 }} data-g="school-book"><span className="pill" data-g="school-book-text">📚 {sbk.text}</span>
       <select value="" aria-label="학교 교과서 더하기" data-g="school-book-pick" disabled={pending} onChange={(x) => x.target.value && run(() => schoolBookAct({ schoolId: e.school_id, grade: e.grade, year: sbk.year, bookId: x.target.value }), "학교 교과서를 적었습니다 — 학교의 속성이라 그 학교 아이 모두에게")} style={{ width: "auto" }}><option value="">+ 교과서 더하기</option>{(b.books ?? []).filter((bk) => !sbk.rows.some((r) => r.bookId === bk.id)).map((bk) => <option key={bk.id} value={bk.id}>{bk.name}</option>)}</select>

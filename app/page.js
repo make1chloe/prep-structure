@@ -1,6 +1,7 @@
 /** 첫 화면 = 대시보드(목업 17) — 빵꾸 막이가 맨 위. 판단은 lib/dash(파도) + lib/dash-plan(순수), 여기는 가져다 그린다.
  *  층은 다섯(속도-상한 대시보드 20 · 5단): 로그인 확인 → 오늘 → 반·아이(∥ 예정) → 나머지 한 파도 — 뒤 둘은 lib/dash.dashboard 안. 단추는 전부 지은 화면으로 가는 링크(발송·루틴·시험 화면은 아직) */
 import Link from "next/link";
+import { Oops } from "./_shell/oops.js";
 import { guard } from "@/lib/session";
 import { ROLE_NAME, ROLES, isStaff } from "@/lib/roles";
 import { CELLS } from "@/lib/perm";
@@ -31,7 +32,7 @@ export default async function Home() {
   let date, d;
   try { date = await today(sb); d = await dashboard(sb, date, { principal: me.role === ROLES.PRINCIPAL }); }
   catch (e) {   // 화면이 스스로 말한다(대전제-0)
-    return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>대시보드를 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 없다는 말이면 새 앱 마이그레이션(0100~)을 이 DB 에 아직 안 돌린 것입니다 — `docs/미리보기-켜기.md`</p></div>);
+    console.error("[화면] 대시보드 못 엶:", e); return frame(<Oops what="대시보드" e={e} />);
   }
   const left = d.undecided, first = d.people.classes[0], unsent = d.late.filter((l) => !l.sent);
   const fdd = foldedOf(d.pref);   // 접은 카드 — 사람마다(확정-⑮ · (어2))

@@ -2,6 +2,7 @@
 /** 내 할 일 판(목업 05 · 노션 보드 모양 9/3) — 머리(🔥 마감 지남 · 학교 거르개) · 보기줄(⊞표 · ▦보드 · 묶기 고정 · 마감 순 · 새로 만들기 한 곳) · 보드(종류마다 칸 · 카드 📅🏫☑🧾) · 숨긴 그룹(✓ 끝냄 · ♻️ 이미 있는 것 · 뺀 것) ·
  *  📦 자료 하나 안에서만 순서 · 🔥 못 따라갑니다 — 줄이기 · 저장줄. 카드 목록은 한 번 세고(cardsOf) 표·보드가 같은 목록을 그린다 — 보기를 바꿔도 조회 0(속도-1 예외). 세는 것은 lib/todo-plan 한 벌 */
 import Link from "next/link";
+import Sibs from "@/app/_shell/sibs";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { doneAct, undoAct, dueAct, dropAct, unitTestAct, unitTestMadeAct, unitTestDueAct, noteAct, repeatAct, repeatActiveAct, printAllAct, dropMaterialAct, quizPaperAct, scoredAct } from "./actions.js";
@@ -58,7 +59,7 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건(속도-1 의 예외, 원장님 9/5) · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/grid">표 보기(06c) ↗</Link></div>
+    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건 · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><Sibs here="/schedule/todo" /></div>
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -127,7 +128,7 @@ export default function Board({ d }) {
       <div className="card" style={{ margin: 0 }} data-g="flow">
         <div className="ctitle"><span className="cemo">📦</span>자료 하나 안에서만 순서가 있습니다{selCard?.material ? ` — ${selCard.material.type} · ${selCard.material.title}` : ""}</div>
         {selCard?.material ? <div className="mflow">{flowOf(selCard.material).map((s, i) => <span key={s.step} style={{ display: "contents" }}>{i > 0 && <span className="mar">→</span>}<div className={"mf" + (s.state === "done" ? " done" : s.state === "now" ? " now" : "")} data-step={s.step} data-state={s.state}>{s.name}<i>{s.state === "done" ? "✓" : s.text ?? ""}</i></div></span>)}</div>
-          : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 만들기 → 인쇄 → 배부 → 풀이 → 채점이 어디까지 왔는지 보입니다. 다른 종류끼리는 순서가 없습니다(확정-㉟)</p>}
+          : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 만들기 → 인쇄 → 배부 → 풀이 → 채점이 어디까지 왔는지 보입니다. 다른 종류끼리는 순서가 없습니다</p>}
       </div>
       <div className="card" style={{ margin: 0, borderColor: behind.length ? "var(--miss)" : undefined }} data-g="behind">
         <div className="ctitle"><span className="cemo">🔥</span>{behind.length ? `${behind[0].title}` : "못 따라가는 회차 없음"}</div>

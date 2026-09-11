@@ -1,10 +1,11 @@
 "use server";
 /** 알림 켜기의 서버 쪽 — 공개키 한 칸(v2.push_public_key) · 기기 저장(v2.push_sub, 제 것만 — own_push) · 끄기(revoked_at, 지우지 않는다). 학생은 제 학생 줄을 붙인다 */
 import { guard } from "@/lib/session";
+import { wrap as act } from "@/lib/act";
 import { db } from "@/lib/supabase";
 import { ROLES } from "@/lib/roles";
 import { myStudent } from "@/lib/arrival";
-async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+const wrap = (fn) => act(fn, "알림");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function publicKey() {
   return wrap(async () => {
     const { sb } = await guard();

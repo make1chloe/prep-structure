@@ -2,6 +2,7 @@
 /** 시험 회차 판(목업 06b) — 학교 회차 카드(보는 아이 · 영어일 · 범위 칩 · + 범위(교재 단원에서 고른다 · 글) · 학교가 뺌 · 시험 기간 · 교재 멈춤 줄 · 안 봄 · 숨김 · (저) 📡 날짜 바뀜 → 봤음) · 교재 멈춤 — 언제부터(학교급 규칙 · 아이 따로) · 전국 · 숨긴 회차.
  *  세는 것(N명 · N줄 · 영어일 없음 N)은 화면이 센다(원칙-5) — lib/exam-plan 한 벌 */
 import Link from "next/link";
+import Sibs from "@/app/_shell/sibs";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct, changeSeenAct } from "./actions.js";
@@ -24,7 +25,7 @@ export default function Board({ d }) {
       <span className="pill" data-g="scopes">범위 {c.scopes}줄</span>
       {c.hidden > 0 && <button className="btn sm" type="button" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>🙈 숨긴 회차 {c.hidden}</button>}
       <span className="spacer" />
-      <Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 받아오기 · + 회차 ↗</Link>
+      <Sibs here="/schedule/exams" /><Link prefetch={false} className="btn sm" href="/schedule">📅 일정 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/import">📡 받아오기 · + 회차 ↗</Link>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}

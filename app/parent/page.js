@@ -1,6 +1,7 @@
 /** 학부모 화면 09 — 형제 고르기 → 🌙 오늘 늦게 갑니다(보낸 것만) → 🕘 오늘(등원·하원) → 📋 오늘 수업(마감한 수업일지 + 꼬리표) → 📘 다음 숙제 → 📝 다음 시간 시험 → 📅 앞으로 → 💬 선생님 한 마디 → 📅 달력 → 💬 남기실 말.
  *  마감한 판만 보인다(사고 #7 · 0084 sheet_visible_to). 빈 카드는 숨긴다(확정-⑮). 카드는 원장님이 켠 parent.* 만 */
 import Link from "next/link";
+import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
 import { decide, PARENT } from "@/lib/perm";
@@ -33,7 +34,7 @@ export default async function Parent({ searchParams }) {
     [date, kids] = await Promise.all([today(sb), myChildren(sb)]);
     const pick = kids.find((k) => k.id === String(q?.s ?? "")) ?? kids[0];
     d = pick ? await parentDay(sb, user, pick, date) : null;
-  } catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 화면을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
+  } catch (e) { { console.error("[화면] 화면 못 엶:", e); return frame(<Oops what="화면" e={e} kind="task" />); } }
   if (!d) return frame(<div className="task"><div className="h"><b>👨‍👩‍👧 아이가 아직 이어지지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「재원생」에서 이 계정을 아이와 이어야 합니다.</p></div>);
   const can = (k) => decide(ROLES.PARENT, d.access, k) === true;
   const sendFor = ask.bind(null, d.student.id);

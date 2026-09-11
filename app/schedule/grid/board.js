@@ -2,6 +2,7 @@
 /** 학교별 표 판(목업 06c) — 머리(내 표/전체 표 · + 새 표) · 따로 챙길 아이들 띠 · 표 알약(shtabs) · 고른 표: 이름 · 표 삭제(내림) · 칸으로 이동 · 보기 둘(⊞표 · ▦보드 — 조회 0) · 표(머리칸 ⠿·◀▶✕·종류 ⌄ · 줄 ⠿·▣·✕ · 셀 종류대로 · + 칸 · + 줄) · 보드(선택 칸으로 묶기 · 카드 ◀ ▶) · 저장줄.
  *  값의 뜻·셈은 lib/grid-plan 한 벌. 셀은 손을 떼면 저장(저장 단추 없음) */
 import Link from "next/link";
+import Sibs from "@/app/_shell/sibs";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridShareAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct, unitsAllAct } from "./actions.js";
@@ -61,15 +62,15 @@ export default function Board({ d }) {
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }}>🗂️ 학교별 표</span>
-      <span className="note" style={{ margin: 0 }}>시험범위·직보·교재 진도 — 누가 보나는 <b>일정 권한</b>을 따릅니다(메뉴 32칸 그대로 · 원장님 답 기다림)</span>
+      <span className="note" style={{ margin: 0 }}>시험범위·직보·교재 진도 — 누가 보나는 <b>일정 권한</b>을 따릅니다</span>
       <span className="spacer" />
       {d.principal && <div className="seg sm" data-g="mine"><button type="button" aria-pressed={mine} onClick={() => { setMine(true); setSel(null); }}>내 표</button><button type="button" aria-pressed={!mine} onClick={() => { setMine(false); setSel(null); }}>전체 표(원장)</button></div>}
       <button className="btn pri sm" type="button" data-act="new-open" onClick={() => setNewOpen(!newOpen)}>+ 새 표</button>
-      <Link prefetch={false} className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</Link>
+      <Sibs here="/schedule/grid" />
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기가 둘입니다 — 표 · 보드</b><small>줄과 칸은 하나입니다. <b>보드는 표의 「선택」 칸 하나로 묶어 보는 것</b>이라, 카드를 옮기면 표의 그 칸 값이 바뀝니다 — 같은 값입니다(원장님 9/3). 05 내 할 일은 「내 할 일」 표의 보드 보기, 04 내신 자료는 「내신 자료」 표의 표 보기입니다</small></div><span className="lm">원장님 9/3</span></div>
+    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기가 둘입니다 — 표 · 보드</b><small>줄과 칸은 하나입니다. <b>보드는 표의 「선택」 칸 하나로 묶어 보는 것</b>이라, 카드를 옮기면 표의 그 칸 값이 바뀝니다 — 같은 값입니다. 05 내 할 일은 「내 할 일」 표의 보드 보기, 04 내신 자료는 「내신 자료」 표의 표 보기입니다</small></div></div>
     {newOpen && <div className="card" data-g="new-grid" style={{ marginTop: 0 }}><div className="ctitle"><span className="cemo">＋</span>새 표 — 본 여섯 중 하나(이름은 바꿔도 됩니다)</div>
       <div className="wv"><select value={tpl} aria-label="본" data-g="tpl" onChange={(x) => setTpl(x.target.value)} style={{ width: "auto" }}>{TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.label} — 줄 {t.rows === "school" ? "학교" : t.rows === "student" ? "학생" : "자유"} · 칸 {t.cols.length}</option>)}</select>
         <input type="text" value={tplLabel} placeholder="표 이름(비면 본 이름)" aria-label="표 이름" onChange={(x) => setTplLabel(x.target.value)} style={{ flex: "1 1 200px" }} />
@@ -86,7 +87,7 @@ export default function Board({ d }) {
     </div>
     <div className="shtabs" data-g="tabs">{grids.map((x) => <button key={x.id} type="button" className="shtab" aria-pressed={g?.id === x.id} data-act="tab" data-grid={x.id} onClick={() => { setSel(x.id); setFocus(null); }}>{x.label} <i>{alive(x.rows_).length}</i></button>)}
       {retired.length > 0 && <button type="button" className="shtab" aria-pressed={showRetired} data-act="show-retired" onClick={() => setShowRetired(!showRetired)}>내린 표 <i>{retired.length}</i></button>}</div>
-    {showRetired && retired.map((x) => <div className="lf" key={x.id} data-g="retired-row"><span className="ln">·</span><div><b>{x.label}</b><small>내린 표 — 되살릴 수 있습니다(대전제-6)</small></div><button className="btn sm" type="button" disabled={pending} data-act="revive" onClick={() => run(() => gridReviveAct(x.id), `${x.label} — 되살렸습니다`)}>되살리기</button></div>)}
+    {showRetired && retired.map((x) => <div className="lf" key={x.id} data-g="retired-row"><span className="ln">·</span><div><b>{x.label}</b><small>내린 표 — 되살릴 수 있습니다</small></div><button className="btn sm" type="button" disabled={pending} data-act="revive" onClick={() => run(() => gridReviveAct(x.id), `${x.label} — 되살렸습니다`)}>되살리기</button></div>)}
     {!g && <p className="note" data-g="empty">{mine ? "내 표가 아직 없습니다 — + 새 표" : "표가 아직 없습니다 — + 새 표"}</p>}
     {g && <div data-g="grid" data-grid={g.id}>
       <div className="shtitle">{rename?.id === g.id ? <><input value={rename.name} aria-label="표 이름" data-g="rename" onChange={(e) => setRename({ id: g.id, name: e.target.value })} style={{ width: 160 }} /><button className="btn sm pri" type="button" data-act="rename-save" disabled={pending || !rename.name.trim()} onClick={() => { const nm = rename.name.trim(); setRename(null); if (nm && nm !== g.label) run(() => gridRenameAct(g.id, nm), "이름을 바꿨습니다"); }}>저장</button><button className="btn sm" type="button" data-act="rename-cancel" onClick={() => setRename(null)}>취소</button></> : <><b data-g="grid-label">{g.label}</b><button className="lnk" type="button" data-act="rename" title="표 이름 바꾸기" onClick={() => setRename({ id: g.id, name: g.label })}>✎</button></>}

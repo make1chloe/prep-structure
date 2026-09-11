@@ -23,7 +23,7 @@ export default async function Settings() {
         <IpCard /></>}
     </div>}
     {keys?.error ? <div className="card warn"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠를 못 읽었습니다</div><p className="note">{keys.error}</p></div> : keys ? <Keys rows={keys} /> : null}
-    <Link prefetch={false} className="card" href="/settings/progress" data-card="progress" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">✎</span>진도 체크 열기 — 아이가 제 교재 진도를 찍는다(학원 전체 · 아이마다) · 확인 · ❗</div><p className="note">확정-㊶ — 켠 날부터 「N일째」로 셉니다. 아이가 찍은 줄은 확인 기다리는 중, 원장님 줄은 아이가 못 덮습니다.</p></Link>
+    <Link prefetch={false} className="card" href="/settings/progress" data-card="progress" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">✎</span>진도 체크 열기 — 아이가 제 교재 진도를 찍는다(학원 전체 · 아이마다) · 확인 · ❗</div><p className="note">켠 날부터 「N일째」로 셉니다. 아이가 찍은 줄은 확인 기다리는 중, 원장님 줄은 아이가 못 덮습니다.</p></Link>
     <Link prefetch={false} className="card" href="/settings/routine" data-card="routine" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🔁</span>루틴 — 학원 기본 루틴 · 아이마다 고른 것 · 교재 잇기</div><p className="note">영역마다 한 벌(교재가 늘어도 안 늡니다). 항목 더하기·고치기·차례·내리기(지우지 않습니다) · 아이별로 고른 줄 · 교재의 기준·회차·「이대로면」</p></Link>
   </main>;
 }

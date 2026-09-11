@@ -1,11 +1,12 @@
 "use server";
 /** 학교별 표 06c 의 손 — 학원 사람만. 판단·쓰기는 lib/grid.js 한 벌(+ 새 표 · 내리기·되살리기·이름 · 칸 · 줄 · 셀 · 보드 축 · 따로 챙길 아이). 지우는 손이 없다(대전제-6). 단원 목록은 lib/exam unitsOf(06b 와 같은 것) */
 import { guard } from "@/lib/session";
+import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { addGrid, retireGrid, reviveGrid, renameGrid, moveGrid, addCol, setCol, moveCol, retireCol, setBoardCol, addRow, moveRow, retireRow, setCell, setWatch, allUnits, setShare } from "@/lib/grid";
 import { unitsOf } from "@/lib/exam";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+const wrap = (fn) => act(fn, "학교별 표 06c");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function gridAddAct(template, label = null) { return wrap(async () => { const { sb, user } = await staff(); return addGrid(sb, { template, label }, user.id); }); }
 export async function gridRetireAct(id) { return wrap(async () => { const { sb } = await staff(); await retireGrid(sb, id); return {}; }); }
 export async function gridReviveAct(id) { return wrap(async () => { const { sb } = await staff(); await reviveGrid(sb, id); return {}; }); }

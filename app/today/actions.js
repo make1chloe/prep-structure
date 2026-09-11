@@ -2,6 +2,7 @@
 /** 오늘 수업의 손 — 전부 guard(학원 사람) → lib 의 판단 한 벌 → 다시 그리기. 판단은 여기 없다.
  *  ⚠️ 마감된 판은 lib 의 assertOpen 이 막는다(검사-⑤). 실패는 던지지 않고 {ok:false, msg} 로 돌려 화면이 그 자리에서 말한다 */
 import { revalidatePath } from "next/cache";
+import { done as doneAt } from "@/lib/act";
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";
 import { ensureSheet, saveComment, closeSheet } from "@/lib/day";
@@ -19,7 +20,7 @@ import { tree, setUnit, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
 import { slotCount } from "@/lib/classes";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/today"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
+const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });

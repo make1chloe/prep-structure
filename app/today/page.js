@@ -1,6 +1,7 @@
 /** 오늘 수업 — 목업 01. 검사 · 학습 · 숙제 한 화면. 판단은 lib/day · attend · homework · late 한 벌, 여기는 가져다 그린다.
  *  층은 넷(속도-상한 오늘 4단): 로그인 확인 → 오늘 → 반·아이 한 조회 → 판 한 조회 — 뒤 둘은 lib/day.roster 안. 판은 열 때 선다(있으면 그대로) — 검사 줄은 「아직 검사 안 한 지난 숙제 전부」 */
 import { guard } from "@/lib/session";
+import { Oops } from "../_shell/oops.js";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today, roster, todayCfg } from "@/lib/day";
 import { weekdayName } from "@/lib/day-plan";
@@ -22,7 +23,7 @@ export default async function Today({ searchParams }) {
     date = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : todayStr;
     [r, band, cfg] = await Promise.all([roster(sb, date, null, { open: date === todayStr }), warnBand(sb, todayStr), todayCfg(sb)]); }   // 반·아이 → 판(**오늘만** 없으면 세운다 — 다른 날은 단추로) ∥ 월초 정리 띠는 늘 오늘 것
   catch (e) {   // 화면이 스스로 말한다(대전제-0) — 운영 빌드는 오류 글을 감추고 「This page couldn't load」만 보인다(원장님 9/5 폰 캡처). 표·함수가 아직 없는 DB 면 여기서 그 이름이 보인다
-    return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>오늘 수업을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 없다는 말이면 새 앱 마이그레이션(0100~)을 이 DB 에 아직 안 돌린 것입니다 — `docs/미리보기-켜기.md`</p></div>);
+    console.error(`[화면] 오늘 수업 못 엶:`, e); return frame(<Oops what="오늘 수업" e={e} />);
   }
   const unchecked = r.classes.flatMap((c) => c.students).reduce((n, s) => n + (s.sheet?.check.filter(isUnchecked).length ?? 0), 0);
   const other = date !== todayStr, future = date > todayStr;

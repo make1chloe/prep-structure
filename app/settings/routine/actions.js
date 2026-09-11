@@ -1,13 +1,14 @@
 "use server";
 /** 루틴 손 — 학원 사람만. 판단·쓰기는 lib/routine.js 한 벌. 🗑 는 retired(확정-㊷) — 지우는 손이 없다 */
 import { guard } from "@/lib/session";
+import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { addItem, editItem, retireItem, setLine, moveLine, customizeStudent, resetStudent, reviveStudentLine, setBook, assignBook, customizeBook, resetBook, endBook } from "@/lib/routine";
 import { parseChecks } from "@/lib/routine-plan";
 import { setQuizPos } from "@/lib/quiz";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-async function wrap(fn) { try { return { ok: true, ...(await fn()) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+const wrap = (fn) => act(fn, "루틴 11");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function addItemAct(f) { return wrap(async () => { const { sb } = await staff(); return addItem(sb, { area: f.area, name: f.name, method: f.method, checks: parseChecks(f.checks), place: f.place, required: Boolean(f.required) }); }); }
 export async function editItemAct(id, f) { return wrap(async () => { const { sb } = await staff(); await editItem(sb, id, { name: f.name, method: f.method, checks: parseChecks(f.checks) }); return {}; }); }
 export async function retireItemAct(id) { return wrap(async () => { const { sb } = await staff(); return retireItem(sb, id); }); }   // 항목 자체 내리기((가)-⑨)

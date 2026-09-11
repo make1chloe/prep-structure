@@ -2,6 +2,7 @@
 /** 아이 화면의 손 — 전부 guard(아이 계정) → lib 의 판단 한 벌 → 다시 그리기. 판단은 여기 없다.
  *  등원·하원은 서버 자신(service role)도 든다 — 판을 세우는 것은 원장 손과 같은 길이어야 하는데 아이 자격은 판을 못 깐다(lib/arrival.js). 실패는 {ok:false,msg} 로 돌려 그 자리에서 말한다 */
 import { revalidatePath } from "next/cache";
+import { done as doneAt, wrap as act } from "@/lib/act";
 import { headers } from "next/headers";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
@@ -15,7 +16,7 @@ import { studentSubmit } from "@/lib/score";
 import { studentMark, studentMarkMany, raiseFlag } from "@/lib/road";
 import { markSeen } from "@/lib/files";
 import { markSpan, fillDuration, openVideo } from "@/lib/video";
-const done = (fn) => async (...a) => { try { const r = await fn(...a); revalidatePath("/me"); return { ok: true, ...(r ?? {}) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } };
+const done = doneAt("/me", "아이 화면 07");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 async function child() { const w = await guard(); if (w.me?.role !== ROLES.STUDENT) throw new Error("아이 계정만 찍습니다"); return w; }
 /** 걸음을 찍는다(1 핸드폰 · 2 출석 · 3 숙제 · 4 집에 가요). 반이 둘인 날은 아이가 고른 반(classId)으로 */
 export const arrive = done(async (step, classId = null) => {
@@ -51,8 +52,8 @@ export const flagUnit = done(async (unitId, round, kind, said) => { const { sb, 
 /** 📎 붙은 파일을 처리했다 — 💾 저장(폰에 내려받음) · ✓ 안 보기(그 줄에서만 치움). 둘 다 「지난 것 보기」에서 1달간(목업 20) */
 export const seen = done(async (fileId, itemId, how) => { const { sb } = await child(); await markSeen(sb, String(fileId), String(itemId), String(how)); });
 /** 🎬 지나간 구간을 찍는다(재생기가 20초마다·멈출 때) — 다시 그리지 않는다(재생 중이다). 겹침·「다 봄」은 SQL(0128 video_mark) */
-export async function span(videoId, from, to, pos) { try { const { sb } = await child(); return { ok: true, r: await markSpan(sb, String(videoId), Number(from), Number(to), Number(pos)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+export async function span(videoId, from, to, pos) { return act(async () => { const { sb } = await child(); return { r: await markSpan(sb, String(videoId), Number(from), Number(to), Number(pos)) }; }, "아이 화면 07 영상"); }
 /** 🎬 길이를 모르는 영상은 재생기가 처음 알려 준다(비어 있을 때만 — SQL 이 지킨다) */
-export async function duration(videoId, seconds) { try { const { sb } = await child(); return { ok: true, set: await fillDuration(sb, String(videoId), Number(seconds)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+export async function duration(videoId, seconds) { return act(async () => { const { sb } = await child(); return { set: await fillDuration(sb, String(videoId), Number(seconds)) }; }, "아이 화면 07 영상"); }
 /** 🎬 재생기를 열었다 — 연 횟수 +1(④ 「N번 열어봄」). 다시 그리지 않는다 */
-export async function opened(videoId) { try { const { sb } = await child(); return { ok: true, n: await openVideo(sb, String(videoId)) }; } catch (e) { return { ok: false, msg: String(e?.message ?? e) }; } }
+export async function opened(videoId) { return act(async () => { const { sb } = await child(); return { n: await openVideo(sb, String(videoId)) }; }, "아이 화면 07 영상"); }

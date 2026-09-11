@@ -1,6 +1,7 @@
 /** 🧑‍🎓 학생 14 — 목록(재원생 · 퇴원생 — 퇴원해도 줄은 남는다, 원장님 9/3)에서 한 아이를 열면: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 고치기) · KPI 여섯 · 교재 진도 · 성적(약한 영역) · 이 달 출결(등원·하원 시각, 답 ⑩) · 단원평가 · 지나온 것 · 상담. 판단은 lib/student-plan(순수) · 손은 lib/student.
  *  층: 로그인 확인 → 주소 인자 → 오늘 → 학생 판 한 벌(student_board) = 4단. 학원 사람만(상담 카드는 ops.consult 로 가린다) */
 import { guard } from "@/lib/session";
+import { Oops } from "../../_shell/oops.js";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { decide, OPS } from "@/lib/perm";
 import { today } from "@/lib/day";
@@ -18,6 +19,6 @@ export default async function Students({ searchParams }) {
     const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : null;   /* (뎌) 달 넘기기 — 안 주면 오늘의 달 */
     const [board, cc] = await Promise.all([studentBoard(sb, sel, date, ym ? `${ym}-01` : null), ccOf(sb, sel)]);   /* (녀) 🃏 아이디는 같은 파도에 태운다 — 층이 안 는다(속도 대원칙 1) */
     d = { date, sel, ym, board, cc, consult: decide(me.role, board.access ?? [], OPS.consult) === true, principal: me.role === "principal" }; }
-  catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>학생을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 아직 없는 DB 면 0127 까지의 마이그레이션을 먼저 돌립니다(docs/원장님-정하실-것 ㉖).</p></div>); }
+  catch (e) { { console.error("[화면] 학생 못 엶:", e); return frame(<Oops what="학생" e={e} />); } }
   return frame(<Board d={d} />);
 }

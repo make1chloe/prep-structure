@@ -39,8 +39,7 @@ export default function Board({ d }) {
       <b>스위치 값이 이상해서 아무것도 안 나갑니다</b> — {d.sinkBad}. 아래 「켜는 법」대로 <b>live</b> 로 고치고 Redeploy 하십시오.</p>}
     {d.sink !== "live" && <p className="note k" data-g="sink-how" style={{ margin: "0 0 8px" }}>
       <b>켜는 법</b> — Vercel → Settings → Environment Variables 에 <b>NOTIFY_SINK</b> = <b>live</b>(<b>Production</b> 체크) → Save → Deployments 맨 위 <b>⋯ → Redeploy</b>.
-      환경변수는 <b>이미 배포된 것에는 안 붙어서</b> Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 자리가 「앱 알림만」이 됩니다.
-      (원장님 2026-09-10 「문자 안보내져 테스트」 — 앱이 아니라 이 스위치였습니다)</p>}
+      환경변수는 <b>이미 배포된 것에는 안 붙어서</b> Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 자리가 「앱 알림만」이 됩니다.</p>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
 

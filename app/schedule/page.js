@@ -1,6 +1,7 @@
 /** 📅 일정 — 목업 12(원장 달력 · 8회 채우기). 판단은 lib/schedule-plan(순수) · 손은 lib/schedule, 여기는 가져다 그린다.
  *  층: 로그인 확인 → 주소 인자 → 오늘 → 일정 판 한 벌(schedule_board, 속도-상한 일정 8 · 2단) = 4단. 정상 수업은 안 띄운다 — 당연한 것이니까 */
 import Link from "next/link";
+import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today } from "@/lib/day";
@@ -20,7 +21,7 @@ export default async function Schedule({ searchParams }) {
     const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date);
     const sel = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : ym === ymOf(date) ? date : `${ym}-01`;
     d = { date, ym, sel, classId: sp?.c ? String(sp.c) : null, board: await scheduleBoard(sb, ym, date) };
-  } catch (e) { return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>일정을 못 열었습니다</div><p className="note">{String(e?.message ?? e)}</p><p className="note">표·함수가 아직 없는 DB 면 0120 까지의 마이그레이션을 먼저 돌립니다(docs/원장님-정하실-것 ㉖).</p></div>); }
+  } catch (e) { { console.error("[화면] 일정 못 엶:", e); return frame(<Oops what="일정" e={e} />); } }
   const b = d.board, target = Number(b.rules?.["schedule.sessions_per_month"] ?? 8);
   const q = (m, day = null) => `/schedule?m=${m}${day ? `&d=${day}` : ""}${d.classId ? `&c=${d.classId}` : ""}`;
   const cells = monthCells(d.ym, b, { classId: d.classId, today: d.date, sel: d.sel });

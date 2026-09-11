@@ -59,7 +59,7 @@ export default function Board({ d }) {
         return (
           <div key={area} className="rcol2" data-g="area" data-area={area}>
             <div className="rh2"><span className="rhi">{emo}</span><b>{area}</b><span className="tag">{b.book_counts?.[area] ?? 0}권</span><span className="spacer" /><span className="pill" data-g="area-stats">학원 {st.class} · 숙제 {st.home} · 필수 {st.required}{st.next ? ` · 예습 ${st.next}` : ""}</span></div>
-            {area === "단어" && st.class === 0 && <div className="lf ok" data-g="word-note" style={{ marginBottom: 4 }}><span className="ln">🔤</span><div><b>단어는 학원이 0줄입니다 — 맞습니다</b><small>학원에서는 <b>단어시험 말고 할 게 없어서</b>입니다(원장님 9/2). 시험은 <b>루틴 밖</b>이라 여기 안 섭니다</small></div><span className="lm">숙제 {st.home}줄{st.next ? ` · 예습 ${st.next}줄` : ""}</span></div>}
+            {area === "단어" && st.class === 0 && <div className="lf ok" data-g="word-note" style={{ marginBottom: 4 }}><span className="ln">🔤</span><div><b>단어는 학원이 0줄입니다 — 맞습니다</b><small>학원에서는 <b>단어시험 말고 할 게 없어서</b>입니다. 시험은 <b>루틴 밖</b>이라 여기 안 섭니다</small></div><span className="lm">숙제 {st.home}줄{st.next ? ` · 예습 ${st.next}줄` : ""}</span></div>}
             {!lines.length && area !== "단어" && <div className="ritem" data-g="area-empty"><span className="rn2">—</span><div style={{ flex: "1 1 170px", minWidth: 0 }}><b style={{ color: "var(--mute)" }}>아직 줄이 없습니다 — + 항목으로 만드세요</b><small>이 영역 교재를 이은 아이는 대시보드 「빵꾸」에 뜹니다</small></div></div>}
             {lines.map((l, i) => (
               <div key={l.id}>
@@ -67,7 +67,7 @@ export default function Board({ d }) {
                   <span className="rn2">{i + 1}</span>
                   <div style={{ flex: "1 1 170px", minWidth: 0 }}><b>{l.name}</b>{l.method && <small>{l.method}{l.checks?.length ? ` · ${l.checks.join(" · ")}` : ""}</small>}</div>
                   <button type="button" className={"tag" + (l.required ? " on" : "")} disabled={pending} data-act="required" aria-pressed={l.required} onClick={() => run(() => setLineAct("area", l.id, { required: !l.required }))}>필수</button>
-                  {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="agate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만(확정-㉒) · 이 영역을 쓰는 아이 전부 · 아이 화면의 숙제 줄" onClick={() => run(() => setLineAct("area", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
+                  {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="agate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만 · 이 영역을 쓰는 아이 전부 · 아이 화면의 숙제 줄" onClick={() => run(() => setLineAct("area", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
                   <Seg value={l.place} disabled={pending} g="place" onPick={(k) => run(() => setLineAct("area", l.id, { place: k }))} />
                   <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
                     <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="up" aria-label="위로" onClick={() => run(() => moveLineAct("area", l.id, "up"))}>▲</button>
@@ -93,7 +93,7 @@ export default function Board({ d }) {
     </div>
 
     <div className="ctitle" style={{ marginTop: 16 }}><span className="cemo">🧑</span>{student ? `${student.name} — 영역별로 고른 것` : "아이가 없습니다"}
-      {student && <span className="wv" style={{ marginLeft: 12, gap: 6 }} title="오늘 01 의 🔤 시험 카드 자리 — 이 아이만(목업 01 「자리가 아이마다 다릅니다」)"><span className="tag">🔤 시험</span>
+      {student && <span className="wv" style={{ marginLeft: 12, gap: 6 }} title="오늘 01 의 🔤 시험 카드 자리 — 이 아이만 — 아이마다 다르게 둘 수 있습니다"><span className="tag">🔤 시험</span>
         <div className="seg sm hs" data-g="quiz-pos">{QUIZ_POS.map(([k, name]) => <button key={k} type="button" aria-pressed={quizPosOf(student) === k} disabled={pending} onClick={() => run(() => quizPosAct(student.id, k), (r) => `🔤 시험 카드 — ${r.name} (오늘 화면에서 ${k === "end" ? "학습·숙제 아래" : "맨 위"})`)}>{name}</button>)}</div></span>}
       <span className="spacer" />
       <select value={sid ?? ""} aria-label="아이 고르기" data-g="student-pick" style={{ width: "auto" }} onChange={(e) => go(`/settings/routine?s=${e.target.value}`)}>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.grade ? ` · ${s.grade}` : ""}</option>)}</select></div>
@@ -114,7 +114,7 @@ export default function Board({ d }) {
                 <span className="rn2">{i + 1}</span><b style={{ flex: "1 1 120px", minWidth: 0 }}>{l.name}</b>
                 {v.custom && <input type="number" min="0" value={l.count_n ?? ""} placeholder="N개" aria-label="갯수" data-g="count" style={{ width: 64 }} onChange={() => {}} onBlur={(e) => { const val = e.target.value; if (String(l.count_n ?? "") !== val) run(() => setLineAct("student", l.id, { count_n: val })); }} />}
                 {v.custom && <input value={l.criterion ?? ""} placeholder="기준(비면 검사받으면 끝)" aria-label="통과 기준" data-g="criterion" style={{ width: 150 }} onChange={() => {}} onBlur={(e) => { const val = e.target.value; if (String(l.criterion ?? "") !== val) run(() => setLineAct("student", l.id, { criterion: val })); }} />}
-                {v.custom && i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="gate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만(확정-㉒) · 아이 화면의 숙제 줄" onClick={() => run(() => setLineAct("student", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
+                {v.custom && i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="gate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만 · 아이 화면의 숙제 줄" onClick={() => run(() => setLineAct("student", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
                 <Seg value={l.place} disabled={pending || !v.custom} g="splace" onPick={(k) => run(() => setLineAct("student", l.id, { place: k }))} />
                 {v.custom && <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
                   <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="sup" aria-label="위로" onClick={() => run(() => moveLineAct("student", l.id, "up"))}>▲</button>
@@ -147,7 +147,7 @@ export default function Board({ d }) {
                 <div key={l.id} className="ritem on" data-g="bline">
                   <span className="rn2">{i + 1}</span><b style={{ flex: "1 1 120px", minWidth: 0 }}>{l.name}</b>
                   <input type="number" min="0" value={l.count_n ?? ""} placeholder="N개" aria-label="갯수" data-g="bcount" style={{ width: 64 }} onChange={() => {}} onBlur={(e) => { const val = e.target.value; if (String(l.count_n ?? "") !== val) run(() => setLineAct("student", l.id, { count_n: val })); }} />
-                  {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="bgate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만(확정-㉒)" onClick={() => run(() => setLineAct("student", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
+                  {i > 0 && <button type="button" className={"tag" + (l.gate_prev ? " on" : "")} disabled={pending} data-act="bgate" aria-pressed={Boolean(l.gate_prev)} title="앞엣것을 끝내야 열린다 — 줄 사이에만" onClick={() => run(() => setLineAct("student", l.id, { gate_prev: !l.gate_prev }), l.gate_prev ? "잠금을 풀었습니다" : "🔒 앞엣것을 끝내야 열립니다(아이 화면 숙제 줄)")}>🔒</button>}
                   <Seg value={l.place} disabled={pending} g="bplace" onPick={(k) => run(() => setLineAct("student", l.id, { place: k }))} />
                   <span className="ord" style={{ display: "inline-flex", gap: 2 }}>
                     <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="bup" aria-label="위로" onClick={() => run(() => moveLineAct("student", l.id, "up"))}>▲</button>

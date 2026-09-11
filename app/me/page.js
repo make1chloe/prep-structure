@@ -1,6 +1,7 @@
 /** 아이 화면 07 「나」 — 하루 동선대로: 등원 → 오늘 할 것(학원·숙제) → 오늘 낼 숙제 → 시험 → 남아서 → 앞으로 → 내 교재 → 선생님 한 마디 → 집에 가요.
  *  전부 아이 자격으로 읽는다(RLS 가 제 것만 준다). 카드는 원장님이 「누가 무엇을 보나」에서 켠 것만(me.*) — 안 정한 칸은 막혀 있다. 판단은 lib/me · lib/arrival-plan, 여기는 가져다 그린다 */
 import Link from "next/link";
+import { Oops } from "../_shell/oops.js";
 import { guard } from "@/lib/session";
 import { ROLES, isStaff } from "@/lib/roles";
 import { decide, ME } from "@/lib/perm";
@@ -34,7 +35,7 @@ export default async function Me() {
   if (me.role !== ROLES.STUDENT) redirect("/");
   let date, d;
   try { date = await today(sb); d = await meDay(sb, user, date); }
-  catch (e) { return frame(<div className="task"><div className="h"><b>⚠️ 내 화면을 못 열었습니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>{String(e?.message ?? e)}</p></div>); }
+  catch (e) { { console.error("[화면] 내 화면 못 엶:", e); return frame(<Oops what="내 화면" e={e} kind="task" />); } }
   const can = (k) => decide(ROLES.STUDENT, d.access, k) === true;
   const shown = [ME.arrival, ME.today, ME.books].filter(can);
   const fl = childLinks(d.links, date, d.rules?.["file.child_days"]);   // 📎 붙임 — 1달 안의 것만(규칙)
