@@ -1,9 +1,9 @@
 -- 클로이영어 — **읽기만 합니다.** 아무것도 안 바꾸고, 아무것도 안 지웁니다.
--- Supabase → SQL Editor → New query → 통째로 붙여넣고 Run → 나온 표를 사진으로 주세요.
+-- Supabase → SQL Editor → New query → 통째로 붙여넣고 Run → 나온 **한 줄**을 주세요.
 --
--- 무엇을 보나: 앱 코드에는 0100~0159 가 다 있는데 실 DB 엔 몇 개가 안 들어가 있습니다.
---              (2026-09-11 붙여넣기에서 「56개 중 48개」라고 멈췄습니다 — 8개가 빕니다)
---              **어느 것이 비었는지**를 여기서 이름으로 봅니다.
+-- 무엇을 보나: 앱 코드에는 01xx 가 60개인데 실 DB 엔 48개만 들어가 있습니다.
+--              **어느 번호가 비었는지**를 한 줄로 봅니다(번호만 — 짧게 나옵니다).
+-- ⚠️ SQL Editor 는 **맨 마지막 select 하나만** 보여 줍니다 — 그래서 한 문장으로 만들었습니다.
 
 with 코드에있는것(file) as (values
     ('0100_new_app_skeleton.sql'),
@@ -68,14 +68,10 @@ with 코드에있는것(file) as (values
     ('0159_site_import.sql')
 )
 select
-  c.file                                as "안 들어간 파일",
-  '차례대로 돌려야 합니다'               as "할 일"
+  count(*)                                          as "안 들어간 개수",
+  string_agg(left(c.file, 4), ' ' order by c.file)  as "안 들어간 번호",
+  (select count(*) from v2.migration where file like '01%')
+                                                    as "실 DB 에 들어간 01xx"
 from 코드에있는것 c
 left join v2.migration m on m.file = c.file
-where m.file is null
-order by 1;
-
--- 아래는 셈만 — 위 표가 비어 있으면 다 들어간 것입니다.
-select
-  (select count(*) from v2.migration where file like '01%')  as "실 DB 에 들어간 01xx",
-  60                                                          as "코드에 있는 01xx";
+where m.file is null;
