@@ -70,7 +70,7 @@ export default function Board({ d }) {
     </section>
 
     <section className="sgrp" data-card="auto">
-      <div className="sgh"><span className="sgi">🔔</span><b>저절로 나가는 것 · 등원·하원 · 결석·지각 예정</b><span className="pill">{d.auto.length}</span><span className="spacer" /><span className="note" style={{ margin: 0 }}>아이가 찍은 등원·하원과 02c 「학부모께 알림」이 넣은 것 — 나간 것은 아래 「오늘 나간 것」에</span></div>
+      <div className="sgh"><span className="sgi">🔔</span><b>저절로 나가는 것 · 등원·하원 · 결석·지각 예정</b><span className="pill">{d.auto.length}</span><span className="spacer" /><span className="note" style={{ margin: 0 }}>아이가 찍은 등원·하원과 반 화면의 「학부모께 알림」이 넣은 것 — 나간 것은 아래 「오늘 나간 것」에</span></div>
       {!d.auto.length && <Row icon="—" cls="dim"><b>기다리는 것이 없습니다</b></Row>}
       {d.auto.map((r) => <Row key={r.id} icon={r.icon} data-g="auto-row"><b>{r.name} 학부모 · {r.what}</b><small>{r.state.text}</small></Row>)}
     </section>
@@ -93,7 +93,7 @@ export default function Board({ d }) {
     <Templates items={d.templates ?? []} ready={d.smsReady} placeholders={d.placeholders ?? []} kinds={d.smsKinds ?? []} />
     {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 자리 — 글에 적으면 앱이 채웁니다</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
       <div className="tags" data-g="placeholders">{placeholderRows(d.placeholders).map((r) => <span key={r.key} className="tag" title={r.text}>{r.tag}</span>)}</div>
-      <p className="note k" style={{ margin: "4px 0 0" }}>{placeholderRows(d.placeholders).slice(0, 4).map((r) => r.text).join(" · ")} … 설명은 표(v2.placeholder)에 있습니다 · 안 채운 자리는 못 나갑니다(뼈대-11)</p></div>}
+      <p className="note k" style={{ margin: "4px 0 0" }}>{placeholderRows(d.placeholders).slice(0, 4).map((r) => r.text).join(" · ")} … 안 채운 자리가 있으면 못 나갑니다</p></div>}
 
     <div className="savebar sendbar" data-g="sendbar">
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>

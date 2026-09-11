@@ -32,7 +32,7 @@ export default function Board({ d }) {
       <span className={"pill" + (c.missing ? " warn" : "")} data-g="missing">안 낸 아이 {c.missing}</span>
       <span className="spacer" />
       {e && <form action={(fd) => run(() => importAct(e.id, fd), (r) => `올렸습니다 — ${r.put}줄(바로 확인됨)${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
-        <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="성적 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">⬆ 엑셀로 한꺼번에</button></form>}
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="성적 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">⬆ 한꺼번에 올리기</button></form>}
       {e && <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}`} data-act="scores-export" title="올리기와 같은 열 · 보는 아이 이름이 채워져 나옵니다">⬇ 성적 양식</a>}
       <Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
     </div>
@@ -49,7 +49,7 @@ export default function Board({ d }) {
         <input value={qtext} onChange={(x) => setQ(x.target.value)} placeholder="1-5 듣기, 6-20 독해, 21-25 어법, 26-28 서술형" aria-label="문항표" style={{ flex: "1 1 260px" }} />
         <button className="btn sm pri" type="button" disabled={pending || !qtext.trim()} data-act="questions-save" onClick={() => run(() => questionsAct(e.id, qtext), (r) => `문항표 ${r.saved}문항`, () => setQ(""))}>저장</button>
         <form action={(fd) => run(() => questionsSheetAct(e.id, fd), (r) => `문항표 ${r.saved}문항(엑셀)${r.bad?.length ? ` · 고칠 줄 ${r.bad.length}: ${r.bad.slice(0, 3).map((x) => `${x.line}행 ${x.why}`).join(" / ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="questions-import">
-          <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="문항표 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="questions-import">⬆ 엑셀</button></form>
+          <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="문항표 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="questions-import">⬆ 올리기</button></form>
         <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}&q=1`} data-act="questions-export" title="번호 · 영역 두 열 — 고쳐서 다시 올리면 됩니다">⬇ 문항표</a></div>
       <div className="tblwrap"><table data-g="score-table"><thead><tr><th>학생</th><th>원점수</th><th>등급(세어 나옴)</th><th>틀린 문항</th><th>낸 때</th><th>공개</th><th></th></tr></thead><tbody>
         {rows.map((r) => { const raw = val(r, "raw", r.raw ?? ""), g = gradeByCuts(raw, cutsFor(e)), dirty = Boolean(edit[r.student_id]); return <tr key={r.student_id} className={r.state === "pending" ? "hi" : ""} data-g="score-row" data-student={r.student_id} data-state={r.state}>

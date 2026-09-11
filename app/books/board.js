@@ -26,7 +26,7 @@ export default function Board({ d }) {
       <span className={"pill" + (c.noUnits ? " warn" : "")} data-g="no-units">단원 없음 {c.noUnits}</span>
       {c.noArea > 0 && <span className="pill warn" data-g="no-area">영역 없음 {c.noArea}</span>}
       <Link prefetch={false} className="btn sm" href="/books/videos" data-act="videos">🎬 영상</Link>
-      <a className="btn sm" href="/api/books/xlsx" data-act="export-all">⬇ 엑셀</a>
+      <a className="btn sm" href="/api/books/xlsx" data-act="export-all">⬇ 내려받기</a>
       <a className="btn sm" href="/api/books/xlsx?s=books" data-act="export-books">⬇ 교재 시트</a>
       <button className="btn sm" type="button" data-act="upload-open" onClick={() => setUp(true)}>⬆ 올리기</button>
       <button className="btn pri sm" type="button" data-act="add-open" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 교재</button>
@@ -67,7 +67,7 @@ export default function Board({ d }) {
             <button className="btn sm gho" type="button" disabled={pending || i === 0} data-act="act-left" aria-label={`${a} 앞으로`} onClick={() => run(() => activityMoveAct(book.id, a, "left"), actMsg)}>◀</button>
             <button className="btn sm gho" type="button" disabled={pending || i === acts.length - 1} data-act="act-right" aria-label={`${a} 뒤로`} onClick={() => run(() => activityMoveAct(book.id, a, "right"), actMsg)}>▶</button></span>)}
           {!acts.length && <span className="note" style={{ margin: 0 }}>단원이 없습니다</span>}
-          <span className="note k" style={{ margin: 0 }}>엑셀 줄 순서에서 <b>저절로 나왔습니다</b> — ◀ ▶ 로 바꾸면 대단원 안의 단원 줄이 그 차례로 서고, 학습 깔기·진도도 따라갑니다</span></div>
+          <span className="note k" style={{ margin: 0 }}>올린 줄 순서에서 <b>저절로 나왔습니다</b> — ◀ ▶ 로 바꾸면 대단원 안의 단원 줄이 그 차례로 서고, 학습 깔기·진도도 따라갑니다</span></div>
         <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧱</span>단원 · 대 › 중 › 소<span className="spacer" /><span className="tag" data-g="unit-count">{(book.units ?? []).length}단원</span></div>
         <div className="tblwrap"><table data-g="unit-table"><thead><tr><th>대단원</th><th>중단원</th><th>소단원</th><th>활동명</th><th>학습유형</th><th>쪽</th><th>문항</th><th>문법 분류</th><th>손질</th></tr></thead><tbody>
           {(book.units ?? []).map((u) => <tr key={u.id} data-g="unit-row" data-unit={u.id} data-state={u.state} style={u.state === "hidden" ? { color: "var(--mute)" } : undefined}><td className="sch">{u.chapter}</td><td>{u.mid ?? "—"}</td><td>{u.sub ?? "—"}</td><td>{u.activity}</td><td><span className={"tag" + (u.is_workbook ? "" : " type")}>{u.is_workbook ? "워크북" : "본책"}</span></td>
@@ -77,13 +77,13 @@ export default function Board({ d }) {
               <select value="" aria-label={`${u.sub ?? u.chapter} 문법 분류`} disabled={pending} data-g="topic-pick" onChange={(x) => x.target.value && run(() => topicsAct(u.id, [...topicsOf(u.id).map((t) => t.topic_id), x.target.value]), "분류를 이었습니다")} style={{ width: "auto" }}><option value="">+ 잇기</option>{(b.topics_all ?? []).filter((t) => !topicsOf(u.id).some((x) => x.topic_id === t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></span></td>
             <td><span className="wv" style={{ gap: 4 }}>{uedit[u.id] && <button className="btn sm pri" type="button" disabled={pending} data-act="unit-save" onClick={() => run(() => unitAct(u.id, { pages: ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, "")), qCount: ue(u, "qCount", u.q_count ?? ""), gist: u.gist ?? "" }), "단원을 고쳤습니다(쪽·문항 — 조절·회차가 새 값으로 셉니다)", () => setUedit((st) => ({ ...st, [u.id]: undefined })))}>저장</button>}
               <button className="btn sm gho" type="button" disabled={pending} data-act="unit-state" onClick={() => run(() => unitStateAct(u.id, u.state === "hidden" ? "active" : "hidden"), u.state === "hidden" ? "되살렸습니다" : "숨겼습니다 — 깔기·회차·범위에서 빠집니다(지우지 않았습니다)")}>{u.state === "hidden" ? "되살리기" : "숨김"}</button></span></td></tr>)}
-          {!(book.units ?? []).length && <tr><td colSpan={9} className="note">단원이 없습니다 — ⬆ 올리기로 엑셀을 올리세요</td></tr>}
+          {!(book.units ?? []).length && <tr><td colSpan={9} className="note">단원이 없습니다 — ⬆ 올리기로 단원을 넣으세요</td></tr>}
         </tbody></table></div>
         <div className="wv" style={{ marginTop: 8 }} data-g="topics"><span className="fl" style={{ margin: 0 }}>문법 분류</span>{(b.topics_all ?? []).map((t) => <span key={t.id} className="um">{t.name}</span>)}
           <input value={topicName} onChange={(x) => setTopicName(x.target.value)} placeholder="+ 분류 (예: 관계사)" aria-label="문법 분류 이름" style={{ width: 160 }} /><button className="btn sm" type="button" disabled={pending || !topicName.trim()} data-act="topic-add" onClick={() => run(() => addTopicAct(topicName), "분류를 더했습니다", () => setTopicName(""))}>더하기</button>
           <span className="note k" style={{ margin: 0 }}>단원평가를 <b>볼지 말지는 학생 루틴</b>에서 정합니다</span></div>
         <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }} data-g="bar">
-          <a className="btn sm" href={`/api/books/xlsx?b=${book.id}`} data-act="export-one">⬇ 이 교재 단원 엑셀</a>
+          <a className="btn sm" href={`/api/books/xlsx?b=${book.id}`} data-act="export-one">⬇ 이 교재 단원</a>
           <span className="spacer" />
           <span className="pill" data-g="students">쓰는 학생 {(book.students ?? []).length}명{(book.students ?? []).length ? ` — ${book.students.join(", ")} · 지우지 못합니다` : ""}</span>
         </div>
@@ -113,10 +113,10 @@ function Upload({ close, run, pending }) {
   const t = plan ? totalsFor(plan.perBook, modes) : null;
   const holdsLeft = plan?.holds ? plan.holds.filter((h) => !holds[h.key] || holds[h.key].act === "skip").reduce((n, h) => n + h.lines, 0) : 0;   // 교재 시트 계획엔 보류 목록이 없다(줄마다 act)
   return <div className="mdlov" data-g="upload"><div className="mdl" style={{ width: "min(640px, 100%)" }}>
-    <div className="mdlh"><b>⬆ 엑셀 올리기 — 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
+    <div className="mdlh"><b>⬆ 올리기 — 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
     <div className="mdlb">
       {!plan && <form action={read} className="wv" data-g="upload-form"><input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="단원 엑셀" style={{ width: "auto" }} /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button>
-        <span className="note k" style={{ margin: 0 }}>단원 시트 열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위(⬇ 엑셀 양식) — 교재 시트(교재명 · 영역 · 출판사 · 연도 · 레벨 · 교재비 · 구매링크 — ⬇ 교재 시트 양식)도 여기로. <b>첫 줄 열 이름</b>으로 알아봅니다</span></form>}
+        <span className="note k" style={{ margin: 0 }}>단원 시트 열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위(⬇ 양식 받기) — 교재 시트(교재명 · 영역 · 출판사 · 연도 · 레벨 · 교재비 · 구매링크 — ⬇ 교재 시트 양식)도 여기로. <b>첫 줄 열 이름</b>으로 알아봅니다</span></form>}
       {plan && plan.kind === "books" && <BooksPlan plan={plan} />}
       {plan && plan.kind !== "books" && <>
         <div className="ctitle"><span className="cemo">❓</span>이미 있는 교재를 어떻게 할까요</div>

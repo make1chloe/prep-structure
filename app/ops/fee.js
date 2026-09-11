@@ -1,5 +1,5 @@
 "use client";
-/** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생 엑셀 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
+/** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생에서 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
 import Link from "next/link";
 import Sure, { useSure } from "../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { useState, useTransition } from "react";
@@ -34,13 +34,13 @@ export default function Fee({ d }) {
       <When rules={d.sendRules} date={d.date} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
       <span className="spacer" />
       <form action={(fd) => run(() => importAct(d.ym, fd), (r) => `올렸습니다 — ${r.put}줄${r.skipped ? ` · 건너뜀 ${r.skipped}` : ""}${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
-        <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="결제선생 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">📄 결제선생 엑셀 올리기</button></form>
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="결제선생 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">📄 결제선생에서 올리기</button></form>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {gradeOpen && <div className="card" style={{ margin: "0 0 8px" }} data-g="grade-form"><div className="ctitle"><span className="cemo">🎓</span>학년별 기준 — 단가 줄이 없는 아이는 이 금액으로 셉니다(비우면 없음 · 0원이 아닙니다)</div>
       <div className="wv">{GRADE_KEYS.map((k) => <label key={k} className="wv" style={{ gap: 4, marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>{k}</span><input type="text" inputMode="numeric" className="fee" value={gradeForm[k]} aria-label={`${k} 기준`} placeholder="원" style={{ width: 96 }} onChange={(e) => setGrade({ ...gradeForm, [k]: e.target.value.replace(/[^\d]/g, "") })} /></label>)}</div>
-      <div className="wv" style={{ marginTop: 6, marginBottom: 0 }}><button type="button" className="btn sm pri" disabled={pending || !grade} data-act="grade-save" onClick={() => run(() => byGradeAct(d.ym, gradeForm), (r) => `학년별 기준을 적었습니다 — ${r.n}학년`)}>저장</button><span className="note" style={{ margin: 0 }}>옛 앱 설정과 같은 자리(v2.integration tuition)라 두 곳이 아닙니다</span></div></div>}
+      <div className="wv" style={{ marginTop: 6, marginBottom: 0 }}><button type="button" className="btn sm pri" disabled={pending || !grade} data-act="grade-save" onClick={() => run(() => byGradeAct(d.ym, gradeForm), (r) => `학년별 기준을 적었습니다 — ${r.n}학년`)}>저장</button><span className="note" style={{ margin: 0 }}>옛 앱 설정과 같은 자리라 두 곳이 아닙니다</span></div></div>}
     <div className="tblwrap"><table data-g="fee-table"><thead><tr><th>학생</th><th>반</th><th>금액</th><th>받은 날</th><th></th></tr></thead><tbody>
       {rows.map((r) => <tr key={r.student_id} data-g="fee-row" data-student={r.student_id} data-state={r.state}>
         <td className="sch">{r.name}</td>
@@ -57,7 +57,7 @@ export default function Fee({ d }) {
       <span className="pill" data-g="sum">{Number(d.ym.slice(5, 7))}월 합계 <b>{won(t.sum)}</b></span>
       <span className="pill" style={MISS} data-g="unpaid-sum">안 받음 {won(t.unpaid)}</span>
       <span className="spacer" />
-      <a className="btn" href={`/api/ops/fee?m=${d.ym}`} data-act="export">엑셀로</a>
+      <a className="btn" href={`/api/ops/fee?m=${d.ym}`} data-act="export">⬇ 내려받기</a>
       <Sure on={sure.is("pay-all")} text={`안 받음 ${t.unpaidCount}줄을 오늘(${md(d.date)}) 받은 것으로 적을까요?`} yes="다 받음" pending={pending} onYes={() => { sure.off(); run(() => saveAct(d.ym, payAllEdits(rows, d.date)), (r) => `${r.saved}줄 받음(${md(d.date)}) — 저장했습니다${r.ruled ? ` · 단가 줄 ${r.ruled}(이 달부터)` : ""}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
     </div>
   </>;

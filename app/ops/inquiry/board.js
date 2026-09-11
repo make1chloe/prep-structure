@@ -58,7 +58,7 @@ export default function Board({ d }) {
           <div className="wv" style={{ marginTop: 6 }}><label className="fl" style={{ margin: 0 }}>학생 아이디</label><input type="text" value={cv.loginId} aria-label="학생 아이디" data-g="conv-login" onChange={(x) => setCv({ ...cv, loginId: x.target.value })} style={{ maxWidth: 160 }} /><span className="note" style={{ margin: 0 }}>chloe + 숫자 넷 · 학부모 아이디는 전화번호 {convCard.phone} · 첫 비밀번호 0000</span></div>
           <div className="fl" style={{ marginTop: 8 }}>이 아이에게만 덧붙일 말 — 첫 등원 안내 문자 끝에 붙습니다((커))</div>
           <textarea value={cv.extra ?? ""} onChange={(x) => setCv({ ...cv, extra: x.target.value })} rows={3} aria-label="덧붙일 말" data-g="conv-extra" name="conv-extra" placeholder="예: 셔틀은 3시 20분 정문에서 탑니다 · 첫 주는 교재를 학원에서 빌려 씁니다" style={{ width: "100%", fontFamily: "inherit" }} />
-          <p className="note k" style={{ margin: "4px 0 0" }}>비우면 그 줄이 사라집니다 · 문구 자체(규정·교재·시간표)는 발송 10 「✉️ 문자 문구」에서 고치십니다</p>
+          <p className="note k" style={{ margin: "4px 0 0" }}>비우면 그 줄이 사라집니다 · 문구 자체(규정·교재·시간표)는 발송 화면의 「✉️ 문자 문구」에서 고치십니다</p>
           <p className="note k" style={{ margin: "8px 0 0" }}>한 번 누르면 일곱이 저절로 — {SEVEN.map(([, nm]) => nm).join(" · ")}</p>
         </>}
         {steps && <div className="seven" data-g="steps">{SEVEN.map(([key, nm, desc], i) => { const s = steps.find((x) => x.key === key); return <div className="sv" key={key} data-g="step" data-key={key} data-ok={s ? (s.ok ? "1" : "0") : "-"}><i>{i + 1}</i><b>{nm} {s ? (s.ok ? "✓" : "✕") : ""}</b><span>{s ? s.text : desc}</span></div>; })}</div>}

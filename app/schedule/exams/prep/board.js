@@ -35,7 +35,7 @@ export default function Board({ d }) {
       {e && on && <span className="tag act" data-g="dday">{ddayText(today, on)}</span>}
       {e && <span className="pill" data-g="takers">대상 {(b.takers ?? []).length}명</span>}
       <span className="spacer" />
-      {e && <a className="btn sm" href={`/api/prep/xlsx?e=${e.id}`} data-act="export">⬇ 엑셀</a>}
+      {e && <a className="btn sm" href={`/api/prep/xlsx?e=${e.id}`} data-act="export">⬇ 내려받기</a>}
       {e && <button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAdd(true)}>+ 자료</button>}
       <Sibs here="/schedule/exams/prep" />
     </div>

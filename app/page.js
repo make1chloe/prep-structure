@@ -26,7 +26,7 @@ const qkind = (k) => QKIND.find(([x]) => x === k)?.[1] ?? k;
 const rkind = (k) => RKINDS.find(([x]) => x === k)?.[1] ?? k;
 export default async function Home() {
   const { sb, me, user } = await guard();
-  if (!me) return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>사람 줄이 없습니다</div><p className="note">로그인은 됐는데 <b>{user.email}</b> 의 역할 줄(v2.profiles)이 없습니다. 원장님이 「누가 누구인가」에서 넣어야 합니다.</p></div>);
+  if (!me) return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>사람 줄이 없습니다</div><p className="note">로그인은 됐는데 <b>{user.email}</b> 의 역할 줄이 없습니다. 원장님이 「누가 누구인가」에서 넣어야 합니다.</p></div>);
   if (me.role === ROLES.STUDENT) redirect("/me");   // 아이는 제 화면(07) — 메뉴 없이 하나
   if (!isStaff(me.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🎒</span>{me.name} 님, {ROLE_NAME[me.role]} 화면은 곧 열립니다</div><p className="note">2단계에서 아이·학부모 화면이 섭니다.</p></div>);
   let date, d;

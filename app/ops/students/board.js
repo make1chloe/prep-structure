@@ -2,6 +2,7 @@
 /** 학생 판(목업 14) — 목록(재원생 N · 퇴원생 N · 찾기 · 줄: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태) · 고른 아이: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 고치기) · KPI 여섯 · 교재 진도(막대) · 성적(약한 영역) · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담(+ 상담 적기) · 저장줄.
  *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/잇기 · 학부모 계정 이름 · 비밀번호 0000 초기화 — 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
 import Link from "next/link";
+import Sure, { useSure } from "../../_shell/sure.js";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
@@ -13,7 +14,10 @@ import { staffFlagLine, EDIT_MODE, daysOpenText } from "@/lib/road-plan";   /* (
 import { md, seoulDate } from "@/lib/dash-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
-  const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
+  const router = useRouter(); const [pending, start] = useTransition();
+  // 비밀번호 초기화는 **되돌릴 수 없다**(쓰던 비밀번호가 사라진다) — 한 번 더 묻는다
+  const sure = useSure();
+  const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, st = b.student ?? null;
   const [q, setQ] = useState(""); const [show, setShow] = useState("active"); const [edit, setEdit] = useState(false); const [addOpen, setAddOpen] = useState(false); const [consultOpen, setConsultOpen] = useState(false);
   const [f, setF] = useState(null); const [nf, setNf] = useState({ name: "", grade: "", schoolId: "", phone: "", parentPhone: "", joinedOn: today, memo: "" }); const [cf, setCf] = useState({ way: "전화", at: "", body: "" });
@@ -59,10 +63,12 @@ export default function Board({ d }) {
         <div className="left" style={{ marginTop: 8 }}>
           <div className="lf" data-g="account"><span className="ln">🔑</span><div><b>계정 — 학생</b><small>{st.login_id ? `아이디 ${st.login_id}${st.must_change_pw ? " · 첫 비밀번호(0000) 아직 안 바꿈" : ""}${st.issued_by_app ? " · 앱이 발급" : " · 이관된 계정(전환일까지 비밀번호를 안 건드립니다)"}` : "아직 없음 — 아이디(chloe + 숫자 넷)를 정해 발급합니다(첫 비밀번호 0000 · 첫 로그인에 바꿉니다)"}</small></div>
             {!st.login_id && <><input type="text" value={acc.loginId || suggestLoginId(st, today)} aria-label="학생 아이디" onChange={(x) => setAcc({ ...acc, loginId: x.target.value })} style={{ maxWidth: 160 }} /><button className="btn sm pri" type="button" disabled={pending} data-act="student-account" onClick={() => run(() => studentAccountAct(st.id, acc.loginId || suggestLoginId(st, today)), (r) => `학생 계정 ${r.login_id} · 첫 비밀번호 ${r.password}`)}>발급</button></>}
-            {st.login_id && canReset({ issued_by_app: st.issued_by_app }) && <button className="btn sm" type="button" disabled={pending} data-act="reset-student" onClick={() => run(() => resetAct(st.profile_id), (r) => `${r.login_id} — 0000 으로 초기화(첫 로그인에 바꿉니다)`)}>비밀번호 0000</button>}</div>
+            {st.login_id && canReset({ issued_by_app: st.issued_by_app }) && <button className="btn sm" type="button" disabled={pending} data-act="reset-student" onClick={() => sure.ask("reset-student")}>비밀번호 0000</button>}
+            <Sure on={sure.is("reset-student")} text={`${st.name} 의 비밀번호를 0000 으로 되돌릴까요? — 쓰던 비밀번호는 사라지고, 아이에게 0000 을 알려 주셔야 들어옵니다`} yes="0000 으로" pending={pending} onNo={sure.off} onYes={() => { sure.off(); run(() => resetAct(st.profile_id), (r) => `${r.login_id} — 0000 으로 초기화(첫 로그인에 바꿉니다)`); }} /></div>
           <div className="lf" data-g="parent-account"><span className="ln">👨‍👩‍👧</span><div><b>계정 — 학부모</b><small>{st.parents?.length ? st.parents.map((p) => `${p.name ?? p.login_id}${p.rel ? `(${p.rel})` : ""} · ${p.login_id ?? "아이디 없음"}${p.issued_by_app ? " · 앱이 발급" : ""}`).join(" / ") : "아직 없음 — 전화번호가 아이디입니다(같은 번호가 있으면 형제로 잇습니다)"}</small></div>
             <input type="text" inputMode="numeric" value={acc.parentPhone || st.parent_phone || ""} placeholder="학부모 전화" aria-label="학부모 계정 전화" onChange={(x) => setAcc({ ...acc, parentPhone: x.target.value })} style={{ maxWidth: 150 }} /><button className="btn sm pri" type="button" disabled={pending} data-act="parent-account" onClick={() => run(() => parentAccountAct(st.id, acc.parentPhone || st.parent_phone), (r) => r.created ? `학부모 계정 ${r.login_id} · 첫 비밀번호 ${r.password}` : `있던 학부모 계정 ${r.login_id}에 이었습니다(형제)`)}>발급·잇기</button>
-            {st.parents?.filter((p) => canReset(p)).map((p) => <button key={p.profile_id} className="btn sm" type="button" disabled={pending} data-act="reset-parent" onClick={() => run(() => resetAct(p.profile_id), (r) => `${r.login_id} — 0000 으로 초기화`)}>{p.login_id} 0000</button>)}
+            {st.parents?.filter((p) => canReset(p)).map((p) => <span key={p.profile_id}><button className="btn sm" type="button" disabled={pending} data-act="reset-parent" onClick={() => sure.ask(`reset-${p.profile_id}`)}>{p.login_id} 0000</button>
+              <Sure on={sure.is(`reset-${p.profile_id}`)} text={`${p.login_id} 의 비밀번호를 0000 으로 되돌릴까요? — 쓰던 비밀번호는 사라지고, 학부모님께 0000 을 알려 주셔야 들어옵니다`} yes="0000 으로" pending={pending} onNo={sure.off} onYes={() => { sure.off(); run(() => resetAct(p.profile_id), (r) => `${r.login_id} — 0000 으로 초기화`); }} /></span>)}
             {(st.parents ?? []).map((p) => <span key={`nm-${p.profile_id}`} className="wv" style={{ gap: 4, marginBottom: 0 }} data-g="parent-name" data-profile={p.profile_id}><input type="text" value={pn[p.profile_id] ?? p.name ?? ""} placeholder="학부모 계정 이름" aria-label={`학부모 계정 이름 ${p.login_id ?? ""}`} title="발급 때 「아이 이름 학부모」로 적힙니다 — 학부모 화면 머리에 이 이름이 뜹니다(형제가 같은 계정이면 둘 다)" onChange={(x) => setPn({ ...pn, [p.profile_id]: x.target.value })} style={{ maxWidth: 150 }} /><button className="btn sm" type="button" disabled={pending || (pn[p.profile_id] ?? p.name ?? "") === (p.name ?? "")} data-act="parent-name" onClick={() => run(() => parentNameAct(st.id, p.profile_id, pn[p.profile_id] ?? p.name ?? ""), (r) => `학부모 계정 이름 — ${r.name}`, () => setPn({}))}>이름 저장</button></span>)}</div>
           <div className="lf" data-g="sibling"><span className="ln">👥</span><div><b>형제 묶기</b><small>다른 아이의 학부모 계정을 이 아이에게도 잇습니다(같은 집)</small></div>
             <select value={sib} aria-label="형제" onChange={(x) => setSib(x.target.value)} style={{ width: "auto" }}><option value="">아이 고르기</option>{(b.list ?? []).filter((s) => s.id !== st.id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><button className="btn sm" type="button" disabled={pending || !sib} data-act="sibling-save" onClick={() => run(() => siblingAct(st.id, sib), (r) => `형제로 묶었습니다 — 학부모 계정 ${r.linked}`, () => setSib(""))}>묶기</button></div>

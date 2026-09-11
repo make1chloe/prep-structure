@@ -62,5 +62,20 @@ console.log("\n■ 화면이 하는 말");
   }
   ok("규칙 번호·원장님 말씀 날짜가 **화면 글**에 안 나온다(주석·문서에만)", !샌곳.length, `${샌곳.length}곳 — ${샌곳.slice(0, 4).join(" / ")}`);
 }
+{ // ③ 단추 라벨에 **수단**(엑셀·파일·업로드)을 넣지 않는다 — 단추는 **무엇을 하는지**만 말한다
+  //    (코워크 개선안 §5 · 조사한 7개 제품 중 라벨에 입력 수단을 넣은 제품 0개)
+  const 샌곳 = [];
+  for (const f of [...fs.readdirSync("app", { recursive: true })].filter((x) => String(x).endsWith(".js"))) {
+    const 글 = strip(fs.readFileSync(`app/${f}`, "utf8"));
+    // **라벨만** 본다(14자 안 — 단추·제목). 설명문에서 엑셀 파일 자체를 가리키는 것은 맞는 말이다
+    //   (「엑셀에서 지워도 앱에서는 안 지워집니다」 — 이건 진짜 엑셀 파일 이야기다)
+    for (const m of 글.matchAll(/>([^<>{}]{1,14})</g)) if (/엑셀|업로드/.test(m[1]) && !/결제선생|시트/.test(m[1])) 샌곳.push(`app/${f}: ${m[1].trim()}`);
+  }
+  ok("단추·제목에 수단(엑셀·업로드)이 안 들어간다 — 「⬆ 올리기」 「⬇ 내려받기」", !샌곳.length, 샌곳.slice(0, 5).join(" / "));
+}
+{ // ④ 되돌릴 수 없는 손은 **한 번 더 묻는다** — 비밀번호 초기화(쓰던 비밀번호가 사라진다)
+  const 학생 = strip(fs.readFileSync("app/ops/students/board.js", "utf8"));
+  ok("비밀번호 0000 초기화는 묻고 나서 한다(학생·학부모 둘 다)", /data-act="reset-student"[\s\S]{0,200}sure\.ask/.test(학생) && /data-act="reset-parent"[\s\S]{0,200}sure\.ask/.test(학생), "바로 실행하는 자리가 남았습니다");
+}
 console.log(`\n■ 들어갈 길 · 화면의 말 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

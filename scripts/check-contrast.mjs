@@ -1,5 +1,7 @@
 /** 대비 검사 — 화면의 **글씨 전부**를 진짜 브라우저에서 재서 바탕과의 대비를 본다(디자인-5).
- *  배색 다섯 벌 × 밝음·어두움 = 열 자리. 글씨 3.5 아래면 실패(4.5 아래는 보조 글씨로 세어 보고만), 갈색(확정-㊽)이 그려지면 실패.
+ *  배색 다섯 벌 × 밝음·어두움 = 열 자리. 글씨 **4.5 아래면 실패**(WCAG 2.2 AA 본문 기준), 큰 글씨(24px 이상)는 3, 갈색(확정-㊽)이 그려지면 실패.
+ *  ⚠️ 2026-09-11 까지는 문턱이 3.5 였다 — 코워크 개선안이 「노안인 저는 보기가 많이 힘들어요」(앱스토어 리뷰)를 들어 4.5 를 짚었고, 재어 보니
+ *     밝은 배색 셋만 3.97~4.48 로 아슬아슬하게 모자랐다. 흐린 글씨 토큰과 종이 배색의 파랑·초록을 조금 진하게 해 열 자리 모두 넘겼다.
  *  기본은 앱 CSS 로 그린 목업, CHECK_URLS 로 앱 화면도. */
 import { launch, offline, stateOpts } from "./_browser.mjs";
 import { build } from "./_mockup-page.mjs";
@@ -24,18 +26,18 @@ for (const url of urls) {
         const txt = [...el.childNodes].filter(x => x.nodeType === 3).map(x => x.textContent.trim()).join("").trim(); if (!txt) continue;
         const rc = el.getBoundingClientRect(); if (!rc.width) continue; const fg = parse(cs.color); if (!fg || fg[3] < .5) continue;
         const bg = bgOf(el); const ratio = (Math.max(lum(fg), lum(bg)) + .05) / (Math.min(lum(fg), lum(bg)) + .05); n++;
-        const min = parseFloat(cs.fontSize) >= 18 ? 3 : 4.5; const key = el.tagName + "." + String(el.className).split(" ").slice(0, 2).join(".") + "|" + cs.color + "|" + bg.join(",");
-        if (ratio < 3.5 && !seen.has(key)) { seen.add(key); low.push(`${ratio.toFixed(2)} ${(el.closest("section") || {}).id || ""} ${key.split("|")[0]} '${txt.slice(0, 20)}'`); }
-        else if (ratio < min) soft.add(key.split("|")[0]);
+        const min = parseFloat(cs.fontSize) >= 24 ? 3 : 4.5; const key = el.tagName + "." + String(el.className).split(" ").slice(0, 2).join(".") + "|" + cs.color + "|" + bg.join(",");
+        if (ratio < min && !seen.has(key)) { seen.add(key); low.push(`${ratio.toFixed(2)} ${(el.closest("section") || {}).id || ""} ${key.split("|")[0]} '${txt.slice(0, 20)}'`); }
+        else if (ratio < 7) soft.add(key.split("|")[0]);   // 4.5~7 은 세어 보고만(AAA 까지 가면 배색이 어두워진다)
       }
       return { n, low: low.slice(0, 10), soft: soft.size, brown: brown.slice(0, 6) };
     }, skin);
     const tag = `${skin || "기본"}·${scheme === "dark" ? "어두움" : "밝음"}`;
-    if (r.low.length || r.brown.length) { bad++; console.log(`✗ ${tag} 글씨 ${r.n} · 3.5 아래 ${r.low.length} · 갈색 ${r.brown.length}\n    ${[...r.low, ...r.brown].join("\n    ")}`); }
-    else console.log(`✓ ${tag} 글씨 ${r.n} · 3.5 아래 0 · 보조(3.5~4.5) ${r.soft} · 갈색 0`);
+    if (r.low.length || r.brown.length) { bad++; console.log(`✗ ${tag} 글씨 ${r.n} · 4.5 아래 ${r.low.length} · 갈색 ${r.brown.length}\n    ${[...r.low, ...r.brown].join("\n    ")}`); }
+    else console.log(`✓ ${tag} 글씨 ${r.n} · 4.5 아래 0 · 넉넉하지 않은 것(4.5~7) ${r.soft} · 갈색 0`);
   }
   await p.close();
 }
 await b.close();
 if (bad) { console.log(`check-contrast ✗ 어긋남 ${bad}`); process.exit(1); }
-console.log("check-contrast ✓ 열 자리 모두 글씨 3.5 이상 · 갈색 0");
+console.log("check-contrast ✓ 열 자리 모두 글씨 **4.5 이상**(큰 글씨 24px 부터 3) · 갈색 0");
