@@ -113,6 +113,15 @@ function CheckItem({ it, closed, fail, start }) {
     </div>
   );
 }
+/** 카드 머리의 한 줄 — **깔렸다고만 말하고 0개를 보여 주면 거짓말이다**(대전제-0).
+ *  2026-09-11 첫 주 돌려보기: 시험 3주 전에 들어온 아이는 첫 수업부터 교재가 멈춰 있어 0·0 인데
+ *  머리는 「검사에서 저절로 깔림」이라고 했다. 까닭(planBook 의 why)은 이미 sheet_book.waves.why 에 있다 — 그것을 쓴다. */
+export function laidText(sheet, laid) {
+  if (!laid) return sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다";
+  if (sheet.class.length + sheet.home.length) return "검사에서 저절로 깔림";
+  const 까닭 = [...new Set((sheet.books ?? []).map((x) => x.waves?.why).filter(Boolean))];
+  return 까닭.length ? `오늘은 0개 — ${까닭.join(" · ")}` : "오늘은 0개";
+}
 /** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
 function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [] }) {
   const counts = trimCounts(sheet), heavy = heavyBand(sheet, heavyPages, books);   // 줄이기 숫자 · 📣 많습니다(목업 01)
@@ -124,7 +133,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
   return (
     <div className="card" data-card="work">
-      <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto">{laid ? "검사에서 저절로 깔림" : sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다"}</span></div>
+      <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto" data-g="laid">{laidText(sheet, laid)}</span></div>
       <div className="load">
         <div className="ldn"><span>학원</span><b>{sheet.class.length}</b><small>{per ? <>{minutes}분이면 한 항목에 <b>{per}분</b></> : "오늘 여기서 할 것"}</small></div>
         <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b><small>집에서 할 것 — 다음 시간 검사</small></div>
@@ -175,7 +184,8 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
-      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b> — {b.stop_until ? `${b.stop_until} 에 저절로 풀립니다` : "진행중을 누르면 다시 나갑니다"}</div>
+      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b> — {b.stop_until ? `${b.stop_until} 에 저절로 풀립니다` : "진행중을 누르면 다시 나갑니다"}
+        {" · 이 동안은 내신 자료로 나갑니다 "}<Link prefetch={false} className="btn sm" href="/schedule/exams/prep" data-g="to-prep">📄 내신 자료 ↗</Link></div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
       : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b> — 진도는 교재 화면에서 봅니다</div>
       : <div className="two">
@@ -324,7 +334,7 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
         <div className="wv" style={{ gap: 10, marginTop: 6 }}><label className="wv" style={{ gap: 4, margin: 0 }}><input type="checkbox" name="first_hint" checked={f.first_hint} onChange={(e) => set("first_hint", e.target.checked)} /> 첫글자 힌트</label><N k="units_per" label="몇 단원씩(비면 안 씀)" /></div>
       </> : <div className="seg sm" data-g="s-way">{S_WAY.map(([k, name]) => <button key={k} type="button" aria-pressed={f.s_way === k} onClick={() => set("s_way", k)}>{name}</button>)}</div>}
       <div className="wv" style={{ gap: 10, marginTop: 6 }}><N k="cut_pct" label="통과선 %" /></div>
-      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><span className="note" style={{ margin: 0 }}>시험 방식·통과선은 학생 × 교재 × 회독마다 미리 정해 둡니다 — 오늘 고르지 않습니다(목업 01)</span><span className="spacer" />
+      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><span className="note" style={{ margin: 0 }}>시험 방식·통과선은 학생 × 교재 × 회독마다 미리 정해 둡니다 — 오늘 고르지 않습니다</span><span className="spacer" />
         <button type="button" className="btn sm pri" data-act="style-save" disabled={q.kind === "word" && sum !== 100} onClick={() => start(async () => { if (fail(await quizStyle(sheet.id, q.id, { ...f, first_hint: f.first_hint ? "on" : "" }))) onClose(); })}>저장</button></div>
     </div></div></div>;
 }

@@ -36,6 +36,17 @@ const p = planBook({ lines, todo, sb: { stop_mode: "running", per_session: 1 }, 
 ok("학원 3 · 숙제 2 · 소단원 1-4 · 까닭 없음", p.class.length === 3 && p.home.length === 2 && p.units[0].unit_id === "1-4" && p.why === null);
 ok("루틴 줄이 없으면 까닭 「루틴 줄이 없다」", planBook({ lines: [], todo, sb: null, date }).why === "루틴 줄이 없다");
 ok("안 한 소단원이 없으면 까닭 「안 한 소단원이 없다」", planBook({ lines, todo: [], sb: null, date }).why === "안 한 소단원이 없다");
+// ── 첫 주 돌려보기(2026-09-11)에서 잡힌 것: 갈래마다 꼴이 달라 판이 안 섰다. 깔기(lib/routine.js)가 네 벌을 그냥 훑으므로 **셋 다 같은 열쇠**여야 한다
+{ const K = ["stop", "units", "class", "home", "next", "preview", "why"];
+  const 꼴 = (p) => K.every((k) => k in p) && ["units", "class", "home", "next", "preview"].every((k) => Array.isArray(p[k]));
+  const 갈래 = {
+    "교재 멈춤": planBook({ lines, todo, sb: { stop_mode: "book_off", per_session: 1 }, date }),
+    "안 한 소단원 없음": planBook({ lines, todo: [], sb: null, date }),
+    "그냥 진행": planBook({ lines, todo, sb: { stop_mode: "running", per_session: 1 }, date }),
+    "숙제 멈춤": planBook({ lines, todo, sb: { stop_mode: "hw_off", per_session: 1 }, date }),
+  };
+  for (const [나, p] of Object.entries(갈래)) ok(`계획의 꼴이 갈래마다 같다 — ${나}(class·home·next·preview 가 늘 배열)`, 꼴(p), `열쇠 ${Object.keys(p).join(",")}`); }
+
 console.log("■ 회차 고르기(목업 01) — 학습: 다시·오늘·하나 더 / 숙제: 복습·하나 더·다음만");
 const w = waves({ units: [todo[0]], todo, done: U("1-3", "CH1", 3) });
 ok("학습 셋: 1-3 다시 · 1-4 · 1-4·1-5", w.class.map((x) => x.key).join() === "again,now,more" && w.class[2].units.map((u) => u.unit_id).join() === "1-4,1-5" && w.class.map((x) => x.name).join(" / ") === "1-3 다시 / 1-4 / 1-4·1-5");
