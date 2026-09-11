@@ -5,6 +5,7 @@
  *  쓰기: node scripts/check-doc-numbers.mjs [인수인계 경로] — 경로를 주면 그 파일을 본다(일부러 틀린 사본으로 빨개지는 것을 보일 때) */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { build as lookSql, OUT as lookOut } from "./build-look-sql.mjs";
 const docPath = process.argv[2] ?? "docs/개발자-인수인계.md";
 const doc = readFileSync(docPath, "utf8"), rules = readFileSync("docs/규칙.md", "utf8"), mock = readFileSync("docs/목업/클로이영어-화면-목업.html", "utf8"), readme = readFileSync("docs/목업/README.md", "utf8"), chk = readFileSync("scripts/check-mockup.mjs", "utf8");
 let n = 0, bad = 0, skip = 0;
@@ -43,6 +44,9 @@ if ((v = grab(/「지킴: —」 \*\*(\d+)\*\*/, "지킴: —"))) ok(`「지킴:
 { const ids = [...rules.matchAll(/^\| \*\*([^*|]+)\*\* \|/gm)].map((m) => m[1]); const dup = [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))]; ok(`규칙 번호가 겹치지 않는다(${ids.length}개 — 번호로 부르는 규칙이라 겹치면 다른 것을 가리킨다 · 확정-64 가 둘이던 것을 2026-09-09 에 잡음)`, dup.length === 0, "겹침: " + dup.join(" ")); }
 if ((v = grab(/\| 목업 \| (\d+)화면/, "목업"))) ok(`목업 ${v[0]}화면(인수인계)`, v[0] === screens, `실측 ${screens}(section id=s…)`);
 if ((v = grab(/## 4\. 판단은 `lib\/` 한 곳 — 모듈 (\d+)/, "4절 머리"))) ok(`4절 머리 「모듈 ${v[0]}」`, v[0] === libs.length, `실측 ${libs.length}`);
+{ // 원장님이 붙여넣으시는 읽기용 SQL 이 마이그레이션과 같은 목록인가 — 0159 에서 멈춘 채 낡아 「60개 중 48개」라고 말하고 있었다(2026-09-11)
+  let cur = ""; try { cur = readFileSync(lookOut, "utf8"); } catch {}
+  ok(`${lookOut} 가 supabase/migrations 와 같다(손으로 안 고친다 — node scripts/build-look-sql.mjs 가 짓는다)`, cur === lookSql(), "다시 지으세요: node scripts/build-look-sql.mjs"); }
 console.log("■ 인수인계 본문 — 「0100~NNNN」 은 어디에 적혔든 마지막 번호다(한 장 요약만 고치고 3절·7절·9절을 안 고친 채 나간 일 — 2026-09-07)");
 const ranges = [...doc.matchAll(/0100~\*{0,2}(0\d{3})/g)].map((m) => m[1]), stale = ranges.filter((x) => x !== last01);
 ok(`인수인계의 「0100~NNNN」 ${ranges.length}곳 모두 ${last01}`, ranges.length > 0 && stale.length === 0, stale.length ? `낡은 것 ${stale.length}곳: ${stale.join(" ")}` : "한 곳도 없음");

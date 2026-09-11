@@ -1,9 +1,11 @@
 -- 클로이영어 — **읽기만 합니다.** 아무것도 안 바꾸고, 아무것도 안 지웁니다.
 -- Supabase → SQL Editor → New query → 통째로 붙여넣고 Run → 나온 **한 줄**을 주세요.
 --
--- 무엇을 보나: 앱 코드에는 01xx 가 60개인데 실 DB 엔 48개만 들어가 있습니다.
---              **어느 번호가 비었는지**를 한 줄로 봅니다(번호만 — 짧게 나옵니다).
+-- 무엇을 보나: ① 앱 코드의 01xx 62개가 실 DB 에 다 들어갔나(안 들어간 번호를 댑니다)
+--              ② 첫 주를 시작할 준비가 됐나 — 재원생 · 반 · 교재 · 정한 권한칸 · 연동 열쇠 · 앱이 낸 계정
 -- ⚠️ SQL Editor 는 **맨 마지막 select 하나만** 보여 줍니다 — 그래서 한 문장으로 만들었습니다.
+-- ⚠️ 열쇠 값은 한 글자도 안 꺼냅니다 — 갈래 수만 셉니다.
+-- 이 파일은 손으로 고치지 않습니다 — `node scripts/build-look-sql.mjs` 가 짓습니다(0159 에서 멈춘 채 낡았던 일, 2026-09-11).
 
 with 코드에있는것(file) as (values
     ('0100_new_app_skeleton.sql'),
@@ -65,13 +67,19 @@ with 코드에있는것(file) as (values
     ('0156_student_month.sql'),
     ('0157_sms_kinds.sql'),
     ('0158_cc_skip.sql'),
-    ('0159_site_import.sql')
+    ('0159_site_import.sql'),
+    ('0160_child_guard.sql'),
+    ('0161_stop_one_rule.sql')
+), 안들어간 as (
+  select c.file from 코드에있는것 c left join v2.migration m on m.file = c.file where m.file is null
 )
 select
-  count(*)                                          as "안 들어간 개수",
-  string_agg(left(c.file, 4), ' ' order by c.file)  as "안 들어간 번호",
-  (select count(*) from v2.migration where file like '01%')
-                                                    as "실 DB 에 들어간 01xx"
-from 코드에있는것 c
-left join v2.migration m on m.file = c.file
-where m.file is null;
+  (select count(*) from 안들어간)                                         as "안 들어간 개수",
+  (select string_agg(left(file, 4), ' ' order by file) from 안들어간)     as "안 들어간 번호",
+  (select count(*) from v2.migration where file like '01%')               as "실 DB 01xx",
+  (select count(*) from v2.students where state = 'active')               as "재원생",
+  (select count(*) from v2.classes where state = 'active')                as "도는 반",
+  (select count(*) from v2.books where state = 'active')                  as "교재",
+  (select count(*) from v2.role_access)                                   as "정한 권한칸",
+  (select count(*) from v2.integration)                                   as "연동 열쇠 갈래",
+  (select count(*) from v2.profiles where issued_by_app)                  as "앱이 낸 계정";
