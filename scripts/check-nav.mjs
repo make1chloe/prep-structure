@@ -40,7 +40,9 @@ ok("탭 열둘 — **날마다 여는 화면은 한 번에 닿는다**(원장님
 ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** — 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 열쇠는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
   items.filter((m) => m.href.startsWith("/schedule")).every((m) => m.key === "page.schedule")
   && !/page\.(prep|grid|todo)/.test(readFileSync("lib/perm.js", "utf8")));
-ok("(려) 폰에서 탭이 아홉이어도 **띠가 세 줄이 안 된다** — 줄을 바꾸지 않고 옆으로 굴린다(원장님 9/9 「여백없이」가 안 무너지게)",
+// (어9) 원장님 2026-09-12 「세개 올린것 괜찮은데 **나는 안보여**」 — 옆으로 굴리기(overflow-x:auto + 숨긴 굴림막대)로는 열둘 중 뒤쪽 넷이 폰에서 아예 안 보였다.
+// 안 보이는 탭은 클릭이 ∞다. 이제 **접어서 두 줄로** 낸다 — 탭 줄만 한 줄 늘 뿐 빈 자리는 없으니 9/9 「여백없이」는 그대로.
+ok("(어9) 폰에서 탭은 **접는다** — 굴림막대에 숨기지 않는다(안 보이는 탭은 없다 · 실제로 다 보이나는 걷기가 잰다)",
   (() => { const css = readFileSync("app/globals.css", "utf8");
-    return /\.appbar \.tabs\{[^}]*flex-wrap:nowrap/.test(css) && /\.appbar \.tabs\{[^}]*overflow-x:auto/.test(css); })());
+    return /\.appbar \.tabs\{[^}]*flex-wrap:wrap/.test(css) && !/\.appbar \.tabs\{[^}]*overflow-x:auto/.test(css) && !/\.appbar \.tabs\{[^}]*flex-wrap:nowrap/.test(css); })());
 console.log(`\n■ 화면 이동 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

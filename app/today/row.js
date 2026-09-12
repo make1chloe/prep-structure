@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards } from "@/lib/day-plan";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
 import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
@@ -41,6 +41,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
   const quizEnd = quizPosEnd(student), quizCard = sheet && (student.quizzes?.today?.length ?? 0) > 0 ? <QuizCard sheet={sheet} quizzes={student.quizzes.today} at={quizPosOf(student)} closed={closed} fail={fail} start={start} /> : null;   // 🔤 카드 자리는 아이마다(0143 · 목업 01 「자리가 아이마다 다릅니다」) — 「다 끝내고」면 학습·숙제 아래. 정하는 곳은 루틴 11
+  const sh = shutCards(sheet, { stay: student.stay, closed });   // (어9) 지금 쓸 일이 없는 카드는 접어 둔다 — 설정이 아니라 상태로(원장님 2026-09-12 「더 편하고 간단하게 고도화」)
   const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? (unseenPill(sheet.check, date) || `검사 ${nLeft}/${nCheck} 남음`) : null;
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
@@ -70,9 +71,9 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
             {quizEnd && quizCard}
             <CcCard rows={student.cc ?? []} closed={closed} fail={fail} start={start} />
             {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
-            <AreaMemoCard sheet={sheet} books={student.books ?? []} closed={closed} fail={fail} start={start} />
-            <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} closed={closed} fail={fail} start={start} />
-            <CommentCard sheet={sheet} student={student} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} />
+            <AreaMemoCard sheet={sheet} books={student.books ?? []} shut={sh.areamemo} closed={closed} fail={fail} start={start} />
+            <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} shut={sh.late} closed={closed} fail={fail} start={start} />
+            <CommentCard sheet={sheet} student={student} shut={sh.comment} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} />
           </>}
         </div>
       )}
@@ -342,7 +343,8 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
     </div></div></div>;
 }
 /** 3b 늦귀가(목업 01) — 사유 한 줄이 원본(확정-㊿) · 예상 귀가 = 약속 · 📨 지금 보내기(큐 + 보냄 때) · 실제 하원은 등원 걸음 4 와 같은 줄(0083 — 차이는 세어 나온다) · 되풀이(3주 안 3번)면 앱이 먼저 「숙제량을 볼까요」(확정-⑭) · 경고 3회째면 처분 셋(확정-㊼) */
-function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", closed, fail, start }) {
+function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", shut = null, closed, fail, start }) {
+  const [off, setOff] = useState(Boolean(shut?.shut));
   const ask = warn && (warn.due || warn.today_disposal);
   const rows = stayRows(sheet.stay ?? []), sc = stayCounts(rows), usual = usualText(classEnd);   // 3b 「남」 줄(0141 · 5단계-②) · 「평소 21:40」
   const [stayText, setStayText] = useState("");
@@ -357,8 +359,8 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", cl
   const laid = (b) => Boolean(sheet.books.find((x) => x.book_id === b.book_id)?.laid_at);
   const leftLine = leftText(l, stay?.left_at);
   return (
-    <div className="card" data-card="late">
-      <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}</div>
+    <div className="card" data-card="late" data-folded={off ? "1" : "0"}>
+      <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
       <div data-g="stay" style={{ marginTop: 8 }}>
         {rows.map((r) => <div key={r.id} className="dayrow" data-g="stay-row" data-state={r.state}><span className="tag on">남</span>
           <div style={{ flex: "1 1 auto", minWidth: 0 }}><b style={{ textDecoration: r.state === "done" ? "line-through" : "none" }}>{r.text}</b><small>{[r.sub, r.from].filter(Boolean).join(" · ")}{r.state === "done" ? " · 다 함" : r.state === "missing" ? " · ⏭ 다음 숙제로 넘김" : ""}</small></div>
@@ -407,15 +409,23 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", cl
   );
 }
 /** 🗺 진도 · 영역별 메모(목업 01) — 오늘 한 단원(검사 결과대로 ○◐✕ · 오늘 학습 ◐) · 영역 넷 한 마디(칸을 떠나면 저장 · 아이에게 그대로 나가고 브리핑 재료). 표 v2.day_area_memo(0079) */
-function AreaMemoCard({ sheet, books, closed, fail, start }) {
+/** ▾ 지금 쓸 일이 없는 카드는 접어 둔다(어9 · 원장님 2026-09-12 「더 편하고 간단하게 고도화시키라는 뜻」).
+ *  **저장하지 않는다** — 설정이 아니라 그 날 상태로 정한다(적힌 것이 있는 아이는 저절로 펴져 있다 · 조회 0 · 속도-1).
+ *  접혀도 **무엇이 들었는지는 제목 줄이 말한다**(대전제-0 — 「메모 없음」·「늦게 가는 아이 아님」) */
+function Shut({ on, set, text = "" }) {
+  return <>{on && text && <span className="pill dim" data-g="shut-note" style={{ order: 9 }}>{text}</span>}
+    <button type="button" className="btn sm" data-act="shut" aria-pressed={on} aria-label={on ? "펴기" : "접기"} title={on ? "펴기" : "접기"} style={{ order: 10, padding: "0 6px" }} onClick={() => set(!on)}>{on ? "▸" : "▾"}</button></>;
+}
+function AreaMemoCard({ sheet, books, shut = null, closed, fail, start }) {
+  const [off, setOff] = useState(Boolean(shut?.shut));
   const units = todayUnits(sheet, books);
   const init = Object.fromEntries(MEMO_AREAS.map((a) => [a, sheet.memos?.find((m) => m.area === a)?.memo ?? ""]));
   const [vals, setVals] = useState(init);
   const last = useRef(init);
   const save = (a) => { if ((vals[a] ?? "") === (last.current[a] ?? "")) return; last.current = { ...last.current, [a]: vals[a] }; start(async () => { fail(await areaMemo(sheet.id, a, vals[a])); }); };
   return (
-    <div className="card" data-card="areamemo">
-      <div className="ctitle"><span className="cemo">🗺</span>진도 · 영역별 메모</div>
+    <div className="card" data-card="areamemo" data-folded={off ? "1" : "0"}>
+      <div className="ctitle"><span className="cemo">🗺</span>진도 · 영역별 메모<Shut on={off} set={setOff} text={shut?.text} /></div>
       <label className="fl">오늘 한 단원</label>
       <div className="tags" style={{ marginBottom: 12 }} data-g="today-units">{units.length ? units.map((u) => <span key={u.id} className={"tag" + (u.on ? " on" : "")}>{u.label} {u.mark}</span>) : <span className="note" style={{ margin: 0 }}>아직 없습니다 — 검사하면 여기 섭니다</span>}</div>
       <div className="areas">{MEMO_AREAS.map((a) => <div key={a}><label className="fl">{a}</label><input type="text" name={`memo-${a}`} value={vals[a]} disabled={closed} placeholder="(오늘 안 함)" onChange={(e) => setVals({ ...vals, [a]: e.target.value })} onBlur={() => save(a)} /></div>)}</div>
@@ -445,7 +455,8 @@ function UnitTestCard({ t, passPct, date, closed, fail, start }) {
 }
 /** ✉️ 부모님께 나갈 글(목업 01 · 03 폰) — 키워드 → 상황(갈래 다섯, 그날 상태에서 저절로) → 길이(상황이 먼저 고른다) → ✨ 브리핑(AI 초안 · 넘으면 문장 끝에서 자름 · 원장님 글은 덮지 않는다) → 글.
  *  글 밑에 저절로 붙는 줄과 👁 학부모 화면 미리보기(09·10 과 같은 판단). AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를 한 번 묻는다 — 막지 않는다(목업 9/5 ⑥) */
-function CommentCard({ sheet, student, closed, fail, start, cfg, phase, date, barHost, future = false, onCollapse }) {
+function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, phase, date, barHost, future = false, onCollapse }) {
+  const [off, setOff] = useState(Boolean(shut?.shut));
   const lines = attached({ next: student.quizzes?.next ?? [], late: sheet.late, warn: student.warn });
   const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check, exam: examPhase(student.exams ?? [], date, phase) });   // 시험전·시험후는 이 아이의 회차에서(06b)
   const [kind, setKind] = useState(sheet.comment_kind ?? autoKind);
@@ -470,8 +481,8 @@ function CommentCard({ sheet, student, closed, fail, start, cfg, phase, date, ba
   const finish = (force) => { if (!force) { const a = askBeforeClose({ same: sameAsDraft(text, draft), late: sheet.late }); if (a.length) { setAsk(a); return; } } setAsk(null); start(async () => { fail(await close(sheet.id, payload())); }); };
   const sendAndFinish = () => { setAsk(null); start(async () => { if (!fail(await lateSend(sheet.id))) return; fail(await close(sheet.id, payload())); }); };   // 📨 보내고 마감 — 보내기가 실패하면 마감하지 않고 그 자리에서 말한다
   return (
-    <div className="card" data-card="comment">
-      <div className="ctitle"><span className="cemo">✉️</span>부모님께 나갈 글{closed && <span className="auto">마감됨</span>}</div>
+    <div className="card" data-card="comment" data-folded={off ? "1" : "0"}>
+      <div className="ctitle"><span className="cemo">✉️</span>부모님께 나갈 글{closed && <span className="auto">마감됨</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
       {lines.length > 0 && <div className="lf ok" style={{ marginBottom: 8 }} data-g="attached"><span className="ln">📝</span>
         <div><b>글 밑에 저절로 붙습니다</b><small>{lines.map((l, i) => <span key={l.key} style={l.on ? undefined : { color: "var(--mute)" }}>{i ? " | " : ""}{l.text}</span>)}</small></div><span className="lm">따로 안 씀</span></div>}
       {closed && <div className="tags" style={{ marginBottom: 8 }}><span className="tag">{capName(cap)}</span><span className="tag type">{kindName(kind)}</span>{draft && sameAsDraft(text, draft) && <span className="tag">AI 초안 그대로</span>}</div>}

@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════
  * 클로이영어 새 앱 — 겉 한 벌. **손으로 고치지 않는다.**
- * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-11).
+ * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-12).
  * 겉을 바꾸려면 목업을 고치고 다시 만든다 — 목업이 곧 명세다. check-mockup 이 둘이 같은지 잰다.
  * 까닭·규칙은 docs/디자인-기본.md(배색 다섯 벌 · 치수 한 벌 · 글꼴 한 벌 · 금지 9).
  * ══════════════════════════════════════════════════════════════════════ */
@@ -150,11 +150,10 @@ h1{font-size:var(--fs-8);font-weight:700;letter-spacing:-.025em;margin:8px 0 12p
 .tabs{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap}
 @media(max-width:760px){
   .appbar{gap:8px 16px}
-  .appbar .tabs{order:1;flex-basis:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
-  .appbar .tabs::-webkit-scrollbar{display:none}
+  .appbar .tabs{order:1;flex-basis:100%;margin-left:0;flex-wrap:wrap;row-gap:4px;overflow-x:visible}
   .appbar .tabs .tab{padding-left:8px;padding-right:8px;white-space:nowrap}
 }
-/* (거) 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」 — 폰에선 첫 줄에 이름·칩·로그아웃(탭을 order 로 뒤로 보내면 빈 자리(flex:1)가 로그아웃을 오른끝으로 민다), 둘째 줄에 탭 꽉 차게 · 빈 셋째 줄 없음 · 줄 사이 8 · 탭 좌우 8. (려) 탭이 아홉이 되어 390 을 넘으므로 **줄을 바꾸지 않고 옆으로 굴린다** — 띠가 세 줄이 되면 9/9 말씀이 무너진다 */
+/* (거) 원장님 9/9 「로그아웃을 첫줄에 배치해 여백없이」 — 폰에선 첫 줄에 이름·칩·로그아웃(탭을 order 로 뒤로 보내면 빈 자리(flex:1)가 로그아웃을 오른끝으로 민다), 둘째 줄에 탭 꽉 차게 · 빈 셋째 줄 없음 · 줄 사이 8 · 탭 좌우 8. (어9) 탭이 열둘이 되자 옆으로 굴리기(overflow-x)로는 **뒤쪽 넷(운영·학생·자료함·설정)이 폰에서 아예 안 보였다** — 원장님 2026-09-12 「세개 올린것 괜찮은데 나는 안보여」. 굴림막대를 숨겨 두어 더 있다는 표시도 없었다(대전제-0 위반). 그래서 **접어서 두 줄로** 낸다 — 탭 줄만 한 줄 늘 뿐 빈 자리는 없으니 9/9 「여백없이」는 그대로다. 안 보이는 탭은 클릭이 ∞다 */
 .tab{padding:4px 12px;border-radius:8px;font-size:var(--fs-2);color:var(--mid);background:none;border:0}
 .tab[aria-current="true"]{background:var(--navy);color:var(--on-navy);font-weight:500}
 .pill{display:inline-flex;align-items:center;gap:4px;min-height:22px;padding:2px 8px;border-radius:6px;font-size:var(--fs-2);font-weight:600;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;font-family:var(--sans);background:var(--sunk);color:var(--mid);border:1px solid var(--hair)}
