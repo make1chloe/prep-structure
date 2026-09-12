@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import { addMaterialAct, reuseAct, schoolProgAct, handAct, dropMaterialAct, todoDoneAct, schoolBookAct, itemUnitAct } from "./actions.js";
-import { treeOf, materialTags, studentRows, reuseRows, todoLine, ddayText, schoolBooksOf } from "@/lib/todo-plan";
+import { treeOf, materialTags, nextStep, studentRows, reuseRows, todoLine, ddayText, schoolBooksOf } from "@/lib/todo-plan";
 import { examHead, examOn, groupScopes, mdDot } from "@/lib/exam-plan";
 import { md } from "@/lib/dash-plan";
 const WEAK = { background: "var(--weak-fill)", color: "var(--on-weak)", borderColor: "transparent" };
@@ -50,10 +50,11 @@ export default function Board({ d }) {
         {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다 — 「+ 자료」로 갈래(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 할 일이 저절로 섭니다(영어일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
         {tree.groups.map((g) => <div className="mt1" key={g.source} data-g="mt1" data-source={g.source}>
           <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계 ↗</Link></div>
-          {g.materials.map((m) => { const left = (m.gives ?? []).filter((x) => !x.handed_at).length; return <div className="mt2" key={m.id} data-g="mt2" data-material={m.id} data-state={m.state}>
+          {g.materials.map((m) => { const left = (m.gives ?? []).filter((x) => !x.handed_at).length, nx = nextStep(m, todos, today); return <div className="mt2" key={m.id} data-g="mt2" data-material={m.id} data-state={m.state}>
             <div className="mth2"><b>{m.type}{m.title && m.title !== m.type ? ` · ${m.title}` : ""}</b><span className="spacer" />
               <Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${m.id}`} data-act="steps">단계 ↗</Link>
               {materialTags(m).map((t) => <span key={t} className={"tag" + (t === "아직 안 만듦" ? " act" : t.startsWith("♻️") ? " on" : "")} data-g="mtag">{t}</span>)}
+              {nx && <span className={"tag" + (nx.late ? " act" : "")} data-g="next-step" data-step={nx.step}>{nx.text}</span>}
               {["made", "printed"].includes(m.state) && left > 0 && <button className="btn sm pri" type="button" disabled={pending} data-act="hand" onClick={() => run(() => handAct(m.id), (r) => `나눠 줬습니다 — ${r.handed}명${r.left ? ` · 아직 ${r.left}명` : " · 배부 끝"}`)}>📤 배부 {left}명</button>}
               <button className="btn sm" type="button" disabled={pending} data-act="drop" onClick={() => run(() => dropMaterialAct(m.id, "04 에서 뺌"), "뺐습니다(지우지 않았습니다)")}>빼기</button></div>
             <div className="mt3">{(m.items ?? []).map((it) => <span key={it.id} className={"ms" + (m.state === "todo" && !m.reuse_of ? " dim" : "")} data-g="ms" data-unit={it.unit_id ?? ""}>{it.name}{unitOpts.length > 0 && <select value={it.unit_id ?? ""} aria-label={`${it.name} 단원`} data-g="ms-unit" disabled={pending} style={{ width: "auto", marginLeft: 4 }} onChange={(x) => run(() => itemUnitAct(it.id, x.target.value), x.target.value ? "항목을 단원에 이었습니다" : "단원을 뗐습니다")}><option value="">단원 —</option>{unitOpts.map((u) => <option key={u.unit_id} value={u.unit_id}>{u.book} › {u.short}</option>)}</select>}</span>)}{!(m.items ?? []).length && <span className="ms dim">항목 없음</span>}</div>

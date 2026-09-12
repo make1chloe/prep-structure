@@ -731,6 +731,9 @@ ok("오늘 수업의 그 아이 문법책 머리에 「교재 멈춤 … 저절�
 await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
 await ecard().locator("button[data-act=release]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("풀기 → 「풀었습니다 — 교재 2권」 · 멈춘 교재 0", (await ex.locator("[data-g=msg]").textContent()).includes("풀었습니다 — 교재 2권") && (await ecard().locator("[data-g=stopped]").textContent()) === "멈춘 교재 0", await ex.locator("[data-g=msg]").textContent());
+// (어8 · 검사-86) 한 번 더 누르면 0권이다 — 그때 화면이 **까닭**을 말해야 한다(숫자만 내놓으면 원장님이 멈추신다)
+await ecard().locator("button[data-act=release]").click(); await p.waitForTimeout(1500);
+ok("풀기를 한 번 더 → 「푼 교재가 없습니다 — 이 회차에 묶인 교재 2권이 이미 다 돌아가는 중입니다」(0 을 말할 때는 까닭까지 · 푼 줄도 stop_exam_id 를 남겨 「손으로 풀었다」를 기억하므로 「묶인 것이 없다」가 아니다)", (await ex.locator("[data-g=msg]").textContent()).includes("푼 교재가 없습니다") && (await ex.locator("[data-g=msg]").textContent()).includes("이미 다 돌아가는 중입니다"), await ex.locator("[data-g=msg]").textContent());
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 const srow2 = p.locator(`.row[data-student='${S1_ROW}']`);
 if (!(await srow2.locator(".panel").count())) await srow2.locator("button.open").click();

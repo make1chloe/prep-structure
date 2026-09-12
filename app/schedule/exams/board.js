@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct, changeSeenAct } from "./actions.js";
 import { englishOnAct } from "../actions.js";
-import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, unitsByChapter, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
+import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, stopDone, releaseDone, unitsByChapter, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -85,8 +85,8 @@ function ExamCard({ e, b, today, pending, run, stName }) {
     <div className="lf" style={{ marginTop: 8 }} data-g="stop-line"><span className="ln">⏸</span>
       <div><b>교재 멈춤</b><small>{st ? `${st.text} · ${weeks}주 전부터(${LEVEL_NAME[e.level] ?? "학교급"} 기본값)` : e.english_on ? "규칙 줄이 없습니다 — prep.stop_weeks(0122)" : "영어 시험일이 있어야 섭니다"}</small></div>
       <span className="tag" data-g="stopped">멈춘 교재 {e.stopped ?? 0}</span>
-      <button className="btn sm" type="button" disabled={pending || !e.english_on} data-act="stop-now" onClick={() => run(() => stopNowAct(e.id), (r) => `지금 멈췄습니다 — 교재 ${r.kept}권`)}>지금 멈춤</button>
-      <button className="btn sm" type="button" disabled={pending} data-act="release" onClick={() => run(() => releaseAct(e.id), (r) => `풀었습니다 — 교재 ${r.released}권`)}>풀기</button></div>
+      <button className="btn sm" type="button" disabled={pending || !e.english_on} data-act="stop-now" onClick={() => run(() => stopNowAct(e.id), stopDone)}>지금 멈춤</button>
+      <button className="btn sm" type="button" disabled={pending} data-act="release" onClick={() => run(() => releaseAct(e.id), releaseDone)}>풀기</button></div>
     <div className="wv" style={{ marginTop: 8 }} data-g="skip-line"><span className="fl" style={{ margin: 0 }}>안 봄</span>
       {(e.skips ?? []).map((k) => <span key={k.student_id} className="tag" style={MISS} data-g="skip-tag">{k.name} <button className="btn sm" type="button" disabled={pending} data-act="unskip" onClick={() => run(() => skipAct(e.id, k.student_id, false), `${k.name} — 다시 봅니다`)}>본다</button></span>)}
       <select value={skipPick} onChange={(x) => setSkipPick(x.target.value)} aria-label="안 볼 아이" data-g="skip-pick" style={{ width: "auto" }}><option value="">아이 고르기</option>{pickable.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>

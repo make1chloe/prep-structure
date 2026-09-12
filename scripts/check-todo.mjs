@@ -1,6 +1,8 @@
 /** 할 일 · 내신 자료 판단 검사(검사-57) — lib/todo-plan.js 순수 셈: 카드 목록(한 벌 → 종류가 바깥 축 · 성적 받기는 회차에서 세어 나온다) · 마감 줄(D-N 은 시험까지 · 지남은 마감 기준) · 칸(인쇄는 장수) · 숨긴 그룹 · 알약 · 학교 거르개 · 차례 ·
  *  🔥 못 따라갑니다 · 한 번에 뽑기 · 자료 단계 체크·흐름(자료 하나 안에서만 순서, 확정-㉟) · ♻️(체크된 채로, 확정-㊵) · 되풀이 글·읽기 · 04 나무(자료·갈래·항목) · 학생별 표(진도를 알아야 냅니다) · 새 자료 읽기 */
-import { stepTodoOf, filterMaterials, onlyText, cardsOf, dueLine, ddayText, overdueText, columnsOf, hiddenOf, counts, filterSchool, sortCards, behindOf, printAllOf, stepChecks, flowOf, pagesOf, repeatText, parseRepeat, treeOf, materialTags, studentRows, reuseRows, parseMaterial, todoLine, schoolTag, isOverdue, KINDS, schoolBooksOf, examYear } from "../lib/todo-plan.js";
+import { stepTodoOf, filterMaterials, onlyText, cardsOf, dueLine, ddayText, overdueText, columnsOf, hiddenOf, counts, filterSchool, sortCards, behindOf, printAllOf, stepChecks, flowOf, pagesOf, repeatText, parseRepeat, treeOf, materialTags, nextStep, studentRows, reuseRows, parseMaterial, todoLine, schoolTag, isOverdue, KINDS, schoolBooksOf, examYear } from "../lib/todo-plan.js";
+import { readFileSync } from "node:fs";
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");   // 폰-5: 주석을 먼저 지운다
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 const J = (x) => JSON.stringify(x);
@@ -89,5 +91,17 @@ const c2 = cardsOf(b2), sv = c2.find((c) => c.id === "v:m4"), gd = c2.find((c) =
 ok("준 자료만 풀이 카드(안 준 m5 는 없다 — 할 일이 없어도 판의 materials 에서) · 「너른터 · 지문」 · 제출 1/2 · 아직: 강민서 · 채점 카드는 제출한 아이가 있어야 · 채점할 아이 김서은 · 둘 다 하는 중 · 학교는 회차에서", Boolean(sv) && sv.schoolId === "s1" && !c2.some((c) => c.id === "v:m5") && sv.title === "너른터 · 지문" && sv.submitted === 1 && J(sv.waiting) === J(["강민서"]) && Boolean(gd) && !c2.some((c) => c.id === "g:m5") && J(gd.toGrade.map((s) => s.name)) === J(["김서은"]) && gd.graded.length === 0 && sv.state === "todo" && gd.state === "todo", J(c2.map((c) => c.id)));
 const m6 = mat({ id: "m4", gives: 2, handed: 2, submitted: 2, scored: 2, students: [] }), b3 = { ...b2, materials: [m6] }, c3 = cardsOf(b3);
 ok("다 제출·다 채점하면 둘 다 ✓ 끝냄(숨긴 그룹) · 체크 글 「제출 2/2」 「채점 2/2」(채점 ✓) · 칸 셈은 열(풀이 1 · 채점 1)", c3.find((c) => c.id === "v:m4").state === "done" && c3.find((c) => c.id === "g:m4").state === "done" && stepChecks(m6).find((s) => s.step === "solve").text === "제출 2/2" && stepChecks(m6).find((s) => s.step === "score").text === "채점 2/2" && stepChecks(m6).find((s) => s.step === "score").done === true && columnsOf(c2, T).length === 10 && columnsOf(c2, T).find((c) => c.kind === "solve").count === "1" && columnsOf(c2, T).find((c) => c.kind === "grade").count === "1");
+// 자료 줄이 「다음 · 언제」를 말한다 — 2026-09-12 내신대비 한 판에서 04 가 「아직 안 만듦」만 말하고 아이에게 언제 가는지를 안 말했다(대전제-0)
+{
+  const 갓만듦 = { id: "mx", state: "todo", steps: ["make", "print", "hand"], gives: 2, handed: 0, items: [{ id: 1 }] };
+  const 할일 = [{ id: "t1", kind: "make", material_id: "mx", due_on: "2026-10-12", state: "todo" }, { id: "t2", kind: "hand", material_id: "mx", due_on: "2026-10-18", state: "todo" }];
+  ok("04 자료 줄 — 지금 단계와 그 마감(만들기 10/12 · D-3) · 단계가 가면 마감도 따라간다(배부 10/18) · 마감이 지나면 「하루 지남」",
+    nextStep(갓만듦, 할일, T).text === "다음 · 만들기 10/12 · D-3" && nextStep({ ...갓만듦, state: "printed" }, 할일, T).text === "다음 · 배부 10/18 · D-9"
+    && nextStep(갓만듦, 할일, "2026-10-13").text === "다음 · 만들기 10/12 · 하루 지남" && nextStep(갓만듦, 할일, "2026-10-13").late === true && nextStep(갓만듦, 할일, T).late === false, J(nextStep(갓만듦, 할일, T)));
+  ok("할 일이 없거나 끝난 자료 — 마감 없음 · 다 끝났으면 줄 자체가 없다 · 빈 것도 안 터진다",
+    nextStep(갓만듦, [], T).text === "다음 · 만들기 — 마감 없음" && nextStep({ ...갓만듦, state: "done", handed: 2 }, 할일, T) === null && nextStep(갓만듦, undefined, null).text === "다음 · 만들기 — 마감 없음");
+  const 판 = strip(readFileSync("app/schedule/exams/prep/board.js", "utf8"));
+  ok("04 화면이 그 줄을 그린다 — lib/todo-plan nextStep 한 벌(원칙-1)", 판.includes("nextStep(m, todos, today)") && 판.includes('data-g="next-step"'));
+}
 console.log(`\ncheck-todo ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

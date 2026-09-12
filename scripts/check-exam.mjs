@@ -1,5 +1,5 @@
 /** 시험 회차 판단 검사(검사-54) — lib/exam-plan.js 순수 셈: 보는 아이(학교·학년·안 봄·전국은 고등) · 그날·끝나는 날 · 몇 주 전부터(아이 따로 › 학교급 규칙) · 멈춤 창(영어일 − N주 ~ 끝) · 시험전·시험후 · 범위 묶음 · 알약 · 머리 · 멈춤 글 · 단원 묶기 + routine-plan stopOn 의 「시작 전이면 진행중」 */
-import { takes, skipCandidates, examOn, examEnd, weeksFor, stopWindow, examPhase, groupScopes, counts, examHead, stopText, unitsByChapter, manualKey, LEVELS, WEEK_CHOICES } from "../lib/exam-plan.js";
+import { takes, skipCandidates, examOn, examEnd, weeksFor, stopWindow, examPhase, groupScopes, counts, examHead, stopText, stopDone, releaseDone, SKIP_WHY, unitsByChapter, manualKey, LEVELS, WEEK_CHOICES } from "../lib/exam-plan.js";
 import { stopOn } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
@@ -41,5 +41,19 @@ ok("멈춤 글 — 아직(9/18부터 멈춤 · 10/17에 저절로 풀림) · 중
 ok("손으로 넣은 회차의 출처 열쇠 — 학교·학년·이름·시작날로(둘째 회차가 (manual, null) 에 걸리던 사고) · 학년·학교 비면 all", manualKey({ scope: "school", schoolId: "s1", grade: 2, name: " 2학기 중간 ", termFrom: "2026-10-14" }) === "manual:school:s1:2:2학기 중간:2026-10-14" && manualKey({ scope: "national", name: "10월 학평", termFrom: "2026-10-14" }) === "manual:national:all:all:10월 학평:2026-10-14" && manualKey({ scope: "school", schoolId: "s1", name: "a", termFrom: "d" }) !== manualKey({ scope: "school", schoolId: "s1", name: "b", termFrom: "d" }));
 ok("단원 묶기 — 대단원마다 · 차례 그대로 · 학교급 셋 · 주 후보 넷", J(unitsByChapter([{ id: 1, chapter: "A" }, { id: 2, chapter: "A" }, { id: 3, chapter: "B" }]).map((x) => [x.chapter, x.units.length])) === J([["A", 2], ["B", 1]]) && LEVELS.join() === "high,middle,elem" && WEEK_CHOICES.join() === "3,4,6,8");
 ok("안 봄 후보((가)-⑨ 한 번에도 같은 목록) — 보는 아이 가운데 아직 안 봄이 아닌 아이만 · 안 보는 학교 아이는 빠짐 · 빈 것", J(skipCandidates([{ id: "a" }, { id: "b" }, { id: "c" }], ["a", "b"], [{ student_id: "b" }]).map((s) => s.id)) === J(["a"]) && skipCandidates([{ id: "a" }], [], []).length === 0 && skipCandidates(undefined, undefined, undefined).length === 0);
+// 「지금 멈춤」이 0권이면 **까닭**까지 — 2026-09-12 내신대비 한 판에서 「교재 0권」만 뜨고 까닭이 없어 막혔다(대전제-0)
+ok("지금 멈춤 끝말 — 멈춘 것이 있으면 권수만 · 0권이면 까닭과 갯수 · 가장 많은 까닭에 할 일까지", stopDone({ kept: 3, skip: [] }) === "지금 멈췄습니다 — 교재 3권"
+  && stopDone({ kept: 0, skip: [{ why: SKIP_WHY.other, n: 4 }, { why: SKIP_WHY.area, n: 2 }] }) === "지금 멈췄습니다 — 교재 0권 · 안 건드린 것 — 다른 시험에 묶임 4 · 내신 교재 2 · 그 회차에서 「풀기」를 먼저"
+  && stopDone({ kept: 2, skip: [{ why: SKIP_WHY.area, n: 1 }] }) === "지금 멈췄습니다 — 교재 2권 · 안 건드린 것 — 내신 교재 1", J(stopDone({ kept: 0, skip: [{ why: SKIP_WHY.other, n: 4 }, { why: SKIP_WHY.area, n: 2 }] })));
+ok("회차가 멈출 수 없는 꼴이면(물림·숨김·영어일 없음) 그 까닭 한 줄 · 빈 것도 안 터진다", stopDone({ kept: 0, skip: [], why: "영어 시험일 없음" }) === "지금 멈췄습니다 — 교재 0권 · 영어 시험일 없음" && stopDone(undefined) === "지금 멈췄습니다 — 교재 0권" && stopDone({ kept: 0, skip: [{ why: SKIP_WHY.none, n: 1 }] }).includes("보는 아이 없음"));
+ok("풀기 끝말도 짝을 맞춘다 — 푼 것이 있으면 권수 · 0권이면 까닭부터(묶인 것이 없다 / 이미 다 돌아간다)", releaseDone({ released: 2 }) === "풀었습니다 — 교재 2권"
+  && releaseDone({ released: 0, why: "이 회차에 묶인 교재가 없습니다 — 「지금 멈춤」을 눌러야 묶입니다" }) === "푼 교재가 없습니다 — 이 회차에 묶인 교재가 없습니다 — 「지금 멈춤」을 눌러야 묶입니다"
+  && releaseDone(undefined) === "푼 교재가 없습니다 — 까닭 없음", J(releaseDone({ released: 0, why: "x" })));
+// 글자로도 — 판단은 한 벌(화면이 같은 문장을 또 짓지 않는다 · 손 syncStops 는 여섯 갈래를 다 센다)
+import { readFileSync } from "node:fs";
+const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");   // 폰-5: 주석을 먼저 지운다
+const 판 = strip(readFileSync("app/schedule/exams/board.js", "utf8")), 손 = strip(readFileSync("lib/exam.js", "utf8"));
+ok("06b 화면은 끝말을 직접 안 짓는다 — lib/exam-plan stopDone·releaseDone 한 벌(원칙-1)", 판.includes("stopDone") && 판.includes("releaseDone") && !/지금 멈췄습니다|풀었습니다 —/.test(판), "화면에 끝말 글자가 남아 있습니다");
+ok("손 syncStops 가 안 건드린 까닭 여섯 갈래를 다 센다 — 새 갈래가 생기면 여기서 잡는다", Object.values(SKIP_WHY).length === 6 && Object.keys(SKIP_WHY).every((k) => 손.includes(`SKIP_WHY.${k}`)) && /skip: \[\.\.\.skipped\]/.test(손), Object.keys(SKIP_WHY).filter((k) => !손.includes(`SKIP_WHY.${k}`)).join());
 console.log(`\n■ 시험 회차 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
