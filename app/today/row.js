@@ -2,6 +2,7 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useRef, useTransition } from "react";
+import Tip from "../_shell/tip.js";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
@@ -247,7 +248,7 @@ function QuizCard({ sheet, quizzes, at, closed, fail, start }) {
           <button type="button" className="btn sm" aria-pressed={r?.state === "skipped"} disabled={closed || !r} onClick={() => start(async () => { fail(await quizSkip(sheet.id, q.id, r?.state !== "skipped")); })}>⏭ 오늘은 재시험 건너뜀</button>
         </span>); })}
         <span className="spacer" />
-        <span className="note" style={{ margin: 0 }}>틀린 개수만 셉니다 — 맞은 개수·%·통과는 <b>세어 나옵니다.</b> 건너뛰면 <b>오늘만</b> 빠집니다(늦귀가 사유·리포트에서도) — 점수는 그대로</span>
+        <Tip>틀린 개수만 셉니다 — 맞은 개수·%·통과는 <b>세어 나옵니다.</b> 건너뛰면 <b>오늘만</b> 빠집니다(늦귀가 사유·리포트에서도) — 점수는 그대로</Tip>
       </div>
     </div>
   );
@@ -282,7 +283,7 @@ function CcCard({ rows = [], closed, fail, start }) {
               onClick={() => start(async () => { fail(await ccSkipAct(r.id, !skipped)); })}>{skipped ? "⏭ 넘긴 것 되돌리기" : "⏭ 목표 미달 넘기기"}</button>}
             {out && <span className={"pill" + (skipped ? "" : p.short.length ? " warn" : " ok")} data-g="cc-out">{skipped ? "넘겼습니다 — 오늘은 안 셉니다" : out}</span>}
             <span className="spacer" />
-            <span className="note" style={{ margin: 0 }}>목표는 <b>아이마다 다릅니다</b> — 클래스카드에 적어 둔 그 값을 그대로 씁니다. <b>앱이 스스로 넘기지 않습니다.</b></span>
+            <Tip>목표는 <b>아이마다 다릅니다</b> — 클래스카드에 적어 둔 그 값을 그대로 씁니다. <b>앱이 스스로 넘기지 않습니다.</b></Tip>
           </div>
         </div>); })}
     </div>
@@ -336,7 +337,7 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
         <div className="wv" style={{ gap: 10, marginTop: 6 }}><label className="wv" style={{ gap: 4, margin: 0 }}><input type="checkbox" name="first_hint" checked={f.first_hint} onChange={(e) => set("first_hint", e.target.checked)} /> 첫글자 힌트</label><N k="units_per" label="몇 단원씩(비면 안 씀)" /></div>
       </> : <div className="seg sm" data-g="s-way">{S_WAY.map(([k, name]) => <button key={k} type="button" aria-pressed={f.s_way === k} onClick={() => set("s_way", k)}>{name}</button>)}</div>}
       <div className="wv" style={{ gap: 10, marginTop: 6 }}><N k="cut_pct" label="통과선 %" /></div>
-      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><span className="note" style={{ margin: 0 }}>시험 방식·통과선은 학생 × 교재 × 회독마다 미리 정해 둡니다 — 오늘 고르지 않습니다</span><span className="spacer" />
+      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><Tip>시험 방식·통과선은 학생 × 교재 × 회독마다 미리 정해 둡니다 — 오늘 고르지 않습니다</Tip><span className="spacer" />
         <button type="button" className="btn sm pri" data-act="style-save" disabled={q.kind === "word" && sum !== 100} onClick={() => start(async () => { if (fail(await quizStyle(sheet.id, q.id, { ...f, first_hint: f.first_hint ? "on" : "" }))) onClose(); })}>저장</button></div>
     </div></div></div>;
 }
@@ -381,7 +382,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", cl
         <span className="note" style={{ margin: 0 }}>{warn.own_limit ? "이 아이만 · " : "학원 기본 · "}쓴 뒤로 다시 {warn.report_at}회째에 묻습니다(지금 {warn.since_written}회째)</span></div>}
       {ask && <div className="lenrow" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0, width: "auto" }}>처분</span>
         <div className="seg sm" data-g="refl">{DISPOSAL.map(([k, name]) => <button key={k} type="button" aria-pressed={warn.today_disposal === k} disabled={closed} onClick={() => start(async () => { fail(await reflectAs(sheet.id, k)); })}>{name}</button>)}</div>
-        <span className="note" style={{ margin: 0 }}>남아서 쓰면 늦귀가 사유에 서고, 숙제면 다음 시간 검사 줄에 섭니다. 유예는 지운 것이 아니라 미룬 것 — 다음 경고에 다시 묻습니다</span></div>}
+        <Tip>남아서 쓰면 늦귀가 사유에 서고, 숙제면 다음 시간 검사 줄에 섭니다. 유예는 지운 것이 아니라 미룬 것 — 다음 경고에 다시 묻습니다</Tip></div>}
       <form className="lategrid" action={async (f) => { fail(await late(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
         <div><label className="fl">사유</label>
@@ -400,7 +401,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", cl
         <input type="text" value={left} onChange={(e) => setLeft(e.target.value)} placeholder="예: 22:05" inputMode="numeric" aria-label="실제 하원 시각" style={{ maxWidth: 110 }} />
         <button type="button" className="btn sm" data-act="left" disabled={!/^\d{2}:\d{2}$/.test(left)} onClick={() => start(async () => { fail(await lateLeft(studentId, date, left)); })}>찍기</button>
         {leftLine ? <span className="lateout" data-g="left-out" style={{ margin: 0 }}>{leftLine}</span>
-          : <span className="note" style={{ margin: 0 }}>아이의 「집에 가요」와 같은 한 줄(등원 걸음 4) — 여기서 고치면 그 줄이 고쳐집니다 · 마감과 무관 · 찍어야 예상과 얼마나 달랐는지 남습니다</span>}
+          : <Tip>아이의 「집에 가요」와 같은 한 줄(등원 걸음 4) — 여기서 고치면 그 줄이 고쳐집니다 · 마감과 무관 · 찍어야 예상과 얼마나 달랐는지 남습니다</Tip>}
       </div>
     </div>
   );

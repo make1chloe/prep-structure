@@ -35,7 +35,7 @@ export default async function Schedule({ searchParams }) {
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
       <MonthConfirm ym={d.ym} ct={ct} can={canConfirm(d.ym, d.date)} />
-      <Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/todo">🗂️ 할 일 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/grid">🗂️ 학교별 표 ↗</Link>
+      <Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
     </div>
     <div className="cnt8" data-g="cnt8">
       {(b.classes ?? []).map((c) => { const s = sessionsOf(c, target); return <div key={c.id} className={"c8" + (s.ok === false ? " short" : "")} data-g="c8" data-class={c.id}><b>{classText(c)}</b><span className={"c8n" + (s.ok === true ? " ok" : s.ok === false ? " bad" : "")}>{s.n}회</span><small>{s.text}{c.members != null ? ` · ${c.members}명` : ""}</small>{s.ok === false && <ClassMakeup classId={c.id} ym={d.ym} short={s.short} />}</div>; })}

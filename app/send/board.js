@@ -1,6 +1,7 @@
 "use client";
 /** 발송 판(목업 10) — 고르고 · 한 번에 · 예약(확정-㉕). 되돌릴 수 없는 것(보내기·예약)은 서버 답을 기다린다(속도-5). 판단은 lib/send-plan(순수) — 여기는 그린다 */
 import Link from "next/link";
+import Tip from "../_shell/tip.js";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { sendSelected, scheduleSelected, cancelSchedule, resendLog } from "./actions.js";
@@ -24,6 +25,7 @@ export default function Board({ d }) {
   const setAll = (on) => setSel(on ? new Set(selectable) : new Set());
   const run = (fn, okMsg) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } setMsg(okMsg(r)); setSel(new Set()); router.refresh(); });
   const cnt = closedCount(d.daily), nowN = nowCount(d.late);
+  const fails = d.failWhy ?? [];   // 못 보낸 까닭은 **한 번씩만**(2026-09-12) — 줄마다 되풀이하던 것을 머리로
   const rc = d.sent.reduce((c, s) => { if (s.status.read) c.read++; else if (s.status.unread) c.unread++; else if (s.status.bad) c.failed++; else c.rehearsal++; return c; }, { read: 0, unread: 0, failed: 0, rehearsal: 0 });
   const ranText = (r) => `큐 ${r.ok}건 보냄 · 실패 ${r.bad}건${r.deferred ? ` · 방해금지로 미룸 ${r.deferred}건` : ""}`;
   return (<>
@@ -36,10 +38,9 @@ export default function Board({ d }) {
       <span className="spacer" /><Link prefetch={false} className="btn sm" href="/send/monthly" data-act="monthly">📊 월간 리포트 ↗</Link><Link prefetch={false} className="btn sm" href="/send/notice" data-act="notice">📢 공지 ↗</Link>
     </div>
     {d.sinkBad && <p className="note" role="alert" data-g="sink-bad" style={{ margin: "0 0 8px", color: "var(--miss)" }}>
-      <b>스위치 값이 이상해서 아무것도 안 나갑니다</b> — {d.sinkBad}. 아래 「켜는 법」대로 <b>live</b> 로 고치고 Redeploy 하십시오.</p>}
+      <b>스위치 값이 이상해서 아무것도 안 나갑니다</b> — {d.sinkBad}. 아래 ⓘ 대로 고치십시오.</p>}
     {d.sink !== "live" && <p className="note k" data-g="sink-how" style={{ margin: "0 0 8px" }}>
-      <b>켜는 법</b> — Vercel → Settings → Environment Variables 에 <b>NOTIFY_SINK</b> = <b>live</b>(<b>Production</b> 체크) → Save → Deployments 맨 위 <b>⋯ → Redeploy</b>.
-      환경변수는 <b>이미 배포된 것에는 안 붙어서</b> Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 자리가 「앱 알림만」이 됩니다.</p>}
+      🧪 리허설이라 <b>실제로는 안 나갑니다</b>.<Tip label="켜는 법">Vercel → Settings → Environment Variables 에 <b>NOTIFY_SINK</b> = <b>live</b>(<b>Production</b> 체크) → Save → Deployments 맨 위 <b>⋯ → Redeploy</b>. 이미 배포된 것에는 안 붙어서 Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 자리가 「앱 알림만」이 됩니다.</Tip></p>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
 
@@ -85,6 +86,7 @@ export default function Board({ d }) {
       <button className="donehead" type="button" aria-expanded={open} onClick={() => setOpen(!open)} style={{ margin: 0 }} data-g="sent-head"><span className="ar">›</span><span style={{ whiteSpace: "nowrap" }}>오늘 나간 것 <b>{d.sent.length}</b></span><span className="spacer" />
         <span className="tag on"><i className="ic">👁️</i> 읽음 {rc.read}</span><span className="tag" style={MISS}><i className="ic no">👁️</i> 안 읽음 {rc.unread}</span>
         {rc.rehearsal > 0 && <span className="tag">🧪 리허설 {rc.rehearsal}</span>}{rc.failed > 0 && <span className="tag" style={MISS}>⚠️ 못 보냄 {rc.failed}</span>}</button>
+      {fails.length > 0 && <p className="note" data-g="fail-why" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{fails.map((f) => `${f.why} ${f.n}`).join(" · ")}</p>}
       <div className="donebody">
         {!d.sent.length && <Row icon="—" cls="dim"><b>오늘 나간 것이 없습니다</b></Row>}
         {d.sent.map((r) => <Row key={r.id} icon={r.status.icon} cls="done" data-g="sent-row" right={r.resendable && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.id), (x) => `다시 보냈습니다 — ${ranText(x.r)}`)}>다시 보내기</button>}><b>{r.name} · {r.what}</b><small>{r.status.text}</small></Row>)}
@@ -93,7 +95,8 @@ export default function Board({ d }) {
     <Templates items={d.templates ?? []} ready={d.smsReady} placeholders={d.placeholders ?? []} kinds={d.smsKinds ?? []} />
     {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 자리 — 글에 적으면 앱이 채웁니다</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
       <div className="tags" data-g="placeholders">{placeholderRows(d.placeholders).map((r) => <span key={r.key} className="tag" title={r.text}>{r.tag}</span>)}</div>
-      <p className="note k" style={{ margin: "4px 0 0" }}>{placeholderRows(d.placeholders).slice(0, 4).map((r) => r.text).join(" · ")} … 안 채운 자리가 있으면 못 나갑니다</p></div>}
+      {/* 칩마다 title 에 뜻이 이미 붙어 있다 — 아래에 같은 것을 또 늘어놓지 않는다(2026-09-12 · 144자) */}
+      <p className="note k" style={{ margin: "4px 0 0" }}>안 채운 자리가 있으면 못 나갑니다</p></div>}
 
     <div className="savebar sendbar" data-g="sendbar">
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>

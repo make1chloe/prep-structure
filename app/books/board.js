@@ -1,6 +1,7 @@
 "use client";
 /** 교재 판(목업 15) + 엑셀 올리기 모달(15b — 저장 전에 보여준다). 목록(영역 거르기 · 단원 수 · 쓰는 아이) · 고른 교재(교재ID · 영역 · 배정 겹 · 차례 기준 · 단원평가 · 다른 이름 · 활동 차례 · 단원 표 · 문법 분류) · + 교재 · ⬇ 엑셀 · ⬆ 올리기. 세는 것은 화면이 센다(원칙-5) */
 import Link from "next/link";
+import Tip from "../_shell/tip.js";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
@@ -116,7 +117,7 @@ function Upload({ close, run, pending }) {
     <div className="mdlh"><b>⬆ 올리기 — 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
     <div className="mdlb">
       {!plan && <form action={read} className="wv" data-g="upload-form"><input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="단원 엑셀" style={{ width: "auto" }} /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button>
-        <span className="note k" style={{ margin: 0 }}>단원 시트 열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위(⬇ 양식 받기) — 교재 시트(교재명 · 영역 · 출판사 · 연도 · 레벨 · 교재비 · 구매링크 — ⬇ 교재 시트 양식)도 여기로. <b>첫 줄 열 이름</b>으로 알아봅니다</span></form>}
+        <Tip>단원 시트 열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위(⬇ 양식 받기) — 교재 시트(교재명 · 영역 · 출판사 · 연도 · 레벨 · 교재비 · 구매링크 — ⬇ 교재 시트 양식)도 여기로. <b>첫 줄 열 이름</b>으로 알아봅니다</Tip></form>}
       {plan && plan.kind === "books" && <BooksPlan plan={plan} />}
       {plan && plan.kind !== "books" && <>
         <div className="ctitle"><span className="cemo">❓</span>이미 있는 교재를 어떻게 할까요</div>

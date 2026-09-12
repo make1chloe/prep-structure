@@ -1,6 +1,7 @@
 "use client";
 /** 월간 리포트 판(4단계-2b) — 달 고르기 · 아이마다 숫자 줄(마감한 판만) · 덧붙일 한마디(손 떼면 저장 · 보낸 달은 잠김) · 📨 보내기(하나 · 안 보낸 아이 모두). 되돌릴 수 없는 보내기는 서버 답을 기다린다(속도-5) */
 import Link from "next/link";
+import Tip from "../../_shell/tip.js";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { bodyAct, sendAct, scheduleAct } from "./actions.js";
@@ -27,7 +28,7 @@ export default function Board({ d }) {
       <button type="button" className="btn sm" disabled={pending || !todo.length} data-act="schedule-all" onClick={() => run(() => scheduleAct(d.ym, todo.map((r) => r.student_id), when, customOf(when, cDate, cTime)), schedMsg)}>⏰ 안 보낸 아이 모두 예약</button>
       <When rules={d.rules} date={d.today} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
     </div>
-    <p className="note" style={{ margin: "0 0 8px" }}>숫자는 <b>마감한 판만</b> 셉니다 — 학부모 화면과 같은 숫자입니다. 보내면 그때 숫자를 굳혀 두어 나중에 판을 고쳐도 학부모가 본 숫자는 안 바뀝니다. 한마디는 손을 떼면 저장됩니다.</p>
+    <p className="note" style={{ margin: "0 0 8px" }}>숫자는 <b>마감한 판만</b> 셉니다.<Tip>숫자는 <b>마감한 판만</b> 셉니다 — 학부모 화면과 같은 숫자입니다. 보내면 그때 숫자를 굳혀 두어 나중에 판을 고쳐도 학부모가 본 숫자는 안 바뀝니다. 한마디는 손을 떼면 저장됩니다.</Tip></p>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {!d.rows.length && <div className="card"><p className="note">재원생이 없습니다</p></div>}

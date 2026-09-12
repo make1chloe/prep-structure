@@ -2,6 +2,7 @@
 /** 학생 판(목업 14) — 목록(재원생 N · 퇴원생 N · 찾기 · 줄: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태) · 고른 아이: 머리(학년·학교 · 반 · 재원 기간 · 형제 · ✎ 고치기) · KPI 여섯 · 교재 진도(막대) · 성적(약한 영역) · 이 달 출결(등원·하원 시각) · 단원평가 · 지나온 것 · 상담(+ 상담 적기) · 저장줄.
  *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/잇기 · 학부모 계정 이름 · 비밀번호 0000 초기화 — 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
 import Link from "next/link";
+import Tip from "../../_shell/tip.js";
 import Sure, { useSure } from "../../_shell/sure.js";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -94,7 +95,7 @@ export default function Board({ d }) {
             {!books.length && <p className="note" style={{ margin: 0 }}>배정된 교재가 없습니다 — 루틴 11 에서 잇습니다</p>}
             {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div>
           <div className="card" style={{ margin: "0 0 8px" }} data-g="cc-link"><div className="ctitle"><span className="cemo">🃏</span>클래스카드 아이디</div>
-            <p className="note" style={{ marginTop: 0 }}>확장이 보낸 것은 <b>이 아이디로 아이를 찾습니다</b> — 안 이어 두면 그 아이 것은 안 들어오고, 설정 🔌 연동 열쇠의 🃏 줄에 「안 이은 아이디」로 뜹니다. <b>줄은 지우지 않습니다</b>— 잘못 이었으면 바른 아이디로 다시 이으면 덮어씁니다.</p>
+            <Tip>확장이 보낸 것은 <b>이 아이디로 아이를 찾습니다</b> — 안 이어 두면 그 아이 것은 안 들어오고, 설정 🔌 연동 열쇠의 🃏 줄에 「안 이은 아이디」로 뜹니다. <b>줄은 지우지 않습니다</b>— 잘못 이었으면 바른 아이디로 다시 이으면 덮어씁니다.</Tip>
             {d.cc ? <div className="lf" data-g="cc-row"><span className="ln">🃏</span><div><b>{d.cc.cc_login_id || d.cc.cc_user_idx}</b><small>아이디 {d.cc.cc_user_idx}{d.cc.updated_at ? ` · ${md(seoulDate(d.cc.updated_at))} 이음` : ""}</small></div>
               <span className="lm">바꾸려면 아래에 새 아이디를 적고 잇기</span></div>
               : <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-none">아직 안 이었습니다</p>}

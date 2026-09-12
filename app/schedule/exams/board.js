@@ -112,7 +112,7 @@ function StopCard({ b, today, pending, run }) {
         <select value={sid} onChange={(x) => setSid(x.target.value)} aria-label="아이" data-g="weeks-student" style={{ width: "auto" }}><option value="">아이 고르기</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
         <select value={w} onChange={(x) => setW(x.target.value)} aria-label="주 수" data-g="weeks-n" style={{ width: "auto" }}><option value="">기본값</option>{WEEK_CHOICES.map((n) => <option key={n} value={n}>{n}주</option>)}</select>
         <button className="btn sm pri" type="button" disabled={pending || !sid} data-act="student-weeks" onClick={() => run(() => studentWeeksAct(sid, w || null), w ? `${w}주로 따로 정했습니다` : "학교급 기본값으로 돌렸습니다")}>저장</button></div>
-      <p className="note" style={{ margin: 0 }}>회차마다 「지금 멈춤 · 풀기」는 위 카드에서 — 날짜와 상관없이 원장님이 누르시면 그 자리에서.</p>
+      
     </div>
   </div>;
 }

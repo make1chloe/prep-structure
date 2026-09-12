@@ -32,7 +32,19 @@ ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 = 지은 화면 전부(대시보드·오늘·발송·일정·**내신**·**할 일**·교재·운영·설정 — (려) 원장님 9/10 「일정에 학교별표를 내신으로 할일을 따로 할일로」)", tabs.join(",") === "대시보드,오늘,발송,일정,내신,할 일,교재,운영,설정", tabs.join(","));
+ok("원장 메뉴 열둘 — **날마다 여는 화면은 한 번에**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」): 일정 뒤 내신·할 일·성적, 운영 뒤 학생·자료함", tabs.join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,운영,학생,자료함,설정", tabs.join(","));
+{ // 동선이 실제로 줄었나 — 탭 한 번으로 그 화면이 열린다(전엔 운영·일정을 거쳐 두 번이었다)
+  for (const [name, path2] of [["학생", "/ops/students"], ["자료함", "/ops/files"], ["성적", "/scores"]]) {
+    await Promise.all([p.waitForURL((u) => u.pathname === path2, { timeout: 15000 }), p.locator("header.appbar nav.tabs a", { hasText: new RegExp(`^${name}$`) }).click()]);
+    ok(`「${name}」 탭 한 번으로 ${path2} 가 열린다(전에는 두 번) · 그 탭이 파랗다`, new URL(p.url()).pathname === path2 && (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === name, p.url());
+  }
+  await p.goto(APP + "/ops"); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("운영에는 **탭으로 올라간 둘(학생·자료함)이 없다** — 같은 화면을 두 곳에 두지 않는다(원칙-1) · 남은 메뉴 카드는 상담 하나이고 설명문 문단이 0(툴팁으로)", (await p.locator("main a.card[data-card=students]").count()) === 0 && (await p.locator("main a.card[data-card=files]").count()) === 0 && (await p.locator("main a.card[data-card=inquiry]").count()) === 1 && (await p.locator("main a.card p.note").count()) === 0, "카드 " + (await p.locator("main a.card").count()) + " · 설명문 " + (await p.locator("main a.card p.note").count()));
+  await p.goto(APP + "/settings"); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("설정의 메뉴 카드 둘도 **제목만**(진도 체크 · 루틴) — 설명문 문단 0 · 툴팁은 있다", (await p.locator("main a.card p.note").count()) === 0 && (await p.locator("main a.card[title]").count()) === 2, "설명문 " + (await p.locator("main a.card p.note").count()) + " · 툴팁 " + (await p.locator("main a.card[title]").count()));
+  await p.goto(APP + "/schedule"); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("일정 머리의 ↗ 는 셋 — 탭에 이미 있는 「할 일」·「학교별 표」는 뺐다(원칙-1)", (await p.locator("main [data-g=head] a[href^='/schedule/']").count()) === 3 && (await p.locator("main [data-g=head] a[href='/schedule/todo']").count()) === 0 && (await p.locator("main [data-g=head] a[href='/schedule/grid']").count()) === 0, "머리 ↗ " + (await p.locator("main [data-g=head] a[href^='/schedule/']").count()));
+  await p.goto(APP + "/"); await p.waitForLoadState("networkidle").catch(() => {}); }
 // ⚠️ 탭 걷기는 /today 를 누르지 않는다 — 원장이 오늘 수업을 열면 아이의 오늘 판이 서서(「선생님이 오늘 수업을 열면」) 뒤의 아이 화면 걷기(등원 전 = 지난 판)가 어긋난다(게이트 64). 부작용 없는 발송·반 화면으로 밟는다
 console.log("■ 누른 즉시 표시(다) — 지금 탭이 파랗다 · 누르면 서버 답 전에 그 탭이 파랗고 상단 띠가 켜진다 · 답이 오면 띠가 꺼진다");
 const curTab = async () => (await p.locator("header.appbar nav.tabs a[aria-current='true']").allTextContents()).join(",");

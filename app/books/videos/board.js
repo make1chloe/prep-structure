@@ -1,6 +1,7 @@
 "use client";
 /** 영상 배정 판(목업 19 오른쪽) — 머리(안 본 아이 N · + 영상 · ← 교재) · + 영상 양식(제목 · 유튜브 주소 · 폴더 · 길이) · 영상 카드(아이마다 막대와 상태 · 마감 · 📨 재촉 · 마감 미루기 · + 배정 · 내리기). 세는 것은 화면이 센다(원칙-5) */
 import Link from "next/link";
+import Tip from "../../_shell/tip.js";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addAct, setAct, assignAct, postponeAct, retireAct, remindAct } from "./actions.js";
@@ -46,7 +47,7 @@ export default function Board({ d }) {
       <button className="btn pri sm" type="button" disabled={pending || !nv.title.trim() || !nv.url.trim()} data-act="add-save" onClick={() => run(() => addAct(nv), "영상을 더했습니다 — + 배정으로 아이에게", () => { setAdding(false); setNv({ title: "", url: "", folder: "", length: "" }); })}>저장</button>
       <button className="btn sm" type="button" onClick={() => setAdding(false)}>닫기</button>
       {folders(b.videos ?? []).length > 0 && <div className="wv" data-g="folder-pick" style={{ flexBasis: "100%", marginBottom: 0 }}><span className="note" style={{ margin: 0 }}>있는 폴더</span>{folders(b.videos ?? []).map((x) => <button key={x} type="button" className="btn sm gho" data-act="folder" aria-pressed={nv.folder === x} onClick={() => setNv({ ...nv, folder: x })}>{x}</button>)}</div>}</div>
-      <p className="note k" style={{ margin: "4px 0 0" }}>앱 안에서 트는 것은 유튜브뿐입니다 · 저작권자가 임베드를 막은 영상은 아이 폰에서 「유튜브에서 보기」로 나갑니다 · 「몇 % 봤나」는 대략치 — 아이를 판단할 숫자가 아닙니다</p></div>}
+      <Tip>앱 안에서 트는 것은 유튜브뿐입니다 · 저작권자가 임베드를 막은 영상은 아이 폰에서 「유튜브에서 보기」로 나갑니다 · 「몇 % 봤나」는 대략치 — 아이를 판단할 숫자가 아닙니다</Tip></div>}
     {!live.length && <div className="card" data-g="empty"><p className="note" style={{ margin: 0 }}>영상이 없습니다 — + 영상. 영상은 루틴 밖입니다: 못하는 아이에게만 따로 배정합니다</p></div>}
     {groupByFolder(live).map((g) => <div key={g.folder} data-g="folder" data-folder={g.empty ? "" : g.folder}>{(live.some((v) => String(v.folder ?? "").trim()) || !g.empty) && <div className="hh" style={{ margin: "8px 0 4px" }} data-g="folder-head">📁 {g.folder} <span className="cnt">{g.videos.length}개</span></div>}{g.videos.map((v) => <Video key={v.id} v={v} />)}</div>)}
     {hidden.length > 0 && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm gho" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>내린 영상 {hidden.length}</button></div>}
