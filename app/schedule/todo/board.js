@@ -1,5 +1,5 @@
 "use client";
-/** 내 할 일 판(목업 05 · 노션 보드 모양 9/3) — 머리(🔥 마감 지남 · 학교 거르개) · 보기줄(⊞표 · ▦보드 · 묶기 고정 · 마감 순 · 새로 만들기 한 곳) · 보드(종류마다 칸 · 카드 📅🏫☑🧾) · 숨긴 그룹(✓ 끝냄 · ♻️ 이미 있는 것 · 뺀 것) ·
+/** 내 할 일 판(목업 05 · 노션 보드 모양 9/3) — 머리(🔥 마감 지남 · 학교 거르개) · 보기줄(⊞표 · ▦보드 · 묶기 고정 · 새로 만들기 한 곳 — 차례는 늘 마감 순, 어9·대전제-14) · 보드(종류마다 칸 · 카드 📅🏫☑🧾) · 숨긴 그룹(✓ 끝냄 · ♻️ 이미 있는 것 · 뺀 것) ·
  *  📦 자료 하나 안에서만 순서 · 🔥 못 따라갑니다 — 줄이기 · 저장줄. 카드 목록은 한 번 세고(cardsOf) 표·보드가 같은 목록을 그린다 — 보기를 바꿔도 조회 0(속도-1 예외). 세는 것은 lib/todo-plan 한 벌 */
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
@@ -12,12 +12,12 @@ const WD = ["일", "월", "화", "수", "목", "금", "토"];
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date;
-  const [view, setView] = useState("board"); const [school, setSchool] = useState("all"); const [sort, setSort] = useState("due"); const [show, setShow] = useState({}); const [sel, setSel] = useState(null); const [nw, setNw] = useState(null); const [printing, setPrinting] = useState(false); const [behindOpen, setBehindOpen] = useState(null);
+  const [view, setView] = useState("board"); const [school, setSchool] = useState("all"); const [show, setShow] = useState({}); const [sel, setSel] = useState(null); const [nw, setNw] = useState(null); const [printing, setPrinting] = useState(false); const [behindOpen, setBehindOpen] = useState(null);
   const [ut, setUt] = useState({ studentId: "", topicId: "", qCount: "25" }); const [note, setNote] = useState({ title: "", dueOn: today, dueTime: "", studentId: "" }); const [rp, setRp] = useState({ name: "", every: "month", day: "25", weekday: "1", lead: String(b.rules?.["todo.repeat_lead"] ?? 3), days: "7", left: "5" });
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const all = useMemo(() => cardsOf(b), [b]);                       // 한 번 센다 — 보기·거르개·차례는 이 목록을 다르게 그릴 뿐(재조회 0)
   const [only, setOnly] = useState(d.only ?? []);   // 04 「단계 ↗」 — 그 자료만((가)-④) · 「전체 보기 ✕」로 푼다
-  const cards = useMemo(() => sortCards(filterSchool(filterMaterials(all, only), school), sort), [all, only, school, sort]);
+  const cards = useMemo(() => sortCards(filterSchool(filterMaterials(all, only), school), "due"), [all, only, school]);   // (어10) 늘 마감 순 — 「만든 순」으로 보실 날이 없어 단추를 뺐다(대전제-14)
   const cols = columnsOf(cards, today), hidden = hiddenOf(cards), c = counts(cards, today), behind = behindOf(cards, today, parseInt(b.rules?.["todo.behind_per_day"] ?? "1", 10) || 1), pa = printAllOf(cards);
   const selCard = (sel ? all.find((x) => x.id === sel) : only.length ? all.find((x) => only.includes(x.material?.id)) : null) ?? null;   // 자료만 걸러 열었으면 📦 흐름도 그 자료로
   const schools = b.schools ?? [];
@@ -65,7 +65,6 @@ export default function Board({ d }) {
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
       <div className="nb-tools">
         <span className="nb-tool nb-on" title="바꿀 수 없습니다 — 학교로 묶으면 인쇄가 흩어집니다(9/5 ⑩)">묶기: 할 일 종류 · 고정</span>
-        <button type="button" className="nb-tool" data-act="sort" aria-pressed={sort === "due"} onClick={() => setSort(sort === "due" ? "made" : "due")}>{sort === "due" ? "마감 순" : "만든 순"}</button>
         <button type="button" className="nb-new" data-act="new-open" onClick={() => setNw(nw ? null : "menu")}>새로 만들기 ⌄</button>
       </div>
     </div>
@@ -107,9 +106,9 @@ export default function Board({ d }) {
       </div>)}
       <div className="nb-hidden" data-g="hidden">
         <div className="nb-hh">숨긴 그룹</div>
-        <button type="button" className="nb-hg" data-act="show-done" aria-pressed={Boolean(show.done)} onClick={() => setShow({ ...show, done: !show.done })}>👁 <span className="nb-pill nb-green">✓ 끝냄</span><span className="nb-cnt" data-g="done-count">{hidden.done.length}</span></button>
-        <button type="button" className="nb-hg" data-act="show-reuse" aria-pressed={Boolean(show.reuse)} onClick={() => setShow({ ...show, reuse: !show.reuse })}>👁 <span className="nb-pill">♻️ 이미 있는 것</span><span className="nb-cnt" data-g="reuse-count">{hidden.reuse.length}</span></button>
-        <button type="button" className="nb-hg" data-act="show-dropped" aria-pressed={Boolean(show.dropped)} onClick={() => setShow({ ...show, dropped: !show.dropped })}>👁 <span className="nb-pill">뺀 것</span><span className="nb-cnt">{hidden.dropped.length}</span></button>
+        {hidden.done.length > 0 && <button type="button" className="nb-hg" data-act="show-done" aria-pressed={Boolean(show.done)} onClick={() => setShow({ ...show, done: !show.done })}>👁 <span className="nb-pill nb-green">✓ 끝냄</span><span className="nb-cnt" data-g="done-count">{hidden.done.length}</span></button>}
+        {hidden.reuse.length > 0 && <button type="button" className="nb-hg" data-act="show-reuse" aria-pressed={Boolean(show.reuse)} onClick={() => setShow({ ...show, reuse: !show.reuse })}>👁 <span className="nb-pill">♻️ 이미 있는 것</span><span className="nb-cnt" data-g="reuse-count">{hidden.reuse.length}</span></button>}
+        {hidden.dropped.length > 0 && <button type="button" className="nb-hg" data-act="show-dropped" aria-pressed={Boolean(show.dropped)} onClick={() => setShow({ ...show, dropped: !show.dropped })}>👁 <span className="nb-pill">뺀 것</span><span className="nb-cnt">{hidden.dropped.length}</span></button>}
         {hidden.reuse.length > 0 && <div className="nb-hh" style={{ paddingTop: 8 }}>이미 있는 것 {hidden.reuse.length} — {hidden.reuse.map((x) => x.title).join(" · ")}. 「만들기」가 <b>체크된 채로</b> 섰습니다(㊵)</div>}
         {show.done && hidden.done.map((x) => <Card key={x.id} c={x} />)}
         {show.reuse && hidden.reuse.map((x) => <Card key={x.id} c={x} />)}

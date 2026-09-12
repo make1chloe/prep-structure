@@ -43,5 +43,12 @@ ok("칸으로 이동 ◀ ▶((가)-③) — 지금 칸에서 한 칸씩 · 끝�
 ok("앱에서 고르기 → 단원 한 번에((가)-⑤) — 교재마다 묶고(단원 없는 교재는 빠짐 · 교재 차례 그대로) · 고른 단원에서 교재가 나온다 · 없는 단원은 null", (() => { const bks = [{ id: "b1", name: "문법책" }, { id: "b2", name: "독해책" }, { id: "b3", name: "빈 책" }], us = [{ id: "u2", book_id: "b2", chapter: "U1", short: "1-1" }, { id: "u1", book_id: "b1", chapter: "CH1", short: "1-1" }]; const g = unitGroups(bks, us); return g.length === 2 && g[0].book.id === "b1" && g[0].units[0].id === "u1" && g[1].book.id === "b2" && J(unitPick(us, "u2")) === J({ id: "u2", book_id: "b2" }) && unitPick(us, "zz") === null && unitGroups([], us).length === 0; })());
 ok("한 학교만 크게 ▣((가)-⑦) — 그 줄만 남긴다 · 없는 줄이면 전부 · 안 누르면 전부", (() => { const rs = [{ id: "r1" }, { id: "r2" }, { id: "r3" }]; return focusRows(rs, "r2").length === 1 && focusRows(rs, "r2")[0].id === "r2" && focusRows(rs, "zz").length === 3 && focusRows(rs, null).length === 3 && focusRows([], "r1").length === 0; })());
 ok("(너) 아이·학부모 「우리 학교」 줄 — 공개한 학교 줄 표 · 살아 있는 칸의 값만 · 학년 칸은 줄 이름으로 · 값 없는 줄·표는 뺀다 · null 이면 빈 목록", (() => { const b = { books: [{ id: "b1", name: "문법책" }], exams: [], units: [], grids: [{ id: "g1", label: "학교별 교재", cols: [{ id: "c1", label: "학년", type: "select", sort: 10 }, { id: "c2", label: "교재", type: "pick", options: { of: "book" }, sort: 20 }, { id: "c3", label: "배부", type: "yn", sort: 30 }], rows_: [{ id: "r1", school: "zz_중", cells: { c1: "중2", c2: { of: "book", id: "b1" }, c3: true } }, { id: "r2", school: "zz_중", cells: {} }] }, { id: "g2", label: "빈", cols: [], rows_: [] }] }; const l = mineLines(b); return l.length === 1 && l[0].rows.length === 1 && l[0].rows[0].title === "zz_중 · 중2" && l[0].rows[0].cells.map((c) => `${c.label} ${c.text}`).join(" · ") === "교재 문법책 · 배부 예" && mineLines(null).length === 0; })());
+// (어10 · 대전제-14 · 검사-85) 「보기 둘이 무엇인가」는 **노션을 설명하는 글**이라 늘 보이지 않는다 — ⓘ 안으로
+{
+  const strip = (x) => x.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");   // 폰-5: 주석을 먼저 지운다
+  const { readFileSync } = await import("node:fs");
+  const 판 = strip(readFileSync("app/schedule/grid/board.js", "utf8"));
+  ok("06c 「표 하나에 보기가 둘입니다」 뒤의 설명(약 200자)은 ⓘ 안에 있다 — 제목 줄만 늘 보인다", 판.includes("<Tip label=\"보기 둘이 무엇인가\">") && 판.includes('from "@/app/_shell/tip"') && !/<small>줄과 칸은 하나입니다/.test(판));
+}
 console.log(`\ncheck-grid ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

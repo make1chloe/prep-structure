@@ -3,6 +3,7 @@
  *  값의 뜻·셈은 lib/grid-plan 한 벌. 셀은 손을 떼면 저장(저장 단추 없음) */
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
+import Tip from "@/app/_shell/tip";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridShareAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct, unitsAllAct } from "./actions.js";
@@ -70,7 +71,8 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기가 둘입니다 — 표 · 보드</b><small>줄과 칸은 하나입니다. <b>보드는 표의 「선택」 칸 하나로 묶어 보는 것</b>이라, 카드를 옮기면 표의 그 칸 값이 바뀝니다 — 같은 값입니다. 05 내 할 일은 「내 할 일」 표의 보드 보기, 04 내신 자료는 「내신 자료」 표의 표 보기입니다</small></div></div>
+    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기가 둘입니다 — 표 · 보드</b></div>
+      <Tip label="보기 둘이 무엇인가">줄과 칸은 하나입니다. <b>보드는 표의 「선택」 칸 하나로 묶어 보는 것</b>이라, 카드를 옮기면 표의 그 칸 값이 바뀝니다 — 같은 값입니다. 05 내 할 일은 「내 할 일」 표의 보드 보기, 04 내신 자료는 「내신 자료」 표의 표 보기입니다.</Tip></div>
     {newOpen && <div className="card" data-g="new-grid" style={{ marginTop: 0 }}><div className="ctitle"><span className="cemo">＋</span>새 표 — 본 여섯 중 하나(이름은 바꿔도 됩니다)</div>
       <div className="wv"><select value={tpl} aria-label="본" data-g="tpl" onChange={(x) => setTpl(x.target.value)} style={{ width: "auto" }}>{TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.label} — 줄 {t.rows === "school" ? "학교" : t.rows === "student" ? "학생" : "자유"} · 칸 {t.cols.length}</option>)}</select>
         <input type="text" value={tplLabel} placeholder="표 이름(비면 본 이름)" aria-label="표 이름" onChange={(x) => setTplLabel(x.target.value)} style={{ flex: "1 1 200px" }} />

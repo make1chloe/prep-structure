@@ -103,5 +103,13 @@ ok("다 제출·다 채점하면 둘 다 ✓ 끝냄(숨긴 그룹) · 체크 글
   const 판 = strip(readFileSync("app/schedule/exams/prep/board.js", "utf8"));
   ok("04 화면이 그 줄을 그린다 — lib/todo-plan nextStep 한 벌(원칙-1)", 판.includes("nextStep(m, todos, today)") && 판.includes('data-g="next-step"'));
 }
+// (어10 · 대전제-14) 본보기를 베낀 조각 가운데 **원장님이 다르게 놓으실 날이 없는 것**은 단추가 아니라 기본값이다
+{
+  const 판 = strip(readFileSync("app/schedule/todo/board.js", "utf8"));
+  ok("05 에 정렬 토글이 없다 — 할 일은 **늘 마감 순**(「만든 순」으로 보실 날이 없다)", !/data-act="sort"/.test(판) && /sortCards\([^;]*?"due"\)/.test(판));
+  ok("05 숨긴 그룹 단추(✓ 끝냄 · ♻️ · 뺀 것)는 **0이면 안 낸다** — 빈 단추는 말이 아니라 잡음(대전제-0)",
+    ["done", "reuse", "dropped"].every((k) => 판.includes(`hidden.${k}.length > 0 && <button`)),
+    ["done", "reuse", "dropped"].filter((k) => !판.includes(`hidden.${k}.length > 0 && <button`)).join());
+}
 console.log(`\ncheck-todo ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
