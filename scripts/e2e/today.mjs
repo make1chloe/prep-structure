@@ -1456,6 +1456,18 @@ console.log("■ 아이 화면 07 · 영상 19 — 숙제 줄의 📎(어제 pdf
   await mm.locator("button[data-act=order-save]").click(); await cp.waitForTimeout(1500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
   const after07 = await cardOrder();
   ok("⇅ 카드 순서(확정-⑮) — 공지를 ▼ 로 맨 아래에 두고 저장 → 다시 열어도 공지가 오늘 할 것 뒤(screen_pref · 사람마다) · 처음엔 공지가 앞이었다", before07.indexOf("notice") < before07.indexOf("todo") && after07.indexOf("notice") > after07.indexOf("todo") && after07.indexOf("notice") > after07.indexOf("books"), `${before07.join(">")} → ${after07.join(">")}`);
+  // (어15) 끌기 — 판의 둘째 줄 ⠿ 를 잡아 첫 줄 위로 끌어 놓는다(pointer · 폰 문맥) → 판이 그 자리에서 바뀌고, 저장하면 화면도 그 차례(원장님 2026-09-14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게 하면 될거같은데」)
+  { await mm.locator("button[data-act=order-open]").click(); await cp.waitForTimeout(300);
+    const rowIds = async () => mm.locator("[data-g=order-row]").evaluateAll((els) => els.map((e) => e.dataset.id));
+    const ids0 = await rowIds(); const second = ids0[1];
+    const grip = mm.locator(`[data-g=order-row][data-id=${second}] [data-g=order-grip]`); await grip.scrollIntoViewIfNeeded();
+    const gb = await grip.boundingBox(), fb = await mm.locator("[data-g=order-row]").first().boundingBox();
+    await cp.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await cp.mouse.down(); await cp.mouse.move(gb.x + gb.width / 2, fb.y + 2, { steps: 8 }); await cp.mouse.up(); await cp.waitForTimeout(200);
+    const ids1 = await rowIds();
+    ok(`(어15) 끌기 — 둘째 줄 「${second}」 의 ⠿ 를 잡아 첫 줄 위로 놓으면 판에서 첫 줄이 된다(pointer · 저장 전 · 폰 문맥) · 줄 수 그대로`, ids1[0] === second && ids1.length === ids0.length, `${ids0.join(">")} → ${ids1.join(">")}`);
+    await mm.locator("button[data-act=order-save]").click(); await cp.waitForTimeout(1500); await cp.reload(); await cp.waitForLoadState("networkidle").catch(() => {});
+    const after15 = await cardOrder();
+    ok("저장 → 다시 열어도 그 카드가 첫 줄이던 카드보다 앞 · 공지는 여전히 뒤(끌기도 ▲▼ 와 같은 줄 screen_pref — 부분만 보내 접은 것은 안 건드린다)", after15.indexOf(second) < after15.indexOf(ids0[0]) && after15.indexOf("notice") > after15.indexOf("todo"), after15.join(">")); }
   // (어2) ▾ 접기 — 누른 그 자리에서 접히고(조회 0 · 속도-1), 다시 열어도 접힌 채다. 접혀도 머리·알약(개수)은 보인다(확정-⑮)
   { const due = mm.locator("[data-card=due]"); const atF = mark();
     await due.locator("button[data-act=fold]").click(); await cp.waitForTimeout(400);
@@ -1655,6 +1667,35 @@ console.log("■ (어13) 숙제가 없으면 「+ 숙제 주기」 — 모달로
   await gm.locator("button[data-act=give-save]").click(); await p.waitForFunction(() => !document.querySelector("[data-g=give-modal]"), null, { timeout: 15000 }); await p.waitForTimeout(1500);
   ok("주면 「그 밖에 · 집」에 두 줄 · 머리 알약 「학원 0 · 숙제 2」 · 단추는 사라진다(숙제가 생겼으니)", (await rg.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 2 && (await rg.locator(".pill.hw").textContent()) === "학원 0 · 숙제 2" && (await rg.locator("button[data-act=give]").count()) === 0, await rg.locator(".pill.hw").textContent());
   await p.setViewportSize(VIEWS[0].viewport); }
+console.log("■ (어15) 카드 차례를 끌어서 — 01 판 · 14 학생(원장님 2026-09-14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게 하면 될거같은데」) · 기본은 생각의 흐름 · 바꾸면 그 사람 것(screen_pref · 사람마다)");
+const dragTop = async (pg, grip, first) => { await grip.scrollIntoViewIfNeeded(); const gb = await grip.boundingBox(), fb = await first.boundingBox(); await pg.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await pg.mouse.down(); await pg.mouse.move(gb.x + gb.width / 2, fb.y + 2, { steps: 10 }); await pg.mouse.up(); await pg.waitForTimeout(200); };
+{ const rg = p.locator(".row[data-open='1']").first(); const sid = await rg.getAttribute("data-student");
+  const panelIds = async (loc) => loc.locator(".panel > [data-card]").evaluateAll((els) => els.map((e) => e.dataset.card));
+  const rowIds = async () => rg.locator("[data-g=order-row]").evaluateAll((els) => els.map((e) => e.dataset.id));
+  const ids0 = await panelIds(rg);
+  ok("01 판 카드 다섯 — 기본 차례 check → work → areamemo → late → comment · 번호 1 · 2 · 3 은 앞 둘에", ids0.join(">") === "check>work>areamemo>late>comment" && (await rg.locator(".panel .stepno").allTextContents()).join("") === "123", ids0.join(">"));
+  await rg.locator("button[data-act=order-open]").click(); await p.waitForTimeout(300);
+  await dragTop(p, rg.locator("[data-g=order-row][data-id=late] [data-g=order-grip]"), rg.locator("[data-g=order-row]").first());
+  ok("⇅ 판에서 「늦귀가」 ⠿ 를 맨 위로 끌면 첫 줄(PC · 마우스 · 저장 전)", (await rowIds()).join(">") === "late>check>work>areamemo>comment", (await rowIds()).join(">"));
+  await rg.locator("button[data-act=order-save]").click();
+  await p.waitForFunction((id) => { const els = document.querySelectorAll(`.row[data-student='${id}'] .panel > [data-card]`); return els.length > 0 && els[0].dataset.card === "late"; }, sid, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(500);
+  const ids1 = await panelIds(rg);
+  ok("저장 → 판이 그 차례로 선다 — 늦귀가가 맨 앞 · 번호는 선 자리 순(검사 1 · 학습 2 · 숙제 3 — 늦귀가엔 번호가 없다) · 저장줄은 여전히 판 끝", ids1.join(">") === "late>check>work>areamemo>comment" && (await rg.locator(".panel .stepno").allTextContents()).join("") === "123" && (await rg.locator(".panel > .savebar.rowbar").count()) === 1, ids1.join(">"));
+  await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  const rg2 = p.locator(`.row[data-student='${sid}']`); if (!(await rg2.locator(".panel").count())) { await rg2.locator("button.open").click(); await p.waitForSelector(`.row[data-student='${sid}'] .panel`, { timeout: 15000 }); }
+  ok("다시 열어도 그 차례(screen_pref today — 원장 제 것 · 아이마다가 아니라 사람마다)", (await panelIds(rg2)).join(">") === "late>check>work>areamemo>comment", (await panelIds(rg2)).join(">")); }
+{ await p.goto(`${APP}/ops/students?s=${S1}`); await p.waitForLoadState("networkidle").catch(() => {});
+  const su = p.locator("main");
+  const colIds = async () => su.locator(".stw .stcol").evaluateAll((cols) => cols.map((c) => [...c.querySelectorAll(":scope > .card[data-g]")].map((e) => e.dataset.g).join(">")));
+  const c0 = await colIds();
+  ok("14 학생 — 카드 열 둘 · 기본 차례(교재 → 🃏 → 진도 체크 → 성적 → 출결 | 영상 → 자료 → 단원평가 → 지나온 것 → 상담) · 앞 절반이 왼쪽", c0[0] === "books>cc-link>progress-edit>scores>attend" && c0[1] === "videos>files>unit-tests>history>consults", c0.join(" | "));
+  await su.locator("button[data-act=order-open]").click(); await p.waitForTimeout(300);
+  await dragTop(p, su.locator("[data-g=order-row][data-id=consults] [data-g=order-grip]"), su.locator("[data-g=order-row]").first());
+  ok("⇅ 판에서 「상담」 ⠿ 를 맨 위로(마지막 줄을 첫 줄로)", (await su.locator("[data-g=order-row]").first().getAttribute("data-id")) === "consults" && (await su.locator("[data-g=order-row]").count()) === 10, String(await su.locator("[data-g=order-row]").count()));
+  await su.locator("button[data-act=order-save]").click(); await p.waitForFunction(() => document.querySelector(".stw .stcol .card[data-g]")?.dataset.g === "consults", null, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(500);
+  const c1 = await colIds();
+  ok("저장 → 상담이 왼쪽 열 맨 위 · 나머지는 그 차례대로 절반씩(screen_pref student)", c1[0] === "consults>books>cc-link>progress-edit>scores" && c1[1] === "attend>videos>files>unit-tests>history", c1.join(" | ")); }
+await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
 ok(`화면 안 JS 오류 0 — ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));

@@ -7,6 +7,7 @@ import { decide, OPS } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { studentBoard } from "@/lib/student";
 import { ccOf } from "@/lib/cc";
+import { prefOf } from "@/lib/pref";
 import Board from "./board.js";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
@@ -17,8 +18,8 @@ export default async function Students({ searchParams }) {
   let d;
   try { const date = await today(sb); const sel = /^[0-9a-f-]{36}$/.test(String(sp?.s ?? "")) ? String(sp.s) : null;
     const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : null;   /* (뎌) 달 넘기기 — 안 주면 오늘의 달 */
-    const [board, cc] = await Promise.all([studentBoard(sb, sel, date, ym ? `${ym}-01` : null), ccOf(sb, sel)]);   /* (녀) 🃏 아이디는 같은 파도에 태운다 — 층이 안 는다(속도 대원칙 1) */
-    d = { date, sel, ym, board, cc, consult: decide(me.role, board.access ?? [], OPS.consult) === true, principal: me.role === "principal" }; }
+    const [board, cc, pref] = await Promise.all([studentBoard(sb, sel, date, ym ? `${ym}-01` : null), ccOf(sb, sel), prefOf(sb, me.id, "student")]);   /* (녀) 🃏 아이디는 같은 파도에 태운다 — 층이 안 는다(속도 대원칙 1) */
+    d = { date, sel, ym, board, cc, pref, consult: decide(me.role, board.access ?? [], OPS.consult) === true, principal: me.role === "principal" }; }
   catch (e) { { console.error("[화면] 학생 못 엶:", e); return frame(<Oops what="학생" e={e} />); } }
   return frame(<Board d={d} />);
 }

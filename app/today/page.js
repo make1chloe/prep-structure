@@ -4,6 +4,7 @@ import { guard } from "@/lib/session";
 import { Oops } from "../_shell/oops.js";
 import { isStaff, ROLE_NAME } from "@/lib/roles";
 import { today, roster, todayCfg } from "@/lib/day";
+import { prefOf } from "@/lib/pref";
 import { weekdayName } from "@/lib/day-plan";
 import DayPick from "./daypick.js";
 import { warnBand } from "@/lib/warn";
@@ -19,10 +20,10 @@ export default async function Today({ searchParams }) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📋</span>오늘 수업은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role]} 화면은 곧 열립니다.` : "역할 줄이 없습니다."}</p></div>);
   const sp = await searchParams;   // (머2) ?d=YYYY-MM-DD — 다른 날 판을 연다(과거 고치기 · 미래 미리 적기)
-  let date, r, band, cfg, todayStr;
+  let date, r, band, cfg, todayStr, pref;
   try { todayStr = await today(sb);
     date = /^\d{4}-\d{2}-\d{2}$/.test(String(sp?.d ?? "")) ? String(sp.d) : todayStr;
-    [r, band, cfg] = await Promise.all([roster(sb, date, null, { open: date === todayStr }), warnBand(sb, todayStr), todayCfg(sb)]); }   // 반·아이 → 판(**오늘만** 없으면 세운다 — 다른 날은 단추로) ∥ 월초 정리 띠는 늘 오늘 것
+    [r, band, cfg, pref] = await Promise.all([roster(sb, date, null, { open: date === todayStr }), warnBand(sb, todayStr), todayCfg(sb), prefOf(sb, me.id, "today")]); }   // 반·아이 → 판(**오늘만** 없으면 세운다 — 다른 날은 단추로) ∥ 월초 정리 띠는 늘 오늘 것
   catch (e) {   // 화면이 스스로 말한다(대전제-0) — 운영 빌드는 오류 글을 감추고 「This page couldn't load」만 보인다(원장님 9/5 폰 캡처). 표·함수가 아직 없는 DB 면 여기서 그 이름이 보인다
     console.error(`[화면] 오늘 수업 못 엶:`, e); return frame(<Oops what="오늘 수업" e={e} />);
   }
@@ -48,7 +49,7 @@ export default async function Today({ searchParams }) {
       <section key={c.id ?? "makeup"} aria-label={c.nickname || c.start}>
         {r.classes.length > 1 && <div className="hh" style={{ margin: "8px 0" }}>{c.nickname || (c.kind === "special" ? "특강" : "정규")} · {c.start}</div>}
         {!c.students.length && <div className="card"><p className="note">이 반에 오늘 오는 아이가 없습니다.</p></div>}
-        {c.students.map((s) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} classEnd={c.end} date={date} minutes={minutesOf(c.start, c.end)} cfg={cfg} future={future} />)}
+        {c.students.map((s) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} classEnd={c.end} date={date} minutes={minutesOf(c.start, c.end)} cfg={cfg} future={future} pref={pref} />)}
       </section>
     ))}</Board>
   </>);

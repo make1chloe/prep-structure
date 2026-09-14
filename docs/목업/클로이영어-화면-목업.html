@@ -462,6 +462,8 @@ td.sch{font-weight:700;white-space:nowrap}
 .acc.open .accb{display:block}
 .mdl .mdlb{max-height:440px}
 .grip{cursor:grab;color:var(--faint);font-size:var(--fs-4);letter-spacing:-1px;flex-shrink:0;touch-action:none}
+/* ⇅ 카드 순서 판의 줄을 끌어 놓는다((어15) 원장님 9/14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게」) — 손잡이 ⠿(.grip) 는 pointer 한 벌(마우스·손가락 같은 손 · touch-action:none 이라 잡으면 화면이 안 딸려 간다) · 잡은 줄만 도드라진다 · ▲▼ 는 그대로 */
+.li[data-drag="1"]{background:var(--sunk);box-shadow:0 0 0 2px var(--navy);border-radius:8px;border-bottom-color:transparent}
 .task[draggable]{position:relative}
 .task.dragging{opacity:.45;border-style:dashed}
 .mine.sortable>.task{transition:transform .12s}

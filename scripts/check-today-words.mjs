@@ -21,9 +21,10 @@ function labels(src) { const out = []; let i = 0; while ((i = src.indexOf("<butt
 const btns = labels(row).filter((t) => 한글(t) >= 1);
 const avg = btns.reduce((a, b) => a + b.length, 0) / btns.length, long = btns.filter((t) => t.length > 14);
 ok(`단추 이름은 이름이다 — 글자로 적힌 ${btns.length}개 평균 ≤ 9자(지금 ${avg.toFixed(1)}) · 14자 넘는 것 0(${long.length})`, avg <= 9 && long.length === 0, long.join(" | "));
-console.log("■ 차례는 고정 — 생각의 흐름(① 숙제 봤나 → ② 오늘 뭐 하나 → ③ 다음 숙제 → ④ 끝)");
+console.log("■ 차례 — 기본은 생각의 흐름(① 숙제 봤나 → ② 오늘 뭐 하나 → ③ 다음 숙제 → ④ 끝) · 바꾸면 그 사람 것((어15) 끌기)");
 const order = ["<CheckCard", "<WorkCard", "<AreaMemoCard", "<LateCard", "<CommentCard"].map((k) => row.indexOf(k));
 ok("판 안 카드 차례 check → work → areamemo → late → comment · 아이마다 다른 자리 없음(quizEnd 0 · data-pos 0 · quiz_pos 0)", order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])) && !/quizEnd|data-pos|quizPos|quiz_pos/.test(row), order.join(","));
+ok("(어15) 차례는 끌어서 바꾼다 — orderCards(…, pref) + 같은 조각 <CardOrder screen=\"today\"> · 번호는 선 자리 순(stepno {no} · {no + 1}) · 차례 읽기는 page.js 파도 안", /orderCards\(\[/.test(row) && /<CardOrder screen="today"/.test(row) && /className="stepno">\{no\}/.test(row) && /className="stepno">\{no \+ 1\}/.test(row) && /prefOf\(sb, me\.id, "today"\)/.test(page));
 const check = row.slice(row.indexOf("function CheckCard("), row.indexOf("function CheckItem("));
 ok("🔤 는 숙제 검사 카드 안 **맨 끝**(원장님 9/13 「차라리 무조건 단어를 숙제검사 마지막에 넣어」) · 📝 단원평가 · 🃏 클래스카드도 그 안(🃏 → 📝 → 🔤) · 제목 줄이 있는 것만 말한다", /<CcPart/.test(check) && /<UnitTestPart/.test(check) && /<QuizPart/.test(check) && check.lastIndexOf("<QuizPart") > check.lastIndexOf("<UnitTestPart") && check.lastIndexOf("<UnitTestPart") > check.lastIndexOf("<CcPart") && /has\.join/.test(check));
 ok("루틴 11 에 🔤 자리 세그 0(설정이 아니라 기본값 — 대전제-14 · quiz_pos 를 읽는 여섯 파일은 check-quiz 가 본다)", !/quiz-pos/.test(strip(readFileSync("app/settings/routine/board.js", "utf8"))));

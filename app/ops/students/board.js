@@ -3,9 +3,11 @@
  *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/잇기 · 학부모 계정 이름 · 비밀번호 0000 초기화 — 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
 import Link from "next/link";
 import Sure, { useSure } from "../../_shell/sure.js";
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
+import { useGo } from "../../_shell/going.js";
+import CardOrder from "../../_shell/cardorder.js";   /* (어15) 카드 차례 — 07·09·17·01 과 같은 조각(끌기 + ▲▼) */
+import { orderCards } from "@/lib/pref-plan";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import { addAct, setAct, stateAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct, ccLinkAct, editModeAct, confirmMarkAct, revertMarkAct, confirmAllAct, flagAct } from "./actions.js";
 import { kpis, bookLines, scoreRows, weakText, attendRow, attendSummary, unitChips, historyLines, listRows, siblingText, tenureText, gradeText2, classLine, suggestLoginId, canReset, STATE } from "@/lib/student-plan";
 import { SHOW, showText } from "@/lib/score-plan";
@@ -13,6 +15,14 @@ import { nextYm, monthLabel } from "@/lib/plan-plan";   /* (뎌) 달 넘기기 �
 import { staffFlagLine, EDIT_MODE, daysOpenText } from "@/lib/road-plan";   /* (허) 진도 체크 — 설정 진도 체크와 같은 판단 한 벌 */
 import { md, seoulDate } from "@/lib/dash-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
+/** 두 열 + ⇅((어15)) — 차례의 앞 절반은 왼쪽 열 · 뒤 절반은 오른쪽(폰은 한 열이라 그냥 차례 · 목업 .stw). 차례 저장은 같은 조각 CardOrder */
+function Cols({ screen, cards }) {
+  const half = Math.ceil(cards.length / 2);
+  return <>
+    <CardOrder screen={screen} cards={cards.map((c) => ({ id: c.id, name: c.name }))} />
+    <div className="stw">{[cards.slice(0, half), cards.slice(half)].map((col, i) => <div className="stcol" key={i}>{col.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}</div>)}</div>
+  </>;
+}
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition();
   // 비밀번호 초기화는 **되돌릴 수 없다**(쓰던 비밀번호가 사라진다) — 한 번 더 묻는다
@@ -88,69 +98,65 @@ export default function Board({ d }) {
             <button className="btn sm" type="button" disabled={pending} data-act={st.state === "left" ? "return" : "leave"} onClick={() => run(() => stateAct(st.id, st.state === "left" ? "active" : "left", leave), st.state === "left" ? "재원으로 돌렸습니다" : "퇴원 처리했습니다 — 줄은 남습니다")}>{st.state === "left" ? "복귀" : "퇴원"}</button></div>
         </div></div>}
       <div className="kpi" data-g="kpi">{K.map((k) => <div className={"k1" + (k.bad ? " bad" : "")} key={k.key} data-g="k1" data-key={k.key}><span className="ki">{k.emo}</span><b>{k.big}</b><small>{k.small}</small></div>)}</div>
-      <div className="stw">
-        <div className="stcol">
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="books"><div className="ctitle"><span className="cemo">📚</span>교재 진도</div>
-            {!books.length && <p className="note" style={{ margin: 0 }}>배정된 교재가 없습니다 — 루틴 11 에서 잇습니다</p>}
-            {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="cc-link"><div className="ctitle"><span className="cemo">🃏</span>클래스카드 아이디</div>
-            {d.cc ? <div className="lf" data-g="cc-row"><span className="ln">🃏</span><div><b>{d.cc.cc_login_id || d.cc.cc_user_idx}</b><small>아이디 {d.cc.cc_user_idx}{d.cc.updated_at ? ` · ${md(seoulDate(d.cc.updated_at))} 이음` : ""}</small></div>
-              <span className="lm">바꾸려면 아래에 새 아이디를 적고 잇기</span></div>
-              : <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-none">아직 안 이었습니다</p>}
-            <div className="wv"><input type="text" value={cf2.idx} placeholder="클래스카드 아이디(user_idx)" aria-label="클래스카드 아이디" onChange={(x) => setCf2({ ...cf2, idx: x.target.value })} style={{ flex: "1 1 160px" }} />
-              <input type="text" value={cf2.login} placeholder="로그인 아이디(적어 두면 알아보기 쉽습니다)" aria-label="클래스카드 로그인 아이디" onChange={(x) => setCf2({ ...cf2, login: x.target.value })} style={{ flex: "1 1 160px" }} />
-              <button className="btn pri sm" type="button" disabled={pending || !cf2.idx.trim()} data-act="cc-link" onClick={() => run(() => ccLinkAct(st.id, cf2.idx, cf2.login), "이었습니다", () => setCf2({ idx: "", login: "" }))}>잇기</button></div>
-          </div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="progress-edit"><div className="ctitle"><span className="cemo">✎</span>진도 체크 — 이 아이</div>
-            <div className="wv" style={{ marginBottom: 6 }}><span className="pill" data-g="pe-open">{pe.academy_open ? `학원 열림 · ${daysOpenText(pe.opened_on, today)}` : "학원 닫힘"}</span>
-              <div className="seg sm" data-g="pe-mode">{EDIT_MODE.map(([k, nm]) => <button key={k} type="button" aria-pressed={(pe.mode ?? "follow") === k} disabled={pending} onClick={() => run(() => editModeAct(st.id, k), `이 아이 진도 체크 — ${nm}`)}>{nm}</button>)}</div>
-              <span className={"tag" + (pe.can_edit ? " on" : "")} data-g="pe-can">{pe.can_edit ? "지금 아이가 찍을 수 있음" : "지금은 못 찍음"}</span><span className="spacer" />
-              <Link prefetch={false} className="btn sm" href="/settings/progress">✎ 진도 체크 열기 ↗</Link></div>
-            <div className="lf warn" data-g="pe-pending-band"><span className="ln">{pend.length}</span><div><b>아이가 찍은 것 — 확인 안 함</b><small>확인하면 굳고, 되돌리면 「아직」으로 — 아이 화면 08 에는 <b>노란 테두리</b>로 뜹니다</small></div>
-              <span className="lm">한 번에</span><button className="btn sm pri" type="button" disabled={pending || !pend.length} data-act="pe-confirm-all" onClick={() => run(() => confirmAllAct(st.id), (r) => `확인했습니다 — ${r.confirmed}줄`)}>확인</button></div>
-            {pend.map((p) => <div className="lf" key={`${p.unit_id}|${p.round}`} data-g="pe-row" data-status={p.status}><span className="ln">{p.status === "done" ? "○" : p.status === "doing" ? "◐" : "·"}</span>
-              <div><b>{p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {p.marked_on ? `${md(p.marked_on)} 찍음` : "찍은 날 없음"} · {p.status === "done" ? "끝냄" : p.status === "doing" ? "하는 중" : "아직"}</small></div>
-              <button className="btn sm pri" type="button" disabled={pending} data-act="pe-confirm" onClick={() => run(() => confirmMarkAct(st.id, p.unit_id, p.round), "확인했습니다")}>확인</button>
-              <button className="btn sm" type="button" disabled={pending} data-act="pe-revert" onClick={() => run(() => revertMarkAct(st.id, p.unit_id, p.round), "되돌렸습니다(아직)")}>되돌리기</button></div>)}
-            {peFlags.length > 0 && <div className="left" style={{ marginTop: 6 }} data-g="pe-flags">{peFlags.map((f2) => <div className="lf warn" key={f2.id} data-g="pe-flag"><span className="ln">❗</span>
-              <div><b>{f2.title}</b><small>{f2.small}</small></div>
-              {f2.action && <button className="btn sm pri" type="button" disabled={pending} data-act="pe-flag-do" onClick={() => run(() => flagAct(f2.id, f2.action.status), "고쳤습니다 — ❗ 는 본 것으로")}>{f2.action.label}</button>}
-              <button className="btn sm" type="button" disabled={pending} data-act="pe-flag-keep" onClick={() => run(() => flagAct(f2.id, null), "그대로 두기로 했습니다")}>그대로</button></div>)}</div>}
-          </div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="scores"><div className="ctitle"><span className="cemo">📈</span>성적</div>
-            <div className="tblwrap"><table><thead><tr><th>시험</th><th>원점수</th><th>등급</th><th>틀린 영역</th></tr></thead><tbody>
-              {scores.map((s) => <tr key={s.id} data-g="score-row"><td className="sch">{s.title}{s.pending ? <span className="tag act" style={{ marginLeft: 4 }}>확인 전</span> : null}</td><td className="num">{s.raw}{s.full !== 100 ? `/${s.full}` : ""}{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} style={{ marginLeft: 4 }} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</td><td className="num">{s.grade}</td><td>{s.sum.slice(0, 3).map((x, i) => <span key={x.kind} className="tag" style={i === 0 ? MISS : undefined}>{x.kind} {x.n}</span>)}{!s.sum.length && <span className="mute">—</span>}</td></tr>)}
-              {!scores.length && <tr><td colSpan={4} className="note">아직 없습니다</td></tr>}
-            </tbody></table></div>
-            {weak && <div className="weak" data-g="weak"><b>⚠️ {weak.text}</b><Link prefetch={false} className="tag act" href={`/settings/routine?s=${st.id}`} data-act="weak-book" title="루틴 11 — 이 아이의 교재 잇기">{weak.hint} ↗</Link></div>}</div>
-        </div>
-        <div className="stcol">
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="attend"><div className="ctitle"><span className="cemo">🕘</span>출결 — 날마다
-              <Link prefetch={false} className="btn sm" data-act="att-prev" href={`/ops/students?s=${st.id}&m=${nextYm(b.month, -1)}`} aria-label="지난 달">◂</Link>
-              <span className="tag" data-g="att-month">{monthLabel(b.month)}</span>
-              <Link prefetch={false} className="btn sm" data-act="att-next" href={`/ops/students?s=${st.id}&m=${nextYm(b.month, 1)}`} aria-label="다음 달">▸</Link>
-              {d.ym && <Link prefetch={false} className="btn sm" data-act="att-today" href={`/ops/students?s=${st.id}`}>이번 달</Link>}
-              <span className={"tag" + (attSum.bad ? "" : " on")} data-g="att-sum" style={attSum.bad ? MISS : undefined}>{attSum.text}</span></div>
-            <div className="attrow">{att.map((a) => <i key={a.date} className={"cm " + a.cls} title={a.title} data-g="att" data-attend={a.attend}>{a.icon}</i>)}{!att.length && <span className="note" style={{ margin: 0 }}>이 달 수업 기록이 없습니다</span>}</div>
-            {att.some((a) => a.arrived || a.left) && <p className="note k" style={{ margin: "6px 0 0" }} data-g="att-times">{att.filter((a) => a.arrived || a.left).map((a) => `${md(a.date)} ${a.arrived ? `등원 ${a.arrived}` : ""}${a.left ? ` 하원 ${a.left}` : ""}`).join(" · ")}</p>}</div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="videos"><div className="ctitle"><span className="cemo">🎬</span>영상 <span className="tag">{(b.videos ?? []).length}</span></div>
-            {(b.videos ?? []).map((v) => <div className="dayrow" key={v.id} data-g="video-row" data-done={v.done_at ? "1" : "0"}><i className={"cm " + (v.done_at ? "i-ok" : "i-cls")}>{v.done_at ? "✓" : "▶"}</i><div><b>{v.title}</b><small>{[v.folder ? `📁 ${v.folder}` : null, v.pct != null ? `${Math.round(Number(v.pct))}% 봄` : "아직 안 봄", v.due_on ? `${md(v.due_on)}까지` : null].filter(Boolean).join(" · ")}</small></div></div>)}
-            {!(b.videos ?? []).length && <p className="note" style={{ margin: 0 }}>배정한 영상이 없습니다 — 교재 › 🎬 영상에서</p>}</div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="files"><div className="ctitle"><span className="cemo">📎</span>자료 <span className="tag">{(b.files ?? []).length}</span></div>
-            {(b.files ?? []).map((x) => <div className="dayrow" key={x.id} data-g="file-row"><i className="cm i-hw">{x.by_role === "parent" || x.by_role === "student" ? "📥" : "📤"}</i><div><b>{x.orig_name}</b><small>{[md(seoulDate(x.uploaded_at)), x.by_role === "parent" ? "학부모가 보냄" : x.by_role === "student" ? "아이가 보냄" : "학원이 보냄", (x.links ?? []).some((l) => l.day_item_id) ? "숙제에 붙음" : null, (x.links ?? []).some((l) => l.consult_id) ? "상담에 붙음" : null].filter(Boolean).join(" · ")}</small></div><a className="btn sm" href={`/api/files/${x.id}`} target="_blank" rel="noreferrer">열기</a></div>)}
-            {!(b.files ?? []).length && <p className="note" style={{ margin: 0 }}>이 아이의 자료가 없습니다(자료함 20)</p>}</div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="unit-tests"><div className="ctitle"><span className="cemo">📝</span>단원평가</div>
-            <div className="utrow">{uts.map((u) => <span key={u.id} className={"ut " + (u.ok ? "ok" : "bad")}>{u.text}</span>)}{!uts.length && <span className="note" style={{ margin: 0 }}>채점한 단원평가가 없습니다</span>}</div></div>
-          <div className="card" style={{ margin: "0 0 8px" }} data-g="history"><div className="ctitle"><span className="cemo">🧾</span>지나온 것 — 다 남아 있습니다</div>
-            <div className="hist">{hist.map((h, i) => <div className="h1" key={i} data-g="h1"><span className="hd">{h.ym}</span><div><b>{h.title}</b><small>{h.small}</small></div>{h.tag && <span className="tag act">{h.tag}</span>}</div>)}{!hist.length && <p className="note" style={{ margin: 0 }}>아직 없습니다</p>}</div></div>
-          {d.consult && <div className="card" style={{ margin: "0 0 8px" }} data-g="consults"><div className="ctitle"><span className="cemo">💬</span>상담</div>
-            {(b.history?.consults ?? []).map((c) => <div className="dayrow" key={c.id} data-g="consult-row"><i className="cm i-hw">💬</i><div><b>{String(c.at).slice(0, 10).replace(/-/g, ".")}{c.way ? ` · ${c.way}` : ""}</b><small>{c.body}</small>{(c.files ?? []).length > 0 && <div className="tags" style={{ marginTop: 4 }} data-g="consult-files">{c.files.map((x) => <a key={x.id} className="tag on" href={`/api/files/${x.id}`} target="_blank" rel="noreferrer">📎 {x.orig_name}</a>)}</div>}
-              {(b.files ?? []).some((x) => !(c.files ?? []).some((y) => y.id === x.id)) && <select value="" aria-label={`${String(c.at).slice(0, 10)} 상담에 붙일 자료`} data-g="consult-attach" disabled={pending} style={{ width: "auto", marginTop: 4 }} onChange={(x) => x.target.value && run(() => consultAttachAct(x.target.value, c.id), "상담에 붙였습니다")}><option value="">📎 붙이기</option>{(b.files ?? []).filter((x) => !(c.files ?? []).some((y) => y.id === x.id)).map((x) => <option key={x.id} value={x.id}>{x.orig_name}</option>)}</select>}</div></div>)}
-            {!(b.history?.consults ?? []).length && <p className="note" style={{ margin: 0 }}>아직 없습니다</p>}
-            {consultOpen && <div className="wv" style={{ marginTop: 8 }} data-g="consult-form"><select value={cf.way} aria-label="상담 갈래" onChange={(x) => setCf({ ...cf, way: x.target.value })} style={{ width: "auto" }}>{["전화", "정기 상담", "방문", "문자"].map((w) => <option key={w} value={w}>{w}</option>)}</select><input type="text" value={cf.body} placeholder="내용" aria-label="상담 내용" onChange={(x) => setCf({ ...cf, body: x.target.value })} style={{ flex: "1 1 200px" }} /><button className="btn sm pri" type="button" disabled={pending || !cf.body.trim()} data-act="consult-save" onClick={() => run(() => consultAct(st.id, cf), "상담을 적었습니다", () => { setCf({ way: "전화", at: "", body: "" }); setConsultOpen(false); })}>저장</button></div>}
-            <button className="btn sm" type="button" style={{ width: "100%", marginTop: 8 }} data-act="consult-open" onClick={() => setConsultOpen(!consultOpen)}>+ 상담 적기</button></div>}
-        </div>
-      </div>
+      <Cols screen="student" cards={orderCards([   /* 카드 차례 — 기본은 목업 14 차례 · 바꾸면 그 사람 것((어15) screen_pref student · 확정-⑮) · 앞 절반은 왼쪽 열, 뒤 절반은 오른쪽 */
+          { id: "books", name: "교재 진도", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="books"><div className="ctitle"><span className="cemo">📚</span>교재 진도</div>
+              {!books.length && <p className="note" style={{ margin: 0 }}>배정된 교재가 없습니다 — 루틴 11 에서 잇습니다</p>}
+              {books.map((x) => <div className="bkline" key={x.id} data-g="bkline"><div className="bkn"><b>{x.name}</b><small>{x.sub}</small></div><div className="bar"><div className="fill" style={{ width: `${x.pct}%` }} /></div><span className="bkv">{x.done} / {x.total}</span><span className={"tag" + (x.state === "running" ? " on" : x.state === "hw_off" ? " act" : "")} style={x.state === "book_off" ? { color: "var(--mute)" } : undefined}>{x.stateName}</span></div>)}</div> },
+          { id: "cc-link", name: "클래스카드 아이디", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="cc-link"><div className="ctitle"><span className="cemo">🃏</span>클래스카드 아이디</div>
+              {d.cc ? <div className="lf" data-g="cc-row"><span className="ln">🃏</span><div><b>{d.cc.cc_login_id || d.cc.cc_user_idx}</b><small>아이디 {d.cc.cc_user_idx}{d.cc.updated_at ? ` · ${md(seoulDate(d.cc.updated_at))} 이음` : ""}</small></div>
+                <span className="lm">바꾸려면 아래에 새 아이디를 적고 잇기</span></div>
+                : <p className="note" style={{ margin: "0 0 6px" }} data-g="cc-none">아직 안 이었습니다</p>}
+              <div className="wv"><input type="text" value={cf2.idx} placeholder="클래스카드 아이디(user_idx)" aria-label="클래스카드 아이디" onChange={(x) => setCf2({ ...cf2, idx: x.target.value })} style={{ flex: "1 1 160px" }} />
+                <input type="text" value={cf2.login} placeholder="로그인 아이디(적어 두면 알아보기 쉽습니다)" aria-label="클래스카드 로그인 아이디" onChange={(x) => setCf2({ ...cf2, login: x.target.value })} style={{ flex: "1 1 160px" }} />
+                <button className="btn pri sm" type="button" disabled={pending || !cf2.idx.trim()} data-act="cc-link" onClick={() => run(() => ccLinkAct(st.id, cf2.idx, cf2.login), "이었습니다", () => setCf2({ idx: "", login: "" }))}>잇기</button></div>
+            </div> },
+          { id: "progress-edit", name: "진도 체크", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="progress-edit"><div className="ctitle"><span className="cemo">✎</span>진도 체크 — 이 아이</div>
+              <div className="wv" style={{ marginBottom: 6 }}><span className="pill" data-g="pe-open">{pe.academy_open ? `학원 열림 · ${daysOpenText(pe.opened_on, today)}` : "학원 닫힘"}</span>
+                <div className="seg sm" data-g="pe-mode">{EDIT_MODE.map(([k, nm]) => <button key={k} type="button" aria-pressed={(pe.mode ?? "follow") === k} disabled={pending} onClick={() => run(() => editModeAct(st.id, k), `이 아이 진도 체크 — ${nm}`)}>{nm}</button>)}</div>
+                <span className={"tag" + (pe.can_edit ? " on" : "")} data-g="pe-can">{pe.can_edit ? "지금 아이가 찍을 수 있음" : "지금은 못 찍음"}</span><span className="spacer" />
+                <Link prefetch={false} className="btn sm" href="/settings/progress">✎ 진도 체크 열기 ↗</Link></div>
+              <div className="lf warn" data-g="pe-pending-band"><span className="ln">{pend.length}</span><div><b>아이가 찍은 것 — 확인 안 함</b><small>확인하면 굳고, 되돌리면 「아직」으로 — 아이 화면 08 에는 <b>노란 테두리</b>로 뜹니다</small></div>
+                <span className="lm">한 번에</span><button className="btn sm pri" type="button" disabled={pending || !pend.length} data-act="pe-confirm-all" onClick={() => run(() => confirmAllAct(st.id), (r) => `확인했습니다 — ${r.confirmed}줄`)}>확인</button></div>
+              {pend.map((p) => <div className="lf" key={`${p.unit_id}|${p.round}`} data-g="pe-row" data-status={p.status}><span className="ln">{p.status === "done" ? "○" : p.status === "doing" ? "◐" : "·"}</span>
+                <div><b>{p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {p.marked_on ? `${md(p.marked_on)} 찍음` : "찍은 날 없음"} · {p.status === "done" ? "끝냄" : p.status === "doing" ? "하는 중" : "아직"}</small></div>
+                <button className="btn sm pri" type="button" disabled={pending} data-act="pe-confirm" onClick={() => run(() => confirmMarkAct(st.id, p.unit_id, p.round), "확인했습니다")}>확인</button>
+                <button className="btn sm" type="button" disabled={pending} data-act="pe-revert" onClick={() => run(() => revertMarkAct(st.id, p.unit_id, p.round), "되돌렸습니다(아직)")}>되돌리기</button></div>)}
+              {peFlags.length > 0 && <div className="left" style={{ marginTop: 6 }} data-g="pe-flags">{peFlags.map((f2) => <div className="lf warn" key={f2.id} data-g="pe-flag"><span className="ln">❗</span>
+                <div><b>{f2.title}</b><small>{f2.small}</small></div>
+                {f2.action && <button className="btn sm pri" type="button" disabled={pending} data-act="pe-flag-do" onClick={() => run(() => flagAct(f2.id, f2.action.status), "고쳤습니다 — ❗ 는 본 것으로")}>{f2.action.label}</button>}
+                <button className="btn sm" type="button" disabled={pending} data-act="pe-flag-keep" onClick={() => run(() => flagAct(f2.id, null), "그대로 두기로 했습니다")}>그대로</button></div>)}</div>}
+            </div> },
+          { id: "scores", name: "성적", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="scores"><div className="ctitle"><span className="cemo">📈</span>성적</div>
+              <div className="tblwrap"><table><thead><tr><th>시험</th><th>원점수</th><th>등급</th><th>틀린 영역</th></tr></thead><tbody>
+                {scores.map((s) => <tr key={s.id} data-g="score-row"><td className="sch">{s.title}{s.pending ? <span className="tag act" style={{ marginLeft: 4 }}>확인 전</span> : null}</td><td className="num">{s.raw}{s.full !== 100 ? `/${s.full}` : ""}{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} style={{ marginLeft: 4 }} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</td><td className="num">{s.grade}</td><td>{s.sum.slice(0, 3).map((x, i) => <span key={x.kind} className="tag" style={i === 0 ? MISS : undefined}>{x.kind} {x.n}</span>)}{!s.sum.length && <span className="mute">—</span>}</td></tr>)}
+                {!scores.length && <tr><td colSpan={4} className="note">아직 없습니다</td></tr>}
+              </tbody></table></div>
+              {weak && <div className="weak" data-g="weak"><b>⚠️ {weak.text}</b><Link prefetch={false} className="tag act" href={`/settings/routine?s=${st.id}`} data-act="weak-book" title="루틴 11 — 이 아이의 교재 잇기">{weak.hint} ↗</Link></div>}</div> },
+          { id: "attend", name: "출결", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="attend"><div className="ctitle"><span className="cemo">🕘</span>출결 — 날마다
+                <Link prefetch={false} className="btn sm" data-act="att-prev" href={`/ops/students?s=${st.id}&m=${nextYm(b.month, -1)}`} aria-label="지난 달">◂</Link>
+                <span className="tag" data-g="att-month">{monthLabel(b.month)}</span>
+                <Link prefetch={false} className="btn sm" data-act="att-next" href={`/ops/students?s=${st.id}&m=${nextYm(b.month, 1)}`} aria-label="다음 달">▸</Link>
+                {d.ym && <Link prefetch={false} className="btn sm" data-act="att-today" href={`/ops/students?s=${st.id}`}>이번 달</Link>}
+                <span className={"tag" + (attSum.bad ? "" : " on")} data-g="att-sum" style={attSum.bad ? MISS : undefined}>{attSum.text}</span></div>
+              <div className="attrow">{att.map((a) => <i key={a.date} className={"cm " + a.cls} title={a.title} data-g="att" data-attend={a.attend}>{a.icon}</i>)}{!att.length && <span className="note" style={{ margin: 0 }}>이 달 수업 기록이 없습니다</span>}</div>
+              {att.some((a) => a.arrived || a.left) && <p className="note k" style={{ margin: "6px 0 0" }} data-g="att-times">{att.filter((a) => a.arrived || a.left).map((a) => `${md(a.date)} ${a.arrived ? `등원 ${a.arrived}` : ""}${a.left ? ` 하원 ${a.left}` : ""}`).join(" · ")}</p>}</div> },
+          { id: "videos", name: "영상", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="videos"><div className="ctitle"><span className="cemo">🎬</span>영상 <span className="tag">{(b.videos ?? []).length}</span></div>
+              {(b.videos ?? []).map((v) => <div className="dayrow" key={v.id} data-g="video-row" data-done={v.done_at ? "1" : "0"}><i className={"cm " + (v.done_at ? "i-ok" : "i-cls")}>{v.done_at ? "✓" : "▶"}</i><div><b>{v.title}</b><small>{[v.folder ? `📁 ${v.folder}` : null, v.pct != null ? `${Math.round(Number(v.pct))}% 봄` : "아직 안 봄", v.due_on ? `${md(v.due_on)}까지` : null].filter(Boolean).join(" · ")}</small></div></div>)}
+              {!(b.videos ?? []).length && <p className="note" style={{ margin: 0 }}>배정한 영상이 없습니다 — 교재 › 🎬 영상에서</p>}</div> },
+          { id: "files", name: "자료", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="files"><div className="ctitle"><span className="cemo">📎</span>자료 <span className="tag">{(b.files ?? []).length}</span></div>
+              {(b.files ?? []).map((x) => <div className="dayrow" key={x.id} data-g="file-row"><i className="cm i-hw">{x.by_role === "parent" || x.by_role === "student" ? "📥" : "📤"}</i><div><b>{x.orig_name}</b><small>{[md(seoulDate(x.uploaded_at)), x.by_role === "parent" ? "학부모가 보냄" : x.by_role === "student" ? "아이가 보냄" : "학원이 보냄", (x.links ?? []).some((l) => l.day_item_id) ? "숙제에 붙음" : null, (x.links ?? []).some((l) => l.consult_id) ? "상담에 붙음" : null].filter(Boolean).join(" · ")}</small></div><a className="btn sm" href={`/api/files/${x.id}`} target="_blank" rel="noreferrer">열기</a></div>)}
+              {!(b.files ?? []).length && <p className="note" style={{ margin: 0 }}>이 아이의 자료가 없습니다(자료함 20)</p>}</div> },
+          { id: "unit-tests", name: "단원평가", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="unit-tests"><div className="ctitle"><span className="cemo">📝</span>단원평가</div>
+              <div className="utrow">{uts.map((u) => <span key={u.id} className={"ut " + (u.ok ? "ok" : "bad")}>{u.text}</span>)}{!uts.length && <span className="note" style={{ margin: 0 }}>채점한 단원평가가 없습니다</span>}</div></div> },
+          { id: "history", name: "지나온 것", node: <div className="card" style={{ margin: "0 0 8px" }} data-g="history"><div className="ctitle"><span className="cemo">🧾</span>지나온 것 — 다 남아 있습니다</div>
+              <div className="hist">{hist.map((h, i) => <div className="h1" key={i} data-g="h1"><span className="hd">{h.ym}</span><div><b>{h.title}</b><small>{h.small}</small></div>{h.tag && <span className="tag act">{h.tag}</span>}</div>)}{!hist.length && <p className="note" style={{ margin: 0 }}>아직 없습니다</p>}</div></div> },
+          { id: "consults", name: "상담", node: d.consult && <div className="card" style={{ margin: "0 0 8px" }} data-g="consults"><div className="ctitle"><span className="cemo">💬</span>상담</div>
+              {(b.history?.consults ?? []).map((c) => <div className="dayrow" key={c.id} data-g="consult-row"><i className="cm i-hw">💬</i><div><b>{String(c.at).slice(0, 10).replace(/-/g, ".")}{c.way ? ` · ${c.way}` : ""}</b><small>{c.body}</small>{(c.files ?? []).length > 0 && <div className="tags" style={{ marginTop: 4 }} data-g="consult-files">{c.files.map((x) => <a key={x.id} className="tag on" href={`/api/files/${x.id}`} target="_blank" rel="noreferrer">📎 {x.orig_name}</a>)}</div>}
+                {(b.files ?? []).some((x) => !(c.files ?? []).some((y) => y.id === x.id)) && <select value="" aria-label={`${String(c.at).slice(0, 10)} 상담에 붙일 자료`} data-g="consult-attach" disabled={pending} style={{ width: "auto", marginTop: 4 }} onChange={(x) => x.target.value && run(() => consultAttachAct(x.target.value, c.id), "상담에 붙였습니다")}><option value="">📎 붙이기</option>{(b.files ?? []).filter((x) => !(c.files ?? []).some((y) => y.id === x.id)).map((x) => <option key={x.id} value={x.id}>{x.orig_name}</option>)}</select>}</div></div>)}
+              {!(b.history?.consults ?? []).length && <p className="note" style={{ margin: 0 }}>아직 없습니다</p>}
+              {consultOpen && <div className="wv" style={{ marginTop: 8 }} data-g="consult-form"><select value={cf.way} aria-label="상담 갈래" onChange={(x) => setCf({ ...cf, way: x.target.value })} style={{ width: "auto" }}>{["전화", "정기 상담", "방문", "문자"].map((w) => <option key={w} value={w}>{w}</option>)}</select><input type="text" value={cf.body} placeholder="내용" aria-label="상담 내용" onChange={(x) => setCf({ ...cf, body: x.target.value })} style={{ flex: "1 1 200px" }} /><button className="btn sm pri" type="button" disabled={pending || !cf.body.trim()} data-act="consult-save" onClick={() => run(() => consultAct(st.id, cf), "상담을 적었습니다", () => { setCf({ way: "전화", at: "", body: "" }); setConsultOpen(false); })}>저장</button></div>}
+              <button className="btn sm" type="button" style={{ width: "100%", marginTop: 8 }} data-act="consult-open" onClick={() => setConsultOpen(!consultOpen)}>+ 상담 적기</button></div> },
+        ].filter((c) => c.node), d.pref)} />
       <div className="savebar" data-g="bar"><Link prefetch={false} className="btn" href="/send">📨 월간 리포트 미리 보기</Link><Link prefetch={false} className="btn" href="/today">📅 오늘 화면으로</Link><span className="spacer" /><span className="pill" data-g="show-pill">성적 공개 — {showText(st.score_show ?? "both")}</span></div>
     </div>}
   </>;
