@@ -83,7 +83,7 @@ export default async function Me({ searchParams }) {
       <p className="note" style={{ margin: "4px 0 0" }}>앱 안에서 봐요 · 지나간 구간만 세요 · 열기 ↗</p></Link> },
     { id: 'school', name: '우리 학교', node: can(ME.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
         {d.school.map((g) => <div key={g.id} data-g="school-grid"><div className="hh" style={{ marginTop: 8 }}>{g.label}</div>{g.rows.map((r) => <div className="li" key={r.id} data-g="school-row"><div><b>{r.title}</b><small>{r.cells.map((c) => `${c.label} ${c.text}`).join(" · ")}</small></div></div>)}</div>)}
-        <p className="note k" style={{ margin: "4px 0 0" }}>원장님이 공개한 표의 우리 학교 줄만 보여요.</p></Card>) },
+        <p className="note k" style={{ margin: "4px 0 0" }}>공개된 표의 우리 학교 줄이에요</p></Card>) },
     { id: 'books', name: '내 교재', node: can(ME.books) && <Card emo="🗺" title="내 교재" id="books" {...fold("books")} pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
       {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={K(`/me/book?b=${b.book_id}`)} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</Link>)}
@@ -93,7 +93,7 @@ export default async function Me({ searchParams }) {
   ].filter((c) => c.node), d.prefs?.me);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref me · 4단계-6). 조건은 그대로, 차례만 저장한 대로
   const body = (<>
     <div className="wv" style={{ margin: "0 0 4px" }}><b style={{ fontSize: "var(--fs-6)" }}>{d.student.name}</b>{first && <span className="pill">{classLabel(first)}</span>}<span className="spacer" /><span className="pill">{md(date)}</span></div>
-    {!shown.length && <div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 아이 화면 카드를 켜면 보입니다.</p></div>}
+    {!shown.length && <div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원에서 아직 안 열었어요</p></div>}
     {can(ME.arrival) && <ArrivalCard arrival={d.arrival} choice={d.choice} off={d.off} />}
     {cards.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
     {cards.length > 1 && <CardOrder screen="me" cards={cards.map((c) => ({ id: c.id, name: c.name }))} />}

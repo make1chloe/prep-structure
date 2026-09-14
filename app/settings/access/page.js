@@ -16,7 +16,7 @@ export default async function Access() {
     <main className="frame" style={{ maxWidth: 900, margin: "24px auto", padding: "0 16px" }}>
       <div className="card">
         <div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div>
-        <p className="note">켬·끔·안 정함 셋입니다. <b>안 정함은 막혀 있습니다.</b> 원장님은 늘 다 보시므로 여기 없습니다.</p>
+        <p className="note">안 정함 = 막힘 · 원장님은 늘 다 봅니다</p>
         {groups.map((g) => (
           <div key={g} className="tblwrap" style={{ marginTop: 12 }}>
             <table>

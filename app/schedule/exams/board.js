@@ -29,12 +29,12 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {!school.length && <p className="note" data-g="empty">학교 회차가 없습니다 — 📡 받아오기에서 나이스로 받거나 손으로 넣으세요.</p>}
+    {!school.length && <p className="note" data-g="empty">학교 회차 없음 — 📡 받아오기 · 손으로 넣기</p>}
     <div className="two" style={{ gap: 8 }} data-g="exams">{school.map((e) => <ExamCard key={e.id} e={e} {...ctx} />)}</div>
     <StopCard {...ctx} />
     <div className="exr" style={{ marginTop: 8 }} data-g="national">
       <div className="exh"><span className="ai">🌏</span><b>전국 — 학교를 안 붙입니다</b><span className="spacer" /><span className="pill">고등 아이 전부에게(학년이 적혔으면 그 학년)</span></div>
-      {!nat.length && <p className="note" style={{ margin: 0 }}>아직 없습니다 — 받아오기에서 전국 낱말로 판정됩니다.</p>}
+      {!nat.length && <p className="note" style={{ margin: 0 }}>아직 없음 — 📡 받아오기</p>}
       <div className="left">{nat.map((e, i) => <div key={e.id} className="lf" data-g="nat-row"><span className="ln">{i + 1}</span><div><b>{e.name}</b><small>{e.grade ? `고${e.grade}` : "고1·2·3"} · {e.takers.length}명</small><ChangedTag e={e} pending={pending} run={run} /></div><span className="lm">{mdDot(examOn(e))}</span></div>)}</div>
     </div>
     {showHidden && hidden.length > 0 && <div className="exr" style={{ marginTop: 8 }} data-g="hidden">
@@ -91,7 +91,7 @@ function ExamCard({ e, b, today, pending, run, stName }) {
       {(e.skips ?? []).map((k) => <span key={k.student_id} className="tag" style={MISS} data-g="skip-tag">{k.name} <button className="btn sm" type="button" disabled={pending} data-act="unskip" onClick={() => run(() => skipAct(e.id, k.student_id, false), `${k.name} — 다시 봅니다`)}>본다</button></span>)}
       <select value={skipPick} onChange={(x) => setSkipPick(x.target.value)} aria-label="안 볼 아이" data-g="skip-pick" style={{ width: "auto" }}><option value="">아이 고르기</option>{pickable.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
       <button className="btn sm" type="button" disabled={pending || !skipPick} data-act="skip" onClick={() => run(() => skipAct(e.id, skipPick, true), `${stName(skipPick)} — 안 봄(대비·재촉·멈춤에서 빠집니다)`, () => setSkipPick(""))}>안 봄</button>
-      {pickable.length > 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" title="보는 아이 가운데 아직 안 봄이 아닌 아이 전부 — 이 학년이 다 안 볼 때(한 명씩 되돌릴 수 있습니다)" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 한 명씩 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 {pickable.length}명 다 안 봄</button>}
+      {pickable.length > 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 한 명씩 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 {pickable.length}명 다 안 봄</button>}
       {pickable.length === 1 && <button className="btn sm" type="button" disabled={pending} data-act="skip-all" onClick={() => run(() => skipAllAct(e.id, pickable.map((s) => s.id)), (r) => `${r.n}명 — 안 봄(대비·재촉·멈춤에서 빠집니다 · 「본다」로 되돌립니다)`, () => setSkipPick(""))}>남은 1명 다 안 봄</button>}</div>
   </div>;
 }

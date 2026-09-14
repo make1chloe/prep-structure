@@ -11,5 +11,5 @@ export default function Fold({ screen, id, folded = false }) {
     e.currentTarget.closest("[data-card]")?.setAttribute("data-folded", next ? "1" : "0");
     start(async () => { await setPrefAct(screen, { fold: { id, on: next } }); });
   };
-  return <button type="button" className="btn sm gho fold" data-act="fold" data-card-id={id} aria-pressed={on} aria-label={on ? `${id} 펴기` : `${id} 접기`} title={on ? "펴기" : "접기"} onClick={flip}>{on ? "▸" : "▾"}</button>;
+  return <button type="button" className="btn sm gho fold" data-act="fold" data-card-id={id} aria-pressed={on} aria-label={on ? `${id} 펴기` : `${id} 접기`} onClick={flip}>{on ? "▸" : "▾"}</button>;
 }

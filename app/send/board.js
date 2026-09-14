@@ -101,7 +101,7 @@ export default function Board({ d }) {
     <div className="savebar sendbar" data-g="sendbar">
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>
       <span className="pill">선택 <b>{ids.length}</b>건</span>
-      <button className="btn pri" type="button" data-act="send-now" disabled={pending || !ids.length} onClick={() => run(() => sendSelected(ids), (x) => `보냈습니다 — ${ranText(x.r)}`)}>📨 선택한 것 지금 보내기</button>
+      <button className="btn pri" type="button" data-act="send-now" disabled={pending || !ids.length} onClick={() => run(() => sendSelected(ids), (x) => `보냈습니다 — ${ranText(x.r)}`)}>📨 지금 보내기</button>
       <button className="btn" type="button" data-act="schedule" disabled={pending || !ids.length} onClick={() => run(() => scheduleSelected(ids, when, customOf(when, cDate, cTime)), (x) => `예약했습니다 — ${x.n}건 · ${whenLabel(x.at, d.date)}`)}>⏰ 예약</button>
       <When rules={d.rules} date={d.date} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
       <span className="spacer" />

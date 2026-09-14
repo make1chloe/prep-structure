@@ -33,7 +33,7 @@ export default function Board({ d }) {
       <span className="spacer" />
       {e && <form action={(fd) => run(() => importAct(e.id, fd), (r) => `올렸습니다 — ${r.put}줄(바로 확인됨)${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
         <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="성적 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">⬆ 한꺼번에 올리기</button></form>}
-      {e && <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}`} data-act="scores-export" title="올리기와 같은 열 · 보는 아이 이름이 채워져 나옵니다">⬇ 성적 양식</a>}
+      {e && <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}`} data-act="scores-export">⬇ 성적 양식</a>}
       <Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
@@ -50,7 +50,7 @@ export default function Board({ d }) {
         <button className="btn sm pri" type="button" disabled={pending || !qtext.trim()} data-act="questions-save" onClick={() => run(() => questionsAct(e.id, qtext), (r) => `문항표 ${r.saved}문항`, () => setQ(""))}>저장</button>
         <form action={(fd) => run(() => questionsSheetAct(e.id, fd), (r) => `문항표 ${r.saved}문항(엑셀)${r.bad?.length ? ` · 고칠 줄 ${r.bad.length}: ${r.bad.slice(0, 3).map((x) => `${x.line}행 ${x.why}`).join(" / ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="questions-import">
           <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="문항표 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="questions-import">⬆ 올리기</button></form>
-        <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}&q=1`} data-act="questions-export" title="번호 · 영역 두 열 — 고쳐서 다시 올리면 됩니다">⬇ 문항표</a></div>
+        <a className="btn sm" href={`/api/scores/xlsx?e=${e.id}&q=1`} data-act="questions-export">⬇ 문항표</a></div>
       <div className="tblwrap"><table data-g="score-table"><thead><tr><th>학생</th><th>원점수</th><th>등급(세어 나옴)</th><th>틀린 문항</th><th>낸 때</th><th>공개</th><th></th></tr></thead><tbody>
         {rows.map((r) => { const raw = val(r, "raw", r.raw ?? ""), g = gradeByCuts(raw, cutsFor(e)), dirty = Boolean(edit[r.student_id]); return <tr key={r.student_id} className={r.state === "pending" ? "hi" : ""} data-g="score-row" data-student={r.student_id} data-state={r.state}>
           <td className="sch">{r.name}</td>
@@ -59,7 +59,7 @@ export default function Board({ d }) {
           <td>{r.state === "none" && !dirty ? <span className="note" style={{ margin: 0 }}>—</span> : <button className="lnk" type="button" data-act="wrong-open" aria-pressed={open === r.student_id} onClick={() => setOpen(open === r.student_id ? null : r.student_id)}>{parseWrong(val(r, "wrongs", r.wrongs.join(","))).join(",") || "번호 안 넣음"}</button>}</td>
           <td data-g="at">{r.at ? `${md(seoulDate(r.at))} ${seoulTime(r.at)}${r.byWho === "student" ? " · 아이가 넣음" : ""}` : <span className="note" style={{ margin: 0 }}>아직 안 냄</span>}</td>
           <td data-g="show">{r.state === "confirmed" ? <select value={r.score.show_to} aria-label={`${r.name} 공개`} onChange={(x) => run(() => showAct(r.score.id, x.target.value), `${r.name} — ${showText(x.target.value)}`)} style={{ width: "auto" }}>{SHOW.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select> : "—"}</td>
-          <td>{r.state === "confirmed" ? <span className="wv" style={{ gap: 4, marginBottom: 0 }}><span className="v y" data-g="state">확인됨</span><button className="btn sm gho" type="button" disabled={pending} data-act="unconfirm" title="확인을 풀고 고친다 — 공개는 원장만으로 돌아갑니다" onClick={() => run(() => unconfirmAct(r.score.id), `${r.name} — 확인을 풀었습니다 · 고친 뒤 다시 확인하세요`)}>풀기</button></span>
+          <td>{r.state === "confirmed" ? <span className="wv" style={{ gap: 4, marginBottom: 0 }}><span className="v y" data-g="state">확인됨</span><button className="btn sm gho" type="button" disabled={pending} data-act="unconfirm" onClick={() => run(() => unconfirmAct(r.score.id), `${r.name} — 확인을 풀었습니다 · 고친 뒤 다시 확인하세요`)}>풀기</button></span>
               : dirty ? <button className="btn pri sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>{r.state === "none" ? "대신 넣기" : "고쳐 저장"}</button>
               : r.state === "pending" ? <button className="btn pri sm" type="button" disabled={pending} data-act="confirm" onClick={() => run(() => confirmAct(r.score.id), (x) => `${r.name} — 확인했습니다 · 공개 ${showText(x.show)}`)}>확인</button>
               : <button className="btn sm" type="button" disabled={pending} data-act="save" onClick={() => save(r)}>대신 넣기</button>}</td>
@@ -69,7 +69,7 @@ export default function Board({ d }) {
       {openRow && (() => { const cur = parseWrong(val(openRow, "wrongs", openRow.wrongs.join(","))), sum = wrongSummary(cur, e.questions ?? []); const toggle = (q) => setV(openRow, "wrongs", (cur.includes(q) ? cur.filter((x) => x !== q) : [...cur, q]).sort((a, b) => a - b).join(","));
         return <div className="qw" data-g="wrong-panel"><div className="ctitle"><span className="cemo">❌</span>{openRow.name}{openRow.byWho === "student" ? "가 표시한" : "의"} 틀린 문항 <span className={"tag" + (openRow.byWho === "student" ? " act" : "")}>{openRow.byWho === "student" ? "아이가 넣은 것" : "원장님이 넣은 것"}</span></div>
           <div className="qgrid">{Array.from({ length: nQ }, (_, i) => i + 1).map((q) => <button key={q} type="button" className={"q" + (cur.includes(q) ? " x" : "")} data-q={q} disabled={openRow.state === "confirmed"} onClick={() => toggle(q)} style={{ cursor: "pointer" }}>{q}</button>)}</div>
-          <div className="wv" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0 }}>번호로</span><input type="text" value={val(openRow, "wrongs", openRow.wrongs.join(","))} onChange={(x) => setV(openRow, "wrongs", x.target.value)} aria-label="틀린 번호" disabled={openRow.state === "confirmed"} style={{ flex: "1 1 200px" }} /><span className="note k" style={{ margin: 0 }}>눌러도 되고 적어도 됩니다 — 같은 값입니다</span></div>
+          <div className="wv" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0 }}>번호로</span><input type="text" value={val(openRow, "wrongs", openRow.wrongs.join(","))} onChange={(x) => setV(openRow, "wrongs", x.target.value)} aria-label="틀린 번호" disabled={openRow.state === "confirmed"} style={{ flex: "1 1 200px" }} /></div>
           <div className="qsum" data-g="qsum">{sum.map((s) => <span key={s.kind} className="qs"><i className={"qd" + (s.n >= 2 ? " miss" : "")} />{s.kind} <b>{s.n}</b></span>)}{!sum.length && <span className="note" style={{ margin: 0 }}>틀린 번호가 없습니다</span>}</div>
           {openRow.state !== "confirmed" && <div className="wv" style={{ marginTop: 8 }}><button className="btn pri sm" type="button" disabled={pending} data-act="wrong-save" onClick={() => save(openRow)}>저장</button><button className="btn sm" type="button" onClick={() => setOpen(null)}>닫기</button></div>}
         </div>; })()}

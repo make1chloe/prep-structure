@@ -26,7 +26,7 @@ export default async function Road({ searchParams }) {
     d = { date, board: await roadBoard(sb, st.id, b, date), studentId: st.id, access: acc?.data ?? [] };
   } catch (e) { { console.error("[화면] 로드맵 못 엶:", e); return frame(<Oops what="로드맵" e={e} kind="task" />); } }
   // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 — 07 의 「내 교재」 카드와 **같은 열쇠**다(달력 09b 와 같은 꼴)
-  if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 「내 교재」를 켜면 보입니다.</p></div>);
+  if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원에서 아직 안 열었어요</p></div>);
   return frame(seeing
     ? <><AsBand name={d.student?.name ?? "아이"} kind="me" /><fieldset disabled style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-g="as-locked"><Board d={d} canFlag={false} /></fieldset></>
     : <Board d={d} canFlag={decide(ROLES.STUDENT, d.access, ME.flags) === true} />);

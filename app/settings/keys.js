@@ -28,7 +28,7 @@ export default function Keys({ rows = [] }) {
       <div className="lf"><span className="ln">{r.emo}</span>
         <div><b>{r.name}</b><small data-g="key-sum">{r.ready ? r.fields.map((f) => `${f.label} ${f.shown}`).join(" · ") : `아직: ${r.missing.join(" · ")}`}</small>
           {r.bad?.length > 0 && <small data-g="key-bad" role="alert" style={{ color: "var(--miss)" }}>{r.bad.join(" · ")}</small>}</div>
-        {r.updated_at && <span className="tag" data-g="key-saved" title="마지막으로 저장한 때">고침 {md(seoulDate(r.updated_at))} {seoulTime(r.updated_at)}</span>}
+        {r.updated_at && <span className="tag" data-g="key-saved">고침 {md(seoulDate(r.updated_at))} {seoulTime(r.updated_at)}</span>}
         <span className={"tag" + (r.bad?.length ? "" : r.ready ? " on" : "")} data-g="key-state" style={r.bad?.length ? { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" } : undefined}>{r.bad?.length ? "고쳐야 함" : r.ready ? "켜짐" : "안 켜짐"}</span>
         <button className="btn sm" type="button" data-act="key-edit" aria-pressed={open === r.id} onClick={() => edit(r)}>{open === r.id ? "닫기" : "고치기"}</button></div>
       {open === r.id && <div className="card" style={{ margin: "4px 0 8px" }} data-g="key-form">

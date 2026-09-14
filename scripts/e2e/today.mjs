@@ -829,7 +829,7 @@ await sctx.close();
 const pctx = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-parent.json" }); await offline(pctx); const ppg = await pctx.newPage();
 await ppg.goto(APP + "/parent"); await ppg.waitForLoadState("networkidle").catch(() => {});
 const paM = ppg.locator("main");
-ok("학부모 — 📈 성적 카드(parent.reports 켬 · 공개 학부모 ✓)에 「… 78 · C」(풀고 고친 뒤 다시 확인한 값) · 「독해 2 · 어법 1 · zz_시험_중학교」 · 원장님이 공개한 시험만", (await paM.locator("[data-card=scores]").count()) === 1 && (await paM.locator("[data-card=scores] [data-g=score-line]").textContent()).includes("78 · C") && (await paM.locator("[data-card=scores]").textContent()).includes("독해 2 · 어법 1") && (await paM.locator("[data-card=scores]").textContent()).includes("원장님이 공개한 시험만"), (await paM.textContent()).replace(/\s+/g, " ").slice(0, 300));
+ok("학부모 — 📈 성적 카드(parent.reports 켬 · 공개 학부모 ✓)에 「… 78 · C」(풀고 고친 뒤 다시 확인한 값) · 「독해 2 · 어법 1 · zz_시험_중학교」 · 「공개된 시험만 보입니다」((어14) 설명 걷기)", (await paM.locator("[data-card=scores]").count()) === 1 && (await paM.locator("[data-card=scores] [data-g=score-line]").textContent()).includes("78 · C") && (await paM.locator("[data-card=scores]").textContent()).includes("독해 2 · 어법 1") && (await paM.locator("[data-card=scores]").textContent()).includes("공개된 시험만"), (await paM.textContent()).replace(/\s+/g, " ").slice(0, 300));
 await pctx.close();
 // (가)-⑩ — 학교가 발표한 등급은 엑셀로만(남긴 것 16 · 5단계-⑤ 뺀 것 그대로): 「등급」 열 중학교 「c」 → 3 · 16 줄 「C (학교)」 · ⬇ 성적 양식의 등급 열이 「C」(숫자가 아니라 올리기가 읽는 꼴 · 학교 것만) · 「F」는 막는다
 const aoaS = [["학생명", "원점수", "만점", "등급", "틀린문항"], ["zz_시험_학생", 78, 100, "c", "2,5,12"]];

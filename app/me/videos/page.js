@@ -21,7 +21,7 @@ const rows = (r, what) => { if (r?.error) throw new Error(`${what}을 못 읽음
 export default async function MyVideos({ searchParams }) {
   const { sb, me, user } = await guard();
   if (!me) redirect("/");
-  if (isStaff(me.role)) return frame(<div className="task"><div className="h"><b>🎬 아이 화면입니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원 사람은 교재 › 영상에서 배정합니다.</p></div>);
+  if (isStaff(me.role)) return frame(<div className="task"><div className="h"><b>🎬 아이 화면입니다</b></div><p className="note" style={{ margin: "8px 0 0" }}>배정은 교재 › 영상에서</p></div>);
   const sp = await searchParams;
   const seeing = asView(me, sp);   // 👁 (lib/asview)
   if (!seeing && me.role !== ROLES.STUDENT) redirect("/");
@@ -34,7 +34,7 @@ export default async function MyVideos({ searchParams }) {
     d = { date, list, open, next: open ? nextOf(list, open.video_id) : null, access: acc?.data ?? [] };   // ⑥ 다음 영상(안 본 것 차례)
   } catch (e) { { console.error("[화면] 영상 못 엶:", e); return frame(<Oops what="영상" e={e} kind="task" />); } }
   // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 — 07 의 영상 카드와 **같은 열쇠**다
-  if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>원장님이 「누가 무엇을 보나」에서 「내 교재」를 켜면 보입니다.</p></div>);
+  if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원에서 아직 안 열었어요</p></div>);
   const left = d.list.filter((r) => r.status.key !== "done").length;
   return frame(<>
     <div className="wv" style={{ margin: "0 0 4px" }}><Link prefetch={false} className="btn sm gho" href="/me">← 나</Link><b style={{ fontSize: "var(--fs-6)" }}>🎬 영상</b><span className="spacer" /><span className={"pill" + (left ? " warn" : "")} data-g="left">{left ? `${left}개 남음` : d.list.length ? "다 봤어요" : "없음"}</span></div>
@@ -47,6 +47,6 @@ export default async function MyVideos({ searchParams }) {
       {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 자리 {mmss(r.lastPos)} · 건너뛴 구간은 <b>안 센 구간</b>이에요</p>}
       <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><Link prefetch={false} className={"btn sm" + (r.status.key === "done" ? "" : " pri")} href={`/me/videos?v=${r.video_id}`} data-act="open">▶ {r.status.key === "done" ? "다시 보기" : r.lastPos > 0 ? "이어 보기" : "보기"}</Link></div>
     </div>)}
-    <p className="note k" style={{ margin: "8px 0 0" }}>앱 안에서 봐요 — 유튜브로 나가지 않아요 · 지나간 구간만 세고, 끌어다 놓은 자리는 안 세요 · 「몇 %」는 대략이에요</p>
+    <p className="note k" style={{ margin: "8px 0 0" }}>앱 안에서 봐요 · 「몇 %」는 대략이에요</p>
   </>);
 }

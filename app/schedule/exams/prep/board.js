@@ -97,7 +97,6 @@ export default function Board({ d }) {
           <div className="wv"><label className="fl" style={{ margin: 0 }}>항목(쉼표로)</label><textarea value={f.items} placeholder="동사 형 변형, 어순, 접속사, 지시어" aria-label="항목" onChange={(x) => setF({ ...f, items: x.target.value })} style={{ flex: "1 1 260px", minHeight: 60 }} /></div>
           <div className="fl">배정 — 보는 아이</div>
           <div className="tags" data-g="add-students">{(b.takers ?? []).map((t) => <label key={t.id} className="ckl"><input type="checkbox" className="ck" checked={studentIds.includes(t.id)} onChange={() => toggleStudent(t.id)} /> {t.name}</label>)}{!(b.takers ?? []).length && <span className="note" style={{ margin: 0 }}>보는 아이가 없습니다</span>}</div>
-          <p className="note k" style={{ margin: "8px 0 0" }}>저장하면 만들기 · 인쇄 · 배부 할 일이 영어 시험일에서 거꾸로 섭니다(종류에 인쇄가 없으면 둘). 이 표가 아이 화면의 「받을 학습지」가 됩니다.</p>
         </div>
         <div className="mdlf"><span className="spacer" /><button className="btn pri" type="button" disabled={pending || !f.typeId} data-act="add-save" onClick={() => run(() => addMaterialAct(e.id, { ...f, studentIds }), (r) => `자료를 세웠습니다 — 항목 ${r.items} · 배정 ${r.students}명 · 할 일 ${r.todos}`, () => { setAdd(false); setF({ typeId: "", title: "", items: "", studentIds: null }); })}>저장</button></div>
       </div></div>}

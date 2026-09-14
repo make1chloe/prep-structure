@@ -85,7 +85,7 @@ export function ScoreCard({ scores = [], entry = [], fold = null, folded = false
         <button className="btn sm pri" type="button" disabled={pending || !String(v(e.id, "raw")).trim()} data-act="score-submit" onClick={() => go(e)}>넣기</button></div></div></div>)}
     {err && <p className="note" role="alert" style={{ margin: "6px 0 0", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="score-msg" style={{ margin: "6px 0 0", color: "var(--on-ok)" }}>{msg}</p>}
-    {scores.length > 0 && <p className="note k" style={{ margin: "6px 0 0" }}>원장님이 공개한 시험만 보여요.</p>}
+    {scores.length > 0 && <p className="note k" style={{ margin: "6px 0 0" }}>공개된 시험만 보여요</p>}
   </div>;
 }
 

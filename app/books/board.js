@@ -1,7 +1,6 @@
 "use client";
 /** 교재 판(목업 15) + 엑셀 올리기 모달(15b — 저장 전에 보여준다). 목록(영역 거르기 · 단원 수 · 쓰는 아이) · 고른 교재(교재ID · 영역 · 배정 겹 · 차례 기준 · 단원평가 · 다른 이름 · 활동 차례 · 단원 표 · 문법 분류) · + 교재 · ⬇ 엑셀 · ⬆ 올리기. 세는 것은 화면이 센다(원칙-5) */
 import Link from "next/link";
-import Tip from "../_shell/tip.js";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
@@ -78,7 +77,7 @@ export default function Board({ d }) {
               <select value="" aria-label={`${u.sub ?? u.chapter} 문법 분류`} disabled={pending} data-g="topic-pick" onChange={(x) => x.target.value && run(() => topicsAct(u.id, [...topicsOf(u.id).map((t) => t.topic_id), x.target.value]), "분류를 이었습니다")} style={{ width: "auto" }}><option value="">+ 잇기</option>{(b.topics_all ?? []).filter((t) => !topicsOf(u.id).some((x) => x.topic_id === t.id)).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></span></td>
             <td><span className="wv" style={{ gap: 4 }}>{uedit[u.id] && <button className="btn sm pri" type="button" disabled={pending} data-act="unit-save" onClick={() => run(() => unitAct(u.id, { pages: ue(u, "pages", (pagesText(u) ?? "").replace(/^p\./, "")), qCount: ue(u, "qCount", u.q_count ?? ""), gist: u.gist ?? "" }), "단원을 고쳤습니다(쪽·문항 — 조절·회차가 새 값으로 셉니다)", () => setUedit((st) => ({ ...st, [u.id]: undefined })))}>저장</button>}
               <button className="btn sm gho" type="button" disabled={pending} data-act="unit-state" onClick={() => run(() => unitStateAct(u.id, u.state === "hidden" ? "active" : "hidden"), u.state === "hidden" ? "되살렸습니다" : "숨겼습니다 — 깔기·회차·범위에서 빠집니다(지우지 않았습니다)")}>{u.state === "hidden" ? "되살리기" : "숨김"}</button></span></td></tr>)}
-          {!(book.units ?? []).length && <tr><td colSpan={9} className="note">단원이 없습니다 — ⬆ 올리기로 단원을 넣으세요</td></tr>}
+          {!(book.units ?? []).length && <tr><td colSpan={9} className="note">단원 없음 — ⬆ 올리기</td></tr>}
         </tbody></table></div>
         <div className="wv" style={{ marginTop: 8 }} data-g="topics"><span className="fl" style={{ margin: 0 }}>문법 분류</span>{(b.topics_all ?? []).map((t) => <span key={t.id} className="um">{t.name}</span>)}
           <input value={topicName} onChange={(x) => setTopicName(x.target.value)} placeholder="+ 분류 (예: 관계사)" aria-label="문법 분류 이름" style={{ width: 160 }} /><button className="btn sm" type="button" disabled={pending || !topicName.trim()} data-act="topic-add" onClick={() => run(() => addTopicAct(topicName), "분류를 더했습니다", () => setTopicName(""))}>더하기</button>
@@ -88,7 +87,7 @@ export default function Board({ d }) {
           <span className="spacer" />
           <span className="pill" data-g="students">쓰는 학생 {(book.students ?? []).length}명{(book.students ?? []).length ? ` — ${book.students.join(", ")} · 지우지 못합니다` : ""}</span>
         </div>
-      </div> : <div className="bkdet"><p className="note" style={{ margin: 0 }}>왼쪽에서 교재를 고르세요.</p></div>}
+      </div> : <div className="bkdet"><p className="note" style={{ margin: 0 }}>교재를 고르세요</p></div>}
     </div>
     <Runs runs={b.runs ?? []} run={run} pending={pending} />
     {up && <Upload close={() => setUp(false)} run={run} pending={pending} />}
@@ -116,8 +115,7 @@ function Upload({ close, run, pending }) {
   return <div className="mdlov" data-g="upload"><div className="mdl" style={{ width: "min(640px, 100%)" }}>
     <div className="mdlh"><b>⬆ 올리기 — 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
     <div className="mdlb">
-      {!plan && <form action={read} className="wv" data-g="upload-form"><input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="단원 엑셀" style={{ width: "auto" }} /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button>
-        <Tip>단원 시트 열: 교재명 · 대단원 · 중단원 · 소단원 · 활동명 · 시작페이지 · 끝페이지 · 문항수 · 문항범위(⬇ 양식 받기) — 교재 시트(교재명 · 영역 · 출판사 · 연도 · 레벨 · 교재비 · 구매링크 — ⬇ 교재 시트 양식)도 여기로. <b>첫 줄 열 이름</b>으로 알아봅니다</Tip></form>}
+      {!plan && <form action={read} className="wv" data-g="upload-form"><input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="단원 엑셀" style={{ width: "auto" }} /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button></form>}
       {plan && plan.kind === "books" && <BooksPlan plan={plan} />}
       {plan && plan.kind !== "books" && <>
         <div className="ctitle"><span className="cemo">❓</span>이미 있는 교재를 어떻게 할까요</div>
@@ -125,7 +123,7 @@ function Upload({ close, run, pending }) {
           <div style={{ flex: 1, minWidth: 0 }}><b>{p.name}{p.file_name !== p.name ? ` ← 「${p.file_name}」(${p.how})` : ""}</b><small>파일 {p.rows.length || p.added + p.changed + p.same}줄 · 기존 {p.existing}줄</small>
             <div className="seg sm" data-g="mode">{MODES.map(([k, nm]) => <button key={k} type="button" aria-pressed={m === k} onClick={() => setModes({ ...modes, [p.book_id]: k })}>{nm}</button>)}</div>
             {m === "replace" && u && <div className="dngr" style={{ marginTop: 6 }} data-g="danger"><b>②를 고르면 이만큼이 같이 사라집니다 — {p.name}</b><div className="dgrid"><div><span>단원</span><b>{u.units}</b></div><div><span>학생 진도</span><b>{u.progress}</b></div><div><span>숙제 배정</span><b>{u.items}</b></div><div><span>시험 범위</span><b>{u.scopes}</b></div><div><span>쓰는 학생</span><b>{u.students}명</b></div></div><small>진도·숙제·범위가 걸려 있으면 표가 막아 <b>이 교재는 통째로 실패</b>합니다 — 개정판이라 단원이 통째로 바뀐 것이 아니면 ①을 권합니다</small></div>}
-          </div></div>; })}{!plan.perBook.length && <p className="note" style={{ margin: 0 }}>맞은 교재가 없습니다 — 아래 보류를 푸세요.</p>}</div>
+          </div></div>; })}{!plan.perBook.length && <p className="note" style={{ margin: 0 }}>맞은 교재 없음 — 아래 보류를 푸세요</p>}</div>
         <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">👀</span>올리면 이렇게 됩니다</div>
         <div className="upr ok" data-g="sum-added"><i>＋</i><div><b>새로 생김 {t.added}줄</b><small>없던 단원</small></div></div>
         <div className="upr ok" data-g="sum-changed"><i>✎</i><div><b>바뀜 {t.changed}줄</b><small>쪽수·문항수·내용이 다른 것</small></div></div>
