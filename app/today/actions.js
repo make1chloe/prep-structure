@@ -11,7 +11,7 @@ import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
 import { attendanceWrite } from "@/lib/attend";
-import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry } from "@/lib/homework";
+import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
@@ -24,6 +24,7 @@ const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.j
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
+export const checkAll = done(async (sheetId) => { const { sb } = await staff(); return checkAllItems(sb, String(sheetId)); });   // (어24) 「다 ○」
 export const check = done(async (itemId, status, doneNote) => { const { sb } = await staff(); await checkItem(sb, itemId, status, doneNote); });
 export const rest = done(async (itemId, where) => { const { sb } = await staff(); await carryRest(sb, itemId, where); });   // 남아서도 조각으로 3b 「남」 줄에 선다(0141) — 사유 글엔 더 안 적는다(칩이 있다)
 export const stayDoneAct = done(async (itemId) => { const { sb } = await staff(); await stayDone(sb, itemId); });

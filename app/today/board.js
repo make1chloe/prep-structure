@@ -9,4 +9,7 @@ export default function Board({ initial = null, children }) {
   return <Ctx.Provider value={{ openId, setOpenId }}><div className="split">{children}</div></Ctx.Provider>;
 }
 /** 줄 하나의 열림 — [열렸나, 열기/닫기] */
-export function useOpen(id) { const { openId, setOpenId } = useContext(Ctx); return [openId === id, (v) => setOpenId(v ? id : null)]; }
+/** 줄 하나의 열림 — [열렸나, 열기/닫기, 다음 아이(go 면 연다 · 마감 안 한 다음 줄 · 없으면 null)]((어24) 「저장하고 마감 → 다음 아이」) */
+export function useOpen(id) { const { openId, setOpenId } = useContext(Ctx);
+  const nextOf = (go = false) => { if (typeof document === "undefined") return null; const ids = [...document.querySelectorAll(".row[data-student]")].filter((el) => !el.classList.contains("closed")).map((el) => el.dataset.student); const i = ids.indexOf(id); const n = ids.find((_, k) => k > i) ?? null; if (go && n) setOpenId(n); return n; };
+  return [openId === id, (v) => setOpenId(v ? id : null), nextOf]; }

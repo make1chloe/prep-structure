@@ -237,6 +237,7 @@ label.fl{display:block;font-size:var(--fs-2);font-weight:700;color:var(--faint);
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:var(--fs-3);color:var(--ink)}
 .btn.pri{background:var(--navy);color:var(--on-navy);border-color:transparent;font-weight:500}
 .btn.gho{border:0;color:var(--mid)}
+.btn.gho[aria-pressed="true"]{background:var(--sunk);color:var(--navy);font-weight:700}
 .kb{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
 .col{flex:0 0 208px;background:var(--sunk);border:1px solid var(--hair);border-radius:8px;padding:8px}
 /* 폰에서 칸이 잘려 보이면 그 칸은 「없는 것」이 된다 — 한 칸이 화면을 꽉 채우게 한다 */
@@ -601,6 +602,11 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
 .tk .n{width:22px;height:22px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-size:var(--fs-1);font-weight:700;flex:0 0 auto}
 .tk b{font-size:var(--fs-4)}
 .tk .tb{font-size:var(--fs-2);color:var(--mid)}
+.tk.done .n{background:var(--ok-fill);color:var(--on-ok)}
+/* (어24) 끝난 업무 ✓ */
+.tk.done b{color:var(--mid)}
+.folds{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+/* (어24) 오늘 학습 접이 줄 · + 항목 · 🌙 늦게 감 · 🗺 메모 */
 .part{margin-top:10px}
 .part+.part{padding-top:8px;border-top:1px dashed var(--hair)}
 /* (어12) 숙제 검사 카드 안의 갈래(🃏 · 📝 · 🔤) — 카드 하나 안에서 줄로 나눈다(첫 갈래 위는 검사 줄의 점선이 이미 가른다) · 🔤 는 무조건 맨 끝 */
