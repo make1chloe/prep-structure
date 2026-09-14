@@ -16,7 +16,7 @@ import { myRows, mmss, nextOf, opensText } from "@/lib/video-plan";
 import Player from "./player.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
 const rows = (r, what) => { if (r?.error) throw new Error(`${what}을 못 읽음: ${r.error.message}`); return r?.data ?? []; };
 export default async function MyVideos({ searchParams }) {
   const { sb, me, user } = await guard();

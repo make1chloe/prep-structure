@@ -1,5 +1,5 @@
 "use client";
-/** 📤 올리기 한 벌 — 원장(자료함 보내기) · 아이 · 학부모가 같은 부품. 사진은 폰에서 긴 변을 줄여 보낸다(규칙 file.photo_px) · 한 번에 N장(file.batch_max) · 파일마다 /api/files 한 번(서버가 종류·크기·자격을 본다).
+/** 📤 올리기 한 벌 — 원장(자료함 보내기) · 아이 · 학부모가 같은 부품. 고르는 단추는 이름이 보이는 label.btn(브라우저 기본 「Choose Files」 칸은 숨긴다 — (어17) 원장님 9/14 「보이게」 · 고른 것은 아래 줄로). 사진은 폰에서 긴 변을 줄여 보낸다(규칙 file.photo_px) · 한 번에 N장(file.batch_max) · 파일마다 /api/files 한 번(서버가 종류·크기·자격을 본다).
  *  실패는 파일마다 그 자리에서 말한다 — 조용히 빠뜨리지 않는다(대전제-0) */
 import { useEffect, useRef, useState } from "react";
 import { acceptBatch, checkFile, isImage, shrinkPlan, sizeText, pickRows, withoutPick } from "@/lib/files-plan";
@@ -36,8 +36,8 @@ export default function Upload({ rules = {}, studentId = null, kids = null, item
     <div data-g="upload">
       {kids && kids.length > 1 && <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><label className="fl" style={{ margin: 0 }}>누구 학교 것인가요</label><select value={kid} aria-label="누구 학교 것인가요" data-g="kid-pick" onChange={(e) => setKid(e.target.value)} style={{ width: "auto" }}>{kids.map((k) => <option key={k.id} value={k.id}>{k.name}{k.schools?.name ? ` · ${k.schools.name}` : ""}</option>)}</select></div>}
       <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}>
-        <input ref={ref} type="file" multiple accept="image/*,application/pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" aria-label={label} onChange={(e) => { setOut(null); setFiles([...(e.target.files ?? [])]); }} style={{ flex: "1 1 200px" }} />
-        {!compact && <input type="text" value={note} placeholder="한 마디 (예: 수행평가 안내문이에요)" aria-label="한 마디" onChange={(e) => setNote(e.target.value)} style={{ flex: "1 1 160px" }} />}
+        <label className="btn sm" data-g="pick" style={{ cursor: "pointer" }}>{label}<input ref={ref} type="file" multiple accept="image/*,application/pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" aria-label={label} onChange={(e) => { setOut(null); setFiles([...(e.target.files ?? [])]); }} style={{ display: "none" }} /></label>
+        {!compact && <input type="text" value={note} placeholder="한 마디 (예: 수행평가 안내문)" aria-label="한 마디" onChange={(e) => setNote(e.target.value)} style={{ flex: "1 1 160px" }} />}
         <button type="button" className="btn sm pri" data-act="upload" disabled={busy || !files.length} onClick={go}>{busy ? "보내는 중…" : `보내기${files.length ? ` ${files.length}장` : ""}`}</button>
       </div>
       {files.length > 0 && <div className="tags" style={{ marginTop: 8 }} data-g="picks">{pickRows(files).map((r) => <span key={r.i} className="tag" data-g="pick-row" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>{r.photo && urls[r.i] ? <img src={urls[r.i]} alt={r.name} style={{ width: 28, height: 28, objectFit: "cover", borderRadius: 4 }} /> : "📄"} {r.name} <small>{r.size}</small><button type="button" className="btn sm gho" data-act="pick-remove" aria-label={`${r.name} 빼기`} onClick={() => setFiles(withoutPick(files, r.i))} style={{ padding: "0 6px" }}>✕</button></span>)}</div>}

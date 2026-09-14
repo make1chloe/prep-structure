@@ -13,7 +13,7 @@ import { accessQuery } from "@/lib/access";
 import Board from "./board.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 720, margin: "16px auto", padding: "0 12px" }}>{children}</main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}>{children}</main>;
 export default async function Road({ searchParams }) {
   const { sb, me, user } = await guard();
   const q = await searchParams;

@@ -311,6 +311,19 @@ td.sch{font-weight:700;white-space:nowrap}
 .who-chip{display:inline-flex;gap:4px;align-items:center;font-size:var(--fs-1);background:var(--sunk);border:1px solid var(--hair);border-radius:20px;padding:1px 8px;margin:2px 4px 0 0}
 .who-chip i{font-style:normal;color:var(--navy);font-weight:700}
 .mine{display:flex;flex-direction:column;gap:8px}
+/* 아이·학부모 화면(07·09·19)은 폰이 먼저지만 원내 PC 로도 연다((어17) 원장님 9/14 「아이들 화면을 원내에서도 접속시켜서 pc에서는 최대너비로 보이게, 폰에서는 한줄로 보이게」) — PC(≥1100)는 카드를 두 열로 흘린다(차례는 위→아래→다음 열 그대로 · 한 카드는 안 쪼갠다 · 👁 보는 중의 fieldset 도 안에서 흐른다) · 폰은 한 줄. 목업의 폰 틀(.frame.phone) 안에서는 안 갈라진다 — 앱의 main.frame 만 */
+@media(min-width:1100px){
+  .frame:not(.phone) .mine{display:block;column-count:2;column-gap:16px}
+}
+@media(min-width:1100px){
+  .frame:not(.phone) .mine>*,.frame:not(.phone) .mine>fieldset>*{margin-bottom:8px}
+}
+@media(min-width:1100px){
+  .frame:not(.phone) .mine .task{break-inside:avoid}
+}
+@media(min-width:1100px){
+  .frame:not(.phone) .mine>.wv:first-child,.frame:not(.phone) .mine>fieldset>.wv:first-child,.frame:not(.phone) .mine>[data-g="as-view"]{column-span:all}
+}
 .task{border:1px solid var(--line);border-radius:12px;padding:12px 12px;background:var(--surface)}
 .task .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .task b{font-size:var(--fs-4)}
@@ -319,7 +332,20 @@ td.sch{font-weight:700;white-space:nowrap}
 .stage button:last-child{border-right:0}
 .stage button[aria-pressed="true"]{background:var(--navy);color:var(--on-navy);font-weight:700}
 .road{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
-.rcol{flex:0 0 200px;background:var(--sunk);border:1px solid var(--hair);border-radius:8px;padding:8px}
+.rcol{flex:1 1 200px;min-width:200px;background:var(--sunk);border:1px solid var(--hair);border-radius:8px;padding:8px}
+/* 08 로드맵 — PC 는 세 열이 폭을 나눠 갖고(최대 너비), 폰(≤760)은 한 줄로 쌓는다: 하는 중 → 아직 → 끝냄((어17) 원장님 9/14 「고쳐」 — 폰에서 「하는 중」 열이 반 잘려 옆으로 밀어야 보였다) */
+@media(max-width:760px){
+  .road{flex-direction:column;overflow-x:visible}
+}
+@media(max-width:760px){
+  .rcol{min-width:0}
+}
+@media(max-width:760px){
+  .rcol[data-g="col-doing"]{order:-1}
+}
+@media(max-width:760px){
+  .rcol[data-g="col-done"]{order:1}
+}
 .ru{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 8px;margin-bottom:8px;font-size:var(--fs-2)}
 .ru small{display:block;color:var(--faint);font-size:var(--fs-1);font-family:var(--sans)}
 .ru.now{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber)}
@@ -474,6 +500,20 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
 .cd>.cm{margin-top:1px}
 .calhead{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
 .calhead b{font-size:var(--fs-4)}
+/* 09b 달력 — PC(≥1100)는 달력 왼쪽 · 그날 카드 오른쪽(아이·학부모 화면 최대 너비 · (어17)) · 폰은 위아래 그대로 */
+.calpage>[data-g="day"]{margin-top:8px}
+@media(min-width:1100px){
+  .calpage{display:grid;grid-template-columns:minmax(0,760px) minmax(0,1fr);column-gap:16px;align-items:start}
+}
+@media(min-width:1100px){
+  .calpage>.calhead{grid-column:1/-1}
+}
+@media(min-width:1100px){
+  .calpage>.cal,.calpage>.clegend{grid-column:1}
+}
+@media(min-width:1100px){
+  .calpage>[data-g="day"]{grid-column:2;grid-row:2/span 2;margin-top:0}
+}
 .cal.pick .cd{cursor:default}
 .cd.no{color:var(--mute);border-color:transparent;background:transparent}
 .cd.cls{border-color:var(--line);background:var(--sunk);color:var(--ink)}

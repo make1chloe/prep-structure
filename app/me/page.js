@@ -25,7 +25,7 @@ import Fold from "../_shell/fold.js";
 import CardOrder from "../_shell/cardorder.js";
 import NoticeCard from "../_shell/noticecard.js";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;   // (어17) 원내 PC 로도 연다 — 최대 너비(01 과 같은 1400) · PC 는 목업 .mine 두 열 · 폰은 한 줄(원장님 9/14)
 const Card = ({ emo, title, id, pill, fold = null, folded = false, children }) => <div className="task" data-card={id} data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className="pill">{pill}</span>}{fold}</div>{children}</div>;
 const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}${it.units.page_start ? ` · p.${it.units.page_start}${it.units.page_end && it.units.page_end !== it.units.page_start ? `-${it.units.page_end}` : ""}` : ""}` : "";
 const Line = ({ it, right, attach = null }) => <><div className="li"><div><b>{it.learn_items?.name ?? it.range_note ?? "(이름 없음)"}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null, it.memo, it.received ? `${md(it.received)} 에 받음` : null].filter(Boolean).join(" · ")}</small></div>{right}</div>{attach}</>;

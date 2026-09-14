@@ -17,7 +17,7 @@ export function ArrivalCard({ arrival, choice, off }) {
   return (
     <div className="task" data-card="arrival" style={{ borderColor: "var(--navy)" }}>
       <div className="h"><b><span className="cemo">🕘</span>등원 · 하원</b><span className="spacer" /><span className={"pill" + (arrival.arrived ? " hw" : "")} data-g="arrival-pill">{pill}</span></div>
-      {off && <p className="note" style={{ margin: "8px 0 0" }}>오늘은 휴강이에요 — 찍을 것이 없어요</p>}
+      {off && <p className="note" style={{ margin: "8px 0 0" }}>오늘은 휴강이에요</p>}
       {!off && choice.none && !arrival.arrived && <p className="note" style={{ margin: "8px 0 0" }}>오늘은 수업이 없어요</p>}
       {!off && choice.pick && !arrival.done.has(2) && <div className="lenrow" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0, whiteSpace: "nowrap" }}>어느 반</span>
         <div className="seg sm" data-g="pick-class">{choice.options.map((o) => <button key={o.id} type="button" aria-pressed={cls === o.id} onClick={() => setCls(o.id)}>{o.name} {o.start}</button>)}</div></div>}

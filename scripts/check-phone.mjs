@@ -32,5 +32,10 @@ console.log("■ 처음 규칙(글자)");
 const ENV = new Set(["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "NOTIFY_SINK", "CRON_SECRET"]);
 const envs = [...new Set(src.flatMap(([, s]) => [...s.matchAll(/(?:process\.env|\benv)\.([A-Z][A-Z0-9_]{3,})/g)].map((m) => m[1])))];
 ok(`처음-7 코드가 읽는 환경변수는 ${ENV.size}뿐(로그인 열쇠 둘 · 서버 열쇠 · 스위치 · 크론 열쇠) — 바깥 서비스 계정(푸시·AI·나이스·학원)은 v2.integration 표에`, envs.every((e) => ENV.has(e)), "밖의 것: " + envs.filter((e) => !ENV.has(e)).join(", "));
+console.log("■ (어17) 아이·학부모 화면 — PC 최대 너비 · 폰 한 줄(원장님 9/14 「아이들 화면을 원내에서도 접속시켜서 pc에서는 최대너비로 보이게, 폰에서는 한줄로 보이게」)");
+const kidPages = ["app/me/page.js", "app/me/book/page.js", "app/me/videos/page.js", "app/me/cal/page.js", "app/parent/page.js", "app/parent/cal/page.js"].map((f) => [f, readFileSync(f, "utf8")]);
+ok("07·08·19·달력·09 틀은 1400(01 과 같은 최대 너비) — 560·720 없음", kidPages.every(([, s]) => /maxWidth: 1400/.test(s) && !/maxWidth: (560|720)\b/.test(s)), kidPages.filter(([, s]) => !/maxWidth: 1400/.test(s)).map(([f]) => f).join(", "));
+ok("목업 CSS — PC(≥1100) .mine 두 열(column-count · 카드는 안 쪼갠다) · 08 세 열은 폭을 나눠 갖고 폰(≤760)은 한 줄로 쌓는다(하는 중 먼저) · 달력은 PC 에서 달력 왼쪽 · 그날 카드 오른쪽", /@media\(min-width:1100px\)\{\s*\.frame:not\(\.phone\) \.mine\{display:block;column-count:2/.test(css) && /\.frame:not\(\.phone\) \.mine \.task\{break-inside:avoid\}/.test(css) && /\.rcol\{flex:1 1 200px/.test(css) && /@media\(max-width:760px\)\{\s*\.road\{flex-direction:column/.test(css) && /\.rcol\[data-g="col-doing"\]\{order:-1\}/.test(css) && /\.calpage\{display:grid/.test(css));
+
 console.log(`\n■ 폰·속도 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

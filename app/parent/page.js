@@ -24,7 +24,7 @@ import Fold from "../_shell/fold.js";
 import CardOrder from "../_shell/cardorder.js";
 import NoticeCard from "../_shell/noticecard.js";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 560, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
 const Card = ({ emo, title, id, pill, pillCls = "", fold = null, folded = false, children }) => <div className="task" data-card={id} data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className={"pill " + pillCls}>{pill}</span>}{fold}</div>{children}</div>;
 const unitText = (it) => it.units ? `${it.units.chapter} › ${it.units.short}` : "";
 export default async function Parent({ searchParams }) {
