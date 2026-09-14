@@ -1,6 +1,6 @@
 /** 시험 검사 — 판정과 리포트 문이 SQL 한 곳에서 맞게 도나(0038~0041, 원장님 9/2) · lib 이 그 판정을 다시 만들지 않나.
  *  진짜 DB(눌러보기 또는 실제)로 트랜잭션 안에서 쓰고 되돌린다. 리허설 학생(fixture)으로만 쓴다(대전제-12). */
-import { parseStyle, scopeLabel, scopeText, S_WAY, QUIZ_POS, quizPosOf, quizPosEnd, quizPosName, quizTag } from "../lib/quiz-plan.js";
+import { parseStyle, scopeLabel, scopeText, S_WAY, quizTag } from "../lib/quiz-plan.js";
 import { Client } from "pg"; import { readFileSync } from "node:fs";
 const url = (process.env.DATABASE_URL ?? readFileSync(".env.local", "utf8").match(/DATABASE_URL=(.+)/)[1]).trim();
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 15000 });
@@ -46,21 +46,14 @@ try {
   ok("교재멈춤 교재로 낸 시험은 DB 가 막는다", blocked);
   let free = true; try { await c.query("savepoint h"); await c.query(`insert into v2.quiz(student_id, kind, source, free_note, assigned_on, state) values ($1, 'word', 'manual', '직접 범위', '2026-10-20', 'planned')`, [S]); await c.query("release savepoint h"); } catch (e) { free = false; await c.query("rollback to savepoint h"); }
   ok("직접 범위는 멈춤과 상관없다", free);
-  console.log("■ 🔤 시험 카드 자리는 아이마다(0143 students.quiz_pos · (가)-①) — 기본 시작하자마자 · 루틴 11 판(routine_board)이 읽는다 · 셋째 값은 DB 가 막는다(표-6)");
-  ok("새 칸의 기본값은 start(시작하자마자) — 옛 줄도 그대로 맨 위", (await c.query(`select quiz_pos from v2.students where id=$1`, [S])).rows[0]?.quiz_pos === "start");
-  await c.query(`update v2.students set quiz_pos='end', state='active' where id=$1`, [S]);
-  await c.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: STAFF, role: "authenticated" })]);
-  const rb = (await c.query(`select v2.routine_board($1, '2026-10-20') b`, [S])).rows[0]?.b, meRow = (rb?.students ?? []).find((s) => s.id === S);
-  ok("루틴 11 판 students 에 quiz_pos 한 칸(end) — 화면은 이것으로 세그를 그린다", meRow?.quiz_pos === "end", JSON.stringify(meRow ?? (rb?.students ?? []).slice(0, 2)));
-  let third = false; try { await c.query("savepoint qa"); await c.query(`update v2.students set quiz_pos='middle' where id=$1`, [S]); await c.query("release savepoint qa"); } catch (e) { third = /students_quiz_pos_choice/.test(e.message); await c.query("rollback to savepoint qa"); }
-  ok("start·end 말고는 DB 가 막는다(students_quiz_pos_choice)", third);
+  console.log("■ 🔤 시험 카드 자리는 아이마다가 **아니다**((어12) — 원장님 2026-09-13 「차라리 무조건 단어를 숙제검사 마지막에 넣어」) — 0143 의 students.quiz_pos 칸은 남지만(멱등 · 되돌리지 않는다) 아무도 안 읽는다");
+  ok("0143 칸은 그대로 · 값 start — 코드가 안 읽으니 값이 무엇이든 화면은 같다", (await c.query(`select quiz_pos from v2.students where id=$1`, [S])).rows[0]?.quiz_pos === "start");
 } finally { await c.query("rollback"); await c.end(); }
 // ── 순수(5단계-③) — 방식 읽기 · 내신 범위 글
 ok("방식 읽기 — 단어는 네 비율 합 100(아니면 던진다) · 첫글자 힌트 · 몇 단원씩 · 통과선 0~100 · 문장은 받아쓰기·녹음 둘 중 하나(0041 — 구두는 걷혔다)", JSON.stringify(parseStyle("word", { mc_meaning: "60", sa_meaning: "40", first_hint: "on", cut_pct: "85" })) === JSON.stringify({ mc_meaning: 60, sa_meaning: 40, mc_word: 0, sa_word: 0, first_hint: true, units_per: null, s_way: null, cut_pct: 85 }) && (() => { try { parseStyle("word", { mc_meaning: "80", sa_meaning: "30" }); return false; } catch { return true; } })() && (() => { try { parseStyle("word", { mc_meaning: "100", cut_pct: "101" }); return false; } catch { return true; } })() && parseStyle("sentence", { s_way: "dictation" }).s_way === "dictation" && (() => { try { parseStyle("sentence", { s_way: "oral" }); return false; } catch { return true; } })() && S_WAY.length === 2);
 ok("내신 범위 글 — 「2학기 중간 내신 범위 — 교재 · CH5 › 5-2」 · 직접 적은 것 · 시험 줄에서도 같은 글(scopeText prep)", scopeLabel({ books: { name: "공영2 능률" }, units: { chapter: "CH2", short: "2과 본문" } }, "2학기 중간") === "2학기 중간 내신 범위 — 공영2 능률 · CH2 › 2과 본문" && scopeLabel({ free_note: "2409 학평 22-24번" }) === "내신 범위 — 2409 학평 22-24번" && scopeText({ source: "prep", prep_scope: { free_note: "22-24번", exams: { name: "중간" } } }) === "중간 내신 범위 — 22-24번");
-// ── 순수((가)-①) — 카드 자리
-ok("카드 자리 둘(시작하자마자 · 다 끝내고) — 모르는 값·빈 값은 시작하자마자 · 「다 끝내고」인 아이만 아래 · 이름은 01 제목·11 세그가 같은 글(0143)", QUIZ_POS.length === 2 && quizPosOf({ quiz_pos: "end" }) === "end" && quizPosOf({ quiz_pos: "middle" }) === "start" && quizPosOf(null) === "start" && quizPosEnd({ quiz_pos: "end" }) && !quizPosEnd({}) && quizPosName("end") === "다 끝내고" && quizPosName("start") === "시작하자마자" && quizPosName(undefined) === "시작하자마자");
-ok("자리 판단은 quiz-plan 한 곳 — 오늘 01 줄·루틴 11 화면에 「quiz_pos === 'end'」 같은 견주기가 없다 · 오늘 조회(반 lib/day · 보강 lib/plan)가 quiz_pos 을 읽는다", ["app/today/row.js", "app/settings/routine/board.js"].every((f) => !/quiz_pos\s*[!=]==?\s*["']/.test(strip(readFileSync(f, "utf8")))) && ["lib/day.js", "lib/plan.js"].every((f) => /students!inner\([^)]*quiz_pos/.test(readFileSync(f, "utf8"))));
+// ── 순수((어12)) — 카드 자리는 없다: 🔤 는 무조건 숙제 검사 카드 안 맨 끝
+ok("quiz_pos 를 읽는 자리 0 — quiz-plan 에 QUIZ_POS 가 없고 · 오늘 조회(lib/day · lib/plan)·lib/quiz·01 줄·루틴 11 화면·손이 quiz_pos 를 안 읽는다((어12) — 자리는 설정이 아니라 기본값, 대전제-14)", !/QUIZ_POS|quizPos/.test(strip(readFileSync("lib/quiz-plan.js", "utf8"))) && ["lib/day.js", "lib/plan.js", "lib/quiz.js", "app/today/row.js", "app/settings/routine/board.js", "app/settings/routine/actions.js"].every((f) => !/quiz_pos|quizPos|QUIZ_POS/.test(strip(readFileSync(f, "utf8")))));
 ok("아이 화면 꼬리표((가)-⑨) — 건너뛴 재시험 「오늘 건너뜀」 · 재시험 「재시험」 · 보통 시험은 없음", quizTag({ state: "skipped", retry_of: "x" }) === "오늘 건너뜀" && quizTag({ state: "planned", retry_of: "x" }) === "재시험" && quizTag({ state: "planned" }) === null && quizTag(null) === null);
 console.log(`\n■ 시험 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -4,9 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
 import Sure, { useSure } from "../../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
-import { addItemAct, editItemAct, retireItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct, quizPosAct } from "./actions.js";
+import { addItemAct, editItemAct, retireItemAct, setLineAct, moveLineAct, customizeAct, resetAct, reviveAct, setBookAct, assignBookAct, bookCustomizeAct, bookResetAct, bookReviveAct, endBookAct } from "./actions.js";
 import { AREAS, PLACE, alive, areaStats, studentAreaView, bookView, projectEnd } from "@/lib/routine-plan";
-import { QUIZ_POS, quizPosOf } from "@/lib/quiz-plan";
 const Seg = ({ value, onPick, disabled, g }) => <div className="seg sm hs" data-g={g}>{PLACE.map(([k, name]) => <button key={k} type="button" aria-pressed={value === k} disabled={disabled} onClick={() => onPick(k)}>{name}</button>)}</div>;
 function ItemForm({ init = {}, onSave, onClose, onRetire = null, pending, areaPick = null }) {
   const [f, setF] = useState({ area: init.area ?? "문법", name: init.name ?? "", method: init.method ?? "", checks: (init.checks ?? []).join(", "), place: init.place ?? "both", required: Boolean(init.required) });
@@ -93,8 +92,6 @@ export default function Board({ d }) {
     </div>
 
     <div className="ctitle" style={{ marginTop: 16 }}><span className="cemo">🧑</span>{student ? `${student.name} — 영역별로 고른 것` : "아이가 없습니다"}
-      {student && <span className="wv" style={{ marginLeft: 12, gap: 6 }} title="오늘 01 의 🔤 시험 카드 자리 — 이 아이만 — 아이마다 다르게 둘 수 있습니다"><span className="tag">🔤 시험</span>
-        <div className="seg sm hs" data-g="quiz-pos">{QUIZ_POS.map(([k, name]) => <button key={k} type="button" aria-pressed={quizPosOf(student) === k} disabled={pending} onClick={() => run(() => quizPosAct(student.id, k), (r) => `🔤 시험 카드 — ${r.name} (오늘 화면에서 ${k === "end" ? "학습·숙제 아래" : "맨 위"})`)}>{name}</button>)}</div></span>}
       <span className="spacer" />
       <select value={sid ?? ""} aria-label="아이 고르기" data-g="student-pick" style={{ width: "auto" }} onChange={(e) => go(`/settings/routine?s=${e.target.value}`)}>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.grade ? ` · ${s.grade}` : ""}</option>)}</select></div>
     {student && !myAreas.length && <p className="note">이 아이에게 이은 교재가 없습니다 — 아래 「+ 교재 잇기」로 이으면 그 영역 루틴이 저절로 붙습니다.</p>}

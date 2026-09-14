@@ -2,7 +2,6 @@
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
 import { useState, useRef, useTransition } from "react";
-import Tip from "../_shell/tip.js";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
@@ -16,7 +15,8 @@ import { TRI } from "@/lib/progress-plan";
 import { plannerLine, shortText, SET_TYPE } from "@/lib/cc-plan";
 import { DISPOSAL } from "@/lib/warn-plan";
 import { slotText } from "@/lib/class-plan";
-import { KIND, SOURCE, S_WAY, scopeText, quizPosOf, quizPosEnd, quizPosName } from "@/lib/quiz-plan";
+import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
+import { useOpen } from "./board.js";
 import { isUnchecked, CHECK } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
 import { useEffect } from "react";
@@ -27,8 +27,8 @@ const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
-export default function Row({ student, sheet, classId, classEnd = "", date, minutes, defaultOpen, cfg, future = false }) {
-  const [open, setOpen] = useState(defaultOpen);
+export default function Row({ student, sheet, classId, classEnd = "", date, minutes, cfg, future = false }) {
+  const [open, setOpen] = useOpen(student.id);   // 한 번에 한 아이((어12) board.js) — PC 는 이름 열 · 판 열
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
   const closed = Boolean(sheet?.closed);
@@ -36,16 +36,15 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   // 출결 — 낙관적
   const [attend, setAttendLocal] = useState(sheet?.attend ?? (student.plan?.absent ? "absent" : student.plan?.late ? "late" : "present"));
   const [plan, setPlan] = useState(false);
-  const [barHost, setBarHost] = useState(null);   // 줄 끝 저장줄(목업 01·03) — ✉️ 카드가 단추를 여기로 내보낸다(portal). 줄의 직접 자식이라 sticky 가 줄 안에서 화면 아래에 붙는다(폰-6)
+  const [barHost, setBarHost] = useState(null);   // 판 끝 저장줄(목업 01·03) — ✉️ 카드가 단추를 여기로 내보낸다(portal). 판의 직접 자식이라 sticky 가 판 안에서 화면 아래에 붙는다(폰-6 · PC 는 오른쪽 열 안)
   const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr("");
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
-  const quizEnd = quizPosEnd(student), quizCard = sheet && (student.quizzes?.today?.length ?? 0) > 0 ? <QuizCard sheet={sheet} quizzes={student.quizzes.today} at={quizPosOf(student)} closed={closed} fail={fail} start={start} /> : null;   // 🔤 카드 자리는 아이마다(0143 · 목업 01 「자리가 아이마다 다릅니다」) — 「다 끝내고」면 학습·숙제 아래. 정하는 곳은 루틴 11
   const sh = shutCards(sheet, { stay: student.stay, closed });   // (어9) 지금 쓸 일이 없는 카드는 접어 둔다 — 설정이 아니라 상태로(원장님 2026-09-12 「더 편하고 간단하게 고도화」)
   const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? (unseenPill(sheet.check, date) || `검사 ${nLeft}/${nCheck} 남음`) : null;
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
-      <div className="rowtop">
+      <div className="rowtop" onClick={(e) => { if (open || e.target.closest("button,a,input,select,textarea,label")) return; setOpen(true); }}>
         <span className="who">{student.name}</span><span className="meta">{whoMeta(student)}</span>
         <span className="marks">{marks(sheet?.check ?? []).map((m, i) => <i key={i} className={"dot" + (m.cls ? " " + m.cls : "")}>{m.ch}</i>)}</span>
         <div className="seg sm" data-g="att" aria-label={`${student.name} 출결`}>
@@ -63,32 +62,34 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
       {open && (
         <div className="panel">
           {err && <div className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
-          {!sheet && <div className="card"><p className="note">아직 판이 없습니다 — 출결을 누르면 섭니다.</p></div>}
+          {!sheet && <div className="card"><p className="note">판 없음 — 출결을 누르면 섭니다</p></div>}
           {sheet && <>
-            {!quizEnd && quizCard}
-            <CheckCard sheet={sheet} closed={closed} fail={fail} start={start} />
+            <CheckCard sheet={sheet} student={student} date={date} passPct={cfg?.unitPass} closed={closed} fail={fail} start={start} />
             <WorkCard heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} />
-            {quizEnd && quizCard}
-            <CcCard rows={student.cc ?? []} closed={closed} fail={fail} start={start} />
-            {(student.unitTests ?? []).map((t) => <UnitTestCard key={t.id} t={t} passPct={cfg?.unitPass} date={date} closed={closed} fail={fail} start={start} />)}
             <AreaMemoCard sheet={sheet} books={student.books ?? []} shut={sh.areamemo} closed={closed} fail={fail} start={start} />
             <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} shut={sh.late} closed={closed} fail={fail} start={start} />
             <CommentCard sheet={sheet} student={student} shut={sh.comment} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} />
           </>}
+          {sheet && !closed && <div className="savebar rowbar" ref={setBarHost} />}
         </div>
       )}
-      {open && sheet && !closed && <div className="savebar rowbar" ref={setBarHost} />}
     </div>
   );
 }
 
-function CheckCard({ sheet, closed, fail, start }) {
+/** 1 숙제 검사 — **① 숙제 봤나** 한 카드((어12) · 원장님 2026-09-13 「생각의 흐름에 따라 페이지를 따라가게」): 지난 숙제 ○△✕ → 🃏 클래스카드 → 📝 단원평가 → 🔤 시험(**무조건 맨 끝** — 「차라리 무조건 단어를 숙제검사 마지막에 넣어」).
+ *  **제목 줄이 오늘 볼 것을 말한다**(🃏 · 📝 · 🔤) — 없으면 안 적힌다(「단원평가가 해당되는지 아닌지는 어케알아」 → 제목에 📝 가 없으면 안 보는 아이 · 대전제-0). 아이마다 자리가 다르지 않다(대전제-14 — 원장님이 다르게 놓으실 날이 없는 것은 단추가 아니라 기본값) */
+function CheckCard({ sheet, student, date, passPct, closed, fail, start }) {
   const left = sheet.check.filter(isUnchecked).length;
+  const cc = student.cc ?? [], units = student.unitTests ?? [], quizzes = student.quizzes?.today ?? [];
+  const has = [cc.length ? "🃏" : null, units.length ? "📝" : null, quizzes.length ? "🔤" : null].filter(Boolean);
   return (
     <div className="card" data-card="check">
-      <div className="ctitle"><span className="stepno">1</span> 숙제 검사 · 집에서 해온 것{sheet.check.length ? <span className="auto">{left ? `${left}/${sheet.check.length} 남음` : "다 봤습니다"}</span> : null}</div>
-      {!sheet.check.length && <p className="note">검사할 지난 숙제가 없습니다.</p>}
+      <div className="ctitle"><span className="stepno">1</span>숙제 검사<span className="auto">{sheet.check.length ? (left ? `${left}/${sheet.check.length} 남음` : "다 봤습니다") : "지난 숙제 없음"}{has.length ? ` · ${has.join(" · ")}` : ""}</span></div>
       {sheet.check.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} />)}
+      {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
+      {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
+      {quizzes.length > 0 && <QuizPart sheet={sheet} quizzes={quizzes} closed={closed} fail={fail} start={start} />}
     </div>
   );
 }
@@ -137,16 +138,16 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
     <div className="card" data-card="work">
       <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto" data-g="laid">{laidText(sheet, laid)}</span></div>
       <div className="load">
-        <div className="ldn"><span>학원</span><b>{sheet.class.length}</b><small>{per ? <>{minutes}분이면 한 항목에 <b>{per}분</b></> : "오늘 여기서 할 것"}</small></div>
-        <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b><small>집에서 할 것 — 다음 시간 검사</small></div>
-        {laid && <div className="ldw">{books.length > 1 ? <>⚠️ <b>교재 {books.length}권이라 항목이 {sheet.class.length + sheet.home.length}개입니다.</b></> : <b>교재 {books.length}권 · 항목 {sheet.class.length + sheet.home.length}개</b>}
+        <div className="ldn"><span>학원</span><b>{sheet.class.length}</b>{per && <small>한 항목 <b>{per}분</b></small>}</div>
+        <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b></div>
+        {laid && <div className="ldw"><b>교재 {books.length}권 · 항목 {sheet.class.length + sheet.home.length}개</b>
           <div className="wv" style={{ margin: "4px 0 0" }}><span className="fl" style={{ margin: 0 }}>줄이기</span>
             <div className="seg sm" data-g="mode">{MODE.map(([k, name]) => <button key={k} type="button" aria-pressed={(sheet.load_mode ?? "all") === k} disabled={closed} onClick={() => start(async () => { fail(await setMode(sheet.id, k)); })}>{name}{counts.all ? ` ${k === "all" ? counts.all : counts.required}` : ""}</button>)}</div>
           </div>
         </div>}
       </div>
       {heavy && <div className="lf warn" style={{ margin: "0 0 8px" }} data-g="heavy"><span className="ln">📣</span>
-        <div><b>{heavy.title}</b><small>{heavy.small} · <b>줄이시려면 조절에서 갯수를 내리세요</b></small></div>
+        <div><b>{heavy.title}</b><small>{heavy.small}</small></div>
         {heavy.top && <button type="button" className="btn sm" data-act="heavy-tune" disabled={closed} onClick={() => setTuneBook(books.find((b) => b.book_id === heavy.top.book_id) ?? null)}>조절 ↗</button>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {books.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} extra={i === 0 ? nextQuiz : null} />)}
@@ -155,7 +156,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
           <div className="half" key={slot}>
             <div className="hh">{title}<span className="cnt">{unitless(slot).length}개</span></div>
             {unitless(slot).map((it, i) => <div className="li" key={it.id}><span className="n">{i + 1}</span><div><b>{it.range_note || it.learn_items?.name || "(이름 없음)"}</b>{it.carry_of && <small>지난 숙제의 나머지</small>}</div>{!closed && <button type="button" className="btn sm" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>}</div>)}
-            {!closed && <form className="wv" action={async (f) => { fail(await add(f)); }}><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="slot" value={slot} /><input type="text" name="text" placeholder="항목 더하기 — 예: 워크북 p.10 1-18" style={{ flex: "1 1 160px", minWidth: 0 }} /><button className="btn sm" type="submit">항목 더하기</button></form>}
+            {!closed && <form className="wv" action={async (f) => { fail(await add(f)); }}><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="slot" value={slot} /><input type="text" name="text" placeholder="예: 워크북 p.10 1-18" style={{ flex: "1 1 160px", minWidth: 0 }} /><button className="btn sm" type="submit">항목 더하기</button></form>}
             {slot === "home" && !books.length && nextQuiz}
           </div>
         ))}
@@ -177,7 +178,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
     <div className={"bk" + (stop === "book_off" ? " stopped" : "")} data-book={b.book_id}>
       <div className="bkh">
         <b>{b.books.name}</b>
-        <span className="tag type">{b.round}회독 · 단원 진행</span>
+        <span className="tag type">{b.round}회독</span>
         {chapter && <span className="tag">{chapter}</span>}
         <span className="spacer" />
         <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
@@ -186,18 +187,16 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
-      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b> — {b.stop_until ? `${b.stop_until} 에 저절로 풀립니다` : "진행중을 누르면 다시 나갑니다"}
-        {" · 이 동안은 내신 자료로 나갑니다 "}<Link prefetch={false} className="btn sm" href="/schedule/exams/prep" data-g="to-prep">📄 내신 자료 ↗</Link></div>
+      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b>{b.stop_until ? ` — ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<Link prefetch={false} className="btn sm" href="/schedule/exams/prep" data-g="to-prep">📄 내신 자료 ↗</Link></div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
-      : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b> — 진도는 교재 화면에서 봅니다</div>
+      : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b></div>
       : <div className="two">
           <Half slot="class" title="오늘 학습 · 학원" b={b} sheet={sheet} mark={mark} rows={rows("class")} closed={closed} fail={fail} start={start} />
           {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제멈춤</span></div><div className="stopnote"><b>숙제 없음</b> — 수업에서만 씁니다</div></div>
           : <Half slot="home" title="오늘 숙제 · 집" b={b} sheet={sheet} mark={mark} rows={rows("home")} closed={closed} fail={fail} start={start} />}
         </div>}
-      {extra}{/* 📝 다음 시간 시험 — **어느 갈래에서도 보인다.** 2026-09-11 첫 주 돌려보기에서 잡힘: 교재가 멈추거나
+      {extra}{/* 📝 다음 시간 시험 — **어느 갈래에서도 보인다 · 한 번만**((어12) 2026-09-14 캡처에서 교재멈춤이면 둘이 서던 것을 잡음 — 아래 「stop !== running && extra」 가 한 번 더 그리고 있었다). 2026-09-11 첫 주 돌려보기에서 잡힘: 교재가 멈추거나
                    할 것이 없으면 이 카드가 통째로 사라져, 정작 시험이 제일 중요한 내신 기간에 시험을 낼 자리가 없었다 */}
-      {stop !== "running" && extra}
     </div>
   );
 }
@@ -212,11 +211,11 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>회차</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
-      {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>{l.gate && <span className="tag" data-g="gate" title="앞엣것을 끝내야 열린다(아이 화면 숙제 줄 · 루틴 11)" style={{ marginLeft: 4 }}>🔒</span>}
+      {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>{l.gate && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}
         <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}{l.notes.length ? ` · 이번에 ${l.notes.join(" · ")}` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div></div>)}
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
-        <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "이 교재 오늘 학습 메모 — 아이 화면에 그대로" : "이 교재 숙제 메모 — 아이 화면에 그대로"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
+        <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "학습 메모" : "숙제 메모"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
       </form>
       {extra}
     </div>
@@ -224,15 +223,15 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
 }
 const kindOf = (k) => KIND.find(([x]) => x === k) ?? ["", k, "?"];
 const numOr = (v) => (v === null || v === undefined ? "" : String(v));
-/** 🔤 시험 · 시작하자마자 / 다 끝내고(자리는 아이마다 — 0143 · 루틴 11) — 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 늦귀가 사유가 저절로 */
-function QuizCard({ sheet, quizzes, at, closed, fail, start }) {
+/** 🔤 시험 — 숙제 검사 카드 안 **맨 끝**(무조건 · (어12)). 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 늦귀가 사유가 저절로 */
+function QuizPart({ sheet, quizzes, closed, fail, start }) {
   const failed = quizzes.filter((q) => q.passed === false && !q.retry_of);
   const retryOf = (q) => quizzes.find((r) => r.retry_of === q.id);
   const taken = quizzes.filter((q) => q.passed !== null && q.passed !== undefined && !q.retry_of);
   const save = (q, form) => start(async () => { fail(await quizTake(sheet.id, q.id, form.wrong.value, form.total.value)); });
   return (
-    <div className="card" data-card="quiz" data-pos={at}>
-      <div className="ctitle"><span className="cemo">🔤</span>시험 · {quizPosName(at)}<span className="auto">지난 시간에 낸 범위 그대로</span></div>
+    <div className="part" data-card="quiz">
+      <div className="hh">🔤 시험<span className="cnt">{quizzes.length}</span></div>
       {quizzes.map((q) => { const [, kname, icon] = kindOf(q.kind); const res = q.passed === true ? "ok" : q.passed === false ? "warn" : ""; return (
         <form key={q.id} className={"lf" + (res ? " " + res : "")} style={{ marginBottom: 8 }} onSubmit={(e) => { e.preventDefault(); save(q, e.currentTarget); }}>
           <span className="ln">{icon}</span>
@@ -243,13 +242,12 @@ function QuizCard({ sheet, quizzes, at, closed, fail, start }) {
           <span className="lm" style={q.passed === true ? { color: "var(--ok)" } : q.passed === false ? { color: "var(--miss)" } : undefined}>{q.passed === null || q.passed === undefined ? "아직 안 적음" : `${q.total - q.wrong}/${q.total} · ${q.pct}% · ${q.passed ? "통과" : "못 넘음"}`}</span>
         </form>); })}
       <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}>
-        {failed.length ? <span className="pill warn">⚠️ 미통과 {failed.length} — 재시험지 + 늦귀가 사유 자동</span> : taken.length ? <span className="pill ok">✅ 통과 · 재시험 없음</span> : null}
+        {failed.length ? <span className="pill warn">⚠️ 미통과 {failed.length}</span> : taken.length ? <span className="pill ok">✅ 통과 · 재시험 없음</span> : null}
         {failed.map((q) => { const r = retryOf(q); return (<span key={q.id} className="wv" style={{ margin: 0 }}>
           <button type="button" className="btn sm" disabled={closed || Boolean(r)} onClick={() => start(async () => { fail(await quizRetest(sheet.id, q.id)); })}>{r ? "📄 재시험 대상 ✓" : "📄 재시험지 만들기"}</button>
           <button type="button" className="btn sm" aria-pressed={r?.state === "skipped"} disabled={closed || !r} onClick={() => start(async () => { fail(await quizSkip(sheet.id, q.id, r?.state !== "skipped")); })}>⏭ 오늘은 재시험 건너뜀</button>
         </span>); })}
         <span className="spacer" />
-        <Tip>틀린 개수만 셉니다 — 맞은 개수·%·통과는 <b>세어 나옵니다.</b> 건너뛰면 <b>오늘만</b> 빠집니다(늦귀가 사유·리포트에서도) — 점수는 그대로</Tip>
       </div>
     </div>
   );
@@ -257,17 +255,15 @@ function QuizCard({ sheet, quizzes, at, closed, fail, start }) {
 /** 🃏 클래스카드 플래너(목업 01 · (뎌-4)) — **확장이 받아 적은 것을 그대로 보인다.**
  *  확정-⑱ 목표·실제는 확장이 보낸 값이고 **앱이 다시 셈하지 않는다** · 미달이어도 **앱이 안 넘긴다**(원장님이 「⏭」를 누르신다).
  *  확정-⑩ 3초훈련은 짐에서 이미 버려져 여기 안 온다. 판단(줄 글·모드 줄·못 넘긴 것)은 lib/cc-plan.js 한 벌 */
-function CcCard({ rows = [], closed, fail, start }) {
-  if (!rows.length) return null;   // 확장이 아직 안 보냈으면 카드가 아예 안 선다(빈 카드로 자리를 먹지 않는다)
+function CcPart({ rows = [], closed, fail, start }) {   // 확장이 아직 안 보냈으면 숙제 검사 카드가 안 부른다(빈 자리를 먹지 않는다)
   const got = rows.reduce((t, r) => (r.fetched_at > t ? r.fetched_at : t), "");
   return (
-    <div className="card" data-card="cc">
-      <div className="ctitle"><span className="cemo">🃏</span>클래스카드 플래너<span className="auto ext">확장이 15분마다 받아 적음</span>
-        {got && <span className="auto" data-g="cc-got">{seoulTime(got)} 받음</span>}</div>
+    <div className="part" data-card="cc">
+      <div className="hh">🃏 클래스카드{got && <span className="cnt" data-g="cc-got">{seoulTime(got)} 받음</span>}</div>
       {rows.map((r) => { const p = plannerLine(r), skipped = Boolean(r.skipped_at), out = shortText(p.lines); return (
         <div key={r.id} data-g="cc-set" data-id={r.id} data-skipped={skipped ? "1" : "0"}>
           <div className="hw">
-            <div className="hwname"><b>{r.set_name}</b><small>마감 오늘</small>
+            <div className="hwname"><b>{r.set_name}</b>
               <div className="tags">
                 <span className={"tag" + (r.complete === true ? " on" : "")}>{r.complete === true ? "완료" : r.complete === false ? "아직" : "모름"}</span>
                 {r.set_type && SET_TYPE[r.set_type] && <span className="tag type">{SET_TYPE[r.set_type]} 세트</span>}
@@ -283,8 +279,6 @@ function CcCard({ rows = [], closed, fail, start }) {
             {p.short.length > 0 && <button type="button" className="btn sm" data-act="cc-skip" aria-pressed={skipped} disabled={closed}
               onClick={() => start(async () => { fail(await ccSkipAct(r.id, !skipped)); })}>{skipped ? "⏭ 넘긴 것 되돌리기" : "⏭ 목표 미달 넘기기"}</button>}
             {out && <span className={"pill" + (skipped ? "" : p.short.length ? " warn" : " ok")} data-g="cc-out">{skipped ? "넘겼습니다 — 오늘은 안 셉니다" : out}</span>}
-            <span className="spacer" />
-            <Tip>목표는 <b>아이마다 다릅니다</b> — 클래스카드에 적어 둔 그 값을 그대로 씁니다. <b>앱이 스스로 넘기지 않습니다.</b></Tip>
           </div>
         </div>); })}
     </div>
@@ -297,18 +291,18 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
   const patch = (q, p) => start(async () => { fail(await quizSet(sheet.id, q.id, p)); });
   return (
     <div data-card="next-quiz">
-      <div className="ctitle" style={{ marginTop: 12, fontSize: "var(--fs-3)" }}><span className="cemo">📝</span>다음 시간 시험 — 숙제와 같이 나갑니다</div>
+      <div className="ctitle" style={{ marginTop: 12, fontSize: "var(--fs-3)" }}><span className="cemo">📝</span>다음 시간 시험</div>
       {quizzes.map((q) => { const [, kname, icon] = kindOf(q.kind); return (
         <div key={q.id}>
           <div className="lf" style={{ marginTop: 4 }}><span className="ln">{icon}</span>
             <div><b>{kname}</b><small>{scopeText(q)}</small></div>
-            <div className="seg sm" data-g="source">{SOURCE.map(([k, name]) => <button key={k} type="button" aria-pressed={q.source === k} disabled={closed || (k === "prep" && !scopes.length) || (k === "book" && !q.book_id)} title={k === "prep" && !scopes.length ? "이 아이가 보는 시험의 범위가 아직 없습니다 — 시험 회차(06b)·내신 자료(04)에서 범위를 넣으면 고를 수 있습니다" : undefined} onClick={() => k !== q.source && (k === "prep" ? patch(q, { scopeId: scopes[0].id }) : patch(q, { source: k, freeNote: q.free_note ?? "" }))}>{name}</button>)}</div>
+            <div className="seg sm" data-g="source">{SOURCE.map(([k, name]) => <button key={k} type="button" aria-pressed={q.source === k} disabled={closed || (k === "prep" && !scopes.length) || (k === "book" && !q.book_id)} onClick={() => k !== q.source && (k === "prep" ? patch(q, { scopeId: scopes[0].id }) : patch(q, { source: k, freeNote: q.free_note ?? "" }))}>{name}</button>)}</div>
             {q.source === "prep" && scopes.length > 0 && <select data-g="scope" value={q.scope_id ?? ""} aria-label="내신 범위" style={{ width: "auto", maxWidth: 260 }} disabled={closed} onChange={(e) => patch(q, { scopeId: e.target.value })}>{scopes.map((sc) => <option key={sc.id} value={sc.id}>{sc.text}</option>)}</select>}
             <span className="qlab">전체 개수</span><input className="scr" name="total" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="—" disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.total)) patch(q, { total: e.target.value }); }} />
             <span className="qlab">통과선</span><input className="scr" name="cut_pct" type="text" inputMode="numeric" defaultValue={numOr(q.cut_pct)} style={{ maxWidth: 52 }} disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.cut_pct)) patch(q, { cutPct: e.target.value }); }} /><b className="qof">%</b></div>
-          {q.source === "manual" && <div className="lf" style={{ marginTop: 4 }}><span className="ln">✎</span><input type="text" defaultValue={q.free_note ?? ""} placeholder="범위를 직접 — 예: 2409 학평 22-24번" disabled={closed} style={{ flex: 1, minWidth: 0 }} onBlur={(e) => { if (e.target.value !== (q.free_note ?? "")) patch(q, { freeNote: e.target.value }); }} /></div>}
-          {q.total == null && <div className="lf warn" style={{ marginTop: 4 }}><span className="ln">!</span><div><b>{kname} 시험은 리포트에 안 나갑니다</b><small>전체 개수를 아직 안 적으셨습니다 — 적으면 바로 붙습니다</small></div></div>}
-          <div className="lf" style={{ marginTop: 4, background: "var(--sunk)" }}><span className="ln">⚙️</span><div><b>방식 — {q.quiz_style?.round ?? 1}회독 {q.quiz_style?.student_id ? <span className="tag act" data-g="style-mine">이 아이만</span> : q.quiz_style?.book_id ? "교재 기본값" : "학원 기본값"}을 따릅니다</b><small data-g="style-text">{q.quiz_style?.text ?? "방식 줄 없음"}{q.quiz_style?.units_per ? ` · ${q.quiz_style.units_per}단원씩` : ""} — 이 아이만 다르게도 됩니다</small></div>{!closed && <button type="button" className="btn sm" data-act="style-open" onClick={() => setStyleQ(q)}>방식 고치기</button>}</div>
+          {q.source === "manual" && <div className="lf" style={{ marginTop: 4 }}><span className="ln">✎</span><input type="text" defaultValue={q.free_note ?? ""} placeholder="예: 2409 학평 22-24번" disabled={closed} style={{ flex: 1, minWidth: 0 }} onBlur={(e) => { if (e.target.value !== (q.free_note ?? "")) patch(q, { freeNote: e.target.value }); }} /></div>}
+          {q.total == null && <div className="lf warn" style={{ marginTop: 4 }}><span className="ln">!</span><div><b>전체 개수가 없어 리포트에 안 나갑니다</b></div></div>}
+          <div className="lf" style={{ marginTop: 4, background: "var(--sunk)" }}><span className="ln">⚙️</span><div><b>{q.quiz_style?.round ?? 1}회독 · {q.quiz_style?.student_id ? <span className="tag act" data-g="style-mine">이 아이만</span> : q.quiz_style?.book_id ? "교재 기본값" : "학원 기본값"}</b><small data-g="style-text">{q.quiz_style?.text ?? "방식 줄 없음"}{q.quiz_style?.units_per ? ` · ${q.quiz_style.units_per}단원씩` : ""}</small></div>{!closed && <button type="button" className="btn sm" data-act="style-open" onClick={() => setStyleQ(q)}>방식 고치기</button>}</div>
         </div>); })}
       {!closed && <form className="wv" style={{ marginTop: 8 }} action={async (f) => { fail(await quizAdd(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
@@ -316,7 +310,7 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
         <select name="bookId" style={{ width: "auto" }} aria-label="범위 교재" onChange={(e) => { const f = e.target.form; f.unitId.value = unitOf(e.target.value) ?? ""; f.round.value = books.find((b) => b.book_id === e.target.value)?.round ?? 1; }}>
           {books.map((b) => <option key={b.id} value={b.book_id}>{b.books.name}</option>)}<option value="">직접 적기</option></select>
         <input type="hidden" name="unitId" defaultValue={books[0] ? unitOf(books[0].book_id) ?? "" : ""} /><input type="hidden" name="round" defaultValue={books[0]?.round ?? 1} />
-        <input type="text" name="freeNote" placeholder="직접 적을 때 범위" style={{ flex: "1 1 120px", minWidth: 0 }} />
+        <input type="text" name="freeNote" placeholder="범위" style={{ flex: "1 1 120px", minWidth: 0 }} />
         <button className="btn sm" type="submit">+ 시험 더하기</button>
       </form>}
       {styleQ && <StyleModal q={styleQ} sheet={sheet} fail={fail} start={start} onClose={() => setStyleQ(null)} />}
@@ -332,13 +326,12 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
   return <div className="mdlov" role="dialog" aria-modal="true" aria-label="방식 고치기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(520px,100%)" }} data-g="style-modal">
     <div className="mdlh"><b>방식 고치기 — 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
     <div className="mdlb">
-      <p className="note" style={{ marginTop: 0 }}>지금은 <b>{st.student_id ? "이 아이만의 줄" : st.book_id ? "교재 기본값" : "학원 기본값"}</b> — {st.text ?? "방식 줄 없음"}. 저장하면 이 아이 · 이 교재 · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1]} 시험만 이 방식을 따르고, 아직 안 본 같은 시험도 따라옵니다.</p>
       {q.kind === "word" ? <>
         <div className="wv" style={{ gap: 10 }}><N k="mc_meaning" label="객관식 뜻 %" /><N k="sa_meaning" label="주관식 뜻 %" /><N k="mc_word" label="객관식 영어 %" /><N k="sa_word" label="주관식 영어 %" /><span className={"pill" + (sum === 100 ? " ok" : " warn")} data-g="style-sum">합 {sum}</span></div>
         <div className="wv" style={{ gap: 10, marginTop: 6 }}><label className="wv" style={{ gap: 4, margin: 0 }}><input type="checkbox" name="first_hint" checked={f.first_hint} onChange={(e) => set("first_hint", e.target.checked)} /> 첫글자 힌트</label><N k="units_per" label="몇 단원씩(비면 안 씀)" /></div>
       </> : <div className="seg sm" data-g="s-way">{S_WAY.map(([k, name]) => <button key={k} type="button" aria-pressed={f.s_way === k} onClick={() => set("s_way", k)}>{name}</button>)}</div>}
       <div className="wv" style={{ gap: 10, marginTop: 6 }}><N k="cut_pct" label="통과선 %" /></div>
-      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><Tip>시험 방식·통과선은 학생 × 교재 × 회독마다 미리 정해 둡니다 — 오늘 고르지 않습니다</Tip><span className="spacer" />
+      <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}><span className="spacer" />
         <button type="button" className="btn sm pri" data-act="style-save" disabled={q.kind === "word" && sum !== 100} onClick={() => start(async () => { if (fail(await quizStyle(sheet.id, q.id, { ...f, first_hint: f.first_hint ? "on" : "" }))) onClose(); })}>저장</button></div>
     </div></div></div>;
 }
@@ -360,31 +353,30 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
   const leftLine = leftText(l, stay?.left_at);
   return (
     <div className="card" data-card="late" data-folded={off ? "1" : "0"}>
-      <div className="ctitle"><span className="stepno">3b</span> 늦귀가 — 남아서 하고 갑니다{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
+      <div className="ctitle"><span className="cemo">🌙</span>늦귀가{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
       <div data-g="stay" style={{ marginTop: 8 }}>
         {rows.map((r) => <div key={r.id} className="dayrow" data-g="stay-row" data-state={r.state}><span className="tag on">남</span>
           <div style={{ flex: "1 1 auto", minWidth: 0 }}><b style={{ textDecoration: r.state === "done" ? "line-through" : "none" }}>{r.text}</b><small>{[r.sub, r.from].filter(Boolean).join(" · ")}{r.state === "done" ? " · 다 함" : r.state === "missing" ? " · ⏭ 다음 숙제로 넘김" : ""}</small></div>
           {r.state === "open" && <button type="button" className="btn sm" data-act="stay-done" disabled={closed} onClick={() => start(async () => { fail(await stayDoneAct(r.id)); })}>다 함</button>}</div>)}
-        {!closed && <div className="wv" style={{ marginTop: 4 }} data-g="stay-add"><input type="text" value={stayText} onChange={(e) => setStayText(e.target.value)} placeholder="항목 더하기 (예: 워크북 복습 · 못 한 만큼)" aria-label="남아서 할 항목" style={{ flex: "1 1 200px" }} />
+        {!closed && <div className="wv" style={{ marginTop: 4 }} data-g="stay-add"><input type="text" value={stayText} onChange={(e) => setStayText(e.target.value)} placeholder="예: 워크북 복습" aria-label="남아서 할 항목" style={{ flex: "1 1 200px" }} />
           <button type="button" className="btn sm" data-act="stay-add" disabled={!stayText.trim()} onClick={() => start(async () => { const f = new FormData(); f.set("sheetId", sheet.id); f.set("slot", "stay"); f.set("text", stayText); if (fail(await add(f))) setStayText(""); })}>항목 더하기</button>
-          {sc.open > 0 && <button type="button" className="btn sm" data-act="stay-carry" onClick={() => start(async () => { fail(await stayCarryAct(sheet.id)); })}>⏭ 남은 것 다음 숙제로 넘기기</button>}
-          {sc.open > 0 && <button type="button" className="btn sm pri" data-act="stay-all-done" onClick={() => start(async () => { fail(await stayAllDoneAct(sheet.id)); })}>남아서 다 합니다</button>}</div>}
-        <p className="note" style={{ margin: "4px 0 0" }} data-g="stay-note">{rows.length ? `남 ${sc.total} · 다 함 ${sc.done} · 넘김 ${sc.missing}` : "✕·△ 준 항목이 후보로 올라옵니다(검사 줄의 「나머지는 → 남아서」) — 고르는 것은 원장님"}{!l?.until_at && usual ? ` · ${usual}` : ""}</p>
+          {sc.open > 0 && <button type="button" className="btn sm" data-act="stay-carry" onClick={() => start(async () => { fail(await stayCarryAct(sheet.id)); })}>⏭ 다음 숙제로</button>}
+          {sc.open > 0 && <button type="button" className="btn sm pri" data-act="stay-all-done" onClick={() => start(async () => { fail(await stayAllDoneAct(sheet.id)); })}>모두 다 함</button>}</div>}
+        <p className="note" style={{ margin: "4px 0 0" }} data-g="stay-note">{rows.length ? `남 ${sc.total} · 다 함 ${sc.done} · 넘김 ${sc.missing}` : "남을 것 없음"}{!l?.until_at && usual ? ` · ${usual}` : ""}</p>
       </div>
       {band && <div className="lf warn" style={{ margin: "8px 0 0" }} data-g="repeat"><span className="ln">🌙</span>
-        <div><b>{band.title}</b><small>{band.days} — 앱이 셉니다(규칙 late.repeat_count · late.repeat_days), 원장님이 세지 않습니다</small></div>
+        <div><b>{band.title}</b><small>{band.days}</small></div>
         {books.filter(laid).map((b) => <button key={b.book_id} type="button" className="btn sm" data-act="repeat-tune" disabled={closed} onClick={() => setTuneBook(b)}>{b.books.name} 조절 ↗</button>)}
         {!books.some(laid) && <span className="lm">검사 끝나면 조절할 수 있습니다</span>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {ask && <div className="lf warn" style={{ margin: "8px 0 0" }} data-reflect="1"><span className="ln">⚠️</span>
         <div><b>경고 {warn.count}회째 — 반성문{warn.pending && !warn.today_disposal ? " (유예했던 것을 다시 묻습니다)" : ""}</b>
-          <small>{warn.days} — 앱은 세기만 하고 <span style={{ fontWeight: 700 }}>정하는 것은 원장님</span> · 경고는 저장하지 않고 리포트에서 매달 셉니다 · 지난 반성문 뒤 {warn.since_written}회째</small></div></div>}
+          <small>{warn.days} · 지난 반성문 뒤 {warn.since_written}회째</small></div></div>}
       {warn?.count > 0 && <div className="lenrow" style={{ marginTop: 8 }} data-limit="1"><span className="fl" style={{ margin: 0, width: "auto" }}>반성문 기준</span>
         <div className="stepper" data-g="limit"><button type="button" data-s="-" disabled={closed || warn.report_at <= 1} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at - 1)); })}>−</button><input type="text" inputMode="numeric" aria-label="반성문 기준 횟수" value={warn.report_at} readOnly /><button type="button" data-s="+" disabled={closed} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at + 1)); })}>+</button></div>
-        <span className="note" style={{ margin: 0 }}>{warn.own_limit ? "이 아이만 · " : "학원 기본 · "}쓴 뒤로 다시 {warn.report_at}회째에 묻습니다(지금 {warn.since_written}회째)</span></div>}
+        <span className="note" style={{ margin: 0 }}>{warn.own_limit ? "이 아이만" : "학원 기본"} · 지금 {warn.since_written}회째</span></div>}
       {ask && <div className="lenrow" style={{ marginTop: 8 }}><span className="fl" style={{ margin: 0, width: "auto" }}>처분</span>
-        <div className="seg sm" data-g="refl">{DISPOSAL.map(([k, name]) => <button key={k} type="button" aria-pressed={warn.today_disposal === k} disabled={closed} onClick={() => start(async () => { fail(await reflectAs(sheet.id, k)); })}>{name}</button>)}</div>
-        <Tip>남아서 쓰면 늦귀가 사유에 서고, 숙제면 다음 시간 검사 줄에 섭니다. 유예는 지운 것이 아니라 미룬 것 — 다음 경고에 다시 묻습니다</Tip></div>}
+        <div className="seg sm" data-g="refl">{DISPOSAL.map(([k, name]) => <button key={k} type="button" aria-pressed={warn.today_disposal === k} disabled={closed} onClick={() => start(async () => { fail(await reflectAs(sheet.id, k)); })}>{name}</button>)}</div></div>}
       <form className="lategrid" action={async (f) => { fail(await late(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
         <div><label className="fl">사유</label>
@@ -394,7 +386,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
           <div className="seg sm" style={{ marginTop: 4 }}>{PLUS.map(([m, name]) => <button key={m} type="button" disabled={closed} onClick={() => setUntil(plus(m))}>{name}</button>)}</div></div>
         <div className="wv" style={{ marginBottom: 0 }}>
           <button className="btn sm" type="submit" disabled={closed}>적어 두기</button>
-          <button className="btn sm pri" type="button" disabled={closed || !l?.until_at} onClick={() => start(async () => { fail(await lateSend(sheet.id)); })}>📨 학부모에게 지금 보내기</button>
+          <button className="btn sm pri" type="button" disabled={closed || !l?.until_at} onClick={() => start(async () => { fail(await lateSend(sheet.id)); })}>📨 지금 보내기</button>
           {l?.sent_at ? <span className="pill">보냄 {seoulTime(l.sent_at)}</span> : l?.until_at ? <span className="pill warn">보내야 함</span> : null}
         </div>
       </form>
@@ -402,8 +394,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
         <span className="fl" style={{ margin: 0, whiteSpace: "nowrap" }}>실제 하원</span>
         <input type="text" value={left} onChange={(e) => setLeft(e.target.value)} placeholder="예: 22:05" inputMode="numeric" aria-label="실제 하원 시각" style={{ maxWidth: 110 }} />
         <button type="button" className="btn sm" data-act="left" disabled={!/^\d{2}:\d{2}$/.test(left)} onClick={() => start(async () => { fail(await lateLeft(studentId, date, left)); })}>찍기</button>
-        {leftLine ? <span className="lateout" data-g="left-out" style={{ margin: 0 }}>{leftLine}</span>
-          : <Tip>아이의 「집에 가요」와 같은 한 줄(등원 걸음 4) — 여기서 고치면 그 줄이 고쳐집니다 · 마감과 무관 · 찍어야 예상과 얼마나 달랐는지 남습니다</Tip>}
+        {leftLine && <span className="lateout" data-g="left-out" style={{ margin: 0 }}>{leftLine}</span>}
       </div>
     </div>
   );
@@ -414,7 +405,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
  *  접혀도 **무엇이 들었는지는 제목 줄이 말한다**(대전제-0 — 「메모 없음」·「늦게 가는 아이 아님」) */
 function Shut({ on, set, text = "" }) {
   return <>{on && text && <span className="pill dim" data-g="shut-note" style={{ order: 9 }}>{text}</span>}
-    <button type="button" className="btn sm" data-act="shut" aria-pressed={on} aria-label={on ? "펴기" : "접기"} title={on ? "펴기" : "접기"} style={{ order: 10, padding: "0 6px" }} onClick={() => set(!on)}>{on ? "▸" : "▾"}</button></>;
+    <button type="button" className="btn sm" data-act="shut" aria-pressed={on} aria-label={on ? "펴기" : "접기"} style={{ order: 10, padding: "0 6px" }} onClick={() => set(!on)}>{on ? "▸" : "▾"}</button></>;
 }
 function AreaMemoCard({ sheet, books, shut = null, closed, fail, start }) {
   const [off, setOff] = useState(Boolean(shut?.shut));
@@ -427,24 +418,22 @@ function AreaMemoCard({ sheet, books, shut = null, closed, fail, start }) {
     <div className="card" data-card="areamemo" data-folded={off ? "1" : "0"}>
       <div className="ctitle"><span className="cemo">🗺</span>진도 · 영역별 메모<Shut on={off} set={setOff} text={shut?.text} /></div>
       <label className="fl">오늘 한 단원</label>
-      <div className="tags" style={{ marginBottom: 12 }} data-g="today-units">{units.length ? units.map((u) => <span key={u.id} className={"tag" + (u.on ? " on" : "")}>{u.label} {u.mark}</span>) : <span className="note" style={{ margin: 0 }}>아직 없습니다 — 검사하면 여기 섭니다</span>}</div>
+      <div className="tags" style={{ marginBottom: 12 }} data-g="today-units">{units.length ? units.map((u) => <span key={u.id} className={"tag" + (u.on ? " on" : "")}>{u.label} {u.mark}</span>) : <span className="note" style={{ margin: 0 }}>아직 없음</span>}</div>
       <div className="areas">{MEMO_AREAS.map((a) => <div key={a}><label className="fl">{a}</label><input type="text" name={`memo-${a}`} value={vals[a]} disabled={closed} placeholder="(오늘 안 함)" onChange={(e) => setVals({ ...vals, [a]: e.target.value })} onBlur={() => save(a)} /></div>)}</div>
-      <p className="note" style={{ margin: 0 }}>이 메모는 <b>아이에게 그대로 나가고</b>, 부모님께 글의 ✨ 브리핑 재료가 됩니다</p>
     </div>
   );
 }
-/** 📝 단원평가(목업 01) — 이 아이에게 출제한 것이 있을 때만 선다(없으면 안 엶). 교재와 무관, 원장님이 따로 출제. 맞은 개수만 적는다 → 통과선(규칙 unit_test.pass_pct)으로 통과/미달 */
-function UnitTestCard({ t, passPct, date, closed, fail, start }) {
+/** 📝 단원평가 — 숙제 검사 카드 안(🔤 바로 앞 · (어12)). 원장님이 05 에서 「출제함」을 누른 아이에게만 선다(출제는 원장님 할 일 — 원장님 2026-09-14). 맞은 개수만 적는다 → 통과선(규칙 unit_test.pass_pct)으로 통과/미달 */
+function UnitTestPart({ t, passPct, date, closed, fail, start }) {
   const [n, setN] = useState(t.correct ?? "");
   const res = unitResult(n, t.q_count, passPct);
   const put = (v) => { const x = Math.max(0, Math.min(Number(t.q_count ?? 0), Number(v) || 0)); setN(x); start(async () => { fail(await unitScore(t.id, x, date)); }); };
   const state = { todo: "낼 것", made: "출제함", taken: "봤음", scored: "채점함" }[t.state] ?? t.state;
   return (
-    <div className="card" data-card="unit-test">
-      <div className="ctitle"><span className="cemo">📝</span>단원평가 · {t.grammar_topics?.name ?? "—"}<span className="auto">{state}</span></div>
-      {t.books?.name && <p className="note" style={{ margin: "0 0 6px" }} data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 묶음`} → 단원평가 단원 · {t.grammar_topics?.name ?? "분류 없음"}</p>}
+    <div className="part" data-card="unit-test">
+      <div className="hh">📝 단원평가 · {t.grammar_topics?.name ?? "분류 없음"}<span className="cnt">{state}</span></div>
       <div className="wtrow">
-        <div className="wtset"><b>원장님이 출제한 {t.q_count}문항</b><div className="tags"><span className="tag type">교재 문제가 아닙니다</span>{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
+        <div className="wtset"><b>{t.q_count}문항</b><div className="tags">{t.books?.name && <span className="tag" data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 묶음`}</span>}{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
         <div className="wtscore"><label className="fl">맞은 개수</label>
           <div className="stepper" data-g="unit"><button type="button" data-s="-" disabled={closed} onClick={() => put((Number(n) || 0) - 1)}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(e.target.value.replace(/\D/g, ""))} onBlur={() => { if (n !== "") put(n); }} /><button type="button" data-s="+" disabled={closed} onClick={() => put((Number(n) || 0) + 1)}>+</button></div>
           {res && <div className={"wtres " + (res.pass ? "pass" : "fail")} data-g="unit-res"><b>{n} / {t.q_count}</b><span>{res.pct}% {res.pass ? "통과" : "미달"}</span></div>}
@@ -484,38 +473,36 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
     <div className="card" data-card="comment" data-folded={off ? "1" : "0"}>
       <div className="ctitle"><span className="cemo">✉️</span>부모님께 나갈 글{closed && <span className="auto">마감됨</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
       {lines.length > 0 && <div className="lf ok" style={{ marginBottom: 8 }} data-g="attached"><span className="ln">📝</span>
-        <div><b>글 밑에 저절로 붙습니다</b><small>{lines.map((l, i) => <span key={l.key} style={l.on ? undefined : { color: "var(--mute)" }}>{i ? " | " : ""}{l.text}</span>)}</small></div><span className="lm">따로 안 씀</span></div>}
+        <div><b>글 밑에 붙는 줄</b><small>{lines.map((l, i) => <span key={l.key} style={l.on ? undefined : { color: "var(--mute)" }}>{i ? " | " : ""}{l.text}</span>)}</small></div></div>}
       {closed && <div className="tags" style={{ marginBottom: 8 }}><span className="tag">{capName(cap)}</span><span className="tag type">{kindName(kind)}</span>{draft && sameAsDraft(text, draft) && <span className="tag">AI 초안 그대로</span>}</div>}
       {!closed && <>
-        <label className="fl">키워드만 적으세요</label>
-        <input type="text" name="keys" value={keys} onChange={(e) => setKeys(e.target.value)} placeholder="예: 간접의문문, 어순 스스로 설명, 워크북 오답 3개 다음시간" style={{ width: "100%" }} />
+        <label className="fl">키워드</label>
+        <input type="text" name="keys" value={keys} onChange={(e) => setKeys(e.target.value)} placeholder="예: 간접의문문, 어순 스스로 설명" style={{ width: "100%" }} />
         <div className="lenrow"><span className="fl" style={{ margin: 0, whiteSpace: "nowrap" }}>상황</span>
           <div className="seg sm" data-g="kind">{CKIND.map(([k, name]) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => pick(k)}>{name}</button>)}</div>
           {kind === autoKind && <span className="note" style={{ margin: 0 }}>오늘 상태에서 저절로</span>}</div>
         <div className="lenrow"><span className="fl" style={{ margin: 0, whiteSpace: "nowrap" }}>길이</span>
           <div className="seg sm" data-g="cap">{CAPS.map((c) => <button key={c} type="button" aria-pressed={cap === c} onClick={() => setCap(c)}>{capName(c)}</button>)}</div>
-          <button type="button" className="btn sm" data-act="brief" onClick={brief}>✨ 브리핑 만들기</button>
+          <button type="button" className="btn sm" data-act="brief" onClick={brief}>✨ 브리핑</button>
           <span className={"cap" + (over ? " over" : "")} data-g="count">{n} / {capName(cap)}</span></div>
       </>}
       <textarea name="comment" value={text} onChange={(e) => { setText(e.target.value); setAsk(null); }} rows={3} placeholder="오늘 한 것 · 잘한 것 · 다음 시간에 할 것" disabled={closed} style={{ width: "100%", marginTop: 8 }} />
-      {made && !closed && <p className="note" style={{ margin: "4px 0 0" }}>✨ 초안 {made.chars}자{made.retried ? ` · ${made.retried}번 다시 시킴` : ""}{made.cut ? " · 넘어서 문장 끝에서 잘랐습니다" : ""}</p>}
-      {offer && <div className="lf" data-g="offer"><span className="ln">✨</span><div><b>초안이 나왔습니다 — 지금 글이 있어 덮지 않았습니다</b><small style={{ whiteSpace: "pre-wrap" }}>{offer}</small></div><button type="button" className="btn sm" onClick={() => { setText(offer); setOffer(""); }}>이 초안으로 바꾸기</button></div>}
-      {show && <div className="lf" data-g="preview"><span className="ln">👁</span><div><b>학부모 화면에 이렇게 보입니다</b><small style={{ whiteSpace: "pre-wrap" }}>{preview(text, lines) || "(아직 글이 없습니다)"}</small></div></div>}
+      {made && !closed && <p className="note" style={{ margin: "4px 0 0" }}>✨ 초안 {made.chars}자{made.retried ? ` · ${made.retried}번 다시 시킴` : ""}{made.cut ? " · 잘림" : ""}</p>}
+      {offer && <div className="lf" data-g="offer"><span className="ln">✨</span><div><b>새 초안 — 지금 글은 그대로</b><small style={{ whiteSpace: "pre-wrap" }}>{offer}</small></div><button type="button" className="btn sm" onClick={() => { setText(offer); setOffer(""); }}>이 초안으로</button></div>}
+      {show && <div className="lf" data-g="preview"><span className="ln">👁</span><div><b>학부모 화면</b><small style={{ whiteSpace: "pre-wrap" }}>{preview(text, lines) || "(아직 글이 없습니다)"}</small></div></div>}
       {ask && <div className="lf warn" data-g="ask" ref={askRef}><span className="ln">?</span><div>
         {ask.includes("same") && <b>AI 초안을 안 고치셨습니다 — 그대로 보낼까요?</b>}
-        {ask.includes("late") && <b>늦귀가를 아직 안 보냈습니다 — 학부모는 모른 채 기다립니다</b>}
-        <small>한 번만 여쭙니다 — 막지는 않습니다</small></div>
+        {ask.includes("late") && <b>늦귀가를 아직 안 보냈습니다</b>}</div>
         {ask.includes("late") && <button type="button" className="btn sm pri" data-act="send-close" onClick={sendAndFinish}>📨 보내고 마감</button>}
         <button type="button" className={"btn sm" + (ask.includes("late") ? "" : " pri")} data-act="close-anyway" onClick={() => finish(true)}>그대로 마감</button>
         <button type="button" className="btn sm" onClick={() => setAsk(null)}>{ask.includes("same") ? "고치기" : "돌아가기"}</button></div>}
       {!closed && <div className="wv" style={{ marginTop: 8 }}>
-        <button className="btn sm gho" type="button" data-act="preview" aria-pressed={show} onClick={() => setShow((v) => !v)}>👁 미리보기</button>
-        <span className="note" style={{ margin: 0 }}>AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를, 늦귀가를 안 보낸 채 마감하면 「보내고 마감할까요?」를 한 번 묻습니다 — 막지는 않습니다</span></div>}
+        <button className="btn sm gho" type="button" data-act="preview" aria-pressed={show} onClick={() => setShow((v) => !v)}>👁 미리보기</button></div>}
       {!closed && barHost && createPortal(<>
         <button className="btn sm pri" type="button" data-act="close" disabled={future} onClick={() => finish(false)}>저장하고 마감</button>
         <button className="btn sm" type="button" data-act="save" onClick={save}>임시 저장</button>
         <button className="btn sm gho" type="button" data-act="collapse" onClick={onCollapse}>닫기</button>
-        <span className="note" style={{ margin: 0 }} data-g="close-note">{future ? "앞으로 올 날이라 마감이 잠겨 있습니다 — 적어 두는 것(임시 저장)은 다 됩니다. 마감은 그 날에(마감이 곧 부모님께 나가는 문입니다)" : "마감하면 학부모 화면에 보입니다 — 되돌리기는 원장님께"}</span>
+        <span className="note" style={{ margin: 0 }} data-g="close-note">{future ? "앞으로 올 날 — 마감이 잠겨 있습니다(임시 저장은 됩니다)" : "마감하면 학부모에게 보입니다"}</span>
       </>, barHost)}
     </div>
   );
@@ -543,7 +530,7 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
         <div className="mdlh"><b>{b.books.name} · {pool.chapter ?? "안 한 대단원 없음"}</b><span className="tag type">{pool.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
         <div className="mdlb">
           <div className="hw">
-            <div className="hwname"><b>소단원 갯수</b><small>안 한 소단원 {pool.pool.length}개 중에서 — 칩을 눌러 뺍니다</small>
+            <div className="hwname"><b>소단원 갯수</b><small>안 한 소단원 {pool.pool.length}개</small>
               <div className="units unitcol">{pool.pool.map((u) => <button key={u.unit_id} type="button" className="unit" aria-pressed={sel.has(u.unit_id)} disabled={closed} onClick={() => toggle(u)}>{u.short}<i>{pages(u) ?? ""}{u.q_count ? ` · ${u.q_count}문항` : ""}</i></button>)}</div>
             </div>
             <div className="stepper"><button type="button" data-s="-" disabled={closed} onClick={() => setN(Math.max(1, n - 1))}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(Math.max(1, Math.min(pool.pool.length, Number(e.target.value) || 1)))} /><button type="button" data-s="+" disabled={closed} onClick={() => setN(Math.min(pool.pool.length, n + 1))}>+</button></div>
@@ -553,11 +540,10 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
               <small>{selected.map((u) => `${u.short} ${u.q_count ?? 0}문항`).join(" · ") || "고른 소단원 없음"} — 교재 {pool.books}권 합치면 <b>{pool.load.questions}문항 · {pool.load.pages}쪽</b>(지금 깔린 것)</small></div>
             {first && <span className="lm">1개면 {first.q_count ?? 0}문항</span>}</div>
           <div className="lf ok" style={{ margin: "2px 0 8px" }}><span className="ln">🔀</span>
-            <div><b>도는 차례 — 지금 <span style={{ color: "var(--ok)" }}>{basis}</span></b>
-              <small>{pool.orderBasis === "chapter" ? "본책을 다 하고 → 워크북" : "소단원마다 본책+워크북 나란히"} · 고치는 자리는 <b>11 학생 루틴 한 곳</b> — 여기서는 읽기만(11 은 다음에)</small></div></div>
+            <div><b>도는 차례 — <span style={{ color: "var(--ok)" }}>{basis}</span></b><small>{pool.orderBasis === "chapter" ? "본책을 다 하고 → 워크북" : "소단원마다 본책+워크북 나란히"}</small></div></div>
           {selected.filter((u) => (u.q_count ?? 0) >= pool.splitFrom).map((u) => (
             <div key={u.unit_id} style={{ margin: "4px 0 12px" }}>
-              <div className="hw"><div className="hwname"><b>{u.short}</b><small>{u.q_count}문항{pages(u) ? ` · ${pages(u)}` : ""} · 한 줄짜리 — 한 번에 다 못 냅니다</small></div></div>
+              <div className="hw"><div className="hwname"><b>{u.short}</b><small>{u.q_count}문항{pages(u) ? ` · ${pages(u)}` : ""}</small></div></div>
               <div className="wv"><span className="fl" style={{ margin: 0 }}>이번에</span>
                 <div className="seg sm" data-g="qrange">{splitPresets(u.q_count).map((o) => <button key={o.key} type="button" aria-pressed={(ranges[u.unit_id] ?? null) === o.range} disabled={closed} onClick={() => setRanges({ ...ranges, [u.unit_id]: o.range })}>{o.name}</button>)}</div>
                 <input type="text" value={ranges[u.unit_id] ?? ""} placeholder="전체" disabled={closed} style={{ flex: "1 1 100px", minWidth: 100 }} onChange={(e) => setRanges({ ...ranges, [u.unit_id]: e.target.value || null })} /></div>
@@ -588,7 +574,7 @@ function ProgressModal({ b, sheet, closed, fail, start, onClose }) {
     <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
     <div className="mdlb">
       <div className="tags" style={{ marginBottom: 8 }}><span className="tag on">끝낸 대단원 {t.finished} / {t.chapters.length}</span>{t.now && <span className="tag act">지금 {t.now}</span>}<span className="tag">안 끝난 소단원 {undone}</span>{t.memo_streak > 0 && <span className={"tag" + (t.memo_streak >= t.memo_rule ? " act" : "")} data-g="memo-streak">✍ 메모로만 {t.memo_streak}회 연속</span>}</div>
-      {t.memo_streak >= t.memo_rule && <p className="note" data-g="memo-warn" style={{ margin: "0 0 8px", color: "var(--miss)" }}>⚠️ 이 교재 {t.memo_streak}회 연속 메모로만 갔습니다 — 교재를 안 폈는데 진도가 올라갑니다. 확인해 보세요.</p>}
+      {t.memo_streak >= t.memo_rule && <p className="note" data-g="memo-warn" style={{ margin: "0 0 8px", color: "var(--miss)" }}>⚠️ 메모로만 {t.memo_streak}회 연속 — 교재를 안 폈는데 진도가 올라갑니다</p>}
       {t.chapters.map((c) => { const isOpen = open === c.chapter; const fin = c.done + c.skip === c.total && c.total > 0; return (
         <div key={c.chapter} className={"acc" + (isOpen ? " open" : "")} data-chapter={c.chapter}>
           <button type="button" className="acch" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : c.chapter)}><span className="ar">›</span><b>{c.chapter}</b><span className="spacer" />
@@ -599,12 +585,12 @@ function ProgressModal({ b, sheet, closed, fail, start, onClose }) {
                 <span className="nm">{auto ? <b>{u.short}</b> : u.short}<small>{u.activity}{pages(u) ? ` · ${pages(u)}` : ""}{u.q_count ? ` · ${u.q_count}문항` : ""}{u.status === "skip" ? " · 건너뜀" : ""}{t.partsOf?.[u.id] ? <> · <span data-g="parts">{t.partsOf[u.id]}</span></> : null}{auto ? <> · <b style={{ color: "var(--navy)" }}>✍ 메모로 자동 ○</b></> : null}</small></span>
                 <div className="tri" data-g={u.id}>{TRI.map(([k, mark]) => <button key={k} type="button" data-p={k} aria-pressed={(u.status === "skip" ? "none" : u.status) === k} disabled={closed} onClick={() => u.status !== k && set(u, k)}>{mark}</button>)}</div>
               </div>); })}
-            <div style={{ marginTop: 12 }}><label className="fl">교재 없이 한 날 — 무엇을 했나(01 의 학습 메모와 같은 값)</label><input type="text" value={t.memo} readOnly placeholder="01 의 이 교재 학습 메모에 적으면 마감 때 오늘 학습 소단원이 ○ 가 됩니다" /></div>
-            {!fin && !closed && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm" onClick={() => skip(c.chapter)}>이 대단원 건너뛰기</button><span className="note" style={{ margin: 0 }}>안 한 채로 넘어간 것으로 남습니다 — 지운 것이 아닙니다(월간 리포트에서 구별)</span></div>}
+            <div style={{ marginTop: 12 }}><label className="fl">학습 메모</label><input type="text" value={t.memo} readOnly placeholder="(없음)" /></div>
+            {!fin && !closed && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm" onClick={() => skip(c.chapter)}>이 대단원 건너뛰기</button></div>}
           </div>}
         </div>); })}
     </div>
-    <div className="mdlf"><button type="button" className="btn gho" onClick={onClose}>닫기</button><span className="spacer" /><span className="note" style={{ margin: 0 }}>찍으면 바로 저장됩니다 · 메모로 대신한 날은 마감이 ○ 로 올립니다(그 교재만)</span></div>
+    <div className="mdlf"><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
   </>);
 }
 /** 02c 결석·지각 예정 — 수업일만 고를 수 있는 좁은 달력 · 고른 날의 결석(사유 · 보강 날짜·시각 직접 · 안 잡음) / 지각(얼마나 · 사유) · 📨 학부모께 알림. 보강 시각은 앱이 제안하지 않는다(확정-㉔) */
@@ -655,12 +641,12 @@ function PlanModal({ student, date, fail, start, onClose }) {
                 <input type="text" value={form.makeupAt} placeholder="14:00" style={{ maxWidth: 80 }} disabled={form.waived} onChange={(e) => setForm({ ...form, makeupAt: e.target.value })} />
                 <button type="button" className="btn sm" data-act="mkcal" disabled={form.waived} onClick={() => setMk(!mk)}>📅 달력에서 고르기</button>
                 <label className="ckl"><input type="checkbox" className="ck" checked={form.waived} onChange={(e) => setForm({ ...form, waived: e.target.checked })} />안 잡음</label></div>
-              {mk && <div className="mkcal open"><div className="calhead"><b>{ym.slice(0, 4)}년 {Number(ym.slice(5, 7))}월</b><span className="spacer" /><span className="pill">아무 날이나 고를 수 있습니다 — 앱은 제안하지 않습니다</span></div>
+              {mk && <div className="mkcal open"><div className="calhead"><b>{ym.slice(0, 4)}년 {Number(ym.slice(5, 7))}월</b><span className="spacer" /><span className="pill">아무 날이나</span></div>
                 <div className="cal" data-g="mkcal">{["월", "화", "수", "목", "금", "토", "일"].map((w) => <div key={w} className="cdow">{w}</div>)}
                   {grid.map((g) => <div key={g.date} className={"cd" + (g.out ? " out" : "") + (form.makeupOn === g.date ? " pickd" : "")} role={g.out ? undefined : "button"} onClick={() => !g.out && setForm({ ...form, makeupOn: g.date })}>{g.out ? g.day : <><span className="dn">{g.day}</span>{K(g.date) && <i className={"cm " + I(g.date)}>{K(g.date)}</i>}</>}</div>)}</div>
                 <div className="wv" style={{ margin: "8px 0 0" }}><span className="fl" style={{ margin: 0 }}>시각</span><input type="text" value={form.makeupAt} placeholder="14:00" style={{ maxWidth: 90 }} onChange={(e) => setForm({ ...form, makeupAt: e.target.value })} />
                   <div className="seg sm">{["10:00", "11:00", "14:00", "16:00"].map((t) => <button key={t} type="button" aria-pressed={form.makeupAt === t} onClick={() => setForm({ ...form, makeupAt: t })}>{t}</button>)}</div>
-                  <span className="note" style={{ margin: 0 }} data-g="slot">{slot || "칸이 차 있어도 넣을 수 있습니다"}</span></div></div>}
+                  <span className="note" style={{ margin: 0 }} data-g="slot">{slot}</span></div></div>}
             </>}
             {form.kind === "late" && <>
               <div className="wv"><span className="fl" style={{ margin: 0 }}>얼마나</span>
@@ -668,7 +654,7 @@ function PlanModal({ student, date, fail, start, onClose }) {
                 <input type="text" inputMode="numeric" value={form.minutes} placeholder="분" style={{ maxWidth: 90 }} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></div>
               <div className="wv" style={{ marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>사유</span><input type="text" value={form.reason} placeholder="예: 학교 보충수업" style={{ flex: "1 1 150px" }} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></div>
             </>}
-            {form.kind === "none" && <p className="note" style={{ margin: "8px 0 0" }}>저장하면 이날 예정을 물립니다 — 지우는 것이 아니라 「온다」로 되돌리는 것입니다.</p>}
+            {form.kind === "none" && <p className="note" style={{ margin: "8px 0 0" }}>저장하면 「온다」로 돌아갑니다</p>}
             {cur?.plan?.notified_at && <p className="note" style={{ margin: "8px 0 0" }}>📨 학부모께 알림 보냄 {String(cur.plan.notified_at).slice(0, 16).replace("T", " ")}</p>}
           </div>}
           <div className="clegend"><span><i className="cm i-cls">·</i>수업일</span><span><i className="cm i-abs">✕</i>결석 예정</span><span><i className="cm i-late">⏰</i>지각 예정</span><span><i className="cm i-mk">↻</i>보강</span><span><i className="cm i-off">🚫</i>휴강</span><span><i className="cm i-ex">📝</i>시험 기간 — 결석 예상(표시만)</span></div>

@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════
  * 클로이영어 새 앱 — 겉 한 벌. **손으로 고치지 않는다.**
- * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-12).
+ * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-14).
  * 겉을 바꾸려면 목업을 고치고 다시 만든다 — 목업이 곧 명세다. check-mockup 이 둘이 같은지 잰다.
  * 까닭·규칙은 docs/디자인-기본.md(배색 다섯 벌 · 치수 한 벌 · 글꼴 한 벌 · 금지 9).
  * ══════════════════════════════════════════════════════════════════════ */
@@ -494,6 +494,28 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
   .rowbar .note{display:none}
 }
 /* 폰: 「닫기」가 저장줄에(머리의 닫기는 위로 멀다) · 설명은 접는다 */
+/* (어12) 2026-09-13 원장님 「pc부터 고쳐야되고 애초에 수업중에 업무를 할수가없는구조야」 — 01 을 PC 에서 두 열로: 왼쪽은 이름 줄(늘 보인다 · 아이가 무작위로 오는 수업 중에 찾는 자리) · 오른쪽은 열린 한 아이의 판. 줄(.row)·반(section)은 display:contents 로 격자에 풀고, 판만 오른쪽 열에 absolute 로 세워 이름 줄 사이가 안 벌어진다. 폰(<1100)은 그대로 세로 */
+@media(min-width:1100px){
+  .split{display:grid;grid-template-columns:300px minmax(0,1fr);column-gap:16px;align-content:start;position:relative;min-height:calc(100vh - 190px)}
+}
+@media(min-width:1100px){
+  .split section,.split .row{display:contents}
+}
+@media(min-width:1100px){
+  .split section>*,.split .row>*{grid-column:1}
+}
+@media(min-width:1100px){
+  .split .row>.panel{grid-column:2;position:absolute;top:0;right:0;bottom:0;left:0;overflow:auto;border:1px solid var(--navy);border-radius:12px;box-shadow:0 0 0 2px var(--navy)}
+}
+@media(min-width:1100px){
+  .split .rowtop{border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer}
+}
+@media(min-width:1100px){
+  .split .row[data-open="1"] .rowtop{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}
+}
+.part{margin-top:10px}
+.part+.part{padding-top:8px;border-top:1px dashed var(--hair)}
+/* (어12) 숙제 검사 카드 안의 갈래(🃏 · 📝 · 🔤) — 카드 하나 안에서 줄로 나눈다(첫 갈래 위는 검사 줄의 점선이 이미 가른다) · 🔤 는 무조건 맨 끝 */
 .srow>.ckl{margin-top:4px}
 .rt2{display:grid;grid-template-columns:1fr 1.15fr;gap:12px;align-items:start}
 @media(max-width:820px){

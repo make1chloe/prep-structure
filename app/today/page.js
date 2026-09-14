@@ -9,11 +9,12 @@ import DayPick from "./daypick.js";
 import { warnBand } from "@/lib/warn";
 import Band from "./band.js";
 import Row from "./row.js";
+import Board from "./board.js";
 import { isUnchecked } from "@/lib/status";
 import { classLabel } from "@/lib/dash-plan";
 export const dynamic = "force-dynamic";
 const minutesOf = (a, b) => { const m = (t) => { const [h, mi] = String(t ?? "").split(":").map(Number); return h * 60 + (mi || 0); }; return a && b ? Math.max(0, m(b) - m(a)) : 0; };   // 반 시간(분) — 「90분이면 한 항목에 6.0분」
-const frame = (children) => <main className="frame" style={{ maxWidth: 960, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;   // (어12) PC 는 두 열(목업 .split · ≥1100px) — 960 한 줄로 세로만 쌓던 것을 걷었다(원장님 2026-09-13 「pc부터 고쳐야되고」)
 export default async function Today({ searchParams }) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📋</span>오늘 수업은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role]} 화면은 곧 열립니다.` : "역할 줄이 없습니다."}</p></div>);
@@ -28,6 +29,7 @@ export default async function Today({ searchParams }) {
   const unchecked = r.classes.flatMap((c) => c.students).reduce((n, s) => n + (s.sheet?.check.filter(isUnchecked).length ?? 0), 0);
   const other = date !== todayStr, future = date > todayStr;
   const pick = <DayPick date={date} today={todayStr} weekday={weekdayName(date)} />;
+  const firstOpen = other ? null : (r.classes.flatMap((c) => c.students).find((s) => !s.sheet?.closed && !s.plan?.absent)?.id ?? null);   // 한 번에 한 아이((어12) board.js) — 처음엔 오늘 첫 아이(마감·결석 예정은 건너뜀) · 다른 날은 아무도 안 연다
   if (!r.classes.length) return frame(<>{pick}<div className="card"><div className="ctitle"><span className="cemo">📋</span>{other ? `${date} 에는 도는 반이 없습니다` : "오늘 수업 없음 · " + date}</div><p className="note">그 날 도는 반이 없습니다. 반 시간표는 반 화면에서 봅니다.</p></div></>);
   return frame(<>
     {pick}
@@ -42,12 +44,12 @@ export default async function Today({ searchParams }) {
       {r.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <span key={c.id ?? "makeup"} className="pill">{classLabel(c)} · {c.students.length}명{c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}</span>; })}
       {unchecked > 0 && <span className="pill warn">검사 안 본 것 {unchecked}</span>}
     </div>
-    {r.classes.map((c) => (
+    <Board initial={firstOpen}>{r.classes.map((c) => (
       <section key={c.id ?? "makeup"} aria-label={c.nickname || c.start}>
         {r.classes.length > 1 && <div className="hh" style={{ margin: "8px 0" }}>{c.nickname || (c.kind === "special" ? "특강" : "정규")} · {c.start}</div>}
         {!c.students.length && <div className="card"><p className="note">이 반에 오늘 오는 아이가 없습니다.</p></div>}
-        {c.students.map((s, i) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} classEnd={c.end} date={date} minutes={minutesOf(c.start, c.end)} defaultOpen={i === 0 && !s.sheet?.closed && !s.plan?.absent && !other} cfg={cfg} future={future} />)}
+        {c.students.map((s) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} classEnd={c.end} date={date} minutes={minutesOf(c.start, c.end)} cfg={cfg} future={future} />)}
       </section>
-    ))}
+    ))}</Board>
   </>);
 }
