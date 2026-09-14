@@ -21,7 +21,7 @@ import { KIND, SOURCE, S_WAY, scopeText } from "@/lib/quiz-plan";
 import { useOpen } from "./board.js";
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
-import { isUnchecked, CHECK } from "@/lib/status";
+import { isUnchecked, CHECK, CHECK_KEY } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
 const ATTEND = [["present", "왔음"], ["late", "지각"], ["absent", "결석"], ["early", "조퇴"], ["online", "온라인"]];
 const UPTO = ["시작만", "절반", "거의 다"];
@@ -127,7 +127,7 @@ function CheckItem({ it, closed, fail, start }) {
         )}
       </div>
       <div className="chk" aria-label="검사">
-        {CHECK.map(([v, g]) => <button key={v} type="button" data-v={v[0]} aria-pressed={st === v} disabled={closed} onClick={() => pick(v)}>{g}</button>)}
+        {CHECK.map(([v, g]) => <button key={v} type="button" data-v={CHECK_KEY[v]} aria-pressed={st === v} disabled={closed} onClick={() => pick(v)}>{g}</button>)}
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
       </div>
       {heavy && <div className="lf warn" style={{ margin: "0 0 8px" }} data-g="heavy"><span className="ln">📣</span>
         <div><b>{heavy.title}</b><small>{heavy.small}</small></div>
-        {heavy.top && <button type="button" className="btn sm" data-act="heavy-tune" disabled={closed} onClick={() => setTuneBook(books.find((b) => b.book_id === heavy.top.book_id) ?? null)}>조절 ↗</button>}</div>}
+        {heavy.top && <button type="button" className="btn sm" data-act="heavy-tune" disabled={closed} onClick={() => setTuneBook(books.find((b) => b.book_id === heavy.top.book_id) ?? null)}>조절</button>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {giveSlot && <GiveModal sheet={sheet} slot={giveSlot} fail={fail} start={start} onClose={() => setGiveSlot(null)} />}
       {books.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} extra={i === 0 ? nextQuiz : null} onPrep={onPrep} />)}
@@ -200,8 +200,8 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
         {chapter && <span className="tag">{chapter}</span>}
         <span className="spacer" />
         <div className="seg sm stopseg" data-g="stop">{STOP.map(([k, name]) => <button key={k} type="button" aria-pressed={stop === k} disabled={closed} onClick={() => pickStop(k)}>{name}</button>)}</div>
-        <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절 ↗</button>
-        <button type="button" className="btn sm" data-act="progress" onClick={() => setProg(true)}>진도 체크 ↗</button>
+        <button type="button" className="btn sm" data-act="tune" disabled={closed || !mark?.laid_at || stop === "book_off"} onClick={() => setTune(true)}>조절</button>
+        <button type="button" className="btn sm" data-act="progress" onClick={() => setProg(true)}>진도 체크</button>
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
@@ -384,7 +384,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
       </div>
       {band && <div className="lf warn" style={{ margin: "8px 0 0" }} data-g="repeat"><span className="ln">🌙</span>
         <div><b>{band.title}</b><small>{band.days}</small></div>
-        {books.filter(laid).map((b) => <button key={b.book_id} type="button" className="btn sm" data-act="repeat-tune" disabled={closed} onClick={() => setTuneBook(b)}>{b.books.name} 조절 ↗</button>)}
+        {books.filter(laid).map((b) => <button key={b.book_id} type="button" className="btn sm" data-act="repeat-tune" disabled={closed} onClick={() => setTuneBook(b)}>{b.books.name} 조절</button>)}
         {!books.some(laid) && <span className="lm">검사 끝나면 조절할 수 있습니다</span>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {ask && <div className="lf warn" style={{ margin: "8px 0 0" }} data-reflect="1"><span className="ln">⚠️</span>

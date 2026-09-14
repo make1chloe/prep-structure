@@ -80,7 +80,7 @@ ok("(카) 줄 머리 「2일째 안 봄」 · 안 본 줄 중 가장 오래된 �
     await pick(row, "areamemo"); await row.locator("[data-card=areamemo] [data-act=shut]").click(); await p.waitForTimeout(200);
     ok("▾ 를 누르면 그 카드만 펴진다(다른 카드는 그대로 접힘) · 조회는 안 늘어난다(저장도 안 한다)", (await row.locator("[data-card=areamemo][data-folded='0']").count()) === 1 && (await row.locator("[data-card=comment][data-folded='1']").count()) === 1); }
   await 펴기(row);
-  await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=m]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=x]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(카) 그저께 것을 ✕ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ✕ 하나((머) 이 ✕ 가 깔기의 기본을 「1-3 다시」로 만든다)", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
 console.log("■ 출결 · 낙관적");
 await row.locator(".seg[data-g=att] button", { hasText: "지각" }).click(); await p.waitForTimeout(600);
@@ -119,7 +119,9 @@ ok("미루면 숙제로 간다(지우지 않는다)", (await row.locator(".half"
 console.log("■ 검사가 끝나면 오늘 학습·숙제가 저절로 깔린다(확정-⑨)");
 await pick(row, "work");
 ok("아직 안 깔렸다(검사 줄 하나 남음) · 교재 머리는 「검사 끝나면 채워집니다」", (await row.locator(".bk .stopnote", { hasText: "검사 끝나면" }).count()) === 1);
-await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);
+await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);
+{ const hw = row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }); const bg = async (v) => hw.locator(`.chk button[data-v=${v}]`).evaluate((el) => getComputedStyle(el).backgroundColor); const on = await bg("o"), off = await bg("x");   // (어23) 눌림이 눈에 보이나 — aria-pressed 만 재던 구멍(원장님 9/15 「숙제검사 ox는 표시가 안되는데」)
+  ok("○ 를 누르면 그 단추가 색으로 눌린다(배경이 안 누른 단추와 다르다 · CSS data-v o·w·x = 앱 CHECK_KEY)", on !== off && (await hw.locator(".chk button[data-v=o]").getAttribute("aria-pressed")) === "true", `${on} / ${off}`); }
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
 const bk = row.locator(".bk").first();
@@ -128,7 +130,7 @@ const bkC = bk.locator(".half").nth(0), bkH = bk.locator(".half").nth(1);
 ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 · 학습 회차 「1-3 다시」 눌림 · 학원 줄 소단원 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-3 다시" && (await bkC.locator(".li small").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "1-3 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator(".li small").first().textContent().catch(() => "?")}`);
 await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^1-4$/ }).click(); await p.waitForTimeout(1000);
 await bkH.locator(".seg[data-g=wave-home] button", { hasText: "1-4 복습" }).click(); await p.waitForTimeout(1000);
-await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
+await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
 ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-4" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);
@@ -355,7 +357,7 @@ ok("모달이 닫혔다", (await p.locator(".mdlov").count()) === 0);
 console.log("■ 늦귀가 · 사유 칩(검사 ✕ → 「＋ … 미제출」 → 누르면 사유에 · 다시 누르면 뺌) · 사유 한 줄 · +20분 · 보내기");
 await 펴기(row); await pick(row, "check");
 { const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);
-  await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  await chk.locator("button[data-v=x]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   await 펴기(row); await pick(row, "late");
   const chipBtn = row.locator("[data-g=reason-chips] button[data-act=reason-chip]");
   ok("검사에 ✕ 를 찍으면 3b 에 사유 칩 「＋ … 미제출」(사유 후보 · 원본은 사유 한 줄)", (await chipBtn.count()) >= 1 && /미제출$/.test((await chipBtn.first().textContent()).trim()) && (await chipBtn.first().getAttribute("aria-pressed")) === "false", (await row.locator("[data-g=reason-chips]").textContent().catch(() => "칩 없음")).replace(/\s+/g, " "));
@@ -368,7 +370,7 @@ await 펴기(row); await pick(row, "check");
 await 펴기(row); await pick(row, "check");
 { const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);   // 5단계-② 3b 「남」 줄(0141 · 목업 01)
   ok("3b 머리 · 「평소 HH:MM」(반 끝 시각 · 목업 「평소 9:40 → 10:20」) · 「남」 줄은 아직 없음(✕·△ 준 항목이 후보 · 고르는 것은 원장님)", /평소 \d{2}:\d{2}/.test(await row.locator("[data-g=stay-note]").textContent()) && (await row.locator("[data-g=stay-row]").count()) === 0, await row.locator("[data-g=stay-note]").textContent());
-  await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1200); await row.locator("[data-card=check] > .hw").last().locator("[data-g=rest] button", { hasText: "남아서" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await 펴기(row); await pick(row, "late"); await row.locator("[data-g=stay-row]").first().waitFor({ timeout: 15000 }).catch(() => {});   // 숙제 검사 카드 안의 그 줄(🃏 카드도 .hw 를 써서 자리로는 못 집는다) · 「남」 줄은 **뜰 때까지** 기다린다(정해 둔 시간이 아니라)
+  await chk.locator("button[data-v=x]").click(); await p.waitForTimeout(1200); await row.locator("[data-card=check] > .hw").last().locator("[data-g=rest] button", { hasText: "남아서" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await 펴기(row); await pick(row, "late"); await row.locator("[data-g=stay-row]").first().waitFor({ timeout: 15000 }).catch(() => {});   // 숙제 검사 카드 안의 그 줄(🃏 카드도 .hw 를 써서 자리로는 못 집는다) · 「남」 줄은 **뜰 때까지** 기다린다(정해 둔 시간이 아니라)
   ok("검사 ✕ → 「나머지는 → 남아서」 → 3b 「남」 줄 하나 「숙제에서 옮겨옴」(조각이 원본을 가리킨다 · 자리 stay) · 사유 글엔 「숙제 나머지」가 안 적힌다(칩이 있다)", (await row.locator("[data-g=stay-row]").count()) === 1 && (await row.locator("[data-g=stay-row] small").textContent()).includes("숙제에서 옮겨옴") && !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("숙제 나머지"), await row.locator("[data-g=stay]").textContent());
   await row.locator("[data-g=stay-add] input").fill("zz_남아서 항목"); await row.locator("button[data-act=stay-add]").click(); await p.waitForTimeout(1500);
   ok("항목 더하기 → 「남」 줄 둘 · 「남 2 · 다 함 0 · 넘김 0」", (await row.locator("[data-g=stay-row]").count()) === 2 && (await row.locator("[data-g=stay-note]").textContent()).includes("남 2 · 다 함 0 · 넘김 0"), await row.locator("[data-g=stay-note]").textContent());
