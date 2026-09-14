@@ -32,5 +32,6 @@ ok("01 은 960 한 줄이 아니다 — page.js 에 maxWidth: 960 없음 · Boar
 ok("한 번에 한 아이 — 열림은 board.js 한 곳(useOpen) · row.js 에 defaultOpen 없음 · 브라우저 저장 0(폰-7)", /useOpen\(student\.id\)/.test(row) && !/defaultOpen/.test(row) && !/sessionStorage|localStorage/.test(row + board));
 ok("목업에서 갈라낸 .split 규칙 — ≥1100px 두 열 · 판은 오른쪽 열(absolute) · 폰은 그대로(디자인-3)", /@media\s*\(min-width:\s*1100px\)\s*\{\s*\.split\{display:grid/.test(css) && /\.split \.row>\.panel\{[^}]*position:absolute/.test(css));
 ok("저장줄은 판 안(rowbar 가 .panel 의 직접 자식 — PC 는 오른쪽 열 안에서 sticky)", /<div className="savebar rowbar" ref=\{setBarHost\} \/>\}\n\s*<\/div>\n\s*\)\}/.test(row));
+ok("(어13) 숙제 0 이면 「+ 숙제 주기」 단추 하나 → 모달(give-modal · lib/homework addItems 여러 줄) — 페이지에 늘 보이는 양식은 안 늘었다(항목 더하기 단추 2개 그대로 · 원장님 9/14 「기존 페이지에서 더 늘어나지않게」)", /data-act="give"/.test(row) && /data-g="give-modal"/.test(row) && /sheet\.home\.length === 0 &&/.test(row) && (row.match(/>항목 더하기<\/button>/g) ?? []).length === 2 && /export async function addItems/.test(strip(readFileSync("lib/homework.js", "utf8"))));
 console.log(`\n■ 오늘 01 말·차례·PC 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

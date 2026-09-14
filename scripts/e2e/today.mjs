@@ -1640,6 +1640,21 @@ ok(`✔ 안 받음 2줄 다 받음(묻고) → 「2줄 받음(${Number(todayText
 const xr = await p.request.get(`${APP}/api/ops/fee?m=${ymNow}`);
 ok(`엑셀로 — /api/ops/fee 가 xlsx 를 준다(200 · spreadsheet · fee-${ymNow}.xlsx) · 달이 아니면 400`, xr.status() === 200 && String(xr.headers()["content-type"] ?? "").includes("spreadsheetml") && String(xr.headers()["content-disposition"] ?? "").includes(`fee-${ymNow}.xlsx`) && (await p.request.get(`${APP}/api/ops/fee?m=abc`)).status() === 400, `${xr.status()} ${xr.headers()["content-type"]}`);
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
+console.log("■ (어13) 숙제가 없으면 「+ 숙제 주기」 — 모달로(원장님 2026-09-14 「오늘 화면에 숙제가 없었을때 부여하는 버튼 필요해. 모달로 따로 뜨게.(기존 페이지에서 더 늘어나지않게)」)");
+{ const r0 = p.locator(".row").filter({ hasText: "학원 0 · 숙제 0" }).first();
+  ok("숙제 0 인 아이 줄이 있다(등록 전환한 zz_문의_아이 — 판만 서고 루틴이 없어 0·0)", (await r0.count()) === 1, String(await p.locator(".row").count()));
+  const id0 = await r0.getAttribute("data-student"), rg = p.locator(`.row[data-student='${id0}']`);
+  if (!(await rg.locator(".panel").count())) await rg.locator("button.open").click(); await 펴기(rg);
+  ok("숙제 칸에 「+ 숙제 주기」 단추 하나 · 페이지에 늘 보이는 양식은 그대로 둘(그 밖에 · 학원/집) — 페이지가 안 늘었다", (await rg.locator("button[data-act=give]").count()) === 1 && (await rg.locator("form.wv input[name=text]").count()) === 2);
+  await rg.locator("button[data-act=give]").click(); await p.waitForSelector("[data-g=give-modal]", { timeout: 15000 });
+  const gm = p.locator("[data-g=give-modal]");
+  ok("모달 — 집이 눌려 있다 · 빈 채로는 「주기」가 잠김", (await gm.locator("[data-g=give-slot] button[aria-pressed=true]").textContent()) === "집" && (await gm.locator("button[data-act=give-save]").isDisabled()));
+  await snapModal("give");
+  await gm.locator("textarea").fill("학교 프린트 2장\n\n워크북 p.10 1-18");
+  ok("두 줄(빈 줄은 안 셈) → 「2개 주기」", (await gm.locator("button[data-act=give-save]").textContent()) === "2개 주기");
+  await gm.locator("button[data-act=give-save]").click(); await p.waitForFunction(() => !document.querySelector("[data-g=give-modal]"), null, { timeout: 15000 }); await p.waitForTimeout(1500);
+  ok("주면 「그 밖에 · 집」에 두 줄 · 머리 알약 「학원 0 · 숙제 2」 · 단추는 사라진다(숙제가 생겼으니)", (await rg.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 2 && (await rg.locator(".pill.hw").textContent()) === "학원 0 · 숙제 2" && (await rg.locator("button[data-act=give]").count()) === 0, await rg.locator(".pill.hw").textContent());
+  await p.setViewportSize(VIEWS[0].viewport); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-today-${v.viewport.width}.png`, fullPage: true }); }
 await b.close();
 ok(`화면 안 JS 오류 0 — ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));

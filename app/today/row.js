@@ -4,7 +4,7 @@
 import { useState, useRef, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards } from "@/lib/day-plan";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -129,6 +129,7 @@ export function laidText(sheet, laid) {
 function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [] }) {
   const counts = trimCounts(sheet), heavy = heavyBand(sheet, heavyPages, books);   // 줄이기 숫자 · 📣 많습니다(목업 01)
   const [tuneBook, setTuneBook] = useState(null);   // 📣 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
+  const [giveSlot, setGiveSlot] = useState(null);   // (어13) 숙제 0 이면 「+ 숙제 주기」 → 모달(페이지는 안 늘어난다)
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} scopes={scopes} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
@@ -139,7 +140,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
       <div className="ctitle"><span className="stepno">2</span>오늘 학습 · 학원 &nbsp;+&nbsp; <span className="stepno">3</span>오늘 숙제 · 집<span className="auto" data-g="laid">{laidText(sheet, laid)}</span></div>
       <div className="load">
         <div className="ldn"><span>학원</span><b>{sheet.class.length}</b>{per && <small>한 항목 <b>{per}분</b></small>}</div>
-        <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b></div>
+        <div className="ldn"><span>숙제</span><b>{sheet.home.length}</b>{!closed && sheet.home.length === 0 && <button type="button" className="btn sm" data-act="give" style={{ alignSelf: "flex-start", marginTop: 4 }} onClick={() => setGiveSlot("home")}>+ 숙제 주기</button>}</div>
         {laid && <div className="ldw"><b>교재 {books.length}권 · 항목 {sheet.class.length + sheet.home.length}개</b>
           <div className="wv" style={{ margin: "4px 0 0" }}><span className="fl" style={{ margin: 0 }}>줄이기</span>
             <div className="seg sm" data-g="mode">{MODE.map(([k, name]) => <button key={k} type="button" aria-pressed={(sheet.load_mode ?? "all") === k} disabled={closed} onClick={() => start(async () => { fail(await setMode(sheet.id, k)); })}>{name}{counts.all ? ` ${k === "all" ? counts.all : counts.required}` : ""}</button>)}</div>
@@ -150,6 +151,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
         <div><b>{heavy.title}</b><small>{heavy.small}</small></div>
         {heavy.top && <button type="button" className="btn sm" data-act="heavy-tune" disabled={closed} onClick={() => setTuneBook(books.find((b) => b.book_id === heavy.top.book_id) ?? null)}>조절 ↗</button>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
+      {giveSlot && <GiveModal sheet={sheet} slot={giveSlot} fail={fail} start={start} onClose={() => setGiveSlot(null)} />}
       {books.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} extra={i === 0 ? nextQuiz : null} />)}
       <div className="two">
         {[["class", "그 밖에 · 학원", "home", "⏭ 숙제로 미루기"], ["home", "그 밖에 · 집", "class", "↩ 학원에서"]].map(([slot, title, other, moveLabel]) => (
@@ -504,6 +506,25 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
         <button className="btn sm gho" type="button" data-act="collapse" onClick={onCollapse}>닫기</button>
         <span className="note" style={{ margin: 0 }} data-g="close-note">{future ? "앞으로 올 날 — 마감이 잠겨 있습니다(임시 저장은 됩니다)" : "마감하면 학부모에게 보입니다"}</span>
       </>, barHost)}
+    </div>
+  );
+}
+/** (어13) 숙제 주기 — 원장님 2026-09-14 「오늘 화면에 숙제가 없었을때 부여하는 버튼 필요해. 모달로 따로 뜨게.(기존 페이지에서 더 늘어나지않게)」.
+ *  루틴이 안 깔린 날(교재 멈춤 · 루틴 없음)에 원장님이 직접 주시는 것 — 한 줄에 하나 · 집/학원 · 여러 줄 한 번에(lib/homework addItems). 페이지엔 단추 하나만 선다 */
+function GiveModal({ sheet, slot: at, fail, start, onClose }) {
+  const [slot, setSlot] = useState(at ?? "home");
+  const [text, setText] = useState("");
+  const lines = text.split("\n").map((x) => x.trim()).filter(Boolean);
+  const save = () => start(async () => { if (fail(await give(sheet.id, slot, text))) onClose(); });
+  return (
+    <div className="mdlov" role="dialog" aria-modal="true" aria-label="숙제 주기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="mdl" style={{ width: "min(480px,100%)" }} data-g="give-modal">
+        <div className="mdlh"><b>숙제 주기</b>
+          <div className="seg sm" data-g="give-slot">{[["home", "집"], ["class", "학원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={slot === k} onClick={() => setSlot(k)}>{name}</button>)}</div>
+          <span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+        <div className="mdlb"><textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={"한 줄에 하나\n예: 워크북 p.10 1-18"} aria-label="줄 항목" style={{ width: "100%" }} /></div>
+        <div className="mdlf"><button type="button" className="btn pri" data-act="give-save" disabled={!lines.length} onClick={save}>{lines.length ? `${lines.length}개 주기` : "주기"}</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
+      </div>
     </div>
   );
 }
