@@ -26,9 +26,7 @@ export function ArrivalCard({ arrival, choice, off }) {
           ? <span key={n} className="tag on" data-step={n}>✓ {name}</span>
           : <button key={n} type="button" className="tag" data-step={n} disabled={pending || choice.none || arrival.left} onClick={() => go(n)}>{name}</button>)}
       </div>}
-      <p className="note" style={{ margin: "4px 0 0" }}>학원 와이파이에서만 눌러집니다 · 시각은 앱이 찍습니다(내가 못 고칩니다){choice.pick ? " · 반이 둘인 날은 어느 반인지 먼저 고릅니다" : ""}</p>
       {!off && arrival.arrived && !arrival.left && <button type="button" className="btn pri" style={{ width: "100%", marginTop: 8 }} data-step={LEAVE} disabled={pending} onClick={() => go(LEAVE)}>🏠 집에 가요</button>}
-      {arrival.arrived && !arrival.left && <p className="note" style={{ margin: "4px 0 0" }}>누르면 어머니께 하원 알림이 갑니다 — 원장님 화면 「실제 하원」과 같은 한 줄</p>}
       {err && <div className="lf warn" role="alert" style={{ marginTop: 8 }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
     </div>
   );
@@ -58,14 +56,14 @@ export function MaterialCard({ gives, today, fold = null, folded = false }) {
       <div className="stage" data-g="stage">{STAGES.map(([k, name]) => <button key={k} type="button" aria-pressed={it.stage === k} disabled={pending} onClick={() => run(() => setStageAct(it.material_id, k))}>{name}</button>)}</div>
       {it.stage !== "done" && <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><label className="fl" style={{ margin: 0 }}>내가 정한 마감</label>
         <input type="date" defaultValue={it.due_on ?? ""} min={today} aria-label="내가 정한 마감" style={{ width: "auto" }} onChange={(e) => run(() => setDueAct(it.material_id, e.target.value))} />
-        <span className="note" style={{ margin: 0 }}>내가 정한 날짜예요 — 선생님 달력에도 떠 있어요</span></div>}
+        </div>}
     </div>);
   return (
     <div className="task" data-card="material" data-folded={folded ? "1" : "0"}>
       <div className="h"><b><span className="cemo">📚</span>받을 교재·학습지</b><span className="spacer" /><span className="pill">{total ? `${gives.done.length}/${total}` : "없음"}</span>{fold}</div>
       {!total && <p className="note" style={{ margin: "8px 0 0" }}>아직 받을 학습지가 없어요</p>}
       {gives.groups.map((g, i) => <div key={g.name}><div style={{ marginTop: i ? 12 : 8, fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{i + 1} {g.name}</div>{g.items.map((it) => <Item key={it.material_id} it={it} />)}</div>)}
-      {gives.done.length > 0 && <details style={{ marginTop: 8 }}><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>끝낸 것 <b>{gives.done.length}</b><span className="spacer" /><span className="tag on">눌러서 펴기</span></summary>{gives.done.map((it) => <Item key={it.material_id} it={it} dim />)}</details>}
+      {gives.done.length > 0 && <details style={{ marginTop: 8 }}><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>끝낸 것 <b>{gives.done.length}</b><span className="spacer" /></summary>{gives.done.map((it) => <Item key={it.material_id} it={it} dim />)}</details>}
       {err && <div className="lf warn" role="alert" style={{ marginTop: 8 }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
     </div>
   );
@@ -78,14 +76,13 @@ export function ScoreCard({ scores = [], entry = [], fold = null, folded = false
   const v = (id, k, d = "") => f[id]?.[k] ?? d, setV = (id, k, val) => setF({ ...f, [id]: { ...(f[id] ?? {}), [k]: val } });
   const go = (e) => start(async () => { setErr(""); setMsg(""); const r = await submitScore(e.id, v(e.id, "raw"), v(e.id, "full", "100"), v(e.id, "wrongs")); if (!r.ok) { setErr(r.msg); return; } setMsg(`넣었어요 — 선생님이 확인하면 굳어요`); setF({}); });
   return <div className="task" data-card="scores" data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">📈</span>성적</b><span className="spacer" />{scores.length > 0 && <span className="pill">{scores[0].title}</span>}{fold}</div>
-    {scores.map((s) => <div className="li" key={s.id} data-g="score-line" data-pending={s.pending ? "1" : "0"}><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}{s.pending && <span className="tag act">확인 기다리는 중</span>}</div>)}
-    {entry.map((e) => <div className="li" key={e.id} data-g="score-entry" data-exam={e.id}><div><b>{e.school} {e.name} — 점수를 넣어요</b><small>{md(e.on)} 본 시험 · 원점수와 틀린 번호(눌러도 적어도 같은 값)</small>
+    {scores.map((s) => <div className="li" key={s.id} data-g="score-line" data-pending={s.pending ? "1" : "0"}><div><b>{s.title}</b><small>{s.small}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta">{s.deltaText}</span>}{s.pending && <span className="tag act">확인 기다리는 중</span>}</div>)}
+    {entry.map((e) => <div className="li" key={e.id} data-g="score-entry" data-exam={e.id}><div><b>{e.school} {e.name} — 점수를 넣어요</b><small>{md(e.on)} 본 시험</small>
       <div className="wv" style={{ marginTop: 6 }}><input type="text" inputMode="numeric" className="scr" placeholder="원점수" aria-label="원점수" value={v(e.id, "raw")} onChange={(x) => setV(e.id, "raw", x.target.value)} /><span className="note" style={{ margin: 0 }}>/</span><input type="text" inputMode="numeric" className="scr sm2" placeholder="100" aria-label="만점" value={v(e.id, "full")} onChange={(x) => setV(e.id, "full", x.target.value)} />
         <input type="text" placeholder="틀린 번호 (예: 3, 7, 11)" aria-label="틀린 번호" value={v(e.id, "wrongs")} onChange={(x) => setV(e.id, "wrongs", x.target.value)} style={{ flex: "1 1 160px" }} />
         <button className="btn sm pri" type="button" disabled={pending || !String(v(e.id, "raw")).trim()} data-act="score-submit" onClick={() => go(e)}>넣기</button></div></div></div>)}
     {err && <p className="note" role="alert" style={{ margin: "6px 0 0", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="score-msg" style={{ margin: "6px 0 0", color: "var(--on-ok)" }}>{msg}</p>}
-    {scores.length > 0 && <p className="note k" style={{ margin: "6px 0 0" }}>공개된 시험만 보여요</p>}
   </div>;
 }
 
@@ -108,13 +105,13 @@ export function FilesCard({ past = [], hidden = 0, rules = {}, sent = [], fold =
   return (
     <div className="task" data-card="files" data-folded={folded ? "1" : "0"}>
       <div className="h"><b><span className="cemo">📎</span>자료</b><span className="spacer" /><span className="pill">{past.length ? `지난 것 ${past.length}` : mine.length ? `보낸 것 ${mine.length}` : "보내기"}</span>{fold}</div>
-      <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="학교에서 받은 종이를 찍어 보내면 원장님만 봐요" compact onDone={() => router.refresh()} />
+      <Upload rules={rules} label="📷 사진 · 📄 파일 보내기" hint="원장님만 봐요" compact onDone={() => router.refresh()} />
       {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"} style={{ marginTop: 4 }}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
         <div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
       {past.length > 0 && <details style={{ marginTop: 8 }} data-g="past"><summary className="donehead" style={{ cursor: "pointer", listStyle: "none" }}><span className="ar">›</span>지난 것 보기 <b>{past.length}</b><span className="spacer" /><span className="tag on">1달간</span></summary>
         {past.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="past-row" data-file={l.file_id}><span className="ln">{l.icon}</span><div><b>{l.name}</b><small>{l.seen}{l.on ? ` · ${md(l.on)} 숙제` : ""}{l.item ? ` · ${l.item}` : ""} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}?dl=1`}>⬇</a></div>)}</details>}
-      {hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{hidden}개는 1달이 지나 안 보여요 — 원장님 자료함에는 그대로 있어요</p>}
+      {hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>1달 지난 것 {hidden}개는 안 보여요</p>}
     </div>
   );
 }

@@ -39,14 +39,13 @@ export default async function MyVideos({ searchParams }) {
   return frame(<>
     <div className="wv" style={{ margin: "0 0 4px" }}><Link prefetch={false} className="btn sm gho" href="/me">← 나</Link><b style={{ fontSize: "var(--fs-6)" }}>🎬 영상</b><span className="spacer" /><span className={"pill" + (left ? " warn" : "")} data-g="left">{left ? `${left}개 남음` : d.list.length ? "다 봤어요" : "없음"}</span></div>
     {d.open && <Player row={d.open} next={d.next} />}
-    {!d.list.length && <div className="task"><div className="h"><b>배정된 영상이 없어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>선생님이 영상을 배정하면 여기 떠요.</p></div>}
+    {!d.list.length && <div className="task"><div className="h"><b>배정된 영상이 없어요</b></div></div>}
     {d.list.map((r) => <div className="task" key={r.id} data-g="video-row" data-video={r.video_id} data-status={r.status.key} style={{ borderStyle: r.status.key === "none" ? "dashed" : undefined }}>
       <div className="h"><b>{r.video?.title}</b><span className="spacer" /><span className={"pill " + r.status.cls} data-g="status">{r.status.text}</span></div>
       <p className="note k" style={{ margin: "4px 0 0" }}>{[r.video?.folder, r.video?.seconds ? mmss(r.video.seconds) : null, r.due || null, opensText(r.opens) || null].filter(Boolean).join(" · ")}{r.late ? " — 지났어요" : ""}</p>
       {r.bar.parts.length > 0 && <div className="vbar" data-g="vbar" style={{ marginTop: 8 }}>{r.bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{r.bar.head != null && r.status.key !== "done" && <div className="vhead" style={{ left: `${r.bar.head}%` }} />}</div>}
-      {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 자리 {mmss(r.lastPos)} · 건너뛴 구간은 <b>안 센 구간</b>이에요</p>}
+      {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 자리 {mmss(r.lastPos)}</p>}
       <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><Link prefetch={false} className={"btn sm" + (r.status.key === "done" ? "" : " pri")} href={`/me/videos?v=${r.video_id}`} data-act="open">▶ {r.status.key === "done" ? "다시 보기" : r.lastPos > 0 ? "이어 보기" : "보기"}</Link></div>
     </div>)}
-    <p className="note k" style={{ margin: "8px 0 0" }}>앱 안에서 봐요 · 「몇 %」는 대략이에요</p>
   </>);
 }

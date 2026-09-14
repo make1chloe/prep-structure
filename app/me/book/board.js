@@ -18,14 +18,14 @@ export default function Board({ d, canFlag = true }) {   // canFlag — 「누�
   const Sub = ({ s }) => <div className={"sr" + (s.own ? " own" : "")} data-g="sub" data-unit={s.id} data-status={s.status} data-pending={s.pending ? "1" : "0"}>
     <i className={"ic" + (s.status === "none" ? " no" : "")}>{ic(s)}</i><span>{s.short}{s.is_workbook ? " · 워크북" : ""}{s.parts && <small data-g="sub-parts" style={{ marginLeft: 6, color: "var(--mute)" }}>{s.parts}</small>}</span>
     {s.by && <b className={"by" + (s.own ? " me" : "")} data-g="by">{s.pending ? `${s.by} · 확인 기다리는 중` : s.by}</b>}
-    {s.can && <div className="tri sm" data-g="tri">{TRI.map(([k, ch]) => <button key={k} type="button" data-p={k} aria-pressed={s.status === k} disabled={pending} onClick={() => run(() => markUnit(s.id, round, k), k === "none" ? "아직으로 되돌렸어요" : "찍었어요 — 선생님이 확인하면 굳어요")}>{ch}</button>)}</div>}
+    {s.can && <div className="tri sm" data-g="tri">{TRI.map(([k, ch]) => <button key={k} type="button" data-p={k} aria-pressed={s.status === k} disabled={pending} onClick={() => run(() => markUnit(s.id, round, k), k === "none" ? "아직으로 되돌렸어요" : "찍었어요 · 확인 기다리는 중")}>{ch}</button>)}</div>}
   </div>;
   const Chapter = ({ c, col }) => <div className={"ru" + (c.now ? " now" : "")} key={c.chapter} data-g="chapter" data-col={col} data-chapter={c.chapter} style={c.pending && !c.now ? { borderColor: "var(--amber)" } : undefined}>
-    {c.chapter}<small>{col === "done" ? `소단원 ${c.total} ✓${c.skip ? ` · 건너뜀 ${c.skip}` : ""}` : c.pending ? <b style={{ color: "var(--navy)" }}>✎ 내가 찍음 — 확인 기다리는 중 {c.pending}</b> : col === "doing" ? <>소단원 {c.total}개 중 <b>{c.done + c.skip}개 끝냄</b></> : b.edit?.can_edit && c.markable.length ? `내가 찍기 — 소단원 ${c.markable.length}개 한 번에` : `소단원 ${c.total}`}</small>
-    {b.edit?.can_edit && c.markable.length > 0 && <div className="wv" style={{ gap: 4, margin: "2px 0 0" }}><small style={{ color: "var(--mute)" }}>이 단원 {c.markable.length}개 한 번에</small>
+    {c.chapter}<small>{col === "done" ? `소단원 ${c.total} ✓${c.skip ? ` · 건너뜀 ${c.skip}` : ""}` : c.pending ? <b style={{ color: "var(--navy)" }}>✎ 내가 찍음 — 확인 기다리는 중 {c.pending}</b> : col === "doing" ? <>소단원 {c.total}개 중 <b>{c.done + c.skip}개 끝냄</b></> : `소단원 ${c.total}`}</small>
+    {b.edit?.can_edit && c.markable.length > 0 && <div className="wv" style={{ gap: 4, margin: "2px 0 0" }}><small style={{ color: "var(--mute)" }}>이 단원 통째로</small>
       <div className="tri sm" data-g="chapter-tri" data-chapter={c.chapter}>{TRI.map(([k, ch]) =>
       <button key={k} type="button" data-p={k} disabled={pending} onClick={() => run(() => markChapter(c.markable, round, k),
-        (r) => k === "none" ? `${c.chapter} — ${r.marked}개를 아직으로 되돌렸어요` : `${c.chapter} — ${r.marked}개를 찍었어요${r.skipped ? ` · 쌤이 찍으신 ${r.skipped}개는 그대로예요` : ""} · 선생님이 확인하면 굳어요`)}>{ch}</button>)}</div></div>}
+        (r) => k === "none" ? `${c.chapter} — ${r.marked}개를 아직으로 되돌렸어요` : `${c.chapter} — ${r.marked}개를 찍었어요${r.skipped ? ` · 쌤이 찍으신 ${r.skipped}개는 그대로예요` : ""} · 확인 기다리는 중`)}>{ch}</button>)}</div></div>}
     {(c.now || open[c.chapter]) && <div className="sub2">{c.subs.map((s) => <Sub key={s.id} s={s} />)}</div>}
     {!c.now && <button className="lnk" type="button" data-act="toggle-chapter" aria-pressed={Boolean(open[c.chapter])} onClick={() => setOpen({ ...open, [c.chapter]: !open[c.chapter] })} style={{ marginTop: 4 }}>{open[c.chapter] ? "접기" : "소단원 보기"}</button>}
   </div>;
@@ -41,12 +41,12 @@ export default function Board({ d, canFlag = true }) {   // canFlag — 「누�
       <div className="rcol" data-g="col-doing"><div className="colh">하는 중 <span className="n">{road.doing.length}</span></div>{road.doing.map((c) => <Chapter key={c.chapter} c={c} col="doing" />)}{!road.doing.length && <p className="note" style={{ margin: 0 }}>{road.total ? "다 끝냈어요" : "소단원이 없어요"}</p>}</div>
       <div className="rcol" data-g="col-todo"><div className="colh">아직 <span className="n">{road.todo.length}</span></div>{road.todo.map((c) => <Chapter key={c.chapter} c={c} col="todo" />)}{!road.todo.length && <p className="note" style={{ margin: 0 }}>없어요</p>}</div>
     </div>
-    {canFlag && <div className="lf warn" style={{ marginTop: 8 }} data-g="flag-band"><span className="ln">❗</span><div><b>이거 잘못된 것 같아요</b><small>원장님이 찍으신 줄에도 <b>❗를 달 수 있어요</b> — 안 했는데 끝냄으로 되어 있거나 그 반대일 때. 진도는 안 바뀌고 원장님께 말만 갑니다</small></div><button className="btn sm" type="button" data-act="flag-open" onClick={() => setFlag(!flag)}>❗ 달기</button></div>}
+    {canFlag && <div className="lf warn" style={{ marginTop: 8 }} data-g="flag-band"><span className="ln">❗</span><div><b>이거 잘못된 것 같아요</b></div><button className="btn sm" type="button" data-act="flag-open" onClick={() => setFlag(!flag)}>❗ 달기</button></div>}
     {canFlag && flag && <div className="task" data-g="flag-form" style={{ marginTop: 6 }}>
       <div className="wv"><select value={ff.unitId} aria-label="소단원" onChange={(x) => setFf({ ...ff, unitId: x.target.value })} style={{ width: "auto", maxWidth: 260 }}><option value="">어느 소단원?</option>{(b.units ?? []).map((u) => <option key={u.id} value={u.id}>{u.chapter} › {u.short}</option>)}</select>
         <div className="seg sm" data-g="flag-kind">{FLAG_KIND.map(([k, nm]) => <button key={k} type="button" aria-pressed={ff.kind === k} onClick={() => setFf({ ...ff, kind: k })}>{nm}</button>)}</div></div>
       <div className="wv" style={{ marginTop: 6 }}><input type="text" value={ff.said} placeholder={ff.kind === "other" ? "무엇이 잘못됐는지 한 줄" : "한 마디(비워도 돼요)"} aria-label="한 마디" onChange={(x) => setFf({ ...ff, said: x.target.value })} style={{ flex: "1 1 200px" }} />
-        <button className="btn pri sm" type="button" disabled={pending || !ff.unitId} data-act="flag-save" onClick={() => run(() => flagUnit(ff.unitId, round, ff.kind, ff.said), "❗ 를 달았어요 — 원장님이 볼 때까지 그대로 있어요", () => { setFlag(false); setFf({ unitId: "", kind: "not_done", said: "" }); })}>달기</button></div></div>}
-    {flags.map((f, i) => <div className="lf" key={f.id} data-g="flag-row" data-waiting={f.waiting ? "1" : "0"}><span className="ln">{i + 1}</span><div><b>{f.title}</b><small><i className="ic">❗</i> 「{f.said}」 — {f.when} · {f.waiting ? <b>원장님이 볼 때까지 그대로 있어요</b> : f.state}</small></div><span className="lm">{f.state}</span></div>)}
+        <button className="btn pri sm" type="button" disabled={pending || !ff.unitId} data-act="flag-save" onClick={() => run(() => flagUnit(ff.unitId, round, ff.kind, ff.said), "❗ 를 달았어요", () => { setFlag(false); setFf({ unitId: "", kind: "not_done", said: "" }); })}>달기</button></div></div>}
+    {flags.map((f, i) => <div className="lf" key={f.id} data-g="flag-row" data-waiting={f.waiting ? "1" : "0"}><span className="ln">{i + 1}</span><div><b>{f.title}</b><small><i className="ic">❗</i> 「{f.said}」 — {f.when} · {f.state}</small></div><span className="lm">{f.state}</span></div>)}
   </>;
 }

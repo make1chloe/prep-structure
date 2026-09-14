@@ -7,7 +7,7 @@ export default function AsBand({ name, kind = "me" }) {
       <span className="ln">👁</span>
       <div>
         <b>{name} {kind === "parent" ? "학부모님" : "아이"}가 보는 화면입니다</b>
-        <small>원장님은 <b>읽기만</b> 하십니다 — 여기서 누른 것은 저장되지 않습니다(아이·학부모 계정으로만 됩니다).</small>
+        <small>읽기만 됩니다</small>
       </div>
       <span className="spacer" />
       <Link prefetch={false} className="btn sm gho" href="/ops/students" data-act="as-exit">← 재원생</Link>

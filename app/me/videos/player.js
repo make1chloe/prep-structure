@@ -32,7 +32,6 @@ export default function Player({ row, next = null }) {
       </div>
       <div className="vbar" data-g="vbar" style={{ marginTop: 10 }}>{bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{bar.head != null && <div className="vhead" style={{ left: `${bar.head}%` }} />}</div>
       <div className="vinfo" style={{ marginTop: 6 }}><span data-g="pstate">{fail ? "밖에서 봐요" : ready ? "▶︎ 재생 준비" : "불러오는 중…"}</span><span className="spacer" /><span className="mono" data-g="clock">{mmss(pos)} / {dur ? mmss(dur) : "?:??"}</span></div>
-      <p className="note k" style={{ margin: "4px 0 0" }}>건너뛴 구간은 <b>안 센 구간</b>이에요 · 화면을 끄거나 앱을 바꾸면 재생이 멎어요 · 「몇 %」는 대략이에요</p>
       {next && <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><a className={"btn sm" + (pct != null && pct >= 95 ? " pri" : "")} href={`/me/videos?v=${next.video_id}`} data-act="next-video">다음 영상 ▶ {next.video?.title}</a><span className="note k" style={{ margin: 0 }}>{next.due || "마감 없음"}</span></div>}
     </div>
   );

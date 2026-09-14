@@ -51,7 +51,7 @@ export default async function Parent({ searchParams }) {
   const cards = orderCards([
     { id: 'late', name: '오늘은 늦게 갑니다', node: can(PARENT.sent) && d.late && <Card emo="🌙" title="오늘은 늦게 갑니다" id="late" {...fold("late")} pill={d.late.left ? `${d.late.left} 에 갔습니다` : `${d.late.until} 예정`} pillCls={d.late.left ? "hw" : "warn"}>
       <p className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{d.late.reason || "남아서 하고 갑니다"}</p>
-      <p className="note" style={{ margin: "4px 0 0" }}>{d.late.sentAt ? `${d.late.sentAt}에 받았습니다` : ""}{d.late.left ? "" : " · 실제 하원을 찍으면 여기가 바뀝니다"}</p></Card> },
+      <p className="note" style={{ margin: "4px 0 0" }}>{d.late.sentAt ? `${d.late.sentAt}에 받았습니다` : ""}</p></Card> },
     { id: 'today', name: '오늘', node: can(PARENT.recent) && d.arrival && <Card emo="🕘" title="오늘" id="today" {...fold("today")} pill={d.arrival.pill} pillCls={d.arrival.pillOn ? "hw" : d.arrival.pill === "결석" ? "bad" : "warn"}>
       <p className="note" style={{ margin: "4px 0 0" }}>{d.arrival.text}</p></Card> },
     { id: 'notice', name: '공지', node: can(PARENT.sent) && d.board.length > 0 && <NoticeCard Card={Card} {...fold("notice")} lines={d.board} unread={d.unread} /> },
@@ -63,11 +63,11 @@ export default async function Parent({ searchParams }) {
       {d.last.home.map((it) => <div className="li" key={it.id}><div><b>{it.learn_items?.name ?? it.range_note ?? ""}</b><small>{[unitText(it), it.learn_items && it.range_note ? `이번에 ${it.range_note}` : null].filter(Boolean).join(" · ")}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>)}
       {d.last.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ {b.home_memo}</p>)}</Card> },
     { id: 'videos', name: '영상', node: can(PARENT.homework) && d.videos.length > 0 && <Card emo="🎬" title="영상" id="videos" {...fold("videos")} pill={`${d.videos.filter((v) => v.status.key !== "done").length}개 남음`} pillCls={d.videos.some((v) => v.status.key !== "done") ? "warn" : "hw"}>
-      {d.videos.map((v) => <div className="li" key={v.id} data-g="video-line" data-status={v.status.key}><div><b>{v.video?.title}</b><small>{[v.due || null, v.opens ? `${v.opens}번 열어봄` : null].filter(Boolean).join(" · ") || "앱 안에서 봅니다"}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
-      <p className="note k" style={{ margin: "4px 0 0" }}>「몇 %」는 대략입니다</p></Card> },
+      {d.videos.map((v) => <div className="li" key={v.id} data-g="video-line" data-status={v.status.key}><div><b>{v.video?.title}</b><small>{[v.due || null, v.opens ? `${v.opens}번 열어봄` : null].filter(Boolean).join(" · ")}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}
+      </Card> },
     { id: 'nextquiz', name: '다음 시간 시험', node: can(PARENT.next) && d.nextQuizzes.length > 0 && <Card emo="📝" title="다음 시간 시험" id="nextquiz" {...fold("nextquiz")} pill={String(d.nextQuizzes.length)}>
       {d.nextQuizzes.map((l) => <div className="lf" key={l.id} style={{ marginTop: 4 }}><span className="ln">{l.emo}</span><div><b>{l.b}</b><small>{l.small}</small></div></div>)}
-      <p className="note k" style={{ margin: "4px 0 0" }}>숙제와 같이 왔습니다. 다음 수업 시작하자마자 봅니다. 개수를 안 정한 시험은 여기 안 옵니다.</p></Card> },
+      </Card> },
     { id: 'future', name: '앞으로', node: can(PARENT.next) && d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" {...fold("future")} pill={String(d.future.length)}>
       {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card> },
     { id: 'report', name: '월간 리포트', node: can(PARENT.reports) && d.report && <Card emo="📊" title={d.report.title} id="report" {...fold("report")} pill={d.report.pill}>
@@ -76,22 +76,22 @@ export default async function Parent({ searchParams }) {
     { id: 'fee', name: '수강료', node: can(PARENT.reports) && d.fee && <Card emo="💰" title="수강료" id="fee" {...fold("fee")} pill={d.fee.pill} pillCls={d.fee.paid ? "hw" : "warn"}>
       <div className="li" data-g="fee-line" data-paid={d.fee.paid ? "1" : "0"}><div><b>{d.fee.text}</b><small>{d.fee.small}</small></div></div></Card> },
     { id: 'scores', name: '성적', node: can(PARENT.reports) && d.scores.length > 0 && <Card emo="📈" title="성적" id="scores" {...fold("scores")} pill={d.scores[0].title}>
-      {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small || "원장님이 공개한 시험"}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta" title="같은 갈래 지난 시험보다(100점 기준)">{s.deltaText}</span>}</div>)}
-      <p className="note k" style={{ margin: "4px 0 0" }}>공개된 시험만 보입니다</p></Card> },
+      {d.scores.map((s) => <div className="li" key={s.id} data-g="score-line"><div><b>{s.title}</b><small>{s.small}</small></div>{s.deltaText && <span className={"tag" + (s.delta > 0 ? " on" : "")} data-g="score-delta">{s.deltaText}</span>}</div>)}
+      </Card> },
     { id: 'school', name: '우리 학교', node: can(PARENT.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>
         {d.school.map((g) => <div key={g.id} data-g="school-grid"><div className="hh" style={{ marginTop: 8 }}>{g.label}</div>{g.rows.map((r) => <div className="li" key={r.id} data-g="school-row"><div><b>{r.title}</b><small>{r.cells.map((c) => `${c.label} ${c.text}`).join(" · ")}</small></div></div>)}</div>)}
-        <p className="note k" style={{ margin: "4px 0 0" }}>공개된 표의 우리 학교 줄입니다</p></Card>) },
+        </Card>) },
     { id: 'memo', name: '선생님 한 마디', node: can(PARENT.recent) && d.memos.length > 0 && <Card emo="💬" title="선생님 한 마디" id="memo" {...fold("memo")} pill={md(d.memos[0].sheet_date)}>
       {d.memos.map((m) => <div className="li" key={m.area}><div><b>{m.area}</b><small>{m.memo}</small></div></div>)}</Card> },
     { id: 'files', name: '자료', node: can(PARENT.files) && <Card emo="📎" title="자료" id="files" {...fold("files")} pill={sentFiles.length ? `받은 것 ${sentFiles.length}` : "보내기"}>
-      <Upload rules={d.rules} kids={kidsForUpload} label="📷 사진 · 📄 파일 보내기" hint="학교에서 받은 종이(수행평가·시험 안내·가정통신문)를 찍어 보내 주세요 — 원장님만 봅니다" onDone={null} />
+      <Upload rules={d.rules} kids={kidsForUpload} label="📷 사진 · 📄 파일 보내기" hint="원장님만 봅니다" onDone={null} />
       {sentFiles.length > 0 && <div className="hh" style={{ marginTop: 8 }}>아이에게 보낸 자료 · 숙제에 붙은 것</div>}
       {sentFiles.map((l) => <div className="lf" key={`${l.file_id}-${l.day_item_id}`} data-g="sent-file" data-file={l.file_id}>{/^image\//.test(l.file?.mime ?? "") ? <Photo id={l.file_id} name={l.name} /> : <span className="ln">{l.icon}</span>}<div><b>{l.name}</b><small>{l.on ? `${md(l.on)} 숙제 · ` : ""}{l.item} · 아이가 {l.seen === "아직" ? "아직 안 봄" : l.seen} · {l.until}까지</small></div><a className="btn sm" href={`/api/files/${l.file_id}`} target="_blank" rel="noreferrer">열기</a></div>)}
       {mine.length > 0 && <div className="hh" style={{ marginTop: 8 }}>내가 보낸 것 · 원장님 답</div>}
       {mine.map((f) => <div className="lf" key={f.id} data-g="mine" data-file={f.id} data-replied={f.replied ? "1" : "0"}>{f.photo ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}<div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.kid ? ` · ${f.kid}` : ""}{f.note ? ` · 💬 ${f.note}` : ""}</small><small data-g="reply" style={{ color: f.replied ? "var(--on-ok)" : undefined }}>{f.replied ? "✓ " : "⏳ "}{f.reply}</small></div></div>)}
-      {fl.hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>{fl.hidden}개는 1달이 지나 안 보입니다</p>}
+      {fl.hidden > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>1달 지난 것 {fl.hidden}개는 안 보입니다</p>}
     </Card> },
-    { id: 'cal', name: '달력', node: can(PARENT.recent) && <Link prefetch={false} className="task" href={keepAs(`/parent/cal?s=${d.student.id}`, me, q)} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div><p className="note" style={{ margin: "4px 0 0" }}>지난 수업일지·숙제·출결과 앞으로의 시험 일정을 날짜로 봅니다</p></Link> },
+    { id: 'cal', name: '달력', node: can(PARENT.recent) && <Link prefetch={false} className="task" href={keepAs(`/parent/cal?s=${d.student.id}`, me, q)} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div></Link> },
     { id: 'intro', name: '아이', node: can(PARENT.intro) && <Card emo="🎒" title={d.student.name} id="intro" {...fold("intro")} pill={d.student.schools ? `${d.student.schools.name}` : null}>
       <p className="note" style={{ margin: "4px 0 0" }}>{d.todayClass ? "오늘 수업이 있는 날입니다" : "오늘은 수업이 없는 날입니다"}</p></Card> },
     { id: 'sent', name: '보낸 것', node: can(PARENT.sent) && d.sent.length + d.notices.length > 0 && <Card emo="📨" title="보낸 것" id="sent" {...fold("sent")} pill={String(d.sent.length + d.notices.length)}>
