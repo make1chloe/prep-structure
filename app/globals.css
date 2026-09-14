@@ -324,6 +324,16 @@ td.sch{font-weight:700;white-space:nowrap}
 @media(min-width:1100px){
   .frame:not(.phone) .mine>.wv:first-child,.frame:not(.phone) .mine>fieldset>.wv:first-child,.frame:not(.phone) .mine>[data-g="as-view"]{column-span:all}
 }
+/* 학원 화면의 카드 목록(발송 10 · 월간 · 공지 · 자료함 20 · 영상 배정 19 · 반 · 설정)도 PC(≥1100)에서 두 열로 흘린다((어19) 원장님 9/14 「오늘, 일정, 교재, 페이지를 제외하고는 여전히 pc에서 배치가 비효율적이야」) — 틀에 .cols 를 단 화면만 · 머리줄(첫 .wv/.lf)과 저장줄은 두 열에 걸친다 · 표·보드·달력 화면은 안 단다(폭을 그대로 쓴다) */
+@media(min-width:1100px){
+  .frame.cols{column-count:2;column-gap:16px}
+}
+@media(min-width:1100px){
+  .frame.cols>*{break-inside:avoid}
+}
+@media(min-width:1100px){
+  .frame.cols>.wv:first-child,.frame.cols>.lf:first-child,.frame.cols>.savebar,.frame.cols>.mdlov{column-span:all}
+}
 .task{border:1px solid var(--line);border-radius:12px;padding:12px 12px;background:var(--surface)}
 .task .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .task b{font-size:var(--fs-4)}

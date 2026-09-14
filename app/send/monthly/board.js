@@ -27,7 +27,6 @@ export default function Board({ d }) {
       <button type="button" className="btn sm" disabled={pending || !todo.length} data-act="schedule-all" onClick={() => run(() => scheduleAct(d.ym, todo.map((r) => r.student_id), when, customOf(when, cDate, cTime)), schedMsg)}>⏰ 모두 예약</button>
       <When rules={d.rules} date={d.today} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
     </div>
-    <p className="note" style={{ margin: "0 0 8px" }}>숫자는 <b>마감한 판만</b> 셉니다.</p>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {!d.rows.length && <div className="card"><p className="note">재원생이 없습니다</p></div>}
@@ -37,7 +36,7 @@ export default function Board({ d }) {
           <span className="spacer" /><span className="pill" data-g="summary">{reportSummary(sent ? (r.report.frozen ?? r.numbers) : r.numbers)}</span><span className={"pill" + (sent ? " hw" : r.numbers?.closed_days ? " warn" : "")} data-g="sent">{sentText(r)}</span></div>
         <div className="tags" style={{ margin: "6px 0" }} data-g="lines">{lines.map((l) => <span className="tag" key={l.key}>{l.text}</span>)}{!r.parents && <span className="tag act">학부모 계정 없음 — 알림이 ✕ 로 남습니다</span>}</div>
         <div className="wv" style={{ marginBottom: 0 }}>
-          <textarea rows={2} defaultValue={r.report?.body ?? ""} placeholder="덧붙일 한마디 — 이 달 어땠나, 다음 달엔 무엇을(학부모에게 그대로 나갑니다)" aria-label={`${r.name} 한마디`} disabled={pending || sent} style={{ flex: "1 1 320px" }} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (r.report?.body ?? "").trim()) run(() => bodyAct(r.student_id, d.ym, e.target.value), "한마디를 적었습니다"); }} />
+          <textarea rows={2} defaultValue={r.report?.body ?? ""} placeholder="덧붙일 한마디" aria-label={`${r.name} 한마디`} disabled={pending || sent} style={{ flex: "1 1 320px" }} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (r.report?.body ?? "").trim()) run(() => bodyAct(r.student_id, d.ym, e.target.value), "한마디를 적었습니다"); }} />
           <button type="button" className="btn sm pri" disabled={pending || sent || !r.numbers?.closed_days} data-act="send-one" onClick={() => run(() => sendAct(d.ym, [r.student_id]), (r2) => `${r2.n}명에게 월간 리포트 — ${sinkText(r2)}`)}>📨 보내기</button>
           <button type="button" className="btn sm" disabled={pending || sent || !r.numbers?.closed_days} data-act="schedule-one" onClick={() => run(() => scheduleAct(d.ym, [r.student_id], when, customOf(when, cDate, cTime)), schedMsg)}>⏰ 예약</button>
         </div>

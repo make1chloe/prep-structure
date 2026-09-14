@@ -38,11 +38,11 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {add && <div className="card" style={{ margin: "0 0 8px" }} data-g="add-form"><div className="ctitle"><span className="cemo">➕</span>새 반 — 이름 · 갈래 · 요일 · 시각 · 이 날부터</div>
+    {add && <div className="card" style={{ margin: "0 0 8px" }} data-g="add-form"><div className="ctitle"><span className="cemo">➕</span>새 반</div>
       <div className="wv"><input type="text" value={nf.nickname} aria-label="반 이름" placeholder="예: 중2 월수 4시" style={{ maxWidth: 220 }} onChange={(e) => setNf({ ...nf, nickname: e.target.value })} />
         <div className="seg sm" data-g="kind">{KIND.map(([k, n]) => <button key={k} type="button" aria-pressed={nf.kind === k} onClick={() => setNf({ ...nf, kind: k })}>{n}</button>)}</div></div>
       <ScheduleForm init={null} on={d.on} disabled={pending} label="만들기" onSave={(f) => run(() => addAct({ ...nf, ...f }), "반을 만들었습니다 — 명단에 아이를 넣으세요", () => { setAdd(false); setNf({ nickname: "", kind: "regular" }); })} />
-      <p className="note" style={{ margin: "6px 0 0" }}>회차·수강료·오늘 수업은 이 시간표에서 세어 나옵니다(12·13·01). 요일이 달라지면 「이 날부터 바꾸기」 — 옛 회차는 옛 시간표로 남습니다.</p></div>}
+      </div>}
     {!live.length && <div className="card"><p className="note">반이 없습니다 — 「+ 반 만들기」</p></div>}
     {live.map((c) => { const s = sessionsOf(c, target), isOpen = open === c.id, cand = candidates(d.students, c.members); return (
       <div className="card" key={c.id} style={{ margin: "0 0 8px" }} data-g="class-row" data-class={c.id} data-open={isOpen ? "1" : "0"}>
@@ -57,7 +57,7 @@ export default function Board({ d }) {
             <button type="button" className="btn sm" disabled={pending || !name[c.id]} data-act="name-save" onClick={() => run(() => nameAct(c.id, name[c.id].nickname ?? c.nickname, name[c.id].kind ?? c.kind), "고쳤습니다", () => setName({ ...name, [c.id]: undefined }))}>저장</button></div>
           <div className="lf" style={{ marginTop: 8 }} data-g="schedule-edit"><span className="ln">🗓</span><div><b>시간표 — {c.schedule ? `${weekdayText(c.schedule.weekdays)} ${timeText(c.schedule)} · ${String(c.schedule.from_date).slice(0, 10)}부터` : "없음"}</b><small>바꾸면 그날부터 회차·수업이 새 시간표로 · 옛 회차는 그대로</small></div></div>
           <ScheduleForm init={c.schedule} on={d.on} disabled={pending} onSave={(f) => run(() => scheduleAct(c.id, f), (r) => (r.replaced ? "시간표를 고쳤습니다" : `${f.fromDate}부터 새 시간표입니다`))} />
-          <div className="lf" style={{ marginTop: 8 }} data-g="members"><span className="ln">🧑‍🎓</span><div><b>명단 {c.members.length}명</b><small>오늘 기준 · 넣으면 그날부터 오늘 수업·회차·수강료에 선다 · 빼면 오늘부터 안 나옵니다(줄은 어제까지로 남습니다)</small></div></div>
+          <div className="lf" style={{ marginTop: 8 }} data-g="members"><span className="ln">🧑‍🎓</span><div><b>명단 {c.members.length}명</b><small>오늘 기준</small></div></div>
           <div className="tags" style={{ margin: "4px 0 0" }} data-g="member-list">{c.members.map((m) => <span key={m.student_id} className="tag" data-g="member" data-student={m.student_id}>{m.name}{m.grade ? ` ${m.grade}학년` : ""} <button type="button" className="btn sm gho" style={{ padding: "0 4px", minHeight: 0 }} disabled={pending} data-act="member-remove" aria-label={`${m.name} 빼기`} onClick={() => run(() => removeAct(c.id, m.student_id, d.on), `${m.name} — 오늘부터 명단에서 뺐습니다`)}>✕</button></span>)}{!c.members.length && <span className="tag">아직 아무도 없습니다</span>}</div>
           <div className="wv" style={{ margin: "6px 0 0" }}><select value={pick[c.id] ?? ""} aria-label="넣을 아이" data-g="member-pick" style={{ width: "auto" }} onChange={(e) => setPick({ ...pick, [c.id]: e.target.value })}><option value="">+ 아이 넣기</option>{cand.map((st) => <option key={st.id} value={st.id}>{st.name}{st.grade ? ` · ${st.grade}학년` : ""}{st.school ? ` · ${st.school}` : ""}</option>)}</select>
             <button type="button" className="btn sm" disabled={pending || !pick[c.id]} data-act="member-add" onClick={() => run(() => memberAct(c.id, pick[c.id], d.on), "오늘부터 명단에 넣었습니다", () => setPick({ ...pick, [c.id]: "" }))}>오늘부터 넣기</button></div>

@@ -15,15 +15,15 @@ export default async function Settings() {
     principal ? arrivalCfg(sb).catch((e) => ({ error: String(e?.message ?? e) })) : Promise.resolve(null),
     principal ? keyBoard().catch((e) => ({ error: String(e?.message ?? e) })) : Promise.resolve(null),   // (터) 🔌 연동 열쇠 — 가린 것만 온다
   ]);
-  return <main className="frame" style={{ maxWidth: 720, margin: "24px auto", padding: "0 16px" }}><div className="card"><div className="ctitle"><span className="cemo">🎨</span>배색</div><Skins /></div><div className="card"><div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div><p className="note">강사·조교·학생·학부모에게 어느 자리를 여는지 — 원장님만 고칩니다.</p><Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link></div>
-    {cfg && <div className="card" data-card="arrival-ip"><div className="ctitle"><span className="cemo">🏫</span>학원 회선 — 아이가 등원을 찍을 수 있는 자리</div>
+  return <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}><div className="card"><div className="ctitle"><span className="cemo">🎨</span>배색</div><Skins /></div><div className="card"><div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나</div><Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link></div>
+    {cfg && <div className="card" data-card="arrival-ip"><div className="ctitle"><span className="cemo">🏫</span>학원 회선</div>
       {cfg.error ? <p className="note">{cfg.error}</p> : <>
-        <p className="note">비어 있으면 아무도 못 찍습니다 · 유예 {cfg.graceMin}분</p>
-        <div className="tags" data-g="ips">{cfg.ips.length ? cfg.ips.map((ip) => <span key={ip} className="tag on">{ip}</span>) : <span className="tag">아직 없음</span>}</div>
+        <p className="note">유예 {cfg.graceMin}분</p>
+        <div className="tags" data-g="ips">{cfg.ips.length ? cfg.ips.map((ip) => <span key={ip} className="tag on">{ip}</span>) : <span className="tag">주소 없음 — 아무도 못 찍음</span>}</div>
         <IpCard /></>}
     </div>}
     {keys?.error ? <div className="card warn"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠를 못 읽었습니다</div><p className="note">{keys.error}</p></div> : keys ? <Keys rows={keys} /> : null}
-    <Link prefetch={false} title="아이가 제 교재 진도를 찍게 엽니다(학원 전체 · 아이마다). 켠 날부터 「N일째」로 세고, 아이가 찍은 줄은 확인 기다리는 중입니다" className="card" href="/settings/progress" data-card="progress" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">✎</span>진도 체크</div></Link>
-    <Link prefetch={false} title="학원 기본 루틴 · 아이마다 고른 것 · 교재 잇기. 영역마다 한 벌이라 교재가 늘어도 안 늡니다" className="card" href="/settings/routine" data-card="routine" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🔁</span>루틴</div></Link>
+    <Link prefetch={false} className="card" href="/settings/progress" data-card="progress" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">✎</span>진도 체크</div></Link>
+    <Link prefetch={false} className="card" href="/settings/routine" data-card="routine" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">🔁</span>루틴</div></Link>
   </main>;
 }

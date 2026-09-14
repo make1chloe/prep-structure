@@ -34,17 +34,17 @@ export default function Board({ d }) {
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {tab === "in" && <>
       <div className="exr" style={{ borderColor: "var(--amber)" }} data-g="inbox">
-        <div className="exh"><span className="ai">📥</span><b>방금 온 것 — 갈래만 골라 주세요</b><span className="tag act" data-g="inbox-n">{inbox.length}</span><span className="spacer" /><span className="pill">학교·학년·학기는 <b>아이에게서 저절로</b> 붙습니다</span></div>
+        <div className="exh"><span className="ai">📥</span><b>방금 온 것</b><span className="tag act" data-g="inbox-n">{inbox.length}</span><span className="spacer" /></div>
         <div className="left">
           {!inbox.length && <p className="note" style={{ margin: "8px 0 0" }}>방금 온 것이 없습니다 — 아이·학부모가 찍어 보내면 여기 뜹니다</p>}
           {inbox.map((f) => <div className="lf" key={f.id} data-g="inbox-row" data-file={f.id}>{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
             <div><b>{f.who} — {f.orig_name}</b><small>{f.when} · {f.note ? <><i className="ic">💬</i> 「{f.note}」 · </> : null}{f.size}{f.shrunk ? " · 줄임" : ""} · {f.tag}</small><div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div></div>
-            <div className="seg sm" data-g="kind">{kinds.map((k) => <button key={k} type="button" aria-pressed={false} disabled={pending} onClick={() => run(() => sortAct(f.id, k), `「${k}」 로 넣었습니다`)}>{k}</button>)}</div>
+            <div className="seg sm" data-g="kind" style={{ flex: "1 1 260px", flexWrap: "wrap", height: "auto" }}>{kinds.map((k) => <button key={k} type="button" aria-pressed={false} disabled={pending} onClick={() => run(() => sortAct(f.id, k), `「${k}」 로 넣었습니다`)}>{k}</button>)}</div>
             <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a></div>)}
         </div>
       </div>
-      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🗂️</span>갈래별로 쌓입니다<span className="spacer" /><span className="note k" style={{ margin: 0 }}>학기가 바뀌어도 남습니다 — 다음 학기 같은 학교 아이가 씁니다</span></div>
-      {!cols.length && <p className="note" style={{ margin: "4px 0" }}>아직 쌓인 것이 없습니다 — 위에서 갈래를 고르면 여기 칸이 섭니다</p>}
+      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🗂️</span>갈래별</div>
+      {!cols.length && <p className="note" style={{ margin: "4px 0" }}>아직 없음</p>}
       <div className="kb" data-g="kb">
         {cols.map((col) => <div className="col" key={col.key} data-g="col"><div className="colh">{col.title} <span className="n">{col.n}</span></div>
           {col.cards.map((x) => { const key = x.bin?.id ?? x.title; return <button type="button" className="kc" key={key} data-g="bin" data-bin={x.bin?.id ?? ""} aria-pressed={open === key} onClick={() => setOpen(open === key ? null : key)} style={{ textAlign: "left", width: "100%", cursor: "pointer" }}>
@@ -53,15 +53,6 @@ export default function Board({ d }) {
       </div>
       {openCard && <div className="card" style={{ marginTop: 8 }} data-g="bin-files"><div className="ctitle"><span className="cemo">📂</span>{openCard.title} — {openCard.n}개{star ? " · ⭐ 가장 또렷한 것을 골라 씁니다(지우지 않습니다)" : ""}<span className="spacer" /><button type="button" className="btn sm" onClick={() => setOpen(null)}>닫기</button></div>
         {openCard.files.map((f) => <FileRow key={f.id} f={f} bin={openCard.bin} />)}</div>}
-      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">⚖️</span>정한 것</div>
-      <div className="rl2">
-        <div className="rl"><span className="k">한 번에</span><span className="v"><b>{rules["file.batch_max"] ?? 30}장까지.</b> 넘으면 나눠 올리라고 말합니다 — 조용히 잘라 넣지 않습니다</span></div>
-        <div className="rl"><span className="k">사진 크기</span><span className="v">올릴 때 폰에서 <b>긴 변 {rules["file.photo_px"] ?? 1600}px 로 줄입니다.</b> pdf·문서는 안 줄입니다({rules["file.max_mb"] ?? 4}MB 까지)</span></div>
-        <div className="rl"><span className="k">누가 보나</span><span className="v">받은 것은 <b>원장님만</b>. 아이가 올린 것을 다른 아이가 못 봅니다 · 보낸 것은 붙인 그 숙제를 <b>받는 아이(와 그 학부모)만</b></span></div>
-        <div className="rl"><span className="k">아이 쪽 보관</span><span className="v">아이에게 보낸 것은 <b>{days}일</b>. 지나면 아이 화면에서 안 보이고 — <b>여기엔 그대로 있어</b> 다시 보내면 됩니다. 💾 저장은 아이 폰에 내려받고 ✓ 안 보기는 그 줄에서만 치웁니다</span></div>
-        <div className="rl"><span className="k">언제 지워지나</span><span className="v"><b>지우지 않습니다</b> — 지우지도 고치지도 않습니다. 퇴원해도 그대로 · 학기가 바뀌어도 그대로</span></div>
-        <div className="rl"><span className="k">형제</span><span className="v"><b>학부모가 보낼 때만</b> 「누구 학교 것인가요」를 묻습니다(아이 계정은 그 아이 하나 · 형제가 한 명뿐이면 안 묻습니다)</span></div>
-      </div>
     </>}
     {tab === "out" && <div data-g="sent">
       {!sent.length && <p className="note" style={{ margin: "4px 0" }}>보낸 것 없음 — 📤 보내기</p>}
@@ -71,7 +62,7 @@ export default function Board({ d }) {
           {!f.links.length && <small>안 붙임</small>}</div>
         <span className="lm" data-g="sent-done">{f.done}/{f.total}</span><a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer">열기</a></div>)}
     </div>}
-    <div className="savebar" style={{ marginTop: 12 }} data-g="bar"><span className="pill" data-g="counts">받은 것 {c.received} · 보낸 것 {c.sent} · 안 본 것 {c.unsorted}</span><span className="spacer" /><span className="pill">지우지 않습니다 — 아이 화면의 붙임만 {days}일 뒤 안 보입니다</span></div>
+    <div className="savebar" style={{ marginTop: 12 }} data-g="bar"><span className="pill" data-g="counts">받은 것 {c.received} · 보낸 것 {c.sent} · 안 본 것 {c.unsorted}</span><span className="spacer" /></div>
     {send && <div className="mdlov" aria-label="보내기" data-g="send" onClick={(x) => { if (x.target === x.currentTarget) setSend(false); }}><div className="mdl" style={{ maxWidth: 560 }}>
       <div className="mdlh"><b>📤 오늘 숙제에 붙이기</b><span className="spacer" /><button className="btn sm" type="button" onClick={() => setSend(false)}>닫기</button></div>
       <div className="mdlb">

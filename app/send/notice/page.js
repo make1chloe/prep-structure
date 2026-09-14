@@ -7,7 +7,7 @@ import { today } from "@/lib/day";
 import { noticeBoard } from "@/lib/notice";
 import Board from "./board.js";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
+const frame = (children) => <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Notice() {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📢</span>공지는 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다.` : "로그인이 필요합니다."}</p></div>);

@@ -46,7 +46,7 @@ export default function Board({ d }) {
       <span className="pill">교재 예외 0</span>
       <span className="spacer" />
       <button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAdding(adding ? null : "문법")}>+ 항목</button>
-      <span className="pill">교재가 늘어도 <b>안 늡니다</b></span>
+      
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
@@ -58,8 +58,8 @@ export default function Board({ d }) {
         return (
           <div key={area} className="rcol2" data-g="area" data-area={area}>
             <div className="rh2"><span className="rhi">{emo}</span><b>{area}</b><span className="tag">{b.book_counts?.[area] ?? 0}권</span><span className="spacer" /><span className="pill" data-g="area-stats">학원 {st.class} · 숙제 {st.home} · 필수 {st.required}{st.next ? ` · 예습 ${st.next}` : ""}</span></div>
-            {area === "단어" && st.class === 0 && <div className="lf ok" data-g="word-note" style={{ marginBottom: 4 }}><span className="ln">🔤</span><div><b>단어는 학원이 0줄입니다 — 맞습니다</b><small>학원에서는 <b>단어시험 말고 할 게 없어서</b>입니다. 시험은 <b>루틴 밖</b>이라 여기 안 섭니다</small></div><span className="lm">숙제 {st.home}줄{st.next ? ` · 예습 ${st.next}줄` : ""}</span></div>}
-            {!lines.length && area !== "단어" && <div className="ritem" data-g="area-empty"><span className="rn2">—</span><div style={{ flex: "1 1 170px", minWidth: 0 }}><b style={{ color: "var(--mute)" }}>아직 줄이 없습니다 — + 항목으로 만드세요</b><small>이 영역 교재를 이은 아이는 대시보드 「빵꾸」에 뜹니다</small></div></div>}
+            {area === "단어" && st.class === 0 && <div className="lf ok" data-g="word-note" style={{ marginBottom: 4 }}><span className="ln">🔤</span><div><b>단어는 학원 0줄</b><small>시험은 루틴 밖</small></div><span className="lm">숙제 {st.home}줄{st.next ? ` · 예습 ${st.next}줄` : ""}</span></div>}
+            {!lines.length && area !== "단어" && <div className="ritem" data-g="area-empty"><span className="rn2">—</span><div style={{ flex: "1 1 170px", minWidth: 0 }}><b style={{ color: "var(--mute)" }}>아직 없음</b></div></div>}
             {lines.map((l, i) => (
               <div key={l.id}>
                 <div className="ritem on" data-g="line" data-line={l.id}>
@@ -83,12 +83,6 @@ export default function Board({ d }) {
             <div className="wv" style={{ marginTop: 6 }}><button className="btn sm" type="button" data-act="add-area" onClick={() => setAdding(adding === area ? null : area)}>+ {area} 항목</button></div>
           </div>);
       })}
-    </div>
-
-    <div className="cmp" style={{ marginTop: 12 }} data-g="cmp">
-      <div className="cmpc"><b>교재마다 짜면</b><span className="cn bad">{totalBooks}벌</span><small>교재를 들일 때마다 <b>한 벌씩 더</b></small></div>
-      <div className="cmpar">→</div>
-      <div className="cmpc ok"><b>영역마다 짜면</b><span className="cn ok">{areasWithLines}벌</span><small>교재가 늘어도 <b>안 늡니다.</b> 교재는 <b>학생에게 잇기만</b></small></div>
     </div>
 
     <div className="ctitle" style={{ marginTop: 16 }}><span className="cemo">🧑</span>{student ? `${student.name} — 영역별로 고른 것` : "아이가 없습니다"}
@@ -123,7 +117,7 @@ export default function Board({ d }) {
       })}
     </div>
 
-    <div className="ctitle" style={{ marginTop: 16 }}><span className="cemo">📚</span>교재는 잇기만 — 기준과 회차</div>
+    <div className="ctitle" style={{ marginTop: 16 }}><span className="cemo">📚</span>교재</div>
     <div className="bkset" data-g="books">
       {myBooks.map((x) => {
         const areaLines = alive(linesOf(x.area ?? "")), custom = alive((b.student_lines ?? []).filter((l) => l.area === x.area && !l.book_id)).length > 0;
@@ -168,8 +162,8 @@ export default function Board({ d }) {
         <select value={bookPick} aria-label="이을 교재" data-g="book-pick" style={{ width: "auto" }} onChange={(e) => setBookPick(e.target.value)}><option value="">이을 교재 고르기</option>{(b.books_free ?? []).map((x) => <option key={x.id} value={x.id}>{x.area ?? "—"} · {x.name}{x.code ? ` (${x.code})` : ""}</option>)}</select>
         <input type="date" className="dt" value={assignDate} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setAssignDate(e.target.value)} />
         <button className="btn pri sm" type="button" disabled={pending || !bookPick || !assignDate} data-act="assign" onClick={() => run(() => assignBookAct(sid, bookPick, assignDate), `이었습니다 — ${assignDate}부터 · 그 교재의 영역 루틴이 저절로 붙습니다`)}>+ 교재 잇기</button>
-        <span className="note k" style={{ margin: 0 }}>교재를 이으면 <b>그 교재의 영역 루틴이 저절로 붙습니다</b> — 따로 짜지 않습니다</span></div>}
+        </div>}
     </div>
-    <div className="savebar" style={{ marginTop: 12 }}><span className="pill">루틴 <b>{areasWithLines}벌</b> · 교재 예외 <b>0</b></span><span className="spacer" /><span className="pill">교재를 들여도 <b>루틴 일은 0</b>입니다</span></div>
+    <div className="savebar" style={{ marginTop: 12 }}><span className="pill">루틴 <b>{areasWithLines}벌</b> · 교재 예외 <b>0</b></span></div>
   </>);
 }

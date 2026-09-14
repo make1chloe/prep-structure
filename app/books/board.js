@@ -1,5 +1,6 @@
 "use client";
 /** 교재 판(목업 15) + 엑셀 올리기 모달(15b — 저장 전에 보여준다). 목록(영역 거르기 · 단원 수 · 쓰는 아이) · 고른 교재(교재ID · 영역 · 배정 겹 · 차례 기준 · 단원평가 · 다른 이름 · 활동 차례 · 단원 표 · 문법 분류) · + 교재 · ⬇ 엑셀 · ⬆ 올리기. 세는 것은 화면이 센다(원칙-5) */
+import FilePick from "../_shell/filepick.js";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -115,7 +116,7 @@ function Upload({ close, run, pending }) {
   return <div className="mdlov" data-g="upload"><div className="mdl" style={{ width: "min(640px, 100%)" }}>
     <div className="mdlh"><b>⬆ 올리기 — 저장 전에 보여줍니다</b>{plan && <span className="pill" data-g="lines">{plan.lines}줄</span>}<button className="x" type="button" aria-label="닫기" onClick={close}>✕</button></div>
     <div className="mdlb">
-      {!plan && <form action={read} className="wv" data-g="upload-form"><input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="단원 엑셀" style={{ width: "auto" }} /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button></form>}
+      {!plan && <form action={read} className="wv" data-g="upload-form"><FilePick name="file" accept=".xlsx,.xls,.csv" ariaLabel="단원 엑셀" label="📄 엑셀 고르기" /><button className="btn pri sm" type="submit" disabled={pending} data-act="upload-read">읽기</button></form>}
       {plan && plan.kind === "books" && <BooksPlan plan={plan} />}
       {plan && plan.kind !== "books" && <>
         <div className="ctitle"><span className="cemo">❓</span>이미 있는 교재를 어떻게 할까요</div>

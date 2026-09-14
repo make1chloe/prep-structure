@@ -21,7 +21,7 @@ export default function Board({ d }) {
     <div className="wv" style={{ marginBottom: 8 }} data-g="head"><span className="pill" style={{ fontWeight: 700 }}>☎️ 신규 상담</span><span className={"pill" + (cols.unanswered ? " warn" : "")} data-g="unanswered">답 안 한 문의 {cols.unanswered}</span><span className="spacer" /><button className="btn pri sm" type="button" data-act="add-open" onClick={() => setAddOpen(!addOpen)}>+ 전화 문의 받기</button><Link prefetch={false} className="btn sm" href="/ops/students">🧑‍🎓 학생 ↗</Link></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {addOpen && <div className="card" data-g="add-form"><div className="ctitle"><span className="cemo">☎️</span>전화 끊고 바로 — 이름 · 학부모 전화 · 학교 · 학년 · 어디서 · 물음</div>
+    {addOpen && <div className="card" data-g="add-form"><div className="ctitle"><span className="cemo">☎️</span>전화 문의</div>
       <div className="wv"><input type="text" value={nf.name} placeholder="이름" aria-label="이름" onChange={(x) => setNf({ ...nf, name: x.target.value })} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" value={nf.phone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setNf({ ...nf, phone: x.target.value })} style={{ maxWidth: 150 }} /><input type="text" value={nf.school} placeholder="학교" aria-label="학교" onChange={(x) => setNf({ ...nf, school: x.target.value })} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={nf.grade} placeholder="학년" aria-label="학년" onChange={(x) => setNf({ ...nf, grade: x.target.value.replace(/\D/g, "") })} />
         <select value={nf.way} aria-label="어디서" onChange={(x) => setNf({ ...nf, way: x.target.value })} style={{ width: "auto" }}>{WAYS.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select></div>
       <div className="wv" style={{ marginTop: 6 }}><input type="text" value={nf.body} placeholder="물음 — 주 2회 되나요 · 수업료" aria-label="물음" onChange={(x) => setNf({ ...nf, body: x.target.value })} style={{ flex: "1 1 260px" }} /><button className="btn pri sm" type="button" disabled={pending || !nf.name.trim() || !nf.phone.trim()} data-act="add-save" onClick={() => run(() => addAct(nf), "문의를 받았습니다 — 🔥 오늘 답할 것", () => { setAddOpen(false); setNf({ name: "", phone: "", studentPhone: "", school: "", grade: "", way: "phone", body: "" }); })}>저장</button></div></div>}
@@ -59,13 +59,11 @@ export default function Board({ d }) {
           <div className="fl" style={{ marginTop: 8 }}>이 아이에게만 덧붙일 말 — 첫 등원 안내 문자 끝에 붙습니다((커))</div>
           <textarea value={cv.extra ?? ""} onChange={(x) => setCv({ ...cv, extra: x.target.value })} rows={3} aria-label="덧붙일 말" data-g="conv-extra" name="conv-extra" placeholder="예: 셔틀은 3시 20분 정문에서 탑니다 · 첫 주는 교재를 학원에서 빌려 씁니다" style={{ width: "100%", fontFamily: "inherit" }} />
           <p className="note k" style={{ margin: "4px 0 0" }}>비우면 그 줄이 사라집니다 · 문구 자체(규정·교재·시간표)는 발송 화면의 「✉️ 문자 문구」에서 고치십니다</p>
-          <p className="note k" style={{ margin: "8px 0 0" }}>한 번 누르면 일곱이 저절로 — {SEVEN.map(([, nm]) => nm).join(" · ")}</p>
+          
         </>}
         {steps && <div className="seven" data-g="steps">{SEVEN.map(([key, nm, desc], i) => { const s = steps.find((x) => x.key === key); return <div className="sv" key={key} data-g="step" data-key={key} data-ok={s ? (s.ok ? "1" : "0") : "-"}><i>{i + 1}</i><b>{nm} {s ? (s.ok ? "✓" : "✕") : ""}</b><span>{s ? s.text : desc}</span></div>; })}</div>}
       </div>
       <div className="mdlf">{steps && convCard.student_id ? <Link prefetch={false} className="btn" href={`/ops/students?s=${convCard.student_id}`}>학생 화면 ↗</Link> : null}<span className="spacer" />{!steps && <button className="btn pri" type="button" disabled={pending || !cv.classId || !cv.loginId} data-act="convert-save" onClick={() => { try { parseConvert(cv); } catch (e) { setErr(String(e.message)); return; } run(() => convertAct(convCard.id, cv), (r) => `등록 전환 — 일곱 중 ${r.done} 됐습니다`, (r) => setSteps(r.steps)); }}>등록 전환</button>}{steps && <button className="btn" type="button" onClick={() => setConv(null)}>닫기</button>}</div>
     </div></div>}
-    <div className="card" style={{ marginTop: 12 }} data-g="seven-card"><div className="ctitle"><span className="cemo">✅</span>등록 전환 — 한 번 누르면 일곱이 저절로</div>
-      <div className="seven">{SEVEN.map(([key, nm, desc], i) => <div className="sv" key={key}><i>{i + 1}</i><b>{nm}</b><span>{desc}</span></div>)}</div></div>
   </>;
 }

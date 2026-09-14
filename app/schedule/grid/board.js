@@ -23,7 +23,7 @@ function Cell({ r, col, ctx }) {
     </>; }
     if (col.type === "pick") { const of = col.options?.of ?? "book"; const cur = v ?? {};
       if (of === "book") return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { id: x.target.value } : null)} style={{ width: "auto" }}><option value="">교재 고르기</option>{refs.books.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>;
-      if (of === "exam") return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { id: x.target.value } : null)} style={{ width: "auto" }}><option value="">회차 고르기</option>{refs.exams.map((x) => <option key={x.id} value={x.id}>{x.school ?? "전국"} {x.name}</option>)}</select>;
+      if (of === "exam") return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} onChange={(x) => save(r, col, x.target.value ? { id: x.target.value } : null)} style={{ width: "auto" }}><option value="">시험 고르기</option>{refs.exams.map((x) => <option key={x.id} value={x.id}>{x.school ?? "전국"} {x.name}</option>)}</select>;
       // 단원 — 교재 → 단원 두 단이 아니라 한 고르개((가)-⑤): 교재마다 묶은 목록(단원 전부는 이 칸이 보일 때 한 번 읽는다) · 교재는 단원에서 나온다
       const groups = unitGroups(refs.books, refs.units);
       return <select value={cur.id ?? ""} aria-label={`${rowTitle(r)} ${col.label}`} disabled={!units.all} onChange={(x) => save(r, col, unitPick(refs.units, x.target.value))} style={{ width: "auto", maxWidth: 220 }}><option value="">{units.all ? (groups.length ? "단원 고르기" : "단원이 없습니다") : "단원 읽는 중"}</option>{groups.map((gp) => <optgroup key={gp.book.id} label={gp.book.name}>{gp.units.map((u) => <option key={u.id} value={u.id}>{u.chapter} › {u.short ?? u.label}</option>)}</optgroup>)}</select>; }
@@ -62,7 +62,6 @@ export default function Board({ d }) {
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
       <span className="pill" style={{ fontWeight: 700 }}>🗂️ 학교별 표</span>
-      <span className="note" style={{ margin: 0 }}>시험범위·직보·교재 진도 — 누가 보나는 <b>일정 권한</b>을 따릅니다</span>
       <span className="spacer" />
       {d.principal && <div className="seg sm" data-g="mine"><button type="button" aria-pressed={mine} onClick={() => { setMine(true); setSel(null); }}>내 표</button><button type="button" aria-pressed={!mine} onClick={() => { setMine(false); setSel(null); }}>전체 표(원장)</button></div>}
       <button className="btn pri sm" type="button" data-act="new-open" onClick={() => setNewOpen(!newOpen)}>+ 새 표</button>
@@ -70,7 +69,7 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {newOpen && <div className="card" data-g="new-grid" style={{ marginTop: 0 }}><div className="ctitle"><span className="cemo">＋</span>새 표 — 본 여섯 중 하나(이름은 바꿔도 됩니다)</div>
+    {newOpen && <div className="card" data-g="new-grid" style={{ marginTop: 0 }}><div className="ctitle"><span className="cemo">＋</span>새 표</div>
       <div className="wv"><select value={tpl} aria-label="본" data-g="tpl" onChange={(x) => setTpl(x.target.value)} style={{ width: "auto" }}>{TEMPLATES.map((t) => <option key={t.key} value={t.key}>{t.label} — 줄 {t.rows === "school" ? "학교" : t.rows === "student" ? "학생" : "자유"} · 칸 {t.cols.length}</option>)}</select>
         <input type="text" value={tplLabel} placeholder="표 이름(비면 본 이름)" aria-label="표 이름" onChange={(x) => setTplLabel(x.target.value)} style={{ flex: "1 1 200px" }} />
         <button className="btn pri sm" type="button" disabled={pending} data-act="new-save" onClick={() => run(() => gridAddAct(tpl, tplLabel), (r) => `표를 세웠습니다 — 칸 ${r.cols}${r.board ? " · 보드 축 붙음" : ""}`, () => { setNewOpen(false); setTplLabel(""); })}>만들기</button></div>
@@ -92,7 +91,7 @@ export default function Board({ d }) {
       <div className="shtitle">{rename?.id === g.id ? <><input value={rename.name} aria-label="표 이름" data-g="rename" onChange={(e) => setRename({ id: g.id, name: e.target.value })} style={{ width: 160 }} /><button className="btn sm pri" type="button" data-act="rename-save" disabled={pending || !rename.name.trim()} onClick={() => { const nm = rename.name.trim(); setRename(null); if (nm && nm !== g.label) run(() => gridRenameAct(g.id, nm), "이름을 바꿨습니다"); }}>저장</button><button className="btn sm" type="button" data-act="rename-cancel" onClick={() => setRename(null)}>취소</button></> : <><b data-g="grid-label">{g.label}</b><button className="lnk" type="button" data-act="rename" aria-label="표 이름 바꾸기" onClick={() => setRename({ id: g.id, name: g.label })}>✎</button></>}
         <span className="seg sm" data-g="share"><button type="button" aria-pressed={!g.share} data-act="share-off" disabled={pending} onClick={() => { if (g.share) run(() => gridShareAct(g.id, false), "아이·학부모에게 안 보입니다"); }}>학원만</button><button type="button" aria-pressed={Boolean(g.share)} data-act="share-on" disabled={pending || g.rows !== "school"} onClick={() => { if (!g.share) run(() => gridShareAct(g.id, true), "아이·학부모 화면에 우리 학교 줄이 보입니다"); }}>아이·학부모 공개</button></span>
         <span className="ord" data-g="grid-order"><button type="button" aria-label="표 왼쪽으로" disabled={pending || grids.findIndex((x) => x.id === g.id) <= 0} data-act="grid-left" onClick={() => run(() => gridMoveAct(g.id, "left"), "표 차례를 바꿨습니다(알약 차례)")}>◀</button><button type="button" aria-label="표 오른쪽으로" disabled={pending || grids.findIndex((x) => x.id === g.id) >= grids.length - 1} data-act="grid-right" onClick={() => run(() => gridMoveAct(g.id, "right"), "표 차례를 바꿨습니다(알약 차례)")}>▶</button></span><span className="spacer" /><button className="del" type="button" disabled={pending} data-act="grid-retire" onClick={() => run(() => gridRetireAct(g.id), `${g.label} — 내렸습니다(되살릴 수 있습니다)`, () => setSel(null))}>표 삭제</button></div>
-      <div className="sortrow"><span className="fl" style={{ margin: 0 }}>🔽 정렬</span><span className="sel">내가 정한 순서 ⌄</span><span className="note" style={{ margin: 0 }}>⠿ 대신 ◀ ▶ · ▲ ▼ 로 옮깁니다(폰에서도 같습니다)</span></div>
+      <div className="sortrow"><span className="fl" style={{ margin: 0 }}>🔽 정렬</span><span className="sel">내가 정한 순서 ⌄</span></div>
       <div className="nb-viewbar" data-g="viewbar">
         <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
         <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -136,7 +135,6 @@ export default function Board({ d }) {
     <div className="savebar" style={{ marginTop: 8 }} data-g="bar">
       <span className="pill" data-g="bar-count">표 {c.grids}종 · 줄 {c.rows} · 칸 {c.cols}{c.retired ? ` · 내린 표 ${c.retired}` : ""}</span>
       <span className="spacer" />
-      <span className="pill">메모는 칸에서 손을 떼면 저장됩니다 — 저장 단추가 없습니다</span>
     </div>
   </>;
 }

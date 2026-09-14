@@ -37,5 +37,11 @@ const kidPages = ["app/me/page.js", "app/me/book/page.js", "app/me/videos/page.j
 ok("07·08·19·달력·09 틀은 1400(01 과 같은 최대 너비) — 560·720 없음", kidPages.every(([, s]) => /maxWidth: 1400/.test(s) && !/maxWidth: (560|720)\b/.test(s)), kidPages.filter(([, s]) => !/maxWidth: 1400/.test(s)).map(([f]) => f).join(", "));
 ok("목업 CSS — PC(≥1100) .mine 두 열(column-count · 카드는 안 쪼갠다) · 08 세 열은 폭을 나눠 갖고 폰(≤760)은 한 줄로 쌓는다(하는 중 먼저) · 달력은 PC 에서 달력 왼쪽 · 그날 카드 오른쪽", /@media\(min-width:1100px\)\{\s*\.frame:not\(\.phone\) \.mine\{display:block;column-count:2/.test(css) && /\.frame:not\(\.phone\) \.mine \.task\{break-inside:avoid\}/.test(css) && /\.rcol\{flex:1 1 200px/.test(css) && /@media\(max-width:760px\)\{\s*\.road\{flex-direction:column/.test(css) && /\.rcol\[data-g="col-doing"\]\{order:-1\}/.test(css) && /\.calpage\{display:grid/.test(css));
 
+console.log("■ (어19) 학원 화면 PC — 틀 1400 · 카드 목록 화면은 두 열(원장님 9/14 「오늘, 일정, 교재, 페이지를 제외하고는 여전히 pc에서 배치가 비효율적이야」)");
+const w1100 = src.filter(([p, s]) => /^app\//.test(p) && /maxWidth: 1100\b/.test(s)).map(([p]) => p);
+ok("학원 화면 틀 1100 은 0 — 전부 1400(01·아이 화면과 같은 최대 너비)", w1100.length === 0, w1100.join(", "));
+const colsPages = ["app/send/page.js", "app/send/monthly/page.js", "app/send/notice/page.js", "app/ops/files/page.js", "app/books/videos/page.js", "app/schedule/classes/page.js", "app/settings/page.js"];
+ok("카드 목록 화면 일곱(발송 · 월간 · 공지 · 자료함 · 영상 배정 · 반 · 설정)은 frame.cols · 목업 CSS 가 PC 두 열로 흘린다(머리줄·저장줄·모달은 걸침)", colsPages.every((f) => /className="frame cols"/.test(readFileSync(f, "utf8"))) && /@media\(min-width:1100px\)\{\s*\.frame\.cols\{column-count:2/.test(css) && /\.frame\.cols>\.mdlov\{column-span:all\}/.test(css), colsPages.filter((f) => !/className="frame cols"/.test(readFileSync(f, "utf8"))).join(", "));
+
 console.log(`\n■ 폰·속도 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

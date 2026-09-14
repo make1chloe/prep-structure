@@ -45,7 +45,7 @@ export default function Board({ d }) {
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
 
     <section className={"sgrp" + (nowN ? " now" : "")} data-card="now">
-      <div className="sgh"><span className="sgi">🕘</span><b>지금 · 수업 중에</b><span className={"pill" + (nowN ? " warn" : "")}>{d.late.length}</span><span className="spacer" /><span className="note" style={{ margin: 0 }}>늦은 귀가 안내는 오늘 카드에서 보냅니다 — 몰아 보내는 시간까지 기다리면 뜻이 없습니다</span></div>
+      <div className="sgh"><span className="sgi">🕘</span><b>지금 · 수업 중에</b><span className={"pill" + (nowN ? " warn" : "")}>{d.late.length}</span><span className="spacer" /></div>
       {!d.late.length && <Row icon="—" cls="dim"><b>오늘 늦게 가는 아이가 없습니다</b></Row>}
       {d.late.map((r) => r.sent
         ? <Row key={r.id} icon="✅" cls="done" data-g="late-row"><b>{r.name} · 늦은 귀가 안내</b><small>{r.until} 예정 · <b>{r.sent}에 보냄</b>{r.log ? ` · ${r.log.text}` : ""}</small><div className="tags" style={{ marginTop: 4 }}><span className="tag on">✓ 오늘 카드에서 보냄</span>{r.reason && <span className="tag">{r.reason}</span>}</div></Row>
@@ -71,7 +71,7 @@ export default function Board({ d }) {
     </section>
 
     <section className="sgrp" data-card="auto">
-      <div className="sgh"><span className="sgi">🔔</span><b>저절로 나가는 것 · 등원·하원 · 결석·지각 예정</b><span className="pill">{d.auto.length}</span><span className="spacer" /><span className="note" style={{ margin: 0 }}>아이가 찍은 등원·하원과 반 화면의 「학부모께 알림」이 넣은 것 — 나간 것은 아래 「오늘 나간 것」에</span></div>
+      <div className="sgh"><span className="sgi">🔔</span><b>저절로 나가는 것 · 등원·하원 · 결석·지각 예정</b><span className="pill">{d.auto.length}</span><span className="spacer" /></div>
       {!d.auto.length && <Row icon="—" cls="dim"><b>기다리는 것이 없습니다</b></Row>}
       {d.auto.map((r) => <Row key={r.id} icon={r.icon} data-g="auto-row"><b>{r.name} 학부모 · {r.what}</b><small>{r.state.text}</small></Row>)}
     </section>
@@ -93,10 +93,10 @@ export default function Board({ d }) {
       </div>
     </div>
     <Templates items={d.templates ?? []} ready={d.smsReady} placeholders={d.placeholders ?? []} kinds={d.smsKinds ?? []} />
-    {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 자리 — 글에 적으면 앱이 채웁니다</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
+    {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 자리</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
       <div className="tags" data-g="placeholders">{placeholderRows(d.placeholders).map((r) => <span key={r.key} className="tag" title={r.text}>{r.tag}</span>)}</div>
       {/* 칩마다 title 에 뜻이 이미 붙어 있다 — 아래에 같은 것을 또 늘어놓지 않는다(2026-09-12 · 144자) */}
-      <p className="note k" style={{ margin: "4px 0 0" }}>안 채운 자리가 있으면 못 나갑니다</p></div>}
+      </div>}
 
     <div className="savebar sendbar" data-g="sendbar">
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>

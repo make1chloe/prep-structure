@@ -1,5 +1,6 @@
 "use client";
 /** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생에서 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
+import FilePick from "../_shell/filepick.js";
 import Link from "next/link";
 import Sure, { useSure } from "../_shell/sure.js";   /* 한 번 더 묻기는 화면 안(대전제-10) */
 import { useState, useTransition } from "react";
@@ -34,11 +35,11 @@ export default function Fee({ d }) {
       <When rules={d.sendRules} date={d.date} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
       <span className="spacer" />
       <form action={(fd) => run(() => importAct(d.ym, fd), (r) => `올렸습니다 — ${r.put}줄${r.skipped ? ` · 건너뜀 ${r.skipped}` : ""}${r.unmatched.length ? ` · 못 맞춘 이름: ${r.unmatched.join(", ")}` : ""}${r.dup.length ? ` · 같은 이름 둘: ${r.dup.join(", ")}` : ""}`)} className="wv" style={{ gap: 4 }} data-g="import">
-        <input type="file" name="file" accept=".xlsx,.xls,.csv" aria-label="결제선생 엑셀" style={{ width: "auto" }} /><button className="btn sm" type="submit" disabled={pending} data-act="import">📄 결제선생에서 올리기</button></form>
+        <FilePick name="file" accept=".xlsx,.xls,.csv" ariaLabel="결제선생 엑셀" label="📄 엑셀 고르기" /><button className="btn sm" type="submit" disabled={pending} data-act="import">📄 결제선생에서 올리기</button></form>
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {gradeOpen && <div className="card" style={{ margin: "0 0 8px" }} data-g="grade-form"><div className="ctitle"><span className="cemo">🎓</span>학년별 기준 — 단가 줄이 없는 아이는 이 금액으로 셉니다(비우면 없음 · 0원이 아닙니다)</div>
+    {gradeOpen && <div className="card" style={{ margin: "0 0 8px" }} data-g="grade-form"><div className="ctitle"><span className="cemo">🎓</span>학년별 기준</div>
       <div className="wv">{GRADE_KEYS.map((k) => <label key={k} className="wv" style={{ gap: 4, marginBottom: 0 }}><span className="fl" style={{ margin: 0 }}>{k}</span><input type="text" inputMode="numeric" className="fee" value={gradeForm[k]} aria-label={`${k} 기준`} placeholder="원" style={{ width: 96 }} onChange={(e) => setGrade({ ...gradeForm, [k]: e.target.value.replace(/[^\d]/g, "") })} /></label>)}</div>
       <div className="wv" style={{ marginTop: 6, marginBottom: 0 }}><button type="button" className="btn sm pri" disabled={pending || !grade} data-act="grade-save" onClick={() => run(() => byGradeAct(d.ym, gradeForm), (r) => `학년별 기준을 적었습니다 — ${r.n}학년`)}>저장</button><span className="note" style={{ margin: 0 }}>옛 앱 설정과 같은 자리라 두 곳이 아닙니다</span></div></div>}
     <div className="tblwrap"><table data-g="fee-table"><thead><tr><th>학생</th><th>반</th><th>금액</th><th>받은 날</th><th></th></tr></thead><tbody>
@@ -46,7 +47,7 @@ export default function Fee({ d }) {
         <td className="sch">{r.name}</td>
         <td>{r.classText}{r.special.map((n, i) => <span key={i} className="tag" style={{ marginLeft: 4 }}>{n}회</span>)}{r.source && r.amount === r.suggested && <div className="meta">{r.source}</div>}</td>
         <td><input type="text" inputMode="numeric" className="fee" value={edit[r.student_id] && "amount" in edit[r.student_id] ? edit[r.student_id].amount : (r.amount == null ? "" : Number(r.amount).toLocaleString("ko-KR"))} placeholder="아직 안 적음" aria-label={`${r.name} 금액`} onChange={(e) => setA(r.student_id, e.target.value)} /></td>
-        <td><span className="wv" style={{ gap: 4, marginBottom: 0 }}><input type="date" className="dt" value={r.paid_on ?? ""} aria-label={`${r.name} 받은 날`} onChange={(e) => setP(r.student_id, e.target.value)} /><select value={r.method ?? ""} aria-label={`${r.name} 수납 방법`} data-g="method" style={{ width: "auto" }} onChange={(e) => setM(r.student_id, e.target.value)}><option value="">방법</option>{METHODS.map((mth) => <option key={mth} value={mth}>{mth}</option>)}</select></span></td>
+        <td><span className="wv" style={{ gap: 4, marginBottom: 0, flexWrap: "nowrap" }}><input type="date" className="dt" value={r.paid_on ?? ""} aria-label={`${r.name} 받은 날`} onChange={(e) => setP(r.student_id, e.target.value)} /><select value={r.method ?? ""} aria-label={`${r.name} 수납 방법`} data-g="method" style={{ width: "auto", flex: "0 0 auto" }} onChange={(e) => setM(r.student_id, e.target.value)}><option value="">방법</option>{METHODS.map((mth) => <option key={mth} value={mth}>{mth}</option>)}</select></span></td>
         <td><span className={"v " + (r.state === "paid" ? "y" : r.state === "unpaid" ? "m" : "n")} data-g="state">{STATE[r.state]}</span></td>
       </tr>)}
       {!rows.length && <tr><td colSpan={5} className="note">이 달 재원생이 없습니다</td></tr>}

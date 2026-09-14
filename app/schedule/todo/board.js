@@ -59,7 +59,7 @@ export default function Board({ d }) {
     </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <div className="lf ok" style={{ margin: "0 0 8px" }}><span className="ln">⇄</span><div><b>표 하나에 보기 둘 — 표 · 보드는 같은 줄입니다</b><small>보기를 바꿔도 서버 조회 0건 · 범위·시험일은 🏫 시험 회차에서 · 자료는 📄 내신 자료에서</small></div><Sibs here="/schedule/todo" /></div>
+    <div className="wv" style={{ margin: "0 0 8px" }}><span className="spacer" /><Sibs here="/schedule/todo" /></div>
     <div className="nb-viewbar" data-g="viewbar">
       <button type="button" className="nb-tab" aria-current={view === "table"} data-act="view-table" onClick={() => setView("table")}><span className="nb-ic">⊞</span>표</button>
       <button type="button" className="nb-tab" aria-current={view === "board"} data-act="view-board" onClick={() => setView("board")}><span className="nb-ic">▦</span>보드</button>
@@ -75,19 +75,19 @@ export default function Board({ d }) {
       <button className="btn sm" type="button" data-act="new-note" onClick={() => setNw("note")}>📋 메모</button>
       <button className="btn sm" type="button" data-act="new-repeat" onClick={() => setNw("repeat")}>⏰ 되풀이</button>
       <span className="spacer" /><button className="btn sm" type="button" onClick={() => setNw(null)}>닫기</button></div></div>}
-    {nw === "material" && <div className="card" data-g="new-material" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📄</span>자료는 회차에서 세웁니다 — 회차를 고르세요</div>
-      <div className="tags">{(b.exams_soon ?? []).map((e) => <Link prefetch={false} key={e.id} className="tag on" href={`/schedule/exams/prep?e=${e.id}`}>{e.school ?? "전국"} {e.name} · {monthDay(examOn(e))} · 자료 {e.materials}</Link>)}{!(b.exams_soon ?? []).length && <span className="note" style={{ margin: 0 }}>다가오는 회차 없음 — 🏫 시험 회차</span>}</div></div>}
-    {nw === "unit_test" && <div className="card" data-g="new-unit-test" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📝</span>단원평가 출제 — 아이 · 문법 분류 · 문항 수</div>
+    {nw === "material" && <div className="card" data-g="new-material" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📄</span>자료 — 시험 고르기</div>
+      <div className="tags">{(b.exams_soon ?? []).map((e) => <Link prefetch={false} key={e.id} className="tag on" href={`/schedule/exams/prep?e=${e.id}`}>{e.school ?? "전국"} {e.name} · {monthDay(examOn(e))} · 자료 {e.materials}</Link>)}{!(b.exams_soon ?? []).length && <span className="note" style={{ margin: 0 }}>다가오는 시험 없음 — 🏫 학교 시험</span>}</div></div>}
+    {nw === "unit_test" && <div className="card" data-g="new-unit-test" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📝</span>단원평가 출제</div>
       <div className="wv"><select value={ut.studentId} aria-label="아이" onChange={(x) => setUt({ ...ut, studentId: x.target.value })} style={{ width: "auto" }}><option value="">아이</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.school ? ` · ${s.school}` : ""}</option>)}</select>
         <select value={ut.topicId} aria-label="문법 분류" onChange={(x) => setUt({ ...ut, topicId: x.target.value })} style={{ width: "auto" }}><option value="">문법 분류</option>{(b.topics ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
         <input type="text" inputMode="numeric" className="scr" value={ut.qCount} aria-label="문항 수" onChange={(x) => setUt({ ...ut, qCount: x.target.value.replace(/\D/g, "") })} />
         <button className="btn pri sm" type="button" disabled={pending || !ut.studentId || !ut.topicId} data-act="unit-test-save" onClick={() => run(() => unitTestAct({ studentId: ut.studentId, topicId: ut.topicId, qCount: Number(ut.qCount) || 25 }), "낼 것으로 섰습니다 — 출제하면 「출제함」을 누르세요", () => { setNw(null); setUt({ studentId: "", topicId: "", qCount: "25" }); })}>저장</button></div></div>}
-    {nw === "note" && <div className="card" data-g="new-note" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📋</span>메모 — 제목 · 날짜 · 시각 · 아이(비워도 됨) — 일정 12 의 + 할 일과 같은 줄</div>
+    {nw === "note" && <div className="card" data-g="new-note" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">📋</span>메모</div>
       <div className="wv"><input type="text" value={note.title} placeholder="무엇을" aria-label="할 일" onChange={(x) => setNote({ ...note, title: x.target.value })} style={{ flex: "1 1 200px" }} />
         <input type="date" className="dt" value={note.dueOn} aria-label="날짜" onChange={(x) => setNote({ ...note, dueOn: x.target.value })} style={{ width: "auto" }} /><input type="time" value={note.dueTime} aria-label="시각" onChange={(x) => setNote({ ...note, dueTime: x.target.value })} style={{ width: "auto" }} />
         <select value={note.studentId} aria-label="아이" onChange={(x) => setNote({ ...note, studentId: x.target.value })} style={{ width: "auto" }}><option value="">아이 없음</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
         <button className="btn pri sm" type="button" disabled={pending || !note.title.trim() || !note.dueOn} data-act="note-save" onClick={() => run(() => noteAct(note), "메모를 넣었습니다", () => { setNw(null); setNote({ title: "", dueOn: today, dueTime: "", studentId: "" }); })}>저장</button></div></div>}
-    {nw === "repeat" && <div className="card" data-g="new-repeat" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">⏰</span>되풀이 — 때가 되면 늘 하는 일(규칙만 적어 두면 할 일은 저절로)</div>
+    {nw === "repeat" && <div className="card" data-g="new-repeat" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">⏰</span>되풀이</div>
       <div className="wv"><input type="text" value={rp.name} placeholder="수납 안내 보내기" aria-label="되풀이 이름" onChange={(x) => setRp({ ...rp, name: x.target.value })} style={{ flex: "1 1 200px" }} />
         <div className="seg sm" data-g="every"><button type="button" aria-pressed={rp.every === "month"} onClick={() => setRp({ ...rp, every: "month" })}>매달</button><button type="button" aria-pressed={rp.every === "week"} onClick={() => setRp({ ...rp, every: "week" })}>매주</button>{REPEAT_EVENTS.map(([k, name]) => <button key={k} type="button" aria-pressed={rp.every === k} onClick={() => setRp({ ...rp, every: k })}>{name}</button>)}</div>
         {rp.every === "month" && <input type="text" inputMode="numeric" className="scr" value={rp.day} aria-label="며칠" onChange={(x) => setRp({ ...rp, day: x.target.value.replace(/\D/g, "") })} />}
@@ -125,12 +125,12 @@ export default function Board({ d }) {
     </tbody></table></div>}
     <div className="two" style={{ marginTop: 12 }}>
       <div className="card" style={{ margin: 0 }} data-g="flow">
-        <div className="ctitle"><span className="cemo">📦</span>자료 하나 안에서만 순서가 있습니다{selCard?.material ? ` — ${selCard.material.type} · ${selCard.material.title}` : ""}</div>
+        <div className="ctitle"><span className="cemo">📦</span>자료 단계{selCard?.material ? ` — ${selCard.material.type} · ${selCard.material.title}` : ""}</div>
         {selCard?.material ? <div className="mflow">{flowOf(selCard.material).map((s, i) => <span key={s.step} style={{ display: "contents" }}>{i > 0 && <span className="mar">→</span>}<div className={"mf" + (s.state === "done" ? " done" : s.state === "now" ? " now" : "")} data-step={s.step} data-state={s.state}>{s.name}<i>{s.state === "done" ? "✓" : s.text ?? ""}</i></div></span>)}</div>
-          : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 만들기 → 인쇄 → 배부 → 풀이 → 채점이 어디까지 왔는지 보입니다. 다른 종류끼리는 순서가 없습니다</p>}
+          : <p className="note" style={{ margin: 0 }}>자료 카드를 누르면 여기 섭니다</p>}
       </div>
       <div className="card" style={{ margin: 0, borderColor: behind.length ? "var(--miss)" : undefined }} data-g="behind">
-        <div className="ctitle"><span className="cemo">🔥</span>{behind.length ? `${behind[0].title}` : "못 따라가는 회차 없음"}</div>
+        <div className="ctitle"><span className="cemo">🔥</span>{behind.length ? `${behind[0].title}` : "못 따라가는 시험 없음"}</div>
         {!behind.length && <p className="note" style={{ margin: 0 }}>남은 자료가 남은 날 × {b.rules?.["todo.behind_per_day"] ?? 1} 안입니다</p>}
         {behind.map((x) => <div className="lf over" key={x.exam.id} data-g="behind-row"><span className="ln">{x.remaining}</span><div><b>{x.text}</b><small>{x.small}</small></div>
           <button className="btn sm pri" type="button" data-act="behind-open" onClick={() => setBehindOpen(behindOpen === x.exam.id ? null : x.exam.id)}>줄이기</button></div>)}
@@ -140,12 +140,11 @@ export default function Board({ d }) {
     <div className="savebar" style={{ marginTop: 8 }} data-g="bar">
       <span className="pill" data-g="bar-count">할 일 {c.open} · 마감 지남 {c.overdue} · 이미 있음 {c.reuse}</span>
       <span className="spacer" />
-      <span className="pill">범위·시험일은 <b>06 시험 회차</b>에서 관리합니다</span>
     </div>
     {printing && <div className="mdlov" data-g="print-all" onClick={(x) => { if (x.target === x.currentTarget) setPrinting(false); }}><div className="mdl" style={{ maxWidth: 520 }}>
       <div className="mdlh"><b>🖨 한 번에 뽑기 — {pa.pages}장</b><span className="spacer" /><button className="btn sm" type="button" onClick={() => setPrinting(false)}>닫기</button></div>
       <div className="mdlb"><div className="left">{pa.list.map((x) => <div className="lf" key={x.id}><span className="ln">{x.pages}</span><div><b>{x.title}</b><small>{x.school ? `${schoolTag(x)} · ` : ""}{x.n}명 × 항목 {x.material.items || 1}</small></div></div>)}</div>
-        <p className="note k" style={{ margin: "8px 0 0" }}>뽑았다고 찍으면 자료가 「인쇄함」이 되고 인쇄 할 일이 끝납니다. 종이는 프린터가 뽑습니다 — 앱은 표시만.</p></div>
+        </div>
       <div className="mdlf"><span className="spacer" /><button className="btn pri" type="button" disabled={pending} data-act="print-all-save" onClick={() => run(() => printAllAct(pa.ids), (r) => `뽑았습니다 — 자료 ${r.materials}개 · ${pa.pages}장`, () => setPrinting(false))}>뽑았습니다</button></div>
     </div></div>}
   </>;

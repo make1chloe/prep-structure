@@ -10,7 +10,7 @@ import { ymOf } from "@/lib/cal-plan";
 import { monthLabel, monthCells, eventsOf, dayRows, sessionsOf, classText, unscheduled, nextYm, confirmState, confirmText, canConfirm, LEGEND, W } from "@/lib/schedule-plan";
 import Panel, { ClassMakeup, MonthConfirm } from "./panel.js";   // ⚠️ 클라이언트 부품의 정적 속성(Panel.ClassMakeup)은 서버 쪽에 안 넘어온다 — 이름으로 들여온다(2026-09-07 실측: 회차가 모자란 반이 처음 생기자 /schedule 이 500)
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Schedule({ searchParams }) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📅</span>일정은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다.` : "로그인이 필요합니다."}</p></div>);
@@ -35,7 +35,7 @@ export default async function Schedule({ searchParams }) {
       <span className="spacer" />
       <span className={"pill" + (unsched ? " warn" : "")} data-g="unsched">보강 안 잡힘 {unsched}</span>
       <MonthConfirm ym={d.ym} ct={ct} can={canConfirm(d.ym, d.date)} />
-      <Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 시험 회차 ↗</Link>
+      <Link prefetch={false} className="btn sm" href="/schedule/import">📡 학사일정 받아오기 ↗</Link><Link prefetch={false} className="btn sm" href="/schedule/exams">🏫 학교 시험 ↗</Link>
     </div>
     <div className="cnt8" data-g="cnt8">
       {(b.classes ?? []).map((c) => { const s = sessionsOf(c, target); return <div key={c.id} className={"c8" + (s.ok === false ? " short" : "")} data-g="c8" data-class={c.id}><b>{classText(c)}</b><span className={"c8n" + (s.ok === true ? " ok" : s.ok === false ? " bad" : "")}>{s.n}회</span><small>{s.text}{c.members != null ? ` · ${c.members}명` : ""}</small>{s.ok === false && <ClassMakeup classId={c.id} ym={d.ym} short={s.short} />}</div>; })}

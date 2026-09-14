@@ -10,7 +10,7 @@ export async function GET(req) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return new Response("학원 사람만", { status: 403 });
   const e = new URL(req.url).searchParams.get("e");
-  if (!/^[0-9a-f-]{36}$/.test(String(e ?? ""))) return new Response("회차가 없습니다(?e=)", { status: 400 });
+  if (!/^[0-9a-f-]{36}$/.test(String(e ?? ""))) return new Response("시험이 없습니다(?e=)", { status: 400 });
   const b = await prepBoard(sb, e, await today(sb));
   const stage = (k) => STAGES.find(([x]) => x === k)?.[1] ?? k;
   const rows = [];

@@ -16,9 +16,9 @@ export async function GET(req) {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return new Response("학원 사람만", { status: 403 });
   const sp = new URL(req.url).searchParams, e = sp.get("e") ?? "", q = sp.get("q") === "1";
-  if (!/^[0-9a-f-]{36}$/.test(e)) return new Response("회차가 아닙니다", { status: 400 });
+  if (!/^[0-9a-f-]{36}$/.test(e)) return new Response("시험이 아닙니다", { status: 400 });
   const board = await scoreBoard(sb, e, await today(sb));
-  if (!board?.exam) return new Response("회차가 없습니다", { status: 404 });
+  if (!board?.exam) return new Response("시험이 없습니다", { status: 404 });
   const tag = e.slice(0, 8);   // 파일 이름은 ASCII 로 — 헤더(Content-Disposition)는 한글을 못 싣는다(9/7 게이트: ByteString 500)
   if (q) return file(exportQuestionRows(questionsFor(board.exam)), QUESTION_HEADERS, "문항표", `questions-${tag}.xlsx`);
   return file(exportScoreRows(rowsOf(board), board.exam?.level ?? null), SCORE_HEADERS, "성적", `scores-${tag}.xlsx`);   // 등급은 학교 것만 · 학교급의 꼴로(중 「B」 · 고 「2등급」 — (가)-⑩)

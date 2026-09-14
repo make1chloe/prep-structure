@@ -1,5 +1,5 @@
 "use client";
-/** 내신 자료 판(목업 04) — 회차 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
+/** 내신 자료 판(목업 04) — 시험 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import { useState, useTransition } from "react";
@@ -27,8 +27,8 @@ export default function Board({ d }) {
   const todos = (b.todos ?? []).filter((t) => t.state !== "dropped");
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <select value={e?.id ?? ""} onChange={(x) => x.target.value && pick(x.target.value)} aria-label="회차" data-g="exam-pick" style={{ width: "auto", maxWidth: 360 }}>
-        {!e && <option value="">회차 고르기</option>}
+      <select value={e?.id ?? ""} onChange={(x) => x.target.value && pick(x.target.value)} aria-label="시험" data-g="exam-pick" style={{ width: "auto", maxWidth: 360 }}>
+        {!e && <option value="">시험 고르기</option>}
         {(b.exams ?? []).map((x) => <option key={x.id} value={x.id}>{x.school ?? "전국"}{x.grade ? ` ${x.grade}학년` : ""} · {x.name} · {md(examOn(x))}{x.hidden ? " · 숨김" : ""} — 대상 {x.takers}명 · 자료 {x.materials}</option>)}
       </select>
       {e && <span className="pill" data-g="exam-on">{e.english_on ? `영어 ${mdDot(e.english_on)}` : e.term_from ? `기간 ${mdDot(e.term_from)}~${mdDot(e.term_to)}` : "날짜 없음"}</span>}
@@ -41,10 +41,10 @@ export default function Board({ d }) {
     </div>
     {e && sbk.applicable && <div className="wv" style={{ marginBottom: 8 }} data-g="school-book"><span className="pill" data-g="school-book-text">📚 {sbk.text}</span>
       <select value="" aria-label="학교 교과서 더하기" data-g="school-book-pick" disabled={pending} onChange={(x) => x.target.value && run(() => schoolBookAct({ schoolId: e.school_id, grade: e.grade, year: sbk.year, bookId: x.target.value }), "학교 교과서를 적었습니다 — 학교의 속성이라 그 학교 아이 모두에게")} style={{ width: "auto" }}><option value="">+ 교과서 더하기</option>{(b.books ?? []).filter((bk) => !sbk.rows.some((r) => r.bookId === bk.id)).map((bk) => <option key={bk.id} value={bk.id}>{bk.name}</option>)}</select>
-      <span className="note k" style={{ margin: 0 }}>교과서는 학교의 속성(처음-8) — 아이마다 안 적습니다</span></div>}
+      </div>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {!e && <p className="note" data-g="empty">회차를 고르면 그 회차의 자료가 섭니다 — 회차와 범위는 🏫 시험 회차에서.</p>}
+    {!e && <p className="note" data-g="empty">고른 시험 없음</p>}
     {e && <>
       <div className="mtree" data-g="tree">
         {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다 — 「+ 자료」로 갈래(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 할 일이 저절로 섭니다(영어일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
@@ -61,7 +61,7 @@ export default function Board({ d }) {
           </div>; })}
         </div>)}
       </div>
-      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧑</span>학생별 — 학교 진도에 맞춰 그때그때</div>
+      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🧑</span>학생별</div>
       <div className="tblwrap"><table data-g="students"><thead><tr><th>학생</th><th>학교</th><th>학교 진도 — 어디까지 나갔나</th><th>오늘 낼 것</th><th>남은 것</th></tr></thead><tbody>
         {rows.map((r) => <tr key={r.id} className={r.known ? "" : "hi"} data-g="student-row" data-student={r.id} data-known={r.known ? "1" : "0"}>
           <td className="sch">{r.name}</td><td>{r.school}</td>
@@ -69,11 +69,11 @@ export default function Board({ d }) {
           <td data-g="today-give">{r.today.length ? r.today.map((t) => <span key={t} className="tag on">{t}</span>) : <span className="mute">—</span>}</td>
           <td data-g="left">{r.known ? <span className="tag">{r.left}</span> : <span className="tag" style={WEAK}>진도를 알아야 냅니다</span>}</td>
         </tr>)}
-        {!rows.length && <tr><td colSpan={5} className="note">이 회차를 보는 아이가 없습니다</td></tr>}
+        {!rows.length && <tr><td colSpan={5} className="note">이 시험을 보는 아이가 없습니다</td></tr>}
       </tbody></table></div>
-      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">♻️</span>같은 범위로 지난번에 만든 것 — <b>있다는 표시만</b></div>
+      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">♻️</span>같은 범위로 지난번에 만든 것</div>
       <div className="reuse" data-g="reuse">
-        {!reuse.length && <p className="note" data-g="no-reuse" style={{ margin: 0 }}>{scopes.length ? "같은 범위(교재 단원)로 만든 지난 자료가 없습니다" : "범위가 없어 못 찾습니다 — 🏫 시험 회차에서 범위를 교재 단원으로 고르면 여기 섭니다"}</p>}
+        {!reuse.length && <p className="note" data-g="no-reuse" style={{ margin: 0 }}>{scopes.length ? "같은 범위(교재 단원)로 만든 지난 자료가 없습니다" : "범위가 없어 못 찾습니다 — 🏫 학교 시험에서 범위를 교재 단원으로 고르면 여기 섭니다"}</p>}
         {reuse.map((r) => <div className={"ru1" + (r.already || revised[r.id] ? "" : " hit")} key={r.id} data-g="reuse-row" data-already={r.already ? "1" : "0"}><span className="ri">{r.emo}</span>
           <div><b>{r.title}</b><small>{r.small}</small>
             <div className="tags"><span className={"tag" + (r.already ? "" : revised[r.id] ? " act" : " on")}>{r.already ? r.tag : revised[r.id] ? "개정판 — 체크 안 합니다(확정-㊵)" : r.tag}</span><label className="ckl"><input type="checkbox" className="ck" checked={Boolean(revised[r.id])} onChange={(x) => setRevised({ ...revised, [r.id]: x.target.checked })} disabled={r.already} /> 개정판</label></div></div>
@@ -87,10 +87,9 @@ export default function Board({ d }) {
       <div className="savebar" style={{ marginTop: 8 }} data-g="bar">
         <span className="pill" data-g="tree-count">자료 {tree.counts.sources} · 갈래 {tree.counts.materials} · 항목 {tree.counts.items}</span>
         <span className="spacer" />
-        <span className="pill">이 표가 그대로 <b>아이 화면의 「받을 학습지」</b>가 됩니다</span>
       </div>
       {add && <div className="mdlov" data-g="add" onClick={(x) => { if (x.target === x.currentTarget) setAdd(false); }}><div className="mdl" style={{ maxWidth: 520 }}>
-        <div className="mdlh"><b>+ 자료 — 갈래 하나와 항목</b><span className="spacer" /><button className="btn sm" type="button" onClick={() => setAdd(false)}>닫기</button></div>
+        <div className="mdlh"><b>+ 자료</b><span className="spacer" /><button className="btn sm" type="button" onClick={() => setAdd(false)}>닫기</button></div>
         <div className="mdlb">
           <div className="wv"><label className="fl" style={{ margin: 0 }}>자료 종류</label><select value={f.typeId} aria-label="자료 종류" onChange={(x) => setF({ ...f, typeId: x.target.value })} style={{ width: "auto" }}><option value="">고르기</option>{(b.types ?? []).map((t) => <option key={t.id} value={t.id}>{t.source} · {t.name}{t.steps?.includes("print") ? "" : " (인쇄 없음)"}</option>)}</select></div>
           <div className="wv"><label className="fl" style={{ margin: 0 }}>갈래 이름</label><input type="text" value={f.title} placeholder="비면 종류 이름 그대로" aria-label="갈래 이름" onChange={(x) => setF({ ...f, title: x.target.value })} style={{ flex: "1 1 200px" }} /></div>

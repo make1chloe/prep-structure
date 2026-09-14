@@ -121,7 +121,7 @@ console.log(`   수업일 ${연것}일 · 마감 ${마감한것}일`);
 console.log("\n3. 읽기 재기 — 본문 · 설명문 · 카드 · 폰에서 몇 화면분\n");
 const 화면들 = [
   ["/", "17 대시보드"], ["/today", "01 오늘 수업"], ["/send", "10 발송"], ["/send/monthly", "10b 월간 리포트"],
-  ["/send/notice", "10c 공지"], ["/schedule", "12 일정"], ["/schedule/classes", "02c 반"], ["/schedule/exams", "06b 시험 회차"],
+  ["/send/notice", "10c 공지"], ["/schedule", "12 일정"], ["/schedule/classes", "02c 반"], ["/schedule/exams", "06b 학교 시험"],
   ["/schedule/exams/prep", "04 내신 자료"], ["/schedule/grid", "06c 학교별 표"], ["/schedule/todo", "05 할 일"],
   ["/schedule/import", "12b 받아오기"], ["/scores", "16 성적"], ["/books", "15 교재"], ["/books/videos", "19 영상"],
   ["/ops", "13 수강료"], ["/ops/students", "14 학생"], ["/ops/files", "20 자료함"], ["/ops/inquiry", "18 신규 상담"],

@@ -18,7 +18,7 @@ import CardOrder from "./_shell/cardorder.js";
 import Answer from "./_shell/answer.js";   // (처) 💬 남기실 말 「답하기」
 import { KINDS as RKINDS } from "@/lib/request";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
+const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 const Card = ({ emo, title, id, fold = null, folded = false, children }) => <div className="dcard" data-card={id} data-folded={folded ? "1" : "0"}><div className="ctitle"><span className="cemo">{emo}</span>{title}<span className="spacer" />{fold}</div>{children}</div>;
 const Row = ({ icon, cls = "i-cls", b, small, children }) => <div className="dayrow"><i className={"cm " + cls}>{icon}</i><div><b>{b}</b>{small && <small>{small}</small>}</div>{children}</div>;
 const dispName = (k) => DISPOSAL.find(([x]) => x === k)?.[1] ?? "처분 아직";
@@ -62,7 +62,7 @@ export default async function Home() {
         {d.confirm?.show && <Row icon="📅" cls="i-abs" b={<span data-g="confirm-line">{d.confirm.text}</span>} small={d.confirm.small}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${d.confirm.ym}`} data-act="confirm-go">일정 ↗</Link></Row>}
         {d.short.map((s) => <Row key={`short-${s.id}`} icon="📅" cls="i-abs" b={<span data-g="short-class">{s.text}</span>}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${s.ym}`} data-act="short-go">보강일 잡기 ↗</Link></Row>)}
         {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><Link prefetch={false} className="btn sm" href="/today">잡기</Link></Row>}
-        {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요 — {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다 — 시험 회차에서 보고 「봤음」` : "시험 회차에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 ↗</Link></Row>)}
+        {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요 — {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다 — 학교 시험에서 보고 「봤음」` : "학교 시험에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 ↗</Link></Row>)}
         {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 — ${e.text}`} />)}
         {d.exams.missing.length > 0 && <Row icon="📝" cls="i-ex" b={`영어일 없음 — ${d.exams.missing.map((s) => s.name).join(" · ")}`}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-missing-go">시험 ↗</Link></Row>}
       </Card> },
@@ -83,18 +83,18 @@ export default async function Home() {
     {left && (
       <div className={"card" + (left.length ? " warn" : "")}>
         <div className="ctitle"><span className="cemo">🔐</span>누가 무엇을 보나 — {CELLS}칸 중 아직 안 정한 것 <b>{left.length}</b></div>
-        <p className="note">{left.length ? "안 정한 칸은 막혀 있습니다(막는 쪽이 안전). 정하러 가세요." : "다 정하셨습니다. 강사·조교·학생·학부모는 켠 만큼만 봅니다."}</p>
+        <p className="note">{left.length ? "안 정한 칸은 막힘" : "다 정함"}</p>
         <Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link>
       </div>
     )}
     {d.progress?.show && <div className="lf warn" style={{ marginBottom: 8 }} data-g="progress-band" data-open={d.progress.open ? "1" : "0"}><span className="ln">✎</span><div><b>{d.progress.text}</b><small>{d.progress.small}</small></div><Link prefetch={false} className="btn sm pri" href="/settings/progress">진도 체크 ↗</Link></div>}
     <div className="gap" data-g="gap">
-      <div className="gaph"><span className="gi">🚨</span><b>{d.gaps.length ? `오늘 수업 전에 — 배정이 빌 아이 ${d.summary.bad}명` : "오늘 수업 전에 — 배정이 빈 아이 없음"}</b><span className="spacer" />{d.gaps.length > 0 && <span className="pill warn">고치지 않으면 그 교재는 오늘 0줄로 나갑니다</span>}</div>
+      <div className="gaph"><span className="gi">🚨</span><b>{d.gaps.length ? `오늘 수업 전에 — 배정이 빌 아이 ${d.summary.bad}명` : "오늘 수업 전에 — 배정이 빈 아이 없음"}</b><span className="spacer" />{d.gaps.length > 0 && <span className="pill warn">오늘 0줄</span>}</div>
       {d.gaps.map((g) => (
         <div className="gapr" key={`${g.student_id}|${g.book_id}`} data-gap={g.kind}><span className="gt">{g.at}</span>
           <div className="gn"><b>{g.name} · {g.book}</b><small>{g.text}</small>
             <div className="tags"><span className="tag">{g.tag}</span>{g.areaBooks > 1 && <span className="tag act">이 영역 교재 {g.areaBooks}권이 다 멈춥니다</span>}{g.absent && <span className="tag">오늘 결석 예정</span>}</div></div>
-          {g.kind === "no_units" || g.kind === "cursor_stuck" ? <Link prefetch={false} className="btn pri sm" href="/today">진도 체크 ↗</Link> : <span className="note" style={{ margin: 0 }}>{g.kind === "no_routine" ? "루틴 화면(11)은 아직 — 영역 루틴을 넣으면 저절로 풀립니다" : "교재 화면(13)은 아직"}</span>}
+          {g.kind === "no_units" || g.kind === "cursor_stuck" ? <Link prefetch={false} className="btn pri sm" href="/today">진도 체크 ↗</Link> : <span className="note" style={{ margin: 0 }}>{g.kind === "no_routine" ? "루틴 없음" : "교재 화면(13)은 아직"}</span>}
         </div>))}
       <div className="gapok"><span className="gi">✅</span>{d.gaps.length ? <>나머지 <b>{d.summary.ok}명</b>은 오늘 낼 것이 다 차 있습니다</> : <>오늘 <b>{d.people.students}명</b> 모두 낼 것이 차 있습니다</>}<span className="spacer" /><Link prefetch={false} className="btn sm" href="/today">오늘 수업 열기 ↗</Link></div>
     </div>

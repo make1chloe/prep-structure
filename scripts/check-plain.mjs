@@ -33,6 +33,11 @@ const kidTexts = kidFiles.flatMap(([p, s]) => [...s.matchAll(/(?:className="note
 const kidExplain = kidTexts.filter(([, t]) => /(요|다|니다|세요)[.)]?$/.test(t) || / — .{6,}/.test(t));
 ok(`아이·학부모 화면(07·08·19·달력·09 + 공용 조각)의 열두 자 넘는 「~요·~다」 설명 문장 ≤ 4(지금 ${kidExplain.length} — 남은 것은 🔔 알림 켜는 길·막힌 까닭 · 학부모 결석 안내 방침)`, kidExplain.length <= 4, kidExplain.map(([p, t]) => `${p.split("/").slice(1, 3).join("/")}: ${t.slice(0, 32)}`).join(" | "));
 const w960 = src.filter(([, s]) => /maxWidth: 960\b/.test(s)).map(([p]) => p);
-ok("학원 화면 폭 960 은 0 — 1100 부터(원장님 9/13 「pc부터」 · 01 은 1400 두 열)", w960.length === 0, w960.join(", "));
+ok("학원 화면 폭 960 은 0 — 학원 화면은 1400 · 카드 목록은 두 열 .frame.cols(원장님 9/13 「pc부터」 · 9/14 「pc에서 배치가 비효율적이야」 — (어19) · 1100 은 check-phone 이 잡는다)", w960.length === 0, w960.join(", "));
+// (어18) 「회차」는 수업 회차만(원장님 2026-09-14 「나는 회차를 수업 회차를 세는데만 써. 시험고르기로 바꾸든 용어를 바꿔」) — 학교 시험은 「시험」·「학교 시험」·「시험 고르기」. 주석을 지운 코드(app + api + lib)에서 시험을 뜻하는 「회차」 꼴을 찾는다
+const allSrc = [...files("app"), ...files("lib")].map((p) => [p.replace(/\\/g, "/"), strip(readFileSync(p, "utf8"))]);
+const examWord = /회차 고르기|시험 회차|회차가 없|회차가 아|지난 회차|이 회차|본 회차|그 회차|고른 회차|회차의 |회차를 고|회차에서 범위|회차 판/;
+const examHits = allSrc.flatMap(([p, s]) => s.split("\n").filter((l) => examWord.test(l)).map((l) => `${p}: ${l.trim().slice(0, 60)}`));
+ok("「회차」는 수업 회차뿐 — 학교 시험을 회차라 부르는 글 0(「시험」·「학교 시험」·「시험 고르기」로 · 06b 이름 「🏫 학교 시험」)", examHits.length === 0 && /🏫 학교 시험/.test(readFileSync("app/_shell/sibs.js", "utf8")), examHits.slice(0, 5).join(" | "));
 console.log(`\n■ 앱 전체 말 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

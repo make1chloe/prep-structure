@@ -38,7 +38,7 @@ export default function Board({ d }) {
       <button type="button" className="btn sm" data-act="add-open" aria-pressed={adding} onClick={() => setAdding(!adding)}>+ 영상</button></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {adding && <div className="card" style={{ marginBottom: 8 }} data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>영상 — 제목 · 유튜브 주소 · 폴더 · 길이(비면 아이 폰이 처음 알려 줍니다)</div><div className="wv">
+    {adding && <div className="card" style={{ marginBottom: 8 }} data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>영상</div><div className="wv">
       <input value={nv.title} onChange={(x) => setNv({ ...nv, title: x.target.value })} placeholder="제목 (예: 간접의문문 정리)" aria-label="제목" style={{ flex: "1 1 200px" }} />
       <input value={nv.url} onChange={(x) => setNv({ ...nv, url: x.target.value })} placeholder="유튜브 주소" aria-label="유튜브 주소" style={{ flex: "1 1 220px" }} />
       <input value={nv.folder} onChange={(x) => setNv({ ...nv, folder: x.target.value })} placeholder="폴더 (예: 문법)" aria-label="폴더" style={{ width: 140 }} />
@@ -50,9 +50,5 @@ export default function Board({ d }) {
     {groupByFolder(live).map((g) => <div key={g.folder} data-g="folder" data-folder={g.empty ? "" : g.folder}>{(live.some((v) => String(v.folder ?? "").trim()) || !g.empty) && <div className="hh" style={{ margin: "8px 0 4px" }} data-g="folder-head">📁 {g.folder} <span className="cnt">{g.videos.length}개</span></div>}{g.videos.map((v) => <Video key={v.id} v={v} />)}</div>)}
     {hidden.length > 0 && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm gho" data-act="show-hidden" aria-pressed={showHidden} onClick={() => setShowHidden(!showHidden)}>내린 영상 {hidden.length}</button></div>}
     {showHidden && hidden.map((v) => <Video key={v.id} v={v} />)}
-    <div className="card" style={{ marginTop: 8 }}><div className="ctitle"><span className="cemo">✅</span>이 화면이 지키는 것</div>
-      <div className="rl"><span className="k">밖으로 안 나감</span><span className="v">아이는 유튜브로 튕겨 나가지 않습니다 — 앱 안 화면에서 재생합니다(임베드가 막힌 영상만 예외)</span></div>
-      <div className="rl"><span className="k">건너뛰기</span><span className="v">지나간 구간만 셉니다 — 끝까지 끌어다 놓고 「다 봤다」를 누르는 길이 막힙니다. 겹치는 구간은 한 번만</span></div>
-      <div className="rl"><span className="k">정직하게</span><span className="v">「틀어놓고 딴짓」은 못 잡습니다. 대략치이지 아이를 판단할 숫자가 아닙니다 · 「다 봄」은 규칙 video.done_pct({cut}%) 이상</span></div></div>
   </>;
 }

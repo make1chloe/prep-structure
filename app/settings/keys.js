@@ -20,8 +20,7 @@ export default function Keys({ rows = [] }) {
   const edit = (r) => { setOpen(open === r.id ? null : r.id); setForm(Object.fromEntries(r.fields.filter((f) => f.editable).map((f) => [f.k, f.editable]))); setMsg(""); setErr(""); };   // 비밀 아닌 칸(발신번호)은 지금 값을 채워 둔다 — 빈 칸이면 저장한 줄 모르신다
   const save = (id) => start(async () => { setErr(""); setMsg(""); const x = await saveKeysAct(id, form); if (!x.ok) { setErr(x.msg); return; } setMsg(x.text); setOpen(null); setForm({}); router.refresh(); });
   const test = () => start(async () => { setErr(""); setMsg(""); const x = await testSmsAct(to); if (!x.ok) { setErr(x.msg); return; } setMsg(x.sent ? `보냈습니다 — ${x.to}` : x.sink === "off" ? `리허설(NOTIFY_SINK=off)이라 자취만 — ${x.to}` : `못 보냈습니다 — ${x.why}`); router.refresh(); });
-  return (<div className="card" data-card="keys" id="keys"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠 — 여기서 넣고 고칩니다</div>
-    <p className="note">넣어 둔 열쇠는 <b>가려서만</b> 보입니다(●●●●). 고칠 칸만 적고 저장하세요 — <b>빈 칸은 그대로</b> 둡니다. 지우려면 그 칸에 <b>-</b> 한 글자.</p>
+  return (<div className="card" data-card="keys" id="keys"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠</div>
     {err && <p className="note" role="alert" style={{ color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="keys-msg" style={{ color: "var(--on-ok)" }}>{msg}</p>}
     <div className="left">{rows.map((r) => (<div key={r.id} data-g="key-row" data-key={r.id} data-ready={r.ready ? "1" : "0"}>
@@ -35,7 +34,7 @@ export default function Keys({ rows = [] }) {
         <p className="note k" style={{ marginTop: 0 }}>{r.why} {r.site && <a href={r.site} target="_blank" rel="noreferrer">{r.site} ↗</a>}</p>
         {r.fields.map((f) => { const v = form[f.k] ?? "", why = fieldNag(f, v); return (<div className="wv" key={f.k}><label className="fl" style={{ margin: 0, minWidth: 90 }}>{f.label}</label>
           <input type={f.k === "from" ? "tel" : "text"} value={v} {...NOFILL} aria-label={f.label} name={`key-${f.k}`} aria-invalid={why ? "true" : undefined}
-            placeholder={f.secret || f.peek ? (f.filled ? "넣어 두었습니다 — 바꿀 때만 적으세요" : f.hint || "") : f.hint || ""} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })}
+            placeholder={f.secret || f.peek ? (f.filled ? "넣어 둠 · 바꿀 때만 · 지우려면 -" : f.hint || "") : f.hint || ""} onChange={(e) => setForm({ ...form, [f.k]: e.target.value })}
             style={{ flex: "1 1 200px", ...(f.secret ? { WebkitTextSecurity: "disc" } : null), ...(why ? { borderColor: "var(--miss)" } : null) }} />
           {v !== "" && <button className="btn sm" type="button" data-act="key-clear" aria-label={`${f.label} 비우기`} onClick={() => setForm({ ...form, [f.k]: "" })}>✕</button>}
           {why && <small className="note" role="alert" data-g="key-why" style={{ flexBasis: "100%", margin: 0, color: "var(--miss)" }}>{why}</small>}

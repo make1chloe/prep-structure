@@ -562,6 +562,8 @@ await p.setViewportSize(VIEWS[0].viewport);
 await p.goto(APP + "/send"); await p.waitForLoadState("networkidle").catch(() => {}); await p.waitForTimeout(3000);   // 첫 열기 — 렌더 뒤 백스톱이 기다리던 큐(늦귀가·등원·하원·예정 알림)를 한 바퀴 돈다
 at = mark(); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 const sendQ = requestsSince(at), sendCore = coreSince(at);
+{ const c = await p.evaluate(() => { const m = document.querySelector("main.frame.cols"); if (!m) return null; const r = m.getBoundingClientRect(); return { cc: getComputedStyle(m).columnCount, w: Math.round(r.width) }; });
+  ok("(어19) PC 1280 — 발송 10 은 카드 목록이라 두 열(main.frame.cols column-count 2 · 틀 폭 ≥ 1200 — 원장님 9/14 「pc에서 배치가 비효율적이야」)", c?.cc === "2" && c.w >= 1200, JSON.stringify(c)); }
 // ⚠️ 2026-09-11: 통째로 세면 **백스톱이 큐에서 몇 개를 집었나**에 따라 8·9·16 으로 흔들린다 — 화면이 뜨는 속도와는 상관이 없다(렌더 **뒤**에 돈다).
 //    속도-1 이 지키려는 것은 **화면이 뜨기까지의 층**이라, 백스톱이 시작되기 전까지만 센다. 백스톱 몫은 세되 빨갛게 하지 않는다.
 ok(`발송 화면 조회 ≤ 6 — ${sendCore}(껍질·로그인·오늘·오늘 판·send_board 한 벌 · 백스톱 ${sendQ - sendCore}개는 렌더 뒤라 안 센다)`, sendCore >= 0 && sendCore <= 6, `통째 ${sendQ}`);
@@ -716,7 +718,7 @@ ok("(버2) 홈페이지 주소를 넣은 학교 줄에 「아직 한 번도 못 
   ok("(버2) 받은 회차는 「홈페이지에서」 꼬리표를 달고 시험 목록에 선다", (await p.locator("main [data-g=exam-row]", { hasText: "1학기 중간고사" }).count().catch(() => 0)) >= 0 && (await p.locator("main").textContent()).includes("홈페이지에서"), (await p.locator("main").textContent()).replace(/\s+/g, " ").match(/홈페이지에서[^·]{0,40}/)?.[0] ?? "없음"); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-import-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
-console.log("■ 시험 회차 06b — 보는 아이 · 범위(교재 단원에서) · 학교가 뺌 · 안 봄 · 교재 멈춤(영어일 − N주 · 지금 멈춤 · 풀기) · 몇 주 전부터 규칙 · 숨김");
+console.log("■ 학교 시험 06b — 보는 아이 · 범위(교재 단원에서) · 학교가 뺌 · 안 봄 · 교재 멈춤(영어일 − N주 · 지금 멈춤 · 풀기) · 몇 주 전부터 규칙 · 숨김");
 await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
 const ex = p.locator("main");
 const ecard = () => ex.locator("[data-g=exam-card]").filter({ hasText: "zz_시험_중 · 전 학년" }).filter({ hasText: "손으로 넣음" });   // 학교가 같아도 **출처로** 가른다 — (버2) 로 「홈페이지에서 받음」 카드가 한 장 더 서자 .first() 가 조용히 그것을 집었다. .first() 를 뗐으니 또 겹치면 걷기가 시끄럽게 죽는다(위치 말고 글자 — (카) 의 교훈)
@@ -756,7 +758,7 @@ await ecard().locator("button[data-act=release]").click(); await p.waitForSelect
 ok("풀기 → 「풀었습니다 — 교재 2권」 · 멈춘 교재 0", (await ex.locator("[data-g=msg]").textContent()).includes("풀었습니다 — 교재 2권") && (await ecard().locator("[data-g=stopped]").textContent()) === "멈춘 교재 0", await ex.locator("[data-g=msg]").textContent());
 // (어8 · 검사-86) 한 번 더 누르면 0권이다 — 그때 화면이 **까닭**을 말해야 한다(숫자만 내놓으면 원장님이 멈추신다)
 await ecard().locator("button[data-act=release]").click(); await p.waitForTimeout(1500);
-ok("풀기를 한 번 더 → 「푼 교재가 없습니다 — 이 회차에 묶인 교재 2권이 이미 다 돌아가는 중입니다」(0 을 말할 때는 까닭까지 · 푼 줄도 stop_exam_id 를 남겨 「손으로 풀었다」를 기억하므로 「묶인 것이 없다」가 아니다)", (await ex.locator("[data-g=msg]").textContent()).includes("푼 교재가 없습니다") && (await ex.locator("[data-g=msg]").textContent()).includes("이미 다 돌아가는 중입니다"), await ex.locator("[data-g=msg]").textContent());
+ok("풀기를 한 번 더 → 「푼 교재가 없습니다 — 이 시험에 묶인 교재 2권이 이미 다 돌아가는 중입니다」(0 을 말할 때는 까닭까지 · 푼 줄도 stop_exam_id 를 남겨 「손으로 풀었다」를 기억하므로 「묶인 것이 없다」가 아니다)", (await ex.locator("[data-g=msg]").textContent()).includes("푼 교재가 없습니다") && (await ex.locator("[data-g=msg]").textContent()).includes("이미 다 돌아가는 중입니다"), await ex.locator("[data-g=msg]").textContent());
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 const srow2 = p.locator(`.row[data-student='${S1_ROW}']`);
 if (!(await srow2.locator(".panel").count())) await srow2.locator("button.open").click(); await 펴기(srow2);
@@ -769,10 +771,10 @@ await ex.locator("[data-g=weeks-middle] button", { hasText: "4주" }).click(); a
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-exams-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 await ecard().locator("button[data-act=hide]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
-ok("숨김 → 카드가 사라지고 「숨긴 회차 1」 · 시험 회차 2(전국 zz_시험_모의고사 — (저) 씨앗 · 홈페이지에서 받은 1학기 중간고사 — (버2))", (await ecard().count()) === 0 && (await ex.locator("button[data-act=show-hidden]").textContent()).includes("숨긴 회차 1") && (await ex.locator("[data-g=count]").textContent()) === "시험 회차 2");
+ok("숨김 → 카드가 사라지고 「숨긴 시험 1」 · 학교 시험 2(전국 zz_시험_모의고사 — (저) 씨앗 · 홈페이지에서 받은 1학기 중간고사 — (버2))", (await ecard().count()) === 0 && (await ex.locator("button[data-act=show-hidden]").textContent()).includes("숨긴 시험 1") && (await ex.locator("[data-g=count]").textContent()) === "학교 시험 2");
 await ex.locator("button[data-act=show-hidden]").click(); await ex.locator("[data-g=hidden-row] button[data-act=unhide]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("보이기 → 카드가 돌아온다(지우지 않았다)", (await ecard().count()) === 1);
-console.log("■ 성적 16 — 지난달 회차(손으로) → 등급컷·문항표 → 아이가 넣고(07) → 원장님이 확인(16) → 학부모 카드(09)");
+console.log("■ 성적 16 — 지난달 시험(손으로) → 등급컷·문항표 → 아이가 넣고(07) → 원장님이 확인(16) → 학부모 카드(09)");
 // (어12) 씨앗을 오늘 기준으로 — 06b·04 는 exam_board 창(term_to ≥ 오늘−30 · 0152)만 보이므로 「지난달 13일」 고정은 매달 13일부터 빨개졌다(2026-09-13 잡힘 · 앱은 맞았고 걷기가 틀렸다). 끝날 = 오늘−20일 · 영어일 = 그 전날 · 시작 = 사흘 전
 const shift = (d, n) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 const q13 = shift(todayText, -20), q12 = shift(q13, -1), q10 = shift(q13, -3), ymPrev = q13.slice(0, 7);
@@ -783,9 +785,9 @@ await p.goto(`${APP}/scores`); await p.waitForLoadState("networkidle").catch(() 
 const sm16 = p.locator("main");
 const opts16 = await sm16.locator("select[data-g=exam-pick] option").allTextContents();
 const optPast = opts16.find((t) => t.includes("zz_지난 기말"));
-ok("회차 고르기에 「zz_시험_중학교 · zz_지난 기말 · M/D — 낸 0/1」(보는 아이 1)", Boolean(optPast) && /낸 0\/1/.test(optPast ?? ""), opts16.join(" | "));
+ok("시험 고르기에 「zz_시험_중학교 · zz_지난 기말 · M/D — 낸 0/1」(보는 아이 1) · 고르개 이름은 「시험」(어18 — 「회차」는 수업 회차만)", Boolean(optPast) && /낸 0\/1/.test(optPast ?? "") && (await sm16.locator("select[data-g=exam-pick]").getAttribute("aria-label")) === "시험", opts16.join(" | "));
 await Promise.all([p.waitForURL(/\/scores\?e=/), sm16.locator("select[data-g=exam-pick]").selectOption({ label: optPast })]); await p.waitForLoadState("networkidle").catch(() => {});
-ok(`고른 회차 — 영어 ${Number(q12.slice(5, 7))}.${Number(q12.slice(8, 10))} · 확인 안 한 것 0 · 안 낸 아이 1 · 컷 「A 90 · B 80 · C 70 · D 60 — 중학교 절대평가」(적은 컷 없음) · 문항표 「아직 없음」 · 줄 하나(zz_시험_학생 · 아직 안 냄 · 대신 넣기)`, (await sm16.locator("[data-g=on]").textContent()) === `영어 ${Number(q12.slice(5, 7))}.${Number(q12.slice(8, 10))}` && (await sm16.locator("[data-g=unconfirmed]").textContent()) === "확인 안 한 것 0" && (await sm16.locator("[data-g=missing]").textContent()) === "안 낸 아이 1" && (await sm16.locator("[data-g=cuts-text]").textContent()).includes("A 90 · B 80 · C 70 · D 60") && (await sm16.locator("[data-g=cuts-text]").textContent()).includes("절대평가") && (await sm16.locator("[data-g=questions-text]").textContent()).includes("아직 없음") && (await sm16.locator("[data-g=score-row]").count()) === 1 && (await sm16.locator("[data-g=score-row]").getAttribute("data-state")) === "none" && (await sm16.locator("[data-g=score-row] button[data-act=save]").textContent()) === "대신 넣기", (await sm16.textContent()).replace(/\s+/g, " ").slice(0, 400));
+ok(`고른 시험 — 영어 ${Number(q12.slice(5, 7))}.${Number(q12.slice(8, 10))} · 확인 안 한 것 0 · 안 낸 아이 1 · 컷 「A 90 · B 80 · C 70 · D 60 — 중학교 절대평가」(적은 컷 없음) · 문항표 「아직 없음」 · 줄 하나(zz_시험_학생 · 아직 안 냄 · 대신 넣기)`, (await sm16.locator("[data-g=on]").textContent()) === `영어 ${Number(q12.slice(5, 7))}.${Number(q12.slice(8, 10))}` && (await sm16.locator("[data-g=unconfirmed]").textContent()) === "확인 안 한 것 0" && (await sm16.locator("[data-g=missing]").textContent()) === "안 낸 아이 1" && (await sm16.locator("[data-g=cuts-text]").textContent()).includes("A 90 · B 80 · C 70 · D 60") && (await sm16.locator("[data-g=cuts-text]").textContent()).includes("절대평가") && (await sm16.locator("[data-g=questions-text]").textContent()).includes("아직 없음") && (await sm16.locator("[data-g=score-row]").count()) === 1 && (await sm16.locator("[data-g=score-row]").getAttribute("data-state")) === "none" && (await sm16.locator("[data-g=score-row] button[data-act=save]").textContent()) === "대신 넣기", (await sm16.textContent()).replace(/\s+/g, " ").slice(0, 400));
 await sm16.locator("button[data-act=remind-scores]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 20000 }); await p.waitForTimeout(300);
 ok("📨 안 낸 아이 재촉 → 「1명에게 재촉 — 🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다」(갈래 score · 아이 기기도 · 알림 길은 lib/notify 하나 — 4단계-2a)", (await sm16.locator("[data-g=msg]").textContent()).startsWith("1명에게 재촉 — 🧪 리허설(off)"), await sm16.locator("[data-g=msg]").textContent());
 await sm16.locator("input[aria-label=등급컷]").fill("90, 80, 70, 60"); await sm16.locator("button[data-act=cuts-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
@@ -800,7 +802,7 @@ await sm16.locator("[data-g=questions-import] input[type=file]").setInputFiles("
 ok("문항표 엑셀 — 「1-20 기타」를 엑셀(번호 「1-10」 범위 · 「문법」 → 어법 · 「스물」은 고칠 줄)로 올리면 통째로 「1-10 독해, 11-16 어법, 17-20 서술형」 · 글 「문항표 20문항(엑셀) · 고칠 줄 1: 5행 번호가 아닙니다: 스물」(머리줄이 1행) · data-from=exam", (await sm16.locator("[data-g=questions-text]").textContent()) === "1-10 독해, 11-16 어법, 17-20 서술형" && /문항표 20문항\(엑셀\) · 고칠 줄 1: 5행 번호가 아닙니다: 스물/.test(await sm16.locator("[data-g=msg]").textContent()) && (await sm16.locator("[data-g=questions]").getAttribute("data-from")) === "exam", (await sm16.locator("[data-g=msg]").textContent()) + " | " + (await sm16.locator("[data-g=questions-text]").textContent()));
 const exId16 = new URL(p.url()).searchParams.get("e");
 const xrQ = await p.request.get(`${APP}/api/scores/xlsx?e=${exId16}&q=1`), xrS = await p.request.get(`${APP}/api/scores/xlsx?e=${exId16}`);
-ok("⬇ 문항표 · ⬇ 성적 양식 — /api/scores/xlsx?e=&q=1 · ?e= 둘 다 xlsx 200(questions-… · scores-…) · 회차가 아니면 400", xrQ.status() === 200 && String(xrQ.headers()["content-disposition"] ?? "").includes("questions-") && xrS.status() === 200 && String(xrS.headers()["content-disposition"] ?? "").includes("scores-") && String(xrS.headers()["content-type"] ?? "").includes("spreadsheetml") && (await p.request.get(`${APP}/api/scores/xlsx?e=abc`)).status() === 400, `${xrQ.status()} ${xrS.status()}`);
+ok("⬇ 문항표 · ⬇ 성적 양식 — /api/scores/xlsx?e=&q=1 · ?e= 둘 다 xlsx 200(questions-… · scores-…) · 시험이 아니면 400", xrQ.status() === 200 && String(xrQ.headers()["content-disposition"] ?? "").includes("questions-") && xrS.status() === 200 && String(xrS.headers()["content-disposition"] ?? "").includes("scores-") && String(xrS.headers()["content-type"] ?? "").includes("spreadsheetml") && (await p.request.get(`${APP}/api/scores/xlsx?e=abc`)).status() === 400, `${xrQ.status()} ${xrS.status()}`);
 const sctx = await b.newContext({ viewport: VIEWS[0].viewport, storageState: ".tmp/state-student.json" }); await offline(sctx); const spg = await sctx.newPage();
 await spg.goto(APP + "/me"); await spg.waitForLoadState("networkidle").catch(() => {});
 const meM = spg.locator("main"); const entry = meM.locator("[data-g=score-entry]").first();
@@ -954,7 +956,7 @@ const xr15 = await p.request.get(`${APP}/api/books/xlsx`);
 ok("⬇ 엑셀 — /api/books/xlsx 가 xlsx 를 준다(200 · 올리기 양식과 같은 열)", xr15.status() === 200 && String(xr15.headers()["content-type"] ?? "").includes("spreadsheetml"), `${xr15.status()}`);
 const xrB = await p.request.get(`${APP}/api/books/xlsx?s=books`);
 ok("⬇ 교재 시트 — /api/books/xlsx?s=books 가 xlsx 를 준다(200 · books.xlsx · 올리기 양식과 같은 열)", xrB.status() === 200 && String(xrB.headers()["content-type"] ?? "").includes("spreadsheetml") && String(xrB.headers()["content-disposition"] ?? "").includes("books.xlsx"), `${xrB.status()}`);
-console.log("■ 내신 자료 04 — 회차 고르기 · + 자료(갈래 · 항목 · 배정) → 만들기·인쇄·배부 할 일이 저절로(영어일 − 14·7·5) · ♻️ 같은 범위로 지난번에 만든 것(체크된 채로) · 학교 진도 · 오늘 낼 것 · ⬇ 엑셀");
+console.log("■ 내신 자료 04 — 시험 고르기 · + 자료(갈래 · 항목 · 배정) → 만들기·인쇄·배부 할 일이 저절로(영어일 − 14·7·5) · ♻️ 같은 범위로 지난번에 만든 것(체크된 채로) · 학교 진도 · 오늘 낼 것 · ⬇ 엑셀");
 await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
 const ex04 = p.locator("main");
 for (const nm of ["2학기 중간", "zz_지난 기말"]) {   // 두 회차에 같은 범위(문법책 CHAPTER 1)를 — ♻️ 는 범위 겹침으로 찾는다(06b 걷기가 뺐던 줄은 되살아난다)
@@ -970,7 +972,7 @@ ok("두 회차에 문법책 CHAPTER 1 범위 — 범위 줄이 산다(뺐던 줄
 await ex04.locator("[data-g=exam-card]").filter({ hasText: "zz_지난 기말" }).first().locator("a[data-act=prep]").click(); await p.waitForURL((u) => u.pathname === "/schedule/exams/prep" && u.searchParams.has("e"), { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
 const pr = p.locator("main");
 const pastId = new URL(p.url()).searchParams.get("e");
-ok("지난 회차의 내신 자료 — 회차 고르기에 그 회차 · 대상 1명 · D+N(지난 시험) · 자료 없음 안내 · 학생 줄 「진도를 알아야 냅니다」 · ♻️ 없음(같은 범위 자료가 아직 없다)", new URL(p.url()).pathname === "/schedule/exams/prep" && (await pr.locator("[data-g=takers]").textContent()) === "대상 1명" && /^D\+\d+$/.test(await pr.locator("[data-g=dday]").textContent()) && (await pr.locator("[data-g=no-material]").count()) === 1 && (await pr.locator("[data-g=student-row][data-known='0']").count()) === 1 && (await pr.locator("[data-g=no-reuse]").count()) === 1, (await pr.locator("[data-g=head]").textContent()).replace(/\s+/g, " "));
+ok("지난 시험의 내신 자료 — 시험 고르기에 그 시험 · 대상 1명 · D+N(지난 시험) · 자료 없음 안내 · 학생 줄 「진도를 알아야 냅니다」 · ♻️ 없음(같은 범위 자료가 아직 없다)", new URL(p.url()).pathname === "/schedule/exams/prep" && (await pr.locator("[data-g=takers]").textContent()) === "대상 1명" && /^D\+\d+$/.test(await pr.locator("[data-g=dday]").textContent()) && (await pr.locator("[data-g=no-material]").count()) === 1 && (await pr.locator("[data-g=student-row][data-known='0']").count()) === 1 && (await pr.locator("[data-g=no-reuse]").count()) === 1, (await pr.locator("[data-g=head]").textContent()).replace(/\s+/g, " "));
 ok("처음-8 학교 교과서 — 회차의 학교·학년·해로 「📚 학교 교과서를 아직 안 적었습니다(YYYY · 2학년)」 + 더하기 고르개(교재 목록)", /아직 안 적었습니다\(\d{4} · 2학년\)/.test(await pr.locator("[data-g=school-book-text]").textContent().catch(() => "")) && (await pr.locator("select[data-g=school-book-pick] option").count()) >= 2, (await pr.locator("[data-g=school-book]").textContent().catch(() => "없음")).replace(/\s+/g, " ").slice(0, 200));
 await pr.locator("select[data-g=school-book-pick]").selectOption({ label: (await pr.locator("select[data-g=school-book-pick] option").allTextContents()).find((t) => t.includes("문법책")) }); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("교과서를 고르면 「학교 교과서 YYYY: zz_리허설 문법책」 — 학교의 속성(그 학교·학년 아이 모두 · 표 v2.school_book) · 고르개에서는 빠진다", /학교 교과서 \d{4}: zz_리허설 문법책/.test(await pr.locator("[data-g=school-book-text]").textContent()) && !(await pr.locator("select[data-g=school-book-pick] option").allTextContents()).some((t) => t.includes("zz_리허설 문법책")), await pr.locator("[data-g=school-book-text]").textContent());
@@ -996,7 +998,7 @@ await ms1.locator("select[data-g=ms-unit]").selectOption({ index: 1 }); await p.
 ok("첫 항목을 범위의 단원에 이으면 data-unit 이 차고(material_item.unit_id) 「항목을 단원에 이었습니다」 · 이름은 그대로", (await pr.locator("[data-g=ms]").first().getAttribute("data-unit")) !== "" && (await pr.locator("[data-g=ms]").first().textContent()).includes("동사 형 변형"), await pr.locator("[data-g=ms]").first().getAttribute("data-unit"));
 await pr.locator("select[data-g=exam-pick]").selectOption({ label: (await pr.locator("select[data-g=exam-pick] option").allTextContents()).find((t) => t.includes("2학기 중간")) }); await p.waitForURL((u) => u.pathname === "/schedule/exams/prep" && u.searchParams.get("e") !== pastId, { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
 const nextId = new URL(p.url()).searchParams.get("e");
-ok("다음 달 회차로 — ♻️ 같은 범위로 지난번에 만든 것 1(「zz_너른터 · zz_분석지」 · 범위 겹침 ≥ 1 · 「✓ 만들기 체크된 채로」) · 개정판 체크박스", nextId && nextId !== pastId && (await pr.locator("[data-g=reuse-row]").count()) === 1 && (await pr.locator("[data-g=reuse-row]").textContent()).includes("zz_너른터 · zz_분석지") && /범위 겹침 [1-9]/.test(await pr.locator("[data-g=reuse-row]").textContent()) && (await pr.locator("[data-g=reuse-row] .tag.on").textContent()).includes("체크된 채로"), (await pr.locator("[data-g=reuse]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+ok("다음 달 시험으로 — ♻️ 같은 범위로 지난번에 만든 것 1(「zz_너른터 · zz_분석지」 · 범위 겹침 ≥ 1 · 「✓ 만들기 체크된 채로」) · 개정판 체크박스", nextId && nextId !== pastId && (await pr.locator("[data-g=reuse-row]").count()) === 1 && (await pr.locator("[data-g=reuse-row]").textContent()).includes("zz_너른터 · zz_분석지") && /범위 겹침 [1-9]/.test(await pr.locator("[data-g=reuse-row]").textContent()) && (await pr.locator("[data-g=reuse-row] .tag.on").textContent()).includes("체크된 채로"), (await pr.locator("[data-g=reuse]").textContent()).replace(/\s+/g, " ").slice(0, 300));
 await pr.locator("[data-g=reuse-row] button[data-act=reuse]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("가져오기 → 「가져왔습니다 — 항목 3 · 만들기는 체크된 채로」 · 갈래 꼬리표에 「♻️ 지난번 것」 · 할 일 3 중 만들기는 끝냄(확정-㊵) · 인쇄·배부는 D-N · ♻️ 줄은 「이미 가져왔습니다」", (await pr.locator("[data-g=msg]").textContent()).includes("만들기는 체크된 채로") && (await pr.locator("[data-g=mt2] [data-g=mtag]", { hasText: "♻️ 지난번 것" }).count()) === 1 && (await pr.locator("[data-g=todo-row][data-state=done]").count()) === 1 && (await pr.locator("[data-g=todo-row][data-state=todo]").count()) === 2 && /D-\d+/.test(await pr.locator("[data-g=todo-row][data-state=todo]").first().textContent()) && (await pr.locator("[data-g=reuse-row][data-already='1']").count()) === 1, (await pr.locator("[data-g=todos]").textContent()).replace(/\s+/g, " ").slice(0, 300));
 await pr.locator("button[data-act=add-open]").click();
@@ -1171,7 +1173,7 @@ console.log("■ 학교별 표 06c — + 새 표(본에서) · 줄(학교) · �
   await p.locator("header.appbar nav.tabs a").filter({ hasText: "할 일" }).click(); await p.waitForURL((u) => u.pathname === "/schedule/todo", { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
   ok("「할 일」을 누르면 내 할 일(05) · 그 탭이 파랗다", (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === "할 일", await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent());
   await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
-  ok("시험 회차(12b)는 그대로 「일정」 아래 — 얹은 탭이 남의 화면을 뺏지 않는다", (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === "일정", await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()); }
+  ok("학교 시험(06b)은 그대로 「일정」 아래 — 얹은 탭이 남의 화면을 뺏지 않는다", (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === "일정", await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()); }
 await p.goto(`${APP}/schedule/grid`); await p.waitForLoadState("networkidle").catch(() => {});
 const gr = p.locator("main");
 ok("표가 없을 때 — 「+ 새 표」 안내 · 따로 챙길 아이들 0명 · 전체 N", (await gr.locator("[data-g=empty]").count()) === 1 && (await gr.locator("[data-g=watch-noted]").textContent()) === "0명" && (await gr.locator("[data-g=watch-chips] .schip").count()) >= 2, (await gr.locator("[data-g=head]").textContent()).replace(/\s+/g, " "));
@@ -1250,6 +1252,10 @@ await gr.locator(".shtab").filter({ hasText: "학교별 교재" }).first().click
   await cp.goto(APP + "/parent"); await cp.waitForLoadState("networkidle").catch(() => {});
   const sc = cp.locator("[data-card=school]");
   ok("(너) 학부모 「우리 학교」 카드 — 같은 한 벌(parent.grid 켬 · 그 아이 학교 줄)", (await sc.count()) === 1 && (await sc.locator("[data-g=school-row]").first().textContent()).includes("zz_시험_중학교"), (await sc.textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 200));
+  await cp.locator("[data-g=mine] [data-g=thumb]").first().click(); await cp.waitForTimeout(300);
+  { const r = await cp.evaluate(() => { const el = document.querySelector("[data-g=lightbox]"); if (!el) return null; const b = el.getBoundingClientRect(); const m = document.querySelector(".mine"); return { cc: m ? getComputedStyle(m).columnCount : null, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), iw: innerWidth, ih: innerHeight }; });
+    ok("(어17) 학부모 PC 1280 — 두 열(.mine column-count 2) 안에서 연 사진 라이트박스가 창 전체를 덮는다(열 하나에 갇히지 않는다)", r?.cc === "2" && r.x === 0 && r.y === 0 && r.w === r.iw && r.h === r.ih, JSON.stringify(r)); }
+  await cp.locator("button[data-act=lightbox-close]").click(); await cp.waitForTimeout(200);
   await cs.close(); }
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-grid-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
@@ -1398,6 +1404,8 @@ const fb = p.locator("main");
 ok(`머리 — 📥 안 본 것 1 · 방금 온 것 1줄(「zz_시험_학생 학부모가 보냄」 · 💬 한 마디 · 「🏫 zz_시험_중학교 2 · ${term9}」 저절로) · 갈래별 칸 0 · 받은 것 1 · 보낸 것 1(원장이 어제 숙제에 붙인 pdf)`, (await fb.locator("[data-g=unsorted]").textContent()) === "📥 안 본 것 1" && (await fb.locator("[data-g=inbox-row]").count()) === 1 && (await fb.locator("[data-g=inbox-row]").textContent()).includes("zz_시험_학생 학부모가 보냄") && (await fb.locator("[data-g=inbox-row]").textContent()).includes("수행평가 안내문이에요") && (await fb.locator("[data-g=inbox-row]").textContent()).includes(`🏫 zz_시험_중학교 2 · ${term9}`) && (await fb.locator("[data-g=col]").count()) === 0 && (await fb.locator("[data-g=counts]").textContent()) === "받은 것 1 · 보낸 것 1 · 안 본 것 1", (await fb.textContent()).replace(/\s+/g, " ").slice(0, 400));
 await fb.locator("[data-g=inbox-row] [data-g=thumb]").click(); await p.waitForTimeout(300);
 await snapModal("20-lightbox");
+{ const r = await p.evaluate(() => { const el = document.querySelector("[data-g=lightbox]"); if (!el) return null; const b = el.getBoundingClientRect(); return { pos: getComputedStyle(el).position, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), iw: innerWidth, ih: innerHeight }; });
+  ok("(어19) 두 열 틀(.frame.cols) 안에서 연 라이트박스도 창 전체를 덮는다(fixed · 열 하나에 갇히지 않는다 — column-span:all)", r?.pos === "fixed" && r.x === 0 && r.y === 0 && r.w === r.iw && r.h === r.ih, JSON.stringify(r)); }
 ok("① 사진 미리보기 — 방금 온 것의 사진을 누르면 그 자리에서 크게(라이트박스 · 💾 저장 · 닫기 · Esc)", (await p.locator("[data-g=lightbox] img").count()) === 1 && (await p.locator("[data-g=lightbox] a[data-act=lightbox-save]").getAttribute("href")) === `/api/files/${F_PARENT9}?dl=1`, String(await p.locator("[data-g=lightbox]").count()));
 await p.keyboard.press("Escape"); await p.waitForTimeout(200);
 ok("Esc 로 닫힌다", (await p.locator("[data-g=lightbox]").count()) === 0);

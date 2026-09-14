@@ -144,7 +144,7 @@ await 누름(p, p.locator("[data-act=manual-open]"), "12b", "+ 손으로 넣기"
   await 누름(p, f.locator("[data-act=exam-save]"), "12b", "저장"); }
 await 찍기(p, "시험-손으로");
 
-await 열기(p, "/schedule/exams", "06b 시험 회차");
+await 열기(p, "/schedule/exams", "06b 학교 시험");
 const 회차 = p.locator("[data-g=exam-card]").filter({ hasText: "2학기 중간" });
 if (!(await 회차.count())) 적기("막힘", "06b", "손으로 넣은 회차가 06b 에 안 보입니다");
 else {

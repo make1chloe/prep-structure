@@ -7,7 +7,7 @@ import { today } from "@/lib/day";
 import { fileBoard } from "@/lib/files";
 import Board from "./board.js";
 export const dynamic = "force-dynamic";
-const frame = (children) => <main className="frame" style={{ maxWidth: 1100, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
+const frame = (children) => <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Files() {
   const { sb, me } = await guard();
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📎</span>자료함은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다 — 아이·학부모는 제 화면의 📎 자료 카드에서 보냅니다.` : "로그인이 필요합니다."}</p></div>);

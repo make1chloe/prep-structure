@@ -16,7 +16,7 @@ export default function Board({ d }) {
     <div className="wv" style={{ marginBottom: 8 }} data-g="head"><b style={{ fontSize: "var(--fs-5)" }}>📢 공지</b><span className={"pill" + (c.unsent ? " warn" : "")} data-g="unsent">안 보냄 {c.unsent}</span><span className="pill" data-g="sent">보냄 {c.sent}</span><span className="spacer" /><Link prefetch={false} className="btn sm" href="/send">📨 발송 ↗</Link><button type="button" className="btn pri sm" data-act="add-open" aria-pressed={open} onClick={() => setOpen(!open)}>+ 공지</button></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {open && <div className="card" data-g="add-form" style={{ marginBottom: 8 }}><div className="ctitle"><span className="cemo">＋</span>공지 — 제목 · 본문 · 받는 쪽 · 반/학교(비면 전체)</div>
+    {open && <div className="card" data-g="add-form" style={{ marginBottom: 8 }}><div className="ctitle"><span className="cemo">＋</span>공지</div>
       <div className="wv"><input value={f.title} aria-label="제목" placeholder="10월 휴강 안내" onChange={(x) => setF({ ...f, title: x.target.value })} style={{ flex: "1 1 240px" }} />
         <div className="seg sm" data-g="to-role">{TO_ROLE.map(([k, name]) => <button key={k} type="button" aria-pressed={f.to_role === k} onClick={() => setF({ ...f, to_role: k })}>{name}</button>)}</div>
         <select value={f.class_id} aria-label="반" onChange={(x) => setF({ ...f, class_id: x.target.value })} style={{ width: "auto" }}><option value="">반 전체</option>{(b.classes ?? []).map((x) => <option key={x.id} value={x.id}>{x.nickname ?? x.kind}</option>)}</select>
