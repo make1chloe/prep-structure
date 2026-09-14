@@ -5,7 +5,9 @@ let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
 /** (어9) 그 줄에서 **접혀 있는 카드를 다 편다** — 01 판은 지금 쓸 일이 없는 카드(✉️ · 🗺 · 3b)를 접어 두므로,
  *  아래 걸음들은 원장님이 ▾ 를 누른 것과 같게 먼저 편다. 접힘 자체는 바로 아래 한 자리에서 따로 본다 */
-async function 펴기(rowLoc) { const b = rowLoc.locator("[data-act=shut][aria-pressed='true']"); for (let i = await b.count(); i > 0; i--) { await b.first().click(); await p.waitForTimeout(120); } }
+// (어21) 3단 — PC 에선 오른쪽에 고른 업무 하나만 보인다. 카드에 손대기 전에 그 업무를 고른다(폰·업무 목록이 없으면 그대로)
+const pick = async (r, id) => { const t = r.locator(`[data-g=task][data-task=${id}]`); if (await t.count() && await t.isVisible() && (await t.getAttribute("aria-pressed")) !== "true") { await t.click(); await p.waitForTimeout(150); } };
+async function 펴기(rowLoc) { const was = await rowLoc.locator("[data-g=task][aria-pressed='true']").first().getAttribute("data-task").catch(() => null); for (let i = 0; i < 8; i++) { const f = rowLoc.locator("[data-card][data-folded='1']").first(); if (!(await f.count())) break; await pick(rowLoc, await f.getAttribute("data-card")); const b = f.locator("[data-act=shut][aria-pressed='true']").first(); if (!(await b.count())) break; await b.click(); await p.waitForTimeout(120); } if (was) await pick(rowLoc, was); }   // 접힌 카드마다 그 업무를 고르고 ▾ — 3단에선 숨은 카드의 단추를 못 누른다
 
 const mdOf9 = (d) => `${Number(String(d).slice(5, 7))}/${Number(String(d).slice(8, 10))}`; const plusD9 = (d, n) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };   // 날짜 손 둘 — 일정 12 · 자료함 20 이 쓴다(맨 위에: 아래에 두면 TDZ)
 const b = await launch(); const ctx = await b.newContext({ viewport: VIEWS[0].viewport }); await offline(ctx); const p = await ctx.newPage();
@@ -75,10 +77,10 @@ ok("(카) 줄 머리 「2일째 안 봄」 — 안 본 줄 중 가장 오래된 
     const note = (await row.locator("[data-g=shut-note]").allTextContents()).map((t) => t.trim()).sort();
     ok("판을 펴면 ✉️·🗺·3b 는 접혀 있다 — 제목 줄이 「아직 안 씀」·「메모 없음」·「늦게 가는 아이 아님」이라 말한다(대전제-0)", JSON.stringify(shut) === JSON.stringify(["areamemo", "comment", "late"]) && JSON.stringify(note) === JSON.stringify(["늦게 가는 아이 아님", "메모 없음", "아직 안 씀"]), JSON.stringify({ shut, note }));
     ok("학습·숙제(work)와 검사(check)는 **안 접힌다** — 그것이 본 일이다", (await row.locator("[data-card=work][data-folded='1']").count()) === 0 && (await row.locator("[data-card=check][data-folded='1']").count()) === 0);
-    await row.locator("[data-card=areamemo] [data-act=shut]").click(); await p.waitForTimeout(200);
+    await pick(row, "areamemo"); await row.locator("[data-card=areamemo] [data-act=shut]").click(); await p.waitForTimeout(200);
     ok("▾ 를 누르면 그 카드만 펴진다(다른 카드는 그대로 접힘) · 조회는 안 늘어난다(저장도 안 한다)", (await row.locator("[data-card=areamemo][data-folded='0']").count()) === 1 && (await row.locator("[data-card=comment][data-folded='1']").count()) === 1); }
   await 펴기(row);
-  await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=m]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=m]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(카) 그저께 것을 ✕ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ✕ 하나((머) 이 ✕ 가 깔기의 기본을 「1-3 다시」로 만든다)", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
 console.log("■ 출결 — 낙관적");
 await row.locator(".seg[data-g=att] button", { hasText: "지각" }).click(); await p.waitForTimeout(600);
@@ -86,7 +88,7 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("지각이 저장돼 있다", (await row.locator(".seg[data-g=att] button", { hasText: "지각" }).getAttribute("aria-pressed")) === "true");
 console.log("■ 숙제 검사 △ → 어디까지 → 나머지는 다음 숙제로");
 if (!(await row.locator(".panel").count())) await row.locator("button.open").click();
-await 펴기(row);
+await 펴기(row); await pick(row, "check");
 console.log("■ 폰 03 — 줄 끝 저장줄이 화면 아래(홈 표시줄 위)에 붙어 따라온다(폰-6 · 목업 01·03)");
 await p.setViewportSize({ width: 390, height: 700 });
 const rb = row.locator(".savebar.rowbar");
@@ -108,23 +110,27 @@ ok("△ 를 주면 머리의 진도 점도 △", (await row.locator(".marks .dot
 ok("나머지가 오늘 숙제 줄로 섰다(원본을 가리킨다)", (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li", { hasText: "지난 숙제의 나머지" }).count()) === 1);
 ok("검사 안 본 것이 1로 줄었다", (await p.locator(".pill.warn", { hasText: "검사 안 본 것 1" }).count()) === 1);
 console.log("■ 항목 더하기 · 미루기");
+await pick(row, "work");
 const cls = row.locator(".half", { hasText: "그 밖에 · 학원" });
 await cls.locator("input[name=text]").fill("의미덩어리 구두테스트 · PSS 1-4"); await cls.locator("button[type=submit]").click(); await p.waitForTimeout(800);
 ok("학원 줄이 하나 섰다", (await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li").count()) === 1);
 await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li button", { hasText: "미루기" }).click(); await p.waitForTimeout(800);
 ok("미루면 숙제로 간다(지우지 않는다)", (await row.locator(".half", { hasText: "그 밖에 · 학원" }).locator(".li").count()) === 0 && (await row.locator(".half", { hasText: "그 밖에 · 집" }).locator(".li").count()) === 2);
 console.log("■ 검사가 끝나면 오늘 학습·숙제가 저절로 깔린다(확정-⑨)");
+await pick(row, "work");
 ok("아직 안 깔렸다(검사 줄 하나 남음) — 교재 머리는 「검사 끝나면 채워집니다」", (await row.locator(".bk .stopnote", { hasText: "검사 끝나면" }).count()) === 1);
-await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);
+await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "클카 문장훈련" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "work");
 const bk = row.locator(".bk").first();
 ok("교재 한 권이 깔렸다(리허설 문법책 · 1회독 · CHAPTER 1)", (await row.locator(".bk").count()) === 1 && (await bk.locator(".bkh .tag", { hasText: "CHAPTER 1" }).count()) === 1);
 const bkC = bk.locator(".half").nth(0), bkH = bk.locator(".half").nth(1);
 ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 — 학습 회차 「1-3 다시」 눌림 · 학원 줄 소단원 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-3 다시" && (await bkC.locator(".li small").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "1-3 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator(".li small").first().textContent().catch(() => "?")}`);
 await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^1-4$/ }).click(); await p.waitForTimeout(1000);
 await bkH.locator(".seg[data-g=wave-home] button", { hasText: "1-4 복습" }).click(); await p.waitForTimeout(1000);
-await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
+await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=d]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "work");
 ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-4" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);
 ok("학원 줄 셋(구두테스트·문장훈련·교재 풀기) · 소단원 1-4", (await bkC.locator(".li").count()) === 3 && (await bkC.locator(".li small").first().textContent()).includes("PSS 1-4"));
 ok("숙제 줄 둘(문장훈련·워크북 복습) — 오늘 것 복습", (await bkH.locator(".li").count()) === 2 && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()).includes("복습"));
@@ -133,6 +139,7 @@ ok("분량 띠 — 학원 3 (손으로 더한 것은 「그 밖에」로)", (awa
 console.log("■ 회차 — 학습에서 「하나 더」를 누르면 소단원이 둘이 된다(줄은 그대로 셋)");
 await bkC.locator(".seg[data-g=wave-class] button", { hasText: "·" }).first().click(); await p.waitForTimeout(1000);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "work");
 ok("학습 줄 셋 · 소단원 1-4 · 1-5", (await bk.locator(".half").nth(0).locator(".li").count()) === 3 && (await bk.locator(".half").nth(0).locator(".li small").first().textContent()).includes("1-5"));
 ok("학원 항목 수는 줄×소단원 = 6", (await row.locator(".load .ldn").first().locator("> b").textContent()) === "6");
 console.log("■ 조절 02 — 교재마다 갯수 · 뺄 칩 · 이번에 낼 번호 · 화면엔 문항·쪽 합계(확정-㉓)");
@@ -197,18 +204,20 @@ await pm.locator(".acc", { hasText: "CHAPTER 2" }).locator("button", { hasText: 
 ok("이 대단원 건너뛰기 → 「0/1 끝냄 · 건너뜀 1」 (지운 것이 아니다)", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("건너뜀 1"));
 await pm.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 console.log("■ 🗺 진도 · 영역별 메모 · 📝 단원평가(목업 01 남긴 것 6)");
-await 펴기(row);   // 다시 읽으면 접힌 채로 선다 — 원장님이 ▾ 를 누른 것과 같게 편다
+await 펴기(row); await pick(row, "areamemo");   // 다시 읽으면 접힌 채로 선다 — 원장님이 ▾ 를 누른 것과 같게 편다
 const am = row.locator("[data-card=areamemo]");
 ok("🗺 오늘 한 단원 — 검사한 1-4 ◐ · 오늘 학습 단원", (await am.locator("[data-g=today-units] .tag").allTextContents()).some((t) => t.includes("1-4") && t.includes("◐")), (await am.locator("[data-g=today-units] .tag").allTextContents()).join(" / "));
 await am.locator("input[name='memo-단어']").fill("Day 38-40 통과. 스크램블 6200점"); await am.locator("input[name='memo-문법']").click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("(어9) 메모를 적은 아이는 다시 열어도 🗺 가 **저절로 펴져 있다**(적힌 것이 있으면 접지 않는다) · 제목 줄은 「메모 1」", (await row.locator("[data-card=areamemo][data-folded='0']").count()) === 1 && (await row.locator("[data-card=areamemo] [data-g=shut-note]").count()) === 0);
-await 펴기(row);
+await 펴기(row); await pick(row, "areamemo");
 ok("영역 메모 — 칸을 떠나면 저장 · 다시 열어도 그대로", (await row.locator("[data-card=areamemo] input[name='memo-단어']").inputValue()) === "Day 38-40 통과. 스크램블 6200점");
+await pick(row, "check");
 const ut = row.locator("[data-card=unit-test]");
 ok("📝 단원평가 — 숙제 검사 카드 안(🔤 앞 · (어12)) · zz_시험_관계사 · 25문항 · 출제함 · 통과선 80%", (await ut.count()) === 1 && (await row.locator("[data-card=check] [data-card=unit-test]").count()) === 1 && (await ut.locator(".hh").textContent()).includes("zz_시험_관계사") && (await ut.textContent()).includes("25문항") && (await ut.locator(".hh .cnt").textContent()) === "출제함" && (await ut.textContent()).includes("통과선 80%"));
 await ut.locator(".stepper input").fill("21"); await ut.locator(".stepper input").blur(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "check");
 ok("맞은 개수 21 → 「21 / 25 · 84% 통과」 · 채점함 · 다시 열어도 그대로", (await row.locator("[data-card=unit-test] [data-g=unit-res]").textContent()).replace(/\s+/g, " ").includes("21 / 25") && (await row.locator("[data-card=unit-test] [data-g=unit-res]").textContent()).includes("84% 통과") && (await row.locator("[data-card=unit-test] .hh .cnt").textContent()) === "채점함", await row.locator("[data-card=unit-test]").textContent());
 console.log("■ 🃏 클래스카드 플래너((뎌-4) — 확장이 보낸 그대로 · 앱이 안 넘긴다 확정-⑱)");
 { const cc = row.locator("[data-card=cc]"), set1 = cc.locator("[data-g=cc-set]").filter({ hasText: "zz_능률보카 Day 38-40" });
@@ -220,17 +229,20 @@ console.log("■ 🃏 클래스카드 플래너((뎌-4) — 확장이 보낸 그
   await set1.locator("button[data-act=cc-skip]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   { const s2 = row.locator("[data-card=cc] [data-g=cc-set]").filter({ hasText: "zz_능률보카 Day 38-40" });
     ok("⏭ 목표 미달 넘기기 → 「넘겼습니다 — 오늘은 안 셉니다」 · 새로 읽어도 그대로(적힌다) · 빨간 칸이 풀린다", (await s2.getAttribute("data-skipped")) === "1" && (await s2.locator("[data-g=cc-out]").textContent()) === "넘겼습니다 — 오늘은 안 셉니다" && (await s2.locator("[data-g=cc-mode].bad").count()) === 0, await s2.locator("[data-g=cc-out]").textContent());
-    await s2.locator("button[data-act=cc-skip]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+    await 펴기(row); await pick(row, "check"); await s2.locator("button[data-act=cc-skip]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
     ok("다시 누르면 되돌아온다(줄은 그대로 — 지우지 않는다, 대전제-6)", (await row.locator("[data-card=cc] [data-g=cc-set]").filter({ hasText: "zz_능률보카" }).getAttribute("data-skipped")) === "0"); } }
 console.log("■ 시험 — 지난 시간에 낸 범위 그대로(0038) · 틀린 개수만 적는다(0039) · 미통과면 재시험 줄 + 늦귀가 사유");
+await 펴기(row); await pick(row, "check");
 const quiz = row.locator("[data-card=quiz]");
 ok("어제 낸 단어 시험이 숙제 검사 카드 안 🔤 에 선다(1-3 · 전체 20 · 통과 90)", (await quiz.count()) === 1 && (await quiz.locator(".lf").first().textContent()).includes("PSS 1-3") && (await quiz.locator(".lf").first().locator("input[name=total]").inputValue()) === "20");
 await quiz.locator(".lf").first().locator("input[name=wrong]").fill("2"); await quiz.locator(".lf").first().locator("input[name=wrong]").blur(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "check");
 ok("틀린 개수 2 → 18/20 · 90% · 통과 (세어 나온다)", (await row.locator("[data-card=quiz] .lf").first().locator(".lm").textContent()) === "18/20 · 90% · 통과");
 ok("통과 알약 · 재시험 없음", (await row.locator("[data-card=quiz] .pill", { hasText: "통과 · 재시험 없음" }).count()) === 1);
 await row.locator("[data-card=quiz] .lf").first().locator("input[name=wrong]").fill("3"); await row.locator("[data-card=quiz] .lf").first().locator("input[name=wrong]").blur(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "check");
 ok("틀린 개수 3 → 17/20 · 85% · 못 넘음", (await row.locator("[data-card=quiz] .lf").first().locator(".lm").textContent()) === "17/20 · 85% · 못 넘음");
 ok("미통과면 재시험 줄이 저절로 선다(더 어렵게 · 2회독 방식)", (await row.locator("[data-card=quiz] .lf", { hasText: "재시험 ·" }).count()) === 1 && (await row.locator("[data-card=quiz] .lf", { hasText: "재시험 ·" }).textContent()).includes("주관식 뜻 100%"));
 ok("늦귀가 사유에 「단어 재시험이 남음」이 붙는다", (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("단어 재시험이 남음"));
@@ -239,10 +251,12 @@ await row.locator("[data-card=quiz] button", { hasText: "오늘은 재시험 건
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("건너뛰면 재시험 줄은 「오늘 건너뜀」 · 사유에서 빠진다 · 점수는 그대로(85%)", (await row.locator("[data-card=quiz] .lf", { hasText: "오늘 건너뜀" }).count()) === 1 && !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("재시험이 남음") && (await row.locator("[data-card=quiz] .lf").first().locator(".lm").textContent()).includes("85%"));
 console.log("■ 다음 시간 시험 — 숙제와 같이 나간다 · 전체 개수를 적어야 리포트에");
+await pick(row, "work");
 const nq = row.locator("[data-card=next-quiz]");
 ok("다음 시간 시험 자리가 첫 교재 칸 안에 하나 — 교재가 멈춰도 할 것이 없어도 **늘 선다**((어3) 첫 주 돌려보기: 내신 기간에 이 카드가 통째로 사라졌다)", (await nq.count()) === 1 && (await bk.locator("[data-card=next-quiz]").count()) === 1);
 await nq.locator("button", { hasText: "+ 시험 더하기" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "work");
 ok("단어 시험 한 줄 — 교재 · 오늘 학습 소단원(1-4) · 통과선 90(학원 기본)", (await row.locator("[data-card=next-quiz] .lf").first().textContent()).includes("PSS 1-4") && (await row.locator("[data-card=next-quiz] input[inputmode=numeric]").nth(1).inputValue()) === "90");
 ok("전체 개수를 안 적으면 「리포트에 안 나갑니다」", (await row.locator("[data-card=next-quiz] .lf.warn", { hasText: "리포트에 안 나갑니다" }).count()) === 1);
 await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().fill("20"); await row.locator("[data-card=next-quiz] input[inputmode=numeric]").first().blur(); await p.waitForTimeout(1200);
@@ -259,21 +273,26 @@ ok("전체 20 을 적으면 경고가 사라진다", (await row.locator("[data-c
   ok("합이 100 이 아니면 저장이 잠긴다(합 90)", (await sm.locator("[data-g=style-sum]").textContent()) === "합 90" && (await sm.locator("button[data-act=style-save]").isDisabled()) === true);
   await sm.locator("input[name=sa_meaning]").fill("40"); await sm.locator("input[name=first_hint]").check(); await sm.locator("input[name=cut_pct]").fill("85"); await sm.locator("button[data-act=style-save]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("저장 → 이 아이만의 줄(학생 × 교재 × 1회독 × 단어) — ⚙️ 「객관식 뜻 60% · 주관식 뜻 40% · 첫글자 힌트」 · 「이 아이만」 · 낸 시험의 통과선도 85 로 따라온다", (await row.locator("[data-card=next-quiz] [data-g=style-text]").first().textContent()).includes("객관식 뜻 60% · 주관식 뜻 40% · 첫글자 힌트") && (await row.locator("[data-card=next-quiz] [data-g=style-mine]").count()) >= 1 && (await row.locator("[data-card=next-quiz] input[name=cut_pct]").first().inputValue()) === "85", await row.locator("[data-card=next-quiz] .lf", { hasText: "방식" }).first().textContent());
+  await pick(row, "work");
   const addF = row.locator("[data-card=next-quiz] form"); await addF.locator("select[name=kind]").selectOption("sentence"); await addF.locator("select[name=bookId]").selectOption(""); await addF.locator("input[name=freeNote]").fill("zz_문장 범위"); await addF.locator("button", { hasText: "+ 시험 더하기" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("문장 시험을 직접 범위로 더하면 — 방식은 학원 기본값(구두·받아쓰기·녹음 중 하나 — 0040·씨앗) · 직접 적은 범위", (await row.locator("[data-card=next-quiz] .lf", { hasText: "문장" }).first().count()) >= 1 && /구두|받아쓰기|녹음/.test(await row.locator("[data-card=next-quiz] [data-g=style-text]").nth(1).textContent()) && (await row.locator("[data-card=next-quiz]").textContent()).includes("zz_문장 범위"), await row.locator("[data-card=next-quiz]").textContent()); }
 console.log("■ 경고 · 반성문(확정-㊼) — 지난달 지각 이틀 + 오늘 지각 = 3회째 → 반성문을 묻는다");
 ok("학생 줄 알약 「경고 3 · 반성문」", (await row.locator(".pill[data-warn]").textContent()) === "경고 3 · 반성문");
+await pick(row, "late");
 const refl = row.locator("[data-reflect]");
 ok("늦귀가 카드에 「경고 3회째 — 반성문」 + 지난 날들", (await refl.count()) === 1 && (await refl.textContent()).includes("오늘 지각"));
 ok("반성문 기준 — 3 · 학원 기본 · 지금 3회째", (await row.locator(".stepper[data-g=limit] input").inputValue()) === "3" && (await row.locator("[data-limit] .note").textContent()).startsWith("학원 기본"));
 await row.locator(".stepper[data-g=limit] button[data-s='+']").click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "late");
 ok("기준을 4로 올리면 이 아이만 4 — 지난 반성문 뒤 3회째라 오늘은 안 묻는다(블록 내려감 · 알약 「경고 3」)", (await row.locator(".stepper[data-g=limit] input").inputValue()) === "4" && (await row.locator("[data-limit] .note").textContent()).startsWith("이 아이만") && (await row.locator("[data-reflect]").count()) === 0 && (await row.locator(".pill[data-warn]").textContent()) === "경고 3");
 await row.locator(".stepper[data-g=limit] button[data-s='-']").click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "late");
 ok("3으로 내리면 다시 묻는다", (await row.locator("[data-reflect]").count()) === 1);
 await row.locator(".seg[data-g=refl] button", { hasText: "오늘 남아서 쓰기" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "late");
 ok("처분 「오늘 남아서 쓰기」 → 늦귀가 사유에 「반성문 — 오늘 남아서」", (await row.locator(".seg[data-g=refl] button", { hasText: "오늘 남아서 쓰기" }).getAttribute("aria-pressed")) === "true" && (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("반성문 — 오늘 남아서"));
 await row.locator(".seg[data-g=refl] button", { hasText: "다음 시간 숙제" }).click(); await p.waitForTimeout(1200);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
@@ -334,20 +353,22 @@ ok("지각 예정도 물렸다가 다시 잡을 수 있다(late_plan_one_live)",
 await pl.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 ok("모달이 닫혔다", (await p.locator(".mdlov").count()) === 0);
 console.log("■ 늦귀가 — 사유 칩(검사 ✕ → 「＋ … 미제출」 → 누르면 사유에 · 다시 누르면 뺌) · 사유 한 줄 · +20분 · 보내기");
-await 펴기(row);
+await 펴기(row); await pick(row, "check");
 { const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);
   await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  await 펴기(row); await pick(row, "late");
   const chipBtn = row.locator("[data-g=reason-chips] button[data-act=reason-chip]");
   ok("검사에 ✕ 를 찍으면 3b 에 사유 칩 「＋ … 미제출」(사유 후보 — 원본은 사유 한 줄)", (await chipBtn.count()) >= 1 && /미제출$/.test((await chipBtn.first().textContent()).trim()) && (await chipBtn.first().getAttribute("aria-pressed")) === "false", (await row.locator("[data-g=reason-chips]").textContent().catch(() => "칩 없음")).replace(/\s+/g, " "));
   await chipBtn.first().click(); await p.waitForTimeout(200);
   ok("누르면 사유 글에 조각이 들어가고 ✓", (await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출") && (await chipBtn.first().getAttribute("aria-pressed")) === "true");
   await chipBtn.first().click(); await p.waitForTimeout(200);
   ok("다시 누르면 빠진다", !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("미제출"));
-  if (prevV) { await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); }   // 검사 표시를 되돌린다(뒤 걷기가 같은 판을 본다)
+  if (prevV) { await pick(row, "check"); await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); }   // 검사 표시를 되돌린다(뒤 걷기가 같은 판을 본다)
 }
+await 펴기(row); await pick(row, "check");
 { const chk = row.locator(".chk").last(); const prevV = await chk.locator("button[aria-pressed=true]").getAttribute("data-v").catch(() => null);   // 5단계-② 3b 「남」 줄(0141 · 목업 01)
   ok("3b 머리 — 「평소 HH:MM」(반 끝 시각 · 목업 「평소 9:40 → 10:20」) · 「남」 줄은 아직 없음(✕·△ 준 항목이 후보 — 고르는 것은 원장님)", /평소 \d{2}:\d{2}/.test(await row.locator("[data-g=stay-note]").textContent()) && (await row.locator("[data-g=stay-row]").count()) === 0, await row.locator("[data-g=stay-note]").textContent());
-  await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1200); await row.locator("[data-card=check] > .hw").last().locator("[data-g=rest] button", { hasText: "남아서" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await row.locator("[data-g=stay-row]").first().waitFor({ timeout: 15000 }).catch(() => {});   // 숙제 검사 카드 안의 그 줄(🃏 카드도 .hw 를 써서 자리로는 못 집는다) · 「남」 줄은 **뜰 때까지** 기다린다(정해 둔 시간이 아니라)
+  await chk.locator("button[data-v=m]").click(); await p.waitForTimeout(1200); await row.locator("[data-card=check] > .hw").last().locator("[data-g=rest] button", { hasText: "남아서" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await 펴기(row); await pick(row, "late"); await row.locator("[data-g=stay-row]").first().waitFor({ timeout: 15000 }).catch(() => {});   // 숙제 검사 카드 안의 그 줄(🃏 카드도 .hw 를 써서 자리로는 못 집는다) · 「남」 줄은 **뜰 때까지** 기다린다(정해 둔 시간이 아니라)
   ok("검사 ✕ → 「나머지는 → 남아서」 → 3b 「남」 줄 하나 「숙제에서 옮겨옴」(조각이 원본을 가리킨다 · 자리 stay) · 사유 글엔 「숙제 나머지」가 안 적힌다(칩이 있다)", (await row.locator("[data-g=stay-row]").count()) === 1 && (await row.locator("[data-g=stay-row] small").textContent()).includes("숙제에서 옮겨옴") && !(await row.locator("form.lategrid input[name=reason]").inputValue()).includes("숙제 나머지"), await row.locator("[data-g=stay]").textContent());
   await row.locator("[data-g=stay-add] input").fill("zz_남아서 항목"); await row.locator("button[data-act=stay-add]").click(); await p.waitForTimeout(1500);
   ok("항목 더하기 → 「남」 줄 둘 · 「남 2 · 다 함 0 · 넘김 0」", (await row.locator("[data-g=stay-row]").count()) === 2 && (await row.locator("[data-g=stay-note]").textContent()).includes("남 2 · 다 함 0 · 넘김 0"), await row.locator("[data-g=stay-note]").textContent());
@@ -355,7 +376,8 @@ await 펴기(row);
   ok("「다 함」 → 그 줄만 다 함(줄 긋기) · 「다 함 1」", (await row.locator("[data-g=stay-row][data-state=done]").count()) === 1 && (await row.locator("[data-g=stay-note]").textContent()).includes("다 함 1"));
   await row.locator("button[data-act=stay-carry]").click(); await p.waitForTimeout(1500);
   ok("「⏭ 남은 것 다음 숙제로 넘기기」 → 남은 줄은 「넘김」(missing — 남아서 하려다 못 한 것으로 센다) · 숙제 자리에 조각 · 남은 것이 없어 단추 둘 사라짐", (await row.locator("[data-g=stay-row][data-state=missing]").count()) === 1 && (await row.locator("button[data-act=stay-carry]").count()) === 0 && (await row.locator("button[data-act=stay-all-done]").count()) === 0 && (await row.locator("[data-g=stay-note]").textContent()).includes("넘김 1"), await row.locator("[data-g=stay]").textContent());
-  if (prevV) { await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); } }
+  if (prevV) { await pick(row, "check"); await chk.locator(`button[data-v=${prevV}]`).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); } }
+await 펴기(row); await pick(row, "late");
 await row.locator("form.lategrid input[name=reason]").fill("워크북 나머지 10-18번");
 await row.locator("form.lategrid .seg button", { hasText: "+20분" }).click();
 const untilTyped = await row.locator("form.lategrid input[name=untilAt]").inputValue();
@@ -373,6 +395,7 @@ console.log("■ 아이 화면 07 — 저녁: 「오늘은 남아서 HH:MM 예�
   ok("「집에 가요」 → 「HH:MM 집에 감」 · 단추는 사라진다(하루 한 번)", /집에 감$/.test(await mm.locator("[data-g=arrival-pill]").textContent()) && (await mm.locator("[data-card=arrival] button[data-step='4']").count()) === 0, await mm.locator("[data-g=arrival-pill]").textContent());
   await cs.close(); }
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+await 펴기(row); await pick(row, "late");
 ok("원장님 화면 — 아이가 찍은 실제 하원이 같은 줄로 보인다(등원 걸음 4 · 0083)", (await row.locator("[data-g=left-out]").count()) === 1 && (await row.locator("[data-g=left-out]").textContent()).startsWith("실제 하원 "), (await row.locator("[data-g=left]").textContent()).slice(0, 160));
 ok("되풀이 — 그저께·어제 약속 + 오늘 = 21일 안 3번째 → 앱이 먼저 「3주 안 3번째 남습니다 — 숙제량을 볼까요?」(규칙 late.repeat_count 3 · repeat_days 21) + 날들에 「오늘」", (await row.locator("[data-g=repeat] b").count()) === 1 && (await row.locator("[data-g=repeat] b").textContent()) === "3주 안 3번째 남습니다 — 숙제량을 볼까요?" && (await row.locator("[data-g=repeat] small").textContent()).includes("오늘"), (await row.locator("[data-card=late]").textContent()).slice(0, 200));
 await row.locator("[data-g=repeat] button[data-act=repeat-tune]").first().click(); await p.waitForTimeout(1500);
@@ -384,7 +407,7 @@ ok(`실제 하원을 찍으면(등원 걸음 4 와 같은 줄) 「실제 하원 
 await row.locator("button", { hasText: "지금 보내기" }).click(); await p.waitForTimeout(800);
 ok("보내기 → 큐에 들고 「보냄 HH:MM」(누른 때 — 학부모 화면은 이때부터 보인다)", (await row.locator("[role=alert]").count()) === 0 && /^보냄 \d\d:\d\d$/.test(await row.locator("[data-card=late] .pill", { hasText: "보냄" }).first().textContent()), (await row.locator("[data-card=late] .pill").allTextContents()).join(" | "));
 console.log("■ 부모님께 글 — 갈래 다섯 · 상황이 길이를 먼저 고른다 · 붙는 줄 · 미리보기 · ✨ 브리핑(목업 01 ✉️)");
-await 펴기(row);
+await 펴기(row); await pick(row, "comment");
 const cc = row.locator("[data-card=comment]");
 ok("상황 다섯 — 보통·숙제안함·시험전·시험후·늦은밤 · 길이 넷", (await cc.locator(".seg[data-g=kind] button").allTextContents()).join(",") === "보통,숙제안함,시험전,시험후,늦은밤" && (await cc.locator(".seg[data-g=cap] button").allTextContents()).join(",") === "50자 이하,100자,200자,300자");
 const capMap = { 보통: "100자", 숙제안함: "200자", 시험전: "100자", 시험후: "300자", 늦은밤: "50자 이하" };
@@ -429,11 +452,12 @@ if (!(await two2.locator("form.lategrid").count())) {   // 오늘 결석 예정�
 await 펴기(two2);
 }
 ok("학생둘 — 결석 예정이었지만 왔다: 출결을 누르니 판이 선다", (await two2.locator("form.lategrid").count()) === 1, (await two2.locator(".pill").allTextContents()).join(" | "));
+await pick(two2, "late");
 await two2.locator("form.lategrid input[name=reason]").fill("문장훈련 녹음 남아서");
 await two2.locator("form.lategrid .seg button", { hasText: "+40분" }).click();
 await two2.locator("form.lategrid button[type=submit]").click(); await p.waitForTimeout(800);
 ok("학생둘 — 적어 두면 「보내야 함」 · 되풀이 띠는 없다(처음 남는다)", (await two2.locator("[data-card=late] .pill.warn", { hasText: "보내야 함" }).count()) === 1 && (await two2.locator("[data-g=repeat]").count()) === 0);
-await two2.locator("[data-card=comment] textarea[name=comment]").fill("오늘 문장훈련 녹음을 남아서 마쳤습니다.");
+await pick(two2, "comment"); await two2.locator("[data-card=comment] textarea[name=comment]").fill("오늘 문장훈련 녹음을 남아서 마쳤습니다.");
 await two2.locator("button", { hasText: "저장하고 마감" }).click(); await p.waitForTimeout(500);
 ok("마감이 한 번 묻는다 — 「늦귀가를 아직 안 보냈습니다」 · 「그대로 마감」도 있다(막지 않는다) · 아직 마감 안 됨", (await two2.locator("[data-g=ask] b", { hasText: "아직 안 보냈습니다" }).count()) === 1 && (await two2.locator("[data-g=ask] button[data-act=close-anyway]").count()) === 1 && (await two2.locator(".pill", { hasText: "마감됨" }).count()) === 0, (await two2.locator("[data-card=comment]").textContent()).slice(0, 200));
 await two2.locator("[data-g=ask] button[data-act=send-close]").click(); await p.waitForTimeout(1500);
@@ -444,7 +468,7 @@ await 펴기(two3);
 ok("「📨 보내고 마감」 → 보냄 + 마감됨", (await two3.locator(".pill", { hasText: "마감됨" }).count()) === 1 && (await two3.locator("[data-card=late] .pill", { hasText: "보냄" }).count()) === 1, (await two3.locator(".pill").allTextContents()).join(" | "));
 if (!(await closedRow.locator(".panel").count())) await closedRow.locator("button.open").click();   // 다시 읽어 접힌 첫 줄을 다시 편다 — 아래 걸음이 그 줄의 단추를 누른다
 console.log("■ 마감이 방아쇠 — 학습 메모가 있는 교재의 오늘 학습 소단원이 ○, 조각(이번에 1-20번)은 ◐ (확정-㊳ · 검사-⑭)");
-await closedRow.locator("button[data-act=progress]").first().click(); await p.waitForTimeout(1500);
+await pick(closedRow, "work"); await closedRow.locator("button[data-act=progress]").first().click(); await p.waitForTimeout(1500);
 const pm2 = p.locator(".mdlov .mdl");
 ok("1-4 ○ (메모로 자동) · 대비문제 ◐ (조각) · 마감된 판이라 단추는 잠김", (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm2.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm2.locator(".tri button").first().isDisabled()));
 ok("(러) 조각 줄 밑에 「낸 것 1-20 · 남은 것 21-62」 — 마감 메모가 조각(이번에 1-20번)을 progress_part 에 남겼다(확정-⑳ · 다 덮이면 저절로 ○)", (await pm2.locator(".ur", { hasText: "대비문제" }).locator("[data-g=parts]").textContent().catch(() => "")) === "낸 것 1-20 · 남은 것 21-62", (await pm2.locator(".ur", { hasText: "대비문제" }).textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
@@ -751,7 +775,7 @@ await ecard().locator("button[data-act=stop-now]").click(); await p.waitForSelec
 ok("지금 멈춤 → 「지금 멈췄습니다 — 교재 2권」(문법책 · 독해책)", (await ex.locator("[data-g=msg]").textContent()).includes("지금 멈췄습니다 — 교재 2권"), await ex.locator("[data-g=msg]").textContent());
 await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
 const srow = p.locator(`.row[data-student='${S1_ROW}']`);
-if (!(await srow.locator(".panel").count())) await srow.locator("button.open").click(); await 펴기(srow);
+if (!(await srow.locator(".panel").count())) await srow.locator("button.open").click(); await 펴기(srow); await pick(srow, "work");
 ok("오늘 수업의 그 아이 문법책 머리에 「교재 멈춤 … 저절로 풀립니다」(stopOn 한 곳 — 오늘부터)", (await srow.locator(".stopnote", { hasText: "교재 멈춤" }).count()) >= 1 && (await srow.locator(".stopnote", { hasText: "교재 멈춤" }).first().textContent()).includes("저절로 풀립니다"), (await srow.locator(".panel").textContent()).replace(/\s+/g, " ").slice(0, 300));
 await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
 await ecard().locator("button[data-act=release]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
@@ -984,6 +1008,46 @@ await addM.locator("input[aria-label='갈래 이름']").fill("zz_분석지"); aw
 await snapModal("04-add");
 await addM.locator("button[data-act=add-save]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(1200);
 ok("+ 자료(zz_너른터 · zz_분석지 · 항목 셋 · 배정 1명) → 「항목 3 · 배정 1명 · 할 일 3」 · 나무 「자료 1 · 갈래 1 · 항목 3」 · 갈래 꼬리표 「3가지 · 아직 안 만듦」 · 여기서 생긴 할 일 3(만들기·인쇄·배부 — 지난 시험이라 「N일 지남」)", (await pr.locator("[data-g=msg]").textContent()).includes("항목 3 · 배정 1명 · 할 일 3") && (await pr.locator("[data-g=tree-count]").textContent()) === "자료 1 · 갈래 1 · 항목 3" && (await pr.locator("[data-g=mt2] [data-g=mtag]").allTextContents()).join() === "3가지,아직 안 만듦" && (await pr.locator("[data-g=todo-row]").count()) === 3 && (await pr.locator("[data-g=todo-row]").first().textContent()).includes("지남"), (await pr.locator("[data-g=todos]").textContent()).replace(/\s+/g, " ").slice(0, 300));
+console.log("■ (어21) 01 3단 — 학생 · 업무 · 내용(원장님 9/14) · 📄 내신 자료 업무는 교재가 멈춘 아이만 · 배정 · 배부 · 범위 고르기(06b 와 같은 부품) · 다음 → · 폰은 세로 카드");
+await p.setViewportSize(VIEWS[0].viewport);
+await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
+{ const c2 = p.locator("[data-g=exam-card]").filter({ hasText: "2학기 중간" }).first();
+  await c2.locator("button[data-act=stop-now]").click(); await p.waitForSelector("[data-g=msg]", { timeout: 15000 }); await p.waitForTimeout(800);
+  ok("(어21) 2학기 중간 「지금 멈춤」 → 멈춘 교재 ≥ 1(01 에 내신 자료 업무가 서는 조건)", /멈췄습니다/.test(await p.locator("main [data-g=msg]").textContent()), await p.locator("main [data-g=msg]").textContent()); }
+await p.goto(APP + "/today"); await p.waitForLoadState("networkidle").catch(() => {});
+{ const r1 = p.locator(`.row[data-student='${S1_ROW}']`); if (!(await r1.locator(".panel").count())) await r1.locator("button.open").click(); await 펴기(r1);
+  const g = await r1.locator(".panel").evaluate((el) => ({ disp: getComputedStyle(el).display, cols: getComputedStyle(el).gridTemplateColumns.split(" ").length, tasks: el.querySelectorAll("[data-g=task]").length, shown: [...el.querySelectorAll(".tbody")].filter((b) => getComputedStyle(b).display !== "none").length, sel: el.querySelector("[data-g=task][aria-pressed=true]")?.dataset.task, ids: [...el.querySelectorAll("[data-g=task]")].map((t) => t.dataset.task).join(">"), badge: el.querySelector("[data-g=task][data-task=prep] [data-g=task-badge]")?.textContent }));
+  ok("PC 1280 — 판이 두 열(업무 · 내용) · 업무 여섯(📄 내신 자료 — 문법책이 멈춰 있다) · 보이는 몸은 하나 · 처음 고른 업무는 흐름에서 처음 안 끝난 것(검사 또는 오늘 학습)", g.disp === "grid" && g.cols === 2 && g.tasks === 6 && g.shown === 1 && g.ids === "check>work>prep>areamemo>late>comment" && ["check", "work"].includes(g.sel) && /^자료 \d+/.test(g.badge ?? ""), JSON.stringify(g));
+  await pick(r1, "work");
+  ok("오늘 학습의 멈춘 교재 머리 「교재 멈춤 … 📄 내신 자료」 단추 → 내신 자료 업무가 열린다(이동 아님 · 창 아님)", (await r1.locator(".stopnote button[data-act=to-prep]").count()) >= 1);
+  await r1.locator(".stopnote button[data-act=to-prep]").first().click(); await p.waitForTimeout(200);
+  const pc = r1.locator("[data-card=prep]");
+  const scopeText = await pc.locator("[data-g=prep-scope] b").first().textContent();
+  ok("📄 내신 자료 몸 — 시험 머리(🏫 · 영어 M/D · D-N) · 멈춘 교재 꼬리표 · 학교 시험 범위 N줄(04·06b 가 넣은 것) · 04 전체 ↗ 는 그 시험으로(?e=)", (await r1.locator("[data-g=task][data-task=prep]").getAttribute("aria-pressed")) === "true" && (await pc.locator("[data-g=prep-exam]").count()) >= 1 && (await pc.locator("[data-g=prep-stopped]").first().textContent()).includes("멈춤") && /범위 · \d+줄/.test(scopeText) && /\/schedule\/exams\/prep\?e=/.test(await pc.locator("[data-g=to-prep]").getAttribute("href")), scopeText);
+  const rows0 = await pc.locator("[data-g=prep-row]").count(), gives0 = await pc.locator("button[data-act=prep-give]").count();
+  ok("이 아이 자료 줄 + 안 준 자료 = 그 시험 자료 전부(04 에서 만든 것 — 없으면 「자료 없음 — 04 에서 만들기」)", rows0 + gives0 > 0 || (await pc.locator("[data-g=prep-empty]").count()) === 1, `줄 ${rows0} · 안 줌 ${gives0}`);
+  if (gives0 > 0) { await pc.locator("button[data-act=prep-give]").first().click(); await p.waitForFunction(() => document.querySelector("[data-g=prep-msg]")?.textContent?.includes("배정했습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+    ok("「배정」 → 줄이 하나 늘고 「배정됨 · …」(04 의 + 자료 배정과 같은 줄 material_give)", (await pc.locator("[data-g=prep-row]").count()) === rows0 + 1 && (await pc.locator("[data-g=prep-row] [data-g=prep-status]").allTextContents()).some((t) => t.startsWith("배정됨")), (await pc.locator("[data-g=prep-row] [data-g=prep-status]").allTextContents()).join(" | ")); }
+  const hand = pc.locator("button[data-act=prep-hand]");
+  if (await hand.count()) { const mid = await hand.first().locator("xpath=ancestor::*[@data-g='prep-row']").getAttribute("data-material"); await hand.first().click(); await p.waitForFunction(() => document.querySelector("[data-g=prep-msg]")?.textContent?.includes("배부했습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+    ok("「배부」 → 그 줄이 「받음/배부 M/D」로(04 handAct 와 같은 손 · 04 학생별 표의 「오늘 낼 것」이 준다)", !(await pc.locator(`[data-g=prep-row][data-material='${mid}'] [data-g=prep-status]`).textContent()).startsWith("배정됨"), await pc.locator(`[data-g=prep-row][data-material='${mid}'] [data-g=prep-status]`).textContent()); }
+  await pc.locator("button[data-act=scope-open]").first().click(); await p.waitForTimeout(200);
+  const sf = pc.locator("[data-g=scope-form]");
+  ok("범위 「고치기」 → 06b 와 같은 부품(scope-form · scope-book · scope-chapter · scope-save)이 그 자리에 펼쳐진다 — 이 아이 교재만 고르개에", (await sf.count()) === 1 && (await sf.locator("select[data-g=scope-book] option").count()) >= 2, String(await sf.locator("select[data-g=scope-book] option").allTextContents()));
+  await sf.locator("select[data-g=scope-book]").selectOption({ index: 1 }); await p.waitForSelector("[data-card=prep] [data-g=scope-chapter]", { timeout: 15000 });
+  await sf.locator("[data-g=scope-chapter] input").last().check(); await sf.locator("button[data-act=scope-save]").click(); await p.waitForFunction(() => document.querySelector("[data-g=prep-msg]")?.textContent?.includes("범위를 더했습니다"), null, { timeout: 15000 }); await p.waitForTimeout(1200);
+  ok("더하기 → 「범위를 더했습니다 — N줄」 · 범위 줄 수가 늘거나 이미 있던 것(그 학교 시험에 붙는다 — 06b 가 같은 줄을 본다)", /범위를 더했습니다/.test(await pc.locator("[data-g=prep-msg]").textContent()), await pc.locator("[data-g=prep-msg]").textContent());
+  await r1.locator(".tbody[data-task=prep] button[data-act=task-next]").click(); await p.waitForTimeout(200);
+  ok("「다음 → 진도 · 영역별 메모」 → 그 업무가 열린다(오른쪽 속만 바뀜 · 왼쪽·가운데는 그대로)", (await r1.locator("[data-g=task][aria-pressed=true]").getAttribute("data-task")) === "areamemo" && (await r1.locator(".tbody[data-sel='1']").getAttribute("data-task")) === "areamemo");
+  await p.setViewportSize(VIEWS[1].viewport); await p.waitForTimeout(250);
+  const ph = await r1.locator(".panel").evaluate((el) => ({ nav: getComputedStyle(el.querySelector("[data-g=tasks]")).display, shown: [...el.querySelectorAll(".tbody")].filter((b) => getComputedStyle(b).display !== "none").length, next: getComputedStyle(el.querySelector(".tnext")).display, pconly: getComputedStyle(el.querySelector(".pconly")).display }));
+  ok("폰 390 — 업무 목록·「다음 →」·「📄 내신 자료」 단추는 안 보이고 카드 여섯이 세로로 다 선다(원장님 「폰은 세로 카드」)", ph.nav === "none" && ph.shown === 6 && ph.next === "none" && ph.pconly === "none", JSON.stringify(ph));
+  await p.setViewportSize(VIEWS[0].viewport); }
+await p.goto(`${APP}/schedule/exams`); await p.waitForLoadState("networkidle").catch(() => {});
+{ const c2 = p.locator("[data-g=exam-card]").filter({ hasText: "2학기 중간" }).first();
+  ok("06b 2학기 중간 카드 — 01 에서 더한 범위가 같은 줄로 보인다(범위 ≥ 1 · 부품·손 한 벌)", (await c2.locator("[data-g=scope]").count()) >= 1, String(await c2.locator("[data-g=scope]").count()));
+}   // 풀지 않는다 — 2학기 중간은 영어일 4주 전(오늘)부터 저절로 멈춘 상태가 본래 상태다(08 로드맵 걷기가 「교재멈춤 — M/D에 풀림」 꼬리표를 본다) · 「지금 멈춤」은 오늘부터라 같은 값이다
+await p.goto(`${APP}/schedule/exams/prep?e=${pastId}`); await p.waitForLoadState("networkidle").catch(() => {});   // (어21) 절이 06b 로 갔다 — 뒤 걷기는 04 지난 시험 화면에서 이어진다
 console.log("■ 내신 자료 04 → 05 — 「단계 ↗」가 그 자료만 걸러 연다((가)-④ · 남긴 것 21)");
 const url04 = p.url();
 await pr.locator("[data-g=mt2] a[data-act=steps]").first().click(); await p.waitForURL((u) => u.pathname === "/schedule/todo" && u.searchParams.has("m"), { timeout: 15000 }); await p.waitForLoadState("networkidle").catch(() => {});
@@ -1668,7 +1732,7 @@ console.log("■ (어13) 숙제가 없으면 「+ 숙제 주기」 — 모달로
   const id0 = await r0.getAttribute("data-student"), rg = p.locator(`.row[data-student='${id0}']`);
   if (!(await rg.locator(".panel").count())) await rg.locator("button.open").click(); await 펴기(rg);
   ok("숙제 칸에 「+ 숙제 주기」 단추 하나 · 페이지에 늘 보이는 양식은 그대로 둘(그 밖에 · 학원/집) — 페이지가 안 늘었다", (await rg.locator("button[data-act=give]").count()) === 1 && (await rg.locator("form.wv input[name=text]").count()) === 2);
-  await rg.locator("button[data-act=give]").click(); await p.waitForSelector("[data-g=give-modal]", { timeout: 15000 });
+  await pick(rg, "work"); await rg.locator("button[data-act=give]").click(); await p.waitForSelector("[data-g=give-modal]", { timeout: 15000 });
   const gm = p.locator("[data-g=give-modal]");
   ok("모달 — 집이 눌려 있다 · 빈 채로는 「주기」가 잠김", (await gm.locator("[data-g=give-slot] button[aria-pressed=true]").textContent()) === "집" && (await gm.locator("button[data-act=give-save]").isDisabled()));
   await snapModal("give");
@@ -1680,15 +1744,15 @@ console.log("■ (어13) 숙제가 없으면 「+ 숙제 주기」 — 모달로
 console.log("■ (어15) 카드 차례를 끌어서 — 01 판 · 14 학생(원장님 2026-09-14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게 하면 될거같은데」) · 기본은 생각의 흐름 · 바꾸면 그 사람 것(screen_pref · 사람마다)");
 const dragTop = async (pg, grip, first) => { await grip.scrollIntoViewIfNeeded(); const gb = await grip.boundingBox(), fb = await first.boundingBox(); await pg.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2); await pg.mouse.down(); await pg.mouse.move(gb.x + gb.width / 2, fb.y + 2, { steps: 10 }); await pg.mouse.up(); await pg.waitForTimeout(200); };
 { const rg = p.locator(".row[data-open='1']").first(); const sid = await rg.getAttribute("data-student");
-  const panelIds = async (loc) => loc.locator(".panel > [data-card]").evaluateAll((els) => els.map((e) => e.dataset.card));
-  const rowIds = async () => rg.locator("[data-g=order-row]").evaluateAll((els) => els.map((e) => e.dataset.id));
+  const panelIds = async (loc) => loc.locator(".panel .tbody > [data-card]").evaluateAll((els) => els.map((e) => e.dataset.card).filter((c) => c !== "prep"));   // (어21) 📄 내신 자료는 교재가 멈춘 아이에게만 서는 업무 — 차례 걷기는 다섯 카드만 본다
+  const rowIds = async () => rg.locator("[data-g=order-row]").evaluateAll((els) => els.map((e) => e.dataset.id).filter((c) => c !== "prep"));   // (어21) 📄 는 멈춘 아이에게만 서는 업무 — 다섯 카드만 본다
   const ids0 = await panelIds(rg);
   ok("01 판 카드 다섯 — 기본 차례 check → work → areamemo → late → comment · 번호 1 · 2 · 3 은 앞 둘에", ids0.join(">") === "check>work>areamemo>late>comment" && (await rg.locator(".panel .stepno").allTextContents()).join("") === "123", ids0.join(">"));
   await rg.locator("button[data-act=order-open]").click(); await p.waitForTimeout(300);
   await dragTop(p, rg.locator("[data-g=order-row][data-id=late] [data-g=order-grip]"), rg.locator("[data-g=order-row]").first());
   ok("⇅ 판에서 「늦귀가」 ⠿ 를 맨 위로 끌면 첫 줄(PC · 마우스 · 저장 전)", (await rowIds()).join(">") === "late>check>work>areamemo>comment", (await rowIds()).join(">"));
   await rg.locator("button[data-act=order-save]").click();
-  await p.waitForFunction((id) => { const els = document.querySelectorAll(`.row[data-student='${id}'] .panel > [data-card]`); return els.length > 0 && els[0].dataset.card === "late"; }, sid, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(500);
+  await p.waitForFunction((id) => { const els = document.querySelectorAll(`.row[data-student='${id}'] .panel .tbody > [data-card]`); return els.length > 0 && els[0].dataset.card === "late"; }, sid, { timeout: 15000 }).catch(() => {}); await p.waitForTimeout(500);
   const ids1 = await panelIds(rg);
   ok("저장 → 판이 그 차례로 선다 — 늦귀가가 맨 앞 · 번호는 선 자리 순(검사 1 · 학습 2 · 숙제 3 — 늦귀가엔 번호가 없다) · 저장줄은 여전히 판 끝", ids1.join(">") === "late>check>work>areamemo>comment" && (await rg.locator(".panel .stepno").allTextContents()).join("") === "123" && (await rg.locator(".panel > .savebar.rowbar").count()) === 1, ids1.join(">"));
   await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});

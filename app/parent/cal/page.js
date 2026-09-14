@@ -8,12 +8,13 @@ import { myChildren } from "@/lib/parent";
 import { asView, screenStudent } from "@/lib/asview";
 import { calendar } from "@/lib/cal";
 import { ymOf } from "@/lib/cal-plan";
+import AsBand from "../../_shell/asband.js";
 import CalView from "../../_shell/calview.js";
 import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}>{children}</main>;
 export default async function ParentCal({ searchParams }) {
-  const { sb, me } = await guard();
+  const { sb, me, user } = await guard();
   const q = await searchParams;
   const seeing = asView(me, q);   // 👁 (lib/asview)
   if (!seeing && me?.role !== ROLES.PARENT) redirect("/");
@@ -28,5 +29,6 @@ export default async function ParentCal({ searchParams }) {
     d = await calendar(sb, kid, ym, date, tday, ROLES.PARENT);
   } catch (e) { { console.error("[화면] 달력 못 엶:", e); return frame(<Oops what="달력" e={e} kind="task" />); } }
   if (decide(ROLES.PARENT, d.access, PARENT.recent) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div></div>);
-  return frame(<CalView d={d} base="/parent/cal" extra={`&s=${kid.id}`} kids={kids} backHref={`/parent?s=${kid.id}`} backLabel="학부모 ↗" />);
+  const cal = <CalView d={d} base="/parent/cal" extra={`&s=${kid.id}`} kids={kids} backHref={`/parent?s=${kid.id}`} backLabel="학부모 ↗" />;
+  return frame(seeing ? <><AsBand name={kid.name} kind="parent" />{cal}</> : cal);   // 👁 띠는 09 와 같은 부품(asband.js)
 }

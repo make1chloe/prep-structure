@@ -4,12 +4,13 @@ import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
-import { prepBoard, addMaterial, reuseMaterial, setSchoolProg, handOut, dropMaterial, finishTodo, setSchoolBook, setItemUnit } from "@/lib/todo";
+import { prepBoard, addMaterial, reuseMaterial, setSchoolProg, handOut, dropMaterial, finishTodo, setSchoolBook, setItemUnit, giveMaterial } from "@/lib/todo";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "내신 대비 04");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function addMaterialAct(examId, f) { return wrap(async () => { const { sb } = await staff(); const b = await prepBoard(sb, examId, await today(sb)); return addMaterial(sb, { examId, typeId: f?.typeId, title: f?.title, items: f?.items, studentIds: f?.studentIds ?? [], takers: b.takers ?? [], types: b.types ?? [] }); }); }
 export async function reuseAct(examId, fromId, studentIds = [], revised = false) { return wrap(async () => { const { sb } = await staff(); const b = await prepBoard(sb, examId, await today(sb)); return reuseMaterial(sb, { examId, fromId, studentIds, takers: b.takers ?? [], types: b.types ?? [], revised: Boolean(revised) }); }); }
 export async function schoolProgAct(examId, studentId, text) { return wrap(async () => { const { sb } = await staff(); return setSchoolProg(sb, examId, studentId, text); }); }
+export async function giveAct(materialId, studentIds = []) { return wrap(async () => { const { sb } = await staff(); return giveMaterial(sb, materialId, studentIds); }); }   // (어21) 01 에서 배정 — 04 의 + 자료 배정과 같은 줄
 export async function handAct(materialId, studentIds = null) { return wrap(async () => { const { sb } = await staff(); return handOut(sb, materialId, studentIds); }); }
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
 export async function schoolBookAct(f) { return wrap(async () => { const { sb } = await staff(); return setSchoolBook(sb, f ?? {}); }); }   // 처음-8 학교 × 학년 × 연도의 교과서

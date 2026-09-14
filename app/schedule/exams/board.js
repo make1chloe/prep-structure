@@ -3,11 +3,12 @@
  *  세는 것(N명 · N줄 · 영어일 없음 N)은 화면이 센다(원칙-5) — lib/exam-plan 한 벌 */
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
+import ScopeForm from "@/app/_shell/scopeform";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, unitsAct, changeSeenAct } from "./actions.js";
+import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, changeSeenAct } from "./actions.js";
 import { englishOnAct } from "../actions.js";
-import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, stopDone, releaseDone, unitsByChapter, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
+import { weeksFor, stopWindow, groupScopes, counts, examHead, examOn, mdDot, SOURCE_TEXT, stopText, stopDone, releaseDone, skipCandidates, LEVEL_NAME, LEVELS, WEEK_CHOICES, dateChanged, changeText } from "@/lib/exam-plan";
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -48,12 +49,9 @@ export default function Board({ d }) {
   </>;
 }
 function ExamCard({ e, b, today, pending, run, stName }) {
-  const [eng, setEng] = useState(""); const [open, setOpen] = useState(false); const [bookId, setBookId] = useState(""); const [units, setUnits] = useState([]); const [picked, setPicked] = useState({}); const [note, setNote] = useState(""); const [skipPick, setSkipPick] = useState("");
+  const [eng, setEng] = useState(""); const [open, setOpen] = useState(false); const [skipPick, setSkipPick] = useState("");
   const groups = groupScopes(e.scopes ?? [], today);
   const weeks = weeksFor(e.level, b.rules ?? {}), win = stopWindow(e, weeks), st = stopText(win, today);
-  const chapters = unitsByChapter(units);
-  const pickBook = (id) => { setBookId(id); setUnits([]); setPicked({}); if (id) run(async () => { const r = await unitsAct(id); if (r.ok) setUnits(r.units); return r; }); };
-  const chosen = chapters.filter((ch) => picked[ch.chapter]).flatMap((ch) => ch.units.map((u) => u.id));
   const takers = e.takers ?? [], skipped = new Set((e.skips ?? []).map((k) => k.student_id));
   const pickable = skipCandidates(b.students, takers, e.skips);   // 안 봄 후보 — 한 명씩 · 한 번에((가)-⑨) 같은 목록
   return <div className="exr" style={{ borderColor: e.english_on ? undefined : "var(--miss)" }} data-g="exam-card" data-exam={e.id}>
@@ -74,13 +72,7 @@ function ExamCard({ e, b, today, pending, run, stName }) {
     </div>
     <div className="lf"><span className="ln">+</span><div><b>범위 더하기</b></div>
       <button className="btn sm pri" type="button" data-act="scope-open" aria-pressed={open} onClick={() => setOpen(!open)}>+ 범위</button></div>
-    {open && <div className="card" style={{ marginTop: 8 }} data-g="scope-form">
-      <div className="wv"><select value={bookId} onChange={(x) => pickBook(x.target.value)} aria-label="교재" data-g="scope-book" style={{ width: "auto" }}><option value="">교재 고르기</option>{(b.books ?? []).map((bk) => <option key={bk.id} value={bk.id}>{bk.name}{bk.area ? ` · ${bk.area}` : ""}</option>)}</select>
-        <input value={note} onChange={(x) => setNote(x.target.value)} placeholder="글로 적는 범위 (예: 2409 학평 22-24)" aria-label="글로 적는 범위" style={{ flex: "1 1 200px" }} /></div>
-      {bookId && !units.length && <p className="note">단원을 읽는 중…</p>}
-      {chapters.length > 0 && <div className="left" style={{ marginTop: 8 }}>{chapters.map((ch) => <label key={ch.chapter} className="ckl" data-g="scope-chapter"><input type="checkbox" className="ck" checked={Boolean(picked[ch.chapter])} onChange={(x) => setPicked({ ...picked, [ch.chapter]: x.target.checked })} /> <b>{ch.chapter}</b> <small>소단원 {ch.units.length} · {ch.units.slice(0, 4).map((u) => u.short ?? u.sub).join(" · ")}{ch.units.length > 4 ? " …" : ""}</small></label>)}</div>}
-      <div className="wv" style={{ marginTop: 8 }}><button className="btn pri sm" type="button" disabled={pending || (!chosen.length && !note.trim())} data-act="scope-save" onClick={() => run(() => scopeAct(e.id, { unitIds: chosen, freeNote: note }), (r) => `범위를 더했습니다 — ${r.added}줄${r.already ? ` · 이미 있던 것 ${r.already}` : ""}`, () => { setOpen(false); setPicked({}); setNote(""); })}>더하기</button><button className="btn sm" type="button" onClick={() => setOpen(false)}>닫기</button></div>
-    </div>}
+    {open && <ScopeForm examId={e.id} books={b.books ?? []} pending={pending} run={run} onDone={() => setOpen(false)} />}
     <div className="lf" style={{ marginTop: 8 }} data-g="stop-line"><span className="ln">⏸</span>
       <div><b>교재 멈춤</b><small>{st ? `${st.text} · ${weeks}주 전부터(${LEVEL_NAME[e.level] ?? "학교급"} 기본값)` : e.english_on ? "규칙 줄이 없습니다 — prep.stop_weeks(0122)" : "영어 시험일이 있어야 섭니다"}</small></div>
       <span className="tag" data-g="stopped">멈춘 교재 {e.stopped ?? 0}</span>

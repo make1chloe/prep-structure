@@ -208,6 +208,9 @@ ok("아이 화면 속이 그대로 그려진다(카드가 있다) — 「없는 
 ok("보는 중에는 안의 단추·칸이 통째로 잠긴다(fieldset disabled) — 눌러도 저장되지 않는다", (await p.locator("fieldset[data-g=as-locked]").count()) === 1 && (await asMe.locator("button:enabled").count()) === 0, `살아 있는 단추 ${await asMe.locator("button:enabled").count()} (「[disabled] 속성」이 아니라 :enabled 로 본다 — fieldset 은 속성을 안 붙이고 상태로 잠근다)`);
 await p.goto(APP + `/parent?as=${KID}`);
 ok("원장님이 /parent?as= 로 그 집 화면을 연다 — 띠 「학부모님이 보는 화면」 · 통째 잠김", (await p.locator("[data-g=as-view]").textContent()).includes("학부모님") && (await p.locator("fieldset[data-g=as-locked]").count()) === 1, (await p.locator("[data-g=as-view]").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160));
+await p.goto(APP + `/parent/cal?as=${KID}`);
+ok("원장님이 /parent/cal?as= 로 그 집 달력을 연다 — 띠 · 달력이 그려진다((어21) check-undef 가 잡은 것: user 를 안 받아 ReferenceError 로 죽던 화면)", (await p.locator("[data-g=as-view]").textContent().catch(() => "")).includes("학부모님") && (await p.locator("main .calpage").count()) === 1, (await p.locator("main").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 120));
+await p.goto(APP + `/parent?as=${KID}`);
 for (const v of VIEWS) { await p.setViewportSize(v.viewport); await p.screenshot({ path: `.tmp/e2e-asview-parent-${v.viewport.width}.png`, fullPage: true }); }
 await p.setViewportSize(VIEWS[0].viewport);
 // ③ 들어오는 길 — 14 재원생에 👁 둘

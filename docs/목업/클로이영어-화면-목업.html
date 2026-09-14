@@ -548,6 +548,24 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
 @media(min-width:1100px){.split .row>.panel{grid-column:2;position:absolute;top:0;right:0;bottom:0;left:0;overflow:auto;border:1px solid var(--navy);border-radius:12px;box-shadow:0 0 0 2px var(--navy)}}
 @media(min-width:1100px){.split .rowtop{border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer}}
 @media(min-width:1100px){.split .row[data-open="1"] .rowtop{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy)}}
+/* (어21) 3단 — 학생 · 업무 · 내용(원장님 2026-09-14 「pc화면을 3단으로 — 학생목록 - 업무목록 - 구체적내용」 · 「불편한거보다 창이 이동해서 화면이 예측불가능해지는게 더 불편」). 판(오른쪽 열)을 다시 둘로: 업무 목록(250) · 그 업무 하나(나머지). 고르면 오른쪽 속만 바뀌고 아무것도 안 밀린다(오른쪽은 제 스크롤). 폰(<1100)은 세로 카드 그대로 — 업무 목록·「다음 →」은 안 보인다 */
+@media(min-width:1100px){.split .row>.panel{display:grid;grid-template-columns:250px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;column-gap:12px;row-gap:8px;align-content:start}}
+@media(min-width:1100px){.split .panel>.tasks{grid-column:1;grid-row:1;overflow:auto;display:flex;flex-direction:column;gap:6px;align-content:start;min-height:0}}
+@media(min-width:1100px){.split .panel>.tbodies{grid-column:2;grid-row:1;overflow:auto;min-width:0;min-height:0}}
+@media(min-width:1100px){.split .panel>.torder{grid-column:1;grid-row:2}}
+@media(min-width:1100px){.split .panel>.savebar{grid-column:1/-1;grid-row:3}}
+@media(min-width:1100px){.split .panel>.lf.warn,.split .panel>.card{grid-column:1/-1}}
+@media(min-width:1100px){.split .tbody:not([data-sel="1"]){display:none}}
+@media(min-width:1100px){.split .tnext{display:flex;margin-top:8px}}
+@media(min-width:1100px){.split .btn.pconly,.split .pconly{display:inline-flex}}
+.tasks{display:none}
+.tnext{display:none}
+.btn.pconly,.pconly{display:none}
+.tk{display:flex;gap:6px;align-items:center;flex-wrap:wrap;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);cursor:pointer;font:inherit}
+.tk[aria-pressed="true"]{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy);background:var(--sunk)}
+.tk .n{width:22px;height:22px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-size:var(--fs-1);font-weight:700;flex:0 0 auto}
+.tk b{font-size:var(--fs-4)}
+.tk .tb{font-size:var(--fs-2);color:var(--mid)}
 .part{margin-top:10px}.part+.part{padding-top:8px;border-top:1px dashed var(--hair)} /* (어12) 숙제 검사 카드 안의 갈래(🃏 · 📝 · 🔤) — 카드 하나 안에서 줄로 나눈다(첫 갈래 위는 검사 줄의 점선이 이미 가른다) · 🔤 는 무조건 맨 끝 */
 .srow>.ckl{margin-top:4px}
 .rt2{display:grid;grid-template-columns:1fr 1.15fr;gap:12px;align-items:start}

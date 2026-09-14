@@ -18,13 +18,14 @@ export default async function Cal({ searchParams }) {
   const q = await searchParams;
   const seeing = asView(me, q);   // 👁 (lib/asview)
   if (!seeing && me?.role !== ROLES.STUDENT) redirect("/");
-  let d;
+  let d, st;
   try {
-    const [tday, st] = await Promise.all([today(sb), screenStudent(sb, me, user, q)]);
+    let tday; [tday, st] = await Promise.all([today(sb), screenStudent(sb, me, user, q)]);
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(q?.d ?? "")) ? String(q.d) : tday;
     const ym = /^\d{4}-\d{2}$/.test(String(q?.m ?? "")) ? String(q.m) : ymOf(date);
     d = await calendar(sb, st, ym, date, tday, ROLES.STUDENT);
   } catch (e) { { console.error("[화면] 달력 못 엶:", e); return frame(<Oops what="달력" e={e} kind="task" />); } }
   if (decide(ROLES.STUDENT, d.access, ME.today) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div></div>);
-  return frame(<CalView d={d} base="/me/cal" backHref="/me" backLabel="나 ↗" />);
+  const cal = <CalView d={d} base="/me/cal" backHref="/me" backLabel="나 ↗" />;
+  return frame(seeing ? <><AsBand name={st.name} kind="me" />{cal}</> : cal);   // 👁 띠는 07 과 같은 부품(asband.js) — 달력도 「누구 화면인가」를 말한다
 }

@@ -1,12 +1,14 @@
 "use client";
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
-import { Fragment, useState, useRef, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask } from "@/lib/day-plan";
+import { prepOf, prepBadge } from "@/lib/todo-plan";
+import PrepCard from "./prep.js";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
 import { whoMeta, marks, roundPill, unseenPill, todayUnits, MEMO_AREAS, unitResult } from "@/lib/roster-plan";
 import { KIND as CKIND, CAPS, kindName, capName, capOf, pickKind, countChars, attached, preview, sameAsDraft } from "@/lib/comment-plan";
@@ -21,7 +23,6 @@ import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
 import { isUnchecked, CHECK } from "@/lib/status";
 import { STOP, MODE, stopOn, tuneUnits, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
-import { useEffect } from "react";
 const ATTEND = [["present", "왔음"], ["late", "지각"], ["absent", "결석"], ["early", "조퇴"], ["online", "온라인"]];
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
@@ -29,7 +30,7 @@ const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
 const plus = (min) => { const t = new Date(Date.now() + min * 60000 + 9 * 3600000); return t.toISOString().slice(11, 16); };
 const attendName = (v) => ATTEND.find(([k]) => k === v)?.[1] ?? v;
 
-export default function Row({ student, sheet, classId, classEnd = "", date, minutes, cfg, future = false, pref = null }) {
+export default function Row({ student, sheet, classId, classEnd = "", date, minutes, cfg, future = false, pref = null, prep = [] }) {
   const [open, setOpen] = useOpen(student.id);   // 한 번에 한 아이((어12) board.js) — PC 는 이름 열 · 판 열
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -42,17 +43,25 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr("");
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
-  const sh = shutCards(sheet, { stay: student.stay, closed });   // (어9) 지금 쓸 일이 없는 카드는 접어 둔다 — 설정이 아니라 상태로(원장님 2026-09-12 「더 편하고 간단하게 고도화」)
+  const sh = shutCards(sheet, { stay: student.stay, closed });
+  // (어21) 3단 — 가운데 업무 목록 · 오른쪽 그 업무 하나. 아이를 열면 흐름에서 처음 안 끝난 업무(firstTask)가 열리고, 그 뒤엔 누른 것만 바뀐다(예측 가능 — 원장님 9/14 「창이 이동해서 화면이 예측불가능해지는게 더 불편」)
+  const prepList = prepOf(prep, date, stopOn);
+  const [sel, setSel] = useState(null);
+  useEffect(() => { if (sheet && sel == null) setSel(firstTask(sheet)); }, [sheet?.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const cur = sel ?? (sheet ? firstTask(sheet) : null);   // (어9) 지금 쓸 일이 없는 카드는 접어 둔다 — 설정이 아니라 상태로(원장님 2026-09-12 「더 편하고 간단하게 고도화」)
   const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? (unseenPill(sheet.check, date) || `검사 ${nLeft}/${nCheck} 남음`) : null;
   // 카드 차례 — 기본은 생각의 흐름(① 검사 → ② 학습 · ③ 숙제 → 메모 → 늦귀가 → 글 · (어12)) · 바꾸면 그 사람 것((어15) screen_pref today · 확정-⑮ · 원장님 9/14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게」). 번호는 선 자리 순
   const cards = sheet ? orderCards([
-    { id: "check", name: "숙제 검사", steps: 1, node: (no) => <CheckCard no={no} sheet={sheet} student={student} date={date} passPct={cfg?.unitPass} closed={closed} fail={fail} start={start} /> },
-    { id: "work", name: "오늘 학습 · 숙제", steps: 2, node: (no) => <WorkCard no={no} heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} /> },
-    { id: "areamemo", name: "진도 · 영역별 메모", steps: 0, node: () => <AreaMemoCard sheet={sheet} books={student.books ?? []} shut={sh.areamemo} closed={closed} fail={fail} start={start} /> },
-    { id: "late", name: "늦귀가", steps: 0, node: () => <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} shut={sh.late} closed={closed} fail={fail} start={start} /> },
-    { id: "comment", name: "부모님께 나갈 글", steps: 0, node: () => <CommentCard sheet={sheet} student={student} shut={sh.comment} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} /> },
-  ], pref) : [];
-  const nodes = []; for (let no = 1, i = 0; i < cards.length; i++) { nodes.push(<Fragment key={cards[i].id}>{cards[i].node(no)}</Fragment>); no += cards[i].steps; }
+    { id: "check", name: "숙제 검사", steps: 1, badge: [checkText(sheet), ...checkIcons(student)].join(" · "), node: (no) => <CheckCard no={no} sheet={sheet} student={student} date={date} passPct={cfg?.unitPass} closed={closed} fail={fail} start={start} /> },
+    { id: "work", name: "오늘 학습 · 숙제", steps: 2, badge: workText(sheet, student.books ?? [], date), node: (no) => <WorkCard no={no} heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} onPrep={() => setSel("prep")} /> },
+    { id: "prep", name: "내신 자료", emo: "📄", steps: 0, badge: prepBadge(prepList), node: () => <PrepCard student={student} prep={prep} date={date} closed={closed} /> },   // (어21) 교재가 멈춘 아이만 — 아래 filter
+    { id: "areamemo", name: "진도 · 영역별 메모", emo: "🗺", steps: 0, badge: sh.areamemo?.text ?? "", node: () => <AreaMemoCard sheet={sheet} books={student.books ?? []} shut={sh.areamemo} closed={closed} fail={fail} start={start} /> },
+    { id: "late", name: "늦귀가", emo: "🌙", steps: 0, badge: sheet.late?.until_at ? `예상 귀가 ${String(sheet.late.until_at).slice(0, 5)}` : (sh.late?.text ?? ""), node: () => <LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} shut={sh.late} closed={closed} fail={fail} start={start} /> },
+    { id: "comment", name: "부모님께 나갈 글", emo: "✉️", steps: 0, badge: closed ? "마감됨" : (sh.comment?.text ?? ""), node: () => <CommentCard sheet={sheet} student={student} shut={sh.comment} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} /> },
+  ].filter((c) => c.id !== "prep" || prepList.length > 0), pref) : [];
+  const heads = [], bodies = [];
+  for (let no = 1, i = 0; i < cards.length; i++) { const c = cards[i], next = cards[i + 1]; heads.push({ id: c.id, name: c.name, no: c.steps ? no : null, emo: c.emo, badge: c.badge });
+    bodies.push(<div key={c.id} className="tbody" data-task={c.id} data-sel={cur === c.id ? "1" : "0"}>{c.node(no)}{next && <div className="tnext"><span className="spacer" /><button type="button" className="btn sm" data-act="task-next" onClick={() => setSel(next.id)}>다음 → {next.name}</button></div>}</div>); no += c.steps; }
   return (
     <div className={"row" + (closed ? " closed" : "")} data-open={open ? "1" : "0"} data-student={student.id}>
       <div className="rowtop" onClick={(e) => { if (open || e.target.closest("button,a,input,select,textarea,label")) return; setOpen(true); }}>
@@ -74,7 +83,9 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
         <div className="panel">
           {err && <div className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
           {!sheet && <div className="card"><p className="note">판 없음 — 출결을 누르면 섭니다</p></div>}
-          {sheet && <>{nodes}<CardOrder screen="today" cards={cards.map((c) => ({ id: c.id, name: c.name }))} /></>}
+          {sheet && <nav className="tasks" data-g="tasks" aria-label="업무">{heads.map((h) => <button key={h.id} type="button" className="tk" data-g="task" data-task={h.id} aria-pressed={cur === h.id} onClick={() => setSel(h.id)}><span className="n">{h.no ?? h.emo}</span><b>{h.name}</b><span className="spacer" /><span className="tb" data-g="task-badge">{h.badge}</span></button>)}</nav>}
+          {sheet && <div className="tbodies">{bodies}</div>}
+          {sheet && <div className="torder"><CardOrder screen="today" cards={cards.map((c) => ({ id: c.id, name: c.name }))} /></div>}
           {sheet && !closed && <div className="savebar rowbar" ref={setBarHost} />}
         </div>
       )}
@@ -87,10 +98,10 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
 function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 }) {
   const left = sheet.check.filter(isUnchecked).length;
   const cc = student.cc ?? [], units = student.unitTests ?? [], quizzes = student.quizzes?.today ?? [];
-  const has = [cc.length ? "🃏" : null, units.length ? "📝" : null, quizzes.length ? "🔤" : null].filter(Boolean);
+  const has = checkIcons(student);   // 제목 줄이 오늘 볼 것을 말한다 — 업무 목록 꼬리표와 같은 글(day-plan · 원칙-1)
   return (
     <div className="card" data-card="check">
-      <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{sheet.check.length ? (left ? `${left}/${sheet.check.length} 남음` : "다 봤습니다") : "지난 숙제 없음"}{has.length ? ` · ${has.join(" · ")}` : ""}</span></div>
+      <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span></div>
       {sheet.check.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} />)}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
       {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
@@ -131,7 +142,7 @@ export function laidText(sheet, laid) {
   return 까닭.length ? `오늘은 0개 — ${까닭.join(" · ")}` : "오늘은 0개";
 }
 /** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
-function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [], no = 2 }) {
+function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [], no = 2, onPrep }) {
   const counts = trimCounts(sheet), heavy = heavyBand(sheet, heavyPages, books);   // 줄이기 숫자 · 📣 많습니다(목업 01)
   const [tuneBook, setTuneBook] = useState(null);   // 📣 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
   const [giveSlot, setGiveSlot] = useState(null);   // (어13) 숙제 0 이면 「+ 숙제 주기」 → 모달(페이지는 안 늘어난다)
@@ -157,7 +168,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
         {heavy.top && <button type="button" className="btn sm" data-act="heavy-tune" disabled={closed} onClick={() => setTuneBook(books.find((b) => b.book_id === heavy.top.book_id) ?? null)}>조절 ↗</button>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {giveSlot && <GiveModal sheet={sheet} slot={giveSlot} fail={fail} start={start} onClose={() => setGiveSlot(null)} />}
-      {books.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} extra={i === 0 ? nextQuiz : null} />)}
+      {books.map((b, i) => <BookBlock key={b.id} b={b} sheet={sheet} date={date} closed={closed} fail={fail} start={start} extra={i === 0 ? nextQuiz : null} onPrep={onPrep} />)}
       <div className="two">
         {[["class", "그 밖에 · 학원", "home", "⏭ 숙제로 미루기"], ["home", "그 밖에 · 집", "class", "↩ 학원에서"]].map(([slot, title, other, moveLabel]) => (
           <div className="half" key={slot}>
@@ -173,7 +184,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
 }
 const pages = (u) => u?.page_start ? `p.${u.page_start}${u.page_end && u.page_end !== u.page_start ? `-${u.page_end}` : ""}` : null;
 /** 교재 하나 — 머리(이름 · N회독 · 대단원 · 진행중/숙제멈춤/교재멈춤) + 학습·숙제 좌우. 줄은 루틴 항목마다 하나, 소단원이 둘이면 이름을 잇는다 */
-function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
+function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }) {
   const stop = stopOn(b, date);
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
   const [tune, setTune] = useState(false);
@@ -194,7 +205,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null }) {
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
-      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b>{b.stop_until ? ` — ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<Link prefetch={false} className="btn sm" href="/schedule/exams/prep" data-g="to-prep">📄 내신 자료 ↗</Link></div>
+      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b>{b.stop_until ? ` — ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep?.()}>📄 내신 자료</button></div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
       : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b></div>
       : <div className="two">
