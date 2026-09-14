@@ -25,7 +25,7 @@ export default async function Access() {
                 {KEYS.filter((k) => k.group === g).map((k) => (
                   <tr key={k.key} data-key={k.key} data-unused={k.unused ? "1" : "0"}><td><b>{k.name}</b> <small className="note" style={{ display: "inline" }}>{k.key}</small>{k.unused && <small className="note" data-g="unused" style={{ color: "var(--miss)" }}>⚠️ {k.unused}</small>}</td>
                     {ROLE_ORDER.filter((r) => KEYS.some((x) => x.group === g && x.roles.includes(r))).map((r) => {
-                      if (!k.roles.includes(r)) return <td key={r}>—</td>;
+                      if (!k.roles.includes(r)) return <td key={r} />;
                       const v = decide(r, rows, k.key);
                       return <td key={r}><form className="seg sm" action={setAccess} aria-label={`${ROLE_NAME[r]} ${k.name}`} style={{ display: "inline-flex" }}>
                         <input type="hidden" name="role" value={r} /><input type="hidden" name="key" value={k.key} />

@@ -17,9 +17,9 @@ await c.query("begin"); await c.query("set local statement_timeout = '10s'");
 for (const f of fns) {
   const call = `select * from v2.${JSON.stringify(f.name)}(${f.types.map((t) => `null::${t}`).join(", ")})`;
   await c.query("savepoint f");
-  try { await c.query(call); } catch (e) { bad.push(`${f.name}(${f.args}) — ${String(e.message).split("\n")[0]}`); await c.query("rollback to savepoint f"); }
+  try { await c.query(call); } catch (e) { bad.push(`${f.name}(${f.args}) · ${String(e.message).split("\n")[0]}`); await c.query("rollback to savepoint f"); }
 }
 await c.query("rollback"); await c.end();
-console.log(`■ v2 의 읽기만 하는 SQL 함수 ${fns.length}개 — null 인자로 불러 본다`);
-if (bad.length) { console.log(`check-sql-funcs ✗ 부르면 죽는 함수 ${bad.length}개 — 없어진 칸·표를 읽고 있다\n  ` + bad.join("\n  ")); process.exit(1); }
-console.log(`check-sql-funcs ✓ ${fns.length}개 전부 불린다 — 없어진 칸을 읽는 함수 없음`);
+console.log(`■ v2 의 읽기만 하는 SQL 함수 ${fns.length}개 · null 인자로 불러 본다`);
+if (bad.length) { console.log(`check-sql-funcs ✗ 부르면 죽는 함수 ${bad.length}개 · 없어진 칸·표를 읽고 있다\n  ` + bad.join("\n  ")); process.exit(1); }
+console.log(`check-sql-funcs ✓ ${fns.length}개 전부 불린다. 없어진 칸을 읽는 함수 없음`);

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame cols" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Videos() {
   const { sb, me } = await guard();
-  if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🎬</span>영상 배정은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다 — 내 영상은 「나」 화면에서 봅니다.` : "로그인이 필요합니다."}</p></div>);
+  if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🎬</span>영상 배정은 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다. 내 영상은 「나」 화면에서 봅니다.` : "로그인이 필요합니다."}</p></div>);
   let d;
   try { const date = await today(sb); const board = await videoBoard(sb, date); d = { date, board }; }
   catch (e) { { console.error("[화면] 영상 못 엶:", e); return frame(<Oops what="영상" e={e} />); } }

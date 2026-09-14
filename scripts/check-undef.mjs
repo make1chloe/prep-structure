@@ -3,7 +3,7 @@
 import { ESLint } from "eslint";
 import { readFileSync } from "node:fs";
 let n = 0, bad = 0;
-const ok = (name, cond, extra = "") => { n++; if (cond) console.log(`   ✅ ${name}`); else { bad++; console.log(`   ❌ ${name}${extra ? ` — ${extra}` : ""}`); } };
+const ok = (name, cond, extra = "") => { n++; if (cond) console.log(`   ✅ ${name}`); else { bad++; console.log(`   ❌ ${name}${extra ? ` · ${extra}` : ""}`); } };
 const eslint = new ESLint({ useEslintrc: false, overrideConfig: {
   parserOptions: { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true } },
   env: { browser: true, node: true, es2022: true },
@@ -13,6 +13,6 @@ const eslint = new ESLint({ useEslintrc: false, overrideConfig: {
 const results = await eslint.lintFiles(["app/**/*.js", "lib/**/*.js", "scripts/e2e/*.mjs"]);
 const hits = results.flatMap((r) => r.messages.filter((m) => m.ruleId === "no-undef" || m.fatal).map((m) => `${r.filePath.replace(process.cwd() + "/", "")}:${m.line} ${m.message}`));
 const files = results.length;
-ok(`app/ · lib/ · e2e 걷기 ${files}개 파일 — 선언 안 한 이름 0(no-undef · 파싱 실패 0)`, hits.length === 0, hits.slice(0, 8).join(" | "));
+ok(`app/ · lib/ · e2e 걷기 ${files}개 파일 · 선언 안 한 이름 0(no-undef · 파싱 실패 0)`, hits.length === 0, hits.slice(0, 8).join(" | "));
 console.log(`\n■ 선언 안 한 이름 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from "node:fs";
 
 let fail = 0, n = 0;
 const ok = (t, bad, why = "") => { n++;
-  if (bad.length) { fail++; console.log(`   ❌ ${t} — ${bad.length}개`);
+  if (bad.length) { fail++; console.log(`   ❌ ${t} · ${bad.length}개`);
     bad.slice(0, 8).forEach(x => console.log(`        ${x}`));
     if (why) console.log(`        → ${why}`); }
   else console.log(`   ✅ ${t}`); };
@@ -29,8 +29,8 @@ const future = (await c.query(`
     from v2.day_item i join v2.day_sheet d on d.id = i.sheet_id
     join v2.students s on s.id = d.student_id
    where d.date > v2.today() group by 1, 2 order by 2`)).rows;
-ok("앞날 판에 숙제 줄이 없다", future.map(x => `${x.name} ${x.date} — ${x.n}줄`),
-   "앞날 숙제는 안 굳힌다 — 검사가 남긴 것이다");
+ok("앞날 판에 숙제 줄이 없다", future.map(x => `${x.name} ${x.date} · ${x.n}줄`),
+   "앞날 숙제는 안 굳힌다. 검사가 남긴 것이다");
 
 // ② 앞날 날짜로 찍힌 진도
 const fp = (await c.query(`
@@ -55,7 +55,7 @@ const fresh = (await c.query(`
     join v2.students s on s.id = d.student_id
    where i.created_at > now() - interval '30 minutes' and s.import_batch <> 'fixture'
    group by 1`)).rows;
-ok("30분 안에 진짜 학생 판에 새로 선 줄이 없다", fresh.map(x => `${x.name} — ${x.n}줄`),
+ok("30분 안에 진짜 학생 판에 새로 선 줄이 없다", fresh.map(x => `${x.name} · ${x.n}줄`),
    "검사가 도는 중이면 잠깐 뜬다. 검사가 끝났는데도 남아 있으면 **되돌리기가 실패한 것**이다");
 
 // ⑤ ⚠️ **이관 뒤에 생긴 줄** — 판·진도·조각을 다 본다.
@@ -66,7 +66,7 @@ for (const [name, tbl] of [["진도", "progress"], ["조각", "progress_part"],
   const r = (await c.query(`
     select count(*)::int n from v2.${tbl}
      where created_at > (select min(created_at) from v2.${tbl}) + interval '1 hour'`)).rows[0].n;
-  ok(`${name} — 이관 뒤에 생긴 줄이 없다`, r ? [`${r}줄`] : [],
+  ok(`${name} · 이관 뒤에 생긴 줄이 없다`, r ? [`${r}줄`] : [],
      "검사가 되돌리기에 실패하면 여기 남는다. 리허설이 아닌 진짜 자료 옆에 굳는다");
 }
 

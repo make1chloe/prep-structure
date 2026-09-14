@@ -48,10 +48,10 @@ for (const url of urls) for (const v of VIEWS) {
   }, GROUPS);
   const fails = [];
   for (const g of ONE) if ((r.out[g] || []).length > 1) fails.push(`${g} 높이가 둘 이상: ${r.out[g].join(" ")}`);
-  if (r.narrow.length) fails.push("눌린 입력칸(60px 미만 · 점수칸 44px 미만 — 값이 안 보인다): " + r.narrow.join(" | "));
+  if (r.narrow.length) fails.push("눌린 입력칸(60px 미만 · 점수칸 44px 미만 · 값이 안 보인다): " + r.narrow.join(" | "));
   if (r.over.length) fails.push("넘침: " + r.over.join(" | ")); if (r.tall.length) fails.push("글씨>상자: " + r.tall.join(" | ")); if (r.lap.length) fails.push("형제 겹침: " + r.lap.join(" | ")); if (r.clip.length) fails.push("잘림(세그먼트가 칸보다 넓다 · 단추 글씨가 단추보다 크다): " + r.clip.join(" | ")); if (r.vert.length) fails.push("세로 글자: " + r.vert.join(" | "));
   const tag = `${v.name}${urls.length > 1 ? " " + url : ""}`;
-  if (fails.length) { bad++; console.log(`✗ ${tag}\n    ${fails.join("\n    ")}`); } else console.log(`✓ ${tag} — ${ONE.map(g => `${g} ${r.out[g]?.[0] ?? "없음"}`).join(" · ")} · 넘침 0 · 겹침 0`);
+  if (fails.length) { bad++; console.log(`✗ ${tag}\n    ${fails.join("\n    ")}`); } else console.log(`✓ ${tag} · ${ONE.map(g => `${g} ${r.out[g]?.[0] ?? "없음"}`).join(" · ")} · 넘침 0 · 겹침 0`);
   await ctx.close();
 }
 await b.close();

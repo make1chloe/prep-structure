@@ -29,7 +29,7 @@ async function asUser(profileId, sql, params=[]) {
 
 function judge(name, n, want=0, why="") {
   const pass = n === want;
-  (pass ? ok : bad).push(`${pass?"✅":"❌"} ${name} — ${n}줄 (바라는 값 ${want})${why?" · "+why:""}`);
+  (pass ? ok : bad).push(`${pass?"✅":"❌"} ${name} · ${n}줄 (바라는 값 ${want})${why?" · "+why:""}`);
 }
 
 await c.connect();
@@ -100,10 +100,10 @@ async function tryWrite(profileId, sql, params=[]) {
 }
 function judgeWrite(name, r, why="") {
   const blocked = r.err !== null || r.n === 0;
-  (blocked ? ok : bad).push(`${blocked?"✅":"❌"} ${name} — ${r.err ? "막힘(오류)" : r.n+"줄 고쳐짐"}${why?" · "+why:""}`);
+  (blocked ? ok : bad).push(`${blocked?"✅":"❌"} ${name} · ${r.err ? "막힘(오류)" : r.n+"줄 고쳐짐"}${why?" · "+why:""}`);
 }
 
-console.log("■ 쓰기 — 해 보고 되돌립니다 (아무것도 안 남습니다)");
+console.log("■ 쓰기 · 해 보고 되돌립니다 (아무것도 안 남습니다)");
 if (stu) {
   judgeWrite("학생이 자기 검사 결과를 고치는가",
     await tryWrite(stu.pid,
@@ -143,6 +143,6 @@ if (par) {
 
 console.log("■ 통과");  ok.forEach(x=>console.log("  ",x));
 console.log("\n■ 새는 자리"); bad.length ? bad.forEach(x=>console.log("  ",x)) : console.log("   없음");
-console.log(`\n합계 — 통과 ${ok.length} · 샘 ${bad.length}`);
+console.log(`\n합계 · 통과 ${ok.length} · 샘 ${bad.length}`);
 await c.end();
 process.exit(bad.length ? 1 : 0);

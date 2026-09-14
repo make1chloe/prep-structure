@@ -10,7 +10,7 @@ const MAX_BYTES = 1_000_000;   // 1MB — 학사일정 한 해치면 넉넉하�
 export async function POST(req) {
   const svc = serviceClient();
   let want; try { want = await ccToken(svc); } catch (e) { return Response.json({ error: String(e?.message ?? e) }, { status: 500 }); }
-  if (!want) return Response.json({ error: "확장 열쇠가 아직 없습니다 — 설정 🔌 연동 열쇠에서 넣어 주세요" }, { status: 401 });
+  if (!want) return Response.json({ error: "확장 열쇠가 아직 없습니다. 설정 🔌 연동 열쇠에서 넣어 주세요" }, { status: 401 });
   const auth = req.headers.get("authorization") ?? "";
   if (!sameToken(auth.replace(/^Bearer\s+/i, "").trim(), want)) return Response.json({ error: "열쇠가 다릅니다" }, { status: 401 });
   const text = await req.text();

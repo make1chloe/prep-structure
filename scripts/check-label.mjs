@@ -6,7 +6,7 @@ const url = (process.env.DATABASE_URL ?? readFileSync(".env.local", "utf8").matc
 const c = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 15000 });
 for (let i = 1; ; i++) { try { await c.connect(); break; } catch (e) { if (i >= 4) throw e; await new Promise((r) => setTimeout(r, 3000)); } }
 let n = 0, bad = 0;
-const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const q = async (sql, args = []) => (await c.query(sql, args)).rows;
 const label = async (unit, full = false) => (await q(`select v2.unit_label($1, $2) as l`, [unit, full]))[0].l;
 await c.query("begin");
@@ -18,17 +18,17 @@ try {
        ($1, 'U2', '', '본책', false, 2, 'fixture'),
        ($1, 'U3', '특별 지문', '본책', false, 3, 'fixture'),
        ($1, 'U4', '', '워크북', true, 4, 'fixture') returning id`, [bk])).map((r) => r.id);
-  console.log("■ 지문·세트·단어 — 소단원이 비면 방식대로");
-  ok("지문 교재 · 소단원 없는 줄 — 짧은 이름 「지문 1」·「지문 2」(교재 안 차례 sort) · 워크북은 「지문 4 · 워크북」", (await label(p1)) === "지문 1" && (await label(p2)) === "지문 2" && (await label(pw)) === "지문 4 · 워크북", `${await label(p1)} / ${await label(p2)} / ${await label(pw)}`);
-  ok("소단원 이름이 있으면 그대로(덮지 않는다) — 「특별 지문」", (await label(ps)) === "특별 지문", await label(ps));
-  ok("전체 이름은 대단원을 앞에 — 「U1 · 지문 1」", (await label(p1, true)) === "U1 · 지문 1", await label(p1, true));
+  console.log("■ 지문·세트·단어 · 소단원이 비면 방식대로");
+  ok("지문 교재 · 소단원 없는 줄 · 짧은 이름 「지문 1」·「지문 2」(교재 안 차례 sort) · 워크북은 「지문 4 · 워크북」", (await label(p1)) === "지문 1" && (await label(p2)) === "지문 2" && (await label(pw)) === "지문 4 · 워크북", `${await label(p1)} / ${await label(p2)} / ${await label(pw)}`);
+  ok("소단원 이름이 있으면 그대로(덮지 않는다) · 「특별 지문」", (await label(ps)) === "특별 지문", await label(ps));
+  ok("전체 이름은 대단원을 앞에 · 「U1 · 지문 1」", (await label(p1, true)) === "U1 · 지문 1", await label(p1, true));
   await q(`update v2.books set mode = 'set' where id = $1`, [bk]);
-  ok("세트로 바꾸면 말만 바뀐다 — 「세트 1」", (await label(p1)) === "세트 1", await label(p1));
+  ok("세트로 바꾸면 말만 바뀐다. 「세트 1」", (await label(p1)) === "세트 1", await label(p1));
   await q(`update v2.books set mode = 'word' where id = $1`, [bk]);
-  ok("단어로 바꾸면 — 「단어 1」", (await label(p1)) === "단어 1", await label(p1));
-  console.log("■ 단원(기본) — 옛 이름 그대로(방식 이름 안 붙는다)");
+  ok("단어로 바꾸면 · 「단어 1」", (await label(p1)) === "단어 1", await label(p1));
+  console.log("■ 단원(기본) · 옛 이름 그대로(방식 이름 안 붙는다)");
   await q(`update v2.books set mode = 'unit' where id = $1`, [bk]);
-  ok("단원 교재 — 소단원 없으면 옛 이름 「U1 · 본책」 · 소단원 있으면 그대로 「특별 지문」(옛 교재는 하나도 안 바뀐다)", (await label(p1)) === "U1 · 본책" && (await label(ps)) === "특별 지문", `${await label(p1)} / ${await label(ps)}`);
+  ok("단원 교재 · 소단원 없으면 옛 이름 「U1 · 본책」 · 소단원 있으면 그대로 「특별 지문」(옛 교재는 하나도 안 바뀐다)", (await label(p1)) === "U1 · 본책" && (await label(ps)) === "특별 지문", `${await label(p1)} / ${await label(ps)}`);
 } finally { await c.query("rollback"); await c.end(); }
 console.log(`\n■ 소단원 이름 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -19,7 +19,7 @@ export default async function Settings() {
     {cfg && <div className="card" data-card="arrival-ip"><div className="ctitle"><span className="cemo">🏫</span>학원 회선</div>
       {cfg.error ? <p className="note">{cfg.error}</p> : <>
         <p className="note">유예 {cfg.graceMin}분</p>
-        <div className="tags" data-g="ips">{cfg.ips.length ? cfg.ips.map((ip) => <span key={ip} className="tag on">{ip}</span>) : <span className="tag">주소 없음 — 아무도 못 찍음</span>}</div>
+        <div className="tags" data-g="ips">{cfg.ips.length ? cfg.ips.map((ip) => <span key={ip} className="tag on">{ip}</span>) : <span className="tag">주소 없음 · 아무도 못 찍음</span>}</div>
         <IpCard /></>}
     </div>}
     {keys?.error ? <div className="card warn"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠를 못 읽었습니다</div><p className="note">{keys.error}</p></div> : keys ? <Keys rows={keys} /> : null}

@@ -82,7 +82,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
       {open && (
         <div className="panel">
           {err && <div className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
-          {!sheet && <div className="card"><p className="note">판 없음 — 출결을 누르면 섭니다</p></div>}
+          {!sheet && <div className="card"><p className="note">판 없음 · 출결을 누르면 섭니다</p></div>}
           {sheet && <nav className="tasks" data-g="tasks" aria-label="업무">{heads.map((h) => <button key={h.id} type="button" className="tk" data-g="task" data-task={h.id} aria-pressed={cur === h.id} onClick={() => setSel(h.id)}><span className="n">{h.no ?? h.emo}</span><b>{h.name}</b><span className="spacer" /><span className="tb" data-g="task-badge">{h.badge}</span></button>)}</nav>}
           {sheet && <div className="tbodies">{bodies}</div>}
           {sheet && <div className="torder"><CardOrder screen="today" cards={cards.map((c) => ({ id: c.id, name: c.name }))} /></div>}
@@ -139,7 +139,7 @@ export function laidText(sheet, laid) {
   if (!laid) return sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다";
   if (sheet.class.length + sheet.home.length) return "검사에서 저절로 깔림";
   const 까닭 = [...new Set((sheet.books ?? []).map((x) => x.waves?.why).filter(Boolean))];
-  return 까닭.length ? `오늘은 0개 — ${까닭.join(" · ")}` : "오늘은 0개";
+  return 까닭.length ? `오늘은 0개 · ${까닭.join(" · ")}` : "오늘은 0개";
 }
 /** 2 오늘 학습 + 3 오늘 숙제 — 목업 01 의 카드 그대로: 분량 띠(학원·숙제·줄이기) → 교재마다 머리(회독·대단원·상태 세그먼트) + 좌우(폰은 위아래) 학습·숙제(회차·줄·메모) → 교재 없는 줄(손으로 더한 것·나머지) */
 function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heavyPages = 0, scopes = [], no = 2, onPrep }) {
@@ -205,12 +205,12 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
-      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b>{b.stop_until ? ` — ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep?.()}>📄 내신 자료</button></div>
+      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b>{b.stop_until ? ` · ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep?.()}>📄 내신 자료</button></div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
       : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b></div>
       : <div className="two">
           <Half slot="class" title="오늘 학습 · 학원" b={b} sheet={sheet} mark={mark} rows={rows("class")} closed={closed} fail={fail} start={start} />
-          {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제멈춤</span></div><div className="stopnote"><b>숙제 없음</b> — 수업에서만 씁니다</div></div>
+          {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제멈춤</span></div><div className="stopnote"><b>숙제 없음</b> · 수업에서만 씁니다</div></div>
           : <Half slot="home" title="오늘 숙제 · 집" b={b} sheet={sheet} mark={mark} rows={rows("home")} closed={closed} fail={fail} start={start} />}
         </div>}
       {extra}{/* 📝 다음 시간 시험 — **어느 갈래에서도 보인다 · 한 번만**((어12) 2026-09-14 캡처에서 교재멈춤이면 둘이 서던 것을 잡음 — 아래 「stop !== running && extra」 가 한 번 더 그리고 있었다). 2026-09-11 첫 주 돌려보기에서 잡힘: 교재가 멈추거나
@@ -253,10 +253,10 @@ function QuizPart({ sheet, quizzes, closed, fail, start }) {
       {quizzes.map((q) => { const [, kname, icon] = kindOf(q.kind); const res = q.passed === true ? "ok" : q.passed === false ? "warn" : ""; return (
         <form key={q.id} className={"lf" + (res ? " " + res : "")} style={{ marginBottom: 8 }} onSubmit={(e) => { e.preventDefault(); save(q, e.currentTarget); }}>
           <span className="ln">{icon}</span>
-          <div><b>{q.retry_of ? "재시험 · " : ""}{kname} — {scopeText(q)}</b>
+          <div><b>{q.retry_of ? "재시험 · " : ""}{kname} · {scopeText(q)}</b>
             <small>{q.quiz_style?.round && <span className="tag type">{q.quiz_style.round}회독</span>} {q.quiz_style?.text ?? ""}{q.harder ? " · 더 어렵게" : ""} · 통과 {q.cut_pct}%{q.state === "skipped" ? " · 오늘 건너뜀" : ""}</small></div>
-          <span className="qlab">틀린 개수</span><input className="scr" name="wrong" type="text" inputMode="numeric" defaultValue={numOr(q.wrong)} placeholder="—" disabled={closed || q.state === "skipped"} onBlur={(e) => { if (e.target.value !== numOr(q.wrong)) e.target.form.requestSubmit(); }} />
-          <span className="qlab">전체</span><input className="scr" name="total" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="—" disabled={closed || q.state === "skipped"} onBlur={(e) => { if (e.target.value !== numOr(q.total)) e.target.form.requestSubmit(); }} />
+          <span className="qlab">틀린 개수</span><input className="scr" name="wrong" type="text" inputMode="numeric" defaultValue={numOr(q.wrong)} placeholder="" disabled={closed || q.state === "skipped"} onBlur={(e) => { if (e.target.value !== numOr(q.wrong)) e.target.form.requestSubmit(); }} />
+          <span className="qlab">전체</span><input className="scr" name="total" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="" disabled={closed || q.state === "skipped"} onBlur={(e) => { if (e.target.value !== numOr(q.total)) e.target.form.requestSubmit(); }} />
           <span className="lm" style={q.passed === true ? { color: "var(--ok)" } : q.passed === false ? { color: "var(--miss)" } : undefined}>{q.passed === null || q.passed === undefined ? "아직 안 적음" : `${q.total - q.wrong}/${q.total} · ${q.pct}% · ${q.passed ? "통과" : "못 넘음"}`}</span>
         </form>); })}
       <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}>
@@ -296,7 +296,7 @@ function CcPart({ rows = [], closed, fail, start }) {   // 확장이 아직 안 
           <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }}>
             {p.short.length > 0 && <button type="button" className="btn sm" data-act="cc-skip" aria-pressed={skipped} disabled={closed}
               onClick={() => start(async () => { fail(await ccSkipAct(r.id, !skipped)); })}>{skipped ? "⏭ 넘긴 것 되돌리기" : "⏭ 목표 미달 넘기기"}</button>}
-            {out && <span className={"pill" + (skipped ? "" : p.short.length ? " warn" : " ok")} data-g="cc-out">{skipped ? "넘겼습니다 — 오늘은 안 셉니다" : out}</span>}
+            {out && <span className={"pill" + (skipped ? "" : p.short.length ? " warn" : " ok")} data-g="cc-out">{skipped ? "넘겼습니다. 오늘은 안 셉니다" : out}</span>}
           </div>
         </div>); })}
     </div>
@@ -316,7 +316,7 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
             <div><b>{kname}</b><small>{scopeText(q)}</small></div>
             <div className="seg sm" data-g="source">{SOURCE.map(([k, name]) => <button key={k} type="button" aria-pressed={q.source === k} disabled={closed || (k === "prep" && !scopes.length) || (k === "book" && !q.book_id)} onClick={() => k !== q.source && (k === "prep" ? patch(q, { scopeId: scopes[0].id }) : patch(q, { source: k, freeNote: q.free_note ?? "" }))}>{name}</button>)}</div>
             {q.source === "prep" && scopes.length > 0 && <select data-g="scope" value={q.scope_id ?? ""} aria-label="내신 범위" style={{ width: "auto", maxWidth: 260 }} disabled={closed} onChange={(e) => patch(q, { scopeId: e.target.value })}>{scopes.map((sc) => <option key={sc.id} value={sc.id}>{sc.text}</option>)}</select>}
-            <span className="qlab">전체 개수</span><input className="scr" name="total" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="—" disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.total)) patch(q, { total: e.target.value }); }} />
+            <span className="qlab">전체 개수</span><input className="scr" name="total" type="text" inputMode="numeric" defaultValue={numOr(q.total)} placeholder="" disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.total)) patch(q, { total: e.target.value }); }} />
             <span className="qlab">통과선</span><input className="scr" name="cut_pct" type="text" inputMode="numeric" defaultValue={numOr(q.cut_pct)} style={{ maxWidth: 52 }} disabled={closed} onBlur={(e) => { if (e.target.value !== numOr(q.cut_pct)) patch(q, { cutPct: e.target.value }); }} /><b className="qof">%</b></div>
           {q.source === "manual" && <div className="lf" style={{ marginTop: 4 }}><span className="ln">✎</span><input type="text" defaultValue={q.free_note ?? ""} placeholder="예: 2409 학평 22-24번" disabled={closed} style={{ flex: 1, minWidth: 0 }} onBlur={(e) => { if (e.target.value !== (q.free_note ?? "")) patch(q, { freeNote: e.target.value }); }} /></div>}
           {q.total == null && <div className="lf warn" style={{ marginTop: 4 }}><span className="ln">!</span><div><b>전체 개수가 없어 리포트에 안 나갑니다</b></div></div>}
@@ -342,7 +342,7 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
   const sum = Number(f.mc_meaning || 0) + Number(f.sa_meaning || 0) + Number(f.mc_word || 0) + Number(f.sa_word || 0);
   const N = ({ k, label }) => <label className="wv" style={{ gap: 4, margin: 0 }}><span className="fl" style={{ margin: 0, width: "auto" }}>{label}</span><input className="scr" name={k} type="text" inputMode="numeric" value={f[k]} onChange={(e) => set(k, e.target.value)} style={{ maxWidth: 56 }} /></label>;
   return <div className="mdlov" role="dialog" aria-modal="true" aria-label="방식 고치기" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}><div className="mdl" style={{ width: "min(520px,100%)" }} data-g="style-modal">
-    <div className="mdlh"><b>방식 고치기 — 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
+    <div className="mdlh"><b>방식 고치기 · 이 아이만</b><span className="pill">{q.books?.name ?? "교재 없음"} · {st.round ?? 1}회독 · {KIND.find(([k]) => k === q.kind)?.[1] ?? q.kind}</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
     <div className="mdlb">
       {q.kind === "word" ? <>
         <div className="wv" style={{ gap: 10 }}><N k="mc_meaning" label="객관식 뜻 %" /><N k="sa_meaning" label="주관식 뜻 %" /><N k="mc_word" label="객관식 영어 %" /><N k="sa_word" label="주관식 영어 %" /><span className={"pill" + (sum === 100 ? " ok" : " warn")} data-g="style-sum">합 {sum}</span></div>
@@ -388,7 +388,7 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
         {!books.some(laid) && <span className="lm">검사 끝나면 조절할 수 있습니다</span>}</div>}
       {tuneBook && <TuneModal b={tuneBook} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTuneBook(null)} />}
       {ask && <div className="lf warn" style={{ margin: "8px 0 0" }} data-reflect="1"><span className="ln">⚠️</span>
-        <div><b>경고 {warn.count}회째 — 반성문{warn.pending && !warn.today_disposal ? " (유예했던 것을 다시 묻습니다)" : ""}</b>
+        <div><b>경고 {warn.count}회째 · 반성문{warn.pending && !warn.today_disposal ? " (유예했던 것을 다시 묻습니다)" : ""}</b>
           <small>{warn.days} · 지난 반성문 뒤 {warn.since_written}회째</small></div></div>}
       {warn?.count > 0 && <div className="lenrow" style={{ marginTop: 8 }} data-limit="1"><span className="fl" style={{ margin: 0, width: "auto" }}>반성문 기준</span>
         <div className="stepper" data-g="limit"><button type="button" data-s="-" disabled={closed || warn.report_at <= 1} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at - 1)); })}>−</button><input type="text" inputMode="numeric" aria-label="반성문 기준 횟수" value={warn.report_at} readOnly /><button type="button" data-s="+" disabled={closed} onClick={() => start(async () => { fail(await warnLimit(studentId, warn.report_at + 1)); })}>+</button></div>
@@ -506,10 +506,10 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
       </>}
       <textarea name="comment" value={text} onChange={(e) => { setText(e.target.value); setAsk(null); }} rows={3} placeholder="오늘 한 것 · 잘한 것 · 다음 시간에 할 것" disabled={closed} style={{ width: "100%", marginTop: 8 }} />
       {made && !closed && <p className="note" style={{ margin: "4px 0 0" }}>✨ 초안 {made.chars}자{made.retried ? ` · ${made.retried}번 다시 시킴` : ""}{made.cut ? " · 잘림" : ""}</p>}
-      {offer && <div className="lf" data-g="offer"><span className="ln">✨</span><div><b>새 초안 — 지금 글은 그대로</b><small style={{ whiteSpace: "pre-wrap" }}>{offer}</small></div><button type="button" className="btn sm" onClick={() => { setText(offer); setOffer(""); }}>이 초안으로</button></div>}
+      {offer && <div className="lf" data-g="offer"><span className="ln">✨</span><div><b>새 초안 · 지금 글은 그대로</b><small style={{ whiteSpace: "pre-wrap" }}>{offer}</small></div><button type="button" className="btn sm" onClick={() => { setText(offer); setOffer(""); }}>이 초안으로</button></div>}
       {show && <div className="lf" data-g="preview"><span className="ln">👁</span><div><b>학부모 화면</b><small style={{ whiteSpace: "pre-wrap" }}>{preview(text, lines) || "(아직 글이 없습니다)"}</small></div></div>}
       {ask && <div className="lf warn" data-g="ask" ref={askRef}><span className="ln">?</span><div>
-        {ask.includes("same") && <b>AI 초안을 안 고치셨습니다 — 그대로 보낼까요?</b>}
+        {ask.includes("same") && <b>AI 초안을 안 고치셨습니다. 그대로 보낼까요?</b>}
         {ask.includes("late") && <b>늦귀가를 아직 안 보냈습니다</b>}</div>
         {ask.includes("late") && <button type="button" className="btn sm pri" data-act="send-close" onClick={sendAndFinish}>📨 보내고 마감</button>}
         <button type="button" className={"btn sm" + (ask.includes("late") ? "" : " pri")} data-act="close-anyway" onClick={() => finish(true)}>그대로 마감</button>
@@ -520,7 +520,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
         <button className="btn sm pri" type="button" data-act="close" disabled={future} onClick={() => finish(false)}>저장하고 마감</button>
         <button className="btn sm" type="button" data-act="save" onClick={save}>임시 저장</button>
         <button className="btn sm gho" type="button" data-act="collapse" onClick={onCollapse}>닫기</button>
-        <span className="note" style={{ margin: 0 }} data-g="close-note">{future ? "앞으로 올 날 — 마감이 잠겨 있습니다(임시 저장은 됩니다)" : "마감하면 학부모에게 보입니다"}</span>
+        <span className="note" style={{ margin: 0 }} data-g="close-note">{future ? "앞으로 올 날 · 마감이 잠겨 있습니다(임시 저장은 됩니다)" : "마감하면 학부모에게 보입니다"}</span>
       </>, barHost)}
     </div>
   );
@@ -574,10 +574,10 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
           </div>
           <div className="lf warn" style={{ margin: "2px 0 8px" }}><span className="ln">📐</span>
             <div><b>{selected.length}개면 오늘 <span style={{ color: "var(--navy)" }}>{sum.questions}문항 · {sum.pages}쪽</span></b>
-              <small>{selected.map((u) => `${u.short} ${u.q_count ?? 0}문항`).join(" · ") || "고른 소단원 없음"} — 교재 {pool.books}권 합치면 <b>{pool.load.questions}문항 · {pool.load.pages}쪽</b>(지금 깔린 것)</small></div>
+              <small>{selected.map((u) => `${u.short} ${u.q_count ?? 0}문항`).join(" · ") || "고른 소단원 없음"} · 교재 {pool.books}권 합치면 <b>{pool.load.questions}문항 · {pool.load.pages}쪽</b>(지금 깔린 것)</small></div>
             {first && <span className="lm">1개면 {first.q_count ?? 0}문항</span>}</div>
           <div className="lf ok" style={{ margin: "2px 0 8px" }}><span className="ln">🔀</span>
-            <div><b>도는 차례 — <span style={{ color: "var(--ok)" }}>{basis}</span></b><small>{pool.orderBasis === "chapter" ? "본책을 다 하고 → 워크북" : "소단원마다 본책+워크북 나란히"}</small></div></div>
+            <div><b>도는 차례 · <span style={{ color: "var(--ok)" }}>{basis}</span></b><small>{pool.orderBasis === "chapter" ? "본책을 다 하고 → 워크북" : "소단원마다 본책+워크북 나란히"}</small></div></div>
           {selected.filter((u) => (u.q_count ?? 0) >= pool.splitFrom).map((u) => (
             <div key={u.unit_id} style={{ margin: "4px 0 12px" }}>
               <div className="hw"><div className="hwname"><b>{u.short}</b><small>{u.q_count}문항{pages(u) ? ` · ${pages(u)}` : ""}</small></div></div>
@@ -591,7 +591,7 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
           </div>
         </div>
         <div className="mdlf"><button type="button" className="btn pri" disabled={closed || !selected.length} onClick={apply}>적용</button><button type="button" className="btn gho" onClick={onClose}>닫기</button>
-          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 — 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">11 에서 회차 고치기 ↗</Link></span>}</div>
+          <span className="spacer" />{pool.tuned + 1 >= pool.askAfter && <span className="pill warn" data-g="ask-routine">같은 조절 {pool.tuned + 1}번째 · 루틴을 고칠까요? <Link prefetch={false} href={`/settings/routine?s=${sheet.student_id}#book-${b.book_id}`} data-act="to-routine">11 에서 회차 고치기 ↗</Link></span>}</div>
       </div>
     </div>
   );
@@ -611,7 +611,7 @@ function ProgressModal({ b, sheet, closed, fail, start, onClose }) {
     <div className="mdlh"><b>진도 체크</b><span className="pill">{t.book?.name} · {t.round}회독</span><span className="spacer" /><button type="button" className="x" aria-label="닫기" onClick={onClose}>✕</button></div>
     <div className="mdlb">
       <div className="tags" style={{ marginBottom: 8 }}><span className="tag on">끝낸 대단원 {t.finished} / {t.chapters.length}</span>{t.now && <span className="tag act">지금 {t.now}</span>}<span className="tag">안 끝난 소단원 {undone}</span>{t.memo_streak > 0 && <span className={"tag" + (t.memo_streak >= t.memo_rule ? " act" : "")} data-g="memo-streak">✍ 메모로만 {t.memo_streak}회 연속</span>}</div>
-      {t.memo_streak >= t.memo_rule && <p className="note" data-g="memo-warn" style={{ margin: "0 0 8px", color: "var(--miss)" }}>⚠️ 메모로만 {t.memo_streak}회 연속 — 교재를 안 폈는데 진도가 올라갑니다</p>}
+      {t.memo_streak >= t.memo_rule && <p className="note" data-g="memo-warn" style={{ margin: "0 0 8px", color: "var(--miss)" }}>⚠️ 메모로만 {t.memo_streak}회 연속 · 교재를 안 폈는데 진도가 올라갑니다</p>}
       {t.chapters.map((c) => { const isOpen = open === c.chapter; const fin = c.done + c.skip === c.total && c.total > 0; return (
         <div key={c.chapter} className={"acc" + (isOpen ? " open" : "")} data-chapter={c.chapter}>
           <button type="button" className="acch" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : c.chapter)}><span className="ar">›</span><b>{c.chapter}</b><span className="spacer" />
@@ -694,7 +694,7 @@ function PlanModal({ student, date, fail, start, onClose }) {
             {form.kind === "none" && <p className="note" style={{ margin: "8px 0 0" }}>저장하면 「온다」로 돌아갑니다</p>}
             {cur?.plan?.notified_at && <p className="note" style={{ margin: "8px 0 0" }}>📨 학부모께 알림 보냄 {String(cur.plan.notified_at).slice(0, 16).replace("T", " ")}</p>}
           </div>}
-          <div className="clegend"><span><i className="cm i-cls">·</i>수업일</span><span><i className="cm i-abs">✕</i>결석 예정</span><span><i className="cm i-late">⏰</i>지각 예정</span><span><i className="cm i-mk">↻</i>보강</span><span><i className="cm i-off">🚫</i>휴강</span><span><i className="cm i-ex">📝</i>시험 기간 — 결석 예상(표시만)</span></div>
+          <div className="clegend"><span><i className="cm i-cls">·</i>수업일</span><span><i className="cm i-abs">✕</i>결석 예정</span><span><i className="cm i-late">⏰</i>지각 예정</span><span><i className="cm i-mk">↻</i>보강</span><span><i className="cm i-off">🚫</i>휴강</span><span><i className="cm i-ex">📝</i>시험 기간 · 결석 예상(표시만)</span></div>
         </div>
         <div className="mdlf"><button type="button" className="btn pri" disabled={!sel} onClick={save}>저장</button><button type="button" className="btn" disabled={!sel || !cur?.plan} onClick={send}>📨 학부모께 알림</button><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
       </div>

@@ -37,7 +37,7 @@ for (const f of readdirSync("lib").filter(x => x.endsWith(".js"))) {
 
 let fail = 0, okN = 0, skip = 0;
 const bad = [], held = [], swallowed = [];
-console.log(`■ lib 에서 뽑은 SQL ${found.length}개 — 진짜 스키마에 물어본다`);
+console.log(`■ lib 에서 뽑은 SQL ${found.length}개 · 진짜 스키마에 물어본다`);
 
 let i = 0;
 for (const q of found) {
@@ -64,17 +64,17 @@ for (const q of found) {
 }
 
 bad.forEach(b => {
-  console.log(`   ❌ ${b.file}:${b.line} — ${b.msg}`);
+  console.log(`   ❌ ${b.file}:${b.line} · ${b.msg}`);
   console.log(`        ${b.sql.replace(/\s+/g, " ").trim().slice(0, 110)}`);
 });
 if (!bad.length) console.log(`   ✅ 없는 칸·표·함수를 읽는 SQL 이 없다 (물어본 것 ${okN})`);
 if (swallowed.length) {
-  console.log(`\n   ⚠️ **못 본 것 ${swallowed.length}개** — 자리를 메우다 문법이 깨져 물어보지 못했다.`);
-  console.log(`        「물어봤다」로 세면 거짓 초록이 된다 — 이 줄이 보이면 그 SQL 은 **검사를 안 지난 것**이다.`);
-  swallowed.slice(0, 6).forEach(h => console.log(`        ${h.file}:${h.line} — ${h.msg.slice(0, 70)}`));
+  console.log(`\n   ⚠️ **못 본 것 ${swallowed.length}개** · 자리를 메우다 문법이 깨져 물어보지 못했다.`);
+  console.log(`        「물어봤다」로 세면 거짓 초록이 된다. 이 줄이 보이면 그 SQL 은 **검사를 안 지난 것**이다.`);
+  swallowed.slice(0, 6).forEach(h => console.log(`        ${h.file}:${h.line} · ${h.msg.slice(0, 70)}`));
 }
 if (skip) {
-  console.log(`\n   ⚠️ 못 물어본 것 ${skip}개 — 표 이름이 실행할 때 정해져서 물어볼 수가 없다`);
+  console.log(`\n   ⚠️ 못 물어본 것 ${skip}개 · 표 이름이 실행할 때 정해져서 물어볼 수가 없다`);
   held.slice(0, 8).forEach(h => console.log(`        ${h.file}:${h.line}`));
   console.log(`        → 이 자리는 **표 이름을 흰 목록으로 좁혀야** 안전하다 (아무 표나 들어오면 그게 구멍이다)`);
 }
@@ -87,13 +87,13 @@ await c.end();
   const late = readdirSync("supabase/migrations").filter((f) => /^0\d{3}_/.test(f) && Number(f.slice(0, 4)) >= 154);
   const missing = late.filter((f) => { const t = readFileSync(`supabase/migrations/${f}`, "utf8");
     return /\b(alter\s+table|create\s+table)\b/i.test(t) && !RELOAD.test(t); });
-  if (missing.length) { fail++; console.log(`\n   ❌ 표 모양을 바꾸고 **API 기억을 안 새로 읽는** 마이그레이션 ${missing.length}개 — 끝에 \`notify pgrst, 'reload schema';\` 를 둔다: ${missing.join(", ")}`); }
-  else console.log(`\n   ✅ 표 모양을 바꾼 마이그레이션(0154~)은 끝에 API 기억 새로 읽기를 둔다 — 「schema cache」 오류가 다시 안 난다`); }
+  if (missing.length) { fail++; console.log(`\n   ❌ 표 모양을 바꾸고 **API 기억을 안 새로 읽는** 마이그레이션 ${missing.length}개 · 끝에 \`notify pgrst, 'reload schema';\` 를 둔다: ${missing.join(", ")}`); }
+  else console.log(`\n   ✅ 표 모양을 바꾼 마이그레이션(0154~)은 끝에 API 기억 새로 읽기를 둔다. 「schema cache」 오류가 다시 안 난다`); }
 
 // ⚠️ 셈이 맞는지 스스로 본다 — 안 맞으면 어딘가로 샌 것이다
 const seen = okN + skip + swallowed.length + bad.length;
 if (seen !== found.length)
-  console.log(`\n   ❌ **셈이 안 맞는다** — 뽑은 것 ${found.length} 인데 ${seen} 만 세었다. ${found.length - seen}개가 샜다`);
+  console.log(`\n   ❌ **셈이 안 맞는다** · 뽑은 것 ${found.length} 인데 ${seen} 만 세었다. ${found.length - seen}개가 샜다`);
 console.log(`\n■ SQL 검사 ${found.length}개 (물어봄 ${okN} · 이름 자리라 못 물어봄 ${skip} · **못 본 것 ${swallowed.length}**) · 실패 ${fail}`);
 // ⚠️ 「못 본 것」은 실패로 세지 않는다 — 자리를 메우다 난 문법 오류라 코드 잘못이 아니다.
 //    다만 **화면에 반드시 뜬다.** 조용히 초록으로 지나가는 것이 이 검사가 한 번 저지른 잘못이다.

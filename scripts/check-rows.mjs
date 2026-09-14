@@ -5,7 +5,7 @@ const MARK = "0줄 허용";
 const stripLine = (l) => l.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/, "$1");
 const isComment = (l) => /^\s*(\/\/|\*|\/\*)/.test(l);
 let n = 0, bad = 0;
-const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const files = readdirSync("lib").filter((f) => f.endsWith(".js"));
 const miss = [], strictZero = [], usesChanged = new Set(), noImport = []; let sites = 0, viaChanged = 0, zeroOk = 0, marked = 0, own = 0, single = 0;
 for (const f of files) {
@@ -25,13 +25,13 @@ for (const f of files) {
   }
   if (usesChanged.has(p) && !hasImport) noImport.push(p);
 }
-console.log(`■ 저장·삭제 줄 수(검사-⑪) — 쓰기 자리 ${sites} · changed ${viaChanged}(0줄 허용 ${zeroOk}) · .single ${single} · 제 손 ${own} · 표시 ${marked}`);
+console.log(`■ 저장·삭제 줄 수(검사-⑪) · 쓰기 자리 ${sites} · changed ${viaChanged}(0줄 허용 ${zeroOk}) · .single ${single} · 제 손 ${own} · 표시 ${marked}`);
 ok("lib 의 쓰기 자리 전부가 줄 수를 본다(changed · single · 제 손 3줄 안 · 「0줄 허용」 표시)", miss.length === 0, `안 보는 곳 ${miss.length}: ` + miss.slice(0, 6).join(" | "));
 ok("changed 는 lib/sqlError.js 한 곳", (() => { const defs = files.filter((f) => /export function changed\(/.test(readFileSync("lib/" + f, "utf8"))); return defs.length === 1 && defs[0] === "sqlError.js"; })());
 ok("changed 를 쓰는 파일마다 import 가 있다", noImport.length === 0, noImport.join(", "));
-ok("콕 집은 손(.eq(\"id\") 만)에 zero:\"ok\" 가 없다 — 그 자리는 0줄이면 실패", strictZero.length === 0, strictZero.join(", "));
-ok("changed 를 import 한 파일에 같은 이름의 지역 변수가 없다(가리면 「t is not a function」 — 게이트 70 이 교재 시트 저장·진도에서 잡음)", (() => { const bad = files.filter((f) => { const s = readFileSync("lib/" + f, "utf8"); return /import \{[^}]*\bchanged\b[^}]*\} from "\.\/sqlError\.js"/.test(s) && /\b(let|const|var)\s+[^;=]*\bchanged\s*=|[,(]\s*changed\s*=\s*[^=>]|\bchanged\s*(\+\+|\+=)/.test(s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1")); }); return bad.length === 0 ? true : (console.log("      " + bad.join(", ")), false); })());
-ok("row/rows 도우미 정의는 lib/sqlError.js 하나(원칙-1 — (사) 파일마다 22벌이던 것)", (() => { const dup = files.filter((f) => f !== "sqlError.js" && /^const rows? = \(r, what\) =>/m.test(readFileSync("lib/" + f, "utf8"))); return dup.length === 0 ? true : (console.log("      " + dup.join(", ")), false); })());
+ok("콕 집은 손(.eq(\"id\") 만)에 zero:\"ok\" 가 없다. 그 자리는 0줄이면 실패", strictZero.length === 0, strictZero.join(", "));
+ok("changed 를 import 한 파일에 같은 이름의 지역 변수가 없다(가리면 「t is not a function」 · 게이트 70 이 교재 시트 저장·진도에서 잡음)", (() => { const bad = files.filter((f) => { const s = readFileSync("lib/" + f, "utf8"); return /import \{[^}]*\bchanged\b[^}]*\} from "\.\/sqlError\.js"/.test(s) && /\b(let|const|var)\s+[^;=]*\bchanged\s*=|[,(]\s*changed\s*=\s*[^=>]|\bchanged\s*(\+\+|\+=)/.test(s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1")); }); return bad.length === 0 ? true : (console.log("      " + bad.join(", ")), false); })());
+ok("row/rows 도우미 정의는 lib/sqlError.js 하나(원칙-1 · (사) 파일마다 22벌이던 것)", (() => { const dup = files.filter((f) => f !== "sqlError.js" && /^const rows? = \(r, what\) =>/m.test(readFileSync("lib/" + f, "utf8"))); return dup.length === 0 ? true : (console.log("      " + dup.join(", ")), false); })());
 ok("changed 가 오류·0줄을 던진다(순수)", await (async () => { const { changed, ZERO } = await import("../lib/sqlError.js");
   const t = (fn) => { try { fn(); return null; } catch (e) { return e.message; } };
   return t(() => changed({ error: { message: "x" } }, "저장")) === "저장: x" && t(() => changed({ data: [], error: null }, "저장")) === `저장: ${ZERO}` && t(() => changed({ data: null, count: 0 }, "저장")) === `저장: ${ZERO}` && t(() => changed({ data: [], error: null }, "저장", { zero: "ok" })) === null && changed({ data: [{ id: 1 }] }, "저장").length === 1 && changed({ data: null, count: 2 }, "저장") === null && changed({ data: { id: 1 } }, "저장").id === 1; })());

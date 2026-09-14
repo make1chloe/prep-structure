@@ -19,7 +19,7 @@ const 아이 = "zz_첫주_전학생", 전화 = "01099887766", 학교 = "zz_시�
 // ── 적기 ────────────────────────────────────────────────────────────────────
 const 적은것 = []; let 걸음수 = 0;
 const 아이콘 = { 막힘: "🚧", 두번: "🔁", 빈화면: "⬜", 군더더기: "🗯", 길없음: "🕳", 좋음: "✅" };
-const 적기 = (갈래, 어디, 글) => { 적은것.push({ 갈래, 어디, 글 }); console.log(`      ${아이콘[갈래] ?? "·"} ${어디} — ${글}`); };
+const 적기 = (갈래, 어디, 글) => { 적은것.push({ 갈래, 어디, 글 }); console.log(`      ${아이콘[갈래] ?? "·"} ${어디} · ${글}`); };
 const 쪽오류 = [];
 
 // ── 걷기 도우미 ─────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ const 찍기 = async (p, 이름) => p.screenshot({ path: `${SHOT}/${String(++걸
 /** 누르고 서버 답을 기다린다 — 낙관적 갱신이라 화면은 먼저 바뀐다. 오류줄이 새로 떴으면 적는다 */
 async function 누름(p, loc, 어디, 무엇) {
   const 전 = await 오류줄(p);
-  try { await loc.click({ timeout: 8000 }); } catch (e) { 적기("막힘", 어디, `「${무엇}」를 못 눌렀습니다 — ${String(e.message).split("\n")[0].slice(0, 110)}`); return false; }
+  try { await loc.click({ timeout: 8000 }); } catch (e) { 적기("막힘", 어디, `「${무엇}」를 못 눌렀습니다. ${String(e.message).split("\n")[0].slice(0, 110)}`); return false; }
   await p.waitForLoadState("networkidle").catch(() => {});
   await p.waitForTimeout(900);   // 서버 동작 + router.refresh 가 끝나기를 — 이 화면들은 낙관적 갱신이 아니라 다시 그린다
   const 후 = await 오류줄(p);
@@ -54,16 +54,16 @@ const p = await ctx.newPage();
 p.on("pageerror", (e) => 쪽오류.push(String(e.message).slice(0, 140)));
 
 const 첫날 = -6;   // 이레를 **지난 주**로 돈다 — 오늘이 이레째. 앞날은 마감이 잠기고(머2) 숙제가 안 넘어가 한 주가 안 굴러간다
-console.log(`\n■■ 첫 주 돌려보기 — ${W}px · ${날(첫날)}(${요일(날(첫날))}) ~ ${날(0)}(${요일(날(0))}) · 앱 ${APP}`);
-console.log("   전학생=모든학생 — 지난 진도 0 · 지난 성적 0 · 시험 범위 0 에서 시작한다\n");
+console.log(`\n■■ 첫 주 돌려보기 · ${W}px · ${날(첫날)}(${요일(날(첫날))}) ~ ${날(0)}(${요일(날(0))}) · 앱 ${APP}`);
+console.log("   전학생=모든학생 · 지난 진도 0 · 지난 성적 0 · 시험 범위 0 에서 시작한다\n");
 
 // ══ 0. 로그인 ═══════════════════════════════════════════════════════════════
 await p.goto(APP + "/login");
 await p.fill("#id-staff", "zz_principal@e2e.test"); await p.fill("#pw-staff", "e2e-pass");
 await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 }).catch(() => {}), p.click("form:has(#id-staff) button[type=submit]")]);
 await p.waitForLoadState("networkidle").catch(() => {});
-if (new URL(p.url()).pathname.startsWith("/login")) { console.log("로그인 실패 — 멈춥니다"); await b.close(); process.exit(1); }
-console.log("0. 로그인 — 원장으로 들어왔습니다");
+if (new URL(p.url()).pathname.startsWith("/login")) { console.log("로그인 실패 · 멈춥니다"); await b.close(); process.exit(1); }
+console.log("0. 로그인 · 원장으로 들어왔습니다");
 
 // ══ 1. 첫날 아침 — 대시보드 17 이 첫 주에 무엇을 말하나 ═════════════════════
 await 열기(p, "/", "17 대시보드(첫날 아침)");
@@ -81,7 +81,7 @@ await p.fill("[data-g=add-form] input[aria-label=물음]", "주 3회 되나요 �
 await 누름(p, p.locator("[data-act=add-save]"), "18", "저장");
 const 카드 = p.locator("[data-g=card]").filter({ hasText: 아이 }).first();
 await 카드.waitFor({ timeout: 12000 }).catch(() => {});
-if (!(await 카드.count())) { 적기("막힘", "18", "문의를 넣었는데 카드가 안 보입니다 — 멈춥니다"); await b.close(); process.exit(1); }
+if (!(await 카드.count())) { 적기("막힘", "18", "문의를 넣었는데 카드가 안 보입니다. 멈춥니다"); await b.close(); process.exit(1); }
 await 찍기(p, "상담-받음");
 await 누름(p, 카드.locator("[data-act=answer]"), "18", "📨 안내 문자");
 await 카드.locator(`input[aria-label='${아이} 방문']`).fill(`${날(첫날)}T16:00`);
@@ -98,7 +98,7 @@ await 누름(p, 카드.locator("[data-act=convert-open]"), "18", "등록 전환 
 const 모달 = p.locator("[data-g=convert]");
 { const opts = await 모달.locator("[data-g=conv-class] option").allTextContents();
   const 반 = opts.find((o) => o.includes("매일")) ?? opts[1];
-  if (!반) 적기("막힘", "18 등록 전환", "고를 반이 하나도 없습니다 — 첫 주에는 반부터 만들어야 하는데 이 화면이 그 말을 안 합니다");
+  if (!반) 적기("막힘", "18 등록 전환", "고를 반이 하나도 없습니다. 첫 주에는 반부터 만들어야 하는데 이 화면이 그 말을 안 합니다");
   else await 모달.locator("[data-g=conv-class]").selectOption({ label: 반 });
   const 교재 = 모달.locator("[data-g=conv-books] label").filter({ hasText: "zz_리허설 문법책" });
   if (await 교재.count()) await 교재.locator("input").check(); else 적기("빈화면", "18 등록 전환", "교재 목록이 비었습니다");
@@ -133,7 +133,7 @@ await 열기(p, "/schedule/import", "12b 받아오기 · + 회차");
 await 누름(p, p.locator("[data-act=manual-open]"), "12b", "+ 손으로 넣기");
 { const f = p.locator("[data-g=exam-form]");
   const opts = await f.locator("select[aria-label=학교] option").allTextContents();
-  if (!opts.length) 적기("막힘", "12b", "학교 목록이 비었습니다 — 손으로 시험을 못 넣습니다");
+  if (!opts.length) 적기("막힘", "12b", "학교 목록이 비었습니다. 손으로 시험을 못 넣습니다");
   else { const s = opts.find((o) => o.includes(학교)) ?? opts[0]; await f.locator("select[aria-label=학교]").selectOption({ label: s });
          if (!opts.some((o) => o.includes(학교))) 적기("막힘", "12b", `아이 학교 「${학교}」가 목록에 없습니다`); }
   await f.locator("input[aria-label=학년]").fill(학년);
@@ -150,7 +150,7 @@ if (!(await 회차.count())) 적기("막힘", "06b", "손으로 넣은 회차가
 else {
   const 명 = await 회차.locator("[data-g=takers]").textContent().catch(() => "?");
   console.log(`   보는 아이: ${명}`);
-  if (명.startsWith("0")) 적기("막힘", "06b", `회차를 넣었는데 보는 아이가 0명입니다 — 학교·학년이 붙지 않았습니다(아이 학교 「${학교}」 · 학년 ${학년})`);
+  if (명.startsWith("0")) 적기("막힘", "06b", `회차를 넣었는데 보는 아이가 0명입니다. 학교·학년이 붙지 않았습니다(아이 학교 「${학교}」 · 학년 ${학년})`);
   if (await 회차.locator("[data-g=no-scope]").count()) console.log("   범위: 아직 없습니다(첫 주 그대로)");
   // 범위 두 줄 — 교재 단원 + 글
   await 누름(p, 회차.locator("[data-act=scope-open]"), "06b", "+ 범위");
@@ -177,21 +177,21 @@ const 마감표 = [true, true, true, true, false, true, true];
 for (let i = 0; i < 7; i++) {
   const D = 날(첫날 + i), 갈래 = i < 3 ? "정규" : "내신";
   if (i === 3) {   // 내신으로 넘어가는 도장 — 06b 「지금 멈춤」
-    await 열기(p, "/schedule/exams", "06b — 내신 들어가기(지금 멈춤)");
+    await 열기(p, "/schedule/exams", "06b · 내신 들어가기(지금 멈춤)");
     const e = p.locator("[data-g=exam-card]").filter({ hasText: "2학기 중간" });
     const 잠김 = await e.locator("[data-act=stop-now]").isDisabled().catch(() => true);
-    if (잠김) 적기("막힘", "06b", "「지금 멈춤」이 잠겨 있습니다 — 영어 시험일을 넣었는데도");
+    if (잠김) 적기("막힘", "06b", "「지금 멈춤」이 잠겨 있습니다. 영어 시험일을 넣었는데도");
     else { await 누름(p, e.locator("[data-act=stop-now]"), "06b", "지금 멈춤");
            const m = await p.locator("[data-g=msg]").textContent().catch(() => ""); console.log(`   ${m.trim()}`);
-           if (/교재 0권/.test(m)) 적기("막힘", "06b", "「지금 멈춤」을 눌렀는데 멈춘 교재가 0권입니다 — 내신으로 안 넘어갑니다"); }
+           if (/교재 0권/.test(m)) 적기("막힘", "06b", "「지금 멈춤」을 눌렀는데 멈춘 교재가 0권입니다. 내신으로 안 넘어갑니다"); }
     await 찍기(p, "내신-지금멈춤");
   }
   const t = await 열기(p, `/today?d=${D}`, `01 오늘 수업 ${i + 1}일째 ${D}(${요일(D)}) · ${갈래}`);
   const row = p.locator(".row").filter({ hasText: 아이 });
-  if (!(await row.count())) { 적기("빈화면", `01 ${i + 1}일째`, `명단에 이 아이가 없습니다 — 반 시간표에 ${요일(D)}요일이 없거나 들어온 날보다 앞섭니다`); await 찍기(p, `${i + 1}일-명단없음`); continue; }
+  if (!(await row.count())) { 적기("빈화면", `01 ${i + 1}일째`, `명단에 이 아이가 없습니다. 반 시간표에 ${요일(D)}요일이 없거나 들어온 날보다 앞섭니다`); await 찍기(p, `${i + 1}일-명단없음`); continue; }
   // 출결
   await 누름(p, row.locator("[data-g=att] button", { hasText: 출결표[i] }).first(), `01 ${i + 1}일째`, `출결 ${출결표[i]}`);
-  if (출결표[i] === "결석") { await 찍기(p, `${i + 1}일-결석`); console.log("   결석 — 판을 안 엽니다"); continue; }
+  if (출결표[i] === "결석") { await 찍기(p, `${i + 1}일-결석`); console.log("   결석 · 판을 안 엽니다"); continue; }
   // 펴기
   const 펴 = row.locator("button.open");
   if ((await 펴.textContent().catch(() => "")) === "펴기") await 누름(p, 펴, `01 ${i + 1}일째`, "펴기");
@@ -199,8 +199,8 @@ for (let i = 0; i < 7; i++) {
   // 숙제 검사 — 있으면 ○(첫날은 없다)
   const hw = row.locator(".card[data-card=check] .hw");
   const n = await hw.count();
-  if (!n) { if (i === 0) console.log("   숙제 검사: 없음(첫 수업 — 맞습니다)");
-            else if (지난숙제 === 0) console.log("   숙제 검사: 없음(지난 수업 숙제가 0개였습니다 — 맞습니다)");
+  if (!n) { if (i === 0) console.log("   숙제 검사: 없음(첫 수업 · 맞습니다)");
+            else if (지난숙제 === 0) console.log("   숙제 검사: 없음(지난 수업 숙제가 0개였습니다. 맞습니다)");
             else 적기("빈화면", `01 ${i + 1}일째`, `지난 수업에 숙제 ${지난숙제}개를 냈는데 오늘 검사 줄이 0개입니다`); }
   else { console.log(`   숙제 검사 ${n}줄`);
          for (let k = 0; k < n; k++) { const v = i === 4 ? "△" : k === 0 ? "○" : "○"; await 누름(p, hw.nth(k).locator(`.chk button[data-v]`).filter({ hasText: v }).first(), `01 ${i + 1}일째`, `검사 ${v}`); } }
@@ -214,8 +214,8 @@ for (let i = 0; i < 7; i++) {
   지난숙제 = Number(숙제수) || 0;
   if (학원수 === "0" && 숙제수 === "0") {   // 0개인 것이 잘못은 아니다 — **까닭을 화면이 말하나**를 본다(대전제-0)
     const 까닭 = (await work.locator(".stopnote").allTextContents()).join(" · ").replace(/\s+/g, " ").trim();
-    if (까닭 || /0개/.test(깔림)) console.log(`   (0개 — 까닭: ${깔림}${까닭 ? ` · ${까닭}` : ""})`);
-    else 적기("빈화면", `01 ${i + 1}일째 ${갈래}`, `오늘 학습 0 · 숙제 0 인데 까닭이 어디에도 없습니다 — 머리는 「${깔림}」`); }
+    if (까닭 || /0개/.test(깔림)) console.log(`   (0개 · 까닭: ${깔림}${까닭 ? ` · ${까닭}` : ""})`);
+    else 적기("빈화면", `01 ${i + 1}일째 ${갈래}`, `오늘 학습 0 · 숙제 0 인데 까닭이 어디에도 없습니다. 머리는 「${깔림}」`); }
   // 🔤 시험 카드
   const quiz = row.locator(".card[data-card=quiz]");
   if (await quiz.count()) { const forms = await quiz.locator("form.lf").count(); console.log(`   🔤 시험 ${forms}줄`);
@@ -223,7 +223,7 @@ for (let i = 0; i < 7; i++) {
       await f.locator("input[name=wrong]").fill(i === 5 ? "9" : "2");
       await f.locator("input[name=total]").fill("20");
       await f.locator("input[name=total]").blur(); await p.waitForTimeout(500); } }
-  else if (i >= 3) 적기("빈화면", `01 ${i + 1}일째 내신`, "🔤 시험 카드가 없습니다 — 지난 시간에 낸 범위가 없어서");
+  else if (i >= 3) 적기("빈화면", `01 ${i + 1}일째 내신`, "🔤 시험 카드가 없습니다. 지난 시간에 낸 범위가 없어서");
   // 📝 다음 시간 시험 — 오늘 내야 **다음 수업에 🔤 시험 카드**가 선다. 내신 날은 범위를 「내신」으로 바꿔 본다
   const nq = row.locator("[data-card=next-quiz]").first();   // 교재가 여럿이면 첫 교재 칸에 선다 — 걷기는 하나만 눌러 본다
   if (await nq.count()) {
@@ -231,7 +231,7 @@ for (let i = 0; i < 7; i++) {
       await 누름(p, nq.locator("button", { hasText: "+ 시험 더하기" }).first(), `01 ${i + 1}일째`, "+ 시험 더하기"); }
     const src = nq.locator("[data-g=source] button", { hasText: "내신" }).first();
     if (갈래 === "내신" && await src.count()) {
-      if (await src.isDisabled()) 적기("막힘", `01 ${i + 1}일째 내신`, `「내신」 범위를 못 고릅니다 — ${(await src.getAttribute("title")) ?? "까닭 없음"}`);
+      if (await src.isDisabled()) 적기("막힘", `01 ${i + 1}일째 내신`, `「내신」 범위를 못 고릅니다. ${(await src.getAttribute("title")) ?? "까닭 없음"}`);
       else await 누름(p, src, `01 ${i + 1}일째`, "범위 = 내신"); }
     const tot = nq.locator('input[name=total]').first();
     if (await tot.count()) { await tot.fill("20"); await tot.blur(); await p.waitForTimeout(400); }
@@ -243,7 +243,7 @@ for (let i = 0; i < 7; i++) {
     else 적기("막힘", `01 ${i + 1}일째`, "「진도 체크 ↗」 단추가 없습니다"); }
   // 부모님께 글
   const ta = row.locator("textarea[name=comment]");
-  if (await ta.count()) await ta.fill(`${갈래} ${i + 1}일째 — 오늘 한 것과 다음 시간에 할 것을 적었습니다.`);
+  if (await ta.count()) await ta.fill(`${갈래} ${i + 1}일째 · 오늘 한 것과 다음 시간에 할 것을 적었습니다.`);
   else 적기("빈화면", `01 ${i + 1}일째`, "부모님께 보낼 글 칸이 없습니다");
   await 찍기(p, `${i + 1}일-${갈래}`);
   // 마감
@@ -254,7 +254,7 @@ for (let i = 0; i < 7; i++) {
     else { await 누름(p, 마감, `01 ${i + 1}일째`, "저장하고 마감");
            await p.waitForTimeout(700);
            const 되물음 = p.locator("[data-act=close-anyway]");
-           if (await 되물음.count()) { console.log("   되물음 — 그대로 마감"); await 누름(p, 되물음, `01 ${i + 1}일째`, "그대로 마감"); await p.waitForTimeout(700); }
+           if (await 되물음.count()) { console.log("   되물음 · 그대로 마감"); await 누름(p, 되물음, `01 ${i + 1}일째`, "그대로 마감"); await p.waitForTimeout(700); }
            const 닫힘 = await row.locator(".row.closed, .closed").count().catch(() => 0);
            if (!(await row.getAttribute("class")).includes("closed") && !닫힘) 적기("막힘", `01 ${i + 1}일째`, "마감을 눌렀는데 줄이 안 닫혔습니다"); } }
 }
@@ -291,16 +291,16 @@ for (const u of 원장화면) {
   표.push({ u, 코드, 밀리, 설명, 본, g, 알림 });
   if (코드 >= 400 || !코드) 적기("막힘", u, `열리지 않습니다 (HTTP ${코드})`);
   if (알림) 적기("막힘", u, `열자마자 오류줄: ${알림}`);
-  if (!g) 적기("길없음", u, "상단 메뉴에서 두 번 눌러도 못 닿습니다 — 주소를 쳐야 들어옵니다");
+  if (!g) 적기("길없음", u, "상단 메뉴에서 두 번 눌러도 못 닿습니다. 주소를 쳐야 들어옵니다");
 }
 console.log("   화면                       HTTP   ms   설명글자  전체글자  걸음");
 for (const r of 표) console.log(`   ${r.u.padEnd(26)} ${String(r.코드).padStart(4)} ${String(r.밀리).padStart(5)} ${String(r.설명).padStart(8)} ${String(r.본).padStart(9)} ${r.g ? `${r.g}번` : "못 닿음"}`);
 { const 많 = 표.filter((r) => r.설명 >= 500).sort((a, b) => b.설명 - a.설명);
-  for (const r of 많.slice(0, 6)) 적기("군더더기", r.u, `설명(.note)만 ${r.설명}자 — 화면 글자의 ${Math.round((r.설명 / Math.max(r.본, 1)) * 100)}%`); }
+  for (const r of 많.slice(0, 6)) 적기("군더더기", r.u, `설명(.note)만 ${r.설명}자 · 화면 글자의 ${Math.round((r.설명 / Math.max(r.본, 1)) * 100)}%`); }
 
 console.log("\n\n■■ 첫 주에 걸린 것 ■■");
 if (!적은것.length) console.log("   없음");
-적은것.forEach((x, i) => console.log(`${String(i + 1).padStart(2)}. [${x.갈래}] ${x.어디} — ${x.글}`));
+적은것.forEach((x, i) => console.log(`${String(i + 1).padStart(2)}. [${x.갈래}] ${x.어디} · ${x.글}`));
 console.log(`\nJS 오류: ${쪽오류.length ? [...new Set(쪽오류)].join(" / ") : "없음"}`);
-console.log(`화면 ${걸음수}장 — ${SHOT}/`);
+console.log(`화면 ${걸음수}장 · ${SHOT}/`);
 await b.close();

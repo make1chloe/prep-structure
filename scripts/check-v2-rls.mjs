@@ -36,15 +36,15 @@ async function as(pid, sql, params=[]) {
 function must(name, r, want, byGrant=false) {
   const noGrant = r.err && /permission denied|권한/.test(r.err);
   if (noGrant) {
-    if (byGrant) { ok.push(`✅ ${name} — 권한으로 막음 (일부러 그렇게 했다)`); return; }
-    bad.push(`❌ ${name} — ⚠️ **권한이 없어서** 막힘 (규칙 검사가 아니다): ${r.err.slice(0,60)}`); return;
+    if (byGrant) { ok.push(`✅ ${name} · 권한으로 막음 (일부러 그렇게 했다)`); return; }
+    bad.push(`❌ ${name} · ⚠️ **권한이 없어서** 막힘 (규칙 검사가 아니다): ${r.err.slice(0,60)}`); return;
   }
   const got = r.err ? "규칙이 막음" : r.n;
   const pass = r.err ? want===0 : r.n===want;
-  (pass?ok:bad).push(`${pass?"✅":"❌"} ${name} — ${got} (바라는 값 ${want})`);
+  (pass?ok:bad).push(`${pass?"✅":"❌"} ${name} · ${got} (바라는 값 ${want})`);
 }
 
-console.log("■ v2 접근 규칙 — 리허설 계정으로만\n");
+console.log("■ v2 접근 규칙 · 리허설 계정으로만\n");
 
 // ── 읽기 ────────────────────────────────────────────────
 must("학생이 남의 아이를 보는가",
@@ -65,7 +65,7 @@ must("학부모가 남의 아이를 보는가",
   await as(P.학부모, `select count(*)::int n from v2.students where id=$1`, [S.남의아이]), 0);
 // 「다」 = 검사용 학생 전부(0004 의 둘 + 눌러보기 seed 의 리허설 학생) — 숫자를 박아 두면 seed 가 늘 때마다 어긋난다. RLS 를 안 타는 이 연결로 센 것과 견준다
 const fixtureStudents = Number((await c.query(`select count(*)::int n from v2.students where import_batch='fixture'`)).rows[0].n);
-if (fixtureStudents < 2) bad.push(`❌ 검사용 학생이 ${fixtureStudents}명 — 0004_fixture 가 안 돌았다`);
+if (fixtureStudents < 2) bad.push(`❌ 검사용 학생이 ${fixtureStudents}명 · 0004_fixture 가 안 돌았다`);
 must("강사가 아이를 다 보는가",
   await as(P.강사, `select count(*)::int n from v2.students where import_batch='fixture'`), fixtureStudents);
 
@@ -131,6 +131,6 @@ if (U) {
 
 console.log("■ 통과"); ok.forEach(x=>console.log("  ",x));
 console.log("\n■ 새는 자리"); bad.length ? bad.forEach(x=>console.log("  ",x)) : console.log("   없음");
-console.log(`\n합계 — 통과 ${ok.length} · 샘 ${bad.length}`);
+console.log(`\n합계 · 통과 ${ok.length} · 샘 ${bad.length}`);
 await c.end();
 process.exit(bad.length ? 1 : 0);

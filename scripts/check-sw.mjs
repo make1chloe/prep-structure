@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from "node:fs";
 import vm from "node:vm";
 
 let fail = 0, n = 0;
-const ok = (t, c, why = "") => { n++; if (!c) { fail++; console.log(`   ❌ ${t}${why ? " — " + why : ""}`); }
+const ok = (t, c, why = "") => { n++; if (!c) { fail++; console.log(`   ❌ ${t}${why ? " · " + why : ""}`); }
                                  else console.log(`   ✅ ${t}`); };
 
 // 가짜 브라우저 — sw.js 를 여기 태워 실제로 돌린다
@@ -46,12 +46,12 @@ ok("① 열린 창을 바로 넘겨받는다 (clients.claim)", sw.claimed);
 const PAYLOAD = { title: "데일리리포트", body: "앱에서 확인해주세요.",
                   tag: "send-daily-abc12345", url: "/parent", r: 77 };
 await sw.fire("push", { data: { json: () => PAYLOAD } });
-ok("② 다섯 칸을 그대로 읽는다 — 제목",
+ok("② 다섯 칸을 그대로 읽는다. 제목",
    sw.shown[0]?.title === PAYLOAD.title, JSON.stringify(sw.shown[0]?.title));
 ok("② 본문·꼬리표·아이콘이 붙는다",
    sw.shown[0]?.body === PAYLOAD.body && sw.shown[0]?.tag === PAYLOAD.tag
    && sw.shown[0]?.icon === "/api/icon/192");
-ok("④ 받은 때를 회신한다 — /api/push/seen · opened:false",
+ok("④ 받은 때를 회신한다. /api/push/seen · opened:false",
    sw.fetched.some(f => f.u === "/api/push/seen" && f.credentials === "include"
      && JSON.parse(f.body).r === 77 && JSON.parse(f.body).opened === false),
    JSON.stringify(sw.fetched[0]?.body));
@@ -60,7 +60,7 @@ const sw2 = runSw();
 await sw2.fire("notificationclick", { notification: {
   close(){}, data: { url: "/parent", r: 77 } } });
 ok("③ 눌렀을 때 이미 열린 창을 쓴다", sw2.focused[0] === "/parent");
-ok("④ 누른 때를 회신한다 — opened:true",
+ok("④ 누른 때를 회신한다. opened:true",
    sw2.fetched.some(f => JSON.parse(f.body).opened === true));
 
 const sw3 = runSw();
@@ -83,7 +83,7 @@ for (const [what, p] of [
 
 console.log("\n■ 폰에서 저장 단추가 홈 인디케이터에 깔리지 않는가");
 const layout = readFileSync("app/layout.js", "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");   // 폰-5 주석을 먼저 지운다
-ok('viewportFit: "cover" 가 있다 — 없으면 safe-area 가 늘 0 이다',
+ok('viewportFit: "cover" 가 있다. 없으면 safe-area 가 늘 0 이다',
    /viewportFit:\s*["']cover["']/.test(layout));
 
 console.log("\n■ 서비스워커 검사 " + n + "건 · 실패 " + fail);

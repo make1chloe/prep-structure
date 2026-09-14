@@ -15,7 +15,7 @@ export default function Templates({ items = [], ready = false, placeholders = []
   return (<div className="sgrp" data-card="templates">
     <div className="sgh"><b>✉️ 문자 문구</b><span className="spacer" />
       {ready ? <span className="pill" data-g="sms-ready">문자 길 켜짐(솔라피)</span>
-             : <Link prefetch={false} className="pill warn" href="/settings#keys" data-g="sms-ready" data-act="to-keys">문자 길 없음 — 설정에서 넣기 ↗</Link>}</div>
+             : <Link prefetch={false} className="pill warn" href="/settings#keys" data-g="sms-ready" data-act="to-keys">문자 길 없음 · 설정에서 넣기 ↗</Link>}</div>
     <div className="wv" style={{ margin: "0 0 8px" }} data-g="sms-kinds">
       <span className="note" style={{ margin: 0 }}>문자로도</span>
       {SMS_ALSO.map(([k, name]) => { const on = kinds.includes(k);
@@ -25,7 +25,7 @@ export default function Templates({ items = [], ready = false, placeholders = []
       </div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="tpl-msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    {!items.length && <p className="note" style={{ margin: 0 }}>문구가 없습니다 — 표 0154 를 넣으면 기본 틀이 섭니다.</p>}
+    {!items.length && <p className="note" style={{ margin: 0 }}>문구가 없습니다. 표 0154 를 넣으면 기본 틀이 섭니다.</p>}
     {items.map((t) => (<div key={t.kind} data-g="tpl-row" data-kind={t.kind}>
       <div className="srow"><span className="si">✉️</span><div className="sn"><b>{t.title || templateName(t.kind)}</b><small>{lenText(t.body ?? "").text} · {String(t.body ?? "").split("\n")[0].slice(0, 40)}…</small></div>
         <button className="btn sm" type="button" data-act="tpl-edit" aria-pressed={open === t.kind} onClick={() => edit(t)}>{open === t.kind ? "닫기" : "고치기"}</button></div>
@@ -34,7 +34,7 @@ export default function Templates({ items = [], ready = false, placeholders = []
         <div className="wv" style={{ marginTop: 6 }}><span className={"pill" + (len.over ? " warn" : "")} data-g="tpl-len">{len.text}</span>
           <span className="note" style={{ margin: 0 }}>90바이트까지 단문(SMS) · 넘으면 장문(LMS)으로 나갑니다</span></div>
         <div className="tags" style={{ marginTop: 6 }} data-g="tpl-tags">{(placeholders ?? []).map((p) => <button key={p.key} className="tag" type="button" data-act="tpl-put" title={`${p.note}${p.example ? ` (예: ${p.example})` : ""}`} onClick={() => put(`{{${p.key}}}`)}>{`{{${p.key}}}`}</button>)}</div>
-        <p className="note k" style={{ margin: "4px 0 0" }}>칩을 누르면 그 자리가 글 끝에 들어갑니다 · <b>{"{{덧붙임}}"}</b> 은 아이마다 다른 말(등록 전환에서 적습니다 — 비면 그 줄이 사라집니다)</p>
+        <p className="note k" style={{ margin: "4px 0 0" }}>칩을 누르면 그 자리가 글 끝에 들어갑니다 · <b>{"{{덧붙임}}"}</b> 은 아이마다 다른 말(등록 전환에서 적습니다. 비면 그 줄이 사라집니다)</p>
         <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><button className="btn pri" type="button" disabled={pending || !text.trim() || len.over} data-act="tpl-save" onClick={() => save(t.kind)}>저장</button>
           <button className="btn" type="button" onClick={() => setOpen(null)}>닫기</button></div>
       </div>}

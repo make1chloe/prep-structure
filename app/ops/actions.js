@@ -29,7 +29,7 @@ export async function importAct(ym, formData) {
     const wb = XLSX.read(Buffer.from(await f.arrayBuffer()), { type: "buffer" });
     const ws = wb.Sheets[wb.SheetNames[0]]; if (!ws) throw new Error("시트가 없습니다");
     const parsed = parseSheet(XLSX.utils.sheet_to_json(ws, { defval: "" }), Number(ym.slice(0, 4)));
-    if (!parsed.length) throw new Error("읽을 줄이 없습니다 — 학생 이름 열(학생명·이름·성명)이 있어야 합니다");
+    if (!parsed.length) throw new Error("읽을 줄이 없습니다. 학생 이름 열(학생명·이름·성명)이 있어야 합니다");
     return importPayments(sb, ym, parsed, board);
   });
 }

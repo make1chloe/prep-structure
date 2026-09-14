@@ -22,7 +22,7 @@ const STAMP = path.join(ROOT, ".tmp/check-mockup.pass");
 const key = INPUTS.reduce((h, f) => h.update(f).update(fs.readFileSync(path.join(ROOT, f))), crypto.createHash("sha256")).digest("hex");
 if (!process.env.CHECK_MOCKUP_FULL && fs.existsSync(STAMP)) {
   const [k, ...msg] = fs.readFileSync(STAMP, "utf8").split("\n");
-  if (k === key) { console.log(msg.join("\n") + "  ⏭ 건너뜀 — 목업·CSS 가 지난번 통과 그대로 (통째로 돌리려면 CHECK_MOCKUP_FULL=1)"); process.exit(0); }
+  if (k === key) { console.log(msg.join("\n") + "  ⏭ 건너뜀 · 목업·CSS 가 지난번 통과 그대로 (통째로 돌리려면 CHECK_MOCKUP_FULL=1)"); process.exit(0); }
 }
 
 const bad = [];

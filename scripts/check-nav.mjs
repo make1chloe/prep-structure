@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs"; impor
 import { menuFor, currentTab } from "../lib/menu.js";
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
 let n = 0, bad = 0;
-const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const walk = (d, out = []) => { for (const e of readdirSync(d)) { const p = join(d, e); if (statSync(p).isDirectory()) walk(p, out); else if (p.endsWith(".js")) out.push(p); } return out; };
 const src = walk("app").map((f) => [f, strip(readFileSync(f, "utf8"))]);
 const hits = [], locs = [], pushes = [];
@@ -15,18 +15,18 @@ for (const [f, s] of src) {
   if (f !== "app/_shell/going.js") for (const m of s.match(/router\.push\(/g) ?? []) pushes.push(f); }
 ok("내부 이동 <a href=\"/…\"> 0곳(전부 <Link>)", hits.length === 0, hits.slice(0, 3).join(" | "));
 ok("window.location.href = 0곳", locs.length === 0, locs.slice(0, 3).join(", "));
-ok("router.push 는 app/_shell/going.js 안에만 — 판 화면은 go() 로(띠가 켜진다 · (다))", pushes.length === 0, pushes.slice(0, 3).join(", "));
-ok("모든 <Link> 는 prefetch={false}(동적 화면 — 미리 당겨오기가 서버에서 그 화면을 그려 DB 를 부른다 · 게이트 62 가 발송 조회 +1 로 잡음)", src.reduce((a, [, s]) => a + (s.match(/<Link (?!prefetch=)/g) ?? []).length, 0) === 0);
-for (const f of ["app/_shell/shell.js", "app/_shell/calview.js", "app/_shell/tabs.js"]) ok(`${f} — next/link`, /from "next\/link"/.test(strip(readFileSync(f, "utf8"))));
+ok("router.push 는 app/_shell/going.js 안에만 · 판 화면은 go() 로(띠가 켜진다 · (다))", pushes.length === 0, pushes.slice(0, 3).join(", "));
+ok("모든 <Link> 는 prefetch={false}(동적 화면 · 미리 당겨오기가 서버에서 그 화면을 그려 DB 를 부른다 · 게이트 62 가 발송 조회 +1 로 잡음)", src.reduce((a, [, s]) => a + (s.match(/<Link (?!prefetch=)/g) ?? []).length, 0) === 0);
+for (const f of ["app/_shell/shell.js", "app/_shell/calview.js", "app/_shell/tabs.js"]) ok(`${f} · next/link`, /from "next\/link"/.test(strip(readFileSync(f, "utf8"))));
 ok("달력 날짜 칸은 prefetch 를 끈다(42칸)", /<Link prefetch=\{false\}/.test(strip(readFileSync("app/_shell/calview.js", "utf8"))));
-ok("루트 app/loading.js 는 없다(Suspense 안의 redirect() — 게이트 61)", !existsSync("app/loading.js"));
+ok("루트 app/loading.js 는 없다(Suspense 안의 redirect() · 게이트 61)", !existsSync("app/loading.js"));
 const going = strip(readFileSync("app/_shell/going.js", "utf8")), tabs = strip(readFileSync("app/_shell/tabs.js", "utf8")), shell = strip(readFileSync("app/_shell/shell.js", "utf8"));
-ok("띠(going.js) — 문서 click 하나로 듣고(a[href] 내부만) · go() 사건도 듣고 · 주소(pathname·search)가 바뀌면 끄고 · LIMIT_MS 뒤 스스로 내린다", /^"use client"/.test(going) && /addEventListener\("click"/.test(going) && /addEventListener\(GOING/.test(going) && /usePathname\(\)/.test(going) && /useSearchParams\(\)/.test(going) && /setTimeout\([\s\S]*?LIMIT_MS\)/.test(going) && /startsWith\("\/api\/"\)/.test(going));
-ok("탭(tabs.js) — 지금 탭은 lib/menu currentTab 한 곳 · 누르면 먼저 aria-current · LIMIT_MS 뒤 내린다", /^"use client"/.test(tabs) && /currentTab\b.*from "@\/lib\/menu"/.test(tabs) && /aria-current=/.test(tabs) && /setPressed\(m\.href\)/.test(tabs) && /LIMIT_MS/.test(tabs));
-ok("껍질(shell.js) — <Tabs> 와 <Going>(Suspense 안 · useSearchParams) 을 상단바에 그린다", /<Tabs items=/.test(shell) && /<Suspense fallback=\{null\}><Going \/><\/Suspense>/.test(shell));
+ok("띠(going.js) · 문서 click 하나로 듣고(a[href] 내부만) · go() 사건도 듣고 · 주소(pathname·search)가 바뀌면 끄고 · LIMIT_MS 뒤 스스로 내린다", /^"use client"/.test(going) && /addEventListener\("click"/.test(going) && /addEventListener\(GOING/.test(going) && /usePathname\(\)/.test(going) && /useSearchParams\(\)/.test(going) && /setTimeout\([\s\S]*?LIMIT_MS\)/.test(going) && /startsWith\("\/api\/"\)/.test(going));
+ok("탭(tabs.js) · 지금 탭은 lib/menu currentTab 한 곳 · 누르면 먼저 aria-current · LIMIT_MS 뒤 내린다", /^"use client"/.test(tabs) && /currentTab\b.*from "@\/lib\/menu"/.test(tabs) && /aria-current=/.test(tabs) && /setPressed\(m\.href\)/.test(tabs) && /LIMIT_MS/.test(tabs));
+ok("껍질(shell.js) · <Tabs> 와 <Going>(Suspense 안 · useSearchParams) 을 상단바에 그린다", /<Tabs items=/.test(shell) && /<Suspense fallback=\{null\}><Going \/><\/Suspense>/.test(shell));
 const items = menuFor("principal", []);
-ok("currentTab 판단 — / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 **가장 긴 앞머리**(/schedule/exams → 일정 · /ops/inquiry → 운영 · /ops/students 는 제 탭이라 제 것) · 아이 화면(/me)은 null", items.length === 12 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/exams") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/inquiry") === "/ops" && currentTab(items, "/ops/students") === "/ops/students" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/exams", "/ops/inquiry", "/ops/students"].map((p) => currentTab(items, p)).join(",")}`);
-ok("탭 열둘 — **날마다 여는 화면은 한 번에 닿는다**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」). 일정 뒤에 내신·할 일·성적, 운영 뒤에 학생·자료함이 얹힌다(9/10 의 내신·할 일은 그대로) · 그 화면에서는 그 탭이 파랗다",
+ok("currentTab 판단 · / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 **가장 긴 앞머리**(/schedule/exams → 일정 · /ops/inquiry → 운영 · /ops/students 는 제 탭이라 제 것) · 아이 화면(/me)은 null", items.length === 12 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/exams") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/inquiry") === "/ops" && currentTab(items, "/ops/students") === "/ops/students" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/exams", "/ops/inquiry", "/ops/students"].map((p) => currentTab(items, p)).join(",")}`);
+ok("탭 열둘 · **날마다 여는 화면은 한 번에 닿는다**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」). 일정 뒤에 내신·할 일·성적, 운영 뒤에 학생·자료함이 얹힌다(9/10 의 내신·할 일은 그대로) · 그 화면에서는 그 탭이 파랗다",
   items.map((m) => m.name).join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,운영,학생,자료함,설정"
   && currentTab(items, "/schedule/grid") === "/schedule/grid" && currentTab(items, "/schedule/todo") === "/schedule/todo"
   && currentTab(items, "/scores") === "/scores" && currentTab(items, "/ops/students") === "/ops/students" && currentTab(items, "/ops/files") === "/ops/files"
@@ -34,15 +34,15 @@ ok("탭 열둘 — **날마다 여는 화면은 한 번에 닿는다**(원장님
   items.map((m) => `${m.name}(${m.href})`).join(" · "));
 { // 동선 — 원장 쪽 화면이 **몇 번 눌러 닿나**. 얹은 탭을 늘려 9 → 12 가 한 번이 됐다(2026-09-11)
   const 한번 = new Set(items.map((m) => m.href));
-  ok("날마다 여는 다섯은 **한 번**에 닿는다 — 오늘 · 학생 · 자료함 · 내신 · 할 일",
+  ok("날마다 여는 다섯은 **한 번**에 닿는다. 오늘 · 학생 · 자료함 · 내신 · 할 일",
     ["/today", "/ops/students", "/ops/files", "/schedule/grid", "/schedule/todo"].every((h) => 한번.has(h)),
     [...한번].join(" ")); }
-ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** — 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 열쇠는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
+ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** · 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 열쇠는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
   items.filter((m) => m.href.startsWith("/schedule")).every((m) => m.key === "page.schedule")
   && !/page\.(prep|grid|todo)/.test(readFileSync("lib/perm.js", "utf8")));
 // (어9) 원장님 2026-09-12 「세개 올린것 괜찮은데 **나는 안보여**」 — 옆으로 굴리기(overflow-x:auto + 숨긴 굴림막대)로는 열둘 중 뒤쪽 넷이 폰에서 아예 안 보였다.
 // 안 보이는 탭은 클릭이 ∞다. 이제 **접어서 두 줄로** 낸다 — 탭 줄만 한 줄 늘 뿐 빈 자리는 없으니 9/9 「여백없이」는 그대로.
-ok("(어9) 폰에서 탭은 **접는다** — 굴림막대에 숨기지 않는다(안 보이는 탭은 없다 · 실제로 다 보이나는 걷기가 잰다)",
+ok("(어9) 폰에서 탭은 **접는다** · 굴림막대에 숨기지 않는다(안 보이는 탭은 없다 · 실제로 다 보이나는 걷기가 잰다)",
   (() => { const css = readFileSync("app/globals.css", "utf8");
     return /\.appbar \.tabs\{[^}]*flex-wrap:wrap/.test(css) && !/\.appbar \.tabs\{[^}]*overflow-x:auto/.test(css) && !/\.appbar \.tabs\{[^}]*flex-wrap:nowrap/.test(css); })());
 console.log(`\n■ 화면 이동 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

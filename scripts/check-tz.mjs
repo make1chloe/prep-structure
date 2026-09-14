@@ -12,22 +12,22 @@ for (const f of readdirSync("supabase/migrations").filter(x=>x.endsWith(".sql"))
       bad.push(`${f}:${i+1}  ${l.trim().slice(0,80)}`);
   });
 }
-console.log("■ 시간대 — 서울 아닌 오늘을 쓰는 자리");
+console.log("■ 시간대 · 서울 아닌 오늘을 쓰는 자리");
 bad.length ? bad.forEach(x=>console.log("   ❌",x)) : console.log("   ✅ 없음");
-console.log("■ 날짜 글자 셈 — UTC 프로세스에서도 서울 달력과 같은가 (lib/day-plan.js 한 벌)");
+console.log("■ 날짜 글자 셈 · UTC 프로세스에서도 서울 달력과 같은가 (lib/day-plan.js 한 벌)");
 const ok = (what, cond, got) => { if (cond) console.log("   ✅", what); else { bad.push(what); console.log("   ❌", what, "—", got); } };
 ok("2026-09-06 은 일요일(0)", weekday("2026-09-06") === 0, weekday("2026-09-06"));
 ok("2026-09-05 는 토(6) · 이름 「토」", weekday("2026-09-05") === 6 && weekdayName("2026-09-05") === "토", weekdayName("2026-09-05"));
-ok("30일 전 — 2026-09-06 → 2026-08-07", plusDays("2026-09-06", -30) === "2026-08-07", plusDays("2026-09-06", -30));
-ok("달 넘김 — 2026-09-29 + 3 → 2026-10-02", plusDays("2026-09-29", 3) === "2026-10-02", plusDays("2026-09-29", 3));
-ok("서울 시 — 12:30Z 는 21시 · 15:00Z 는 0시(자정)", seoulHour(new Date("2026-09-05T12:30:00Z")) === 21 && seoulHour(new Date("2026-09-05T15:00:00Z")) === 0, `${seoulHour(new Date("2026-09-05T12:30:00Z"))} ${seoulHour(new Date("2026-09-05T15:00:00Z"))}`);
+ok("30일 전 · 2026-09-06 → 2026-08-07", plusDays("2026-09-06", -30) === "2026-08-07", plusDays("2026-09-06", -30));
+ok("달 넘김 · 2026-09-29 + 3 → 2026-10-02", plusDays("2026-09-29", 3) === "2026-10-02", plusDays("2026-09-29", 3));
+ok("서울 시 · 12:30Z 는 21시 · 15:00Z 는 0시(자정)", seoulHour(new Date("2026-09-05T12:30:00Z")) === 21 && seoulHour(new Date("2026-09-05T15:00:00Z")) === 0, `${seoulHour(new Date("2026-09-05T12:30:00Z"))} ${seoulHour(new Date("2026-09-05T15:00:00Z"))}`);
 ok("날짜 아닌 글자는 던진다", (() => { try { weekday("2026-9-6"); return false; } catch { return true; } })(), "안 던짐");
 // 흩어진 셈 — 날짜 글자에 시간대를 붙여 지역 메서드로 읽는 자리는 lib/day-plan.js 밖에 없어야 한다
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === "node_modules" ? [] : walk(`${d}/${e.name}`)) : /\.(js|mjs)$/.test(e.name) ? [`${d}/${e.name}`] : []);
 for (const f of [...walk("lib"), ...walk("app")]) {
   if (f === "lib/day-plan.js") continue;
   const s = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
-  s.split("\n").forEach((l, i) => { if (/\.getDay\(\)|\.getDate\(\)|\.setDate\(|\.getMonth\(\)|T00:00:00\+09:00/.test(l)) bad.push(`${f}:${i + 1} 시간대에 기대는 날짜 셈 — lib/day-plan.js 의 weekday·plusDays 를 쓴다: ${l.trim().slice(0, 90)}`); });
+  s.split("\n").forEach((l, i) => { if (/\.getDay\(\)|\.getDate\(\)|\.setDate\(|\.getMonth\(\)|T00:00:00\+09:00/.test(l)) bad.push(`${f}:${i + 1} 시간대에 기대는 날짜 셈 · lib/day-plan.js 의 weekday·plusDays 를 쓴다: ${l.trim().slice(0, 90)}`); });
 }
 const spread = bad.filter((x) => /시간대에 기대는/.test(x));
 spread.length ? spread.forEach((x) => console.log("   ❌", x)) : console.log("   ✅ 흩어진 셈 없음(lib·app)");

@@ -19,7 +19,7 @@ export default function Keys({ rows = [] }) {
   const [msg, setMsg] = useState(""); const [err, setErr] = useState(""); const [to, setTo] = useState("");
   const edit = (r) => { setOpen(open === r.id ? null : r.id); setForm(Object.fromEntries(r.fields.filter((f) => f.editable).map((f) => [f.k, f.editable]))); setMsg(""); setErr(""); };   // 비밀 아닌 칸(발신번호)은 지금 값을 채워 둔다 — 빈 칸이면 저장한 줄 모르신다
   const save = (id) => start(async () => { setErr(""); setMsg(""); const x = await saveKeysAct(id, form); if (!x.ok) { setErr(x.msg); return; } setMsg(x.text); setOpen(null); setForm({}); router.refresh(); });
-  const test = () => start(async () => { setErr(""); setMsg(""); const x = await testSmsAct(to); if (!x.ok) { setErr(x.msg); return; } setMsg(x.sent ? `보냈습니다 — ${x.to}` : x.sink === "off" ? `리허설(NOTIFY_SINK=off)이라 자취만 — ${x.to}` : `못 보냈습니다 — ${x.why}`); router.refresh(); });
+  const test = () => start(async () => { setErr(""); setMsg(""); const x = await testSmsAct(to); if (!x.ok) { setErr(x.msg); return; } setMsg(x.sent ? `보냈습니다. ${x.to}` : x.sink === "off" ? `리허설(NOTIFY_SINK=off)이라 자취만 · ${x.to}` : `못 보냈습니다. ${x.why}`); router.refresh(); });
   return (<div className="card" data-card="keys" id="keys"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠</div>
     {err && <p className="note" role="alert" style={{ color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="keys-msg" style={{ color: "var(--on-ok)" }}>{msg}</p>}

@@ -15,7 +15,7 @@ const 아이 = "zz_시험_학생", 학교 = "zz_시험_중학교", 학년 = "2";
 const 날 = (n) => { const d = new Date(Date.now() + 9 * 3600000 + n * 86400000); return d.toISOString().slice(0, 10); };
 const 요일 = (s) => "일월화수목금토"[new Date(s + "T00:00:00+09:00").getDay()];
 const 쪽오류 = [], 잰것 = [], 막힌것 = [];
-const 막힘 = (어디, 글) => { 막힌것.push(`${어디} — ${글}`); console.log(`      🚧 ${어디} — ${글}`); };
+const 막힘 = (어디, 글) => { 막힌것.push(`${어디} · ${글}`); console.log(`      🚧 ${어디} · ${글}`); };
 
 const b = await launch();
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
@@ -25,7 +25,7 @@ p.on("pageerror", (e) => 쪽오류.push(String(e.message).slice(0, 140)));
 const 오류줄 = async () => (await p.locator("main [role=alert]:visible").allTextContents()).join(" / ").replace(/\s+/g, " ").trim();
 async function 누름(loc, 어디, 무엇) {
   const 전 = await 오류줄();
-  try { await loc.click({ timeout: 8000 }); } catch (e) { 막힘(어디, `「${무엇}」를 못 눌렀습니다 — ${String(e.message).split("\n")[0].slice(0, 100)}`); return false; }
+  try { await loc.click({ timeout: 8000 }); } catch (e) { 막힘(어디, `「${무엇}」를 못 눌렀습니다. ${String(e.message).split("\n")[0].slice(0, 100)}`); return false; }
   await p.waitForLoadState("networkidle").catch(() => {});
   await p.waitForTimeout(800);
   const 후 = await 오류줄();
@@ -58,17 +58,17 @@ async function 재기(url, 이름) {
   console.log(`   ${이름.padEnd(22)} 본문 ${String(m.본문).padStart(5)}자 · 설명문 ${String(m.설명수).padStart(3)}개 ${String(m.설명글자).padStart(5)}자 · 카드 ${String(m.카드).padStart(2)} · 폰 ${String(Math.round((폰높이 / 844) * 10) / 10).padStart(4)}화면`);
 }
 
-console.log(`\n■■ 한 달 돌려보기 + 읽기 재기 — ${날(-27)}(${요일(날(-27))}) ~ ${날(0)}(${요일(날(0))}) · 앱 ${APP}\n`);
+console.log(`\n■■ 한 달 돌려보기 + 읽기 재기 · ${날(-27)}(${요일(날(-27))}) ~ ${날(0)}(${요일(날(0))}) · 앱 ${APP}\n`);
 
 // ══ 0. 로그인 ═══════════════════════════════════════════════════════════════
 await p.goto(APP + "/login");
 await p.fill("#id-staff", "zz_principal@e2e.test"); await p.fill("#pw-staff", "e2e-pass");
 await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 }).catch(() => {}), p.click("form:has(#id-staff) button[type=submit]")]);
-if (new URL(p.url()).pathname.startsWith("/login")) { console.log("로그인 실패 — 멈춥니다"); await b.close(); process.exit(1); }
+if (new URL(p.url()).pathname.startsWith("/login")) { console.log("로그인 실패 · 멈춥니다"); await b.close(); process.exit(1); }
 console.log("0. 원장으로 들어왔습니다\n");
 
 // ══ 1. 내신 차리기 — 이 달 안에 시험이 있게 ════════════════════════════════
-console.log("1. 내신 차리기 — 시험일·영어일·범위를 이 달 안에");
+console.log("1. 내신 차리기 · 시험일·영어일·범위를 이 달 안에");
 const 시험시작 = 날(-6), 시험끝 = 날(-3), 영어일 = 날(-5);
 await p.goto(APP + "/schedule/import", { waitUntil: "domcontentloaded" }); await p.waitForLoadState("networkidle").catch(() => {});
 await 누름(p.locator("[data-act=manual-open]"), "12b", "+ 손으로 넣기");
@@ -97,7 +97,7 @@ await p.goto(APP + "/schedule/exams", { waitUntil: "domcontentloaded" }); await 
     await 누름(sf.locator("[data-act=scope-save]"), "06b", "더하기"); } }
 
 // ══ 2. 한 달 — 수업일마다 출결·검사·마감 ═══════════════════════════════════
-console.log("\n2. 한 달을 굴린다 — 수업일마다 출결 · 숙제 검사 · 마감(내신 기간엔 시험까지)");
+console.log("\n2. 한 달을 굴린다. 수업일마다 출결 · 숙제 검사 · 마감(내신 기간엔 시험까지)");
 let 연것 = 0, 마감한것 = 0;
 for (let d = -27; d <= 0; d++) {
   const D = 날(d);
@@ -118,7 +118,7 @@ for (let d = -27; d <= 0; d++) {
 console.log(`   수업일 ${연것}일 · 마감 ${마감한것}일`);
 
 // ══ 3. 화면마다 읽기 재기 ═══════════════════════════════════════════════════
-console.log("\n3. 읽기 재기 — 본문 · 설명문 · 카드 · 폰에서 몇 화면분\n");
+console.log("\n3. 읽기 재기 · 본문 · 설명문 · 카드 · 폰에서 몇 화면분\n");
 const 화면들 = [
   ["/", "17 대시보드"], ["/today", "01 오늘 수업"], ["/send", "10 발송"], ["/send/monthly", "10b 월간 리포트"],
   ["/send/notice", "10c 공지"], ["/schedule", "12 일정"], ["/schedule/classes", "02c 반"], ["/schedule/exams", "06b 학교 시험"],
@@ -131,11 +131,11 @@ for (const [url, 이름] of 화면들) await 재기(url, 이름);
 
 // ══ 4. 목록 — 설명문이 많은 순 ══════════════════════════════════════════════
 잰것.sort((a, b) => b.설명글자 - a.설명글자);
-console.log("\n\n■■ 읽을 것이 많은 순 — 설명문(p.note·small·.auto) 글자 수\n");
+console.log("\n\n■■ 읽을 것이 많은 순 · 설명문(p.note·small·.auto) 글자 수\n");
 console.log("   설명문    본문   카드  폰   화면");
 for (const r of 잰것) console.log(`   ${String(r.설명글자).padStart(5)}자(${String(r.설명수).padStart(2)}) ${String(r.본문).padStart(5)}자 ${String(r.카드).padStart(4)} ${String(r.폰화면).padStart(4)}  ${r.이름}`);
 console.log(`\n   합계 설명문 ${잰것.reduce((a, r) => a + r.설명글자, 0)}자 · ${잰것.reduce((a, r) => a + r.설명수, 0)}개`);
-console.log("\n■ 가장 긴 설명문 — 화면마다 셋\n");
+console.log("\n■ 가장 긴 설명문 · 화면마다 셋\n");
 for (const r of 잰것.slice(0, 10)) { console.log(`   ${r.이름}`); for (const g of r.긴것) console.log(`      ${String(g.n).padStart(4)}자  ${g.s}`); }
 if (막힌것.length) { console.log("\n■ 막힌 곳\n"); 막힌것.forEach((x, i) => console.log(`   ${i + 1}. ${x}`)); }
 if (쪽오류.length) { console.log("\n■ 브라우저 오류\n"); [...new Set(쪽오류)].forEach((x) => console.log(`   ${x}`)); }

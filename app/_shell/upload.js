@@ -27,8 +27,8 @@ export default function Upload({ rules = {}, studentId = null, kids = null, item
       const s = isImage(f.type) ? await shrinkImage(f, maxPx) : { blob: f, shrunk: false, mime: f.type, name: f.name };
       const why = checkFile({ name: s.name, mime: s.mime, bytes: s.blob.size }, { maxMb }); if (why) { fails.push(why); continue; }
       const fd = new FormData(); fd.append("file", s.blob, s.name); fd.append("mime", s.mime); if (target) fd.append("student", target); if (itemId) fd.append("item", itemId); if (note.trim()) fd.append("note", note.trim()); fd.append("shrunk", s.shrunk ? "1" : "0");
-      try { const r = await fetch("/api/files", { method: "POST", body: fd }); const j = await r.json().catch(() => ({})); if (!r.ok || !j.ok) fails.push(`${s.name} — ${j.msg ?? r.status}`); else sent++; }
-      catch (e) { fails.push(`${s.name} — ${String(e?.message ?? e)}`); }
+      try { const r = await fetch("/api/files", { method: "POST", body: fd }); const j = await r.json().catch(() => ({})); if (!r.ok || !j.ok) fails.push(`${s.name} · ${j.msg ?? r.status}`); else sent++; }
+      catch (e) { fails.push(`${s.name} · ${String(e?.message ?? e)}`); }
     }
     setBusy(false); setOut({ sent, fails }); if (sent) { setFiles([]); setNote(""); if (ref.current) ref.current.value = ""; onDone?.({ sent, fails }); }
   };

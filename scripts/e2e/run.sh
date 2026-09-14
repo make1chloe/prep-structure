@@ -24,17 +24,20 @@ export CHECK_URLS="http://127.0.0.1:$APP_PORT/login,http://127.0.0.1:$APP_PORT/,
 node scripts/check-sizes.mjs || exit 1
 node scripts/check-fonts.mjs || exit 1
 node scripts/check-contrast.mjs || exit 1
+node scripts/check-nodash.mjs || exit 1
 # ── 아이 화면(07)은 아이 자격으로 — screens.mjs 가 남긴 아이 쿠키 상태로 연다
 if [ -f .tmp/state-student.json ]; then
   export CHECK_STATE=.tmp/state-student.json CHECK_URLS="http://127.0.0.1:$APP_PORT/me,http://127.0.0.1:$APP_PORT/me/cal,http://127.0.0.1:$APP_PORT/me/book,http://127.0.0.1:$APP_PORT/me/videos"
   node scripts/check-sizes.mjs || exit 1
   node scripts/check-fonts.mjs || exit 1
   node scripts/check-contrast.mjs || exit 1
+  node scripts/check-nodash.mjs || exit 1
 fi
 if [ -f .tmp/state-parent.json ]; then
   export CHECK_STATE=.tmp/state-parent.json CHECK_URLS="http://127.0.0.1:$APP_PORT/parent,http://127.0.0.1:$APP_PORT/parent/cal"
   node scripts/check-sizes.mjs || exit 1
   node scripts/check-fonts.mjs || exit 1
   node scripts/check-contrast.mjs || exit 1
+  node scripts/check-nodash.mjs || exit 1
 fi
 echo; echo "눌러보기 끝. 내리려면 bash scripts/e2e/down.sh"

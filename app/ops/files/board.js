@@ -10,7 +10,7 @@ import { md, seoulDate } from "@/lib/dash-plan";
 import Upload from "../../_shell/upload.js";
 /** ② 원장님 답 한 줄 — 손 떼면 저장. 비우면 자동 답 자리로(갈래를 고르면 다시 채워진다) */
 function Reply({ f, pending, run }) {
-  return <input type="text" defaultValue={f.reply ?? ""} placeholder={f.reply ? "" : "아이·학부모에게 답 한 줄(갈래를 고르면 저절로)"} aria-label={`${f.orig_name} 답`} data-g="reply" disabled={pending} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (f.reply ?? "")) run(() => replyAct(f.id, e.target.value), "답을 적었습니다 — 보낸 사람 화면에 뜹니다"); }} style={{ flex: "1 1 220px" }} />;
+  return <input type="text" defaultValue={f.reply ?? ""} placeholder={f.reply ? "" : "아이·학부모에게 답 한 줄(갈래를 고르면 저절로)"} aria-label={`${f.orig_name} 답`} data-g="reply" disabled={pending} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (f.reply ?? "")) run(() => replyAct(f.id, e.target.value), "답을 적었습니다. 보낸 사람 화면에 뜹니다"); }} style={{ flex: "1 1 220px" }} />;
 }
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -36,9 +36,9 @@ export default function Board({ d }) {
       <div className="exr" style={{ borderColor: "var(--amber)" }} data-g="inbox">
         <div className="exh"><span className="ai">📥</span><b>방금 온 것</b><span className="tag act" data-g="inbox-n">{inbox.length}</span><span className="spacer" /></div>
         <div className="left">
-          {!inbox.length && <p className="note" style={{ margin: "8px 0 0" }}>방금 온 것이 없습니다 — 아이·학부모가 찍어 보내면 여기 뜹니다</p>}
+          {!inbox.length && <p className="note" style={{ margin: "8px 0 0" }}>방금 온 것이 없습니다. 아이·학부모가 찍어 보내면 여기 뜹니다</p>}
           {inbox.map((f) => <div className="lf" key={f.id} data-g="inbox-row" data-file={f.id}>{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{f.icon}</span>}
-            <div><b>{f.who} — {f.orig_name}</b><small>{f.when} · {f.note ? <><i className="ic">💬</i> 「{f.note}」 · </> : null}{f.size}{f.shrunk ? " · 줄임" : ""} · {f.tag}</small><div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div></div>
+            <div><b>{f.who} · {f.orig_name}</b><small>{f.when} · {f.note ? <><i className="ic">💬</i> 「{f.note}」 · </> : null}{f.size}{f.shrunk ? " · 줄임" : ""} · {f.tag}</small><div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div></div>
             <div className="seg sm" data-g="kind" style={{ flex: "1 1 260px", flexWrap: "wrap", height: "auto" }}>{kinds.map((k) => <button key={k} type="button" aria-pressed={false} disabled={pending} onClick={() => run(() => sortAct(f.id, k), `「${k}」 로 넣었습니다`)}>{k}</button>)}</div>
             <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a></div>)}
         </div>
@@ -48,14 +48,14 @@ export default function Board({ d }) {
       <div className="kb" data-g="kb">
         {cols.map((col) => <div className="col" key={col.key} data-g="col"><div className="colh">{col.title} <span className="n">{col.n}</span></div>
           {col.cards.map((x) => { const key = x.bin?.id ?? x.title; return <button type="button" className="kc" key={key} data-g="bin" data-bin={x.bin?.id ?? ""} aria-pressed={open === key} onClick={() => setOpen(open === key ? null : key)} style={{ textAlign: "left", width: "100%", cursor: "pointer" }}>
-            <b>{x.title}</b><div className="sub">{x.sub}</div>{x.same > 1 && <div className="kv"><span>같은 것</span>{x.same}장 — 골라 씁니다</div>}<div className="kv"><span>마지막</span>{x.last}</div>{x.why && <div className="why">{x.why}</div>}</button>; })}
+            <b>{x.title}</b><div className="sub">{x.sub}</div>{x.same > 1 && <div className="kv"><span>같은 것</span>{x.same}장 · 골라 씁니다</div>}<div className="kv"><span>마지막</span>{x.last}</div>{x.why && <div className="why">{x.why}</div>}</button>; })}
         </div>)}
       </div>
-      {openCard && <div className="card" style={{ marginTop: 8 }} data-g="bin-files"><div className="ctitle"><span className="cemo">📂</span>{openCard.title} — {openCard.n}개{star ? " · ⭐ 가장 또렷한 것을 골라 씁니다(지우지 않습니다)" : ""}<span className="spacer" /><button type="button" className="btn sm" onClick={() => setOpen(null)}>닫기</button></div>
+      {openCard && <div className="card" style={{ marginTop: 8 }} data-g="bin-files"><div className="ctitle"><span className="cemo">📂</span>{openCard.title} · {openCard.n}개{star ? " · ⭐ 가장 또렷한 것을 골라 씁니다(지우지 않습니다)" : ""}<span className="spacer" /><button type="button" className="btn sm" onClick={() => setOpen(null)}>닫기</button></div>
         {openCard.files.map((f) => <FileRow key={f.id} f={f} bin={openCard.bin} />)}</div>}
     </>}
     {tab === "out" && <div data-g="sent">
-      {!sent.length && <p className="note" style={{ margin: "4px 0" }}>보낸 것 없음 — 📤 보내기</p>}
+      {!sent.length && <p className="note" style={{ margin: "4px 0" }}>보낸 것 없음 · 📤 보내기</p>}
       {sent.map((f) => <div className="lf" key={f.id} data-g="sent-row" data-file={f.id}><span className="ln">{f.icon}</span>
         <div><b>{f.orig_name}</b><small>{f.when} · {f.size}{f.note ? ` · 💬 「${f.note}」` : ""}{f.by_name ? ` · ${f.by_name}` : ""}</small>
           {f.links.map((l, i) => <small key={i} data-g="sent-link" data-seen={l.seen_by_child ?? "none"} style={{ color: "var(--mid)" }}>{l.target} · {l.seen}{l.seen_at ? ` ${md(seoulDate(l.seen_at))}` : ""}</small>)}
@@ -68,7 +68,7 @@ export default function Board({ d }) {
       <div className="mdlb">
         <div className="wv"><label className="fl" style={{ margin: 0 }}>누구에게</label><select value={sid} aria-label="누구에게" data-g="send-student" onChange={(e) => { setSid(e.target.value); setItem(""); }} style={{ width: "auto" }}><option value="">아이를 고르세요</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.school ? ` · ${s.school} ${s.grade ?? ""}` : ""}</option>)}</select></div>
         {tg.student && <div className="wv" style={{ marginTop: 8 }}><label className="fl" style={{ margin: 0 }}>어느 숙제에</label>{tg.items.length ? <select value={item} aria-label="어느 숙제에" data-g="send-item" onChange={(e) => setItem(e.target.value)} style={{ width: "auto", maxWidth: 360 }}><option value="">{md(tg.student.sheet.date)} 숙제 줄을 고르세요</option>{tg.items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}</select> : <span className="note" style={{ margin: 0 }} data-g="send-why">{tg.why}</span>}</div>}
-        {tg.student && item && <Upload rules={rules} studentId={tg.student.id} itemId={item} label="📎 붙일 파일" hint={`아이 화면의 그 숙제 줄에 📎 로 붙습니다 — 아이가 💾 저장 · ✓ 안 보기로 처리하고 ${days}일 뒤 아이 화면에서 사라집니다(여기엔 그대로)`} onDone={() => router.refresh()} />}
+        {tg.student && item && <Upload rules={rules} studentId={tg.student.id} itemId={item} label="📎 붙일 파일" hint={`아이 화면의 그 숙제 줄에 📎 로 붙습니다. 아이가 💾 저장 · ✓ 안 보기로 처리하고 ${days}일 뒤 아이 화면에서 사라집니다(여기엔 그대로)`} onDone={() => router.refresh()} />}
         {(!tg.student || !item) && <p className="note k" style={{ margin: "8px 0 0" }}>아이 → 숙제 줄을 고르면 파일 칸이 열립니다 · 공지에 붙이기는 <Link prefetch={false} href="/send/notice" data-act="to-notice">📢 공지 화면</Link>에서(자료함의 파일을 골라 붙입니다)</p>}
       </div>
       <div className="mdlf"><span className="spacer" /><button className="btn" type="button" onClick={() => setSend(false)}>닫기</button></div>

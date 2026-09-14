@@ -27,7 +27,7 @@ for (const url of urls) for (const v of VIEWS) {
   const off = Object.keys(r.sizes).map(Number).filter(s => !SCALE.has(s)); if (off.length) fails.push("열 단계 밖: " + off.map(s => `${s}(${r.sample[s]})`).join(" "));
   const inOff = Object.keys(r.inputs).map(Number).filter(s => s !== r.body); if (inOff.length) fails.push(`입력칸 ≠ 본문(${r.body}): ${inOff.join(" ")}`);
   const tag = `${v.name}${urls.length > 1 ? " " + url : ""}`;
-  if (fails.length) { bad++; console.log(`✗ ${tag}\n    ${fails.join("\n    ")}`); } else console.log(`✓ ${tag} — ${fams[0]} ${Object.values(r.fam)[0]}개 · 본문 ${r.body} · 입력칸 ${Object.keys(r.inputs).join(",") || "없음"}`);
+  if (fails.length) { bad++; console.log(`✗ ${tag}\n    ${fails.join("\n    ")}`); } else console.log(`✓ ${tag} · ${fams[0]} ${Object.values(r.fam)[0]}개 · 본문 ${r.body} · 입력칸 ${Object.keys(r.inputs).join(",") || "없음"}`);
   await ctx.close();
 }
 await b.close();

@@ -19,7 +19,7 @@ export function ClassMakeup({ classId, ym, short }) {
   return <div style={{ marginTop: 4 }}>
     <button className="btn sm" type="button" data-act="class-makeup-open" onClick={() => setOpen(!open)}>📅 보강일 잡기</button>
     {open && <div className="wv" style={{ marginTop: 4 }} data-g="class-makeup"><input type="date" value={on} onChange={(e) => setOn(e.target.value)} aria-label="보강 날짜" style={{ width: "auto" }} /><input type="time" value={at} onChange={(e) => setAt(e.target.value)} aria-label="보강 시각" style={{ width: "auto" }} />
-      <button className="btn pri sm" type="button" disabled={pending} data-act="class-makeup-save" onClick={() => run(() => classMakeupAct({ classId, onDate: on, atTime: at || null }), (r) => `반 보강일을 잡았습니다 — ${r.made}명(이미 있던 ${r.had}명) · ${short}회 중 1회`, () => setOpen(false))}>잡기</button></div>}
+      <button className="btn pri sm" type="button" disabled={pending} data-act="class-makeup-save" onClick={() => run(() => classMakeupAct({ classId, onDate: on, atTime: at || null }), (r) => `반 보강일을 잡았습니다. ${r.made}명(이미 있던 ${r.had}명) · ${short}회 중 1회`, () => setOpen(false))}>잡기</button></div>}
     <Note err={err} msg={msg} />
   </div>;
 }
@@ -29,7 +29,7 @@ export function MonthConfirm({ ym, ct, can }) {
   return <div className="wv" style={{ gap: 6 }} data-g="confirm" data-state={ct.state}>
     <span className={"pill" + (ct.bad ? " warn" : "")} data-g="confirm-text">{ct.text}</span>
     {can && ct.button && <button className="btn pri sm" type="button" disabled={pending} data-act="confirm-month" onClick={() => sure.ask("month")}>{ct.button}</button>}
-    <Sure on={sure.is("month")} text={`${m}월 일정을 확정하고 반 아이들의 학부모에게 알림을 보낼까요?${ct.state === "undone" ? " (휴강이 들어와 풀렸던 것을 다시 확정합니다)" : ""}`} yes="확정" pending={pending} onYes={() => { sure.off(); run(() => confirmMonthAct(ym), (r) => `${m}월 일정 확정 — 반 ${r.classes} · 학부모 ${r.n}명에게 알림${r.sink === "off" ? "(🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다)" : ` · 보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
+    <Sure on={sure.is("month")} text={`${m}월 일정을 확정하고 반 아이들의 학부모에게 알림을 보낼까요?${ct.state === "undone" ? " (휴강이 들어와 풀렸던 것을 다시 확정합니다)" : ""}`} yes="확정" pending={pending} onYes={() => { sure.off(); run(() => confirmMonthAct(ym), (r) => `${m}월 일정 확정 · 반 ${r.classes} · 학부모 ${r.n}명에게 알림${r.sink === "off" ? "(🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다)" : ` · 보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
     <Note err={err} msg={msg} />
   </div>;
 }
@@ -43,7 +43,7 @@ export default function Panel({ d }) {
   const openForm = (k) => setForm(form === k ? null : k);
   return <>
     <div className="ctitle"><span className="cemo">📅</span><span data-g="day-title">{dayTitle(d.sel)}</span></div>
-    {!d.rows.length && <p className="note" data-g="day-empty">이 날은 적힌 것이 없습니다 — 정상 수업이면 아무것도 안 띄웁니다.</p>}
+    {!d.rows.length && <p className="note" data-g="day-empty">이 날은 적힌 것이 없습니다. 정상 수업이면 아무것도 안 띄웁니다.</p>}
     {d.rows.map((r, i) => <div key={i} className="dayrow" data-g="day-row" data-kind={r.kind}><i className={"cm " + (r.kind === "abs" ? "i-abs" : r.kind === "late" ? "i-late" : r.kind === "mk" ? "i-mk" : r.kind === "hol" ? "i-off" : r.kind === "todo" ? "i-todo" : "i-ex")}>{r.icon}</i>
       <div style={{ flex: "1 1 auto", minWidth: 0 }}><b>{r.title}</b><small>{r.small}</small>
         {r.kind === "abs" && <div style={{ marginTop: 4 }} data-g="makeup-forms">{r.items.map((it) => <div key={it.id} className="wv" style={{ margin: "2px 0" }} data-g="makeup-form" data-student={it.student_id}><span className="tag">{it.name}</span>
@@ -59,12 +59,12 @@ export default function Panel({ d }) {
     </div>)}
     <div className="savebar" style={{ border: 0, padding: "8px 0 0", background: "none" }} data-g="day-acts">
       <button className="btn sm" type="button" data-act="open-exam" onClick={() => openForm("exam")}>+ 일정(시험)</button><button className="btn sm" type="button" data-act="open-holiday" onClick={() => openForm("holiday")}>+ 휴강</button><button className="btn sm" type="button" data-act="open-todo" onClick={() => openForm("todo")}>+ 할 일</button>
-      <span className="spacer" /><span className="pill">정상 수업은 안 띄웁니다 — 당연한 것이니까</span>
+      <span className="spacer" /><span className="pill">정상 수업은 안 띄웁니다. 당연한 것이니까</span>
     </div>
     {form === "holiday" && <div className="card" style={{ marginTop: 8 }} data-g="holiday-form"><div className="wv"><span className="tag">🚫 휴강 · {d.sel}</span>
       <select value={hol.classId} onChange={(e) => setHol({ ...hol, classId: e.target.value })} aria-label="반" style={{ width: "auto" }}><option value="">전체</option>{d.classes.map((c) => <option key={c.id} value={c.id}>{classText(c)}</option>)}</select>
-      <input value={hol.reason} onChange={(e) => setHol({ ...hol, reason: e.target.value })} placeholder="사유 (예: 개천절 · 원장 연수) — 아이·학부모가 봅니다" aria-label="사유" name="reason" style={{ flex: "1 1 200px" }} />
-      <button className="btn pri sm" type="button" disabled={pending} data-act="holiday-save" onClick={() => run(() => holidayAct({ date: d.sel, classId: hol.classId, reason: hol.reason }), "휴강을 넣었습니다 — 회차에서 빠집니다", () => setForm(null))}>저장</button><button className="btn sm gho" type="button" onClick={() => setForm(null)}>닫기</button></div></div>}
+      <input value={hol.reason} onChange={(e) => setHol({ ...hol, reason: e.target.value })} placeholder="사유 (예: 개천절 · 원장 연수) · 아이·학부모가 봅니다" aria-label="사유" name="reason" style={{ flex: "1 1 200px" }} />
+      <button className="btn pri sm" type="button" disabled={pending} data-act="holiday-save" onClick={() => run(() => holidayAct({ date: d.sel, classId: hol.classId, reason: hol.reason }), "휴강을 넣었습니다. 회차에서 빠집니다", () => setForm(null))}>저장</button><button className="btn sm gho" type="button" onClick={() => setForm(null)}>닫기</button></div></div>}
     {form === "todo" && <div className="card" style={{ marginTop: 8 }} data-g="todo-form"><div className="wv"><span className="tag">📋 할 일 · {d.sel}</span>
       <input value={todo.title} onChange={(e) => setTodo({ ...todo, title: e.target.value })} placeholder="할 일 (예: 11월 수납 안내)" aria-label="할 일" name="title" style={{ flex: "1 1 200px" }} /><input type="time" value={todo.dueTime} onChange={(e) => setTodo({ ...todo, dueTime: e.target.value })} aria-label="시각" style={{ width: "auto" }} />
       <button className="btn pri sm" type="button" disabled={pending} data-act="todo-save" onClick={() => run(() => todoAct({ title: todo.title, dueOn: d.sel, dueTime: todo.dueTime || null }), "할 일을 넣었습니다", () => setForm(null))}>저장</button><button className="btn sm gho" type="button" onClick={() => setForm(null)}>닫기</button></div></div>}
@@ -75,7 +75,7 @@ export default function Panel({ d }) {
       <input value={exam.name} onChange={(e) => setExam({ ...exam, name: e.target.value })} placeholder="이름 (예: 2학기 중간)" aria-label="시험 이름" name="exam-name" style={{ flex: "1 1 160px" }} />
       <span className="note" style={{ margin: 0 }}>기간</span><input type="date" value={exam.termFrom} onChange={(e) => setExam({ ...exam, termFrom: e.target.value })} aria-label="시작" style={{ width: "auto" }} /><input type="date" value={exam.termTo} onChange={(e) => setExam({ ...exam, termTo: e.target.value })} aria-label="끝" style={{ width: "auto" }} />
       <span className="note" style={{ margin: 0 }}>영어일</span><input type="date" value={exam.englishOn} onChange={(e) => setExam({ ...exam, englishOn: e.target.value })} aria-label="영어 시험일" style={{ width: "auto" }} />
-      <button className="btn pri sm" type="button" disabled={pending} data-act="exam-save" onClick={() => run(() => examAct(exam), "시험을 넣었습니다(손으로 — 받아와도 안 덮습니다)", () => setForm(null))}>저장</button><button className="btn sm gho" type="button" onClick={() => setForm(null)}>닫기</button></div></div>}
+      <button className="btn pri sm" type="button" disabled={pending} data-act="exam-save" onClick={() => run(() => examAct(exam), "시험을 넣었습니다(손으로 · 받아와도 안 덮습니다)", () => setForm(null))}>저장</button><button className="btn sm gho" type="button" onClick={() => setForm(null)}>닫기</button></div></div>}
     <Note err={err} msg={msg} />
   </>;
 }

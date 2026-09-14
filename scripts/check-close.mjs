@@ -15,7 +15,7 @@ for (const f of ["lib/day.js", "lib/homework.js", "lib/late.js", "lib/routine.js
   }
 }
 const act = strip(readFileSync("app/today/actions.js", "utf8"));
-if (/\.from\(["']day_(sheet|item)|\.from\(["']late_stay/.test(act)) bad.push("app/today/actions.js 가 표를 직접 만진다 — 판단은 lib 에");
+if (/\.from\(["']day_(sheet|item)|\.from\(["']late_stay/.test(act)) bad.push("app/today/actions.js 가 표를 직접 만진다. 판단은 lib 에");
 if (!/assertOpen/.test(strip(readFileSync("lib/day.js", "utf8")))) bad.push("assertOpen 이 없다");
 if (bad.length) { console.log("check-close ✗\n  " + bad.join("\n  ")); process.exit(1); }
 console.log("check-close ✓ 판에 쓰는 손 전부가 마감을 본다 · 화면의 손은 lib 만 부른다");

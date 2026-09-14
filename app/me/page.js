@@ -56,17 +56,17 @@ export default async function Me({ searchParams }) {
         {!d.sheet && <p className="note" style={{ margin: "8px 0 0" }}>아직 안 열렸어요</p>}
         {d.sheet && !d.classSteps.length && !d.sheet.home.length && <p className="note" style={{ margin: "8px 0 0" }}>검사 뒤에 떠요</p>}
         {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div>{d.classSteps.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} />)}
-          {d.sheet.books.filter((b) => b.class_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 — {b.class_memo}</p>)}</>}
+          {d.sheet.books.filter((b) => b.class_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.class_memo}</p>)}</>}
         {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div>{d.homeSteps.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} attach={att(it)} />)}
-          {d.sheet.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 — {b.home_memo}</p>)}</>}
+          {d.sheet.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.home_memo}</p>)}</>}
       </Card>) },
     { id: 'due', name: '오늘 낼 숙제', node: can(ME.today) && (<Card emo="📘" title="오늘 낼 숙제" id="due" {...fold("due")} pill={String(d.due.length)}>
         {!d.due.length && <p className="note" style={{ margin: "8px 0 0" }}>낼 숙제가 없어요</p>}
         {d.due.map((it) => <Line key={it.id} it={it} attach={att(it)} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {it.status === "done" ? "○" : it.status === "weak" ? "△" : "✕"}</span> : it.said_done_at ? <span className="tag on">했어요 ✓</span> : null} />)}
       </Card>) },
     { id: 'quiz', name: '시험', node: can(ME.today) && ((d.quizzes.today.length > 0 || d.quizzes.next.length > 0) && <Card emo="🔤" title="시험" id="quiz" {...fold("quiz")} pill={String(d.quizzes.today.length + d.quizzes.next.length)}>
-        {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 — {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}
-        {d.quizzes.next.map((q) => <div className="li" key={q.id}><div><b>다음 시간 {qname(q.kind)} 시험 — {scopeText(q)}</b><small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}</small></div></div>)}
+        {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 · {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}
+        {d.quizzes.next.map((q) => <div className="li" key={q.id}><div><b>다음 시간 {qname(q.kind)} 시험 · {scopeText(q)}</b><small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}</small></div></div>)}
       </Card>) },
     { id: 'stay', name: '오늘은 남아서', node: can(ME.today) && (Boolean(d.sheet?.late?.until_at || d.stayRows?.length) && <Card emo="🌙" title="오늘은 남아서" id="stay" {...fold("stay")} pill={d.sheet?.late?.until_at ? `${hhmm(d.sheet.late.until_at)} 예정` : "시간 미정"}>
         <p className="note" style={{ margin: "4px 0 0" }}>{d.sheet?.late?.reason || "남아서 하고 갑니다"}</p>

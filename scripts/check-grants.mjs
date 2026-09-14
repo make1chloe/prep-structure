@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 
 let fail = 0, n = 0;
 const ok = (t, bad, why = "") => { n++;
-  if (bad.length) { fail++; console.log(`   ❌ ${t} — ${bad.length}개`);
+  if (bad.length) { fail++; console.log(`   ❌ ${t} · ${bad.length}개`);
     bad.slice(0, 10).forEach(x => console.log(`        ${x}`));
     if (bad.length > 10) console.log(`        … ${bad.length - 10}개 더`);
     if (why) console.log(`        → ${why}`); }
@@ -38,33 +38,33 @@ const rows = (await c.query(`
   where n.nspname = 'v2' and t.relkind = 'r' order by t.relname`)).rows;
 await c.end();
 
-console.log(`■ v2 의 표 ${rows.length}개 — 규칙과 권한이 짝이 맞나`);
+console.log(`■ v2 의 표 ${rows.length}개 · 규칙과 권한이 짝이 맞나`);
 
 ok("「쓰라는 규칙」이 있는데 **쓸 권한이 없는** 표가 없다",
    rows.filter(x => x.wrules > 0 && (!x.ins || !x.upd))
        .map(x => `${x.tbl} (규칙 ${x.wrules} · insert ${x.ins ? "○" : "✕"} · update ${x.upd ? "○" : "✕"})`),
-   "규칙만 있고 권한이 없으면 **아무 일도 안 일어난다** — 화면은 permission denied 만 본다");
+   "규칙만 있고 권한이 없으면 **아무 일도 안 일어난다** · 화면은 permission denied 만 본다");
 
 ok("「읽으라는 규칙」이 있는데 **읽을 권한이 없는** 표가 없다",
    rows.filter(x => x.rules > 0 && !x.sel).map(x => x.tbl),
    "아무도 못 본다");
 
-ok("**지울 권한을 가진 표가 없다** (대전제 6 — 지우지 않는다, 상태로 내린다)",
+ok("**지울 권한을 가진 표가 없다** (대전제 6 · 지우지 않는다, 상태로 내린다)",
    rows.filter(x => x.del).map(x => x.tbl));
 
 // ⚠️ 반대 방향 — 권한만 주고 규칙을 안 쓰면 **force RLS 때문에 아무도 못 쓴다**(조용히 0줄)
 ok("**권한은 있는데 쓰라는 규칙이 없는** 표가 없다",
    rows.filter(x => (x.ins || x.upd) && x.wrules === 0).map(x => x.tbl),
-   "force RLS 아래서는 규칙이 없으면 **조용히 0줄**이다 — 화면은 「성공」이라 말한다");
+   "force RLS 아래서는 규칙이 없으면 **조용히 0줄**이다. 화면은 「성공」이라 말한다");
 
 ok("접근 규칙이 **켜져 있고 강제**된다 (enable + force)",
    rows.filter(x => !x.rls || !x.forced).map(x => `${x.tbl} (enable ${x.rls ? "○" : "✕"} · force ${x.forced ? "○" : "✕"})`),
    "force 가 없으면 표 주인은 규칙을 그냥 지나간다");
 
 // ⚠️ 서버 자신(service_role)은 규칙을 지나치지만 **권한은 따로**다 — 2026-09-06 실측: 아이의 등원이 「permission denied for table integration」(0116). 크론도 같은 자리
-ok("**서버 자신(service_role)이 못 읽거나 못 쓰는 표가 없다** (크론·등원 — 0116)",
+ok("**서버 자신(service_role)이 못 읽거나 못 쓰는 표가 없다** (크론·등원 · 0116)",
    rows.filter(x => !x.ssel || !x.sins || !x.supd).map(x => `${x.tbl} (select ${x.ssel ? "○" : "✕"} · insert ${x.sins ? "○" : "✕"} · update ${x.supd ? "○" : "✕"})`),
-   "bypassrls 는 규칙을 지나칠 뿐 권한을 주지 않는다 — Supabase 는 public 에만 기본 권한을 준다");
+   "bypassrls 는 규칙을 지나칠 뿐 권한을 주지 않는다. Supabase 는 public 에만 기본 권한을 준다");
 ok("**서버 자신도 지울 권한이 없다** (대전제 6)", rows.filter(x => x.sdel).map(x => x.tbl));
 
 // ⚠️ 감사와 이관은 **사람이 쓰면 안 된다**

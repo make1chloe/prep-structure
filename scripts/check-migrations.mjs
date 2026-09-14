@@ -28,11 +28,11 @@ let fail = 0;
 const ok = (t, c, list = []) => { if (!c) { fail++; console.log(`   ❌ ${t}`); list.forEach(x => console.log(`        ${x}`)); }
                                   else console.log(`   ✅ ${t}`); };
 console.log(`■ 마이그레이션 ${files.length}개 · 돌린 것 ${[...applied.keys()].filter(n => !/^9\d{3}_/.test(n)).length}개`);
-ok("파일은 있는데 **안 돌린 것**이 없다 — 있으면 화면이 없는 표를 부른다", never.length === 0, never);
-ok("고치고 **다시 안 돌린 것**이 없다 — 있으면 DB 가 파일보다 낡았다", stale.length === 0, stale);
-ok("DB 에만 있고 파일이 없는 것이 없다 — 있으면 되돌릴 수가 없다", ghost.length === 0, ghost);
+ok("파일은 있는데 **안 돌린 것**이 없다. 있으면 화면이 없는 표를 부른다", never.length === 0, never);
+ok("고치고 **다시 안 돌린 것**이 없다. 있으면 DB 가 파일보다 낡았다", stale.length === 0, stale);
+ok("DB 에만 있고 파일이 없는 것이 없다. 있으면 되돌릴 수가 없다", ghost.length === 0, ghost);
 // ⚠️ 전환일 파일을 **실수로 돌렸으면** 그것이 사고다 — 반대로 잡는다
-ok("전환일 파일(9xxx)을 아직 안 돌렸다 — 돌렸으면 구앱을 만진 것이다",
+ok("전환일 파일(9xxx)을 아직 안 돌렸다. 돌렸으면 구앱을 만진 것이다",
    ranSwitch.length === 0, ranSwitch);
 if (SWITCH.length) {
   console.log(`\n   ⏸️  전환일에 손으로 한 번 돌리는 파일 ${SWITCH.length}개 (지금 돌리면 안 된다)`);

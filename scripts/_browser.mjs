@@ -8,7 +8,7 @@ function playwright() {
   for (const n of ["playwright", "playwright-core"]) { try { return require(n); } catch {} }
   const root = execSync("npm root -g", { encoding: "utf8" }).trim();
   for (const n of ["playwright", "playwright-core"]) { try { return require(`${root}/${n}`); } catch {} }
-  throw new Error("Playwright 가 없습니다 — npm i -g playwright (브라우저는 /opt/pw-browsers 에 이미 있다)");
+  throw new Error("Playwright 가 없습니다. npm i -g playwright (브라우저는 /opt/pw-browsers 에 이미 있다)");
 }
 export async function launch() {
   const { chromium } = playwright();

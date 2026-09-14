@@ -198,7 +198,7 @@ const server = http.createServer(async (req, res) => {
       const r = db.query("select id, email, raw_user_meta_data from auth.users where email = $1", [body.email]);
       return json(res, 200, session(r.rows[0]));
     }
-    return json(res, 404, { message: "e2e: 흉내 내지 않는 인증 길입니다 — " + path });
+    return json(res, 404, { message: "e2e: 흉내 내지 않는 인증 길입니다. " + path });
   }
 
   // ── 표 · RPC ────────────────────────────────────────────
@@ -218,7 +218,7 @@ const server = http.createServer(async (req, res) => {
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (e) {
-      return json(res, 502, { message: `e2e: PostgREST 에 못 닿았어요 — ${e.message}` });
+      return json(res, 502, { message: `e2e: PostgREST 에 못 닿았어요. ${e.message}` });
     }
     const text = await up.text();
     const out = { "access-control-allow-origin": "*", "access-control-expose-headers": "*" };
@@ -233,7 +233,7 @@ const server = http.createServer(async (req, res) => {
   // ── 보관함 흉내 — 올리기 · 읽기만. 서버 자신(service role)만 닿는다(앱이 그렇게 쓴다) ──
   if (path.startsWith("/storage/v1")) {
     const m = /^\/storage\/v1\/object\/([\w-]+)\/(.+)$/.exec(path);
-    if (!m) return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다 — " + path });
+    if (!m) return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다. " + path });
     const auth = req.headers.authorization || "";
     if (!auth.startsWith("Bearer ")) return json(res, 401, { message: "e2e: 보관함은 열쇠가 있어야 합니다" });
     const rel = normalize(decodeURIComponent(m[2])).replace(/^(\.\.[/\\])+/, ""); const file = join(STORE, m[1], rel);
@@ -253,10 +253,10 @@ const server = http.createServer(async (req, res) => {
       const bytes = readFileSync(file);
       res.writeHead(200, { "content-type": "application/octet-stream", "content-length": String(bytes.length), "access-control-allow-origin": "*" }); res.end(bytes); return;
     }
-    return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다 — " + req.method + " " + path });
+    return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다. " + req.method + " " + path });
   }
 
-  return json(res, 404, { message: `e2e: 모르는 길 — ${path}` });
+  return json(res, 404, { message: `e2e: 모르는 길 · ${path}` });
 });
 
 server.listen(PORT, "127.0.0.1", () => {

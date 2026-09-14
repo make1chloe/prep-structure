@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 let n = 0, bad = 0;
-const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " — " + why : ""}`); } };
+const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");   // 폰-5: 주석을 먼저 지운다(주석 속 주소는 길이 아니다)
 const 화면들 = [];
 (function walk(d) { for (const f of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, f.name);
@@ -60,7 +60,7 @@ console.log("\n■ 화면이 하는 말");
     for (const m of 글.matchAll(/>([^<>{}]{3,300})</g)) if (인용.test(m[1])) 샌곳.push(`app/${f}: ${m[1].trim().slice(0, 60)}`);
     for (const m of 글.matchAll(/(?:placeholder|title)=["']([^"']{3,300})["']/g)) if (인용.test(m[1])) 샌곳.push(`app/${f}(placeholder): ${m[1].trim().slice(0, 60)}`);
   }
-  ok("규칙 번호·원장님 말씀 날짜가 **화면 글**에 안 나온다(주석·문서에만)", !샌곳.length, `${샌곳.length}곳 — ${샌곳.slice(0, 4).join(" / ")}`);
+  ok("규칙 번호·원장님 말씀 날짜가 **화면 글**에 안 나온다(주석·문서에만)", !샌곳.length, `${샌곳.length}곳 · ${샌곳.slice(0, 4).join(" / ")}`);
 }
 { // ③ 단추 라벨에 **수단**(엑셀·파일·업로드)을 넣지 않는다 — 단추는 **무엇을 하는지**만 말한다
   //    (코워크 개선안 §5 · 조사한 7개 제품 중 라벨에 입력 수단을 넣은 제품 0개)
@@ -71,7 +71,7 @@ console.log("\n■ 화면이 하는 말");
     //   (「엑셀에서 지워도 앱에서는 안 지워집니다」 — 이건 진짜 엑셀 파일 이야기다)
     for (const m of 글.matchAll(/>([^<>{}]{1,14})</g)) if (/엑셀|업로드/.test(m[1]) && !/결제선생|시트/.test(m[1])) 샌곳.push(`app/${f}: ${m[1].trim()}`);
   }
-  ok("단추·제목에 수단(엑셀·업로드)이 안 들어간다 — 「⬆ 올리기」 「⬇ 내려받기」", !샌곳.length, 샌곳.slice(0, 5).join(" / "));
+  ok("단추·제목에 수단(엑셀·업로드)이 안 들어간다. 「⬆ 올리기」 「⬇ 내려받기」", !샌곳.length, 샌곳.slice(0, 5).join(" / "));
 }
 { // ④ 되돌릴 수 없는 손은 **한 번 더 묻는다** — 비밀번호 초기화(쓰던 비밀번호가 사라진다)
   const 학생 = strip(fs.readFileSync("app/ops/students/board.js", "utf8"));

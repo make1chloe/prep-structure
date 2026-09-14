@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
 export default async function Books({ searchParams }) {
   const { sb, me } = await guard();
-  if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📚</span>교재는 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다 — 내 교재는 「나」 화면에서 봅니다.` : "로그인이 필요합니다."}</p></div>);
+  if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">📚</span>교재는 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다. 내 교재는 「나」 화면에서 봅니다.` : "로그인이 필요합니다."}</p></div>);
   const sp = await searchParams;
   let d;
   try { const date = await today(sb); const board = await bookBoard(sb, date, /^[0-9a-f-]{36}$/.test(String(sp?.b ?? "")) ? String(sp.b) : null); d = { date, board, area: String(sp?.a ?? "") || null }; }

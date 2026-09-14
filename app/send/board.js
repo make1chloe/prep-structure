@@ -33,12 +33,12 @@ export default function Board({ d }) {
       <span className="pill">{d.date}</span>
       <span className={"pill" + (nowN ? " warn" : "")} data-g="now-count">🌙 지금 보낼 것 {nowN}</span>
       <span className="pill" data-g="sel-count">선택 {ids.length}건</span>
-      <span className={"pill" + (d.sink === "live" ? " hw" : "")} data-g="sink">{d.sink === "live" ? "앱 알림만" : `🧪 리허설(${d.sink}) — 실제로는 안 나감`}</span>
-      {d.reach && <span className="pill" data-g="reach">닿는 길 — 학부모 {d.reach.parents}명 · 로그인한 집 {d.reach.signed_in} · 알림 켠 기기 {d.reach.devices}대</span>}
+      <span className={"pill" + (d.sink === "live" ? " hw" : "")} data-g="sink">{d.sink === "live" ? "앱 알림만" : `🧪 리허설(${d.sink}) · 실제로는 안 나감`}</span>
+      {d.reach && <span className="pill" data-g="reach">닿는 길 · 학부모 {d.reach.parents}명 · 로그인한 집 {d.reach.signed_in} · 알림 켠 기기 {d.reach.devices}대</span>}
       <span className="spacer" /><Link prefetch={false} className="btn sm" href="/send/monthly" data-act="monthly">📊 월간 리포트 ↗</Link><Link prefetch={false} className="btn sm" href="/send/notice" data-act="notice">📢 공지 ↗</Link>
     </div>
     {d.sinkBad && <p className="note" role="alert" data-g="sink-bad" style={{ margin: "0 0 8px", color: "var(--miss)" }}>
-      <b>스위치 값이 이상해서 아무것도 안 나갑니다</b> — {d.sinkBad}. 아래 ⓘ 대로 고치십시오.</p>}
+      <b>스위치 값이 이상해서 아무것도 안 나갑니다</b> · {d.sinkBad}. 아래 ⓘ 대로 고치십시오.</p>}
     {d.sink !== "live" && <p className="note k" data-g="sink-how" style={{ margin: "0 0 8px" }}>
       🧪 리허설이라 <b>실제로는 안 나갑니다</b>.<Tip label="켜는 법">Vercel → Settings → Environment Variables 에 <b>NOTIFY_SINK</b> = <b>live</b>(<b>Production</b> 체크) → Save → Deployments 맨 위 <b>⋯ → Redeploy</b>. 이미 배포된 것에는 안 붙어서 Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 자리가 「앱 알림만」이 됩니다.</Tip></p>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
@@ -46,39 +46,39 @@ export default function Board({ d }) {
 
     <section className={"sgrp" + (nowN ? " now" : "")} data-card="now">
       <div className="sgh"><span className="sgi">🕘</span><b>지금 · 수업 중에</b><span className={"pill" + (nowN ? " warn" : "")}>{d.late.length}</span><span className="spacer" /></div>
-      {!d.late.length && <Row icon="—" cls="dim"><b>오늘 늦게 가는 아이가 없습니다</b></Row>}
+      {!d.late.length && <Row icon="" cls="dim"><b>오늘 늦게 가는 아이가 없습니다</b></Row>}
       {d.late.map((r) => r.sent
         ? <Row key={r.id} icon="✅" cls="done" data-g="late-row"><b>{r.name} · 늦은 귀가 안내</b><small>{r.until} 예정 · <b>{r.sent}에 보냄</b>{r.log ? ` · ${r.log.text}` : ""}</small><div className="tags" style={{ marginTop: 4 }}><span className="tag on">✓ 오늘 카드에서 보냄</span>{r.reason && <span className="tag">{r.reason}</span>}</div></Row>
         : <Row key={r.id} icon="🕙" data-g="late-row"><b>{r.name} · 늦은 귀가 안내</b><small>{r.until} 예정 · 아직 안 보냄</small>
-            {r.noReason ? <div className="note" style={{ margin: "4px 0 0", color: "var(--miss)" }}>⚠️ <b>사유가 비어 있습니다</b> — 오늘 카드에서 한 줄 정해야 보낼 수 있습니다</div> : <div className="note" style={{ margin: "4px 0 0" }}>{r.reason}</div>}
+            {r.noReason ? <div className="note" style={{ margin: "4px 0 0", color: "var(--miss)" }}>⚠️ <b>사유가 비어 있습니다</b> · 오늘 카드에서 한 줄 정해야 보낼 수 있습니다</div> : <div className="note" style={{ margin: "4px 0 0" }}>{r.reason}</div>}
             <div className="tags" style={{ marginTop: 4 }}><Link prefetch={false} className="tag act" href="/today">오늘 카드에서 보내기 ↗</Link></div></Row>)}
     </section>
 
     <section className="sgrp" data-card="daily">
       <div className="sgh"><span className="sgi">📨</span><b>마감하면 나갑니다 · 데일리리포트</b><span className="pill" data-g="closed-count">{cnt.closed} / {cnt.total}</span><span className="spacer" />
         <label className="ckl"><input type="checkbox" className="ck all" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />이 묶음 전체</label></div>
-      {!d.daily.length && <Row icon="—" cls="dim"><b>오늘 판이 없습니다</b></Row>}
+      {!d.daily.length && <Row icon="" cls="dim"><b>오늘 판이 없습니다</b></Row>}
       {d.daily.map((r) => {
         const ck = r.state === "ready" || r.state === "sent" ? <label className="ckl"><input type="checkbox" className="ck" checked={sel.has(r.id)} onChange={() => toggle(r.id)} /></label> : null;
         const tags = <div className="tags"><span className="tag on">마감됨</span>{r.cap && <span className="tag">{r.cap}</span>}{r.kind && <span className="tag type">{r.kind}</span>}</div>;
-        if (r.state === "open") return <Row key={r.id} icon="⏳" cls="dim" data-g="daily-row" data-state={r.state} right={<Link prefetch={false} className="btn sm gho" href="/today">오늘 화면으로 ↗</Link>}><b>{r.name}</b><small>아직 마감 안 함 — <b>안 나갑니다</b></small></Row>;
+        if (r.state === "open") return <Row key={r.id} icon="⏳" cls="dim" data-g="daily-row" data-state={r.state} right={<Link prefetch={false} className="btn sm gho" href="/today">오늘 화면으로 ↗</Link>}><b>{r.name}</b><small>아직 마감 안 함 · <b>안 나갑니다</b></small></Row>;
         if (r.state === "holes") return <Row key={r.id} icon="⚠️" cls="warnrow" data-g="daily-row" data-state={r.state} right={<Link prefetch={false} className="btn sm" href="/today">고치기 ↗</Link>}><b>{r.name}</b><small>안 채운 치환 자리가 있어 <b>안 나갑니다</b></small><div className="tags"><span className="tag" style={MISS}>{r.holes.map((h) => `{{${h}}}`).join(" ")} 가 안 채워졌습니다</span></div></Row>;
-        if (r.state === "sent") return <Row key={r.id} icon="✅" cls="done" check={ck} data-g="daily-row" data-state={r.state} right={r.logId && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.logId), (x) => `다시 보냈습니다 — ${ranText(x.r)}`)}>다시 보내기</button>}><b>{r.name}</b><small>{r.log?.text}</small>{tags}</Row>;
+        if (r.state === "sent") return <Row key={r.id} icon="✅" cls="done" check={ck} data-g="daily-row" data-state={r.state} right={r.logId && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.logId), (x) => `다시 보냈습니다. ${ranText(x.r)}`)}>다시 보내기</button>}><b>{r.name}</b><small>{r.log?.text}</small>{tags}</Row>;
         if (r.state === "scheduled") return <Row key={r.id} icon="⏰" data-g="daily-row" data-state={r.state} right={<button className="btn sm" type="button" disabled={pending} data-act="cancel" onClick={() => run(() => cancelSchedule(r.scheduledId), () => "예약을 취소했습니다")}>취소</button>}><b>{r.name}</b><small>예약 {whenLabel(r.scheduledAt, d.date)}</small>{tags}</Row>;
-        if (r.state === "queued") return <Row key={r.id} icon="📤" data-g="daily-row" data-state={r.state}><b>{r.name}</b><small>{r.job?.state === "fail" ? `실패 — ${r.job.last_error ?? ""}` : "보내는 중"}</small>{tags}</Row>;
+        if (r.state === "queued") return <Row key={r.id} icon="📤" data-g="daily-row" data-state={r.state}><b>{r.name}</b><small>{r.job?.state === "fail" ? `실패 · ${r.job.last_error ?? ""}` : "보내는 중"}</small>{tags}</Row>;
         return <Row key={r.id} icon="📄" check={ck} data-g="daily-row" data-state={r.state} right={<span className="pill">보낼 것</span>}><b>{r.name}</b><small>{r.comment ? r.comment.slice(0, 70) + (r.comment.length > 70 ? "…" : "") : "(수업일지 글이 없습니다)"}</small>{tags}</Row>;
       })}
     </section>
 
     <section className="sgrp" data-card="auto">
       <div className="sgh"><span className="sgi">🔔</span><b>저절로 나가는 것 · 등원·하원 · 결석·지각 예정</b><span className="pill">{d.auto.length}</span><span className="spacer" /></div>
-      {!d.auto.length && <Row icon="—" cls="dim"><b>기다리는 것이 없습니다</b></Row>}
+      {!d.auto.length && <Row icon="" cls="dim"><b>기다리는 것이 없습니다</b></Row>}
       {d.auto.map((r) => <Row key={r.id} icon={r.icon} data-g="auto-row"><b>{r.name} 학부모 · {r.what}</b><small>{r.state.text}</small></Row>)}
     </section>
 
     <section className="sgrp" data-card="scheduled">
       <div className="sgh"><span className="sgi">📢</span><b>예약된 것</b><span className="pill" data-g="sch-count">{d.scheduled.length}</span></div>
-      {!d.scheduled.length && <Row icon="—" cls="dim"><b>예약이 없습니다</b></Row>}
+      {!d.scheduled.length && <Row icon="" cls="dim"><b>예약이 없습니다</b></Row>}
       {d.scheduled.map((r) => <Row key={r.id ?? `j${r.jobId}`} icon="⏰" data-g="sch-row" right={r.cancellable && <button className="btn sm" type="button" disabled={pending} data-act="cancel" onClick={() => run(() => cancelSchedule(r.id), () => "예약을 취소했습니다")}>취소</button>}><b>{r.name} · {r.what}</b><small>{r.when}</small></Row>)}
     </section>
 
@@ -88,8 +88,8 @@ export default function Board({ d }) {
         {rc.rehearsal > 0 && <span className="tag">🧪 리허설 {rc.rehearsal}</span>}{rc.failed > 0 && <span className="tag" style={MISS}>⚠️ 못 보냄 {rc.failed}</span>}</button>
       {fails.length > 0 && <p className="note" data-g="fail-why" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{fails.map((f) => `${f.why} ${f.n}`).join(" · ")}</p>}
       <div className="donebody">
-        {!d.sent.length && <Row icon="—" cls="dim"><b>오늘 나간 것이 없습니다</b></Row>}
-        {d.sent.map((r) => <Row key={r.id} icon={r.status.icon} cls="done" data-g="sent-row" right={r.resendable && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.id), (x) => `다시 보냈습니다 — ${ranText(x.r)}`)}>다시 보내기</button>}><b>{r.name} · {r.what}</b><small>{r.status.text}</small></Row>)}
+        {!d.sent.length && <Row icon="" cls="dim"><b>오늘 나간 것이 없습니다</b></Row>}
+        {d.sent.map((r) => <Row key={r.id} icon={r.status.icon} cls="done" data-g="sent-row" right={r.resendable && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.id), (x) => `다시 보냈습니다. ${ranText(x.r)}`)}>다시 보내기</button>}><b>{r.name} · {r.what}</b><small>{r.status.text}</small></Row>)}
       </div>
     </div>
     <Templates items={d.templates ?? []} ready={d.smsReady} placeholders={d.placeholders ?? []} kinds={d.smsKinds ?? []} />
@@ -101,8 +101,8 @@ export default function Board({ d }) {
     <div className="savebar sendbar" data-g="sendbar">
       <label className="ckl"><input type="checkbox" className="ck allall" checked={all} disabled={!selectable.length} onChange={(e) => setAll(e.target.checked)} />전체 선택</label>
       <span className="pill">선택 <b>{ids.length}</b>건</span>
-      <button className="btn pri" type="button" data-act="send-now" disabled={pending || !ids.length} onClick={() => run(() => sendSelected(ids), (x) => `보냈습니다 — ${ranText(x.r)}`)}>📨 지금 보내기</button>
-      <button className="btn" type="button" data-act="schedule" disabled={pending || !ids.length} onClick={() => run(() => scheduleSelected(ids, when, customOf(when, cDate, cTime)), (x) => `예약했습니다 — ${x.n}건 · ${whenLabel(x.at, d.date)}`)}>⏰ 예약</button>
+      <button className="btn pri" type="button" data-act="send-now" disabled={pending || !ids.length} onClick={() => run(() => sendSelected(ids), (x) => `보냈습니다. ${ranText(x.r)}`)}>📨 지금 보내기</button>
+      <button className="btn" type="button" data-act="schedule" disabled={pending || !ids.length} onClick={() => run(() => scheduleSelected(ids, when, customOf(when, cDate, cTime)), (x) => `예약했습니다. ${x.n}건 · ${whenLabel(x.at, d.date)}`)}>⏰ 예약</button>
       <When rules={d.rules} date={d.date} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
       <span className="spacer" />
       <span className="pill" style={{ background: "var(--ok-fill)", color: "var(--on-ok)", borderColor: "transparent" }}>앱 알림만</span>

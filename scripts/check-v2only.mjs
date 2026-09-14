@@ -32,6 +32,6 @@ console.log("■ v2 밖을 **바꾸는** 자리 (auth.uid() 를 읽는 것은 �
 bad.length ? bad.forEach(x=>console.log("   ❌",x)) : console.log("   ✅ 없음");
 // 일부러 어기는 본보기가 잡히는지도 본다 (옛 앱의 교훈 — 검사가 헛통과하면 없느니만 못하다)
 const 본보기 = "create trigger x after insert on auth.users for each row execute function v2.f()";
-if (!규칙.some(re=>re.test(본보기))) { console.log("   ⚠️ 검사 자신이 고장났다 — 본보기를 못 잡는다"); process.exit(1); }
+if (!규칙.some(re=>re.test(본보기))) { console.log("   ⚠️ 검사 자신이 고장났다. 본보기를 못 잡는다"); process.exit(1); }
 console.log("   (검사 자신 확인: 일부러 어긴 본보기를 잡는다 ✅)");
 process.exit(bad.length?1:0);

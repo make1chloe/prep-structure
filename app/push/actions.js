@@ -11,17 +11,17 @@ export async function publicKey() {
     const { sb } = await guard();
     const { data, error } = await db(sb).rpc("push_public_key");
     if (error) throw new Error(`공개키를 못 읽음: ${error.message}`);
-    if (!data) throw new Error("아직 알림 열쇠가 없습니다 — 원장님께 말씀해 주세요(연동 push 줄이 비어 있습니다)");
+    if (!data) throw new Error("아직 알림 열쇠가 없습니다. 원장님께 말씀해 주세요(연동 push 줄이 비어 있습니다)");
     return { key: data };
   });
 }
 export async function save(sub) {
   return wrap(async () => {
     const { sb, me, user } = await guard();
-    if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) throw new Error("구독 정보가 없습니다 — 다시 켜 주세요");
+    if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) throw new Error("구독 정보가 없습니다. 다시 켜 주세요");
     const studentId = me?.role === ROLES.STUDENT ? (await myStudent(sb, user.id)).id : null;
     const { error } = await db(sb).from("push_sub").upsert({ profile_id: user.id, student_id: studentId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth, revoked_at: null, agreed_at: new Date().toISOString() }, { onConflict: "endpoint" });
-    if (error) throw new Error(error.code === "42501" ? "이 기기는 다른 계정으로 알림을 켠 상태입니다 — 그 계정에서 끄고 다시 켜 주세요" : `기기를 못 저장함: ${error.message}`);
+    if (error) throw new Error(error.code === "42501" ? "이 기기는 다른 계정으로 알림을 켠 상태입니다. 그 계정에서 끄고 다시 켜 주세요" : `기기를 못 저장함: ${error.message}`);
     return {};
   });
 }

@@ -13,8 +13,8 @@ for (const f of files) {
   }
 }
 let n = 0, bad = 0; const lost = [];
-for (const [name, list] of defs) { for (let i = 1; i < list.length; i++) { const prev = list[i - 1], cur = list[i]; const missing = [...prev.keys].filter((k) => !cur.keys.has(k) && !cur.dropped.has(k)); if (missing.length) lost.push(`${cur.file} ${name} — ${prev.file} 의 열쇠를 잃음: ${missing.join(" ")}`); } }
+for (const [name, list] of defs) { for (let i = 1; i < list.length; i++) { const prev = list[i - 1], cur = list[i]; const missing = [...prev.keys].filter((k) => !cur.keys.has(k) && !cur.dropped.has(k)); if (missing.length) lost.push(`${cur.file} ${name} · ${prev.file} 의 열쇠를 잃음: ${missing.join(" ")}`); } }
 const again = [...defs.values()].filter((l) => l.length > 1).length;
-n++; if (lost.length) { bad++; console.log("   ❌ 다시 낸 판 함수가 앞 정의의 json 열쇠를 잃지 않는다(뺀 것은 -- 뺌: 으로) — " + lost.join(" | ")); } else console.log(`   ✅ 다시 낸 판 함수 ${again}개가 앞 정의의 json 열쇠를 전부 품는다(판 ${defs.size} · 뺀 것은 -- 뺌: 으로 적는다)`);
+n++; if (lost.length) { bad++; console.log("   ❌ 다시 낸 판 함수가 앞 정의의 json 열쇠를 잃지 않는다(뺀 것은 -- 뺌: 으로) · " + lost.join(" | ")); } else console.log(`   ✅ 다시 낸 판 함수 ${again}개가 앞 정의의 json 열쇠를 전부 품는다(판 ${defs.size} · 뺀 것은 -- 뺌: 으로 적는다)`);
 n++; { const self = "create or replace function v2.zz_board(p date) returns jsonb language sql as $$ select jsonb_build_object('a', 1, 'b', 2) $$;"; const later = "create or replace function v2.zz_board(p date) returns jsonb language sql as $$ select jsonb_build_object('a', 1) $$;"; const k = (s) => new Set([...s.matchAll(/'([a-z_]+)',/g)].map((x) => x[1])); const ok = [...k(self)].some((x) => !k(later).has(x)); if (ok) console.log("   ✅ (검사 자신 확인: 일부러 열쇠를 뺀 본보기를 잡는다)"); else { bad++; console.log("   ❌ 검사 자신 확인 실패"); } }
 console.log(`\n■ 다시 낸 함수 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

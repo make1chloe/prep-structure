@@ -4,10 +4,10 @@ const url = (process.env.DATABASE_URL ?? readFileSync(".env.local","utf8").match
 const c = new Client({ connectionString:url, ssl:{rejectUnauthorized:false}, connectionTimeoutMillis:15000 });
 for(let i=1;;i++){try{await c.connect();break}catch(e){if(i>=4)throw e;await new Promise(r=>setTimeout(r,3000))}}
 const bad=[], ok=[];
-const j=(n,rows,why)=>rows.length?bad.push(`❌ ${n} (${rows.length}) — ${why}\n      ${rows.slice(0,4).map(r=>Object.values(r).join(" · ")).join("\n      ")}`):ok.push(`✅ ${n}`);
+const j=(n,rows,why)=>rows.length?bad.push(`❌ ${n} (${rows.length}) · ${why}\n      ${rows.slice(0,4).map(r=>Object.values(r).join(" · ")).join("\n      ")}`):ok.push(`✅ ${n}`);
 
 // ① touch 트리거가 있는데 updated_at 칸이 없다
-j("고친 때 도장 — 트리거만 있고 칸이 없는 표", (await c.query(`
+j("고친 때 도장 · 트리거만 있고 칸이 없는 표", (await c.query(`
   select c.relname t from pg_trigger g join pg_class c on c.oid=g.tgrelid
   join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='v2' and g.tgname like '%_touch' and not g.tgisinternal
@@ -21,7 +21,7 @@ j("파기 목록에 없는 개인정보 칸", (await c.query(`
   where col.table_schema='v2'
     and (col.column_name in ('name','phone','comment','body','said','note','reason','staff_note','orig_name','title')
          and col.table_name not in ('purge_map','import_check','area_map','import_skip','books','units','learn_items','material_type','grammar_topics',
-             'schools','video','msg_template','auto_rule','rule','notice','todo','material','file_bin','exams','classes','file','placeholder','school_book'))   -- rule: 임계값 설명(0100), 사람 이야기가 아니다 · file: 원장님 9/3 「그냥 둬. 지우지 마」(9/5 ㉒ 파기 목록을 만들지 않는다 — 0128 이 뺐다) · placeholder: 치환 낱말 설명(뼈대-8 · 0131) · school_book: 학교 교과서 메모(처음-8 · 0131) — 둘 다 사람 이야기가 아니다
+             'schools','video','msg_template','auto_rule','rule','notice','todo','material','file_bin','exams','classes','file','placeholder','school_book'))   -- rule: 임계값 설명(0100), 사람 이야기가 아니다 · file: 원장님 9/3 「그냥 둬. 지우지 마」(9/5 ㉒ 파기 목록을 만들지 않는다. 0128 이 뺐다) · placeholder: 치환 낱말 설명(뼈대-8 · 0131) · school_book: 학교 교과서 메모(처음-8 · 0131) · 둘 다 사람 이야기가 아니다
     and not exists (select 1 from v2.purge_map p
       where p.tbl=col.table_name and p.col=col.column_name)`)).rows,
   "파기가 여기를 안 지나간다 (자동 검사 ⑨)");
@@ -50,5 +50,5 @@ j("정책이 하나도 없는 표", (await c.query(`
 console.log("■ 스키마 짝");
 ok.forEach(x=>console.log("  ",x));
 if (bad.length){ console.log("\n■ 어긋난 것"); bad.forEach(x=>console.log("  ",x)); }
-console.log(`\n합계 — 맞음 ${ok.length} · 어긋남 ${bad.length}`);
+console.log(`\n합계 · 맞음 ${ok.length} · 어긋남 ${bad.length}`);
 await c.end(); process.exit(bad.length?1:0);

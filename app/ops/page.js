@@ -21,7 +21,7 @@ export default async function Ops({ searchParams }) {
   try { const date = await today(sb); const ym = /^\d{4}-\d{2}$/.test(String(sp?.m ?? "")) ? String(sp.m) : ymOf(date); const [board, sendRules] = await Promise.all([feeBoard(sb, ym), ruleMap(sb, ["send."])]); d = { date, ym, board, rows: rowsOf(board, ym), fee: decide(me.role, board.access ?? [], OPS.fee) === true, sendRules }; }   // 예약 때 규칙(send.*)은 같은 파도((어))
   catch (e) { { console.error("[화면] 운영 못 엶:", e); return frame(<Oops what="운영" e={e} />); } }
   return frame(<>
-    {d.fee ? <Fee d={{ date: d.date, ym: d.ym, rows: d.rows, by_grade: d.board.by_grade ?? {}, prev_unpaid: d.board.prev_unpaid ?? null }} /> : <div className="card" data-card="fee-closed"><div className="ctitle"><span className="cemo">💳</span>수강료</div><p className="note">이 계정에는 수강료가 안 열려 있습니다 — 원장님이 「누가 무엇을 보나」에서 켜십니다(답 ⑮ 「강사는 수강료 못 보게」).</p></div>}
+    {d.fee ? <Fee d={{ date: d.date, ym: d.ym, rows: d.rows, by_grade: d.board.by_grade ?? {}, prev_unpaid: d.board.prev_unpaid ?? null }} /> : <div className="card" data-card="fee-closed"><div className="ctitle"><span className="cemo">💳</span>수강료</div><p className="note">이 계정에는 수강료가 안 열려 있습니다. 원장님이 「누가 무엇을 보나」에서 켜십니다(답 ⑮ 「강사는 수강료 못 보게」).</p></div>}
     <Link prefetch={false} title="전화 끊고 바로 적고, 등록 전환은 한 번에. 오늘 답할 것 · 상담 잡힘 · 레벨 봄 · 등록 · 안 옴" className="card" href="/ops/inquiry" data-card="inquiry" style={{ display: "block", marginTop: 12, textDecoration: "none", color: "inherit" }}><div className="ctitle"><span className="cemo">☎️</span>신규 상담</div></Link>
   </>);
 }

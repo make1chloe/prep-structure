@@ -43,7 +43,7 @@ export default function BellCard() {
         {how?.steps.map((s, i) => <p key={i} className="note" style={{ margin: "4px 0 0" }}>{i + 1}. {s}</p>)}
         {how?.can && <button className="btn pri sm" type="button" style={{ marginTop: 8 }} disabled={pending} data-act="bell-on" onClick={on}>🔔 알림 켜기</button>}</>}
       {state === "on" && <div className="wv" style={{ marginTop: 4 }}><span className="note" style={{ margin: 0 }}>이 기기로 안내가 옵니다</span><button className="btn sm gho" type="button" disabled={pending} data-act="bell-off" onClick={off}>끄기</button></div>}
-      {state === "denied" && <p className="note" style={{ margin: "4px 0 0" }}>브라우저가 알림을 막고 있어요 — 주소창 옆 자물쇠에서 알림을 허용으로 바꾼 뒤 다시 여세요.</p>}
+      {state === "denied" && <p className="note" style={{ margin: "4px 0 0" }}>브라우저가 알림을 막고 있어요. 주소창 옆 자물쇠에서 알림을 허용으로 바꾼 뒤 다시 여세요.</p>}
       {state === "unsupported" && <p className="note" style={{ margin: "4px 0 0" }}>{why}</p>}
       {err && <p className="note" role="alert" style={{ margin: "4px 0 0", color: "var(--miss)" }}>{err}</p>}
     </div>
