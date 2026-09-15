@@ -1,12 +1,12 @@
 "use client";
 /** 학생 줄 — 목업 01 의 .row 그대로. 자주 누르는 것(출결 · ○△✕)은 낙관적: 화면 먼저, 저장은 뒤에서, 실패하면 되돌리고 그 자리에서 말한다(속도-5).
  *  마감·발송처럼 되돌릴 수 없는 것은 서버 답을 기다린다. 마감된 판은 읽기만 한다 */
-import { useState, useRef, useEffect, useTransition } from "react";
+import { Fragment, useState, useRef, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { itemText, itemRemove, itemRestore, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, bookGroups } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -106,7 +106,10 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   return (
     <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span><span className="spacer" />{!closed && left > 0 && <button type="button" className="btn sm pri" data-act="check-all" onClick={() => start(async () => { fail(await checkAll(sheet.id)); })}>다 ○</button>}</div>
-      {sheet.check.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} />)}
+      {bookGroups(sheet.check).map((g, gi) => <Fragment key={g.book ?? `_${gi}`}>{/* (어30) 교재별 묶음 · 묶음 안은 루틴 차례(lib/day-plan checkOrder · 판을 깎을 때 이미 그 차례) · 교재 줄이 하나도 없으면 머리 없음 */}
+        {sheet.check.some((it) => it.units?.books?.name) && <div className="hh" style={{ margin: "6px 0 2px" }} data-g="hw-book">{g.book ? `📕 ${g.book}` : "그 밖에"}</div>}
+        {g.rows.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} />)}
+      </Fragment>)}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
       {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
       {quizzes.length > 0 && <QuizPart sheet={sheet} quizzes={quizzes} closed={closed} fail={fail} start={start} />}

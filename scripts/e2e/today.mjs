@@ -89,9 +89,18 @@ ok("(카) 줄 머리 「2일째 안 봄」 · 안 본 줄 중 가장 오래된 �
   { const sub = await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".hwname small").first().textContent();   // (어27) 원장님 9/15 「교재와 진도, 숙제종류 내지 내용이 있어야함」
     const titles = await row.locator(".panel .hw .hwname b").evaluateAll((els) => els.map((e) => e.textContent.trim()));
     ok("(어27) 검사 줄 밑에 교재 · 대단원 › 소단원 · 쪽 · 문항(zz_리허설 문법책 · CHAPTER 1 › PSS 1-3 · p.12 · 12문항) · 제목이 「(이름 없음)」·「(빈 줄)」인 줄 0", sub.includes("zz_리허설 문법책") && sub.includes("CHAPTER 1 › PSS 1-3") && sub.includes("p.12") && sub.includes("12문항") && titles.length >= 3 && titles.every((t) => t && !/\(이름 없음\)|\(빈 줄\)/.test(t)), `${sub} · ${titles.join("|")}`); }
+  { const heads = await row.locator(".panel [data-card=check] [data-g=hw-book]").allTextContents(); const order = await row.locator(".panel [data-card=check] [data-g=hw-book], .panel [data-card=check] .hw .hwname b").evaluateAll((els) => els.map((e) => e.textContent.trim()));
+    ok("(어30) 검사 줄은 교재별 묶음(머리 「📕 zz_리허설 문법책」 → 「그 밖에」) · 문법책 묶음 첫 줄이 그저께 줄(원장님 9/15 「교재별로 묶어서, 루틴순서대로」 · 날짜보다 교재가 먼저)", heads.length === 2 && heads[0] === "📕 zz_리허설 문법책" && heads[1] === "그 밖에" && order[0] === "📕 zz_리허설 문법책" && order[1].includes("zz_그저께") && order.indexOf("그 밖에") > 1 && order.slice(1, order.indexOf("그 밖에")).every((t) => /PSS 1-3|zz_그저께/.test(t)), order.join(" > ")); }   // 문법책 묶음(PSS 1-3 줄들 · 오래된 그저께가 먼저) → 그 밖에(교재 없는 줄)
   await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=x]").click(); await p.waitForTimeout(1200); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
   ok("(카) 그저께 것을 ✕ 로 보면 「N일째 안 봄」이 사라지고 「검사 안 본 것 2」 · 진도 점에 ✕ 하나((머) 이 ✕ 가 깔기의 기본을 「1-3 다시」로 만든다)", (await row.locator(".pill", { hasText: "일째 안 봄" }).count()) === 0 && (await p.locator(".pill.warn", { hasText: "검사 안 본 것 2" }).count()) === 1 && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 1, (await row.locator(".pill").allTextContents()).join(" | ") + " · " + (await row.locator(".marks .dot").allTextContents()).join("")); }
 console.log("■ 출결 · 낙관적 · (어28)-② 고른 줄에 한 번에(원장님 2026-09-15 「ㅇㅇ넣음」)");
+{ const heads = await p.locator("main [data-g=class-head]").count(); const h0 = p.locator("main [data-g=class-head]").first(); const nm = (await h0.locator("b").textContent()).trim();   // (어31) 반 머리 · 「반 전체」
+  ok(`(어31) 반 머리 ${heads}개(반마다 · 🏫 반 이름 크게 · 시각 · N명) · 머리에 「반 전체」 네모(원장님 9/15 「반 이름 잘보이게 하고 반별 선택도 가능하게」)`, heads >= 1 && nm.startsWith("🏫 ") && nm.length > 3 && (await h0.locator("[data-g=pick-group]").count()) === 1, nm);
+  const sec = h0.locator("xpath=ancestor::section[1]"); const openN = await sec.locator(".row[data-student]:not(.closed)").count();
+  await h0.locator("[data-g=pick-group]").check(); await p.waitForTimeout(200);
+  ok(`「반 전체」 → 그 반의 마감 안 한 줄 ${openN}만 고른다 · 띠 「고른 ${openN}명」 · 머리 네모 켜짐`, openN >= 1 && (await p.locator("main [data-g=pickbar] [data-g=picked]").textContent()) === `고른 ${openN}명` && (await h0.locator("[data-g=pick-group]").isChecked()), await p.locator("main [data-g=pickbar]").textContent().catch(() => "띠 없음"));
+  await h0.locator("[data-g=pick-group]").uncheck(); await p.waitForTimeout(200);
+  ok("다시 누르면 그 반만 빠진다 · 띠 없음", (await p.locator("main [data-g=pickbar]").count()) === 0); }
 { const headTxt = await p.locator("main [data-g=pick-head] label.ckl").first().textContent();
   ok("(어28)-② 01 머리에 「전체 N명」 네모(마감 안 한 줄만 센다) · 줄마다 앞에 네모 · 고른 것이 없으면 띠 없음", /^전체 \d+명$/.test(headTxt.trim()) && (await row.locator(".rowtop [data-g=pick]").count()) === 1 && (await p.locator("main [data-g=pickbar]").count()) === 0, headTxt);
   await row.locator(".rowtop [data-g=pick]").check(); await p.waitForTimeout(150);

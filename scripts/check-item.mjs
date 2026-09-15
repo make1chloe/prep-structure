@@ -4,6 +4,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { itemTitle, itemSub, itemLine, unitBits, unitsText, pagesText } from "../lib/item-plan.js";
+import { checkOrder, bookGroups } from "../lib/day-plan.js";   // (어30) 검사 줄 차례 · 교재별 묶음
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const book = { name: "zz_리허설 문법책" };
@@ -30,5 +31,23 @@ const stray = src.filter(([p, s]) => sheetFiles.includes(p) && s.includes("(이�
 ok(`판(day_item)을 그리는 파일 ${sheetFiles.length}개에 「(이름 없음)」 0`, sheetFiles.length >= 8 && stray.length === 0, stray.join(" · "));
 const hand = src.filter(([, s]) => /learn_items\??\.name\s*(\?\?|\|\|)|range_note\s*(\?\?|\|\|)\s*[\w.]*\??\.learn_items|units\??\.chapter\}?\s*›|\.chapter\s*\+\s*["'`] ›/.test(s)).map(([p]) => p);
 ok("항목 이름·손 글·단원을 제 손으로 잇는 자리 0(app · lib · lib/item-plan.js 만)", hand.length === 0, hand.join(" · "));
+console.log("■ (어30) 검사 줄 차례 · 교재별 묶음 → 루틴 차례 → 소단원 → 날짜 · 교재 없는 줄은 맨 끝(원장님 2026-09-15 「숙제검사화면에서, 교재별로 묶어서, 루틴순서대로 나열할 것. 확인하기 편하게」)");
+{ const d1 = { student_id: "s", date: "2026-09-13" }, d2 = { student_id: "s", date: "2026-09-14" };
+  const A = { book_id: "a", sort: 1, books: { name: "ㄱ책" } }, A2 = { ...A, sort: 2 }, B = { book_id: "b", sort: 1, books: { name: "ㄴ책" } };
+  const rows = [
+    { id: "1", item_id: "w", units: A, sort: 3, day_sheet: d1 },   // ㄱ책 · 워크북(둘째 줄) · 13일
+    { id: "2", item_id: "v", units: B, sort: 5, day_sheet: d1 },   // ㄴ책 · 13일
+    { id: "3", item_id: "n", units: A, sort: 2, day_sheet: d1 },   // ㄱ책 · 문답노트(첫 줄) · 13일
+    { id: "4", item_id: "n", units: A2, sort: 4, day_sheet: d2 },  // ㄱ책 · 문답노트 · 14일 · 다음 소단원
+    { id: "5", item_id: "w", units: A, sort: 5, day_sheet: d2 },   // ㄱ책 · 워크북 · 14일(이 날 판도 문답노트가 먼저 · 줄 차례 같다)
+    { id: "6", item_id: null, units: A, sort: 9, day_sheet: d1, range_note: "손으로" },   // ㄱ책 · 손으로 낸 줄 → 그 교재 끝
+    { id: "7", item_id: null, units: null, sort: 1, day_sheet: d1, range_note: "교재 없음" },   // 교재 없음 → 맨 끝
+  ];
+  const all = [...rows, { id: "0", item_id: "n", units: A, sort: 1, day_sheet: d1 }];   // 13일 ㄱ책 첫 줄(이미 검사함)도 차례 셈에 든다
+  ok("ㄱ책(문답노트 13·14일 → 워크북 13·14일 → 손 줄) → ㄴ책 → 교재 없는 줄 · 날짜보다 교재·줄이 먼저", checkOrder(rows, all).map((r) => r.id).join() === "3,4,1,5,6,2,7", checkOrder(rows, all).map((r) => r.id).join());
+  ok("같은 줄 안은 소단원 차례 → 날짜 · all 을 안 주면 rows 로 센다 · 빈 목록도 산다 · 원본은 안 건드린다", checkOrder([]).length === 0 && checkOrder([rows[3], rows[2]]).map((r) => r.id).join() === "3,4" && rows[0].id === "1");
+  ok("묶음: 교재가 바뀌는 자리에서 자른다 · 교재 없는 묶음은 book null", JSON.stringify(bookGroups(checkOrder(rows, all)).map((g) => [g.book, g.rows.length])) === JSON.stringify([["ㄱ책", 5], ["ㄴ책", 1], [null, 1]]));
+  const dayJs = readFileSync("lib/day.js", "utf8"), rowJs = readFileSync("app/today/row.js", "utf8");
+  ok("한 벌: lib/day.js 가 끌어올 때(notYetChecked · 검사한 줄까지 넣고 센다)와 판을 깎을 때(shape) 다 checkOrder · 읽기에 sort·units(book_id,sort,books(name)) · 01 검사 카드는 bookGroups 로 교재 머리(data-g=hw-book)", /return checkOrder\(\(h\.data \?\? \[\]\)\.filter\(\(x\) => !done\.has\(x\.id\)\), h\.data \?\? \[\]\)/.test(dayJs) && /check: checkOrder\(by\("check"\)\)/.test(dayJs) && /units\(book_id,sort,books\(name\)\)/.test(dayJs) && /bookGroups\(sheet\.check\)/.test(rowJs) && /data-g="hw-book"/.test(rowJs)); }
 console.log(`\n■ 항목 줄 글 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

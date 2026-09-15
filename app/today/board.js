@@ -5,7 +5,7 @@
  *  (어28)-② 고르기 · 한 번에(대전제-20 · 원장님 2026-09-15 「ㅇㅇ넣음」): 줄 앞 네모(마감된 줄은 못 고름) · 머리 「전체 N명」 · 고르면 아래 띠에 출결 다섯(판이 없으면 세우고 적는다 · 줄의 손과 같은 길) · 「마감 N」(판이 있는 줄만 · 저장된 글 그대로 · 미래 날은 잠김) */
 import { createContext, useContext, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { usePick, PickAll, PickBar } from "../_shell/pick.js";
+import { usePick, PickAll, PickBar, PickGroup } from "../_shell/pick.js";
 import { ATTEND } from "@/lib/day-plan";
 import { attendMany, closeMany } from "./actions.js";
 const Ctx = createContext({ openId: null, setOpenId: () => {}, pick: null });
@@ -34,3 +34,10 @@ export function useOpen(id) { const { openId, setOpenId } = useContext(Ctx);
   return [openId === id, (v) => setOpenId(v ? id : null), nextOf]; }
 /** 줄이 읽는 고르기(네모 하나) · 판 밖(고른 것 없음)이면 null */
 export function usePickCtx() { return useContext(Ctx).pick; }
+/** 반 머리((어31) · 원장님 2026-09-15 「오늘수업에서 반 이름 잘보이게 하고 반별 선택도 가능하게」) · 반 이름 크게(대시보드와 같은 classLabel 을 페이지가 준다) · 「반 전체」 네모는 그 반의 마감 안 한 줄만(줄 네모와 같은 셈 · 다른 반은 그대로) */
+export function ClassHead({ id = null, label, when = "", count = null, ids = [] }) {
+  const pk = usePickCtx();
+  return <div className="wv" style={{ margin: "10px 0 6px" }} data-g="class-head" data-class={id ?? "makeup"}>
+    {pk && <PickGroup pick={pk} ids={ids} label="반 전체" />}<b style={{ fontSize: "var(--fs-5)" }}>🏫 {label}</b><span className="pill">{[when, count != null ? `${count}명` : ""].filter(Boolean).join(" · ")}</span>
+  </div>;
+}

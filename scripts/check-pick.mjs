@@ -3,7 +3,7 @@
  *  목록 화면이 한 벌(app/_shell/pick.js)을 쓰나 · 아직 안 붙은 목록 수는 줄기만 한다(늘면 잡는다) */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { togglePick, pickAll, pickState, pickedText } from "../lib/pick-plan.js";
+import { togglePick, pickAll, pickMany, pickState, pickedText } from "../lib/pick-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 console.log("■ 셈 · 누르면 넣고 다시 누르면 뺀다 · 전체 · 지금 목록 기준");
@@ -13,6 +13,7 @@ console.log("■ 셈 · 누르면 넣고 다시 누르면 뺀다 · 전체 · �
   const st = pickState(new Set(["a", "b", "gone"]), ["a", "b", "c"]);
   ok("지금 목록 기준으로 센다 · 목록에 없는 것(gone)은 안 센다 · 일부(some) · 전부(all)는 목록이 있고 다 골랐을 때만", st.count === 2 && st.ids.join() === "a,b" && st.some && !st.all && pickState(new Set(["a", "b"]), ["a", "b"]).all && !pickState(new Set(), []).all && pickState(null, ["a"]).count === 0);
   ok("「고른 N명」 · 0 이면 빈 글(띠가 안 선다)", pickedText(3, "명") === "고른 3명" && pickedText(1) === "고른 1줄" && pickedText(0, "명") === ""); }
+ok("(어31) 한 묶음만 넣고 뺀다(pickMany) · 다른 고른 것은 그대로 · 원본은 안 건드린다 · 없는 목록도 안 죽는다", (() => { const s = new Set(["a"]); const t = pickMany(s, ["b", "c"]); const u = pickMany(t, ["a", "b"], false); return [...t].join() === "a,b,c" && [...u].join() === "c" && s.size === 1 && pickMany(null, ["z"]).has("z") && pickMany(new Set(["q"]), null).size === 1; })());
 console.log("■ 화면 · 목록마다 한 벌(app/_shell/pick.js) · 아직 안 붙은 목록은 줄기만 한다");
 const files = (d) => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? (f === "node_modules" ? [] : files(p)) : /\.js$/.test(f) ? [p] : []; });
 const src = files("app").map((p) => [p, readFileSync(p, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "")]);
@@ -28,6 +29,8 @@ for (const key of DONE) { const pr = pairs.find((x) => x.key === key); const fil
   ok("06b 시험 카드 · 05 할 일 카드 · 20 묶음 안 파일 · 19 영상 카드도 고르기 한 벌(PickBox 가 그 마크업에 · PickAll · PickBar)", has("app/schedule/exams/board.js", /data-g="exam-card"[\s\S]{0,400}<PickBox\b/) && has("app/schedule/todo/board.js", /className=\{"nb-card"[\s\S]{0,600}<PickBox\b/) && has("app/ops/files/board.js", /data-g="bin-file" data-file=\{f\.id\}><PickBox\b/) && has("app/books/videos/board.js", /data-g="video"[\s\S]{0,300}<PickBox\b/) && ["app/schedule/exams/board.js", "app/schedule/todo/board.js", "app/ops/files/board.js", "app/books/videos/board.js"].every((p) => has(p, /<PickAll\b/) && has(p, /<PickBar\b/))); }
 { const has = (p, re) => re.test(readFileSync(p, "utf8")); const send = readFileSync("app/send/board.js", "utf8");   // (어28)-④ 줄 갈래(-row)가 아닌 목록 셋 · 루틴 줄 · 상담 카드 · 공지 카드 · ⑤ 10 발송은 부품만(띠 대신 늘 있는 sendbar · 처음 고른 채)
   ok("11 루틴 줄 · 18 상담 카드 · 공지 카드도 고르기 한 벌(PickBox 가 그 마크업에 · PickAll · PickBar) · 10 발송은 usePick(처음 고른 채) · PickAll 둘 · 제 네모 없음", has("app/settings/routine/board.js", /data-g="line"[\s\S]{0,200}<PickBox\b/) && has("app/settings/routine/board.js", /<PickBar\b/) && has("app/ops/inquiry/board.js", /data-g="card"[\s\S]{0,200}<PickBox\b/) && has("app/ops/inquiry/board.js", /<PickBar\b/) && has("app/send/notice/board.js", /data-g="notice"[\s\S]{0,400}<PickBox\b/) && has("app/send/notice/board.js", /<PickBar\b/) && /usePick\(selectable, /.test(send) && (send.match(/<PickAll\b/g) ?? []).length === 2 && /<PickBox\b/.test(send) && !/type="checkbox"/.test(send)); }
+{ const has = (p, re) => re.test(readFileSync(p, "utf8"));   // (어31) 01 반 머리 · 「반 전체」 네모는 그 반의 줄만(PickGroup · usePick setMany · pickMany 한 벌)
+  ok("(어31) 부품에 PickGroup(pick-group · setMany) · 01 판에 ClassHead(반 이름 크게 · data-g=class-head · 그 안에 PickGroup) · 페이지가 반마다 ClassHead(작은 hh 줄은 없앰)", /export function PickGroup/.test(pickJs) && /data-g="pick-group"/.test(pickJs) && /setMany: \(list, on\) => setSel\(\(s\) => pickMany\(s, list, on\)\)/.test(pickJs) && has("app/today/board.js", /export function ClassHead[\s\S]*data-g="class-head"[\s\S]*<PickGroup\b/) && has("app/today/page.js", /<ClassHead\b/) && !has("app/today/page.js", /className="hh"/)); }
 const noPick = pairs.filter((x) => !x.picked).map((x) => x.key);
 ok(`아직 고르기 없는 목록(파일:갈래) ≤ 36(지금 ${noPick.length} · 새 목록을 고르기 없이 더하면 여기서 잡힌다) · 붙은 목록 ${pairs.length - noPick.length}`, noPick.length <= 36 && pairs.length - noPick.length >= DONE.length, noPick.map((k) => k.replace(/^app\//, "")).join(" · "));
 ok("고르기 띠는 savebar pickbar 한 벌 · 「고른 N」이 앞 · 비우기(data-act=pick-clear)가 끝 · 고른 것이 없으면 안 그린다", /className="savebar pickbar"/.test(pickJs) && /data-g="picked"/.test(pickJs) && /data-act="pick-clear"/.test(pickJs) && /if \(!pick\.count\) return null/.test(pickJs));
