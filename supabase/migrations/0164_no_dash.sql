@@ -273,6 +273,17 @@ begin
   return jsonb_build_object('run', p_run, 'tbl', run.tbl, 'restored', restored, 'removed', removed, 'hidden', hidden, 'revived', revived);
 end $function$;
 
+-- 옛 앱에서 받아온 할 일(0042 · 갈래 schedule·todo·general 따위)은 0131 의 갈래 제약(todo_kind_choice · not valid)에 걸려
+-- 한 줄도 못 고친다(2026-09-15 실 DB: 「광복절 대체공휴일 · 정상 수업」에서 23514 · 이 파일이 통째로 되돌아갔다).
+-- 제약에 안 맞는 갈래는 📋 메모(note)로 옮기고 제약을 검증해 둔다(숨은 옛 줄이 더는 없다). 허용 목록은 제약 정의에서 읽는다(두 벌로 안 적는다).
+do $$ declare 조건 text; begin
+  select pg_get_constraintdef(oid) into 조건 from pg_constraint where conname = 'todo_kind_choice' and conrelid = 'v2.todo'::regclass;
+  if 조건 is null then return; end if;
+  조건 := regexp_replace(regexp_replace(조건, '^CHECK \(', ''), '\)( NOT VALID)?$', '');
+  execute format('update v2.todo set kind = %L where not (%s)', 'note', 조건);
+end $$;
+alter table v2.todo validate constraint todo_kind_choice;
+
 -- 이미 적힌 줄 — 할 일 제목·까닭 · 자료함 답 한 줄(멱등)
 update v2.todo set title = replace(title, ' — ', ' · '), why = replace(why, ' — ', ' · ') where title like '% — %' or why like '% — %';
 update v2.todo set why = replace(why, '(확정-㊵)', '') where why like '%(확정-㊵)%';

@@ -1,4 +1,4 @@
--- 클로이영어 새 앱(v2) — 실 DB 에 돌릴 마이그레이션 (0164~0164 · 1개 · 2026-09-14 만듦)
+-- 클로이영어 새 앱(v2) — 실 DB 에 돌릴 마이그레이션 (0164~0164 · 1개 · 2026-09-15 만듦)
 --
 -- 어디서 왔나 : supabase/migrations/*.sql 을 **번호 차례대로** 이어 붙인 것이다.
 --               규칙은 docs/개발자-인수인계.md 3절 「실 DB 에 돌리는 법」.
@@ -312,6 +312,17 @@ begin
   return jsonb_build_object('run', p_run, 'tbl', run.tbl, 'restored', restored, 'removed', removed, 'hidden', hidden, 'revived', revived);
 end $function$;
 
+-- 옛 앱에서 받아온 할 일(0042 · 갈래 schedule·todo·general 따위)은 0131 의 갈래 제약(todo_kind_choice · not valid)에 걸려
+-- 한 줄도 못 고친다(2026-09-15 실 DB: 「광복절 대체공휴일 · 정상 수업」에서 23514 · 이 파일이 통째로 되돌아갔다).
+-- 제약에 안 맞는 갈래는 📋 메모(note)로 옮기고 제약을 검증해 둔다(숨은 옛 줄이 더는 없다). 허용 목록은 제약 정의에서 읽는다(두 벌로 안 적는다).
+do $$ declare 조건 text; begin
+  select pg_get_constraintdef(oid) into 조건 from pg_constraint where conname = 'todo_kind_choice' and conrelid = 'v2.todo'::regclass;
+  if 조건 is null then return; end if;
+  조건 := regexp_replace(regexp_replace(조건, '^CHECK \(', ''), '\)( NOT VALID)?$', '');
+  execute format('update v2.todo set kind = %L where not (%s)', 'note', 조건);
+end $$;
+alter table v2.todo validate constraint todo_kind_choice;
+
 -- 이미 적힌 줄 — 할 일 제목·까닭 · 자료함 답 한 줄(멱등)
 update v2.todo set title = replace(title, ' — ', ' · '), why = replace(why, ' — ', ' · ') where title like '% — %' or why like '% — %';
 update v2.todo set why = replace(why, '(확정-㊵)', '') where why like '%(확정-㊵)%';
@@ -319,7 +330,7 @@ update v2.file set reply = regexp_replace(reply, '^받았어요 — 「', '받�
 update v2.learn_items set method = replace(method, ' — ', ' · ') where method like '% — %';   -- 루틴 11 의 학습 항목 설명(0035 씨앗)
 update v2.placeholder set note = replace(note, ' — ', ' · '), example = replace(example, ' — ', ' · ') where note like '% — %' or example like '% — %';   -- 발송 10 치환 낱말 표의 설명·보기(0131·0154 씨앗)
 
-insert into v2.migration(file, sha) values ('0164_no_dash.sql', '961ecbe64c28b9a3')
+insert into v2.migration(file, sha) values ('0164_no_dash.sql', 'c79ebe73c466b183')
   on conflict (file) do update set sha = excluded.sha, applied_at = now();
 
 commit;
