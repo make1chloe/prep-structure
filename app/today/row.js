@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { itemText, itemRemove, itemRestore, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, bookGroups } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, unitTree } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -106,9 +106,12 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
   return (
     <div className="card" data-card="check">
       <div className="ctitle"><span className="stepno">{no}</span>숙제 검사<span className="auto">{checkText(sheet)}{has.length ? ` · ${has.join(" · ")}` : ""}</span><span className="spacer" />{!closed && left > 0 && <button type="button" className="btn sm pri" data-act="check-all" onClick={() => start(async () => { fail(await checkAll(sheet.id)); })}>다 ○</button>}</div>
-      {bookGroups(sheet.check).map((g, gi) => <Fragment key={g.book ?? `_${gi}`}>{/* (어30) 교재별 묶음 · 묶음 안은 루틴 차례(lib/day-plan checkOrder · 판을 깎을 때 이미 그 차례) · 교재 줄이 하나도 없으면 머리 없음 */}
-        {sheet.check.some((it) => it.units?.books?.name) && <div className="hh" style={{ margin: "6px 0 2px" }} data-g="hw-book">{g.book ? `📕 ${g.book}` : "그 밖에"}</div>}
-        {g.rows.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} />)}
+      {unitTree(sheet.check).map((ch) => <Fragment key={ch.key}>{/* (어30)(어32) 교재·대단원 머리 → 단원 줄(쪽·문항은 단원마다) → 활동(루틴 차례) · 원장님 9/15 「단원을 먼저 제시하고 그에 대한 활동을 순서대로」 · 단원 줄이 하나도 없으면 머리 없음 */}
+        {sheet.check.some((it) => it.units) && <div className="hh" style={{ margin: "6px 0 2px" }} data-g="hw-book">{ch.book ? `📕 ${[ch.book, ch.chapter].filter(Boolean).join(" · ")}` : "그 밖에"}</div>}
+        {ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null; return <Fragment key={g.id ?? `_${gi}`}>
+          {bits && <div data-g="hw-unit" style={{ margin: "6px 0 2px", fontWeight: 700 }}>{[bits.subs, bits.pages, bits.q].filter(Boolean).join(" · ")}</div>}
+          {g.rows.map((it) => <CheckItem key={it.id} it={it} closed={closed} fail={fail} start={start} grouped={Boolean(bits)} />)}
+        </Fragment>; })}
       </Fragment>)}
       {cc.length > 0 && <CcPart rows={cc} closed={closed} fail={fail} start={start} />}
       {units.map((t) => <UnitTestPart key={t.id} t={t} passPct={passPct} date={date} closed={closed} fail={fail} start={start} />)}
@@ -116,11 +119,11 @@ function CheckCard({ sheet, student, date, passPct, closed, fail, start, no = 1 
     </div>
   );
 }
-function CheckItem({ it, closed, fail, start }) {
+function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped: 단원 머리 아래 줄이라 밑줄에서 단원 글을 뺀다((어32))
   const [st, setSt] = useState(isUnchecked(it) ? null : it.status);
   const [upto, setUpto] = useState(it.done_note ?? "");
   const [restTo, setRestTo] = useState(null);
-  const sub = itemSub(it);   // 교재 · 단원 · 쪽 · 문항 · 이번에 · 메모. 제목은 항목 이름(숙제 종류) · 손 글 차례(lib/item-plan 한 벌)
+  const sub = itemSub(it, { unit: !grouped });   // 교재 · 단원 · 쪽 · 문항(단원 머리가 있으면 뺀다) · 이번에 · 메모. 제목은 항목 이름(숙제 종류) · 손 글 차례(lib/item-plan 한 벌)
   const pick = (v) => { if (closed) return; const prev = st; setSt(v); start(async () => { const r = await check(it.id, v, v === "weak" ? upto || null : null); if (!fail(r)) setSt(prev); }); };
   const pickUpto = (u) => { setUpto(u); start(async () => { fail(await check(it.id, "weak", u)); }); };
   const pickRest = (w) => { setRestTo(w); start(async () => { fail(await rest(it.id, w)); }); };
@@ -260,8 +263,7 @@ function FreeLine({ it, no, closed, fail, start, moveLabel, other }) {
   </div>;
 }
 function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = null }) {
-  const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: itemTitle(it), units: [], notes: [], carry: it.carry_of, gate: false }; lines.push(l); } if (it.gate_prev) l.gate = true; if (it.units) { l.units.push(it.units); if (it.range_note && !l.notes.includes(it.range_note)) l.notes.push(it.range_note); } }
-  for (const l of lines) l.bits = unitBits(l.units, { book: false });   // 교재 카드 안이라 교재 이름은 뺀다(lib/item-plan 한 벌)
+  const tree = unitTree(rows), nUnits = tree.reduce((n, ch) => n + ch.units.length, 0);   // (어32) 단원 먼저 · 그 단원의 활동을 루틴 차례로 · 쪽·문항은 단원마다(원장님 9/15 「단원을 먼저 제시하고 그에 대한 활동을 순서대로」 · 「페이지 번호는 … 저 두개 각각에 대한건지」) · 교재 카드 안이라 교재 이름은 뺀다
   const cur = new Set(rows.map((it) => it.unit_id));
   const opts = mark.waves?.[slot] ?? [];
   const same = (o) => o.units.length === cur.size && o.units.every((u) => cur.has(u.unit_id));
@@ -271,9 +273,14 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>회차</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
-      {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>{l.gate && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}
-        <small>{l.bits ? <><b>{l.bits.chapter}</b> › {l.bits.subs}{l.bits.pages ? ` · ${l.bits.pages}` : ""}{l.bits.q ? ` · ${l.bits.q}` : ""}{l.notes.length ? ` · 이번에 ${l.notes.join(" · ")}` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div>
-        {!closed && lines.length > 1 && l.units.length > 0 && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => !l.units.some((x) => (x.unit_id ?? x.id) === u)))); })}>✕</button>}</div>)}
+      {tree.map((ch) => <Fragment key={ch.key}>
+        {ch.chapter && <div data-g="chapter-head" style={{ margin: "6px 0 0", fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{ch.chapter}</div>}
+        {ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null; return <div key={g.id ?? `_${gi}`} data-g="unit-block" data-unit={g.id ?? ""}>
+          <div className="wv" style={{ margin: "4px 0 0", gap: 6 }} data-g="unit-head"><b>{bits ? bits.subs : "단원 없음"}</b>{bits && (bits.pages || bits.q) && <span className="note" style={{ margin: 0 }}>{[bits.pages, bits.q].filter(Boolean).join(" · ")}</span>}
+            {!closed && nUnits > 1 && g.id && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); })}>✕</button>}</div>
+          {g.rows.map((it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{(note || it.carry_of) && <small>{[note, it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}</div></div>; })}
+        </div>; })}
+      </Fragment>)}
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
         <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "학습 메모" : "숙제 메모"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
