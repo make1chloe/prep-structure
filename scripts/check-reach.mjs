@@ -18,15 +18,15 @@ const menu = strip(fs.readFileSync("lib/menu.js", "utf8"));
 const perm = strip(fs.readFileSync("lib/perm.js", "utf8"));
 const 한걸음 = new Set([...menu.matchAll(/href:\s*"([^"]+)"/g), ...perm.matchAll(/href:\s*"([^"]+)"/g)].map((m) => m[1]));
 
-// 화면이 걸어 둔 내부 링크 — 한 갈래 링크(_shell/sibs.js)도 편다
+// 화면이 걸어 둔 내부 링크 · 한 유형 링크(_shell/sibs.js)도 편다
 const sibs = strip(fs.readFileSync("app/_shell/sibs.js", "utf8"));
-const 갈래 = [...sibs.matchAll(/\[\s*\[[\s\S]*?\]\s*\]/g)].map((m) => [...m[0].matchAll(/"(\/[^"]*)"/g)].map((x) => x[1]));
+const 유형 = [...sibs.matchAll(/\[\s*\[[\s\S]*?\]\s*\]/g)].map((m) => [...m[0].matchAll(/"(\/[^"]*)"/g)].map((x) => x[1]));
 const 링크 = new Map();   // 화면 → 그 화면에서 갈 수 있는 곳
 for (const s of 원장쪽) {
   const dir = s === "/" ? "app" : "app" + s;
   const 글 = fs.readdirSync(dir).filter((f) => f.endsWith(".js")).map((f) => strip(fs.readFileSync(path.join(dir, f), "utf8"))).join("\n");
   const out = new Set([...글.matchAll(/href=\{?["'`](\/[^"'`?]*)/g)].map((m) => m[1]));
-  if (/<Sibs\s+here="([^"]+)"/.test(글)) { const here = 글.match(/<Sibs\s+here="([^"]+)"/)[1]; for (const fam of 갈래) if (fam.includes(here)) for (const h of fam) out.add(h); }
+  if (/<Sibs\s+here="([^"]+)"/.test(글)) { const here = 글.match(/<Sibs\s+here="([^"]+)"/)[1]; for (const fam of 유형) if (fam.includes(here)) for (const h of fam) out.add(h); }
   링크.set(s, out);
 }
 const 걸음 = (to) => { if (한걸음.has(to)) return 1;
@@ -38,10 +38,10 @@ console.log("■ 원장 쪽 화면마다 들어갈 길(탭 1걸음 · 화면 링
 const 멀다 = [];
 for (const s of 원장쪽) { const g = 걸음(s); if (g === 0 || g > 2) 멀다.push([s, g]); }
 ok(`화면 ${원장쪽.length}개가 모두 **두 걸음 안**에 있다`, !멀다.length, 멀다.map(([s, g]) => `${s}(${g || "못 닿음"})`).join(" · "));
-ok("갈래 링크는 lib 이 아니라 app/_shell/sibs.js 한 곳에(원칙-1)", 갈래.length > 0 && 갈래[0].length >= 3, `갈래 ${갈래.length}`);
-for (const fam of 갈래) for (const h of fam) ok(`갈래 안의 ${h} 가 실재하는 화면이다`, 원장쪽.includes(h), `화면 목록에 없음`);
-// 갈래에 든 화면은 서로 다 오갈 수 있어야 한다 — 하나만 빠져도 첫 주에 길이 끊긴다
-for (const fam of 갈래) for (const from of fam) ok(`${from} 에서 같은 갈래 ${fam.length - 1}곳으로 다 간다`, fam.every((to) => to === from || 링크.get(from)?.has(to)), `못 가는 곳 ${fam.filter((to) => to !== from && !링크.get(from)?.has(to)).join(",")}`);
+ok("유형 링크는 lib 이 아니라 app/_shell/sibs.js 한 곳에(원칙-1)", 유형.length > 0 && 유형[0].length >= 3, `유형 ${유형.length}`);
+for (const fam of 유형) for (const h of fam) ok(`유형 안의 ${h} 가 실재하는 화면이다`, 원장쪽.includes(h), `화면 목록에 없음`);
+// 유형에 든 화면은 서로 다 오갈 수 있어야 한다 · 하나만 빠져도 첫 주에 길이 끊긴다
+for (const fam of 유형) for (const from of fam) ok(`${from} 에서 같은 유형 ${fam.length - 1}곳으로 다 간다`, fam.every((to) => to === from || 링크.get(from)?.has(to)), `못 가는 곳 ${fam.filter((to) => to !== from && !링크.get(from)?.has(to)).join(",")}`);
 
 // ── 화면의 말 — 원장님 2026-09-11 「불필요한 설명 … 사용자가 파악하기 어려운 구조」
 console.log("\n■ 화면이 하는 말");

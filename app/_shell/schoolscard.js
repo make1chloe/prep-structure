@@ -1,5 +1,5 @@
 "use client";
-/** 🏫 학교 카드(06b) · 학교마다 이름·급 고치기 · 닫기(지우지 않는다 · 고르개에서 빠진다) · 「+ 새 학교」. 대전제-19 */
+/** 🏫 학교 카드(06b) · 학교마다 이름·급 고치기 · 닫기(지우지 않는다 · 선택 목록에서 빠진다) · 「+ 새 학교」. 대전제-19 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Sure, { useSure } from "./sure.js";
@@ -17,7 +17,7 @@ export default function SchoolsCard({ schools = [] }) {
     {err && <p className="note" role="alert" style={{ margin: "0 0 6px", color: "var(--miss)" }}>{err}</p>}
     <PickBar pick={pk} unit="곳">{/* (어28)-④ 고른 학교에 한 번에 · 줄의 「닫기」 손과 같다(묻고 · 지우지 않는다) */}
       <button type="button" className="btn sm" disabled={pending} data-act="close-picked" onClick={() => sure.ask("many")}>닫기 {pk.count}</button>
-      <Sure on={sure.is("many")} text={`고른 ${pk.count}곳을 닫을까요? 고르개에서 빠지고, 이미 붙은 아이·시험은 그대로 둡니다. 같은 이름을 다시 넣으면 되살아납니다`} pending={pending} onYes={() => run(() => schoolCloseManyAct(pk.ids))} onNo={() => sure.off()} style={{ flexBasis: "100%" }} />
+      <Sure on={sure.is("many")} text={`고른 ${pk.count}곳을 닫을까요? 선택 목록에서 빠지고, 이미 붙은 아이·시험은 그대로 둡니다. 같은 이름을 다시 넣으면 복구됩니다`} pending={pending} onYes={() => run(() => schoolCloseManyAct(pk.ids))} onNo={() => sure.off()} style={{ flexBasis: "100%" }} />
     </PickBar>
     <div className="left">
       {schools.map((s) => <div className="lf" key={s.id} data-g="school-row">
@@ -30,7 +30,7 @@ export default function SchoolsCard({ schools = [] }) {
           : <><div><b>{s.name}</b><small>{levelName(s.level)}{s.neis_code ? ` · 나이스 ${s.neis_code}` : ""}</small></div>
             <button type="button" className="btn sm gho" data-act="school-edit" onClick={() => { setEdit(s.id); setF({ name: s.name, level: s.level }); }}>✎</button>
             <button type="button" className="btn sm gho" data-act="school-close" disabled={pending} onClick={() => sure.ask(s.id)}>닫기</button></>}
-        <Sure on={sure.is(s.id)} text={`${s.name} 을(를) 닫을까요? 고르개에서 빠지고, 이미 붙은 아이·시험은 그대로 둡니다. 같은 이름을 다시 넣으면 되살아납니다`} pending={pending} onYes={() => run(() => schoolCloseAct(s.id))} onNo={() => sure.off()} />
+        <Sure on={sure.is(s.id)} text={`${s.name} 을(를) 닫을까요? 선택 목록에서 빠지고, 이미 붙은 아이·시험은 그대로 둡니다. 같은 이름을 다시 넣으면 복구됩니다`} pending={pending} onYes={() => run(() => schoolCloseAct(s.id))} onNo={() => sure.off()} />
       </div>)}
       {!schools.length && <p className="note" data-g="schools-empty" style={{ margin: 0 }}>학교 없음 · 위에 넣으면 학생 14 · 학교 시험 · 학교별 표에서 고를 수 있습니다</p>}
     </div>

@@ -1,5 +1,5 @@
 "use server";
-/** 교재 손 — 학원 사람만. 판단·쓰기는 lib/book.js 한 벌(+ 교재 · 고치기 · 다른 이름 · 문법 분류 · 엑셀 미리보기·저장(단원 시트 · 교재 시트) · 📦 묶음 되돌리기). 지우는 손이 없다(대전제-6 — 되돌리기도 걸린 줄은 숨긴다) */
+/** 교재 손 · 학원 사람만. 판단·쓰기는 lib/book.js 한 벌(+ 교재 · 고치기 · 다른 이름 · 문법 분류 · 엑셀 미리보기·저장(단원 시트 · 교재 시트) · 📦 올린 기록 되돌리기). 지우는 손이 없다(대전제-6 · 되돌리기도 걸린 줄은 숨긴다) */
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
@@ -7,7 +7,7 @@ import { today } from "@/lib/day";
 import { addBook, setBook, addAlias, setUnitTopics, addTopic, previewUpload, applyUpload, applyBookSheet, undoRun, setUnit, setUnitState, setUnitStateMany, moveActivityOrder } from "@/lib/book";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "교재 15");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "교재 15");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 const sheetName = (s) => (s ? String(s).slice(0, 120) : null);
 export async function addBookAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addBook(sb, { name: f?.name, area: f?.area || null, code: f?.code || null, chunkDepth: f?.chunkDepth || "sub", orderBasis: f?.orderBasis || "sub" }) }; }); }
 export async function setBookAct(id, patch) { return wrap(async () => { const { sb } = await staff(); await setBook(sb, id, patch); return {}; }); }

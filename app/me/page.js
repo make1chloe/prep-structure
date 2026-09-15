@@ -77,7 +77,7 @@ export default async function Me({ searchParams }) {
       <Link prefetch={false} className="btn sm" href={K("/me/videos")} data-g="videos-all" style={{ marginTop: 6 }}>모두 {d.videos.length}개 ↗</Link></div> },
     { id: 'books', name: '내 교재', node: can(ME.books) && <Card emo="🗺" title="내 교재" id="books" {...fold("books")} pill={`${d.books.length}권`}>
       {!d.books.length && <p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p>}
-      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={K(`/me/book?b=${b.book_id}`)} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "멈춤"}</span>}</Link>)}
+      {d.books.map((b) => <Link prefetch={false} className="li" key={b.id} href={K(`/me/book?b=${b.book_id}`)} data-g="book-link" style={{ textDecoration: "none", color: "inherit" }}><div><b>{b.books?.name}</b><small>{b.round}회독{b.left != null ? ` · 남은 소단원 ${b.left}` : ""} · 로드맵 ↗</small></div>{b.stop_mode !== "running" && <span className="tag">{STOP.find(([k]) => k === b.stop_mode)?.[1] ?? "보류"}</span>}</Link>)}
     </Card> },
     { id: 'future', name: '앞으로', node: can(ME.today) && (d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" {...fold("future")} pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>) },

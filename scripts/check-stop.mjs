@@ -1,7 +1,7 @@
 /** 검사 — 「이 교재가 이 날 멈췄나」를 **JS 와 SQL 이 똑같이** 말하나 (원칙-1).
  *  2026-09-11 첫 주 돌려보기에서 잡힘: 판단이 두 벌이라 어긋나 있었다 —
  *  JS(lib/routine-plan.js stopOn)는 stop_from 전이면 「진행중」, SQL(v2.word_test_on)은 stop_from 을
- *  아예 안 봐서 「멈춤」. 그래서 시험 회차를 넣는 순간부터 몇 주 동안 **시험을 못 내는** 상태가 됐다.
+ *  아예 안 봐서 「보류」. 그래서 시험 회차를 넣는 순간부터 몇 주 동안 **시험을 못 내는** 상태가 됐다.
  *  둘을 같은 경우표에 넣고 답을 맞대어 본다(0161 v2.book_off_on). DB 가 없으면 건너뜀으로 센다(초록 아님). */
 import pg from "pg";
 import { stopOn } from "../lib/routine-plan.js";
@@ -28,7 +28,7 @@ const bad = [];
 for (const r of rows) {
   const x = 경우[r.i];
   const js = stopOn({ stop_mode: x.mode, stop_from: x.from, stop_until: x.until }, x.on) === "book_off";
-  if (js !== r.sql_off) bad.push(`${x.mode} · from ${x.from ?? "—"} · until ${x.until ?? "—"} · ${x.on} → JS ${js ? "멈춤" : "진행중"} / SQL ${r.sql_off ? "멈춤" : "진행중"}`);
+  if (js !== r.sql_off) bad.push(`${x.mode} · from ${x.from ?? "·"} · until ${x.until ?? "·"} · ${x.on} → JS ${js ? "보류" : "진행중"} / SQL ${r.sql_off ? "보류" : "진행중"}`);
 }
 // 읽는 자리가 정말 그 한 곳을 부르나 — 글자로도 본다(다시 두 벌이 되면 잡는다)
 import { readFileSync } from "node:fs";
@@ -37,4 +37,4 @@ if (!/create or replace function v2\.word_test_on[\s\S]*?v2\.book_off_on\(/.test
 if (/stop_mode\s*(<>|!=)\s*'book_off'/.test(m)) bad.push("0161 에 옛 판단(stop_mode <> 'book_off')이 남아 있습니다");
 
 if (bad.length) { console.log(`check-stop ✗ (${bad.length}/${경우.length} 어긋남)\n  ` + bad.join("\n  ")); process.exit(1); }
-console.log(`check-stop ✓ 멈춤 판단이 JS·SQL 한 규칙 · 경우 ${경우.length}가지가 다 같다(stop_from 전 · stop_until 뒤 · 빈 값 · 상태 셋)`);
+console.log(`check-stop ✓ 보류 판단이 JS·SQL 한 규칙 · 경우 ${경우.length}가지가 다 같다(stop_from 전 · stop_until 뒤 · 빈 값 · 상태 셋)`);

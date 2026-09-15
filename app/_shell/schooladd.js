@@ -1,5 +1,5 @@
 "use client";
-/** 「+ 새 학교」 한 벌 · 학교 고르개 옆 어디서나(06c 줄 더하기 · 14 학생 · 12b 받아오기 · 06b 학교 카드). 넣으면 화면을 다시 읽고 고르개에 그 학교를 고른 채로 준다 */
+/** 「+ 새 학교」 한 벌 · 학교 고르개 옆 어디서나(06c 줄 더하기 · 14 학생 · 12b 가져오기 · 06b 학교 카드). 넣으면 화면을 다시 읽고 고르개에 그 학교를 고른 채로 준다 */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { schoolAddAct } from "./school-actions.js";

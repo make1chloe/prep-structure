@@ -6,7 +6,7 @@
  *
  *   /auth/v1/*      이 파일이 흉내 낸다 (로그인 · 나 누구야 · 로그아웃)
  *   /rest/v1/*      PostgREST 로 넘긴다 (표 · RPC)
- *   /storage/v1/*   이 파일이 흉내 낸다 — 올리기(POST object/<버킷>/<경로>) · 읽기(GET) 만, 파일은 /var/tmp/e2e-storage 에(3단계-9 자료함).
+ *   /storage/v1/*   이 파일이 흉내 낸다 · 올리기(POST object/<버킷>/<경로>) · 읽기(GET) 만, 파일은 /var/tmp/e2e-storage 에(3단계-9 자료실).
  *                   진짜와 다른 점: 버킷 규칙(RLS · allowed_mime_types)을 안 본다 — 앱이 v2.file 로 접근을 정하고(9000 이 그 규칙을 빌린다) 종류는 lib/files-plan 이 본다. 그 밖(지우기 · 서명 주소 · 목록)은 501
  *
  * **앱 코드에는 손대지 않는다.** 앱은 자기가 진짜 Supabase 에 붙는 줄 알고
@@ -237,12 +237,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── 보관함 흉내 — 올리기 · 읽기만. 서버 자신(service role)만 닿는다(앱이 그렇게 쓴다) ──
+  // ── 보관함 흉내 · 올리기 · 읽기만. 서버 자신(service role)만 닿는다(앱이 그렇게 쓴다) ──
   if (path.startsWith("/storage/v1")) {
     const m = /^\/storage\/v1\/object\/([\w-]+)\/(.+)$/.exec(path);
     if (!m) return json(res, 501, { message: "e2e: 보관함은 올리기·읽기만 흉내 냅니다. " + path });
     const auth = req.headers.authorization || "";
-    if (!auth.startsWith("Bearer ")) return json(res, 401, { message: "e2e: 보관함은 열쇠가 있어야 합니다" });
+    if (!auth.startsWith("Bearer ")) return json(res, 401, { message: "e2e: 보관함은 키가 있어야 합니다" });
     const rel = normalize(decodeURIComponent(m[2])).replace(/^(\.\.[/\\])+/, ""); const file = join(STORE, m[1], rel);
     if (req.method === "POST" || req.method === "PUT") {
       if (existsSync(file) && req.headers["x-upsert"] !== "true") return json(res, 400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });

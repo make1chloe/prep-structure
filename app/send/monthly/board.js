@@ -15,7 +15,7 @@ export default function Board({ d }) {
   const [when, setWhen] = useState("evening"); const [cDate, setCDate] = useState(d.today); const [cTime, setCTime] = useState("18:00");   // ⏰ 예약 때((어))
   const schedMsg = (r) => `예약했습니다. ${r.n}명 · ${whenLabel(r.at, d.today)}`;
   const run = (fn, okMsg) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); router.refresh(); });
-  const sinkText = (r) => (r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`);
+  const sinkText = (r) => (r.sink === "off" ? "🧪 리허설(off): 발송 이력만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`);
   const todo = sendable(d.rows), sentN = d.rows.filter((r) => r.report?.sent_at).length;
   return (<>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">

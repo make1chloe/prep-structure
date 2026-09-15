@@ -1,5 +1,5 @@
 /** 「누가 무엇을 보나」 — 원장님이 켜고 끄신다(원장님 9/3). 기본값은 코드에 없다: 안 정한 칸은 막혀 있고 여기서 정하신다.
- *  열쇠 목록은 lib/perm.js 한 벌. 옛 앱에서 정하신 32칸이 그대로 옮겨 와 있다 */
+ *  키 목록은 lib/perm.js 한 벌. 옛 앱에서 정하신 32칸이 그대로 옮겨 와 있다 */
 import { guard } from "@/lib/session";
 import { ROLES, ROLE_NAME } from "@/lib/roles";
 import { KEYS, GROUP_NAME, decide } from "@/lib/perm";

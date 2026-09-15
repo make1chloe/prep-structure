@@ -8,7 +8,7 @@ try { v = JSON.parse(readFileSync("vercel.json", "utf8")); } catch (e) { console
 const ic = String(v.ignoreCommand ?? "");
 if (!ic) bad.push("ignoreCommand 가 없다. v2 가 운영으로 빌드된다(대전제-13)");
 if (!/\$VERCEL_ENV"? = "?production/.test(ic)) bad.push("ignoreCommand 가 VERCEL_ENV=production 을 안 본다");
-if (!/V2_PRODUCTION_OK/.test(ic)) bad.push("ignoreCommand 에 전환일 열쇠 V2_PRODUCTION_OK 가 없다. 전환일에 코드를 고쳐야 하게 된다");
+if (!/V2_PRODUCTION_OK/.test(ic)) bad.push("ignoreCommand 에 전환일 키 V2_PRODUCTION_OK 가 없다. 전환일에 코드를 고쳐야 하게 된다");
 if (!/exit 0/.test(ic) || !/exit 1/.test(ic)) bad.push("ignoreCommand 가 건너뜀(exit 0)·지음(exit 1) 둘 다 말하지 않는다");
 if (!(v.crons ?? []).some((c) => c.path === "/api/cron")) bad.push("crons 에 /api/cron 이 없다. 예약 발송 백스톱(속도-3)이 안 돈다");
 // (어11) **푸시를 빠뜨렸나** — 2026-09-12 사고: 이틀치 커밋 일곱을 작업 브랜치에만 밀고 **배포되는 v2 에는 안 올렸다**.

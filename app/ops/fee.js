@@ -1,5 +1,5 @@
 "use client";
-/** 수강료 판(목업 13) — 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생에서 올리기 · ✔ 안 받음 줄 다 받음(도장 — 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
+/** 수강료 판(목업 13) · 학생 · 반 · 금액 · 받은 날 · 상태. 저장은 바뀐 줄만 · 합계는 화면이 센다(대전제-5) · 엑셀로 내보내기 · 결제선생에서 올리기 · ✔ 안 받음 줄 다 받음(도장 · 받은 날 = 오늘 · payAllEdits 한 곳 · 저장 손 그대로) */
 import FilePick from "../_shell/filepick.js";
 import Link from "next/link";
 import { usePick, PickAll, PickBox, PickBar } from "../_shell/pick.js";   /* 고르기 한 벌((어28) · 대전제-20) · 고른 줄에 ✔ 받음 · 안내 · 예약 */
@@ -52,7 +52,7 @@ export default function Fee({ d }) {
     </tbody></table></div>
     <PickBar pick={pk} unit="줄">{/* 고른 줄에 한 번에((어28) · 대전제-20) · ✔ 받음(오늘 · 안 받은 줄만) · 📨 안내 · ⏰ 예약(때 고르기는 발송 10 과 같은 부품) */}
       <button className="btn sm pri" type="button" disabled={pending || !picked.length} data-act="pay-picked" onClick={() => run(() => saveAct(d.ym, payAllEdits(picked, d.date)), (r) => `${r.saved}줄 받음(${md(d.date)}) · 저장했습니다${r.ruled ? ` · 단가 줄 ${r.ruled}(이 달부터)` : ""}`, pk.clear)}>✔ 받음 {picked.length}</button>
-      <button type="button" className="btn sm" disabled={pending || !picked.length} data-act="remind-picked" onClick={() => run(() => remindAct(d.ym, pk.ids), (r) => `${r.n}집에 수강료 안내 · ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`, pk.clear)}>💰 안 받은 집에 안내 {picked.length}</button>
+      <button type="button" className="btn sm" disabled={pending || !picked.length} data-act="remind-picked" onClick={() => run(() => remindAct(d.ym, pk.ids), (r) => `${r.n}집에 수강료 안내 · ${r.sink === "off" ? "🧪 리허설(off): 발송 이력만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`, pk.clear)}>💰 안 받은 집에 안내 {picked.length}</button>
       <button type="button" className="btn sm" disabled={pending || !picked.length} data-act="schedule-picked" onClick={() => run(() => scheduleFeesAct(d.ym, when, customOf(when, cDate, cTime), pk.ids), (r) => `예약했습니다. ${r.n}집 · ${whenLabel(r.at, d.date)}`, pk.clear)}>⏰ 안 받은 집 예약 {picked.length}</button>
       <When rules={d.sendRules} date={d.date} when={when} setWhen={setWhen} cDate={cDate} setCDate={setCDate} cTime={cTime} setCTime={setCTime} />
     </PickBar>

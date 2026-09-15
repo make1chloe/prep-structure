@@ -17,7 +17,7 @@ async function feeStaff(ym) {
   if (decide(w.me.role, board.access ?? [], OPS.fee) !== true) throw new Error("이 계정에는 수강료가 안 열려 있습니다");
   return { ...w, board };
 }
-const wrap = (fn) => act(fn, "운영 13");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "운영 13");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function saveAct(ym, edits) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return savePayments(sb, ym, edits, board); }); }
 export async function byGradeAct(ym, f) { return wrap(async () => { const { sb } = await feeStaff(ym); return setByGrade(sb, f); }); }
 export async function remindAct(ym, ids = null) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return remindFees(serviceClient(), sb, ym, board, ids); }); }   // ids: 고른 집만((어28))

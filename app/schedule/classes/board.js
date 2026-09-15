@@ -1,5 +1,5 @@
 "use client";
-/** 반 판(4단계-3a) — + 반 만들기 · 반마다: 이름·갈래 · 시간표(이 날부터 바꾸기 · 다음 시간표 예약) · 명단(넣기·빼기) · 반 단가 줄 · 닫기. 닫은 반은 아래 접어 둔다(지우지 않는다) */
+/** 반 판(4단계-3a) · + 반 만들기 · 반마다: 이름·유형 · 시간표(이 날부터 바꾸기 · 다음 시간표 예약) · 명단(넣기·빼기) · 반 단가 줄 · 닫기. 닫은 반은 아래 접어 둔다(지우지 않는다) */
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -60,7 +60,7 @@ export default function Board({ d }) {
           {c.next_schedule && <span className="pill" data-g="next-schedule">{String(c.next_schedule.from_date).slice(5).replace("-", "/")}부터 {weekdayText(c.next_schedule.weekdays)} {timeText(c.next_schedule)}</span>}
           <button type="button" className="btn sm" data-act="open" aria-pressed={isOpen} onClick={() => setOpen(isOpen ? null : c.id)}>{isOpen ? "접기" : "펴기"}</button></div>
         {isOpen && <>
-          <div className="lf" style={{ marginTop: 8 }} data-g="name-edit"><span className="ln">✎</span><div><b>이름 · 갈래</b></div>
+          <div className="lf" style={{ marginTop: 8 }} data-g="name-edit"><span className="ln">✎</span><div><b>이름 · 유형</b></div>
             <input type="text" value={name[c.id]?.nickname ?? c.nickname} aria-label="반 이름" style={{ maxWidth: 200 }} onChange={(e) => setName({ ...name, [c.id]: { ...(name[c.id] ?? { kind: c.kind }), nickname: e.target.value } })} />
             <div className="seg sm">{KIND.map(([k, n]) => <button key={k} type="button" aria-pressed={(name[c.id]?.kind ?? c.kind) === k} onClick={() => setName({ ...name, [c.id]: { ...(name[c.id] ?? { nickname: c.nickname }), kind: k } })}>{n}</button>)}</div>
             <button type="button" className="btn sm" disabled={pending || !name[c.id]} data-act="name-save" onClick={() => run(() => nameAct(c.id, name[c.id].nickname ?? c.nickname, name[c.id].kind ?? c.kind), "고쳤습니다", () => setName({ ...name, [c.id]: undefined }))}>저장</button></div>

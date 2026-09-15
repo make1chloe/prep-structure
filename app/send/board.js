@@ -16,7 +16,7 @@ const Row = ({ icon = null, tip = null, cls = "", check = null, right = null, fo
   <div className={"srow" + (cls ? " " + cls : "") + (open ? " open" : "")} {...rest}>{check}{icon != null && <span className="si" title={tip ?? undefined}>{icon}</span>}<div className="sn">{children}{open && fold}</div>{fold && <button type="button" className="btn sm gho sfold" aria-expanded={open} aria-label="글 펼치기" data-act="fold" onClick={onFold}>{open ? "▾" : "▸"}</button>}{right}</div>
 );
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
-/** 펼친 줄 · 부모님께 나갈 글. 아직 안 나간 줄(마감 전 · 보낼 것 · 빈 자리 · 예약)은 그 자리에서 고쳐 저장(lib/send editDaily) · 나간 줄은 읽기만 */
+/** 펼친 줄 · 부모님께 나갈 글. 아직 안 나간 줄(마감 전 · 보낼 것 · 빈 칸 · 예약)은 그 자리에서 고쳐 저장(lib/send editDaily) · 나간 줄은 읽기만 */
 function DailyText({ r, editable, pending, run }) {
   const [text, setText] = useState(r.comment);
   useEffect(() => { setText(r.comment); }, [r.comment]);
@@ -29,7 +29,7 @@ function DailyText({ r, editable, pending, run }) {
     </div>
   );
 }
-/** 🕘 아직 안 보낸 늦은 귀가 안내 · 사유가 있으면 「보내기」 · 없으면 사유 한 칸 + 「보내기」 · 다 그 자리에서(오늘 화면으로 안 보낸다) */
+/** 🕘 아직 안 보낸 하원 지연 안내 · 사유가 있으면 「보내기」 · 없으면 사유 한 칸 + 「보내기」 · 다 그 자리에서(오늘 화면으로 안 보낸다) */
 function LateSend({ r, pending, run }) {
   const [reason, setReason] = useState(r.reason);
   return (
@@ -46,12 +46,12 @@ export default function Board({ d }) {
   const [openIds, setOpenIds] = useState(() => new Set());   // 펼친 줄(화면 안에만)
   const toggle = (id) => setOpenIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const selectable = useMemo(() => d.daily.filter((r) => r.state === "ready" || r.state === "sent").map((r) => r.id), [d]);
-  const pk = usePick(selectable, d.daily.filter((r) => r.checked).map((r) => r.id));   // 마감한 판은 처음부터 고른 채(그대로) · 셈은 lib/pick-plan 한 벌
+  const pk = usePick(selectable, d.daily.filter((r) => r.checked).map((r) => r.id));   // 마감한 수업 일지는 처음부터 고른 채(그대로) · 셈은 lib/pick-plan 한 벌
   const [when, setWhen] = useState("evening"); const [cDate, setCDate] = useState(d.date); const [cTime, setCTime] = useState("18:00");
   const ids = pk.ids;
   const run = (fn, okMsg, keep = false) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } setMsg(okMsg(r)); if (!keep) pk.clear(); router.refresh(); });
   const cnt = closedCount(d.daily), nowN = nowCount(d.late);
-  const fails = d.failWhy ?? [];   // 못 보낸 까닭은 **한 번씩만**(2026-09-12) — 줄마다 되풀이하던 것을 머리로
+  const fails = d.failWhy ?? [];   // 못 보낸 까닭은 **한 번씩만**(2026-09-12) · 줄마다 반복하던 것을 머리로
   const rc = d.sent.reduce((c, s) => { if (s.status.read) c.read++; else if (s.status.unread) c.unread++; else if (s.status.bad) c.failed++; else c.rehearsal++; return c; }, { read: 0, unread: 0, failed: 0, rehearsal: 0 });
   const ranText = (r) => `${r.ok}건 · 실패 ${r.bad}${r.deferred ? ` · 방해금지로 미룸 ${r.deferred}` : ""}`;
   const tagsOf = (r, first = <span className="tag on">마감됨</span>) => <div className="tags">{first}{r.cap && <span className="tag">{r.cap}</span>}{r.kind && <span className="tag type">{r.kind}</span>}</div>;
@@ -67,7 +67,7 @@ export default function Board({ d }) {
     {d.sinkBad && <p className="note" role="alert" data-g="sink-bad" style={{ margin: "0 0 8px", color: "var(--miss)" }}>
       <b>스위치 값이 이상해서 아무것도 안 나갑니다</b> · {d.sinkBad}. 아래 ⓘ 대로 고치십시오.</p>}
     {d.sink !== "live" && <p className="note k" data-g="sink-how" style={{ margin: "0 0 8px" }}>
-      🧪 리허설이라 <b>실제로는 안 나갑니다</b>.<Tip label="켜는 법">Vercel → Settings → Environment Variables 에 <b>NOTIFY_SINK</b> = <b>live</b>(<b>Production</b> 체크) → Save → Deployments 맨 위 <b>⋯ → Redeploy</b>. 이미 배포된 것에는 안 붙어서 Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 자리가 「앱 알림만」이 됩니다.</Tip></p>}
+      🧪 리허설이라 <b>실제로는 안 나갑니다</b>.<Tip label="켜는 법">Vercel → Settings → Environment Variables 에 <b>NOTIFY_SINK</b> = <b>live</b>(<b>Production</b> 체크) → Save → Deployments 맨 위 <b>⋯ → Redeploy</b>. 이미 배포된 것에는 안 붙어서 Redeploy 를 해야 그때부터 읽습니다. 켜지면 이 표시가 「앱 알림만」이 됩니다.</Tip></p>}
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
 
@@ -75,19 +75,19 @@ export default function Board({ d }) {
       <div className="sgh"><span className="sgi">🕘</span><b>지금 · 수업 중에</b><span className={"pill" + (nowN ? " warn" : "")}>{d.late.length}</span><span className="spacer" /></div>
       {!d.late.length && <Row icon="" cls="dim"><b>없음</b></Row>}
       {d.late.map((r) => r.sent
-        ? <Row key={r.id} icon="✅" tip="보냄" cls="done" data-g="late-row"><b>{r.name} · 늦은 귀가 안내</b><small>{r.until} 예정 · <b>{r.sent}에 보냄</b>{r.log ? ` · ${r.log.text}` : ""}</small><div className="tags" style={{ marginTop: 4 }}><span className="tag on">✓ 보냄</span>{r.reason && <span className="tag">{r.reason}</span>}</div></Row>
-        : <Row key={r.id} icon="🕙" tip="안 보냄" data-g="late-row" right={<LateSend r={r} pending={pending} run={run} />}><b>{r.name} · 늦은 귀가 안내</b><small>{r.until} 예정</small>{!r.noReason && <div className="tags" style={{ marginTop: 4 }}><span className="tag">{r.reason}</span></div>}</Row>)}
+        ? <Row key={r.id} icon="✅" tip="보냄" cls="done" data-g="late-row"><b>{r.name} · 하원 지연 안내</b><small>{r.until} 예정 · <b>{r.sent}에 보냄</b>{r.log ? ` · ${r.log.text}` : ""}</small><div className="tags" style={{ marginTop: 4 }}><span className="tag on">✓ 보냄</span>{r.reason && <span className="tag">{r.reason}</span>}</div></Row>
+        : <Row key={r.id} icon="🕙" tip="안 보냄" data-g="late-row" right={<LateSend r={r} pending={pending} run={run} />}><b>{r.name} · 하원 지연 안내</b><small>{r.until} 예정</small>{!r.noReason && <div className="tags" style={{ marginTop: 4 }}><span className="tag">{r.reason}</span></div>}</Row>)}
     </section>
 
     <section className="sgrp" data-card="daily">
       <div className="sgh"><span className="sgi">📨</span><b>데일리리포트 · 마감한 것</b><span className="pill" data-g="closed-count">{cnt.closed} / {cnt.total}</span><span className="spacer" />
-        <PickAll pick={pk} label="이 묶음 전체" disabled={!selectable.length} /></div>
+        <PickAll pick={pk} label="이 목록 전체" disabled={!selectable.length} /></div>
       {!d.daily.length && <Row icon="" cls="dim"><b>없음</b></Row>}
       {d.daily.map((r) => {
         const ck = r.state === "ready" || r.state === "sent" ? <PickBox pick={pk} id={r.id} label={`${r.name} 고르기`} /> : null;
         const f = { fold: <DailyText r={r} editable={["open", "ready", "holes", "scheduled"].includes(r.state)} pending={pending} run={run} />, open: openIds.has(r.id), onFold: () => toggle(r.id) };
         if (r.state === "open") return <Row key={r.id} icon="⏳" tip="마감 전" cls="dim" data-g="daily-row" data-state={r.state} {...f}><b>{r.name}</b></Row>;
-        if (r.state === "holes") return <Row key={r.id} icon="⚠️" tip="빈 자리" cls="warnrow" data-g="daily-row" data-state={r.state} {...f}><b>{r.name}</b>{tagsOf(r, <span className="tag" style={MISS}>{r.holes.map((h) => `{{${h}}}`).join(" ")}</span>)}</Row>;
+        if (r.state === "holes") return <Row key={r.id} icon="⚠️" tip="빈 칸" cls="warnrow" data-g="daily-row" data-state={r.state} {...f}><b>{r.name}</b>{tagsOf(r, <span className="tag" style={MISS}>{r.holes.map((h) => `{{${h}}}`).join(" ")}</span>)}</Row>;
         if (r.state === "sent") return <Row key={r.id} icon="✅" tip="보냄" cls="done" check={ck} data-g="daily-row" data-state={r.state} right={r.logId && <button className="btn sm gho" type="button" disabled={pending} data-act="resend" onClick={() => run(() => resendLog(r.logId), (x) => `다시 보냄 ✓ · ${ranText(x.r)}`)}>다시 보내기</button>} {...f}><b>{r.name}</b><small>{r.log?.text}</small>{tagsOf(r)}</Row>;
         if (r.state === "scheduled") return <Row key={r.id} icon="⏰" tip="예약" data-g="daily-row" data-state={r.state} right={<button className="btn sm" type="button" disabled={pending} data-act="cancel" onClick={() => run(() => cancelSchedule(r.scheduledId), () => "예약 취소 ✓")}>취소</button>} {...f}><b>{r.name}</b>{tagsOf(r, <span className="tag on">⏰ {whenLabel(r.scheduledAt, d.date)}</span>)}</Row>;
         if (r.state === "queued") return <Row key={r.id} icon="📤" tip="보내는 중" data-g="daily-row" data-state={r.state} {...f}><b>{r.name}</b>{r.job?.state === "fail" && <small>실패 · {r.job.last_error ?? ""}</small>}{tagsOf(r)}</Row>;
@@ -118,7 +118,7 @@ export default function Board({ d }) {
       </div>
     </div>
     <Templates items={d.templates ?? []} ready={d.smsReady} placeholders={d.placeholders ?? []} kinds={d.smsKinds ?? []} />
-    {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 자리</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
+    {(d.placeholders ?? []).length > 0 && <div className="sgrp" data-card="placeholders"><div className="sgh"><b>{"{{ }}"} 치환 칸</b><span className="spacer" /><span className="pill">{(d.placeholders ?? []).length}</span></div>
       <div className="tags" data-g="placeholders">{placeholderRows(d.placeholders).map((r) => <span key={r.key} className="tag" title={r.text}>{r.tag}</span>)}</div>
       {/* 칩마다 title 에 뜻이 이미 붙어 있다 — 아래에 같은 것을 또 늘어놓지 않는다(2026-09-12 · 144자) */}
       </div>}

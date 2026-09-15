@@ -26,29 +26,29 @@ ok("탭(tabs.js) · 지금 탭은 lib/menu currentTab 한 곳 · 누르면 먼�
 ok("껍질(shell.js) · <Tabs> 와 <Going>(Suspense 안 · useSearchParams) 을 상단바에 그린다", /<Tabs items=/.test(shell) && /<Suspense fallback=\{null\}><Going \/><\/Suspense>/.test(shell));
 const items = menuFor("principal", []);
 ok("currentTab 판단 · / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 **가장 긴 앞머리**(/schedule/exams → 일정 · /ops/inquiry → 학생 · /ops/students 도 학생 탭(/ops · (어28) 운영 = 학생)) · 아이 화면(/me)은 null", items.length === 11 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/exams") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/inquiry") === "/ops" && currentTab(items, "/ops/students") === "/ops" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/exams", "/ops/inquiry", "/ops/students"].map((p) => currentTab(items, p)).join(",")}`);
-ok("탭 열하나((어28) 운영 탭이 곧 학생 · 학생 rider 는 뺐다) · **날마다 여는 화면은 한 번에 닿는다**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」). 일정 뒤에 내신·할 일·성적, 학생(/ops) 뒤에 자료함이 얹힌다(9/10 의 내신·할 일은 그대로) · 그 화면에서는 그 탭이 파랗다",
-  items.map((m) => m.name).join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,학생,자료함,설정"
+ok("탭 열하나((어28) 운영 탭이 곧 학생 · 학생 rider 는 뺐다) · **날마다 여는 화면은 한 번에 닿는다**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」). 일정 뒤에 내신·업무·성적, 학생(/ops) 뒤에 자료실이 얹힌다(9/10 의 내신·업무는 그대로) · 그 화면에서는 그 탭이 파랗다",
+  items.map((m) => m.name).join(",") === "대시보드,오늘,발송,일정,내신,업무,성적,교재,학생,자료실,설정"
   && currentTab(items, "/schedule/grid") === "/schedule/grid" && currentTab(items, "/schedule/todo") === "/schedule/todo"
   && currentTab(items, "/scores") === "/scores" && currentTab(items, "/ops/students") === "/ops" && currentTab(items, "/ops/files") === "/ops/files"
   && currentTab(items, "/ops/inquiry") === "/ops",
   items.map((m) => `${m.name}(${m.href})`).join(" · "));
 { // 동선 — 원장 쪽 화면이 **몇 번 눌러 닿나**. 얹은 탭을 늘려 9 → 12 가 한 번이 됐다(2026-09-11)
   const 한번 = new Set(items.map((m) => m.href));
-  ok("날마다 여는 다섯은 **한 번**에 닿는다. 오늘 · 학생 · 자료함 · 내신 · 할 일",
+  ok("날마다 여는 다섯은 **한 번**에 닿는다. 오늘 · 학생 · 자료실 · 내신 · 업무",
     ["/today", "/ops", "/ops/files", "/schedule/grid", "/schedule/todo"].every((h) => 한번.has(h)),
     [...한번].join(" ")); }
-ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** · 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 열쇠는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
+ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** · 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 키는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
   items.filter((m) => m.href.startsWith("/schedule")).every((m) => m.key === "page.schedule")
   && !/page\.(prep|grid|todo)/.test(readFileSync("lib/perm.js", "utf8")));
 // (어9) 원장님 2026-09-12 「세개 올린것 괜찮은데 **나는 안보여**」 — 옆으로 굴리기(overflow-x:auto + 숨긴 굴림막대)로는 열둘 중 뒤쪽 넷이 폰에서 아예 안 보였다.
-// 안 보이는 탭은 클릭이 ∞다. 이제 **접어서 두 줄로** 낸다 — 탭 줄만 한 줄 늘 뿐 빈 자리는 없으니 9/9 「여백없이」는 그대로.
+// 안 보이는 탭은 클릭이 ∞다. 이제 **접어서 두 줄로** 낸다 · 탭 줄만 한 줄 늘 뿐 빈 칸은 없으니 9/9 「여백없이」는 그대로.
 ok("(어9) 폰에서 탭은 **접는다** · 굴림막대에 숨기지 않는다(안 보이는 탭은 없다 · 실제로 다 보이나는 걷기가 잰다)",
   (() => { const css = readFileSync("app/globals.css", "utf8");
     return /\.appbar \.tabs\{[^}]*flex-wrap:wrap/.test(css) && !/\.appbar \.tabs\{[^}]*overflow-x:auto/.test(css) && !/\.appbar \.tabs\{[^}]*flex-wrap:nowrap/.test(css); })());
 // (어39) 대전제-22 「행동은 그 자리에서 · 페이지를 안 떠난다」(원장님 2026-09-15 「누르면 팝업이든 모달이든 뜨고 저장하면 페이지도 안 벗어나고」) · 다른 화면으로 보내 일하게 하는 「동사 ↗」 래칫.
 //   참고로 가는 명사 ↗(학교 시험 ↗ · 자료 ↗ · 일정 ↗)는 둔다. 실측 17 → (어39) 발송 10 둘 걷고 문자틀 하나 명사로 → 14 · (어41) 대시보드·학생 14·설정·오늘 01 을 그 자리 모달로 → 0
 { const espree = (await import("espree")).default ?? (await import("espree"));
-  const VERB = /(고치기|열기|보내기|잡기|체크|하기|만들기|가져오기|받아오기|조절|보기|넣기|더하기|잇기|배정) ?↗/;
+  const VERB = /(고치기|열기|보내기|잡기|체크|하기|만들기|가져오기|가져오기|조절|보기|넣기|더하기|연결|배정) ?↗/;
   const hits = [];
   for (const f of walk("app").filter((p) => !p.includes("/api/"))) { let toks; try { toks = espree.parse(readFileSync(f, "utf8"), { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true }, tokens: true }).tokens; } catch { continue; }
     for (const t of toks) if (["String", "Template", "JSXText"].includes(t.type) && t.value.includes("↗") && VERB.test(t.value)) hits.push(`${f}: ${t.value.replace(/\s+/g, " ").trim().slice(0, 30)}`); }

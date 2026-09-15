@@ -16,7 +16,7 @@ import { studentSubmit } from "@/lib/score";
 import { studentMark, studentMarkMany, raiseFlag } from "@/lib/road";
 import { markSeen } from "@/lib/files";
 import { markSpan, fillDuration, openVideo } from "@/lib/video";
-const done = doneAt("/me", "아이 화면 07");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const done = doneAt("/me", "아이 화면 07");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 async function child() { const w = await guard(); if (w.me?.role !== ROLES.STUDENT) throw new Error("아이 계정만 찍습니다"); return w; }
 /** 걸음을 찍는다(1 핸드폰 · 2 출석 · 3 숙제 · 4 집에 가요). 반이 둘인 날은 아이가 고른 반(classId)으로 */
 export const arrive = done(async (step, classId = null) => {

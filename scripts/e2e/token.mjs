@@ -1,7 +1,7 @@
 /**
  * 검사용 JWT 만들기.
  *
- * PostgREST 는 이 열쇠로 서명을 확인하고, 안에 든 `sub` 를 auth.uid() 로
+ * PostgREST 는 이 키로 서명을 확인하고, 안에 든 `sub` 를 auth.uid() 로
  * 내어준다 — 진짜 Supabase 와 같은 자리라 **RLS 규칙을 하나도 안 고치고**
  * 그대로 쓸 수 있다.
  *

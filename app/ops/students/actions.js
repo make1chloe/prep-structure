@@ -11,7 +11,7 @@ import { setStudentShow } from "@/lib/score";
 import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";
 import { linkCc } from "@/lib/cc";   // (녀) 🃏 아이 ↔ 클래스카드 아이디 — 확장이 보낸 짐은 이 아이디로 아이를 찾는다   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "학생 14");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "학생 14");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
 export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); await setStudent(sb, id, f ?? {}, seenAt); return {}; }); }   // seenAt: 읽어 둔 고친 때(0-3)
 export async function stateAct(id, state, on = null) { return wrap(async () => { const { sb } = await staff(); await setState(sb, id, state, on); return {}; }); }

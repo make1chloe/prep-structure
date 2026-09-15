@@ -1,4 +1,4 @@
-/** 영상 판단 검사(검사-63) — lib/video-plan.js 순수 셈: 분:초 · 유튜브 아이디 · 길이 읽기 · + 영상 양식 · 배정 양식 · 상태(다 봄 · N% 봄 · 초 봄 · 아직 — 규칙 video.done_pct) · 셈(다 봄·보다 맒·안 봄 · 내린 배정 뺌) · 마감 글 · 아이 화면 줄(차례 · 지났어요 · 이어 볼 자리) · 재생기 구간 셈(잇기 · 뛰면 새 구간 · 20초마다 · 멈추면 닫기) */
+/** 영상 판단 검사(검사-63) · lib/video-plan.js 순수 셈: 분:초 · 유튜브 아이디 · 길이 읽기 · + 영상 양식 · 배정 양식 · 상태(다 봄 · N% 봄 · 초 봄 · 아직 · 규칙 video.done_pct) · 셈(다 봄·보다 맒·안 봄 · 내린 배정 뺌) · 마감 글 · 아이 화면 줄(차례 · 지났어요 · 이어 볼 곳) · 재생기 구간 셈(연결 · 뛰면 새 구간 · 20초마다 · 멈추면 닫기) */
 import { mmss, youtubeId, parseLength, parseVideo, parseAssign, statusOf, counts, dueText, myRows, stepSpan, segments, nextOf, opensText } from "../lib/video-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
@@ -17,10 +17,10 @@ const rows = myRows([
   { id: "a1", video_id: "v1", due_on: "2026-09-08", state: "active", video: { title: "분사구문", url: "https://youtu.be/abcdefghijk", seconds: 300, state: "active" } },
   { id: "a2", video_id: "v2", due_on: "2026-09-03", state: "active", video: { title: "간접의문문", url: "https://youtu.be/abcdefghijk", seconds: 484, state: "active" } },
   { id: "a3", video_id: "v3", due_on: null, state: "active", video: { title: "다 본 것", url: "https://youtu.be/abcdefghijk", seconds: 100, state: "active" } },
-  { id: "a4", video_id: "v4", due_on: null, state: "retired", video: { title: "내린 것", url: "x", state: "active" } },
+  { id: "a4", video_id: "v4", due_on: null, state: "retired", video: { title: "삭제한 것", url: "x", state: "active" } },
   { id: "a5", video_id: "v5", due_on: null, state: "active", video: { title: "숨긴 영상", url: "x", state: "hidden" } },
 ], [{ video_id: "v2", secs: 300, pct: 62, last_pos: 372 }, { video_id: "v3", secs: 100, pct: 100, done_at: "x" }], 95, "2026-09-06");
-ok("아이 화면 줄 · 내린 배정·숨긴 영상 빠짐 · 안 본 것이 먼저(마감 순) · 지난 마감은 late · 이어 볼 자리 · 다 본 것은 맨 뒤 · 유튜브 아이디", rows.map((r) => r.video.title).join() === "간접의문문,분사구문,다 본 것" && rows[0].late === true && rows[0].lastPos === 372 && rows[0].status.text === "62% 봄" && rows[1].status.text === "아직" && rows[2].status.key === "done" && rows[0].yt === "abcdefghijk", rows.map((r) => [r.video.title, r.status.text, r.late]).join(" | "));
+ok("아이 화면 줄 · 내린 배정·숨긴 영상 빠짐 · 안 본 것이 먼저(마감 순) · 지난 마감은 late · 이어 볼 곳 · 다 본 것은 맨 뒤 · 유튜브 아이디", rows.map((r) => r.video.title).join() === "간접의문문,분사구문,다 본 것" && rows[0].late === true && rows[0].lastPos === 372 && rows[0].status.text === "62% 봄" && rows[1].status.text === "아직" && rows[2].status.key === "done" && rows[0].yt === "abcdefghijk", rows.map((r) => [r.video.title, r.status.text, r.late]).join(" | "));
 let s = { from: null, to: null }, fl = [];
 const tick = (t, playing = true) => { const r = stepSpan(s, t, playing); s = r.state; if (r.flush) fl.push(r.flush); };
 for (let t = 0; t <= 25; t++) tick(t);   // 0~25 이어서 — 20초에서 한 번 내보낸다

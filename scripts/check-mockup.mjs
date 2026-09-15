@@ -14,7 +14,7 @@ import { build, styleOf, MOCKUP, ROOT } from "./_mockup-page.mjs";
 //    그런데 답을 정하는 것은 아래 일곱 파일뿐이다 — 목업 · globals.css · chrome.css 와 이 검사 넷.
 //    앱 코드(app/·lib/·SQL)만 고친 날에는 일곱이 다 그대로다 → 다시 찍어도 같은 답이 나온다.
 // ⚠️ 초록을 헐하게 주는 것이 아니다: 일곱 중 한 글자만 달라도 해시가 달라져 **통째로 다시 돈다**.
-//    지난번 통과 자취는 .tmp/ 라 저장소에 없다 — 새로 받은 자리는 늘 통째로 돈다.
+//    지난번 통과 발송 이력은 .tmp/ 라 저장소에 없다 · 새로 받은 자리는 늘 통째로 돈다.
 //    손으로 통째로 돌리려면 CHECK_MOCKUP_FULL=1 (브라우저를 갈아 끼웠을 때).
 const INPUTS = ["docs/목업/클로이영어-화면-목업.html", "app/globals.css", "docs/목업/chrome.css",
                 "scripts/check-mockup.mjs", "scripts/_mockup-page.mjs", "scripts/_css.mjs", "scripts/_browser.mjs"];
@@ -62,6 +62,6 @@ for (const v of VIEWS) {
 await b.close();
 if (bad.length) { fs.rmSync(STAMP, { force: true }); console.log("check-mockup ✗\n  " + bad.join("\n  ")); process.exit(1); }
 const ok = `check-mockup ✓ 토큰 ${ntok} 같음 · 화면 ${nshot / VIEWS.length}장 × ${VIEWS.length}자리 화소 같음`;
-fs.mkdirSync(path.dirname(STAMP), { recursive: true });   // 통과한 것만 자취를 남긴다 — 빨간 것은 위에서 지운다
+fs.mkdirSync(path.dirname(STAMP), { recursive: true });   // 통과한 것만 발송 이력을 남긴다 · 빨간 것은 위에서 지운다
 fs.writeFileSync(STAMP, key + "\n" + ok);
 console.log(ok);

@@ -14,9 +14,9 @@ const NO_FK = new Set(["audit.row_id", "cc_student.cc_login_id", "excel_row.row_
 const noFk = await col(`select c.table_name||'.'||c.column_name from information_schema.columns c where c.table_schema='v2' and c.column_name like '%\\_id' and c.column_name<>'id'
   and not exists (select 1 from information_schema.key_column_usage k join information_schema.table_constraints t on t.constraint_name=k.constraint_name and t.constraint_type='FOREIGN KEY' where k.table_schema='v2' and k.table_name=c.table_name and k.column_name=c.column_name) order by 1`);
 ok(`표-1 번호를 가리키는 칸은 외래키 · 아닌 것은 까닭 있는 ${NO_FK.size}뿐(어느 표든 · 바깥 아이디 · 엑셀 줄 · 이관 옛 id · 큐)`, fresh(noFk, NO_FK).length === 0, "새로 생긴 것: " + fresh(noFk, NO_FK).join(", "));
-// 표-2 순번을 열쇠로 쓰지 않는다
+// 표-2 순번을 키로 쓰지 않는다
 const seqKey = await col(`select tc.table_name from information_schema.table_constraints tc join information_schema.key_column_usage k on k.constraint_name=tc.constraint_name where tc.table_schema='v2' and tc.constraint_type in ('UNIQUE','PRIMARY KEY') group by tc.constraint_name, tc.table_name having bool_or(k.column_name in ('sort','seq','position','no','ord','idx'))`);
-ok("표-2 순번(sort·seq·no)이 든 열쇠·유니크가 없다", seqKey.length === 0, seqKey.join(", "));
+ok("표-2 순번(sort·seq·no)이 든 키·유니크가 없다", seqKey.length === 0, seqKey.join(", "));
 // 표-4 = 원칙-5 세어 나오는 값은 칸으로 안 만든다 — 이름이 그렇게 생긴 칸은 전부 「넣는 값」(전체 개수 · 통과선 · 문항 수 · 갯수 설정 · 열어 본 횟수)
 const COUNT_COLS = new Set(["notice_read.open_count", "notify_log.open_count", "quiz.cut_pct", "quiz.total", "quiz_style.cut_pct", "student_book.unit_test_n", "student_routine.count_n", "unit_test.q_count", "units.q_count"]);
 const cnt = await col(`select table_name||'.'||column_name from information_schema.columns where table_schema='v2' and (column_name ~ '(pct|_rate|_count|_sum|_avg|^total|_total|_n)$' or column_name in ('total','count','pct','rate')) order by 1`);
@@ -39,7 +39,7 @@ for (const t of ["class_member", "class_schedule", "student_book", "fee_rule"]) 
   const cols = await col(`select column_name from information_schema.columns where table_schema='v2' and table_name='${t}' and column_name in ('from_date','to_date')`);
   ok(`처음-5 ${t} 에 from_date·to_date`, cols.length === 2, cols.join(","));
 }
-// 뼈대-2·검사-⑫ 자동 생성 열쇠는 칸으로 — 규칙·학생·교재·단원·회독·몇번째·기준 날짜
+// 뼈대-2·검사-⑫ 자동 생성 키는 칸으로 · 규칙·학생·교재·단원·회독·몇번째·기준 날짜
 const ak = (await c.query(`select pg_get_constraintdef(oid) d from pg_constraint where conrelid='v2.auto_key'::regclass and contype='u'`)).rows[0]?.d ?? "";
 ok("뼈대-2·검사-⑫ auto_key 유니크 = (rule_id, student_id, book_id, unit_id, round, nth, base_date) · 기준 날짜가 든다", /\(rule_id, student_id, book_id, unit_id, round, nth, base_date\)/.test(ak), ak);
 // 뼈대-3 자동으로 생긴 줄은 왜 생겼는지를 가리킨다
@@ -47,7 +47,7 @@ for (const [t, cols] of [["todo", ["rule_id", "why"]], ["notify_log", ["job_id",
   const has = await col(`select column_name from information_schema.columns where table_schema='v2' and table_name='${t}' and column_name = any($1)`.replace("$1", `array['${cols.join("','")}']`));
   ok(`뼈대-3 ${t} 에 출처 칸 ${cols.join("·")}`, has.length === cols.length, has.join(","));
 }
-// 뼈대-7 바깥에서 받아온 것의 중복 방지 — 출처 열쇠 유니크(exams source·source_key) · 살아 있는 줄만 거는 부분 유니크(늦귀가 예정 · 보강 · 예약 발송)
+// 뼈대-7 바깥에서 받아온 것의 중복 방지 · 출처 키 유니크(exams source·source_key) · 살아 있는 줄만 거는 부분 유니크(하원 지연 예정 · 보강 · 예약 발송)
 const exU = await col(`select pg_get_constraintdef(oid) from pg_constraint where conrelid='v2.exams'::regclass and contype='u'`);
 ok("뼈대-7 exams 는 (source, source_key) 유니크 · 나이스가 같은 시험을 두 번 주면 한 줄", exU.some((d) => /\(source, source_key\)/.test(d)), exU.join(" | "));
 const partial = await col(`select indexrelid::regclass::text from pg_index i join pg_class r on r.oid=i.indrelid join pg_namespace n on n.oid=r.relnamespace where n.nspname='v2' and i.indisunique and i.indpred is not null`);
@@ -64,13 +64,13 @@ for (const [t, auto, human] of [["progress", "status", ["last_by", "confirmed"]]
   const cols = await col(`select column_name from information_schema.columns where table_schema='v2' and table_name='${t}'`);
   ok(`뼈대-4 ${t} · 판정 ${auto} 곁에 사람의 번복 칸 ${human.join("·")}`, cols.includes(auto) && human.every((h) => cols.includes(h)), cols.join(","));
 }
-// 뼈대-8 치환 자리 설명은 표에 — v2.placeholder 가 있고 설명이 비지 않는다 · 옛 문구의 자리 열셋이 다 있다
+// 뼈대-8 치환 칸 설명은 표에 · v2.placeholder 가 있고 설명이 비지 않는다 · 옛 문구의 자리 열셋이 다 있다
 const ph = await col(`select key from v2.placeholder where note <> '' order by sort`);
-ok(`뼈대-8 치환 자리 설명 표 · ${ph.length}줄(학생명·학원명·날짜·시간·내용·교재목록·구매링크·테스트결과·다음달수업일·학원주소·주소·전화·변수)`, ["학생명", "학원명", "다음달수업일", "교재목록"].every((k) => ph.includes(k)) && ph.length >= 13, ph.join(","));
+ok(`뼈대-8 치환 칸 설명 표 · ${ph.length}줄(학생명·학원명·날짜·시간·내용·교재목록·구매링크·테스트결과·다음달수업일·학원주소·주소·전화·변수)`, ["학생명", "학원명", "다음달수업일", "교재목록"].every((k) => ph.includes(k)) && ph.length >= 13, ph.join(","));
 // 처음-8 교과서는 학교의 속성 — 학교 × 학년 × 연도 × 교재 한 줄, 유니크
 const sbu = await col(`select pg_get_constraintdef(oid) from pg_constraint where conrelid='v2.school_book'::regclass and contype='u'`);
 ok("처음-8 school_book · (school_id, grade, year, book_id) 유니크 · 학교·교재는 외래키", sbu.some((d) => /school_id, grade, year, book_id/.test(d)) && (await col(`select count(*) from pg_constraint where conrelid='v2.school_book'::regclass and contype='f'`))[0] === "2", sbu.join(" | "));
-// 확정-㊻ 배정 덩어리 열쇠의 갈래 축 — 「안 한 소단원」 차례(todo_units)가 대단원 기준이면 본책 전부 → 워크북 전부로 센다(0103)
+// 확정-㊻ 배정 덩어리 키의 유형 축 · 「안 한 소단원」 차례(todo_units)가 대단원 기준이면 본책 전부 → 워크북 전부로 센다(0103)
 const tu = (await col(`select pg_get_functiondef('v2.todo_units(uuid,uuid,date)'::regprocedure)`))[0] ?? "";
 ok("확정-㊻ todo_units · 대단원 기준(ob = chapter)이면 is_workbook 을 뒤로(본책 전부 → 워크북 전부) · 소단원 기준은 (대,소)", /ob = 'chapter' and is_workbook then 1 else 0/.test(tu) && /order by ch_sort/.test(tu));
 // 0-3 읽은 줄 대조 — 판이 고친 때를 싣는다(셀 cells_at · 학생·문의 updated_at) — 손은 그 값이 그대로일 때만 덮는다(lib/grid·student·inquiry STALE)
@@ -81,17 +81,17 @@ for (const [fn, key] of [["v2.grid_board(date)", "cells_at"], ["v2.student_board
 // 표-6 새로 건 것 11(0131 · NOT VALID — 새 줄부터) — 코드의 값 목록과 같다
 const chk = await col(`select conname from pg_constraint where connamespace='v2'::regnamespace and conname like '%_choice'`);
 ok(`표-6 0131 이 건 고르는 값 check ${chk.length} ≥ 11(notify_log kind·sink · job_queue · scheduled_send · todo · inquiry.way · payment.source · 영역 넷)`, chk.length >= 11, chk.join(","));
-// 표-6 NOT VALID 의 값: 옛 줄이 제약에 안 맞으면 그 줄은 한 줄도 못 고친다(2026-09-15 실 DB · 0164 가 옛 할 일 「광복절 대체공휴일」에서 23514 로 통째 되돌아감).
-// 그래서 검증 안 한 제약은 래칫(늘지 않는다) · todo 는 0164 가 옛 갈래를 메모로 옮기고 검증했다. 실 DB 의 나머지는 docs/sql-paste/0-안-맞는-옛-줄.sql 로 센다.
+// 표-6 NOT VALID 의 값: 옛 줄이 제약에 안 맞으면 그 줄은 한 줄도 못 고친다(2026-09-15 실 DB · 0164 가 옛 업무 「광복절 대체공휴일」에서 23514 로 통째 되돌아감).
+// 그래서 검증 안 한 제약은 래칫(늘지 않는다) · todo 는 0164 가 옛 유형을 메모로 옮기고 검증했다. 실 DB 의 나머지는 docs/sql-paste/0-안-맞는-옛-줄.sql 로 센다.
 const nv = await col(`select conrelid::regclass::text || '.' || conname from pg_constraint where connamespace='v2'::regnamespace and contype='c' and not convalidated order by 1`);
 ok(`표-6 검증 안 한(not valid) check 0 · 0164 가 todo · 0165 가 inquiry 를 옮기고 전부 validate(실 DB 도 0-안-맞는-옛-줄.sql 로 재고 검증) · 새 제약은 validate 까지`, nv.length === 0, nv.join(","));
-// (커) 갈래 열이 세 곳에서 같은가 — lib/notify-plan LABEL · notify_log_kind_choice · scheduled_send_kind_choice.
-// 2026-09-10 사고: LABEL 에 guide 를 더하고 예약 제약만 고쳐, 문자를 보내려다 「자취를 못 남김 … notify_log_kind_choice」로 막혔다(게이트 97 이 잡음)
+// (커) 유형 열이 세 곳에서 같은가 · lib/notify-plan LABEL · notify_log_kind_choice · scheduled_send_kind_choice.
+// 2026-09-10 사고: LABEL 에 guide 를 더하고 예약 제약만 고쳐, 문자를 보내려다 「발송 이력을 못 남김 … notify_log_kind_choice」로 막혔다(게이트 97 이 잡음)
 const { LABEL } = await import("../lib/notify-plan.js");
 const kinds = Object.keys(LABEL).sort().join(",");
 const defOf = async (name) => (await col(`select pg_get_constraintdef(oid) from pg_constraint where conname='${name}'`))[0] ?? "";
 const inDef = (d) => [...String(d).matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]).sort().join(",");
 const logDef = await defOf("notify_log_kind_choice"), schDef = await defOf("scheduled_send_kind_choice");
-ok(`갈래 열이 셋 다 같다. LABEL ${Object.keys(LABEL).length}개 = notify_log · scheduled_send 의 check((커) 확정-71: 하나만 고치면 보내다 막힌다)`, inDef(logDef) === kinds && inDef(schDef) === kinds, `LABEL ${kinds}\n     notify_log ${inDef(logDef)}\n     scheduled_send ${inDef(schDef)}`);
+ok(`유형 열이 셋 다 같다. LABEL ${Object.keys(LABEL).length}개 = notify_log · scheduled_send 의 check((커) 확정-71: 하나만 고치면 보내다 막힌다)`, inDef(logDef) === kinds && inDef(schDef) === kinds, `LABEL ${kinds}\n     notify_log ${inDef(logDef)}\n     scheduled_send ${inDef(schDef)}`);
 console.log(`\n■ 표·뼈대 규칙 DB 검사 ${n}건 · 실패 ${bad}`);
 await c.end(); process.exit(bad ? 1 : 0);

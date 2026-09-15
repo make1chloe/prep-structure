@@ -45,7 +45,7 @@ export default async function Parent({ searchParams }) {
   const anyCard = [PARENT.sent, PARENT.recent, PARENT.homework, PARENT.next, PARENT.intro, PARENT.files].some(can);
   const fl = childLinks(d.links, date, d.rules?.["file.child_days"]), sentFiles = [...fl.pending, ...fl.past];   // 📎 아이 숙제에 붙은 것(마감한 판만 · 1달 안)
   const kidsForUpload = [d.student, ...kids.filter((k) => k.id !== d.student.id)];
-  const mine = myUploads(d.uploads);   // 📎 내가 보낸 것 — 원장님 답 한 줄(d.sent 는 📨 보낸 것 — 알림 자취)
+  const mine = myUploads(d.uploads);   // 📎 내가 보낸 것 · 원장님 답 한 줄(d.sent 는 📨 보낸 것 · 알림 발송 이력)
   const fdd = foldedOf(d.prefs?.parent);   // 접은 카드 — 사람마다(확정-⑮ · (어2))
   const fold = (id) => ({ fold: <Fold screen="parent" id={id} folded={fdd.has(id)} />, folded: fdd.has(id) });
   const cards = orderCards([

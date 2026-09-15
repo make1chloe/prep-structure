@@ -9,7 +9,7 @@ import { scoreBoard, setCuts, setQuestions, setQuestionSheet, saveScore, confirm
 import { parseSheet } from "@/lib/score-plan";
 import * as XLSX from "xlsx";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "성적 16");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "성적 16");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 /** 엑셀 파일(formData 의 file) → 첫 시트의 줄들 */
 async function sheetOf(formData) {
   const f = formData?.get?.("file"); if (!f || typeof f.arrayBuffer !== "function") throw new Error("엑셀 파일을 고르세요");

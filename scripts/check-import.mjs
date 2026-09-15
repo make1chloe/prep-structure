@@ -1,9 +1,9 @@
-/** 처음-9 「이관 표시와 묶음 번호」 · 속도-4 「줄 수 상한을 안 건다」((사2) 2026-09-11 — 옛 check-import 를 다시 세운다).
+/** 처음-9 「이관 표시와 올린 기록 번호」 · 속도-4 「줄 수 상한을 안 건다」((사2) 2026-09-11 · 옛 check-import 를 다시 세운다).
  *
- *  처음-9 의 뜻: 옛 앱에서 옮겨 온 줄은 **어느 묶음으로 왔는지**가 남아야 되돌릴 수 있다.
+ *  처음-9 의 뜻: 옛 앱에서 옮겨 온 줄은 **어느 올린 기록으로 왔는지**가 남아야 되돌릴 수 있다.
  *  ⚠️ 있는 그대로: 옛 앱에서 줄을 옮겨 담는 표 25 중 **import_batch 를 가진 것은 17**이다.
  *     나머지 여덟(class_schedule · day_item · holiday · inquiry · makeup · notice · progress · score_wrong)과
- *     장부 셋(import_check · import_map · import_skip)·열쇠 하나(integration)는 칸이 없다.
+ *     장부 셋(import_check · import_map · import_skip)·키 하나(integration)는 칸이 없다.
  *     **이관은 이미 끝났다**(실 DB 2026-09-11 실측) — 지금 칸을 더해도 옛 줄은 빈 칸이라 쓸모가 없다.
  *     그래서 여기서는 ① **있는 17 이 그대로 있나**(빠지면 되돌리기가 깨진다) ② **앞으로 새로 옮겨 담는 표는 칸을 갖나**
  *     ③ 되돌리기 장부(import_check·import_map)가 그대로 있나 를 센다. 늘린 것이 아니라 **있는 그대로를 못 박는 것**이다.
@@ -23,7 +23,7 @@ const LIMIT_OK = {
   "cal.js": "재원 시작 한 줄 · 지난 것은 재원 기간만(확정-⑯)",
   "classes.js": "그 반 시간표 한 줄 · 단가 한 줄(가장 가까운 것)",
   "comment.js": "AI 본보기로 쓸 **지난 글 다섯**(많으면 말투가 흐려진다 · (서))",
-  "dash.js": "대시보드 띠 · 가장 최근 하나(확정 도장 · 받아오기 때)",
+  "dash.js": "대시보드 띠 · 가장 최근 하나(확정 도장 · 가져오기 때)",
   "day.js": "그 아이 지난 판 하나(어제 숙제를 잇는다)",
   "homework.js": "직전 판 하나",
   "me.js": "내가 남긴 말 다섯 · 성적 열둘 · 지난 판 하나 · 화면이 그만큼만 보인다",
@@ -32,7 +32,7 @@ const LIMIT_OK = {
   "queue.js": "한 번에 집는 큐 줄 수 · 상한이 곧 규칙이다(v2.rule)",
   "quiz.js": "그 아이 방식 한 줄",
   "routine.js": "그 교재 루틴 한 줄",
-  "score.js": "같은 갈래 지난 회차 하나(추이 ▲▼)",
+  "score.js": "같은 유형 지난 회차 하나(추이 ▲▼)",
 };
 for (const f of readdirSync("lib").filter((x) => x.endsWith(".js"))) {
   const s = strip(readFileSync(`lib/${f}`, "utf8"));
@@ -53,10 +53,10 @@ else {
   console.log("■ 처음-9 · 이관 표시(있는 그대로 못 박기)");
   const HAVE = ["area_routine", "books", "class_member", "classes", "consult", "day_sheet", "exams", "learn_items", "parent_student", "payment", "profiles", "schools", "score", "student_book", "student_routine", "students", "units"];
   const 빠진 = HAVE.filter((t) => !marked.has(t));
-  ok(`묶음 번호를 가진 표 ${HAVE.length} 이 그대로다. 하나라도 빠지면 되돌리기(어느 묶음으로 왔나)가 깨진다`, 빠진.length === 0, 빠진.join(", "));
+  ok(`올린 기록 번호를 가진 표 ${HAVE.length} 이 그대로다. 하나라도 빠지면 되돌리기(어느 올린 기록으로 왔나)가 깨진다`, 빠진.length === 0, 빠진.join(", "));
   ok(`늘어난 것이 있으면 위 목록에 이름을 적는다(지금 ${marked.size})`, marked.size === HAVE.length, [...marked].filter((t) => !HAVE.includes(t)).join(", "));
   const 장부 = (await q(`select table_name from information_schema.tables where table_schema='v2' and table_name in ('import_check','import_map','import_skip')`)).map((r) => r.table_name);
-  ok("되돌리기 장부 셋(import_check · import_map · import_skip)이 그대로 있다. 묶음 칸이 없는 표는 이것으로 되짚는다", 장부.length === 3, 장부.join(", "));
+  ok("되돌리기 장부 셋(import_check · import_map · import_skip)이 그대로 있다. 올린 기록 칸이 없는 표는 이것으로 되짚는다", 장부.length === 3, 장부.join(", "));
   await c.end();
 }
 console.log(`\n■ 이관 표시·줄 수 상한 검사 ${n}건 · 실패 ${bad}`);

@@ -1,4 +1,4 @@
-/** 📤 올리기 한 길 — 파일 하나씩(multipart). 누가 올리나: 학원 사람은 아무 아이(+ 숙제 줄에 붙이기) · 아이는 제 것 · 학부모는 제 아이(형제면 폰이 먼저 묻는다, 확정-㊸). 종류·크기는 lib/files-plan checkFile(규칙 file.max_mb) · 보관함은 서버 자신(service role)만 닿는다 · 파일 줄은 올린 사람 자격(RLS child_upload).
+/** 📤 올리기 한 길 · 파일 하나씩(multipart). 누가 올리나: 학원 사람은 아무 아이(+ 숙제 줄에 붙이기) · 아이는 제 것 · 학부모는 제 아이(형제면 폰이 먼저 묻는다, 확정-㊸). 종류·크기는 lib/files-plan checkFile(규칙 file.max_mb) · 보관함은 서버 자신(service role)만 닿는다 · 파일 줄은 올린 사람 자격(RLS child_upload).
  *  줄이는 것은 폰이 했다(shrunk) — 여기서는 안 줄인다(서버에 그림 꾸러미가 없다). 실패는 {ok:false,msg} 로 말한다 */
 import { whoami } from "@/lib/session";
 import { isStaff, ROLES } from "@/lib/roles";

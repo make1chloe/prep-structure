@@ -5,13 +5,13 @@ import { wrap as act } from "@/lib/act";
 import { db } from "@/lib/supabase";
 import { ROLES } from "@/lib/roles";
 import { myStudent } from "@/lib/arrival";
-const wrap = (fn) => act(fn, "알림");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "알림");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function publicKey() {
   return wrap(async () => {
     const { sb } = await guard();
     const { data, error } = await db(sb).rpc("push_public_key");
     if (error) throw new Error(`공개키를 못 읽음: ${error.message}`);
-    if (!data) throw new Error("아직 알림 열쇠가 없습니다. 원장님께 말씀해 주세요(연동 push 줄이 비어 있습니다)");
+    if (!data) throw new Error("아직 알림 키가 없습니다. 원장님께 말씀해 주세요(연동 push 줄이 비어 있습니다)");
     return { key: data };
   });
 }

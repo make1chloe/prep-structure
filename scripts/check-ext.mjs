@@ -1,5 +1,5 @@
 /** 🃏 클래스카드 확장 검사((뎌-3) · 검사-78) — extension/ 은 게이트가 못 눌러 보는 자리라(크롬 안에서 돈다)
- *  **글자로라도** 지킨다: 확장은 긁어 보내기만 하고 판정은 앱이 한다 · 열쇠는 머리글에만 · 받는 길은 하나 ·
+ *  **글자로라도** 지킨다: 확장은 긁어 보내기만 하고 판정은 앱이 한다 · 키는 머리글에만 · 받는 길은 하나 ·
  *  한 번에 보내는 양은 앱 상한과 같은 수 · 비밀번호는 어디에도 안 적는다. */
 import { readFileSync } from "node:fs";
 import { MODES, MAX_ROWS, MAX_STUDENTS } from "../lib/cc-plan.js";
@@ -19,11 +19,11 @@ ok("「목표 대 실제」를 확장이 재지 않는다. 미달 판정·넘기
   !/(미달|shortOf|allOk|(got|actual)\s*[<>]=?\s*goal|goal\s*[<>]=?\s*(got|actual))/.test(bg + pop));
 ok("3초훈련을 확장이 고르지 않는다. 짐에 실려 와도 앱이 버린다(확정-⑩)", !/speed|3초/.test(bg));
 
-console.log("■ 열쇠 · 머리글에만 · 주소·자취·화면 어디에도 안 남는다(대전제-9)");
-ok("열쇠는 Authorization: Bearer 머리글로만 간다. 주소(?key=)에 안 붙인다", /Authorization.*Bearer/.test(bg) && !/[?&]key=/.test(bg + pop));
-ok("열쇠를 console 에 안 적는다 · 팝업에서는 가려 보인다(●)", !/console\.[a-z]+\([^)]*token/i.test(bg + pop) && /-webkit-text-security/.test(html));
+console.log("■ 키 · 머리글에만 · 주소·발송 이력·화면 어디에도 안 남는다(대전제-9)");
+ok("키는 Authorization: Bearer 머리글로만 간다. 주소(?key=)에 안 붙인다", /Authorization.*Bearer/.test(bg) && !/[?&]key=/.test(bg + pop));
+ok("키를 console 에 안 적는다 · 팝업에서는 가려 보인다(●)", !/console\.[a-z]+\([^)]*token/i.test(bg + pop) && /-webkit-text-security/.test(html));
 ok("비밀번호는 어디에도 안 적는다. 크롬에 이미 로그인된 세션(쿠키)만 쓴다", !/password|비밀번호를 저장/.test(bg + pop) && /credentials: "include"/.test(bg));
-ok("type=password 를 안 쓴다. 브라우저 자동완성이 열쇠를 덮던 사고((퍼) 9/10)와 같은 자리다", !/type=["']password/.test(html) && /data-1p-ignore/.test(html));
+ok("type=password 를 안 쓴다. 브라우저 자동완성이 키를 덮던 사고((퍼) 9/10)와 같은 자리다", !/type=["']password/.test(html) && /data-1p-ignore/.test(html));
 
 console.log("■ 받는 길 하나 · 앱과 같은 상한(대전제-7)");
 ok("앱을 부르는 자리는 **둘**뿐이다. /api/cc(클래스카드) · /api/site((버2) 학교 홈페이지). 그 밖의 주소를 안 부른다",

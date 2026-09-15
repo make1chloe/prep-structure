@@ -1,5 +1,5 @@
 "use client";
-/** 내신 자료 판(목업 04) — 시험 고르기 · 자료 나무(출처 › 갈래 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 할 일 · 저장줄. 세는 것(자료 N · 갈래 N · 항목 N · D-N)은 화면이 센다(대전제-5) — lib/todo-plan 한 벌 */
+/** 내신 자료 판(목업 04) · 시험 고르기 · 자료 나무(출처 › 유형 › 항목) · 학생별 표(학교 진도 · 오늘 낼 것 · 남은 것) · ♻️ 같은 범위로 지난번에 만든 것 · 여기서 생긴 업무 · 저장줄. 세는 것(자료 N · 유형 N · 항목 N · D-N)은 화면이 센다(대전제-5) · lib/todo-plan 한 벌 */
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import { useState, useTransition } from "react";
@@ -47,7 +47,7 @@ export default function Board({ d }) {
     {!e && <p className="note" data-g="empty">고른 시험 없음</p>}
     {e && <>
       <div className="mtree" data-g="tree">
-        {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다. 「+ 자료」로 갈래(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 할 일이 저절로 섭니다(영어일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
+        {!tree.groups.length && <p className="note" data-g="no-material">아직 자료가 없습니다. 「+ 자료」로 유형(분석지·워크북 …)와 항목을 넣으면 만들기·인쇄·배부 업무가 저절로 섭니다(영어 시험일에서 거꾸로 {b.rules?.["todo.make_days"] ?? 14}·{b.rules?.["todo.print_days"] ?? 7}·{b.rules?.["todo.hand_days"] ?? 5}일).</p>}
         {tree.groups.map((g) => <div className="mt1" key={g.source} data-g="mt1" data-source={g.source}>
           <div className="mth"><span className="mi">{g.emo}</span><b>{g.source}</b><span className="tag">{scopeText}</span><span className="spacer" /><span className="tag on" data-g="assigned">배정 {g.students}명</span><Link prefetch={false} className="btn sm" href={`/schedule/todo?m=${g.materials.map((m) => m.id).join(",")}`} data-act="steps-all">단계 ↗</Link></div>
           {g.materials.map((m) => { const left = (m.gives ?? []).filter((x) => !x.handed_at).length, nx = nextStep(m, todos, today); return <div className="mt2" key={m.id} data-g="mt2" data-material={m.id} data-state={m.state}>
@@ -79,25 +79,25 @@ export default function Board({ d }) {
             <div className="tags"><span className={"tag" + (r.already ? "" : revised[r.id] ? " act" : " on")}>{r.already ? r.tag : revised[r.id] ? "개정판 · 체크 안 합니다" : r.tag}</span><label className="ckl"><input type="checkbox" className="ck" checked={Boolean(revised[r.id])} onChange={(x) => setRevised({ ...revised, [r.id]: x.target.checked })} disabled={r.already} /> 개정판</label></div></div>
           <div className="rbtn">{!r.already && <button className="btn sm pri" type="button" disabled={pending} data-act="reuse" onClick={() => run(() => reuseAct(e.id, r.id, [], Boolean(revised[r.id])), (x) => x.revised ? `가져왔습니다. 항목 ${x.items} · 개정판이라 만들기는 체크 안 했습니다` : `가져왔습니다. 항목 ${x.items} · 만들기는 체크된 채로`)}>가져오기</button>}</div></div>)}
       </div>
-      <div className="ctitle" style={{ marginTop: 8 }}><span className="cemo">📋</span>여기서 생긴 할 일 <span className="tag" data-g="todo-count">{todos.filter((t) => t.state !== "done").length}</span></div>
+      <div className="ctitle" style={{ marginTop: 8 }}><span className="cemo">📋</span>여기서 생긴 업무 <span className="tag" data-g="todo-count">{todos.filter((t) => t.state !== "done").length}</span></div>
       <div className="left" data-g="todos">
         {!todos.length && <p className="note" style={{ margin: 0 }}>자료를 넣으면 만들기·인쇄·배부가 여기 섭니다</p>}
         {todos.map((t) => { const l = todoLine(t, today); return <div className="lf" key={t.id} data-g="todo-row" data-state={t.state}><span className="ln">{l.done ? "✓" : "·"}</span><div><b>{l.text}</b><small>{l.small}{l.why ? ` · ${l.why}` : ""}</small></div>{!l.done && <button className="btn sm" type="button" disabled={pending} data-act="todo-done" onClick={() => run(() => todoDoneAct(t.id), "끝냈습니다")}>✓ 끝냄</button>}</div>; })}
       </div>
       <div className="savebar" style={{ marginTop: 8 }} data-g="bar">
-        <span className="pill" data-g="tree-count">자료 {tree.counts.sources} · 갈래 {tree.counts.materials} · 항목 {tree.counts.items}</span>
+        <span className="pill" data-g="tree-count">자료 {tree.counts.sources} · 유형 {tree.counts.materials} · 항목 {tree.counts.items}</span>
         <span className="spacer" />
       </div>
       {add && <div className="mdlov" data-g="add" onClick={(x) => { if (x.target === x.currentTarget) setAdd(false); }}><div className="mdl" style={{ maxWidth: 520 }}>
         <div className="mdlh"><b>+ 자료</b><span className="spacer" /><button className="btn sm" type="button" onClick={() => setAdd(false)}>닫기</button></div>
         <div className="mdlb">
           <div className="wv"><label className="fl" style={{ margin: 0 }}>자료 종류</label><select value={f.typeId} aria-label="자료 종류" onChange={(x) => setF({ ...f, typeId: x.target.value })} style={{ width: "auto" }}><option value="">고르기</option>{(b.types ?? []).map((t) => <option key={t.id} value={t.id}>{t.source} · {t.name}{t.steps?.includes("print") ? "" : " (인쇄 없음)"}</option>)}</select></div>
-          <div className="wv"><label className="fl" style={{ margin: 0 }}>갈래 이름</label><input type="text" value={f.title} placeholder="비면 종류 이름 그대로" aria-label="갈래 이름" onChange={(x) => setF({ ...f, title: x.target.value })} style={{ flex: "1 1 200px" }} /></div>
+          <div className="wv"><label className="fl" style={{ margin: 0 }}>유형 이름</label><input type="text" value={f.title} placeholder="비면 종류 이름 그대로" aria-label="유형 이름" onChange={(x) => setF({ ...f, title: x.target.value })} style={{ flex: "1 1 200px" }} /></div>
           <div className="wv"><label className="fl" style={{ margin: 0 }}>항목(쉼표로)</label><textarea value={f.items} placeholder="동사 형 변형, 어순, 접속사, 지시어" aria-label="항목" onChange={(x) => setF({ ...f, items: x.target.value })} style={{ flex: "1 1 260px", minHeight: 60 }} /></div>
           <div className="fl">배정 · 보는 아이</div>
           <div className="tags" data-g="add-students">{(b.takers ?? []).map((t) => <label key={t.id} className="ckl"><input type="checkbox" className="ck" checked={studentIds.includes(t.id)} onChange={() => toggleStudent(t.id)} /> {t.name}</label>)}{!(b.takers ?? []).length && <span className="note" style={{ margin: 0 }}>보는 아이가 없습니다</span>}</div>
         </div>
-        <div className="mdlf"><span className="spacer" /><button className="btn pri" type="button" disabled={pending || !f.typeId} data-act="add-save" onClick={() => run(() => addMaterialAct(e.id, { ...f, studentIds }), (r) => `자료를 세웠습니다. 항목 ${r.items} · 배정 ${r.students}명 · 할 일 ${r.todos}`, () => { setAdd(false); setF({ typeId: "", title: "", items: "", studentIds: null }); })}>저장</button></div>
+        <div className="mdlf"><span className="spacer" /><button className="btn pri" type="button" disabled={pending || !f.typeId} data-act="add-save" onClick={() => run(() => addMaterialAct(e.id, { ...f, studentIds }), (r) => `자료를 세웠습니다. 항목 ${r.items} · 배정 ${r.students}명 · 업무 ${r.todos}`, () => { setAdd(false); setF({ typeId: "", title: "", items: "", studentIds: null }); })}>저장</button></div>
       </div></div>}
     </>}
   </>;

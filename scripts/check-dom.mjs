@@ -10,7 +10,7 @@ console.log("■ 화면 DOM 규칙(글자)");
 const dlg = where(/(?<![\w.$])(?:window\.)?(?:alert|confirm|prompt)\(/);
 ok("대전제-10·검사-④ alert/confirm/prompt 0 · 한 번 더 묻기는 화면 안(Sure · 「아니요」가 늘 산다)", dlg.length === 0, dlg.join(", "));
 const sureUse = src.filter(([p, s]) => !p.endsWith("_shell/sure.js") && /<Sure\b/.test(s)).map(([p]) => p);
-ok(`Sure 를 쓰는 화면 ${sureUse.length}곳(수강료 다 받음 · 루틴 항목 내리기·교재 끝내기 · 반 닫기 · 달 확정 · 공지 보내기) · 물음 줄 부품(data-act=sure-yes)은 sure.js 하나`, sureUse.length >= 5 && where(/data-act="sure-yes"/).length === 1 && where(/data-act="sure-yes"/)[0] === "app/_shell/sure.js", sureUse.join(", ") + " · sure-yes: " + where(/data-act="sure-yes"/).join(", "));
+ok(`Sure 를 쓰는 화면 ${sureUse.length}곳(수강료 다 받음 · 루틴 항목 삭제·교재 끝내기 · 반 닫기 · 달 확정 · 공지 보내기) · 물음 줄 부품(data-act=sure-yes)은 sure.js 하나`, sureUse.length >= 5 && where(/data-act="sure-yes"/).length === 1 && where(/data-act="sure-yes"/)[0] === "app/_shell/sure.js", sureUse.join(", ") + " · sure-yes: " + where(/data-act="sure-yes"/).join(", "));
 const noHook = src.filter(([p, s]) => !p.endsWith("_shell/sure.js") && /<Sure\b/.test(s) && !/useSure\(\)/.test(s)).map(([p]) => p);
 ok("Sure 를 그리는 파일마다 useSure() 가 있다(빠지면 sure 가 없어 화면이 통째로 터진다. 게이트 66 이 /ops 에서 잡음)", noHook.length === 0, noHook.join(", "));
 const hist = where(/history\.(pushState|replaceState)\(|\bpushState\(/);

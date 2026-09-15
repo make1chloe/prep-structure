@@ -1,6 +1,6 @@
 /** 내신대비 한 판을 **직접 차려서** 돌린다 — 원장님 2026-09-12 「직접 가상의 내신대비 자료 할일 시함일 배정해서 돌려」.
- *  재기(month.mjs)와 달리 여기서는 **내가 손으로 다 넣는다**: 시험일 → 범위 → 지금 멈춤 → 자료 셋(갈래 다르게) →
- *  아이 배정 → 단계 밀기(만들기·인쇄·배부·풀이·채점) → 나눠주기 → 05 할 일(표·보드·새 할 일·단원평가) →
+ *  재기(month.mjs)와 달리 여기서는 **내가 손으로 다 넣는다**: 시험일 → 범위 → 지금 보류 → 자료 셋(유형 다르게) →
+ *  아이 배정 → 단계 밀기(만들기·인쇄·배부·풀이·채점) → 나눠주기 → 05 업무(표·보드·새 업무·단원평가) →
  *  01 시험 카드 → 16 성적 → 07 아이 화면에서 받은 것이 보이나.
  *  ⚠️ 검사가 아니다. **막힌 곳**을 적는다(막힘 · 두번 · 빈화면 · 군더더기 · 길없음 · 좋음). 앱 코드는 안 고친다.
  *  쓰기: node scripts/e2e/prep.mjs */
@@ -13,7 +13,7 @@ const 날 = (n) => { const d = new Date(Date.now() + 9 * 3600000 + n * 86400000)
 const 요일 = (s) => "일월화수목금토"[new Date(s + "T00:00:00+09:00").getDay()];
 const 적은것 = [], 쪽오류 = []; let 컷 = 0;
 const 아이콘 = { 막힘: "🚧", 두번: "🔁", 빈화면: "⬜", 군더더기: "🗯", 길없음: "🕳", 좋음: "✅" };
-const 적기 = (갈래, 어디, 글) => { 적은것.push({ 갈래, 어디, 글 }); console.log(`      ${아이콘[갈래] ?? "·"} ${어디} · ${글}`); };
+const 적기 = (유형, 어디, 글) => { 적은것.push({ 유형, 어디, 글 }); console.log(`      ${아이콘[유형] ?? "·"} ${어디} · ${글}`); };
 
 const b = await launch();
 const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
@@ -39,8 +39,8 @@ async function 누름(loc, 어디, 무엇) {
 const 글 = async (sel) => (await p.locator(sel).textContent().catch(() => "")).replace(/\s+/g, " ").trim();
 
 // 시험을 **앞날**에 둔다 — 내신대비는 시험 전에 하는 일이다
-const 시험시작 = 날(12), 시험끝 = 날(15), 영어일 = 날(13);
-console.log(`\n■■ 내신대비 한 판 · 영어 시험일 ${영어일}(${요일(영어일)}) · 기간 ${시험시작}~${시험끝} · 앱 ${APP}\n`);
+const 시험시작 = 날(12), 시험끝 = 날(15), 영어시험일 = 날(13);
+console.log(`\n■■ 내신대비 한 판 · 영어 시험일 ${영어시험일}(${요일(영어시험일)}) · 기간 ${시험시작}~${시험끝} · 앱 ${APP}\n`);
 
 // ══ 0. 로그인 ═══════════════════════════════════════════════════════════════
 await p.goto(APP + "/login");
@@ -65,7 +65,7 @@ await 누름(p.locator("[data-act=manual-open]"), "12b", "+ 손으로 넣기");
   await f.locator("input[aria-label='시험 이름']").fill(시험이름);
   await f.locator("input[aria-label=시작]").fill(시험시작);
   await f.locator("input[aria-label=끝]").fill(시험끝);
-  await f.locator("input[aria-label='영어 시험일']").fill(영어일);
+  await f.locator("input[aria-label='영어 시험일']").fill(영어시험일);
   await 누름(f.locator("[data-act=exam-save]"), "12b", "저장"); } }
 await 찍기("시험일-넣음");
 
@@ -87,13 +87,13 @@ await 누름(회차.locator("[data-act=scope-open]"), "06b", "+ 범위");
 console.log(`   범위 ${await 회차.locator("[data-g=scope]").count()}줄`);
 // 내신으로 들어간다 — 교재를 멈춘다
 { const 잠김 = await 회차.locator("[data-act=stop-now]").isDisabled().catch(() => true);
-  if (잠김) 적기("막힘", "06b", "「지금 멈춤」이 잠겨 있습니다. 영어 시험일을 넣었는데도");
-  else { await 누름(회차.locator("[data-act=stop-now]"), "06b", "지금 멈춤");
+  if (잠김) 적기("막힘", "06b", "「지금 보류」가 잠겨 있습니다. 영어 시험일을 넣었는데도");
+  else { await 누름(회차.locator("[data-act=stop-now]"), "06b", "지금 보류");
          const m = await 글("[data-g=msg]"); console.log(`   ${m}`);
          // 0권 자체는 맞을 수 있다(교재가 이미 다른 회차에 묶였을 때). 막힌 것은 **까닭을 안 말할 때**다(대전제-0 · 검사-86)
-         if (/교재 0권/.test(m) && !/안 건드린 것|영어 시험일 없음|숨긴 회차|물린 회차/.test(m)) 적기("막힘", "06b", "「지금 멈춤」이 0권인데 까닭을 안 말합니다");
+         if (/교재 0권/.test(m) && !/안 건드린 것|영어 시험일 없음|숨긴 회차|물린 회차/.test(m)) 적기("막힘", "06b", "「지금 보류」가 0권인데 까닭을 안 말합니다");
          else if (/교재 0권/.test(m)) console.log("   ✅ 0권이지만 화면이 까닭과 하실 일까지 말합니다"); } }
-await 찍기("범위-멈춤");
+await 찍기("범위-보류");
 
 // ══ 3. 내신 자료 셋을 만들고 배정한다 (04) ══════════════════════════════════
 await 열기("/schedule/exams/prep", "04 · 내신 자료 만들기");
@@ -119,7 +119,7 @@ for (const z of 자료들) {
   const t = topts.find((x) => x && x !== "고르기");
   if (!t) { 적기("막힘", "04 + 자료", "자료 종류가 하나도 없습니다. 종류를 먼저 만들 길이 화면에 없습니다"); await 누름(m.locator("button", { hasText: "닫기" }).first(), "04", "닫기"); break; }
   await m.locator("select[aria-label='자료 종류']").selectOption({ label: t });
-  await m.locator("input[aria-label='갈래 이름']").fill(z.이름);
+  await m.locator("input[aria-label='유형 이름']").fill(z.이름);
   await m.locator("textarea[aria-label=항목]").fill(z.항목);
   const 아이칸 = m.locator("[data-g=add-students] input.ck");
   const n아이 = await 아이칸.count();
@@ -128,16 +128,16 @@ for (const z of 자료들) {
   if (await 누름(m.locator("[data-act=add-save]"), "04 + 자료", `저장(${z.이름})`)) { 만든수++; console.log(`   ✎ ${z.이름} · 항목 ${z.항목.split(",").length}개 · 아이 ${n아이}명`); }
 }
 await 찍기("자료-셋");
-console.log(`   자료 ${만든수}갈래 · 할 일 ${await 글("[data-g=todo-count]")} · 나무 ${await 글("[data-g=tree-count]")}`);
-if (만든수 && !(await p.locator("[data-g=todo-row]").count())) 적기("빈화면", "04", "자료를 만들었는데 할 일이 한 줄도 안 섰습니다(만들기·인쇄·배부가 저절로 서야 합니다)");
+console.log(`   자료 ${만든수}유형 · 업무 ${await 글("[data-g=todo-count]")} · 나무 ${await 글("[data-g=tree-count]")}`);
+if (만든수 && !(await p.locator("[data-g=todo-row]").count())) 적기("빈화면", "04", "자료를 만들었는데 업무가 한 줄도 안 섰습니다(만들기·인쇄·배부가 저절로 서야 합니다)");
 
 // 단계 밀기 — 만들기 → 인쇄 → 배부
 { const rows = p.locator("[data-g=todo-row]");
   const n = await rows.count();
-  console.log(`   저절로 선 할 일 ${n}줄`);
+  console.log(`   저절로 선 업무 ${n}줄`);
   for (let i = 0; i < Math.min(n, 6); i++) {
     const r = rows.nth(i), t = (await r.textContent()).replace(/\s+/g, " ").trim().slice(0, 60);
-    if (await r.locator("[data-act=todo-done]").count()) await 누름(r.locator("[data-act=todo-done]").first(), "04 할 일", `다 함 · ${t}`);
+    if (await r.locator("[data-act=todo-done]").count()) await 누름(r.locator("[data-act=todo-done]").first(), "04 업무", `다 함 · ${t}`);
   } }
 await 찍기("자료-단계밀기");
 // 나눠주기
@@ -149,27 +149,27 @@ await 찍기("자료-단계밀기");
     else console.log(`   ✅ 아직 배부 차례가 아닙니다. 자료 줄이 스스로 말합니다: ${(await nx.first().textContent()).trim()}`); } }
 await 찍기("자료-나눠줌");
 
-// ══ 4. 05 할 일 — 표·보드·새 할 일·단원평가 ═════════════════════════════════
-await 열기("/schedule/todo", "05 할 일");
-console.log(`   할 일 ${await 글("[data-g=count]")} · 밀린 것 ${await 글("[data-g=overdue]")}`);
-if (!(await p.locator("[data-g=row], [data-g=card]").count())) 적기("빈화면", "05", "04 에서 만든 자료가 할 일로 하나도 안 보입니다");
+// ══ 4. 05 업무 · 표·보드·새 업무·단원평가 ═════════════════════════════════
+await 열기("/schedule/todo", "05 업무");
+console.log(`   업무 ${await 글("[data-g=count]")} · 밀린 것 ${await 글("[data-g=overdue]")}`);
+if (!(await p.locator("[data-g=row], [data-g=card]").count())) 적기("빈화면", "05", "04 에서 만든 자료가 업무로 하나도 안 보입니다");
 await 누름(p.locator("[data-act=view-board]"), "05", "▦ 보드");
 await 찍기("할일-보드");
 await 누름(p.locator("[data-act=view-table]"), "05", "⊞ 표");
-// 새 할 일(글)
-if (await 누름(p.locator("[data-act=new-open]"), "05", "+ 새 할 일")) {
+// 새 업무(글)
+if (await 누름(p.locator("[data-act=new-open]"), "05", "+ 새 업무")) {
   const nm = p.locator("[data-g=new-menu]");
   if (await nm.locator("[data-act=new-note]").count()) {
     await 누름(nm.locator("[data-act=new-note]"), "05", "글로 적기");
-    const inp = p.locator("[data-g=new-note] input, input[aria-label='할 일']").first();
+    const inp = p.locator("[data-g=new-note] input, input[aria-label='업무']").first();
     if (await inp.count()) { await inp.fill("기말 대비 오답노트 양식 인쇄해서 반별로 나눠 두기");
       await 누름(p.locator("[data-act=note-save]"), "05", "저장"); }
     else 적기("막힘", "05", "「글로 적기」를 눌렀는데 적을 칸이 안 떴습니다");
-  } else 적기("길없음", "05", "+ 새 할 일 에 「글로 적기」가 없습니다");
+  } else 적기("길없음", "05", "+ 새 업무 에 「글로 적기」가 없습니다");
 }
 // 단원평가 내기
 if (await p.locator("[data-act=new-unit-test]").count()) {
-  await 누름(p.locator("[data-act=new-open]"), "05", "+ 새 할 일(단원평가)");
+  await 누름(p.locator("[data-act=new-open]"), "05", "+ 새 업무(단원평가)");
   await 누름(p.locator("[data-act=new-unit-test]"), "05", "단원평가");
   const uf = p.locator("[data-g=new-unit-test]");
   if (await uf.count()) { const q = uf.locator("input[aria-label='문항 수']"); if (await q.count()) await q.fill("20");
@@ -180,10 +180,10 @@ console.log(`   ${await 글("[data-g=msg]")}`);
 
 // ══ 5. 01 오늘 수업 — 시험 카드에 범위가 붙었나 ═════════════════════════════
 await 열기("/today", "01 오늘 수업 · 🔤 시험 카드");
-{ const 내신 = p.locator("[data-g=source] button", { hasText: "내신" });   // 갈래를 「내신」으로 눌러야 범위 고르개가 나온다(안 눌러 보고 「없다」고 적던 것을 고침)
-  if (!(await 내신.count())) console.log("   ⏭ 오늘 판에 🔤 시험 카드가 없습니다. 이 회차를 보는 아이가 오늘 수업에 없습니다");
+{ const 내신 = p.locator("[data-g=source] button", { hasText: "내신" });   // 유형을 「내신」으로 눌러야 범위 고르개가 나온다(안 눌러 보고 「없다」고 적던 것을 고침)
+  if (!(await 내신.count())) console.log("   ⏭ 오늘 수업 일지에 🔤 시험 카드가 없습니다. 이 회차를 보는 아이가 오늘 수업에 없습니다");
   else if (!(await 내신.first().isEnabled())) 적기("빈화면", "01", `「내신」을 못 누릅니다. ${(await 내신.first().getAttribute("title")) ?? "까닭 없음"}`);
-  else { await 누름(내신.first(), "01", "갈래 · 내신");
+  else { await 누름(내신.first(), "01", "유형 · 내신");
     const t = (await p.locator("main").textContent()).replace(/\s+/g, " ");
     if (/Lesson 7~8|워크북 p\.88|CH|›/.test(t)) console.log("   ✅ 시험 카드에 내가 넣은 범위가 붙었습니다");
     else 적기("빈화면", "01", "「내신」을 눌렀는데 06b 에서 넣은 범위가 안 보입니다"); } }
@@ -204,8 +204,8 @@ await 찍기("자료-다차림");
 
 // ══ 끝 ══════════════════════════════════════════════════════════════════════
 console.log("\n\n■■ 막힌 곳\n");
-if (!적은것.length) console.log("   없습니다. 시험일·범위·자료 셋·배정·단계·할 일까지 한 번에 돌았습니다.");
-적은것.forEach((x, i) => console.log(`   ${i + 1}. ${아이콘[x.갈래]} [${x.갈래}] ${x.어디} · ${x.글}`));
+if (!적은것.length) console.log("   없습니다. 시험일·범위·자료 셋·배정·단계·업무까지 한 번에 돌았습니다.");
+적은것.forEach((x, i) => console.log(`   ${i + 1}. ${아이콘[x.유형]} [${x.유형}] ${x.어디} · ${x.글}`));
 if (쪽오류.length) { console.log("\n■ 브라우저 오류\n"); [...new Set(쪽오류)].forEach((x) => console.log(`   ${x}`)); }
 console.log(`\n캡처 ${컷}장: ${SHOT}/`);
 await b.close();

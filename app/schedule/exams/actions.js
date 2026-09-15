@@ -1,12 +1,12 @@
 "use server";
-/** 시험 회차 손 — 학원 사람만. 판단·쓰기는 lib/exam.js 한 벌(범위 · 안 봄 · 숨김 · 몇 주 전부터 · 지금 멈춤 · 풀기). 지우는 손이 없다(대전제-6) */
+/** 시험 회차 손 · 학원 사람만. 판단·쓰기는 lib/exam.js 한 벌(범위 · 안 봄 · 숨김 · 몇 주 전부터 · 지금 보류 · 풀기). 지우는 손이 없다(대전제-6) */
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { addScope, removeScope, setSkip, setSkipAll, setHidden, setHiddenMany, setStopWeeks, setStudentWeeks, stopNow, releaseStops, unitsOf, setChangeSeen, setChangeSeenMany } from "@/lib/exam";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "학교 시험 06b");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "학교 시험 06b");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function unitsAct(bookId) { return wrap(async () => { const { sb } = await staff(); return { units: await unitsOf(sb, bookId) }; }); }
 export async function scopeAct(examId, f) { return wrap(async () => { const { sb } = await staff(); return addScope(sb, examId, { unitIds: f?.unitIds ?? [], freeNote: f?.freeNote ?? null, date: await today(sb) }); }); }
 export async function removeScopeAct(ids) { return wrap(async () => { const { sb } = await staff(); return { n: await removeScope(sb, ids, await today(sb)) }; }); }
@@ -18,5 +18,5 @@ export async function studentWeeksAct(studentId, weeks) { return wrap(async () =
 export async function stopNowAct(examId) { return wrap(async () => { const { sb } = await staff(); return stopNow(sb, examId, await today(sb)); }); }
 export async function releaseAct(examId) { return wrap(async () => { const { sb } = await staff(); return releaseStops(sb, examId); }); }
 export async function changeSeenAct(examId) { return wrap(async () => { const { sb } = await staff(); return setChangeSeen(sb, examId); }); }   // (저) 「봤음」 — 나이스가 옮긴 기간을 봤다(0152)
-export async function hiddenManyAct(ids, hidden) { return wrap(async () => { const { sb } = await staff(); return setHiddenMany(sb, ids, hidden, await today(sb)); }); }   // (어28)-③ 고른 시험 숨기기·되살리기 한 번에
+export async function hiddenManyAct(ids, hidden) { return wrap(async () => { const { sb } = await staff(); return setHiddenMany(sb, ids, hidden, await today(sb)); }); }   // (어28)-③ 고른 시험 숨기기·복구 한 번에
 export async function changeSeenManyAct(ids) { return wrap(async () => { const { sb } = await staff(); return setChangeSeenMany(sb, ids); }); }   // (어28)-③ 고른 시험 📡 봤음 한 번에

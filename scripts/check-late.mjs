@@ -1,5 +1,5 @@
-/** 늦귀가 검사(확정-⑭ · 검사-㊷) — 순수 판단 lib/late-plan.js + lib/day-plan.js 의 시각 한 벌:
- *  예상(약속)과 실제 하원의 차이(세어 나온다 · 저장 안 함) · 「실제 하원 22:05 · 예상보다 25분 늦게」 · 되풀이 띠(3주 안 N번째 — 숙제량을 볼까요) · 안 보낸 채인가 · 마감 전에 한 번 묻는 것(둘 다면 한 상자) ·
+/** 하원 지연 검사(확정-⑭ · 검사-㊷) · 순수 판단 lib/late-plan.js + lib/day-plan.js 의 시각 한 벌:
+ *  예상(약속)과 실제 하원의 차이(세어 나온다 · 저장 안 함) · 「실제 하원 22:05 · 예상보다 25분 늦게」 · 반복 띠(3주 안 N번째 · 숙제량을 볼까요) · 안 보낸 채인가 · 마감 전에 한 번 묻는 것(둘 다면 한 상자) ·
  *  서울 시각 읽기·찍기가 프로세스 시간대와 무관한가(UTC 로 다시 돈다 — 검사-㊴와 같은 결) */
 import { spawnSync } from "node:child_process";
 import { diffMinutes, diffText, leftText, repeatBand, unsentLate, askBeforeClose, hhmm, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "../lib/late-plan.js";
@@ -12,7 +12,7 @@ ok("하나라도 없으면 null (약속 없이 하원만 찍힌 날)", diffMinut
 ok("말 · 늦게 · 일찍 · 예상대로 · 없음", diffText(25) === "예상보다 25분 늦게" && diffText(-10) === "예상보다 10분 일찍" && diffText(0) === "예상대로" && diffText(null) === "");
 ok("실제 하원 줄 · 「실제 하원 22:05 · 예상보다 25분 늦게」 · 약속이 없었으면 시각만 · 아직 안 찍었으면 null", leftText({ until_at: "21:40:00" }, "22:05:00") === "실제 하원 22:05 · 예상보다 25분 늦게" && leftText(null, "22:05:00") === "실제 하원 22:05" && leftText({ until_at: "21:40:00" }, null) === null);
 ok("hhmm · time 글자의 앞 다섯", hhmm("21:40:00") === "21:40" && hhmm(null) === "");
-console.log("■ 되풀이 띠 · 「같은 아이가 3주 안에 세 번 남으면 앱이 먼저 묻는다」(SQL 이 세고 여기는 말만)");
+console.log("■ 반복 띠 · 「같은 아이가 3주 안에 세 번 남으면 앱이 먼저 묻는다」(SQL 이 세고 여기는 말만)");
 const st = { stayed: 3, stayed_days: "9/3 · 9/4 · 오늘", repeat_at: 3, window_days: 21, ask: true };
 ok("3주 안 3번째 → 「3주 안 3번째 남습니다. 숙제량을 볼까요?」 + 날들", repeatBand(st)?.title === "3주 안 3번째 남습니다. 숙제량을 볼까요?" && repeatBand(st).days === "9/3 · 9/4 · 오늘");
 ok("4번째도 묻는다(SQL 의 ask 그대로) · 날수가 7의 배수가 아니면 「N일 안」", repeatBand({ ...st, stayed: 4 }).title.startsWith("3주 안 4번째") && repeatBand({ ...st, window_days: 10 }).title.startsWith("10일 안"));
@@ -41,5 +41,5 @@ console.log("■ 3b 사유 칩(목업 01 · 원본은 사유 한 줄 · 칩은 �
 ok("「평소 21:40」 · 반 끝 시각에서 · 없으면 null", usualText("21:40:00") === "평소 21:40" && usualText(null) === null);
 const sr = stayRows([{ id: "a", slot: "stay", sort: 2, range_note: null, learn_items: { name: "클카 낭독" }, units: { chapter: "CHAPTER 1", short: "PSS 1-3" }, carry_of: "x", status: null }, { id: "b", slot: "stay", sort: 1, range_note: "워크북 복습 · 못 한 만큼", carry_of: null, status: "done" }, { id: "c", slot: "home", range_note: "숙제" }, { id: "d", slot: "stay", sort: 3, range_note: "단어", carry_of: "y", status: "missing" }]);
 ok("「남」 줄 · stay 만 · sort 차례 · 이름(적은 글 › 항목 이름 › 단원) · 「숙제에서 옮겨옴」은 조각만 · 상태(아직·다 함·넘김) · 셈 「남 3 · 다 함 1 · 넘김 1 · 아직 1」", sr.length === 3 && sr[0].text === "워크북 복습 · 못 한 만큼" && sr[0].from === null && sr[0].state === "done" && sr[1].text === "클카 낭독" && sr[1].sub === "CHAPTER 1 › PSS 1-3" && sr[1].from === "숙제에서 옮겨옴" && sr[1].state === "open" && sr[2].state === "missing" && JSON.stringify(stayCounts(sr)) === JSON.stringify({ total: 3, done: 1, missing: 1, open: 1 }));
-console.log(`\n■ 늦귀가 검사 ${n}건 · 실패 ${bad}`);
+console.log(`\n■ 하원 지연 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

@@ -1,4 +1,4 @@
-/** 🎬 영상 19 — 아이 쪽: 배정된 영상(마감 · 아직/N% 봄/다 봄 · 이어 볼 자리) · ▶ 보기는 앱 안 재생(유튜브 IFrame — 지나간 구간만 센다 · 임베드가 막힌 영상은 「유튜브에서 보기」).
+/** 🎬 영상 19 · 아이 쪽: 배정된 영상(마감 · 아직/N% 봄/다 봄 · 이어 볼 곳) · ▶ 보기는 앱 안 재생(유튜브 IFrame · 지나간 구간만 센다 · 임베드가 막힌 영상은 「유튜브에서 보기」).
  *  층: 로그인 확인 → 주소 인자 → 오늘∥제 학생 줄 → 배정∥구간∥규칙 = 4단. 판단은 lib/video-plan(순수) */
 import Link from "next/link";
 import { Oops } from "../../_shell/oops.js";
@@ -33,7 +33,7 @@ export default async function MyVideos({ searchParams }) {
     const open = list.find((r) => r.video_id === String(sp?.v ?? "")) ?? null;
     d = { date, list, open, next: open ? nextOf(list, open.video_id) : null, access: acc?.data ?? [] };   // ⑥ 다음 영상(안 본 것 차례)
   } catch (e) { { console.error("[화면] 영상 못 엶:", e); return frame(<Oops what="영상" e={e} kind="task" />); } }
-  // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 — 07 의 영상 카드와 **같은 열쇠**다
+  // 주소로 바로 들어와도 원장님이 끈 카드는 안 열린다 · 07 의 영상 카드와 **같은 키**다
   if (decide(ROLES.STUDENT, d.access, ME.books) !== true) return frame(<div className="task"><div className="h"><b>🔐 아직 열리지 않았어요</b></div><p className="note" style={{ margin: "8px 0 0" }}>학원에서 아직 안 열었어요</p></div>);
   const left = d.list.filter((r) => r.status.key !== "done").length;
   return frame(<>
@@ -44,7 +44,7 @@ export default async function MyVideos({ searchParams }) {
       <div className="h"><b>{r.video?.title}</b><span className="spacer" /><span className={"pill " + r.status.cls} data-g="status">{r.status.text}</span></div>
       <p className="note k" style={{ margin: "4px 0 0" }}>{[r.video?.folder, r.video?.seconds ? mmss(r.video.seconds) : null, r.due || null, opensText(r.opens) || null].filter(Boolean).join(" · ")}{r.late ? " · 지났어요" : ""}</p>
       {r.bar.parts.length > 0 && <div className="vbar" data-g="vbar" style={{ marginTop: 8 }}>{r.bar.parts.map((x, i) => <div className="vseen" key={i} style={{ left: `${x.left}%`, width: `${x.width}%` }} />)}{r.bar.head != null && r.status.key !== "done" && <div className="vhead" style={{ left: `${r.bar.head}%` }} />}</div>}
-      {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 자리 {mmss(r.lastPos)}</p>}
+      {r.status.key !== "done" && r.lastPos > 0 && <p className="note k" style={{ margin: "4px 0 0" }}>이어 볼 곳 {mmss(r.lastPos)}</p>}
       <div className="wv" style={{ marginTop: 8, marginBottom: 0 }}><Link prefetch={false} className={"btn sm" + (r.status.key === "done" ? "" : " pri")} href={`/me/videos?v=${r.video_id}`} data-act="open">▶ {r.status.key === "done" ? "다시 보기" : r.lastPos > 0 ? "이어 보기" : "보기"}</Link></div>
     </div>)}
   </>);

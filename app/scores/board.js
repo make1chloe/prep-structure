@@ -86,7 +86,7 @@ export default function Board({ d }) {
         <button className="btn pri" type="button" disabled={pending || !c.unconfirmed} data-act="confirm-all" onClick={() => run(() => confirmAllAct(e.id), (r) => `${r.n}명 확인했습니다. 성적이 굳고 공개 기본값이 붙었습니다`)}>모두 확인</button>
         <span className="spacer" />
         <span className="pill" style={c.missing ? MISS : undefined} data-g="missing-sum">안 낸 아이 {c.missing}명</span>
-        {c.missing > 0 && <button type="button" className="btn sm" disabled={pending} data-act="remind-scores" onClick={() => run(() => remindAct(e.id), (r) => `${r.n}명에게 재촉 · ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`)}>📨 안 낸 아이 재촉</button>}
+        {c.missing > 0 && <button type="button" className="btn sm" disabled={pending} data-act="remind-scores" onClick={() => run(() => remindAct(e.id), (r) => `${r.n}명에게 알림 · ${r.sink === "off" ? "🧪 리허설(off): 발송 이력만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`)}>📨 안 낸 아이에게 알림</button>}
       </div>
     </>}
   </>;

@@ -5,7 +5,7 @@ import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { addClass, setSchedule, setClassName, closeClass, closeClassMany, addMember, removeMember, removeMemberMany, setClassFee } from "@/lib/classes";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "반 02c");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "반 02c");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return addClass(sb, f); }); }
 export async function scheduleAct(classId, f) { return wrap(async () => { const { sb } = await staff(); return setSchedule(sb, String(classId), f); }); }
 export async function nameAct(classId, nickname, kind) { return wrap(async () => { const { sb } = await staff(); await setClassName(sb, String(classId), nickname, kind); return {}; }); }

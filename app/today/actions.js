@@ -20,7 +20,7 @@ import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
 import { slotCount } from "@/lib/classes";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
@@ -43,7 +43,7 @@ export const lateSend = done(async (sheetId) => { const { sb } = await staff(); 
 export const lateLeft = done(async (studentId, date, hhmm) => { const { sb } = await staff(); await setLeft(sb, String(studentId), String(date), String(hhmm ?? "").trim()); });   // 실제 하원 — 등원 표 걸음 4(판이 아니라 마감과 무관)
 export const comment = done(async (sheetId, payload) => { const { sb } = await staff(); await saveComment(sb, String(sheetId), String(payload?.comment ?? ""), payload); });
 export const close = done(async (sheetId, payload) => { const { sb, user } = await staff(); await closeSheet(sb, String(sheetId), String(payload?.comment ?? ""), user.id, payload); });
-export const commentDraft = done(async (sheetId, payload) => { const { sb } = await staff(); const cfg = await commentRules(sb); return { draft: await draftComment(sb, String(sheetId), payload, cfg) }; });   // ✨ 브리핑 — 열쇠는 서버에서만
+export const commentDraft = done(async (sheetId, payload) => { const { sb } = await staff(); const cfg = await commentRules(sb); return { draft: await draftComment(sb, String(sheetId), payload, cfg) }; });   // ✨ 브리핑 · 키는 서버에서만
 // 오늘 학습·숙제 · 저절로 깔린 것을 손보는 손(확정-⑨a): 줄이기 · 교재 상태 · 오늘 단원 · 교재마다 메모. 판단은 lib/routine.js
 export const mode = done(async (sheetId, m) => { const { sb } = await staff(); await setMode(sb, sheetId, m); });
 export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = await staff(); await setStop(sb, sheetId, studentBookId, m); });

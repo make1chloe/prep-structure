@@ -1,5 +1,5 @@
 "use server";
-/** 학교 손 한 벌 · 06c 줄 더하기 · 14 학생 · 12b 받아오기 · 06b 학교 카드가 같은 것을 부른다(원칙-1). 쓰기는 lib/schools.js */
+/** 학교 손 한 벌 · 06c 줄 더하기 · 14 학생 · 12b 가져오기 · 06b 학교 카드가 같은 것을 부른다(원칙-1). 쓰기는 lib/schools.js */
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";

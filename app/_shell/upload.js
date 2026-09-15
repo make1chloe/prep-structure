@@ -1,5 +1,5 @@
 "use client";
-/** 📤 올리기 한 벌 — 원장(자료함 보내기) · 아이 · 학부모가 같은 부품. 고르는 단추는 이름이 보이는 label.btn(브라우저 기본 「Choose Files」 칸은 숨긴다 — (어17) 원장님 9/14 「보이게」 · 고른 것은 아래 줄로). 사진은 폰에서 긴 변을 줄여 보낸다(규칙 file.photo_px) · 한 번에 N장(file.batch_max) · 파일마다 /api/files 한 번(서버가 종류·크기·자격을 본다).
+/** 📤 올리기 한 벌 · 원장(자료실 보내기) · 아이 · 학부모가 같은 부품. 고르는 단추는 이름이 보이는 label.btn(브라우저 기본 「Choose Files」 칸은 숨긴다 · (어17) 원장님 9/14 「보이게」 · 고른 것은 아래 줄로). 사진은 폰에서 긴 변을 줄여 보낸다(규칙 file.photo_px) · 한 번에 N장(file.batch_max) · 파일마다 /api/files 한 번(서버가 종류·크기·자격을 본다).
  *  실패는 파일마다 그 자리에서 말한다 — 조용히 빠뜨리지 않는다(대전제-0) */
 import { useEffect, useRef, useState } from "react";
 import { acceptBatch, checkFile, isImage, shrinkPlan, sizeText, pickRows, withoutPick } from "@/lib/files-plan";

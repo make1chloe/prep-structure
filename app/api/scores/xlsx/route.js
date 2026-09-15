@@ -1,4 +1,4 @@
-/** ⬇ 성적 엑셀(16 · 5단계-⑤) — /api/scores/xlsx?e=<회차> 는 성적 양식(올리기와 같은 열 · 보는 아이 이름을 채우고 있는 성적은 그대로) · &q=1 은 문항표(번호 · 영역 — 모의고사는 적힌 것이 없으면 표준 문항표가 나간다).
+/** ⬇ 성적 엑셀(16 · 5단계-⑤) · /api/scores/xlsx?e=<회차> 는 성적 양식(올리기와 같은 열 · 보는 아이 이름을 채우고 있는 성적은 그대로) · &q=1 은 문항표(번호 · 영역 · 모의고사는 적힌 것이 없으면 표준 문항표가 나간다).
  *  열은 lib/score-plan(exportScoreRows · exportQuestionRows) 한 벌 · 판은 score_board 한 벌. 학원 사람만 */
 import { guard } from "@/lib/session";
 import { isStaff } from "@/lib/roles";

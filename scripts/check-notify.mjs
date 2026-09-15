@@ -1,7 +1,7 @@
 /** 밖으로 나가는 길 검사(검사-①·⑦ · 대전제-7 · 뼈대-11 · 확정-㊿ · 속도-3) — 글자로 훑는다:
  *  ① 알림 서버를 부르는 자리(sendNotification)는 lib/push.js 하나 · lib/push.js 를 들여오는 곳은 lib/notify.js 하나 · notify_log 에 쓰는 곳은 lib/notify.js 하나
  *  ⑦ 스위치(NOTIFY_SINK)를 읽는 곳은 lib/notify-plan.js 하나 — 화면·손이 제멋대로 안 본다
- *  큐에 넣는 갈래마다 손이 있다(lib/send.js) · 늦귀가 알림을 넣는 곳은 lib/late.js 하나(확정-㊿) · 데일리리포트 손이 치환 자리를 본다(뼈대-11) · 크론이 손을 들여온다 · 발송 화면은 백스톱을 렌더 뒤(after)로 */
+ *  큐에 넣는 유형마다 손이 있다(lib/send.js) · 하원 지연 알림을 넣는 곳은 lib/late.js 하나(확정-㊿) · 데일리리포트 손이 치환 칸을 본다(뼈대-11) · 크론이 손을 들여온다 · 발송 화면은 백스톱을 렌더 뒤(after)로 */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 const files = (dir) => readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? files(p) : /\.(js|mjs)$/.test(f) ? [p] : []; });
@@ -16,21 +16,21 @@ w = where(/(process\.env|\benv)\.NOTIFY_SINK|\[["']NOTIFY_SINK["']\]/, ["lib/not
 w = where(/from ["'](\.\/solapi\.js|@\/lib\/solapi)["']/, ["lib/notify.js"]); if (w.length) bad.push(`① 문자 서버(lib/solapi.js)를 lib/notify.js 밖에서 들여온다: ${w.join(", ")}`);   // (커) 문자도 같은 길 한 곳
 w = where(/api\.solapi\.com/, ["lib/solapi.js"]); if (w.length) bad.push(`① 문자 서버 주소를 lib/solapi.js 밖에서 쓴다: ${w.join(", ")}`);   // (터) 안내 링크(solapi.com)는 주소가 아니다 — 부르는 주소만 본다
 if (/node:crypto/.test(readFileSync("lib/sms-plan.js", "utf8"))) bad.push("① lib/sms-plan.js 는 화면도 가져온다. node:crypto 를 쓰면 빌드가 깨진다(게이트 96)");
-w = where(/["']late_notice["']/, ["lib/late.js", "lib/send-plan.js"]).filter((p) => !/^scripts\//.test(p)); if (w.length) bad.push(`확정-㊿ 늦귀가 알림을 lib/late.js 밖에서 넣는다: ${w.join(", ")}`);
-// 큐에 넣는 갈래 ⊆ 손이 있는 갈래
+w = where(/["']late_notice["']/, ["lib/late.js", "lib/send-plan.js"]).filter((p) => !/^scripts\//.test(p)); if (w.length) bad.push(`확정-㊿ 하원 지연 알림을 lib/late.js 밖에서 넣는다: ${w.join(", ")}`);
+// 큐에 넣는 유형 ⊆ 손이 있는 유형
 const send = strip(readFileSync("lib/send.js", "utf8")), plan = strip(readFileSync("lib/send-plan.js", "utf8"));
 const kinds = Object.fromEntries([...plan.matchAll(/(\w+): "([a-z_]+)"/g)].filter(([, k]) => /^(daily|late|arrival|leave|plan)$/.test(k)).map(([, k, v]) => [k, v]));
 const handled = new Set([...send.matchAll(/handlers\[KINDS\.(\w+)\]/g)].map((m) => kinds[m[1]]));
 const enqueued = new Set(all.flatMap(([, s]) => [...s.matchAll(/enqueue\(\w+, "([a-z_]+)"/g)].map((m) => m[1])));
-for (const k of enqueued) if (!handled.has(k)) bad.push(`큐에 넣는 갈래에 손이 없다: ${k} (lib/send.js)`);
-if (!/unfilled\(s\.comment\)/.test(send)) bad.push("뼈대-11 데일리리포트 손이 치환 자리를 안 본다(lib/send.js)");
+for (const k of enqueued) if (!handled.has(k)) bad.push(`큐에 넣는 유형에 손이 없다: ${k} (lib/send.js)`);
+if (!/unfilled\(s\.comment\)/.test(send)) bad.push("뼈대-11 데일리리포트 손이 치환 칸을 안 본다(lib/send.js)");
 if (!/import "@\/lib\/send"/.test(strip(readFileSync("app/api/cron/route.js", "utf8")))) bad.push("크론이 손(lib/send.js)을 안 들여온다. 손이 없는 일로 전부 실패한다");
 const page = strip(readFileSync("app/send/page.js", "utf8"));
 if (!/after\(backstop\)/.test(page) || /await backstop/.test(page)) bad.push("속도-3 발송 화면이 백스톱을 렌더 뒤(after)로 안 돌린다");
 if (!/OPEN_TO_SEE/.test(readFileSync("lib/notify-plan.js", "utf8"))) bad.push("잠금화면 문구(OPEN_TO_SEE)가 없다. 알림에 내용이 실린다");
-// (퍼) 원장님 9/10 밤 — 「자취를 못 남김: Could not find the 'channel' column of 'notify_log' in the schema cache」가 영어 그대로 화면에 떴다.
+// (퍼) 원장님 9/10 밤 · 「발송 이력을 못 남김: Could not find the 'channel' column of 'notify_log' in the schema cache」가 영어 그대로 화면에 떴다.
 //     DB 가 하는 말 중 **원장님이 고칠 수 있는 것**은 우리 말로 옮겨서 보여야 한다(옮기는 자리는 lib/sqlError.js 하나 — 원칙-1).
-if (!/saidBy\(/.test(strip(readFileSync("lib/notify.js", "utf8")))) bad.push("자취 남기기의 DB 오류가 우리 말로 안 옮겨진다(lib/sqlError.js saidBy)");
+if (!/saidBy\(/.test(strip(readFileSync("lib/notify.js", "utf8")))) bad.push("발송 이력 남기기의 DB 오류가 우리 말로 안 옮겨진다(lib/sqlError.js saidBy)");
 if (!/reload schema/.test(readFileSync("lib/sqlError.js", "utf8"))) bad.push("lib/sqlError.js 가 「schema cache」 오류의 고칠 길을 안 말한다");
 if (bad.length) { console.log("check-notify ✗\n  " + bad.join("\n  ")); process.exit(1); }
-console.log(`check-notify ✓ 나가는 길 한 곳(lib/notify.js → lib/push.js) · 스위치 한 곳 · 손 ${handled.size}개가 큐 갈래 ${enqueued.size}개를 다 받는다 · 늦귀가는 lib/late.js 만 · 치환 자리 문 · 백스톱은 렌더 뒤`);
+console.log(`check-notify ✓ 나가는 길 한 곳(lib/notify.js → lib/push.js) · 스위치 한 곳 · 손 ${handled.size}개가 큐 유형 ${enqueued.size}개를 다 받는다 · 하원 지연은 lib/late.js 만 · 치환 칸 문 · 백스톱은 렌더 뒤`);

@@ -38,14 +38,14 @@ try {
   await c.query(`update v2.quiz set total=14 where id=$1`, [q2]);
   ok("전체 개수를 적으면 선다", (await c.query(`select count(*)::int n from v2.quiz_for_report($1) where part='다음 시간'`, [sh])).rows[0].n === 1);
   ok("오늘 본 것 · 틀린 개수를 적은 것만 나간다(1건)", (await c.query(`select count(*)::int n from v2.quiz_for_report($1) where part='오늘 본 것'`, [sh])).rows[0].n === 1);
-  ok("미통과가 늦귀가 사유 후보로 세어 나온다(quiz_failed_today 1건 · 85%)", (await c.query(`select count(*)::int n, min(pct) pct from v2.quiz_failed_today($1)`, [sh])).rows[0].n === 1);
-  console.log("■ 교재멈춤이면 시험도 못 낸다(0037 · quiz_guard) · 내신·직접 범위는 별개");
+  ok("미통과가 하원 지연 사유 후보로 세어 나온다(quiz_failed_today 1건 · 85%)", (await c.query(`select count(*)::int n, min(pct) pct from v2.quiz_failed_today($1)`, [sh])).rows[0].n === 1);
+  console.log("■ 교재 보류이면 시험도 못 낸다(0037 · quiz_guard) · 내신·직접 범위는 별개");
   const bk = (await c.query(`insert into v2.books(name, area, import_batch) values ('zz_검사 단어책', '단어', 'fixture') returning id`)).rows[0].id;
   await c.query(`insert into v2.student_book(student_id, book_id, from_date, stop_mode) values ($1, $2, '2026-01-01', 'book_off')`, [S, bk]);
-  let blocked = false; try { await c.query("savepoint g"); await c.query(`insert into v2.quiz(student_id, kind, source, book_id, assigned_on, state) values ($1, 'word', 'book', $2, '2026-10-20', 'planned')`, [S, bk]); await c.query("release savepoint g"); } catch (e) { blocked = /교재멈춤/.test(e.message); await c.query("rollback to savepoint g"); }
-  ok("교재멈춤 교재로 낸 시험은 DB 가 막는다", blocked);
+  let blocked = false; try { await c.query("savepoint g"); await c.query(`insert into v2.quiz(student_id, kind, source, book_id, assigned_on, state) values ($1, 'word', 'book', $2, '2026-10-20', 'planned')`, [S, bk]); await c.query("release savepoint g"); } catch (e) { blocked = /교재 ?(멈춤|보류)/.test(e.message); await c.query("rollback to savepoint g"); }
+  ok("교재 보류 교재로 낸 시험은 DB 가 막는다", blocked);
   let free = true; try { await c.query("savepoint h"); await c.query(`insert into v2.quiz(student_id, kind, source, free_note, assigned_on, state) values ($1, 'word', 'manual', '직접 범위', '2026-10-20', 'planned')`, [S]); await c.query("release savepoint h"); } catch (e) { free = false; await c.query("rollback to savepoint h"); }
-  ok("직접 범위는 멈춤과 상관없다", free);
+  ok("직접 범위는 보류과 상관없다", free);
   console.log("■ 🔤 시험 카드 자리는 아이마다가 **아니다**((어12) · 원장님 2026-09-13 「차라리 무조건 단어를 숙제검사 마지막에 넣어」) · 0143 의 students.quiz_pos 칸은 남지만(멱등 · 되돌리지 않는다) 아무도 안 읽는다");
   ok("0143 칸은 그대로 · 값 start · 코드가 안 읽으니 값이 무엇이든 화면은 같다", (await c.query(`select quiz_pos from v2.students where id=$1`, [S])).rows[0]?.quiz_pos === "start");
 } finally { await c.query("rollback"); await c.end(); }

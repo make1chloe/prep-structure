@@ -1,19 +1,19 @@
 "use server";
-/** 내 할 일 05 의 손 — 학원 사람만. 판단·쓰기는 lib/todo.js 한 벌(끝냄 · 되돌리기 · 마감 · 빼기 · 단원평가 출제 · 메모 · 되풀이 · 한 번에 뽑기 · 자료 빼기). 지우는 손이 없다(대전제-6) */
+/** 내 업무 05 의 손 · 학원 사람만. 판단·쓰기는 lib/todo.js 한 벌(끝냄 · 되돌리기 · 마감 · 빼기 · 단원평가 출제 · 메모 · 반복 · 한 번에 뽑기 · 자료 빼기). 지우는 손이 없다(대전제-6) */
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored } from "@/lib/todo";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "할 일 05");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "업무 05");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
 export async function undoAct(todoId) { return wrap(async () => { const { sb } = await staff(); return undoTodo(sb, todoId); }); }
 export async function dueAct(todoId, dueOn) { return wrap(async () => { const { sb } = await staff(); await setTodoDue(sb, todoId, dueOn); return {}; }); }
 export async function dropAct(todoId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropTodo(sb, todoId, why); return {}; }); }
 export async function unitTestAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addUnitTest(sb, { studentId: f?.studentId, topicId: f?.topicId, qCount: f?.qCount ?? 25 }) }; }); }
 export async function unitTestMadeAct(id) { return wrap(async () => { const { sb } = await staff(); await unitTestMade(sb, id, await today(sb)); return {}; }); }
-export async function unitTestDueAct(due) { return wrap(async () => { const { sb } = await staff(); await makeDueUnitTest(sb, due ?? {}, await today(sb)); return {}; }); }   // (버) 저절로 선 카드의 「출제함」
+export async function unitTestDueAct(due) { return wrap(async () => { const { sb } = await staff(); await makeDueUnitTest(sb, due ?? {}, await today(sb)); return {}; }); }   // (버) 저절로 선 카드의 「출제 완료」
 export async function noteAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addNote(sb, { title: f?.title, dueOn: f?.dueOn, dueTime: f?.dueTime || null, studentId: f?.studentId || null, note: f?.note || null }) }; }); }
 export async function quizPaperAct(quizId, on) { return wrap(async () => { const { sb } = await staff(); await setQuizPaper(sb, quizId, Boolean(on)); return {}; }); }
 export async function repeatAct(f) { return wrap(async () => { const { sb } = await staff(); return addRepeat(sb, { name: f?.name, every: f?.every, day: f?.day, weekday: f?.weekday, lead: f?.lead, days: f?.days, left: f?.left }, await today(sb)); }); }
@@ -21,4 +21,4 @@ export async function repeatActiveAct(id, active) { return wrap(async () => { co
 export async function printAllAct(materialIds) { return wrap(async () => { const { sb } = await staff(); return printAll(sb, materialIds); }); }
 export async function scoredAct(materialId, studentId, on) { return wrap(async () => { const { sb } = await staff(); return setScored(sb, String(materialId), String(studentId), Boolean(on)); }); }   // ✅ 채점 아이마다((가)-⑧)
 export async function dropMaterialAct(materialId, why = null) { return wrap(async () => { const { sb } = await staff(); await dropMaterial(sb, materialId, why); return {}; }); }
-export async function manyAct(ids, op, value = null) { return wrap(async () => { const { sb } = await staff(); return todoMany(sb, ids, op, value); }); }   // (어28)-③ 고른 할 일에 한 번에(done · undo · due · drop)
+export async function manyAct(ids, op, value = null) { return wrap(async () => { const { sb } = await staff(); return todoMany(sb, ids, op, value); }); }   // (어28)-③ 고른 업무에 한 번에(done · undo · due · drop)

@@ -1,9 +1,9 @@
-/** 자료함 판단 검사(검사-62) — lib/files-plan.js 순수 셈: 갈래 여섯 · 종류 목록(버킷과 같은 벌) · 크기 글 · 확장자·경로 · 사진 줄이기 계획 · 한 번에 N장 · 파일 하나 검사(종류·크기) · 누가 보냈나 · 저절로 꼬리표 · 방금 온 것 줄 · 갈래별 칸(학교·학년 · 아이별 · 빈 묶음 없음) · 가장 또렷 · 보낸 것 줄(N/M) · 아이 쪽 1달(규칙) · 숫자 셋 · 보내기 양식 */
+/** 자료실 판단 검사(검사-62) · lib/files-plan.js 순수 셈: 유형 여섯 · 종류 목록(버킷과 같은 벌) · 크기 글 · 확장자·경로 · 사진 줄이기 계획 · 한 번에 N장 · 파일 하나 검사(종류·크기) · 누가 보냈나 · 저절로 꼬리표 · 방금 온 것 줄 · 유형별 칸(학교·학년 · 아이별 · 빈 올린 기록 없음) · 가장 또렷 · 보낸 것 줄(N/M) · 아이 쪽 1달(규칙) · 숫자 셋 · 보내기 양식 */
 import { KINDS, ALLOWED_MIME, isImage, icon, sizeText, extOf, pathFor, shrinkPlan, acceptBatch, checkFile, whoText, autoTag, inboxRows, columns, sharpest, sentRows, childLinks, counts, sendTargets, AUTO_REPLY, isAutoReply, replyText, myUploads, pickRows, withoutPick } from "../lib/files-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
-console.log("■ 자료함 판단(순수)");
-ok("갈래 여섯 · 수행평가 · 시험 안내 · 수업자료 · 학사일정 · 가정통신문 · 그 밖(0015 의 check 와 같다)", KINDS.join() === "수행평가,시험 안내,수업자료,학사일정,가정통신문,그 밖");
+console.log("■ 자료실 판단(순수)");
+ok("유형 여섯 · 수행평가 · 시험 안내 · 수업자료 · 학사일정 · 가정통신문 · 그 밖(0015 의 check 와 같다)", KINDS.join() === "수행평가,시험 안내,수업자료,학사일정,가정통신문,그 밖");
 ok("종류 목록 · 사진·pdf·한글·워드·엑셀·파워포인트·글 22가지(9000 버킷과 같은 벌) · 사진 판별 · 아이콘", ALLOWED_MIME.length === 22 && isImage("image/heic") && !isImage("application/pdf") && icon("image/png") === "📷" && icon("application/pdf") === "📄");
 ok("크기 글 · 480KB · 2.1MB · 0 은 1KB", sizeText(480 * 1024) === "480KB" && sizeText(2.1 * 1048576) === "2.1MB" && sizeText(0) === "1KB");
 ok("확장자 · 이름에서(대문자도) · 없으면 종류에서 · 모르면 bin · 경로는 연/월/아이디.확장자(사람 이름 없음)", extOf("안내문.JPG", "image/jpeg") === "jpg" && extOf("사진", "image/png") === "png" && extOf("x", "application/x-hwp") === "bin" && pathFor("2026-09-06", "abc", "jpg") === "2026/09/abc.jpg");
@@ -22,7 +22,7 @@ const bins = [
   { id: "b4", school_id: null, school: null, grade: null, term: null, kind: "그 밖", files: [{ id: "x5", mime: "image/jpeg", bytes: 100, uploaded_at: "2026-09-03T00:00:00Z", student_id: "k1", student_name: "강민서" }, { id: "x6", mime: "image/jpeg", bytes: 100, uploaded_at: "2026-09-04T00:00:00Z", student_id: "k9", student_name: "서예린" }] },
 ];
 const cols = columns(bins);
-ok("갈래별 칸 · 옥련여고 1(4개 · 카드 둘: 「26-1 수행평가 사진 2 · 문서 1 · 2.1MB · 같은 것 2장 · 마지막 9/2」 · 「학사일정」) · 빈 묶음(신정중)은 없다 · 🧑‍🎓 아이별(강민서·서예린 · 학교와 상관없는 것)", cols.length === 2 && cols[0].title === "🏫 옥련여고 1" && cols[0].n === 4 && cols[0].cards[0].title === "26-1 수행평가" && cols[0].cards[0].sub === "사진 2 · 문서 1 · 2.1MB" && cols[0].cards[0].same === 2 && cols[0].cards[0].last === "9/2" && cols[0].cards[1].title.includes("학사일정") && cols[1].key === "kids" && cols[1].cards.length === 2 && cols[1].cards[0].why === "학교와 상관없는 것", JSON.stringify(cols.map((c) => [c.title, c.n, c.cards.map((x) => [x.title, x.sub, x.same, x.last])])));
+ok("유형별 칸 · 옥련여고 1(4개 · 카드 둘: 「26-1 수행평가 사진 2 · 문서 1 · 2.1MB · 같은 것 2장 · 마지막 9/2」 · 「학사일정」) · 빈 올린 기록(신정중)은 없다 · 🧑‍🎓 아이별(강민서·서예린 · 학교와 상관없는 것)", cols.length === 2 && cols[0].title === "🏫 옥련여고 1" && cols[0].n === 4 && cols[0].cards[0].title === "26-1 수행평가" && cols[0].cards[0].sub === "사진 2 · 문서 1 · 2.1MB" && cols[0].cards[0].same === 2 && cols[0].cards[0].last === "9/2" && cols[0].cards[1].title.includes("학사일정") && cols[1].key === "kids" && cols[1].cards.length === 2 && cols[1].cards[0].why === "학교와 상관없는 것", JSON.stringify(cols.map((c) => [c.title, c.n, c.cards.map((x) => [x.title, x.sub, x.same, x.last])])));
 ok("가장 또렷 · 사진 중 가장 큰 것(1.4MB) · 사진이 하나면 없음", sharpest(bins[0].files) === "x1" && sharpest(bins[1].files) === null);
 const sent = sentRows([{ id: "f9", orig_name: "어순 정리.pdf", mime: "application/pdf", bytes: 200000, uploaded_at: "2026-09-02T00:00:00Z", links: [{ day_item_id: "i1", student_name: "강민서", sheet_date: "2026-09-02", item_name: "CH5 부정사", seen_by_child: "saved", seen_at: "2026-09-02T10:00:00Z" }, { day_item_id: "i2", student_name: "윤도현", sheet_date: "2026-09-02", item_name: "CH5 부정사", seen_by_child: "skip" }, { day_item_id: "i3", student_name: "한지우", sheet_date: "2026-09-02", item_name: "CH5 부정사", seen_by_child: null }] }]);
 ok("보낸 것 줄 · 붙인 자리 「강민서 · 9/2 숙제 · CH5 부정사」 · 💾 저장 · ✓ 안 보기 · 아직 · 2/3", sent[0].links[0].target === "강민서 · 9/2 숙제 · CH5 부정사" && sent[0].links.map((l) => l.seen).join() === "💾 저장,✓ 안 보기,아직" && sent[0].done === 2 && sent[0].total === 3);
@@ -33,13 +33,13 @@ const links = [
 ];
 const cl = childLinks(links, "2026-09-06", 30);
 ok("아이 쪽 1달 · 아직 1(9/5 · 10/5까지 보여요) · 지난 것 1(💾 저장 · PSS) · 1달 지난 것 1은 개수만 · 규칙 60일이면 셋 다", cl.pending.length === 1 && cl.pending[0].until === "10/5" && cl.pending[0].item === "워크북" && cl.past.length === 1 && cl.past[0].seen === "💾 저장" && cl.past[0].item === "PSS" && cl.hidden === 1 && childLinks(links, "2026-09-06", 70).hidden === 0, JSON.stringify(cl));
-ok("숫자 셋 · 받은 것 = 방금 온 것 + 묶음의 파일 · 보낸 것 · 안 본 것 = 방금 온 것", JSON.stringify(counts({ inbox: [1, 2], bins, sent: [1] })) === JSON.stringify({ received: 8, sent: 1, unsorted: 2 }));
+ok("숫자 셋 · 받은 것 = 방금 온 것 + 올린 기록의 파일 · 보낸 것 · 안 본 것 = 방금 온 것", JSON.stringify(counts({ inbox: [1, 2], bins, sent: [1] })) === JSON.stringify({ received: 8, sent: 1, unsorted: 2 }));
 const st = [{ id: "k1", name: "강민서", sheet: { id: "s", date: "2026-09-06", items: [{ id: "i1", name: "CH5 부정사" }] } }, { id: "k2", name: "윤도현", sheet: { id: "s2", date: "2026-09-04", items: [] } }, { id: "k3", name: "한지우", sheet: null }];
-ok("보내기 양식 · 아이 → 마지막 판의 숙제 줄 · 숙제 줄이 없으면 「N/D 판에 숙제 줄이 없습니다」 · 판이 없으면 그렇게 · 안 고르면 고르라고", sendTargets(st, "k1").items.length === 1 && sendTargets(st, "k2").why.startsWith("9/4 판에 숙제 줄이 없습니다") && sendTargets(st, "k3").why.startsWith("이 아이의 숙제 판이 없습니다") && sendTargets(st, "").why === "아이를 고르세요");
+ok("보내기 양식 · 아이 → 마지막 판의 숙제 줄 · 숙제 줄이 없으면 「N/D 수업 일지에 숙제 줄이 없습니다」 · 판이 없으면 그렇게 · 안 고르면 고르라고", sendTargets(st, "k1").items.length === 1 && sendTargets(st, "k2").why.startsWith("9/4 수업 일지에 숙제 줄이 없습니다") && sendTargets(st, "k3").why.startsWith("이 아이의 오늘 숙제가 없습니다") && sendTargets(st, "").why === "아이를 고르세요");
 ok("② 원장님 답 · 자동 글 「받았어요. 「수행평가」로 넣었어요」(SQL file_sort 와 같은 꼴) · 자동 글 판별 · 고쳐 쓴 글은 자동이 아님 · 없으면 「아직 안 봤어요」", AUTO_REPLY("수행평가") === "받았어요. 「수행평가」로 넣었어요" && isAutoReply(AUTO_REPLY("그 밖")) && !isAutoReply("잘 받았어요. 월요일에 볼게요") && replyText({}) === "아직 안 봤어요" && replyText({ reply: "네" }) === "네");
 const mine = myUploads([{ id: "u1", orig_name: "a.jpg", mime: "image/jpeg", bytes: 2048, uploaded_at: "2026-09-06T01:00:00Z", reply: null, students: { name: "강민서" } }, { id: "u2", orig_name: "b.pdf", mime: "application/pdf", bytes: 1024, uploaded_at: "2026-09-05T01:00:00Z", reply: AUTO_REPLY("수행평가"), students: null }]);
 ok("내가 보낸 것 줄 · 새것 그대로 · 사진은 미리보기 · 아이 이름(학부모 카드) · 답 없으면 ⏳ 「아직 안 봤어요」 · 답 있으면 replied", mine[0].photo === true && mine[0].kid === "강민서" && mine[0].replied === false && mine[0].reply === "아직 안 봤어요" && mine[0].when === "9/6" && mine[1].photo === false && mine[1].replied === true && mine[1].reply.includes("수행평가"), JSON.stringify(mine));
 const picks = [{ name: "a.jpg", size: 2048, type: "image/jpeg" }, { name: "b.pdf", size: 1024, type: "application/pdf" }];
 ok("⑦ 보내기 전 고른 파일 줄 · 사진은 미리보기 · 크기 · 하나를 빼면 나머지만 보낸다", pickRows(picks)[0].photo === true && pickRows(picks)[1].photo === false && pickRows(picks)[1].size === "1KB" && withoutPick(picks, 0).map((f) => f.name).join() === "b.pdf" && withoutPick(picks, 9).length === 2);
-console.log(`\n■ 자료함 검사 ${n}건 · 실패 ${bad}`);
+console.log(`\n■ 자료실 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

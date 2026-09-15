@@ -1,4 +1,4 @@
-/** 일정 판단 검사(검사-52) — lib/schedule-plan.js 순수 셈: 칸의 일들과 차례(휴강 › 결석 › 영어일 › 시험 › 보강 › 지각 › 할 일) · 반 고르기 · 회차(8회 채우기 · 특강) · 보강 안 잡힘 · 하루의 줄 · 42칸 · (처) 대시보드 「8회를 못 채웁니다」 */
+/** 일정 판단 검사(검사-52) · lib/schedule-plan.js 순수 셈: 칸의 일들과 차례(휴강 › 결석 › 영어 시험일 › 시험 › 보강 › 지각 › 업무) · 반 고르기 · 회차(8회 채우기 · 특강) · 보강 안 잡힘 · 하루의 줄 · 42칸 · (처) 대시보드 「8회를 못 채웁니다」 */
 import { eventsOf, monthCells, dayRows, sessionsOf, unscheduled, classText, dayTitle, confirmState, confirmText, canConfirm, LEGEND, EVENT, shortClasses } from "../lib/schedule-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
@@ -12,10 +12,10 @@ const b = {
   rules: { "schedule.sessions_per_month": "8" },
 };
 console.log("■ 칸의 일들");
-ok("14일 · 결석(강민서, 구도은 · 물린 아이 빠짐) · 영어 시험일(모의고사) · 시험 기간(신정중) · 차례: 결석 › 영어일 › 시험", eventsOf("2026-10-14", b).map((e) => e.kind).join() === "abs,exam2,exam" && eventsOf("2026-10-14", b)[0].text === "✕ 결석 · 강민서, 구도은", JSON.stringify(eventsOf("2026-10-14", b)));
+ok("14일 · 결석(강민서, 구도은 · 물린 아이 빠짐) · 영어 시험일(모의고사) · 시험 기간(신정중) · 차례: 결석 › 영어 시험일 › 시험", eventsOf("2026-10-14", b).map((e) => e.kind).join() === "abs,exam2,exam" && eventsOf("2026-10-14", b)[0].text === "✕ 결석 · 강민서, 구도은", JSON.stringify(eventsOf("2026-10-14", b)));
 ok("16일 · 영어 시험일만(그날은 시험 기간 줄을 겹쳐 안 쓴다)", eventsOf("2026-10-16", b).map((e) => e.text).join() === "📝 영어 시험일 · 신정중");
 ok("3일 휴강(전체) · 20일 휴강(반 · 전체 보기엔 「(반)」 · 화목반 고르면 그대로 · 월수반 고르면 없음) · 무른 휴강은 안 뜬다", eventsOf("2026-10-03", b)[0].text === "🚫 휴강 · 개천절" && eventsOf("2026-10-20", b)[0].text === "🚫 휴강 · 원장 연수 (반)" && eventsOf("2026-10-20", b, "c2")[0].text === "🚫 휴강 · 원장 연수" && eventsOf("2026-10-20", b, "c1").length === 0 && eventsOf("2026-10-21", b).length === 0);
-ok("18일 보강(강민서 14:00) · 29일 반 보강일(8회 채우기 17:00) · 19일 지각 30분 · 26일 할 일", eventsOf("2026-10-18", b)[0].text === "↻ 보강 14:00 · 강민서" && eventsOf("2026-10-29", b)[0].text === "↻ 보강 · 8회 채우기 17:00" && eventsOf("2026-10-19", b)[0].text === "⏰ 지각 30분 · 서예린" && eventsOf("2026-10-26", b)[0].text === "📋 11월 수납 안내");
+ok("18일 보강(강민서 14:00) · 29일 반 보강일(8회 채우기 17:00) · 19일 지각 30분 · 26일 업무", eventsOf("2026-10-18", b)[0].text === "↻ 보강 14:00 · 강민서" && eventsOf("2026-10-29", b)[0].text === "↻ 보강 · 8회 채우기 17:00" && eventsOf("2026-10-19", b)[0].text === "⏰ 지각 30분 · 서예린" && eventsOf("2026-10-26", b)[0].text === "📋 11월 수납 안내");
 ok("반을 고르면 그 반 아이들만 · 화목반 14일은 구도은만 · 월수반 19일 지각은 서예린", eventsOf("2026-10-14", b, "c2")[0].text === "✕ 결석 · 구도은" && eventsOf("2026-10-19", b, "c1").length === 1 && eventsOf("2026-10-19", b, "c2").length === 0);
 console.log("■ 회차 · 알약 · 달력");
 ok("회차 · 월수 9회 「8회 채움 ✓」 · 화목 7회 「⚠️ 1회 모자람 · 보강 필요」 · 특강은 「회차만큼」(ok 없음)", sessionsOf(b.classes[0], 8).text === "8회 채움 ✓" && sessionsOf(b.classes[1], 8).short === 1 && sessionsOf(b.classes[1], 8).text.includes("1회 모자람") && sessionsOf(b.classes[2], 8).ok === null);
@@ -25,9 +25,9 @@ const cells = monthCells("2026-10", b, { today: "2026-10-14", sel: "2026-10-14" 
 ok("42칸 · 월요일부터(9/28 부터) · 그 달 밖 칸엔 일이 없다 · 오늘·고른 날", cells.length === 42 && cells[0].date === "2026-09-28" && cells[0].out && cells[0].events.length === 0 && cells.find((c) => c.date === "2026-10-14").isToday && cells.find((c) => c.date === "2026-10-14").sel);
 console.log("■ 하루의 줄");
 const rows = dayRows("2026-10-14", b);
-ok("14일 줄 · 결석(아이마다 사유 → 보강 잡힘/안 잡힘 · 잡을 아이 목록) · 시험 둘(기간 · 영어일 · 출처 나이스) · 날 제목 「10월 14일 수」", rows[0].kind === "abs" && rows[0].small === "강민서 가족 여행 → 보강 10/18 14:00 · 구도은 학교 행사 → 보강 안 잡힘" && rows[0].items.length === 2 && rows.filter((r) => r.kind === "exam" || r.kind === "exam2").length === 2 && rows.find((r) => r.kind === "exam").tag === "나이스" && dayTitle("2026-10-14") === "10월 14일 수", JSON.stringify(rows.map((r) => [r.kind, r.title])));
+ok("14일 줄 · 결석(아이마다 사유 → 보강 잡힘/안 잡힘 · 잡을 아이 목록) · 시험 둘(기간 · 영어 시험일 · 출처 나이스) · 날 제목 「10월 14일 수」", rows[0].kind === "abs" && rows[0].small === "강민서 가족 여행 → 보강 10/18 14:00 · 구도은 학교 행사 → 보강 안 잡힘" && rows[0].items.length === 2 && rows.filter((r) => r.kind === "exam" || r.kind === "exam2").length === 2 && rows.find((r) => r.kind === "exam").tag === "나이스" && dayTitle("2026-10-14") === "10월 14일 수", JSON.stringify(rows.map((r) => [r.kind, r.title])));
 ok("29일 줄 · 반 보강일 한 줄(아이 이름들 · 물릴 id 들)", dayRows("2026-10-29", b)[0].ids.join() === "m3" && dayRows("2026-10-29", b)[0].small === "강민서");
-ok("범례 일곱 · 일의 갈래 일곱(차례)", LEGEND.length === 7 && EVENT.map(([k]) => k).join() === "hol,abs,exam2,exam,mk,late,todo");
+ok("범례 일곱 · 일의 유형 일곱(차례)", LEGEND.length === 7 && EVENT.map(([k]) => k).join() === "hol,abs,exam2,exam,mk,late,todo");
 // ── 그 달 확정 도장(4단계-3b · 원장님 9/7 ㉚ 「예상수업일정보내기 기능 필요없음 무조건확정후 알림」) — 도장 하나 · 반마다 · 휴강이 푼다
 const cls2 = [{ id: "c1" }, { id: "c2" }], at1 = "2026-09-20T05:00:00Z", at2 = "2026-09-21T05:00:00Z", un = "2026-09-22T01:00:00Z";
 ok("확정 도장 · 도장 없으면 none · 반 둘 다 살아 있으면 ok(가장 늦은 때)", confirmState([], cls2).state === "none" && (() => { const s = confirmState([{ class_id: "c1", at: at1, undone_at: null }, { class_id: "c2", at: at2, undone_at: null }], cls2); return s.state === "ok" && s.ok === 2 && s.all === 2 && s.at === at2; })());

@@ -6,7 +6,7 @@ import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { inquiryBoard, addInquiry, setInquiry, answerInquiry, setStage, convertInquiry, stageMany, answerMany } from "@/lib/inquiry";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "신규 상담 18");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "신규 상담 18");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addInquiry(sb, f ?? {}) }; }); }
 export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); return setInquiry(sb, id, f ?? {}, seenAt); }); }   // seenAt: 읽어 둔 고친 때(0-3)
 export async function answerAct(id) { return wrap(async () => { const { sb } = await staff(); return answerInquiry(sb, id); }); }   // (커) { sms } — 문자 결과(없으면 null)

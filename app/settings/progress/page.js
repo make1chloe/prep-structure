@@ -13,6 +13,6 @@ export default async function ProgressEdit() {
   if (!isStaff(me?.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">✎</span>진도 체크 열기는 학원 사람의 화면입니다</div><p className="note">{me ? `${ROLE_NAME[me.role] ?? me.role} 계정입니다. 내 진도는 「나 › 내 교재」에서 찍습니다.` : "로그인이 필요합니다."}</p></div>);
   let d;
   try { const date = await today(sb); d = { date, board: await progressBoard(sb, date) }; }
-  catch (e) { { console.error("[화면] 진도 체크 판 못 엶:", e); return frame(<Oops what="진도 체크 판" e={e} />); } }
+  catch (e) { { console.error("[화면] 진도 체크 못 엶:", e); return frame(<Oops what="진도 체크" e={e} />); } }
   return frame(<Board d={d} />);
 }

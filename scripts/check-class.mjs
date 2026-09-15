@@ -1,4 +1,4 @@
-/** 반 판단 검사(4단계-3a) — lib/class-plan.js 순수 셈: 양식 읽기(이름·갈래·요일·시각·이 날부터) · 단가 읽기 · 요일·시각 글 · 반 한 줄 · 단가 글 · 넣을 아이 후보 · 그 시각 아이 수 글 */
+/** 반 판단 검사(4단계-3a) · lib/class-plan.js 순수 셈: 양식 읽기(이름·유형·요일·시각·이 날부터) · 단가 읽기 · 요일·시각 글 · 반 한 줄 · 단가 글 · 넣을 아이 후보 · 그 시각 아이 수 글 */
 import { parseClass, parseSchedule, parseClassFee, weekdayText, timeText, classLine, feeText, candidates, slotText, kindName } from "../lib/class-plan.js";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -8,7 +8,7 @@ const threw = (fn) => { try { fn(); return false; } catch { return true; } };
 console.log("■ 양식 읽기");
 const c = parseClass({ nickname: " 중2 월수 ", kind: "regular", weekdays: ["3", 1, 1, 9], start: "16:00", end: "17:30", fromDate: "2026-09-08" });
 ok("이름은 다듬고 · 요일은 0~6 만 · 겹침 하나로 · 차례로(1,3) · 시각 · 이 날부터", c.nickname === "중2 월수" && c.kind === "regular" && c.weekdays.join() === "1,3" && c.start === "16:00" && c.end === "17:30" && c.fromDate === "2026-09-08", JSON.stringify(c));
-ok("막는 것 · 이름 없음 · 갈래 아님 · 요일 없음 · 시각 꼴 · 끝이 앞 · 날짜 없음", threw(() => parseClass({ nickname: "", weekdays: [1], start: "16:00", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseClass({ nickname: "a", kind: "x", weekdays: [1], start: "16:00", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [], start: "16:00", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [1], start: "4시", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [1], start: "17:00", end: "16:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [1], start: "16:00", end: "17:00", fromDate: "" })));
+ok("막는 것 · 이름 없음 · 유형 아님 · 요일 없음 · 시각 꼴 · 끝이 앞 · 날짜 없음", threw(() => parseClass({ nickname: "", weekdays: [1], start: "16:00", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseClass({ nickname: "a", kind: "x", weekdays: [1], start: "16:00", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [], start: "16:00", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [1], start: "4시", end: "17:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [1], start: "17:00", end: "16:00", fromDate: "2026-09-08" })) && threw(() => parseSchedule({ weekdays: [1], start: "16:00", end: "17:00", fromDate: "" })));
 const f = parseClassFee({ amount: "150,000원", perSession: true, fromDate: "2026-10-01" });
 ok("단가 · 「150,000원」 → 150000 · 회차제 · 이 날부터 · 0 이면 막는다", f.amount === 150000 && f.perSession === true && f.fromDate === "2026-10-01" && threw(() => parseClassFee({ amount: "0", fromDate: "2026-10-01" })));
 console.log("■ 글");

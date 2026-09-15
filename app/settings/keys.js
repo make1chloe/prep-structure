@@ -1,9 +1,9 @@
 "use client";
-/** 🔌 연동 열쇠(설정 · (터) 원장님 2026-09-10 「웹앱 자체에서 솔라피 연동정보를 바꿀수있어야해 매번 코드바꿀수없어」 · 확정-72) —
- *  원장만 봅니다. 넣어 둔 열쇠는 **가려서만** 보이고(●●●● · 앞 넉 자), 고칠 칸만 적어 저장합니다(빈 칸은 그대로 · 「-」 한 글자면 지웁니다).
+/** 🔌 연동 설정(설정 · (터) 원장님 2026-09-10 「웹앱 자체에서 솔라피 연동정보를 바꿀수있어야해 매번 코드바꿀수없어」 · 확정-72) ·
+ *  원장만 봅니다. 넣어 둔 키는 **가려서만** 보이고(●●●● · 앞 넉 자), 고칠 칸만 적어 저장합니다(빈 칸은 그대로 · 「-」 한 글자면 지웁니다).
  *  (퍼) 원장님 2026-09-10 「저장이안돼 뭔가 자동완성같은데 · 고쳐도 다시 보면 계속 저 화면으로바뀌어」 —
  *  범인은 브라우저 **자동완성**이었다. 비밀 칸을 감추려고 쓰던 것이 짝(아이디+비밀번호)으로 보여서, 크롬이 위 칸에
- *  로그인 이메일(bdyj10@gmail.com)을 · 아래 칸에 로그인 비밀번호를 넣어 열쇠를 덮었다. 그래서
+ *  로그인 이메일(bdyj10@gmail.com)을 · 아래 칸에 로그인 비밀번호를 넣어 키를 덮었다. 그래서
  *  ① 어느 칸도 짝으로 보이지 않게 하고(가리기는 -webkit-text-security 로 한다) ② 칸마다 자동완성 끄기를 붙이고
  *  ③ 틀린 꼴(이메일 · 너무 짧음 · 번호 아님)은 **적는 그 자리에서** 빨갛게 말한다(저장도 막힌다 · lib/integration-plan.js fieldWhyBad). */
 import { useState, useTransition } from "react";
@@ -19,8 +19,8 @@ export default function Keys({ rows = [] }) {
   const [msg, setMsg] = useState(""); const [err, setErr] = useState(""); const [to, setTo] = useState("");
   const edit = (r) => { setOpen(open === r.id ? null : r.id); setForm(Object.fromEntries(r.fields.filter((f) => f.editable).map((f) => [f.k, f.editable]))); setMsg(""); setErr(""); };   // 비밀 아닌 칸(발신번호)은 지금 값을 채워 둔다 — 빈 칸이면 저장한 줄 모르신다
   const save = (id) => start(async () => { setErr(""); setMsg(""); const x = await saveKeysAct(id, form); if (!x.ok) { setErr(x.msg); return; } setMsg(x.text); setOpen(null); setForm({}); router.refresh(); });
-  const test = () => start(async () => { setErr(""); setMsg(""); const x = await testSmsAct(to); if (!x.ok) { setErr(x.msg); return; } setMsg(x.sent ? `보냈습니다. ${x.to}` : x.sink === "off" ? `리허설(NOTIFY_SINK=off)이라 자취만 · ${x.to}` : `못 보냈습니다. ${x.why}`); router.refresh(); });
-  return (<div className="card" data-card="keys" id="keys"><div className="ctitle"><span className="cemo">🔌</span>연동 열쇠</div>
+  const test = () => start(async () => { setErr(""); setMsg(""); const x = await testSmsAct(to); if (!x.ok) { setErr(x.msg); return; } setMsg(x.sent ? `보냈습니다. ${x.to}` : x.sink === "off" ? `리허설(NOTIFY_SINK=off)이라 발송 이력만 · ${x.to}` : `못 보냈습니다. ${x.why}`); router.refresh(); });
+  return (<div className="card" data-card="keys" id="keys"><div className="ctitle"><span className="cemo">🔌</span>연동 설정</div>
     {err && <p className="note" role="alert" style={{ color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="keys-msg" style={{ color: "var(--on-ok)" }}>{msg}</p>}
     <div className="left">{rows.map((r) => (<div key={r.id} data-g="key-row" data-key={r.id} data-ready={r.ready ? "1" : "0"}>

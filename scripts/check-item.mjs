@@ -22,7 +22,7 @@ ok("손 글이 제목인 줄(단원 있음) → 단원 글만(「이번에」 �
 ok("쪽 · 시작=끝이면 p.12 · 다르면 p.13-14 · 없으면 null", pagesText(u3) === "p.12" && pagesText(u4) === "p.13-14" && pagesText({}) === null && pagesText(null) === null);
 console.log("■ 단원 여럿 · 한 줄 글");
 ok("단원 여럿(01 학습·숙제 한 줄) → 대단원 한 번 › 소단원들 · 쪽들 · 문항 합 · 조각(unitBits)으로도", unitsText([u3, u4], { book: false }) === "CHAPTER 1 › PSS 1-3 간접의문문 Ⅰ · PSS 1-4 간접의문문 Ⅱ · p.12 · p.13-14 · 27문항" && unitsText([u3, u4]).startsWith("zz_리허설 문법책 · ") && unitBits([u3, u4], { book: false }).q === "27문항" && unitBits([]) === null && unitsText([]) === "");
-ok("한 줄 글(늦귀가 사유 칩) · 제목 · 손 글(제목과 다를 때만)", itemLine({ learn_items: { name: "교재" }, range_note: "CHAPTER 1 · 10-18번" }) === "교재 · CHAPTER 1 · 10-18번" && itemLine({ range_note: "워크북" }) === "워크북" && itemLine(laid) === "zz_워크북 복습");
+ok("한 줄 글(하원 지연 사유 칩) · 제목 · 손 글(제목과 다를 때만)", itemLine({ learn_items: { name: "교재" }, range_note: "CHAPTER 1 · 10-18번" }) === "교재 · CHAPTER 1 · 10-18번" && itemLine({ range_note: "워크북" }) === "워크북" && itemLine(laid) === "zz_워크북 복습");
 console.log("■ 글을 만드는 자리는 하나 · 다시 흩어지면 여기서 잡는다");
 const files = (d) => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? (f === "node_modules" || f === ".next" ? [] : files(p)) : /\.(js|mjs)$/.test(f) ? [p] : []; });
 const src = [...files("app"), ...files("lib")].filter((p) => p !== "lib/item-plan.js").map((p) => [p, readFileSync(p, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1")]);

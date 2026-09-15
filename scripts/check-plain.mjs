@@ -1,5 +1,5 @@
 /** 앱 전체가 설명하지 않는다 — 검사-88((어14) · 대전제-15 를 01 밖으로. 원장님 2026-09-14 「ㅇㅇ가가가 무조건가」).
- *  2026-09-14 실측(01 뺀 32 화면): ⓘ 7 · 마우스 대면 설명 26 · 「~합니다」 설명 문장 29 · 14자 넘는 단추 6 · 960 폭 6 → 걷은 뒤 ⓘ 1 · 설명 title 0 · 문장 5(빈 자리 상태 글) · 긴 단추 0 · 960 0.
+ *  2026-09-14 실측(01 뺀 32 화면): ⓘ 7 · 마우스 대면 설명 26 · 「~합니다」 설명 문장 29 · 14자 넘는 단추 6 · 960 폭 6 → 걷은 뒤 ⓘ 1 · 설명 title 0 · 문장 5(빈 칸 상태 글) · 긴 단추 0 · 960 0.
  *  남긴 예외 둘(늘어나면 여기서 잡힌다): ① 발송 10 「켜는 법」 ⓘ — 앱 쓰임이 아니라 Vercel 에서 켜는 법 ② 잘린 글의 원문을 대는 title={…}(내용이지 설명이 아니다). 글자 검사는 주석을 먼저 지운다(폰-5) */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -23,10 +23,10 @@ const titles = src.flatMap(([p, s]) => htmlTags(s).flatMap((t) => [...t.matchAll
 const longTitles = titles.filter(([, t]) => t.trim().split(/\s+/).length > 2 || 한글(t) > 8 || /(습니다|입니다|합니다|됩니다|세요|십시오)[.)]?$/.test(t.trim())).map(([p, t]) => `${p}: ${t.slice(0, 30)}`);
 ok(`툴팁(title="…")은 명사 하나 둘 · 낱말 ≤ 2 · 8자 이하 · 문장 아님(지금 ${titles.length}개 중 긴 것 0)`, longTitles.length === 0, longTitles.slice(0, 5).join(" | "));
 const dyn = src.flatMap(([p, s]) => htmlTags(s).filter((t) => /\stitle=\{/.test(t)).map(() => p));
-ok(`내용을 대는 title={…} ≤ 4(지금 ${dyn.length} · 발송 10 자취 원문 · 발송 10 상태 아이콘 툴팁((어39) 명사 하나) · 학생 14 자료 이름 · 문자틀 note)`, dyn.length <= 4, dyn.join(", "));
+ok(`내용을 대는 title={…} ≤ 4(지금 ${dyn.length} · 발송 10 발송 이력 원문 · 발송 10 상태 아이콘 툴팁((어39) 명사 하나) · 학생 14 자료 이름 · 문자틀 note)`, dyn.length <= 4, dyn.join(", "));
 const texts = src.flatMap(([p, s]) => [...s.matchAll(/(?:className="note[^"]*"[^>]*>|<small[^>]*>|placeholder="?|\s(?:small|note|hint|text|sub)=")([^<{"]*)/g)].map((m) => [p, m[1].trim()]).filter(([, t]) => 한글(t) >= 2));
 const explain = texts.filter(([, t]) => /(합니다|됩니다|십시오|세요|입니다)[.)]?$/.test(t) || /(합니다|됩니다) · /.test(t));
-ok(`note·small·placeholder 의 「~합니다」 문장 ≤ 6(지금 ${explain.length} · 남은 것은 빈 자리 상태 글 「교재를 고르세요」류 · 9/14 걷기 전 29)`, explain.length <= 6, explain.map(([p, t]) => `${p.split("/").slice(1, 3).join("/")}: ${t.slice(0, 30)}`).join(" | "));
+ok(`note·small·placeholder 의 「~합니다」 문장 ≤ 6(지금 ${explain.length} · 남은 것은 빈 칸 상태 글 「교재를 고르세요」류 · 9/14 걷기 전 29)`, explain.length <= 6, explain.map(([p, t]) => `${p.split("/").slice(1, 3).join("/")}: ${t.slice(0, 30)}`).join(" | "));
 // (어39) 대전제-21 「설명은 간접 표시로」(원장님 2026-09-15 「글 대신 기호·아이콘·취소선·투명도 … 그런 간접적 방식으로 설명을 대체하라는 거잖아」) · 화면 글 토큰(String · Template · JSXText · 주석 뺌)의 「~니다 · ~세요 · ~십시오」 문장을 **파일마다** 센다.
 //   래칫: 파일마다 ≤ 기준(2026-09-15 실측 · 내려만 간다 · 없는 파일은 0) · 새 화면은 문장 없이 짓고, 고친 화면은 기준을 내린다. 상태는 아이콘·흐림·취소선·태그로, 글은 이름과 숫자로.
 { const espree = (await import("espree")).default ?? (await import("espree"));

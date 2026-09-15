@@ -1,4 +1,4 @@
-/** 폰·속도 규칙의 글자 검사(끝의 정의 「지킴: —」 0) — 폰-2 autoFocus 0 · 폰-4 당김 새로고침(overscroll-behavior) · 폰-5 글자 검사는 주석을 먼저 지운다 · 폰-7·속도-6 임시저장은 DB 판(브라우저 저장은 배색뿐) · 폰-8 scroll-margin-top · 속도-2 껍질은 배지·표를 안 읽는다 · 속도-5 낙관 갱신은 출결·○△✕ 자리뿐(useOptimistic 0) · 처음-7 코드가 읽는 환경변수는 다섯뿐(바깥 서비스 열쇠는 v2.integration 표에).
+/** 폰·속도 규칙의 글자 검사(끝의 정의 「지킴: ·」 0) · 폰-2 autoFocus 0 · 폰-4 당김 새로고침(overscroll-behavior) · 폰-5 글자 검사는 주석을 먼저 지운다 · 폰-7·속도-6 임시저장은 DB 판(브라우저 저장은 배색뿐) · 폰-8 scroll-margin-top · 속도-2 껍질은 배지·표를 안 읽는다 · 속도-5 낙관 갱신은 출결·○△✕ 자리뿐(useOptimistic 0) · 처음-7 코드가 읽는 환경변수는 다섯뿐(바깥 서비스 키는 v2.integration 표에).
  *  글자로 훑는다 — 주석을 먼저 지운다(폰-5) */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -31,7 +31,7 @@ ok("속도-5 낙관이 코드 글자로 남은 자리 0(판단은 lib · 되돌�
 console.log("■ 처음 규칙(글자)");
 const ENV = new Set(["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "NOTIFY_SINK", "CRON_SECRET"]);
 const envs = [...new Set(src.flatMap(([, s]) => [...s.matchAll(/(?:process\.env|\benv)\.([A-Z][A-Z0-9_]{3,})/g)].map((m) => m[1])))];
-ok(`처음-7 코드가 읽는 환경변수는 ${ENV.size}뿐(로그인 열쇠 둘 · 서버 열쇠 · 스위치 · 크론 열쇠) · 바깥 서비스 계정(푸시·AI·나이스·학원)은 v2.integration 표에`, envs.every((e) => ENV.has(e)), "밖의 것: " + envs.filter((e) => !ENV.has(e)).join(", "));
+ok(`처음-7 코드가 읽는 환경변수는 ${ENV.size}뿐(로그인 키 둘 · 서버 키 · 스위치 · 크론 키) · 바깥 서비스 계정(푸시·AI·나이스·학원)은 v2.integration 표에`, envs.every((e) => ENV.has(e)), "밖의 것: " + envs.filter((e) => !ENV.has(e)).join(", "));
 console.log("■ (어17) 아이·학부모 화면 · PC 최대 너비 · 폰 한 줄(원장님 9/14 「아이들 화면을 원내에서도 접속시켜서 pc에서는 최대너비로 보이게, 폰에서는 한줄로 보이게」)");
 const kidPages = ["app/me/page.js", "app/me/book/page.js", "app/me/videos/page.js", "app/me/cal/page.js", "app/parent/page.js", "app/parent/cal/page.js"].map((f) => [f, readFileSync(f, "utf8")]);
 ok("07·08·19·달력·09 틀은 1400(01 과 같은 최대 너비) · 560·720 없음", kidPages.every(([, s]) => /maxWidth: 1400/.test(s) && !/maxWidth: (560|720)\b/.test(s)), kidPages.filter(([, s]) => !/maxWidth: 1400/.test(s)).map(([f]) => f).join(", "));
@@ -41,7 +41,7 @@ console.log("■ (어19) 학원 화면 PC · 틀 1400 · 카드 목록 화면은
 const w1100 = src.filter(([p, s]) => /^app\//.test(p) && /maxWidth: 1100\b/.test(s)).map(([p]) => p);
 ok("학원 화면 틀 1100 은 0 · 전부 1400(01·아이 화면과 같은 최대 너비)", w1100.length === 0, w1100.join(", "));
 const colsPages = ["app/send/page.js", "app/send/monthly/page.js", "app/send/notice/page.js", "app/ops/files/page.js", "app/books/videos/page.js", "app/schedule/classes/page.js", "app/settings/page.js"];
-ok("카드 목록 화면 일곱(발송 · 월간 · 공지 · 자료함 · 영상 배정 · 반 · 설정)은 frame.cols · 목업 CSS 가 PC 두 열로 흘린다(머리줄·저장줄·모달은 걸침)", colsPages.every((f) => /className="frame cols"/.test(readFileSync(f, "utf8"))) && /@media\(min-width:1100px\)\{\s*\.frame\.cols\{column-count:2/.test(css) && /\.frame\.cols>\.mdlov\{column-span:all\}/.test(css), colsPages.filter((f) => !/className="frame cols"/.test(readFileSync(f, "utf8"))).join(", "));
+ok("카드 목록 화면 일곱(발송 · 월간 · 공지 · 자료실 · 영상 배정 · 반 · 설정)은 frame.cols · 목업 CSS 가 PC 두 열로 흘린다(머리줄·저장줄·모달은 걸침)", colsPages.every((f) => /className="frame cols"/.test(readFileSync(f, "utf8"))) && /@media\(min-width:1100px\)\{\s*\.frame\.cols\{column-count:2/.test(css) && /\.frame\.cols>\.mdlov\{column-span:all\}/.test(css), colsPages.filter((f) => !/className="frame cols"/.test(readFileSync(f, "utf8"))).join(", "));
 
 console.log(`\n■ 폰·속도 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

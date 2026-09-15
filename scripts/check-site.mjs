@@ -1,4 +1,4 @@
-/** 🏫 학교 홈페이지 받아오기 검사((버2) · 검사-81) — 나이스에 없는 학교의 학사일정.
+/** 🏫 학교 홈페이지 가져오기 검사((버2) · 검사-81) · 나이스에 없는 학교의 학사일정.
  *  이 길이 위험한 까닭은 **판단을 두 벌로 만들기 쉬워서**다(나이스에 있는 것을 홈페이지용으로 또 짜는 것).
  *  그래서 여기서 지키는 것은 하나 — **새 판단이 없다.** 꼴 옮기기만 새것이고, 나머지는 lib/neis-plan.js 그대로. */
 import { readFileSync } from "node:fs";
@@ -30,7 +30,7 @@ console.log("■ 못 쓸 줄은 막지 않고 버린다 · 상한");
 console.log("■ **새 판단이 없다** · 나이스와 같은 길로 들어온다(원칙-1)");
 ok("꼴 옮기기가 나이스 줄과 같다. planImport 가 그대로 먹는다(AA_YMD · EVENT_NM)", (() => { const r = toNeisShape("2026-05-04", "중간"); return r.AA_YMD === "20260504" && r.EVENT_NM === "중간" && "SBTR_DD_SC_NM" in r; })());
 { const site = src("lib/site.js"), plan = src("lib/site-plan.js");
-  ok("무엇이 시험인지·이름·기간·옛 줄에 잇기는 **lib/neis-plan.js 것을 그대로** 쓴다(홈페이지용으로 또 짜지 않는다)",
+  ok("무엇이 시험인지·이름·기간·옛 줄에 연결은 **lib/neis-plan.js 것을 그대로** 쓴다(홈페이지용으로 또 짜지 않는다)",
     /from "\.\/neis-plan\.js"/.test(site) && /planImport/.test(site) && /diffExams/.test(site)
     && !/kindOf|examName|mergeRuns/.test(plan));
   ok("**전국 회차는 홈페이지에서 안 만든다** · 나이스가 준다(두 벌이 된다)", /scope !== "national"/.test(site));
@@ -38,7 +38,7 @@ ok("꼴 옮기기가 나이스 줄과 같다. planImport 가 그대로 먹는다
   ok("쓰는 손은 lib/site.js 하나 · 받는 길은 app/api/site/route.js 하나(대전제-7)", (() => {
     const route = src("app/api/site/route.js");
     return /receiveSite/.test(route) && /authorization/i.test(route) && !/from\("exams"\)/.test(route); })());
-  ok("열쇠는 🃏 와 **같은 한 벌** · 원장님이 열쇠를 하나만 챙기신다 · 답에 안 실린다(대전제-9)", (() => {
+  ok("키는 🃏 와 **같은 한 벌** · 원장님이 키를 하나만 챙기신다 · 답에 안 실린다(대전제-9)", (() => {
     const route = src("app/api/site/route.js");
     return /ccToken/.test(route) && /sameToken/.test(route) && !/token[^s]*\}\)/.test(route.replace(/ccToken|sameToken/g, "")); })()); }
 

@@ -81,7 +81,7 @@ if (skip) {
 
 await c.end();
 // ── 표 모양을 바꾼 마이그레이션은 API 쪽 기억까지 새로 읽게 한다(원장님 2026-09-10 밤 — 0154 를 돌리신 뒤
-//    「자취를 못 남김: Could not find the 'channel' column of 'notify_log' in the schema cache」).
+//    「발송 이력을 못 남김: Could not find the 'channel' column of 'notify_log' in the schema cache」).
 //    표에는 칸이 있는데 Supabase 의 API(PostgREST)가 옛 모양을 기억하고 있으면 화면이 그 칸을 못 쓴다.
 { const RELOAD = /notify\s+pgrst\s*,\s*'reload schema'/i;
   const late = readdirSync("supabase/migrations").filter((f) => /^0\d{3}_/.test(f) && Number(f.slice(0, 4)) >= 154);

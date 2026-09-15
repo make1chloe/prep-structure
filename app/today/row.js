@@ -57,10 +57,10 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   const [hasNext, setHasNext] = useState(false);
   useEffect(() => { setHasNext(Boolean(nextOf(false))); }, [open, closed]);   // eslint-disable-line react-hooks/exhaustive-deps   // (어9) 지금 쓸 일이 없는 카드는 접어 둔다 — 설정이 아니라 상태로(원장님 2026-09-12 「더 편하고 간단하게 고도화」)
   const status = closed ? "마감됨" : student.plan?.absent && !sheet ? `결석 예정 · ${makeupText(student.plan)}` : attend === "absent" ? "결석 · 보강 안 잡힘" : student.plan?.makeup && !closed ? `보강 ${String(student.plan.at_time ?? "").slice(0, 5)}` : student.plan?.late && !sheet ? `지각 예정${student.plan.minutes ? ` ${student.plan.minutes}분` : ""}` : nLeft ? (unseenPill(sheet.check, date) || `검사 ${nLeft}/${nCheck} 남음`) : null;
-  // 카드 차례 — 기본은 생각의 흐름(① 검사 → ② 학습 · ③ 숙제 → 메모 → 늦귀가 → 글 · (어12)) · 바꾸면 그 사람 것((어15) screen_pref today · 확정-⑮ · 원장님 9/14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게」). 번호는 선 자리 순
+  // 카드 차례 · 기본은 생각의 흐름(① 검사 → ② 학습 · ③ 숙제 → 메모 → 하원 지연 → 글 · (어12)) · 바꾸면 그 사람 것((어15) screen_pref today · 확정-⑮ · 원장님 9/14 「차례를 바꾸고 싶으면 드래그로 바꿀 수 있게」). 번호는 선 자리 순
   const cards = sheet ? orderCards([
     { id: "check", name: "숙제 검사", steps: 1, badge: [checkText(sheet), ...checkIcons(student)].join(" · "), node: (no) => <CheckCard no={no} sheet={sheet} student={student} date={date} passPct={cfg?.unitPass} closed={closed} fail={fail} start={start} /> },
-    { id: "work", name: "오늘 학습 · 숙제", steps: 2, badge: workText(sheet, student.books ?? [], date), node: (no) => <WorkCard no={no} heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} onPrep={() => setSel("prep")} memoNode={<AreaMemoCard sheet={sheet} books={student.books ?? []} shut={null} closed={closed} fail={fail} start={start} />} lateNode={<LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} shut={null} closed={closed} fail={fail} start={start} />} folds={{ late: !sh.late?.shut, memo: !sh.areamemo?.shut, memoText: sh.areamemo?.text ?? "", lateText: sh.late?.text ?? "" }} /> },   // (어24) 🗺 메모·🌙 늦귀가는 오늘 학습 안 접이 — 적힌 것이 있으면 펴진 채(shutCards 한 곳)
+    { id: "work", name: "오늘 학습 · 숙제", steps: 2, badge: workText(sheet, student.books ?? [], date), node: (no) => <WorkCard no={no} heavyPages={cfg?.heavyPages ?? 0} sheet={sheet} books={student.books ?? []} next={student.quizzes?.next ?? []} scopes={student.scopes ?? []} date={date} minutes={minutes} closed={closed} fail={fail} start={start} onPrep={() => setSel("prep")} memoNode={<AreaMemoCard sheet={sheet} books={student.books ?? []} shut={null} closed={closed} fail={fail} start={start} />} lateNode={<LateCard sheet={sheet} warn={student.warn} stay={student.stay} books={student.books ?? []} studentId={student.id} date={date} classEnd={classEnd} shut={null} closed={closed} fail={fail} start={start} />} folds={{ late: !sh.late?.shut, memo: !sh.areamemo?.shut, memoText: sh.areamemo?.text ?? "", lateText: sh.late?.text ?? "" }} /> },   // (어24) 🗺 메모·🌙 하원 지연은 오늘 학습 안 접이 · 적힌 것이 있으면 펴진 채(shutCards 한 곳)
     { id: "prep", name: "내신 자료", emo: "📄", steps: 0, badge: prepBadge(prepList), node: () => <PrepCard student={student} prep={prep} date={date} closed={closed} /> },   // (어21) 교재가 멈춘 아이만 — 아래 filter
     { id: "comment", name: "부모님께 나갈 글", emo: "✉️", steps: 0, badge: closed ? "마감됨" : sheet.comment_ai ? "초안 준비됨" : (sh.comment?.text ?? ""), node: () => <CommentCard sheet={sheet} student={student} shut={sh.comment} closed={closed} fail={fail} start={start} cfg={cfg?.comment} phase={cfg?.phase} date={date} barHost={barHost} future={future} onCollapse={() => setOpen(false)} active={cur === "comment"} hasNext={hasNext} onNext={() => nextOf(true)} /> },
   ].filter((c) => c.id !== "prep" || prepList.length > 0), pref) : [];
@@ -87,7 +87,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
       {open && (
         <div className="panel">
           {err && <div ref={errRef} className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
-          {!sheet && <div className="card"><p className="note">판 없음 · 출결을 누르면 섭니다</p></div>}
+          {!sheet && <div className="card"><p className="note">수업 일지 없음 · 출결을 누르면 섭니다</p></div>}
           {sheet && <nav className="tasks" data-g="tasks" aria-label="업무">{heads.map((h) => <button key={h.id} type="button" className={"tk" + (h.done ? " done" : "")} data-g="task" data-task={h.id} data-done={h.done ? "1" : "0"} aria-pressed={cur === h.id} onClick={() => setSel(h.id)}><span className="n">{h.done ? "✓" : (h.no ?? h.emo)}</span><b>{h.name}</b><span className="spacer" /><span className="tb" data-g="task-badge">{h.badge}</span></button>)}</nav>}
           {sheet && <div className="tbodies">{bodies}</div>}
           {sheet && <div className="torder"><CardOrder screen="today" cards={cards.map((c) => ({ id: c.id, name: c.name }))} /></div>}
@@ -146,10 +146,10 @@ function CheckItem({ it, closed, fail, start, grouped = false }) {   // grouped:
 }
 /** 카드 머리의 한 줄 — **깔렸다고만 말하고 0개를 보여 주면 거짓말이다**(대전제-0).
  *  2026-09-11 첫 주 돌려보기: 시험 3주 전에 들어온 아이는 첫 수업부터 교재가 멈춰 있어 0·0 인데
- *  머리는 「검사에서 저절로 깔림」이라고 했다. 까닭(planBook 의 why)은 이미 sheet_book.waves.why 에 있다 — 그것을 쓴다. */
+ *  머리는 「검사에서 저절로 배정됨」이라고 했다. 까닭(planBook 의 why)은 이미 sheet_book.waves.why 에 있다 · 그것을 쓴다. */
 export function laidText(sheet, laid) {
   if (!laid) return sheet.check.length ? "검사 끝나면 채워집니다" : "깔 교재가 없습니다";
-  if (sheet.class.length + sheet.home.length) return "검사에서 저절로 깔림";
+  if (sheet.class.length + sheet.home.length) return "검사에서 저절로 배정됨";
   const 까닭 = [...new Set((sheet.books ?? []).map((x) => x.waves?.why).filter(Boolean))];
   return 까닭.length ? `오늘은 0개 · ${까닭.join(" · ")}` : "오늘은 0개";
 }
@@ -163,7 +163,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
   const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「그 밖에」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
-  const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && (!isAuto(it) || sheet[slot].some((x) => isAuto(x) && x.unit_id === it.unit_id)));   // 뺀 줄(대전제-19 · 되살리기) · 루틴 줄은 그 단원이 아직 살아 있을 때만(손으로 건너뛴 것 · (어37)) · 단원째 뺀 것은 줄이기·조절·오늘 단원 몫
+  const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && (!isAuto(it) || sheet[slot].some((x) => isAuto(x) && x.unit_id === it.unit_id)));   // 뺀 줄(대전제-19 · 복구) · 루틴 줄은 그 단원이 아직 살아 있을 때만(손으로 건너뛴 것 · (어37)) · 단원째 뺀 것은 줄이기·조절·오늘 단원 몫
   // (어24) 깔린 줄만 보인다 — 「+ 항목」(그 밖에 · 분량 · 줄이기) · 「다음 시간 시험 · 고치기」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
   const extras = unitless("class").length + unitless("home").length;
   const [more, setMore] = useState(extras > 0);
@@ -203,7 +203,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
             <div className="hh">{title}<span className="cnt">{unitless(slot).length}개</span></div>
             {unitless(slot).map((it, i) => <FreeLine key={it.id} it={it} no={i + 1} closed={closed} fail={fail} start={start} moveLabel={moveLabel} other={other} />)}
             {offOf(slot).length > 0 && <div className="lf" data-g="off-lines"><span className="ln">🚫</span><div><b>뺀 줄 {offOf(slot).length}</b><small>{offOf(slot).map(itemTitle).join(" · ")}</small></div>
-              {!closed && offOf(slot).map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="item-restore" data-id={it.id} onClick={() => start(async () => { fail(await itemRestore(it.id)); })}>되살리기</button>)}</div>}
+              {!closed && offOf(slot).map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="item-restore" data-id={it.id} onClick={() => start(async () => { fail(await itemRestore(it.id)); })}>복구</button>)}</div>}
             {!closed && <form className="wv" action={async (f) => { fail(await add(f)); }}><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="slot" value={slot} /><input type="text" name="text" placeholder="예: 워크북 p.10 1-18" style={{ flex: "1 1 160px", minWidth: 0 }} /><button className="btn sm" type="submit">항목 더하기</button></form>}
           </div>
         ))}
@@ -216,7 +216,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
     </div>
   );
 }
-/** 교재 하나 — 머리(이름 · N회독 · 대단원 · 진행중/숙제멈춤/교재멈춤) + 학습·숙제 좌우. 줄은 루틴 항목마다 하나, 소단원이 둘이면 이름을 잇는다 */
+/** 교재 하나 · 머리(이름 · N회독 · 대단원 · 진행중/숙제 보류/교재 보류) + 학습·숙제 좌우. 줄은 루틴 항목마다 하나, 소단원이 둘이면 이름을 잇는다 */
 function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }) {
   const stop = stopOn(b, date);
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
@@ -238,15 +238,15 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
       </div>
       {tune && <TuneModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setTune(false)} />}
       {prog && <ProgressModal b={b} sheet={sheet} closed={closed} fail={fail} start={start} onClose={() => setProg(false)} />}
-      {stop === "book_off" ? <div className="stopnote big"><b>교재 멈춤</b>{b.stop_until ? ` · ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep?.()}>📄 내신 자료</button></div>
+      {stop === "book_off" ? <div className="stopnote big"><b>교재 보류</b>{b.stop_until ? ` · ${b.stop_until} 에 저절로 풀립니다` : ""}{" "}<button type="button" className="btn sm pconly" data-act="to-prep" onClick={() => onPrep?.()}>📄 내신 자료</button></div>
       : !mark?.laid_at ? <div className="stopnote">검사 끝나면 채워집니다</div>
       : mark.waves?.why ? <div className="stopnote"><b>{mark.waves.why}</b></div>
       : <div className="two">
           <Half slot="class" title="오늘 학습 · 학원" b={b} sheet={sheet} mark={mark} rows={rows("class")} closed={closed} fail={fail} start={start} />
-          {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제멈춤</span></div><div className="stopnote"><b>숙제 없음</b> · 수업에서만 씁니다</div></div>
+          {stop === "hw_off" ? <div className="half muted"><div className="hh">오늘 숙제 · 집<span className="cnt">숙제 보류</span></div><div className="stopnote"><b>숙제 없음</b> · 수업에서만 씁니다</div></div>
           : <Half slot="home" title="오늘 숙제 · 집" b={b} sheet={sheet} mark={mark} rows={rows("home")} closed={closed} fail={fail} start={start} />}
         </div>}
-      {extra}{/* 📝 다음 시간 시험 — **어느 갈래에서도 보인다 · 한 번만**((어12) 2026-09-14 캡처에서 교재멈춤이면 둘이 서던 것을 잡음 — 아래 「stop !== running && extra」 가 한 번 더 그리고 있었다). 2026-09-11 첫 주 돌려보기에서 잡힘: 교재가 멈추거나
+      {extra}{/* 📝 다음 시간 시험 · **어느 유형에서도 보인다 · 한 번만**((어12) 2026-09-14 캡처에서 교재 보류이면 둘이 서던 것을 잡음 · 아래 「stop !== running && extra」 가 한 번 더 그리고 있었다). 2026-09-11 첫 주 돌려보기에서 잡힘: 교재가 멈추거나
                    할 것이 없으면 이 카드가 통째로 사라져, 정작 시험이 제일 중요한 내신 기간에 시험을 낼 자리가 없었다 */}
     </div>
   );
@@ -299,7 +299,7 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
 const lastFrom = (it) => { const d = String(it?.carry?.day_sheet?.date ?? ""); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))} 에서 넘어옴` : "지난 시간에서 넘어옴"; };   // (어37) 넘어온 줄의 꼬리
 const kindOf = (k) => KIND.find(([x]) => x === k) ?? ["", k, "?"];
 const numOr = (v) => (v === null || v === undefined ? "" : String(v));
-/** 🔤 시험 — 숙제 검사 카드 안 **맨 끝**(무조건 · (어12)). 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 늦귀가 사유가 저절로 */
+/** 🔤 시험 · 숙제 검사 카드 안 **맨 끝**(무조건 · (어12)). 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 하원 지연 사유가 저절로 */
 function QuizPart({ sheet, quizzes, closed, fail, start }) {
   const failed = quizzes.filter((q) => q.passed === false && !q.retry_of);
   const retryOf = (q) => quizzes.find((r) => r.retry_of === q.id);
@@ -331,7 +331,7 @@ function QuizPart({ sheet, quizzes, closed, fail, start }) {
 /** 🃏 클래스카드 플래너(목업 01 · (뎌-4)) — **확장이 받아 적은 것을 그대로 보인다.**
  *  확정-⑱ 목표·실제는 확장이 보낸 값이고 **앱이 다시 셈하지 않는다** · 미달이어도 **앱이 안 넘긴다**(원장님이 「⏭」를 누르신다).
  *  확정-⑩ 3초훈련은 짐에서 이미 버려져 여기 안 온다. 판단(줄 글·모드 줄·못 넘긴 것)은 lib/cc-plan.js 한 벌 */
-function CcPart({ rows = [], closed, fail, start }) {   // 확장이 아직 안 보냈으면 숙제 검사 카드가 안 부른다(빈 자리를 먹지 않는다)
+function CcPart({ rows = [], closed, fail, start }) {   // 확장이 아직 안 보냈으면 숙제 검사 카드가 안 부른다(빈 칸을 먹지 않는다)
   const got = rows.reduce((t, r) => (r.fetched_at > t ? r.fetched_at : t), "");
   return (
     <div className="part" data-card="cc">
@@ -382,7 +382,7 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
         </div>); })}
       {!closed && <form className="wv" style={{ marginTop: 8 }} action={async (f) => { fail(await quizAdd(f)); }}>
         <input type="hidden" name="sheetId" value={sheet.id} />
-        <select name="kind" style={{ width: "auto" }} aria-label="시험 갈래">{KIND.map(([k, name]) => <option key={k} value={k}>{name}</option>)}</select>
+        <select name="kind" style={{ width: "auto" }} aria-label="시험 유형">{KIND.map(([k, name]) => <option key={k} value={k}>{name}</option>)}</select>
         <select name="bookId" style={{ width: "auto" }} aria-label="범위 교재" onChange={(e) => { const f = e.target.form; f.unitId.value = unitOf(e.target.value) ?? ""; f.round.value = books.find((b) => b.book_id === e.target.value)?.round ?? 1; }}>
           {books.map((b) => <option key={b.id} value={b.book_id}>{b.books.name}</option>)}<option value="">직접 적기</option></select>
         <input type="hidden" name="unitId" defaultValue={books[0] ? unitOf(books[0].book_id) ?? "" : ""} /><input type="hidden" name="round" defaultValue={books[0]?.round ?? 1} />
@@ -393,7 +393,7 @@ function NextQuiz({ sheet, books, quizzes, scopes = [], closed, fail, start }) {
     </div>
   );
 }
-/** 방식 고치기(5단계-③ · 목업 01 「이 아이만 다르게도 됩니다 — 방식 고치기」) — 학생 × 교재 × 회독 × 갈래 한 줄: 단어는 네 비율(합 100) · 첫글자 힌트 · 몇 단원씩, 문장은 방식(구두·받아쓰기·녹음) · 통과선. 저장하면 아직 안 본 같은 짝의 시험이 따라온다 */
+/** 방식 고치기(5단계-③ · 목업 01 「이 아이만 다르게도 됩니다 · 방식 고치기」) · 학생 × 교재 × 회독 × 유형 한 줄: 단어는 네 비율(합 100) · 첫글자 힌트 · 몇 단원씩, 문장은 방식(구두·받아쓰기·녹음) · 통과선. 저장하면 아직 안 본 같은 짝의 시험이 따라온다 */
 function StyleModal({ q, sheet, fail, start, onClose }) {
   const st = q.quiz_style ?? {}, [f, setF] = useState({ mc_meaning: st.mc_meaning ?? 0, sa_meaning: st.sa_meaning ?? 0, mc_word: st.mc_word ?? 0, sa_word: st.sa_word ?? 0, first_hint: Boolean(st.first_hint), units_per: st.units_per ?? "", s_way: st.s_way ?? "dictation", cut_pct: st.cut_pct ?? q.cut_pct ?? 90 });
   const set = (k, v) => setF((o) => ({ ...o, [k]: v }));
@@ -411,7 +411,7 @@ function StyleModal({ q, sheet, fail, start, onClose }) {
         <button type="button" className="btn sm pri" data-act="style-save" disabled={q.kind === "word" && sum !== 100} onClick={() => start(async () => { if (fail(await quizStyle(sheet.id, q.id, { ...f, first_hint: f.first_hint ? "on" : "" }))) onClose(); })}>저장</button></div>
     </div></div></div>;
 }
-/** 3b 늦귀가(목업 01) — 사유 한 줄이 원본(확정-㊿) · 예상 귀가 = 약속 · 📨 지금 보내기(큐 + 보냄 때) · 실제 하원은 등원 걸음 4 와 같은 줄(0083 — 차이는 세어 나온다) · 되풀이(3주 안 3번)면 앱이 먼저 「숙제량을 볼까요」(확정-⑭) · 경고 3회째면 처분 셋(확정-㊼) */
+/** 3b 하원 지연(목업 01) · 사유 한 줄이 원본(확정-㊿) · 예상 귀가 = 약속 · 📨 지금 보내기(큐 + 보냄 때) · 실제 하원은 등원 걸음 4 와 같은 줄(0083 · 차이는 세어 나온다) · 반복(3주 안 3번)면 앱이 먼저 「숙제량을 볼까요」(확정-⑭) · 경고 3회째면 처분 셋(확정-㊼) */
 function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", shut = null, closed, fail, start }) {
   const [off, setOff] = useState(Boolean(shut?.shut));
   const ask = warn && (warn.due || warn.today_disposal);
@@ -423,13 +423,13 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
   useEffect(() => { setReason(l?.reason ?? ""); }, [l?.reason]);   // 처분·재시험이 사유를 적으면(SQL) 화면이 따라온다
   const chips = reasonChips({ checks: sheet.check, warn, reason });
   const [left, setLeft] = useState(stay?.left_at ? hhmm(stay.left_at) : "");
-  const [tuneBook, setTuneBook] = useState(null);   // 되풀이 띠의 「조절 ↗」 — 02 조절 모달을 그 자리에서
+  const [tuneBook, setTuneBook] = useState(null);   // 반복 띠의 「조절 ↗」 · 02 조절 모달을 그 자리에서
   const band = repeatBand(stay);
   const laid = (b) => Boolean(sheet.books.find((x) => x.book_id === b.book_id)?.laid_at);
   const leftLine = leftText(l, stay?.left_at);
   return (
     <div className="card" data-card="late" data-folded={off ? "1" : "0"}>
-      <div className="ctitle"><span className="cemo">🌙</span>늦귀가{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
+      <div className="ctitle"><span className="cemo">🌙</span>하원 지연{l?.until_at && <span className="auto">예상 귀가 {String(l.until_at).slice(0, 5)}{usual ? ` · ${usual}` : ""}</span>}<Shut on={off} set={setOff} text={shut?.text} /></div>
       <div data-g="stay" style={{ marginTop: 8 }}>
         {rows.map((r) => <div key={r.id} className="dayrow" data-g="stay-row" data-state={r.state}><span className="tag on">남</span>
           <div style={{ flex: "1 1 auto", minWidth: 0 }}><b style={{ textDecoration: r.state === "done" ? "line-through" : "none" }}>{r.text}</b><small>{[r.sub, r.from].filter(Boolean).join(" · ")}{r.state === "done" ? " · 다 함" : r.state === "missing" ? " · ⏭ 다음 숙제로 넘김" : ""}</small></div>
@@ -500,17 +500,17 @@ function AreaMemoCard({ sheet, books, shut = null, closed, fail, start }) {
     </div>
   );
 }
-/** 📝 단원평가 — 숙제 검사 카드 안(🔤 바로 앞 · (어12)). 원장님이 05 에서 「출제함」을 누른 아이에게만 선다(출제는 원장님 할 일 — 원장님 2026-09-14). 맞은 개수만 적는다 → 통과선(규칙 unit_test.pass_pct)으로 통과/미달 */
+/** 📝 단원평가 · 숙제 검사 카드 안(🔤 바로 앞 · (어12)). 원장님이 05 에서 「출제 완료」를 누른 아이에게만 선다(출제는 원장님 업무 · 원장님 2026-09-14). 맞은 개수만 적는다 → 통과선(규칙 unit_test.pass_pct)으로 통과/미달 */
 function UnitTestPart({ t, passPct, date, closed, fail, start }) {
   const [n, setN] = useState(t.correct ?? "");
   const res = unitResult(n, t.q_count, passPct);
   const put = (v) => { const x = Math.max(0, Math.min(Number(t.q_count ?? 0), Number(v) || 0)); setN(x); start(async () => { fail(await unitScore(t.id, x, date)); }); };
-  const state = { todo: "낼 것", made: "출제함", taken: "봤음", scored: "채점함" }[t.state] ?? t.state;
+  const state = { todo: "낼 것", made: "출제 완료", taken: "봤음", scored: "채점함" }[t.state] ?? t.state;
   return (
     <div className="part" data-card="unit-test">
       <div className="hh">📝 단원평가 · {t.grammar_topics?.name ?? "분류 없음"}<span className="cnt">{state}</span></div>
       <div className="wtrow">
-        <div className="wtset"><b>{t.q_count}문항</b><div className="tags">{t.books?.name && <span className="tag" data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 묶음`}</span>}{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
+        <div className="wtset"><b>{t.q_count}문항</b><div className="tags">{t.books?.name && <span className="tag" data-g="ut-from">📚 {t.books.name} · {t.covers ?? t.chapter ?? `${t.seq}번째 세트`}</span>}{t.assigned_on && <span className="tag">낸 날 {String(t.assigned_on).slice(5).replace("-", "/")}</span>}<span className="tag">통과선 {passPct}%</span></div></div>
         <div className="wtscore"><label className="fl">맞은 개수</label>
           <div className="stepper" data-g="unit"><button type="button" data-s="-" disabled={closed} onClick={() => put((Number(n) || 0) - 1)}>−</button><input type="text" inputMode="numeric" value={n} aria-label="직접 입력" disabled={closed} onChange={(e) => setN(e.target.value.replace(/\D/g, ""))} onBlur={() => { if (n !== "") put(n); }} /><button type="button" data-s="+" disabled={closed} onClick={() => put((Number(n) || 0) + 1)}>+</button></div>
           {res && <div className={"wtres " + (res.pass ? "pass" : "fail")} data-g="unit-res"><b>{n} / {t.q_count}</b><span>{res.pct}% {res.pass ? "통과" : "미달"}</span></div>}
@@ -519,7 +519,7 @@ function UnitTestPart({ t, passPct, date, closed, fail, start }) {
     </div>
   );
 }
-/** ✉️ 부모님께 나갈 글(목업 01 · 03 폰) — 키워드 → 상황(갈래 다섯, 그날 상태에서 저절로) → 길이(상황이 먼저 고른다) → ✨ 브리핑(AI 초안 · 넘으면 문장 끝에서 자름 · 원장님 글은 덮지 않는다) → 글.
+/** ✉️ 부모님께 나갈 글(목업 01 · 03 폰) · 키워드 → 상황(유형 다섯, 그날 상태에서 저절로) → 길이(상황이 먼저 고른다) → ✨ 브리핑(AI 초안 · 넘으면 문장 끝에서 자름 · 원장님 글은 덮지 않는다) → 글.
  *  글 밑에 저절로 붙는 줄과 👁 학부모 화면 미리보기(09·10 과 같은 판단). AI 초안을 안 고치고 마감하면 「그대로 보낼까요?」를 한 번 묻는다 — 막지 않는다(목업 9/5 ⑥) */
 function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, phase, date, barHost, future = false, onCollapse, active = false, hasNext = false, onNext = null }) {
   const [off, setOff] = useState(Boolean(shut?.shut));
@@ -531,7 +531,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
   const [text, setText] = useState(sheet.comment ?? "");
   const [draft, setDraft] = useState(sheet.comment_ai ?? "");
   const [offer, setOffer] = useState("");   // 초안이 나왔지만 지금 글이 있어 안 덮은 것
-  const [ask, setAsk] = useState(null);      // 마감 전에 한 번 묻는 것 — ["same"(AI 초안 그대로, 확정-64), "late"(안 보낸 늦귀가, 확정-⑭)]. 막지 않는다
+  const [ask, setAsk] = useState(null);      // 마감 전에 한 번 묻는 것 · ["same"(AI 초안 그대로, 확정-64), "late"(안 보낸 하원 지연, 확정-⑭)]. 막지 않는다
   const [show, setShow] = useState(false);   // 👁 미리보기
   const [made, setMade] = useState(null);
   const [edit, setEdit] = useState(false);   // (어24) 키워드·상황·길이는 「고치기」를 눌러야 — 상황·길이는 저절로
@@ -542,7 +542,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
   const payload = () => ({ comment: text, kind, cap, keys });
   const pick = (k) => { setKind(k); setCap(capOf(k, cfg?.caps)); };
   const brief = (opts) => start(async () => {
-    const auto = opts === true;   // 저절로 부른 것(✉️ 업무를 처음 볼 때)은 못 만들어도 조용히 · 요약 줄 「초안 없음」이 그대로고 ✨ 를 누르면 까닭을 말한다(열쇠 없음 등)
+    const auto = opts === true;   // 저절로 부른 것(✉️ 업무를 처음 볼 때)은 못 만들어도 조용히 · 요약 줄 「초안 없음」이 그대로고 ✨ 를 누르면 까닭을 말한다(키 없음 등)
     const r = await commentDraft(sheet.id, { kind, cap, keys });
     if (auto && r && !r.ok) return;
     if (fail(r)) { setDraft(r.draft.text); setMade(r.draft); if (r.draft.replaced) { setText(r.draft.text); setOffer(""); } else setOffer(r.draft.text); }   // fail() 은 ok 를 돌려준다(이름과 반대) — 실패면 그 자리에 말하고 끝
@@ -577,7 +577,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
       {show && <div className="lf" data-g="preview"><span className="ln">👁</span><div><b>학부모 화면</b><small style={{ whiteSpace: "pre-wrap" }}>{preview(text, lines) || "(아직 글이 없습니다)"}</small></div></div>}
       {ask && <div className="lf warn" data-g="ask" ref={askRef}><span className="ln">?</span><div>
         {ask.includes("same") && <b>AI 초안을 안 고치셨습니다. 그대로 보낼까요?</b>}
-        {ask.includes("late") && <b>늦귀가를 아직 안 보냈습니다</b>}</div>
+        {ask.includes("late") && <b>하원 지연 안내를 아직 안 보냈습니다</b>}</div>
         {ask.includes("late") && <button type="button" className="btn sm pri" data-act="send-close" onClick={sendAndFinish}>📨 보내고 마감</button>}
         <button type="button" className={"btn sm" + (ask.includes("late") ? "" : " pri")} data-act="close-anyway" onClick={() => finish(true)}>그대로 마감</button>
         <button type="button" className="btn sm" onClick={() => setAsk(null)}>{ask.includes("same") ? "고치기" : "돌아가기"}</button></div>}
@@ -593,7 +593,7 @@ function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, ph
   );
 }
 /** (어13) 숙제 주기 — 원장님 2026-09-14 「오늘 화면에 숙제가 없었을때 부여하는 버튼 필요해. 모달로 따로 뜨게.(기존 페이지에서 더 늘어나지않게)」.
- *  루틴이 안 깔린 날(교재 멈춤 · 루틴 없음)에 원장님이 직접 주시는 것 — 한 줄에 하나 · 집/학원 · 여러 줄 한 번에(lib/homework addItems). 페이지엔 단추 하나만 선다 */
+ *  루틴이 안 깔린 날(교재 보류 · 루틴 없음)에 원장님이 직접 주시는 것 · 한 줄에 하나 · 집/학원 · 여러 줄 한 번에(lib/homework addItems). 페이지엔 단추 하나만 선다 */
 function GiveModal({ sheet, slot: at, fail, start, onClose }) {
   const [slot, setSlot] = useState(at ?? "home");
   const [text, setText] = useState("");
@@ -639,7 +639,7 @@ function TuneModal({ b, sheet, closed, fail, start, onClose }) {
           </div>
           <div className="lf warn" style={{ margin: "2px 0 8px" }}><span className="ln">📐</span>
             <div><b>고른 소단원 {selected.length}개 = 오늘 <span style={{ color: "var(--navy)" }}>{empty ? "문항·쪽 수가 교재에 없음" : `${sum.questions}문항 · ${sum.pages}쪽`}</span></b>
-              <small>{selected.map((u) => `${u.short} ${u.q_count ?? 0}문항`).join(" · ") || "고른 소단원 없음"} · 오늘 교재 {pool.books}권 다 합치면 <b>{pool.load.questions}문항 · {pool.load.pages}쪽</b>(지금 깔린 대로)</small></div></div>
+              <small>{selected.map((u) => `${u.short} ${u.q_count ?? 0}문항`).join(" · ") || "고른 소단원 없음"} · 오늘 교재 {pool.books}권 다 합치면 <b>{pool.load.questions}문항 · {pool.load.pages}쪽</b>(지금 배정된 대로)</small></div></div>
           <div className="lf ok" style={{ margin: "2px 0 8px" }}><span className="ln">🔀</span>
             <div><b>나가는 차례 · <span style={{ color: "var(--ok)" }}>{pool.orderBasis === "chapter" ? "대단원마다" : "소단원마다"}</span></b><small>{pool.orderBasis === "chapter" ? "본책 한 대단원을 다 하고 나서 워크북" : "소단원 하나 끝날 때마다 워크북도 같이"}</small></div></div>
           {selected.filter((u) => (u.q_count ?? 0) >= pool.splitFrom).map((u) => (

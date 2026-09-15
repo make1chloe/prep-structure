@@ -1,5 +1,5 @@
 "use client";
-/** 📢 공지 판(4단계-6) — 새 공지(제목 · 본문 · 받는 쪽 · 반 · 학교) → 📎 자료함에서 붙이기(보내기 전만 — 보낸 뒤에 붙이면 먼저 본 집은 못 본다, 목업 20) → 보내기(받는 쪽대로 기기 · 자취 notify_log) · 보낸 것은 읽음 a/b. 세는 것은 lib/notice-plan */
+/** 📢 공지 판(4단계-6) · 새 공지(제목 · 본문 · 받는 쪽 · 반 · 학교) → 📎 자료실에서 붙이기(보내기 전만 · 보낸 뒤에 붙이면 먼저 본 집은 못 본다, 목업 20) → 보내기(받는 쪽대로 기기 · 발송 이력 notify_log) · 보낸 것은 읽음 a/b. 세는 것은 lib/notice-plan */
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ export default function Board({ d }) {
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <PickBar pick={pk} unit="개">{/* (어28)-④ 고른 공지를 한 번에 보낸다 · 카드의 📨 보내기(묻고)와 같다 */}
       <button className="btn pri sm" type="button" disabled={pending} data-act="send-picked" onClick={() => sure.ask("send-many")}>📨 보내기 {pk.count}</button>
-      <Sure on={sure.is("send-many")} text={`고른 공지 ${pk.count}개를 보낼까요? 보낸 뒤엔 못 고치고 못 붙입니다.`} yes="보내기" pending={pending} onYes={() => { sure.off(); run(() => sendManyAct(pk.ids), (r) => `공지 ${r.n}개 · ${r.to}명에게 보냈습니다. ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`, () => pk.clear()); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
+      <Sure on={sure.is("send-many")} text={`고른 공지 ${pk.count}개를 보낼까요? 보낸 뒤엔 못 고치고 못 붙입니다.`} yes="보내기" pending={pending} onYes={() => { sure.off(); run(() => sendManyAct(pk.ids), (r) => `공지 ${r.n}개 · ${r.to}명에게 보냈습니다. ${r.sink === "off" ? "🧪 리허설(off): 발송 이력만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`, () => pk.clear()); }} onNo={sure.off} style={{ flexBasis: "100%" }} />
     </PickBar>
     {open && <div className="card" data-g="add-form" style={{ marginBottom: 8 }}><div className="ctitle"><span className="cemo">＋</span>공지</div>
       <div className="wv"><input value={f.title} aria-label="제목" placeholder="10월 휴강 안내" onChange={(x) => setF({ ...f, title: x.target.value })} style={{ flex: "1 1 240px" }} />
@@ -35,10 +35,10 @@ export default function Board({ d }) {
       {n.body && <p className="note" style={{ whiteSpace: "pre-wrap", color: "var(--ink)" }}>{n.body}</p>}
       <div className="tags" data-g="files">{(n.files ?? []).map((x) => <a key={x.id} className="tag on" href={`/api/files/${x.id}`} target="_blank" rel="noreferrer" data-g="file">📎 {x.orig_name}</a>)}{!(n.files ?? []).length && <span className="note" style={{ margin: 0 }}>붙인 것 없음</span>}</div>
       {sendable(n) && <div className="wv" style={{ marginTop: 6, marginBottom: 0 }}>
-        <select value={pick[n.id] ?? ""} aria-label={`${n.title} 붙일 자료`} data-g="attach-pick" style={{ width: "auto", maxWidth: 320 }} onChange={(e) => setPick({ ...pick, [n.id]: e.target.value })}><option value="">📎 자료함에서 붙이기</option>{(b.files ?? []).filter((x) => !(n.files ?? []).some((y) => y.id === x.id)).map((x) => <option key={x.id} value={x.id}>{x.orig_name}</option>)}</select>
+        <select value={pick[n.id] ?? ""} aria-label={`${n.title} 붙일 자료`} data-g="attach-pick" style={{ width: "auto", maxWidth: 320 }} onChange={(e) => setPick({ ...pick, [n.id]: e.target.value })}><option value="">📎 자료실에서 붙이기</option>{(b.files ?? []).filter((x) => !(n.files ?? []).some((y) => y.id === x.id)).map((x) => <option key={x.id} value={x.id}>{x.orig_name}</option>)}</select>
         <button className="btn sm" type="button" disabled={pending || !pick[n.id]} data-act="attach" onClick={() => run(() => attachAct(pick[n.id], n.id), "붙였습니다", () => setPick({ ...pick, [n.id]: "" }))}>붙이기</button>
         <span className="spacer" />
-        <button className="btn pri sm" type="button" disabled={pending} data-act="send" onClick={() => sure.ask("send:" + n.id)}>📨 보내기 · {n.targets}명</button><Sure on={sure.is("send:" + n.id)} text={`「${n.title}」 · ${targetText(n)} · 대상 ${n.targets}명에게 보낼까요? 보낸 뒤엔 못 고치고 못 붙입니다.`} yes="보내기" pending={pending} onYes={() => { sure.off(); run(() => sendAct(n.id), (r) => `${r.n}명에게 보냈습니다. ${r.sink === "off" ? "🧪 리허설(off): 자취만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} /></div>}
+        <button className="btn pri sm" type="button" disabled={pending} data-act="send" onClick={() => sure.ask("send:" + n.id)}>📨 보내기 · {n.targets}명</button><Sure on={sure.is("send:" + n.id)} text={`「${n.title}」 · ${targetText(n)} · 대상 ${n.targets}명에게 보낼까요? 보낸 뒤엔 못 고치고 못 붙입니다.`} yes="보내기" pending={pending} onYes={() => { sure.off(); run(() => sendAct(n.id), (r) => `${r.n}명에게 보냈습니다. ${r.sink === "off" ? "🧪 리허설(off): 발송 이력만 남고 실제로는 안 나갔습니다" : `보냄 ${r.sent} · 못 보냄 ${r.failed}`}`); }} onNo={sure.off} style={{ flexBasis: "100%" }} /></div>}
     </div>)}
   </>;
 }

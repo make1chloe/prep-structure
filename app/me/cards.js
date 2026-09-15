@@ -13,7 +13,7 @@ import { seoulTime } from "@/lib/day-plan";
 export function ArrivalCard({ arrival, choice, off }) {
   const [err, setErr] = useState(""); const [pending, start] = useTransition(); const [cls, setCls] = useState(choice.classId ?? null);
   const go = (step) => start(async () => { setErr(""); const r = await arrive(step, cls); if (!r.ok) setErr(r.msg); });
-  const pill = arrival.left ? `${seoulTime(arrival.leftAt)} 집에 감` : arrival.arrived ? `${seoulTime(arrival.arrivedAt)} 왔음` : "아직";
+  const pill = arrival.left ? `${seoulTime(arrival.leftAt)} 집에 감` : arrival.arrived ? `${seoulTime(arrival.arrivedAt)} 출석` : "아직";
   return (
     <div className="task" data-card="arrival" style={{ borderColor: "var(--navy)" }}>
       <div className="h"><b><span className="cemo">🕘</span>등원 · 하원</b><span className="spacer" /><span className={"pill" + (arrival.arrived ? " hw" : "")} data-g="arrival-pill">{pill}</span></div>
@@ -38,12 +38,12 @@ export function SaidButton({ item, state = "now" }) {   // 마감 뒤에도 누�
   const flip = () => start(async () => { setErr(""); const r = await said(item.id, !on); if (!r.ok) setErr(r.msg); });
   if (state === "locked") return <span className="tag" data-g="locked">앞엣것부터</span>;
   return (<>
-    <button type="button" className={"btn sm" + (on ? "" : " pri")} data-act="said" aria-pressed={on} disabled={pending} onClick={flip}>{on ? "했어요 ✓ · 무르기" : "다 했어요"}</button>
+    <button type="button" className={"btn sm" + (on ? "" : " pri")} data-act="said" aria-pressed={on} disabled={pending} onClick={flip}>{on ? "했어요 ✓ · 취소" : "다 했어요"}</button>
     {err && <span className="note" role="alert" style={{ margin: 0, color: "var(--miss)" }}>{err}</span>}
   </>);
 }
 
-/** 📚 받을 교재·학습지 — 갈래별 · 단계 넷(아직·받음·하는 중·완료) · 스스로 정한 마감(선생님 달력에도) · 끝낸 것은 접힘 */
+/** 📚 받을 교재·학습지 · 유형별 · 단계 넷(아직·받음·하는 중·완료) · 스스로 정한 마감(선생님 달력에도) · 끝낸 것은 접힘 */
 export function MaterialCard({ gives, today, fold = null, folded = false }) {
   const [err, setErr] = useState(""); const [pending, start] = useTransition();
   const total = gives.groups.reduce((n, g) => n + g.items.length, 0) + gives.done.length;

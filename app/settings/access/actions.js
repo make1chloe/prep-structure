@@ -9,7 +9,7 @@ export async function setAccess(form) {
   const { sb, me } = await guard();
   if (me?.role !== ROLES.PRINCIPAL) return;
   const role = String(form.get("role")), key = String(form.get("key")), allowed = form.get("allowed") === "1";
-  if (!KEYS.some((k) => k.key === key && k.roles.includes(role))) return;   // 열쇠 목록의 주인은 lib/perm.js
+  if (!KEYS.some((k) => k.key === key && k.roles.includes(role))) return;   // 키 목록의 주인은 lib/perm.js
   const { error } = await db(sb).from("role_access").upsert({ role, key, allowed });
   if (error) throw new Error(`못 저장함: ${error.message}`);
   revalidatePath("/settings/access"); revalidatePath("/");

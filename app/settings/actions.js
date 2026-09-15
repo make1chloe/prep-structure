@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { guard } from "@/lib/session";
 import { ROLES } from "@/lib/roles";
 import { allowIp } from "@/lib/arrival";
-import { saveKeys, testSms } from "@/lib/integration";   // (터) 연동 열쇠 — 원장만
+import { saveKeys, testSms } from "@/lib/integration";   // (터) 연동 설정 · 원장만
 import { clientIp } from "@/lib/arrival-plan";
 import { wrap as act } from "@/lib/act";
 const wrap = (fn) => act(fn, "설정");   // 손 한 벌은 lib/act.js(원칙-1)
@@ -20,7 +20,7 @@ export async function allowThisIp() {
     return { ip, ...r };
   });
 }
-/** (터) 연동 열쇠 — **원장만**. 판단·쓰기는 lib/integration.js 한 벌 · 화면으로는 가린 것만 나간다(확정-72) */
+/** (터) 연동 설정 · **원장만**. 판단·쓰기는 lib/integration.js 한 벌 · 화면으로는 가린 것만 나간다(확정-72) */
 async function principal() { const w = await guard(); if (w.me?.role !== ROLES.PRINCIPAL) throw new Error("원장님만 쓰는 자리입니다"); return w; }
 export async function saveKeysAct(id, form) { return wrap(async () => { await principal(); return { ...(await saveKeys(id, form ?? {})) }; }); }
 export async function testSmsAct(to) { return wrap(async () => { await principal(); return { ...(await testSms(to)) }; }); }

@@ -68,8 +68,8 @@ if (new URL(p.url()).pathname.startsWith("/login")) { console.log("로그인 실
 console.log("0. 원장으로 들어왔습니다\n");
 
 // ══ 1. 내신 차리기 — 이 달 안에 시험이 있게 ════════════════════════════════
-console.log("1. 내신 차리기 · 시험일·영어일·범위를 이 달 안에");
-const 시험시작 = 날(-6), 시험끝 = 날(-3), 영어일 = 날(-5);
+console.log("1. 내신 차리기 · 시험일·영어 시험일·범위를 이 달 안에");
+const 시험시작 = 날(-6), 시험끝 = 날(-3), 영어시험일 = 날(-5);
 await p.goto(APP + "/schedule/import", { waitUntil: "domcontentloaded" }); await p.waitForLoadState("networkidle").catch(() => {});
 await 누름(p.locator("[data-act=manual-open]"), "12b", "+ 손으로 넣기");
 { const f = p.locator("[data-g=exam-form]");
@@ -80,7 +80,7 @@ await 누름(p.locator("[data-act=manual-open]"), "12b", "+ 손으로 넣기");
   await f.locator("input[aria-label='시험 이름']").fill("한달돌리기 2학기 중간");
   await f.locator("input[aria-label=시작]").fill(시험시작);
   await f.locator("input[aria-label=끝]").fill(시험끝);
-  await f.locator("input[aria-label='영어 시험일']").fill(영어일);
+  await f.locator("input[aria-label='영어 시험일']").fill(영어시험일);
   await 누름(f.locator("[data-act=exam-save]"), "12b", "저장"); }
 
 await p.goto(APP + "/schedule/exams", { waitUntil: "domcontentloaded" }); await p.waitForLoadState("networkidle").catch(() => {});
@@ -105,7 +105,7 @@ for (let d = -27; d <= 0; d++) {
   const row = p.locator(".row").filter({ hasText: 아이 });
   if (!(await row.count())) continue;   // 그 요일에 수업이 없는 날
   연것++;
-  await 누름(row.locator("[data-g=att] button", { hasText: "왔음" }).first(), `01 ${D}`, "출결 왔음");
+  await 누름(row.locator("[data-g=att] button", { hasText: "출석" }).first(), `01 ${D}`, "출결 출석");
   const 펴 = row.locator("button.open");
   if ((await 펴.textContent().catch(() => "")) === "펴기") await 누름(펴, `01 ${D}`, "펴기");
   await p.waitForTimeout(300);
@@ -122,9 +122,9 @@ console.log("\n3. 읽기 재기 · 본문 · 설명문 · 카드 · 폰에서 �
 const 화면들 = [
   ["/", "17 대시보드"], ["/today", "01 오늘 수업"], ["/send", "10 발송"], ["/send/monthly", "10b 월간 리포트"],
   ["/send/notice", "10c 공지"], ["/schedule", "12 일정"], ["/schedule/classes", "02c 반"], ["/schedule/exams", "06b 학교 시험"],
-  ["/schedule/exams/prep", "04 내신 자료"], ["/schedule/grid", "06c 학교별 표"], ["/schedule/todo", "05 할 일"],
-  ["/schedule/import", "12b 받아오기"], ["/scores", "16 성적"], ["/books", "15 교재"], ["/books/videos", "19 영상"],
-  ["/ops", "13 수강료"], ["/ops/students", "14 학생"], ["/ops/files", "20 자료함"], ["/ops/inquiry", "18 신규 상담"],
+  ["/schedule/exams/prep", "04 내신 자료"], ["/schedule/grid", "06c 학교별 표"], ["/schedule/todo", "05 업무"],
+  ["/schedule/import", "12b 가져오기"], ["/scores", "16 성적"], ["/books", "15 교재"], ["/books/videos", "19 영상"],
+  ["/ops", "13 수강료"], ["/ops/students", "14 학생"], ["/ops/files", "20 자료실"], ["/ops/inquiry", "18 신규 상담"],
   ["/settings", "21 설정"], ["/settings/access", "21b 누가 무엇을 보나"], ["/settings/progress", "21c 진도 체크"], ["/settings/routine", "11 루틴"],
 ];
 for (const [url, 이름] of 화면들) await 재기(url, 이름);

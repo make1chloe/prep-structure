@@ -1,5 +1,5 @@
 "use server";
-/** 일정 손 — 학원 사람만. 판단·쓰기는 lib/schedule.js 한 벌(휴강·할 일·시험·보강일·아이 보강). 지우는 손이 없다(대전제-6) */
+/** 일정 손 · 학원 사람만. 판단·쓰기는 lib/schedule.js 한 벌(휴강·업무·시험·보강일·아이 보강). 지우는 손이 없다(대전제-6) */
 import { guard } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { isStaff } from "@/lib/roles";
@@ -8,7 +8,7 @@ import { addHoliday, undoHoliday, addTodo, doneTodo, addExam, setEnglishOn, canc
 import { serviceClient } from "@/lib/supabase";
 import { importExams, searchSchools, setSchoolCode } from "@/lib/neis";
 async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
-const wrap = (fn) => act(fn, "일정 12");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
+const wrap = (fn) => act(fn, "일정 12");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function holidayAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addHoliday(sb, { date: f.date, classId: f.classId || null, reason: f.reason }) }; }); }
 export async function undoHolidayAct(id) { return wrap(async () => { const { sb } = await staff(); await undoHoliday(sb, id); return {}; }); }
 export async function todoAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addTodo(sb, { title: f.title, dueOn: f.dueOn, dueTime: f.dueTime || null, note: f.note }) }; }); }

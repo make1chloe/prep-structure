@@ -1,5 +1,5 @@
 "use client";
-/** 자료함 판(목업 20) — 머리(📥 안 본 것 · 받은 것/보낸 것 · 📤 보내기) · 방금 온 것(갈래만 고른다 — 학교·학년·학기는 저절로) · 갈래별 칸(학교·학년마다 · 🧑‍🎓 아이별) · 묶음 열기(⭐ 가장 또렷 · 열기 · 갈래 옮기기) · 보낸 것(붙인 자리 · 아이가 처리했나 N/M) · 📤 보내기 모달(아이 → 마지막 판의 숙제 줄 → 파일) · 정한 것. 세는 것은 화면이 센다(원칙-5) */
+/** 자료실 판(목업 20) · 머리(📥 안 본 것 · 받은 것/보낸 것 · 📤 보내기) · 방금 온 것(유형만 고른다 · 학교·학년·학기는 저절로) · 유형별 칸(학교·학년마다 · 🧑‍🎓 아이별) · 올린 기록 열기(⭐ 가장 또렷 · 열기 · 유형 옮기기) · 보낸 것(붙인 자리 · 아이가 처리했나 N/M) · 📤 보내기 모달(아이 → 마지막 판의 숙제 줄 → 파일) · 정한 것. 세는 것은 화면이 센다(원칙-5) */
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28)-③ · 대전제-20) */
@@ -9,9 +9,9 @@ import Photo from "../../_shell/photo.js";
 import { inboxRows, columns, sharpest, sentRows, counts, sendTargets, whoText, icon, sizeText, isImage, replyText } from "@/lib/files-plan";
 import { md, seoulDate } from "@/lib/dash-plan";
 import Upload from "../../_shell/upload.js";
-/** ② 원장님 답 한 줄 — 손 떼면 저장. 비우면 자동 답 자리로(갈래를 고르면 다시 채워진다) */
+/** ② 원장님 답 한 줄 · 손 떼면 저장. 비우면 자동 답 자리로(유형을 고르면 다시 채워진다) */
 function Reply({ f, pending, run }) {
-  return <input type="text" defaultValue={f.reply ?? ""} placeholder={f.reply ? "" : "아이·학부모에게 답 한 줄(갈래를 고르면 저절로)"} aria-label={`${f.orig_name} 답`} data-g="reply" disabled={pending} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (f.reply ?? "")) run(() => replyAct(f.id, e.target.value), "답을 적었습니다. 보낸 사람 화면에 뜹니다"); }} style={{ flex: "1 1 220px" }} />;
+  return <input type="text" defaultValue={f.reply ?? ""} placeholder={f.reply ? "" : "아이·학부모에게 답 한 줄(유형을 고르면 저절로)"} aria-label={`${f.orig_name} 답`} data-g="reply" disabled={pending} onBlur={(e) => { if ((e.target.value ?? "").trim() !== (f.reply ?? "")) run(() => replyAct(f.id, e.target.value), "답을 적었습니다. 보낸 사람 화면에 뜹니다"); }} style={{ flex: "1 1 220px" }} />;
 }
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
@@ -19,23 +19,23 @@ export default function Board({ d }) {
   const [tab, setTab] = useState("in"); const [open, setOpen] = useState(null); const [send, setSend] = useState(false); const [sid, setSid] = useState(""); const [item, setItem] = useState("");
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(r); router.refresh(); });
   const inbox = inboxRows(b.inbox), cols = columns(b.bins), sent = sentRows(b.sent), c = counts(b);
-  const fileIds = useMemo(() => [...inboxRows(b.inbox).map((f) => f.id), ...columns(b.bins).flatMap((x) => x.cards.flatMap((k) => (k.files ?? []).map((f) => f.id)))], [b]); const pk = usePick(fileIds);   /* 고른 자료(방금 온 것 · 묶음 안) · 띠에서 갈래로 한 번에 */
+  const fileIds = useMemo(() => [...inboxRows(b.inbox).map((f) => f.id), ...columns(b.bins).flatMap((x) => x.cards.flatMap((k) => (k.files ?? []).map((f) => f.id)))], [b]); const pk = usePick(fileIds);   /* 고른 자료(방금 온 것 · 올린 기록 안) · 띠에서 유형으로 한 번에 */
   const openCard = open ? cols.flatMap((x) => x.cards).find((x) => (x.bin?.id ?? x.title) === open) : null; const star = openCard ? sharpest(openCard.files) : null;
   const tg = sendTargets(b.students, sid);
   const FileRow = ({ f, bin }) => <div className="lf" data-g="bin-file" data-file={f.id}><PickBox pick={pk} id={f.id} label={`${f.orig_name} 고르기`} />{isImage(f.mime) ? <Photo id={f.id} name={f.orig_name} /> : <span className="ln">{icon(f.mime)}</span>}<div><b>{star === f.id ? "⭐ " : ""}{f.orig_name}</b><small>{whoText(f)} · {md(seoulDate(f.uploaded_at))} · {sizeText(f.bytes)}{star === f.id ? " · 가장 또렷" : ""}{f.note ? ` · 💬 「${f.note}」` : ""}</small>{f.by_role !== "principal" && f.by_role !== "instructor" && f.by_role !== "assistant" && <div className="wv" style={{ marginTop: 4, marginBottom: 0 }}><span className="note k" style={{ margin: 0 }}>답</span><Reply f={f} pending={pending} run={run} /></div>}</div>
     <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a>
-    {bin && <select value={bin.kind} aria-label={`${f.orig_name} 갈래 옮기기`} disabled={pending} data-g="move" onChange={(e) => run(() => sortAct(f.id, e.target.value), `${e.target.value} 로 옮겼습니다`, () => setOpen(null))} style={{ width: "auto" }}>{kinds.map((k) => <option key={k} value={k}>{k}</option>)}</select>}</div>;
+    {bin && <select value={bin.kind} aria-label={`${f.orig_name} 유형 옮기기`} disabled={pending} data-g="move" onChange={(e) => run(() => sortAct(f.id, e.target.value), `${e.target.value} 로 옮겼습니다`, () => setOpen(null))} style={{ width: "auto" }}>{kinds.map((k) => <option key={k} value={k}>{k}</option>)}</select>}</div>;
   return <>
     <div className="wv" style={{ marginBottom: 8 }} data-g="head">
-      <span className="pill" style={{ fontWeight: 700 }}>📎 자료함</span>
+      <span className="pill" style={{ fontWeight: 700 }}>📎 자료실</span>
       <span className={"pill" + (c.unsorted ? " warn" : "")} data-g="unsorted">📥 안 본 것 {c.unsorted}</span>
       <span className="spacer" />
       <div className="seg sm" data-g="tab"><button type="button" aria-pressed={tab === "in"} onClick={() => setTab("in")}>받은 것</button><button type="button" aria-pressed={tab === "out"} onClick={() => setTab("out")}>보낸 것</button></div>
       <button type="button" className="btn pri sm" data-act="send-open" onClick={() => setSend(true)}>📤 보내기</button></div>
     {err && <p className="note" role="alert" style={{ margin: "0 0 8px", color: "var(--miss)" }}>{err}</p>}
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
-    <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 자료를 갈래로 한 번에(옮겨도 지우지 않는다) */}
-      <span className="fl" style={{ margin: 0 }}>갈래로</span><div className="seg sm" data-g="kind-picked">{kinds.map((k) => <button key={k} type="button" disabled={pending} onClick={() => run(() => sortManyAct(pk.ids, k), (r) => `${r.n}개를 「${k}」 로 넣었습니다`, () => { pk.clear(); setOpen(null); })}>{k}</button>)}</div>
+    <PickBar pick={pk} unit="개">{/* (어28)-③ 고른 자료를 유형으로 한 번에(옮겨도 지우지 않는다) */}
+      <span className="fl" style={{ margin: 0 }}>유형으로</span><div className="seg sm" data-g="kind-picked">{kinds.map((k) => <button key={k} type="button" disabled={pending} onClick={() => run(() => sortManyAct(pk.ids, k), (r) => `${r.n}개를 「${k}」 로 넣었습니다`, () => { pk.clear(); setOpen(null); })}>{k}</button>)}</div>
     </PickBar>
     {tab === "in" && <>
       <div className="exr" style={{ borderColor: "var(--amber)" }} data-g="inbox">
@@ -48,7 +48,7 @@ export default function Board({ d }) {
             <a className="btn sm" href={`/api/files/${f.id}`} target="_blank" rel="noreferrer" data-act="open-file">열기</a></div>)}
         </div>
       </div>
-      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🗂️</span>갈래별</div>
+      <div className="ctitle" style={{ marginTop: 12 }}><span className="cemo">🗂️</span>유형별</div>
       {!cols.length && <p className="note" style={{ margin: "4px 0" }}>아직 없음</p>}
       <div className="kb" data-g="kb">
         {cols.map((col) => <div className="col" key={col.key} data-g="col"><div className="colh">{col.title} <span className="n">{col.n}</span></div>
@@ -74,7 +74,7 @@ export default function Board({ d }) {
         <div className="wv"><label className="fl" style={{ margin: 0 }}>누구에게</label><select value={sid} aria-label="누구에게" data-g="send-student" onChange={(e) => { setSid(e.target.value); setItem(""); }} style={{ width: "auto" }}><option value="">아이를 고르세요</option>{(b.students ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}{s.school ? ` · ${s.school} ${s.grade ?? ""}` : ""}</option>)}</select></div>
         {tg.student && <div className="wv" style={{ marginTop: 8 }}><label className="fl" style={{ margin: 0 }}>어느 숙제에</label>{tg.items.length ? <select value={item} aria-label="어느 숙제에" data-g="send-item" onChange={(e) => setItem(e.target.value)} style={{ width: "auto", maxWidth: 360 }}><option value="">{md(tg.student.sheet.date)} 숙제 줄을 고르세요</option>{tg.items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}</select> : <span className="note" style={{ margin: 0 }} data-g="send-why">{tg.why}</span>}</div>}
         {tg.student && item && <Upload rules={rules} studentId={tg.student.id} itemId={item} label="📎 붙일 파일" hint={`아이 화면의 그 숙제 줄에 📎 로 붙습니다. 아이가 💾 저장 · ✓ 안 보기로 처리하고 ${days}일 뒤 아이 화면에서 사라집니다(여기엔 그대로)`} onDone={() => router.refresh()} />}
-        {(!tg.student || !item) && <p className="note k" style={{ margin: "8px 0 0" }}>아이 → 숙제 줄을 고르면 파일 칸이 열립니다 · 공지에 붙이기는 <Link prefetch={false} href="/send/notice" data-act="to-notice">📢 공지 화면</Link>에서(자료함의 파일을 골라 붙입니다)</p>}
+        {(!tg.student || !item) && <p className="note k" style={{ margin: "8px 0 0" }}>아이 → 숙제 줄을 고르면 파일 칸이 열립니다 · 공지에 붙이기는 <Link prefetch={false} href="/send/notice" data-act="to-notice">📢 공지 화면</Link>에서(자료실의 파일을 골라 붙입니다)</p>}
       </div>
       <div className="mdlf"><span className="spacer" /><button className="btn" type="button" onClick={() => setSend(false)}>닫기</button></div>
     </div></div>}
