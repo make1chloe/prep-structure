@@ -24,7 +24,7 @@ import { PickBox, PickGroup, PickBar, usePick } from "../_shell/pick.js";   /* �
 import CardOrder from "../_shell/cardorder.js";
 import { orderCards } from "@/lib/pref-plan";
 import { isUnchecked, CHECK, CHECK_KEY } from "@/lib/status";
-import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand } from "@/lib/routine-plan";
+import { STOP, MODE, stopOn, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, trimCounts, heavyBand, waveLabel } from "@/lib/routine-plan";
 const UPTO = ["시작만", "절반", "거의 다"];
 const REST = [["class", "오늘 학습으로"], ["home", "다음 숙제로"], ["stay", "남아서"]];
 const PLUS = [[20, "+20분"], [40, "+40분"], [60, "+1시간"]];
@@ -38,6 +38,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   const [pending, start] = useTransition();
   const closed = Boolean(sheet?.closed);
   const fail = (r) => { if (r && !r.ok) setErr(r.msg); return r?.ok; };
+  const errRef = useRef(null); useEffect(() => { if (err) errRef.current?.scrollIntoView?.({ block: "center" }); }, [err]);   // (어38) 실패 글은 판 맨 위에 서서 폰에선 안 보였다(원장님 9/15 「이거 버튼 안 먹힘」) · 뜨면 그리로 굴린다
   // 출결 — 낙관적
   const [attend, setAttendLocal] = useState(sheet?.attend ?? (student.plan?.absent ? "absent" : student.plan?.late ? "late" : "present"));
   const [plan, setPlan] = useState(false);
@@ -85,7 +86,7 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
       {plan && <PlanModal student={student} date={date} fail={fail} start={start} onClose={() => setPlan(false)} />}
       {open && (
         <div className="panel">
-          {err && <div className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
+          {err && <div ref={errRef} className="lf warn" role="alert" style={{ margin: "0 0 8px" }}><span className="ln">!</span><div><b>{err}</b></div><button type="button" className="btn sm" onClick={() => setErr("")}>닫기</button></div>}
           {!sheet && <div className="card"><p className="note">판 없음 · 출결을 누르면 섭니다</p></div>}
           {sheet && <nav className="tasks" data-g="tasks" aria-label="업무">{heads.map((h) => <button key={h.id} type="button" className={"tk" + (h.done ? " done" : "")} data-g="task" data-task={h.id} data-done={h.done ? "1" : "0"} aria-pressed={cur === h.id} onClick={() => setSel(h.id)}><span className="n">{h.done ? "✓" : (h.no ?? h.emo)}</span><b>{h.name}</b><span className="spacer" /><span className="tb" data-g="task-badge">{h.badge}</span></button>)}</nav>}
           {sheet && <div className="tbodies">{bodies}</div>}
@@ -275,7 +276,7 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
     <div className="half">
       <div className="hh">{title}<span className="cnt">{rows.length}개</span></div>
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>오늘 단원</span>
-        <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
+        <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{waveLabel(o)}</button>)}</div></div>}
       {tree.map((ch) => <Fragment key={ch.key}>
         {ch.chapter && <div data-g="chapter-head" style={{ margin: "6px 0 0", fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{ch.chapter}</div>}
         {ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null; return <div key={g.id ?? `_${gi}`} data-g="unit-block" data-unit={g.id ?? ""}>

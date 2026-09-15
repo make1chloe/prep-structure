@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, wavePlan, waveLabel, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -49,7 +49,7 @@ ok("안 한 소단원이 없으면 까닭 「안 한 소단원이 없다」", pl
 
 console.log("■ 회차 고르기(목업 01) · 학습: 다시·오늘·하나 더 / 숙제: 복습·하나 더·다음만");
 const w = waves({ units: [todo[0]], todo, done: U("1-3", "CH1", 3) });
-ok("학습 셋: 1-3 다시 · 1-4 · 1-4·1-5", w.class.map((x) => x.key).join() === "again,now,more" && w.class[2].units.map((u) => u.unit_id).join() === "1-4,1-5" && w.class.map((x) => x.name).join(" / ") === "1-3 다시 / 1-4 / 1-4·1-5");
+ok("학습 셋: 지난 단원 다시 · 이번 단원 · 하나 더((어38) 말은 뜻으로 · 부호는 codes 에) · 단원은 1-3 / 1-4 / 1-4·1-5", w.class.map((x) => x.key).join() === "again,now,more" && w.class[2].units.map((u) => u.unit_id).join() === "1-4,1-5" && w.class.map((x) => x.name).join(" / ") === "지난 단원 다시 / 이번 단원 / 하나 더" && w.class.map((x) => x.codes).join(" / ") === "1-3 / 1-4 / 1-4·1-5");
 ok("숙제 넷: 1-3 다시 · 1-4 복습 · 1-4·1-5 · 1-5만((머) 숙제에도 「다시」)", w.home.map((x) => x.key).join() === "again,review,more,next" && w.home[3].units[0].unit_id === "1-5");
 ok("마지막 소단원이면 「하나 더」가 없다", waves({ units: [todo[2]], todo: [todo[2]] }).class.length === 1);
 console.log("■ (머) ✕ 받은 단원은 「그 단원 다시」가 기본 · redoUnits · waves 의 done 은 여럿도 된다");
@@ -57,7 +57,19 @@ const checks = [{ status: "missing", unit_id: "1-3", units: { book_id: "B" } }, 
 ok("redoUnits · ✕ 이고 단원이 있고 이 교재인 것만 · 같은 단원은 하나", redoUnits(checks, "B").join() === "1-3");
 ok("교재를 안 주면 교재를 안 가린다 · ✕ 가 없으면 빈 것", redoUnits(checks).join() === "1-3,9-1" && redoUnits([{ status: "done", unit_id: "1-3" }], "B").length === 0);
 const w2 = waves({ units: [todo[0]], todo, done: [U("1-2", "CH1", 2), U("1-3", "CH1", 3)] });
-ok("✕ 둘이면 「1-2·1-3 다시」가 학습·숙제 둘 다 맨 앞 · 오늘 것(1-4)은 그대로", w2.class[0].name === "1-2·1-3 다시" && w2.class[0].units.length === 2 && w2.home[0].key === "again" && w2.home[1].name === "1-4 복습");
+ok("✕ 둘이면 「다시」가 학습·숙제 둘 다 맨 앞(redo 면 「✕ 받은 단원 다시」 · 아니면 「지난 단원 다시」) · 이번 단원(1-4)은 그대로 · 숙제는 「이번 단원 복습」", w2.class[0].name === "지난 단원 다시" && waves({ units: [todo[0]], todo, done: [U("1-2", "CH1", 2)], redo: true }).class[0].name === "✕ 받은 단원 다시" && w2.class[0].codes === "1-2·1-3" && w2.class[0].units.length === 2 && w2.home[0].key === "again" && w2.home[1].name === "이번 단원 복습" && waveLabel({ key: "now", name: "S2·S2" }) === "이번 단원" && waveLabel({ key: "next" }) === "다음 단원만");
+console.log("■ (어38) 오늘 단원 바꾸기의 줄 배치(wavePlan · 원장님 9/15 「이거 버튼 안 먹힘」)");
+{ const rows = [{ id: "a", unit_id: "1-4", off: false }, { id: "b", unit_id: "대비", off: false }];
+  const t = (r, ids) => { const q = wavePlan(r, ids); return q.ups.map((u) => `${u.id}:${u.unit_id ?? ""}:${u.off}`).join() + " | " + q.ins.map((x) => x.unit_id).join(); };
+  ok("[1-4·대비]에서 「하나 더」[1-4·1-5·대비] → 든 줄 둘은 그대로 · 1-5 만 새 줄(대비 줄을 1-5 로 바꾸고 새 줄이 대비를 드는 겹침이 없다)", t(rows, ["1-4", "1-5", "대비"]) === " | 1-5");
+  ok("[1-4·대비]에서 「이번 단원」[1-4·1-5] → 대비 줄을 1-5 로 돌려 쓴다 · 새 줄 0", t(rows, ["1-4", "1-5"]) === "b:1-5:false | ");
+  ok("[1-5·대비]에서 [1-4·1-5] → 1-5 줄은 그대로 · 대비 줄이 1-4 로 · (자리로 앉히면 첫 줄 1-5→1-4, 둘째 줄 대비→1-5 가 겹치던 것)", t([{ id: "a", unit_id: "1-5", off: false }, { id: "b", unit_id: "대비", off: false }], ["1-4", "1-5"]) === "b:1-4:false | ");
+  ok("「지난 단원 다시」[1-3] → 첫 줄을 1-3 으로 · 나머지는 off · off 였던 줄이 목표에 있으면 살린다 · 줄이 없으면 전부 새 줄", t(rows, ["1-3"]) === "a:1-3:false,b::true | " && t([{ id: "a", unit_id: "1-4", off: true }], ["1-4", "1-5"]) === "a::false | 1-5" && t([], ["1-4"]) === " | 1-4"); }
+{ const t = (r, ids) => { const q = wavePlan(r, ids); return [...q.ups, ...q.ins].map((u) => `${u.id ?? "+"}:${u.unit_id ?? ""}:${u.sort ?? (u.fresh ? "new" : "")}`).join(); };
+  const A = () => [{ id: "a", unit_id: "1-4", off: false, sort: 1 }, { id: "b", unit_id: "대비", off: false, sort: 2 }];
+  ok("(어38c) 줄을 돌려 써도 차례는 목표 단원 차례대로 · [1-5(1)·대비(2)]에서 [1-4·1-5] → 대비 줄이 1-4 를 들고 1번 자리 · 1-5 줄은 2번(옛 차례가 남아 대비문제가 1-4 앞에 서고 「+ 시험 더하기」 기본 단원이 대비문제가 되던 것)", t([{ id: "a", unit_id: "1-5", off: false, sort: 1 }, { id: "b", unit_id: "대비", off: false, sort: 2 }], ["1-4", "1-5"]) === "b:1-4:1,a::2");
+  ok("차례가 이미 맞으면 안 건드린다 · 남는 줄(off)은 산 줄 뒤 자리로", t(A(), ["1-4", "1-5"]) === "b:1-5:" && t(A(), ["대비"]) === "b::1,a::2");
+  ok("쓰던 자리가 모자라면 새 줄·밀린 줄은 fresh(소비처가 맨 뒤 번호를 자리 차례대로) · 가운데 새 줄은 쓰던 자리를 받는다 · sort 없는 줄(옛 판)은 차례를 안 건드린다", t([{ id: "a", unit_id: "1-4", off: false, sort: 1 }], ["1-4", "1-5"]) === "+:1-5:new" && t([{ id: "a", unit_id: "1-4", off: false, sort: 1 }, { id: "c", unit_id: "대비", off: false, sort: 2 }], ["1-4", "1-5", "대비"]) === "c::new,+:1-5:2" && t([{ id: "a", unit_id: "1-4", off: false }], ["1-5"]) === "a:1-5:"); }
 ok("✕ 받은 것이 오늘 것과 같으면 「다시」를 따로 안 세운다 · done 이 없으면 숙제는 복습부터", waves({ units: [todo[0]], todo, done: [todo[0]] }).class[0].key === "now" && waves({ units: [todo[0]], todo }).home[0].key === "review");
 console.log("■ 뺀 줄(off) · 지우지 않고 내린다(대전제-6)");
 ok("진행중·그대로 → 안 뺀다", offFor({ slot: "home", required: false }, { stop: "running", mode: "all" }) === false);

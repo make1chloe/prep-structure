@@ -157,20 +157,20 @@ await 펴기(row); await pick(row, "work");
 const bk = row.locator(".bk").first();
 ok("교재 한 권이 깔렸다(리허설 문법책 · 1회독 · CHAPTER 1)", (await row.locator(".bk").count()) === 1 && (await bk.locator(".bkh .tag", { hasText: "CHAPTER 1" }).count()) === 1);
 const bkC = bk.locator(".half").nth(0), bkH = bk.locator(".half").nth(1);
-ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 · 학습 회차 「1-3 다시」 눌림 · 학원 단원 머리 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-3 다시" && (await bkC.locator("[data-g=unit-head]").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "1-3 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator("[data-g=unit-head]").first().textContent().catch(() => "?")}`);
-await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^1-4$/ }).click(); await p.waitForTimeout(1000);
-await bkH.locator(".seg[data-g=wave-home] button", { hasText: "1-4 복습" }).click(); await p.waitForTimeout(1000);
+ok("(머) ✕ 받은 단원(1-3)이 있으면 「그 단원 다시」가 기본 · 학습 회차 「1-3 다시」 눌림 · 학원 단원 머리 1-3 · 숙제 회차도 「1-3 다시」 눌림(세그먼트로 바꿀 수 있다)", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "✕ 받은 단원 다시" && (await bkC.locator("[data-g=unit-head]").first().textContent()).includes("PSS 1-3") && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()) === "✕ 받은 단원 다시", `${await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent().catch(() => "?")} / ${await bkC.locator("[data-g=unit-head]").first().textContent().catch(() => "?")}`);
+await bkC.locator(".seg[data-g=wave-class] button", { hasText: /^이번 단원$/ }).click(); await p.waitForTimeout(1000);
+await bkH.locator(".seg[data-g=wave-home] button", { hasText: "이번 단원 복습" }).click(); await p.waitForTimeout(1000);
 await pick(row, "check"); await row.locator(".panel .hw").filter({ hasText: "zz_그저께" }).locator(".chk button[data-v=o]").click(); await p.waitForTimeout(1200);   // 뒤 걷기는 「1-4 · 오늘 것 복습 · ✕ 없음」에서 이어진다 — 회차를 되돌리고 그저께 것도 ○ 로(깔린 판은 다시 안 깐다)
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
-ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "1-4" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);
+ok("(머) 회차를 「1-4」·「1-4 복습」으로 되돌리면 그대로 따른다(기본일 뿐) · 그저께 것을 ○ 로 고쳐도 다시 깔지 않는다", (await bkC.locator(".seg[data-g=wave-class] button[aria-pressed=true]").textContent()) === "이번 단원" && (await row.locator(".marks .dot").allTextContents()).filter((x) => x === "✕").length === 0 && (await bkC.locator(".li").count()) === 3);
 ok("학원 줄 셋(구두테스트·문장훈련·교재 풀기) · 단원 머리 하나 「PSS 1-4 …」(쪽·문항은 단원마다 · (어32))", (await bkC.locator(".li").count()) === 3 && (await bkC.locator("[data-g=unit-head]").count()) === 1 && (await bkC.locator("[data-g=unit-head]").first().textContent()).includes("PSS 1-4"), await bkC.locator("[data-g=unit-head]").allTextContents().then((t) => t.join("|")));
 ok("숙제 줄 둘(문장훈련·워크북 복습) · 오늘 것 복습", (await bkH.locator(".li").count()) === 2 && (await bkH.locator(".seg[data-g=wave-home] button[aria-pressed=true]").textContent()).includes("복습"));
 ok("검사 안 본 것 알약이 사라졌다", (await p.locator(".pill.warn", { hasText: "검사 안 본 것" }).count()) === 0);
 await pick(row, "more");
 ok("분량 띠 · 학원 3 (손으로 더한 것은 「그 밖에」로)", (await row.locator(".load .ldn").first().locator("> b").textContent()) === "3");
 console.log("■ 오늘 단원 · 학습에서 「하나 더」를 누르면 소단원이 둘이 된다(줄은 그대로 셋)");
-await bkC.locator(".seg[data-g=wave-class] button", { hasText: "·" }).first().click(); await p.waitForTimeout(1000);
+await bkC.locator(".seg[data-g=wave-class] button", { hasText: "하나 더" }).first().click(); await p.waitForTimeout(1000);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
 ok("(어32) 단원 머리 둘(1-4 · 1-5) · 단원마다 활동 셋이 차례로 = 줄 6 · 단원이 먼저(원장님 9/15)", (await bk.locator(".half").nth(0).locator("[data-g=unit-head]").count()) === 2 && (await bk.locator(".half").nth(0).locator("[data-g=unit-head]").allTextContents()).join().includes("1-5") && (await bk.locator(".half").nth(0).locator(".li").count()) === 6, await bk.locator(".half").nth(0).locator("[data-g=unit-head]").allTextContents().then((t) => t.join("|")));
@@ -214,6 +214,20 @@ await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("적용 · 학습 단원이 1-4 · 대비문제(머리 둘 · 1-5 없음), 대비문제 활동 줄에 「이번에 1-20번」이 붙는다", (await bk.locator(".half").nth(0).locator("[data-g=unit-head]").allTextContents()).join().includes("대비문제") && !(await bk.locator(".half").nth(0).locator("[data-g=unit-head]").allTextContents()).join().includes("1-5") && (await bk.locator(".half").nth(0).locator(".li small").allTextContents()).join().includes("이번에 1-20번"), await bk.locator(".half").nth(0).locator("[data-g=unit-head], .li small").allTextContents().then((t) => t.join("|")));
 await pick(row, "more");
 ok("모달이 닫혔다 · 학원 항목 수는 줄×소단원 = 6 그대로", (await p.locator(".mdlov").count()) === 0 && (await row.locator(".load .ldn").first().locator("> b").textContent()) === "6");
+// (어38) 오늘 단원 세그 · 말은 뜻으로 · 조절로 [1-5·대비]를 깐 뒤 「하나 더」[1-4·1-5]를 눌러도 막히지 않는다(자리로 앉히면 두 줄이 1-5 를 동시에 들어 유일 색인에 막혔다 · 원장님 9/15 「이거 버튼 안 먹힘」) · 다시 [1-4·대비 · 이번에 1-20번]으로 돌려놓는다(뒤 걸음이 그 상태를 본다)
+{ const seg = bkC.locator(".seg[data-g=wave-class] button"); const heads = () => bk.locator(".half").nth(0).locator("[data-g=unit-head] > b").allTextContents();
+  const tuneTo = async (clicks, range = null) => { await bk.locator("button[data-act=tune]").click(); await p.waitForTimeout(1500); const m = p.locator(".mdlov .mdl"); for (const c of clicks) { await m.locator(".units .unit", { hasText: c }).click(); await p.waitForTimeout(150); } if (range) await m.locator(".seg[data-g=qrange] button", { hasText: range }).click(); await m.locator(".mdlf button", { hasText: "적용" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {}); await 펴기(row); await pick(row, "work"); };
+  ok("(어38) 세그 말이 뜻으로 · 「(✕ 받은 단원|지난 단원) 다시 · 이번 단원 · 하나 더」 · 단원 부호(1-4·1-5) 0", /^(✕ 받은 단원 다시|지난 단원 다시) · 이번 단원 · 하나 더$/.test((await seg.allTextContents()).join(" · ")), (await seg.allTextContents()).join(" · "));
+  await tuneTo(["1-4", "1-5"]);
+  ok("조절로 [1-5 · 대비문제](1-4 빼고 1-5 넣기)", (await heads()).join().includes("1-5") && (await heads()).join().includes("대비문제") && !(await heads()).join().includes("1-4"), (await heads()).join(" | "));
+  await seg.filter({ hasText: "하나 더" }).click(); await p.waitForTimeout(1500);
+  ok("「하나 더」[1-4·1-5] → 단원 머리 1-4 · 1-5 · 오류 띠 없음(1-5 줄은 그대로 · 대비 줄이 1-4 로)", (await heads()).length === 2 && (await heads()).join().includes("1-4") && (await heads()).join().includes("1-5") && (await row.locator("[role=alert]").count()) === 0, (await heads()).join(" | ") + " · " + (await row.locator("[role=alert]").textContent().catch(() => "")));
+  { const h = await heads(); ok("(어38c) 단원 머리 차례 1-4 → 1-5(돌려 쓴 대비 줄이 1번 자리를 받는다 · 옛 차례가 안 남는다)", h.length === 2 && h[0].includes("1-4") && h[1].includes("1-5"), h.join(" | ")); }
+  await seg.filter({ hasText: /^이번 단원$/ }).click(); await p.waitForTimeout(1500);
+  ok("「이번 단원」[1-4] → 단원 머리 1-4 하나 · 오류 없음", (await heads()).length === 1 && (await heads()).join().includes("1-4") && (await row.locator("[role=alert]").count()) === 0, (await heads()).join(" | "));
+  await tuneTo(["대비문제"], "1-20번");
+  ok("조절로 다시 1-4 · 대비문제 · 「이번에 1-20번」 · 학원 항목 6(뒤 걸음이 이 상태를 본다)", (await heads()).join().includes("대비문제") && !(await heads()).join().includes("1-5") && (await bk.locator(".half").nth(0).textContent()).includes("이번에 1-20번") && (await row.locator(".load .ldn").first().locator("> b").textContent()) === "6", (await heads()).join(" | ")); }
+{ const h = await bk.locator(".half").nth(0).locator("[data-g=unit-head] > b").allTextContents(); ok("(어38c) 되돌린 뒤 차례 1-4 → 대비문제(「+ 시험 더하기」 기본 단원 = 첫 줄 1-4)", h.length === 2 && h[0].includes("1-4") && h[1].includes("대비문제"), h.join(" | ")); }
 console.log("■ 줄이기 · 필수만 (검사-⑩: 지우지 않고 off) · 세그먼트에 숫자 「그대로 N · 필수만 M」 · 📣 오늘 좀 많습니다(씨앗 문턱 1쪽)");
 await pick(row, "more");
 const modeLabels = await row.locator(".seg[data-g=mode] button").allTextContents();
