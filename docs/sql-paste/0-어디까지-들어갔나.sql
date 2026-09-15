@@ -1,7 +1,7 @@
 -- 클로이영어 — **읽기만 합니다.** 아무것도 안 바꾸고, 아무것도 안 지웁니다.
 -- Supabase → SQL Editor → New query → 통째로 붙여넣고 Run → 나온 **한 줄**을 주세요.
 --
--- 무엇을 보나: ① 앱 코드의 01xx 65개가 실 DB 에 다 들어갔나(안 들어간 번호를 댑니다)
+-- 무엇을 보나: ① 앱 코드의 01xx 66개가 실 DB 에 다 들어갔나(안 들어간 번호를 댑니다)
 --              ② 첫 주를 시작할 준비가 됐나 — 재원생 · 반 · 교재 · 정한 권한칸 · 연동 열쇠 · 앱이 낸 계정
 -- ⚠️ SQL Editor 는 **맨 마지막 select 하나만** 보여 줍니다 — 그래서 한 문장으로 만들었습니다.
 -- ⚠️ 열쇠 값은 한 글자도 안 꺼냅니다 — 갈래 수만 셉니다.
@@ -72,7 +72,8 @@ with 코드에있는것(file) as (values
     ('0161_stop_one_rule.sql'),
     ('0162_exam_word.sql'),
     ('0163_today_prep.sql'),
-    ('0164_no_dash.sql')
+    ('0164_no_dash.sql'),
+    ('0165_legacy_choice_rows.sql')
 ), 안들어간 as (
   select c.file from 코드에있는것 c left join v2.migration m on m.file = c.file where m.file is null
 )

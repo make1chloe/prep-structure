@@ -84,7 +84,7 @@ ok(`표-6 0131 이 건 고르는 값 check ${chk.length} ≥ 11(notify_log kind�
 // 표-6 NOT VALID 의 값: 옛 줄이 제약에 안 맞으면 그 줄은 한 줄도 못 고친다(2026-09-15 실 DB · 0164 가 옛 할 일 「광복절 대체공휴일」에서 23514 로 통째 되돌아감).
 // 그래서 검증 안 한 제약은 래칫(늘지 않는다) · todo 는 0164 가 옛 갈래를 메모로 옮기고 검증했다. 실 DB 의 나머지는 docs/sql-paste/0-안-맞는-옛-줄.sql 로 센다.
 const nv = await col(`select conrelid::regclass::text || '.' || conname from pg_constraint where connamespace='v2'::regnamespace and contype='c' and not convalidated order by 1`);
-ok(`표-6 검증 안 한(not valid) check 는 12 이하 · todo_kind_choice 는 검증됨(0164)`, nv.length <= 12 && !nv.some((x) => x.endsWith("todo_kind_choice")), nv.join(","));
+ok(`표-6 검증 안 한(not valid) check 0 · 0164 가 todo · 0165 가 inquiry 를 옮기고 전부 validate(실 DB 도 0-안-맞는-옛-줄.sql 로 재고 검증) · 새 제약은 validate 까지`, nv.length === 0, nv.join(","));
 // (커) 갈래 열이 세 곳에서 같은가 — lib/notify-plan LABEL · notify_log_kind_choice · scheduled_send_kind_choice.
 // 2026-09-10 사고: LABEL 에 guide 를 더하고 예약 제약만 고쳐, 문자를 보내려다 「자취를 못 남김 … notify_log_kind_choice」로 막혔다(게이트 97 이 잡음)
 const { LABEL } = await import("../lib/notify-plan.js");
