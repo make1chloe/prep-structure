@@ -47,5 +47,13 @@ ok("목록 줄에 그 달 요약이 붙는다(listRows att)", listRows([{ id: "a
   const hand = strip(readFileSync("lib/student.js", "utf8")), page = strip(readFileSync("app/ops/students/page.js", "utf8")), scr = strip(readFileSync("app/ops/students/board.js", "utf8"));
   ok("달은 판에 넘겨서 센다. 화면이 따로 세지 않는다(p_month · 안 주면 오늘의 달 · 0156)", /p_month/.test(hand) && /studentBoard\(sb, sel, date, ym/.test(page) && !/from\(["']day_sheet["']\)/.test(scr));
   ok("달 넘기기는 12 달력과 같은 한 벌(nextYm · monthLabel) · 두 벌로 안 만든다", /nextYm|monthLabel/.test(scr) && /from "@\/lib\/plan-plan"/.test(scr)); }
+{ const strip = (z) => z.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+  const hand = strip(readFileSync("lib/student.js", "utf8")), home = strip(readFileSync("app/page.js", "utf8")), sess = strip(readFileSync("lib/session.js", "utf8")), scr = strip(readFileSync("app/ops/students/board.js", "utf8")), shim = readFileSync("scripts/e2e/auth.mjs", "utf8");
+  console.log("■ (어36) 계정만 있고 사람 줄이 없는 아이디(원장님 9/15 「학생페이지들어가면이래」)");
+  ok("이미 있는 auth 계정은 「이미 있는 아이디」로 막지 않고 찾아 잇는다(listUsers 로 이메일 찾기 · created:false · 앱이 만든 계정 표시 user_metadata.issued_by_app)", /listUsers\(/.test(hand) && /user_metadata: \{ issued_by_app: true \}/.test(hand) && /created: false, issuedByApp/.test(hand) && !/이미 있는 아이디입니다/.test(hand));
+  ok("잇기의 경계 · 사람 줄이 없으면 세운다(앱이 만든 계정이면 0000·바꿔야 들어감 · 아니면 비밀번호 그대로 · issued_by_app 은 그대로 false, 대전제-12) · 다른 아이의 것이면 막는다 · 학생이 아닌 역할이면 막는다 · 학부모도 같은 길", (hand.match(/must_change_pw: u\.issuedByApp, issued_by_app: u\.issuedByApp/g) ?? []).length === 2 && /이미 \$\{owner\.name\} 의 아이디입니다/.test(hand) && /adopted: !u\.created/.test(hand) && /학부모로 못 잇습니다/.test(hand));
+  ok("첫 화면 카드는 진짜 길을 말한다(학생 14 → 계정 · 아이디는 꼬리 없이 displayId · 로그아웃 단추 · 조회 오류가 있으면 까닭) · 없는 화면 「누가 누구인가」 0 · whoami 는 오류를 삼키지 않는다(err)", /data-g="no-profile"/.test(home) && /displayId\(user\.email\)/.test(home) && /학생 14/.test(home) && /action="\/logout"/.test(home) && !/누가 누구인가/.test(home) && /err: error\?\.message \?\? null/.test(sess));
+  ok("14 의 발급 답은 이은 것과 새로 만든 것을 가른다(adopted · 비밀번호는 그대로) · 「이관된 계정(전환일까지 …)」 글 0(전환일은 없다 · 대전제-12)", (scr.match(/r\.adopted \?/g) ?? []).length === 2 && (scr.match(/비밀번호는 그대로/g) ?? []).length >= 3 && !/전환일까지/.test(scr));
+  ok("e2e 인증 흉내에 GET /auth/v1/admin/users(목록 · page · per_page · { users })가 있다 · 씨앗에 사람 줄 없는 계정 chloe9837", /"\/auth\/v1\/admin\/users" && req\.method === "GET"/.test(shim) && /users: rows\.map\(shape\)/.test(shim) && /chloe9837@chloe-eng\.internal/.test(readFileSync("scripts/e2e/seed.sql", "utf8"))); }
 console.log(`\ncheck-student ${bad ? "✗" : "✓"} ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

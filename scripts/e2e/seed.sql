@@ -6,6 +6,10 @@ insert into auth.users (id, email, encrypted_password) values
   ('44444444-4444-4444-4444-444444444444', '01000000000@chloe-eng.internal',     'e2e-pass'),
   ('55555555-5555-5555-5555-555555555555', 'zz_assistant@e2e.test',  'e2e-pass')
 on conflict (id) do nothing;
+-- (어36) 계정만 있고 사람 줄(v2.profiles)이 없는 아이디 · 실 DB 의 chloe9837 과 같은 꼴(원장님 9/15 「학생페이지들어가면이래」). 걷기가 14 에서 학생셋에게 잇는다
+insert into auth.users (id, email, encrypted_password) values
+  ('66666666-6666-6666-6666-666666666666', 'chloe9837@chloe-eng.internal', 'e2e-pass')
+on conflict (id) do nothing;
 insert into v2.profiles (id, role, name, import_batch) values
   ('11111111-1111-1111-1111-111111111111', 'principal',  'zz_시험_원장', 'rehearsal'),
   ('22222222-2222-2222-2222-222222222222', 'instructor', 'zz_시험_강사', 'rehearsal'),

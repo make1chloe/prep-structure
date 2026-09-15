@@ -1,5 +1,6 @@
 /** 진도 검사(확정-⑳·㊳·㊶ · 검사-⑭) — 순수 판단 lib/progress-plan.js 를 본보기로. 예습·조각에 ○ 을 줘도 완료가 안 되나 · done 은 검사로 안 내려가나 · 메모 자동 ○ 은 학습 줄만(조각은 doing) · 대단원 요약 */
 import { fromCheck, merge, memoDone, chapterSummary, parsePart, coverage, partsText } from "../lib/progress-plan.js";
+import { readFileSync } from "node:fs";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 console.log("■ 검사 ○△✕ → 단원 진도");
@@ -27,5 +28,9 @@ const cv = coverage({ q_count: 62 }, [{ q_from: 1, q_to: 20 }, { q_from: 15, q_t
 ok("겹친 조각은 한 번만 · 1-20 + 15-31 = 31/62 · 남은 것 32-62 · 아직 doing", cv.covered === 31 && cv.total === 62 && !cv.done && JSON.stringify(cv.missing) === "[[32,62]]");
 ok("다 덮이면 done · 1-31 + 32-62 · 쪽 단원(p.10-12)도 p.10-12 로 덮인다 · 문항·쪽이 없는 단원은 못 덮는다", coverage({ q_count: 62 }, [{ q_from: 1, q_to: 31 }, { q_from: 32, q_to: 62 }]).done && coverage({ page_start: 10, page_end: 12 }, [{ page_from: 10, page_to: 12 }]).done && !coverage({}, [{ q_from: 1, q_to: 5 }]).done);
 ok("줄 밑 글 · 「낸 것 1-20 · 남은 것 21-62」 · 다 덮이면 「· 다 덮음」 · 조각 없으면 빈 글", partsText(coverage({ q_count: 62 }, [{ q_from: 1, q_to: 20 }])) === "낸 것 1-20 · 남은 것 21-62" && partsText(coverage({ q_count: 5 }, [{ q_from: 1, q_to: 5 }])) === "낸 것 1-5 · 다 덮음" && partsText(coverage({ q_count: 5 }, [])) === "");
+{ const strip = (z) => z.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:\\])\/\/.*$/gm, "$1"); const hand = strip(readFileSync("lib/progress.js", "utf8")), row = strip(readFileSync("app/today/row.js", "utf8")), act = strip(readFileSync("app/today/actions.js", "utf8"));
+  console.log("■ (어34) 진도 체크 02b · 고르기 → 한 번에 · 여기까지 모두 끝냄(원장님 9/15)");
+  ok("한 번에 바꾸는 손은 setUnits 하나(판·단원 한 번 읽고 회독은 교재마다 · 쓰기는 write) · setUnit 도 그 손으로(두 벌 없음) · doneUpTo 는 02b 에 보이는 차례(chapterSummary 한 벌)에서 그 소단원까지 ○·건너뜀 아닌 것만", /export async function setUnits\(/.test(hand) && /export async function setUnit\(sb, sheetId, unitId, status\) \{ const r = await setUnits\(/.test(hand) && /export async function doneUpTo\(/.test(hand) && /chapterSummary\(units\.data \?\? \[\], \[\]\)\.chapters\.flatMap/.test(hand) && /!\["done", "skip"\]\.includes\(st\.get\(id\)/.test(hand));
+  ok("02b 는 고르기 한 벌(usePick · 소단원마다 PickBox · 대단원을 펴면 PickGroup 「이 대단원 전체」 · 띠에 ○ 끝냄·◐ 하는 중·· 아직 · 줄마다 「여기까지 ○」 · 마감된 판은 안 그린다) · 손은 progressSetMany · progressUpTo", /data-g="prog-unit"/.test(row) && /\{!closed && <PickBox pick=\{pk\} id=\{u\.id\}/.test(row) && /<PickGroup pick=\{pk\} ids=\{c\.units\.map/.test(row) && /data-act="pick-done"/.test(row) && /data-act="done-upto"/.test(row) && /export const progressSetMany/.test(act) && /export const progressUpTo/.test(act)); }
 console.log(`\n■ 진도 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

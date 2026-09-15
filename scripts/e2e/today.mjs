@@ -169,7 +169,7 @@ ok("숙제 줄 둘(문장훈련·워크북 복습) · 오늘 것 복습", (await
 ok("검사 안 본 것 알약이 사라졌다", (await p.locator(".pill.warn", { hasText: "검사 안 본 것" }).count()) === 0);
 await pick(row, "more");
 ok("분량 띠 · 학원 3 (손으로 더한 것은 「그 밖에」로)", (await row.locator(".load .ldn").first().locator("> b").textContent()) === "3");
-console.log("■ 회차 · 학습에서 「하나 더」를 누르면 소단원이 둘이 된다(줄은 그대로 셋)");
+console.log("■ 오늘 단원 · 학습에서 「하나 더」를 누르면 소단원이 둘이 된다(줄은 그대로 셋)");
 await bkC.locator(".seg[data-g=wave-class] button", { hasText: "·" }).first().click(); await p.waitForTimeout(1000);
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 await 펴기(row); await pick(row, "work");
@@ -184,6 +184,7 @@ await snapModal("02-tune");
   ok("(자) 상단 띠 · 바탕이 있다(굴려도 내용이 띠를 뚫고 안 보인다) · 모달이 열리면 띠도 덮인다(탭 자리가 .mdlov)", h.bg !== "rgba(0, 0, 0, 0)" && h.covered, JSON.stringify(h)); }
 ok("(머) 「같은 조절 3번째 · 루틴을 고칠까요?」 알약(어제·그저께도 조절 · 규칙 tune.ask_after 3) + 「11 에서 회차 고치기 ↗」 링크(답은 루틴 11 에 적힌다. 확정-62)", ((await md.locator("[data-g=ask-routine]").textContent().catch(() => "")) ?? "").startsWith("같은 조절 3번째 · 루틴을 고칠까요?") && ((await md.locator("[data-g=ask-routine] a").getAttribute("href").catch(() => "")) ?? "").startsWith(`/settings/routine?s=${S1_ROW}#book-`), (await md.locator("[data-g=ask-routine]").textContent().catch(() => "없음")));
 ok("모달 · 안 한 소단원 3개 중에서 · 지금 2개(1-4·1-5) = 28문항 · 2쪽", (await md.locator(".hwname small").first().textContent()).includes("3개") && (await md.locator(".lf.warn b").first().textContent()).includes("28문항 · 2쪽"));
+ok("(어33) 조절 말이 쉽다(원장님 9/15) · 「CHAPTER 1 에서 아직 안 나간 소단원 3개 · 다음 대단원 CHAPTER 2 도 고를 수 있음」 · 칩 목록에 대단원 머리 CHAPTER 1 · CHAPTER 2 · 「고른 소단원 2개 = 오늘 …」 · 「나가는 차례」 · 「회차」 0", (await md.locator("[data-g=tune-left]").textContent()) === "CHAPTER 1 에서 아직 안 나간 소단원 3개 · 다음 대단원 CHAPTER 2 도 고를 수 있음" && (await md.locator("[data-g=tune-chapter]").allTextContents()).join() === "CHAPTER 1,CHAPTER 2" && (await md.locator(".lf.warn b").first().textContent()).startsWith("고른 소단원 2개 = 오늘") && (await md.locator(".lf.ok b").first().textContent()).includes("나가는 차례") && !(await md.textContent()).includes("회차"), (await md.locator("[data-g=tune-left]").textContent()));
 await md.locator(".stepper button[data-s='+']").click(); await p.waitForTimeout(200);
 ok("3개면 90문항 · 11쪽 · 62문항 대비문제엔 「이번에」 눈금 1-20번·1-31번·전체", (await md.locator(".lf.warn b").first().textContent()).includes("90문항 · 11쪽") && (await md.locator(".seg[data-g=qrange] button").allTextContents()).join(" · ") === "1-20번 · 1-31번 · 전체");
 await md.locator(".seg[data-g=qrange] button", { hasText: "1-20번" }).click();
@@ -241,6 +242,19 @@ await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000006'] button[dat
 ok("되돌리기 · → 「0/1」", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("0/1"));
 await pm.locator(".acc", { hasText: "CHAPTER 2" }).locator("button", { hasText: "이 대단원 건너뛰기" }).click(); await p.waitForTimeout(1200);
 ok("이 대단원 건너뛰기 → 「0/1 끝냄 · 건너뜀 1」 (지운 것이 아니다)", (await pm.locator(".acch", { hasText: "CHAPTER 2" }).locator(".tag").textContent()).includes("건너뜀 1"));
+// (어34) 고르기 → 한 번에 · 여기까지 ○ (원장님 9/15) · CHAPTER 1 의 1-5 「여기까지 ○」 → 1-4(◐)·1-5(·)가 ○ → 띠로 되돌려 놓는다(1-4 ◐ · 1-5 ·). 뒤 걸음(마감 뒤 1-4 ○ 메모 자동 · 대비문제 ◐ 조각)이 그 상태를 본다
+await pm.locator(".acch", { hasText: "CHAPTER 1" }).click(); await p.waitForTimeout(300);
+ok("(어34) 소단원 줄마다 네모 · 「여기까지 ○」 · 대단원을 펴면 「이 대단원 전체」 네모 · 고른 것이 없으면 띠 없음", (await pm.locator("[data-g=prog-unit] [data-g=pick]").count()) === 6 && (await pm.locator("[data-g=prog-unit] button[data-act=done-upto]").count()) === 6 && (await pm.locator(".acc.open [data-g=pick-group]").count()) === 1 && (await pm.locator("[data-g=pickbar]").count()) === 0, `pick ${await pm.locator("[data-g=prog-unit] [data-g=pick]").count()} · upto ${await pm.locator("[data-g=prog-unit] button[data-act=done-upto]").count()}`);
+await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] button[data-act=done-upto]").click(); await p.waitForTimeout(1500);
+ok("1-5 「여기까지 ○」 → 1-1~1-5 가 ○(1-4 ◐ 도 ○) · 뒤의 대비문제는 그대로 · · CHAPTER 1 「5/6」", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === "done" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000007'] button[aria-pressed=true]").getAttribute("data-p")) === "none" && (await pm.locator(".acch", { hasText: "CHAPTER 1" }).locator(".tag").textContent()).includes("5/6"), await pm.locator(".acch", { hasText: "CHAPTER 1" }).locator(".tag").textContent());
+await pm.locator(".acc.open [data-g=pick-group]").check(); await p.waitForTimeout(200);
+ok("「이 대단원 전체」 → 띠 「고른 6개」 · ○ 끝냄 · ◐ 하는 중 · · 아직 · 비우기", (await pm.locator("[data-g=pickbar] [data-g=picked]").textContent()) === "고른 6개" && (await pm.locator("[data-g=pickbar] button[data-act=pick-done]").count()) === 1 && (await pm.locator("[data-g=pickbar] button[data-act=pick-doing]").count()) === 1 && (await pm.locator("[data-g=pickbar] button[data-act=pick-none]").count()) === 1 && (await pm.locator("[data-g=pickbar] button[data-act=pick-clear]").count()) === 1);
+await pm.locator("[data-g=pickbar] button[data-act=pick-clear]").click(); await p.waitForTimeout(200);
+await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000004'] [data-g=pick]").check(); await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] [data-g=pick]").check(); await p.waitForTimeout(200);
+await pm.locator("[data-g=pickbar] button[data-act=pick-doing]").click(); await p.waitForTimeout(1500);
+ok("1-4·1-5 골라 「◐ 하는 중」 → 둘 다 ◐ · 띠는 비워진다", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === "doing" && (await pm.locator("[data-g=pickbar]").count()) === 0);
+await pm.locator("[data-g=prog-unit][data-unit='99999999-0000-4000-e100-000000000005'] [data-g=pick]").check(); await p.waitForTimeout(200); await pm.locator("[data-g=pickbar] button[data-act=pick-none]").click(); await p.waitForTimeout(1500);
+ok("1-5 만 골라 「· 아직」 → 1-5 · · 1-4 는 ◐ 그대로(되돌려 놓음)", (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000005'] button[aria-pressed=true]").getAttribute("data-p")) === "none" && (await pm.locator(".tri[data-g='99999999-0000-4000-e100-000000000004'] button[aria-pressed=true]").getAttribute("data-p")) === "doing");
 await pm.locator(".mdlf button", { hasText: "닫기" }).click(); await p.waitForTimeout(300);
 console.log("■ 🗺 진도 · 영역별 메모 · 📝 단원평가(목업 01 남긴 것 6)");
 await 펴기(row); await pick(row, "areamemo");   // 다시 읽으면 접힌 채로 선다 — 원장님이 ▾ 를 누른 것과 같게 편다
@@ -1968,6 +1982,20 @@ console.log("■ (어28)-④ 단원 15 · 루틴 11 · 학교 06b/12b · 성적 
   ok(`보내기(묻고) → 「공지 1개 · N명에게 보냈습니다. 🧪 리허설(off) …」 · 보냄 ${sent0 + 1}`, /^공지 1개 · \d+명에게 보냈습니다\. 🧪 리허설/.test(await nt4.locator("[data-g=msg]").textContent()) && (await nt4.locator("[data-g=sent]").textContent()) === `보냄 ${sent0 + 1}`, await nt4.locator("[data-g=msg]").textContent().catch(() => "-")); }
 { await p.goto(`${APP}/send`); await p.waitForLoadState("networkidle").catch(() => {}); const sm5 = p.locator("main");
   ok("10 발송의 고르기도 같은 부품 · 「이 묶음 전체」·「전체 선택」= PickAll 둘 · 줄 네모 data-g=pick · 「선택 N건」은 셈 그대로", (await sm5.locator("[data-g=pick-all]").count()) === 2 && (await sm5.locator("[data-g=daily-row] [data-g=pick]").count()) >= 1 && /^선택 \d+건$/.test((await sm5.locator("[data-g=sel-count]").textContent()).trim())); }
+console.log("■ (어36) 계정만 있고 사람 줄이 없는 아이디 · 첫 화면이 잇는 길을 말한다 · 14 에서 그 아이디로 발급하면 잇는다(비밀번호 그대로) · 원장님 9/15 「학생페이지들어가면이래」");
+{ const oc = await b.newContext({ viewport: VIEWS[0].viewport }); await offline(oc); const op = await oc.newPage();
+  await op.goto(APP + "/login"); await op.fill("#id-student", "chloe9837"); await op.fill("#pw-student", "e2e-pass");
+  await Promise.all([op.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 15000 }).catch(() => {}), op.click("form:has(#id-student) button[type=submit]")]); await op.waitForLoadState("networkidle").catch(() => {});
+  const card = op.locator("main [data-g=no-profile]");
+  ok("아이디만 있고 사람 줄이 없는 chloe9837 로 들어가면 첫 화면에 「아직 학원에 이어지지 않은 아이디」 카드 · 아이디 · 길(학생 14 → 계정) · 로그아웃 단추 · 꼬리 도메인 없음", (await card.count()) === 1 && (await card.textContent()).includes("chloe9837") && (await card.textContent()).includes("학생 14") && (await card.locator("form[action='/logout'] button").count()) === 1 && !(await op.content()).includes("chloe-eng.internal"), `url ${op.url()} · ${(await op.locator("main").textContent().catch(() => "")).replace(/\s+/g, " ").slice(0, 160)}`);
+  await p.goto(`${APP}/ops/students?s=99999999-0000-4000-9000-000000000003`); await p.waitForLoadState("networkidle").catch(() => {});
+  const s3 = p.locator("main"); if (!(await s3.locator("[data-g=edit]").count())) { await s3.locator("button[data-act=edit-open]").click(); await p.waitForTimeout(300); }
+  await s3.locator("[data-g=account] input[aria-label='학생 아이디']").fill("chloe9837"); await s3.locator("[data-g=account] button[data-act=student-account]").click();
+  await p.waitForFunction(() => /이었습니다/.test(document.querySelector("[data-g=msg]")?.textContent ?? "") || document.querySelector("main [role=alert]"), null, { timeout: 20000 }).catch(() => {}); await p.waitForTimeout(1200);
+  ok("학생셋에게 아이디 chloe9837 로 발급 → 「이미 있던 계정 chloe9837 을 이었습니다 · 비밀번호는 그대로」 · 계정 줄 「아이디 chloe9837 · 이어진 계정(비밀번호는 그대로)」", ((await s3.locator("[data-g=msg]").textContent().catch(() => "")) ?? "").startsWith("이미 있던 계정 chloe9837 을 이었습니다 · 비밀번호는 그대로") && (await s3.locator("[data-g=account]").textContent()).includes("아이디 chloe9837") && (await s3.locator("[data-g=account]").textContent()).includes("이어진 계정"), (await s3.locator("[data-g=msg], main [role=alert]").allTextContents()).join(" | "));
+  await op.goto(APP + "/"); await op.waitForLoadState("networkidle").catch(() => {});
+  ok("그 아이가 다시 열면 제 화면(/me · 비밀번호 그대로 · 바꾸라고 안 묻는다) · 이름 zz_시험_학생셋", new URL(op.url()).pathname === "/me" && (await op.locator("header.appbar").textContent()).includes("zz_시험_학생셋"), op.url());
+  await oc.close(); }
 await b.close();
 ok(`화면 안 JS 오류 0 · ${pageErrs.length}`, pageErrs.length === 0, pageErrs.slice(0, 3).join(" | "));
 console.log(`\n■ 오늘 수업 걷기 ${n}건 · 실패 ${bad}`);

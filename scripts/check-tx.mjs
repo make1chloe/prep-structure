@@ -10,7 +10,7 @@ const KNOWN = {
   "lib/grid.js:setCol": "칸(grid_col)이 먼저 바뀌고 값(grid_cell)을 옮겨 담는다. 반쯤 되면 못 옮긴 값이 그대로 남아 화면에 빈 글로 보이고, 종류를 다시 고르면 이어진다(지우지 않는다 · 5단계-⑥)",
   "lib/quiz.js:setStyle": "방식 줄(quiz_style) + 아직 안 본 같은 시험의 style_id·통과선 · 방식 줄이 서면 시험은 다음 저장·style_for 로 다시 맞출 수 있다(반쯤 돼도 이어진다 · 5단계-③)",
   "lib/student.js:setState": "퇴원 = 학생 상태 + 반 줄 닫기 · 반 줄은 학생 상태를 보고 다시 닫을 수 있다",
-  "lib/student.js:issueStudentAccount": "auth 계정 + profiles + 학생 잇기 · 계정이 서고 줄이 안 서면 다음 발급이 「이미 있는 아이디」로 말한다",
+  "lib/student.js:issueStudentAccount": "auth 계정 + profiles + 학생 잇기 · 계정이 서고 줄이 안 서면 다음 발급이 그 계정을 찾아 잇는다((어36) · 「이미 있는 아이디」로 막지 않는다)",
   "lib/student.js:issueParentAccount": "auth 계정 + profiles + parent_student · 같은 결",
   "lib/todo.js:addMaterial": "자료 + 항목 + 배정 + 할 일 셋 · 자료가 서면 할 일은 sync_material_todos(SQL) 가 다시 세운다",
   "lib/todo.js:reuseMaterial": "같은 결(♻️)",

@@ -175,6 +175,13 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { external: {}, disable_signup: false, mailer_autoconfirm: true, autoconfirm: true });
     }
     // 서버 자신(service role)이 계정을 발급·초기화하는 길 — supabase-js auth.admin.createUser / updateUserById 가 치는 주소(3단계-8 등록 전환 · 비밀번호 0000)
+    if (path === "/auth/v1/admin/users" && req.method === "GET") {   // (어36) auth.admin.listUsers · 이메일로 계정을 찾는 길(page · per_page · { users }) · 진짜는 Link 머리로 다음 쪽을 말하는데 여기는 한 쪽에 다 준다
+      const per = Math.max(1, Number(url.searchParams.get("per_page") || 50)), page = Math.max(1, Number(url.searchParams.get("page") || 1));
+      const all = db.query("select id, email, raw_user_meta_data from auth.users order by email").rows;
+      const rows = all.slice((page - 1) * per, page * per);
+      res.setHeader("x-total-count", String(all.length));
+      return json(res, 200, { users: rows.map(shape), aud: "authenticated" });
+    }
     if (path === "/auth/v1/admin/users" && req.method === "POST") {
       const body = await readBody(req);
       if (!body.email) return json(res, 422, { message: "email 이 없습니다" });

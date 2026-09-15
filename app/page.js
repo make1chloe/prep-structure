@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Oops } from "./_shell/oops.js";
 import { guard } from "@/lib/session";
-import { ROLE_NAME, ROLES, isStaff } from "@/lib/roles";
+import { ROLE_NAME, ROLES, isStaff, displayId } from "@/lib/roles";
 import { CELLS } from "@/lib/perm";
 import { today } from "@/lib/day";
 import { dashboard } from "@/lib/dash";
@@ -25,8 +25,12 @@ const dispName = (k) => DISPOSAL.find(([x]) => x === k)?.[1] ?? "처분 아직";
 const qkind = (k) => QKIND.find(([x]) => x === k)?.[1] ?? k;
 const rkind = (k) => RKINDS.find(([x]) => x === k)?.[1] ?? k;
 export default async function Home() {
-  const { sb, me, user } = await guard();
-  if (!me) return frame(<div className="card"><div className="ctitle"><span className="cemo">⚠️</span>사람 줄이 없습니다</div><p className="note">로그인은 됐는데 <b>{user.email}</b> 의 역할 줄이 없습니다. 원장님이 「누가 누구인가」에서 넣어야 합니다.</p></div>);
+  const { sb, me, user, err } = await guard();
+  if (!me) return frame(<div className="card" data-g="no-profile">   {/* (어36) 계정만 있고 사람 줄이 없는 아이디(원장님 9/15 「학생페이지들어가면이래」) · 진짜 길을 말한다 · 꼬리 도메인은 안 보인다 */}
+    <div className="ctitle"><span className="cemo">⚠️</span>아직 학원에 이어지지 않은 아이디</div>
+    <p className="note">로그인은 됐는데 <b>{displayId(user.email)}</b> 에 이어진 학생·학부모·선생님 줄이 없음{err ? ` · 읽기 오류: ${err}` : ""}</p>
+    <p className="note">원장님이 학생 14 → 그 아이 → 계정 · 학생 칸에 <b>{displayId(user.email)}</b> 을 적고 발급 → 이어짐(비밀번호는 그대로) · 학부모면 계정 · 학부모에 전화번호로 발급·잇기</p>
+    <form action="/logout" method="post"><button className="btn sm" type="submit">로그아웃</button></form></div>);
   if (me.role === ROLES.STUDENT) redirect("/me");   // 아이는 제 화면(07) — 메뉴 없이 하나
   if (!isStaff(me.role)) return frame(<div className="card"><div className="ctitle"><span className="cemo">🎒</span>{me.name} 님, {ROLE_NAME[me.role]} 화면은 곧 열립니다</div><p className="note">2단계에서 아이·학부모 화면이 섭니다.</p></div>);
   let date, d;
