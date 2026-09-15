@@ -9,7 +9,7 @@ import { commentRules, draftComment } from "@/lib/comment";
 import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
-import { attendanceWrite, attendMany as attendManyWrite } from "@/lib/attend";
+import { attendanceWrite, attendReasonWrite, attendMany as attendManyWrite } from "@/lib/attend";
 import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
@@ -22,6 +22,7 @@ const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.j
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });
 export const setAttend = done(async (sheetId, value) => { const { sb } = await staff(); await attendanceWrite(sb, sheetId, value); });
+export const setAttendReason = done(async (sheetId, reason) => { const { sb } = await staff(); await attendReasonWrite(sb, sheetId, reason || null); });   // (어44) 지각·결석 까닭 · 다시 누르면 뗀다(null)
 export const attendMany = done(async (list, date, value) => { const { sb } = await staff(); return attendManyWrite(sb, list, String(date), value); });   // (어28)-② 고른 아이들 출결 한 번에(판이 없으면 세운다)
 export const closeMany = done(async (sheetIds) => { const { sb, user } = await staff(); return closeManySheets(sb, sheetIds, user.id); });   // (어28)-② 고른 판 마감 한 번에(저장된 글 그대로)
 export const checkAll = done(async (sheetId) => { const { sb } = await staff(); return checkAllItems(sb, String(sheetId)); });   // (어24) 「다 ○」

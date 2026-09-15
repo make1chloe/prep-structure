@@ -114,6 +114,12 @@ console.log("■ 출결 · 낙관적 · (어28)-② 고른 줄에 한 번에(원
   await p.locator("main [data-g=pickbar] [data-g=att-picked] button", { hasText: "지각" }).click(); await p.waitForFunction(() => !document.querySelector("main [data-g=pickbar]"), null, { timeout: 15000 }); await p.waitForTimeout(600); }
 await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
 ok("지각이 저장돼 있다", (await row.locator(".seg[data-g=att] button", { hasText: "지각" }).getAttribute("aria-pressed")) === "true");
+{ const rs = row.locator(".seg[data-g=att-reason] button"); const pill = async () => (await row.locator(".pill[data-warn]").textContent().catch(() => "")) ?? ""; const why = async () => (await row.locator(".pill[data-warn]").getAttribute("data-why").catch(() => "")) ?? "";   // (어44) 까닭 칩 넷 · 원장님 9/15 「지각 결석 사유 필요헤 질병 진료 가족일정 학교일정 · 진료 선택시 경고 누적 안되게」
+  ok("(어44) 지각이면 까닭 칩 넷(질병 · 진료 · 가족 일정 · 학교 일정) · 아직 아무것도 안 눌림 · 알약 「경고 3」(지난달 지각 이틀 + 오늘)", (await rs.allTextContents()).join() === "질병,진료,가족 일정,학교 일정" && (await row.locator(".seg[data-g=att-reason] button[aria-pressed=true]").count()) === 0 && /^경고 3/.test(await pill()) && /지각/.test(await why()), `${(await rs.allTextContents()).join()} · ${await pill()} · ${await why()}`);
+  await rs.filter({ hasText: "진료" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어44) 「진료」 → 눌린 채 · 오늘 까닭에서 「지각」이 빠진다(규칙 warn.excused · SQL warn_days · 같은 날 단어 미통과가 있으면 하루 1회라 횟수는 그대로)", (await row.locator(".seg[data-g=att-reason] button", { hasText: "진료" }).getAttribute("aria-pressed")) === "true" && !/지각/.test(await why()) && /^경고 [23]/.test(await pill()), `${await pill()} · ${await why()}`);
+  await row.locator(".seg[data-g=att-reason] button", { hasText: "질병" }).click(); await p.waitForTimeout(1500); await p.reload(); await p.waitForLoadState("networkidle").catch(() => {});
+  ok("(어44) 「질병」 → 까닭에 다시 「지각」(질병·가족 일정은 센다) · 「경고 3」 · 뒤의 반성문 걷기는 이 3회째를 쓴다", (await row.locator(".seg[data-g=att-reason] button", { hasText: "질병" }).getAttribute("aria-pressed")) === "true" && /지각/.test(await why()) && /^경고 3/.test(await pill()), `${await pill()} · ${await why()}`); }
 console.log("■ 숙제 검사 △ → 어디까지 → 나머지는 다음 숙제로");
 if (!(await row.locator(".panel").count())) await row.locator("button.open").click();
 await 펴기(row); await pick(row, "check");

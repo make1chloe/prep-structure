@@ -4,9 +4,9 @@
 import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, setAttendReason, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, fromLast, bookLine } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, ATTEND_REASON, REASON_ON, fromLast, bookLine } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import ProgressModal from "../_shell/progressmodal.js";   // (어41) 진도 체크 모달 한 벌(대시보드와 같은 부품) · 손은 수업 일지 기준
@@ -45,9 +45,12 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
   const errRef = useRef(null); useEffect(() => { if (err) errRef.current?.scrollIntoView?.({ block: "center" }); }, [err]);   // (어38) 실패 글은 판 맨 위에 서서 폰에선 안 보였다(원장님 9/15 「이거 버튼 안 먹힘」) · 뜨면 그리로 굴린다
   // 출결 — 낙관적
   const [attend, setAttendLocal] = useState(sheet?.attend ?? (student.plan?.absent ? "absent" : student.plan?.late ? "late" : "present"));
+  const [reason, setReasonLocal] = useState(sheet?.attend_reason ?? null);   // (어44) 지각·결석 까닭 · 낙관적 · 다시 누르면 뗀다
+  const pickReason = (k) => { if (closed || !sheet?.id) return; const prev = reason, next = reason === k ? null : k; setReasonLocal(next); setErr("");
+    start(async () => { const r = await setAttendReason(sheet.id, next); if (!fail(r)) setReasonLocal(prev); }); };
   const [plan, setPlan] = useState(false);
   const [barHost, setBarHost] = useState(null);   // 판 끝 저장줄(목업 01·03) — ✉️ 카드가 단추를 여기로 내보낸다(portal). 판의 직접 자식이라 sticky 가 판 안에서 화면 아래에 붙는다(폰-6 · PC 는 오른쪽 열 안)
-  const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr("");
+  const pickAttend = (v) => { if (closed) return; const prev = attend; setAttendLocal(v); setErr(""); if (!REASON_ON.includes(v)) setReasonLocal(null);
     start(async () => { let id = sheet?.id; if (!id) { const r = await openSheet(student.id, classId, date); if (!fail(r)) { setAttendLocal(prev); return; } id = r.sheetId; } const r = await setAttend(id, v); if (!fail(r)) setAttendLocal(prev); }); };
   const nCheck = sheet?.check.length ?? 0, nLeft = sheet?.check.filter(isUnchecked).length ?? 0;
   const sh = shutCards(sheet, { stay: student.stay, closed });
@@ -79,10 +82,11 @@ export default function Row({ student, sheet, classId, classEnd = "", date, minu
         <div className="seg sm" data-g="att" aria-label={`${student.name} 출결`}>
           {ATTEND.map(([v, name]) => <button key={v} type="button" aria-pressed={attend === v} disabled={closed} onClick={() => pickAttend(v)}>{name}</button>)}
         </div>
+        {REASON_ON.includes(attend) && sheet?.id && <div className="seg sm" data-g="att-reason" aria-label={`${student.name} 까닭`}>{ATTEND_REASON.map(([k, name]) => <button key={k} type="button" aria-pressed={reason === k} disabled={closed} onClick={() => pickReason(k)}>{name}</button>)}</div>}{/* (어44) 지각·결석 까닭 넷 · 원장님 9/15 · 진료·학교 일정은 경고에 안 센다(규칙 warn.excused) */}
         <span className="spacer" />
         {sheet && <span className="pill hw">학원 {sheet.class.length} · 숙제 {sheet.home.length}</span>}
         {roundPill(student.books) && <span className="pill">{roundPill(student.books)}</span>}
-        {student.warn?.count > 0 && <span className={"pill" + (student.warn.due || student.warn.today_disposal ? " bad" : "")} data-warn="1">경고 {student.warn.count}{student.warn.due || student.warn.today_disposal ? " · 반성문" : ""}</span>}
+        {student.warn?.count > 0 && <span className={"pill" + (student.warn.due || student.warn.today_disposal ? " bad" : "")} data-warn="1" data-why={student.warn.today_why ?? ""}>경고 {student.warn.count}{student.warn.due || student.warn.today_disposal ? " · 반성문" : ""}</span>}
         {status && <span className={"pill" + (closed ? "" : attend === "absent" ? " bad" : " warn")}>{status}</span>}
         <button type="button" className="btn sm" data-act="plan" onClick={() => setPlan(true)}>📅 예정</button>
         <button type="button" className="open" onClick={() => setOpen(!open)}>{open ? "닫기" : "펴기"}</button>

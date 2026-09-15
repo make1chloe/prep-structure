@@ -23,6 +23,13 @@ try {
   ok("미흡 1건은 경고가 아니다(규칙 warn.weak_from=2)", (await days("2026-11-04", "2026-11-04")).length === 0);
   await item(s2, "weak");
   ok("미흡 2건부터 경고", (await days("2026-11-04", "2026-11-04")).length === 1);
+  // (어44) 까닭이 규칙 warn.excused(기본 진료·학교 일정)면 그날 지각은 안 센다 · 질병·가족 일정은 센다 · 원장님 9/15 「학교일정 진료 선택시 경고 누적 안되게」
+  const sheetR = async (d, attend, reason) => (await c.query(`insert into v2.day_sheet(student_id, date, attend, attend_reason) values ($1, $2, $3, $4) returning id`, [S, d, attend, reason])).rows[0].id;
+  await sheetR("2027-02-10", "late", "clinic"); await sheetR("2027-02-11", "late", "school"); await sheetR("2027-02-12", "late", "sick"); await sheetR("2027-02-13", "late", "family"); await sheetR("2027-02-14", "absent", "sick");
+  ok("(어44) 규칙 warn.excused 기본 clinic,school · 진료·학교 일정 지각은 안 센다 · 질병·가족 일정 지각은 센다 · 결석은 원래 안 센다", (await c.query(`select value from v2.rule where key = 'warn.excused'`)).rows[0]?.value === "clinic,school" && (await days("2027-02-10", "2027-02-11")).length === 0 && (await days("2027-02-12", "2027-02-13")).map((x) => x.why).join() === "지각,지각" && (await days("2027-02-14", "2027-02-14")).length === 0, JSON.stringify(await days("2027-02-10", "2027-02-14")));
+  await c.query(`update v2.rule set value = '' where key = 'warn.excused'`);
+  ok("(어44) 규칙을 비우면 진료 지각도 센다(규칙 줄이 판단 · 트랜잭션 안이라 되돌아간다)", (await days("2027-02-10", "2027-02-10")).length === 1);
+  await c.query(`update v2.rule set value = 'clinic,school' where key = 'warn.excused'`);
   const s3 = await sheet("2026-11-05");
   await c.query(`insert into v2.quiz(student_id, kind, source, free_note, taken_sheet_id, taken_on, total, wrong, cut_pct, state) values ($1,'word','manual','범위',$2,'2026-11-05',20,5,90,'failed')`, [S, s3]);
   ok("단어 미통과는 경고", (await days("2026-11-05", "2026-11-05")).length === 1 && (await days("2026-11-05", "2026-11-05"))[0].why === "단어 미통과");
