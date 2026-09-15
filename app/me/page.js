@@ -81,7 +81,7 @@ export default async function Me({ searchParams }) {
     </Card> },
     { id: 'future', name: '앞으로', node: can(ME.today) && (d.future.length > 0 && <Card emo="📅" title="앞으로" id="future" {...fold("future")} pill={String(d.future.length)}>
         {d.future.map((f, i) => <p key={i} className="note" style={{ margin: "4px 0 0", color: "var(--ink)" }}>{f.text}</p>)}</Card>) },
-    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href={K("/me/cal")} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">열기 ↗</span></div></Link>) },
+    { id: 'cal', name: '달력', node: can(ME.today) && (<Link prefetch={false} className="task" href={K("/me/cal")} data-card="cal" style={{ display: "block", textDecoration: "none", color: "inherit" }}><div className="h"><b><span className="cemo">📅</span>달력</b><span className="spacer" /><span className="pill">달력 ↗</span></div></Link>) },
     { id: 'scores', name: '성적', node: <ScoreCard scores={d.scores} entry={d.entry} {...fold("scores")} /> },
     { id: 'files', name: '자료', node: can(ME.books) && <FilesCard past={fl.past} hidden={fl.hidden} rules={d.rules} sent={d.uploads} {...fold("files")} /> },
     { id: 'school', name: '우리 학교', node: can(ME.grid) && d.school.length > 0 && (<Card emo="🏫" title="우리 학교" id="school" {...fold("school")} pill={d.student.schools?.name ?? ""}>

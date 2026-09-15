@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 올린 기록이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 보류 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, wavePlan, waveLabel, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, wavePlan, waveLabel, choiceOrder, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -131,5 +131,10 @@ console.log("■ (어37) 지난 판의 「다음 시간으로」 줄 이어 깔�
   const r = nextCarry(nl, new Set(["n5"]), [{ slot: "class", item_id: "i1", unit_id: "u2" }, { slot: "home", item_id: "i1", unit_id: "u1" }]);
   ok("오래된 것부터 · 이미 넘어간 것(n5)·뺀 것(n4)은 안 넘김 · 오늘 학습에 같은 활동(i1·u2)이 있으면 dup(새 줄 없이 그 줄이 그것) · 숙제에만 있는 것은 새 줄 · 손으로 적은 줄은 늘 새 줄", r.map((x) => `${x.id}:${x.dup ? "dup" : "new"}`).join() === "n1:new,n2:dup,n3:new");
   ok("같은 활동을 두 판이 미뤘으면 하나만 새 줄(둘째는 dup) · 비면 빈 것", (() => { const q = nextCarry([{ id: "a", item_id: "i9", unit_id: "u9", date: "2026-09-10" }, { id: "b", item_id: "i9", unit_id: "u9", date: "2026-09-11" }], new Set(), []); return q.map((x) => x.dup).join() === "false,true" && nextCarry([], new Set(), []).length === 0; })()); }
+console.log("■ (어41) 「교재 배정」 목록 차례(choiceOrder · 원장님 9/15 「배정이 없으면 걍 진도체크된거부터 뜨게하든가」)");
+{ const books = [{ id: "b1", name: "문법책", area: "문법" }, { id: "b2", name: "독해책", area: "독해" }, { id: "b3", name: "단어책", area: "단어" }, { id: "b4", name: "영작책", area: "영작" }];
+  const r = choiceOrder(books, ["b1"], [{ book_id: "b3", status: "done" }, { book_id: "b3", status: "doing" }, { book_id: "b4", status: "doing" }]);
+  ok("이미 배정된 교재(b1)는 빠진다 · 진도 체크된 교재부터(단어책 2줄 · 영작책 1줄) · 그 다음 영역 이름 차례(독해책)", r.map((x) => x.book_id).join() === "b3,b4,b2" && r[0].progressed && r[0].done === 1 && r[0].marks === 2 && !r[2].progressed);
+  ok("배정할 것이 없으면 빈 목록 · 진도 없으면 영역·이름 차례", choiceOrder(books, ["b1", "b2", "b3", "b4"], []).length === 0 && choiceOrder(books, [], []).map((x) => x.book_id).join() === "b3,b2,b1,b4"); }
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

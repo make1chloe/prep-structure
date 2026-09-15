@@ -1,16 +1,14 @@
 "use server";
 /** 학생 14 의 손 — 학원 사람만. 판단·쓰기는 lib/student.js 한 벌(+ 학생 · 고치기 · 퇴원·복귀 · 반 · 금액 · 상담 · 형제 · 계정 발급 · 비밀번호 초기화). 계정은 서버 자신(service role)이 auth 에 만든다 */
-import { guard } from "@/lib/session";
+import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
 import { attachConsult } from "@/lib/files";
-import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
 import { addStudent, setStudent, setState, setStateMany, setClass, setClassMany, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
 import { setStudentShow } from "@/lib/score";
 import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";
 import { linkCc } from "@/lib/cc";   // (녀) 🃏 아이 ↔ 클래스카드 아이디 — 확장이 보낸 짐은 이 아이디로 아이를 찾는다   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
-async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "학생 14");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
 export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); await setStudent(sb, id, f ?? {}, seenAt); return {}; }); }   // seenAt: 읽어 둔 고친 때(0-3)

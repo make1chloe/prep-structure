@@ -1,8 +1,7 @@
 "use server";
 /** 수강료 손 — 학원 사람 중 수강료가 열린 사람만(ops.fee). 판단·쓰기는 lib/fee.js 한 벌 */
-import { guard } from "@/lib/session";
+import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
-import { isStaff } from "@/lib/roles";
 import { decide, OPS } from "@/lib/perm";
 import { feeBoard, savePayments, importPayments, remindFees, setByGrade } from "@/lib/fee";
 import { scheduleFor } from "@/lib/send";
@@ -12,7 +11,7 @@ import { serviceClient } from "@/lib/supabase";
 import { parseSheet } from "@/lib/fee-plan";
 import * as XLSX from "xlsx";
 async function feeStaff(ym) {
-  const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다");
+  const w = await staff();
   const board = await feeBoard(w.sb, ym);
   if (decide(w.me.role, board.access ?? [], OPS.fee) !== true) throw new Error("이 계정에는 수강료가 안 열려 있습니다");
   return { ...w, board };

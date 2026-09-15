@@ -15,7 +15,9 @@ import { Fragment } from "react";
 import { orderCards, foldedOf } from "@/lib/pref-plan";
 import Fold from "./_shell/fold.js";
 import CardOrder from "./_shell/cardorder.js";
-import Answer from "./_shell/answer.js";   // (처) 💬 남기실 말 「답하기」
+import Answer from "./_shell/answer.js";
+import DashGaps from "./dashgaps.js";   // (어41) 빈 배정 · 메모로만 · 진도 체크 띠 · 칩과 모달(원장님 9/15)
+import { ClassMakeup } from "./schedule/panel.js";   // (어41) 보강일은 그 자리에서(12 와 같은 부품)   // (처) 💬 남기실 말 「답하기」
 import { KINDS as RKINDS } from "@/lib/request";
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 16px" }}>{children}</main>;
@@ -64,7 +66,7 @@ export default async function Home() {
     { id: 'month', name: '이 달', node: <Card emo="📅" title="이 달" id="month" {...fold("month")}>
         {!d.makeupTodo.length && !d.exams.soon.length && !d.exams.missing.length && !d.exams.changed.length && !d.short.length && !d.confirm?.show && <Row icon="✓" cls="i-ok" b="이 달 챙길 것 없음" />}
         {d.confirm?.show && <Row icon="📅" cls="i-abs" b={<span data-g="confirm-line">{d.confirm.text}</span>} small={d.confirm.small}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${d.confirm.ym}`} data-act="confirm-go">일정 ↗</Link></Row>}
-        {d.short.map((s) => <Row key={`short-${s.id}`} icon="📅" cls="i-abs" b={<span data-g="short-class">{s.text}</span>}><Link prefetch={false} className="btn sm pri" href={`/schedule?m=${s.ym}`} data-act="short-go">보강일 잡기 ↗</Link></Row>)}
+        {d.short.map((s) => <Row key={`short-${s.id}`} icon="📅" cls="i-abs" b={<span data-g="short-class">{s.text}</span>}><ClassMakeup classId={s.id} ym={s.ym} short={s} /></Row>)}
         {d.makeupTodo.length > 0 && <Row icon="↻" cls="i-mk" b={`보강 안 잡힘 ${d.makeupTodo.length}명`} small={d.makeupTodo.map((m) => `${m.name} · ${md(m.of_date)} 결석`).join(" · ")}><Link prefetch={false} className="btn sm" href="/today">잡기</Link></Row>}
         {d.exams.changed.map((e) => <Row key={`chg-${e.id}`} icon="📡" cls="i-ex" b={<span data-g="exam-changed">학교 일정이 바뀌었어요. {e.text}</span>} small={e.english_on ? `영어 시험일 ${md(e.english_on)} 은 그대로입니다. 학교 시험에서 보고 「봤음」` : "학교 시험에서 보고 「봤음」"}><Link prefetch={false} className="btn sm" href="/schedule/exams" data-act="exam-changed-go">시험 ↗</Link></Row>)}
         {d.exams.soon.map((e) => <Row key={e.id} icon="📝" cls="i-ex" b={`시험 임박 · ${e.text}`} />)}
@@ -74,7 +76,7 @@ export default async function Home() {
         {!d.requests.length && !d.inquiries.length && <Row icon="✓" cls="i-ok" b="답할 것 없음" />}
         {d.requests.length > 0 && <Row icon="💬" cls="i-hw" b={`남기실 말 ${d.requests.length}`} />}
         {d.requests.map((r) => <Row key={r.id} icon="·" cls="i-hw" b={<span data-g="req-row" data-req={r.id}>{r.name} · {whenText(r.at, date)} 「{r.body.slice(0, 60)}」</span>} small={rkind(r.kind)}><Answer id={r.id} /></Row>)}
-        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")}><Link prefetch={false} className="btn sm" href="/ops/inquiry" data-act="inquiry-go">보기 ↗</Link></Row>}
+        {d.inquiries.length > 0 && <Row icon="☎️" cls="i-hw" b={`신규 상담 ${d.inquiries.length}건`} small={d.inquiries.map((i) => `${i.name} · ${whenText(i.at, date)} · 아직 답 안 함`).join(" · ")}><Link prefetch={false} className="btn sm" href="/ops/inquiry" data-act="inquiry-go">신규 상담 ↗</Link></Row>}
       </Card> },
   ], d.pref);   // 카드 차례 — 사람마다(확정-⑮ · screen_pref dash · 4단계-6)
   return frame(<>
@@ -91,20 +93,7 @@ export default async function Home() {
         <Link prefetch={false} className="btn sm" href="/settings/access">정하러 가기 →</Link>
       </div>
     )}
-    {d.progress?.show && <div className="lf warn" style={{ marginBottom: 8 }} data-g="progress-band" data-open={d.progress.open ? "1" : "0"}><span className="ln">✎</span><div><b>{d.progress.text}</b><small>{d.progress.small}</small></div><Link prefetch={false} className="btn sm pri" href="/settings/progress">진도 체크 ↗</Link></div>}
-    <div className="gap" data-g="gap">
-      <div className="gaph"><span className="gi">🚨</span><b>{d.gaps.length ? `오늘 수업 전에 · 배정이 빌 아이 ${d.summary.bad}명` : "오늘 수업 전에 · 배정이 빈 아이 없음"}</b><span className="spacer" />{d.gaps.length > 0 && <span className="pill warn">오늘 0줄</span>}</div>
-      {d.gaps.map((g) => (
-        <div className="gapr" key={`${g.student_id}|${g.book_id}`} data-gap={g.kind}><span className="gt">{g.at}</span>
-          <div className="gn"><b>{g.name} · {g.book}</b><small>{g.text}</small>
-            <div className="tags"><span className="tag">{g.tag}</span>{g.areaBooks > 1 && <span className="tag act">이 영역 교재 {g.areaBooks}권이 다 멈춥니다</span>}{g.absent && <span className="tag">오늘 결석 예정</span>}</div></div>
-          {g.kind === "no_units" || g.kind === "cursor_stuck" ? <Link prefetch={false} className="btn pri sm" href="/today">진도 체크 ↗</Link> : <span className="note" style={{ margin: 0 }}>{g.kind === "no_routine" ? "루틴 없음" : "교재 화면(13)은 아직"}</span>}
-        </div>))}
-      <div className="gapok"><span className="gi">✅</span>{d.gaps.length ? <>나머지 <b>{d.summary.ok}명</b>은 오늘 낼 것이 다 차 있습니다</> : <>오늘 <b>{d.people.students}명</b> 모두 낼 것이 차 있습니다</>}<span className="spacer" /><Link prefetch={false} className="btn sm" href="/today">오늘 수업 열기 ↗</Link></div>
-    </div>
-    {d.calls.length > 0 && <div className="card warn" style={{ marginBottom: 8 }} data-g="memo-calls"><div className="ctitle"><span className="cemo">✍</span>메모로만 진도가 올라간 교재 <b>{d.calls.length}</b></div>
-      {d.calls.map((c) => <Row key={`${c.student_id}|${c.book_id}`} icon="✍" cls="i-abs" b={`${c.name} · ${c.book}`} small={c.text}><Link prefetch={false} className="btn sm pri" href="/today">진도 체크 ↗</Link></Row>)}
-    </div>}
+    <DashGaps gaps={d.gaps} calls={d.calls} summary={d.summary} people={d.people} date={date} progress={d.progress} />   {/* (어41) 이름(개수) 칩 → 모달 · 저장해도 그 자리 */}
     <div className="dash">
       {cards.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
     </div>

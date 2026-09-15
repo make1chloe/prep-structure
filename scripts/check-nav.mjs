@@ -52,6 +52,6 @@ ok("(어9) 폰에서 탭은 **접는다** · 굴림막대에 숨기지 않는다
   const hits = [];
   for (const f of walk("app").filter((p) => !p.includes("/api/"))) { let toks; try { toks = espree.parse(readFileSync(f, "utf8"), { ecmaVersion: "latest", sourceType: "module", ecmaFeatures: { jsx: true }, tokens: true }).tokens; } catch { continue; }
     for (const t of toks) if (["String", "Template", "JSXText"].includes(t.type) && t.value.includes("↗") && VERB.test(t.value)) hits.push(`${f}: ${t.value.replace(/\s+/g, " ").trim().slice(0, 30)}`); }
-  const ARROW_MAX = 14;
-  ok(`다른 화면으로 보내 일하게 하는 「동사 ↗」 ≤ ${ARROW_MAX}(지금 ${hits.length} · 대전제-22 · 내려만 간다 · (어41) 뒤 0)`, hits.length <= ARROW_MAX, hits.join(" | ")); }
+  const ARROW_MAX = 0;   // (어41) 대시보드 칩·모달 · 14 학원 열기 · 배정 모달 · 나머지는 명사 ↗ 로
+  ok(`다른 화면으로 보내 일하게 하는 「동사 ↗」 ≤ ${ARROW_MAX}(지금 ${hits.length} · 대전제-22 · (어41) 0 · 일하러 보내지 않고 그 자리 모달·토글)`, hits.length <= ARROW_MAX, hits.join(" | ")); }
 console.log(`\n■ 화면 이동 검사 ${n}건 · 실패 ${bad}`); process.exit(bad ? 1 : 0);

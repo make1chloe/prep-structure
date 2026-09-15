@@ -3,8 +3,7 @@
  *  ⚠️ 마감된 판은 lib 의 assertOpen 이 막는다(검사-⑤). 실패는 던지지 않고 {ok:false, msg} 로 돌려 화면이 그 자리에서 말한다 */
 import { revalidatePath } from "next/cache";
 import { done as doneAt } from "@/lib/act";
-import { guard } from "@/lib/session";
-import { isStaff } from "@/lib/roles";
+import { guard, staff } from "@/lib/session";
 import { ensureSheet, saveComment, closeSheet, closeMany as closeManySheets } from "@/lib/day";
 import { commentRules, draftComment } from "@/lib/comment";
 import { saveAreaMemo } from "@/lib/area-memo";
@@ -19,7 +18,6 @@ import { reflect, resetWarnings, setLimit } from "@/lib/warn";
 import { tree, setUnit, setUnits, doneUpTo, skipChapter } from "@/lib/progress";
 import { planOpen, planSave, planNotify } from "@/lib/plan";
 import { slotCount } from "@/lib/classes";
-async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const done = doneAt("/today", "오늘 수업 01");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 
 export const openSheet = done(async (studentId, classId, date) => { const { sb } = await staff(); const s = await ensureSheet(sb, studentId, classId, date); return { sheetId: s.id }; });

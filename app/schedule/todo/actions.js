@@ -1,11 +1,9 @@
 "use server";
 /** 내 업무 05 의 손 · 학원 사람만. 판단·쓰기는 lib/todo.js 한 벌(끝냄 · 되돌리기 · 마감 · 빼기 · 단원평가 출제 · 메모 · 반복 · 한 번에 뽑기 · 자료 빼기). 지우는 손이 없다(대전제-6) */
-import { guard } from "@/lib/session";
+import { staff } from "@/lib/session";
 import { wrap as act } from "@/lib/act";
-import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { finishTodo, undoTodo, setTodoDue, dropTodo, todoMany, addUnitTest, unitTestMade, makeDueUnitTest, addNote, addRepeat, setRepeatActive, printAll, dropMaterial, setQuizPaper, setScored } from "@/lib/todo";
-async function staff() { const w = await guard(); if (!isStaff(w.me?.role)) throw new Error("학원 사람만 씁니다"); return w; }
 const wrap = (fn) => act(fn, "업무 05");   // 손 한 벌은 lib/act.js · 삼키지 않고 서버 기록에 까닭을 남긴다(원칙-1)
 export async function doneAct(todoId) { return wrap(async () => { const { sb } = await staff(); return finishTodo(sb, todoId); }); }
 export async function undoAct(todoId) { return wrap(async () => { const { sb } = await staff(); return undoTodo(sb, todoId); }); }
