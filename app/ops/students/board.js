@@ -3,6 +3,7 @@
  *  ✎ 고치기 모달: 이름·학년·학교·전화·들어온 날·메모 · 계정(학생 아이디 발급 · 학부모 전화 발급/잇기 · 학부모 계정 이름 · 비밀번호 0000 초기화 — 앱이 발급한 것만) · 형제 묶기 · 반(날짜부터) · 학생별 금액 · 성적 공개 · 퇴원 처리/복귀. 세는 것은 lib/student-plan 한 벌 */
 import Link from "next/link";
 import Sure, { useSure } from "../../_shell/sure.js";
+import SchoolAdd from "../../_shell/schooladd.js";   // 학교 넣는 자리 한 벌(06c·12b·06b 와 같은 것)
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";
@@ -50,7 +51,7 @@ export default function Board({ d }) {
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     {addOpen && <div className="card" data-g="add-form"><div className="ctitle"><span className="cemo">＋</span>학생</div>
       <div className="wv"><input type="text" value={nf.name} placeholder="이름" aria-label="이름" onChange={(x) => setNf({ ...nf, name: x.target.value })} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={nf.grade} placeholder="학년" aria-label="학년" onChange={(x) => setNf({ ...nf, grade: x.target.value.replace(/\D/g, "") })} />
-        <select value={nf.schoolId} aria-label="학교" onChange={(x) => setNf({ ...nf, schoolId: x.target.value })} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+        <select value={nf.schoolId} aria-label="학교" onChange={(x) => setNf({ ...nf, schoolId: x.target.value })} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><SchoolAdd onAdded={(id) => setNf((v) => ({ ...v, schoolId: id }))} />
         <input type="text" inputMode="numeric" value={nf.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setNf({ ...nf, parentPhone: x.target.value })} style={{ maxWidth: 150 }} /><input type="date" className="dt" value={nf.joinedOn} aria-label="들어온 날" onChange={(x) => setNf({ ...nf, joinedOn: x.target.value })} style={{ width: "auto" }} />
         <button className="btn pri sm" type="button" disabled={pending || !nf.name.trim()} data-act="add-save" onClick={() => run(() => addAct(nf), (r) => { pick(r.id); return "넣었습니다. 여는 중"; })}>저장</button></div></div>}
     <div className="tblwrap" data-g="list"><table><thead><tr><th>이름</th><th>학년·학교</th><th>반</th><th>교재</th><th data-g="col-att">{monthLabel(b.month)} 출결</th><th>마지막 상담</th><th>상태</th></tr></thead><tbody>
@@ -70,7 +71,7 @@ export default function Board({ d }) {
         <span className="note" style={{ margin: 0 }}>{st.name} 이(가) 보는 화면을 그대로 봅니다. <b>읽기만</b> 됩니다</span></div>
       {edit && <div className="card" data-g="edit"><div className="ctitle"><span className="cemo">✎</span>고치기 · {st.name}</div>
         <div className="wv"><input type="text" value={form.name} aria-label="이름" onChange={(x) => setForm("name", x.target.value)} style={{ maxWidth: 140 }} /><input type="text" inputMode="numeric" className="scr" value={form.grade} placeholder="학년" aria-label="학년" onChange={(x) => setForm("grade", x.target.value.replace(/\D/g, ""))} />
-          <select value={form.schoolId} aria-label="학교" onChange={(x) => setForm("schoolId", x.target.value)} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+          <select value={form.schoolId} aria-label="학교" onChange={(x) => setForm("schoolId", x.target.value)} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><SchoolAdd onAdded={(id) => setForm("schoolId", id)} />
           <input type="text" inputMode="numeric" value={form.phone} placeholder="아이 전화" aria-label="아이 전화" onChange={(x) => setForm("phone", x.target.value)} style={{ maxWidth: 150 }} /><input type="text" inputMode="numeric" value={form.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setForm("parentPhone", x.target.value)} style={{ maxWidth: 150 }} />
           <input type="date" className="dt" value={form.joinedOn} aria-label="들어온 날" onChange={(x) => setForm("joinedOn", x.target.value)} style={{ width: "auto" }} />
           <button className="btn pri sm" type="button" disabled={pending || !f} data-act="edit-save" onClick={() => run(() => setAct(st.id, form, st.updated_at ?? null), "고쳤습니다", () => setF(null))}>저장</button></div>

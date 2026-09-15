@@ -1,6 +1,7 @@
 "use client";
 /** 받아오기 판(목업 12b) — 전국(학교를 안 붙인다) · 학교별(학교 × 학년 · 영어 시험일은 손으로) · 나이스에 없는 학교(찾아서 코드 붙이기 · 홈페이지 주소) · 손으로 넣기 · 덮지 않는다 */
 import Link from "next/link";
+import SchoolAdd from "@/app/_shell/schooladd";   // 학교 넣는 자리 한 벌
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { importAct, examWordAct, siteUrlAct, englishOnAct, examAct, searchSchoolsAct, schoolCodeAct, cancelExamAct } from "../actions.js";
@@ -62,6 +63,7 @@ export default function Board({ d }) {
       {manual && <div className="card" style={{ marginTop: 8 }} data-g="exam-form"><div className="wv">
         <div className="seg sm" data-g="exam-scope">{[["school", "학교(중간·기말)"], ["national", "전국(수능·모의)"]].map(([k, name]) => <button key={k} type="button" aria-pressed={exam.scope === k} onClick={() => setExam({ ...exam, scope: k })}>{name}</button>)}</div>
         {exam.scope === "school" && <select value={exam.schoolId} onChange={(e) => setExam({ ...exam, schoolId: e.target.value })} aria-label="학교" style={{ width: "auto" }}>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+        {exam.scope === "school" && <SchoolAdd open={!(b.schools ?? []).length} onAdded={(id) => setExam((v) => ({ ...v, schoolId: id }))} />}
         <input value={exam.grade} onChange={(e) => setExam({ ...exam, grade: e.target.value })} placeholder="학년(비면 전체)" aria-label="학년" inputMode="numeric" style={{ width: 110 }} />
         <input value={exam.name} onChange={(e) => setExam({ ...exam, name: e.target.value })} placeholder="이름 (예: 2학기 중간)" aria-label="시험 이름" name="exam-name" style={{ flex: "1 1 160px" }} />
         <span className="note" style={{ margin: 0 }}>기간</span><input type="date" value={exam.termFrom} onChange={(e) => setExam({ ...exam, termFrom: e.target.value })} aria-label="시작" style={{ width: "auto" }} /><input type="date" value={exam.termTo} onChange={(e) => setExam({ ...exam, termTo: e.target.value })} aria-label="끝" style={{ width: "auto" }} />

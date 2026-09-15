@@ -64,7 +64,10 @@ do $$ declare r record; begin
   end loop;
 end $$;
 
-insert into v2.migration(file, sha) values ('0165_legacy_choice_rows.sql', 'f1fc7e114d7cc0da')
+-- 표 모양(제약)을 바꿨으니 API 기억을 새로 읽는다(check-sql)
+notify pgrst, 'reload schema';
+
+insert into v2.migration(file, sha) values ('0165_legacy_choice_rows.sql', '36ab7dd037cb93f5')
   on conflict (file) do update set sha = excluded.sha, applied_at = now();
 
 commit;

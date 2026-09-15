@@ -11,7 +11,7 @@ import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
 import { attendanceWrite } from "@/lib/attend";
-import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems } from "@/lib/homework";
+import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
@@ -32,6 +32,9 @@ export const stayAllDoneAct = done(async (sheetId) => { const { sb } = await sta
 export const stayCarryAct = done(async (sheetId) => { const { sb } = await staff(); return stayCarry(sb, sheetId); });
 export const add = done(async (form) => { const { sb } = await staff(); await addItem(sb, String(form.get("sheetId")), String(form.get("slot")), String(form.get("text") ?? "")); });
 export const give = done(async (sheetId, slot, text) => { const { sb } = await staff(); return addItems(sb, String(sheetId), String(slot), String(text ?? "")); });   // (어13) 숙제 주기 모달 — 여러 줄 한 번에
+export const itemText = done(async (itemId, text) => { const { sb } = await staff(); await editItemText(sb, itemId, text); });   // 대전제-19 · 손으로 더한 줄 고치기
+export const itemRemove = done(async (itemId) => { const { sb } = await staff(); await removeItem(sb, itemId); });
+export const itemRestore = done(async (itemId) => { const { sb } = await staff(); await restoreItem(sb, itemId); });
 export const move = done(async (itemId, slot) => { const { sb } = await staff(); await moveItem(sb, itemId, slot); });
 export const late = done(async (form) => { const { sb } = await staff(); await setLate(sb, String(form.get("sheetId")), { reason: String(form.get("reason") ?? "") || null, untilAt: String(form.get("untilAt") ?? "") || null }); });
 export const lateSend = done(async (sheetId) => { const { sb } = await staff(); await sendLate(sb, sheetId); });

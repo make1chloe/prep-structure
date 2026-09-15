@@ -24,3 +24,6 @@ do $$ declare r record; begin
     execute format('alter table %s validate constraint %I', r.t, r.conname);
   end loop;
 end $$;
+
+-- 표 모양(제약)을 바꿨으니 API 기억을 새로 읽는다(check-sql)
+notify pgrst, 'reload schema';

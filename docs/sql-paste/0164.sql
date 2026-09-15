@@ -330,7 +330,10 @@ update v2.file set reply = regexp_replace(reply, '^받았어요 — 「', '받�
 update v2.learn_items set method = replace(method, ' — ', ' · ') where method like '% — %';   -- 루틴 11 의 학습 항목 설명(0035 씨앗)
 update v2.placeholder set note = replace(note, ' — ', ' · '), example = replace(example, ' — ', ' · ') where note like '% — %' or example like '% — %';   -- 발송 10 치환 낱말 표의 설명·보기(0131·0154 씨앗)
 
-insert into v2.migration(file, sha) values ('0164_no_dash.sql', 'c79ebe73c466b183')
+-- 표 모양(제약)을 바꿨으니 API 기억을 새로 읽는다(check-sql)
+notify pgrst, 'reload schema';
+
+insert into v2.migration(file, sha) values ('0164_no_dash.sql', '62e54fa6e4db1c11')
   on conflict (file) do update set sha = excluded.sha, applied_at = now();
 
 commit;

@@ -3,6 +3,7 @@
  *  값의 뜻·셈은 lib/grid-plan 한 벌. 셀은 손을 떼면 저장(저장 단추 없음) */
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
+import SchoolAdd from "@/app/_shell/schooladd";   // 원장님 2026-09-15 「칸반에 학교추가를 못해 … 그걸 어디서 입력해야함」 · 학교 넣는 자리(한 벌)
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gridAddAct, gridRetireAct, gridReviveAct, gridRenameAct, gridShareAct, gridMoveAct, colAddAct, colSetAct, colMoveAct, colRetireAct, boardColAct, rowAddAct, rowMoveAct, rowRetireAct, cellAct, watchAct, unitsAct, unitsAllAct } from "./actions.js";
@@ -127,6 +128,7 @@ export default function Board({ d }) {
       </div>}
       <div className="wv" style={{ marginTop: 8 }} data-g="row-add">
         {g.rows === "school" && <select value={rowForm?.schoolId ?? ""} aria-label="학교 추가" onChange={(x) => setRowForm({ schoolId: x.target.value })} style={{ width: "auto", maxWidth: 220 }}><option value="">학교 추가</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+        {g.rows === "school" && <SchoolAdd open={!(b.schools ?? []).length} onAdded={(id) => setRowForm({ schoolId: id })} />}
         {g.rows === "free" && <input type="text" value={rowForm?.label ?? ""} placeholder="줄 이름" aria-label="줄 추가" onChange={(x) => setRowForm({ label: x.target.value })} style={{ maxWidth: 220 }} />}
         {g.rows !== "student" && <button className="btn sm" type="button" disabled={pending || !(rowForm?.schoolId || rowForm?.label?.trim())} data-act="row-save" onClick={() => run(() => rowAddAct(g.id, rowForm), "줄을 더했습니다", () => setRowForm(null))}>추가</button>}
         <span className="note" style={{ margin: 0 }} data-g="grid-count">{g.rows === "school" ? "학교" : g.rows === "student" ? "학생" : "줄"} {rows.length}{g.rows === "school" ? "곳" : g.rows === "student" ? "명" : ""} · 칸 {cols.length}개{g.rows === "student" ? " · 아래에서 아이를 누르면 줄이 하나 생깁니다" : ""}</span></div>

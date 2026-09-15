@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { itemText, itemRemove, itemRestore, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
 import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
@@ -153,6 +153,7 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
   const isAuto = (it) => Boolean(it.item_id && !it.carry_of && it.unit_id);   // 루틴이 깐 줄 — 교재 반쪽에. 손으로 더한 줄·나머지 줄은 단원이 있어도 「그 밖에」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
+  const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && !isAuto(it));   // 뺀 줄(대전제-19 · 되살리기) · 루틴 줄의 off 는 줄이기·조절 몫
   // (어24) 깔린 줄만 보인다 — 「+ 항목」(그 밖에 · 분량 · 줄이기) · 「다음 시간 시험 · 고치기」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
   const extras = unitless("class").length + unitless("home").length;
   const [more, setMore] = useState(extras > 0);
@@ -190,7 +191,9 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
         {[["class", "그 밖에 · 학원", "home", "⏭ 숙제로 미루기"], ["home", "그 밖에 · 집", "class", "↩ 학원에서"]].map(([slot, title, other, moveLabel]) => (
           <div className="half" key={slot}>
             <div className="hh">{title}<span className="cnt">{unitless(slot).length}개</span></div>
-            {unitless(slot).map((it, i) => <div className="li" key={it.id}><span className="n">{i + 1}</span><div><b>{it.range_note || it.learn_items?.name || "(이름 없음)"}</b>{it.carry_of && <small>지난 숙제의 나머지</small>}</div>{!closed && <button type="button" className="btn sm" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>}</div>)}
+            {unitless(slot).map((it, i) => <FreeLine key={it.id} it={it} no={i + 1} closed={closed} fail={fail} start={start} moveLabel={moveLabel} other={other} />)}
+            {offOf(slot).length > 0 && <div className="lf" data-g="off-lines"><span className="ln">🚫</span><div><b>뺀 줄 {offOf(slot).length}</b><small>{offOf(slot).map((it) => it.range_note || it.learn_items?.name || "(이름 없음)").join(" · ")}</small></div>
+              {!closed && offOf(slot).map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="item-restore" onClick={() => start(async () => { fail(await itemRestore(it.id)); })}>되살리기</button>)}</div>}
             {!closed && <form className="wv" action={async (f) => { fail(await add(f)); }}><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="slot" value={slot} /><input type="text" name="text" placeholder="예: 워크북 p.10 1-18" style={{ flex: "1 1 160px", minWidth: 0 }} /><button className="btn sm" type="submit">항목 더하기</button></form>}
           </div>
         ))}
@@ -237,6 +240,20 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
     </div>
   );
 }
+/** 손으로 더한 줄 하나(그 밖에 · 나머지 조각) · ✎ 글 고치기 · 미루기 · ✕ 빼기(대전제-19 · 원장님 2026-09-15 「모든 항목을 추가/수정/삭제가 가능한게 기본」) */
+function FreeLine({ it, no, closed, fail, start, moveLabel, other }) {
+  const [edit, setEdit] = useState(false); const box = useRef(null);
+  useEffect(() => { if (edit) box.current?.focus(); }, [edit]);   // 폰-2: autoFocus 는 안 건다 · ✎ 를 누른 뒤에만 칸으로(사람이 시킨 것)
+  const name = it.range_note || it.learn_items?.name || "(이름 없음)";
+  const save = (v) => { const t = String(v ?? "").trim(); setEdit(false); if (!t || t === name) return; start(async () => { fail(await itemText(it.id, t)); }); };
+  return <div className="li" data-g="free-line"><span className="n">{no}</span>
+    {edit ? <input ref={box} type="text" defaultValue={it.range_note ?? name} aria-label="줄 고치기" onBlur={(e) => save(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(e.currentTarget.value); } if (e.key === "Escape") setEdit(false); }} style={{ flex: "1 1 120px", minWidth: 0 }} />
+      : <div><b>{name}</b>{it.carry_of && <small>지난 숙제의 나머지</small>}</div>}
+    {!closed && !edit && <><button type="button" className="btn sm gho" data-act="item-edit" aria-label="고치기" onClick={() => setEdit(true)}>✎</button>
+      <button type="button" className="btn sm" data-act="item-move" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>
+      <button type="button" className="btn sm gho" data-act="item-del" aria-label="빼기" onClick={() => start(async () => { fail(await itemRemove(it.id)); })}>✕</button></>}
+  </div>;
+}
 function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = null }) {
   const lines = []; for (const it of rows) { let l = lines.find((x) => x.item_id === it.item_id); if (!l) { l = { item_id: it.item_id, name: it.learn_items?.name ?? it.range_note ?? "(이름 없음)", units: [], notes: [], carry: it.carry_of, gate: false }; lines.push(l); } if (it.gate_prev) l.gate = true; if (it.units) { l.units.push(it.units); if (it.range_note && !l.notes.includes(it.range_note)) l.notes.push(it.range_note); } }
   const cur = new Set(rows.map((it) => it.unit_id));
@@ -249,7 +266,8 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
       {opts.length > 0 && <div className="wv"><span className="fl" style={{ margin: 0 }}>회차</span>
         <div className="seg sm" data-g={`wave-${slot}`}>{opts.map((o) => <button key={o.key} type="button" aria-pressed={same(o)} disabled={closed} onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, o.units.map((u) => u.unit_id))); })}>{o.name}</button>)}</div></div>}
       {lines.map((l, i) => <div className="li" key={l.item_id ?? i}><span className="n">{i + 1}</span><div><b>{l.name}</b>{l.gate && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}
-        <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}{l.notes.length ? ` · 이번에 ${l.notes.join(" · ")}` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div></div>)}
+        <small>{l.units.length ? <><b>{l.units[0].chapter}</b> › {l.units.map((u) => u.short).join(" · ")}{pages(l.units[0]) ? ` · ${l.units.map(pages).filter(Boolean).join(" · ")}` : ""}{l.units[0].q_count ? ` · ${l.units.reduce((n, u) => n + (u.q_count || 0), 0)}문항` : ""}{l.notes.length ? ` · 이번에 ${l.notes.join(" · ")}` : ""}</> : l.carry ? "지난 숙제의 나머지" : null}</small></div>
+        {!closed && lines.length > 1 && l.units.length > 0 && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => !l.units.some((x) => (x.unit_id ?? x.id) === u)))); })}>✕</button>}</div>)}
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
         <span className="mi">✎</span><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="bookId" value={b.book_id} /><input type="hidden" name="slot" value={slot} />
         <input type="text" name="text" defaultValue={memoText ?? ""} placeholder={slot === "class" ? "학습 메모" : "숙제 메모"} disabled={closed} onBlur={(e) => { if ((e.target.value ?? "") !== (memoText ?? "")) e.target.form.requestSubmit(); }} />
@@ -394,7 +412,8 @@ function LateCard({ sheet, warn, stay, books, studentId, date, classEnd = "", sh
       <div data-g="stay" style={{ marginTop: 8 }}>
         {rows.map((r) => <div key={r.id} className="dayrow" data-g="stay-row" data-state={r.state}><span className="tag on">남</span>
           <div style={{ flex: "1 1 auto", minWidth: 0 }}><b style={{ textDecoration: r.state === "done" ? "line-through" : "none" }}>{r.text}</b><small>{[r.sub, r.from].filter(Boolean).join(" · ")}{r.state === "done" ? " · 다 함" : r.state === "missing" ? " · ⏭ 다음 숙제로 넘김" : ""}</small></div>
-          {r.state === "open" && <button type="button" className="btn sm" data-act="stay-done" disabled={closed} onClick={() => start(async () => { fail(await stayDoneAct(r.id)); })}>다 함</button>}</div>)}
+          {r.state === "open" && <button type="button" className="btn sm" data-act="stay-done" disabled={closed} onClick={() => start(async () => { fail(await stayDoneAct(r.id)); })}>다 함</button>}
+          {r.state === "open" && !closed && <button type="button" className="btn sm gho" data-act="item-del" aria-label="빼기" onClick={() => start(async () => { fail(await itemRemove(r.id)); })}>✕</button>}</div>)}
         {!closed && <div className="wv" style={{ marginTop: 4 }} data-g="stay-add"><input type="text" value={stayText} onChange={(e) => setStayText(e.target.value)} placeholder="예: 워크북 복습" aria-label="남아서 할 항목" style={{ flex: "1 1 200px" }} />
           <button type="button" className="btn sm" data-act="stay-add" disabled={!stayText.trim()} onClick={() => start(async () => { const f = new FormData(); f.set("sheetId", sheet.id); f.set("slot", "stay"); f.set("text", stayText); if (fail(await add(f))) setStayText(""); })}>항목 더하기</button>
           {sc.open > 0 && <button type="button" className="btn sm" data-act="stay-carry" onClick={() => start(async () => { fail(await stayCarryAct(sheet.id)); })}>⏭ 다음 숙제로</button>}

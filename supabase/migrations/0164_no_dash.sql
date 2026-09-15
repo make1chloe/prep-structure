@@ -290,3 +290,6 @@ update v2.todo set why = replace(why, '(확정-㊵)', '') where why like '%(확�
 update v2.file set reply = regexp_replace(reply, '^받았어요 — 「', '받았어요. 「') where reply like '받았어요 — 「%';
 update v2.learn_items set method = replace(method, ' — ', ' · ') where method like '% — %';   -- 루틴 11 의 학습 항목 설명(0035 씨앗)
 update v2.placeholder set note = replace(note, ' — ', ' · '), example = replace(example, ' — ', ' · ') where note like '% — %' or example like '% — %';   -- 발송 10 치환 낱말 표의 설명·보기(0131·0154 씨앗)
+
+-- 표 모양(제약)을 바꿨으니 API 기억을 새로 읽는다(check-sql)
+notify pgrst, 'reload schema';

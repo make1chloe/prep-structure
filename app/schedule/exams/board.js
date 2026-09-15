@@ -4,6 +4,7 @@
 import Link from "next/link";
 import Sibs from "@/app/_shell/sibs";
 import ScopeForm from "@/app/_shell/scopeform";
+import SchoolsCard from "@/app/_shell/schoolscard";   // 학교 이름·급 고치기 · 닫기 · + 새 학교(대전제-19)
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { scopeAct, removeScopeAct, skipAct, skipAllAct, hiddenAct, stopWeeksAct, studentWeeksAct, stopNowAct, releaseAct, changeSeenAct } from "./actions.js";
@@ -33,6 +34,7 @@ export default function Board({ d }) {
     {!school.length && <p className="note" data-g="empty">학교 시험 없음 · 📡 받아오기 · 손으로 넣기</p>}
     <div className="two" style={{ gap: 8 }} data-g="exams">{school.map((e) => <ExamCard key={e.id} e={e} {...ctx} />)}</div>
     <StopCard {...ctx} />
+    <SchoolsCard schools={b.schools ?? []} />
     <div className="exr" style={{ marginTop: 8 }} data-g="national">
       <div className="exh"><span className="ai">🌏</span><b>전국</b><span className="spacer" /><span className="pill">고등 전부</span></div>
       {!nat.length && <p className="note" style={{ margin: 0 }}>아직 없음 · 📡 받아오기</p>}
