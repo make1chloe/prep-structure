@@ -1,3 +1,5 @@
+-- 문지기((어45)) · 씨앗은 눌러보기 DB(chloe)에서만. 실 DB(postgres)에 붙여넣으면 여기서 멈춘다(리허설 줄이 실 DB 에 들어가는 사고를 다시 안 낸다 · 정리는 docs/sql-paste/0-리허설-정리.sql)
+do $$ begin if current_database() <> 'chloe' then raise exception '씨앗(scripts/e2e/seed.sql)은 눌러보기 DB(chloe)에서만 돕니다 · 지금 DB: %', current_database(); end if; end $$;
 -- 리허설 계정 — 역할마다 하나. 진짜 사람은 한 명도 없다(대전제 12). 비밀번호는 전부 e2e-pass.
 insert into auth.users (id, email, encrypted_password) values
   ('11111111-1111-1111-1111-111111111111', 'zz_principal@e2e.test',  'e2e-pass'),

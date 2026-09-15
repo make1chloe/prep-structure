@@ -10,6 +10,8 @@ Supabase → **SQL Editor** → **New query** → 파일을 통째로 붙여넣�
 
 - `0166.sql` · **출결 사유**((어44) · 지각·결석 까닭 넷 · 진료·학교 일정은 경고에 안 셈 · 규칙 warn.excused) · 원장님 9/15 「출결에 지각 결석 사유 필요헤」
   https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0166.sql
+- `0-리허설-정리.sql` · **리허설(zz_) 줄 정리**((어45) · 원장님 9/15 「zz 들어가는 반 학생은 다 뭐야 용도가」) · 지우지 않고 상태만 내린다(사람·학생 퇴원 · 반·학교 닫음 · 교재 보류 · 항목·자료 내림 · 영상 숨김) · 다시 돌려도 같다 · 끝에 몇 줄 내렸는지 알림
+  https://raw.githubusercontent.com/make1chloe/prep-structure/v2/docs/sql-paste/0-리허설-정리.sql
 
 0100~0165 **66개**는 다 들어갔습니다(0165 · 2026-09-15 원장님 「성공」).
 
