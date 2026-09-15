@@ -11,7 +11,7 @@ import { saveAreaMemo } from "@/lib/area-memo";
 import { scoreUnitTest } from "@/lib/unit-test";
 import { ccSkip } from "@/lib/cc";
 import { attendanceWrite, attendMany as attendManyWrite } from "@/lib/attend";
-import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem } from "@/lib/homework";
+import { checkItem, carryRest, addItem, addItems, moveItem, stayDone, stayAllDone, stayCarry , checkAll as checkAllItems, editItemText, removeItem, restoreItem, disposeItem, disposeMany as disposeManyItems } from "@/lib/homework";
 import { setLate, sendLate, setLeft } from "@/lib/late";
 import { setMode, setStop, pickWave, setMemo, tunePool, applyTune } from "@/lib/routine";
 import { addQuiz, setQuiz, takeQuiz, retest, skipRetest, setStyle } from "@/lib/quiz";
@@ -44,7 +44,7 @@ export const lateLeft = done(async (studentId, date, hhmm) => { const { sb } = a
 export const comment = done(async (sheetId, payload) => { const { sb } = await staff(); await saveComment(sb, String(sheetId), String(payload?.comment ?? ""), payload); });
 export const close = done(async (sheetId, payload) => { const { sb, user } = await staff(); await closeSheet(sb, String(sheetId), String(payload?.comment ?? ""), user.id, payload); });
 export const commentDraft = done(async (sheetId, payload) => { const { sb } = await staff(); const cfg = await commentRules(sb); return { draft: await draftComment(sb, String(sheetId), payload, cfg) }; });   // ✨ 브리핑 — 열쇠는 서버에서만
-// 오늘 학습·숙제 — 저절로 깔린 것을 손보는 손(확정-⑨a): 줄이기 · 교재 상태 · 회차 · 교재마다 메모. 판단은 lib/routine.js
+// 오늘 학습·숙제 · 저절로 깔린 것을 손보는 손(확정-⑨a): 줄이기 · 교재 상태 · 오늘 단원 · 교재마다 메모. 판단은 lib/routine.js
 export const mode = done(async (sheetId, m) => { const { sb } = await staff(); await setMode(sb, sheetId, m); });
 export const stop = done(async (sheetId, studentBookId, m) => { const { sb } = await staff(); await setStop(sb, sheetId, studentBookId, m); });
 export const wave = done(async (sheetId, bookId, slot, unitIds) => { const { sb } = await staff(); await pickWave(sb, sheetId, bookId, slot, unitIds); });
@@ -77,3 +77,5 @@ export const planSend = done(async (studentId, date) => { const { sb } = await s
 export const areaMemo = done(async (sheetId, area, memo) => { const { sb } = await staff(); await saveAreaMemo(sb, String(sheetId), String(area), String(memo ?? "")); });   // 🗺 영역별 메모 — 칸을 떠나면 저장
 export const unitScore = done(async (id, correct, date) => { const { sb } = await staff(); await scoreUnitTest(sb, String(id), Number(correct), String(date)); });   // 📝 단원평가 맞은 개수
 export const ccSkipAct = done(async (id, on) => { const { sb, user } = await staff(); return ccSkip(sb, Number(id), Boolean(on), user?.id ?? null); });   // (뎌-4) 🃏 「⏭ 목표 미달 넘기기」 — 앱이 스스로 안 넘긴다(확정-⑱)
+export const dispose = done(async (itemId, where) => { const { sb } = await staff(); return disposeItem(sb, String(itemId), String(where)); });   // (어37) 건너뛰기 · 다음 시간으로 · 숙제로 · 되돌리기(class)
+export const disposeMany = done(async (itemIds, where) => { const { sb } = await staff(); return disposeManyItems(sb, itemIds, String(where)); });   // (어37) 단원 머리 · 그 단원 줄 전부

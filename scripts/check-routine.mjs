@@ -1,6 +1,6 @@
 /** 루틴 깔기 검사(확정-⑨·⑬·㉒·㊺a · 검사-⑩) — 순수 판단 lib/routine-plan.js 를 본보기로 돌린다. DB 없이 돈다.
  *  「뺄 항목을 얹은 뒤에도 묶음이 안 비나」(검사-⑩) · 덩어리가 대단원을 안 넘나(확정-④) · 멈춤 셋이 맞나(확정-⑬) · 필수만이 필수 줄만 남기나 · 회차 고르기가 다음 것을 내나 */
-import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneStep, tuneCount, tuneSorted, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
+import { planBook, chunkOf, linesFor, stopOn, waves, offFor, tuneStep, tuneCount, tuneSorted, nextCarry, loadOf, splitPresets, alive, areaStats, studentAreaView, resolveLines, bookView, moveSort, previewUnits, projectEnd, parseChecks, AREAS, trimCounts, heavyBand, redoUnits } from "../lib/routine-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const U = (id, chapter, sort) => ({ unit_id: id, chapter, sort, code: id });
@@ -114,5 +114,10 @@ console.log("■ 교재 예외(4단계-5) · 교재 줄 › 아이 영역 줄 �
   const b0 = bookView(areaL, mineL, []), b1 = bookView(areaL, mineL, bookL), b2 = bookView(areaL, [], bookL);
   ok("11 교재 칸 · 교재 줄이 없으면 바탕(아이 영역 줄) 그대로 · 있으면 「이 교재만 고침」 + 뺀 것 = 바탕 중 교재 줄에 없는 항목(바탕이 아이 줄이면 없음 · 학원 줄이면 없음 · 워크북·문장·구두가 다 있다)", b0.custom === false && b0.lines.map((l) => l.id).join() === "s1,s2" && b1.custom === true && b1.lines.map((l) => l.id).join() === "k1,k2" && b1.removed.map((l) => l.name).join() === "구두" && b2.custom === true && b2.removed.map((l) => l.name).join() === "구두", JSON.stringify([b0.lines.map((l) => l.id), b1.removed.map((l) => l.name), b2.removed.map((l) => l.name)]));
 }
+console.log("■ (어37) 지난 판의 「다음 시간으로」 줄 이어 깔기(nextCarry · 원장님 9/15)");
+{ const nl = [{ id: "n2", item_id: "i1", unit_id: "u2", date: "2026-09-14", sort: 1 }, { id: "n1", item_id: "i1", unit_id: "u1", date: "2026-09-12", sort: 3 }, { id: "n3", item_id: null, unit_id: null, range_note: "워크북 p.10", date: "2026-09-14", sort: 2 }, { id: "n4", item_id: "i2", unit_id: "u1", date: "2026-09-13", sort: 1, off: true }, { id: "n5", item_id: "i3", unit_id: "u1", date: "2026-09-13", sort: 2 }];
+  const r = nextCarry(nl, new Set(["n5"]), [{ slot: "class", item_id: "i1", unit_id: "u2" }, { slot: "home", item_id: "i1", unit_id: "u1" }]);
+  ok("오래된 것부터 · 이미 넘어간 것(n5)·뺀 것(n4)은 안 넘김 · 오늘 학습에 같은 활동(i1·u2)이 있으면 dup(새 줄 없이 그 줄이 그것) · 숙제에만 있는 것은 새 줄 · 손으로 적은 줄은 늘 새 줄", r.map((x) => `${x.id}:${x.dup ? "dup" : "new"}`).join() === "n1:new,n2:dup,n3:new");
+  ok("같은 활동을 두 판이 미뤘으면 하나만 새 줄(둘째는 dup) · 비면 빈 것", (() => { const q = nextCarry([{ id: "a", item_id: "i9", unit_id: "u9", date: "2026-09-10" }, { id: "b", item_id: "i9", unit_id: "u9", date: "2026-09-11" }], new Set(), []); return q.map((x) => x.dup).join() === "false,true" && nextCarry([], new Set(), []).length === 0; })()); }
 console.log(`\n■ 루틴 깔기 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);

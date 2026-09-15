@@ -4,9 +4,9 @@
 import { Fragment, useState, useRef, useEffect, useMemo, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { itemText, itemRemove, itemRestore, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
+import { itemText, itemRemove, itemRestore, dispose, disposeMany as disposeAll, checkAll, give, ccSkipAct, setAttend, check, rest, add, move, late, lateSend, stayDoneAct, stayAllDoneAct, stayCarryAct, quizStyle, comment, close, openSheet, mode as setMode, stop as setStop, wave as pickWave, memo as saveMemo, quizAdd, quizSet, quizTake, quizRetest, quizSkip, tuneOpen, tuneApply, reflectAs, warnLimit, progressOpen, progressSet, progressSkip, progressSetMany, progressUpTo, planView, planPut, planSend, commentDraft, areaMemo, unitScore, lateLeft, slotView } from "./actions.js";
 import { monthGrid, nextYm, markOf, makeupText, LATE_PRESET, KIND as PLAN_KIND } from "@/lib/plan-plan";
-import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, unitTree } from "@/lib/day-plan";
+import { weekdayName, seoulTime, shutCards, checkText, checkIcons, workText, firstTask, taskDone, ATTEND, unitTree, fromLast, bookLine } from "@/lib/day-plan";
 import { prepOf, prepBadge } from "@/lib/todo-plan";
 import PrepCard from "./prep.js";
 import { hhmm, leftText, repeatBand, askBeforeClose, reasonChips, toggleReason, usualText, stayRows, stayCounts } from "@/lib/late-plan";
@@ -160,9 +160,9 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
   const nextQuiz = <NextQuiz sheet={sheet} books={books} quizzes={next} scopes={scopes} closed={closed} fail={fail} start={start} />;
   const laid = sheet.books.some((b) => b.laid_at);
   const per = minutes && sheet.class.length ? (minutes / sheet.class.length).toFixed(1) : null;
-  const isAuto = (it) => Boolean(it.item_id && !it.carry_of && it.unit_id);   // 루틴이 깐 줄 — 교재 반쪽에. 손으로 더한 줄·나머지 줄은 단원이 있어도 「그 밖에」
+  const isAuto = (it) => bookLine(it);   // 교재 카드에 서는 줄(루틴이 깐 줄 + 지난 시간에서 넘어온 줄 · lib/day-plan bookLine 한 벌). 손으로 더한 줄·검사 나머지 조각은 단원이 있어도 「그 밖에」
   const unitless = (slot) => sheet[slot].filter((it) => !isAuto(it));
-  const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && !isAuto(it));   // 뺀 줄(대전제-19 · 되살리기) · 루틴 줄의 off 는 줄이기·조절 몫
+  const offOf = (slot) => (sheet.off ?? []).filter((it) => it.slot === slot && (!isAuto(it) || sheet[slot].some((x) => isAuto(x) && x.unit_id === it.unit_id)));   // 뺀 줄(대전제-19 · 되살리기) · 루틴 줄은 그 단원이 아직 살아 있을 때만(손으로 건너뛴 것 · (어37)) · 단원째 뺀 것은 줄이기·조절·오늘 단원 몫
   // (어24) 깔린 줄만 보인다 — 「+ 항목」(그 밖에 · 분량 · 줄이기) · 「다음 시간 시험 · 고치기」 · 「🌙 늦게 감」 · 「🗺 메모」는 눌러야 펼친다. 적힌 것이 있으면 펴진 채(shutCards 한 곳)
   const extras = unitless("class").length + unitless("home").length;
   const [more, setMore] = useState(extras > 0);
@@ -202,12 +202,14 @@ function WorkCard({ sheet, books, next, date, minutes, closed, fail, start, heav
             <div className="hh">{title}<span className="cnt">{unitless(slot).length}개</span></div>
             {unitless(slot).map((it, i) => <FreeLine key={it.id} it={it} no={i + 1} closed={closed} fail={fail} start={start} moveLabel={moveLabel} other={other} />)}
             {offOf(slot).length > 0 && <div className="lf" data-g="off-lines"><span className="ln">🚫</span><div><b>뺀 줄 {offOf(slot).length}</b><small>{offOf(slot).map(itemTitle).join(" · ")}</small></div>
-              {!closed && offOf(slot).map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="item-restore" onClick={() => start(async () => { fail(await itemRestore(it.id)); })}>되살리기</button>)}</div>}
+              {!closed && offOf(slot).map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="item-restore" data-id={it.id} onClick={() => start(async () => { fail(await itemRestore(it.id)); })}>되살리기</button>)}</div>}
             {!closed && <form className="wv" action={async (f) => { fail(await add(f)); }}><input type="hidden" name="sheetId" value={sheet.id} /><input type="hidden" name="slot" value={slot} /><input type="text" name="text" placeholder="예: 워크북 p.10 1-18" style={{ flex: "1 1 160px", minWidth: 0 }} /><button className="btn sm" type="submit">항목 더하기</button></form>}
           </div>
         ))}
       </div>
       </>}
+      {(sheet.next ?? []).length > 0 && <div className="lf" data-g="next-lines"><span className="ln">⏭</span><div><b>다음 시간에 {sheet.next.length}</b><small>{sheet.next.map((it) => [itemTitle(it), it.units?.short].filter(Boolean).join(" · ")).join(" · ")}</small></div>
+        {!closed && sheet.next.map((it) => <button key={it.id} type="button" className="btn sm gho" data-act="next-back" data-id={it.id} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>되돌리기</button>)}</div>}
       {showLate && lateNode}
       {showMemo && memoNode}
     </div>
@@ -219,7 +221,7 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
   const mark = sheet.books.find((x) => x.book_id === b.book_id);
   const [tune, setTune] = useState(false);
   const [prog, setProg] = useState(false);
-  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id && it.item_id && !it.carry_of);   // 루틴이 깐 줄만 — 나머지 줄(carry_of)은 「그 밖에」
+  const rows = (slot) => sheet[slot].filter((it) => it.units?.book_id === b.book_id && bookLine(it));   // 루틴이 깐 줄 + 지난 시간에서 넘어온 줄(fromLast) · 검사 나머지 조각(carry_of)은 「그 밖에」
   const chapter = rows("class")[0]?.units?.chapter ?? rows("home")[0]?.units?.chapter ?? null;
   const pickStop = (m) => start(async () => { fail(await setStop(sheet.id, b.id, m)); });
   return (
@@ -252,13 +254,14 @@ function BookBlock({ b, sheet, date, closed, fail, start, extra = null, onPrep }
 function FreeLine({ it, no, closed, fail, start, moveLabel, other }) {
   const [edit, setEdit] = useState(false); const box = useRef(null);
   useEffect(() => { if (edit) box.current?.focus(); }, [edit]);   // 폰-2: autoFocus 는 안 건다 · ✎ 를 누른 뒤에만 칸으로(사람이 시킨 것)
-  const name = itemTitle(it), sub = [itemSub(it), it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ");
+  const name = itemTitle(it), sub = [itemSub(it), fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ");
   const save = (v) => { const t = String(v ?? "").trim(); setEdit(false); if (!t || t === name) return; start(async () => { fail(await itemText(it.id, t)); }); };
   return <div className="li" data-g="free-line"><span className="n">{no}</span>
     {edit ? <input ref={box} type="text" defaultValue={it.range_note ?? name} aria-label="줄 고치기" onBlur={(e) => save(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(e.currentTarget.value); } if (e.key === "Escape") setEdit(false); }} style={{ flex: "1 1 120px", minWidth: 0 }} />
       : <div><b>{name}</b>{sub && <small>{sub}</small>}</div>}
     {!closed && !edit && <><button type="button" className="btn sm gho" data-act="item-edit" aria-label="고치기" onClick={() => setEdit(true)}>✎</button>
       <button type="button" className="btn sm" data-act="item-move" onClick={() => start(async () => { fail(await move(it.id, other)); })}>{moveLabel}</button>
+      {other === "home" && <button type="button" className="btn sm gho" data-act="item-next" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>다음 시간으로</button>}
       <button type="button" className="btn sm gho" data-act="item-del" aria-label="빼기" onClick={() => start(async () => { fail(await itemRemove(it.id)); })}>✕</button></>}
   </div>;
 }
@@ -277,8 +280,11 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
         {ch.chapter && <div data-g="chapter-head" style={{ margin: "6px 0 0", fontSize: "var(--fs-2)", fontWeight: 700, color: "var(--faint)" }}>{ch.chapter}</div>}
         {ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null; return <div key={g.id ?? `_${gi}`} data-g="unit-block" data-unit={g.id ?? ""}>
           <div className="wv" style={{ margin: "4px 0 0", gap: 6 }} data-g="unit-head"><b>{bits ? bits.subs : "단원 없음"}</b>{bits && (bits.pages || bits.q) && <span className="note" style={{ margin: 0 }}>{[bits.pages, bits.q].filter(Boolean).join(" · ")}</span>}
-            {!closed && nUnits > 1 && g.id && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); })}>✕</button>}</div>
-          {g.rows.map((it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{(note || it.carry_of) && <small>{[note, it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}</div></div>; })}
+            {!closed && slot === "class" && g.rows.length > 0 && <span className="wv" data-g="unit-acts" style={{ margin: 0, gap: 4 }}><button type="button" className="btn sm" data-act="unit-skip" onClick={() => start(async () => { fail(nUnits > 1 && g.id ? await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id)) : await disposeAll(g.rows.map((r) => r.id), "skip")); })}>건너뛰기</button><button type="button" className="btn sm" data-act="unit-next" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "next")); })}>다음 시간으로</button><button type="button" className="btn sm" data-act="unit-home" onClick={() => start(async () => { fail(await disposeAll(g.rows.map((r) => r.id), "home")); })}>숙제로</button></span>}
+            {!closed && slot !== "class" && nUnits > 1 && g.id && <button type="button" className="btn sm gho" data-act="item-del" aria-label="오늘은 뺌" onClick={() => start(async () => { fail(await pickWave(sheet.id, b.book_id, slot, [...cur].filter((u) => u !== g.id))); })}>✕</button>}</div>
+          {g.rows.map((it, i) => { const note = it.range_note && it.range_note !== itemTitle(it) ? `이번에 ${it.range_note}` : null; return <div className="li" key={it.id} data-id={it.id}><span className="n">{i + 1}</span><div><b>{itemTitle(it)}</b>{it.gate_prev && <span className="tag" data-g="gate" style={{ marginLeft: 4 }}>🔒</span>}{(note || it.carry_of) && <small>{[note, fromLast(it) ? lastFrom(it) : it.carry_of ? "지난 숙제의 나머지" : null].filter(Boolean).join(" · ")}</small>}
+            {!closed && slot === "class" && <span className="wv" data-g="line-acts" style={{ margin: "4px 0 0", gap: 4 }}><button type="button" className="btn sm gho" data-act="line-skip" onClick={() => start(async () => { fail(await dispose(it.id, "skip")); })}>건너뛰기</button><button type="button" className="btn sm gho" data-act="line-next" onClick={() => start(async () => { fail(await dispose(it.id, "next")); })}>다음 시간으로</button><button type="button" className="btn sm gho" data-act="line-home" onClick={() => start(async () => { fail(await dispose(it.id, "home")); })}>숙제로</button></span>}</div>
+            {!closed && slot === "home" && <button type="button" className="btn sm gho" data-act="line-class" style={{ flex: "0 0 auto" }} onClick={() => start(async () => { fail(await dispose(it.id, "class")); })}>학습으로</button>}</div>; })}
         </div>; })}
       </Fragment>)}
       <form className="memoline" action={async (f) => { fail(await saveMemo(f)); }}>
@@ -289,6 +295,7 @@ function Half({ slot, title, b, sheet, mark, rows, closed, fail, start, extra = 
     </div>
   );
 }
+const lastFrom = (it) => { const d = String(it?.carry?.day_sheet?.date ?? ""); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))} 에서 넘어옴` : "지난 시간에서 넘어옴"; };   // (어37) 넘어온 줄의 꼬리
 const kindOf = (k) => KIND.find(([x]) => x === k) ?? ["", k, "?"];
 const numOr = (v) => (v === null || v === undefined ? "" : String(v));
 /** 🔤 시험 — 숙제 검사 카드 안 **맨 끝**(무조건 · (어12)). 지난 시간에 낸 범위 그대로. 틀린 개수(·전체)만 적으면 맞은 개수·%·통과는 세어 나온다(SQL). 미통과면 재시험 줄 + 늦귀가 사유가 저절로 */
@@ -516,7 +523,7 @@ function UnitTestPart({ t, passPct, date, closed, fail, start }) {
 function CommentCard({ sheet, student, shut = null, closed, fail, start, cfg, phase, date, barHost, future = false, onCollapse, active = false, hasNext = false, onNext = null }) {
   const [off, setOff] = useState(Boolean(shut?.shut));
   const lines = attached({ next: student.quizzes?.next ?? [], late: sheet.late, warn: student.warn });
-  const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check, exam: examPhase(student.exams ?? [], date, phase) });   // 시험전·시험후는 이 아이의 회차에서(06b)
+  const autoKind = pickKind({ hour: cfg?.hour, lateFrom: cfg?.lateFrom, checks: sheet.check, exam: examPhase(student.exams ?? [], date, phase) });   // 시험전·시험후는 이 아이의 시험에서(06b)
   const [kind, setKind] = useState(sheet.comment_kind ?? autoKind);
   const [cap, setCap] = useState(sheet.comment_cap ?? capOf(sheet.comment_kind ?? autoKind, cfg?.caps));
   const [keys, setKeys] = useState(sheet.comment_keys ?? "");

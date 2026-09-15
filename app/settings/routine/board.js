@@ -156,8 +156,8 @@ export default function Board({ d }) {
             </div>}
             <div className="bsr"><span className="fl">기준</span>
               <div className="seg sm" data-g="basis">{[["chapter", "대단원"], ["sub", "소단원"]].map(([k, name]) => <button key={k} type="button" aria-pressed={x.order_basis === k} disabled={pending} onClick={() => run(() => setBookAct(x.id, { order_basis: k }))}>{name}</button>)}</div>
-              <span className="fl" style={{ width: "auto", margin: "0 0 0 8px" }}>회차</span>
-              <div className="stepper" data-g="pace"><button type="button" data-s="-" disabled={pending || x.per_session <= 1} onClick={() => run(() => setBookAct(x.id, { per_session: x.per_session - 1 }))}>−</button><input type="text" inputMode="numeric" value={x.per_session} aria-label="회차" readOnly /><button type="button" data-s="+" disabled={pending || x.per_session >= 6} onClick={() => run(() => setBookAct(x.id, { per_session: x.per_session + 1 }))}>+</button></div>
+              <span className="fl" style={{ width: "auto", margin: "0 0 0 8px" }}>한 번에</span>
+              <div className="stepper" data-g="pace"><button type="button" data-s="-" disabled={pending || x.per_session <= 1} onClick={() => run(() => setBookAct(x.id, { per_session: x.per_session - 1 }))}>−</button><input type="text" inputMode="numeric" value={x.per_session} aria-label="한 번에 나가는 소단원 수" readOnly /><button type="button" data-s="+" disabled={pending || x.per_session >= 6} onClick={() => run(() => setBookAct(x.id, { per_session: x.per_session + 1 }))}>+</button></div>
               <span className="spacer" />
               <div className="endd" data-g="endd"><small>이대로면</small><b>{pj.sessions === 0 ? "다 했습니다" : pj.endDate ?? "수업일이 모자랍니다"}</b><span>남은 소단원 {x.remaining}/{x.total} · 수업 {pj.sessions}회{pj.months != null ? ` · ${pj.months}개월` : ""}</span></div></div>
             <div className="bsr"><label className="ckl"><input type="checkbox" className="ck" checked={ut !== "off"} disabled={pending} data-g="ut" onChange={(e) => run(() => setBookAct(x.id, { unit_test: e.target.checked ? "per_chapter" : "off" }))} />단원평가 본다</label>

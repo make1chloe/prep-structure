@@ -176,6 +176,23 @@ await 펴기(row); await pick(row, "work");
 ok("(어32) 단원 머리 둘(1-4 · 1-5) · 단원마다 활동 셋이 차례로 = 줄 6 · 단원이 먼저(원장님 9/15)", (await bk.locator(".half").nth(0).locator("[data-g=unit-head]").count()) === 2 && (await bk.locator(".half").nth(0).locator("[data-g=unit-head]").allTextContents()).join().includes("1-5") && (await bk.locator(".half").nth(0).locator(".li").count()) === 6, await bk.locator(".half").nth(0).locator("[data-g=unit-head]").allTextContents().then((t) => t.join("|")));
 await pick(row, "more");
 ok("학원 항목 수는 줄×소단원 = 6", (await row.locator(".load .ldn").first().locator("> b").textContent()) === "6");
+// (어37) 오늘 학습 줄마다 · 단원마다 「건너뛰기 · 다음 시간으로 · 숙제로」(원장님 9/15 「진도별로 또는 하위 학습 항목별로」) · 다 되돌려 놓고 다음 걸음(조절)으로
+{ const U5 = "99999999-0000-4000-e100-000000000005"; const cls5 = () => bkC.locator(`[data-g=unit-block][data-unit='${U5}']`); const homeH = bk.locator(".half").nth(1); const offC = () => row.locator(".half", { hasText: "그 밖에 · 학원" }).locator("[data-g=off-lines]");
+  ok("(어37) 학습 단원 머리에 「건너뛰기 · 다음 시간으로 · 숙제로」 · 활동 줄마다도 셋 · 숙제 줄에는 「학습으로」 · 「회차」 0", (await cls5().locator("[data-g=unit-head] button[data-act=unit-skip]").count()) === 1 && (await cls5().locator("[data-g=unit-head] button[data-act=unit-next]").count()) === 1 && (await cls5().locator("[data-g=unit-head] button[data-act=unit-home]").count()) === 1 && (await cls5().locator(".li button[data-act=line-next]").count()) === 3 && (await cls5().locator(".li button[data-act=line-home]").count()) === 3 && (await cls5().locator(".li button[data-act=line-skip]").count()) === 3 && (await homeH.locator(".li button[data-act=line-class]").count()) >= 1 && !(await row.textContent()).includes("회차"), `next ${await cls5().locator(".li button[data-act=line-next]").count()} · class ${await homeH.locator(".li button[data-act=line-class]").count()}`);
+  const t0 = (await cls5().locator(".li b").first().textContent()).trim(), id0 = await cls5().locator(".li").first().getAttribute("data-id");
+  await cls5().locator(".li button[data-act=line-next]").first().click(); await p.waitForTimeout(1200);
+  ok(`줄 「${t0}」 다음 시간으로 → 1-5 활동 2 · 「⏭ 다음 시간에 1」 + 되돌리기`, (await cls5().locator(".li").count()) === 2 && (await row.locator("[data-g=next-lines]").textContent()).includes("다음 시간에 1") && (await row.locator("[data-g=next-lines]").textContent()).includes(t0), await row.locator("[data-g=next-lines]").textContent().catch(() => "없음"));
+  await row.locator("[data-g=next-lines] button[data-act=next-back]").click(); await p.waitForTimeout(1200);
+  ok("되돌리기 → 1-5 활동 3 · 「다음 시간에」 없음", (await cls5().locator(".li").count()) === 3 && (await row.locator("[data-g=next-lines]").count()) === 0);
+  await cls5().locator(`.li[data-id='${id0}'] button[data-act=line-home]`).click(); await p.waitForTimeout(1200);
+  const movedHome = (await homeH.locator(`.li[data-id='${id0}']`).count()) === 1, merged = (await offC().locator(`button[data-act=item-restore][data-id='${id0}']`).count()) === 1;
+  ok(`줄 「${t0}」 숙제로 → 학습 1-5 활동 2 · 숙제 줄에 서거나(옮김) 같은 활동이 이미 숙제에 있어 뺀 줄로(합침)`, (await cls5().locator(".li").count()) === 2 && (movedHome || merged), `moved ${movedHome} · merged ${merged}`);
+  if (movedHome) await homeH.locator(`.li[data-id='${id0}'] button[data-act=line-class]`).click(); else await offC().locator(`button[data-act=item-restore][data-id='${id0}']`).click(); await p.waitForTimeout(1200);
+  ok("「학습으로」(또는 되살리기) → 1-5 활동 3", (await cls5().locator(".li").count()) === 3);
+  await cls5().locator("[data-g=unit-head] button[data-act=unit-next]").click(); await p.waitForTimeout(1500);
+  ok("단원 1-5 통째로 다음 시간으로 → 학습에서 1-5 머리 사라짐 · 「다음 시간에 3」", (await cls5().count()) === 0 && (await row.locator("[data-g=next-lines]").textContent()).includes("다음 시간에 3"), await row.locator("[data-g=next-lines]").textContent().catch(() => "없음"));
+  for (let i = 0; i < 3; i++) { await row.locator("[data-g=next-lines] button[data-act=next-back]").first().click(); await p.waitForTimeout(1000); }
+  ok("셋 다 되돌리기 → 1-5 활동 3 · 「다음 시간에」 없음 · 학원 항목 수 6 그대로", (await cls5().locator(".li").count()) === 3 && (await row.locator("[data-g=next-lines]").count()) === 0 && (await row.locator(".load .ldn").first().locator("> b").textContent()) === "6"); }
 console.log("■ 조절 02 · 교재마다 갯수 · 뺄 칩 · 이번에 낼 번호 · 화면엔 문항·쪽 합계(확정-㉓)");
 await bk.locator("button[data-act=tune]").click(); await p.waitForTimeout(1500);
 const md = p.locator(".mdlov .mdl");
