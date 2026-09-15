@@ -32,14 +32,16 @@ ok("들어가서 첫 화면", new URL(p.url()).pathname === "/", p.url());
 ok("상단바에 이름·역할", (await p.locator("header.appbar .pill").first().textContent()).includes("원장"));
 ok("나가는 길(로그아웃)이 상단바에 있다(0-10)", (await p.locator("header.appbar form[action='/logout'] button").count()) === 1);
 const tabs = await p.locator("header.appbar nav.tabs a").allTextContents();
-ok("원장 메뉴 열둘 · **날마다 여는 화면은 한 번에**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」): 일정 뒤 내신·할 일·성적, 운영 뒤 학생·자료함", tabs.join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,운영,학생,자료함,설정", tabs.join(","));
+ok("원장 메뉴 열하나((어28) 운영 탭 = 학생) · **날마다 여는 화면은 한 번에**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」): 일정 뒤 내신·할 일·성적, 학생 뒤 자료함", tabs.join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,학생,자료함,설정", tabs.join(","));
 { // 동선이 실제로 줄었나 — 탭 한 번으로 그 화면이 열린다(전엔 운영·일정을 거쳐 두 번이었다)
-  for (const [name, path2] of [["학생", "/ops/students"], ["자료함", "/ops/files"], ["성적", "/scores"]]) {
+  for (const [name, path2] of [["학생", "/ops"], ["자료함", "/ops/files"], ["성적", "/scores"]]) {   // (어28) 「학생」은 이제 큰 탭(/ops = 학생 14)
     await Promise.all([p.waitForURL((u) => u.pathname === path2, { timeout: 15000 }), p.locator("header.appbar nav.tabs a", { hasText: new RegExp(`^${name}$`) }).click()]);
+    { const hb = await p.locator("header.appbar").boundingBox(); const nTabs = await p.locator("header.appbar nav.tabs a").count();   // 원장님 9/15 「페이지 이동시 맨위 메뉴가 사라짐」 · 옮긴 뒤에도 상단 띠·탭 열하나가 그 자리에
+      ok(`(어29) 「${name}」 으로 옮긴 뒤에도 상단 띠가 맨 위(0px)에 있고 탭 열하나가 그대로다 · 이름·로그아웃도`, hb && Math.round(hb.y) === 0 && nTabs === 11 && (await p.locator("header.appbar .pill").count()) >= 1 && (await p.locator("header.appbar form[action='/logout'] button").count()) === 1, `y=${hb?.y} 탭 ${nTabs}`); }
     ok(`「${name}」 탭 한 번으로 ${path2} 가 열린다(전에는 두 번) · 그 탭이 파랗다`, new URL(p.url()).pathname === path2 && (await p.locator("header.appbar nav.tabs a[aria-current=true]").textContent()).trim() === name, p.url());
   }
   await p.goto(APP + "/ops"); await p.waitForLoadState("networkidle").catch(() => {});
-  ok("운영에는 **탭으로 올라간 둘(학생·자료함)이 없다** · 같은 화면을 두 곳에 두지 않는다(원칙-1) · 남은 메뉴 카드는 상담 하나이고 설명문 문단이 0(툴팁으로)", (await p.locator("main a.card[data-card=students]").count()) === 0 && (await p.locator("main a.card[data-card=files]").count()) === 0 && (await p.locator("main a.card[data-card=inquiry]").count()) === 1 && (await p.locator("main a.card p.note").count()) === 0, "카드 " + (await p.locator("main a.card").count()) + " · 설명문 " + (await p.locator("main a.card p.note").count()));
+  ok("(어28) /ops 는 곧 학생 14(운영 탭 = 학생 · 원칙-1 같은 화면 두 곳 없음) · 머리 세그 「학생 · 💰 수강료」 · 왼쪽 목록에 고르기 네모(전체 · 줄마다) · 상담은 목록 머리 「☎️ 신규 상담 ↗」", (await p.locator("main [data-g=view] a").count()) === 2 && (await p.locator("main [data-g=view] a[aria-pressed=true]").textContent()) === "학생" && (await p.locator("main .stlist [data-g=pick-all]").count()) === 1 && (await p.locator("main .stlist [data-g=pick]").count()) >= 1 && (await p.locator("main a.card").count()) === 0 && (await p.locator("main [data-g=list-head] a[href='/ops/inquiry']").count()) === 1, "세그 " + (await p.locator("main [data-g=view] a").count()) + " · 카드 " + (await p.locator("main a.card").count()));
   await p.goto(APP + "/settings"); await p.waitForLoadState("networkidle").catch(() => {});
   ok("설정의 메뉴 카드 둘도 **제목만**(진도 체크 · 루틴) · 설명문 문단 0 · 툴팁도 0(대전제-15 이름이 말한다 · 어20)", (await p.locator("main a.card p.note").count()) === 0 && (await p.locator("main a.card[title]").count()) === 0 && (await p.locator("main a.card[data-card=progress]").count()) === 1 && (await p.locator("main a.card[data-card=routine]").count()) === 1, "설명문 " + (await p.locator("main a.card p.note").count()) + " · 툴팁 " + (await p.locator("main a.card[title]").count()));
   await p.goto(APP + "/schedule"); await p.waitForLoadState("networkidle").catch(() => {});
@@ -147,8 +149,8 @@ console.log("■ 강사 · 켠 만큼만");
 await login(p, "staff", "zz_instructor@e2e.test", PW);
 const tabs2 = await p.locator("header.appbar nav.tabs a").allTextContents();
 ok("강사 메뉴 = 대시보드 하나(설정은 안 정함 = 막힘)", tabs2.join(",") === "대시보드", tabs2.join(","));
-await p.goto(APP + "/ops"); await p.waitForLoadState("networkidle").catch(() => {});
-ok("강사가 /ops 를 열면 수강료는 닫혀 있다(ops.fee 안 정함 = 막힘 · 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
+await p.goto(APP + "/ops/students?v=fee"); await p.waitForLoadState("networkidle").catch(() => {});
+ok("강사가 수강료 갈래를 열면 닫혀 있다(ops.fee 안 정함 = 막힘 · 답 ⑮ 「강사는 수강료 못 보게」) · 표 없음 · 엑셀 403", (await p.locator("main [data-card=fee-closed]").count()) === 1 && (await p.locator("main [data-g=fee-table]").count()) === 0 && (await p.request.get(APP + "/api/ops/fee?m=2026-10")).status() === 403, (await p.locator("main").textContent()).replace(/\s+/g, " ").slice(0, 200));
 await Promise.all([p.waitForURL(/\/login/), p.click("header.appbar form[action='/logout'] button")]);
 console.log("■ 학생 · 처음 비밀번호는 바꿔야 들어간다");
 await login(p, "student", "chloe0000", PW);

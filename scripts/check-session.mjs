@@ -9,7 +9,8 @@ const bad = [];
 for (const f of [...files("app"), ...files("lib")].filter((f) => /\.(js|mjs|jsx)$/.test(f))) {
   const s = strip(readFileSync(f, "utf8"));
   if (/auth\.getUser\s*\(/.test(s)) bad.push(`${f}: auth.getUser() · 인증 서버 왕복 (lib/session.js 의 sessionUser 로)`);
-  if (/\/page\.js$/.test(f) && !/(guard|whoami)\s*\(/.test(s)) bad.push(`${f}: guard()/whoami() 없이 그리는 화면`);
+  const alias = /export \{ default[^}]*\} from "[^"]*page\.js"/.test(s);   // 다른 화면을 그대로 내는 주소((어28) /ops = 학생 14) · 그 화면이 guard 를 한다
+  if (/\/page\.js$/.test(f) && !alias && !/(guard|whoami)\s*\(/.test(s)) bad.push(`${f}: guard()/whoami() 없이 그리는 화면`);
   if (/\.schema\(\s*["']/.test(s) && !f.endsWith("lib/supabase.js")) bad.push(`${f}: .schema("…") 를 따로 적음 · lib/supabase.js 의 db() 한 벌`);
 }
 const 본보기 = strip("// x\nconst u = await sb.auth.getUser();");

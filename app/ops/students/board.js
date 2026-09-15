@@ -9,8 +9,9 @@ import { useRouter } from "next/navigation";
 import { useGo } from "../../_shell/going.js";
 import CardOrder from "../../_shell/cardorder.js";   /* (어15) 카드 차례 — 07·09·17·01 과 같은 조각(끌기 + ▲▼) */
 import { orderCards } from "@/lib/pref-plan";   /* 누른 즉시 표시(다) — 이동은 go() · 띠가 켜진다 */
-import { addAct, setAct, stateAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct, ccLinkAct, editModeAct, confirmMarkAct, revertMarkAct, confirmAllAct, flagAct } from "./actions.js";
-import { kpis, bookLines, scoreRows, weakText, attendRow, attendSummary, unitChips, historyLines, listRows, siblingText, tenureText, gradeText2, classLine, suggestLoginId, canReset, STATE } from "@/lib/student-plan";
+import { usePick, PickAll, PickBox, PickBar } from "../../_shell/pick.js";   /* 고르기 한 벌((어28) · 대전제-20 · 원장님 9/15 「모든 목록은 전체, 일부선택 ->선택후 일괄액션」) */
+import { addAct, setAct, stateManyAct, classManyAct, classAct, feeAct, consultAct, consultAttachAct, siblingAct, showAct, studentAccountAct, parentAccountAct, parentNameAct, resetAct, ccLinkAct, editModeAct, confirmMarkAct, revertMarkAct, confirmAllAct, flagAct } from "./actions.js";
+import { kpis, bookLines, scoreRows, weakText, attendRow, attendSummary, unitChips, historyLines, listRows, siblingText, tenureText, gradeText2, classLine, suggestLoginId, canReset, STATE, stateName } from "@/lib/student-plan";
 import { SHOW, showText } from "@/lib/score-plan";
 import { nextYm, monthLabel } from "@/lib/plan-plan";   /* (뎌) 달 넘기기 — 12 달력과 같은 한 벌 */
 import { staffFlagLine, EDIT_MODE, daysOpenText } from "@/lib/road-plan";   /* (허) 진도 체크 — 설정 진도 체크와 같은 판단 한 벌 */
@@ -36,13 +37,15 @@ export default function Board({ d }) {
   const [acc, setAcc] = useState({ loginId: "", parentPhone: "" }); const [pn, setPn] = useState({}); /* pn: 학부모 계정 이름 칸(profile_id → 글 · (가)-⑩) */ const [cls, setCls] = useState({ classId: "", from: today }); const [fee, setFee] = useState({ amount: "", from: today }); const [sib, setSib] = useState(""); const [leave, setLeave] = useState(today);
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   const list = useMemo(() => listRows(b.list ?? [], { q, show }), [b, q, show]);
+  const ids = useMemo(() => list.rows.map((s) => s.id), [list]); const pk = usePick(ids);   /* 고른 아이들 · 띠에서 한 번에(퇴원 · 복귀 · 반) */
+  const [mv, setMv] = useState({ classId: "", from: today });   /* 반 옮기기(고른 아이들 · 이 날부터) */
   const { go, pressed } = useGo(d); const pick = (id) => { go(`/ops/students?s=${id}`, id); };   /* 누른 줄은 서버 답 전에 켜진다(다) — 판(d)이 오면 서버 것으로 */
   const attSum = attendSummary(st ? (b.attend ?? []) : []);   /* (뎌) 그 달 요약 — 목록 줄과 같은 한 벌 */
   const pe = b.progress_edit ?? {}, pend = st ? (b.progress_pending ?? []) : [], peFlags = st ? (b.progress_flags ?? []).map((x) => staffFlagLine({ ...x, student: st.name })) : [];   /* (허) 진도 체크 — 판단은 road-plan 한 벌 */
   const K = st ? kpis(b.kpi ?? {}, b.rules ?? {}) : []; const books = st ? bookLines(b.books ?? [], today) : []; const scores = st ? scoreRows(b.scores ?? []) : []; const weak = weakText(scores); const att = st ? attendRow(b.attend ?? []) : []; const uts = st ? unitChips(b.unit_tests ?? [], parseInt(b.rules?.["unit_test.pass_pct"] ?? "80", 10) || 80) : []; const hist = st ? historyLines(b.history ?? {}, st) : [];
   const form = f ?? (st ? { name: st.name, grade: st.grade ?? "", schoolId: st.school_id ?? "", phone: st.phone ?? "", parentPhone: st.parent_phone ?? "", joinedOn: st.joined_on ?? "", memo: st.memo ?? "" } : null);
   const setForm = (k, v) => setF({ ...(form ?? {}), [k]: v });
-  return <>
+  return <><div className="stsplit"><div className="stlist">
     <div className="lf" style={{ margin: "0 0 8px" }} data-g="list-head"><span className="ln">🧑‍🎓</span><div><b data-g="counts">재원생 {list.active} · 퇴원생 {list.left}{list.paused ? ` · 쉼 ${list.paused}` : ""}</b></div>
       <input type="text" value={q} placeholder="찾기 (이름·학교·반)" aria-label="찾기" onChange={(x) => setQ(x.target.value)} style={{ maxWidth: 180 }} />
       <div className="seg sm" data-g="show">{[["active", "재원"], ["left", "퇴원"], ["all", "전체"]].map(([k, nm]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{nm}</button>)}</div>
@@ -54,10 +57,22 @@ export default function Board({ d }) {
         <select value={nf.schoolId} aria-label="학교" onChange={(x) => setNf({ ...nf, schoolId: x.target.value })} style={{ width: "auto" }}><option value="">학교</option>{(b.schools ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><SchoolAdd onAdded={(id) => setNf((v) => ({ ...v, schoolId: id }))} />
         <input type="text" inputMode="numeric" value={nf.parentPhone} placeholder="학부모 전화" aria-label="학부모 전화" onChange={(x) => setNf({ ...nf, parentPhone: x.target.value })} style={{ maxWidth: 150 }} /><input type="date" className="dt" value={nf.joinedOn} aria-label="들어온 날" onChange={(x) => setNf({ ...nf, joinedOn: x.target.value })} style={{ width: "auto" }} />
         <button className="btn pri sm" type="button" disabled={pending || !nf.name.trim()} data-act="add-save" onClick={() => run(() => addAct(nf), (r) => { pick(r.id); return "넣었습니다. 여는 중"; })}>저장</button></div></div>}
-    <div className="tblwrap" data-g="list"><table><thead><tr><th>이름</th><th>학년·학교</th><th>반</th><th>교재</th><th data-g="col-att">{monthLabel(b.month)} 출결</th><th>마지막 상담</th><th>상태</th></tr></thead><tbody>
-      {list.rows.map((s) => <tr key={s.id} className={(pressed ?? st?.id) === s.id ? "hi" : ""} data-g="student-row" data-student={s.id} data-state={s.state} onClick={() => pick(s.id)} style={{ cursor: "pointer" }}><td className="sch">{s.name}</td><td>{[s.gradeText, s.school].filter(Boolean).join(" · ")}</td><td>{s.classText}</td><td>{s.booksText}</td><td data-g="row-att" data-bad={s.att.bad ? "1" : "0"} style={s.att.bad ? { color: "var(--miss)" } : undefined}>{s.att.text}</td><td>{s.lastConsult}</td><td><span className={"tag" + (s.state === "active" ? " on" : "")}>{s.stateName}</span></td></tr>)}
-      {!list.rows.length && <tr><td colSpan={7} className="note">없습니다</td></tr>}
+    <div className="tblwrap" data-g="list"><table><thead><tr><th><PickAll pick={pk} /></th><th>이름</th><th>학년·학교 · 반</th><th></th></tr></thead><tbody>
+      {list.rows.map((s) => <tr key={s.id} className={(pressed ?? st?.id) === s.id ? "hi" : ""} data-g="student-row" data-student={s.id} data-state={s.state} onClick={() => pick(s.id)} style={{ cursor: "pointer" }}>
+        <td><PickBox pick={pk} id={s.id} label={`${s.name} 고르기`} /></td><td className="sch">{s.name}{s.state !== "active" && <span className="tag act" data-g="row-state" style={{ marginLeft: 4 }}>{stateName(s.state)}</span>}</td>
+        <td>{[s.gradeText, s.school].filter(Boolean).join(" · ")}{s.classText ? <div className="meta">{s.classText}</div> : null}</td>
+        <td><button type="button" className="btn sm gho" data-act="pick-one" aria-label={s.state === "left" ? `${s.name} 복귀` : `${s.name} 퇴원`} onClick={(e) => { e.stopPropagation(); pk.only(s.id); }}>{s.state === "left" ? "↩" : "🚪"}</button></td></tr>)}
+      {!list.rows.length && <tr><td colSpan={4} className="note">없습니다</td></tr>}
     </tbody></table></div>
+    <PickBar pick={pk} unit="명">{/* 고른 아이들에 한 번에 · 퇴원(나간 날 하나 · 줄은 남는다 · 복귀 가능) · 복귀 · 반 옮기기(이 날부터) */}
+      <input type="date" className="dt" value={leave} aria-label="나간 날" onChange={(x) => setLeave(x.target.value)} style={{ width: "auto" }} />
+      <button type="button" className="btn sm" disabled={pending} data-act="leave-picked" onClick={() => run(() => stateManyAct(pk.ids, "left", leave), (r) => `${r.n}명 퇴원 처리했습니다. 줄은 남습니다`, pk.clear)}>🚪 퇴원</button>
+      <button type="button" className="btn sm" disabled={pending} data-act="return-picked" onClick={() => run(() => stateManyAct(pk.ids, "active"), (r) => `${r.n}명 재원으로 돌렸습니다`, pk.clear)}>↩ 복귀</button>
+      <select value={mv.classId} aria-label="옮길 반" onChange={(x) => setMv({ ...mv, classId: x.target.value })} style={{ width: "auto" }}><option value="">반 고르기</option>{(b.classes ?? []).map((c) => <option key={c.id} value={c.id}>{classLine(c)}</option>)}</select>
+      <input type="date" className="dt" value={mv.from} aria-label="반 옮기는 날" onChange={(x) => setMv({ ...mv, from: x.target.value })} style={{ width: "auto" }} />
+      <button type="button" className="btn sm" disabled={pending || !mv.classId} data-act="class-picked" onClick={() => run(() => classManyAct(pk.ids, mv.classId, mv.from), (r) => `${r.n}명 반을 옮겼습니다${r.skipped ? ` · 이미 그 반 ${r.skipped}` : ""}`, pk.clear)}>반 옮기기</button>
+    </PickBar>
+    </div><div className="stmain">
     {st && <div data-g="student" data-student={st.id} style={{ marginTop: 12 }}>
       <div className="wv" style={{ marginBottom: 8 }} data-g="head">
         <b style={{ fontSize: "var(--fs-6)" }} data-g="name">{st.name}</b><span className="pill" data-g="grade">{[gradeText2(st.level, st.grade), st.school].filter(Boolean).join(" · ") || "학교 없음"}</span><span className="pill" data-g="class">{classLine(st.class)}</span><span className="pill" data-g="tenure">{tenureText(st, today)}</span>
@@ -94,9 +109,6 @@ export default function Board({ d }) {
             <input type="text" inputMode="numeric" className="fee" value={fee.amount} placeholder="금액" aria-label="학생별 금액" onChange={(x) => setFee({ ...fee, amount: x.target.value.replace(/\D/g, "") })} /><input type="date" className="dt" value={fee.from} aria-label="금액 시작일" onChange={(x) => setFee({ ...fee, from: x.target.value })} style={{ width: "auto" }} /><button className="btn sm" type="button" disabled={pending || !fee.amount} data-act="fee-save" onClick={() => run(() => feeAct(st.id, fee.amount, fee.from), (r) => `${r.amount.toLocaleString()}원 · ${fee.from} 부터`, () => setFee({ amount: "", from: today }))}>저장</button></div>
           <div className="lf" data-g="show-edit"><span className="ln">📈</span><div><b>성적 공개</b><small>확인할 때 붙는 값</small></div>
             <select value={st.score_show ?? "both"} aria-label="성적 공개" data-g="score-show" onChange={(x) => run(() => showAct(st.id, x.target.value), `성적 공개 · ${showText(x.target.value)}`)} style={{ width: "auto" }}>{SHOW.map(([k, nm]) => <option key={k} value={k}>{nm}</option>)}</select></div>
-          <div className="lf" data-g="leave"><span className="ln">{st.state === "left" ? "↩" : "🚪"}</span><div><b>{st.state === "left" ? "복귀" : "퇴원 처리"}</b><small>{st.state === "left" ? "다시 재원으로" : "나간 날 · 줄은 남습니다"}</small></div>
-            {st.state !== "left" && <input type="date" className="dt" value={leave} aria-label="나간 날" onChange={(x) => setLeave(x.target.value)} style={{ width: "auto" }} />}
-            <button className="btn sm" type="button" disabled={pending} data-act={st.state === "left" ? "return" : "leave"} onClick={() => run(() => stateAct(st.id, st.state === "left" ? "active" : "left", leave), st.state === "left" ? "재원으로 돌렸습니다" : "퇴원 처리했습니다. 줄은 남습니다")}>{st.state === "left" ? "복귀" : "퇴원"}</button></div>
         </div></div>}
       <div className="kpi" data-g="kpi">{K.map((k) => <div className={"k1" + (k.bad ? " bad" : "")} key={k.key} data-g="k1" data-key={k.key}><span className="ki">{k.emo}</span><b>{k.big}</b><small>{k.small}</small></div>)}</div>
       <Cols screen="student" cards={orderCards([   /* 카드 차례 — 기본은 목업 14 차례 · 바꾸면 그 사람 것((어15) screen_pref student · 확정-⑮) · 앞 절반은 왼쪽 열, 뒤 절반은 오른쪽 */
@@ -160,5 +172,6 @@ export default function Board({ d }) {
         ].filter((c) => c.node), d.pref)} />
       <div className="savebar" data-g="bar"><Link prefetch={false} className="btn" href="/send">📨 월간 리포트 미리 보기</Link><Link prefetch={false} className="btn" href="/today">📅 오늘 화면으로</Link><span className="spacer" /><span className="pill" data-g="show-pill">성적 공개 · {showText(st.score_show ?? "both")}</span></div>
     </div>}
+  </div></div>
   </>;
 }

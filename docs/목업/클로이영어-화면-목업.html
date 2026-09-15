@@ -538,6 +538,14 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
 .pkh b{font-size:var(--fs-3)}
 .ckl{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-2);color:var(--mid);flex-shrink:0}
 .ck{width:16px;height:16px;accent-color:var(--navy);margin:0;flex-shrink:0}
+/* 14 학생 · 목록(왼쪽)과 아이(오른쪽)를 한 화면에((어28) · 원장님 2026-09-15 「모든 목록은 전체·일부 고르기 → 선택후 일괄액션」) · 폰은 한 열(목록 위) · 오른쪽 안의 .stw 두 열이 셋째 단 */
+.stsplit{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+@media(min-width:1100px){.stsplit{grid-template-columns:320px minmax(0,1fr)}}
+.stlist td,.stlist th{white-space:nowrap}
+.stlist td .meta{white-space:normal}
+/* 고르기 띠(대전제-20 · 모든 목록 한 벌) · 고른 것이 있을 때만 · 굴려도 아래에 붙는다 · 「고른 N」이 앞 · 비우기가 끝 */
+.pickbar{position:sticky;bottom:0;z-index:5;margin-top:8px;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.pickbar>b{font-size:var(--fs-3);color:var(--navy)}
 .sendbar{position:sticky;bottom:0;gap:8px}
 .rowbar{position:sticky;bottom:0;z-index:5;border-radius:0 0 12px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))} /* 01·03 줄 끝 저장줄 — 줄을 열면 화면 아래(폰은 홈 표시줄 위)에 붙어 따라온다: 판 끝까지 안 내려가도 마감한다. 흐름 안(sticky)이라 visualViewport 로 높이를 잴 일이 없다(폰-6 · viewportFit cover 는 layout.js · 조상에 overflow hidden 없음, 폰-3) */
 .rowbar [data-act=collapse]{display:none}
@@ -3372,7 +3380,18 @@ textarea{min-height:72px;padding:8px 10px;border-radius:8px}
       <button class="btn sm" title="이름·연락처 · 계정(아이디 · 비밀번호 0000으로 초기화) · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리">✎ 고치기</button>
     </div>
     <div class="body">
-      <div class="lf" style="margin:0 0 8px"><span class="ln">🧑‍🎓</span><div><b>재원생 23 · 퇴원생 4 — 이 화면은 그 목록에서 한 아이를 연 것입니다</b><small>목록 칸: 이름 · 학년·학교 · 반 · 교재 · 마지막 상담 · 상태. 퇴원해도 줄은 남습니다(원장님 9/3). 「✎ 고치기」 안: 이름·연락처 · <span style="font-weight:700">계정(비밀번호 0000으로 초기화)</span> · 형제 묶기 · 반 · 학생별 금액 · 성적 공개 · 퇴원 처리</small></div><button class="btn sm">+ 학생</button><span class="tag act fx">9/5 ⑱</span></div>
+      <div class="stsplit">
+        <div class="stlist">
+          <div class="lf" style="margin:0 0 8px"><span class="ln">🧑‍🎓</span><div><b>재원생 23 · 퇴원생 4</b></div><input type="text" placeholder="찾기" aria-label="찾기" style="max-width:110px"><div class="seg sm"><button aria-pressed="true">재원</button><button aria-pressed="false">퇴원</button><button aria-pressed="false">전체</button></div><button class="btn sm pri">+ 학생</button></div>
+          <div class="tblwrap"><table><thead><tr><th><label class="ckl"><input type="checkbox" class="ck all" checked>전체</label></th><th>이름</th><th>학년·학교 · 반</th><th></th></tr></thead><tbody>
+            <tr class="hi"><td><label class="ckl"><input type="checkbox" class="ck" checked></label></td><td class="sch">강민서</td><td>중2 · 신정중<div class="meta">월·수 5:00</div></td><td><button class="btn sm gho" aria-label="퇴원">🚪</button></td></tr>
+            <tr><td><label class="ckl"><input type="checkbox" class="ck" checked></label></td><td class="sch">김서연</td><td>중2 · 신정중<div class="meta">월·수 5:00</div></td><td><button class="btn sm gho" aria-label="퇴원">🚪</button></td></tr>
+            <tr><td><label class="ckl"><input type="checkbox" class="ck"></label></td><td class="sch">박준호</td><td>고1 · 목동고<div class="meta">화·목 7:00</div></td><td><button class="btn sm gho" aria-label="퇴원">🚪</button></td></tr>
+          </tbody></table></div>
+          <div class="savebar pickbar"><b>고른 2명</b><input type="date" class="dt" value="2026-09-15" aria-label="나간 날"><button class="btn sm">🚪 퇴원</button><button class="btn sm">↩ 복귀</button><select aria-label="반"><option>반 고르기</option></select><button class="btn sm">반 옮기기</button><span class="spacer"></span><button class="btn sm gho">비우기</button></div>
+        </div>
+        <div class="stmain"><p class="note" style="margin:0">오른쪽 = 고른 한 아이(아래 머리 · KPI · 카드 두 열). 폰은 목록이 위, 아이가 아래</p></div>
+      </div>
 
       <div class="kpi">
         <div class="k1"><span class="ki">📘</span><b>83%</b><small>이번 달 숙제</small></div>

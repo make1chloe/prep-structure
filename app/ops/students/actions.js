@@ -6,7 +6,7 @@ import { attachConsult } from "@/lib/files";
 import { isStaff } from "@/lib/roles";
 import { today } from "@/lib/day";
 import { serviceClient } from "@/lib/supabase";
-import { addStudent, setStudent, setState, setClass, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
+import { addStudent, setStudent, setState, setStateMany, setClass, setClassMany, setFee, addConsult, linkSibling, issueStudentAccount, issueParentAccount, resetPassword, setParentName } from "@/lib/student";
 import { setStudentShow } from "@/lib/score";
 import { setStudentEdit, confirmMark, revertMark, confirmAllMarks, resolveFlag } from "@/lib/progress";
 import { linkCc } from "@/lib/cc";   // (녀) 🃏 아이 ↔ 클래스카드 아이디 — 확장이 보낸 짐은 이 아이디로 아이를 찾는다   // (허) 진도 체크 — 설정 진도 체크와 같은 손(원칙-1)
@@ -15,6 +15,8 @@ const wrap = (fn) => act(fn, "학생 14");   // 손 한 벌은 lib/act.js — �
 export async function addAct(f) { return wrap(async () => { const { sb } = await staff(); return { id: await addStudent(sb, f ?? {}, await today(sb)) }; }); }
 export async function setAct(id, f, seenAt = null) { return wrap(async () => { const { sb } = await staff(); await setStudent(sb, id, f ?? {}, seenAt); return {}; }); }   // seenAt: 읽어 둔 고친 때(0-3)
 export async function stateAct(id, state, on = null) { return wrap(async () => { const { sb } = await staff(); await setState(sb, id, state, on); return {}; }); }
+export async function stateManyAct(ids, state, on = null) { return wrap(async () => { const { sb } = await staff(); return setStateMany(sb, ids, state, on); }); }   // (어28) 고른 아이 한 번에 퇴원·복귀
+export async function classManyAct(ids, classId, fromDate) { return wrap(async () => { const { sb } = await staff(); return setClassMany(sb, ids, classId, fromDate); }); }   // (어28) 고른 아이 한 번에 반 옮기기
 export async function classAct(id, classId, fromDate) { return wrap(async () => { const { sb } = await staff(); return setClass(sb, id, classId, fromDate); }); }
 export async function feeAct(id, amount, fromDate) { return wrap(async () => { const { sb } = await staff(); return setFee(sb, id, amount, fromDate); }); }
 export async function consultAttachAct(fileId, consultId) { return wrap(async () => { const { sb } = await staff(); await attachConsult(sb, String(fileId), String(consultId)); return {}; }); }   // 상담에 붙이기(4단계-6)

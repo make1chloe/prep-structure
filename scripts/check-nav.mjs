@@ -25,17 +25,17 @@ ok("띠(going.js) · 문서 click 하나로 듣고(a[href] 내부만) · go() �
 ok("탭(tabs.js) · 지금 탭은 lib/menu currentTab 한 곳 · 누르면 먼저 aria-current · LIMIT_MS 뒤 내린다", /^"use client"/.test(tabs) && /currentTab\b.*from "@\/lib\/menu"/.test(tabs) && /aria-current=/.test(tabs) && /setPressed\(m\.href\)/.test(tabs) && /LIMIT_MS/.test(tabs));
 ok("껍질(shell.js) · <Tabs> 와 <Going>(Suspense 안 · useSearchParams) 을 상단바에 그린다", /<Tabs items=/.test(shell) && /<Suspense fallback=\{null\}><Going \/><\/Suspense>/.test(shell));
 const items = menuFor("principal", []);
-ok("currentTab 판단 · / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 **가장 긴 앞머리**(/schedule/exams → 일정 · /ops/inquiry → 운영 · /ops/students 는 제 탭이라 제 것) · 아이 화면(/me)은 null", items.length === 12 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/exams") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/inquiry") === "/ops" && currentTab(items, "/ops/students") === "/ops/students" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/exams", "/ops/inquiry", "/ops/students"].map((p) => currentTab(items, p)).join(",")}`);
-ok("탭 열둘 · **날마다 여는 화면은 한 번에 닿는다**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」). 일정 뒤에 내신·할 일·성적, 운영 뒤에 학생·자료함이 얹힌다(9/10 의 내신·할 일은 그대로) · 그 화면에서는 그 탭이 파랗다",
-  items.map((m) => m.name).join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,운영,학생,자료함,설정"
+ok("currentTab 판단 · / 는 꼭 같을 때만(/today 가 대시보드로 안 잡힘) · 아래 주소는 **가장 긴 앞머리**(/schedule/exams → 일정 · /ops/inquiry → 학생 · /ops/students 도 학생 탭(/ops · (어28) 운영 = 학생)) · 아이 화면(/me)은 null", items.length === 11 && currentTab(items, "/") === "/" && currentTab(items, "/today") === "/today" && currentTab(items, "/schedule/exams") === "/schedule" && currentTab(items, "/schedule") === "/schedule" && currentTab(items, "/ops/inquiry") === "/ops" && currentTab(items, "/ops/students") === "/ops" && currentTab(items, "/settings/routine") === "/settings" && currentTab(items, "/me") === null && currentTab([], "/") === null, `items ${items.length} · ${["/", "/today", "/schedule/exams", "/ops/inquiry", "/ops/students"].map((p) => currentTab(items, p)).join(",")}`);
+ok("탭 열하나((어28) 운영 탭이 곧 학생 · 학생 rider 는 뺐다) · **날마다 여는 화면은 한 번에 닿는다**(원장님 2026-09-11 「메뉴는 더 늘려도 줄여도 돼 · 그 안에 페이지동선을 줄이기 위해서라면」). 일정 뒤에 내신·할 일·성적, 학생(/ops) 뒤에 자료함이 얹힌다(9/10 의 내신·할 일은 그대로) · 그 화면에서는 그 탭이 파랗다",
+  items.map((m) => m.name).join(",") === "대시보드,오늘,발송,일정,내신,할 일,성적,교재,학생,자료함,설정"
   && currentTab(items, "/schedule/grid") === "/schedule/grid" && currentTab(items, "/schedule/todo") === "/schedule/todo"
-  && currentTab(items, "/scores") === "/scores" && currentTab(items, "/ops/students") === "/ops/students" && currentTab(items, "/ops/files") === "/ops/files"
+  && currentTab(items, "/scores") === "/scores" && currentTab(items, "/ops/students") === "/ops" && currentTab(items, "/ops/files") === "/ops/files"
   && currentTab(items, "/ops/inquiry") === "/ops",
   items.map((m) => `${m.name}(${m.href})`).join(" · "));
 { // 동선 — 원장 쪽 화면이 **몇 번 눌러 닿나**. 얹은 탭을 늘려 9 → 12 가 한 번이 됐다(2026-09-11)
   const 한번 = new Set(items.map((m) => m.href));
   ok("날마다 여는 다섯은 **한 번**에 닿는다. 오늘 · 학생 · 자료함 · 내신 · 할 일",
-    ["/today", "/ops/students", "/ops/files", "/schedule/grid", "/schedule/todo"].every((h) => 한번.has(h)),
+    ["/today", "/ops", "/ops/files", "/schedule/grid", "/schedule/todo"].every((h) => 한번.has(h)),
     [...한번].join(" ")); }
 ok("(려) 얹은 탭은 **주소도 권한도 안 옮긴다** · 주소는 /schedule 아래 그대로(링크가 안 깨진다) · 열쇠는 page.schedule 하나(접근 규칙 칸이 안 는다 · 일정을 볼 수 있으면 이 둘도 본다)",
   items.filter((m) => m.href.startsWith("/schedule")).every((m) => m.key === "page.schedule")

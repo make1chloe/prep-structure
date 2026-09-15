@@ -20,8 +20,8 @@ async function feeStaff(ym) {
 const wrap = (fn) => act(fn, "운영 13");   // 손 한 벌은 lib/act.js — 삼키지 않고 서버 자취에 까닭을 남긴다(원칙-1)
 export async function saveAct(ym, edits) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return savePayments(sb, ym, edits, board); }); }
 export async function byGradeAct(ym, f) { return wrap(async () => { const { sb } = await feeStaff(ym); return setByGrade(sb, f); }); }
-export async function remindAct(ym) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return remindFees(serviceClient(), sb, ym, board); }); }
-export async function scheduleFeesAct(ym, choice, custom) { return wrap(async () => { const { sb, board, user } = await feeStaff(ym); const ids = rowsOf(board, ym).filter((r) => r.state === "unpaid" && r.payment_id).map((r) => r.student_id); return scheduleFor(sb, "fee", ym, ids, choice, custom, user.id, await today(sb)); }); }   // (어) ⏰ 안 받은 집 예약 — 지금 안 받은 집(때가 되면 그때 다시 본다)
+export async function remindAct(ym, ids = null) { return wrap(async () => { const { sb, board } = await feeStaff(ym); return remindFees(serviceClient(), sb, ym, board, ids); }); }   // ids: 고른 집만((어28))
+export async function scheduleFeesAct(ym, choice, custom, picked = null) { return wrap(async () => { const { sb, board, user } = await feeStaff(ym); const want = picked ? new Set(picked) : null; const ids = rowsOf(board, ym).filter((r) => r.state === "unpaid" && r.payment_id && (!want || want.has(r.student_id))).map((r) => r.student_id); return scheduleFor(sb, "fee", ym, ids, choice, custom, user.id, await today(sb)); }); }   // (어) ⏰ 안 받은 집 예약 · 지금 안 받은 집(때가 되면 그때 다시 본다)
 export async function importAct(ym, formData) {
   return wrap(async () => {
     const { sb, board } = await feeStaff(ym);

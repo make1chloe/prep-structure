@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════
  * 클로이영어 새 앱 — 겉 한 벌. **손으로 고치지 않는다.**
- * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-14).
+ * 목업(docs/목업/클로이영어-화면-목업.html)의 <style> 에서 node scripts/mockup-css.mjs 가 갈라냈다(2026-09-15).
  * 겉을 바꾸려면 목업을 고치고 다시 만든다 — 목업이 곧 명세다. check-mockup 이 둘이 같은지 잰다.
  * 까닭·규칙은 docs/디자인-기본.md(배색 다섯 벌 · 치수 한 벌 · 글꼴 한 벌 · 금지 9).
  * ══════════════════════════════════════════════════════════════════════ */
@@ -538,6 +538,16 @@ button.fold[aria-pressed="true"]{color:var(--navy)}
 .pkh b{font-size:var(--fs-3)}
 .ckl{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-2);color:var(--mid);flex-shrink:0}
 .ck{width:16px;height:16px;accent-color:var(--navy);margin:0;flex-shrink:0}
+/* 14 학생 · 목록(왼쪽)과 아이(오른쪽)를 한 화면에((어28) · 원장님 2026-09-15 「모든 목록은 전체·일부 고르기 → 선택후 일괄액션」) · 폰은 한 열(목록 위) · 오른쪽 안의 .stw 두 열이 셋째 단 */
+.stsplit{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+@media(min-width:1100px){
+  .stsplit{grid-template-columns:320px minmax(0,1fr)}
+}
+.stlist td,.stlist th{white-space:nowrap}
+.stlist td .meta{white-space:normal}
+/* 고르기 띠(대전제-20 · 모든 목록 한 벌) · 고른 것이 있을 때만 · 굴려도 아래에 붙는다 · 「고른 N」이 앞 · 비우기가 끝 */
+.pickbar{position:sticky;bottom:0;z-index:5;margin-top:8px;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.pickbar>b{font-size:var(--fs-3);color:var(--navy)}
 .sendbar{position:sticky;bottom:0;gap:8px}
 .rowbar{position:sticky;bottom:0;z-index:5;border-radius:0 0 12px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 /* 01·03 줄 끝 저장줄 — 줄을 열면 화면 아래(폰은 홈 표시줄 위)에 붙어 따라온다: 판 끝까지 안 내려가도 마감한다. 흐름 안(sticky)이라 visualViewport 로 높이를 잴 일이 없다(폰-6 · viewportFit cover 는 layout.js · 조상에 overflow hidden 없음, 폰-3) */
