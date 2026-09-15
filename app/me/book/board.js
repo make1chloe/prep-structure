@@ -1,12 +1,17 @@
 "use client";
-/** 로드맵 판(목업 08 — 아이 쪽) — 열림 띠 · 꼬리표(회독 · 소단원씩 · 끝낸 대단원 · 이대로면) · 내 교재들(상태) · 세 칸(끝냄 · 하는 중(소단원 줄 · 쌤/내가 · ○◐·) · 아직) · ❗ 달기 · 내가 단 ❗. 세는 것은 lib/road-plan 한 벌.
- *  찍기는 낙관적이 아니다 — 원장님 줄은 못 덮는다는 답을 서버가 하므로 답을 기다린다(줄 하나라 빠르다) */
+/** 로드맵 판(목업 08 · 아이 쪽 · (어43) 초5가 알아보게 다시 지음 · 원장님 9/15 「이걸 초5가 알아보겠냐? 직관적의 뜻 몰라?」 · 「10번 학생어플이야」).
+ *  칸반 세 칸 → 책 차례 한 줄 목록: 대단원마다 [▸ 이름 · 상태 말(✓ 다 했어요 · ▶ 하고 있어요 · 아직) · 막대 · n / N] · 하고 있는 단원은 펼쳐진 채 · 나머지는 눌러 펼친다.
+ *  소단원 줄은 큰 네모(✓ = 다 했어요 · 빈 네모 = 아직) · 쌤·검사가 찍은 줄은 잠긴 채 · 내가 찍으면 「확인 기다리는 중」 · 대단원 머리 「이 단원 다 했어요」 네모(한 번에) · ❗ 달기.
+ *  세는 것은 lib/road-plan 한 벌 · 부호·말은 lib/mark 한 곳 · 찍기는 낙관적이 아니다(원장님 줄은 못 덮는다는 답을 서버가 하므로 답을 기다린다 · 줄 하나라 빠르다) */
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { markUnit, markChapter, flagUnit } from "../actions.js";
-import { roadOf, headTags, bookTags, flagLines, editBand, TRI, FLAG_KIND } from "@/lib/road-plan";
+import { roadOf, headTags, bookTags, flagLines, editBand, FLAG_KIND } from "@/lib/road-plan";
+import { MARK, markText } from "@/lib/mark";
 import { md } from "@/lib/dash-plan";
+const kid = (s) => markText(s, "kid");
+const Word = ({ s, big = false }) => <span className={"rst " + s + (big ? " big" : "")} data-g="word" data-status={s}>{s === "done" ? "✓ " : s === "doing" ? "▶ " : ""}{kid(s)}</span>;
 export default function Board({ d, canFlag = true }) {   // canFlag — 「누가 무엇을 보나」의 me.flags(「표시」). 끄면 ❗ 를 못 단다(자꾸 잘못 누르는 아이 · 목업 08 의 진도 체크 끄기와 같은 결)
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, round = b.sb?.round ?? 1;
@@ -14,21 +19,21 @@ export default function Board({ d, canFlag = true }) {   // canFlag — 「누�
   const run = (fn, okMsg = null, after = null) => start(async () => { setErr(""); setMsg(""); const r = await fn(); if (!r.ok) { setErr(r.msg); return; } if (okMsg) setMsg(typeof okMsg === "function" ? okMsg(r) : okMsg); if (after) after(); router.refresh(); });
   if (!b.book) return <div className="task" data-card="road"><div className="h"><b><span className="cemo">🛤️</span>내 교재 로드맵</b></div><p className="note" style={{ margin: "8px 0 0" }}>배정된 교재가 없어요</p><Link prefetch={false} className="btn sm" href="/me">나 ↗</Link></div>;
   const road = roadOf(b), head = headTags(b, road), books = bookTags(b.books ?? [], today), flags = flagLines(b.flags ?? []), band = editBand(b.edit, b.student);
-  const ic = (s) => s.status === "done" ? "✅" : s.status === "doing" ? "◐" : s.status === "skip" ? "⏭" : "⬜";
-  const Sub = ({ s }) => <div className={"sr" + (s.own ? " own" : "")} data-g="sub" data-unit={s.id} data-status={s.status} data-pending={s.pending ? "1" : "0"}>
-    <i className={"ic" + (s.status === "none" ? " no" : "")}>{ic(s)}</i><span>{s.short}{s.is_workbook ? " · 워크북" : ""}{s.parts && <small data-g="sub-parts" style={{ marginLeft: 6, color: "var(--mute)" }}>{s.parts}</small>}</span>
+  const Sub = ({ s }) => <label className={"rsub" + (s.own ? " own" : "")} data-g="sub" data-unit={s.id} data-status={s.status} data-pending={s.pending ? "1" : "0"}>
+    <input type="checkbox" className="bigck" data-g="big-ck" checked={s.status === "done"} disabled={pending || !s.can} aria-label={s.short} onChange={(e) => { const on = e.target.checked; run(() => markUnit(s.id, round, on ? "done" : "none"), on ? `${MARK.done.kid} ✓ · 쌤이 확인하면 돼요` : "아직으로 되돌렸어요"); }} />
+    <span className="rsn"><b>{s.short}{s.is_workbook ? " · 워크북" : ""}</b>{s.parts && <small data-g="sub-parts">{s.parts}</small>}</span>
+    <Word s={s.status} />
     {s.by && <b className={"by" + (s.own ? " me" : "")} data-g="by">{s.pending ? `${s.by} · 확인 기다리는 중` : s.by}</b>}
-    {s.can && <div className="tri sm" data-g="tri">{TRI.map(([k, ch]) => <button key={k} type="button" data-p={k} aria-pressed={s.status === k} disabled={pending} onClick={() => run(() => markUnit(s.id, round, k), k === "none" ? "아직으로 되돌렸어요" : "찍었어요 · 확인 기다리는 중")}>{ch}</button>)}</div>}
-  </div>;
-  const Chapter = ({ c, col }) => <div className={"ru" + (c.now ? " now" : "")} key={c.chapter} data-g="chapter" data-col={col} data-chapter={c.chapter} style={c.pending && !c.now ? { borderColor: "var(--amber)" } : undefined}>
-    {c.chapter}<small>{col === "done" ? `소단원 ${c.total} ✓${c.skip ? ` · 건너뜀 ${c.skip}` : ""}` : c.pending ? <b style={{ color: "var(--navy)" }}>✎ 내가 찍음 · 확인 기다리는 중 {c.pending}</b> : col === "doing" ? <>소단원 {c.total}개 중 <b>{c.done + c.skip}개 끝냄</b></> : `소단원 ${c.total}`}</small>
-    {b.edit?.can_edit && c.markable.length > 0 && <div className="wv" style={{ gap: 4, margin: "2px 0 0" }}><small style={{ color: "var(--mute)" }}>이 단원 통째로</small>
-      <div className="tri sm" data-g="chapter-tri" data-chapter={c.chapter}>{TRI.map(([k, ch]) =>
-      <button key={k} type="button" data-p={k} disabled={pending} onClick={() => run(() => markChapter(c.markable, round, k),
-        (r) => k === "none" ? `${c.chapter} · ${r.marked}개를 아직으로 되돌렸어요` : `${c.chapter} · ${r.marked}개를 찍었어요${r.skipped ? ` · 쌤이 찍으신 ${r.skipped}개는 그대로예요` : ""} · 확인 기다리는 중`)}>{ch}</button>)}</div></div>}
-    {(c.now || open[c.chapter]) && <div className="sub2">{c.subs.map((s) => <Sub key={s.id} s={s} />)}</div>}
-    {!c.now && <button className="lnk" type="button" data-act="toggle-chapter" aria-pressed={Boolean(open[c.chapter])} onClick={() => setOpen({ ...open, [c.chapter]: !open[c.chapter] })} style={{ marginTop: 4 }}>{open[c.chapter] ? "접기" : "소단원 보기"}</button>}
-  </div>;
+  </label>;
+  const Chapter = ({ c }) => { const isOpen = c.now || Boolean(open[c.chapter]); const pct = c.total ? Math.round((c.done + c.skip) / c.total * 100) : 0;
+    return <div className={"rd" + (c.now ? " now" : "")} data-g="chapter" data-chapter={c.chapter} data-status={c.status} data-now={c.now ? "1" : "0"} data-open={isOpen ? "1" : "0"}>
+      <div className="rdh">
+        <button type="button" className="rdt" data-act="toggle-chapter" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [c.chapter]: !isOpen })}><span className="ar">▸</span><b>{c.chapter}</b><Word s={c.status} big /><span className="bar"><span className="fill" style={{ width: `${pct}%` }} /></span><span className="rdn" data-g="chapter-n">{c.done + c.skip} / {c.total}</span></button>
+        {b.edit?.can_edit && c.markable.length > 0 && <label className="ckl rdck" data-g="chapter-ck-l"><input type="checkbox" className="bigck" data-g="chapter-ck" data-chapter={c.chapter} checked={c.finished} disabled={pending} aria-label={`${c.chapter} ${MARK.done.kid}`} onChange={(e) => { const on = e.target.checked; run(() => markChapter(c.markable, round, on ? "done" : "none"), (r) => on ? `${c.chapter} · ${r.marked}개 ${MARK.done.kid} ✓${r.skipped ? ` · 쌤이 찍은 ${r.skipped}개는 그대로` : ""} · 쌤이 확인하면 돼요` : `${c.chapter} · ${r.marked}개를 아직으로 되돌렸어요`); }} />이 단원 {MARK.done.kid}</label>}
+        {c.pending > 0 && <span className="tag" data-g="chapter-pending">✎ 확인 기다리는 중 {c.pending}</span>}
+      </div>
+      {isOpen && <div className="rsubs">{c.subs.map((s) => <Sub key={s.id} s={s} />)}</div>}
+    </div>; };
   return <>
     <div className="wv" style={{ margin: "0 0 8px" }}><Link prefetch={false} className="btn sm" href="/me">← 나</Link><b style={{ fontSize: "var(--fs-6)" }} data-g="book-name">{b.book.name}</b><span className="spacer" /><span className="pill">{md(today)}</span></div>
     <div className={"lf " + (band.open ? "ok" : "")} style={{ marginBottom: 12 }} data-g="edit-band" data-open={band.open ? "1" : "0"}><span className="ln">✎</span><div><b>{band.title}</b><small>{band.small}</small></div><span className="lm">{band.pill}</span></div>
@@ -36,11 +41,7 @@ export default function Board({ d, canFlag = true }) {   // canFlag — 「누�
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <div className="tags" style={{ marginBottom: 12 }} data-g="head-tags"><span className="tag type">{head.round}</span><span className="tag">{head.basis}</span><span className="tag on" data-g="finished">{head.finished}</span><span className="tag act" data-g="end">{head.end}</span></div>
     <div className="tags" style={{ marginBottom: 12 }} data-g="book-tags">{books.map((x) => <Link prefetch={false} key={x.book_id} className={"tag" + (x.book_id === b.book.id ? " on" : "")} href={`/me/book?b=${x.book_id}`} style={x.state === "book_off" && x.book_id !== b.book.id ? { color: "var(--mute)" } : undefined}>{x.text}</Link>)}</div>
-    <div className="road" data-g="road">
-      <div className="rcol" data-g="col-done"><div className="colh">끝냄 <span className="n">{road.done.length}</span></div>{road.done.map((c) => <Chapter key={c.chapter} c={c} col="done" />)}{!road.done.length && <p className="note" style={{ margin: 0 }}>아직 없어요</p>}</div>
-      <div className="rcol" data-g="col-doing"><div className="colh">하는 중 <span className="n">{road.doing.length}</span></div>{road.doing.map((c) => <Chapter key={c.chapter} c={c} col="doing" />)}{!road.doing.length && <p className="note" style={{ margin: 0 }}>{road.total ? "다 끝냈어요" : "소단원이 없어요"}</p>}</div>
-      <div className="rcol" data-g="col-todo"><div className="colh">아직 <span className="n">{road.todo.length}</span></div>{road.todo.map((c) => <Chapter key={c.chapter} c={c} col="todo" />)}{!road.todo.length && <p className="note" style={{ margin: 0 }}>없어요</p>}</div>
-    </div>
+    <div className="rlist" data-g="road">{road.chapters.map((c) => <Chapter key={c.chapter} c={c} />)}{!road.chapters.length && <p className="note" style={{ margin: 0 }}>소단원이 없어요</p>}</div>
     {canFlag && <div className="lf warn" style={{ marginTop: 8 }} data-g="flag-band"><span className="ln">❗</span><div><b>이거 잘못된 것 같아요</b></div><button className="btn sm" type="button" data-act="flag-open" onClick={() => setFlag(!flag)}>❗ 달기</button></div>}
     {canFlag && flag && <div className="task" data-g="flag-form" style={{ marginTop: 6 }}>
       <div className="wv"><select value={ff.unitId} aria-label="소단원" onChange={(x) => setFf({ ...ff, unitId: x.target.value })} style={{ width: "auto", maxWidth: 260 }}><option value="">어느 소단원?</option>{(b.units ?? []).map((u) => <option key={u.id} value={u.id}>{u.chapter} › {u.short}</option>)}</select>

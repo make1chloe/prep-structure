@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePick, PickAll, PickBox } from "./pick.js";
+import { markCh } from "@/lib/mark";
 import { assignChoices, assignBooksFor } from "./assign-actions.js";
 export default function AssignModal({ studentId, name = "", date, sheetId = null, onClose, onDone = null }) {
   const router = useRouter(); const [pending, start] = useTransition();
@@ -20,7 +21,7 @@ export default function AssignModal({ studentId, name = "", date, sheetId = null
           {!rows ? <p className="note">읽는 중…</p> : !rows.length ? <p className="note" data-g="assign-none">배정할 교재 없음</p> :
             <div data-g="assign-list"><div className="wv" style={{ margin: "0 0 4px" }}><PickAll pick={pk} /></div>{rows.map((r) => (
               <div key={r.book_id} className={"lf pick" + (pk.has(r.book_id) ? " on" : "")} data-g="assign-row" data-book={r.book_id} data-progressed={r.progressed ? "1" : "0"} onClick={() => pk.toggle(r.book_id)}>
-                <PickBox pick={pk} id={r.book_id} label={r.name} /><span className="ln">{r.progressed ? "◐" : "📕"}</span><div><b>{r.name}</b><small>{r.area}{r.progressed ? ` · 진도 ${r.done}` : ""}</small></div>
+                <PickBox pick={pk} id={r.book_id} label={r.name} /><span className="ln">{r.progressed ? markCh("doing") : "📕"}</span><div><b>{r.name}</b><small>{r.area}{r.progressed ? ` · 진도 ${r.done}` : ""}</small></div>
               </div>))}</div>}
           <div className="wv" style={{ marginTop: 8 }}><span className="lm">이 날부터</span><input type="date" className="dt" value={on} aria-label="이 날부터" style={{ width: "auto" }} onChange={(e) => setOn(e.target.value)} /></div>
         </div>

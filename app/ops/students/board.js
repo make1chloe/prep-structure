@@ -18,6 +18,7 @@ import { SHOW, showText } from "@/lib/score-plan";
 import { nextYm, monthLabel } from "@/lib/plan-plan";   /* (뎌) 달 넘기기 — 12 달력과 같은 한 벌 */
 import { staffFlagLine, EDIT_MODE, daysOpenText } from "@/lib/road-plan";   /* (허) 진도 체크 — 설정 진도 체크와 같은 판단 한 벌 */
 import { md, seoulDate } from "@/lib/dash-plan";
+import { markCh, markText } from "@/lib/mark";   /* (어43) 진도 부호·말 한 곳 */
 const MISS = { background: "var(--miss-fill)", color: "var(--on-miss)", borderColor: "transparent" };
 /** 두 열 + ⇅((어15)) — 차례의 앞 절반은 왼쪽 열 · 뒤 절반은 오른쪽(폰은 한 열이라 그냥 차례 · 목업 .stw). 차례 저장은 같은 조각 CardOrder */
 function Cols({ screen, cards }) {
@@ -133,8 +134,8 @@ export default function Board({ d }) {
                 <button type="button" className="btn sm" data-act="pe-academy" disabled={pending} onClick={() => run(() => academyAct(!pe.academy_open), pe.academy_open ? "학원 닫힘" : "학원 열림")}>{pe.academy_open ? "✎ 학원 닫기" : "✎ 학원 열기"}</button><Link prefetch={false} className="btn sm gho" href="/settings/progress">진도 체크 화면 ↗</Link></div>
               <div className="lf warn" data-g="pe-pending-band"><span className="ln">{pend.length}</span><div><b>아이가 찍은 것 · 확인 안 함</b></div>
                 <span className="lm">한 번에</span><button className="btn sm pri" type="button" disabled={pending || !pend.length} data-act="pe-confirm-all" onClick={() => run(() => confirmAllAct(st.id), (r) => `확인했습니다. ${r.confirmed}줄`)}>확인</button></div>
-              {pend.map((p) => <div className="lf" key={`${p.unit_id}|${p.round}`} data-g="pe-row" data-status={p.status}><span className="ln">{p.status === "done" ? "○" : p.status === "doing" ? "◐" : "·"}</span>
-                <div><b>{p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {p.marked_on ? `${md(p.marked_on)} 찍음` : "찍은 날 없음"} · {p.status === "done" ? "끝냄" : p.status === "doing" ? "하는 중" : "아직"}</small></div>
+              {pend.map((p) => <div className="lf" key={`${p.unit_id}|${p.round}`} data-g="pe-row" data-status={p.status}><span className="ln">{markCh(p.status)}</span>
+                <div><b>{p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {p.marked_on ? `${md(p.marked_on)} 찍음` : "찍은 날 없음"} · {markText(p.status)}</small></div>
                 <button className="btn sm pri" type="button" disabled={pending} data-act="pe-confirm" onClick={() => run(() => confirmMarkAct(st.id, p.unit_id, p.round), "확인했습니다")}>확인</button>
                 <button className="btn sm" type="button" disabled={pending} data-act="pe-revert" onClick={() => run(() => revertMarkAct(st.id, p.unit_id, p.round), "되돌렸습니다(아직)")}>되돌리기</button></div>)}
               {peFlags.length > 0 && <div className="left" style={{ marginTop: 6 }} data-g="pe-flags">{peFlags.map((f2) => <div className="lf warn" key={f2.id} data-g="pe-flag"><span className="ln">❗</span>

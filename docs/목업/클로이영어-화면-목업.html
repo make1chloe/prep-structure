@@ -1042,6 +1042,33 @@ fieldset:disabled input,fieldset:disabled textarea,fieldset:disabled select{back
 .tru[open]>summary .ar{transform:rotate(90deg)}
 .tru>summary .trc,.tru>summary small{color:var(--faint);font-weight:400;font-size:var(--fs-2)}
 .trr{margin-left:6px;padding-left:10px;border-left:1px dashed var(--hair)}
+/* (어43) 08 로드맵 · 책 차례 한 줄 · 대단원 줄(상태 말 · 막대) · 소단원 큰 네모 */
+.rlist{display:flex;flex-direction:column;gap:8px}
+.rd{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface)}
+.rd.now{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber)}
+.rdh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rdt{flex:1 1 220px;display:flex;align-items:center;gap:8px;min-width:0;background:none;border:0;padding:6px 0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.rdt .ar{color:var(--faint);transition:transform .15s}
+.rd[data-open="1"] .rdt .ar{transform:rotate(90deg)}
+.rdt b{font-size:var(--fs-3);font-weight:700}
+.rdt .bar{flex:1 1 60px}
+.rdn{font-family:var(--sans);color:var(--faint);font-size:var(--fs-2);white-space:nowrap}
+.rst{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:var(--fs-1);font-weight:700;background:var(--sunk);color:var(--mute);white-space:nowrap}
+.rst.done{background:var(--ok-fill);color:var(--on-ok)}
+.rst.doing{background:var(--weak-fill);color:var(--on-weak)}
+.rst.skip{background:var(--sunk);color:var(--faint)}
+.rst.big{font-size:var(--fs-2);padding:3px 10px}
+.rdck{gap:6px;font-size:var(--fs-2);font-weight:700;color:var(--mid);cursor:pointer}
+.rsubs{margin-top:6px;padding-top:6px;border-top:1px dashed var(--hair);display:flex;flex-direction:column;gap:2px}
+.rsub{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:var(--fs-2);color:var(--mid);flex-wrap:wrap;cursor:pointer}
+.rsub.own{color:var(--ink)}
+.rsub .rsn{flex:1 1 120px;min-width:0}
+.rsub .rsn b{font-weight:600}
+.rsub .rsn small{display:block;color:var(--mute);font-size:var(--fs-1)}
+.rsub .by{font-size:var(--fs-1);font-weight:700;padding:1px 8px;border-radius:20px;background:var(--sunk);color:var(--faint);flex-shrink:0}
+.rsub .by.me{background:var(--ok-fill);color:var(--on-ok)}
+.bigck{width:28px;height:28px;accent-color:var(--ok);margin:0;flex-shrink:0}
+.bigck:disabled{accent-color:var(--faint)}
 .srow .sbody textarea{display:block;width:100%;min-height:76px;font:inherit;font-size:var(--fs-3);line-height:1.5;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);resize:vertical}
 .srow.dim .sn b{color:var(--mute);font-weight:400}
 .srow.dim .sn small{color:var(--mute)}

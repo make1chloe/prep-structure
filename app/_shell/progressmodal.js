@@ -3,7 +3,7 @@
  *  손은 api 로 받는다 · open(bookId) · set(unitId, st) · setMany(ids, st) · upTo(bookId, unitId) · skip(bookId, chapter) · 01 은 수업 일지 기준(app/today/actions.js) · 대시보드는 아이·오늘 기준(_shell/progress-actions.js). 판단·쓰기는 lib/progress.js 한 벌 */
 import { useEffect, useMemo, useState } from "react";
 import { usePick, PickGroup, PickBox, PickBar } from "./pick.js";
-import { TRI } from "@/lib/progress-plan";
+import { TRI, markText } from "@/lib/mark";   // (어43) 부호·말 한 곳
 import { pagesText } from "@/lib/item-plan";
 export default function ProgressModal({ b, api, closed = false, fail, start, onClose }) {
   const [t, setT] = useState(null);
@@ -41,7 +41,7 @@ export default function ProgressModal({ b, api, closed = false, fail, start, onC
             {!fin && !closed && <div className="wv" style={{ marginTop: 8 }}><button type="button" className="btn sm" onClick={() => skip(c.chapter)}>이 대단원 건너뛰기</button></div>}
           </div>}
         </div>); })}
-      {!closed && <PickBar pick={pk} unit="개"><button type="button" className="btn sm" data-act="pick-done" onClick={() => setMany("done")}>○ 끝냄</button><button type="button" className="btn sm" data-act="pick-doing" onClick={() => setMany("doing")}>◐ 하는 중</button><button type="button" className="btn sm" data-act="pick-none" onClick={() => setMany("none")}>· 아직</button></PickBar>}
+      {!closed && <PickBar pick={pk} unit="개">{TRI.map(([k, ch]) => <button key={k} type="button" className="btn sm" data-act={`pick-${k}`} onClick={() => setMany(k)}>{ch} {markText(k)}</button>)}</PickBar>}
     </div>
     <div className="mdlf"><button type="button" className="btn gho" onClick={onClose}>닫기</button></div>
   </>);

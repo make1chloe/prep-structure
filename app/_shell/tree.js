@@ -9,7 +9,9 @@ export function ItemTree({ rows = [], all = rows, row, unitHead = null, book = t
   return forest.map((b) => (
     <div key={b.key} className={"tr" + (book ? "" : " nob")} data-g="tree" data-area={book ? b.area ?? "" : ""}>
       {book && <div className="trb" data-g="tree-book">{b.book ? <><b>📕 {b.book}</b>{b.area && <span className="tra">{areaEmo(b.area)} {b.area}</span>}</> : <b>그 밖에</b>}</div>}
-      {b.chapters.map((ch) => ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null; return (
+      {b.chapters.map((ch) => ch.units.map((g, gi) => { const bits = g.unit ? unitBits([g.unit], { book: false }) : null;
+        if (!g.unit && !unitHead) return <div key={`_${ch.key}_${gi}`} className="trr" data-g="tree-free">{g.rows.map((it, i) => row(it, i, g, ch))}</div>;   // 단원 없는 줄(손으로 더한 것)은 머리 없이 줄만 · 「단원 없음」 글은 노이즈(대전제-21) · 01 학습·숙제 안(unitHead)에서는 손이 있어 머리를 둔다
+        return (
         <details key={g.id ?? `_${ch.key}_${gi}`} className="tru" data-g="tree-unit" data-unit={g.id ?? ""} open={open}>
           <summary className="truh" data-g="tree-head"><span className="ar">▸</span>{ch.chapter && <span className="trc">{ch.chapter} ›</span>}<b>{bits ? bits.subs : "단원 없음"}</b>{bits && (bits.pages || bits.q) && <small>{[bits.pages, bits.q].filter(Boolean).join(" · ")}</small>}{unitHead?.(g, ch)}</summary>
           <div className="trr">{g.rows.map((it, i) => row(it, i, g, ch))}</div>

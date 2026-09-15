@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { academyAct, studentEditAct, confirmAct, revertAct, confirmAllAct, flagAct } from "./actions.js";
 import { pendingText, daysOpenText, staffFlagLine, EDIT_MODE, editModeName } from "@/lib/road-plan";
 import { md } from "@/lib/dash-plan";
+import { markCh, markText } from "@/lib/mark";   /* (어43) 진도 부호·말 한 곳 */
 export default function Board({ d }) {
   const router = useRouter(); const [pending, start] = useTransition(); const [err, setErr] = useState(""); const [msg, setMsg] = useState("");
   const b = d.board, today = d.date, edit = b.edit ?? {}, students = b.students ?? [], rows = b.pending ?? [], flags = (b.flags ?? []).map(staffFlagLine);
@@ -17,7 +18,7 @@ export default function Board({ d }) {
     {msg && <p className="note" data-g="msg" style={{ margin: "0 0 8px", color: "var(--on-ok)" }}>{msg}</p>}
     <div className="lf warn" data-g="pending-band"><span className="ln">{rows.length}</span><div><b>아이가 찍은 것 · 확인 안 함</b><small>{ptext || "없음"} · 아이 화면 08 에는 <b>노란 테두리</b>로 뜹니다 · 확인하면 굳고, 되돌리면 「아직」으로</small></div>
       <span className="lm">한 번에</span><button className="btn sm pri" type="button" disabled={pending || !rows.length} data-act="confirm-all" onClick={() => run(() => confirmAllAct(null), (r) => `확인했습니다. ${r.confirmed}줄`)}>확인</button></div>
-    {rows.length > 0 && <div className="left" data-g="pending-list">{rows.map((p) => <div className="lf" key={`${p.student_id}|${p.unit_id}|${p.round}`} data-g="pending-row" data-status={p.status}><span className="ln">{p.status === "done" ? "○" : p.status === "doing" ? "◐" : "·"}</span><div><b>{p.student} · {p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {md(p.marked_on)} 찍음 · {p.status === "done" ? "끝냄" : p.status === "doing" ? "하는 중" : "아직"}</small></div>
+    {rows.length > 0 && <div className="left" data-g="pending-list">{rows.map((p) => <div className="lf" key={`${p.student_id}|${p.unit_id}|${p.round}`} data-g="pending-row" data-status={p.status}><span className="ln">{markCh(p.status)}</span><div><b>{p.student} · {p.book} › {p.chapter} › {p.short}</b><small>{p.round}회독 · {md(p.marked_on)} 찍음 · {markText(p.status)}</small></div>
       <button className="btn sm pri" type="button" disabled={pending} data-act="confirm" onClick={() => run(() => confirmAct(p.student_id, p.unit_id, p.round), `${p.student} · 확인했습니다`)}>확인</button><button className="btn sm" type="button" disabled={pending} data-act="revert" onClick={() => run(() => revertAct(p.student_id, p.unit_id, p.round), `${p.student} · 되돌렸습니다(아직)`)}>되돌리기</button></div>)}</div>}
     <div className="exr" style={{ borderColor: "var(--amber)", marginTop: 8 }} data-g="flags">
       <div className="exh"><span className="ai">❗</span><b>아이가 단 ❗ · 안 본 것 {flags.length}</b><span className="spacer" /><span className="pill">진도는 <b>안 바뀝니다</b> · 원장님이 고르실 때만</span></div>
