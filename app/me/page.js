@@ -25,10 +25,11 @@ import AsBand from "../_shell/asband.js";
 import Fold from "../_shell/fold.js";
 import CardOrder from "../_shell/cardorder.js";
 import NoticeCard from "../_shell/noticecard.js";
+import { ItemTree } from "../_shell/tree.js";   // (어42) 항목 나무 한 벌(01 · 09 와 같은 부품 · 영역 › 📕 교재 › ▸ 단원 › 활동)
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;   // (어17) 원내 PC 로도 연다 — 최대 너비(01 과 같은 1400) · PC 는 목업 .mine 두 열 · 폰은 한 줄(원장님 9/14)
 const Card = ({ emo, title, id, pill, fold = null, folded = false, children }) => <div className="task" data-card={id} data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className="pill">{pill}</span>}{fold}</div>{children}</div>;
-const Line = ({ it, right, attach = null }) => <><div className="li"><div><b>{itemTitle(it)}</b><small>{[itemSub(it), it.received ? `${md(it.received)} 에 받음` : null].filter(Boolean).join(" · ")}</small></div>{right}</div>{attach}</>;
+const Line = ({ it, right, attach = null }) => <><div className="li"><div><b>{itemTitle(it)}</b><small>{[itemSub(it, { unit: false }), it.received ? `${md(it.received)} 에 받음` : null].filter(Boolean).join(" · ")}</small></div>{right}</div>{attach}</>;
 const qname = (k) => QKIND.find(([x]) => x === k)?.[1] ?? k;
 export default async function Me({ searchParams }) {
   const { sb, me, user } = await guard();
@@ -55,14 +56,14 @@ export default async function Me({ searchParams }) {
     { id: 'todo', name: '오늘 할 것', node: can(ME.today) && (<Card emo="📋" title="오늘 할 것" id="todo" {...fold("todo")} pill={d.sheet ? `학원 ${d.classSteps.length} · 숙제 ${d.sheet.home.length}` : null}>
         {!d.sheet && <p className="note" style={{ margin: "8px 0 0" }}>아직 안 열렸어요</p>}
         {d.sheet && !d.classSteps.length && !d.sheet.home.length && <p className="note" style={{ margin: "8px 0 0" }}>검사 뒤에 떠요</p>}
-        {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div>{d.classSteps.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} />)}
+        {d.classSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>학원에서 · 차례대로</div><ItemTree rows={d.classSteps} row={(it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} />} />
           {d.sheet.books.filter((b) => b.class_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.class_memo}</p>)}</>}
-        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div>{d.homeSteps.map((it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} attach={att(it)} />)}
+        {d.homeSteps.length > 0 && <><div className="hh" style={{ marginTop: 8 }}>집에서 · 다음 시간에 냅니다</div><ItemTree rows={d.homeSteps} row={(it) => <Line key={it.id} it={it} right={<SaidButton item={it} state={it.state} />} attach={att(it)} />} />
           {d.sheet.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ 선생님 메모 · {b.home_memo}</p>)}</>}
       </Card>) },
     { id: 'due', name: '오늘 낼 숙제', node: can(ME.today) && (<Card emo="📘" title="오늘 낼 숙제" id="due" {...fold("due")} pill={String(d.due.length)}>
         {!d.due.length && <p className="note" style={{ margin: "8px 0 0" }}>낼 숙제가 없어요</p>}
-        {d.due.map((it) => <Line key={it.id} it={it} attach={att(it)} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {it.status === "done" ? "○" : it.status === "weak" ? "△" : "✕"}</span> : it.said_done_at ? <span className="tag on">했어요 ✓</span> : null} />)}
+        <ItemTree rows={d.due} row={(it) => <Line key={it.id} it={it} attach={att(it)} right={it.status && it.status !== "none" ? <span className={"tag" + (it.status === "done" ? " on" : "")}>검사 {it.status === "done" ? "○" : it.status === "weak" ? "△" : "✕"}</span> : it.said_done_at ? <span className="tag on">했어요 ✓</span> : null} />} />
       </Card>) },
     { id: 'quiz', name: '시험', node: can(ME.today) && ((d.quizzes.today.length > 0 || d.quizzes.next.length > 0) && <Card emo="🔤" title="시험" id="quiz" {...fold("quiz")} pill={String(d.quizzes.today.length + d.quizzes.next.length)}>
         {d.quizzes.today.map((q) => <div className="li" key={q.id}><div><b>{qname(q.kind)} 시험 · {scopeText(q)}</b>{quizTag(q) && <span className="tag" data-g="quiz-tag" style={{ marginLeft: 6 }}>{quizTag(q)}</span>}<small>{q.total ? `${q.total}개 · 통과 ${q.cut_pct ?? 90}%` : "개수 아직"}{q.passed === true ? ` · ${q.pct}% 통과` : q.passed === false ? ` · ${q.pct}% 못 넘음 → 재시험` : ""}</small></div></div>)}

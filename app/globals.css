@@ -1084,6 +1084,27 @@ fieldset:disabled input,fieldset:disabled textarea,fieldset:disabled select{back
 .gapchips{display:flex;flex-wrap:wrap;gap:6px;padding:6px 12px}
 .lf.pick{width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
 .lf.pick.on{border-color:var(--ink);background:var(--sunk)}
+/* (어42) 항목 나무 · 영역 색띠 › 📕 교재 › ▸ 단원(details 접기) › 활동 들여쓰기 · 영역 색은 여기 한 곳 */
+[data-area="문법"]{--tr:var(--navy)}
+[data-area="독해"]{--tr:var(--amber)}
+[data-area="영작"]{--tr:var(--ok)}
+[data-area="단어"]{--tr:var(--pink)}
+[data-area="내신"]{--tr:var(--miss)}
+[data-area="의미 단위"]{--tr:var(--weak)}
+[data-area="블록구문"]{--tr:var(--edge)}
+.tr{border-left:4px solid var(--tr,var(--line));padding-left:8px;margin:6px 0}
+.tr.nob{border-left:0;padding-left:0;margin:0}
+.bk[data-area]:not([data-area=""]){border-left:4px solid var(--tr,var(--line))}
+.trb{display:flex;align-items:center;gap:8px;margin:4px 0 2px;font-size:var(--fs-3)}
+.trb b{font-weight:700}
+.tra{font-size:var(--fs-2);color:var(--faint);font-weight:700}
+.tru{margin:2px 0}
+.tru>summary{list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 0;cursor:pointer;font-weight:700}
+.tru>summary::-webkit-details-marker{display:none}
+.tru>summary .ar{color:var(--faint);transition:transform .15s}
+.tru[open]>summary .ar{transform:rotate(90deg)}
+.tru>summary .trc,.tru>summary small{color:var(--faint);font-weight:400;font-size:var(--fs-2)}
+.trr{margin-left:6px;padding-left:10px;border-left:1px dashed var(--hair)}
 .srow .sbody textarea{display:block;width:100%;min-height:76px;font:inherit;font-size:var(--fs-3);line-height:1.5;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);resize:vertical}
 .srow.dim .sn b{color:var(--mute);font-weight:400}
 .srow.dim .sn small{color:var(--mute)}

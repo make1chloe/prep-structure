@@ -24,6 +24,7 @@ import { orderCards, foldedOf } from "@/lib/pref-plan";
 import Fold from "../_shell/fold.js";
 import CardOrder from "../_shell/cardorder.js";
 import NoticeCard from "../_shell/noticecard.js";
+import { ItemTree } from "../_shell/tree.js";   // (어42) 항목 나무 한 벌(01 · 07 과 같은 부품)
 export const dynamic = "force-dynamic";
 const frame = (children) => <main className="frame" style={{ maxWidth: 1400, margin: "16px auto", padding: "0 12px" }}><div className="mine">{children}</div></main>;
 const Card = ({ emo, title, id, pill, pillCls = "", fold = null, folded = false, children }) => <div className="task" data-card={id} data-folded={folded ? "1" : "0"}><div className="h"><b><span className="cemo">{emo}</span>{title}</b><span className="spacer" />{pill != null && <span className={"pill " + pillCls}>{pill}</span>}{fold}</div>{children}</div>;
@@ -60,7 +61,7 @@ export default async function Parent({ searchParams }) {
       {d.lastLines.map((t) => <p key={t} className="note" style={{ margin: "4px 0 0" }} data-g="attached">{t}</p>)}
       {d.tags.length > 0 && <div className="tags" style={{ marginTop: 8 }}>{d.tags.map((t) => <span key={t.text} className={"tag" + (t.on ? " on" : "")}>{t.text}</span>)}</div>}</Card> },
     { id: 'homework', name: '다음 숙제', node: can(PARENT.homework) && d.last?.home.length > 0 && <Card emo="📘" title="다음 숙제" id="homework" {...fold("homework")} pill={String(d.last.home.length)}>
-      {d.last.home.map((it) => <div className="li" key={it.id}><div><b>{itemTitle(it)}</b><small>{itemSub(it, { memo: false })}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>)}
+      <ItemTree rows={d.last.home} row={(it) => <div className="li" key={it.id}><div><b>{itemTitle(it)}</b><small>{itemSub(it, { memo: false, unit: false })}</small></div>{it.said_done_at && <span className="tag on">했어요 ✓</span>}</div>} />
       {d.last.books.filter((b) => b.home_memo).map((b) => <p key={b.book_id} className="note" style={{ margin: "4px 0 0", color: "var(--navy)" }}>✎ {b.home_memo}</p>)}</Card> },
     { id: 'videos', name: '영상', node: can(PARENT.homework) && d.videos.length > 0 && <Card emo="🎬" title="영상" id="videos" {...fold("videos")} pill={`${d.videos.filter((v) => v.status.key !== "done").length}개 남음`} pillCls={d.videos.some((v) => v.status.key !== "done") ? "warn" : "hw"}>
       {d.videos.map((v) => <div className="li" key={v.id} data-g="video-line" data-status={v.status.key}><div><b>{v.video?.title}</b><small>{[v.due || null, v.opens ? `${v.opens}번 열어봄` : null].filter(Boolean).join(" · ")}</small></div><span className={"tag" + (v.status.key === "done" ? " on" : "")}>{v.status.text}</span></div>)}

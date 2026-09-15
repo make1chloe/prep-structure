@@ -4,7 +4,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { itemTitle, itemSub, itemLine, unitBits, unitsText, pagesText } from "../lib/item-plan.js";
-import { itemOrder, unitTree } from "../lib/day-plan.js";   // (어30)(어32) 줄 차례 · 교재 → 단원 → 활동 · 단원 나무
+import { itemOrder, unitTree, itemForest } from "../lib/day-plan.js";   // (어30)(어32) 줄 차례 · 교재 → 단원 → 활동 · 단원 나무 · (어42) 영역·교재 마디
+import { AREA_NAMES } from "../lib/book-plan.js";
 let n = 0, bad = 0;
 const ok = (what, cond, why = "") => { n++; if (cond) console.log(`   ✅ ${what}`); else { bad++; console.log(`   ❌ ${what}${why ? " · " + why : ""}`); } };
 const book = { name: "zz_리허설 문법책" };
@@ -33,7 +34,7 @@ const hand = src.filter(([, s]) => /learn_items\??\.name\s*(\?\?|\|\|)|range_not
 ok("항목 이름·손 글·단원을 제 손으로 잇는 자리 0(app · lib · lib/item-plan.js 만)", hand.length === 0, hand.join(" · "));
 console.log("■ (어30)(어32) 줄 차례 · 교재 → 단원 → 활동(루틴 차례) → 날짜 · 교재 없는 줄은 맨 끝(원장님 2026-09-15 「단원이 똑같은 것에 대해서는 단원을 먼저 제시하고 그에 대한 활동을 순서대로 나열」)");
 { const d1 = { student_id: "s", date: "2026-09-13" }, d2 = { student_id: "s", date: "2026-09-14" };
-  const A = { id: "ua", book_id: "a", sort: 1, chapter: "PART 2", short: "STEP 2 ❷", page_start: 45, page_end: 45, q_count: 10, books: { name: "ㄱ책" } }, A2 = { ...A, id: "ua2", sort: 2, short: "STEP 2 ❸", page_start: 46, page_end: 46, q_count: 12 }, B = { id: "ub", book_id: "b", sort: 1, chapter: "UNIT 1", short: "1-1", books: { name: "ㄴ책" } };
+  const A = { id: "ua", book_id: "a", sort: 1, chapter: "PART 2", short: "STEP 2 ❷", page_start: 45, page_end: 45, q_count: 10, books: { name: "ㄱ책", area: "문법" } }, A2 = { ...A, id: "ua2", sort: 2, short: "STEP 2 ❸", page_start: 46, page_end: 46, q_count: 12 }, B = { id: "ub", book_id: "b", sort: 1, chapter: "UNIT 1", short: "1-1", books: { name: "ㄴ책", area: "독해" } };
   const rows = [
     { id: "1", item_id: "w", units: A, sort: 3, day_sheet: d1 },   // ㄱ책 · ❷ · 워크북(둘째 줄) · 13일
     { id: "2", item_id: "v", units: B, sort: 5, day_sheet: d1 },   // ㄴ책 · 13일
@@ -50,6 +51,15 @@ console.log("■ (어30)(어32) 줄 차례 · 교재 → 단원 → 활동(루�
   ok("단원 나무: 교재·대단원 → 단원(쪽·문항은 단원마다) → 활동 · [ㄱ책 PART 2: ❷ 4줄 · ❸ 1줄] [ㄴ책 UNIT 1: 1-1 1줄] [없음 1줄]", JSON.stringify(tree.map((ch) => [ch.book, ch.chapter, ch.units.map((g) => [g.unit?.short ?? null, g.rows.length])])) === JSON.stringify([["ㄱ책", "PART 2", [["STEP 2 ❷", 4], ["STEP 2 ❸", 1]]], ["ㄴ책", "UNIT 1", [["1-1", 1]]], [null, null, [[null, 1]]]]) && pagesText(tree[0].units[0].unit) === "p.45" && pagesText(tree[0].units[1].unit) === "p.46", JSON.stringify(tree.map((ch) => [ch.book, ch.chapter, ch.units.map((g) => [g.unit?.short ?? null, g.rows.length])])));
   ok("(어32) 단원 머리 아래 줄은 단원 글을 뺀다(itemSub unit:false · 「이번에 …」·메모만)", itemSub({ ...laid, range_note: "1-20번" }, { unit: false }) === "이번에 1-20번" && itemSub(laid, { unit: false }) === "" && itemSub(laid).includes("CHAPTER 1 › PSS 1-3"));
   const dayJs = readFileSync("lib/day.js", "utf8"), rowJs = readFileSync("app/today/row.js", "utf8");
-  ok("한 벌: lib/day.js 가 끌어올 때(notYetChecked · 검사한 줄까지 넣고 센다)와 판을 깎을 때(shape) 다 itemOrder · 읽기에 단원 글·sort · 01 검사 카드는 unitTree(교재·대단원 머리 hw-book · 단원 줄 hw-unit) · 학습·숙제 카드도 unitTree(unit-head · 활동 줄 li)", /return itemOrder\(\(h\.data \?\? \[\]\)\.filter\(\(x\) => !done\.has\(x\.id\)\), h\.data \?\? \[\]\)/.test(dayJs) && /check: itemOrder\(by\("check"\)\)/.test(dayJs) && (dayJs.match(/units\(id,book_id,chapter,page_start,page_end,q_count,label,short,sort,books\(name\)\)/g) ?? []).length === 2 && /unitTree\(sheet\.check\)/.test(rowJs) && /data-g="hw-book"/.test(rowJs) && /data-g="hw-unit"/.test(rowJs) && /const tree = unitTree\(rows\)/.test(rowJs) && /data-g="unit-head"/.test(rowJs) && !/bookGroups|checkOrder/.test(rowJs + dayJs)); }
+  ok("한 벌: lib/day.js 가 끌어올 때(notYetChecked · 검사한 줄까지 넣고 센다)와 판을 깎을 때(shape) 다 itemOrder · 읽기에 단원 글·sort · 01 검사 카드 · 학습·숙제 카드는 (어42) 나무 부품 ItemTree(제 손 머리 0)", /return itemOrder\(\(h\.data \?\? \[\]\)\.filter\(\(x\) => !done\.has\(x\.id\)\), h\.data \?\? \[\]\)/.test(dayJs) && /check: itemOrder\(by\("check"\)\)/.test(dayJs) && (dayJs.match(/units\(id,book_id,chapter,page_start,page_end,q_count,label,short,sort,books\(name,area\)\)/g) ?? []).length === 2 && /<ItemTree rows=\{sheet\.check\}/.test(rowJs) && /<ItemTree rows=\{rows\} book=\{false\}/.test(rowJs) && !/unitTree\(/.test(rowJs) && !/bookGroups|checkOrder/.test(rowJs + dayJs));
+  console.log("■ (어42) 항목 나무 한 벌 · 영역 › 📕 교재 › ▸ 단원 › 활동(원장님 9/15 「영역을 봐야 책을 보고 책을 봐야 단원을 보고 단원을 펼쳐봐야 항목검사를 할 거 아냐」)");
+  const f = itemForest(rows, all);
+  ok("나무: [문법 ㄱ책: PART 2(❷·❸)] [독해 ㄴ책: UNIT 1(1-1)] [그 밖에] · 영역·교재 마디 위에 unitTree 그대로", JSON.stringify(f.map((b) => [b.area, b.book, b.chapters.map((ch) => [ch.chapter, ch.units.map((g) => g.unit?.short ?? null)])])) === JSON.stringify([["문법", "ㄱ책", [["PART 2", ["STEP 2 ❷", "STEP 2 ❸"]]]], ["독해", "ㄴ책", [["UNIT 1", ["1-1"]]]], [null, null, [[null, [null]]]]]), JSON.stringify(f.map((b) => [b.area, b.book])));
+  ok("빈 목록 → 빈 나무 · 영역 없는 교재도 마디가 선다 · 원본은 안 건드린다", itemForest([]).length === 0 && itemForest([{ id: "x", units: { id: "u", chapter: "C", short: "s", books: { name: "책" } }, sort: 1 }])[0].book === "책" && rows[0].id === "1");
+  const treeJs = readFileSync("app/_shell/tree.js", "utf8"), users = src.filter(([, s]) => /<ItemTree\b/.test(s)).map(([p]) => p), uses = src.reduce((n, [, s]) => n + (s.match(/<ItemTree\b/g) ?? []).length, 0);
+  ok("부품 한 벌 app/_shell/tree.js · itemForest 로 · 영역 띠 data-area · 📕 교재(tree-book) · ▸ 단원은 details(tree-unit · 접기) · 머리 summary(tree-head) · 줄은 부르는 쪽(row)", /itemForest/.test(treeJs) && /data-area=/.test(treeJs) && /data-g="tree-book"/.test(treeJs) && /<details[^>]*data-g="tree-unit"/.test(treeJs) && /<summary[^>]*data-g="tree-head"/.test(treeJs) && /row\(it, i, g, ch\)/.test(treeJs));
+  ok(`소비처 ≥ 5(01 검사·학습·숙제 · 07 셋 · 09) · 지금 ${uses}곳 ${users.length}파일 · 01 에 제 손 단원 머리(hw-book · unit-head) 0`, uses >= 5 && ["app/today/row.js", "app/me/page.js", "app/parent/page.js"].every((p) => users.includes(p)) && !/hw-book|hw-unit|unit-block|unit-head|chapter-head/.test(rowJs), users.join(" · "));
+  const css = readFileSync("app/globals.css", "utf8");
+  ok("영역 색은 CSS 한 곳([data-area=…] --tr · 목업 CSS → globals) · 일곱 영역 다 있다 · 접힘 표시 ▸ 회전", AREA_NAMES.every((a) => css.includes(`[data-area="${a}"]{--tr:`)) && /\.tr\{border-left:4px solid var\(--tr/.test(css) && /\.tru\[open\]>summary \.ar/.test(css), AREA_NAMES.filter((a) => !css.includes(`[data-area="${a}"]{--tr:`)).join(",")); }
 console.log(`\n■ 항목 줄 글 검사 ${n}건 · 실패 ${bad}`);
 process.exit(bad ? 1 : 0);
