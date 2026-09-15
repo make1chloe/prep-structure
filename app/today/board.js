@@ -35,9 +35,9 @@ export function useOpen(id) { const { openId, setOpenId } = useContext(Ctx);
 /** 줄이 읽는 고르기(네모 하나) · 판 밖(고른 것 없음)이면 null */
 export function usePickCtx() { return useContext(Ctx).pick; }
 /** 반 머리((어31) · 원장님 2026-09-15 「오늘수업에서 반 이름 잘보이게 하고 반별 선택도 가능하게」) · 반 이름 크게(대시보드와 같은 classLabel 을 페이지가 준다) · 「반 전체」 네모는 그 반의 마감 안 한 줄만(줄 네모와 같은 셈 · 다른 반은 그대로) */
-export function ClassHead({ id = null, label, when = "", count = null, ids = [] }) {
+export function ClassHead({ id = null, label, count = null, ids = [] }) {   // label 에 시각까지 들어 있다(classLabel · 대시보드와 같은 글)
   const pk = usePickCtx();
   return <div className="wv" style={{ margin: "10px 0 6px" }} data-g="class-head" data-class={id ?? "makeup"}>
-    {pk && <PickGroup pick={pk} ids={ids} label="반 전체" />}<b style={{ fontSize: "var(--fs-5)" }}>🏫 {label}</b><span className="pill">{[when, count != null ? `${count}명` : ""].filter(Boolean).join(" · ")}</span>
+    {pk && <PickGroup pick={pk} ids={ids} label="반 전체" />}<b style={{ fontSize: "var(--fs-5)" }}>🏫 {label}</b>{count != null && <span className="pill">{count}명</span>}
   </div>;
 }

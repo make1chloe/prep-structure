@@ -46,7 +46,7 @@ export default async function Today({ searchParams }) {
       {r.classes.map((c) => { const abs = c.students.filter((s) => s.plan?.absent).length; return <span key={c.id ?? "makeup"} className="pill">{classLabel(c)} · {c.students.length}명{c.kind !== "makeup" ? ` · 결석 예정 ${abs ? `${abs}명` : "없음"}` : ""}</span>; })}
       {unchecked > 0 && <span className="pill warn">검사 안 본 것 {unchecked}</span>}</>}>{r.classes.map((c) => (
       <section key={c.id ?? "makeup"} aria-label={c.nickname || c.start}>
-        <ClassHead id={c.id ?? null} label={classLabel(c)} when={c.end ? `${c.start}~${c.end}` : (c.start ?? "")} count={c.students.length} ids={c.students.filter((s) => !s.sheet?.closed).map((s) => s.id)} />{/* (어31) 반 이름 크게 · 「반 전체」 네모(그 반의 마감 안 한 줄만) · 반이 하나여도 선다 */}
+        <ClassHead id={c.id ?? null} label={classLabel(c)} count={c.students.length} ids={c.students.filter((s) => !s.sheet?.closed).map((s) => s.id)} />{/* (어31) 반 이름 크게 · 「반 전체」 네모(그 반의 마감 안 한 줄만) · 반이 하나여도 선다 */}
         {!c.students.length && <div className="card"><p className="note">이 반에 오늘 오는 아이가 없습니다.</p></div>}
         {c.students.map((s) => <Row key={s.id} student={s} sheet={s.sheet} classId={c.id} classEnd={c.end} date={date} minutes={minutesOf(c.start, c.end)} cfg={cfg} future={future} pref={pref} prep={prepMap?.[s.id] ?? []} />)}
       </section>
